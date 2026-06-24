@@ -1,4 +1,5 @@
 'use strict';
+// step-0189 — 마스터 이양(guildTransfer·single-master 보존 쌍 거래): 0182 master 보호는 마스터를 *영구 고정*했다 — 마스터가 길드를 떠나거나 위임할 길이 없었다(0182 한계). 권위 이동의 정전 패턴(release+acquire 쌍 거래·SPINE §5 ③·존 핸드오프 0006·escrow 거래 0117 의 *마스터십* 판)을 길드에 적용한다: guildTransfer{guildId,from,to} → from 이 현재 master 이고 to 가 멤버일 때만 master 를 to 로 *원자 교체*(공백 0·이중 0). from 은 일반 멤버로 잔류(로스터 크기 불변). to 비-멤버·from 비-마스터면 no-op(거래 거부). 이양도 발행(kind 'transfer'·GuildFeed 는 무시=배지 불변)·저널(영속 replay 동일 적용). guildTransfer 미주입이면 0188 비트 동일(reg).
 // step-0186 — 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed): 0183 변경 발행은 가입/탈퇴 델타만 노출했다 — 길드 *현재 멤버 수*를 한눈에 보려는 소비자(길드 목록 UI·정원 체크)는 매번 로스터 질의를 해야 했다(0185 한계). 우편 MailFeed 0151·거래소 MarketFeed 0112 의 읽기 모델(발행 스트림 구독·발신 0·권위 0)을 길드에 적용한다: 새 박스 GuildFeed 가 svc.guild.changed 를 구독해 guildId 별 memberCount 배지를 유지(create=초기 로스터 크기·join +1·leave −1). 배지는 로스터 SSOT 와 독립한 *파생 읽기 모델*(CQRS). 정확한 배지를 위해 이 step 은 guildCreate 도 발행(kind 'create'·members) — changePublish ON 일 때만. guildFeed OFF·guild 부재면 박스 0 = 0185 비트 동일.
 // step-0185 — 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay): 0184 의 변경 저널은 *무계 성장*이라 가입/탈퇴가 누적될수록 replay 비용·메모리가 ∝변경 수다(0184 한계). 파티 0086(가방 0018·채팅 0022 동일)의 주기 스냅샷+tail replay 를 길드 저널에 적용한다: snapInterval 개 변경마다 현재 로스터 projection 을 스냅샷(upToSeq 기록)하고 그 이하 저널을 가지치기 → 저널은 *마지막 스냅샷 이후 tail* 만 보관(유계). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot(snapInterval 0) 면 압축 0·저널 무계 = 0184 비트 동일.
 // step-0184 — 길드 영속·failover(guildPersist·변경 저널 replay): 0183 까지 GuildService 의 로스터/마스터십은 *휘발*(in-memory)이라 박스 crash 시 결성·가입/탈퇴가 전부 소실됐다(영속 0·0183 한계). 파티 0085 의 event sourcing 을 길드에 적용한다: 로스터를 바꾸는 명령(create/join/leave)을 *변경 저널*(durable)에 append 하고, crash(RAM 소실) 후 fresh GuildService 가 그 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재구성한다 → 죽기 전과 비트 동일. projection(guilds)은 휘발, 저널은 durable. guildPersist OFF 면 저널 0·crash 후 reconstruct 해도 빈 로스터(소실) = 0183 비트 동일(저널 미기록·휴면).
@@ -26,6 +27,7 @@ class GuildService {
     this.changePublish = opts.changePublish || false;   // 멤버십 변경 발행(step-0183·guildChangePublish) — 가입/탈퇴를 svc.guild.changed 로. OFF·bus 부재면 발행 0(0182 동일).
     this.bus = opts.bus || null;        // 변경 발행 경로(구독자 주소 무지·은닉). null 이면 발행 못 함.
     this.published = 0;           // svc.guild.changed 발행 수(step-0183·계측). 실 변경과 1:1(no-op 발행 안 함).
+    this.transfers = 0;           // 처리한 guildTransfer 수(step-0189·계측·no-op 포함). 성사된 이양만 master 교체.
     this.persist = opts.persist || false;   // 로스터 영속(step-0184·guildPersist) — 변경 명령을 durable 저널에 기록·crash 후 replay 로 재구성. OFF 면 저널 0(0183 동일·휘발).
     this.journal = [];            // durable 변경 저널 [{seq, kind, guildId, master|member}] — projection(guilds)과 분리(crash 시 guilds 만 소실·저널은 영속). 파티 0085 변경 저널의 길드 판.
     this.jseq = 0;                // 저널 시퀀스(단조).
@@ -81,6 +83,17 @@ class GuildService {
       if (g && p.member !== g.master && g.members.includes(p.member)) { g.members = g.members.filter(x => x !== p.member); this._publishChange(p.guildId, 'leave', p.member); this._journalChange({ kind: 'leave', guildId: p.guildId, member: p.member }); }
       return;
     }
+    // 마스터 이양(step-0189·guildTransfer) — release+acquire 쌍 거래로 master 권위를 from→to 로 원자 교체. from 이 현재 master 이고 to 가 멤버일 때만 성사(아니면 거래 거부 no-op). from 은 멤버 잔류(로스터 크기 불변)·single-master 보존(공백 0·이중 0). 존 핸드오프 0006 의 마스터십 판.
+    if (p.type === 'guildTransfer') {
+      this.transfers++;
+      const g = this.guilds.get(p.guildId);
+      if (g && g.master === p.from && p.to !== p.from && g.members.includes(p.to)) {
+        g.master = p.to;   // 권위 단일 소유 이동 — from 은 members 에 잔류, to 가 새 master(이미 멤버).
+        if (this.changePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.changed', ev: { guildId: p.guildId, kind: 'transfer', member: p.to } }); this.published++; }
+        this._journalChange({ kind: 'transfer', guildId: p.guildId, master: p.to });
+      }
+      return;
+    }
     // 로스터 질의(읽기·request/reply) — 클라/라우터가 길드 로스터를 묻는다. 미존재 길드면 master null·빈 목록(graceful). 응답을 m.from 으로 회신.
     if (p.type === 'guildQuery') {
       this.queriesRx++;
@@ -104,6 +117,7 @@ class GuildService {
       if (e.kind === 'create') m.set(e.guildId, { master: e.master, members: this._normalize(e.master, e.members) });
       else if (e.kind === 'join') { const g = m.get(e.guildId); if (g && !g.members.includes(e.member)) g.members.push(e.member); }
       else if (e.kind === 'leave') { const g = m.get(e.guildId); if (g && e.member !== g.master && g.members.includes(e.member)) g.members = g.members.filter(x => x !== e.member); }
+      else if (e.kind === 'transfer') { const g = m.get(e.guildId); if (g && g.members.includes(e.master)) g.master = e.master; }   // step-0189 — 이양 replay(master 교체·로스터 불변).
     }
     this.guilds = m;
   }

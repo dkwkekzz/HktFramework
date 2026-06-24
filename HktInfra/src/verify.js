@@ -1,8 +1,8 @@
-// HktInfra step-0189 — 헤드리스 검증 (마스터 이양·guildTransfer·single-master 보존 쌍 거래)
+// HktInfra step-0190 — 헤드리스 검증 (길드 정합 capstone·rosterConsistent·single-master·arc 0181~0190 닫기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildtransfer`.
-//   더한 한 조각: guildTransfer{guildId,from,to} → from 이 master·to 가 멤버일 때만 master 원자 교체(release+acquire 쌍 거래). from 잔류·로스터 불변·single-master 보존. 거부 시 no-op. 존 핸드오프 0006 의 마스터십 판. 미주입이면 0188 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — guildTransfer 미주입 = 0188 비트 동일. ⒝ `guildtransfer`(가설) — 성사 이양 master 교체·from 잔류·로스터 불변·거부 no-op·single-master 보존·영속 replay 후 master 보존.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildcapstone`.
+//   더한 한 조각: rosterConsistent() = 전 길드 single-master 불변(공백 0·master∈members·중복 0). feedConsistent(0188)와 결합해 모든 연산(create/join/leave/transfer)·체제(정상·guild crash·feed crash)서 성립. 순수 읽기(권위 0) → 0189 비트 동일(reg). 거래소 0140·우편 0180 capstone 의 길드 판.
+//   검증: ⒜ `reg`(키트) — 0189 비트 동일. ⒝ `guildcapstone`(가설) — 풍부한 시나리오(가입/탈퇴/이양)×세 체제서 rosterConsistent AND feedConsistent true.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,39 +16,39 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
+const GJOIN = (at, guildId, member) => ({ at, op: { type: 'guildJoin', guildId, member } });
+const GLEAVE = (at, guildId, member) => ({ at, op: { type: 'guildLeave', guildId, member } });
 const GXFER = (at, guildId, from, to) => ({ at, op: { type: 'guildTransfer', guildId, from, to } });
-const COMMON = { clients: 4, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildChangePublish: true, guildPersist: true };
-// g1 master x·멤버 [x,c1,c2]. 이양 x→c1(성사)·c9 비멤버 이양(거부)·x 비마스터 이양(거부). 최종 master=c1·로스터 {x,c1,c2}.
+const COMMON = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildChangePublish: true, guildFeed: true, guildPersist: true, guildFeedPersist: true };
+// 풍부한 시나리오: 두 길드 결성·가입·탈퇴·마스터 이양(성사+거부 섞임).
 const OPS = [
-  GCREATE(2, 'g1', 'x', ['x', 'c1', 'c2']),
-  GXFER(4, 'g1', 'x', 'c1'),     // 성사: master x→c1.
-  GXFER(5, 'g1', 'c1', 'c9'),    // 거부: c9 비멤버(no-op).
-  GXFER(6, 'g1', 'x', 'c2'),     // 거부: x 더이상 master(no-op).
+  GCREATE(2, 'g1', 'x', ['x', 'c1']), GCREATE(3, 'g2', 'c4', ['c4', 'c6']),
+  GJOIN(5, 'g1', 'c2'), GJOIN(6, 'g1', 'c3'), GLEAVE(7, 'g1', 'c1'),
+  GXFER(8, 'g1', 'x', 'c2'),         // g1 master x→c2(성사).
+  GLEAVE(9, 'g1', 'c2'),             // 새 master c2 탈퇴 거부(master 보호·no-op).
+  GJOIN(10, 'g2', 'c5'), GXFER(11, 'g2', 'c4', 'c9'),   // g2 이양 거부(c9 비멤버).
 ];
 
-function guildtransfer(seeds) {
-  console.log('== guildtransfer: 마스터 이양(release+acquire 쌍 거래). 성사 시 master 원자 교체·from 잔류·로스터 불변·거부 no-op·single-master 보존. 존 핸드오프 0006 의 마스터십 판. ==');
-  console.log('seed   | transfers | 최종 master | from 잔류 | 로스터 | persist master | single-master | 판정');
+function guildcapstone(seeds) {
+  console.log('== guildcapstone: *capstone* — single-master 불변(rosterConsistent)+배지 정합(feedConsistent). 가입/탈퇴/이양 × 정상·guild crash·feed crash 세 체제. 거래소 0140·우편 0180 의 길드 판. arc 0181~0190 닫기. ==');
+  console.log('seed   | g1 master | g2 master | A 정상 | B guild crash | C feed crash | 3체제 정합 | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 10, ...COMMON, guildOps: OPS });
-    const g1 = r.guild.guilds.get('g1');
-    const masterOk = g1.master === 'c1';                     // x→c1 성사·이후 거부.
-    const fromStays = g1.members.includes('x');              // 옛 master x 멤버 잔류.
-    const rosterOk = g1.members.slice().sort().join(',') === 'c1,c2,x';   // 로스터 크기 불변(이양은 멤버 안 바꿈).
-    const singleMaster = g1.members.includes(g1.master) && new Set(g1.members).size === g1.members.length;
-    // 영속: 이양도 저널에 → crash→reconstruct 후 master 보존.
+    const r = run({ seed, ticks: 13, ...COMMON, guildOps: OPS });
+    const A = r.guild.rosterConsistent() && r.guildfeed.feedConsistent(r.guild);   // A 정상.
     r.guild.crash(); r.guild.reconstruct();
-    const persistOk = r.guild.guilds.get('g1').master === 'c1';
-    const ok =
-      check(masterOk && fromStays && rosterOk, `seed ${seed}: 이양 결과 어긋남 (master ${g1.master}·roster ${g1.members})`) &&
-      check(singleMaster, `seed ${seed}: single-master 위반`) &&
-      check(persistOk, `seed ${seed}: reconstruct 후 master 유실`);
-    console.log(`${pad(seed, 6)} | ${pad(r.guild.transfers, 9)} | ${pad(g1.master, 11)} | ${pad(fromStays ? '예' : '아니오', 9)} | ${pad(g1.members.slice().sort().join(','), 6)} | ${pad(persistOk ? 'c1' : '유실', 14)} | ${pad(singleMaster ? '예' : '아니오', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+    const B = r.guild.rosterConsistent() && r.guildfeed.feedConsistent(r.guild);   // B guild crash→reconstruct.
+    r.guildfeed.crash(); r.guildfeed.reconstruct();
+    const C = r.guild.rosterConsistent() && r.guildfeed.feedConsistent(r.guild);   // C feed crash→reconstruct.
+    const g1m = r.guild.masterOf('g1'), g2m = r.guild.masterOf('g2');
+    const shapeOk = g1m === 'c2' && g2m === 'c4';   // g1 이양 성사·g2 이양 거부.
+    const all3 = A && B && C && shapeOk;
+    const ok = check(all3, `seed ${seed}: capstone 위반 (A${A} B${B} C${C}·g1m ${g1m}·g2m ${g2m})`);
+    console.log(`${pad(seed, 6)} | ${pad(g1m, 9)} | ${pad(g2m, 9)} | ${pad(A ? '예' : '아니오', 6)} | ${pad(B ? '예' : '아니오', 13)} | ${pad(C ? '예' : '아니오', 12)} | ${pad(all3 ? '예(3/3)' : '아니오', 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 마스터 이양은 권위 이동의 정전 쌍 거래(release+acquire)다: from 이 현재 master·to 가 멤버일 때만 master 를 원자 교체(공백 0·이중 0). from 은 일반 멤버로 잔류해 로스터 크기 불변. 거부(to 비멤버·from 비마스터)는 no-op → single-master 불변(척추 ③) 항상 보존. 이양도 저널에 기록돼 crash→reconstruct 후 master 보존. 존 핸드오프 0006·escrow 0117 의 마스터십 판.');
+  console.log('  → 길드 박스 전체를 관통하는 척추 ③ 권위 단일 소유의 길드 불변: rosterConsistent(모든 길드 정확히 한 master·master∈members·중복 0) AND feedConsistent(배지==로스터·0188). 풍부한 연산(create/join/leave/transfer)·세 체제(정상·guild crash→reconstruct·feed crash→reconstruct) 모두서 성립 → 길드 박스가 어떤 연산·고장에도 single-master 를 깨지 않고 읽기 모델이 SSOT 와 갈라지지 않음을 증명. 거래소 0140·우편 0180 capstone 의 길드 판 — **guild arc(0181~0190) 닫힘**(SPINE 계층3 길드 박스 골격 완성).');
 }
 
-kit.MODES['guildtransfer'] = guildtransfer;
-kit.ORDER.splice(1, 0, 'guildtransfer');
+kit.MODES['guildcapstone'] = guildcapstone;
+kit.ORDER.splice(1, 0, 'guildcapstone');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
