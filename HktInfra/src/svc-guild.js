@@ -1,4 +1,5 @@
 'use strict';
+// step-0186 — 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed): 0183 변경 발행은 가입/탈퇴 델타만 노출했다 — 길드 *현재 멤버 수*를 한눈에 보려는 소비자(길드 목록 UI·정원 체크)는 매번 로스터 질의를 해야 했다(0185 한계). 우편 MailFeed 0151·거래소 MarketFeed 0112 의 읽기 모델(발행 스트림 구독·발신 0·권위 0)을 길드에 적용한다: 새 박스 GuildFeed 가 svc.guild.changed 를 구독해 guildId 별 memberCount 배지를 유지(create=초기 로스터 크기·join +1·leave −1). 배지는 로스터 SSOT 와 독립한 *파생 읽기 모델*(CQRS). 정확한 배지를 위해 이 step 은 guildCreate 도 발행(kind 'create'·members) — changePublish ON 일 때만. guildFeed OFF·guild 부재면 박스 0 = 0185 비트 동일.
 // step-0185 — 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay): 0184 의 변경 저널은 *무계 성장*이라 가입/탈퇴가 누적될수록 replay 비용·메모리가 ∝변경 수다(0184 한계). 파티 0086(가방 0018·채팅 0022 동일)의 주기 스냅샷+tail replay 를 길드 저널에 적용한다: snapInterval 개 변경마다 현재 로스터 projection 을 스냅샷(upToSeq 기록)하고 그 이하 저널을 가지치기 → 저널은 *마지막 스냅샷 이후 tail* 만 보관(유계). reconstruct 는 스냅샷에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot(snapInterval 0) 면 압축 0·저널 무계 = 0184 비트 동일.
 // step-0184 — 길드 영속·failover(guildPersist·변경 저널 replay): 0183 까지 GuildService 의 로스터/마스터십은 *휘발*(in-memory)이라 박스 crash 시 결성·가입/탈퇴가 전부 소실됐다(영속 0·0183 한계). 파티 0085 의 event sourcing 을 길드에 적용한다: 로스터를 바꾸는 명령(create/join/leave)을 *변경 저널*(durable)에 append 하고, crash(RAM 소실) 후 fresh GuildService 가 그 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재구성한다 → 죽기 전과 비트 동일. projection(guilds)은 휘발, 저널은 durable. guildPersist OFF 면 저널 0·crash 후 reconstruct 해도 빈 로스터(소실) = 0183 비트 동일(저널 미기록·휴면).
 // step-0183 — 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed): 0182 의 증분 가입/탈퇴는 *관측 불가*였다(누가 언제 들고 났는지 스트림 0·0182 한계). 실제 길드 변경은 다른 시스템(채팅 채널·배지·감사)이 구독해야 한다. 파티 0084 의 변경 발행을 길드에 적용한다: 실제 멤버십 변경(가입/탈퇴) 시 svc.guild.changed{guildId,kind,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. 변경 없는 no-op(중복 가입·없는 탈퇴·master 탈퇴 거부)은 발행 안 함(발행==실 변경). guildChangePublish OFF·bus 부재면 발행 0 = 0182 비트 동일(reg).
@@ -59,8 +60,12 @@ class GuildService {
     const p = m.payload;
     // 길드 결성/갱신(로스터 SSOT 쓰기) — guildId 의 master+멤버를 설정. 같은 guildId 재-create 면 덮어씀(단순 모델·후속 step 이 증분 가입/탈퇴로 정련). master 는 항상 멤버.
     if (p.type === 'guildCreate') {
-      this.guilds.set(p.guildId, { master: p.master, members: this._normalize(p.master, p.members) });
-      this.creates++; this._journalChange({ kind: 'create', guildId: p.guildId, master: p.master, members: this._normalize(p.master, p.members) }); return;
+      const mem = this._normalize(p.master, p.members);
+      this.guilds.set(p.guildId, { master: p.master, members: mem });
+      this.creates++; this._journalChange({ kind: 'create', guildId: p.guildId, master: p.master, members: mem });
+      // 배지 정확도(step-0186) — 결성 시 초기 로스터 크기를 발행(GuildFeed 가 memberCount 시드). changePublish OFF·bus 부재면 no-op(0185 동일).
+      if (this.changePublish && this.bus) { this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.changed', ev: { guildId: p.guildId, kind: 'create', members: mem.slice() } }); this.published++; }
+      return;
     }
     // 증분 가입(step-0182·guildJoin) — 한 멤버를 로스터에 추가(전체 덮어쓰기 대신 델타). 이미 멤버면 no-op(멱등). 미존재 길드면 graceful 무시(create 선결). 파티 0084 partyJoin 의 길드 판.
     if (p.type === 'guildJoin') {

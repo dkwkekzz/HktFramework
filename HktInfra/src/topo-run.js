@@ -59,6 +59,7 @@ function run(opts) {
   const mailfeed = map.get('mailfeed') || null;     // 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 구독 읽기 모델. OFF 면 null(0150 동일).
   const pservice = map.get('pservice') || null;     // 파티 멤버십 SSOT(step-0075·partyService) — 멤버십 보유. OFF 면 null(0074 동일).
   const guild = map.get('guild') || null;           // 길드(step-0181·GuildService) — 로스터+마스터십 SSOT. OFF 면 null(0180 동일).
+  const guildfeed = map.get('guildfeed') || null;   // 길드 멤버 수 배지(step-0186·GuildFeed) — svc.guild.changed 구독 읽기 모델. OFF 면 null(0185 동일).
   const mbox = map.get('mbox') || null;             // 귓속말 수신 박스(step-0076·whisperReceipt) — Mailbox. OFF 면 null(0075 동일).
   const mbox2 = map.get('mbox2') || null;           // 둘째 수신 박스(step-0096·mailbox2) — 멤버별 Mailbox. OFF 면 null(0095 동일).
   const persist = map.get('persist') || null;
@@ -246,7 +247,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════

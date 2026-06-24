@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0185](step-0185.md) — **길드 저널 스냅샷 압축**(guildSnapshot·snapshot+tail replay): snapInterval 개 변경마다 로스터 스냅샷+저널 가지치기(tail 유계)·reconstruct 는 스냅샷+tail replay == 전체 저널 == 죽기 전(무손실). 파티 0086 의 길드 판. 닿는 박스: svc-guild·topo-build.
-- **한 줄 상태**: reg ALL OK·guildsnap: full 8→tail 2·snapshots 2·snap digest==full 2f062538·spine OK.
-- **다음**: §2 — guild arc 0186~0190(멤버 배지·feed 영속·정합·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0171~0180 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0186](step-0186.md) — **길드 멤버 수 배지 읽기 모델**(guildFeed·GuildFeed·신규 박스): svc.guild.changed 구독(create=로스터 크기·join +1·leave −1)→guildId 별 memberCount 배지. 배지==로스터 SSOT 크기. create 도 발행(배지 정확도). 우편 MailFeed 0151 의 길드 판. 닿는 박스: 신규 svc-guildfeed·svc-guild·배선 5점.
+- **한 줄 상태**: reg ALL OK·guildfeed: g1 3·g2 2·total 5·배지==로스터·OFF 박스 0·spine OK.
+- **다음**: §2 — guild arc 0187~0190(feed 영속·정합 capstone·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0181~0190 묶음 리뷰 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) 박스 arc(0181~0190) 진행 중 = 파티(0075)+우편(0142~) 패턴 동형: 박스 분리(0181 ✅)·증분 가입/탈퇴(0182 ✅)·변경 발행(0183 ✅)·영속·failover(0184 ✅)·저널 스냅샷(0185 ✅·tail 유계). 다음: 멤버 배지 읽기 모델 GuildFeed(0186)·feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행 후보: *발행 게이트 통합*(거래소+우편 일원화)·*비동기 결정론*(🔴). 🔧 svc-mail-core 25KB. 🔎 0171~0180 묶음 리뷰 적기.**
+**길드(Guild) 박스 arc(0181~0190) = 파티(0075)+우편(0142~) 동형: 분리·증분·발행·영속·스냅샷·배지(0181~0186 ✅). 다음: feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행: 발행 게이트 통합·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 후속.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -36,7 +36,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속(동적구독·failover·무손실·lease·치유·대체활성화 ✅)** | 버스 | 단일 박스→동적구독/failover/무손실/lease/self-healing(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티 ✅·버스 ⬜)** | 서비스/데이터 | 가방/채팅/파티 저널+압축+write-behind(0017~0029·0085). 버스 라우팅 영속 0. |
-| 🟡 | **거래소 ✅(0107~0140)·우편 ✅(0142~0180)·랭킹/읽기모델 ✅·길드 🟡(0181~)** | 서비스 | 거래소·우편 동형(escrow/발행/saga liveness). 길드 박스 분리(0181·로스터+마스터십 SSOT)→arc 0182~0190. 발행 게이트 통합 후속. |
+| 🟡 | **거래소·우편·랭킹/읽기모델 ✅·길드 🟡(0181~)** | 서비스 | 거래소(0107~0140)·우편(0142~0180) 동형. 길드 박스(0181~·로스터/마스터십·증분/발행/영속/스냅샷/배지). 발행 게이트 통합 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅·월드/fsync ⬜)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -277,3 +277,4 @@
 | [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed·파티 0084 길드 판) | 통과 · published 3==audit 3==실변경·OFF 0 |
 | [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay·파티 0085 길드 판) | 통과 · crash→reconstruct pre==post·OFF 소실 |
 | [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay·파티 0086 길드 판) | 통과 · full 8→tail 2·snap==full 무손실 |
+| [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed·우편 MailFeed 0151 길드 판) | 통과 · g1 3·g2 2·배지==로스터·OFF 0 |
