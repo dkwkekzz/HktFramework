@@ -1,8 +1,8 @@
-// HktInfra step-0226 — 헤드리스 검증 (캐시 recency touch·cacheLruTouch·진짜 LRU)
+// HktInfra step-0227 — 헤드리스 검증 (월드 영속 write-behind 버퍼·worldBuffer/worldFlush)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `cachetouch`.
-//   더한 한 조각: cacheLruTouch{on} → get hit 시 recency(setAt) 갱신(진짜 LRU·핫 키 생존). OFF 면 0225 비트 동일(reg). 3차 고도화 캐시 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `cachetouch`(가설) — touch ON·cap 2·k1·k2 set·get k1(touch)·k3 set → k2 회수(k1 생존, 0225 와 반대).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldwb`.
+//   더한 한 조각: worldBuffer{intent}→버퍼(비-durable), worldFlush→버퍼를 durable 로그에 일괄 적층(쓰기 지연·배치). 미flush 분은 로그에 없음(crash 윈도). 미주입 → 0226 비트 동일(reg). 3차 고도화 월드영속 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `worldwb`(가설) — 2 intent 버퍼→flush→로그 2·버퍼 0, 추가 1 버퍼→로그 불변·replay 가 미flush 분 미반영.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,34 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const TOUCH = (at, on) => ({ at, op: { type: 'cacheLruTouch', on } });
-const CAP = (at, cap) => ({ at, op: { type: 'cacheCapacity', cap } });
-const SET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
-const GET = (at, key) => ({ at, op: { type: 'cacheGet', key } });
-// touch ON·cap 2 → k1·k2 set → get k1(recency 갱신) → k3 set → 가장 오래된 k2 회수(k1 생존·0225 면 k1 회수됐을 것).
+const BUF = (at, intent) => ({ at, op: { type: 'worldBuffer', intent } });
+const FLUSH = (at) => ({ at, op: { type: 'worldFlush' } });
+// e1·e2 move 버퍼링 → flush(로그 2·버퍼 0) → e1 pickup gold 버퍼(미flush) → 로그 2 불변·replay 가 gold 미반영.
 const OPS = [
-  TOUCH(1, true), CAP(2, 2),
-  SET(3, 'k1', 'v1'), SET(4, 'k2', 'v2'),
-  GET(5, 'k1'),
-  SET(6, 'k3', 'v3'),
+  BUF(1, { e: 'e1', kind: 'move', to: 11 }), BUF(2, { e: 'e2', kind: 'move', to: 22 }),
+  FLUSH(3),
+  BUF(4, { e: 'e1', kind: 'pickup', item: 'gold' }),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, cacheService: true, cacheOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
 
-function cachetouch(seeds) {
-  console.log('== cachetouch: 캐시 recency touch(cacheLruTouch) — lruTouch ON 이면 get *hit* 시 recency(setAt)를 now 로 갱신 → 자주 읽는 핫 키가 회수에서 살아남는다(진짜 LRU = set+get 둘 다 recency). 0225 는 set-시각만(FIFO 에 가까움). get k1 후 k3 가 들어오면 0225 면 k1, 0226(touch) 면 k2 가 회수된다. 3차 고도화 캐시 #2. ==');
-  console.log('seed   | k1   | k2   | k3   | touch | 판정');
+function worldwb(seeds) {
+  console.log('== worldwb: 월드 영속 write-behind 버퍼(worldBuffer/worldFlush) — intent 를 버퍼에 모았다 flush 로 durable 로그에 일괄 적층(쓰기 지연·배치·매 intent 디스크 안 때림=신성한 tick 보호). flush 전(버퍼)은 비-durable — crash 시 소실(write-behind 의 본질적 윈도). 3차 고도화 월드영속 #1. ==');
+  console.log('seed   | 로그 | 버퍼 | flushed | e1 gold | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const c = r.cache;
-    // touch ON: get k1 후 k3 set 시 가장 오래된 k2 회수 → k1 생존(0225 면 k1 이 회수됐을 것·진짜 LRU 증명)·touches 1·capEvicted 1.
-    const ok = check(c.has('k1') && !c.has('k2') && c.has('k3') && c.touches === 1 && c.capEvicted === 1,
-      `seed ${seed}: touch LRU 위반 (k1 ${c.has('k1')}·k2 ${c.has('k2')}·touches ${c.touches})`);
-    console.log(`${pad(seed, 6)} | ${pad(c.has('k1') ? 'live' : 'evic', 4)} | ${pad(c.has('k2') ? 'live' : 'evic', 4)} | ${pad(c.has('k3') ? 'live' : '-', 4)} | ${pad(c.touches, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const w = r.worldlog;
+    w.replay();                                   // durable 로그만 재구성(미flush 버퍼 제외).
+    const e1 = w.stateOf('e1');
+    const gold = !!(e1 && e1.items.includes('gold'));
+    // flush 로 로그 2·버퍼 0·flushed 2 → 추가 pickup 은 버퍼(1)만(미flush) → 로그 2 불변·replay 에 gold 없음(비-durable).
+    const ok = check(w.length() === 2 && w.bufferLength() === 1 && w.flushed === 2 && !gold && e1 && e1.pos === 11,
+      `seed ${seed}: write-behind 위반 (로그 ${w.length()}·버퍼 ${w.bufferLength()}·flushed ${w.flushed}·gold ${gold})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.length(), 4)} | ${pad(w.bufferLength(), 4)} | ${pad(w.flushed, 7)} | ${pad(gold ? 'yes' : 'no', 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → touch ON 에서 k1 을 한 번 읽고(touches 1) k3 를 넣으면 회수되는 건 k2(가장 오래 *안 쓴* 키)이고 k1 은 생존한다 — 0225(set-시각만) 라면 가장 먼저 set 된 k1 이 회수됐을 것. get 도 recency 에 반영하는 진짜 LRU 로, 읽기 트래픽 많은 핫 키를 캐시가 지킨다. 캐시 3차 고도화 #2.');
+  console.log('  → 2 intent 를 버퍼링 후 flush 하면 durable 로그 2·버퍼 0(배치 쓰기). 그 뒤 pickup gold 는 버퍼(1)에만 남아(미flush) durable 로그는 2로 불변, replay 에도 gold 미반영 — flush 안 된 분은 비-durable(crash 윈도). 쓰기를 지연·배치해 매 intent 가 디스크를 안 때린다. 월드영속 3차 고도화 #1.');
 }
 
-kit.MODES['cachetouch'] = cachetouch;
-kit.ORDER.splice(1, 0, 'cachetouch');
+kit.MODES['worldwb'] = worldwb;
+kit.ORDER.splice(1, 0, 'worldwb');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

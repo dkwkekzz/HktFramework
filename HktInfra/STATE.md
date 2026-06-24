@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0226](step-0226.md) — **캐시 recency touch**: `cacheLruTouch{on}`→get hit 시 recency(setAt) 갱신→핫 키 생존(진짜 LRU·0225 set-시각만이라 FIFO 에 가까웠다). OFF→0225 비트 동일. **3차 고도화 캐시 #2**. 닿는 박스: cache.
-- **한 줄 상태**: reg ALL OK·cachetouch: 5/5 get k1 후 k2 회수·k1 생존·touches 1·spine ALL OK.
-- **다음**: 🎯 **3차 균형 라운드 진행 중**(0221~0230). 인스턴스✅·오케✅·캐시✅. 다음: 0227 월드영속 write-behind 버퍼(worldBuffer/worldFlush·intent 버퍼링→일괄 적층).
+- **닫힌 step**: [step-0227](step-0227.md) — **월드영속 write-behind 버퍼**: `worldBuffer{intent}`→버퍼(비-durable), `worldFlush`→durable 로그 일괄 적층(쓰기 지연·배치·tick 밖 I/O). 미flush 분=crash 윈도. 미주입→0226 비트 동일. **3차 고도화 월드영속 #1**. 닿는 박스: worldlog.
+- **한 줄 상태**: reg ALL OK·worldwb: 5/5 버퍼 2→flush→로그 2·미flush 1 비-durable·spine ALL OK.
+- **다음**: 🎯 **3차 균형 라운드 진행 중**(0221~0230). 인스턴스✅·오케✅·캐시✅. 다음: 0228 월드영속 fsync durable barrier(worldFsync·durableSeq·recoverDurable ≤durableSeq).
 
 ---
 
@@ -23,7 +23,7 @@
 1. **인스턴스(던전) 서버** (계층2) — ✅ 이탈(0221·occupancy 감소·release)+✅ 수요 자동 despawn(0222·active>target 회수·점유 보호).
 2. **오케스트레이터** (계층5) — ✅ 부하 재배치 자동 트리거(0223·불균형≥2 자동 균형)+✅ host 드레인(0224·퇴역 안전 이주).
 3. **캐시 박스** (계층6) — ✅ 용량 LRU 회수(0225·개수 유계)+✅ recency touch(0226·진짜 LRU).
-4. **월드 영속** (계층6) — ⬜ write-behind 버퍼(0227)+fsync durable barrier(0228).
+4. **월드 영속** (계층6) — ✅ write-behind 버퍼(0227·쓰기 지연 배치)+⬜ fsync durable barrier(0228).
 5. **로그인 큐·티켓** (계층1) — ⬜ 계정 검증(0229)+큐 이탈(0230·라운드 닫기).
 
 **4차/후속 백로그 (블로킹 🔴 제외)**: 위 5박스 추가 심화(실 존 연동·복제 anti-entropy·자동 트리거 정교화) + 신규 5박스 멀티프로세스 배선(#9)·spine 승급(#16·신규 bespoke 모드 누적 회귀로) + 길드 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
@@ -84,7 +84,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214·스냅샷 arc 닫기)**. fsync·버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227·쓰기 지연 배치)**. fsync·버스 영속 후속 |
 
 ---
 
@@ -232,3 +232,4 @@
 | [0224](step-0224.md) | 오케 host 드레인(placeDrain·퇴역 host 모든 존 나머지 최소부하로 이주·release+acquire 연쇄·드레인 후 부하 0·3차 고도화 오케 #2) | 통과 · A2→A0·B2·C2·moves 2 |
 | [0225](step-0225.md) | 캐시 용량 LRU 회수(cacheCapacity·키 수 상한·size>cap 면 setAt 최소 키 회수·개수 유계·0211 시간 유계 짝·allkeys-lru 더미·3차 고도화 캐시 #1) | 통과 · cap 2·k1 회수·size 2·evic 1 |
 | [0226](step-0226.md) | 캐시 recency touch(cacheLruTouch·get hit 시 setAt 갱신→핫 키 생존·진짜 LRU·0225 set-시각만의 보완·3차 고도화 캐시 #2) | 통과 · get k1 후 k2 회수·k1 생존·touches 1 |
+| [0227](step-0227.md) | 월드영속 write-behind 버퍼(worldBuffer/worldFlush·intent 버퍼링→durable 로그 일괄 적층·쓰기 지연 배치·미flush=비-durable crash 윈도·3차 고도화 월드영속 #1) | 통과 · 버퍼 2→flush 로그 2·미flush 1 비-durable |
