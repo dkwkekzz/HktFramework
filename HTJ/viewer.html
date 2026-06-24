@@ -1252,6 +1252,59 @@
         for (const e of es) e.peak = e.anchored ? 0.12 : Math.max(0.15, Math.min(1, ((e.cz - topZ) - hmin) / (hmax - hmin + 1e-9)));
       },
       note: '<b>펼쳐진 연속 지형(여러 봉우리·계곡)이 만들어지고, 그 위에 대량 구체가 떨어져 표면에 정착·계곡에 모인다</b> — "이게 지형이다". <b>▶ 무엇</b>(design/environment.md §3 TW1): 0056~0058 로 딛는 지형의 <b>물리</b>(정착·마찰·구름 저항=안식각)는 섰지만, 보여줄 <b>지형 그 자체</b>는 author 한 구 2~3 개뿐이었다. 이 step 은 그것을 <b>펼쳐진 연속 지형</b>으로 키운다(새 엔진 법칙 0 = 중력·접촉·마찰·구름 저항 *조립* 장면). <b>골격</b>: 큰 바닥 구(중력원·구체를 가둠) 위에 <b>높이장</b>(사인 합)으로 얹은 <b>봉우리 앵커 카펫</b> — 여러 봉우리·계곡의 연속 표면(seed·environment §2 "큰 골격은 author"). <b>창발</b>: 그 위에 대량 구체가 떨어져 → 접촉(0037)으로 표면에 <b>정착</b>(딛기) → 마찰(0057)+구름 저항(0058)이 미끄럼·구름을 잡되, <b>봉우리(높은 데)서 굴러내려 계곡(낮은 데)에 모인다</b>(색=높이, 봉우리=노랑·계곡=파랑). 정착 구체 평균 지형높이 &lt;0 = <b>계곡 선호</b>(물·흙·돌이 낮은 데로 모이는 자연 거동). <b>왜 중요한가</b>: 지형의 큰 골격은 seed 하되, 그 위 <b>거동(정착·굴러내림·계곡 모임)은 구체 법칙이 굴러간 결과로 창발</b>한다 = "법칙은 author·구조는 창발"(environment §2 층위 하이브리드). 비로소 <b>딛고 다닐 펼쳐진 땅</b>의 첫 장면. <b>정직한 한계</b>: 봉우리 골격은 손수 배치한 높이장(절차 생성/무한 광활 아님)·바닥 구 방사 중력으로 국소 평지 근사(진짜 평지 아님)·아직 <b>작은 패치 규모</b>(km 지형·끝없이 펼침 = 스케일 분리는 TW4 LOD 의 몫)·지형은 정적 앵커(깎임·침식 없음). 다음 환경 벽돌: 바다 TW2(분지를 SPH 떼로 채워 수면)·강 TW3(경사 따라 흐름)·광활 LOD TW4.'
+    },
+
+    // ── step_0060 — TW2 바다: 물(SPH 입자)이 지형 분지에 고여 수평 수면(environment.md §3 TW2) ──
+    //   새 엔진 법칙 sphBoundaryForce(물↔정적 지형 앵커 경계). 물이 지형을 통과하지 않고 분지에 갇혀,
+    //   중력(아래)+SPH 압력(0041)이 물을 *수평 표면(등z)*으로 가라앉힌다. 지형=정적 앵커(0056/0059).
+    '0060': {
+      label: 'step_0060 — TW2 바다(물이 분지에 고여 수평 수면)', title: 'HTJ — TW2 바다: 물(SPH 입자)이 지형 분지에 고여 수평 수면을 이룬다',
+      sub: '물(SPH 입자 떼)이 지형(정적 앵커) 분지에 떨어져 — 새 경계 법칙 sphBoundaryForce 로 지형을 통과하지 않고 갇히고, 중력(아래)+SPH 압력(0041)이 물을 수평 표면(등z·등퍼텐셜)으로 가라앉힌다. 환경 트랙 TW2. 보존: 질량·낙하 KE→열 소산·앵커=무한질량 외부 경계',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 1.4, rimR = N * 0.30, hillR = N * 0.085, BR = N * 3;
+        const topZ = cen + N * 0.10;                                   // 분지 바닥 표면(화면 가운데쯤)
+        const floor = { cx: cen, cy: cen, cz: topZ - Rf, mass: 1e9, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: Rf, temp: 0, peak: 0.1 };
+        // 보이는 분화구 테(rim) = 링 앵커(우물 벽 느낌·렌더+경계).
+        const rim = [], NR = 14;
+        for (let i = 0; i < NR; i++) { const a = i / NR * 2 * Math.PI;
+          rim.push({ cx: cen + Math.cos(a) * rimR, cy: cen + Math.sin(a) * rimR, cz: topZ + hillR * 0.5, mass: 1e9, px: 0, py: 0, pz: 0,
+            Lx: 0, Ly: 0, Lz: 0, KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: hillR, temp: 0, peak: 0.08 }); }
+        // 진짜 가둠 = 큰 벽 구 4개(표면만 우물 경계·중심은 화면 밖 → 렌더 안 함·경계 물리만).
+        const walls = [
+          { cx: cen - (BR + rimR), cy: cen, cz: topZ, mass: 1e9, radius: BR }, { cx: cen + (BR + rimR), cy: cen, cz: topZ, mass: 1e9, radius: BR },
+          { cx: cen, cy: cen - (BR + rimR), cz: topZ, mass: 1e9, radius: BR }, { cx: cen, cy: cen + (BR + rimR), cz: topZ, mass: 1e9, radius: BR },
+        ];
+        // 물 = SPH 입자 떼(분지 위에 쏟아 붓는다).
+        let seed = 12345; const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        const water = [], n = Math.round(N * N * 0.16), wr = N * 0.035;
+        for (let i = 0; i < n; i++) water.push({ cx: cen + (rnd() - 0.5) * rimR * 1.6, cy: cen + (rnd() - 0.5) * rimR * 1.6, cz: topZ + N * 0.22 + rnd() * N * 0.40,
+          mass: 1, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0, KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: wr, temp: 0, peak: 0.5 });
+        w.__water = water;
+        w.__terrain = [floor].concat(rim, walls);                     // 경계 물리(앵커는 읽기만)
+        w.__entities = [floor].concat(rim, water);                    // 렌더(큰 벽 구는 화면 밖이라 제외)
+        w.__topZ = topZ; w.__N = N;
+        const h = N * 0.09;
+        w.__popt = { stiffness: N * 2, h, gamma: 2 }; w.__vopt = { alpha: 1.5, beta: 2, h, gamma: 2 };
+        w.__bopt = { stiffness: N * 4, damp: N * 0.8, skin: N * 0.025 }; w.__grav = N * 0.012;
+      },
+      advance(w) {
+        if (!w.__water) return;
+        const wat = w.__water;
+        HTJSPH.sphPressureForce(wat, 0.12, w.__popt);                 // 물↔물 압력(퍼짐·0041)
+        HTJSPH.sphViscosity(wat, 0.12, w.__vopt);                    // 슬로싱 소산(정착·0046)
+        for (const p of wat) p.pz -= p.mass * w.__grav * 0.12;        // 균일 중력(아래·분지가 가둠)
+        HTJSPH.sphBoundaryForce(wat, w.__terrain, 0.12, w.__bopt);    // 물↔지형 경계(이 step)
+        HTJEntity.stepEntities(wat, 0.12);                            // 위치 적분
+        // 색 = 깊이(표층=밝은 파랑·바닥=어두움) → 수면이 드러난다. 지형은 어둡게 고정.
+        const topZ = w.__topZ; let zmin = 1e9, zmax = -1e9;
+        for (const p of wat) { if (p.cz < zmin) zmin = p.cz; if (p.cz > zmax) zmax = p.cz; }
+        for (const p of wat) p.peak = 0.35 + 0.55 * (p.cz - zmin) / (zmax - zmin + 1e-9);
+      },
+      note: '<b>물(SPH 입자 떼)이 지형 분지에 떨어져 고여 *수평 수면*을 이룬다</b> — 환경 트랙 TW2(바다). <b>▶ 무엇</b>(design/environment.md §3 TW2): 0026~ 동역학·0040~ SPH 물리 스택(밀도·압력·점성…)은 섰지만, <b>물이 *지형*(정적 앵커·0056/0059)을 느끼는 결합</b>이 없어 물이 지형을 그냥 통과했다. 이 step 의 <b>새 엔진 법칙 sphBoundaryForce</b> 가 그 *유일하게 빠진 벽돌* = <b>SPH↔앵커 경계</b>: 물 입자가 앵커 구 표면 안으로 파고들면 <b>바깥으로 반발</b>(Hooke)하고, 파고드는 법선 운동은 <b>감쇠→열</b>(낙하 KE 가 식음). <b>창발</b>: 그러면 <b>중력</b>(아래)+<b>SPH 압력</b>(0041·물끼리 밀어 퍼짐)이 물을 분지(바닥+테 앵커) 안에 <b>고여 수평 표면(등z=등퍼텐셜)</b>으로 평형시킨다 — author 한 건 분지 골격뿐, *수면이 평평해지는 건 법칙이 굴러간 결과*. <b>왜 중요한가</b>: "선 캐릭터=중력↓+접촉↑"의 <b>접촉</b>을 고체(0037)에서 <b>유체(물)</b>로 옮긴 것 — 지형 위에 비로소 <b>물</b>이 얹힌다(딛는 땅 다음 = 바다·호수). <b>앵커=무한 질량 외부 경계</b>(environment §1·0056 정신): 충격을 흡수하고 위치 불변(지구처럼) → 물의 운동량은 그 경계로 빠진다(닫힌계의 *예외 아닌 극한*). <b>보존</b>: 질량 불변·낙하 KE→internalE(열) 비가역 소산(엔트로피↑)·앵커 표면 밖 입자=완전 불변(항등). <b>정직한 한계</b>: 분지 골격은 손수 배치(절차 생성 아님)·작은 패치 규모(끝없는 바다 = TW4 LOD)·물↔지형 일방 결합(지형 정적·침식/깎임 없음)·SPH 표면이 입자 스케일로 울퉁(연속 수면 근사). 다음 환경 벽돌: 강 TW3(경사 따라 흐름·경로 창발)·광활 LOD TW4.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
