@@ -1,8 +1,8 @@
-// HktInfra step-0221 — 헤드리스 검증 (인스턴스 플레이어 이탈·instanceLeave·3차 균형 라운드 시작)
+// HktInfra step-0222 — 헤드리스 검증 (인스턴스 수요 자동 despawn·instanceReap)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instanceleave`.
-//   더한 한 조각: instanceLeave{player} → 배정된 player 의 route 해제(occupancy 감소·권위 release·0216 acquire 짝). 미배정 player 는 멱등 no-op(leaveMisses). 미주입 → 0220 비트 동일(reg). 3차 고도화 인스턴스 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `instanceleave`(가설) — spawn+route 후 배정 player 이탈 → occupancy 감소·route null / 미배정 player 이탈 → miss.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `instancereap`.
+//   더한 한 조각: instanceReap{kind,target} → active(kind)>target 면 빈(occupancy 0) 인스턴스 부족분 자동 회수(탄력 축소·0215 거울). 점유 인스턴스 보호. 미주입 → 0221 비트 동일(reg). 3차 고도화 인스턴스 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `instancereap`(가설) — demand 4 spawn → 1개 점유 → reap target 1 → 빈 3개 회수·점유 1개 생존.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,33 +15,32 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const SPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
+const DEMAND = (at, kind, target) => ({ at, op: { type: 'instanceDemand', kind, target } });
 const ROUTE = (at, player, instanceId) => ({ at, op: { type: 'instanceRoute', player, instanceId } });
-const LEAVE = (at, player) => ({ at, op: { type: 'instanceLeave', player } });
-// d1 spawn → p1·p2 를 d1 에 배정 → p1 이탈(occupancy 2→1·route null) → pX(미배정) 이탈(miss).
+const REAP = (at, kind, target) => ({ at, op: { type: 'instanceReap', kind, target } });
+// demand 4 dungeon spawn(auto-1..4) → p1 을 auto-1 에 배정(점유) → reap target 1 → 빈 auto-2..4 회수·점유 auto-1 생존.
 const OPS = [
-  SPAWN(1, 'd1', 'dungeon'),
-  ROUTE(2, 'p1', 'd1'), ROUTE(3, 'p2', 'd1'),
-  LEAVE(4, 'p1'),
-  LEAVE(5, 'pX'),
+  DEMAND(1, 'dungeon', 4),
+  ROUTE(2, 'p1', 'dungeon-auto-1'),
+  REAP(3, 'dungeon', 1),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: OPS };
 
-function instanceleave(seeds) {
-  console.log('== instanceleave: 인스턴스 플레이어 이탈(instanceLeave) — 배정된 player 가 인스턴스를 떠나면 route 해제(occupancy 감소·권위 release·0216 acquire 짝·던전 퇴장). 미배정 player 는 멱등 no-op. 비운 인스턴스는 0222 수요 자동 despawn 의 회수 대상. 3차 고도화 인스턴스 #1·균형 라운드 시작. ==');
-  console.log('seed   | d1 occ | p1 route | left | misses | 판정');
+function instancereap(seeds) {
+  console.log('== instancereap: 인스턴스 수요 자동 despawn(instanceReap) — active(kind)>target 면 빈(occupancy 0) 인스턴스를 부족분만큼 자동 회수(탄력 축소·0215 수요 spawn 의 거울). 점유 인스턴스는 보호(플레이어 안 쫓음). 결정론 회수 순서. 3차 고도화 인스턴스 #2. ==');
+  console.log('seed   | active | reaped | auto-1 | auto-2 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
     const inst = r.instance;
-    // p1·p2 배정 후 p1 이탈 → d1 occupancy 1(p2 만)·p1 route null·left 1·미배정 pX 이탈 leaveMisses 1·routedCount 1.
-    const ok = check(inst.occupancyOf('d1') === 1 && inst.instanceOf('p1') === null && inst.instanceOf('p2') === 'd1' && inst.left === 1 && inst.leaveMisses === 1 && inst.routedCount() === 1,
-      `seed ${seed}: 이탈 위반 (d1 occ ${inst.occupancyOf('d1')}·p1 ${inst.instanceOf('p1')}·left ${inst.left}·misses ${inst.leaveMisses})`);
-    console.log(`${pad(seed, 6)} | ${pad(inst.occupancyOf('d1'), 6)} | ${pad(inst.instanceOf('p1') || '-', 8)} | ${pad(inst.left, 4)} | ${pad(inst.leaveMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    // demand 4 → reap target 1: 점유된 auto-1 생존·빈 auto-2/3/4 회수(reaped 3·active 1).
+    const ok = check(inst.activeCount() === 1 && inst.reaped === 3 && inst.isActive('dungeon-auto-1') && !inst.isActive('dungeon-auto-2') && inst.occupancyOf('dungeon-auto-1') === 1,
+      `seed ${seed}: reap 위반 (active ${inst.activeCount()}·reaped ${inst.reaped}·auto-1 ${inst.isActive('dungeon-auto-1')})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.activeCount(), 6)} | ${pad(inst.reaped, 6)} | ${pad(inst.isActive('dungeon-auto-1') ? 'live' : '-', 6)} | ${pad(inst.isActive('dungeon-auto-2') ? 'live' : 'reap', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 배정 player(p1) 이탈은 route 를 해제해 occupancy 가 2→1 로 줄고(권위 release·d1 엔 p2 만 남음), 미배정 player(pX) 이탈은 멱등 no-op(leaveMisses 1). 비운 자리는 0222 수요 자동 despawn 회수 대상 — 던전 수명주기의 축소 절반. 인스턴스 3차 고도화 #1.');
+  console.log('  → 수요 4로 띄운 던전 중 점유된 auto-1 은 보호되고 빈 auto-2/3/4 만 회수(reaped 3·active 1) — 수요 하락 시 빈 인스턴스를 탄력 축소(0215 spawn 의 거울)하되 플레이어를 쫓지 않는다. 던전 수명주기 회수 절반 완성. 인스턴스 3차 고도화 #2.');
 }
 
-kit.MODES['instanceleave'] = instanceleave;
-kit.ORDER.splice(1, 0, 'instanceleave');
+kit.MODES['instancereap'] = instancereap;
+kit.ORDER.splice(1, 0, 'instancereap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
