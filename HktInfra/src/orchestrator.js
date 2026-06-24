@@ -1,4 +1,14 @@
 'use strict';
+// step-0250 — 배치 SSOT 실배선(#51) 10: placeQuery 가 executed 실 가동 host 회신. 0204 배치 질의는 결정(placement)만 회신했다 — 이제 reply 에 *실 가동 host*(running)도 실어, 게이트웨이가 존이 *실제로 도는 곳*으로 라우팅한다(결정만이 아니라 집행 위치까지 읽기). reply 에 running 필드 추가(읽기 전용·placeQuery 미수신이면 0249 비트 동일·reg 0). executed 배치 SSOT 의 읽기 경로 완성(0241~0250 decade 닫기).
+// step-0249 — 배치 SSOT 실배선(#51) 9: 전 lifecycle 집행 capstone. `runningHosts()` 질의(현재 존을 돌리는 *가동 중 host* 집합·운영 대시보드). 한 혼합 시퀀스(start→auto→rebalance→migrate→stop→hostdown→auto)가 전 op 를 거쳐도 매번 결정(placement)==집행(running)·drift 0·한 존 정확히 한 host(공백/중복 0)를 단언 — executed 배치 SSOT arc(0241~0249) 닫기. 읽기 질의 1개·OFF→0248 비트 동일(reg 0).
+// step-0248 — 배치 SSOT 실배선(#51) 8: host 장애 복구(placeHostDown). host 가 *비자발적*으로 죽으면(드레인=계획 퇴역과 달리) 그 host 의 모든 존 런타임이 소실 → 살아남은 host 중 최소부하로 *재가동(re-acquire)*. 죽은 host 는 release 불가(이미 죽음)이므로 graceful migrate 가 아니라 running 단일 키 재배치(공백 없이 한 존 정확히 한 host 회복). 복구 후 죽은 host running 0·drift 0. placeHostDown 미수신이면 0247 비트 동일(reg 0).
+// step-0247 — 배치 SSOT 실배선(#51) 7: executed placeAuto. 부하 기반 자동 배치(placeAuto)가 placeExecute ON 이면 최소부하 host 선택 + paper placement 갱신에 더해 실 존 런타임도 그 host 에 가동(_start). 0217 advisory 자동 배치의 집행 판. OFF→0246 비트 동일(reg 0).
+// step-0246 — 배치 SSOT 실배선(#51) 6: executed placeStop. placeStop{zoneId} → 존을 운영 퇴역: 결정(placement)에서 제거 + placeExecute ON 이면 실 존 런타임도 종료(running 제거·instance.js _despawn 의 존 판). 없는 존은 멱등 no-op. 드레인(host 전체 이주)과 달리 *그 존 자체를 내린다*. placeStop 미수신이면 0245 비트 동일(reg 0).
+// step-0245 — 배치 SSOT 실배선(#51) 5: placement↔running reconcile capstone. `placementDrift()` 질의(결정 placement 와 집행 running 이 어긋난 존 수). placeExecute ON 이면 모든 배치 op(place/migrate/rebalance/drain) 뒤 drift 0(결정==집행·paper 표류 없음)을 단언 — advisory→executed arc 닫기. 코드는 읽기 질의 1개(쓰기 무변경)·OFF→0244 비트 동일(reg 0).
+// step-0244 — 배치 SSOT 실배선(#51) 4: executed placeDrain. placeExecute ON 이면 host 드레인이 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 이주 → 드레인 후 그 host running 0(실제 비워짐·0224 퇴역 안전 이주의 집행 판). 0242 _migrate 재사용. OFF→0243 비트 동일(reg 0).
+// step-0243 — 배치 SSOT 실배선(#51) 3: executed placeRebalance. placeExecute ON 이면 자동 부하 재배치가 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 함께 이주(running 균형까지 실제 수렴·0223 자동 트리거의 집행 판). 0242 _migrate 재사용. OFF→0242 비트 동일(reg 0).
+// step-0242 — 배치 SSOT 실배선(#51) 2: executed placeMigrate. placeExecute ON 이면 placeMigrate 가 paper placement 갱신에 더해 실 존 런타임을 release(기존 host)+acquire(toHost) 쌍으로 *실제 이주*(running 단일 키 원자 교체·한 존은 정확히 한 host·공백/중복 0). paper Map.set 만이던 0218 의 집행 판(advisory→executed migrate). OFF→0241 비트 동일(reg 0).
+// step-0241 — 배치 SSOT 실배선(#51) 1: 존 런타임 레지스트리(running). placement(결정 SSOT·"어디서 돌아야 하나")와 별개로 *실제 가동 중인* 존 런타임을 host 별로 추적하는 executed SSOT(=집행 현실). placeExecute ON 이면 placeZone 이 paper 갱신에 더해 실 존 런타임을 *띄운다*(running.set·starts++·instance.js active SSOT 와 동형). OFF 면 paper map 만 = 0240 비트 동일(reg 0). advisory→executed 의 첫 조각.
 // step-0224 — 오케스트레이터 host 드레인(placeDrain): 정비/퇴역할 host 의 *모든* 존을 다른(나머지) host 중 최소부하로 차례차례 이주(release+acquire 연쇄·존 권위 단일 소유 보존). 드레인 후 그 host 부하 0(비운다). 다른 host 없으면 보류(존 잔류). placeDrain 미수신이면 0223 비트 동일(reg 0). 3차 고도화(오케스트레이터 #2).
 // step-0223 — 오케스트레이터 부하 재배치 자동 트리거(placeRebalance): 후보 host 부하 불균형(최대−최소 ≥ 2)이면 최대부하 host 의 존을 최소부하 host 로 *자동* placeMigrate(0218 의 자동 트리거판·정적 배치 한계 제거). 균형(gap<2)까지 한 패스 수렴. 결정론 host/zone 순서. placeRebalance 미수신이면 0222 비트 동일(reg 0). 3차 고도화(오케스트레이터 #1).
 // step-0218 — 오케스트레이터 존 재배치 핸드오프(placeMigrate): 이미 배치된 존을 다른 host 로 *release(기존)+acquire(신규) 쌍*으로 옮긴다(존 권위 단일 소유 보존·공백/중복 0·0006 핸드오프의 배치 판). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 0217 비트 동일(reg 0). 2차 고도화(오케스트레이터 #2).
@@ -33,6 +43,15 @@ class Orchestrator {
     this.rebalanceMoves = 0;      // 재배치 자동 트리거로 옮긴 존 누적 수(step-0223·release+acquire 쌍).
     this.drains = 0;              // 처리한 placeDrain 수(step-0224·계측).
     this.drainMoves = 0;          // 드레인으로 다른 host 로 이주한 존 누적 수(step-0224·release+acquire 연쇄).
+    // 존 런타임 레지스트리(step-0241·#51 실배선) — placement 가 "어느 존이 어느 host 에서 *돌아야* 하나"(결정)라면, running 은 "지금 *실제로* 어느 host 에서 도는가"(집행 현실). placeExecute ON 이면 배치 결정이 실 존 런타임 lifecycle(start/migrate/stop)을 구동한다(advisory paper → executed). OFF 면 빈 채 = 0240 비트 동일.
+    this.placeExecute = opts.placeExecute || false;
+    this.running = new Map();     // zoneId -> host (실 가동 중인 존 런타임의 host·executed SSOT·권위 단일 소유: 한 존은 정확히 한 host 에서 돈다).
+    this.starts = 0;              // executed placeZone 으로 실제 가동(start)된 존 런타임 누적 수(step-0241·계측·멱등 재배치 제외).
+    this.runtimeMigrations = 0;   // executed placeMigrate 로 실 존 런타임을 release+acquire 이주한 누적 수(step-0242·집행·paper migrations 와 대조).
+    this.stops = 0;               // 처리한 placeStop 수(step-0246·계측·no-op 멱등 포함).
+    this.zonesRetired = 0;        // placeStop 으로 실제 퇴역(placement 에서 제거)된 존 누적 수(step-0246·존 자체 내림).
+    this.hostDowns = 0;           // 처리한 placeHostDown 수(step-0248·계측·생존 host 없으면 보류 포함).
+    this.hostRescued = 0;         // host 장애로 살아남은 host 에 재가동(re-acquire)된 존 누적 수(step-0248·비자발적 복구).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -81,11 +100,11 @@ class Orchestrator {
   onMsg(m) {
     const p = m.payload;
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
-    if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; return; }
+    if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; if (this.placeExecute) this._start(p.zoneId, p.host); return; }
     // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.
     if (p.type === 'placeAuto') {
       const host = this._leastLoaded(p.hosts || []);
-      if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; }
+      if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행(step-0247) — 실 존 런타임도 가동.
       return;
     }
     // 존 재배치 핸드오프(step-0218·placeMigrate) — {zoneId, toHost} → 이미 배치된 존을 release(기존 host)+acquire(toHost) 쌍으로 옮긴다(권위 단일 소유 보존·공백/중복 0). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 미발화 = 0217 비트 동일.
@@ -93,18 +112,24 @@ class Orchestrator {
       const from = this.placement.get(p.zoneId);
       if (from === undefined || from === p.toHost) { this.migrateRejects++; return; }   // 미배치/같은 host 거부.
       this.placement.set(p.zoneId, p.toHost); this.migrations++;   // release(from)+acquire(toHost) — Map 단일 키 원자 교체(중간 상태 공백/중복 0).
+      if (this.placeExecute) this._migrate(p.zoneId, p.toHost);    // 집행(step-0242) — 실 존 런타임도 이주.
       return;
     }
     // 부하 재배치 자동 트리거(step-0223·placeRebalance) — {hosts[]} → 후보 부하 불균형(최대−최소≥2)이면 최대→최소 host 로 존 자동 이주(균형까지·release+acquire). 0218 placeMigrate 의 자동 트리거판. placeRebalance 미수신이면 미발화 = 0222 비트 동일.
     if (p.type === 'placeRebalance') { this._rebalance(p.hosts || []); this.rebalances++; return; }
     // host 드레인(step-0224·placeDrain) — {host, hosts[]} → host 의 모든 존을 나머지 host 중 최소부하로 이주(release+acquire 연쇄·드레인 후 부하 0). 정비/퇴역. placeDrain 미수신이면 미발화 = 0223 비트 동일.
     if (p.type === 'placeDrain') { this._drain(p.host, p.hosts || []); this.drains++; return; }
+    // 존 운영 퇴역(step-0246·placeStop) — {zoneId} → 그 존을 내린다(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료). 드레인(host 의 *모든* 존 이주)과 달리 *특정 존 자체*를 stop. 없는 존 멱등. placeStop 미수신이면 미발화 = 0245 비트 동일.
+    if (p.type === 'placeStop') { this._stop(p.zoneId); this.stops++; return; }
+    // host 장애 복구(step-0248·placeHostDown) — {host, hosts[]} → 비자발적으로 죽은 host 의 모든 존을 살아남은 host 중 최소부하로 *재가동*(re-acquire·드레인의 graceful migrate 와 달리 죽은 host 는 release 불가). 생존 host 없으면 보류. placeHostDown 미수신이면 미발화 = 0247 비트 동일.
+    if (p.type === 'placeHostDown') { this._hostDown(p.host, p.hosts || []); this.hostDowns++; return; }
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
-      const host = this.placementOf(p.zoneId);
-      this._lastPlaceReply = { zoneId: p.zoneId, host };
-      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host }); this.placeRepliesSent++; }
+      const host = this.placementOf(p.zoneId);          // 결정(어디서 돌아야 하나).
+      const running = this.runningHostOf(p.zoneId);      // 집행(step-0250·실제 어디서 도나 — 게이트웨이가 진짜 위치로 라우팅).
+      this._lastPlaceReply = { zoneId: p.zoneId, host, running };
+      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host, running }); this.placeRepliesSent++; }
       return;
     }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
@@ -171,9 +196,54 @@ class Orchestrator {
     for (const a of this.pairs.keys()) if (a !== deadAuth && !this.dead.has(a)) return a;
     return null;
   }
+  // 존 런타임 start(step-0241·#51) — 배치 결정을 *집행*: 실 존 런타임을 host 에 띄운다(running 등록). 이미 도는 존이면 멱등(같은/다른 host 재배치는 0242 migrate 가 담당·여기선 신규 가동만 카운트). placeExecute ON 일 때만 placeZone 이 호출. instance.js _spawn 의 존-배치 판.
+  _start(zoneId, host) {
+    if (this.running.has(zoneId)) { this.running.set(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등·신규 start 아님).
+    this.running.set(zoneId, host); this.starts++; return true;
+  }
+  // 존 런타임 migrate(step-0242·#51) — 배치 재결정을 *집행*: 도는 존 런타임을 toHost 로 release(기존)+acquire(toHost) 쌍 이주(running 단일 키 원자 교체 = 중간 공백/중복 0·instance.js _route 의 존 판). 안 도는 존이면 멱등 no-op(decision 만 있고 미가동 — placeExecute 경로상 미발생). placeExecute ON·placeMigrate 일 때만 호출.
+  _migrate(zoneId, toHost) {
+    if (!this.running.has(zoneId)) return false;     // 미가동 — 집행 대상 없음(멱등).
+    if (this.running.get(zoneId) === toHost) return false;
+    this.running.set(zoneId, toHost); this.runtimeMigrations++; return true;   // release(from)+acquire(toHost) 원자 교체.
+  }
+  // host 장애 복구(step-0248·#51) — 죽은 host 의 모든 존을 살아남은 host 중 최소부하로 재가동(re-acquire). 드레인(_drain)과 골격은 같으나 *비자발적*: 죽은 host 런타임은 이미 소실이므로 graceful migrate 가 아니라 running 단일 키 재배치(공백 없이 한 존 정확히 한 host 회복). 매 존마다 최소부하 재계산(고른 분산). 생존 host 없으면 보류. 결정(placement)도 함께 갱신해 drift 0.
+  _hostDown(host, hosts) {
+    let rescued = 0;
+    const others = (hosts || []).filter(h => h !== host);   // 생존 host 후보(죽은 host 제외).
+    for (const [zid, h] of [...this.placement]) {            // placement 삽입 순(결정론).
+      if (h !== host) continue;                             // 죽은 host 의 존만.
+      const target = this._leastLoaded(others);             // 매번 최소부하 재계산.
+      if (target === null) break;                           // 생존 host 없음 → 보류.
+      this.placement.set(zid, target);                      // 재배치 결정.
+      if (this.placeExecute) this.running.set(zid, target); // 집행 — 살아남은 host 에 재가동(re-acquire·죽은 host 는 release 불가).
+      rescued++;
+    }
+    this.hostRescued += rescued; return rescued;
+  }
+  // 존 운영 퇴역 stop(step-0246·#51) — 존을 내린다: 결정(placement)에서 빼고 placeExecute ON 이면 실 런타임(running)도 종료. 없는 존이면 멱등 no-op(zonesRetired 무증). instance.js _despawn 의 존 판. drift 0 보존(둘 다 제거).
+  _stop(zoneId) {
+    const had = this.placement.delete(zoneId);     // 결정 제거(존 퇴역).
+    if (this.placeExecute) this.running.delete(zoneId);   // 집행 — 실 런타임 종료.
+    if (had) this.zonesRetired++;
+    return had;
+  }
   // 존 배치 질의(step-0203) — "이 존이 어디 사나 / 몇 개 배치됐나"(배치 SSOT 읽기). 게이트웨이 라우팅·검증이 쓴다. 질의 인터페이스(request/reply over net)는 0204.
   placementOf(zoneId) { return this.placement.get(zoneId) || null; }
   placedCount() { return this.placement.size; }
+  // 존 런타임 질의(step-0241·#51) — "이 존이 *실제로* 어느 host 에서 도나 / 이 host 에 몇 개 도나 / 총 몇 개 도나"(executed SSOT 읽기·placement 결정과 대조해 drift 0 검증).
+  runningHostOf(zoneId) { return this.running.get(zoneId) || null; }
+  runningOn(host) { let n = 0; for (const h of this.running.values()) if (h === host) n++; return n; }
+  runningCount() { return this.running.size; }
+  // 가동 host 질의(step-0249·#51) — 현재 존을 하나라도 돌리는 *가동 중 host* 집합(운영 대시보드 — "지금 몇 대가 일하나"). 빈 host(드레인/장애 후)는 빠진다.
+  runningHosts() { return new Set(this.running.values()); }
+  // placement↔running 표류 질의(step-0245·#51 capstone) — 결정(placement)과 집행(running)이 어긋난 존 수(host 불일치 또는 한쪽에만 존재). placeExecute ON 이면 모든 배치 op 뒤 0(결정==집행·advisory paper 표류 없음)이어야 한다. 읽기 전용(쓰기 무변경).
+  placementDrift() {
+    let d = 0;
+    const ids = new Set([...this.placement.keys(), ...this.running.keys()]);
+    for (const z of ids) if (this.placement.get(z) !== this.running.get(z)) d++;
+    return d;
+  }
   // host 부하(step-0217) — 그 host 에 배치된 존 수(배치 SSOT 에서 파생·부하 지표). 부하 분산 판정의 기준.
   hostLoad(host) { let n = 0; for (const h of this.placement.values()) if (h === host) n++; return n; }
   // 최소 부하 host(step-0217) — 후보 중 hostLoad 최소를 고른다. 동률은 후보 배열 순서로 결정론 tie-break(첫 최소). 후보 없으면 null.
@@ -192,6 +262,7 @@ class Orchestrator {
       let z = null; for (const [zid, h] of this.placement) if (h === maxH) { z = zid; break; }   // 최대부하 host 의 첫 존(삽입 순).
       if (z === null) break;
       this.placement.set(z, minH); moved++;                   // release(maxH)+acquire(minH) — 단일 키 원자 교체.
+      if (this.placeExecute) this._migrate(z, minH);          // 집행(step-0243) — 실 존 런타임도 함께 이주.
     }
     this.rebalanceMoves += moved; return moved;
   }
@@ -204,6 +275,7 @@ class Orchestrator {
       const target = this._leastLoaded(others);             // 매번 최소부하 재계산(고른 분산).
       if (target === null) break;                           // 받을 host 없음 → 보류.
       this.placement.set(zid, target); moved++;             // release(host)+acquire(target).
+      if (this.placeExecute) this._migrate(zid, target);    // 집행(step-0244) — 실 존 런타임도 함께 이주(드레인 후 running 0).
     }
     this.drainMoves += moved; return moved;
   }
