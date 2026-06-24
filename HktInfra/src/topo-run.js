@@ -211,6 +211,8 @@ function run(opts) {
     if (opts.guildOps && guild) for (const go of [].concat(opts.guildOps)) if (go.at === i + 1) net.send(go.from || 'client0', 'guild', go.op);
     // 인스턴스 명령 주입(step-0201·instanceOps) — at tick 에 오케스트레이터/게이트웨이가 InstanceServer 에 instanceSpawn(던전 1개 띄움). instance 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.instanceOps && instance) for (const io of [].concat(opts.instanceOps)) if (io.at === i + 1) net.send(io.from || 'orch', 'instance', io.op);
+    // 존 배치 명령 주입(step-0203·placementOps) — at tick 에 게이트웨이/운영이 Orchestrator 에 placeZone(존을 host 에 배치). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    if (opts.placementOps && orch) for (const po of [].concat(opts.placementOps)) if (po.at === i + 1) net.send(po.from || 'gateway', 'orch', po.op);
     // 시나리오 inject write-seam(TESTBED §10-4 — 0011 onTick 선례) — 미제공이면 호출 0(reg 0 불변).
     //   cmd={tick,client,move:[dx,dy]} — tick 직전에 클라 발신으로 주입(게이트웨이엔 정규 move 와 동일·시드 로그의 일부 = 결정론).
     if (opts.inject) for (const c of opts.inject) if (c.tick === i + 1 && c.move) net.send('client' + c.client, 'gateway', { type: 'move', d: { dx: c.move[0] | 0, dy: c.move[1] | 0 } });
