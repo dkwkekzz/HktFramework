@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0186](step-0186.md) — **길드 멤버 수 배지 읽기 모델**(guildFeed·GuildFeed·신규 박스): svc.guild.changed 구독(create=로스터 크기·join +1·leave −1)→guildId 별 memberCount 배지. 배지==로스터 SSOT 크기. create 도 발행(배지 정확도). 우편 MailFeed 0151 의 길드 판. 닿는 박스: 신규 svc-guildfeed·svc-guild·배선 5점.
-- **한 줄 상태**: reg ALL OK·guildfeed: g1 3·g2 2·total 5·배지==로스터·OFF 박스 0·spine OK.
-- **다음**: §2 — guild arc 0187~0190(feed 영속·정합 capstone·마스터 이양)·발행 게이트 통합·비동기 결정론🔴·**0181~0190 묶음 리뷰 적기**.
+- **닫힌 step**: [step-0187](step-0187.md) — **GuildFeed 영속·late-join**(guildFeedPersist·op 저널 replay): 소비 svc.guild.changed 를 durable 저널 append·crash(투영 소실)→reconstruct(저널 replay)==죽기 전==로스터 크기. 우편 MailFeed 0154 의 길드 판. 닿는 박스: svc-guildfeed·topo-build.
+- **한 줄 상태**: reg ALL OK·guildfeedpersist: ON pre==post dd0ca09f·배지==로스터·OFF 소실·spine OK.
+- **다음**: §2 — guild arc 0188~0190(feed 정합 capstone·마스터 이양·arc 닫기)·발행 게이트 통합·비동기 결정론🔴·**0181~0190 묶음 리뷰 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드(Guild) 박스 arc(0181~0190) = 파티(0075)+우편(0142~) 동형: 분리·증분·발행·영속·스냅샷·배지(0181~0186 ✅). 다음: feed 영속(0187)·feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행: 발행 게이트 통합·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 후속.**
+**길드(Guild) 박스 arc(0181~0190) = 파티(0075)+우편(0142~) 동형: 분리·증분·발행·영속·스냅샷·배지·feed 영속(0181~0187 ✅). 다음: feed 정합 capstone(0188)·마스터 이양 쌍 거래(0189)·single-master+roster capstone·arc 닫기(0190). 병행: 발행 게이트 통합·비동기 결정론🔴. 🔎 0181~0190 묶음 리뷰 후속.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -278,3 +278,4 @@
 | [0184](step-0184.md) | 길드 영속·failover(guildPersist·변경 저널 replay·파티 0085 길드 판) | 통과 · crash→reconstruct pre==post·OFF 소실 |
 | [0185](step-0185.md) | 길드 저널 스냅샷 압축(guildSnapshot·snapshot+tail replay·파티 0086 길드 판) | 통과 · full 8→tail 2·snap==full 무손실 |
 | [0186](step-0186.md) | 길드 멤버 수 배지 읽기 모델(guildFeed·GuildFeed·우편 MailFeed 0151 길드 판) | 통과 · g1 3·g2 2·배지==로스터·OFF 0 |
+| [0187](step-0187.md) | GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay·우편 MailFeed 0154 길드 판) | 통과 · crash→reconstruct pre==post·배지==로스터 |

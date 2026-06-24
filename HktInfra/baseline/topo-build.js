@@ -137,6 +137,7 @@ function buildTopology(opts) {
     guildChangePublish = false,
     guildPersist = false,
     guildSnapshot = 0,
+    guildFeed = false,
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -184,7 +185,7 @@ function buildTopology(opts) {
   //   구독 = 선언 spec(이 테이블이 SSOT). *새 소비자(audit) 추가 = 여기 행 추가뿐* — 발행자 spec 무수정(decouple 가설).
   if (bus) {
     // 구독 테이블 빌더(step-0133 분할·topo-subs.js) — 플래그 컨텍스트로부터 [topic,addr] spec 을 짓는다. 행 추가 = 새 소비자(발행자 무수정).
-    const subs = buildSubs({ inventory, busAck, busOutAck, busSeenBound, chat, rankingAddr, audit, busLeaseAudit, busLeasePresence, failover, zones, presencePublish, presenceMonitor, presenceAnnounce, presenceQuery, presenceShadowAddr, whisperRouter, whisperFailover, presenceBox, presenceReportBus, presenceLease, replaceAddr, failedPublish, deliveredPublish, partyChange, partyService, guildService, guildChangePublish, partyIncompletePublish, partyCompletePublish, mailboxDrainedPublish, mailboxLossPublish, whisperReceipt, exchange, exchangePublish, cancelPublish, expirePublish, abortPublish, abandonPublish, readmitPublish, autoReadmit, failPublish, marketFeed, bouncePublish, mail, mailSentPublish, mailReadPublish, mailExpirePublish, mailAbandonPublish, mailReadmitPublish, mailFailPublish, mailFeed, mailFeedRead, mailFeedExpire });
+    const subs = buildSubs({ inventory, busAck, busOutAck, busSeenBound, chat, rankingAddr, audit, busLeaseAudit, busLeasePresence, failover, zones, presencePublish, presenceMonitor, presenceAnnounce, presenceQuery, presenceShadowAddr, whisperRouter, whisperFailover, presenceBox, presenceReportBus, presenceLease, replaceAddr, failedPublish, deliveredPublish, partyChange, partyService, guildService, guildChangePublish, guildFeed, partyIncompletePublish, partyCompletePublish, mailboxDrainedPublish, mailboxLossPublish, whisperReceipt, exchange, exchangePublish, cancelPublish, expirePublish, abortPublish, abandonPublish, readmitPublish, autoReadmit, failPublish, marketFeed, bouncePublish, mail, mailSentPublish, mailReadPublish, mailExpirePublish, mailAbandonPublish, mailReadmitPublish, mailFailPublish, mailFeed, mailFeedRead, mailFeedExpire });
     add({ addr: 'bus', kind: 'bus', opts: { subs } });
   }
   // [데이터] 영속 스토어 — persist ON 일 때만 토폴로지에 존재(OFF = 0016 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
@@ -247,6 +248,8 @@ function buildTopology(opts) {
   if (mailFeed && mail) add({ addr: 'mailfeed', kind: 'mailfeed', opts: { bus: busAddr } });
   // [게임 서비스] 길드(step-0181·GuildService) — 오래 사는 명명된 조직 박스(로스터+마스터십 SSOT·존 tick 밖·onTick 없음). 파티(0075)의 *영속 조직* 판·single-master 권위. guildService OFF 면 박스 0 = 0180 비트 동일.
   if (guildService) add({ addr: 'guild', kind: 'guild', opts: { bus: busAddr, changePublish: guildChangePublish, persist: guildPersist, snapInterval: guildPersist ? guildSnapshot : 0 } });   // changePublish(0183): svc.guild.changed 발행. persist(0184): 변경 저널 영속·crash replay. snapInterval(0185): 저널 스냅샷 압축(0 면 0184 비트 동일).
+  // [게임 서비스] 길드 멤버 수 배지(step-0186·GuildFeed) — svc.guild.changed 구독 읽기 모델(우편 MailFeed 0151 의 길드 판). 발신 0·권위 0(순수 관찰). guildFeed OFF·길드 부재면 박스 0 = 0185 비트 동일.
+  if (guildFeed && guildService) add({ addr: 'guildfeed', kind: 'guildfeed', opts: { bus: busAddr } });
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
 
