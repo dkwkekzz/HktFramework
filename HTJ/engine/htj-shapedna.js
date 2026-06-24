@@ -19,6 +19,8 @@
 })(typeof self !== 'undefined' ? self : this, function () {
   'use strict';
 
+  const FOURPI_3 = 4 * Math.PI / 3;                            // 등가 구 반지름(cells→radius)·htj-entity 와 동일
+
   // FNV-1a 32비트 — canonical 키 문자열 → 8자리 hex 코드(순수·결정론).
   function fnv1a(str) {
     let h = 0x811c9dc5;
@@ -85,5 +87,51 @@
     return out;
   }
 
-  return { fnv1a, shapeDNA, registerShape, hashToUnit, reconstructShape, VERSION: 2 };
+  // (M4) DNA 로 *물리* 되쪼갬 — reconstructShape(M3·렌더용 점)의 *물리 개체* 판. adaptLOD(0039) refine 이 합친
+  //   개체를 *평면 고리*로 근사 복원하던 한계(design §5 난점 1)를, 개체의 shapeHash 가 가리키는 *원래 DNA 형태*
+  //   위치로 되쪼개되 **4 보존량을 정확 보존**한다 = "렌더 LOD(0069)↔물리 LOD 합류"(merge-dna §4 M4·§5 T3).
+  //   렌더(reconstructShape)와 *같은 사전·hash·배율*을 써 → 물리 조각이 렌더가 그리는 바로 그 형태를 차지한다.
+  //
+  //   보존(폭발 없음·dispersalFrac=0 판): 구성원은 모두 부모 CoM 속도 v_cm 를 받는다(상대 운동 0). offset 을
+  //   *질량중심 0* 으로 맞춰(평균 빼기·Σoffset=0) →
+  //     질량 Σm=M(균등 M/n) · 운동량 ΣP=M·v_cm=부모 P(전부 동일 속도·정확) ·
+  //     각운동량(원점) Σ(L_i + r_i×p_i)=부모 intrinsic L + center×P=부모 L(Σoffset=0 이 궤도항을 정확히 닫음) ·
+  //     총E Σ(KEcm_i+intE_i)=½M|v_cm|²+internalE=부모 E. 모양은 *유지*(평면 고리 아님)·물리는 *무손실*.
+  //   entity: {cx,cy,cz,radius,mass,px,py,pz,Lx,Ly,Lz,energy/internalE/KEcm,cells,shapeHash}. dict:{hash→canonical}.
+  //   opts: { quantum(0.25), spread(1.5) } — reconstructShape 와 *같은 값*을 줘야 렌더와 형태가 겹친다.
+  //   반환: 구성원 개체 배열(보존 정확). hash 없음/사전에 없음/n<2 → null(호출자: fragmentEntity 평면 고리 폴백=0039).
+  function refineByDNA(entity, dict, opts) {
+    opts = opts || {};
+    const hash = entity && entity.shapeHash;
+    if (!hash || !dict || !dict[hash]) return null;            // DNA 없음 → 폴백(0039 평면 고리)
+    const pts = dict[hash].points || [], n = pts.length;
+    if (n < 2) return null;
+    const quantum = opts.quantum != null ? opts.quantum : 0.25;
+    const spread = opts.spread != null ? opts.spread : 1.5;
+    const R = entity.radius || 1, k = quantum * R * spread;
+    // 오프셋(엔티티 중심 기준·canonical 점을 월드 배율로) + 평균 빼기(Σoffset=0 → 궤도 각운동량 정확 보존).
+    const ox = new Array(n), oy = new Array(n), oz = new Array(n); let mx = 0, my = 0, mz = 0;
+    for (let i = 0; i < n; i++) { const q = pts[i], x = q[0] * k, y = q[1] * k, z = q[2] * k; ox[i] = x; oy[i] = y; oz[i] = z; mx += x; my += y; mz += z; }
+    mx /= n; my /= n; mz /= n;
+    const M = entity.mass || 0, EPS = 1e-12;
+    const vcx = M > EPS ? entity.px / M : 0, vcy = M > EPS ? entity.py / M : 0, vcz = M > EPS ? entity.pz / M : 0;
+    const m = M / n;
+    const internalE = entity.internalE != null ? entity.internalE : ((entity.energy || 0) - (entity.KEcm || 0));
+    const intEach = internalE / n;
+    const Lx = (entity.Lx || 0) / n, Ly = (entity.Ly || 0) / n, Lz = (entity.Lz || 0) / n;  // intrinsic 스핀 균등 분배
+    const cells = (entity.cells != null ? entity.cells : n) / n, rsub = Math.cbrt(Math.max(1e-9, cells) / FOURPI_3);
+    const px = m * vcx, py = m * vcy, pz = m * vcz, KEcm = m > EPS ? 0.5 * (px * px + py * py + pz * pz) / m : 0;
+    const out = [];
+    for (let i = 0; i < n; i++) {
+      out.push({
+        cx: entity.cx + (ox[i] - mx), cy: entity.cy + (oy[i] - my), cz: (entity.cz || 0) + (oz[i] - mz),
+        mass: m, px, py, pz, Lx, Ly, Lz,
+        KEcm, internalE: intEach, energy: KEcm + intEach,
+        cells, radius: rsub, temp: m > EPS ? intEach / m : 0, peak: entity.peak || 1, lodMembers: 1
+      });
+    }
+    return out;
+  }
+
+  return { fnv1a, shapeDNA, registerShape, hashToUnit, reconstructShape, refineByDNA, VERSION: 3 };
 });
