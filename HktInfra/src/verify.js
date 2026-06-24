@@ -1,8 +1,8 @@
-// HktInfra step-0227 — 헤드리스 검증 (월드 영속 write-behind 버퍼·worldBuffer/worldFlush)
+// HktInfra step-0228 — 헤드리스 검증 (월드 영속 fsync durable barrier·worldFsync/worldRecoverDurable)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldwb`.
-//   더한 한 조각: worldBuffer{intent}→버퍼(비-durable), worldFlush→버퍼를 durable 로그에 일괄 적층(쓰기 지연·배치). 미flush 분은 로그에 없음(crash 윈도). 미주입 → 0226 비트 동일(reg). 3차 고도화 월드영속 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `worldwb`(가설) — 2 intent 버퍼→flush→로그 2·버퍼 0, 추가 1 버퍼→로그 불변·replay 가 미flush 분 미반영.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `worldfsync`.
+//   더한 한 조각: worldFsync→durableSeq=jseq(디스크 확정 프런티어), worldRecoverDurable→seq≤durableSeq 만 replay(fsync 이후 tail 미보장). 미주입 → 0227 비트 동일(reg). 3차 고도화 월드영속 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `worldfsync`(가설) — 3 append→fsync→2 append→recoverDurable 은 3개만, full replay 는 5개.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,36 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const BUF = (at, intent) => ({ at, op: { type: 'worldBuffer', intent } });
-const FLUSH = (at) => ({ at, op: { type: 'worldFlush' } });
-// e1·e2 move 버퍼링 → flush(로그 2·버퍼 0) → e1 pickup gold 버퍼(미flush) → 로그 2 불변·replay 가 gold 미반영.
+const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+const FSYNC = (at) => ({ at, op: { type: 'worldFsync' } });
+// e1·e2·e3 append → fsync(durableSeq 3) → e4·e5 append(미fsync) → recoverDurable=3개만·full replay=5개.
 const OPS = [
-  BUF(1, { e: 'e1', kind: 'move', to: 11 }), BUF(2, { e: 'e2', kind: 'move', to: 22 }),
-  FLUSH(3),
-  BUF(4, { e: 'e1', kind: 'pickup', item: 'gold' }),
+  APP(1, { e: 'e1', kind: 'move', to: 1 }), APP(2, { e: 'e2', kind: 'move', to: 2 }), APP(3, { e: 'e3', kind: 'move', to: 3 }),
+  FSYNC(4),
+  APP(5, { e: 'e4', kind: 'move', to: 4 }), APP(6, { e: 'e5', kind: 'move', to: 5 }),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
 
-function worldwb(seeds) {
-  console.log('== worldwb: 월드 영속 write-behind 버퍼(worldBuffer/worldFlush) — intent 를 버퍼에 모았다 flush 로 durable 로그에 일괄 적층(쓰기 지연·배치·매 intent 디스크 안 때림=신성한 tick 보호). flush 전(버퍼)은 비-durable — crash 시 소실(write-behind 의 본질적 윈도). 3차 고도화 월드영속 #1. ==');
-  console.log('seed   | 로그 | 버퍼 | flushed | e1 gold | 판정');
+function worldfsync(seeds) {
+  console.log('== worldfsync: 월드 영속 fsync durable barrier(worldFsync/worldRecoverDurable) — durableSeq 워터마크 = fsync 로 디스크 확정된 최대 seq(0227 flush=페이지캐시 적층, fsync=물리 확정 구분). recoverDurable 은 seq≤durableSeq 만 replay(fsync 이후 tail 은 crash 시 미보장). durability 의 *진짜* 경계. 3차 고도화 월드영속 #2. ==');
+  console.log('seed   | durSeq | dur복구 | full복구 | e4(미fsync) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
     const w = r.worldlog;
-    w.replay();                                   // durable 로그만 재구성(미flush 버퍼 제외).
-    const e1 = w.stateOf('e1');
-    const gold = !!(e1 && e1.items.includes('gold'));
-    // flush 로 로그 2·버퍼 0·flushed 2 → 추가 pickup 은 버퍼(1)만(미flush) → 로그 2 불변·replay 에 gold 없음(비-durable).
-    const ok = check(w.length() === 2 && w.bufferLength() === 1 && w.flushed === 2 && !gold && e1 && e1.pos === 11,
-      `seed ${seed}: write-behind 위반 (로그 ${w.length()}·버퍼 ${w.bufferLength()}·flushed ${w.flushed}·gold ${gold})`);
-    console.log(`${pad(seed, 6)} | ${pad(w.length(), 4)} | ${pad(w.bufferLength(), 4)} | ${pad(w.flushed, 7)} | ${pad(gold ? 'yes' : 'no', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    w._replayDurable();                              // seq≤durableSeq(=3) 만 — crash 후 진짜 복구.
+    const durCount = [...['e1', 'e2', 'e3', 'e4', 'e5']].filter(e => w.stateOf(e)).length;
+    const e4durable = !!w.stateOf('e4');
+    w.replay();                                      // full(전체 로그) — 5개.
+    const fullCount = [...['e1', 'e2', 'e3', 'e4', 'e5']].filter(e => w.stateOf(e)).length;
+    // fsync 가 seq 3 까지 확정 → recoverDurable 3개(e1~e3)·e4/e5 미보장 / full replay 5개.
+    const ok = check(w.durableSeq === 3 && durCount === 3 && !e4durable && fullCount === 5,
+      `seed ${seed}: fsync 위반 (durSeq ${w.durableSeq}·dur ${durCount}·full ${fullCount}·e4 ${e4durable})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.durableSeq, 6)} | ${pad(durCount, 7)} | ${pad(fullCount, 8)} | ${pad(e4durable ? 'durable' : 'lost', 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 2 intent 를 버퍼링 후 flush 하면 durable 로그 2·버퍼 0(배치 쓰기). 그 뒤 pickup gold 는 버퍼(1)에만 남아(미flush) durable 로그는 2로 불변, replay 에도 gold 미반영 — flush 안 된 분은 비-durable(crash 윈도). 쓰기를 지연·배치해 매 intent 가 디스크를 안 때린다. 월드영속 3차 고도화 #1.');
+  console.log('  → fsync 가 seq 3 까지 디스크 확정(durableSeq 3)하면 crash 후 진짜 복구(recoverDurable)는 e1~e3 3개만 — fsync 이후 append 한 e4·e5 는 미보장(crash 시 소실 가능). full replay(전체 로그)는 5개를 본다. flush(0227·페이지캐시)와 fsync(0228·물리 확정)의 구분 = durability 의 진짜 경계. 월드영속 3차 고도화 #2.');
 }
 
-kit.MODES['worldwb'] = worldwb;
-kit.ORDER.splice(1, 0, 'worldwb');
+kit.MODES['worldfsync'] = worldfsync;
+kit.ORDER.splice(1, 0, 'worldfsync');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
