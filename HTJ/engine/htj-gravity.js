@@ -27,6 +27,7 @@
 
   const RHO = 'energy';                 // 질량 밀도 = 에너지(E=mc²)
   const PHI = 'phi';                    // 중력 퍼텐셜 장(지연 초기화)
+  const PMRHO = '__pmrho';             // 입자-메시 결합 밀도(ρ_grid + scatter(parts)) — Poisson source
   const MX = 'mom_x', MY = 'mom_y', MZ = 'mom_z';   // 운동량 밀도(htj-inertia 와 공유)
   const DEFAULT_G = 1.0;                // 중력 결합 상수(노브)
   const DEFAULT_ITERS = 400;           // Poisson Gauss-Seidel 완화 횟수
@@ -103,6 +104,71 @@
     return world;
   }
 
+  // 입자-격자 통합 중력(Particle-Mesh) — 격자 유체와 SPH/자유 구체 입자가 *하나의 중력 퍼텐셜*을 공유한다.
+  //   0007 자기중력은 격자만, 0033 통합중력(htj-hybrid)은 개체(Barnes-Hut)만 다뤘다. 0055~ 이주한 SPH 입자는
+  //   격자 중력과 *미결합*이었다(SW5 의 마지막 잔여). 이 법칙이 그 공백을 메운다 = **0007 중력의 입자-메시(PM) 판**:
+  //     1) 입자 질량을 격자에 적치(NGP·nearest-grid-point)해 *결합 밀도* ρ⁺ = ρ_grid + scatter(parts) 를 만들고
+  //     2) 그 ρ⁺ 로 단 하나의 Poisson Φ 를 푼다 — 격자와 입자가 *같은* 퍼텐셜을 본다(진짜 통합)
+  //     3) a=−∇Φ 로 격자 운동량과 입자 속도를 *함께* 가속한다.
+  //   · 질량가중 평균 가속 ā(격자+입자 *모두* 포함) 차감 → 순 운동량 *정확* 보존(뉴턴 3법칙·NGP 적치/수집 대칭).
+  //   · 입자 없음 → 0007 applyGravity 와 byte 동일(ρ⁺=ρ_grid·회귀 0). G=0 또는 dt=0 → 항등(early return).
+  //   · 입자는 generic 구체(cx,cy,cz,mass,px,py,pz)만 안다 — 타입 무지(절대 원칙: engine 에 타입 분기 없음).
+  //   world(격자·제자리 가속)+particles(제자리 가속)·dt·opts{ G, field, iters, reset }. 반환 world.
+  function applyParticleMeshGravity(world, particles, dt, opts) {
+    opts = opts || {};
+    particles = particles || [];
+    const G = opts.G != null ? opts.G : DEFAULT_G;
+    if (dt == null) dt = 1;
+    if (!G || !dt) return world;                 // 노브=0 → 세계·입자 불변(회귀 0)
+    const N = world.N, NN = N * N, L = N * N * N;
+    const rho = world.fields[opts.field || RHO];
+    const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
+    const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
+    const cellOf = (p) => (clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0));
+    // ① 결합 밀도 ρ⁺ = ρ_grid + NGP(parts) → scratch 장. 입자 없으면 ρ_grid 복사(항등).
+    const src = ensure(world, PMRHO);
+    src.set(rho);
+    for (let n = 0; n < particles.length; n++) src[cellOf(particles[n])] += (particles[n].mass || 0);
+    // ② 결합 밀도로 단 하나의 Poisson Φ (격자·입자가 같은 퍼텐셜).
+    solvePotential(world, { field: PMRHO, iters: opts.iters, reset: opts.reset });
+    const phi = world.fields[PHI];
+    const wrap = (a) => (a + N) % N;
+    // ③ a=−∇Φ (중심차분·주기) + 질량가중 평균 가속 ā(격자+입자 모두 → 순 운동량 정확 보존).
+    const ax = world.scratch.__pmax || (world.scratch.__pmax = new Float64Array(L));
+    const ay = world.scratch.__pmay || (world.scratch.__pmay = new Float64Array(L));
+    const az = world.scratch.__pmaz || (world.scratch.__pmaz = new Float64Array(L));
+    let Sx = 0, Sy = 0, Sz = 0, M = 0;
+    for (let z = 0; z < N; z++) for (let y = 0; y < N; y++) for (let x = 0; x < N; x++) {
+      const i = (z * N + y) * N + x;
+      const fx = -(phi[(z * N + y) * N + wrap(x + 1)] - phi[(z * N + y) * N + wrap(x - 1)]) / 2;
+      const fy = -(phi[(z * N + wrap(y + 1)) * N + x] - phi[(z * N + wrap(y - 1)) * N + x]) / 2;
+      const fz = -(phi[(wrap(z + 1) * N + y) * N + x] - phi[(wrap(z - 1) * N + y) * N + x]) / 2;
+      ax[i] = fx; ay[i] = fy; az[i] = fz;
+      Sx += rho[i] * fx; Sy += rho[i] * fy; Sz += rho[i] * fz; M += rho[i];
+    }
+    for (let n = 0; n < particles.length; n++) {
+      const p = particles[n], m = p.mass || 0, i = cellOf(p);
+      Sx += m * ax[i]; Sy += m * ay[i]; Sz += m * az[i]; M += m;
+    }
+    const abx = M > EPS ? Sx / M : 0, aby = M > EPS ? Sy / M : 0, abz = M > EPS ? Sz / M : 0;
+    const k = dt * G;
+    // ④ 격자 가속.
+    for (let i = 0; i < L; i++) {
+      const r = rho[i];
+      gx[i] += k * r * (ax[i] - abx); gy[i] += k * r * (ay[i] - aby); gz[i] += k * r * (az[i] - abz);
+    }
+    // ⑤ 입자 가속(+ KEcm/energy 재계산·0033 규약).
+    for (let n = 0; n < particles.length; n++) {
+      const p = particles[n], m = p.mass || 0, i = cellOf(p);
+      if (p.px == null) p.px = 0; if (p.py == null) p.py = 0; if (p.pz == null) p.pz = 0;
+      p.px += k * m * (ax[i] - abx); p.py += k * m * (ay[i] - aby); p.pz += k * m * (az[i] - abz);
+      if (p.internalE == null) p.internalE = (p.energy || 0) - (p.KEcm || 0);
+      p.KEcm = m > EPS ? 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m : 0;
+      p.energy = p.KEcm + p.internalE;
+    }
+    return world;
+  }
+
   // 운동 에너지 ½Σ|g|²/ρ — 붕괴 시 PE→KE(낙하로 가속) 측정자.
   function kineticEnergy(world) {
     const rho = world.fields[RHO], gx = world.fields[MX], gy = world.fields[MY], gz = world.fields[MZ];
@@ -165,6 +231,6 @@
   }
   function mulberry(seed) { let a = seed >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
-  return { solvePotential, applyGravity, kineticEnergy, poissonResidual, seedTwoMasses, seedPerturbedUniform,
-           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 1 };
+  return { solvePotential, applyGravity, applyParticleMeshGravity, kineticEnergy, poissonResidual, seedTwoMasses, seedPerturbedUniform,
+           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 2 };
 });
