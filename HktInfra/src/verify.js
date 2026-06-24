@@ -1,8 +1,8 @@
-// HktInfra step-0182 — 헤드리스 검증 (길드 증분 가입/탈퇴·guildJoin/guildLeave·멱등·master 보호)
+// HktInfra step-0183 — 헤드리스 검증 (길드 멤버십 변경 발행·guildChangePublish·svc.guild.changed)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildjoin`.
-//   더한 한 조각: guildJoin{guildId,member}(증분 추가·멱등)·guildLeave{guildId,member}(증분 제거·멱등·master 탈퇴 no-op). 파티 0084 의 길드 판. 증분 명령 미주입이면 0181 비트 동일(reg).
-//   검증: ⒜ `reg`(키트) — guild 미주입 = 0181 비트 동일. ⒝ `guildjoin`(가설) — 증분 가입/탈퇴 정확·멱등(중복 가입/없는 탈퇴 no-op)·master 보호(master 탈퇴 거부)·single-master 보존.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `guildpub`.
+//   더한 한 조각: 실 멤버십 변경(가입/탈퇴) 시 svc.guild.changed{guildId,kind,member} 버스 발행 → audit 가 구독(발행자 무수정 소비자). no-op 변경은 발행 안 함. 파티 0084 의 길드 판. guildChangePublish OFF·bus 부재면 발행 0 = 0182 비트 동일(reg).
+//   검증: ⒜ `reg`(키트) — guildChangePublish OFF = 0182 비트 동일. ⒝ `guildpub`(가설) — published==실 변경 수==audit 수신, no-op 변경(중복/없음/master) 발행 0, OFF 발행 0(비-침습).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,39 +18,32 @@ const { check, pad } = kit.helpers;
 const GCREATE = (at, guildId, master, members) => ({ at, op: { type: 'guildCreate', guildId, master, members } });
 const GJOIN = (at, guildId, member) => ({ at, op: { type: 'guildJoin', guildId, member } });
 const GLEAVE = (at, guildId, member) => ({ at, op: { type: 'guildLeave', guildId, member } });
-const COMMON = { clients: 4, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, guildService: true };
-// g1 master x, 멤버 x/c1. 증분: c2 가입·c1 가입(멱등 중복)·c1 탈퇴·c9 탈퇴(없음 no-op)·x 탈퇴(master 거부). 최종 로스터 = [x, c2].
+const COMMON = { clients: 4, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, audit: true, guildService: true };
+// 실 변경 3건(c2 가입·c3 가입·c2 탈퇴) + no-op 3건(c3 중복가입·c9 없는탈퇴·x master탈퇴). 발행은 실 변경 3건만.
 const OPS = [
-  GCREATE(3, 'g1', 'x', ['x', 'c1']),
-  GJOIN(5, 'g1', 'c2'), GJOIN(6, 'g1', 'c1'),     // c2 추가 / c1 중복(no-op)
-  GLEAVE(7, 'g1', 'c1'), GLEAVE(8, 'g1', 'c9'),   // c1 제거 / c9 없음(no-op)
-  GLEAVE(9, 'g1', 'x'),                            // master x 탈퇴(거부·no-op)
+  GCREATE(3, 'g1', 'x', ['x']),
+  GJOIN(5, 'g1', 'c2'), GJOIN(6, 'g1', 'c3'), GJOIN(7, 'g1', 'c3'),   // c2·c3 실가입 / c3 중복(no-op)
+  GLEAVE(8, 'g1', 'c2'), GLEAVE(9, 'g1', 'c9'), GLEAVE(10, 'g1', 'x'),  // c2 실탈퇴 / c9 없음(no-op) / x master(거부 no-op)
 ];
 
-function guildjoin(seeds) {
-  console.log('== guildjoin: 증분 가입/탈퇴(guildJoin/guildLeave). 멱등(중복 가입·없는 탈퇴 no-op)·master 보호(master 탈퇴 거부)·single-master 보존. 파티 0084 의 길드 판. ==');
-  console.log('seed   | join/leave 호출 | 최종 로스터 | master 유지 | 멱등+보호 | 판정');
+function guildpub(seeds) {
+  console.log('== guildpub: 멤버십 변경 발행(svc.guild.changed). published==실 변경==audit 수신, no-op 변경(중복/없음/master) 발행 0. 파티 0084 의 길드 판. ==');
+  console.log('seed   | published | audit 수신 | OFF published | 실변경==발행==수신 | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 14, ...COMMON, guildOps: OPS });
-    const g = r.guild;
-    const g1 = g.guilds.get('g1');
-    const roster = g1.members.slice().sort();
-    // 기대 최종 로스터: master x + c2(c1 가입 후 탈퇴·중복/없는 탈퇴 no-op·master 탈퇴 거부).
-    const rosterOk = JSON.stringify(roster) === JSON.stringify(['c2', 'x']);
-    const masterOk = g1.master === 'x' && g1.members.includes('x');
-    const counts = g.joins === 2 && g.leaves === 3;   // 호출 수(no-op 포함): join 2·leave 3.
-    const singleMaster = [...g.guilds.values()].every(x => x.members.includes(x.master) && new Set(x.members).size === x.members.length);
+    const on = run({ seed, ticks: 14, ...COMMON, guildChangePublish: true, guildOps: OPS });
+    const off = run({ seed, ticks: 14, ...COMMON, guildChangePublish: false, guildOps: OPS });
+    const auditCnt = on.audit.seen.get('svc.guild.changed') || 0;
+    const pubOk = on.guild.published === 3 && auditCnt === 3;   // 실 변경 3건만 발행·수신.
+    const offOk = off.guild.published === 0 && !(off.audit.seen.get('svc.guild.changed'));   // OFF 발행 0(비-침습).
     const ok =
-      check(rosterOk, `seed ${seed}: 최종 로스터 != [x,c2] (실제 ${JSON.stringify(roster)})`) &&
-      check(masterOk, `seed ${seed}: master 유실(탈퇴 거부 실패)`) &&
-      check(counts, `seed ${seed}: join/leave 계측 어긋남`) &&
-      check(singleMaster, `seed ${seed}: single-master 불변 위반`);
-    console.log(`${pad(seed, 6)} | ${pad(g.joins + '/' + g.leaves, 15)} | ${pad(JSON.stringify(roster), 11)} | ${pad(masterOk ? '예' : '아니오', 11)} | ${pad((rosterOk && masterOk) ? '예' : '아니오', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+      check(pubOk, `seed ${seed}: published/audit != 3 (pub ${on.guild.published}·audit ${auditCnt})`) &&
+      check(offOk, `seed ${seed}: OFF 인데 발행 발생(비-침습 위반)`);
+    console.log(`${pad(seed, 6)} | ${pad(on.guild.published, 9)} | ${pad(auditCnt, 10)} | ${pad(off.guild.published, 13)} | ${pad(pubOk ? '예(3/3/3)' : '아니오', 18)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → 증분 가입/탈퇴는 전체 로스터 덮어쓰기 없이 한 멤버 델타만 적용한다. 멱등: 중복 가입·없는 멤버 탈퇴는 no-op(상태 불변). master 보호: master 의 guildLeave 는 거부(no-op) → 마스터 공백 없음(single-master 불변·척추 ③). 마스터 이양(0189)이 master 교체 경로. 파티 0084 의 길드 판.');
+  console.log('  → 멤버십 변경을 버스로 노출(svc.guild.changed)해 발행자 무수정 소비자(audit·배지 0186)가 반응한다. 발행 수 == 실 변경 수 == audit 수신(no-op 변경은 발행 안 함 = 발행이 곧 사실). guildChangePublish OFF 면 발행 0(0182 비트 동일·비-침습). 파티 0084 의 길드 판 — 0186 GuildFeed 배지가 이 스트림을 구독한다.');
 }
 
-kit.MODES['guildjoin'] = guildjoin;
-kit.ORDER.splice(1, 0, 'guildjoin');
+kit.MODES['guildpub'] = guildpub;
+kit.ORDER.splice(1, 0, 'guildpub');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
