@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0242](step-0242.md) — **배치 SSOT 실배선(#51) 2: executed placeMigrate**. `placeMigrate` 가 `placeExecute` ON 이면 paper `placement` 갱신에 더해 실 존 런타임을 release(기존)+acquire(toHost) 쌍으로 *실제 이주*(`_migrate`·running 원자 교체·한 존 정확히 한 host·0218 paper 의 집행 판). OFF→0241 비트 동일.
-- **한 줄 상태**: reg ALL OK·placemigrexec: 5/5 z1 hostA→hostC 실 이주·단일 소유·결정==집행·`run.js all` 12모드+classics ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51 실배선 arc 진행 중**. 0241 존 런타임 SSOT(start)·0242 executed migrate. **다음 = 0243 executed placeRebalance**(자동 재배치가 실 런타임 이주 구동·0242 _migrate 재사용). 그 뒤 0244 drain executed·0245 reconcile capstone → 게이트 #49(wiring 분할).
+- **닫힌 step**: [step-0243](step-0243.md) — **배치 SSOT 실배선(#51) 3: executed placeRebalance**. 자동 부하 재배치(`_rebalance`)가 `placeExecute` ON 이면 paper `placement.set` 마다 실 존 런타임도 `_migrate`(0242)로 함께 이주 → running 이 *실제* 균형 수렴(0223 자동 트리거의 집행 판). OFF→0242 비트 동일.
+- **한 줄 상태**: reg ALL OK·placerebalexec: 5/5 z1·z2·z3@hostA(3/0/0)→running 1/1/1·rtMig 2·결정==집행·`run.js all` 13모드+classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51 실배선 arc 진행 중**. 0241 SSOT·0242 migrate·0243 rebalance executed. **다음 = 0244 executed placeDrain**(host 드레인이 실 런타임 이주 구동·드레인 후 그 host running 0). 그 뒤 0245 reconcile capstone(drift 0) → 게이트 #49(wiring 분할).
 
 ---
 
@@ -19,7 +19,7 @@
 
 > 🎯 **#51 배치 SSOT 실배선 arc 진행 중** — 0231~0240 verdict 평결: "정리 빚 대부분 청산·load-bearing 0순위 #51 이 명백" (placeZone/Migrate/Rebalance/Drain 이 `orchestrator.js:placement` paper map 만 갱신·실 존 안 움직임). 집행: placement(결정)을 실 존 런타임 lifecycle 로 구동. **게이트 = `placeExecute` OFF→현 paper map=회귀 0.**
 
-**#51 실배선 arc 계획:** 0241 존 런타임 SSOT(running·executed·start) ✅ → 0242 executed placeMigrate(실 release+acquire) ✅ → 0243 executed placeRebalance → 0244 executed placeDrain → 0245 placement↔running reconcile capstone(drift 0) → 0246~ 심화(executed placeAuto·placeStop·crash/recover) 또는 게이트 #49(wiring 분할).
+**#51 실배선 arc 계획:** 0241 존 런타임 SSOT(running·executed·start) ✅ → 0242 executed placeMigrate(실 release+acquire) ✅ → 0243 executed placeRebalance ✅ → 0244 executed placeDrain → 0245 placement↔running reconcile capstone(drift 0) → 0246~ 심화(executed placeAuto·placeStop·crash/recover) 또는 게이트 #49(wiring 분할).
 
 **후속 백로그 (🔴 제외)**: ⒜ **실배선 #51**(배치 SSOT→실 존 lifecycle·placeMigrate/Rebalance/Drain 이 advisory paper map) ⒝ **정리 #49**(wiring >30KB — topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB·다음 너비/멀티프로세스 전 분할 게이트) ⒞ 멀티프로세스 배선(#9) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속·서버간 인증.
 
@@ -78,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
@@ -158,3 +158,4 @@
 | [0240](step-0240.md) | loginabandon 모드 spine 승급(#16 — 0230 큐 이탈·verify.js→kit 이동·순수 셸 정리·#16 승급 라운드 0231~0240 닫기) | 통과(reg 0·spine OK) · 5/5 + 10모드 ALL OK |
 | [0241](step-0241.md) | 배치 SSOT 실배선 #51-1: 존 런타임 레지스트리(running·executed SSOT·placeExecute→placeZone start·advisory paper→executed lifecycle 첫 조각) | 통과(reg 0·spine OK) · 5/5 running 2·starts 2·결정==집행 |
 | [0242](step-0242.md) | 배치 SSOT 실배선 #51-2: executed placeMigrate(_migrate·실 존 런타임 release+acquire 이주·running 원자 교체·0218 paper 의 집행 판) | 통과(reg 0·spine OK) · 5/5 z1 hostA→hostC 실 이주·단일 소유 |
+| [0243](step-0243.md) | 배치 SSOT 실배선 #51-3: executed placeRebalance(_rebalance 가 매 move 마다 _migrate·실 존 런타임 균형 수렴·0223 자동 트리거의 집행 판) | 통과(reg 0·spine OK) · 5/5 3/0/0→running 1/1/1·rtMig 2 |

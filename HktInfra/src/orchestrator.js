@@ -1,4 +1,5 @@
 'use strict';
+// step-0243 — 배치 SSOT 실배선(#51) 3: executed placeRebalance. placeExecute ON 이면 자동 부하 재배치가 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 함께 이주(running 균형까지 실제 수렴·0223 자동 트리거의 집행 판). 0242 _migrate 재사용. OFF→0242 비트 동일(reg 0).
 // step-0242 — 배치 SSOT 실배선(#51) 2: executed placeMigrate. placeExecute ON 이면 placeMigrate 가 paper placement 갱신에 더해 실 존 런타임을 release(기존 host)+acquire(toHost) 쌍으로 *실제 이주*(running 단일 키 원자 교체·한 존은 정확히 한 host·공백/중복 0). paper Map.set 만이던 0218 의 집행 판(advisory→executed migrate). OFF→0241 비트 동일(reg 0).
 // step-0241 — 배치 SSOT 실배선(#51) 1: 존 런타임 레지스트리(running). placement(결정 SSOT·"어디서 돌아야 하나")와 별개로 *실제 가동 중인* 존 런타임을 host 별로 추적하는 executed SSOT(=집행 현실). placeExecute ON 이면 placeZone 이 paper 갱신에 더해 실 존 런타임을 *띄운다*(running.set·starts++·instance.js active SSOT 와 동형). OFF 면 paper map 만 = 0240 비트 동일(reg 0). advisory→executed 의 첫 조각.
 // step-0224 — 오케스트레이터 host 드레인(placeDrain): 정비/퇴역할 host 의 *모든* 존을 다른(나머지) host 중 최소부하로 차례차례 이주(release+acquire 연쇄·존 권위 단일 소유 보존). 드레인 후 그 host 부하 0(비운다). 다른 host 없으면 보류(존 잔류). placeDrain 미수신이면 0223 비트 동일(reg 0). 3차 고도화(오케스트레이터 #2).
@@ -215,6 +216,7 @@ class Orchestrator {
       let z = null; for (const [zid, h] of this.placement) if (h === maxH) { z = zid; break; }   // 최대부하 host 의 첫 존(삽입 순).
       if (z === null) break;
       this.placement.set(z, minH); moved++;                   // release(maxH)+acquire(minH) — 단일 키 원자 교체.
+      if (this.placeExecute) this._migrate(z, minH);          // 집행(step-0243) — 실 존 런타임도 함께 이주.
     }
     this.rebalanceMoves += moved; return moved;
   }
