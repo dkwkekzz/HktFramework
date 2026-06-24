@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0245](step-0245.md) — **배치 SSOT 실배선(#51) 5: reconcile capstone**. `placementDrift()` 질의(결정 placement↔집행 running 표류)로 혼합 op(place+migrate+rebalance+drain) 뒤 drift 0(결정==집행·paper 표류 없음)을 단언 — advisory→executed arc 닫기. 쓰기 무변경. OFF→0244 비트 동일.
-- **한 줄 상태**: reg ALL OK·placereconcile: 5/5 drift 0·running 4/placed 4·드레인 hostB 0·`run.js all` 15모드+classics ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51 실배선 1차 arc 완료**(0241~0245·placeZone/Migrate/Rebalance/Drain executed + reconcile capstone). **다음 = 0246 executed placeStop**(존 런타임 종료·운영 퇴역의 실 stop·instance despawn 동형) → 0247~ executed placeAuto(부하 기반 실 가동)·런타임 crash/recover. 그 뒤 게이트 #49(wiring 분할).
+- **닫힌 step**: [step-0246](step-0246.md) — **배치 SSOT 실배선(#51) 6: executed placeStop**. `placeStop{zoneId}` 가 존을 운영 퇴역 — 결정(placement) 제거 + `placeExecute` ON 이면 실 런타임(running) 종료(`_stop`·instance _despawn 의 존 판·드레인과 달리 그 존 자체를 내림). 없는 존 멱등. OFF→0245 비트 동일.
+- **한 줄 상태**: reg ALL OK·placestopexec: 5/5 z2 퇴역→placed 2·running 2·drift 0·zonesRetired 1·`run.js all` 16모드+classics ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51 실배선 진행**(0241~0246). **다음 = 0247 executed placeAuto**(부하 기반 자동 배치가 실 런타임도 가동·running load 기반) → 0248~ 런타임 crash/recover. 그 뒤 게이트 #49(wiring 분할·topo-build 31.5/topo-run 35.9/svc-exchange-core 30.7KB).
 
 ---
 
@@ -78,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
@@ -161,3 +161,4 @@
 | [0243](step-0243.md) | 배치 SSOT 실배선 #51-3: executed placeRebalance(_rebalance 가 매 move 마다 _migrate·실 존 런타임 균형 수렴·0223 자동 트리거의 집행 판) | 통과(reg 0·spine OK) · 5/5 3/0/0→running 1/1/1·rtMig 2 |
 | [0244](step-0244.md) | 배치 SSOT 실배선 #51-4: executed placeDrain(_drain 이 매 move 마다 _migrate·드레인 후 그 host running 0·0224 퇴역 안전 이주의 집행 판) | 통과(reg 0·spine OK) · 5/5 A 드레인→running A 0·B 2·C 2 |
 | [0245](step-0245.md) | 배치 SSOT 실배선 #51-5: reconcile capstone(placementDrift 질의·혼합 op 후 결정==집행·drift 0·runningCount==placedCount·advisory→executed arc 닫기) | 통과(reg 0·spine OK) · 5/5 drift 0·run 4/placed 4 |
+| [0246](step-0246.md) | 배치 SSOT 실배선 #51-6: executed placeStop(_stop·존 운영 퇴역·결정+집행 동시 제거·instance _despawn 의 존 판·드레인과 달리 그 존 자체 내림) | 통과(reg 0·spine OK) · 5/5 z2 퇴역·placed 2·drift 0 |

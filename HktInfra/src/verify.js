@@ -1,8 +1,8 @@
-// HktInfra step-0245 — 헤드리스 검증 (배치 SSOT 실배선 #51 — reconcile capstone)
+// HktInfra step-0246 — 헤드리스 검증 (배치 SSOT 실배선 #51 — executed placeStop)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placereconcile`.
-//   더한 한 조각: placementDrift() 질의 — 결정(placement)==집행(running) drift. placeExecute ON 이면 혼합 op(place+migrate+rebalance+drain) 뒤에도 drift 0(paper 표류 없음). advisory→executed arc 닫기. 미주입/OFF → 0244 비트 동일(reg). #51 실배선 5(capstone).
-//   검증: ⒜ `reg`(키트). ⒝ `placereconcile`(가설) — 혼합 op 후 drift 0·runningCount==placedCount·드레인 host running 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placestopexec`.
+//   더한 한 조각: placeStop{zoneId} → 존 운영 퇴역(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료·instance _despawn 의 존 판). 없는 존 멱등 no-op. 미주입/OFF → 0245 비트 동일(reg). #51 실배선 6.
+//   검증: ⒜ `reg`(키트). ⒝ `placestopexec`(가설) — z1·z2·z3 가동 → z2 stop → placed 2·running 2·z2 제거·drift 0·미존 zX 멱등.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,29 +16,25 @@ const { run } = NET;
 const { check, pad } = kit.helpers;
 
 const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-const MIGRATE = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
-const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
-const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
-const HOSTS = ['hostA', 'hostB', 'hostC'];
-// 혼합: 4존 가동 → z4 이주 → 부하 재배치 → hostB 드레인. 매 op 가 paper+executed 동시 구동 → drift 0 유지.
-const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), PLACE(4, 'z4', 'hostC'), MIGRATE(5, 'z4', 'hostA'), REBAL(6, HOSTS), DRAIN(7, 'hostB', HOSTS)];
+const STOP = (at, zoneId) => ({ at, op: { type: 'placeStop', zoneId } });
+// z1·z2·z3 가동 → z2 운영 퇴역(stop) → 미존 zX stop(멱등 no-op).
+const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), STOP(4, 'z2'), STOP(5, 'zX')];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, placementOps: OPS };
 
-function placereconcile(seeds) {
-  console.log('== placereconcile (0245·#51 실배선 capstone): placement(결정)↔running(집행) reconcile — 혼합 op(place+migrate+rebalance+drain) 뒤에도 placementDrift 0(결정==집행·advisory paper 표류 없음)·runningCount==placedCount·드레인한 hostB running 0. advisory→executed arc 닫기. ==');
-  console.log('seed   | drift | run==placed | A | B | C | 판정');
+function placestopexec(seeds) {
+  console.log('== placestopexec (0246·#51 실배선): executed placeStop — placeStop{zoneId} 이 존을 운영 퇴역(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료·instance _despawn 의 존 판). 없는 존 멱등 no-op. z2 stop 후 placed 2·running 2·z2 사라짐·drift 0·zonesRetired 1(미존 zX no-op). ==');
+  console.log('seed   | placed | running | z2 run | retired | stops | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 10, ...BASE });
+    const r = run({ seed, ticks: 8, ...BASE });
     const o = r.orch;
-    const A = o.runningOn('hostA'), B = o.runningOn('hostB'), C = o.runningOn('hostC');
-    // drift 0·집행==결정 카운트·드레인 hostB 0·총합 4(전 존 정확히 한 host).
-    const ok = check(o.placementDrift() === 0 && o.runningCount() === o.placedCount() && o.runningCount() === 4 && B === 0 && (A + B + C) === 4,
-      `seed ${seed}: reconcile 위반 (drift ${o.placementDrift()}·run ${o.runningCount()}·placed ${o.placedCount()}·B ${B})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.placementDrift(), 5)} | ${pad(o.runningCount() + '/' + o.placedCount(), 11)} | ${pad(A, 1)} | ${pad(B, 1)} | ${pad(C, 1)} | ${ok ? 'OK' : 'FAIL'}`);
+    // z2 퇴역: placed 2(z1,z3)·running 2·z2 결정/집행 모두 제거·drift 0·zonesRetired 1·stops 2(zX 멱등).
+    const ok = check(o.placedCount() === 2 && o.runningCount() === 2 && o.placementOf('z2') === null && o.runningHostOf('z2') === null && o.placementDrift() === 0 && o.zonesRetired === 1 && o.stops === 2,
+      `seed ${seed}: stop 위반 (placed ${o.placedCount()}·running ${o.runningCount()}·z2 ${o.runningHostOf('z2')}·retired ${o.zonesRetired}·drift ${o.placementDrift()})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.placedCount(), 6)} | ${pad(o.runningCount(), 7)} | ${pad(o.runningHostOf('z2') || '-', 6)} | ${pad(o.zonesRetired, 7)} | ${pad(o.stops, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['placereconcile'] = placereconcile;
-kit.ORDER.splice(1, 0, 'placereconcile');
+kit.MODES['placestopexec'] = placestopexec;
+kit.ORDER.splice(1, 0, 'placestopexec');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

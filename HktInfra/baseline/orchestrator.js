@@ -1,4 +1,5 @@
 'use strict';
+// step-0245 — 배치 SSOT 실배선(#51) 5: placement↔running reconcile capstone. `placementDrift()` 질의(결정 placement 와 집행 running 이 어긋난 존 수). placeExecute ON 이면 모든 배치 op(place/migrate/rebalance/drain) 뒤 drift 0(결정==집행·paper 표류 없음)을 단언 — advisory→executed arc 닫기. 코드는 읽기 질의 1개(쓰기 무변경)·OFF→0244 비트 동일(reg 0).
 // step-0244 — 배치 SSOT 실배선(#51) 4: executed placeDrain. placeExecute ON 이면 host 드레인이 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 이주 → 드레인 후 그 host running 0(실제 비워짐·0224 퇴역 안전 이주의 집행 판). 0242 _migrate 재사용. OFF→0243 비트 동일(reg 0).
 // step-0243 — 배치 SSOT 실배선(#51) 3: executed placeRebalance. placeExecute ON 이면 자동 부하 재배치가 paper placement.set 마다 실 존 런타임도 _migrate(release+acquire)로 함께 이주(running 균형까지 실제 수렴·0223 자동 트리거의 집행 판). 0242 _migrate 재사용. OFF→0242 비트 동일(reg 0).
 // step-0242 — 배치 SSOT 실배선(#51) 2: executed placeMigrate. placeExecute ON 이면 placeMigrate 가 paper placement 갱신에 더해 실 존 런타임을 release(기존 host)+acquire(toHost) 쌍으로 *실제 이주*(running 단일 키 원자 교체·한 존은 정확히 한 host·공백/중복 0). paper Map.set 만이던 0218 의 집행 판(advisory→executed migrate). OFF→0241 비트 동일(reg 0).
@@ -199,6 +200,13 @@ class Orchestrator {
   runningHostOf(zoneId) { return this.running.get(zoneId) || null; }
   runningOn(host) { let n = 0; for (const h of this.running.values()) if (h === host) n++; return n; }
   runningCount() { return this.running.size; }
+  // placement↔running 표류 질의(step-0245·#51 capstone) — 결정(placement)과 집행(running)이 어긋난 존 수(host 불일치 또는 한쪽에만 존재). placeExecute ON 이면 모든 배치 op 뒤 0(결정==집행·advisory paper 표류 없음)이어야 한다. 읽기 전용(쓰기 무변경).
+  placementDrift() {
+    let d = 0;
+    const ids = new Set([...this.placement.keys(), ...this.running.keys()]);
+    for (const z of ids) if (this.placement.get(z) !== this.running.get(z)) d++;
+    return d;
+  }
   // host 부하(step-0217) — 그 host 에 배치된 존 수(배치 SSOT 에서 파생·부하 지표). 부하 분산 판정의 기준.
   hostLoad(host) { let n = 0; for (const h of this.placement.values()) if (h === host) n++; return n; }
   // 최소 부하 host(step-0217) — 후보 중 hostLoad 최소를 고른다. 동률은 후보 배열 순서로 결정론 tie-break(첫 최소). 후보 없으면 null.
