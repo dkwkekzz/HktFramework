@@ -53,10 +53,20 @@ const closed = fs.readdirSync(stepsDir)
   .filter(n => fs.existsSync(path.join(stepsDir, 'step_' + n, 'step_' + n + '.md')))
   .sort();
 
-// 2) viewer.html 의 STEPS 키 — 줄 시작 들여쓰기 + '\d{4}': { 패턴(STEPS 항목 줄).
+// 2) 등록된 step 키 — 두 길 모두 인정(장면 통일 design/scene-unify.md):
+//    (a) viewer.html 인라인 STEPS 항목 줄  '\d{4}': {
+//    (b) scenes/ 모듈 — viewer/scenes/step_NNNN.js 가 *있고* viewer.html 이 그 <script src> 로 *로드*한다
+//        (모듈만 있고 안 실으면 라이브에 안 뜨므로 등록으로 안 친다 — 둘 다 있어야 인정).
 const viewer = fs.readFileSync(path.join(root, 'viewer.html'), 'utf8');
 const registered = new Set();
-for (const m of viewer.matchAll(/^\s*'(\d{4})':\s*\{/gm)) registered.add(m[1]);
+for (const m of viewer.matchAll(/^\s*'(\d{4})':\s*\{/gm)) registered.add(m[1]);   // (a) 인라인
+const scenesDir = path.join(root, 'viewer', 'scenes');
+if (fs.existsSync(scenesDir)) {
+  for (const f of fs.readdirSync(scenesDir)) {
+    const n = (f.match(/^step_(\d{4})\.js$/) || [])[1];
+    if (n && viewer.includes('viewer/scenes/step_' + n + '.js')) registered.add(n);  // (b) 모듈+로드
+  }
+}
 
 // 3) 대조 — 등록도 면제도 안 된 닫힌 step = 누락.
 const missing = closed.filter(n => !registered.has(n) && !EXEMPT[n]);

@@ -111,6 +111,11 @@
 <script src="engine/htj-sph.js"></script>
 <script src="engine/htj-shapedna.js"></script>
 <script src="engine/htj-terrain.js"></script>
+<!-- 장면 통일(design/scene-unify.md U1) — scenes/ 모듈은 viewer 라이브와 헤드리스 캡처(tools/htj-render-capture.js)가 함께 읽는 시나리오 SSOT. engine 뒤에 로드(전역 HTJ* 의존). -->
+<script src="viewer/htj-surface.js"></script>
+<script src="viewer/scenes/step_0066.js"></script>
+<script src="viewer/scenes/step_0067.js"></script>
+<script src="viewer/scenes/step_0068.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -1498,6 +1503,9 @@
       note: '<b>지형이 *자란다* — 정착한 자유 구체(퇴적물)가 지형 표면이 되어 계곡이 차오른다</b> — 자연스러운 지형(환경 트랙·merge-dna §5 T1 확장). <b>▶ 무엇</b>(design/environment.md §2/§4 "그 위의 거동[딛기·고임·흐름·<b>깎임/쌓임</b>]은 구체 법칙의 창발"): T1(0065)은 지형을 *연속 음영 표면*으로 발현했지만 그 지형은 <b>정적</b>(author 한 카펫·"침식·깎임 없음")이었다. 이 step 은 그 표면을 <b>동적</b>으로 — 자유 구체가 중력+접촉+마찰+구름 저항(0059 물리)으로 계곡(낮은 데)으로 굴러 <b>정착</b>하면, terrainSurface 가 그 <b>정착 퇴적물을 표면에 splat</b>(각 구의 상단 z=cz+√(r²−d²) 와 지형의 <b>max</b> = "물질이 위에 쌓임")해 <b>표면이 들어올려진다</b>. <b>흐름</b>(capture 4 패널): 맨 사발(계곡) → 구체가 굴러 정착(퇴적 0→증가) → 표면(법선 음영 band)이 <b>계곡에서 차오른다</b>. <b>왜 중요한가</b>: 지형의 모양이 더는 author 한 고정이 아니라 <b>구체가 굴러간 결과(정착·퇴적)로 변한다</b> = "법칙은 author·구조(지형 모양)는 창발". 사막 모래·강 하구 퇴적·계곡 메움이 *같은 한 원소*로. <b>세계↔확인용 단방향</b>: 정착은 기존 entity 법칙(engine·물리 보존), 표면은 그 결과를 <b>읽어 splat</b>(terrainSurface 가법 확장·deposits 없으면 0065 표면과 byte 동일) → engine·물리 <b>불변</b>(렌더 트랙·회귀0). <b>정직한 한계</b>: 표면이 구 상단 max 라 <b>울퉁(개별 봉우리)</b> — 매끄러운 퇴적(가우시안 splat·이완)·침식(깎임·역방향)은 후속. 퇴적물은 표면에만 반영(되쪼개 물리 footprint 공유는 M4)·정착 판정 절대속도+고도 게이트(장면 노브)·여전히 단일 패치(광활=TW4)·바닥 골격 손수. 다음: 매끄러운 퇴적·침식(물↔지형 왕복) 또는 T2 지형 DNA 배선(K≪N).'
     }
   };
+  // 장면 통일(design/scene-unify.md U1) — scenes/ 모듈로 옮긴 step 은 인라인 정의를 *대체*한다(같은 본문·단일 출처).
+  //   여기 등록된 모듈 키(예: '0066')가 위 인라인 STEPS 항목을 덮어쓴다. 헤드리스 캡처(tools/htj-render-capture.js)도 같은 모듈을 읽는다.
+  Object.assign(STEPS, (typeof window !== 'undefined' && window.HTJScenes) || {});
   // 0066 보조 — 카펫 앵커 + 정착(느린·내려앉은) 자유 구체를 terrainSurface 로 환원(퇴적 발현). 낙하 중 구체는 오버레이용.
   function rebuildSurface0066(w) {
     const es = w.__entities, topZ = w.__topZ, sp = (e) => Math.hypot(e.px, e.py, e.pz) / e.mass;
