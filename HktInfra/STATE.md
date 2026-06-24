@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0217](step-0217.md) — **오케스트레이터 부하 배치**: `placeAuto{zoneId,hosts}`→후보 중 최소 부하 host 선택 배치(부하 분산·정적 배치 한계 제거·동률 결정론 tie-break). 미주입→0216 비트 동일. **2차 고도화 오케 #1**. 닿는 박스: orchestrator.
-- **한 줄 상태**: reg ALL OK·placeload: 5/5 A·B·C·A 균형·부하 2/1/1·spine ALL OK.
-- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스 ✅2→오케→로그인). 다음 = 0218 오케스트레이터 존 재배치 핸드오프(placeMigrate·release+acquire 쌍).
+- **닫힌 step**: [step-0218](step-0218.md) — **오케스트레이터 존 재배치 핸드오프**: `placeMigrate{zoneId,toHost}`→release+acquire 쌍으로 존 이동(권위 단일 소유 보존·공백/중복 0·총 배치 보존). 미배치/같은 host 거부. 미주입→0217 비트 동일. **2차 고도화 오케 #2**. 닿는 박스: orchestrator.
+- **한 줄 상태**: reg ALL OK·placemigrate: 5/5 z1 A→C·배치 2 보존·mig 1/rej 2·spine ALL OK.
+- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스 ✅2→오케 ✅2→로그인). 다음 = 0219 로그인 큐 수용량 백프레셔(loginCapacity·capacity 까지만 입장).
 
 ---
 
@@ -83,7 +83,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+플레이어 라우팅(0216·배정 SSOT)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217·최소 부하 분산)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218·release+acquire·권위 보존)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212·write 일관성)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214·스냅샷 arc 닫기)**. fsync·버스 영속 후속 |
 
 ---
@@ -223,3 +223,4 @@
 | [0215](step-0215.md) | 인스턴스 수요 spawn(instanceDemand·active<target 부족분 자동 채움·탄력 확장·2차 고도화 인스턴스 #1) | 통과 · active 3·demandSpawns 3·멱등 |
 | [0216](step-0216.md) | 인스턴스 플레이어 라우팅(instanceRoute·player→instance 배정 SSOT·재배정 release+acquire·2차 고도화 인스턴스 #2) | 통과 · routed 3/reroute 1/reject 1 |
 | [0217](step-0217.md) | 오케스트레이터 부하 배치(placeAuto·최소 부하 host 선택·부하 분산·결정론 tie-break·2차 고도화 오케 #1) | 통과 · A·B·C·A·부하 2/1/1 |
+| [0218](step-0218.md) | 오케스트레이터 존 재배치 핸드오프(placeMigrate·release+acquire 쌍·권위 단일 소유 보존·2차 고도화 오케 #2) | 통과 · z1 A→C·배치 보존·mig 1/rej 2 |

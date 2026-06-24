@@ -1,8 +1,8 @@
-// HktInfra step-0217 — 헤드리스 검증 (오케스트레이터 부하 배치·placeAuto·부하 분산)
+// HktInfra step-0218 — 헤드리스 검증 (오케스트레이터 존 재배치 핸드오프·placeMigrate·권위 단일 소유)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placeload`.
-//   더한 한 조각: placeAuto{zoneId,hosts} → 후보 host 중 최소 부하(배치된 존 수 최소) 선택 배치(부하 분산). 동률은 후보 순서 tie-break. 미주입 → 0216 비트 동일(reg). 2차 고도화 오케 #1.
-//   검증: ⒜ `reg`(키트). ⒝ `placeload`(가설) — z1~z4 placeAuto(hosts A/B/C) → A·B·C·A 라운드로빈 균형(부하 2/1/1).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placemigrate`.
+//   더한 한 조각: placeMigrate{zoneId,toHost} → 이미 배치된 존을 release(기존)+acquire(toHost) 쌍으로 이동(권위 단일 소유 보존·공백/중복 0). 미배치/같은 host 거부. 미주입 → 0217 비트 동일(reg). 2차 고도화 오케 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `placemigrate`(가설) — z1@A·z2@B → z1 migrate→C, 같은 host 재요청·미배치 z9 거부 → 총 배치 수 보존(공백/중복 0).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,29 +15,34 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const HOSTS = ['hostA', 'hostB', 'hostC'];
-const AUTO = (at, zoneId) => ({ at, op: { type: 'placeAuto', zoneId, hosts: HOSTS } });
-// z1~z4 자동 배치 → 최소 부하 라운드로빈: A(0→1)·B(0→1)·C(0→1)·A(동률 tie→첫째). 부하 A2·B1·C1.
-const OPS = [AUTO(2, 'z1'), AUTO(3, 'z2'), AUTO(4, 'z3'), AUTO(5, 'z4')];
+const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+const MIGRATE = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
+// z1@A·z2@B → z1 migrate A→C → 같은 host(C) 재요청 거부 → 미배치 z9 migrate 거부.
+const OPS = [
+  PLACE(2, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'),
+  MIGRATE(4, 'z1', 'hostC'),
+  MIGRATE(6, 'z1', 'hostC'),
+  MIGRATE(7, 'z9', 'hostA'),
+];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
 
-function placeload(seeds) {
-  console.log('== placeload: 오케스트레이터 부하 배치(placeAuto) — 후보 host 중 최소 부하 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서 결정론 tie-break. 2차 고도화 오케스트레이터 #1. ==');
-  console.log('seed   | z1/z2/z3/z4 | 부하 A/B/C | autoPlace | 판정');
+function placemigrate(seeds) {
+  console.log('== placemigrate: 오케스트레이터 존 재배치 핸드오프(placeMigrate) — 배치된 존을 release(기존)+acquire(신규) 쌍으로 이동(권위 단일 소유 보존·공백/중복 0·0006 핸드오프 배치 판). 미배치/같은 host 거부. 2차 고도화 오케스트레이터 #2. ==');
+  console.log('seed   | z1 | 부하 A/B/C | placed | migrate/reject | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 8, ...BASE });
+    const r = run({ seed, ticks: 9, ...BASE });
     const o = r.orch;
-    const z = ['z1', 'z2', 'z3', 'z4'].map(zz => o.placementOf(zz));
+    const z1 = o.placementOf('z1');
     const la = o.hostLoad('hostA'), lb = o.hostLoad('hostB'), lc = o.hostLoad('hostC');
-    // 라운드로빈 균형: z1→A·z2→B·z3→C·z4→A(동률 첫째). 부하 2/1/1·autoPlacements 4.
-    const ok = check(z[0] === 'hostA' && z[1] === 'hostB' && z[2] === 'hostC' && z[3] === 'hostA' && la === 2 && lb === 1 && lc === 1 && o.autoPlacements === 4,
-      `seed ${seed}: 배치 위반 (z ${z.join(',')}·부하 ${la}/${lb}/${lc}·auto ${o.autoPlacements})`);
-    console.log(`${pad(seed, 6)} | ${pad(z.map(x => x.replace('host', '')).join('/'), 11)} | ${pad(la + '/' + lb + '/' + lc, 9)} | ${pad(o.autoPlacements, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+    // z1 A→C 이동·z2 B 유지 → A 0·B 1·C 1. 총 배치 2 보존(공백/중복 0). migrations 1·rejects 2(같은 host+미배치).
+    const ok = check(z1 === 'hostC' && la === 0 && lb === 1 && lc === 1 && o.placedCount() === 2 && o.migrations === 1 && o.migrateRejects === 2,
+      `seed ${seed}: 재배치 위반 (z1 ${z1}·부하 ${la}/${lb}/${lc}·placed ${o.placedCount()}·mig ${o.migrations}/rej ${o.migrateRejects})`);
+    console.log(`${pad(seed, 6)} | ${pad(z1.replace('host', ''), 4)} | ${pad(la + '/' + lb + '/' + lc, 9)} | ${pad(o.placedCount(), 6)} | ${pad(o.migrations + '/' + o.migrateRejects, 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → placeAuto 가 매번 최소 부하 host 를 골라(A·B·C·A) 부하를 균형 분산(2/1/1·동률은 결정론 tie-break). 어떤 단일 host 도 영구 중심이 아니다(정적 배치 한계 제거·부하 배치 토대). 오케스트레이터 2차 고도화 #1.');
+  console.log('  → placeMigrate 가 존을 release+acquire 쌍으로 옮긴다(z1 A→C·A 부하 줄고 C 늘어). 총 배치 수가 보존돼(공백/중복 0·권위 단일 소유) 어느 순간에도 존 소유 host 가 정확히 1. 미배치/같은 host 는 거부(reject 2). 부하 재균형·재배치 토대. 오케스트레이터 2차 고도화 #2.');
 }
 
-kit.MODES['placeload'] = placeload;
-kit.ORDER.splice(1, 0, 'placeload');
+kit.MODES['placemigrate'] = placemigrate;
+kit.ORDER.splice(1, 0, 'placemigrate');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
