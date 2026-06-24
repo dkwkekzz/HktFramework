@@ -819,9 +819,30 @@ function worldwb(seeds) {
   }
 }
 
+function worldfsync(seeds) {
+  const APP = (at, intent) => ({ at, op: { type: 'worldAppend', intent } });
+  const FSYNC = (at) => ({ at, op: { type: 'worldFsync' } });
+  const OPS = [APP(1, { e: 'e1', kind: 'move', to: 1 }), APP(2, { e: 'e2', kind: 'move', to: 2 }), APP(3, { e: 'e3', kind: 'move', to: 3 }), FSYNC(4), APP(5, { e: 'e4', kind: 'move', to: 4 }), APP(6, { e: 'e5', kind: 'move', to: 5 })];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, worldLog: true, worldOps: OPS };
+  console.log('== worldfsync (0228 승급): 월드 영속 fsync durable barrier — durableSeq=fsync 로 디스크 확정된 최대 seq. recoverDurable 은 seq≤durableSeq 만 replay(flush=페이지캐시 vs fsync=물리 확정). ==');
+  console.log('seed   | durSeq | dur복구 | full복구 | e4(미fsync) | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const w = r.worldlog;
+    w._replayDurable();
+    const durCount = ['e1', 'e2', 'e3', 'e4', 'e5'].filter(e => w.stateOf(e)).length;
+    const e4durable = !!w.stateOf('e4');
+    w.replay();
+    const fullCount = ['e1', 'e2', 'e3', 'e4', 'e5'].filter(e => w.stateOf(e)).length;
+    const ok = check(w.durableSeq === 3 && durCount === 3 && !e4durable && fullCount === 5,
+      `seed ${seed}: fsync 위반 (durSeq ${w.durableSeq}·dur ${durCount}·full ${fullCount}·e4 ${e4durable})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.durableSeq, 6)} | ${pad(durCount, 7)} | ${pad(fullCount, 8)} | ${pad(e4durable ? 'durable' : 'lost', 11)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
