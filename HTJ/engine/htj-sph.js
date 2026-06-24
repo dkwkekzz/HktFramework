@@ -629,6 +629,42 @@
     return { cells: acc.size, mass: totalMass, heated };
   }
 
+  // ── SW5 격자 은퇴 자동 양방향 이주: 밀도 기준으로 격자↔SPH 표현을 *적응 선택*(이력으로 깜빡임 방지) ──────
+  //   design/sphere-world.md §6 SW5 — 0055(격자→SPH 이동)·0076(SPH→격자 역이주)이 양방향 메커니즘을 줬다. 이 법칙은
+  //   둘을 *정책*으로 묶어 **표현을 자동 선택**한다 = SW4 적응 LOD(0039·멀면 합치고 가까이 쪼갬)의 *격자↔SPH 표현* 판:
+  //   밀집/붕괴 영역은 SPH(Lagrangian 이 디테일을 따라감)·확산/조용한 영역은 격자(고정 셀로 저렴) → *비용이 디테일을
+  //   따라가게*. **이력(hysteresis)**: ρ_on > ρ_off 라 임계 근처에서 표현이 *깜빡이지 않는다*(0025 동결·0039 coarsen 정신).
+  //   **전역 보존**: grid→SPH(0055 이동)+SPH→grid(0076 누적) 둘 다 보존이라 (남은 격자+입자) 총 질량·운동량·총E 불변.
+  //   rhoOn 없음→grid→SPH 안 함·rhoOff 없음→SPH→grid 안 함·둘 다 없음→불변(회귀 0). world(제자리 변형)+particles(현 SPH
+  //   입자)→ { particles(갱신), toSPH, toGrid }. opts: { field('energy'), rhoOn(셀 ρ≥이값→SPH), rhoOff(입자셀질량≤이값→격자) }.
+  function autoMigrate(world, particles, opts) {
+    opts = opts || {};
+    particles = particles || [];
+    const N = world.N;
+    const field = opts.field || 'energy';
+    const rho = world.fields[field];
+    const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff;
+    let toSPHn = 0, toGridn = 0;
+    // 1. 격자 → SPH: ρ ≥ rhoOn 인 셀(밀집·붕괴) → 입자(0055 이동·격자 비움).
+    if (rhoOn != null) {
+      const mig = migrateRegionToSPH(world, { field, threshold: 0, region: (x, y, z) => rho[(z * N + y) * N + x] >= rhoOn });
+      particles = particles.concat(mig.particles);
+      toSPHn = mig.particles.length;
+    }
+    // 2. SPH → 격자: 셀 입자질량 ≤ rhoOff 인 *확산* 입자 → 격자(0076 누적). 밀집 클러스터(>rhoOff)는 SPH 유지.
+    if (rhoOff != null && particles.length) {
+      const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
+      const key = (p) => (clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0));
+      const cellMass = new Map();                              // round(cell) → Σ 입자 질량(밀도 프록시)
+      for (const p of particles) { const k = key(p); cellMass.set(k, (cellMass.get(k) || 0) + (p.mass || 0)); }
+      const stay = [], back = [];
+      for (const p of particles) (cellMass.get(key(p)) <= rhoOff ? back : stay).push(p);
+      if (back.length) particlesToFluid(back, world, { field });
+      particles = stay; toGridn = back.length;
+    }
+    return { particles, toSPH: toSPHn, toGrid: toGridn };
+  }
+
   // ── TW2 바다 — SPH 물 입자가 *정적 지형 앵커*를 느끼는 경계 결합(안 새어 나감) ────────────────────
   //   design/environment.md §3 TW2 — sphere-world 동역학(0026~)+SPH 물리 스택(0040~)은 섰지만, 물(SPH 입자)이
   //   *지형*(정적 앵커·0056/0059)을 느끼는 결합이 없어 물이 지형을 그냥 통과한다. 이 법칙은 그 *유일하게 빠진
@@ -821,5 +857,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 17 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 18 };
 });
