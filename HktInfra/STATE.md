@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0210](step-0210.md) — **로그인 티켓 만료(TTL)**: `loginExpire{ttl}`→issuedAt+ttl≤now 티켓 회수(엣지 자원 보호). loginQueue OFF→0209 비트 동일. **= 너비 1차 마지막 박스(로그인 큐) 완성**. 닿는 박스: loginqueue·topo-run.
-- **한 줄 상태**: reg ALL OK·loginexpire: 5/5 p1 만료/p2 생존/expired 1·spine ALL OK.
-- **다음**: 🎯 **너비 1차 완료**(0201~0210·빈 박스 5종 전부 기본 통신 도달). 단계 판정·다음 방향은 **`infra-review`**(0201~0210 묶음 — progress 맵 ⬜→🟡 갱신·1차 완료 평결·2차 개시 여부). step-loop 은 그 평결을 STATE §2 로 승급.
+- **닫힌 step**: [step-0211](step-0211.md) — **캐시 TTL 만료**: `cacheExpire{ttl}`→setAt+ttl≤now 캐시 키 회수(stale 핫 데이터 메모리 유계·Redis TTL 더미판). cacheExpire 미주입→0210 비트 동일. **2차 고도화 캐시 박스 #1**. 닿는 박스: cache.
+- **한 줄 상태**: reg ALL OK·cachettl: 5/5 k1 만료/k2 생존/evicted 1·spine ALL OK.
+- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시→월드영속→인스턴스→오케→로그인 각 2조각). 다음 = 0212 캐시 무효화(cacheInvalidate·소스 변경 시 키 무효화).
 
 ---
 
@@ -84,7 +84,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery 기본 통신)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208·event sourcing·crash 무손실)**. fsync·버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211·메모리 유계)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208·event sourcing·crash 무손실)**. fsync·버스 영속 후속 |
 
 ---
 
@@ -216,3 +216,4 @@
 | [0208](step-0208.md) | 월드 영속 replay 재구성(replay·crash→로그 무손실·event sourcing 복제=재현) | 통과 · 무손실 0x7de275ff |
 | [0209](step-0209.md) | 로그인 큐 박스·enqueue/dequeue(LoginQueue·대기열 FIFO+티켓 발급·폭주 엣지 흡수) | 통과 · 큐 2/admit 1 |
 | [0210](step-0210.md) | 로그인 티켓 만료 TTL(loginExpire·너비 1차 5박스 완성) | 통과 · p1 만료/p2 생존 |
+| [0211](step-0211.md) | 캐시 TTL 만료(cacheExpire·setAt+ttl≤now 회수·메모리 유계·2차 고도화 캐시 #1) | 통과 · k1 만료/k2 생존·evicted 1 |
