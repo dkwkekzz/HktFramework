@@ -840,9 +840,24 @@ function worldfsync(seeds) {
   }
 }
 
+function loginauth(seeds) {
+  const AUTH = (at, player) => ({ at, op: { type: 'loginAuth', player } });
+  const OPS = [AUTH(2, 'p1'), AUTH(3, 'p2'), AUTH(4, 'pX')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginAccounts: ['p1', 'p2'], loginOps: OPS };
+  console.log('== loginauth (0229 승급): 로그인 계정 검증 — 유효 계정(validAccounts)만 enqueue(검증→줄 세움·미인증→거부·줄 이전 차단). 0001 LoginServer 검증의 엣지 큐 실체화. ==');
+  console.log('seed   | 큐 | authed | rejects | pX pos | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 8, ...BASE });
+    const q = r.loginqueue;
+    const ok = check(q.queueLength() === 2 && q.authed === 2 && q.authRejects === 1 && q.positionOf('p1') === 0 && q.positionOf('pX') === -1,
+      `seed ${seed}: 계정검증 위반 (큐 ${q.queueLength()}·authed ${q.authed}·rejects ${q.authRejects})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.queueLength(), 2)} | ${pad(q.authed, 6)} | ${pad(q.authRejects, 7)} | ${pad(q.positionOf('pX'), 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync };
-  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth };
+  const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }

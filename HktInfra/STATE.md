@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0238](step-0238.md) — **worldfsync 모드 spine 승급(#16)**: 0228 bespoke 검증 모드(월드 영속 fsync durable barrier)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 8/10**.
-- **한 줄 상태**: reg ALL OK·worldfsync: 5/5 durableSeq 3·dur복구 3·full 5·spine ALL OK(0221~0228 모드 누적 편입).
-- **다음**: 🔧 **#16 spine 승급 라운드 진행 중**(0231~0240 — 3차 라운드 0221~0230 bespoke 10모드를 1 step 당 1개씩 누적 회귀화). 남은: 0229~0230 (loginauth·loginabandon[verify.js→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
+- **닫힌 step**: [step-0239](step-0239.md) — **loginauth 모드 spine 승급(#16)**: 0229 bespoke 검증 모드(로그인 계정 검증)를 `engine/verify-kit.js` 누적 키트로 승급. 박스 `.js` 0줄 → reg 0 자명. **정리·도구 라운드 9/10**.
+- **한 줄 상태**: reg ALL OK·loginauth: 5/5 p1·p2 enqueue·pX 거부·spine ALL OK(0221~0229 모드 누적 편입).
+- **다음**: 🔧 **#16 spine 승급 라운드 마지막 1**(0240 — loginabandon[verify.js bespoke→kit 이동]). 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결. 라운드 후 다음 방향(실배선#51/정리#49/멀티프로세스#9)은 `infra-review` 평결.
 
 ---
 
@@ -154,3 +154,4 @@
 | [0236](step-0236.md) | cachetouch 모드 spine 승급(#16 — 0226 캐시 recency touch 진짜 LRU·정리 라운드 6/10) | 통과(reg 0·spine OK) · 5/5 k1 생존·touches 1 |
 | [0237](step-0237.md) | worldwb 모드 spine 승급(#16 — 0227 월드영속 write-behind 버퍼·정리 라운드 7/10) | 통과(reg 0·spine OK) · 5/5 로그 2·버퍼 1 |
 | [0238](step-0238.md) | worldfsync 모드 spine 승급(#16 — 0228 월드영속 fsync durable barrier·정리 라운드 8/10) | 통과(reg 0·spine OK) · 5/5 durSeq 3·full 5 |
+| [0239](step-0239.md) | loginauth 모드 spine 승급(#16 — 0229 로그인 계정 검증·정리 라운드 9/10) | 통과(reg 0·spine OK) · 5/5 authed 2·rejects 1 |
