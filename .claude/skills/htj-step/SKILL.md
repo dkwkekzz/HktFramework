@@ -33,7 +33,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 **세계 ↔ 확인용은 단방향 의존**: `engine/` = 세계(법칙) 그 자체 · `viewer*` = 그것을 확인하는 도구. `viewer` 는 `engine` 을 *읽기만* 하고, `engine` 은 `viewer`(렌더·캡처·캔버스)를 **절대 import/참조하지 않는다**. 렌더 방식을 바꿔도 세계는 불변이어야 한다.
 
 - **법칙은 `engine/`** 한 곳. 새 법칙은 직전 법칙 형식을 따르고 **가법적**으로 추가(기존 동작 회귀 0 — 노브=0 → early-return 패턴 권장). engine 코드는 캔버스·DOM·렌더에 의존하지 않는다(Node 에서 그대로 돈다).
-- **확인용은 `viewer.html` + `viewer/`** (렌더 `viewer/htj-render.js` · 캡처 `viewer/capture.js`). 이 step 의 세계가 보여질 시뮬레이션을 여기에 추가/갱신한다.
+- **확인용 = 시나리오 1벌**(`viewer/scenes/step_NNNN.js`) + 렌더(`viewer/htj-render.js`). **장면 통일**([design/scene-unify.md](../../../HTJ/design/scene-unify.md)·U1☑): 한 step 의 시뮬레이션 시나리오는 `viewer/scenes/step_NNNN.js` **한 곳에만** 산다(UMD — 브라우저·Node 양립·engine 만 *읽음*). 이 한 벌을 **viewer 라이브**(자동 등록·인라인 STEPS 대체)와 **헤드리스 캡처**(`node tools/htj-render-capture.js NNNN`)가 함께 읽는다 — **per-step `capture.js` 를 새로 짜지 않는다**. 시나리오 모듈 계약: `{ label, note, defaults, init(w), advance(w,p), frames:[step…], toFrame(w)->{pts}, makeWorld?()->w, captureOpts? }`. viewer 보조함수(온도 갱신·표면 재구성 등)가 필요하면 모듈 안에 *인라인*해 self-contained 로 만든다(viewer.html 클로저에 의존 금지). 선례: `viewer/scenes/step_0066.js`(파일럿). 닫은 step 의 옛 `capture.js`·인라인 STEPS 는 **소급 안 함**(불변).
 - **viewer 갤러리 등록은 의무 — 또는 사유 명시**: 닫는 step 은 `viewer.html` 의 `STEPS` 레지스트리에 한 항목으로 등록한다(드롭다운=step 갤러리). *새로 보여줄 장면이 없는* step(벤치마크 차트·조밀과 비트 동일한 등가 변환 등)이라 등록이 무의미하면, **`tools/check-viewer.js` 의 `EXEMPT` 에 사유와 함께 등재**한다. 둘 중 하나는 반드시 — 가드(`node tools/check-viewer.js`)가 등록도 면제도 없는 닫힌 step 을 FAIL 시킨다. (chromium 부재로 눈 검증이 capture.js 폴백으로 옮겨가며 등록 강제력이 사라져 0015~0021 이 조용히 누락된 선례 — 그 재발을 막는 가드.)
 
 ## 3. 검증 — verify.js (수치) + 시뮬레이션 캡처 (눈)
@@ -41,15 +41,13 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 검증은 두 축이다. 둘 다 통과해야 step 을 닫는다.
 
 **(a) 수치 — `steps/step_NNNN/verify.js`** — *적정 검증*(완전 망라 아님)
-- **핵심 불변만** 검증한다 (`node HTJ/steps/step_NNNN/verify.js`): ① 이 step 이 도입한 *새 거동* ② 보존(질량·운동량·각운동량·총E 중 해당 법칙이 건드리는 것) ③ 항등/안전(노브=0 → 회귀 0) ④ 결정론. 이 4 축이 보통 4~6 검사면 충분 — *고정 6종을 채우려 늘리지 말 것*. 조립 step 은 *새로 생긴 상호작용·창발 + 합쳐서 보존*만(부품 보존은 부품 verify 가 보증·중복 검증 금지).
+- **새 법칙 유효성이 알맹이** (`node HTJ/steps/step_NNNN/verify.js`): verify 본문은 **① 이 step 이 도입한 *새 거동(법칙)* 의 핵심 단언**을 직접 쓴다(1~2개). 반복되는 **② 보존 ③ 항등(노브=0→회귀 0) ④ 결정론** 은 **공용 가드** `tools/htj-verify-lib.js`(`conserved`·`identity`·`deterministic`·`fnv1a`)를 *한 줄로 호출*해 채운다(보일러플레이트 손으로 다시 짜지 말 것). 보통 4~6 검사면 충분 — *고정 6종을 채우려 늘리지 말 것*. 조립 step 은 *새로 생긴 상호작용·창발 + 합쳐서 보존*만(부품 보존은 부품 verify 가 보증·중복 검증 금지). (장면 통일 U2☑·[design/scene-unify.md](../../../HTJ/design/scene-unify.md) §2-4 — verify 는 시나리오 재구성·눈 검증을 들지 않는다·캡처는 §3b 범용 러너가 따로.)
 - verify 는 **자체로 온전·순수**해야 한다 — 외부 가변 상태에 의존하지 않고, 이후 어떤 step 을 진행해도 깨지지 않는다(영구 회귀 가드).
 - 닫기 전 **이전 step 들의 verify 를 전부 재실행**해 회귀 0 을 확인한다(*이건 알맹이 — 절대 생략 안 함*). 깨지면 멈추고 사용자와 논의한다.
 - 문서의 모든 수치는 verify 출력을 그대로 옮긴다.
 
-**(b) 눈 — 시뮬레이션 캡처**
-- 이 step 의 세계를 **화면으로 캡처**한다. 산출물: `steps/step_NNNN/capture.png`(보통 시간 경과 4 프레임). 두 길:
-  - **viewer 헤드리스**(chromium 있으면) — `viewer.html` 로드 → 스크린샷.
-  - **engine 직접 PNG**(기본·chromium 없을 때) — `steps/step_NNNN/capture.js` 가 engine 을 직접 굴려 프레임을 그린다. **PNG 인코더·heat 색·디스크 그리기는 새로 짜지 말고 `tools/htj-capture.js` 를 쓴다**(`writeFramesPNG(out, frames, {N})` — frames=[{pts:[{cx,cy,r,v}]}]). capture.js 는 *장면·프레임·검증 출력*만 담당(~15줄). capture.js 도 확인용이라 engine 을 *읽기만* 한다.
+**(b) 눈 — 시뮬레이션 캡처 (범용 러너·per-step capture.js 폐지)**
+- 이 step 의 세계를 **화면으로 캡처**한다. 산출물: `steps/step_NNNN/capture.png`(보통 시간 경과 4 프레임). **§2 의 시나리오 모듈에서 바로 뽑는다**: `node HTJ/tools/htj-render-capture.js NNNN` — 범용 러너가 `viewer/scenes/step_NNNN.js`(viewer 라이브와 *같은 한 벌*)를 읽어 `init→advance` 를 `frames` 마크까지 굴리고 각 마크에서 `toFrame(w)` 을 모아 `tools/htj-capture.js` 로 PNG 를 쓴다. **per-step `capture.js` 를 새로 짜지 않는다** — 장면은 시나리오 모듈에, PNG 보일러플레이트는 `htj-capture.js` 에 이미 있다(`writeFramesPNG`). (chromium+playwright 가 있으면 viewer 캔버스 *픽셀 동일* 스크린샷도 가능하나 통상 부재 → 범용 러너가 *세계 동일* PNG. design/scene-unify.md §3.)
 - 캡처가 *수치 검증의 가설과 일치하는지* 눈으로 확인한다 — verify 가 주장하는 바가 화면에 실제로 보여야 한다. 어긋나면 멈추고 논의한다.
 
 ## 4. 기록 — steps/step_NNNN/ + STATE.md
@@ -72,7 +70,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 ## 5. 닫기 체크리스트
 
 1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS — 한 묶음 명령으로(아래)
-2. **viewer 갤러리 등록** — `viewer.html` STEPS 에 이 step 항목 추가(긴 산문=`note`) *또는* 정당한 사유로 `tools/check-viewer.js` `EXEMPT` 등재. **캡처** 확보(`capture.js` 는 `tools/htj-capture.js` 사용) + 화면이 verify 가설과 일치
+2. **viewer 갤러리 등록** — `viewer/scenes/step_NNNN.js` 시나리오 모듈 작성(자동 등록·viewer 라이브) *또는* 정당한 사유로 `tools/check-viewer.js` `EXEMPT` 등재. **캡처** 확보(`node tools/htj-render-capture.js NNNN` — 시나리오 1벌에서 PNG) + 화면이 verify 가설과 일치
 3. `step_NNNN.md` = 타이트 템플릿(논의 3 bullets · 구현 · verify 출력 붙여넣기 · 캡처 참조 · 다음 1줄) — 긴 설명 중복 금지(§4)
 4. `STATE.md` §1~5 Edit (바뀐 절만)
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
@@ -87,5 +85,5 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 - verify 를 다른 step 에 의존시키지 않는다 — 순수·독립.
 - **법칙 step** 에 법칙을 여러 개 욱여넣지 않는다 — 가장 단순한 단위 하나. (단 **조립 step** 은 부품 여럿을 한 무대로 묶어도 된다 — §1.)
 - 긴 설명을 step 문서 *와* viewer note 양쪽에 풀로 쓰지 않는다 — note 가 집(§4).
-- capture.js 에 PNG 인코더·heat·디스크를 새로 짜지 않는다 — `tools/htj-capture.js` 를 쓴다(§3b).
+- per-step `capture.js` 를 새로 짜지 않는다 — 장면은 `viewer/scenes/step_NNNN.js` 시나리오 1벌, PNG 는 범용 러너 `tools/htj-render-capture.js`(내부 `tools/htj-capture.js`)가 뽑는다(§2·§3b). verify 의 보존·결정론·항등도 손으로 다시 안 짠다 — `tools/htj-verify-lib.js` 공용 가드(§3a).
 - `engine/`(세계) 안에 확인용(렌더·캡처·DOM) 코드를 넣지 않는다 — 세계는 viewer 없이도 돌아야 한다.

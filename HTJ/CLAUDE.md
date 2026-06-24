@@ -31,7 +31,8 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | ┗ [design/merge-dna.md](design/merge-dna.md) | **병합·형태 DNA 설계(권위)** — 뭉친 원소를 한 개체로 병합(수박게임)하되 형태는 정규화된 hash 로 세계 사전에서 공유. 로드맵 M1~M4 |
 | ┗ [design/scene-unify.md](design/scene-unify.md) | **장면 통일 설계(작업 방식 개선·권위)** — capture.js↔viewer 를 *시나리오 1벌*로 일원화(per-step capture.js 폐지)·verify=새 법칙만(보존·결정론은 공용 가드). engine·물리 불변(확인용 트랙). 로드맵 U1~U4·**닫은 step 소급 안 함** | |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
-| `viewer.html` · `viewer/` | **확인용** — 세계를 보여주는 뷰어 + 렌더(`viewer/htj-render.js`) + 헤드리스 캡처(`viewer/capture.js`) | step마다 |
+| `viewer.html` · `viewer/` | **확인용** — 뷰어 + 렌더(`viewer/htj-render.js`) + **시나리오 SSOT**(`viewer/scenes/step_NNNN.js` — viewer 라이브·헤드리스 캡처가 함께 읽는 한 벌·[design/scene-unify.md](design/scene-unify.md)) | step마다 |
+| `tools/` | **확인용 도구** — 범용 헤드리스 캡처(`htj-render-capture.js` — 시나리오 1벌→PNG·per-step capture.js 대체) · PNG 헬퍼(`htj-capture.js`) · verify 공용 가드(`htj-verify-lib.js` — 보존·결정론·항등) · 등록 가드(`check-viewer.js`) | 거의 불변 |
 | `steps/step_NNNN/` | **한 step = 한 폴더**. 모든 step 은 `steps/` 아래. 그 step 의 산출물을 담는다(닫은 뒤 불변): | step마다 추가 |
 | ┗ `steps/step_NNNN/step_NNNN.md` | 논의·구현·검증·발견 전문 + 쉽게 풀어 쓴 설명 + 다음 연결 | |
 | ┗ `steps/step_NNNN/verify.js` | 그 step 법칙의 수치 검증 — 순수·영구. 이후에도 항상 통과해야 함 | |

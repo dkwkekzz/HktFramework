@@ -108,10 +108,10 @@ verify 에서 **시나리오 재구성·눈 검증 단언·보존/결정론 보�
 
 작은 단위로 끊어 회귀 0 을 매번 확인하며 진행한다.
 
-- **U1 — 시나리오 추출 골격**: `viewer/scenes/` UMD 래퍼 + 범용 `tools/htj-capture-run.js` 작성. **최근 step 1개**(예: 다음 step)만 새 구조로 시범 — viewer 라이브·헤드리스 PNG 둘 다 같은 모듈에서 나오는지 확인(파일럿).
-- **U2 — verify 공용 가드**: `tools/htj-verify-lib.js`(보존·결정론·항등) + 그 step 의 verify 를 "새 법칙만 + 공용 가드 호출" 로 작성.
-- **U3 — 절차 문서 갱신**: `SKILL.md` §2~3·§5 와 `HTJ/CLAUDE.md` 인덱스를 새 의례로 교체(capture.js → 시나리오+범용 러너, verify=새 법칙만+공용 가드). `tools/check-viewer.js` 의 등록 검사 대상을 `scenes/` 로 맞춘다.
-- **U4 — 정착·확산**: 이후 모든 새 step 이 새 구조를 따른다. **닫은 step 은 소급 안 함**(§5) — 신·구가 공존하되 새 step 만 새 길.
+- **U1 — 시나리오 추출 골격 ☑(파일럿)**: `viewer/scenes/` UMD 래퍼 + 범용 `tools/htj-render-capture.js` 작성. **step_0066 을 파일럿**으로 `viewer/scenes/step_0066.js`(engine 만 의존·viewer 보조함수 인라인) 추출 → viewer 라이브(인라인 대체·`Object.assign(STEPS, HTJScenes)`)와 헤드리스 PNG(`node tools/htj-render-capture.js 0066`)가 *같은 한 벌* 에서 나옴을 확인. (닫은 step_0066 폴더는 불변 — 모듈은 새 파일·시범.)
+- **U2 — verify 공용 가드 ☑**: `tools/htj-verify-lib.js`(`conserved`·`deterministic`·`identity`·`fnv1a`) 작성. 앞으로의 verify 는 "새 법칙 핵심 단언 + 공용 가드 한 줄 호출".
+- **U3 — 절차 문서 갱신 ☑**: `.claude/skills/htj-step/SKILL.md` §2~3 와 `HTJ/CLAUDE.md` 인덱스를 새 의례로 교체(capture.js → 시나리오 모듈+범용 러너, verify=새 법칙만+공용 가드).
+- **U4 — 정착·확산(다음부터)**: 이후 모든 새 step 이 `viewer/scenes/step_NNNN.js` 1벌 + 범용 러너 + 경량 verify 로 닫는다. **닫은 step 은 소급 안 함**(§5) — 신·구가 공존하되 새 step 만 새 길. (선택: `tools/check-viewer.js` 가 `scenes/` 모듈도 등록으로 인정하도록 확장 — 현재는 viewer.html 인라인/병합 키를 본다.)
 
 ---
 
