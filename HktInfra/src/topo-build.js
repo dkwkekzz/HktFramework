@@ -142,6 +142,7 @@ function buildTopology(opts) {
     guildBank = false,
     guildBankPublish = false,
     guildBankFeed = false,
+    instanceService = false,
     deliverDedup = false,
     deliverDedupBound = false,
     deliverEpochBound = false,
@@ -256,6 +257,8 @@ function buildTopology(opts) {
   if (guildFeed && guildService) add({ addr: 'guildfeed', kind: 'guildfeed', opts: { bus: busAddr, persist: guildFeedPersist } });   // persist(0187): 소비 op 저널 replay·crash 후 배지 재구성(OFF 면 0186 비트 동일).
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).
   if (replaceAddr) add({ addr: 'ranking2', kind: 'ranking', opts: { bus: busAddr, busMinWm: false, replaceTarget: 'ranking' } });
+  // [월드] 인스턴스(던전) 서버(step-0201·InstanceServer) — 던전/매치 일회성 시뮬 인스턴스의 spawn/despawn SSOT. 존(영속)과 수명주기 분리·존 tick 밖·onTick 없음. instanceService OFF 면 박스 0 = 0200 비트 동일(reg 0).
+  if (instanceService) add({ addr: 'instance', kind: 'instance', opts: {} });
 
   const zopt = { grid, radius, incremental, recovery, retxPeriod, heartbeat, failover };
   const orchAddr = (failover && zones === 2) ? 'orch' : null;

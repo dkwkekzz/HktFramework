@@ -1,4 +1,5 @@
 'use strict';
+// step-0200 — 길드 금고 arc capstone(bankCapstone·원장+배지 정합 결합·arc 0191~0200 닫기): 0191~0199 에서 길드 금고 박스를 완성했다(예치·인출·발행·영속·스냅샷·배지·배지영속·배지정합·원장정합). 이 step 은 금고 박스 전체를 관통하는 *두 정합층*을 한 진입점으로 결합 단언한다 — bankCapstone(feed) = bankConsistent()(원장 권위 단일 소유·itemId 이중 소유 0·0199) AND feed.bankFeedConsistent(this)(읽기 모델 배지==vault·0198). 풍부한 연산(create/join/deposit/withdraw×두 길드)·세 체제(정상·guild crash→reconstruct·feed crash→reconstruct) 모두서 성립 → 금고 박스가 어떤 연산·고장에도 아이템 권위를 깨지 않고 읽기 모델이 SSOT 와 갈라지지 않음. 거래소 0140·우편 0180·길드 0190 capstone 의 *금고* 판. **guild bank arc(0191~0200) 닫기**. 순수 읽기(권위 0) → 0199 비트 동일(reg). 계층: 3 게임 서비스.
 // step-0199 — 길드 금고 원장 정합(bankConsistent·itemId 단일 길드 소유): 0191~0198 에서 금고 박스(예치·인출·발행·영속·스냅샷·배지·배지영속·배지정합)를 세웠다. 이 step 은 금고 원장(vault)의 *척추 ③ 권위 단일 소유*를 명시 단언한다 — bankConsistent(): 어떤 itemId 도 두 길드 금고에 동시에 있지 않고(이중 소유 0·교차 중복 0)·한 금고 안에서 중복 0. rosterConsistent(0190)가 master 권위를 단언하듯, bankConsistent 는 *아이템 권위*를 단언한다. 순수 읽기(권위 0·실행 경로 무변경) → 0198 비트 동일(reg). 거래소 escrow 보존 0120·우편 escrow 0164 의 길드 금고 판.
 // step-0195 — 길드 금고 저널 스냅샷 압축(guildSnapshot 의 금고 확장): 0194 의 금고 저널은 *무계 성장*이라 예치/인출이 누적될수록 replay 비용·메모리가 ∝변경 수다(0194 한계). 0185 가 로스터 projection 을 주기 스냅샷+tail replay 로 압축한 그 메커니즘을 vault 에 확장한다: 스냅샷에 로스터뿐 아니라 *vault 도* 담고(bank: [[guildId,[itemId...]]...]), 그 이하 저널은 가지치기 → 저널은 마지막 스냅샷 이후 tail 만 보관(유계). reconstruct 는 스냅샷의 guilds+bank 에서 출발해 tail(seq>upToSeq)만 replay → 전체 저널 replay 와 비트 동일(무손실 압축). guildSnapshot 0(snapInterval 0)이면 압축 0·저널 무계 = 0194 비트 동일(reg).
 // step-0194 — 길드 금고 영속·failover(guildPersist 의 금고 확장·변경 저널 replay): 0191~0193 의 금고(vault)는 *휘발*이라 박스 crash 시 예치된 아이템이 전부 소실됐다(영속 0·0193 한계). 0184 가 로스터/마스터십을 변경 저널로 영속시킨 그 메커니즘을 금고에 확장한다: 예치/인출 성사를 *변경 저널*(durable)에 append(kind 'deposit'/'withdraw'), crash(vault 소실) 후 fresh GuildService 가 저널을 seq 순 replay 해 vault projection 을 재구성 → 죽기 전과 비트 동일. crash 가 vault 도 비우고 reconstruct 가 vault 도 복원(로스터와 같은 저널·같은 replay 루프). guildPersist OFF 면 저널 0·crash 후 빈 금고(소실) = 0193 비트 동일(reg).
@@ -163,6 +164,8 @@ class GuildService {
     }
     return true;
   }
+  // bankCapstone(step-0200·arc capstone) — 금고 박스 전체 정합을 한 진입점으로 결합 단언: bankConsistent()(원장 권위 단일 소유·0199) AND feed.bankFeedConsistent(this)(읽기 모델 배지==vault·0198). 외부 모니터/감사가 금고 박스 한 줄 건강검진에 쓴다. 순수 읽기(권위 0). 거래소 0140·우편 0180·길드 0190 capstone 의 금고 판. guild bank arc(0191~0200) 닫기.
+  bankCapstone(feed) { return this.bankConsistent() && feed.bankFeedConsistent(this); }
   // crash(step-0184) — 박스 RAM 소실의 인프로세스 모델: 로스터 projection·계측만 비운다. *변경 저널은 durable* 이라 보존(파티 0085 의 길드 판).
   crash() { this.guilds = new Map(); this.vault = new Map(); this.creates = 0; this.joins = 0; this.leaves = 0; this.deposits = 0; this.withdraws = 0; }   // step-0194 — vault 도 휘발(저널만 durable). 금고 미사용 시 vault 는 빈 Map → 비우기·복원 모두 빈 Map(0193 비트 동일).
   // reconstruct(step-0184·failover) — fresh 박스가 durable 변경 저널을 seq 순 replay 해 로스터+마스터십 projection 을 재계산. create=설정·join=추가·leave=제거(master 보호 동일) → 죽기 전과 비트 동일. 자기 영속 저널만으로 복원.

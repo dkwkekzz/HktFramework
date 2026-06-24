@@ -1,0 +1,35 @@
+'use strict';
+// step-0201 — 인스턴스(던전) 서버 분리: spawn 기본(instanceService·instanceSpawn). 던전/매치 *일회성* 시뮬 인스턴스를 수요 따라 띄운다. instanceService OFF 면 박스 0 = 0200 비트 동일(reg 0).
+// dual-mode: Node require / 브라우저는 common.js 선행 로드(전역 __HktNetCommon).
+const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./common.js') : globalThis.__HktNetCommon;
+const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
+
+// ── [월드] InstanceServer — 던전/매치 *일회성* 시뮬 인스턴스의 spawn/despawn SSOT(SPINE 계층2 인스턴스). 존(오픈월드·영속)과 *수명주기 분리* — 수요 따라 떴다 사라진다. 존 tick 박자와 무관·*순수 반응형*(onTick 없음·권위=활성 인스턴스 집합). ──
+//   왜 분리(SPINE §2 판정): 던전/매치는 존의 영속 tick 과 다른 수명(일회성·탄력적 spawn/despawn) → 존 밖 별 서버. 1차 너비는 *기본 통신*만: spawn 으로 인스턴스 1개를 띄우고 그게 SSOT 에 잡히는 것까지(despawn·라우팅은 후속 0202).
+//   권위 단일 소유(척추 ③): "지금 어떤 던전 인스턴스가 살아있나"의 유일 SSOT = active 맵. spawn 멱등(같은 id 재-spawn = no-op).
+class InstanceServer {
+  constructor(opts = {}) {
+    this.active = new Map();     // instanceId -> { kind } (활성 인스턴스 SSOT — 일회성·수요 탄력·권위 단일 소유).
+    this.spawns = 0;             // 처리한 instanceSpawn 수(계측·no-op 멱등 포함).
+    this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 인스턴스 spawn(step-0201·기본) — 던전/매치 인스턴스 1개를 띄운다(active 에 등록). 같은 id 재요청은 멱등 no-op(권위 단일 소유 보존). 오케스트레이터/게이트웨이가 수요 시 발신.
+  _spawn(instanceId, kind) {
+    if (this.active.has(instanceId)) return false;   // 이미 살아있음 → 멱등 no-op(중복 spawn 0).
+    this.active.set(instanceId, { kind: kind || 'dungeon' });
+    return true;
+  }
+  onMsg(m) {
+    const p = m.payload;
+    // spawn 요청(instanceSpawn) — {instanceId, kind?} → 인스턴스 띄움. 미래엔 오케스트레이터가 부하/수요로 발신(0203~). 지금은 기본 통신만.
+    if (p.type === 'instanceSpawn') { this._spawn(p.instanceId, p.kind); this.spawns++; return; }
+  }
+  // 질의 인터페이스 — "지금 몇 개 살아있나 / 이 인스턴스가 사나"(SSOT 읽기). 게이트웨이 라우팅(0202)·검증이 쓴다.
+  activeCount() { return this.active.size; }
+  isActive(instanceId) { return this.active.has(instanceId); }
+}
+
+const __part = { InstanceServer };
+if (typeof module !== 'undefined' && module.exports) module.exports = __part;
+if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).instance = __part;
