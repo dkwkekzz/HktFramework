@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0197](step-0197.md) — **길드 금고 배지 영속·late-join**(guildFeedPersist 금고 배지 확장): 금고 소비 op 저널 replay·crash(bankCounts 소실)→reconstruct kind 분기 replay 로 배지 재구성. 0187 멤버 배지 영속의 금고 판. 닿는 박스: svc-guildfeed.
-- **한 줄 상태**: reg ALL OK·guildbankfeedpersist: crash→reconstruct 배지 g1 2·g2 1==pre·OFF 소실·spine OK.
-- **다음**: §2 — bank 배지 정합 capstone(0198·배지==vault)→원장 정합(0199)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
+- **닫힌 step**: [step-0198](step-0198.md) — **길드 금고 배지 정합 capstone**(bankFeedConsistent·배지==vault 크기): 전 길드 bankCountOf==bankOf().length(고아 0)·정상·guild crash·feed crash 3체제 성립. 0188 멤버 배지 정합의 금고 판. 닿는 박스: svc-guildfeed.
+- **한 줄 상태**: reg ALL OK·guildbankfeedconsistent: 3체제 3/3·g1/g2 vault 2/2·spine OK.
+- **다음**: §2 — bank 원장 정합(0199·itemId 단일 길드 소유)→arc capstone(0200)·비동기 결정론🔴·**0181~0190 묶음 리뷰(`infra-review`) 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지·0197 배지 영속 ✅. 다음: 배지 정합(0198)→원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
+**길드 금고(Guild Bank) arc(0191~0200) 진행 중 = 거래소 escrow/우편 custody 의 조직 공유 판. 0191 deposit·0192 withdraw·0193 발행·0194 영속·0195 스냅샷·0196 배지·0197 배지 영속·0198 배지 정합 ✅. 다음: 원장 정합(0199)→arc capstone(0200). 가방 escrow 연동은 후속 arc. 🔎 0181~0190 묶음 리뷰 적기.**
 
 **병행 백로그(블로킹 아님·전문은 §3)**: ⬜ per-producer ack·fsync·anti-entropy·버스 라우팅 영속/분산·월드 영속·비동기 결정론·서버간 인증·재접속·티켓.
 
@@ -226,13 +226,13 @@
 | [0132](step-0132.md) | saga 포기 발행(abandonPublish) | 통과 · pub 1==abandoned 1 |
 | [0133](step-0133.md) | 정리: topo-build 구독 테이블 분할(topo-subs.js·buildSubs) | OK · 33.1→25.5KB |
 | [0134](step-0134.md) | saga 포기 give 재admission(exchReadmit) | 통과 · readmit 1/pending 0 |
-| [0135](step-0135.md) | saga 재admission 발행(readmitPublish) | 통과 · pub 1==readmit 1·발행 6종 |
+| [0135](step-0135.md) | saga 재admission 발행(readmitPublish) | 통과 · pub 1==readmit 1 |
 | [0136](step-0136.md) | saga 재admission 자동 트리거(autoReadmit) | 통과 · readmit 1/pending 0 |
 | [0137](step-0137.md) | saga 재admission 횟수 상한(readmitMax) | 통과 · readmit 2/permFailed 1 |
-| [0138](step-0138.md) | saga 영구 실패 발행(failPublish) | 통과 · pub 1==permFailed 1·발행 7종 |
-| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish) | 통과 · invUpPub 1→readmit 1·실 버스 체인 |
-| [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent) | 통과 · 4체제 true·네 정합층 완성 |
-| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(quorumMergeJournals·run·runMulti·기능 0) | OK · 31.5→~1.0KB 진입점·reg 0 |
+| [0138](step-0138.md) | saga 영구 실패 발행(failPublish) | 통과 · pub 1==permFailed 1 |
+| [0139](step-0139.md) | 가방 회복 자기 공지(invUpPublish) | 통과 · invUpPub 1→readmit 1 |
+| [0140](step-0140.md) | saga liveness 회계 정합 capstone(sagaLiveConsistent) | 통과 · 4체제 true |
+| [0141](step-0141.md) | 정리: topology.js run 드라이버→topo-run.js 분리(기능 0) | OK · 31.5→~1.0KB·reg 0 |
 | [0142](step-0142.md) | 우편(Mail) 서비스 분리(MailService) | 통과 · sent 4·held 3/1·멱등·결정론 |
 | [0143](step-0143.md) | 우편 수령(mailFetch) | 통과 · h1 fetched 2·재수령 0·accountConsistent |
 | [0144](step-0144.md) | 우편 입금 발행(mailSentPublish) | 통과 · published 3==audit 3==sent·비-침습·OFF 0 |
@@ -257,21 +257,21 @@
 | [0163](step-0163.md) | 아이템 우편↔가방 leg3: 만료 시 escrow→발신자 가방(mailInv) | 통과 · escrowXfers 4 |
 | [0164](step-0164.md) | 아이템 우편↔가방 2-서비스 보존 capstone(escrowConsistent·arc 0161~0164) | 통과 · 우편==가방 escrow |
 | [0165](step-0165.md) | 정리: svc-mail.js 박스-부품 분할(core/txn/entry·기능 0) | OK · 30.9→25.6/5.9/1.1KB·digest 비트동일 |
-| [0166](step-0166.md) | 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked==oks 4 |
-| [0167](step-0167.md) | 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 무손실 0·손실 pending 1 |
-| [0168](step-0168.md) | 우편 saga 회신 재전송+idempotent dedup(mailRetry·sagaDedup) | 통과 · ON xfers 4·OFF 5 hazard |
-| [0169](step-0169.md) | 우편 saga 회계 정합 capstone(sagaConsistent·gives==acked+pending) | 통과 · 3체제 true |
-| [0170](step-0170.md) | 우편 give↔가방 transfers capstone(sagaLiveConsistent·arc 0161~0170 닫기) | 통과 · 5/5·2/2 true |
-| [0171](step-0171.md) | 정리: svc-mail-core 영속 부품 분할(→svc-mail-persist.js·기능 0) | OK · 34.7→30.4KB·비트동일 |
-| [0172](step-0172.md) | 우편 saga 자동 주기 재전송(mailAutoRetry·거래소 0129 판) | 통과 · ON pending 0/retries 1·OFF 잔존 |
-| [0173](step-0173.md) | 우편 saga 재시도 상한(mailMaxRetries·0131 판) | 통과 · 무제한 4/0·상한2 2/1 포기 |
-| [0174](step-0174.md) | 우편 saga 포기 발행(mailAbandonPublish·0132 판) | 통과 · ON pub/audit 1/1==abandoned |
-| [0175](step-0175.md) | 정리: svc-mail-core 헤더 압축(코드 0 변경) | OK · 34→18.6KB·digest==0174 |
-| [0176](step-0176.md) | 우편 saga 포기 give 재admission(mailReadmit·거래소 0134 판) | 통과 · ON 재무장 1/0·OFF 잔존 0/1 |
-| [0177](step-0177.md) | 우편 saga 재admission 발행(mailReadmitPublish·0135 판) | 통과 · ON pub/audit 1/1==readmitted |
-| [0178](step-0178.md) | 우편 saga 재admission 횟수 상한(mailReadmitMax·0137 판) | 통과 · 무제한 2/0·상한1 1/1 영구실패 차단 |
-| [0179](step-0179.md) | 우편 saga 영구 실패 발행(mailFailPublish·0138 판) | 통과 · ON pub/audit 1/1==permFailed |
-| [0180](step-0180.md) | 우편 saga liveness 정합 capstone(sagaLivenessConsistent·0140 판·arc 0166~0180 닫기) | 통과 · 네 체제 분할 4/4 |
+| [0166](step-0166.md) | 우편 saga 회신 비동기 수신(mailSaga·ackedGives) | 통과 · gives==acked 4 |
+| [0167](step-0167.md) | 우편 saga 미해결 추적+회신 손실 감지(pendingGives·gid) | 통과 · 손실 pending 1 |
+| [0168](step-0168.md) | 우편 saga 회신 재전송+idempotent dedup(mailRetry·sagaDedup) | 통과 · ON xfers 4 |
+| [0169](step-0169.md) | 우편 saga 회계 정합 capstone(sagaConsistent) | 통과 · 3체제 true |
+| [0170](step-0170.md) | 우편 give↔가방 transfers capstone(sagaLiveConsistent·arc 0161~0170) | 통과 · 5/5·2/2 |
+| [0171](step-0171.md) | 정리: svc-mail-core 영속 부품 분할(기능 0) | OK · 34.7→30.4KB |
+| [0172](step-0172.md) | 우편 saga 자동 주기 재전송(mailAutoRetry·0129 판) | 통과 · ON pending 0 |
+| [0173](step-0173.md) | 우편 saga 재시도 상한(mailMaxRetries·0131 판) | 통과 · 상한2 2/1 포기 |
+| [0174](step-0174.md) | 우편 saga 포기 발행(mailAbandonPublish·0132 판) | 통과 · pub 1==abandoned |
+| [0175](step-0175.md) | 정리: svc-mail-core 헤더 압축(코드 0) | OK · 34→18.6KB |
+| [0176](step-0176.md) | 우편 saga 포기 give 재admission(mailReadmit·0134 판) | 통과 · 재무장 1/0 |
+| [0177](step-0177.md) | 우편 saga 재admission 발행(mailReadmitPublish·0135 판) | 통과 · pub 1==readmitted |
+| [0178](step-0178.md) | 우편 saga 재admission 횟수 상한(mailReadmitMax·0137 판) | 통과 · 상한1 영구실패 차단 |
+| [0179](step-0179.md) | 우편 saga 영구 실패 발행(mailFailPublish·0138 판) | 통과 · pub 1==permFailed |
+| [0180](step-0180.md) | 우편 saga liveness 정합 capstone(sagaLivenessConsistent·arc 0166~0180) | 통과 · 4체제 4/4 |
 | [0181](step-0181.md) | 길드 서비스 분리(guildService·로스터+마스터십 SSOT·single-master) | 통과 · 길드 2·5/5 |
 | [0182](step-0182.md) | 길드 증분 가입/탈퇴(guildJoin/Leave·멱등·master 보호) | 통과 · 로스터 [x,c2] |
 | [0183](step-0183.md) | 길드 멤버십 변경 발행(guildChangePublish·svc.guild.changed) | 통과 · pub 3==audit·OFF 0 |
@@ -289,3 +289,4 @@
 | [0195](step-0195.md) | 길드 금고 저널 스냅샷 압축(guildSnapshot 금고 확장·vault 포함·tail replay) | 통과 · tail 1<full 9·무손실 vault 4 |
 | [0196](step-0196.md) | 길드 금고 아이템 수 배지(guildBankFeed·GuildFeed bankCount·0186 금고 판) | 통과 · 배지==vault(g1 2·g2 1)·OFF 0 |
 | [0197](step-0197.md) | 길드 금고 배지 영속·late-join(guildFeedPersist 금고 배지·kind 분기 replay·0187 판) | 통과 · crash→reconstruct 배지==pre·OFF 소실 |
+| [0198](step-0198.md) | 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault 크기·0188 금고 판) | 통과 · 3체제 3/3·g1/g2 vault 2/2 |

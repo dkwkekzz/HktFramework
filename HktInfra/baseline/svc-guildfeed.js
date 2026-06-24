@@ -1,4 +1,5 @@
 'use strict';
+// step-0197 — 길드 금고 배지 영속·late-join(guildFeedPersist 의 금고 배지 확장): 0196 의 금고 배지(bankCounts)는 *휘발*이라 GuildFeed crash 시 금고 아이템 수 투영이 소실됐다(영속 0·0196 한계). 0187 이 멤버 수 배지를 소비 op 저널 replay 로 영속시킨 그 메커니즘을 금고 배지로 확장한다: 소비한 svc.guild.bank.changed 도 durable 저널에 기록하고, crash(bankCounts 소실) 후 fresh GuildFeed 가 저널을 replay 해 금고 배지를 재구성한다(kind deposit/withdraw 는 _applyBank, create/join/leave 는 _apply 로 분기) → 죽기 전과 동일(late-join). 배지(투영)는 휘발·저널은 durable. guildFeedPersist OFF 면 저널 0·crash 후 빈 배지(소실) = 0196 비트 동일(reg).
 // step-0196 — 길드 금고 아이템 수 배지 읽기 모델(guildBankFeed·svc.guild.bank.changed 구독): 0191~0195 금고(vault)는 *현재 보유 아이템 수*를 한눈에 보려는 소비자(금고 UI·정원 체크)가 매번 bankOf 질의를 해야 했다(0195 한계). 0186 의 멤버 수 배지(svc.guild.changed 구독 읽기 모델)를 *금고*로 확장한다: GuildFeed 가 svc.guild.bank.changed 도 구독해 guildId 별 bankCount 배지를 유지(deposit +1·withdraw −1). vault SSOT(GuildService)와 독립한 파생 읽기 모델(CQRS)·발신 0·권위 0. guildBankFeed OFF·발행 부재면 미구독·배지 0 = 0195 비트 동일(reg).
 // step-0188 — GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터 크기): 0186~0187 에서 배지를 세우고 영속시켰다. 이 step 은 그 *불변*을 명시 단언한다 — 전 길드에서 GuildFeed 배지 countOf(id) == GuildService 로스터 members.length(고아 배지 0·누락 0). 우편 MailFeed 0155 feedConsistent(unread==sent−read−expired)의 길드 판. 정상·crash→reconstruct(feed/guild 양쪽)·영속 네 체제서 성립 → 읽기 모델(CQRS)이 권위 SSOT 와 결코 갈라지지 않음을 증명. 순수 읽기 메서드(권위 0·실행 경로 무변경) → 0187 비트 동일(reg).
 // step-0187 — GuildFeed 영속·late-join(guildFeedPersist·op 저널 replay): 0186 의 배지는 *휘발*이라 박스 crash 시 멤버 수 투영이 소실됐다(영속 0·0186 한계). 우편 MailFeed 0154·랭킹 0020 의 읽기 모델 영속(소비 op 저널 replay)을 길드 배지에 적용한다: 소비한 svc.guild.changed 이벤트를 durable 저널에 기록하고, crash(투영 소실) 후 fresh GuildFeed 가 그 저널을 replay 해 배지를 재구성한다 → 죽기 전과 동일(late-join). 배지(투영)는 휘발, 저널은 durable. guildFeedPersist OFF 면 저널 0·crash 후 빈 배지(소실) = 0186 비트 동일.
@@ -41,7 +42,8 @@ class GuildFeed {
     }
     if (p.topic === 'svc.guild.bank.changed') {  // 길드 금고 변경 스트림(step-0196). guildBankFeed 구독 시에만 도달.
       this.bankEvents++;
-      this._applyBank(p.ev);   // 배지 영속은 후속(0197).
+      this._applyBank(p.ev);
+      if (this.persist) this.journal.push(p.ev);   // 영속(step-0197) — 금고 소비 op 도 durable 저널에 기록(crash replay 대비).
       return;
     }
   }
@@ -54,10 +56,13 @@ class GuildFeed {
     for (const id of this.counts.keys()) if (!guildSvc.guilds.has(id)) return false;   // 고아 배지(로스터 없는데 배지) 0.
     return true;
   }
-  // crash(step-0187) — 박스 RAM 소실: 배지 투영·계측만 비운다. *소비 op 저널은 durable* 이라 보존(우편 MailFeed 0154 의 길드 판).
-  crash() { this.counts = new Map(); this.events = 0; }
-  // reconstruct(step-0187·late-join) — fresh 박스가 durable 저널을 순서대로 replay 해 배지 투영 재구성 → 죽기 전과 동일. 자기 영속 저널만으로 복원.
-  reconstruct() { this.counts = new Map(); for (const ev of this.journal) this._apply(ev); }
+  // crash(step-0187·0197) — 박스 RAM 소실: 멤버 수+금고 배지 투영·계측을 비운다. *소비 op 저널은 durable* 이라 보존(우편 MailFeed 0154 의 길드 판).
+  crash() { this.counts = new Map(); this.events = 0; this.bankCounts = new Map(); this.bankEvents = 0; }
+  // reconstruct(step-0187·0197·late-join) — fresh 박스가 durable 저널을 순서대로 replay 해 배지 투영 재구성 → 죽기 전과 동일. kind 로 분기(deposit/withdraw=금고 배지·그 외=멤버 수 배지). 자기 영속 저널만으로 복원.
+  reconstruct() {
+    this.counts = new Map(); this.bankCounts = new Map();
+    for (const ev of this.journal) (ev.kind === 'deposit' || ev.kind === 'withdraw') ? this._applyBank(ev) : this._apply(ev);
+  }
 }
 
 const __gf = { GuildFeed };

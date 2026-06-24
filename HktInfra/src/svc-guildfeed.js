@@ -1,4 +1,5 @@
 'use strict';
+// step-0198 — 길드 금고 배지 정합 capstone(bankFeedConsistent·배지==vault 크기): 0196~0197 에서 금고 배지를 세우고 영속시켰다. 이 step 은 그 *불변*을 명시 단언한다 — 전 길드에서 GuildFeed bankCountOf(id) == GuildService vault 크기 bankOf(id).length(고아 배지 0·누락 0). 0188 멤버 수 배지 정합(feedConsistent)의 금고 판. 정상·guild crash→reconstruct·feed crash→reconstruct 세 체제서 성립 → 금고 읽기 모델(CQRS)이 vault 권위 SSOT 와 결코 갈라지지 않음을 증명. 순수 읽기 메서드(권위 0·실행 경로 무변경) → 0197 비트 동일(reg).
 // step-0197 — 길드 금고 배지 영속·late-join(guildFeedPersist 의 금고 배지 확장): 0196 의 금고 배지(bankCounts)는 *휘발*이라 GuildFeed crash 시 금고 아이템 수 투영이 소실됐다(영속 0·0196 한계). 0187 이 멤버 수 배지를 소비 op 저널 replay 로 영속시킨 그 메커니즘을 금고 배지로 확장한다: 소비한 svc.guild.bank.changed 도 durable 저널에 기록하고, crash(bankCounts 소실) 후 fresh GuildFeed 가 저널을 replay 해 금고 배지를 재구성한다(kind deposit/withdraw 는 _applyBank, create/join/leave 는 _apply 로 분기) → 죽기 전과 동일(late-join). 배지(투영)는 휘발·저널은 durable. guildFeedPersist OFF 면 저널 0·crash 후 빈 배지(소실) = 0196 비트 동일(reg).
 // step-0196 — 길드 금고 아이템 수 배지 읽기 모델(guildBankFeed·svc.guild.bank.changed 구독): 0191~0195 금고(vault)는 *현재 보유 아이템 수*를 한눈에 보려는 소비자(금고 UI·정원 체크)가 매번 bankOf 질의를 해야 했다(0195 한계). 0186 의 멤버 수 배지(svc.guild.changed 구독 읽기 모델)를 *금고*로 확장한다: GuildFeed 가 svc.guild.bank.changed 도 구독해 guildId 별 bankCount 배지를 유지(deposit +1·withdraw −1). vault SSOT(GuildService)와 독립한 파생 읽기 모델(CQRS)·발신 0·권위 0. guildBankFeed OFF·발행 부재면 미구독·배지 0 = 0195 비트 동일(reg).
 // step-0188 — GuildFeed 회계 정합 capstone(feedConsistent·배지==로스터 크기): 0186~0187 에서 배지를 세우고 영속시켰다. 이 step 은 그 *불변*을 명시 단언한다 — 전 길드에서 GuildFeed 배지 countOf(id) == GuildService 로스터 members.length(고아 배지 0·누락 0). 우편 MailFeed 0155 feedConsistent(unread==sent−read−expired)의 길드 판. 정상·crash→reconstruct(feed/guild 양쪽)·영속 네 체제서 성립 → 읽기 모델(CQRS)이 권위 SSOT 와 결코 갈라지지 않음을 증명. 순수 읽기 메서드(권위 0·실행 경로 무변경) → 0187 비트 동일(reg).
@@ -54,6 +55,12 @@ class GuildFeed {
   feedConsistent(guildSvc) {
     for (const [id, g] of guildSvc.guilds) if (this.countOf(id) !== g.members.length) return false;
     for (const id of this.counts.keys()) if (!guildSvc.guilds.has(id)) return false;   // 고아 배지(로스터 없는데 배지) 0.
+    return true;
+  }
+  // bankFeedConsistent(step-0198·capstone) — 금고 배지 정합 불변: 전 길드 bankCountOf(id) == vault 크기 bankOf(id).length AND 배지에만 있는 고아 guild 0. guildSvc(vault 권위 SSOT)를 받아 대조하는 순수 읽기(권위 0). 금고 읽기 모델이 SSOT 와 갈라지지 않음을 단언. 0188 멤버 배지 정합(feedConsistent)의 금고 판.
+  bankFeedConsistent(guildSvc) {
+    for (const [id] of guildSvc.guilds) if (this.bankCountOf(id) !== guildSvc.bankOf(id).length) return false;   // 배지 == vault 크기.
+    for (const id of this.bankCounts.keys()) if (!guildSvc.guilds.has(id)) return false;   // 고아 배지(로스터 없는데 금고 배지) 0.
     return true;
   }
   // crash(step-0187·0197) — 박스 RAM 소실: 멤버 수+금고 배지 투영·계측을 비운다. *소비 op 저널은 durable* 이라 보존(우편 MailFeed 0154 의 길드 판).
