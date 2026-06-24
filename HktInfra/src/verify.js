@@ -1,8 +1,8 @@
-// HktInfra step-0218 — 헤드리스 검증 (오케스트레이터 존 재배치 핸드오프·placeMigrate·권위 단일 소유)
+// HktInfra step-0219 — 헤드리스 검증 (로그인 큐 수용량 백프레셔·loginCapacity·동접 상한)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `placemigrate`.
-//   더한 한 조각: placeMigrate{zoneId,toHost} → 이미 배치된 존을 release(기존)+acquire(toHost) 쌍으로 이동(권위 단일 소유 보존·공백/중복 0). 미배치/같은 host 거부. 미주입 → 0217 비트 동일(reg). 2차 고도화 오케 #2.
-//   검증: ⒜ `reg`(키트). ⒝ `placemigrate`(가설) — z1@A·z2@B → z1 migrate→C, 같은 host 재요청·미배치 z9 거부 → 총 배치 수 보존(공백/중복 0).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `logincapacity`.
+//   더한 한 조각: loginCapacity{cap} → admitted 가 cap 도달이면 dequeue 가 입장 보류(player 큐 잔류·백프레셔·rejectedByCapacity). 월드 동접 상한을 엣지가 강제. 미주입 → capacity=∞ → 0218 비트 동일(reg). 2차 고도화 로그인 큐 #1.
+//   검증: ⒜ `reg`(키트). ⒝ `logincapacity`(가설) — p1·p2·p3 enqueue → cap2 → dequeue×3: p1·p2 입장·p3 보류(큐 잔류).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,34 +15,32 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { run } = NET;
 const { check, pad } = kit.helpers;
 
-const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-const MIGRATE = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
-// z1@A·z2@B → z1 migrate A→C → 같은 host(C) 재요청 거부 → 미배치 z9 migrate 거부.
+const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
+const DEQ = (at) => ({ at, op: { type: 'loginDequeue' } });
+const CAP = (at, cap) => ({ at, op: { type: 'loginCapacity', cap } });
+// p1·p2·p3 줄섬 → cap2 → dequeue×3: p1·p2 입장(2)·p3 보류(큐 잔류·백프레셔).
 const OPS = [
-  PLACE(2, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'),
-  MIGRATE(4, 'z1', 'hostC'),
-  MIGRATE(6, 'z1', 'hostC'),
-  MIGRATE(7, 'z9', 'hostA'),
+  ENQ(2, 'p1'), ENQ(3, 'p2'), ENQ(4, 'p3'),
+  CAP(5, 2),
+  DEQ(6), DEQ(7), DEQ(8),
 ];
-const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
+const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
 
-function placemigrate(seeds) {
-  console.log('== placemigrate: 오케스트레이터 존 재배치 핸드오프(placeMigrate) — 배치된 존을 release(기존)+acquire(신규) 쌍으로 이동(권위 단일 소유 보존·공백/중복 0·0006 핸드오프 배치 판). 미배치/같은 host 거부. 2차 고도화 오케스트레이터 #2. ==');
-  console.log('seed   | z1 | 부하 A/B/C | placed | migrate/reject | 판정');
+function logincapacity(seeds) {
+  console.log('== logincapacity: 로그인 큐 수용량 백프레셔(loginCapacity) — admitted 가 cap 도달이면 dequeue 가 입장 보류(player 큐 잔류). 월드 동접 상한을 엣지가 강제(폭주 시 줄이 늘되 월드는 cap 이상 안 받는다). 2차 고도화 로그인 큐 #1. ==');
+  console.log('seed   | admitted | queueLen | rejected(백프레셔) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 9, ...BASE });
-    const o = r.orch;
-    const z1 = o.placementOf('z1');
-    const la = o.hostLoad('hostA'), lb = o.hostLoad('hostB'), lc = o.hostLoad('hostC');
-    // z1 A→C 이동·z2 B 유지 → A 0·B 1·C 1. 총 배치 2 보존(공백/중복 0). migrations 1·rejects 2(같은 host+미배치).
-    const ok = check(z1 === 'hostC' && la === 0 && lb === 1 && lc === 1 && o.placedCount() === 2 && o.migrations === 1 && o.migrateRejects === 2,
-      `seed ${seed}: 재배치 위반 (z1 ${z1}·부하 ${la}/${lb}/${lc}·placed ${o.placedCount()}·mig ${o.migrations}/rej ${o.migrateRejects})`);
-    console.log(`${pad(seed, 6)} | ${pad(z1.replace('host', ''), 4)} | ${pad(la + '/' + lb + '/' + lc, 9)} | ${pad(o.placedCount(), 6)} | ${pad(o.migrations + '/' + o.migrateRejects, 14)} | ${ok ? 'OK' : 'FAIL'}`);
+    const q = r.loginqueue;
+    // cap2 → p1·p2 입장(admitted 2)·p3 보류(queueLength 1·rejectedByCapacity 1·dequeues 3).
+    const ok = check(q.admittedCount() === 2 && q.queueLength() === 1 && q.rejectedByCapacity === 1 && q.positionOf('p3') === 0,
+      `seed ${seed}: 수용량 위반 (admit ${q.admittedCount()}·queue ${q.queueLength()}·rejected ${q.rejectedByCapacity})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.admittedCount(), 8)} | ${pad(q.queueLength(), 8)} | ${pad(q.rejectedByCapacity, 18)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → placeMigrate 가 존을 release+acquire 쌍으로 옮긴다(z1 A→C·A 부하 줄고 C 늘어). 총 배치 수가 보존돼(공백/중복 0·권위 단일 소유) 어느 순간에도 존 소유 host 가 정확히 1. 미배치/같은 host 는 거부(reject 2). 부하 재균형·재배치 토대. 오케스트레이터 2차 고도화 #2.');
+  console.log('  → cap2 에 도달하면 dequeue 가 입장을 보류(admitted 2 고정·p3 는 큐 맨 앞에 잔류·rejectedByCapacity 1). 폭주해도 월드 동접이 cap 이상 안 늘고 초과분은 엣지 큐에서 대기(백프레셔). 동접 상한·대기열 토대. 로그인 큐 2차 고도화 #1.');
 }
 
-kit.MODES['placemigrate'] = placemigrate;
-kit.ORDER.splice(1, 0, 'placemigrate');
+kit.MODES['logincapacity'] = logincapacity;
+kit.ORDER.splice(1, 0, 'logincapacity');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

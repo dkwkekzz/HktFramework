@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0218](step-0218.md) — **오케스트레이터 존 재배치 핸드오프**: `placeMigrate{zoneId,toHost}`→release+acquire 쌍으로 존 이동(권위 단일 소유 보존·공백/중복 0·총 배치 보존). 미배치/같은 host 거부. 미주입→0217 비트 동일. **2차 고도화 오케 #2**. 닿는 박스: orchestrator.
-- **한 줄 상태**: reg ALL OK·placemigrate: 5/5 z1 A→C·배치 2 보존·mig 1/rej 2·spine ALL OK.
-- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스 ✅2→오케 ✅2→로그인). 다음 = 0219 로그인 큐 수용량 백프레셔(loginCapacity·capacity 까지만 입장).
+- **닫힌 step**: [step-0219](step-0219.md) — **로그인 큐 수용량 백프레셔**: `loginCapacity{cap}`→admitted 가 cap 도달이면 dequeue 입장 보류(player 큐 잔류·월드 동접 상한 엣지 강제). 미주입→capacity=∞→0218 비트 동일. **2차 고도화 로그인 큐 #1**. 닿는 박스: loginqueue.
+- **한 줄 상태**: reg ALL OK·logincapacity: 5/5 admitted 2/queue 1/rejected 1·spine ALL OK.
+- **다음**: 🚀 **2차 고도화 진행 중**(progress 맵 평결 "너비 충족·2차 개시 가능"). 5박스 심화 균형 라운드(캐시 ✅2→월드영속 ✅2→인스턴스 ✅2→오케 ✅2→로그인 1). 다음 = 0220 로그인 재접속 세션 재개(loginReconnect·ttl 내 기존 티켓 재개) — 균형 라운드 마지막.
 
 ---
 
@@ -79,7 +79,7 @@
 
 | # | 계층 | 박스 | 상태 (현재 마커 + 핵심 step) |
 |---|------|------|------|
-| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210·폭주 엣지 흡수)**. 재접속·게이트웨이 군 풀 후속 |
+| 1 | 엣지 | 로그인/인증 · 게이트웨이 | 🟡 스텁(일회 티켓·단일 연결·은닉 0001)+별 OS 프로세스(0010)+GW producer ns(0046) · **로그인 큐 🟡 대기열+티켓 발급+만료(0209~0210)+수용량 백프레셔(0219·동접 상한)**. 재접속·게이트웨이 군 풀 후속 |
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+플레이어 라우팅(0216·배정 SSOT)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
@@ -224,3 +224,4 @@
 | [0216](step-0216.md) | 인스턴스 플레이어 라우팅(instanceRoute·player→instance 배정 SSOT·재배정 release+acquire·2차 고도화 인스턴스 #2) | 통과 · routed 3/reroute 1/reject 1 |
 | [0217](step-0217.md) | 오케스트레이터 부하 배치(placeAuto·최소 부하 host 선택·부하 분산·결정론 tie-break·2차 고도화 오케 #1) | 통과 · A·B·C·A·부하 2/1/1 |
 | [0218](step-0218.md) | 오케스트레이터 존 재배치 핸드오프(placeMigrate·release+acquire 쌍·권위 단일 소유 보존·2차 고도화 오케 #2) | 통과 · z1 A→C·배치 보존·mig 1/rej 2 |
+| [0219](step-0219.md) | 로그인 큐 수용량 백프레셔(loginCapacity·admitted cap 도달 시 입장 보류·동접 상한·2차 고도화 로그인 #1) | 통과 · admitted 2/queue 1/rejected 1 |
