@@ -11,6 +11,8 @@ description: HktInfra step 한 바퀴(읽기→스캐폴드→구현→검증→
 
 **필독 3종**: `HktInfra/CLAUDE.md` · `HktInfra/SPINE.md` · `HktInfra/STATE.md` (전체).
 
+> **과심화 반사 (단계 = 너비 우선일 때)**: STATE §2 가 1차 너비 단계를 지시하면 — 이번 조각이 *이미 기본 통신이 선 박스의 심화*(영속·failover·스냅샷·escrow·saga·정합 capstone)인데 `reviews/progress/README.md` 박스 상태 맵에 ⬜ 미착수/🌱 스텁 박스가 남아 있다면, **멈추고 그 빈 박스의 기본 통신을 이번 조각으로 잡는다**(STATE §2 잔여 박스 순서를 따른다). "기본" = 목적 달성 최소 연산 + 척추 5항 + reg 0 까지만 — 심화는 2차로 전가. 무거운 단계 판정(1차 완료 여부·다음 방향)은 `infra-review` 가 원장에 평결하고 STATE §2 가 집행한다 — step 은 이 값싼 반사만.
+
 **조건부** (해당 작업 시에만): `TOOLS.md`(박스의 도구/승격 결정 시) · `TESTBED.md`(run.js/report 구조 변경 시 — 통상 step 은 불필요).
 
 **읽기 금지** (STATE 가 명시 지시할 때만 예외): 옛 `step-NNNN.md`·`step-NNNN-concepts.md` 문서들.
