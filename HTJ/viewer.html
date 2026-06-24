@@ -1208,6 +1208,50 @@
         for (const e of es) e.peak = e.anchored ? 0.1 : Math.max(0.12, Math.min(1, (Math.hypot(e.cx - es[0].cx, e.cy - es[0].cy, e.cz - es[0].cz) - R) / hmax));
       },
       note: '<b>구체가 굴러가다 멈춰 가파른 산으로 쌓인다 — 딛는 지형(언덕·산)이 창발한다</b>(안식각의 완성). <b>▶ 무엇</b>(design/environment.md §3 TW1): 0057 마찰은 <b>미끄럼</b>을 막았지만 구체는 여전히 <b>자유로이 굴러</b> 비탈을 데굴데굴 흘러내려, 더미가 <b>완만</b>했다(안식각 ~10°·납작). 진짜 산·언덕은 가파르다 — 빠진 건 <b>구름 저항</b>(rolling resistance). 이 step 이 그것을 새 엔진 법칙으로 더한다: 겹친 두 구의 <b>상대 구름 각속도</b> ω_rel=ω_a−ω_b(ω=L/I)에 <b>반대하는 토크 쌍</b>(a 에 −M·b 에 +M)이 <b>구름 자체를 멈춘다</b> → 굴러가다 서고, 안식각이 <b>가팔라진다</b>(~28°·진짜 산). <b>화면</b>: 작은 구체들이 꼭대기에 떨어져 → 마찰(0057)이 미끄럼을 잡고 <b>구름 저항</b>이 구름을 잡아, 옆으로 안 흘러내리고 <b>봉우리로 솟는다</b>(색=높이, 노랑=정상). <b>대조</b>(capture.png): 같은 구체를 구름 저항 <b>없이</b> 떨구면 굴러 <b>퍼져 팬케이크</b>(안식각 12°)지만, <b>있으면</b> 가파른 <b>산</b>(28°·바닥 위로 솟은 언덕)이 된다. <b>왜 토크 쌍인가</b>: 스핀끼리 주고받아(a 감속·b 가속) <b>순 각운동량 변화 0</b> → <b>총 각운동량 정확 보존</b>·운동량은 안 건드림(순수 토크). <b>보존</b>: 각운동량(토크 쌍)·운동량(불변)·총E(스핀 KE 는 internalE 에 lump·구름이 줄면 열로 재분류 → KEcm·internalE 불변=총E 보존) 정확. <b>왜 중요한가</b>: 마찰(0057)+구름 저항(0058)으로 알갱이가 <b>가파른 산·언덕을 이루고 유지</b>한다 = "<b>딛는 지형이 손 안 대고 창발</b>"(author 가 아니라 구체 법칙이 쌓은 산). 산도 모래도 같은 구체 — 법칙이 쌓는다. <b>정직한 한계</b>: 28° 입상 안식각(가파른 암벽엔 점착 cohesion 필요)·낮은 둔덕 규모(스케일·연속 표면은 TW4 LOD)·단일 μ_r(속도 무관)·스핀 KE 를 internalE 에 lump. 다음 환경 벽돌: 바다 TW2(SPH 수면)·강 TW3(흐름)·광활 LOD TW4.'
+    },
+
+    // ── step_0059 — TW1 펼쳐진 지형: 높이장 봉우리·계곡 위에 대량 구체가 정착·계곡에 모인다 ──
+    //   0056~0058(딛는 지형 물리)을 *펼쳐진 연속 지형*으로 키운 장면 step(새 엔진 법칙 0). 골격=바닥 구+높이장
+    //   봉우리 앵커 카펫(seed)·그 위 구체 정착·계곡 모임=창발. design/environment.md §3 TW1.
+    '0059': {
+      label: 'step_0059 — TW1 펼쳐진 지형(산맥·계곡 위에 구체가 정착·계곡에 모임)', title: 'HTJ — TW1 펼쳐진 지형: 높이장 봉우리·계곡 위에 대량 구체가 정착한다',
+      sub: '0056~0058(딛는 지형의 물리=정착·마찰·구름 저항)을 *펼쳐진 연속 지형*으로 키운다. 골격 = 큰 바닥 구(중력원·가둠) 위에 높이장으로 얹은 봉우리 앵커 카펫(여러 봉우리·계곡·seed). 그 위에 대량 구체가 떨어져 표면에 정착하고, 봉우리서 굴러내려 계곡(낮은 데)에 모인다 = 지형 위 거동이 구체 법칙으로 창발. 새 엔진 법칙 0(중력+접촉+마찰+구름 저항 조립)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 1.4, AR = N * 0.10, sr = N * 0.026, SPC = N * 0.08, Wt = N * 0.40;
+        const hf = (x, y) => N * 0.09 * Math.sin(0.36 / (N / 40) * x) * Math.cos(0.3 / (N / 40) * y) + N * 0.06 * Math.sin((0.24 * x + 0.2 * y) / (N / 40));
+        const mk = (cx, cy, cz, mass, r, anc) => ({ cx, cy, cz, mass, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.12, anchored: !!anc });
+        // 바닥 구(중력원·가둠)는 화면 아래에 두고, 그 +z 극에 높이장 봉우리 카펫을 깐다.
+        const topZ = cen + N * 0.18;                                     // 지형 표면이 화면 가운데쯤
+        const ents = [mk(cen, cen, topZ - Rf, 1e9, Rf, true)];
+        for (let gx = -Wt; gx <= Wt; gx += SPC) for (let gy = -Wt; gy <= Wt; gy += SPC)
+          ents.push(mk(cen + gx, cen + gy, topZ + hf(gx, gy), 1, AR, true));   // 봉우리(저질량=고체·중력 영향 없음)
+        const gold = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < 110; i++) { const rr = Math.sqrt((i + 0.5) / 110) * Wt * 0.7, th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr, cen + Math.sin(th) * rr, topZ + N * 0.28 + (i % 10) * sr * 0.6, 50, sr, false)); }
+        w.__entities = ents; w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz })); w.__topZ = topZ;
+        w.__gopt = { G: 0.2 * Rf * Rf / 1e9, soft: N * 0.06 };
+        w.__copt = { k: 40, cDamp: 25 }; w.__fopt = { k: 40, mu: 0.9 }; w.__ropt = { k: 40, muRoll: 1.5 };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        const es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.12, w.__gopt);          // 방사 중력(바닥 구가 끈다·가둠)
+        HTJEntity.applyEntityContact(es, 0.12, w.__copt);          // 접촉 반발+감쇠(0037)
+        HTJEntity.applyEntityFriction(es, 0.12, w.__fopt);         // 마찰(0057)
+        HTJEntity.applyEntityRollingResistance(es, 0.12, w.__ropt);// 구름 저항(0058)
+        HTJEntity.stepEntities(es, 0.12);
+        const sv = w.__saved;                                      // 지형 앵커 고정(정적)
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; es[i].Lx = es[i].Ly = es[i].Lz = 0; }
+        // 색 = 높이(바닥 위) → 봉우리=뜨겁게·계곡=차갑게(지형 윤곽). 앵커는 어둡게.
+        const topZ = w.__topZ; let hmin = 1e9, hmax = -1e9;
+        for (const e of es) if (!e.anchored) { const h = e.cz - topZ; if (h < hmin) hmin = h; if (h > hmax) hmax = h; }
+        for (const e of es) e.peak = e.anchored ? 0.12 : Math.max(0.15, Math.min(1, ((e.cz - topZ) - hmin) / (hmax - hmin + 1e-9)));
+      },
+      note: '<b>펼쳐진 연속 지형(여러 봉우리·계곡)이 만들어지고, 그 위에 대량 구체가 떨어져 표면에 정착·계곡에 모인다</b> — "이게 지형이다". <b>▶ 무엇</b>(design/environment.md §3 TW1): 0056~0058 로 딛는 지형의 <b>물리</b>(정착·마찰·구름 저항=안식각)는 섰지만, 보여줄 <b>지형 그 자체</b>는 author 한 구 2~3 개뿐이었다. 이 step 은 그것을 <b>펼쳐진 연속 지형</b>으로 키운다(새 엔진 법칙 0 = 중력·접촉·마찰·구름 저항 *조립* 장면). <b>골격</b>: 큰 바닥 구(중력원·구체를 가둠) 위에 <b>높이장</b>(사인 합)으로 얹은 <b>봉우리 앵커 카펫</b> — 여러 봉우리·계곡의 연속 표면(seed·environment §2 "큰 골격은 author"). <b>창발</b>: 그 위에 대량 구체가 떨어져 → 접촉(0037)으로 표면에 <b>정착</b>(딛기) → 마찰(0057)+구름 저항(0058)이 미끄럼·구름을 잡되, <b>봉우리(높은 데)서 굴러내려 계곡(낮은 데)에 모인다</b>(색=높이, 봉우리=노랑·계곡=파랑). 정착 구체 평균 지형높이 &lt;0 = <b>계곡 선호</b>(물·흙·돌이 낮은 데로 모이는 자연 거동). <b>왜 중요한가</b>: 지형의 큰 골격은 seed 하되, 그 위 <b>거동(정착·굴러내림·계곡 모임)은 구체 법칙이 굴러간 결과로 창발</b>한다 = "법칙은 author·구조는 창발"(environment §2 층위 하이브리드). 비로소 <b>딛고 다닐 펼쳐진 땅</b>의 첫 장면. <b>정직한 한계</b>: 봉우리 골격은 손수 배치한 높이장(절차 생성/무한 광활 아님)·바닥 구 방사 중력으로 국소 평지 근사(진짜 평지 아님)·아직 <b>작은 패치 규모</b>(km 지형·끝없이 펼침 = 스케일 분리는 TW4 LOD 의 몫)·지형은 정적 앵커(깎임·침식 없음). 다음 환경 벽돌: 바다 TW2(분지를 SPH 떼로 채워 수면)·강 TW3(경사 따라 흐름)·광활 LOD TW4.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
