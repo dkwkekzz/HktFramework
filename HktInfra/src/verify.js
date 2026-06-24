@@ -1,8 +1,8 @@
-// HktInfra step-0210 — 헤드리스 검증 (로그인 티켓 만료·loginExpire·TTL)
+// HktInfra step-0220 — 헤드리스 검증 (로그인 큐 재접속 세션 재개·loginReconnect·균형 라운드 닫기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginexpire`.
-//   더한 한 조각: loginExpire{ttl} → issuedAt+ttl≤now 인 발급 티켓 회수(admitted 제거). 들고만 있고 안 쓰는 티켓 무효화(엣지 자원 보호). loginExpire 미주입 → 0209 비트 동일(reg). = 너비 1차 마지막 박스(로그인 큐) 기본 통신 완비.
-//   검증: ⒜ `reg`(키트). ⒝ `loginexpire`(가설) — p1(issuedAt4)·p2(issuedAt6) 입장 → expire(ttl2)@7 → p1 만료(4+2≤7)·p2 생존(6+2>7).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 가설 = `loginreconnect`.
+//   더한 한 조각: loginReconnect{player} → 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·ticketSeq 불변·멱등). 만료/미발급이면 재개 불가(reconnectMisses·재큐 필요). 미주입 → 0219 비트 동일(reg). 2차 고도화 로그인 큐 #2.
+//   검증: ⒜ `reg`(키트). ⒝ `loginreconnect`(가설) — p1 입장 → reconnect 재개(같은 티켓·새 티켓 0) / p2 미입장 → 재개 실패.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -17,30 +17,30 @@ const { check, pad } = kit.helpers;
 
 const ENQ = (at, player) => ({ at, op: { type: 'loginEnqueue', player } });
 const DEQ = (at) => ({ at, op: { type: 'loginDequeue' } });
-const EXPIRE = (at, ttl) => ({ at, op: { type: 'loginExpire', ttl } });
-// 시나리오: p1 입장(issuedAt 4)·p2 입장(issuedAt 6) → ttl2 만료 스윕@7: p1(4+2≤7) 만료·p2(6+2>7) 생존.
+const RECONNECT = (at, player) => ({ at, op: { type: 'loginReconnect', player } });
+// p1 입장(tkt-1) → reconnect p1 재개(같은 티켓·ticketSeq 불변) → reconnect p2(미입장) 재개 실패.
 const OPS = [
-  ENQ(2, 'p1'), ENQ(3, 'p2'),
-  DEQ(4), DEQ(6),
-  EXPIRE(7, 2),
+  ENQ(2, 'p1'), DEQ(3),
+  RECONNECT(5, 'p1'),
+  RECONNECT(6, 'p2'),
 ];
 const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, loginQueue: true, loginOps: OPS };
 
-function loginexpire(seeds) {
-  console.log('== loginexpire: 로그인 티켓 만료(TTL) — issuedAt+ttl≤now 인 발급 티켓 회수(들고만 있고 안 쓰는 티켓 무효화·엣지 자원 보호). 로그인 큐 박스 기본 통신 완비(= 너비 1차 마지막 박스). ==');
-  console.log('seed   | admitted | p1 ticket | p2 ticket | expired | 판정');
+function loginreconnect(seeds) {
+  console.log('== loginreconnect: 로그인 큐 재접속 세션 재개(loginReconnect) — 유효 admitted player 면 기존 티켓 재개(새 티켓 미발급·멱등 resume). 만료/미발급이면 재개 불가(재큐 필요). 끊겼다 금방 돌아온 세션이 줄을 다시 안 선다. 2차 고도화 로그인 큐 #2·균형 라운드 닫기. ==');
+  console.log('seed   | p1 티켓 | ticketSeq | resumes | misses | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 9, ...BASE });
+    const r = run({ seed, ticks: 8, ...BASE });
     const q = r.loginqueue;
-    // p1(issuedAt 4)+ttl2=6≤7 → 만료(ticket null). p2(issuedAt 6)+ttl2=8>7 → 생존.
-    const ok = check(q.admittedCount() === 1 && q.ticketOf('p1') === null && q.ticketOf('p2') === 'tkt-2' && q.expired === 1 && q.expires === 1,
-      `seed ${seed}: 만료 위반 (admit ${q.admittedCount()}·p1 ${q.ticketOf('p1')}·p2 ${q.ticketOf('p2')}·expired ${q.expired})`);
-    console.log(`${pad(seed, 6)} | ${pad(q.admittedCount(), 8)} | ${pad(q.ticketOf('p1') || '(만료)', 9)} | ${pad(q.ticketOf('p2') || '-', 9)} | ${pad(q.expired, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    // p1 입장 tkt-1 → reconnect p1 재개(같은 tkt-1·ticketSeq 1 불변·resumes 1) → reconnect p2 미입장(reconnectMisses 1).
+    const ok = check(q.ticketOf('p1') === 'tkt-1' && q.ticketSeq === 1 && q.resumes === 1 && q.reconnectMisses === 1 && q.reconnects === 2 && q.admittedCount() === 1,
+      `seed ${seed}: 재접속 위반 (p1 ${q.ticketOf('p1')}·seq ${q.ticketSeq}·resumes ${q.resumes}·misses ${q.reconnectMisses})`);
+    console.log(`${pad(seed, 6)} | ${pad(q.ticketOf('p1') || '-', 7)} | ${pad(q.ticketSeq, 9)} | ${pad(q.resumes, 7)} | ${pad(q.reconnectMisses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
-  console.log('  → loginExpire 가 issuedAt+ttl≤now 인 티켓을 회수(p1 issuedAt4+ttl2=6≤7 만료, p2 issuedAt6+ttl2=8>7 생존) → admitted 1·expired 1. 들고만 있고 안 쓰는 티켓이 엣지 자원을 영영 안 묶는다(재접속/만료 토대). 로그인 큐 박스 기본 통신 완비 — **너비 1차 5박스(인스턴스·오케 배치·캐시·월드영속·로그인큐) 전부 기본 통신 도달**.');
+  console.log('  → 유효 티켓 player(p1) 재접속은 기존 티켓을 그대로 재개(같은 tkt-1·ticketSeq 1 불변=새 티켓 0·줄 다시 안 섬), 미입장 player(p2) 는 재개 실패(reconnectMisses 1·재큐 필요). 끊김에 강한 세션 연속성(재접속 토대). 로그인 큐 2차 고도화 #2 — 5박스 2차 균형 라운드(0211~0220) 닫기.');
 }
 
-kit.MODES['loginexpire'] = loginexpire;
-kit.ORDER.splice(1, 0, 'loginexpire');
+kit.MODES['loginreconnect'] = loginreconnect;
+kit.ORDER.splice(1, 0, 'loginreconnect');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

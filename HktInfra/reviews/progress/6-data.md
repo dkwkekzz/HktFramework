@@ -13,9 +13,10 @@
 **필요한 기능들**:
 
 1. **읽기 캐시(set/get + read-through)** ✅ 기본 — 왜: 매 조회가 DB 직행하면 느림. / 어떻게: 앞단 휘발 캐시(Redis 등가)·hit 즉답·miss 시 소스서 읽어 채움(read-through). / 했나: `step-0205` `CacheStore` 새 박스·cacheSet→store(덮어씀) + `step-0206` cacheGet hit/miss·miss→소스(backing) 채운 뒤 답(첫 miss 만 1홉·이후 hit). DB 직행 흡수.
-2. **무효화 규칙·write-behind·TTL/eviction** ⬜ — 왜: 캐시는 복사본이라 stale 위험·메모리 유계. / 어떻게: 무효화/TTL/LRU. / 했나: 미착수(2차).
+2. **stale 차단(TTL 만료 + 무효화)** ✅ — 왜: 캐시는 복사본이라 stale 위험·메모리 무계. / 어떻게: ⒜ 시간 기반 TTL 스윕(setAt+ttl≤now 회수·Redis TTL 등가) ⒝ 소스 기반 명시 무효화(write 시 사본 끊고 read-through 재적재). / 했나: `step-0211` cacheExpire(setAt 기록→TTL 회수·메모리 유계) + `step-0212` cacheInvalidate(소스 변경→사본 끊기→다음 get miss→fresh 재적재·write 일관성). 미주입이면 휴면(reg 0).
+3. **write-behind·소스 PersistStore 연결·LRU eviction** ⬜ — 왜: 캐시 쓰기를 DB 로 비동기 반영·핫셋 유계. / 어떻게: write-behind 큐·소스를 실 PersistStore 박스로·LRU. / 했나: 미착수(현 소스=주입 backing map·2차 잔여).
 
-**지금 어디 / 다음**: **set/get + read-through 기본 통신 완비**(0205~0206·⬜→🟡). 다음(2차) = 무효화·write-behind·소스를 실 PersistStore 박스로 연결(현 소스=주입 backing map).
+**지금 어디 / 다음**: set/get + read-through + **TTL 만료·무효화(0211~0212·stale 차단)**까지. 다음(2차) = write-behind·소스를 실 PersistStore 박스로 연결·LRU eviction.
 
 ## 월드 영속 서버 🟡 자라는 중
 
@@ -25,9 +26,10 @@
 
 1. **intent 로그 append** ✅ 기본 — 왜: 세계 상태의 유일 쓰기 경로(intent·SPINE §4 경로1)를 durable 로 남겨야 재현·복구가 선다. / 어떻게: append-only 로그(seq 단조). / 했나: `step-0207` `WorldLog` 새 박스·worldAppend→로그.
 2. **replay 재구성(crash 무손실)** ✅ 기본 — 왜: 투영이 죽어도 로그로 복원. / 어떻게: 로그 전수 재적용 reducer(move→위치·pickup→소지)·crash 후 동일 digest. / 했나: `step-0208` replay·crash→로그만으로 동일 상태(결정론 덕·복제=재현).
-3. **주기 스냅샷 압축·실 존 연동·다중 클라 결정론** ⬜ — 왜: 무계 로그·실제 존 상태 연결·#1 결정론 복제. / 어떻게: 스냅샷+tail·존↔worldlog 배선. / 했나: 미착수(2차).
+3. **스냅샷 압축 + crash/recover 정합** ✅ — 왜: 무계 로그는 메모리 누설·복구는 메시지 구동이라야 슈퍼바이저가 명령. / 어떻게: ⒜ 투영을 스냅샷으로 굳히고 로그를 tail(seq>snapshotSeq)로 절단·replay=스냅샷+tail==전체-로그 replay(무손실) ⒝ crash/recover 를 op 로(슈퍼바이저 명령). / 했나: `step-0213` worldSnapshot(스냅샷+tail·무손실 압축·저장 유계·가방0018/우편0146/길드0185 의 월드 판) + `step-0214` worldCrash/worldRecover(메시지 구동·crash 후 동일 digest 복원·스냅샷 load-bearing=tail 단독 불충분 증명·스냅샷 arc 0207~0214 닫기). 미주입이면 휴면(reg 0).
+4. **실 존 연동·다중 클라 결정론** ⬜ — 왜: 지금은 검증 주입 intent 만 로그에 적층·실제 존 상태 미연결·#1 결정론 복제. / 어떻게: 존↔worldlog 배선(존 tick 의 intent 를 worldlog 로)·다중 클라 인터리빙. / 했나: 미착수(2차 잔여·#1 결정론 복제와 합류).
 
-**지금 어디 / 다음**: **intent 로그 append+replay 기본 통신 완비**(0207~0208·신규→🟡). 다음(2차) = 스냅샷 압축·실 존 상태 연동(#1 결정론 복제와 합류).
+**지금 어디 / 다음**: intent 로그 append+replay + **스냅샷 압축·crash/recover 정합(0213~0214·event sourcing 완성형)**까지. 다음(2차) = 실 존 상태 연동(현 intent=검증 주입·#1 결정론 복제와 합류).
 
 ## 게임/계정 DB · write-behind 서버 🟡 자라는 중
 

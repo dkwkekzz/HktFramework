@@ -29,10 +29,10 @@
 **필요한 기능들**:
 
 1. **수요 탄력 spawn/despawn** ✅ 기본 — 왜: 오픈월드 존과 수명주기를 분리해 탄력 확보. / 어떻게: 활성 인스턴스 집합 SSOT(권위 단일 소유)·spawn 멱등·despawn graceful. / 했나: `step-0201` `InstanceServer` 새 박스·instanceSpawn→active(중복 0) + `step-0202` instanceDespawn→active 제거·retired 누적(일회성 수명 완성). 존(영속 tick)과 수명주기 분리.
-2. **클라 라우팅(인스턴스로 입장)** ⬜ — 왜: 플레이어를 띄운 인스턴스로 보내야. / 어떻게: 게이트웨이가 인스턴스 주소로 라우팅. / 했나: 미착수(2차).
-3. **오케스트레이터 연동 수요 spawn** ⬜ — 왜: 부하/대기에 따라 자동 spawn. / 어떻게: 오케스트레이터가 수요 판단→spawn 발신. / 했나: 미착수(현재는 명령 주입만·2차).
+2. **클라 라우팅(인스턴스로 입장)** ✅ — 왜: 플레이어를 띄운 인스턴스로 보내야. / 어떻게: player→instance 배정 SSOT(한 player=한 인스턴스·권위 단일 소유)·죽은 인스턴스 거부·재배정 release+acquire 쌍. / 했나: `step-0216` instanceRoute(routes 맵·occupancyOf·게이트웨이 던전 입장 라우팅 토대). 미주입이면 휴면(reg 0). *잔여(#50): despawn 시 routes 미정리(orphan route).*
+3. **수요 기반 자동 spawn(탄력 확장)** ✅ — 왜: 부하/대기에 따라 자동 채움. / 어떻게: active(kind)<target 이면 부족분 자동 spawn(결정론 auto-id·멱등). / 했나: `step-0215` instanceDemand(1→target 탄력 수렴·수요 기반 스케일링). *잔여: 수요 하락 시 자동 despawn-down·오케스트레이터가 수요 판단해 발신(현 명령 주입만)·2차.*
 
-**지금 어디 / 다음**: **spawn/despawn 수명주기 SSOT 기본 통신 완비**(0201~0202·⬜→🟡). 다음(2차) = 클라 라우팅·오케스트레이터 수요 연동.
+**지금 어디 / 다음**: spawn/despawn + **수요 자동 spawn(0215)·플레이어 라우팅(0216)**까지. 다음(2차) = despawn-down·오케스트레이터 수요 연동·orphan route 정리(#50).
 
 ---
 

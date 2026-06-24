@@ -1,4 +1,6 @@
 'use strict';
+// step-0218 — 오케스트레이터 존 재배치 핸드오프(placeMigrate): 이미 배치된 존을 다른 host 로 *release(기존)+acquire(신규) 쌍*으로 옮긴다(존 권위 단일 소유 보존·공백/중복 0·0006 핸드오프의 배치 판). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 0217 비트 동일(reg 0). 2차 고도화(오케스트레이터 #2).
+// step-0217 — 오케스트레이터 부하 배치(placeAuto): 후보 host 중 *최소 부하*(=배치된 존 수 최소) host 를 골라 존을 자동 배치(정적 배치 한계 제거·부하 분산). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 0216 비트 동일(reg 0). 2차 고도화(오케스트레이터 #1).
 // step-0204 — 오케스트레이터 존 배치 질의(placeQuery→placeReply): 배치 SSOT(0203)를 원격 request/reply 로 읽는다(게이트웨이가 "이 존 어디 사나" 물음). 순수 읽기·placeQuery 미수신이면 0203 비트 동일(reg 0). 배치 박스 기본 통신 완비. (아래 0065 메모는 프레즌스 보고 버스화 설명·유지.)
 // step-0065 — 프레즌스 보고 버스화: orch→PresenceService 보고를 point-to-point(0064)→버스 토픽 svc.presence.report 로 올린다(presenceReportBus). orch 가 프레즌스 박스 주소를 모른다(토픽만·완전 decouple→다중 orch/박스 failover 기반). OFF 면 0064 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
@@ -22,6 +24,9 @@ class Orchestrator {
     this.placeQueriesRx = 0;      // 받은 placeQuery 수(step-0204·읽기 경로 계측). placeRepliesSent = 보낸 회신 수(1:1).
     this.placeRepliesSent = 0;
     this._lastPlaceReply = null;  // 마지막 placeReply 보관(검증용·순수 읽기).
+    this.autoPlacements = 0;      // 처리한 placeAuto 수(step-0217·부하 기반 자동 배치·계측).
+    this.migrations = 0;          // 처리한 placeMigrate 성공 수(step-0218·release+acquire 쌍·재배치).
+    this.migrateRejects = 0;      // 거부된 placeMigrate 수(step-0218·미배치 존·같은 host no-op).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -71,6 +76,19 @@ class Orchestrator {
     const p = m.payload;
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
     if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; return; }
+    // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.
+    if (p.type === 'placeAuto') {
+      const host = this._leastLoaded(p.hosts || []);
+      if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; }
+      return;
+    }
+    // 존 재배치 핸드오프(step-0218·placeMigrate) — {zoneId, toHost} → 이미 배치된 존을 release(기존 host)+acquire(toHost) 쌍으로 옮긴다(권위 단일 소유 보존·공백/중복 0). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 미발화 = 0217 비트 동일.
+    if (p.type === 'placeMigrate') {
+      const from = this.placement.get(p.zoneId);
+      if (from === undefined || from === p.toHost) { this.migrateRejects++; return; }   // 미배치/같은 host 거부.
+      this.placement.set(p.zoneId, p.toHost); this.migrations++;   // release(from)+acquire(toHost) — Map 단일 키 원자 교체(중간 상태 공백/중복 0).
+      return;
+    }
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
@@ -146,6 +164,14 @@ class Orchestrator {
   // 존 배치 질의(step-0203) — "이 존이 어디 사나 / 몇 개 배치됐나"(배치 SSOT 읽기). 게이트웨이 라우팅·검증이 쓴다. 질의 인터페이스(request/reply over net)는 0204.
   placementOf(zoneId) { return this.placement.get(zoneId) || null; }
   placedCount() { return this.placement.size; }
+  // host 부하(step-0217) — 그 host 에 배치된 존 수(배치 SSOT 에서 파생·부하 지표). 부하 분산 판정의 기준.
+  hostLoad(host) { let n = 0; for (const h of this.placement.values()) if (h === host) n++; return n; }
+  // 최소 부하 host(step-0217) — 후보 중 hostLoad 최소를 고른다. 동률은 후보 배열 순서로 결정론 tie-break(첫 최소). 후보 없으면 null.
+  _leastLoaded(hosts) {
+    let best = null, bestLoad = Infinity;
+    for (const h of hosts) { const l = this.hostLoad(h); if (l < bestLoad) { bestLoad = l; best = h; } }
+    return best;
+  }
 }
 
 const __part = { Orchestrator };
