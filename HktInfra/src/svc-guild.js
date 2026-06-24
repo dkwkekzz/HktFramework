@@ -1,4 +1,5 @@
 'use strict';
+// step-0193 — 길드 금고 변경 발행(guildBankPublish·svc.guild.bank.changed): 0191~0192 의 예치/인출은 *관측 불가*였다 — 금고에 무엇이 들고 났는지 스트림이 0이었다(0192 한계). 다른 시스템(금고 UI 배지·감사·길드 로그)이 금고 변동을 구독해야 한다. 거래소 체결 발행(0108)·길드 멤버십 변경 발행(0183)의 금고 판: 실제 변경(예치 성사·인출 성사) 시 svc.guild.bank.changed{guildId,kind:deposit|withdraw,itemId,member} 를 버스로 발행 → 발행자 무수정 소비자(audit)가 반응. no-op(중복 예치·없는 인출·비멤버)은 발행 안 함(발행==실 변경). bankPublish OFF·bus 부재면 발행 0 = 0192 비트 동일(reg).
 // step-0192 — 길드 금고 withdraw(guildWithdraw): 0191 의 예치(deposit)는 *입금 전용*이라 길드 금고가 단조 증가만 했다 — 멤버가 금고에서 아이템을 도로 꺼낼 길이 없었다(0191 한계). 인출을 더한다: guildWithdraw{guildId,member,itemId} → 금고에 그 itemId 가 있고 요청자가 멤버일 때만 제거(없으면/비멤버면 멱등·graceful no-op). 거래소 buy leg(0118)·우편 fetch(0158)의 길드 금고 판. bank OFF·미주입이면 0191 비트 동일(reg).
 // step-0191 — 길드 금고(Guild Bank) deposit(guildBank·guildDeposit): 0181~0190 에서 길드 박스(로스터+마스터십)를 완성했다. 이 arc(0191~0200)는 길드의 *공유 아이템 원장*(금고/vault)을 키운다 — 멤버가 아이템을 길드 금고에 예치/인출하는, 거래소 escrow(0117)·우편 아이템 custody(0157)의 *조직 공유* 판. 첫 조각: guildDeposit{guildId, member, itemId} → 금고가 itemId 를 보유(vault: guildId→[itemId]·집합 의미론·중복 무시 멱등). single-master 와 직교(권위=금고 원장). bank OFF·미주입이면 금고 0 = 0190 비트 동일(reg). 계층: 3 게임 서비스.
 // step-0190 — 길드 정합 capstone(rosterConsistent·single-master 불변·arc 0181~0190 닫기): 0181~0189 에서 길드 박스를 세웠다(로스터 SSOT·증분·발행·영속·스냅샷·배지·feed 영속·정합·마스터 이양). 이 step 은 박스 전체를 관통하는 *척추 ③ 권위 단일 소유*의 길드 불변을 명시 단언한다 — rosterConsistent(): 모든 길드는 정확히 한 master(공백 0)·master ∈ members(고아 마스터 0)·멤버 중복 0. 모든 연산(create/join/leave/transfer)·모든 체제(정상·guild crash→reconstruct·feed crash→reconstruct)서 성립 + feedConsistent(0188 배지==로스터)와 결합 → 길드 박스가 결코 single-master 를 깨지 않음을 증명. 순수 읽기(권위 0·실행 경로 무변경) → 0189 비트 동일(reg). 거래소 0140·우편 0180 capstone 의 길드 판.
@@ -41,6 +42,8 @@ class GuildService {
     this.vault = new Map();       // guildId -> [itemId...] (금고 원장 SSOT — 길드가 보유한 아이템 집합·중복 0·권위 단일 소유). 로스터/마스터십과 직교(권위=원장).
     this.deposits = 0;            // 처리한 guildDeposit 수(step-0191·계측·no-op 포함).
     this.withdraws = 0;           // 처리한 guildWithdraw 수(step-0192·계측·no-op 포함).
+    this.bankPublish = opts.bankPublish || false;   // 금고 변경 발행(step-0193·guildBankPublish) — 예치/인출을 svc.guild.bank.changed 로. OFF·bus 부재면 발행 0(0192 동일).
+    this.bankPublished = 0;       // svc.guild.bank.changed 발행 수(step-0193·계측). 실 변경과 1:1(no-op 발행 안 함).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
@@ -64,6 +67,11 @@ class GuildService {
   _publishChange(guildId, kind, member) {
     if (!(this.changePublish && this.bus)) return;
     this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.changed', ev: { guildId, kind, member } }); this.published++;
+  }
+  // 금고 변경 발행(step-0193) — 예치/인출 성사를 svc.guild.bank.changed 로. bankPublish OFF·bus 부재면 no-op(0192 동일). 실 변경 시에만 호출(no-op 발행 안 함). 거래소 0108·길드 변경 발행 0183 의 금고 판.
+  _publishBank(guildId, kind, itemId, member) {
+    if (!(this.bankPublish && this.bus)) return;
+    this.net.send(this.addr, this.bus, { type: 'pub', topic: 'svc.guild.bank.changed', ev: { guildId, kind, itemId, member } }); this.bankPublished++;
   }
   onMsg(m) {
     const p = m.payload;
@@ -108,7 +116,7 @@ class GuildService {
       const g = this.guilds.get(p.guildId);
       if (g && g.members.includes(p.member)) {
         const v = this.vault.get(p.guildId) || [];
-        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0).
+        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193).
       }
       return;
     }
@@ -119,7 +127,7 @@ class GuildService {
       const g = this.guilds.get(p.guildId);
       const v = this.vault.get(p.guildId);
       if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
-        this.vault.set(p.guildId, v.filter(x => x !== p.itemId));   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0).
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member);   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193).
       }
       return;
     }
