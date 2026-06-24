@@ -1,5 +1,5 @@
 'use strict';
-// step-0203 — 오케스트레이터 존 배치 SSOT(placeZone): "어느 존을 어느 host 에 둘지"의 배치 결정 권위(코디네이션 계층·정적 배치 한계 제거 씨앗). placeZone 미주입이면 빈 채 = 0202 비트 동일(reg 0). 질의는 0204. (아래 0065 메모는 프레즌스 보고 버스화 설명·유지.)
+// step-0204 — 오케스트레이터 존 배치 질의(placeQuery→placeReply): 배치 SSOT(0203)를 원격 request/reply 로 읽는다(게이트웨이가 "이 존 어디 사나" 물음). 순수 읽기·placeQuery 미수신이면 0203 비트 동일(reg 0). 배치 박스 기본 통신 완비. (아래 0065 메모는 프레즌스 보고 버스화 설명·유지.)
 // step-0065 — 프레즌스 보고 버스화: orch→PresenceService 보고를 point-to-point(0064)→버스 토픽 svc.presence.report 로 올린다(presenceReportBus). orch 가 프레즌스 박스 주소를 모른다(토픽만·완전 decouple→다중 orch/박스 failover 기반). OFF 면 0064 비트 동일. (분할 preamble: 박스 1개=파일 1개·진입점 net-core.js)
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
@@ -19,6 +19,9 @@ class Orchestrator {
     // 존 배치 SSOT(step-0203·placeZone) — 오케스트레이터가 "어느 존을 어느 host 에 둘지"의 배치 결정 권위(코디네이션 계층). 정적 배치 한계 제거의 씨앗(SPINE §2 코디네이션). placement 미주입이면 빈 채 = 0202 비트 동일.
     this.placement = new Map();   // zoneId -> host (배치 SSOT — "누가 어디서 도나"의 권위 단일 소유).
     this.placements = 0;          // 처리한 placeZone 수(step-0203·계측·재배치 덮어쓰기 포함).
+    this.placeQueriesRx = 0;      // 받은 placeQuery 수(step-0204·읽기 경로 계측). placeRepliesSent = 보낸 회신 수(1:1).
+    this.placeRepliesSent = 0;
+    this._lastPlaceReply = null;  // 마지막 placeReply 보관(검증용·순수 읽기).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -68,6 +71,14 @@ class Orchestrator {
     const p = m.payload;
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
     if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; return; }
+    // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
+    if (p.type === 'placeQuery') {
+      this.placeQueriesRx++;
+      const host = this.placementOf(p.zoneId);
+      this._lastPlaceReply = { zoneId: p.zoneId, host };
+      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host }); this.placeRepliesSent++; }
+      return;
+    }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
     // 치유 확인 수신(step-0057·recoverAck) — recover 명령을 받은 소비자가 재구독하며 돌려보낸 확인. orch 가 명령 *전달·수행*을 안다(분실 0 이면 recoverAcks==recoversSent). busPresenceRecover OFF 면 recover 미발신 → 이 메시지 영영 안 옴 = 0056 비트 동일.
     if (p.type === 'recoverAck') { this.recoverAcks++; this.pendingRecover.delete(p.consumer); this.recoverAttempts.delete(p.consumer); return; }
