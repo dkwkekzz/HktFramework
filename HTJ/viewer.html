@@ -109,6 +109,7 @@
 <script src="engine/htj-entity.js"></script>
 <script src="engine/htj-hybrid.js"></script>
 <script src="engine/htj-sph.js"></script>
+<script src="engine/htj-shapedna.js"></script>
 <script src="viewer/htj-render.js"></script>
 <script>
 (function () {
@@ -1252,6 +1253,129 @@
         for (const e of es) e.peak = e.anchored ? 0.12 : Math.max(0.15, Math.min(1, ((e.cz - topZ) - hmin) / (hmax - hmin + 1e-9)));
       },
       note: '<b>펼쳐진 연속 지형(여러 봉우리·계곡)이 만들어지고, 그 위에 대량 구체가 떨어져 표면에 정착·계곡에 모인다</b> — "이게 지형이다". <b>▶ 무엇</b>(design/environment.md §3 TW1): 0056~0058 로 딛는 지형의 <b>물리</b>(정착·마찰·구름 저항=안식각)는 섰지만, 보여줄 <b>지형 그 자체</b>는 author 한 구 2~3 개뿐이었다. 이 step 은 그것을 <b>펼쳐진 연속 지형</b>으로 키운다(새 엔진 법칙 0 = 중력·접촉·마찰·구름 저항 *조립* 장면). <b>골격</b>: 큰 바닥 구(중력원·구체를 가둠) 위에 <b>높이장</b>(사인 합)으로 얹은 <b>봉우리 앵커 카펫</b> — 여러 봉우리·계곡의 연속 표면(seed·environment §2 "큰 골격은 author"). <b>창발</b>: 그 위에 대량 구체가 떨어져 → 접촉(0037)으로 표면에 <b>정착</b>(딛기) → 마찰(0057)+구름 저항(0058)이 미끄럼·구름을 잡되, <b>봉우리(높은 데)서 굴러내려 계곡(낮은 데)에 모인다</b>(색=높이, 봉우리=노랑·계곡=파랑). 정착 구체 평균 지형높이 &lt;0 = <b>계곡 선호</b>(물·흙·돌이 낮은 데로 모이는 자연 거동). <b>왜 중요한가</b>: 지형의 큰 골격은 seed 하되, 그 위 <b>거동(정착·굴러내림·계곡 모임)은 구체 법칙이 굴러간 결과로 창발</b>한다 = "법칙은 author·구조는 창발"(environment §2 층위 하이브리드). 비로소 <b>딛고 다닐 펼쳐진 땅</b>의 첫 장면. <b>정직한 한계</b>: 봉우리 골격은 손수 배치한 높이장(절차 생성/무한 광활 아님)·바닥 구 방사 중력으로 국소 평지 근사(진짜 평지 아님)·아직 <b>작은 패치 규모</b>(km 지형·끝없이 펼침 = 스케일 분리는 TW4 LOD 의 몫)·지형은 정적 앵커(깎임·침식 없음). 다음 환경 벽돌: 바다 TW2(분지를 SPH 떼로 채워 수면)·강 TW3(경사 따라 흐름)·광활 LOD TW4.'
+    },
+
+    // ── step_0060 — TW2 바다: 물(SPH 입자)이 지형 분지에 고여 수평 수면(environment.md §3 TW2) ──
+    //   새 엔진 법칙 sphBoundaryForce(물↔정적 지형 앵커 경계). 물이 지형을 통과하지 않고 분지에 갇혀,
+    //   중력(아래)+SPH 압력(0041)이 물을 *수평 표면(등z)*으로 가라앉힌다. 지형=정적 앵커(0056/0059).
+    '0060': {
+      label: 'step_0060 — TW2 바다(물이 분지에 고여 수평 수면)', title: 'HTJ — TW2 바다: 물(SPH 입자)이 지형 분지에 고여 수평 수면을 이룬다',
+      sub: '물(SPH 입자 떼)이 지형(정적 앵커) 분지에 떨어져 — 새 경계 법칙 sphBoundaryForce 로 지형을 통과하지 않고 갇히고, 중력(아래)+SPH 압력(0041)이 물을 수평 표면(등z·등퍼텐셜)으로 가라앉힌다. 환경 트랙 TW2. 보존: 질량·낙하 KE→열 소산·앵커=무한질량 외부 경계',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const Rf = N * 1.4, rimR = N * 0.30, hillR = N * 0.085, BR = N * 3;
+        const topZ = cen + N * 0.10;                                   // 분지 바닥 표면(화면 가운데쯤)
+        const floor = { cx: cen, cy: cen, cz: topZ - Rf, mass: 1e9, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: Rf, temp: 0, peak: 0.1 };
+        // 보이는 분화구 테(rim) = 링 앵커(우물 벽 느낌·렌더+경계).
+        const rim = [], NR = 14;
+        for (let i = 0; i < NR; i++) { const a = i / NR * 2 * Math.PI;
+          rim.push({ cx: cen + Math.cos(a) * rimR, cy: cen + Math.sin(a) * rimR, cz: topZ + hillR * 0.5, mass: 1e9, px: 0, py: 0, pz: 0,
+            Lx: 0, Ly: 0, Lz: 0, KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: hillR, temp: 0, peak: 0.08 }); }
+        // 진짜 가둠 = 큰 벽 구 4개(표면만 우물 경계·중심은 화면 밖 → 렌더 안 함·경계 물리만).
+        const walls = [
+          { cx: cen - (BR + rimR), cy: cen, cz: topZ, mass: 1e9, radius: BR }, { cx: cen + (BR + rimR), cy: cen, cz: topZ, mass: 1e9, radius: BR },
+          { cx: cen, cy: cen - (BR + rimR), cz: topZ, mass: 1e9, radius: BR }, { cx: cen, cy: cen + (BR + rimR), cz: topZ, mass: 1e9, radius: BR },
+        ];
+        // 물 = SPH 입자 떼(분지 위에 쏟아 붓는다).
+        let seed = 12345; const rnd = () => { seed = (Math.imul(seed, 1664525) + 1013904223) >>> 0; return seed / 4294967296; };
+        const water = [], n = Math.round(N * N * 0.16), wr = N * 0.035;
+        for (let i = 0; i < n; i++) water.push({ cx: cen + (rnd() - 0.5) * rimR * 1.6, cy: cen + (rnd() - 0.5) * rimR * 1.6, cz: topZ + N * 0.22 + rnd() * N * 0.40,
+          mass: 1, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0, KEcm: 0, internalKE: 0, internalE: 0, energy: 0, cells: 0, radius: wr, temp: 0, peak: 0.5 });
+        w.__water = water;
+        w.__terrain = [floor].concat(rim, walls);                     // 경계 물리(앵커는 읽기만)
+        w.__entities = [floor].concat(rim, water);                    // 렌더(큰 벽 구는 화면 밖이라 제외)
+        w.__topZ = topZ; w.__N = N;
+        const h = N * 0.09;
+        w.__popt = { stiffness: N * 2, h, gamma: 2 }; w.__vopt = { alpha: 1.5, beta: 2, h, gamma: 2 };
+        w.__bopt = { stiffness: N * 4, damp: N * 0.8, skin: N * 0.025 }; w.__grav = N * 0.012;
+      },
+      advance(w) {
+        if (!w.__water) return;
+        const wat = w.__water;
+        HTJSPH.sphPressureForce(wat, 0.12, w.__popt);                 // 물↔물 압력(퍼짐·0041)
+        HTJSPH.sphViscosity(wat, 0.12, w.__vopt);                    // 슬로싱 소산(정착·0046)
+        for (const p of wat) p.pz -= p.mass * w.__grav * 0.12;        // 균일 중력(아래·분지가 가둠)
+        HTJSPH.sphBoundaryForce(wat, w.__terrain, 0.12, w.__bopt);    // 물↔지형 경계(이 step)
+        HTJEntity.stepEntities(wat, 0.12);                            // 위치 적분
+        // 색 = 깊이(표층=밝은 파랑·바닥=어두움) → 수면이 드러난다. 지형은 어둡게 고정.
+        const topZ = w.__topZ; let zmin = 1e9, zmax = -1e9;
+        for (const p of wat) { if (p.cz < zmin) zmin = p.cz; if (p.cz > zmax) zmax = p.cz; }
+        for (const p of wat) p.peak = 0.35 + 0.55 * (p.cz - zmin) / (zmax - zmin + 1e-9);
+      },
+      note: '<b>물(SPH 입자 떼)이 지형 분지에 떨어져 고여 *수평 수면*을 이룬다</b> — 환경 트랙 TW2(바다). <b>▶ 무엇</b>(design/environment.md §3 TW2): 0026~ 동역학·0040~ SPH 물리 스택(밀도·압력·점성…)은 섰지만, <b>물이 *지형*(정적 앵커·0056/0059)을 느끼는 결합</b>이 없어 물이 지형을 그냥 통과했다. 이 step 의 <b>새 엔진 법칙 sphBoundaryForce</b> 가 그 *유일하게 빠진 벽돌* = <b>SPH↔앵커 경계</b>: 물 입자가 앵커 구 표면 안으로 파고들면 <b>바깥으로 반발</b>(Hooke)하고, 파고드는 법선 운동은 <b>감쇠→열</b>(낙하 KE 가 식음). <b>창발</b>: 그러면 <b>중력</b>(아래)+<b>SPH 압력</b>(0041·물끼리 밀어 퍼짐)이 물을 분지(바닥+테 앵커) 안에 <b>고여 수평 표면(등z=등퍼텐셜)</b>으로 평형시킨다 — author 한 건 분지 골격뿐, *수면이 평평해지는 건 법칙이 굴러간 결과*. <b>왜 중요한가</b>: "선 캐릭터=중력↓+접촉↑"의 <b>접촉</b>을 고체(0037)에서 <b>유체(물)</b>로 옮긴 것 — 지형 위에 비로소 <b>물</b>이 얹힌다(딛는 땅 다음 = 바다·호수). <b>앵커=무한 질량 외부 경계</b>(environment §1·0056 정신): 충격을 흡수하고 위치 불변(지구처럼) → 물의 운동량은 그 경계로 빠진다(닫힌계의 *예외 아닌 극한*). <b>보존</b>: 질량 불변·낙하 KE→internalE(열) 비가역 소산(엔트로피↑)·앵커 표면 밖 입자=완전 불변(항등). <b>정직한 한계</b>: 분지 골격은 손수 배치(절차 생성 아님)·작은 패치 규모(끝없는 바다 = TW4 LOD)·물↔지형 일방 결합(지형 정적·침식/깎임 없음)·SPH 표면이 입자 스케일로 울퉁(연속 수면 근사). 다음 환경 벽돌: 강 TW3(경사 따라 흐름·경로 창발)·광활 LOD TW4.'
+    },
+
+    // ── step_0061 — M1 신뢰성 병합: 정착한 알맹이들이 한 개체로 coalesce(수박게임·merge-dna.md §4 M1) ──
+    //   새 엔진 법칙 coalesceSettled(정착 게이트 병합). 닿아 가라앉은(느림·동결) 인접 개체를 연결 성분 통째로
+    //   한 개체로 합친다(mergeGroup 재사용·4 보존량 정확·앵커 제외). 접촉(0037)이 못 합치던 복잡 클러스터 정리.
+    '0061': {
+      label: 'step_0061 — M1 신뢰성 병합(정착한 알맹이들이 한 개체로·수박게임)', title: 'HTJ — M1: 닿아 정착한 알맹이들이 확실히 한 개체로 coalesce',
+      sub: '지면(앵커) 위 작은 구체들이 떨어져 쌓이고, 가라앉아 정착(지속적으로 느림=동결)하면 새 법칙 coalesceSettled 가 인접 덩어리를 한 개체로 합친다(수박게임). 병합·형태 DNA 트랙 M1. 보존: 질량·운동량·각운동량·총E(mergeGroup 0036 재사용)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2;
+        const GR = N * 0.26, sr = N * 0.05;
+        const mk = (cx, cy, cz, m, r, anc) => ({ cx, cy, cz, mass: m, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 5, energy: 5, cells: (4 * Math.PI / 3) * r * r * r, radius: r, temp: 0, peak: 0.15, anchored: !!anc });
+        const ents = [mk(cen, cen, cen, 6e4, GR, true)];        // 지면(앵커)
+        const gold = Math.PI * (3 - Math.sqrt(5));
+        for (let i = 0; i < 14; i++) { const yf = 1 - (i + 0.5) / 14 * 2, rr = Math.sqrt(Math.max(0, 1 - yf * yf)), th = gold * i;
+          ents.push(mk(cen + Math.cos(th) * rr * N * 0.40, cen + yf * N * 0.40, cen + Math.sin(th) * rr * N * 0.40, 70, sr)); }
+        w.__entities = ents; w.__saved = ents.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz })); w.__sr = sr;
+        w.__gopt = { G: 8e-4, soft: Math.max(2, N * 0.08) }; w.__copt = { k: 15, cDamp: 40 }; w.__fopt = { k: 15, mu: 0.9 };
+        w.__mopt = { dwell: 30, vSettle: N * 0.012, vstick: N * 0.03, pad: N * 0.04 };
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        let es = w.__entities;
+        HTJEntity.applyEntityGravity(es, 0.25, w.__gopt);         // 지면 쪽으로(0028)
+        HTJEntity.applyEntityContact(es, 0.25, w.__copt);         // 접촉 반발+감쇠(0037)
+        HTJEntity.applyEntityFriction(es, 0.25, w.__fopt);        // 마찰(0057)
+        HTJEntity.stepEntities(es, 0.25);
+        es = HTJEntity.coalesceSettled(es, 0.25, w.__mopt).entities;  // 정착한 인접 덩어리 → 한 개체(이 step·M1)
+        w.__entities = es;
+        const sv = w.__saved;                                    // 지면 앵커 고정(정적·앵커는 병합 제외)
+        for (let i = 0; i < es.length; i++) if (es[i].anchored) { es[i].cx = sv[i].cx; es[i].cy = sv[i].cy; es[i].cz = sv[i].cz; es[i].px = es[i].py = es[i].pz = 0; }
+        // 색 = 크기 tier(작은 알=어두움·합친 큰 개체=밝음) → 수박게임 병합이 색으로 보인다.
+        for (const e of es) e.peak = e.anchored ? 0.12 : Math.max(0.18, Math.min(1, (e.radius - w.__sr) / (2.4 * w.__sr) * 0.82 + 0.18));
+      },
+      note: '<b>닿아 정착한 작은 알맹이들이 확실히 한 개체로 합쳐진다</b>(수박게임) — 병합·형태 DNA 트랙 M1. <b>▶ 무엇</b>(design/merge-dna.md §4 M1): 세계가 커지면 원소를 하나하나 다 굴릴 수 없어 <b>뭉친 건 한 개체로 병합</b>해야 한다. 그런데 기존 합치기(0036)는 *순간* 상대속도(vstick)로만 판정해, 접촉(0037 반발)이 떼어놓고 잔여 진동이 있는 인접 덩어리는 <b>닿아만 있고 안 합쳐졌다</b>(같은 종류라도 복잡한 알맹이 클러스터로 남음). 이 step 의 <b>새 엔진 법칙 coalesceSettled</b> 는 판정을 <b>지속 정착</b>으로 바꾼다: 개체마다 "느린 step 연속 수(settle)"를 세고, 두 개체가 <b>둘 다 충분히 오래 정착(settle≥dwell)</b>하고 닿아 있고 상대운동이 느릴 때만 묶어 <b>연결 성분 통째로</b> 합친다(=0025 활동도/동결 판정의 개체 병합 판). <b>흐름</b>: 지면 위로 14알이 떨어져 → 접촉으로 쌓이고 → 가라앉아 멈추면(정착) → 한 개체로 합쳐진다(반경↑·색이 밝아짐=수박게임 tier). <b>왜 이렇게</b>: 붕괴 도중 순간적으로 느려진 쌍을 *성급히* 안 합치고(dwell 대기), 정말 가라앉은 덩어리만 합쳐 <b>안정적으로 한 개체</b>가 된다. <b>보존</b>: 병합 산술은 mergeGroup(0036) 재사용 → <b>질량·운동량·각운동량(원점)·총E 정확 보존</b>. <b>정적 앵커(지면)는 병합 제외</b>(지형은 안 합쳐짐). <b>왜 중요한가</b>: 이게 "뭉치면 한 개체"(확장성)의 토대 — 다음 M2 에서 합친 개체에 <b>형태 hash(DNA)</b>를 붙여, 큰 원이 아니라 *원래 모양*을 세계 형태 사전에서 복원하게 한다(M3 렌더). <b>정직한 한계</b>: 정착 판정이 <b>절대속도</b> 기준(세계 정지계·자유 공간 comoving 덩어리엔 상대속도 판정이 맞음·후속)·합친 개체는 아직 <b>민둥 구</b>(모양 보존은 M2~M3 형태 DNA)·dwell·vSettle 은 장면 노브.'
+    },
+
+    // ── step_0063 — M3 DNA 로 렌더: 합친 개체를 shapeHash→사전→원래 윤곽으로 그림(merge-dna.md §4 M3) ──
+    //   engine 불변(렌더 트랙). 합친 개체(0061)+shapeHash(0062)를 reconstructShape 로 *민둥 구가 아니라* 구성원
+    //   배치(윤곽)로 펼쳐 그린다 = "큰 원이 지형 모양으로 돌아온다". 같은 모양=같은 윤곽·같은 색(DNA).
+    '0063': {
+      label: 'step_0063 — M3 DNA 로 렌더(합친 개체가 원래 윤곽으로·큰 원 아님)', title: 'HTJ — M3: 합친 개체를 shapeHash 로 원래 윤곽(L·직선·삼각)으로 그린다',
+      sub: '클러스터(L·직선·삼각)가 정착·병합하면, 합친 개체를 shapeHash 로 세계 형태 사전에서 꺼내 *민둥 구가 아니라 원래 윤곽*으로 그린다(reconstructShape). 같은 모양=같은 윤곽·같은 색(DNA). 병합·형태 DNA 트랙 M3. engine·물리 불변(렌더만)',
+      mode: 'energy', dynamics: true, render: 'entities',
+      defaults: { colorScale: 'relative', view: 'energy' },
+      init(w) {
+        const N = w.N, cen = (N - 1) / 2, SS = N * 0.06, sr = N * 0.028;
+        const L = [[0, 0], [1, 0], [2, 0], [2, 1]], LINE = [[0, 0], [1, 0], [2, 0], [3, 0]], TRI = [[0, 0], [1, 0], [0.5, 1]];
+        const mk = (x, y) => ({ cx: x, cy: y, cz: cen, mass: 100, px: 0, py: 0, pz: 0, Lx: 0, Ly: 0, Lz: 0,
+          KEcm: 0, internalKE: 0, internalE: 5, energy: 5, cells: (4 * Math.PI / 3) * sr * sr * sr, radius: sr, temp: 0, peak: 0.15 });
+        const clu = (shape, ox, oy) => shape.map(([x, y]) => mk(ox + x * SS, oy + y * SS));
+        const ents = [].concat(
+          clu(L, N * 0.16, N * 0.66), clu(L, N * 0.44, N * 0.66), clu(L, N * 0.72, N * 0.66),
+          clu(LINE, N * 0.18, N * 0.42), clu(LINE, N * 0.54, N * 0.42),
+          clu(TRI, N * 0.22, N * 0.18), clu(TRI, N * 0.58, N * 0.18));
+        w.__entities = ents; w.__shapeDict = {}; w.__sr = sr;
+        w.__ropt = { quantum: 0.25, spread: 1.1, subScale: 0.62 };          // 윤곽 복원 노브(reconstructShape)
+        w.__mopt = { dwell: 14, vSettle: N * 0.01, vstick: N * 0.03, pad: N * 0.03,
+          tagMerge: (mem) => HTJShapeDNA.registerShape(w.__shapeDict, mem) };  // 합칠 때 형태 DNA 등록(0062)
+      },
+      advance(w) {
+        if (!w.__entities) return;
+        w.__entities = HTJEntity.coalesceSettled(w.__entities, 0.1, w.__mopt).entities;   // 정착→병합+DNA 태깅
+        // 색 = 형태 DNA(같은 모양=같은 색) · 병합 전 알 = 어두움.
+        for (const e of w.__entities) e.peak = (typeof e.shapeHash === 'string') ? 0.35 + 0.6 * HTJShapeDNA.hashToUnit(e.shapeHash) : 0.15;
+      },
+      note: '<b>합친 개체가 *민둥 구가 아니라* 원래 윤곽(L·직선·삼각)으로 그려진다</b> — 병합·형태 DNA 트랙 M3. <b>▶ 무엇</b>(design/merge-dna.md §4 M3): M1(0061)으로 뭉친 알맹이가 한 개체로 합쳐지고, M2(0062)로 합친 개체가 <b>형태 코드(shapeHash·DNA)</b>를 들고 세계 <b>형태 사전</b>이 모양을 K종 공유하게 됐다. 그러나 합친 개체를 <b>그릴</b> 땐 여전히 큰 원 하나였다(사용자 지적: "큰 원이 지형 모양이 안 됨"). 이 step 은 그 코드를 <b>발현</b>한다: viewer 가 <b>reconstructShape(개체, 사전)</b> 로 shapeHash → 사전의 canonical 형태를 꺼내, 개체 위치·반경에 맞춰 <b>구성원 점 무리(원래 윤곽)</b>로 펼쳐 그린다. <b>흐름</b>: 클러스터(L 3·직선 2·삼각 2)가 제자리서 정착·병합 → 합친 개체가 <b>원래 윤곽으로</b> 나타난다(L 은 L·직선은 직선·삼각은 삼각). <b>같은 모양 = 같은 hash = 같은 윤곽·같은 색</b>(DNA). <b>왜 중요한가</b>: 물리적으로는 <b>개체 하나(코드 하나)</b>지만, 그림은 <b>원래 모양</b>이다 = "큰 원이 지형 모양으로 돌아온다". 수십만 개체가 K종 형태를 <b>공유</b>해 지형을 이루는 길(원소는 hash 만·형태는 사전이 발현). <b>세계↔확인용 단방향</b>: reconstructShape 는 *어디에 그릴지*(점 위치)만 계산하고 픽셀은 viewer 가 그린다 — engine·물리는 <b>불변</b>(렌더만 바뀜). <b>정직한 한계</b>: 회전 미정규화(회전한 같은 모양→다른 hash·다른 윤곽·PCA 정렬은 후속)·윤곽은 *대략*(양자화 격자 해상도 quantum)·아직 점 무리(메시/표면 아님)·DNA 색은 heatColor 라 형태종류 많으면 색 겹칠 수 있음(윤곽이 주 신호). 다음(선택) M4: 가까이선 윤곽 복원·물리 footprint 공유.'
     }
   };
   function currentStep() { return document.getElementById('step').value || '0003'; }
@@ -1387,7 +1511,13 @@
     // 개체간 중력(0028): 격자는 비어 있고 여러 개체를 구체로 그린다(서로 끌려 휘는 궤적).
     if (stCur && stCur.render === 'entities') {
       const es = world.__entities || [];
-      const clumps = es.map(e => ({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 }));
+      const dict = world.__shapeDict;                          // (M3) 형태 DNA 사전(있으면 합친 개체를 윤곽으로)
+      const clumps = [];
+      for (const e of es) {
+        const shape = dict ? HTJShapeDNA.reconstructShape(e, dict, world.__ropt) : null;   // shapeHash→원래 윤곽(점 무리)
+        if (shape) { const peak = e.peak || 1; for (const p of shape) clumps.push({ cx: p.cx, cy: p.cy, cz: p.cz, radius: p.r, peak }); }
+        else clumps.push({ cx: e.cx, cy: e.cy, cz: e.cz, radius: e.radius, peak: e.peak || e.temp || 1 });   // DNA 없음 → 단일 구(기존)
+      }
       surf = HTJRender.drawClumps(ctx, world, cam, clumps);
       const lab = document.getElementById('s-occ'); if (lab) { let P = [0, 0, 0]; for (const e of es) { P[0] += e.px; P[1] += e.py; P[2] += e.pz; } lab.textContent = `개체 ${es.length} · ΣP=(${P[0].toFixed(2)},${P[1].toFixed(2)},${P[2].toFixed(2)})`; }
       return;

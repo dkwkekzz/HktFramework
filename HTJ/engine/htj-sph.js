@@ -579,6 +579,60 @@
     return { particles, migratedCells: particles.length, removedMass };
   }
 
+  // ── TW2 바다 — SPH 물 입자가 *정적 지형 앵커*를 느끼는 경계 결합(안 새어 나감) ────────────────────
+  //   design/environment.md §3 TW2 — sphere-world 동역학(0026~)+SPH 물리 스택(0040~)은 섰지만, 물(SPH 입자)이
+  //   *지형*(정적 앵커·0056/0059)을 느끼는 결합이 없어 물이 지형을 그냥 통과한다. 이 법칙은 그 *유일하게 빠진
+  //   벽돌* = **SPH↔앵커 경계**: 물 입자가 앵커 구 표면(반경 R+skin) 안으로 파고들면 바깥 법선으로 반발한다.
+  //   그러면 중력(0028)+SPH 압력(0041)이 물을 *낮은 데 고여 수평 수면(등퍼텐셜)*으로 가라앉힌다 — 창발.
+  //     반발(Hooke·바깥): pen = (R+skin) − |p−A| > 0 → Δp_i = +k·pen·dt·n̂   (n̂ = 앵커중심→입자, 바깥)
+  //   앵커는 **무한 질량(정적 외부 경계)** — 충격을 흡수한다(점프해도 지구는 안 밀린다·environment §1·0056 정신).
+  //   그래서 임펄스는 *입자에만* 준다(쌍힘 아님 — 앵커는 부분계 밖의 경계). 운동량은 그 경계로 빠져나가므로 물
+  //   입자들끼리 보존 아님(0056 과 동일·앵커가 외부). 선택적 법선 감쇠(damp): 파고드는(안쪽) 법선 속도만 *0 까지*
+  //   없애(역전 금지·0037 임계 클램프) 잃은 KE 를 internalE 로 적립(비가역 소산→열·낙하 KE 가 식음). 표면 밖(pen≤0)
+  //   이거나 k=0/앵커 없음 → 경계력 0(회귀 0·신규 함수라 구조적 회귀 0). anchors=[{cx,cy,cz,radius}](앵커는 *읽기만*).
+  //   opts: { stiffness(k·0→early-return), damp(c·0=순수 반발·보존), skin(경계층 두께·표면 앞서 미는 여유·0) }.
+  function sphBoundaryForce(particles, anchors, dt, opts) {
+    opts = opts || {};
+    const k = opts.stiffness != null ? opts.stiffness : 0;
+    if (dt == null) dt = 1;
+    if (k === 0 || !anchors || anchors.length === 0 || !dt) return particles;   // 노브=0/앵커 없음 → early-return(회귀 0)
+    const c = opts.damp != null ? opts.damp : 0;
+    const skin = opts.skin != null ? opts.skin : 0;
+    const EPS = 1e-9;
+    for (let i = 0; i < particles.length; i++) {
+      const p = particles[i];
+      const m = p.mass > EPS ? p.mass : 1;
+      if (p.internalE == null) p.internalE = (p.energy != null ? p.energy : 0) - (p.KEcm || 0);
+      for (let a = 0; a < anchors.length; a++) {
+        const A = anchors[a];
+        const dx = p.cx - A.cx, dy = p.cy - A.cy, dz = p.cz - A.cz;     // 앵커 → 입자
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz);
+        const pen = ((A.radius || 0) + skin) - d;                       // 표면 안으로 파고든 깊이
+        if (pen <= 0 || d < EPS) continue;                             // 표면 밖·중심 일치(방향 불정) → 경계력 0
+        const nx = dx / d, ny = dy / d, nz = dz / d;                    // 바깥 법선(앵커중심→입자)
+        // ① 반발(Hooke·바깥) — 앵커=무한 질량 외부 경계가 충격 흡수 → 입자에만 임펄스(0056 정신).
+        const jr = k * pen * dt;
+        p.px += jr * nx; p.py += jr * ny; p.pz += jr * nz;
+        // ② 법선 감쇠(파고드는 운동만 소산 → 열) — 잃은 KE 를 internalE 로(0037 임계 클램프·역전 금지).
+        if (c !== 0) {
+          const KE0 = 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m;
+          const vn = (p.px * nx + p.py * ny + p.pz * nz) / m;           // 법선 속도(바깥 +)
+          if (vn < 0) {                                                 // 안쪽(파고드는 중)만
+            let J = -c * vn * dt;                                       // 안쪽 운동 반대(바깥·소산)
+            const Jzero = -m * vn;                                      // vn→0 임펄스(같은 부호)
+            if (J > Jzero) J = Jzero;                                   // 임계 초과 → 0 까지만(역전 방지)
+            p.px += J * nx; p.py += J * ny; p.pz += J * nz;
+            const dissip = KE0 - 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m;   // 잃은 KE(≥0) → 열
+            if (dissip > 0) p.internalE += dissip;
+          }
+        }
+      }
+      p.KEcm = m > EPS ? 0.5 * (p.px * p.px + p.py * p.py + p.pz * p.pz) / m : 0;
+      p.energy = p.KEcm + p.internalE;                                  // 자기일관(energy=KEcm+internalE)
+    }
+    return particles;
+  }
+
   // ── SW5 SPH 복사 냉각 — 입자가 제 열을 *빛으로* 내보내 식는다(계의 첫 에너지 sink) ──────────────
   //   design/sphere-world.md §6 SW5 — 압력(0041)·점성(0046)·전도(0049)는 에너지를 *재분배*만 한다(KE↔U·U↔U).
   //   계 밖으로 에너지가 *나갈 출구*가 없어 붕괴열이 갇힌다. 이 법칙은 그 출구 = **빛**: 광학적으로 얇은 회색 복사로
@@ -611,5 +665,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, VERSION: 13 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, sphBoundaryForce, VERSION: 14 };
 });
