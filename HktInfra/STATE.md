@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0289](step-0289.md) — **#56 브리지 존 데이터 평면 9: graceful census 보존**. `entityCensus()` {total, zones}. graceful 재배치(rebalance/drain·같은 핸들 이주)는 entity total 무손실 보존(분포만 재편) — destructive(hostdown/stop)와 대조.
-- **한 줄 상태**: reg ALL OK·zonegraceful: 5/5 rebalance+drain 후 total4 보존·single·coherent·moves>0·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 막바지** — enter~정합✅·graceful보존✅. 다음 조각: 0290 전 데이터 평면 capstone(혼합 lifecycle 후 census·단일소유·정합 동시·#56 arc 0281~0290 닫기). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4). 🔎 0281~0290 묶음 리뷰 적기.
+- **닫힌 step**: [step-0290](step-0290.md) — **#56 브리지 존 데이터 평면 10·capstone**. `entityFlowCoherent()`(fullyCoherent 3층 + entityCoherent)·`entityConserved()`(total=enters−leaves−lost−discarded). 혼합 lifecycle 후 둘 다 참 → **#56 브리지 존 데이터 평면 arc(0281~0290) 닫기**.
+- **한 줄 상태**: reg ALL OK·zoneflowcap: 5/5 혼합 op 후 flow·consv·total1(==5−1−2−1)·ledger 5/1/2/1·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~0290) 완료** — enter/move/leave·migrate무손실·hostdown소실·stop폐기·단일소유·정합·graceful보존·capstone. 다음 묶음: ⒜ **#9 멀티프로세스 배선**(브리지 핸들→실 host.js 소켓·게이트웨이→실 존 직접 라우팅)·⒝ 진짜 비동기(#4·논리클럭). 🔎 **0281~0290 묶음 리뷰 적기**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — 리뷰 0271~0280 평결: #56(브리지 존 entity 트래픽·tick 0·migrate 무손실 vacuous)이 최상위 load-bearing. 게이트 = 게이트웨이→실 존 enter/move 라우팅 + 이주 시 entity 무손실 실증(OFF→비활성 핸들=회귀 0). 방향 권위 = `infra-review`(다음: 0281~0290 묶음 평결).
+> 🎯 **#56 브리지 존 데이터 평면 arc(0281~0290) 완료** — enter/move/leave·런타임 tick·migrate무손실(행동적)·hostdown소실·stop폐기·단일소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). 다음 = #9 멀티프로세스 배선(브리지 핸들→실 host.js 소켓·게이트웨이→실 존 직접 라우팅). 방향 권위 = `infra-review`(다음: 0281~0290 묶음 평결).
 
 **후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
 
@@ -32,7 +32,7 @@
 | 마커 | 격차 | 계층 | 상태 |
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
-| 🟡 | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0272~0280 브리지 존(zoneRuntimes)은 빈 핸들이었다(entity 0·onTick 0 → migrate 무손실 vacuous). enter ✅(0281). 남은 것: move/leave·tick 구동·migrate 무손실/hostdown 소실/stop 폐기·단일 소유·census capstone(0282~0290). 게이트웨이→실 존 직접 라우팅은 #9. |
+| ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). 남은 것은 #9(게이트웨이→실 존 *직접* 라우팅·실 host.js 프로세스). |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 🟡 enter(0281·실 EntityZone 핸들 entity 트래픽 시작)**. orch 정리(0251·0267). 도구 #43(0271)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 ✅(0281~0290·enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone)**. orch 정리(0251·0267). 도구 #43(0271)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -161,3 +161,4 @@
 | [0287](step-0287.md) | #56 브리지 존 데이터 평면 7: entity 단일 소유(entityOwnerZone/entityOwnerCount/entitiesSingleOwner·어떤 avatar 도 두 존 동시 거주 금지·권위 단일 소유 데이터 평면 판·OFF→0286 동일) | 통과(reg 0·spine OK) · 5/5 분산 enter+migrate→single·a1∈z1·a3cnt1·total4 |
 | [0288](step-0288.md) | #56 브리지 존 데이터 평면 8: entity 정합(entityCoherent·단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0·OFF→0287 동일) | 통과(reg 0·spine OK) · 5/5 혼합 후 coherent·a3 orphan0·rtCnt2·total3 |
 | [0289](step-0289.md) | #56 브리지 존 데이터 평면 9: graceful census 보존(entityCensus·rebalance/drain 같은 핸들 이주는 entity total 무손실·destructive 와 대조·OFF→0288 동일) | 통과(reg 0·spine OK) · 5/5 rebalance+drain 후 total4 보존·single·coherent·moves>0 |
+| [0290](step-0290.md) | #56 브리지 존 데이터 평면 10·capstone: 전 데이터 평면 정합+보존 회계(entityFlowCoherent=fullyCoherent+entityCoherent·entityConserved=total−enters+leaves+lost+discarded·혼합 lifecycle·#56 arc 0281~0290 닫기·OFF→0289 동일) | 통과(reg 0·spine OK) · 5/5 flow·consv·total1(5/1/2/1)·migs2 |
