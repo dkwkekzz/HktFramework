@@ -10,6 +10,10 @@
 
 핵심은 **author 하지 않는다**는 것이다 — 아이템·캐릭터를 타입으로 박아 넣는 것이 아니라, 더 낮은 층위의 규칙이 굴러간 *결과로 창발*하게 한다.
 
+### 큰 목표 ↔ 중간 목표 (PW 사다리)
+
+최종(큰) 목표 = **정해진 규칙으로 스스로 굴러가는 세계 위에서 복잡계가 창발 → 플레이어가 상호작용** = *실제로 게임을 시뮬레이션할 수 있는 거대한 세계*. 한 번에 못 닿으므로 **단기 "목표 세계"(중간 목표)** 를 정해 그 세계를 향해 step 을 쌓고, *도달하면 인터랙티브 viewer 로 사용자가 확인*한다. 그 중간 목표 사다리의 권위 문서가 [design/playable-world.md](design/playable-world.md)(PW·A 걸을 수 있는 땅 → B 끝없이 걷는 땅 → C 딛고 사는 환경 → D 살아 움직이는 것). **지금 어느 목표를 향하는지와 진행 순서는 항상 [STATE.md](STATE.md) 「나아갈 방향」이 권위** — 모든 step 은 그 방향을 따라 진행한다(임의 방향 금지).
+
 ### 절대 원칙 — 물리영역(engine)에 타입 전용 처리 금지
 
 이 "author 안 함"은 **코드에서도** 지켜진다. `engine/`(세계·물리)는 **한 원소(자유 구체) + 알려진 역학 + DNA 메타**만 안다 — `"지형"·"바다"·"퇴적"` 같은 **특정 타입을 아는 함수·분기를 두지 않는다**(sphere-world §1 "예외 없는 한 원소·지면 타입 없음"). 모양·자연스러움(매끄러움 포함)은 **DNA(`shapeHash` → 세계 `shapeDict`)가 담고, *제너릭* 렌더(`viewer`)가 발현**한다 — engine 에 손수 author 한 형태/필터를 박지 않는다. *위반 선례*: `engine/htj-terrain.js` 의 지형 전용 `terrainSurface`(0065/0066) 와 그 `smooth` 노브(0067·되돌림). 새 step 은 "engine 에 타입 이름이 박힌 처리를 넣고 있지 않은가?"를 자문한다(design/merge-dna.md §6·sphere-world §5·environment §4).
@@ -30,13 +34,14 @@ step 한 바퀴의 실행 절차(논의→구현→검증→기록)는 `htj-step
 | [STATE.md](STATE.md) | 지금 어디까지 · 다음 할 일 · step별 한 줄 요약 | step마다 |
 | `.claude/skills/htj-step/SKILL.md` | step 한 바퀴(논의→구현→검증→기록)를 실행하는 절차 | 거의 불변 |
 | `design/` | **설계 문서** — 닫은 step 아닌 *앞으로의 아키텍처 계획*. 후속 step 이 참조해 구현한다(트랙은 하나). | 비정기 |
+| ┗ [design/playable-world.md](design/playable-world.md) | **PW — 플레이 가능한 거대 세계(중간 목표 척추·권위)** — 큰 목표로 가는 마일스톤 사다리(A~D). 디테일 작업 마친 뒤 진입. 도달=인터랙티브 viewer | |
 | ┗ [design/sphere-world.md](design/sphere-world.md) | **구체 세계 설계(진행 방향·권위)** — 세계를 한 원소=자유 구체로 재정립. 합치기/쪼개기=적응 LOD. 로드맵 SW1~SW5 | |
 | ┗ [design/environment.md](design/environment.md) | **환경 설계(오픈월드·권위)** — sphere-world 위에 *딛고 다닐 광활한 환경*(산·바다·강)을 같은 원소로. 로드맵 TW1~TW4 | |
 | ┗ [design/merge-dna.md](design/merge-dna.md) | **병합·형태 DNA 설계(권위)** — 뭉친 원소를 한 개체로 병합(수박게임)하되 형태는 정규화된 hash 로 세계 사전에서 공유. 로드맵 M1~M4 |
 | ┗ [design/scene-unify.md](design/scene-unify.md) | **장면 통일 설계(작업 방식 개선·권위)** — capture.js↔viewer 를 *시나리오 1벌*로 일원화(per-step capture.js 폐지)·verify=새 법칙만(보존·결정론은 공용 가드). engine·물리 불변(확인용 트랙). 로드맵 U1~U4·**닫은 step 소급 안 함** | |
 | `engine/` | **세계(법칙·시뮬) src** — 한 곳에서 관리, step마다 가법적 확장. *확인용 코드 금지* | step마다 |
-| `viewer.html` · `viewer/` | **확인용** — 뷰어 + 렌더(`viewer/htj-render.js`) + 제너릭 표면 발현(`viewer/htj-surface.js` — 점 무리→연속 표면·타입 무관) + **시나리오 SSOT**(`viewer/scenes/step_NNNN.js` — viewer 라이브·헤드리스 캡처가 함께 읽는 한 벌·[design/scene-unify.md](design/scene-unify.md)) | step마다 |
-| `tools/` | **확인용 도구** — 범용 헤드리스 캡처(`htj-render-capture.js` — 시나리오 1벌→PNG·per-step capture.js 대체) · PNG 헬퍼(`htj-capture.js`) · verify 공용 가드(`htj-verify-lib.js` — 보존·결정론·항등) · 등록 가드(`check-viewer.js`) | 거의 불변 |
+| `viewer/scenes/` | **시나리오 SSOT** — `viewer/scenes/step_NNNN.js`(한 벌). **헤드리스 캡처가 읽어 capture.png 를 뽑는다**(AI 눈 검증용). `viewer.html` 라이브 갤러리(per-step 사용자 브라우징)는 **폐기**(유지보수 중단)·사용자용 viewer 는 PW 마일스톤 도달 시에만 큐레이트 제공([design/playable-world.md](design/playable-world.md)) | step마다 |
+| `tools/` | **확인용 도구** — 범용 헤드리스 캡처(`htj-render-capture.js` — 시나리오 1벌→PNG·per-step capture.js 대체) · PNG 헬퍼(`htj-capture.js`) · verify 공용 가드(`htj-verify-lib.js` — 보존·결정론·항등) | 거의 불변 |
 | `steps/step_NNNN/` | **한 step = 한 폴더**. 모든 step 은 `steps/` 아래. 그 step 의 산출물을 담는다(닫은 뒤 불변): | step마다 추가 |
 | ┗ `steps/step_NNNN/step_NNNN.md` | 논의·구현·검증·발견 전문 + 쉽게 풀어 쓴 설명 + 다음 연결 | |
 | ┗ `steps/step_NNNN/verify.js` | 그 step 법칙의 수치 검증 — 순수·영구. 이후에도 항상 통과해야 함 | |

@@ -1,5 +1,7 @@
 # HTJ — 장면 통일 설계 (capture.js ↔ viewer 일원화 · verify 경량화)
 
+> **⚠️ 부분 폐기(갱신).** 이 문서의 **라이브 viewer 쪽(U3 `viewer.html` STEPS·`tools/check-viewer.js` 갤러리 가드)은 폐기**됐다 — 사용자용 per-step 갤러리는 유지보수가 안 돼 중단. **여전히 유효한 것**: *시나리오 모듈 1벌*(`viewer/scenes/step_NNNN.js`) + 헤드리스 캡처(`htj-render-capture.js`→`capture.png`·AI 눈 검증) + verify 공용 가드(U2). 사용자용 viewer 는 PW 마일스톤 도달 시에만 큐레이트 제공([playable-world.md](playable-world.md)). 권위: `.claude/skills/htj-step/SKILL.md` §2·§5.
+
 > **성격**: 이 문서는 *닫은 step 산출물이 아니라* 앞으로의 **작업 방식(per-step 의례) 개선 계획**이다. 세계(engine)의 법칙을 바꾸지 않는다 — 오직 *확인용 도구*(viewer·capture·verify)의 중복을 걷어내 step 한 바퀴의 코드 작업량을 줄인다. 권위는 여전히 [../STATE.md](../STATE.md)·`.claude/skills/htj-step/SKILL.md`. 도입은 사다리(U1~U4)를 `htj-step` 으로 잘게 쪼개 진행하며, **닫은 step 은 소급하지 않는다**(아래 §5).
 
 ---
