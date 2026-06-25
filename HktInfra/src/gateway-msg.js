@@ -1,4 +1,5 @@
 'use strict';
+// step-0293 — #9 멀티프로세스 배선 3: onMsg 에 orch zoneLoc 분기(존 위치 디렉토리 갱신·서비스 디스커버리). 미수신(gatewayZoneDir OFF)이면 이전 비트 동일.
 // step-0270 정리 분할(#49 인접·선제) — gateway.js 가 22.8KB(엣지 핵심 박스·성장)라, Gateway 의 *메시지 라우팅 핸들러*(onMsg:
 //   클라 move/item/chat 업스트림 라우팅 + 존/서비스/버스 다운스트림 중계 + 세션 bind/unbind)를 gateway-msg.js 믹스인으로 분리한다.
 //   코어가 Object.assign(prototype) 로 되섞음 — 정의 위치만 이동·this 바인딩/메서드 해소 동일·기능 0 → reg 0(0269 비트 동일).
@@ -25,6 +26,10 @@ const GatewayMsg = {
       if (p.type === 'reroute') {
         this.zones = this.zones.map(z => z === p.from ? p.to : z);
         this.replicas = this.replicas.filter(z => z !== p.to && z !== p.retire);
+      } else if (p.type === 'zoneLoc') {
+        // 존 위치 디렉토리 갱신(step-0293·#9) — orch 가 배치 집행마다 push 한 zone→host 위치를 캐시(서비스 디스커버리). host===null 이면 퇴역(삭제). 게이트웨이는 orch 내부 모른 채 이 명시 메시지로만 학습(은닉). 미수신(gatewayZoneDir OFF)이면 이 분기 영영 안 옴 = 이전 비트 동일.
+        if (p.host === null || p.host === undefined) this.zoneDir.delete(p.zoneId);
+        else this.zoneDir.set(p.zoneId, p.host);
       }
       return;
     }

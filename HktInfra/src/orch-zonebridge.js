@@ -1,4 +1,5 @@
 'use strict';
+// step-0293 — #9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리 push(_pubZoneLoc). 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블 캐시(#9 직접 라우팅 전제). gatewayZoneDir OFF→push 0 = 0292 비트 동일.
 // step-0292 — #9 멀티프로세스 배선 2: 존 host mailbox(_zoneDeliver enqueue + _tickRuntimes drain). zoneHostMailbox ON 시 frame 을 즉시 적용 대신 핸들 mbox 큐에 쌓고 onTick 전 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 즉시 적용 동일.
 // step-0291 — #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver). 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어의 씨앗)로 round-trip 시켜 적용. OFF→0290 비트 동일.
 // step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
@@ -22,11 +23,16 @@ const OrchZoneBridge = {
   // 브리지 start(step-0272) — 배치 결정 집행 시 실 EntityZone 런타임을 host 에 띄운다(zoneRuntimes 등록). 이미 도는 존이면 host 만 정렬(멱등·신규 인스턴스화 아님). zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_start 가드).
   _bridgeStart(zoneId, host) {
     const rt = this.zoneRuntimes.get(zoneId);
-    if (rt) { rt.host = host; return false; }   // 이미 가동 — host 만 정렬(멱등).
+    if (rt) { rt.host = host; this._pubZoneLoc(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등).
     const zone = this.zoneFactory(zoneId);      // 실 EntityZone 인스턴스화(결정론 시드=zoneId 해시·makeActor 주입 팩토리).
     this.zoneRuntimes.set(zoneId, { zone, host, mbox: [] });   // mbox: 존 host 수신 버퍼(step-0292·mailbox OFF 면 미사용).
     this.zoneStarts++;
+    this._pubZoneLoc(zoneId, host);             // step-0293 (#9) — 게이트웨이 디렉토리에 위치 공표(서비스 디스커버리).
     return true;
+  },
+  // 게이트웨이 존 위치 공표(step-0293·#9) — 배치 집행으로 zone→host 가 바뀌면 게이트웨이에 zoneLoc 을 push(서비스 디스커버리). host===null 이면 퇴역 통보(게이트웨이가 디렉토리에서 삭제). gatewayZoneDir OFF·net 부재면 no-op = 0292 비트 동일. orch 가 게이트웨이 주소를 *명시*로만 안다(은닉 — 게이트웨이 내부 무지).
+  _pubZoneLoc(zoneId, host) {
+    if (this.gatewayZoneDir && this.net && this.addr) { this.net.send(this.addr, 'gateway', { type: 'zoneLoc', zoneId, host }); this.zoneLocPushed++; }
   },
   // 브리지 migrate(step-0273) — 배치 재결정 집행 시 *같은 EntityZone 인스턴스*의 host 를 release(기존)+acquire(toHost) 쌍으로 원자 교체한다(존 런타임 핸들 이주 = 상태 보존·재생성 아님·zoneRuntimes 단일 키 = 한 존 정확히 한 host). 미가동·같은 host 는 멱등 no-op. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_migrate 가드).
   _bridgeMigrate(zoneId, toHost) {
@@ -35,6 +41,7 @@ const OrchZoneBridge = {
     if (rt.host === toHost) return false;
     rt.host = toHost;                  // 같은 EntityZone 핸들(상태·entity 보존)의 host 만 원자 교체 — 새 인스턴스 만들지 않음.
     this.zoneMigrations++;
+    this._pubZoneLoc(zoneId, toHost);  // step-0293 (#9) — 이주된 새 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
   // 브리지 hostDown(step-0275) — host 장애 복구 집행 시 죽은 host 의 실 EntityZone 런타임을 생존 host 에 *새 인스턴스*로 재가동한다. migrate(자발·같은 핸들·상태 보존)와 결정적으로 다르다: 죽은 host 의 런타임은 이미 소실이므로 graceful 이주 불가 → 새 인스턴스(상태 보존 *불가*·잃은 상태 복구는 영속서 후속·범위 밖). zoneRuntimes 의 zone 핸들을 교체하고 host 를 target 으로. 없는 존 멱등.
@@ -45,6 +52,7 @@ const OrchZoneBridge = {
     rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
     rt.host = target;
     this.zoneRescued++;
+    this._pubZoneLoc(zoneId, target);     // step-0293 (#9) — 재가동된 생존 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
   // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
@@ -53,6 +61,7 @@ const OrchZoneBridge = {
     if (!rt) return false;
     this.zoneEntitiesDiscarded += rt.zone.ents.size;   // step-0286 (#56) — 존 운영 퇴역 시 그 핸들의 entity 는 폐기(계획적·hostdown 비자발 소실과 구분·계측). 퇴역 전 세션 이전/영속은 후속.
     this.zoneRuntimes.delete(zoneId); this.zoneStops++;
+    this._pubZoneLoc(zoneId, null);   // step-0293 (#9) — 퇴역을 게이트웨이 디렉토리에 통보(삭제).
     return true;
   },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).

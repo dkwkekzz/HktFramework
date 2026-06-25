@@ -1,8 +1,8 @@
-// HktInfra step-0292 — 헤드리스 검증 (#9 멀티프로세스 배선 2: 존 host mailbox)
+// HktInfra step-0293 — 헤드리스 검증 (#9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zonembox`.
-//   더한 한 조각: zoneHostMailbox — _zoneDeliver 가 frame 을 즉시 적용 대신 핸들 mbox 큐에 enqueue, _tickRuntimes 가 onTick 전 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `zonembox`(가설) — 비동기 수신(큐 경유) 후에도 entityFlowCoherent·entityConserved 불변 + 큐 잔류 0(drained==delivered)·큐 깊이≥1(실제 큐 경유 증거).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `gwzonedir`.
+//   더한 한 조각: gatewayZoneDir — orch 가 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이 zoneDir 캐시(#9 직접 라우팅 전제). OFF→0292 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `gwzonedir`(가설) — 혼합 배치 lifecycle 후 게이트웨이 zoneDir == orch.running(실 런타임 위치)·push>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,14 +15,18 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0292 #9 멀티프로세스 배선 2 검증 — entity 데이터 평면이 비동기 mailbox(수신 버퍼 큐)를 거쳐도 불변 보존 + 큐 무손실.
-//   0291 zonehandle 의 혼합 lifecycle 에 zoneHostMailbox: true 추가 — enter/move/leave frame 이 즉시 적용 대신 큐에 쌓였다 onTick 경계에서 일괄 drain.
-//   → entityFlowCoherent·entityConserved·total 1 유지 + framesDrained == framesDelivered(잔류 0)·queueMax≥1(실제 큐 경유). #9 2(소켓 수신 버퍼+host.js per-tick deliver 배치의 씨앗).
-function zonembox(seeds) {
+// 게이트웨이 디렉토리 ↔ orch.running 정합 — 게이트웨이가 학습한 zone→host 가 실 런타임 위치와 같은가(같은 키 집합·같은 host).
+function dirMatchesRunning(gw, orch) {
+  if (gw.zoneDir.size !== orch.running.size) return false;
+  for (const [z, h] of orch.running) if (gw.zoneDir.get(z) !== h) return false;
+  return true;
+}
+
+// step-0293 #9 멀티프로세스 배선 3 검증 — 게이트웨이가 배치 집행을 서비스 디스커버리(zoneLoc)로 학습해 실 런타임 위치와 정합.
+//   혼합 배치 lifecycle(place z1@A·z2@B·z3@C → hostC down → stop z2 → migrate z1 → rebalance → drain hostA) 후 게이트웨이 zoneDir == orch.running.
+//   → 게이트웨이가 orch 내부를 모른 채(은닉) 직접 라우팅에 쓸 라우팅 테이블을 정확히 보유. push>0(실제 디스커버리 발생). #9 직접 라우팅(0294~)의 전제.
+function gwzonedir(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
-  const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
-  const LEAVE = (at, zoneId, avatar) => ({ at, op: { type: 'zoneLeave', zoneId, avatar } });
   const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
   const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
   const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
@@ -31,22 +35,20 @@ function zonembox(seeds) {
   const HS = ['hostA', 'hostB', 'hostC'];
   const PLACEOPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostC'),
     DOWN(12, 'hostC', HS), STOP(13, 'z2'), MIG(14, 'z1', 'hostB'), REBAL(15, HS), DRAIN(16, 'hostA', HS)];
-  const ENTOPS = [ENTER(4, 'z1', 'a1'), ENTER(5, 'z1', 'a2'), ENTER(6, 'z2', 'a3'), ENTER(7, 'z3', 'a4'), ENTER(8, 'z3', 'a5'),
-    MOVE(9, 'z1', 'a1', 2, 1), LEAVE(10, 'z1', 'a2')];
-  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, placementOps: PLACEOPS, entityOps: ENTOPS };
-  console.log('== zonembox (0292·#9 2): 존 host mailbox. 혼합 lifecycle 의 enter/move/leave 가 비동기 큐(수신 버퍼)를 거쳐 onTick drain 돼도 entityFlowCoherent·entityConserved·total1 불변. drained==delivered(잔류0)·queueMax≥1(큐 경유 증거). ==');
-  console.log('seed   | flow | consv | total | deliv | drain | qmax | 판정');
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, gatewayZoneDir: true, placementOps: PLACEOPS };
+  console.log('== gwzonedir (0293·#9 3): 게이트웨이 존 디렉토리. 혼합 배치 lifecycle 후 게이트웨이가 학습한 zoneDir == orch.running(실 런타임 위치)·push>0. 게이트웨이가 직접 라우팅에 쓸 라우팅 테이블을 은닉 유지하며 정확히 보유. ==');
+  console.log('seed   | dir== | dirN | runN | push | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 20, ...BASE });
-    const o = r.orch;
-    const ok = check(o.entityFlowCoherent() && o.entityConserved() && o.entitiesSingleOwner() && o.totalEntities() === 1 &&
-      o.zoneFramesDrained === o.zoneFramesDelivered && o.zoneFrameQueueMax >= 1,
-      `seed ${seed}: mailbox 위반 (flow ${o.entityFlowCoherent()}·consv ${o.entityConserved()}·drain ${o.zoneFramesDrained}!=${o.zoneFramesDelivered}·qmax ${o.zoneFrameQueueMax})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.entityFlowCoherent() ? 'Y' : 'N', 4)} | ${pad(o.entityConserved() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${pad(o.zoneFramesDelivered, 5)} | ${pad(o.zoneFramesDrained, 5)} | ${pad(o.zoneFrameQueueMax, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    const o = r.orch, gw = r.gateway;
+    const match = dirMatchesRunning(gw, o);
+    const ok = check(match && o.zoneLocPushed > 0 && gw.zoneDirSize() === o.runningCount(),
+      `seed ${seed}: 디렉토리 정합 위반 (match ${match}·dirN ${gw.zoneDirSize()}·runN ${o.runningCount()}·push ${o.zoneLocPushed})`);
+    console.log(`${pad(seed, 6)} | ${pad(match ? 'Y' : 'N', 5)} | ${pad(gw.zoneDirSize(), 4)} | ${pad(o.runningCount(), 4)} | ${pad(o.zoneLocPushed, 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['zonembox'] = zonembox;
-kit.ORDER.splice(1, 0, 'zonembox');
+kit.MODES['gwzonedir'] = gwzonedir;
+kit.ORDER.splice(1, 0, 'gwzonedir');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
