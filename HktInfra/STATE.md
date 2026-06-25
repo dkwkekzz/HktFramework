@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0299](step-0299.md) — **#9 멀티프로세스 배선 9: 디렉토리 bijection (다중존 rebalance/drain churn)**. 게이트웨이 `zoneDirSnapshot()` 질의 + 4존 A 몰림→rebalance→drain 의 다중 동시 이주 후 게이트웨이 dir == running 정확한 bijection·entity graceful 보존. OFF 무관(질의·비트 동일).
-- **한 줄 상태**: reg ALL OK·gwdirbij: 5/5 다중 이주 후 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291~0299 완료. 다음 0300 **capstone**(전 데이터 평면 직접 라우팅만으로 destructive+graceful 혼합 lifecycle 후 entityFlowCoherent·entityConserved·entityDirectCoherent·dir bijection·#9 arc 0291~0300 닫기). 🔎 **0291~0300 묶음 리뷰 적기(#9 arc)**.
+- **닫힌 step**: [step-0300](step-0300.md) — **#9 멀티프로세스 배선 10·capstone: 전 데이터 평면 게이트웨이 직접 라우팅**. `directFlowCoherent()`(entityFlowCoherent && entityDirectCoherent). 0290 와 같은 destructive+graceful 혼합 lifecycle 을 **게이트웨이 직접 라우팅만으로**(seam+mailbox+직접 라우팅) 돌린 뒤 참 → **#9 멀티프로세스 배선 arc(0291~0300) 닫기**.
+- **한 줄 상태**: reg ALL OK·gwdircap: 5/5 직접 라우팅 혼합 op 후 directFlowCoherent·conserved·total1·ledger5/1/2/1·dir==running·routes7==appl7·stale0·miss0·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~0300) 완료** — 전송 seam(직렬화)·host mailbox(수신 버퍼)·서비스 디스커버리 디렉토리·게이트웨이→실 존 직접 enter/move/leave 라우팅·이주/장애 라우팅 정합·단일소유·dir bijection·capstone. 남은 것 = **실 host.js 물리 프로세스/소켓 분리**(브리지 핸들 orch 인프로세스 Map→cluster-run.js 실 spawn 통합). 다음 묶음 후보: ⒜ 실 host.js 존 프로세스 분리·⒝ 진짜 비동기(#4·논리클럭)·⒞ 버스 라우팅 영속. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#9 멀티프로세스 배선 arc(0291~0300 예정) 진행 중** — 엔티티 데이터 평면을 orch 인프로세스 method 경로에서 *직렬화 전송 seam + 게이트웨이 직접 라우팅*으로 분리(브리지 핸들→실 host.js 소켓의 씨앗). 0291 ✅ `_zoneDeliver` 전송 seam(JSON 직렬화 경계·frames/bytes 계측). 다음 0292 = zone host mailbox(deliver=enqueue·_tickRuntimes drain·소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). 이후: 게이트웨이 존 디렉토리(0293)→직접 enter/move/leave 라우팅(0294~0295)→이주/장애 라우팅 정합(0296~0297)→단일소유·정합(0298~0299)→capstone(0300). 방향 권위 = `infra-review`(다음: 0281~0290 묶음 평결).
+> 🎯 **#9 멀티프로세스 배선 arc(0291~0300) ✅ 완료** — 엔티티 데이터 평면을 orch 인프로세스 method 경로에서 *직렬화 전송 seam + 서비스 디스커버리 + 게이트웨이 직접 라우팅*으로 분리(브리지 핸들→실 host.js 소켓의 씨앗). 0291 전송 seam(_zoneDeliver JSON 경계)·0292 host mailbox(수신 버퍼·onTick drain)·0293 게이트웨이 디렉토리(zoneLoc push)·0294~0295 직접 enter/move/leave 라우팅(zoneDeliver·host 검증·stale 거부)·0296 이주 정합·0297 장애 dir 무효화·0298 단일소유+정합·0299 dir bijection·0300 capstone(directFlowCoherent). **다음 = 실 host.js 물리 프로세스/소켓 분리**(현 zone-host 핸들은 orch 인프로세스 zoneRuntimes Map·cluster-run.js 실 spawn 통합 후속). 방향 권위 = `infra-review`(다음: 0281~0290·0291~0300 묶음 평결).
 
 **후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
 
@@ -32,7 +32,8 @@
 | 마커 | 격차 | 계층 | 상태 |
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
-| ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). 남은 것은 #9(게이트웨이→실 존 *직접* 라우팅·실 host.js 프로세스). |
+| ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
+| 🟡 | **#9 멀티프로세스 배선 (게이트웨이→실 존 직접 라우팅)** | 코디네이션/엣지 | 0291~0300 해소: 전송 seam(직렬화 경계)·host mailbox(수신 버퍼)·서비스 디스커버리 디렉토리(zoneLoc)·게이트웨이 직접 enter/move/leave 라우팅(host 검증·stale 거부)·이주/장애 라우팅 정합·dir bijection·capstone(directFlowCoherent). **남은 것: 실 host.js *물리* 프로세스/소켓 분리**(현 zone-host 핸들=orch 인프로세스 Map·cluster-run.js 실 spawn 통합). |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -79,7 +80,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 ✅(0281~0290·enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone)**. **#9 멀티프로세스 배선 🟡(0291~·전송 seam _zoneDeliver: frame JSON 직렬화 경계 round-trip·소켓 와이어 씨앗 + host mailbox 수신 버퍼/onTick drain 0292)**. orch 정리(0251·0267). 도구 #43(0271)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 ✅(0281~0290·enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone)**. **#9 멀티프로세스 배선 🟡(0291~0300·전송 seam(직렬화)·host mailbox(수신 버퍼)·서비스 디스커버리 디렉토리·게이트웨이→실 존 직접 enter/move/leave 라우팅·이주/장애 정합·dir bijection·capstone directFlowCoherent — 남은 것=실 host.js 물리 프로세스 분리)**. orch 정리(0251·0267). 도구 #43(0271)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -135,3 +136,4 @@
 | [0297](step-0297.md) | #9 멀티프로세스 배선 7: host 장애 dir 무효화+직접 라우팅 복구(placeHostDown 뒤 게이트웨이 hostDown broadcast 죽은 host dir 일괄 삭제·survivor zoneLoc 재push 선도착·gatewayHostInvalidated/hostDownBroadcasts·OFF→0296 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→z1@hostC·a3 도달·total2·dir==running·onA0·lost1·inv1·conserved |
 | [0298](step-0298.md) | #9 멀티프로세스 배선 8: 직접 라우팅 데이터 평면 단일 소유+정합(entityDirectCoherent=entityCoherent && zoneDirStale0 질의·직접 혼합 lifecycle 후 단일소유·dir bijection·stale 누수0·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 single·dcoh·conserved(total4==5−1)·dir==running·routes7==appl7·stale0·miss0 |
 | [0299](step-0299.md) | #9 멀티프로세스 배선 9: 디렉토리 bijection(gateway zoneDirSnapshot 질의·4존 A 몰림→rebalance→drain 다중 동시 이주 후 게이트웨이 dir==running 정확한 bijection·entity graceful 보존·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0 |
+| [0300](step-0300.md) | #9 멀티프로세스 배선 10·capstone: 전 데이터 평면 게이트웨이 직접 라우팅(directFlowCoherent=entityFlowCoherent && entityDirectCoherent·0290 destructive+graceful 혼합 lifecycle 을 직접 라우팅만으로·#9 arc 0291~0300 닫기·OFF→0299 동일) | 통과(reg 0·spine OK) · 5/5 directFlowCoherent·conserved·total1·ledger5/1/2/1·dir==running·routes7==appl7·stale0·miss0 |
