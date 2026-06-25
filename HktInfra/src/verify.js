@@ -1,8 +1,8 @@
-// HktInfra step-0258 — 헤드리스 검증 (캐시 stats 관측·INFO)
+// HktInfra step-0259 — 헤드리스 검증 (캐시 namespace 무효화·SCAN+DEL)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cachestats`.
-//   더한 한 조각: CacheStore.cacheStats{} → cacheStatsReply{stats}(hit/miss/hitRate/size…) + hitRate()·stats() 읽기 accessor(순수 읽기). 새 메시지 타입·미수신 → 0257 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cachestats`(가설) — set k=v·get k(hit)·get k(hit)·get x(miss) → stats: hits 2·misses 1·hitRate 2/3·size 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cacheprefix`.
+//   더한 한 조각: CacheStore.cacheDeletePrefix{prefix} — prefix 로 시작하는 모든 키를 store(+writeThrough 면 source)서 제거(namespace 무효화·단일 delete 0257 의 패턴판). 새 메시지 타입·미수신 → 0258 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cacheprefix`(가설) — set session:a, session:b, item:c → deletePrefix "session:" → session 2개 제거·item:c 생존·prefixDeleted 2.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,24 +16,23 @@ const { check, pad } = kit.helpers;
 const { CacheStore } = NET;
 const M = (type, extra) => ({ from: 'gw', tick: 1, payload: { type, ...extra } });
 
-function cachestats(seeds) {
-  console.log('== cachestats (0258·캐시 #7): stats 관측(INFO) — cacheStats{} → cacheStatsReply{hits,misses,hitRate,size…}(운영 대시보드 폴링). set k=v·get k(hit)·get k(hit)·get x(miss·소스없음) → hits 2·misses 1·hitRate 2/3·size 1. ==');
-  console.log('seed   | hits | misses | hitRate | size | 판정');
+function cacheprefix(seeds) {
+  console.log('== cacheprefix (0259·캐시 #8): namespace 무효화(SCAN+DEL) — cacheDeletePrefix{prefix} 가 prefix 로 시작하는 모든 키 일괄 제거(한 유저 세션 전부·길드 해체 등). set session:a,session:b,item:c → deletePrefix "session:" → session 2개 제거·item:c 생존·prefixDeleted 2. ==');
+  console.log('seed   | session:a | session:b | item:c | prefixDeleted | 판정');
   for (const seed of seeds) {
     const c = new CacheStore({ source: {} });
-    c.onMsg(M('cacheSet', { key: 'k', value: 'v' }));
-    c.onMsg(M('cacheGet', { key: 'k' }));   // hit
-    c.onMsg(M('cacheGet', { key: 'k' }));   // hit
-    c.onMsg(M('cacheGet', { key: 'x' }));   // miss
-    c.onMsg(M('cacheStats', {}));
-    const s = c._lastStats || {};
-    const ok = check(s.hits === 2 && s.misses === 1 && Math.abs(s.hitRate - 2 / 3) < 1e-9 && s.size === 1,
-      `seed ${seed}: stats 위반 (hits ${s.hits}·misses ${s.misses}·hitRate ${s.hitRate}·size ${s.size})`);
-    console.log(`${pad(seed, 6)} | ${pad(s.hits, 4)} | ${pad(s.misses, 6)} | ${pad((s.hitRate || 0).toFixed(3), 7)} | ${pad(s.size, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    c.onMsg(M('cacheSet', { key: 'session:a', value: 'A' }));
+    c.onMsg(M('cacheSet', { key: 'session:b', value: 'B' }));
+    c.onMsg(M('cacheSet', { key: 'item:c', value: 'C' }));
+    c.onMsg(M('cacheDeletePrefix', { prefix: 'session:' }));
+    const a = c.has('session:a'), b = c.has('session:b'), it = c.has('item:c');
+    const ok = check(a === false && b === false && it === true && c.prefixDeleted === 2,
+      `seed ${seed}: prefix 삭제 위반 (a ${a}·b ${b}·item ${it}·prefixDeleted ${c.prefixDeleted})`);
+    console.log(`${pad(seed, 6)} | ${pad(String(a), 9)} | ${pad(String(b), 9)} | ${pad(String(it), 6)} | ${pad(c.prefixDeleted, 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['cachestats'] = cachestats;
-kit.ORDER.splice(1, 0, 'cachestats');
+kit.MODES['cacheprefix'] = cacheprefix;
+kit.ORDER.splice(1, 0, 'cacheprefix');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
