@@ -1,8 +1,8 @@
-// HktInfra step-0270 — 헤드리스 검증 (정리 #49 인접·선제: gateway 메시지 라우팅 핸들러 믹스인 분리·gateway-msg.js)
+// HktInfra step-0271 — 헤드리스 검증 (도구 갭 #43: close-step src/ 박스 >30KB 가드 — engine/close-step.js, net-core 무변경)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `gwsplit`.
-//   더한 한 조각: Gateway 의 메시지 라우팅 핸들러(onMsg: 클라 move/item/chat 업스트림 라우팅 + 존/서비스/버스 다운스트림 중계 + 세션 bind/unbind)를 gateway-msg.js 믹스인으로 분리(Object.assign prototype). 정의 위치만 이동·기능 0 → 0269 비트 동일(reg). gateway.js 22.8KB→16.0KB.
-//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `gwsplit`(가설) — 클라 move 가 게이트웨이 onMsg 로 존에 라우팅·결정론 월드 수렴(worldDigest 재현·live 엔티티>0).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = 없음(tooling-only) · 이전 가설 모드 gwsplit 유지.
+//   더한 한 조각: engine/close-step.js 에 src/*.js >30KB 비실패 경고를 더했다(#49 재발 방비). net-core/src 박스는 *무변경* → baseline 과 비트 동일(reg 0 자명).
+//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `gwsplit`(유지 가설) — 클라 move 가 게이트웨이 onMsg 로 존 라우팅·결정론 수렴. ⒞ tooling: `node engine/close-step.js` 가 src 박스 크기 줄을 출력.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

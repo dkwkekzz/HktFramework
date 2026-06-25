@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0270](step-0270.md) — **정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리**. `Gateway.onMsg`(클라 업스트림 라우팅 + 다운스트림 중계 + 세션 bind/unbind)를 `gateway-msg.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. gateway.js 22.8KB→16.5KB.
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·gwsplit: 5/5 클라 move→존 라우팅·worldDigest 재현·live 6·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 정리 arc(0261~0270 완료) — 3대 >30KB 박스 해소(0261~0264) + 선제 정리 7박스(svc-guild·svc-inventory-core·orchestrator·svc-mail-core·svc-mailbox·gateway)**. src/ 전 박스 ≤23KB·여유 충분(최대 svc-mail-saga? 실 최대 ≈cache 21.9·cluster-core 20.2). **게이트 해제 → 다음 묶음(권위=`infra-review` 0261~0270): #51b(실 EntityZone host 이주·load-bearing)·#9 멀티프로세스 배선·진짜 비동기(#4).** 🔎 0261~0270 묶음 리뷰 적기.
+- **닫힌 step**: [step-0271](step-0271.md) — **도구 갭 #43: close-step src/ 박스 >30KB 가드**. `engine/close-step.js` 가 매 close 마다 src/*.js 스캔해 >30KB 박스를 비실패 경고로 나열(#49 재발 방비). net-core/src 박스 무변경 = reg 0 자명.
+- **한 줄 상태**: reg 0(자명·src 무변경)·`run.js all` ALL OK·spine ALL OK·가드: 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개).
+- **다음**: 🎯 **#51b 실 zone.js 브리지 arc 착수(0272~)** — orchestrator 추상 `running` SSOT(zoneId→host 문자열) → 실 EntityZone 런타임 인스턴스 lifecycle(start/migrate/stop) 구동(load-bearing·review-gated). 0272=런타임 레지스트리(orch 가 placeZone 집행 시 실 EntityZone 인스턴스 host 바인딩). 🔎 0261~0270 묶음 리뷰 적기(#43 동반 완료).
 
 ---
 
@@ -148,3 +148,4 @@
 | [0268](step-0268.md) | 정리(#49 인접·선제): svc-mail-core saga 헬퍼 믹스인 분리(svc-mail-saga.js·_custody/_resendPending/_readmit·Object.assign prototype·투명 분할·25.3→19.9KB) | 통과(reg 0·spine OK) · 5/5 mailsplit saga 헬퍼 정합 |
 | [0269](step-0269.md) | 정리(#49 인접·선제): svc-mailbox dedup 헬퍼 믹스인 분리(svc-mailbox-dedup.js·_pruneEpoch/_seenHas/_seenAdd/seenSize/_ack·Object.assign prototype·투명 분할·24.7→22.8KB) | 통과(reg 0·spine OK) · 5/5 mboxsplit 멱등 dedup |
 | [0270](step-0270.md) | 정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리(gateway-msg.js·onMsg 업/다운스트림 라우팅·Object.assign prototype·투명 분할·22.8→16.5KB·#49 정리 arc 0261~0270 닫기) | 통과(reg 0·spine OK) · 5/5 gwsplit worldDigest 재현·live 6 |
+| [0271](step-0271.md) | 도구 갭 #43: close-step src/ 박스 >30KB 가드(engine/close-step.js·매 close src 스캔·비실패 경고·#49 재발 방비·net-core 무변경) | 통과(reg 0 자명·spine OK) · 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개) |
