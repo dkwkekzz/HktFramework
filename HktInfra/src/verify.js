@@ -1,8 +1,8 @@
-// HktInfra step-0266 — 헤드리스 검증 (정리 #49 인접·선제: svc-inventory-core 생성자 필드 초기화 믹스인 분리·svc-inventory-init.js)
+// HktInfra step-0267 — 헤드리스 검증 (정리 #49 인접·선제: orchestrator 제어 평면 핸들러 믹스인 분리·orch-control.js)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `invsplit`.
-//   더한 한 조각: InventoryService 의 생성자 필드 초기화(가방 원장·영속·quorum·버스·saga ~120 필드)를 _init(opts) 로 빼 svc-inventory-init.js 믹스인으로 분리(Object.assign prototype·생성자는 this._init(opts) 한 줄). 정의 위치만 이동·기능 0 → 0265 비트 동일(reg). svc-inventory-core.js 28.5KB→5.4KB.
-//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `invsplit`(가설) — 생성 후 opts 필드 정확·원장/역인덱스 빈 Map·crash 후 재초기화 정합.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `orchctlsplit`.
+//   더한 한 조각: Orchestrator 의 제어 평면 핸들러(onMsg·onTick)를 orch-control.js 믹스인으로 분리(Object.assign prototype). 0251 orch-placement(executed lifecycle 메서드) 분할의 짝. 정의 위치만 이동·기능 0 → 0266 비트 동일(reg). orchestrator.js 27.5KB→18.9KB.
+//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `orchctlsplit`(가설) — placeZone 명령이 배치 SSOT 갱신(onMsg)·failover onTick 정상.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,26 +13,26 @@ const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; cons
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { InventoryService } = NET;
+const { run } = NET;
 
-// step-0266 정리 분할(#49 인접) 검증 — 가방 생성자 필드 초기화를 svc-inventory-init 믹스인(_init)으로 위임한 뒤,
-//   생성된 인스턴스의 opts 필드가 정확하고(원장/역인덱스 빈 Map) crash 가 재초기화를 정합 유지하는지 본다(투명 분할).
-function invsplit(seeds) {
-  console.log('== invsplit (0266 분할·#49 인접): 가방 생성자 필드 초기화(_init ~120 필드)를 svc-inventory-init 믹스인으로 위임 — 생성 후 opts 필드 정확·원장/역인덱스 빈 Map·crash 재초기화 정합·투명 분할(reg 0 가 비트 동일 증명). ==');
-  console.log('seed   | quorumW | reliable | ledger0 | crash정합 | 판정');
+// step-0267 정리 분할(#49 인접) 검증 — 오케 제어 평면 핸들러(onMsg·onTick)를 orch-control 믹스인으로 위임한 뒤,
+//   placeZone 명령이 여전히 onMsg 로 배치 SSOT 를 갱신하고 failover onTick 이 정상 도는지 본다(투명 분할).
+function orchctlsplit(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placementOps: OPS };
+  console.log('== orchctlsplit (0267 분할·#49 인접): 오케 제어 평면 핸들러(onMsg·onTick)를 orch-control 믹스인으로 위임 — placeZone 명령이 배치 SSOT 갱신(onMsg)·failover onTick 정상·투명 분할(reg 0 가 비트 동일 증명). ==');
+  console.log('seed   | z1 host | z2 host | 판정');
   for (const seed of seeds) {
-    const inv = new InventoryService({ persist: 'persist', quorumW: 2, reliable: true, snapshot: 6 });
-    const initOk = inv.quorumW === 2 && inv.reliable === true && inv.snapInterval === 6 && inv.persist === 'persist' &&
-      inv.ledger instanceof Map && inv.ledger.size === 0 && inv.byOwner instanceof Map && inv.durableSeq === -1;
-    inv.ledger.set('i1', 'a'); inv._own('a', 'i1');   // 더럽힌 뒤 crash 재초기화 확인
-    inv.crash();
-    const crashOk = inv.ledger.size === 0 && inv.itemCount() === 0 && inv.byOwner.size === 0;
-    const ok = check(initOk && crashOk, `seed ${seed}: init/crash 위반 (qW ${inv.quorumW}·rel ${inv.reliable}·led ${inv.ledger.size})`);
-    console.log(`${pad(seed, 6)} | ${pad(inv.quorumW, 7)} | ${pad(String(inv.reliable), 8)} | ${pad(String(initOk), 7)} | ${pad(String(crashOk), 9)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ticks: 8, ...BASE });
+    const o = r.orch;
+    const ok = check(o.placementOf('z1') === 'hostA' && o.placementOf('z2') === 'hostB' && o.placedCount() === 2,
+      `seed ${seed}: 배치 SSOT 위반 (z1 ${o.placementOf('z1')}·z2 ${o.placementOf('z2')})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.placementOf('z1') || '-', 7)} | ${pad(o.placementOf('z2') || '-', 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['invsplit'] = invsplit;
-kit.ORDER.splice(1, 0, 'invsplit');
+kit.MODES['orchctlsplit'] = orchctlsplit;
+kit.ORDER.splice(1, 0, 'orchctlsplit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
