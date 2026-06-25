@@ -1,4 +1,5 @@
 'use strict';
+// step-0282 — #56 브리지 존 데이터 평면 2: 런타임 EntityZone 팩토리에 net 싱크 + addr 부착(onTick view send 흡수·위치 적용만).
 // step-0098 정리 분할 — 토폴로지 *액터 팩토리 + 라우트 필터*(makeActor·routeFilters). topo-build.js 가 32KB>30KB 박스 트리거를 넘겨,
 //   *선언적 spec 빌더*(buildTopology)와 *액터 생성*(makeActor·박스 클래스 import)을 분리한다(기능 0·verbatim 이동·export 집합 불변·reg 0).
 //   진입점 topo-build.js 가 이 부품을 require 해 routeFilters·makeActor 를 동일 export 로 노출(0030 net-core·0035 cluster·0038 topology 분할의 계보).
@@ -63,7 +64,13 @@ function makeActor(spec, net) {
       // step-0272 (#51b) — zoneBridge ON 이면 orch 에 *실 EntityZone 런타임 팩토리*를 주입(배치 결정이 실 존 인스턴스를 띄우게).
       //   팩토리는 직렬화 불가(함수)이므로 spec 이 아니라 *액터 구성 시점*에 makeActor 가 붙인다(인프로세스·각 호스트 프로세스가 자기 makeActor 로 동일 구성 = 멀티프로세스-safe). 시드는 zoneId 해시(결정론). OFF 면 spec.opts 그대로 = 0271 비트 동일.
       a = new Orchestrator(spec.opts.zoneBridge
-        ? Object.assign({}, spec.opts, { zoneFactory: (zid) => new EntityZone(fnv1a(String(zid)) >>> 0, { grid: spec.opts.zoneRtGrid, radius: spec.opts.zoneRtRadius }) })
+        ? Object.assign({}, spec.opts, { zoneFactory: (zid) => {
+            // step-0282 (#56) — 런타임 EntityZone 에 net 싱크 + addr 부착. 데이터 평면(0282 move~)에서 orch 가 런타임 onTick 을 구동하면
+            //   zone.js 가 세션에 view 를 send 한다 — 런타임 존은 아직 클라 직접 전파 안 함(#9 후속)이므로 no-op 싱크로 받는다(엔티티 위치 적용만·뷰 드롭). OFF/zoneBridge OFF 면 런타임 생성 0 = 비트 동일.
+            const z = new EntityZone(fnv1a(String(zid)) >>> 0, { grid: spec.opts.zoneRtGrid, radius: spec.opts.zoneRtRadius });
+            z.addr = 'zrt:' + zid; z.net = { send() {} };
+            return z;
+          } })
         : spec.opts);
       break;
     case 'inventory': a = new InventoryService(spec.opts); break;

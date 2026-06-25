@@ -1,4 +1,7 @@
 'use strict';
+// step-0283 — #56 브리지 존 데이터 평면 3: onMsg zoneLeave 분기(entity 제거). OFF→0282 비트 동일.
+// step-0282 — #56 브리지 존 데이터 평면 2: onMsg zoneMove 분기 + onTick 에서 _tickRuntimes 구동(위치 적용). OFF→0281 비트 동일.
+// step-0281 — #56 브리지 존 데이터 평면 1: onMsg 에 zoneEnter 분기(실 EntityZone 핸들로 enter 라우팅·zoneEntityFlow 가드). OFF→0280 비트 동일.
 // step-0267 정리 분할(#49 인접·선제) — orchestrator.js 가 27.5KB(30KB 근접·성장 박스)라, Orchestrator 의 *제어 평면 핸들러*(onMsg·onTick)를
 //   orch-control.js 믹스인으로 분리한다(0251 orch-placement 분할의 짝 — 그쪽은 executed lifecycle 메서드, 이쪽은 메시지/tick 핸들러).
 //   코어가 Object.assign(prototype) 로 되섞음 — 정의 위치만 이동·this 바인딩/메서드 해소 동일·기능 0 → reg 0(0266 비트 동일). onMsg 의 placeX 분기는 _start/_migrate(placement 믹스인) 로 그대로 해소.
@@ -41,6 +44,12 @@ const OrchControl = {
       if (this.net && this.addr) { this.net.send(this.addr, m.from, reply); this.placeRepliesSent++; }
       return;
     }
+    // 브리지 존 enter 라우팅(step-0281·#56·zoneEnter) — {zoneId, avatar, sessionId?} → 실 EntityZone 핸들(zoneRuntimes)로 enter 를 흘린다(데이터 평면). zoneEntityFlow OFF·미가동 존이면 미발화 = 0280 비트 동일. 실제 entity 가 실 zone.js ents 에 산다 → 데이터 평면 불변 검증의 토대.
+    if (p.type === 'zoneEnter') { if (this.zoneEntityFlow) this._bridgeEnter(p.zoneId, p.avatar, p.sessionId, m.from); return; }
+    // 브리지 존 move 라우팅(step-0282·#56·zoneMove) — {zoneId, avatar, dx, dy} → 실 EntityZone 핸들로 이동 의도(pending). 위치 적용은 런타임 onTick(아래). OFF 면 미발화 = 0281 비트 동일.
+    if (p.type === 'zoneMove') { if (this.zoneEntityFlow) this._bridgeMove(p.zoneId, p.avatar, p.dx, p.dy, m.from); return; }
+    // 브리지 존 leave 라우팅(step-0283·#56·zoneLeave) — {zoneId, avatar} → 실 EntityZone 핸들에서 entity/세션 제거. OFF 면 미발화 = 0282 비트 동일.
+    if (p.type === 'zoneLeave') { if (this.zoneEntityFlow) this._bridgeLeave(p.zoneId, p.avatar, m.from); return; }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
     // 치유 확인 수신(step-0057·recoverAck) — recover 명령을 받은 소비자가 재구독하며 돌려보낸 확인. orch 가 명령 *전달·수행*을 안다(분실 0 이면 recoverAcks==recoversSent). busPresenceRecover OFF 면 recover 미발신 → 이 메시지 영영 안 옴 = 0056 비트 동일.
     if (p.type === 'recoverAck') { this.recoverAcks++; this.pendingRecover.delete(p.consumer); this.recoverAttempts.delete(p.consumer); return; }
@@ -66,6 +75,8 @@ const OrchControl = {
   },
   onTick(tick) {
     this.curTick = tick;
+    // 브리지 존 데이터 평면 tick(step-0282·#56) — 자기 zoneRuntimes 의 실 EntityZone 을 onTick 구동(pending move 위치 적용·실 zone.js 시뮬 진행). zoneEntityFlow OFF 면 미실행 = 0281 비트 동일.
+    if (this.zoneEntityFlow) this._tickRuntimes(tick);
     // 미확인 recover 재시도(step-0058·recoverRetry) — recoverTimeout 경과해도 ack 안 온 명령을 재발신. ack 오면 onMsg 가 pendingRecover 에서 지운다(루프 종료). OFF 면 미실행 = 0057 비트 동일.
     if (this.recoverRetry && this.pendingRecover.size) {
       for (const [consumer, sentAt] of this.pendingRecover) {

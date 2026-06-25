@@ -1,4 +1,14 @@
 'use strict';
+// step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
+// step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
+// step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
+// step-0287 — #56 브리지 존 데이터 평면 7: entityOwnerZone/entityOwnerCount/entitiesSingleOwner 질의(entity 권위 단일 소유의 데이터 평면 판).
+// step-0286 — #56 브리지 존 데이터 평면 6: _bridgeStop 에 zoneEntitiesDiscarded 계측(존 퇴역→entity 폐기·계획적).
+// step-0285 — #56 브리지 존 데이터 평면 5: _bridgeHostDown 에 zoneEntitiesLost 계측(hostdown=새 인스턴스→entity 소실·migrate 무손실과 대조).
+// step-0284 — #56 브리지 존 데이터 평면 4: totalEntities() census 질의. migrate(_bridgeMigrate·같은 핸들)가 entity 를 *행동적으로* 무손실 보존함을 단언(0273 구조적 보존의 데이터 평면 판).
+// step-0283 — #56 브리지 존 데이터 평면 3: _bridgeLeave(leave 라우팅·entity 제거).
+// step-0282 — #56 브리지 존 데이터 평면 2: _bridgeMove(move 라우팅)·_tickRuntimes(런타임 onTick 구동·위치 적용)·zoneEntityPos 질의.
+// step-0281 — #56 브리지 존 데이터 평면 1: _bridgeEnter(실 EntityZone 핸들로 enter 라우팅)·zoneEntityCount/zoneHasEntity 질의. 0272~0280 의 빈 핸들에 실 entity 가 흐르기 시작.
 // step-0272 — #51b 실 zone.js 브리지. 0241~0250 의 배치 실배선은 running(zoneId→host 문자열)까지였다 — *집행 SSOT* 이되 실 EntityZone 런타임과는 끊겨 있었다.
 //   이 믹스인은 그 간극을 잇는다: placement 집행(_start/_migrate/_stop)이 *실 EntityZone 인스턴스*를 host 에 띄우고/이주하고/내린다(zoneRuntimes 레지스트리).
 //   오케스트레이터가 존 런타임을 spawn/배치하는 것은 그 정의 책임(SPINE §2 코디네이션: "존 배치·인스턴스 spawn") — 은닉 위반이 아니라 집행이다.
@@ -29,6 +39,7 @@ const OrchZoneBridge = {
   _bridgeHostDown(zoneId, target) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
+    this.zoneEntitiesLost += rt.zone.ents.size;   // step-0285 (#56) — 죽은 host 인스턴스의 entity 는 graceful 이주 불가 → 소실. 정직히 계측(잃은 상태 복구는 영속서 재구성·범위 밖).
     rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
     rt.host = target;
     this.zoneRescued++;
@@ -36,8 +47,11 @@ const OrchZoneBridge = {
   },
   // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
   _bridgeStop(zoneId) {
-    if (this.zoneRuntimes.delete(zoneId)) { this.zoneStops++; return true; }
-    return false;
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    this.zoneEntitiesDiscarded += rt.zone.ents.size;   // step-0286 (#56) — 존 운영 퇴역 시 그 핸들의 entity 는 폐기(계획적·hostdown 비자발 소실과 구분·계측). 퇴역 전 세션 이전/영속은 후속.
+    this.zoneRuntimes.delete(zoneId); this.zoneStops++;
+    return true;
   },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).
   zoneRuntimeOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone : null; },
@@ -56,6 +70,65 @@ const OrchZoneBridge = {
   },
   // 브리지 정합 불변 질의(step-0278·capstone primitive) — 브리지가 깨지지 않았는가의 단일 술어: ⒜ 표류 0(추상 host==실 host) ⒝ 실 런타임 수 == 추상 running 수(존 집합 일치). 둘 다 참이면 추상 집행 SSOT 와 실 EntityZone 레지스트리가 완전 일치(한 존=한 host·양쪽). 모든 배치 op 뒤 참이어야(0280 capstone 이 혼합 lifecycle 로 단언). 읽기 전용.
   bridgeCoherent() { return this.zoneRuntimeDrift() === 0 && this.runtimeCount() === this.running.size; },
+  // 브리지 존 enter 라우팅(step-0281·#56) — 게이트웨이/운영이 보낸 enter 를 *실 EntityZone 핸들*로 흘린다. 0272~0280 의 zoneRuntimes 는 빈 핸들이었고(entity 0), 이 메서드가 실 zone.js onMsg('enter') 를 호출해 실제 avatar 가 그 존의 ents 에 산다 → migrate "상태 보존"이 *행동적으로* 검증 가능해진다(리뷰 #56). 미가동 존(런타임 없음)은 거부(멱등 false). zoneEntityFlow OFF 면 호출 자체 없음(onMsg 가드·0280 비트 동일).
+  _bridgeEnter(zoneId, avatar, sessionId, gateway) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;             // 미가동 존 — 흘릴 핸들 없음(멱등).
+    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
+    this.zoneEnters++;
+    return true;
+  },
+  // 브리지 존 move 라우팅(step-0282·#56) — enter 한 avatar 의 이동 의도를 실 EntityZone 핸들로 흘린다(onMsg('move')→pending). 실제 위치 적용은 그 존의 onTick 에서(orch 가 _tickRuntimes 로 구동·아래). 미가동 존·미존재 avatar 는 무해(zone.js move 가드: ents.has 만 push). zoneEntityFlow OFF 면 호출 없음(0281 비트 동일).
+  _bridgeMove(zoneId, avatar, dx, dy, gateway) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
+    this.zoneMoves++;
+    return true;
+  },
+  // 브리지 존 leave 라우팅(step-0283·#56) — avatar 의 퇴장(로그아웃·존 떠남)을 실 EntityZone 핸들로 흘린다(onMsg('leave')→ents/sessions 제거). 미가동 존·미존재 avatar 는 무해(zone.js delete 멱등). sessionId='s:'+avatar 로 enter 의 세션도 정리. zoneEntityFlow OFF 면 호출 없음(0282 비트 동일).
+  _bridgeLeave(zoneId, avatar, gateway) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    const had = rt.zone.ents.has(avatar);
+    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
+    if (had) this.zoneLeaves++;
+    return had;
+  },
+  // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
+  _tickRuntimes(tick) { for (const rt of this.zoneRuntimes.values()) rt.zone.onTick(tick); },
+  // 브리지 존 entity 위치 질의(step-0282·#56) — 실 EntityZone 핸들의 그 avatar 위치({x,y})·없으면 null. move 적용·migrate 위치 보존 검증.
+  zoneEntityPos(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); const e = rt && rt.zone.ents.get(avatar); return e ? { x: e.x, y: e.y } : null; },
+  // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.
+  zoneEntityCount(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.size : 0; },
+  zoneHasEntity(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.has(avatar) : false; },
+  // 전 런타임 entity 총수 질의(step-0284·#56) — 모든 실 EntityZone 핸들의 ents.size 합(전 존 인구). migrate(같은 핸들)·rebalance/drain(graceful)에서 보존·hostdown/stop(파괴)에서 변동을 단언하는 census 의 기초.
+  totalEntities() { let n = 0; for (const rt of this.zoneRuntimes.values()) n += rt.zone.ents.size; return n; },
+  // entity 소유 질의(step-0287·#56) — "이 avatar 가 어느 런타임 존에 사나 / 몇 개 존에 사나"(데이터 평면 권위 단일 소유의 실물 판·존 핸들의 host 단일 소유 0276 과 동형, entity 차원). entityOwnerZone 은 첫 매칭 zoneId·없으면 null.
+  entityOwnerZone(avatar) { for (const [z, rt] of this.zoneRuntimes) if (rt.zone.ents.has(avatar)) return z; return null; },
+  entityOwnerCount(avatar) { let n = 0; for (const rt of this.zoneRuntimes.values()) if (rt.zone.ents.has(avatar)) n++; return n; },
+  // entity 단일 소유 불변(step-0287·#56) — 어떤 avatar 도 두 개 이상 런타임 존에 동시에 살지 않는다(권위 단일 소유의 데이터 평면 판·공백/중복 0 중 *중복* 측). enter 는 한 존에만 적재·migrate 는 같은 핸들 이동(존 집합 불변)이므로 정상 op 에선 항상 참 — 모든 op 뒤 단언(0290 capstone). 읽기 전용.
+  entitiesSingleOwner() {
+    const seen = new Set();
+    for (const rt of this.zoneRuntimes.values()) for (const a of rt.zone.ents.keys()) { if (seen.has(a)) return false; seen.add(a); }
+    return true;
+  },
+  // entity 정합 불변(step-0288·#56) — entity 데이터 평면이 executed SSOT 와 어긋나지 않는다: ⒜ 단일 소유(어떤 avatar 도 두 존 없음·0287) ⒝ entity 를 담은 실 런타임 존은 모두 running(집행 SSOT)에 있다 — orphan 런타임(running 밖인데 entity 보유)이 없다. stop/hostdown 이 런타임·entity 를 함께 정리하므로 정상 op 뒤 항상 참. 읽기 전용.
+  entityCoherent() {
+    if (!this.entitiesSingleOwner()) return false;
+    for (const z of this.zoneRuntimes.keys()) if (!this.running.has(z)) return false;   // entity 보유 런타임은 반드시 executed running 존(orphan 0).
+    return true;
+  },
+  // 전 데이터 평면 정합 질의(step-0290·#56 capstone) — entity 데이터 평면이 배치 SSOT 와 *완전히* 한 몸인지의 단일 술어: ⒜ fullyCoherent(placement==running==zoneRuntimes 3층·#51b 0280) ⒝ entityCoherent(단일 소유 + entity 보유 런타임 모두 running·0288). 참이면 "어디서 돌아야/돈다고 기록/실제 핸들" 3층 + "entity 가 정확히 한 존에·executed 존에만" 이 모두 정합. 혼합 lifecycle 후 참(0290 capstone). 읽기 전용.
+  entityFlowCoherent() { return this.fullyCoherent() && this.entityCoherent(); },
+  // entity 보존 회계(step-0290·#56 capstone) — 데이터 평면 보존 항등식: 살아있는 total = 받은 enter − 떠난 leave − hostdown 소실 − stop 폐기. graceful op(migrate/rebalance/drain·같은 핸들)는 항에 안 들어간다(무손실). 모든 op 뒤 성립(0290 capstone). 읽기 전용.
+  entityConserved() { return this.totalEntities() === this.zoneEnters - this.zoneLeaves - this.zoneEntitiesLost - this.zoneEntitiesDiscarded; },
+  // entity census 스냅샷(step-0289·#56) — 전 런타임의 entity 분포 {total, zones:{zoneId:count}}(운영 대시보드·graceful op 전후 보존 대조). graceful 재배치(rebalance/drain)는 _migrate(같은 핸들)이므로 total 불변·zone 분포만 재편.
+  entityCensus() {
+    const zones = {}; let total = 0;
+    for (const [z, rt] of this.zoneRuntimes) { zones[z] = rt.zone.ents.size; total += rt.zone.ents.size; }
+    return { total, zones };
+  },
   // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
   fullyCoherent() { return this.placementDrift() === 0 && this.bridgeCoherent() && this.placedCount() === this.runtimeCount(); },
 };
