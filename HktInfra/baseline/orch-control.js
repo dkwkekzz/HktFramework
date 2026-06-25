@@ -1,4 +1,5 @@
 'use strict';
+// step-0295 — #9 멀티프로세스 배선 5: zoneDeliver 분기에 move/leave 적용 추가(enter 와 동형·_bridgeMove/_bridgeLeave). OFF→0294 비트 동일.
 // step-0294 — #9 멀티프로세스 배선 4: onMsg zoneDeliver 분기(게이트웨이 직접 라우팅 적용·host 일치 시만·stale 거부). OFF→0293 비트 동일.
 // step-0283 — #56 브리지 존 데이터 평면 3: onMsg zoneLeave 분기(entity 제거). OFF→0282 비트 동일.
 // step-0282 — #56 브리지 존 데이터 평면 2: onMsg zoneMove 분기 + onTick 에서 _tickRuntimes 구동(위치 적용). OFF→0281 비트 동일.
@@ -56,6 +57,8 @@ const OrchControl = {
       const liveHost = this.running.get(p.zoneId);
       if (p.host !== liveHost) { this.zoneDirStale++; return; }   // 디렉토리가 뒤처짐 — 거부(정직한 한계·0296 정합).
       if (p.op === 'enter') { this._bridgeEnter(p.zoneId, p.avatar, p.sessionId, m.from); this.zoneDirectApplied++; }
+      else if (p.op === 'move') { this._bridgeMove(p.zoneId, p.avatar, p.dx, p.dy, m.from); this.zoneDirectApplied++; }   // step-0295 (#9)
+      else if (p.op === 'leave') { this._bridgeLeave(p.zoneId, p.avatar, m.from); this.zoneDirectApplied++; }   // step-0295 (#9)
       return;
     }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);

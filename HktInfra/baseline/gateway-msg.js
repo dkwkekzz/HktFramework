@@ -1,4 +1,6 @@
 'use strict';
+// step-0295 — #9 멀티프로세스 배선 5: onMsg 에 클라 zoneMove/zoneLeave 직접 라우팅 분기(enter 와 동형·zoneDir 해소→zoneDeliver). 미수신(OFF)이면 이전 비트 동일.
+// step-0294 — #9 멀티프로세스 배선 4: onMsg 에 클라 zoneEnter 직접 라우팅 분기(zoneDir 해소→zoneDeliver). 미수신(gatewayDirectZone OFF)이면 이전 비트 동일.
 // step-0293 — #9 멀티프로세스 배선 3: onMsg 에 orch zoneLoc 분기(존 위치 디렉토리 갱신·서비스 디스커버리). 미수신(gatewayZoneDir OFF)이면 이전 비트 동일.
 // step-0270 정리 분할(#49 인접·선제) — gateway.js 가 22.8KB(엣지 핵심 박스·성장)라, Gateway 의 *메시지 라우팅 핸들러*(onMsg:
 //   클라 move/item/chat 업스트림 라우팅 + 존/서비스/버스 다운스트림 중계 + 세션 bind/unbind)를 gateway-msg.js 믹스인으로 분리한다.
@@ -108,6 +110,18 @@ const GatewayMsg = {
       const host = this.zoneDir.get(p.zoneId);
       if (host === undefined) { this.gatewayZoneMisses++; return; }
       this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'enter', zoneId: p.zoneId, avatar: p.avatar, sessionId: p.sessionId, host });
+      this.gatewayZoneRoutes++;
+    } else if (p.type === 'zoneMove') {
+      // 게이트웨이 직접 존 move 라우팅(step-0295·#9·enter 와 동형) — zoneDir 로 host 해소→zoneDeliver(move). 미스면 드롭. 미수신(OFF)이면 이전 비트 동일.
+      const host = this.zoneDir.get(p.zoneId);
+      if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'move', zoneId: p.zoneId, avatar: p.avatar, dx: p.dx, dy: p.dy, host });
+      this.gatewayZoneRoutes++;
+    } else if (p.type === 'zoneLeave') {
+      // 게이트웨이 직접 존 leave 라우팅(step-0295·#9·enter 와 동형) — zoneDir 로 host 해소→zoneDeliver(leave). 미스면 드롭. 미수신(OFF)이면 이전 비트 동일.
+      const host = this.zoneDir.get(p.zoneId);
+      if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'leave', zoneId: p.zoneId, avatar: p.avatar, host });
       this.gatewayZoneRoutes++;
     } else if (p.type === 'disconnect') {
       const bind = this.byClient.get(m.from);
