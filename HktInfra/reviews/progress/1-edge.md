@@ -38,4 +38,6 @@
 
 ---
 
+> **📦 구조 분할(#49 arc·0270·기능 0)**: 게이트웨이 메시지 라우팅 핸들러(`onMsg`·업스트림 라우팅+다운스트림 중계)를 `gateway-msg.js` 믹스인으로 분리(`Object.assign(Gateway.prototype, GatewayMsg)`·verbatim·reg 0·22.8→16.5KB). 능력 무변경 — 파일 구조만.
+
 > **이 계층 다음 걸음**: 로그인 대기열 실체화 + 게이트웨이 군 풀 토폴로지.

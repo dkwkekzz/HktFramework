@@ -42,4 +42,6 @@
 
 ---
 
+> **📦 구조 분할(#49 arc·0267·기능 0)**: 오케스트레이터 제어 평면 핸들러(`onMsg`·`onTick`)를 `orch-control.js` 믹스인으로 분리(0251 `orch-placement.js`[배치 런타임]의 짝·`Object.assign(prototype)`·verbatim·reg 0·27.5→18.9KB). 이제 오케 3분할: 코어 18.9 + placement 9.1 + control 9.6KB. 능력 무변경.
+
 > **이 계층 다음 걸음**: ⒜ *진짜 비동기*(lockstep 배리어 제거·논리/벡터 클럭). ⒝ 플레이어 프레즌스 실사용. ⒞ 치유(HealService) 분리.

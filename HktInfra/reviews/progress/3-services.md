@@ -175,4 +175,6 @@
 
 ---
 
+> **📦 구조 분할(#49 arc·0264~0269·기능 0)**: 게임 서비스 박스 5종을 믹스인 분리(전부 `Object.assign(prototype)`·verbatim·reg 0·능력 무변경) — 거래소 영속/failover→`svc-exchange-persist.js`(0264·30.7→26.6KB)·길드 onMsg→`svc-guild-txn.js`(0265·29.5→24.4KB·#47 해소)·가방 생성자 필드초기화→`svc-inventory-init.js`(0266·_init·28.5→5.7KB)·우편 saga 헬퍼→`svc-mail-saga.js`(0268·_custody/재전송/재admission·25.3→19.9KB)·수신함 dedup→`svc-mailbox-dedup.js`(0269·seen/epoch·24.7→22.8KB). 전 박스 ≤26.6KB.
+
 > **이 계층 다음 걸음**: 거래소↔가방 2-서비스 saga 가 *원자성·신뢰 전달·교차 정합·**liveness***까지 닫힘(#31·#35·0121~0140·네 정합층). **우편 박스가 거래소 arc 의 *완전한 동형*으로 섰다**: 전용 박스 ✅(0142~0150) + MailFeed 미읽음 배지 ✅(0151~0156) + 아이템 첨부 ✅(0157~0160) + 가방 연동 3 레그+2-서비스 보존 ✅(0161~0164·#40 해소) + 아이템 give saga ✅(0166~0170) + **saga liveness 유계화·자율 복구·관측·정합 capstone ✅(0172~0180·거래소 0131~0140 의 우편 판·#42 해소)** — 메시지·배지·아이템·가방 연동(3레그+saga+liveness) 다섯 축. **정리 2회로 박스 유계 유지**(0171 영속 부품 분할 + 0175 헤더 압축·#34d 해소·core 25.3KB). 남은 견고화: 멀티프로세스 배선(#9·우편 saga liveness 포함·host.js 0)·spine 승격(#16·우편 ~16 모드)·읽기모델 무압축 전제(#39)·거래소 저널 별 PersistStore(#30b)·채팅 홉 신뢰(#7)·close-step src 박스 size 체크(#43)·topo-run 🔴 분할(#34c·0181~0190 가 33.3KB 로 심화). 수신함 동적 N(#27). **길드 전용 박스 ✅ 섰다(0181~0190·파티+우편 동형 + single-master 권위·이양 쌍 거래·SPINE 계층3 길드 박스 골격 완성)** — 다음 큰 걸음: 발행 게이트 통합·길드 bank(escrow).
