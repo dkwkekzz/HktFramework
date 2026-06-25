@@ -1,4 +1,5 @@
 'use strict';
+// step-0259 — 캐시 namespace 무효화(cacheDeletePrefix·Redis SCAN+DEL 더미판): {prefix} → prefix 로 시작하는 *모든* 키를 store(+writeThrough 면 source)서 제거(예: "session:" 한 방에 한 유저 세션 전부·길드 해체 시 "guild:42:" 전체). 단일 키 delete(0257)의 패턴판. 제거 수 반환. 새 메시지 타입·미수신 = 0258 비트 동일(reg 0). 4차 고도화(캐시 박스 #8).
 // step-0258 — 캐시 stats 관측(cacheStats·Redis INFO/모니터링 더미판): {} 질의 → cacheStatsReply 로 hit/miss/hitRate/size/negHits/deleted 회신(운영 대시보드가 캐시 효율을 폴링). hitRate()·stats() 읽기 accessor 추가(순수 읽기·쓰기 무변경). 새 메시지 타입·미수신 = 0257 비트 동일(reg 0). 4차 고도화(캐시 박스 #7).
 // step-0257 — 캐시 explicit delete(cacheDelete·Redis DEL 더미판): {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives 정리) + writeThrough(0252) ON 이면 backing source(SSOT)에서도 제거. 무효화(0212·캐시 사본만 끊고 소스 유지→read-through 재적재)와 달리 *소스까지 영구 제거*(계정 삭제·아이템 파괴). 새 메시지 타입·미수신 = 0256 비트 동일(reg 0). 4차 고도화(캐시 박스 #6).
 // step-0256 — 캐시 per-key TTL(cacheSetEx·Redis SETEX 더미판): {key,value,ttl} → 값 기록 + 그 키만의 만료 수명(keyTtl) 저장. cacheExpire(0211) 스윕이 키에 per-key ttl 이 있으면 그것을, 없으면 글로벌 p.ttl 을 적용(키마다 다른 수명·세션 5분/시세 10초 식 차등 만료). keyTtl 비면 글로벌만 = 0255 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #5).
@@ -36,6 +37,8 @@ class CacheStore {
     this.invalidated = 0;      // 실제 무효화된 키 누적 수(step-0212·store 에 있던 것만).
     this.deletes = 0;          // 처리한 cacheDelete 수(step-0257·없는 키 멱등 포함).
     this.deleted = 0;          // 실제 제거된 키 누적 수(step-0257·store 또는 source 에 있던 것).
+    this.prefixDeletes = 0;    // 처리한 cacheDeletePrefix 수(step-0259·매칭 0이어도 멱등 카운트).
+    this.prefixDeleted = 0;    // prefix 매칭으로 제거된 키 누적 수(step-0259·namespace 무효화).
     this.capacity = Infinity;  // 캐시 키 수 상한(step-0225·cacheCapacity 로 설정·미설정이면 ∞=무제한=0224 거동).
     this.capEvicted = 0;       // 용량 초과로 LRU 회수된 키 누적 수(step-0225·setAt 최소부터).
     this.lruTouch = false;     // get hit 시 recency 갱신 여부(step-0226·cacheLruTouch·OFF 면 0225 거동=set-시각만).
@@ -123,6 +126,19 @@ class CacheStore {
       if (this.writeThrough) this.source.delete(p.key);   // SSOT 에서도 영구 제거.
       if (had) this.deleted++;
       this.deletes++; return;
+    }
+    // namespace 무효화(step-0259·cacheDeletePrefix·SCAN+DEL) — {prefix} → prefix 로 시작하는 모든 키를 store(+writeThrough 면 source)서 제거(한 유저 세션 전체·길드 해체 등). 단일 delete(0257)의 패턴판. 미수신 = 0258 비트 동일.
+    if (p.type === 'cacheDeletePrefix') {
+      const pre = p.prefix || '';
+      const victims = new Set();
+      for (const k of this.store.keys()) if (k.startsWith(pre)) victims.add(k);
+      if (this.writeThrough) for (const k of this.source.keys()) if (k.startsWith(pre)) victims.add(k);
+      for (const k of victims) {
+        this.store.delete(k); this.setAt.delete(k); this.keyTtl.delete(k); this.negatives.delete(k);
+        if (this.writeThrough) this.source.delete(k);
+        this.prefixDeleted++;
+      }
+      this.prefixDeletes++; return;
     }
     // 용량 설정(step-0225·cacheCapacity) — {cap} → 캐시 키 수 상한 설정 후 즉시 초과분 LRU 회수(개수 유계). 이후 set 마다 상한 유지. cacheCapacity 미수신이면 capacity=∞ = 0224 비트 동일.
     if (p.type === 'cacheCapacity') { this.capacity = (p.cap == null ? Infinity : p.cap); this._evictToCapacity(); return; }
