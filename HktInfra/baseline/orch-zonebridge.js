@@ -1,4 +1,5 @@
 'use strict';
+// step-0286 — #56 브리지 존 데이터 평면 6: _bridgeStop 에 zoneEntitiesDiscarded 계측(존 퇴역→entity 폐기·계획적).
 // step-0285 — #56 브리지 존 데이터 평면 5: _bridgeHostDown 에 zoneEntitiesLost 계측(hostdown=새 인스턴스→entity 소실·migrate 무손실과 대조).
 // step-0284 — #56 브리지 존 데이터 평면 4: totalEntities() census 질의. migrate(_bridgeMigrate·같은 핸들)가 entity 를 *행동적으로* 무손실 보존함을 단언(0273 구조적 보존의 데이터 평면 판).
 // step-0283 — #56 브리지 존 데이터 평면 3: _bridgeLeave(leave 라우팅·entity 제거).
@@ -42,8 +43,11 @@ const OrchZoneBridge = {
   },
   // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
   _bridgeStop(zoneId) {
-    if (this.zoneRuntimes.delete(zoneId)) { this.zoneStops++; return true; }
-    return false;
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    this.zoneEntitiesDiscarded += rt.zone.ents.size;   // step-0286 (#56) — 존 운영 퇴역 시 그 핸들의 entity 는 폐기(계획적·hostdown 비자발 소실과 구분·계측). 퇴역 전 세션 이전/영속은 후속.
+    this.zoneRuntimes.delete(zoneId); this.zoneStops++;
+    return true;
   },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).
   zoneRuntimeOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone : null; },

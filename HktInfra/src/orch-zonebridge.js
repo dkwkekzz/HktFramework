@@ -1,4 +1,5 @@
 'use strict';
+// step-0287 — #56 브리지 존 데이터 평면 7: entityOwnerZone/entityOwnerCount/entitiesSingleOwner 질의(entity 권위 단일 소유의 데이터 평면 판).
 // step-0286 — #56 브리지 존 데이터 평면 6: _bridgeStop 에 zoneEntitiesDiscarded 계측(존 퇴역→entity 폐기·계획적).
 // step-0285 — #56 브리지 존 데이터 평면 5: _bridgeHostDown 에 zoneEntitiesLost 계측(hostdown=새 인스턴스→entity 소실·migrate 무손실과 대조).
 // step-0284 — #56 브리지 존 데이터 평면 4: totalEntities() census 질의. migrate(_bridgeMigrate·같은 핸들)가 entity 를 *행동적으로* 무손실 보존함을 단언(0273 구조적 보존의 데이터 평면 판).
@@ -100,6 +101,15 @@ const OrchZoneBridge = {
   zoneHasEntity(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.has(avatar) : false; },
   // 전 런타임 entity 총수 질의(step-0284·#56) — 모든 실 EntityZone 핸들의 ents.size 합(전 존 인구). migrate(같은 핸들)·rebalance/drain(graceful)에서 보존·hostdown/stop(파괴)에서 변동을 단언하는 census 의 기초.
   totalEntities() { let n = 0; for (const rt of this.zoneRuntimes.values()) n += rt.zone.ents.size; return n; },
+  // entity 소유 질의(step-0287·#56) — "이 avatar 가 어느 런타임 존에 사나 / 몇 개 존에 사나"(데이터 평면 권위 단일 소유의 실물 판·존 핸들의 host 단일 소유 0276 과 동형, entity 차원). entityOwnerZone 은 첫 매칭 zoneId·없으면 null.
+  entityOwnerZone(avatar) { for (const [z, rt] of this.zoneRuntimes) if (rt.zone.ents.has(avatar)) return z; return null; },
+  entityOwnerCount(avatar) { let n = 0; for (const rt of this.zoneRuntimes.values()) if (rt.zone.ents.has(avatar)) n++; return n; },
+  // entity 단일 소유 불변(step-0287·#56) — 어떤 avatar 도 두 개 이상 런타임 존에 동시에 살지 않는다(권위 단일 소유의 데이터 평면 판·공백/중복 0 중 *중복* 측). enter 는 한 존에만 적재·migrate 는 같은 핸들 이동(존 집합 불변)이므로 정상 op 에선 항상 참 — 모든 op 뒤 단언(0290 capstone). 읽기 전용.
+  entitiesSingleOwner() {
+    const seen = new Set();
+    for (const rt of this.zoneRuntimes.values()) for (const a of rt.zone.ents.keys()) { if (seen.has(a)) return false; seen.add(a); }
+    return true;
+  },
   // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
   fullyCoherent() { return this.placementDrift() === 0 && this.bridgeCoherent() && this.placedCount() === this.runtimeCount(); },
 };
