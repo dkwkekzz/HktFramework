@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0271](step-0271.md) — **도구 갭 #43: close-step src/ 박스 >30KB 가드**. `engine/close-step.js` 가 매 close 마다 src/*.js 스캔해 >30KB 박스를 비실패 경고로 나열(#49 재발 방비). net-core/src 박스 무변경 = reg 0 자명.
-- **한 줄 상태**: reg 0(자명·src 무변경)·`run.js all` ALL OK·spine ALL OK·가드: 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개).
-- **다음**: 🎯 **#51b 실 zone.js 브리지 arc 착수(0272~)** — orchestrator 추상 `running` SSOT(zoneId→host 문자열) → 실 EntityZone 런타임 인스턴스 lifecycle(start/migrate/stop) 구동(load-bearing·review-gated). 0272=런타임 레지스트리(orch 가 placeZone 집행 시 실 EntityZone 인스턴스 host 바인딩). 🔎 0261~0270 묶음 리뷰 적기(#43 동반 완료).
+- **닫힌 step**: [step-0272](step-0272.md) — **#51b 실 zone.js 브리지 1: orch 존 런타임 레지스트리**. zoneBridge ON 이면 orch 배치 집행(_start)이 실 EntityZone 인스턴스를 host 에 띄움(zoneRuntimes·orch-zonebridge.js). 0241~0250 running 문자열 추상을 실 zone.js 런타임에 연결. 팩토리는 makeActor 주입(멀티프로세스-safe). OFF→0271 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonebridge: 5/5 z1→hostA·z2→hostB·runtimeCount 2·zoneStarts 2·실 EntityZone 핸들·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51b arc 진행(0273~)** — 0273=`_migrate` 실 런타임 host 이주(zoneRuntimes 핸들 release+acquire·단일 소유 보존)·0274=`_stop` 실 런타임 종료·이후 존 entity 상태 전송(host 이주 시 무손실). 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -149,3 +149,4 @@
 | [0269](step-0269.md) | 정리(#49 인접·선제): svc-mailbox dedup 헬퍼 믹스인 분리(svc-mailbox-dedup.js·_pruneEpoch/_seenHas/_seenAdd/seenSize/_ack·Object.assign prototype·투명 분할·24.7→22.8KB) | 통과(reg 0·spine OK) · 5/5 mboxsplit 멱등 dedup |
 | [0270](step-0270.md) | 정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리(gateway-msg.js·onMsg 업/다운스트림 라우팅·Object.assign prototype·투명 분할·22.8→16.5KB·#49 정리 arc 0261~0270 닫기) | 통과(reg 0·spine OK) · 5/5 gwsplit worldDigest 재현·live 6 |
 | [0271](step-0271.md) | 도구 갭 #43: close-step src/ 박스 >30KB 가드(engine/close-step.js·매 close src 스캔·비실패 경고·#49 재발 방비·net-core 무변경) | 통과(reg 0 자명·spine OK) · 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개) |
+| [0272](step-0272.md) | #51b 실 zone.js 브리지 1: orch 존 런타임 레지스트리(orch-zonebridge.js·_bridgeStart·placeZone 집행이 실 EntityZone 인스턴스 host 바인딩·running 추상↔실 런타임 연결·팩토리 makeActor 주입·zoneBridge OFF→0271 동일) | 통과(reg 0·spine OK) · 5/5 z1→hostA·z2→hostB·rtCount 2·zoneStarts 2·실EZ |
