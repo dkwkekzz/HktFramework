@@ -1,8 +1,8 @@
-// HktInfra step-0260 — 헤드리스 검증 (캐시 정합 capstone·arc 0252~0260 닫기)
+// HktInfra step-0270 — 헤드리스 검증 (정리 #49 인접·선제: gateway 메시지 라우팅 핸들러 믹스인 분리·gateway-msg.js)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cachecohere`.
-//   더한 한 조각: CacheStore.coherent() 읽기 accessor — 캐시 메커니즘 전체(write-through·bulk·negative·SETNX·SETEX·delete·prefix)가 섞여도 구조 불변(store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store) 유지. 무효화가 keyTtl 도 정리. 읽기·미수신 → 0259 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cachecohere`(가설) — 혼합 시퀀스 매 단계 coherent()==true + 최종 값/소스 정합(a=1·c 제거·x negative·session:* 제거).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `gwsplit`.
+//   더한 한 조각: Gateway 의 메시지 라우팅 핸들러(onMsg: 클라 move/item/chat 업스트림 라우팅 + 존/서비스/버스 다운스트림 중계 + 세션 bind/unbind)를 gateway-msg.js 믹스인으로 분리(Object.assign prototype). 정의 위치만 이동·기능 0 → 0269 비트 동일(reg). gateway.js 22.8KB→16.0KB.
+//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `gwsplit`(가설) — 클라 move 가 게이트웨이 onMsg 로 존에 라우팅·결정론 월드 수렴(worldDigest 재현·live 엔티티>0).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -12,41 +12,26 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { check, pad } = kit.helpers;
-const { CacheStore } = NET;
+const { check, pad, worldDigest } = kit.helpers;
+const { run } = NET;
 
-function cachecohere(seeds) {
-  console.log('== cachecohere (0260·캐시 정합 capstone·arc 0252~0260 닫기): 캐시 전 메커니즘(write-through·bulk·negative·SETNX·SETEX·delete·prefix)이 섞인 혼합 시퀀스 매 단계 coherent()(store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store) 유지 + 최종 값/소스 정합(a=1·c 제거·x negative·session:* 제거). ==');
-  console.log('seed   | 매단계 coherent | a값 | c존재 | x∈neg | session제거 | 판정');
+// step-0270 정리 분할(#49 인접) 검증 — 게이트웨이 라우팅 핸들러를 gateway-msg 믹스인으로 위임한 뒤,
+//   클라 move 가 여전히 onMsg 로 존에 라우팅되어 결정론 월드로 수렴하는지 본다(두 동일 run 의 worldDigest 일치·live 엔티티>0).
+function gwsplit(seeds) {
+  const BASE = { ticks: 40, clients: 6, moves: 30, radius: 4, grid: 16, zones: 2, incremental: true, recovery: true };
+  console.log('== gwsplit (0270 분할·#49 인접): 게이트웨이 메시지 라우팅 핸들러(onMsg)를 gateway-msg 믹스인으로 위임 — 클라 move 가 onMsg 로 존 라우팅·결정론 월드 수렴(worldDigest 재현·live 엔티티>0)·투명 분할(reg 0 가 비트 동일 증명). ==');
+  console.log('seed   | worldDigest | 재현 | live | 판정');
   for (const seed of seeds) {
-    const c = new CacheStore({ source: {} });
-    let tick = 0;
-    let allCoherent = true;
-    const send = (type, extra) => { c.onMsg({ from: 'gw', tick: ++tick, payload: { type, ...extra } }); if (!c.coherent()) allCoherent = false; };
-    send('cacheWriteThrough', { on: true });
-    send('cacheNegative', { on: true });
-    send('cacheSet', { key: 'a', value: '1' });          // 캐시+소스 1
-    send('cacheSetEx', { key: 'b', value: '2', ttl: 2 }); // per-key TTL
-    send('cacheAdd', { key: 'c', value: '3' });           // SETNX added
-    send('cacheAdd', { key: 'a', value: '99' });          // not added(a 유지 1)
-    send('cacheGet', { key: 'x' });                        // miss·소스없음 → negative
-    send('cacheGet', { key: 'x' });                        // negHit
-    send('cacheInvalidate', { key: 'b' });                 // b 캐시 사본 끊기(+keyTtl 정리)
-    send('cacheGet', { key: 'a' });                        // hit a=1
-    send('cacheDelete', { key: 'c' });                     // c 캐시+소스 제거
-    send('cacheSet', { key: 'session:1', value: 's1' });
-    send('cacheSet', { key: 'session:2', value: 's2' });
-    send('cacheDeletePrefix', { prefix: 'session:' });     // session:* 제거
-    const aVal = c.get('a'), cExist = c.has('c'), xNeg = c.negatives.has('x');
-    const sessGone = !c.has('session:1') && !c.has('session:2');
-    const finalCoherent = c.coherent();
-    const ok = check(allCoherent && finalCoherent && aVal === '1' && cExist === false && xNeg === true && sessGone === true && c.source.get('a') === '1' && !c.source.has('c'),
-      `seed ${seed}: 정합 위반 (coherent ${allCoherent}/${finalCoherent}·a ${aVal}·c ${cExist}·xNeg ${xNeg}·sess ${sessGone}·src.a ${c.source.get('a')})`);
-    console.log(`${pad(seed, 6)} | ${pad(String(allCoherent), 14)} | ${pad(aVal || '-', 3)} | ${pad(String(cExist), 5)} | ${pad(String(xNeg), 5)} | ${pad(String(sessGone), 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const a = run({ seed, ...BASE });
+    const b = run({ seed, ...BASE });
+    const da = worldDigest(a), db = worldDigest(b);
+    const lastLive = a.trace[a.trace.length - 1].liveN;
+    const ok = check(da === db && !!a.gateway && lastLive > 0, `seed ${seed}: 라우팅/결정론 위반 (digest ${da}/${db}·live ${lastLive})`);
+    console.log(`${pad(seed, 6)} | ${pad(da, 11)} | ${pad(da === db ? 'OK' : 'X', 4)} | ${pad(lastLive, 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['cachecohere'] = cachecohere;
-kit.ORDER.splice(1, 0, 'cachecohere');
+kit.MODES['gwsplit'] = gwsplit;
+kit.ORDER.splice(1, 0, 'gwsplit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

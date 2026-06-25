@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0260](step-0260.md) — **캐시 정합 capstone(coherent·4차 고도화 캐시 arc 0252~0260 닫기)**. coherent() 읽기 accessor — 캐시 전 메커니즘(write-through·bulk·negative·SETNX·SETEX·delete·prefix)이 섞여도 구조 불변(store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store) 유지. 무효화가 keyTtl 도 정리. 읽기·미수신→0259 비트 동일.
-- **한 줄 상태**: reg ALL OK·cachecohere: 5/5 14-op 혼합 매단계 coherent·최종 a=1·c제거·x∈neg·session 제거·소스 정합·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **4차 고도화 캐시 arc(0252~0260) 완료** — 캐시 박스를 Redis-like 정합/신뢰성(write-through·bulk·negative·SETNX·SETEX·delete·prefix·stats·정합 capstone)으로 심화·9-step decade 닫기. **검토 게이트 보류(다음 묶음 권위 = `infra-review` 0251~0260)**: #49(wiring >30KB topo-run 35.9·topo-build 31.5·svc-exchange-core 30.7KB — 단일 거대 함수·신중 분할 arc 필요)·#51 잔여(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스. 🔎 0251~0260 묶음 리뷰 적기.
+- **닫힌 step**: [step-0270](step-0270.md) — **정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리**. `Gateway.onMsg`(클라 업스트림 라우팅 + 다운스트림 중계 + 세션 bind/unbind)를 `gateway-msg.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. gateway.js 22.8KB→16.5KB.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·gwsplit: 5/5 클라 move→존 라우팅·worldDigest 재현·live 6·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 정리 arc(0261~0270 완료) — 3대 >30KB 박스 해소(0261~0264) + 선제 정리 7박스(svc-guild·svc-inventory-core·orchestrator·svc-mail-core·svc-mailbox·gateway)**. src/ 전 박스 ≤23KB·여유 충분(최대 svc-mail-saga? 실 최대 ≈cache 21.9·cluster-core 20.2). **게이트 해제 → 다음 묶음(권위=`infra-review` 0261~0270): #51b(실 EntityZone host 이주·load-bearing)·#9 멀티프로세스 배선·진짜 비동기(#4).** 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -19,7 +19,7 @@
 
 > 🎯 **#51 배치 SSOT 실배선 arc(0241~0250)·orch 정리(0251·#52)·캐시 4차 고도화 arc(0252~0260) 완료**. 방향 권위 = `infra-review`(0251~0260 묶음·평결: 캐시 추가 심화보다 아래 ⒜⒝⒞ 우선).
 
-**후속 백로그 (다음 묶음 우선순위)**: ⒜ **정리 #49**(wiring >30KB — topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB·*단일 거대 함수*라 0251 클래스 믹스인 패턴 미적용·신중 분할 arc·다음 너비/멀티프로세스 전 게이트) ⒝ **#51b 실 zone.js 브리지**(orch 추상 running→실 EntityZone host 이주 핸드오프·load-bearing) ⒞ **멀티프로세스 배선(#9)**(0030 이후 박스 host.js 0 — 게임서비스·데이터 계층 전부 인프로세스 전용) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
+**후속 백로그 (다음 묶음 우선순위)**: ⒜ **정리 #49 — 실행 중(0261~)**: 3대 >30KB 박스(topo-run·topo-build·svc-exchange-core) 위임 분할 해소(0261~0264) + 30KB 근접 선제 정리(svc-guild 0265·svc-inventory-core 0266). 잔여 선제 후보: orchestrator 27.5·svc-mail-core 25.3·svc-mailbox 24.7(<30KB·여유). ⒝ **#51b 실 zone.js 브리지**(orch 추상 running→실 EntityZone host 이주 핸드오프·load-bearing·review-gated) ⒞ **멀티프로세스 배선(#9)**(0030 이후 박스 host.js 0 — 게임서비스·데이터 계층 전부 인프로세스 전용) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -76,8 +76,8 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)+placeQuery executed host(0250·읽기 경로·게이트웨이 실 위치 라우팅)** · **#51 executed SSOT arc(0241~0250) 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)+per-key TTL(0256)+explicit delete(0257)+stats 관측(0258)+namespace 무효화(0259)+정합 capstone(0260·coherent)** — **4차 고도화 캐시 arc(0252~0260) 완료** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(placeZone/query·부하 배치·핸드오프·재배치·드레인 0203~0224)→**실배선 #51 executed SSOT arc(0241~0250·런타임 running SSOT·실 migrate/rebalance/drain/stop/auto·host 장애 복구·reconcile/lifecycle capstone drift 0)** 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스). orch 정리 분리(0251)** |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
 
@@ -114,46 +114,10 @@
 | [0171–0180](reviews/review-0171-0180.md) | 우편 saga — 자동 재전송·상한·포기/재admission 발행·영구실패·liveness capstone | 통과(reg 0·spine OK) |
 | [0181–0190](reviews/review-0181-0190.md) | 길드 arc — 분리·가입/탈퇴·발행·영속·압축·배지(GuildFeed)·정합·마스터 이양·capstone | 통과(reg 0·spine OK) |
 | [0191–0200](reviews/review-0191-0200.md) | 길드 금고 arc — deposit/withdraw·발행·영속·압축·배지·정합·원장 단일소유·capstone | 통과(reg 0·spine OK) |
-| [0201](step-0201.md) | 인스턴스(던전) 서버 분리·spawn 기본(InstanceServer·instanceSpawn·active SSOT·너비 1차 시작) | 통과 · active 3/spawns 4 |
-| [0202](step-0202.md) | 인스턴스 despawn(instanceDespawn·수명주기 SSOT 완성·일회성 수명) | 통과 · active 2/retired 1 |
-| [0203](step-0203.md) | 오케스트레이터 존 배치 SSOT(placeZone·zoneId→host·정적 배치 한계 제거 씨앗) | 통과 · placed 2/zone1 hostC |
-| [0204](step-0204.md) | 오케스트레이터 존 배치 질의(placeQuery→placeReply·원격 request/reply·순수 읽기) | 통과 · rx 2/sent 2 |
-| [0205](step-0205.md) | 캐시 박스 분리·set/get 기본(CacheStore·cacheSet·핫 데이터 1홉·DB 직행 대체) | 통과 · size 3/session gw2 |
-| [0206](step-0206.md) | 캐시 read-through(cacheGet·miss→소스 채움·DB 직행 흡수) | 통과 · hits 2/misses 2 |
-| [0207](step-0207.md) | 월드 영속 박스·intent 로그 append(WorldLog·worldAppend·event sourcing·데이터 3분할 ①) | 통과 · 길이 4/seq 단조 |
-| [0208](step-0208.md) | 월드 영속 replay 재구성(replay·crash→로그 무손실·event sourcing 복제=재현) | 통과 · 무손실 0x7de275ff |
-| [0209](step-0209.md) | 로그인 큐 박스·enqueue/dequeue(LoginQueue·대기열 FIFO+티켓 발급·폭주 엣지 흡수) | 통과 · 큐 2/admit 1 |
-| [0210](step-0210.md) | 로그인 티켓 만료 TTL(loginExpire·너비 1차 5박스 완성) | 통과 · p1 만료/p2 생존 |
-| [0211](step-0211.md) | 캐시 TTL 만료(cacheExpire·setAt+ttl≤now 회수·메모리 유계·2차 고도화 캐시 #1) | 통과 · k1 만료/k2 생존·evicted 1 |
-| [0212](step-0212.md) | 캐시 무효화(cacheInvalidate·소스 변경 시 사본 끊기→fresh 재적재·2차 고도화 캐시 #2) | 통과 · invalidated 1·k1=fresh |
-| [0213](step-0213.md) | 월드영속 스냅샷 압축(worldSnapshot·스냅샷+tail==전체 replay·무손실·2차 고도화 월드영속 #1) | 통과 · tail 2<full 5·digest 동일 |
-| [0214](step-0214.md) | 월드영속 정합 capstone(worldCrash/worldRecover·메시지 구동·스냅샷 load-bearing·arc 0207~0214 닫기) | 통과 · recover==full·snap제거 달라짐 |
-| [0215](step-0215.md) | 인스턴스 수요 spawn(instanceDemand·active<target 부족분 자동 채움·탄력 확장·2차 고도화 인스턴스 #1) | 통과 · active 3·demandSpawns 3·멱등 |
-| [0216](step-0216.md) | 인스턴스 플레이어 라우팅(instanceRoute·player→instance 배정 SSOT·재배정 release+acquire·2차 고도화 인스턴스 #2) | 통과 · routed 3/reroute 1/reject 1 |
-| [0217](step-0217.md) | 오케스트레이터 부하 배치(placeAuto·최소 부하 host 선택·부하 분산·결정론 tie-break·2차 고도화 오케 #1) | 통과 · A·B·C·A·부하 2/1/1 |
-| [0218](step-0218.md) | 오케스트레이터 존 재배치 핸드오프(placeMigrate·release+acquire 쌍·권위 단일 소유 보존·2차 고도화 오케 #2) | 통과 · z1 A→C·배치 보존·mig 1/rej 2 |
-| [0219](step-0219.md) | 로그인 큐 수용량 백프레셔(loginCapacity·admitted cap 도달 시 입장 보류·동접 상한·2차 고도화 로그인 #1) | 통과 · admitted 2/queue 1/rejected 1 |
-| [0220](step-0220.md) | 로그인 큐 재접속 세션 재개(loginReconnect·유효 티켓 재개·새 티켓 0·2차 고도화 로그인 #2·균형 라운드 0211~0220 닫기) | 통과 · p1 tkt-1 재개·p2 miss |
-| [0221](step-0221.md) | 인스턴스 플레이어 이탈(instanceLeave·route 해제·occupancy 감소·권위 release·0216 acquire 짝·3차 고도화 인스턴스 #1·균형 라운드 0221~0230 시작) | 통과 · d1 occ 2→1·left 1·miss 1 |
-| [0222](step-0222.md) | 인스턴스 수요 자동 despawn(instanceReap·active>target 빈 인스턴스 회수·점유 보호·0215 수요 spawn 거울·3차 고도화 인스턴스 #2) | 통과 · demand 4→reap target 1→reaped 3·active 1 |
-| [0223](step-0223.md) | 오케 부하 재배치 자동 트리거(placeRebalance·불균형≥2 최대→최소 host 존 자동 이주·균형 수렴·0218 자동판·3차 고도화 오케 #1) | 통과 · A3/0/0→A1/B1/C1·moves 2 |
-| [0224](step-0224.md) | 오케 host 드레인(placeDrain·퇴역 host 모든 존 나머지 최소부하로 이주·release+acquire 연쇄·드레인 후 부하 0·3차 고도화 오케 #2) | 통과 · A2→A0·B2·C2·moves 2 |
-| [0225](step-0225.md) | 캐시 용량 LRU 회수(cacheCapacity·키 수 상한·size>cap 면 setAt 최소 키 회수·개수 유계·0211 시간 유계 짝·allkeys-lru 더미·3차 고도화 캐시 #1) | 통과 · cap 2·k1 회수·size 2·evic 1 |
-| [0226](step-0226.md) | 캐시 recency touch(cacheLruTouch·get hit 시 setAt 갱신→핫 키 생존·진짜 LRU·0225 set-시각만의 보완·3차 고도화 캐시 #2) | 통과 · get k1 후 k2 회수·k1 생존·touches 1 |
-| [0227](step-0227.md) | 월드영속 write-behind 버퍼(worldBuffer/worldFlush·intent 버퍼링→durable 로그 일괄 적층·쓰기 지연 배치·미flush=비-durable crash 윈도·3차 고도화 월드영속 #1) | 통과 · 버퍼 2→flush 로그 2·미flush 1 비-durable |
-| [0228](step-0228.md) | 월드영속 fsync durable barrier(worldFsync/worldRecoverDurable·durableSeq=디스크 확정 프런티어·seq≤durableSeq 만 복구·flush/fsync 구분·3차 고도화 월드영속 #2) | 통과 · durableSeq 3·dur복구 3·full 5 |
-| [0229](step-0229.md) | 로그인 계정 검증(loginAuth·validAccounts 만 enqueue·미인증 거부·줄 이전 차단·0001 검증 큐 실체화·3차 고도화 로그인 #1) | 통과 · p1·p2 enqueue·pX 거부·authRejects 1 |
-| [0230](step-0230.md) | 로그인 큐 이탈(loginAbandon·입장 전 대기열 제거·미줄 멱등 no-op·좀비 슬롯 회수·0219 백프레셔 정확도·3차 고도화 로그인 #2·3차 균형 라운드 0221~0230 닫기) | 통과 · p2 이탈·큐 [p1,p3]·aband 1·miss 1 |
-| [0231](step-0231.md) | instanceleave 모드 spine 승급(#16 — 0221 bespoke→verify-kit 누적 회귀·박스 0줄·OPS 함수내 지역화·정리 라운드 1/10) | 통과(reg 0·spine OK) · 5/5 d1 occ 1 |
-| [0232](step-0232.md) | instancereap 모드 spine 승급(#16 — 0222 수요 자동 despawn·정리 라운드 2/10) | 통과(reg 0·spine OK) · 5/5 active 1·reaped 3 |
-| [0233](step-0233.md) | placerebalance 모드 spine 승급(#16 — 0223 오케 부하 재배치 자동 트리거·정리 라운드 3/10) | 통과(reg 0·spine OK) · 5/5 균형·moves 2 |
-| [0234](step-0234.md) | placedrain 모드 spine 승급(#16 — 0224 오케 host 드레인·정리 라운드 4/10) | 통과(reg 0·spine OK) · 5/5 A 0·moves 2 |
-| [0235](step-0235.md) | cachecapacity 모드 spine 승급(#16 — 0225 캐시 용량 LRU 회수·정리 라운드 5/10) | 통과(reg 0·spine OK) · 5/5 size 2·evic 1 |
-| [0236](step-0236.md) | cachetouch 모드 spine 승급(#16 — 0226 캐시 recency touch 진짜 LRU·정리 라운드 6/10) | 통과(reg 0·spine OK) · 5/5 k1 생존·touches 1 |
-| [0237](step-0237.md) | worldwb 모드 spine 승급(#16 — 0227 월드영속 write-behind 버퍼·정리 라운드 7/10) | 통과(reg 0·spine OK) · 5/5 로그 2·버퍼 1 |
-| [0238](step-0238.md) | worldfsync 모드 spine 승급(#16 — 0228 월드영속 fsync durable barrier·정리 라운드 8/10) | 통과(reg 0·spine OK) · 5/5 durSeq 3·full 5 |
-| [0239](step-0239.md) | loginauth 모드 spine 승급(#16 — 0229 로그인 계정 검증·정리 라운드 9/10) | 통과(reg 0·spine OK) · 5/5 authed 2·rejects 1 |
-| [0240](step-0240.md) | loginabandon 모드 spine 승급(#16 — 0230 큐 이탈·verify.js→kit 이동·순수 셸 정리·#16 승급 라운드 0231~0240 닫기) | 통과(reg 0·spine OK) · 5/5 + 10모드 ALL OK |
+| [0201–0210](step-0201.md) | 너비 1차 5박스: 인스턴스 spawn/despawn·오케 배치 SSOT(placeZone/query)·캐시 set/read-through·월드 intent 로그/replay·로그인 큐/티켓 | 통과(reg 0) |
+| [0211–0220](step-0211.md) | 2차 균형: 캐시 TTL/무효화·월드 스냅샷/crash-recover·인스턴스 수요 spawn/라우팅·오케 부하배치/핸드오프·로그인 백프레셔/재접속 | 통과(reg 0) |
+| [0221–0230](step-0221.md) | 3차 균형: 인스턴스 이탈/자동 despawn·오케 자동 재배치/드레인·캐시 LRU 용량/recency·월드 write-behind/fsync·로그인 계정검증/큐이탈 | 통과(reg 0) |
+| [0231–0240](step-0231.md) | #16 승급 라운드: 3차 균형 10모드(instanceleave~loginabandon)를 verify-kit 누적 회귀로 승격·verify.js 순수 셸 정리 | 통과(reg 0·spine OK) |
 | [0241](step-0241.md) | 배치 SSOT 실배선 #51-1: 존 런타임 레지스트리(running·executed SSOT·placeExecute→placeZone start·advisory paper→executed lifecycle 첫 조각) | 통과(reg 0·spine OK) · 5/5 running 2·starts 2·결정==집행 |
 | [0242](step-0242.md) | 배치 SSOT 실배선 #51-2: executed placeMigrate(_migrate·실 존 런타임 release+acquire 이주·running 원자 교체·0218 paper 의 집행 판) | 통과(reg 0·spine OK) · 5/5 z1 hostA→hostC 실 이주·단일 소유 |
 | [0243](step-0243.md) | 배치 SSOT 실배선 #51-3: executed placeRebalance(_rebalance 가 매 move 마다 _migrate·실 존 런타임 균형 수렴·0223 자동 트리거의 집행 판) | 통과(reg 0·spine OK) · 5/5 3/0/0→running 1/1/1·rtMig 2 |
@@ -174,3 +138,13 @@
 | [0258](step-0258.md) | 캐시 stats 관측(cacheStats·INFO·hits/misses/hitRate/size 회신·hitRate()·stats() accessor·운영 폴링·4차 고도화 캐시 #7) | 통과(reg 0·spine OK) · 5/5 hits2·miss1·hitRate0.667 |
 | [0259](step-0259.md) | 캐시 namespace 무효화(cacheDeletePrefix·SCAN+DEL·prefix 매칭 키 일괄 제거·세션/길드 단위 무효화·단일 delete 패턴판·4차 고도화 캐시 #8) | 통과(reg 0·spine OK) · 5/5 session:* 2제거·item 생존 |
 | [0260](step-0260.md) | 캐시 정합 capstone(coherent·store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store·무효화 keyTtl 정리·캐시 arc 0252~0260 닫기) | 통과(reg 0·spine OK) · 5/5 14-op 혼합 매단계 coherent |
+| [0261](step-0261.md) | 정리(#49 wiring): topo-run 제어 평면 주입열 분리(topo-inject.js·applyInjections·rankDie~loginOps·inject verbatim·투명 분할·35.9→22.7KB) | 통과(reg 0·spine OK) · 5/5 injsplit active 2·cache k1/k2 |
+| [0262](step-0262.md) | 정리(#49 wiring): topo-run crash/failover 복구 주입 분리(topo-failover.js·applyFailover·persistRestart~busRestart verbatim·투명 분할·22.7→13.1KB·#49 topo-run 해소) | 통과(reg 0·spine OK) · 5/5 fosplit 복구 투명 ledger 일치 |
+| [0263](step-0263.md) | 정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리(topo-boxes.js·addServiceBoxes·gateway~loginqueue verbatim·ctx 150이름·투명 분할·31.5→14.7KB·#49 topo-build 해소) | 통과(reg 0·spine OK) · 5/5 boxsplit 13/13 박스 spec |
+| [0264](step-0264.md) | 정리(#49 wiring): svc-exchange-core 영속/failover 메서드 믹스인 분리(svc-exchange-persist.js·_journal/crash/reconstruct·Object.assign prototype·투명 분할·30.7→26.6KB·#49 마지막 >30KB 박스 해소) | 통과(reg 0·spine OK) · 5/5 xchsplit crash→reconstruct 복원 |
+| [0265](step-0265.md) | 정리(#49 인접·선제): svc-guild 트랜잭션 핸들러 믹스인 분리(svc-guild-txn.js·onMsg create~query·Object.assign prototype·투명 분할·29.5→24.4KB) | 통과(reg 0·spine OK) · 5/5 gldsplit 로스터+금고 정합 |
+| [0266](step-0266.md) | 정리(#49 인접·선제): svc-inventory-core 생성자 필드 초기화 믹스인 분리(svc-inventory-init.js·_init ~120필드·Object.assign prototype·투명 분할·28.5→5.7KB) | 통과(reg 0·spine OK) · 5/5 invsplit 필드 정확·crash 정합 |
+| [0267](step-0267.md) | 정리(#49 인접·선제): orchestrator 제어 평면 핸들러 믹스인 분리(orch-control.js·onMsg/onTick·Object.assign prototype·0251 placement 의 짝·투명 분할·27.5→18.9KB) | 통과(reg 0·spine OK) · 5/5 orchctlsplit placeZone SSOT |
+| [0268](step-0268.md) | 정리(#49 인접·선제): svc-mail-core saga 헬퍼 믹스인 분리(svc-mail-saga.js·_custody/_resendPending/_readmit·Object.assign prototype·투명 분할·25.3→19.9KB) | 통과(reg 0·spine OK) · 5/5 mailsplit saga 헬퍼 정합 |
+| [0269](step-0269.md) | 정리(#49 인접·선제): svc-mailbox dedup 헬퍼 믹스인 분리(svc-mailbox-dedup.js·_pruneEpoch/_seenHas/_seenAdd/seenSize/_ack·Object.assign prototype·투명 분할·24.7→22.8KB) | 통과(reg 0·spine OK) · 5/5 mboxsplit 멱등 dedup |
+| [0270](step-0270.md) | 정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리(gateway-msg.js·onMsg 업/다운스트림 라우팅·Object.assign prototype·투명 분할·22.8→16.5KB·#49 정리 arc 0261~0270 닫기) | 통과(reg 0·spine OK) · 5/5 gwsplit worldDigest 재현·live 6 |
