@@ -16,15 +16,6 @@ const OrchZoneBridge = {
     this.zoneStarts++;
     return true;
   },
-  // 브리지 migrate(step-0273) — 배치 재결정 집행 시 *같은 EntityZone 인스턴스*의 host 를 release(기존)+acquire(toHost) 쌍으로 원자 교체한다(존 런타임 핸들 이주 = 상태 보존·재생성 아님·zoneRuntimes 단일 키 = 한 존 정확히 한 host). 미가동·같은 host 는 멱등 no-op. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_migrate 가드).
-  _bridgeMigrate(zoneId, toHost) {
-    const rt = this.zoneRuntimes.get(zoneId);
-    if (!rt) return false;             // 미가동 — 집행 대상 없음(멱등).
-    if (rt.host === toHost) return false;
-    rt.host = toHost;                  // 같은 EntityZone 핸들(상태·entity 보존)의 host 만 원자 교체 — 새 인스턴스 만들지 않음.
-    this.zoneMigrations++;
-    return true;
-  },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).
   zoneRuntimeOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone : null; },
   zoneRuntimeHostOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.host : null; },

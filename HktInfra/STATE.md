@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0272](step-0272.md) — **#51b 실 zone.js 브리지 1: orch 존 런타임 레지스트리**. zoneBridge ON 이면 orch 배치 집행(_start)이 실 EntityZone 인스턴스를 host 에 띄움(zoneRuntimes·orch-zonebridge.js). 0241~0250 running 문자열 추상을 실 zone.js 런타임에 연결. 팩토리는 makeActor 주입(멀티프로세스-safe). OFF→0271 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonebridge: 5/5 z1→hostA·z2→hostB·runtimeCount 2·zoneStarts 2·실 EntityZone 핸들·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51b arc 진행(0273~)** — 0273=`_migrate` 실 런타임 host 이주(zoneRuntimes 핸들 release+acquire·단일 소유 보존)·0274=`_stop` 실 런타임 종료·이후 존 entity 상태 전송(host 이주 시 무손실). 🔎 0261~0270 묶음 리뷰 적기.
+- **닫힌 step**: [step-0273](step-0273.md) — **#51b 실 zone.js 브리지 2: _migrate 실 런타임 host 이주**. zoneBridge ON 이면 _migrate 가 같은 EntityZone 핸들의 host 를 release+acquire 원자 교체(재생성 아님·상태 보존·orch-zonebridge `_bridgeMigrate`·zoneMigrations 계측). OFF→0272 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonemigrate: 5/5 z1 A→C→A 두 번 이주에도 zoneStarts 2 불변(재사용)·zoneMigrations 2·최종 host 정확·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51b arc 진행(0274~)** — 0274=`_stop` 실 런타임 종료(zoneRuntimes 제거)·0275=bridged 존에 entity 주입 후 이주 시 entity 무손실 직접 증명·이후 host 장애 복구(_hostDown) 실 런타임 판. 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -150,3 +150,4 @@
 | [0270](step-0270.md) | 정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리(gateway-msg.js·onMsg 업/다운스트림 라우팅·Object.assign prototype·투명 분할·22.8→16.5KB·#49 정리 arc 0261~0270 닫기) | 통과(reg 0·spine OK) · 5/5 gwsplit worldDigest 재현·live 6 |
 | [0271](step-0271.md) | 도구 갭 #43: close-step src/ 박스 >30KB 가드(engine/close-step.js·매 close src 스캔·비실패 경고·#49 재발 방비·net-core 무변경) | 통과(reg 0 자명·spine OK) · 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개) |
 | [0272](step-0272.md) | #51b 실 zone.js 브리지 1: orch 존 런타임 레지스트리(orch-zonebridge.js·_bridgeStart·placeZone 집행이 실 EntityZone 인스턴스 host 바인딩·running 추상↔실 런타임 연결·팩토리 makeActor 주입·zoneBridge OFF→0271 동일) | 통과(reg 0·spine OK) · 5/5 z1→hostA·z2→hostB·rtCount 2·zoneStarts 2·실EZ |
+| [0273](step-0273.md) | #51b 실 zone.js 브리지 2: _migrate 실 런타임 host 이주(_bridgeMigrate·같은 EntityZone 핸들 host release+acquire 원자 교체·재생성 아님·상태 보존·zoneMigrations 계측·OFF→0272 동일) | 통과(reg 0·spine OK) · 5/5 z1 A→C→A·zoneStarts 2 불변·zoneMigrations 2 |

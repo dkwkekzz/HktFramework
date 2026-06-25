@@ -10,6 +10,7 @@
 const OrchPlacement = {
   // 존 런타임 start(step-0241·#51) — 배치 결정을 *집행*: 실 존 런타임을 host 에 띄운다(running 등록). 이미 도는 존이면 멱등(같은/다른 host 재배치는 0242 migrate 가 담당·여기선 신규 가동만 카운트). placeExecute ON 일 때만 placeZone 이 호출. instance.js _spawn 의 존-배치 판.
   _start(zoneId, host) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeStart(zoneId, host);   // step-0272 (#51b) — 실 EntityZone 런타임도 함께 띄움(OFF/팩토리부재면 가드 통과·0271 비트 동일).
     if (this.running.has(zoneId)) { this.running.set(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등·신규 start 아님).
     this.running.set(zoneId, host); this.starts++; return true;
   },

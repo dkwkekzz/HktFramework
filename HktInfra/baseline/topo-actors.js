@@ -5,7 +5,7 @@
 // dual-mode: Node require / 브라우저는 common.js·박스 파일을 <script> 선행 로드(전역 __HktNetCommon·__HktNetParts).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
-const { LoginServer, SessionRegistry } = __c;
+const { LoginServer, SessionRegistry, fnv1a } = __c;
 const __p = n => (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./' + n + '.js') : globalThis.__HktNetParts[n.replace(/-/g, '_')];
 const { Gateway } = __p('gateway');
@@ -59,7 +59,13 @@ function makeActor(spec, net) {
     case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); break;
     case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
     case 'instance': a = new InstanceServer(spec.opts); break;   // step-0201 — 인스턴스 서버.
-    case 'orch': a = new Orchestrator(spec.opts); break;
+    case 'orch':
+      // step-0272 (#51b) — zoneBridge ON 이면 orch 에 *실 EntityZone 런타임 팩토리*를 주입(배치 결정이 실 존 인스턴스를 띄우게).
+      //   팩토리는 직렬화 불가(함수)이므로 spec 이 아니라 *액터 구성 시점*에 makeActor 가 붙인다(인프로세스·각 호스트 프로세스가 자기 makeActor 로 동일 구성 = 멀티프로세스-safe). 시드는 zoneId 해시(결정론). OFF 면 spec.opts 그대로 = 0271 비트 동일.
+      a = new Orchestrator(spec.opts.zoneBridge
+        ? Object.assign({}, spec.opts, { zoneFactory: (zid) => new EntityZone(fnv1a(String(zid)) >>> 0, { grid: spec.opts.zoneRtGrid, radius: spec.opts.zoneRtRadius }) })
+        : spec.opts);
+      break;
     case 'inventory': a = new InventoryService(spec.opts); break;
     case 'chat': a = new ChatService(spec.opts); break;
     case 'bus': a = new ServiceBus(spec.opts); break;

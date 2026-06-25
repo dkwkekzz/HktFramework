@@ -16,6 +16,7 @@ const OrchPlacement = {
   },
   // 존 런타임 migrate(step-0242·#51) — 배치 재결정을 *집행*: 도는 존 런타임을 toHost 로 release(기존)+acquire(toHost) 쌍 이주(running 단일 키 원자 교체 = 중간 공백/중복 0·instance.js _route 의 존 판). 안 도는 존이면 멱등 no-op(decision 만 있고 미가동 — placeExecute 경로상 미발생). placeExecute ON·placeMigrate 일 때만 호출.
   _migrate(zoneId, toHost) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeMigrate(zoneId, toHost);   // step-0273 (#51b) — 실 EntityZone 핸들도 host 이주(상태 보존·OFF 면 가드 통과·0272 비트 동일).
     if (!this.running.has(zoneId)) return false;     // 미가동 — 집행 대상 없음(멱등).
     if (this.running.get(zoneId) === toHost) return false;
     this.running.set(zoneId, toHost); this.runtimeMigrations++; return true;   // release(from)+acquire(toHost) 원자 교체.
