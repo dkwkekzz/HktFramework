@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0277](step-0277.md) — **#51b 실 zone.js 브리지 6: _rebalance 실 핸들 균형**. `zoneRuntimeHosts()` 질의 + _rebalance 가 매 move _migrate→_bridgeMigrate(transitive)로 실 EntityZone 핸들을 고르게 분산함을 단언. OFF→0276 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonerebalance: 5/5 3존 A 몰림→runtimeOn 1/1/1·zoneRuntimeHosts 3·drift 0·zoneStarts 3 불변·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51b arc 진행(0278~)** — 0278=_drain 실 핸들 비움(드레인 host runtimeOn 0)·0279=placeQuery 실 런타임 host 회신(읽기 경로·0250 의 브리지 판)·0280=브리지 정합 capstone(혼합 lifecycle·drift 0·runtimeCount==runningCount==placedCount·arc 닫기). 🔎 0261~0270 묶음 리뷰 적기.
+- **닫힌 step**: [step-0278](step-0278.md) — **#51b 실 zone.js 브리지 7: _drain 실 핸들 비움**. `bridgeCoherent()` 정합 primitive(drift 0+수 일치) + _drain 매 move _migrate→_bridgeMigrate(graceful 이주)로 드레인 host 실 런타임 비움. drain(상태 보존·zoneStarts 불변) vs hostdown(소실·zoneRescued) 구분. OFF→0277 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonedrain: 5/5 hostA 드레인→runtimeOn(A) 0·rtCount 3·bridgeCoherent Y·zoneStarts 3 불변·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51b arc 마무리(0279~0280)** — 0279=placeQuery 실 런타임 host 회신(읽기 경로·0250 의 브리지 판)·0280=브리지 정합 capstone(혼합 lifecycle·bridgeCoherent·runtimeCount==runningCount==placedCount·#51b arc 닫기). 🔎 0271~0280 묶음 리뷰 적기.
 
 ---
 
@@ -155,3 +155,4 @@
 | [0275](step-0275.md) | #51b 실 zone.js 브리지 4: _hostDown 실 런타임 재가동(_bridgeHostDown·죽은 host 의 실 EntityZone 생존 host 새 인스턴스 재가동·비자발·상태 보존 불가·migrate 와 구분·zoneRescued·runtimeOn 질의·OFF→0274 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→runtimeOn(A) 0·rescued 2·rtCount 3 |
 | [0276](step-0276.md) | #51b 실 zone.js 브리지 5: zoneRuntimeDrift 정합 질의(running 문자열 SSOT↔zoneRuntimes 실 핸들 host 표류 수·전 op 뒤 0·placementDrift 의 실물 판·읽기 전용·OFF→0275 동일) | 통과(reg 0·spine OK) · 5/5 혼합 lifecycle 후 drift 0·rtCount 2==runCount |
 | [0277](step-0277.md) | #51b 실 zone.js 브리지 6: _rebalance 실 핸들 균형(zoneRuntimeHosts 질의·rebalance 매 move _migrate→_bridgeMigrate transitive 실 핸들 분산·OFF→0276 동일) | 통과(reg 0·spine OK) · 5/5 3존 A 몰림→runtimeOn 1/1/1·hosts 3·drift 0·starts 3 |
+| [0278](step-0278.md) | #51b 실 zone.js 브리지 7: _drain 실 핸들 비움(bridgeCoherent primitive·drift0+수일치·drain 매 move graceful 이주·drain↔hostdown 구분·OFF→0277 동일) | 통과(reg 0·spine OK) · 5/5 hostA 드레인→runtimeOn(A) 0·rtCount 3·coherent·starts 3 |
