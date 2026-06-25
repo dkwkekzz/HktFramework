@@ -31,18 +31,29 @@
   // --- 절차적 장 고도화(노이즈) — 백색 잡음 hashIndex 를 *공간 상관* 있는 매끄러운 장으로 (0073 → 0074·가법) ---
 
   // 정수 격자점의 결정론 난수값 [0,1) — 노이즈의 씨앗(같은 (i,j)→같은 값·경로 무관).
-  function latticeVal(i, j) { return fnv1a(i + ',' + j) / 4294967296; }
+  //   salt: 독립 노이즈 채널용 접두(기본 ''→fnv1a(i+','+j) 와 동일·하위호환). 다른 salt = *완전 독립* 장(다축 바이옴).
+  function latticeVal(i, j, salt) {
+    let h = fnv1a(i + ',' + j);
+    if (salt) {                                                       // 채널 분리 — 좌표해시 ⊕ salt해시 후 강한 avalanche(FNV 접두 믹싱은 약해 상관 잔존)
+      h = (h ^ fnv1a('' + salt)) >>> 0;
+      h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+      h = Math.imul(h ^ (h >>> 16), 0x45d9f3b) >>> 0;
+      h = (h ^ (h >>> 16)) >>> 0;
+    }
+    return h / 4294967296;                                            // salt 없음/'' → fnv1a(i+','+j)/2^32 (기존과 동일·하위호환)
+  }
   // Ken Perlin smootherstep — C² 연속 보간 가중(격자 이음매에서 기울기까지 매끄럽게).
   function smoother(t) { return t * t * t * (t * (t * 6 - 15) + 10); }
   function lerp(a, b, t) { return a + (b - a) * t; }
 
   // 값 노이즈 — 정수 격자에 난수 배치 + smootherstep bilinear 보간 → 공간 상관 있는 매끄러운 장 [0,1).
   //   백색 잡음과 달리 *인접 (x,y) 가 닮음* → 봉우리·계곡이 뭉쳐 발현(코히어런트 지형). 순수·경로 무관.
-  function valueNoise2D(x, y) {
+  //   salt(기본 ''): 독립 채널 — 다른 salt 는 다른 lattice 난수 → *무상관* 장(같은 좌표여도 독립). salt='' → 기존과 동일.
+  function valueNoise2D(x, y, salt) {
     const xi = Math.floor(x), yi = Math.floor(y), xf = x - xi, yf = y - yi;
     const u = smoother(xf), v = smoother(yf);
-    const top = lerp(latticeVal(xi, yi), latticeVal(xi + 1, yi), u);
-    const bot = lerp(latticeVal(xi, yi + 1), latticeVal(xi + 1, yi + 1), u);
+    const top = lerp(latticeVal(xi, yi, salt), latticeVal(xi + 1, yi, salt), u);
+    const bot = lerp(latticeVal(xi, yi + 1, salt), latticeVal(xi + 1, yi + 1, salt), u);
     return lerp(top, bot, v);                                          // ∈ [0,1)
   }
 
@@ -54,7 +65,8 @@
     const lac = opts.lacunarity != null ? opts.lacunarity : 2;
     const gain = opts.gain != null ? opts.gain : 0.5;
     let freq = opts.frequency != null ? opts.frequency : 1, amp = 1, sum = 0, norm = 0;
-    for (let o = 0; o < oct; o++) { sum += amp * valueNoise2D(x * freq, y * freq); norm += amp; amp *= gain; freq *= lac; }
+    const salt = opts.salt;                                            // 독립 채널(기본 undefined→''·하위호환)
+    for (let o = 0; o < oct; o++) { sum += amp * valueNoise2D(x * freq, y * freq, salt); norm += amp; amp *= gain; freq *= lac; }
     return norm > 0 ? sum / norm : 0;                                  // ∈ [0,1)
   }
 
@@ -68,6 +80,30 @@
       let idx = Math.floor(fbm(i * scale, j * scale, opts) * K);
       if (idx >= K) idx = K - 1; else if (idx < 0) idx = 0;
       return palette[idx];
+    };
+  }
+
+  // --- 절차적 장 다축화(바이옴) — 단일 노이즈(0074)를 *독립 다축*(온도·습도) 장으로 (0074 → 0090·가법) ---
+
+  // 다축 바이옴 장 — 두 개의 *독립* fBm 축(온도·습도)을 *제너릭* 2D 분류로 묶는다(바이옴=두 스칼라의 2D 칸).
+  //   0074 fieldNoise 는 *단일* 노이즈축(높이)만 봤다 — 실세계 바이옴은 ≥2 독립 축(온도·습도)의 *교차*다(춥고 습함=
+  //   툰드라·덥고 건조=사막…). 핵심: 두 축이 *서로 무상관*이어야 진짜 2D(같은 노이즈를 두 번 쓰면 1D 대각선뿐).
+  //   두 fBm 을 *다른 salt*(독립 lattice 채널)로 뽑아 *무상관*시킨다 — 좌표 오프셋 방식(같은 노이즈의 다른 패치)은
+  //   윈도우마다 spurious 상관이 들쭉날쭉이라 salt 가 근본 해결. 바이옴은 (temp,humidity)→정수 칸의 *제너릭 양자화*
+  //   (타입 하드코딩 0·biome=칸 인덱스일 뿐) — "사막/툰드라" 이름은 호출자(렌더)의 몫.
+  //   opts: { scale(0.08), nTemp(3), nHum(3), tempSalt('T'), humSalt('H'), …fbm }
+  //   반환: (i,j) -> { temp∈[0,1), humidity∈[0,1), biome∈[0,nTemp*nHum) }. 순수·경로 무관·결정론.
+  function biomeField(opts) {
+    opts = opts || {};
+    const scale = opts.scale != null ? opts.scale : 0.08;
+    const nT = opts.nTemp != null ? opts.nTemp : 3, nH = opts.nHum != null ? opts.nHum : 3;
+    const tSalt = opts.tempSalt != null ? opts.tempSalt : 'T', hSalt = opts.humSalt != null ? opts.humSalt : 'H';
+    const tOpts = Object.assign({}, opts, { salt: tSalt }), hOpts = Object.assign({}, opts, { salt: hSalt });
+    const q = (v, n) => { let k = Math.floor(v * n); return k < 0 ? 0 : (k >= n ? n - 1 : k); };
+    return function (i, j) {
+      const temp = fbm(i * scale, j * scale, tOpts);
+      const humidity = fbm(i * scale, j * scale, hOpts);
+      return { temp, humidity, biome: q(temp, nT) * nH + q(humidity, nH) };
     };
   }
 
@@ -96,5 +132,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, streamChunks, VERSION: 2 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 3 };
 });
