@@ -86,6 +86,10 @@ class Orchestrator {
     this.zoneHostHandle = opts.zoneHostHandle || false;
     this.zoneFramesDelivered = 0;   // 전송 seam 으로 흘린 entity frame 누적 수(step-0291·계측·enter+move+leave 합과 대조).
     this.zoneFrameBytes = 0;        // 전송 seam frame 의 직렬화 바이트 누적(step-0291·소켓 대역의 씨앗·>0 이면 실제 와이어를 탔다는 증거).
+    // 존 host mailbox(step-0292·#9) — 0291 seam 은 frame 을 *즉시* 적용(동기). zoneHostMailbox ON 이면 deliver=핸들 mbox 큐 enqueue, 적용은 _tickRuntimes 가 onTick 전 일괄 drain — 실 소켓 수신 버퍼 + host.js per-tick deliver 배치(0048)의 씨앗(비동기 수신→tick 경계 일괄 처리). OFF→0291 즉시 적용 동일.
+    this.zoneHostMailbox = opts.zoneHostMailbox || false;
+    this.zoneFrameQueueMax = 0;     // mbox 최대 큐 깊이(step-0292·계측·≥1 이면 실제로 큐를 거쳤다는 증거·수신 버퍼 압력 관측).
+    this.zoneFramesDrained = 0;     // mbox 에서 drain 해 적용한 frame 누적(step-0292·== zoneFramesDelivered 이면 큐 잔류 0·무손실).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

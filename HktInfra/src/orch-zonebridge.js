@@ -1,4 +1,5 @@
 'use strict';
+// step-0292 — #9 멀티프로세스 배선 2: 존 host mailbox(_zoneDeliver enqueue + _tickRuntimes drain). zoneHostMailbox ON 시 frame 을 즉시 적용 대신 핸들 mbox 큐에 쌓고 onTick 전 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 즉시 적용 동일.
 // step-0291 — #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver). 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어의 씨앗)로 round-trip 시켜 적용. OFF→0290 비트 동일.
 // step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
 // step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
@@ -23,7 +24,7 @@ const OrchZoneBridge = {
     const rt = this.zoneRuntimes.get(zoneId);
     if (rt) { rt.host = host; return false; }   // 이미 가동 — host 만 정렬(멱등).
     const zone = this.zoneFactory(zoneId);      // 실 EntityZone 인스턴스화(결정론 시드=zoneId 해시·makeActor 주입 팩토리).
-    this.zoneRuntimes.set(zoneId, { zone, host });
+    this.zoneRuntimes.set(zoneId, { zone, host, mbox: [] });   // mbox: 존 host 수신 버퍼(step-0292·mailbox OFF 면 미사용).
     this.zoneStarts++;
     return true;
   },
@@ -84,7 +85,13 @@ const OrchZoneBridge = {
     if (this.zoneHostHandle) {
       const wire = JSON.stringify(frame);          // 직렬화 경계 — 실 소켓이면 이 바이트가 와이어로 간다.
       this.zoneFramesDelivered++; this.zoneFrameBytes += wire.length;
-      rt.zone.onMsg(JSON.parse(wire));             // 역직렬화 후 적용(원격이면 host 프로세스가 수행).
+      const f = JSON.parse(wire);                  // 역직렬화(원격이면 host 프로세스가 수행).
+      if (this.zoneHostMailbox) {                  // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
+        (rt.mbox || (rt.mbox = [])).push(f);
+        if (rt.mbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = rt.mbox.length;
+      } else {
+        rt.zone.onMsg(f);                          // 0291 경로 — seam 통과 후 즉시 적용.
+      }
     } else {
       rt.zone.onMsg(frame);                        // 0290 경로 — 인프로세스 직접 호출.
     }
@@ -107,7 +114,16 @@ const OrchZoneBridge = {
     return had;
   },
   // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
-  _tickRuntimes(tick) { for (const rt of this.zoneRuntimes.values()) rt.zone.onTick(tick); },
+  _tickRuntimes(tick) {
+    for (const rt of this.zoneRuntimes.values()) {
+      // step-0292 (#9) — mailbox ON 이면 onTick 전 수신 버퍼를 일괄 drain(tick 경계 배치 처리·host.js deliver cmd 동형). FIFO 순 적용 → enter→move 순서 보존. drain 후 onTick 이 pending move 를 위치에 적용.
+      if (this.zoneHostMailbox && rt.mbox && rt.mbox.length) {
+        for (const f of rt.mbox) rt.zone.onMsg(f);
+        this.zoneFramesDrained += rt.mbox.length; rt.mbox = [];
+      }
+      rt.zone.onTick(tick);
+    }
+  },
   // 브리지 존 entity 위치 질의(step-0282·#56) — 실 EntityZone 핸들의 그 avatar 위치({x,y})·없으면 null. move 적용·migrate 위치 보존 검증.
   zoneEntityPos(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); const e = rt && rt.zone.ents.get(avatar); return e ? { x: e.x, y: e.y } : null; },
   // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.

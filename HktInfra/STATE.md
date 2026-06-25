@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0291](step-0291.md) — **#9 멀티프로세스 배선 1: 존 런타임 전송 seam**. `_zoneDeliver` 가 브리지 enter/move/leave frame 을 `zoneHostHandle` ON 시 JSON 직렬화 경계(소켓 와이어 씨앗)로 round-trip → 데이터 평면이 직렬화 가능한 메시지 경계를 통과(원격 host.js 분리 전제). OFF→0290 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehandle: 5/5 seam round-trip 후 flow·consv·total1·frames7(==E5+M1+L1)·bytes546(>0 와이어 증거)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291 전송 seam(직렬화 경계)·다음 0292 zone host mailbox(프레임 큐·소켓 수신 버퍼 씨앗)·이후 게이트웨이 존 디렉토리→직접 라우팅→이주/장애 정합→capstone. 🔎 **0281~0290 묶음 리뷰 적기**.
+- **닫힌 step**: [step-0292](step-0292.md) — **#9 멀티프로세스 배선 2: 존 host mailbox**. `_zoneDeliver` 가 `zoneHostMailbox` ON 시 frame 을 즉시 적용 대신 핸들 mbox 큐에 enqueue, `_tickRuntimes` 가 onTick 전 FIFO 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonembox: 5/5 비동기 큐 경유 후 flow·consv·total1·deliv7==drain7(잔류0)·queueMax1·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291 전송 seam·0292 host mailbox 완료. 다음 0293 게이트웨이 존 디렉토리(orch→게이트웨이 zone→host 위치 공표·서비스 디스커버리 씨앗)·이후 직접 enter/move/leave 라우팅→이주/장애 정합→단일소유·정합→capstone. 🔎 **0281~0290 묶음 리뷰 적기**.
 
 ---
 
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 ✅(0281~0290·enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone)**. **#9 멀티프로세스 배선 🟡(0291~·전송 seam _zoneDeliver: frame JSON 직렬화 경계 round-trip·소켓 와이어 씨앗)**. orch 정리(0251·0267). 도구 #43(0271)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 ✅(0281~0290·enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone)**. **#9 멀티프로세스 배선 🟡(0291~·전송 seam _zoneDeliver: frame JSON 직렬화 경계 round-trip·소켓 와이어 씨앗 + host mailbox 수신 버퍼/onTick drain 0292)**. orch 정리(0251·0267). 도구 #43(0271)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -127,3 +127,4 @@
 | [0271–0280](reviews/review-0271-0280.md) | 도구 #43(close-step >30KB 가드)→#51b 실 zone.js 브리지 arc(placement 집행이 실 EntityZone 런타임 lifecycle 구동·start/migrate/stop/hostdown/rebalance/drain·정합 capstone fullyCoherent) | 통과(reg 0·spine OK) |
 | [0281–0290](reviews/review-0281-0290.md) | #56 브리지 존 데이터 평면 arc(enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone entityFlowCoherent·entityConserved) | 통과(reg 0·spine OK) |
 | [0291](step-0291.md) | #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver·브리지 enter/move/leave frame 을 zoneHostHandle ON 시 JSON 직렬화 경계 round-trip·소켓 와이어 씨앗·zoneFramesDelivered/zoneFrameBytes 계측·OFF→0290 동일) | 통과(reg 0·spine OK) · 5/5 seam 후 flow·consv·total1·frames7(==E5+M1+L1)·bytes546 |
+| [0292](step-0292.md) | #9 멀티프로세스 배선 2: 존 host mailbox(zoneHostMailbox·_zoneDeliver enqueue→_tickRuntimes onTick 전 FIFO drain·소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗·zoneFrameQueueMax/zoneFramesDrained 계측·OFF→0291 동일) | 통과(reg 0·spine OK) · 5/5 큐 경유 후 flow·consv·total1·deliv7==drain7(잔류0)·queueMax1 |

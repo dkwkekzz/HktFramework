@@ -82,6 +82,10 @@ class Orchestrator {
     this.zoneLeaves = 0;            // 실 EntityZone 핸들에서 제거한 leave 누적 수(step-0283·계측·실존 avatar 만).
     this.zoneEntitiesLost = 0;      // host 장애로 죽은 인스턴스에서 소실한 entity 누적 수(step-0285·정직한 한계·migrate 무손실과 대조·복구는 영속 후속).
     this.zoneEntitiesDiscarded = 0; // 존 운영 퇴역(stop)으로 폐기한 entity 누적 수(step-0286·계획적·hostdown 비자발 소실과 구분).
+    // 존 런타임 전송 seam(step-0291·#9 멀티프로세스 배선) — 0281~0290 의 브리지는 entity frame 을 실 EntityZone 핸들에 *직접 method 호출*(rt.zone.onMsg)로 흘렸다(인프로세스 결합). zoneHostHandle ON 이면 그 호출을 _zoneDeliver 전송 seam 으로 감싼다: frame 을 JSON 직렬화 경계(소켓 와이어의 씨앗·host.js deliver cmd 동형)로 round-trip 시킨 뒤 적용 → 데이터 평면이 *직렬화 가능한 메시지 경계*를 통과(원격 host.js 프로세스로 분리할 전제). OFF 면 직접 호출 = 0290 비트 동일.
+    this.zoneHostHandle = opts.zoneHostHandle || false;
+    this.zoneFramesDelivered = 0;   // 전송 seam 으로 흘린 entity frame 누적 수(step-0291·계측·enter+move+leave 합과 대조).
+    this.zoneFrameBytes = 0;        // 전송 seam frame 의 직렬화 바이트 누적(step-0291·소켓 대역의 씨앗·>0 이면 실제 와이어를 탔다는 증거).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
