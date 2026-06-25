@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0287](step-0287.md) — **#56 브리지 존 데이터 평면 7: entity 단일 소유**. `entityOwnerZone`/`entityOwnerCount`/`entitiesSingleOwner` 질의 — 어떤 avatar 도 두 존 동시 거주 금지(권위 단일 소유의 데이터 평면 판·entity 차원).
-- **한 줄 상태**: reg ALL OK·zoneowner: 5/5 분산 enter+migrate 후 single·a1∈z1·a3cnt1·total4·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter~stop✅·단일소유✅. 다음 조각: 0288 entity 정합(running 존에만 거주·orphan 0)·0289 graceful(rebalance/drain) census 보존·0290 capstone. 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
+- **닫힌 step**: [step-0288](step-0288.md) — **#56 브리지 존 데이터 평면 8: entity 정합(orphan 0)**. `entityCoherent()` — 단일 소유 + entity 보유 런타임은 모두 executed running(running 밖 orphan 런타임 0). entity 데이터 평면이 executed 배치 SSOT 와 정합.
+- **한 줄 상태**: reg ALL OK·zoneentcoherent: 5/5 혼합(enter/migrate/stop) 후 coherent·a3 orphan 0·rtCnt2·total3·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter~stop✅·단일소유✅·정합✅. 다음 조각: 0289 graceful(rebalance/drain) census 보존·0290 전 데이터 평면 capstone(arc 닫기). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
 
 ---
 
@@ -159,3 +159,4 @@
 | [0285](step-0285.md) | #56 브리지 존 데이터 평면 5: hostdown 소실 정직한 한계(_bridgeHostDown 이 새 인스턴스 교체 전 zoneEntitiesLost 계측·migrate 무손실과 대조·복구는 영속 후속·OFF→0284 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→z1cnt0·z2cnt2·lost3·rescued1·total2 |
 | [0286](step-0286.md) | #56 브리지 존 데이터 평면 6: stop 폐기(_bridgeStop 이 런타임 제거 전 zoneEntitiesDiscarded 계측·계획적 퇴역·hostdown 비자발과 구분·OFF→0285 동일) | 통과(reg 0·spine OK) · 5/5 z1 stop→z1cnt0·z2cnt3·discarded2·stops1·rtCnt1·total3 |
 | [0287](step-0287.md) | #56 브리지 존 데이터 평면 7: entity 단일 소유(entityOwnerZone/entityOwnerCount/entitiesSingleOwner·어떤 avatar 도 두 존 동시 거주 금지·권위 단일 소유 데이터 평면 판·OFF→0286 동일) | 통과(reg 0·spine OK) · 5/5 분산 enter+migrate→single·a1∈z1·a3cnt1·total4 |
+| [0288](step-0288.md) | #56 브리지 존 데이터 평면 8: entity 정합(entityCoherent·단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0·OFF→0287 동일) | 통과(reg 0·spine OK) · 5/5 혼합 후 coherent·a3 orphan0·rtCnt2·total3 |

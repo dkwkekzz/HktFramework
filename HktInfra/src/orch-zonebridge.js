@@ -1,4 +1,5 @@
 'use strict';
+// step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
 // step-0287 — #56 브리지 존 데이터 평면 7: entityOwnerZone/entityOwnerCount/entitiesSingleOwner 질의(entity 권위 단일 소유의 데이터 평면 판).
 // step-0286 — #56 브리지 존 데이터 평면 6: _bridgeStop 에 zoneEntitiesDiscarded 계측(존 퇴역→entity 폐기·계획적).
 // step-0285 — #56 브리지 존 데이터 평면 5: _bridgeHostDown 에 zoneEntitiesLost 계측(hostdown=새 인스턴스→entity 소실·migrate 무손실과 대조).
@@ -108,6 +109,12 @@ const OrchZoneBridge = {
   entitiesSingleOwner() {
     const seen = new Set();
     for (const rt of this.zoneRuntimes.values()) for (const a of rt.zone.ents.keys()) { if (seen.has(a)) return false; seen.add(a); }
+    return true;
+  },
+  // entity 정합 불변(step-0288·#56) — entity 데이터 평면이 executed SSOT 와 어긋나지 않는다: ⒜ 단일 소유(어떤 avatar 도 두 존 없음·0287) ⒝ entity 를 담은 실 런타임 존은 모두 running(집행 SSOT)에 있다 — orphan 런타임(running 밖인데 entity 보유)이 없다. stop/hostdown 이 런타임·entity 를 함께 정리하므로 정상 op 뒤 항상 참. 읽기 전용.
+  entityCoherent() {
+    if (!this.entitiesSingleOwner()) return false;
+    for (const z of this.zoneRuntimes.keys()) if (!this.running.has(z)) return false;   // entity 보유 런타임은 반드시 executed running 존(orphan 0).
     return true;
   },
   // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
