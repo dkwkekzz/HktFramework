@@ -9,17 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0279](step-0279.md) — **#51b 실 zone.js 브리지 8: placeQuery 실 런타임 host 회신**. placeReply 에 zoneBridge ON 시 `runtimeHost`(실 EntityZone 핸들 host) 추가 — 게이트웨이가 실물 런타임 위치로 라우팅(0250 의 브리지 판·읽기 경로 완성). OFF→reply 바이트 동일=0278 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonequery: 5/5 z1 이주 후 회신 runtimeHost=hostC==실 핸들==running==placement(4값 일치)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51b arc 닫기(0280)** — 브리지 정합 capstone(start/auto/migrate/rebalance/drain/hostdown/stop 혼합 lifecycle·bridgeCoherent 매단계·runtimeCount==runningCount==placedCount·단일 소유·#51b arc 닫기). 이후 #9 멀티프로세스 배선(실 host.js 소켓)·진짜 비동기(#4). 🔎 0271~0280 묶음 리뷰 적기.
+- **닫힌 step**: [step-0280](step-0280.md) — **#51b 실 zone.js 브리지 9·capstone: 전 계층 정합**. `fullyCoherent()` — placement(결정)==running(집행)==zoneRuntimes(실물) 세 층 완전 일치. 7종 op 혼합 후 참 → **#51b 실 zone.js 브리지 arc(0272~0280) 닫기**.
+- **한 줄 상태**: reg ALL OK·zonecapstone: 5/5 7종 op 후 fullyCoherent·rtCount==runCount==placed==3·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51b 브리지 완료(0272~0280) — orch 추상 running→실 EntityZone 런타임 lifecycle(start/migrate/stop/hostdown/rebalance/drain) 구동·읽기 경로·정합 capstone**. 다음 묶음: ⒜ **#9 멀티프로세스 배선**(실 host.js 소켓·게임서비스·데이터 계층 인프로세스 탈피)·⒝ 진짜 비동기(#4·논리클럭)·⒞ entity 트래픽의 실 zone.js 흐름(#9 위). 🔎 **0271~0280 묶음 리뷰 적기**(#43 도구 + #51b 브리지 9).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#51 배치 SSOT 실배선 arc(0241~0250)·orch 정리(0251·#52)·캐시 4차 고도화 arc(0252~0260) 완료**. 방향 권위 = `infra-review`(0251~0260 묶음·평결: 캐시 추가 심화보다 아래 ⒜⒝⒞ 우선).
+> 🎯 **#49 정리 arc(0261~0270)·도구 #43(0271)·#51b 실 zone.js 브리지 arc(0272~0280) 완료**. 방향 권위 = `infra-review`(다음: 0271~0280 묶음 평결).
 
-**후속 백로그 (다음 묶음 우선순위)**: ⒜ **정리 #49 — 실행 중(0261~)**: 3대 >30KB 박스(topo-run·topo-build·svc-exchange-core) 위임 분할 해소(0261~0264) + 30KB 근접 선제 정리(svc-guild 0265·svc-inventory-core 0266). 잔여 선제 후보: orchestrator 27.5·svc-mail-core 25.3·svc-mailbox 24.7(<30KB·여유). ⒝ **#51b 실 zone.js 브리지**(orch 추상 running→실 EntityZone host 이주 핸드오프·load-bearing·review-gated) ⒞ **멀티프로세스 배선(#9)**(0030 이후 박스 host.js 0 — 게임서비스·데이터 계층 전부 인프로세스 전용) ⒟ 진짜 비동기(#4) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
+**후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
+
+> **#51b 실 zone.js 브리지(0272~0280·완료)**: orch 가 placement 집행(_start/_migrate/_stop/_hostDown/_rebalance/_drain)으로 *실 EntityZone 인스턴스* lifecycle 을 구동(zoneRuntimes 레지스트리·orch-zonebridge.js 믹스인·팩토리 makeActor 주입). running 문자열 추상 SSOT↔실 핸들 정합(zoneRuntimeDrift·bridgeCoherent·fullyCoherent). migrate(상태 보존·같은 핸들) vs hostdown(소실·새 인스턴스) 의미 분리. zoneBridge OFF→전 step 비트 동일(reg 0). 잔여: 실 프로세스 분리(#9)·entity 트래픽.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -76,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(placeZone/query·부하 배치·핸드오프·재배치·드레인 0203~0224)→**실배선 #51 executed SSOT arc(0241~0250·런타임 running SSOT·실 migrate/rebalance/drain/stop/auto·host 장애 복구·reconcile/lifecycle capstone drift 0)** 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스). orch 정리 분리(0251)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료(잔여: 실 프로세스 분리 #9·entity 트래픽). orch 정리(0251·0267). 도구 #43(0271·close-step src>30KB 가드)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -157,3 +159,4 @@
 | [0277](step-0277.md) | #51b 실 zone.js 브리지 6: _rebalance 실 핸들 균형(zoneRuntimeHosts 질의·rebalance 매 move _migrate→_bridgeMigrate transitive 실 핸들 분산·OFF→0276 동일) | 통과(reg 0·spine OK) · 5/5 3존 A 몰림→runtimeOn 1/1/1·hosts 3·drift 0·starts 3 |
 | [0278](step-0278.md) | #51b 실 zone.js 브리지 7: _drain 실 핸들 비움(bridgeCoherent primitive·drift0+수일치·drain 매 move graceful 이주·drain↔hostdown 구분·OFF→0277 동일) | 통과(reg 0·spine OK) · 5/5 hostA 드레인→runtimeOn(A) 0·rtCount 3·coherent·starts 3 |
 | [0279](step-0279.md) | #51b 실 zone.js 브리지 8: placeQuery 실 런타임 host 회신(placeReply runtimeHost 필드·실 핸들 위치·0250 의 브리지 판·읽기 경로 완성·OFF→reply 바이트 동일) | 통과(reg 0·spine OK) · 5/5 z1 이주 후 runtimeHost=hostC==실핸들==running==placement |
+| [0280](step-0280.md) | #51b 실 zone.js 브리지 9·capstone: 전 계층 정합(fullyCoherent·placement==running==zoneRuntimes 3층·placementDrift0+bridgeCoherent+placedCount==runtimeCount·7종 op 혼합·#51b arc 0272~0280 닫기·OFF→0279 동일) | 통과(reg 0·spine OK) · 5/5 7종 op 후 fullyCoherent·rtCount==runCount==placed 3 |
