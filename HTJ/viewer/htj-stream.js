@@ -91,19 +91,41 @@
   //   두 fBm 을 *다른 salt*(독립 lattice 채널)로 뽑아 *무상관*시킨다 — 좌표 오프셋 방식(같은 노이즈의 다른 패치)은
   //   윈도우마다 spurious 상관이 들쭉날쭉이라 salt 가 근본 해결. 바이옴은 (temp,humidity)→정수 칸의 *제너릭 양자화*
   //   (타입 하드코딩 0·biome=칸 인덱스일 뿐) — "사막/툰드라" 이름은 호출자(렌더)의 몫.
-  //   opts: { scale(0.08), nTemp(3), nHum(3), tempSalt('T'), humSalt('H'), …fbm }
-  //   반환: (i,j) -> { temp∈[0,1), humidity∈[0,1), biome∈[0,nTemp*nHum) }. 순수·경로 무관·결정론.
+  //   opts: { scale(0.08), nTemp(3), nHum(3), tempSalt('T'), humSalt('H'), elevSalt('E'), lapse(0), latAmp(0), latPeriod(256), elevFn(null), …fbm }
+  //   ── 실제 지형 고도 결합(0092 → 0095·가법): 0092 의 고도는 *별도 노이즈*였다(실제 지형 높이장과 분리·정직한 한계).
+  //      elevFn(i,j)->[0,1] 를 주면 고도축을 *그 함수*(예: 랜드폼을 고른 바로 그 높이장)로 대체 — 높은 땅이 곧 찬 바이옴이
+  //      되어 *산이 차고 험준*(능선 랜드폼)해진다(자기일관). elevFn 없음 → 내부 노이즈(0092 동일). lapse=0 → 미사용(회귀 0).
+  //   반환: (i,j) -> { temp∈[0,1), humidity∈[0,1), elev∈[0,1), warm∈[0,1), effTemp∈[0,1), biome∈[0,nTemp*nHum) }. 순수·경로 무관·결정론.
+  //   ── 고도×바이옴 결합(0090 → 0092·가법): 실세계에서 같은 위도(=같은 base temp)라도 *높은 곳은 더 춥다*(기온 감률·
+  //      lapse rate) — 그래서 적도 산봉우리에 만년설/툰드라가 생긴다. 세 번째 *독립* fBm 축(elev·elevSalt='E')을 뽑아
+  //      effTemp = clamp01(temp − lapse·elev) 로 *유효 온도*를 낮춘다 → 분류는 effTemp 로(고지대=찬 바이옴 칸으로 이동).
+  //      세 축 모두 무상관(salt 분리)·각 축 공간 상관(코히어런트). lapse=0 → effTemp=temp → biome byte 0090 동일(회귀 0).
+  //   ── 위도 온도대(0092 → 0093·가법): 온도는 *순수 잡음*이 아니라 *위도*에 강하게 묶인다 — 적도는 덥고 극지는 춥다.
+  //      결정론적 위도 인자 warm(j)=½(1+cos(2π·j/latPeriod)) ∈[0,1](적도행=1·극행=0)를 잡음에 blend:
+  //      tBand = (1−latAmp)·temp + latAmp·warm. 그러면 같은 경도줄을 따라 *기후대 띠*(열대→온대→한대)가 창발한다.
+  //      잡음(국소 변이)+위도(대역 구조)의 합 = 진짜 지구 기후. latAmp=0 → tBand=temp → 0092/0090 byte 동일(회귀 0).
   function biomeField(opts) {
     opts = opts || {};
     const scale = opts.scale != null ? opts.scale : 0.08;
     const nT = opts.nTemp != null ? opts.nTemp : 3, nH = opts.nHum != null ? opts.nHum : 3;
     const tSalt = opts.tempSalt != null ? opts.tempSalt : 'T', hSalt = opts.humSalt != null ? opts.humSalt : 'H';
+    const eSalt = opts.elevSalt != null ? opts.elevSalt : 'E', lapse = opts.lapse != null ? opts.lapse : 0;
+    const latAmp = opts.latAmp != null ? opts.latAmp : 0, latPeriod = opts.latPeriod != null ? opts.latPeriod : 256;
+    const elevFn = opts.elevFn || null;
     const tOpts = Object.assign({}, opts, { salt: tSalt }), hOpts = Object.assign({}, opts, { salt: hSalt });
+    const eOpts = Object.assign({}, opts, { salt: eSalt });
     const q = (v, n) => { let k = Math.floor(v * n); return k < 0 ? 0 : (k >= n ? n - 1 : k); };
+    const cl01 = (v) => v < 0 ? 0 : (v >= 1 ? 0.999999 : v);
+    const TAU = Math.PI * 2;
     return function (i, j) {
       const temp = fbm(i * scale, j * scale, tOpts);
       const humidity = fbm(i * scale, j * scale, hOpts);
-      return { temp, humidity, biome: q(temp, nT) * nH + q(humidity, nH) };
+      const warm = latAmp !== 0 ? 0.5 * (1 + Math.cos(TAU * j / latPeriod)) : temp;   // 위도 인자(적도=1·극=0)·latAmp=0→미사용
+      const tBand = latAmp !== 0 ? (1 - latAmp) * temp + latAmp * warm : temp;        // 잡음+위도대 blend(회귀 0)
+      const elev = lapse !== 0 ? (elevFn ? cl01(elevFn(i, j)) : fbm(i * scale, j * scale, eOpts)) : 0;   // 실제 지형 또는 내부 노이즈·lapse=0→미사용
+
+      const effTemp = lapse !== 0 ? cl01(tBand - lapse * elev) : tBand;  // 위도대 보정 후 고지대일수록 유효 온도 ↓
+      return { temp, humidity, elev, warm, effTemp, biome: q(effTemp, nT) * nH + q(humidity, nH) };
     };
   }
 
@@ -132,5 +154,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 3 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 6 };
 });
