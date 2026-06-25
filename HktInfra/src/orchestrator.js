@@ -97,6 +97,7 @@ class Orchestrator {
     this.gatewayDirectZone = opts.gatewayDirectZone || false;
     this.zoneDirectApplied = 0;     // 게이트웨이 직접 라우팅으로 적용한 frame 누적(step-0294·계측).
     this.zoneDirStale = 0;          // 게이트웨이 디렉토리가 뒤처져(이주 직후 등) 거부한 frame 누적(step-0294·정직한 한계·이주 라우팅 정합은 0296).
+    this.hostDownBroadcasts = 0;    // 게이트웨이로 보낸 hostDown 일괄 무효화 broadcast 누적(step-0297·장애 검출 신호).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

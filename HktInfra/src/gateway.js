@@ -65,6 +65,7 @@ class Gateway {
     this.zoneDir = new Map();             // zoneId -> host(실 런타임 위치). zoneLoc 수신으로 set/delete(orch-zonebridge._pubZoneLoc).
     this.gatewayZoneRoutes = 0;           // step-0294 (#9) — 게이트웨이가 자기 디렉토리로 해소해 직접 라우팅한 entity frame 누적.
     this.gatewayZoneMisses = 0;           // step-0294 (#9) — 디렉토리에 없는 존(미배치/미학습)으로 드롭한 entity frame 누적(정직한 한계).
+    this.gatewayHostInvalidated = 0;      // step-0297 (#9) — orch hostDown broadcast 로 죽은 host 의 dir 엔트리를 일괄 무효화한 횟수(장애 검출 반영).
   }
   // 존 디렉토리 질의(step-0293·#9) — "이 존이 어느 host 에 있다고 게이트웨이가 아나 / 몇 개 아나"(라우팅 결정 기준·orch.running 실물과 대조해 정합 검증). 읽기 전용.
   zoneDirOf(zoneId) { return this.zoneDir.get(zoneId) || null; }

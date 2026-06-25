@@ -1,4 +1,5 @@
 'use strict';
+// step-0296 — #9 멀티프로세스 배선 6: zoneStaleProbe 주입(낡은 host 단 zoneDeliver→orch host 불일치 거부 검증·이주 라우팅 정합). 미제공이면 휴면(reg 0).
 // step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone ON 이면 entityOps 를 게이트웨이로 라우팅(클라→게이트웨이 직접 라우팅). OFF→0281 경로(게이트웨이→orch).
 // step-0281 — #56 브리지 존 데이터 평면 1: entityOps 주입열(게이트웨이→orch zoneEnter/zoneMove/zoneLeave). 미제공이면 휴면(reg 0).
 // step-0261 정리 분할(#49 wiring) — topo-run.js 가 35.9KB>30KB 박스 트리거를 다시 넘겨, run() 의 *per-tick 제어 평면 메시지 주입*
@@ -73,6 +74,8 @@ function applyInjections(opts, i, ctx) {
       if (opts.gatewayDirectZone) net.send(eo.from || 'client0', 'gateway', eo.op);
       else net.send(eo.from || 'gateway', 'orch', eo.op);
     }
+    // 존 stale 라우팅 프로브 주입(step-0296·#9·zoneStaleProbe) — at tick 에 *낡은 host* 를 단 zoneDeliver 를 게이트웨이 발신으로 orch 에 직접 보낸다(이주 직후 게이트웨이 디렉토리가 뒤처졌을 때의 frame 모델·straggler 류 테스트 seam). orch 가 host!=running 으로 거부(zoneDirStale++·이중 적용 0)함을 검증. orch 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.zoneStaleProbe && orch) for (const s of [].concat(opts.zoneStaleProbe)) if (s.at === i + 1) net.send('gateway', 'orch', { type: 'zoneDeliver', op: s.op || 'enter', zoneId: s.zoneId, avatar: s.avatar, host: s.host });
     // 캐시 명령 주입(step-0205·cacheOps) — at tick 에 게이트웨이/서비스가 CacheStore 에 cacheSet(핫 데이터 캐시 채움). cache 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
     // 월드 intent 주입(step-0207·worldOps) — at tick 에 존/게이트웨이가 WorldLog 에 worldAppend(intent 로그 적층). worldlog 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
