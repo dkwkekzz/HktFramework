@@ -1,4 +1,5 @@
 'use strict';
+// step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
 // step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
 // step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
 // step-0287 — #56 브리지 존 데이터 평면 7: entityOwnerZone/entityOwnerCount/entitiesSingleOwner 질의(entity 권위 단일 소유의 데이터 평면 판).
@@ -118,6 +119,10 @@ const OrchZoneBridge = {
     for (const z of this.zoneRuntimes.keys()) if (!this.running.has(z)) return false;   // entity 보유 런타임은 반드시 executed running 존(orphan 0).
     return true;
   },
+  // 전 데이터 평면 정합 질의(step-0290·#56 capstone) — entity 데이터 평면이 배치 SSOT 와 *완전히* 한 몸인지의 단일 술어: ⒜ fullyCoherent(placement==running==zoneRuntimes 3층·#51b 0280) ⒝ entityCoherent(단일 소유 + entity 보유 런타임 모두 running·0288). 참이면 "어디서 돌아야/돈다고 기록/실제 핸들" 3층 + "entity 가 정확히 한 존에·executed 존에만" 이 모두 정합. 혼합 lifecycle 후 참(0290 capstone). 읽기 전용.
+  entityFlowCoherent() { return this.fullyCoherent() && this.entityCoherent(); },
+  // entity 보존 회계(step-0290·#56 capstone) — 데이터 평면 보존 항등식: 살아있는 total = 받은 enter − 떠난 leave − hostdown 소실 − stop 폐기. graceful op(migrate/rebalance/drain·같은 핸들)는 항에 안 들어간다(무손실). 모든 op 뒤 성립(0290 capstone). 읽기 전용.
+  entityConserved() { return this.totalEntities() === this.zoneEnters - this.zoneLeaves - this.zoneEntitiesLost - this.zoneEntitiesDiscarded; },
   // entity census 스냅샷(step-0289·#56) — 전 런타임의 entity 분포 {total, zones:{zoneId:count}}(운영 대시보드·graceful op 전후 보존 대조). graceful 재배치(rebalance/drain)는 _migrate(같은 핸들)이므로 total 불변·zone 분포만 재편.
   entityCensus() {
     const zones = {}; let total = 0;

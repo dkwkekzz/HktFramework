@@ -1,4 +1,5 @@
 'use strict';
+// step-0291 — #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver). 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어의 씨앗)로 round-trip 시켜 적용. OFF→0290 비트 동일.
 // step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
 // step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
 // step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
@@ -74,15 +75,25 @@ const OrchZoneBridge = {
   _bridgeEnter(zoneId, avatar, sessionId, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;             // 미가동 존 — 흘릴 핸들 없음(멱등).
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
     this.zoneEnters++;
     return true;
+  },
+  // 존 런타임 전송 seam(step-0291·#9) — entity frame 을 실 EntityZone 핸들에 흘리는 *단일 경로*. zoneHostHandle ON 이면 frame 을 JSON 직렬화 경계로 round-trip(소켓 와이어의 씨앗·host.js deliver 동형)시켜 적용 → 데이터 평면이 직렬화 가능한 메시지 경계를 통과(원격 host.js 프로세스 분리 전제·#9). 함수/순환 참조가 frame 에 섞이면 여기서 걸린다(원격-검증 가능성의 토대). OFF 면 직접 method 호출 = 0290 비트 동일.
+  _zoneDeliver(rt, frame) {
+    if (this.zoneHostHandle) {
+      const wire = JSON.stringify(frame);          // 직렬화 경계 — 실 소켓이면 이 바이트가 와이어로 간다.
+      this.zoneFramesDelivered++; this.zoneFrameBytes += wire.length;
+      rt.zone.onMsg(JSON.parse(wire));             // 역직렬화 후 적용(원격이면 host 프로세스가 수행).
+    } else {
+      rt.zone.onMsg(frame);                        // 0290 경로 — 인프로세스 직접 호출.
+    }
   },
   // 브리지 존 move 라우팅(step-0282·#56) — enter 한 avatar 의 이동 의도를 실 EntityZone 핸들로 흘린다(onMsg('move')→pending). 실제 위치 적용은 그 존의 onTick 에서(orch 가 _tickRuntimes 로 구동·아래). 미가동 존·미존재 avatar 는 무해(zone.js move 가드: ents.has 만 push). zoneEntityFlow OFF 면 호출 없음(0281 비트 동일).
   _bridgeMove(zoneId, avatar, dx, dy, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
     this.zoneMoves++;
     return true;
   },
@@ -91,7 +102,7 @@ const OrchZoneBridge = {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
     const had = rt.zone.ents.has(avatar);
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
     if (had) this.zoneLeaves++;
     return had;
   },

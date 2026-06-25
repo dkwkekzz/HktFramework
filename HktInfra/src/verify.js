@@ -1,8 +1,8 @@
-// HktInfra step-0290 — 헤드리스 검증 (#56 브리지 존 데이터 평면 10·capstone: 전 데이터 평면 정합 + 보존 회계)
+// HktInfra step-0291 — 헤드리스 검증 (#9 멀티프로세스 배선 1: 존 런타임 전송 seam)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zoneflowcap`.
-//   더한 한 조각: entityFlowCoherent()(fullyCoherent+entityCoherent)·entityConserved()(total=enters−leaves−lost−discarded). 혼합 lifecycle(enter/move/leave/migrate/rebalance/drain/hostdown/stop) 후 둘 다 참 → #56 arc 닫기. OFF→0289 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `zoneflowcap`(가설) — 전 op 혼합 후 flowCoherent·conserved·단일 소유·full lifecycle 발화.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zonehandle`.
+//   더한 한 조각: _zoneDeliver 전송 seam — 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어 씨앗)로 round-trip. OFF→0290 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `zonehandle`(가설) — 전 데이터 평면이 직렬화 seam 을 통과해도 entityFlowCoherent·entityConserved 불변 + frame 건수/바이트 계측.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,10 +15,10 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0290 #56 브리지 존 데이터 평면 10·capstone 검증 — entity 데이터 평면이 배치 SSOT 와 완전 정합 + 보존 회계.
-//   혼합 lifecycle: z1@A·z2@B·z3@C 배치+enter(a1·a2→z1·a3→z2·a4·a5→z3·5)·move·leave a2(1)·hostdown C(z3 a4·a5 소실 2)·stop z2(a3 폐기 1)·migrate z1·rebalance·drain.
-//   → entityFlowCoherent·entityConserved(total 1 == 5−1−2−1)·단일 소유·enters5/leaves1/lost2/discarded1/migrations≥1(full lifecycle 발화). #56 arc 닫기.
-function zoneflowcap(seeds) {
+// step-0291 #9 멀티프로세스 배선 1 검증 — entity 데이터 평면이 직렬화 전송 seam(_zoneDeliver)을 통과해도 불변 보존 + 와이어 계측.
+//   0290 zoneflowcap 과 같은 혼합 lifecycle 에 zoneHostHandle: true 만 추가 — enter/move/leave frame 이 JSON round-trip 을 타고도 entityFlowCoherent·entityConserved·단일 소유 유지.
+//   → framesDelivered == enters+moves+leaves(소실 0)·frameBytes>0(실제 와이어를 탔다는 증거). #9 arc 시작(브리지 핸들→실 host.js 소켓의 첫 조각: 직렬화 경계).
+function zonehandle(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
@@ -33,21 +33,22 @@ function zoneflowcap(seeds) {
     DOWN(12, 'hostC', HS), STOP(13, 'z2'), MIG(14, 'z1', 'hostB'), REBAL(15, HS), DRAIN(16, 'hostA', HS)];
   const ENTOPS = [ENTER(4, 'z1', 'a1'), ENTER(5, 'z1', 'a2'), ENTER(6, 'z2', 'a3'), ENTER(7, 'z3', 'a4'), ENTER(8, 'z3', 'a5'),
     MOVE(9, 'z1', 'a1', 2, 1), LEAVE(10, 'z1', 'a2')];
-  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, placementOps: PLACEOPS, entityOps: ENTOPS };
-  console.log('== zoneflowcap (0290·#56 10·capstone): 전 데이터 평면 정합 + 보존 회계. 혼합 lifecycle 후 entityFlowCoherent(3층+entity)·entityConserved(total1==5−1−2−1)·단일 소유·enters5/leaves1/lost2/discarded1/migs≥1. #56 arc 0281~0290 닫기. ==');
-  console.log('seed   | flow | consv | total | E/L/lost/disc | migs | 판정');
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, placementOps: PLACEOPS, entityOps: ENTOPS };
+  console.log('== zonehandle (0291·#9 1): 존 런타임 전송 seam. 혼합 lifecycle 의 enter/move/leave 가 _zoneDeliver JSON 직렬화 경계를 round-trip 해도 entityFlowCoherent·entityConserved·단일 소유 불변. frames==enters+moves+leaves·bytes>0(와이어 증거). ==');
+  console.log('seed   | flow | consv | total | frames | bytes | E/M/L | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 20, ...BASE });
     const o = r.orch;
-    const ledger = `${o.zoneEnters}/${o.zoneLeaves}/${o.zoneEntitiesLost}/${o.zoneEntitiesDiscarded}`;
+    const eml = `${o.zoneEnters}/${o.zoneMoves}/${o.zoneLeaves}`;
+    const expectFrames = o.zoneEnters + o.zoneMoves + o.zoneLeaves;
     const ok = check(o.entityFlowCoherent() && o.entityConserved() && o.entitiesSingleOwner() && o.totalEntities() === 1 &&
-      o.zoneEnters === 5 && o.zoneLeaves === 1 && o.zoneEntitiesLost === 2 && o.zoneEntitiesDiscarded === 1 && o.zoneMigrations >= 1,
-      `seed ${seed}: capstone 위반 (flow ${o.entityFlowCoherent()}·consv ${o.entityConserved()}·total ${o.totalEntities()}·ledger ${ledger}·migs ${o.zoneMigrations})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.entityFlowCoherent() ? 'Y' : 'N', 4)} | ${pad(o.entityConserved() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${pad(ledger, 13)} | ${pad(o.zoneMigrations, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+      o.zoneFramesDelivered === expectFrames && o.zoneFrameBytes > 0,
+      `seed ${seed}: seam 위반 (flow ${o.entityFlowCoherent()}·consv ${o.entityConserved()}·frames ${o.zoneFramesDelivered}!=${expectFrames}·bytes ${o.zoneFrameBytes})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.entityFlowCoherent() ? 'Y' : 'N', 4)} | ${pad(o.entityConserved() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${pad(o.zoneFramesDelivered, 6)} | ${pad(o.zoneFrameBytes, 5)} | ${pad(eml, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['zoneflowcap'] = zoneflowcap;
-kit.ORDER.splice(1, 0, 'zoneflowcap');
+kit.MODES['zonehandle'] = zonehandle;
+kit.ORDER.splice(1, 0, 'zonehandle');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
