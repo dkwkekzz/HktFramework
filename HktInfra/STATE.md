@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0275](step-0275.md) — **#51b 실 zone.js 브리지 4: _hostDown 실 런타임 재가동**. zoneBridge ON 이면 _hostDown 이 죽은 host 의 실 EntityZone 런타임을 생존 host 에 *새 인스턴스* 재가동(비자발·상태 보존 불가·migrate 와 구분·orch-zonebridge `_bridgeHostDown`·zoneRescued·runtimeOn 질의). OFF→0274 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehostdown: 5/5 hostA 장애→runtimeOn(hostA) 0·z1·z2 생존 host 재가동·zoneRescued 2·runtimeCount 3 보존·`run.js all` ALL OK·spine ALL OK. (start/migrate/stop/hostdown 실 lifecycle 집행)
-- **다음**: 🎯 **#51b arc 진행(0276~)** — 0276=`zoneRuntimeDrift()` 질의(running 문자열 SSOT↔zoneRuntimes 실 host 정합·drift 0)·0277=_rebalance 실 핸들 균형(runtimeOn)·0278=_drain 실 핸들 비움·0279=placeQuery 실 런타임 회신·0280=브리지 정합 capstone(혼합 lifecycle·drift 0·runtimeCount==runningCount). 🔎 0261~0270 묶음 리뷰 적기.
+- **닫힌 step**: [step-0276](step-0276.md) — **#51b 실 zone.js 브리지 5: zoneRuntimeDrift 정합 질의**. `zoneRuntimeDrift()` — running 문자열 추상 SSOT↔zoneRuntimes 실 핸들 host 정합(전 배치 op 뒤 0=한 몸). placementDrift(0245)의 실물 판·읽기 전용. OFF→0275 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonedrift: 5/5 start/migrate/hostdown/stop 혼합 후 drift 0·runtimeCount 2==runningCount·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#51b arc 진행(0277~)** — 0277=_rebalance 실 핸들 균형(runtimeOn·zoneRuntimeHosts)·0278=_drain 실 핸들 비움·0279=placeQuery 실 런타임 host 회신(읽기 경로·0250 의 브리지 판)·0280=브리지 정합 capstone(혼합 lifecycle·drift 0·runtimeCount==runningCount==placedCount·arc 닫기). 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -153,3 +153,4 @@
 | [0273](step-0273.md) | #51b 실 zone.js 브리지 2: _migrate 실 런타임 host 이주(_bridgeMigrate·같은 EntityZone 핸들 host release+acquire 원자 교체·재생성 아님·상태 보존·zoneMigrations 계측·OFF→0272 동일) | 통과(reg 0·spine OK) · 5/5 z1 A→C→A·zoneStarts 2 불변·zoneMigrations 2 |
 | [0274](step-0274.md) | #51b 실 zone.js 브리지 3: _stop 실 런타임 종료(_bridgeStop·placeStop 집행이 실 EntityZone 런타임 zoneRuntimes 제거·핸들 폐기·zoneStops 계측·없는 존 멱등·OFF→0273 동일) | 통과(reg 0·spine OK) · 5/5 z1 퇴역→rtCount 1·z1 gone·z2 live·zoneStops 1 |
 | [0275](step-0275.md) | #51b 실 zone.js 브리지 4: _hostDown 실 런타임 재가동(_bridgeHostDown·죽은 host 의 실 EntityZone 생존 host 새 인스턴스 재가동·비자발·상태 보존 불가·migrate 와 구분·zoneRescued·runtimeOn 질의·OFF→0274 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→runtimeOn(A) 0·rescued 2·rtCount 3 |
+| [0276](step-0276.md) | #51b 실 zone.js 브리지 5: zoneRuntimeDrift 정합 질의(running 문자열 SSOT↔zoneRuntimes 실 핸들 host 표류 수·전 op 뒤 0·placementDrift 의 실물 판·읽기 전용·OFF→0275 동일) | 통과(reg 0·spine OK) · 5/5 혼합 lifecycle 후 drift 0·rtCount 2==runCount |

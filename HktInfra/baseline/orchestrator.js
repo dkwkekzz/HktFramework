@@ -69,6 +69,7 @@ class Orchestrator {
     this.zoneStarts = 0;             // 브리지로 실제 인스턴스화(start)한 존 런타임 누적 수(계측·멱등 재배치 제외).
     this.zoneMigrations = 0;         // 브리지로 실 EntityZone 핸들을 release+acquire 이주(host 원자 교체)한 누적 수(step-0273·재생성 아님).
     this.zoneStops = 0;              // 브리지로 실 EntityZone 런타임을 퇴역(zoneRuntimes 제거)한 누적 수(step-0274·멱등 no-op 제외).
+    this.zoneRescued = 0;            // host 장애로 죽은 host 의 실 EntityZone 런타임을 생존 host 에 새 인스턴스 재가동한 누적 수(step-0275·비자발적·상태 소실).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

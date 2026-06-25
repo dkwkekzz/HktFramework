@@ -45,6 +45,13 @@ const OrchZoneBridge = {
   runtimeCount() { return this.zoneRuntimes.size; },
   // 실 런타임 host 분포 질의(step-0275) — 그 host 에서 도는 실 EntityZone 런타임 수(장애/드레인 후 그 host 0 검증·running 문자열 runningOn 의 실물 짝).
   runtimeOn(host) { let n = 0; for (const rt of this.zoneRuntimes.values()) if (rt.host === host) n++; return n; },
+  // 브리지 표류 질의(step-0276) — running(zoneId→host *문자열* 추상 SSOT·0241)과 zoneRuntimes(실 EntityZone 핸들의 host)가 어긋난 존 수(host 불일치 또는 한쪽에만 존재). placeExecute+zoneBridge ON 이면 모든 배치 op(start/migrate/stop/hostdown/rebalance/drain) 뒤 0 — 추상 집행 SSOT 와 실 런타임 레지스트리가 한 몸으로 움직인다(브리지 정합). placementDrift(0245·결정↔집행)의 *실물* 판. 읽기 전용.
+  zoneRuntimeDrift() {
+    let d = 0;
+    const ids = new Set([...this.running.keys(), ...this.zoneRuntimes.keys()]);
+    for (const z of ids) { const rt = this.zoneRuntimes.get(z); if (this.running.get(z) !== (rt ? rt.host : undefined)) d++; }
+    return d;
+  },
 };
 
 const __part = { OrchZoneBridge };
