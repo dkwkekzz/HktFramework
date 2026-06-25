@@ -1,4 +1,5 @@
 'use strict';
+// step-0260 — 캐시 정합 capstone(coherent·4차 고도화 캐시 arc 0252~0260 닫기): 캐시 메커니즘 전체(write-through·bulk·negative·SETNX·SETEX·delete·prefix)가 섞여 돌아도 구조 불변을 유지하는지 단언하는 읽기 accessor coherent() 추가 — ① store↔setAt 1:1(모든 캐시값에 recency) ② store∩negatives=∅(present 키는 known-absent 일 수 없음) ③ keyTtl⊆store(고아 per-key TTL 0). 부수로 무효화(0212)가 keyTtl 도 정리(고아 누수 차단·keyTtl 비면 reg 0). 읽기 accessor·미수신 = 0259 비트 동일(reg 0).
 // step-0259 — 캐시 namespace 무효화(cacheDeletePrefix·Redis SCAN+DEL 더미판): {prefix} → prefix 로 시작하는 *모든* 키를 store(+writeThrough 면 source)서 제거(예: "session:" 한 방에 한 유저 세션 전부·길드 해체 시 "guild:42:" 전체). 단일 키 delete(0257)의 패턴판. 제거 수 반환. 새 메시지 타입·미수신 = 0258 비트 동일(reg 0). 4차 고도화(캐시 박스 #8).
 // step-0258 — 캐시 stats 관측(cacheStats·Redis INFO/모니터링 더미판): {} 질의 → cacheStatsReply 로 hit/miss/hitRate/size/negHits/deleted 회신(운영 대시보드가 캐시 효율을 폴링). hitRate()·stats() 읽기 accessor 추가(순수 읽기·쓰기 무변경). 새 메시지 타입·미수신 = 0257 비트 동일(reg 0). 4차 고도화(캐시 박스 #7).
 // step-0257 — 캐시 explicit delete(cacheDelete·Redis DEL 더미판): {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives 정리) + writeThrough(0252) ON 이면 backing source(SSOT)에서도 제거. 무효화(0212·캐시 사본만 끊고 소스 유지→read-through 재적재)와 달리 *소스까지 영구 제거*(계정 삭제·아이템 파괴). 새 메시지 타입·미수신 = 0256 비트 동일(reg 0). 4차 고도화(캐시 박스 #6).
@@ -116,7 +117,7 @@ class CacheStore {
     if (p.type === 'cacheSetEx') { this._set(p.key, p.value, now); this.keyTtl.set(p.key, p.ttl); this.sets++; return; }
     // 무효화(step-0212·cacheInvalidate) — {key} → 소스(SSOT)가 바뀌었다는 통지에 캐시 사본을 즉시 끊는다(store/setAt 제거). 다음 get 은 miss → read-through 로 새 값 재적재(stale 사본 차단·write 시 캐시 일관성). 없는 키는 멱등 no-op. cacheInvalidate 미수신이면 미발화 = 0211 비트 동일.
     if (p.type === 'cacheInvalidate') {
-      if (this.store.has(p.key)) { this.store.delete(p.key); this.setAt.delete(p.key); this.invalidated++; }
+      if (this.store.has(p.key)) { this.store.delete(p.key); this.setAt.delete(p.key); this.keyTtl.delete(p.key); this.invalidated++; }   // step-0260: keyTtl 도 정리(고아 per-key TTL 누수 차단·keyTtl 비면 0259 비트 동일).
       this.invalidations++; return;
     }
     // explicit delete(step-0257·cacheDelete·DEL) — {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives) + writeThrough 면 source 에서도 제거(소스까지 영구 삭제·무효화와 달리 read-through 재적재 없음). 없는 키 멱등. 미수신 = 0256 비트 동일.
@@ -163,6 +164,14 @@ class CacheStore {
   hitRate() { const t = this.hits + this.misses; return t === 0 ? 0 : this.hits / t; }
   // 캐시 효율 지표 스냅샷(step-0258·cacheStats 회신용·읽기 accessor) — 운영 대시보드가 폴링하는 관측 묶음.
   stats() { return { hits: this.hits, misses: this.misses, hitRate: this.hitRate(), size: this.store.size, sets: this.sets, evicted: this.evicted, capEvicted: this.capEvicted, negHits: this.negHits, deleted: this.deleted }; }
+  // 정합 capstone(step-0260·읽기 accessor) — 캐시 메커니즘 전체가 섞여도 유지되는 구조 불변: ① store↔setAt 1:1 ② store∩negatives=∅ ③ keyTtl⊆store. 어떤 연산 시퀀스 뒤에도 true 여야 한다(arc 0252~0260 닫기).
+  coherent() {
+    if (this.store.size !== this.setAt.size) return false;                 // ① 모든 캐시값에 recency(1:1).
+    for (const k of this.store.keys()) if (!this.setAt.has(k)) return false;
+    for (const k of this.negatives) if (this.store.has(k)) return false;   // ② present 키는 known-absent 아님.
+    for (const k of this.keyTtl.keys()) if (!this.store.has(k)) return false;   // ③ 고아 per-key TTL 0.
+    return true;
+  }
 }
 
 const __part = { CacheStore };

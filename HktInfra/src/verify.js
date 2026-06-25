@@ -1,8 +1,8 @@
-// HktInfra step-0260 — 헤드리스 검증 (캐시 정합 capstone·arc 0252~0260 닫기)
+// HktInfra step-0261 — 헤드리스 검증 (정리 #49 wiring: topo-run 주입열 분리·topo-inject.js)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cachecohere`.
-//   더한 한 조각: CacheStore.coherent() 읽기 accessor — 캐시 메커니즘 전체(write-through·bulk·negative·SETNX·SETEX·delete·prefix)가 섞여도 구조 불변(store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store) 유지. 무효화가 keyTtl 도 정리. 읽기·미수신 → 0259 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cachecohere`(가설) — 혼합 시퀀스 매 단계 coherent()==true + 최종 값/소스 정합(a=1·c 제거·x negative·session:* 제거).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `injsplit`.
+//   더한 한 조각: run() 의 per-tick 제어 평면 메시지 주입열(rankDie/rankStall/producerInject/presenceFailover/whispers~loginOps/inject)을 topo-inject.js(applyInjections)로 verbatim 분리. ctx 핸들만 주입·기능 0 → 0260 비트 동일(reg). topo-run.js 35.9KB→22.7KB(<30KB).
+//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `injsplit`(가설) — 옮긴 핸들러(instanceOps·cacheOps)가 정규 박스에 도달(active 2·cache k1/k2).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,40 +13,29 @@ const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; cons
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { CacheStore } = NET;
+const { run } = NET;
 
-function cachecohere(seeds) {
-  console.log('== cachecohere (0260·캐시 정합 capstone·arc 0252~0260 닫기): 캐시 전 메커니즘(write-through·bulk·negative·SETNX·SETEX·delete·prefix)이 섞인 혼합 시퀀스 매 단계 coherent()(store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store) 유지 + 최종 값/소스 정합(a=1·c 제거·x negative·session:* 제거). ==');
-  console.log('seed   | 매단계 coherent | a값 | c존재 | x∈neg | session제거 | 판정');
+// step-0261 정리 분할(#49 wiring) 검증 — run() 의 주입열을 topo-inject.applyInjections 로 위임한 뒤,
+//   *옮긴 핸들러*가 정규 박스에 도달하는지 본다(투명 분할). instanceOps(인스턴스 spawn)·cacheOps(캐시 set)를
+//   한 시나리오로 동시 구동 → 인스턴스 active 2·캐시 k1/k2 채워짐이면 주입 위임 무결(reg 0 가 비트 동일을 별도 증명).
+function injsplit(seeds) {
+  const ISPAWN = (at, instanceId, kind) => ({ at, op: { type: 'instanceSpawn', instanceId, kind } });
+  const CSET = (at, key, value) => ({ at, op: { type: 'cacheSet', key, value } });
+  const IOPS = [ISPAWN(1, 'd1', 'dungeon'), ISPAWN(2, 'd2', 'dungeon')];
+  const COPS = [CSET(1, 'k1', 'v1'), CSET(2, 'k2', 'v2')];
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, instanceService: true, instanceOps: IOPS, cacheService: true, cacheOps: COPS };
+  console.log('== injsplit (0261 분할·#49): run() per-tick 주입열을 topo-inject.applyInjections 로 위임 — 옮긴 핸들러(instanceOps·cacheOps)가 정규 박스에 도달(active 2·cache k1/k2)·투명 분할(reg 0 가 비트 동일 증명). ==');
+  console.log('seed   | active | k1 | k2 | 판정');
   for (const seed of seeds) {
-    const c = new CacheStore({ source: {} });
-    let tick = 0;
-    let allCoherent = true;
-    const send = (type, extra) => { c.onMsg({ from: 'gw', tick: ++tick, payload: { type, ...extra } }); if (!c.coherent()) allCoherent = false; };
-    send('cacheWriteThrough', { on: true });
-    send('cacheNegative', { on: true });
-    send('cacheSet', { key: 'a', value: '1' });          // 캐시+소스 1
-    send('cacheSetEx', { key: 'b', value: '2', ttl: 2 }); // per-key TTL
-    send('cacheAdd', { key: 'c', value: '3' });           // SETNX added
-    send('cacheAdd', { key: 'a', value: '99' });          // not added(a 유지 1)
-    send('cacheGet', { key: 'x' });                        // miss·소스없음 → negative
-    send('cacheGet', { key: 'x' });                        // negHit
-    send('cacheInvalidate', { key: 'b' });                 // b 캐시 사본 끊기(+keyTtl 정리)
-    send('cacheGet', { key: 'a' });                        // hit a=1
-    send('cacheDelete', { key: 'c' });                     // c 캐시+소스 제거
-    send('cacheSet', { key: 'session:1', value: 's1' });
-    send('cacheSet', { key: 'session:2', value: 's2' });
-    send('cacheDeletePrefix', { prefix: 'session:' });     // session:* 제거
-    const aVal = c.get('a'), cExist = c.has('c'), xNeg = c.negatives.has('x');
-    const sessGone = !c.has('session:1') && !c.has('session:2');
-    const finalCoherent = c.coherent();
-    const ok = check(allCoherent && finalCoherent && aVal === '1' && cExist === false && xNeg === true && sessGone === true && c.source.get('a') === '1' && !c.source.has('c'),
-      `seed ${seed}: 정합 위반 (coherent ${allCoherent}/${finalCoherent}·a ${aVal}·c ${cExist}·xNeg ${xNeg}·sess ${sessGone}·src.a ${c.source.get('a')})`);
-    console.log(`${pad(seed, 6)} | ${pad(String(allCoherent), 14)} | ${pad(aVal || '-', 3)} | ${pad(String(cExist), 5)} | ${pad(String(xNeg), 5)} | ${pad(String(sessGone), 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ticks: 8, ...BASE });
+    const inst = r.instance, cache = r.cache;
+    const ok = check(inst.activeCount() === 2 && cache.get('k1') === 'v1' && cache.get('k2') === 'v2',
+      `seed ${seed}: 주입 위임 위반 (active ${inst.activeCount()}·k1 ${cache.get('k1')}·k2 ${cache.get('k2')})`);
+    console.log(`${pad(seed, 6)} | ${pad(inst.activeCount(), 6)} | ${pad(cache.get('k1') || '-', 3)} | ${pad(cache.get('k2') || '-', 3)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['cachecohere'] = cachecohere;
-kit.ORDER.splice(1, 0, 'cachecohere');
+kit.MODES['injsplit'] = injsplit;
+kit.ORDER.splice(1, 0, 'injsplit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
