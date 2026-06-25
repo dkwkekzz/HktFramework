@@ -1,4 +1,5 @@
 'use strict';
+// step-0257 — 캐시 explicit delete(cacheDelete·Redis DEL 더미판): {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives 정리) + writeThrough(0252) ON 이면 backing source(SSOT)에서도 제거. 무효화(0212·캐시 사본만 끊고 소스 유지→read-through 재적재)와 달리 *소스까지 영구 제거*(계정 삭제·아이템 파괴). 새 메시지 타입·미수신 = 0256 비트 동일(reg 0). 4차 고도화(캐시 박스 #6).
 // step-0256 — 캐시 per-key TTL(cacheSetEx·Redis SETEX 더미판): {key,value,ttl} → 값 기록 + 그 키만의 만료 수명(keyTtl) 저장. cacheExpire(0211) 스윕이 키에 per-key ttl 이 있으면 그것을, 없으면 글로벌 p.ttl 을 적용(키마다 다른 수명·세션 5분/시세 10초 식 차등 만료). keyTtl 비면 글로벌만 = 0255 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #5).
 // step-0255 — 캐시 put-if-absent(cacheAdd·Redis SETNX 더미판): {key,value} → 키가 *없을 때만* 쓰고 added=true, 이미 있으면 무변경·added=false(cacheAddReply 회신·_lastAdd 보관). 최초-기록-승(first-writer-wins)·분산 락/유일 점유 primitive(예: 인스턴스 좌석 선점). 새 메시지 타입·미수신 = 0254 비트 동일(reg 0). 4차 고도화(캐시 박스 #4).
 // step-0254 — 캐시 negative caching(cacheNegative·캐시 침투 방어): negativeCache ON 이면 read-through miss 가 *소스에도 없을* 때 그 키를 known-absent(negatives Set)로 기억 → 같은 미존재 키 재조회는 소스 조회 없이 즉답(negHit·DB 침투 폭주 방어·Redis cache penetration 더미판). 키가 나중에 set 되면 negatives 에서 제거(가시화). 토글({on})·미수신이면 negativeCache=false → negatives 미사용·miss 경로 무변경 = 0253 비트 동일(reg 0). 4차 고도화(캐시 박스 #3).
@@ -32,6 +33,8 @@ class CacheStore {
     this.evicted = 0;          // 만료로 회수된 키 누적 수(step-0211·setAt+ttl≤now).
     this.invalidations = 0;    // 처리한 cacheInvalidate 수(step-0212·소스 변경 통지·없는 키 멱등 포함).
     this.invalidated = 0;      // 실제 무효화된 키 누적 수(step-0212·store 에 있던 것만).
+    this.deletes = 0;          // 처리한 cacheDelete 수(step-0257·없는 키 멱등 포함).
+    this.deleted = 0;          // 실제 제거된 키 누적 수(step-0257·store 또는 source 에 있던 것).
     this.capacity = Infinity;  // 캐시 키 수 상한(step-0225·cacheCapacity 로 설정·미설정이면 ∞=무제한=0224 거동).
     this.capEvicted = 0;       // 용량 초과로 LRU 회수된 키 누적 수(step-0225·setAt 최소부터).
     this.lruTouch = false;     // get hit 시 recency 갱신 여부(step-0226·cacheLruTouch·OFF 면 0225 거동=set-시각만).
@@ -111,6 +114,14 @@ class CacheStore {
     if (p.type === 'cacheInvalidate') {
       if (this.store.has(p.key)) { this.store.delete(p.key); this.setAt.delete(p.key); this.invalidated++; }
       this.invalidations++; return;
+    }
+    // explicit delete(step-0257·cacheDelete·DEL) — {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives) + writeThrough 면 source 에서도 제거(소스까지 영구 삭제·무효화와 달리 read-through 재적재 없음). 없는 키 멱등. 미수신 = 0256 비트 동일.
+    if (p.type === 'cacheDelete') {
+      const had = this.store.has(p.key) || (this.writeThrough && this.source.has(p.key));
+      this.store.delete(p.key); this.setAt.delete(p.key); this.keyTtl.delete(p.key); this.negatives.delete(p.key);
+      if (this.writeThrough) this.source.delete(p.key);   // SSOT 에서도 영구 제거.
+      if (had) this.deleted++;
+      this.deletes++; return;
     }
     // 용량 설정(step-0225·cacheCapacity) — {cap} → 캐시 키 수 상한 설정 후 즉시 초과분 LRU 회수(개수 유계). 이후 set 마다 상한 유지. cacheCapacity 미수신이면 capacity=∞ = 0224 비트 동일.
     if (p.type === 'cacheCapacity') { this.capacity = (p.cap == null ? Infinity : p.cap); this._evictToCapacity(); return; }
