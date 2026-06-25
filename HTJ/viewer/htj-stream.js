@@ -136,6 +136,57 @@
     };
   }
 
+  // --- 흐름 누적(0097 → 0098) — 강수가 지형을 따라 흘러 모이면 *강*이 창발한다(D8 최급강하 라우팅·확인용 트랙) ---
+  //
+  //   0097 은 *어디에 비가 오나*(precip)를 냈다. 비는 가만히 있지 않고 *중력 따라 낮은 곳으로 흐른다* — 지류가 모여 본류가
+  //   되며 한 줄기 강이 된다. 이 함수는 유한 창(window) 위에서 각 셀의 비를 *가장 가파른 내리막 이웃*(8방향 D8)으로 흘려
+  //   누적한다(고→저 정렬 후 한 번 훑기). 누적이 큰 셀 = 물이 모인 *강/유역*. 강이라는 *타입을 박지 않는다* — 일반 높이장에
+  //   라우팅을 돌린 *측정*일 뿐(높이장이 지형이든 무엇이든·타입 0). 순수·결정론·렌더 의존 0.
+  //
+  //   opts: { elevFn(i,j)->높이, rainFn(i,j)->비량(기본 1), x0, y0, W, H } — (x0,y0) 좌상단 grid 원점·W×H 창.
+  //   반환: { acc:Float64Array(W*H), down:Int32Array(W*H 내리막 셀 인덱스·-1=sink), rain:총 강수,
+  //          sinkAccum:국소 최저점에 고인 물·borderOut:창 밖으로 나간 물, maxAcc, meanAcc }
+  //   보존: sinkAccum + borderOut === Σrain (모든 빗방울은 결국 sink 에 고이거나 창을 빠져나간다).
+  function flowAccumulation(opts) {
+    opts = opts || {};
+    const elevFn = opts.elevFn, rainFn = opts.rainFn || (() => 1);
+    const x0 = opts.x0 || 0, y0 = opts.y0 || 0, W = opts.W || 64, H = opts.H || 64;
+    const N = W * H;
+    const elev = new Float64Array(N), acc = new Float64Array(N), down = new Int32Array(N);
+    let rainTotal = 0;
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      const k = r * W + c, e = elevFn(x0 + c, y0 + r); elev[k] = e;
+      const w = rainFn(x0 + c, y0 + r); acc[k] = w; rainTotal += w;
+    }
+    // 각 셀의 D8 최급강하 이웃(자신보다 낮은 이웃 중 *경사 최대*). 없으면 sink(-1). 창 밖으로 내려가면 OUT(-2).
+    const OUT = -2;
+    const dist = (dc, dr) => (dc && dr) ? Math.SQRT1_2 : 1;   // 대각선은 거리 √2 → 경사 정규화
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      const k = r * W + c, e = elev[k]; let best = -1, bestSlope = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dc && !dr) continue;
+        const nc = c + dc, nr = r + dr;
+        let ne; if (nc < 0 || nc >= W || nr < 0 || nr >= H) ne = elevFn(x0 + nc, y0 + nr); else ne = elev[nr * W + nc];
+        if (ne >= e) continue;
+        const slope = (e - ne) * dist(dc, dr);
+        if (slope > bestSlope) { bestSlope = slope; best = (nc < 0 || nc >= W || nr < 0 || nr >= H) ? OUT : nr * W + nc; }
+      }
+      down[k] = best;
+    }
+    // 고→저 순서로 한 번 훑으며 물을 내리막으로 밀어준다(위상 정렬 대용·DAG 라 안전).
+    const order = Array.from({ length: N }, (_, k) => k).sort((a, b) => elev[b] - elev[a]);
+    let sinkAccum = 0, borderOut = 0;
+    for (const k of order) {
+      const d = down[k];
+      if (d === -1) sinkAccum += acc[k];           // 국소 최저점 — 물이 고인다(호수 씨앗·0100)
+      else if (d === OUT) borderOut += acc[k];      // 창 밖으로 나감
+      else acc[d] += acc[k];                        // 내리막 셀로 합류(누적 = 상류 면적)
+    }
+    let maxAcc = 0, sumAcc = 0;
+    for (let k = 0; k < N; k++) { if (acc[k] > maxAcc) maxAcc = acc[k]; sumAcc += acc[k]; }
+    return { acc, down, elev, W, H, x0, y0, rain: rainTotal, sinkAccum, borderOut, maxAcc, meanAcc: sumAcc / N };
+  }
+
   // 관찰자 둘레 유한 창 materialize — 무한 grid 중 반경 안 청크만 생성(작업집합 ∝ 반경²·관찰자 위치 무관).
   //   observer: {cx,cy}  opts: { spacing(청크 간격·기본 1), radius(materialize 반경·기본 spacing*3), z(평면 높이·기본 0),
   //     shapeAt(i,j)->hash|null(절차적 장·각 grid 셀의 DNA·null=빈 셀) }
@@ -161,5 +212,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 7 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, flowAccumulation, streamChunks, VERSION: 8 };
 });
