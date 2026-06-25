@@ -91,19 +91,28 @@
   //   두 fBm 을 *다른 salt*(독립 lattice 채널)로 뽑아 *무상관*시킨다 — 좌표 오프셋 방식(같은 노이즈의 다른 패치)은
   //   윈도우마다 spurious 상관이 들쭉날쭉이라 salt 가 근본 해결. 바이옴은 (temp,humidity)→정수 칸의 *제너릭 양자화*
   //   (타입 하드코딩 0·biome=칸 인덱스일 뿐) — "사막/툰드라" 이름은 호출자(렌더)의 몫.
-  //   opts: { scale(0.08), nTemp(3), nHum(3), tempSalt('T'), humSalt('H'), …fbm }
-  //   반환: (i,j) -> { temp∈[0,1), humidity∈[0,1), biome∈[0,nTemp*nHum) }. 순수·경로 무관·결정론.
+  //   opts: { scale(0.08), nTemp(3), nHum(3), tempSalt('T'), humSalt('H'), elevSalt('E'), lapse(0), …fbm }
+  //   반환: (i,j) -> { temp∈[0,1), humidity∈[0,1), elev∈[0,1), effTemp∈[0,1), biome∈[0,nTemp*nHum) }. 순수·경로 무관·결정론.
+  //   ── 고도×바이옴 결합(0090 → 0092·가법): 실세계에서 같은 위도(=같은 base temp)라도 *높은 곳은 더 춥다*(기온 감률·
+  //      lapse rate) — 그래서 적도 산봉우리에 만년설/툰드라가 생긴다. 세 번째 *독립* fBm 축(elev·elevSalt='E')을 뽑아
+  //      effTemp = clamp01(temp − lapse·elev) 로 *유효 온도*를 낮춘다 → 분류는 effTemp 로(고지대=찬 바이옴 칸으로 이동).
+  //      세 축 모두 무상관(salt 분리)·각 축 공간 상관(코히어런트). lapse=0 → effTemp=temp → biome byte 0090 동일(회귀 0).
   function biomeField(opts) {
     opts = opts || {};
     const scale = opts.scale != null ? opts.scale : 0.08;
     const nT = opts.nTemp != null ? opts.nTemp : 3, nH = opts.nHum != null ? opts.nHum : 3;
     const tSalt = opts.tempSalt != null ? opts.tempSalt : 'T', hSalt = opts.humSalt != null ? opts.humSalt : 'H';
+    const eSalt = opts.elevSalt != null ? opts.elevSalt : 'E', lapse = opts.lapse != null ? opts.lapse : 0;
     const tOpts = Object.assign({}, opts, { salt: tSalt }), hOpts = Object.assign({}, opts, { salt: hSalt });
+    const eOpts = Object.assign({}, opts, { salt: eSalt });
     const q = (v, n) => { let k = Math.floor(v * n); return k < 0 ? 0 : (k >= n ? n - 1 : k); };
+    const cl01 = (v) => v < 0 ? 0 : (v >= 1 ? 0.999999 : v);
     return function (i, j) {
       const temp = fbm(i * scale, j * scale, tOpts);
       const humidity = fbm(i * scale, j * scale, hOpts);
-      return { temp, humidity, biome: q(temp, nT) * nH + q(humidity, nH) };
+      const elev = lapse !== 0 ? fbm(i * scale, j * scale, eOpts) : 0;   // lapse=0 → elev 미사용(회귀 0)
+      const effTemp = lapse !== 0 ? cl01(temp - lapse * elev) : temp;    // 고지대일수록 유효 온도 ↓(기온 감률)
+      return { temp, humidity, elev, effTemp, biome: q(effTemp, nT) * nH + q(humidity, nH) };
     };
   }
 
@@ -132,5 +141,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 3 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 4 };
 });
