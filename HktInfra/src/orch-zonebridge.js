@@ -1,4 +1,5 @@
 'use strict';
+// step-0298 — #9 멀티프로세스 배선 8: entityDirectCoherent 질의(직접 라우팅 데이터 평면 정합 + stale 누수 0). 읽기 전용·동작 무변경.
 // step-0293 — #9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리 push(_pubZoneLoc). 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블 캐시(#9 직접 라우팅 전제). gatewayZoneDir OFF→push 0 = 0292 비트 동일.
 // step-0292 — #9 멀티프로세스 배선 2: 존 host mailbox(_zoneDeliver enqueue + _tickRuntimes drain). zoneHostMailbox ON 시 frame 을 즉시 적용 대신 핸들 mbox 큐에 쌓고 onTick 전 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 즉시 적용 동일.
 // step-0291 — #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver). 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어의 씨앗)로 round-trip 시켜 적용. OFF→0290 비트 동일.
@@ -157,6 +158,8 @@ const OrchZoneBridge = {
   },
   // 전 데이터 평면 정합 질의(step-0290·#56 capstone) — entity 데이터 평면이 배치 SSOT 와 *완전히* 한 몸인지의 단일 술어: ⒜ fullyCoherent(placement==running==zoneRuntimes 3층·#51b 0280) ⒝ entityCoherent(단일 소유 + entity 보유 런타임 모두 running·0288). 참이면 "어디서 돌아야/돈다고 기록/실제 핸들" 3층 + "entity 가 정확히 한 존에·executed 존에만" 이 모두 정합. 혼합 lifecycle 후 참(0290 capstone). 읽기 전용.
   entityFlowCoherent() { return this.fullyCoherent() && this.entityCoherent(); },
+  // 직접 라우팅 데이터 평면 정합 질의(step-0298·#9) — 게이트웨이 직접 라우팅 체제에서 entity 데이터 평면이 정합하고 *오라우팅 누수가 0* 인지의 단일 술어: ⒜ entityCoherent(단일 소유 + orphan 0·0288) ⒝ zoneDirStale === 0(낡은 host frame 이 하나도 적용 안 됨 — 전부 거부). 참이면 "게이트웨이가 결정한 라우팅이 전부 옳은 런타임에 닿았고, entity 가 정확히 한 존에 산다"(직접 라우팅 안전성). 읽기 전용.
+  entityDirectCoherent() { return this.entityCoherent() && this.zoneDirStale === 0; },
   // entity 보존 회계(step-0290·#56 capstone) — 데이터 평면 보존 항등식: 살아있는 total = 받은 enter − 떠난 leave − hostdown 소실 − stop 폐기. graceful op(migrate/rebalance/drain·같은 핸들)는 항에 안 들어간다(무손실). 모든 op 뒤 성립(0290 capstone). 읽기 전용.
   entityConserved() { return this.totalEntities() === this.zoneEnters - this.zoneLeaves - this.zoneEntitiesLost - this.zoneEntitiesDiscarded; },
   // entity census 스냅샷(step-0289·#56) — 전 런타임의 entity 분포 {total, zones:{zoneId:count}}(운영 대시보드·graceful op 전후 보존 대조). graceful 재배치(rebalance/drain)는 _migrate(같은 핸들)이므로 total 불변·zone 분포만 재편.

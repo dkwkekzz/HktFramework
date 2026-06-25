@@ -1,4 +1,5 @@
 'use strict';
+// step-0297 — #9 멀티프로세스 배선 7: onMsg 에 orch hostDown 분기(죽은 host 의 dir 엔트리 일괄 무효화·장애 검출). 미수신이면 이전 비트 동일.
 // step-0295 — #9 멀티프로세스 배선 5: onMsg 에 클라 zoneMove/zoneLeave 직접 라우팅 분기(enter 와 동형·zoneDir 해소→zoneDeliver). 미수신(OFF)이면 이전 비트 동일.
 // step-0294 — #9 멀티프로세스 배선 4: onMsg 에 클라 zoneEnter 직접 라우팅 분기(zoneDir 해소→zoneDeliver). 미수신(gatewayDirectZone OFF)이면 이전 비트 동일.
 // step-0293 — #9 멀티프로세스 배선 3: onMsg 에 orch zoneLoc 분기(존 위치 디렉토리 갱신·서비스 디스커버리). 미수신(gatewayZoneDir OFF)이면 이전 비트 동일.
@@ -32,6 +33,10 @@ const GatewayMsg = {
         // 존 위치 디렉토리 갱신(step-0293·#9) — orch 가 배치 집행마다 push 한 zone→host 위치를 캐시(서비스 디스커버리). host===null 이면 퇴역(삭제). 게이트웨이는 orch 내부 모른 채 이 명시 메시지로만 학습(은닉). 미수신(gatewayZoneDir OFF)이면 이 분기 영영 안 옴 = 이전 비트 동일.
         if (p.host === null || p.host === undefined) this.zoneDir.delete(p.zoneId);
         else this.zoneDir.set(p.zoneId, p.host);
+      } else if (p.type === 'hostDown') {
+        // host 장애 일괄 무효화(step-0297·#9) — 죽은 host 의 모든 dir 엔트리 삭제(장애 검출 신호). 구조된 존은 _bridgeHostDown 의 survivor zoneLoc 가 *먼저* 도착해 새 host 로 이미 갱신됨(삭제 대상 아님) → 미구조(생존 host 없는) 존만 정리. 게이트웨이가 죽은 host 로 직접 라우팅하지 않게 보장. 미수신이면 이전 비트 동일.
+        for (const [z, h] of [...this.zoneDir]) if (h === p.host) this.zoneDir.delete(z);
+        this.gatewayHostInvalidated++;
       }
       return;
     }
