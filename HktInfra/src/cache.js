@@ -1,4 +1,5 @@
 'use strict';
+// step-0255 — 캐시 put-if-absent(cacheAdd·Redis SETNX 더미판): {key,value} → 키가 *없을 때만* 쓰고 added=true, 이미 있으면 무변경·added=false(cacheAddReply 회신·_lastAdd 보관). 최초-기록-승(first-writer-wins)·분산 락/유일 점유 primitive(예: 인스턴스 좌석 선점). 새 메시지 타입·미수신 = 0254 비트 동일(reg 0). 4차 고도화(캐시 박스 #4).
 // step-0254 — 캐시 negative caching(cacheNegative·캐시 침투 방어): negativeCache ON 이면 read-through miss 가 *소스에도 없을* 때 그 키를 known-absent(negatives Set)로 기억 → 같은 미존재 키 재조회는 소스 조회 없이 즉답(negHit·DB 침투 폭주 방어·Redis cache penetration 더미판). 키가 나중에 set 되면 negatives 에서 제거(가시화). 토글({on})·미수신이면 negativeCache=false → negatives 미사용·miss 경로 무변경 = 0253 비트 동일(reg 0). 4차 고도화(캐시 박스 #3).
 // step-0253 — 캐시 bulk get(cacheMget): {keys[]} 한 요청에 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1·플레이어 N명 핫데이터 배치 페치). 각 키는 cacheGet(0206)과 동일 hit/miss/read-through·setAt·lruTouch 적용. cacheMget 미수신이면 미발화 = 0252 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #2).
 // step-0252 — 캐시 write-through 소스 정합(cacheWriteThrough): writeThrough ON 이면 cacheSet 이 캐시(store) 뿐 아니라 backing source(SSOT 더미·DB)에도 동시 기록 → 소스가 캐시와 정합. 그래서 무효화(0212) 후 read-through(0206)가 *최신* 값을 재적재(OFF 면 소스에 안 써 stale 값 재적재). writeThrough 토글({on}·cacheLruTouch 0226 동형). 미설정이면 writeThrough=false → 소스 무변경 = 0226 비트 동일(reg 0). 4차 고도화(캐시 박스 #1).
@@ -70,6 +71,14 @@ class CacheStore {
       }
       this._lastGet = { key: p.key, value, hit, filled: !hit && this.store.has(p.key) };
       if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'cacheReply', key: p.key, value, hit }); }
+      return;
+    }
+    // put-if-absent(step-0255·cacheAdd·SETNX) — {key,value} → 키가 없을 때만 _set 하고 added=true·있으면 무변경·added=false(최초-기록-승·분산 락/유일 점유). 새 메시지 타입·미수신 = 0254 비트 동일.
+    if (p.type === 'cacheAdd') {
+      const added = !this.store.has(p.key);
+      if (added) { this._set(p.key, p.value, now); this.sets++; }
+      this._lastAdd = { key: p.key, added };
+      if (this.net && this.addr) this.net.send(this.addr, m.from, { type: 'cacheAddReply', key: p.key, added });
       return;
     }
     // bulk get(step-0253·cacheMget·read-through) — {keys[]} → 각 키를 cacheGet(0206)과 동일 로직(hit/miss/read-through·setAt·lruTouch·hits/misses 계측)으로 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1). 미수신이면 미발화 = 0252 비트 동일.

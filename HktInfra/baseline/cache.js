@@ -1,4 +1,5 @@
 'use strict';
+// step-0254 — 캐시 negative caching(cacheNegative·캐시 침투 방어): negativeCache ON 이면 read-through miss 가 *소스에도 없을* 때 그 키를 known-absent(negatives Set)로 기억 → 같은 미존재 키 재조회는 소스 조회 없이 즉답(negHit·DB 침투 폭주 방어·Redis cache penetration 더미판). 키가 나중에 set 되면 negatives 에서 제거(가시화). 토글({on})·미수신이면 negativeCache=false → negatives 미사용·miss 경로 무변경 = 0253 비트 동일(reg 0). 4차 고도화(캐시 박스 #3).
 // step-0253 — 캐시 bulk get(cacheMget): {keys[]} 한 요청에 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1·플레이어 N명 핫데이터 배치 페치). 각 키는 cacheGet(0206)과 동일 hit/miss/read-through·setAt·lruTouch 적용. cacheMget 미수신이면 미발화 = 0252 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #2).
 // step-0252 — 캐시 write-through 소스 정합(cacheWriteThrough): writeThrough ON 이면 cacheSet 이 캐시(store) 뿐 아니라 backing source(SSOT 더미·DB)에도 동시 기록 → 소스가 캐시와 정합. 그래서 무효화(0212) 후 read-through(0206)가 *최신* 값을 재적재(OFF 면 소스에 안 써 stale 값 재적재). writeThrough 토글({on}·cacheLruTouch 0226 동형). 미설정이면 writeThrough=false → 소스 무변경 = 0226 비트 동일(reg 0). 4차 고도화(캐시 박스 #1).
 // step-0226 — 캐시 recency touch(cacheLruTouch): lruTouch ON 이면 get *hit* 시 recency(setAt)를 now 로 갱신 → 자주 읽는 핫 키가 회수에서 살아남는다(진짜 LRU = set+get 둘 다 recency·0225 는 set-시각만이라 FIFO 에 가까웠다). lruTouch OFF(미설정)면 get 이 recency 미갱신 = 0225 비트 동일(reg 0). 3차 고도화(캐시 박스 #2).
@@ -35,10 +36,13 @@ class CacheStore {
     this.touches = 0;          // get hit 으로 recency 가 갱신된 누적 수(step-0226·lruTouch ON 일 때만).
     this.writeThrough = false; // cacheSet 시 backing source 동시 기록 여부(step-0252·cacheWriteThrough·OFF 면 0226 거동=캐시만 씀).
     this.writeThroughs = 0;    // write-through 로 소스에도 기록된 누적 set 수(step-0252·writeThrough ON 일 때만).
+    this.negativeCache = false; // miss 가 소스에도 없을 때 known-absent 로 기억할지(step-0254·cacheNegative·OFF 면 0253 거동=매번 소스 조회).
+    this.negatives = new Set();  // known-absent 키(step-0254·negativeCache ON 일 때만 채워짐·set 되면 제거).
+    this.negHits = 0;            // negatives 단축으로 소스 조회를 건너뛴 누적 수(step-0254·침투 방어 효과 계측).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 캐시 쓰기(step-0205·write-through 기본) — key→value 저장(같은 key 재-set 은 덮어씀·최신 값). 게이트웨이/서비스가 핫 데이터를 채운다. setAt 기록(step-0211·TTL 기준·재-set 은 시각 갱신). step-0225: 쓰기 후 용량 초과면 LRU 회수.
-  _set(key, value, now) { this.store.set(key, value); if (now != null) this.setAt.set(key, now); if (this.writeThrough) { this.source.set(key, value); this.writeThroughs++; } this._evictToCapacity(); }   // step-0252: write-through 면 backing source 도 동시 갱신(소스 정합 → 무효화 후 read-through 가 최신값).
+  _set(key, value, now) { this.store.set(key, value); if (now != null) this.setAt.set(key, now); if (this.writeThrough) { this.source.set(key, value); this.writeThroughs++; } if (this.negativeCache) this.negatives.delete(key); this._evictToCapacity(); }   // step-0252: write-through 면 backing source 도 동시 갱신. step-0254: 키가 생겼으니 known-absent 해제.
   // 용량 LRU 회수(step-0225·cacheCapacity) — store.size 가 capacity 를 넘는 동안 가장 오래된(recency=setAt 최소·동률은 iteration 순) 키를 회수한다. capacity=∞ 면 루프 미진입 = 0224 비트 동일(회귀 0). 개수 유계(0211 시간 유계의 짝).
   _evictToCapacity() {
     while (this.store.size > this.capacity) {
@@ -58,7 +62,12 @@ class CacheStore {
       this.getsRx++;
       let value, hit;
       if (this.store.has(p.key)) { value = this.store.get(p.key); hit = true; this.hits++; if (this.lruTouch) { this.setAt.set(p.key, now); this.touches++; } }   // step-0226: hit 시 recency 갱신(진짜 LRU·OFF 면 미갱신=0225 동일).
-      else { this.misses++; hit = false; if (this.source.has(p.key)) { value = this.source.get(p.key); this.store.set(p.key, value); this.setAt.set(p.key, now); } }   // read-through: miss → 소스서 읽어 캐시 채움(다음번 hit·setAt 기록).
+      else {   // read-through: miss → 소스서 읽어 캐시 채움(다음번 hit·setAt 기록). step-0254: negativeCache 면 known-absent 단축.
+        this.misses++; hit = false;
+        if (this.negativeCache && this.negatives.has(p.key)) { this.negHits++; }   // known-absent — 소스 조회 없이 즉답(침투 방어).
+        else if (this.source.has(p.key)) { value = this.source.get(p.key); this.store.set(p.key, value); this.setAt.set(p.key, now); if (this.negativeCache) this.negatives.delete(p.key); }
+        else if (this.negativeCache) { this.negatives.add(p.key); }   // 소스에도 없음 → known-absent 기억(다음 미존재 조회 단축).
+      }
       this._lastGet = { key: p.key, value, hit, filled: !hit && this.store.has(p.key) };
       if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'cacheReply', key: p.key, value, hit }); }
       return;
@@ -93,6 +102,8 @@ class CacheStore {
     if (p.type === 'cacheLruTouch') { this.lruTouch = !!p.on; return; }
     // write-through 모드(step-0252·cacheWriteThrough) — {on} → cacheSet 이 backing source 에도 동시 기록할지 켠다(소스 정합). cacheWriteThrough 미수신이면 writeThrough=false = 0226 비트 동일.
     if (p.type === 'cacheWriteThrough') { this.writeThrough = !!p.on; return; }
+    // negative caching 모드(step-0254·cacheNegative) — {on} → miss 가 소스에도 없을 때 known-absent 로 기억해 재조회 단축(침투 방어). cacheNegative 미수신이면 negativeCache=false = 0253 비트 동일.
+    if (p.type === 'cacheNegative') { this.negativeCache = !!p.on; return; }
   }
   // 질의 인터페이스 — 핫 데이터 읽기(캐시 hit). miss 시 read-through(소스 조회)는 0206. 검증·게이트웨이가 쓴다.
   get(key) { return this.store.has(key) ? this.store.get(key) : undefined; }

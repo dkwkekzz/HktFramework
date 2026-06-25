@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0254](step-0254.md) — **캐시 negative caching(cacheNegative·침투 방어)**. ON 이면 소스에도 없는 키 miss 를 known-absent 로 기억 → 미존재 키 재조회는 소스 조회 없이 negHit 즉답(DB 침투 방어). set 되면 해제. 미수신→0253 비트 동일. 4차 고도화 캐시 #3.
-- **한 줄 상태**: reg ALL OK·cacheneg: 5/5 ON negHits 1·set 후 해제·OFF negHits 0·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0255](step-0255.md) — **캐시 put-if-absent(cacheAdd·SETNX)**. 키 없을 때만 쓰고 added=true·있으면 무변경 added=false(최초-기록-승·분산 락/유일 점유 primitive). 새 메시지 타입·미수신→0254 비트 동일. 4차 고도화 캐시 #4.
+- **한 줄 상태**: reg ALL OK·cacheadd: 5/5 1차 added=true·2차 added=false·store=v1·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 캐시 박스 고도화 arc 진행 중(Redis-like 정합/신뢰성 — write-through 0252 → cache-aside delete·bulk get·negative caching·stats 등). **검토 게이트 보류**: #49(wiring >30KB topo-run/topo-build 단일 거대 함수 — 신중 분할 arc 필요)·#51 잔여(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스. 방향 권위 = `infra-review`(0241~0250 묶음·🔎 묶음 리뷰 적기).
 
 ---
@@ -79,7 +79,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)+placeQuery executed host(0250·읽기 경로·게이트웨이 실 위치 라우팅)** · **#51 executed SSOT arc(0241~0250) 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
 
@@ -170,3 +170,4 @@
 | [0252](step-0252.md) | 캐시 write-through 소스 정합(cacheWriteThrough·set 시 backing source 동시 기록·무효화 후 read-through 최신값·4차 고도화 캐시 #1) | 통과(reg 0·spine OK) · 5/5 WT get=v2·OFF get=v1(stale) |
 | [0253](step-0253.md) | 캐시 bulk get(cacheMget·여러 키 read-through 일괄 조회·라운드트립 N→1·배치 페치·4차 고도화 캐시 #2) | 통과(reg 0·spine OK) · 5/5 mget=[v1,v2,s3,∅]·hits2/miss2 |
 | [0254](step-0254.md) | 캐시 negative caching(cacheNegative·소스에도 없는 키 known-absent 기억·재조회 소스 단축·침투 방어·set 시 해제·4차 고도화 캐시 #3) | 통과(reg 0·spine OK) · 5/5 ON negHits1·OFF 0 |
+| [0255](step-0255.md) | 캐시 put-if-absent(cacheAdd·SETNX·키 없을 때만 쓰기·최초-기록-승·분산 락/유일 점유 primitive·4차 고도화 캐시 #4) | 통과(reg 0·spine OK) · 5/5 add1 true·add2 false·store v1 |
