@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0261](step-0261.md) — **정리(#49 wiring): topo-run 제어 평면 주입열 분리**. `run()` 의 per-tick 메시지 주입열(rankDie~loginOps·inject)을 `topo-inject.js`(applyInjections)로 verbatim 분리·ctx 핸들만 주입·투명 분할(OFF 플래그 없음). topo-run.js 35.9KB→22.7KB(<30KB).
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·injsplit: 5/5 instanceOps+cacheOps 위임 무결(active 2·cache k1/k2)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 wiring 분할 arc 진행 중**(다음 너비/멀티프로세스 전 게이트). 잔여 >30KB: **topo-build 31.5·svc-exchange-core 30.7KB**(둘 다 단일 거대 함수·신중 분할). topo-run ✅(0261). 이후: #51b(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스.
+- **닫힌 step**: [step-0262](step-0262.md) — **정리(#49 wiring): topo-run crash/failover 복구 주입 분리**. `run()` 의 복구 주입(persistRestart·invRestart·rankRestart·chatRestart·busRestart 재협상 등)을 `topo-failover.js`(applyFailover)로 verbatim 분리·ctx+quorumMergeJournals 주입·투명 분할. topo-run.js 22.7KB→13.1KB. **#49 topo-run(35.9KB) 완전 해소**.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·fosplit: 5/5 invRestart 복구 투명(복구판 ledger==무crash판)·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 wiring 분할 arc 진행 중**(다음 너비/멀티프로세스 전 게이트). 잔여 >30KB: **topo-build 31.5·svc-exchange-core 30.7KB**(둘 다 단일 거대 함수·신중 분할). topo-run ✅(0261·0262). 이후: #51b(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스.
 
 ---
 
@@ -175,3 +175,4 @@
 | [0259](step-0259.md) | 캐시 namespace 무효화(cacheDeletePrefix·SCAN+DEL·prefix 매칭 키 일괄 제거·세션/길드 단위 무효화·단일 delete 패턴판·4차 고도화 캐시 #8) | 통과(reg 0·spine OK) · 5/5 session:* 2제거·item 생존 |
 | [0260](step-0260.md) | 캐시 정합 capstone(coherent·store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store·무효화 keyTtl 정리·캐시 arc 0252~0260 닫기) | 통과(reg 0·spine OK) · 5/5 14-op 혼합 매단계 coherent |
 | [0261](step-0261.md) | 정리(#49 wiring): topo-run 제어 평면 주입열 분리(topo-inject.js·applyInjections·rankDie~loginOps·inject verbatim·투명 분할·35.9→22.7KB) | 통과(reg 0·spine OK) · 5/5 injsplit active 2·cache k1/k2 |
+| [0262](step-0262.md) | 정리(#49 wiring): topo-run crash/failover 복구 주입 분리(topo-failover.js·applyFailover·persistRestart~busRestart verbatim·투명 분할·22.7→13.1KB·#49 topo-run 해소) | 통과(reg 0·spine OK) · 5/5 fosplit 복구 투명 ledger 일치 |
