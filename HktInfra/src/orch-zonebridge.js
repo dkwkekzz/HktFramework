@@ -25,6 +25,15 @@ const OrchZoneBridge = {
     this.zoneMigrations++;
     return true;
   },
+  // 브리지 hostDown(step-0275) — host 장애 복구 집행 시 죽은 host 의 실 EntityZone 런타임을 생존 host 에 *새 인스턴스*로 재가동한다. migrate(자발·같은 핸들·상태 보존)와 결정적으로 다르다: 죽은 host 의 런타임은 이미 소실이므로 graceful 이주 불가 → 새 인스턴스(상태 보존 *불가*·잃은 상태 복구는 영속서 후속·범위 밖). zoneRuntimes 의 zone 핸들을 교체하고 host 를 target 으로. 없는 존 멱등.
+  _bridgeHostDown(zoneId, target) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
+    rt.host = target;
+    this.zoneRescued++;
+    return true;
+  },
   // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
   _bridgeStop(zoneId) {
     if (this.zoneRuntimes.delete(zoneId)) { this.zoneStops++; return true; }
@@ -34,6 +43,8 @@ const OrchZoneBridge = {
   zoneRuntimeOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone : null; },
   zoneRuntimeHostOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.host : null; },
   runtimeCount() { return this.zoneRuntimes.size; },
+  // 실 런타임 host 분포 질의(step-0275) — 그 host 에서 도는 실 EntityZone 런타임 수(장애/드레인 후 그 host 0 검증·running 문자열 runningOn 의 실물 짝).
+  runtimeOn(host) { let n = 0; for (const rt of this.zoneRuntimes.values()) if (rt.host === host) n++; return n; },
 };
 
 const __part = { OrchZoneBridge };

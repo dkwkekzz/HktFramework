@@ -31,6 +31,7 @@ const OrchPlacement = {
       if (target === null) break;                           // 생존 host 없음 → 보류.
       this.placement.set(zid, target);                      // 재배치 결정.
       if (this.placeExecute) this.running.set(zid, target); // 집행 — 살아남은 host 에 재가동(re-acquire·죽은 host 는 release 불가).
+      if (this.zoneBridge && this.zoneFactory) this._bridgeHostDown(zid, target);   // step-0275 (#51b) — 실 EntityZone 도 생존 host 에 *새 인스턴스* 재가동(비자발적·상태 보존 불가·OFF→0274 동일).
       rescued++;
     }
     this.hostRescued += rescued; return rescued;
