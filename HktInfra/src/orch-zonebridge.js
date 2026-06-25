@@ -25,6 +25,11 @@ const OrchZoneBridge = {
     this.zoneMigrations++;
     return true;
   },
+  // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
+  _bridgeStop(zoneId) {
+    if (this.zoneRuntimes.delete(zoneId)) { this.zoneStops++; return true; }
+    return false;
+  },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).
   zoneRuntimeOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone : null; },
   zoneRuntimeHostOf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.host : null; },

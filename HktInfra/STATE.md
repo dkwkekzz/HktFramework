@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0273](step-0273.md) — **#51b 실 zone.js 브리지 2: _migrate 실 런타임 host 이주**. zoneBridge ON 이면 _migrate 가 같은 EntityZone 핸들의 host 를 release+acquire 원자 교체(재생성 아님·상태 보존·orch-zonebridge `_bridgeMigrate`·zoneMigrations 계측). OFF→0272 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonemigrate: 5/5 z1 A→C→A 두 번 이주에도 zoneStarts 2 불변(재사용)·zoneMigrations 2·최종 host 정확·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51b arc 진행(0274~)** — 0274=`_stop` 실 런타임 종료(zoneRuntimes 제거)·0275=bridged 존에 entity 주입 후 이주 시 entity 무손실 직접 증명·이후 host 장애 복구(_hostDown) 실 런타임 판. 🔎 0261~0270 묶음 리뷰 적기.
+- **닫힌 step**: [step-0274](step-0274.md) — **#51b 실 zone.js 브리지 3: _stop 실 런타임 종료**. zoneBridge ON 이면 _stop 이 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기·orch-zonebridge `_bridgeStop`·zoneStops 계측·없는 존 멱등). OFF→0273 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonestop: 5/5 z1 퇴역→runtimeCount 1·z1 gone·z2 live·zoneStops 1·`run.js all` ALL OK·spine ALL OK. (start/migrate/stop 실 lifecycle 집행 완성)
+- **다음**: 🎯 **#51b arc 진행(0275~)** — 0275=bridged 존에 entity 주입 후 이주 시 entity 무손실 직접 증명(상태 보존 실증)·0276=host 장애 복구(_hostDown) 실 런타임 판·이후 rebalance/drain 실 판. 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -151,3 +151,4 @@
 | [0271](step-0271.md) | 도구 갭 #43: close-step src/ 박스 >30KB 가드(engine/close-step.js·매 close src 스캔·비실패 경고·#49 재발 방비·net-core 무변경) | 통과(reg 0 자명·spine OK) · 최대 svc-exchange-core 26.0KB ≤30KB(>30KB 0개) |
 | [0272](step-0272.md) | #51b 실 zone.js 브리지 1: orch 존 런타임 레지스트리(orch-zonebridge.js·_bridgeStart·placeZone 집행이 실 EntityZone 인스턴스 host 바인딩·running 추상↔실 런타임 연결·팩토리 makeActor 주입·zoneBridge OFF→0271 동일) | 통과(reg 0·spine OK) · 5/5 z1→hostA·z2→hostB·rtCount 2·zoneStarts 2·실EZ |
 | [0273](step-0273.md) | #51b 실 zone.js 브리지 2: _migrate 실 런타임 host 이주(_bridgeMigrate·같은 EntityZone 핸들 host release+acquire 원자 교체·재생성 아님·상태 보존·zoneMigrations 계측·OFF→0272 동일) | 통과(reg 0·spine OK) · 5/5 z1 A→C→A·zoneStarts 2 불변·zoneMigrations 2 |
+| [0274](step-0274.md) | #51b 실 zone.js 브리지 3: _stop 실 런타임 종료(_bridgeStop·placeStop 집행이 실 EntityZone 런타임 zoneRuntimes 제거·핸들 폐기·zoneStops 계측·없는 존 멱등·OFF→0273 동일) | 통과(reg 0·spine OK) · 5/5 z1 퇴역→rtCount 1·z1 gone·z2 live·zoneStops 1 |

@@ -37,6 +37,7 @@ const OrchPlacement = {
   },
   // 존 운영 퇴역 stop(step-0246·#51) — 존을 내린다: 결정(placement)에서 빼고 placeExecute ON 이면 실 런타임(running)도 종료. 없는 존이면 멱등 no-op(zonesRetired 무증). instance.js _despawn 의 존 판. drift 0 보존(둘 다 제거).
   _stop(zoneId) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeStop(zoneId);   // step-0274 (#51b) — 실 EntityZone 런타임도 폐기(OFF 면 가드 통과·0273 비트 동일).
     const had = this.placement.delete(zoneId);     // 결정 제거(존 퇴역).
     if (this.placeExecute) this.running.delete(zoneId);   // 집행 — 실 런타임 종료.
     if (had) this.zonesRetired++;
