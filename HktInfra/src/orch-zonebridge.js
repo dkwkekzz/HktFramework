@@ -1,4 +1,9 @@
 'use strict';
+// step-0300 — #9 멀티프로세스 배선 10·capstone: directFlowCoherent 질의(entityFlowCoherent && entityDirectCoherent). destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참 → #9 arc 0291~0300 닫기. 읽기 전용.
+// step-0298 — #9 멀티프로세스 배선 8: entityDirectCoherent 질의(직접 라우팅 데이터 평면 정합 + stale 누수 0). 읽기 전용·동작 무변경.
+// step-0293 — #9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리 push(_pubZoneLoc). 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블 캐시(#9 직접 라우팅 전제). gatewayZoneDir OFF→push 0 = 0292 비트 동일.
+// step-0292 — #9 멀티프로세스 배선 2: 존 host mailbox(_zoneDeliver enqueue + _tickRuntimes drain). zoneHostMailbox ON 시 frame 을 즉시 적용 대신 핸들 mbox 큐에 쌓고 onTick 전 일괄 drain(소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗). OFF→0291 즉시 적용 동일.
+// step-0291 — #9 멀티프로세스 배선 1: 존 런타임 전송 seam(_zoneDeliver). 브리지 enter/move/leave 가 실 EntityZone 핸들에 직접 onMsg 하던 것을, zoneHostHandle ON 시 JSON 직렬화 경계(소켓 와이어의 씨앗)로 round-trip 시켜 적용. OFF→0290 비트 동일.
 // step-0290 — #56 브리지 존 데이터 평면 10·capstone: entityFlowCoherent(fullyCoherent+entityCoherent)·entityConserved(보존 회계 항등식). #56 arc 0281~0290 닫기.
 // step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
 // step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
@@ -20,11 +25,16 @@ const OrchZoneBridge = {
   // 브리지 start(step-0272) — 배치 결정 집행 시 실 EntityZone 런타임을 host 에 띄운다(zoneRuntimes 등록). 이미 도는 존이면 host 만 정렬(멱등·신규 인스턴스화 아님). zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_start 가드).
   _bridgeStart(zoneId, host) {
     const rt = this.zoneRuntimes.get(zoneId);
-    if (rt) { rt.host = host; return false; }   // 이미 가동 — host 만 정렬(멱등).
+    if (rt) { rt.host = host; this._pubZoneLoc(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등).
     const zone = this.zoneFactory(zoneId);      // 실 EntityZone 인스턴스화(결정론 시드=zoneId 해시·makeActor 주입 팩토리).
-    this.zoneRuntimes.set(zoneId, { zone, host });
+    this.zoneRuntimes.set(zoneId, { zone, host, mbox: [] });   // mbox: 존 host 수신 버퍼(step-0292·mailbox OFF 면 미사용).
     this.zoneStarts++;
+    this._pubZoneLoc(zoneId, host);             // step-0293 (#9) — 게이트웨이 디렉토리에 위치 공표(서비스 디스커버리).
     return true;
+  },
+  // 게이트웨이 존 위치 공표(step-0293·#9) — 배치 집행으로 zone→host 가 바뀌면 게이트웨이에 zoneLoc 을 push(서비스 디스커버리). host===null 이면 퇴역 통보(게이트웨이가 디렉토리에서 삭제). gatewayZoneDir OFF·net 부재면 no-op = 0292 비트 동일. orch 가 게이트웨이 주소를 *명시*로만 안다(은닉 — 게이트웨이 내부 무지).
+  _pubZoneLoc(zoneId, host) {
+    if (this.gatewayZoneDir && this.net && this.addr) { this.net.send(this.addr, 'gateway', { type: 'zoneLoc', zoneId, host }); this.zoneLocPushed++; }
   },
   // 브리지 migrate(step-0273) — 배치 재결정 집행 시 *같은 EntityZone 인스턴스*의 host 를 release(기존)+acquire(toHost) 쌍으로 원자 교체한다(존 런타임 핸들 이주 = 상태 보존·재생성 아님·zoneRuntimes 단일 키 = 한 존 정확히 한 host). 미가동·같은 host 는 멱등 no-op. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_migrate 가드).
   _bridgeMigrate(zoneId, toHost) {
@@ -33,6 +43,7 @@ const OrchZoneBridge = {
     if (rt.host === toHost) return false;
     rt.host = toHost;                  // 같은 EntityZone 핸들(상태·entity 보존)의 host 만 원자 교체 — 새 인스턴스 만들지 않음.
     this.zoneMigrations++;
+    this._pubZoneLoc(zoneId, toHost);  // step-0293 (#9) — 이주된 새 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
   // 브리지 hostDown(step-0275) — host 장애 복구 집행 시 죽은 host 의 실 EntityZone 런타임을 생존 host 에 *새 인스턴스*로 재가동한다. migrate(자발·같은 핸들·상태 보존)와 결정적으로 다르다: 죽은 host 의 런타임은 이미 소실이므로 graceful 이주 불가 → 새 인스턴스(상태 보존 *불가*·잃은 상태 복구는 영속서 후속·범위 밖). zoneRuntimes 의 zone 핸들을 교체하고 host 를 target 으로. 없는 존 멱등.
@@ -43,6 +54,7 @@ const OrchZoneBridge = {
     rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
     rt.host = target;
     this.zoneRescued++;
+    this._pubZoneLoc(zoneId, target);     // step-0293 (#9) — 재가동된 생존 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
   // 브리지 stop(step-0274) — 존 운영 퇴역 집행 시 실 EntityZone 런타임을 zoneRuntimes 에서 제거(핸들 폐기 = 인스턴스 GC 대상). 없는 존은 멱등 no-op(zoneStops 무증). instance.js _despawn 의 존 판. zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_stop 가드).
@@ -51,6 +63,7 @@ const OrchZoneBridge = {
     if (!rt) return false;
     this.zoneEntitiesDiscarded += rt.zone.ents.size;   // step-0286 (#56) — 존 운영 퇴역 시 그 핸들의 entity 는 폐기(계획적·hostdown 비자발 소실과 구분·계측). 퇴역 전 세션 이전/영속은 후속.
     this.zoneRuntimes.delete(zoneId); this.zoneStops++;
+    this._pubZoneLoc(zoneId, null);   // step-0293 (#9) — 퇴역을 게이트웨이 디렉토리에 통보(삭제).
     return true;
   },
   // 존 런타임 질의(step-0272) — "이 존의 실 EntityZone 핸들 / 그 host / 총 몇 개 실 런타임이 도나"(브리지 읽기·running 문자열 SSOT 와 대조해 실물 정합 검증).
@@ -74,15 +87,31 @@ const OrchZoneBridge = {
   _bridgeEnter(zoneId, avatar, sessionId, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;             // 미가동 존 — 흘릴 핸들 없음(멱등).
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
     this.zoneEnters++;
     return true;
+  },
+  // 존 런타임 전송 seam(step-0291·#9) — entity frame 을 실 EntityZone 핸들에 흘리는 *단일 경로*. zoneHostHandle ON 이면 frame 을 JSON 직렬화 경계로 round-trip(소켓 와이어의 씨앗·host.js deliver 동형)시켜 적용 → 데이터 평면이 직렬화 가능한 메시지 경계를 통과(원격 host.js 프로세스 분리 전제·#9). 함수/순환 참조가 frame 에 섞이면 여기서 걸린다(원격-검증 가능성의 토대). OFF 면 직접 method 호출 = 0290 비트 동일.
+  _zoneDeliver(rt, frame) {
+    if (this.zoneHostHandle) {
+      const wire = JSON.stringify(frame);          // 직렬화 경계 — 실 소켓이면 이 바이트가 와이어로 간다.
+      this.zoneFramesDelivered++; this.zoneFrameBytes += wire.length;
+      const f = JSON.parse(wire);                  // 역직렬화(원격이면 host 프로세스가 수행).
+      if (this.zoneHostMailbox) {                  // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
+        (rt.mbox || (rt.mbox = [])).push(f);
+        if (rt.mbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = rt.mbox.length;
+      } else {
+        rt.zone.onMsg(f);                          // 0291 경로 — seam 통과 후 즉시 적용.
+      }
+    } else {
+      rt.zone.onMsg(frame);                        // 0290 경로 — 인프로세스 직접 호출.
+    }
   },
   // 브리지 존 move 라우팅(step-0282·#56) — enter 한 avatar 의 이동 의도를 실 EntityZone 핸들로 흘린다(onMsg('move')→pending). 실제 위치 적용은 그 존의 onTick 에서(orch 가 _tickRuntimes 로 구동·아래). 미가동 존·미존재 avatar 는 무해(zone.js move 가드: ents.has 만 push). zoneEntityFlow OFF 면 호출 없음(0281 비트 동일).
   _bridgeMove(zoneId, avatar, dx, dy, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
     this.zoneMoves++;
     return true;
   },
@@ -91,12 +120,21 @@ const OrchZoneBridge = {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
     const had = rt.zone.ents.has(avatar);
-    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
     if (had) this.zoneLeaves++;
     return had;
   },
   // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
-  _tickRuntimes(tick) { for (const rt of this.zoneRuntimes.values()) rt.zone.onTick(tick); },
+  _tickRuntimes(tick) {
+    for (const rt of this.zoneRuntimes.values()) {
+      // step-0292 (#9) — mailbox ON 이면 onTick 전 수신 버퍼를 일괄 drain(tick 경계 배치 처리·host.js deliver cmd 동형). FIFO 순 적용 → enter→move 순서 보존. drain 후 onTick 이 pending move 를 위치에 적용.
+      if (this.zoneHostMailbox && rt.mbox && rt.mbox.length) {
+        for (const f of rt.mbox) rt.zone.onMsg(f);
+        this.zoneFramesDrained += rt.mbox.length; rt.mbox = [];
+      }
+      rt.zone.onTick(tick);
+    }
+  },
   // 브리지 존 entity 위치 질의(step-0282·#56) — 실 EntityZone 핸들의 그 avatar 위치({x,y})·없으면 null. move 적용·migrate 위치 보존 검증.
   zoneEntityPos(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); const e = rt && rt.zone.ents.get(avatar); return e ? { x: e.x, y: e.y } : null; },
   // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.
@@ -121,6 +159,10 @@ const OrchZoneBridge = {
   },
   // 전 데이터 평면 정합 질의(step-0290·#56 capstone) — entity 데이터 평면이 배치 SSOT 와 *완전히* 한 몸인지의 단일 술어: ⒜ fullyCoherent(placement==running==zoneRuntimes 3층·#51b 0280) ⒝ entityCoherent(단일 소유 + entity 보유 런타임 모두 running·0288). 참이면 "어디서 돌아야/돈다고 기록/실제 핸들" 3층 + "entity 가 정확히 한 존에·executed 존에만" 이 모두 정합. 혼합 lifecycle 후 참(0290 capstone). 읽기 전용.
   entityFlowCoherent() { return this.fullyCoherent() && this.entityCoherent(); },
+  // 직접 라우팅 데이터 평면 정합 질의(step-0298·#9) — 게이트웨이 직접 라우팅 체제에서 entity 데이터 평면이 정합하고 *오라우팅 누수가 0* 인지의 단일 술어: ⒜ entityCoherent(단일 소유 + orphan 0·0288) ⒝ zoneDirStale === 0(낡은 host frame 이 하나도 적용 안 됨 — 전부 거부). 참이면 "게이트웨이가 결정한 라우팅이 전부 옳은 런타임에 닿았고, entity 가 정확히 한 존에 산다"(직접 라우팅 안전성). 읽기 전용.
+  entityDirectCoherent() { return this.entityCoherent() && this.zoneDirStale === 0; },
+  // 직접 라우팅 전 데이터 평면 정합 질의(step-0300·#9 capstone) — #9 멀티프로세스 배선이 데이터 평면을 *완전히* 게이트웨이 직접 라우팅으로 옮겼는지의 단일 술어: ⒜ entityFlowCoherent(placement==running==zoneRuntimes 3층 + entity 단일 소유/orphan0·0290) ⒝ entityDirectCoherent(직접 라우팅 정합 + stale 누수 0·0298). 참이면 "배치 3층 정합 + entity 가 정확히 한 존에 + 게이트웨이 직접 라우팅이 전부 옳게 닿았다"가 모두 성립. destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참(0300 capstone). 읽기 전용.
+  directFlowCoherent() { return this.entityFlowCoherent() && this.entityDirectCoherent(); },
   // entity 보존 회계(step-0290·#56 capstone) — 데이터 평면 보존 항등식: 살아있는 total = 받은 enter − 떠난 leave − hostdown 소실 − stop 폐기. graceful op(migrate/rebalance/drain·같은 핸들)는 항에 안 들어간다(무손실). 모든 op 뒤 성립(0290 capstone). 읽기 전용.
   entityConserved() { return this.totalEntities() === this.zoneEnters - this.zoneLeaves - this.zoneEntitiesLost - this.zoneEntitiesDiscarded; },
   // entity census 스냅샷(step-0289·#56) — 전 런타임의 entity 분포 {total, zones:{zoneId:count}}(운영 대시보드·graceful op 전후 보존 대조). graceful 재배치(rebalance/drain)는 _migrate(같은 핸들)이므로 total 불변·zone 분포만 재편.

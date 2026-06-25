@@ -1,4 +1,8 @@
 'use strict';
+// step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone opt 배선(게이트웨이→실 존 직접 라우팅). OFF→0293 비트 동일.
+// step-0293 — #9 멀티프로세스 배선 3: gatewayZoneDir opt 배선(orch 로 전달·게이트웨이 존 디렉토리 push). OFF→0292 비트 동일.
+// step-0292 — #9 멀티프로세스 배선 2: zoneHostMailbox opt 배선(orch 로 전달·존 host 수신 버퍼). OFF→0291 비트 동일.
+// step-0291 — #9 멀티프로세스 배선 1: zoneHostHandle opt 배선(orch 로 전달·존 런타임 전송 seam). OFF→0290 비트 동일.
 // step-0281 — #56 브리지 존 데이터 평면 1: zoneEntityFlow opt 배선(orch 로 전달). OFF→0280 비트 동일.
 // step-0048 분할 preamble — 박스 1개=파일 1개 (CLAUDE.md 임계 규칙). 진입점 topology.js 가 묶는다.
 // step-0133 정리 분할: topo-build.js 가 33KB>30KB 박스 트리거를 다시 넘겨, *버스 구독 테이블 빌더*(buildSubs)를 topo-subs.js 로 분리한다(기능 0·verbatim·reg 0 — 33.1→25.5KB).
@@ -164,6 +168,10 @@ function buildTopology(opts) {
     placeExecute = false,
     zoneBridge = false,
     zoneEntityFlow = false,
+    zoneHostHandle = false,   // step-0291 (#9) — 존 런타임 전송 seam(직렬화 경계). OFF→0290 비트 동일.
+    zoneHostMailbox = false,  // step-0292 (#9) — 존 host mailbox(수신 버퍼 큐·onTick drain). OFF→0291 비트 동일.
+    gatewayZoneDir = false,   // step-0293 (#9) — 게이트웨이 존 디렉토리 push(zoneLoc·서비스 디스커버리). OFF→0292 비트 동일.
+    gatewayDirectZone = false, // step-0294 (#9) — 게이트웨이→실 존 직접 라우팅(zoneDir 해소·orch 우회·stale 거부). OFF→0293 비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -230,7 +238,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneRtGrid: grid, zoneRtRadius: radius } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneRtGrid: grid, zoneRtRadius: radius } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }

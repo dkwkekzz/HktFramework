@@ -1,4 +1,7 @@
 'use strict';
+// step-0297 — #9 멀티프로세스 배선 7: placeHostDown 뒤 게이트웨이 hostDown broadcast(죽은 host dir 일괄 무효화·장애 검출). gatewayZoneDir OFF→broadcast 0 = 0296 비트 동일.
+// step-0295 — #9 멀티프로세스 배선 5: zoneDeliver 분기에 move/leave 적용 추가(enter 와 동형·_bridgeMove/_bridgeLeave). OFF→0294 비트 동일.
+// step-0294 — #9 멀티프로세스 배선 4: onMsg zoneDeliver 분기(게이트웨이 직접 라우팅 적용·host 일치 시만·stale 거부). OFF→0293 비트 동일.
 // step-0283 — #56 브리지 존 데이터 평면 3: onMsg zoneLeave 분기(entity 제거). OFF→0282 비트 동일.
 // step-0282 — #56 브리지 존 데이터 평면 2: onMsg zoneMove 분기 + onTick 에서 _tickRuntimes 구동(위치 적용). OFF→0281 비트 동일.
 // step-0281 — #56 브리지 존 데이터 평면 1: onMsg 에 zoneEnter 분기(실 EntityZone 핸들로 enter 라우팅·zoneEntityFlow 가드). OFF→0280 비트 동일.
@@ -32,7 +35,8 @@ const OrchControl = {
     // 존 운영 퇴역(step-0246·placeStop) — {zoneId} → 그 존을 내린다(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료). 드레인(host 의 *모든* 존 이주)과 달리 *특정 존 자체*를 stop. 없는 존 멱등. placeStop 미수신이면 미발화 = 0245 비트 동일.
     if (p.type === 'placeStop') { this._stop(p.zoneId); this.stops++; return; }
     // host 장애 복구(step-0248·placeHostDown) — {host, hosts[]} → 비자발적으로 죽은 host 의 모든 존을 살아남은 host 중 최소부하로 *재가동*(re-acquire·드레인의 graceful migrate 와 달리 죽은 host 는 release 불가). 생존 host 없으면 보류. placeHostDown 미수신이면 미발화 = 0247 비트 동일.
-    if (p.type === 'placeHostDown') { this._hostDown(p.host, p.hosts || []); this.hostDowns++; return; }
+    //   step-0297 (#9) — _hostDown 뒤 게이트웨이에 hostDown broadcast(죽은 host 의 모든 dir 엔트리 일괄 무효화·장애 검출 신호). _bridgeHostDown 이 보낸 생존 host zoneLoc 재push 가 *먼저* 도착하므로(같은 tick·send 순) 구조된 존은 survivor 로 갱신·미구조 존만 삭제 잔류 → 게이트웨이가 죽은 host 로 직접 라우팅하지 않는다. gatewayZoneDir OFF→broadcast 0 = 0296 비트 동일.
+    if (p.type === 'placeHostDown') { this._hostDown(p.host, p.hosts || []); this.hostDowns++; if (this.gatewayZoneDir && this.net && this.addr) { this.net.send(this.addr, 'gateway', { type: 'hostDown', host: p.host }); this.hostDownBroadcasts++; } return; }
     // 존 배치 질의(step-0204·placeQuery) — {zoneId} 요청에 현재 배치 host 를 {placeReply} 로 회신(request/reply·SPINE §4 경로3·프레즌스 0069/우편 0156 의 배치 판). 순수 읽기(배치 무변경). _lastPlaceReply 에 보관(검증용). 질의 미수신이면 미발화 = 0203 비트 동일.
     if (p.type === 'placeQuery') {
       this.placeQueriesRx++;
@@ -50,6 +54,15 @@ const OrchControl = {
     if (p.type === 'zoneMove') { if (this.zoneEntityFlow) this._bridgeMove(p.zoneId, p.avatar, p.dx, p.dy, m.from); return; }
     // 브리지 존 leave 라우팅(step-0283·#56·zoneLeave) — {zoneId, avatar} → 실 EntityZone 핸들에서 entity/세션 제거. OFF 면 미발화 = 0282 비트 동일.
     if (p.type === 'zoneLeave') { if (this.zoneEntityFlow) this._bridgeLeave(p.zoneId, p.avatar, m.from); return; }
+    // 게이트웨이 직접 라우팅 적용(step-0294·#9·zoneDeliver) — 게이트웨이가 자기 디렉토리로 host 를 해소해 보낸 entity frame. 게이트웨이가 결정한 host 가 실 런타임 host(running)와 일치할 때만 적용(stale 거부) — 라우팅 결정이 게이트웨이에 있고 orch/host 는 *검증·적용*만(#9 핵심). 미수신(gatewayDirectZone OFF)이면 미발화 = 0293 비트 동일.
+    if (p.type === 'zoneDeliver') {
+      const liveHost = this.running.get(p.zoneId);
+      if (p.host !== liveHost) { this.zoneDirStale++; return; }   // 디렉토리가 뒤처짐 — 거부(정직한 한계·0296 정합).
+      if (p.op === 'enter') { this._bridgeEnter(p.zoneId, p.avatar, p.sessionId, m.from); this.zoneDirectApplied++; }
+      else if (p.op === 'move') { this._bridgeMove(p.zoneId, p.avatar, p.dx, p.dy, m.from); this.zoneDirectApplied++; }   // step-0295 (#9)
+      else if (p.op === 'leave') { this._bridgeLeave(p.zoneId, p.avatar, m.from); this.zoneDirectApplied++; }   // step-0295 (#9)
+      return;
+    }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
     // 치유 확인 수신(step-0057·recoverAck) — recover 명령을 받은 소비자가 재구독하며 돌려보낸 확인. orch 가 명령 *전달·수행*을 안다(분실 0 이면 recoverAcks==recoversSent). busPresenceRecover OFF 면 recover 미발신 → 이 메시지 영영 안 옴 = 0056 비트 동일.
     if (p.type === 'recoverAck') { this.recoverAcks++; this.pendingRecover.delete(p.consumer); this.recoverAttempts.delete(p.consumer); return; }

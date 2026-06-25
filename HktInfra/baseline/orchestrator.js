@@ -82,6 +82,22 @@ class Orchestrator {
     this.zoneLeaves = 0;            // 실 EntityZone 핸들에서 제거한 leave 누적 수(step-0283·계측·실존 avatar 만).
     this.zoneEntitiesLost = 0;      // host 장애로 죽은 인스턴스에서 소실한 entity 누적 수(step-0285·정직한 한계·migrate 무손실과 대조·복구는 영속 후속).
     this.zoneEntitiesDiscarded = 0; // 존 운영 퇴역(stop)으로 폐기한 entity 누적 수(step-0286·계획적·hostdown 비자발 소실과 구분).
+    // 존 런타임 전송 seam(step-0291·#9 멀티프로세스 배선) — 0281~0290 의 브리지는 entity frame 을 실 EntityZone 핸들에 *직접 method 호출*(rt.zone.onMsg)로 흘렸다(인프로세스 결합). zoneHostHandle ON 이면 그 호출을 _zoneDeliver 전송 seam 으로 감싼다: frame 을 JSON 직렬화 경계(소켓 와이어의 씨앗·host.js deliver cmd 동형)로 round-trip 시킨 뒤 적용 → 데이터 평면이 *직렬화 가능한 메시지 경계*를 통과(원격 host.js 프로세스로 분리할 전제). OFF 면 직접 호출 = 0290 비트 동일.
+    this.zoneHostHandle = opts.zoneHostHandle || false;
+    this.zoneFramesDelivered = 0;   // 전송 seam 으로 흘린 entity frame 누적 수(step-0291·계측·enter+move+leave 합과 대조).
+    this.zoneFrameBytes = 0;        // 전송 seam frame 의 직렬화 바이트 누적(step-0291·소켓 대역의 씨앗·>0 이면 실제 와이어를 탔다는 증거).
+    // 존 host mailbox(step-0292·#9) — 0291 seam 은 frame 을 *즉시* 적용(동기). zoneHostMailbox ON 이면 deliver=핸들 mbox 큐 enqueue, 적용은 _tickRuntimes 가 onTick 전 일괄 drain — 실 소켓 수신 버퍼 + host.js per-tick deliver 배치(0048)의 씨앗(비동기 수신→tick 경계 일괄 처리). OFF→0291 즉시 적용 동일.
+    this.zoneHostMailbox = opts.zoneHostMailbox || false;
+    this.zoneFrameQueueMax = 0;     // mbox 최대 큐 깊이(step-0292·계측·≥1 이면 실제로 큐를 거쳤다는 증거·수신 버퍼 압력 관측).
+    this.zoneFramesDrained = 0;     // mbox 에서 drain 해 적용한 frame 누적(step-0292·== zoneFramesDelivered 이면 큐 잔류 0·무손실).
+    // 게이트웨이 존 디렉토리 push(step-0293·#9) — 0291~0292 는 orch 가 핸들을 직접 보유·게이트웨이는 존 위치를 모른다(entity 라우팅이 orch 경유). gatewayZoneDir ON 이면 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블을 캐시(#9 직접 라우팅의 전제). OFF→push 0 = 0292 비트 동일.
+    this.gatewayZoneDir = opts.gatewayZoneDir || false;
+    this.zoneLocPushed = 0;         // 게이트웨이로 push 한 zoneLoc 누적(step-0293·계측·배치 집행 수와 대조).
+    // 게이트웨이 직접 라우팅 적용(step-0294·#9) — 0293 까지 entity 라우팅 *결정*은 orch 가 했다(zoneId→자기 zoneRuntimes 조회). gatewayDirectZone ON 이면 게이트웨이가 자기 디렉토리로 host 를 해소해 zoneDeliver(host 태깅)로 보내고, orch(=존 host 보유)는 그 host 가 실 런타임 host(running)와 일치할 때만 적용(stale 거부) — 라우팅 결정이 게이트웨이로 이동(#9 핵심). OFF→zoneDeliver 미수신 = 0293 비트 동일.
+    this.gatewayDirectZone = opts.gatewayDirectZone || false;
+    this.zoneDirectApplied = 0;     // 게이트웨이 직접 라우팅으로 적용한 frame 누적(step-0294·계측).
+    this.zoneDirStale = 0;          // 게이트웨이 디렉토리가 뒤처져(이주 직후 등) 거부한 frame 누적(step-0294·정직한 한계·이주 라우팅 정합은 0296).
+    this.hostDownBroadcasts = 0;    // 게이트웨이로 보낸 hostDown 일괄 무효화 broadcast 누적(step-0297·장애 검출 신호).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

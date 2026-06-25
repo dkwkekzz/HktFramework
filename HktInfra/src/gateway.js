@@ -1,4 +1,7 @@
 'use strict';
+// step-0299 — #9 멀티프로세스 배선 9: zoneDirSnapshot 질의(전 라우팅 테이블 {zoneId:host}·running 과 bijection 대조). 읽기 전용.
+// step-0294 — #9 멀티프로세스 배선 4: 게이트웨이→실 존 직접 라우팅(zoneEnter). 게이트웨이가 자기 zoneDir 로 존 host 를 해소해 zoneDeliver 로 직접 보낸다(라우팅 결정이 게이트웨이에·orch 데이터 평면 우회). 디렉토리 미스면 드롭. gatewayDirectZone OFF→이전 비트 동일.
+// step-0293 — #9 멀티프로세스 배선 3: 존 위치 디렉토리(zoneDir·서비스 디스커버리 캐시). orch 가 배치 집행마다 push 하는 zoneLoc 으로 게이트웨이가 zone→host 위치를 학습(은닉 유지). #9 직접 라우팅(게이트웨이→실 존)의 전제. orch push OFF 면 빈 채.
 // step-0048 분할 preamble — 박스 1개=파일 1개 (CLAUDE.md 임계 규칙). 진입점 net-core.js 가 묶는다.
 // dual-mode: Node require / 브라우저는 common.js 를 <script> 선행 로드(전역 __HktNetCommon).
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
@@ -59,7 +62,17 @@ class Gateway {
     this.busMinWm = busMinWm;             // ON 이면 svc.item.out.ack 에 consumer 태깅. OFF = 0043 비트 동일(태깅 0·단일 워터마크).
     this.busProducerNs = busProducerNs;   // ON 이면 svc.item 요청에 producer(=게이트웨이 주소) 태깅 → 다중 게이트웨이 reqId 네임스페이스 분리(0046). OFF = 0045 비트 동일(미태깅).
     this.busSeenNs = busSeenNs;           // ON 이면 svc.item.seen 워터마크에 producer 태깅 → 가방이 그 producer 의 복합키만 가지치기(이 step·0046 §9 해소). OFF = 0046 비트 동일(미태깅·숫자 워터마크).
+    // 존 위치 디렉토리(step-0293·#9) — 게이트웨이가 "어느 존이 어느 host(런타임)에서 도나"를 캐시한다(서비스 디스커버리·라우팅 테이블의 씨앗). orch 가 배치 집행마다 svc 디스커버리 push(zoneLoc)로 갱신·게이트웨이는 orch 내부를 모른 채 토픽/명시 메시지로만 학습(은닉). 이 디렉토리가 #9 직접 라우팅(게이트웨이→실 존)의 전제다. orch 가 gatewayZoneDir OFF 면 push 0 → 빈 채 = 이전 비트 동일.
+    this.zoneDir = new Map();             // zoneId -> host(실 런타임 위치). zoneLoc 수신으로 set/delete(orch-zonebridge._pubZoneLoc).
+    this.gatewayZoneRoutes = 0;           // step-0294 (#9) — 게이트웨이가 자기 디렉토리로 해소해 직접 라우팅한 entity frame 누적.
+    this.gatewayZoneMisses = 0;           // step-0294 (#9) — 디렉토리에 없는 존(미배치/미학습)으로 드롭한 entity frame 누적(정직한 한계).
+    this.gatewayHostInvalidated = 0;      // step-0297 (#9) — orch hostDown broadcast 로 죽은 host 의 dir 엔트리를 일괄 무효화한 횟수(장애 검출 반영).
   }
+  // 존 디렉토리 질의(step-0293·#9) — "이 존이 어느 host 에 있다고 게이트웨이가 아나 / 몇 개 아나"(라우팅 결정 기준·orch.running 실물과 대조해 정합 검증). 읽기 전용.
+  zoneDirOf(zoneId) { return this.zoneDir.get(zoneId) || null; }
+  zoneDirSize() { return this.zoneDir.size; }
+  // 존 디렉토리 스냅샷(step-0299·#9) — 게이트웨이가 보유한 전 라우팅 테이블 {zoneId:host}(운영 대시보드·orch.running 과 bijection 대조). 읽기 전용.
+  zoneDirSnapshot() { const o = {}; for (const [z, h] of this.zoneDir) o[z] = h; return o; }
   worldTargets() { return this.replicas.length ? this.zones.concat(this.replicas) : this.zones; }
   // 서비스 발신 단일 경로 — 버스 ON 이면 *토픽 발행*(소비자 주소 무지), OFF 면 0015 직접 라우팅(비트 동일).
   _svcSend(topic, directAddr, ev) {
