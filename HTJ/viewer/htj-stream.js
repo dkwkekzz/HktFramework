@@ -104,6 +104,11 @@
   //      결정론적 위도 인자 warm(j)=½(1+cos(2π·j/latPeriod)) ∈[0,1](적도행=1·극행=0)를 잡음에 blend:
   //      tBand = (1−latAmp)·temp + latAmp·warm. 그러면 같은 경도줄을 따라 *기후대 띠*(열대→온대→한대)가 창발한다.
   //      잡음(국소 변이)+위도(대역 구조)의 합 = 진짜 지구 기후. latAmp=0 → tBand=temp → 0092/0090 byte 동일(회귀 0).
+  //   ── 강수장(0093 → 0097·가법): 비(강수)는 *별도 축이 아니라* 이미 가진 두 축의 함수다 — 공기가 머금는 수분(humidity)이
+  //      많고 따뜻할수록(effTemp) 비가 많다(열대우림). 반대로 건조(낮은 humidity)하거나 추우면(증발↓·툰드라/사막) 적다.
+  //      precip = clamp01( humidity^0.7 · (precipFloor + (1−precipFloor)·effTemp) ) — *순수 derived 측정*(새 노이즈 0·
+  //      타입 하드코딩 0). 강은 이 강수가 지형을 따라 흘러 모이는 곳에서 창발한다(0098 flowField). precip 은 항상 계산되며
+  //      *가법*(반환 객체에 키 추가일 뿐) — 기존 소비자(biome·effTemp)는 불변이라 0090~0096 byte 회귀 0.
   function biomeField(opts) {
     opts = opts || {};
     const scale = opts.scale != null ? opts.scale : 0.08;
@@ -112,6 +117,7 @@
     const eSalt = opts.elevSalt != null ? opts.elevSalt : 'E', lapse = opts.lapse != null ? opts.lapse : 0;
     const latAmp = opts.latAmp != null ? opts.latAmp : 0, latPeriod = opts.latPeriod != null ? opts.latPeriod : 256;
     const elevFn = opts.elevFn || null;
+    const precipFloor = opts.precipFloor != null ? opts.precipFloor : 0.3;   // 추워도 남는 최소 강수 비율(0=완전히 온도 의존)
     const tOpts = Object.assign({}, opts, { salt: tSalt }), hOpts = Object.assign({}, opts, { salt: hSalt });
     const eOpts = Object.assign({}, opts, { salt: eSalt });
     const q = (v, n) => { let k = Math.floor(v * n); return k < 0 ? 0 : (k >= n ? n - 1 : k); };
@@ -125,7 +131,8 @@
       const elev = lapse !== 0 ? (elevFn ? cl01(elevFn(i, j)) : fbm(i * scale, j * scale, eOpts)) : 0;   // 실제 지형 또는 내부 노이즈·lapse=0→미사용
 
       const effTemp = lapse !== 0 ? cl01(tBand - lapse * elev) : tBand;  // 위도대 보정 후 고지대일수록 유효 온도 ↓
-      return { temp, humidity, elev, warm, effTemp, biome: q(effTemp, nT) * nH + q(humidity, nH) };
+      const precip = cl01(Math.pow(humidity, 0.7) * (precipFloor + (1 - precipFloor) * effTemp));  // 습하고 따뜻할수록 비↑(derived)
+      return { temp, humidity, elev, warm, effTemp, precip, biome: q(effTemp, nT) * nH + q(humidity, nH) };
     };
   }
 
@@ -154,5 +161,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 6 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 7 };
 });
