@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0263](step-0263.md) — **정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리**. `buildTopology()` 의 서비스/데이터 박스 add 시퀀스(gateway~loginqueue 29박스)를 `topo-boxes.js`(addServiceBoxes)로 verbatim 분리·ctx 150 이름 주입·투명 분할. topo-build.js 31.5KB→14.7KB. **#49 topo-build 해소**.
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·boxsplit: 5/5 멀티 서비스 13/13 박스 spec 존재·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 wiring 분할 arc 진행 중**(다음 너비/멀티프로세스 전 게이트). 잔여 >30KB: **svc-exchange-core 30.7KB**(단일 거대 함수·신중 분할). topo-run ✅(0261·0262)·topo-build ✅(0263). 이후: #51b(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스.
+- **닫힌 step**: [step-0264](step-0264.md) — **정리(#49 wiring): svc-exchange-core 영속/failover 메서드 믹스인 분리**. `ExchangeService` 의 영속/스냅샷/failover 메서드(_journal·crash·reconstruct 등)를 `svc-exchange-persist.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-exchange-core.js 30.7KB→26.6KB. **#49 마지막 >30KB 박스 해소 — src/ 전 박스 <30KB.**
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·xchsplit: 5/5 crash→reconstruct projection 복원·보존 불변·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 — 3대 >30KB 박스(topo-run·topo-build·svc-exchange-core) 전부 해소(0261~0264)·src/ 전 박스 <30KB**. 다음-큰 박스(svc-guild 29.5·svc-inventory-core 28.5·orchestrator 27.5)는 30KB 근접이나 트리거 미만 — 선제 정리 후보. 게이트 해제 후 #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스.
 
 ---
 
@@ -177,3 +177,4 @@
 | [0261](step-0261.md) | 정리(#49 wiring): topo-run 제어 평면 주입열 분리(topo-inject.js·applyInjections·rankDie~loginOps·inject verbatim·투명 분할·35.9→22.7KB) | 통과(reg 0·spine OK) · 5/5 injsplit active 2·cache k1/k2 |
 | [0262](step-0262.md) | 정리(#49 wiring): topo-run crash/failover 복구 주입 분리(topo-failover.js·applyFailover·persistRestart~busRestart verbatim·투명 분할·22.7→13.1KB·#49 topo-run 해소) | 통과(reg 0·spine OK) · 5/5 fosplit 복구 투명 ledger 일치 |
 | [0263](step-0263.md) | 정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리(topo-boxes.js·addServiceBoxes·gateway~loginqueue verbatim·ctx 150이름·투명 분할·31.5→14.7KB·#49 topo-build 해소) | 통과(reg 0·spine OK) · 5/5 boxsplit 13/13 박스 spec |
+| [0264](step-0264.md) | 정리(#49 wiring): svc-exchange-core 영속/failover 메서드 믹스인 분리(svc-exchange-persist.js·_journal/crash/reconstruct·Object.assign prototype·투명 분할·30.7→26.6KB·#49 마지막 >30KB 박스 해소) | 통과(reg 0·spine OK) · 5/5 xchsplit crash→reconstruct 복원 |

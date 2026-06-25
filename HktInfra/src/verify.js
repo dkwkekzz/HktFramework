@@ -1,8 +1,8 @@
-// HktInfra step-0263 — 헤드리스 검증 (정리 #49 wiring: topo-build 서비스 박스 add 시퀀스 분리·topo-boxes.js)
+// HktInfra step-0264 — 헤드리스 검증 (정리 #49 wiring: svc-exchange-core 영속/failover 메서드 믹스인 분리·svc-exchange-persist.js)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `boxsplit`.
-//   더한 한 조각: buildTopology() 의 서비스/데이터 박스 add() 시퀀스(gateway·bus·persist·inventory·chat·audit·presence·ranking·exchange·mail·guild·instance·cache·worldlog·loginqueue 등)를 topo-boxes.js(addServiceBoxes)로 verbatim 분리. ctx(destructure/derive 결과)만 주입·기능 0 → 0262 비트 동일(reg). topo-build.js 31.5KB→14.4KB(<30KB).
-//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `boxsplit`(가설) — 멀티 서비스 토폴로지의 모든 박스가 spec order 에 존재.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `xchsplit`.
+//   더한 한 조각: ExchangeService 의 영속/스냅샷/failover 메서드(_bump·_snapState·_restore·_journal·crash·reconstruct)를 svc-exchange-persist.js 믹스인으로 분리(Object.assign prototype). 정의 위치만 이동·기능 0 → 0263 비트 동일(reg). svc-exchange-core.js 30.7KB→26.1KB(<30KB·#49 마지막 >30KB 박스 해소).
+//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `xchsplit`(가설) — list/buy 후 crash→reconstruct 가 durable 저널서 projection 비트 동일 복원·보존 불변 유지.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,25 +13,30 @@ const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; cons
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { buildTopology } = NET;
+const { ExchangeService } = NET;
 
-// step-0263 정리 분할(#49 wiring) 검증 — buildTopology 의 서비스/데이터 박스 add 시퀀스를 topo-boxes.addServiceBoxes 로 위임한 뒤,
-//   멀티 서비스 토폴로지가 여전히 모든 박스를 spec order 에 채우는지 본다(위임 무결). reg 0 가 비트 동일을 별도 증명.
-function boxsplit(seeds) {
-  const OPTS = { clients: 6, zones: 2, failover: true, bus: true, inventory: true, chat: true, audit: true, ranking: true, exchange: true, mail: true, guildService: true, instanceService: true, cacheService: true, worldLog: true, loginQueue: true };
-  const WANT = ['gateway', 'bus', 'inventory', 'chat', 'audit', 'ranking', 'exchange', 'mail', 'guild', 'instance', 'cache', 'worldlog', 'loginqueue'];
-  console.log('== boxsplit (0263 분할·#49): 서비스/데이터 박스 add 시퀀스를 topo-boxes.addServiceBoxes 로 위임 — 멀티 서비스 토폴로지의 모든 박스가 spec order 에 존재(위임 무결)·투명 분할(reg 0 가 비트 동일 증명). ==');
-  console.log('seed   | boxes present | 판정');
+// step-0264 정리 분할(#49 wiring) 검증 — 거래소 영속/failover 메서드를 svc-exchange-persist 믹스인으로 위임한 뒤,
+//   *옮긴 경로*(list/buy → _journal durable → crash 후 reconstruct)가 projection 을 비트 동일 복원하고 보존 불변(conserved)을 지키는지 본다.
+//   reg 0 가 비트 동일을 별도 증명. 결정론 ops 라 시드 무관이지만 5/5 관례 유지.
+function xchsplit(seeds) {
+  console.log('== xchsplit (0264 분할·#49): 거래소 영속/스냅샷/failover 메서드(_journal·crash·reconstruct)를 svc-exchange-persist 믹스인으로 위임 — list/buy 후 crash→reconstruct 가 durable 저널서 projection 복원(보존 불변)·투명 분할(reg 0 가 비트 동일 증명). ==');
+  console.log('seed   | pre(L/S) | post(L/S) | conserved | 판정');
   for (const seed of seeds) {
-    const topo = buildTopology({ ...OPTS, seed });
-    const order = new Set(topo.order);
-    const missing = WANT.filter(a => !order.has(a));
-    const ok = check(missing.length === 0, `seed ${seed}: 누락 박스 [${missing.join(',')}]`);
-    console.log(`${pad(seed, 6)} | ${pad((WANT.length - missing.length) + '/' + WANT.length, 13)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ex = new ExchangeService({ persist: true, snapInterval: 2 });
+    const send = (op) => ex.onMsg({ from: 'gw', tick: 1, payload: op });
+    send({ type: 'exchList', seller: 's1', item: 'sword', price: 10, itemId: 'i1' });
+    send({ type: 'exchList', seller: 's2', item: 'shield', price: 5, itemId: 'i2' });
+    send({ type: 'exchBuy', id: 1, buyer: 'b1' });
+    const preL = ex.listed, preS = ex.sold, preCons = ex.conserved();
+    ex.crash();
+    ex.reconstruct();
+    const ok = check(preCons && ex.conserved() && ex.listed === preL && ex.sold === preS && ex.open() === 1,
+      `seed ${seed}: 복구 비정합 (listed ${ex.listed}/${preL}·sold ${ex.sold}/${preS}·open ${ex.open()})`);
+    console.log(`${pad(seed, 6)} | ${pad(preL + '/' + preS, 8)} | ${pad(ex.listed + '/' + ex.sold, 9)} | ${pad(String(ex.conserved()), 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['boxsplit'] = boxsplit;
-kit.ORDER.splice(1, 0, 'boxsplit');
+kit.MODES['xchsplit'] = xchsplit;
+kit.ORDER.splice(1, 0, 'xchsplit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
