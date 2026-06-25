@@ -128,8 +128,22 @@
     const gx = ensure(world, MX), gy = ensure(world, MY), gz = ensure(world, MZ);
     const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
     const wrap = (a) => (a + N) % N;
-    // 적치/수집 스텐실 — 입자 위치 → [[cellIndex, weight], …] (Σweight=1). NGP=단일 셀·CIC=8 셀 trilinear.
+    // 적치/수집 스텐실 — 입자 위치 → [[cellIndex, weight], …] (Σweight=1). NGP=단일 셀·CIC=8 셀 trilinear·TSC=27 셀 2차.
     function stencil(p) {
+      if (opts.tsc) {
+        // TSC(Triangular-Shaped Cloud·2차) — 가장 가까운 셀 ±1(3 셀/축·27 셀)에 *2차* 가중. 정수 좌표여도
+        //   퍼져(0.125,0.75,0.125) C¹ 연속(CIC 의 C⁰ kink 제거) → 입자가 움직여도 격자력 기울기가 매끈.
+        const px = p.cx || 0, py = p.cy || 0, pz = p.cz || 0;
+        const ix = Math.round(px), iy = Math.round(py), iz = Math.round(pz);
+        const dx = px - ix, dy = py - iy, dz = pz - iz;     // ∈ [−0.5, 0.5]
+        const w1 = (d) => [0.5 * (0.5 - d) * (0.5 - d), 0.75 - d * d, 0.5 * (0.5 + d) * (0.5 + d)];  // Σ=1
+        const wx = w1(dx), wy = w1(dy), wz = w1(dz), out = [];
+        for (let a = 0; a < 3; a++) { const zz = wrap(iz + a - 1), wzz = wz[a];
+          for (let b = 0; b < 3; b++) { const yy = wrap(iy + b - 1), wyy = wy[b];
+            for (let c = 0; c < 3; c++) { const xx = wrap(ix + c - 1);
+              const w = wx[c] * wyy * wzz; if (w !== 0) out.push([(zz * N + yy) * N + xx, w]); } } }
+        return out;
+      }
       if (!opts.cic) return [[(clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0)), 1]];
       const px = p.cx || 0, py = p.cy || 0, pz = p.cz || 0;
       const x0 = Math.floor(px), y0 = Math.floor(py), z0 = Math.floor(pz), fx = px - x0, fy = py - y0, fz = pz - z0;
@@ -252,5 +266,5 @@
   function mulberry(seed) { let a = seed >>> 0; return function () { a |= 0; a = (a + 0x6D2B79F5) | 0; let t = Math.imul(a ^ (a >>> 15), 1 | a); t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t; return ((t ^ (t >>> 14)) >>> 0) / 4294967296; }; }
 
   return { solvePotential, applyGravity, applyParticleMeshGravity, kineticEnergy, poissonResidual, seedTwoMasses, seedPerturbedUniform,
-           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 3 };
+           RHO, PHI, MX, MY, MZ, DEFAULT_G, DEFAULT_ITERS, VERSION: 4 };
 });
