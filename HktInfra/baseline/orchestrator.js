@@ -1,4 +1,5 @@
 'use strict';
+// step-0283 — #56 브리지 존 데이터 평면 3: zoneLeaves 계측(leave 흐름·entity 제거).
 // step-0282 — #56 브리지 존 데이터 평면 2: zoneMoves 계측(move 흐름). orch 가 런타임 onTick 을 구동해 위치 적용(orch-control onTick·orch-zonebridge _tickRuntimes).
 // step-0281 — #56 브리지 존 데이터 평면 1: zoneEntityFlow 플래그 + zoneEnters 계측. 브리지 존(zoneRuntimes)이 빈 핸들이던 것을, enter 라우팅으로 실 entity 가 흐르게 시작(라우팅·질의는 orch-zonebridge.js·onMsg 분기는 orch-control.js). OFF→0280 비트 동일.
 // step-0251 — 정리(#49 인접): 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·executed/placement 질의)를 orch-placement.js 로 분리(34KB>30KB 트리거 유계화). Object.assign 으로 prototype 에 되섞어 동작 비트 불변(reg 0·플래그 없는 투명 분할). 프레즌스/failover 제어 평면(onMsg·onTick·_track·_presence·monitor)은 잔류.
@@ -76,6 +77,7 @@ class Orchestrator {
     this.zoneEntityFlow = opts.zoneEntityFlow || false;
     this.zoneEnters = 0;             // 실 EntityZone 핸들로 라우팅한 enter 누적 수(step-0281·계측·미가동 존 거부 제외).
     this.zoneMoves = 0;              // 실 EntityZone 핸들로 라우팅한 move 누적 수(step-0282·계측·위치 적용은 런타임 onTick).
+    this.zoneLeaves = 0;            // 실 EntityZone 핸들에서 제거한 leave 누적 수(step-0283·계측·실존 avatar 만).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

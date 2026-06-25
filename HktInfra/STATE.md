@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0283](step-0283.md) — **#56 브리지 존 데이터 평면 3: leave 흐름**. zoneLeave 가 실 EntityZone 핸들에서 avatar/세션을 제거(퇴장). enter/move/leave 기본 데이터 평면 완성.
-- **한 줄 상태**: reg ALL OK·zoneleave: 5/5 a1·a2 enter→a1 leave→cnt1·a2 잔존·zoneLeaves1·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅·leave✅. 다음 조각: 0284 migrate 무손실(같은 핸들 → entity 행동적 보존 실증). 이어서 hostdown 소실/stop 폐기·단일 소유·census capstone(0285~0290). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4·논리클럭).
+- **닫힌 step**: [step-0284](step-0284.md) — **#56 브리지 존 데이터 평면 4: migrate 무손실(행동적)**. `totalEntities()` census. _bridgeMigrate(같은 핸들 host 교체)가 entity 수·위치를 무손실 보존 — 0273 구조적 보존(zoneStarts 불변)의 데이터 평면 판(리뷰 #56 "migrate vacuous" 해소).
+- **한 줄 상태**: reg ALL OK·zonemigent: 5/5 mig 후 total3·cnt3·a1pos동일·rtHost A→C·migs1·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅·leave✅·migrate무손실✅. 다음 조각: 0285 hostdown 소실(새 인스턴스 → entity 소실 실증·정직한 한계). 이어서 stop 폐기·단일 소유·census capstone(0286~0290). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
 
 ---
 
@@ -121,16 +121,7 @@
 | [0211–0220](step-0211.md) | 2차 균형: 캐시 TTL/무효화·월드 스냅샷/crash-recover·인스턴스 수요 spawn/라우팅·오케 부하배치/핸드오프·로그인 백프레셔/재접속 | 통과(reg 0) |
 | [0221–0230](step-0221.md) | 3차 균형: 인스턴스 이탈/자동 despawn·오케 자동 재배치/드레인·캐시 LRU 용량/recency·월드 write-behind/fsync·로그인 계정검증/큐이탈 | 통과(reg 0) |
 | [0231–0240](step-0231.md) | #16 승급 라운드: 3차 균형 10모드(instanceleave~loginabandon)를 verify-kit 누적 회귀로 승격·verify.js 순수 셸 정리 | 통과(reg 0·spine OK) |
-| [0241](step-0241.md) | 배치 SSOT 실배선 #51-1: 존 런타임 레지스트리(running·executed SSOT·placeExecute→placeZone start·advisory paper→executed lifecycle 첫 조각) | 통과(reg 0·spine OK) · 5/5 running 2·starts 2·결정==집행 |
-| [0242](step-0242.md) | 배치 SSOT 실배선 #51-2: executed placeMigrate(_migrate·실 존 런타임 release+acquire 이주·running 원자 교체·0218 paper 의 집행 판) | 통과(reg 0·spine OK) · 5/5 z1 hostA→hostC 실 이주·단일 소유 |
-| [0243](step-0243.md) | 배치 SSOT 실배선 #51-3: executed placeRebalance(_rebalance 가 매 move 마다 _migrate·실 존 런타임 균형 수렴·0223 자동 트리거의 집행 판) | 통과(reg 0·spine OK) · 5/5 3/0/0→running 1/1/1·rtMig 2 |
-| [0244](step-0244.md) | 배치 SSOT 실배선 #51-4: executed placeDrain(_drain 이 매 move 마다 _migrate·드레인 후 그 host running 0·0224 퇴역 안전 이주의 집행 판) | 통과(reg 0·spine OK) · 5/5 A 드레인→running A 0·B 2·C 2 |
-| [0245](step-0245.md) | 배치 SSOT 실배선 #51-5: reconcile capstone(placementDrift 질의·혼합 op 후 결정==집행·drift 0·runningCount==placedCount·advisory→executed arc 닫기) | 통과(reg 0·spine OK) · 5/5 drift 0·run 4/placed 4 |
-| [0246](step-0246.md) | 배치 SSOT 실배선 #51-6: executed placeStop(_stop·존 운영 퇴역·결정+집행 동시 제거·instance _despawn 의 존 판·드레인과 달리 그 존 자체 내림) | 통과(reg 0·spine OK) · 5/5 z2 퇴역·placed 2·drift 0 |
-| [0247](step-0247.md) | 배치 SSOT 실배선 #51-7: executed placeAuto(부하 기반 자동 배치가 최소부하 host 에 실 런타임 _start·0217 advisory 자동 배치의 집행 판) | 통과(reg 0·spine OK) · 5/5 running A2/B1/C1·starts 4·drift 0 |
-| [0248](step-0248.md) | 배치 SSOT 실배선 #51-8: host 장애 복구(placeHostDown·_hostDown·죽은 host 존 생존 host 재가동 re-acquire·드레인과 달리 비자발·release 불가) | 통과(reg 0·spine OK) · 5/5 A 장애→A run 0·rescued 2·drift 0 |
-| [0249](step-0249.md) | 배치 SSOT 실배선 #51-9: 전 lifecycle 집행 capstone(runningHosts 질의·start·auto·migrate·hostdown·stop 혼합 후 결정==집행·drift 0·단일 소유·arc 0241~0249 닫기) | 통과(reg 0·spine OK) · 5/5 run 4/placed 4·drift 0·single owner |
-| [0250](step-0250.md) | 배치 SSOT 실배선 #51-10: placeQuery executed host(질의 회신에 실 가동 running 추가·게이트웨이 실 위치 라우팅·읽기 경로 완성·0241~0250 decade 닫기) | 통과(reg 0·spine OK) · 5/5 reply host==running==hostC |
+| [0241–0250](reviews/review-0241-0250.md) | 배치 SSOT 실배선 #51 arc(executed running·migrate/rebalance/drain/stop/auto/hostdown·reconcile/lifecycle capstone·placeQuery executed host) | 통과(reg 0·spine OK) |
 | [0251](step-0251.md) | 정리(#49): 오케스트레이터 배치 런타임 분리(orch-placement.js 믹스인·Object.assign prototype·투명 분할·34KB→27.5KB·정리 라운드 1) | 통과(reg 0·spine OK) · 5/5 drift 0·running 단일 소유 |
 | [0252](step-0252.md) | 캐시 write-through 소스 정합(cacheWriteThrough·set 시 backing source 동시 기록·무효화 후 read-through 최신값·4차 고도화 캐시 #1) | 통과(reg 0·spine OK) · 5/5 WT get=v2·OFF get=v1(stale) |
 | [0253](step-0253.md) | 캐시 bulk get(cacheMget·여러 키 read-through 일괄 조회·라운드트립 N→1·배치 페치·4차 고도화 캐시 #2) | 통과(reg 0·spine OK) · 5/5 mget=[v1,v2,s3,∅]·hits2/miss2 |
@@ -164,3 +155,4 @@
 | [0281](step-0281.md) | #56 브리지 존 데이터 평면 1: enter 흐름(_bridgeEnter·게이트웨이→orch zoneEnter 가 실 EntityZone 핸들로 라우팅·실 zone.js ents 적재·미가동 존 거부·zoneEntityCount/HasEntity 질의·entityOps 주입열·OFF→0280 동일) | 통과(reg 0·spine OK) · 5/5 z1cnt2·z2cnt1·z9거부·zoneEnters3 |
 | [0282](step-0282.md) | #56 브리지 존 데이터 평면 2: move 흐름(_bridgeMove·zoneMove→실 EntityZone pending·_tickRuntimes 가 런타임 onTick 구동 위치 적용·net 싱크 view 흡수·zoneEntityPos 질의·OFF→0281 동일) | 통과(reg 0·spine OK) · 5/5 base5,5→moved10,5(delta5,0)·zoneMoves2 |
 | [0283](step-0283.md) | #56 브리지 존 데이터 평면 3: leave 흐름(_bridgeLeave·zoneLeave→실 EntityZone ents/sessions 제거·멱등·zoneLeaves 계측·OFF→0282 동일) | 통과(reg 0·spine OK) · 5/5 a1·a2→a1 leave→cnt1·a2 잔존·zoneLeaves1 |
+| [0284](step-0284.md) | #56 브리지 존 데이터 평면 4: migrate 무손실 행동적(totalEntities census·_bridgeMigrate 같은 핸들 host 교체가 entity 수·위치 보존·0273 구조적 보존의 데이터 평면 판·OFF→0283 동일) | 통과(reg 0·spine OK) · 5/5 mig 후 total3·cnt3·a1pos동일·rtHost A→C·migs1 |
