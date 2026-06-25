@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0298](step-0298.md) — **#9 멀티프로세스 배선 8: 직접 라우팅 데이터 평면 단일 소유 + 정합**. `entityDirectCoherent()` 질의(entityCoherent && zoneDirStale===0) — 직접 라우팅 혼합 lifecycle 후 단일 소유·정합·dir bijection·stale 누수 0. OFF 무관(질의·비트 동일).
-- **한 줄 상태**: reg ALL OK·gwdirsingle: 5/5 직접 혼합 lifecycle 후 single·dcoh·conserved(total4==5−1)·dir==running·routes7==appl7·stale0·miss0·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291~0298 완료. 다음 0299 직접 경로 정합 종합(destructive+graceful 혼합·dir bijection 불변 질의)→0300 **capstone**(전 데이터 평면 직접 라우팅만으로 entityFlowCoherent·entityConserved·dir bijection·#9 arc 0291~0300 닫기). 🔎 **0281~0290 묶음 리뷰 적기**.
+- **닫힌 step**: [step-0299](step-0299.md) — **#9 멀티프로세스 배선 9: 디렉토리 bijection (다중존 rebalance/drain churn)**. 게이트웨이 `zoneDirSnapshot()` 질의 + 4존 A 몰림→rebalance→drain 의 다중 동시 이주 후 게이트웨이 dir == running 정확한 bijection·entity graceful 보존. OFF 무관(질의·비트 동일).
+- **한 줄 상태**: reg ALL OK·gwdirbij: 5/5 다중 이주 후 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291~0299 완료. 다음 0300 **capstone**(전 데이터 평면 직접 라우팅만으로 destructive+graceful 혼합 lifecycle 후 entityFlowCoherent·entityConserved·entityDirectCoherent·dir bijection·#9 arc 0291~0300 닫기). 🔎 **0291~0300 묶음 리뷰 적기(#9 arc)**.
 
 ---
 
@@ -134,3 +134,4 @@
 | [0296](step-0296.md) | #9 멀티프로세스 배선 6: 이주 중 직접 라우팅 정합+stale 거부(zoneStaleProbe 테스트 seam·migrate 후 게이트웨이 dir 새 host 갱신→직접 enter 도달·낡은 host frame orch 거부·OFF→0295 동일) | 통과(reg 0·spine OK) · 5/5 이주 후 total2·rtHost hostB·dir==running·stale1·ax 부재·conserved |
 | [0297](step-0297.md) | #9 멀티프로세스 배선 7: host 장애 dir 무효화+직접 라우팅 복구(placeHostDown 뒤 게이트웨이 hostDown broadcast 죽은 host dir 일괄 삭제·survivor zoneLoc 재push 선도착·gatewayHostInvalidated/hostDownBroadcasts·OFF→0296 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→z1@hostC·a3 도달·total2·dir==running·onA0·lost1·inv1·conserved |
 | [0298](step-0298.md) | #9 멀티프로세스 배선 8: 직접 라우팅 데이터 평면 단일 소유+정합(entityDirectCoherent=entityCoherent && zoneDirStale0 질의·직접 혼합 lifecycle 후 단일소유·dir bijection·stale 누수0·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 single·dcoh·conserved(total4==5−1)·dir==running·routes7==appl7·stale0·miss0 |
+| [0299](step-0299.md) | #9 멀티프로세스 배선 9: 디렉토리 bijection(gateway zoneDirSnapshot 질의·4존 A 몰림→rebalance→drain 다중 동시 이주 후 게이트웨이 dir==running 정확한 bijection·entity graceful 보존·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0 |
