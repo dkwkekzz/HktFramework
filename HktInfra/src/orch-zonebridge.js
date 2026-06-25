@@ -1,4 +1,5 @@
 'use strict';
+// step-0282 — #56 브리지 존 데이터 평면 2: _bridgeMove(move 라우팅)·_tickRuntimes(런타임 onTick 구동·위치 적용)·zoneEntityPos 질의.
 // step-0281 — #56 브리지 존 데이터 평면 1: _bridgeEnter(실 EntityZone 핸들로 enter 라우팅)·zoneEntityCount/zoneHasEntity 질의. 0272~0280 의 빈 핸들에 실 entity 가 흐르기 시작.
 // step-0272 — #51b 실 zone.js 브리지. 0241~0250 의 배치 실배선은 running(zoneId→host 문자열)까지였다 — *집행 SSOT* 이되 실 EntityZone 런타임과는 끊겨 있었다.
 //   이 믹스인은 그 간극을 잇는다: placement 집행(_start/_migrate/_stop)이 *실 EntityZone 인스턴스*를 host 에 띄우고/이주하고/내린다(zoneRuntimes 레지스트리).
@@ -65,6 +66,18 @@ const OrchZoneBridge = {
     this.zoneEnters++;
     return true;
   },
+  // 브리지 존 move 라우팅(step-0282·#56) — enter 한 avatar 의 이동 의도를 실 EntityZone 핸들로 흘린다(onMsg('move')→pending). 실제 위치 적용은 그 존의 onTick 에서(orch 가 _tickRuntimes 로 구동·아래). 미가동 존·미존재 avatar 는 무해(zone.js move 가드: ents.has 만 push). zoneEntityFlow OFF 면 호출 없음(0281 비트 동일).
+  _bridgeMove(zoneId, avatar, dx, dy, gateway) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
+    this.zoneMoves++;
+    return true;
+  },
+  // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
+  _tickRuntimes(tick) { for (const rt of this.zoneRuntimes.values()) rt.zone.onTick(tick); },
+  // 브리지 존 entity 위치 질의(step-0282·#56) — 실 EntityZone 핸들의 그 avatar 위치({x,y})·없으면 null. move 적용·migrate 위치 보존 검증.
+  zoneEntityPos(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); const e = rt && rt.zone.ents.get(avatar); return e ? { x: e.x, y: e.y } : null; },
   // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.
   zoneEntityCount(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.size : 0; },
   zoneHasEntity(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.has(avatar) : false; },

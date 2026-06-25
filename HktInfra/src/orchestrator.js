@@ -1,4 +1,5 @@
 'use strict';
+// step-0282 — #56 브리지 존 데이터 평면 2: zoneMoves 계측(move 흐름). orch 가 런타임 onTick 을 구동해 위치 적용(orch-control onTick·orch-zonebridge _tickRuntimes).
 // step-0281 — #56 브리지 존 데이터 평면 1: zoneEntityFlow 플래그 + zoneEnters 계측. 브리지 존(zoneRuntimes)이 빈 핸들이던 것을, enter 라우팅으로 실 entity 가 흐르게 시작(라우팅·질의는 orch-zonebridge.js·onMsg 분기는 orch-control.js). OFF→0280 비트 동일.
 // step-0251 — 정리(#49 인접): 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·executed/placement 질의)를 orch-placement.js 로 분리(34KB>30KB 트리거 유계화). Object.assign 으로 prototype 에 되섞어 동작 비트 불변(reg 0·플래그 없는 투명 분할). 프레즌스/failover 제어 평면(onMsg·onTick·_track·_presence·monitor)은 잔류.
 // step-0250 — 배치 SSOT 실배선(#51) 10: placeQuery 가 executed 실 가동 host 회신. 0204 배치 질의는 결정(placement)만 회신했다 — 이제 reply 에 *실 가동 host*(running)도 실어, 게이트웨이가 존이 *실제로 도는 곳*으로 라우팅한다(결정만이 아니라 집행 위치까지 읽기). reply 에 running 필드 추가(읽기 전용·placeQuery 미수신이면 0249 비트 동일·reg 0). executed 배치 SSOT 의 읽기 경로 완성(0241~0250 decade 닫기).
@@ -74,6 +75,7 @@ class Orchestrator {
     // 브리지 존 데이터 평면(step-0281·#56) — 0272~0280 의 zoneRuntimes 는 *빈 핸들*이었다(entity 0·onTick 0 → migrate "상태 보존"이 구조적이되 행동적이지 않음·리뷰 0271~0280 #56). zoneEntityFlow ON 이면 게이트웨이/운영이 보낸 enter/move/leave 를 orch 가 *실 EntityZone 핸들*(zoneRuntimes.get(zoneId).zone)로 라우팅해 실제 entity 가 실 존 코드(zone.js onMsg/onTick)를 흐른다. OFF 면 라우팅 0 = 0280 비트 동일(zoneBridge 도 OFF 면 런타임 자체 0).
     this.zoneEntityFlow = opts.zoneEntityFlow || false;
     this.zoneEnters = 0;             // 실 EntityZone 핸들로 라우팅한 enter 누적 수(step-0281·계측·미가동 존 거부 제외).
+    this.zoneMoves = 0;              // 실 EntityZone 핸들로 라우팅한 move 누적 수(step-0282·계측·위치 적용은 런타임 onTick).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
