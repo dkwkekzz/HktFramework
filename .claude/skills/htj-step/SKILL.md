@@ -5,7 +5,9 @@ description: HTJ step 한 바퀴(논의→구현→검증→기록)를 토큰·�
 
 # HTJ step 루프 — 실행 절차
 
-규칙의 권위는 `HTJ/CLAUDE.md`(목표·작업 방식)와 `HTJ/STATE.md`(지금 어디까지). 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. 작업 디렉토리: `HTJ/`.
+규칙의 권위는 `HTJ/CLAUDE.md`(목표·작업 방식·큰 목표↔중간 목표)와 `HTJ/STATE.md`(지금 어디까지 + **나아갈 방향**). 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. 작업 디렉토리: `HTJ/`.
+
+> **⛔ 방향을 따른다 — 임의로 정하지 않는다.** 무슨 step 을 할지는 **`STATE.md §3 「나아갈 방향」`이 권위**다(큰 목표·중간 목표는 `CLAUDE.md` 「큰 목표 ↔ 중간 목표」 + STATE §3 이 가리키는 design 문서). step 은 그 방향을 따라 고른다. 방향이 애매하면 *새 트랙을 지어내지 말고* 사용자와 논의한다. 중간 목표 *도달*은 사용자가 직접 모는 **인터랙티브 viewer** 로 확인한다(per-step 갤러리와 별개·아래 §2).
 
 ## ⛔ 절대 원칙 — 물리영역(engine)에 타입 전용 처리 금지
 
@@ -27,6 +29,7 @@ description: HTJ step 한 바퀴(논의→구현→검증→기록)를 토큰·�
 ## 1. 논의 — step 의 의미를 먼저 확정
 
 step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 사용자와 **무엇을 할지** 정한다:
+- **방향 정합** — 이 step 이 `STATE.md §3 「나아갈 방향」`에 부합하는가. 부합 안 하면 멈추고 논의(임의 방향 금지).
 - 이 step 이 세계를 어떻게 변형시키는가 (충분히 유의미한가)
 - **무엇으로 검증 가능한가** — 검증 불가능한 step 은 step 이 아니다
 - 무엇이 보존되고 무엇이 변하는가
@@ -43,8 +46,8 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 **세계 ↔ 확인용은 단방향 의존**: `engine/` = 세계(법칙) 그 자체 · `viewer*` = 그것을 확인하는 도구. `viewer` 는 `engine` 을 *읽기만* 하고, `engine` 은 `viewer`(렌더·캡처·캔버스)를 **절대 import/참조하지 않는다**. 렌더 방식을 바꿔도 세계는 불변이어야 한다.
 
 - **법칙은 `engine/`** 한 곳. 새 법칙은 직전 법칙 형식을 따르고 **가법적**으로 추가(기존 동작 회귀 0 — 노브=0 → early-return 패턴 권장). engine 코드는 캔버스·DOM·렌더에 의존하지 않는다(Node 에서 그대로 돈다).
-- **확인용 = 시나리오 1벌**(`viewer/scenes/step_NNNN.js`) + 렌더(`viewer/htj-render.js`). **장면 통일**([design/scene-unify.md](../../../HTJ/design/scene-unify.md)·U1☑): 한 step 의 시뮬레이션 시나리오는 `viewer/scenes/step_NNNN.js` **한 곳에만** 산다(UMD — 브라우저·Node 양립·engine 만 *읽음*). 이 한 벌을 **viewer 라이브**(자동 등록·인라인 STEPS 대체)와 **헤드리스 캡처**(`node tools/htj-render-capture.js NNNN`)가 함께 읽는다 — **per-step `capture.js` 를 새로 짜지 않는다**. 시나리오 모듈 계약: `{ label, note, defaults, init(w), advance(w,p), frames:[step…], toFrame(w)->{pts}, makeWorld?()->w, captureOpts? }`. viewer 보조함수(온도 갱신·표면 재구성 등)가 필요하면 모듈 안에 *인라인*해 self-contained 로 만든다(viewer.html 클로저에 의존 금지). 선례: `viewer/scenes/step_0066.js`(파일럿). 닫은 step 의 옛 `capture.js`·인라인 STEPS 는 **소급 안 함**(불변).
-- **viewer 갤러리 등록은 의무 — 또는 사유 명시**: 닫는 step 은 `viewer.html` 의 `STEPS` 레지스트리에 한 항목으로 등록한다(드롭다운=step 갤러리). *새로 보여줄 장면이 없는* step(벤치마크 차트·조밀과 비트 동일한 등가 변환 등)이라 등록이 무의미하면, **`tools/check-viewer.js` 의 `EXEMPT` 에 사유와 함께 등재**한다. 둘 중 하나는 반드시 — 가드(`node tools/check-viewer.js`)가 등록도 면제도 없는 닫힌 step 을 FAIL 시킨다. (chromium 부재로 눈 검증이 capture.js 폴백으로 옮겨가며 등록 강제력이 사라져 0015~0021 이 조용히 누락된 선례 — 그 재발을 막는 가드.)
+- **확인용 = 시나리오 1벌**(`viewer/scenes/step_NNNN.js`). **장면 통일**([design/scene-unify.md](../../../HTJ/design/scene-unify.md)·U1☑): 한 step 의 시뮬레이션 시나리오는 `viewer/scenes/step_NNNN.js` **한 곳에만** 산다(UMD·engine 만 *읽음*). 이 한 벌을 **헤드리스 캡처**(`node tools/htj-render-capture.js NNNN`)가 읽어 `capture.png` 를 뽑는다(§3b·AI 눈 검증) — **per-step `capture.js` 를 새로 짜지 않는다**. 시나리오 모듈 계약: `{ label, note, defaults, init(w), advance(w,p), frames:[step…], toFrame(w)->{pts}, makeWorld?()->w, captureOpts? }`. 보조함수가 필요하면 모듈 안에 *인라인*해 self-contained 로(외부 클로저 의존 금지). 선례: `viewer/scenes/step_0066.js`. 닫은 step 의 옛 `capture.js` 는 **소급 안 함**(불변).
+- **사용자용 라이브 viewer 갤러리(`viewer.html` STEPS·`check-viewer.js`)는 폐기** — 유지보수가 안 됐다. 새 step 은 `viewer.html` 에 등록하지 않고 갤러리 가드도 돌리지 않는다(시나리오 모듈은 *캡처용*으로만 존재). **사용자용 viewer 는 중간 목표(STATE §3) *도달* 때만 큐레이트해 인터랙티브로 제공**한다 — per-step 이 아니라 목표 세계당 한 번.
 
 ## 3. 검증 — verify.js (수치) + 시뮬레이션 캡처 (눈)
 
@@ -65,7 +68,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 **한 step = 한 폴더.** 그 step 의 모든 산출물(`step_NNNN.md`·`verify.js`·`capture.png`)은 `steps/step_NNNN/` 안에 모은다.
 
-- **긴 산문은 한 곳만 — 이중 작성 금지.** "쉽게 풀어 쓴 설명"(사용자가 실제로 읽는 곳)은 **viewer `note`** 에 둔다. `step_NNNN.md` 는 그걸 또 풀로 쓰지 말고 **타이트 템플릿**으로:
+- **긴 산문은 한 곳만 — 이중 작성 금지.** "쉽게 풀어 쓴 설명"은 시나리오 모듈의 **`note`** 에 둔다(라이브 갤러리는 폐기됐지만 `note` 가 산문의 집 — step 을 보고할 때 캡처와 함께 이 `note` 를 사용자에게 전한다). `step_NNNN.md` 는 그걸 또 풀로 쓰지 말고 **타이트 템플릿**으로:
   - **논의**(3 bullets: 세계를 어떻게 변형 · 무엇으로 검증 · 무엇 보존/변함)
   - **구현**(법칙 식·진입점 — 코드블록 한둘)
   - **검증**(verify 출력 *그대로 붙여넣기* + 캡처 이미지 참조 1줄)
@@ -74,7 +77,7 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 - `STATE.md` 갱신 — **바뀐 절만 Edit(전체 Write 금지)·각 절은 짧게 유지·닫은 step 산문을 STATE 에 쌓지 말 것**(긴 설명·수치·한계는 `step_NNNN.md`·viewer note 가 집). 절 구성과 갱신 규칙:
   - **§1 NOW**: 지금 위치 한두 줄로 *교체*(append 아님).
   - **§2 트랙별 상태(4 기획서: SW·TW·M·U)**: 해당 로드맵 테이블의 **상태 칸만** 갱신 — 단락/문단 추가 금지.
-  - **§3 NEXT**: *다음 할 일*만(짧게). **방금 닫은 step 의 writeup 을 여기 적지 않는다** — 그건 §6·step 문서 몫(과거 §2 NEXT 가 닫은 step 단락 33개로 비대해진 재발 방지).
+  - **§3 나아갈 방향**: *현 단계 → 다음 중간 목표* 만(짧게). **방금 닫은 step 의 writeup 을 여기 적지 않는다** — 그건 §6·step 문서 몫. 방향이 바뀌면 여기서 교체.
   - **§4 좌표 / §5 격차**: §4 는 거의 불변. §5 는 *새로 생기거나 해소된 열린 결정*만 반영 — per-step 한계 나열 금지.
   - **§6 시리즈 인덱스**: **진짜 한 줄** append — `(트랙) 법칙/장면명 — 핵심 한 문장`. step 번호 순서 유지·수치/한계는 step 문서가 집.
 - 닫은 `steps/step_NNNN/` 폴더(문서·verify·capture)는 이후 **불변** — **단, 버그 수정은 예외**(아래). (불변이라 *과거* capture.js 를 새 헬퍼로 소급 리팩터링하지 않는다.)
@@ -85,13 +88,13 @@ step 은 목적에 도달하기 위한 *의미*를 가져야 한다. 시작 시 
 
 ## 5. 닫기 체크리스트
 
-1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) + `node tools/check-viewer.js` PASS — 한 묶음 명령으로(아래)
-2. **viewer 갤러리 등록** — `viewer/scenes/step_NNNN.js` 시나리오 모듈 작성(자동 등록·viewer 라이브) *또는* 정당한 사유로 `tools/check-viewer.js` `EXEMPT` 등재. **캡처** 확보(`node tools/htj-render-capture.js NNNN` — 시나리오 1벌에서 PNG) + 화면이 verify 가설과 일치
+1. 이 step verify PASS + 이전 step verify 전부 재실행 PASS (회귀 0) — 한 묶음 명령으로(아래)
+2. **캡처 확보**(`node tools/htj-render-capture.js NNNN` — `viewer/scenes/step_NNNN.js` 시나리오 1벌에서 PNG) + 화면이 verify 가설과 일치(AI 눈 검증). *viewer.html 갤러리 등록·check-viewer 는 폐기 — 안 한다*(§2).
 3. `step_NNNN.md` = 타이트 템플릿(논의 3 bullets · 구현 · verify 출력 붙여넣기 · 캡처 참조 · 다음 1줄) — 긴 설명 중복 금지(§4)
-4. `STATE.md` §1~6 Edit (바뀐 절만 — §3 NEXT 에 닫은 step writeup 금지·§6 은 한 줄)
+4. `STATE.md` §1~6 Edit (바뀐 절만 — §3 방향에 닫은 step writeup 금지·§6 은 한 줄)
 5. git: (로컬) `main` 에 commit·push / (원격) 지정 브랜치 규칙
 
-> **닫기 검증 한 묶음**(복붙): `node steps/step_NNNN/verify.js && node tools/check-viewer.js && for d in steps/step_*/; do node "$d/verify.js" >/dev/null 2>&1 || echo "REGRESSION $d"; done && echo OK`
+> **닫기 검증 한 묶음**(복붙): `node steps/step_NNNN/verify.js && for d in steps/step_*/; do node "$d/verify.js" >/dev/null 2>&1 || echo "REGRESSION $d"; done && echo OK`
 
 ## 금지 사항 (비용 함정)
 

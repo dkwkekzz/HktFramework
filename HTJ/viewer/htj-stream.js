@@ -104,6 +104,11 @@
   //      결정론적 위도 인자 warm(j)=½(1+cos(2π·j/latPeriod)) ∈[0,1](적도행=1·극행=0)를 잡음에 blend:
   //      tBand = (1−latAmp)·temp + latAmp·warm. 그러면 같은 경도줄을 따라 *기후대 띠*(열대→온대→한대)가 창발한다.
   //      잡음(국소 변이)+위도(대역 구조)의 합 = 진짜 지구 기후. latAmp=0 → tBand=temp → 0092/0090 byte 동일(회귀 0).
+  //   ── 강수장(0093 → 0097·가법): 비(강수)는 *별도 축이 아니라* 이미 가진 두 축의 함수다 — 공기가 머금는 수분(humidity)이
+  //      많고 따뜻할수록(effTemp) 비가 많다(열대우림). 반대로 건조(낮은 humidity)하거나 추우면(증발↓·툰드라/사막) 적다.
+  //      precip = clamp01( humidity^0.7 · (precipFloor + (1−precipFloor)·effTemp) ) — *순수 derived 측정*(새 노이즈 0·
+  //      타입 하드코딩 0). 강은 이 강수가 지형을 따라 흘러 모이는 곳에서 창발한다(0098 flowField). precip 은 항상 계산되며
+  //      *가법*(반환 객체에 키 추가일 뿐) — 기존 소비자(biome·effTemp)는 불변이라 0090~0096 byte 회귀 0.
   function biomeField(opts) {
     opts = opts || {};
     const scale = opts.scale != null ? opts.scale : 0.08;
@@ -112,6 +117,7 @@
     const eSalt = opts.elevSalt != null ? opts.elevSalt : 'E', lapse = opts.lapse != null ? opts.lapse : 0;
     const latAmp = opts.latAmp != null ? opts.latAmp : 0, latPeriod = opts.latPeriod != null ? opts.latPeriod : 256;
     const elevFn = opts.elevFn || null;
+    const precipFloor = opts.precipFloor != null ? opts.precipFloor : 0.3;   // 추워도 남는 최소 강수 비율(0=완전히 온도 의존)
     const tOpts = Object.assign({}, opts, { salt: tSalt }), hOpts = Object.assign({}, opts, { salt: hSalt });
     const eOpts = Object.assign({}, opts, { salt: eSalt });
     const q = (v, n) => { let k = Math.floor(v * n); return k < 0 ? 0 : (k >= n ? n - 1 : k); };
@@ -125,8 +131,99 @@
       const elev = lapse !== 0 ? (elevFn ? cl01(elevFn(i, j)) : fbm(i * scale, j * scale, eOpts)) : 0;   // 실제 지형 또는 내부 노이즈·lapse=0→미사용
 
       const effTemp = lapse !== 0 ? cl01(tBand - lapse * elev) : tBand;  // 위도대 보정 후 고지대일수록 유효 온도 ↓
-      return { temp, humidity, elev, warm, effTemp, biome: q(effTemp, nT) * nH + q(humidity, nH) };
+      const precip = cl01(Math.pow(humidity, 0.7) * (precipFloor + (1 - precipFloor) * effTemp));  // 습하고 따뜻할수록 비↑(derived)
+      return { temp, humidity, elev, warm, effTemp, precip, biome: q(effTemp, nT) * nH + q(humidity, nH) };
     };
+  }
+
+  // --- 흐름 누적(0097 → 0098) — 강수가 지형을 따라 흘러 모이면 *강*이 창발한다(D8 최급강하 라우팅·확인용 트랙) ---
+  //
+  //   0097 은 *어디에 비가 오나*(precip)를 냈다. 비는 가만히 있지 않고 *중력 따라 낮은 곳으로 흐른다* — 지류가 모여 본류가
+  //   되며 한 줄기 강이 된다. 이 함수는 유한 창(window) 위에서 각 셀의 비를 *가장 가파른 내리막 이웃*(8방향 D8)으로 흘려
+  //   누적한다(고→저 정렬 후 한 번 훑기). 누적이 큰 셀 = 물이 모인 *강/유역*. 강이라는 *타입을 박지 않는다* — 일반 높이장에
+  //   라우팅을 돌린 *측정*일 뿐(높이장이 지형이든 무엇이든·타입 0). 순수·결정론·렌더 의존 0.
+  //
+  //   opts: { elevFn(i,j)->높이, rainFn(i,j)->비량(기본 1), x0, y0, W, H } — (x0,y0) 좌상단 grid 원점·W×H 창.
+  //   반환: { acc:Float64Array(W*H), down:Int32Array(W*H 내리막 셀 인덱스·-1=sink), rain:총 강수,
+  //          sinkAccum:국소 최저점에 고인 물·borderOut:창 밖으로 나간 물, maxAcc, meanAcc }
+  //   보존: sinkAccum + borderOut === Σrain (모든 빗방울은 결국 sink 에 고이거나 창을 빠져나간다).
+  function flowAccumulation(opts) {
+    opts = opts || {};
+    const elevFn = opts.elevFn, rainFn = opts.rainFn || (() => 1);
+    const x0 = opts.x0 || 0, y0 = opts.y0 || 0, W = opts.W || 64, H = opts.H || 64;
+    const N = W * H;
+    const elev = new Float64Array(N), acc = new Float64Array(N), down = new Int32Array(N);
+    let rainTotal = 0;
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      const k = r * W + c, e = elevFn(x0 + c, y0 + r); elev[k] = e;
+      const w = rainFn(x0 + c, y0 + r); acc[k] = w; rainTotal += w;
+    }
+    // 각 셀의 D8 최급강하 이웃(자신보다 낮은 이웃 중 *경사 최대*). 없으면 sink(-1). 창 밖으로 내려가면 OUT(-2).
+    const OUT = -2;
+    const dist = (dc, dr) => (dc && dr) ? Math.SQRT1_2 : 1;   // 대각선은 거리 √2 → 경사 정규화
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) {
+      const k = r * W + c, e = elev[k]; let best = -1, bestSlope = 0;
+      for (let dr = -1; dr <= 1; dr++) for (let dc = -1; dc <= 1; dc++) {
+        if (!dc && !dr) continue;
+        const nc = c + dc, nr = r + dr;
+        let ne; if (nc < 0 || nc >= W || nr < 0 || nr >= H) ne = elevFn(x0 + nc, y0 + nr); else ne = elev[nr * W + nc];
+        if (ne >= e) continue;
+        const slope = (e - ne) * dist(dc, dr);
+        if (slope > bestSlope) { bestSlope = slope; best = (nc < 0 || nc >= W || nr < 0 || nr >= H) ? OUT : nr * W + nc; }
+      }
+      down[k] = best;
+    }
+    // 고→저 순서로 한 번 훑으며 물을 내리막으로 밀어준다(위상 정렬 대용·DAG 라 안전).
+    const order = Array.from({ length: N }, (_, k) => k).sort((a, b) => elev[b] - elev[a]);
+    let sinkAccum = 0, borderOut = 0;
+    for (const k of order) {
+      const d = down[k];
+      if (d === -1) sinkAccum += acc[k];           // 국소 최저점 — 물이 고인다(호수 씨앗·0100)
+      else if (d === OUT) borderOut += acc[k];      // 창 밖으로 나감
+      else acc[d] += acc[k];                        // 내리막 셀로 합류(누적 = 상류 면적)
+    }
+    let maxAcc = 0, sumAcc = 0;
+    for (let k = 0; k < N; k++) { if (acc[k] > maxAcc) maxAcc = acc[k]; sumAcc += acc[k]; }
+    return { acc, down, elev, W, H, x0, y0, rain: rainTotal, sinkAccum, borderOut, maxAcc, meanAcc: sumAcc / N };
+  }
+
+  // --- 호수 채움(0098 → 0100) — 흐름이 빠져나가지 못하는 *분지(pit)* 는 물이 차올라 *호수*가 된다(priority-flood·확인용 트랙) ---
+  //
+  //   0098 흐름 누적은 국소 최저점(sink)에 물을 *고이게만* 했다(채우진 않음). 실제로 분지는 물이 차올라 *유출구(spill)* 높이
+  //   까지 *평평한 수면*을 이룬다 — 호수. 이 함수는 priority-flood(Barnes 2014)로 각 셀의 *수면 높이(filled)* 를 구한다:
+  //   창 경계(유출)에서 가장 낮은 곳부터 안으로 번지며 filled[이웃]=max(지형[이웃], 현재 수면). 그러면 분지는 유출구 높이의
+  //   *평평한 수면* 으로 차고(depth=filled−지형>0=호수), 경사면은 채워지지 않는다(depth=0). 호수 *타입*을 박지 않는다 —
+  //   일반 높이장에 채움 알고리즘을 돌린 *측정*일 뿐(타입 0). 순수·결정론·렌더 의존 0.
+  //
+  //   opts: { elevFn(i,j)->높이, x0, y0, W, H } — 창 경계 = 물이 빠지는 유출구(경계 높이로 spill).
+  //   반환: { filled, terrain, depth:Float64Array(filled−terrain), W,H,x0,y0, lakeCells, maxDepth, volume(Σdepth) }
+  //   성질: filled ≥ terrain 어디서나(물은 더하기만)·분지는 평평 수면(같은 호수=같은 filled)·순수 경사=호수 0.
+  function lakeFill(opts) {
+    opts = opts || {};
+    const elevFn = opts.elevFn, x0 = opts.x0 || 0, y0 = opts.y0 || 0, W = opts.W || 64, H = opts.H || 64;
+    const N = W * H;
+    const terrain = new Float64Array(N), filled = new Float64Array(N), closed = new Uint8Array(N);
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) terrain[r * W + c] = elevFn(x0 + c, y0 + r);
+    // 최소 힙(수면 높이 오름차순) — [level, idx].
+    const heap = [];
+    const hpush = (l, i) => { heap.push([l, i]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; const t = heap[p]; heap[p] = heap[c]; heap[c] = t; c = p; } };
+    const hpop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let p = 0; for (; ;) { let l = 2 * p + 1, rr = 2 * p + 2, s = p; if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (rr < heap.length && heap[rr][0] < heap[s][0]) s = rr; if (s === p) break; const t = heap[s]; heap[s] = heap[p]; heap[p] = t; p = s; } } return top; };
+    // 경계(유출구)부터 — 경계 셀의 수면 = 자기 지형(밖으로 자유 배수).
+    for (let c = 0; c < W; c++) { for (const r of [0, H - 1]) { const k = r * W + c; if (!closed[k]) { closed[k] = 1; filled[k] = terrain[k]; hpush(terrain[k], k); } } }
+    for (let r = 0; r < H; r++) { for (const c of [0, W - 1]) { const k = r * W + c; if (!closed[k]) { closed[k] = 1; filled[k] = terrain[k]; hpush(terrain[k], k); } } }
+    const nb4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    while (heap.length) {
+      const [level, k] = hpop(); const c = k % W, r = (k - c) / W;
+      for (const [dc, dr] of nb4) {
+        const nc = c + dc, nr = r + dr; if (nc < 0 || nc >= W || nr < 0 || nr >= H) continue;
+        const nk = nr * W + nc; if (closed[nk]) continue;
+        closed[nk] = 1; filled[nk] = Math.max(terrain[nk], level);    // 이웃 수면 = max(지형, 흘러온 수면) → 분지는 유출구 높이로
+        hpush(filled[nk], nk);
+      }
+    }
+    const depth = new Float64Array(N); let lakeCells = 0, maxDepth = 0, volume = 0;
+    for (let k = 0; k < N; k++) { const d = filled[k] - terrain[k]; depth[k] = d; if (d > 1e-9) { lakeCells++; volume += d; if (d > maxDepth) maxDepth = d; } }
+    return { filled, terrain, depth, W, H, x0, y0, lakeCells, maxDepth, volume };
   }
 
   // 관찰자 둘레 유한 창 materialize — 무한 grid 중 반경 안 청크만 생성(작업집합 ∝ 반경²·관찰자 위치 무관).
@@ -154,5 +251,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, streamChunks, VERSION: 6 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, flowAccumulation, lakeFill, streamChunks, VERSION: 9 };
 });
