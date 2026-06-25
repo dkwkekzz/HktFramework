@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0264](step-0264.md) — **정리(#49 wiring): svc-exchange-core 영속/failover 메서드 믹스인 분리**. `ExchangeService` 의 영속/스냅샷/failover 메서드(_journal·crash·reconstruct 등)를 `svc-exchange-persist.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-exchange-core.js 30.7KB→26.6KB. **#49 마지막 >30KB 박스 해소 — src/ 전 박스 <30KB.**
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·xchsplit: 5/5 crash→reconstruct projection 복원·보존 불변·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 — 3대 >30KB 박스(topo-run·topo-build·svc-exchange-core) 전부 해소(0261~0264)·src/ 전 박스 <30KB**. 다음-큰 박스(svc-guild 29.5·svc-inventory-core 28.5·orchestrator 27.5)는 30KB 근접이나 트리거 미만 — 선제 정리 후보. 게이트 해제 후 #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스.
+- **닫힌 step**: [step-0265](step-0265.md) — **정리(#49 인접·선제): svc-guild 트랜잭션 핸들러 믹스인 분리**. `GuildService.onMsg`(create/join/leave/transfer/deposit/withdraw/query)를 `svc-guild-txn.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-guild.js 29.5KB→24.4KB.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·gldsplit: 5/5 로스터+금고 정합·single-master 보존·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 정리 arc(0261~) — 3대 >30KB 박스 해소(0261~0264) + 선제 정리 진행**. 잔여 30KB 근접 선제 후보: svc-inventory-core 28.5·orchestrator 27.5. 게이트 해제 후 #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스.
 
 ---
 
@@ -77,7 +77,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(placeZone/query·부하 배치·핸드오프·재배치·드레인 0203~0224)→**실배선 #51 executed SSOT arc(0241~0250·런타임 running SSOT·실 migrate/rebalance/drain/stop/auto·host 장애 복구·reconcile/lifecycle capstone drift 0)** 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스). orch 정리 분리(0251)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)+per-key TTL(0256)+explicit delete(0257)+stats 관측(0258)+namespace 무효화(0259)+정합 capstone(0260·coherent)** — **4차 고도화 캐시 arc(0252~0260) 완료** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
 
@@ -178,3 +178,4 @@
 | [0262](step-0262.md) | 정리(#49 wiring): topo-run crash/failover 복구 주입 분리(topo-failover.js·applyFailover·persistRestart~busRestart verbatim·투명 분할·22.7→13.1KB·#49 topo-run 해소) | 통과(reg 0·spine OK) · 5/5 fosplit 복구 투명 ledger 일치 |
 | [0263](step-0263.md) | 정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리(topo-boxes.js·addServiceBoxes·gateway~loginqueue verbatim·ctx 150이름·투명 분할·31.5→14.7KB·#49 topo-build 해소) | 통과(reg 0·spine OK) · 5/5 boxsplit 13/13 박스 spec |
 | [0264](step-0264.md) | 정리(#49 wiring): svc-exchange-core 영속/failover 메서드 믹스인 분리(svc-exchange-persist.js·_journal/crash/reconstruct·Object.assign prototype·투명 분할·30.7→26.6KB·#49 마지막 >30KB 박스 해소) | 통과(reg 0·spine OK) · 5/5 xchsplit crash→reconstruct 복원 |
+| [0265](step-0265.md) | 정리(#49 인접·선제): svc-guild 트랜잭션 핸들러 믹스인 분리(svc-guild-txn.js·onMsg create~query·Object.assign prototype·투명 분할·29.5→24.4KB) | 통과(reg 0·spine OK) · 5/5 gldsplit 로스터+금고 정합 |
