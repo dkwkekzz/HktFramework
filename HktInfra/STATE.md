@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0269](step-0269.md) — **정리(#49 인접·선제): svc-mailbox seen/epoch dedup 헬퍼 믹스인 분리**. `Mailbox` 의 dedup 헬퍼(_pruneEpoch·_seenHas·_seenAdd·seenSize·_ack)를 `svc-mailbox-dedup.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-mailbox.js 24.7KB→22.8KB.
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·mboxsplit: 5/5 중복 seq 멱등 dedup·seenSize 유계·ack 재회신·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 정리 arc(0261~0269) — 3대 >30KB 박스 해소 + 선제 정리 6박스(svc-guild·svc-inventory-core·orchestrator·svc-mail-core·svc-mailbox)**. src/ 전 박스 ≤23KB·여유 충분. 게이트 해제 → #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스·진짜 비동기(#4).
+- **닫힌 step**: [step-0270](step-0270.md) — **정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리**. `Gateway.onMsg`(클라 업스트림 라우팅 + 다운스트림 중계 + 세션 bind/unbind)를 `gateway-msg.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. gateway.js 22.8KB→16.5KB.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·gwsplit: 5/5 클라 move→존 라우팅·worldDigest 재현·live 6·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 정리 arc(0261~0270 완료) — 3대 >30KB 박스 해소(0261~0264) + 선제 정리 7박스(svc-guild·svc-inventory-core·orchestrator·svc-mail-core·svc-mailbox·gateway)**. src/ 전 박스 ≤23KB·여유 충분(최대 svc-mail-saga? 실 최대 ≈cache 21.9·cluster-core 20.2). **게이트 해제 → 다음 묶음(권위=`infra-review` 0261~0270): #51b(실 EntityZone host 이주·load-bearing)·#9 멀티프로세스 배선·진짜 비동기(#4).** 🔎 0261~0270 묶음 리뷰 적기.
 
 ---
 
@@ -147,3 +147,4 @@
 | [0267](step-0267.md) | 정리(#49 인접·선제): orchestrator 제어 평면 핸들러 믹스인 분리(orch-control.js·onMsg/onTick·Object.assign prototype·0251 placement 의 짝·투명 분할·27.5→18.9KB) | 통과(reg 0·spine OK) · 5/5 orchctlsplit placeZone SSOT |
 | [0268](step-0268.md) | 정리(#49 인접·선제): svc-mail-core saga 헬퍼 믹스인 분리(svc-mail-saga.js·_custody/_resendPending/_readmit·Object.assign prototype·투명 분할·25.3→19.9KB) | 통과(reg 0·spine OK) · 5/5 mailsplit saga 헬퍼 정합 |
 | [0269](step-0269.md) | 정리(#49 인접·선제): svc-mailbox dedup 헬퍼 믹스인 분리(svc-mailbox-dedup.js·_pruneEpoch/_seenHas/_seenAdd/seenSize/_ack·Object.assign prototype·투명 분할·24.7→22.8KB) | 통과(reg 0·spine OK) · 5/5 mboxsplit 멱등 dedup |
+| [0270](step-0270.md) | 정리(#49 인접·선제): gateway 메시지 라우팅 핸들러 믹스인 분리(gateway-msg.js·onMsg 업/다운스트림 라우팅·Object.assign prototype·투명 분할·22.8→16.5KB·#49 정리 arc 0261~0270 닫기) | 통과(reg 0·spine OK) · 5/5 gwsplit worldDigest 재현·live 6 |
