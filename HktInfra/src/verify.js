@@ -1,8 +1,8 @@
-// HktInfra step-0268 — 헤드리스 검증 (정리 #49 인접·선제: svc-mail-core saga 헬퍼 믹스인 분리·svc-mail-saga.js)
+// HktInfra step-0269 — 헤드리스 검증 (정리 #49 인접·선제: svc-mailbox seen/epoch dedup 헬퍼 믹스인 분리·svc-mailbox-dedup.js)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mailsplit`.
-//   더한 한 조각: MailService 의 saga 헬퍼(_custody·_resendPending·_readmit: 우편↔가방 escrow custody 레그 + 미해결 give 재전송/상한/포기 + 재admission)를 svc-mail-saga.js 믹스인으로 분리(Object.assign prototype). 정의 위치만 이동·기능 0 → 0267 비트 동일(reg). svc-mail-core.js 25.3KB→19.4KB.
-//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `mailsplit`(가설) — _custody→pending+escrow, _resendPending→상한 포기, _readmit→재개 가 sagaConsistent 유지.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mboxsplit`.
+//   더한 한 조각: Mailbox 의 seen/epoch dedup 헬퍼(_pruneEpoch·epochKeyCount·_seenHas·_seenAdd·seenSize·_ack)를 svc-mailbox-dedup.js 믹스인으로 분리(Object.assign prototype). 정의 위치만 이동·기능 0 → 0268 비트 동일(reg). svc-mailbox.js 24.7KB→22.2KB.
+//   검증: ⒜ `reg`(키트·비트 동일·투명 분할 증명). ⒝ `mboxsplit`(가설) — 중복 seq 전달이 멱등 dedup(received 유일·duplicates 1·seenSize 유계)·ack 재회신.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,29 +13,26 @@ const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; cons
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { MailService } = NET;
+const { Mailbox } = NET;
 
-// step-0268 정리 분할(#49 인접) 검증 — 우편 saga 헬퍼를 svc-mail-saga 믹스인으로 위임한 뒤,
-//   _custody(escrow give 발신)·_resendPending(상한 도달 포기)·_readmit(재admission)가 여전히 sagaConsistent 를 유지하는지 본다(투명 분할).
-function mailsplit(seeds) {
-  console.log('== mailsplit (0268 분할·#49 인접): 우편 saga 헬퍼(_custody·_resendPending·_readmit)를 svc-mail-saga 믹스인으로 위임 — escrow give→pending, 상한 포기, 재admission 이 sagaConsistent 유지·투명 분할(reg 0 가 비트 동일 증명). ==');
-  console.log('seed   | pend | abandon | readmit | saga정합 | 판정');
+// step-0269 정리 분할(#49 인접) 검증 — 수신함 dedup 헬퍼를 svc-mailbox-dedup 믹스인으로 위임한 뒤,
+//   중복 seq 전달이 여전히 멱등 dedup(received 유일·duplicates 집계·seenSize 유계 흡수)되고 ack 가 재회신되는지 본다(투명 분할).
+function mboxsplit(seeds) {
+  console.log('== mboxsplit (0269 분할·#49 인접): 수신함 seen/epoch dedup 헬퍼를 svc-mailbox-dedup 믹스인으로 위임 — 중복 seq 전달 멱등 dedup(received 유일·duplicates 1·seenSize 0 유계 흡수)·ack 재회신·투명 분할(reg 0 가 비트 동일 증명). ==');
+  console.log('seed   | received | dups | seenSize | acks | 판정');
   for (const seed of seeds) {
-    const m = new MailService({ saga: true, invMode: true, inv: 'inv', addr: 'mail', maxRetries: 1 });
-    m.net = { send: () => {} };   // 스텁 net(발신 흡수)
-    m._custody('item1', 'heroA', 'escrow', { leg: 'send', mailId: 1 });   // leg1: pending 1·gives 1·escrow 진입
-    const pendOk = m.pendingGives() === 1 && m.gives === 1 && m.escrowItemIds().includes('item1') && m.sagaConsistent();
-    m._resendPending();   // retryCount gid→1·retries 1
-    m._resendPending();   // c(1)≥maxRetries(1) → 포기: pendingGive 제거·giveAbandoned 1·abandonedGive 적재
-    const abandonOk = m.giveAbandoned === 1 && m.abandonedGive.size === 1 && m.sagaConsistent();
-    m._readmit();   // 재admission: abandonedGive→pendingGive·readmitted 1
-    const readmitOk = m.readmitted === 1 && m.abandonedGive.size === 0 && m.pendingGive.size === 1 && m.sagaConsistent();
-    const ok = check(pendOk && abandonOk && readmitOk, `seed ${seed}: saga 헬퍼 위반 (pend ${m.pendingGives()}·aband ${m.giveAbandoned}·readmit ${m.readmitted})`);
-    console.log(`${pad(seed, 6)} | ${pad(String(pendOk), 4)} | ${pad(String(abandonOk), 7)} | ${pad(String(readmitOk), 7)} | ${pad(String(m.sagaConsistent()), 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const acks = [];
+    const mb = new Mailbox({ dedupBound: true, addr: 'mbox' });
+    mb.net = { send: (f, t, msg) => acks.push(msg) };   // 스텁 net(ack 수집)
+    const deliver = (seq) => mb.onMsg({ from: 'r', payload: { type: 'whisperDeliver', from: 'r', body: 'b', seq, ackTo: 'router' } });
+    deliver(1); deliver(2); deliver(1); deliver(3);   // seq1 중복
+    const ok = check(mb.received === 3 && mb.duplicates === 1 && mb.seenSize() === 0 && acks.length === 4 && mb.epochKeyCount() === 1,
+      `seed ${seed}: dedup 위반 (recv ${mb.received}·dups ${mb.duplicates}·seenSize ${mb.seenSize()}·acks ${acks.length})`);
+    console.log(`${pad(seed, 6)} | ${pad(mb.received, 8)} | ${pad(mb.duplicates, 4)} | ${pad(mb.seenSize(), 8)} | ${pad(acks.length, 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['mailsplit'] = mailsplit;
-kit.ORDER.splice(1, 0, 'mailsplit');
+kit.MODES['mboxsplit'] = mboxsplit;
+kit.ORDER.splice(1, 0, 'mboxsplit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

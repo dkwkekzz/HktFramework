@@ -15,6 +15,9 @@
 const __c = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./common.js') : globalThis.__HktNetCommon;
 const { Net, LoginServer, SessionRegistry, mulberry32, fnv1a, DEFAULTS } = __c;
+// step-0269 분할 — seen/epoch dedup 헬퍼 믹스인(_pruneEpoch·_seenHas·_seenAdd·seenSize·_ack·epochKeyCount).
+const { MailboxDedup } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./svc-mailbox-dedup.js') : globalThis.__HktNetParts.svc_mailbox_dedup;
 
 // ── [게임 서비스] Mailbox — 귓속말 *수신측* 박스(SPINE 계층3 채팅/소셜). 존 tick 밖 *순수 반응형*(onTick 없음·권위=수신함만). ──
 //   whisperDeliver{from, body, seq, ackTo} 수신 → inbox 적재(received++) + ackTo 가 있으면 whisperAck{seq} 회신(전달 영수증). ackTo 없으면(0075 이전 best-effort) 적재만(ack 0).
@@ -74,43 +77,6 @@ class Mailbox {
   }
   // epoch 가지치기(step-0090) — base 의 더 높은 epoch 도착 시, 그 base 의 *낮은 epoch* 워터마크 키를 제거(옛 epoch 전달은 재시작으로 다시 안 옴 → 안전). epochBound OFF·epoch 없으면 no-op.
   //   step-0091 grace 유예: e-epochGrace *미만* epoch 만 제거(가장 최근 epochGrace 개 닫힌 epoch 워터마크는 유예 → 지연 straggler 를 정상 dedup). epochGrace 0 = e 미만 즉시 제거(0090).
-  _pruneEpoch(base, epoch) {
-    if (!this.epochBound || epoch == null) return;
-    const cur = this.curEpoch.get(base);
-    if (cur != null && epoch <= cur) return;   // 새 epoch 아님 → 가지치기 불필요
-    const floor = epoch - this.epochGrace;   // 이 미만 epoch 워터마크만 제거(0090: floor=epoch / grace N: 최근 N개 닫힌 epoch 유예)
-    if (cur != null) for (const k of [...this.seenWm.keys()]) { const i = k.lastIndexOf('#'); if (i >= 0 && k.slice(0, i) === base && +k.slice(i + 1) < floor) { this.seenWm.delete(k); this.seenAbove.delete(k); } }
-    this.curEpoch.set(base, epoch);
-  }
-  epochKeyCount() { return this.seenWm.size; }   // 보관 중인 (producer,epoch) 워터마크 키 수(계측·유계 증명).
-  // 본 seq 인가(dedup 판정 — 평면/유계 공통 디스패치). 유계 경로: wm 이하(접힘) 또는 seenAbove 에 있으면 본 것.
-  _seenHas(prod, seq) {
-    if (!this.dedupBound) return this.seen.has(seq);
-    if (seq <= (this.seenWm.get(prod) || 0)) return true;
-    const above = this.seenAbove.get(prod); return above ? above.has(seq) : false;
-  }
-  // seq 를 본 것으로 기록. 유계 경로: seenAbove 에 넣고 wm+1 이 차 있으면 연속 흡수하며 wm 전진(흡수분은 set 에서 제거 → 유계). 평면 경로: 0080 그대로 Set.add(무계).
-  _seenAdd(prod, seq) {
-    if (!this.dedupBound) { this.seen.add(seq); return; }
-    let wm = this.seenWm.get(prod) || 0;
-    if (seq <= wm) return;
-    let above = this.seenAbove.get(prod);
-    if (!above) { above = new Set(); this.seenAbove.set(prod, above); }
-    above.add(seq);
-    while (above.has(wm + 1)) { above.delete(wm + 1); wm++; }   // 연속 흡수 — 워터마크 전진하며 집합에서 제거(유계화)
-    this.seenWm.set(prod, wm);
-  }
-  // dedup 보관 항목 수(계측·유계 증명) — 유계 경로=비순차 잔여(Σ seenAbove), 평면 경로=Set 전체(∝고유 seq).
-  seenSize() {
-    if (!this.dedupBound) return this.seen.size;
-    let n = 0; for (const s of this.seenAbove.values()) n += s.size; return n;
-  }
-  // ack 회신(전달 영수증) — dropAck 주입 시 첫 N개는 억제(전달은 받되 ack 만 분실 → 라우터 재발신→중복 유발). 그 후 정상 회신.
-  _ack(p) {
-    if (!(p.ackTo && p.seq != null)) return;
-    if (this.ackDropped < this.dropAck) { this.ackDropped++; return; }   // ack 손실 주입(첫 N개 억제)
-    this.net.send(this.addr, p.ackTo, { type: 'whisperAck', seq: p.seq }); this.acks++;
-  }
   onMsg(m) {
     const p = m.payload;
     // 귓속말 전달 수신 — 적재 후 ackTo(라우터)로 영수증 회신. ackTo/seq 없으면(best-effort·0075 이하) 적재만(ack 미발신 = 영수증 없는 전달의 대조).
@@ -134,6 +100,8 @@ class Mailbox {
     }
   }
 }
+// step-0269 분할 — dedup 헬퍼를 프로토타입에 되섞음(정의 위치만 이동·this 바인딩 동일·reg 0). onMsg 가 _seenHas/_seenAdd/_ack 호출.
+Object.assign(Mailbox.prototype, MailboxDedup);
 
 const __part = { Mailbox };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0268](step-0268.md) — **정리(#49 인접·선제): svc-mail-core saga 헬퍼 믹스인 분리**. `MailService` 의 saga 헬퍼(_custody·_resendPending·_readmit)를 `svc-mail-saga.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-mail-core.js 25.3KB→19.9KB.
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·mailsplit: 5/5 _custody/_resendPending/_readmit 각 단계 sagaConsistent·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 정리 arc(0261~) — 3대 >30KB 박스 해소(0261~0264) + 선제 정리(svc-guild·svc-inventory-core·orchestrator·svc-mail-core)**. 잔여 30KB 근접 후보: svc-mailbox 24.7. 게이트 해제 후 #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스.
+- **닫힌 step**: [step-0269](step-0269.md) — **정리(#49 인접·선제): svc-mailbox seen/epoch dedup 헬퍼 믹스인 분리**. `Mailbox` 의 dedup 헬퍼(_pruneEpoch·_seenHas·_seenAdd·seenSize·_ack)를 `svc-mailbox-dedup.js` 믹스인(Object.assign prototype)으로 verbatim 분리·투명 분할. svc-mailbox.js 24.7KB→22.8KB.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·mboxsplit: 5/5 중복 seq 멱등 dedup·seenSize 유계·ack 재회신·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 정리 arc(0261~0269) — 3대 >30KB 박스 해소 + 선제 정리 6박스(svc-guild·svc-inventory-core·orchestrator·svc-mail-core·svc-mailbox)**. src/ 전 박스 ≤23KB·여유 충분. 게이트 해제 → #51b(실 EntityZone host 이주·review-gated)·#9 멀티프로세스·진짜 비동기(#4).
 
 ---
 
@@ -146,3 +146,4 @@
 | [0266](step-0266.md) | 정리(#49 인접·선제): svc-inventory-core 생성자 필드 초기화 믹스인 분리(svc-inventory-init.js·_init ~120필드·Object.assign prototype·투명 분할·28.5→5.7KB) | 통과(reg 0·spine OK) · 5/5 invsplit 필드 정확·crash 정합 |
 | [0267](step-0267.md) | 정리(#49 인접·선제): orchestrator 제어 평면 핸들러 믹스인 분리(orch-control.js·onMsg/onTick·Object.assign prototype·0251 placement 의 짝·투명 분할·27.5→18.9KB) | 통과(reg 0·spine OK) · 5/5 orchctlsplit placeZone SSOT |
 | [0268](step-0268.md) | 정리(#49 인접·선제): svc-mail-core saga 헬퍼 믹스인 분리(svc-mail-saga.js·_custody/_resendPending/_readmit·Object.assign prototype·투명 분할·25.3→19.9KB) | 통과(reg 0·spine OK) · 5/5 mailsplit saga 헬퍼 정합 |
+| [0269](step-0269.md) | 정리(#49 인접·선제): svc-mailbox dedup 헬퍼 믹스인 분리(svc-mailbox-dedup.js·_pruneEpoch/_seenHas/_seenAdd/seenSize/_ack·Object.assign prototype·투명 분할·24.7→22.8KB) | 통과(reg 0·spine OK) · 5/5 mboxsplit 멱등 dedup |
