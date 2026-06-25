@@ -1,4 +1,5 @@
 'use strict';
+// step-0253 — 캐시 bulk get(cacheMget): {keys[]} 한 요청에 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1·플레이어 N명 핫데이터 배치 페치). 각 키는 cacheGet(0206)과 동일 hit/miss/read-through·setAt·lruTouch 적용. cacheMget 미수신이면 미발화 = 0252 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #2).
 // step-0252 — 캐시 write-through 소스 정합(cacheWriteThrough): writeThrough ON 이면 cacheSet 이 캐시(store) 뿐 아니라 backing source(SSOT 더미·DB)에도 동시 기록 → 소스가 캐시와 정합. 그래서 무효화(0212) 후 read-through(0206)가 *최신* 값을 재적재(OFF 면 소스에 안 써 stale 값 재적재). writeThrough 토글({on}·cacheLruTouch 0226 동형). 미설정이면 writeThrough=false → 소스 무변경 = 0226 비트 동일(reg 0). 4차 고도화(캐시 박스 #1).
 // step-0226 — 캐시 recency touch(cacheLruTouch): lruTouch ON 이면 get *hit* 시 recency(setAt)를 now 로 갱신 → 자주 읽는 핫 키가 회수에서 살아남는다(진짜 LRU = set+get 둘 다 recency·0225 는 set-시각만이라 FIFO 에 가까웠다). lruTouch OFF(미설정)면 get 이 recency 미갱신 = 0225 비트 동일(reg 0). 3차 고도화(캐시 박스 #2).
 // step-0225 — 캐시 용량 LRU 회수(cacheCapacity): 캐시 키 수 상한 설정({cap}). set 으로 store.size>cap 이 되면 가장 오래된(recency=setAt 최소) 키부터 회수(개수 유계·Redis maxmemory-policy allkeys-lru 더미판). TTL(0211)이 시간 유계라면 이건 *개수* 유계. capacity=∞(미설정)면 회수 0 = 0224 비트 동일(reg 0). 3차 고도화(캐시 박스 #1).
@@ -60,6 +61,20 @@ class CacheStore {
       else { this.misses++; hit = false; if (this.source.has(p.key)) { value = this.source.get(p.key); this.store.set(p.key, value); this.setAt.set(p.key, now); } }   // read-through: miss → 소스서 읽어 캐시 채움(다음번 hit·setAt 기록).
       this._lastGet = { key: p.key, value, hit, filled: !hit && this.store.has(p.key) };
       if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'cacheReply', key: p.key, value, hit }); }
+      return;
+    }
+    // bulk get(step-0253·cacheMget·read-through) — {keys[]} → 각 키를 cacheGet(0206)과 동일 로직(hit/miss/read-through·setAt·lruTouch·hits/misses 계측)으로 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1). 미수신이면 미발화 = 0252 비트 동일.
+    if (p.type === 'cacheMget') {
+      const values = [];
+      for (const key of (p.keys || [])) {
+        this.getsRx++;
+        let value;
+        if (this.store.has(key)) { value = this.store.get(key); this.hits++; if (this.lruTouch) { this.setAt.set(key, now); this.touches++; } }
+        else { this.misses++; if (this.source.has(key)) { value = this.source.get(key); this.store.set(key, value); this.setAt.set(key, now); } }
+        values.push(value);
+      }
+      this._lastMget = { keys: p.keys || [], values };
+      if (this.net && this.addr) this.net.send(this.addr, m.from, { type: 'cacheMReply', keys: p.keys || [], values });
       return;
     }
     // TTL 만료 스윕(step-0211·cacheExpire) — {ttl} → setAt+ttl ≤ now 인 키를 회수(store·setAt 제거). 휘발 캐시가 stale 핫 데이터를 영영 안 들고 있게(메모리 유계·Redis TTL 더미판). cacheExpire 미수신이면 미발화 = 0210 비트 동일.

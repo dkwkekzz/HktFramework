@@ -1,8 +1,8 @@
-// HktInfra step-0253 — 헤드리스 검증 (캐시 bulk get)
+// HktInfra step-0254 — 헤드리스 검증 (캐시 negative caching·침투 방어)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cachemget`.
-//   더한 한 조각: CacheStore.cacheMget{keys[]} — 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1). 새 메시지 타입·미수신 → 0252 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cachemget`(가설) — set k1=v1,k2=v2·소스 k3=s3 → mget[k1,k2,k3] = [v1,v2,s3](store hit 2 + source read-through 1·미존재 키는 undefined).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `cacheneg`.
+//   더한 한 조각: CacheStore.cacheNegative{on} — ON 이면 read-through miss 가 소스에도 없을 때 known-absent(negatives)로 기억 → 미존재 키 재조회는 소스 조회 없이 negHit 즉답(침투 방어). set 되면 해제. 미수신/OFF → 0253 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·비트 동일). ⒝ `cacheneg`(가설) — ON: 미존재 'x' 2회 get → 1회만 소스 시도·negHits 1·'x'∈negatives. OFF(대조군): 같은 시퀀스 → negHits 0·negatives 빔.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,22 +16,27 @@ const { check, pad } = kit.helpers;
 const { CacheStore } = NET;
 const M = (type, extra) => ({ from: 'gw', tick: 1, payload: { type, ...extra } });
 
-function cachemget(seeds) {
-  console.log('== cachemget (0253·캐시 #2): bulk get — cacheMget{keys[]} 한 요청에 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1). set k1=v1,k2=v2·소스 k3=s3·k4 없음 → mget[k1,k2,k3,k4] = [v1,v2,s3,undefined](store hit 2 + source read-through 1 + 미존재 1). ==');
-  console.log('seed   | values            | hits | misses | 판정');
+function cacheneg(seeds) {
+  console.log('== cacheneg (0254·캐시 #3): negative caching 침투 방어 — ON 이면 소스에도 없는 키 miss 를 known-absent 로 기억 → 미존재 키 재조회는 소스 조회 없이 negHit 즉답. ON: 미존재 x 2회 get → negHits 1·x∈negatives. OFF: 같은 시퀀스 → negHits 0·negatives 빔. set 후엔 known-absent 해제. ==');
+  console.log('seed   | ON negHits | ON neg멤버 | set후 해제 | OFF negHits | 판정');
   for (const seed of seeds) {
-    const c = new CacheStore({ source: { k3: 's3' } });
-    c.onMsg(M('cacheSet', { key: 'k1', value: 'v1' }));
-    c.onMsg(M('cacheSet', { key: 'k2', value: 'v2' }));
-    c.onMsg(M('cacheMget', { keys: ['k1', 'k2', 'k3', 'k4'] }));
-    const vs = (c._lastMget || {}).values || [];
-    const ok = check(vs[0] === 'v1' && vs[1] === 'v2' && vs[2] === 's3' && vs[3] === undefined && c.hits === 2 && c.misses === 2,
-      `seed ${seed}: bulk get 위반 (values ${JSON.stringify(vs)}·hits ${c.hits}·misses ${c.misses})`);
-    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(vs), 17)} | ${pad(c.hits, 4)} | ${pad(c.misses, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const on = new CacheStore({ source: {} });   // 소스 빔(x 미존재)
+    on.onMsg(M('cacheNegative', { on: true }));
+    on.onMsg(M('cacheGet', { key: 'x' }));   // miss·소스 없음 → negatives 에 x 추가
+    on.onMsg(M('cacheGet', { key: 'x' }));   // negative hit(소스 조회 없이)
+    const negAfterGet = on.negatives.has('x');
+    on.onMsg(M('cacheSet', { key: 'x', value: 'now-here' }));   // set → known-absent 해제
+    const clearedAfterSet = !on.negatives.has('x');
+    const off = new CacheStore({ source: {} });
+    off.onMsg(M('cacheGet', { key: 'x' }));
+    off.onMsg(M('cacheGet', { key: 'x' }));
+    const ok = check(on.negHits === 1 && negAfterGet && clearedAfterSet && off.negHits === 0 && off.negatives.size === 0,
+      `seed ${seed}: negative cache 위반 (ON negHits ${on.negHits}·멤버 ${negAfterGet}·set해제 ${clearedAfterSet}·OFF negHits ${off.negHits})`);
+    console.log(`${pad(seed, 6)} | ${pad(on.negHits, 10)} | ${pad(negAfterGet, 10)} | ${pad(clearedAfterSet, 10)} | ${pad(off.negHits, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['cachemget'] = cachemget;
-kit.ORDER.splice(1, 0, 'cachemget');
+kit.MODES['cacheneg'] = cacheneg;
+kit.ORDER.splice(1, 0, 'cacheneg');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
