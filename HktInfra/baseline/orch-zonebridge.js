@@ -54,6 +54,8 @@ const OrchZoneBridge = {
     for (const z of ids) { const rt = this.zoneRuntimes.get(z); if (this.running.get(z) !== (rt ? rt.host : undefined)) d++; }
     return d;
   },
+  // 브리지 정합 불변 질의(step-0278·capstone primitive) — 브리지가 깨지지 않았는가의 단일 술어: ⒜ 표류 0(추상 host==실 host) ⒝ 실 런타임 수 == 추상 running 수(존 집합 일치). 둘 다 참이면 추상 집행 SSOT 와 실 EntityZone 레지스트리가 완전 일치(한 존=한 host·양쪽). 모든 배치 op 뒤 참이어야(0280 capstone 이 혼합 lifecycle 로 단언). 읽기 전용.
+  bridgeCoherent() { return this.zoneRuntimeDrift() === 0 && this.runtimeCount() === this.running.size; },
 };
 
 const __part = { OrchZoneBridge };
