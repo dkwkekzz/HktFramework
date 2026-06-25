@@ -731,7 +731,13 @@
     const field = opts.field || 'energy';
     const rho = world.fields[field];
     const rhoOn = opts.rhoOn, rhoOff = opts.rhoOff, shearOn = opts.shearOn, vortOn = opts.vortOn, divOn = opts.divOn;
+    // ── 이주 이력(hysteresis·깜빡임 방지) — 갓 격자→SPH 이주한 입자는 minDwell call 동안 격자로 *못 돌아간다* ──
+    //   전단/와도/발산 축은 *복귀 임계가 없다*(SPH→격자는 밀도 rhoOff 만 본다). 그래서 저밀도+고전단 셀은 매 call
+    //   격자→SPH(전단 큼) → 즉시 SPH→격자(밀도 작음) 를 *깜빡인다*(불필요 이주·이력). dwell 이 갓 이주한 입자를
+    //   minDwell call 동안 격자 복귀에서 면제해 그 1-call 깜빡임을 끊는다(이력=상태 기억). minDwell=0 → 면제 0 → 0089 byte 동일.
+    const minDwell = opts.minDwell != null ? opts.minDwell : 0;
     let toSPHn = 0, toGridn = 0;
+    if (minDwell > 0) for (let k = 0; k < particles.length; k++) { const p = particles[k]; if (p.migDwell > 0) p.migDwell--; }   // 기존 입자 dwell 감쇠(이번 call 1 소진)
     // 1. 격자 → SPH: ρ≥rhoOn(밀집) *또는* |∇v|≥shearOn(전단) *또는* |∇×v|≥vortOn(회전) *또는* max(0,−∇·v)≥divOn(압축/충격면) 인 셀 → 입자(0055 이동).
     //    임계 안 준 축은 무시(다 안 주면 0077 밀도만). 디테일은 밀도·전단·회전·압축 — 비용이 디테일을 따라간다(다축 정책).
     if (rhoOn != null || shearOn != null || vortOn != null || divOn != null) {
@@ -740,17 +746,19 @@
       const divF = divOn != null ? gridDivergenceField(world, { field }) : null;
       const region = (x, y, z) => { const i = (z * N + y) * N + x; return (rhoOn != null && rho[i] >= rhoOn) || (shearOn != null && shearF[i] >= shearOn) || (vortOn != null && vortF[i] >= vortOn) || (divOn != null && divF[i] >= divOn); };
       const mig = migrateRegionToSPH(world, { field, threshold: 0, region });
+      if (minDwell > 0) for (let k = 0; k < mig.particles.length; k++) mig.particles[k].migDwell = minDwell;   // 갓 이주 → dwell 부여(복귀 면제 시작)
       particles = particles.concat(mig.particles);
       toSPHn = mig.particles.length;
     }
     // 2. SPH → 격자: 셀 입자질량 ≤ rhoOff 인 *확산* 입자 → 격자(0076 누적). 밀집 클러스터(>rhoOff)는 SPH 유지.
+    //    단, dwell 이 남은(갓 이주한) 입자는 격자 복귀에서 면제(이력) — 임계 근처 깜빡임 방지.
     if (rhoOff != null && particles.length) {
       const clamp = (v) => v < 0 ? 0 : (v >= N ? N - 1 : v);
       const key = (p) => (clamp(Math.round(p.cz || 0)) * N + clamp(Math.round(p.cy || 0))) * N + clamp(Math.round(p.cx || 0));
       const cellMass = new Map();                              // round(cell) → Σ 입자 질량(밀도 프록시)
       for (const p of particles) { const k = key(p); cellMass.set(k, (cellMass.get(k) || 0) + (p.mass || 0)); }
       const stay = [], back = [];
-      for (const p of particles) (cellMass.get(key(p)) <= rhoOff ? back : stay).push(p);
+      for (const p of particles) { const eligible = cellMass.get(key(p)) <= rhoOff && !(minDwell > 0 && p.migDwell > 0); (eligible ? back : stay).push(p); }
       if (back.length) particlesToFluid(back, world, { field });
       particles = stay; toGridn = back.length;
     }
@@ -949,5 +957,5 @@
     return particles;
   }
 
-  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, gridShearField, gridVorticityField, gridDivergenceField, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 21 };
+  return { kernelW, kernelGradW, sphNeighborGrid, sphNeighbors, sphDensity, sphAdaptiveH, sphPressureForce, sphPressureForceVarH, sphThermalEnergy, sphThermalPressureForce, sphViscosity, sphThermalConduction, sphRadiativeCooling, sphIgnition, fluidToParticles, migrateRegionToSPH, particlesToFluid, autoMigrate, gridShearField, gridVorticityField, gridDivergenceField, sphBoundaryForce, sphBedFriction, sphSedimentErosion, VERSION: 22 };
 });
