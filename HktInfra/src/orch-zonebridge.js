@@ -1,4 +1,5 @@
 'use strict';
+// step-0283 — #56 브리지 존 데이터 평면 3: _bridgeLeave(leave 라우팅·entity 제거).
 // step-0282 — #56 브리지 존 데이터 평면 2: _bridgeMove(move 라우팅)·_tickRuntimes(런타임 onTick 구동·위치 적용)·zoneEntityPos 질의.
 // step-0281 — #56 브리지 존 데이터 평면 1: _bridgeEnter(실 EntityZone 핸들로 enter 라우팅)·zoneEntityCount/zoneHasEntity 질의. 0272~0280 의 빈 핸들에 실 entity 가 흐르기 시작.
 // step-0272 — #51b 실 zone.js 브리지. 0241~0250 의 배치 실배선은 running(zoneId→host 문자열)까지였다 — *집행 SSOT* 이되 실 EntityZone 런타임과는 끊겨 있었다.
@@ -73,6 +74,15 @@ const OrchZoneBridge = {
     rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
     this.zoneMoves++;
     return true;
+  },
+  // 브리지 존 leave 라우팅(step-0283·#56) — avatar 의 퇴장(로그아웃·존 떠남)을 실 EntityZone 핸들로 흘린다(onMsg('leave')→ents/sessions 제거). 미가동 존·미존재 avatar 는 무해(zone.js delete 멱등). sessionId='s:'+avatar 로 enter 의 세션도 정리. zoneEntityFlow OFF 면 호출 없음(0282 비트 동일).
+  _bridgeLeave(zoneId, avatar, gateway) {
+    const rt = this.zoneRuntimes.get(zoneId);
+    if (!rt) return false;
+    const had = rt.zone.ents.has(avatar);
+    rt.zone.onMsg({ from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
+    if (had) this.zoneLeaves++;
+    return had;
   },
   // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
   _tickRuntimes(tick) { for (const rt of this.zoneRuntimes.values()) rt.zone.onTick(tick); },

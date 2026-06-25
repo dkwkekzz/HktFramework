@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0282](step-0282.md) — **#56 브리지 존 데이터 평면 2: move 흐름 + 런타임 tick**. zoneMove 가 실 EntityZone pending 으로 흐르고 orch 가 런타임 onTick 을 구동해 위치를 적용(실 zone.js 시뮬 진행·net 싱크가 view 흡수).
-- **한 줄 상태**: reg ALL OK·zonemove: 5/5 base5,5→moved10,5(delta 5,0)·zoneMoves2·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅. 다음 조각: 0283 leave(entity 제거). 이어서 migrate 무손실/hostdown 소실/stop 폐기·단일 소유·census capstone(0284~0290). 후속: ⒜ **#9 멀티프로세스 배선**(실 host.js 소켓)·⒝ 진짜 비동기(#4·논리클럭).
+- **닫힌 step**: [step-0283](step-0283.md) — **#56 브리지 존 데이터 평면 3: leave 흐름**. zoneLeave 가 실 EntityZone 핸들에서 avatar/세션을 제거(퇴장). enter/move/leave 기본 데이터 평면 완성.
+- **한 줄 상태**: reg ALL OK·zoneleave: 5/5 a1·a2 enter→a1 leave→cnt1·a2 잔존·zoneLeaves1·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅·leave✅. 다음 조각: 0284 migrate 무손실(같은 핸들 → entity 행동적 보존 실증). 이어서 hostdown 소실/stop 폐기·단일 소유·census capstone(0285~0290). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4·논리클럭).
 
 ---
 
@@ -163,3 +163,4 @@
 | [0280](step-0280.md) | #51b 실 zone.js 브리지 9·capstone: 전 계층 정합(fullyCoherent·placement==running==zoneRuntimes 3층·placementDrift0+bridgeCoherent+placedCount==runtimeCount·7종 op 혼합·#51b arc 0272~0280 닫기·OFF→0279 동일) | 통과(reg 0·spine OK) · 5/5 7종 op 후 fullyCoherent·rtCount==runCount==placed 3 |
 | [0281](step-0281.md) | #56 브리지 존 데이터 평면 1: enter 흐름(_bridgeEnter·게이트웨이→orch zoneEnter 가 실 EntityZone 핸들로 라우팅·실 zone.js ents 적재·미가동 존 거부·zoneEntityCount/HasEntity 질의·entityOps 주입열·OFF→0280 동일) | 통과(reg 0·spine OK) · 5/5 z1cnt2·z2cnt1·z9거부·zoneEnters3 |
 | [0282](step-0282.md) | #56 브리지 존 데이터 평면 2: move 흐름(_bridgeMove·zoneMove→실 EntityZone pending·_tickRuntimes 가 런타임 onTick 구동 위치 적용·net 싱크 view 흡수·zoneEntityPos 질의·OFF→0281 동일) | 통과(reg 0·spine OK) · 5/5 base5,5→moved10,5(delta5,0)·zoneMoves2 |
+| [0283](step-0283.md) | #56 브리지 존 데이터 평면 3: leave 흐름(_bridgeLeave·zoneLeave→실 EntityZone ents/sessions 제거·멱등·zoneLeaves 계측·OFF→0282 동일) | 통과(reg 0·spine OK) · 5/5 a1·a2→a1 leave→cnt1·a2 잔존·zoneLeaves1 |
