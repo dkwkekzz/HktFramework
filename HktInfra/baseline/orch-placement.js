@@ -10,11 +10,13 @@
 const OrchPlacement = {
   // 존 런타임 start(step-0241·#51) — 배치 결정을 *집행*: 실 존 런타임을 host 에 띄운다(running 등록). 이미 도는 존이면 멱등(같은/다른 host 재배치는 0242 migrate 가 담당·여기선 신규 가동만 카운트). placeExecute ON 일 때만 placeZone 이 호출. instance.js _spawn 의 존-배치 판.
   _start(zoneId, host) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeStart(zoneId, host);   // step-0272 (#51b) — 실 EntityZone 런타임도 함께 띄움(OFF/팩토리부재면 가드 통과·0271 비트 동일).
     if (this.running.has(zoneId)) { this.running.set(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등·신규 start 아님).
     this.running.set(zoneId, host); this.starts++; return true;
   },
   // 존 런타임 migrate(step-0242·#51) — 배치 재결정을 *집행*: 도는 존 런타임을 toHost 로 release(기존)+acquire(toHost) 쌍 이주(running 단일 키 원자 교체 = 중간 공백/중복 0·instance.js _route 의 존 판). 안 도는 존이면 멱등 no-op(decision 만 있고 미가동 — placeExecute 경로상 미발생). placeExecute ON·placeMigrate 일 때만 호출.
   _migrate(zoneId, toHost) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeMigrate(zoneId, toHost);   // step-0273 (#51b) — 실 EntityZone 핸들도 host 이주(상태 보존·OFF 면 가드 통과·0272 비트 동일).
     if (!this.running.has(zoneId)) return false;     // 미가동 — 집행 대상 없음(멱등).
     if (this.running.get(zoneId) === toHost) return false;
     this.running.set(zoneId, toHost); this.runtimeMigrations++; return true;   // release(from)+acquire(toHost) 원자 교체.
@@ -29,12 +31,14 @@ const OrchPlacement = {
       if (target === null) break;                           // 생존 host 없음 → 보류.
       this.placement.set(zid, target);                      // 재배치 결정.
       if (this.placeExecute) this.running.set(zid, target); // 집행 — 살아남은 host 에 재가동(re-acquire·죽은 host 는 release 불가).
+      if (this.zoneBridge && this.zoneFactory) this._bridgeHostDown(zid, target);   // step-0275 (#51b) — 실 EntityZone 도 생존 host 에 *새 인스턴스* 재가동(비자발적·상태 보존 불가·OFF→0274 동일).
       rescued++;
     }
     this.hostRescued += rescued; return rescued;
   },
   // 존 운영 퇴역 stop(step-0246·#51) — 존을 내린다: 결정(placement)에서 빼고 placeExecute ON 이면 실 런타임(running)도 종료. 없는 존이면 멱등 no-op(zonesRetired 무증). instance.js _despawn 의 존 판. drift 0 보존(둘 다 제거).
   _stop(zoneId) {
+    if (this.zoneBridge && this.zoneFactory) this._bridgeStop(zoneId);   // step-0274 (#51b) — 실 EntityZone 런타임도 폐기(OFF 면 가드 통과·0273 비트 동일).
     const had = this.placement.delete(zoneId);     // 결정 제거(존 퇴역).
     if (this.placeExecute) this.running.delete(zoneId);   // 집행 — 실 런타임 종료.
     if (had) this.zonesRetired++;

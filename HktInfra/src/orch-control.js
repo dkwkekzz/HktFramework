@@ -35,8 +35,10 @@ const OrchControl = {
       this.placeQueriesRx++;
       const host = this.placementOf(p.zoneId);          // 결정(어디서 돌아야 하나).
       const running = this.runningHostOf(p.zoneId);      // 집행(step-0250·실제 어디서 도나 — 게이트웨이가 진짜 위치로 라우팅).
-      this._lastPlaceReply = { zoneId: p.zoneId, host, running };
-      if (this.net && this.addr) { this.net.send(this.addr, m.from, { type: 'placeReply', zoneId: p.zoneId, host, running }); this.placeRepliesSent++; }
+      const reply = { type: 'placeReply', zoneId: p.zoneId, host, running };
+      if (this.zoneBridge) reply.runtimeHost = this.zoneRuntimeHostOf(p.zoneId);   // step-0279 (#51b) — 실 EntityZone 핸들의 host(추상 running 문자열이 아니라 *실물* 런타임 위치). OFF 면 필드 미추가 = 0250 reply 바이트 동일.
+      this._lastPlaceReply = reply;
+      if (this.net && this.addr) { this.net.send(this.addr, m.from, reply); this.placeRepliesSent++; }
       return;
     }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);

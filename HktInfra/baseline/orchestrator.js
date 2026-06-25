@@ -26,6 +26,9 @@ const { OrchPlacement } = (typeof module !== 'undefined' && module.exports && ty
 // step-0267 분할 — 제어 평면 핸들러(onMsg·onTick) 믹스인.
 const { OrchControl } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./orch-control.js') : globalThis.__HktNetParts.orch_control;
+// step-0272 — #51b 실 zone.js 브리지 믹스인(_bridgeStart·존 런타임 질의).
+const { OrchZoneBridge } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./orch-zonebridge.js') : globalThis.__HktNetParts.orch_zonebridge;
 
 // ── [코디네이션] Orchestrator — 0009 그대로(monitor 쌍을 생성자 opts 로 받게만 조정) ──
 class Orchestrator {
@@ -59,6 +62,14 @@ class Orchestrator {
     this.zonesRetired = 0;        // placeStop 으로 실제 퇴역(placement 에서 제거)된 존 누적 수(step-0246·존 자체 내림).
     this.hostDowns = 0;           // 처리한 placeHostDown 수(step-0248·계측·생존 host 없으면 보류 포함).
     this.hostRescued = 0;         // host 장애로 살아남은 host 에 재가동(re-acquire)된 존 누적 수(step-0248·비자발적 복구).
+    // 실 zone.js 브리지(step-0272·#51b) — 0241~0250 의 running 은 zoneId→host *문자열* 추상이었다(집행 SSOT 이되 실 런타임 미연결). zoneBridge ON 이면 placement 집행이 *실 EntityZone 인스턴스*를 host 에 띄워(zoneRuntimes 레지스트리) 추상 running 과 실 존 런타임을 잇는다(orchestrator=존 spawn 책임·SPINE §2 코디네이션). 팩토리는 makeActor 가 주입(topo-actors)·OFF 면 빈 채 = 0271 비트 동일.
+    this.zoneBridge = opts.zoneBridge || false;
+    this.zoneFactory = opts.zoneFactory || null;   // (zoneId)→새 EntityZone. makeActor 가 zoneBridge ON 일 때 주입(직렬화 불가 함수이므로 spec 아님).
+    this.zoneRuntimes = new Map();   // zoneId -> { zone: EntityZone, host } (실 가동 존 런타임 핸들·running 문자열 SSOT 의 실물 짝).
+    this.zoneStarts = 0;             // 브리지로 실제 인스턴스화(start)한 존 런타임 누적 수(계측·멱등 재배치 제외).
+    this.zoneMigrations = 0;         // 브리지로 실 EntityZone 핸들을 release+acquire 이주(host 원자 교체)한 누적 수(step-0273·재생성 아님).
+    this.zoneStops = 0;              // 브리지로 실 EntityZone 런타임을 퇴역(zoneRuntimes 제거)한 누적 수(step-0274·멱등 no-op 제외).
+    this.zoneRescued = 0;            // host 장애로 죽은 host 의 실 EntityZone 런타임을 생존 host 에 새 인스턴스 재가동한 누적 수(step-0275·비자발적·상태 소실).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -112,6 +123,8 @@ class Orchestrator {
 // 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·placement/executed 질의)는 orch-placement.js 로 분리(step-0251).
 // Object.assign 으로 prototype 에 되섞는다 — 정의 위치만 옮길 뿐 this 바인딩·메서드 해소 동일 = 동작 비트 불변(reg 0). onMsg 의 placeX 분기가 this._start/_migrate/... 로 그대로 호출.
 Object.assign(Orchestrator.prototype, OrchPlacement);
+// step-0272 — #51b 실 zone.js 브리지 메서드를 프로토타입에 되섞음(_start 가드가 zoneBridge ON 일 때만 호출 = OFF 비트 동일).
+Object.assign(Orchestrator.prototype, OrchZoneBridge);
 // step-0267 분할 — 제어 평면 핸들러(onMsg·onTick)를 프로토타입에 되섞음(정의 위치만 이동·this 바인딩 동일·reg 0).
 Object.assign(Orchestrator.prototype, OrchControl);
 

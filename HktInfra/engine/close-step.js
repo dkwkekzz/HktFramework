@@ -56,6 +56,25 @@ for (const [f, max] of budgets) {
   checkItem(st.includes(`[${N}](step-${N}.md)`), `STATE.md §7 INDEX 에 [${N}] 행`);
 }
 
+// 6. src/ 박스 크기 가드 (step-0271·도구 갭 #43 — #49 재발 방비)
+//   박스 1개=파일 1개 규칙상 한 박스가 >30KB 면 다음 *기능* step 전에 정리(분할/승격) step 이 필요(CLAUDE.md §박스 분할).
+//   여기서는 *비실패 경고*만 한다 — 이번 step 닫기를 막지 않되(박스를 키운 기능 step 도 닫게), 그 사실을 매 close 마다 가시화해 #49 가 조용히 재발하지 않게 한다.
+{
+  const SRC = path.join(ROOT, 'src');
+  const LIMIT = 30 * 1024;
+  let over = [], maxF = null, maxSz = 0;
+  try {
+    for (const f of fs.readdirSync(SRC)) {
+      if (!f.endsWith('.js')) continue;
+      const sz = fs.statSync(path.join(SRC, f)).size;
+      if (sz > maxSz) { maxSz = sz; maxF = f; }
+      if (sz > LIMIT) over.push(`${f}(${KB(sz)})`);
+    }
+  } catch {}
+  if (over.length) console.log(`  ⚠ src/ 박스 >30KB ${over.length}개: ${over.join(', ')} — 다음 기능 step 전 정리(#49) 권장(닫기는 막지 않음)`);
+  else console.log(`  ✓ src/ 박스 크기 — 최대 ${maxF}(${KB(maxSz)}) ≤ 30KB (>30KB 0개)`);
+}
+
 // 1·2. 검증 실행 (가장 오래 걸리는 것을 마지막에)
 function runJs(args, label) {
   process.stdout.write(`  … node run.js ${args.join(' ')} 실행 중\n`);
