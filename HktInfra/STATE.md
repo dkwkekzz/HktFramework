@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0280](step-0280.md) — **#51b 실 zone.js 브리지 9·capstone: 전 계층 정합**. `fullyCoherent()` — placement(결정)==running(집행)==zoneRuntimes(실물) 세 층 완전 일치. 7종 op 혼합 후 참 → **#51b 실 zone.js 브리지 arc(0272~0280) 닫기**.
-- **한 줄 상태**: reg ALL OK·zonecapstone: 5/5 7종 op 후 fullyCoherent·rtCount==runCount==placed==3·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#51b 브리지 완료(0272~0280) — orch 추상 running→실 EntityZone 런타임 lifecycle(start/migrate/stop/hostdown/rebalance/drain) 구동·읽기 경로·정합 capstone**. 다음 묶음: ⒜ **#9 멀티프로세스 배선**(실 host.js 소켓·게임서비스·데이터 계층 인프로세스 탈피)·⒝ 진짜 비동기(#4·논리클럭)·⒞ entity 트래픽의 실 zone.js 흐름(#9 위). 🔎 **0271~0280 묶음 리뷰 적기**(#43 도구 + #51b 브리지 9).
+- **닫힌 step**: [step-0281](step-0281.md) — **#56 브리지 존 데이터 평면 1: enter 흐름**. zoneEntityFlow ON 이면 게이트웨이→orch zoneEnter 가 *실 EntityZone 핸들*(zoneRuntimes)로 enter 라우팅 → 실제 avatar 가 실 zone.js ents 에 산다(빈 핸들 #56 해소 시작). 미가동 존 거부.
+- **한 줄 상태**: reg ALL OK·zoneenter: 5/5 z1cnt2·z2cnt1·z9 거부·zoneEnters3·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — 0272~0280 빈 핸들에 실 entity 트래픽(enter/move/leave) + 이주 시 entity 무손실/소실 실증. 다음 조각: 0282 move(orch 가 런타임 onTick 구동·위치 적용). 후속 묶음: ⒜ **#9 멀티프로세스 배선**(실 host.js 소켓)·⒝ 진짜 비동기(#4·논리클럭).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#49 정리 arc(0261~0270)·도구 #43(0271)·#51b 실 zone.js 브리지 arc(0272~0280) 완료**. 방향 권위 = `infra-review`(다음: 0271~0280 묶음 평결).
+> 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — 리뷰 0271~0280 평결: #56(브리지 존 entity 트래픽·tick 0·migrate 무손실 vacuous)이 최상위 load-bearing. 게이트 = 게이트웨이→실 존 enter/move 라우팅 + 이주 시 entity 무손실 실증(OFF→비활성 핸들=회귀 0). 방향 권위 = `infra-review`(다음: 0281~0290 묶음 평결).
 
 **후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
 
@@ -32,6 +32,7 @@
 | 마커 | 격차 | 계층 | 상태 |
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
+| 🟡 | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0272~0280 브리지 존(zoneRuntimes)은 빈 핸들이었다(entity 0·onTick 0 → migrate 무손실 vacuous). enter ✅(0281). 남은 것: move/leave·tick 구동·migrate 무손실/hostdown 소실/stop 폐기·단일 소유·census capstone(0282~0290). 게이트웨이→실 존 직접 라우팅은 #9. |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -78,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료(잔여: 실 프로세스 분리 #9·entity 트래픽). orch 정리(0251·0267). 도구 #43(0271·close-step src>30KB 가드)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(0203~0224)→실배선 #51 executed SSOT arc(0241~0250)→**#51b 실 zone.js 브리지(0272~0280·orch 가 placement 집행으로 실 EntityZone 런타임 lifecycle 구동·zoneRuntimes·start/migrate/stop/hostdown/rebalance/drain·읽기 경로·정합 capstone fullyCoherent)** 완료. **#56 브리지 존 데이터 평면 🟡 enter(0281·실 EntityZone 핸들 entity 트래픽 시작)**. orch 정리(0251·0267). 도구 #43(0271)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -160,3 +161,4 @@
 | [0278](step-0278.md) | #51b 실 zone.js 브리지 7: _drain 실 핸들 비움(bridgeCoherent primitive·drift0+수일치·drain 매 move graceful 이주·drain↔hostdown 구분·OFF→0277 동일) | 통과(reg 0·spine OK) · 5/5 hostA 드레인→runtimeOn(A) 0·rtCount 3·coherent·starts 3 |
 | [0279](step-0279.md) | #51b 실 zone.js 브리지 8: placeQuery 실 런타임 host 회신(placeReply runtimeHost 필드·실 핸들 위치·0250 의 브리지 판·읽기 경로 완성·OFF→reply 바이트 동일) | 통과(reg 0·spine OK) · 5/5 z1 이주 후 runtimeHost=hostC==실핸들==running==placement |
 | [0280](step-0280.md) | #51b 실 zone.js 브리지 9·capstone: 전 계층 정합(fullyCoherent·placement==running==zoneRuntimes 3층·placementDrift0+bridgeCoherent+placedCount==runtimeCount·7종 op 혼합·#51b arc 0272~0280 닫기·OFF→0279 동일) | 통과(reg 0·spine OK) · 5/5 7종 op 후 fullyCoherent·rtCount==runCount==placed 3 |
+| [0281](step-0281.md) | #56 브리지 존 데이터 평면 1: enter 흐름(_bridgeEnter·게이트웨이→orch zoneEnter 가 실 EntityZone 핸들로 라우팅·실 zone.js ents 적재·미가동 존 거부·zoneEntityCount/HasEntity 질의·entityOps 주입열·OFF→0280 동일) | 통과(reg 0·spine OK) · 5/5 z1cnt2·z2cnt1·z9거부·zoneEnters3 |

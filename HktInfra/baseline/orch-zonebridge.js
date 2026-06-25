@@ -56,6 +56,8 @@ const OrchZoneBridge = {
   },
   // 브리지 정합 불변 질의(step-0278·capstone primitive) — 브리지가 깨지지 않았는가의 단일 술어: ⒜ 표류 0(추상 host==실 host) ⒝ 실 런타임 수 == 추상 running 수(존 집합 일치). 둘 다 참이면 추상 집행 SSOT 와 실 EntityZone 레지스트리가 완전 일치(한 존=한 host·양쪽). 모든 배치 op 뒤 참이어야(0280 capstone 이 혼합 lifecycle 로 단언). 읽기 전용.
   bridgeCoherent() { return this.zoneRuntimeDrift() === 0 && this.runtimeCount() === this.running.size; },
+  // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
+  fullyCoherent() { return this.placementDrift() === 0 && this.bridgeCoherent() && this.placedCount() === this.runtimeCount(); },
 };
 
 const __part = { OrchZoneBridge };
