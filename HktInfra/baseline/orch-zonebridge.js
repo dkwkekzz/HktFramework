@@ -1,4 +1,5 @@
 'use strict';
+// step-0284 — #56 브리지 존 데이터 평면 4: totalEntities() census 질의. migrate(_bridgeMigrate·같은 핸들)가 entity 를 *행동적으로* 무손실 보존함을 단언(0273 구조적 보존의 데이터 평면 판).
 // step-0283 — #56 브리지 존 데이터 평면 3: _bridgeLeave(leave 라우팅·entity 제거).
 // step-0282 — #56 브리지 존 데이터 평면 2: _bridgeMove(move 라우팅)·_tickRuntimes(런타임 onTick 구동·위치 적용)·zoneEntityPos 질의.
 // step-0281 — #56 브리지 존 데이터 평면 1: _bridgeEnter(실 EntityZone 핸들로 enter 라우팅)·zoneEntityCount/zoneHasEntity 질의. 0272~0280 의 빈 핸들에 실 entity 가 흐르기 시작.
@@ -91,6 +92,8 @@ const OrchZoneBridge = {
   // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.
   zoneEntityCount(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.size : 0; },
   zoneHasEntity(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); return rt ? rt.zone.ents.has(avatar) : false; },
+  // 전 런타임 entity 총수 질의(step-0284·#56) — 모든 실 EntityZone 핸들의 ents.size 합(전 존 인구). migrate(같은 핸들)·rebalance/drain(graceful)에서 보존·hostdown/stop(파괴)에서 변동을 단언하는 census 의 기초.
+  totalEntities() { let n = 0; for (const rt of this.zoneRuntimes.values()) n += rt.zone.ents.size; return n; },
   // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
   fullyCoherent() { return this.placementDrift() === 0 && this.bridgeCoherent() && this.placedCount() === this.runtimeCount(); },
 };

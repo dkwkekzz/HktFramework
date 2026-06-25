@@ -1,4 +1,5 @@
 'use strict';
+// step-0285 — #56 브리지 존 데이터 평면 5: _bridgeHostDown 에 zoneEntitiesLost 계측(hostdown=새 인스턴스→entity 소실·migrate 무손실과 대조).
 // step-0284 — #56 브리지 존 데이터 평면 4: totalEntities() census 질의. migrate(_bridgeMigrate·같은 핸들)가 entity 를 *행동적으로* 무손실 보존함을 단언(0273 구조적 보존의 데이터 평면 판).
 // step-0283 — #56 브리지 존 데이터 평면 3: _bridgeLeave(leave 라우팅·entity 제거).
 // step-0282 — #56 브리지 존 데이터 평면 2: _bridgeMove(move 라우팅)·_tickRuntimes(런타임 onTick 구동·위치 적용)·zoneEntityPos 질의.
@@ -33,6 +34,7 @@ const OrchZoneBridge = {
   _bridgeHostDown(zoneId, target) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
+    this.zoneEntitiesLost += rt.zone.ents.size;   // step-0285 (#56) — 죽은 host 인스턴스의 entity 는 graceful 이주 불가 → 소실. 정직히 계측(잃은 상태 복구는 영속서 재구성·범위 밖).
     rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
     rt.host = target;
     this.zoneRescued++;

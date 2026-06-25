@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0284](step-0284.md) — **#56 브리지 존 데이터 평면 4: migrate 무손실(행동적)**. `totalEntities()` census. _bridgeMigrate(같은 핸들 host 교체)가 entity 수·위치를 무손실 보존 — 0273 구조적 보존(zoneStarts 불변)의 데이터 평면 판(리뷰 #56 "migrate vacuous" 해소).
-- **한 줄 상태**: reg ALL OK·zonemigent: 5/5 mig 후 total3·cnt3·a1pos동일·rtHost A→C·migs1·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅·leave✅·migrate무손실✅. 다음 조각: 0285 hostdown 소실(새 인스턴스 → entity 소실 실증·정직한 한계). 이어서 stop 폐기·단일 소유·census capstone(0286~0290). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
+- **닫힌 step**: [step-0285](step-0285.md) — **#56 브리지 존 데이터 평면 5: hostdown 소실(정직한 한계)**. _bridgeHostDown 이 새 인스턴스 교체 전 잃는 entity 를 `zoneEntitiesLost` 로 계측 — migrate(무손실)과 hostdown(소실)의 의미 차이가 데이터 평면 수치로 확정.
+- **한 줄 상태**: reg ALL OK·zonehostdownent: 5/5 hostA 장애→z1cnt0·z2cnt2·lost3·rescued1·total2·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter✅·move✅·leave✅·migrate무손실✅·hostdown소실✅. 다음 조각: 0286 stop 폐기(존 퇴역→entity 폐기 계측). 이어서 단일 소유·census·capstone(0287~0290). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
 
 ---
 
@@ -156,3 +156,4 @@
 | [0282](step-0282.md) | #56 브리지 존 데이터 평면 2: move 흐름(_bridgeMove·zoneMove→실 EntityZone pending·_tickRuntimes 가 런타임 onTick 구동 위치 적용·net 싱크 view 흡수·zoneEntityPos 질의·OFF→0281 동일) | 통과(reg 0·spine OK) · 5/5 base5,5→moved10,5(delta5,0)·zoneMoves2 |
 | [0283](step-0283.md) | #56 브리지 존 데이터 평면 3: leave 흐름(_bridgeLeave·zoneLeave→실 EntityZone ents/sessions 제거·멱등·zoneLeaves 계측·OFF→0282 동일) | 통과(reg 0·spine OK) · 5/5 a1·a2→a1 leave→cnt1·a2 잔존·zoneLeaves1 |
 | [0284](step-0284.md) | #56 브리지 존 데이터 평면 4: migrate 무손실 행동적(totalEntities census·_bridgeMigrate 같은 핸들 host 교체가 entity 수·위치 보존·0273 구조적 보존의 데이터 평면 판·OFF→0283 동일) | 통과(reg 0·spine OK) · 5/5 mig 후 total3·cnt3·a1pos동일·rtHost A→C·migs1 |
+| [0285](step-0285.md) | #56 브리지 존 데이터 평면 5: hostdown 소실 정직한 한계(_bridgeHostDown 이 새 인스턴스 교체 전 zoneEntitiesLost 계측·migrate 무손실과 대조·복구는 영속 후속·OFF→0284 동일) | 통과(reg 0·spine OK) · 5/5 hostA 장애→z1cnt0·z2cnt2·lost3·rescued1·total2 |
