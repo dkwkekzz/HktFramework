@@ -187,6 +187,45 @@
     return { acc, down, elev, W, H, x0, y0, rain: rainTotal, sinkAccum, borderOut, maxAcc, meanAcc: sumAcc / N };
   }
 
+  // --- 호수 채움(0098 → 0100) — 흐름이 빠져나가지 못하는 *분지(pit)* 는 물이 차올라 *호수*가 된다(priority-flood·확인용 트랙) ---
+  //
+  //   0098 흐름 누적은 국소 최저점(sink)에 물을 *고이게만* 했다(채우진 않음). 실제로 분지는 물이 차올라 *유출구(spill)* 높이
+  //   까지 *평평한 수면*을 이룬다 — 호수. 이 함수는 priority-flood(Barnes 2014)로 각 셀의 *수면 높이(filled)* 를 구한다:
+  //   창 경계(유출)에서 가장 낮은 곳부터 안으로 번지며 filled[이웃]=max(지형[이웃], 현재 수면). 그러면 분지는 유출구 높이의
+  //   *평평한 수면* 으로 차고(depth=filled−지형>0=호수), 경사면은 채워지지 않는다(depth=0). 호수 *타입*을 박지 않는다 —
+  //   일반 높이장에 채움 알고리즘을 돌린 *측정*일 뿐(타입 0). 순수·결정론·렌더 의존 0.
+  //
+  //   opts: { elevFn(i,j)->높이, x0, y0, W, H } — 창 경계 = 물이 빠지는 유출구(경계 높이로 spill).
+  //   반환: { filled, terrain, depth:Float64Array(filled−terrain), W,H,x0,y0, lakeCells, maxDepth, volume(Σdepth) }
+  //   성질: filled ≥ terrain 어디서나(물은 더하기만)·분지는 평평 수면(같은 호수=같은 filled)·순수 경사=호수 0.
+  function lakeFill(opts) {
+    opts = opts || {};
+    const elevFn = opts.elevFn, x0 = opts.x0 || 0, y0 = opts.y0 || 0, W = opts.W || 64, H = opts.H || 64;
+    const N = W * H;
+    const terrain = new Float64Array(N), filled = new Float64Array(N), closed = new Uint8Array(N);
+    for (let r = 0; r < H; r++) for (let c = 0; c < W; c++) terrain[r * W + c] = elevFn(x0 + c, y0 + r);
+    // 최소 힙(수면 높이 오름차순) — [level, idx].
+    const heap = [];
+    const hpush = (l, i) => { heap.push([l, i]); let c = heap.length - 1; while (c > 0) { const p = (c - 1) >> 1; if (heap[p][0] <= heap[c][0]) break; const t = heap[p]; heap[p] = heap[c]; heap[c] = t; c = p; } };
+    const hpop = () => { const top = heap[0], last = heap.pop(); if (heap.length) { heap[0] = last; let p = 0; for (; ;) { let l = 2 * p + 1, rr = 2 * p + 2, s = p; if (l < heap.length && heap[l][0] < heap[s][0]) s = l; if (rr < heap.length && heap[rr][0] < heap[s][0]) s = rr; if (s === p) break; const t = heap[s]; heap[s] = heap[p]; heap[p] = t; p = s; } } return top; };
+    // 경계(유출구)부터 — 경계 셀의 수면 = 자기 지형(밖으로 자유 배수).
+    for (let c = 0; c < W; c++) { for (const r of [0, H - 1]) { const k = r * W + c; if (!closed[k]) { closed[k] = 1; filled[k] = terrain[k]; hpush(terrain[k], k); } } }
+    for (let r = 0; r < H; r++) { for (const c of [0, W - 1]) { const k = r * W + c; if (!closed[k]) { closed[k] = 1; filled[k] = terrain[k]; hpush(terrain[k], k); } } }
+    const nb4 = [[-1, 0], [1, 0], [0, -1], [0, 1]];
+    while (heap.length) {
+      const [level, k] = hpop(); const c = k % W, r = (k - c) / W;
+      for (const [dc, dr] of nb4) {
+        const nc = c + dc, nr = r + dr; if (nc < 0 || nc >= W || nr < 0 || nr >= H) continue;
+        const nk = nr * W + nc; if (closed[nk]) continue;
+        closed[nk] = 1; filled[nk] = Math.max(terrain[nk], level);    // 이웃 수면 = max(지형, 흘러온 수면) → 분지는 유출구 높이로
+        hpush(filled[nk], nk);
+      }
+    }
+    const depth = new Float64Array(N); let lakeCells = 0, maxDepth = 0, volume = 0;
+    for (let k = 0; k < N; k++) { const d = filled[k] - terrain[k]; depth[k] = d; if (d > 1e-9) { lakeCells++; volume += d; if (d > maxDepth) maxDepth = d; } }
+    return { filled, terrain, depth, W, H, x0, y0, lakeCells, maxDepth, volume };
+  }
+
   // 관찰자 둘레 유한 창 materialize — 무한 grid 중 반경 안 청크만 생성(작업집합 ∝ 반경²·관찰자 위치 무관).
   //   observer: {cx,cy}  opts: { spacing(청크 간격·기본 1), radius(materialize 반경·기본 spacing*3), z(평면 높이·기본 0),
   //     shapeAt(i,j)->hash|null(절차적 장·각 grid 셀의 DNA·null=빈 셀) }
@@ -212,5 +251,5 @@
     return { chunks, count: chunks.length };
   }
 
-  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, flowAccumulation, streamChunks, VERSION: 8 };
+  return { fnv1a, hashIndex, valueNoise2D, fbm, fieldNoise, biomeField, flowAccumulation, lakeFill, streamChunks, VERSION: 9 };
 });
