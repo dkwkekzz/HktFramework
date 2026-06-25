@@ -21,21 +21,16 @@
 | ⑤ 코디네이션 | [5-coordination.md](5-coordination.md) | **세션/프레즌스** 🟡 failover-safe SSOT(플레이어 프레즌스 후속) · **오케스트레이터** 🟡 zone failover+self-healing + 배치 SSOT/질의·부하 배치·핸드오프(0217~0218) + **자동 재배치·host 드레인(0223~0224·단 #51 paper map)** |
 | ⑥ 데이터 | [6-data.md](6-data.md) | **캐시** 🟡 set/get+read-through·TTL·무효화 + **용량 LRU·touch(0225~0226)** · **월드 영속** 🟡 intent 로그·replay·스냅샷·crash/recover + **write-behind·fsync(0227~0228)** · **DB·write-behind** 🟡 저널·복제·quorum·정합 윈도 |
 
-상태 기호(STATE §5 정합): 🟡 자라는 중(씨앗+능력 누적·아직 부분) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음). **★ 0240 현재 ⬜/🌱 박스 0 — 너비 1차 + 2차·3차 균형 라운드(5박스 각 2조각씩) 완료 + #16 승급 라운드(0231~0240) 완료.**
+상태 기호(STATE §5 정합): 🟡 자라는 중(씨앗+능력 누적·아직 부분) · 🌱 씨앗만(계약만 섰음) · ⬜ 미착수(아직 박스 없음). **★ 0260 현재 ⬜/🌱 박스 0 — 너비 1차 + 2·3차 균형 라운드 + #16 승급(0231~0240) + #51 배치 실배선 arc(0241~0250) + 오케스트레이터 정리(0251) + 캐시 4차 고도화 arc(0252~0260) 완료.**
 
-> **기준선**: 닫힌 step **~0240**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론·5박스) · UE 모듈 링크 0 hit(headless) · `node run.js spine` = **ALL OK**(누적 회귀 사슬 통과) · **0231~0240 = 3차 라운드 10 bespoke 모드를 verify-kit 누적 키트로 승급(박스 .js 0줄 변경=reg 0 구조적·spine 이 이제 0221~0230 양성 의미를 매번 단언)**. 박스 크기 건전(cache 9.5·instance 11.4·loginqueue 11.0·worldlog 12.5·orch 22.3KB). **단 wiring 박스 >30KB 잔존(#49·미진전): topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB**. **#16 부분 해소**: 3차 10모드 ✅·잔여 0033~0220 수백 bespoke 모드 미승급(git 복구 필요). #33(INDEX 천장) ✅ 해소(0107~0200 묶음 fold·STATE 23.8KB). 멀티프로세스 미배선(#9)·배치 advisory paper map(#51·0순위 미진전).
+> **기준선**: 닫힌 step **~0260**([../../STATE.md](../../STATE.md) NOW). 재현 검증(이 지도가 *주장*이 아니라 *사실*임의 근거): src/ 실 `Math.random` 0 hit(결정론·5박스+캐시) · UE 모듈 링크 0 hit(headless) · `node run.js spine` = **ALL OK** · **0251 이 `orchestrator.js` 34KB→27.5KB 분할(orch-placement.js·#52 ✅ 해소)**·캐시 박스 9.5→21.4KB(4차 9기능·여전히 <30KB). **단 wiring 박스 >30KB 잔존(#49·미진전): topo-build 31.5·topo-run 35.9·svc-exchange-core 30.7KB**(단일 거대 함수라 0251 의 클래스 믹스인 분할 패턴 미적용·신중 분할 arc 필요). **#16 확장**: 캐시 4차 9 모드(cachewt~cacheprefix+cachecohere) bespoke·미승급(cachecohere 만 현 step spine 모드)·잔여 0033~0220 수백 모드 유지. 멀티프로세스 미배선(#9)·#51b 실 zone.js 브리지 미진전.
 
-## 다음 큰 걸음 (직관) — 🎯 #16 승급 라운드 완료 (0231~0240·SKILL §3.6)
+## 다음 큰 걸음 (직관) — 🎯 정리(0251) + 캐시 4차 고도화 arc (0252~0260·SKILL §3.6)
 
-> **0231~0240 = 정리·도구 라운드** — 0221~0230 verdict 의 "더 깊은 정책 → 실배선(#51)/정리·도구(#49·#33·#16)" 권고 중 *정리·도구* 버킷을 집행했다. 3차 라운드 bespoke 10모드를 `engine/verify-kit.js` 누적 키트로 승급(1 step=1 모드·박스 .js 0줄=reg 0 구조적). 부수로 #33(INDEX 천장)을 0107~0200 묶음 fold 로 해소. **너비·박스 기능은 불변**(하니스만 강화) — 따라서 박스 상태 맵 마커 변동 0. **단 0순위 #51(배치 실배선)·게이트 #49(wiring 분할)는 또 미진전** — step-loop 이 load-bearing(#51)보다 저위험 정리(#16)를 먼저 택함(아래 §평결).
+> **0251~0260 = 정리 1 + 캐시 심화 9** — 0241~0250 verdict 의 "다음: #52 정리(orch 분할) → #51b/#9" 권고 중 *#52 정리*를 집행(0251·`orchestrator.js` 34KB→27.5KB·`orch-placement.js` 믹스인·#52 ✅), 이어 데이터 계층 **캐시 박스를 Redis-like 정합/신뢰성으로 4차 심화**(0252~0260·9 기능). 너비(⬜/🌱)는 0 유지·새 박스 0.
 
-**3차 균형 라운드 5박스 — 각 2조각 ✅:**
-1. **인스턴스(던전)** 🟡 (계층2) — 플레이어 이탈(0221·occupancy release)+수요 자동 despawn(0222·점유 보호 회수).
-2. **오케스트레이터** 🟡 (계층5) — 부하 재배치 자동 트리거(0223·불균형≥2 균형)+host 드레인(0224·퇴역 안전 이주). *단 #51 paper map 위.*
-3. **캐시 박스** 🟡 (계층6) — 용량 LRU 회수(0225·개수 유계)+recency touch(0226·진짜 LRU).
-4. **월드 영속** 🟡 (계층6) — write-behind 버퍼(0227·쓰기 지연 배치)+fsync durable barrier(0228·물리 확정 경계).
-5. **로그인 큐·티켓** 🟡 (계층1) — 계정 검증(0229·엣지 차단)+큐 이탈(0230·좀비 슬롯 회수).
+**0251 정리 ✅(#52 해소):** 배치 SSOT 런타임 메서드(_start/_migrate/_hostDown/_stop/_rebalance/_drain·load helper·질의)를 `orch-placement.js` 믹스인으로 분리·`Object.assign(prototype)`(투명·verbatim·reg 0)→34KB→27.5KB(<30KB). 0241-0250 verdict 가 지정한 게이트 형태 그대로.
 
-**0231~0240 #16 승급 라운드 ✅:** 위 3차 10모드(instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon)를 verify-kit ORDER 로 편입 — 매 spine 이 이제 이 양성 의미를 단언. + #33(INDEX 천장) 해소.
+**0252~0260 캐시 4차 arc(데이터·계층6) ✅:** write-through 정합(0252)·bulk get(0253)·negative caching 침투방어(0254)·put-if-absent SETNX(0255)·per-key TTL SETEX(0256)·explicit delete(0257)·stats INFO(0258)·namespace 무효화 SCAN+DEL(0259)·정합 capstone coherent(0260). 각 새 메시지 타입/토글·미수신 시 reg 0.
 
-**다음 = 실 배선(advisory→실물) / 정리 게이트 중 택**(#33·#16 정리·도구는 이번에 소진). 남은 후보: ⒜ **#51 배치→실 존 lifecycle 배선**(🔴 load-bearing·0순위·두 라운드 연속 미집행 — placeMigrate/Rebalance/Drain→실 존 핸드오프 트리거) ⒝ **정리 #49**(wiring >30KB 미진전·다음 *너비/멀티프로세스 배선* 전 분할 게이트 — topo-inject 추출 + close-step src size#43) ⒞ 멀티프로세스 배선(#9)·#16 잔여(0033~0220 모드 점진 승급) ⒟ 길드 금고↔가방(#46)·진짜 비동기(#4·최우선 빚). 권위는 [../../STATE.md](../../STATE.md) §2 NEXT·승급 게이트는 [../README.md](../README.md) §2 단계 평결.
+**⚠ 단계 평결(SKILL §3.6)**: 너비 1차 완료 상태(⬜/🌱 0)이라 *2차 고도화 허용*·과심화 반사 미발동 → **엄밀히는 과심화 아님**. **단 *집중 편중* 주의**: 균형 라운드(0211~0230)가 5박스 각 2조각이던 것과 달리 이번은 *한 박스(캐시) 9 기능 연속* — load-bearing #51b(실 zone.js 브리지)·게이트 #49(wiring 분할)가 *세 라운드 연속* 보류. **다음 권고: 캐시 추가 심화보다 ⒜ #49 wiring 분할(다음 너비/멀티프로세스 전 게이트·단 단일 거대 함수라 신중 arc) ⒝ #51b running↔실 EntityZone 브리지(load-bearing) ⒞ #9 멀티프로세스 우선.** 권위는 [../../STATE.md](../../STATE.md) §2 NEXT·승급 게이트는 [../README.md](../README.md) §2.
