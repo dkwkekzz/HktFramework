@@ -1,4 +1,5 @@
 'use strict';
+// step-0258 — 캐시 stats 관측(cacheStats·Redis INFO/모니터링 더미판): {} 질의 → cacheStatsReply 로 hit/miss/hitRate/size/negHits/deleted 회신(운영 대시보드가 캐시 효율을 폴링). hitRate()·stats() 읽기 accessor 추가(순수 읽기·쓰기 무변경). 새 메시지 타입·미수신 = 0257 비트 동일(reg 0). 4차 고도화(캐시 박스 #7).
 // step-0257 — 캐시 explicit delete(cacheDelete·Redis DEL 더미판): {key} → 엔티티 자체 제거(store·setAt·keyTtl·negatives 정리) + writeThrough(0252) ON 이면 backing source(SSOT)에서도 제거. 무효화(0212·캐시 사본만 끊고 소스 유지→read-through 재적재)와 달리 *소스까지 영구 제거*(계정 삭제·아이템 파괴). 새 메시지 타입·미수신 = 0256 비트 동일(reg 0). 4차 고도화(캐시 박스 #6).
 // step-0256 — 캐시 per-key TTL(cacheSetEx·Redis SETEX 더미판): {key,value,ttl} → 값 기록 + 그 키만의 만료 수명(keyTtl) 저장. cacheExpire(0211) 스윕이 키에 per-key ttl 이 있으면 그것을, 없으면 글로벌 p.ttl 을 적용(키마다 다른 수명·세션 5분/시세 10초 식 차등 만료). keyTtl 비면 글로벌만 = 0255 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #5).
 // step-0255 — 캐시 put-if-absent(cacheAdd·Redis SETNX 더미판): {key,value} → 키가 *없을 때만* 쓰고 added=true, 이미 있으면 무변경·added=false(cacheAddReply 회신·_lastAdd 보관). 최초-기록-승(first-writer-wins)·분산 락/유일 점유 primitive(예: 인스턴스 좌석 선점). 새 메시지 타입·미수신 = 0254 비트 동일(reg 0). 4차 고도화(캐시 박스 #4).
@@ -127,6 +128,12 @@ class CacheStore {
     if (p.type === 'cacheCapacity') { this.capacity = (p.cap == null ? Infinity : p.cap); this._evictToCapacity(); return; }
     // recency touch 모드(step-0226·cacheLruTouch) — {on} → get hit 시 recency(setAt) 갱신 여부를 켠다(진짜 LRU). cacheLruTouch 미수신이면 lruTouch=false = 0225 비트 동일.
     if (p.type === 'cacheLruTouch') { this.lruTouch = !!p.on; return; }
+    // stats 관측 질의(step-0258·cacheStats) — {} → 현재 캐시 효율 지표를 cacheStatsReply 로 회신(운영 대시보드 폴링). 순수 읽기(쓰기 무변경). cacheStats 미수신이면 미발화 = 0257 비트 동일.
+    if (p.type === 'cacheStats') {
+      this._lastStats = this.stats();
+      if (this.net && this.addr) this.net.send(this.addr, m.from, { type: 'cacheStatsReply', stats: this._lastStats });
+      return;
+    }
     // write-through 모드(step-0252·cacheWriteThrough) — {on} → cacheSet 이 backing source 에도 동시 기록할지 켠다(소스 정합). cacheWriteThrough 미수신이면 writeThrough=false = 0226 비트 동일.
     if (p.type === 'cacheWriteThrough') { this.writeThrough = !!p.on; return; }
     // negative caching 모드(step-0254·cacheNegative) — {on} → miss 가 소스에도 없을 때 known-absent 로 기억해 재조회 단축(침투 방어). cacheNegative 미수신이면 negativeCache=false = 0253 비트 동일.
@@ -136,6 +143,10 @@ class CacheStore {
   get(key) { return this.store.has(key) ? this.store.get(key) : undefined; }
   has(key) { return this.store.has(key); }
   size() { return this.store.size; }
+  // hit 율(step-0258) — hits/(hits+misses)·조회 0 이면 0. 캐시 효율의 단일 지표(낮으면 캐시 무용·penetration 의심).
+  hitRate() { const t = this.hits + this.misses; return t === 0 ? 0 : this.hits / t; }
+  // 캐시 효율 지표 스냅샷(step-0258·cacheStats 회신용·읽기 accessor) — 운영 대시보드가 폴링하는 관측 묶음.
+  stats() { return { hits: this.hits, misses: this.misses, hitRate: this.hitRate(), size: this.store.size, sets: this.sets, evicted: this.evicted, capEvicted: this.capEvicted, negHits: this.negHits, deleted: this.deleted }; }
 }
 
 const __part = { CacheStore };

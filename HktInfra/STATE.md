@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0257](step-0257.md) — **캐시 explicit delete(cacheDelete·DEL)**. 키를 store·setAt·keyTtl·negatives + writeThrough 면 source(SSOT)서도 영구 제거(무효화와 달리 read-through 재적재 없음·계정 삭제/아이템 파괴). 새 메시지 타입·미수신→0256 비트 동일. 4차 고도화 캐시 #6.
-- **한 줄 상태**: reg ALL OK·cachedel: 5/5 delete 후 get=undefined·invalidate 후 get=v2(소스 유지)·deleted 1·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0258](step-0258.md) — **캐시 stats 관측(cacheStats·INFO)**. cacheStats{} → cacheStatsReply{hits,misses,hitRate,size…}(운영 대시보드 폴링)·hitRate()·stats() 읽기 accessor. 순수 읽기·미수신→0257 비트 동일. 4차 고도화 캐시 #7.
+- **한 줄 상태**: reg ALL OK·cachestats: 5/5 hits 2·misses 1·hitRate 0.667·size 1·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 캐시 박스 고도화 arc 진행 중(Redis-like 정합/신뢰성 — write-through 0252 → cache-aside delete·bulk get·negative caching·stats 등). **검토 게이트 보류**: #49(wiring >30KB topo-run/topo-build 단일 거대 함수 — 신중 분할 arc 필요)·#51 잔여(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스. 방향 권위 = `infra-review`(0241~0250 묶음·🔎 묶음 리뷰 적기).
 
 ---
@@ -79,7 +79,7 @@
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
 | 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)+placeQuery executed host(0250·읽기 경로·게이트웨이 실 위치 라우팅)** · **#51 executed SSOT arc(0241~0250) 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스)** |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)+per-key TTL(0256)+explicit delete(0257)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)+per-key TTL(0256)+explicit delete(0257)+stats 관측(0258)** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
 
@@ -173,3 +173,4 @@
 | [0255](step-0255.md) | 캐시 put-if-absent(cacheAdd·SETNX·키 없을 때만 쓰기·최초-기록-승·분산 락/유일 점유 primitive·4차 고도화 캐시 #4) | 통과(reg 0·spine OK) · 5/5 add1 true·add2 false·store v1 |
 | [0256](step-0256.md) | 캐시 per-key TTL(cacheSetEx·SETEX·키별 만료 수명·cacheExpire 스윕 per-key 우선·차등 만료·4차 고도화 캐시 #5) | 통과(reg 0·spine OK) · 5/5 k1(ttl2)만료·k2(글로벌10)생존 |
 | [0257](step-0257.md) | 캐시 explicit delete(cacheDelete·DEL·store+writeThrough 면 source 영구 제거·무효화와 달리 재적재 없음·4차 고도화 캐시 #6) | 통과(reg 0·spine OK) · 5/5 del→undefined·inv→v2 |
+| [0258](step-0258.md) | 캐시 stats 관측(cacheStats·INFO·hits/misses/hitRate/size 회신·hitRate()·stats() accessor·운영 폴링·4차 고도화 캐시 #7) | 통과(reg 0·spine OK) · 5/5 hits2·miss1·hitRate0.667 |
