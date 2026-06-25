@@ -1,4 +1,5 @@
 'use strict';
+// step-0256 — 캐시 per-key TTL(cacheSetEx·Redis SETEX 더미판): {key,value,ttl} → 값 기록 + 그 키만의 만료 수명(keyTtl) 저장. cacheExpire(0211) 스윕이 키에 per-key ttl 이 있으면 그것을, 없으면 글로벌 p.ttl 을 적용(키마다 다른 수명·세션 5분/시세 10초 식 차등 만료). keyTtl 비면 글로벌만 = 0255 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #5).
 // step-0255 — 캐시 put-if-absent(cacheAdd·Redis SETNX 더미판): {key,value} → 키가 *없을 때만* 쓰고 added=true, 이미 있으면 무변경·added=false(cacheAddReply 회신·_lastAdd 보관). 최초-기록-승(first-writer-wins)·분산 락/유일 점유 primitive(예: 인스턴스 좌석 선점). 새 메시지 타입·미수신 = 0254 비트 동일(reg 0). 4차 고도화(캐시 박스 #4).
 // step-0254 — 캐시 negative caching(cacheNegative·캐시 침투 방어): negativeCache ON 이면 read-through miss 가 *소스에도 없을* 때 그 키를 known-absent(negatives Set)로 기억 → 같은 미존재 키 재조회는 소스 조회 없이 즉답(negHit·DB 침투 폭주 방어·Redis cache penetration 더미판). 키가 나중에 set 되면 negatives 에서 제거(가시화). 토글({on})·미수신이면 negativeCache=false → negatives 미사용·miss 경로 무변경 = 0253 비트 동일(reg 0). 4차 고도화(캐시 박스 #3).
 // step-0253 — 캐시 bulk get(cacheMget): {keys[]} 한 요청에 여러 키를 read-through 일괄 조회 → cacheMReply{values[]} 한 회신(라운드트립 N→1·플레이어 N명 핫데이터 배치 페치). 각 키는 cacheGet(0206)과 동일 hit/miss/read-through·setAt·lruTouch 적용. cacheMget 미수신이면 미발화 = 0252 비트 동일(reg 0·새 메시지 타입). 4차 고도화(캐시 박스 #2).
@@ -40,6 +41,7 @@ class CacheStore {
     this.negativeCache = false; // miss 가 소스에도 없을 때 known-absent 로 기억할지(step-0254·cacheNegative·OFF 면 0253 거동=매번 소스 조회).
     this.negatives = new Set();  // known-absent 키(step-0254·negativeCache ON 일 때만 채워짐·set 되면 제거).
     this.negHits = 0;            // negatives 단축으로 소스 조회를 건너뛴 누적 수(step-0254·침투 방어 효과 계측).
+    this.keyTtl = new Map();     // key -> 그 키만의 만료 수명(step-0256·cacheSetEx·있으면 cacheExpire 스윕이 글로벌 ttl 대신 적용·비면 0255 거동).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 캐시 쓰기(step-0205·write-through 기본) — key→value 저장(같은 key 재-set 은 덮어씀·최신 값). 게이트웨이/서비스가 핫 데이터를 채운다. setAt 기록(step-0211·TTL 기준·재-set 은 시각 갱신). step-0225: 쓰기 후 용량 초과면 LRU 회수.
@@ -97,9 +99,14 @@ class CacheStore {
     }
     // TTL 만료 스윕(step-0211·cacheExpire) — {ttl} → setAt+ttl ≤ now 인 키를 회수(store·setAt 제거). 휘발 캐시가 stale 핫 데이터를 영영 안 들고 있게(메모리 유계·Redis TTL 더미판). cacheExpire 미수신이면 미발화 = 0210 비트 동일.
     if (p.type === 'cacheExpire') {
-      for (const [key, t] of [...this.setAt]) if (t + p.ttl <= now) { this.store.delete(key); this.setAt.delete(key); this.evicted++; }
+      for (const [key, t] of [...this.setAt]) {
+        const ttl = this.keyTtl.has(key) ? this.keyTtl.get(key) : p.ttl;   // step-0256: per-key ttl 우선·없으면 글로벌(keyTtl 비면 0255 거동).
+        if (t + ttl <= now) { this.store.delete(key); this.setAt.delete(key); this.keyTtl.delete(key); this.evicted++; }
+      }
       this.expires++; return;
     }
+    // per-key TTL set(step-0256·cacheSetEx·SETEX) — {key,value,ttl} → 값 기록 + 그 키만의 만료 수명 저장(차등 만료). cacheSetEx 미수신이면 keyTtl 빔 = 0255 비트 동일.
+    if (p.type === 'cacheSetEx') { this._set(p.key, p.value, now); this.keyTtl.set(p.key, p.ttl); this.sets++; return; }
     // 무효화(step-0212·cacheInvalidate) — {key} → 소스(SSOT)가 바뀌었다는 통지에 캐시 사본을 즉시 끊는다(store/setAt 제거). 다음 get 은 miss → read-through 로 새 값 재적재(stale 사본 차단·write 시 캐시 일관성). 없는 키는 멱등 no-op. cacheInvalidate 미수신이면 미발화 = 0211 비트 동일.
     if (p.type === 'cacheInvalidate') {
       if (this.store.has(p.key)) { this.store.delete(p.key); this.setAt.delete(p.key); this.invalidated++; }
