@@ -93,6 +93,10 @@ class Orchestrator {
     // 게이트웨이 존 디렉토리 push(step-0293·#9) — 0291~0292 는 orch 가 핸들을 직접 보유·게이트웨이는 존 위치를 모른다(entity 라우팅이 orch 경유). gatewayZoneDir ON 이면 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블을 캐시(#9 직접 라우팅의 전제). OFF→push 0 = 0292 비트 동일.
     this.gatewayZoneDir = opts.gatewayZoneDir || false;
     this.zoneLocPushed = 0;         // 게이트웨이로 push 한 zoneLoc 누적(step-0293·계측·배치 집행 수와 대조).
+    // 게이트웨이 직접 라우팅 적용(step-0294·#9) — 0293 까지 entity 라우팅 *결정*은 orch 가 했다(zoneId→자기 zoneRuntimes 조회). gatewayDirectZone ON 이면 게이트웨이가 자기 디렉토리로 host 를 해소해 zoneDeliver(host 태깅)로 보내고, orch(=존 host 보유)는 그 host 가 실 런타임 host(running)와 일치할 때만 적용(stale 거부) — 라우팅 결정이 게이트웨이로 이동(#9 핵심). OFF→zoneDeliver 미수신 = 0293 비트 동일.
+    this.gatewayDirectZone = opts.gatewayDirectZone || false;
+    this.zoneDirectApplied = 0;     // 게이트웨이 직접 라우팅으로 적용한 frame 누적(step-0294·계측).
+    this.zoneDirStale = 0;          // 게이트웨이 디렉토리가 뒤처져(이주 직후 등) 거부한 frame 누적(step-0294·정직한 한계·이주 라우팅 정합은 0296).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

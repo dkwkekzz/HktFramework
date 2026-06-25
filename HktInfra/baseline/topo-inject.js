@@ -1,4 +1,5 @@
 'use strict';
+// step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone ON 이면 entityOps 를 게이트웨이로 라우팅(클라→게이트웨이 직접 라우팅). OFF→0281 경로(게이트웨이→orch).
 // step-0281 — #56 브리지 존 데이터 평면 1: entityOps 주입열(게이트웨이→orch zoneEnter/zoneMove/zoneLeave). 미제공이면 휴면(reg 0).
 // step-0261 정리 분할(#49 wiring) — topo-run.js 가 35.9KB>30KB 박스 트리거를 다시 넘겨, run() 의 *per-tick 제어 평면 메시지 주입*
 //   (rankDie/rankStall/producerInject/presenceFailover/whispers~loginOps/inject — 정규 net.send·box.onMsg 주입열)을 topo-inject.js 로 분리한다.
@@ -66,8 +67,12 @@ function applyInjections(opts, i, ctx) {
     if (opts.instanceOps && instance) for (const io of [].concat(opts.instanceOps)) if (io.at === i + 1) net.send(io.from || 'orch', 'instance', io.op);
     // 존 배치 명령 주입(step-0203·placementOps) — at tick 에 게이트웨이/운영이 Orchestrator 에 placeZone(존을 host 에 배치). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.placementOps && orch) for (const po of [].concat(opts.placementOps)) if (po.at === i + 1) net.send(po.from || 'gateway', 'orch', po.op);
-    // 존 entity 명령 주입(step-0281·#56·entityOps) — at tick 에 게이트웨이가 Orchestrator 에 zoneEnter/zoneMove/zoneLeave(브리지 존 데이터 평면). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
-    if (opts.entityOps && orch) for (const eo of [].concat(opts.entityOps)) if (eo.at === i + 1) net.send(eo.from || 'gateway', 'orch', eo.op);
+    // 존 entity 명령 주입(step-0281·#56·entityOps) — at tick 에 zoneEnter/zoneMove/zoneLeave(브리지 존 데이터 평면). orch 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
+    //   step-0294 (#9) — gatewayDirectZone ON 이면 *게이트웨이*로 보낸다(클라→게이트웨이→자기 디렉토리 해소→직접 라우팅). OFF 면 0281 경로(게이트웨이→orch 직접).
+    if (opts.entityOps && orch) for (const eo of [].concat(opts.entityOps)) if (eo.at === i + 1) {
+      if (opts.gatewayDirectZone) net.send(eo.from || 'client0', 'gateway', eo.op);
+      else net.send(eo.from || 'gateway', 'orch', eo.op);
+    }
     // 캐시 명령 주입(step-0205·cacheOps) — at tick 에 게이트웨이/서비스가 CacheStore 에 cacheSet(핫 데이터 캐시 채움). cache 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
     // 월드 intent 주입(step-0207·worldOps) — at tick 에 존/게이트웨이가 WorldLog 에 worldAppend(intent 로그 적층). worldlog 부재면 주입 0. 미제공이면 휴면(reg 0 불변).

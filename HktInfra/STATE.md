@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0294](step-0294.md) — **#9 멀티프로세스 배선 4: 게이트웨이→실 존 직접 enter 라우팅**. 게이트웨이가 자기 `zoneDir` 로 존 host 를 해소해 `zoneDeliver`(host 태깅)로 직접 라우팅(orch 데이터 평면 우회·라우팅 결정이 게이트웨이에) → orch 가 host 일치 검증 후 적용(stale 거부). OFF→0293 비트 동일.
-- **한 줄 상태**: reg ALL OK·gwdirenter: 5/5 게이트웨이 직접 enter→z1cnt2·z2cnt1·total3·routes3==applied3·stale0·miss0·conserved·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291 seam·0292 mailbox·0293 디렉토리·0294 직접 enter 완료. 다음 0295 게이트웨이 직접 move/leave 라우팅(enter 와 동형)·이후 0296 이주 중 라우팅 정합(stale 갱신)→0297 장애 dir 무효화→0298 단일소유→0299 정합→0300 capstone. 🔎 **0281~0290 묶음 리뷰 적기**.
+- **닫힌 step**: [step-0295](step-0295.md) — **#9 멀티프로세스 배선 5: 게이트웨이→실 존 직접 move/leave 라우팅**. 0294 enter 와 동형으로 zoneMove/zoneLeave 도 게이트웨이가 zoneDir 해소→zoneDeliver 직접 라우팅·orch host 검증 후 `_bridgeMove`/`_bridgeLeave` 적용. OFF→0294 비트 동일.
+- **한 줄 상태**: reg ALL OK·gwdirmove: 5/5 직접 enter+move+leave→total1·routes4==appl4·moves1·leaves1·stale0·conserved·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~) 진행 중** — 0291~0295(seam·mailbox·디렉토리·직접 enter/move/leave) 완료. 다음 0296 이주 중 라우팅 정합(이주 후 게이트웨이 디렉토리가 새 host 로 갱신→직접 라우팅이 옳은 런타임 도달·옛 host 0·stale 재해소)→0297 장애 dir 무효화→0298 단일소유→0299 정합→0300 capstone. 🔎 **0281~0290 묶음 리뷰 적기**.
 
 ---
 
@@ -130,3 +130,4 @@
 | [0292](step-0292.md) | #9 멀티프로세스 배선 2: 존 host mailbox(zoneHostMailbox·_zoneDeliver enqueue→_tickRuntimes onTick 전 FIFO drain·소켓 수신 버퍼+host.js per-tick deliver 배치 씨앗·zoneFrameQueueMax/zoneFramesDrained 계측·OFF→0291 동일) | 통과(reg 0·spine OK) · 5/5 큐 경유 후 flow·consv·total1·deliv7==drain7(잔류0)·queueMax1 |
 | [0293](step-0293.md) | #9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리(gatewayZoneDir·orch 배치 집행마다 zoneLoc push→게이트웨이 zoneDir 캐시·서비스 디스커버리 씨앗·은닉 유지·_pubZoneLoc·zoneLocPushed 계측·OFF→0292 동일) | 통과(reg 0·spine OK) · 5/5 혼합 lifecycle 후 zoneDir==running(dirN2==runN2)·push7 |
 | [0294](step-0294.md) | #9 멀티프로세스 배선 4: 게이트웨이→실 존 직접 enter 라우팅(gatewayDirectZone·게이트웨이 zoneDir 해소→zoneDeliver host 태깅→orch host 일치 검증·_bridgeEnter 적용·stale 거부·라우팅 결정이 게이트웨이에·gatewayZoneRoutes/zoneDirectApplied/zoneDirStale 계측·OFF→0293 동일) | 통과(reg 0·spine OK) · 5/5 직접 enter→z1cnt2·z2cnt1·total3·routes3==appl3·stale0·miss0·conserved |
+| [0295](step-0295.md) | #9 멀티프로세스 배선 5: 게이트웨이→실 존 직접 move/leave 라우팅(enter 와 동형·gateway-msg zoneMove/zoneLeave→zoneDeliver·orch-control zoneDeliver 에 _bridgeMove/_bridgeLeave 적용·OFF→0294 동일) | 통과(reg 0·spine OK) · 5/5 직접 enter+move+leave→total1·routes4==appl4·moves1·leaves1·stale0·conserved |
