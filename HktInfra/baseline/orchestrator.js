@@ -90,6 +90,9 @@ class Orchestrator {
     this.zoneHostMailbox = opts.zoneHostMailbox || false;
     this.zoneFrameQueueMax = 0;     // mbox 최대 큐 깊이(step-0292·계측·≥1 이면 실제로 큐를 거쳤다는 증거·수신 버퍼 압력 관측).
     this.zoneFramesDrained = 0;     // mbox 에서 drain 해 적용한 frame 누적(step-0292·== zoneFramesDelivered 이면 큐 잔류 0·무손실).
+    // 게이트웨이 존 디렉토리 push(step-0293·#9) — 0291~0292 는 orch 가 핸들을 직접 보유·게이트웨이는 존 위치를 모른다(entity 라우팅이 orch 경유). gatewayZoneDir ON 이면 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블을 캐시(#9 직접 라우팅의 전제). OFF→push 0 = 0292 비트 동일.
+    this.gatewayZoneDir = opts.gatewayZoneDir || false;
+    this.zoneLocPushed = 0;         // 게이트웨이로 push 한 zoneLoc 누적(step-0293·계측·배치 집행 수와 대조).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

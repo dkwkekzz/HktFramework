@@ -1,4 +1,5 @@
 'use strict';
+// step-0294 — #9 멀티프로세스 배선 4: onMsg zoneDeliver 분기(게이트웨이 직접 라우팅 적용·host 일치 시만·stale 거부). OFF→0293 비트 동일.
 // step-0283 — #56 브리지 존 데이터 평면 3: onMsg zoneLeave 분기(entity 제거). OFF→0282 비트 동일.
 // step-0282 — #56 브리지 존 데이터 평면 2: onMsg zoneMove 분기 + onTick 에서 _tickRuntimes 구동(위치 적용). OFF→0281 비트 동일.
 // step-0281 — #56 브리지 존 데이터 평면 1: onMsg 에 zoneEnter 분기(실 EntityZone 핸들로 enter 라우팅·zoneEntityFlow 가드). OFF→0280 비트 동일.
@@ -50,6 +51,13 @@ const OrchControl = {
     if (p.type === 'zoneMove') { if (this.zoneEntityFlow) this._bridgeMove(p.zoneId, p.avatar, p.dx, p.dy, m.from); return; }
     // 브리지 존 leave 라우팅(step-0283·#56·zoneLeave) — {zoneId, avatar} → 실 EntityZone 핸들에서 entity/세션 제거. OFF 면 미발화 = 0282 비트 동일.
     if (p.type === 'zoneLeave') { if (this.zoneEntityFlow) this._bridgeLeave(p.zoneId, p.avatar, m.from); return; }
+    // 게이트웨이 직접 라우팅 적용(step-0294·#9·zoneDeliver) — 게이트웨이가 자기 디렉토리로 host 를 해소해 보낸 entity frame. 게이트웨이가 결정한 host 가 실 런타임 host(running)와 일치할 때만 적용(stale 거부) — 라우팅 결정이 게이트웨이에 있고 orch/host 는 *검증·적용*만(#9 핵심). 미수신(gatewayDirectZone OFF)이면 미발화 = 0293 비트 동일.
+    if (p.type === 'zoneDeliver') {
+      const liveHost = this.running.get(p.zoneId);
+      if (p.host !== liveHost) { this.zoneDirStale++; return; }   // 디렉토리가 뒤처짐 — 거부(정직한 한계·0296 정합).
+      if (p.op === 'enter') { this._bridgeEnter(p.zoneId, p.avatar, p.sessionId, m.from); this.zoneDirectApplied++; }
+      return;
+    }
     if (p.type === 'lease') this.lastLease.set(p.zone, this.curTick);
     // 치유 확인 수신(step-0057·recoverAck) — recover 명령을 받은 소비자가 재구독하며 돌려보낸 확인. orch 가 명령 *전달·수행*을 안다(분실 0 이면 recoverAcks==recoversSent). busPresenceRecover OFF 면 recover 미발신 → 이 메시지 영영 안 옴 = 0056 비트 동일.
     if (p.type === 'recoverAck') { this.recoverAcks++; this.pendingRecover.delete(p.consumer); this.recoverAttempts.delete(p.consumer); return; }
