@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0288](step-0288.md) — **#56 브리지 존 데이터 평면 8: entity 정합(orphan 0)**. `entityCoherent()` — 단일 소유 + entity 보유 런타임은 모두 executed running(running 밖 orphan 런타임 0). entity 데이터 평면이 executed 배치 SSOT 와 정합.
-- **한 줄 상태**: reg ALL OK·zoneentcoherent: 5/5 혼합(enter/migrate/stop) 후 coherent·a3 orphan 0·rtCnt2·total3·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 진행 중** — enter~stop✅·단일소유✅·정합✅. 다음 조각: 0289 graceful(rebalance/drain) census 보존·0290 전 데이터 평면 capstone(arc 닫기). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4).
+- **닫힌 step**: [step-0289](step-0289.md) — **#56 브리지 존 데이터 평면 9: graceful census 보존**. `entityCensus()` {total, zones}. graceful 재배치(rebalance/drain·같은 핸들 이주)는 entity total 무손실 보존(분포만 재편) — destructive(hostdown/stop)와 대조.
+- **한 줄 상태**: reg ALL OK·zonegraceful: 5/5 rebalance+drain 후 total4 보존·single·coherent·moves>0·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#56 브리지 존 데이터 평면 arc(0281~) 막바지** — enter~정합✅·graceful보존✅. 다음 조각: 0290 전 데이터 평면 capstone(혼합 lifecycle 후 census·단일소유·정합 동시·#56 arc 0281~0290 닫기). 후속: ⒜ **#9 멀티프로세스 배선**·⒝ 진짜 비동기(#4). 🔎 0281~0290 묶음 리뷰 적기.
 
 ---
 
@@ -160,3 +160,4 @@
 | [0286](step-0286.md) | #56 브리지 존 데이터 평면 6: stop 폐기(_bridgeStop 이 런타임 제거 전 zoneEntitiesDiscarded 계측·계획적 퇴역·hostdown 비자발과 구분·OFF→0285 동일) | 통과(reg 0·spine OK) · 5/5 z1 stop→z1cnt0·z2cnt3·discarded2·stops1·rtCnt1·total3 |
 | [0287](step-0287.md) | #56 브리지 존 데이터 평면 7: entity 단일 소유(entityOwnerZone/entityOwnerCount/entitiesSingleOwner·어떤 avatar 도 두 존 동시 거주 금지·권위 단일 소유 데이터 평면 판·OFF→0286 동일) | 통과(reg 0·spine OK) · 5/5 분산 enter+migrate→single·a1∈z1·a3cnt1·total4 |
 | [0288](step-0288.md) | #56 브리지 존 데이터 평면 8: entity 정합(entityCoherent·단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0·OFF→0287 동일) | 통과(reg 0·spine OK) · 5/5 혼합 후 coherent·a3 orphan0·rtCnt2·total3 |
+| [0289](step-0289.md) | #56 브리지 존 데이터 평면 9: graceful census 보존(entityCensus·rebalance/drain 같은 핸들 이주는 entity total 무손실·destructive 와 대조·OFF→0288 동일) | 통과(reg 0·spine OK) · 5/5 rebalance+drain 후 total4 보존·single·coherent·moves>0 |

@@ -1,4 +1,5 @@
 'use strict';
+// step-0289 — #56 브리지 존 데이터 평면 9: entityCensus 질의(전 런타임 entity 분포). graceful 재배치(rebalance/drain·_migrate 같은 핸들)는 total 무손실 보존.
 // step-0288 — #56 브리지 존 데이터 평면 8: entityCoherent 질의(단일 소유 + entity 보유 런타임은 모두 executed running·orphan 0).
 // step-0287 — #56 브리지 존 데이터 평면 7: entityOwnerZone/entityOwnerCount/entitiesSingleOwner 질의(entity 권위 단일 소유의 데이터 평면 판).
 // step-0286 — #56 브리지 존 데이터 평면 6: _bridgeStop 에 zoneEntitiesDiscarded 계측(존 퇴역→entity 폐기·계획적).
@@ -116,6 +117,12 @@ const OrchZoneBridge = {
     if (!this.entitiesSingleOwner()) return false;
     for (const z of this.zoneRuntimes.keys()) if (!this.running.has(z)) return false;   // entity 보유 런타임은 반드시 executed running 존(orphan 0).
     return true;
+  },
+  // entity census 스냅샷(step-0289·#56) — 전 런타임의 entity 분포 {total, zones:{zoneId:count}}(운영 대시보드·graceful op 전후 보존 대조). graceful 재배치(rebalance/drain)는 _migrate(같은 핸들)이므로 total 불변·zone 분포만 재편.
+  entityCensus() {
+    const zones = {}; let total = 0;
+    for (const [z, rt] of this.zoneRuntimes) { zones[z] = rt.zone.ents.size; total += rt.zone.ents.size; }
+    return { total, zones };
   },
   // 전 계층 정합 질의(step-0280·#51b capstone) — 배치 결정(placement)·추상 집행(running)·실 EntityZone 런타임(zoneRuntimes) **세 층이 완전 일치**하는 단일 술어: ⒜ placementDrift 0(결정==집행·0245) ⒝ bridgeCoherent(집행==실물·0278) ⒞ placedCount==runtimeCount(결정 수==실 런타임 수). 참이면 "어디서 돌아야 하나(결정)==어디서 돈다고 기록(집행)==실제 어느 핸들이 어느 host(실물)" 가 한 몸 — #51b 가 추상 SSOT 와 실 zone.js 런타임을 완전히 이은 증거. 읽기 전용.
   fullyCoherent() { return this.placementDrift() === 0 && this.bridgeCoherent() && this.placedCount() === this.runtimeCount(); },
