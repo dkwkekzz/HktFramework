@@ -1,4 +1,5 @@
 'use strict';
+// step-0252 — 캐시 write-through 소스 정합(cacheWriteThrough): writeThrough ON 이면 cacheSet 이 캐시(store) 뿐 아니라 backing source(SSOT 더미·DB)에도 동시 기록 → 소스가 캐시와 정합. 그래서 무효화(0212) 후 read-through(0206)가 *최신* 값을 재적재(OFF 면 소스에 안 써 stale 값 재적재). writeThrough 토글({on}·cacheLruTouch 0226 동형). 미설정이면 writeThrough=false → 소스 무변경 = 0226 비트 동일(reg 0). 4차 고도화(캐시 박스 #1).
 // step-0226 — 캐시 recency touch(cacheLruTouch): lruTouch ON 이면 get *hit* 시 recency(setAt)를 now 로 갱신 → 자주 읽는 핫 키가 회수에서 살아남는다(진짜 LRU = set+get 둘 다 recency·0225 는 set-시각만이라 FIFO 에 가까웠다). lruTouch OFF(미설정)면 get 이 recency 미갱신 = 0225 비트 동일(reg 0). 3차 고도화(캐시 박스 #2).
 // step-0225 — 캐시 용량 LRU 회수(cacheCapacity): 캐시 키 수 상한 설정({cap}). set 으로 store.size>cap 이 되면 가장 오래된(recency=setAt 최소) 키부터 회수(개수 유계·Redis maxmemory-policy allkeys-lru 더미판). TTL(0211)이 시간 유계라면 이건 *개수* 유계. capacity=∞(미설정)면 회수 0 = 0224 비트 동일(reg 0). 3차 고도화(캐시 박스 #1).
 // step-0212 — 캐시 무효화(cacheInvalidate): 소스(SSOT)가 바뀌면 캐시 키를 무효화(store/setAt 제거) → 다음 get 은 miss → read-through 로 새 값 재적재. stale 사본을 즉시 끊는다(write 시 캐시 일관성). cacheInvalidate 미수신이면 0211 비트 동일(reg 0). 2차 고도화(캐시 박스 #2).
@@ -31,10 +32,12 @@ class CacheStore {
     this.capEvicted = 0;       // 용량 초과로 LRU 회수된 키 누적 수(step-0225·setAt 최소부터).
     this.lruTouch = false;     // get hit 시 recency 갱신 여부(step-0226·cacheLruTouch·OFF 면 0225 거동=set-시각만).
     this.touches = 0;          // get hit 으로 recency 가 갱신된 누적 수(step-0226·lruTouch ON 일 때만).
+    this.writeThrough = false; // cacheSet 시 backing source 동시 기록 여부(step-0252·cacheWriteThrough·OFF 면 0226 거동=캐시만 씀).
+    this.writeThroughs = 0;    // write-through 로 소스에도 기록된 누적 set 수(step-0252·writeThrough ON 일 때만).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 캐시 쓰기(step-0205·write-through 기본) — key→value 저장(같은 key 재-set 은 덮어씀·최신 값). 게이트웨이/서비스가 핫 데이터를 채운다. setAt 기록(step-0211·TTL 기준·재-set 은 시각 갱신). step-0225: 쓰기 후 용량 초과면 LRU 회수.
-  _set(key, value, now) { this.store.set(key, value); if (now != null) this.setAt.set(key, now); this._evictToCapacity(); }
+  _set(key, value, now) { this.store.set(key, value); if (now != null) this.setAt.set(key, now); if (this.writeThrough) { this.source.set(key, value); this.writeThroughs++; } this._evictToCapacity(); }   // step-0252: write-through 면 backing source 도 동시 갱신(소스 정합 → 무효화 후 read-through 가 최신값).
   // 용량 LRU 회수(step-0225·cacheCapacity) — store.size 가 capacity 를 넘는 동안 가장 오래된(recency=setAt 최소·동률은 iteration 순) 키를 회수한다. capacity=∞ 면 루프 미진입 = 0224 비트 동일(회귀 0). 개수 유계(0211 시간 유계의 짝).
   _evictToCapacity() {
     while (this.store.size > this.capacity) {
@@ -73,6 +76,8 @@ class CacheStore {
     if (p.type === 'cacheCapacity') { this.capacity = (p.cap == null ? Infinity : p.cap); this._evictToCapacity(); return; }
     // recency touch 모드(step-0226·cacheLruTouch) — {on} → get hit 시 recency(setAt) 갱신 여부를 켠다(진짜 LRU). cacheLruTouch 미수신이면 lruTouch=false = 0225 비트 동일.
     if (p.type === 'cacheLruTouch') { this.lruTouch = !!p.on; return; }
+    // write-through 모드(step-0252·cacheWriteThrough) — {on} → cacheSet 이 backing source 에도 동시 기록할지 켠다(소스 정합). cacheWriteThrough 미수신이면 writeThrough=false = 0226 비트 동일.
+    if (p.type === 'cacheWriteThrough') { this.writeThrough = !!p.on; return; }
   }
   // 질의 인터페이스 — 핫 데이터 읽기(캐시 hit). miss 시 read-through(소스 조회)는 0206. 검증·게이트웨이가 쓴다.
   get(key) { return this.store.has(key) ? this.store.get(key) : undefined; }
