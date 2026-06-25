@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0262](step-0262.md) — **정리(#49 wiring): topo-run crash/failover 복구 주입 분리**. `run()` 의 복구 주입(persistRestart·invRestart·rankRestart·chatRestart·busRestart 재협상 등)을 `topo-failover.js`(applyFailover)로 verbatim 분리·ctx+quorumMergeJournals 주입·투명 분할. topo-run.js 22.7KB→13.1KB. **#49 topo-run(35.9KB) 완전 해소**.
-- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·fosplit: 5/5 invRestart 복구 투명(복구판 ledger==무crash판)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#49 wiring 분할 arc 진행 중**(다음 너비/멀티프로세스 전 게이트). 잔여 >30KB: **topo-build 31.5·svc-exchange-core 30.7KB**(둘 다 단일 거대 함수·신중 분할). topo-run ✅(0261·0262). 이후: #51b(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스.
+- **닫힌 step**: [step-0263](step-0263.md) — **정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리**. `buildTopology()` 의 서비스/데이터 박스 add 시퀀스(gateway~loginqueue 29박스)를 `topo-boxes.js`(addServiceBoxes)로 verbatim 분리·ctx 150 이름 주입·투명 분할. topo-build.js 31.5KB→14.7KB. **#49 topo-build 해소**.
+- **한 줄 상태**: reg ALL OK(투명 분할 비트 동일)·boxsplit: 5/5 멀티 서비스 13/13 박스 spec 존재·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **#49 wiring 분할 arc 진행 중**(다음 너비/멀티프로세스 전 게이트). 잔여 >30KB: **svc-exchange-core 30.7KB**(단일 거대 함수·신중 분할). topo-run ✅(0261·0262)·topo-build ✅(0263). 이후: #51b(실 EntityZone host 이주·zone.js 핸드오프·review-gated)·#9 멀티프로세스.
 
 ---
 
@@ -76,7 +76,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡(0203~0204·placeZone+placeQuery)+부하 배치(0217)+재배치 핸드오프(0218)+부하 재배치 자동 트리거(0223)+host 드레인(0224·퇴역 안전 이주)+**실배선 #51: 존 런타임 SSOT(0241·placeExecute→running executed·placeZone start)+executed migrate(0242·실 release+acquire 이주)+executed rebalance(0243·자동 재배치 실 균형 수렴)+executed drain(0244·퇴역 host running 0)+reconcile capstone(0245·drift 0·결정==집행)+executed stop(0246·존 운영 퇴역)+executed auto(0247·부하 기반 실 가동)+host 장애 복구(0248·placeHostDown·생존 host re-acquire)+lifecycle capstone(0249·runningHosts·전 op drift 0)+placeQuery executed host(0250·읽기 경로·게이트웨이 실 위치 라우팅)** · **#51 executed SSOT arc(0241~0250) 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스)** |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain 0·0001~0013)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~0106). broker 물리 분산·진짜 비동기 후속 · **오케스트레이터 존 배치 🟡 advisory(placeZone/query·부하 배치·핸드오프·재배치·드레인 0203~0224)→**실배선 #51 executed SSOT arc(0241~0250·런타임 running SSOT·실 migrate/rebalance/drain/stop/auto·host 장애 복구·reconcile/lifecycle capstone drift 0)** 완료(잔여: 실 zone.js 핸드오프·#9 멀티프로세스). orch 정리 분리(0251)** |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get+read-through(0205~0206)+TTL 만료(0211)+무효화(0212)+용량 LRU 회수(0225)+recency touch(0226·진짜 LRU)+write-through 소스 정합(0252)+bulk get(0253)+negative caching(0254)+put-if-absent(0255)+per-key TTL(0256)+explicit delete(0257)+stats 관측(0258)+namespace 무효화(0259)+정합 capstone(0260·coherent)** — **4차 고도화 캐시 arc(0252~0260) 완료** · **월드 영속 🟡 intent 로그 append+replay(0207~0208)+스냅샷 압축(0213)+crash/recover 정합(0214)+write-behind 버퍼(0227)+fsync durable barrier(0228·물리 확정 경계)**. 버스 영속 후속 |
 
 ---
@@ -176,3 +176,4 @@
 | [0260](step-0260.md) | 캐시 정합 capstone(coherent·store↔setAt 1:1·store∩negatives=∅·keyTtl⊆store·무효화 keyTtl 정리·캐시 arc 0252~0260 닫기) | 통과(reg 0·spine OK) · 5/5 14-op 혼합 매단계 coherent |
 | [0261](step-0261.md) | 정리(#49 wiring): topo-run 제어 평면 주입열 분리(topo-inject.js·applyInjections·rankDie~loginOps·inject verbatim·투명 분할·35.9→22.7KB) | 통과(reg 0·spine OK) · 5/5 injsplit active 2·cache k1/k2 |
 | [0262](step-0262.md) | 정리(#49 wiring): topo-run crash/failover 복구 주입 분리(topo-failover.js·applyFailover·persistRestart~busRestart verbatim·투명 분할·22.7→13.1KB·#49 topo-run 해소) | 통과(reg 0·spine OK) · 5/5 fosplit 복구 투명 ledger 일치 |
+| [0263](step-0263.md) | 정리(#49 wiring): topo-build 서비스 박스 add 시퀀스 분리(topo-boxes.js·addServiceBoxes·gateway~loginqueue verbatim·ctx 150이름·투명 분할·31.5→14.7KB·#49 topo-build 해소) | 통과(reg 0·spine OK) · 5/5 boxsplit 13/13 박스 spec |
