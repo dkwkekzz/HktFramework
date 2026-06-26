@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0342](step-0342.md) — **#9 후속: 실 다운스트림 클라 수렴** — 수신 전용 `DownClient` 액터(view/view_delta→seen 적용)로 전파 종단(spectator addr·0334 한계)을 실 클라로 교체. `dc.seen == zoneVisibleIds`(host 권위 AOI == 클라 뷰·**desync 0**). downClients 0→스폰0·비트 동일. 직전: 0341 전파 capstone.
-- **한 줄 상태**: reg ALL OK·dcconv 5/5(dc0.seen==aoi(a1)·dc1.seen==aoi(a2)·desync0)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0343](step-0343.md) — **#9 후속: 다운스트림 상호 가시 수렴** — 권위 AOI 서명 `zoneAuthSig`(id@x,y·host 권위·DownClient.seenSig 형식). a1·a2 이동으로 반경 진입→상호 가시→DownClient 가 증분 델타로 *위치까지* desync 0. 읽기 전용·비트 동일. 직전: 0342 정적 수렴.
+- **한 줄 상태**: reg ALL OK·dcmutual 5/5(dc.seenSig==zoneAuthSig·둘 다 [a1,a2]·위치 desync0)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **실 다운스트림 클라 수렴 sub-arc(0342~)** — 전파 sub-arc(0331~0341 ✅) 종단을 실 클라로. 0342 정적 AOI 수렴✅. **후속**: 증분/이동/상호 가시 수렴·손실 하 수렴(desync 0)·다중 클라 일관·capstone. **그 후**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적)**.
 
 ---
@@ -141,3 +141,4 @@
 | [0340](step-0340.md) | downstream 전파 9(#9 후속): 다중 존 격리(게이트웨이 클라별 전달 세션 회계 downDelivered + 술어 gatewayDeliveryIsolated·z1·z2 동시 각 클라 자기 세션만·교차 누수 0·존별 egress 격리·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · gwiso 5/5 iso Y·바인딩 격리 |
 | [0341](step-0341.md) | downstream 전파 10·capstone(#9 후속): 전파 전 정합(술어 downstreamSettled 모든 세션 egress 버퍼 0 + 손실+enter/move/leave/migrate 뒤 settled && gatewayDeliveryIsolated && 활성 delivered==produced && downstreamCoherent·전파 sub-arc 0331~0341 닫기·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · downdeliver 5/5 settled·iso·복구 |
 | [0342](step-0342.md) | 실 다운스트림 클라 수렴 1(#9 후속): 수신 전용 DownClient 액터(view/view_delta→seen·전파 종단 spectator→실 클라·0334 해소)·dc.seen==zoneVisibleIds(host AOI==클라 뷰·desync0)·downClients0→스폰0 비트 동일 | 통과(reg 0·spine OK) · dcconv 5/5 desync0 |
+| [0343](step-0343.md) | 실 다운스트림 클라 수렴 2(#9 후속): 상호 가시(권위 AOI 서명 zoneAuthSig id@x,y·a1·a2 반경 진입→DownClient 증분 델타로 위치까지 수렴·dc.seenSig==zoneAuthSig·둘 다 [a1,a2]·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcmutual 5/5 위치 desync0 |
