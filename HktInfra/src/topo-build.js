@@ -174,6 +174,7 @@ function buildTopology(opts) {
     gatewayZoneDir = false,   // step-0293 (#9) — 게이트웨이 존 디렉토리 push(zoneLoc·서비스 디스커버리). OFF→0292 비트 동일.
     gatewayDirectZone = false, // step-0294 (#9) — 게이트웨이→실 존 직접 라우팅(zoneDir 해소·orch 우회·stale 거부). OFF→0293 비트 동일.
     zoneHostProc = false,     // step-0301 (#9 잔여) — host 1급 컨테이너(zoneHosts·실 host.js 프로세스 씨앗). OFF→0300 비트 동일.
+    zoneHostLifecycle = false, // step-0312 (#9 잔여) — host 컨테이너 spawn/despawn 생애주기 이벤트 로그. OFF→0311 비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -240,7 +241,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneRtGrid: grid, zoneRtRadius: radius } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneRtGrid: grid, zoneRtRadius: radius } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }

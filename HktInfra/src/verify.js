@@ -1,8 +1,8 @@
-// HktInfra step-0311 — 헤드리스 검증 (#9 잔여: host 프로세스 부하 불균형 질의 hostLoadSkew)
+// HktInfra step-0312 — 헤드리스 검증 (#9 잔여: host 프로세스 생애주기 이벤트 로그)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostloadskew`.
-//   더한 한 조각: hostLoadSkew()(host 컨테이너 존 수 분포의 max−min). 한 host 에 몰린 배치를 placeRebalance 로 균형 → skew 감소(읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostloadskew`(가설) — rebalance 없으면 skew 2, 있으면 skew ≤ 1·총존 보존·hostContainerCoherent.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostlifecycle`.
+//   더한 한 조각: _hostSet 의 host 컨테이너 spawn/despawn 을 순서 있는 이벤트 로그(hostLifecycleLog)로 — 실 cluster.spawnOne/killHost 호출 지점의 씨앗. OFF 플래그 zoneHostLifecycle(OFF→로그 0·baseline 비트 동일).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostlifecycle`(가설) — churn(3 host spawn→drain 1 despawn) 후 로그 net 집합 == zoneHostHosts·spawn−despawn == 현 host 수.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,28 +15,29 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0311 #9 잔여 검증 — host 프로세스 부하 불균형(hostLoadSkew). 한 host(A)에 존을 몰아 둔 뒤 placeRebalance 로 고르게 펴면 skew(max−min)가 줄어든다.
-//   같은 배치를 rebalance 없이(r0)·있이(r1) 두 번 돌려: r0 skew 2(A=3,B=1) vs r1 skew ≤ 1(A=2,B=1,C=1) — 부하 균형이 host 프로세스 단위로 수렴함을 보인다. 총존 보존·hostContainerCoherent.
-function hostloadskew(seeds) {
+// step-0312 #9 잔여 검증 — host 프로세스 생애주기 이벤트 로그(hostLifecycle). 3 host(A·B·C) spawn 후 hostA 드레인 → z1 이주(A 마지막 존 잃음) → A despawn.
+//   로그를 접은 net 집합(spawn 추가·despawn 제거)이 *지금 가동 host 집합*(zoneHostHosts)과 정확히 일치 + spawn−despawn == 현 host 수. 로그가 roster 의 정직한 역사(실 spawnOne/killHost 타임라인 씨앗).
+function hostlifecycle(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
+  const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
   const HS = ['hostA', 'hostB', 'hostC'];
-  const SKEWOPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostA'), PLACE(4, 'z4', 'hostB')];
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== hostloadskew (0311·#9 잔여): host 프로세스 부하 불균형. A 에 몰린 배치를 placeRebalance 로 균형 → skew 2→≤1·총존 보존·hostContainerCoherent. ==');
-  console.log('seed   | skew0 | skew1 | tot0 | tot1 | hcoh | 판정');
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostC'), DRAIN(6, 'hostA', HS)];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneHostLifecycle: true };
+  console.log('== hostlifecycle (0312·#9 잔여): host 프로세스 생애주기 로그. 3 host spawn→hostA drain→A despawn. 로그 net 집합 == zoneHostHosts·spawn−despawn == 현 host. ==');
+  console.log('seed   | spawn | despw | net==live | sp−dp==hosts | 판정');
   for (const seed of seeds) {
-    const r0 = run({ seed, ticks: 12, ...BASE, placementOps: SKEWOPS });                                   // rebalance 없음 — A 에 몰린 채.
-    const r1 = run({ seed, ticks: 12, ...BASE, placementOps: [...SKEWOPS, REBAL(6, HS)] });                 // rebalance 후 — 고르게.
-    const s0 = r0.orch.hostLoadSkew(), s1 = r1.orch.hostLoadSkew();
-    const ok = check(s0.skew === 2 && s1.skew <= 1 && r0.orch.running.size === 4 && r1.orch.running.size === 4 &&
-      r1.orch.hostContainerCoherent() && r1.orch.zoneHostSingleOwner(),
-      `seed ${seed}: 부하 균형 위반 (skew0 ${s0.skew}·skew1 ${s1.skew}·tot0 ${r0.orch.running.size}·tot1 ${r1.orch.running.size}·hcoh ${r1.orch.hostContainerCoherent()})`);
-    console.log(`${pad(seed, 6)} | ${pad(s0.skew, 5)} | ${pad(s1.skew, 5)} | ${pad(r0.orch.running.size, 4)} | ${pad(r1.orch.running.size, 4)} | ${pad(r1.orch.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS });
+    const o = r.orch;
+    const net = [...o.hostLifecycleNet()].sort().join(',');
+    const live = [...o.zoneHostHosts()].sort().join(',');
+    const sp = o.hostSpawnCount(), dp = o.hostDespawnCount();
+    const ok = check(net === live && (sp - dp) === o.zoneHosts.size && sp === 3 && dp === 1,
+      `seed ${seed}: 생애주기 로그 위반 (net [${net}]·live [${live}]·spawn ${sp}·despawn ${dp}·hosts ${o.zoneHosts.size})`);
+    console.log(`${pad(seed, 6)} | ${pad(sp, 5)} | ${pad(dp, 5)} | ${pad(net === live ? 'Y' : 'N', 9)} | ${pad((sp - dp) === o.zoneHosts.size ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostloadskew'] = hostloadskew;
-kit.ORDER.splice(1, 0, 'hostloadskew');
+kit.MODES['hostlifecycle'] = hostlifecycle;
+kit.ORDER.splice(1, 0, 'hostlifecycle');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
