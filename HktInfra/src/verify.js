@@ -1,8 +1,8 @@
-// HktInfra step-0323 — 헤드리스 검증 (정리 분할: 다운스트림 뷰 질의 → orch-views.js)
+// HktInfra step-0324 — 헤드리스 검증 (#9 후속: host 산출 뷰의 AOI exit 델타 — 동적 가시 상실)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zoneviewsplit`.
-//   더한 한 조각: orch-zonebridge.js(30.6KB>30KB) 의 뷰 질의 6종(0319~0322)을 orch-views.js 믹스인으로 분리(Object.assign 투명 분할·기능 0·reg 0). 기능 추가 없음.
-//   검증: ⒜ `reg`(키트·OFF 비트 동일 — 분할이 동작 불변). ⒝ `zoneviewsplit`(스모크) — 옮긴 6 질의가 분할 후에도 정확히 해소·동작.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzoneexit`.
+//   더한 한 조각: 질의 zoneViewExited(세션이 시야에서 잃은 누적 id). 두 avatar 가 멀어지면 서로의 AOI 에서 빠져 exit 델타(enter 0322 의 짝)인지 검증(읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzoneexit`(가설) — a1 이 a2 에 접근(enter)했다 멀어짐(exit) → 서로 exit·최종 vis 자기만.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,29 +15,31 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0323 정리 분할 스모크 — 뷰 질의 6종(zoneViewBuf·zoneViewEntered·zoneViewStats·zoneVisibleIds·zoneViewsFor·zoneViewFrames)이 orch-views.js 로 옮겨진 뒤에도
-//   Orchestrator.prototype 에 Object.assign 되어 this 로 정확히 해소·동작함을 한 시나리오(z1·a1 이동·a2)로 확인. 분할은 *위치만* 옮긴 것이므로 reg 비트 동일이 본 증거.
-function zoneviewsplit(seeds) {
+// step-0324 #9 후속 검증 — host 산출 뷰의 AOI exit 델타(zoneViewExited). a1 을 a2 쪽으로 6회 접근(반경 안·enter) 후 다시 6회 멀어짐(반경 밖·exit) → 원위치 (5,5).
+//   a1 의 뷰에 a2 가 exit·a2 의 뷰에 a1 이 exit(동적 가시 상실·enter 의 짝). 최종 zoneVisibleIds 둘 다 자기만 — AOI 가 멀어짐을 host 뷰가 정확히 산출(시야 이탈 전파).
+function hostzoneexit(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const mv = []; for (let t = 6; t <= 11; t++) mv.push(MOVE(t, 'z1', 'a1', 1, 1)); for (let t = 13; t <= 18; t++) mv.push(MOVE(t, 'z1', 'a1', -1, -1));
   const OPS = [PLACE(1, 'z1', 'hostA')];
-  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), MOVE(6, 'z1', 'a1', 1, 1), MOVE(7, 'z1', 'a1', 1, 1)];
+  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), ...mv];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== zoneviewsplit (0323 정리 분할): 뷰 질의 6종 → orch-views.js. 분할 후에도 해소·동작(reg 비트 동일이 본 증거). ==');
-  console.log('seed   | frames | buf | stats(r/u) | vis | entered | 판정');
+  console.log('== hostzoneexit (0324·#9 후속): host 산출 뷰의 AOI exit 델타. a1 이 a2 에 접근(enter) 후 멀어짐(exit) → 서로 exit·최종 vis 자기만. ==');
+  console.log('seed   | a1exit | a2exit | finVis | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS, entityOps: ENT });
+    const r = run({ seed, ticks: 22, ...BASE, placementOps: OPS, entityOps: ENT });
     const o = r.orch;
-    const vf = o.zoneViewFrames(), buf = o.zoneViewBuf('z1').length, st = o.zoneViewStats('z1', 's:a1');
-    const vis = o.zoneVisibleIds('z1', 'a1'), ent = o.zoneViewEntered('z1', 's:a1'), vfor = o.zoneViewsFor('z1');
-    const ok = check(vf > 0 && vf === vfor && buf >= vf && st.resets === 1 && st.updates >= 1 && vis.includes('a1') && ent.includes('a1'),
-      `seed ${seed}: 분할 스모크 위반 (frames ${vf}·buf ${buf}·stats ${st.resets}/${st.updates}·vis ${vis}·entered ${ent})`);
-    console.log(`${pad(seed, 6)} | ${pad(vf, 6)} | ${pad(buf, 3)} | ${pad(st.resets + '/' + st.updates, 10)} | ${pad(vis.join('|'), 3)} | ${pad(ent.join('|'), 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const x1 = o.zoneViewExited('z1', 's:a1'), x2 = o.zoneViewExited('z1', 's:a2');
+    const v1 = o.zoneVisibleIds('z1', 'a1'), v2 = o.zoneVisibleIds('z1', 'a2');
+    const finVis = v1.join(',') === 'a1' && v2.join(',') === 'a2';
+    const ok = check(x1.includes('a2') && x2.includes('a1') && finVis,
+      `seed ${seed}: AOI exit 위반 (a1exit ${x1}·a2exit ${x2}·v1 ${v1}·v2 ${v2})`);
+    console.log(`${pad(seed, 6)} | ${pad(x1.join('|'), 6)} | ${pad(x2.join('|'), 6)} | ${pad(finVis ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['zoneviewsplit'] = zoneviewsplit;
-kit.ORDER.splice(1, 0, 'zoneviewsplit');
+kit.MODES['hostzoneexit'] = hostzoneexit;
+kit.ORDER.splice(1, 0, 'hostzoneexit');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
