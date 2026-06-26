@@ -20,6 +20,12 @@ const OrchControl = {
       if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행(step-0247) — 실 존 런타임도 가동.
       return;
     }
+    // 부하 인지(entity 가중) 자동 배치(step-0316·placeAutoE) — {zoneId, hosts[]} → 후보 중 *entity 최소 부하* host 선택 배치(존 수가 아니라 동접 가중 — 존 수는 같아도 만원인 host 를 피한다). placeAuto(0217·존 수)의 entity 가중 판. 동률은 후보 순서 결정론 tie-break. placeAutoE 미수신이면 미발화 = 0315 비트 동일(reg 0).
+    if (p.type === 'placeAutoE') {
+      const host = this._leastLoadedByEntities(p.hosts || []);
+      if (host !== null) { this.placement.set(p.zoneId, host); this.autoEPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행 — 실 존 런타임도 가동.
+      return;
+    }
     // 존 재배치 핸드오프(step-0218·placeMigrate) — {zoneId, toHost} → 이미 배치된 존을 release(기존 host)+acquire(toHost) 쌍으로 옮긴다(권위 단일 소유 보존·공백/중복 0). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 미발화 = 0217 비트 동일.
     if (p.type === 'placeMigrate') {
       const from = this.placement.get(p.zoneId);
@@ -30,6 +36,8 @@ const OrchControl = {
     }
     // 부하 재배치 자동 트리거(step-0223·placeRebalance) — {hosts[]} → 후보 부하 불균형(최대−최소≥2)이면 최대→최소 host 로 존 자동 이주(균형까지·release+acquire). 0218 placeMigrate 의 자동 트리거판. placeRebalance 미수신이면 미발화 = 0222 비트 동일.
     if (p.type === 'placeRebalance') { this._rebalance(p.hosts || []); this.rebalances++; return; }
+    // entity 가중 부하 재배치(step-0317·placeRebalanceE) — {hosts[]} → entity 부하 불균형(max−min≥2)이면 가장 무거운 host 의 한 존을 가장 가벼운 host 로 이주(균형까지·gap 단조 감소). placeRebalance(0223·존 수)의 entity 가중 판. placeRebalanceE 미수신이면 미발화 = 0316 비트 동일.
+    if (p.type === 'placeRebalanceE') { this._rebalanceByEntities(p.hosts || []); return; }
     // host 드레인(step-0224·placeDrain) — {host, hosts[]} → host 의 모든 존을 나머지 host 중 최소부하로 이주(release+acquire 연쇄·드레인 후 부하 0). 정비/퇴역. placeDrain 미수신이면 미발화 = 0223 비트 동일.
     if (p.type === 'placeDrain') { this._drain(p.host, p.hosts || []); this.drains++; return; }
     // 존 운영 퇴역(step-0246·placeStop) — {zoneId} → 그 존을 내린다(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료). 드레인(host 의 *모든* 존 이주)과 달리 *특정 존 자체*를 stop. 없는 존 멱등. placeStop 미수신이면 미발화 = 0245 비트 동일.

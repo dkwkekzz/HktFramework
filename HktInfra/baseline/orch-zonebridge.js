@@ -163,6 +163,7 @@ const OrchZoneBridge = {
       rt.zone.onTick(tick);
     }
   },
+  // 다운스트림 데이터 평면 뷰 질의(0319~0322·zoneViewBuf·zoneViewEntered·zoneViewStats·zoneVisibleIds·zoneViewsFor·zoneViewFrames)는 step-0323 에서 orch-views.js 로 분리(>30KB 트리거 유계화·투명 분할·reg 0). 같은 prototype 에 Object.assign 되므로 this 해소 동일.
   // 브리지 존 entity 위치 질의(step-0282·#56) — 실 EntityZone 핸들의 그 avatar 위치({x,y})·없으면 null. move 적용·migrate 위치 보존 검증.
   zoneEntityPos(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); const e = rt && rt.zone.ents.get(avatar); return e ? { x: e.x, y: e.y } : null; },
   // 브리지 존 entity 질의(step-0281·#56) — "이 존의 실 EntityZone 핸들에 몇 entity 가 사나 / 이 avatar 가 있나"(실 zone.js ents 직접 읽기·migrate 무손실·hostdown 소실 등 데이터 평면 불변 검증의 기초). 미가동 존은 0/false.

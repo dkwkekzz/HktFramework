@@ -37,6 +37,9 @@ const { OrchZoneBridge } = (typeof module !== 'undefined' && module.exports && t
 // step-0305 — host 프로세스 컨테이너 층 믹스인(_hostSet·host 컨테이너 질의/불변·0301~0304 분리).
 const { OrchHostProc } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./orch-hostproc.js') : globalThis.__HktNetParts.orch_hostproc;
+// step-0323 — 다운스트림 데이터 평면 뷰 질의 믹스인(zoneView*·0319~0322 분리·>30KB 유계화).
+const { OrchViews } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./orch-views.js') : globalThis.__HktNetParts.orch_views;
 
 // ── [코디네이션] Orchestrator — 0009 그대로(monitor 쌍을 생성자 opts 로 받게만 조정) ──
 class Orchestrator {
@@ -55,10 +58,12 @@ class Orchestrator {
     this.placeRepliesSent = 0;
     this._lastPlaceReply = null;  // 마지막 placeReply 보관(검증용·순수 읽기).
     this.autoPlacements = 0;      // 처리한 placeAuto 수(step-0217·부하 기반 자동 배치·계측).
+    this.autoEPlacements = 0;     // 처리한 placeAutoE 수(step-0316·entity 가중 자동 배치·계측·placeAutoE 미수신이면 0).
     this.migrations = 0;          // 처리한 placeMigrate 성공 수(step-0218·release+acquire 쌍·재배치).
     this.migrateRejects = 0;      // 거부된 placeMigrate 수(step-0218·미배치 존·같은 host no-op).
     this.rebalances = 0;          // 처리한 placeRebalance 패스 수(step-0223·계측·균형이면 0).
     this.rebalanceMoves = 0;      // 재배치 자동 트리거로 옮긴 존 누적 수(step-0223·release+acquire 쌍).
+    this.rebalanceEMoves = 0;     // entity 가중 재배치(placeRebalanceE)로 옮긴 존 누적 수(step-0317·gap 단조 감소 보장·미수신이면 0).
     this.drains = 0;              // 처리한 placeDrain 수(step-0224·계측).
     this.drainMoves = 0;          // 드레인으로 다른 host 로 이주한 존 누적 수(step-0224·release+acquire 연쇄).
     // 존 런타임 레지스트리(step-0241·#51 실배선) — placement 가 "어느 존이 어느 host 에서 *돌아야* 하나"(결정)라면, running 은 "지금 *실제로* 어느 host 에서 도는가"(집행 현실). placeExecute ON 이면 배치 결정이 실 존 런타임 lifecycle(start/migrate/stop)을 구동한다(advisory paper → executed). OFF 면 빈 채 = 0240 비트 동일.
@@ -109,6 +114,8 @@ class Orchestrator {
     this.hostRegisters = 0;          // host 컨테이너가 *처음 존을 받아 새로 생긴* 누적 수(step-0304·실 host.js 프로세스 spawn 의 씨앗 — 그 host 가 첫 존을 호스팅).
     this.hostDeregisters = 0;        // host 컨테이너가 *마지막 존을 잃어 사라진* 누적 수(step-0304·실 host.js 프로세스 despawn 의 씨앗 — 그 host 가 더는 존을 안 돌림). registers−deregisters == 현 host 수.
     this.zoneHostStale = 0;          // host inbox drain 시 *그 host 가 더는 소유 안 하는*(이주로 떠난) 존의 frame 을 거부한 누적 수(step-0306·실 프로세스 이중 쓰기 방지·정상 tick 0·recv == drained + stale).
+    this.zoneHostLifecycle = opts.zoneHostLifecycle || false;   // step-0312 — host 프로세스 생애주기 이벤트 로그 ON 플래그(OFF→로그 0·prior 모드/baseline 비트 동일).
+    this.hostLifecycleLog = [];      // step-0312 — host 컨테이너 spawn/despawn 의 *순서 있는 이벤트 스트림* [{host, kind, seq}](hostRegisters/hostDeregisters 가 *얼마나*라면, 이건 *언제 어느 host*·실 cluster.spawnOne/killHost 호출 지점의 씨앗).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -165,6 +172,7 @@ Object.assign(Orchestrator.prototype, OrchPlacement);
 // step-0272 — #51b 실 zone.js 브리지 메서드를 프로토타입에 되섞음(_start 가드가 zoneBridge ON 일 때만 호출 = OFF 비트 동일).
 Object.assign(Orchestrator.prototype, OrchZoneBridge);
 Object.assign(Orchestrator.prototype, OrchHostProc);
+Object.assign(Orchestrator.prototype, OrchViews);
 // step-0267 분할 — 제어 평면 핸들러(onMsg·onTick)를 프로토타입에 되섞음(정의 위치만 이동·this 바인딩 동일·reg 0).
 Object.assign(Orchestrator.prototype, OrchControl);
 

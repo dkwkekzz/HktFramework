@@ -19,8 +19,9 @@
 5. **전송 열화 복원** ✅ — 왜: 끊기면 뷰가 깨짐. / 어떻게: ack/재전송·NAK/keyframe. / 했나: `step-0008`(손실 0~30%에도 desync 0).
 6. **failover(권위 존 사망 대응)** ✅ — 왜: 권위 존이 죽으면 그 구역 정지. / 어떻게: 추종자(shadow)가 lease 감지로 승격·죽은 추종자 재충원. / 했나: `step-0009` 승격 + `step-0010` 별 프로세스 + `step-0013` 재충원(divergence 0).
 7. **동적 경계·N 존** ⬜ — 왜: 오픈월드 = 단일 인스턴스 무한 분할. / 어떻게: 부하 따라 경계 이동·존 증설. / 했나: 미착수(지금은 2존 정적).
+8. **다운스트림 AOI 뷰 산출·검증(#9 후속·월드 다운스트림·0319~0330 sub-arc ✅포착층)** 🟡 — 왜: 브리지 런타임 존(#56·0281~)의 `onTick` 이 세션에 `view_delta`(AOI 뷰)를 산출하지만 *no-op 싱크로 드롭*돼 왔다(`topo-actors.js:71`·SPINE §4 경로2 *월드 다운스트림* = 뷰가 *내려가는* 절반이 미배선). / 어떻게: 런타임 존 net 싱크를 *버퍼링*으로(`topo-actors.js:71` `{buf:[],send}`) host 가 산출한 AOI 뷰를 보관·orch 가 읽기 전용 질의로 *내용*을 검증(전역 net 무오염→버퍼 미읽으면 reg/spine 비트 동일). 기능마다 다른 검증 척도: AOI 정확성(`zoneVisibleIds`==산출 enter·반경 안만·`orch-views.js`)·증분 델타(초기 keyframe 1 + 변경분만·매 tick 전체 아님=대역 절감·`zoneViewStats`)·동적 가시(가까워지면 enter·멀어지면 exit·`zoneViewEntered`/`zoneViewExited`)·직렬화 경계(JSON round-trip 동일·소켓 준비·`zoneViewWire`)·존 간 격리(각 존 자기 세션에만·누수 0·`zoneViewSessions`)·이주 연속성(같은 핸들 migrate→뷰 끊김 0·`zoneViewReport`)·세션 무굶김(접속자 모두 keyframe·`zoneViewAllKeyed`)·무손실 회계(모든 frame 이 한 세션에 귀속·고아 0·`zoneViewConserved`)·전 정합 capstone(`downstreamCoherent`=conserved && allKeyed && serializable). / 했나: `step-0319` 포착→`0320` AOI 정확성→`0321` 증분 델타→`0322` 상호 가시(enter)→`0324` exit→`0325` 직렬화→`0326` 격리→`0327` 이주 연속성→`0328` 무굶김→`0329` 무손실→`0330` capstone(혼합 lifecycle 뒤 downstreamCoherent + hostProcCoherent + entityConserved). 플래그 불요(버퍼 미읽으면 동작 불변). *정리: `0323` 뷰 질의 6종→`orch-views.js` 믹스인 분할(>30KB 유계화·기능 0·reg 0). 한계: 산출·포착·검증까지 — 게이트웨이→실 클라 *전파*(재전송/ack·실 클라 하니스)는 후속(#60).*
 
-**지금 어디 / 다음**: 존 하나가 *분할·관심영역·권위 이주·죽어도 부활*까지. 다음 = 동적 경계·N 존.
+**지금 어디 / 다음**: 존 하나가 *분할·관심영역·권위 이주·죽어도 부활*까지, 그 위에 **다운스트림 AOI 뷰 산출·검증 sub-arc(0319~0330·#9 후속·예전 드롭하던 뷰를 버퍼링 싱크로 잡고 AOI/증분/상호 가시/exit/직렬화/격리/이주 연속성/무굶김/무손실/capstone `downstreamCoherent` 까지 검증)**. 다음 = 동적 경계·N 존 · 다운스트림 뷰 게이트웨이→실 클라 *전파*(#60·실 클라 하니스).
 
 ## 인스턴스(던전/매치) 서버 🟡 자라는 중
 
