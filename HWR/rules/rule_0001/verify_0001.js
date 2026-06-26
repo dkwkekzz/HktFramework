@@ -1,4 +1,4 @@
-// verify_0001 — 충격량과 질량. 세계 로직(engine) + 규칙(rule_0001) 의 합성으로 굴려 단언한다.
+// verify_0001 — 관성과 질량. 세계 로직(engine) + 규칙(rule_0001) 의 합성으로 굴려 단언한다.
 //   node rules/rule_0001/verify_0001.js
 import { stepWorld } from '../../engine.js';
 import rule from './rule_0001.js';
