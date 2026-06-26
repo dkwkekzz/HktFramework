@@ -1,4 +1,5 @@
 'use strict';
+// step-0301 — #9 잔여(실 host.js 물리 분리): host 1급 컨테이너(zoneHosts) 레지스트리. flat zoneRuntimes(zoneId→{zone,host}) 위에, host 가 *자기 존 집합을 소유한 컨테이너*(실 host.js 프로세스의 씨앗)임을 _hostSet 으로 유지. 배치 집행(start/migrate/hostdown/stop)이 zone→host 귀속을 갱신. 질의 hostRuntimeCount/zoneHostOf/zoneHostHosts. zoneHostProc OFF→호출 자체 no-op = 0300 비트 동일.
 // step-0300 — #9 멀티프로세스 배선 10·capstone: directFlowCoherent 질의(entityFlowCoherent && entityDirectCoherent). destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참 → #9 arc 0291~0300 닫기. 읽기 전용.
 // step-0298 — #9 멀티프로세스 배선 8: entityDirectCoherent 질의(직접 라우팅 데이터 평면 정합 + stale 누수 0). 읽기 전용·동작 무변경.
 // step-0293 — #9 멀티프로세스 배선 3: 게이트웨이 존 디렉토리 push(_pubZoneLoc). 배치 집행(start/migrate/stop/hostdown)마다 zone→host 위치를 게이트웨이에 push(zoneLoc·서비스 디스커버리) → 게이트웨이가 라우팅 테이블 캐시(#9 직접 라우팅 전제). gatewayZoneDir OFF→push 0 = 0292 비트 동일.
@@ -22,13 +23,27 @@
 
 // 실 zone.js 브리지 믹스인 — Orchestrator.prototype 에 Object.assign 으로 섞인다. 모든 메서드는 this=Orchestrator 인스턴스.
 const OrchZoneBridge = {
+  // host 컨테이너 귀속 갱신(step-0301·#9 잔여) — zoneId 를 *정확히 한* host 컨테이너에 귀속시킨다(host==null 이면 어느 컨테이너에서도 떼기만). 어디 있든 먼저 떼고(멱등) 새 host 에 붙인다 → start/migrate/hostdown/stop 어느 집행에서 불러도 같은 결과(낡은 host 추적 불필요). 빈 컨테이너는 제거(host roster 자동 — 그 host 가 더는 존을 안 돌리면 프로세스 내림의 씨앗). zoneHostProc OFF 면 no-op = 0300 비트 동일.
+  _hostSet(zoneId, host) {
+    if (!this.zoneHostProc) return;
+    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) this.zoneHosts.delete(h); }
+    if (host == null) return;             // 퇴역/소실 — 떼기만(어느 host 도 소유 안 함).
+    let c = this.zoneHosts.get(host);
+    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); }
+    c.zones.add(zoneId);
+  },
+  // host 컨테이너 질의(step-0301·#9 잔여) — "이 host 프로세스가 몇 존을 소유하나 / 이 존은 어느 host 프로세스에 사나 / 지금 존을 하나라도 돌리는 host 집합". flat zoneRuntimes 의 host 별 묶음이 실 host.js 분리의 씨앗(host=프로세스 단위). 읽기 전용.
+  hostRuntimeCount(host) { const c = this.zoneHosts.get(host); return c ? c.zones.size : 0; },
+  zoneHostOf(zoneId) { for (const [h, c] of this.zoneHosts) if (c.zones.has(zoneId)) return h; return null; },
+  zoneHostHosts() { return new Set(this.zoneHosts.keys()); },
   // 브리지 start(step-0272) — 배치 결정 집행 시 실 EntityZone 런타임을 host 에 띄운다(zoneRuntimes 등록). 이미 도는 존이면 host 만 정렬(멱등·신규 인스턴스화 아님). zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_start 가드).
   _bridgeStart(zoneId, host) {
     const rt = this.zoneRuntimes.get(zoneId);
-    if (rt) { rt.host = host; this._pubZoneLoc(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등).
+    if (rt) { rt.host = host; this._hostSet(zoneId, host); this._pubZoneLoc(zoneId, host); return false; }   // 이미 가동 — host 만 정렬(멱등·컨테이너 귀속도 정렬).
     const zone = this.zoneFactory(zoneId);      // 실 EntityZone 인스턴스화(결정론 시드=zoneId 해시·makeActor 주입 팩토리).
     this.zoneRuntimes.set(zoneId, { zone, host, mbox: [] });   // mbox: 존 host 수신 버퍼(step-0292·mailbox OFF 면 미사용).
     this.zoneStarts++;
+    this._hostSet(zoneId, host);                // step-0301 (#9 잔여) — host 컨테이너에 귀속(실 host.js 프로세스가 이 존을 소유).
     this._pubZoneLoc(zoneId, host);             // step-0293 (#9) — 게이트웨이 디렉토리에 위치 공표(서비스 디스커버리).
     return true;
   },
@@ -43,6 +58,7 @@ const OrchZoneBridge = {
     if (rt.host === toHost) return false;
     rt.host = toHost;                  // 같은 EntityZone 핸들(상태·entity 보존)의 host 만 원자 교체 — 새 인스턴스 만들지 않음.
     this.zoneMigrations++;
+    this._hostSet(zoneId, toHost);     // step-0301 (#9 잔여) — host 컨테이너 귀속을 새 host 로 이동(이전 host 컨테이너에서 떼고 새 host 에 붙임).
     this._pubZoneLoc(zoneId, toHost);  // step-0293 (#9) — 이주된 새 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
@@ -54,6 +70,7 @@ const OrchZoneBridge = {
     rt.zone = this.zoneFactory(zoneId);   // 새 인스턴스 — 죽은 것 폐기(상태 소실·비자발적). migrate 와 달리 핸들 동일성 *깨짐*이 정상.
     rt.host = target;
     this.zoneRescued++;
+    this._hostSet(zoneId, target);        // step-0301 (#9 잔여) — 죽은 host 컨테이너에서 떼고 생존 host 컨테이너에 재귀속(죽은 host 가 마지막 존을 잃으면 roster 에서 제거).
     this._pubZoneLoc(zoneId, target);     // step-0293 (#9) — 재가동된 생존 host 를 게이트웨이 디렉토리에 갱신.
     return true;
   },
@@ -63,6 +80,7 @@ const OrchZoneBridge = {
     if (!rt) return false;
     this.zoneEntitiesDiscarded += rt.zone.ents.size;   // step-0286 (#56) — 존 운영 퇴역 시 그 핸들의 entity 는 폐기(계획적·hostdown 비자발 소실과 구분·계측). 퇴역 전 세션 이전/영속은 후속.
     this.zoneRuntimes.delete(zoneId); this.zoneStops++;
+    this._hostSet(zoneId, null);      // step-0301 (#9 잔여) — host 컨테이너에서 제거(어느 host 도 소유 안 함·그 host 가 마지막 존이면 roster 에서 빠짐).
     this._pubZoneLoc(zoneId, null);   // step-0293 (#9) — 퇴역을 게이트웨이 디렉토리에 통보(삭제).
     return true;
   },

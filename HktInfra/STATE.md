@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0301](step-0301.md) — **#9 잔여(실 host.js 물리 분리) 1: host 1급 컨테이너(zoneHosts) 레지스트리**. `zoneHostProc` 플래그 + `zoneHosts: host→{zones}`. flat zoneRuntimes 위에 host=*자기 존 집합 소유 컨테이너*(실 host.js 프로세스 씨앗) — 배치 집행(start/migrate/hostdown/stop)이 `_hostSet` 으로 귀속 유지. OFF→0300 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehostreg: 5/5 혼합 lifecycle 후 host 컨테이너==running(hc== Y·hosts2·총귀속2)·directFlowCoherent·conserved·total1·ledger5/1/2/1·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 시작** — host 가 1급 컨테이너가 됐다(0301). 다음: host 자기 inbox 로 프레임 수신(0302)·host 자기 루프로 tick(0303)·host 단일소유/drift(0304)·roster register/deregister·host 장애=컨테이너 제거·inbox stale 거부·coherence·capstone. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
+- **닫힌 step**: [step-0302](step-0302.md) — **#9 잔여(실 host.js 물리 분리) 2: host 자기 inbox 수신 + 자기 루프 drain·tick**. `_zoneDeliver` 가 frame 을 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓1=host1)·`_tickRuntimes` 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonehostrecv: 5/5 전 entity frame 7개 host inbox 경유 recv7==drain7(잔류0)·directFlowCoherent·total1·ledger5/1/2/1·hc==running·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 진행** — host=1급 컨테이너(0301)·자기 inbox 수신+자기 루프 tick(0302). 다음: host inbox stale 거부(이주한 존 frame 거름)·host 단일소유/drift·roster register/deregister·host 장애=컨테이너 제거·coherence·capstone. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
 
 ---
 
@@ -138,3 +138,4 @@
 | [0299](step-0299.md) | #9 멀티프로세스 배선 9: 디렉토리 bijection(gateway zoneDirSnapshot 질의·4존 A 몰림→rebalance→drain 다중 동시 이주 후 게이트웨이 dir==running 정확한 bijection·entity graceful 보존·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0 |
 | [0300](step-0300.md) | #9 멀티프로세스 배선 10·capstone: 전 데이터 평면 게이트웨이 직접 라우팅(directFlowCoherent=entityFlowCoherent && entityDirectCoherent·0290 destructive+graceful 혼합 lifecycle 을 직접 라우팅만으로·#9 arc 0291~0300 닫기·OFF→0299 동일) | 통과(reg 0·spine OK) · 5/5 directFlowCoherent·conserved·total1·ledger5/1/2/1·dir==running·routes7==appl7·stale0·miss0 |
 | [0301](step-0301.md) | #9 잔여(실 host.js 물리 분리) 1: host 1급 컨테이너(zoneHostProc·zoneHosts host→{zones}·_hostSet 으로 start/migrate/hostdown/stop 이 zone→host 귀속 유지·질의 hostRuntimeCount/zoneHostOf/zoneHostHosts·실 host.js 프로세스 씨앗·OFF→0300 동일) | 통과(reg 0·spine OK) · 5/5 host컨테이너==running(hc== Y·hosts2·총귀속2)·dflow·consv·total1·ledger5/1/2/1 |
+| [0302](step-0302.md) | #9 잔여(실 host.js 물리 분리) 2: host 자기 inbox 수신+자기 루프 drain·tick(_zoneDeliver→host 컨테이너 inbox zoneId 태깅·per-runtime mbox 대체·소켓1=host1·_tickRuntimes host 단위 자기 inbox drain 후 자기 소유 존만 onTick·실 host.js 루프 씨앗·OFF→0301 동일) | 통과(reg 0·spine OK) · 5/5 recv7==drain7(잔류0)·dflow·total1·ledger5/1/2/1·hc==running |

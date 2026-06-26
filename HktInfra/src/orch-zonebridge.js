@@ -1,4 +1,5 @@
 'use strict';
+// step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick. zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): host 1급 컨테이너(zoneHosts) 레지스트리. flat zoneRuntimes(zoneId→{zone,host}) 위에, host 가 *자기 존 집합을 소유한 컨테이너*(실 host.js 프로세스의 씨앗)임을 _hostSet 으로 유지. 배치 집행(start/migrate/hostdown/stop)이 zone→host 귀속을 갱신. 질의 hostRuntimeCount/zoneHostOf/zoneHostHosts. zoneHostProc OFF→호출 자체 no-op = 0300 비트 동일.
 // step-0300 — #9 멀티프로세스 배선 10·capstone: directFlowCoherent 질의(entityFlowCoherent && entityDirectCoherent). destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참 → #9 arc 0291~0300 닫기. 읽기 전용.
 // step-0298 — #9 멀티프로세스 배선 8: entityDirectCoherent 질의(직접 라우팅 데이터 평면 정합 + stale 누수 0). 읽기 전용·동작 무변경.
@@ -105,17 +106,20 @@ const OrchZoneBridge = {
   _bridgeEnter(zoneId, avatar, sessionId, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;             // 미가동 존 — 흘릴 핸들 없음(멱등).
-    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'enter', sessionId: sessionId || ('s:' + avatar), avatar } }, zoneId);
     this.zoneEnters++;
     return true;
   },
   // 존 런타임 전송 seam(step-0291·#9) — entity frame 을 실 EntityZone 핸들에 흘리는 *단일 경로*. zoneHostHandle ON 이면 frame 을 JSON 직렬화 경계로 round-trip(소켓 와이어의 씨앗·host.js deliver 동형)시켜 적용 → 데이터 평면이 직렬화 가능한 메시지 경계를 통과(원격 host.js 프로세스 분리 전제·#9). 함수/순환 참조가 frame 에 섞이면 여기서 걸린다(원격-검증 가능성의 토대). OFF 면 직접 method 호출 = 0290 비트 동일.
-  _zoneDeliver(rt, frame) {
+  _zoneDeliver(rt, frame, zoneId) {
     if (this.zoneHostHandle) {
       const wire = JSON.stringify(frame);          // 직렬화 경계 — 실 소켓이면 이 바이트가 와이어로 간다.
       this.zoneFramesDelivered++; this.zoneFrameBytes += wire.length;
       const f = JSON.parse(wire);                  // 역직렬화(원격이면 host 프로세스가 수행).
-      if (this.zoneHostMailbox) {                  // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
+      if (this.zoneHostProc) {                     // step-0302 (#9 잔여) — host 프로세스 수신: frame 을 그 존의 *host 컨테이너 inbox*(zoneId 태깅)에 enqueue. per-runtime mbox(0292)를 host 단일 수신 버퍼로 대체(소켓 1개 = host 프로세스 1개). 적용은 _tickRuntimes 의 host 루프 drain.
+        const c = this.zoneHosts.get(rt.host);
+        if (c) { (c.inbox || (c.inbox = [])).push({ zoneId, f }); this.zoneHostFramesRecv++; if (c.inbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = c.inbox.length; }
+      } else if (this.zoneHostMailbox) {           // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
         (rt.mbox || (rt.mbox = [])).push(f);
         if (rt.mbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = rt.mbox.length;
       } else {
@@ -129,7 +133,7 @@ const OrchZoneBridge = {
   _bridgeMove(zoneId, avatar, dx, dy, gateway) {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
-    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'move', avatar, d: { dx, dy } } }, zoneId);
     this.zoneMoves++;
     return true;
   },
@@ -138,12 +142,23 @@ const OrchZoneBridge = {
     const rt = this.zoneRuntimes.get(zoneId);
     if (!rt) return false;
     const had = rt.zone.ents.has(avatar);
-    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } });
+    this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } }, zoneId);
     if (had) this.zoneLeaves++;
     return had;
   },
   // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).
   _tickRuntimes(tick) {
+    // step-0302 (#9 잔여) — host 프로세스 루프: 각 host 컨테이너가 *자기* inbox 를 drain(소유 존에 dispatch)한 뒤 *자기* 소유 존만 onTick. flat zoneRuntimes 전역 순회 대신 host 단위(실 host.js 프로세스가 자기 존만 수신·tick — 프로세스 경계의 씨앗). zoneHostProc OFF 면 아래 flat 경로 = 0301 비트 동일.
+    if (this.zoneHostProc) {
+      for (const c of this.zoneHosts.values()) {
+        if (c.inbox && c.inbox.length) {           // host 소켓 수신 버퍼 drain — zoneId 로 소유 존 dispatch(FIFO·per-zone 순서 보존).
+          for (const { zoneId, f } of c.inbox) { const rt = this.zoneRuntimes.get(zoneId); if (rt) rt.zone.onMsg(f); }
+          this.zoneHostDrained += c.inbox.length; c.inbox = [];
+        }
+        for (const zoneId of c.zones) { const rt = this.zoneRuntimes.get(zoneId); if (rt) rt.zone.onTick(tick); }   // 이 host 가 소유한 존만 tick.
+      }
+      return;
+    }
     for (const rt of this.zoneRuntimes.values()) {
       // step-0292 (#9) — mailbox ON 이면 onTick 전 수신 버퍼를 일괄 drain(tick 경계 배치 처리·host.js deliver cmd 동형). FIFO 순 적용 → enter→move 순서 보존. drain 후 onTick 이 pending move 를 위치에 적용.
       if (this.zoneHostMailbox && rt.mbox && rt.mbox.length) {

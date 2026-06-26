@@ -100,7 +100,9 @@ class Orchestrator {
     this.hostDownBroadcasts = 0;    // 게이트웨이로 보낸 hostDown 일괄 무효화 broadcast 누적(step-0297·장애 검출 신호).
     // 실 host.js 물리 프로세스 분리 씨앗(step-0301·#9 잔여) — 0291~0300 까지 zone-host 핸들은 orch 의 *flat* zoneRuntimes Map(zoneId→{zone,host})·host 는 문자열 태그였다(orch 가 모든 존을 직접 보유·tick). zoneHostProc ON 이면 host 를 *1급 컨테이너*(ZoneHost·자기 존 집합 소유)로 묶는다(zoneHosts: host→{zones}) — 실 host.js 프로세스(여러 존을 소유·자기 소켓으로 수신·자기 루프로 tick)의 씨앗. 배치 집행(start/migrate/hostdown/stop)이 _hostSet 으로 이 컨테이너를 유지. OFF 면 빈 채 = 0300 비트 동일.
     this.zoneHostProc = opts.zoneHostProc || false;
-    this.zoneHosts = new Map();      // host -> { zones: Set<zoneId> } (그 host 프로세스가 소유한 실 존 런타임 집합·flat zoneRuntimes 의 host 별 묶음·실 host.js 의 씨앗).
+    this.zoneHosts = new Map();      // host -> { zones: Set<zoneId>, inbox: [] } (그 host 프로세스가 소유한 실 존 런타임 집합 + 자기 수신 버퍼·flat zoneRuntimes 의 host 별 묶음·실 host.js 의 씨앗).
+    this.zoneHostFramesRecv = 0;     // host 컨테이너 inbox 로 수신한 entity frame 누적(step-0302·소켓 수신 버퍼의 host 프로세스 판·per-runtime mbox 대체).
+    this.zoneHostDrained = 0;        // host 자기 루프가 inbox 에서 drain 해 소유 존에 적용한 frame 누적(step-0302·== zoneHostFramesRecv 면 잔류 0·무손실).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
