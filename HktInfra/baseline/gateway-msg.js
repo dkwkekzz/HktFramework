@@ -117,6 +117,7 @@ const GatewayMsg = {
       // 게이트웨이 직접 존 라우팅(step-0294·#9) — 자기 zoneDir 로 존 host(런타임)를 해소해 그 host 로 entity enter frame 을 직접 보낸다(orch 데이터 평면 우회·라우팅 *결정*이 게이트웨이에). 디렉토리 미스(미배치/미학습)면 드롭(은닉 — 게이트웨이는 orch 내부 모름). 현재 zone-host 는 orch 가 보유하므로 host 태깅해 zoneDeliver 로 전달(orch 가 일치 검증·적용)·실 host.js 완전 분리는 #9 후속. 미수신(gatewayDirectZone OFF)이면 이 분기 영영 안 옴 = 이전 비트 동일.
       const host = this.zoneDir.get(p.zoneId);
       if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this.downClients.set(p.sessionId || ('s:' + p.avatar), m.from);   // step-0334 (#9 후속) — 다운스트림 라우팅 바인딩(세션→클라). orch 의 sessionId 기본('s:'+avatar)과 같은 키로 zoneView 가 해소되게. 맵 write 뿐(메시지 무변경) → reg 0.
       this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'enter', zoneId: p.zoneId, avatar: p.avatar, sessionId: p.sessionId, host });
       this.gatewayZoneRoutes++;
     } else if (p.type === 'zoneMove') {

@@ -51,6 +51,7 @@ const OrchBridgeInit = {
     // 다운스트림 egress(step-0331·#9 후속) — 0319~0330 은 host 가 산출한 AOI 뷰를 런타임 존 버퍼(rt.zone.net.buf)에 *포착*만 했다(질의로 읽을 뿐 전역 net 미접촉). zoneEgress ON 이면 orch(host)가 매 tick 그 버퍼의 *새* view frame 을 게이트웨이로 송출(zoneView)한다 — SPINE §4 경로2 월드 다운스트림(존→게이트웨이)의 실 배선 씨앗. per-runtime egress 커서(rt.egN)로 한 frame 1회만 송출(버퍼 미삭제·0319~0330 질의 보존). OFF→송출 0 = 0330 비트 동일.
     this.zoneEgress = opts.zoneEgress || false;
     this.zoneViewEgressed = 0;       // 게이트웨이로 송출한 view/view_delta frame 누적(step-0331·계측·== zoneViewFrames() 면 버퍼 잔류 0·무손실 송출).
+    this.zoneEgressSeq = new Map();   // step-0335 — 세션별 다운스트림 전송 시퀀스(sessionId→next dseq). egress frame 마다 단조 dseq 부여(클라가 순서/유실 감지·ack/재전송의 토대). zoneEgress OFF 면 미사용 = 비트 동일.
   },
 };
 
