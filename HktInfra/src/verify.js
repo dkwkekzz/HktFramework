@@ -1,8 +1,8 @@
-// HktInfra step-0304 — 헤드리스 검증 (#9 잔여: 실 host.js 물리 분리 4 — host roster register/deregister 계측)
+// HktInfra step-0305 — 헤드리스 검증 (정리 분할: host 프로세스 컨테이너 층 0301~0304 → orch-hostproc.js·기능 0·reg 0)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zonehostroster`.
-//   더한 한 조각: _hostSet 이 host 컨테이너 생성/삭제마다 hostRegisters/hostDeregisters++(프로세스 spawn/despawn 씨앗)·질의 hostRegistered. OFF→0303 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `zonehostroster`(가설) — 혼합 lifecycle 후 registers−deregisters == 현 host 수 == running host 수·roster==running hosts·데이터 평면 보존.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 은 *투명 분할*(새 기능 0) — 검증 = reg 0(비트 동일) + `zonehostroster`(분리된 메서드가 prototype 으로 그대로 해소됨을 재단언).
+//   더한 한 조각: 없음(orch-zonebridge.js 29.4KB>30KB 트리거 → host-proc 메서드를 orch-hostproc.js 믹스인으로 이동·Object.assign 되섞기). OFF/ON 무관 0304 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·분할 후에도 비트 동일). ⒝ `zonehostroster`(이전 가설 재실행) — 분리된 _hostSet·roster 질의가 그대로 동작(혼합 lifecycle 후 reg−dereg==현 host==running·데이터 평면 보존).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0304](step-0304.md) — **#9 잔여(실 host.js 물리 분리) 4: host roster register/deregister 계측**. `_hostSet` 이 host 컨테이너 첫 생성에 `hostRegisters++`(프로세스 spawn 씨앗)·마지막 존 잃어 삭제에 `hostDeregisters++`(despawn 씨앗). registers−deregisters == 현 host 수. 질의 `hostRegistered`. OFF→0303 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehostroster: 5/5 혼합 lifecycle 후 reg5−dereg3=net2==hosts==running hosts·roster==running·directFlowCoherent·total1·ledger5/1/2/1·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 진행** — host=1급 컨테이너(0301)·자기 inbox·자기 루프 tick(0302)·단일소유/drift(0303)·roster spawn/despawn(0304). 다음: host inbox stale 거부(이주 중 frame 거름·probe)·entity census by host·host coherence primitive·multi-churn bijection·capstone. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
+- **닫힌 step**: [step-0305](step-0305.md) — **정리 분할: host 프로세스 컨테이너 층(0301~0304) → orch-hostproc.js**. orch-zonebridge.js 29.4KB>30KB 트리거 근접 → host-proc 메서드(_hostSet·질의·불변) 새 박스 믹스인 분리. Object.assign 투명 분할·기능 0·reg 0. orch-zonebridge 26.7KB·orch-hostproc 5.0KB.
+- **한 줄 상태**: reg ALL OK(분할 후 비트 동일)·zonehostroster 5/5(분리 메서드 prototype 해소)·박스 ≤30KB·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 진행** — host=1급 컨테이너(0301)·자기 inbox·자기 루프 tick(0302)·단일소유/drift(0303)·roster spawn/despawn(0304)·정리 분할(0305). 다음: host inbox stale 거부(이주 중 frame 거름·probe)·entity census by host·host coherence primitive·multi-churn bijection·capstone. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
 
 ---
 
@@ -141,3 +141,4 @@
 | [0302](step-0302.md) | #9 잔여(실 host.js 물리 분리) 2: host 자기 inbox 수신+자기 루프 drain·tick(_zoneDeliver→host 컨테이너 inbox zoneId 태깅·per-runtime mbox 대체·소켓1=host1·_tickRuntimes host 단위 자기 inbox drain 후 자기 소유 존만 onTick·실 host.js 루프 씨앗·OFF→0301 동일) | 통과(reg 0·spine OK) · 5/5 recv7==drain7(잔류0)·dflow·total1·ledger5/1/2/1·hc==running |
 | [0303](step-0303.md) | #9 잔여(실 host.js 물리 분리) 3: host 컨테이너 단일 소유+표류 질의(zoneHostSingleOwner 어떤 존도 두 host 컨테이너 없음·zoneHostDrift host 컨테이너==running 표류 0·읽기 전용·0302 비트 동일) | 통과(reg 0·spine OK) · 5/5 drift0·single·dflow·total1·ledger5/1/2/1 |
 | [0304](step-0304.md) | #9 잔여(실 host.js 물리 분리) 4: host roster register/deregister 계측(_hostSet 첫 존 생성→hostRegisters++ spawn 씨앗·마지막 존 삭제→hostDeregisters++ despawn 씨앗·reg−dereg==현 host·질의 hostRegistered·OFF→0303 동일) | 통과(reg 0·spine OK) · 5/5 reg5−dereg3=net2==hosts==running·roster==running·dflow·total1·ledger5/1/2/1 |
+| [0305](step-0305.md) | 정리 분할: host 프로세스 컨테이너 층(0301~0304·_hostSet·질의·불변)→orch-hostproc.js 믹스인(Object.assign 투명 분할·>30KB 트리거 유계화·기능 0·orch-zonebridge 29.4KB→26.7KB) | 통과(reg 0·spine OK) · 분할 후 비트 동일·zonehostroster 5/5·박스 ≤30KB |
