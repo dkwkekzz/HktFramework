@@ -1,4 +1,5 @@
 'use strict';
+// step-0310 — #9 잔여(실 host.js 물리 분리) capstone: hostProcCoherent(directFlowCoherent && hostContainerCoherent). destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅(자기 inbox 수신·자기 루프 tick·roster·stale 거부)으로 돌린 뒤 참 → 실 host.js 물리 분리 arc 0301~0310 닫기. 읽기 전용·0309 비트 동일.
 // step-0309 — #9 잔여(실 host.js 물리 분리): host 컨테이너 스냅샷(zoneHostSnapshot·host→[존…]). 다중 동시 이주(4존 몰림→rebalance→drain) 후 host 컨테이너가 running 을 host 별로 묶은 것과 정확한 bijection(zoneDirSnapshot 0299 의 host 프로세스 판). 읽기 전용·0308 비트 동일.
 // step-0308 — #9 잔여(실 host.js 물리 분리): host 컨테이너 정합 불변(hostContainerCoherent) — 단일 소유 + 표류 0 + roster 회계 닫힘(register−deregister==현 host)을 한 술어로. bridgeCoherent(0278)의 host 프로세스 컨테이너 판. 읽기 전용·0307 비트 동일.
 // step-0307 — #9 잔여(실 host.js 물리 분리): host 프로세스 entity census(zoneHostCensus). 전 host 컨테이너의 {존 수, entity 수} 분포 — entityCensus(0289·존별)의 host 프로세스별 판(부하·재배치 판단의 실 단위). 읽기 전용·0306 비트 동일.
@@ -61,6 +62,8 @@ const OrchHostProc = {
     for (const [h, c] of this.zoneHosts) snap[h] = [...c.zones].sort();
     return snap;
   },
+  // host 프로세스 전 정합 질의(step-0310·#9 잔여 capstone) — 데이터 평면이 *host 프로세스 컨테이너 경유*로 흘러도 모든 것이 한 몸인지의 단일 술어: ⒜ directFlowCoherent(배치 3층 정합 + entity 단일 소유/orphan0 + 게이트웨이 직접 라우팅 stale 0·0300) ⒝ hostContainerCoherent(존이 정확히 한 host 프로세스에 + 컨테이너==집행 + roster 회계 닫힘·0308). 참이면 "게이트웨이 직접 라우팅 데이터 평면 전부 정합 + host 프로세스 컨테이너(자기 inbox 수신·자기 루프 tick·spawn/despawn roster·stale 거부)가 집행 SSOT 와 완전 정합". destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅으로 돌린 뒤 참(0310 capstone·실 host.js 물리 분리 arc 0301~0310 닫기). 읽기 전용.
+  hostProcCoherent() { return this.directFlowCoherent() && this.hostContainerCoherent(); },
 };
 
 const __part = { OrchHostProc };
