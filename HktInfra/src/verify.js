@@ -1,8 +1,8 @@
-// HktInfra step-0303 — 헤드리스 검증 (#9 잔여: 실 host.js 물리 분리 3 — host 컨테이너 단일 소유 + 표류 질의)
+// HktInfra step-0304 — 헤드리스 검증 (#9 잔여: 실 host.js 물리 분리 4 — host roster register/deregister 계측)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zonehostdrift`.
-//   더한 한 조각: zoneHostSingleOwner()(어떤 존도 두 host 컨테이너 동시 귀속 안 함) + zoneHostDrift()(host 컨테이너==running·표류 0). 읽기 전용→0302 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·읽기 전용 비트 동일). ⒝ `zonehostdrift`(가설) — 혼합 lifecycle 후 drift 0·singleOwner·data 평면 보존.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `zonehostroster`.
+//   더한 한 조각: _hostSet 이 host 컨테이너 생성/삭제마다 hostRegisters/hostDeregisters++(프로세스 spawn/despawn 씨앗)·질의 hostRegistered. OFF→0303 비트 동일(reg).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `zonehostroster`(가설) — 혼합 lifecycle 후 registers−deregisters == 현 host 수 == running host 수·roster==running hosts·데이터 평면 보존.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,9 +15,10 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0303 #9 잔여 검증 — host 컨테이너의 구조 불변(단일 소유 + 표류 0)을 1급 술어로 단언.
-//   0300 혼합 lifecycle 을 zoneHostProc ON 으로: zoneHostDrift 0(컨테이너==running)·zoneHostSingleOwner(어떤 존도 두 host 없음) + directFlowCoherent·total1·ledger 5/1/2/1.
-function zonehostdrift(seeds) {
+// step-0304 #9 잔여 검증 — host roster 가 프로세스 spawn/despawn 회계처럼 닫힌다(register−deregister == 현 host) + roster == running hosts.
+//   0300 혼합 lifecycle(hostdown C·stop z2·migrate z1·rebalance·drain 으로 host 가 들고 남)을 zoneHostProc ON 으로:
+//   → hostRegisters−hostDeregisters == zoneHostHosts().size == running host 수 + roster(hostRegistered)==running hosts + directFlowCoherent·total1·ledger 5/1/2/1.
+function zonehostroster(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
@@ -33,20 +34,24 @@ function zonehostdrift(seeds) {
   const ENTOPS = [ENTER(5, 'z1', 'a1'), ENTER(6, 'z1', 'a2'), ENTER(7, 'z2', 'a3'), ENTER(8, 'z3', 'a4'), ENTER(9, 'z3', 'a5'),
     MOVE(10, 'z1', 'a1', 2, 1), LEAVE(11, 'z1', 'a2')];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, placementOps: PLACEOPS, entityOps: ENTOPS };
-  console.log('== zonehostdrift (0303·#9 잔여 3): host 컨테이너 단일 소유 + 표류 질의. 혼합 lifecycle 후 zoneHostDrift 0·zoneHostSingleOwner + directFlowCoherent·total1·ledger5/1/2/1. ==');
-  console.log('seed   | drift | single | dflow | total | ledger        | 판정');
+  console.log('== zonehostroster (0304·#9 잔여 4): host roster register/deregister. 혼합 lifecycle 후 reg−dereg == 현 host == running host 수·roster==running hosts + dflow·total1·ledger5/1/2/1. ==');
+  console.log('seed   | reg | dereg | net==hosts | roster== | dflow | total | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 24, ...BASE });
     const o = r.orch;
-    const ledger = `${o.zoneEnters}/${o.zoneLeaves}/${o.zoneEntitiesLost}/${o.zoneEntitiesDiscarded}`;
-    const ok = check(o.zoneHostDrift() === 0 && o.zoneHostSingleOwner() && o.directFlowCoherent() && o.entityConserved() && o.totalEntities() === 1 &&
+    const net = o.hostRegisters - o.hostDeregisters;
+    const runHosts = new Set([...o.running.values()]);
+    const netOk = net === o.zoneHostHosts().size && net === runHosts.size;
+    let rosterOk = o.zoneHostHosts().size === runHosts.size;
+    for (const h of runHosts) if (!o.hostRegistered(h)) rosterOk = false;
+    const ok = check(netOk && rosterOk && o.hostRegisters >= 3 && o.directFlowCoherent() && o.entityConserved() && o.totalEntities() === 1 &&
       o.zoneEnters === 5 && o.zoneLeaves === 1 && o.zoneEntitiesLost === 2 && o.zoneEntitiesDiscarded === 1,
-      `seed ${seed}: host 컨테이너 불변 위반 (drift ${o.zoneHostDrift()}·single ${o.zoneHostSingleOwner()}·dflow ${o.directFlowCoherent()}·total ${o.totalEntities()}·ledger ${ledger})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.zoneHostDrift(), 5)} | ${pad(o.zoneHostSingleOwner() ? 'Y' : 'N', 6)} | ${pad(o.directFlowCoherent() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${pad(ledger, 13)} | ${ok ? 'OK' : 'FAIL'}`);
+      `seed ${seed}: roster 위반 (reg ${o.hostRegisters}·dereg ${o.hostDeregisters}·net ${net}·hosts ${o.zoneHostHosts().size}·run ${runHosts.size}·roster ${rosterOk}·dflow ${o.directFlowCoherent()})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostRegisters, 3)} | ${pad(o.hostDeregisters, 5)} | ${pad(netOk ? 'Y' : 'N', 10)} | ${pad(rosterOk ? 'Y' : 'N', 8)} | ${pad(o.directFlowCoherent() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['zonehostdrift'] = zonehostdrift;
-kit.ORDER.splice(1, 0, 'zonehostdrift');
+kit.MODES['zonehostroster'] = zonehostroster;
+kit.ORDER.splice(1, 0, 'zonehostroster');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
