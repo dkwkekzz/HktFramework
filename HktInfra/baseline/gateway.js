@@ -90,6 +90,7 @@ class Gateway {
       const exp = this.downSeqNext.get(p.sessionId) || 0;
       if (p.dseq === exp) this.downSeqNext.set(p.sessionId, exp + 1);
       else this.downSeqGaps++;
+      this.net.send(this.addr, 'orch', { type: 'zoneViewAck', sessionId: p.sessionId, dseq: p.dseq });   // step-0336 — 수신 확인 ack(orch egress 버퍼 자기-크기조정 가지치기·미-ack 만 잔류). zoneEgress OFF 면 zoneView 미수신 → ack 0 = 이전 비트 동일.
     }
     const client = this.downClients.get(p.sessionId);
     if (client) { this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++; }   // step-0334 — 세션→클라 전달(frame 그대로·클라 와이어 계약 = view/view_delta 0333 까지의 기존 형식). zoneEgress OFF 면 zoneView 미수신 → 이 송신 0 = 이전 비트 동일.

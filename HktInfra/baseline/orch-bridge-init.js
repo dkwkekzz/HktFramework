@@ -52,6 +52,10 @@ const OrchBridgeInit = {
     this.zoneEgress = opts.zoneEgress || false;
     this.zoneViewEgressed = 0;       // 게이트웨이로 송출한 view/view_delta frame 누적(step-0331·계측·== zoneViewFrames() 면 버퍼 잔류 0·무손실 송출).
     this.zoneEgressSeq = new Map();   // step-0335 — 세션별 다운스트림 전송 시퀀스(sessionId→next dseq). egress frame 마다 단조 dseq 부여(클라가 순서/유실 감지·ack/재전송의 토대). zoneEgress OFF 면 미사용 = 비트 동일.
+    this.zoneEgressBuf = new Map();    // step-0336 — 세션별 *미-ack* egress 버퍼(sessionId→[{dseq,frame}]). 게이트웨이 ack 로 가지치기(자기-크기조정·미-ack 만 잔류·재전송 소스·버스 ack 0040 의 다운스트림 판). zoneEgress OFF 면 빈 채 = 비트 동일.
+    this.zoneEgressAcked = new Map();  // step-0336 — 세션별 ack 워터마크(이 dseq 이하 게이트웨이 수신 확인·단조). 버퍼 가지치기 기준.
+    this.zoneEgressPruned = 0;         // step-0336 — ack 로 가지친 egress frame 누적(계측·== egressed 면 전부 ack·버퍼 0).
+    this.zoneEgressBufPeak = 0;        // step-0336 — egress 버퍼 최대 길이(자기-크기조정 유계 증거·ack 면 ≈in-flight).
   },
 };
 

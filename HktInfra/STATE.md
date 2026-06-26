@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0336](step-0336.md) — **#9 후속: egress 버퍼 자기-크기조정** — orch 가 egress frame 을 세션별 미-ack 버퍼(`zoneEgressBuf`)에 보관 → 게이트웨이가 dseq ack → orch 가 워터마크 이하 가지치기(버스 ack 0040 의 다운스트림 판·재전송 소스 유계). zoneEgress OFF→egress/ack0·비트 동일. 직전: 0335 per-세션 dseq.
-- **한 줄 상태**: reg ALL OK·gwack 5/5(pruned4==egr4·버퍼0·wm==마지막dseq)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0337](step-0337.md) — **#9 후속: 다운스트림 재전송** — 게이트웨이 인오더 게이팅(gap 감지 시 `zoneResync` 요청·중복 드롭) + orch `_resendEgress`(미-ack 버퍼서 dseq≥from 재전송). egress 손실(`egressDrop`) 주입에도 인오더 복구(무손실). 0008 ack/NAK 재전송의 다운스트림 판. 미주입·zoneEgress OFF→비트 동일. 직전: 0336 egress 버퍼 ack.
+- **한 줄 상태**: reg ALL OK·gwloss 5/5(drop1→resync1→resent3→downSeqNext5==egr5 복구)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→클라까지. 0331 egress✅·0333 게이트웨이 수신✅·0334 클라 라우팅(전달)✅. **후속**: per-세션 다운스트림 seq·클라 ack·재전송·keyframe/resync·격리·leave 정리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
@@ -153,3 +153,4 @@
 | [0334](step-0334.md) | downstream 전파 3(#9 후속): 게이트웨이→클라 라우팅(zoneEnter 시 세션→클라 downClients 바인딩→zoneView 수신 시 그 클라로 frame 전달·미바인딩 드롭·존→게이트웨이→클라 완성·zoneEgress OFF→전달 0 비트 동일) | 통과(reg 0·spine OK) · gwroute 5/5 routed4==rx4·drop0·바인딩정확 |
 | [0335](step-0335.md) | downstream 전파 4(#9 후속): per-세션 시퀀스(orch egress frame 마다 세션별 단조 dseq·zoneEgressSeq→게이트웨이 downSeqNext 순서/유실 추적·gap 카운트·zoneEgress OFF→dseq0 비트 동일) | 통과(reg 0·spine OK) · gwseq 5/5 gap0·세션next==수신수 |
 | [0336](step-0336.md) | downstream 전파 5(#9 후속): egress 버퍼 자기-크기조정(orch zoneEgressBuf 세션별 미-ack 보관→게이트웨이 zoneViewAck→orch 워터마크 가지치기·버스 ack 0040 다운스트림 판·재전송 소스 유계·zoneEgress OFF→0 비트 동일) | 통과(reg 0·spine OK) · gwack 5/5 pruned4==egr4·버퍼0 |
+| [0337](step-0337.md) | downstream 전파 6(#9 후속): 재전송 복구(게이트웨이 인오더 게이팅·gap→zoneResync·중복 드롭 + orch `_resendEgress` 미-ack 버퍼서 dseq≥from 재전송·egressDrop 손실 주입·0008 ack/NAK 다운스트림 판·미주입 OFF→비트 동일) | 통과(reg 0·spine OK) · gwloss 5/5 drop1→resync1→복구 next5==egr5 |

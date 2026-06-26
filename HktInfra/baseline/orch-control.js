@@ -12,6 +12,8 @@
 const OrchControl = {
   onMsg(m) {
     const p = m.payload;
+    // 다운스트림 egress ack(step-0336·#9 후속) — 게이트웨이가 받은 dseq 까지 통보 → 세션별 egress 버퍼 가지치기(자기-크기조정·재전송 소스 유계). 미수신(zoneEgress OFF)이면 영영 안 옴 = 이전 비트 동일(reg 0).
+    if (p.type === 'zoneViewAck') { this._onZoneViewAck(p.sessionId, p.dseq); return; }
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
     if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; if (this.placeExecute) this._start(p.zoneId, p.host); return; }
     // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.

@@ -18,10 +18,12 @@ const OrchViews = {
         const sid = p.sessionId;
         const dseq = this.zoneEgressSeq.get(sid) || 0;   // step-0335 — 세션별 단조 다운스트림 시퀀스(클라가 순서/유실 감지·ack/재전송의 토대).
         this.zoneEgressSeq.set(sid, dseq + 1);
-        this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
+        const key = sid + '#' + dseq;   // step-0337 — 전송 손실 주입: 이 키의 *첫* egress 만 드롭(전송층 유실 모델·재전송은 통과). 미주입이면 항상 전송.
+        if (this.egressDrop.has(key) && !this.egressDroppedOnce.has(key)) { this.egressDroppedOnce.add(key); this.zoneEgressDropped++; }
+        else this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
         this.zoneViewEgressed++;
-        let eb = this.zoneEgressBuf.get(sid); if (!eb) { eb = []; this.zoneEgressBuf.set(sid, eb); }   // step-0336 — 미-ack 버퍼에 보관(게이트웨이 ack 로 가지치기·재전송 소스).
-        eb.push({ dseq, frame: p });
+        let eb = this.zoneEgressBuf.get(sid); if (!eb) { eb = []; this.zoneEgressBuf.set(sid, eb); }   // step-0336 — 미-ack 버퍼에 보관(게이트웨이 ack 로 가지치기·재전송 소스·드롭된 frame 도 보관 → 재전송 가능).
+        eb.push({ dseq, frame: p, zoneId });
         if (eb.length > this.zoneEgressBufPeak) this.zoneEgressBufPeak = eb.length;
       }
       rt.egN = cur;
@@ -41,6 +43,12 @@ const OrchViews = {
   // 다운스트림 egress 버퍼 질의(step-0336·#9 후속) — "이 세션 미-ack 버퍼 길이 / ack 워터마크 / 가지친 누적"(자기-크기조정 유계·무손실 ack 검증). 읽기 전용.
   zoneEgressBufLen(sid) { const b = this.zoneEgressBuf.get(sid); return b ? b.length : 0; },
   zoneEgressAckedOf(sid) { return this.zoneEgressAcked.has(sid) ? this.zoneEgressAcked.get(sid) : -1; },
+  // 다운스트림 재전송(step-0337·#9 후속) — 게이트웨이 zoneResync{sessionId, from} 에 응답: 미-ack 버퍼의 dseq≥from frame 을 다시 전송(드롭으로 게이트웨이가 못 받은 분 복구). 버퍼가 재전송 소스(0336)·인오더 재배달 → 게이트웨이 gap 닫힘. 손실 1회 모델이라 재전송은 항상 통과.
+  _resendEgress(sid, from) {
+    this.zoneResyncServed++;
+    const buf = this.zoneEgressBuf.get(sid); if (!buf) return;
+    for (const e of buf) if (e.dseq >= from) { this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId: e.zoneId, sessionId: sid, dseq: e.dseq, frame: e.frame }); this.zoneResent++; }
+  },
   // 런타임 존 산출 뷰 버퍼 질의(step-0320·#9 후속) — 그 host 프로세스 런타임 존이 산출해 버퍼링 싱크에 쌓은 view frame 원본 배열({to, payload}…). 다운스트림 뷰의 *내용*(누가 무엇을 보나)을 검증하는 창(AOI 정확성·전파 무손실). 미가동 존 []. 읽기 전용.
   zoneViewBuf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return (rt && rt.zone.net && rt.zone.net.buf) ? rt.zone.net.buf : []; },
   // 세션이 본 entity 집합 질의(step-0322·#9 후속) — 그 세션에 산출된 view 들의 enter 를 누적한 id 집합(=그 세션이 *언젠가 한 번이라도 AOI 안에서 본* entity 들). 두 avatar 가 가까워지면 서로의 집합에 들어온다(상호 가시·enter 델타). 미가동/미존재 빈 집합. 읽기 전용.
