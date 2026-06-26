@@ -140,9 +140,11 @@ async function discoverRules() {
   return found;
 }
 
-// 시나리오 자동 탐색 — 탐색된 각 규칙 폴더의 scenario.js 를 후보로(경로 입력 대신 드롭다운).
-//   내장 '기본 세계'(3D) 를 항상 첫 항목으로 둔다. value 에 import 경로를 박아 로드가 단순해진다.
-function buildScenarioOptions() {
+// 시나리오 자동 탐색 — 각 규칙 폴더의 scenario.js + scenario_*.js 변형을 후보로(경로 입력 대신 드롭다운).
+//   내장 '기본 세계'(3D) 를 항상 첫 항목으로. 변형(예: scenario_soup.js)은 한 규칙에 여러 시나리오를 둘 수 있게 한다.
+//   브라우저는 디렉토리 목록을 못 보므로 정해진 접미사 후보를 import 로 탐침(없으면 404 → 건너뜀).
+const SCN_SUFFIXES = ['', '_soup', '_2', '_3'];
+async function buildScenarioOptions() {
   const sel = $('scnSelect');
   const prev = sel.value;
   sel.innerHTML = '';
@@ -150,7 +152,15 @@ function buildScenarioOptions() {
   add('__demo__', '기본 세계 (내장 3D)');
   for (const r of rules) {
     const id = r.id || r.name || '?';
-    add(`../rules/${id}/scenario.js`, `${id}${r.name ? ' — ' + r.name : ''}`);
+    for (const suf of SCN_SUFFIXES) {
+      const path = `../rules/${id}/scenario${suf}.js`;
+      try {
+        const mod = await import(/* @vite-ignore */ path + `?t=${performance.now()}`);
+        const scn = mod.default || mod;
+        if (scn && typeof scn.setup === 'function')
+          add(path, `${id} — ${scn.name || (suf ? suf.slice(1) : (r.name || '기본'))}`);
+      } catch (e) { /* 없는 변형은 건너뜀 */ }
+    }
   }
   // 이전 선택 유지(가능하면)
   if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
@@ -391,7 +401,7 @@ $('scnSelect').onchange = () => loadSelectedScenario();   // 선택 즉시 로�
 $('reload').onclick = async () => {
   rules = await discoverRules();
   params = mergeDefaults(rules);
-  buildScenarioOptions();
+  await buildScenarioOptions();
   syncStats();
 };
 
@@ -400,7 +410,7 @@ resize();
 (async () => {
   rules = await discoverRules();
   params = mergeDefaults(rules);
-  buildScenarioOptions();
+  await buildScenarioOptions();
   buildWorld();
   requestAnimationFrame(tick);
 })();

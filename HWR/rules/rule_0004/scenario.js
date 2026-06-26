@@ -5,6 +5,7 @@ const atom = (x, y, z, vx, vy, Z, m, hue) => ({ x, y, z, vx, vy, vz: 0, Z, m, hu
 
 export default {
   rule: 'rule_0004',
+  name: '분자 형성 데모 (H₂O·NaCl·CO₂·Ne)',
   setup() {
     const W = 360, H = 360, D = 360;
     const els = [
