@@ -1,8 +1,8 @@
-// HktInfra step-0335 — 헤드리스 검증 (#9 후속: 다운스트림 per-세션 시퀀스 — egress dseq·순서/유실 추적)
+// HktInfra step-0336 — 헤드리스 검증 (#9 후속: 다운스트림 egress 버퍼 자기-크기조정 — 게이트웨이 ack 가지치기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `gwseq`.
-//   더한 한 조각: orch egress 가 frame 마다 세션별 단조 dseq 부여(zoneEgressSeq) → 게이트웨이가 per-세션 next 기대로 순서/유실 추적(downSeqNext·downSeqGaps). 클라 ack/재전송의 토대.
-//   검증: ⒜ `reg`(키트·zoneEgress OFF→dseq 0·비트 동일). ⒝ `gwseq` — 인오더 전송에서 gap 0·세션별 next == 그 세션 수신 frame 수(0,1,..k 연속).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `gwack`.
+//   더한 한 조각: orch 가 egress frame 을 세션별 미-ack 버퍼(zoneEgressBuf)에 보관 → 게이트웨이가 dseq ack → orch 가 ack 워터마크 이하 가지치기(자기-크기조정·재전송 소스). 버스 ack(0040) 의 다운스트림 판.
+//   검증: ⒜ `reg`(키트·zoneEgress OFF→egress/ack 0·비트 동일). ⒝ `gwack` — 정상 흐름에 ack 가 흘러 세션 버퍼 0(전부 ack·가지침)·ack 워터마크 == 마지막 dseq·pruned == egressed.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,29 +15,31 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0335 #9 후속 — 다운스트림 per-세션 시퀀스. a1·a2 enter+이동 → egress frame 마다 세션별 단조 dseq → 게이트웨이가 순서 추적.
-//   인오더 전송 → gap 0 && 세션별 next == 그 세션 수신 frame 수(dseq 0..k-1 연속). a1·a2 각 next==2.
-function gwseq(seeds) {
+// step-0336 #9 후속 — egress 버퍼 자기-크기조정. a1·a2 enter+이동 → orch egress 버퍼 적재 → 게이트웨이 ack → orch 가지치기.
+//   정상 인오더 흐름엔 ack 가 다 흘러 세션 버퍼 0(전부 가지침)·pruned == egressed·ack 워터마크 == 마지막 dseq(= 그 세션 frame 수 −1).
+function gwack(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
   const OPS = [PLACE(1, 'z1', 'hostA')];
   const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(4, 'z1', 'a2', 'dc1'), MOVE(6, 'z1', 'a1', 1, 1, 'dc0'), MOVE(8, 'z1', 'a2', 1, 0, 'dc1')];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true };
-  console.log('== gwseq (0335·#9 후속): egress 세션별 단조 dseq → 게이트웨이 순서 추적. gap0 && 세션별 next==수신 frame 수. ==');
-  console.log('seed   | rx | gap | a1next | a2next | 판정');
+  console.log('== gwack (0336·#9 후속): egress 버퍼 ack 자기-크기조정. 정상 흐름 세션 버퍼 0·pruned==egressed·ack wm==마지막 dseq. ==');
+  console.log('seed   | egr | pruned | buf1 | buf2 | wm1 | wm2 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 16, ...BASE, placementOps: OPS, entityOps: ENT });
-    const g = r.gateway;
-    const rx = g.gatewayDownstreamCount(), gap = g.gatewayDownGaps();
-    const n1 = g.gatewayDownSeqNext('s:a1'), n2 = g.gatewayDownSeqNext('s:a2');
-    const ok = check(rx > 0 && gap === 0 && n1 === g.gatewayViewsFor('s:a1') && n2 === g.gatewayViewsFor('s:a2') && n1 > 0 && n2 > 0,
-      `seed ${seed}: rx ${rx} gap ${gap} n1 ${n1}/${g.gatewayViewsFor('s:a1')} n2 ${n2}/${g.gatewayViewsFor('s:a2')}`);
-    console.log(`${pad(seed, 6)} | ${pad(rx, 2)} | ${pad(gap, 3)} | ${pad(n1, 6)} | ${pad(n2, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const o = r.orch;
+    const egr = o.zoneEgressCount(), pr = o.zoneEgressPruned;
+    const b1 = o.zoneEgressBufLen('s:a1'), b2 = o.zoneEgressBufLen('s:a2');
+    const w1 = o.zoneEgressAckedOf('s:a1'), w2 = o.zoneEgressAckedOf('s:a2');
+    const f1 = r.gateway.gatewayViewsFor('s:a1'), f2 = r.gateway.gatewayViewsFor('s:a2');
+    const ok = check(egr > 0 && pr === egr && b1 === 0 && b2 === 0 && w1 === f1 - 1 && w2 === f2 - 1,
+      `seed ${seed}: egr ${egr} pruned ${pr} buf ${b1}/${b2} wm ${w1}/${w2} (f ${f1}/${f2})`);
+    console.log(`${pad(seed, 6)} | ${pad(egr, 3)} | ${pad(pr, 6)} | ${pad(b1, 4)} | ${pad(b2, 4)} | ${pad(w1, 3)} | ${pad(w2, 3)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['gwseq'] = gwseq;
-kit.ORDER.splice(1, 0, 'gwseq');
+kit.MODES['gwack'] = gwack;
+kit.ORDER.splice(1, 0, 'gwack');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

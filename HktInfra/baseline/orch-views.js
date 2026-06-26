@@ -15,7 +15,10 @@ const OrchViews = {
       for (; cur < buf.length; cur++) {
         const p = buf[cur].payload;
         if (p.type !== 'view' && p.type !== 'view_delta') continue;
-        this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: p.sessionId, frame: p });   // 존→게이트웨이 다운스트림(frame 봉투에 zoneId·sessionId 태깅 → 게이트웨이가 세션→클라 해소·후속).
+        const sid = p.sessionId;
+        const dseq = this.zoneEgressSeq.get(sid) || 0;   // step-0335 — 세션별 단조 다운스트림 시퀀스(클라가 순서/유실 감지·ack/재전송의 토대).
+        this.zoneEgressSeq.set(sid, dseq + 1);
+        this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
         this.zoneViewEgressed++;
       }
       rt.egN = cur;
