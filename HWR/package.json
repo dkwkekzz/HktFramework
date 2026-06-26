@@ -1,0 +1,6 @@
+{
+  "name": "hwr",
+  "private": true,
+  "type": "module",
+  "description": "HWR — 원소로 굴러가는 세계. 규칙 코드는 ES 모듈. verify 는 node 로 실행."
+}
