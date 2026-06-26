@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0330](step-0330.md) — **#9 후속 capstone: 다운스트림 데이터 평면 전 정합 `downstreamCoherent`** (zoneViewConserved && zoneViewAllKeyed && serializable). 혼합 lifecycle(enter/move/leave/migrate) 뒤 두 존 downstreamCoherent + hostProcCoherent + entityConserved·total 2 → **downstream sub-arc 0319~0330 닫기**. 읽기 전용·0329 비트 동일.
-- **한 줄 상태**: reg ALL OK·downstreamcap 5/5(dc1·dc2·hpcoh·consv·total2)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **downstream 데이터 평면 sub-arc(0319~0330 ✅ 닫힘)** — host 프로세스 AOI 뷰 *산출·포착·정확성*(AOI/증분/상호 가시/exit/직렬화/격리/이주 연속성/무굶김/무손실 회계/capstone). 부하 균형 sub-arc(0311~0318 ✅) 위에. **후속**: ⒜ 게이트웨이→실 클라 전파(재전송/ack·실 클라 하니스) ⒝ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합) ⒞ 진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310·0311~0320·0321~0330 묶음 리뷰 적기 — 미실시(4묶음 누적)**.
+- **닫힌 step**: [step-0331](step-0331.md) — **#9 후속: 다운스트림 egress** — orch `_drainZoneEgress` 가 런타임 존 버퍼(`rt.zone.net.buf`)의 새 view frame 을 매 tick 게이트웨이로 송출(`zoneView`·per-rt 커서·SPINE §4 경로2 존→게이트웨이 배선). 플래그 `zoneEgress` OFF→0330 비트 동일. **downstream *전파* sub-arc(0331~) 시작** — 0319~0330 은 host *포착*까지였다.
+- **한 줄 상태**: reg ALL OK·egress 5/5(egress==zoneViewFrames=4·버퍼 잔류 0)·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→실 클라까지 전파. 0331 egress(존→게이트웨이 송출) ✅. **후속**: 게이트웨이 `zoneView` 수신→세션→클라 라우팅·per-세션 seq·ack·재전송·keyframe·격리·무손실 회계·capstone. 포착 sub-arc(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 적기 — 미실시(4묶음 누적)**.
 
 ---
 
@@ -149,3 +149,4 @@
 | [0328](step-0328.md) | downstream 데이터 평면 9(#9 후속): 세션 무굶김(술어 zoneViewAllKeyed·모든 활성 세션이 초기 reset keyframe 받음·a1·a2·a3 enter→셋 다 keyed·no-starvation·읽기 전용·0327 비트 동일) | 통과(reg 0·spine OK) · 5/5 sessions3·allKeyed·resets1/1/1 |
 | [0329](step-0329.md) | downstream 데이터 평면 10(#9 후속): 뷰 무손실 회계(술어 zoneViewConserved·모든 view frame 이 정확히 한 세션 귀속·고아 0·세션별 합==전체·읽기 전용·0328 비트 동일) | 통과(reg 0·spine OK) · 5/5 frames8==sumSess·consv |
 | [0330](step-0330.md) | downstream 데이터 평면 11·capstone(#9 후속): 전 정합 downstreamCoherent(zoneViewConserved&&zoneViewAllKeyed&&serializable·혼합 lifecycle enter/move/leave/migrate 뒤 두 존 정합+hostProcCoherent+entityConserved·downstream sub-arc 0319~0330 닫기·읽기 전용·0329 비트 동일) | 통과(reg 0·spine OK) · 5/5 dc1·dc2·hpcoh·consv·total2 |
+| [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |

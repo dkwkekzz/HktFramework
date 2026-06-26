@@ -15,6 +15,10 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 다운스트림 전 정합 술어(step-0330·#9 후속 capstone) — 그 존의 다운스트림 데이터 평면이 *완전히 건강한지*의 단일 술어: ⒜ zoneViewConserved(모든 frame 이 한 세션에 귀속·고아 0·0329) ⒝ zoneViewAllKeyed(모든 활성 세션이 초기 keyframe·무굶김·0328) ⒞ zoneViewWire().serializable(전부 와이어 준비·0325). 참이면 "host 가 산출한 AOI 뷰가 빠짐없이 주소를 갖고·아무도 안 굶고·소켓을 탈 준비가 됐다". 혼합 lifecycle(enter/move/leave/migrate) 뒤 참(capstone). 미가동 존 자명 참. 읽기 전용.
+  downstreamCoherent(zoneId) {
+    return this.zoneViewConserved(zoneId) && this.zoneViewAllKeyed(zoneId) && this.zoneViewWire(zoneId).serializable;
+  },
   // 런타임 존 다운스트림 무손실 회계 술어(step-0329·#9 후속) — 산출된 모든 view frame 이 *정확히 한 세션*에 귀속되는가(고아 frame 0): ⒜ 모든 view/view_delta frame 이 비어있지 않은 sessionId 를 가진다(주소 없는 = 배달 불가 frame 없음) ⒝ 세션별 total 합 == 전체 frame 수(분배 무손실). 참이면 host 가 산출한 다운스트림 뷰가 빠짐없이 누군가에게 배달될 주소를 갖는다. 미가동 존 자명 참. 읽기 전용.
   zoneViewConserved(zoneId) {
     const buf = this.zoneViewBuf(zoneId); let frames = 0; const sids = new Set();
