@@ -1,4 +1,5 @@
 'use strict';
+// step-0303 — #9 잔여(실 host.js 물리 분리): host 컨테이너 단일 소유 불변(zoneHostSingleOwner) + 표류 질의(zoneHostDrift). 어떤 존도 두 host 컨테이너에 동시 귀속 안 함(존 host 단일 소유의 컨테이너 판) + host 컨테이너 == 집행 SSOT(running)와 표류 0. 읽기 전용·0302 비트 동일.
 // step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick. zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): host 1급 컨테이너(zoneHosts) 레지스트리. flat zoneRuntimes(zoneId→{zone,host}) 위에, host 가 *자기 존 집합을 소유한 컨테이너*(실 host.js 프로세스의 씨앗)임을 _hostSet 으로 유지. 배치 집행(start/migrate/hostdown/stop)이 zone→host 귀속을 갱신. 질의 hostRuntimeCount/zoneHostOf/zoneHostHosts. zoneHostProc OFF→호출 자체 no-op = 0300 비트 동일.
 // step-0300 — #9 멀티프로세스 배선 10·capstone: directFlowCoherent 질의(entityFlowCoherent && entityDirectCoherent). destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참 → #9 arc 0291~0300 닫기. 읽기 전용.
@@ -37,6 +38,20 @@ const OrchZoneBridge = {
   hostRuntimeCount(host) { const c = this.zoneHosts.get(host); return c ? c.zones.size : 0; },
   zoneHostOf(zoneId) { for (const [h, c] of this.zoneHosts) if (c.zones.has(zoneId)) return h; return null; },
   zoneHostHosts() { return new Set(this.zoneHosts.keys()); },
+  // host 컨테이너 단일 소유 불변(step-0303·#9 잔여) — 어떤 존도 두 host 컨테이너에 동시에 귀속하지 않는다(존의 host 단일 소유의 *컨테이너* 판·zone-host 핸들 0276 과 동형). _hostSet 이 어디 있든 먼저 떼고 한 곳에만 붙이므로 정상 op 에선 항상 참 — 모든 배치 op 뒤 단언(capstone). 읽기 전용.
+  zoneHostSingleOwner() {
+    const seen = new Set();
+    for (const c of this.zoneHosts.values()) for (const z of c.zones) { if (seen.has(z)) return false; seen.add(z); }
+    return true;
+  },
+  // host 컨테이너 표류 질의(step-0303·#9 잔여) — host 컨테이너(host→{zones})와 집행 SSOT(running·zoneId→host)가 어긋난 존 수: ⒜ running 존이 자기 host 컨테이너에 없거나 다른 host 에 ⒝ 컨테이너엔 있는데 running 에 없는(orphan) 존. zoneRuntimeDrift(0276·실 핸들 host)의 *컨테이너* 판 — placeExecute+zoneHostProc ON 이면 모든 배치 op 뒤 0(host 컨테이너가 집행 SSOT 와 한 몸). 읽기 전용.
+  zoneHostDrift() {
+    let d = 0;
+    const ids = new Set([...this.running.keys()]);
+    for (const c of this.zoneHosts.values()) for (const z of c.zones) ids.add(z);
+    for (const z of ids) { if (this.zoneHostOf(z) !== (this.running.get(z) || null)) d++; }
+    return d;
+  },
   // 브리지 start(step-0272) — 배치 결정 집행 시 실 EntityZone 런타임을 host 에 띄운다(zoneRuntimes 등록). 이미 도는 존이면 host 만 정렬(멱등·신규 인스턴스화 아님). zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_start 가드).
   _bridgeStart(zoneId, host) {
     const rt = this.zoneRuntimes.get(zoneId);
