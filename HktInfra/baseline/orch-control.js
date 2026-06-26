@@ -104,6 +104,8 @@ const OrchControl = {
     if (this.zoneEntityFlow) this._tickRuntimes(tick);
     // 다운스트림 egress(step-0331·#9 후속) — 런타임 존이 산출해 버퍼에 쌓은 새 view frame 을 게이트웨이로 송출(존→게이트웨이 월드 다운스트림 배선). zoneEgress OFF 면 미실행 = 0330 비트 동일.
     if (this.zoneEgress) this._drainZoneEgress();
+    // 다운스트림 타임아웃 재전송(step-0338·#9 후속) — ack 없이 egressTimeout tick 경과한 미-ack frame 재전송(세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍). egressTimeout 0 면 미실행 = 이전 비트 동일.
+    if (this.zoneEgress && this.egressTimeout) this._retransmitStale(tick);
     // 미확인 recover 재시도(step-0058·recoverRetry) — recoverTimeout 경과해도 ack 안 온 명령을 재발신. ack 오면 onMsg 가 pendingRecover 에서 지운다(루프 종료). OFF 면 미실행 = 0057 비트 동일.
     if (this.recoverRetry && this.pendingRecover.size) {
       for (const [consumer, sentAt] of this.pendingRecover) {

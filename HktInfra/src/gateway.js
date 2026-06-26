@@ -80,6 +80,13 @@ class Gateway {
     // 다운스트림 재전송 요청(step-0337·#9 후속) — 앞 frame 유실로 gap(dseq>기대) 감지 시 orch 에 zoneResync 발신(에피소드당 1회·인오더 복귀 시 해제). orch 가 버퍼에서 재전송 → gap 닫힘. 손실 없으면 발신 0 = 이전 비트 동일.
     this.downResyncPending = new Set();   // sessionId — 미해결 resync 요청 보유(중복 요청 억제).
     this.downResyncsSent = 0;             // 발신한 zoneResync 누적(step-0337·손실 1건당 ≥1).
+    this.downCleaned = 0;                 // step-0339 — 정리한 다운스트림 세션 누적(leave/disconnect 시·stale 바인딩 회수).
+  }
+  // 다운스트림 세션 정리(step-0339·#9 후속) — leave/disconnect 시 그 세션의 다운스트림 상태(클라 바인딩·시퀀스·resync·수신 버퍼)를 일괄 제거(stale 바인딩/무계 성장 방지·0334 한계 해소). 미존재 세션은 멱등 no-op.
+  _downCleanup(sid) {
+    const had = this.downClients.has(sid);
+    this.downClients.delete(sid); this.downSeqNext.delete(sid); this.downResyncPending.delete(sid); this.zoneViewIn.delete(sid);
+    if (had) this.downCleaned++;
   }
   // 다운스트림 뷰 수신+라우팅(step-0333 수신·step-0334 라우팅) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존) + downClients 바인딩이 있으면 그 클라로 frame 전달(존→게이트웨이→클라). sessionId 없으면 무시(주소 불가)·미바인딩이면 드롭(계측).
   _recvZoneView(p) {
@@ -113,6 +120,7 @@ class Gateway {
   gatewayDownSeqNext(sessionId) { return this.downSeqNext.get(sessionId) || 0; }
   gatewayDownGaps() { return this.downSeqGaps; }
   gatewayResyncsSent() { return this.downResyncsSent; }   // step-0337 — 발신한 다운스트림 재전송 요청 수(손실 복구 발화 증거).
+  gatewayCleanedCount() { return this.downCleaned; }      // step-0339 — 정리한 다운스트림 세션 수(leave 회수 증거).
   // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
   gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
   gatewayDownstreamCount() { return this.zoneViewsRx; }

@@ -177,6 +177,7 @@ function buildTopology(opts) {
     zoneHostLifecycle = false, // step-0312 (#9 잔여) — host 컨테이너 spawn/despawn 생애주기 이벤트 로그. OFF→0311 비트 동일.
     zoneEgress = false,        // step-0331 (#9 후속) — host 산출 뷰를 게이트웨이로 송출(존→게이트웨이 월드 다운스트림 배선). OFF→0330 비트 동일.
     egressDrop = null,         // step-0337 (#9 후속) — 다운스트림 전송 손실 주입(["sid#dseq"…]·테스트). 미설정→손실 0 = 비트 동일.
+    egressTimeout = 0,         // step-0338 (#9 후속) — 미-ack egress frame 타임아웃 재전송 tick(0=off·마지막 frame 손실 복구). 0→비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -243,7 +244,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneEgress, egressDrop, zoneRtGrid: grid, zoneRtRadius: radius } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneEgress, egressDrop, egressTimeout, zoneRtGrid: grid, zoneRtRadius: radius } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }

@@ -61,6 +61,8 @@ const OrchBridgeInit = {
     this.zoneEgressDropped = 0;         // step-0337 — egress 전송 손실(드롭)한 frame 누적(주입 계측).
     this.zoneResent = 0;                // step-0337 — 재전송(resync)으로 버퍼에서 다시 보낸 frame 누적.
     this.zoneResyncServed = 0;          // step-0337 — 처리한 게이트웨이 zoneResync 요청 누적.
+    this.egressTimeout = opts.egressTimeout || 0;   // step-0338 — 미-ack egress frame 의 타임아웃 재전송 tick(0=off). 게이트웨이 gap 감지(0337)는 *뒤 frame 도착*이 트리거라 세션 *마지막* frame 손실은 못 잡는다 → orch 가 ack 없는 frame 을 타임아웃 후 재전송(zone heartbeat·bus recoverRetry 0058 의 다운스트림 판). 0=off → 비트 동일.
+    this.zoneEgressTimeoutResent = 0;   // step-0338 — 타임아웃으로 재전송한 frame 누적(마지막-frame 손실 복구 발화 증거).
   },
 };
 

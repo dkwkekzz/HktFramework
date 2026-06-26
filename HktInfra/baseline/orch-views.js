@@ -23,7 +23,7 @@ const OrchViews = {
         else this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
         this.zoneViewEgressed++;
         let eb = this.zoneEgressBuf.get(sid); if (!eb) { eb = []; this.zoneEgressBuf.set(sid, eb); }   // step-0336 — 미-ack 버퍼에 보관(게이트웨이 ack 로 가지치기·재전송 소스·드롭된 frame 도 보관 → 재전송 가능).
-        eb.push({ dseq, frame: p, zoneId });
+        eb.push({ dseq, frame: p, zoneId, sentAt: this.curTick });   // step-0338 — sentAt: 타임아웃 재전송 기준(ack 없이 egressTimeout tick 경과 시 재전송).
         if (eb.length > this.zoneEgressBufPeak) this.zoneEgressBufPeak = eb.length;
       }
       rt.egN = cur;
@@ -48,6 +48,15 @@ const OrchViews = {
     this.zoneResyncServed++;
     const buf = this.zoneEgressBuf.get(sid); if (!buf) return;
     for (const e of buf) if (e.dseq >= from) { this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId: e.zoneId, sessionId: sid, dseq: e.dseq, frame: e.frame }); this.zoneResent++; }
+  },
+  // 타임아웃 재전송(step-0338·#9 후속) — 매 tick 미-ack egress 버퍼를 훑어 ack 없이 egressTimeout tick 경과한 frame 을 재전송한다. 게이트웨이 gap-resync(0337)는 *뒤 frame 도착*이 트리거라 세션 *마지막* frame 손실은 영영 못 잡는다 → 이 능동 재전송이 그 구멍을 메운다(zone heartbeat·bus recoverRetry 0058 의 다운스트림 판). 재전송 후 sentAt 갱신(또 egressTimeout 대기) → ack 오면 가지쳐 종료. egressTimeout 0 면 미실행 = 비트 동일.
+  _retransmitStale(tick) {
+    for (const [sid, buf] of this.zoneEgressBuf) {
+      for (const e of buf) if (tick - e.sentAt >= this.egressTimeout) {
+        this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId: e.zoneId, sessionId: sid, dseq: e.dseq, frame: e.frame });
+        e.sentAt = tick; this.zoneEgressTimeoutResent++;
+      }
+    }
   },
   // 런타임 존 산출 뷰 버퍼 질의(step-0320·#9 후속) — 그 host 프로세스 런타임 존이 산출해 버퍼링 싱크에 쌓은 view frame 원본 배열({to, payload}…). 다운스트림 뷰의 *내용*(누가 무엇을 보나)을 검증하는 창(AOI 정확성·전파 무손실). 미가동 존 []. 읽기 전용.
   zoneViewBuf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return (rt && rt.zone.net && rt.zone.net.buf) ? rt.zone.net.buf : []; },

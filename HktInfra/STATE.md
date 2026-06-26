@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0338](step-0338.md) — **#9 후속: 다운스트림 타임아웃 재전송** — orch `_retransmitStale` 가 매 tick ack 없이 `egressTimeout` 경과한 frame 재전송 → 0337 gap-resync 가 못 잡는 세션 *마지막* frame 손실 복구(zone heartbeat·bus 0058 의 다운스트림 판). egressTimeout 0·zoneEgress OFF→비트 동일. 직전: 0337 gap 재전송.
-- **한 줄 상태**: reg ALL OK·gwtimeout 5/5(마지막 frame 손실 resync0→timeoutResent1→복구 next4==egr4)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0339](step-0339.md) — **#9 후속: 다운스트림 leave 정리** — leave 시 게이트웨이 `_downCleanup`(downClients/seq/resync/buffer)·orch `_bridgeLeave`(egress buf/seq/acked) 정리(0334 stale 바인딩/무계 성장 한계 해소). egress OFF→정리 맵 빈 채·미참조→비트 동일. 직전: 0338 타임아웃 재전송.
+- **한 줄 상태**: reg ALL OK·gwleave 5/5(a1 cleaned·b1 null·buf1 0·a2 보존)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→클라까지. 0331 egress✅·0333 게이트웨이 수신✅·0334 클라 라우팅(전달)✅. **후속**: per-세션 다운스트림 seq·클라 ack·재전송·keyframe/resync·격리·leave 정리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
@@ -148,3 +148,4 @@
 | [0336](step-0336.md) | downstream 전파 5(#9 후속): egress 버퍼 자기-크기조정(orch zoneEgressBuf 세션별 미-ack 보관→게이트웨이 zoneViewAck→orch 워터마크 가지치기·버스 ack 0040 다운스트림 판·재전송 소스 유계·zoneEgress OFF→0 비트 동일) | 통과(reg 0·spine OK) · gwack 5/5 pruned4==egr4·버퍼0 |
 | [0337](step-0337.md) | downstream 전파 6(#9 후속): 재전송 복구(게이트웨이 인오더 게이팅·gap→zoneResync·중복 드롭 + orch `_resendEgress` 미-ack 버퍼서 dseq≥from 재전송·egressDrop 손실 주입·0008 ack/NAK 다운스트림 판·미주입 OFF→비트 동일) | 통과(reg 0·spine OK) · gwloss 5/5 drop1→resync1→복구 next5==egr5 |
 | [0338](step-0338.md) | downstream 전파 7(#9 후속): 타임아웃 재전송(orch `_retransmitStale` 매 tick ack 없이 egressTimeout 경과 frame 재전송·세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍·zone heartbeat/bus 0058 다운스트림 판·egressTimeout0 OFF→비트 동일) | 통과(reg 0·spine OK) · gwtimeout 5/5 마지막 손실 resync0→복구 |
+| [0339](step-0339.md) | downstream 전파 8(#9 후속): leave 정리(게이트웨이 `_downCleanup` downClients/seq/resync/buffer + orch `_bridgeLeave` egress buf/seq/acked·0334 stale 바인딩/무계 성장 해소·egress OFF→정리 맵 빈 채 비트 동일) | 통과(reg 0·spine OK) · gwleave 5/5 a1 정리·a2 보존 |
