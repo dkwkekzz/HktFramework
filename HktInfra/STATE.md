@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0320](step-0320.md) — **#9 후속: host 산출 뷰의 AOI 정확성**. 질의 zoneViewBuf(뷰 원본)·zoneVisibleIds(반경 AOI). a1·a2 반경 밖 → 각 세션 reset 뷰 enter == 자기만(zoneVisibleIds 일치)·게이트웨이 발신. 읽기 전용·0319 비트 동일.
-- **한 줄 상태**: reg ALL OK·hostzoneaoi 5/5(a1→[a1]·a2→[a2]·match·toGW)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0321](step-0321.md) — **#9 후속: host 산출 뷰의 증분 델타 정확성**. 질의 zoneViewStats(세션 view_delta 분포). a1 3회 이동 → reset 1·update 3·total 4 ≪ 14 tick(매 tick 전체 아닌 변경분만·대역 절감). 읽기 전용·0320 비트 동일.
+- **한 줄 상태**: reg ALL OK·hostzonedelta 5/5(reset1·update3·total4<14·updHasA1)·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream 데이터 평면 sub-arc(0319~·#9 후속)** — host 프로세스 AOI 뷰 산출→게이트웨이 라우팅→클라 전파(SPINE §4 경로2 월드 다운스트림). 부하 균형 sub-arc(0311~0318 ✅) 위에. 후속: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합)·진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시(2묶음 누적)**.
 
 ---
@@ -139,3 +139,4 @@
 | [0318](step-0318.md) | host 프로세스 컨테이너 심화 8·부하 sub-arc capstone: 균형 술어 hostBalanced(존 수·entity 불균형 둘 다 허용 안·entity 몰림 hostBalanced 전 false→placeRebalanceE→true·균형 후 conserved/coherent·읽기 전용·0317 비트 동일) | 통과(reg 0·spine OK) · 5/5 bal0 false→bal1 true·skew4→0·consv·hcoh |
 | [0319](step-0319.md) | downstream 데이터 평면 1(#9 후속): host AOI 뷰 산출 포착(런타임 존 net 싱크 no-op→버퍼링·view/view_delta 보관·질의 zoneViewFrames/zoneViewsFor·SPINE §4 경로2 월드 다운스트림 씨앗·플래그 불요·0318 비트 동일) | 통과(reg 0·spine OK) · 5/5 viewFrames4·z1views4·미가동 0 |
 | [0320](step-0320.md) | downstream 데이터 평면 2(#9 후속): host 산출 뷰의 AOI 정확성(질의 zoneViewBuf·zoneVisibleIds·a1·a2 반경 밖→각 세션 reset 뷰 enter==자기만·게이트웨이 발신·읽기 전용·0319 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1→[a1]·a2→[a2]·match·toGW |
+| [0321](step-0321.md) | downstream 데이터 평면 3(#9 후속): host 산출 뷰의 증분 델타 정확성(질의 zoneViewStats·a1 3회 이동→reset1+update3=total4≪14tick·매 tick 전체 아닌 변경분만·대역 절감·읽기 전용·0320 비트 동일) | 통과(reg 0·spine OK) · 5/5 reset1·update3·total4<14·updHasA1 |
