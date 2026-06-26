@@ -29,8 +29,9 @@ export default {
     // 이번 tick 에 이 원소(idx===i)로 예약된 외부 힘 J → 힘 J/dt 로 누적
     for (const imp of imps) {
       if (imp.tick === world.tick && imp.idx === i) {
-        e.fx += imp.jx / dt;   // 엔진 적분에서 Δv = J/m — 무거울수록 덜 변함(= 관성)
-        e.fy += imp.jy / dt;
+        e.fx += (imp.jx || 0) / dt;   // 엔진 적분에서 Δv = J/m — 무거울수록 덜 변함(= 관성)
+        e.fy += (imp.jy || 0) / dt;
+        if (imp.jz != null) e.fz += imp.jz / dt;  // 3D 외부 힘(깊이 축). 없으면 무시(하위 호환)
       }
     }
   },

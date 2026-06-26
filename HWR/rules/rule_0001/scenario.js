@@ -27,6 +27,7 @@ export default {
     const J = 6;
     const impulses = masses.map((_, idx) => ({ tick: 5, idx, jx: J, jy: 0 }));
 
-    return { width: w, height: h, tick: 0, elements: els, impulses };
+    // depth → 세계는 3D 박스(폭 w × 높이 h × 깊이 d). 이 장면은 평면(z=0) 단면이지만 공간 자체는 3D.
+    return { width: w, height: h, depth: 600, tick: 0, elements: els, impulses };
   },
 };

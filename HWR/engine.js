@@ -38,8 +38,12 @@ export function stepWorld(world, rules, params) {
     for (const r of rules) if (r && typeof r.apply === 'function') r.apply(e, i, world, params);
   }
 
-  // ③④ 뉴턴 적분 + 관성 + 토러스 랩
-  const W = world.width, H = world.height;
+  // ③④ 뉴턴 적분 + 관성 + 토러스 랩 (3D)
+  //   세계는 3차원 박스다(폭 W × 높이 H × 깊이 D). x·y·z 세 축 모두 같은 보편 역학으로 전진한다.
+  //   depth(D)가 설정되면 z 도 토러스 랩 — 시뮬레이션 공간 자체가 3D(렌더 전용 아님).
+  //   depth 미설정(2D 세계)이면 z 는 무경계로 남겨 하위 호환(기존 z=0 시나리오는 비트 동일).
+  const W = world.width, H = world.height, D = world.depth;
+  const wrapZ = typeof D === 'number' && D > 0;
   for (const e of els) {
     const m = e.m > 0 ? e.m : 1;            // 질량 없으면 1
     e.vx += (e.fx / m) * dt;                // a = F/m → Δv
@@ -50,6 +54,7 @@ export function stepWorld(world, rules, params) {
     e.z = (e.z || 0) + e.vz * dt;
     e.x = ((e.x % W) + W) % W;              // 토러스 랩 — 좌표 동일시(힘 아님)
     e.y = ((e.y % H) + H) % H;
+    if (wrapZ) e.z = ((e.z % D) + D) % D;   // 3D 깊이 축 토러스 랩(depth 설정 시)
   }
 
   // ⑤ 위상/상태 재조정 — 규칙이 표시한 결합을 실현
@@ -114,7 +119,8 @@ function reconcileMerges(world) {
     arr.push(i);
   }
 
-  const W = world.width, H = world.height;
+  const W = world.width, H = world.height, D = world.depth;
+  const wrapZ = typeof D === 'number' && D > 0;
   const next = [];
   let released = 0;
   for (const idxs of groups.values()) {
@@ -127,12 +133,14 @@ function reconcileMerges(world) {
     for (const k of idxs) {
       const e = els[k];
       const m = e.m > 0 ? e.m : 1;
-      let dx = e.x - ref.x; dx -= Math.round(dx / W) * W;   // 토러스 최근접 이미지
-      let dy = e.y - ref.y; dy -= Math.round(dy / H) * H;
+      let dx = e.x - ref.x; dx -= Math.round(dx / W) * W;   // 토러스 최근접 이미지(x)
+      let dy = e.y - ref.y; dy -= Math.round(dy / H) * H;   //              (y)
+      let dz = (e.z || 0) - (ref.z || 0);                   //              (z, 3D 박스면 토러스)
+      if (wrapZ) dz -= Math.round(dz / D) * D;
       const vz = e.vz || 0;
       M += m;
       px += m * e.vx; py += m * e.vy; pz += m * vz;
-      sx += m * dx; sy += m * dy; sz += m * (e.z || 0);
+      sx += m * dx; sy += m * dy; sz += m * dz;
       keBefore += 0.5 * m * (e.vx * e.vx + e.vy * e.vy + vz * vz);
       Q += e.q || 0;                                        // 전하 합산(분자의 순전하, Σq 보존)
       enW += (e.en || 0) * m;                               // 전기음성도 질량가중(합성체 대표값)
@@ -140,8 +148,9 @@ function reconcileMerges(world) {
     }
     const vx = px / M, vy = py / M, vz = pz / M;            // 운동량 보존 → 질량중심 속도
     let x = ref.x + sx / M, y = ref.y + sy / M;             // 질량중심 위치
-    const z = sz / M;
+    let z = (ref.z || 0) + sz / M;
     x = ((x % W) + W) % W; y = ((y % H) + H) % H;
+    if (wrapZ) z = ((z % D) + D) % D;
     const keAfter = 0.5 * M * (vx * vx + vy * vy + vz * vz);
     released += keBefore - keAfter;                          // 결합으로 흡수된 운동에너지(≥0)
 

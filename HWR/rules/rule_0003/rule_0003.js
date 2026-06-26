@@ -33,7 +33,8 @@ export default {
     const kFriction = params && params.kFriction != null ? params.kFriction : 10;
     const rMin = params && params.rMin != null ? params.rMin : 0.5;
     const els = world.elements;
-    const W = world.width, H = world.height;
+    const W = world.width, H = world.height, D = world.depth;
+    const wrapZ = typeof D === 'number' && D > 0;
 
     for (let j = 0; j < els.length; j++) {
       if (j === i) continue;
@@ -41,28 +42,30 @@ export default {
       const qj = o.q || 0;
       if (qj === 0) continue;                             // 전하 없는 상대와는 전자기력 없음
 
-      // 토러스 최근접 변위(i → j) 와 거리
+      // 토러스 최근접 변위(i → j) 와 거리 — 3D
       let dx = o.x - e.x; dx -= Math.round(dx / W) * W;
       let dy = o.y - e.y; dy -= Math.round(dy / H) * H;
-      let r2 = dx * dx + dy * dy;
+      let dz = (o.z || 0) - (e.z || 0); if (wrapZ) dz -= Math.round(dz / D) * D;
+      let r2 = dx * dx + dy * dy + dz * dz;
       if (r2 < rMin * rMin) r2 = rMin * rMin;             // 발산 방지(하한)
       const r = Math.sqrt(r2);
-      const ux = dx / r, uy = dy / r;                     // i→j 단위벡터
+      const ux = dx / r, uy = dy / r, uz = dz / r;        // i→j 단위벡터(3D)
 
       // ── 전자기 상호작용 한 벌 (전기 + 반발 + 마찰이 모두 여기서 나온다) ──
-      // 전기(쿨롱·Madelung): 같은 부호 → 음수 → −ux(밂), 반대 부호 → 양수 → +ux(당김)
+      // 전기(쿨롱·Madelung): 같은 부호 → 음수 → −u(밂), 반대 부호 → 양수 → +u(당김)
       const fElectric = -kCoulomb * qi * qj / r2;
-      // 반발(전자구름 겹침·Born): 항상 −ux(j 반대로), 가까울수록 급격 → 물질의 단단함
+      // 반발(전자구름 겹침·Born): 항상 −u(j 반대로), 가까울수록 급격 → 물질의 단단함
       const fRepulse = kBorn / Math.pow(r, bornExp);
       const fRadial = fElectric - fRepulse;               // 중심선 방향 합(전기+반발)
 
       // 마찰(접촉 소산): 상대속도 전체를 거스른다(반경=안착 감쇠, 접선=미끄럼 마찰). 가까울수록 강함.
       //   상대량이라 같이 움직이면 0(갈릴레이 불변), 작용-반작용 → 운동량 보존, 에너지만 소산(마찰열).
       const w = 1 / r2;                                   // 접촉 가중(단거리)
-      const dvx = (e.vx || 0) - (o.vx || 0), dvy = (e.vy || 0) - (o.vy || 0);
+      const dvx = (e.vx || 0) - (o.vx || 0), dvy = (e.vy || 0) - (o.vy || 0), dvz = (e.vz || 0) - (o.vz || 0);
 
       e.fx += fRadial * ux - kFriction * w * dvx;
       e.fy += fRadial * uy - kFriction * w * dvy;
+      e.fz += fRadial * uz - kFriction * w * dvz;         // 깊이 축 성분(3D). z=vz=0 이면 0(2D 동일)
     }
   },
 };
