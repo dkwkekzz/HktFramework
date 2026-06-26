@@ -51,6 +51,8 @@ const OrchHostProc = {
     }
     return { total, hosts };
   },
+  // host 프로세스 부하 균형 술어(step-0318·#9 잔여) — 클러스터가 *고르게 부하 분산됐는가*의 단일 판정: 존 수 불균형(hostLoadSkew·0311)과 entity 불균형(hostEntitySkew·0314)이 둘 다 허용 오차 안. 부하 균형 sub-arc(0311~0317·skew 관측·생애주기·failover·entity 가중 배치/재배치)의 종합 술어 — 재배치 후 참·재배치 전 거짓을 단언(capstone). 읽기 전용.
+  hostBalanced(zoneTol = 2, entTol = 2) { return this.hostLoadSkew().skew <= zoneTol && this.hostEntitySkew().skew <= entTol; },
   // entity 가중 부하 재배치(step-0317·#9 잔여·placeRebalanceE) — entity 부하가 가장 무거운 host 의 한 존을 가장 가벼운 host 로 이주(release+acquire), entity gap(max−min) < 2 가 될 때까지 반복. _rebalance(0223·존 수)의 entity 가중 판. *진동 방지*: 옮겨서 gap 이 strict 하게 줄어드는 존만 고른다(없으면 종료) → gap 단조 감소 = 종료 보장. placement+running 함께 갱신(drift 0). 옮긴 존 수 반환.
   _rebalanceByEntities(hosts) {
     let moved = 0;

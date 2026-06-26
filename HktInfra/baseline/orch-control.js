@@ -36,6 +36,8 @@ const OrchControl = {
     }
     // 부하 재배치 자동 트리거(step-0223·placeRebalance) — {hosts[]} → 후보 부하 불균형(최대−최소≥2)이면 최대→최소 host 로 존 자동 이주(균형까지·release+acquire). 0218 placeMigrate 의 자동 트리거판. placeRebalance 미수신이면 미발화 = 0222 비트 동일.
     if (p.type === 'placeRebalance') { this._rebalance(p.hosts || []); this.rebalances++; return; }
+    // entity 가중 부하 재배치(step-0317·placeRebalanceE) — {hosts[]} → entity 부하 불균형(max−min≥2)이면 가장 무거운 host 의 한 존을 가장 가벼운 host 로 이주(균형까지·gap 단조 감소). placeRebalance(0223·존 수)의 entity 가중 판. placeRebalanceE 미수신이면 미발화 = 0316 비트 동일.
+    if (p.type === 'placeRebalanceE') { this._rebalanceByEntities(p.hosts || []); return; }
     // host 드레인(step-0224·placeDrain) — {host, hosts[]} → host 의 모든 존을 나머지 host 중 최소부하로 이주(release+acquire 연쇄·드레인 후 부하 0). 정비/퇴역. placeDrain 미수신이면 미발화 = 0223 비트 동일.
     if (p.type === 'placeDrain') { this._drain(p.host, p.hosts || []); this.drains++; return; }
     // 존 운영 퇴역(step-0246·placeStop) — {zoneId} → 그 존을 내린다(결정 placement 제거 + placeExecute ON 이면 실 런타임 running 종료). 드레인(host 의 *모든* 존 이주)과 달리 *특정 존 자체*를 stop. 없는 존 멱등. placeStop 미수신이면 미발화 = 0245 비트 동일.

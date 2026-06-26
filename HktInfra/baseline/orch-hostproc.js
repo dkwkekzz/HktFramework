@@ -51,6 +51,22 @@ const OrchHostProc = {
     }
     return { total, hosts };
   },
+  // entity 가중 부하 재배치(step-0317·#9 잔여·placeRebalanceE) — entity 부하가 가장 무거운 host 의 한 존을 가장 가벼운 host 로 이주(release+acquire), entity gap(max−min) < 2 가 될 때까지 반복. _rebalance(0223·존 수)의 entity 가중 판. *진동 방지*: 옮겨서 gap 이 strict 하게 줄어드는 존만 고른다(없으면 종료) → gap 단조 감소 = 종료 보장. placement+running 함께 갱신(drift 0). 옮긴 존 수 반환.
+  _rebalanceByEntities(hosts) {
+    let moved = 0;
+    for (let guard = 0; guard < 64; guard++) {
+      let maxH = null, maxL = -1, minH = null, minL = Infinity;
+      for (const h of hosts) { const l = this.hostEntityLoad(h); if (l > maxL) { maxL = l; maxH = h; } if (l < minL) { minL = l; minH = h; } }
+      if (maxH === null || maxH === minH || maxL - minL < 2) break;       // 균형(gap<2)·후보 없음 → 종료.
+      const c = this.zoneHosts.get(maxH); if (!c) break;
+      let pick = null;
+      for (const zid of c.zones) { const rt = this.zoneRuntimes.get(zid); const e = rt ? rt.zone.ents.size : 0; if (Math.abs((maxL - e) - (minL + e)) < (maxL - minL)) { pick = zid; break; } }   // gap 을 strict 하게 줄이는 첫 존만(단조·진동 0).
+      if (pick === null) break;
+      this.placement.set(pick, minH); moved++;                            // release(maxH)+acquire(minH) 결정.
+      if (this.placeExecute) this._migrate(pick, minH);                    // 집행 — 실 존 런타임도 이주(같은 핸들·상태 보존).
+    }
+    this.rebalanceEMoves += moved; return moved;
+  },
   // host 프로세스 entity 부하 질의(step-0316·#9 잔여) — 그 host 컨테이너가 인 존들의 entity 총수(실 부하 ≈ 동접 플레이어). hostLoad(0217·존 수)의 entity 가중 판 — 부하 인지 자동 배치(placeAutoE)가 가장 한가한 host 를 고르는 기준. 컨테이너 없는 idle host 는 0. 읽기 전용.
   hostEntityLoad(host) { const c = this.zoneHosts.get(host); if (!c) return 0; let e = 0; for (const z of c.zones) { const rt = this.zoneRuntimes.get(z); if (rt) e += rt.zone.ents.size; } return e; },
   // entity 최소 부하 host 선택(step-0316·#9 잔여) — 후보 중 hostEntityLoad 최소(동률은 후보 배열 순서로 결정론 tie-break). 후보 없으면 null. _leastLoaded(0217·존 수)의 entity 가중 판 — placeAutoE 가 쓴다.

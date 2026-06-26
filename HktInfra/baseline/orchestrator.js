@@ -60,6 +60,7 @@ class Orchestrator {
     this.migrateRejects = 0;      // 거부된 placeMigrate 수(step-0218·미배치 존·같은 host no-op).
     this.rebalances = 0;          // 처리한 placeRebalance 패스 수(step-0223·계측·균형이면 0).
     this.rebalanceMoves = 0;      // 재배치 자동 트리거로 옮긴 존 누적 수(step-0223·release+acquire 쌍).
+    this.rebalanceEMoves = 0;     // entity 가중 재배치(placeRebalanceE)로 옮긴 존 누적 수(step-0317·gap 단조 감소 보장·미수신이면 0).
     this.drains = 0;              // 처리한 placeDrain 수(step-0224·계측).
     this.drainMoves = 0;          // 드레인으로 다른 host 로 이주한 존 누적 수(step-0224·release+acquire 연쇄).
     // 존 런타임 레지스트리(step-0241·#51 실배선) — placement 가 "어느 존이 어느 host 에서 *돌아야* 하나"(결정)라면, running 은 "지금 *실제로* 어느 host 에서 도는가"(집행 현실). placeExecute ON 이면 배치 결정이 실 존 런타임 lifecycle(start/migrate/stop)을 구동한다(advisory paper → executed). OFF 면 빈 채 = 0240 비트 동일.
