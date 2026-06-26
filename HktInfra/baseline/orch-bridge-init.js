@@ -56,6 +56,11 @@ const OrchBridgeInit = {
     this.zoneEgressAcked = new Map();  // step-0336 — 세션별 ack 워터마크(이 dseq 이하 게이트웨이 수신 확인·단조). 버퍼 가지치기 기준.
     this.zoneEgressPruned = 0;         // step-0336 — ack 로 가지친 egress frame 누적(계측·== egressed 면 전부 ack·버퍼 0).
     this.zoneEgressBufPeak = 0;        // step-0336 — egress 버퍼 최대 길이(자기-크기조정 유계 증거·ack 면 ≈in-flight).
+    this.egressDrop = new Set(opts.egressDrop || []);   // step-0337 — 전송 손실 주입(테스트): "sid#dseq" 의 *첫* egress 를 드롭(전송층 유실 모델). 미설정이면 빈 Set = 손실 0 = 비트 동일.
+    this.egressDroppedOnce = new Set(); // step-0337 — 이미 한 번 드롭한 키(재전송은 통과 = 1회 손실 모델·복구 가능성 보장).
+    this.zoneEgressDropped = 0;         // step-0337 — egress 전송 손실(드롭)한 frame 누적(주입 계측).
+    this.zoneResent = 0;                // step-0337 — 재전송(resync)으로 버퍼에서 다시 보낸 frame 누적.
+    this.zoneResyncServed = 0;          // step-0337 — 처리한 게이트웨이 zoneResync 요청 누적.
   },
 };
 

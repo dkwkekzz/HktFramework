@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0337](step-0337.md) — **#9 후속: 다운스트림 재전송** — 게이트웨이 인오더 게이팅(gap 감지 시 `zoneResync` 요청·중복 드롭) + orch `_resendEgress`(미-ack 버퍼서 dseq≥from 재전송). egress 손실(`egressDrop`) 주입에도 인오더 복구(무손실). 0008 ack/NAK 재전송의 다운스트림 판. 미주입·zoneEgress OFF→비트 동일. 직전: 0336 egress 버퍼 ack.
-- **한 줄 상태**: reg ALL OK·gwloss 5/5(drop1→resync1→resent3→downSeqNext5==egr5 복구)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0338](step-0338.md) — **#9 후속: 다운스트림 타임아웃 재전송** — orch `_retransmitStale` 가 매 tick ack 없이 `egressTimeout` 경과한 frame 재전송 → 0337 gap-resync 가 못 잡는 세션 *마지막* frame 손실 복구(zone heartbeat·bus 0058 의 다운스트림 판). egressTimeout 0·zoneEgress OFF→비트 동일. 직전: 0337 gap 재전송.
+- **한 줄 상태**: reg ALL OK·gwtimeout 5/5(마지막 frame 손실 resync0→timeoutResent1→복구 next4==egr4)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→클라까지. 0331 egress✅·0333 게이트웨이 수신✅·0334 클라 라우팅(전달)✅. **후속**: per-세션 다운스트림 seq·클라 ack·재전송·keyframe/resync·격리·leave 정리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
@@ -127,14 +127,7 @@
 | [0281–0290](reviews/review-0281-0290.md) | #56 브리지 존 데이터 평면 arc(enter/move/leave·런타임 tick·migrate무손실/hostdown소실/stop폐기·단일소유·정합·graceful보존·capstone entityFlowCoherent·entityConserved) | 통과(reg 0·spine OK) |
 | [0291–0300](step-0291.md) | #9 멀티프로세스 배선 arc: 존 런타임 전송 seam·host mailbox·게이트웨이 존 디렉토리·게이트웨이→실 존 직접 enter/move/leave 라우팅·이주/장애 정합·dir bijection·capstone directFlowCoherent | 통과(reg 0·spine OK) · 5/5 directFlowCoherent·conserved·stale0 |
 | [0301–0310](step-0301.md) | #9 잔여(실 host.js 물리 분리) arc: host 1급 컨테이너 zoneHosts·자기 inbox 수신·자기 루프 tick·단일소유/drift·roster reg/dereg·정리 분할 orch-hostproc·inbox stale 거부·census·hostContainerCoherent·bijection·capstone hostProcCoherent | 통과(reg 0·spine OK) · 5/5 hpcoh·consv·recv==drained+stale·census1 |
-| [0311](step-0311.md) | host 프로세스 컨테이너 심화 1: 부하 불균형 질의 hostLoadSkew(전 host 컨테이너 존 수 분포 max−min·A 몰림 배치를 placeRebalance 로 균형·읽기 전용·0310 비트 동일) | 통과(reg 0·spine OK) · 5/5 skew0 2→skew1 ≤1·총존 4 보존·hostContainerCoherent |
-| [0312](step-0312.md) | host 프로세스 컨테이너 심화 2: 생애주기 이벤트 로그 hostLifecycle(_hostSet spawn/despawn 순서 스트림·실 cluster.spawnOne/killHost 지점 씨앗·net 집합==가동 host·OFF 플래그 zoneHostLifecycle·0311 비트 동일) | 통과(reg 0·spine OK) · 5/5 spawn3·despawn1·net==live·sp−dp==hosts |
-| [0313](step-0313.md) | host 프로세스 컨테이너 심화 3: 다중 존 host 장애 failover + 질의 hostZones(host)(hostA 2존·엔티티3 장애→두 존 생존 host 재가동·entity3 소실·z3 보존·hostZones(A)빈·despawn A·읽기 전용·0312 비트 동일) | 통과(reg 0·spine OK) · 5/5 total1·lost3·A빈·despawnA·hcoh·consv |
-| [0314](step-0314.md) | host 프로세스 컨테이너 심화 4: entity 가중 부하 hostEntitySkew(부하를 존 수 아닌 entity 수로·존 수 균형이어도 entity 몰림 드러냄·읽기 전용·0313 비트 동일) | 통과(reg 0·spine OK) · 5/5 zoneSkew0 vs entSkew3·총 entity4 |
-| [0315](step-0315.md) | host 프로세스 컨테이너 심화 5: 다중 동시 host 장애 + 질의 hostCount(2 host 각 2존 연속 down→4존 전부 마지막 생존 host·hostCount 3→1·despawn A·B·bijection·읽기 전용·0314 비트 동일) | 통과(reg 0·spine OK) · 5/5 hostCount1·C존4·despAB2·hcoh·bij |
-| [0316](step-0316.md) | host 프로세스 컨테이너 심화 6: entity 가중 자동 배치 placeAutoE(_leastLoadedByEntities·hostEntityLoad·존 수 균형이어도 만원 host 회피·placeAuto 의 entity 가중 판·새 op 미수신이면 0315 비트 동일) | 통과(reg 0·spine OK) · 5/5 auto z3@A vs autoE z3@B·hcoh |
-| [0317](step-0317.md) | host 프로세스 컨테이너 심화 7: entity 가중 재배치 placeRebalanceE(_rebalanceByEntities·entity 무거운 host→가벼운 host 존 이주·gap<2 까지·gap 단조 감소 종료·무손실·새 op 미수신이면 0316 비트 동일) | 통과(reg 0·spine OK) · 5/5 skew0 6→skew1 0·moves1·총 entity6 보존 |
-| [0318](step-0318.md) | host 프로세스 컨테이너 심화 8·부하 sub-arc capstone: 균형 술어 hostBalanced(존 수·entity 불균형 둘 다 허용 안·entity 몰림 hostBalanced 전 false→placeRebalanceE→true·균형 후 conserved/coherent·읽기 전용·0317 비트 동일) | 통과(reg 0·spine OK) · 5/5 bal0 false→bal1 true·skew4→0·consv·hcoh |
+| [0311–0318](step-0311.md) | host 프로세스 컨테이너 심화·**부하 균형 sub-arc**: hostLoadSkew(존 수 불균형)→생애주기 로그 hostLifecycle→다중 존/동시 host 장애 failover(hostZones·hostCount)→entity 가중 부하 hostEntitySkew/자동 배치 placeAutoE/재배치 placeRebalanceE→capstone 균형 술어 hostBalanced(존 수·entity 둘 다·placeRebalanceE→균형) | 통과(reg 0·spine OK) · 각 5/5 |
 | [0319](step-0319.md) | downstream 데이터 평면 1(#9 후속): host AOI 뷰 산출 포착(런타임 존 net 싱크 no-op→버퍼링·view/view_delta 보관·질의 zoneViewFrames/zoneViewsFor·SPINE §4 경로2 월드 다운스트림 씨앗·플래그 불요·0318 비트 동일) | 통과(reg 0·spine OK) · 5/5 viewFrames4·z1views4·미가동 0 |
 | [0320](step-0320.md) | downstream 데이터 평면 2(#9 후속): host 산출 뷰의 AOI 정확성(질의 zoneViewBuf·zoneVisibleIds·a1·a2 반경 밖→각 세션 reset 뷰 enter==자기만·게이트웨이 발신·읽기 전용·0319 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1→[a1]·a2→[a2]·match·toGW |
 | [0321](step-0321.md) | downstream 데이터 평면 3(#9 후속): host 산출 뷰의 증분 델타 정확성(질의 zoneViewStats·a1 3회 이동→reset1+update3=total4≪14tick·매 tick 전체 아닌 변경분만·대역 절감·읽기 전용·0320 비트 동일) | 통과(reg 0·spine OK) · 5/5 reset1·update3·total4<14·updHasA1 |
@@ -154,3 +147,4 @@
 | [0335](step-0335.md) | downstream 전파 4(#9 후속): per-세션 시퀀스(orch egress frame 마다 세션별 단조 dseq·zoneEgressSeq→게이트웨이 downSeqNext 순서/유실 추적·gap 카운트·zoneEgress OFF→dseq0 비트 동일) | 통과(reg 0·spine OK) · gwseq 5/5 gap0·세션next==수신수 |
 | [0336](step-0336.md) | downstream 전파 5(#9 후속): egress 버퍼 자기-크기조정(orch zoneEgressBuf 세션별 미-ack 보관→게이트웨이 zoneViewAck→orch 워터마크 가지치기·버스 ack 0040 다운스트림 판·재전송 소스 유계·zoneEgress OFF→0 비트 동일) | 통과(reg 0·spine OK) · gwack 5/5 pruned4==egr4·버퍼0 |
 | [0337](step-0337.md) | downstream 전파 6(#9 후속): 재전송 복구(게이트웨이 인오더 게이팅·gap→zoneResync·중복 드롭 + orch `_resendEgress` 미-ack 버퍼서 dseq≥from 재전송·egressDrop 손실 주입·0008 ack/NAK 다운스트림 판·미주입 OFF→비트 동일) | 통과(reg 0·spine OK) · gwloss 5/5 drop1→resync1→복구 next5==egr5 |
+| [0338](step-0338.md) | downstream 전파 7(#9 후속): 타임아웃 재전송(orch `_retransmitStale` 매 tick ack 없이 egressTimeout 경과 frame 재전송·세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍·zone heartbeat/bus 0058 다운스트림 판·egressTimeout0 OFF→비트 동일) | 통과(reg 0·spine OK) · gwtimeout 5/5 마지막 손실 resync0→복구 |

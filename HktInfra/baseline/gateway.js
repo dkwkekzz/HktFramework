@@ -77,23 +77,32 @@ class Gateway {
     // 다운스트림 시퀀스 추적(step-0335·#9 후속) — orch egress 가 frame 마다 부여한 세션별 단조 dseq 를 추적해 *순서/유실*을 감지(per-세션 next 기대값). 인오더면 next 단조 전진·gap(dseq>기대)이면 카운트(클라 ack/재전송의 게이트웨이 측 토대). zoneEgress OFF 면 dseq 미수신 → 빈 채 = 비트 동일.
     this.downSeqNext = new Map();         // sessionId -> 다음 기대 dseq(인오더 수신마다 +1).
     this.downSeqGaps = 0;                 // dseq != 기대(유실/재정렬)로 감지한 gap 누적(step-0335·정상 인오더 시나리오 0).
+    // 다운스트림 재전송 요청(step-0337·#9 후속) — 앞 frame 유실로 gap(dseq>기대) 감지 시 orch 에 zoneResync 발신(에피소드당 1회·인오더 복귀 시 해제). orch 가 버퍼에서 재전송 → gap 닫힘. 손실 없으면 발신 0 = 이전 비트 동일.
+    this.downResyncPending = new Set();   // sessionId — 미해결 resync 요청 보유(중복 요청 억제).
+    this.downResyncsSent = 0;             // 발신한 zoneResync 누적(step-0337·손실 1건당 ≥1).
   }
   // 다운스트림 뷰 수신+라우팅(step-0333 수신·step-0334 라우팅) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존) + downClients 바인딩이 있으면 그 클라로 frame 전달(존→게이트웨이→클라). sessionId 없으면 무시(주소 불가)·미바인딩이면 드롭(계측).
   _recvZoneView(p) {
     if (!p.sessionId) return;
-    let a = this.zoneViewIn.get(p.sessionId);
-    if (!a) { a = []; this.zoneViewIn.set(p.sessionId, a); }
-    a.push(p.frame);
+    const sid = p.sessionId;
     this.zoneViewsRx++;
-    // step-0335 — 다운스트림 시퀀스 추적: 세션별 단조 dseq 가 기대값이면 next 전진, 아니면 gap(유실/재정렬). 인오더 전송에선 항상 인오더 → gap 0.
+    // step-0335/0337 — 다운스트림 시퀀스 인오더 게이팅: dseq 가 기대면 전진·전달·ack, 미래(앞 유실)면 gap·resync 요청(라우팅 안 함), 과거(중복)면 드롭. 인오더만 클라로 전달 = 순서 보장·중복 0.
     if (p.dseq !== undefined) {
-      const exp = this.downSeqNext.get(p.sessionId) || 0;
-      if (p.dseq === exp) this.downSeqNext.set(p.sessionId, exp + 1);
-      else this.downSeqGaps++;
-      this.net.send(this.addr, 'orch', { type: 'zoneViewAck', sessionId: p.sessionId, dseq: p.dseq });   // step-0336 — 수신 확인 ack(orch egress 버퍼 자기-크기조정 가지치기·미-ack 만 잔류). zoneEgress OFF 면 zoneView 미수신 → ack 0 = 이전 비트 동일.
+      const exp = this.downSeqNext.get(sid) || 0;
+      if (p.dseq < exp) return;             // 중복(이미 인오더 수신·재전송 사본) — 드롭(클라 belief 무오염).
+      if (p.dseq > exp) {                   // 미래(앞 frame 유실) — gap·resync 요청(에피소드당 1회)·라우팅 보류.
+        this.downSeqGaps++;
+        if (!this.downResyncPending.has(sid)) { this.net.send(this.addr, 'orch', { type: 'zoneResync', sessionId: sid, from: exp }); this.downResyncPending.add(sid); this.downResyncsSent++; }
+        return;
+      }
+      this.downSeqNext.set(sid, exp + 1);   // 인오더(dseq==exp) — 전진·resync 해제.
+      this.downResyncPending.delete(sid);
+      this.net.send(this.addr, 'orch', { type: 'zoneViewAck', sessionId: sid, dseq: p.dseq });   // step-0336 — 수신 확인 ack(orch egress 버퍼 가지치기). zoneEgress OFF 면 zoneView 미수신 → ack 0 = 이전 비트 동일.
     }
-    const client = this.downClients.get(p.sessionId);
-    if (client) { this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++; }   // step-0334 — 세션→클라 전달(frame 그대로·클라 와이어 계약 = view/view_delta 0333 까지의 기존 형식). zoneEgress OFF 면 zoneView 미수신 → 이 송신 0 = 이전 비트 동일.
+    let a = this.zoneViewIn.get(sid); if (!a) { a = []; this.zoneViewIn.set(sid, a); }
+    a.push(p.frame);
+    const client = this.downClients.get(sid);
+    if (client) { this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++; }   // step-0334 — 인오더 frame 만 세션→클라 전달(클라 와이어 계약 = view/view_delta 기존 형식).
     else this.zoneViewDropped++;
   }
   // 다운스트림 라우팅 질의(step-0334·#9 후속) — "전달/드롭 누적·이 세션이 어느 클라에 묶였나"(존→게이트웨이→클라 무손실·바인딩 검증). 읽기 전용.
@@ -103,6 +112,7 @@ class Gateway {
   // 다운스트림 시퀀스 질의(step-0335·#9 후속) — "이 세션의 다음 기대 dseq(=받은 인오더 frame 수)·전체 gap 수"(순서/무유실 검증). 읽기 전용.
   gatewayDownSeqNext(sessionId) { return this.downSeqNext.get(sessionId) || 0; }
   gatewayDownGaps() { return this.downSeqGaps; }
+  gatewayResyncsSent() { return this.downResyncsSent; }   // step-0337 — 발신한 다운스트림 재전송 요청 수(손실 복구 발화 증거).
   // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
   gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
   gatewayDownstreamCount() { return this.zoneViewsRx; }
