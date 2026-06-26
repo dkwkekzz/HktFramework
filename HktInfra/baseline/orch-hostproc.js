@@ -1,4 +1,5 @@
 'use strict';
+// step-0307 — #9 잔여(실 host.js 물리 분리): host 프로세스 entity census(zoneHostCensus). 전 host 컨테이너의 {존 수, entity 수} 분포 — entityCensus(0289·존별)의 host 프로세스별 판(부하·재배치 판단의 실 단위). 읽기 전용·0306 비트 동일.
 // step-0305 정리 분할 — orch-zonebridge.js 가 29.4KB>30KB 트리거에 근접해, *host 프로세스 컨테이너 층*(0301~0304·#9 잔여 "실 host.js 물리 분리")을 이 파일로 분리한다.
 //   옮긴 것: host 컨테이너 레지스트리(_hostSet)·질의(hostRuntimeCount·zoneHostOf·zoneHostHosts·hostRegistered)·불변(zoneHostSingleOwner·zoneHostDrift).
 //   남긴 것: 실 zone.js 브리지 lifecycle(_bridgeStart/migrate/hostdown/stop)·전송 seam(_zoneDeliver)·런타임 tick(_tickRuntimes)·#56 데이터 평면 질의 → orch-zonebridge.js.
@@ -36,6 +37,16 @@ const OrchHostProc = {
     for (const c of this.zoneHosts.values()) for (const z of c.zones) ids.add(z);
     for (const z of ids) { if (this.zoneHostOf(z) !== (this.running.get(z) || null)) d++; }
     return d;
+  },
+  // host 프로세스 entity census(step-0307·#9 잔여) — 전 host 컨테이너의 {존 수, entity 수} 분포 {total, hosts:{host:{zones,entities}}}. entityCensus(0289·존별)의 *host 프로세스별* 판 — 운영 대시보드로 "어느 host 프로세스가 몇 존·몇 entity 를 지나" 를 본다(부하·재배치 판단의 실 단위). entity 수 = 그 host 소유 존들의 zoneRuntimes ents 합. graceful op(migrate/rebalance/drain·같은 핸들)는 total 불변·host 간 분포만 재편. 읽기 전용.
+  zoneHostCensus() {
+    const hosts = {}; let total = 0;
+    for (const [h, c] of this.zoneHosts) {
+      let ents = 0;
+      for (const z of c.zones) { const rt = this.zoneRuntimes.get(z); if (rt) ents += rt.zone.ents.size; }
+      hosts[h] = { zones: c.zones.size, entities: ents }; total += ents;
+    }
+    return { total, hosts };
   },
 };
 

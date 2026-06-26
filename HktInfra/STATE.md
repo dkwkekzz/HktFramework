@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0307](step-0307.md) — **#9 잔여(실 host.js 물리 분리) 7: host 프로세스 entity census**. `zoneHostCensus()`(전 host 컨테이너 {존 수, entity 수} 분포·entityCensus 의 host 프로세스별 판). 읽기 전용·0306 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehostcensus 5/5(census.total1==totalEntities·존 합==running·host 키==running hosts·dflow·ledger5/1/2/1)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 진행** — 0301 컨테이너·0302 inbox/tick·0303 단일소유/drift·0304 roster·0305 정리 분할·0306 stale 거부·0307 census. 다음: host coherence primitive(hostContainerCoherent)·multi-churn bijection·capstone(hostProcCoherent). 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
+- **닫힌 step**: [step-0308](step-0308.md) — **#9 잔여(실 host.js 물리 분리) 8: host 컨테이너 정합 불변 primitive**. `hostContainerCoherent()`(single + drift0 + roster 회계 닫힘 reg−dereg==현 host). bridgeCoherent 의 host 프로세스 컨테이너 판. 읽기 전용·0307 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonehostcoh 5/5(hcoh Y·single·drift0·reg−dereg2==hosts2·dflow·ledger5/1/2/1)·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 마무리 근접** — 0301~0308(컨테이너·inbox/tick·단일소유/drift·roster·분할·stale·census·coherence). 다음: multi-churn host bijection(0309)·**capstone hostProcCoherent(0310·directFlowCoherent && hostContainerCoherent → arc 닫기)**. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
 
 ---
 
@@ -144,3 +144,4 @@
 | [0305](step-0305.md) | 정리 분할: host 프로세스 컨테이너 층(0301~0304·_hostSet·질의·불변)→orch-hostproc.js 믹스인(Object.assign 투명 분할·>30KB 트리거 유계화·기능 0·orch-zonebridge 29.4KB→26.7KB) | 통과(reg 0·spine OK) · 분할 후 비트 동일·zonehostroster 5/5·박스 ≤30KB |
 | [0306](step-0306.md) | #9 잔여(실 host.js 물리 분리) 6: host inbox stale 거부(_tickRuntimes drain 시 이주로 떠난 존 frame 거부 zoneHostStale++·이중 쓰기 방지·recv==drained+stale·zoneHostStaleProbe 같은 tick frame+migrate 합성·OFF→0305 동일) | 통과(reg 0·spine OK) · 5/5 stale1·recv2==drained1+stale1·z1@hostB·a1 보존·total1·single·drift0 |
 | [0307](step-0307.md) | #9 잔여(실 host.js 물리 분리) 7: host 프로세스 entity census(zoneHostCensus 전 host 컨테이너 {존 수,entity 수} 분포·entityCensus 의 host 프로세스별 판·읽기 전용·0306 비트 동일) | 통과(reg 0·spine OK) · 5/5 census.total1==totalEntities·존 합==running·host 키==running hosts·dflow·ledger5/1/2/1 |
+| [0308](step-0308.md) | #9 잔여(실 host.js 물리 분리) 8: host 컨테이너 정합 불변 primitive(hostContainerCoherent=single+drift0+roster 회계 닫힘 reg−dereg==현 host·bridgeCoherent 의 host 프로세스 판·읽기 전용·0307 비트 동일) | 통과(reg 0·spine OK) · 5/5 hcoh·single·drift0·reg−dereg2==hosts2·dflow·ledger5/1/2/1 |
