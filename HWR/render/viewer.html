@@ -23,7 +23,8 @@
   input[type=number], input[type=text] { background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; }
   input[type=number] { width: 64px; }
   input[type=text] { width: 150px; }
-  select { background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; }
+  select { background: #11151d; color: #c8d0dc; border: 1px solid #2a3344; border-radius: 4px; padding: 4px 6px; font: inherit; max-width: 150px; }
+  #scnSelect { width: 150px; }
   .stat { color: #8a96a8; font-size: 11px; margin-top: 12px; border-top: 1px solid #1c2230; padding-top: 10px; }
   .stat b { color: #c8d0dc; font-weight: 600; }
   .note { color: #5b6678; font-size: 10px; margin-top: 10px; }
@@ -37,8 +38,8 @@
     <h1>HWR — 뷰어 (3D)</h1>
     <p class="sub">원소로 굴러가는 세계 — 세계 로직은 고정, 모든 규칙은 힘으로 누적된다</p>
 
-    <div class="row"><label>시나리오</label><input id="scnPath" type="text" placeholder="../rules/rule_0001/scenario.js" /></div>
-    <div class="row"><button id="load" class="primary">시나리오 로드</button><button id="useDemo">기본 세계</button></div>
+    <div class="row"><label>시나리오</label><select id="scnSelect" title="시나리오 선택 (자동 탐색)"></select></div>
+    <div class="row"><button id="load" class="primary">시나리오 로드</button><button id="reload">↻ 목록 새로고침</button></div>
     <div id="loadErr" class="err"></div>
 
     <hr/>
@@ -68,7 +69,7 @@
       <div>원소 수: <b id="s-n">0</b></div>
     </div>
 
-    <p class="note">드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 원소 추가 · Shift+드래그 = 속도 부여.<br/>세계 로직(<code>engine.js</code>)은 고정 — 모든 규칙(<code>rule_NNNN.js</code>)을 자동 탐색해 <b>힘으로 누적·항상 적용</b>한다. 로드하는 것은 시나리오다.<br/>계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
+    <p class="note">시뮬레이션 공간은 <b>3D 박스</b>(폭×높이×깊이, 세 축 모두 토러스) — 렌더만이 아니라 물리도 3D.<br/>드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 바닥에 원소 추가 · Shift+드래그 = 속도 부여.<br/>세계 로직(<code>engine.js</code>)은 고정 — 모든 규칙(<code>rule_NNNN.js</code>)을 자동 탐색해 <b>힘으로 누적·항상 적용</b>한다. 시나리오는 <b>드롭다운</b>에서 고른다(자동 탐색).<br/>계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
   </div>
 
   <div id="stage"><canvas id="cv"></canvas></div>
@@ -81,23 +82,25 @@ import { stepWorld } from '../engine.js';
 // 규칙이 하나도 탐색되지 않아도(엔진 관성만으로도) "세계가 굴러간다"가 동작하는 기본 초기 세계.
 // 시나리오는 *초기 상태만* 짠다 — 굴리는 일은 세계 로직(engine.js)+규칙의 몫.
 const demoScenario = {
-  name: '기본 세계 — 자유 원소 드리프트',
+  name: '기본 세계 — 3D 자유 원소 드리프트',
   setup() {
-    const w = 800, h = 600;
+    const w = 600, h = 600, d = 600;          // 3D 박스(폭 × 높이 × 깊이) — 토러스 랩
     // 시드 의사난수 — 결정론(같은 시드 → 같은 세계). Math.random 금지.
     let s = 1234567;
     const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
     const els = [];
-    for (let i = 0; i < 60; i++) {
-      const a = rnd() * Math.PI * 2, sp = 0.5 + rnd() * 1.3;
+    for (let i = 0; i < 80; i++) {
+      // 구면 등방 속도(3D) — z 방향에도 실제로 움직인다.
+      const u = rnd() * 2 - 1, th = rnd() * Math.PI * 2, sp = 0.4 + rnd() * 1.2;
+      const sxy = Math.sqrt(1 - u * u);
       const m = 1 + rnd() * 3;
       els.push({
-        x: rnd() * w, y: rnd() * h, z: 0,
-        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, m,
+        x: rnd() * w, y: rnd() * h, z: rnd() * d,
+        vx: Math.cos(th) * sxy * sp, vy: Math.sin(th) * sxy * sp, vz: u * sp, m,
         r: 2 + Math.sqrt(m) * 1.5, hue: Math.floor(rnd() * 360),
       });
     }
-    return { width: w, height: h, tick: 0, elements: els, impulses: [] };
+    return { width: w, height: h, depth: d, tick: 0, elements: els, impulses: [] };
   },
 };
 
@@ -137,6 +140,42 @@ async function discoverRules() {
   return found;
 }
 
+// 시나리오 자동 탐색 — 탐색된 각 규칙 폴더의 scenario.js 를 후보로(경로 입력 대신 드롭다운).
+//   내장 '기본 세계'(3D) 를 항상 첫 항목으로 둔다. value 에 import 경로를 박아 로드가 단순해진다.
+function buildScenarioOptions() {
+  const sel = $('scnSelect');
+  const prev = sel.value;
+  sel.innerHTML = '';
+  const add = (value, label) => { const o = document.createElement('option'); o.value = value; o.textContent = label; sel.appendChild(o); };
+  add('__demo__', '기본 세계 (내장 3D)');
+  for (const r of rules) {
+    const id = r.id || r.name || '?';
+    add(`../rules/${id}/scenario.js`, `${id}${r.name ? ' — ' + r.name : ''}`);
+  }
+  // 이전 선택 유지(가능하면)
+  if (prev && [...sel.options].some(o => o.value === prev)) sel.value = prev;
+}
+
+// 선택된 시나리오를 로드한다(드롭다운 value = '__demo__' 또는 scenario.js 경로).
+async function loadSelectedScenario() {
+  $('loadErr').textContent = '';
+  const v = $('scnSelect').value;
+  if (!v || v === '__demo__') {
+    scenario = demoScenario; scenarioName = demoScenario.name; buildWorld(); return;
+  }
+  try {
+    const smod = await import(/* @vite-ignore */ v + (v.includes('?') ? '' : `?t=${performance.now()}`));
+    const scn = smod.default || smod;
+    if (!scn || typeof scn.setup !== 'function') throw new Error('시나리오에 setup(params) 가 없습니다.');
+    scenario = scn;
+    scenarioName = (v.match(/rule_\d+/) || [v])[0];
+    buildWorld();
+  } catch (e) {
+    $('loadErr').textContent = '로드 실패: ' + (e && e.message ? e.message : e)
+      + '\n(브라우저 보안상 ES 모듈 로드는 http 서버에서 동작합니다. 예: python3 -m http.server)';
+  }
+}
+
 function buildWorld() {
   world = scenario.setup({ ...params });
   if (!world || !Array.isArray(world.elements)) {
@@ -165,11 +204,11 @@ const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
 
 function fitCamera() {
   if (!world) return;
-  cam.dist = Math.max(world.width, world.height, 1) * 1.5;
+  cam.dist = Math.max(world.width, world.height, world.depth || 0, 1) * 1.6;
 }
 
 function camBasis() {
-  const C = { X: world.width / 2, Y: 0, Z: world.height / 2 };
+  const C = { X: world.width / 2, Y: (world.depth || 0) / 2, Z: world.height / 2 };
   const dir = {
     X: Math.cos(cam.pitch) * Math.sin(cam.yaw),
     Y: Math.sin(cam.pitch),
@@ -215,8 +254,9 @@ window.addEventListener('resize', resize);
 
 function seg(a, b) { if (a && b) { ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); } }
 
-function drawFloor(b) {
-  const W = world.width, H = world.height, N = 10;
+function drawBox(b) {
+  const W = world.width, H = world.height, D = world.depth || 0, N = 10;
+  // 바닥(Y=0) 그리드 — 깊이 단서
   ctx.lineWidth = 1;
   ctx.strokeStyle = '#161c28';
   for (let i = 0; i <= N; i++) {
@@ -226,11 +266,21 @@ function drawFloor(b) {
   }
   // 바닥 경계 강조
   ctx.strokeStyle = '#2c3854';
-  const c = [
+  const f = [
     project({ X: 0, Y: 0, Z: 0 }, b), project({ X: W, Y: 0, Z: 0 }, b),
     project({ X: W, Y: 0, Z: H }, b), project({ X: 0, Y: 0, Z: H }, b),
   ];
-  seg(c[0], c[1]); seg(c[1], c[2]); seg(c[2], c[3]); seg(c[3], c[0]);
+  seg(f[0], f[1]); seg(f[1], f[2]); seg(f[2], f[3]); seg(f[3], f[0]);
+  // 3D 박스 — 천장(Y=D) 경계 + 수직 기둥으로 시뮬레이션 부피를 드러낸다(렌더 전용 아님: z 가 실제 토러스 축)
+  if (D > 0) {
+    ctx.strokeStyle = '#222c40';
+    const t = [
+      project({ X: 0, Y: D, Z: 0 }, b), project({ X: W, Y: D, Z: 0 }, b),
+      project({ X: W, Y: D, Z: H }, b), project({ X: 0, Y: D, Z: H }, b),
+    ];
+    seg(t[0], t[1]); seg(t[1], t[2]); seg(t[2], t[3]); seg(t[3], t[0]);
+    for (let k = 0; k < 4; k++) seg(f[k], t[k]);
+  }
 }
 
 function draw() {
@@ -239,7 +289,7 @@ function draw() {
   if (!world) return;
   const b = camBasis();
   draw._b = b;
-  drawFloor(b);
+  drawBox(b);
 
   // 원소: 깊이 정렬(먼 것 먼저)
   const arr = [];
@@ -328,7 +378,6 @@ cv.addEventListener('wheel', ev => {
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
 $('stepBtn').onclick = () => { if (world) { stepWorld(world, rules, params); syncStats(); } };
 $('reset').onclick = () => buildWorld();
-$('useDemo').onclick = () => { scenario = demoScenario; scenarioName = '기본 세계'; $('loadErr').textContent = ''; buildWorld(); };
 $('camReset').onclick = () => { cam.yaw = -0.7; cam.pitch = 0.72; fitCamera(); };
 $('capture').onclick = () => {
   const a = document.createElement('a');
@@ -337,21 +386,13 @@ $('capture').onclick = () => {
   a.click();
 };
 
-$('load').onclick = async () => {
-  $('loadErr').textContent = '';
-  const sp = $('scnPath').value.trim();
-  if (!sp) { $('loadErr').textContent = '시나리오 경로를 입력하세요. (규칙은 자동 적용됩니다)'; return; }
-  try {
-    const smod = await import(/* @vite-ignore */ sp + (sp.includes('?') ? '' : `?t=${performance.now()}`));
-    const scn = smod.default || smod;
-    if (!scn || typeof scn.setup !== 'function') throw new Error('시나리오에 setup(params) 가 없습니다.');
-    scenario = scn;
-    scenarioName = sp;
-    buildWorld();
-  } catch (e) {
-    $('loadErr').textContent = '로드 실패: ' + (e && e.message ? e.message : e)
-      + '\n(브라우저 보안상 ES 모듈 로드는 http 서버에서 동작합니다. 예: python3 -m http.server)';
-  }
+$('load').onclick = () => loadSelectedScenario();
+$('scnSelect').onchange = () => loadSelectedScenario();   // 선택 즉시 로드(번거로운 경로 입력 제거)
+$('reload').onclick = async () => {
+  rules = await discoverRules();
+  params = mergeDefaults(rules);
+  buildScenarioOptions();
+  syncStats();
 };
 
 // ── 시작 ─────────────────────────────────────────────────────────
@@ -359,6 +400,7 @@ resize();
 (async () => {
   rules = await discoverRules();
   params = mergeDefaults(rules);
+  buildScenarioOptions();
   buildWorld();
   requestAnimationFrame(tick);
 })();

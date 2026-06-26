@@ -29,6 +29,7 @@ export default {
     // ④ 비활성 원자 — 홀로, 짝 없음
     els.push(atom(640, 220, 0, 2, 2.5, 120));
 
-    return { width: w, height: h, tick: 0, elements: els };
+    // depth → 3D 박스. 이 화학 쇼케이스는 평면(z=0) 단면이지만 공간 자체는 3D(엔진이 3축 동일 처리).
+    return { width: w, height: h, depth: 600, tick: 0, elements: els };
   },
 };

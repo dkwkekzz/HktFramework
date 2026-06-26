@@ -33,23 +33,25 @@ export default {
     const ionicThreshold = params && params.ionicThreshold != null ? params.ionicThreshold : Infinity;
     const transferQ = params && params.transferQ != null ? params.transferQ : 1;
     const els = world.elements;
-    const W = world.width, H = world.height;
+    const W = world.width, H = world.height, D = world.depth;
+    const wrapZ = typeof D === 'number' && D > 0;
     const Ri = radius(e.m, bondK);
 
     for (let j = i + 1; j < els.length; j++) {
       const o = els[j];
-      // 토러스 최근접 변위(둘 사이 가장 가까운 이미지)
+      // 토러스 최근접 변위(둘 사이 가장 가까운 이미지) — 3D
       let dx = o.x - e.x; dx -= Math.round(dx / W) * W;
       let dy = o.y - e.y; dy -= Math.round(dy / H) * H;
+      let dz = (o.z || 0) - (e.z || 0); if (wrapZ) dz -= Math.round(dz / D) * D;
       const R = Ri + radius(o.m, bondK);
-      if (dx * dx + dy * dy > R * R) continue;          // 접촉 아님
+      if (dx * dx + dy * dy + dz * dz > R * R) continue; // 접촉 아님(구 거리)
 
       // 접근(닫힘): 중심선 방향 상대속도가 음수여야 결합(서로 멀어지면 결합 안 함)
-      const dvx = (o.vx || 0) - (e.vx || 0), dvy = (o.vy || 0) - (e.vy || 0);
-      if (dx * dvx + dy * dvy >= 0) continue;           // 멀어지는 중 → 결합 안 함
+      const dvx = (o.vx || 0) - (e.vx || 0), dvy = (o.vy || 0) - (e.vy || 0), dvz = (o.vz || 0) - (e.vz || 0);
+      if (dx * dvx + dy * dvy + dz * dvz >= 0) continue; // 멀어지는 중 → 결합 안 함
 
       // 결합 문턱: 너무 빠르게 만나면 결합이 충격을 못 가둔다 → 결합 안 함(닿는 게 다 뭉치진 않는다)
-      if (dvx * dvx + dvy * dvy > vStick * vStick) continue;
+      if (dvx * dvx + dvy * dvy + dvz * dvz > vStick * vStick) continue;
 
       // 결합 종류: 전기음성도 차이로 공유 vs 이온
       const dEN = Math.abs((e.en || 0) - (o.en || 0));

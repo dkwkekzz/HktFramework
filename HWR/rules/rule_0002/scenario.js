@@ -28,6 +28,7 @@ export default {
     els.push(mk(120, 520, 1, 3, 120));
     els.push(mk(120, 560, 1, 3, 120));
 
-    return { width: w, height: h, tick: 0, elements: els };
+    // depth → 3D 박스. 이 장면은 평면(z=0) 단면이지만 시뮬레이션 공간 자체는 3D(엔진이 3축 동일 처리).
+    return { width: w, height: h, depth: 600, tick: 0, elements: els };
   },
 };

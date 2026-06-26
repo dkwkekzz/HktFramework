@@ -90,5 +90,24 @@ const world = (els, imps = []) => ({ width: 1e9, height: 1e9, tick: 0, elements:
     approx(vs[0], 6) && approx(vs[1], 3) && approx(vs[2], 1.5) && approx(vs[3], 0.75));
 }
 
+// 7. 3D 시뮬레이션 공간 — z 축도 보편 역학(관성·a=F/m)을 받고, depth 설정 시 토러스 랩
+{
+  // z 방향 외부 힘 jz → Δvz = J/m (x·y 와 동일한 3차원 등방성)
+  const w = { width: 1e9, height: 1e9, depth: 1e9, tick: 0,
+    elements: [{ x: 0, y: 0, z: 0, vx: 0, vy: 0, vz: 0, m: 4 }],
+    impulses: [{ tick: 0, idx: 0, jx: 0, jy: 0, jz: 8 }] };
+  step(w);
+  check('3D: 깊이 축 외부 힘 → Δvz = J/m', approx(w.elements[0].vz, 8 / 4), `vz=${w.elements[0].vz}`);
+}
+{
+  // depth 토러스 랩 — z 가 박스를 벗어나면 반대편으로 (속도는 불변)
+  const D = 100;
+  const w = { width: 1e9, height: 1e9, depth: D, tick: 0,
+    elements: [{ x: 0, y: 0, z: 95, vx: 0, vy: 0, vz: 10, m: 1 }], impulses: [] };
+  step(w); // z: 95 + 10 = 105 → 랩 → 5
+  check('3D: 깊이 토러스 랩(z 가 박스 경계를 넘으면 반대편)',
+    approx(w.elements[0].z, 5) && approx(w.elements[0].vz, 10), `z=${w.elements[0].z}, vz=${w.elements[0].vz}`);
+}
+
 console.log(failed === 0 ? '\n전체 통과 ✅' : `\n실패 ${failed}건 ❌`);
 process.exitCode = failed === 0 ? 0 : 1;
