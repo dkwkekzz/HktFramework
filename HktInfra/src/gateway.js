@@ -67,7 +67,22 @@ class Gateway {
     this.gatewayZoneRoutes = 0;           // step-0294 (#9) — 게이트웨이가 자기 디렉토리로 해소해 직접 라우팅한 entity frame 누적.
     this.gatewayZoneMisses = 0;           // step-0294 (#9) — 디렉토리에 없는 존(미배치/미학습)으로 드롭한 entity frame 누적(정직한 한계).
     this.gatewayHostInvalidated = 0;      // step-0297 (#9) — orch hostDown broadcast 로 죽은 host 의 dir 엔트리를 일괄 무효화한 횟수(장애 검출 반영).
+    // 다운스트림 뷰 수신 버퍼(step-0333·#9 후속) — orch egress 가 보낸 zoneView(host 산출 AOI 뷰)를 세션별로 보관(존→게이트웨이 경로의 게이트웨이 종단). 0331 egress 송출의 짝. 세션→클라 라우팅은 후속(0334+). zoneEgress OFF 면 zoneView 미수신 → 빈 채 = 이전 비트 동일.
+    this.zoneViewIn = new Map();          // sessionId -> [frame…] (그 세션에 도착한 다운스트림 view/view_delta frame·도착 순서 보존).
+    this.zoneViewsRx = 0;                 // 수신한 zoneView frame 누적(step-0333·계측·== orch.zoneEgressCount() 면 egress→게이트웨이 무손실).
   }
+  // 다운스트림 뷰 수신(step-0333·#9 후속) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존). sessionId 없는 frame 은 무시(주소 불가). 읽기 경로(라우팅)는 후속.
+  _recvZoneView(p) {
+    if (!p.sessionId) return;
+    let a = this.zoneViewIn.get(p.sessionId);
+    if (!a) { a = []; this.zoneViewIn.set(p.sessionId, a); }
+    a.push(p.frame);
+    this.zoneViewsRx++;
+  }
+  // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
+  gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
+  gatewayDownstreamCount() { return this.zoneViewsRx; }
+  gatewayViewSessions() { return [...this.zoneViewIn.keys()].sort(); }
   // 존 디렉토리 질의(step-0293·#9) — "이 존이 어느 host 에 있다고 게이트웨이가 아나 / 몇 개 아나"(라우팅 결정 기준·orch.running 실물과 대조해 정합 검증). 읽기 전용.
   zoneDirOf(zoneId) { return this.zoneDir.get(zoneId) || null; }
   zoneDirSize() { return this.zoneDir.size; }

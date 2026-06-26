@@ -9,19 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0332](step-0332.md) — **정리: 브리지 필드 init 분리** — orchestrator.js 생성자의 0272~0331 필드 대입 블록을 전용 새 파일 `orch-bridge-init.js _initBridgeFields(opts)` 로 이동(투명 분할·reg 0). orchestrator.js **30.5KB→22.8KB**(0331 egress 가 넘긴 >30KB 가드 해소·세 박스 모두 <30KB). 직전 [step-0331](step-0331.md) = 다운스트림 egress(`_drainZoneEgress`·`zoneView` 송출·전파 sub-arc 시작).
-- **한 줄 상태**: reg ALL OK·bridgesplit 5/5(egress4==frames4·dcoh)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→실 클라까지 전파. 0331 egress(존→게이트웨이 송출) ✅. **후속**: 게이트웨이 `zoneView` 수신→세션→클라 라우팅·per-세션 seq·ack·재전송·keyframe·격리·무손실 회계·capstone. 포착 sub-arc(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 적기 — 미실시(4묶음 누적)**.
+- **닫힌 step**: [step-0333](step-0333.md) — **#9 후속: 게이트웨이 다운스트림 수신** — 게이트웨이 onMsg 에 orch `zoneView` 분기 → `_recvZoneView` 가 세션별 버퍼(`zoneViewIn`)에 적재(존→게이트웨이 경로 완성). 플래그 없음(zoneEgress OFF→미수신·비트 동일). 직전: 0331 egress(송출)·0332 정리(브리지 init 분리).
+- **한 줄 상태**: reg ALL OK·gwdown 5/5(gwRx4==egress4·세션2)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→실 클라까지. 0331 egress✅·0333 게이트웨이 수신✅. **후속**: 세션→클라 라우팅(전달)·per-세션 seq·ack·재전송·keyframe·격리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **실 host.js 물리 프로세스 분리 arc(0301~0310) ✅ 완료** — #9(0291~0300)이 데이터 평면을 게이트웨이 직접 라우팅으로 옮겼으나 zone-host 핸들은 여전히 orch 인프로세스 *flat* zoneRuntimes Map·host=문자열 태그였다. 이 arc 가 host 를 *1급 프로세스 컨테이너*(zoneHosts)로 분리: 0301 컨테이너 레지스트리(_hostSet)·0302 자기 inbox 수신+자기 루프 drain·tick·0303 단일소유/drift·0304 roster spawn/despawn·0305 정리 분할(orch-hostproc.js)·0306 inbox stale 거부(이중 쓰기 방지)·0307 host 프로세스 census·0308 hostContainerCoherent·0309 다중 churn bijection·0310 capstone(hostProcCoherent=directFlowCoherent && hostContainerCoherent). 각 플래그 OFF→직전 step 비트 동일(reg 0). **다음 = 실 host.js *OS 프로세스/소켓* spawn**(현 zoneHosts 는 orch 인프로세스 논리 컨테이너·cluster-run.js 실 spawn 통합 후속). 방향 권위 = `infra-review`(다음: 0291~0300·0301~0310 묶음 평결 — 2묶음 누적).
+> 🎯 **현재 초점 = downstream *전파* sub-arc(0331~)** — SPINE §4 경로2 월드 다운스트림(존→게이트웨이→클라)을 실 배선. 0331 egress(host 버퍼→게이트웨이 송출)·0333 게이트웨이 수신(세션 버퍼)·0332 정리. **다음 한 조각**: 게이트웨이 세션→실 클라 라우팅(전달) → per-세션 seq → ack → 재전송 → keyframe/resync → 격리 → 무손실 회계 → capstone. 그 위 기반: 포착 sub-arc(0319~0330 ✅)·부하 균형(0311~0318 ✅)·실 host.js 컨테이너(0301~0310 ✅·hostProcCoherent)·게이트웨이 직접 라우팅(0291~0300 ✅·directFlowCoherent)·#56 entity 데이터 평면(0281~0290 ✅).
 
-**후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
-
-> **#51b 실 zone.js 브리지(0272~0280·완료)**: orch 가 placement 집행(_start/_migrate/_stop/_hostDown/_rebalance/_drain)으로 *실 EntityZone 인스턴스* lifecycle 을 구동(zoneRuntimes 레지스트리·orch-zonebridge.js 믹스인·팩토리 makeActor 주입). running 문자열 추상 SSOT↔실 핸들 정합(zoneRuntimeDrift·bridgeCoherent·fullyCoherent). migrate(상태 보존·같은 핸들) vs hostdown(소실·새 인스턴스) 의미 분리. zoneBridge OFF→전 step 비트 동일(reg 0). 잔여: 실 프로세스 분리(#9)·entity 트래픽.
+**후속 백로그 (전파 sub-arc 닫은 뒤)**: ⒜ **실 host.js *OS 프로세스/소켓* spawn** — 현 zoneHosts 는 orch 인프로세스 논리 컨테이너(cluster-run.js 실 spawn 통합). ⒝ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0330 4묶음 평결 누적).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -151,3 +149,4 @@
 | [0330](step-0330.md) | downstream 데이터 평면 11·capstone(#9 후속): 전 정합 downstreamCoherent(zoneViewConserved&&zoneViewAllKeyed&&serializable·혼합 lifecycle enter/move/leave/migrate 뒤 두 존 정합+hostProcCoherent+entityConserved·downstream sub-arc 0319~0330 닫기·읽기 전용·0329 비트 동일) | 통과(reg 0·spine OK) · 5/5 dc1·dc2·hpcoh·consv·total2 |
 | [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |
 | [0332](step-0332.md) | 정리: 브리지 필드 init 분리(생성자 0272~0331 필드 대입 블록→전용 새 파일 orch-bridge-init.js `_initBridgeFields`·투명 분할·orchestrator.js 30.5KB→22.8KB·세 박스 <30KB·기능 0·reg 0) | 통과(reg 0·spine OK) · bridgesplit 5/5 egress4==frames4·dcoh |
+| [0333](step-0333.md) | downstream 전파 2(#9 후속): 게이트웨이 다운스트림 수신(onMsg orch zoneView 분기→`_recvZoneView` 세션별 버퍼 zoneViewIn·존→게이트웨이 경로 완성·zoneEgress OFF→미수신 비트 동일) | 통과(reg 0·spine OK) · gwdown 5/5 gwRx4==egress4·세션2 |

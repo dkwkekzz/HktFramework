@@ -37,6 +37,9 @@ const GatewayMsg = {
         // host 장애 일괄 무효화(step-0297·#9) — 죽은 host 의 모든 dir 엔트리 삭제(장애 검출 신호). 구조된 존은 _bridgeHostDown 의 survivor zoneLoc 가 *먼저* 도착해 새 host 로 이미 갱신됨(삭제 대상 아님) → 미구조(생존 host 없는) 존만 정리. 게이트웨이가 죽은 host 로 직접 라우팅하지 않게 보장. 미수신이면 이전 비트 동일.
         for (const [z, h] of [...this.zoneDir]) if (h === p.host) this.zoneDir.delete(z);
         this.gatewayHostInvalidated++;
+      } else if (p.type === 'zoneView') {
+        // 다운스트림 뷰 수신(step-0333·#9 후속) — orch(host)가 egress 한 host 산출 AOI 뷰(zoneView 봉투·zoneId·sessionId·frame)를 게이트웨이가 받아 *세션별 다운스트림 버퍼*에 보관(_recvZoneView). 0331 은 송출까지였고, 이 분기가 게이트웨이 종단에서 받는다(존→게이트웨이 경로 완성). 세션→클라 라우팅·실 전달은 후속(0334+). zoneEgress OFF 면 zoneView 가 영영 안 옴 = 이전 비트 동일(이 분기 dead).
+        this._recvZoneView(p);
       }
       return;
     }
