@@ -70,15 +70,26 @@ class Gateway {
     // 다운스트림 뷰 수신 버퍼(step-0333·#9 후속) — orch egress 가 보낸 zoneView(host 산출 AOI 뷰)를 세션별로 보관(존→게이트웨이 경로의 게이트웨이 종단). 0331 egress 송출의 짝. 세션→클라 라우팅은 후속(0334+). zoneEgress OFF 면 zoneView 미수신 → 빈 채 = 이전 비트 동일.
     this.zoneViewIn = new Map();          // sessionId -> [frame…] (그 세션에 도착한 다운스트림 view/view_delta frame·도착 순서 보존).
     this.zoneViewsRx = 0;                 // 수신한 zoneView frame 누적(step-0333·계측·== orch.zoneEgressCount() 면 egress→게이트웨이 무손실).
+    // 다운스트림 라우팅 디렉토리(step-0334·#9 후속) — 브리지 세션→클라 주소(클라가 게이트웨이로 zoneEnter 할 때 학습·orch 의 sessionId 기본 's:'+avatar 와 일치). zoneView 수신 시 이 디렉토리로 클라를 해소해 frame 전달(존→게이트웨이→클라 완성). 미바인딩 세션 frame 은 드롭(계측).
+    this.downClients = new Map();         // sessionId -> client addr (다운스트림 전달 대상·zoneEnter 에서 set·은닉: 클라는 게이트웨이만 안다).
+    this.zoneViewsRouted = 0;             // 바인딩된 클라로 전달한 다운스트림 frame 누적(step-0334·계측·== zoneViewsRx 면 무드롭 라우팅).
+    this.zoneViewDropped = 0;             // 미바인딩 세션이라 드롭한 다운스트림 frame 누적(step-0334·정직한 한계).
   }
-  // 다운스트림 뷰 수신(step-0333·#9 후속) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존). sessionId 없는 frame 은 무시(주소 불가). 읽기 경로(라우팅)는 후속.
+  // 다운스트림 뷰 수신+라우팅(step-0333 수신·step-0334 라우팅) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존) + downClients 바인딩이 있으면 그 클라로 frame 전달(존→게이트웨이→클라). sessionId 없으면 무시(주소 불가)·미바인딩이면 드롭(계측).
   _recvZoneView(p) {
     if (!p.sessionId) return;
     let a = this.zoneViewIn.get(p.sessionId);
     if (!a) { a = []; this.zoneViewIn.set(p.sessionId, a); }
     a.push(p.frame);
     this.zoneViewsRx++;
+    const client = this.downClients.get(p.sessionId);
+    if (client) { this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++; }   // step-0334 — 세션→클라 전달(frame 그대로·클라 와이어 계약 = view/view_delta 0333 까지의 기존 형식). zoneEgress OFF 면 zoneView 미수신 → 이 송신 0 = 이전 비트 동일.
+    else this.zoneViewDropped++;
   }
+  // 다운스트림 라우팅 질의(step-0334·#9 후속) — "전달/드롭 누적·이 세션이 어느 클라에 묶였나"(존→게이트웨이→클라 무손실·바인딩 검증). 읽기 전용.
+  gatewayRoutedCount() { return this.zoneViewsRouted; }
+  gatewayDroppedCount() { return this.zoneViewDropped; }
+  downClientOf(sessionId) { return this.downClients.get(sessionId) || null; }
   // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
   gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
   gatewayDownstreamCount() { return this.zoneViewsRx; }

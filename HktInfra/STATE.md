@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0333](step-0333.md) — **#9 후속: 게이트웨이 다운스트림 수신** — 게이트웨이 onMsg 에 orch `zoneView` 분기 → `_recvZoneView` 가 세션별 버퍼(`zoneViewIn`)에 적재(존→게이트웨이 경로 완성). 플래그 없음(zoneEgress OFF→미수신·비트 동일). 직전: 0331 egress(송출)·0332 정리(브리지 init 분리).
-- **한 줄 상태**: reg ALL OK·gwdown 5/5(gwRx4==egress4·세션2)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→실 클라까지. 0331 egress✅·0333 게이트웨이 수신✅. **후속**: 세션→클라 라우팅(전달)·per-세션 seq·ack·재전송·keyframe·격리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
+- **닫힌 step**: [step-0334](step-0334.md) — **#9 후속: 게이트웨이→클라 다운스트림 라우팅** — 게이트웨이가 클라 zoneEnter 시 세션→클라(`downClients`) 바인딩 → zoneView 수신 시 그 클라로 frame 전달(존→게이트웨이→클라 완성). 미바인딩 드롭(계측). zoneEgress OFF→미수신·비트 동일. 직전: 0331 egress·0333 게이트웨이 수신.
+- **한 줄 상태**: reg ALL OK·gwroute 5/5(routed4==rx4·drop0·s:a1→dc0·s:a2→dc1)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→클라까지. 0331 egress✅·0333 게이트웨이 수신✅·0334 클라 라우팅(전달)✅. **후속**: per-세션 다운스트림 seq·클라 ack·재전송·keyframe/resync·격리·leave 정리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
 
@@ -150,3 +150,4 @@
 | [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |
 | [0332](step-0332.md) | 정리: 브리지 필드 init 분리(생성자 0272~0331 필드 대입 블록→전용 새 파일 orch-bridge-init.js `_initBridgeFields`·투명 분할·orchestrator.js 30.5KB→22.8KB·세 박스 <30KB·기능 0·reg 0) | 통과(reg 0·spine OK) · bridgesplit 5/5 egress4==frames4·dcoh |
 | [0333](step-0333.md) | downstream 전파 2(#9 후속): 게이트웨이 다운스트림 수신(onMsg orch zoneView 분기→`_recvZoneView` 세션별 버퍼 zoneViewIn·존→게이트웨이 경로 완성·zoneEgress OFF→미수신 비트 동일) | 통과(reg 0·spine OK) · gwdown 5/5 gwRx4==egress4·세션2 |
+| [0334](step-0334.md) | downstream 전파 3(#9 후속): 게이트웨이→클라 라우팅(zoneEnter 시 세션→클라 downClients 바인딩→zoneView 수신 시 그 클라로 frame 전달·미바인딩 드롭·존→게이트웨이→클라 완성·zoneEgress OFF→전달 0 비트 동일) | 통과(reg 0·spine OK) · gwroute 5/5 routed4==rx4·drop0·바인딩정확 |
