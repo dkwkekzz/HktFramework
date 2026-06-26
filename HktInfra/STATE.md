@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0339](step-0339.md) — **#9 후속: 다운스트림 leave 정리** — leave 시 게이트웨이 `_downCleanup`(downClients/seq/resync/buffer)·orch `_bridgeLeave`(egress buf/seq/acked) 정리(0334 stale 바인딩/무계 성장 한계 해소). egress OFF→정리 맵 빈 채·미참조→비트 동일. 직전: 0338 타임아웃 재전송.
-- **한 줄 상태**: reg ALL OK·gwleave 5/5(a1 cleaned·b1 null·buf1 0·a2 보존)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0340](step-0340.md) — **#9 후속: 다운스트림 다중 존 격리** — 게이트웨이 클라별 전달 세션 회계 `downDelivered` + 술어 `gatewayDeliveryIsolated`(모든 클라 정확히 자기 1세션). z1·z2 동시에 각 클라 자기 세션만(교차 누수 0). 읽기 전용·비트 동일. 직전: 0339 leave 정리.
+- **한 줄 상태**: reg ALL OK·gwiso 5/5(iso Y·dc0→s:a1·dc1→s:a2·dc2→s:b1·존별 egress 격리)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→클라까지. 0331 egress✅·0333 게이트웨이 수신✅·0334 클라 라우팅(전달)✅. **후속**: per-세션 다운스트림 seq·클라 ack·재전송·keyframe/resync·격리·leave 정리·무손실 회계·capstone. 포착(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js OS 프로세스 spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 미실시(4묶음 누적)**.
 
 ---
@@ -149,3 +149,4 @@
 | [0337](step-0337.md) | downstream 전파 6(#9 후속): 재전송 복구(게이트웨이 인오더 게이팅·gap→zoneResync·중복 드롭 + orch `_resendEgress` 미-ack 버퍼서 dseq≥from 재전송·egressDrop 손실 주입·0008 ack/NAK 다운스트림 판·미주입 OFF→비트 동일) | 통과(reg 0·spine OK) · gwloss 5/5 drop1→resync1→복구 next5==egr5 |
 | [0338](step-0338.md) | downstream 전파 7(#9 후속): 타임아웃 재전송(orch `_retransmitStale` 매 tick ack 없이 egressTimeout 경과 frame 재전송·세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍·zone heartbeat/bus 0058 다운스트림 판·egressTimeout0 OFF→비트 동일) | 통과(reg 0·spine OK) · gwtimeout 5/5 마지막 손실 resync0→복구 |
 | [0339](step-0339.md) | downstream 전파 8(#9 후속): leave 정리(게이트웨이 `_downCleanup` downClients/seq/resync/buffer + orch `_bridgeLeave` egress buf/seq/acked·0334 stale 바인딩/무계 성장 해소·egress OFF→정리 맵 빈 채 비트 동일) | 통과(reg 0·spine OK) · gwleave 5/5 a1 정리·a2 보존 |
+| [0340](step-0340.md) | downstream 전파 9(#9 후속): 다중 존 격리(게이트웨이 클라별 전달 세션 회계 downDelivered + 술어 gatewayDeliveryIsolated·z1·z2 동시 각 클라 자기 세션만·교차 누수 0·존별 egress 격리·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · gwiso 5/5 iso Y·바인딩 격리 |

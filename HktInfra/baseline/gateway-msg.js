@@ -130,6 +130,7 @@ const GatewayMsg = {
       // 게이트웨이 직접 존 leave 라우팅(step-0295·#9·enter 와 동형) — zoneDir 로 host 해소→zoneDeliver(leave). 미스면 드롭. 미수신(OFF)이면 이전 비트 동일.
       const host = this.zoneDir.get(p.zoneId);
       if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this._downCleanup(p.sessionId || ('s:' + p.avatar));   // step-0339 (#9 후속) — 다운스트림 세션 상태 정리(downClients/seq/resync/buffer)·stale 바인딩 누적 방지(0334 한계 해소). 맵 정리뿐(egress 경로 외엔 메시지 무영향) → reg 0.
       this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'leave', zoneId: p.zoneId, avatar: p.avatar, host });
       this.gatewayZoneRoutes++;
     } else if (p.type === 'disconnect') {
