@@ -20,6 +20,12 @@ const OrchControl = {
       if (host !== null) { this.placement.set(p.zoneId, host); this.autoPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행(step-0247) — 실 존 런타임도 가동.
       return;
     }
+    // 부하 인지(entity 가중) 자동 배치(step-0316·placeAutoE) — {zoneId, hosts[]} → 후보 중 *entity 최소 부하* host 선택 배치(존 수가 아니라 동접 가중 — 존 수는 같아도 만원인 host 를 피한다). placeAuto(0217·존 수)의 entity 가중 판. 동률은 후보 순서 결정론 tie-break. placeAutoE 미수신이면 미발화 = 0315 비트 동일(reg 0).
+    if (p.type === 'placeAutoE') {
+      const host = this._leastLoadedByEntities(p.hosts || []);
+      if (host !== null) { this.placement.set(p.zoneId, host); this.autoEPlacements++; if (this.placeExecute) this._start(p.zoneId, host); }   // 집행 — 실 존 런타임도 가동.
+      return;
+    }
     // 존 재배치 핸드오프(step-0218·placeMigrate) — {zoneId, toHost} → 이미 배치된 존을 release(기존 host)+acquire(toHost) 쌍으로 옮긴다(권위 단일 소유 보존·공백/중복 0). 미배치 존·같은 host 는 거부(no-op). placeMigrate 미수신이면 미발화 = 0217 비트 동일.
     if (p.type === 'placeMigrate') {
       const from = this.placement.get(p.zoneId);

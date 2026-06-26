@@ -55,6 +55,7 @@ class Orchestrator {
     this.placeRepliesSent = 0;
     this._lastPlaceReply = null;  // 마지막 placeReply 보관(검증용·순수 읽기).
     this.autoPlacements = 0;      // 처리한 placeAuto 수(step-0217·부하 기반 자동 배치·계측).
+    this.autoEPlacements = 0;     // 처리한 placeAutoE 수(step-0316·entity 가중 자동 배치·계측·placeAutoE 미수신이면 0).
     this.migrations = 0;          // 처리한 placeMigrate 성공 수(step-0218·release+acquire 쌍·재배치).
     this.migrateRejects = 0;      // 거부된 placeMigrate 수(step-0218·미배치 존·같은 host no-op).
     this.rebalances = 0;          // 처리한 placeRebalance 패스 수(step-0223·계측·균형이면 0).

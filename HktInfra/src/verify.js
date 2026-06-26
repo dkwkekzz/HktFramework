@@ -1,8 +1,8 @@
-// HktInfra step-0315 — 헤드리스 검증 (#9 잔여: 다중 동시 host 프로세스 장애)
+// HktInfra step-0316 — 헤드리스 검증 (#9 잔여: entity 가중 부하 인지 자동 배치 placeAutoE)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostdoublefail`.
-//   더한 한 조각: hostCount()(가동 host 프로세스 수). 2 host 연속 장애 → 모든 존을 마지막 생존 host 로·hostCount 3→1·bijection(읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostdoublefail`(가설) — hostA·hostB 연속 down → 4존 전부 hostC·hostCount 1·despawn A·B·hostContainerCoherent·bijection.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostautoentity`.
+//   더한 한 조각: placeAutoE 옵·_leastLoadedByEntities·hostEntityLoad — 후보 host 중 *entity 최소 부하* 선택(존 수 같아도 만원 host 회피). placeAutoE 미수신이면 0315 비트 동일.
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostautoentity`(가설) — z1@A(5명)·z2@B(0명)일 때 placeAuto(존 수)는 z3→A(만원), placeAutoE(entity)는 z3→B(한가).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,30 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0315 #9 잔여 검증 — 다중 동시 host 장애(hostCount). z1·z2@A·z3·z4@B(2 host·각 2존). hostA down(생존 [B,C]) → z1·z2→C. hostB down(생존 [C]·죽은 A 제외) → z3·z4→C.
-//   장애 누적 후: 모든 4존이 hostC 로 수렴·hostCount 3→1(2대 죽고 1대 남음)·hostZones(C) 4개·A·B despawn 로그·hostContainerCoherent·bijection(zoneHostSnapshot=={C:[z1..z4]}).
-function hostdoublefail(seeds) {
+// step-0316 #9 잔여 검증 — entity 가중 부하 인지 자동 배치(placeAutoE). z1@A(엔티티 5)·z2@B(엔티티 0): 존 수는 A·B 둘 다 1(균형으로 보임).
+//   placeAuto(존 수 기준)는 동률 tie-break 으로 z3→A(만원 host 에 또 얹음). placeAutoE(entity 기준)는 z3→B(한가한 host) — 동접 가중이 만원 host 회피.
+function hostautoentity(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const DOWN = (at, host, hosts) => ({ at, op: { type: 'placeHostDown', host, hosts } });
-  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), PLACE(4, 'z4', 'hostB'),
-    DOWN(10, 'hostA', ['hostA', 'hostB', 'hostC']), DOWN(12, 'hostB', ['hostB', 'hostC'])];
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneHostLifecycle: true };
-  console.log('== hostdoublefail (0315·#9 잔여): 다중 동시 host 장애. 2 host(각 2존) 연속 down → 4존 전부 hostC·hostCount 3→1·despawn A·B·bijection. ==');
-  console.log('seed   | hostCount | C존수 | despAB | hcoh | bij | 판정');
+  const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
+  const AUTO = (at, zoneId, hosts) => ({ at, op: { type: 'placeAuto', zoneId, hosts } });
+  const AUTOE = (at, zoneId, hosts) => ({ at, op: { type: 'placeAutoE', zoneId, hosts } });
+  const AB = ['hostA', 'hostB'];
+  const SETUP = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB')];
+  const ENT = [ENTER(4, 'z1', 'a1'), ENTER(5, 'z1', 'a2'), ENTER(6, 'z1', 'a3'), ENTER(7, 'z1', 'a4'), ENTER(8, 'z1', 'a5')];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
+  console.log('== hostautoentity (0316·#9 잔여): entity 가중 자동 배치. z1@A(5명)·z2@B(0명)·존 수 균형. placeAuto(존 수)→z3@A(만원), placeAutoE(entity)→z3@B(한가). ==');
+  console.log('seed   | auto z3 | autoE z3 | hcoh | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 16, ...BASE, placementOps: OPS });
-    const o = r.orch;
-    const cN = o.hostZones('hostC').length;
-    const despAB = o.hostLifecycle().filter(e => e.kind === 'despawn' && (e.host === 'hostA' || e.host === 'hostB')).length;
-    const snap = o.zoneHostSnapshot();
-    const bij = Object.keys(snap).length === 1 && (snap.hostC || []).join(',') === 'z1,z2,z3,z4';
-    const ok = check(o.hostCount() === 1 && cN === 4 && despAB === 2 && o.hostContainerCoherent() && bij && o.running.size === 4,
-      `seed ${seed}: 다중 장애 위반 (hostCount ${o.hostCount()}·C존 ${cN}·despAB ${despAB}·hcoh ${o.hostContainerCoherent()}·bij ${bij})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.hostCount(), 9)} | ${pad(cN, 5)} | ${pad(despAB, 6)} | ${pad(o.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${pad(bij ? 'Y' : 'N', 3)} | ${ok ? 'OK' : 'FAIL'}`);
+    const rA = run({ seed, ticks: 14, ...BASE, placementOps: [...SETUP, AUTO(10, 'z3', AB)], entityOps: ENT });
+    const rE = run({ seed, ticks: 14, ...BASE, placementOps: [...SETUP, AUTOE(10, 'z3', AB)], entityOps: ENT });
+    const hA = rA.orch.running.get('z3'), hE = rE.orch.running.get('z3');
+    const ok = check(hA === 'hostA' && hE === 'hostB' && rE.orch.autoEPlacements === 1 && rE.orch.hostContainerCoherent() && rE.orch.running.size === 3,
+      `seed ${seed}: entity 가중 배치 위반 (auto z3 ${hA}·autoE z3 ${hE}·autoE# ${rE.orch.autoEPlacements}·hcoh ${rE.orch.hostContainerCoherent()})`);
+    console.log(`${pad(seed, 6)} | ${pad(hA, 7)} | ${pad(hE, 8)} | ${pad(rE.orch.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostdoublefail'] = hostdoublefail;
-kit.ORDER.splice(1, 0, 'hostdoublefail');
+kit.MODES['hostautoentity'] = hostautoentity;
+kit.ORDER.splice(1, 0, 'hostautoentity');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
