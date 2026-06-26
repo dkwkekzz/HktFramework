@@ -64,7 +64,7 @@ const totalP = w => { let px = 0, py = 0; for (const e of w.elements) { const m 
     `x=[${w.elements[0].x}, ${w.elements[1].x}]`);
 }
 
-// 5. 운동량 보존 — 묶인 이온쌍의 총 운동량 불변(중심력 작용-반작용)
+// 5. 운동량 보존 — 전기+반발+마찰 모두 작용-반작용 → 총 운동량 불변(마찰은 에너지만 소산)
 {
   const w = world([
     { x: 0, y: 0, z: 0, vx: 0, vy: 0, m: 2, en: 0.9, q: +1, r: 3 },
@@ -73,11 +73,26 @@ const totalP = w => { let px = 0, py = 0; for (const e of w.elements) { const m 
   const P0 = totalP(w);
   for (let i = 0; i < 500; i++) step(w);
   const P1 = totalP(w);
-  check('운동량 보존: ΔΣp≈0 (전기력은 중심력)', Math.abs(P1.px - P0.px) < 1e-9 && Math.abs(P1.py - P0.py) < 1e-9,
+  check('운동량 보존: ΔΣp≈0 (마찰 있어도 운동량 보존, 에너지만 소산)',
+    Math.abs(P1.px - P0.px) < 1e-9 && Math.abs(P1.py - P0.py) < 1e-9,
     `Δp=(${(P1.px - P0.px).toExponential(1)}, ${(P1.py - P0.py).toExponential(1)})`);
 }
 
-// 6. 통합(화학) — 시나리오: H₂는 공유 병합(중성 1개체), NaCl은 이온 결합 후 전기력에 묶인 이온쌍(2개체)
+// 6. 마찰 창발 — 같은 전자기력에서 *접선* 미끄럼도 감쇠한다(마찰). 평형 거리의 이온쌍에 접선 속도를 주면
+//    상대운동(접선 포함)이 소산되어 정지 평형으로 안착 → 마찰이 별도 힘이 아니라 EM 에서 창발함을 보임.
+{
+  const w = world([
+    { x: 0, y: 0, z: 0, vx: 0, vy: 0, m: 2, en: 0.9, q: +1, r: 3 },
+    { x: 6, y: 0, z: 0, vx: 0, vy: 3, m: 2, en: 3.2, q: -1, r: 3 }, // 접선(y) 속도 부여
+  ]);
+  const relSpeed = () => Math.hypot(w.elements[0].vx - w.elements[1].vx, w.elements[0].vy - w.elements[1].vy);
+  const v0 = relSpeed();
+  for (let i = 0; i < 1500; i++) step(w);
+  const v1 = relSpeed();
+  check('마찰 창발: 접선 미끄럼이 EM 으로 감쇠(상대운동 소멸)', v1 < v0 * 0.1, `상대속력 ${v0.toFixed(2)} → ${v1.toFixed(3)}`);
+}
+
+// 7. 통합(화학) — 시나리오: H₂는 공유 병합(중성 1개체), NaCl은 이온 결합 후 전기력에 묶인 이온쌍(2개체)
 {
   const w = scenario.setup();
   const n0 = w.elements.length;             // 5

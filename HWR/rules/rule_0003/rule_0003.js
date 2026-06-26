@@ -1,37 +1,36 @@
-// rule_0003 — 전기력 (전하를 띤 원소끼리 끌고 민다)
+// rule_0003 — 전자기력 (Electromagnetism) : 우주 4대 기본 상호작용 중 하나
 //
-// rule_0002 의 이온 결합은 전자를 옮겨 +/− 이온을 만들 뿐, 그 이온을 *붙잡지는* 못한다.
-// 이 규칙이 그 힘이다 — 전하 사이의 쿨롱 힘. 힘이므로 엔진의 a=F/m 위에서 누적만 한다(상태 변경 없음).
+// 힘 규칙은 *특별한 국소 힘*을 author 하지 않는다 — 오직 4대 기본 상호작용(중력·전자기력·강력·약력)만
+// 정의한다. "전기력·반발력·마찰력"은 별개의 힘이 아니라, 모두 *전자기력 하나*에서 창발하는 양상이다.
+//   · 전기력      = 전하 사이 쿨롱 (Madelung 항).
+//   · 반발력(단단함)= 가까워지면 전자구름이 겹쳐 같은 전하가 밀어내는 단거리 반발 (Born 항). 물질의 '단단함'.
+//   · 마찰력      = 접촉한 전하들이 *상대운동*을 거스르며 에너지를 소산 (접촉 소산 항). 옆으로 미끄러짐을 막음.
+// 셋은 모두 전자기 상호작용의 부분이다(이온 결정의 Born–Landé 모형이 정확히 이 구성). 따로 분류하지 않는다.
 //
-//   · 쿨롱: F = kCoulomb·q_i·q_j / r²  — 같은 부호는 밀고(repel), 반대 부호는 당긴다(attract).
-//   · 짧은 거리 반발(하드코어): F = kCore / r^coreExp (coreExp>2) — 가까울수록 급격히 밀어, 반대 이온이
-//     한 점으로 무너지지 않고 *평형 거리*에 멈춘다. 이 평형이 이온 격자(예: NaCl)의 간격으로 창발한다.
-//   · 결합 감쇠: 상대속도(둘 사이 다가옴/멀어짐)에 비례해 거스르는 힘. 이온이 결합할 때 *결합 에너지를
-//     방출*하며 평형 거리에 안착하게 한다(실제 이온 격자가 진동을 복사로 잃고 정착하는 것). 상대속도에만
-//     작용하므로 *총 운동량은 보존*(같이 움직이면 감쇠 0 — 갈릴레이 불변). 무한 진동·적분 발산을 막는다.
+// 전자기력의 *원천은 전하 q* 다. 지금은 이온(q≠0)만 순전하를 가지므로 EM 은 이온들 사이에서 드러난다.
+//   중성(q=0)은 순전하가 0이라 EM 이 안 보인다 — 그래서 rule_0002 의 공유 결합(중성 원자 병합)을 안 막는다.
+//   (중성끼리의 미세 EM = 반데르발스·중성 표면 마찰은 전하 구조(쌍극자)가 창발하면 같은 규칙에서 확장된다.
+//    자기력 qv×B 도 같은 EM 의 속도 의존 부분 — 후속 정밀화. 지금은 전기·반발·마찰 양상에 집중.)
 //
-// 중성 원소(q=0)는 전기적으로 *안 보인다* — 힘 0. 그래서 rule_0002 의 공유 결합(중성 원자 병합)을
-//   방해하지 않는다. 전기력은 오직 이온(전하≠0)들 사이에서만 작동한다.
-//
-// 보존: 세 힘 모두 중심력·상대량이라, 원소마다 독립 합산해도 작용-반작용이 정확히 상쇄 → 총 운동량 보존.
-//   (감쇠는 에너지를 줄이지만 운동량은 보존 — 결합 에너지 방출.)
-// author 안 함: 타입 분기 0. 전하라는 보편 스칼라와 거리·상대속도만으로 결정. 결정론: 현재 상태만 읽음.
+// 힘이므로 엔진의 a=F/m 위에서 누적만 한다(상태 변경 0). 세 항 모두 중심·상대량 → 작용-반작용 정확히
+//   상쇄 → 총 운동량 보존(소산 항은 에너지만 줄임 = 마찰열). 결정론: 현재 상태(위치·속도·전하)만 읽음.
 
 export default {
   id: 'rule_0003',
-  name: '전기력',
-  //   kCoulomb: 쿨롱 세기 / kCore: 하드코어 반발 / coreExp: 반발 가파름(>2) / cDamp: 결합 감쇠 / rMin: 거리 하한
-  //   평형 거리(반대 이온, |q|=1): r* = (kCore/kCoulomb)^(1/(coreExp−2))  — 기본값(coreExp 3)에서 = 6
-  defaults: { kCoulomb: 15, kCore: 90, coreExp: 3, cDamp: 0.3, rMin: 0.5 },
+  name: '전자기력',
+  //   kCoulomb : 쿨롱(전기) 세기 / kBorn,bornExp : 전자구름 겹침 반발(단단함) / kFriction : 접촉 소산(마찰)
+  //   rMin : 거리 하한(발산 방지)
+  //   반대 이온 평형 거리: r* = (kBorn/kCoulomb)^(1/(bornExp−2))  — 기본값(bornExp 3)에서 = 6
+  defaults: { kCoulomb: 15, kBorn: 90, bornExp: 3, kFriction: 10, rMin: 0.5 },
 
-  // 원소 i 에 작용하는 전기력을 누적한다(상태는 안 건드림). e: 원소, i: 인덱스, world: 세계, params
+  // 원소 i 에 작용하는 전자기력을 누적한다(상태는 안 건드림). e: 원소, i: 인덱스, world: 세계, params
   apply(e, i, world, params) {
     const qi = e.q || 0;
-    if (qi === 0) return;                                 // 중성은 전기적으로 안 보임
+    if (qi === 0) return;                                 // 순전하 없으면 전자기적으로 안 보임
     const kCoulomb = params && params.kCoulomb != null ? params.kCoulomb : 15;
-    const kCore = params && params.kCore != null ? params.kCore : 90;
-    const coreExp = params && params.coreExp != null ? params.coreExp : 3;
-    const cDamp = params && params.cDamp != null ? params.cDamp : 0.3;
+    const kBorn = params && params.kBorn != null ? params.kBorn : 90;
+    const bornExp = params && params.bornExp != null ? params.bornExp : 3;
+    const kFriction = params && params.kFriction != null ? params.kFriction : 10;
     const rMin = params && params.rMin != null ? params.rMin : 0.5;
     const els = world.elements;
     const W = world.width, H = world.height;
@@ -40,7 +39,7 @@ export default {
       if (j === i) continue;
       const o = els[j];
       const qj = o.q || 0;
-      if (qj === 0) continue;                             // 전하 없는 상대와는 전기력 없음
+      if (qj === 0) continue;                             // 전하 없는 상대와는 전자기력 없음
 
       // 토러스 최근접 변위(i → j) 와 거리
       let dx = o.x - e.x; dx -= Math.round(dx / W) * W;
@@ -50,17 +49,20 @@ export default {
       const r = Math.sqrt(r2);
       const ux = dx / r, uy = dy / r;                     // i→j 단위벡터
 
-      // 쿨롱: 같은 부호 → 음수 → −ux(밂), 반대 부호 → 양수 → +ux(당김). (i→j 방향이 ux)
-      const fCoulomb = -kCoulomb * qi * qj / r2;
-      // 하드코어 반발: 항상 −ux(j 반대로), 가까울수록 급격
-      const fCore = kCore / Math.pow(r, coreExp);
-      // 결합 감쇠: 중심선 방향 상대속도(i 기준)를 거스른다 → 진동을 잃고 평형에 안착
-      const vrad = ((e.vx || 0) - (o.vx || 0)) * ux + ((e.vy || 0) - (o.vy || 0)) * uy;
-      const fDamp = -cDamp * vrad;
+      // ── 전자기 상호작용 한 벌 (전기 + 반발 + 마찰이 모두 여기서 나온다) ──
+      // 전기(쿨롱·Madelung): 같은 부호 → 음수 → −ux(밂), 반대 부호 → 양수 → +ux(당김)
+      const fElectric = -kCoulomb * qi * qj / r2;
+      // 반발(전자구름 겹침·Born): 항상 −ux(j 반대로), 가까울수록 급격 → 물질의 단단함
+      const fRepulse = kBorn / Math.pow(r, bornExp);
+      const fRadial = fElectric - fRepulse;               // 중심선 방향 합(전기+반발)
 
-      const fMag = fCoulomb - fCore + fDamp;
-      e.fx += fMag * ux;
-      e.fy += fMag * uy;
+      // 마찰(접촉 소산): 상대속도 전체를 거스른다(반경=안착 감쇠, 접선=미끄럼 마찰). 가까울수록 강함.
+      //   상대량이라 같이 움직이면 0(갈릴레이 불변), 작용-반작용 → 운동량 보존, 에너지만 소산(마찰열).
+      const w = 1 / r2;                                   // 접촉 가중(단거리)
+      const dvx = (e.vx || 0) - (o.vx || 0), dvy = (e.vy || 0) - (o.vy || 0);
+
+      e.fx += fRadial * ux - kFriction * w * dvx;
+      e.fy += fRadial * uy - kFriction * w * dvy;
     }
   },
 };
