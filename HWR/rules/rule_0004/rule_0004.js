@@ -111,6 +111,8 @@ export default {
 
       // 결합 종류 — 껍질의 *성향*으로 가른다(금속+비금속 → 이온, 그 외 → 공유). en 문턱 같은 마법 상수 없음.
       const ti = e.tendency, tj = o.tendency;
+      // 금속+금속 → 공유 병합 안 함(금속은 분자가 아니라 전자바다 격자) → rule_0006 소관. 여기선 양보.
+      if (ti === 'metal' && tj === 'metal') continue;
       const ionic = (ti === 'metal' && tj === 'nonmetal') || (ti === 'nonmetal' && tj === 'metal');
 
       if (ionic) {
