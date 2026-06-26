@@ -29,33 +29,43 @@ description: HWR 규칙 한 벌(설계→구현→시나리오→검증→기록
 5. **문서 반영** — 진행하면서 변경점·완료 여부·이후 진행 여부를 `rule_NNNN.md` 에 추가 반영한다.
 6. **STATE 반영** — [`STATE.md`](../../../HWR/STATE.md) §1~3 을 덮어쓰고, §4 INDEX 에 1줄 추가한다.
 
+## 세계 로직(엔진) — 고정, 절대 author 하지 않는다
+
+세계를 굴리는 보편 역학은 [`HWR/engine.js`](../../../HWR/engine.js) 의 `stepWorld(world, rules, params)` *하나*가 소유한다. 뷰어와 검증이 **같은 엔진**을 import 한다. 한 틱:
+
+1. 모든 원소의 힘 누적기 `fx,fy,fz` 를 0으로 초기화.
+2. **모든 원소 × 모든 규칙**을 순회하며 규칙이 힘을 누적(`e.fx += …`)한다 — 위치는 아직 고정이라 적용 순서 무관.
+3. 뉴턴 적분: `v += (F/m)·dt`(질량=관성의 척도), `x += v·dt`(관성). 토러스 랩. `tick++`.
+
+> **엔진은 규칙이 추가돼도 바뀌지 않는다.** 관성·`a=F/m`·시간 전진·적분은 엔진의 몫이고, 규칙은 *힘*만 더한다. 그래서 규칙이 늘어도 "누적 항"이 하나 늘 뿐 — 위치 적분·tick 중복 같은 합성 문제가 구조적으로 발생하지 않는다.
+
 ## 규칙 코드 계약 (`rule_NNNN.js`)
 
-뷰어([`render/viewer.html`](../../../HWR/render/viewer.html))와 검증(`verify_NNNN.js`)이 **같은 계약**으로 규칙을 로드한다. ES 모듈로 작성하고 규칙 객체를 `export default` 한다.
+규칙은 **원소에 작용하는 힘일 뿐**이다. ES 모듈로 작성하고 규칙 객체를 `export default` 한다.
 
 ```js
 // rules/rule_0001/rule_0001.js
 export default {
   id: 'rule_0001',
   name: '사람이 읽을 이름',
-  // 튜닝 가능한 기본 파라미터 (뷰어가 슬라이더로 노출 가능)
+  // 튜닝 가능한 기본 파라미터 (뷰어가 슬라이더로 노출 가능). dt 등.
   defaults: { /* knob: value */ },
-  // 초기 세계를 만든다. 시나리오가 없을 때 뷰어/검증이 부른다.
-  //   반환: { width, height, tick, elements: [{x,y,...}] }
-  setup(params) { /* ... */ return world; },
-  // 세계를 한 틱 전진시킨다. world 를 직접 변형. 반드시 결정론적.
+  // 한 원소에 작용하는 '힘'을 누적한다. 위치·속도·tick·적분은 *건드리지 않는다*(엔진 담당).
+  //   e: 원소, i: 인덱스, world: 세계, params: 파라미터
+  //   원소 간 상호작용은 world.elements 를 읽어 e.fx/fy/fz 에 += 로 더한다(결정론: 현재 상태만 읽음).
   //   (Math.random 금지 — 필요하면 시드 의사난수)
-  step(world, params) { /* ... */ },
+  apply(e, i, world, params) { /* e.fx += …; e.fy += …; */ },
 };
 ```
 
-- **세계(world)**: `{ width, height, tick, elements: [...] }`. 원소는 최소 `{x, y}` 를 갖고, 규칙이 필요로 하는 양(`vx, vy, ...`)을 자유롭게 더한다.
-- **시나리오(`scenario.js`)**: 선택. `export default { rule: 'rule_0001', setup(params){ return world; } }` — 규칙 대신 초기 세계를 짠다.
+- **세계(world)**: `{ width, height, tick, elements: [...], impulses?: [...] }`. 원소는 최소 `{x, y}` 를 갖고, 규칙이 필요로 하는 양(`vx, vy, m, …`)을 자유롭게 더한다. 힘 누적기 `fx,fy,fz` 는 엔진이 매 틱 0으로 리셋한다.
+- **시나리오(`scenario.js`)**: **로드 대상.** `export default { rule: 'rule_0001', setup(params){ return world; } }` — *초기 세계만* 짠다. 굴리는 일은 엔진+규칙의 몫. 뷰어는 시나리오를 로드하고, 탐색된 모든 규칙을 항상 적용한다.
 - **결정론**: 같은 입력 → 같은 출력. `Math.random` 금지. 검증과 뷰어가 같은 결과를 봐야 한다.
+- **순간 충격량**을 힘으로 환산: 이번 틱의 힘 `F = J/dt` 를 누적하면 엔진 적분에서 `Δv = (J/dt)/m·dt = J/m` — `dt` 무관하게 정확.
 
 ## 검증 코드 (`verify_NNNN.js`)
 
-node 에서 규칙을 import 해 시나리오를 N 틱 돌리고, 설계 문서가 약속한 성질(보존량·기대 거동)을 **단언(assert)** 한다. 통과/실패를 콘솔에 명확히 출력하고, 실패 시 비정상 종료(`process.exitCode = 1`).
+node 에서 **엔진(`../../engine.js`)과 규칙**을 import 해 `stepWorld(world, rules, params)` 로 시나리오를 N 틱 돌리고, 설계 문서가 약속한 성질(보존량·기대 거동)을 **단언(assert)** 한다. 통과/실패를 콘솔에 명확히 출력하고, 실패 시 비정상 종료(`process.exitCode = 1`). 검증은 뷰어와 *같은 엔진*으로 굴려야 같은 결과를 본다.
 
 ```bash
 node rules/rule_NNNN/verify_NNNN.js   # → 반드시 직접 돌려 통과 확인
