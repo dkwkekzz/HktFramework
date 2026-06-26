@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>HWR Viewer — 원소로 굴러가는 세계</title>
+<title>HWR Viewer — 원소로 굴러가는 세계 (3D)</title>
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
@@ -11,7 +11,8 @@
   #app { display: flex; height: 100%; }
   #panel { width: 264px; flex: none; padding: 14px; border-right: 1px solid #1c2230; overflow: auto; }
   #stage { flex: 1; position: relative; min-width: 0; }
-  #cv { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  #cv { display: block; width: 100%; height: 100%; cursor: grab; }
+  #cv:active { cursor: grabbing; }
   h1 { font-size: 14px; margin: 0 0 2px; color: #e6ecf5; }
   .sub { color: #6b778a; margin: 0 0 14px; font-size: 11px; }
   .row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
@@ -33,12 +34,11 @@
 <body>
 <div id="app">
   <div id="panel">
-    <h1>HWR — 뷰어</h1>
-    <p class="sub">원소로 굴러가는 세계</p>
+    <h1>HWR — 뷰어 (3D)</h1>
+    <p class="sub">원소로 굴러가는 세계 — 모든 규칙은 항상 적용된다</p>
 
-    <div class="row"><label>규칙 경로</label><input id="rulePath" type="text" placeholder="../rules/rule_0001/rule_0001.js" /></div>
-    <div class="row"><label>시나리오</label><input id="scnPath" type="text" placeholder="(선택) ../rules/.../scenario.js" /></div>
-    <div class="row"><button id="load" class="primary">규칙 로드</button><button id="useDemo">내장 데모</button></div>
+    <div class="row"><label>시나리오</label><input id="scnPath" type="text" placeholder="../rules/rule_0001/scenario.js" /></div>
+    <div class="row"><button id="load" class="primary">시나리오 로드</button><button id="useDemo">기본 세계</button></div>
     <div id="loadErr" class="err"></div>
 
     <hr/>
@@ -59,15 +59,16 @@
         <option value="8">×8</option>
       </select>
     </div>
-    <div class="row"><button id="capture">📷 캡처(PNG)</button></div>
+    <div class="row"><button id="capture">📷 캡처(PNG)</button><button id="camReset">카메라 리셋</button></div>
 
     <div class="stat">
-      <div>규칙: <b id="s-rule">—</b></div>
+      <div>적용 규칙: <b id="s-rule">—</b></div>
+      <div>시나리오: <b id="s-scn">기본 세계</b></div>
       <div>tick: <b id="s-tick">0</b></div>
       <div>원소 수: <b id="s-n">0</b></div>
     </div>
 
-    <p class="note">스테이지를 클릭하면 원소를 더한다. 드래그하면 속도를 준다.<br/>규칙 코드 계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
+    <p class="note">드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 원소 추가 · Shift+드래그 = 속도 부여.<br/>규칙(<code>rule_NNNN.js</code>)은 자동 탐색되어 <b>모두 항상 적용</b>된다. 로드하는 것은 시나리오다.<br/>계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
   </div>
 
   <div id="stage"><canvas id="cv"></canvas></div>
@@ -75,7 +76,7 @@
 
 <script type="module">
 // ── 내장 데모 규칙 ───────────────────────────────────────────────
-// 규칙이 하나도 없어도 "세계와 원소를 그리는 것"이 동작하도록 하는 최소 규칙.
+// 규칙이 하나도 탐색되지 않아도(file:// 등) "세계와 원소를 굴린다"가 동작하게 하는 최소 규칙.
 // rules/rule_NNNN/rule_NNNN.js 가 따라야 할 계약(SKILL.md §규칙 코드 계약)의 실례이기도 하다.
 const demoRule = {
   id: 'demo',
@@ -90,12 +91,12 @@ const demoRule = {
     for (let i = 0; i < params.count; i++) {
       const a = rnd() * Math.PI * 2;
       els.push({
-        x: rnd() * w, y: rnd() * h,
+        x: rnd() * w, y: rnd() * h, z: 0,
         vx: Math.cos(a) * params.speed, vy: Math.sin(a) * params.speed,
         r: params.radius, hue: Math.floor(rnd() * 360),
       });
     }
-    return { width: w, height: h, tick: 0, elements: els };
+    return { width: w, height: h, tick: 0, elements: els, impulses: [] };
   },
   step(world, params) {
     const { width: w, height: h } = world;
@@ -114,8 +115,9 @@ const demoRule = {
 // ── 뷰어 상태 ────────────────────────────────────────────────────
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
-let rule = demoRule;
-let scenario = null;
+let rules = [demoRule];        // 탐색된 모든 규칙 — 매 틱 전부 적용된다(보편 법칙).
+let scenario = null;           // 로드하는 대상. 초기 세계를 짠다. 없으면 첫 규칙의 setup.
+let scenarioName = '기본 세계';
 let params = { ...demoRule.defaults };
 let world = null;
 let playing = false;
@@ -123,20 +125,110 @@ let acc = 0;
 
 const $ = id => document.getElementById(id);
 
+// 규칙들의 defaults 를 하나로 합친다(뷰어가 단일 params 로 전 규칙을 굴린다).
+function mergeDefaults(rs) {
+  return Object.assign({}, ...rs.map(r => r.defaults || {}));
+}
+
+// 규칙 자동 탐색 — rule_0001 부터 연속해서 import, 첫 결번에서 멈춘다.
+async function discoverRules() {
+  const found = [];
+  for (let i = 1; i <= 999; i++) {
+    const nnnn = String(i).padStart(4, '0');
+    const path = `../rules/rule_${nnnn}/rule_${nnnn}.js?t=${performance.now()}`;
+    try {
+      const mod = await import(/* @vite-ignore */ path);
+      const r = mod.default || mod;
+      if (r && typeof r.step === 'function') found.push(r);
+      else break;
+    } catch (e) {
+      break;
+    }
+  }
+  return found;
+}
+
 function buildWorld() {
-  const src = scenario && scenario.setup ? scenario : rule;
+  const src = scenario && scenario.setup ? scenario : rules[0];
   world = src.setup({ ...params });
   if (!world || !Array.isArray(world.elements)) {
     world = { width: 800, height: 600, tick: 0, elements: [] };
   }
+  if (!Array.isArray(world.impulses)) world.impulses = [];
+  if (world.depth == null) world.depth = 0; // 2D 세계는 바닥 평면. z>0 은 선택.
   acc = 0;
+  fitCamera();
   syncStats();
 }
 
+// 한 틱 = 모든 규칙을 차례로 적용. 틱은 프레임당 한 번만 전진한다.
+//  (각 규칙은 같은 tick 을 보고, tick++ 하더라도 뷰어가 t+1 로 정규화 → 규칙 합성 가능)
+function stepWorld() {
+  if (!world) return;
+  const t = world.tick;
+  for (const r of rules) {
+    world.tick = t;
+    r.step(world, params);
+  }
+  world.tick = t + 1;
+}
+
 function syncStats() {
-  $('s-rule').textContent = rule.name || rule.id || '—';
+  $('s-rule').textContent = rules.map(r => r.id || r.name || '?').join(', ') || '—';
+  $('s-scn').textContent = scenarioName;
   $('s-tick').textContent = world ? world.tick : 0;
   $('s-n').textContent = world ? world.elements.length : 0;
+}
+
+// ── 3D 카메라 / 벡터 ─────────────────────────────────────────────
+// 월드 좌표: X = 원소.x(우), Z = 원소.y(깊이), Y = 원소.z 높이(위). 2D 세계는 Y=0 바닥면.
+const cam = { yaw: -0.7, pitch: 0.72, dist: 1200 };
+const dot = (a, b) => a.X * b.X + a.Y * b.Y + a.Z * b.Z;
+const cross = (a, b) => ({ X: a.Y * b.Z - a.Z * b.Y, Y: a.Z * b.X - a.X * b.Z, Z: a.X * b.Y - a.Y * b.X });
+const norm = v => { const l = Math.hypot(v.X, v.Y, v.Z) || 1; return { X: v.X / l, Y: v.Y / l, Z: v.Z / l }; };
+const clamp = (v, lo, hi) => Math.max(lo, Math.min(hi, v));
+
+function fitCamera() {
+  if (!world) return;
+  cam.dist = Math.max(world.width, world.height, 1) * 1.5;
+}
+
+function camBasis() {
+  const C = { X: world.width / 2, Y: 0, Z: world.height / 2 };
+  const dir = {
+    X: Math.cos(cam.pitch) * Math.sin(cam.yaw),
+    Y: Math.sin(cam.pitch),
+    Z: Math.cos(cam.pitch) * Math.cos(cam.yaw),
+  };
+  const camPos = { X: C.X + dir.X * cam.dist, Y: C.Y + dir.Y * cam.dist, Z: C.Z + dir.Z * cam.dist };
+  const f = norm({ X: -dir.X, Y: -dir.Y, Z: -dir.Z });   // 중심을 바라봄
+  const right = norm(cross(f, { X: 0, Y: 1, Z: 0 }));
+  const up = cross(right, f);
+  const focal = Math.min(cv.width, cv.height) * 0.9;
+  return { C, camPos, f, right, up, focal, cx: cv.width / 2, cy: cv.height / 2 };
+}
+
+function project(P, b) {
+  const rel = { X: P.X - b.camPos.X, Y: P.Y - b.camPos.Y, Z: P.Z - b.camPos.Z };
+  const cz = dot(rel, b.f);
+  if (cz <= 1) return null; // 카메라 뒤
+  return { sx: b.cx + dot(rel, b.right) / cz * b.focal, sy: b.cy - dot(rel, b.up) / cz * b.focal, cz };
+}
+
+// 화면 픽셀 → 바닥(Y=0) 평면 위 월드점 → 원소 (x, y)
+function floorPoint(sx, sy) {
+  const b = draw._b;
+  if (!b) return null;
+  const ndx = (sx - b.cx) / b.focal, ndy = -(sy - b.cy) / b.focal;
+  const rd = norm({
+    X: b.right.X * ndx + b.up.X * ndy + b.f.X,
+    Y: b.right.Y * ndx + b.up.Y * ndy + b.f.Y,
+    Z: b.right.Z * ndx + b.up.Z * ndy + b.f.Z,
+  });
+  if (Math.abs(rd.Y) < 1e-6) return null;
+  const t = -b.camPos.Y / rd.Y;
+  if (t <= 0) return null;
+  return { x: b.camPos.X + rd.X * t, y: b.camPos.Z + rd.Z * t };
 }
 
 // ── 렌더 ─────────────────────────────────────────────────────────
@@ -146,28 +238,62 @@ function resize() {
 }
 window.addEventListener('resize', resize);
 
+function seg(a, b) { if (a && b) { ctx.beginPath(); ctx.moveTo(a.sx, a.sy); ctx.lineTo(b.sx, b.sy); ctx.stroke(); } }
+
+function drawFloor(b) {
+  const W = world.width, H = world.height, N = 10;
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = '#161c28';
+  for (let i = 0; i <= N; i++) {
+    const x = W * i / N, z = H * i / N;
+    seg(project({ X: x, Y: 0, Z: 0 }, b), project({ X: x, Y: 0, Z: H }, b));
+    seg(project({ X: 0, Y: 0, Z: z }, b), project({ X: W, Y: 0, Z: z }, b));
+  }
+  // 바닥 경계 강조
+  ctx.strokeStyle = '#2c3854';
+  const c = [
+    project({ X: 0, Y: 0, Z: 0 }, b), project({ X: W, Y: 0, Z: 0 }, b),
+    project({ X: W, Y: 0, Z: H }, b), project({ X: 0, Y: 0, Z: H }, b),
+  ];
+  seg(c[0], c[1]); seg(c[1], c[2]); seg(c[2], c[3]); seg(c[3], c[0]);
+}
+
 function draw() {
   ctx.fillStyle = '#0a0c10';
   ctx.fillRect(0, 0, cv.width, cv.height);
   if (!world) return;
-  // 세계 → 화면: 종횡비 유지하며 맞춤
-  const sx = cv.width / world.width, sy = cv.height / world.height;
-  const sc = Math.min(sx, sy);
-  const ox = (cv.width - world.width * sc) / 2;
-  const oy = (cv.height - world.height * sc) / 2;
-  // 세계 경계
-  ctx.strokeStyle = '#1c2230';
-  ctx.strokeRect(ox, oy, world.width * sc, world.height * sc);
-  // 원소
+  const b = camBasis();
+  draw._b = b;
+  drawFloor(b);
+
+  // 원소: 깊이 정렬(먼 것 먼저)
+  const arr = [];
   for (const e of world.elements) {
-    const r = Math.max(1, (e.r || 3) * sc);
+    const pr = project({ X: e.x, Y: e.z || 0, Z: e.y }, b);
+    if (pr) arr.push({ e, pr });
+  }
+  arr.sort((a, c) => c.pr.cz - a.pr.cz);
+
+  for (const { e, pr } of arr) {
+    const rad = Math.max(1.2, (e.r || 3) * b.focal / pr.cz);
+    // 높이가 있으면 바닥으로 떨어지는 보조선(깊이 단서)
+    if ((e.z || 0) > 0.001) {
+      const fp = project({ X: e.x, Y: 0, Z: e.y }, b);
+      if (fp) { ctx.strokeStyle = 'rgba(120,140,170,0.25)'; ctx.lineWidth = 1; seg(pr, fp); }
+    }
     ctx.beginPath();
-    ctx.arc(ox + e.x * sc, oy + e.y * sc, r, 0, Math.PI * 2);
-    ctx.fillStyle = e.color || `hsl(${e.hue ?? 200} 70% 60%)`;
+    ctx.arc(pr.sx, pr.sy, rad, 0, Math.PI * 2);
+    if (e.color) {
+      ctx.fillStyle = e.color;
+    } else {
+      const h = e.hue ?? 200;
+      const g = ctx.createRadialGradient(pr.sx - rad * 0.35, pr.sy - rad * 0.35, rad * 0.1, pr.sx, pr.sy, rad);
+      g.addColorStop(0, `hsl(${h} 75% 72%)`);
+      g.addColorStop(1, `hsl(${h} 70% 42%)`);
+      ctx.fillStyle = g;
+    }
     ctx.fill();
   }
-  // 좌표 변환 보관(인터랙션용)
-  draw._sc = sc; draw._ox = ox; draw._oy = oy;
 }
 
 // ── 루프 ─────────────────────────────────────────────────────────
@@ -176,7 +302,7 @@ function tick() {
     const mult = parseFloat($('speedMult').value);
     const perFrame = parseInt($('speed').value, 10) || 1;
     acc += perFrame * mult;
-    while (acc >= 1) { rule.step(world, params); acc -= 1; }
+    while (acc >= 1) { stepWorld(); acc -= 1; }
     syncStats();
   }
   draw();
@@ -184,55 +310,67 @@ function tick() {
 }
 
 // ── 인터랙션 ─────────────────────────────────────────────────────
-let dragStart = null;
+// 기본 드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 원소 추가 · Shift+드래그 = 속도 부여
+let drag = null;
 cv.addEventListener('mousedown', ev => {
-  if (!world) return;
   const rect = cv.getBoundingClientRect();
-  dragStart = { sx: ev.clientX - rect.left, sy: ev.clientY - rect.top };
+  const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
+  if (ev.shiftKey && world) {
+    drag = { mode: 'spawn', floor0: floorPoint(sx, sy) };
+  } else {
+    drag = { mode: 'orbit', sx, sy, yaw0: cam.yaw, pitch0: cam.pitch };
+  }
+});
+window.addEventListener('mousemove', ev => {
+  if (!drag || drag.mode !== 'orbit') return;
+  const rect = cv.getBoundingClientRect();
+  const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
+  cam.yaw = drag.yaw0 - (sx - drag.sx) * 0.005;
+  cam.pitch = clamp(drag.pitch0 + (sy - drag.sy) * 0.005, 0.05, 1.5);
 });
 window.addEventListener('mouseup', ev => {
-  if (!world || !dragStart) return;
-  const rect = cv.getBoundingClientRect();
-  const ex = ev.clientX - rect.left, ey = ev.clientY - rect.top;
-  const sc = draw._sc || 1, ox = draw._ox || 0, oy = draw._oy || 0;
-  // 화면 → 세계 좌표
-  const wx = (dragStart.sx - ox) / sc, wy = (dragStart.sy - oy) / sc;
-  const vx = (ex - dragStart.sx) / sc * 0.08, vy = (ey - dragStart.sy) / sc * 0.08;
-  world.elements.push({
-    x: wx, y: wy, vx, vy,
-    r: params.radius || 4, hue: (world.tick * 37) % 360,
-  });
-  dragStart = null;
-  syncStats();
+  if (!drag) return;
+  if (drag.mode === 'spawn' && world && drag.floor0) {
+    const rect = cv.getBoundingClientRect();
+    const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
+    const fp = floorPoint(sx, sy) || drag.floor0;
+    const m = params.mMin || 2;
+    world.elements.push({
+      x: drag.floor0.x, y: drag.floor0.y, z: 0,
+      vx: (fp.x - drag.floor0.x) * 0.05, vy: (fp.y - drag.floor0.y) * 0.05,
+      m, r: 2 + Math.sqrt(m) * 1.5, hue: (world.tick * 37) % 360,
+    });
+    syncStats();
+  }
+  drag = null;
 });
+cv.addEventListener('wheel', ev => {
+  ev.preventDefault();
+  cam.dist = clamp(cam.dist * (ev.deltaY > 0 ? 1.1 : 0.9), 40, 40000);
+}, { passive: false });
 
 // ── 컨트롤 ───────────────────────────────────────────────────────
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
-$('stepBtn').onclick = () => { if (world) { rule.step(world, params); syncStats(); } };
+$('stepBtn').onclick = () => { stepWorld(); syncStats(); };
 $('reset').onclick = () => buildWorld();
-$('useDemo').onclick = () => { rule = demoRule; scenario = null; params = { ...demoRule.defaults }; $('loadErr').textContent = ''; buildWorld(); };
+$('useDemo').onclick = () => { scenario = null; scenarioName = '기본 세계'; $('loadErr').textContent = ''; buildWorld(); };
+$('camReset').onclick = () => { cam.yaw = -0.7; cam.pitch = 0.72; fitCamera(); };
 $('capture').onclick = () => {
   const a = document.createElement('a');
-  a.download = `hwr-${rule.id || 'world'}-t${world ? world.tick : 0}.png`;
+  a.download = `hwr-t${world ? world.tick : 0}.png`;
   a.href = cv.toDataURL('image/png');
   a.click();
 };
 
 $('load').onclick = async () => {
   $('loadErr').textContent = '';
-  const rp = $('rulePath').value.trim();
   const sp = $('scnPath').value.trim();
-  if (!rp) { $('loadErr').textContent = '규칙 경로를 입력하세요.'; return; }
+  if (!sp) { $('loadErr').textContent = '시나리오 경로를 입력하세요. (규칙은 자동 적용됩니다)'; return; }
   try {
-    const rmod = await import(/* @vite-ignore */ rp + (rp.includes('?') ? '' : `?t=${performance.now()}`));
-    rule = rmod.default || rmod;
-    if (!rule || typeof rule.step !== 'function') throw new Error('규칙에 step(world, params) 가 없습니다.');
-    scenario = null;
-    if (sp) {
-      const smod = await import(/* @vite-ignore */ sp + (sp.includes('?') ? '' : `?t=${performance.now()}`));
-      scenario = smod.default || smod;
-    }
-    params = { ...(rule.defaults || {}) };
+    const smod = await import(/* @vite-ignore */ sp + (sp.includes('?') ? '' : `?t=${performance.now()}`));
+    scenario = smod.default || smod;
+    if (!scenario || typeof scenario.setup !== 'function') throw new Error('시나리오에 setup(params) 가 없습니다.');
+    scenarioName = sp;
     buildWorld();
   } catch (e) {
     $('loadErr').textContent = '로드 실패: ' + (e && e.message ? e.message : e)
@@ -242,8 +380,13 @@ $('load').onclick = async () => {
 
 // ── 시작 ─────────────────────────────────────────────────────────
 resize();
-buildWorld();
-requestAnimationFrame(tick);
+(async () => {
+  const found = await discoverRules();
+  if (found.length) rules = found;
+  params = mergeDefaults(rules);
+  buildWorld();
+  requestAnimationFrame(tick);
+})();
 </script>
 </body>
 </html>

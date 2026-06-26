@@ -21,7 +21,7 @@
 | [CLAUDE.md](CLAUDE.md) (이 문서) | 큰 목표 · 핵심 원칙 · 참조 위치 (거의 불변) |
 | [STATE.md](STATE.md) | 현재 상태 — 진행 중·예정·완료 규칙 정리 + 규칙 인덱스 (규칙마다 갱신) |
 | [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md) (`.claude/skills/hwr-task/`, `/hwr-task`) | 원소의 온전한 규칙 한 벌을 만드는 작업 절차 (거의 불변) |
-| [render/viewer.html](render/viewer.html) | 규칙을 시뮬레이션·시각화하는 웹 뷰어 (시나리오 주입·사용자 인터랙션) |
+| [render/viewer.html](render/viewer.html) | 규칙을 시뮬레이션·**3D** 시각화하는 웹 뷰어 — 모든 규칙(`rule_NNNN.js`)을 자동 탐색해 **항상 적용**하고, 사용자가 **로드하는 것은 시나리오**다 (사용자 인터랙션) |
 | `rules/rule_NNNN/` | 규칙별 결과물 — `rule_NNNN.md`(설계) · `rule_NNNN.js`(구현) · `verify_NNNN.js`(검증) |
 
 ## 기타
