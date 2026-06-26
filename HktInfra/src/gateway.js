@@ -131,6 +131,14 @@ class Gateway {
   // 다운스트림 격리 질의(step-0340·#9 후속) — "이 클라가 받은 세션들 / 모든 클라가 정확히 자기 세션 frame 만 받았나(교차 누수 0)". 모든 클라의 전달 세션 집합이 크기 1(자기 1세션)이면 격리 성립. 읽기 전용.
   gatewayClientSessions(client) { const s = this.downDelivered.get(client); return s ? [...s].sort() : []; }
   gatewayDeliveryIsolated() { for (const s of this.downDelivered.values()) if (s.size !== 1) return false; return true; }
+  // 다운스트림 운영 대시보드(step-0349·#9 후속) — 게이트웨이 다운스트림 평면 한눈 요약 {rx, routed, dropped, gaps, resyncs, cleaned, sessions, isolated}. 운영 관측·전파 건강 단일 뷰(0331~0348 지표 집계). 읽기 전용.
+  downstreamReport() {
+    return {
+      rx: this.zoneViewsRx, routed: this.zoneViewsRouted, dropped: this.zoneViewDropped,
+      gaps: this.downSeqGaps, resyncs: this.downResyncsSent, cleaned: this.downCleaned,
+      sessions: this.downClients.size, isolated: this.gatewayDeliveryIsolated(),
+    };
+  }
   // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
   gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
   gatewayDownstreamCount() { return this.zoneViewsRx; }

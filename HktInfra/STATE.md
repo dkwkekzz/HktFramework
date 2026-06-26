@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0348](step-0348.md) — **#9 후속: 다운스트림 late-join 수렴** — 통합 검증(src 무변경): 중도 입장 세션이 reset keyframe(전체 AOI)→egress→클라 전파 → 즉시 현재 세계 수렴(복제=재현·snapshot late-join 의 다운스트림 판). 직전: 0347 수신 버퍼 유계화.
-- **한 줄 상태**: reg ALL OK·dcjoin 5/5(dc1.resets1·중도 입장 즉시 desync0)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0349](step-0349.md) — **#9 후속: 다운스트림 운영 대시보드** — 게이트웨이 `downstreamReport(){rx,routed,dropped,gaps,resyncs,cleaned,sessions,isolated}`(0331~0348 지표 단일 집계·운영 관측). 읽기 전용·비트 동일. 직전: 0348 late-join.
+- **한 줄 상태**: reg ALL OK·dcreport 5/5(routed5≤rx7·dropped0·resyncs1·iso·conv)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **실 다운스트림 클라 수렴 sub-arc(0342~0346 ✅ 닫힘)** — DownClient 실 수신·정적/상호 가시/손실/다중 클라/migrate 수렴(desync 0)·capstone. 전파 sub-arc(0331~0341 ✅) 위에. **후속**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js·DownClient·zoneHost 실 프로세스화) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적·적기)**.
 
 ---
@@ -147,3 +147,4 @@
 | [0346](step-0346.md) | 실 다운스트림 클라 수렴 5·capstone(#9 후속): 전 수렴(DownClient.convergedTo·다중 클라·상호 가시·migrate·손실 뒤 conv0·conv1·교차 일치·downstreamSettled·수렴 sub-arc 0342~0346 닫기·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dccap 5/5 conv·agree·settled |
 | [0347](step-0347.md) | downstream 유계화(#9 후속): 게이트웨이 수신 버퍼 유계 창(zoneViewIn downRecvWindow K·전달 후 클라 보유→최근 K 만·per-세션 O(K)·버스 seenBound 0042 다운스트림 판·K=0 무계 비트 동일·클라 수렴 무영향) | 통과(reg 0·spine OK) · dcwindow 5/5 peak≤2·desync0 |
 | [0348](step-0348.md) | downstream late-join(#9 후속): 중도 합류 수렴 통합 검증(src 무변경·중도 입장 세션 reset keyframe 전체 AOI→egress→클라 즉시 수렴·복제=재현/snapshot late-join 다운스트림 판·dc1.resets1·desync0) | 통과(reg 0·spine OK) · dcjoin 5/5 즉시 수렴 |
+| [0349](step-0349.md) | downstream 대시보드(#9 후속): 게이트웨이 downstreamReport(rx/routed/dropped/gaps/resyncs/cleaned/sessions/isolated·0331~0348 지표 단일 집계·운영 관측·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcreport 5/5 일관·conv |

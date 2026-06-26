@@ -1,8 +1,8 @@
-// HktInfra step-0348 — 헤드리스 검증 (#9 후속: 다운스트림 late-join 수렴 — 중도 합류 클라 keyframe 수렴)
+// HktInfra step-0349 — 헤드리스 검증 (#9 후속: 다운스트림 운영 대시보드 — 전파 평면 한눈 요약)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `dcjoin`.
-//   더한 한 조각(통합 검증·src 무변경): 세션이 *중도에* 입장하면 런타임 존이 reset keyframe(전체 AOI)을 산출 → egress→게이트웨이→클라 전파 → late-join 클라가 즉시 현재 세계로 수렴(복제=재현·snapshot 은 late-join 최후 수단의 다운스트림 판).
-//   검증: ⒜ `reg`(키트·src==baseline 비트 동일). ⒝ `dcjoin` — a1 선입장·이동 뒤 a2 중도 입장 → dc1 이 reset keyframe(resets≥1) 받아 dc1.seenSig == zoneAuthSig('z1','a2')(즉시 수렴·a1·a2 다 봄).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `dcreport`.
+//   더한 한 조각: 게이트웨이 downstreamReport(){rx,routed,dropped,gaps,resyncs,cleaned,sessions,isolated} — 0331~0348 다운스트림 지표 단일 집계(운영 관측·전파 건강 한눈). 읽기 전용.
+//   검증: ⒜ `reg`(키트·읽기 전용·비트 동일). ⒝ `dcreport` — 손실+이동+leave 혼합 후 report 가 일관: routed==rx(전부 라우팅)·dropped 0(미바인딩 0)·resyncs>0(손실 복구 발화)·isolated.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,30 +15,29 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0348 #9 후속 — late-join 수렴. a1 선입장 후 (5,5)→(13,13) 이동. a2 가 *중도*(tick 14)에 (13,15) 입장 → a1 반경 안.
-//   a2 의 DownClient(dc1)가 reset keyframe(resets≥1) 으로 즉시 현재 세계 수렴: dc1.seenSig == zoneAuthSig('z1','a2')·a1·a2 둘 다 본다.
-function dcjoin(seeds) {
+// step-0349 #9 후속 — 다운스트림 운영 대시보드. a1@dc0·a2@dc1·이동·s:a1#2 손실 → report 집계.
+//   손실 하: rx>routed(재전송 중복·미래 gap frame 도 rx 집계되나 인오더만 routed)·dropped 0(전부 바인딩)·gaps>0(손실 감지)·resyncs>0(복구)·isolated·sessions 2·둘 다 수렴.
+function dcreport(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
   const OPS = [PLACE(1, 'z1', 'hostA')];
-  const ENT = [ENTER(3, 'z1', 'a1', 'dc0')];
-  for (let k = 0; k < 8; k++) ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0'));   // a1 (5,5)→(13,13).
-  ENT.push(ENTER(14, 'z1', 'a2', 'dc1'));   // a2 중도 입장(13,15)·a1 반경 안.
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 2 };
-  console.log('== dcjoin (0348·#9 후속): late-join 수렴. 중도 입장 a2 가 keyframe 으로 즉시 현재 세계 수렴(resets≥1·desync 0). ==');
-  console.log('seed   | dc1.resets | dc1.seen | match | 판정');
+  const ENT = [ENTER(2, 'z1', 'a1', 'dc0'), ENTER(3, 'z1', 'a2', 'dc1'), MOVE(5, 'z1', 'a1', 1, 1, 'dc0'), MOVE(6, 'z1', 'a1', 1, 0, 'dc0'), MOVE(7, 'z1', 'a1', 0, 1, 'dc0')];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 2, egressDrop: ['s:a1#2'], egressTimeout: 4 };
+  console.log('== dcreport (0349·#9 후속): 다운스트림 운영 대시보드. 손실 하 routed≤rx·dropped0·gaps>0·resyncs>0·iso·수렴. ==');
+  console.log('seed   | rx | routed | drop | gaps | resync | iso | conv | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 22, ...BASE, placementOps: OPS, entityOps: ENT });
-    const o = r.orch, dc1 = r.downclients[1];
-    const match = dc1.seenSig() === o.zoneAuthSig('z1', 'a2');
-    const ids = dc1.seenIds().join(',');
-    const ok = check(dc1.resets >= 1 && match && dc1.seenIds().length >= 2, `seed ${seed}: resets ${dc1.resets} seen [${ids}] auth [${o.zoneAuthSig('z1', 'a2')}]`);
-    console.log(`${pad(seed, 6)} | ${pad(dc1.resets, 10)} | ${pad(ids, 8)} | ${pad(match ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const rep = r.gateway.downstreamReport();
+    const o = r.orch;
+    const conv = r.downclients[0].convergedTo(o.zoneAuthSig('z1', 'a1')) && r.downclients[1].convergedTo(o.zoneAuthSig('z1', 'a2'));
+    const ok = check(rep.routed > 0 && rep.routed <= rep.rx && rep.dropped === 0 && rep.gaps > 0 && rep.resyncs > 0 && rep.isolated && rep.sessions === 2 && conv,
+      `seed ${seed}: ${JSON.stringify(rep)} conv ${conv}`);
+    console.log(`${pad(seed, 6)} | ${pad(rep.rx, 2)} | ${pad(rep.routed, 6)} | ${pad(rep.dropped, 4)} | ${pad(rep.gaps, 4)} | ${pad(rep.resyncs, 6)} | ${pad(rep.isolated ? 'Y' : 'N', 3)} | ${pad(conv ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['dcjoin'] = dcjoin;
-kit.ORDER.splice(1, 0, 'dcjoin');
+kit.MODES['dcreport'] = dcreport;
+kit.ORDER.splice(1, 0, 'dcreport');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
