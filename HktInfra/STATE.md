@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0346](step-0346.md) — **#9 후속 capstone: 실 다운스트림 클라 수렴 전 정합** — `DownClient.convergedTo(authSig)`. 다중 클라·상호 가시·migrate·손실 뒤 모든 클라 convergedTo(zoneAuthSig)(host 권위 desync 0) && 교차 일치 && downstreamSettled. **수렴 sub-arc 0342~0346 닫기**. 직전: 0345 교차 관찰자 일치.
-- **한 줄 상태**: reg ALL OK·dccap 5/5(conv0·conv1·agree·settled)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0347](step-0347.md) — **#9 후속: 게이트웨이 수신 버퍼 유계화** — 세션별 `zoneViewIn` 유계 창 `downRecvWindow`(K)·전달 후 클라가 frame 보유→게이트웨이 최근 K 만(per-세션 O(K) 상한·버스 seenBound 0042 다운스트림 판). K=0 무계·비트 동일. 직전: 0346 수렴 capstone.
+- **한 줄 상태**: reg ALL OK·dcwindow 5/5(peak≤2·클라 desync0 유지)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **실 다운스트림 클라 수렴 sub-arc(0342~0346 ✅ 닫힘)** — DownClient 실 수신·정적/상호 가시/손실/다중 클라/migrate 수렴(desync 0)·capstone. 전파 sub-arc(0331~0341 ✅) 위에. **후속**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js·DownClient·zoneHost 실 프로세스화) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적·적기)**.
 
 ---
@@ -145,3 +145,4 @@
 | [0344](step-0344.md) | 실 다운스트림 클라 수렴 3(#9 후속): 손실 하 수렴 통합 검증(src 무변경·0337 gap-resync+0338 타임아웃+인오더 게이팅 위에 s:a1#2 손실에도 DownClient desync0·dc0.seenSig==zoneAuthSig) | 통과(reg 0·spine OK) · dcloss 5/5 drop1·resync1·desync0 |
 | [0345](step-0345.md) | 실 다운스트림 클라 수렴 4(#9 후속): 다중 클라 교차 관찰자 일치(DownClient.seenPos·a1·a2 상호 가시 시 dc0·dc1 공유 entity 같은 위치 dc0==dc1==zoneEntityPos·겹친 뷰 desync0·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dcagree 5/5 교차 일치 |
 | [0346](step-0346.md) | 실 다운스트림 클라 수렴 5·capstone(#9 후속): 전 수렴(DownClient.convergedTo·다중 클라·상호 가시·migrate·손실 뒤 conv0·conv1·교차 일치·downstreamSettled·수렴 sub-arc 0342~0346 닫기·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dccap 5/5 conv·agree·settled |
+| [0347](step-0347.md) | downstream 유계화(#9 후속): 게이트웨이 수신 버퍼 유계 창(zoneViewIn downRecvWindow K·전달 후 클라 보유→최근 K 만·per-세션 O(K)·버스 seenBound 0042 다운스트림 판·K=0 무계 비트 동일·클라 수렴 무영향) | 통과(reg 0·spine OK) · dcwindow 5/5 peak≤2·desync0 |

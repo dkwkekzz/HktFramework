@@ -1,8 +1,8 @@
-// HktInfra step-0346 — 헤드리스 검증 (#9 후속 capstone: 실 다운스트림 클라 수렴 전 정합)
+// HktInfra step-0347 — 헤드리스 검증 (#9 후속: 게이트웨이 수신 버퍼 유계화 — 다운스트림 메모리 상한)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `dccap`.
-//   더한 한 조각: DownClient.convergedTo(authSig)(수신자 측 desync 0 선언). capstone = 다중 클라·상호 가시·손실·migrate 뒤 모든 클라가 host 권위로 수렴 + 교차 관찰자 일치 + downstreamSettled.
-//   검증: ⒜ `reg`(키트·읽기 헬퍼·비트 동일). ⒝ `dccap` — a1@dc0·a2@dc1 상호 가시·z1 A→B migrate·s:a1#3 손실 뒤 둘 다 convergedTo(zoneAuthSig)·공유 entity 일치·settled. 수렴 sub-arc 0342~0346 닫기.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `dcwindow`.
+//   더한 한 조각: 게이트웨이 세션별 수신 버퍼(zoneViewIn) 유계 창 K(downRecvWindow). 전달 후 frame 은 클라가 보유하므로 최근 K 만 보관 → per-세션 O(K) 상한(버스 seenBound 0042·수신함 유계 0099 의 다운스트림 판). K=0 무계.
+//   검증: ⒜ `reg`(키트·downRecvWindow 0→무계·비트 동일). ⒝ `dcwindow` — K=2 면 수신 buf peak ≤ 2(유계)·클라 수렴은 그대로(desync 0·버퍼는 게이트웨이 회계일 뿐 전달 무영향).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,33 +15,29 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0346 #9 후속 capstone — 실 다운스트림 클라 수렴 전 정합. a1@dc0·a2@dc1 z1 입장·a1→a2 이동(상호 가시)·z1 A→B migrate·s:a1#3 손실.
-//   뒤: dc0·dc1 모두 convergedTo(zoneAuthSig)(host 권위로 desync 0)·공유 entity 위치 dc0==dc1==host(교차 일치)·downstreamSettled(전부 도달·복구). 수렴 sub-arc 0342~0346 닫기.
-function dccap(seeds) {
+// step-0347 #9 후속 — 게이트웨이 수신 버퍼 유계화. a1@dc0 여러 번 이동(여러 frame) + downRecvWindow=2 → 세션 수신 buf 최근 2 만 보관.
+//   downRecvPeak ≤ 2(유계·무계면 frame 수만큼)·클라 수렴 그대로(dc0.seenSig == zoneAuthSig·버퍼 유계가 전달/수렴 무영향).
+function dcwindow(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
-  const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
-  const OPS = [PLACE(1, 'z1', 'hostA'), MIG(16, 'z1', 'hostB')];
-  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(4, 'z1', 'a2', 'dc1')];
-  for (let k = 0; k < 8; k++) ENT.push(MOVE(5 + k, 'z1', 'a1', 1, 1, 'dc0'));   // a1 (5,5)→(13,13)·a2(13,15) 상호 가시.
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 2, egressDrop: ['s:a1#3'], egressTimeout: 4 };
-  console.log('== dccap (0346·#9 후속 capstone): 다중 클라·상호 가시·migrate·손실 뒤 전 수렴. conv0·conv1·agree·settled. sub-arc 0342~0346 닫기. ==');
-  console.log('seed   | conv0 | conv1 | agree | settled | 판정');
+  const OPS = [PLACE(1, 'z1', 'hostA')];
+  const ENT = [ENTER(2, 'z1', 'a1', 'dc0')];
+  for (let k = 0; k < 6; k++) ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 0, 'dc0'));   // 6 이동 → 여러 view_delta frame.
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 2, downRecvWindow: 2 };
+  console.log('== dcwindow (0347·#9 후속): 게이트웨이 수신 버퍼 유계화. peak ≤ K(=2)·클라 수렴 그대로(desync 0). ==');
+  console.log('seed   | rx | peak | buf(s:a1) | conv | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 28, ...BASE, placementOps: OPS, entityOps: ENT });
-    const o = r.orch, dc0 = r.downclients[0], dc1 = r.downclients[1];
-    const conv0 = dc0.convergedTo(o.zoneAuthSig('z1', 'a1')), conv1 = dc1.convergedTo(o.zoneAuthSig('z1', 'a2'));
-    const pos = (id) => { const e = o.zoneEntityPos('z1', id); return e ? (e.x + ',' + e.y) : null; };
-    const agree = dc0.seenPos('a1') === dc1.seenPos('a1') && dc0.seenPos('a1') === pos('a1') &&
-                  dc0.seenPos('a2') === dc1.seenPos('a2') && dc0.seenPos('a2') === pos('a2');
-    const settled = o.downstreamSettled();
-    const ok = check(conv0 && conv1 && agree && settled, `seed ${seed}: conv ${conv0}/${conv1} agree ${agree} settled ${settled}`);
-    console.log(`${pad(seed, 6)} | ${pad(conv0 ? 'Y' : 'N', 5)} | ${pad(conv1 ? 'Y' : 'N', 5)} | ${pad(agree ? 'Y' : 'N', 5)} | ${pad(settled ? 'Y' : 'N', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ticks: 18, ...BASE, placementOps: OPS, entityOps: ENT });
+    const o = r.orch, g = r.gateway, dc0 = r.downclients[0];
+    const rx = g.gatewayDownstreamCount(), peak = g.downRecvPeak, buf = g.gatewayViewsFor('s:a1');
+    const conv = dc0.convergedTo(o.zoneAuthSig('z1', 'a1'));
+    const ok = check(rx > 2 && peak <= 2 && buf <= 2 && conv, `seed ${seed}: rx ${rx} peak ${peak} buf ${buf} conv ${conv}`);
+    console.log(`${pad(seed, 6)} | ${pad(rx, 2)} | ${pad(peak, 4)} | ${pad(buf, 9)} | ${pad(conv ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['dccap'] = dccap;
-kit.ORDER.splice(1, 0, 'dccap');
+kit.MODES['dcwindow'] = dcwindow;
+kit.ORDER.splice(1, 0, 'dcwindow');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

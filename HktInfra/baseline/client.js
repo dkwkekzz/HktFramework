@@ -253,6 +253,8 @@ class DownClient {
   seenSig() { return [...this.seen.entries()].map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';'); }
   // step-0345 — 그 클라가 보는 한 entity 의 위치 서명('x,y') 또는 null. 두 클라가 겹친 AOI 의 *공유* entity 를 같은 위치로 보는가(교차 관찰자 일치·겹친 뷰 desync 0) 비교용.
   seenPos(id) { const e = this.seen.get(id); return e ? (e.x + ',' + e.y) : null; }
+  // step-0346 — 이 클라 뷰가 권위 AOI 서명(host 의 zoneAuthSig)으로 수렴했는가(desync 0 여부의 수신자 측 선언). capstone 이 다중 클라·손실·lifecycle 뒤 모든 클라에 단언.
+  convergedTo(authSig) { return this.seenSig() === authSig; }
 }
 
 const __part = { Client, DownClient };
