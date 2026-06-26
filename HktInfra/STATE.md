@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0322](step-0322.md) — **#9 후속: host 산출 뷰의 상호 가시 (AOI enter 델타)**. 질의 zoneViewEntered(세션이 본 누적 id). a1 이 a2 쪽 이동→반경 안→서로 enter(상호 가시)·최종 vis 둘 다 [a1,a2]. 읽기 전용·0321 비트 동일.
-- **한 줄 상태**: reg ALL OK·hostzonemutual 5/5(a1entered⊇a2·a2entered⊇a1·mutVis)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0323](step-0323.md) — **정리 분할: 다운스트림 뷰 질의 6종(0319~0322) → `orch-views.js` 믹스인**. orch-zonebridge 30.6KB>30KB 트리거 유계화(→28.1KB·>30KB 박스 0). Object.assign 투명 분할·기능 0·0322 비트 동일.
+- **한 줄 상태**: reg ALL OK·zoneviewsplit 5/5(6 질의 해소·frames4)·박스 ≤30KB·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream 데이터 평면 sub-arc(0319~·#9 후속)** — host 프로세스 AOI 뷰 산출→게이트웨이 라우팅→클라 전파(SPINE §4 경로2 월드 다운스트림). 부하 균형 sub-arc(0311~0318 ✅) 위에. 후속: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합)·진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시(2묶음 누적)**.
 
 ---
@@ -141,3 +141,4 @@
 | [0320](step-0320.md) | downstream 데이터 평면 2(#9 후속): host 산출 뷰의 AOI 정확성(질의 zoneViewBuf·zoneVisibleIds·a1·a2 반경 밖→각 세션 reset 뷰 enter==자기만·게이트웨이 발신·읽기 전용·0319 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1→[a1]·a2→[a2]·match·toGW |
 | [0321](step-0321.md) | downstream 데이터 평면 3(#9 후속): host 산출 뷰의 증분 델타 정확성(질의 zoneViewStats·a1 3회 이동→reset1+update3=total4≪14tick·매 tick 전체 아닌 변경분만·대역 절감·읽기 전용·0320 비트 동일) | 통과(reg 0·spine OK) · 5/5 reset1·update3·total4<14·updHasA1 |
 | [0322](step-0322.md) | downstream 데이터 평면 4(#9 후속): host 산출 뷰의 상호 가시(질의 zoneViewEntered·a1 이 a2 쪽 이동→반경 안→서로 enter 델타·상호 가시·최종 vis 둘 다 [a1,a2]·읽기 전용·0321 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1entered⊇a2·a2entered⊇a1·mutVis |
+| [0323](step-0323.md) | 정리 분할: 다운스트림 뷰 질의 6종(0319~0322)→orch-views.js 믹스인(Object.assign 투명 분할·>30KB 트리거 유계화·orch-zonebridge 30.6KB→28.1KB·기능 0·0322 비트 동일) | 통과(reg 0·spine OK) · 분할 후 비트 동일·zoneviewsplit 5/5·박스 ≤30KB |

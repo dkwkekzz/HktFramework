@@ -165,6 +165,12 @@ const OrchZoneBridge = {
   },
   // 런타임 존 산출 뷰 버퍼 질의(step-0320·#9 후속) — 그 host 프로세스 런타임 존이 산출해 버퍼링 싱크에 쌓은 view frame 원본 배열({to, payload}…). 다운스트림 뷰의 *내용*(누가 무엇을 보나)을 검증하는 창(AOI 정확성·전파 무손실). 미가동 존 []. 읽기 전용.
   zoneViewBuf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return (rt && rt.zone.net && rt.zone.net.buf) ? rt.zone.net.buf : []; },
+  // 세션이 본 entity 집합 질의(step-0322·#9 후속) — 그 세션에 산출된 view 들의 enter 를 누적한 id 집합(=그 세션이 *언젠가 한 번이라도 AOI 안에서 본* entity 들). 두 avatar 가 가까워지면 서로의 집합에 들어온다(상호 가시·enter 델타). 미가동/미존재 빈 집합. 읽기 전용.
+  zoneViewEntered(zoneId, sessionId) {
+    const set = new Set();
+    for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
+    return [...set].sort();
+  },
   // 런타임 존 산출 뷰 통계 질의(step-0321·#9 후속) — 그 존이 한 세션(또는 전체)에 산출한 view_delta 분포 {resets, updates, enters, total}. 증분 전파의 핵심을 본다: 초기 keyframe(reset) 1 + 이동마다 update — *매 tick 전체 전송이 아니라 변경분만*(대역 절감). total ≪ tick 수면 증분이 동작. 미가동 존 0. 읽기 전용.
   zoneViewStats(zoneId, sessionId) {
     const buf = this.zoneViewBuf(zoneId); let resets = 0, updates = 0, enters = 0, total = 0;
