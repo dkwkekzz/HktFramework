@@ -35,10 +35,16 @@ export default {
     const els = world.elements;
     const W = world.width, H = world.height, D = world.depth;
     const wrapZ = typeof D === 'number' && D > 0;
+    // 껍질/원자가 규칙(rule_0004)이 관장하는 원소(원자번호 Z 또는 잔여 원자가 freeValence 를 가진 것)는
+    //   원자가 한도 결합(다중 결합가·포화·비활성)을 rule_0004 가 처리하므로 여기서는 건드리지 않는다.
+    //   둘 다 그런 속성이 없는 *구형* 원소만 rule_0002 가 결합시킨다(하위 호환 — 기존 시나리오엔 Z 없음).
+    const isShell = x => x.Z != null || x.freeValence != null;
+    if (isShell(e)) return;
     const Ri = radius(e.m, bondK);
 
     for (let j = i + 1; j < els.length; j++) {
       const o = els[j];
+      if (isShell(o)) continue;
       // 토러스 최근접 변위(둘 사이 가장 가까운 이미지) — 3D
       let dx = o.x - e.x; dx -= Math.round(dx / W) * W;
       let dy = o.y - e.y; dy -= Math.round(dy / H) * H;

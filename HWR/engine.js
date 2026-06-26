@@ -110,6 +110,17 @@ function reconcileMerges(world) {
     if (a >= 0 && b >= 0 && a < n && b < n && a !== b) union(a, b);
   }
 
+  // 결합차수(order) 합산 — 그룹별로 이번 틱에 소비된 원자가(공유쌍 수). 규칙이 표시한 order 만 읽는다.
+  //   freeValence(잔여 원자가)는 보편 스칼라처럼 합산하되, 결합 하나당 양쪽에서 1씩(=2·order) 소비된다.
+  //   order 가 없는(구형) 요청은 0 으로 — freeValence 미설정 세계는 이 항이 영향 없음(하위 호환).
+  const orderByRoot = new Map();
+  for (const r of reqs) {
+    if (!r) continue;
+    const a = r.a, b = r.b;
+    if (a >= 0 && b >= 0 && a < n && b < n && a !== b)
+      orderByRoot.set(find(a), (orderByRoot.get(find(a)) || 0) + (r.order != null ? r.order : 0));
+  }
+
   // 대표 인덱스별로 구성원을 모은다(i 오름차순 순회 → 결정론적).
   const groups = new Map();
   for (let i = 0; i < n; i++) {
@@ -129,10 +140,12 @@ function reconcileMerges(world) {
     // 질량 합·운동량 합·질량중심(토러스: 기준 원소에 대한 최근접 이미지로 평균)·KE 손실 누적
     const ref = els[idxs[0]];
     let M = 0, px = 0, py = 0, pz = 0, sx = 0, sy = 0, sz = 0, keBefore = 0, Q = 0, enW = 0;
+    let freeSum = 0, anyFree = false;        // 잔여 원자가 합(공유 결합 한정 — 설정된 세계만)
     const parts = [];
     for (const k of idxs) {
       const e = els[k];
       const m = e.m > 0 ? e.m : 1;
+      if (e.freeValence != null) { anyFree = true; freeSum += e.freeValence; }
       let dx = e.x - ref.x; dx -= Math.round(dx / W) * W;   // 토러스 최근접 이미지(x)
       let dy = e.y - ref.y; dy -= Math.round(dy / H) * H;   //              (y)
       let dz = (e.z || 0) - (ref.z || 0);                   //              (z, 3D 박스면 토러스)
@@ -160,6 +173,9 @@ function reconcileMerges(world) {
     const composite = { x, y, z, vx, vy, vz, m: M, q: Q, en: enW / M, parts };
     if (r2 > 0) composite.r = Math.sqrt(r2);
     composite.hue = hueW / M;
+    // 잔여 원자가: 구성원 잔여 합 − 2·Σorder(결합 하나가 양쪽 원자가 1씩 소비). 0 이면 포화(=안정 분자, 더 결합 안 함).
+    //   freeValence 를 쓰는 세계(껍질/원자가 규칙)에서만 설정 — 그 외(구형 공유 병합)는 미설정으로 남겨 하위 호환.
+    if (anyFree) composite.freeValence = Math.max(0, freeSum - 2 * (orderByRoot.get(find(idxs[0])) || 0));
     next.push(composite);
   }
 
