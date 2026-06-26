@@ -1,34 +1,32 @@
-// scenario — 결합: 접촉+접근한 원소가 하나의 개체로 병합된다(개수가 준다).
-//  ① 정면 충돌 쌍 3벌(질량비 다름): 서로 향해 다가가 접촉 → 하나로 병합. 합성 속도 = 질량중심 속도.
-//  ② 대조 쌍: 멀리서 같은 방향 평행 이동 → 영원히 안 닿음(병합 0).
-//  ③ 전이적 삼중: 세 원소가 가운데로 수렴 → 한 틱 내 연쇄 접촉 시 하나의 덩어리로(전이적 병합).
-// 결합은 *초기 속도*로 접근시켜 일으킨다(끌어당기는 힘은 후속 규칙). Math.random 금지(시드 불필요).
+// scenario — 결합과 그 문턱: 접촉+접근이라도 *부드럽게* 만나야 하나로 뭉친다.
+//  ① 느린 정면 충돌 → 들러붙음(|Δv| < vStick): 하나의 개체로 병합.
+//  ② 빠른 정면 충돌 → 안 붙음(|Δv| > vStick): 결합이 충격을 못 가둬 그냥 지나침(반발은 후속 힘 규칙).
+//  ③ 느린 삼중 수렴 → 전이적 병합(셋이 하나로).
+//  ④ 대조 쌍: 멀리서 같은 방향 평행 → 영원히 안 닿음.
+// 결합은 *초기 속도*로 접근시켜 일으킨다(끌어당기는 힘은 후속 규칙). Math.random 금지.
 export default {
   rule: 'rule_0002',
   setup() {
     const w = 800, h = 600;
     const els = [];
+    const mk = (x, y, vx, m, hue) => ({ x, y, z: 0, vx, vy: 0, m, r: 2 + Math.sqrt(m) * 2, hue });
 
-    // ① 정면 충돌 쌍 — (질량 a, 질량 b)를 서로 향해. 닿으면 병합되어 질량중심 속도로 함께 간다.
-    const pairs = [
-      { y: 120, ma: 2, mb: 2, x: 360, gap: 80, v: 3 }, // 대칭 → 합성 정지(V_com=0)
-      { y: 240, ma: 2, mb: 6, x: 360, gap: 80, v: 3 }, // 비대칭 → 합성은 무거운 쪽으로 표류
-      { y: 360, ma: 4, mb: 1, x: 360, gap: 70, v: 2.5 },
-    ];
-    pairs.forEach(p => {
-      els.push({ x: p.x - p.gap / 2, y: p.y, z: 0, vx: +p.v, vy: 0, m: p.ma, r: 2 + Math.sqrt(p.ma) * 2, hue: 200 });
-      els.push({ x: p.x + p.gap / 2, y: p.y, z: 0, vx: -p.v, vy: 0, m: p.mb, r: 2 + Math.sqrt(p.mb) * 2, hue: 20 });
-    });
+    // ① 느린 충돌 쌍 — |Δv|=1.2 < vStick(2.5) → 병합
+    els.push(mk(352, 120, +0.6, 2, 200));
+    els.push(mk(368, 120, -0.6, 2, 20));
 
-    // ② 대조 쌍 — 멀리 떨어져 같은 방향(평행) → 절대 안 닿음(병합 안 됨).
-    els.push({ x: 120, y: 500, z: 0, vx: 1, vy: 0, m: 3, r: 2 + Math.sqrt(3) * 2, hue: 120 });
-    els.push({ x: 120, y: 540, z: 0, vx: 1, vy: 0, m: 3, r: 2 + Math.sqrt(3) * 2, hue: 120 });
+    // ② 빠른 충돌 쌍 — |Δv|=4 > vStick → 결합 안 함(접촉·접근해도 너무 빠름)
+    els.push(mk(340, 260, +2, 2, 200));
+    els.push(mk(380, 260, -2, 2, 20));
 
-    // ③ 전이적 삼중 — 셋이 가운데로 수렴. 가까이 모이면 연쇄 접촉으로 한 덩어리.
-    const cx = 620, cy = 300, mtri = 2;
-    els.push({ x: cx - 60, y: cy, z: 0, vx: +2, vy: 0, m: mtri, r: 2 + Math.sqrt(mtri) * 2, hue: 280 });
-    els.push({ x: cx, y: cy, z: 0, vx: 0, vy: 0, m: mtri, r: 2 + Math.sqrt(mtri) * 2, hue: 300 });
-    els.push({ x: cx + 60, y: cy, z: 0, vx: -2, vy: 0, m: mtri, r: 2 + Math.sqrt(mtri) * 2, hue: 320 });
+    // ③ 느린 삼중 수렴 — 이웃 |Δv|=0.8 < vStick → 전이적으로 하나의 덩이
+    els.push(mk(590, 400, +0.8, 2, 280));
+    els.push(mk(620, 400, 0, 2, 300));
+    els.push(mk(650, 400, -0.8, 2, 320));
+
+    // ④ 대조 쌍 — 멀리 떨어져 같은 방향(평행) → 절대 안 닿음
+    els.push(mk(120, 520, 1, 3, 120));
+    els.push(mk(120, 560, 1, 3, 120));
 
     return { width: w, height: h, tick: 0, elements: els };
   },

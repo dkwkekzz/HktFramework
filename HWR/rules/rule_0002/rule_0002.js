@@ -14,12 +14,16 @@ const radius = (m, bondK) => bondK * Math.sqrt(m > 0 ? m : 1); // 질량→접�
 export default {
   id: 'rule_0002',
   name: '결합',
-  defaults: { bondK: 2 }, // 질량→반경 환산 계수(접촉 판정의 크기 척도)
+  //   bondK : 질량→반경 환산 계수(접촉 판정의 크기 척도)
+  //   vStick: 결합 문턱 — 상대속력이 이보다 빠르면 결합이 충격을 못 가둬 들러붙지 않는다(튕김/통과).
+  //           에너지로 보면 결합 용량 E_bond = ½μ·vStick² 이고 조건은 ½μ|Δv|² ≤ E_bond ⟺ |Δv| ≤ vStick.
+  defaults: { bondK: 2, vStick: 2.5 },
 
-  // 원소 i 가 자기보다 뒤(j>i)의 원소와 접촉·접근하면 병합 쌍 {a:i,b:j} 를 표시한다.
+  // 원소 i 가 자기보다 뒤(j>i)의 원소와 접촉·접근하고, 충분히 부드럽게 만나면 병합 쌍 {a:i,b:j} 를 표시한다.
   //   위치·속도·tick·병합 실행은 손대지 않는다(엔진 담당). e: 원소, i: 인덱스, world: 세계, params
   apply(e, i, world, params) {
     const bondK = params && params.bondK != null ? params.bondK : 2;
+    const vStick = params && params.vStick != null ? params.vStick : Infinity;
     const els = world.elements;
     const W = world.width, H = world.height;
     const Ri = radius(e.m, bondK);
@@ -35,6 +39,9 @@ export default {
       // 접근(닫힘): 중심선 방향 상대속도가 음수여야 결합(서로 멀어지면 결합 안 함)
       const dvx = (o.vx || 0) - (e.vx || 0), dvy = (o.vy || 0) - (e.vy || 0);
       if (dx * dvx + dy * dvy >= 0) continue;           // 멀어지는 중 → 결합 안 함
+
+      // 결합 문턱: 너무 빠르게 만나면 결합이 충격을 못 가둔다 → 들러붙지 않음(닿는 게 다 뭉치진 않는다)
+      if (dvx * dvx + dvy * dvy > vStick * vStick) continue;
 
       world.pendingMerges.push({ a: i, b: j });         // 엔진이 ⑤에서 질량·운동량 보존 병합
     }

@@ -36,11 +36,11 @@ const world = (els) => ({ width: 1e9, height: 1e9, tick: 0, elements: els });
   check('결정론: 같은 입력 → 비트 동일', JSON.stringify(a) === JSON.stringify(b));
 }
 
-// 2. 개수 감소 — 시나리오: 충돌쌍 3 → 3, 대조쌍 2 → 2, 삼중 3 → 1. 11 → 6.
+// 2. 개수 감소 — 시나리오: 느린쌍 2→1, 빠른쌍 2→2(문턱), 삼중 3→1, 대조 2→2. 9 → 6.
 {
   const w = scenario.setup();
   const n0 = w.elements.length;
-  for (let i = 0; i < 60; i++) step(w);
+  for (let i = 0; i < 100; i++) step(w);
   check('개수 감소: 결합으로 원소 배열이 줄어든다', w.elements.length < n0 && w.elements.length === 6,
     `${n0} → ${w.elements.length} (기대 6)`);
 }
@@ -87,6 +87,23 @@ const world = (els) => ({ width: 1e9, height: 1e9, tick: 0, elements: els });
   step(w);
   check('전이적 병합: A–B–C → 하나', w.elements.length === 1 && approx(w.elements[0].m, 6),
     `n=${w.elements.length}, m=${w.elements[0] && w.elements[0].m}`);
+}
+
+// 8b. 결합 문턱 — 너무 빠르게 만나면(|Δv| > vStick) 접촉·접근해도 결합 안 함
+{
+  const slow = world([                                  // |Δv|=2 < vStick(2.5) → 붙음
+    { x: 100, y: 0, z: 0, vx: 1, vy: 0, m: 2, r: 3 },
+    { x: 104, y: 0, z: 0, vx: -1, vy: 0, m: 2, r: 3 },
+  ]);
+  step(slow);
+  check('문턱: 부드럽게 만나면 결합', slow.elements.length === 1, `n=${slow.elements.length}`);
+
+  const fast = world([                                  // |Δv|=6 > vStick → 안 붙음
+    { x: 100, y: 0, z: 0, vx: 3, vy: 0, m: 2, r: 3 },
+    { x: 106, y: 0, z: 0, vx: -3, vy: 0, m: 2, r: 3 },
+  ]);
+  step(fast);
+  check('문턱: 너무 빠르게 만나면 결합 안 함(닿는 게 다 뭉치진 않는다)', fast.elements.length === 2, `n=${fast.elements.length}`);
 }
 
 // 9. 비접촉 불변 — 멀리 떨어진 쌍·서로 멀어지는 쌍은 병합 안 됨
