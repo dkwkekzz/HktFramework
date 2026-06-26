@@ -1,4 +1,5 @@
 'use strict';
+// step-0309 — #9 잔여(실 host.js 물리 분리): host 컨테이너 스냅샷(zoneHostSnapshot·host→[존…]). 다중 동시 이주(4존 몰림→rebalance→drain) 후 host 컨테이너가 running 을 host 별로 묶은 것과 정확한 bijection(zoneDirSnapshot 0299 의 host 프로세스 판). 읽기 전용·0308 비트 동일.
 // step-0308 — #9 잔여(실 host.js 물리 분리): host 컨테이너 정합 불변(hostContainerCoherent) — 단일 소유 + 표류 0 + roster 회계 닫힘(register−deregister==현 host)을 한 술어로. bridgeCoherent(0278)의 host 프로세스 컨테이너 판. 읽기 전용·0307 비트 동일.
 // step-0307 — #9 잔여(실 host.js 물리 분리): host 프로세스 entity census(zoneHostCensus). 전 host 컨테이너의 {존 수, entity 수} 분포 — entityCensus(0289·존별)의 host 프로세스별 판(부하·재배치 판단의 실 단위). 읽기 전용·0306 비트 동일.
 // step-0305 정리 분할 — orch-zonebridge.js 가 29.4KB>30KB 트리거에 근접해, *host 프로세스 컨테이너 층*(0301~0304·#9 잔여 "실 host.js 물리 분리")을 이 파일로 분리한다.
@@ -53,6 +54,12 @@ const OrchHostProc = {
   hostContainerCoherent() {
     return this.zoneHostSingleOwner() && this.zoneHostDrift() === 0 &&
       (this.hostRegisters - this.hostDeregisters) === this.zoneHosts.size;
+  },
+  // host 컨테이너 스냅샷 질의(step-0309·#9 잔여) — 현재 host→[존…] 배치 전체를 한 장으로(zoneDirSnapshot 0299·게이트웨이 디렉토리의 host 프로세스 컨테이너 판). 다중 동시 이주(rebalance/drain) 후 이 스냅샷이 running 을 host 별로 묶은 것과 정확한 bijection 인지 검증. 읽기 전용.
+  zoneHostSnapshot() {
+    const snap = {};
+    for (const [h, c] of this.zoneHosts) snap[h] = [...c.zones].sort();
+    return snap;
   },
 };
 

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0308](step-0308.md) — **#9 잔여(실 host.js 물리 분리) 8: host 컨테이너 정합 불변 primitive**. `hostContainerCoherent()`(single + drift0 + roster 회계 닫힘 reg−dereg==현 host). bridgeCoherent 의 host 프로세스 컨테이너 판. 읽기 전용·0307 비트 동일.
-- **한 줄 상태**: reg ALL OK·zonehostcoh 5/5(hcoh Y·single·drift0·reg−dereg2==hosts2·dflow·ledger5/1/2/1)·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 마무리 근접** — 0301~0308(컨테이너·inbox/tick·단일소유/drift·roster·분할·stale·census·coherence). 다음: multi-churn host bijection(0309)·**capstone hostProcCoherent(0310·directFlowCoherent && hostContainerCoherent → arc 닫기)**. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
+- **닫힌 step**: [step-0309](step-0309.md) — **#9 잔여(실 host.js 물리 분리) 9: 다중 동시 이주 host 컨테이너 bijection**. `zoneHostSnapshot()`(host→[존…]). 4존 hostA 몰림→rebalance→drain 다중 동시 이주 후 host 컨테이너==running bijection·entity graceful 보존. 읽기 전용·0308 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonehostbij 5/5(bij Y·hcoh·census4 보존·total4·hostA 비움)·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 마무리** — 0301~0309 완료. 다음: **capstone hostProcCoherent(0310·directFlowCoherent && hostContainerCoherent → arc 닫기)**. 그 뒤 cluster-run.js 실 spawn 통합(물리 OS 프로세스/소켓). 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시**.
 
 ---
 
@@ -145,3 +145,4 @@
 | [0306](step-0306.md) | #9 잔여(실 host.js 물리 분리) 6: host inbox stale 거부(_tickRuntimes drain 시 이주로 떠난 존 frame 거부 zoneHostStale++·이중 쓰기 방지·recv==drained+stale·zoneHostStaleProbe 같은 tick frame+migrate 합성·OFF→0305 동일) | 통과(reg 0·spine OK) · 5/5 stale1·recv2==drained1+stale1·z1@hostB·a1 보존·total1·single·drift0 |
 | [0307](step-0307.md) | #9 잔여(실 host.js 물리 분리) 7: host 프로세스 entity census(zoneHostCensus 전 host 컨테이너 {존 수,entity 수} 분포·entityCensus 의 host 프로세스별 판·읽기 전용·0306 비트 동일) | 통과(reg 0·spine OK) · 5/5 census.total1==totalEntities·존 합==running·host 키==running hosts·dflow·ledger5/1/2/1 |
 | [0308](step-0308.md) | #9 잔여(실 host.js 물리 분리) 8: host 컨테이너 정합 불변 primitive(hostContainerCoherent=single+drift0+roster 회계 닫힘 reg−dereg==현 host·bridgeCoherent 의 host 프로세스 판·읽기 전용·0307 비트 동일) | 통과(reg 0·spine OK) · 5/5 hcoh·single·drift0·reg−dereg2==hosts2·dflow·ledger5/1/2/1 |
+| [0309](step-0309.md) | #9 잔여(실 host.js 물리 분리) 9: 다중 동시 이주 host 컨테이너 bijection(zoneHostSnapshot host→[존…]·4존 hostA 몰림→rebalance→drain 후 host 컨테이너==running bijection·entity graceful 보존·읽기 전용·0308 비트 동일) | 통과(reg 0·spine OK) · 5/5 bij·hcoh·census4 보존·total4·hostA 비움 |
