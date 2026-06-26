@@ -81,6 +81,7 @@ class Gateway {
     this.downResyncPending = new Set();   // sessionId — 미해결 resync 요청 보유(중복 요청 억제).
     this.downResyncsSent = 0;             // 발신한 zoneResync 누적(step-0337·손실 1건당 ≥1).
     this.downCleaned = 0;                 // step-0339 — 정리한 다운스트림 세션 누적(leave/disconnect 시·stale 바인딩 회수).
+    this.downDelivered = new Map();       // step-0340 — 클라 addr → 그 클라로 전달한 sessionId 집합(다운스트림 격리 증거: 각 클라가 *자기 세션 frame 만* 받았는가·교차 누수 0). 읽기 전용 회계(메시지 무영향).
   }
   // 다운스트림 세션 정리(step-0339·#9 후속) — leave/disconnect 시 그 세션의 다운스트림 상태(클라 바인딩·시퀀스·resync·수신 버퍼)를 일괄 제거(stale 바인딩/무계 성장 방지·0334 한계 해소). 미존재 세션은 멱등 no-op.
   _downCleanup(sid) {
@@ -109,8 +110,10 @@ class Gateway {
     let a = this.zoneViewIn.get(sid); if (!a) { a = []; this.zoneViewIn.set(sid, a); }
     a.push(p.frame);
     const client = this.downClients.get(sid);
-    if (client) { this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++; }   // step-0334 — 인오더 frame 만 세션→클라 전달(클라 와이어 계약 = view/view_delta 기존 형식).
-    else this.zoneViewDropped++;
+    if (client) {
+      this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++;   // step-0334 — 인오더 frame 만 세션→클라 전달(클라 와이어 계약 = view/view_delta 기존 형식).
+      let ds = this.downDelivered.get(client); if (!ds) { ds = new Set(); this.downDelivered.set(client, ds); } ds.add(sid);   // step-0340 — 격리 회계: 이 클라가 받은 sessionId 기록(교차 누수 검증).
+    } else this.zoneViewDropped++;
   }
   // 다운스트림 라우팅 질의(step-0334·#9 후속) — "전달/드롭 누적·이 세션이 어느 클라에 묶였나"(존→게이트웨이→클라 무손실·바인딩 검증). 읽기 전용.
   gatewayRoutedCount() { return this.zoneViewsRouted; }
@@ -121,6 +124,9 @@ class Gateway {
   gatewayDownGaps() { return this.downSeqGaps; }
   gatewayResyncsSent() { return this.downResyncsSent; }   // step-0337 — 발신한 다운스트림 재전송 요청 수(손실 복구 발화 증거).
   gatewayCleanedCount() { return this.downCleaned; }      // step-0339 — 정리한 다운스트림 세션 수(leave 회수 증거).
+  // 다운스트림 격리 질의(step-0340·#9 후속) — "이 클라가 받은 세션들 / 모든 클라가 정확히 자기 세션 frame 만 받았나(교차 누수 0)". 모든 클라의 전달 세션 집합이 크기 1(자기 1세션)이면 격리 성립. 읽기 전용.
+  gatewayClientSessions(client) { const s = this.downDelivered.get(client); return s ? [...s].sort() : []; }
+  gatewayDeliveryIsolated() { for (const s of this.downDelivered.values()) if (s.size !== 1) return false; return true; }
   // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
   gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
   gatewayDownstreamCount() { return this.zoneViewsRx; }
