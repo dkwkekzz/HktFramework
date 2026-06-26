@@ -1,8 +1,8 @@
-// HktInfra step-0318 — 헤드리스 검증 (#9 잔여: host 프로세스 부하 균형 술어 hostBalanced·부하 sub-arc capstone)
+// HktInfra step-0319 — 헤드리스 검증 (#9 후속: host 프로세스 AOI 뷰 산출 포착 — downstream 데이터 평면 씨앗)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostbalancecap`.
-//   더한 한 조각: hostBalanced(zoneTol, entTol)(존 수 불균형 && entity 불균형 둘 다 허용 안). 부하 균형 sub-arc(0311~0317) 종합 — 재배치 전 거짓·후 참(읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostbalancecap`(capstone) — entity 몰린 클러스터 재배치 전 hostBalanced false·placeRebalanceE 후 true·conserved·coherent.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzoneviews`.
+//   더한 한 조각: 런타임 존 net 싱크를 no-op→버퍼링 으로(뷰 드롭 폐기·포착). 질의 zoneViewFrames/zoneViewsFor — host 가 산출한 AOI 뷰 수. 버퍼 미읽으면 무관 → reg/spine 비트 동일.
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzoneviews`(가설) — 존에 2 avatar enter → 런타임 onTick 이 세션별 view_delta 산출·zoneViewFrames ≥ 2.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,31 +15,28 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0318 #9 잔여 capstone — 부하 균형 sub-arc(0311~0317) 종합. z1·z2@A(각 entity 2 → A 부하 4)·z3@C(0): entity 불균형(skew 4)으로 hostBalanced(2,2) false.
-//   placeRebalanceE([A,C]) → z1→C·A={z2}(2)·C={z3,z1}(2)·entity skew 0 → hostBalanced(2,2) true. 균형 달성 후에도 entityConserved·hostContainerCoherent(부하 균형이 정합 불변을 깨지 않음).
-function hostbalancecap(seeds) {
+// step-0319 #9 후속 검증 — host 프로세스 AOI 뷰 산출 포착(zoneViewFrames). z1@A 에 a1·a2 enter·이동 → 런타임 onTick 이 세션별 view_delta(reset keyframe + 증분)를 산출해 버퍼링 싱크에 쌓는다.
+//   0282 까지 이 뷰는 no-op 싱크로 *드롭*됐다 — 이제 포착돼 zoneViewFrames > 0(다운스트림 데이터 평면이 실제로 frame 을 만든다는 증거·host→세션 뷰 전파의 씨앗). 미가동 존 0.
+function hostzoneviews(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
-  const REBALE = (at, hosts) => ({ at, op: { type: 'placeRebalanceE', hosts } });
-  const AC = ['hostA', 'hostC'];
-  const SETUP = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostC')];
-  const ENT = [ENTER(4, 'z1', 'a1'), ENTER(5, 'z1', 'a2'), ENTER(6, 'z2', 'a3'), ENTER(7, 'z2', 'a4')];
+  const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const OPS = [PLACE(1, 'z1', 'hostA')];
+  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), MOVE(6, 'z1', 'a1', 1, 0), MOVE(8, 'z1', 'a2', 0, 1)];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== hostbalancecap (0318·#9 잔여 capstone): 부하 균형 sub-arc. entity 몰린 클러스터 hostBalanced 전 false → placeRebalanceE → true·conserved·coherent. ==');
-  console.log('seed   | bal0 | bal1 | skew0 | skew1 | consv | hcoh | 판정');
+  console.log('== hostzoneviews (0319·#9 후속): host 프로세스 AOI 뷰 산출 포착. z1 에 2 avatar enter+이동 → 런타임 onTick 이 view_delta 산출·zoneViewFrames ≥ 2(예전엔 드롭). ==');
+  console.log('seed   | viewFrames | z1views | total | 판정');
   for (const seed of seeds) {
-    const r0 = run({ seed, ticks: 14, ...BASE, placementOps: SETUP, entityOps: ENT });
-    const r1 = run({ seed, ticks: 14, ...BASE, placementOps: [...SETUP, REBALE(10, AC)], entityOps: ENT });
-    const b0 = r0.orch.hostBalanced(2, 2), b1 = r1.orch.hostBalanced(2, 2);
-    const s0 = r0.orch.hostEntitySkew().skew, s1 = r1.orch.hostEntitySkew().skew;
-    const ok = check(b0 === false && b1 === true && s0 === 4 && s1 === 0 &&
-      r1.orch.entityConserved() && r1.orch.hostContainerCoherent() && r1.orch.totalEntities() === 4,
-      `seed ${seed}: capstone 위반 (bal0 ${b0}·bal1 ${b1}·skew0 ${s0}·skew1 ${s1}·consv ${r1.orch.entityConserved()}·hcoh ${r1.orch.hostContainerCoherent()})`);
-    console.log(`${pad(seed, 6)} | ${pad(b0 ? 'Y' : 'N', 4)} | ${pad(b1 ? 'Y' : 'N', 4)} | ${pad(s0, 5)} | ${pad(s1, 5)} | ${pad(r1.orch.entityConserved() ? 'Y' : 'N', 5)} | ${pad(r1.orch.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ticks: 14, ...BASE, placementOps: OPS, entityOps: ENT });
+    const o = r.orch;
+    const vf = o.zoneViewFrames(), z1v = o.zoneViewsFor('z1');
+    const ok = check(vf >= 2 && z1v === vf && o.totalEntities() === 2 && o.zoneViewsFor('zX') === 0,
+      `seed ${seed}: 뷰 산출 위반 (viewFrames ${vf}·z1views ${z1v}·total ${o.totalEntities()})`);
+    console.log(`${pad(seed, 6)} | ${pad(vf, 10)} | ${pad(z1v, 7)} | ${pad(o.totalEntities(), 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostbalancecap'] = hostbalancecap;
-kit.ORDER.splice(1, 0, 'hostbalancecap');
+kit.MODES['hostzoneviews'] = hostzoneviews;
+kit.ORDER.splice(1, 0, 'hostzoneviews');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

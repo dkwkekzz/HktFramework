@@ -65,10 +65,10 @@ function makeActor(spec, net) {
       //   팩토리는 직렬화 불가(함수)이므로 spec 이 아니라 *액터 구성 시점*에 makeActor 가 붙인다(인프로세스·각 호스트 프로세스가 자기 makeActor 로 동일 구성 = 멀티프로세스-safe). 시드는 zoneId 해시(결정론). OFF 면 spec.opts 그대로 = 0271 비트 동일.
       a = new Orchestrator(spec.opts.zoneBridge
         ? Object.assign({}, spec.opts, { zoneFactory: (zid) => {
-            // step-0282 (#56) — 런타임 EntityZone 에 net 싱크 + addr 부착. 데이터 평면(0282 move~)에서 orch 가 런타임 onTick 을 구동하면
-            //   zone.js 가 세션에 view 를 send 한다 — 런타임 존은 아직 클라 직접 전파 안 함(#9 후속)이므로 no-op 싱크로 받는다(엔티티 위치 적용만·뷰 드롭). OFF/zoneBridge OFF 면 런타임 생성 0 = 비트 동일.
+            // step-0282 (#56) — 런타임 EntityZone 에 net 싱크 + addr 부착. 데이터 평면(0282 move~)에서 orch 가 런타임 onTick 을 구동하면 zone.js 가 세션에 view/view_delta 를 send 한다.
+            //   step-0319 (#9 후속·downstream 데이터 평면) — 예전엔 no-op 싱크로 *드롭*했으나, 이제 *버퍼링 싱크*로 포착한다(host 프로세스가 산출한 AOI 뷰를 보관 = 다운스트림 전파의 씨앗). 버퍼는 orch 가 질의(zoneViewFrames…)로 읽을 뿐, 전역 net 을 안 건드린다(미읽으면 무관) → reg/spine 비트 동일(zoneBridge OFF 면 팩토리 자체 미발화·prior 모드는 버퍼 미읽음).
             const z = new EntityZone(fnv1a(String(zid)) >>> 0, { grid: spec.opts.zoneRtGrid, radius: spec.opts.zoneRtRadius });
-            z.addr = 'zrt:' + zid; z.net = { send() {} };
+            z.addr = 'zrt:' + zid; z.net = { buf: [], send(from, to, payload) { this.buf.push({ to, payload }); } };
             return z;
           } })
         : spec.opts);
