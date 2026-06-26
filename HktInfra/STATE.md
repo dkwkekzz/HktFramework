@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0344](step-0344.md) — **#9 후속: 손실 하 다운스트림 클라 수렴** — 통합 검증(src 무변경): 전 신뢰 스택(0337 gap-resync·0338 타임아웃·인오더 게이팅)이 실 DownClient 에게 손실에도 클린 인오더 배달 → `dc0.seenSig==zoneAuthSig`(desync 0). 직전: 0343 상호 가시 수렴.
-- **한 줄 상태**: reg ALL OK·dcloss 5/5(drop1·resync1·desync0)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0345](step-0345.md) — **#9 후속: 다중 클라 교차 관찰자 일치** — `DownClient.seenPos(id)`. a1·a2 상호 가시 시 dc0·dc1 모두 공유 entity 를 *같은 위치*로 보고 host 권위와 일치(겹친 뷰 desync 0). 읽기 헬퍼·비트 동일. 직전: 0344 손실 하 수렴.
+- **한 줄 상태**: reg ALL OK·dcagree 5/5(dc0.seenPos==dc1.seenPos==zoneEntityPos)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **실 다운스트림 클라 수렴 sub-arc(0342~)** — 전파 sub-arc(0331~0341 ✅) 종단을 실 클라로. 0342 정적 AOI 수렴✅. **후속**: 증분/이동/상호 가시 수렴·손실 하 수렴(desync 0)·다중 클라 일관·capstone. **그 후**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적)**.
 
 ---
@@ -143,3 +143,4 @@
 | [0342](step-0342.md) | 실 다운스트림 클라 수렴 1(#9 후속): 수신 전용 DownClient 액터(view/view_delta→seen·전파 종단 spectator→실 클라·0334 해소)·dc.seen==zoneVisibleIds(host AOI==클라 뷰·desync0)·downClients0→스폰0 비트 동일 | 통과(reg 0·spine OK) · dcconv 5/5 desync0 |
 | [0343](step-0343.md) | 실 다운스트림 클라 수렴 2(#9 후속): 상호 가시(권위 AOI 서명 zoneAuthSig id@x,y·a1·a2 반경 진입→DownClient 증분 델타로 위치까지 수렴·dc.seenSig==zoneAuthSig·둘 다 [a1,a2]·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcmutual 5/5 위치 desync0 |
 | [0344](step-0344.md) | 실 다운스트림 클라 수렴 3(#9 후속): 손실 하 수렴 통합 검증(src 무변경·0337 gap-resync+0338 타임아웃+인오더 게이팅 위에 s:a1#2 손실에도 DownClient desync0·dc0.seenSig==zoneAuthSig) | 통과(reg 0·spine OK) · dcloss 5/5 drop1·resync1·desync0 |
+| [0345](step-0345.md) | 실 다운스트림 클라 수렴 4(#9 후속): 다중 클라 교차 관찰자 일치(DownClient.seenPos·a1·a2 상호 가시 시 dc0·dc1 공유 entity 같은 위치 dc0==dc1==zoneEntityPos·겹친 뷰 desync0·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dcagree 5/5 교차 일치 |
