@@ -15,6 +15,13 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 다운스트림 무손실 회계 술어(step-0329·#9 후속) — 산출된 모든 view frame 이 *정확히 한 세션*에 귀속되는가(고아 frame 0): ⒜ 모든 view/view_delta frame 이 비어있지 않은 sessionId 를 가진다(주소 없는 = 배달 불가 frame 없음) ⒝ 세션별 total 합 == 전체 frame 수(분배 무손실). 참이면 host 가 산출한 다운스트림 뷰가 빠짐없이 누군가에게 배달될 주소를 갖는다. 미가동 존 자명 참. 읽기 전용.
+  zoneViewConserved(zoneId) {
+    const buf = this.zoneViewBuf(zoneId); let frames = 0; const sids = new Set();
+    for (const s of buf) { const p = s.payload; if (p.type !== 'view' && p.type !== 'view_delta') continue; frames++; if (!p.sessionId) return false; sids.add(p.sessionId); }
+    let sum = 0; for (const sid of sids) sum += this.zoneViewStats(zoneId, sid).total;
+    return sum === frames;
+  },
   // 런타임 존 세션 keyframe 충족 술어(step-0328·#9 후속) — 그 존의 *모든 활성 세션*(rt.zone.sessions)이 적어도 한 번 reset keyframe(초기 전체 뷰)을 받았는가. 한 세션도 굶기지 않는다(no-starvation·접속한 플레이어는 누구나 자기 세계를 받는다 = 다운스트림 무손실의 토대). 미가동 존은 자명 참. 읽기 전용.
   zoneViewAllKeyed(zoneId) {
     const rt = this.zoneRuntimes.get(zoneId); if (!rt) return true;
