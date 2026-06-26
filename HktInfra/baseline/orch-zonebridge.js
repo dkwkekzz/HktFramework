@@ -1,4 +1,5 @@
 'use strict';
+// step-0306 — #9 잔여(실 host.js 물리 분리): host inbox stale 거부. _tickRuntimes drain 시 그 host 가 더는 소유 안 하는(이주로 떠난) 존의 frame 을 적용하지 않고 거부(zoneHostStale++) — 실 프로세스 이중 쓰기 방지. 정상 tick 0·recv == drained + stale. OFF(zoneHostProc)→경로 미발화 = 0305 비트 동일.
 // step-0305 — 정리 분할: host 프로세스 컨테이너 층(0301~0304)을 orch-hostproc.js 로 분리(>30KB 트리거 유계화·기능 0·reg 0). 이 파일엔 실 zone.js 브리지 lifecycle·전송 seam·#56 데이터 평면 질의가 남는다.
 // step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick(_zoneDeliver→host 컨테이너 inbox·_tickRuntimes host 단위 drain·tick·실 host.js 루프 씨앗). zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): host 1급 컨테이너(zoneHosts) 레지스트리. flat zoneRuntimes(zoneId→{zone,host}) 위에, host 가 *자기 존 집합을 소유한 컨테이너*(실 host.js 프로세스의 씨앗)임을 _hostSet 으로 유지. 배치 집행(start/migrate/hostdown/stop)이 zone→host 귀속을 갱신. 질의 hostRuntimeCount/zoneHostOf/zoneHostHosts. zoneHostProc OFF→호출 자체 no-op = 0300 비트 동일.
@@ -141,8 +142,13 @@ const OrchZoneBridge = {
     if (this.zoneHostProc) {
       for (const c of this.zoneHosts.values()) {
         if (c.inbox && c.inbox.length) {           // host 소켓 수신 버퍼 drain — zoneId 로 소유 존 dispatch(FIFO·per-zone 순서 보존).
-          for (const { zoneId, f } of c.inbox) { const rt = this.zoneRuntimes.get(zoneId); if (rt) rt.zone.onMsg(f); }
-          this.zoneHostDrained += c.inbox.length; c.inbox = [];
+          for (const { zoneId, f } of c.inbox) {
+            // step-0306 (#9 잔여) — host inbox stale 거부: enqueue 후 drain 전(같은 tick 내) 그 존이 *다른 host 로 이주*했으면, 이 host 프로세스는 더는 그 존을 소유하지 않는다 → frame 을 적용하지 않고 거부(zoneHostStale++·drained 미증가). 실 host.js 분리의 핵심 안전망: 프로세스가 자기가 잃은 존의 frame 을 적용하면 이중 쓰기(이주 후 두 host 가 같은 존을 건드림)다. c.zones 가 host 의 *현재* 소유 = 진짜 권위. 정상 흐름(이주 없는 tick)에선 항상 소유 → 거부 0. 불변: recv == drained + stale.
+            if (!c.zones.has(zoneId)) { this.zoneHostStale++; continue; }
+            const rt = this.zoneRuntimes.get(zoneId); if (rt) rt.zone.onMsg(f);
+            this.zoneHostDrained++;
+          }
+          c.inbox = [];
         }
         for (const zoneId of c.zones) { const rt = this.zoneRuntimes.get(zoneId); if (rt) rt.zone.onTick(tick); }   // 이 host 가 소유한 존만 tick.
       }

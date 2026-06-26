@@ -108,6 +108,7 @@ class Orchestrator {
     this.zoneHostDrained = 0;        // host 자기 루프가 inbox 에서 drain 해 소유 존에 적용한 frame 누적(step-0302·== zoneHostFramesRecv 면 잔류 0·무손실).
     this.hostRegisters = 0;          // host 컨테이너가 *처음 존을 받아 새로 생긴* 누적 수(step-0304·실 host.js 프로세스 spawn 의 씨앗 — 그 host 가 첫 존을 호스팅).
     this.hostDeregisters = 0;        // host 컨테이너가 *마지막 존을 잃어 사라진* 누적 수(step-0304·실 host.js 프로세스 despawn 의 씨앗 — 그 host 가 더는 존을 안 돌림). registers−deregisters == 현 host 수.
+    this.zoneHostStale = 0;          // host inbox drain 시 *그 host 가 더는 소유 안 하는*(이주로 떠난) 존의 frame 을 거부한 누적 수(step-0306·실 프로세스 이중 쓰기 방지·정상 tick 0·recv == drained + stale).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

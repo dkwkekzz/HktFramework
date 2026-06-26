@@ -1,4 +1,5 @@
 'use strict';
+// step-0306 — #9 잔여(실 host.js 물리 분리): zoneHostStaleProbe 주입(같은 tick 존 frame+migrate→host inbox drain 시 떠난 존 frame 거부 검증·이중 쓰기 방지). 미제공이면 휴면(reg 0).
 // step-0296 — #9 멀티프로세스 배선 6: zoneStaleProbe 주입(낡은 host 단 zoneDeliver→orch host 불일치 거부 검증·이주 라우팅 정합). 미제공이면 휴면(reg 0).
 // step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone ON 이면 entityOps 를 게이트웨이로 라우팅(클라→게이트웨이 직접 라우팅). OFF→0281 경로(게이트웨이→orch).
 // step-0281 — #56 브리지 존 데이터 평면 1: entityOps 주입열(게이트웨이→orch zoneEnter/zoneMove/zoneLeave). 미제공이면 휴면(reg 0).
@@ -76,6 +77,11 @@ function applyInjections(opts, i, ctx) {
     }
     // 존 stale 라우팅 프로브 주입(step-0296·#9·zoneStaleProbe) — at tick 에 *낡은 host* 를 단 zoneDeliver 를 게이트웨이 발신으로 orch 에 직접 보낸다(이주 직후 게이트웨이 디렉토리가 뒤처졌을 때의 frame 모델·straggler 류 테스트 seam). orch 가 host!=running 으로 거부(zoneDirStale++·이중 적용 0)함을 검증. orch 부재·미제공이면 휴면(reg 0 불변).
     if (opts.zoneStaleProbe && orch) for (const s of [].concat(opts.zoneStaleProbe)) if (s.at === i + 1) net.send('gateway', 'orch', { type: 'zoneDeliver', op: s.op || 'enter', zoneId: s.zoneId, avatar: s.avatar, host: s.host });
+    // host inbox stale 프로브 주입(step-0306·#9 잔여·zoneHostStaleProbe) — at tick 에 *같은 tick* 으로 ① 존 frame(fromHost 단 zoneDeliver·orch 가 host==running 이라 수락→fromHost inbox enqueue) ② 그 존 migrate(fromHost→toHost) 를 *순서대로* 보낸다. orch onTick drain 시 fromHost 는 더는 그 존을 소유 안 함 → frame 거부(zoneHostStale++). fromHost 가 다른 존을 더 가져 컨테이너가 살아있어야 drain 이 일어난다. orch 부재·미제공이면 휴면(reg 0 불변).
+    if (opts.zoneHostStaleProbe && orch) for (const s of [].concat(opts.zoneHostStaleProbe)) if (s.at === i + 1) {
+      net.send('gateway', 'orch', { type: 'zoneDeliver', op: s.op || 'move', zoneId: s.zoneId, avatar: s.avatar, dx: s.dx != null ? s.dx : 1, dy: s.dy != null ? s.dy : 0, host: s.host });
+      net.send('gateway', 'orch', { type: 'placeMigrate', zoneId: s.zoneId, toHost: s.toHost });
+    }
     // 캐시 명령 주입(step-0205·cacheOps) — at tick 에 게이트웨이/서비스가 CacheStore 에 cacheSet(핫 데이터 캐시 채움). cache 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
     if (opts.cacheOps && cache) for (const co of [].concat(opts.cacheOps)) if (co.at === i + 1) net.send(co.from || 'gateway', 'cache', co.op);
     // 월드 intent 주입(step-0207·worldOps) — at tick 에 존/게이트웨이가 WorldLog 에 worldAppend(intent 로그 적층). worldlog 부재면 주입 0. 미제공이면 휴면(reg 0 불변).
