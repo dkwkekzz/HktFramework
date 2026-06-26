@@ -82,6 +82,8 @@ class Gateway {
     this.downResyncsSent = 0;             // 발신한 zoneResync 누적(step-0337·손실 1건당 ≥1).
     this.downCleaned = 0;                 // step-0339 — 정리한 다운스트림 세션 누적(leave/disconnect 시·stale 바인딩 회수).
     this.downDelivered = new Map();       // step-0340 — 클라 addr → 그 클라로 전달한 sessionId 집합(다운스트림 격리 증거: 각 클라가 *자기 세션 frame 만* 받았는가·교차 누수 0). 읽기 전용 회계(메시지 무영향).
+    this.downRecvWindow = 0;              // step-0347 — 세션별 수신 버퍼(zoneViewIn) 유계 창 K(0=무계). 전달 후 frame 은 클라(DownClient)가 보유하므로 게이트웨이는 *최근 K* 만 보관 → per-세션 메모리 O(K) 상한(버스 seenBound 0042·수신함 유계 0099 의 다운스트림 판). 0 면 무계 = 이전 비트 동일.
+    this.downRecvPeak = 0;               // step-0347 — 세션 수신 버퍼 최대 길이(유계 증거).
   }
   // 다운스트림 세션 정리(step-0339·#9 후속) — leave/disconnect 시 그 세션의 다운스트림 상태(클라 바인딩·시퀀스·resync·수신 버퍼)를 일괄 제거(stale 바인딩/무계 성장 방지·0334 한계 해소). 미존재 세션은 멱등 no-op.
   _downCleanup(sid) {
@@ -109,6 +111,8 @@ class Gateway {
     }
     let a = this.zoneViewIn.get(sid); if (!a) { a = []; this.zoneViewIn.set(sid, a); }
     a.push(p.frame);
+    if (this.downRecvWindow > 0 && a.length > this.downRecvWindow) a.shift();   // step-0347 — 유계 창: 전달 후 frame 은 클라가 보유하므로 최근 K 만 보관(per-세션 메모리 상한). 0 면 무계 = 이전.
+    if (a.length > this.downRecvPeak) this.downRecvPeak = a.length;
     const client = this.downClients.get(sid);
     if (client) {
       this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++;   // step-0334 — 인오더 frame 만 세션→클라 전달(클라 와이어 계약 = view/view_delta 기존 형식).

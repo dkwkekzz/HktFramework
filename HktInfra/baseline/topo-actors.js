@@ -57,7 +57,7 @@ function makeActor(spec, net) {
   switch (spec.kind) {
     case 'login': a = new LoginServer(spec.opts.accounts, spec.opts.seed); break;
     case 'registry': a = new SessionRegistry(); break;
-    case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); break;
+    case 'gateway': a = new Gateway(spec.opts.zoneAddrs, spec.opts.replicas, spec.opts.inventoryAddr, spec.opts.chatAddr, spec.opts.busAddr, spec.opts.busResendReq, spec.opts.busWindow, spec.opts.busAck, spec.opts.busOutAck, spec.opts.busSeenBound, spec.opts.busMinWm, spec.opts.busProducerNs, spec.opts.busSeenNs); a.downRecvWindow = spec.opts.downRecvWindow || 0; break;   // step-0347 — 수신 버퍼 유계 창(0=무계).
     case 'zone': a = new EntityZone(spec.seed, spec.opts); break;
     case 'instance': a = new InstanceServer(spec.opts); break;   // step-0201 — 인스턴스 서버.
     case 'orch':

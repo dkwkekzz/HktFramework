@@ -25,10 +25,10 @@ function addServiceBoxes(ctx, add) {
     persistReplicaAddrs, presenceAnnounce, presenceBox, presenceLease, presenceMonitor, presencePublish, presenceQuery, presenceReportBus,
     presenceShadowAddr, presenceSvcAddr, quorumW, ranking, rankingAddr, readmitMax, readmitPublish, replaceAddr,
     replicas, sagaDedup, sagaDedupBound, sagaMaxRetries, snapshot, wfWindow, whisperFailover, whisperReceipt,
-    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones
+    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones, downRecvWindow
   } = ctx;
   // 버스 ON 이면 gateway 는 서비스 *주소를 모른다*(inventoryAddr/chatAddr = null — 토픽만) = 직접 결합의 구조적 제거.
-  add({ addr: 'gateway', kind: 'gateway', opts: { zoneAddrs, replicas, inventoryAddr: busAddr ? null : inventoryAddr, chatAddr: busAddr ? null : chatAddr, busAddr, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false } });
+  add({ addr: 'gateway', kind: 'gateway', opts: { zoneAddrs, replicas, inventoryAddr: busAddr ? null : inventoryAddr, chatAddr: busAddr ? null : chatAddr, busAddr, busResendReq: busAddr ? busResendReq : false, busWindow: busAddr ? busWindow : 0, busAck: busAddr ? busAck : false, busOutAck: busAddr ? busOutAck : false, busSeenBound: busAddr ? busSeenBound : false, busMinWm: busAddr ? busMinWm : false, busProducerNs: busAddr ? busProducerNs : false, busSeenNs: busAddr ? busSeenNs : false, downRecvWindow } });
   // [버스] ServiceBus — bus ON 일 때만 토폴로지에 존재(OFF = 0015 토폴로지 비트 동일). onTick 없음 = 신성한 tick 밖.
   //   구독 = 선언 spec(이 테이블이 SSOT). *새 소비자(audit) 추가 = 여기 행 추가뿐* — 발행자 spec 무수정(decouple 가설).
   if (bus) {

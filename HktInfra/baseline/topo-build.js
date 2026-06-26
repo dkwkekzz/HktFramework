@@ -179,6 +179,7 @@ function buildTopology(opts) {
     egressDrop = null,         // step-0337 (#9 후속) — 다운스트림 전송 손실 주입(["sid#dseq"…]·테스트). 미설정→손실 0 = 비트 동일.
     egressTimeout = 0,         // step-0338 (#9 후속) — 미-ack egress frame 타임아웃 재전송 tick(0=off·마지막 frame 손실 복구). 0→비트 동일.
     downClients = 0,           // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라 수(dc0..·desync 0 수렴 검증). 0→스폰 0 = 비트 동일.
+    downRecvWindow = 0,        // step-0347 (#9 후속) — 게이트웨이 세션별 수신 버퍼 유계 창 K(0=무계). 0→비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -230,7 +231,7 @@ function buildTopology(opts) {
     persistReplicaAddrs, presenceAnnounce, presenceBox, presenceLease, presenceMonitor, presencePublish, presenceQuery, presenceReportBus,
     presenceShadowAddr, presenceSvcAddr, quorumW, ranking, rankingAddr, readmitMax, readmitPublish, replaceAddr,
     replicas, sagaDedup, sagaDedupBound, sagaMaxRetries, snapshot, wfWindow, whisperFailover, whisperReceipt,
-    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones
+    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones, downRecvWindow
   };
   addServiceBoxes(__bctx, add);
 
