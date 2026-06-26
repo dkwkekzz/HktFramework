@@ -35,7 +35,7 @@
 <div id="app">
   <div id="panel">
     <h1>HWR — 뷰어 (3D)</h1>
-    <p class="sub">원소로 굴러가는 세계 — 모든 규칙은 항상 적용된다</p>
+    <p class="sub">원소로 굴러가는 세계 — 세계 로직은 고정, 모든 규칙은 힘으로 누적된다</p>
 
     <div class="row"><label>시나리오</label><input id="scnPath" type="text" placeholder="../rules/rule_0001/scenario.js" /></div>
     <div class="row"><button id="load" class="primary">시나리오 로드</button><button id="useDemo">기본 세계</button></div>
@@ -68,66 +68,55 @@
       <div>원소 수: <b id="s-n">0</b></div>
     </div>
 
-    <p class="note">드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 원소 추가 · Shift+드래그 = 속도 부여.<br/>규칙(<code>rule_NNNN.js</code>)은 자동 탐색되어 <b>모두 항상 적용</b>된다. 로드하는 것은 시나리오다.<br/>계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
+    <p class="note">드래그 = 카메라 회전 · 휠 = 줌 · Shift+클릭 = 원소 추가 · Shift+드래그 = 속도 부여.<br/>세계 로직(<code>engine.js</code>)은 고정 — 모든 규칙(<code>rule_NNNN.js</code>)을 자동 탐색해 <b>힘으로 누적·항상 적용</b>한다. 로드하는 것은 시나리오다.<br/>계약은 <code>.claude/skills/hwr-task/SKILL.md</code> 참조.</p>
   </div>
 
   <div id="stage"><canvas id="cv"></canvas></div>
 </div>
 
 <script type="module">
-// ── 내장 데모 규칙 ───────────────────────────────────────────────
-// 규칙이 하나도 탐색되지 않아도(file:// 등) "세계와 원소를 굴린다"가 동작하게 하는 최소 규칙.
-// rules/rule_NNNN/rule_NNNN.js 가 따라야 할 계약(SKILL.md §규칙 코드 계약)의 실례이기도 하다.
-const demoRule = {
-  id: 'demo',
-  name: '내장 데모 — 자유 원소 드리프트',
-  defaults: { count: 60, speed: 1.2, radius: 4 },
-  setup(params) {
+import { stepWorld } from '../engine.js';
+
+// ── 내장 기본 시나리오 ───────────────────────────────────────────
+// 규칙이 하나도 탐색되지 않아도(엔진 관성만으로도) "세계가 굴러간다"가 동작하는 기본 초기 세계.
+// 시나리오는 *초기 상태만* 짠다 — 굴리는 일은 세계 로직(engine.js)+규칙의 몫.
+const demoScenario = {
+  name: '기본 세계 — 자유 원소 드리프트',
+  setup() {
     const w = 800, h = 600;
     // 시드 의사난수 — 결정론(같은 시드 → 같은 세계). Math.random 금지.
     let s = 1234567;
     const rnd = () => (s = (s * 1103515245 + 12345) & 0x7fffffff) / 0x7fffffff;
     const els = [];
-    for (let i = 0; i < params.count; i++) {
-      const a = rnd() * Math.PI * 2;
+    for (let i = 0; i < 60; i++) {
+      const a = rnd() * Math.PI * 2, sp = 0.5 + rnd() * 1.3;
+      const m = 1 + rnd() * 3;
       els.push({
         x: rnd() * w, y: rnd() * h, z: 0,
-        vx: Math.cos(a) * params.speed, vy: Math.sin(a) * params.speed,
-        r: params.radius, hue: Math.floor(rnd() * 360),
+        vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, m,
+        r: 2 + Math.sqrt(m) * 1.5, hue: Math.floor(rnd() * 360),
       });
     }
     return { width: w, height: h, tick: 0, elements: els, impulses: [] };
-  },
-  step(world, params) {
-    const { width: w, height: h } = world;
-    for (const e of world.elements) {
-      e.x += e.vx; e.y += e.vy;
-      // 경계와 상호작용 — 벽에서 반사(보존되는 속력)
-      if (e.x < e.r) { e.x = e.r; e.vx = -e.vx; }
-      else if (e.x > w - e.r) { e.x = w - e.r; e.vx = -e.vx; }
-      if (e.y < e.r) { e.y = e.r; e.vy = -e.vy; }
-      else if (e.y > h - e.r) { e.y = h - e.r; e.vy = -e.vy; }
-    }
-    world.tick++;
   },
 };
 
 // ── 뷰어 상태 ────────────────────────────────────────────────────
 const cv = document.getElementById('cv');
 const ctx = cv.getContext('2d');
-let rules = [demoRule];        // 탐색된 모든 규칙 — 매 틱 전부 적용된다(보편 법칙).
-let scenario = null;           // 로드하는 대상. 초기 세계를 짠다. 없으면 첫 규칙의 setup.
+let rules = [];                  // 탐색된 모든 규칙 — 엔진이 매 틱 힘으로 누적·적용(보편 법칙).
+let scenario = demoScenario;     // 로드 대상. 초기 세계를 짠다.
 let scenarioName = '기본 세계';
-let params = { ...demoRule.defaults };
+let params = {};
 let world = null;
 let playing = false;
 let acc = 0;
 
 const $ = id => document.getElementById(id);
 
-// 규칙들의 defaults 를 하나로 합친다(뷰어가 단일 params 로 전 규칙을 굴린다).
+// 규칙들의 defaults 를 하나로 합친다(엔진이 단일 params 로 전 규칙을 굴린다).
 function mergeDefaults(rs) {
-  return Object.assign({}, ...rs.map(r => r.defaults || {}));
+  return Object.assign({ dt: 1 }, ...rs.map(r => r.defaults || {}));
 }
 
 // 규칙 자동 탐색 — rule_0001 부터 연속해서 import, 첫 결번에서 멈춘다.
@@ -139,7 +128,7 @@ async function discoverRules() {
     try {
       const mod = await import(/* @vite-ignore */ path);
       const r = mod.default || mod;
-      if (r && typeof r.step === 'function') found.push(r);
+      if (r && typeof r.apply === 'function') found.push(r);
       else break;
     } catch (e) {
       break;
@@ -149,32 +138,18 @@ async function discoverRules() {
 }
 
 function buildWorld() {
-  const src = scenario && scenario.setup ? scenario : rules[0];
-  world = src.setup({ ...params });
+  world = scenario.setup({ ...params });
   if (!world || !Array.isArray(world.elements)) {
     world = { width: 800, height: 600, tick: 0, elements: [] };
   }
   if (!Array.isArray(world.impulses)) world.impulses = [];
-  if (world.depth == null) world.depth = 0; // 2D 세계는 바닥 평면. z>0 은 선택.
   acc = 0;
   fitCamera();
   syncStats();
 }
 
-// 한 틱 = 모든 규칙을 차례로 적용. 틱은 프레임당 한 번만 전진한다.
-//  (각 규칙은 같은 tick 을 보고, tick++ 하더라도 뷰어가 t+1 로 정규화 → 규칙 합성 가능)
-function stepWorld() {
-  if (!world) return;
-  const t = world.tick;
-  for (const r of rules) {
-    world.tick = t;
-    r.step(world, params);
-  }
-  world.tick = t + 1;
-}
-
 function syncStats() {
-  $('s-rule').textContent = rules.map(r => r.id || r.name || '?').join(', ') || '—';
+  $('s-rule').textContent = rules.length ? rules.map(r => r.id || r.name || '?').join(', ') : '— (엔진 관성만)';
   $('s-scn').textContent = scenarioName;
   $('s-tick').textContent = world ? world.tick : 0;
   $('s-n').textContent = world ? world.elements.length : 0;
@@ -302,7 +277,7 @@ function tick() {
     const mult = parseFloat($('speedMult').value);
     const perFrame = parseInt($('speed').value, 10) || 1;
     acc += perFrame * mult;
-    while (acc >= 1) { stepWorld(); acc -= 1; }
+    while (acc >= 1) { stepWorld(world, rules, params); acc -= 1; }
     syncStats();
   }
   draw();
@@ -334,11 +309,11 @@ window.addEventListener('mouseup', ev => {
     const rect = cv.getBoundingClientRect();
     const sx = ev.clientX - rect.left, sy = ev.clientY - rect.top;
     const fp = floorPoint(sx, sy) || drag.floor0;
-    const m = params.mMin || 2;
+    const m = 2;
     world.elements.push({
       x: drag.floor0.x, y: drag.floor0.y, z: 0,
-      vx: (fp.x - drag.floor0.x) * 0.05, vy: (fp.y - drag.floor0.y) * 0.05,
-      m, r: 2 + Math.sqrt(m) * 1.5, hue: (world.tick * 37) % 360,
+      vx: (fp.x - drag.floor0.x) * 0.05, vy: (fp.y - drag.floor0.y) * 0.05, m,
+      r: 2 + Math.sqrt(m) * 1.5, hue: (world.tick * 37) % 360,
     });
     syncStats();
   }
@@ -351,9 +326,9 @@ cv.addEventListener('wheel', ev => {
 
 // ── 컨트롤 ───────────────────────────────────────────────────────
 $('play').onclick = () => { playing = !playing; $('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
-$('stepBtn').onclick = () => { stepWorld(); syncStats(); };
+$('stepBtn').onclick = () => { if (world) { stepWorld(world, rules, params); syncStats(); } };
 $('reset').onclick = () => buildWorld();
-$('useDemo').onclick = () => { scenario = null; scenarioName = '기본 세계'; $('loadErr').textContent = ''; buildWorld(); };
+$('useDemo').onclick = () => { scenario = demoScenario; scenarioName = '기본 세계'; $('loadErr').textContent = ''; buildWorld(); };
 $('camReset').onclick = () => { cam.yaw = -0.7; cam.pitch = 0.72; fitCamera(); };
 $('capture').onclick = () => {
   const a = document.createElement('a');
@@ -368,8 +343,9 @@ $('load').onclick = async () => {
   if (!sp) { $('loadErr').textContent = '시나리오 경로를 입력하세요. (규칙은 자동 적용됩니다)'; return; }
   try {
     const smod = await import(/* @vite-ignore */ sp + (sp.includes('?') ? '' : `?t=${performance.now()}`));
-    scenario = smod.default || smod;
-    if (!scenario || typeof scenario.setup !== 'function') throw new Error('시나리오에 setup(params) 가 없습니다.');
+    const scn = smod.default || smod;
+    if (!scn || typeof scn.setup !== 'function') throw new Error('시나리오에 setup(params) 가 없습니다.');
+    scenario = scn;
     scenarioName = sp;
     buildWorld();
   } catch (e) {
@@ -381,8 +357,7 @@ $('load').onclick = async () => {
 // ── 시작 ─────────────────────────────────────────────────────────
 resize();
 (async () => {
-  const found = await discoverRules();
-  if (found.length) rules = found;
+  rules = await discoverRules();
   params = mergeDefaults(rules);
   buildWorld();
   requestAnimationFrame(tick);
