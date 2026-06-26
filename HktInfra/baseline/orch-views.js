@@ -15,6 +15,12 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 산출 뷰 세션 집합 질의(step-0326·#9 후속) — 그 존이 뷰를 산출한 sessionId 들(정렬). 다중 존이 동시에 돌 때 각 존이 *자기 세션에만* 뷰를 내보내는지(존 간 누수 0·격리) 검증의 단위. 미가동 존 []. 읽기 전용.
+  zoneViewSessions(zoneId) {
+    const set = new Set();
+    for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if ((p.type === 'view' || p.type === 'view_delta') && p.sessionId) set.add(p.sessionId); }
+    return [...set].sort();
+  },
   // 런타임 존 산출 뷰 와이어 질의(step-0325·#9 후속) — 그 존이 산출한 view frame 들이 *직렬화 가능*(JSON round-trip 동일)하고 와이어 바이트가 얼마인지 {frames, bytes, serializable}. 다운스트림 뷰가 실 소켓(host→게이트웨이→클라)을 탈 준비가 됐다는 증거 — 함수/순환 참조가 섞이면 serializable=false(원격-검증 토대·_zoneDeliver 0291 의 다운스트림 짝). 읽기 전용.
   zoneViewWire(zoneId) {
     let frames = 0, bytes = 0, serializable = true;

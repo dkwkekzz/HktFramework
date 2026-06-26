@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0326](step-0326.md) — **#9 후속: 다중 존 독립 다운스트림 (존 간 뷰 격리)**. 질의 zoneViewSessions(존이 뷰 산출한 세션 집합). z1(a1·a2)·z2(b1) 동시→z1 세션={s:a1,s:a2}·z2={s:b1}·존 간 누수 0. 읽기 전용·0325 비트 동일.
-- **한 줄 상태**: reg ALL OK·hostzoneisolate 5/5(z1sess·z2sess·noLeak)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0327](step-0327.md) — **#9 후속: host 이주 중 다운스트림 뷰 연속성**. 질의 zoneViewReport(다운스트림 요약). z1 A→B 이주(같은 핸들)·a1 이동(전후)→update 4 연속·entity 보존·host B·serializable. 읽기 전용·0326 비트 동일.
+- **한 줄 상태**: reg ALL OK·hostzonemigrateview 5/5(update4·total1·hostB·pos9,9·serializable)·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream 데이터 평면 sub-arc(0319~·#9 후속)** — host 프로세스 AOI 뷰 산출→게이트웨이 라우팅→클라 전파(SPINE §4 경로2 월드 다운스트림). 부하 균형 sub-arc(0311~0318 ✅) 위에. 후속: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합)·진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시(2묶음 누적)**.
 
 ---
@@ -145,3 +145,4 @@
 | [0324](step-0324.md) | downstream 데이터 평면 5(#9 후속): host 산출 뷰의 AOI exit 델타(질의 zoneViewExited·a1 접근 후 멀어짐→서로 exit·최종 vis 자기만·동적 가시 상실·읽기 전용·0323 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1exit⊇a2·a2exit⊇a1·finVis 자기만 |
 | [0325](step-0325.md) | downstream 데이터 평면 6(#9 후속): host 산출 뷰의 직렬화 경계(질의 zoneViewWire·산출 뷰 JSON round-trip 동일·와이어 바이트>0·소켓 준비·원격-검증 토대·_zoneDeliver 다운스트림 짝·읽기 전용·0324 비트 동일) | 통과(reg 0·spine OK) · 5/5 frames4·bytes440·serializable |
 | [0326](step-0326.md) | downstream 데이터 평면 7(#9 후속): 다중 존 독립 다운스트림(질의 zoneViewSessions·z1·z2 동시→각자 자기 세션에만 뷰·존 간 누수 0·격리·읽기 전용·0325 비트 동일) | 통과(reg 0·spine OK) · 5/5 z1sess{a1,a2}·z2sess{b1}·noLeak |
+| [0327](step-0327.md) | downstream 데이터 평면 8(#9 후속): host 이주 중 뷰 연속성(질의 zoneViewReport·z1 A→B 이주 같은 핸들·a1 이동 전후→update 4 연속·entity 보존·host B·serializable·읽기 전용·0326 비트 동일) | 통과(reg 0·spine OK) · 5/5 update4·total1·hostB·pos9,9·serializable |

@@ -15,6 +15,11 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 다운스트림 요약 질의(step-0327·#9 후속) — 그 존의 다운스트림 데이터 평면 대시보드 {frames, bytes, sessions, serializable}(0319~0326 지표 집계). 운영 한눈 + migrate 같은 lifecycle 전후로 뷰 산출이 *끊기지 않는지*(연속성) 보는 단위. 미가동 존은 0/[]. 읽기 전용.
+  zoneViewReport(zoneId) {
+    const w = this.zoneViewWire(zoneId);
+    return { frames: w.frames, bytes: w.bytes, sessions: this.zoneViewSessions(zoneId).length, serializable: w.serializable };
+  },
   // 런타임 존 산출 뷰 세션 집합 질의(step-0326·#9 후속) — 그 존이 뷰를 산출한 sessionId 들(정렬). 다중 존이 동시에 돌 때 각 존이 *자기 세션에만* 뷰를 내보내는지(존 간 누수 0·격리) 검증의 단위. 미가동 존 []. 읽기 전용.
   zoneViewSessions(zoneId) {
     const set = new Set();
