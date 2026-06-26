@@ -15,6 +15,16 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 산출 뷰 와이어 질의(step-0325·#9 후속) — 그 존이 산출한 view frame 들이 *직렬화 가능*(JSON round-trip 동일)하고 와이어 바이트가 얼마인지 {frames, bytes, serializable}. 다운스트림 뷰가 실 소켓(host→게이트웨이→클라)을 탈 준비가 됐다는 증거 — 함수/순환 참조가 섞이면 serializable=false(원격-검증 토대·_zoneDeliver 0291 의 다운스트림 짝). 읽기 전용.
+  zoneViewWire(zoneId) {
+    let frames = 0, bytes = 0, serializable = true;
+    for (const s of this.zoneViewBuf(zoneId)) {
+      const p = s.payload; if (p.type !== 'view' && p.type !== 'view_delta') continue;
+      frames++;
+      try { const w = JSON.stringify(p); bytes += w.length; if (JSON.stringify(JSON.parse(w)) !== w) serializable = false; } catch { serializable = false; }
+    }
+    return { frames, bytes, serializable };
+  },
   // 세션이 시야에서 잃은 entity 집합 질의(step-0324·#9 후속) — 그 세션 뷰들의 exit 를 누적한 id 집합(=그 세션의 AOI 에서 *언젠가 빠져나간* entity). 두 avatar 가 멀어지면 서로의 exit 집합에 들어온다(동적 가시 상실·exit 델타·enter 0322 의 짝). 읽기 전용.
   zoneViewExited(zoneId, sessionId) {
     const set = new Set();
