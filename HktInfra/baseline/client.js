@@ -251,6 +251,8 @@ class DownClient {
   }
   seenIds() { return [...this.seen.keys()].sort(); }
   seenSig() { return [...this.seen.entries()].map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';'); }
+  // step-0345 — 그 클라가 보는 한 entity 의 위치 서명('x,y') 또는 null. 두 클라가 겹친 AOI 의 *공유* entity 를 같은 위치로 보는가(교차 관찰자 일치·겹친 뷰 desync 0) 비교용.
+  seenPos(id) { const e = this.seen.get(id); return e ? (e.x + ',' + e.y) : null; }
 }
 
 const __part = { Client, DownClient };
