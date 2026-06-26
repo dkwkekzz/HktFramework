@@ -1,8 +1,8 @@
-// HktInfra step-0324 — 헤드리스 검증 (#9 후속: host 산출 뷰의 AOI exit 델타 — 동적 가시 상실)
+// HktInfra step-0325 — 헤드리스 검증 (#9 후속: host 산출 뷰의 직렬화 경계 — 와이어 준비)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzoneexit`.
-//   더한 한 조각: 질의 zoneViewExited(세션이 시야에서 잃은 누적 id). 두 avatar 가 멀어지면 서로의 AOI 에서 빠져 exit 델타(enter 0322 의 짝)인지 검증(읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzoneexit`(가설) — a1 이 a2 에 접근(enter)했다 멀어짐(exit) → 서로 exit·최종 vis 자기만.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzoneviewwire`.
+//   더한 한 조각: 질의 zoneViewWire(산출 뷰 {frames, bytes, serializable}). 다운스트림 뷰가 실 소켓(host→게이트웨이→클라)을 탈 준비(JSON round-trip 동일)인지 검증(_zoneDeliver 0291 의 다운스트림 짝·읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzoneviewwire`(가설) — 산출 뷰 전부 직렬화 가능·와이어 바이트 > 0·frames == zoneViewFrames.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,31 +15,28 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0324 #9 후속 검증 — host 산출 뷰의 AOI exit 델타(zoneViewExited). a1 을 a2 쪽으로 6회 접근(반경 안·enter) 후 다시 6회 멀어짐(반경 밖·exit) → 원위치 (5,5).
-//   a1 의 뷰에 a2 가 exit·a2 의 뷰에 a1 이 exit(동적 가시 상실·enter 의 짝). 최종 zoneVisibleIds 둘 다 자기만 — AOI 가 멀어짐을 host 뷰가 정확히 산출(시야 이탈 전파).
-function hostzoneexit(seeds) {
+// step-0325 #9 후속 검증 — host 산출 뷰의 직렬화 경계(zoneViewWire). z1 에 a1·a2 enter·a1 이동 → 산출된 view_delta frame 들이 모두 JSON round-trip 동일(직렬화 가능)하고 와이어 바이트 > 0.
+//   다운스트림 뷰가 실 소켓(host→게이트웨이→클라)을 탈 준비가 됐다는 증거 — 함수/순환 참조 0(원격-검증 토대). _zoneDeliver(0291·업스트림 직렬화 경계)의 다운스트림 짝.
+function hostzoneviewwire(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
   const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
-  const mv = []; for (let t = 6; t <= 11; t++) mv.push(MOVE(t, 'z1', 'a1', 1, 1)); for (let t = 13; t <= 18; t++) mv.push(MOVE(t, 'z1', 'a1', -1, -1));
   const OPS = [PLACE(1, 'z1', 'hostA')];
-  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), ...mv];
+  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), MOVE(6, 'z1', 'a1', 1, 1), MOVE(7, 'z1', 'a1', 1, 1)];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== hostzoneexit (0324·#9 후속): host 산출 뷰의 AOI exit 델타. a1 이 a2 에 접근(enter) 후 멀어짐(exit) → 서로 exit·최종 vis 자기만. ==');
-  console.log('seed   | a1exit | a2exit | finVis | 판정');
+  console.log('== hostzoneviewwire (0325·#9 후속): host 산출 뷰의 직렬화 경계. 산출 뷰 전부 JSON round-trip 동일·와이어 바이트>0·소켓 준비. ==');
+  console.log('seed   | frames | bytes | serializable | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 22, ...BASE, placementOps: OPS, entityOps: ENT });
+    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS, entityOps: ENT });
     const o = r.orch;
-    const x1 = o.zoneViewExited('z1', 's:a1'), x2 = o.zoneViewExited('z1', 's:a2');
-    const v1 = o.zoneVisibleIds('z1', 'a1'), v2 = o.zoneVisibleIds('z1', 'a2');
-    const finVis = v1.join(',') === 'a1' && v2.join(',') === 'a2';
-    const ok = check(x1.includes('a2') && x2.includes('a1') && finVis,
-      `seed ${seed}: AOI exit 위반 (a1exit ${x1}·a2exit ${x2}·v1 ${v1}·v2 ${v2})`);
-    console.log(`${pad(seed, 6)} | ${pad(x1.join('|'), 6)} | ${pad(x2.join('|'), 6)} | ${pad(finVis ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const w = o.zoneViewWire('z1');
+    const ok = check(w.serializable === true && w.bytes > 0 && w.frames === o.zoneViewFrames() && w.frames > 0,
+      `seed ${seed}: 직렬화 경계 위반 (frames ${w.frames}·bytes ${w.bytes}·serializable ${w.serializable})`);
+    console.log(`${pad(seed, 6)} | ${pad(w.frames, 6)} | ${pad(w.bytes, 5)} | ${pad(w.serializable ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostzoneexit'] = hostzoneexit;
-kit.ORDER.splice(1, 0, 'hostzoneexit');
+kit.MODES['hostzoneviewwire'] = hostzoneviewwire;
+kit.ORDER.splice(1, 0, 'hostzoneviewwire');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

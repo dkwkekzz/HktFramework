@@ -15,6 +15,12 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 세션이 시야에서 잃은 entity 집합 질의(step-0324·#9 후속) — 그 세션 뷰들의 exit 를 누적한 id 집합(=그 세션의 AOI 에서 *언젠가 빠져나간* entity). 두 avatar 가 멀어지면 서로의 exit 집합에 들어온다(동적 가시 상실·exit 델타·enter 0322 의 짝). 읽기 전용.
+  zoneViewExited(zoneId, sessionId) {
+    const set = new Set();
+    for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const id of (p.exit || [])) set.add(id); }
+    return [...set].sort();
+  },
   // 런타임 존 산출 뷰 통계 질의(step-0321·#9 후속) — 그 존이 한 세션(또는 전체)에 산출한 view_delta 분포 {resets, updates, enters, total}. 증분 전파의 핵심을 본다: 초기 keyframe(reset) 1 + 이동마다 update — *매 tick 전체 전송이 아니라 변경분만*(대역 절감). total ≪ tick 수면 증분이 동작. 미가동 존 0. 읽기 전용.
   zoneViewStats(zoneId, sessionId) {
     const buf = this.zoneViewBuf(zoneId); let resets = 0, updates = 0, enters = 0, total = 0;
