@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0300](step-0300.md) — **#9 멀티프로세스 배선 10·capstone: 전 데이터 평면 게이트웨이 직접 라우팅**. `directFlowCoherent()`(entityFlowCoherent && entityDirectCoherent). 0290 와 같은 destructive+graceful 혼합 lifecycle 을 **게이트웨이 직접 라우팅만으로**(seam+mailbox+직접 라우팅) 돌린 뒤 참 → **#9 멀티프로세스 배선 arc(0291~0300) 닫기**.
-- **한 줄 상태**: reg ALL OK·gwdircap: 5/5 직접 라우팅 혼합 op 후 directFlowCoherent·conserved·total1·ledger5/1/2/1·dir==running·routes7==appl7·stale0·miss0·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **#9 멀티프로세스 배선 arc(0291~0300) 완료** — 전송 seam(직렬화)·host mailbox(수신 버퍼)·서비스 디스커버리 디렉토리·게이트웨이→실 존 직접 enter/move/leave 라우팅·이주/장애 라우팅 정합·단일소유·dir bijection·capstone. 남은 것 = **실 host.js 물리 프로세스/소켓 분리**(브리지 핸들 orch 인프로세스 Map→cluster-run.js 실 spawn 통합). 다음 묶음 후보: ⒜ 실 host.js 존 프로세스 분리·⒝ 진짜 비동기(#4·논리클럭)·⒞ 버스 라우팅 영속. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc)**.
+- **닫힌 step**: [step-0301](step-0301.md) — **#9 잔여(실 host.js 물리 분리) 1: host 1급 컨테이너(zoneHosts) 레지스트리**. `zoneHostProc` 플래그 + `zoneHosts: host→{zones}`. flat zoneRuntimes 위에 host=*자기 존 집합 소유 컨테이너*(실 host.js 프로세스 씨앗) — 배치 집행(start/migrate/hostdown/stop)이 `_hostSet` 으로 귀속 유지. OFF→0300 비트 동일.
+- **한 줄 상태**: reg ALL OK·zonehostreg: 5/5 혼합 lifecycle 후 host 컨테이너==running(hc== Y·hosts2·총귀속2)·directFlowCoherent·conserved·total1·ledger5/1/2/1·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 시작** — host 가 1급 컨테이너가 됐다(0301). 다음: host 자기 inbox 로 프레임 수신(0302)·host 자기 루프로 tick(0303)·host 단일소유/drift(0304)·roster register/deregister·host 장애=컨테이너 제거·inbox stale 거부·coherence·capstone. 그 뒤 cluster-run.js 실 spawn 통합. 🔎 **0291~0300 묶음 리뷰 적기(#9 arc) — 미실시**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#9 멀티프로세스 배선 arc(0291~0300) ✅ 완료** — 엔티티 데이터 평면을 orch 인프로세스 method 경로에서 *직렬화 전송 seam + 서비스 디스커버리 + 게이트웨이 직접 라우팅*으로 분리(브리지 핸들→실 host.js 소켓의 씨앗). 0291 전송 seam(_zoneDeliver JSON 경계)·0292 host mailbox(수신 버퍼·onTick drain)·0293 게이트웨이 디렉토리(zoneLoc push)·0294~0295 직접 enter/move/leave 라우팅(zoneDeliver·host 검증·stale 거부)·0296 이주 정합·0297 장애 dir 무효화·0298 단일소유+정합·0299 dir bijection·0300 capstone(directFlowCoherent). **다음 = 실 host.js 물리 프로세스/소켓 분리**(현 zone-host 핸들은 orch 인프로세스 zoneRuntimes Map·cluster-run.js 실 spawn 통합 후속). 방향 권위 = `infra-review`(다음: 0281~0290·0291~0300 묶음 평결).
+> 🎯 **실 host.js 물리 프로세스 분리 arc(0301~) 진행 중** — #9(0291~0300)이 데이터 평면을 게이트웨이 직접 라우팅으로 옮겼으나 zone-host 핸들은 여전히 orch 인프로세스 *flat* zoneRuntimes Map·host=문자열 태그였다. 이 arc 는 host 를 *1급 프로세스 컨테이너*로 분리한다: **0301 host 컨테이너 레지스트리**(zoneHosts·host→{zones}·_hostSet 으로 배치 집행이 귀속 유지)→(다음) host 자기 inbox 수신→host 자기 루프 tick→단일소유/drift→roster→host 장애=컨테이너 제거→inbox stale 거부→coherence→capstone. 그 뒤 cluster-run.js 실 spawn 통합(물리 OS 프로세스/소켓). 방향 권위 = `infra-review`(다음: 0281~0290·0291~0300 묶음 평결 — 미실시).
 
 **후속 백로그 (다음 묶음 우선순위)**: ⒜ **#9 멀티프로세스 배선** — 0030 이후 박스 host.js 0, 게임서비스·데이터·코디네이션 계층 전부 인프로세스 전용. #51b 가 orch 추상 running→실 EntityZone 런타임 핸들까지 이었으므로(0272~0280), 다음은 그 핸들을 *실 프로세스*(host.js 소켓)로 분리. ⒝ **entity 트래픽의 실 zone.js 흐름**(#9 위·게이트웨이→실 존 런타임 enter/move 라우팅·이주 시 entity 무손실 실증) ⒞ 진짜 비동기(#4·논리클럭) + 금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay).
 
@@ -33,7 +33,7 @@
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
-| 🟡 | **#9 멀티프로세스 배선 (게이트웨이→실 존 직접 라우팅)** | 코디네이션/엣지 | 0291~0300 해소: 전송 seam(직렬화 경계)·host mailbox(수신 버퍼)·서비스 디스커버리 디렉토리(zoneLoc)·게이트웨이 직접 enter/move/leave 라우팅(host 검증·stale 거부)·이주/장애 라우팅 정합·dir bijection·capstone(directFlowCoherent). **남은 것: 실 host.js *물리* 프로세스/소켓 분리**(현 zone-host 핸들=orch 인프로세스 Map·cluster-run.js 실 spawn 통합). |
+| 🟡 | **#9 멀티프로세스 배선 (게이트웨이→실 존 직접 라우팅 ✅ · 실 host.js 물리 분리 🟡)** | 코디네이션/엣지 | 0291~0300 직접 라우팅 해소(seam·mailbox·디렉토리·enter/move/leave·이주/장애·dir bijection·directFlowCoherent). **실 host.js 물리 분리 arc(0301~) 진행**: 0301 host 1급 컨테이너(zoneHosts·_hostSet 귀속). 남은 것: host 자기 inbox/tick·단일소유/drift·roster·장애=컨테이너 제거·stale 거부·coherence·capstone → cluster-run.js 실 spawn 통합. |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -137,3 +137,4 @@
 | [0298](step-0298.md) | #9 멀티프로세스 배선 8: 직접 라우팅 데이터 평면 단일 소유+정합(entityDirectCoherent=entityCoherent && zoneDirStale0 질의·직접 혼합 lifecycle 후 단일소유·dir bijection·stale 누수0·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 single·dcoh·conserved(total4==5−1)·dir==running·routes7==appl7·stale0·miss0 |
 | [0299](step-0299.md) | #9 멀티프로세스 배선 9: 디렉토리 bijection(gateway zoneDirSnapshot 질의·4존 A 몰림→rebalance→drain 다중 동시 이주 후 게이트웨이 dir==running 정확한 bijection·entity graceful 보존·읽기 전용·OFF 무관) | 통과(reg 0·spine OK) · 5/5 dir==running(dirN4==runN4)·total2·single·dcoh·conserved·stale0 |
 | [0300](step-0300.md) | #9 멀티프로세스 배선 10·capstone: 전 데이터 평면 게이트웨이 직접 라우팅(directFlowCoherent=entityFlowCoherent && entityDirectCoherent·0290 destructive+graceful 혼합 lifecycle 을 직접 라우팅만으로·#9 arc 0291~0300 닫기·OFF→0299 동일) | 통과(reg 0·spine OK) · 5/5 directFlowCoherent·conserved·total1·ledger5/1/2/1·dir==running·routes7==appl7·stale0·miss0 |
+| [0301](step-0301.md) | #9 잔여(실 host.js 물리 분리) 1: host 1급 컨테이너(zoneHostProc·zoneHosts host→{zones}·_hostSet 으로 start/migrate/hostdown/stop 이 zone→host 귀속 유지·질의 hostRuntimeCount/zoneHostOf/zoneHostHosts·실 host.js 프로세스 씨앗·OFF→0300 동일) | 통과(reg 0·spine OK) · 5/5 host컨테이너==running(hc== Y·hosts2·총귀속2)·dflow·consv·total1·ledger5/1/2/1 |
