@@ -28,8 +28,9 @@ export function stepWorld(world, rules, params) {
 
   // ① 힘 누적기 초기화
   for (const e of els) { e.fx = 0; e.fy = 0; e.fz = 0; }
-  // 이번 틱의 사건 표시판 초기화(규칙이 ②에서 채운다). 비우고 시작 → 표시 안 되면 위상 변화 0.
-  world.pendingMerges = [];
+  // 이번 틱의 사건 표시판 초기화(규칙이 ②에서 채운다). 비우고 시작 → 표시 안 되면 변화 0.
+  world.pendingMerges = [];       // 결합(공유) → 병합
+  world.pendingTransfers = [];    // 결합(이온) → 전하 이동
 
   // ② 모든 원소 × 모든 규칙 — 규칙은 힘만 누적하거나 사건을 표시. (위치는 아직 고정 → 적용 순서 무관)
   for (let i = 0; i < els.length; i++) {
@@ -51,11 +52,34 @@ export function stepWorld(world, rules, params) {
     e.y = ((e.y % H) + H) % H;
   }
 
-  // ⑤ 위상 재조정 — 규칙이 표시한 결합을 실현(질량·운동량 보존, 원소 개수 감소)
-  reconcileMerges(world);
+  // ⑤ 위상/상태 재조정 — 규칙이 표시한 결합을 실현
+  reconcileTransfers(world);  // 이온 결합: 전자(전하) 이동 (Σq 보존)
+  reconcileMerges(world);     // 공유 결합: 원소 병합 (질량·운동량·전하 보존)
 
   // ⑥ 시간 전진(엔진 전용)
   world.tick++;
+}
+
+// 이온 결합의 *메커니즘* — 규칙이 표시한 전하 이동 쌍을 받아 전자를 옮긴다.
+//   규칙은 '누가 이온 결합하는지'(법칙)만 표시하고, '전자가 어디로 가는지'(en 높은 쪽으로)는 여기가 실행한다.
+//   전자는 사라지지 않고 이동만 하므로 Σq 보존(한쪽 −dq, 한쪽 +dq). 병합하지 않는다 — 둘은 +/− 이온으로 남는다.
+function reconcileTransfers(world) {
+  const reqs = world.pendingTransfers;
+  if (!Array.isArray(reqs) || reqs.length === 0) return;
+  const els = world.elements;
+  const n = els.length;
+  for (const r of reqs) {
+    if (!r) continue;
+    const a = r.a, b = r.b;
+    if (a < 0 || b < 0 || a >= n || b >= n || a === b) continue;
+    const ea = els[a], eb = els[b];
+    const dq = r.dq != null ? r.dq : 1;
+    // 전자(−)는 전기음성도 높은 쪽으로: 그쪽 q 가 더 음, 반대쪽이 더 양
+    const accept = (ea.en || 0) >= (eb.en || 0) ? ea : eb;  // 전자 받는 쪽(en 높음)
+    const donate = accept === ea ? eb : ea;                 // 전자 주는 쪽(en 낮음)
+    accept.q = (accept.q || 0) - dq;
+    donate.q = (donate.q || 0) + dq;
+  }
 }
 
 // 결합의 *메커니즘*(보편 위상 연산) — 규칙이 표시한 병합 쌍을 받아 원소를 하나로 접는다.
@@ -98,7 +122,7 @@ function reconcileMerges(world) {
 
     // 질량 합·운동량 합·질량중심(토러스: 기준 원소에 대한 최근접 이미지로 평균)·KE 손실 누적
     const ref = els[idxs[0]];
-    let M = 0, px = 0, py = 0, pz = 0, sx = 0, sy = 0, sz = 0, keBefore = 0;
+    let M = 0, px = 0, py = 0, pz = 0, sx = 0, sy = 0, sz = 0, keBefore = 0, Q = 0, enW = 0;
     const parts = [];
     for (const k of idxs) {
       const e = els[k];
@@ -110,6 +134,8 @@ function reconcileMerges(world) {
       px += m * e.vx; py += m * e.vy; pz += m * vz;
       sx += m * dx; sy += m * dy; sz += m * (e.z || 0);
       keBefore += 0.5 * m * (e.vx * e.vx + e.vy * e.vy + vz * vz);
+      Q += e.q || 0;                                        // 전하 합산(분자의 순전하, Σq 보존)
+      enW += (e.en || 0) * m;                               // 전기음성도 질량가중(합성체 대표값)
       if (Array.isArray(e.parts)) parts.push(...e.parts); else parts.push(e);
     }
     const vx = px / M, vy = py / M, vz = pz / M;            // 운동량 보존 → 질량중심 속도
@@ -122,7 +148,7 @@ function reconcileMerges(world) {
     // 표시값 재계산(시각화 전용, 창발 아님): 반경=면적 합(√Σrᵢ²), 색=질량가중 평균.
     let r2 = 0, hueW = 0;
     for (const k of idxs) { const e = els[k]; r2 += (e.r || 0) * (e.r || 0); hueW += (e.hue ?? 0) * (e.m > 0 ? e.m : 1); }
-    const composite = { x, y, z, vx, vy, vz, m: M, parts };
+    const composite = { x, y, z, vx, vy, vz, m: M, q: Q, en: enW / M, parts };
     if (r2 > 0) composite.r = Math.sqrt(r2);
     composite.hue = hueW / M;
     next.push(composite);

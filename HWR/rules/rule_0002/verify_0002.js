@@ -106,6 +106,37 @@ const world = (els) => ({ width: 1e9, height: 1e9, tick: 0, elements: els });
   check('문턱: 너무 빠르게 만나면 결합 안 함(닿는 게 다 뭉치진 않는다)', fast.elements.length === 2, `n=${fast.elements.length}`);
 }
 
+// 8c. 전기음성도 — 공유(ΔEN 작음→병합) vs 이온(ΔEN 큼→전자 이동, 병합 안 함)
+{
+  // 공유: en 같음(ΔEN=0) → 병합, 순전하 0
+  const cov = world([
+    { x: 100, y: 0, z: 0, vx: 0.5, vy: 0, m: 2, en: 2.5, q: 0, r: 3 },
+    { x: 104, y: 0, z: 0, vx: -0.5, vy: 0, m: 2, en: 2.5, q: 0, r: 3 },
+  ]);
+  step(cov);
+  check('전기음성도: ΔEN 작으면 공유 결합(병합)', cov.elements.length === 1 && approx(cov.elements[0].q, 0),
+    `n=${cov.elements.length}, q=${cov.elements[0] && cov.elements[0].q}`);
+
+  // 이온: en 차이 큼(2.3) → 병합 안 함, en 높은 쪽이 전자(−), Σq 보존
+  const ion = world([
+    { x: 100, y: 0, z: 0, vx: 0.5, vy: 0, m: 2, en: 0.9, q: 0, r: 3 }, // 낮은 en(Na형)
+    { x: 104, y: 0, z: 0, vx: -0.5, vy: 0, m: 2, en: 3.2, q: 0, r: 3 }, // 높은 en(Cl형)
+  ]);
+  step(ion);
+  check('전기음성도: ΔEN 크면 이온 결합(병합 안 함)', ion.elements.length === 2, `n=${ion.elements.length}`);
+  check('전기음성도: 전자는 en 높은 쪽으로(−), Σq=0 보존',
+    ion.elements[0].q === 1 && ion.elements[1].q === -1, `q=[${ion.elements[0].q}, ${ion.elements[1].q}]`);
+
+  // 이미 이온이면 재이동 안 함(중성끼리만 전자 이동)
+  const reion = world([
+    { x: 100, y: 0, z: 0, vx: 0.5, vy: 0, m: 2, en: 0.9, q: 1, r: 3 },
+    { x: 104, y: 0, z: 0, vx: -0.5, vy: 0, m: 2, en: 3.2, q: -1, r: 3 },
+  ]);
+  step(reion);
+  check('전기음성도: 이미 이온이면 재이동 안 함', reion.elements[0].q === 1 && reion.elements[1].q === -1,
+    `q=[${reion.elements[0].q}, ${reion.elements[1].q}]`);
+}
+
 // 9. 비접촉 불변 — 멀리 떨어진 쌍·서로 멀어지는 쌍은 병합 안 됨
 {
   const far = world([
