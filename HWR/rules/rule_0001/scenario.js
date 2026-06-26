@@ -1,25 +1,32 @@
-// scenario — 관성: 자유 운동은 질량과 무관하고(갈릴레이), 힘이 없으면 등속이다.
-//  ① 같은 vx·다른 질량 6개: 세로로 정렬 → 영원히 같은 x(질량 무관, 줄이 흐트러지지 않음).
-//  ② 다른 vx 5개: 같은 출발선 → 속도에 비례해 갈라진다(등속).
-// 힘이 없으므로(impulse 없음) 모든 속도는 불변, 총 운동량 Σmv 도 불변이다.
+// scenario — 관성: 같은 외부 힘에 질량이 다르게 저항한다(질량 = 관성의 척도).
+//  ① kick 4개: 정지 상태, 질량 m=1,2,4,8. tick 5 에 동일 충격량 +x → Δv=J/m 로 갈라진다
+//     (무거울수록 덜 변함 = 더 큰 저항). 관성·질량이 거동으로 드러나는 핵심 장면.
+//  ② drift: 같은 vx·다른 질량 → 외부 힘이 없으니 같은 변위(저항할 대상이 없음 = 등속, 갈릴레이).
 export default {
   rule: 'rule_0001',
   setup() {
     const w = 800, h = 600;
+    const masses = [1, 2, 4, 8];
     const els = [];
 
-    // ① 같은 속도·다른 질량 → 관성으로 정렬 유지(질량은 자유 운동에 영향 없음)
-    for (let i = 0; i < 6; i++) {
-      const m = 1 + i;
-      els.push({ x: 100, y: 80 + i * 70, z: 0, vx: 1.0, vy: 0, m, r: 3 + Math.sqrt(m) * 1.5, hue: 190 });
-    }
-
-    // ② 다른 속도 → 속도에 비례해 갈라짐(등속)
-    const vxs = [0.4, 0.8, 1.2, 1.6, 2.0];
-    vxs.forEach((vx, i) => {
-      els.push({ x: 100, y: 540, z: 0, vx, vy: 0, m: 2, r: 4, hue: 20 + i * 28 });
+    // ① kick 원소(인덱스 0..3): 정지 상태로 세로 배치
+    masses.forEach((m, i) => {
+      els.push({
+        x: 80, y: 110 + i * 120, z: 0, vx: 0, vy: 0, m,
+        r: 3 + Math.sqrt(m) * 2,
+        hue: Math.round(200 - i / (masses.length - 1) * 160),
+      });
     });
 
-    return { width: w, height: h, tick: 0, elements: els };
+    // ② 드리프트 원소: 같은 vx, 다른 질량 → 같은 변위(외부 힘 없음 → 질량 무관)
+    for (let i = 0; i < 6; i++) {
+      els.push({ x: 360, y: 70 + i * 85, z: 0, vx: 1.2, vy: 0, m: 1 + i, r: 4, hue: 120 });
+    }
+
+    // 예약 외부 힘: tick 5 에 kick 원소 전체에 동일한 +x 충격량 J
+    const J = 6;
+    const impulses = masses.map((_, idx) => ({ tick: 5, idx, jx: J, jy: 0 }));
+
+    return { width: w, height: h, tick: 0, elements: els, impulses };
   },
 };
