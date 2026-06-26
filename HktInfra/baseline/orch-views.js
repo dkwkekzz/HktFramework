@@ -7,6 +7,22 @@
 
 // 다운스트림 뷰 질의 믹스인 — Orchestrator.prototype 에 Object.assign. 모든 메서드는 this=Orchestrator 인스턴스(zoneRuntimes 의 런타임 존 net.buf 를 읽는다).
 const OrchViews = {
+  // 다운스트림 뷰 egress(step-0331·#9 후속) — 각 런타임 존이 onTick 으로 산출해 버퍼링 싱크(rt.zone.net.buf)에 쌓은 *새* view/view_delta frame 을 게이트웨이로 송출한다(per-rt egress 커서 rt.egN 으로 한 frame 정확히 1회·버퍼 미삭제 → 0319~0330 질의 보존). 이로써 host 산출 뷰가 *포착*에 머물지 않고 실제 전역 net 을 타 게이트웨이에 닿는다(SPINE §4 경로2 월드 다운스트림 배선). 게이트웨이 라우팅(세션→클라)은 후속. onTick 이 zoneEgress ON 일 때만 호출(OFF→미실행 = 0330 비트 동일).
+  _drainZoneEgress() {
+    for (const [zoneId, rt] of this.zoneRuntimes) {
+      const buf = rt.zone.net && rt.zone.net.buf; if (!buf) continue;
+      let cur = rt.egN || 0;
+      for (; cur < buf.length; cur++) {
+        const p = buf[cur].payload;
+        if (p.type !== 'view' && p.type !== 'view_delta') continue;
+        this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: p.sessionId, frame: p });   // 존→게이트웨이 다운스트림(frame 봉투에 zoneId·sessionId 태깅 → 게이트웨이가 세션→클라 해소·후속).
+        this.zoneViewEgressed++;
+      }
+      rt.egN = cur;
+    }
+  },
+  // 다운스트림 egress 총수 질의(step-0331·#9 후속) — 게이트웨이로 송출한 view frame 누적. == zoneViewFrames() 면 산출된 모든 뷰가 빠짐없이 송출됨(버퍼 잔류 0·무손실 송출). 읽기 전용.
+  zoneEgressCount() { return this.zoneViewEgressed; },
   // 런타임 존 산출 뷰 버퍼 질의(step-0320·#9 후속) — 그 host 프로세스 런타임 존이 산출해 버퍼링 싱크에 쌓은 view frame 원본 배열({to, payload}…). 다운스트림 뷰의 *내용*(누가 무엇을 보나)을 검증하는 창(AOI 정확성·전파 무손실). 미가동 존 []. 읽기 전용.
   zoneViewBuf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return (rt && rt.zone.net && rt.zone.net.buf) ? rt.zone.net.buf : []; },
   // 세션이 본 entity 집합 질의(step-0322·#9 후속) — 그 세션에 산출된 view 들의 enter 를 누적한 id 집합(=그 세션이 *언젠가 한 번이라도 AOI 안에서 본* entity 들). 두 avatar 가 가까워지면 서로의 집합에 들어온다(상호 가시·enter 델타). 미가동/미존재 빈 집합. 읽기 전용.

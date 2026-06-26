@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0331](step-0331.md) — **#9 후속: 다운스트림 egress** — orch `_drainZoneEgress` 가 런타임 존 버퍼(`rt.zone.net.buf`)의 새 view frame 을 매 tick 게이트웨이로 송출(`zoneView`·per-rt 커서·SPINE §4 경로2 존→게이트웨이 배선). 플래그 `zoneEgress` OFF→0330 비트 동일. **downstream *전파* sub-arc(0331~) 시작** — 0319~0330 은 host *포착*까지였다.
-- **한 줄 상태**: reg ALL OK·egress 5/5(egress==zoneViewFrames=4·버퍼 잔류 0)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0332](step-0332.md) — **정리: 브리지 필드 init 분리** — orchestrator.js 생성자의 0272~0331 필드 대입 블록을 전용 새 파일 `orch-bridge-init.js _initBridgeFields(opts)` 로 이동(투명 분할·reg 0). orchestrator.js **30.5KB→22.8KB**(0331 egress 가 넘긴 >30KB 가드 해소·세 박스 모두 <30KB). 직전 [step-0331](step-0331.md) = 다운스트림 egress(`_drainZoneEgress`·`zoneView` 송출·전파 sub-arc 시작).
+- **한 줄 상태**: reg ALL OK·bridgesplit 5/5(egress4==frames4·dcoh)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **downstream *전파* sub-arc(0331~)** — host 산출 뷰를 게이트웨이→실 클라까지 전파. 0331 egress(존→게이트웨이 송출) ✅. **후속**: 게이트웨이 `zoneView` 수신→세션→클라 라우팅·per-세션 seq·ack·재전송·keyframe·격리·무손실 회계·capstone. 포착 sub-arc(0319~0330 ✅)·부하 균형(0311~0318 ✅) 위에. **그 후**: 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js)·진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0330 묶음 리뷰 적기 — 미실시(4묶음 누적)**.
 
 ---
@@ -150,3 +150,4 @@
 | [0329](step-0329.md) | downstream 데이터 평면 10(#9 후속): 뷰 무손실 회계(술어 zoneViewConserved·모든 view frame 이 정확히 한 세션 귀속·고아 0·세션별 합==전체·읽기 전용·0328 비트 동일) | 통과(reg 0·spine OK) · 5/5 frames8==sumSess·consv |
 | [0330](step-0330.md) | downstream 데이터 평면 11·capstone(#9 후속): 전 정합 downstreamCoherent(zoneViewConserved&&zoneViewAllKeyed&&serializable·혼합 lifecycle enter/move/leave/migrate 뒤 두 존 정합+hostProcCoherent+entityConserved·downstream sub-arc 0319~0330 닫기·읽기 전용·0329 비트 동일) | 통과(reg 0·spine OK) · 5/5 dc1·dc2·hpcoh·consv·total2 |
 | [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |
+| [0332](step-0332.md) | 정리: 브리지 필드 init 분리(생성자 0272~0331 필드 대입 블록→전용 새 파일 orch-bridge-init.js `_initBridgeFields`·투명 분할·orchestrator.js 30.5KB→22.8KB·세 박스 <30KB·기능 0·reg 0) | 통과(reg 0·spine OK) · bridgesplit 5/5 egress4==frames4·dcoh |

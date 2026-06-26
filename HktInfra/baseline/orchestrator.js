@@ -116,6 +116,9 @@ class Orchestrator {
     this.zoneHostStale = 0;          // host inbox drain 시 *그 host 가 더는 소유 안 하는*(이주로 떠난) 존의 frame 을 거부한 누적 수(step-0306·실 프로세스 이중 쓰기 방지·정상 tick 0·recv == drained + stale).
     this.zoneHostLifecycle = opts.zoneHostLifecycle || false;   // step-0312 — host 프로세스 생애주기 이벤트 로그 ON 플래그(OFF→로그 0·prior 모드/baseline 비트 동일).
     this.hostLifecycleLog = [];      // step-0312 — host 컨테이너 spawn/despawn 의 *순서 있는 이벤트 스트림* [{host, kind, seq}](hostRegisters/hostDeregisters 가 *얼마나*라면, 이건 *언제 어느 host*·실 cluster.spawnOne/killHost 호출 지점의 씨앗).
+    // 다운스트림 egress(step-0331·#9 후속) — 0319~0330 은 host 가 산출한 AOI 뷰를 런타임 존 버퍼(rt.zone.net.buf)에 *포착*만 했다(질의로 읽을 뿐 전역 net 미접촉). zoneEgress ON 이면 orch(host)가 매 tick 그 버퍼의 *새* view frame 을 게이트웨이로 송출(zoneView)한다 — SPINE §4 경로2 월드 다운스트림(존→게이트웨이)의 실 배선 씨앗. per-runtime egress 커서(rt.egN)로 한 frame 1회만 송출(버퍼 미삭제·0319~0330 질의 보존). OFF→송출 0 = 0330 비트 동일.
+    this.zoneEgress = opts.zoneEgress || false;
+    this.zoneViewEgressed = 0;       // 게이트웨이로 송출한 view/view_delta frame 누적(step-0331·계측·== zoneViewFrames() 면 버퍼 잔류 0·무손실 송출).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).

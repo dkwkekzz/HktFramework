@@ -98,6 +98,8 @@ const OrchControl = {
     this.curTick = tick;
     // 브리지 존 데이터 평면 tick(step-0282·#56) — 자기 zoneRuntimes 의 실 EntityZone 을 onTick 구동(pending move 위치 적용·실 zone.js 시뮬 진행). zoneEntityFlow OFF 면 미실행 = 0281 비트 동일.
     if (this.zoneEntityFlow) this._tickRuntimes(tick);
+    // 다운스트림 egress(step-0331·#9 후속) — 런타임 존이 산출해 버퍼에 쌓은 새 view frame 을 게이트웨이로 송출(존→게이트웨이 월드 다운스트림 배선). zoneEgress OFF 면 미실행 = 0330 비트 동일.
+    if (this.zoneEgress) this._drainZoneEgress();
     // 미확인 recover 재시도(step-0058·recoverRetry) — recoverTimeout 경과해도 ack 안 온 명령을 재발신. ack 오면 onMsg 가 pendingRecover 에서 지운다(루프 종료). OFF 면 미실행 = 0057 비트 동일.
     if (this.recoverRetry && this.pendingRecover.size) {
       for (const [consumer, sentAt] of this.pendingRecover) {
