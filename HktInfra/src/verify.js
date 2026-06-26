@@ -1,8 +1,8 @@
-// HktInfra step-0328 — 헤드리스 검증 (#9 후속: 다운스트림 세션 무굶김 — 모두 keyframe 수신)
+// HktInfra step-0329 — 헤드리스 검증 (#9 후속: 다운스트림 뷰 무손실 회계 — 고아 frame 0)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzonekeyed`.
-//   더한 한 조각: 술어 zoneViewAllKeyed(존의 모든 활성 세션이 초기 reset keyframe 을 받았나). 접속한 플레이어는 누구나 자기 세계를 받는다(no-starvation·다운스트림 무손실 토대·읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzonekeyed`(가설) — z1 에 a1·a2·a3 enter → 세 세션 모두 reset 1+·zoneViewAllKeyed true·세션 3.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostzoneconsv`.
+//   더한 한 조각: 술어 zoneViewConserved(모든 view frame 이 정확히 한 세션에 귀속·고아 frame 0·세션별 합==전체). host 산출 뷰가 빠짐없이 배달 주소를 갖는지 검증(읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostzoneconsv`(가설) — a1·a2·a3 enter+이동 → 모든 frame 에 sessionId·세션별 total 합 == zoneViewFrames·zoneViewConserved true.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,29 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0328 #9 후속 검증 — 다운스트림 세션 무굶김(zoneViewAllKeyed). z1 에 a1·a2·a3 enter → 각 세션이 적어도 한 번 reset keyframe(초기 전체 뷰)을 받는다.
-//   한 세션도 굶기지 않는다(접속한 플레이어는 누구나 자기 세계를 받음) — 다운스트림 데이터 평면 무손실의 토대. zoneViewSessions 3·각 세션 resets ≥ 1·zoneViewAllKeyed true.
-function hostzonekeyed(seeds) {
+// step-0329 #9 후속 검증 — 다운스트림 뷰 무손실 회계(zoneViewConserved). z1 에 a1·a2·a3 enter + 이동 → 산출된 모든 view frame 이 정확히 한 세션에 귀속(고아 frame 0)·세션별 total 합 == zoneViewFrames.
+//   host 가 산출한 다운스트림 뷰는 빠짐없이 *누군가에게 배달될 주소*(sessionId)를 갖는다 — 주소 없는 frame 0(무손실 배달 가능성). 다운스트림 데이터 평면 보존의 회계 단언.
+function hostzoneconsv(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
   const OPS = [PLACE(1, 'z1', 'hostA')];
-  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), ENTER(5, 'z1', 'a3')];
+  const ENT = [ENTER(3, 'z1', 'a1'), ENTER(4, 'z1', 'a2'), ENTER(5, 'z1', 'a3'), MOVE(7, 'z1', 'a1', 1, 0), MOVE(8, 'z1', 'a2', 0, 1), MOVE(9, 'z1', 'a3', 1, 1)];
   const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== hostzonekeyed (0328·#9 후속): 다운스트림 세션 무굶김. a1·a2·a3 enter → 세 세션 모두 초기 reset keyframe 수신·zoneViewAllKeyed true. ==');
-  console.log('seed   | sessions | allKeyed | r1 | r2 | r3 | 판정');
+  console.log('== hostzoneconsv (0329·#9 후속): 다운스트림 뷰 무손실 회계. 모든 view frame 이 정확히 한 세션에 귀속(고아 0)·세션별 합==전체·zoneViewConserved true. ==');
+  console.log('seed   | frames | sumSess | consv | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS, entityOps: ENT });
+    const r = run({ seed, ticks: 14, ...BASE, placementOps: OPS, entityOps: ENT });
     const o = r.orch;
-    const sess = o.zoneViewSessions('z1').length;
-    const r1 = o.zoneViewStats('z1', 's:a1').resets, r2 = o.zoneViewStats('z1', 's:a2').resets, r3 = o.zoneViewStats('z1', 's:a3').resets;
-    const allKeyed = o.zoneViewAllKeyed('z1');
-    const ok = check(sess === 3 && allKeyed === true && r1 >= 1 && r2 >= 1 && r3 >= 1,
-      `seed ${seed}: 세션 무굶김 위반 (sessions ${sess}·allKeyed ${allKeyed}·resets ${r1}/${r2}/${r3})`);
-    console.log(`${pad(seed, 6)} | ${pad(sess, 8)} | ${pad(allKeyed ? 'Y' : 'N', 8)} | ${pad(r1, 2)} | ${pad(r2, 2)} | ${pad(r3, 2)} | ${ok ? 'OK' : 'FAIL'}`);
+    const frames = o.zoneViewFrames();
+    const sumSess = o.zoneViewSessions('z1').reduce((acc, sid) => acc + o.zoneViewStats('z1', sid).total, 0);
+    const consv = o.zoneViewConserved('z1');
+    const ok = check(consv === true && sumSess === frames && frames > 0,
+      `seed ${seed}: 무손실 회계 위반 (frames ${frames}·sumSess ${sumSess}·consv ${consv})`);
+    console.log(`${pad(seed, 6)} | ${pad(frames, 6)} | ${pad(sumSess, 7)} | ${pad(consv ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostzonekeyed'] = hostzonekeyed;
-kit.ORDER.splice(1, 0, 'hostzonekeyed');
+kit.MODES['hostzoneconsv'] = hostzoneconsv;
+kit.ORDER.splice(1, 0, 'hostzoneconsv');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

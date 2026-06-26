@@ -15,6 +15,12 @@ const OrchViews = {
     for (const s of this.zoneViewBuf(zoneId)) { const p = s.payload; if (p.type !== 'view_delta' || p.sessionId !== sessionId) continue; for (const e of p.enter) set.add(e.id); }
     return [...set].sort();
   },
+  // 런타임 존 세션 keyframe 충족 술어(step-0328·#9 후속) — 그 존의 *모든 활성 세션*(rt.zone.sessions)이 적어도 한 번 reset keyframe(초기 전체 뷰)을 받았는가. 한 세션도 굶기지 않는다(no-starvation·접속한 플레이어는 누구나 자기 세계를 받는다 = 다운스트림 무손실의 토대). 미가동 존은 자명 참. 읽기 전용.
+  zoneViewAllKeyed(zoneId) {
+    const rt = this.zoneRuntimes.get(zoneId); if (!rt) return true;
+    for (const sid of rt.zone.sessions.keys()) if (this.zoneViewStats(zoneId, sid).resets < 1) return false;
+    return true;
+  },
   // 런타임 존 다운스트림 요약 질의(step-0327·#9 후속) — 그 존의 다운스트림 데이터 평면 대시보드 {frames, bytes, sessions, serializable}(0319~0326 지표 집계). 운영 한눈 + migrate 같은 lifecycle 전후로 뷰 산출이 *끊기지 않는지*(연속성) 보는 단위. 미가동 존은 0/[]. 읽기 전용.
   zoneViewReport(zoneId) {
     const w = this.zoneViewWire(zoneId);
