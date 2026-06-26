@@ -34,6 +34,9 @@ const { OrchControl } = (typeof module !== 'undefined' && module.exports && type
 // step-0272 — #51b 실 zone.js 브리지 믹스인(_bridgeStart·존 런타임 질의).
 const { OrchZoneBridge } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./orch-zonebridge.js') : globalThis.__HktNetParts.orch_zonebridge;
+// step-0305 — host 프로세스 컨테이너 층 믹스인(_hostSet·host 컨테이너 질의/불변·0301~0304 분리).
+const { OrchHostProc } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./orch-hostproc.js') : globalThis.__HktNetParts.orch_hostproc;
 
 // ── [코디네이션] Orchestrator — 0009 그대로(monitor 쌍을 생성자 opts 로 받게만 조정) ──
 class Orchestrator {
@@ -160,6 +163,7 @@ class Orchestrator {
 Object.assign(Orchestrator.prototype, OrchPlacement);
 // step-0272 — #51b 실 zone.js 브리지 메서드를 프로토타입에 되섞음(_start 가드가 zoneBridge ON 일 때만 호출 = OFF 비트 동일).
 Object.assign(Orchestrator.prototype, OrchZoneBridge);
+Object.assign(Orchestrator.prototype, OrchHostProc);
 // step-0267 분할 — 제어 평면 핸들러(onMsg·onTick)를 프로토타입에 되섞음(정의 위치만 이동·this 바인딩 동일·reg 0).
 Object.assign(Orchestrator.prototype, OrchControl);
 

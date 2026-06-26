@@ -1,7 +1,6 @@
 'use strict';
-// step-0304 — #9 잔여(실 host.js 물리 분리): host roster register/deregister 계측. _hostSet 이 host 컨테이너를 *처음 만들 때*(첫 존) hostRegisters++(프로세스 spawn 씨앗)·*마지막 존 잃어 지울 때* hostDeregisters++(despawn 씨앗). registers−deregisters == 현 host 수. 질의 hostRegistered. zoneHostProc OFF→no-op = 0303 비트 동일.
-// step-0303 — #9 잔여(실 host.js 물리 분리): host 컨테이너 단일 소유 불변(zoneHostSingleOwner) + 표류 질의(zoneHostDrift). 어떤 존도 두 host 컨테이너에 동시 귀속 안 함(존 host 단일 소유의 컨테이너 판) + host 컨테이너 == 집행 SSOT(running)와 표류 0. 읽기 전용·0302 비트 동일.
-// step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick. zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
+// step-0305 — 정리 분할: host 프로세스 컨테이너 층(0301~0304)을 orch-hostproc.js 로 분리(>30KB 트리거 유계화·기능 0·reg 0). 이 파일엔 실 zone.js 브리지 lifecycle·전송 seam·#56 데이터 평면 질의가 남는다.
+// step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick(_zoneDeliver→host 컨테이너 inbox·_tickRuntimes host 단위 drain·tick·실 host.js 루프 씨앗). zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): host 1급 컨테이너(zoneHosts) 레지스트리. flat zoneRuntimes(zoneId→{zone,host}) 위에, host 가 *자기 존 집합을 소유한 컨테이너*(실 host.js 프로세스의 씨앗)임을 _hostSet 으로 유지. 배치 집행(start/migrate/hostdown/stop)이 zone→host 귀속을 갱신. 질의 hostRuntimeCount/zoneHostOf/zoneHostHosts. zoneHostProc OFF→호출 자체 no-op = 0300 비트 동일.
 // step-0300 — #9 멀티프로세스 배선 10·capstone: directFlowCoherent 질의(entityFlowCoherent && entityDirectCoherent). destructive+graceful 혼합 lifecycle 을 게이트웨이 직접 라우팅만으로 돌린 뒤 참 → #9 arc 0291~0300 닫기. 읽기 전용.
 // step-0298 — #9 멀티프로세스 배선 8: entityDirectCoherent 질의(직접 라우팅 데이터 평면 정합 + stale 누수 0). 읽기 전용·동작 무변경.
@@ -26,35 +25,7 @@
 
 // 실 zone.js 브리지 믹스인 — Orchestrator.prototype 에 Object.assign 으로 섞인다. 모든 메서드는 this=Orchestrator 인스턴스.
 const OrchZoneBridge = {
-  // host 컨테이너 귀속 갱신(step-0301·#9 잔여) — zoneId 를 *정확히 한* host 컨테이너에 귀속시킨다(host==null 이면 어느 컨테이너에서도 떼기만). 어디 있든 먼저 떼고(멱등) 새 host 에 붙인다 → start/migrate/hostdown/stop 어느 집행에서 불러도 같은 결과(낡은 host 추적 불필요). 빈 컨테이너는 제거(host roster 자동 — 그 host 가 더는 존을 안 돌리면 프로세스 내림의 씨앗). zoneHostProc OFF 면 no-op = 0300 비트 동일.
-  _hostSet(zoneId, host) {
-    if (!this.zoneHostProc) return;
-    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗.
-    if (host == null) return;             // 퇴역/소실 — 떼기만(어느 host 도 소유 안 함).
-    let c = this.zoneHosts.get(host);
-    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗.
-    c.zones.add(zoneId);
-  },
-  // host 컨테이너 질의(step-0301·#9 잔여) — "이 host 프로세스가 몇 존을 소유하나 / 이 존은 어느 host 프로세스에 사나 / 지금 존을 하나라도 돌리는 host 집합". flat zoneRuntimes 의 host 별 묶음이 실 host.js 분리의 씨앗(host=프로세스 단위). 읽기 전용.
-  hostRuntimeCount(host) { const c = this.zoneHosts.get(host); return c ? c.zones.size : 0; },
-  zoneHostOf(zoneId) { for (const [h, c] of this.zoneHosts) if (c.zones.has(zoneId)) return h; return null; },
-  zoneHostHosts() { return new Set(this.zoneHosts.keys()); },
-  // host roster 질의(step-0304·#9 잔여) — "이 host 가 지금 존을 하나라도 돌리나"(컨테이너 존재 = 프로세스 가동). 첫 존에 register(spawn)·마지막 존에 deregister(despawn)된 roster 의 단건 조회. 읽기 전용.
-  hostRegistered(host) { return this.zoneHosts.has(host); },
-  // host 컨테이너 단일 소유 불변(step-0303·#9 잔여) — 어떤 존도 두 host 컨테이너에 동시에 귀속하지 않는다(존의 host 단일 소유의 *컨테이너* 판·zone-host 핸들 0276 과 동형). _hostSet 이 어디 있든 먼저 떼고 한 곳에만 붙이므로 정상 op 에선 항상 참 — 모든 배치 op 뒤 단언(capstone). 읽기 전용.
-  zoneHostSingleOwner() {
-    const seen = new Set();
-    for (const c of this.zoneHosts.values()) for (const z of c.zones) { if (seen.has(z)) return false; seen.add(z); }
-    return true;
-  },
-  // host 컨테이너 표류 질의(step-0303·#9 잔여) — host 컨테이너(host→{zones})와 집행 SSOT(running·zoneId→host)가 어긋난 존 수: ⒜ running 존이 자기 host 컨테이너에 없거나 다른 host 에 ⒝ 컨테이너엔 있는데 running 에 없는(orphan) 존. zoneRuntimeDrift(0276·실 핸들 host)의 *컨테이너* 판 — placeExecute+zoneHostProc ON 이면 모든 배치 op 뒤 0(host 컨테이너가 집행 SSOT 와 한 몸). 읽기 전용.
-  zoneHostDrift() {
-    let d = 0;
-    const ids = new Set([...this.running.keys()]);
-    for (const c of this.zoneHosts.values()) for (const z of c.zones) ids.add(z);
-    for (const z of ids) { if (this.zoneHostOf(z) !== (this.running.get(z) || null)) d++; }
-    return d;
-  },
+  // host 프로세스 컨테이너 층(_hostSet·hostRuntimeCount·zoneHostOf·zoneHostHosts·hostRegistered·zoneHostSingleOwner·zoneHostDrift)은 step-0305 에서 orch-hostproc.js 로 분리(>30KB 트리거 유계화). 같은 prototype 에 Object.assign 되므로 this._hostSet 등은 그대로 해소(투명 분할·reg 0).
   // 브리지 start(step-0272) — 배치 결정 집행 시 실 EntityZone 런타임을 host 에 띄운다(zoneRuntimes 등록). 이미 도는 존이면 host 만 정렬(멱등·신규 인스턴스화 아님). zoneBridge OFF·팩토리 부재면 호출 자체가 없다(_start 가드).
   _bridgeStart(zoneId, host) {
     const rt = this.zoneRuntimes.get(zoneId);
