@@ -51,6 +51,16 @@ const OrchHostProc = {
     }
     return { total, hosts };
   },
+  // host 프로세스 entity 가중 부하 질의(step-0314·#9 잔여) — 부하를 *존 수*(hostLoadSkew·0311)가 아니라 *entity 수*로 본다 {hosts, min, max, skew}. 실 부하 ≈ 동접 플레이어 수이므로 entity 가중이 재배치의 더 정직한 척도(존 1개라도 만원이면 무겁다·존 수만 보면 균형으로 착각). zoneHostCensus(0307)의 entities 분포를 균형 렌즈로. host 0개면 전부 0. 읽기 전용.
+  hostEntitySkew() {
+    let min = Infinity, max = 0, n = 0;
+    for (const c of this.zoneHosts.values()) {
+      let e = 0; for (const z of c.zones) { const rt = this.zoneRuntimes.get(z); if (rt) e += rt.zone.ents.size; }
+      if (e < min) min = e; if (e > max) max = e; n++;
+    }
+    if (n === 0) return { hosts: 0, min: 0, max: 0, skew: 0 };
+    return { hosts: n, min, max, skew: max - min };
+  },
   // host 단건 존 목록 질의(step-0313·#9 잔여) — 그 host 컨테이너가 소유한 존 목록(정렬). zoneHostSnapshot(0309·전체 host→[존…])의 단건 판 — "이 host 프로세스가 지금 무슨 존을 돌리나"(장애 후 죽은 host 비움·생존 host 인수 검증의 단위). 미가동/죽은 host 는 []. 읽기 전용.
   hostZones(host) { const c = this.zoneHosts.get(host); return c ? [...c.zones].sort() : []; },
   // host 프로세스 생애주기 질의(step-0312·#9 잔여) — host 컨테이너 spawn/despawn 의 순서 있는 이벤트 스트림과 그 net 결과. hostRegisters/hostDeregisters(누적 수)가 *얼마나*라면, 이건 *언제 어느 host 가 떴다/졌다*(실 cluster.spawnOne(host)/killHost(host) 호출이 들어갈 지점·운영 타임라인). 불변: net 스폰 집합(spawn−despawn 상쇄)이 현재 가동 host 집합(zoneHostHosts)과 정확히 일치. zoneHostLifecycle OFF 면 빈 로그. 읽기 전용.
