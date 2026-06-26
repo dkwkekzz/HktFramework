@@ -34,6 +34,9 @@ const { OrchControl } = (typeof module !== 'undefined' && module.exports && type
 // step-0272 — #51b 실 zone.js 브리지 믹스인(_bridgeStart·존 런타임 질의).
 const { OrchZoneBridge } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
   ? require('./orch-zonebridge.js') : globalThis.__HktNetParts.orch_zonebridge;
+// step-0305 — host 프로세스 컨테이너 층 믹스인(_hostSet·host 컨테이너 질의/불변·0301~0304 분리).
+const { OrchHostProc } = (typeof module !== 'undefined' && module.exports && typeof require !== 'undefined')
+  ? require('./orch-hostproc.js') : globalThis.__HktNetParts.orch_hostproc;
 
 // ── [코디네이션] Orchestrator — 0009 그대로(monitor 쌍을 생성자 opts 로 받게만 조정) ──
 class Orchestrator {
@@ -98,6 +101,14 @@ class Orchestrator {
     this.zoneDirectApplied = 0;     // 게이트웨이 직접 라우팅으로 적용한 frame 누적(step-0294·계측).
     this.zoneDirStale = 0;          // 게이트웨이 디렉토리가 뒤처져(이주 직후 등) 거부한 frame 누적(step-0294·정직한 한계·이주 라우팅 정합은 0296).
     this.hostDownBroadcasts = 0;    // 게이트웨이로 보낸 hostDown 일괄 무효화 broadcast 누적(step-0297·장애 검출 신호).
+    // 실 host.js 물리 프로세스 분리 씨앗(step-0301·#9 잔여) — 0291~0300 까지 zone-host 핸들은 orch 의 *flat* zoneRuntimes Map(zoneId→{zone,host})·host 는 문자열 태그였다(orch 가 모든 존을 직접 보유·tick). zoneHostProc ON 이면 host 를 *1급 컨테이너*(ZoneHost·자기 존 집합 소유)로 묶는다(zoneHosts: host→{zones}) — 실 host.js 프로세스(여러 존을 소유·자기 소켓으로 수신·자기 루프로 tick)의 씨앗. 배치 집행(start/migrate/hostdown/stop)이 _hostSet 으로 이 컨테이너를 유지. OFF 면 빈 채 = 0300 비트 동일.
+    this.zoneHostProc = opts.zoneHostProc || false;
+    this.zoneHosts = new Map();      // host -> { zones: Set<zoneId>, inbox: [] } (그 host 프로세스가 소유한 실 존 런타임 집합 + 자기 수신 버퍼·flat zoneRuntimes 의 host 별 묶음·실 host.js 의 씨앗).
+    this.zoneHostFramesRecv = 0;     // host 컨테이너 inbox 로 수신한 entity frame 누적(step-0302·소켓 수신 버퍼의 host 프로세스 판·per-runtime mbox 대체).
+    this.zoneHostDrained = 0;        // host 자기 루프가 inbox 에서 drain 해 소유 존에 적용한 frame 누적(step-0302·== zoneHostFramesRecv 면 잔류 0·무손실).
+    this.hostRegisters = 0;          // host 컨테이너가 *처음 존을 받아 새로 생긴* 누적 수(step-0304·실 host.js 프로세스 spawn 의 씨앗 — 그 host 가 첫 존을 호스팅).
+    this.hostDeregisters = 0;        // host 컨테이너가 *마지막 존을 잃어 사라진* 누적 수(step-0304·실 host.js 프로세스 despawn 의 씨앗 — 그 host 가 더는 존을 안 돌림). registers−deregisters == 현 host 수.
+    this.zoneHostStale = 0;          // host inbox drain 시 *그 host 가 더는 소유 안 하는*(이주로 떠난) 존의 frame 을 거부한 누적 수(step-0306·실 프로세스 이중 쓰기 방지·정상 tick 0·recv == drained + stale).
     // 소비자 프레즌스 SSOT(step-0055·busLeasePresence) — 0054 가 lease 전이를 svc.item.lease 로 *관측 가능*하게 했다. 이제 코디네이션 계층이 그 이벤트를 소비해 "어느 소비자가 지금 down 인가"(consumerDown)를 유지한다(SPINE 계층 5 세션/프레즌스의 씨앗). 버스 이벤트만으로 — 가방 내부를 안 들여다본다(은닉). OFF 면 미구독(이벤트 0)이라 빈 채 = 0054 비트 동일.
     this.busLeasePresence = opts.busLeasePresence || false;
     this.consumerDown = new Set();   // 현재 down(축출됨)으로 관측된 소비자 — evict 이벤트에 add·readmit 에 delete. 코디네이션의 프레즌스 뷰(가방 evicted 의 거울).
@@ -153,6 +164,7 @@ class Orchestrator {
 Object.assign(Orchestrator.prototype, OrchPlacement);
 // step-0272 — #51b 실 zone.js 브리지 메서드를 프로토타입에 되섞음(_start 가드가 zoneBridge ON 일 때만 호출 = OFF 비트 동일).
 Object.assign(Orchestrator.prototype, OrchZoneBridge);
+Object.assign(Orchestrator.prototype, OrchHostProc);
 // step-0267 분할 — 제어 평면 핸들러(onMsg·onTick)를 프로토타입에 되섞음(정의 위치만 이동·this 바인딩 동일·reg 0).
 Object.assign(Orchestrator.prototype, OrchControl);
 
