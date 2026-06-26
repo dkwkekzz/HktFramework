@@ -51,6 +51,13 @@ const OrchHostProc = {
     }
     return { total, hosts };
   },
+  // host 프로세스 부하 불균형 질의(step-0311·#9 잔여) — 전 host 컨테이너의 존 수 분포에서 부하 균형을 본다 {hosts, min, max, skew:max−min}. zoneHostCensus(0307·존/entity 분포)가 *무엇이 어디*라면, 이건 *얼마나 고른가*(오케스트레이터가 어느 host 프로세스를 비우거나 채울지 판단하는 실 단위). placeRebalance/placeDrain 같은 graceful 재배치 뒤 skew 가 작아지는지(균형 수렴)를 단언하는 기초. host 0개면 전부 0. 읽기 전용.
+  hostLoadSkew() {
+    let min = Infinity, max = 0, n = 0;
+    for (const c of this.zoneHosts.values()) { const z = c.zones.size; if (z < min) min = z; if (z > max) max = z; n++; }
+    if (n === 0) return { hosts: 0, min: 0, max: 0, skew: 0 };
+    return { hosts: n, min, max, skew: max - min };
+  },
   // host 컨테이너 정합 불변 질의(step-0308·#9 잔여·primitive) — host 프로세스 층이 깨지지 않았는가의 단일 술어: ⒜ zoneHostSingleOwner(어떤 존도 두 host 없음·0303) ⒝ zoneHostDrift 0(컨테이너==집행 SSOT running·0303) ⒞ roster 회계 닫힘(hostRegisters−hostDeregisters == 현 host 컨테이너 수·0304 spawn/despawn 이 정확히 상쇄). 참이면 "존이 정확히 한 host 프로세스에·컨테이너가 집행과 한 몸·spawn/despawn 회계가 현 host 수와 일치". bridgeCoherent(0278·실 핸들)의 *host 프로세스 컨테이너* 판. 모든 배치 op 뒤 참(capstone 0310). 읽기 전용.
   hostContainerCoherent() {
     return this.zoneHostSingleOwner() && this.zoneHostDrift() === 0 &&

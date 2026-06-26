@@ -1,8 +1,8 @@
-// HktInfra step-0310 — 헤드리스 검증 (#9 잔여 capstone: 실 host.js 물리 분리 — host 프로세스 컨테이너 전 정합)
+// HktInfra step-0311 — 헤드리스 검증 (#9 잔여: host 프로세스 부하 불균형 질의 hostLoadSkew)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostproccap`.
-//   더한 한 조각: hostProcCoherent()(directFlowCoherent && hostContainerCoherent). 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅으로 → 참 → 실 host.js 물리 분리 arc 0301~0310 닫기. OFF→0309 비트 동일(reg).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostproccap`(가설) — 전 op 혼합·host 프로세스 라우팅 후 hostProcCoherent·entityConserved·recv==drained+stale·census 정합·ledger 5/1/2/1·total1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostloadskew`.
+//   더한 한 조각: hostLoadSkew()(host 컨테이너 존 수 분포의 max−min). 한 host 에 몰린 배치를 placeRebalance 로 균형 → skew 감소(읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostloadskew`(가설) — rebalance 없으면 skew 2, 있으면 skew ≤ 1·총존 보존·hostContainerCoherent.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,41 +15,28 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0310 #9 잔여 capstone 검증 — 전 데이터 평면이 host 프로세스 컨테이너 경유(자기 inbox·자기 루프·roster·stale 거부)로 흘러도 배치 SSOT 와 완전 정합 + 보존.
-//   0300 과 같은 혼합 lifecycle(z1@A·z2@B·z3@C·enter5·move·leave a2·hostdown C·stop z2·migrate z1·rebalance·drain)을 zoneHostProc ON 으로
-//   → hostProcCoherent(directFlowCoherent && hostContainerCoherent)·entityConserved·recv==drained+stale(정상 흐름 stale0)·census.total==total1·ledger 5/1/2/1. 실 host.js 물리 분리 arc 0301~0310 닫기.
-function hostproccap(seeds) {
+// step-0311 #9 잔여 검증 — host 프로세스 부하 불균형(hostLoadSkew). 한 host(A)에 존을 몰아 둔 뒤 placeRebalance 로 고르게 펴면 skew(max−min)가 줄어든다.
+//   같은 배치를 rebalance 없이(r0)·있이(r1) 두 번 돌려: r0 skew 2(A=3,B=1) vs r1 skew ≤ 1(A=2,B=1,C=1) — 부하 균형이 host 프로세스 단위로 수렴함을 보인다. 총존 보존·hostContainerCoherent.
+function hostloadskew(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
-  const MOVE = (at, zoneId, avatar, dx, dy) => ({ at, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
-  const LEAVE = (at, zoneId, avatar) => ({ at, op: { type: 'zoneLeave', zoneId, avatar } });
-  const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
   const REBAL = (at, hosts) => ({ at, op: { type: 'placeRebalance', hosts } });
-  const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
-  const DOWN = (at, host, hosts) => ({ at, op: { type: 'placeHostDown', host, hosts } });
-  const STOP = (at, zoneId) => ({ at, op: { type: 'placeStop', zoneId } });
   const HS = ['hostA', 'hostB', 'hostC'];
-  const PLACEOPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostC'),
-    DOWN(15, 'hostC', HS), STOP(16, 'z2'), MIG(17, 'z1', 'hostB'), REBAL(18, HS), DRAIN(19, 'hostA', HS)];
-  const ENTOPS = [ENTER(5, 'z1', 'a1'), ENTER(6, 'z1', 'a2'), ENTER(7, 'z2', 'a3'), ENTER(8, 'z3', 'a4'), ENTER(9, 'z3', 'a5'),
-    MOVE(10, 'z1', 'a1', 2, 1), LEAVE(11, 'z1', 'a2')];
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, placementOps: PLACEOPS, entityOps: ENTOPS };
-  console.log('== hostproccap (0310·#9 잔여 capstone): host 프로세스 컨테이너 전 정합. 0300 혼합 lifecycle 을 host 프로세스 라우팅으로 → hostProcCoherent·consv·recv==drained+stale·census==total1·ledger5/1/2/1. 실 host.js 물리 분리 arc 0301~0310 닫기. ==');
-  console.log('seed   | hpcoh | consv | total | r==d+s | census | ledger        | 판정');
+  const SKEWOPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostA'), PLACE(4, 'z4', 'hostB')];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
+  console.log('== hostloadskew (0311·#9 잔여): host 프로세스 부하 불균형. A 에 몰린 배치를 placeRebalance 로 균형 → skew 2→≤1·총존 보존·hostContainerCoherent. ==');
+  console.log('seed   | skew0 | skew1 | tot0 | tot1 | hcoh | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 24, ...BASE });
-    const o = r.orch;
-    const ledger = `${o.zoneEnters}/${o.zoneLeaves}/${o.zoneEntitiesLost}/${o.zoneEntitiesDiscarded}`;
-    const rds = o.zoneHostFramesRecv === o.zoneHostDrained + o.zoneHostStale;
-    const cs = o.zoneHostCensus();
-    const ok = check(o.hostProcCoherent() && o.entityConserved() && o.totalEntities() === 1 && rds && cs.total === 1 &&
-      o.zoneEnters === 5 && o.zoneLeaves === 1 && o.zoneEntitiesLost === 2 && o.zoneEntitiesDiscarded === 1 && o.zoneHostStale === 0,
-      `seed ${seed}: capstone 위반 (hpcoh ${o.hostProcCoherent()}·consv ${o.entityConserved()}·total ${o.totalEntities()}·rds ${rds}·census ${cs.total}·ledger ${ledger}·stale ${o.zoneHostStale})`);
-    console.log(`${pad(seed, 6)} | ${pad(o.hostProcCoherent() ? 'Y' : 'N', 5)} | ${pad(o.entityConserved() ? 'Y' : 'N', 5)} | ${pad(o.totalEntities(), 5)} | ${pad(rds ? 'Y' : 'N', 6)} | ${pad(cs.total, 6)} | ${pad(ledger, 13)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r0 = run({ seed, ticks: 12, ...BASE, placementOps: SKEWOPS });                                   // rebalance 없음 — A 에 몰린 채.
+    const r1 = run({ seed, ticks: 12, ...BASE, placementOps: [...SKEWOPS, REBAL(6, HS)] });                 // rebalance 후 — 고르게.
+    const s0 = r0.orch.hostLoadSkew(), s1 = r1.orch.hostLoadSkew();
+    const ok = check(s0.skew === 2 && s1.skew <= 1 && r0.orch.running.size === 4 && r1.orch.running.size === 4 &&
+      r1.orch.hostContainerCoherent() && r1.orch.zoneHostSingleOwner(),
+      `seed ${seed}: 부하 균형 위반 (skew0 ${s0.skew}·skew1 ${s1.skew}·tot0 ${r0.orch.running.size}·tot1 ${r1.orch.running.size}·hcoh ${r1.orch.hostContainerCoherent()})`);
+    console.log(`${pad(seed, 6)} | ${pad(s0.skew, 5)} | ${pad(s1.skew, 5)} | ${pad(r0.orch.running.size, 4)} | ${pad(r1.orch.running.size, 4)} | ${pad(r1.orch.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostproccap'] = hostproccap;
-kit.ORDER.splice(1, 0, 'hostproccap');
+kit.MODES['hostloadskew'] = hostloadskew;
+kit.ORDER.splice(1, 0, 'hostloadskew');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
