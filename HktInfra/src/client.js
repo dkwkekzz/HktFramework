@@ -233,6 +233,26 @@ class Client {
   }
 }
 
-const __part = { Client };
+// ── 다운스트림 클라(step-0342·#9 후속) — *수신 전용* 실 클라 하니스. 게이트웨이가 전파한 host 산출 AOI 뷰(view/view_delta)를 받아 자기 seen 으로 적용한다.
+//   0331~0341 전파 sub-arc 는 게이트웨이→spectator addr(비-actor)까지였다(0334 한계). 이 클라가 그 종단에 *실제로 앉아* 받은 뷰를 적용 →
+//   "host 가 본 AOI == 클라가 보는 AOI"(desync 0·수렴)를 닫는다. 발신 0(읽기전용 뷰 소비자·은닉: 게이트웨이만 안다). 미스폰(downClients 0)이면 존재 자체 없음 = 비트 동일.
+class DownClient {
+  constructor() { this.seen = new Map(); this.views = 0; this.deltas = 0; this.resets = 0; }
+  onMsg(m) {
+    const p = m.payload;
+    if (p.type === 'view') { this.views++; this.seen = new Map(p.entities.map(e => [e.id, { x: e.x, y: e.y }])); }
+    else if (p.type === 'view_delta') {
+      this.deltas++;
+      if (p.reset) { this.seen = new Map(); this.resets++; }
+      for (const e of (p.enter || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const e of (p.update || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const id of (p.exit || [])) this.seen.delete(id);
+    }
+  }
+  seenIds() { return [...this.seen.keys()].sort(); }
+  seenSig() { return [...this.seen.entries()].map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';'); }
+}
+
+const __part = { Client, DownClient };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).client = __part;

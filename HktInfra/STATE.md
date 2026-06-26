@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0341](step-0341.md) — **#9 후속 capstone: 다운스트림 전파 전 정합** — 정착 술어 `downstreamSettled`(모든 세션 egress 버퍼 0 = 산출 frame 전부 도달·ack·재전송 복구) + capstone = 손실+혼합 lifecycle 뒤 settled && 격리 && delivered==produced && downstreamCoherent. **전파 sub-arc 0331~0341 닫기**. 직전: 0340 격리.
-- **한 줄 상태**: reg ALL OK·downdeliver 5/5(settled·iso·a1 4/4·b1 3/3·dcoh z1z2)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **downstream *전파* sub-arc(0331~0341 ✅ 닫힘)** — egress→게이트웨이 수신→클라 라우팅→per-세션 dseq→ack/버퍼 가지치기→gap-resync 재전송→타임아웃 재전송→leave 정리→격리→capstone(손실·lifecycle 무손실 인오더). **후속**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js·현 spectator addr→실 Client 수신) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적)**.
+- **닫힌 step**: [step-0342](step-0342.md) — **#9 후속: 실 다운스트림 클라 수렴** — 수신 전용 `DownClient` 액터(view/view_delta→seen 적용)로 전파 종단(spectator addr·0334 한계)을 실 클라로 교체. `dc.seen == zoneVisibleIds`(host 권위 AOI == 클라 뷰·**desync 0**). downClients 0→스폰0·비트 동일. 직전: 0341 전파 capstone.
+- **한 줄 상태**: reg ALL OK·dcconv 5/5(dc0.seen==aoi(a1)·dc1.seen==aoi(a2)·desync0)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
+- **다음**: 🎯 **실 다운스트림 클라 수렴 sub-arc(0342~)** — 전파 sub-arc(0331~0341 ✅) 종단을 실 클라로. 0342 정적 AOI 수렴✅. **후속**: 증분/이동/상호 가시 수렴·손실 하 수렴(desync 0)·다중 클라 일관·capstone. **그 후**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js) ⒝ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0340 묶음 리뷰 미실시(5묶음 누적)**.
 
 ---
 
@@ -128,18 +128,7 @@
 | [0291–0300](step-0291.md) | #9 멀티프로세스 배선 arc: 존 런타임 전송 seam·host mailbox·게이트웨이 존 디렉토리·게이트웨이→실 존 직접 enter/move/leave 라우팅·이주/장애 정합·dir bijection·capstone directFlowCoherent | 통과(reg 0·spine OK) · 5/5 directFlowCoherent·conserved·stale0 |
 | [0301–0310](step-0301.md) | #9 잔여(실 host.js 물리 분리) arc: host 1급 컨테이너 zoneHosts·자기 inbox 수신·자기 루프 tick·단일소유/drift·roster reg/dereg·정리 분할 orch-hostproc·inbox stale 거부·census·hostContainerCoherent·bijection·capstone hostProcCoherent | 통과(reg 0·spine OK) · 5/5 hpcoh·consv·recv==drained+stale·census1 |
 | [0311–0318](step-0311.md) | host 프로세스 컨테이너 심화·**부하 균형 sub-arc**: hostLoadSkew(존 수 불균형)→생애주기 로그 hostLifecycle→다중 존/동시 host 장애 failover(hostZones·hostCount)→entity 가중 부하 hostEntitySkew/자동 배치 placeAutoE/재배치 placeRebalanceE→capstone 균형 술어 hostBalanced(존 수·entity 둘 다·placeRebalanceE→균형) | 통과(reg 0·spine OK) · 각 5/5 |
-| [0319](step-0319.md) | downstream 데이터 평면 1(#9 후속): host AOI 뷰 산출 포착(런타임 존 net 싱크 no-op→버퍼링·view/view_delta 보관·질의 zoneViewFrames/zoneViewsFor·SPINE §4 경로2 월드 다운스트림 씨앗·플래그 불요·0318 비트 동일) | 통과(reg 0·spine OK) · 5/5 viewFrames4·z1views4·미가동 0 |
-| [0320](step-0320.md) | downstream 데이터 평면 2(#9 후속): host 산출 뷰의 AOI 정확성(질의 zoneViewBuf·zoneVisibleIds·a1·a2 반경 밖→각 세션 reset 뷰 enter==자기만·게이트웨이 발신·읽기 전용·0319 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1→[a1]·a2→[a2]·match·toGW |
-| [0321](step-0321.md) | downstream 데이터 평면 3(#9 후속): host 산출 뷰의 증분 델타 정확성(질의 zoneViewStats·a1 3회 이동→reset1+update3=total4≪14tick·매 tick 전체 아닌 변경분만·대역 절감·읽기 전용·0320 비트 동일) | 통과(reg 0·spine OK) · 5/5 reset1·update3·total4<14·updHasA1 |
-| [0322](step-0322.md) | downstream 데이터 평면 4(#9 후속): host 산출 뷰의 상호 가시(질의 zoneViewEntered·a1 이 a2 쪽 이동→반경 안→서로 enter 델타·상호 가시·최종 vis 둘 다 [a1,a2]·읽기 전용·0321 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1entered⊇a2·a2entered⊇a1·mutVis |
-| [0323](step-0323.md) | 정리 분할: 다운스트림 뷰 질의 6종(0319~0322)→orch-views.js 믹스인(Object.assign 투명 분할·>30KB 트리거 유계화·orch-zonebridge 30.6KB→28.1KB·기능 0·0322 비트 동일) | 통과(reg 0·spine OK) · 분할 후 비트 동일·zoneviewsplit 5/5·박스 ≤30KB |
-| [0324](step-0324.md) | downstream 데이터 평면 5(#9 후속): host 산출 뷰의 AOI exit 델타(질의 zoneViewExited·a1 접근 후 멀어짐→서로 exit·최종 vis 자기만·동적 가시 상실·읽기 전용·0323 비트 동일) | 통과(reg 0·spine OK) · 5/5 a1exit⊇a2·a2exit⊇a1·finVis 자기만 |
-| [0325](step-0325.md) | downstream 데이터 평면 6(#9 후속): host 산출 뷰의 직렬화 경계(질의 zoneViewWire·산출 뷰 JSON round-trip 동일·와이어 바이트>0·소켓 준비·원격-검증 토대·_zoneDeliver 다운스트림 짝·읽기 전용·0324 비트 동일) | 통과(reg 0·spine OK) · 5/5 frames4·bytes440·serializable |
-| [0326](step-0326.md) | downstream 데이터 평면 7(#9 후속): 다중 존 독립 다운스트림(질의 zoneViewSessions·z1·z2 동시→각자 자기 세션에만 뷰·존 간 누수 0·격리·읽기 전용·0325 비트 동일) | 통과(reg 0·spine OK) · 5/5 z1sess{a1,a2}·z2sess{b1}·noLeak |
-| [0327](step-0327.md) | downstream 데이터 평면 8(#9 후속): host 이주 중 뷰 연속성(질의 zoneViewReport·z1 A→B 이주 같은 핸들·a1 이동 전후→update 4 연속·entity 보존·host B·serializable·읽기 전용·0326 비트 동일) | 통과(reg 0·spine OK) · 5/5 update4·total1·hostB·pos9,9·serializable |
-| [0328](step-0328.md) | downstream 데이터 평면 9(#9 후속): 세션 무굶김(술어 zoneViewAllKeyed·모든 활성 세션이 초기 reset keyframe 받음·a1·a2·a3 enter→셋 다 keyed·no-starvation·읽기 전용·0327 비트 동일) | 통과(reg 0·spine OK) · 5/5 sessions3·allKeyed·resets1/1/1 |
-| [0329](step-0329.md) | downstream 데이터 평면 10(#9 후속): 뷰 무손실 회계(술어 zoneViewConserved·모든 view frame 이 정확히 한 세션 귀속·고아 0·세션별 합==전체·읽기 전용·0328 비트 동일) | 통과(reg 0·spine OK) · 5/5 frames8==sumSess·consv |
-| [0330](step-0330.md) | downstream 데이터 평면 11·capstone(#9 후속): 전 정합 downstreamCoherent(zoneViewConserved&&zoneViewAllKeyed&&serializable·혼합 lifecycle enter/move/leave/migrate 뒤 두 존 정합+hostProcCoherent+entityConserved·downstream sub-arc 0319~0330 닫기·읽기 전용·0329 비트 동일) | 통과(reg 0·spine OK) · 5/5 dc1·dc2·hpcoh·consv·total2 |
+| [0319–0330](step-0319.md) | downstream 데이터 평면 *포착* sub-arc(#9 후속): host 산출 AOI 라활 포착(no-op→버퍼링 싱크)→AOI 정확성/증분 델타/상호 가시/exit→직렬화 경계→존 격리→이주 연속→무굶김→무손실 회계→capstone downstreamCoherent(zoneViewConserved&&AllKeyed&&serializable) | 통과(reg 0·spine OK) · 각 5/5 |
 | [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |
 | [0332](step-0332.md) | 정리: 브리지 필드 init 분리(생성자 0272~0331 필드 대입 블록→전용 새 파일 orch-bridge-init.js `_initBridgeFields`·투명 분할·orchestrator.js 30.5KB→22.8KB·세 박스 <30KB·기능 0·reg 0) | 통과(reg 0·spine OK) · bridgesplit 5/5 egress4==frames4·dcoh |
 | [0333](step-0333.md) | downstream 전파 2(#9 후속): 게이트웨이 다운스트림 수신(onMsg orch zoneView 분기→`_recvZoneView` 세션별 버퍼 zoneViewIn·존→게이트웨이 경로 완성·zoneEgress OFF→미수신 비트 동일) | 통과(reg 0·spine OK) · gwdown 5/5 gwRx4==egress4·세션2 |
@@ -151,3 +140,4 @@
 | [0339](step-0339.md) | downstream 전파 8(#9 후속): leave 정리(게이트웨이 `_downCleanup` downClients/seq/resync/buffer + orch `_bridgeLeave` egress buf/seq/acked·0334 stale 바인딩/무계 성장 해소·egress OFF→정리 맵 빈 채 비트 동일) | 통과(reg 0·spine OK) · gwleave 5/5 a1 정리·a2 보존 |
 | [0340](step-0340.md) | downstream 전파 9(#9 후속): 다중 존 격리(게이트웨이 클라별 전달 세션 회계 downDelivered + 술어 gatewayDeliveryIsolated·z1·z2 동시 각 클라 자기 세션만·교차 누수 0·존별 egress 격리·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · gwiso 5/5 iso Y·바인딩 격리 |
 | [0341](step-0341.md) | downstream 전파 10·capstone(#9 후속): 전파 전 정합(술어 downstreamSettled 모든 세션 egress 버퍼 0 + 손실+enter/move/leave/migrate 뒤 settled && gatewayDeliveryIsolated && 활성 delivered==produced && downstreamCoherent·전파 sub-arc 0331~0341 닫기·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · downdeliver 5/5 settled·iso·복구 |
+| [0342](step-0342.md) | 실 다운스트림 클라 수렴 1(#9 후속): 수신 전용 DownClient 액터(view/view_delta→seen·전파 종단 spectator→실 클라·0334 해소)·dc.seen==zoneVisibleIds(host AOI==클라 뷰·desync0)·downClients0→스폰0 비트 동일 | 통과(reg 0·spine OK) · dcconv 5/5 desync0 |

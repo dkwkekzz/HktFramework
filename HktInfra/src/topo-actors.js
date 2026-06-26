@@ -33,7 +33,7 @@ const { CacheStore } = __p('cache');   // step-0205 — 핫 데이터 캐시 계
 const { WorldLog } = __p('worldlog');   // step-0207 — 월드 intent 로그 event sourcing(append/replay).
 const { LoginQueue } = __p('loginqueue');   // step-0209 — 로그인 대기열+티켓(enqueue/dequeue·엣지 흡수).
 const { PersistStore } = __p('persist');
-const { Client } = __p('client');
+const { Client, DownClient } = __p('client');
 
 // ── routeFilter — 0009 그대로 ──
 const routeFilters = {
@@ -94,6 +94,7 @@ function makeActor(spec, net) {
     case 'loginqueue': a = new LoginQueue(spec.opts); break;   // step-0209 — 로그인 큐.
     case 'persist': a = new PersistStore(spec.opts); break;
     case 'client': a = new Client(spec.opts.script); break;
+    case 'downclient': a = new DownClient(); break;   // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라(host 산출 AOI 뷰 소비·desync 0 수렴 검증).
     default: throw new Error('unknown kind ' + spec.kind);
   }
   net.register(spec.addr, a);
