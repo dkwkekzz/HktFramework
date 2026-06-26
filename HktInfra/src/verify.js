@@ -1,8 +1,8 @@
-// HktInfra step-0312 — 헤드리스 검증 (#9 잔여: host 프로세스 생애주기 이벤트 로그)
+// HktInfra step-0313 — 헤드리스 검증 (#9 잔여: 다중 존 host 프로세스 장애 failover)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostlifecycle`.
-//   더한 한 조각: _hostSet 의 host 컨테이너 spawn/despawn 을 순서 있는 이벤트 로그(hostLifecycleLog)로 — 실 cluster.spawnOne/killHost 호출 지점의 씨앗. OFF 플래그 zoneHostLifecycle(OFF→로그 0·baseline 비트 동일).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostlifecycle`(가설) — churn(3 host spawn→drain 1 despawn) 후 로그 net 집합 == zoneHostHosts·spawn−despawn == 현 host 수.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostfailover`.
+//   더한 한 조각: hostZones(host) 질의(그 host 컨테이너 소유 존 목록·zoneHostSnapshot 의 단건 판). 다중 존을 인 host 가 죽으면 그 존들 일괄 failover·생존 host 인수·죽은 host 비움(읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostfailover`(가설) — 2존 인 hostA 장애 → 두 존 생존 host 로 재가동·entity 3 소실·z3 보존·hostZones(A) 빈·despawn A·conserved.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,29 +15,31 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0312 #9 잔여 검증 — host 프로세스 생애주기 이벤트 로그(hostLifecycle). 3 host(A·B·C) spawn 후 hostA 드레인 → z1 이주(A 마지막 존 잃음) → A despawn.
-//   로그를 접은 net 집합(spawn 추가·despawn 제거)이 *지금 가동 host 집합*(zoneHostHosts)과 정확히 일치 + spawn−despawn == 현 host 수. 로그가 roster 의 정직한 역사(실 spawnOne/killHost 타임라인 씨앗).
-function hostlifecycle(seeds) {
+// step-0313 #9 잔여 검증 — 다중 존을 인 host 프로세스 장애. hostA 에 z1·z2(엔티티 3)·hostB 에 z3(엔티티 1). placeHostDown(hostA) → z1·z2 를 생존 host 로 *재가동*(비자발·새 인스턴스·상태 소실).
+//   장애 후: hostA 컨테이너 비움(hostZones(A)==[] · despawn 로그)·z1·z2 의 entity 3 소실(zoneEntitiesLost)·z3 의 entity 1 보존·총 entity 1·hostContainerCoherent·entityConserved.
+function hostfailover(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const DRAIN = (at, host, hosts) => ({ at, op: { type: 'placeDrain', host, hosts } });
+  const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
+  const DOWN = (at, host, hosts) => ({ at, op: { type: 'placeHostDown', host, hosts } });
   const HS = ['hostA', 'hostB', 'hostC'];
-  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostC'), DRAIN(6, 'hostA', HS)];
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneHostLifecycle: true };
-  console.log('== hostlifecycle (0312·#9 잔여): host 프로세스 생애주기 로그. 3 host spawn→hostA drain→A despawn. 로그 net 집합 == zoneHostHosts·spawn−despawn == 현 host. ==');
-  console.log('seed   | spawn | despw | net==live | sp−dp==hosts | 판정');
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), DOWN(12, 'hostA', HS)];
+  const ENT = [ENTER(5, 'z1', 'a1'), ENTER(6, 'z1', 'a2'), ENTER(7, 'z2', 'a3'), ENTER(8, 'z3', 'a4')];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneHostLifecycle: true };
+  console.log('== hostfailover (0313·#9 잔여): 다중 존 host 장애. hostA(z1·z2·엔티티3)+hostB(z3·엔티티1)·placeHostDown(A) → z1·z2 재가동·entity3 소실·z3 보존·hostZones(A)==[]·despawn A·conserved. ==');
+  console.log('seed   | total | lost | A빈 | despwnA | hcoh | consv | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS });
+    const r = run({ seed, ticks: 16, ...BASE, placementOps: OPS, entityOps: ENT });
     const o = r.orch;
-    const net = [...o.hostLifecycleNet()].sort().join(',');
-    const live = [...o.zoneHostHosts()].sort().join(',');
-    const sp = o.hostSpawnCount(), dp = o.hostDespawnCount();
-    const ok = check(net === live && (sp - dp) === o.zoneHosts.size && sp === 3 && dp === 1,
-      `seed ${seed}: 생애주기 로그 위반 (net [${net}]·live [${live}]·spawn ${sp}·despawn ${dp}·hosts ${o.zoneHosts.size})`);
-    console.log(`${pad(seed, 6)} | ${pad(sp, 5)} | ${pad(dp, 5)} | ${pad(net === live ? 'Y' : 'N', 9)} | ${pad((sp - dp) === o.zoneHosts.size ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const aEmpty = o.hostZones('hostA').length === 0;
+    const despA = o.hostLifecycle().some(e => e.host === 'hostA' && e.kind === 'despawn');
+    const ok = check(o.totalEntities() === 1 && o.zoneEntitiesLost === 3 && aEmpty && despA &&
+      o.hostContainerCoherent() && o.entityConserved() && o.zoneHasEntity('z3', 'a4'),
+      `seed ${seed}: 다중 존 host 장애 위반 (total ${o.totalEntities()}·lost ${o.zoneEntitiesLost}·A빈 ${aEmpty}·despA ${despA}·hcoh ${o.hostContainerCoherent()}·consv ${o.entityConserved()})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.totalEntities(), 5)} | ${pad(o.zoneEntitiesLost, 4)} | ${pad(aEmpty ? 'Y' : 'N', 3)} | ${pad(despA ? 'Y' : 'N', 7)} | ${pad(o.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${pad(o.entityConserved() ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostlifecycle'] = hostlifecycle;
-kit.ORDER.splice(1, 0, 'hostlifecycle');
+kit.MODES['hostfailover'] = hostfailover;
+kit.ORDER.splice(1, 0, 'hostfailover');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0312](step-0312.md) — **#9 잔여: host 프로세스 생애주기 이벤트 로그 `hostLifecycle`**. `_hostSet` 의 spawn(첫 존)/despawn(마지막 존)을 순서 있는 [{host,kind,seq}] 스트림으로 — 실 cluster.spawnOne/killHost 호출 지점·운영 타임라인의 씨앗. 로그를 접은 net 집합 == 가동 host. OFF 플래그 zoneHostLifecycle·0311 비트 동일.
-- **한 줄 상태**: reg ALL OK·hostlifecycle 5/5(spawn3·despawn1·net==live·sp−dp==hosts)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0313](step-0313.md) — **#9 잔여: 다중 존 host 프로세스 장애 failover** + 질의 `hostZones(host)`. hostA(2존·엔티티3) 장애 → 두 존 생존 host 재가동·entity3 소실·z3 보존·hostZones(A)==[]·despawn A·conserved. 읽기 전용·0312 비트 동일.
+- **한 줄 상태**: reg ALL OK·hostfailover 5/5(total1·lost3·A빈·despawnA·hcoh·consv)·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **host 프로세스 컨테이너 심화 arc(0311~0330·진행 중)** — 실 host.js 물리 분리 arc(0301~0310 ✅) 위에 host 프로세스 *생애주기 가시성·부하 균형·장애 자기복구 정합*을 컨테이너 모델로. 후속(arc 후): 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합)·진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시(2묶음 누적)**.
 
 ---
@@ -131,3 +131,4 @@
 | [0301–0310](step-0301.md) | #9 잔여(실 host.js 물리 분리) arc: host 1급 컨테이너 zoneHosts·자기 inbox 수신·자기 루프 tick·단일소유/drift·roster reg/dereg·정리 분할 orch-hostproc·inbox stale 거부·census·hostContainerCoherent·bijection·capstone hostProcCoherent | 통과(reg 0·spine OK) · 5/5 hpcoh·consv·recv==drained+stale·census1 |
 | [0311](step-0311.md) | host 프로세스 컨테이너 심화 1: 부하 불균형 질의 hostLoadSkew(전 host 컨테이너 존 수 분포 max−min·A 몰림 배치를 placeRebalance 로 균형·읽기 전용·0310 비트 동일) | 통과(reg 0·spine OK) · 5/5 skew0 2→skew1 ≤1·총존 4 보존·hostContainerCoherent |
 | [0312](step-0312.md) | host 프로세스 컨테이너 심화 2: 생애주기 이벤트 로그 hostLifecycle(_hostSet spawn/despawn 순서 스트림·실 cluster.spawnOne/killHost 지점 씨앗·net 집합==가동 host·OFF 플래그 zoneHostLifecycle·0311 비트 동일) | 통과(reg 0·spine OK) · 5/5 spawn3·despawn1·net==live·sp−dp==hosts |
+| [0313](step-0313.md) | host 프로세스 컨테이너 심화 3: 다중 존 host 장애 failover + 질의 hostZones(host)(hostA 2존·엔티티3 장애→두 존 생존 host 재가동·entity3 소실·z3 보존·hostZones(A)빈·despawn A·읽기 전용·0312 비트 동일) | 통과(reg 0·spine OK) · 5/5 total1·lost3·A빈·despawnA·hcoh·consv |

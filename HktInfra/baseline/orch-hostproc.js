@@ -15,10 +15,10 @@ const OrchHostProc = {
   // host 컨테이너 귀속 갱신(step-0301·#9 잔여) — zoneId 를 *정확히 한* host 컨테이너에 귀속시킨다(host==null 이면 어느 컨테이너에서도 떼기만). 어디 있든 먼저 떼고(멱등) 새 host 에 붙인다 → start/migrate/hostdown/stop 어느 집행에서 불러도 같은 결과(낡은 host 추적 불필요). 컨테이너 첫 생성=hostRegisters++(spawn 씨앗)·빈 컨테이너 제거=hostDeregisters++(despawn 씨앗·step-0304). zoneHostProc OFF 면 no-op = 0300 비트 동일.
   _hostSet(zoneId, host) {
     if (!this.zoneHostProc) return;
-    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗.
+    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host: h, kind: 'despawn', seq: this.hostLifecycleLog.length }); } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗. step-0312 — despawn 이벤트 로그(실 killHost 지점).
     if (host == null) return;             // 퇴역/소실 — 떼기만(어느 host 도 소유 안 함).
     let c = this.zoneHosts.get(host);
-    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗.
+    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host, kind: 'spawn', seq: this.hostLifecycleLog.length }); }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗. step-0312 — spawn 이벤트 로그(실 cluster.spawnOne 지점).
     c.zones.add(zoneId);
   },
   // host 컨테이너 질의(step-0301·#9 잔여) — "이 host 프로세스가 몇 존을 소유하나 / 이 존은 어느 host 프로세스에 사나 / 지금 존을 하나라도 돌리는 host 집합". flat zoneRuntimes 의 host 별 묶음이 실 host.js 분리의 씨앗(host=프로세스 단위). 읽기 전용.
@@ -50,6 +50,16 @@ const OrchHostProc = {
       hosts[h] = { zones: c.zones.size, entities: ents }; total += ents;
     }
     return { total, hosts };
+  },
+  // host 프로세스 생애주기 질의(step-0312·#9 잔여) — host 컨테이너 spawn/despawn 의 순서 있는 이벤트 스트림과 그 net 결과. hostRegisters/hostDeregisters(누적 수)가 *얼마나*라면, 이건 *언제 어느 host 가 떴다/졌다*(실 cluster.spawnOne(host)/killHost(host) 호출이 들어갈 지점·운영 타임라인). 불변: net 스폰 집합(spawn−despawn 상쇄)이 현재 가동 host 집합(zoneHostHosts)과 정확히 일치. zoneHostLifecycle OFF 면 빈 로그. 읽기 전용.
+  hostLifecycle() { return this.hostLifecycleLog.slice(); },
+  hostSpawnCount() { let n = 0; for (const e of this.hostLifecycleLog) if (e.kind === 'spawn') n++; return n; },
+  hostDespawnCount() { let n = 0; for (const e of this.hostLifecycleLog) if (e.kind === 'despawn') n++; return n; },
+  // 생애주기 로그를 접어 *지금 떠 있는* host 집합 재구성(spawn 시 추가·despawn 시 제거·로그 재생). 가동 host 집합(zoneHostHosts)과 일치해야 — 로그가 roster 의 정직한 역사. 읽기 전용.
+  hostLifecycleNet() {
+    const live = new Set();
+    for (const e of this.hostLifecycleLog) { if (e.kind === 'spawn') live.add(e.host); else live.delete(e.host); }
+    return live;
   },
   // host 프로세스 부하 불균형 질의(step-0311·#9 잔여) — 전 host 컨테이너의 존 수 분포에서 부하 균형을 본다 {hosts, min, max, skew:max−min}. zoneHostCensus(0307·존/entity 분포)가 *무엇이 어디*라면, 이건 *얼마나 고른가*(오케스트레이터가 어느 host 프로세스를 비우거나 채울지 판단하는 실 단위). placeRebalance/placeDrain 같은 graceful 재배치 뒤 skew 가 작아지는지(균형 수렴)를 단언하는 기초. host 0개면 전부 0. 읽기 전용.
   hostLoadSkew() {
