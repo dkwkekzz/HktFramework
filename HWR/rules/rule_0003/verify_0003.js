@@ -95,18 +95,20 @@ const totalP = w => { let px = 0, py = 0; for (const e of w.elements) { const m 
 // 7. 통합(화학) — 시나리오: H₂는 공유 병합(중성 1개체), NaCl은 이온 결합 후 전기력에 묶인 이온쌍(2개체)
 {
   const w = scenario.setup();
-  const n0 = w.elements.length;             // 5
+  const n0 = w.elements.length;             // 7
   for (let i = 0; i < 300; i++) step(w);
   // H₂ 병합 → 중성 m≈2 분자 1개 존재
   const h2 = w.elements.find(e => approx(e.m, 2) && (e.q || 0) === 0 && Array.isArray(e.parts) && e.parts.length === 2);
   check('통합: H₂ 공유 병합(중성 분자 1개체)', !!h2, h2 ? `m=${h2.m}, q=${h2.q}` : '없음');
-  // 이온 둘(+1,−1)이 존재하고 서로 묶여 있음(평형 거리)
-  const cation = w.elements.find(e => e.q === 1), anion = w.elements.find(e => e.q === -1);
-  check('통합: NaCl 이온 결합(전자 이동 +1/−1)', !!cation && !!anion,
-    `+:${!!cation}, −:${!!anion}`);
-  check('통합: 이온쌍이 전기력에 묶임(평형 거리, 안 흩어짐)', cation && anion && sep(cation, anion) < 12,
-    cation && anion ? `sep=${sep(cation, anion).toFixed(2)}` : '—');
-  check('통합: 개수 5 → 4 (H₂만 병합)', w.elements.length === 4, `${n0} → ${w.elements.length}`);
+  // NaCl: 음이온(−1)은 Cl⁻ 하나뿐(전자 이동 증거). 그 옆에 묶인 양이온(Na⁺)이 평형 거리에.
+  const anion = w.elements.find(e => e.q === -1);
+  const cations = w.elements.filter(e => e.q === 1);                 // Na⁺ + 반발쌍 둘(+1)
+  const naBound = anion ? cations.reduce((best, c) => sep(c, anion) < sep(best, anion) ? c : best, cations[0]) : null;
+  check('통합: NaCl 이온 결합(전자 이동 → Cl⁻ 생성)', !!anion && cations.length >= 1, `−:${!!anion}, +개수:${cations.length}`);
+  check('통합: Na⁺Cl⁻ 가 전자기력에 묶임(평형 거리)', anion && naBound && sep(naBound, anion) < 12,
+    anion && naBound ? `sep=${sep(naBound, anion).toFixed(2)}` : '—');
+  // 반발쌍(+,+)은 서로 밀려 멀어짐(병합·결합 안 함). 전체 개수: H₂만 병합 → 7→6.
+  check('통합: 개수 7 → 6 (H₂만 병합, 반발쌍은 안 붙음)', w.elements.length === 6, `${n0} → ${w.elements.length}`);
 }
 
 console.log(failed === 0 ? '\n전체 통과 ✅' : `\n실패 ${failed}건 ❌`);
