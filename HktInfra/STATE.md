@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0314](step-0314.md) — **#9 잔여: host 프로세스 entity 가중 부하 `hostEntitySkew()`**. 부하를 존 수가 아니라 entity(≈동접)로 — 존 수 균형(skew 0)이어도 entity 가 A 몰리면 skew 3. 존 수 렌즈가 못 보는 실 부하를 드러냄. 읽기 전용·0313 비트 동일.
-- **한 줄 상태**: reg ALL OK·hostentityskew 5/5(zoneSkew0 vs entSkew3·총 entity4)·`run.js all` ALL OK·spine ALL OK.
+- **닫힌 step**: [step-0315](step-0315.md) — **#9 잔여: 다중 동시 host 프로세스 장애** + 질의 `hostCount()`. 2 host(각 2존) 연속 down → 4존 전부 마지막 생존 host(C)·hostCount 3→1·despawn A·B·bijection. 읽기 전용·0314 비트 동일.
+- **한 줄 상태**: reg ALL OK·hostdoublefail 5/5(hostCount1·C존4·despAB2·hcoh·bij)·`run.js all` ALL OK·spine ALL OK.
 - **다음**: 🎯 **host 프로세스 컨테이너 심화 arc(0311~0330·진행 중)** — 실 host.js 물리 분리 arc(0301~0310 ✅) 위에 host 프로세스 *생애주기 가시성·부하 균형·장애 자기복구 정합*을 컨테이너 모델로. 후속(arc 후): 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js 통합)·진짜 비동기(#4·논리클럭)·버스 라우팅 영속. 🔎 **0291~0300·0301~0310 묶음 리뷰 적기 — 미실시(2묶음 누적)**.
 
 ---
@@ -133,3 +133,4 @@
 | [0312](step-0312.md) | host 프로세스 컨테이너 심화 2: 생애주기 이벤트 로그 hostLifecycle(_hostSet spawn/despawn 순서 스트림·실 cluster.spawnOne/killHost 지점 씨앗·net 집합==가동 host·OFF 플래그 zoneHostLifecycle·0311 비트 동일) | 통과(reg 0·spine OK) · 5/5 spawn3·despawn1·net==live·sp−dp==hosts |
 | [0313](step-0313.md) | host 프로세스 컨테이너 심화 3: 다중 존 host 장애 failover + 질의 hostZones(host)(hostA 2존·엔티티3 장애→두 존 생존 host 재가동·entity3 소실·z3 보존·hostZones(A)빈·despawn A·읽기 전용·0312 비트 동일) | 통과(reg 0·spine OK) · 5/5 total1·lost3·A빈·despawnA·hcoh·consv |
 | [0314](step-0314.md) | host 프로세스 컨테이너 심화 4: entity 가중 부하 hostEntitySkew(부하를 존 수 아닌 entity 수로·존 수 균형이어도 entity 몰림 드러냄·읽기 전용·0313 비트 동일) | 통과(reg 0·spine OK) · 5/5 zoneSkew0 vs entSkew3·총 entity4 |
+| [0315](step-0315.md) | host 프로세스 컨테이너 심화 5: 다중 동시 host 장애 + 질의 hostCount(2 host 각 2존 연속 down→4존 전부 마지막 생존 host·hostCount 3→1·despawn A·B·bijection·읽기 전용·0314 비트 동일) | 통과(reg 0·spine OK) · 5/5 hostCount1·C존4·despAB2·hcoh·bij |

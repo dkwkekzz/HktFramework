@@ -1,8 +1,8 @@
-// HktInfra step-0314 — 헤드리스 검증 (#9 잔여: host 프로세스 entity 가중 부하 hostEntitySkew)
+// HktInfra step-0315 — 헤드리스 검증 (#9 잔여: 다중 동시 host 프로세스 장애)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostentityskew`.
-//   더한 한 조각: hostEntitySkew()(부하를 entity 수로). 존 수는 균형이어도 entity 가 한 host 에 몰리면 실 부하는 불균형 — 존 수 렌즈가 못 보는 것을 드러냄(읽기 전용).
-//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostentityskew`(가설) — 존 수 균형(skew 0)인데 entity 는 A 몰림(skew 3): hostLoadSkew 0 vs hostEntitySkew 3.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostdoublefail`.
+//   더한 한 조각: hostCount()(가동 host 프로세스 수). 2 host 연속 장애 → 모든 존을 마지막 생존 host 로·hostCount 3→1·bijection(읽기 전용).
+//   검증: ⒜ `reg`(키트·OFF 비트 동일). ⒝ `hostdoublefail`(가설) — hostA·hostB 연속 down → 4존 전부 hostC·hostCount 1·despawn A·B·hostContainerCoherent·bijection.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,27 +15,30 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0314 #9 잔여 검증 — entity 가중 부하(hostEntitySkew). z1@A·z2@B·z3@C(존 수 1·1·1 = 균형) 인데 entity 는 z1(A)에 3·z2(B)에 1·z3(C)에 0.
-//   존 수 렌즈(hostLoadSkew)는 skew 0(균형으로 착각)이지만 entity 렌즈(hostEntitySkew)는 skew 3(A 만원) — 실 부하 불균형을 entity 가중이 드러낸다. 재배치 판단의 더 정직한 척도.
-function hostentityskew(seeds) {
+// step-0315 #9 잔여 검증 — 다중 동시 host 장애(hostCount). z1·z2@A·z3·z4@B(2 host·각 2존). hostA down(생존 [B,C]) → z1·z2→C. hostB down(생존 [C]·죽은 A 제외) → z3·z4→C.
+//   장애 누적 후: 모든 4존이 hostC 로 수렴·hostCount 3→1(2대 죽고 1대 남음)·hostZones(C) 4개·A·B despawn 로그·hostContainerCoherent·bijection(zoneHostSnapshot=={C:[z1..z4]}).
+function hostdoublefail(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const ENTER = (at, zoneId, avatar) => ({ at, op: { type: 'zoneEnter', zoneId, avatar } });
-  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostC')];
-  const ENT = [ENTER(5, 'z1', 'a1'), ENTER(6, 'z1', 'a2'), ENTER(7, 'z1', 'a3'), ENTER(8, 'z2', 'a4')];
-  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true };
-  console.log('== hostentityskew (0314·#9 잔여): entity 가중 부하. 존 수 균형(skew 0)인데 entity 는 A 몰림(skew 3) — 존 수 렌즈가 못 보는 실 부하 불균형을 entity 가중이 드러냄. ==');
-  console.log('seed   | zoneSkew | entSkew | entMax | 판정');
+  const DOWN = (at, host, hosts) => ({ at, op: { type: 'placeHostDown', host, hosts } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), PLACE(3, 'z3', 'hostB'), PLACE(4, 'z4', 'hostB'),
+    DOWN(10, 'hostA', ['hostA', 'hostB', 'hostC']), DOWN(12, 'hostB', ['hostB', 'hostC'])];
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneHostLifecycle: true };
+  console.log('== hostdoublefail (0315·#9 잔여): 다중 동시 host 장애. 2 host(각 2존) 연속 down → 4존 전부 hostC·hostCount 3→1·despawn A·B·bijection. ==');
+  console.log('seed   | hostCount | C존수 | despAB | hcoh | bij | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE, placementOps: OPS, entityOps: ENT });
+    const r = run({ seed, ticks: 16, ...BASE, placementOps: OPS });
     const o = r.orch;
-    const zs = o.hostLoadSkew(), es = o.hostEntitySkew();
-    const ok = check(zs.skew === 0 && es.skew === 3 && es.max === 3 && es.min === 0 && o.totalEntities() === 4,
-      `seed ${seed}: entity 가중 부하 위반 (zoneSkew ${zs.skew}·entSkew ${es.skew}·entMax ${es.max}·total ${o.totalEntities()})`);
-    console.log(`${pad(seed, 6)} | ${pad(zs.skew, 8)} | ${pad(es.skew, 7)} | ${pad(es.max, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const cN = o.hostZones('hostC').length;
+    const despAB = o.hostLifecycle().filter(e => e.kind === 'despawn' && (e.host === 'hostA' || e.host === 'hostB')).length;
+    const snap = o.zoneHostSnapshot();
+    const bij = Object.keys(snap).length === 1 && (snap.hostC || []).join(',') === 'z1,z2,z3,z4';
+    const ok = check(o.hostCount() === 1 && cN === 4 && despAB === 2 && o.hostContainerCoherent() && bij && o.running.size === 4,
+      `seed ${seed}: 다중 장애 위반 (hostCount ${o.hostCount()}·C존 ${cN}·despAB ${despAB}·hcoh ${o.hostContainerCoherent()}·bij ${bij})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.hostCount(), 9)} | ${pad(cN, 5)} | ${pad(despAB, 6)} | ${pad(o.hostContainerCoherent() ? 'Y' : 'N', 4)} | ${pad(bij ? 'Y' : 'N', 3)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostentityskew'] = hostentityskew;
-kit.ORDER.splice(1, 0, 'hostentityskew');
+kit.MODES['hostdoublefail'] = hostdoublefail;
+kit.ORDER.splice(1, 0, 'hostdoublefail');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
