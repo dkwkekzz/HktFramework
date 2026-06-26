@@ -51,6 +51,10 @@ const OrchHostProc = {
     }
     return { total, hosts };
   },
+  // host 프로세스 entity 부하 질의(step-0316·#9 잔여) — 그 host 컨테이너가 인 존들의 entity 총수(실 부하 ≈ 동접 플레이어). hostLoad(0217·존 수)의 entity 가중 판 — 부하 인지 자동 배치(placeAutoE)가 가장 한가한 host 를 고르는 기준. 컨테이너 없는 idle host 는 0. 읽기 전용.
+  hostEntityLoad(host) { const c = this.zoneHosts.get(host); if (!c) return 0; let e = 0; for (const z of c.zones) { const rt = this.zoneRuntimes.get(z); if (rt) e += rt.zone.ents.size; } return e; },
+  // entity 최소 부하 host 선택(step-0316·#9 잔여) — 후보 중 hostEntityLoad 최소(동률은 후보 배열 순서로 결정론 tie-break). 후보 없으면 null. _leastLoaded(0217·존 수)의 entity 가중 판 — placeAutoE 가 쓴다.
+  _leastLoadedByEntities(hosts) { let best = null, bestLoad = Infinity; for (const h of hosts) { const l = this.hostEntityLoad(h); if (l < bestLoad) { bestLoad = l; best = h; } } return best; },
   // 가동 host 프로세스 수 질의(step-0315·#9 잔여) — 지금 존을 하나라도 돌리는 host 컨테이너 수(="몇 대의 host.js 프로세스가 떠 있나"·운영 대시보드의 기본 카운터). runningHosts(0249·집행 SSOT 의 host 집합)의 컨테이너 판 — 다중 동시 장애 후 생존 host 수로 수렴(예: 2대 죽고 1대 남으면 1). 읽기 전용.
   hostCount() { return this.zoneHosts.size; },
   // host 프로세스 entity 가중 부하 질의(step-0314·#9 잔여) — 부하를 *존 수*(hostLoadSkew·0311)가 아니라 *entity 수*로 본다 {hosts, min, max, skew}. 실 부하 ≈ 동접 플레이어 수이므로 entity 가중이 재배치의 더 정직한 척도(존 1개라도 만원이면 무겁다·존 수만 보면 균형으로 착각). zoneHostCensus(0307)의 entities 분포를 균형 렌즈로. host 0개면 전부 0. 읽기 전용.
