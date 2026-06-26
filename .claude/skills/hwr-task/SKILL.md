@@ -5,7 +5,7 @@ description: HWR 규칙 한 벌(설계→구현→시나리오→검증→기록
 
 # HWR 규칙 작업 루프 — 실행 절차
 
-규칙의 권위는 [`HWR/CLAUDE.md`](../CLAUDE.md)(큰 목표·핵심 원칙)와 [`HWR/STATE.md`](../STATE.md)(지금 어디까지 + 다음 방향). 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. 작업 디렉토리: `HWR/`.
+규칙의 권위는 [`HWR/CLAUDE.md`](../../../HWR/CLAUDE.md)(큰 목표·핵심 원칙)와 [`HWR/STATE.md`](../../../HWR/STATE.md)(지금 어디까지 + 다음 방향). 이 스킬은 그 절차를 **토큰·시간 효율적으로** 실행하는 방법만 정한다. 작업 디렉토리: `HWR/`.
 
 > 이 작업은 **오로지 원소의 *온전한* 규칙을 만드는 데 집중한다.** 한 규칙은 "대충 되는" 게 아니라 — 정의가 명확하고, 보존되는 것이 닫혀 있고, 검증으로 재현되는 *온전한 한 벌*이어야 한다.
 
@@ -35,11 +35,11 @@ description: HWR 규칙 한 벌(설계→구현→시나리오→검증→기록
 3. **시나리오(`scenario.js`) 제작** — 규칙을 확인해볼 상황. *필요 없을 수도 있다* — 각 규칙 상황에 따라 판단한다.
 4. **검증(`verify_NNNN.js`)** — 3에서 시나리오를 제작했다면, 그것이 규칙대로 작동하는지 검증할 수 있는 verify 를 작성하고 **돌려서 그 여부를 반드시 확인한다**(`node rules/rule_NNNN/verify_NNNN.js`).
 5. **문서 반영** — 진행하면서 변경점·완료 여부·이후 진행 여부를 `rule_NNNN.md` 에 추가 반영한다.
-6. **STATE 반영** — [`STATE.md`](../STATE.md) §1~3 을 덮어쓰고, §4 INDEX 에 1줄 추가한다.
+6. **STATE 반영** — [`STATE.md`](../../../HWR/STATE.md) §1~3 을 덮어쓰고, §4 INDEX 에 1줄 추가한다.
 
 ## 규칙 코드 계약 (`rule_NNNN.js`)
 
-뷰어([`render/viewer.html`](../render/viewer.html))와 검증(`verify_NNNN.js`)이 **같은 계약**으로 규칙을 로드한다. ES 모듈로 작성하고 규칙 객체를 `export default` 한다.
+뷰어([`render/viewer.html`](../../../HWR/render/viewer.html))와 검증(`verify_NNNN.js`)이 **같은 계약**으로 규칙을 로드한다. ES 모듈로 작성하고 규칙 객체를 `export default` 한다.
 
 ```js
 // rules/rule_0001/rule_0001.js

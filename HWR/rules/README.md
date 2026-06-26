@@ -1,6 +1,6 @@
 # rules — 규칙 보관소
 
-각 규칙은 `rule_NNNN/` 한 폴더에서 관리한다. 절차·계약은 [`../hwr-task/SKILL.md`](../hwr-task/SKILL.md).
+각 규칙은 `rule_NNNN/` 한 폴더에서 관리한다. 절차·계약은 [hwr-task 스킬](../../.claude/skills/hwr-task/SKILL.md) (`/hwr-task`).
 
 규칙 한 벌의 결과물:
 

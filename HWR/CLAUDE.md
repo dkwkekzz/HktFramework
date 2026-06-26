@@ -1,6 +1,6 @@
 # HWR — 큰 목표 (라우터)
 
-> 이 문서는 **목표와 참조 위치만** 보관하는 얇은 라우터다. 현재 위치의 권위는 [STATE.md](STATE.md), 작업 절차의 권위는 [hwr-task/SKILL.md](hwr-task/SKILL.md). **작업 전 STATE.md 필독.**
+> 이 문서는 **목표와 참조 위치만** 보관하는 얇은 라우터다. 현재 위치의 권위는 [STATE.md](STATE.md), 작업 절차의 권위는 [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md)(`/hwr-task` 로 호출). **작업 전 STATE.md 필독.**
 
 ## 목표
 
@@ -16,7 +16,7 @@
 
 ## 작업 단위 — 규칙(rule)
 
-세계는 한 번에 도달하지 않는다. **원소의 온전한 규칙 하나**를 작업 단위로 삼아 점진적으로 쌓는다. 각 규칙은 `rules/rule_NNNN/` 에서 관리하며, 설계 문서·구현 코드·검증의 세 결과물을 갖춘다(상세는 [hwr-task/SKILL.md](hwr-task/SKILL.md)).
+세계는 한 번에 도달하지 않는다. **원소의 온전한 규칙 하나**를 작업 단위로 삼아 점진적으로 쌓는다. 각 규칙은 `rules/rule_NNNN/` 에서 관리하며, 설계 문서·구현 코드·검증의 세 결과물을 갖춘다(상세는 [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md)).
 
 ## 인덱스
 
@@ -24,7 +24,7 @@
 |---|---|
 | [CLAUDE.md](CLAUDE.md) (이 문서) | 큰 목표 · 핵심 원칙 · 참조 위치 (거의 불변) |
 | [STATE.md](STATE.md) | 현재 상태 — 진행 중·예정·완료 규칙 정리 + 규칙 인덱스 (규칙마다 갱신) |
-| [hwr-task/SKILL.md](hwr-task/SKILL.md) | 원소의 온전한 규칙 한 벌을 만드는 작업 절차 (거의 불변) |
+| [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md) (`.claude/skills/hwr-task/`, `/hwr-task`) | 원소의 온전한 규칙 한 벌을 만드는 작업 절차 (거의 불변) |
 | [render/viewer.html](render/viewer.html) | 규칙을 시뮬레이션·시각화하는 웹 뷰어 (시나리오 주입·사용자 인터랙션) |
 | `rules/rule_NNNN/` | 규칙별 결과물 — `rule_NNNN.md`(설계) · `rule_NNNN.js`(구현) · `verify_NNNN.js`(검증) |
 

@@ -1,7 +1,7 @@
 # STATE — 살아있는 현재
 
 > "지금 어디까지 왔고 다음은 무엇인가"의 **단일 진실 원천(SSOT)**.
-> 큰 목표는 [CLAUDE.md](CLAUDE.md) · 작업 절차는 [hwr-task/SKILL.md](hwr-task/SKILL.md) · 각 규칙의 상세는 `rules/rule_NNNN/rule_NNNN.md`.
+> 큰 목표는 [CLAUDE.md](CLAUDE.md) · 작업 절차는 [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md) · 각 규칙의 상세는 `rules/rule_NNNN/rule_NNNN.md`.
 >
 > **구조 규칙**: 이 파일은 *고정 크기 대시보드*다. §1~3 은 규칙을 닫을 때마다 **덮어쓴다(rewrite)** — 누적 금지. 오직 §4 INDEX 만 **literal 1줄/규칙** append. 규칙의 발견·한계 전문은 STATE 가 아니라 `rule_NNNN.md`.
 > 마커: ✅완료 🟡진행중 🔴예정(최우선) ⬜백로그
@@ -18,7 +18,7 @@
 > 한 번에 하나의 온전한 규칙. 무엇을 할지 애매하면 사용자와 논의한다(임의로 트랙을 지어내지 않는다).
 
 - 🔴 **rule_0001 (예정)** — 첫 규칙. 후보: *원소의 존재와 자유 운동*(위치·속도를 가진 원소가 세계 안에서 굴러가고 경계와 상호작용). 설계 문서부터 작성하고 사용자와 합의 후 구현·검증.
-- 규칙 절차: 설계(`.md`) → 구현(`rule_NNNN.js`) → (필요 시) 시나리오(`scenario.js`) → 검증(`verify_NNNN.js`, 시나리오 있으면 필수) → 문서·STATE 반영. 상세 [hwr-task/SKILL.md](hwr-task/SKILL.md).
+- 규칙 절차: 설계(`.md`) → 구현(`rule_NNNN.js`) → (필요 시) 시나리오(`scenario.js`) → 검증(`verify_NNNN.js`, 시나리오 있으면 필수) → 문서·STATE 반영. 상세 [hwr-task 스킬](../.claude/skills/hwr-task/SKILL.md).
 
 ## 3. OPEN — 열린 격차
 
