@@ -165,6 +165,12 @@ const OrchZoneBridge = {
   },
   // 런타임 존 산출 뷰 버퍼 질의(step-0320·#9 후속) — 그 host 프로세스 런타임 존이 산출해 버퍼링 싱크에 쌓은 view frame 원본 배열({to, payload}…). 다운스트림 뷰의 *내용*(누가 무엇을 보나)을 검증하는 창(AOI 정확성·전파 무손실). 미가동 존 []. 읽기 전용.
   zoneViewBuf(zoneId) { const rt = this.zoneRuntimes.get(zoneId); return (rt && rt.zone.net && rt.zone.net.buf) ? rt.zone.net.buf : []; },
+  // 런타임 존 산출 뷰 통계 질의(step-0321·#9 후속) — 그 존이 한 세션(또는 전체)에 산출한 view_delta 분포 {resets, updates, enters, total}. 증분 전파의 핵심을 본다: 초기 keyframe(reset) 1 + 이동마다 update — *매 tick 전체 전송이 아니라 변경분만*(대역 절감). total ≪ tick 수면 증분이 동작. 미가동 존 0. 읽기 전용.
+  zoneViewStats(zoneId, sessionId) {
+    const buf = this.zoneViewBuf(zoneId); let resets = 0, updates = 0, enters = 0, total = 0;
+    for (const s of buf) { const p = s.payload; if (p.type !== 'view_delta' || (sessionId && p.sessionId !== sessionId)) continue; total++; if (p.reset) resets++; if (p.update && p.update.length) updates++; if (p.enter && p.enter.length) enters++; }
+    return { resets, updates, enters, total };
+  },
   // 런타임 존 AOI 가시 집합 질의(step-0320·#9 후속) — 그 존에서 avatar 가 *지금* 보는 entity id 집합(반경 R AOI·zone.visibleFor). host 가 산출한 view 의 enter 가 이 집합과 일치해야(뷰가 진짜 AOI 다 — 가까운 것만·먼 것 제외). 미가동/미존재 []. 읽기 전용.
   zoneVisibleIds(zoneId, avatar) { const rt = this.zoneRuntimes.get(zoneId); if (!rt) return []; const me = rt.zone.ents.get(avatar); if (!me) return []; return [...rt.zone.visibleFor(me).keys()].sort(); },
   // 런타임 존 산출 뷰 질의(step-0319·#9 후속·downstream 데이터 평면) — 그 host 프로세스가 onTick 으로 산출해 *버퍼링 싱크*에 쌓은 view/view_delta frame 수(미가동 존 0). 0282 까지 런타임 존의 뷰는 no-op 싱크로 드롭됐다 — 이 질의가 "host 가 실제로 AOI 뷰를 만들어 내보낼 준비가 됐나"를 본다(SPINE §4 경로2 월드 다운스트림의 씨앗). 읽기 전용.
