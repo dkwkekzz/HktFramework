@@ -89,6 +89,9 @@ export default {
     for (let j = 0; j < els.length; j++) {
       if (j === i) continue;
       const o = els[j];
+      // 골격 결합(rule_0008)으로 직접 묶인 쌍은 결합이 상호작용을 담당 → EM 에서 제외(이중 처리 방지).
+      //   비결합(분자 간) EM(쿨롱·반데르발스)은 유지. 결합 없는 세계는 무영향(하위 호환).
+      if (Array.isArray(e.bonds) && o.id != null && e.bonds.some(x => x.other === o.id)) continue;
       ensureCharges(o, world, kPolar);                     // 상대가 분자면 부분전하 보장
       const sitesO = chargeSites(o, world);
       if (sitesO.length === 0) continue;                   // 전하 없는 상대와는 전자기력 없음

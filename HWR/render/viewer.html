@@ -301,6 +301,28 @@ function draw() {
   draw._b = b;
   drawBox(b);
 
+  // 골격 결합(rule_0008) 링크 — 결합된 원자 쌍을 선으로 잇는다(분자의 *형상·사슬* 이 보이게).
+  //   e.bonds 는 이웃 *id* 를 담는다(엔진이 부여). id→원소로 찾아 토러스 최근접 이미지로 그린다.
+  {
+    let hasBonds = false;
+    const byId = new Map();
+    for (const e of world.elements) if (e.id != null) { byId.set(e.id, e); if (e.bonds && e.bonds.length) hasBonds = true; }
+    if (hasBonds) {
+      const Wt = world.width, Ht = world.height, Dt = world.depth || 0;
+      ctx.lineWidth = 2; ctx.strokeStyle = 'rgba(170,190,220,0.55)';
+      for (const e of world.elements) {
+        if (!e.bonds) continue;
+        for (const ln of e.bonds) {
+          const o = byId.get(ln.other);
+          if (!o || !(e.id < o.id)) continue;             // 쌍당 한 번만
+          // 토러스 경계를 가로지르는 결합은 그리지 않는다(반대편으로 이어진 선 방지)
+          if (Math.abs(o.x - e.x) > Wt / 2 || Math.abs(o.y - e.y) > Ht / 2 || (Dt > 0 && Math.abs((o.z || 0) - (e.z || 0)) > Dt / 2)) continue;
+          seg(project({ X: e.x, Y: e.z || 0, Z: e.y }, b), project({ X: o.x, Y: o.z || 0, Z: o.y }, b));
+        }
+      }
+    }
+  }
+
   // 원소: 깊이 정렬(먼 것 먼저)
   const arr = [];
   for (const e of world.elements) {

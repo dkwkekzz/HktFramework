@@ -55,7 +55,10 @@ function refresh(e) {
     e.en = s.en;                                   // 창발한 전기음성도(엔진의 전자 이동 방향·뷰어가 읽음)
     e.valence = s.valence;                          // 결합가(관찰용)
     e.tendency = s.tendency;                        // 금속/비금속/share/noble(관찰용)
-    e.freeValence = Math.max(0, s.valence - Math.abs(e.q || 0));
+    // 골격 결합(rule_0008): 이미 맺은 지속 링크가 쓴 손(Σ결합차수)을 뺀다 → 남은 손만 새 결합에 쓴다.
+    //   링크가 끊기면(분해) 이 합이 줄어 손이 자동 복원 = 가역. 링크 없는 세계는 used=0 → 옛 거동 동일.
+    const used = Array.isArray(e.bonds) ? e.bonds.reduce((a, b) => a + (b.order || 0), 0) : 0;
+    e.freeValence = Math.max(0, s.valence - Math.abs(e.q || 0) - used);
   }
   // 분자는 freeValence 가 이미 설정돼 있다(엔진 병합이 계산) — 그대로 둔다.
   return e.freeValence != null ? e.freeValence : 0;
@@ -84,6 +87,10 @@ export default {
     const els = world.elements;
     const W = world.width, H = world.height, D = world.depth;
     const wrapZ = typeof D === 'number' && D > 0;
+    // 골격 결합 세계: 공유 결합을 *융합(pendingMerges)* 대신 *지속 링크(pendingBonds)* 로 실현한다.
+    //   결정(언제·어떤 종류·차수)은 그대로 — 실현 채널만 바뀐다(rule_0008 설계). 비-skeletal 은 옛 융합.
+    const skeletal = world.skeletal === true;
+    const orderCap = params && params.bondOrderCap != null ? params.bondOrderCap : Infinity;
 
     ensureTick(e, world);
     if (!isShell(e)) return;                         // 구형 원소는 rule_0002 소관
@@ -93,6 +100,8 @@ export default {
       const o = els[j];
       ensureTick(o, world);
       if (!isShell(o)) continue;
+      // 골격 세계에서 이미 링크된 쌍은 다시 결합하지 않는다(차수 누적·재결합 방지).
+      if (skeletal && Array.isArray(e.bonds) && o.id != null && e.bonds.some(x => x.other === o.id)) continue;
 
       // 접촉(토러스 최근접 구 거리 ≤ 반경 합) — 3D
       let dx = o.x - e.x; dx -= Math.round(dx / W) * W;
@@ -122,9 +131,16 @@ export default {
         world.pendingTransfers.push({ a: i, b: j, dq });
         e._vleft -= dq; o._vleft -= dq;
       } else {
-        // 공유(또는 금속끼리·share): 결합차수 = min(두 손) 만큼 전자쌍 공유 → 병합. 양쪽이 그만큼 소비.
-        const order = Math.min(e._vleft, o._vleft);
-        world.pendingMerges.push({ a: i, b: j, order });
+        // 공유(또는 금속끼리·share): 결합차수 = min(두 손) 만큼 전자쌍 공유. 양쪽이 그만큼 소비.
+        let order = Math.min(e._vleft, o._vleft);
+        if (skeletal) {
+          // 골격: 차수 상한(bondOrderCap)을 적용 — 상한 1 이면 *단일 결합*만 → 손이 남아 여러 이웃과
+          //   링크 → 사슬·가지(고분자)가 창발. 상한 미설정이면 옛 차수(이중·삼중 결합) 그대로.
+          if (order > orderCap) order = orderCap;
+          world.pendingBonds.push({ a: i, b: j, order });   // 융합 대신 지속 링크(rule_0008)
+        } else {
+          world.pendingMerges.push({ a: i, b: j, order });  // 옛 거동: 하나의 질점으로 융합
+        }
         e._vleft -= order; o._vleft -= order;
       }
     }

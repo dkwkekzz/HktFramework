@@ -65,6 +65,10 @@ export default {
     for (let j = 0; j < els.length; j++) {
       if (j === i) continue;
       const o = els[j];
+      // 골격 결합(rule_0008)으로 직접 묶인 쌍은 *결합 길이 힘*이 거리를 정한다 — 배제 부피가 끼어들면
+      //   결합 평형(코어<결합 길이)에서 둘이 충돌해 골격이 깨진다. 그래서 결합 이웃은 건너뛴다.
+      //   (분자 간·비결합 쌍은 그대로 배제 부피로 부딪쳐 분자에 부피를 준다 — 결합 없으면 무영향, 하위 호환.)
+      if (Array.isArray(e.bonds) && o.id != null && e.bonds.some(x => x.other === o.id)) continue;
       const sigma = sigmaE + cloudRadius(o, p);          // 두 구름이 닿는 중심거리(접촉)
 
       // 토러스 최근접 변위 d = o − e (e 에서 o 로) — 3D

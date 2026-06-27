@@ -26,11 +26,20 @@ export function stepWorld(world, rules, params) {
   const dt = params && params.dt != null ? params.dt : 1;
   const els = world.elements;
 
+  // 골격 결합 세계(world.skeletal): 원자에 *안정 id* 를 1회 부여한다 — 결합은 id 쌍으로 기록되어
+  //   원소 추가/재정렬에도 안전하다(rule_0008). 비-skeletal 세계는 손대지 않아 비트 동일(하위 호환).
+  if (world.skeletal) {
+    if (world._nextId == null) world._nextId = 0;
+    for (const e of els) if (e.id == null) e.id = world._nextId++;
+  }
+
   // ① 힘 누적기 초기화
   for (const e of els) { e.fx = 0; e.fy = 0; e.fz = 0; }
   // 이번 틱의 사건 표시판 초기화(규칙이 ②에서 채운다). 비우고 시작 → 표시 안 되면 변화 0.
-  world.pendingMerges = [];       // 결합(공유) → 병합
+  world.pendingMerges = [];       // 결합(공유·융합) → 병합(점질량 합성)
   world.pendingTransfers = [];    // 결합(이온) → 전하 이동
+  world.pendingBonds = [];        // 결합(공유·골격) → 지속 링크 기록(rule_0008, 융합 X)
+  world.pendingUnbonds = [];      // 분해(골격) → 링크 제거(가역 분해, rule_0008)
 
   // ② 모든 원소 × 모든 규칙 — 규칙은 힘만 누적하거나 사건을 표시. (위치는 아직 고정 → 적용 순서 무관)
   for (let i = 0; i < els.length; i++) {
@@ -59,7 +68,8 @@ export function stepWorld(world, rules, params) {
 
   // ⑤ 위상/상태 재조정 — 규칙이 표시한 결합을 실현
   reconcileTransfers(world);  // 이온 결합: 전자(전하) 이동 (Σq 보존)
-  reconcileMerges(world);     // 공유 결합: 원소 병합 (질량·운동량·전하 보존)
+  reconcileBonds(world);      // 골격 결합: 지속 링크 기록/제거 (원자 distinct 유지 — 융합 X)
+  reconcileMerges(world);     // 공유 결합(융합): 원소 병합 (질량·운동량·전하 보존)
 
   // ⑥ 시간 전진(엔진 전용)
   world.tick++;
@@ -84,6 +94,46 @@ function reconcileTransfers(world) {
     const donate = accept === ea ? eb : ea;                 // 전자 주는 쪽(en 낮음)
     accept.q = (accept.q || 0) - dq;
     donate.q = (donate.q || 0) + dq;
+  }
+}
+
+// 골격 결합의 *메커니즘*(보편 위상 부기) — 규칙이 표시한 링크를 위상에 기록/제거한다.
+//   융합(reconcileMerges)이 원자를 하나의 질점으로 접었던 것과 달리, 여기선 원자를 *distinct 로 둔 채*
+//   결합 그래프만 갱신한다. 분자 = "결합으로 연결된 원자들의 연결 성분"(저장이 아니라 그래프).
+//   · 형성(pendingBonds): {a,b,order} — a,b 는 현재 elements 인덱스. 양쪽 인접 리스트 e.bonds 에
+//       서로의 *id* 와 결합차수를 기록(중복 금지). 원자는 사라지지 않으니 Σm·Σq·Σmv 자동 보존.
+//   · 분해(pendingUnbonds): {a,b} — a,b 는 *id*(끊는 규칙이 id 를 안다). 양쪽 인접 리스트에서 제거.
+//       잔여 원자가(freeValence)는 rule_0004 가 다음 틱에 e.bonds 로부터 자동 복원 → 가역 분해.
+//   타입을 모른 채 위상만 다루므로 author 안 함이 지켜진다(융합이 질량만 합산했듯).
+function reconcileBonds(world) {
+  const reqs = world.pendingBonds, uns = world.pendingUnbonds;
+  const els = world.elements;
+  const n = els.length;
+
+  // 형성 — 인덱스 쌍 → id 기반 링크. 이미 결합된 쌍은 건너뛴다(차수 누적 방지).
+  if (Array.isArray(reqs)) for (const r of reqs) {
+    if (!r) continue;
+    const a = r.a, b = r.b;
+    if (a < 0 || b < 0 || a >= n || b >= n || a === b) continue;
+    const ea = els[a], eb = els[b];
+    if (ea.id == null || eb.id == null) continue;
+    if (!Array.isArray(ea.bonds)) ea.bonds = [];
+    if (!Array.isArray(eb.bonds)) eb.bonds = [];
+    if (ea.bonds.some(x => x.other === eb.id)) continue;   // 이미 링크됨
+    const order = r.order != null ? r.order : 1;
+    ea.bonds.push({ other: eb.id, order });
+    eb.bonds.push({ other: ea.id, order });
+  }
+
+  // 분해 — id 쌍을 양쪽 인접 리스트에서 제거. (원자는 그대로 남고 결합만 끊긴다.)
+  if (Array.isArray(uns) && uns.length) for (const u of uns) {
+    if (!u) continue;
+    const ai = u.a, bi = u.b;                              // ids
+    for (const e of els) {
+      if (!Array.isArray(e.bonds) || e.bonds.length === 0) continue;
+      if (e.id === ai) e.bonds = e.bonds.filter(x => x.other !== bi);
+      else if (e.id === bi) e.bonds = e.bonds.filter(x => x.other !== ai);
+    }
   }
 }
 
