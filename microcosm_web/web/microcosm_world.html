@@ -1,0 +1,169 @@
+<!DOCTYPE html><html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microcosm world — 지형·바다·바위·나무·개체</title>
+<style>
+ :root{color-scheme:dark} body{margin:0;background:#0a0a10;color:#e8e6df;font-family:-apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;gap:10px;padding:16px}
+ h1{font-size:18px;font-weight:500;margin:2px 0 0} p.sub{margin:0;color:#9a988f;font-size:13px;text-align:center}
+ .bar{display:flex;gap:8px;flex-wrap:wrap;justify-content:center}
+ button{background:#17171f;color:#e8e6df;border:1px solid #2e2e38;border-radius:8px;padding:8px 13px;font-size:14px;cursor:pointer} button:hover{background:#20202a}
+ .wrap{position:relative;width:100%;max-width:860px} #mcw{width:100%;border-radius:12px;border:1px solid #24242c;display:block;cursor:crosshair}
+ #hud{position:absolute;left:12px;top:10px;font-size:13px;color:#cfcabf;background:rgba(13,13,20,.5);padding:4px 9px;border-radius:7px;pointer-events:none}
+</style></head><body>
+<h1>microcosm world — 지형·바다·바위·나무·개체</h1>
+<p class="sub">전부 같은 규칙. 마우스로 조준, 클릭·드래그=물 붓기. 나무에 파이어볼을 쏘면 결합이 녹아 쓰러져요.</p>
+<div class="bar"><button id="bWater">물 💧</button><button id="bRock">바위 🪨</button><button id="bTree">나무 🌲</button><button id="bCreature">개체 🐾</button><button id="bFire">파이어볼 🔥</button><button id="bReset">리셋</button></div>
+<div class="wrap"><canvas id="mcw" width="840" height="420"></canvas><div id="hud"></div></div>
+<script>
+/* engineworld.js v4 - 2D 세계 엔진. 원리: 단위+장+레시피.
+   추가 일반부품: TerrainField, CohesionField, per-bond 융점, world.agents.
+   안정화: 나무=2열 트러스+넓은 고정 뿌리, 지형 지지력 강화, 점성/감쇠 보강. */
+(function (global) {
+  'use strict';
+  const KIND = { VOID: 0, CHARACTER: 1, FIRE: 2, LIGHTNING: 3, ARMOR: 4, WATER: 5, ROCK: 6, WOOD: 7, LEAF: 8, CREATURE: 9 };
+
+  class World {
+    constructor(o = {}) {
+      this.W = o.W || 240; this.H = o.H || 120; this.gravity = o.gravity != null ? o.gravity : 16; this.cap = o.cap || 9000; const c = this.cap;
+      this.px = new Float64Array(c); this.py = new Float64Array(c); this.vx = new Float64Array(c); this.vy = new Float64Array(c); this.fx = new Float64Array(c); this.fy = new Float64Array(c);
+      this.T = new Float64Array(c); this.dT = new Float64Array(c); this.M = new Float64Array(c); this.hp = new Float64Array(c); this.hpMax = new Float64Array(c);
+      this.gScale = new Float64Array(c); this.homeoT = new Float64Array(c); this.kind = new Int32Array(c); this.fixed = new Uint8Array(c); this.homeo = new Uint8Array(c); this.alive = new Uint8Array(c);
+      this.n = 0; this.bonds = []; this.bolts = []; this.agents = []; this.time = 0; this.ground = (x) => 20;
+    }
+    groundSlope(x) { return (this.ground(x + 0.5) - this.ground(x - 0.5)); }
+    spawn(o) { const i = this.n++; this.px[i] = o.x; this.py[i] = o.y; this.vx[i] = o.vx || 0; this.vy[i] = o.vy || 0; this.T[i] = o.T || 0; this.M[i] = o.M || 1; this.kind[i] = o.kind || 0; this.fixed[i] = o.fixed ? 1 : 0; this.gScale[i] = o.gScale != null ? o.gScale : 0; this.alive[i] = 1; this.hp[i] = o.hp || 0; this.hpMax[i] = o.hp || 0; if (o.homeoT != null) { this.homeo[i] = 1; this.homeoT[i] = o.homeoT; } return i; }
+    addBond(i, j, k, rest, melt) { if (rest == null) rest = Math.hypot(this.px[i] - this.px[j], this.py[i] - this.py[j]); this.bonds.push({ i, j, rest, k, melt: melt != null ? melt : 0.85 }); }
+    killUnit(i) { this.alive[i] = 0; this.kind[i] = KIND.VOID; this.bonds = this.bonds.filter(b => b.i !== i && b.j !== i); }
+    step(dt) {
+      const n = this.n; for (let i = 0; i < n; i++) { this.fx[i] = 0; this.fy[i] = 0; this.dT[i] = 0; }
+      for (const a of this.agents) if (a.update) a.update(this, dt);
+      const rTh2 = 49, diff = 0.2, rRep = 3, rRep2 = 9, repK = 120, rCoh = 6.5, rCoh2 = 42.25, cohK = 16, WATER = KIND.WATER;
+      for (let i = 0; i < n; i++) { if (!this.alive[i]) continue;
+        for (let j = i + 1; j < n; j++) { if (!this.alive[j]) continue;
+          let dx = this.px[j] - this.px[i], dy = this.py[j] - this.py[i], d2 = dx * dx + dy * dy;
+          const ww = this.kind[i] === WATER && this.kind[j] === WATER;
+          if (d2 > rTh2 && !(ww && d2 < rCoh2)) continue;
+          let d = Math.sqrt(d2) + 1e-9;
+          if (d2 <= rTh2) { let t = diff * (this.T[j] - this.T[i]); this.dT[i] += t; this.dT[j] -= t; }
+          if (d2 < rRep2) { let f = repK * (rRep - d) / rRep / d; this.fx[i] -= f * dx; this.fy[i] -= f * dy; this.fx[j] += f * dx; this.fy[j] += f * dy; }
+          if (ww && d2 < rCoh2 && d > rRep) { let f = cohK * (rCoh - d) / rCoh / d; this.fx[i] += f * dx; this.fy[i] += f * dy; this.fx[j] -= f * dx; this.fy[j] -= f * dy; }
+        } }
+      const buoy = 5, buoyThr = 0.3, cool = 0.5, dragC = 0.85, homeoG = 2.5;
+      for (let i = 0; i < n; i++) { if (!this.alive[i]) continue; this.fy[i] += buoy * Math.max(this.T[i] - buoyThr, 0); this.fy[i] -= this.gravity * this.gScale[i] * this.M[i]; this.dT[i] -= cool * this.T[i]; if (this.homeo[i]) this.dT[i] += homeoG * (this.homeoT[i] - this.T[i]); this.fx[i] -= dragC * this.vx[i]; this.fy[i] -= dragC * this.vy[i]; }
+      const stretch = 2.3, dampB = 1.4, keep = [];
+      for (const b of this.bonds) { const i = b.i, j = b.j; let dx = this.px[j] - this.px[i], dy = this.py[j] - this.py[i], L = Math.hypot(dx, dy) + 1e-9, ux = dx / L, uy = dy / L; if (0.5 * (this.T[i] + this.T[j]) > b.melt || L > b.rest * stretch) continue; let f = b.k * (L - b.rest); f += dampB * ((this.vx[j] - this.vx[i]) * ux + (this.vy[j] - this.vy[i]) * uy); this.fx[i] += f * ux; this.fy[i] += f * uy; this.fx[j] -= f * ux; this.fy[j] -= f * uy; keep.push(b); }
+      this.bonds = keep;
+      const kSup = 360, nDamp = 13, fric = 6.0;
+      for (let i = 0; i < n; i++) { if (!this.alive[i] || this.fixed[i]) continue; const h = this.ground(this.px[i]), pen = h - this.py[i]; if (pen > 0) { let s = this.groundSlope(this.px[i]), nl = Math.hypot(-s, 1), nx = -s / nl, ny = 1 / nl; this.fx[i] += kSup * pen * nx; this.fy[i] += kSup * pen * ny; let vn = this.vx[i] * nx + this.vy[i] * ny; this.fx[i] -= nDamp * vn * nx; this.fy[i] -= nDamp * vn * ny; let tx = ny, ty = -nx, vt = this.vx[i] * tx + this.vy[i] * ty; this.fx[i] -= fric * vt * tx; this.fy[i] -= fric * vt * ty; } }
+      for (let i = 0; i < n; i++) { if (!this.alive[i]) continue; if (this.fixed[i]) { this.vx[i] = 0; this.vy[i] = 0; } else { this.vx[i] += this.fx[i] / this.M[i] * dt; this.vy[i] += this.fy[i] / this.M[i] * dt; this.px[i] += this.vx[i] * dt; this.py[i] += this.vy[i] * dt; } this.T[i] = Math.max(0, this.T[i] + this.dT[i] * dt);
+        if (this.px[i] < 0) { this.px[i] = 0; this.vx[i] *= -0.5; } if (this.px[i] > this.W) { this.px[i] = this.W; this.vx[i] *= -0.5; } if (this.py[i] < 0) { this.py[i] = 0; this.vy[i] *= -0.5; } if (this.py[i] > this.H) { this.py[i] = this.H; this.vy[i] *= -0.5; } }
+      const burnK = 22, burnThr = 0.5;
+      for (let i = 0; i < n; i++) { if (!this.alive[i]) continue; const kd = this.kind[i]; if (kd === KIND.FIRE) { if (this.T[i] < 0.16) this.killUnit(i); continue; } if (kd === KIND.LIGHTNING) { if (this.T[i] < 0.2) this.killUnit(i); continue; } if (this.hpMax[i] > 0 && this.T[i] > burnThr) { this.hp[i] -= burnK * (this.T[i] - burnThr) * dt; if (this.hp[i] <= 0) this.killUnit(i); } }
+      for (const bolt of this.bolts) bolt.life -= dt; this.bolts = this.bolts.filter(b => b.life > 0); this.time += dt;
+    }
+  }
+
+  const Forms = {
+    terrain(w) { w.ground = (x) => 20 + 17 * Math.sin(x * 0.017 + 1.0) + 7 * Math.sin(x * 0.058 + 0.5) + 4 * Math.sin(x * 0.11); return { ground: w.ground }; },
+    water(w, cx, count = 60, spreadX = 18, topY = null) { const y0 = topY != null ? topY : w.H - 6, units = []; for (let c = 0; c < count; c++) units.push(w.spawn({ x: cx + (Math.random() - 0.5) * spreadX, y: y0 - Math.random() * 14, vx: (Math.random() - 0.5) * 2, vy: -2, M: 0.5, kind: KIND.WATER, gScale: 1 })); return { units }; },
+    character(w, cx, cy, opt = {}) { const radius = opt.radius || 4, nring = opt.nring || 10, temp = 0.12, k = 30, hp = opt.hp || 100; cy = Math.max(cy, w.ground(cx) + 5); const core = w.spawn({ x: cx, y: cy, T: temp, M: 1.4, kind: KIND.CHARACTER, homeoT: temp, hp, gScale: 1 }); const ring = []; for (let a = 0; a < nring; a++) { const ang = 2 * Math.PI * a / nring; ring.push(w.spawn({ x: cx + radius * Math.cos(ang), y: cy + radius * Math.sin(ang), T: temp, M: 1, kind: KIND.CHARACTER, homeoT: temp, hp, gScale: 1 })); } for (const i of ring) w.addBond(core, i, k); for (let a = 0; a < nring; a++) w.addBond(ring[a], ring[(a + 1) % nring], k); return { core, units: [core, ...ring] }; },
+
+    rock(w, cx, cy, opt = {}) { const r = opt.r || 5, sp = 2.3, units = []; cy = w.ground(cx) + r + 1;
+      for (let yy = -r; yy <= r; yy += sp) for (let xx = -r; xx <= r; xx += sp) if (xx * xx + yy * yy <= r * r) units.push(w.spawn({ x: cx + xx, y: cy + yy, M: 1.2, kind: KIND.ROCK, gScale: 1, hp: 0 }));
+      for (let a = 0; a < units.length; a++) for (let b = a + 1; b < units.length; b++) { const dx = w.px[units[a]] - w.px[units[b]], dy = w.py[units[a]] - w.py[units[b]]; if (dx * dx + dy * dy < 4.7 * 4.7) w.addBond(units[a], units[b], 430, null, 9); }
+      return { units }; },
+
+    // 나무: 2열 트러스 + 넓은 고정 뿌리(쓰러짐 방지) + 분기/잎. 불에 융해→붕괴.
+    tree(w, baseX, opt = {}) { const baseY = w.ground(baseX), segs = opt.segs || 5, seg = opt.seg || 4, hw = 1.7, k = 130, mt = 0.6, hp = 40; const Lc = [], Rc = [], leaves = [];
+      for (let s = 0; s <= segs; s++) { const y = baseY + s * seg, fx = s === 0;
+        const li = w.spawn({ x: baseX - hw, y, M: 0.7, kind: KIND.WOOD, gScale: 1, fixed: fx, hp }); const ri = w.spawn({ x: baseX + hw, y, M: 0.7, kind: KIND.WOOD, gScale: 1, fixed: fx, hp });
+        Lc.push(li); Rc.push(ri); w.addBond(li, ri, k, null, mt);
+        if (s > 0) { w.addBond(Lc[s - 1], li, k, null, mt); w.addBond(Rc[s - 1], ri, k, null, mt); w.addBond(Lc[s - 1], ri, k * 0.7, null, mt); w.addBond(Rc[s - 1], li, k * 0.7, null, mt); } }
+      const rl = w.spawn({ x: baseX - 5, y: baseY, M: 0.8, kind: KIND.WOOD, gScale: 1, fixed: true, hp }); const rr = w.spawn({ x: baseX + 5, y: baseY, M: 0.8, kind: KIND.WOOD, gScale: 1, fixed: true, hp });
+      w.addBond(rl, Lc[0], k, null, mt); w.addBond(rl, Lc[1], k * 0.8, null, mt); w.addBond(rl, Rc[0], k * 0.6, null, mt);
+      w.addBond(rr, Rc[0], k, null, mt); w.addBond(rr, Rc[1], k * 0.8, null, mt); w.addBond(rr, Lc[0], k * 0.6, null, mt);
+      const leaf = (x, y, anc) => { const id = w.spawn({ x, y, M: 0.4, kind: KIND.LEAF, gScale: 1, hp: 12 }); w.addBond(anc, id, 26, null, 0.4); leaves.push(id); };
+      for (let b = 3; b <= segs; b++) { if (Math.random() < 0.3) continue; for (const dir of [-1, 1]) { const col = dir < 0 ? Lc : Rc, bx = baseX + dir * (hw + seg * 1.2), by = baseY + b * seg; const bi = w.spawn({ x: bx, y: by, M: 0.45, kind: KIND.WOOD, gScale: 1, hp }); w.addBond(col[b], bi, k * 0.8, null, mt); w.addBond(col[b - 1], bi, k * 0.55, null, mt); for (let l = 0; l < 4; l++) leaf(bx + (Math.random() - 0.5) * 4, by + 2 + Math.random() * 4, bi); } }
+      for (let l = 0; l < 8; l++) leaf(baseX + (Math.random() - 0.5) * 7, baseY + segs * seg + 2 + Math.random() * 5, Math.random() < 0.5 ? Lc[segs] : Rc[segs]);
+      return { trunk: Lc.concat(Rc), Lc, Rc, leaves }; },
+
+    creature(w, cx, cy, opt = {}) { const radius = 3.4, nring = 8, temp = 0.12, k = 32, hp = 80; cy = Math.max(cy, w.ground(cx) + 5);
+      const core = w.spawn({ x: cx, y: cy, T: temp, M: 1.1, kind: KIND.CREATURE, homeoT: temp, hp, gScale: 1 }); const units = [core];
+      for (let a = 0; a < nring; a++) { const ang = 2 * Math.PI * a / nring; units.push(w.spawn({ x: cx + radius * Math.cos(ang), y: cy + radius * Math.sin(ang), T: temp, M: 0.8, kind: KIND.CREATURE, homeoT: temp, hp, gScale: 1 })); }
+      const ring = units.slice(1); for (const i of ring) w.addBond(core, i, k); for (let a = 0; a < ring.length; a++) w.addBond(ring[a], ring[(a + 1) % ring.length], k);
+      const ctrl = { units, core, target: cx, speed: opt.speed || 11, t: 0, hop: 1 + Math.random(),
+        update(w, dt) { if (!w.alive[this.core]) return; this.t -= dt;
+          if (this.t <= 0 || Math.abs(w.px[this.core] - this.target) < 8) { this.target = 24 + Math.random() * (w.W - 48); this.t = 2.5 + Math.random() * 3; }
+          const dvx = Math.sign(this.target - w.px[this.core]) * this.speed;
+          for (const i of this.units) if (w.alive[i]) w.fx[i] += 3.2 * (dvx - w.vx[i]);
+          this.hop -= dt; if (this.hop <= 0) { this.hop = 1.6 + Math.random() * 1.4; for (const i of this.units) if (w.alive[i]) w.vy[i] += 5; } } };
+      w.agents.push(ctrl); return ctrl; },
+
+    fireball(w, cx, cy, opt = {}) { const count = opt.count || 40, temp = opt.temp || 2.0, units = []; for (let c = 0; c < count; c++) { const a = Math.random() * 6.283, sp = 1 + Math.random() * 4; units.push(w.spawn({ x: cx + (Math.random() - 0.5) * 4, y: cy + (Math.random() - 0.5) * 4, vx: Math.cos(a) * sp, vy: Math.sin(a) * sp, T: temp * (0.7 + Math.random() * 0.6), M: 0.8, kind: KIND.FIRE, gScale: 0 })); } return { units }; }
+  };
+
+  global.MCW = { KIND, World, Forms };
+  if (typeof module !== 'undefined' && module.exports) module.exports = global.MCW;
+})(typeof window !== 'undefined' ? window : globalThis);
+/* uiworld.js v2.1 - 순수 2D 캔버스. 지형·바다·바위·나무·개체·불 + 가열 글로우. 엔진=window.MCW */
+(function () {
+  const K = MCW.KIND;
+  const cv = document.getElementById('mcw'), ctx = cv.getContext('2d'), hud = document.getElementById('hud');
+  const W = 240, H = 120, scale = cv.width / W;
+  const sx = x => x * scale, sy = y => (H - y) * scale;
+  let world, mouse = { x: 120, y: 60 }, pouring = false; const MAXN = 2400;
+  function reset() {
+    world = new MCW.World({ W, H, gravity: 16 }); MCW.Forms.terrain(world);
+    for (const cx of [70, 100, 130]) MCW.Forms.water(world, cx, 55, 26, 112);
+    MCW.Forms.tree(world, 44); MCW.Forms.tree(world, 92); MCW.Forms.tree(world, 198);
+    MCW.Forms.rock(world, 150, 0, { r: 5 });
+    MCW.Forms.creature(world, 116, 100); MCW.Forms.creature(world, 175, 100);
+    MCW.Forms.character(world, 224, 95);
+  }
+  function pour(x, y) { if (world.n < MAXN) for (let t = 0; t < 6; t++) world.spawn({ x: x + (Math.random() - 0.5) * 6, y: y + Math.random() * 5, vy: -3, M: 0.5, kind: K.WATER, gScale: 1 }); }
+  function toWorld(e) { const r = cv.getBoundingClientRect(); return { x: (e.clientX - r.left) * (cv.width / r.width) / scale, y: H - (e.clientY - r.top) * (cv.height / r.height) / scale }; }
+  cv.addEventListener('mousemove', e => { mouse = toWorld(e); });
+  cv.addEventListener('mousedown', e => { mouse = toWorld(e); pouring = true; });
+  window.addEventListener('mouseup', () => { pouring = false; });
+  const bind = (id, fn) => { const el = document.getElementById(id); if (el) el.onclick = fn; };
+  bind('bWater', () => pour(mouse.x, mouse.y));
+  bind('bRock', () => MCW.Forms.rock(world, mouse.x, 0, { r: 4.5 }));
+  bind('bTree', () => MCW.Forms.tree(world, mouse.x));
+  bind('bCreature', () => MCW.Forms.creature(world, mouse.x, mouse.y));
+  bind('bFire', () => MCW.Forms.fireball(world, mouse.x, mouse.y, { count: 44, temp: 2.2 }));
+  bind('bReset', reset);
+  function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); }
+  function fireColor(T) { const t = Math.min(1, T / 2); return 'rgba(255,' + (90 + t * 150 | 0) + ',' + (t * 60 | 0) + ',0.85)'; }
+  const COL = {}; COL[K.ROCK] = '#8b8576'; COL[K.WOOD] = '#7a5630'; COL[K.LEAF] = '#4f9a3e';
+  function drawTerrain() {
+    ctx.beginPath(); ctx.moveTo(0, cv.height);
+    for (let x = 0; x <= W; x += 2) ctx.lineTo(sx(x), sy(world.ground(x)));
+    ctx.lineTo(cv.width, cv.height); ctx.closePath(); ctx.fillStyle = '#3a3526'; ctx.fill();
+    ctx.beginPath(); for (let x = 0; x <= W; x += 2) { const px = sx(x), py = sy(world.ground(x)); if (x === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py); } ctx.strokeStyle = '#5a8f3c'; ctx.lineWidth = 3; ctx.stroke();
+  }
+  function draw() {
+    const g = ctx.createLinearGradient(0, 0, 0, cv.height); g.addColorStop(0, '#10131c'); g.addColorStop(1, '#161a26'); ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
+    drawTerrain();
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < world.n; i++) { if (!world.alive[i] || world.kind[i] !== K.WATER) continue; ctx.fillStyle = 'rgba(50,120,210,0.5)'; circle(sx(world.px[i]), sy(world.py[i]), 4.4); }
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.lineWidth = 1.6; ctx.beginPath(); ctx.strokeStyle = 'rgba(122,86,48,0.9)';
+    for (const b of world.bonds) { if (!world.alive[b.i] || !world.alive[b.j]) continue; if (world.kind[b.i] !== K.WOOD && world.kind[b.i] !== K.LEAF) continue; ctx.moveTo(sx(world.px[b.i]), sy(world.py[b.i])); ctx.lineTo(sx(world.px[b.j]), sy(world.py[b.j])); }
+    ctx.stroke();
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(150,150,170,0.3)'; ctx.lineWidth = 1;
+    for (const b of world.bonds) { if (!world.alive[b.i] || !world.alive[b.j]) continue; if (world.kind[b.i] === K.WOOD || world.kind[b.i] === K.LEAF) continue; ctx.moveTo(sx(world.px[b.i]), sy(world.py[b.i])); ctx.lineTo(sx(world.px[b.j]), sy(world.py[b.j])); }
+    ctx.stroke();
+    for (let i = 0; i < world.n; i++) {
+      if (!world.alive[i]) continue; const k = world.kind[i], x = sx(world.px[i]), y = sy(world.py[i]);
+      if (k === K.WATER) continue;
+      if (k === K.FIRE) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fireColor(world.T[i]); circle(x, y, 5); ctx.globalCompositeOperation = 'source-over'; continue; }
+      if (k === K.CHARACTER) { const f = world.hpMax[i] > 0 ? Math.max(0, world.hp[i] / world.hpMax[i]) : 1; ctx.fillStyle = 'rgb(' + ((0.2 + (1 - f) * 0.7) * 255 | 0) + ',' + ((0.6 + f * 0.3) * 255 | 0) + ',110)'; circle(x, y, 3.4); }
+      else if (k === K.CREATURE) { const f = world.hpMax[i] > 0 ? Math.max(0, world.hp[i] / world.hpMax[i]) : 1; ctx.fillStyle = 'rgb(' + (224 * Math.max(0.4, f) | 0) + ',' + (145 * Math.max(0.4, f) | 0) + ',58)'; circle(x, y, 3.3); }
+      else if (COL[k]) { ctx.fillStyle = COL[k]; circle(x, y, k === K.ROCK ? 3.3 : 3.0); }
+      if (world.T[i] > 0.45) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fireColor(world.T[i]); circle(x, y, 4.6); ctx.globalCompositeOperation = 'source-over'; }  // 가열 글로우
+    }
+    let nW = 0, nC = 0, nT = 0; for (let i = 0; i < world.n; i++) { if (!world.alive[i]) continue; if (world.kind[i] === K.WATER) nW++; else if (world.kind[i] === K.CREATURE) nC++; else if (world.kind[i] === K.WOOD || world.kind[i] === K.LEAF) nT++; }
+    hud.textContent = '물 ' + nW + ' · 나무 ' + nT + ' · 개체 ' + nC + ' · 결합 ' + world.bonds.length;
+  }
+  function loop() { if (pouring) pour(mouse.x, mouse.y); world.step(0.02); world.step(0.02); world.step(0.02); draw(); requestAnimationFrame(loop); }
+  reset(); requestAnimationFrame(loop);
+})();
+</script></body></html>

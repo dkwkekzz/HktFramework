@@ -1,0 +1,182 @@
+\documentclass[11pt]{article}
+
+\usepackage{fontspec}
+\setmainfont{Noto Serif CJK KR}
+\newfontfamily\cjksans{Noto Sans CJK KR}
+
+\usepackage{amsmath}
+\usepackage{amssymb}
+\usepackage[a4paper,margin=2.4cm]{geometry}
+\usepackage{xcolor}
+\usepackage{colortbl}
+\usepackage{tabularx}
+\usepackage{array}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning}
+\usepackage{titlesec}
+\usepackage{enumitem}
+\usepackage{parskip}
+
+% palette
+\definecolor{tealbg}{HTML}{E1F5EE}
+\definecolor{tealtx}{HTML}{085041}
+\definecolor{coralbg}{HTML}{FAECE7}
+\definecolor{coraltx}{HTML}{712B13}
+\definecolor{graybg}{HTML}{F1EFE8}
+\definecolor{graytx}{HTML}{444441}
+\definecolor{purplemain}{HTML}{534AB7}
+\definecolor{purpledk}{HTML}{3C3489}
+\definecolor{ambermain}{HTML}{BA7517}
+\definecolor{rule}{HTML}{B4B2A9}
+
+\titleformat{\section}{\Large\bfseries\color{purpledk}}{\thesection}{0.6em}{}
+\titleformat{\subsection}{\large\bfseries\color{tealtx}}{\thesubsection}{0.5em}{}
+\setlength{\parskip}{0.6em}
+\renewcommand{\arraystretch}{1.35}
+
+\title{\bfseries 하나의 규칙, 여덟 층위\\[0.3em]\large 미시 세계에서 우주까지 ── 시스템의 공통 문법}
+\author{}
+\date{2026년 6월 28일}
+
+\begin{document}
+\maketitle
+\thispagestyle{empty}
+
+\noindent\textbf{요약.} 우리 몸과 사회와 우주는 \emph{단위 $\rightarrow$ 경계 $\rightarrow$ 상호작용 $\rightarrow$ 흐름 $\rightarrow$ 피드백 $\rightarrow$ 창발}이라는 동일한 여섯 칸 템플릿으로 기술된다. 이 문서는 그 직관을 세 단계로 정당화한다. (1) 몸과 사회가 같은 구조를 공유함을 보이고(동형), (2) 그 구조를 하나의 결합 동역학계로 형식화하며, (3) 서로 다른 세계가 같은 거시 법칙을 갖는 이유를 재규격화군과 보편성으로 설명한다. 물리에서의 엄밀성과 생명·사회에서의 휴리스틱적 한계를 함께 밝힌다.
+
+\bigskip
+\noindent\textbf{불변 규칙(모든 층 공통).} \textit{단위들이 경계 안에서 상호작용하고, 에너지·정보 흐름을 피드백으로 조절하여, 한 계층 위의 새로운 단위(창발)를 만든다. 이 과정은 외부 에너지를 먹고 엔트로피를 내보내며 유지된다.} 층이 바뀌면 규칙이 아니라 \emph{명사}만 바뀐다.
+
+\section{한 층 깊이: 우리 몸(L4) $\leftrightarrow$ 사회(L5)}
+
+같은 6칸 템플릿에 두 세계를 나란히 채우면, 비유가 아니라 구조적 동형(同型)이 드러난다.
+
+\begin{table}[h]
+\centering
+\footnotesize
+\begin{tabularx}{\textwidth}{>{\bfseries}l >{\raggedright\arraybackslash}X >{\raggedright\arraybackslash}X}
+\rowcolor{graybg}
+\textcolor{graytx}{규칙 칸} & \cellcolor{tealbg}\textcolor{tealtx}{\textbf{L4 · 우리 몸}} & \cellcolor{coralbg}\textcolor{coraltx}{\textbf{L5 · 사회}}\\
+단위 & \cellcolor{tealbg}세포 약 37조 개 & \cellcolor{coralbg}개인 \\
+경계 & \cellcolor{tealbg}피부·면역계 (자기/비자기 식별) & \cellcolor{coralbg}국경·법·정체성 (구성원/외부 식별) \\
+상호작용 & \cellcolor{tealbg}신경 신호·호르몬·사이토카인 & \cellcolor{coralbg}언어·거래·협력·경쟁 \\
+흐름 & \cellcolor{tealbg}산소·영양·ATP·신경 정보 & \cellcolor{coralbg}화폐·재화·정보·사람 \\
+피드백 & \cellcolor{tealbg}호메오스타시스(음성) / 출산·응고(양성) & \cellcolor{coralbg}가격·규범·법(음성) / 거품·뱅크런(양성) \\
+창발 & \cellcolor{tealbg}의식·자아·의도적 행동 & \cellcolor{coralbg}제도·문화·시장가격·문명 \\
+\end{tabularx}
+\end{table}
+
+세 가지 깊은 평행이 핵심이다.
+
+\begin{enumerate}[leftmargin=1.4em,itemsep=0.2em]
+\item \textbf{자기/비자기 식별.} 면역계가 내 세포와 침입자를 구분하듯, 법·국경·정체성이 구성원과 외부를 구분한다(면역 $=$ 경찰·국방의 동형).
+\item \textbf{음성피드백은 안정, 양성피드백은 위기.} 체온·혈당 조절이 무너지면 발열·당뇨가 오듯, 가격·신용 조절이 양성피드백으로 폭주하면 거품·뱅크런이 온다.
+\item \textbf{단위는 교체돼도 전체 정체성은 유지된다.} 내 세포는 수년이면 거의 다 갈리지만 '나'는 유지되고, 구성원이 모두 바뀌어도 회사·국가·언어는 유지된다. 정체성은 단위가 아니라 \emph{단위 사이의 관계 패턴}에 있다 ── 이것이 2장의 출발점이다.
+\end{enumerate}
+
+\section{규칙을 수식으로}
+
+"정체성은 관계 패턴에 있다"를 옮기면, 모든 층을 하나의 \textbf{결합 동역학계}로 적을 수 있다. 단위 $i$의 상태를 $x_i$라 하면
+
+\begin{equation}
+\dot{x}_i \;=\; \underbrace{f(x_i)}_{\text{자체 동역학}} \;+\; \underbrace{\sum_j W_{ij}\,g(x_i,x_j)}_{\text{상호작용}} \;+\; \underbrace{I_i}_{\text{외부 흐름}} \;-\; \underbrace{\gamma\,x_i}_{\text{소산}} .
+\end{equation}
+
+여기서 $W_{ij}$가 "관계 패턴"(연결망)이다. 6칸이 그대로 들어간다: $x_i$=단위, $W$=상호작용, $I$=흐름, $\gamma$=엔트로피 소산. 나머지 두 칸(피드백·창발)은 이 식의 \emph{행동}에서 나온다.
+
+\subsection{피드백 $=$ 고정점의 안정성}
+
+한 변수로 줄이면 음성피드백은 $\dot{x}=-k(x-x^{*}),\ k>0$ 이며 교란이 지수적으로 사라져 $x^{*}$로 복귀한다(항상성). 양성피드백은
+\begin{equation}
+\dot{x}=+k\,x \quad\Longrightarrow\quad x(t)=x_0\,e^{kt}
+\end{equation}
+로 폭주한다(암·거품·항성 붕괴). 안정/위기의 갈림은 자코비안 고유값 실수부의 부호 하나로 판정된다.
+
+\subsection{창발 $=$ 질서변수와 분기}
+
+거시 상태를 단위들의 집단 평균 $\varphi=\tfrac{1}{N}\sum_i s_i$로 정의한다(자석의 자화, 여론의 평균, 박동의 동기화). 창발이란 $\varphi$가 \emph{저절로} 0에서 0이 아닌 값으로 조직되는 사건이다. 그 수학이 Landau 자유에너지다.
+\begin{equation}
+F(\varphi)=a(T)\,\varphi^{2}+b\,\varphi^{4}\quad(b>0),\qquad
+\text{정류점 } \varphi=0,\ \pm\sqrt{-\tfrac{a}{2b}} .
+\end{equation}
+제어변수 $a$가 양수면 최소가 $\varphi=0$ 하나(무질서), $a$가 0을 지나 음수가 되면 최소가 $\pm\sqrt{-a/2b}$ 두 개로 갈라진다(질서 출현). 이 \textbf{분기(bifurcation)}가 창발의 보편 메커니즘이다.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[>=Stealth,scale=1.0]
+% axes
+\draw[->,gray] (-0.2,0) -- (8.2,0) node[below right,black,font=\cjksans\footnotesize] {제어변수 (질서 구동) $\to$};
+\draw[->,gray] (4,-2.2) -- (4,2.4) node[above,black,font=\footnotesize] {$\varphi$};
+\draw[dashed,rule] (4,-2.1) -- (4,2.1);
+\node[below,font=\cjksans\scriptsize,gray] at (4,-2.25) {임계점};
+% disorder branch
+\draw[graytx,very thick] (0.2,0) -- (4,0);
+\node[above,font=\cjksans\scriptsize,graytx] at (2,0) {무질서 $\varphi=0$};
+% unstable continuation
+\draw[rule,thick,dashed] (4,0) -- (8,0);
+\node[above,font=\cjksans\scriptsize,gray] at (6,0) {불안정};
+% ordered branches phi = +- sqrt(x-4)
+\draw[purplemain,very thick,domain=4:8,samples=60] plot (\x,{1.0*sqrt(\x-4)});
+\draw[purplemain,very thick,domain=4:8,samples=60] plot (\x,{-1.0*sqrt(\x-4)});
+\node[purpledk,font=\footnotesize] at (7.6,2.0) {$+\varphi$};
+\node[purpledk,font=\footnotesize] at (7.6,-2.0) {$-\varphi$};
+\node[below,font=\cjksans\scriptsize,purpledk] at (6.6,-1.5) {집단 정렬 $\to$ 창발};
+\end{tikzpicture}
+\caption*{\footnotesize \textbf{그림 1.} 분기 다이어그램 ── 제어변수가 임계점을 지나면 질서변수가 0인 무질서 상태에서 두 갈래의 질서 상태로 갈라진다.}
+\end{figure}
+
+\subsection{동기화·소산·연결망}
+
+같은 분기가 구체적 모델로 나타난 예가 \textbf{동기화(Kuramoto 모델)}다.
+\begin{equation}
+\dot{\theta}_i=\omega_i+\frac{K}{N}\sum_{j}\sin(\theta_j-\theta_i),\qquad
+r\,e^{i\psi}=\frac{1}{N}\sum_j e^{i\theta_j}.
+\end{equation}
+결합 $K$가 임계값 $K_c$를 넘는 순간 동기화 정도 $r$이 0에서 튀어오른다. 심장 박동세포, 반딧불이의 동시 점멸, 박수의 리듬, 뇌파가 모두 이 한 식의 사례다.
+
+마지막 두 칸도 수식이 있다. \textbf{소산(엔트로피):} 열린 계의 엔트로피 변화는 $dS=d_iS+d_eS$이고 내부 생성 $d_iS\ge0$이지만 외부 교환 $d_eS$는 음수가 될 수 있어, 살아있는 계는 엔트로피를 밖으로 \emph{내보내며} 내부 질서를 유지한다(프리고진의 소산구조). \textbf{연결망($W_{ij}$의 구조):} 대사망·신경망·사회망·인터넷·우주 거미줄이 공통적으로 멱법칙 차수분포
+\begin{equation}
+P(k)\sim k^{-\gamma}\quad(2<\gamma<3)
+\end{equation}
+를 보인다 ── 소수의 허브와 다수의 말단. 이 멱법칙이 곧 "척도가 없다"는 뜻이고, 3장의 핵심으로 이어진다.
+
+\section{왜 같은가: 보편성과 재규격화군}
+
+핵심 질문. 자석과 뇌와 사회가 \emph{왜} 같은 식을 따를까? 답은 비유가 아니라 정리(theorem) 수준으로 존재한다 ── 적어도 물리에서는.
+
+\textbf{멱법칙은 "특징적 크기가 없다"는 뜻이다.} $f(x)\sim x^{-\alpha}$는
+\begin{equation}
+f(\lambda x)=\lambda^{-\alpha} f(x)
+\end{equation}
+를 만족한다 ── 확대해도 모양이 같다. 이것이 혈관·강·번개·우주구조가 스케일을 바꿔도 닮아 보이는 수학적 뿌리다. 그런 척도 무관성은 특히 \textbf{임계점}에서 나타나는데, 그 지점에서 상관길이 $\xi\to\infty$가 되어 시스템에 기준 자(尺)가 사라지기 때문이다.
+
+\textbf{재규격화군(RG)이 '왜 같은가'의 증명이다.} (1) 거칠게 보기 ── 작은 단위들을 블록으로 묶어 평균 변수로 치환, (2) 다시 스케일 맞추기, (3) 이 변환을 반복하면 결합상수들이 흐르다가 \textbf{고정점}에 수렴한다. 결정적 사실: 반복할 때마다 무관한 변수(미시적 세부의 대부분)는 0으로 줄고, 관련 변수 몇 개만 살아남는다. 살아남는 것은 보통 \emph{차원, 질서변수의 대칭성, 상호작용의 도달거리}뿐이다. 그래서 미시적으로 전혀 다른 시스템들이 같은 고정점으로 흘러가 똑같은 거시 법칙과 임계지수를 갖는다 ── 이를 \textbf{보편성 부류(universality class)}라 한다. 닮음은 우연이 아니라, 세부가 \emph{증명 가능하게 무관}하기 때문이다.
+
+\begin{figure}[h]
+\centering
+\begin{tikzpicture}[>=Stealth,node distance=6mm]
+\node[draw,rounded corners,fill=graybg,text=graytx,font=\cjksans\footnotesize,minimum width=2.6cm] (a) at (0,2.1) {자석의 스핀};
+\node[draw,rounded corners,fill=tealbg,text=tealtx,font=\cjksans\footnotesize,minimum width=2.6cm] (b) at (0,0.7) {뇌의 뉴런};
+\node[draw,rounded corners,fill=coralbg,text=coraltx,font=\cjksans\footnotesize,minimum width=2.6cm] (c) at (0,-0.7) {사회의 사람};
+\node[draw,rounded corners,fill=graybg,text=ambermain,font=\cjksans\footnotesize,minimum width=2.6cm] (d) at (0,-2.1) {산불·지진};
+\node[draw,circle,fill=purplemain,text=white,font=\cjksans\footnotesize,minimum size=2.3cm,align=center] (fp) at (8,0) {같은\\거시 법칙};
+\draw[->,gray] (a.east) -- (fp.west);
+\draw[->,gray] (b.east) -- (fp.west);
+\draw[->,gray] (c.east) -- (fp.west);
+\draw[->,gray] (d.east) -- (fp.west);
+\node[font=\cjksans\scriptsize,gray,align=center] at (4,0.9) {거칠게 보기 $+$ 재척도 반복};
+\node[font=\cjksans\scriptsize,gray,align=center] at (4,-0.6) {무관한 세부 $\to 0$};
+\node[font=\cjksans\scriptsize,purpledk] at (8,-1.7) {같은 임계지수 · 멱법칙};
+\end{tikzpicture}
+\caption*{\footnotesize \textbf{그림 2.} 재규격화군 흐름 ── 미시적으로 다른 계들이 거칠게 보기를 반복하면 같은 고정점으로 수렴한다.}
+\end{figure}
+
+가장 단순한 사례가 \textbf{중심극한정리}다. 미시 분포가 무엇이든 많이 더하면 가우스 분포가 된다 ── "세부는 씻겨나가고 형태만 남는다"는 같은 논리의 가장 약한 버전이다.
+
+\textbf{정직한 경계선.} RG와 보편성 부류는 평형 임계현상(이징 모형 등)에서 \emph{엄밀하게} 증명되어 있다. 그러나 생명·사회는 평형에서 멀리 떨어진 데다 적응·학습하는 계라, 같은 수준의 증명은 아직 없다. 여기서 다리를 놓는 개념이 \textbf{자기조직화 임계성(self-organized criticality)}이다 ── 모래더미·지진·뇌의 뉴런 사태·생물 대멸종처럼, 어떤 계들은 스스로 임계점으로 조율되어 멱법칙을 만든다. 이는 "왜 임계성이 미세조정 없이도 흔한가"를 설명해 살아있는 세계의 척도 무관성을 그럴듯하게 잇지만, 물리의 정리만큼 엄밀하진 않은 \emph{강한 유비 $+$ 부분적 형식화}임을 분명히 해둔다.
+
+\section{종합}
+
+처음의 직관은 세 단계로 정당화된다. (1) 몸과 사회는 같은 6칸 구조를 공유하고(동형), (2) 그 구조는 하나의 결합 동역학계로 형식화되며 피드백·창발이 안정성과 분기로 떨어지고, (3) 서로 다른 세계가 같은 거시 법칙을 갖는 것은 재규격화에서 세부가 증명 가능하게 무관해지기 때문이다 ── 물리에서는 엄밀하게, 생명·사회에서는 강한 유비로. 즉 "공통 규칙"은 시적 표현이 아니라, \textbf{상호작용하는 다수 $+$ 흐름 $+$ 피드백}이라는 추상 구조가 척도를 가로질러 같은 수학으로 환원된다는 실재하는 사실이다.
+
+\end{document}
