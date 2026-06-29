@@ -1,4 +1,5 @@
 'use strict';
+// step-0408 — #62 runMulti 합류 7: runScenario(ticks, scenario) 통합 시나리오 루프. runMulti 의 핵심은 *스크립트된 열화 시나리오*(kill@at·reprovision@at·…)를 tick 루프에 주입하는 것(`cluster-run.js:176` kill·`:202` rep). 코디네이터가 그 시나리오 구동을 run(ticks,onTick·0393) 위에 단일 진입점으로 감싼다 — scenario={migrate/restart/reprovision/kill/fence@at·sweepSilence} 를 매 tick onTick 으로 번역. verify 가 직접 짜던 onTick 을 runMulti 호환 시나리오 선언으로. 빈 시나리오면 run(ticks)=0407 동치. 새 박스·run() 미사용→reg 0.
 // step-0407 — #62 runMulti 합류 6: clusterInfo() 재구성 보고 — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227` livePids/placement/epoch/presumedDead/…)의 코디네이터 판. report()(0379·운영 건강)와 직교: clusterInfo 는 *runMulti 호환 토폴로지/생애주기 스냅샷*(livePids·hostIds·placement·epoch·presumedDead·migrations/failovers/restarts/reprovisions·lost·mirrors). 코디네이터가 옛 runMulti 의 반환 계약까지 노출 → 코드 합류 시 runMulti 가 이 보고를 그대로 반환 가능. 읽기 전용·새 메서드. 새 박스·run() 미사용→reg 0.
 // step-0406 — #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 standby 동기 유지). 0405 는 standby 를 띄우고 사본까지였다 — runMulti(`cluster-run.js:170` 미러 deliver·`:198` 미러 tick)는 권위 입력을 standby 로 미러해 *계속* 동기를 유지했다. tick() 이 ⒜ deliver frame 을 mirror(zone) 의 standby host 에도 재생 ⒝ standby 존을 shadow tick(발신/egress 폐기) → standby 가 primary 와 lockstep 유지(failover 시 즉시 승격 가능). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
 // step-0405 — #62 runMulti 합류 4·복원력: reprovisionStandby(zone, standbyHost) — 따뜻한 대기 인스턴스 + 미러 등록. runMulti(`cluster-run.js:202` rep + `:219` mirrors)는 kill→승격 후 새 standby 를 띄우고 권위 입력을 미러해 N=1 복제를 유지했다. 코디네이터가 zone 의 현 상태를 snapshot→standbyHost 에 spawn/zoneadd/loadstate(따뜻한 사본) + mirrors 에 {zone,dstHost} 등록(입력 복제는 0406 tick 미러). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
@@ -110,6 +111,18 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         if (onTick) await onTick(t, this);    // step-0393 — mid-loop lifecycle 훅(루프 도중 migrate 발현). 미제공이면 0392 동치.
       }
       return views;
+    },
+    // 통합 시나리오 루프(0408·#62) — runMulti 의 스크립트 열화 시나리오 구동을 단일 진입점으로. scenario 의 각 이벤트를 지정 tick(at)에 run(ticks,onTick) 훅으로 번역: reprovision(따뜻한 대기)·migrate(graceful)·restart(상태 보존)·kill(host 사망)·fence(수동 펜싱)·sweepSilence(매 tick 자동 펜싱 sweep). verify ad-hoc onTick 을 선언적 시나리오로(runMulti 호환). 빈 시나리오면 run(ticks) 동치. 반환=run 의 view 총수.
+    async runScenario(ticks, scenario = {}) {
+      const s = scenario;
+      return this.run(ticks, async (t, c) => {
+        if (s.reprovision && s.reprovision.at === t) await c.reprovisionStandby(s.reprovision.zone, s.reprovision.host);
+        if (s.migrate && s.migrate.at === t) await c.migrate(s.migrate.zone, s.migrate.from, s.migrate.to);
+        if (s.restart && s.restart.at === t) await c.restart(s.restart.zone, s.restart.host);
+        if (s.kill && s.kill.at === t) await c.cluster.killHost(s.kill.host);
+        if (s.fence && s.fence.at === t) c.fence(s.fence.host);
+        if (s.sweepSilence) c.sweepSilence();
+      });
     },
     // 상주 존 migrate(graceful·상태 보존) — driver.migrateZone(snapshot from→toHost spawn/zoneadd→loadstate→from zonedel) 을 코디네이터 lifecycle 메서드로. entity 무손실·release+acquire(이중 쓰기 0)·migrations 계측. 반환=이전 상태.
     async migrate(zone, fromHost, toHost) {

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0408](step-0408.md) — **#62 runMulti 합류 7**: `runScenario(ticks, scenario)` — run(ticks,onTick) 위 스크립트 열화 시나리오(migrate/restart/reprovision/kill/fence@at·sweepSilence) 구동 단일 진입점. runMulti 의 시나리오 주입(`cluster-run.js:176,202`)을 선언적 시나리오로(verify ad-hoc onTick 대신·runMulti 호환). 빈 시나리오면 0407 동치. 직전: 0407 clusterInfo.
-- **한 줄 상태**: reg ALL OK·coordscenario 5/5(migrate+reprovision 시나리오·unifiedCoherent Y·maxDesync 0·mg1·rp1)·cluster-coord.js 22.9KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0409](step-0409.md) — **#62 runMulti 합류 8·복원력 payoff**: `promoteStandby(zone)` — primary host 사망 시 따뜻한 standby(미러 동기)를 primary 로 승격(placement→standby host·미러 해제) → **상태 손실 0**. 0376 failover(빈 재가동·entity 소실·#63)와 대조 — 따뜻한 standby 로 #63 완화. 미호출이면 0408 동치. 직전: 0408 runScenario.
+- **한 줄 상태**: reg ALL OK·coordpromote 5/5(killHost(hostA)→promote→a1 {8,8} 보존·placement[z1]=hostA_s·unifiedCoherent Y·promotions 1)·cluster-coord.js 24.0KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코디네이터를 runMulti 복원력 코어로 승격(0401~·능력 합류·병존 reg 0)**: epoch 펜싱(0401)·silence lease-timeout(0402)·snapshot-restart(0403)·reprovision+mirror(0404~0405)·clusterInfo report(0406)·runScenario 통합 루프(0407)·restartedCoherent(0408~0409)·capstone runMultiCoherent(0410). **후속**: orch zoneHost entity 컨테이너 합류(#68·경미)·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 0401~0410 닫으면 묶음 리뷰.
 
 ---
@@ -155,3 +155,4 @@
 | [0406](step-0406.md) | #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 deliver 재생+standby shadow tick·lockstep 동기) | 통과(reg 0·spine OK) · coordmirror 5/5 standby a1==primary {8,8}·coordDesync0 |
 | [0407](step-0407.md) | #62 runMulti 합류 6: clusterInfo() runMulti 반환 계약(livePids·placement·epoch·presumedDead·복원력 계측) | 통과(reg 0·spine OK) · coordinfo 5/5 epoch1·pd⊇hostB·3존·restarts1·ticks5·livePids2 |
 | [0408](step-0408.md) | #62 runMulti 합류 7: runScenario(ticks,scenario) 통합 시나리오 루프(스크립트 열화 주입·runMulti 호환) | 통과(reg 0·spine OK) · coordscenario 5/5 migrate+reprovision·unifiedCoherent Y·md0 |
+| [0409](step-0409.md) | #62 runMulti 합류 8·복원력 payoff: promoteStandby(zone) 따뜻한 standby 승격·상태 보존 failover(#63 완화) | 통과(reg 0·spine OK) · coordpromote 5/5 killHost→promote a1 {8,8} 보존·unifiedCoherent Y·promotions1 |

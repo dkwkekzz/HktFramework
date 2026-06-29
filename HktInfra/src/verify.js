@@ -1,8 +1,8 @@
-// HktInfra step-0408 — 헤드리스 검증 (#62 runMulti 합류 7: runScenario 통합 시나리오 루프)
+// HktInfra step-0409 — 헤드리스 검증 (#62 runMulti 합류 8·복원력 payoff: promoteStandby 상태 보존 failover)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordscenario`.
-//   더한 한 조각: cluster-coord.js runScenario(ticks,scenario)=run(ticks,onTick) 위에 스크립트 열화 시나리오(migrate/restart/reprovision/kill/fence@at·sweepSilence) 구동 단일 진입점(runMulti 호환). 빈 시나리오면 0407 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordscenario` — 2 host·3 zone: runScenario(6, {migrate z1 A→B @2, reprovision z2@hostB_s @3}) → unifiedCoherent Y·maxDesync 0·migrations 1·reprovisions 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordpromote`.
+//   더한 한 조각: cluster-coord.js promoteStandby(zone)=따뜻한 standby 를 primary 로 승격(placement→standby host·미러 해제). primary host 사망 시 상태 손실 0(0376 빈 재가동·#63 과 대조). 미호출이면 0408 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordpromote` — 2 host·3 zone: run(5)+migrate(z3 A→B·hostA 비움)+reprovisionStandby(z1,hostA_s)+killHost(hostA)+promoteStandby(z1) → a1 보존(pre==post)·placement[z1]=hostA_s·unifiedCoherent Y·promotions 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,28 +31,36 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0408 #62 runMulti 합류 7 — coordscenario: runScenario(6, {migrate z1 A→B @2, reprovision z2@hostB_s @3}) → unifiedCoherent Y·maxDesync 0·migrations 1·reprovisions 1.
-async function coordscenario(seeds) {
+// step-0409 #62 runMulti 합류 8·복원력 payoff — coordpromote: run(5)+migrate(z3 A→B)+reprovisionStandby(z1,hostA_s)+killHost(hostA)+promoteStandby(z1) → a1 보존(pre==post·상태 손실 0)·placement[z1]=hostA_s·unifiedCoherent Y·promotions 1.
+async function coordpromote(seeds) {
   const BASE = coordScenario();
-  console.log('== coordscenario (0408·#62): runScenario 통합 시나리오 루프(migrate+reprovision). ==');
-  console.log('seed   | unified | maxDesync | migrations | reprovisions | 판정');
+  console.log('== coordpromote (0409·#62 payoff): 따뜻한 standby 승격 — 상태 보존 failover. ==');
+  console.log('seed   | pre a1 | post a1 | placement[z1] | unified | promotions | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let uni = false, md = -1, mg = -1, rp = -1;
+    let preS = '-', postS = '-', plc = '-', uni = false, pr = -1, preserved = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.runScenario(6, { migrate: { zone: 'z1', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z2', host: 'hostB_s', at: 3 } });
-      uni = await coord.unifiedCoherent(); md = coord.maxDesync; mg = coord.migrations; rp = coord.reprovisions;
+      await coord.run(5);
+      await coord.migrate('z3', 'hostA', 'hostB');                      // hostA 를 z1 단독으로(co-located stranding 회피)
+      await coord.reprovisionStandby('z1', 'hostA_s');                  // 따뜻한 standby(동기)
+      const pre = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
+      await cluster.killHost('hostA');                                  // primary host 사망(z1 RAM 소실)
+      await coord.promoteStandby('z1');                                 // 따뜻한 standby 승격(상태 보존)
+      const post = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
+      preS = pre ? `{${pre.x},${pre.y}}` : 'null'; postS = post ? `{${post.x},${post.y}}` : 'null';
+      preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
+      plc = coord.placedHost('z1'); uni = await coord.unifiedCoherent(); pr = coord.promotions;
     } finally { await cluster.shutdown(); }
-    const ok = check(uni && md === 0 && mg === 1 && rp === 1, `seed ${seed}: 위반 (uni ${uni}·md ${md}·mg ${mg}·rp ${rp})`);
-    console.log(`${pad(seed, 6)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(md, 9)} | ${pad(mg, 10)} | ${pad(rp, 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(preserved && plc === 'hostA_s' && uni && pr === 1, `seed ${seed}: 위반 (pre ${preS}·post ${postS}·plc ${plc}·uni ${uni}·pr ${pr})`);
+    console.log(`${pad(seed, 6)} | ${pad(preS, 6)} | ${pad(postS, 7)} | ${pad(plc, 13)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(pr, 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordscenario'] = coordscenario;
-kit.ORDER.splice(1, 0, 'coordscenario');
+kit.MODES['coordpromote'] = coordpromote;
+kit.ORDER.splice(1, 0, 'coordpromote');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
