@@ -1,4 +1,5 @@
 'use strict';
+// step-0385 — #65 양방향 동기 5: failover 가 placement 갱신 + lost 추적. failover(deadHost,toHost) 가 코디네이터 placement 로 죽은 host 의 존을 찾아 toHost 로 재가동·placement[zone]=toHost 갱신 + lostZones 에 기록(failover 는 상태 소실·#63). lostZones 는 0386 coordDesync 가 *기대된 부재*로 제외할 근거. OFF 동치: failover 미호출이면 0384 동치.
 // step-0384 — #65 양방향 동기 4: run 루프 가드·coordCoherent 가 coordDesync(placement 기준) 채택. 0374/0380 은 driver.clusterDesync(orch plan 기준)를 썼다 → migrate 후 발산해 capstone 이 migrate/failover 를 제외해야 했다. coordDesync 로 바꾸면 placement 권위가 lifecycle 을 따라가므로 *migrate 를 포함한* 연속 루프·capstone 이 정합. OFF 동치: 가드 소스만 교체·정상 경로(placement==orch plan) 결과 동일 = 0383 동치.
 // step-0383 — #65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix). migrate(zone,from,to) 가 실 cluster 이주 후 this.placement[zone]=to 로 *where 권위*를 갱신 → coordDesync 가 새 host(to)를 조회해 entity 발견 → migrate 후도 desync 0. driver.clusterDesync 는 orch plan(stale·여전히 from)으로 from 조회 → 발산(대조로 #65 입증). OFF 동치: migrate 미호출이면 0382 동치.
 // step-0382 — #65 양방향 동기 2: coordDesync() — 코디네이터 placement(zone→host SSOT)로 host 를 조회해 실 cluster vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 는 orch.hostSpawnPlan(stale 가능)으로 host 조회 → migrate 후 발산. coordDesync 는 placement 권위로 조회 → lifecycle 갱신만 따라가면 항상 정확. placement==orch plan 일 땐 driver.clusterDesync 와 동치. OFF 동치: 미호출이면 0381 동치.
@@ -30,6 +31,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     egressTotal: 0,    // 연속 루프가 송출한 다운스트림 view_delta frame 누계(0378).
     egressByZone: {},  // 존별 송출 view 수(0378·운영 계측).
     placement: {},     // zone→실 host placement 권위(0381·#65·lifecycle 마다 갱신·coordDesync 가 이걸로 host 조회).
+    lostZones: new Set(), // failover 로 상태 소실된 존(0385·#63/#65·0386 coordDesync 가 기대된 부재로 제외).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -92,10 +94,13 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // 상주 host failover(비자발·상태 소실) — 죽은 host 를 killHost(child_process 종료) 후 그 host 가 소유하던 존(orch plan 기준)을 생존 toHost 에 새 빈 인스턴스로 재가동(driver.failoverZone). 죽은 host 는 snapshot 불가라 entity 소실(정직한 한계·migrate 와 대조). failovers 계측. 반환=재가동된 존 목록.
     async failover(deadHost, toHost) {
-      const plan = this.orch.hostSpawnPlan();
-      const zones = (plan.hosts[deadHost] && plan.hosts[deadHost].zones) || [];
+      const zones = Object.keys(this.placement).filter(z => this.placement[z] === deadHost);   // step-0385 — placement 권위로 죽은 host 의 존(orch plan 아님)
       await this.cluster.killHost(deadHost);
-      for (const z of zones) await this.driver.failoverZone(this.cluster, z, toHost, this.specOf);
+      for (const z of zones) {
+        await this.driver.failoverZone(this.cluster, z, toHost, this.specOf);
+        this.placement[z] = toHost;     // step-0385 — where 권위 갱신(생존 host 로)
+        this.lostZones.add(z);          // step-0385 — 상태 소실 기록(#63·0386 coordDesync 제외 근거)
+      }
       this.failovers++;
       return zones;
     },

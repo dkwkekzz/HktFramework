@@ -1,4 +1,5 @@
 'use strict';
+// step-0386 — #65 양방향 동기 6: coordDesync 가 lostZones 의 *기대된 부재*를 제외. failover 는 상태 소실(#63)이라 lost 존은 실 cluster 가 비고 orch 권위엔 entity 가 남아 reverse desync(권위에 있는데 실에 부재)가 뜬다 — 이는 *비자발 손실*이지 불일치가 아니다(crash=양쪽 합의된 손실). lost 존은 reverse 검사만 건너뛴다(forward=ghost 검사는 유지 → 유령 주입은 여전히 검출). OFF 동치: lostZones 비면 0385 동치.
 // step-0385 — #65 양방향 동기 5: failover 가 placement 갱신 + lost 추적. failover(deadHost,toHost) 가 코디네이터 placement 로 죽은 host 의 존을 찾아 toHost 로 재가동·placement[zone]=toHost 갱신 + lostZones 에 기록(failover 는 상태 소실·#63). lostZones 는 0386 coordDesync 가 *기대된 부재*로 제외할 근거. OFF 동치: failover 미호출이면 0384 동치.
 // step-0384 — #65 양방향 동기 4: run 루프 가드·coordCoherent 가 coordDesync(placement 기준) 채택. 0374/0380 은 driver.clusterDesync(orch plan 기준)를 썼다 → migrate 후 발산해 capstone 이 migrate/failover 를 제외해야 했다. coordDesync 로 바꾸면 placement 권위가 lifecycle 을 따라가므로 *migrate 를 포함한* 연속 루프·capstone 이 정합. OFF 동치: 가드 소스만 교체·정상 경로(placement==orch plan) 결과 동일 = 0383 동치.
 // step-0383 — #65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix). migrate(zone,from,to) 가 실 cluster 이주 후 this.placement[zone]=to 로 *where 권위*를 갱신 → coordDesync 가 새 host(to)를 조회해 entity 발견 → migrate 후도 desync 0. driver.clusterDesync 는 orch plan(stale·여전히 from)으로 from 조회 → 발산(대조로 #65 입증). OFF 동치: migrate 미호출이면 0382 동치.
@@ -53,7 +54,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         const snap = await this.cluster.rpc(host, { cmd: 'snapshot' });
         const zs = snap && snap.snap ? snap.snap[zone] : null;
         const real = new Map((zs && zs.ents) || []);
-        for (const [id, pos] of real) { const a = this.orch.zoneEntityPos(zone, id); if (!a || a.x !== pos.x || a.y !== pos.y) desync++; }   // 실에 있는데 권위와 불일치/부재
+        for (const [id, pos] of real) { const a = this.orch.zoneEntityPos(zone, id); if (!a || a.x !== pos.x || a.y !== pos.y) desync++; }   // 실에 있는데 권위와 불일치/부재(ghost·forward·lost 여부 무관)
+        if (this.lostZones.has(zone)) continue;   // step-0386 — lost 존: reverse(권위에 있는데 실에 부재)는 *기대된 비자발 손실*이라 desync 아님
         const auth = this.orch.zoneRuntimes && this.orch.zoneRuntimes.get(zone); if (auth) for (const id of auth.zone.ents.keys()) if (!real.has(id)) desync++;   // 권위에 있는데 실에 부재
       }
       return desync;
