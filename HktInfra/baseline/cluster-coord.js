@@ -1,4 +1,5 @@
 'use strict';
+// step-0396 — #67 orch 이중 권위 합류 3: migrate 가 orch 집행 where-view 에 write-back. 코디네이터 migrate 가 placement[zone]=toHost 갱신 후 _orchWriteBack(zone,toHost) 로 orch.running/placement(orch 의 제2 where 권위)도 동기 → migrate 후 authoritiesAgree Y(이중 권위 합류). 코디네이터 placement 기반 술어(coordDesync/syncedCoherent/maxDesync)는 불변 = 0395 동치. write-back 은 run() 종료 후 orch 객체에만 작용 → reg 0.
 // step-0395 — #67 orch 이중 권위 합류 2: authoritiesAgree() 술어 — 코디네이터 placement(where 권위) == orchWhere(orch 집행 where-view). 참이면 두 where 권위가 한 몸(단일 권위). 지금은 lifecycle write-back 이 없어 migrate 후 orch.running 이 stale → 두 권위 *발산*(authoritiesAgree N)을 노출(이중 권위 #67 의 구체 증거). 0396~0397 write-back 이 합류시킨다. 읽기 전용·새 메서드.
 // step-0394 — #67 orch 이중 권위 합류 1: orchWhere() — orch 의 *집행 where-view*(zone→orch.runningHostOf) 스냅샷. 코디네이터 placement(0381~·코디네이터 where 권위)와 별개로 orch 가 들고 있는 제2 where 권위를 노출 — #67(이중 권위) 가시화의 첫 조각. migrate/failover 전(정상 경로)엔 둘이 일치, lifecycle 후엔 orch 가 stale(0395 노출→0396~ write-back 합류). 읽기 전용·새 메서드.
 // step-0393 — #66 tick placement-aware 3·발현: run(ticks, onTick) 에 mid-loop lifecycle 훅. run 루프 *도중* migrate 가 일어나도 tick 순회(0391)+deliver(0392)가 placement 를 추종해 maxDesync 0 유지(0390 capstone 은 lifecycle 을 루프 *뒤*로 미뤄 #66 을 미발현시켰다 — 이제 루프 *중* migrate 를 발현시켜 정합 증명). 대조: 옛 driver.clusterDesync(orch plan)는 mid-migrate 후 발산. OFF 동치: onTick 미제공이면 0392 동치.
@@ -59,6 +60,11 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     orchWhere() { const w = {}; for (const z of Object.keys(this.placement)) w[z] = this.orch.runningHostOf(z) || null; return w; },
     // 두 where 권위 합의 술어(0395·#67) — 코디네이터 placement == orchWhere(orch 집행 where-view) 가 모든 존에서 일치하는가. 참이면 단일 where 권위. lifecycle write-back(0396~) 전엔 migrate/failover 후 orch 가 stale → 거짓(이중 권위). 읽기 전용.
     authoritiesAgree() { const ow = this.orchWhere(); for (const z of Object.keys(this.placement)) if (this.placement[z] !== ow[z]) return false; return true; },
+    // orch 집행 where-view write-back(0396·#67) — 코디네이터 lifecycle 이 placement 를 옮길 때 orch.running/placement(제2 where 권위)도 같은 host 로 동기해 이중 권위를 합류. host==null 이면 양쪽에서 제거(존 소실/퇴역). orch 의 *내부 zoneHost 컨테이너*(0301~) 는 건드리지 않는다(where-view 만·entity 권위 무관). run() 종료 후 orch 객체에만 작용 → reg 무관.
+    _orchWriteBack(zone, host) {
+      if (this.orch.running && typeof this.orch.running.set === 'function') { if (host == null) this.orch.running.delete(zone); else this.orch.running.set(zone, host); }
+      if (this.orch.placement && typeof this.orch.placement.set === 'function') { if (host == null) this.orch.placement.delete(zone); else this.orch.placement.set(zone, host); }
+    },
     // placement 기준 정합(0382·#65) — placement 권위로 각 존의 host 를 조회해 실 host entity vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 와 달리 stale orch plan 에 안 휘둘림(migrate 후도 정확). 반환=desync(0=수렴).
     async coordDesync() {
       let desync = 0;
@@ -108,6 +114,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     async migrate(zone, fromHost, toHost) {
       const state = await this.driver.migrateZone(this.cluster, zone, fromHost, toHost, this.specOf);
       this.placement[zone] = toHost;   // step-0383 (#65) — where 권위 갱신 → coordDesync 가 새 host 조회·migrate 후 desync 0.
+      this._orchWriteBack(zone, toHost);   // step-0396 (#67) — orch 집행 where-view 도 동기 → authoritiesAgree Y(이중 권위 합류).
       this.migrations++;
       return state;
     },

@@ -1,8 +1,8 @@
-// HktInfra step-0396 — 헤드리스 검증 (#67 orch 이중 권위 합류 3: migrate 가 orch where-view 에 write-back)
+// HktInfra step-0397 — 헤드리스 검증 (#67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmigwb`.
-//   더한 한 조각: cluster-coord.js migrate 가 _orchWriteBack 으로 orch.running/placement 동기 → migrate 후 authoritiesAgree Y. placement 기반 술어 불변=0395 동치. write-back 은 run() 후 orch 에만 작용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordmigwb` — 2 host·3 zone: run(5)+migrate z1 A→B → authoritiesAgree **Y**(0395 의 N 을 합류)·orchWhere[z1]==hostB·coordDesync 0·syncedCoherent Y.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordfailwb`.
+//   더한 한 조각: cluster-coord.js failover 가 _orchWriteBack 으로 orch where-view 동기. migrate(0396)+failover(0397) 둘 다 거친 뒤도 authoritiesAgree Y. placement 기반 술어 불변=0396 동치·reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordfailwb` — 2 host·3 zone: run(5)+migrate z1 A→B+failover hostA→hostB → authoritiesAgree **Y**·orchWhere[z3]==hostB·syncedCoherent Y·lost 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,33 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0396 #67 orch 이중 권위 합류 3 — coordmigwb: run(5)+migrate z1 A→B → migrate 가 orch where-view 에 write-back → authoritiesAgree Y(0395 의 N 합류)·orchWhere[z1]==hostB·coordDesync 0·syncedCoherent Y.
-async function coordmigwb(seeds) {
+// step-0397 #67 orch 이중 권위 합류 4 — coordfailwb: run(5)+migrate z1 A→B+failover hostA→hostB → migrate+failover 둘 다 write-back → authoritiesAgree Y·orchWhere[z3]==hostB·syncedCoherent Y·lost 1.
+async function coordfailwb(seeds) {
   const BASE = coordScenario();
-  console.log('== coordmigwb (0396·#67): migrate write-back → authoritiesAgree Y(합류). ==');
-  console.log('seed   | agree(migrate 후) | orchWhere[z1] | coordDesync | synced | 판정');
+  console.log('== coordfailwb (0397·#67): failover write-back → migrate+failover 뒤도 authoritiesAgree Y. ==');
+  console.log('seed   | agree(failover 후) | orchWhere[z3] | synced | lost | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let agree = false, ow1 = '-', cd = -1, sc = false;
+    let agree = false, ow3 = '-', sc = false, lost = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
-      await coord.migrate('z1', 'hostA', 'hostB');                       // write-back ON(0396)
-      agree = coord.authoritiesAgree();                                  // 합류 → Y
-      ow1 = coord.orchWhere()['z1'];
-      cd = await coord.coordDesync();
+      await coord.migrate('z1', 'hostA', 'hostB');                       // write-back(0396)
+      await coord.failover('hostA', 'hostB');                            // write-back(0397)·z3 lost
+      agree = coord.authoritiesAgree();                                  // 둘 다 합류 → Y
+      ow3 = coord.orchWhere()['z3'];
       sc = await coord.syncedCoherent();
+      lost = coord.lostZones.size;
     } finally { await cluster.shutdown(); }
-    const ok = check(agree && ow1 === 'hostB' && cd === 0 && sc, `seed ${seed}: 위반 (agree ${agree}·ow1 ${ow1}·cd ${cd}·sc ${sc})`);
-    console.log(`${pad(seed, 6)} | ${pad(agree ? 'Y' : 'N', 17)} | ${pad(ow1, 13)} | ${pad(cd, 11)} | ${pad(sc ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(agree && ow3 === 'hostB' && sc && lost === 1, `seed ${seed}: 위반 (agree ${agree}·ow3 ${ow3}·sc ${sc}·lost ${lost})`);
+    console.log(`${pad(seed, 6)} | ${pad(agree ? 'Y' : 'N', 18)} | ${pad(ow3, 13)} | ${pad(sc ? 'Y' : 'N', 6)} | ${pad(lost, 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordmigwb'] = coordmigwb;
-kit.ORDER.splice(1, 0, 'coordmigwb');
+kit.MODES['coordfailwb'] = coordfailwb;
+kit.ORDER.splice(1, 0, 'coordfailwb');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

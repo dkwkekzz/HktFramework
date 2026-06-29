@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0396](step-0396.md) — **#67 orch 이중 권위 합류 3**: `migrate()` 가 `_orchWriteBack` 으로 orch.running/placement 도 동기 → migrate 후 `authoritiesAgree()` Y(0395 의 N 을 합류·이중 권위 → 단일 where 권위). placement 기반 술어 불변=0395 동치. **#66 닫힘·#67 진행(0394~)**. 직전: 0395 authoritiesAgree 발산 노출.
-- **한 줄 상태**: reg ALL OK·coordmigwb 5/5(migrate 후 agree Y·orchWhere[z1]=hostB·coordDesync 0·synced Y)·cluster-coord.js 22.9KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0397](step-0397.md) — **#67 orch 이중 권위 합류 4**: `failover()` 도 `_orchWriteBack` 으로 orch where-view 동기 → migrate(0396)+failover(0397) 둘 다 거친 뒤도 `authoritiesAgree()` Y. lost 존도 where 는 toHost 합의(entity 손실은 coordDesync 가 제외). placement 기반 술어 불변=0396 동치. **#66 닫힘·#67 진행(0394~)**. 직전: 0396 migrate write-back.
+- **한 줄 상태**: reg ALL OK·coordfailwb 5/5(failover 후 agree Y·orchWhere[z3]=hostB·synced Y·lost 1)·cluster-coord.js 23.1KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400)**: tick placement 순회(0391)·deliver 재생 placement host(0392)·mid-run migrate 발현(0393)·orchWhere 노출(0394)·authoritiesAgree 노출(0395)·migrate/failover write-back(0396~0397)·lost-robust agree+report(0398)·복합 lifecycle(0399)·unifiedCoherent capstone(0400). **후속**: 업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -152,3 +152,4 @@
 | [0394](step-0394.md) | #67 orch 이중 권위 합류 1: orchWhere() 제2 where 권위(orch.runningHostOf) 노출·정상 경로 placement 일치 | 통과(reg 0·spine OK) · coordorchwhere 5/5 orchWhere==place·coordDesync0 |
 | [0395](step-0395.md) | #67 orch 이중 권위 합류 2: authoritiesAgree() 술어·migrate 후 발산 노출(write-back 전·orch stale) | 통과(reg 0·spine OK) · coordauthsplit 5/5 agree Y→N·coordDesync0 |
 | [0396](step-0396.md) | #67 orch 이중 권위 합류 3: migrate 가 _orchWriteBack 으로 orch.running/placement 동기·authoritiesAgree Y 합류 | 통과(reg 0·spine OK) · coordmigwb 5/5 agree Y·orchWhere[z1]=hostB·synced Y |
+| [0397](step-0397.md) | #67 orch 이중 권위 합류 4: failover 도 _orchWriteBack·migrate+failover 뒤도 authoritiesAgree Y·lost where 합의 | 통과(reg 0·spine OK) · coordfailwb 5/5 agree Y·orchWhere[z3]=hostB·synced Y·lost1 |
