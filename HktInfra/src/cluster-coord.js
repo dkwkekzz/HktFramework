@@ -1,4 +1,5 @@
 'use strict';
+// step-0377 — #62 runMulti 코어 통합 7: syncPlan() 상주 reconcile(비파괴) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 *누락 존만* zoneadd 로 복원. driver.reconcile(0366)은 전 존 재-zoneadd 라 entity 상태를 리셋(초기 spawn 전용); 상주 제어 평면은 *언제든* 호출돼도 기존 상태를 보존해야 하므로 현 snapshot 과 차분해 빠진 것만 더한다(idempotent·토폴로지 drift 자가 치유). OFF 동치: syncPlan 미호출이면 0376 동치.
 // step-0376 — #62 runMulti 코어 통합 6: 상주 failover(deadHost,toHost) — 죽은 host(killHost)의 존들을 생존 host 에 새 인스턴스 재가동(driver.failoverZone·상태 소실·비자발). migrate(graceful·보존)와 대조 — 죽은 host 는 snapshot 불가(정직한 한계). failovers 계측. OFF 동치: failover 미호출이면 0375 동치.
 // step-0375 — #62 runMulti 코어 통합 5: 상주 migrate(zone,fromHost,toHost) — driver.migrateZone(snapshot+zoneadd+loadstate+zonedel) 을 코디네이터 상주 lifecycle 메서드로 감싼다(상태 보존 이주·release+acquire·migrations 계측). verify 가 직접 부르던 lifecycle 을 broker 측 제어 평면으로. OFF 동치: migrate 미호출이면 0374 동치.
 // step-0374 — #62 runMulti 코어 통합 4: 매-tick desync 가드. run 루프가 매 tick 끝에 driver.clusterDesync 를 측정해 maxDesync(루프 최악)에 누적 — 정합이 *끝*뿐 아니라 *매 tick 내내* 유지됨을 단언(중간 발산 검출). OFF 동치: 측정만 추가·구동 무변경 = 0373 동치.
@@ -65,6 +66,17 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       for (const z of zones) await this.driver.failoverZone(this.cluster, z, toHost, this.specOf);
       this.failovers++;
       return zones;
+    },
+    // 상주 reconcile(비파괴·자가 치유) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 현 snapshot 을 차분해 *누락 존만* zoneadd(기존 존 상태 보존). 제어 평면이 언제든 호출돼 토폴로지 drift(존 소실)를 orch 목표로 되돌린다(idempotent). 반환=복원한 존 수.
+    async syncPlan() {
+      const plan = this.orch.hostSpawnPlan();
+      let acted = 0;
+      for (const h of plan.order) {
+        const snap = await this.cluster.rpc(h, { cmd: 'snapshot' });
+        const have = new Set(snap && snap.snap ? Object.keys(snap.snap) : []);
+        for (const z of plan.hosts[h].zones) if (!have.has(z)) { await this.cluster.rpc(h, { cmd: 'zoneadd', specs: [this.specOf(z)] }); acted++; }
+      }
+      return acted;
     },
   };
 }
