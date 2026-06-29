@@ -9,16 +9,16 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0359](step-0359.md) — **#57 실 host.js OS 프로세스 spawn 9: 실 host 다중 존 incremental** — host.js `zoneadd` cmd(가동 중 존 증분 추가·기존 보존) + flush specOf→zoneadd → 한 실 host.js 프로세스가 여러 존 소유. OFF 플래그 동일·기존 cmd 무변경(e2e 비트 동일). 직전: 0358 실 child_process 존 인스턴스화.
-- **한 줄 상태**: reg ALL OK·hostmultizone 5/5(실 host.js 1개·z1·z2 둘 다 인스턴스)·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
+- **닫힌 step**: [step-0360](step-0360.md) — **#57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent + 실 다중 host E2E** — 논리 host 컨테이너 ↔ 드라이버 계약(spawn/despawn·assign/unassign 순계)이 가동 host/존 수와 한 몸 + 실 Cluster 로 host.js 2 프로세스 spawn(A=[z1,z2]·B=[z3]). **#57 드라이버 계약 sub-arc(0351~0360) 닫기**. 직전: 0359 실 host 다중 존 incremental.
+- **한 줄 상태**: reg ALL OK·clusterhostcap 5/5(clusterHostsCoherent·실 host.js 2 프로세스·A=[z1,z2]·B=[z3])·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#57 실 host.js OS 프로세스 spawn — 드라이버 계약+실 spawn (0351~0360 ✅ 닫힘)**: 매니페스트(0351)·델타(0352)·clusterDriver 훅 seam(0353)·roster(0354)·frame(0355)·egress(0356)·ClusterHostDriver 번역+flush(0357)·실 child_process 존 인스턴스화(0358)·다중 존 incremental(0359)·capstone(0360). orch 논리 zoneHost → 실 host.js OS 프로세스/존 물질화 입증. **후속(다음 arc)**: ⒜ deliver/egress 실 소켓 데이터 평면 집행·migrate/killHost 실 프로세스 전환·cluster-run.js runMulti 통합 ⒝ 업스트림 intent 실 클라 경로(#61) ⒞ 진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 미실시(7묶음 누적·적기)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **현재 초점 = #57 실 host.js OS 프로세스 spawn sub-arc(0351~)** — 최근 arc(0241~0350)의 zoneHosts/DownClient 는 전부 `run()` 인프로세스 논리 컨테이너. 이를 cluster-core/host.js 실 child_process 머신(구 토폴로지는 이미 실 spawn)으로 잇는다. 0351 매니페스트→0352 델타→0353 clusterDriver 훅 seam(OFF). **다음**: driver roster/frame/egress 라우팅 → cluster-run.js 실 spawnOne/killHost 배선 → 실 host.js zonehost cmd → capstone clusterHostsCoherent. 기반: host 컨테이너(0301~10 ✅)·부하 균형(0311~18 ✅)·월드 다운스트림 E2E(0319~50 ✅).
-> **설계 제약**: spine 게이트는 결정론·고속 인프로세스 — 실 child_process 부적합. 따라서 orch 드라이버 계약(매니페스트·델타·훅)은 인프로세스 recorder 로 검증, 실 spawnOne/killHost 배선은 cluster-run.js(multiproc-proof·spine 밖) 집행.
+> 🎯 **다음 초점 = #57 잔여 — 실 데이터 평면 집행 + runMulti 통합** — 드라이버 계약+실 spawn 은 0351~0360 ✅(orch 논리 zoneHost → 실 host.js OS 프로세스/존 물질화 입증·clusterHostsCoherent·실 Cluster 다중 host E2E). **다음 한 조각 후보**: ⒜ deliver/egress 의 실 소켓 데이터 평면 집행(현 flush 는 spawn+zoneadd 만·deliver 는 실 frame items 필요) ⒝ migrate/killHost 실 프로세스 전환(graceful 상태 이전) ⒞ ClusterHostDriver 를 cluster-run.js runMulti 에 통합(orch 가 broker 측 제어 평면으로 실 배선). 그 다음: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4).
+> **설계 제약**: spine 게이트는 `verify.js all` — orch 드라이버 계약은 인프로세스 recorder 로, 실 spawn/zoneadd 는 실 Cluster(child_process)로 검증(둘 다 spine 안·기존 e2e 와 동형). reg 는 항상 in-proc run() 비트 대조(드라이버 OFF→null).
 
 **후속 백로그 (#57 닫은 뒤)**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61). ⒞ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0350 6묶음 리뷰 적기).
 
@@ -32,7 +32,7 @@
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
-| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · 실 OS 프로세스 🟡)** | 코디네이션/엣지 | 0291~0300 직접 라우팅(directFlowCoherent)·0301~0310 host 1급 컨테이너(hostProcCoherent). **월드 다운스트림 데이터 평면 ✅(0319~0350·host AOI 포착→egress/게이트웨이/클라 신뢰 전파[ack·gap/타임아웃 재전송·leave 정리·유계화]→실 DownClient 수렴 desync 0→E2E capstone downstreamWorldCoherent)**. **남은 것: 실 host.js *OS 프로세스/소켓* spawn**(현 zoneHosts/DownClient=orch 인프로세스·cluster-run.js 실 spawn 통합)·업스트림 intent 실 클라 경로(경로1). |
+| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn ✅ · 실 데이터 평면 🟡)** | 코디네이션/엣지 | 0291~0300 직접 라우팅(directFlowCoherent)·0301~0310 host 1급 컨테이너(hostProcCoherent)·0319~0350 월드 다운스트림 E2E(downstreamWorldCoherent). **#57 실 host.js OS 프로세스 spawn ✅(0351~0360·ClusterHostDriver: orch zoneHost 이벤트→cluster 명령 번역+flush·실 host.js child_process 다중 host spawn·zoneadd 다중 존·clusterHostsCoherent)**. **남은 것: deliver/egress 실 소켓 데이터 평면 집행·migrate/killHost 실 프로세스 전환·runMulti 통합·업스트림 intent 실 클라 경로(#61)**. |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn arc 진행(0351~·매니페스트·델타·clusterDriver 훅 seam)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn 드라이버 계약+실 spawn(0351~60·clusterHostsCoherent·ClusterHostDriver·실 host.js child_process 다중 host E2E)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -152,3 +152,4 @@
 | [0357](step-0357.md) | #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver(cluster-hostdriver.js·orch 이벤트→cluster 명령 spawnOne/killHost/rpc 동기 번역 + flush async 집행·번역↔집행 분리#4·clusterDriverReal 주입) | 통과(reg 0·spine OK) · hostcmd 5/5 번역 spawnOne1·deliver7 + flush→mock 정합 |
 | [0358](step-0358.md) | #57 실 host.js OS 프로세스 spawn 8: flush(cluster,specOf) 실 child_process E2E(orch zoneHost spawnOne/init→실 Cluster→실 host.js spawn+존 makeActor 인스턴스화·논리 컨테이너→실 OS 프로세스 존) | 통과(reg 0·spine OK) · hostspawnreal 5/5 livePid1·zone z1 인스턴스·kind zone |
 | [0359](step-0359.md) | #57 실 host.js OS 프로세스 spawn 9: 실 host 다중 존 incremental(host.js zoneadd cmd 기존 보존·flush specOf→zoneadd·한 실 host.js 프로세스가 여러 존 소유·기존 cmd 무변경 e2e 동일) | 통과(reg 0·spine OK) · hostmultizone 5/5 livePid1·z1·z2 둘 다 인스턴스 |
+| [0360](step-0360.md) | #57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent(논리 host 컨테이너↔드라이버 계약 순계==가동 host/존) + 실 Cluster 다중 host E2E·#57 드라이버 계약 0351~0360 닫기 | 통과(reg 0·spine OK) · clusterhostcap 5/5 coherent·실 host.js 2 프로세스 A=[z1,z2]·B=[z3] |
