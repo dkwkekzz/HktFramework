@@ -109,7 +109,7 @@ const OrchZoneBridge = {
       const f = JSON.parse(wire);                  // 역직렬화(원격이면 host 프로세스가 수행).
       if (this.zoneHostProc) {                     // step-0302 (#9 잔여) — host 프로세스 수신: frame 을 그 존의 *host 컨테이너 inbox*(zoneId 태깅)에 enqueue. per-runtime mbox(0292)를 host 단일 수신 버퍼로 대체(소켓 1개 = host 프로세스 1개). 적용은 _tickRuntimes 의 host 루프 drain.
         const c = this.zoneHosts.get(rt.host);
-        if (c) { (c.inbox || (c.inbox = [])).push({ zoneId, f }); this.zoneHostFramesRecv++; if (c.inbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = c.inbox.length; if (this.clusterDriver) { this.clusterDriver.onFrame(rt.host, zoneId); this.driverFrames++; } }   // step-0355 (#57) — host inbox enqueue = 실 cluster.rpc(host,{cmd:'deliver'}) 소켓 송신 자리(미부착→호출 0·비트 동일).
+        if (c) { (c.inbox || (c.inbox = [])).push({ zoneId, f }); this.zoneHostFramesRecv++; if (c.inbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = c.inbox.length; if (this.clusterDriver) { this.clusterDriver.onFrame(rt.host, zoneId, f); this.driverFrames++; } }   // step-0355 (#57) — host inbox enqueue = 실 cluster.rpc(host,{cmd:'deliver'}) 소켓 송신 자리. step-0361 — frame f 동봉(실 deliver 페이로드·미부착→호출 0·비트 동일).
       } else if (this.zoneHostMailbox) {           // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
         (rt.mbox || (rt.mbox = [])).push(f);
         if (rt.mbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = rt.mbox.length;
