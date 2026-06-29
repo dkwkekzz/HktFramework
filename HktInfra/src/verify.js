@@ -1,8 +1,8 @@
-// HktInfra step-0398 — 헤드리스 검증 (#67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 노출)
+// HktInfra step-0399 — 헤드리스 검증 (#66+#67 통합 정합 술어: unifiedCoherent())
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordauthreport`.
-//   더한 한 조각: cluster-coord.js report() 에 authoritiesAgree 필드 추가(운영 대시보드). 계측 1필드·구동 무변경=0397 동치·reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordauthreport` — 2 host·3 zone: run(5)+migrate+failover 후 report().authoritiesAgree **true**·coherent true·lost 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordunified`.
+//   더한 한 조각: cluster-coord.js unifiedCoherent()=syncedCoherent && authoritiesAgree. orch.running stale 주입 시 N(실측 검출). 새 메서드·읽기 전용·reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordunified` — 2 host·3 zone: run(5)+migrate+failover → unifiedCoherent **Y**·대조로 orch.running 에 stale host 주입 시 **N**(by-construction 아님).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,30 +31,32 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0398 #67 orch 이중 권위 합류 5 — coordauthreport: run(5)+migrate+failover 후 report() 가 authoritiesAgree true·coherent true·lost 1 노출(운영 대시보드).
-async function coordauthreport(seeds) {
+// step-0399 #66+#67 통합 정합 술어 — coordunified: run(5)+migrate+failover → unifiedCoherent Y·대조로 orch.running 에 stale host 주입 시 N(실측 검출·by-construction 아님).
+async function coordunified(seeds) {
   const BASE = coordScenario();
-  console.log('== coordauthreport (0398·#67): report().authoritiesAgree 노출. ==');
-  console.log('seed   | rpt.authoritiesAgree | rpt.coherent | rpt.lost | rpt.migrations | 판정');
+  console.log('== coordunified (0399·#66+#67): unifiedCoherent = syncedCoherent && authoritiesAgree. ==');
+  console.log('seed   | unified | inject 후(stale) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let rpt = {};
+    let uni = false, injected = true;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
       await coord.migrate('z1', 'hostA', 'hostB');
       await coord.failover('hostA', 'hostB');
-      rpt = await coord.report();
+      uni = await coord.unifiedCoherent();                              // Y — #65/#66/#67 모두 한 몸
+      o.running.set('z2', 'hostGHOST');                                 // 대조: orch where-view 에 stale host 주입
+      injected = await coord.unifiedCoherent();                        // N — authoritiesAgree 가 실측 검출
     } finally { await cluster.shutdown(); }
-    const ok = check(rpt.authoritiesAgree === true && rpt.coherent === true && rpt.lost === 1 && rpt.migrations === 1, `seed ${seed}: 위반 (${JSON.stringify(rpt)})`);
-    console.log(`${pad(seed, 6)} | ${pad(rpt.authoritiesAgree ? 'true' : 'false', 20)} | ${pad(rpt.coherent ? 'true' : 'false', 12)} | ${pad(rpt.lost, 8)} | ${pad(rpt.migrations, 14)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(uni && !injected, `seed ${seed}: 위반 (uni ${uni}·injected ${injected})`);
+    console.log(`${pad(seed, 6)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(injected ? 'Y' : 'N', 16)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordauthreport'] = coordauthreport;
-kit.ORDER.splice(1, 0, 'coordauthreport');
+kit.MODES['coordunified'] = coordunified;
+kit.ORDER.splice(1, 0, 'coordunified');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -1,4 +1,5 @@
 'use strict';
+// step-0399 — #66+#67 통합 정합 술어: unifiedCoherent() = syncedCoherent(0390·#65/#66) && authoritiesAgree(0395·#67). 연속 루프·현 entity·placement↔실 bijection·두 where 권위 합치가 *모두 한 몸*. orch.running 에 잘못된 host 를 주입하면 authoritiesAgree N → unifiedCoherent N(by-construction 아님·실측 검출). 읽기 전용·새 메서드·reg 0.
 // step-0398 — #67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 를 노출(운영 대시보드). broker 측 제어 평면의 현재 건강에 *두 where 권위 합치 여부*를 더해, lifecycle(migrate/failover) 뒤 이중 권위가 합류된 상태인지를 단일 스냅샷으로 관측. 계측 1필드 추가·구동 무변경 = 0397 동치·reg 0.
 // step-0397 — #67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back. failover(deadHost,toHost) 가 죽은 host 의 존을 toHost 로 재가동하며 placement 갱신 + _orchWriteBack(z,toHost) 로 orch.running/placement 도 동기 → migrate(0396)+failover(0397) 둘 다 거친 lifecycle 뒤에도 authoritiesAgree Y. lost 존도 where 는 toHost 로 합의(entity 손실은 coordDesync 가 별도 제외·0386). placement 기반 술어 불변=0396 동치·reg 0.
 // step-0396 — #67 orch 이중 권위 합류 3: migrate 가 orch 집행 where-view 에 write-back. 코디네이터 migrate 가 placement[zone]=toHost 갱신 후 _orchWriteBack(zone,toHost) 로 orch.running/placement(orch 의 제2 where 권위)도 동기 → migrate 후 authoritiesAgree Y(이중 권위 합류). 코디네이터 placement 기반 술어(coordDesync/syncedCoherent/maxDesync)는 불변 = 0395 동치. write-back 은 run() 종료 후 orch 객체에만 작용 → reg 0.
@@ -176,6 +177,10 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     // grand capstone 술어(0390·#65) — 연속 루프 정합(maxDesync==0) + 현 entity 정합(coordDesync==0·lost 제외) + placement⟷실 1:1(placementCoherent). migrate/failover 를 *포함한* 전체 lifecycle 뒤에도 참(0380 이 제외한 것). 양방향 동기 sub-arc(0381~0390) 종합.
     async syncedCoherent() {
       return this.maxDesync === 0 && (await this.coordDesync()) === 0 && (await this.placementCoherent());
+    },
+    // 통합 정합 술어(0399·#66+#67) — syncedCoherent(연속 루프·현 entity·placement↔실 bijection) && authoritiesAgree(코디네이터 placement == orch 집행 where-view). 즉 *양방향 동기(#65)·tick placement-aware(#66)·orch 이중 권위 합류(#67)* 가 모두 한 몸. orch.running 에 stale host 가 남으면 authoritiesAgree 가 잡아 N(실측 검출).
+    async unifiedCoherent() {
+      return (await this.syncedCoherent()) && this.authoritiesAgree();
     },
   };
 }
