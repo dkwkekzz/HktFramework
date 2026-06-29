@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0382](step-0382.md) — **#65 양방향 동기 2: coordDesync** — placement(where 권위)로 host 조회 + orch entity 권위(zoneEntityPos·what·host-무관) 양방향 대조. driver.clusterDesync(orch plan stale 가능)와 달리 lifecycle 갱신만 따라가면 정확. placement==orch plan 일 때 동치. 직전: 0381 placement SSOT.
-- **한 줄 상태**: reg ALL OK·coorddesync2 5/5(coordDesync 0==clusterDesync 0)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0383](step-0383.md) — **#65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix)** — migrate 가 this.placement[zone]=to 로 where 권위 갱신 → coordDesync 가 새 host 조회·**migrate 후 desync 0**(driver.clusterDesync 는 orch stale 로 발산·#65 입증). 직전: 0382 coordDesync.
+- **한 줄 상태**: reg ALL OK·coordmigsync 5/5(placedHost hostB·coordDesync 0 vs clusterDesync 1)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#65 양방향 동기 sub-arc(0381~)** — 코디네이터 lifecycle↔placement 권위 동기: placement SSOT(0381 ✅)→ coordDesync(placement 기준)→ migrate 가 placement 갱신(→migrate 후 desync 0)→ coordCoherent 가 coordDesync 사용→ failover placement 갱신+lost 추적→ lost 제외 coherence→ placement-aware report→ syncPlan placement 기준→ placementCoherent bijection→ grand capstone syncedCoherent. **후속**: cluster-run.js 옛 runMulti 합류(#62 잔여)·업스트림 intent 실 클라(#61)·진짜 비동기(#4).
 
 ---
@@ -156,3 +156,4 @@
 | [0380](step-0380.md) | #62 runMulti 통합 10·grand capstone: coordCoherent()=maxDesync==0 && 현 clusterDesync==0·start→run(5)→drift→syncPlan 치유 뒤 정합·runMulti 통합 0371~0380 닫기 | 통과(reg 0·spine OK) · coordcap 5/5 maxDesync0·drift 치유·coordCoherent·report coh |
 | [0381](step-0381.md) | #65 양방향 동기 1: 코디네이터 placement SSOT(zone→실 host·where 권위·start 가 hostSpawnPlan 초기화·placedHost 질의·orch=entity 권위 분리) | 통과(reg 0·spine OK) · coordplace 5/5 placement z1@A·z2@B·z3@A==orch plan |
 | [0382](step-0382.md) | #65 양방향 동기 2: coordDesync()=placement 권위로 host 조회+orch entity 권위(zoneEntityPos·host-무관) 양방향 대조(stale orch plan 무관) | 통과(reg 0·spine OK) · coorddesync2 5/5 coordDesync0==clusterDesync0 |
+| [0383](step-0383.md) | #65 양방향 동기 3: migrate 가 this.placement[zone]=to 갱신(핵심 fix)→coordDesync 새 host 조회·migrate 후 desync 0 | 통과(reg 0·spine OK) · coordmigsync 5/5 placedHost hostB·coordDesync0 vs clusterDesync1(orch stale) |

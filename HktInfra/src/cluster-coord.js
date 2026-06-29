@@ -1,4 +1,5 @@
 'use strict';
+// step-0383 — #65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix). migrate(zone,from,to) 가 실 cluster 이주 후 this.placement[zone]=to 로 *where 권위*를 갱신 → coordDesync 가 새 host(to)를 조회해 entity 발견 → migrate 후도 desync 0. driver.clusterDesync 는 orch plan(stale·여전히 from)으로 from 조회 → 발산(대조로 #65 입증). OFF 동치: migrate 미호출이면 0382 동치.
 // step-0382 — #65 양방향 동기 2: coordDesync() — 코디네이터 placement(zone→host SSOT)로 host 를 조회해 실 cluster vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 는 orch.hostSpawnPlan(stale 가능)으로 host 조회 → migrate 후 발산. coordDesync 는 placement 권위로 조회 → lifecycle 갱신만 따라가면 항상 정확. placement==orch plan 일 땐 driver.clusterDesync 와 동치. OFF 동치: 미호출이면 0381 동치.
 // step-0381 — #65 양방향 동기 1: 코디네이터 placement SSOT(zone→host). #62 가 남긴 잔여 — 코디네이터 lifecycle(migrate/failover)이 *실 cluster* 만 바꾸고 orch 권위 placement 는 갱신 안 해(단방향) 실 migrate 후 clusterDesync 가 stale orch plan 으로 발산했다(0379·capstone 이 migrate/failover 제외). 해법: 코디네이터가 *placement 권위*(zone→실 host)를 직접 들고 lifecycle 마다 갱신 → "어느 host 가 어느 존을 도나"의 SSOT 를 코디네이터가 소유(orch=entity 권위/what·코디네이터=placement 권위/where 분리). 이 step=start() 가 orch.hostSpawnPlan 에서 placement 초기화 + placedHost(zone) 질의. OFF 동치: 미사용이면 0380 동치.
 // step-0380 — #62 runMulti 코어 통합 10·grand capstone: coordCoherent() — broker 측 제어 평면이 연속 루프 내내(maxDesync==0) *그리고* 지금(clusterDesync==0) 실 cluster 와 in-proc 권위가 한 몸인가의 단일 술어. start→연속 run→drift→syncPlan 자가 치유 뒤에도 참. #62 runMulti 통합 sub-arc(0371~0380) 종합. OFF 동치: 미호출이면 0379 동치.
@@ -84,6 +85,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     // 상주 존 migrate(graceful·상태 보존) — driver.migrateZone(snapshot from→toHost spawn/zoneadd→loadstate→from zonedel) 을 코디네이터 lifecycle 메서드로. entity 무손실·release+acquire(이중 쓰기 0)·migrations 계측. 반환=이전 상태.
     async migrate(zone, fromHost, toHost) {
       const state = await this.driver.migrateZone(this.cluster, zone, fromHost, toHost, this.specOf);
+      this.placement[zone] = toHost;   // step-0383 (#65) — where 권위 갱신 → coordDesync 가 새 host 조회·migrate 후 desync 0.
       this.migrations++;
       return state;
     },
