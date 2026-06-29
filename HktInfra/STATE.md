@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0386](step-0386.md) — **#65 양방향 동기 6: coordDesync 가 lost 의 기대된 부재 제외** — failover lost 존의 reverse 부재(권위엔 있고 실엔 없음=비자발 손실)를 desync 에서 제외(forward ghost 검사 유지). crash=양쪽 합의된 손실로 coherence 정의에 용인. 직전: 0385 failover lost 추적.
-- **한 줄 상태**: reg ALL OK·coordfocoh 5/5(failover 후 desync0·ghost 주입 desync1)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0387](step-0387.md) — **#65 양방향 동기 7: placement-aware report** — report 가 placement 기준(hosts/zones/coordDesync/lost) → migrate/failover 후도 대시보드 정합(0379 가 못한 것). 직전: 0386 lost 기대 부재 제외.
+- **한 줄 상태**: reg ALL OK·coordreport2 5/5(migrate 후 hosts2·zones3·ents2·desync0·coherent)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#65 양방향 동기 sub-arc(0381~)** — 코디네이터 lifecycle↔placement 권위 동기: placement SSOT(0381 ✅)→ coordDesync(placement 기준)→ migrate 가 placement 갱신(→migrate 후 desync 0)→ coordCoherent 가 coordDesync 사용→ failover placement 갱신+lost 추적→ lost 제외 coherence→ placement-aware report→ syncPlan placement 기준→ placementCoherent bijection→ grand capstone syncedCoherent. **후속**: cluster-run.js 옛 runMulti 합류(#62 잔여)·업스트림 intent 실 클라(#61)·진짜 비동기(#4).
 
 ---
@@ -151,3 +151,4 @@
 | [0384](step-0384.md) | #65 양방향 동기 4: run 가드·coordCoherent 가 coordDesync(placement 기준) 채택→migrate 포함 연속 루프·capstone 정합 | 통과(reg 0·spine OK) · coordmigcap 5/5 run5+migrate→maxDesync0·coordCoherent Y |
 | [0385](step-0385.md) | #65 양방향 동기 5: failover 가 placement[zone]=toHost 갱신+lostZones 기록(상태 소실 #63 명시 추적) | 통과(reg 0·spine OK) · coordfosync 5/5 z1·z3→hostB·lostZones={z1,z3} |
 | [0386](step-0386.md) | #65 양방향 동기 6: coordDesync 가 lostZones reverse 부재(비자발 손실) 제외·forward ghost 검사 유지 | 통과(reg 0·spine OK) · coordfocoh 5/5 failover 후 desync0·ghost 주입 desync1 |
+| [0387](step-0387.md) | #65 양방향 동기 7: placement-aware report(hosts/zones/coordDesync/lost 기준)→migrate/failover 후 대시보드 정합 | 통과(reg 0·spine OK) · coordreport2 5/5 migrate 후 hosts2·zones3·ents2·desync0·coherent |

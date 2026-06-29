@@ -1,8 +1,8 @@
-// HktInfra step-0386 — 헤드리스 검증 (#65 양방향 동기 6: coordDesync 가 lost 의 기대된 부재 제외)
+// HktInfra step-0387 — 헤드리스 검증 (#65 양방향 동기 7: placement-aware report)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordfocoh`.
-//   더한 한 조각: cluster-coord.js coordDesync 가 lostZones 의 reverse 부재(권위에 있는데 실에 부재)를 제외(forward ghost 검사는 유지). 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordfocoh` — 2 host·3 zone: run(3)+failover hostA→hostB → coordDesync 0(lost 제외)·lost 존 ghost 주입 시 desync 1(forward 유지).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordreport2`.
+//   더한 한 조각: cluster-coord.js report 가 placement 기준(coordDesync·placement host/zone·lost 계측) → migrate 후도 정합. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordreport2` — 2 host·3 zone: run(3)+migrate z1 A→B → report coherent Y·hosts2·zones3·entities2·migrations1·lost0(0379 가 못했던 migrate 후 정합).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,30 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0386 #65 양방향 6 — coordDesync 가 lost 기대 부재 제외: run(3)+failover → coordDesync 0(lost 제외)·lost 존 ghost 주입 시 desync 1(forward 유지).
-async function coordfocoh(seeds) {
+// step-0387 #65 양방향 7 — placement-aware report: run(3)+migrate z1 A→B → report 가 placement 기준으로 정합(0379 가 못했던 migrate 후).
+async function coordreport2(seeds) {
   const BASE = coordScenario();
-  console.log('== coordfocoh (0386·#65 양방향 6): coordDesync 가 lost 기대 부재 제외 — failover 후 0·ghost 검출 유지 ==');
-  console.log('seed   | failover desync | ghost desync | 판정');
+  console.log('== coordreport2 (0387·#65 양방향 7): placement-aware report — migrate 후 대시보드 정합 ==');
+  console.log('seed   | hosts | zones | ents | desync | mig | coherent | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let foD = -1, ghostD = 0;
+    let rep = null;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(3);
-      await coord.failover('hostA', 'hostB');
-      foD = await coord.coordDesync();                                   // lost(z1·z3) reverse 제외 → 0
-      // lost 존(z1)에 ghost 주입 → forward(실에 있는데 권위 부재) 는 여전히 검출
-      await cluster.rpc('hostB', { cmd: 'deliver', items: [{ gi: 0, m: { to: 'z1', from: 'ghost', payload: { type: 'enter', avatar: 'ghostX', sessionId: 'gs' } } }] });
-      ghostD = await coord.coordDesync();
+      await coord.migrate('z1', 'hostA', 'hostB');                       // 0379 가 제외했던 migrate
+      rep = await coord.report();
     } finally { await cluster.shutdown(); }
-    const ok = check(foD === 0 && ghostD > 0, `seed ${seed}: focoh 위반 (foD ${foD}·ghost ${ghostD})`);
-    console.log(`${pad(seed, 6)} | ${pad(foD, 15)} | ${pad(ghostD, 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(rep && rep.hosts === 2 && rep.zones === 3 && rep.entities === 2 && rep.desync === 0 && rep.migrations === 1 && rep.lost === 0 && rep.coherent === true,
+      `seed ${seed}: report2 위반 (${JSON.stringify(rep)})`);
+    console.log(`${pad(seed, 6)} | ${pad(rep.hosts, 5)} | ${pad(rep.zones, 5)} | ${pad(rep.entities, 4)} | ${pad(rep.desync, 6)} | ${pad(rep.migrations, 3)} | ${pad(rep.coherent ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordfocoh'] = coordfocoh;
-kit.ORDER.splice(1, 0, 'coordfocoh');
+kit.MODES['coordreport2'] = coordreport2;
+kit.ORDER.splice(1, 0, 'coordreport2');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
