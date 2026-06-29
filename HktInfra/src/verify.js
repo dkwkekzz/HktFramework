@@ -1,8 +1,8 @@
-// HktInfra step-0377 — 헤드리스 검증 (#62 runMulti 코어 통합 7: syncPlan 상주 reconcile 자가 치유)
+// HktInfra step-0378 — 헤드리스 검증 (#62 runMulti 코어 통합 8: 다운스트림 egress 집계)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsync`.
-//   더한 한 조각: cluster-coord.js syncPlan()=driver.reconcile(orch.hostSpawnPlan) 재호출(토폴로지 drift 자가 치유). 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordsync` — 2 host·3 zone: run(3) 후 hostA 의 z3 존 소실(zonedel drift)→ syncPlan() → z3 hostA 복원·clusterCoherent Y·acted>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordegress`.
+//   더한 한 조각: cluster-coord.js tick 이 view_delta 를 egressByZone/egressTotal 로 회계. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordegress` — 2 host·3 zone: run(5)→egressTotal==views 반환·z1·z2(이동 entity) 송출>0·z3(빈 존) 0·coherent.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,34 +31,30 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0377 #62 통합 7 — syncPlan 자가 치유: run 후 z3 존 소실(drift) → syncPlan() 이 orch 목표로 복원·coherent.
-async function coordsync(seeds) {
+// step-0378 #62 통합 8 — 다운스트림 egress 집계: run 루프가 송출한 view 를 존별·누계로 회계(z1·z2 송출>0·z3 0).
+async function coordegress(seeds) {
   const BASE = coordScenario();
-  console.log('== coordsync (0377·#62 통합 7): syncPlan 상주 reconcile — z3 drift 소실→syncPlan→z3 복원·coherent ==');
-  console.log('seed   | drift gone | restored | coherent | acted | 판정');
+  console.log('== coordegress (0378·#62 통합 8): 다운스트림 egress 집계 — run(5)→egressTotal·존별 z1·z2>0·z3 0 ==');
+  console.log('seed   | egressTotal | z1 | z2 | z3 | total==ret | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let driftGone = false, restored = false, coherent = false, acted = 0;
+    let tot = 0, z1 = 0, z2 = 0, z3 = 0, totOk = false, coherent = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(3);
-      await cluster.rpc('hostA', { cmd: 'zonedel', addr: 'z3' });        // 토폴로지 drift — hostA 가 z3 소실
-      const s1 = await cluster.rpc('hostA', { cmd: 'snapshot' });
-      driftGone = !(s1 && s1.snap && s1.snap['z3']);
-      acted = await coord.syncPlan();                                    // 자가 치유 — orch 목표로 수렴
-      const s2 = await cluster.rpc('hostA', { cmd: 'snapshot' });
-      restored = !!(s2 && s2.snap && s2.snap['z3']);
+      const ret = await coord.run(5);
+      tot = coord.egressTotal; z1 = coord.egressByZone['z1'] || 0; z2 = coord.egressByZone['z2'] || 0; z3 = coord.egressByZone['z3'] || 0;
+      totOk = ret === tot;
       coherent = await drv.clusterCoherent(o, cluster);
     } finally { await cluster.shutdown(); }
-    const ok = check(driftGone && restored && coherent && acted > 0, `seed ${seed}: sync 위반 (drift ${driftGone}·rest ${restored}·coh ${coherent}·acted ${acted})`);
-    console.log(`${pad(seed, 6)} | ${pad(driftGone ? 'Y' : 'N', 10)} | ${pad(restored ? 'Y' : 'N', 8)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(acted, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(z1 > 0 && z2 > 0 && z3 === 0 && totOk && coherent && tot === z1 + z2 + z3, `seed ${seed}: egress 위반 (tot ${tot}·z1 ${z1}·z2 ${z2}·z3 ${z3}·totOk ${totOk}·coh ${coherent})`);
+    console.log(`${pad(seed, 6)} | ${pad(tot, 11)} | ${pad(z1, 2)} | ${pad(z2, 2)} | ${pad(z3, 2)} | ${pad(totOk ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordsync'] = coordsync;
-kit.ORDER.splice(1, 0, 'coordsync');
+kit.MODES['coordegress'] = coordegress;
+kit.ORDER.splice(1, 0, 'coordegress');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
