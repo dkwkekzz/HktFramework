@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0355](step-0355.md) — **#57 실 host.js OS 프로세스 spawn 5: clusterDriver onFrame** — `_zoneDeliver` 의 host 컨테이너 inbox enqueue 마다 `onFrame(host,zoneId)` 호출(실 cluster.rpc deliver 소켓 송신). OFF 플래그 동일. 직전: 0354 clusterDriver 존 roster.
-- **한 줄 상태**: reg ALL OK·hostframe 5/5(driverFrames==zoneHostFramesRecv==7·모든 frame hostA)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0356](step-0356.md) — **#57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress** — `_drainZoneEgress` 의 host→게이트웨이 송출마다 `onEgress(host,key)` 호출(실 host 프로세스 소켓 송신). 이로써 orch 드라이버 계약(spawn/despawn·assign/unassign·frame·egress) 완비. OFF 플래그 동일. 직전: 0355 onFrame.
+- **한 줄 상태**: reg ALL OK·hostegress 5/5(driverEgress==zoneViewEgressed==7·모든 egress hostA)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
@@ -155,3 +155,4 @@
 | [0353](step-0353.md) | #57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam(_hostSet spawn/despawn→driver.onSpawn/onDespawn·실 cluster.spawnOne/killHost 집행 이음새·OFF 플래그 clusterDriverRecord·인프로세스 recorder) | 통과(reg 0·spine OK) · hostdrive 5/5 spawns[A,B,C]·despawns[B]·dS==reg3 |
 | [0354](step-0354.md) | #57 실 host.js OS 프로세스 spawn 4: clusterDriver onAssign/onUnassign 존 roster(존↔host 귀속·실 cluster.init/loadstate·migrate 입력·spawn/despawn 과 직교) | 통과(reg 0·spine OK) · hostroster 5/5 assigns[A:z1,A:z2,B:z2]·net==plan |
 | [0355](step-0355.md) | #57 실 host.js OS 프로세스 spawn 5: clusterDriver onFrame entity frame egress(_zoneDeliver host inbox enqueue=실 cluster.rpc deliver 소켓 송신 씨앗) | 통과(reg 0·spine OK) · hostframe 5/5 driverFrames==zoneHostFramesRecv==7·allA |
+| [0356](step-0356.md) | #57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress 다운스트림 송출(_drainZoneEgress host→게이트웨이=실 host 소켓 송신 씨앗·드라이버 계약 완비: spawn/despawn·assign/unassign·frame·egress) | 통과(reg 0·spine OK) · hostegress 5/5 driverEgress==zoneViewEgressed==7·allA |

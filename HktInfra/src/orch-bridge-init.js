@@ -4,6 +4,7 @@
 //   같은 순서의 동일 대입을 생성자 같은 지점(`this._initBridgeFields(opts)`)에서 호출하므로 동작 비트 불변(reg 0·orch-placement 0251·orch-control 0267·orch-hostproc 0305·orch-views 0323 투명 분할 계보).
 // dual-mode: Node require / 브라우저는 net-core.js 가 <script> 선행 로드(전역 __HktNetParts.orch_bridge_init).
 
+// step-0356 — #57 실 host.js OS 프로세스 spawn 6: clusterDriver 에 onEgress(host→게이트웨이 다운스트림 view 송출마다·실 host 프로세스 소켓 송신) 추가. OFF→호출 0 = 0355 비트 동일.
 // step-0355 — #57 실 host.js OS 프로세스 spawn 5: clusterDriver 에 onFrame(host 컨테이너 inbox enqueue 마다·실 cluster.rpc deliver 소켓 송신) 추가. OFF→호출 0 = 0354 비트 동일.
 // step-0354 — #57 실 host.js OS 프로세스 spawn 4: clusterDriver 에 onAssign/onUnassign(존↔host 귀속) 추가. 실 cluster.init/loadstate/migrate 입력. OFF→호출 0 = 0353 비트 동일.
 // step-0353 — #57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam 필드(_hostSet spawn/despawn 이 호출). OFF→드라이버 null·호출 0 = 0352 비트 동일.
@@ -68,16 +69,17 @@ const OrchBridgeInit = {
     this.zoneEgressTimeoutResent = 0;   // step-0338 — 타임아웃으로 재전송한 frame 누적(마지막-frame 손실 복구 발화 증거).
     // 실 cluster 드라이버 훅 seam(step-0353·#57 실 host.js OS 프로세스 spawn) — 0301~0352 의 zoneHosts spawn/despawn 은 *논리 컨테이너 회계*(hostRegisters/hostLifecycleLog)만 남겼다. clusterDriver 가 부착되면 _hostSet 의 첫-존 spawn·마지막-존 despawn 지점에서 driver.onSpawn(host)/onDespawn(host)를 호출 — cluster-run.js 가 실 cluster.spawnOne/killHost(자식 OS 프로세스) 로 집행할 이음새(SPINE §5 ⑤ headless·원격). 미부착(null)이면 호출 0 = 0352 비트 동일. clusterDriverRecord ON 이면 인프로세스 recorder 드라이버 부착(검증용 — 실 드라이버는 cluster-run.js 가 makeActor 뒤 orch.clusterDriver= 로 교체·멀티프로세스-safe).
     this.clusterDriver = opts.clusterDriverRecord
-      ? { spawns: [], despawns: [], assigns: [], unassigns: [], frames: [],
+      ? { spawns: [], despawns: [], assigns: [], unassigns: [], frames: [], egress: [],
           onSpawn(h) { this.spawns.push(h); }, onDespawn(h) { this.despawns.push(h); },
           onAssign(h, z) { this.assigns.push(h + ':' + z); }, onUnassign(h, z) { this.unassigns.push(h + ':' + z); },
-          onFrame(h, z) { this.frames.push(h + ':' + z); } }   // step-0354 존↔host 귀속·step-0355 entity frame egress(실 cluster.rpc deliver 입력).
+          onFrame(h, z) { this.frames.push(h + ':' + z); }, onEgress(h, k) { this.egress.push(h + ':' + k); } }   // step-0354 존 귀속·0355 entity frame·0356 다운스트림 egress(실 host→게이트웨이 소켓 송신 입력).
       : null;
     this.driverSpawns = 0;     // step-0353 — driver.onSpawn 호출 누적(== hostSpawnCount 면 spawn 이벤트 전부 드라이버로 흘렀다·실 spawnOne 1:1).
     this.driverDespawns = 0;   // step-0353 — driver.onDespawn 호출 누적(== hostDespawnCount·실 killHost 1:1).
     this.driverAssigns = 0;    // step-0354 — driver.onAssign 호출 누적(존이 host 컨테이너에 붙음·실 host 에 그 존 init/loadstate 의 씨앗).
     this.driverUnassigns = 0;  // step-0354 — driver.onUnassign 호출 누적(존이 host 컨테이너에서 떨어짐·실 host 에서 그 존 stop/migrate-out 의 씨앗).
     this.driverFrames = 0;     // step-0355 — driver.onFrame 호출 누적(host 컨테이너 inbox enqueue 마다·실 cluster.rpc(host,{cmd:'deliver'}) 소켓 송신의 씨앗·== zoneHostFramesRecv).
+    this.driverEgress = 0;     // step-0356 — driver.onEgress 호출 누적(host→게이트웨이 다운스트림 view frame 송출마다·실 host 프로세스 소켓 송신의 씨앗·== zoneViewEgressed).
   },
 };
 
