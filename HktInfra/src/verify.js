@@ -1,8 +1,8 @@
-// HktInfra step-0401 — 헤드리스 검증 (#62 runMulti 합류 1·복원력: 코디네이터 epoch 펜싱 fence/presumedDead)
+// HktInfra step-0402 — 헤드리스 검증 (#62 runMulti 합류 2·복원력: silence lease-timeout 자동 펜싱)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordfence`.
-//   더한 한 조각: cluster-coord.js fence(host)=presumedDead+epoch++·tick 이 추정 사망 host 의 존 건너뜀(runMulti 펜싱의 zone cluster 판·#62 능력 합류). presumedDead 비면 0400 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordfence` — 2 host·3 zone: run(5)(펜싱 0) → fence(hostB) → epoch 1·presumedDead={hostB}·이후 tick 이 z2(hostB) 건너뜀(fencedTicks↑·hostA z1/z3 만 tick).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsilence`.
+//   더한 한 조각: cluster-coord.js sweepSilence()=socketDead host 연속 침묵 세어 leaseTimeout 초과 시 자동 fence(runMulti observeSilence 판). socketDead 0 이면 0401 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordsilence` — 2 host·3 zone: run(5)+killHost(hostB) → sweepSilence ×2(임계 3 미만·미펜싱) → 3번째 sweep 에 자동 fence(epoch 1·presumedDead={hostB}).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,32 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0401 #62 runMulti 합류 1·복원력 — coordfence: run(5)(펜싱 0) → fence(hostB) → epoch 1·presumedDead={hostB}·이후 tick 이 z2(hostB) 건너뜀(fencedTicks↑).
-async function coordfence(seeds) {
+// step-0402 #62 runMulti 합류 2·복원력 — coordsilence: run(5)+killHost(hostB) → sweepSilence ×2(임계 3 미만·미펜싱) → 3번째 sweep 에 자동 fence(epoch 1·presumedDead={hostB}).
+async function coordsilence(seeds) {
   const BASE = coordScenario();
-  console.log('== coordfence (0401·#62 복원력): epoch 펜싱 fence(host)·tick 이 추정 사망 host 건너뜀. ==');
-  console.log('seed   | epoch | presumedDead | fencedTicks(fence 후 tick) | 판정');
+  console.log('== coordsilence (0402·#62 복원력): silence lease-timeout 자동 펜싱(임계 3). ==');
+  console.log('seed   | sweep2 pd | sweep3 pd | epoch | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let ep = -1, pd = false, fbefore = -1, fafter = -1;
+    let pd2 = true, pd3 = false, ep = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);                                               // 펜싱 0(OFF 동치)
-      fbefore = coord.fencedTicks;                                      // 0 기대
-      coord.fence('hostB');                                            // hostB 추정 사망
-      ep = coord.epoch; pd = coord.presumedDead.has('hostB');
-      await coord.tick(6);                                             // hostB 존(z2) 건너뜀
-      fafter = coord.fencedTicks;                                      // ≥1 기대(z2 skip)
+      await coord.run(5);
+      await cluster.killHost('hostB');                                  // hostB socketDead(전송 층 사망 감지)
+      coord.sweepSilence(); coord.sweepSilence();                       // 2회(임계 3 미만)
+      pd2 = coord.presumedDead.has('hostB');                            // false 기대(아직 미펜싱)
+      coord.sweepSilence();                                            // 3회째 — 자동 fence
+      pd3 = coord.presumedDead.has('hostB'); ep = coord.epoch;          // true·epoch 1 기대
     } finally { await cluster.shutdown(); }
-    const ok = check(ep === 1 && pd && fbefore === 0 && fafter > fbefore, `seed ${seed}: 위반 (epoch ${ep}·pd ${pd}·fb ${fbefore}·fa ${fafter})`);
-    console.log(`${pad(seed, 6)} | ${pad(ep, 5)} | ${pad(pd ? 'hostB' : 'none', 12)} | ${pad(`${fbefore}→${fafter}`, 26)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(!pd2 && pd3 && ep === 1, `seed ${seed}: 위반 (pd2 ${pd2}·pd3 ${pd3}·ep ${ep})`);
+    console.log(`${pad(seed, 6)} | ${pad(pd2 ? 'Y' : 'N', 9)} | ${pad(pd3 ? 'Y' : 'N', 9)} | ${pad(ep, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordfence'] = coordfence;
-kit.ORDER.splice(1, 0, 'coordfence');
+kit.MODES['coordsilence'] = coordsilence;
+kit.ORDER.splice(1, 0, 'coordsilence');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

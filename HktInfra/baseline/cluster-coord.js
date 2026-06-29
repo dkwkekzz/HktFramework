@@ -1,4 +1,5 @@
 'use strict';
+// step-0401 — #62 runMulti 합류 1·복원력 능력 합류: 코디네이터 epoch 펜싱(presumedDead/fence/epoch). runMulti(cluster-run.js)는 presumedDead+epoch 펜싱으로 stale host 발신을 차단했으나(`cluster-run.js:69,76`) 코디네이터(zone cluster 상주 제어 평면)엔 그 능력이 없었다 — fence(host)로 host 를 추정 사망 표기+epoch++, tick 이 presumedDead host 의 존을 건너뛴다(fenced·egress 0). 코디네이터를 runMulti 호환 복원력 코어로 승격(#62·능력 합류·병존 reg 0). presumedDead 비면 0400 동치. 새 박스·run() 미사용→reg 0.
 // step-0399 — #66+#67 통합 정합 술어: unifiedCoherent() = syncedCoherent(0390·#65/#66) && authoritiesAgree(0395·#67). 연속 루프·현 entity·placement↔실 bijection·두 where 권위 합치가 *모두 한 몸*. orch.running 에 잘못된 host 를 주입하면 authoritiesAgree N → unifiedCoherent N(by-construction 아님·실측 검출). 읽기 전용·새 메서드·reg 0.
 // step-0398 — #67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 를 노출(운영 대시보드). broker 측 제어 평면의 현재 건강에 *두 where 권위 합치 여부*를 더해, lifecycle(migrate/failover) 뒤 이중 권위가 합류된 상태인지를 단일 스냅샷으로 관측. 계측 1필드 추가·구동 무변경 = 0397 동치·reg 0.
 // step-0397 — #67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back. failover(deadHost,toHost) 가 죽은 host 의 존을 toHost 로 재가동하며 placement 갱신 + _orchWriteBack(z,toHost) 로 orch.running/placement 도 동기 → migrate(0396)+failover(0397) 둘 다 거친 lifecycle 뒤에도 authoritiesAgree Y. lost 존도 where 는 toHost 로 합의(entity 손실은 coordDesync 가 별도 제외·0386). placement 기반 술어 불변=0396 동치·reg 0.
@@ -46,6 +47,9 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     egressByZone: {},  // 존별 송출 view 수(0378·운영 계측).
     placement: {},     // zone→실 host placement 권위(0381·#65·lifecycle 마다 갱신·coordDesync 가 이걸로 host 조회).
     lostZones: new Set(), // failover 로 상태 소실된 존(0385·#63/#65·0386 coordDesync 가 기대된 부재로 제외).
+    epoch: 0,          // 펜싱 epoch(0401·#62·runMulti epoch 의 코디네이터 판·fence 마다 ++).
+    presumedDead: new Set(), // 추정 사망 host(0401·#62·fence/silence·tick 이 건너뜀·stale 발신 차단).
+    fencedTicks: 0,    // 펜싱으로 건너뛴 (host,zone) tick 수(0401·계측).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -59,6 +63,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // placement 질의(0381) — 이 존이 지금 실제로 도는 host(코디네이터 placement 권위). lifecycle(migrate/failover)이 이를 갱신해 orch plan stale 과 무관히 정확.
     placedHost(zone) { return this.placement[zone] || null; },
+    // epoch 펜싱(0401·#62) — host 를 추정 사망 표기 + epoch++. 이후 tick 이 이 host 의 존을 건너뛰어(fenced) stale 발신을 차단(runMulti `cluster-run.js:69,76` 펜싱의 zone cluster 판). 이미 추정 사망이면 멱등 no-op. 반환=새로 펜싱했는지.
+    fence(host) { if (this.presumedDead.has(host)) return false; this.presumedDead.add(host); this.epoch++; return true; },
     // orch 집행 where-view(0394·#67) — orch 가 들고 있는 제2 where 권위(zone→orch.runningHostOf). 코디네이터 placement 와 별개 — migrate/failover 전엔 일치, 후엔 orch 가 stale(이중 권위). placement 가 추적하는 존마다 orch 의 running host 를 조회. 읽기 전용.
     orchWhere() { const w = {}; for (const z of Object.keys(this.placement)) w[z] = this.orch.runningHostOf(z) || null; return w; },
     // 두 where 권위 합의 술어(0395·#67) — 코디네이터 placement == orchWhere(orch 집행 where-view) 가 모든 존에서 일치하는가. 참이면 단일 where 권위. lifecycle write-back(0396~) 전엔 migrate/failover 후 orch 가 stale → 거짓(이중 권위). 읽기 전용.
@@ -93,6 +99,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       let views = 0;
       for (const z of Object.keys(this.placement)) {        // step-0391 — placement 권위 순회(삽입 순·결정론). orch plan stale 무관.
         const h = this.placement[z];
+        if (this.presumedDead.has(h)) { this.fencedTicks++; continue; }   // step-0401 (#62) — 추정 사망 host 의 존은 tick/egress 건너뜀(펜싱). presumedDead 비면 도달 0 = 0400 동치.
         const v = (await this.driver.tickZone(this.cluster, h, z, t)).filter(s => s.payload && /^view/.test(s.payload.type)).length;
         if (v) this.egressByZone[z] = (this.egressByZone[z] || 0) + v;   // step-0378 — 존별 다운스트림 송출 회계.
         views += v;
