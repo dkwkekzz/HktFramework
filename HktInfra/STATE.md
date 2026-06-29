@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0351](step-0351.md) — **#57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan 매니페스트** — `orch.hostSpawnPlan()` 읽기 전용: zoneHostSnapshot(0309)을 실 cluster 드라이버가 집행할 *spawn 계약*(host→존 roster·결정론 order·총계)으로 감쌈. cluster.spawnOne+init 의 입력. **#57 실 host.js OS 프로세스 spawn arc 시작**. 직전: 0350 월드 다운스트림 E2E grand capstone.
-- **한 줄 상태**: reg ALL OK·hostplan 5/5(hostCount2·order[A,B]·A=[z1,z3]·B=[z2]·zones==running3·snapshot bijection)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0352](step-0352.md) — **#57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta reconcile 델타** — `orch.hostSpawnDelta(prev)` 읽기 전용: 직전 spawn host 집합 대비 `{spawn,kill,keep}`. 드라이버가 매 reconcile tick cluster.spawnOne/killHost 로 집행할 차이(hostSpawnPlan 목표에 수렴). 직전: 0351 hostSpawnPlan 매니페스트.
+- **한 줄 상태**: reg ALL OK·hostdelta 5/5(drain hostB→hostC: spawn[C]·kill[B]·keep[A])·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
@@ -151,3 +151,4 @@
 | [0349](step-0349.md) | downstream 대시보드(#9 후속): 게이트웨이 downstreamReport(rx/routed/dropped/gaps/resyncs/cleaned/sessions/isolated·0331~0348 지표 단일 집계·운영 관측·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcreport 5/5 일관·conv |
 | [0350](step-0350.md) | 월드 다운스트림 grand capstone(#9 후속): downstreamWorldCoherent(모든 존 downstreamCoherent[포착]&&downstreamSettled[전파]) + 다중 존·손실·migrate·late-join 뒤 worldCoherent && 모든 실 DownClient convergedTo[desync0] && isolated·host→게이트웨이→실 클라 E2E·월드 다운스트림 0319~0350 닫기·읽기 전용 비트 동일 | 통과(reg 0·spine OK) · worldcap 5/5 world·수렴·iso |
 | [0351](step-0351.md) | #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트(zoneHostSnapshot 0309→ 실 cluster 드라이버 spawn 계약: host→존 roster·결정론 order·hostCount·zones 총계·cluster.spawnOne+init 입력) | 통과(reg 0·spine OK) · hostplan 5/5 hosts2·A=[z1,z3]·zones==running3 |
+| [0352](step-0352.md) | #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타(직전 spawn host 대비 {spawn,kill,keep}·드라이버 cluster.spawnOne/killHost 집행 단위·목표 수렴) | 통과(reg 0·spine OK) · hostdelta 5/5 drain B→C: spawn[C]·kill[B]·keep[A] |
