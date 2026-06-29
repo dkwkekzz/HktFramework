@@ -1,8 +1,8 @@
-// HktInfra step-0354 — 헤드리스 검증 (#57 실 host.js OS 프로세스 spawn 4: clusterDriver onAssign/onUnassign 존 roster)
+// HktInfra step-0355 — 헤드리스 검증 (#57 실 host.js OS 프로세스 spawn 5: clusterDriver onFrame entity frame egress)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostroster`.
-//   더한 한 조각: clusterDriver.onAssign(host,zone)/onUnassign(host,zone) — 존↔host 귀속(실 cluster.init/loadstate/migrate 입력). OFF→호출 0·비트 동일.
-//   검증: ⒜ `reg`(키트·드라이버 미부착·비트 동일). ⒝ `hostroster` — z1@A·z2@A·z2 migrate→B 뒤 assigns==[A:z1,A:z2,B:z2]·unassigns==[A:z2]·net roster==hostSpawnPlan.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostframe`.
+//   더한 한 조각: _zoneDeliver 의 host 컨테이너 inbox enqueue 마다 clusterDriver.onFrame(host,zoneId) — 실 cluster.rpc(host,{cmd:'deliver'}) 소켓 송신의 씨앗. OFF→호출 0·비트 동일.
+//   검증: ⒜ `reg`(키트·드라이버 미부착·비트 동일). ⒝ `hostframe` — z1@A·a1 enter+move 뒤 driverFrames==zoneHostFramesRecv>0·모든 frame host==hostA.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,36 +15,29 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 const { check, pad } = kit.helpers;
 const { run } = NET;
 
-// step-0354 #57 실 host.js OS 프로세스 spawn 4 — 존 roster 귀속. z1@hostA·z2@hostA·z2 migrate→hostB.
-//   assigns==[hostA:z1, hostA:z2, hostB:z2]·unassigns==[hostA:z2]·net roster(assign−unassign)==hostSpawnPlan(hostA=[z1]·hostB=[z2])·driverAssigns−driverUnassigns==running.
-function hostroster(seeds) {
+// step-0355 #57 실 host.js OS 프로세스 spawn 5 — entity frame egress to driver. z1@hostA·a1 enter+이동 → host inbox enqueue 마다 onFrame.
+//   driverFrames==zoneHostFramesRecv>0(모든 inbox 수신이 드라이버로 흘렀다)·모든 frame host==hostA(단일 존 단일 host).
+function hostframe(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
-  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostA'), MIG(3, 'z2', 'hostB')];
-  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneHostProc: true, clusterDriverRecord: true, placementOps: OPS };
-  console.log('== hostroster (0354·#57): clusterDriver onAssign/onUnassign 존 roster — 실 cluster.init/loadstate/migrate 입력. ==');
-  console.log('seed   | assigns              | unassigns | A roster | B roster | 판정');
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const OPS = [PLACE(1, 'z1', 'hostA')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0')];
+  for (let k = 0; k < 6; k++) ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0'));
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverRecord: true, placementOps: OPS, entityOps: ENT };
+  console.log('== hostframe (0355·#57): clusterDriver onFrame — host inbox enqueue=실 cluster.rpc deliver 소켓 송신 씨앗. ==');
+  console.log('seed   | recv | driverF | allA | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 8, ...BASE });
+    const r = run({ seed, ticks: 14, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
-    const aOk = drv.assigns.join(',') === 'hostA:z1,hostA:z2,hostB:z2';
-    const uOk = drv.unassigns.join(',') === 'hostA:z2';
-    // net roster(assign−unassign) 재구성 — 순서 무관 multiset 차(이 시나리오는 중복 없음).
-    const netRoster = (h) => {
-      const add = drv.assigns.filter(x => x.startsWith(h + ':')).map(x => x.split(':')[1]);
-      const rem = drv.unassigns.filter(x => x.startsWith(h + ':')).map(x => x.split(':')[1]);
-      return add.filter(z => !rem.includes(z)).sort();
-    };
-    const plan = o.hostSpawnPlan();
-    const rosterOk = netRoster('hostA').join(',') === (plan.hosts.hostA ? plan.hosts.hostA.zones.join(',') : '') &&
-                     netRoster('hostB').join(',') === (plan.hosts.hostB ? plan.hosts.hostB.zones.join(',') : '');
-    const cntOk = (o.driverAssigns - o.driverUnassigns) === o.runningCount();
-    const ok = check(aOk && uOk && rosterOk && cntOk, `seed ${seed}: roster 위반 (assigns ${drv.assigns}·unassigns ${drv.unassigns}·A ${netRoster('hostA')})`);
-    console.log(`${pad(seed, 6)} | ${pad(drv.assigns.join(','), 20)} | ${pad(drv.unassigns.join(','), 9)} | ${pad(netRoster('hostA').join(','), 8)} | ${pad(netRoster('hostB').join(','), 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const allA = drv.frames.length > 0 && drv.frames.every(x => x.startsWith('hostA:'));
+    const eqOk = o.driverFrames === o.zoneHostFramesRecv && o.driverFrames === drv.frames.length && o.driverFrames > 0;
+    const ok = check(eqOk && allA, `seed ${seed}: frame 위반 (driverFrames ${o.driverFrames}·recv ${o.zoneHostFramesRecv}·allA ${allA})`);
+    console.log(`${pad(seed, 6)} | ${pad(o.zoneHostFramesRecv, 4)} | ${pad(o.driverFrames, 7)} | ${pad(allA ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostroster'] = hostroster;
-kit.ORDER.splice(1, 0, 'hostroster');
+kit.MODES['hostframe'] = hostframe;
+kit.ORDER.splice(1, 0, 'hostframe');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
