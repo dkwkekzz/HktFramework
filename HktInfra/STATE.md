@@ -9,18 +9,18 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0379](step-0379.md) — **#62 runMulti 통합 9: report 운영 대시보드** — report()=실 cluster+코디네이터 누계 단일 스냅샷{ticks·hosts·zones·entities·desync·maxDesync·egressTotal·migrations·failovers·coherent}. 직전: 0378 egress 집계.
-- **한 줄 상태**: reg ALL OK·coordreport 5/5(ticks3·hosts2·zones3·ents2·desync0·coherent)·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0380](step-0380.md) — **#62 runMulti 통합 10·grand capstone: coordCoherent** — broker 측 제어 평면 E2E: start→연속 run(5)[maxDesync0]→z3 drift→syncPlan 자가 치유 뒤 coordCoherent Y(maxDesync==0 && 현 clusterDesync==0)·report.coherent Y. **#62 runMulti 통합 sub-arc(0371~0380) 닫기**. 직전: 0379 report 대시보드.
+- **한 줄 상태**: reg ALL OK·coordcap 5/5(maxDesync0·drift 치유·coordCoherent·report coh)·cluster-coord.js 10.9KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#62 runMulti 통합(0371~0380 ✅ 닫힘)**: ClusterCoordinator(cluster-coord.js)·start·tick·연속 run 루프·매-tick desync 가드·상주 migrate/failover·syncPlan 비파괴 자가 치유·egress 집계·report·grand capstone. **후속(다음 arc)**: orch 권위 placement↔실 cluster lifecycle 양방향 동기(migrate/failover 후 coherent)·cluster-run.js 옛 runMulti 와 코드 합류·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0361~0380 묶음 리뷰 적기(infra-review·2묶음)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **현재 초점 = #62 runMulti 코어 통합 sub-arc(0371~)** — #57 실 데이터 평면 0361~0370 ✅. 이제 verify ad-hoc cluster 구동(driveCluster 0368)을 *broker 측 제어 평면 상주*(`cluster-coord.js` ClusterCoordinator)로 옮긴다: start(0371 ✅·토폴로지 reconcile)→ tick(0372 ✅·데이터 평면 1 tick)→ run 연속 tick 루프(0373 ✅)→ 매-tick desync 가드(0374 ✅)→ 상주 migrate(0375 ✅)→ 상주 failover→ plan 변화 reconcile→ egress 집계→ report→ grand capstone(연속 run+migrate+failover 뒤 desync 0). 그 다음: 업스트림 intent 실 클라(#61)·진짜 비동기(#4).
+> 🎯 **#62 runMulti 통합 sub-arc(0371~0380 ✅ 닫힘)** — verify ad-hoc cluster 구동(driveCluster 0368)을 *broker 측 제어 평면 상주*(`cluster-coord.js` ClusterCoordinator)로 옮겼다: start·tick·연속 run 루프·매-tick desync 가드·상주 migrate/failover·syncPlan 비파괴 자가 치유·egress 집계·report·grand capstone coordCoherent. **다음 후보(권위는 infra-review)**: ⒜ orch 권위 placement↔실 cluster lifecycle 양방향 동기(코디네이터 migrate/failover 가 orch zoneHost 도 갱신→migrate 후 clusterCoherent)·⒝ cluster-run.js 옛 lockstep runMulti 와 코디네이터 코드 합류·⒞ 업스트림 intent 실 클라(#61).
 > **설계 제약**: spine 게이트는 `verify.js all`. cluster-coord 는 새 박스(run() 데이터 평면 미사용 → reg 0). reg 는 항상 in-proc run() 비트 대조.
 
-**후속 백로그 (#62 닫은 뒤)**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0370 7묶음 리뷰 적기).
+**후속 백로그**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0380 8묶음 리뷰 적기).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn(0351~60·ClusterHostDriver·clusterHostsCoherent) + 실 데이터 평면(0361~70·deliver/tick/migrate 상태보존/kill·failover/reconcile/driveCluster·clusterCoherent desync 0·실 host.js child_process E2E)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn(0351~60·ClusterHostDriver·clusterHostsCoherent) + 실 데이터 평면(0361~70·deliver/tick/migrate 상태보존/kill·failover/reconcile/driveCluster·clusterCoherent desync 0·실 host.js child_process E2E) + #62 runMulti 통합(0371~80·`cluster-coord.js` ClusterCoordinator·start/tick/연속 run 루프/매-tick desync 가드/상주 migrate·failover/syncPlan 비파괴 자가 치유/egress 집계/report/coordCoherent grand capstone — verify ad-hoc 구동을 broker 측 제어 평면 상주화)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -153,3 +153,4 @@
 | [0377](step-0377.md) | #62 runMulti 통합 7: syncPlan() 비파괴 상주 reconcile(hostSpawnPlan 대비 snapshot 차분→누락 존만 zoneadd·기존 보존·drift 자가 치유) | 통과(reg 0·spine OK) · coordsync 5/5 z3 drift→복원·acted1·coherent |
 | [0378](step-0378.md) | #62 runMulti 통합 8: 다운스트림 egress 집계(tick view_delta→egressByZone 존별·egressTotal 누계·송출 운영 계측) | 통과(reg 0·spine OK) · coordegress 5/5 egressTotal2·z1 1·z2 1·z3 0·coherent |
 | [0379](step-0379.md) | #62 runMulti 통합 9: report() 운영 대시보드(실 cluster+코디네이터 누계 단일 스냅샷·ticks·hosts·zones·entities·desync·egress·migrations·failovers·coherent) | 통과(reg 0·spine OK) · coordreport 5/5 ticks3·hosts2·zones3·ents2·desync0·coherent |
+| [0380](step-0380.md) | #62 runMulti 통합 10·grand capstone: coordCoherent()=maxDesync==0 && 현 clusterDesync==0·start→run(5)→drift→syncPlan 치유 뒤 정합·runMulti 통합 0371~0380 닫기 | 통과(reg 0·spine OK) · coordcap 5/5 maxDesync0·drift 치유·coordCoherent·report coh |

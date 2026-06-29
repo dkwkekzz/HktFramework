@@ -1,8 +1,8 @@
-// HktInfra step-0379 — 헤드리스 검증 (#62 runMulti 코어 통합 9: report 운영 대시보드)
+// HktInfra step-0380 — 헤드리스 검증 (#62 runMulti 코어 통합 10·grand capstone: coordCoherent — broker 측 제어 평면 지속 정합)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordreport`.
-//   더한 한 조각: cluster-coord.js report()=실 cluster+코디네이터 누계 단일 스냅샷(ticks·hosts·zones·entities·desync·migrations·failovers·coherent). 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordreport` — 2 host·3 zone: run(3) 후 report → ticks 3·hosts 2·zones 3·entities 2·desync 0·egressTotal 2·coherent Y.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordcap`.
+//   더한 한 조각: cluster-coord.js coordCoherent()=maxDesync==0 && 현 clusterDesync==0. #62 runMulti 통합 sub-arc(0371~0380) 닫기. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordcap` — 2 host·3 zone: start→run(5)[maxDesync0]→z3 drift→syncPlan 치유→coordCoherent Y·report coherent Y·desync 0. broker 측 제어 평면 E2E 닫힘.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,29 +31,34 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0379 #62 통합 9 — report 운영 대시보드: run(3) 후 종합 스냅샷 필드 정합(ticks·hosts·zones·entities·desync·egressTotal·coherent).
-async function coordreport(seeds) {
+// step-0380 #62 통합 10·grand capstone — coordCoherent: start→연속 run(5)→z3 drift→syncPlan 치유 뒤에도 실 cluster==in-proc 권위(지속 정합).
+async function coordcap(seeds) {
   const BASE = coordScenario();
-  console.log('== coordreport (0379·#62 통합 9): report 대시보드 — run(3) 후 {ticks·hosts·zones·entities·desync·egress·coherent} ==');
-  console.log('seed   | ticks | hosts | zones | ents | desync | egr | coherent | 판정');
+  console.log('== coordcap (0380·#62 grand capstone): broker 측 제어 평면 E2E — run+drift+syncPlan 뒤 coordCoherent. 0371~0380 닫기. ==');
+  console.log('seed   | maxDesync | drift heal | coordCoherent | report coh | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let rep = null;
+    let maxD = -1, healed = false, coh = false, repCoh = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(3);
-      rep = await coord.report();
+      await coord.run(5);                                                // 연속 루프(매-tick desync 가드)
+      maxD = coord.maxDesync;
+      await cluster.rpc('hostA', { cmd: 'zonedel', addr: 'z3' });        // 토폴로지 drift
+      await coord.syncPlan();                                            // 자가 치유
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      healed = !!(sa && sa.snap && sa.snap['z3']);
+      coh = await coord.coordCoherent();                                 // grand capstone 술어
+      repCoh = (await coord.report()).coherent;
     } finally { await cluster.shutdown(); }
-    const ok = check(rep && rep.ticks === 3 && rep.hosts === 2 && rep.zones === 3 && rep.entities === 2 && rep.desync === 0 && rep.maxDesync === 0 && rep.egressTotal === 2 && rep.coherent === true,
-      `seed ${seed}: report 위반 (${JSON.stringify(rep)})`);
-    console.log(`${pad(seed, 6)} | ${pad(rep.ticks, 5)} | ${pad(rep.hosts, 5)} | ${pad(rep.zones, 5)} | ${pad(rep.entities, 4)} | ${pad(rep.desync, 6)} | ${pad(rep.egressTotal, 3)} | ${pad(rep.coherent ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(maxD === 0 && healed && coh && repCoh, `seed ${seed}: capstone 위반 (maxD ${maxD}·heal ${healed}·coh ${coh}·rep ${repCoh})`);
+    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(healed ? 'Y' : 'N', 10)} | ${pad(coh ? 'Y' : 'N', 13)} | ${pad(repCoh ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordreport'] = coordreport;
-kit.ORDER.splice(1, 0, 'coordreport');
+kit.MODES['coordcap'] = coordcap;
+kit.ORDER.splice(1, 0, 'coordcap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
