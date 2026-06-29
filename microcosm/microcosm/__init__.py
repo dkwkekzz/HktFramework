@@ -9,11 +9,12 @@
 """
 from .core import World, KIND
 from .fields import (Field, PairField, EnvField, BondField, TerrainField, standard_fields)
-from .forms import REGISTRY, register, CreatureCtrl
+from .forms import REGISTRY, register, CreatureCtrl, WalkController
 from .layers import (MetaUnit, find_clusters, order_parameter, promote, refine,
                      total_mass, total_momentum, center_of_mass)
 
 __all__ = ["World", "KIND", "Field", "PairField", "EnvField", "BondField",
            "TerrainField", "standard_fields", "REGISTRY", "register", "CreatureCtrl",
+           "WalkController",
            "MetaUnit", "find_clusters", "order_parameter", "promote", "refine",
            "total_mass", "total_momentum", "center_of_mass"]

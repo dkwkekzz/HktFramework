@@ -214,6 +214,98 @@ def skeleton(w, cx=120.0, scale=1.0, anchored=True):
     return {'joints': j, 'units': list(j.values())}
 
 
+class WalkController:
+    """보행 컨트롤러 — 입력항 I로 *걸음*을 물리 창발시킨다 (R3).
+
+    스켈레톤은 정면 뷰라 척추 본드만으로는 서지 못하고 풀썩 주저앉는다(본드는
+    축 신장만 막고 관절 각도는 못 잡는다). 컨트롤러가 '근육'처럼 관절을 목표로
+    당기는 PD 힘(=입력항 I)을 주입한다. 진짜 관건은 **횡 균형**: 한 발을 들 때
+    무게중심(골반)을 디딤발 위로 옮기지 않으면 옆으로 쓰러진다. CPG 위상(phase)이
+    좌우 디딤/흔듦을 교대시키고, 골반을 디딤발 쪽으로 흔들어(체중 이동) 균형을
+    잡는다. 걸음의 *입력*(위상·체중이동)은 I, *동역학*(접지 반력·바운스·관절 거동)은
+    중력·지형·본드에서 창발한다. CreatureCtrl(목표속도 힘)의 정교한 형제.
+    """
+    def __init__(self, w, joints, scale, period=1.1, step_lift=3.2,
+                 sway=1.7, travel=0.0, kp=70.0, kd=8.0):
+        self.j = joints; self.scale = float(scale); self.period = float(period)
+        self.step_lift = step_lift * scale       # 흔듦발 들어올림 높이
+        self.sway = sway * scale                  # 골반 좌우 체중 이동 폭
+        self.travel = float(travel)               # 가로 이동 속도(0=제자리 걸음)
+        self.kp = float(kp); self.kd = float(kd)
+        self.phase = 0.0
+        pel = w.P[joints['pelvis']].copy()
+        self.rest = {n: (w.P[i] - pel).copy() for n, i in joints.items()}
+        self.x0 = float(pel[0]); self.y0 = float(pel[1])
+
+    def _pd(self, w, name, tx, ty, kp=None, kd=None):
+        """관절을 (tx,ty) 세계좌표로 당기는 PD 힘 — 입력항 I."""
+        i = self.j[name]
+        kp = self.kp if kp is None else kp
+        kd = self.kd if kd is None else kd
+        w.F[i, 0] += kp * (tx - w.P[i, 0]) - kd * w.V[i, 0]
+        w.F[i, 1] += kp * (ty - w.P[i, 1]) - kd * w.V[i, 1]
+
+    def update(self, w, dt):
+        if not w.alive[self.j['pelvis']]:
+            return
+        self.phase = (self.phase + dt / self.period) % 1.0
+        ph = 2 * math.pi * self.phase
+        r = self.rest
+        cx = self.x0 + self.travel * w.time          # 진행 기준 x
+        gY = lambda x: w.ground(x)
+
+        # ── 횡 균형: 골반을 디딤발 쪽으로 흔든다(체중 이동) ──
+        # sin(ph)>0 → 오른발 디딤(체중 오른쪽), <0 → 왼발 디딤
+        s_lat = math.sin(ph)
+        bob = 0.35 * self.scale * math.cos(2 * ph)   # 상하 바운스(2배 주파수)
+        pel_tx = cx + self.sway * s_lat
+        pel_ty = self.y0 + bob
+        self._pd(w, 'pelvis', pel_tx, pel_ty, kp=self.kp * 1.3)
+
+        # ── 상체: 골반 위로 세워 유지(자세 유지=균형의 윗부분) ──
+        for name in ('chest', 'neck', 'head', 'hair', 'shL', 'shR', 'hipL', 'hipR'):
+            self._pd(w, name, pel_tx + r[name][0], pel_ty + r[name][1])
+
+        # ── 다리: 디딤발은 접지 고정, 흔듦발은 들어올려 교대 ──
+        # 위상 [0,0.5): 오른발 디딤 / 왼발 흔듦,  [0.5,1): 반대
+        for side, hipN, kneeN, footN in (('L', 'hipL', 'kneeL', 'footL'),
+                                         ('R', 'hipR', 'kneeR', 'footR')):
+            footx0 = cx + r[footN][0]
+            hip_tx = pel_tx + r[hipN][0]
+            # 이 발이 흔듦 구간인가
+            swingL = self.phase < 0.5            # 왼발은 전반에 흔듦
+            swinging = swingL if side == 'L' else (not swingL)
+            if swinging:
+                lp = (self.phase / 0.5) if side == 'L' else ((self.phase - 0.5) / 0.5)
+                lift = self.step_lift * math.sin(math.pi * lp)
+                foot_ty = gY(footx0) + 0.5 * self.scale + lift
+            else:
+                lift = 0.0
+                foot_ty = gY(footx0) + 0.4 * self.scale   # 접지 고정
+            self._pd(w, footN, footx0, foot_ty)
+            # 무릎: 엉덩이-발 중점 + 흔듦 시 함께 들림(무릎 굽힘)
+            knee_tx = 0.5 * (hip_tx + footx0)
+            knee_ty = self.y0 + r[kneeN][1] + 0.55 * lift + bob
+            self._pd(w, kneeN, knee_tx, knee_ty)
+
+        # ── 팔 스윙: 다리와 반대(대측) ──
+        arm = 1.4 * self.scale * math.sin(ph)
+        self._pd(w, 'elL', pel_tx + r['elL'][0] + arm, pel_ty + r['elL'][1])
+        self._pd(w, 'haL', pel_tx + r['haL'][0] + 1.4 * arm, pel_ty + r['haL'][1])
+        self._pd(w, 'elR', pel_tx + r['elR'][0] - arm, pel_ty + r['elR'][1])
+        self._pd(w, 'haR', pel_tx + r['haR'][0] - 1.4 * arm, pel_ty + r['haR'][1])
+
+
+@register('walker')
+def walker(w, cx=120.0, scale=1.6, period=1.1, travel=0.0, speed=None):
+    """보행하는 스켈레톤(R3): anchored=False 스켈레톤 + WalkController.
+    travel>0 이면 가로로 이동, 0 이면 제자리 걸음. agents에 컨트롤러 등록."""
+    info = w.spawn_form('skeleton', cx=cx, scale=scale, anchored=False)
+    ctrl = WalkController(w, info['joints'], scale, period=period, travel=travel)
+    w.agents.append(ctrl)
+    return {'joints': info['joints'], 'units': info['units'], 'ctrl': ctrl}
+
+
 @register('art_tree')
 def art_tree(w, baseX=120.0, scale=1.0):
     """아트용 나무: 줄기·가지=바크 캡슐, 캐노피=잎 blob 메타볼. w.skins 채움.
