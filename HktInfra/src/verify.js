@@ -1,8 +1,8 @@
-// HktInfra step-0406 — 헤드리스 검증 (#62 runMulti 합류 5·복원력: 미러 입력 복제로 standby 동기 유지)
+// HktInfra step-0407 — 헤드리스 검증 (#62 runMulti 합류 6: clusterInfo() 재구성 보고)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmirror`.
-//   더한 한 조각: cluster-coord.js tick() 이 deliver frame 을 mirror standby 에 재생 + standby 존 shadow tick(runMulti 미러 deliver/tick 판). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordmirror` — 2 host·3 zone: run(5)+reprovisionStandby(z1,hostA_s) → tick(6),tick(7)(shadow tick 미러) → standby z1 a1 == primary a1(lockstep 동기)·coordDesync 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordinfo`.
+//   더한 한 조각: cluster-coord.js clusterInfo()=runMulti 반환 계약(livePids·placement·epoch·presumedDead·복원력 계측)의 코디네이터 판. 읽기 전용. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordinfo` — 2 host·3 zone: run(5)+fence(hostB)+restart(z1,hostA_r) → clusterInfo: epoch 1·presumedDead⊇[hostB]·placement 3존·restarts 1·ticks 5·livePids≥1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,34 +31,33 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0406 #62 runMulti 합류 5·복원력 — coordmirror: run(5)+reprovisionStandby(z1,hostA_s) → tick(6),tick(7)(미러 shadow tick) → standby z1 a1 == primary a1(lockstep 동기)·coordDesync 0.
-async function coordmirror(seeds) {
+// step-0407 #62 runMulti 합류 6 — coordinfo: run(5)+fence(hostB)+restart(z1,hostA_r) → clusterInfo: epoch 1·presumedDead⊇[hostB]·placement 3존·restarts 1·ticks 5·livePids≥1.
+async function coordinfo(seeds) {
   const BASE = coordScenario();
-  console.log('== coordmirror (0406·#62 복원력): 미러 입력 복제로 standby lockstep 동기. ==');
-  console.log('seed   | primary a1 | standby a1 | synced | coordDesync | 판정');
+  console.log('== coordinfo (0407·#62): clusterInfo() runMulti 호환 재구성 보고. ==');
+  console.log('seed   | epoch | pd⊇hostB | zones | restarts | ticks | livePids | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let pS = '-', sS = '-', synced = false, cd = -1;
+    let info = {};
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
-      await coord.reprovisionStandby('z1', 'hostA_s');                 // 따뜻한 대기 + 미러 등록
-      await coord.tick(6); await coord.tick(7);                        // 미러 deliver/shadow tick → standby 동기 유지
-      const primary = realPos(await cluster.rpc(coord.placedHost('z1'), { cmd: 'snapshot' }), 'z1', 'a1');
-      const standby = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
-      pS = primary ? `{${primary.x},${primary.y}}` : 'null'; sS = standby ? `{${standby.x},${standby.y}}` : 'null';
-      synced = !!primary && !!standby && primary.x === standby.x && primary.y === standby.y;
-      cd = await coord.coordDesync();
+      coord.fence('hostB');
+      await coord.restart('z1', 'hostA_r');
+      info = coord.clusterInfo();
     } finally { await cluster.shutdown(); }
-    const ok = check(synced && cd === 0, `seed ${seed}: 위반 (p ${pS}·s ${sS}·synced ${synced}·cd ${cd})`);
-    console.log(`${pad(seed, 6)} | ${pad(pS, 10)} | ${pad(sS, 10)} | ${pad(synced ? 'Y' : 'N', 6)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const pdHas = info.presumedDead && info.presumedDead.includes('hostB');
+    const zones = info.placement ? Object.keys(info.placement).length : 0;
+    const ok = check(info.epoch === 1 && pdHas && zones === 3 && info.restarts === 1 && info.ticks === 5 && info.livePids.length >= 1,
+      `seed ${seed}: 위반 (${JSON.stringify({ epoch: info.epoch, pd: info.presumedDead, zones, restarts: info.restarts, ticks: info.ticks, live: info.livePids.length })})`);
+    console.log(`${pad(seed, 6)} | ${pad(info.epoch, 5)} | ${pad(pdHas ? 'Y' : 'N', 8)} | ${pad(zones, 5)} | ${pad(info.restarts, 8)} | ${pad(info.ticks, 5)} | ${pad(info.livePids.length, 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordmirror'] = coordmirror;
-kit.ORDER.splice(1, 0, 'coordmirror');
+kit.MODES['coordinfo'] = coordinfo;
+kit.ORDER.splice(1, 0, 'coordinfo');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

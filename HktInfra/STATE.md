@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0406](step-0406.md) — **#62 runMulti 합류 5·복원력**: 미러 입력 복제 — `tick()` 이 deliver frame 을 standby 에 재생 + standby 존 shadow tick → standby 가 primary 와 lockstep 동기 유지. runMulti 미러 deliver/tick(`cluster-run.js:170,198`)의 zone cluster 판(따뜻한 standby 즉시 승격 준비). mirrors 비면 0405 동치. 직전: 0405 reprovisionStandby.
-- **한 줄 상태**: reg ALL OK·coordmirror 5/5(tick(6),tick(7) 후 standby a1==primary {8,8}·coordDesync 0)·cluster-coord.js 21.2KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0407](step-0407.md) — **#62 runMulti 합류 6**: `clusterInfo()` — runMulti 반환 계약(`cluster-run.js:227`·livePids·placement·epoch·presumedDead·복원력 계측)의 코디네이터 판. report()(운영 desync)와 직교한 *runMulti 호환 토폴로지/생애주기 스냅샷* — 코드 합류 시 runMulti 가 그대로 반환 가능. 직전: 0406 미러 동기.
+- **한 줄 상태**: reg ALL OK·coordinfo 5/5(epoch1·presumedDead⊇hostB·3존·restarts1·ticks5·livePids2)·cluster-coord.js 22.1KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코디네이터를 runMulti 복원력 코어로 승격(0401~·능력 합류·병존 reg 0)**: epoch 펜싱(0401)·silence lease-timeout(0402)·snapshot-restart(0403)·reprovision+mirror(0404~0405)·clusterInfo report(0406)·runScenario 통합 루프(0407)·restartedCoherent(0408~0409)·capstone runMultiCoherent(0410). **후속**: orch zoneHost entity 컨테이너 합류(#68·경미)·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 0401~0410 닫으면 묶음 리뷰.
 
 ---
@@ -153,3 +153,4 @@
 | [0404](step-0404.md) | 정리(기능 0·reg 0): cluster-coord.js 닫힌 arc(0371~0399) 헤더 34줄→포인터 1줄(29.4KB→19.5KB) | 통과(reg 0·spine OK) · coordrestart 5/5 유지·코드 무변경 |
 | [0405](step-0405.md) | #62 runMulti 합류 4·복원력: reprovisionStandby(zone,standbyHost) 따뜻한 사본+mirrors 등록(runMulti rep+mirrors 판) | 통과(reg 0·spine OK) · coordreprov 5/5 standby a1==primary·mirrors1·reprov1 |
 | [0406](step-0406.md) | #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 deliver 재생+standby shadow tick·lockstep 동기) | 통과(reg 0·spine OK) · coordmirror 5/5 standby a1==primary {8,8}·coordDesync0 |
+| [0407](step-0407.md) | #62 runMulti 합류 6: clusterInfo() runMulti 반환 계약(livePids·placement·epoch·presumedDead·복원력 계측) | 통과(reg 0·spine OK) · coordinfo 5/5 epoch1·pd⊇hostB·3존·restarts1·ticks5·livePids2 |
