@@ -1,4 +1,5 @@
 'use strict';
+// step-0397 — #67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back. failover(deadHost,toHost) 가 죽은 host 의 존을 toHost 로 재가동하며 placement 갱신 + _orchWriteBack(z,toHost) 로 orch.running/placement 도 동기 → migrate(0396)+failover(0397) 둘 다 거친 lifecycle 뒤에도 authoritiesAgree Y. lost 존도 where 는 toHost 로 합의(entity 손실은 coordDesync 가 별도 제외·0386). placement 기반 술어 불변=0396 동치·reg 0.
 // step-0396 — #67 orch 이중 권위 합류 3: migrate 가 orch 집행 where-view 에 write-back. 코디네이터 migrate 가 placement[zone]=toHost 갱신 후 _orchWriteBack(zone,toHost) 로 orch.running/placement(orch 의 제2 where 권위)도 동기 → migrate 후 authoritiesAgree Y(이중 권위 합류). 코디네이터 placement 기반 술어(coordDesync/syncedCoherent/maxDesync)는 불변 = 0395 동치. write-back 은 run() 종료 후 orch 객체에만 작용 → reg 0.
 // step-0395 — #67 orch 이중 권위 합류 2: authoritiesAgree() 술어 — 코디네이터 placement(where 권위) == orchWhere(orch 집행 where-view). 참이면 두 where 권위가 한 몸(단일 권위). 지금은 lifecycle write-back 이 없어 migrate 후 orch.running 이 stale → 두 권위 *발산*(authoritiesAgree N)을 노출(이중 권위 #67 의 구체 증거). 0396~0397 write-back 이 합류시킨다. 읽기 전용·새 메서드.
 // step-0394 — #67 orch 이중 권위 합류 1: orchWhere() — orch 의 *집행 where-view*(zone→orch.runningHostOf) 스냅샷. 코디네이터 placement(0381~·코디네이터 where 권위)와 별개로 orch 가 들고 있는 제2 where 권위를 노출 — #67(이중 권위) 가시화의 첫 조각. migrate/failover 전(정상 경로)엔 둘이 일치, lifecycle 후엔 orch 가 stale(0395 노출→0396~ write-back 합류). 읽기 전용·새 메서드.
@@ -125,6 +126,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       for (const z of zones) {
         await this.driver.failoverZone(this.cluster, z, toHost, this.specOf);
         this.placement[z] = toHost;     // step-0385 — where 권위 갱신(생존 host 로)
+        this._orchWriteBack(z, toHost); // step-0397 (#67) — orch 집행 where-view 도 동기(lost 존도 where 는 toHost 로 합의·entity 손실은 coordDesync 가 제외).
         this.lostZones.add(z);          // step-0385 — 상태 소실 기록(#63·0386 coordDesync 제외 근거)
       }
       this.failovers++;

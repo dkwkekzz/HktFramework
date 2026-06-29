@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0397](step-0397.md) — **#67 orch 이중 권위 합류 4**: `failover()` 도 `_orchWriteBack` 으로 orch where-view 동기 → migrate(0396)+failover(0397) 둘 다 거친 뒤도 `authoritiesAgree()` Y. lost 존도 where 는 toHost 합의(entity 손실은 coordDesync 가 제외). placement 기반 술어 불변=0396 동치. **#66 닫힘·#67 진행(0394~)**. 직전: 0396 migrate write-back.
-- **한 줄 상태**: reg ALL OK·coordfailwb 5/5(failover 후 agree Y·orchWhere[z3]=hostB·synced Y·lost 1)·cluster-coord.js 23.1KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0398](step-0398.md) — **#67 orch 이중 권위 합류 5**: `report()` 에 `authoritiesAgree` 필드 추가 — 운영 대시보드가 두 where 권위 합치 여부를 노출(#67 건강 가시화). 계측 1필드·구동 무변경=0397 동치. **#66 닫힘·#67 진행(0394~)**. 직전: 0397 failover write-back.
+- **한 줄 상태**: reg ALL OK·coordauthreport 5/5(report.authoritiesAgree true·coherent true·lost 1)·cluster-coord.js 23.4KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400)**: tick placement 순회(0391)·deliver 재생 placement host(0392)·mid-run migrate 발현(0393)·orchWhere 노출(0394)·authoritiesAgree 노출(0395)·migrate/failover write-back(0396~0397)·lost-robust agree+report(0398)·복합 lifecycle(0399)·unifiedCoherent capstone(0400). **후속**: 업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -153,3 +153,4 @@
 | [0395](step-0395.md) | #67 orch 이중 권위 합류 2: authoritiesAgree() 술어·migrate 후 발산 노출(write-back 전·orch stale) | 통과(reg 0·spine OK) · coordauthsplit 5/5 agree Y→N·coordDesync0 |
 | [0396](step-0396.md) | #67 orch 이중 권위 합류 3: migrate 가 _orchWriteBack 으로 orch.running/placement 동기·authoritiesAgree Y 합류 | 통과(reg 0·spine OK) · coordmigwb 5/5 agree Y·orchWhere[z1]=hostB·synced Y |
 | [0397](step-0397.md) | #67 orch 이중 권위 합류 4: failover 도 _orchWriteBack·migrate+failover 뒤도 authoritiesAgree Y·lost where 합의 | 통과(reg 0·spine OK) · coordfailwb 5/5 agree Y·orchWhere[z3]=hostB·synced Y·lost1 |
+| [0398](step-0398.md) | #67 orch 이중 권위 합류 5: report() 에 authoritiesAgree 필드(운영 대시보드 이중 권위 건강) | 통과(reg 0·spine OK) · coordauthreport 5/5 report.authoritiesAgree true·coherent true·lost1 |

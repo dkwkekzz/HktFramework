@@ -1,8 +1,8 @@
-// HktInfra step-0397 — 헤드리스 검증 (#67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back)
+// HktInfra step-0398 — 헤드리스 검증 (#67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 노출)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordfailwb`.
-//   더한 한 조각: cluster-coord.js failover 가 _orchWriteBack 으로 orch where-view 동기. migrate(0396)+failover(0397) 둘 다 거친 뒤도 authoritiesAgree Y. placement 기반 술어 불변=0396 동치·reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordfailwb` — 2 host·3 zone: run(5)+migrate z1 A→B+failover hostA→hostB → authoritiesAgree **Y**·orchWhere[z3]==hostB·syncedCoherent Y·lost 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordauthreport`.
+//   더한 한 조각: cluster-coord.js report() 에 authoritiesAgree 필드 추가(운영 대시보드). 계측 1필드·구동 무변경=0397 동치·reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordauthreport` — 2 host·3 zone: run(5)+migrate+failover 후 report().authoritiesAgree **true**·coherent true·lost 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,30 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0397 #67 orch 이중 권위 합류 4 — coordfailwb: run(5)+migrate z1 A→B+failover hostA→hostB → migrate+failover 둘 다 write-back → authoritiesAgree Y·orchWhere[z3]==hostB·syncedCoherent Y·lost 1.
-async function coordfailwb(seeds) {
+// step-0398 #67 orch 이중 권위 합류 5 — coordauthreport: run(5)+migrate+failover 후 report() 가 authoritiesAgree true·coherent true·lost 1 노출(운영 대시보드).
+async function coordauthreport(seeds) {
   const BASE = coordScenario();
-  console.log('== coordfailwb (0397·#67): failover write-back → migrate+failover 뒤도 authoritiesAgree Y. ==');
-  console.log('seed   | agree(failover 후) | orchWhere[z3] | synced | lost | 판정');
+  console.log('== coordauthreport (0398·#67): report().authoritiesAgree 노출. ==');
+  console.log('seed   | rpt.authoritiesAgree | rpt.coherent | rpt.lost | rpt.migrations | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let agree = false, ow3 = '-', sc = false, lost = -1;
+    let rpt = {};
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
-      await coord.migrate('z1', 'hostA', 'hostB');                       // write-back(0396)
-      await coord.failover('hostA', 'hostB');                            // write-back(0397)·z3 lost
-      agree = coord.authoritiesAgree();                                  // 둘 다 합류 → Y
-      ow3 = coord.orchWhere()['z3'];
-      sc = await coord.syncedCoherent();
-      lost = coord.lostZones.size;
+      await coord.migrate('z1', 'hostA', 'hostB');
+      await coord.failover('hostA', 'hostB');
+      rpt = await coord.report();
     } finally { await cluster.shutdown(); }
-    const ok = check(agree && ow3 === 'hostB' && sc && lost === 1, `seed ${seed}: 위반 (agree ${agree}·ow3 ${ow3}·sc ${sc}·lost ${lost})`);
-    console.log(`${pad(seed, 6)} | ${pad(agree ? 'Y' : 'N', 18)} | ${pad(ow3, 13)} | ${pad(sc ? 'Y' : 'N', 6)} | ${pad(lost, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(rpt.authoritiesAgree === true && rpt.coherent === true && rpt.lost === 1 && rpt.migrations === 1, `seed ${seed}: 위반 (${JSON.stringify(rpt)})`);
+    console.log(`${pad(seed, 6)} | ${pad(rpt.authoritiesAgree ? 'true' : 'false', 20)} | ${pad(rpt.coherent ? 'true' : 'false', 12)} | ${pad(rpt.lost, 8)} | ${pad(rpt.migrations, 14)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordfailwb'] = coordfailwb;
-kit.ORDER.splice(1, 0, 'coordfailwb');
+kit.MODES['coordauthreport'] = coordauthreport;
+kit.ORDER.splice(1, 0, 'coordauthreport');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

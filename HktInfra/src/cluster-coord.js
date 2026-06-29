@@ -1,4 +1,5 @@
 'use strict';
+// step-0398 — #67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 를 노출(운영 대시보드). broker 측 제어 평면의 현재 건강에 *두 where 권위 합치 여부*를 더해, lifecycle(migrate/failover) 뒤 이중 권위가 합류된 상태인지를 단일 스냅샷으로 관측. 계측 1필드 추가·구동 무변경 = 0397 동치·reg 0.
 // step-0397 — #67 orch 이중 권위 합류 4: failover 도 orch where-view 에 write-back. failover(deadHost,toHost) 가 죽은 host 의 존을 toHost 로 재가동하며 placement 갱신 + _orchWriteBack(z,toHost) 로 orch.running/placement 도 동기 → migrate(0396)+failover(0397) 둘 다 거친 lifecycle 뒤에도 authoritiesAgree Y. lost 존도 where 는 toHost 로 합의(entity 손실은 coordDesync 가 별도 제외·0386). placement 기반 술어 불변=0396 동치·reg 0.
 // step-0396 — #67 orch 이중 권위 합류 3: migrate 가 orch 집행 where-view 에 write-back. 코디네이터 migrate 가 placement[zone]=toHost 갱신 후 _orchWriteBack(zone,toHost) 로 orch.running/placement(orch 의 제2 where 권위)도 동기 → migrate 후 authoritiesAgree Y(이중 권위 합류). 코디네이터 placement 기반 술어(coordDesync/syncedCoherent/maxDesync)는 불변 = 0395 동치. write-back 은 run() 종료 후 orch 객체에만 작용 → reg 0.
 // step-0395 — #67 orch 이중 권위 합류 2: authoritiesAgree() 술어 — 코디네이터 placement(where 권위) == orchWhere(orch 집행 where-view). 참이면 두 where 권위가 한 몸(단일 권위). 지금은 lifecycle write-back 이 없어 migrate 후 orch.running 이 stale → 두 권위 *발산*(authoritiesAgree N)을 노출(이중 권위 #67 의 구체 증거). 0396~0397 write-back 이 합류시킨다. 읽기 전용·새 메서드.
@@ -154,6 +155,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         ticks: this.ticks, hosts: hosts.size, zones: Object.keys(this.placement).length, entities,
         desync, maxDesync: this.maxDesync, egressTotal: this.egressTotal,
         migrations: this.migrations, failovers: this.failovers, lost: this.lostZones.size, coherent: desync === 0,
+        authoritiesAgree: this.authoritiesAgree(),   // step-0398 (#67) — 두 where 권위 합치 여부(이중 권위 합류 건강).
       };
     },
     // placement ⟷ 실 cluster 양방향 bijection 불변(0389·#65) — placement(where 권위)가 실 cluster 의 존 배치와 정확히 1:1. forward(placement→실 존재) + reverse(실→placement). 참이면 placement 가 실 cluster 를 진짜 반영(양방향 동기 닫힘).
