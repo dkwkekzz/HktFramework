@@ -1,4 +1,5 @@
 'use strict';
+// step-0365 — #57 실 데이터 평면 5: 실 host.js killHost(child_process 종료) + failoverZone(죽은 host 의 존을 생존 host 에 새 인스턴스 재가동·상태 소실).
 // step-0364 — #57 실 데이터 평면 4: migrateZone(snapshot+loadstate 상태 이전·zonedel) — 실 host.js 프로세스 경계를 entity 보존하며 존 이주(같은 핸들 원자 교체의 child_process 판).
 // step-0363 — #57 실 데이터 평면 3: tickZone(cluster,host,zone,tick) — 실 host.js zone.onTick(pending move 적용 + view_delta 산출) 집행·산출 send 반환(다운스트림 egress 실 출력).
 // step-0362 — #57 실 데이터 평면 2: flush stop(onUnassign)→실 host.js zonedel(존 제거). 실 프로세스에서 stop/migrate-out 집행.
@@ -54,6 +55,11 @@ function makeClusterHostDriver() {
       if (state) await cluster.rpc(toHost, { cmd: 'loadstate', addr: zone, state });   // 이전 상태(ents/sessions) 주입 → 무손실
       await cluster.rpc(fromHost, { cmd: 'zonedel', addr: zone });              // fromHost 에서 제거(release·이중 쓰기 0)
       return state;
+    },
+    // step-0365 — 실 host.js 장애 failover: 죽은 host 의 존을 생존 host 에 *새 인스턴스* 재가동(상태 소실·비자발). migrate 와 대조 — 죽은 host 는 snapshot 불가라 상태 이전 불가(orch _bridgeHostDown 0285 의 실 프로세스 판·정직한 한계). toHost 미가동/사망이면 spawn.
+    async failoverZone(cluster, zone, toHost, specOf) {
+      if (!cluster.hostIds.includes(toHost) || cluster.socketDead.has(toHost)) await cluster.spawnOne(toHost);
+      await cluster.rpc(toHost, { cmd: 'zoneadd', specs: [specOf(zone)] });   // 새 빈 존(죽은 host 상태 소실)
     },
   };
 }

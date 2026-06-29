@@ -1,4 +1,5 @@
 'use strict';
+// step-0366 — #57 실 데이터 평면 6: reconcile(plan,cluster,specOf) — orch hostSpawnPlan 목표에 실 cluster 를 spawn/zoneadd/killHost 로 수렴(상태 기반 집행·표준 reconcile).
 // step-0365 — #57 실 데이터 평면 5: 실 host.js killHost(child_process 종료) + failoverZone(죽은 host 의 존을 생존 host 에 새 인스턴스 재가동·상태 소실).
 // step-0364 — #57 실 데이터 평면 4: migrateZone(snapshot+loadstate 상태 이전·zonedel) — 실 host.js 프로세스 경계를 entity 보존하며 존 이주(같은 핸들 원자 교체의 child_process 판).
 // step-0363 — #57 실 데이터 평면 3: tickZone(cluster,host,zone,tick) — 실 host.js zone.onTick(pending move 적용 + view_delta 산출) 집행·산출 send 반환(다운스트림 egress 실 출력).
@@ -60,6 +61,17 @@ function makeClusterHostDriver() {
     async failoverZone(cluster, zone, toHost, specOf) {
       if (!cluster.hostIds.includes(toHost) || cluster.socketDead.has(toHost)) await cluster.spawnOne(toHost);
       await cluster.rpc(toHost, { cmd: 'zoneadd', specs: [specOf(zone)] });   // 새 빈 존(죽은 host 상태 소실)
+    },
+    // step-0366 — reconcile: orch 목표(hostSpawnPlan)에 맞춰 실 cluster 를 수렴. 목표 밖 host 는 killHost·목표 host 는 spawn(미가동 시)·각 존 zoneadd. 외부 상태(이미 뜬 프로세스)를 목표로 *맞추는* 표준 cluster 패턴(per-event flush 와 직교한 *상태 기반* 집행). 반환=집행 동작 수.
+    async reconcile(plan, cluster, specOf) {
+      let acted = 0;
+      const target = new Set(plan.order);
+      for (const h of cluster.hostIds.slice()) if (!target.has(h) && !cluster.socketDead.has(h)) { await cluster.killHost(h); acted++; }   // 목표 밖 host 종료.
+      for (const h of plan.order) {
+        if (!cluster.hostIds.includes(h) || cluster.socketDead.has(h)) { await cluster.spawnOne(h); acted++; }   // 목표 host spawn.
+        for (const z of plan.hosts[h].zones) { await cluster.rpc(h, { cmd: 'zoneadd', specs: [specOf(z)] }); acted++; }   // 각 존 가동.
+      }
+      return acted;
     },
   };
 }
