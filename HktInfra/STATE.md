@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0364](step-0364.md) — **#57 실 데이터 평면 4: 실 host.js migrate 상태 보존** — `migrateZone`(snapshot→zoneadd→loadstate→zonedel)로 z1 A→B 이주: hostB 에 a1 보존(같은 위치)·hostA 비움(release+acquire). 실 프로세스 경계 넘어 entity 무손실. 직전: 0363 실 tick.
-- **한 줄 상태**: reg ALL OK·hostmigratereal 5/5(z1 A→B·a1 {x:5,y:5} 보존·hostA none)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0365](step-0365.md) — **#57 실 데이터 평면 5: 실 host.js killHost + failover** — `cluster.killHost`(child_process SIGKILL)로 hostA 종료(livePids 2→1)·`failoverZone` 가 z1 을 생존 hostB 에 새 인스턴스 재가동(상태 소실·정직한 한계). 직전: 0364 실 migrate.
+- **한 줄 상태**: reg ALL OK·hostkillreal 5/5(kill livePids 2→1·failover z1→hostB·a1 소실)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 데이터 평면 집행(0361~)**: deliver(0361 ✅)·zonedel(0362 ✅)·실 tick/egress(0363 ✅) → 실 migrate(snapshot+loadstate 상태 이전)·실 killHost/failover·reconcile·다중 host 격리·runMulti 통합(#62)·capstone. **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 ✅(review-0351-0360 완료)·0361~ 진행 중**.
 
 ---
@@ -148,3 +148,4 @@
 | [0362](step-0362.md) | #57 실 데이터 평면 2: 실 host.js zonedel(host.js zonedel cmd·flush stop→실 존 제거·다른 존 보존·in-proc running 정합) | 통과(reg 0·spine OK) · hostzonedelreal 5/5 placeStop z1→실 z2 만·running z2 |
 | [0363](step-0363.md) | #57 실 데이터 평면 3: 실 host.js tick(tickZone→실 zone.onTick·pending move 적용 + view_delta egress 산출·실 a1 위치==in-proc 권위) | 통과(reg 0·spine OK) · hosttickreal 5/5 실 a1 {x:11,y:11}==in-proc·egress 1 |
 | [0364](step-0364.md) | #57 실 데이터 평면 4: 실 host.js migrate 상태 보존(migrateZone snapshot→zoneadd→loadstate→zonedel·실 프로세스 경계 넘어 entity 무손실·release+acquire) | 통과(reg 0·spine OK) · hostmigratereal 5/5 z1 A→B·a1 {x:5,y:5} 보존·hostA none |
+| [0365](step-0365.md) | #57 실 데이터 평면 5: 실 host.js killHost(child_process SIGKILL·livePids 2→1) + failoverZone(죽은 host 존을 생존 host 새 인스턴스 재가동·상태 소실 정직한 한계) | 통과(reg 0·spine OK) · hostkillreal 5/5 kill 2→1·failover z1→hostB·a1 소실 |

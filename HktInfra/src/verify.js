@@ -1,8 +1,8 @@
-// HktInfra step-0364 — 헤드리스 검증 (#57 실 데이터 평면 4: 실 host.js migrate 상태 보존)
+// HktInfra step-0365 — 헤드리스 검증 (#57 실 데이터 평면 5: 실 host.js killHost + failover 재가동)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostmigratereal`.
-//   더한 한 조각: ClusterHostDriver.migrateZone — snapshot(from)→toHost zoneadd→loadstate→zonedel(from). 실 프로세스 경계를 entity 보존하며 존 이주. OFF→호출 0·비트 동일.
-//   검증: ⒜ `reg`. ⒝ `hostmigratereal` — z1@A·a1 enter → migrate z1 A→B: hostB snapshot 에 z1·a1 보존(같은 위치)·hostA 에 z1 없음(release).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `hostkillreal`.
+//   더한 한 조각: ClusterHostDriver.failoverZone — 죽은 host 의 존을 생존 host 에 새 인스턴스 재가동(상태 소실). + 실 cluster.killHost(child_process 종료). OFF→호출 0·비트 동일.
+//   검증: ⒜ `reg`. ⒝ `hostkillreal` — hostA(z1+a1)·hostB(z2) → kill hostA: livePids 2→1·failover z1→hostB(새 빈 존·a1 소실)·hostB={z1,z2}.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -18,41 +18,41 @@ const { run, fnv1a } = NET;
 
 const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
 
-// step-0364 #57 실 데이터 평면 4 — 실 host.js migrate 상태 보존. z1@hostA·a1 enter → migrateZone z1 A→B.
-//   hostB snapshot 에 z1 인스턴스 + a1 보존(같은 위치=무손실)·hostA 에 z1 없음(release+acquire 원자 교체·실 프로세스 경계 넘어 entity 보존).
-async function hostmigratereal(seeds) {
+// step-0365 #57 실 데이터 평면 5 — 실 killHost + failover. hostA(z1+a1)·hostB(z2) → kill hostA.
+//   livePids 2→1(실 프로세스 종료)·failoverZone z1→hostB(새 빈 존·죽은 host 상태 소실·정직한 한계)·hostB snapshot={z1,z2}·z1 a1 없음.
+async function hostkillreal(seeds) {
   const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
   const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
-  const OPS = [PLACE(1, 'z1', 'hostA')];
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB')];
   const ENT = [ENTER(3, 'z1', 'a1', 'dc0')];
   const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
-  console.log('== hostmigratereal (0364·#57): 실 host.js migrate — snapshot+loadstate 상태 이전·실 프로세스 경계 무손실. ==');
-  console.log('seed   | A후 zones | B후 z1 a1   | preserved | 판정');
+  console.log('== hostkillreal (0365·#57): 실 host.js killHost(child_process 종료) + failover 재가동(상태 소실). ==');
+  console.log('seed   | live전 | live후 | B후 zones | a1소실 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 8, ...BASE });
-    const o = r.orch, drv = o.clusterDriver;
-    const authPos = o.zoneEntityPos('z1', 'a1');
+    const drv = r.orch.clusterDriver;
     drv.commands = drv.commands.filter(c => c.op === 'spawnOne' || c.op === 'init' || c.op === 'deliver');
     const cluster = new Cluster([]);
-    let aZones = '?', bA1 = null;
+    let livePre = 0, livePost = 0, bZones = '?', a1Gone = false;
     try {
       await cluster.spawn();
-      await drv.flush(cluster, zoneSpecOf);                                  // hostA: z1 + a1
-      await drv.migrateZone(cluster, 'z1', 'hostA', 'hostB', zoneSpecOf);    // z1 A→B 상태 보존
-      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      await drv.flush(cluster, zoneSpecOf);           // hostA(z1+a1)·hostB(z2)
+      livePre = cluster.livePids().length;
+      await cluster.killHost('hostA');                // 실 child_process 종료(SIGKILL·소켓 RST)
+      livePost = cluster.livePids().length;
+      await drv.failoverZone(cluster, 'z1', 'hostB', zoneSpecOf);   // z1 생존 host 재가동(새 빈 존)
       const sb = await cluster.rpc('hostB', { cmd: 'snapshot' });
-      aZones = sa && sa.snap ? (Object.keys(sa.snap).sort().join(',') || '(none)') : '?';
+      bZones = sb && sb.snap ? Object.keys(sb.snap).sort().join(',') : '?';
       const zb = sb && sb.snap ? sb.snap['z1'] : null;
-      const ent = zb && zb.ents ? zb.ents.find(([id]) => id === 'a1') : null;
-      bA1 = ent ? ent[1] : null;
+      a1Gone = !!zb && (!zb.ents || !zb.ents.find(([id]) => id === 'a1'));
     } finally { await cluster.shutdown(); }
-    const preserved = bA1 && authPos && bA1.x === authPos.x && bA1.y === authPos.y;
-    const ok = check(aZones === '(none)' && !!preserved, `seed ${seed}: migrate 위반 (A후 ${aZones}·B a1 ${JSON.stringify(bA1)}·auth ${JSON.stringify(authPos)})`);
-    console.log(`${pad(seed, 6)} | ${pad(aZones, 9)} | ${pad(JSON.stringify(bA1), 11)} | ${pad(preserved ? 'Y' : 'N', 9)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(livePre === 2 && livePost === 1 && bZones === 'z1,z2' && a1Gone,
+      `seed ${seed}: kill 위반 (pre ${livePre}·post ${livePost}·B ${bZones}·a1소실 ${a1Gone})`);
+    console.log(`${pad(seed, 6)} | ${pad(livePre, 6)} | ${pad(livePost, 6)} | ${pad(bZones, 9)} | ${pad(a1Gone ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['hostmigratereal'] = hostmigratereal;
-kit.ORDER.splice(1, 0, 'hostmigratereal');
+kit.MODES['hostkillreal'] = hostkillreal;
+kit.ORDER.splice(1, 0, 'hostkillreal');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
