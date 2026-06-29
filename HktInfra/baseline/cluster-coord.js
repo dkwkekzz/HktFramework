@@ -1,4 +1,5 @@
 'use strict';
+// step-0375 — #62 runMulti 코어 통합 5: 상주 migrate(zone,fromHost,toHost) — driver.migrateZone(snapshot+zoneadd+loadstate+zonedel) 을 코디네이터 상주 lifecycle 메서드로 감싼다(상태 보존 이주·release+acquire·migrations 계측). verify 가 직접 부르던 lifecycle 을 broker 측 제어 평면으로. OFF 동치: migrate 미호출이면 0374 동치.
 // step-0374 — #62 runMulti 코어 통합 4: 매-tick desync 가드. run 루프가 매 tick 끝에 driver.clusterDesync 를 측정해 maxDesync(루프 최악)에 누적 — 정합이 *끝*뿐 아니라 *매 tick 내내* 유지됨을 단언(중간 발산 검출). OFF 동치: 측정만 추가·구동 무변경 = 0373 동치.
 // step-0373 — #62 runMulti 코어 통합 3: run(ticks) — *연속 tick 루프*. start()(미시작 시) 후 tick(t)을 1..ticks 반복 — cluster-run.js runMulti 의 핵심(broker 측 제어 평면이 매 tick 실 cluster 를 구동)을 상주 코디네이터 한 호출로. OFF 동치: run 미호출이면 0372 동치.
 // step-0372 — #62 runMulti 코어 통합 2: tick(t) — 제어 평면 데이터 평면 1 tick. ① pending entity frame 재생(driver.commands deliver→실 zone.onMsg) ② 전 존 1 tick(move 적용+view_delta egress 산출). driveCluster(0368)의 per-tick 몸통을 코디네이터 상주 메서드로(연속 루프 0373 의 단위). OFF 동치: tick 미호출이면 0371 동치.
@@ -15,6 +16,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     orch, cluster, specOf, driver,
     ticks: 0,          // 연속 tick 루프가 돈 제어 평면 tick 수(0373~).
     maxDesync: 0,      // 연속 루프 중 관측된 최악 clusterDesync(0374·매-tick 가드·0=내내 수렴).
+    migrations: 0,     // 상주 migrate 로 처리한 존 이주 수(0375).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -46,6 +48,12 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         if (d > this.maxDesync) this.maxDesync = d;
       }
       return views;
+    },
+    // 상주 존 migrate(graceful·상태 보존) — driver.migrateZone(snapshot from→toHost spawn/zoneadd→loadstate→from zonedel) 을 코디네이터 lifecycle 메서드로. entity 무손실·release+acquire(이중 쓰기 0)·migrations 계측. 반환=이전 상태.
+    async migrate(zone, fromHost, toHost) {
+      const state = await this.driver.migrateZone(this.cluster, zone, fromHost, toHost, this.specOf);
+      this.migrations++;
+      return state;
     },
   };
 }

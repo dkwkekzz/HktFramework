@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0375](step-0375.md) — **#62 runMulti 통합 5: 상주 migrate** — migrate(zone,fromHost,toHost)=driver.migrateZone(snapshot+zoneadd+loadstate+zonedel) 상주 lifecycle 감쌈(상태 보존·release+acquire·migrations 계측). 직전: 0374 매-tick desync 가드.
-- **한 줄 상태**: reg ALL OK·coordmigrate 5/5(a1 보존·hostA release·migrations==1)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0376](step-0376.md) — **#62 runMulti 통합 6: 상주 failover** — failover(deadHost,toHost)=killHost+죽은 host 존을 생존 host 에 재가동(driver.failoverZone·상태 소실 정직·migrate 의 graceful 보존과 대조·failovers 계측). 직전: 0375 상주 migrate.
+- **한 줄 상태**: reg ALL OK·coordfailover 5/5(hostA dead·z1·z3 hostB 재가동·a1 소실·failovers==1)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -149,3 +149,4 @@
 | [0373](step-0373.md) | #62 runMulti 통합 3: ClusterCoordinator.run(ticks)=start()+tick(t) 1..ticks 반복(연속 tick 루프·runMulti 핵심 상주화) | 통과(reg 0·spine OK) · coordrun 5/5 5 tick 내내 desync0·ticks==5 |
 | [0374](step-0374.md) | #62 runMulti 통합 4: 매-tick desync 가드(run 루프가 매 tick 끝 clusterDesync→maxDesync 누적·중간 발산 검출) | 통과(reg 0·spine OK) · coorddesync 5/5 maxDesync0·ghost 검출 desync1 |
 | [0375](step-0375.md) | #62 runMulti 통합 5: 상주 migrate(zone,fromHost,toHost)=driver.migrateZone 상주 lifecycle 감쌈(상태 보존·release+acquire·migrations 계측) | 통과(reg 0·spine OK) · coordmigrate 5/5 a1보존·release·migrations==1 |
+| [0376](step-0376.md) | #62 runMulti 통합 6: 상주 failover(deadHost,toHost)=killHost+죽은 host 존 생존 host 재가동(driver.failoverZone·상태 소실 정직·failovers 계측) | 통과(reg 0·spine OK) · coordfailover 5/5 hostA dead·재가동·a1 소실·failovers==1 |
