@@ -1,4 +1,5 @@
 'use strict';
+// step-0364 — #57 실 데이터 평면 4: migrateZone(snapshot+loadstate 상태 이전·zonedel) — 실 host.js 프로세스 경계를 entity 보존하며 존 이주(같은 핸들 원자 교체의 child_process 판).
 // step-0363 — #57 실 데이터 평면 3: tickZone(cluster,host,zone,tick) — 실 host.js zone.onTick(pending move 적용 + view_delta 산출) 집행·산출 send 반환(다운스트림 egress 실 출력).
 // step-0362 — #57 실 데이터 평면 2: flush stop(onUnassign)→실 host.js zonedel(존 제거). 실 프로세스에서 stop/migrate-out 집행.
 // step-0361 — #57 실 데이터 평면 1: flush deliver 가 frame 동봉 시 실 host.js deliver(items·m.to=존·zone.onMsg) 집행 → entity 가 실 프로세스 존에 산다(논리 frame→실 소켓 데이터 평면).
@@ -43,6 +44,16 @@ function makeClusterHostDriver() {
     async tickZone(cluster, host, zone, tick) {
       const r = await cluster.rpc(host, { cmd: 'tick', tick, items: [{ gi: 0, addr: zone }] });
       return (r.results && r.results[0] && r.results[0].sends) || [];
+    },
+    // step-0364 — 실 host.js 존 migrate(상태 보존): snapshot(from)→ toHost spawn/zoneadd→ loadstate(이전 상태 주입)→ zonedel(from). 같은 핸들 원자 교체의 *실 프로세스* 판(orch _bridgeMigrate 의 child_process 판·entity 무손실·권위 단일 소유). 반환=이전 상태.
+    async migrateZone(cluster, zone, fromHost, toHost, specOf) {
+      const snap = await cluster.rpc(fromHost, { cmd: 'snapshot' });
+      const state = snap && snap.snap ? snap.snap[zone] : null;
+      if (!cluster.hostIds.includes(toHost)) await cluster.spawnOne(toHost);   // toHost 미가동이면 새 프로세스 spawn.
+      await cluster.rpc(toHost, { cmd: 'zoneadd', specs: [specOf(zone)] });     // toHost 에 빈 존 인스턴스
+      if (state) await cluster.rpc(toHost, { cmd: 'loadstate', addr: zone, state });   // 이전 상태(ents/sessions) 주입 → 무손실
+      await cluster.rpc(fromHost, { cmd: 'zonedel', addr: zone });              // fromHost 에서 제거(release·이중 쓰기 0)
+      return state;
     },
   };
 }
