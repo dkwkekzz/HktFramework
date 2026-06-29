@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0383](step-0383.md) — **#65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix)** — migrate 가 this.placement[zone]=to 로 where 권위 갱신 → coordDesync 가 새 host 조회·**migrate 후 desync 0**(driver.clusterDesync 는 orch stale 로 발산·#65 입증). 직전: 0382 coordDesync.
-- **한 줄 상태**: reg ALL OK·coordmigsync 5/5(placedHost hostB·coordDesync 0 vs clusterDesync 1)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0384](step-0384.md) — **#65 양방향 동기 4: coordCoherent/run 가드가 coordDesync 채택** — 매-tick 가드·coordCoherent 가 placement 기준 coordDesync 사용 → 0380 이 제외했던 migrate 를 *포함*한 연속 루프·capstone 이 정합. 직전: 0383 migrate placement 갱신.
+- **한 줄 상태**: reg ALL OK·coordmigcap 5/5(run5+migrate→maxDesync0·coordCoherent Y)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#65 양방향 동기 sub-arc(0381~)** — 코디네이터 lifecycle↔placement 권위 동기: placement SSOT(0381 ✅)→ coordDesync(placement 기준)→ migrate 가 placement 갱신(→migrate 후 desync 0)→ coordCoherent 가 coordDesync 사용→ failover placement 갱신+lost 추적→ lost 제외 coherence→ placement-aware report→ syncPlan placement 기준→ placementCoherent bijection→ grand capstone syncedCoherent. **후속**: cluster-run.js 옛 runMulti 합류(#62 잔여)·업스트림 intent 실 클라(#61)·진짜 비동기(#4).
 
 ---
@@ -157,3 +157,4 @@
 | [0381](step-0381.md) | #65 양방향 동기 1: 코디네이터 placement SSOT(zone→실 host·where 권위·start 가 hostSpawnPlan 초기화·placedHost 질의·orch=entity 권위 분리) | 통과(reg 0·spine OK) · coordplace 5/5 placement z1@A·z2@B·z3@A==orch plan |
 | [0382](step-0382.md) | #65 양방향 동기 2: coordDesync()=placement 권위로 host 조회+orch entity 권위(zoneEntityPos·host-무관) 양방향 대조(stale orch plan 무관) | 통과(reg 0·spine OK) · coorddesync2 5/5 coordDesync0==clusterDesync0 |
 | [0383](step-0383.md) | #65 양방향 동기 3: migrate 가 this.placement[zone]=to 갱신(핵심 fix)→coordDesync 새 host 조회·migrate 후 desync 0 | 통과(reg 0·spine OK) · coordmigsync 5/5 placedHost hostB·coordDesync0 vs clusterDesync1(orch stale) |
+| [0384](step-0384.md) | #65 양방향 동기 4: run 가드·coordCoherent 가 coordDesync(placement 기준) 채택→migrate 포함 연속 루프·capstone 정합 | 통과(reg 0·spine OK) · coordmigcap 5/5 run5+migrate→maxDesync0·coordCoherent Y |
