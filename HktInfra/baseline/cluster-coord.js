@@ -1,4 +1,5 @@
 'use strict';
+// step-0402 — #62 runMulti 합류 2·복원력: silence 기반 lease-timeout 자동 펜싱. fence(0401)는 *수동* — runMulti observeSilence(`cluster-run.js:72`)는 침묵 tick 을 세어 임계(guessThreshold) 초과 시 자동 presumedDead 선언했다. sweepSilence()=placement host 중 socketDead(전송 층 사망 감지)인 host 의 연속 침묵 sweep 을 세어 leaseTimeout 초과 시 자동 fence(임계 기반 추측·즉발 fence 와 대조). socketDead host 0 이면 counter 0 = 0401 동치. 새 박스·run() 미사용→reg 0.
 // step-0401 — #62 runMulti 합류 1·복원력 능력 합류: 코디네이터 epoch 펜싱(presumedDead/fence/epoch). runMulti(cluster-run.js)는 presumedDead+epoch 펜싱으로 stale host 발신을 차단했으나(`cluster-run.js:69,76`) 코디네이터(zone cluster 상주 제어 평면)엔 그 능력이 없었다 — fence(host)로 host 를 추정 사망 표기+epoch++, tick 이 presumedDead host 의 존을 건너뛴다(fenced·egress 0). 코디네이터를 runMulti 호환 복원력 코어로 승격(#62·능력 합류·병존 reg 0). presumedDead 비면 0400 동치. 새 박스·run() 미사용→reg 0.
 // step-0399 — #66+#67 통합 정합 술어: unifiedCoherent() = syncedCoherent(0390·#65/#66) && authoritiesAgree(0395·#67). 연속 루프·현 entity·placement↔실 bijection·두 where 권위 합치가 *모두 한 몸*. orch.running 에 잘못된 host 를 주입하면 authoritiesAgree N → unifiedCoherent N(by-construction 아님·실측 검출). 읽기 전용·새 메서드·reg 0.
 // step-0398 — #67 orch 이중 권위 합류 5: report() 가 authoritiesAgree 를 노출(운영 대시보드). broker 측 제어 평면의 현재 건강에 *두 where 권위 합치 여부*를 더해, lifecycle(migrate/failover) 뒤 이중 권위가 합류된 상태인지를 단일 스냅샷으로 관측. 계측 1필드 추가·구동 무변경 = 0397 동치·reg 0.
@@ -50,6 +51,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     epoch: 0,          // 펜싱 epoch(0401·#62·runMulti epoch 의 코디네이터 판·fence 마다 ++).
     presumedDead: new Set(), // 추정 사망 host(0401·#62·fence/silence·tick 이 건너뜀·stale 발신 차단).
     fencedTicks: 0,    // 펜싱으로 건너뛴 (host,zone) tick 수(0401·계측).
+    leaseTimeout: 3,   // silence 임계(0402·#62·runMulti guessThreshold 판·이만큼 연속 침묵이면 자동 fence).
+    _silent: new Map(), // host→연속 침묵 sweep 수(0402·socketDead 인 동안 누적·살아있으면 리셋).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -65,6 +68,16 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     placedHost(zone) { return this.placement[zone] || null; },
     // epoch 펜싱(0401·#62) — host 를 추정 사망 표기 + epoch++. 이후 tick 이 이 host 의 존을 건너뛰어(fenced) stale 발신을 차단(runMulti `cluster-run.js:69,76` 펜싱의 zone cluster 판). 이미 추정 사망이면 멱등 no-op. 반환=새로 펜싱했는지.
     fence(host) { if (this.presumedDead.has(host)) return false; this.presumedDead.add(host); this.epoch++; return true; },
+    // silence 기반 자동 펜싱 sweep(0402·#62) — placement host 중 socketDead(전송 층 사망 감지)인 host 의 연속 침묵 sweep 을 세어 leaseTimeout 초과 시 자동 fence(임계 기반 추측·runMulti observeSilence 판). 살아있는 host 는 counter 리셋. socketDead host 0 이면 무동작(0401 동치). 반환=이번에 새로 fence 된 host 배열.
+    sweepSilence() {
+      const dead = this.cluster.socketDead, newly = [];
+      for (const h of new Set(Object.values(this.placement))) {
+        if (this.presumedDead.has(h)) continue;
+        if (dead && dead.has(h)) { const n = (this._silent.get(h) || 0) + 1; this._silent.set(h, n); if (n >= this.leaseTimeout) { this.fence(h); newly.push(h); } }
+        else this._silent.set(h, 0);
+      }
+      return newly;
+    },
     // orch 집행 where-view(0394·#67) — orch 가 들고 있는 제2 where 권위(zone→orch.runningHostOf). 코디네이터 placement 와 별개 — migrate/failover 전엔 일치, 후엔 orch 가 stale(이중 권위). placement 가 추적하는 존마다 orch 의 running host 를 조회. 읽기 전용.
     orchWhere() { const w = {}; for (const z of Object.keys(this.placement)) w[z] = this.orch.runningHostOf(z) || null; return w; },
     // 두 where 권위 합의 술어(0395·#67) — 코디네이터 placement == orchWhere(orch 집행 where-view) 가 모든 존에서 일치하는가. 참이면 단일 where 권위. lifecycle write-back(0396~) 전엔 migrate/failover 후 orch 가 stale → 거짓(이중 권위). 읽기 전용.

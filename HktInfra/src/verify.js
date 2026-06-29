@@ -1,8 +1,8 @@
-// HktInfra step-0402 — 헤드리스 검증 (#62 runMulti 합류 2·복원력: silence lease-timeout 자동 펜싱)
+// HktInfra step-0403 — 헤드리스 검증 (#62 runMulti 합류 3·복원력: 상태 보존 restart)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsilence`.
-//   더한 한 조각: cluster-coord.js sweepSilence()=socketDead host 연속 침묵 세어 leaseTimeout 초과 시 자동 fence(runMulti observeSilence 판). socketDead 0 이면 0401 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordsilence` — 2 host·3 zone: run(5)+killHost(hostB) → sweepSilence ×2(임계 3 미만·미펜싱) → 3번째 sweep 에 자동 fence(epoch 1·presumedDead={hostB}).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordrestart`.
+//   더한 한 조각: cluster-coord.js restart(zone,newHost)=pre-kill snapshot→kill→spawn→loadstate(runMulti invRestart 판·상태 보존). failover(상태 소실)와 대조. 미호출이면 0402 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordrestart` — 2 host·3 zone: run(5)→restart(z1, hostA_r) → a1 위치 보존(pre==post)·placement[z1]=hostA_r·restarts 1·coordDesync 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,33 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0402 #62 runMulti 합류 2·복원력 — coordsilence: run(5)+killHost(hostB) → sweepSilence ×2(임계 3 미만·미펜싱) → 3번째 sweep 에 자동 fence(epoch 1·presumedDead={hostB}).
-async function coordsilence(seeds) {
+// step-0403 #62 runMulti 합류 3·복원력 — coordrestart: run(5)→restart(z1, hostA_r) → a1 위치 보존(pre==post·snapshot before kill)·placement[z1]=hostA_r·restarts 1·coordDesync 0.
+async function coordrestart(seeds) {
   const BASE = coordScenario();
-  console.log('== coordsilence (0402·#62 복원력): silence lease-timeout 자동 펜싱(임계 3). ==');
-  console.log('seed   | sweep2 pd | sweep3 pd | epoch | 판정');
+  console.log('== coordrestart (0403·#62 복원력): 상태 보존 restart(zone,newHost). a1 무손실. ==');
+  console.log('seed   | pre a1 | post a1 | placement[z1] | restarts | coordDesync | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let pd2 = true, pd3 = false, ep = -1;
+    let preS = '-', postS = '-', plc = '-', rs = -1, cd = -1, preserved = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
-      await cluster.killHost('hostB');                                  // hostB socketDead(전송 층 사망 감지)
-      coord.sweepSilence(); coord.sweepSilence();                       // 2회(임계 3 미만)
-      pd2 = coord.presumedDead.has('hostB');                            // false 기대(아직 미펜싱)
-      coord.sweepSilence();                                            // 3회째 — 자동 fence
-      pd3 = coord.presumedDead.has('hostB'); ep = coord.epoch;          // true·epoch 1 기대
+      const pre = realPos(await cluster.rpc(coord.placedHost('z1'), { cmd: 'snapshot' }), 'z1', 'a1');
+      await coord.restart('z1', 'hostA_r');                            // 계획적 재시작(상태 보존)
+      const post = realPos(await cluster.rpc('hostA_r', { cmd: 'snapshot' }), 'z1', 'a1');
+      preS = pre ? `{${pre.x},${pre.y}}` : 'null'; postS = post ? `{${post.x},${post.y}}` : 'null';
+      preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
+      plc = coord.placedHost('z1'); rs = coord.restarts; cd = await coord.coordDesync();
     } finally { await cluster.shutdown(); }
-    const ok = check(!pd2 && pd3 && ep === 1, `seed ${seed}: 위반 (pd2 ${pd2}·pd3 ${pd3}·ep ${ep})`);
-    console.log(`${pad(seed, 6)} | ${pad(pd2 ? 'Y' : 'N', 9)} | ${pad(pd3 ? 'Y' : 'N', 9)} | ${pad(ep, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(preserved && plc === 'hostA_r' && rs === 1 && cd === 0, `seed ${seed}: 위반 (pre ${preS}·post ${postS}·plc ${plc}·rs ${rs}·cd ${cd})`);
+    console.log(`${pad(seed, 6)} | ${pad(preS, 6)} | ${pad(postS, 7)} | ${pad(plc, 13)} | ${pad(rs, 8)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordsilence'] = coordsilence;
-kit.ORDER.splice(1, 0, 'coordsilence');
+kit.MODES['coordrestart'] = coordrestart;
+kit.ORDER.splice(1, 0, 'coordrestart');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

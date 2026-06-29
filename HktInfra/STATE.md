@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0402](step-0402.md) — **#62 runMulti 합류 2·복원력**: silence 기반 lease-timeout 자동 펜싱(`sweepSilence()`=socketDead host 연속 침묵 leaseTimeout 초과 시 자동 fence). runMulti `observeSilence`(`cluster-run.js:72`)의 임계 기반 추측 펜싱을 zone cluster 에 — fence(0401·수동)의 자동 판. socketDead 0 이면 0401 동치. 직전: 0401 fence/epoch.
-- **한 줄 상태**: reg ALL OK·coordsilence 5/5(killHost(hostB)→sweep ×3 에 자동 fence·epoch 1)·cluster-coord.js 28.4KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0403](step-0403.md) — **#62 runMulti 합류 3·복원력**: 상태 보존 `restart(zone, newHost)`(pre-kill snapshot→kill→spawn→loadstate·entity 무손실). runMulti `invRestart`(`cluster-run.js:90`)의 zone cluster 판 — failover(비자발·상태 소실)와 대조한 *계획적* 재시작. 미호출이면 0402 동치. 직전: 0402 silence 자동 펜싱.
+- **한 줄 상태**: reg ALL OK·coordrestart 5/5(a1 {8,8} 보존·placement[z1]=hostA_r·restarts 1·coordDesync 0)·cluster-coord.js 29.4KB(30KB 근접·0404 정리 예정)·spine ALL OK.
 - **다음**: 🎯 **#62 코디네이터를 runMulti 복원력 코어로 승격(0401~·능력 합류·병존 reg 0)**: epoch 펜싱(0401)·silence lease-timeout(0402)·snapshot-restart(0403)·reprovision+mirror(0404~0405)·clusterInfo report(0406)·runScenario 통합 루프(0407)·restartedCoherent(0408~0409)·capstone runMultiCoherent(0410). **후속**: orch zoneHost entity 컨테이너 합류(#68·경미)·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 0401~0410 닫으면 묶음 리뷰.
 
 ---
@@ -149,3 +149,4 @@
 | [0400](step-0400.md) | #66+#67 grand capstone: 루프 *중* migrate+failover 후 unifiedCoherent(0391~0400 닫기)·박스 무변경 | 통과(reg 0·spine OK) · coordunifiedcap 5/5 unified Y·maxDesync0·대조 clusterDesync1 |
 | [0401](step-0401.md) | #62 runMulti 합류 1·복원력: 코디네이터 epoch 펜싱 fence(host)/presumedDead·tick 이 추정 사망 host 건너뜀 | 통과(reg 0·spine OK) · coordfence 5/5 epoch1·presumedDead{hostB}·z2 fenced |
 | [0402](step-0402.md) | #62 runMulti 합류 2·복원력: silence lease-timeout 자동 펜싱 sweepSilence()(socketDead 연속 침묵→자동 fence) | 통과(reg 0·spine OK) · coordsilence 5/5 sweep ×3 에 자동 fence·epoch1 |
+| [0403](step-0403.md) | #62 runMulti 합류 3·복원력: 상태 보존 restart(zone,newHost)(pre-kill snapshot→kill→spawn→loadstate)·failover 대조 | 통과(reg 0·spine OK) · coordrestart 5/5 a1 {8,8} 보존·restarts1·coordDesync0 |
