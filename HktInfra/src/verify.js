@@ -1,8 +1,8 @@
-// HktInfra step-0400 — 헤드리스 검증 (#66+#67 grand capstone: 루프 중 migrate+failover 후 unifiedCoherent)
+// HktInfra step-0401 — 헤드리스 검증 (#62 runMulti 합류 1·복원력: 코디네이터 epoch 펜싱 fence/presumedDead)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordunifiedcap`.
-//   더한 한 조각: 새 코드 0 — 0399 unifiedCoherent 를 *가장 어려운* 시나리오(run 루프 *중* migrate + 루프 *중* failover)에 적용해 #66(tick placement-aware)+#67(orch 이중 권위 합류) 종합. #66/#67 sub-arc(0391~0400) 닫기. 박스 무변경 → reg 0(자명).
-//   검증: ⒜ `reg`. ⒝ `coordunifiedcap` — 2 host·3 zone: run(5, t=2 migrate z1 A→B·t=3 failover hostA→hostB) → unifiedCoherent **Y**(maxDesync0·authoritiesAgree)·대조 driver.clusterDesync>0(옛 orch plan stale)·report coherent&&authoritiesAgree.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordfence`.
+//   더한 한 조각: cluster-coord.js fence(host)=presumedDead+epoch++·tick 이 추정 사망 host 의 존 건너뜀(runMulti 펜싱의 zone cluster 판·#62 능력 합류). presumedDead 비면 0400 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordfence` — 2 host·3 zone: run(5)(펜싱 0) → fence(hostB) → epoch 1·presumedDead={hostB}·이후 tick 이 z2(hostB) 건너뜀(fencedTicks↑·hostA z1/z3 만 tick).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,35 +31,32 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0400 #66+#67 grand capstone — coordunifiedcap: run(5, 루프 *중* t=2 migrate z1 A→B·t=3 failover hostA→hostB) → unifiedCoherent Y(maxDesync0·authoritiesAgree)·대조 driver.clusterDesync>0(옛 orch plan stale)·report coherent&&authoritiesAgree. #66/#67 sub-arc(0391~0400) 닫기.
-async function coordunifiedcap(seeds) {
+// step-0401 #62 runMulti 합류 1·복원력 — coordfence: run(5)(펜싱 0) → fence(hostB) → epoch 1·presumedDead={hostB}·이후 tick 이 z2(hostB) 건너뜀(fencedTicks↑).
+async function coordfence(seeds) {
   const BASE = coordScenario();
-  console.log('== coordunifiedcap (0400·#66+#67 grand capstone): 루프 중 migrate+failover 후 unifiedCoherent. 0391~0400 닫기. ==');
-  console.log('seed   | unified | maxDesync | clusterDesync(옛) | rpt.coh&&agree | 판정');
+  console.log('== coordfence (0401·#62 복원력): epoch 펜싱 fence(host)·tick 이 추정 사망 host 건너뜀. ==');
+  console.log('seed   | epoch | presumedDead | fencedTicks(fence 후 tick) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let uni = false, md = -1, dd = -1, rok = false;
+    let ep = -1, pd = false, fbefore = -1, fafter = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5, async (t, c) => {                              // 루프 *중* lifecycle — #66 발현(placement-aware tick 추종)
-        if (t === 2) await c.migrate('z1', 'hostA', 'hostB');
-        if (t === 3) await c.failover('hostA', 'hostB');
-      });
-      uni = await coord.unifiedCoherent();                             // #65/#66/#67 모두 한 몸
-      md = coord.maxDesync;
-      dd = await drv.clusterDesync(o, cluster);                         // 옛 경로(orch plan stale) → 발산
-      const rpt = await coord.report();
-      rok = rpt.coherent === true && rpt.authoritiesAgree === true;
+      await coord.run(5);                                               // 펜싱 0(OFF 동치)
+      fbefore = coord.fencedTicks;                                      // 0 기대
+      coord.fence('hostB');                                            // hostB 추정 사망
+      ep = coord.epoch; pd = coord.presumedDead.has('hostB');
+      await coord.tick(6);                                             // hostB 존(z2) 건너뜀
+      fafter = coord.fencedTicks;                                      // ≥1 기대(z2 skip)
     } finally { await cluster.shutdown(); }
-    const ok = check(uni && md === 0 && dd > 0 && rok, `seed ${seed}: capstone 위반 (uni ${uni}·md ${md}·dd ${dd}·rok ${rok})`);
-    console.log(`${pad(seed, 6)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(md, 9)} | ${pad(dd, 17)} | ${pad(rok ? 'Y' : 'N', 14)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(ep === 1 && pd && fbefore === 0 && fafter > fbefore, `seed ${seed}: 위반 (epoch ${ep}·pd ${pd}·fb ${fbefore}·fa ${fafter})`);
+    console.log(`${pad(seed, 6)} | ${pad(ep, 5)} | ${pad(pd ? 'hostB' : 'none', 12)} | ${pad(`${fbefore}→${fafter}`, 26)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordunifiedcap'] = coordunifiedcap;
-kit.ORDER.splice(1, 0, 'coordunifiedcap');
+kit.MODES['coordfence'] = coordfence;
+kit.ORDER.splice(1, 0, 'coordfence');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

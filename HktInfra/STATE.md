@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0400](step-0400.md) — **#66+#67 grand capstone**: 0399 `unifiedCoherent()` 를 *가장 어려운* 시나리오(run 루프 *중* t=2 migrate + t=3 failover)에 적용 → unifiedCoherent Y·maxDesync 0·report coherent&&authoritiesAgree — 대조 옛 driver.clusterDesync 1. tick placement-aware(#66)가 루프 중 lifecycle 추종 + orch write-back(#67)이 두 where 권위 합류. **#66 tick placement-aware + #67 orch 이중 권위 합류 sub-arc(0391~0400) 닫기**. 박스 무변경·reg 0. 직전: 0399 unifiedCoherent.
-- **한 줄 상태**: reg ALL OK·coordunifiedcap 5/5(루프 중 migrate+failover·unifiedCoherent Y·maxDesync 0·대조 clusterDesync 1)·cluster-coord.js 23.9KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#66/#67 sub-arc(0391~0400 ✅ 닫힘)**: tick/deliver placement-aware·mid-run migrate 발현·orchWhere·authoritiesAgree·migrate/failover write-back·report·unifiedCoherent capstone. **후속(다음 arc·권위 infra-review)**: ⒜ orch 내부 zoneHost 컨테이너 합류(where-view 만 동기됨·entity 컨테이너 미동기)·⒝ 옛 cluster-run.js runMulti 코드 합류(#62 잔여)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0391~0400 묶음 리뷰 적기(infra-review)·0381~0390 도 미실시**.
+- **닫힌 step**: [step-0401](step-0401.md) — **#62 runMulti 합류 1·복원력**: 코디네이터에 epoch 펜싱(`fence(host)`=presumedDead+epoch++·tick 이 추정 사망 host 의 존 건너뜀). runMulti(`cluster-run.js:69,76`)의 stale 발신 차단 펜싱을 zone cluster 상주 제어 평면에 — **코디네이터를 runMulti 호환 복원력 코어로 승격(#62 능력 합류·병존 reg 0)** 시작. presumedDead 비면 0400 동치. 직전: 0400 unifiedCoherent capstone.
+- **한 줄 상태**: reg ALL OK·coordfence 5/5(fence(hostB)→epoch1·presumedDead{hostB}·z2 fenced)·cluster-coord.js 27.6KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#62 코디네이터를 runMulti 복원력 코어로 승격(0401~·능력 합류·병존 reg 0)**: epoch 펜싱(0401)·silence lease-timeout(0402)·snapshot-restart(0403)·reprovision+mirror(0404~0405)·clusterInfo report(0406)·runScenario 통합 루프(0407)·restartedCoherent(0408~0409)·capstone runMultiCoherent(0410). **후속**: orch zoneHost entity 컨테이너 합류(#68·경미)·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 0401~0410 닫으면 묶음 리뷰.
 
 ---
 
@@ -156,3 +156,4 @@
 | [0398](step-0398.md) | #67 orch 이중 권위 합류 5: report() 에 authoritiesAgree 필드(운영 대시보드 이중 권위 건강) | 통과(reg 0·spine OK) · coordauthreport 5/5 report.authoritiesAgree true·coherent true·lost1 |
 | [0399](step-0399.md) | #66+#67 통합 정합 술어 unifiedCoherent()=syncedCoherent && authoritiesAgree·stale 주입 실측 검출 | 통과(reg 0·spine OK) · coordunified 5/5 unified Y·stale 주입 N |
 | [0400](step-0400.md) | #66+#67 grand capstone: 루프 *중* migrate+failover 후 unifiedCoherent(0391~0400 닫기)·박스 무변경 | 통과(reg 0·spine OK) · coordunifiedcap 5/5 unified Y·maxDesync0·대조 clusterDesync1 |
+| [0401](step-0401.md) | #62 runMulti 합류 1·복원력: 코디네이터 epoch 펜싱 fence(host)/presumedDead·tick 이 추정 사망 host 건너뜀 | 통과(reg 0·spine OK) · coordfence 5/5 epoch1·presumedDead{hostB}·z2 fenced |
