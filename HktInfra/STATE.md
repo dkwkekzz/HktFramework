@@ -9,17 +9,18 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0350](step-0350.md) — **#9 후속 grand capstone: 월드 다운스트림 E2E 전 정합** — 술어 `downstreamWorldCoherent`(모든 존 downstreamCoherent[포착 0330] && downstreamSettled[전파 0341]) + grand capstone = worldCoherent && 모든 실 DownClient convergedTo(desync 0) && isolated. host→게이트웨이→실 클라 E2E 완결. **월드 다운스트림 데이터 평면 0319~0350 닫기**. 직전: 0349 대시보드.
-- **한 줄 상태**: reg ALL OK·worldcap 5/5(worldCoherent·dc0/1/2 수렴·iso·다중 존+손실+migrate+late-join)·박스 >30KB 0개·`run.js all` ALL OK·spine ALL OK.
-- **다음**: 🎯 **월드 다운스트림 데이터 평면(0319~0350 ✅ 닫힘)** — host AOI 포착(0319~30)→신뢰 전파(0331~41)→실 클라 수렴 desync 0(0342~49)→E2E capstone(0350). SPINE §4 경로2 host→게이트웨이→실 클라 완결(인프로세스). **후속**: ⒜ 실 host.js *OS 프로세스/소켓* spawn(cluster-run.js·zoneHost/DownClient 실 프로세스화) ⒝ 업스트림 intent 실 클라 경로(경로1) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
+- **닫힌 step**: [step-0351](step-0351.md) — **#57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan 매니페스트** — `orch.hostSpawnPlan()` 읽기 전용: zoneHostSnapshot(0309)을 실 cluster 드라이버가 집행할 *spawn 계약*(host→존 roster·결정론 order·총계)으로 감쌈. cluster.spawnOne+init 의 입력. **#57 실 host.js OS 프로세스 spawn arc 시작**. 직전: 0350 월드 다운스트림 E2E grand capstone.
+- **한 줄 상태**: reg ALL OK·hostplan 5/5(hostCount2·order[A,B]·A=[z1,z3]·B=[z2]·zones==running3·snapshot bijection)·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **현재 초점 = downstream *전파* sub-arc(0331~)** — SPINE §4 경로2 월드 다운스트림(존→게이트웨이→클라)을 실 배선. 0331 egress(host 버퍼→게이트웨이 송출)·0333 게이트웨이 수신(세션 버퍼)·0332 정리. **다음 한 조각**: 게이트웨이 세션→실 클라 라우팅(전달) → per-세션 seq → ack → 재전송 → keyframe/resync → 격리 → 무손실 회계 → capstone. 그 위 기반: 포착 sub-arc(0319~0330 ✅)·부하 균형(0311~0318 ✅)·실 host.js 컨테이너(0301~0310 ✅·hostProcCoherent)·게이트웨이 직접 라우팅(0291~0300 ✅·directFlowCoherent)·#56 entity 데이터 평면(0281~0290 ✅).
+> 🎯 **현재 초점 = #57 실 host.js OS 프로세스 spawn sub-arc(0351~)** — 최근 arc(0241~0350)의 zoneHosts/DownClient 는 전부 `run()` 인프로세스 논리 컨테이너다. 이를 cluster-core/host.js 실 child_process 머신(구 토폴로지는 이미 실 spawn)으로 잇는다. 0351 hostSpawnPlan(드라이버 spawn 계약). **다음 한 조각**: spawn/kill 델타(0352) → orch clusterDriver 훅 seam(OFF 플래그·_hostSet spawn/despawn 이 driver 호출·0353) → driver roster/frame/egress 라우팅 → cluster-run.js 실 spawnOne/killHost 배선 → 실 host.js zonehost cmd 처리 → capstone clusterHostsCoherent. 그 위 기반: host 컨테이너(0301~0310 ✅·hostProcCoherent)·부하 균형(0311~0318 ✅)·월드 다운스트림 E2E(0319~0350 ✅·downstreamWorldCoherent).
+> **설계 제약**: 검증은 결정론·고속 인프로세스(`run.js spine`)가 게이트 — 실 child_process spawn 은 느리고 spine 모드 부적합. 따라서 orch 측 *드라이버 계약*(매니페스트·델타·훅 seam)을 인프로세스 recorder 드라이버로 검증하고, 실 cluster.spawnOne/killHost 배선은 cluster-run.js(report/multiproc-proof 경로·spine 게이트 밖)에서 집행.
 
-**후속 백로그 (전파 sub-arc 닫은 뒤)**: ⒜ **실 host.js *OS 프로세스/소켓* spawn** — 현 zoneHosts 는 orch 인프로세스 논리 컨테이너(cluster-run.js 실 spawn 통합). ⒝ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0330 4묶음 평결 누적).
+**후속 백로그 (#57 닫은 뒤)**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61). ⒞ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0350 6묶음 리뷰 적기).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -149,3 +150,4 @@
 | [0348](step-0348.md) | downstream late-join(#9 후속): 중도 합류 수렴 통합 검증(src 무변경·중도 입장 세션 reset keyframe 전체 AOI→egress→클라 즉시 수렴·복제=재현/snapshot late-join 다운스트림 판·dc1.resets1·desync0) | 통과(reg 0·spine OK) · dcjoin 5/5 즉시 수렴 |
 | [0349](step-0349.md) | downstream 대시보드(#9 후속): 게이트웨이 downstreamReport(rx/routed/dropped/gaps/resyncs/cleaned/sessions/isolated·0331~0348 지표 단일 집계·운영 관측·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcreport 5/5 일관·conv |
 | [0350](step-0350.md) | 월드 다운스트림 grand capstone(#9 후속): downstreamWorldCoherent(모든 존 downstreamCoherent[포착]&&downstreamSettled[전파]) + 다중 존·손실·migrate·late-join 뒤 worldCoherent && 모든 실 DownClient convergedTo[desync0] && isolated·host→게이트웨이→실 클라 E2E·월드 다운스트림 0319~0350 닫기·읽기 전용 비트 동일 | 통과(reg 0·spine OK) · worldcap 5/5 world·수렴·iso |
+| [0351](step-0351.md) | #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트(zoneHostSnapshot 0309→ 실 cluster 드라이버 spawn 계약: host→존 roster·결정론 order·hostCount·zones 총계·cluster.spawnOne+init 입력) | 통과(reg 0·spine OK) · hostplan 5/5 hosts2·A=[z1,z3]·zones==running3 |
