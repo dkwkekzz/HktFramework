@@ -1,4 +1,5 @@
 'use strict';
+// step-0384 — #65 양방향 동기 4: run 루프 가드·coordCoherent 가 coordDesync(placement 기준) 채택. 0374/0380 은 driver.clusterDesync(orch plan 기준)를 썼다 → migrate 후 발산해 capstone 이 migrate/failover 를 제외해야 했다. coordDesync 로 바꾸면 placement 권위가 lifecycle 을 따라가므로 *migrate 를 포함한* 연속 루프·capstone 이 정합. OFF 동치: 가드 소스만 교체·정상 경로(placement==orch plan) 결과 동일 = 0383 동치.
 // step-0383 — #65 양방향 동기 3: migrate 가 placement 갱신(핵심 fix). migrate(zone,from,to) 가 실 cluster 이주 후 this.placement[zone]=to 로 *where 권위*를 갱신 → coordDesync 가 새 host(to)를 조회해 entity 발견 → migrate 후도 desync 0. driver.clusterDesync 는 orch plan(stale·여전히 from)으로 from 조회 → 발산(대조로 #65 입증). OFF 동치: migrate 미호출이면 0382 동치.
 // step-0382 — #65 양방향 동기 2: coordDesync() — 코디네이터 placement(zone→host SSOT)로 host 를 조회해 실 cluster vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 는 orch.hostSpawnPlan(stale 가능)으로 host 조회 → migrate 후 발산. coordDesync 는 placement 권위로 조회 → lifecycle 갱신만 따라가면 항상 정확. placement==orch plan 일 땐 driver.clusterDesync 와 동치. OFF 동치: 미호출이면 0381 동치.
 // step-0381 — #65 양방향 동기 1: 코디네이터 placement SSOT(zone→host). #62 가 남긴 잔여 — 코디네이터 lifecycle(migrate/failover)이 *실 cluster* 만 바꾸고 orch 권위 placement 는 갱신 안 해(단방향) 실 migrate 후 clusterDesync 가 stale orch plan 으로 발산했다(0379·capstone 이 migrate/failover 제외). 해법: 코디네이터가 *placement 권위*(zone→실 host)를 직접 들고 lifecycle 마다 갱신 → "어느 host 가 어느 존을 도나"의 SSOT 를 코디네이터가 소유(orch=entity 권위/what·코디네이터=placement 권위/where 분리). 이 step=start() 가 orch.hostSpawnPlan 에서 placement 초기화 + placedHost(zone) 질의. OFF 동치: 미사용이면 0380 동치.
@@ -77,7 +78,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       let views = 0;
       for (let t = 1; t <= ticks; t++) {
         views += await this.tick(t);
-        const d = await this.driver.clusterDesync(this.orch, this.cluster);   // step-0374 — 매 tick 끝 정합 가드(중간 발산도 잡음).
+        const d = await this.coordDesync();   // step-0374 매 tick 끝 정합 가드 → step-0384 placement 기준(coordDesync)으로 교체(migrate 포함 정합).
         if (d > this.maxDesync) this.maxDesync = d;
       }
       return views;
@@ -123,7 +124,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // grand capstone 술어(0380) — 연속 루프 내내(maxDesync==0) *그리고* 현 시점(clusterDesync==0) 실 cluster 가 in-proc 권위와 한 몸. broker 측 제어 평면(start→run→drift→syncPlan)이 SPINE §5 수렴을 실 프로세스 경계 넘어 *지속적으로* 만족. #62 sub-arc(0371~0380) 종합.
     async coordCoherent() {
-      return this.maxDesync === 0 && (await this.driver.clusterDesync(this.orch, this.cluster)) === 0;
+      return this.maxDesync === 0 && (await this.coordDesync()) === 0;   // step-0384 — placement 기준(migrate 후도 정확)
     },
   };
 }
