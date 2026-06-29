@@ -9,18 +9,18 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0374](step-0374.md) — **#62 runMulti 통합 4: 매-tick desync 가드** — run 루프가 매 tick 끝 clusterDesync 측정→maxDesync 누적(정합 매 tick 내내 유지 단언·중간 발산 검출). 직전: 0373 연속 tick 루프.
-- **한 줄 상태**: reg ALL OK·coorddesync 5/5(maxDesync 0·ghost 주입 검출 desync1)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0375](step-0375.md) — **#62 runMulti 통합 5: 상주 migrate** — migrate(zone,fromHost,toHost)=driver.migrateZone(snapshot+zoneadd+loadstate+zonedel) 상주 lifecycle 감쌈(상태 보존·release+acquire·migrations 계측). 직전: 0374 매-tick desync 가드.
+- **한 줄 상태**: reg ALL OK·coordmigrate 5/5(a1 보존·hostA release·migrations==1)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **현재 초점 = #57 실 데이터 평면 집행 + runMulti 통합 sub-arc(0361~)** — 드라이버 계약+실 spawn 은 0351~0360 ✅. 이제 *실 소켓 데이터 평면*: deliver(0361 ✅·실 host.js zone.onMsg·desync 0)→ host.js zonedel(존 제거)→ 실 tick+egress(move 적용·view 산출)→ 실 migrate(snapshot+loadstate 상태 이전)→ 실 killHost·failover→ reconcile→ 다중 host 격리→ runMulti 통합(#62)→ capstone(in-proc 권위==실 host.js snapshot desync 0). 그 다음: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4).
-> **설계 제약**: spine 게이트는 `verify.js all` — orch 드라이버 계약은 인프로세스 recorder 로, 실 spawn/zoneadd 는 실 Cluster(child_process)로 검증(둘 다 spine 안·기존 e2e 와 동형). reg 는 항상 in-proc run() 비트 대조(드라이버 OFF→null).
+> 🎯 **현재 초점 = #62 runMulti 코어 통합 sub-arc(0371~)** — #57 실 데이터 평면 0361~0370 ✅. 이제 verify ad-hoc cluster 구동(driveCluster 0368)을 *broker 측 제어 평면 상주*(`cluster-coord.js` ClusterCoordinator)로 옮긴다: start(0371 ✅·토폴로지 reconcile)→ tick(0372 ✅·데이터 평면 1 tick)→ run 연속 tick 루프(0373 ✅)→ 매-tick desync 가드(0374 ✅)→ 상주 migrate(0375 ✅)→ 상주 failover→ plan 변화 reconcile→ egress 집계→ report→ grand capstone(연속 run+migrate+failover 뒤 desync 0). 그 다음: 업스트림 intent 실 클라(#61)·진짜 비동기(#4).
+> **설계 제약**: spine 게이트는 `verify.js all`. cluster-coord 는 새 박스(run() 데이터 평면 미사용 → reg 0). reg 는 항상 in-proc run() 비트 대조.
 
-**후속 백로그 (#57 닫은 뒤)**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61). ⒞ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0350 6묶음 리뷰 적기).
+**후속 백로그 (#62 닫은 뒤)**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0370 7묶음 리뷰 적기).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
 
@@ -130,17 +130,7 @@
 | [0301–0310](step-0301.md) | #9 잔여(실 host.js 물리 분리) arc: host 1급 컨테이너 zoneHosts·자기 inbox 수신·자기 루프 tick·단일소유/drift·roster reg/dereg·정리 분할 orch-hostproc·inbox stale 거부·census·hostContainerCoherent·bijection·capstone hostProcCoherent | 통과(reg 0·spine OK) · 5/5 hpcoh·consv·recv==drained+stale·census1 |
 | [0311–0318](step-0311.md) | host 프로세스 컨테이너 심화·**부하 균형 sub-arc**: hostLoadSkew(존 수 불균형)→생애주기 로그 hostLifecycle→다중 존/동시 host 장애 failover(hostZones·hostCount)→entity 가중 부하 hostEntitySkew/자동 배치 placeAutoE/재배치 placeRebalanceE→capstone 균형 술어 hostBalanced(존 수·entity 둘 다·placeRebalanceE→균형) | 통과(reg 0·spine OK) · 각 5/5 |
 | [0319–0330](step-0319.md) | downstream 데이터 평면 *포착* sub-arc(#9 후속): host 산출 AOI 라활 포착(no-op→버퍼링 싱크)→AOI 정확성/증분 델타/상호 가시/exit→직렬화 경계→존 격리→이주 연속→무굶김→무손실 회계→capstone downstreamCoherent(zoneViewConserved&&AllKeyed&&serializable) | 통과(reg 0·spine OK) · 각 5/5 |
-| [0331](step-0331.md) | downstream 전파 1(#9 후속): host 산출 뷰 egress(orch `_drainZoneEgress` 가 런타임 존 버퍼의 새 view frame 을 매 tick 게이트웨이로 송출·per-rt 커서·zoneView 봉투·zoneEgress OFF→0330 비트 동일·전파 sub-arc 시작) | 통과(reg 0·spine OK) · 5/5 egress4==frames4·잔류0 |
-| [0332](step-0332.md) | 정리: 브리지 필드 init 분리(생성자 0272~0331 필드 대입 블록→전용 새 파일 orch-bridge-init.js `_initBridgeFields`·투명 분할·orchestrator.js 30.5KB→22.8KB·세 박스 <30KB·기능 0·reg 0) | 통과(reg 0·spine OK) · bridgesplit 5/5 egress4==frames4·dcoh |
-| [0333](step-0333.md) | downstream 전파 2(#9 후속): 게이트웨이 다운스트림 수신(onMsg orch zoneView 분기→`_recvZoneView` 세션별 버퍼 zoneViewIn·존→게이트웨이 경로 완성·zoneEgress OFF→미수신 비트 동일) | 통과(reg 0·spine OK) · gwdown 5/5 gwRx4==egress4·세션2 |
-| [0334](step-0334.md) | downstream 전파 3(#9 후속): 게이트웨이→클라 라우팅(zoneEnter 시 세션→클라 downClients 바인딩→zoneView 수신 시 그 클라로 frame 전달·미바인딩 드롭·존→게이트웨이→클라 완성·zoneEgress OFF→전달 0 비트 동일) | 통과(reg 0·spine OK) · gwroute 5/5 routed4==rx4·drop0·바인딩정확 |
-| [0335](step-0335.md) | downstream 전파 4(#9 후속): per-세션 시퀀스(orch egress frame 마다 세션별 단조 dseq·zoneEgressSeq→게이트웨이 downSeqNext 순서/유실 추적·gap 카운트·zoneEgress OFF→dseq0 비트 동일) | 통과(reg 0·spine OK) · gwseq 5/5 gap0·세션next==수신수 |
-| [0336](step-0336.md) | downstream 전파 5(#9 후속): egress 버퍼 자기-크기조정(orch zoneEgressBuf 세션별 미-ack 보관→게이트웨이 zoneViewAck→orch 워터마크 가지치기·버스 ack 0040 다운스트림 판·재전송 소스 유계·zoneEgress OFF→0 비트 동일) | 통과(reg 0·spine OK) · gwack 5/5 pruned4==egr4·버퍼0 |
-| [0337](step-0337.md) | downstream 전파 6(#9 후속): 재전송 복구(게이트웨이 인오더 게이팅·gap→zoneResync·중복 드롭 + orch `_resendEgress` 미-ack 버퍼서 dseq≥from 재전송·egressDrop 손실 주입·0008 ack/NAK 다운스트림 판·미주입 OFF→비트 동일) | 통과(reg 0·spine OK) · gwloss 5/5 drop1→resync1→복구 next5==egr5 |
-| [0338](step-0338.md) | downstream 전파 7(#9 후속): 타임아웃 재전송(orch `_retransmitStale` 매 tick ack 없이 egressTimeout 경과 frame 재전송·세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍·zone heartbeat/bus 0058 다운스트림 판·egressTimeout0 OFF→비트 동일) | 통과(reg 0·spine OK) · gwtimeout 5/5 마지막 손실 resync0→복구 |
-| [0339](step-0339.md) | downstream 전파 8(#9 후속): leave 정리(게이트웨이 `_downCleanup` downClients/seq/resync/buffer + orch `_bridgeLeave` egress buf/seq/acked·0334 stale 바인딩/무계 성장 해소·egress OFF→정리 맵 빈 채 비트 동일) | 통과(reg 0·spine OK) · gwleave 5/5 a1 정리·a2 보존 |
-| [0340](step-0340.md) | downstream 전파 9(#9 후속): 다중 존 격리(게이트웨이 클라별 전달 세션 회계 downDelivered + 술어 gatewayDeliveryIsolated·z1·z2 동시 각 클라 자기 세션만·교차 누수 0·존별 egress 격리·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · gwiso 5/5 iso Y·바인딩 격리 |
-| [0341](step-0341.md) | downstream 전파 10·capstone(#9 후속): 전파 전 정합(술어 downstreamSettled 모든 세션 egress 버퍼 0 + 손실+enter/move/leave/migrate 뒤 settled && gatewayDeliveryIsolated && 활성 delivered==produced && downstreamCoherent·전파 sub-arc 0331~0341 닫기·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · downdeliver 5/5 settled·iso·복구 |
+| [0331–0341](step-0331.md) | downstream 전파 sub-arc(#9 후속): host 뷰 egress(0331)·브리지 init 분리 정리(0332)·게이트웨이 수신(0333)·게이트웨이→클라 라우팅(0334)·per-세션 dseq(0335)·egress 버퍼 자기-크기조정/ack(0336)·재전송 복구(0337)·타임아웃 재전송(0338)·leave 정리(0339)·다중 존 격리 gatewayDeliveryIsolated(0340)·capstone downstreamSettled(0341) | 통과(reg 0·spine OK) · 각 5/5 settled·iso·복구 |
 | [0342–0349](reviews/review-0341-0350.md) | 실 다운스트림 클라 수렴 sub-arc(#9 후속): DownClient 수신(0342)·상호 가시 zoneAuthSig(0343)·손실 하 수렴(0344)·교차 관찰자 일치(0345)·capstone convergedTo(0346)·수신 버퍼 유계 K(0347)·late-join keyframe(0348)·대시보드 downstreamReport(0349) | 통과(reg 0·spine OK) · 각 5/5 desync0 |
 | [0350](step-0350.md) | 월드 다운스트림 grand capstone(#9 후속): downstreamWorldCoherent(모든 존 downstreamCoherent[포착]&&downstreamSettled[전파]) + 다중 존·손실·migrate·late-join 뒤 worldCoherent && 모든 실 DownClient convergedTo[desync0] && isolated·host→게이트웨이→실 클라 E2E·월드 다운스트림 0319~0350 닫기·읽기 전용 비트 동일 | 통과(reg 0·spine OK) · worldcap 5/5 world·수렴·iso |
 | [0351–0360](reviews/review-0351-0360.md) | #57 실 host.js OS 프로세스 spawn — 드라이버 계약+실 spawn sub-arc: hostSpawnPlan(0351)·델타(0352)·clusterDriver 훅(0353)·roster(0354)·frame(0355)·egress(0356)·ClusterHostDriver 번역+flush(0357)·실 child_process 존 인스턴스화(0358)·zoneadd 다중 존(0359)·capstone clusterHostsCoherent+실 다중 host(0360) | 통과(reg 0·spine OK) · 각 5/5·실 host.js 2 프로세스 A=[z1,z2]·B=[z3] |
@@ -158,3 +148,4 @@
 | [0372](step-0372.md) | #62 runMulti 통합 2: ClusterCoordinator.tick(t)=pending entity frame 재생+전 존 1 tick(move 적용+view_delta egress)·driveCluster per-tick 몸통 상주화 | 통과(reg 0·spine OK) · coordtick 5/5 views2·coherent·ticks==1 |
 | [0373](step-0373.md) | #62 runMulti 통합 3: ClusterCoordinator.run(ticks)=start()+tick(t) 1..ticks 반복(연속 tick 루프·runMulti 핵심 상주화) | 통과(reg 0·spine OK) · coordrun 5/5 5 tick 내내 desync0·ticks==5 |
 | [0374](step-0374.md) | #62 runMulti 통합 4: 매-tick desync 가드(run 루프가 매 tick 끝 clusterDesync→maxDesync 누적·중간 발산 검출) | 통과(reg 0·spine OK) · coorddesync 5/5 maxDesync0·ghost 검출 desync1 |
+| [0375](step-0375.md) | #62 runMulti 통합 5: 상주 migrate(zone,fromHost,toHost)=driver.migrateZone 상주 lifecycle 감쌈(상태 보존·release+acquire·migrations 계측) | 통과(reg 0·spine OK) · coordmigrate 5/5 a1보존·release·migrations==1 |

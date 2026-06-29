@@ -1,8 +1,8 @@
-// HktInfra step-0374 — 헤드리스 검증 (#62 runMulti 코어 통합 4: 매-tick desync 가드)
+// HktInfra step-0375 — 헤드리스 검증 (#62 runMulti 코어 통합 5: 상주 migrate)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddesync`.
-//   더한 한 조각: cluster-coord.js run 루프가 매 tick 끝 clusterDesync 측정→maxDesync(루프 최악) 누적. 정합이 매 tick 내내 유지됨 단언. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coorddesync` — 2 host·3 zone: 정상 run(5)→maxDesync 0(내내 수렴)·ghost entity 주입 시 clusterDesync>0(가드 지표 건전).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmigrate`.
+//   더한 한 조각: cluster-coord.js migrate(zone,fromHost,toHost)=driver.migrateZone 상주 lifecycle 감쌈(상태 보존·migrations 계측). 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordmigrate` — 2 host·3 zone: run(3) 후 migrate z1 A→B → a1 상태 보존(==권위)·hostA z1 release·migrations==1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,34 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0374 #62 통합 4 — 매-tick desync 가드: 정상 run 의 maxDesync 0(내내 수렴) + ghost 주입 시 지표가 발산을 검출(>0).
-async function coorddesync(seeds) {
+// step-0375 #62 통합 5 — 상주 migrate: run 후 z1 A→B 이주 시 상태 보존(a1==권위)·hostA release·migrations 계측.
+async function coordmigrate(seeds) {
   const BASE = coordScenario();
-  const TICKS = 5;
-  console.log('== coorddesync (0374·#62 통합 4): 매-tick desync 가드 — 정상 maxDesync 0(내내 수렴) + ghost 주입 검출 ==');
-  console.log('seed   | maxDesync | ghost desync | 판정');
+  console.log('== coordmigrate (0375·#62 통합 5): 상주 migrate — run(3) 후 z1 A→B 상태 보존·release·migrations==1 ==');
+  console.log('seed   | mig a1 보존 | hostA release | migrations | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let maxD = -1, ghostD = 0;
+    let migOk = false, released = false, migs = 0;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(TICKS);
-      maxD = coord.maxDesync;                                            // 정상: 5 tick 내내 0
-      // ghost entity 주입(orch 권위 모름) → 가드 지표가 검출해야(0369 hostdesyncreal 동형)
-      await cluster.rpc('hostA', { cmd: 'deliver', items: [{ gi: 0, m: { to: 'z1', from: 'ghost', payload: { type: 'enter', avatar: 'ghostX', sessionId: 'gs' } } }] });
-      ghostD = await drv.clusterDesync(o, cluster);
+      await coord.run(3);
+      const a1Auth = o.zoneEntityPos('z1', 'a1');
+      await coord.migrate('z1', 'hostA', 'hostB');
+      const a1B = realPos(await cluster.rpc('hostB', { cmd: 'snapshot' }), 'z1', 'a1');
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      migOk = a1B && a1Auth && a1B.x === a1Auth.x && a1B.y === a1Auth.y;
+      released = !(sa && sa.snap && sa.snap['z1']);
+      migs = coord.migrations;
     } finally { await cluster.shutdown(); }
-    const ok = check(maxD === 0 && ghostD > 0, `seed ${seed}: 가드 위반 (maxD ${maxD}·ghost ${ghostD})`);
-    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(ghostD, 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(migOk && released && migs === 1, `seed ${seed}: migrate 위반 (mig ${migOk}·rel ${released}·n ${migs})`);
+    console.log(`${pad(seed, 6)} | ${pad(migOk ? 'Y' : 'N', 11)} | ${pad(released ? 'Y' : 'N', 13)} | ${pad(migs, 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coorddesync'] = coorddesync;
-kit.ORDER.splice(1, 0, 'coorddesync');
+kit.MODES['coordmigrate'] = coordmigrate;
+kit.ORDER.splice(1, 0, 'coordmigrate');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
