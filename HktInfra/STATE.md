@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0371](step-0371.md) — **#62 runMulti 통합 1: ClusterCoordinator 골격 + start()** — 새 박스 `cluster-coord.js`: orch+실 cluster+driver 를 묶는 broker 측 제어 평면 상주 객체. start()=orch.hostSpawnPlan→driver.reconcile(spawn+zoneadd) 토폴로지 수렴. verify ad-hoc 구동(driveCluster 0368)을 상주 코디네이터로 이전 시작. 직전: 0370 clusterdatacap grand capstone(#57 실 데이터 평면 닫힘).
-- **한 줄 상태**: reg ALL OK·coordstart 5/5(acted 5·topoOk·livePids==2)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0372](step-0372.md) — **#62 runMulti 통합 2: ClusterCoordinator.tick** — 제어 평면 데이터 평면 1 tick: pending entity frame 재생(driver.commands deliver→실 zone.onMsg) + 전 존 1 tick(move 적용+view_delta egress). driveCluster per-tick 몸통의 상주화. 직전: 0371 코디네이터 골격+start().
+- **한 줄 상태**: reg ALL OK·coordtick 5/5(views 2·coherent·ticks==1)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -155,3 +155,4 @@
 | [0369](step-0369.md) | #57 실 데이터 평면 9: clusterDesync 정합 술어(실 host entity 위치 vs in-proc 권위 양방향 불일치 수·desync 0=수렴·ghost 주입 검출로 by-construction 아님) | 통과(reg 0·spine OK) · hostdesyncreal 5/5 정상 0·ghost 주입 1 |
 | [0370](step-0370.md) | #57 실 데이터 평면 10·grand capstone: clusterCoherent(clusterDesync==0)·2 host·3 zone driveCluster→전 entity 실 host==권위·실 migrate 상태 보존·release·실 데이터 평면 0361~0370 닫기 | 통과(reg 0·spine OK) · clusterdatacap 5/5 coherent·migrate 보존·release |
 | [0371](step-0371.md) | #62 runMulti 통합 1: ClusterCoordinator(cluster-coord.js 새 박스·orch+cluster+driver 상주)+start()(hostSpawnPlan→reconcile spawn+zoneadd 토폴로지 수렴)·verify ad-hoc 구동→상주 코디네이터 이전 시작 | 통과(reg 0·spine OK) · coordstart 5/5 acted5·topoOk·livePids==2 |
+| [0372](step-0372.md) | #62 runMulti 통합 2: ClusterCoordinator.tick(t)=pending entity frame 재생+전 존 1 tick(move 적용+view_delta egress)·driveCluster per-tick 몸통 상주화 | 통과(reg 0·spine OK) · coordtick 5/5 views2·coherent·ticks==1 |

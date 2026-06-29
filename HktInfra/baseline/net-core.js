@@ -1,3 +1,4 @@
+// HktInfra step-0371 — 진입점에 cluster-coord(ClusterCoordinator·broker 측 제어 평면 상주·#62) 박스 등록(__p('cluster-coord')). run() 데이터 평면 미사용 → reg 0.
 // HktInfra step-0201 — 진입점에 instance(인스턴스 서버·SPINE 계층2) 박스 등록(__p('instance')). 아래 0048 메모는 분할 dual-mode export 패턴 설명(유지).
 // HktInfra step-0048 — 소비자 lease lifecycle 정합 (시작-시점 죽음 축출 + 축출 비가역 해소·busLeaseLife·0045 §9/리뷰 §2·§3 해소).
 //   0045 소비자 lease(busConsumerLease)는 침묵 기준(consumerSeen)을 *그 소비자가 처음 ack 한 시점*에야 세운다 → 두 빈틈이 남았다:
@@ -24,7 +25,7 @@ const __hktNet = Object.assign(
   __p('orch-placement'), __p('gateway'), __p('orchestrator'), __p('zone'), __p('instance'), __p('loginqueue'),
   __p('svc-inventory'), __p('svc-chat'), __p('svc-bus'), __p('svc-audit'), __p('svc-ranking'),
   __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'), __p('svc-market'), __p('svc-mail'), __p('svc-mailfeed'), __p('svc-guild'), __p('svc-guildfeed'),
-  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('cluster-hostdriver'), __p('topo-build'), __p('topology'),
+  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('cluster-hostdriver'), __p('cluster-coord'), __p('topo-build'), __p('topology'),
   { PUBLIC_ADDRS, DEFAULTS: __c.DEFAULTS, SUPPORTS });
 if (typeof module !== 'undefined' && module.exports) module.exports = __hktNet;
 if (typeof globalThis !== 'undefined') globalThis.HktNet = __hktNet;

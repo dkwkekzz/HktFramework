@@ -1,8 +1,8 @@
-// HktInfra step-0371 — 헤드리스 검증 (#62 runMulti 코어 통합 1: ClusterCoordinator.start — broker 측 제어 평면 상주)
+// HktInfra step-0372 — 헤드리스 검증 (#62 runMulti 코어 통합 2: ClusterCoordinator.tick — 제어 평면 데이터 평면 1 tick)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordstart`.
-//   더한 한 조각: cluster-coord.js ClusterCoordinator(orch,cluster,specOf,driver) 골격 + start()(orch.hostSpawnPlan→실 cluster reconcile=spawn+zoneadd). 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordstart` — 2 host·3 zone: coord.start()→실 cluster 가 plan 토폴로지 수렴(각 host 가 자기 존 roster 소유·livePids==hostCount).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordtick`.
+//   더한 한 조각: cluster-coord.js tick(t)=pending frame 재생+전 존 1 tick. driveCluster per-tick 몸통의 상주화. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordtick` — 2 host·3 zone: start()+tick(1)→clusterCoherent Y(전 entity 실 host==권위·desync 0)·views≥0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,30 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0371 #62 통합 1 — ClusterCoordinator.start: 상주 코디네이터가 orch 목표(hostSpawnPlan)로 실 cluster 토폴로지 수렴.
-async function coordstart(seeds) {
+// step-0372 #62 통합 2 — ClusterCoordinator.tick: start()(토폴로지)+tick(1)(데이터 평면)→ 실 cluster 가 in-proc 권위와 한 몸(desync 0).
+async function coordtick(seeds) {
   const BASE = coordScenario();
-  console.log('== coordstart (0371·#62 통합 1): ClusterCoordinator.start — orch hostSpawnPlan→실 cluster reconcile(spawn+zoneadd) 토폴로지 수렴 ==');
-  console.log('seed   | acted | topoOk | livePids==hosts | 판정');
+  console.log('== coordtick (0372·#62 통합 2): ClusterCoordinator.tick — start()+tick(1)→clusterCoherent(desync 0)·views ==');
+  console.log('seed   | views | coherent | ticks==1 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
-    const o = r.orch;
+    const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let acted = 0, topoOk = true, liveOk = false;
+    let views = 0, coherent = false, tickOk = false;
     try {
       await cluster.spawn();
-      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, o.clusterDriver);
-      acted = await coord.start();
-      const plan = o.hostSpawnPlan();
-      for (const h of plan.order) {                                      // 각 host 가 자기 plan roster 의 존을 소유
-        const snap = await cluster.rpc(h, { cmd: 'snapshot' });
-        for (const z of plan.hosts[h].zones) if (!(snap && snap.snap && snap.snap[z])) topoOk = false;
-      }
-      liveOk = cluster.livePids().length === plan.hostCount;
+      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
+      await coord.start();
+      views = await coord.tick(1);
+      coherent = await drv.clusterCoherent(o, cluster);
+      tickOk = coord.ticks === 1;
     } finally { await cluster.shutdown(); }
-    const ok = check(topoOk && liveOk && acted > 0, `seed ${seed}: start 위반 (acted ${acted}·topo ${topoOk}·live ${liveOk})`);
-    console.log(`${pad(seed, 6)} | ${pad(acted, 5)} | ${pad(topoOk ? 'Y' : 'N', 6)} | ${pad(liveOk ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(coherent && tickOk, `seed ${seed}: tick 위반 (views ${views}·coh ${coherent}·ticks ${tickOk})`);
+    console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(tickOk ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordstart'] = coordstart;
-kit.ORDER.splice(1, 0, 'coordstart');
+kit.MODES['coordtick'] = coordtick;
+kit.ORDER.splice(1, 0, 'coordtick');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
