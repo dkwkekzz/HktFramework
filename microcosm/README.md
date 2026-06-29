@@ -14,10 +14,14 @@ dx/dt = f(x) + Σ_j W_ij g(x_i, x_j) + I_i - γ x_i
 |---|---|---|
 | 기질 + 보편 규칙 step() | `microcosm/core.py` | 단위 상태 배열, 통합 적분기, 소멸/상호작용 |
 | 장(규칙의 항) | `microcosm/fields.py` | Pair(열·반발·응집)·Env(부력·중력·냉각·항상성·점성)·Bond(스프링+융점파괴)·Terrain(지지력) |
-| 레시피 + 레지스트리 | `microcosm/forms.py` | terrain·water·character·rock·tree·creature·fireball |
-| 렌더(읽기 전용) | `microcosm/render.py` | matplotlib 헤드리스 렌더 |
+| 레시피 + 레지스트리 | `microcosm/forms.py` | terrain·water·character·rock·tree·creature·fireball·skeleton |
+| 층위 연산 | `microcosm/layers.py` | promote(거칠게 보기)·refine(미세화)·order_parameter(φ) |
+| 렌더(읽기 전용) | `microcosm/render.py` | matplotlib 입자·본드 디버그 렌더 |
+| 아트 렌더(읽기 전용) | `microcosm/artrender.py` | SDF/메타볼 → 셰이딩된 아트(스킨·캐노피·바다·지형) |
 | 실시간 앱 | `app.py` | pygame 입력·렌더 루프 |
 | 헤드리스 데모 | `demo.py` | 장면을 굴려 PNG/GIF 생성 |
+| 층위 검증 | `phase0.py` | promote/refine·분기·재규격화 실험 |
+| 아트 검증 | `art_character.py` | 스켈레톤 캐릭터 아트 렌더 |
 
 핵심: **엔진(core+fields)=무엇이 가능한가, 레시피(forms)=무엇을 만드나,
 렌더(render/app)=읽어서 그리기.** 새 요소는 레시피만, 새 물리는 장만 추가한다.
@@ -66,6 +70,8 @@ def boulder(w, cx=120, r=8):
 
 새 *물리*가 필요하면 `fields.py`에 `Field` 하나를 추가해 `apply(world)`에서
 `world.F`/`world.dT`에 기여하게 만들고 `standard_fields`에 끼우면 된다.
+
+> 궁극 목표·진행 상태는 [CLAUDE.md](CLAUDE.md) · [STATE.md](STATE.md) 참조.
 
 ## 한계 (의도적 단순화)
 

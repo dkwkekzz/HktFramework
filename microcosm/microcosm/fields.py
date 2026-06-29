@@ -24,7 +24,14 @@ class Field:
 
 
 class PairField(Field):
-    """O(n^2) 쌍 상호작용을 numpy로 벡터화."""
+    """O(n^2) 쌍 상호작용을 numpy로 벡터화.
+
+    coh_k 는 물-물 응집강도(제어변수). 기본값은 검증본 상수와 동일하며,
+    분기 실험(phase0)에서 이 값을 스윕해 질서변수 φ의 창발을 관측한다.
+    """
+    def __init__(self, coh_k=COH_K):
+        self.coh_k = coh_k
+
     def apply(self, w):
         n = w.n
         P = w.P[:n]
@@ -45,7 +52,7 @@ class PairField(Field):
         # 물-물 응집 (i를 j로 끌어당김)
         water = (w.kind[:n] == WATER)
         mCoh = pair & water[:, None] & water[None, :] & (D2 < R_COH2) & (D > R_REP)
-        coh = np.where(mCoh, COH_K * (R_COH - D) / R_COH / D, 0.0)
+        coh = np.where(mCoh, self.coh_k * (R_COH - D) / R_COH / D, 0.0)
         w.F[:n] += (coh[:, :, None] * dv).sum(1)
 
 

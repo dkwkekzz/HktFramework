@@ -8,7 +8,10 @@
 import numpy as np
 
 KIND = {"VOID": 0, "CHARACTER": 1, "FIRE": 2, "LIGHTNING": 3, "ARMOR": 4,
-        "WATER": 5, "ROCK": 6, "WOOD": 7, "LEAF": 8, "CREATURE": 9}
+        "WATER": 5, "ROCK": 6, "WOOD": 7, "LEAF": 8, "CREATURE": 9,
+        # AGG: 거칠게 보기로 솟아난 상위 층(L1) 메타-단위. 내부 상호작용은
+        # 이미 상쇄되어, 외부 항(중력·소산·지지)만 받는 단순 질량점으로 행동한다.
+        "AGG": 10}
 
 # --- 적분/상호작용 상수 (JS 월드 검증본과 동일) ---
 STRETCH = 2.3      # 결합 과신장 파괴 배수
@@ -30,6 +33,9 @@ class World:
         self.homeo = np.zeros(c, bool); self.alive = np.zeros(c, bool)
         self.n = 0
         self.bonds = []   # (i, j, rest, k, melt)
+        self.skins = []   # 아트 렌더용 스킨 프리미티브 (artrender 가 읽음)
+                          #   {'kind':'capsule', 'i':, 'j':, 'r':, 'mat':}  뼈/가지/줄기
+                          #   {'kind':'blob',    'idx':[...], 'r':, 'mat':}  캐노피/머리 등
         self.bolts = []
         self.agents = []  # 자율 개체 컨트롤러 (update(world, dt))
         self.fields = []
