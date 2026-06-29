@@ -214,6 +214,34 @@ def skeleton(w, cx=120.0, scale=1.0, anchored=True):
     return {'joints': j, 'units': list(j.values())}
 
 
+@register('art_tree')
+def art_tree(w, baseX=120.0, scale=1.0):
+    """아트용 나무: 줄기·가지=바크 캡슐, 캐노피=잎 blob 메타볼. w.skins 채움.
+    (물리 트러스인 'tree' 와 별도 — 이쪽은 렌더 형태 전용.)"""
+    baseY = w.ground(baseX)
+    WOOD, LEAF = KIND['WOOD'], KIND['LEAF']
+
+    def P(dx, dy, kind):
+        return w.spawn(baseX + dx * scale, baseY + dy * scale, M=1.0, kind=kind,
+                       fixed=True, g_scale=0.0)
+
+    base = P(0, 0, WOOD); mid = P(0.4, 9, WOOD); top = P(-0.3, 17, WOOD)
+    bL = P(-6, 21, WOOD); bR = P(6, 20, WOOD); bM = P(0, 24, WOOD)
+
+    def cap(i, j, r):
+        w.skins.append({'kind': 'capsule', 'i': i, 'j': j, 'r': r * scale, 'mat': 'bark'})
+
+    cap(base, mid, 2.3); cap(mid, top, 1.6)
+    cap(top, bL, 1.0); cap(top, bR, 1.0); cap(top, bM, 1.1)        # 가지
+
+    centers = [(0, 25), (-6, 22), (6, 21), (-3, 28), (4, 27), (0, 30.5), (-8, 26), (8, 25)]
+    canopy = [P(dx, dy, LEAF) for dx, dy in centers]
+    for k in canopy:
+        w.skins.append({'kind': 'blob', 'idx': [k], 'r': 5.0 * scale, 'mat': 'leaf'})
+
+    return {'trunk': [base, mid, top, bL, bR, bM], 'canopy': canopy}
+
+
 @register('fireball')
 def fireball(w, cx=120.0, cy=60.0, count=40, temp=2.0):
     """점화 버스트: 부력이 약해 제자리에서 번지며 나무·잎을 태운다."""
