@@ -1,4 +1,5 @@
 'use strict';
+// step-0382 — #65 양방향 동기 2: coordDesync() — 코디네이터 placement(zone→host SSOT)로 host 를 조회해 실 cluster vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 는 orch.hostSpawnPlan(stale 가능)으로 host 조회 → migrate 후 발산. coordDesync 는 placement 권위로 조회 → lifecycle 갱신만 따라가면 항상 정확. placement==orch plan 일 땐 driver.clusterDesync 와 동치. OFF 동치: 미호출이면 0381 동치.
 // step-0381 — #65 양방향 동기 1: 코디네이터 placement SSOT(zone→host). #62 가 남긴 잔여 — 코디네이터 lifecycle(migrate/failover)이 *실 cluster* 만 바꾸고 orch 권위 placement 는 갱신 안 해(단방향) 실 migrate 후 clusterDesync 가 stale orch plan 으로 발산했다(0379·capstone 이 migrate/failover 제외). 해법: 코디네이터가 *placement 권위*(zone→실 host)를 직접 들고 lifecycle 마다 갱신 → "어느 host 가 어느 존을 도나"의 SSOT 를 코디네이터가 소유(orch=entity 권위/what·코디네이터=placement 권위/where 분리). 이 step=start() 가 orch.hostSpawnPlan 에서 placement 초기화 + placedHost(zone) 질의. OFF 동치: 미사용이면 0380 동치.
 // step-0380 — #62 runMulti 코어 통합 10·grand capstone: coordCoherent() — broker 측 제어 평면이 연속 루프 내내(maxDesync==0) *그리고* 지금(clusterDesync==0) 실 cluster 와 in-proc 권위가 한 몸인가의 단일 술어. start→연속 run→drift→syncPlan 자가 치유 뒤에도 참. #62 runMulti 통합 sub-arc(0371~0380) 종합. OFF 동치: 미호출이면 0379 동치.
 // step-0379 — #62 runMulti 코어 통합 9: report() 운영 대시보드 — 상주 코디네이터 한 호출로 {ticks·hosts·zones·entities·desync·maxDesync·egressTotal·migrations·failovers·coherent} 종합. broker 측 제어 평면의 현재 상태를 단일 스냅샷으로(운영 관측). OFF 동치: report 미호출이면 0378 동치.
@@ -40,6 +41,19 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // placement 질의(0381) — 이 존이 지금 실제로 도는 host(코디네이터 placement 권위). lifecycle(migrate/failover)이 이를 갱신해 orch plan stale 과 무관히 정확.
     placedHost(zone) { return this.placement[zone] || null; },
+    // placement 기준 정합(0382·#65) — placement 권위로 각 존의 host 를 조회해 실 host entity vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 와 달리 stale orch plan 에 안 휘둘림(migrate 후도 정확). 반환=desync(0=수렴).
+    async coordDesync() {
+      let desync = 0;
+      for (const zone of Object.keys(this.placement)) {
+        const host = this.placement[zone];
+        const snap = await this.cluster.rpc(host, { cmd: 'snapshot' });
+        const zs = snap && snap.snap ? snap.snap[zone] : null;
+        const real = new Map((zs && zs.ents) || []);
+        for (const [id, pos] of real) { const a = this.orch.zoneEntityPos(zone, id); if (!a || a.x !== pos.x || a.y !== pos.y) desync++; }   // 실에 있는데 권위와 불일치/부재
+        const auth = this.orch.zoneRuntimes && this.orch.zoneRuntimes.get(zone); if (auth) for (const id of auth.zone.ents.keys()) if (!real.has(id)) desync++;   // 권위에 있는데 실에 부재
+      }
+      return desync;
+    },
     // 제어 평면 데이터 평면 1 tick(연속 루프 0373 의 단위). ① pending entity frame 재생(driver.commands 의 deliver frame→실 host zone.onMsg·첫 tick 에 enter/move 적용·이후 빈 큐) ② 전 존 1 tick(pending move 적용 + AOI view_delta egress 산출). 반환=이 tick 산출 view 수.
     async tick(t) {
       for (const c of this.driver.commands) if (c.op === 'deliver' && c.frame)

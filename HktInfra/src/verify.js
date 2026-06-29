@@ -1,8 +1,8 @@
-// HktInfra step-0381 — 헤드리스 검증 (#65 양방향 동기 1: 코디네이터 placement SSOT)
+// HktInfra step-0382 — 헤드리스 검증 (#65 양방향 동기 2: coordDesync — placement 기준 정합)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordplace`.
-//   더한 한 조각: cluster-coord.js placement(zone→host SSOT·start 초기화)+placedHost(zone). #65 양방향 동기 토대. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordplace` — 2 host·3 zone: start 후 placement==orch plan(z1@A·z2@B·z3@A)·placedHost 정확.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddesync2`.
+//   더한 한 조각: cluster-coord.js coordDesync()=placement 권위로 host 조회 + orch entity 권위(host-무관) 양방향 대조. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coorddesync2` — 2 host·3 zone: run(3) 후 coordDesync==0 && == driver.clusterDesync(placement==orch plan 일 때 동치).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,29 +31,29 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0381 #65 양방향 1 — placement SSOT: start 후 코디네이터 placement(zone→host)==orch plan·placedHost 정확.
-async function coordplace(seeds) {
+// step-0382 #65 양방향 2 — coordDesync: run(3) 후 placement 기준 desync 0 && driver.clusterDesync 와 동치(placement==orch plan).
+async function coorddesync2(seeds) {
   const BASE = coordScenario();
-  console.log('== coordplace (0381·#65 양방향 1): placement SSOT — start 후 placement==orch plan(z1@A·z2@B·z3@A) ==');
-  console.log('seed   | z1 | z2 | z3 | placedHost ok | 판정');
+  console.log('== coorddesync2 (0382·#65 양방향 2): coordDesync — placement 기준 정합·driver.clusterDesync 와 동치 ==');
+  console.log('seed   | coordDesync | clusterDesync | 동치 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let p = {}, queryOk = false;
+    let cd = -1, dd = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.start();
-      p = { ...coord.placement };
-      queryOk = coord.placedHost('z1') === p['z1'] && coord.placedHost('z2') === p['z2'] && coord.placedHost('nope') === null;
+      await coord.run(3);
+      cd = await coord.coordDesync();
+      dd = await drv.clusterDesync(o, cluster);
     } finally { await cluster.shutdown(); }
-    const ok = check(p['z1'] === 'hostA' && p['z2'] === 'hostB' && p['z3'] === 'hostA' && queryOk, `seed ${seed}: placement 위반 (${JSON.stringify(p)}·q ${queryOk})`);
-    console.log(`${pad(seed, 6)} | ${pad(p['z1'] || '-', 2)} → ${pad(p['z1'] === 'hostA' ? 'A' : '?', 1)}| ${pad(p['z2'] === 'hostB' ? 'B' : '?', 1)} | ${pad(p['z3'] === 'hostA' ? 'A' : '?', 1)} | ${pad(queryOk ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(cd === 0 && cd === dd, `seed ${seed}: coordDesync 위반 (cd ${cd}·dd ${dd})`);
+    console.log(`${pad(seed, 6)} | ${pad(cd, 11)} | ${pad(dd, 13)} | ${pad(cd === dd ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordplace'] = coordplace;
-kit.ORDER.splice(1, 0, 'coordplace');
+kit.MODES['coorddesync2'] = coorddesync2;
+kit.ORDER.splice(1, 0, 'coorddesync2');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
