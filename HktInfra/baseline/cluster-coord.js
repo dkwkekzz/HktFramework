@@ -1,4 +1,5 @@
 'use strict';
+// step-0373 — #62 runMulti 코어 통합 3: run(ticks) — *연속 tick 루프*. start()(미시작 시) 후 tick(t)을 1..ticks 반복 — cluster-run.js runMulti 의 핵심(broker 측 제어 평면이 매 tick 실 cluster 를 구동)을 상주 코디네이터 한 호출로. OFF 동치: run 미호출이면 0372 동치.
 // step-0372 — #62 runMulti 코어 통합 2: tick(t) — 제어 평면 데이터 평면 1 tick. ① pending entity frame 재생(driver.commands deliver→실 zone.onMsg) ② 전 존 1 tick(move 적용+view_delta egress 산출). driveCluster(0368)의 per-tick 몸통을 코디네이터 상주 메서드로(연속 루프 0373 의 단위). OFF 동치: tick 미호출이면 0371 동치.
 // step-0371 — #62 runMulti 코어 통합 1: ClusterCoordinator — broker 측 *제어 평면 상주* 객체.
 //   0361~0370 은 verify 하니스가 ad-hoc 으로 실 cluster 를 구동했다(driveCluster 0368 을 verify 가 직접 호출). 이 arc 는 그 구동을
@@ -31,6 +32,13 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       for (const h of plan.order) for (const z of plan.hosts[h].zones)
         views += (await this.driver.tickZone(this.cluster, h, z, t)).filter(s => s.payload && /^view/.test(s.payload.type)).length;
       this.ticks++;
+      return views;
+    },
+    // 연속 tick 루프(runMulti 핵심) — start()(미시작 시) 후 tick(t)을 1..ticks 반복 구동. broker 측 제어 평면이 매 tick 실 cluster 전체 데이터 평면을 굴린다. 반환=전 tick 산출 view 총수.
+    async run(ticks) {
+      if (!this.started) await this.start();
+      let views = 0;
+      for (let t = 1; t <= ticks; t++) views += await this.tick(t);
       return views;
     },
   };

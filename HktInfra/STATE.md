@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0373](step-0373.md) — **#62 runMulti 통합 3: ClusterCoordinator.run(연속 tick 루프)** — start()+tick(t) 1..ticks 반복. runMulti 핵심(broker 측 제어 평면이 매 tick 실 cluster 구동)을 상주 한 호출로. 직전: 0372 tick(1 tick 데이터 평면).
-- **한 줄 상태**: reg ALL OK·coordrun 5/5(views 2·5 tick 내내 desync 0·ticks==5)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0374](step-0374.md) — **#62 runMulti 통합 4: 매-tick desync 가드** — run 루프가 매 tick 끝 clusterDesync 측정→maxDesync 누적(정합 매 tick 내내 유지 단언·중간 발산 검출). 직전: 0373 연속 tick 루프.
+- **한 줄 상태**: reg ALL OK·coorddesync 5/5(maxDesync 0·ghost 주입 검출 desync1)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -157,3 +157,4 @@
 | [0371](step-0371.md) | #62 runMulti 통합 1: ClusterCoordinator(cluster-coord.js 새 박스·orch+cluster+driver 상주)+start()(hostSpawnPlan→reconcile spawn+zoneadd 토폴로지 수렴)·verify ad-hoc 구동→상주 코디네이터 이전 시작 | 통과(reg 0·spine OK) · coordstart 5/5 acted5·topoOk·livePids==2 |
 | [0372](step-0372.md) | #62 runMulti 통합 2: ClusterCoordinator.tick(t)=pending entity frame 재생+전 존 1 tick(move 적용+view_delta egress)·driveCluster per-tick 몸통 상주화 | 통과(reg 0·spine OK) · coordtick 5/5 views2·coherent·ticks==1 |
 | [0373](step-0373.md) | #62 runMulti 통합 3: ClusterCoordinator.run(ticks)=start()+tick(t) 1..ticks 반복(연속 tick 루프·runMulti 핵심 상주화) | 통과(reg 0·spine OK) · coordrun 5/5 5 tick 내내 desync0·ticks==5 |
+| [0374](step-0374.md) | #62 runMulti 통합 4: 매-tick desync 가드(run 루프가 매 tick 끝 clusterDesync→maxDesync 누적·중간 발산 검출) | 통과(reg 0·spine OK) · coorddesync 5/5 maxDesync0·ghost 검출 desync1 |

@@ -1,8 +1,8 @@
-// HktInfra step-0373 — 헤드리스 검증 (#62 runMulti 코어 통합 3: ClusterCoordinator.run — 연속 tick 루프)
+// HktInfra step-0374 — 헤드리스 검증 (#62 runMulti 코어 통합 4: 매-tick desync 가드)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordrun`.
-//   더한 한 조각: cluster-coord.js run(ticks)=start()+tick(t) 1..ticks 반복. runMulti 핵심(매 tick 실 cluster 구동)의 상주화. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordrun` — 2 host·3 zone: run(5)→clusterCoherent Y(desync 0)·coord.ticks==5·views.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddesync`.
+//   더한 한 조각: cluster-coord.js run 루프가 매 tick 끝 clusterDesync 측정→maxDesync(루프 최악) 누적. 정합이 매 tick 내내 유지됨 단언. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coorddesync` — 2 host·3 zone: 정상 run(5)→maxDesync 0(내내 수렴)·ghost entity 주입 시 clusterDesync>0(가드 지표 건전).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,30 +31,32 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0373 #62 통합 3 — ClusterCoordinator.run: 연속 tick 루프(5 tick)→ 매 tick 실 cluster 구동·끝에서 desync 0.
-async function coordrun(seeds) {
+// step-0374 #62 통합 4 — 매-tick desync 가드: 정상 run 의 maxDesync 0(내내 수렴) + ghost 주입 시 지표가 발산을 검출(>0).
+async function coorddesync(seeds) {
   const BASE = coordScenario();
   const TICKS = 5;
-  console.log('== coordrun (0373·#62 통합 3): ClusterCoordinator.run — 연속 tick 루프(5 tick)→clusterCoherent(desync 0)·ticks==5 ==');
-  console.log('seed   | views | coherent | ticks==5 | 판정');
+  console.log('== coorddesync (0374·#62 통합 4): 매-tick desync 가드 — 정상 maxDesync 0(내내 수렴) + ghost 주입 검출 ==');
+  console.log('seed   | maxDesync | ghost desync | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let views = 0, coherent = false, tickOk = false;
+    let maxD = -1, ghostD = 0;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      views = await coord.run(TICKS);
-      coherent = await drv.clusterCoherent(o, cluster);
-      tickOk = coord.ticks === TICKS;
+      await coord.run(TICKS);
+      maxD = coord.maxDesync;                                            // 정상: 5 tick 내내 0
+      // ghost entity 주입(orch 권위 모름) → 가드 지표가 검출해야(0369 hostdesyncreal 동형)
+      await cluster.rpc('hostA', { cmd: 'deliver', items: [{ gi: 0, m: { to: 'z1', from: 'ghost', payload: { type: 'enter', avatar: 'ghostX', sessionId: 'gs' } } }] });
+      ghostD = await drv.clusterDesync(o, cluster);
     } finally { await cluster.shutdown(); }
-    const ok = check(coherent && tickOk, `seed ${seed}: run 위반 (views ${views}·coh ${coherent}·ticks ${tickOk})`);
-    console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(tickOk ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(maxD === 0 && ghostD > 0, `seed ${seed}: 가드 위반 (maxD ${maxD}·ghost ${ghostD})`);
+    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(ghostD, 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordrun'] = coordrun;
-kit.ORDER.splice(1, 0, 'coordrun');
+kit.MODES['coorddesync'] = coorddesync;
+kit.ORDER.splice(1, 0, 'coorddesync');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
