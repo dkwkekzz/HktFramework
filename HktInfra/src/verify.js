@@ -1,8 +1,8 @@
-// HktInfra step-0405 — 헤드리스 검증 (#62 runMulti 합류 4·복원력: reprovisionStandby 따뜻한 대기)
+// HktInfra step-0406 — 헤드리스 검증 (#62 runMulti 합류 5·복원력: 미러 입력 복제로 standby 동기 유지)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordreprov`.
-//   더한 한 조각: cluster-coord.js reprovisionStandby(zone,standbyHost)=snapshot→standby spawn/zoneadd/loadstate(따뜻한 사본)+mirrors 등록(runMulti rep+mirrors 판). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordreprov` — 2 host·3 zone: run(5)→reprovisionStandby(z1, hostA_s) → standby z1 의 a1 == primary a1(따뜻한 사본)·mirrors=[{z1,hostA_s}]·reprovisions 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmirror`.
+//   더한 한 조각: cluster-coord.js tick() 이 deliver frame 을 mirror standby 에 재생 + standby 존 shadow tick(runMulti 미러 deliver/tick 판). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordmirror` — 2 host·3 zone: run(5)+reprovisionStandby(z1,hostA_s) → tick(6),tick(7)(shadow tick 미러) → standby z1 a1 == primary a1(lockstep 동기)·coordDesync 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,34 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0405 #62 runMulti 합류 4·복원력 — coordreprov: run(5)→reprovisionStandby(z1, hostA_s) → standby z1 의 a1 == primary a1(따뜻한 사본)·mirrors=[{z1,hostA_s}]·reprovisions 1.
-async function coordreprov(seeds) {
+// step-0406 #62 runMulti 합류 5·복원력 — coordmirror: run(5)+reprovisionStandby(z1,hostA_s) → tick(6),tick(7)(미러 shadow tick) → standby z1 a1 == primary a1(lockstep 동기)·coordDesync 0.
+async function coordmirror(seeds) {
   const BASE = coordScenario();
-  console.log('== coordreprov (0405·#62 복원력): reprovisionStandby 따뜻한 대기 사본+미러. ==');
-  console.log('seed   | primary a1 | standby a1 | warm | mirrors | reprov | 판정');
+  console.log('== coordmirror (0406·#62 복원력): 미러 입력 복제로 standby lockstep 동기. ==');
+  console.log('seed   | primary a1 | standby a1 | synced | coordDesync | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let pS = '-', sS = '-', warm = false, mir = 0, rp = -1;
+    let pS = '-', sS = '-', synced = false, cd = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
+      await coord.reprovisionStandby('z1', 'hostA_s');                 // 따뜻한 대기 + 미러 등록
+      await coord.tick(6); await coord.tick(7);                        // 미러 deliver/shadow tick → standby 동기 유지
       const primary = realPos(await cluster.rpc(coord.placedHost('z1'), { cmd: 'snapshot' }), 'z1', 'a1');
-      await coord.reprovisionStandby('z1', 'hostA_s');                 // 따뜻한 대기 사본
       const standby = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
       pS = primary ? `{${primary.x},${primary.y}}` : 'null'; sS = standby ? `{${standby.x},${standby.y}}` : 'null';
-      warm = !!primary && !!standby && primary.x === standby.x && primary.y === standby.y;
-      mir = coord.mirrors.length; rp = coord.reprovisions;
+      synced = !!primary && !!standby && primary.x === standby.x && primary.y === standby.y;
+      cd = await coord.coordDesync();
     } finally { await cluster.shutdown(); }
-    const ok = check(warm && mir === 1 && rp === 1, `seed ${seed}: 위반 (p ${pS}·s ${sS}·warm ${warm}·mir ${mir}·rp ${rp})`);
-    console.log(`${pad(seed, 6)} | ${pad(pS, 10)} | ${pad(sS, 10)} | ${pad(warm ? 'Y' : 'N', 4)} | ${pad(mir, 7)} | ${pad(rp, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(synced && cd === 0, `seed ${seed}: 위반 (p ${pS}·s ${sS}·synced ${synced}·cd ${cd})`);
+    console.log(`${pad(seed, 6)} | ${pad(pS, 10)} | ${pad(sS, 10)} | ${pad(synced ? 'Y' : 'N', 6)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordreprov'] = coordreprov;
-kit.ORDER.splice(1, 0, 'coordreprov');
+kit.MODES['coordmirror'] = coordmirror;
+kit.ORDER.splice(1, 0, 'coordmirror');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

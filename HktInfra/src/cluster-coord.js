@@ -1,4 +1,5 @@
 'use strict';
+// step-0406 — #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 standby 동기 유지). 0405 는 standby 를 띄우고 사본까지였다 — runMulti(`cluster-run.js:170` 미러 deliver·`:198` 미러 tick)는 권위 입력을 standby 로 미러해 *계속* 동기를 유지했다. tick() 이 ⒜ deliver frame 을 mirror(zone) 의 standby host 에도 재생 ⒝ standby 존을 shadow tick(발신/egress 폐기) → standby 가 primary 와 lockstep 유지(failover 시 즉시 승격 가능). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
 // step-0405 — #62 runMulti 합류 4·복원력: reprovisionStandby(zone, standbyHost) — 따뜻한 대기 인스턴스 + 미러 등록. runMulti(`cluster-run.js:202` rep + `:219` mirrors)는 kill→승격 후 새 standby 를 띄우고 권위 입력을 미러해 N=1 복제를 유지했다. 코디네이터가 zone 의 현 상태를 snapshot→standbyHost 에 spawn/zoneadd/loadstate(따뜻한 사본) + mirrors 에 {zone,dstHost} 등록(입력 복제는 0406 tick 미러). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
 // step-0404 — 정리(기능 0·reg 0): 박스 30KB 근접(29.4KB) 트리거 — 닫힌 arc(0371~0399·#62/#65/#66/#67) 헤더 주석 스택을 git 태그+reviews 포인터 한 줄로 접어 박스를 유계화(코드 무변경=net-core 동작 비트 동일=reg 0). 비대화 트리거(CLAUDE.md §박스 분할) 집행.
 // step-0403 — #62 runMulti 합류 3·복원력: 상태 보존 restart(zone, newHost). failover(0376·비자발·상태 소실)와 대조 — *계획적* 재시작(업그레이드·정비)은 죽기 *전* snapshot 으로 상태를 보존한다(runMulti invRestart `cluster-run.js:90` 의 zone cluster 판: snapshot→kill→spawn→loadstate). socketDead 가 host 단위로 영속하므로 newHost 로 재가동(runMulti `inventory_r` 와 동형). 미호출이면 0402 동치. 새 박스·run() 미사용→reg 0.
@@ -79,7 +80,9 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     async tick(t) {
       for (const c of this.driver.commands) if (c.op === 'deliver' && c.frame) {
         const host = this.placement[c.zoneId] || c.host;   // step-0392 — placement 권위로 현 host 조회(c.host 는 번역 당시·mid-run migrate 후 stale 가능). 정상 경로(placement==c.host)=0391 동치.
-        await this.cluster.rpc(host, { cmd: 'deliver', items: [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }] });
+        const items = [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }];
+        await this.cluster.rpc(host, { cmd: 'deliver', items });
+        for (const mir of this.mirrors) if (mir.zone === c.zoneId) await this.cluster.rpc(mir.dstHost, { cmd: 'deliver', items });   // step-0406 — 권위 입력을 standby 로 미러(동기 유지·shadow).
       }
       this.driver.commands = [];
       let views = 0;
@@ -90,6 +93,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         if (v) this.egressByZone[z] = (this.egressByZone[z] || 0) + v;   // step-0378 — 존별 다운스트림 송출 회계.
         views += v;
       }
+      for (const mir of this.mirrors) await this.driver.tickZone(this.cluster, mir.dstHost, mir.zone, t);   // step-0406 — standby shadow tick(pending 적용·발신/egress 폐기·primary 와 lockstep).
       this.egressTotal += views;   // step-0378 — 송출 누계.
       this.ticks++;
       return views;
