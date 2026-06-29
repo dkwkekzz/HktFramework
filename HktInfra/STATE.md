@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0356](step-0356.md) — **#57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress** — `_drainZoneEgress` 의 host→게이트웨이 송출마다 `onEgress(host,key)` 호출(실 host 프로세스 소켓 송신). 이로써 orch 드라이버 계약(spawn/despawn·assign/unassign·frame·egress) 완비. OFF 플래그 동일. 직전: 0355 onFrame.
-- **한 줄 상태**: reg ALL OK·hostegress 5/5(driverEgress==zoneViewEgressed==7·모든 egress hostA)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0357](step-0357.md) — **#57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver 번역+flush** — 신규 `cluster-hostdriver.js`: orch 드라이버 이벤트(on*)를 cluster 명령(spawnOne/killHost/rpc)으로 동기 번역(commands 큐) + `flush(cluster)` async 집행(child_process/소켓). 번역↔집행 분리(#4 비동기 경계). OFF 플래그 `clusterDriverReal`. 직전: 0356 onEgress(드라이버 계약 완비).
+- **한 줄 상태**: reg ALL OK·hostcmd 5/5(번역 spawnOne1·init1·deliver7·egress7 + flush→mock spawnOne/init/deliver 정합)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
@@ -141,14 +141,7 @@
 | [0339](step-0339.md) | downstream 전파 8(#9 후속): leave 정리(게이트웨이 `_downCleanup` downClients/seq/resync/buffer + orch `_bridgeLeave` egress buf/seq/acked·0334 stale 바인딩/무계 성장 해소·egress OFF→정리 맵 빈 채 비트 동일) | 통과(reg 0·spine OK) · gwleave 5/5 a1 정리·a2 보존 |
 | [0340](step-0340.md) | downstream 전파 9(#9 후속): 다중 존 격리(게이트웨이 클라별 전달 세션 회계 downDelivered + 술어 gatewayDeliveryIsolated·z1·z2 동시 각 클라 자기 세션만·교차 누수 0·존별 egress 격리·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · gwiso 5/5 iso Y·바인딩 격리 |
 | [0341](step-0341.md) | downstream 전파 10·capstone(#9 후속): 전파 전 정합(술어 downstreamSettled 모든 세션 egress 버퍼 0 + 손실+enter/move/leave/migrate 뒤 settled && gatewayDeliveryIsolated && 활성 delivered==produced && downstreamCoherent·전파 sub-arc 0331~0341 닫기·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · downdeliver 5/5 settled·iso·복구 |
-| [0342](step-0342.md) | 실 다운스트림 클라 수렴 1(#9 후속): 수신 전용 DownClient 액터(view/view_delta→seen·전파 종단 spectator→실 클라·0334 해소)·dc.seen==zoneVisibleIds(host AOI==클라 뷰·desync0)·downClients0→스폰0 비트 동일 | 통과(reg 0·spine OK) · dcconv 5/5 desync0 |
-| [0343](step-0343.md) | 실 다운스트림 클라 수렴 2(#9 후속): 상호 가시(권위 AOI 서명 zoneAuthSig id@x,y·a1·a2 반경 진입→DownClient 증분 델타로 위치까지 수렴·dc.seenSig==zoneAuthSig·둘 다 [a1,a2]·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcmutual 5/5 위치 desync0 |
-| [0344](step-0344.md) | 실 다운스트림 클라 수렴 3(#9 후속): 손실 하 수렴 통합 검증(src 무변경·0337 gap-resync+0338 타임아웃+인오더 게이팅 위에 s:a1#2 손실에도 DownClient desync0·dc0.seenSig==zoneAuthSig) | 통과(reg 0·spine OK) · dcloss 5/5 drop1·resync1·desync0 |
-| [0345](step-0345.md) | 실 다운스트림 클라 수렴 4(#9 후속): 다중 클라 교차 관찰자 일치(DownClient.seenPos·a1·a2 상호 가시 시 dc0·dc1 공유 entity 같은 위치 dc0==dc1==zoneEntityPos·겹친 뷰 desync0·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dcagree 5/5 교차 일치 |
-| [0346](step-0346.md) | 실 다운스트림 클라 수렴 5·capstone(#9 후속): 전 수렴(DownClient.convergedTo·다중 클라·상호 가시·migrate·손실 뒤 conv0·conv1·교차 일치·downstreamSettled·수렴 sub-arc 0342~0346 닫기·읽기 헬퍼 비트 동일) | 통과(reg 0·spine OK) · dccap 5/5 conv·agree·settled |
-| [0347](step-0347.md) | downstream 유계화(#9 후속): 게이트웨이 수신 버퍼 유계 창(zoneViewIn downRecvWindow K·전달 후 클라 보유→최근 K 만·per-세션 O(K)·버스 seenBound 0042 다운스트림 판·K=0 무계 비트 동일·클라 수렴 무영향) | 통과(reg 0·spine OK) · dcwindow 5/5 peak≤2·desync0 |
-| [0348](step-0348.md) | downstream late-join(#9 후속): 중도 합류 수렴 통합 검증(src 무변경·중도 입장 세션 reset keyframe 전체 AOI→egress→클라 즉시 수렴·복제=재현/snapshot late-join 다운스트림 판·dc1.resets1·desync0) | 통과(reg 0·spine OK) · dcjoin 5/5 즉시 수렴 |
-| [0349](step-0349.md) | downstream 대시보드(#9 후속): 게이트웨이 downstreamReport(rx/routed/dropped/gaps/resyncs/cleaned/sessions/isolated·0331~0348 지표 단일 집계·운영 관측·읽기 전용 비트 동일) | 통과(reg 0·spine OK) · dcreport 5/5 일관·conv |
+| [0342–0349](reviews/review-0341-0350.md) | 실 다운스트림 클라 수렴 sub-arc(#9 후속): DownClient 수신(0342)·상호 가시 zoneAuthSig(0343)·손실 하 수렴(0344)·교차 관찰자 일치(0345)·capstone convergedTo(0346)·수신 버퍼 유계 K(0347)·late-join keyframe(0348)·대시보드 downstreamReport(0349) | 통과(reg 0·spine OK) · 각 5/5 desync0 |
 | [0350](step-0350.md) | 월드 다운스트림 grand capstone(#9 후속): downstreamWorldCoherent(모든 존 downstreamCoherent[포착]&&downstreamSettled[전파]) + 다중 존·손실·migrate·late-join 뒤 worldCoherent && 모든 실 DownClient convergedTo[desync0] && isolated·host→게이트웨이→실 클라 E2E·월드 다운스트림 0319~0350 닫기·읽기 전용 비트 동일 | 통과(reg 0·spine OK) · worldcap 5/5 world·수렴·iso |
 | [0351](step-0351.md) | #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트(zoneHostSnapshot 0309→ 실 cluster 드라이버 spawn 계약: host→존 roster·결정론 order·hostCount·zones 총계·cluster.spawnOne+init 입력) | 통과(reg 0·spine OK) · hostplan 5/5 hosts2·A=[z1,z3]·zones==running3 |
 | [0352](step-0352.md) | #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타(직전 spawn host 대비 {spawn,kill,keep}·드라이버 cluster.spawnOne/killHost 집행 단위·목표 수렴) | 통과(reg 0·spine OK) · hostdelta 5/5 drain B→C: spawn[C]·kill[B]·keep[A] |
@@ -156,3 +149,4 @@
 | [0354](step-0354.md) | #57 실 host.js OS 프로세스 spawn 4: clusterDriver onAssign/onUnassign 존 roster(존↔host 귀속·실 cluster.init/loadstate·migrate 입력·spawn/despawn 과 직교) | 통과(reg 0·spine OK) · hostroster 5/5 assigns[A:z1,A:z2,B:z2]·net==plan |
 | [0355](step-0355.md) | #57 실 host.js OS 프로세스 spawn 5: clusterDriver onFrame entity frame egress(_zoneDeliver host inbox enqueue=실 cluster.rpc deliver 소켓 송신 씨앗) | 통과(reg 0·spine OK) · hostframe 5/5 driverFrames==zoneHostFramesRecv==7·allA |
 | [0356](step-0356.md) | #57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress 다운스트림 송출(_drainZoneEgress host→게이트웨이=실 host 소켓 송신 씨앗·드라이버 계약 완비: spawn/despawn·assign/unassign·frame·egress) | 통과(reg 0·spine OK) · hostegress 5/5 driverEgress==zoneViewEgressed==7·allA |
+| [0357](step-0357.md) | #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver(cluster-hostdriver.js·orch 이벤트→cluster 명령 spawnOne/killHost/rpc 동기 번역 + flush async 집행·번역↔집행 분리#4·clusterDriverReal 주입) | 통과(reg 0·spine OK) · hostcmd 5/5 번역 spawnOne1·deliver7 + flush→mock 정합 |

@@ -1,4 +1,5 @@
 'use strict';
+// step-0356 — #57 실 host.js OS 프로세스 spawn 6: _drainZoneEgress 의 host→게이트웨이 송출 지점에서 clusterDriver.onEgress(host,key) 호출(실 host 프로세스 소켓 송신 자리). 미부착→호출 0 = 0355 비트 동일.
 // step-0323 정리 분할 — orch-zonebridge.js 가 30.6KB>30KB 박스 트리거를 넘겨, *다운스트림 데이터 평면 뷰 질의*(0319~0322·#9 후속 "host 산출 AOI 뷰")를 이 파일로 분리한다.
 //   옮긴 것: 런타임 존이 버퍼링 싱크에 쌓은 산출 뷰의 읽기 전용 질의(zoneViewBuf·zoneViewEntered·zoneViewStats·zoneVisibleIds·zoneViewsFor·zoneViewFrames).
 //   남긴 것: 브리지 lifecycle(_bridgeStart/migrate/hostdown/stop)·전송 seam(_zoneDeliver)·런타임 tick(_tickRuntimes)·entity 데이터 평면 질의/정합 → orch-zonebridge.js.
@@ -22,6 +23,7 @@ const OrchViews = {
         if (this.egressDrop.has(key) && !this.egressDroppedOnce.has(key)) { this.egressDroppedOnce.add(key); this.zoneEgressDropped++; }
         else this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
         this.zoneViewEgressed++;
+        if (this.clusterDriver) { this.clusterDriver.onEgress(rt.host, key); this.driverEgress++; }   // step-0356 (#57) — host→게이트웨이 다운스트림 송출 = 실 host 프로세스 소켓 송신 자리(미부착→호출 0·비트 동일).
         let eb = this.zoneEgressBuf.get(sid); if (!eb) { eb = []; this.zoneEgressBuf.set(sid, eb); }   // step-0336 — 미-ack 버퍼에 보관(게이트웨이 ack 로 가지치기·재전송 소스·드롭된 frame 도 보관 → 재전송 가능).
         eb.push({ dseq, frame: p, zoneId, sentAt: this.curTick });   // step-0338 — sentAt: 타임아웃 재전송 기준(ack 없이 egressTimeout tick 경과 시 재전송).
         if (eb.length > this.zoneEgressBufPeak) this.zoneEgressBufPeak = eb.length;

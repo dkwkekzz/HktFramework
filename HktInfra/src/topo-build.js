@@ -1,4 +1,5 @@
 'use strict';
+// step-0357 — #57 실 host.js OS 프로세스 spawn 7: clusterDriverReal opt 배선(topo-run 이 orch.clusterDriver 를 실 ClusterHostDriver 로 주입). OFF→0356 비트 동일.
 // step-0353 — #57 실 host.js OS 프로세스 spawn 3: clusterDriverRecord opt 배선(orch host spawn/despawn 훅에 recorder 드라이버 부착). OFF→0352 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): zoneHostProc opt 배선(orch 로 전달·host 1급 컨테이너). OFF→0300 비트 동일.
 // step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone opt 배선(게이트웨이→실 존 직접 라우팅). OFF→0293 비트 동일.
@@ -182,6 +183,7 @@ function buildTopology(opts) {
     downClients = 0,           // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라 수(dc0..·desync 0 수렴 검증). 0→스폰 0 = 비트 동일.
     downRecvWindow = 0,        // step-0347 (#9 후속) — 게이트웨이 세션별 수신 버퍼 유계 창 K(0=무계). 0→비트 동일.
     clusterDriverRecord = false, // step-0353 (#57) — orch host spawn/despawn 훅에 인프로세스 recorder 드라이버 부착(검증용·실 드라이버는 cluster-run.js 가 직접 교체). OFF→드라이버 null·호출 0 = 0352 비트 동일.
+    clusterDriverReal = false, // step-0357 (#57) — orch.clusterDriver 를 실 ClusterHostDriver(이벤트→cluster 명령 번역)로 주입(topo-run). OFF→null·호출 0 = 0356 비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
