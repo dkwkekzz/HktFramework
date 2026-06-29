@@ -156,6 +156,64 @@ def creature(w, cx=120.0, cy=100.0, speed=11.0):
     return {'core': core, 'units': units, 'ctrl': ctrl}
 
 
+@register('skeleton')
+def skeleton(w, cx=120.0, scale=1.0, anchored=True):
+    """휴머노이드 스켈레톤: 관절=입자, 뼈=본드(+스킨 캡슐). 뼈별 두께·재질로
+    아트 렌더러(artrender)가 셰이딩된 사람 실루엣을 뽑는다.
+    anchored=True 면 관절을 고정(정지 포즈). 보행 단계에서 해제한다."""
+    baseY = w.ground(cx)
+    K = KIND['CHARACTER']
+
+    def J(dx, dy):
+        return w.spawn(cx + dx * scale, baseY + dy * scale, M=1.0, kind=K,
+                       fixed=anchored, g_scale=0.0 if anchored else 1.0)
+
+    # 관절 (정면 휴머노이드, baseY=발끝)
+    j = dict(
+        footL=J(-2.5, 0.6), footR=J(2.5, 0.6),
+        kneeL=J(-2.2, 7.0), kneeR=J(2.2, 7.0),
+        hipL=J(-2.0, 14.0), hipR=J(2.0, 14.0),
+        pelvis=J(0.0, 14.0), chest=J(0.0, 22.0), neck=J(0.0, 25.0),
+        head=J(0.0, 29.2), hair=J(0.0, 30.4),
+        shL=J(-3.2, 24.0), shR=J(3.2, 24.0),
+        elL=J(-5.0, 18.5), elR=J(5.0, 18.5),
+        haL=J(-5.3, 12.8), haR=J(5.3, 12.8),
+    )
+
+    # 뼈(본드): 구조 강성 — 보행 단계에서 쓰인다
+    bones = [
+        ('hipL', 'kneeL'), ('kneeL', 'footL'), ('hipR', 'kneeR'), ('kneeR', 'footR'),
+        ('hipL', 'hipR'), ('hipL', 'pelvis'), ('hipR', 'pelvis'),
+        ('pelvis', 'chest'), ('chest', 'neck'), ('neck', 'head'),
+        ('chest', 'shL'), ('chest', 'shR'),
+        ('shL', 'elL'), ('elL', 'haL'), ('shR', 'elR'), ('elR', 'haR'),
+    ]
+    for a, b in bones:
+        w.add_bond(j[a], j[b], 120.0, melt=9)
+
+    # 스킨 프리미티브 (뼈 두께·재질) — artrender 가 읽는다
+    def cap(a, b, r, mat):
+        w.skins.append({'kind': 'capsule', 'i': j[a], 'j': j[b], 'r': r * scale, 'mat': mat})
+
+    def blob(name, r, mat):
+        w.skins.append({'kind': 'blob', 'idx': [j[name]], 'r': r * scale, 'mat': mat})
+
+    cap('pelvis', 'chest', 2.6, 'cloth')          # 몸통
+    cap('hipL', 'hipR', 2.2, 'cloth')             # 골반
+    cap('chest', 'shL', 1.6, 'cloth'); cap('chest', 'shR', 1.6, 'cloth')  # 어깨
+    cap('hipL', 'kneeL', 1.9, 'cloth'); cap('kneeL', 'footL', 1.5, 'cloth')  # 다리(바지)
+    cap('hipR', 'kneeR', 1.9, 'cloth'); cap('kneeR', 'footR', 1.5, 'cloth')
+    blob('footL', 1.6, 'cloth'); blob('footR', 1.6, 'cloth')              # 신발
+    cap('shL', 'elL', 1.4, 'cloth'); cap('shR', 'elR', 1.4, 'cloth')      # 위팔(소매)
+    cap('elL', 'haL', 1.05, 'skin'); cap('elR', 'haR', 1.05, 'skin')      # 아래팔(피부)
+    blob('haL', 1.25, 'skin'); blob('haR', 1.25, 'skin')                  # 손
+    cap('chest', 'neck', 1.0, 'skin'); cap('neck', 'head', 0.85, 'skin')  # 목(얇게)
+    blob('hair', 3.4, 'hair')                                             # 머리카락(뒤)
+    blob('head', 3.2, 'skin')                                             # 머리(앞)
+
+    return {'joints': j, 'units': list(j.values())}
+
+
 @register('fireball')
 def fireball(w, cx=120.0, cy=60.0, count=40, temp=2.0):
     """점화 버스트: 부력이 약해 제자리에서 번지며 나무·잎을 태운다."""

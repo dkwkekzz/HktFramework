@@ -33,6 +33,9 @@ class World:
         self.homeo = np.zeros(c, bool); self.alive = np.zeros(c, bool)
         self.n = 0
         self.bonds = []   # (i, j, rest, k, melt)
+        self.skins = []   # 아트 렌더용 스킨 프리미티브 (artrender 가 읽음)
+                          #   {'kind':'capsule', 'i':, 'j':, 'r':, 'mat':}  뼈/가지/줄기
+                          #   {'kind':'blob',    'idx':[...], 'r':, 'mat':}  캐노피/머리 등
         self.bolts = []
         self.agents = []  # 자율 개체 컨트롤러 (update(world, dt))
         self.fields = []
