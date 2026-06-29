@@ -1,4 +1,5 @@
 'use strict';
+// step-0355 — #57 실 host.js OS 프로세스 spawn 5: _zoneDeliver 의 host inbox enqueue 지점에서 clusterDriver.onFrame(host,zoneId) 호출(실 cluster.rpc deliver 소켓 송신 자리). 미부착→호출 0 = 0354 비트 동일.
 // step-0306 — #9 잔여(실 host.js 물리 분리): host inbox stale 거부. _tickRuntimes drain 시 그 host 가 더는 소유 안 하는(이주로 떠난) 존의 frame 을 적용하지 않고 거부(zoneHostStale++) — 실 프로세스 이중 쓰기 방지. 정상 tick 0·recv == drained + stale. OFF(zoneHostProc)→경로 미발화 = 0305 비트 동일.
 // step-0305 — 정리 분할: host 프로세스 컨테이너 층(0301~0304)을 orch-hostproc.js 로 분리(>30KB 트리거 유계화·기능 0·reg 0). 이 파일엔 실 zone.js 브리지 lifecycle·전송 seam·#56 데이터 평면 질의가 남는다.
 // step-0302 — #9 잔여(실 host.js 물리 분리): host 자기 inbox 수신 + 자기 루프 drain·tick(_zoneDeliver→host 컨테이너 inbox·_tickRuntimes host 단위 drain·tick·실 host.js 루프 씨앗). zoneHostProc ON 이면 _zoneDeliver 가 frame 을 그 존의 host 컨테이너 inbox(zoneId 태깅)에 enqueue(per-runtime mbox 대체·소켓 1개=host 1개)·_tickRuntimes 가 host 단위로 자기 inbox drain 후 자기 소유 존만 onTick(실 host.js 프로세스 루프 씨앗). OFF→0301 비트 동일.
@@ -108,7 +109,7 @@ const OrchZoneBridge = {
       const f = JSON.parse(wire);                  // 역직렬화(원격이면 host 프로세스가 수행).
       if (this.zoneHostProc) {                     // step-0302 (#9 잔여) — host 프로세스 수신: frame 을 그 존의 *host 컨테이너 inbox*(zoneId 태깅)에 enqueue. per-runtime mbox(0292)를 host 단일 수신 버퍼로 대체(소켓 1개 = host 프로세스 1개). 적용은 _tickRuntimes 의 host 루프 drain.
         const c = this.zoneHosts.get(rt.host);
-        if (c) { (c.inbox || (c.inbox = [])).push({ zoneId, f }); this.zoneHostFramesRecv++; if (c.inbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = c.inbox.length; }
+        if (c) { (c.inbox || (c.inbox = [])).push({ zoneId, f }); this.zoneHostFramesRecv++; if (c.inbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = c.inbox.length; if (this.clusterDriver) { this.clusterDriver.onFrame(rt.host, zoneId, f); this.driverFrames++; } }   // step-0355 (#57) — host inbox enqueue = 실 cluster.rpc(host,{cmd:'deliver'}) 소켓 송신 자리. step-0361 — frame f 동봉(실 deliver 페이로드·미부착→호출 0·비트 동일).
       } else if (this.zoneHostMailbox) {           // step-0292 (#9) — 비동기 수신: 즉시 적용 대신 핸들 mbox 에 enqueue(소켓 수신 버퍼 씨앗). 적용은 _tickRuntimes drain.
         (rt.mbox || (rt.mbox = [])).push(f);
         if (rt.mbox.length > this.zoneFrameQueueMax) this.zoneFrameQueueMax = rt.mbox.length;

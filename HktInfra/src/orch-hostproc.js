@@ -1,4 +1,8 @@
 'use strict';
+// step-0360 — #57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent() — 논리 host 컨테이너 ↔ 드라이버 계약(spawn/despawn·assign/unassign 순계)이 가동 host/존 수와 한 몸. #57 드라이버 계약 sub-arc(0351~0360) 닫기. 읽기 전용·0359 비트 동일.
+// step-0353 — #57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam. _hostSet 의 첫-존 spawn·마지막-존 despawn 지점에서 driver.onSpawn/onDespawn 호출(cluster-run.js 가 실 cluster.spawnOne/killHost 로 집행). 미부착(null)→호출 0 = 0352 비트 동일.
+// step-0352 — #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타. 직전 spawn 된 host 집합 대비 {spawn,kill,keep} — 드라이버가 매 reconcile tick cluster.spawnOne/killHost 로 집행할 차이. 읽기 전용·0351 비트 동일.
+// step-0351 — #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트. zoneHostSnapshot(0309) 을 *실 cluster 드라이버가 집행할 spawn 계약*(결정론 spawn order + 존 roster + 총계)으로 감싼다. 읽기 전용·0350 비트 동일.
 // step-0310 — #9 잔여(실 host.js 물리 분리) capstone: hostProcCoherent(directFlowCoherent && hostContainerCoherent). destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅(자기 inbox 수신·자기 루프 tick·roster·stale 거부)으로 돌린 뒤 참 → 실 host.js 물리 분리 arc 0301~0310 닫기. 읽기 전용·0309 비트 동일.
 // step-0309 — #9 잔여(실 host.js 물리 분리): host 컨테이너 스냅샷(zoneHostSnapshot·host→[존…]). 다중 동시 이주(4존 몰림→rebalance→drain) 후 host 컨테이너가 running 을 host 별로 묶은 것과 정확한 bijection(zoneDirSnapshot 0299 의 host 프로세스 판). 읽기 전용·0308 비트 동일.
 // step-0308 — #9 잔여(실 host.js 물리 분리): host 컨테이너 정합 불변(hostContainerCoherent) — 단일 소유 + 표류 0 + roster 회계 닫힘(register−deregister==현 host)을 한 술어로. bridgeCoherent(0278)의 host 프로세스 컨테이너 판. 읽기 전용·0307 비트 동일.
@@ -15,11 +19,12 @@ const OrchHostProc = {
   // host 컨테이너 귀속 갱신(step-0301·#9 잔여) — zoneId 를 *정확히 한* host 컨테이너에 귀속시킨다(host==null 이면 어느 컨테이너에서도 떼기만). 어디 있든 먼저 떼고(멱등) 새 host 에 붙인다 → start/migrate/hostdown/stop 어느 집행에서 불러도 같은 결과(낡은 host 추적 불필요). 컨테이너 첫 생성=hostRegisters++(spawn 씨앗)·빈 컨테이너 제거=hostDeregisters++(despawn 씨앗·step-0304). zoneHostProc OFF 면 no-op = 0300 비트 동일.
   _hostSet(zoneId, host) {
     if (!this.zoneHostProc) return;
-    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host: h, kind: 'despawn', seq: this.hostLifecycleLog.length }); } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗. step-0312 — despawn 이벤트 로그(실 killHost 지점).
+    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId)) { if (this.clusterDriver) { this.clusterDriver.onUnassign(h, zoneId); this.driverUnassigns++; } if (c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host: h, kind: 'despawn', seq: this.hostLifecycleLog.length }); if (this.clusterDriver) { this.clusterDriver.onDespawn(h); this.driverDespawns++; } } } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗. step-0312 — despawn 이벤트 로그(실 killHost 지점). step-0353/0354 — clusterDriver 면 onUnassign(존 떨어짐)+onDespawn(실 cluster.killHost) 집행 훅(미부착→호출 0·비트 동일).
     if (host == null) return;             // 퇴역/소실 — 떼기만(어느 host 도 소유 안 함).
     let c = this.zoneHosts.get(host);
-    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host, kind: 'spawn', seq: this.hostLifecycleLog.length }); }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗. step-0312 — spawn 이벤트 로그(실 cluster.spawnOne 지점).
+    if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host, kind: 'spawn', seq: this.hostLifecycleLog.length }); if (this.clusterDriver) { this.clusterDriver.onSpawn(host); this.driverSpawns++; } }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗. step-0312 — spawn 이벤트 로그(실 cluster.spawnOne 지점). step-0353 — clusterDriver 면 실 cluster.spawnOne 집행 훅(미부착→호출 0·비트 동일).
     c.zones.add(zoneId);
+    if (this.clusterDriver) { this.clusterDriver.onAssign(host, zoneId); this.driverAssigns++; }   // step-0354 — 존이 host 컨테이너에 붙음 = 실 host 에 그 존 init/loadstate 집행 훅(미부착→호출 0·비트 동일).
   },
   // host 컨테이너 질의(step-0301·#9 잔여) — "이 host 프로세스가 몇 존을 소유하나 / 이 존은 어느 host 프로세스에 사나 / 지금 존을 하나라도 돌리는 host 집합". flat zoneRuntimes 의 host 별 묶음이 실 host.js 분리의 씨앗(host=프로세스 단위). 읽기 전용.
   hostRuntimeCount(host) { const c = this.zoneHosts.get(host); return c ? c.zones.size : 0; },
@@ -115,8 +120,32 @@ const OrchHostProc = {
     for (const [h, c] of this.zoneHosts) snap[h] = [...c.zones].sort();
     return snap;
   },
+  // host 프로세스 spawn 매니페스트(step-0351·#57 실 host.js OS 프로세스 spawn) — 실 cluster 드라이버가 집행할 *spawn 계약*: 어느 host 프로세스를 (결정론 순서로) 띄우고 각자 어느 존 roster 를 소유하나. zoneHostSnapshot(0309·host→[존…])을 드라이버가 소비할 매니페스트 봉투로 감싼다(정렬된 spawn order·존 수·총계). hostLifecycleLog(0312)가 *언제 떴다/졌다*(이벤트 역사)라면, 이건 *지금 무엇을 띄워야 하나*(목표 상태) — cluster.spawnOne(host)+init(zone specs) 의 입력. 직렬화 가능(host.js 가 자기 makeActor 로 존 재구성 = 멀티프로세스-safe·존 spec 내부는 안 실음). 읽기 전용.
+  hostSpawnPlan() {
+    const snap = this.zoneHostSnapshot();
+    const order = Object.keys(snap).sort();   // 결정론 spawn 순서(드라이버가 같은 순서로 spawnOne)
+    const hosts = {}; let zones = 0;
+    for (const h of order) { hosts[h] = { zones: snap[h], count: snap[h].length }; zones += snap[h].length; }
+    return { hosts, order, hostCount: this.hostCount(), zones };
+  },
+  // host 프로세스 spawn 델타(step-0352·#57) — *직전에 spawn 돼 있던* host 집합(prev) 대비 현재 목표(zoneHosts)의 차이 {spawn,kill,keep}(정렬). hostSpawnPlan(0351)이 *목표 상태*라면, 이건 그 목표에 수렴하기 위해 드라이버가 *이번 reconcile tick 에 집행할 동작*: spawn=새로 cluster.spawnOne, kill=cluster.killHost, keep=유지. hostLifecycle(0312·이벤트 역사)을 *지금 무엇을 실행하나*(reconcile 차이)로 환산 — 실 cluster 가 외부 상태(이미 뜬 프로세스)와 목표를 맞추는 표준 패턴. 읽기 전용.
+  hostSpawnDelta(prev) {
+    const cur = new Set(this.zoneHosts.keys());
+    const prevSet = new Set(prev || []);
+    const spawn = [...cur].filter(h => !prevSet.has(h)).sort();
+    const kill = [...prevSet].filter(h => !cur.has(h)).sort();
+    const keep = [...cur].filter(h => prevSet.has(h)).sort();
+    return { spawn, kill, keep };
+  },
   // host 프로세스 전 정합 질의(step-0310·#9 잔여 capstone) — 데이터 평면이 *host 프로세스 컨테이너 경유*로 흘러도 모든 것이 한 몸인지의 단일 술어: ⒜ directFlowCoherent(배치 3층 정합 + entity 단일 소유/orphan0 + 게이트웨이 직접 라우팅 stale 0·0300) ⒝ hostContainerCoherent(존이 정확히 한 host 프로세스에 + 컨테이너==집행 + roster 회계 닫힘·0308). 참이면 "게이트웨이 직접 라우팅 데이터 평면 전부 정합 + host 프로세스 컨테이너(자기 inbox 수신·자기 루프 tick·spawn/despawn roster·stale 거부)가 집행 SSOT 와 완전 정합". destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅으로 돌린 뒤 참(0310 capstone·실 host.js 물리 분리 arc 0301~0310 닫기). 읽기 전용.
   hostProcCoherent() { return this.directFlowCoherent() && this.hostContainerCoherent(); },
+  // 실 cluster 호스트 드라이버 정합 capstone(step-0360·#57) — host 컨테이너(논리)와 *드라이버 계약*(실 cluster 집행으로 흐를 이벤트)이 한 몸인가의 단일 술어: ⒜ hostContainerCoherent(존 단일 소유·컨테이너==집행·roster 회계 닫힘·0308) ⒝ 드라이버 부착 시 spawn/despawn 순계가 가동 host 수와 일치(driverSpawns−driverDespawns==zoneHosts.size = 실 cluster.spawnOne/killHost 가 가동 프로세스 집합과 1:1) ⒞ assign/unassign 순계가 가동 존 수와 일치(driverAssigns−driverUnassigns==runningCount = 실 host 가동 존과 1:1). 드라이버 미부착이면 ⒜ 만(0353 이전 동형). 참이면 "orch 의 논리 host 컨테이너가 실 cluster 드라이버 명령과 완전 정합 → 실 OS 프로세스/존 집합으로 그대로 물질화 가능". #57 드라이버 계약 sub-arc(0351~0360) capstone. 읽기 전용.
+  clusterHostsCoherent() {
+    if (!this.clusterDriver) return this.hostContainerCoherent();
+    return this.hostContainerCoherent() &&
+      (this.driverSpawns - this.driverDespawns) === this.zoneHosts.size &&
+      (this.driverAssigns - this.driverUnassigns) === this.runningCount();
+  },
 };
 
 const __part = { OrchHostProc };

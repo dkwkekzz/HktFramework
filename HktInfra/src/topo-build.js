@@ -1,4 +1,6 @@
 'use strict';
+// step-0357 — #57 실 host.js OS 프로세스 spawn 7: clusterDriverReal opt 배선(topo-run 이 orch.clusterDriver 를 실 ClusterHostDriver 로 주입). OFF→0356 비트 동일.
+// step-0353 — #57 실 host.js OS 프로세스 spawn 3: clusterDriverRecord opt 배선(orch host spawn/despawn 훅에 recorder 드라이버 부착). OFF→0352 비트 동일.
 // step-0301 — #9 잔여(실 host.js 물리 분리): zoneHostProc opt 배선(orch 로 전달·host 1급 컨테이너). OFF→0300 비트 동일.
 // step-0294 — #9 멀티프로세스 배선 4: gatewayDirectZone opt 배선(게이트웨이→실 존 직접 라우팅). OFF→0293 비트 동일.
 // step-0293 — #9 멀티프로세스 배선 3: gatewayZoneDir opt 배선(orch 로 전달·게이트웨이 존 디렉토리 push). OFF→0292 비트 동일.
@@ -180,6 +182,8 @@ function buildTopology(opts) {
     egressTimeout = 0,         // step-0338 (#9 후속) — 미-ack egress frame 타임아웃 재전송 tick(0=off·마지막 frame 손실 복구). 0→비트 동일.
     downClients = 0,           // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라 수(dc0..·desync 0 수렴 검증). 0→스폰 0 = 비트 동일.
     downRecvWindow = 0,        // step-0347 (#9 후속) — 게이트웨이 세션별 수신 버퍼 유계 창 K(0=무계). 0→비트 동일.
+    clusterDriverRecord = false, // step-0353 (#57) — orch host spawn/despawn 훅에 인프로세스 recorder 드라이버 부착(검증용·실 드라이버는 cluster-run.js 가 직접 교체). OFF→드라이버 null·호출 0 = 0352 비트 동일.
+    clusterDriverReal = false, // step-0357 (#57) — orch.clusterDriver 를 실 ClusterHostDriver(이벤트→cluster 명령 번역)로 주입(topo-run). OFF→null·호출 0 = 0356 비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -246,7 +250,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneEgress, egressDrop, egressTimeout, zoneRtGrid: grid, zoneRtRadius: radius } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneEgress, egressDrop, egressTimeout, clusterDriverRecord, zoneRtGrid: grid, zoneRtRadius: radius } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }

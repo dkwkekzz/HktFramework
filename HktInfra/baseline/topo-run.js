@@ -44,6 +44,8 @@ function run(opts) {
   const login = map.get('login');
   const registry = map.get('registry');
   const orch = map.get('orch') || null;
+  // step-0357 (#57) — 실 cluster 호스트 드라이버 주입. clusterDriverReal ON 이면 orch.clusterDriver 를 ClusterHostDriver(orch 이벤트→cluster 명령 번역)로 교체. recorder(clusterDriverRecord)와 배타·OFF→null·호출 0·비트 동일.
+  if (opts.clusterDriverReal && orch) orch.clusterDriver = __p('cluster-hostdriver').makeClusterHostDriver();
   const inventory = map.get('inventory') || null;
   const chat = map.get('chat') || null;
   const bus = map.get('bus') || null;

@@ -24,7 +24,7 @@ const __hktNet = Object.assign(
   __p('orch-placement'), __p('gateway'), __p('orchestrator'), __p('zone'), __p('instance'), __p('loginqueue'),
   __p('svc-inventory'), __p('svc-chat'), __p('svc-bus'), __p('svc-audit'), __p('svc-ranking'),
   __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'), __p('svc-market'), __p('svc-mail'), __p('svc-mailfeed'), __p('svc-guild'), __p('svc-guildfeed'),
-  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('topo-build'), __p('topology'),
+  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('cluster-hostdriver'), __p('topo-build'), __p('topology'),
   { PUBLIC_ADDRS, DEFAULTS: __c.DEFAULTS, SUPPORTS });
 if (typeof module !== 'undefined' && module.exports) module.exports = __hktNet;
 if (typeof globalThis !== 'undefined') globalThis.HktNet = __hktNet;

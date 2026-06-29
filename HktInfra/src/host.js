@@ -1,3 +1,5 @@
+// HktInfra step-0362 — #57 실 데이터 평면 2: zonedel cmd(가동 중 host 에서 존 액터 제거·stop/migrate-out 집행·다른 액터 보존). 기존 cmd 무변경 → e2e/multiproc 비트 동일.
+// HktInfra step-0359 — #57 실 host.js OS 프로세스 spawn 9: zoneadd cmd(가동 중 host 에 존 액터 증분 추가·기존 보존). orch zoneHost 다중 존 incremental 가동. 기존 cmd 무변경 → e2e/multiproc 비트 동일.
 // HktInfra step-0048 — 호스트(자식 프로세스) 진입점. child_process.spawn 으로 띄워지는 *독립 OS 프로세스*.
 //   0019 대비 *읽기 모델(랭킹) reconstruct 명령만* 더한다: cmd:'reconstruct' — broker 가 *런 중 새로 spawn 한* 랭킹 standby 호스트에
 //     쓰기 모델의 영속 저널을 주입한다(읽기 모델 failover·자기 영속 0). 호스트는 RankingService.reconstruct() 로 저널을 *보유 수 투영*으로
@@ -140,6 +142,15 @@ function handle(msg) {
     hostNet = new HostNet();
     for (const spec of msg.specs) { specByAddr.set(spec.addr, spec); actors.set(spec.addr, NET.makeActor(spec, hostNet)); }
     out = { reqId, ready: true, pid: process.pid, addrs: [...actors.keys()], hostId };
+  } else if (cmd === 'zoneadd') {
+    // step-0359 (#57) — 가동 중 host 에 존 액터 *증분* 추가(full-reset 인 init 과 달리 기존 액터 보존). orch zoneHost 컨테이너가 여러 존을 한 host.js 프로세스에 incremental 로 가동(ClusterHostDriver onAssign→실 host). hostNet 미생성이면 생성(spawn 직후 첫 add 도 안전).
+    if (!hostNet) hostNet = new HostNet();
+    for (const spec of (msg.specs || [])) { specByAddr.set(spec.addr, spec); actors.set(spec.addr, NET.makeActor(spec, hostNet)); }
+    out = { reqId, added: (msg.specs || []).map(s => s.addr), addrs: [...actors.keys()], hostId };
+  } else if (cmd === 'zonedel') {
+    // step-0362 (#57) — 가동 중 host 에서 존 액터 제거(stop/migrate-out 집행). 그 host 가 더는 그 존을 소유 안 함(orch onUnassign→flush stop 의 실 host 판). 다른 액터 보존.
+    actors.delete(msg.addr); specByAddr.delete(msg.addr);
+    out = { reqId, deleted: msg.addr, addrs: [...actors.keys()], hostId };
   } else if (cmd === 'deliver') {
     const results = [];
     for (const { gi, m } of msg.items) {

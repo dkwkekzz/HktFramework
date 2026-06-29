@@ -1,4 +1,5 @@
 'use strict';
+// step-0356 — #57 실 host.js OS 프로세스 spawn 6: _drainZoneEgress 의 host→게이트웨이 송출 지점에서 clusterDriver.onEgress(host,key) 호출(실 host 프로세스 소켓 송신 자리). 미부착→호출 0 = 0355 비트 동일.
 // step-0323 정리 분할 — orch-zonebridge.js 가 30.6KB>30KB 박스 트리거를 넘겨, *다운스트림 데이터 평면 뷰 질의*(0319~0322·#9 후속 "host 산출 AOI 뷰")를 이 파일로 분리한다.
 //   옮긴 것: 런타임 존이 버퍼링 싱크에 쌓은 산출 뷰의 읽기 전용 질의(zoneViewBuf·zoneViewEntered·zoneViewStats·zoneVisibleIds·zoneViewsFor·zoneViewFrames).
 //   남긴 것: 브리지 lifecycle(_bridgeStart/migrate/hostdown/stop)·전송 seam(_zoneDeliver)·런타임 tick(_tickRuntimes)·entity 데이터 평면 질의/정합 → orch-zonebridge.js.
@@ -22,6 +23,7 @@ const OrchViews = {
         if (this.egressDrop.has(key) && !this.egressDroppedOnce.has(key)) { this.egressDroppedOnce.add(key); this.zoneEgressDropped++; }
         else this.net.send(this.addr, 'gateway', { type: 'zoneView', zoneId, sessionId: sid, dseq, frame: p });   // 존→게이트웨이 다운스트림(zoneId·sessionId·dseq 태깅 → 게이트웨이가 세션→클라 해소·순서 추적).
         this.zoneViewEgressed++;
+        if (this.clusterDriver) { this.clusterDriver.onEgress(rt.host, key); this.driverEgress++; }   // step-0356 (#57) — host→게이트웨이 다운스트림 송출 = 실 host 프로세스 소켓 송신 자리(미부착→호출 0·비트 동일).
         let eb = this.zoneEgressBuf.get(sid); if (!eb) { eb = []; this.zoneEgressBuf.set(sid, eb); }   // step-0336 — 미-ack 버퍼에 보관(게이트웨이 ack 로 가지치기·재전송 소스·드롭된 frame 도 보관 → 재전송 가능).
         eb.push({ dseq, frame: p, zoneId, sentAt: this.curTick });   // step-0338 — sentAt: 타임아웃 재전송 기준(ack 없이 egressTimeout tick 경과 시 재전송).
         if (eb.length > this.zoneEgressBufPeak) this.zoneEgressBufPeak = eb.length;
@@ -45,6 +47,11 @@ const OrchViews = {
   zoneEgressAckedOf(sid) { return this.zoneEgressAcked.has(sid) ? this.zoneEgressAcked.get(sid) : -1; },
   // 다운스트림 정착 술어(step-0341·#9 후속 capstone primitive) — 모든 세션의 미-ack egress 버퍼가 비었는가(= 산출된 모든 다운스트림 frame 이 게이트웨이에 닿아 ack 됨·재전송 복구 포함). 손실을 주입해도 gap-resync(0337)/타임아웃(0338) 재전송이 복구하면 결국 모두 ack→가지침→버퍼 0 = 정착. 미가동/leave 정리 세션은 버퍼 없음(자명). 읽기 전용.
   downstreamSettled() { for (const buf of this.zoneEgressBuf.values()) if (buf.length) return false; return true; },
+  // 월드 다운스트림 전 정합 술어(step-0350·#9 후속 grand capstone) — orch 측 월드 다운스트림 평면이 *완전히 건강*한지의 단일 술어: ⒜ 모든 런타임 존이 downstreamCoherent(host 산출 AOI 뷰가 빠짐없이 주소·무굶김·와이어 준비·0330) ⒝ downstreamSettled(산출된 모든 frame 이 게이트웨이에 닿아 ack·재전송 복구·0341). 참이면 "host 가 AOI 뷰를 옳게 만들었고(포착) + 그게 전부 전파돼 정착했다(전파)" — 실 클라 desync 0(수렴)과 합쳐 SPINE §4 경로2 월드 다운스트림 E2E 완결. 미가동 자명 참. 읽기 전용.
+  downstreamWorldCoherent() {
+    for (const z of this.zoneRuntimes.keys()) if (!this.downstreamCoherent(z)) return false;
+    return this.downstreamSettled();
+  },
   // 다운스트림 재전송(step-0337·#9 후속) — 게이트웨이 zoneResync{sessionId, from} 에 응답: 미-ack 버퍼의 dseq≥from frame 을 다시 전송(드롭으로 게이트웨이가 못 받은 분 복구). 버퍼가 재전송 소스(0336)·인오더 재배달 → 게이트웨이 gap 닫힘. 손실 1회 모델이라 재전송은 항상 통과.
   _resendEgress(sid, from) {
     this.zoneResyncServed++;
