@@ -1,8 +1,8 @@
-// HktInfra step-0392 — 헤드리스 검증 (#66 tick placement-aware 2: deliver 재생도 placement 권위로 host 조회)
+// HktInfra step-0393 — 헤드리스 검증 (#66 tick placement-aware 3·발현: run(ticks,onTick) mid-loop migrate)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddeliverplace`.
-//   더한 한 조각: cluster-coord.js tick() 의 deliver 재생이 c.host 대신 placement[c.zoneId] 로 현 host 조회. 정상 경로(placement==c.host)=0391 동치. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coorddeliverplace` — 2 host·3 zone: run(5) 후 a1 이 placement[z1] host 에 적용(deliver 가 placement host 로)·coordDesync 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmidmigrate`.
+//   더한 한 조각: cluster-coord.js run(ticks, onTick) 에 mid-loop lifecycle 훅. 루프 도중 migrate 도 placement-aware tick 이 추종해 maxDesync 0. OFF 동치: onTick 미제공이면 0392 동치. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordmidmigrate` — 2 host·3 zone: run(5, t=2 에 migrate z1 A→B) → maxDesync 0·coordDesync 0·placementCoherent Y·migrations 1·대조 driver.clusterDesync>0(옛 orch plan 발산).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,32 +31,29 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0392 #66 tick placement-aware 2 — coorddeliverplace: run(5) 의 deliver 재생이 placement[zoneId] host 로 → a1 이 placement[z1] host 에 적용·coordDesync 0(deliver 가 옳은 host 로).
-async function coorddeliverplace(seeds) {
+// step-0393 #66 tick placement-aware 3·발현 — coordmidmigrate: run(5, t=2 에 migrate z1 A→B) → placement-aware tick/deliver 가 추종해 maxDesync 0·coordDesync 0·migrations 1·대조 driver.clusterDesync>0(옛 orch plan stale 발산).
+async function coordmidmigrate(seeds) {
   const BASE = coordScenario();
-  console.log('== coorddeliverplace (0392·#66): deliver 재생도 placement 권위 host. run(5) 후 a1@placement[z1]. ==');
-  console.log('seed   | a1@place(z1) | a1 pos | coordDesync | 판정');
+  console.log('== coordmidmigrate (0393·#66 발현): 루프 도중 migrate. placement-aware tick 추종. ==');
+  console.log('seed   | maxDesync | coordDesync | placecoh | migrations | clusterDesync(옛) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let landed = false, cd = -1, posStr = '-';
+    let md = -1, cd = -1, pc = false, mig = -1, dd = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);                                                // deliver 재생이 placement[z1] host 로(0392)
-      const host = coord.placedHost('z1');
-      const snap = await cluster.rpc(host, { cmd: 'snapshot' });
-      const pos = realPos(snap, 'z1', 'a1');                             // a1 이 placement host 에 적용됐나
-      landed = !!pos; posStr = pos ? `{${pos.x},${pos.y}}` : 'null';
-      cd = await coord.coordDesync();
+      await coord.run(5, async (t, c) => { if (t === 2) await c.migrate('z1', 'hostA', 'hostB'); });   // 루프 도중 migrate
+      md = coord.maxDesync; cd = await coord.coordDesync(); pc = await coord.placementCoherent(); mig = coord.migrations;
+      dd = await drv.clusterDesync(o, cluster);                          // 옛 경로(orch plan stale) → 발산
     } finally { await cluster.shutdown(); }
-    const ok = check(landed && cd === 0, `seed ${seed}: 위반 (landed ${landed}·pos ${posStr}·cd ${cd})`);
-    console.log(`${pad(seed, 6)} | ${pad(landed ? 'Y' : 'N', 12)} | ${pad(posStr, 6)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(md === 0 && cd === 0 && pc && mig === 1 && dd > 0, `seed ${seed}: 위반 (md ${md}·cd ${cd}·pc ${pc}·mig ${mig}·dd ${dd})`);
+    console.log(`${pad(seed, 6)} | ${pad(md, 9)} | ${pad(cd, 11)} | ${pad(pc ? 'Y' : 'N', 8)} | ${pad(mig, 10)} | ${pad(dd, 17)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coorddeliverplace'] = coorddeliverplace;
-kit.ORDER.splice(1, 0, 'coorddeliverplace');
+kit.MODES['coordmidmigrate'] = coordmidmigrate;
+kit.ORDER.splice(1, 0, 'coordmidmigrate');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0392](step-0392.md) — **#66 tick placement-aware 2**: `tick()` 의 deliver 재생도 `c.host`(stale 가능) 대신 `this.placement[c.zoneId]`(where 권위)로 현 host 조회·재생. tick 순회(0391)+deliver(0392) 둘 다 placement 추종 → mid-run migrate 준비. 정상 경로=0391 동치. **#66/#67 sub-arc(0391~) 진행 중**. 직전: 0391 tick placement 순회.
-- **한 줄 상태**: reg ALL OK·coorddeliverplace 5/5(run(5) a1@placement[z1] {8,8}·coordDesync 0)·cluster-coord.js 20.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0393](step-0393.md) — **#66 tick placement-aware 3·발현**: `run(ticks, onTick)` mid-loop lifecycle 훅. 루프 *도중* migrate(t=2 z1 A→B)도 placement-aware tick/deliver 가 추종해 **maxDesync 0** — 대조 옛 driver.clusterDesync 1. 0390 capstone 이 lifecycle 을 루프 뒤로 미뤄 숨긴 #66 을 발현·해소. **#66 tick placement-aware 닫힘(0391~0393)·#67 시작(0394~)**. 직전: 0392 deliver placement host.
+- **한 줄 상태**: reg ALL OK·coordmidmigrate 5/5(mid-loop migrate maxDesync 0·migrations 1·대조 clusterDesync 1)·cluster-coord.js 21.0KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400)**: tick placement 순회(0391)·deliver 재생 placement host(0392)·mid-run migrate 발현(0393)·orchWhere 노출(0394)·authoritiesAgree 노출(0395)·migrate/failover write-back(0396~0397)·lost-robust agree+report(0398)·복합 lifecycle(0399)·unifiedCoherent capstone(0400). **후속**: 업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -148,3 +148,4 @@
 | [0390](step-0390.md) | #65 양방향 동기(0381~0390)·코디네이터 placement 권위(where) SSOT: placement(0381)·coordDesync(0382)·migrate placement 갱신(0383 핵심 fix)·coordCoherent 가 coordDesync 채택(0384)·failover placement 갱신+lost(0385)·lost 기대 부재 제외(0386)·placement-aware report(0387)·syncPlan placement 기준(0388)·placementCoherent bijection(0389)·capstone syncedCoherent(0390·migrate/failover 포함) | 통과(reg 0·spine OK) · coordsyncedcap 5/5 syncedCoherent Y·coordDesync0 vs clusterDesync1(옛 #65) |
 | [0391](step-0391.md) | #66 tick placement-aware 1: tick() 존 순회를 placement 권위(this.placement)로(orch.hostSpawnPlan 아님)·정상 경로 0390 동치 | 통과(reg 0·spine OK) · coordtickplace 5/5 views2·coordDesync0·placecoh Y·egress⊆place |
 | [0392](step-0392.md) | #66 tick placement-aware 2: deliver 재생도 placement[zoneId] host 로(c.host stale 가능)·정상 경로 0391 동치 | 통과(reg 0·spine OK) · coorddeliverplace 5/5 a1@place[z1] {8,8}·coordDesync0 |
+| [0393](step-0393.md) | #66 tick placement-aware 3·발현: run(ticks,onTick) mid-loop migrate·placement-aware tick 추종·#66 닫힘 | 통과(reg 0·spine OK) · coordmidmigrate 5/5 maxDesync0·mig1·대조 clusterDesync1 |

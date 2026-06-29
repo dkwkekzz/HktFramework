@@ -1,4 +1,5 @@
 'use strict';
+// step-0393 — #66 tick placement-aware 3·발현: run(ticks, onTick) 에 mid-loop lifecycle 훅. run 루프 *도중* migrate 가 일어나도 tick 순회(0391)+deliver(0392)가 placement 를 추종해 maxDesync 0 유지(0390 capstone 은 lifecycle 을 루프 *뒤*로 미뤄 #66 을 미발현시켰다 — 이제 루프 *중* migrate 를 발현시켜 정합 증명). 대조: 옛 driver.clusterDesync(orch plan)는 mid-migrate 후 발산. OFF 동치: onTick 미제공이면 0392 동치.
 // step-0392 — #66 tick placement-aware 2: tick() 의 deliver 재생도 placement 권위로 host 조회. driver.commands 의 c.host(번역 당시 host)는 mid-run migrate 후 stale 일 수 있다 — placement[c.zoneId] 로 조회해 *현 host* 에 frame 재생. 정상 경로(placement[zoneId]==c.host)에선 0391 동치.
 // step-0391 — #66 tick placement-aware 1: tick() 존 순회를 placement 권위(this.placement)로 전환(orch.hostSpawnPlan 아님). 0390 capstone 은 lifecycle(migrate)을 run 루프 *뒤*에 둬 #66(tick 이 stale orch plan 사용)을 미발현시켰다 — tick 이 placement 를 직접 순회하면 run *도중* migrate 도 즉시 따라가 정합(0393 발현). 정상 경로(placement==orch plan)에선 같은 (host,zone) 집합 → 0390 동치.
 // step-0390 — #65 양방향 동기 10·grand capstone: syncedCoherent() — 연속 루프 내내(maxDesync==0) + 현 coordDesync==0(lost 제외) + placementCoherent(placement⟷실 1:1). 0380 coordCoherent 가 *migrate/failover 를 제외*해야 했던 것과 대조 — 양방향 동기(0381~0389)로 *migrate/failover 를 포함한* 전체 lifecycle 뒤에도 참. #65 양방향 동기 sub-arc(0381~0390) 종합. OFF 동치: 미호출이면 0389 동치.
@@ -86,13 +87,14 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       return views;
     },
     // 연속 tick 루프(runMulti 핵심) — start()(미시작 시) 후 tick(t)을 1..ticks 반복 구동. broker 측 제어 평면이 매 tick 실 cluster 전체 데이터 평면을 굴린다. 반환=전 tick 산출 view 총수.
-    async run(ticks) {
+    async run(ticks, onTick) {
       if (!this.started) await this.start();
       let views = 0;
       for (let t = 1; t <= ticks; t++) {
         views += await this.tick(t);
         const d = await this.coordDesync();   // step-0374 매 tick 끝 정합 가드 → step-0384 placement 기준(coordDesync)으로 교체(migrate 포함 정합).
         if (d > this.maxDesync) this.maxDesync = d;
+        if (onTick) await onTick(t, this);    // step-0393 — mid-loop lifecycle 훅(루프 도중 migrate 발현). 미제공이면 0392 동치.
       }
       return views;
     },
