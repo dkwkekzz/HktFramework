@@ -1,5 +1,4 @@
 'use strict';
-// step-0358 — #57 실 host.js OS 프로세스 spawn 8: flush(cluster, specOf) — specOf(zone)→존 spec 면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로 보내 *실 host.js 자식 프로세스가 그 존을 makeActor 로 인스턴스화*. orch zoneHost 컨테이너 → 실 OS 프로세스 존 가동 E2E.
 // step-0357 — #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver — orch 드라이버 계약(0353~0356) 이벤트를 *실 cluster 명령*으로 번역.
 //   orch._hostSet/_zoneDeliver/_drainZoneEgress 가 부르는 on*(host,…) 훅을 *명령 큐*(commands)에 동기·결정론으로 적재하고,
 //   flush(cluster) 가 그 큐를 실 Cluster(cluster-core)에 집행한다 — spawnOne/killHost(자식 OS 프로세스)·rpc(소켓 init/deliver). 번역(동기)과 집행(async·child_process)을 분리 = reconcile 패턴·#4 비동기 경계 격리.
@@ -17,12 +16,12 @@ function makeClusterHostDriver() {
     onUnassign(h, z) { this.commands.push({ op: 'stop', host: h, zone: z }); },   // 존 이탈 → host 에서 그 존 stop/migrate-out.
     onFrame(h, z) { this.commands.push({ op: 'deliver', host: h, zoneId: z }); }, // entity frame → cluster.rpc(host,{cmd:'deliver'}).
     onEgress(h, k) { this.commands.push({ op: 'egress', host: h, key: k }); },    // 다운스트림 view 송출(host→게이트웨이 소켓 out·집행 별 경로).
-    // 명령 큐를 실 Cluster 에 집행(async) — spawnOne/killHost 는 child_process, rpc 는 소켓. specOf(zone)→존 spec 가 주어지면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로(실 host.js 가 makeActor 로 그 존을 인스턴스화) 보낸다. specOf 없으면 {cmd:'init',zone}(mock cluster 동기 기록·검증용). step-0358.
-    async flush(cluster, specOf) {
+    // 명령 큐를 실 Cluster 에 집행(async) — spawnOne/killHost 는 child_process, rpc 는 소켓. mock cluster(동기 기록)로도 검증.
+    async flush(cluster) {
       for (const c of this.commands) {
         if (c.op === 'spawnOne') { await cluster.spawnOne(c.host); }
         else if (c.op === 'killHost') { await cluster.killHost(c.host); }
-        else if (c.op === 'init') { await cluster.rpc(c.host, specOf ? { cmd: 'init', specs: [specOf(c.zone)] } : { cmd: 'init', zone: c.zone }); }
+        else if (c.op === 'init') { await cluster.rpc(c.host, { cmd: 'init', zone: c.zone }); }
         else if (c.op === 'deliver') { await cluster.rpc(c.host, { cmd: 'deliver', zoneId: c.zoneId }); }
         // 'stop'/'egress' 의 실 집행(host stop rpc·다운스트림 소켓 out)은 후속 — 여기선 큐 소비만(executed 기록).
         this.executed.push(c.op);

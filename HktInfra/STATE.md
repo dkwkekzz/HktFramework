@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0357](step-0357.md) — **#57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver 번역+flush** — 신규 `cluster-hostdriver.js`: orch 드라이버 이벤트(on*)를 cluster 명령(spawnOne/killHost/rpc)으로 동기 번역(commands 큐) + `flush(cluster)` async 집행(child_process/소켓). 번역↔집행 분리(#4 비동기 경계). OFF 플래그 `clusterDriverReal`. 직전: 0356 onEgress(드라이버 계약 완비).
-- **한 줄 상태**: reg ALL OK·hostcmd 5/5(번역 spawnOne1·init1·deliver7·egress7 + flush→mock spawnOne/init/deliver 정합)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0358](step-0358.md) — **#57 실 host.js OS 프로세스 spawn 8: 실 child_process 존 인스턴스화 E2E** — `flush(cluster, specOf)` 가 orch zoneHost 의 spawnOne/init 을 *실 Cluster(child_process)* 에 집행 → 실 host.js 프로세스 spawn + 존 makeActor 인스턴스화. **orch 논리 컨테이너 → 실 OS 프로세스 존 가동 입증**. OFF 플래그 동일. 직전: 0357 드라이버 번역+flush.
+- **한 줄 상태**: reg ALL OK·hostspawnreal 5/5(실 host.js livePid1·snapshot 에 zone z1 인스턴스·kind zone)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
@@ -150,3 +150,4 @@
 | [0355](step-0355.md) | #57 실 host.js OS 프로세스 spawn 5: clusterDriver onFrame entity frame egress(_zoneDeliver host inbox enqueue=실 cluster.rpc deliver 소켓 송신 씨앗) | 통과(reg 0·spine OK) · hostframe 5/5 driverFrames==zoneHostFramesRecv==7·allA |
 | [0356](step-0356.md) | #57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress 다운스트림 송출(_drainZoneEgress host→게이트웨이=실 host 소켓 송신 씨앗·드라이버 계약 완비: spawn/despawn·assign/unassign·frame·egress) | 통과(reg 0·spine OK) · hostegress 5/5 driverEgress==zoneViewEgressed==7·allA |
 | [0357](step-0357.md) | #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver(cluster-hostdriver.js·orch 이벤트→cluster 명령 spawnOne/killHost/rpc 동기 번역 + flush async 집행·번역↔집행 분리#4·clusterDriverReal 주입) | 통과(reg 0·spine OK) · hostcmd 5/5 번역 spawnOne1·deliver7 + flush→mock 정합 |
+| [0358](step-0358.md) | #57 실 host.js OS 프로세스 spawn 8: flush(cluster,specOf) 실 child_process E2E(orch zoneHost spawnOne/init→실 Cluster→실 host.js spawn+존 makeActor 인스턴스화·논리 컨테이너→실 OS 프로세스 존) | 통과(reg 0·spine OK) · hostspawnreal 5/5 livePid1·zone z1 인스턴스·kind zone |
