@@ -1,4 +1,5 @@
 'use strict';
+// step-0367 — #57 실 데이터 평면 7: hostEntities(cluster,host) 읽기 헬퍼 — 실 host 의 존별 entity 관찰(다중 host 격리 검증·교차 누수 0).
 // step-0366 — #57 실 데이터 평면 6: reconcile(plan,cluster,specOf) — orch hostSpawnPlan 목표에 실 cluster 를 spawn/zoneadd/killHost 로 수렴(상태 기반 집행·표준 reconcile).
 // step-0365 — #57 실 데이터 평면 5: 실 host.js killHost(child_process 종료) + failoverZone(죽은 host 의 존을 생존 host 에 새 인스턴스 재가동·상태 소실).
 // step-0364 — #57 실 데이터 평면 4: migrateZone(snapshot+loadstate 상태 이전·zonedel) — 실 host.js 프로세스 경계를 entity 보존하며 존 이주(같은 핸들 원자 교체의 child_process 판).
@@ -72,6 +73,13 @@ function makeClusterHostDriver() {
         for (const z of plan.hosts[h].zones) { await cluster.rpc(h, { cmd: 'zoneadd', specs: [specOf(z)] }); acted++; }   // 각 존 가동.
       }
       return acted;
+    },
+    // step-0367 — 실 host 의 존별 entity 관찰: snapshot → { zone: [entityId…] }. 다중 host 데이터 평면 격리 검증의 읽기 헬퍼(각 host 가 자기 존 entity 만·교차 누수 0).
+    async hostEntities(cluster, host) {
+      const r = await cluster.rpc(host, { cmd: 'snapshot' });
+      const out = {};
+      if (r && r.snap) for (const [addr, a] of Object.entries(r.snap)) if (a.kind === 'zone') out[addr] = (a.ents || []).map(([id]) => id).sort();
+      return out;
     },
   };
 }

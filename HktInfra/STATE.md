@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0367](step-0367.md) — **#57 실 데이터 평면 7: 실 다중 host 격리** — `hostEntities` 헬퍼로 실 host 존별 entity 관찰: hostA={z1:[a1]}·hostB={z2:[b1]}·교차 누수 0(실 프로세스 경계가 격리 강제). 직전: 0366 reconcile.
-- **한 줄 상태**: reg ALL OK·hostisoreal 5/5(hostA={z1:[a1]}·hostB={z2:[b1]}·누수0)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0368](step-0368.md) — **#57 실 데이터 평면 8: driveCluster 통합 E2E(#62)** — `driveCluster`(reconcile+deliver 재생+전 존 tick)가 orch 드라이버로 실 cluster 전체 데이터 평면을 한 호출에 구동(runMulti analog). 2 host a1·b1 위치 == in-proc 권위(desync 0). 직전: 0367 격리.
+- **한 줄 상태**: reg ALL OK·hostdrivereal 5/5(2 host a1{x:9,y:9}·b1{x:10,y:5}==in-proc·views 2)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 데이터 평면 집행(0361~)**: deliver(0361 ✅)·zonedel(0362 ✅)·실 tick/egress(0363 ✅) → 실 migrate(snapshot+loadstate 상태 이전)·실 killHost/failover·reconcile·다중 host 격리·runMulti 통합(#62)·capstone. **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 ✅(review-0351-0360 완료)·0361~ 진행 중**.
 
 ---
@@ -151,3 +151,4 @@
 | [0365](step-0365.md) | #57 실 데이터 평면 5: 실 host.js killHost(child_process SIGKILL·livePids 2→1) + failoverZone(죽은 host 존을 생존 host 새 인스턴스 재가동·상태 소실 정직한 한계) | 통과(reg 0·spine OK) · hostkillreal 5/5 kill 2→1·failover z1→hostB·a1 소실 |
 | [0366](step-0366.md) | #57 실 데이터 평면 6: reconcile(plan,cluster,specOf)·orch hostSpawnPlan 목표에 실 cluster spawn/zoneadd/killHost 수렴·상태 기반 집행 표준 reconcile | 통과(reg 0·spine OK) · hostreconcilereal 5/5 plan→실 hostA[z1,z3]·hostB[z2]·live2 |
 | [0367](step-0367.md) | #57 실 데이터 평면 7: 실 다중 host 격리(hostEntities 헬퍼·실 host 존별 entity·교차 누수 0·실 프로세스 경계가 격리 강제) | 통과(reg 0·spine OK) · hostisoreal 5/5 hostA={z1:[a1]}·hostB={z2:[b1]}·누수0 |
+| [0368](step-0368.md) | #57 실 데이터 평면 8: driveCluster 통합 E2E(#62 runMulti analog·reconcile+deliver 재생+전 존 tick 한 호출·orch 드라이버가 실 cluster 전체 데이터 평면 구동) | 통과(reg 0·spine OK) · hostdrivereal 5/5 2 host a1{x:9,y:9}·b1{x:10,y:5}==in-proc·views2 |

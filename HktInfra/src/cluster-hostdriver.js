@@ -1,4 +1,5 @@
 'use strict';
+// step-0368 — #57 실 데이터 평면 8: driveCluster(orch,cluster,specOf) 통합 E2E(#62·runMulti analog) — reconcile+deliver 재생+전 존 tick 을 한 호출에. orch 드라이버가 실 cluster 전체 데이터 평면 구동.
 // step-0367 — #57 실 데이터 평면 7: hostEntities(cluster,host) 읽기 헬퍼 — 실 host 의 존별 entity 관찰(다중 host 격리 검증·교차 누수 0).
 // step-0366 — #57 실 데이터 평면 6: reconcile(plan,cluster,specOf) — orch hostSpawnPlan 목표에 실 cluster 를 spawn/zoneadd/killHost 로 수렴(상태 기반 집행·표준 reconcile).
 // step-0365 — #57 실 데이터 평면 5: 실 host.js killHost(child_process 종료) + failoverZone(죽은 host 의 존을 생존 host 에 새 인스턴스 재가동·상태 소실).
@@ -80,6 +81,17 @@ function makeClusterHostDriver() {
       const out = {};
       if (r && r.snap) for (const [addr, a] of Object.entries(r.snap)) if (a.kind === 'zone') out[addr] = (a.ents || []).map(([id]) => id).sort();
       return out;
+    },
+    // step-0368 — 통합 E2E 구동(#62·runMulti analog): orch 드라이버 커맨드로 실 cluster 전체 데이터 평면을 한 호출에. ① reconcile(plan→spawn/zoneadd) ② deliver 커맨드 재생(실 zone.onMsg) ③ 전 존 1 tick(move 적용+view 산출). orch.clusterDriver(=this) 가 broker 측 제어 평면처럼 실 cluster 를 구동. 반환=tick 산출 view 총수.
+    async driveCluster(orch, cluster, specOf, tick = 1) {
+      const plan = orch.hostSpawnPlan();
+      await this.reconcile(plan, cluster, specOf);                 // ① 목표 토폴로지 수렴
+      for (const c of this.commands) if (c.op === 'deliver' && c.frame)   // ② entity frame 재생
+        await cluster.rpc(c.host, { cmd: 'deliver', items: [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }] });
+      this.commands = [];
+      let views = 0;
+      for (const h of plan.order) for (const z of plan.hosts[h].zones) views += (await this.tickZone(cluster, h, z, tick)).filter(s => s.payload && /^view/.test(s.payload.type)).length;   // ③ 전 존 tick
+      return views;
     },
   };
 }
