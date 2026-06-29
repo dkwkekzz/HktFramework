@@ -1,4 +1,5 @@
 'use strict';
+// step-0407 — #62 runMulti 합류 6: clusterInfo() 재구성 보고 — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227` livePids/placement/epoch/presumedDead/…)의 코디네이터 판. report()(0379·운영 건강)와 직교: clusterInfo 는 *runMulti 호환 토폴로지/생애주기 스냅샷*(livePids·hostIds·placement·epoch·presumedDead·migrations/failovers/restarts/reprovisions·lost·mirrors). 코디네이터가 옛 runMulti 의 반환 계약까지 노출 → 코드 합류 시 runMulti 가 이 보고를 그대로 반환 가능. 읽기 전용·새 메서드. 새 박스·run() 미사용→reg 0.
 // step-0406 — #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 standby 동기 유지). 0405 는 standby 를 띄우고 사본까지였다 — runMulti(`cluster-run.js:170` 미러 deliver·`:198` 미러 tick)는 권위 입력을 standby 로 미러해 *계속* 동기를 유지했다. tick() 이 ⒜ deliver frame 을 mirror(zone) 의 standby host 에도 재생 ⒝ standby 존을 shadow tick(발신/egress 폐기) → standby 가 primary 와 lockstep 유지(failover 시 즉시 승격 가능). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
 // step-0405 — #62 runMulti 합류 4·복원력: reprovisionStandby(zone, standbyHost) — 따뜻한 대기 인스턴스 + 미러 등록. runMulti(`cluster-run.js:202` rep + `:219` mirrors)는 kill→승격 후 새 standby 를 띄우고 권위 입력을 미러해 N=1 복제를 유지했다. 코디네이터가 zone 의 현 상태를 snapshot→standbyHost 에 spawn/zoneadd/loadstate(따뜻한 사본) + mirrors 에 {zone,dstHost} 등록(입력 복제는 0406 tick 미러). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
 // step-0404 — 정리(기능 0·reg 0): 박스 30KB 근접(29.4KB) 트리거 — 닫힌 arc(0371~0399·#62/#65/#66/#67) 헤더 주석 스택을 git 태그+reviews 포인터 한 줄로 접어 박스를 유계화(코드 무변경=net-core 동작 비트 동일=reg 0). 비대화 트리거(CLAUDE.md §박스 분할) 집행.
@@ -204,6 +205,15 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     // 통합 정합 술어(0399·#66+#67) — syncedCoherent(연속 루프·현 entity·placement↔실 bijection) && authoritiesAgree(코디네이터 placement == orch 집행 where-view). 즉 *양방향 동기(#65)·tick placement-aware(#66)·orch 이중 권위 합류(#67)* 가 모두 한 몸. orch.running 에 stale host 가 남으면 authoritiesAgree 가 잡아 N(실측 검출).
     async unifiedCoherent() {
       return (await this.syncedCoherent()) && this.authoritiesAgree();
+    },
+    // runMulti 호환 재구성 보고(0407·#62) — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227`)의 코디네이터 판: 실 cluster 토폴로지(livePids·hostIds)+코디네이터 생애주기 상태(placement·epoch·presumedDead·복원력 계측·lost·mirrors). report()(운영 desync 건강)와 직교 — 이건 *runMulti 반환 계약*. 코드 합류 시 runMulti 가 이걸 그대로 반환 가능. 읽기 전용.
+    clusterInfo() {
+      return {
+        livePids: this.cluster.livePids ? this.cluster.livePids() : [], hostIds: this.cluster.hostIds.slice(),
+        placement: { ...this.placement }, epoch: this.epoch, presumedDead: [...this.presumedDead],
+        ticks: this.ticks, migrations: this.migrations, failovers: this.failovers, restarts: this.restarts, reprovisions: this.reprovisions,
+        lost: [...this.lostZones], mirrors: this.mirrors.map(m => ({ zone: m.zone, host: m.dstHost })),
+      };
     },
   };
 }

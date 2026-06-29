@@ -1,8 +1,8 @@
-// HktInfra step-0407 — 헤드리스 검증 (#62 runMulti 합류 6: clusterInfo() 재구성 보고)
+// HktInfra step-0408 — 헤드리스 검증 (#62 runMulti 합류 7: runScenario 통합 시나리오 루프)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordinfo`.
-//   더한 한 조각: cluster-coord.js clusterInfo()=runMulti 반환 계약(livePids·placement·epoch·presumedDead·복원력 계측)의 코디네이터 판. 읽기 전용. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordinfo` — 2 host·3 zone: run(5)+fence(hostB)+restart(z1,hostA_r) → clusterInfo: epoch 1·presumedDead⊇[hostB]·placement 3존·restarts 1·ticks 5·livePids≥1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordscenario`.
+//   더한 한 조각: cluster-coord.js runScenario(ticks,scenario)=run(ticks,onTick) 위에 스크립트 열화 시나리오(migrate/restart/reprovision/kill/fence@at·sweepSilence) 구동 단일 진입점(runMulti 호환). 빈 시나리오면 0407 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordscenario` — 2 host·3 zone: runScenario(6, {migrate z1 A→B @2, reprovision z2@hostB_s @3}) → unifiedCoherent Y·maxDesync 0·migrations 1·reprovisions 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,28 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0407 #62 runMulti 합류 6 — coordinfo: run(5)+fence(hostB)+restart(z1,hostA_r) → clusterInfo: epoch 1·presumedDead⊇[hostB]·placement 3존·restarts 1·ticks 5·livePids≥1.
-async function coordinfo(seeds) {
+// step-0408 #62 runMulti 합류 7 — coordscenario: runScenario(6, {migrate z1 A→B @2, reprovision z2@hostB_s @3}) → unifiedCoherent Y·maxDesync 0·migrations 1·reprovisions 1.
+async function coordscenario(seeds) {
   const BASE = coordScenario();
-  console.log('== coordinfo (0407·#62): clusterInfo() runMulti 호환 재구성 보고. ==');
-  console.log('seed   | epoch | pd⊇hostB | zones | restarts | ticks | livePids | 판정');
+  console.log('== coordscenario (0408·#62): runScenario 통합 시나리오 루프(migrate+reprovision). ==');
+  console.log('seed   | unified | maxDesync | migrations | reprovisions | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let info = {};
+    let uni = false, md = -1, mg = -1, rp = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);
-      coord.fence('hostB');
-      await coord.restart('z1', 'hostA_r');
-      info = coord.clusterInfo();
+      await coord.runScenario(6, { migrate: { zone: 'z1', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z2', host: 'hostB_s', at: 3 } });
+      uni = await coord.unifiedCoherent(); md = coord.maxDesync; mg = coord.migrations; rp = coord.reprovisions;
     } finally { await cluster.shutdown(); }
-    const pdHas = info.presumedDead && info.presumedDead.includes('hostB');
-    const zones = info.placement ? Object.keys(info.placement).length : 0;
-    const ok = check(info.epoch === 1 && pdHas && zones === 3 && info.restarts === 1 && info.ticks === 5 && info.livePids.length >= 1,
-      `seed ${seed}: 위반 (${JSON.stringify({ epoch: info.epoch, pd: info.presumedDead, zones, restarts: info.restarts, ticks: info.ticks, live: info.livePids.length })})`);
-    console.log(`${pad(seed, 6)} | ${pad(info.epoch, 5)} | ${pad(pdHas ? 'Y' : 'N', 8)} | ${pad(zones, 5)} | ${pad(info.restarts, 8)} | ${pad(info.ticks, 5)} | ${pad(info.livePids.length, 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(uni && md === 0 && mg === 1 && rp === 1, `seed ${seed}: 위반 (uni ${uni}·md ${md}·mg ${mg}·rp ${rp})`);
+    console.log(`${pad(seed, 6)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(md, 9)} | ${pad(mg, 10)} | ${pad(rp, 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordinfo'] = coordinfo;
-kit.ORDER.splice(1, 0, 'coordinfo');
+kit.MODES['coordscenario'] = coordscenario;
+kit.ORDER.splice(1, 0, 'coordscenario');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
