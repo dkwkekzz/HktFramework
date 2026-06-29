@@ -1,4 +1,5 @@
 'use strict';
+// step-0389 — #65 양방향 동기 9: placementCoherent() 양방향 bijection 불변. 코디네이터 placement(where 권위) ⟷ 실 cluster host 의 존 배치가 정확히 일치하는가: ⒜ forward — placement[z]=h 인 모든 존이 실 host h 에 존재 ⒝ reverse — 실 host h 의 모든 존이 placement[z]==h. 양방향 동기의 단일 술어(placement 가 진짜 실 cluster 를 반영). OFF 동치: 미호출이면 0388 동치.
 // step-0388 — #65 양방향 동기 8: syncPlan 이 placement 권위 기준(orch.hostSpawnPlan 아님). 0377 syncPlan 은 orch plan 으로 차분했다 → migrate 후엔 stale(z1@A)이라 잘못된 host 에 복원하려 든다. placement(z1@B·실 위치)로 차분해 *옳은* host 에 누락 존 복원. OFF 동치: 정상 경로(placement==orch plan) 결과 동일 = 0387 동치.
 // step-0387 — #65 양방향 동기 7: report 가 placement 기준(coordDesync·placement host/zone·lost 계측). 0379 report 는 orch.hostSpawnPlan + driver.clusterDesync 를 써 migrate 후 발산했다(0379 가 migrate 제외한 이유). placement 권위 + coordDesync 로 바꾸면 *migrate/failover 후도* 대시보드가 정합. OFF 동치: 정상 경로(placement==orch plan·lost 0) 결과 동일 = 0386 동치.
 // step-0386 — #65 양방향 동기 6: coordDesync 가 lostZones 의 *기대된 부재*를 제외. failover 는 상태 소실(#63)이라 lost 존은 실 cluster 가 비고 orch 권위엔 entity 가 남아 reverse desync(권위에 있는데 실에 부재)가 뜬다 — 이는 *비자발 손실*이지 불일치가 아니다(crash=양쪽 합의된 손실). lost 존은 reverse 검사만 건너뛴다(forward=ghost 검사는 유지 → 유령 주입은 여전히 검출). OFF 동치: lostZones 비면 0385 동치.
@@ -131,6 +132,17 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         desync, maxDesync: this.maxDesync, egressTotal: this.egressTotal,
         migrations: this.migrations, failovers: this.failovers, lost: this.lostZones.size, coherent: desync === 0,
       };
+    },
+    // placement ⟷ 실 cluster 양방향 bijection 불변(0389·#65) — placement(where 권위)가 실 cluster 의 존 배치와 정확히 1:1. forward(placement→실 존재) + reverse(실→placement). 참이면 placement 가 실 cluster 를 진짜 반영(양방향 동기 닫힘).
+    async placementCoherent() {
+      const realByHost = {};
+      for (const h of new Set(Object.values(this.placement))) {
+        const snap = await this.cluster.rpc(h, { cmd: 'snapshot' });
+        realByHost[h] = new Set(snap && snap.snap ? Object.keys(snap.snap).filter(z => snap.snap[z].kind === 'zone') : []);
+      }
+      for (const z of Object.keys(this.placement)) { const h = this.placement[z]; if (!realByHost[h] || !realByHost[h].has(z)) return false; }   // forward
+      for (const h of Object.keys(realByHost)) for (const z of realByHost[h]) if (this.placement[z] !== h) return false;   // reverse
+      return true;
     },
     // grand capstone 술어(0380) — 연속 루프 내내(maxDesync==0) *그리고* 현 시점(clusterDesync==0) 실 cluster 가 in-proc 권위와 한 몸. broker 측 제어 평면(start→run→drift→syncPlan)이 SPINE §5 수렴을 실 프로세스 경계 넘어 *지속적으로* 만족. #62 sub-arc(0371~0380) 종합.
     async coordCoherent() {

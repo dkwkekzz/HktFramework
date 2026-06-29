@@ -1,8 +1,8 @@
-// HktInfra step-0389 — 헤드리스 검증 (#65 양방향 동기 9: placementCoherent bijection 불변)
+// HktInfra step-0390 — 헤드리스 검증 (#65 양방향 동기 10·grand capstone: syncedCoherent — migrate/failover 포함 정합)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordplacecoh`.
-//   더한 한 조각: cluster-coord.js placementCoherent()=placement ⟷ 실 cluster 존 배치 양방향 bijection. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordplacecoh` — 2 host·3 zone: run(3)+migrate z1 A→B → placementCoherent Y(일치)·실 불일치(placement 미갱신 zonedel) 주입 시 N.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsyncedcap`.
+//   더한 한 조각: cluster-coord.js syncedCoherent()=maxDesync0 && coordDesync0(lost 제외) && placementCoherent. #65 양방향 동기 sub-arc(0381~0390) 닫기. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordsyncedcap` — 2 host·3 zone: run(5)+migrate z1 A→B+failover hostA→hostB → syncedCoherent Y(0380 이 제외한 migrate/failover 포함)·대조로 driver.clusterDesync>0(옛 #65 버그).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,31 +31,33 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0389 #65 양방향 9 — placementCoherent bijection: migrate 후 placement⟷실 일치(Y)·placement 미갱신 zonedel 주입 시 불일치(N).
-async function coordplacecoh(seeds) {
+// step-0390 #65 양방향 10·grand capstone — syncedCoherent: run(5)+migrate+failover 뒤에도 정합(0380 이 제외한 lifecycle 포함)·대조 driver.clusterDesync>0(옛 #65).
+async function coordsyncedcap(seeds) {
   const BASE = coordScenario();
-  console.log('== coordplacecoh (0389·#65 양방향 9): placementCoherent bijection — migrate 후 일치 Y·실 불일치 주입 N ==');
-  console.log('seed   | migrate 후 coh | 불일치 주입 후 | 판정');
+  console.log('== coordsyncedcap (0390·#65 grand capstone): migrate/failover 포함 양방향 정합. 0381~0390 닫기. ==');
+  console.log('seed   | syncedCoherent | placecoh | coordDesync | clusterDesync(옛) | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let cohOk = false, mismatchN = false;
+    let synced = false, pc = false, cd = -1, dd = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(3);
-      await coord.migrate('z1', 'hostA', 'hostB');
-      cohOk = await coord.placementCoherent();                           // placement(z1@B) ⟷ 실 일치
-      await cluster.rpc('hostB', { cmd: 'zonedel', addr: 'z1' });        // placement 미갱신 채 실에서 z1 제거 → 불일치
-      mismatchN = !(await coord.placementCoherent());                    // forward 위반 검출(placement z1@B 인데 실 hostB 에 없음)
+      await coord.run(5);                                                // 연속 루프(maxDesync 0)
+      await coord.migrate('z1', 'hostA', 'hostB');                       // graceful 이주(a1 보존)
+      await coord.failover('hostA', 'hostB');                            // hostA(z3) 장애→hostB(z3 lost)
+      synced = await coord.syncedCoherent();                            // maxDesync0 && coordDesync0(lost 제외) && placementCoherent
+      pc = await coord.placementCoherent();
+      cd = await coord.coordDesync();
+      dd = await drv.clusterDesync(o, cluster);                          // 옛 경로(orch plan stale) → 발산
     } finally { await cluster.shutdown(); }
-    const ok = check(cohOk && mismatchN, `seed ${seed}: placecoh 위반 (coh ${cohOk}·mismatch ${mismatchN})`);
-    console.log(`${pad(seed, 6)} | ${pad(cohOk ? 'Y' : 'N', 13)} | ${pad(mismatchN ? 'N(검출)' : '미검출', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(synced && pc && cd === 0 && dd > 0, `seed ${seed}: capstone 위반 (synced ${synced}·pc ${pc}·cd ${cd}·dd ${dd})`);
+    console.log(`${pad(seed, 6)} | ${pad(synced ? 'Y' : 'N', 14)} | ${pad(pc ? 'Y' : 'N', 8)} | ${pad(cd, 11)} | ${pad(dd, 17)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordplacecoh'] = coordplacecoh;
-kit.ORDER.splice(1, 0, 'coordplacecoh');
+kit.MODES['coordsyncedcap'] = coordsyncedcap;
+kit.ORDER.splice(1, 0, 'coordsyncedcap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
