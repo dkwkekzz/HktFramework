@@ -1,4 +1,5 @@
 'use strict';
+// step-0363 — #57 실 데이터 평면 3: tickZone(cluster,host,zone,tick) — 실 host.js zone.onTick(pending move 적용 + view_delta 산출) 집행·산출 send 반환(다운스트림 egress 실 출력).
 // step-0362 — #57 실 데이터 평면 2: flush stop(onUnassign)→실 host.js zonedel(존 제거). 실 프로세스에서 stop/migrate-out 집행.
 // step-0361 — #57 실 데이터 평면 1: flush deliver 가 frame 동봉 시 실 host.js deliver(items·m.to=존·zone.onMsg) 집행 → entity 가 실 프로세스 존에 산다(논리 frame→실 소켓 데이터 평면).
 // step-0359 — #57 실 host.js OS 프로세스 spawn 9: flush specOf init→host.js zoneadd(증분·기존 존 보존) 로 다중 존을 한 host.js 프로세스에 incremental 가동.
@@ -37,6 +38,11 @@ function makeClusterHostDriver() {
       }
       this.commands = [];
       return this.executed.length;
+    },
+    // step-0363 — 실 host.js 존 tick: {cmd:'tick'} → 실 프로세스 zone.onTick(pending move 적용 + AOI view_delta 산출). 반환 = 그 존이 낸 send(다운스트림 egress·실 소켓 out 의 씨앗). orch _tickRuntimes 의 실 host 판.
+    async tickZone(cluster, host, zone, tick) {
+      const r = await cluster.rpc(host, { cmd: 'tick', tick, items: [{ gi: 0, addr: zone }] });
+      return (r.results && r.results[0] && r.results[0].sends) || [];
     },
   };
 }

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0362](step-0362.md) — **#57 실 데이터 평면 2: 실 host.js zonedel 존 제거** — host.js `zonedel` cmd + `flush` stop(onUnassign)→실 host.js zonedel. 가동 중 host 에서 존 제거(다른 존 보존)·in-proc running 과 실 snapshot 정합. 직전: 0361 실 deliver.
-- **한 줄 상태**: reg ALL OK·hostzonedelreal 5/5(placeStop z1→실 host.js z2 만·running z2)·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#57 실 host.js OS 프로세스 spawn — 드라이버 계약+실 spawn (0351~0360 ✅ 닫힘)**: 매니페스트(0351)·델타(0352)·clusterDriver 훅 seam(0353)·roster(0354)·frame(0355)·egress(0356)·ClusterHostDriver 번역+flush(0357)·실 child_process 존 인스턴스화(0358)·다중 존 incremental(0359)·capstone(0360). orch 논리 zoneHost → 실 host.js OS 프로세스/존 물질화 입증. **후속(다음 arc)**: ⒜ deliver/egress 실 소켓 데이터 평면 집행·migrate/killHost 실 프로세스 전환·cluster-run.js runMulti 통합 ⒝ 업스트림 intent 실 클라 경로(#61) ⒞ 진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 미실시(7묶음 누적·적기)**.
+- **닫힌 step**: [step-0363](step-0363.md) — **#57 실 데이터 평면 3: 실 host.js tick(move 적용 + egress 산출)** — `tickZone` 가 실 host.js `{cmd:'tick'}`→실 zone.onTick(pending move 적용 + view_delta 산출). 실 a1 위치 == in-proc 권위(move 후)·tick 산출 send 에 view. 직전: 0362 실 zonedel.
+- **한 줄 상태**: reg ALL OK·hosttickreal 5/5(실 a1 {x:11,y:11}==in-proc·egress view 1)·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#57 실 데이터 평면 집행(0361~)**: deliver(0361 ✅)·zonedel(0362 ✅)·실 tick/egress(0363 ✅) → 실 migrate(snapshot+loadstate 상태 이전)·실 killHost/failover·reconcile·다중 host 격리·runMulti 통합(#62)·capstone. **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 ✅(review-0351-0360 완료)·0361~ 진행 중**.
 
 ---
 
@@ -146,3 +146,4 @@
 | [0351–0360](reviews/review-0351-0360.md) | #57 실 host.js OS 프로세스 spawn — 드라이버 계약+실 spawn sub-arc: hostSpawnPlan(0351)·델타(0352)·clusterDriver 훅(0353)·roster(0354)·frame(0355)·egress(0356)·ClusterHostDriver 번역+flush(0357)·실 child_process 존 인스턴스화(0358)·zoneadd 다중 존(0359)·capstone clusterHostsCoherent+실 다중 host(0360) | 통과(reg 0·spine OK) · 각 5/5·실 host.js 2 프로세스 A=[z1,z2]·B=[z3] |
 | [0361](step-0361.md) | #57 실 데이터 평면 1: 실 host.js deliver E2E(onFrame frame 동봉·flush deliver→실 host.js {cmd:'deliver',items}→실 프로세스 zone.onMsg entity 적용·in-proc 권위와 desync 0) | 통과(reg 0·spine OK) · hostdeliverreal 5/5 실 a1 {x:5,y:5}==in-proc 권위 |
 | [0362](step-0362.md) | #57 실 데이터 평면 2: 실 host.js zonedel(host.js zonedel cmd·flush stop→실 존 제거·다른 존 보존·in-proc running 정합) | 통과(reg 0·spine OK) · hostzonedelreal 5/5 placeStop z1→실 z2 만·running z2 |
+| [0363](step-0363.md) | #57 실 데이터 평면 3: 실 host.js tick(tickZone→실 zone.onTick·pending move 적용 + view_delta egress 산출·실 a1 위치==in-proc 권위) | 통과(reg 0·spine OK) · hosttickreal 5/5 실 a1 {x:11,y:11}==in-proc·egress 1 |

@@ -1,4 +1,5 @@
 'use strict';
+// step-0362 — #57 실 데이터 평면 2: flush stop(onUnassign)→실 host.js zonedel(존 제거). 실 프로세스에서 stop/migrate-out 집행.
 // step-0361 — #57 실 데이터 평면 1: flush deliver 가 frame 동봉 시 실 host.js deliver(items·m.to=존·zone.onMsg) 집행 → entity 가 실 프로세스 존에 산다(논리 frame→실 소켓 데이터 평면).
 // step-0359 — #57 실 host.js OS 프로세스 spawn 9: flush specOf init→host.js zoneadd(증분·기존 존 보존) 로 다중 존을 한 host.js 프로세스에 incremental 가동.
 // step-0358 — #57 실 host.js OS 프로세스 spawn 8: flush(cluster, specOf) — specOf(zone)→존 spec 면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로 보내 *실 host.js 자식 프로세스가 그 존을 makeActor 로 인스턴스화*. orch zoneHost 컨테이너 → 실 OS 프로세스 존 가동 E2E.
@@ -30,7 +31,8 @@ function makeClusterHostDriver() {
           if (c.frame) await cluster.rpc(c.host, { cmd: 'deliver', items: [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }] });
           else await cluster.rpc(c.host, { cmd: 'deliver', zoneId: c.zoneId });
         }
-        // 'stop'/'egress' 의 실 집행(host stop rpc·다운스트림 소켓 out)은 후속 — 여기선 큐 소비만(executed 기록).
+        else if (c.op === 'stop' && specOf) { await cluster.rpc(c.host, { cmd: 'zonedel', addr: c.zone }); }   // step-0362 — 존 제거(실 host.js zonedel·stop/migrate-out). specOf(실 모드)일 때만 — mock 은 큐 소비만.
+        // 'egress' 의 실 집행(다운스트림 소켓 out)은 후속 — 여기선 큐 소비만(executed 기록).
         this.executed.push(c.op);
       }
       this.commands = [];
