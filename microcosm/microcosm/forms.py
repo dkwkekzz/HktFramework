@@ -226,16 +226,27 @@ class WalkController:
     중력·지형·본드에서 창발한다. CreatureCtrl(목표속도 힘)의 정교한 형제.
     """
     def __init__(self, w, joints, scale, period=1.1, step_lift=3.2,
-                 sway=1.7, travel=0.0, kp=70.0, kd=8.0):
+                 sway=1.7, speed=8.0, kp=70.0, kd=8.0):
         self.j = joints; self.scale = float(scale); self.period = float(period)
         self.step_lift = step_lift * scale       # 흔듦발 들어올림 높이
         self.sway = sway * scale                  # 골반 좌우 체중 이동 폭
-        self.travel = float(travel)               # 가로 이동 속도(0=제자리 걸음)
+        self.speed = float(speed)                 # 보행 속도(목표 지향 이동)
         self.kp = float(kp); self.kd = float(kd)
         self.phase = 0.0
         pel = w.P[joints['pelvis']].copy()
         self.rest = {n: (w.P[i] - pel).copy() for n, i in joints.items()}
-        self.x0 = float(pel[0]); self.y0 = float(pel[1])
+        self.cx = float(pel[0]); self.y0 = float(pel[1])
+        self.goal = None        # 목표 x (None=정지). 브레인이 set_goal 로 조종.
+        self.march = False      # True=제자리 걸음(목표 없이도 걷는다, R3 데모용)
+        self.walking = False
+        self.reach = 0.0        # 동작 강도 0..1: 손을 내리고 웅크림(채집/사냥 손짓)
+
+    def set_goal(self, x):
+        """걸어갈 목표 x — 입력항 I의 '의도'(어디로)."""
+        self.goal = float(x)
+
+    def stop(self):
+        self.goal = None
 
     def _pd(self, w, name, tx, ty, kp=None, kd=None):
         """관절을 (tx,ty) 세계좌표로 당기는 PD 힘 — 입력항 I."""
@@ -248,18 +259,26 @@ class WalkController:
     def update(self, w, dt):
         if not w.alive[self.j['pelvis']]:
             return
-        self.phase = (self.phase + dt / self.period) % 1.0
+        # ── 목표 지향 이동: 목표가 멀면 그쪽으로 보행, 도착·무목표면 정지(양발 디딤) ──
+        moving = self.goal is not None and abs(self.goal - self.cx) > 1.2 * self.scale
+        self.walking = moving or self.march
+        if moving:
+            d = 1.0 if self.goal > self.cx else -1.0
+            self.cx += d * self.speed * dt          # 보행 기준점 전진(걸음은 물리로 따라옴)
+        if self.walking:
+            self.phase = (self.phase + dt / self.period) % 1.0
         ph = 2 * math.pi * self.phase
+        gait = 1.0 if self.walking else 0.0          # 정지 시 들기·흔들기·스윙 0
         r = self.rest
-        cx = self.x0 + self.travel * w.time          # 진행 기준 x
+        cx = self.cx
         gY = lambda x: w.ground(x)
+        crouch = self.reach * 1.6 * self.scale       # 동작 시 살짝 웅크림
 
         # ── 횡 균형: 골반을 디딤발 쪽으로 흔든다(체중 이동) ──
-        # sin(ph)>0 → 오른발 디딤(체중 오른쪽), <0 → 왼발 디딤
         s_lat = math.sin(ph)
-        bob = 0.35 * self.scale * math.cos(2 * ph)   # 상하 바운스(2배 주파수)
-        pel_tx = cx + self.sway * s_lat
-        pel_ty = self.y0 + bob
+        bob = 0.35 * self.scale * math.cos(2 * ph) * gait
+        pel_tx = cx + self.sway * s_lat * gait
+        pel_ty = self.y0 + bob - crouch
         self._pd(w, 'pelvis', pel_tx, pel_ty, kp=self.kp * 1.3)
 
         # ── 상체: 골반 위로 세워 유지(자세 유지=균형의 윗부분) ──
@@ -267,43 +286,192 @@ class WalkController:
             self._pd(w, name, pel_tx + r[name][0], pel_ty + r[name][1])
 
         # ── 다리: 디딤발은 접지 고정, 흔듦발은 들어올려 교대 ──
-        # 위상 [0,0.5): 오른발 디딤 / 왼발 흔듦,  [0.5,1): 반대
         for side, hipN, kneeN, footN in (('L', 'hipL', 'kneeL', 'footL'),
                                          ('R', 'hipR', 'kneeR', 'footR')):
             footx0 = cx + r[footN][0]
             hip_tx = pel_tx + r[hipN][0]
-            # 이 발이 흔듦 구간인가
-            swingL = self.phase < 0.5            # 왼발은 전반에 흔듦
+            swingL = self.phase < 0.5
             swinging = swingL if side == 'L' else (not swingL)
-            if swinging:
+            if swinging and self.walking:
                 lp = (self.phase / 0.5) if side == 'L' else ((self.phase - 0.5) / 0.5)
                 lift = self.step_lift * math.sin(math.pi * lp)
-                foot_ty = gY(footx0) + 0.5 * self.scale + lift
             else:
                 lift = 0.0
-                foot_ty = gY(footx0) + 0.4 * self.scale   # 접지 고정
+            foot_ty = gY(footx0) + 0.5 * self.scale + lift
             self._pd(w, footN, footx0, foot_ty)
             # 무릎: 엉덩이-발 중점 + 흔듦 시 함께 들림(무릎 굽힘)
             knee_tx = 0.5 * (hip_tx + footx0)
-            knee_ty = self.y0 + r[kneeN][1] + 0.55 * lift + bob
+            knee_ty = self.y0 - crouch + r[kneeN][1] + 0.55 * lift + bob
             self._pd(w, kneeN, knee_tx, knee_ty)
 
-        # ── 팔 스윙: 다리와 반대(대측) ──
-        arm = 1.4 * self.scale * math.sin(ph)
-        self._pd(w, 'elL', pel_tx + r['elL'][0] + arm, pel_ty + r['elL'][1])
-        self._pd(w, 'haL', pel_tx + r['haL'][0] + 1.4 * arm, pel_ty + r['haL'][1])
-        self._pd(w, 'elR', pel_tx + r['elR'][0] - arm, pel_ty + r['elR'][1])
-        self._pd(w, 'haR', pel_tx + r['haR'][0] - 1.4 * arm, pel_ty + r['haR'][1])
+        # ── 팔: 보행 시 대측 스윙, 동작(reach) 시 손을 내려 모음(채집·사냥 손짓) ──
+        arm = 1.4 * self.scale * math.sin(ph) * gait
+        down = self.reach * 3.2 * self.scale
+        inw = self.reach * 0.45
+        self._pd(w, 'elL', pel_tx + r['elL'][0] * (1 - 0.3 * self.reach) + arm,
+                 pel_ty + r['elL'][1] - 0.5 * down)
+        self._pd(w, 'haL', pel_tx + r['haL'][0] * (1 - inw) + 1.4 * arm,
+                 pel_ty + r['haL'][1] - down)
+        self._pd(w, 'elR', pel_tx + r['elR'][0] * (1 - 0.3 * self.reach) - arm,
+                 pel_ty + r['elR'][1] - 0.5 * down)
+        self._pd(w, 'haR', pel_tx + r['haR'][0] * (1 - inw) - 1.4 * arm,
+                 pel_ty + r['haR'][1] - down)
 
 
 @register('walker')
-def walker(w, cx=120.0, scale=1.6, period=1.1, travel=0.0, speed=None):
+def walker(w, cx=120.0, scale=1.6, period=1.1, speed=8.0, march=False):
     """보행하는 스켈레톤(R3): anchored=False 스켈레톤 + WalkController.
-    travel>0 이면 가로로 이동, 0 이면 제자리 걸음. agents에 컨트롤러 등록."""
+    기본은 정지 대기(목표를 set_goal 로 줘야 이동). march=True 면 제자리 걸음."""
     info = w.spawn_form('skeleton', cx=cx, scale=scale, anchored=False)
-    ctrl = WalkController(w, info['joints'], scale, period=period, travel=travel)
+    ctrl = WalkController(w, info['joints'], scale, period=period, speed=speed)
+    ctrl.march = bool(march)
     w.agents.append(ctrl)
     return {'joints': info['joints'], 'units': info['units'], 'ctrl': ctrl}
+
+
+class CritterCtrl:
+    """소형 동물(사냥감): 방랑 추진(입력항 I) + 위협(사냥꾼) 근접 시 도주.
+    threat(사냥꾼 core 인덱스)을 브레인이 매 스텝 주입한다."""
+    def __init__(self, units, core, speed=6.5, flee=9.0):
+        self.units, self.core, self.speed, self.flee = units, core, speed, flee
+        self.target = 0.0; self.t = 0.0; self.hop = 1 + random.random()
+        self.threat = None
+
+    def update(self, w, dt):
+        if not w.alive[self.core]:
+            return
+        cx = w.P[self.core, 0]
+        fleeing = False
+        if self.threat is not None and w.alive[self.threat]:
+            d = cx - w.P[self.threat, 0]
+            if abs(d) < self.flee:                      # 사냥꾼이 가까우면 반대로 도주
+                self.target = cx + (28 if d >= 0 else -28); fleeing = True
+        if not fleeing:
+            self.t -= dt
+            if self.t <= 0 or abs(cx - self.target) < 6:
+                self.target = 16 + random.random() * (w.W - 32); self.t = 2 + random.random() * 3
+        spd = self.speed * (1.5 if fleeing else 1.0)
+        dvx = (1 if self.target > cx else -1) * spd
+        for i in self.units:
+            if w.alive[i]:
+                w.F[i, 0] += 3.0 * (dvx - w.V[i, 0])
+        self.hop -= dt
+        if self.hop <= 0:
+            self.hop = (0.5 if fleeing else 1.5) + random.random()
+            for i in self.units:
+                if w.alive[i]:
+                    w.V[i, 1] += 4
+
+
+@register('critter')
+def critter(w, cx=120.0, cy=None, speed=6.5):
+    """렌더 가능한 소형 동물(사냥감): 몸통/머리 blob + 다리 캡슐(가죽 재질).
+    CritterCtrl 로 방랑·도주. units 전체를 kill 하면 잡힌 것(렌더에서 사라짐)."""
+    K = KIND['CREATURE']; baseY = w.ground(cx)
+    cy = baseY + 3.0 if cy is None else cy
+    core = w.spawn(cx, cy, M=1.0, kind=K, g_scale=1, hp=30)
+    feet = []
+    for dx in (-2.0, -0.7, 0.7, 2.0):
+        f = w.spawn(cx + dx, baseY + 0.5, M=0.5, kind=K, g_scale=1, hp=30)
+        feet.append(f); w.add_bond(core, f, 45)
+    head = w.spawn(cx + 2.7, cy + 1.0, M=0.6, kind=K, g_scale=1, hp=30)
+    w.add_bond(core, head, 45)
+    units = [core] + feet + [head]
+    w.skins.append({'kind': 'blob', 'idx': [core], 'r': 2.6, 'mat': 'hide'})
+    w.skins.append({'kind': 'blob', 'idx': [head], 'r': 1.5, 'mat': 'hide'})
+    for f in feet:
+        w.skins.append({'kind': 'capsule', 'i': core, 'j': f, 'r': 0.6, 'mat': 'hide'})
+    ctrl = CritterCtrl(units, core, speed)
+    w.agents.append(ctrl)
+    return {'core': core, 'units': units, 'ctrl': ctrl}
+
+
+@register('berry_bush')
+def berry_bush(w, cx=80.0, scale=1.0, nberry=4):
+    """렌더 가능한 채집물: 바크 줄기 + 잎 캐노피 + 빨간 베리 blob.
+    베리 unit 을 kill 하면 채집된 것(렌더에서 사라짐)."""
+    baseY = w.ground(cx)
+    WOOD, LEAF = KIND['WOOD'], KIND['LEAF']
+
+    def P(dx, dy, kind):
+        return w.spawn(cx + dx * scale, baseY + dy * scale, M=1.0, kind=kind,
+                       fixed=True, g_scale=0.0)
+
+    stem = P(0, 0, WOOD); top = P(0, 4.0, WOOD)
+    w.skins.append({'kind': 'capsule', 'i': stem, 'j': top, 'r': 0.8 * scale, 'mat': 'bark'})
+    for dx, dy in [(-2, 5), (2, 5), (0, 6.4), (-1, 4.2)]:
+        leaf = P(dx, dy, LEAF)
+        w.skins.append({'kind': 'blob', 'idx': [leaf], 'r': 2.7 * scale, 'mat': 'leaf'})
+    spots = [(-1.6, 4.6), (1.6, 4.9), (0.0, 5.9), (0.7, 4.2), (-0.8, 5.4), (1.1, 6.0)]
+    berries = []
+    for dx, dy in spots[:nberry]:
+        b = P(dx, dy, LEAF)
+        w.skins.append({'kind': 'blob', 'idx': [b], 'r': 0.95 * scale, 'mat': 'berry'})
+        berries.append(b)
+    return {'cx': float(cx), 'berries': berries}
+
+
+class ForagerHunterBrain:
+    """채집·사냥 브레인(상태기계). 몸(WalkController)의 *의도*(어디로/무엇을)를
+    고른다 = 입력항 I 의 상위 선택자. 동역학(걸음·균형·접지)은 물리로 창발.
+
+      GATHER: 베리 덤불로 걸어가 → 멈춰 손 내려 베리를 하나씩 채집(사라짐)
+      HUNT  : 사냥감(critter)을 쫓아가 → 잡으면 제거. 사냥감은 근접 시 도주.
+      DONE  : 정지.
+    """
+    def __init__(self, w, ctrl, core, bushes, preys, reach=7.0, act=0.8):
+        self.ctrl = ctrl; self.core = core
+        self.bushes = bushes; self.preys = preys
+        self.reach = float(reach); self.act = float(act)
+        self.state = 'GATHER'; self.timer = 0.0
+        self.gathered = 0; self.hunted = 0
+
+    def _px(self, w):
+        return float(w.P[self.core, 0])
+
+    def _alive(self, w, units):
+        return [i for i in units if w.alive[i]]
+
+    def update(self, w, dt):
+        for p in self.preys:                 # 사냥감에게 '나'를 위협으로 알림(도주 유발)
+            p['ctrl'].threat = self.core
+        if not w.alive[self.core]:
+            return
+        px = self._px(w)
+
+        if self.state == 'GATHER':
+            bush = next((b for b in self.bushes if self._alive(w, b['berries'])), None)
+            if bush is None:
+                self.state = 'HUNT'; self.ctrl.reach = 0.0; self.timer = 0.0; return
+            if abs(px - bush['cx']) <= self.reach:
+                self.ctrl.stop(); self.ctrl.reach = 1.0
+                self.timer += dt
+                if self.timer >= self.act:    # act 주기마다 베리 하나 채집
+                    self.timer = 0.0
+                    al = self._alive(w, bush['berries'])
+                    if al:
+                        w.kill(al[0]); self.gathered += 1
+            else:
+                self.ctrl.set_goal(bush['cx']); self.ctrl.reach = 0.0
+
+        elif self.state == 'HUNT':
+            prey = next((p for p in self.preys if w.alive[p['core']]), None)
+            if prey is None:
+                self.state = 'DONE'; self.ctrl.stop(); self.ctrl.reach = 0.0; return
+            tx = float(w.P[prey['core'], 0])
+            if abs(px - tx) <= self.reach:
+                self.ctrl.stop(); self.ctrl.reach = 1.0    # 잡기 손짓
+                self.timer += dt
+                if self.timer >= self.act * 0.6:
+                    self.timer = 0.0
+                    for i in prey['units']:
+                        w.kill(i)
+                    self.hunted += 1
+            else:
+                self.ctrl.set_goal(tx); self.ctrl.reach = 0.0
+
+        else:  # DONE
+            self.ctrl.stop(); self.ctrl.reach = 0.0
 
 
 @register('art_tree')

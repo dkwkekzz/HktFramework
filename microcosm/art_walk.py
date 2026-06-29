@@ -21,7 +21,8 @@ def build():
     standard_fields(w)
     w.spawn_form('terrain')
     w.ground = lambda x: 12.0          # 평지(검증용)
-    w.spawn_form('walker', cx=60.0, scale=1.6, period=1.1, travel=0.0)
+    info = w.spawn_form('walker', cx=60.0, scale=1.6, period=1.1)
+    info['ctrl'].march = True          # 제자리 걸음(R3 보행 데모)
     return w
 
 

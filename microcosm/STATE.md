@@ -7,7 +7,9 @@
 아트 생성 엔진으로 방향 확정. 창발 커널(층위 promote/refine·분기·재규격화) 검증 완료.
 아트 렌더러(SDF/메타볼) 검증 완료 — 스켈레톤 캐릭터 + 통합 씬(`art_world.png`).
 **보행(R3) 물리 창발 검증 완료** — 컨트롤러 PD 힘(입력항 I)만 주입, 걸음·횡 균형·접지는
-물리에서 창발(`art_walk.gif`). 다음은 베이크(R4).
+물리에서 창발(`art_walk.gif`). 그 위에 **기본 채집·사냥 행동 레이어** 추가 — 브레인
+상태기계가 *의도*만 고르고 이동/추격/잡기는 물리 창발(`art_gather_hunt.gif`).
+다음은 베이크(R4). (UE 연동은 보류 — 사용자 지시.)
 
 ## 완료
 
@@ -40,6 +42,17 @@
   골반 높이 유지, 좌우 발이 교대로 0.4↔4.2 들림(깨끗한 스텝). `art_walk.gif`(55프레임 루프)
   +`art_walk_sheet.png`(한 주기 6포즈) 로 *알아볼 수 있는 사람이 균형 잡고 걷는다* 확인.
 - 엔진 무변경: `walker` 는 레시피일 뿐, 컨트롤러는 `w.agents` 에 등록(기존 패턴).
+
+### 기본 채집·사냥 — `microcosm/forms.py`, `art_gather_hunt.py`
+- `WalkController` 목표 지향 확장: `set_goal(x)`/`stop()`/`reach`(동작 손짓) — 브레인이
+  *어디로/무엇을* 만 정하고 걸음·균형은 그대로 물리 창발(`march=True`는 기존 R3 제자리걸음).
+- `berry_bush`(렌더 가능한 채집물: 바크 줄기+잎+빨간 베리 blob, 베리 kill=채집),
+  `critter`+`CritterCtrl`(렌더 가능한 사냥감: 가죽 blob/다리, 방랑+위협 근접 시 도주,
+  units kill=잡힘) 폼 추가. artrender 에 `hide`/`berry` 재질 추가.
+- `ForagerHunterBrain` 상태기계: GATHER(덤불로 가 베리 하나씩 채집)→HUNT(사냥감 추격→
+  잡기)→DONE. 입력항 I 의 상위 선택자, 동역학(걸음·추격·접지)은 창발.
+- **검증**(`gh_probe`/데모): 베리 7개 채집 + 사냥감 1마리 사냥, 전 과정 upright≈22.6
+  유지(붕괴 없음). `art_gather_hunt.gif`(HUD: 채집/사냥 카운트·상태) 로 육안 확인.
 
 ## 다음 할 일 (우선순위)
 
