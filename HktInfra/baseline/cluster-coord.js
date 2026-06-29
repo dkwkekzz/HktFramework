@@ -1,4 +1,5 @@
 'use strict';
+// step-0378 — #62 runMulti 코어 통합 8: 다운스트림 egress 집계. tick 이 산출한 view_delta frame 을 존별(egressByZone)·누계(egressTotal)로 회계 — broker 측 제어 평면이 매 tick 흘려보낸 다운스트림 뷰의 운영 계측(어느 존이 얼마나 송출하나). OFF 동치: 회계만 추가·구동 무변경 = 0377 동치.
 // step-0377 — #62 runMulti 코어 통합 7: syncPlan() 상주 reconcile(비파괴) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 *누락 존만* zoneadd 로 복원. driver.reconcile(0366)은 전 존 재-zoneadd 라 entity 상태를 리셋(초기 spawn 전용); 상주 제어 평면은 *언제든* 호출돼도 기존 상태를 보존해야 하므로 현 snapshot 과 차분해 빠진 것만 더한다(idempotent·토폴로지 drift 자가 치유). OFF 동치: syncPlan 미호출이면 0376 동치.
 // step-0376 — #62 runMulti 코어 통합 6: 상주 failover(deadHost,toHost) — 죽은 host(killHost)의 존들을 생존 host 에 새 인스턴스 재가동(driver.failoverZone·상태 소실·비자발). migrate(graceful·보존)와 대조 — 죽은 host 는 snapshot 불가(정직한 한계). failovers 계측. OFF 동치: failover 미호출이면 0375 동치.
 // step-0375 — #62 runMulti 코어 통합 5: 상주 migrate(zone,fromHost,toHost) — driver.migrateZone(snapshot+zoneadd+loadstate+zonedel) 을 코디네이터 상주 lifecycle 메서드로 감싼다(상태 보존 이주·release+acquire·migrations 계측). verify 가 직접 부르던 lifecycle 을 broker 측 제어 평면으로. OFF 동치: migrate 미호출이면 0374 동치.
@@ -20,6 +21,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     maxDesync: 0,      // 연속 루프 중 관측된 최악 clusterDesync(0374·매-tick 가드·0=내내 수렴).
     migrations: 0,     // 상주 migrate 로 처리한 존 이주 수(0375).
     failovers: 0,      // 상주 failover 로 처리한 host 장애 수(0376).
+    egressTotal: 0,    // 연속 루프가 송출한 다운스트림 view_delta frame 누계(0378).
+    egressByZone: {},  // 존별 송출 view 수(0378·운영 계측).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -36,8 +39,12 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       this.driver.commands = [];
       const plan = this.orch.hostSpawnPlan();
       let views = 0;
-      for (const h of plan.order) for (const z of plan.hosts[h].zones)
-        views += (await this.driver.tickZone(this.cluster, h, z, t)).filter(s => s.payload && /^view/.test(s.payload.type)).length;
+      for (const h of plan.order) for (const z of plan.hosts[h].zones) {
+        const v = (await this.driver.tickZone(this.cluster, h, z, t)).filter(s => s.payload && /^view/.test(s.payload.type)).length;
+        if (v) this.egressByZone[z] = (this.egressByZone[z] || 0) + v;   // step-0378 — 존별 다운스트림 송출 회계.
+        views += v;
+      }
+      this.egressTotal += views;   // step-0378 — 송출 누계.
       this.ticks++;
       return views;
     },

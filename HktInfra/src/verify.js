@@ -1,8 +1,8 @@
-// HktInfra step-0378 — 헤드리스 검증 (#62 runMulti 코어 통합 8: 다운스트림 egress 집계)
+// HktInfra step-0379 — 헤드리스 검증 (#62 runMulti 코어 통합 9: report 운영 대시보드)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordegress`.
-//   더한 한 조각: cluster-coord.js tick 이 view_delta 를 egressByZone/egressTotal 로 회계. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordegress` — 2 host·3 zone: run(5)→egressTotal==views 반환·z1·z2(이동 entity) 송출>0·z3(빈 존) 0·coherent.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordreport`.
+//   더한 한 조각: cluster-coord.js report()=실 cluster+코디네이터 누계 단일 스냅샷(ticks·hosts·zones·entities·desync·migrations·failovers·coherent). 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordreport` — 2 host·3 zone: run(3) 후 report → ticks 3·hosts 2·zones 3·entities 2·desync 0·egressTotal 2·coherent Y.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,30 +31,29 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0378 #62 통합 8 — 다운스트림 egress 집계: run 루프가 송출한 view 를 존별·누계로 회계(z1·z2 송출>0·z3 0).
-async function coordegress(seeds) {
+// step-0379 #62 통합 9 — report 운영 대시보드: run(3) 후 종합 스냅샷 필드 정합(ticks·hosts·zones·entities·desync·egressTotal·coherent).
+async function coordreport(seeds) {
   const BASE = coordScenario();
-  console.log('== coordegress (0378·#62 통합 8): 다운스트림 egress 집계 — run(5)→egressTotal·존별 z1·z2>0·z3 0 ==');
-  console.log('seed   | egressTotal | z1 | z2 | z3 | total==ret | 판정');
+  console.log('== coordreport (0379·#62 통합 9): report 대시보드 — run(3) 후 {ticks·hosts·zones·entities·desync·egress·coherent} ==');
+  console.log('seed   | ticks | hosts | zones | ents | desync | egr | coherent | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let tot = 0, z1 = 0, z2 = 0, z3 = 0, totOk = false, coherent = false;
+    let rep = null;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      const ret = await coord.run(5);
-      tot = coord.egressTotal; z1 = coord.egressByZone['z1'] || 0; z2 = coord.egressByZone['z2'] || 0; z3 = coord.egressByZone['z3'] || 0;
-      totOk = ret === tot;
-      coherent = await drv.clusterCoherent(o, cluster);
+      await coord.run(3);
+      rep = await coord.report();
     } finally { await cluster.shutdown(); }
-    const ok = check(z1 > 0 && z2 > 0 && z3 === 0 && totOk && coherent && tot === z1 + z2 + z3, `seed ${seed}: egress 위반 (tot ${tot}·z1 ${z1}·z2 ${z2}·z3 ${z3}·totOk ${totOk}·coh ${coherent})`);
-    console.log(`${pad(seed, 6)} | ${pad(tot, 11)} | ${pad(z1, 2)} | ${pad(z2, 2)} | ${pad(z3, 2)} | ${pad(totOk ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(rep && rep.ticks === 3 && rep.hosts === 2 && rep.zones === 3 && rep.entities === 2 && rep.desync === 0 && rep.maxDesync === 0 && rep.egressTotal === 2 && rep.coherent === true,
+      `seed ${seed}: report 위반 (${JSON.stringify(rep)})`);
+    console.log(`${pad(seed, 6)} | ${pad(rep.ticks, 5)} | ${pad(rep.hosts, 5)} | ${pad(rep.zones, 5)} | ${pad(rep.entities, 4)} | ${pad(rep.desync, 6)} | ${pad(rep.egressTotal, 3)} | ${pad(rep.coherent ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordegress'] = coordegress;
-kit.ORDER.splice(1, 0, 'coordegress');
+kit.MODES['coordreport'] = coordreport;
+kit.ORDER.splice(1, 0, 'coordreport');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

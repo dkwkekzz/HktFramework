@@ -1,4 +1,5 @@
 'use strict';
+// step-0379 — #62 runMulti 코어 통합 9: report() 운영 대시보드 — 상주 코디네이터 한 호출로 {ticks·hosts·zones·entities·desync·maxDesync·egressTotal·migrations·failovers·coherent} 종합. broker 측 제어 평면의 현재 상태를 단일 스냅샷으로(운영 관측). OFF 동치: report 미호출이면 0378 동치.
 // step-0378 — #62 runMulti 코어 통합 8: 다운스트림 egress 집계. tick 이 산출한 view_delta frame 을 존별(egressByZone)·누계(egressTotal)로 회계 — broker 측 제어 평면이 매 tick 흘려보낸 다운스트림 뷰의 운영 계측(어느 존이 얼마나 송출하나). OFF 동치: 회계만 추가·구동 무변경 = 0377 동치.
 // step-0377 — #62 runMulti 코어 통합 7: syncPlan() 상주 reconcile(비파괴) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 *누락 존만* zoneadd 로 복원. driver.reconcile(0366)은 전 존 재-zoneadd 라 entity 상태를 리셋(초기 spawn 전용); 상주 제어 평면은 *언제든* 호출돼도 기존 상태를 보존해야 하므로 현 snapshot 과 차분해 빠진 것만 더한다(idempotent·토폴로지 drift 자가 치유). OFF 동치: syncPlan 미호출이면 0376 동치.
 // step-0376 — #62 runMulti 코어 통합 6: 상주 failover(deadHost,toHost) — 죽은 host(killHost)의 존들을 생존 host 에 새 인스턴스 재가동(driver.failoverZone·상태 소실·비자발). migrate(graceful·보존)와 대조 — 죽은 host 는 snapshot 불가(정직한 한계). failovers 계측. OFF 동치: failover 미호출이면 0375 동치.
@@ -84,6 +85,18 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         for (const z of plan.hosts[h].zones) if (!have.has(z)) { await this.cluster.rpc(h, { cmd: 'zoneadd', specs: [this.specOf(z)] }); acted++; }
       }
       return acted;
+    },
+    // 운영 대시보드(0379) — 실 cluster + 코디네이터 누계를 단일 스냅샷으로. plan(host/zone)·실 host entity 합·현 desync(+루프 최악)·송출 누계·lifecycle 계측. broker 측 제어 평면의 현재 건강을 한 호출로 관측.
+    async report() {
+      const plan = this.orch.hostSpawnPlan();
+      let entities = 0;
+      for (const h of plan.order) { const e = await this.driver.hostEntities(this.cluster, h); for (const z of Object.keys(e)) entities += e[z].length; }
+      const desync = await this.driver.clusterDesync(this.orch, this.cluster);
+      return {
+        ticks: this.ticks, hosts: plan.hostCount, zones: plan.zones, entities,
+        desync, maxDesync: this.maxDesync, egressTotal: this.egressTotal,
+        migrations: this.migrations, failovers: this.failovers, coherent: desync === 0,
+      };
     },
   };
 }

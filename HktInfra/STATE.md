@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0378](step-0378.md) — **#62 runMulti 통합 8: 다운스트림 egress 집계** — tick 의 view_delta 를 존별(egressByZone)·누계(egressTotal)로 회계(broker 측 송출 운영 계측). 직전: 0377 syncPlan 자가 치유.
-- **한 줄 상태**: reg ALL OK·coordegress 5/5(egressTotal 2·z1 1·z2 1·z3 0·coherent)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0379](step-0379.md) — **#62 runMulti 통합 9: report 운영 대시보드** — report()=실 cluster+코디네이터 누계 단일 스냅샷{ticks·hosts·zones·entities·desync·maxDesync·egressTotal·migrations·failovers·coherent}. 직전: 0378 egress 집계.
+- **한 줄 상태**: reg ALL OK·coordreport 5/5(ticks3·hosts2·zones3·ents2·desync0·coherent)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -152,3 +152,4 @@
 | [0376](step-0376.md) | #62 runMulti 통합 6: 상주 failover(deadHost,toHost)=killHost+죽은 host 존 생존 host 재가동(driver.failoverZone·상태 소실 정직·failovers 계측) | 통과(reg 0·spine OK) · coordfailover 5/5 hostA dead·재가동·a1 소실·failovers==1 |
 | [0377](step-0377.md) | #62 runMulti 통합 7: syncPlan() 비파괴 상주 reconcile(hostSpawnPlan 대비 snapshot 차분→누락 존만 zoneadd·기존 보존·drift 자가 치유) | 통과(reg 0·spine OK) · coordsync 5/5 z3 drift→복원·acted1·coherent |
 | [0378](step-0378.md) | #62 runMulti 통합 8: 다운스트림 egress 집계(tick view_delta→egressByZone 존별·egressTotal 누계·송출 운영 계측) | 통과(reg 0·spine OK) · coordegress 5/5 egressTotal2·z1 1·z2 1·z3 0·coherent |
+| [0379](step-0379.md) | #62 runMulti 통합 9: report() 운영 대시보드(실 cluster+코디네이터 누계 단일 스냅샷·ticks·hosts·zones·entities·desync·egress·migrations·failovers·coherent) | 통과(reg 0·spine OK) · coordreport 5/5 ticks3·hosts2·zones3·ents2·desync0·coherent |
