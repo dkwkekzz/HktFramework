@@ -1,4 +1,5 @@
 'use strict';
+// step-0370 — #57 실 데이터 평면 10·capstone: clusterCoherent(orch,cluster)=clusterDesync==0 — 실 cluster 전체가 in-proc 권위와 한 몸(실 프로세스 경계 넘어 수렴). #57 실 데이터 평면 sub-arc(0361~0370) 종합.
 // step-0369 — #57 실 데이터 평면 9: clusterDesync(orch,cluster) 정합 술어 — 실 host.js entity 위치 vs in-proc 권위 불일치 수(양방향·desync 0=실 프로세스 경계 넘어 수렴).
 // step-0368 — #57 실 데이터 평면 8: driveCluster(orch,cluster,specOf) 통합 E2E(#62·runMulti analog) — reconcile+deliver 재생+전 존 tick 을 한 호출에. orch 드라이버가 실 cluster 전체 데이터 평면 구동.
 // step-0367 — #57 실 데이터 평면 7: hostEntities(cluster,host) 읽기 헬퍼 — 실 host 의 존별 entity 관찰(다중 host 격리 검증·교차 누수 0).
@@ -109,6 +110,8 @@ function makeClusterHostDriver() {
       }
       return desync;
     },
+    // step-0370 — 실 데이터 평면 grand capstone 술어: 실 cluster 전체가 in-proc 권위와 한 몸인가(clusterDesync==0). 실 host.js 프로세스/소켓 데이터 평면이 SPINE §5 수렴을 실 프로세스 경계 넘어 만족. #57 실 데이터 평면 sub-arc(0361~0370) 종합.
+    async clusterCoherent(orch, cluster) { return (await this.clusterDesync(orch, cluster)) === 0; },
   };
 }
 
