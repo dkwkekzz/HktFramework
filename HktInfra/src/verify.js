@@ -1,8 +1,8 @@
-// HktInfra step-0409 — 헤드리스 검증 (#62 runMulti 합류 8·복원력 payoff: promoteStandby 상태 보존 failover)
+// HktInfra step-0410 — 헤드리스 검증 (#62 runMulti 합류 9·grand capstone: runMultiCoherent 종합 복원력)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordpromote`.
-//   더한 한 조각: cluster-coord.js promoteStandby(zone)=따뜻한 standby 를 primary 로 승격(placement→standby host·미러 해제). primary host 사망 시 상태 손실 0(0376 빈 재가동·#63 과 대조). 미호출이면 0408 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordpromote` — 2 host·3 zone: run(5)+migrate(z3 A→B·hostA 비움)+reprovisionStandby(z1,hostA_s)+killHost(hostA)+promoteStandby(z1) → a1 보존(pre==post)·placement[z1]=hostA_s·unifiedCoherent Y·promotions 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmulticap`.
+//   더한 한 조각: cluster-coord.js runMultiCoherent()=unifiedCoherent && 미러 standby 실재. 종합 복원력 시나리오 뒤 #62 능력 합류 완성. 0401~0410 닫기. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordmulticap` — 2 host·3 zone: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,36 +31,34 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0409 #62 runMulti 합류 8·복원력 payoff — coordpromote: run(5)+migrate(z3 A→B)+reprovisionStandby(z1,hostA_s)+killHost(hostA)+promoteStandby(z1) → a1 보존(pre==post·상태 손실 0)·placement[z1]=hostA_s·unifiedCoherent Y·promotions 1.
-async function coordpromote(seeds) {
+// step-0410 #62 runMulti 합류 9·grand capstone — coordmulticap: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1. #62 복원력 sub-arc(0401~0410) 닫기.
+async function coordmulticap(seeds) {
   const BASE = coordScenario();
-  console.log('== coordpromote (0409·#62 payoff): 따뜻한 standby 승격 — 상태 보존 failover. ==');
-  console.log('seed   | pre a1 | post a1 | placement[z1] | unified | promotions | 판정');
+  console.log('== coordmulticap (0410·#62 grand capstone): 종합 복원력 시나리오 후 runMultiCoherent. 0401~0410 닫기. ==');
+  console.log('seed   | runMultiCoherent | a1 보존 | mig | reprov | promo | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let preS = '-', postS = '-', plc = '-', uni = false, pr = -1, preserved = false;
+    let rmc = false, preserved = false, info = {};
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);
-      await coord.migrate('z3', 'hostA', 'hostB');                      // hostA 를 z1 단독으로(co-located stranding 회피)
-      await coord.reprovisionStandby('z1', 'hostA_s');                  // 따뜻한 standby(동기)
-      const pre = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
-      await cluster.killHost('hostA');                                  // primary host 사망(z1 RAM 소실)
-      await coord.promoteStandby('z1');                                 // 따뜻한 standby 승격(상태 보존)
+      await coord.runScenario(6, { migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z1', host: 'hostA_s', at: 3 } });
+      const pre = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');   // 따뜻한 standby 의 a1
+      await cluster.killHost('hostA');                                  // primary 사망
+      await coord.promoteStandby('z1');                                 // 따뜻한 failover
       const post = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
-      preS = pre ? `{${pre.x},${pre.y}}` : 'null'; postS = post ? `{${post.x},${post.y}}` : 'null';
       preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
-      plc = coord.placedHost('z1'); uni = await coord.unifiedCoherent(); pr = coord.promotions;
+      rmc = await coord.runMultiCoherent(); info = coord.clusterInfo();
     } finally { await cluster.shutdown(); }
-    const ok = check(preserved && plc === 'hostA_s' && uni && pr === 1, `seed ${seed}: 위반 (pre ${preS}·post ${postS}·plc ${plc}·uni ${uni}·pr ${pr})`);
-    console.log(`${pad(seed, 6)} | ${pad(preS, 6)} | ${pad(postS, 7)} | ${pad(plc, 13)} | ${pad(uni ? 'Y' : 'N', 7)} | ${pad(pr, 10)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(rmc && preserved && info.migrations === 1 && info.reprovisions === 1 && info.promotions === 1,
+      `seed ${seed}: capstone 위반 (rmc ${rmc}·preserved ${preserved}·${JSON.stringify({ mg: info.migrations, rp: info.reprovisions, pr: info.promotions })})`);
+    console.log(`${pad(seed, 6)} | ${pad(rmc ? 'Y' : 'N', 16)} | ${pad(preserved ? 'Y' : 'N', 7)} | ${pad(info.migrations, 3)} | ${pad(info.reprovisions, 6)} | ${pad(info.promotions, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordpromote'] = coordpromote;
-kit.ORDER.splice(1, 0, 'coordpromote');
+kit.MODES['coordmulticap'] = coordmulticap;
+kit.ORDER.splice(1, 0, 'coordmulticap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

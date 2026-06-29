@@ -1,4 +1,5 @@
 'use strict';
+// step-0409 — #62 runMulti 합류 8·복원력 payoff: promoteStandby(zone) — 따뜻한 standby 승격(상태 보존 failover). 0376 failover 는 죽은 host 의 존을 *빈* 인스턴스로 재가동해 entity 소실(#63·정직한 한계)했다. 0405/0406 의 따뜻한 standby(미러로 lockstep 동기)가 있으면 primary host 사망 시 그 standby 를 primary 로 승격(placement→standby host·미러 해제) → *상태 손실 0*. runMulti 의 reprovision→승격(kill→추종자 승격·`cluster-run.js` mirrors→primary)의 zone cluster 판. #63(failover 상태 소실)을 따뜻한 standby 로 완화. 미호출이면 0408 동치. 새 박스·run() 미사용→reg 0.
 // step-0408 — #62 runMulti 합류 7: runScenario(ticks, scenario) 통합 시나리오 루프. runMulti 의 핵심은 *스크립트된 열화 시나리오*(kill@at·reprovision@at·…)를 tick 루프에 주입하는 것(`cluster-run.js:176` kill·`:202` rep). 코디네이터가 그 시나리오 구동을 run(ticks,onTick·0393) 위에 단일 진입점으로 감싼다 — scenario={migrate/restart/reprovision/kill/fence@at·sweepSilence} 를 매 tick onTick 으로 번역. verify 가 직접 짜던 onTick 을 runMulti 호환 시나리오 선언으로. 빈 시나리오면 run(ticks)=0407 동치. 새 박스·run() 미사용→reg 0.
 // step-0407 — #62 runMulti 합류 6: clusterInfo() 재구성 보고 — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227` livePids/placement/epoch/presumedDead/…)의 코디네이터 판. report()(0379·운영 건강)와 직교: clusterInfo 는 *runMulti 호환 토폴로지/생애주기 스냅샷*(livePids·hostIds·placement·epoch·presumedDead·migrations/failovers/restarts/reprovisions·lost·mirrors). 코디네이터가 옛 runMulti 의 반환 계약까지 노출 → 코드 합류 시 runMulti 가 이 보고를 그대로 반환 가능. 읽기 전용·새 메서드. 새 박스·run() 미사용→reg 0.
 // step-0406 — #62 runMulti 합류 5·복원력: 미러 입력 복제(tick 이 standby 동기 유지). 0405 는 standby 를 띄우고 사본까지였다 — runMulti(`cluster-run.js:170` 미러 deliver·`:198` 미러 tick)는 권위 입력을 standby 로 미러해 *계속* 동기를 유지했다. tick() 이 ⒜ deliver frame 을 mirror(zone) 의 standby host 에도 재생 ⒝ standby 존을 shadow tick(발신/egress 폐기) → standby 가 primary 와 lockstep 유지(failover 시 즉시 승격 가능). mirrors 비면 0405 동치. 새 박스·run() 미사용→reg 0.
@@ -29,6 +30,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     _silent: new Map(), // host→연속 침묵 sweep 수(0402·socketDead 인 동안 누적·살아있으면 리셋).
     mirrors: [],       // 따뜻한 대기 미러(0405·#62·{zone,dstHost}·입력 복제로 N=1 복제 유지·runMulti cluster.mirrors 판).
     reprovisions: 0,   // reprovisionStandby 처리 수(0405·계측).
+    promotions: 0,     // promoteStandby 처리 수(0409·따뜻한 standby 승격·상태 보존 failover).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -170,6 +172,16 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       this.mirrors.push({ zone, dstHost: standbyHost });
       this.reprovisions++;
       return state;
+    },
+    // 따뜻한 standby 승격(0409·#62·복원력 payoff) — primary host 사망 시 그 zone 의 따뜻한 standby(mirror)를 primary 로 승격: placement[zone]=standbyHost·orch where-view 갱신·미러 해제(이제 primary). standby 는 0405/0406 으로 lockstep 동기됐으므로 *상태 손실 0*(0376 failover 의 빈 재가동·#63 과 대조). 미러 없으면 no-op. 반환=승격된 host.
+    async promoteStandby(zone) {
+      const mir = this.mirrors.find(m => m.zone === zone);
+      if (!mir) return null;
+      this.placement[zone] = mir.dstHost;          // standby 가 primary 로(where 권위 갱신)
+      this._orchWriteBack(zone, mir.dstHost);
+      this.mirrors = this.mirrors.filter(m => m !== mir);   // 미러 해제(승격된 인스턴스는 이제 권위 primary)
+      this.promotions++;
+      return mir.dstHost;
     },
     // 상주 reconcile(비파괴·자가 치유) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 현 snapshot 을 차분해 *누락 존만* zoneadd(기존 존 상태 보존). 제어 평면이 언제든 호출돼 토폴로지 drift(존 소실)를 orch 목표로 되돌린다(idempotent). 반환=복원한 존 수.
     async syncPlan() {
