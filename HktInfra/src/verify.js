@@ -1,8 +1,8 @@
-// HktInfra step-0372 — 헤드리스 검증 (#62 runMulti 코어 통합 2: ClusterCoordinator.tick — 제어 평면 데이터 평면 1 tick)
+// HktInfra step-0373 — 헤드리스 검증 (#62 runMulti 코어 통합 3: ClusterCoordinator.run — 연속 tick 루프)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordtick`.
-//   더한 한 조각: cluster-coord.js tick(t)=pending frame 재생+전 존 1 tick. driveCluster per-tick 몸통의 상주화. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordtick` — 2 host·3 zone: start()+tick(1)→clusterCoherent Y(전 entity 실 host==권위·desync 0)·views≥0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordrun`.
+//   더한 한 조각: cluster-coord.js run(ticks)=start()+tick(t) 1..ticks 반복. runMulti 핵심(매 tick 실 cluster 구동)의 상주화. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordrun` — 2 host·3 zone: run(5)→clusterCoherent Y(desync 0)·coord.ticks==5·views.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,11 +31,12 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0372 #62 통합 2 — ClusterCoordinator.tick: start()(토폴로지)+tick(1)(데이터 평면)→ 실 cluster 가 in-proc 권위와 한 몸(desync 0).
-async function coordtick(seeds) {
+// step-0373 #62 통합 3 — ClusterCoordinator.run: 연속 tick 루프(5 tick)→ 매 tick 실 cluster 구동·끝에서 desync 0.
+async function coordrun(seeds) {
   const BASE = coordScenario();
-  console.log('== coordtick (0372·#62 통합 2): ClusterCoordinator.tick — start()+tick(1)→clusterCoherent(desync 0)·views ==');
-  console.log('seed   | views | coherent | ticks==1 | 판정');
+  const TICKS = 5;
+  console.log('== coordrun (0373·#62 통합 3): ClusterCoordinator.run — 연속 tick 루프(5 tick)→clusterCoherent(desync 0)·ticks==5 ==');
+  console.log('seed   | views | coherent | ticks==5 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
@@ -44,17 +45,16 @@ async function coordtick(seeds) {
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.start();
-      views = await coord.tick(1);
+      views = await coord.run(TICKS);
       coherent = await drv.clusterCoherent(o, cluster);
-      tickOk = coord.ticks === 1;
+      tickOk = coord.ticks === TICKS;
     } finally { await cluster.shutdown(); }
-    const ok = check(coherent && tickOk, `seed ${seed}: tick 위반 (views ${views}·coh ${coherent}·ticks ${tickOk})`);
+    const ok = check(coherent && tickOk, `seed ${seed}: run 위반 (views ${views}·coh ${coherent}·ticks ${tickOk})`);
     console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(tickOk ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordtick'] = coordtick;
-kit.ORDER.splice(1, 0, 'coordtick');
+kit.MODES['coordrun'] = coordrun;
+kit.ORDER.splice(1, 0, 'coordrun');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
