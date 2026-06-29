@@ -9,16 +9,16 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0352](step-0352.md) — **#57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta reconcile 델타** — `orch.hostSpawnDelta(prev)` 읽기 전용: 직전 spawn host 집합 대비 `{spawn,kill,keep}`. 드라이버가 매 reconcile tick cluster.spawnOne/killHost 로 집행할 차이(hostSpawnPlan 목표에 수렴). 직전: 0351 hostSpawnPlan 매니페스트.
-- **한 줄 상태**: reg ALL OK·hostdelta 5/5(drain hostB→hostC: spawn[C]·kill[B]·keep[A])·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0353](step-0353.md) — **#57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam** — `_hostSet` 의 첫-존 spawn·마지막-존 despawn 지점이 `clusterDriver.onSpawn/onDespawn` 호출(cluster-run.js 가 실 cluster.spawnOne/killHost 집행). OFF 플래그 `clusterDriverRecord`(미부착→호출 0·비트 동일). 직전: 0352 hostSpawnDelta.
+- **한 줄 상태**: reg ALL OK·hostdrive 5/5(recorder spawns[A,B,C]·despawns[B]·driverSpawns==hostRegisters3·생애주기 정합)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **현재 초점 = #57 실 host.js OS 프로세스 spawn sub-arc(0351~)** — 최근 arc(0241~0350)의 zoneHosts/DownClient 는 전부 `run()` 인프로세스 논리 컨테이너다. 이를 cluster-core/host.js 실 child_process 머신(구 토폴로지는 이미 실 spawn)으로 잇는다. 0351 hostSpawnPlan(드라이버 spawn 계약). **다음 한 조각**: spawn/kill 델타(0352) → orch clusterDriver 훅 seam(OFF 플래그·_hostSet spawn/despawn 이 driver 호출·0353) → driver roster/frame/egress 라우팅 → cluster-run.js 실 spawnOne/killHost 배선 → 실 host.js zonehost cmd 처리 → capstone clusterHostsCoherent. 그 위 기반: host 컨테이너(0301~0310 ✅·hostProcCoherent)·부하 균형(0311~0318 ✅)·월드 다운스트림 E2E(0319~0350 ✅·downstreamWorldCoherent).
-> **설계 제약**: 검증은 결정론·고속 인프로세스(`run.js spine`)가 게이트 — 실 child_process spawn 은 느리고 spine 모드 부적합. 따라서 orch 측 *드라이버 계약*(매니페스트·델타·훅 seam)을 인프로세스 recorder 드라이버로 검증하고, 실 cluster.spawnOne/killHost 배선은 cluster-run.js(report/multiproc-proof 경로·spine 게이트 밖)에서 집행.
+> 🎯 **현재 초점 = #57 실 host.js OS 프로세스 spawn sub-arc(0351~)** — 최근 arc(0241~0350)의 zoneHosts/DownClient 는 전부 `run()` 인프로세스 논리 컨테이너. 이를 cluster-core/host.js 실 child_process 머신(구 토폴로지는 이미 실 spawn)으로 잇는다. 0351 매니페스트→0352 델타→0353 clusterDriver 훅 seam(OFF). **다음**: driver roster/frame/egress 라우팅 → cluster-run.js 실 spawnOne/killHost 배선 → 실 host.js zonehost cmd → capstone clusterHostsCoherent. 기반: host 컨테이너(0301~10 ✅)·부하 균형(0311~18 ✅)·월드 다운스트림 E2E(0319~50 ✅).
+> **설계 제약**: spine 게이트는 결정론·고속 인프로세스 — 실 child_process 부적합. 따라서 orch 드라이버 계약(매니페스트·델타·훅)은 인프로세스 recorder 로 검증, 실 spawnOne/killHost 배선은 cluster-run.js(multiproc-proof·spine 밖) 집행.
 
 **후속 백로그 (#57 닫은 뒤)**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61). ⒞ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0350 6묶음 리뷰 적기).
 
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(lockstep→TCP→허브·kill·split-brain0·0001~13)·lease→프레즌스 SSOT→self-healing·공지 epoch 펜싱(0054~106). **오케스트레이터 존 배치**: advisory(0203~24)→실배선 #51 executed SSOT(0241~50)→#51b 실 zone.js 브리지 ✅(0272~80·placement 집행이 실 EntityZone lifecycle 구동·capstone fullyCoherent). **#56 브리지 존 데이터 평면 ✅(0281~90·enter/move/leave·tick·migrate무손실·단일소유·capstone entityFlowCoherent)**. **#9 멀티프로세스 배선 ✅(0291~300·전송 seam·host mailbox·게이트웨이 직접 라우팅·directFlowCoherent)→실 host.js 컨테이너 arc ✅(0301~10·zoneHosts 1급 컨테이너·자기 inbox/tick·roster·stale 거부·capstone hostProcCoherent·남은 것=실 OS 프로세스 spawn)**. **부하 균형 sub-arc ✅(0311~18·hostLoadSkew·생애주기 로그·다중/동시 host 장애·entity 가중 배치 placeAutoE/placeRebalanceE·hostBalanced)**. **downstream 데이터 평면 *포착* ✅(0319~30·AOI 뷰 포착·증분/상호가시/exit·직렬화·격리·이주연속·무굶김·무손실·capstone downstreamCoherent)**. **downstream *전파* ✅(0331~41·egress→게이트웨이→클라 라우팅·dseq·ack 가지치기·gap/타임아웃 재전송·leave 정리·격리·capstone)**. **실 클라 *수렴* ✅(0342~49·DownClient 실 수신·정적/상호가시/손실/다중클라/migrate/late-join desync 0·수신버퍼 유계·대시보드)**. **월드 다운스트림 E2E capstone ✅(0350·downstreamWorldCoherent·host→게이트웨이→실 클라 완결)**. orch 정리(0251·0267·0305·0323·0332). 도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn arc 진행(0351~·매니페스트·델타·clusterDriver 훅 seam)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -152,3 +152,4 @@
 | [0350](step-0350.md) | 월드 다운스트림 grand capstone(#9 후속): downstreamWorldCoherent(모든 존 downstreamCoherent[포착]&&downstreamSettled[전파]) + 다중 존·손실·migrate·late-join 뒤 worldCoherent && 모든 실 DownClient convergedTo[desync0] && isolated·host→게이트웨이→실 클라 E2E·월드 다운스트림 0319~0350 닫기·읽기 전용 비트 동일 | 통과(reg 0·spine OK) · worldcap 5/5 world·수렴·iso |
 | [0351](step-0351.md) | #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트(zoneHostSnapshot 0309→ 실 cluster 드라이버 spawn 계약: host→존 roster·결정론 order·hostCount·zones 총계·cluster.spawnOne+init 입력) | 통과(reg 0·spine OK) · hostplan 5/5 hosts2·A=[z1,z3]·zones==running3 |
 | [0352](step-0352.md) | #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타(직전 spawn host 대비 {spawn,kill,keep}·드라이버 cluster.spawnOne/killHost 집행 단위·목표 수렴) | 통과(reg 0·spine OK) · hostdelta 5/5 drain B→C: spawn[C]·kill[B]·keep[A] |
+| [0353](step-0353.md) | #57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam(_hostSet spawn/despawn→driver.onSpawn/onDespawn·실 cluster.spawnOne/killHost 집행 이음새·OFF 플래그 clusterDriverRecord·인프로세스 recorder) | 통과(reg 0·spine OK) · hostdrive 5/5 spawns[A,B,C]·despawns[B]·dS==reg3 |

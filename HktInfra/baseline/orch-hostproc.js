@@ -1,4 +1,5 @@
 'use strict';
+// step-0352 — #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타. 직전 spawn 된 host 집합 대비 {spawn,kill,keep} — 드라이버가 매 reconcile tick cluster.spawnOne/killHost 로 집행할 차이. 읽기 전용·0351 비트 동일.
 // step-0351 — #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트. zoneHostSnapshot(0309) 을 *실 cluster 드라이버가 집행할 spawn 계약*(결정론 spawn order + 존 roster + 총계)으로 감싼다. 읽기 전용·0350 비트 동일.
 // step-0310 — #9 잔여(실 host.js 물리 분리) capstone: hostProcCoherent(directFlowCoherent && hostContainerCoherent). destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅(자기 inbox 수신·자기 루프 tick·roster·stale 거부)으로 돌린 뒤 참 → 실 host.js 물리 분리 arc 0301~0310 닫기. 읽기 전용·0309 비트 동일.
 // step-0309 — #9 잔여(실 host.js 물리 분리): host 컨테이너 스냅샷(zoneHostSnapshot·host→[존…]). 다중 동시 이주(4존 몰림→rebalance→drain) 후 host 컨테이너가 running 을 host 별로 묶은 것과 정확한 bijection(zoneDirSnapshot 0299 의 host 프로세스 판). 읽기 전용·0308 비트 동일.
@@ -123,6 +124,15 @@ const OrchHostProc = {
     const hosts = {}; let zones = 0;
     for (const h of order) { hosts[h] = { zones: snap[h], count: snap[h].length }; zones += snap[h].length; }
     return { hosts, order, hostCount: this.hostCount(), zones };
+  },
+  // host 프로세스 spawn 델타(step-0352·#57) — *직전에 spawn 돼 있던* host 집합(prev) 대비 현재 목표(zoneHosts)의 차이 {spawn,kill,keep}(정렬). hostSpawnPlan(0351)이 *목표 상태*라면, 이건 그 목표에 수렴하기 위해 드라이버가 *이번 reconcile tick 에 집행할 동작*: spawn=새로 cluster.spawnOne, kill=cluster.killHost, keep=유지. hostLifecycle(0312·이벤트 역사)을 *지금 무엇을 실행하나*(reconcile 차이)로 환산 — 실 cluster 가 외부 상태(이미 뜬 프로세스)와 목표를 맞추는 표준 패턴. 읽기 전용.
+  hostSpawnDelta(prev) {
+    const cur = new Set(this.zoneHosts.keys());
+    const prevSet = new Set(prev || []);
+    const spawn = [...cur].filter(h => !prevSet.has(h)).sort();
+    const kill = [...prevSet].filter(h => !cur.has(h)).sort();
+    const keep = [...cur].filter(h => prevSet.has(h)).sort();
+    return { spawn, kill, keep };
   },
   // host 프로세스 전 정합 질의(step-0310·#9 잔여 capstone) — 데이터 평면이 *host 프로세스 컨테이너 경유*로 흘러도 모든 것이 한 몸인지의 단일 술어: ⒜ directFlowCoherent(배치 3층 정합 + entity 단일 소유/orphan0 + 게이트웨이 직접 라우팅 stale 0·0300) ⒝ hostContainerCoherent(존이 정확히 한 host 프로세스에 + 컨테이너==집행 + roster 회계 닫힘·0308). 참이면 "게이트웨이 직접 라우팅 데이터 평면 전부 정합 + host 프로세스 컨테이너(자기 inbox 수신·자기 루프 tick·spawn/despawn roster·stale 거부)가 집행 SSOT 와 완전 정합". destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅으로 돌린 뒤 참(0310 capstone·실 host.js 물리 분리 arc 0301~0310 닫기). 읽기 전용.
   hostProcCoherent() { return this.directFlowCoherent() && this.hostContainerCoherent(); },
