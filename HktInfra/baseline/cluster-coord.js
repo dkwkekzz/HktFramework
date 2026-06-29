@@ -1,4 +1,5 @@
 'use strict';
+// step-0387 — #65 양방향 동기 7: report 가 placement 기준(coordDesync·placement host/zone·lost 계측). 0379 report 는 orch.hostSpawnPlan + driver.clusterDesync 를 써 migrate 후 발산했다(0379 가 migrate 제외한 이유). placement 권위 + coordDesync 로 바꾸면 *migrate/failover 후도* 대시보드가 정합. OFF 동치: 정상 경로(placement==orch plan·lost 0) 결과 동일 = 0386 동치.
 // step-0386 — #65 양방향 동기 6: coordDesync 가 lostZones 의 *기대된 부재*를 제외. failover 는 상태 소실(#63)이라 lost 존은 실 cluster 가 비고 orch 권위엔 entity 가 남아 reverse desync(권위에 있는데 실에 부재)가 뜬다 — 이는 *비자발 손실*이지 불일치가 아니다(crash=양쪽 합의된 손실). lost 존은 reverse 검사만 건너뛴다(forward=ghost 검사는 유지 → 유령 주입은 여전히 검출). OFF 동치: lostZones 비면 0385 동치.
 // step-0385 — #65 양방향 동기 5: failover 가 placement 갱신 + lost 추적. failover(deadHost,toHost) 가 코디네이터 placement 로 죽은 host 의 존을 찾아 toHost 로 재가동·placement[zone]=toHost 갱신 + lostZones 에 기록(failover 는 상태 소실·#63). lostZones 는 0386 coordDesync 가 *기대된 부재*로 제외할 근거. OFF 동치: failover 미호출이면 0384 동치.
 // step-0384 — #65 양방향 동기 4: run 루프 가드·coordCoherent 가 coordDesync(placement 기준) 채택. 0374/0380 은 driver.clusterDesync(orch plan 기준)를 썼다 → migrate 후 발산해 capstone 이 migrate/failover 를 제외해야 했다. coordDesync 로 바꾸면 placement 권위가 lifecycle 을 따라가므로 *migrate 를 포함한* 연속 루프·capstone 이 정합. OFF 동치: 가드 소스만 교체·정상 경로(placement==orch plan) 결과 동일 = 0383 동치.
@@ -119,14 +120,14 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // 운영 대시보드(0379) — 실 cluster + 코디네이터 누계를 단일 스냅샷으로. plan(host/zone)·실 host entity 합·현 desync(+루프 최악)·송출 누계·lifecycle 계측. broker 측 제어 평면의 현재 건강을 한 호출로 관측.
     async report() {
-      const plan = this.orch.hostSpawnPlan();
+      const hosts = new Set(Object.values(this.placement));   // step-0387 — placement 권위(migrate/failover 반영)
       let entities = 0;
-      for (const h of plan.order) { const e = await this.driver.hostEntities(this.cluster, h); for (const z of Object.keys(e)) entities += e[z].length; }
-      const desync = await this.driver.clusterDesync(this.orch, this.cluster);
+      for (const h of hosts) { const e = await this.driver.hostEntities(this.cluster, h); for (const z of Object.keys(e)) entities += e[z].length; }
+      const desync = await this.coordDesync();                 // step-0387 — placement 기준 정합
       return {
-        ticks: this.ticks, hosts: plan.hostCount, zones: plan.zones, entities,
+        ticks: this.ticks, hosts: hosts.size, zones: Object.keys(this.placement).length, entities,
         desync, maxDesync: this.maxDesync, egressTotal: this.egressTotal,
-        migrations: this.migrations, failovers: this.failovers, coherent: desync === 0,
+        migrations: this.migrations, failovers: this.failovers, lost: this.lostZones.size, coherent: desync === 0,
       };
     },
     // grand capstone 술어(0380) — 연속 루프 내내(maxDesync==0) *그리고* 현 시점(clusterDesync==0) 실 cluster 가 in-proc 권위와 한 몸. broker 측 제어 평면(start→run→drift→syncPlan)이 SPINE §5 수렴을 실 프로세스 경계 넘어 *지속적으로* 만족. #62 sub-arc(0371~0380) 종합.

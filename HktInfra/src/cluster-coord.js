@@ -1,4 +1,5 @@
 'use strict';
+// step-0388 — #65 양방향 동기 8: syncPlan 이 placement 권위 기준(orch.hostSpawnPlan 아님). 0377 syncPlan 은 orch plan 으로 차분했다 → migrate 후엔 stale(z1@A)이라 잘못된 host 에 복원하려 든다. placement(z1@B·실 위치)로 차분해 *옳은* host 에 누락 존 복원. OFF 동치: 정상 경로(placement==orch plan) 결과 동일 = 0387 동치.
 // step-0387 — #65 양방향 동기 7: report 가 placement 기준(coordDesync·placement host/zone·lost 계측). 0379 report 는 orch.hostSpawnPlan + driver.clusterDesync 를 써 migrate 후 발산했다(0379 가 migrate 제외한 이유). placement 권위 + coordDesync 로 바꾸면 *migrate/failover 후도* 대시보드가 정합. OFF 동치: 정상 경로(placement==orch plan·lost 0) 결과 동일 = 0386 동치.
 // step-0386 — #65 양방향 동기 6: coordDesync 가 lostZones 의 *기대된 부재*를 제외. failover 는 상태 소실(#63)이라 lost 존은 실 cluster 가 비고 orch 권위엔 entity 가 남아 reverse desync(권위에 있는데 실에 부재)가 뜬다 — 이는 *비자발 손실*이지 불일치가 아니다(crash=양쪽 합의된 손실). lost 존은 reverse 검사만 건너뛴다(forward=ghost 검사는 유지 → 유령 주입은 여전히 검출). OFF 동치: lostZones 비면 0385 동치.
 // step-0385 — #65 양방향 동기 5: failover 가 placement 갱신 + lost 추적. failover(deadHost,toHost) 가 코디네이터 placement 로 죽은 host 의 존을 찾아 toHost 로 재가동·placement[zone]=toHost 갱신 + lostZones 에 기록(failover 는 상태 소실·#63). lostZones 는 0386 coordDesync 가 *기대된 부재*로 제외할 근거. OFF 동치: failover 미호출이면 0384 동치.
@@ -109,12 +110,13 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     },
     // 상주 reconcile(비파괴·자가 치유) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 현 snapshot 을 차분해 *누락 존만* zoneadd(기존 존 상태 보존). 제어 평면이 언제든 호출돼 토폴로지 drift(존 소실)를 orch 목표로 되돌린다(idempotent). 반환=복원한 존 수.
     async syncPlan() {
-      const plan = this.orch.hostSpawnPlan();
+      const byHost = {};   // step-0388 — placement 권위(실 위치)로 host→존 묶음(orch plan stale 무관)
+      for (const z of Object.keys(this.placement)) { const h = this.placement[z]; (byHost[h] = byHost[h] || []).push(z); }
       let acted = 0;
-      for (const h of plan.order) {
+      for (const h of Object.keys(byHost)) {
         const snap = await this.cluster.rpc(h, { cmd: 'snapshot' });
         const have = new Set(snap && snap.snap ? Object.keys(snap.snap) : []);
-        for (const z of plan.hosts[h].zones) if (!have.has(z)) { await this.cluster.rpc(h, { cmd: 'zoneadd', specs: [this.specOf(z)] }); acted++; }
+        for (const z of byHost[h]) if (!have.has(z)) { await this.cluster.rpc(h, { cmd: 'zoneadd', specs: [this.specOf(z)] }); acted++; }
       }
       return acted;
     },
