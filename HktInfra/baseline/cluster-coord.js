@@ -1,4 +1,5 @@
 'use strict';
+// step-0403 — #62 runMulti 합류 3·복원력: 상태 보존 restart(zone, newHost). failover(0376·비자발·상태 소실)와 대조 — *계획적* 재시작(업그레이드·정비)은 죽기 *전* snapshot 으로 상태를 보존한다(runMulti invRestart `cluster-run.js:90` 의 zone cluster 판: snapshot→kill→spawn→loadstate). socketDead 가 host 단위로 영속하므로 newHost 로 재가동(runMulti `inventory_r` 와 동형). 미호출이면 0402 동치. 새 박스·run() 미사용→reg 0.
 // step-0402 — #62 runMulti 합류 2·복원력: silence 기반 lease-timeout 자동 펜싱. fence(0401)는 *수동* — runMulti observeSilence(`cluster-run.js:72`)는 침묵 tick 을 세어 임계(guessThreshold) 초과 시 자동 presumedDead 선언했다. sweepSilence()=placement host 중 socketDead(전송 층 사망 감지)인 host 의 연속 침묵 sweep 을 세어 leaseTimeout 초과 시 자동 fence(임계 기반 추측·즉발 fence 와 대조). socketDead host 0 이면 counter 0 = 0401 동치. 새 박스·run() 미사용→reg 0.
 // step-0401 — #62 runMulti 합류 1·복원력 능력 합류: 코디네이터 epoch 펜싱(presumedDead/fence/epoch). runMulti(cluster-run.js)는 presumedDead+epoch 펜싱으로 stale host 발신을 차단했으나(`cluster-run.js:69,76`) 코디네이터(zone cluster 상주 제어 평면)엔 그 능력이 없었다 — fence(host)로 host 를 추정 사망 표기+epoch++, tick 이 presumedDead host 의 존을 건너뛴다(fenced·egress 0). 코디네이터를 runMulti 호환 복원력 코어로 승격(#62·능력 합류·병존 reg 0). presumedDead 비면 0400 동치. 새 박스·run() 미사용→reg 0.
 // step-0399 — #66+#67 통합 정합 술어: unifiedCoherent() = syncedCoherent(0390·#65/#66) && authoritiesAgree(0395·#67). 연속 루프·현 entity·placement↔실 bijection·두 where 권위 합치가 *모두 한 몸*. orch.running 에 잘못된 host 를 주입하면 authoritiesAgree N → unifiedCoherent N(by-construction 아님·실측 검출). 읽기 전용·새 메서드·reg 0.
@@ -44,6 +45,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     maxDesync: 0,      // 연속 루프 중 관측된 최악 clusterDesync(0374·매-tick 가드·0=내내 수렴).
     migrations: 0,     // 상주 migrate 로 처리한 존 이주 수(0375).
     failovers: 0,      // 상주 failover 로 처리한 host 장애 수(0376).
+    restarts: 0,       // 상태 보존 restart 처리 수(0403·계획적·snapshot 보존).
     egressTotal: 0,    // 연속 루프가 송출한 다운스트림 view_delta frame 누계(0378).
     egressByZone: {},  // 존별 송출 view 수(0378·운영 계측).
     placement: {},     // zone→실 host placement 권위(0381·#65·lifecycle 마다 갱신·coordDesync 가 이걸로 host 조회).
@@ -153,6 +155,20 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       }
       this.failovers++;
       return zones;
+    },
+    // 상태 보존 restart(0403·#62·복원력) — *계획적* 재시작(업그레이드·정비). 죽기 *전* snapshot 으로 상태를 굳히고 host 를 kill 한 뒤 newHost 에 재가동·loadstate 로 상태 복원(runMulti invRestart 의 zone cluster 판). failover(비자발·상태 소실)와 대조: 여기선 entity 무손실. socketDead 가 host 단위 영속이라 newHost(새 id)로 재가동. placement+orch where-view 갱신. 반환=보존된 상태.
+    async restart(zone, newHost) {
+      const oldHost = this.placement[zone];
+      const snap = await this.cluster.rpc(oldHost, { cmd: 'snapshot' });
+      const state = snap && snap.snap ? snap.snap[zone] : null;          // pre-kill 상태(보존 소스)
+      await this.cluster.killHost(oldHost);                              // 프로세스 사망(RAM 소실·snapshot 은 이미 떴음)
+      if (!this.cluster.hostIds.includes(newHost) || this.cluster.socketDead.has(newHost)) await this.cluster.spawnOne(newHost);
+      await this.cluster.rpc(newHost, { cmd: 'zoneadd', specs: [this.specOf(zone)] });
+      if (state) await this.cluster.rpc(newHost, { cmd: 'loadstate', addr: zone, state });   // 상태 복원 → 무손실
+      this.placement[zone] = newHost;
+      this._orchWriteBack(zone, newHost);
+      this.restarts++;
+      return state;
     },
     // 상주 reconcile(비파괴·자가 치유) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 현 snapshot 을 차분해 *누락 존만* zoneadd(기존 존 상태 보존). 제어 평면이 언제든 호출돼 토폴로지 drift(존 소실)를 orch 목표로 되돌린다(idempotent). 반환=복원한 존 수.
     async syncPlan() {
