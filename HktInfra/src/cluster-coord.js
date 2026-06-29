@@ -1,4 +1,5 @@
 'use strict';
+// step-0395 — #67 orch 이중 권위 합류 2: authoritiesAgree() 술어 — 코디네이터 placement(where 권위) == orchWhere(orch 집행 where-view). 참이면 두 where 권위가 한 몸(단일 권위). 지금은 lifecycle write-back 이 없어 migrate 후 orch.running 이 stale → 두 권위 *발산*(authoritiesAgree N)을 노출(이중 권위 #67 의 구체 증거). 0396~0397 write-back 이 합류시킨다. 읽기 전용·새 메서드.
 // step-0394 — #67 orch 이중 권위 합류 1: orchWhere() — orch 의 *집행 where-view*(zone→orch.runningHostOf) 스냅샷. 코디네이터 placement(0381~·코디네이터 where 권위)와 별개로 orch 가 들고 있는 제2 where 권위를 노출 — #67(이중 권위) 가시화의 첫 조각. migrate/failover 전(정상 경로)엔 둘이 일치, lifecycle 후엔 orch 가 stale(0395 노출→0396~ write-back 합류). 읽기 전용·새 메서드.
 // step-0393 — #66 tick placement-aware 3·발현: run(ticks, onTick) 에 mid-loop lifecycle 훅. run 루프 *도중* migrate 가 일어나도 tick 순회(0391)+deliver(0392)가 placement 를 추종해 maxDesync 0 유지(0390 capstone 은 lifecycle 을 루프 *뒤*로 미뤄 #66 을 미발현시켰다 — 이제 루프 *중* migrate 를 발현시켜 정합 증명). 대조: 옛 driver.clusterDesync(orch plan)는 mid-migrate 후 발산. OFF 동치: onTick 미제공이면 0392 동치.
 // step-0392 — #66 tick placement-aware 2: tick() 의 deliver 재생도 placement 권위로 host 조회. driver.commands 의 c.host(번역 당시 host)는 mid-run migrate 후 stale 일 수 있다 — placement[c.zoneId] 로 조회해 *현 host* 에 frame 재생. 정상 경로(placement[zoneId]==c.host)에선 0391 동치.
@@ -56,6 +57,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     placedHost(zone) { return this.placement[zone] || null; },
     // orch 집행 where-view(0394·#67) — orch 가 들고 있는 제2 where 권위(zone→orch.runningHostOf). 코디네이터 placement 와 별개 — migrate/failover 전엔 일치, 후엔 orch 가 stale(이중 권위). placement 가 추적하는 존마다 orch 의 running host 를 조회. 읽기 전용.
     orchWhere() { const w = {}; for (const z of Object.keys(this.placement)) w[z] = this.orch.runningHostOf(z) || null; return w; },
+    // 두 where 권위 합의 술어(0395·#67) — 코디네이터 placement == orchWhere(orch 집행 where-view) 가 모든 존에서 일치하는가. 참이면 단일 where 권위. lifecycle write-back(0396~) 전엔 migrate/failover 후 orch 가 stale → 거짓(이중 권위). 읽기 전용.
+    authoritiesAgree() { const ow = this.orchWhere(); for (const z of Object.keys(this.placement)) if (this.placement[z] !== ow[z]) return false; return true; },
     // placement 기준 정합(0382·#65) — placement 권위로 각 존의 host 를 조회해 실 host entity vs orch entity 권위(zoneEntityPos·host-무관) 양방향 불일치 수. driver.clusterDesync 와 달리 stale orch plan 에 안 휘둘림(migrate 후도 정확). 반환=desync(0=수렴).
     async coordDesync() {
       let desync = 0;

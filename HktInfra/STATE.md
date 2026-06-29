@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0394](step-0394.md) — **#67 orch 이중 권위 합류 1**: `orchWhere()` — orch 의 집행 where-view(zone→`runningHostOf`) 스냅샷. 코디네이터 placement 와 별개인 *제2 where 권위*를 노출(#67 가시화). 정상 경로(migrate 전) 두 권위 일치. **#66 닫힘(0391~0393)·#67 진행(0394~)**. 직전: 0393 mid-loop migrate 발현.
-- **한 줄 상태**: reg ALL OK·coordorchwhere 5/5(orchWhere==placement Y·coordDesync 0)·cluster-coord.js 21.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0395](step-0395.md) — **#67 orch 이중 권위 합류 2**: `authoritiesAgree()` 술어(placement==orchWhere). write-back 전이라 migrate 후 orch.running stale → 두 권위 *발산*(agree Y→N) 노출 — #67 이중 권위의 구체 증거(단 coordDesync 0·placement 가 정확한 권위). **#66 닫힘·#67 진행(0394~)**. 직전: 0394 orchWhere 노출.
+- **한 줄 상태**: reg ALL OK·coordauthsplit 5/5(agree Y→migrate 후 N·coordDesync 0)·cluster-coord.js 22.1KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400)**: tick placement 순회(0391)·deliver 재생 placement host(0392)·mid-run migrate 발현(0393)·orchWhere 노출(0394)·authoritiesAgree 노출(0395)·migrate/failover write-back(0396~0397)·lost-robust agree+report(0398)·복합 lifecycle(0399)·unifiedCoherent capstone(0400). **후속**: 업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -150,3 +150,4 @@
 | [0392](step-0392.md) | #66 tick placement-aware 2: deliver 재생도 placement[zoneId] host 로(c.host stale 가능)·정상 경로 0391 동치 | 통과(reg 0·spine OK) · coorddeliverplace 5/5 a1@place[z1] {8,8}·coordDesync0 |
 | [0393](step-0393.md) | #66 tick placement-aware 3·발현: run(ticks,onTick) mid-loop migrate·placement-aware tick 추종·#66 닫힘 | 통과(reg 0·spine OK) · coordmidmigrate 5/5 maxDesync0·mig1·대조 clusterDesync1 |
 | [0394](step-0394.md) | #67 orch 이중 권위 합류 1: orchWhere() 제2 where 권위(orch.runningHostOf) 노출·정상 경로 placement 일치 | 통과(reg 0·spine OK) · coordorchwhere 5/5 orchWhere==place·coordDesync0 |
+| [0395](step-0395.md) | #67 orch 이중 권위 합류 2: authoritiesAgree() 술어·migrate 후 발산 노출(write-back 전·orch stale) | 통과(reg 0·spine OK) · coordauthsplit 5/5 agree Y→N·coordDesync0 |
