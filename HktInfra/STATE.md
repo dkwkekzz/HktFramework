@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0388](step-0388.md) — **#65 양방향 동기 8: syncPlan 이 placement 권위 기준** — syncPlan 이 orch plan(stale) 아닌 placement(실 위치)로 차분 → migrate 후 *옳은* host 에 누락 존 복원. 직전: 0387 placement-aware report.
-- **한 줄 상태**: reg ALL OK·coordsync2 5/5(migrate z3 후 syncPlan→hostB 복원·hostA 미복원·desync0)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0389](step-0389.md) — **#65 양방향 동기 9: placementCoherent bijection** — placement(where 권위) ⟷ 실 cluster 존 배치 양방향 1:1 술어(forward+reverse). 양방향 동기가 진짜 닫혔는지 단일 술어로. 직전: 0388 syncPlan placement 기준.
+- **한 줄 상태**: reg ALL OK·coordplacecoh 5/5(migrate 후 coh Y·불일치 주입 N 검출)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#65 양방향 동기 sub-arc(0381~)** — 코디네이터 lifecycle↔placement 권위 동기: placement SSOT(0381 ✅)→ coordDesync(placement 기준)→ migrate 가 placement 갱신(→migrate 후 desync 0)→ coordCoherent 가 coordDesync 사용→ failover placement 갱신+lost 추적→ lost 제외 coherence→ placement-aware report→ syncPlan placement 기준→ placementCoherent bijection→ grand capstone syncedCoherent. **후속**: cluster-run.js 옛 runMulti 합류(#62 잔여)·업스트림 intent 실 클라(#61)·진짜 비동기(#4).
 
 ---
@@ -153,3 +153,4 @@
 | [0386](step-0386.md) | #65 양방향 동기 6: coordDesync 가 lostZones reverse 부재(비자발 손실) 제외·forward ghost 검사 유지 | 통과(reg 0·spine OK) · coordfocoh 5/5 failover 후 desync0·ghost 주입 desync1 |
 | [0387](step-0387.md) | #65 양방향 동기 7: placement-aware report(hosts/zones/coordDesync/lost 기준)→migrate/failover 후 대시보드 정합 | 통과(reg 0·spine OK) · coordreport2 5/5 migrate 후 hosts2·zones3·ents2·desync0·coherent |
 | [0388](step-0388.md) | #65 양방향 동기 8: syncPlan 이 placement(실 위치) 기준 차분(orch plan stale 무관)→migrate 후 옳은 host 복원 | 통과(reg 0·spine OK) · coordsync2 5/5 migrate z3→drift→syncPlan hostB 복원·hostA 미복원·desync0 |
+| [0389](step-0389.md) | #65 양방향 동기 9: placementCoherent() bijection 불변(placement⟷실 cluster 존 배치 forward+reverse 1:1) | 통과(reg 0·spine OK) · coordplacecoh 5/5 migrate 후 coh Y·불일치 주입 N 검출 |

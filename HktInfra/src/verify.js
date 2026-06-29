@@ -1,8 +1,8 @@
-// HktInfra step-0388 — 헤드리스 검증 (#65 양방향 동기 8: syncPlan 이 placement 권위 기준)
+// HktInfra step-0389 — 헤드리스 검증 (#65 양방향 동기 9: placementCoherent bijection 불변)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsync2`.
-//   더한 한 조각: cluster-coord.js syncPlan 이 placement(실 위치)로 차분(orch plan stale 무관) → migrate 후 옳은 host 에 복원. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordsync2` — 2 host·3 zone: run(3)+migrate z3(빈 존) A→B → z3 drift(hostB zonedel)→ syncPlan → z3 hostB 복원(hostA 아님)·coordDesync 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordplacecoh`.
+//   더한 한 조각: cluster-coord.js placementCoherent()=placement ⟷ 실 cluster 존 배치 양방향 bijection. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordplacecoh` — 2 host·3 zone: run(3)+migrate z1 A→B → placementCoherent Y(일치)·실 불일치(placement 미갱신 zonedel) 주입 시 N.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,35 +31,31 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0388 #65 양방향 8 — syncPlan 이 placement 권위 기준: migrate(z3@B·빈 존) 후 z3 drift→syncPlan→z3 hostB 복원(hostA 아님)·desync 0.
-async function coordsync2(seeds) {
+// step-0389 #65 양방향 9 — placementCoherent bijection: migrate 후 placement⟷실 일치(Y)·placement 미갱신 zonedel 주입 시 불일치(N).
+async function coordplacecoh(seeds) {
   const BASE = coordScenario();
-  console.log('== coordsync2 (0388·#65 양방향 8): syncPlan placement 기준 — migrate 후 옳은 host(hostB) 에 복원 ==');
-  console.log('seed   | z3 on hostB | z3 on hostA | coordDesync | 판정');
+  console.log('== coordplacecoh (0389·#65 양방향 9): placementCoherent bijection — migrate 후 일치 Y·실 불일치 주입 N ==');
+  console.log('seed   | migrate 후 coh | 불일치 주입 후 | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let onB = false, onA = false, cd = -1;
+    let cohOk = false, mismatchN = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(3);
-      await coord.migrate('z3', 'hostA', 'hostB');                       // placement z3@B(빈 존·entity 손실 confound 없음)
-      await cluster.rpc('hostB', { cmd: 'zonedel', addr: 'z3' });        // drift — z3 소실(hostB)
-      await coord.syncPlan();                                            // placement 기준 → hostB 에 복원(orch plan 은 hostA)
-      const sb = await cluster.rpc('hostB', { cmd: 'snapshot' });
-      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
-      onB = !!(sb && sb.snap && sb.snap['z3']);
-      onA = !!(sa && sa.snap && sa.snap['z3']);                          // orch plan 따랐으면 잘못 hostA 에 복원됐을 것
-      cd = await coord.coordDesync();
+      await coord.migrate('z1', 'hostA', 'hostB');
+      cohOk = await coord.placementCoherent();                           // placement(z1@B) ⟷ 실 일치
+      await cluster.rpc('hostB', { cmd: 'zonedel', addr: 'z1' });        // placement 미갱신 채 실에서 z1 제거 → 불일치
+      mismatchN = !(await coord.placementCoherent());                    // forward 위반 검출(placement z1@B 인데 실 hostB 에 없음)
     } finally { await cluster.shutdown(); }
-    const ok = check(onB && !onA && cd === 0, `seed ${seed}: sync2 위반 (onB ${onB}·onA ${onA}·cd ${cd})`);
-    console.log(`${pad(seed, 6)} | ${pad(onB ? 'Y' : 'N', 11)} | ${pad(onA ? 'Y' : 'N', 11)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(cohOk && mismatchN, `seed ${seed}: placecoh 위반 (coh ${cohOk}·mismatch ${mismatchN})`);
+    console.log(`${pad(seed, 6)} | ${pad(cohOk ? 'Y' : 'N', 13)} | ${pad(mismatchN ? 'N(검출)' : '미검출', 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordsync2'] = coordsync2;
-kit.ORDER.splice(1, 0, 'coordsync2');
+kit.MODES['coordplacecoh'] = coordplacecoh;
+kit.ORDER.splice(1, 0, 'coordplacecoh');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
