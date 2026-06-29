@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0358](step-0358.md) — **#57 실 host.js OS 프로세스 spawn 8: 실 child_process 존 인스턴스화 E2E** — `flush(cluster, specOf)` 가 orch zoneHost 의 spawnOne/init 을 *실 Cluster(child_process)* 에 집행 → 실 host.js 프로세스 spawn + 존 makeActor 인스턴스화. **orch 논리 컨테이너 → 실 OS 프로세스 존 가동 입증**. OFF 플래그 동일. 직전: 0357 드라이버 번역+flush.
-- **한 줄 상태**: reg ALL OK·hostspawnreal 5/5(실 host.js livePid1·snapshot 에 zone z1 인스턴스·kind zone)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0359](step-0359.md) — **#57 실 host.js OS 프로세스 spawn 9: 실 host 다중 존 incremental** — host.js `zoneadd` cmd(가동 중 존 증분 추가·기존 보존) + flush specOf→zoneadd → 한 실 host.js 프로세스가 여러 존 소유. OFF 플래그 동일·기존 cmd 무변경(e2e 비트 동일). 직전: 0358 실 child_process 존 인스턴스화.
+- **한 줄 상태**: reg ALL OK·hostmultizone 5/5(실 host.js 1개·z1·z2 둘 다 인스턴스)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스/소켓 spawn (0351~)** — 현 zoneHosts/DownClient 는 orch 인프로세스 논리 컨테이너. 매니페스트(0351 ✅)→ spawn 델타(0352)→ cluster 드라이버 훅 seam(OFF 플래그·0353)→ roster/frame/egress 드라이버 라우팅→ cluster-run.js 실 spawnOne/killHost 배선→ 실 host.js zonehost cmd→ capstone. **후속**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61) ⒞ 진짜 비동기(#4)·버스 라우팅 영속. 🔎 **0291~0350 묶음 리뷰 미실시(6묶음 누적·적기)**.
 
 ---
@@ -151,3 +151,4 @@
 | [0356](step-0356.md) | #57 실 host.js OS 프로세스 spawn 6: clusterDriver onEgress 다운스트림 송출(_drainZoneEgress host→게이트웨이=실 host 소켓 송신 씨앗·드라이버 계약 완비: spawn/despawn·assign/unassign·frame·egress) | 통과(reg 0·spine OK) · hostegress 5/5 driverEgress==zoneViewEgressed==7·allA |
 | [0357](step-0357.md) | #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver(cluster-hostdriver.js·orch 이벤트→cluster 명령 spawnOne/killHost/rpc 동기 번역 + flush async 집행·번역↔집행 분리#4·clusterDriverReal 주입) | 통과(reg 0·spine OK) · hostcmd 5/5 번역 spawnOne1·deliver7 + flush→mock 정합 |
 | [0358](step-0358.md) | #57 실 host.js OS 프로세스 spawn 8: flush(cluster,specOf) 실 child_process E2E(orch zoneHost spawnOne/init→실 Cluster→실 host.js spawn+존 makeActor 인스턴스화·논리 컨테이너→실 OS 프로세스 존) | 통과(reg 0·spine OK) · hostspawnreal 5/5 livePid1·zone z1 인스턴스·kind zone |
+| [0359](step-0359.md) | #57 실 host.js OS 프로세스 spawn 9: 실 host 다중 존 incremental(host.js zoneadd cmd 기존 보존·flush specOf→zoneadd·한 실 host.js 프로세스가 여러 존 소유·기존 cmd 무변경 e2e 동일) | 통과(reg 0·spine OK) · hostmultizone 5/5 livePid1·z1·z2 둘 다 인스턴스 |

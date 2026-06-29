@@ -1,4 +1,5 @@
 'use strict';
+// step-0359 — #57 실 host.js OS 프로세스 spawn 9: flush specOf init→host.js zoneadd(증분·기존 존 보존) 로 다중 존을 한 host.js 프로세스에 incremental 가동.
 // step-0358 — #57 실 host.js OS 프로세스 spawn 8: flush(cluster, specOf) — specOf(zone)→존 spec 면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로 보내 *실 host.js 자식 프로세스가 그 존을 makeActor 로 인스턴스화*. orch zoneHost 컨테이너 → 실 OS 프로세스 존 가동 E2E.
 // step-0357 — #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver — orch 드라이버 계약(0353~0356) 이벤트를 *실 cluster 명령*으로 번역.
 //   orch._hostSet/_zoneDeliver/_drainZoneEgress 가 부르는 on*(host,…) 훅을 *명령 큐*(commands)에 동기·결정론으로 적재하고,
@@ -22,7 +23,7 @@ function makeClusterHostDriver() {
       for (const c of this.commands) {
         if (c.op === 'spawnOne') { await cluster.spawnOne(c.host); }
         else if (c.op === 'killHost') { await cluster.killHost(c.host); }
-        else if (c.op === 'init') { await cluster.rpc(c.host, specOf ? { cmd: 'init', specs: [specOf(c.zone)] } : { cmd: 'init', zone: c.zone }); }
+        else if (c.op === 'init') { await cluster.rpc(c.host, specOf ? { cmd: 'zoneadd', specs: [specOf(c.zone)] } : { cmd: 'init', zone: c.zone }); }   // step-0359 — specOf 면 zoneadd(증분·기존 존 보존) 로 다중 존 한 host 가동.
         else if (c.op === 'deliver') { await cluster.rpc(c.host, { cmd: 'deliver', zoneId: c.zoneId }); }
         // 'stop'/'egress' 의 실 집행(host stop rpc·다운스트림 소켓 out)은 후속 — 여기선 큐 소비만(executed 기록).
         this.executed.push(c.op);
