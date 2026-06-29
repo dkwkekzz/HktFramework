@@ -1,8 +1,8 @@
-// HktInfra step-0390 — 헤드리스 검증 (#65 양방향 동기 10·grand capstone: syncedCoherent — migrate/failover 포함 정합)
+// HktInfra step-0391 — 헤드리스 검증 (#66 tick placement-aware 1: tick() 존 순회를 placement 권위로)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsyncedcap`.
-//   더한 한 조각: cluster-coord.js syncedCoherent()=maxDesync0 && coordDesync0(lost 제외) && placementCoherent. #65 양방향 동기 sub-arc(0381~0390) 닫기. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordsyncedcap` — 2 host·3 zone: run(5)+migrate z1 A→B+failover hostA→hostB → syncedCoherent Y(0380 이 제외한 migrate/failover 포함)·대조로 driver.clusterDesync>0(옛 #65 버그).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordtickplace`.
+//   더한 한 조각: cluster-coord.js tick() 이 orch.hostSpawnPlan 대신 this.placement(권위)로 존을 순회. 정상 경로(placement==orch plan)에선 0390 동치. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordtickplace` — 2 host·3 zone: run(5) 가 placement 권위 순회로 전 존을 tick → coordDesync 0·placementCoherent Y·egressByZone ⊆ placement(placement 집합만 tick).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,31 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0390 #65 양방향 10·grand capstone — syncedCoherent: run(5)+migrate+failover 뒤에도 정합(0380 이 제외한 lifecycle 포함)·대조 driver.clusterDesync>0(옛 #65).
-async function coordsyncedcap(seeds) {
+// step-0391 #66 tick placement-aware 1 — coordtickplace: run(5) 가 placement 권위 순회로 전 존 tick → coordDesync 0·placementCoherent Y·egressByZone ⊆ placement(placement 집합만 tick·orch plan stale 무관).
+async function coordtickplace(seeds) {
   const BASE = coordScenario();
-  console.log('== coordsyncedcap (0390·#65 grand capstone): migrate/failover 포함 양방향 정합. 0381~0390 닫기. ==');
-  console.log('seed   | syncedCoherent | placecoh | coordDesync | clusterDesync(옛) | 판정');
+  console.log('== coordtickplace (0391·#66): tick() 이 placement 권위로 존 순회. run(5) 정합. ==');
+  console.log('seed   | views | coordDesync | placecoh | egress⊆place | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let synced = false, pc = false, cd = -1, dd = -1;
+    let views = 0, cd = -1, pc = false, subset = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);                                                // 연속 루프(maxDesync 0)
-      await coord.migrate('z1', 'hostA', 'hostB');                       // graceful 이주(a1 보존)
-      await coord.failover('hostA', 'hostB');                            // hostA(z3) 장애→hostB(z3 lost)
-      synced = await coord.syncedCoherent();                            // maxDesync0 && coordDesync0(lost 제외) && placementCoherent
-      pc = await coord.placementCoherent();
+      views = await coord.run(5);                                        // 연속 루프 — tick 이 placement 권위 순회(0391)
       cd = await coord.coordDesync();
-      dd = await drv.clusterDesync(o, cluster);                          // 옛 경로(orch plan stale) → 발산
+      pc = await coord.placementCoherent();
+      const placeKeys = new Set(Object.keys(coord.placement));
+      subset = Object.keys(coord.egressByZone).every(z => placeKeys.has(z));   // tick 은 placement 집합만 순회 → egress 도 그 안
     } finally { await cluster.shutdown(); }
-    const ok = check(synced && pc && cd === 0 && dd > 0, `seed ${seed}: capstone 위반 (synced ${synced}·pc ${pc}·cd ${cd}·dd ${dd})`);
-    console.log(`${pad(seed, 6)} | ${pad(synced ? 'Y' : 'N', 14)} | ${pad(pc ? 'Y' : 'N', 8)} | ${pad(cd, 11)} | ${pad(dd, 17)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(views > 0 && cd === 0 && pc && subset, `seed ${seed}: 위반 (views ${views}·cd ${cd}·pc ${pc}·subset ${subset})`);
+    console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(cd, 11)} | ${pad(pc ? 'Y' : 'N', 8)} | ${pad(subset ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordsyncedcap'] = coordsyncedcap;
-kit.ORDER.splice(1, 0, 'coordsyncedcap');
+kit.MODES['coordtickplace'] = coordtickplace;
+kit.ORDER.splice(1, 0, 'coordtickplace');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

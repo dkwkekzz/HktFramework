@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0390](step-0390.md) — **#65 양방향 동기 10·grand capstone: syncedCoherent** — maxDesync0 && coordDesync0(lost 제외) && placementCoherent. run(5)+migrate+failover 포함 정합(0380 이 제외한 lifecycle)·대조 driver.clusterDesync 1(옛 #65). **#65 양방향 동기 sub-arc(0381~0390) 닫기**. 직전: 0389 placementCoherent bijection.
-- **한 줄 상태**: reg ALL OK·coordsyncedcap 5/5(migrate+failover 후 syncedCoherent Y·coordDesync0 vs clusterDesync1)·cluster-coord.js 19.9KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#65 양방향 동기(0381~0390 ✅ 닫힘)**: placement SSOT·coordDesync·migrate/failover placement 갱신·lost 추적/제외·placement-aware report/syncPlan·placementCoherent·syncedCoherent capstone. **후속(다음 arc)**: cluster-run.js 옛 lockstep runMulti 와 코드 합류(#62 잔여)·코디네이터 placement↔orch 내부 zoneHost API 합류·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0391](step-0391.md) — **#66 tick placement-aware 1**: `tick()` 존 순회를 `orch.hostSpawnPlan`(stale) 대신 `this.placement`(코디네이터 where 권위) 로 전환. run *도중* migrate 도 tick 이 즉시 따라간다(0390 capstone 은 lifecycle 을 루프 뒤로 미뤄 #66 미발현). 정상 경로(placement==orch plan)=0390 동치. **#66/#67 sub-arc(0391~) 진행 중**. 직전: 0390 syncedCoherent capstone.
+- **한 줄 상태**: reg ALL OK·coordtickplace 5/5(run(5) placement 순회·coordDesync 0·placementCoherent Y·egress⊆place)·cluster-coord.js 20.4KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400)**: tick placement 순회(0391)·deliver 재생 placement host(0392)·mid-run migrate 발현(0393)·orchWhere 노출(0394)·authoritiesAgree 노출(0395)·migrate/failover write-back(0396~0397)·lost-robust agree+report(0398)·복합 lifecycle(0399)·unifiedCoherent capstone(0400). **후속**: 업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0381~0390 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -146,3 +146,4 @@
 | [0370](step-0370.md) | #57 실 데이터 평면 10·grand capstone: clusterCoherent(clusterDesync==0)·2 host·3 zone driveCluster→전 entity 실 host==권위·실 migrate 상태 보존·release·실 데이터 평면 0361~0370 닫기 | 통과(reg 0·spine OK) · clusterdatacap 5/5 coherent·migrate 보존·release |
 | [0371–0380](reviews/review-0371-0380.md) | #62 runMulti 통합·broker 측 제어 평면 상주(`cluster-coord.js` ClusterCoordinator): 골격+start(0371)·tick(0372)·연속 run 루프(0373)·매-tick desync 가드(0374)·상주 migrate(0375)·상주 failover(0376)·syncPlan 비파괴 자가 치유(0377)·egress 집계(0378)·report(0379)·capstone coordCoherent(0380) | 통과(reg 0·spine OK) · coordcap 5/5 maxDesync0·drift 치유·coordCoherent·report coh |
 | [0390](step-0390.md) | #65 양방향 동기(0381~0390)·코디네이터 placement 권위(where) SSOT: placement(0381)·coordDesync(0382)·migrate placement 갱신(0383 핵심 fix)·coordCoherent 가 coordDesync 채택(0384)·failover placement 갱신+lost(0385)·lost 기대 부재 제외(0386)·placement-aware report(0387)·syncPlan placement 기준(0388)·placementCoherent bijection(0389)·capstone syncedCoherent(0390·migrate/failover 포함) | 통과(reg 0·spine OK) · coordsyncedcap 5/5 syncedCoherent Y·coordDesync0 vs clusterDesync1(옛 #65) |
+| [0391](step-0391.md) | #66 tick placement-aware 1: tick() 존 순회를 placement 권위(this.placement)로(orch.hostSpawnPlan 아님)·정상 경로 0390 동치 | 통과(reg 0·spine OK) · coordtickplace 5/5 views2·coordDesync0·placecoh Y·egress⊆place |

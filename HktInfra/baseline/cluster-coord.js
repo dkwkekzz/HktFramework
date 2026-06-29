@@ -1,4 +1,5 @@
 'use strict';
+// step-0390 — #65 양방향 동기 10·grand capstone: syncedCoherent() — 연속 루프 내내(maxDesync==0) + 현 coordDesync==0(lost 제외) + placementCoherent(placement⟷실 1:1). 0380 coordCoherent 가 *migrate/failover 를 제외*해야 했던 것과 대조 — 양방향 동기(0381~0389)로 *migrate/failover 를 포함한* 전체 lifecycle 뒤에도 참. #65 양방향 동기 sub-arc(0381~0390) 종합. OFF 동치: 미호출이면 0389 동치.
 // step-0389 — #65 양방향 동기 9: placementCoherent() 양방향 bijection 불변. 코디네이터 placement(where 권위) ⟷ 실 cluster host 의 존 배치가 정확히 일치하는가: ⒜ forward — placement[z]=h 인 모든 존이 실 host h 에 존재 ⒝ reverse — 실 host h 의 모든 존이 placement[z]==h. 양방향 동기의 단일 술어(placement 가 진짜 실 cluster 를 반영). OFF 동치: 미호출이면 0388 동치.
 // step-0388 — #65 양방향 동기 8: syncPlan 이 placement 권위 기준(orch.hostSpawnPlan 아님). 0377 syncPlan 은 orch plan 으로 차분했다 → migrate 후엔 stale(z1@A)이라 잘못된 host 에 복원하려 든다. placement(z1@B·실 위치)로 차분해 *옳은* host 에 누락 존 복원. OFF 동치: 정상 경로(placement==orch plan) 결과 동일 = 0387 동치.
 // step-0387 — #65 양방향 동기 7: report 가 placement 기준(coordDesync·placement host/zone·lost 계측). 0379 report 는 orch.hostSpawnPlan + driver.clusterDesync 를 써 migrate 후 발산했다(0379 가 migrate 제외한 이유). placement 권위 + coordDesync 로 바꾸면 *migrate/failover 후도* 대시보드가 정합. OFF 동치: 정상 경로(placement==orch plan·lost 0) 결과 동일 = 0386 동치.
@@ -147,6 +148,10 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     // grand capstone 술어(0380) — 연속 루프 내내(maxDesync==0) *그리고* 현 시점(clusterDesync==0) 실 cluster 가 in-proc 권위와 한 몸. broker 측 제어 평면(start→run→drift→syncPlan)이 SPINE §5 수렴을 실 프로세스 경계 넘어 *지속적으로* 만족. #62 sub-arc(0371~0380) 종합.
     async coordCoherent() {
       return this.maxDesync === 0 && (await this.coordDesync()) === 0;   // step-0384 — placement 기준(migrate 후도 정확)
+    },
+    // grand capstone 술어(0390·#65) — 연속 루프 정합(maxDesync==0) + 현 entity 정합(coordDesync==0·lost 제외) + placement⟷실 1:1(placementCoherent). migrate/failover 를 *포함한* 전체 lifecycle 뒤에도 참(0380 이 제외한 것). 양방향 동기 sub-arc(0381~0390) 종합.
+    async syncedCoherent() {
+      return this.maxDesync === 0 && (await this.coordDesync()) === 0 && (await this.placementCoherent());
     },
   };
 }
