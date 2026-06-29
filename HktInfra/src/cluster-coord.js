@@ -1,4 +1,5 @@
 'use strict';
+// step-0405 — #62 runMulti 합류 4·복원력: reprovisionStandby(zone, standbyHost) — 따뜻한 대기 인스턴스 + 미러 등록. runMulti(`cluster-run.js:202` rep + `:219` mirrors)는 kill→승격 후 새 standby 를 띄우고 권위 입력을 미러해 N=1 복제를 유지했다. 코디네이터가 zone 의 현 상태를 snapshot→standbyHost 에 spawn/zoneadd/loadstate(따뜻한 사본) + mirrors 에 {zone,dstHost} 등록(입력 복제는 0406 tick 미러). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
 // step-0404 — 정리(기능 0·reg 0): 박스 30KB 근접(29.4KB) 트리거 — 닫힌 arc(0371~0399·#62/#65/#66/#67) 헤더 주석 스택을 git 태그+reviews 포인터 한 줄로 접어 박스를 유계화(코드 무변경=net-core 동작 비트 동일=reg 0). 비대화 트리거(CLAUDE.md §박스 분할) 집행.
 // step-0403 — #62 runMulti 합류 3·복원력: 상태 보존 restart(zone, newHost). failover(0376·비자발·상태 소실)와 대조 — *계획적* 재시작(업그레이드·정비)은 죽기 *전* snapshot 으로 상태를 보존한다(runMulti invRestart `cluster-run.js:90` 의 zone cluster 판: snapshot→kill→spawn→loadstate). socketDead 가 host 단위로 영속하므로 newHost 로 재가동(runMulti `inventory_r` 와 동형). 미호출이면 0402 동치. 새 박스·run() 미사용→reg 0.
 // step-0402 — #62 runMulti 합류 2·복원력: silence 기반 lease-timeout 자동 펜싱. fence(0401)는 *수동* — runMulti observeSilence(`cluster-run.js:72`)는 침묵 tick 을 세어 임계(guessThreshold) 초과 시 자동 presumedDead 선언했다. sweepSilence()=placement host 중 socketDead(전송 층 사망 감지)인 host 의 연속 침묵 sweep 을 세어 leaseTimeout 초과 시 자동 fence(임계 기반 추측·즉발 fence 와 대조). socketDead host 0 이면 counter 0 = 0401 동치. 새 박스·run() 미사용→reg 0.
@@ -23,6 +24,8 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     fencedTicks: 0,    // 펜싱으로 건너뛴 (host,zone) tick 수(0401·계측).
     leaseTimeout: 3,   // silence 임계(0402·#62·runMulti guessThreshold 판·이만큼 연속 침묵이면 자동 fence).
     _silent: new Map(), // host→연속 침묵 sweep 수(0402·socketDead 인 동안 누적·살아있으면 리셋).
+    mirrors: [],       // 따뜻한 대기 미러(0405·#62·{zone,dstHost}·입력 복제로 N=1 복제 유지·runMulti cluster.mirrors 판).
+    reprovisions: 0,   // reprovisionStandby 처리 수(0405·계측).
     started: false,
     // 상주 시작 — orch 목표 토폴로지(hostSpawnPlan)로 실 cluster 를 수렴: 미가동 host spawnOne + 각 존 zoneadd + 목표 밖 host killHost.
     //   driver.reconcile(상태 기반 집행·0366) 재사용 — per-event flush 와 직교한 *상태 기반* 수렴(외부 cluster 를 orch 목표에 맞춤). 반환=집행 동작 수.
@@ -136,6 +139,18 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       this.placement[zone] = newHost;
       this._orchWriteBack(zone, newHost);
       this.restarts++;
+      return state;
+    },
+    // 따뜻한 대기 reprovision(0405·#62·복원력) — zone 의 현 상태를 standbyHost 에 사본으로 띄우고 미러 등록. snapshot(현 host)→standbyHost spawn/zoneadd/loadstate(따뜻한 사본·primary 와 같은 상태) + mirrors 에 {zone,dstHost} 추가. 이후 입력이 미러로 복제돼(0406) standby 가 primary 와 동기 유지 → failover 시 즉시 승격 가능(runMulti rep+mirrors 판). primary 는 그대로(이중 가동·shadow=발신 0). 반환=복제된 상태.
+    async reprovisionStandby(zone, standbyHost) {
+      const srcHost = this.placement[zone];
+      const snap = await this.cluster.rpc(srcHost, { cmd: 'snapshot' });
+      const state = snap && snap.snap ? snap.snap[zone] : null;
+      if (!this.cluster.hostIds.includes(standbyHost) || this.cluster.socketDead.has(standbyHost)) await this.cluster.spawnOne(standbyHost);
+      await this.cluster.rpc(standbyHost, { cmd: 'zoneadd', specs: [this.specOf(zone)] });
+      if (state) await this.cluster.rpc(standbyHost, { cmd: 'loadstate', addr: zone, state });   // 따뜻한 사본(primary 상태 복제)
+      this.mirrors.push({ zone, dstHost: standbyHost });
+      this.reprovisions++;
       return state;
     },
     // 상주 reconcile(비파괴·자가 치유) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 현 snapshot 을 차분해 *누락 존만* zoneadd(기존 존 상태 보존). 제어 평면이 언제든 호출돼 토폴로지 drift(존 소실)를 orch 목표로 되돌린다(idempotent). 반환=복원한 존 수.

@@ -1,8 +1,8 @@
-// HktInfra step-0403 — 헤드리스 검증 (#62 runMulti 합류 3·복원력: 상태 보존 restart)
+// HktInfra step-0405 — 헤드리스 검증 (#62 runMulti 합류 4·복원력: reprovisionStandby 따뜻한 대기)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordrestart`.
-//   더한 한 조각: cluster-coord.js restart(zone,newHost)=pre-kill snapshot→kill→spawn→loadstate(runMulti invRestart 판·상태 보존). failover(상태 소실)와 대조. 미호출이면 0402 동치. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordrestart` — 2 host·3 zone: run(5)→restart(z1, hostA_r) → a1 위치 보존(pre==post)·placement[z1]=hostA_r·restarts 1·coordDesync 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordreprov`.
+//   더한 한 조각: cluster-coord.js reprovisionStandby(zone,standbyHost)=snapshot→standby spawn/zoneadd/loadstate(따뜻한 사본)+mirrors 등록(runMulti rep+mirrors 판). 미호출이면 0404 동치. 새 박스·run() 미사용→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordreprov` — 2 host·3 zone: run(5)→reprovisionStandby(z1, hostA_s) → standby z1 의 a1 == primary a1(따뜻한 사본)·mirrors=[{z1,hostA_s}]·reprovisions 1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,33 +31,33 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0403 #62 runMulti 합류 3·복원력 — coordrestart: run(5)→restart(z1, hostA_r) → a1 위치 보존(pre==post·snapshot before kill)·placement[z1]=hostA_r·restarts 1·coordDesync 0.
-async function coordrestart(seeds) {
+// step-0405 #62 runMulti 합류 4·복원력 — coordreprov: run(5)→reprovisionStandby(z1, hostA_s) → standby z1 의 a1 == primary a1(따뜻한 사본)·mirrors=[{z1,hostA_s}]·reprovisions 1.
+async function coordreprov(seeds) {
   const BASE = coordScenario();
-  console.log('== coordrestart (0403·#62 복원력): 상태 보존 restart(zone,newHost). a1 무손실. ==');
-  console.log('seed   | pre a1 | post a1 | placement[z1] | restarts | coordDesync | 판정');
+  console.log('== coordreprov (0405·#62 복원력): reprovisionStandby 따뜻한 대기 사본+미러. ==');
+  console.log('seed   | primary a1 | standby a1 | warm | mirrors | reprov | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let preS = '-', postS = '-', plc = '-', rs = -1, cd = -1, preserved = false;
+    let pS = '-', sS = '-', warm = false, mir = 0, rp = -1;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
       await coord.run(5);
-      const pre = realPos(await cluster.rpc(coord.placedHost('z1'), { cmd: 'snapshot' }), 'z1', 'a1');
-      await coord.restart('z1', 'hostA_r');                            // 계획적 재시작(상태 보존)
-      const post = realPos(await cluster.rpc('hostA_r', { cmd: 'snapshot' }), 'z1', 'a1');
-      preS = pre ? `{${pre.x},${pre.y}}` : 'null'; postS = post ? `{${post.x},${post.y}}` : 'null';
-      preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
-      plc = coord.placedHost('z1'); rs = coord.restarts; cd = await coord.coordDesync();
+      const primary = realPos(await cluster.rpc(coord.placedHost('z1'), { cmd: 'snapshot' }), 'z1', 'a1');
+      await coord.reprovisionStandby('z1', 'hostA_s');                 // 따뜻한 대기 사본
+      const standby = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
+      pS = primary ? `{${primary.x},${primary.y}}` : 'null'; sS = standby ? `{${standby.x},${standby.y}}` : 'null';
+      warm = !!primary && !!standby && primary.x === standby.x && primary.y === standby.y;
+      mir = coord.mirrors.length; rp = coord.reprovisions;
     } finally { await cluster.shutdown(); }
-    const ok = check(preserved && plc === 'hostA_r' && rs === 1 && cd === 0, `seed ${seed}: 위반 (pre ${preS}·post ${postS}·plc ${plc}·rs ${rs}·cd ${cd})`);
-    console.log(`${pad(seed, 6)} | ${pad(preS, 6)} | ${pad(postS, 7)} | ${pad(plc, 13)} | ${pad(rs, 8)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(warm && mir === 1 && rp === 1, `seed ${seed}: 위반 (p ${pS}·s ${sS}·warm ${warm}·mir ${mir}·rp ${rp})`);
+    console.log(`${pad(seed, 6)} | ${pad(pS, 10)} | ${pad(sS, 10)} | ${pad(warm ? 'Y' : 'N', 4)} | ${pad(mir, 7)} | ${pad(rp, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordrestart'] = coordrestart;
-kit.ORDER.splice(1, 0, 'coordrestart');
+kit.MODES['coordreprov'] = coordreprov;
+kit.ORDER.splice(1, 0, 'coordreprov');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
