@@ -1,4 +1,5 @@
 'use strict';
+// step-0380 — #62 runMulti 코어 통합 10·grand capstone: coordCoherent() — broker 측 제어 평면이 연속 루프 내내(maxDesync==0) *그리고* 지금(clusterDesync==0) 실 cluster 와 in-proc 권위가 한 몸인가의 단일 술어. start→연속 run→drift→syncPlan 자가 치유 뒤에도 참. #62 runMulti 통합 sub-arc(0371~0380) 종합. OFF 동치: 미호출이면 0379 동치.
 // step-0379 — #62 runMulti 코어 통합 9: report() 운영 대시보드 — 상주 코디네이터 한 호출로 {ticks·hosts·zones·entities·desync·maxDesync·egressTotal·migrations·failovers·coherent} 종합. broker 측 제어 평면의 현재 상태를 단일 스냅샷으로(운영 관측). OFF 동치: report 미호출이면 0378 동치.
 // step-0378 — #62 runMulti 코어 통합 8: 다운스트림 egress 집계. tick 이 산출한 view_delta frame 을 존별(egressByZone)·누계(egressTotal)로 회계 — broker 측 제어 평면이 매 tick 흘려보낸 다운스트림 뷰의 운영 계측(어느 존이 얼마나 송출하나). OFF 동치: 회계만 추가·구동 무변경 = 0377 동치.
 // step-0377 — #62 runMulti 코어 통합 7: syncPlan() 상주 reconcile(비파괴) — orch.hostSpawnPlan(SSOT) 대비 실 cluster 의 *누락 존만* zoneadd 로 복원. driver.reconcile(0366)은 전 존 재-zoneadd 라 entity 상태를 리셋(초기 spawn 전용); 상주 제어 평면은 *언제든* 호출돼도 기존 상태를 보존해야 하므로 현 snapshot 과 차분해 빠진 것만 더한다(idempotent·토폴로지 drift 자가 치유). OFF 동치: syncPlan 미호출이면 0376 동치.
@@ -97,6 +98,10 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         desync, maxDesync: this.maxDesync, egressTotal: this.egressTotal,
         migrations: this.migrations, failovers: this.failovers, coherent: desync === 0,
       };
+    },
+    // grand capstone 술어(0380) — 연속 루프 내내(maxDesync==0) *그리고* 현 시점(clusterDesync==0) 실 cluster 가 in-proc 권위와 한 몸. broker 측 제어 평면(start→run→drift→syncPlan)이 SPINE §5 수렴을 실 프로세스 경계 넘어 *지속적으로* 만족. #62 sub-arc(0371~0380) 종합.
+    async coordCoherent() {
+      return this.maxDesync === 0 && (await this.driver.clusterDesync(this.orch, this.cluster)) === 0;
     },
   };
 }

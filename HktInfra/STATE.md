@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0380](step-0380.md) — **#62 runMulti 통합 10·grand capstone: coordCoherent** — broker 측 제어 평면 E2E: start→연속 run(5)[maxDesync0]→z3 drift→syncPlan 자가 치유 뒤 coordCoherent Y(maxDesync==0 && 현 clusterDesync==0)·report.coherent Y. **#62 runMulti 통합 sub-arc(0371~0380) 닫기**. 직전: 0379 report 대시보드.
-- **한 줄 상태**: reg ALL OK·coordcap 5/5(maxDesync0·drift 치유·coordCoherent·report coh)·cluster-coord.js 10.9KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#62 runMulti 통합(0371~0380 ✅ 닫힘)**: ClusterCoordinator(cluster-coord.js)·start·tick·연속 run 루프·매-tick desync 가드·상주 migrate/failover·syncPlan 비파괴 자가 치유·egress 집계·report·grand capstone. **후속(다음 arc)**: orch 권위 placement↔실 cluster lifecycle 양방향 동기(migrate/failover 후 coherent)·cluster-run.js 옛 runMulti 와 코드 합류·업스트림 intent 실 클라(#61)·진짜 비동기(#4). 🔎 **0361~0380 묶음 리뷰 적기(infra-review·2묶음)**.
+- **닫힌 step**: [step-0381](step-0381.md) — **#65 양방향 동기 1: 코디네이터 placement SSOT** — 코디네이터가 placement 권위(zone→실 host·where)를 직접 소유(orch=entity 권위/what 분리)·start 가 hostSpawnPlan 에서 초기화·placedHost(zone) 질의. #62 잔여(코디네이터 lifecycle↔orch placement 단방향) 해소 토대. 직전: 0380 #62 runMulti 통합 capstone.
+- **한 줄 상태**: reg ALL OK·coordplace 5/5(placement z1@A·z2@B·z3@A==orch plan)·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#65 양방향 동기 sub-arc(0381~)** — 코디네이터 lifecycle↔placement 권위 동기: placement SSOT(0381 ✅)→ coordDesync(placement 기준)→ migrate 가 placement 갱신(→migrate 후 desync 0)→ coordCoherent 가 coordDesync 사용→ failover placement 갱신+lost 추적→ lost 제외 coherence→ placement-aware report→ syncPlan placement 기준→ placementCoherent bijection→ grand capstone syncedCoherent. **후속**: cluster-run.js 옛 runMulti 합류(#62 잔여)·업스트림 intent 실 클라(#61)·진짜 비동기(#4).
 
 ---
 
@@ -154,3 +154,4 @@
 | [0378](step-0378.md) | #62 runMulti 통합 8: 다운스트림 egress 집계(tick view_delta→egressByZone 존별·egressTotal 누계·송출 운영 계측) | 통과(reg 0·spine OK) · coordegress 5/5 egressTotal2·z1 1·z2 1·z3 0·coherent |
 | [0379](step-0379.md) | #62 runMulti 통합 9: report() 운영 대시보드(실 cluster+코디네이터 누계 단일 스냅샷·ticks·hosts·zones·entities·desync·egress·migrations·failovers·coherent) | 통과(reg 0·spine OK) · coordreport 5/5 ticks3·hosts2·zones3·ents2·desync0·coherent |
 | [0380](step-0380.md) | #62 runMulti 통합 10·grand capstone: coordCoherent()=maxDesync==0 && 현 clusterDesync==0·start→run(5)→drift→syncPlan 치유 뒤 정합·runMulti 통합 0371~0380 닫기 | 통과(reg 0·spine OK) · coordcap 5/5 maxDesync0·drift 치유·coordCoherent·report coh |
+| [0381](step-0381.md) | #65 양방향 동기 1: 코디네이터 placement SSOT(zone→실 host·where 권위·start 가 hostSpawnPlan 초기화·placedHost 질의·orch=entity 권위 분리) | 통과(reg 0·spine OK) · coordplace 5/5 placement z1@A·z2@B·z3@A==orch plan |

@@ -1,8 +1,8 @@
-// HktInfra step-0380 — 헤드리스 검증 (#62 runMulti 코어 통합 10·grand capstone: coordCoherent — broker 측 제어 평면 지속 정합)
+// HktInfra step-0381 — 헤드리스 검증 (#65 양방향 동기 1: 코디네이터 placement SSOT)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordcap`.
-//   더한 한 조각: cluster-coord.js coordCoherent()=maxDesync==0 && 현 clusterDesync==0. #62 runMulti 통합 sub-arc(0371~0380) 닫기. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordcap` — 2 host·3 zone: start→run(5)[maxDesync0]→z3 drift→syncPlan 치유→coordCoherent Y·report coherent Y·desync 0. broker 측 제어 평면 E2E 닫힘.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordplace`.
+//   더한 한 조각: cluster-coord.js placement(zone→host SSOT·start 초기화)+placedHost(zone). #65 양방향 동기 토대. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordplace` — 2 host·3 zone: start 후 placement==orch plan(z1@A·z2@B·z3@A)·placedHost 정확.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,34 +31,29 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0380 #62 통합 10·grand capstone — coordCoherent: start→연속 run(5)→z3 drift→syncPlan 치유 뒤에도 실 cluster==in-proc 권위(지속 정합).
-async function coordcap(seeds) {
+// step-0381 #65 양방향 1 — placement SSOT: start 후 코디네이터 placement(zone→host)==orch plan·placedHost 정확.
+async function coordplace(seeds) {
   const BASE = coordScenario();
-  console.log('== coordcap (0380·#62 grand capstone): broker 측 제어 평면 E2E — run+drift+syncPlan 뒤 coordCoherent. 0371~0380 닫기. ==');
-  console.log('seed   | maxDesync | drift heal | coordCoherent | report coh | 판정');
+  console.log('== coordplace (0381·#65 양방향 1): placement SSOT — start 후 placement==orch plan(z1@A·z2@B·z3@A) ==');
+  console.log('seed   | z1 | z2 | z3 | placedHost ok | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let maxD = -1, healed = false, coh = false, repCoh = false;
+    let p = {}, queryOk = false;
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.run(5);                                                // 연속 루프(매-tick desync 가드)
-      maxD = coord.maxDesync;
-      await cluster.rpc('hostA', { cmd: 'zonedel', addr: 'z3' });        // 토폴로지 drift
-      await coord.syncPlan();                                            // 자가 치유
-      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
-      healed = !!(sa && sa.snap && sa.snap['z3']);
-      coh = await coord.coordCoherent();                                 // grand capstone 술어
-      repCoh = (await coord.report()).coherent;
+      await coord.start();
+      p = { ...coord.placement };
+      queryOk = coord.placedHost('z1') === p['z1'] && coord.placedHost('z2') === p['z2'] && coord.placedHost('nope') === null;
     } finally { await cluster.shutdown(); }
-    const ok = check(maxD === 0 && healed && coh && repCoh, `seed ${seed}: capstone 위반 (maxD ${maxD}·heal ${healed}·coh ${coh}·rep ${repCoh})`);
-    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(healed ? 'Y' : 'N', 10)} | ${pad(coh ? 'Y' : 'N', 13)} | ${pad(repCoh ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(p['z1'] === 'hostA' && p['z2'] === 'hostB' && p['z3'] === 'hostA' && queryOk, `seed ${seed}: placement 위반 (${JSON.stringify(p)}·q ${queryOk})`);
+    console.log(`${pad(seed, 6)} | ${pad(p['z1'] || '-', 2)} → ${pad(p['z1'] === 'hostA' ? 'A' : '?', 1)}| ${pad(p['z2'] === 'hostB' ? 'B' : '?', 1)} | ${pad(p['z3'] === 'hostA' ? 'A' : '?', 1)} | ${pad(queryOk ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordcap'] = coordcap;
-kit.ORDER.splice(1, 0, 'coordcap');
+kit.MODES['coordplace'] = coordplace;
+kit.ORDER.splice(1, 0, 'coordplace');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
