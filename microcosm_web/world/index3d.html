@@ -1,0 +1,365 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microcosm 3D — 하나의 규칙으로 굴러가는 3D 게임 월드</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0b12; --panel:#13141d; --panel2:#191b26; --line:#262838;
+    --ink:#e9e7df; --dim:#9a988f; --accent:#6fd3a8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#15182400,#070810);color:var(--ink);
+    font-family:-apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;
+    gap:12px;padding:18px 14px 28px;min-height:100vh}
+  header{text-align:center;max-width:900px}
+  h1{font-size:20px;font-weight:600;margin:0}
+  .eq{font-family:ui-monospace,Menlo,monospace;color:var(--accent);font-size:13px;margin-top:6px}
+  p.sub{margin:6px 0 0;color:var(--dim);font-size:13px;line-height:1.5}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:920px}
+  button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;font-size:14px;cursor:pointer;transition:.12s;user-select:none}
+  button:hover{background:var(--panel2);border-color:#3a3d52}
+  button.on{background:#22372c;border-color:var(--accent);color:#bff0d8}
+  button.ghost{color:var(--dim)}
+  .stage{position:relative;width:100%;max-width:920px}
+  #stage{width:100%;height:520px;border-radius:14px;border:1px solid var(--line);overflow:hidden;
+    background:#0c0e17;box-shadow:0 18px 60px -30px #000}
+  #stage canvas{display:block;border-radius:14px}
+  #score{position:absolute;left:14px;top:12px;font-size:13px;background:rgba(10,11,18,.6);
+    border:1px solid var(--line);border-radius:9px;padding:7px 11px;pointer-events:none;line-height:1.55}
+  #score b{color:var(--accent)}
+  #tip{position:absolute;right:14px;top:12px;font-size:12px;color:var(--dim);background:rgba(10,11,18,.5);
+    border:1px solid var(--line);border-radius:9px;padding:6px 10px;pointer-events:none;max-width:230px;text-align:right;line-height:1.5}
+  .dash{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:920px}
+  @media(max-width:680px){.dash{grid-template-columns:1fr} #stage{height:60vh}}
+  .card{background:linear-gradient(180deg,var(--panel),#101220);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .card h2{font-size:12px;margin:0 0 9px;color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0}
+  .row span:first-child{color:var(--dim)}
+  .row span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+  .meter{height:7px;border-radius:5px;background:#20222e;overflow:hidden;margin-top:4px}
+  .meter>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3a6,#7fe);transition:width .15s}
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
+  .cell{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 9px;line-height:1.35}
+  .cell b{display:block;color:var(--accent);font-size:11px;margin-bottom:2px}
+  .cell span{color:var(--dim)}
+  footer{color:#5d5b54;font-size:11px;max-width:760px;text-align:center;line-height:1.6}
+  a{color:#7fb0d8}
+</style>
+</head>
+<body>
+<header>
+  <h1>microcosm 3D — 하나의 규칙으로 굴러가는 3D 게임 월드</h1>
+  <div class="eq">ẋᵢ = f(xᵢ) + Σⱼ Wᵢⱼ g(xᵢ,xⱼ) + Iᵢ − γxᵢ&nbsp;·&nbsp;x ∈ R³</div>
+  <p class="sub">2D와 같은 규칙, 차원만 R³. 단위·경계·상호작용·흐름·피드백·창발이 3차원에서 그대로 굴러간다.
+  좌드래그=시점 회전, 휠=줌. 도구를 골라 지면을 조준해 개입하라.</p>
+</header>
+
+<div class="bar" id="tools">
+  <button data-tool="water" class="on">물 💧</button>
+  <button data-tool="rock">바위 🪨</button>
+  <button data-tool="tree">나무 🌲</button>
+  <button data-tool="creature">개체 🐾</button>
+  <button data-tool="character">캐릭터 🧍</button>
+  <button data-tool="ice">얼음 🧊</button>
+  <button data-tool="fireball">파이어볼 🔥</button>
+  <button data-tool="lightning">벼락 ⚡</button>
+  <button id="pause" class="ghost">⏸ 일시정지</button>
+  <button id="reset" class="ghost">↺ 리셋</button>
+  <a href="index.html" style="align-self:center;font-size:12px">← 2D 버전</a>
+</div>
+
+<div class="stage">
+  <div id="stage"></div>
+  <div id="score"></div>
+  <div id="tip">좌드래그 = 회전 · 휠 = 줌<br>클릭 = 도구 사용<br>물 선택 시 드래그 = 붓기 · 우드래그 = 회전</div>
+</div>
+
+<div class="dash">
+  <div class="card">
+    <h2>창발 계측 (emergence)</h2>
+    <div class="row"><span>생명 지수 (개체+나무)</span><span id="mLife">0</span></div>
+    <div class="meter"><i id="barLife"></i></div>
+    <div class="row" style="margin-top:6px"><span>질서변수 φ · 집단 정렬도</span><span id="mOrder">0.00</span></div>
+    <div class="meter"><i id="barOrder" style="background:linear-gradient(90deg,#48c,#9df)"></i></div>
+    <div class="row" style="margin-top:6px"><span>흐름 · 총 열에너지</span><span id="mHeat">0.0</span></div>
+    <div class="meter"><i id="barHeat" style="background:linear-gradient(90deg,#a52,#fb6)"></i></div>
+    <div class="row" style="margin-top:8px"><span>단위 수</span><span id="mUnits">0</span></div>
+    <div class="row"><span>연결망 결합 (network)</span><span id="mBonds">0</span></div>
+    <div class="row"><span>엔트로피 방출 (소산 Σ)</span><span id="mEntropy">0</span></div>
+  </div>
+  <div class="card">
+    <h2>6칸 보편 문법</h2>
+    <div class="cells">
+      <div class="cell"><b>단위</b><span>R³ 상태점. 색=종류</span></div>
+      <div class="cell"><b>경계</b><span>kind · 높이장 지형 · 상자</span></div>
+      <div class="cell"><b>상호작용</b><span>열·반발·응집·결합 (Wᵢⱼg)</span></div>
+      <div class="cell"><b>흐름</b><span>소환·물붓기 입력 (I)</span></div>
+      <div class="cell"><b>피드백</b><span>항상성(−)·연소(+)</span></div>
+      <div class="cell"><b>창발</b><span>몸·불꽃·프랙탈·생태</span></div>
+    </div>
+    <p class="sub" style="font-size:12px;margin-top:11px">파이어볼을 나무 밑에 쏘면 불기둥이 솟아 결합이 <b>융해</b>돼 쓰러지고,
+    벼락은 하늘에서 프랙탈로 내려쳐 개체 HP를 깎는다. 불은 식으면 소산된다(엔트로피).</p>
+  </div>
+</div>
+
+<footer>출처: <i>하나의 규칙, 여덟 층위 — 미시 세계에서 우주까지</i>.
+엔진(engine3d.js)은 DOM 비의존이라 Node 로 검증된다. 렌더: Three.js r128.</footer>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+<script src="engine3d.js"></script>
+<script>
+(function () {
+  'use strict';
+  const K = MC3.KIND;
+  const W = 200, H = 130, D = 200, OX = W / 2, OZ = D / 2, MAXN = 2600;
+  const stageEl = document.getElementById('stage');
+  let ww = stageEl.clientWidth || 900, hh = stageEl.clientHeight || 520;
+
+  const renderer = new THREE.WebGLRenderer({ antialias: true });
+  renderer.setSize(ww, hh); renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
+  renderer.setClearColor(0x0c0e17, 1); stageEl.appendChild(renderer.domElement);
+
+  const scene = new THREE.Scene();
+  scene.fog = new THREE.Fog(0x0c0e17, 220, 480);
+  const camera = new THREE.PerspectiveCamera(52, ww / hh, 0.5, 1500);
+  const target = new THREE.Vector3(0, 16, 0);
+  let camR = 230, camTheta = 0.85, camPhi = 1.02;
+  function updateCam() {
+    camera.position.set(
+      target.x + camR * Math.sin(camPhi) * Math.cos(camTheta),
+      target.y + camR * Math.cos(camPhi),
+      target.z + camR * Math.sin(camPhi) * Math.sin(camTheta));
+    camera.lookAt(target);
+  }
+  updateCam();
+
+  scene.add(new THREE.HemisphereLight(0x9fb8ff, 0x20180f, 0.9));
+  const sun = new THREE.DirectionalLight(0xffe6c0, 0.9); sun.position.set(80, 160, 40); scene.add(sun);
+
+  // ---- 월드 ----
+  let world;
+  function buildWorld() {
+    world = new MC3.World({ W, H, D, gravity: 16, cap: 12000 });
+    MC3.Forms.terrain(world);
+    MC3.Forms.water(world, 100, 100, 70, 22);
+    MC3.Forms.tree(world, 60, 70); MC3.Forms.tree(world, 140, 130); MC3.Forms.tree(world, 150, 55);
+    MC3.Forms.rock(world, 110, 95, { r: 5 });
+    MC3.Forms.creature(world, 80, 0, 120); MC3.Forms.creature(world, 130, 0, 80);
+    MC3.Forms.character(world, 160, 0, 150);
+  }
+  buildWorld();
+
+  // ---- 지형 메시 (높이장 → 정점) ----
+  const segX = 80, segZ = 80;
+  const tgeo = new THREE.BufferGeometry();
+  const tvCount = (segX + 1) * (segZ + 1);
+  const tpos = new Float32Array(tvCount * 3), tcol = new Float32Array(tvCount * 3);
+  let vi = 0;
+  for (let iz = 0; iz <= segZ; iz++) for (let ix = 0; ix <= segX; ix++) {
+    const wx = ix / segX * W, wz = iz / segZ * D, wy = world.ground(wx, wz);
+    tpos[vi * 3] = wx - OX; tpos[vi * 3 + 1] = wy; tpos[vi * 3 + 2] = wz - OZ;
+    const t = Math.max(0, Math.min(1, (wy - 14) / 26));   // 높이별 색: 초지→바위
+    tcol[vi * 3] = 0.16 + t * 0.30; tcol[vi * 3 + 1] = 0.34 - t * 0.10; tcol[vi * 3 + 2] = 0.13 + t * 0.05;
+    vi++;
+  }
+  const tidx = [];
+  for (let iz = 0; iz < segZ; iz++) for (let ix = 0; ix < segX; ix++) {
+    const a = iz * (segX + 1) + ix, b = a + 1, c = a + (segX + 1), d = c + 1;
+    tidx.push(a, c, b, b, c, d);
+  }
+  tgeo.setAttribute('position', new THREE.BufferAttribute(tpos, 3));
+  tgeo.setAttribute('color', new THREE.BufferAttribute(tcol, 3));
+  tgeo.setIndex(tidx); tgeo.computeVertexNormals();
+  const terrain = new THREE.Mesh(tgeo, new THREE.MeshStandardMaterial({ vertexColors: true, roughness: 1, metalness: 0, flatShading: false }));
+  scene.add(terrain);
+  // 물 평면(시각 보조)
+  const waterPlane = new THREE.Mesh(new THREE.PlaneGeometry(W, D),
+    new THREE.MeshStandardMaterial({ color: 0x2a6cc0, transparent: true, opacity: 0.16, roughness: 0.3 }));
+  waterPlane.rotation.x = -Math.PI / 2; waterPlane.position.y = 30; scene.add(waterPlane);
+
+  // ---- 단위 입자 ----
+  const CAP = 12000;
+  const pgeo = new THREE.BufferGeometry();
+  const ppos = new Float32Array(CAP * 3), pcol = new Float32Array(CAP * 3);
+  pgeo.setAttribute('position', new THREE.BufferAttribute(ppos, 3));
+  pgeo.setAttribute('color', new THREE.BufferAttribute(pcol, 3));
+  const points = new THREE.Points(pgeo, new THREE.PointsMaterial({ size: 3.4, vertexColors: true, sizeAttenuation: true }));
+  points.frustumCulled = false; scene.add(points);
+
+  // ---- 결합 / 벼락 라인 ----
+  const MAXB = 9000, bgeo = new THREE.BufferGeometry(), bpos = new Float32Array(MAXB * 6), bcol = new Float32Array(MAXB * 6);
+  bgeo.setAttribute('position', new THREE.BufferAttribute(bpos, 3));
+  bgeo.setAttribute('color', new THREE.BufferAttribute(bcol, 3));
+  const blines = new THREE.LineSegments(bgeo, new THREE.LineBasicMaterial({ vertexColors: true, transparent: true, opacity: 0.55 }));
+  blines.frustumCulled = false; scene.add(blines);
+
+  const MAXL = 4000, lgeo = new THREE.BufferGeometry(), lpos = new Float32Array(MAXL * 6);
+  lgeo.setAttribute('position', new THREE.BufferAttribute(lpos, 3));
+  const llines = new THREE.LineSegments(lgeo, new THREE.LineBasicMaterial({ color: 0xcdd8ff, transparent: true, opacity: 0.95 }));
+  llines.frustumCulled = false; scene.add(llines);
+
+  // 조준 고리
+  const ring = new THREE.Mesh(new THREE.RingGeometry(3, 4.4, 30),
+    new THREE.MeshBasicMaterial({ color: 0x7fe3b6, side: THREE.DoubleSide, transparent: true, opacity: 0.85 }));
+  ring.rotation.x = -Math.PI / 2; scene.add(ring);
+
+  // ---- 입력 ----
+  let tool = 'water', paused = false, peakLife = 1;
+  const aim = { x: 100, z: 100, y: 24 };
+  const ray = new THREE.Raycaster(), ndc = new THREE.Vector2();
+  function updateAim(e) {
+    const r = renderer.domElement.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    ndc.x = cx / r.width * 2 - 1; ndc.y = -(cy / r.height * 2 - 1);
+    ray.setFromCamera(ndc, camera);
+    const hit = ray.intersectObject(terrain, false);
+    if (hit.length) {
+      aim.x = hit[0].point.x + OX; aim.z = hit[0].point.z + OZ; aim.y = hit[0].point.y;
+      ring.position.set(hit[0].point.x, aim.y + 0.6, hit[0].point.z);
+    }
+  }
+  function useTool() {
+    if (world.n > MAXN) return;
+    const x = aim.x, z = aim.z;
+    switch (tool) {
+      case 'water': pour(x, z); break;
+      case 'rock': MC3.Forms.rock(world, x, z, { r: 4.5 }); break;
+      case 'tree': MC3.Forms.tree(world, x, z); break;
+      case 'creature': MC3.Forms.creature(world, x, 0, z); break;
+      case 'character': MC3.Forms.character(world, x, 0, z); break;
+      case 'ice': MC3.Forms.ice(world, x, world.ground(x, z) + 6, z); break;
+      case 'fireball': MC3.Forms.fireball(world, x, world.ground(x, z) + 5, z, { count: 50, temp: 2.6 }); break;
+      case 'lightning': world.strikeLightning(x, z); break;
+    }
+  }
+  function pour(x, z) { if (world.n < MAXN) for (let t = 0; t < 6; t++) world.spawn({ x: x + (Math.random() - 0.5) * 8, z: z + (Math.random() - 0.5) * 8, y: world.ground(x, z) + 26 + Math.random() * 6, vy: -3, M: 0.5, kind: K.WATER, gScale: 1 }); }
+
+  const cv = renderer.domElement;
+  let dragging = false, rotating = false, moved = false, lx = 0, ly = 0;
+  function pdown(e) {
+    updateAim(e); moved = false; dragging = true;
+    lx = e.touches ? e.touches[0].clientX : e.clientX; ly = e.touches ? e.touches[0].clientY : e.clientY;
+    rotating = (e.button === 2);  // 우버튼=항상 회전. 좌버튼: 물=붓기, 그 외 도구=드래그 회전·클릭 사용.
+    if (tool === 'water' && e.button !== 2) pour(aim.x, aim.z);
+  }
+  function pmove(e) {
+    updateAim(e);
+    if (!dragging) return;
+    const cx = e.touches ? e.touches[0].clientX : e.clientX, cy = e.touches ? e.touches[0].clientY : e.clientY;
+    const dx = cx - lx, dy = cy - ly;
+    if (Math.abs(dx) + Math.abs(dy) > 3) moved = true;
+    lx = cx; ly = cy;
+    // 물 도구는 좌드래그=붓기, 그 외 도구는 좌드래그=회전. 우버튼은 항상 회전.
+    const orbit = rotating || (tool !== 'water');
+    if (orbit) { camTheta -= dx * 0.008; camPhi = Math.max(0.18, Math.min(1.5, camPhi - dy * 0.008)); updateCam(); }
+    else if (tool === 'water') pour(aim.x, aim.z);
+  }
+  function pup() { if (dragging && !moved) useTool(); dragging = false; rotating = false; }
+
+  cv.addEventListener('contextmenu', (e) => e.preventDefault());
+  cv.addEventListener('mousedown', pdown);
+  cv.addEventListener('mousemove', pmove);
+  window.addEventListener('mouseup', pup);
+  cv.addEventListener('touchstart', (e) => { e.preventDefault(); pdown(e); }, { passive: false });
+  cv.addEventListener('touchmove', (e) => { e.preventDefault(); pmove(e); }, { passive: false });
+  window.addEventListener('touchend', pup);
+  cv.addEventListener('wheel', (e) => { e.preventDefault(); camR = Math.max(70, Math.min(560, camR + e.deltaY * 0.18)); updateCam(); }, { passive: false });
+
+  const toolBtns = document.querySelectorAll('#tools button[data-tool]');
+  toolBtns.forEach((b) => b.addEventListener('click', () => { tool = b.dataset.tool; toolBtns.forEach((x) => x.classList.toggle('on', x === b)); }));
+  document.getElementById('reset').onclick = () => { buildWorld(); peakLife = 1; };
+  const pauseBtn = document.getElementById('pause');
+  pauseBtn.onclick = () => { paused = !paused; pauseBtn.textContent = paused ? '▶ 재생' : '⏸ 일시정지'; };
+  window.addEventListener('resize', () => {
+    ww = stageEl.clientWidth; hh = stageEl.clientHeight;
+    renderer.setSize(ww, hh); camera.aspect = ww / hh; camera.updateProjectionMatrix();
+  });
+
+  // ---- 색 ----
+  function writeColor(k, i, o) {
+    let r, g, b;
+    if (k === K.FIRE) { const t = Math.min(1, world.T[i] / 2); r = Math.min(1, 0.7 + t * 0.3); g = Math.min(1, 0.2 + t * 0.75); b = Math.max(0.02, t - 0.5); }
+    else if (k === K.WATER) { r = 0.18; g = 0.45; b = 0.85; }
+    else if (k === K.CHARACTER) { const f = world.hpMax[i] > 0 ? Math.max(0, world.hp[i] / world.hpMax[i]) : 1; r = 0.2 + (1 - f) * 0.7; g = 0.6 + f * 0.3; b = 0.45; }
+    else if (k === K.CREATURE) { const f = world.hpMax[i] > 0 ? Math.max(0, world.hp[i] / world.hpMax[i]) : 1; r = 0.88 * Math.max(0.4, f); g = 0.57 * Math.max(0.4, f); b = 0.23; }
+    else if (k === K.ROCK) { r = 0.55; g = 0.52; b = 0.46; }
+    else if (k === K.WOOD) { r = 0.48; g = 0.34; b = 0.19; }
+    else if (k === K.LEAF) { r = 0.31; g = 0.6; b = 0.24; }
+    else if (k === K.ICE) { r = 0.75; g = 0.91; b = 1.0; }
+    else { r = 0.5; g = 0.5; b = 0.5; }
+    if (world.T[i] > 0.45 && k !== K.FIRE) { const t = Math.min(1, world.T[i] / 2); r = Math.min(1, r + t * 0.5); g = Math.min(1, g + t * 0.3); }
+    pcol[o] = r; pcol[o + 1] = g; pcol[o + 2] = b;
+  }
+
+  // ---- 대시보드 ----
+  const el = (id) => document.getElementById(id);
+  function updateDash(m) {
+    const life = m.life + Math.round(m.trees / 8);
+    peakLife = Math.max(peakLife, life);
+    el('mLife').textContent = life;
+    el('barLife').style.width = Math.min(100, life / Math.max(peakLife, 10) * 100) + '%';
+    el('mOrder').textContent = m.order.toFixed(2);
+    el('barOrder').style.width = (m.order * 100).toFixed(0) + '%';
+    el('mHeat').textContent = m.heat.toFixed(1);
+    el('barHeat').style.width = Math.min(100, m.heat / 50 * 100).toFixed(0) + '%';
+    el('mUnits').textContent = m.alive;
+    el('mBonds').textContent = m.bonds;
+    el('mEntropy').textContent = m.entropyOut.toFixed(0);
+    el('score').innerHTML = '🌱 생명 지수 <b>' + life + '</b><br>⏱ ' + m.time.toFixed(0) + 's · 단위 ' + m.alive;
+  }
+
+  // ---- 루프 ----
+  let acc = 0, last = performance.now(), dashT = 0;
+  function frame(now) {
+    const realDt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused) {
+      acc += realDt; let steps = 0;
+      while (acc >= 0.02 && steps < 3) { world.step(0.02); acc -= 0.02; steps++; }
+    }
+    // 입자
+    let cnt = 0; const n = world.n;
+    for (let i = 0; i < n && cnt < CAP; i++) {
+      if (!world.alive[i]) continue; const o = cnt * 3;
+      ppos[o] = world.px[i] - OX; ppos[o + 1] = world.py[i]; ppos[o + 2] = world.pz[i] - OZ;
+      writeColor(world.kind[i], i, o); cnt++;
+    }
+    pgeo.setDrawRange(0, cnt); pgeo.attributes.position.needsUpdate = true; pgeo.attributes.color.needsUpdate = true;
+    // 결합
+    let bc = 0;
+    for (const bd of world.bonds) {
+      if (bc >= MAXB) break; const i = bd.i, j = bd.j; if (!world.alive[i] || !world.alive[j]) continue;
+      const wood = world.kind[i] === K.WOOD || world.kind[i] === K.LEAF;
+      const o = bc * 6;
+      bpos[o] = world.px[i] - OX; bpos[o + 1] = world.py[i]; bpos[o + 2] = world.pz[i] - OZ;
+      bpos[o + 3] = world.px[j] - OX; bpos[o + 4] = world.py[j]; bpos[o + 5] = world.pz[j] - OZ;
+      const cr = wood ? 0.48 : 0.6, cg = wood ? 0.34 : 0.62, cb = wood ? 0.19 : 0.72;
+      bcol[o] = cr; bcol[o + 1] = cg; bcol[o + 2] = cb; bcol[o + 3] = cr; bcol[o + 4] = cg; bcol[o + 5] = cb;
+      bc++;
+    }
+    bgeo.setDrawRange(0, bc * 2); bgeo.attributes.position.needsUpdate = true; bgeo.attributes.color.needsUpdate = true;
+    // 벼락
+    let lc = 0;
+    for (const bolt of world.bolts) for (const s of bolt.segs) {
+      if (lc >= MAXL) break; const o = lc * 6;
+      lpos[o] = s[0] - OX; lpos[o + 1] = s[1]; lpos[o + 2] = s[2] - OZ;
+      lpos[o + 3] = s[3] - OX; lpos[o + 4] = s[4]; lpos[o + 5] = s[5] - OZ; lc++;
+    }
+    lgeo.setDrawRange(0, lc * 2); lgeo.attributes.position.needsUpdate = true;
+
+    dashT += realDt; if (dashT > 0.15) { updateDash(world.metrics()); dashT = 0; }
+    renderer.render(scene, camera);
+    requestAnimationFrame(frame);
+  }
+  // 초기 안정화
+  for (let s = 0; s < 80; s++) world.step(0.02);
+  updateDash(world.metrics());
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

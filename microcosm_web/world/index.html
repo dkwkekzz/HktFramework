@@ -1,0 +1,283 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microcosm — 하나의 규칙으로 굴러가는 게임 월드</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0b12; --panel:#13141d; --panel2:#191b26; --line:#262838;
+    --ink:#e9e7df; --dim:#9a988f; --accent:#6fd3a8; --warm:#ff8a4c; --cool:#52a8e8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#15182400,#070810);color:var(--ink);
+    font-family:-apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;
+    gap:12px;padding:18px 14px 28px;min-height:100vh}
+  header{text-align:center;max-width:900px}
+  h1{font-size:20px;font-weight:600;margin:0;letter-spacing:.2px}
+  .eq{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace;color:var(--accent);font-size:13px;margin-top:6px}
+  p.sub{margin:6px 0 0;color:var(--dim);font-size:13px;line-height:1.5}
+  .stage{position:relative;width:100%;max-width:920px}
+  canvas#mc{width:100%;border-radius:14px;border:1px solid var(--line);display:block;cursor:crosshair;
+    background:#0c0e17;box-shadow:0 18px 60px -30px #000}
+  /* HUD overlays */
+  #score{position:absolute;left:14px;top:12px;font-size:13px;background:rgba(10,11,18,.6);backdrop-filter:blur(4px);
+    border:1px solid var(--line);border-radius:9px;padding:7px 11px;pointer-events:none;line-height:1.55}
+  #score b{color:var(--accent)}
+  #tip{position:absolute;right:14px;top:12px;font-size:12px;color:var(--dim);background:rgba(10,11,18,.5);
+    border:1px solid var(--line);border-radius:9px;padding:6px 10px;pointer-events:none;max-width:220px;text-align:right}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;max-width:920px}
+  button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;font-size:14px;cursor:pointer;transition:.12s;user-select:none}
+  button:hover{background:var(--panel2);border-color:#3a3d52}
+  button.on{background:#22372c;border-color:var(--accent);color:#bff0d8}
+  button.ghost{color:var(--dim)}
+  /* dashboard */
+  .dash{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:920px}
+  @media(max-width:680px){.dash{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),#101220);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .card h2{font-size:12px;margin:0 0 9px;color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0}
+  .row span:first-child{color:var(--dim)}
+  .row span:last-child{font-variant-numeric:tabular-nums;font-weight:600}
+  .meter{height:7px;border-radius:5px;background:#20222e;overflow:hidden;margin-top:4px}
+  .meter>i{display:block;height:100%;width:0;background:linear-gradient(90deg,#3a6,#7fe);transition:width .15s}
+  /* 6-cell grid */
+  .cells{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;font-size:12px}
+  .cell{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 9px;line-height:1.35}
+  .cell b{display:block;color:var(--accent);font-size:11px;margin-bottom:2px;letter-spacing:.3px}
+  .cell span{color:var(--dim)}
+  footer{color:#5d5b54;font-size:11px;max-width:760px;text-align:center;line-height:1.6;margin-top:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>microcosm — 하나의 규칙으로 굴러가는 게임 월드</h1>
+  <div class="eq">ẋᵢ = f(xᵢ) + Σⱼ Wᵢⱼ g(xᵢ,xⱼ) + Iᵢ − γxᵢ&nbsp;&nbsp;·&nbsp;&nbsp;단위·경계·상호작용·흐름·피드백·창발</div>
+  <p class="sub">캐릭터·불·벼락·물·바위·나무·개체는 서로 다른 물리가 아니다. 같은 기질 위에 단위를 다르게 배치한 <b>레시피</b>일 뿐,
+  거시 거동은 그 배치에서 저절로 떠오른다. 도구를 골라 마우스로 조준하고 세계에 개입해 보라.</p>
+</header>
+
+<div class="bar" id="tools">
+  <button data-tool="water"     class="on">물 💧</button>
+  <button data-tool="rock">바위 🪨</button>
+  <button data-tool="tree">나무 🌲</button>
+  <button data-tool="creature">개체 🐾</button>
+  <button data-tool="character">캐릭터 🧍</button>
+  <button data-tool="ice">얼음 🧊</button>
+  <button data-tool="fireball">파이어볼 🔥</button>
+  <button data-tool="lightning">벼락 ⚡</button>
+  <button id="pause" class="ghost">⏸ 일시정지</button>
+  <button id="reset" class="ghost">↺ 리셋</button>
+</div>
+
+<div class="stage">
+  <canvas id="mc" width="920" height="470"></canvas>
+  <div id="score"></div>
+  <div id="tip">클릭 = 선택 도구 사용<br>드래그 = 물 붓기 / 불 끌기</div>
+</div>
+
+<div class="dash">
+  <div class="card">
+    <h2>창발 계측 (emergence)</h2>
+    <div class="row"><span>생명 지수 (개체+나무)</span><span id="mLife">0</span></div>
+    <div class="meter"><i id="barLife"></i></div>
+    <div class="row" style="margin-top:6px"><span>질서변수 φ · 집단 정렬도</span><span id="mOrder">0.00</span></div>
+    <div class="meter"><i id="barOrder" style="background:linear-gradient(90deg,#48c,#9df)"></i></div>
+    <div class="row" style="margin-top:6px"><span>흐름 · 총 열에너지</span><span id="mHeat">0.0</span></div>
+    <div class="meter"><i id="barHeat" style="background:linear-gradient(90deg,#a52,#fb6)"></i></div>
+    <div class="row" style="margin-top:8px"><span>단위 수</span><span id="mUnits">0</span></div>
+    <div class="row"><span>연결망 결합 (network)</span><span id="mBonds">0</span></div>
+    <div class="row"><span>엔트로피 방출 (소산 Σ)</span><span id="mEntropy">0</span></div>
+  </div>
+  <div class="card">
+    <h2>6칸 보편 문법</h2>
+    <div class="cells">
+      <div class="cell"><b>단위</b><span>상태를 가진 점. 색=종류</span></div>
+      <div class="cell"><b>경계</b><span>kind 태그 · 지형 · 벽</span></div>
+      <div class="cell"><b>상호작용</b><span>열·반발·응집·결합 (Wᵢⱼg)</span></div>
+      <div class="cell"><b>흐름</b><span>소환·물붓기의 에너지 입력 (I)</span></div>
+      <div class="cell"><b>피드백</b><span>항상성(−) · 연소·결합(+)</span></div>
+      <div class="cell"><b>창발</b><span>몸·불꽃·프랙탈·생태</span></div>
+    </div>
+    <p class="sub" style="font-size:12px;margin-top:11px">파이어볼을 나무에 쏘면 결합이 <b>융해</b>돼 쓰러지고, 벼락은 개체의
+    HP를 깎는다. 불은 식으면 소산되어 사라진다(엔트로피). 물을 부으면 표면장력으로 고이고 불을 끈다.</p>
+  </div>
+</div>
+
+<footer>출처: <i>하나의 규칙, 여덟 층위 — 미시 세계에서 우주까지</i>. 엔진(engine.js)은 DOM 비의존이라 Node 로 검증된다.
+한 규칙이 차원·층위를 가로질러 같은 수학으로 환원된다는 것이 이 세계의 전부다.</footer>
+
+<script src="engine.js"></script>
+<script>
+(function () {
+  'use strict';
+  const K = MC.KIND;
+  const cv = document.getElementById('mc'), ctx = cv.getContext('2d');
+  const W = 240, H = 120, scale = cv.width / W;          // 월드좌표 → 픽셀
+  const sx = (x) => x * scale, sy = (y) => (H - y) * scale;
+  const MAXN = 6000;
+  let world, tool = 'water', mouse = { x: 120, y: 70, down: false }, paused = false, peakLife = 1;
+
+  function reset() {
+    world = new MC.World({ W, H, gravity: 16, cap: 12000 });
+    MC.Forms.terrain(world);
+    for (const cx of [70, 100, 130]) MC.Forms.water(world, cx, 50, 26, 112);
+    MC.Forms.tree(world, 44); MC.Forms.tree(world, 92); MC.Forms.tree(world, 200);
+    MC.Forms.rock(world, 152, 0, { r: 5 });
+    MC.Forms.creature(world, 110, 100); MC.Forms.creature(world, 172, 100);
+    MC.Forms.character(world, 222, 95);
+    peakLife = 1;
+  }
+
+  // ---- 입력 ----
+  function toWorld(e) {
+    const r = cv.getBoundingClientRect();
+    const cx = (e.touches ? e.touches[0].clientX : e.clientX) - r.left;
+    const cy = (e.touches ? e.touches[0].clientY : e.clientY) - r.top;
+    return { x: cx * (cv.width / r.width) / scale, y: H - cy * (cv.height / r.height) / scale };
+  }
+  function pour(x, y) { if (world.n < MAXN) for (let t = 0; t < 6; t++) world.spawn({ x: x + (Math.random() - 0.5) * 6, y: y + Math.random() * 5, vy: -3, M: 0.5, kind: K.WATER, gScale: 1 }); }
+  function douse(x, y) { for (let t = 0; t < 4; t++) world.spawn({ x: x + (Math.random() - 0.5) * 6, y: y + Math.random() * 5, T: 0, vy: -2, M: 0.5, kind: K.WATER, gScale: 1 }); }
+
+  function useTool(x, y) {
+    if (world.n > MAXN) return;
+    switch (tool) {
+      case 'water': pour(x, y); break;
+      case 'rock': MC.Forms.rock(world, x, 0, { r: 4.5 }); break;
+      case 'tree': MC.Forms.tree(world, x); break;
+      case 'creature': MC.Forms.creature(world, x, Math.max(y, world.ground(x) + 6)); break;
+      case 'character': MC.Forms.character(world, x, Math.max(y, world.ground(x) + 6)); break;
+      case 'ice': MC.Forms.ice(world, x, y); break;
+      case 'fireball': MC.Forms.fireball(world, x, y, { count: 44, temp: 2.3 }); break;
+      case 'lightning': world.strikeLightning(x); break;
+    }
+  }
+
+  cv.addEventListener('mousemove', (e) => { const m = toWorld(e); mouse.x = m.x; mouse.y = m.y; });
+  cv.addEventListener('mousedown', (e) => { const m = toWorld(e); mouse.x = m.x; mouse.y = m.y; mouse.down = true; useTool(m.x, m.y); });
+  window.addEventListener('mouseup', () => { mouse.down = false; });
+  cv.addEventListener('touchstart', (e) => { e.preventDefault(); const m = toWorld(e); mouse.x = m.x; mouse.y = m.y; mouse.down = true; useTool(m.x, m.y); }, { passive: false });
+  cv.addEventListener('touchmove', (e) => { e.preventDefault(); const m = toWorld(e); mouse.x = m.x; mouse.y = m.y; }, { passive: false });
+  window.addEventListener('touchend', () => { mouse.down = false; });
+
+  const toolBtns = document.querySelectorAll('#tools button[data-tool]');
+  toolBtns.forEach((b) => b.addEventListener('click', () => {
+    tool = b.dataset.tool;
+    toolBtns.forEach((x) => x.classList.toggle('on', x === b));
+  }));
+  document.getElementById('reset').onclick = reset;
+  const pauseBtn = document.getElementById('pause');
+  pauseBtn.onclick = () => { paused = !paused; pauseBtn.textContent = paused ? '▶ 재생' : '⏸ 일시정지'; };
+
+  // ---- 렌더 ----
+  function circle(x, y, r) { ctx.beginPath(); ctx.arc(x, y, r, 0, 6.2832); ctx.fill(); }
+  function fireColor(T) { const t = Math.min(1, T / 2); return 'rgba(255,' + (90 + t * 150 | 0) + ',' + (t * 60 | 0) + ',0.9)'; }
+  const COL = {}; COL[K.ROCK] = '#8b8576'; COL[K.WOOD] = '#7a5630'; COL[K.LEAF] = '#4f9a3e'; COL[K.ICE] = '#bfe9ff';
+
+  function drawTerrain() {
+    ctx.beginPath(); ctx.moveTo(0, cv.height);
+    for (let x = 0; x <= W; x += 2) ctx.lineTo(sx(x), sy(world.ground(x)));
+    ctx.lineTo(cv.width, cv.height); ctx.closePath();
+    const g = ctx.createLinearGradient(0, cv.height * 0.5, 0, cv.height);
+    g.addColorStop(0, '#33301f'); g.addColorStop(1, '#211f15'); ctx.fillStyle = g; ctx.fill();
+    ctx.beginPath();
+    for (let x = 0; x <= W; x += 2) { const px = sx(x), py = sy(world.ground(x)); x === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); }
+    ctx.strokeStyle = '#5a8f3c'; ctx.lineWidth = 3; ctx.stroke();
+  }
+
+  function draw() {
+    const g = ctx.createLinearGradient(0, 0, 0, cv.height);
+    g.addColorStop(0, '#0e1320'); g.addColorStop(1, '#141826');
+    ctx.fillStyle = g; ctx.fillRect(0, 0, cv.width, cv.height);
+    drawTerrain();
+
+    // 물 (가산 혼합 글로우)
+    ctx.globalCompositeOperation = 'lighter';
+    for (let i = 0; i < world.n; i++) {
+      if (!world.alive[i] || world.kind[i] !== K.WATER) continue;
+      ctx.fillStyle = 'rgba(50,120,210,0.5)'; circle(sx(world.px[i]), sy(world.py[i]), 4.6);
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 결합: 나무/잎 = 갈색, 그 외 = 흐린 회색
+    ctx.lineWidth = 1.7; ctx.beginPath(); ctx.strokeStyle = 'rgba(122,86,48,0.9)';
+    for (const b of world.bonds) { if (!world.alive[b.i] || !world.alive[b.j]) continue; const ki = world.kind[b.i]; if (ki !== K.WOOD && ki !== K.LEAF) continue; ctx.moveTo(sx(world.px[b.i]), sy(world.py[b.i])); ctx.lineTo(sx(world.px[b.j]), sy(world.py[b.j])); }
+    ctx.stroke();
+    ctx.beginPath(); ctx.strokeStyle = 'rgba(150,155,180,0.28)'; ctx.lineWidth = 1;
+    for (const b of world.bonds) { if (!world.alive[b.i] || !world.alive[b.j]) continue; const ki = world.kind[b.i]; if (ki === K.WOOD || ki === K.LEAF) continue; ctx.moveTo(sx(world.px[b.i]), sy(world.py[b.i])); ctx.lineTo(sx(world.px[b.j]), sy(world.py[b.j])); }
+    ctx.stroke();
+
+    // 단위
+    for (let i = 0; i < world.n; i++) {
+      if (!world.alive[i]) continue;
+      const k = world.kind[i], x = sx(world.px[i]), y = sy(world.py[i]);
+      if (k === K.WATER) continue;
+      if (k === K.FIRE) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fireColor(world.T[i]); circle(x, y, 5); ctx.globalCompositeOperation = 'source-over'; continue; }
+      if (k === K.CHARACTER || k === K.CREATURE) {
+        const f = world.hpMax[i] > 0 ? Math.max(0, world.hp[i] / world.hpMax[i]) : 1;
+        ctx.fillStyle = k === K.CHARACTER
+          ? 'rgb(' + ((0.2 + (1 - f) * 0.7) * 255 | 0) + ',' + ((0.6 + f * 0.3) * 255 | 0) + ',110)'
+          : 'rgb(' + (224 * Math.max(0.4, f) | 0) + ',' + (145 * Math.max(0.4, f) | 0) + ',58)';
+        circle(x, y, 3.4);
+      } else if (COL[k]) { ctx.fillStyle = COL[k]; circle(x, y, k === K.ROCK ? 3.3 : 3.0); }
+      if (world.T[i] > 0.45) { ctx.globalCompositeOperation = 'lighter'; ctx.fillStyle = fireColor(world.T[i]); circle(x, y, 4.6); ctx.globalCompositeOperation = 'source-over'; }
+    }
+
+    // 벼락 채널
+    ctx.globalCompositeOperation = 'lighter';
+    for (const bolt of world.bolts) {
+      ctx.strokeStyle = 'rgba(180,210,255,' + Math.min(1, bolt.life * 3).toFixed(2) + ')';
+      ctx.lineWidth = 2.2; ctx.beginPath();
+      bolt.path.forEach((p, idx) => { const px = sx(p[0]), py = sy(p[1]); idx === 0 ? ctx.moveTo(px, py) : ctx.lineTo(px, py); });
+      ctx.stroke();
+    }
+    ctx.globalCompositeOperation = 'source-over';
+
+    // 조준 고리
+    ctx.strokeStyle = 'rgba(233,231,223,0.5)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.arc(sx(mouse.x), sy(mouse.y), 7, 0, 6.2832); ctx.stroke();
+  }
+
+  // ---- 대시보드 ----
+  const el = (id) => document.getElementById(id);
+  function updateDash() {
+    const m = world.metrics();
+    const life = m.life + Math.round(m.trees / 6);   // 개체 + 나무묶음
+    peakLife = Math.max(peakLife, life);
+    el('mLife').textContent = life;
+    el('barLife').style.width = Math.min(100, life / Math.max(peakLife, 10) * 100) + '%';
+    el('mOrder').textContent = m.order.toFixed(2);
+    el('barOrder').style.width = (m.order * 100).toFixed(0) + '%';
+    el('mHeat').textContent = m.heat.toFixed(1);
+    el('barHeat').style.width = Math.min(100, m.heat / 40 * 100).toFixed(0) + '%';
+    el('mUnits').textContent = m.alive;
+    el('mBonds').textContent = m.bonds;
+    el('mEntropy').textContent = m.entropyOut.toFixed(0);
+    el('score').innerHTML = '🌱 생명 지수 <b>' + life + '</b><br>⏱ ' + m.time.toFixed(0) + 's · 단위 ' + m.alive;
+  }
+
+  // ---- 루프 ----
+  let acc = 0, last = performance.now(), dashT = 0;
+  function loop(now) {
+    const realDt = Math.min(0.05, (now - last) / 1000); last = now;
+    if (!paused) {
+      if (mouse.down && (tool === 'water' || tool === 'fireball' || tool === 'lightning')) {
+        // 연속 도구: 물은 계속 붓고, 불/벼락은 누르고 있으면 약하게 반복하지 않음(클릭만)
+        if (tool === 'water') pour(mouse.x, mouse.y);
+      }
+      acc += realDt;
+      let steps = 0;
+      while (acc >= 0.02 && steps < 4) { world.step(0.02); acc -= 0.02; steps++; }
+      dashT += realDt; if (dashT > 0.12) { updateDash(); dashT = 0; }
+    }
+    draw();
+    requestAnimationFrame(loop);
+  }
+
+  reset(); updateDash(); requestAnimationFrame(loop);
+})();
+</script>
+</body>
+</html>
