@@ -37,6 +37,9 @@ const GatewayMsg = {
         // host 장애 일괄 무효화(step-0297·#9) — 죽은 host 의 모든 dir 엔트리 삭제(장애 검출 신호). 구조된 존은 _bridgeHostDown 의 survivor zoneLoc 가 *먼저* 도착해 새 host 로 이미 갱신됨(삭제 대상 아님) → 미구조(생존 host 없는) 존만 정리. 게이트웨이가 죽은 host 로 직접 라우팅하지 않게 보장. 미수신이면 이전 비트 동일.
         for (const [z, h] of [...this.zoneDir]) if (h === p.host) this.zoneDir.delete(z);
         this.gatewayHostInvalidated++;
+      } else if (p.type === 'zoneView') {
+        // 다운스트림 뷰 수신(step-0333·#9 후속) — orch(host)가 egress 한 host 산출 AOI 뷰(zoneView 봉투·zoneId·sessionId·frame)를 게이트웨이가 받아 *세션별 다운스트림 버퍼*에 보관(_recvZoneView). 0331 은 송출까지였고, 이 분기가 게이트웨이 종단에서 받는다(존→게이트웨이 경로 완성). 세션→클라 라우팅·실 전달은 후속(0334+). zoneEgress OFF 면 zoneView 가 영영 안 옴 = 이전 비트 동일(이 분기 dead).
+        this._recvZoneView(p);
       }
       return;
     }
@@ -114,6 +117,7 @@ const GatewayMsg = {
       // 게이트웨이 직접 존 라우팅(step-0294·#9) — 자기 zoneDir 로 존 host(런타임)를 해소해 그 host 로 entity enter frame 을 직접 보낸다(orch 데이터 평면 우회·라우팅 *결정*이 게이트웨이에). 디렉토리 미스(미배치/미학습)면 드롭(은닉 — 게이트웨이는 orch 내부 모름). 현재 zone-host 는 orch 가 보유하므로 host 태깅해 zoneDeliver 로 전달(orch 가 일치 검증·적용)·실 host.js 완전 분리는 #9 후속. 미수신(gatewayDirectZone OFF)이면 이 분기 영영 안 옴 = 이전 비트 동일.
       const host = this.zoneDir.get(p.zoneId);
       if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this.downClients.set(p.sessionId || ('s:' + p.avatar), m.from);   // step-0334 (#9 후속) — 다운스트림 라우팅 바인딩(세션→클라). orch 의 sessionId 기본('s:'+avatar)과 같은 키로 zoneView 가 해소되게. 맵 write 뿐(메시지 무변경) → reg 0.
       this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'enter', zoneId: p.zoneId, avatar: p.avatar, sessionId: p.sessionId, host });
       this.gatewayZoneRoutes++;
     } else if (p.type === 'zoneMove') {
@@ -126,6 +130,7 @@ const GatewayMsg = {
       // 게이트웨이 직접 존 leave 라우팅(step-0295·#9·enter 와 동형) — zoneDir 로 host 해소→zoneDeliver(leave). 미스면 드롭. 미수신(OFF)이면 이전 비트 동일.
       const host = this.zoneDir.get(p.zoneId);
       if (host === undefined) { this.gatewayZoneMisses++; return; }
+      this._downCleanup(p.sessionId || ('s:' + p.avatar));   // step-0339 (#9 후속) — 다운스트림 세션 상태 정리(downClients/seq/resync/buffer)·stale 바인딩 누적 방지(0334 한계 해소). 맵 정리뿐(egress 경로 외엔 메시지 무영향) → reg 0.
       this.net.send(this.addr, 'orch', { type: 'zoneDeliver', op: 'leave', zoneId: p.zoneId, avatar: p.avatar, host });
       this.gatewayZoneRoutes++;
     } else if (p.type === 'disconnect') {

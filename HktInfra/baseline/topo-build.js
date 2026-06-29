@@ -175,6 +175,11 @@ function buildTopology(opts) {
     gatewayDirectZone = false, // step-0294 (#9) — 게이트웨이→실 존 직접 라우팅(zoneDir 해소·orch 우회·stale 거부). OFF→0293 비트 동일.
     zoneHostProc = false,     // step-0301 (#9 잔여) — host 1급 컨테이너(zoneHosts·실 host.js 프로세스 씨앗). OFF→0300 비트 동일.
     zoneHostLifecycle = false, // step-0312 (#9 잔여) — host 컨테이너 spawn/despawn 생애주기 이벤트 로그. OFF→0311 비트 동일.
+    zoneEgress = false,        // step-0331 (#9 후속) — host 산출 뷰를 게이트웨이로 송출(존→게이트웨이 월드 다운스트림 배선). OFF→0330 비트 동일.
+    egressDrop = null,         // step-0337 (#9 후속) — 다운스트림 전송 손실 주입(["sid#dseq"…]·테스트). 미설정→손실 0 = 비트 동일.
+    egressTimeout = 0,         // step-0338 (#9 후속) — 미-ack egress frame 타임아웃 재전송 tick(0=off·마지막 frame 손실 복구). 0→비트 동일.
+    downClients = 0,           // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라 수(dc0..·desync 0 수렴 검증). 0→스폰 0 = 비트 동일.
+    downRecvWindow = 0,        // step-0347 (#9 후속) — 게이트웨이 세션별 수신 버퍼 유계 창 K(0=무계). 0→비트 동일.
   } = opts;
   const H = Math.floor(grid / 2);
   const accounts = [];
@@ -226,7 +231,7 @@ function buildTopology(opts) {
     persistReplicaAddrs, presenceAnnounce, presenceBox, presenceLease, presenceMonitor, presencePublish, presenceQuery, presenceReportBus,
     presenceShadowAddr, presenceSvcAddr, quorumW, ranking, rankingAddr, readmitMax, readmitPublish, replaceAddr,
     replicas, sagaDedup, sagaDedupBound, sagaMaxRetries, snapshot, wfWindow, whisperFailover, whisperReceipt,
-    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones
+    whisperRetry, whisperRouter, windowFill, worldLog, zoneAddrs, zones, downRecvWindow
   };
   addServiceBoxes(__bctx, add);
 
@@ -241,7 +246,7 @@ function buildTopology(opts) {
   }
 
   if (failover && zones === 2) {
-    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneRtGrid: grid, zoneRtRadius: radius } });
+    add({ addr: 'orch', kind: 'orch', opts: { leaseTimeout, monitor: [['zone1', 'zone1f'], ['zone2', 'zone2f']], busLeasePresence, busPresenceRecover, recoverRetry, recoverTimeout, recoverMaxRetries, bus: busAddr, presencePublish, presenceBox: !!presenceSvcAddr, presenceAddr: (presenceSvcAddr && !presenceReportBus) ? presenceSvcAddr : null, presenceReportBus: !!(presenceSvcAddr && presenceReportBus), placeExecute, zoneBridge, zoneEntityFlow, zoneHostHandle, zoneHostMailbox, gatewayZoneDir, gatewayDirectZone, zoneHostProc, zoneHostLifecycle, zoneEgress, egressDrop, egressTimeout, zoneRtGrid: grid, zoneRtRadius: radius } });
     add({ addr: 'zone1f', kind: 'zone', seed, opts: { ...zopt, region: { lo: 0, hi: H }, sibling: 'zone2f', boundary: H, shadow: true, orch: 'orch' } });
     add({ addr: 'zone2f', kind: 'zone', seed, opts: { ...zopt, region: { lo: H, hi: grid }, sibling: 'zone1f', boundary: H, shadow: true, orch: 'orch' } });
   }
@@ -249,6 +254,8 @@ function buildTopology(opts) {
   for (let i = 0; i < clients; i++) {
     add({ addr: 'client' + i, kind: 'client', opts: { script: { account: accounts[i], seed: (seed + i * 0x9E37) >>> 0, moves, leaveTick: leave[i] != null ? leave[i] : null, resyncPeriod, inventory, itemOps, chat, chatOps, region: String(i % regions), clientResend, mintRecon } } });
   }
+  // 다운스트림 클라(step-0342·#9 후속) — 수신 전용 실 클라(host 산출 AOI 뷰 종단·desync 0 수렴). downClients=0(기본)이면 0개 = 비트 동일.
+  for (let i = 0; i < downClients; i++) add({ addr: 'dc' + i, kind: 'downclient', opts: {} });
   return { specs, order, zoneAddrs, H, grid, radius, hasInventory: !!inventory, hasChat: !!chat, hasBus: !!bus, hasAudit: !!(bus && audit), hasPersist: !!persistAddr };
 }
 

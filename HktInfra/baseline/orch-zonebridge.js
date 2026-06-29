@@ -134,6 +134,8 @@ const OrchZoneBridge = {
     const had = rt.zone.ents.has(avatar);
     this._zoneDeliver(rt, { from: gateway || 'gateway', payload: { type: 'leave', sessionId: 's:' + avatar, avatar } }, zoneId);
     if (had) this.zoneLeaves++;
+    const sid = 's:' + avatar;   // step-0339 (#9 후속) — 그 세션의 egress 다운스트림 상태(미-ack 버퍼·시퀀스·ack 워터마크) 정리(무계 성장 방지·게이트웨이 정리의 orch 짝). egress OFF 면 빈 맵 delete = no-op → reg 0.
+    this.zoneEgressBuf.delete(sid); this.zoneEgressSeq.delete(sid); this.zoneEgressAcked.delete(sid);
     return had;
   },
   // 런타임 존 tick 구동(step-0282·#56) — orch 가 매 tick 자기 zoneRuntimes 의 실 EntityZone onTick 을 돌려 pending move 를 위치에 적용한다(실 zone.js 시뮬 진행). net 싱크가 view send 를 흡수(런타임 존은 클라 직접 전파 안 함·#9 후속). zoneEntityFlow OFF 면 호출 없음(onTick 가드·0281 비트 동일).

@@ -12,6 +12,10 @@
 const OrchControl = {
   onMsg(m) {
     const p = m.payload;
+    // 다운스트림 egress ack(step-0336·#9 후속) — 게이트웨이가 받은 dseq 까지 통보 → 세션별 egress 버퍼 가지치기(자기-크기조정·재전송 소스 유계). 미수신(zoneEgress OFF)이면 영영 안 옴 = 이전 비트 동일(reg 0).
+    if (p.type === 'zoneViewAck') { this._onZoneViewAck(p.sessionId, p.dseq); return; }
+    // 다운스트림 재전송 요청(step-0337·#9 후속) — 게이트웨이가 gap(앞 frame 유실) 감지 시 zoneResync{sessionId, from} → 버퍼에서 dseq≥from 재전송(복구). 미수신(손실 없음/zoneEgress OFF)이면 안 옴 = 이전 비트 동일.
+    if (p.type === 'zoneResync') { this._resendEgress(p.sessionId, p.from); return; }
     // 존 배치 SSOT 쓰기(step-0203·placeZone) — {zoneId, host} → 배치 맵 갱신(재배치는 덮어씀). 코디네이션의 배치 결정 권위. placementOps 미주입이면 영영 안 옴 = 0202 비트 동일(reg 0). 질의는 0204.
     if (p.type === 'placeZone') { this.placement.set(p.zoneId, p.host); this.placements++; if (this.placeExecute) this._start(p.zoneId, p.host); return; }
     // 부하 기반 자동 배치(step-0217·placeAuto) — {zoneId, hosts[]} → 후보 host 중 최소 부하(배치된 존 수 최소) host 선택 배치(부하 분산·정적 배치 한계 제거). 동률은 후보 순서로 결정론 tie-break. placeAuto 미수신이면 미발화 = 0216 비트 동일.
@@ -98,6 +102,10 @@ const OrchControl = {
     this.curTick = tick;
     // 브리지 존 데이터 평면 tick(step-0282·#56) — 자기 zoneRuntimes 의 실 EntityZone 을 onTick 구동(pending move 위치 적용·실 zone.js 시뮬 진행). zoneEntityFlow OFF 면 미실행 = 0281 비트 동일.
     if (this.zoneEntityFlow) this._tickRuntimes(tick);
+    // 다운스트림 egress(step-0331·#9 후속) — 런타임 존이 산출해 버퍼에 쌓은 새 view frame 을 게이트웨이로 송출(존→게이트웨이 월드 다운스트림 배선). zoneEgress OFF 면 미실행 = 0330 비트 동일.
+    if (this.zoneEgress) this._drainZoneEgress();
+    // 다운스트림 타임아웃 재전송(step-0338·#9 후속) — ack 없이 egressTimeout tick 경과한 미-ack frame 재전송(세션 마지막 frame 손실 복구·gap-resync 0337 의 구멍). egressTimeout 0 면 미실행 = 이전 비트 동일.
+    if (this.zoneEgress && this.egressTimeout) this._retransmitStale(tick);
     // 미확인 recover 재시도(step-0058·recoverRetry) — recoverTimeout 경과해도 ack 안 온 명령을 재발신. ack 오면 onMsg 가 pendingRecover 에서 지운다(루프 종료). OFF 면 미실행 = 0057 비트 동일.
     if (this.recoverRetry && this.pendingRecover.size) {
       for (const [consumer, sentAt] of this.pendingRecover) {

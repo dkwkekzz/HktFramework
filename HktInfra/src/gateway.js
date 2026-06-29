@@ -67,7 +67,82 @@ class Gateway {
     this.gatewayZoneRoutes = 0;           // step-0294 (#9) — 게이트웨이가 자기 디렉토리로 해소해 직접 라우팅한 entity frame 누적.
     this.gatewayZoneMisses = 0;           // step-0294 (#9) — 디렉토리에 없는 존(미배치/미학습)으로 드롭한 entity frame 누적(정직한 한계).
     this.gatewayHostInvalidated = 0;      // step-0297 (#9) — orch hostDown broadcast 로 죽은 host 의 dir 엔트리를 일괄 무효화한 횟수(장애 검출 반영).
+    // 다운스트림 뷰 수신 버퍼(step-0333·#9 후속) — orch egress 가 보낸 zoneView(host 산출 AOI 뷰)를 세션별로 보관(존→게이트웨이 경로의 게이트웨이 종단). 0331 egress 송출의 짝. 세션→클라 라우팅은 후속(0334+). zoneEgress OFF 면 zoneView 미수신 → 빈 채 = 이전 비트 동일.
+    this.zoneViewIn = new Map();          // sessionId -> [frame…] (그 세션에 도착한 다운스트림 view/view_delta frame·도착 순서 보존).
+    this.zoneViewsRx = 0;                 // 수신한 zoneView frame 누적(step-0333·계측·== orch.zoneEgressCount() 면 egress→게이트웨이 무손실).
+    // 다운스트림 라우팅 디렉토리(step-0334·#9 후속) — 브리지 세션→클라 주소(클라가 게이트웨이로 zoneEnter 할 때 학습·orch 의 sessionId 기본 's:'+avatar 와 일치). zoneView 수신 시 이 디렉토리로 클라를 해소해 frame 전달(존→게이트웨이→클라 완성). 미바인딩 세션 frame 은 드롭(계측).
+    this.downClients = new Map();         // sessionId -> client addr (다운스트림 전달 대상·zoneEnter 에서 set·은닉: 클라는 게이트웨이만 안다).
+    this.zoneViewsRouted = 0;             // 바인딩된 클라로 전달한 다운스트림 frame 누적(step-0334·계측·== zoneViewsRx 면 무드롭 라우팅).
+    this.zoneViewDropped = 0;             // 미바인딩 세션이라 드롭한 다운스트림 frame 누적(step-0334·정직한 한계).
+    // 다운스트림 시퀀스 추적(step-0335·#9 후속) — orch egress 가 frame 마다 부여한 세션별 단조 dseq 를 추적해 *순서/유실*을 감지(per-세션 next 기대값). 인오더면 next 단조 전진·gap(dseq>기대)이면 카운트(클라 ack/재전송의 게이트웨이 측 토대). zoneEgress OFF 면 dseq 미수신 → 빈 채 = 비트 동일.
+    this.downSeqNext = new Map();         // sessionId -> 다음 기대 dseq(인오더 수신마다 +1).
+    this.downSeqGaps = 0;                 // dseq != 기대(유실/재정렬)로 감지한 gap 누적(step-0335·정상 인오더 시나리오 0).
+    // 다운스트림 재전송 요청(step-0337·#9 후속) — 앞 frame 유실로 gap(dseq>기대) 감지 시 orch 에 zoneResync 발신(에피소드당 1회·인오더 복귀 시 해제). orch 가 버퍼에서 재전송 → gap 닫힘. 손실 없으면 발신 0 = 이전 비트 동일.
+    this.downResyncPending = new Set();   // sessionId — 미해결 resync 요청 보유(중복 요청 억제).
+    this.downResyncsSent = 0;             // 발신한 zoneResync 누적(step-0337·손실 1건당 ≥1).
+    this.downCleaned = 0;                 // step-0339 — 정리한 다운스트림 세션 누적(leave/disconnect 시·stale 바인딩 회수).
+    this.downDelivered = new Map();       // step-0340 — 클라 addr → 그 클라로 전달한 sessionId 집합(다운스트림 격리 증거: 각 클라가 *자기 세션 frame 만* 받았는가·교차 누수 0). 읽기 전용 회계(메시지 무영향).
+    this.downRecvWindow = 0;              // step-0347 — 세션별 수신 버퍼(zoneViewIn) 유계 창 K(0=무계). 전달 후 frame 은 클라(DownClient)가 보유하므로 게이트웨이는 *최근 K* 만 보관 → per-세션 메모리 O(K) 상한(버스 seenBound 0042·수신함 유계 0099 의 다운스트림 판). 0 면 무계 = 이전 비트 동일.
+    this.downRecvPeak = 0;               // step-0347 — 세션 수신 버퍼 최대 길이(유계 증거).
   }
+  // 다운스트림 세션 정리(step-0339·#9 후속) — leave/disconnect 시 그 세션의 다운스트림 상태(클라 바인딩·시퀀스·resync·수신 버퍼)를 일괄 제거(stale 바인딩/무계 성장 방지·0334 한계 해소). 미존재 세션은 멱등 no-op.
+  _downCleanup(sid) {
+    const had = this.downClients.has(sid);
+    this.downClients.delete(sid); this.downSeqNext.delete(sid); this.downResyncPending.delete(sid); this.zoneViewIn.delete(sid);
+    if (had) this.downCleaned++;
+  }
+  // 다운스트림 뷰 수신+라우팅(step-0333 수신·step-0334 라우팅) — orch egress zoneView 를 세션 버퍼에 적재(frame 보존) + downClients 바인딩이 있으면 그 클라로 frame 전달(존→게이트웨이→클라). sessionId 없으면 무시(주소 불가)·미바인딩이면 드롭(계측).
+  _recvZoneView(p) {
+    if (!p.sessionId) return;
+    const sid = p.sessionId;
+    this.zoneViewsRx++;
+    // step-0335/0337 — 다운스트림 시퀀스 인오더 게이팅: dseq 가 기대면 전진·전달·ack, 미래(앞 유실)면 gap·resync 요청(라우팅 안 함), 과거(중복)면 드롭. 인오더만 클라로 전달 = 순서 보장·중복 0.
+    if (p.dseq !== undefined) {
+      const exp = this.downSeqNext.get(sid) || 0;
+      if (p.dseq < exp) return;             // 중복(이미 인오더 수신·재전송 사본) — 드롭(클라 belief 무오염).
+      if (p.dseq > exp) {                   // 미래(앞 frame 유실) — gap·resync 요청(에피소드당 1회)·라우팅 보류.
+        this.downSeqGaps++;
+        if (!this.downResyncPending.has(sid)) { this.net.send(this.addr, 'orch', { type: 'zoneResync', sessionId: sid, from: exp }); this.downResyncPending.add(sid); this.downResyncsSent++; }
+        return;
+      }
+      this.downSeqNext.set(sid, exp + 1);   // 인오더(dseq==exp) — 전진·resync 해제.
+      this.downResyncPending.delete(sid);
+      this.net.send(this.addr, 'orch', { type: 'zoneViewAck', sessionId: sid, dseq: p.dseq });   // step-0336 — 수신 확인 ack(orch egress 버퍼 가지치기). zoneEgress OFF 면 zoneView 미수신 → ack 0 = 이전 비트 동일.
+    }
+    let a = this.zoneViewIn.get(sid); if (!a) { a = []; this.zoneViewIn.set(sid, a); }
+    a.push(p.frame);
+    if (this.downRecvWindow > 0 && a.length > this.downRecvWindow) a.shift();   // step-0347 — 유계 창: 전달 후 frame 은 클라가 보유하므로 최근 K 만 보관(per-세션 메모리 상한). 0 면 무계 = 이전.
+    if (a.length > this.downRecvPeak) this.downRecvPeak = a.length;
+    const client = this.downClients.get(sid);
+    if (client) {
+      this.net.send(this.addr, client, p.frame); this.zoneViewsRouted++;   // step-0334 — 인오더 frame 만 세션→클라 전달(클라 와이어 계약 = view/view_delta 기존 형식).
+      let ds = this.downDelivered.get(client); if (!ds) { ds = new Set(); this.downDelivered.set(client, ds); } ds.add(sid);   // step-0340 — 격리 회계: 이 클라가 받은 sessionId 기록(교차 누수 검증).
+    } else this.zoneViewDropped++;
+  }
+  // 다운스트림 라우팅 질의(step-0334·#9 후속) — "전달/드롭 누적·이 세션이 어느 클라에 묶였나"(존→게이트웨이→클라 무손실·바인딩 검증). 읽기 전용.
+  gatewayRoutedCount() { return this.zoneViewsRouted; }
+  gatewayDroppedCount() { return this.zoneViewDropped; }
+  downClientOf(sessionId) { return this.downClients.get(sessionId) || null; }
+  // 다운스트림 시퀀스 질의(step-0335·#9 후속) — "이 세션의 다음 기대 dseq(=받은 인오더 frame 수)·전체 gap 수"(순서/무유실 검증). 읽기 전용.
+  gatewayDownSeqNext(sessionId) { return this.downSeqNext.get(sessionId) || 0; }
+  gatewayDownGaps() { return this.downSeqGaps; }
+  gatewayResyncsSent() { return this.downResyncsSent; }   // step-0337 — 발신한 다운스트림 재전송 요청 수(손실 복구 발화 증거).
+  gatewayCleanedCount() { return this.downCleaned; }      // step-0339 — 정리한 다운스트림 세션 수(leave 회수 증거).
+  // 다운스트림 격리 질의(step-0340·#9 후속) — "이 클라가 받은 세션들 / 모든 클라가 정확히 자기 세션 frame 만 받았나(교차 누수 0)". 모든 클라의 전달 세션 집합이 크기 1(자기 1세션)이면 격리 성립. 읽기 전용.
+  gatewayClientSessions(client) { const s = this.downDelivered.get(client); return s ? [...s].sort() : []; }
+  gatewayDeliveryIsolated() { for (const s of this.downDelivered.values()) if (s.size !== 1) return false; return true; }
+  // 다운스트림 운영 대시보드(step-0349·#9 후속) — 게이트웨이 다운스트림 평면 한눈 요약 {rx, routed, dropped, gaps, resyncs, cleaned, sessions, isolated}. 운영 관측·전파 건강 단일 뷰(0331~0348 지표 집계). 읽기 전용.
+  downstreamReport() {
+    return {
+      rx: this.zoneViewsRx, routed: this.zoneViewsRouted, dropped: this.zoneViewDropped,
+      gaps: this.downSeqGaps, resyncs: this.downResyncsSent, cleaned: this.downCleaned,
+      sessions: this.downClients.size, isolated: this.gatewayDeliveryIsolated(),
+    };
+  }
+  // 다운스트림 뷰 수신 질의(step-0333·#9 후속) — "이 세션에 도착한 다운스트림 frame 수 / 전체 수신 frame 수"(egress→게이트웨이 무손실 검증). 읽기 전용.
+  gatewayViewsFor(sessionId) { const a = this.zoneViewIn.get(sessionId); return a ? a.length : 0; }
+  gatewayDownstreamCount() { return this.zoneViewsRx; }
+  gatewayViewSessions() { return [...this.zoneViewIn.keys()].sort(); }
   // 존 디렉토리 질의(step-0293·#9) — "이 존이 어느 host 에 있다고 게이트웨이가 아나 / 몇 개 아나"(라우팅 결정 기준·orch.running 실물과 대조해 정합 검증). 읽기 전용.
   zoneDirOf(zoneId) { return this.zoneDir.get(zoneId) || null; }
   zoneDirSize() { return this.zoneDir.size; }
