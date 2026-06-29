@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0370](step-0370.md) — **#57 실 데이터 평면 10·grand capstone: 실 cluster 데이터 평면 E2E** — `clusterCoherent`(clusterDesync==0) + 2 host·3 zone driveCluster 뒤 전 entity 실 host==권위·실 migrate z1 A→B 상태 보존·hostA release. host→실 host.js OS 프로세스/소켓 데이터 평면 E2E. **#57 실 데이터 평면 sub-arc(0361~0370) 닫기**. 직전: 0369 clusterDesync.
-- **한 줄 상태**: reg ALL OK·clusterdatacap 5/5(coherent desync0·migrate 보존·release)·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#57 실 데이터 평면(0361~0370 ✅ 닫힘)**: deliver·zonedel·실 tick/egress·실 migrate(상태 보존)·실 killHost/failover·reconcile·다중 host 격리·driveCluster 통합 E2E(#62)·clusterDesync·grand capstone(desync 0). **후속(다음 arc)**: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0371](step-0371.md) — **#62 runMulti 통합 1: ClusterCoordinator 골격 + start()** — 새 박스 `cluster-coord.js`: orch+실 cluster+driver 를 묶는 broker 측 제어 평면 상주 객체. start()=orch.hostSpawnPlan→driver.reconcile(spawn+zoneadd) 토폴로지 수렴. verify ad-hoc 구동(driveCluster 0368)을 상주 코디네이터로 이전 시작. 직전: 0370 clusterdatacap grand capstone(#57 실 데이터 평면 닫힘).
+- **한 줄 상태**: reg ALL OK·coordstart 5/5(acted 5·topoOk·livePids==2)·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#62 runMulti 코어 통합 sub-arc(0371~)** — broker 측 제어 평면(ClusterCoordinator) 상주화: start(0371 ✅)→ tick(데이터 평면 1 tick)→ 연속 tick 루프→ 매-tick desync 가드→ 상주 migrate/failover/reconcile→ egress 집계→ report→ grand capstone(연속 run 뒤 desync 0). **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -154,3 +154,4 @@
 | [0368](step-0368.md) | #57 실 데이터 평면 8: driveCluster 통합 E2E(#62 runMulti analog·reconcile+deliver 재생+전 존 tick 한 호출·orch 드라이버가 실 cluster 전체 데이터 평면 구동) | 통과(reg 0·spine OK) · hostdrivereal 5/5 2 host a1{x:9,y:9}·b1{x:10,y:5}==in-proc·views2 |
 | [0369](step-0369.md) | #57 실 데이터 평면 9: clusterDesync 정합 술어(실 host entity 위치 vs in-proc 권위 양방향 불일치 수·desync 0=수렴·ghost 주입 검출로 by-construction 아님) | 통과(reg 0·spine OK) · hostdesyncreal 5/5 정상 0·ghost 주입 1 |
 | [0370](step-0370.md) | #57 실 데이터 평면 10·grand capstone: clusterCoherent(clusterDesync==0)·2 host·3 zone driveCluster→전 entity 실 host==권위·실 migrate 상태 보존·release·실 데이터 평면 0361~0370 닫기 | 통과(reg 0·spine OK) · clusterdatacap 5/5 coherent·migrate 보존·release |
+| [0371](step-0371.md) | #62 runMulti 통합 1: ClusterCoordinator(cluster-coord.js 새 박스·orch+cluster+driver 상주)+start()(hostSpawnPlan→reconcile spawn+zoneadd 토폴로지 수렴)·verify ad-hoc 구동→상주 코디네이터 이전 시작 | 통과(reg 0·spine OK) · coordstart 5/5 acted5·topoOk·livePids==2 |
