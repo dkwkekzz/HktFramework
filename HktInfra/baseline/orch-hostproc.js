@@ -1,4 +1,5 @@
 'use strict';
+// step-0360 — #57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent() — 논리 host 컨테이너 ↔ 드라이버 계약(spawn/despawn·assign/unassign 순계)이 가동 host/존 수와 한 몸. #57 드라이버 계약 sub-arc(0351~0360) 닫기. 읽기 전용·0359 비트 동일.
 // step-0353 — #57 실 host.js OS 프로세스 spawn 3: clusterDriver 훅 seam. _hostSet 의 첫-존 spawn·마지막-존 despawn 지점에서 driver.onSpawn/onDespawn 호출(cluster-run.js 가 실 cluster.spawnOne/killHost 로 집행). 미부착(null)→호출 0 = 0352 비트 동일.
 // step-0352 — #57 실 host.js OS 프로세스 spawn 2: hostSpawnDelta(prev) 읽기 전용 reconcile 델타. 직전 spawn 된 host 집합 대비 {spawn,kill,keep} — 드라이버가 매 reconcile tick cluster.spawnOne/killHost 로 집행할 차이. 읽기 전용·0351 비트 동일.
 // step-0351 — #57 실 host.js OS 프로세스 spawn 1: hostSpawnPlan() 읽기 전용 매니페스트. zoneHostSnapshot(0309) 을 *실 cluster 드라이버가 집행할 spawn 계약*(결정론 spawn order + 존 roster + 총계)으로 감싼다. 읽기 전용·0350 비트 동일.
@@ -138,6 +139,13 @@ const OrchHostProc = {
   },
   // host 프로세스 전 정합 질의(step-0310·#9 잔여 capstone) — 데이터 평면이 *host 프로세스 컨테이너 경유*로 흘러도 모든 것이 한 몸인지의 단일 술어: ⒜ directFlowCoherent(배치 3층 정합 + entity 단일 소유/orphan0 + 게이트웨이 직접 라우팅 stale 0·0300) ⒝ hostContainerCoherent(존이 정확히 한 host 프로세스에 + 컨테이너==집행 + roster 회계 닫힘·0308). 참이면 "게이트웨이 직접 라우팅 데이터 평면 전부 정합 + host 프로세스 컨테이너(자기 inbox 수신·자기 루프 tick·spawn/despawn roster·stale 거부)가 집행 SSOT 와 완전 정합". destructive+graceful 혼합 lifecycle 을 host 프로세스 컨테이너 라우팅으로 돌린 뒤 참(0310 capstone·실 host.js 물리 분리 arc 0301~0310 닫기). 읽기 전용.
   hostProcCoherent() { return this.directFlowCoherent() && this.hostContainerCoherent(); },
+  // 실 cluster 호스트 드라이버 정합 capstone(step-0360·#57) — host 컨테이너(논리)와 *드라이버 계약*(실 cluster 집행으로 흐를 이벤트)이 한 몸인가의 단일 술어: ⒜ hostContainerCoherent(존 단일 소유·컨테이너==집행·roster 회계 닫힘·0308) ⒝ 드라이버 부착 시 spawn/despawn 순계가 가동 host 수와 일치(driverSpawns−driverDespawns==zoneHosts.size = 실 cluster.spawnOne/killHost 가 가동 프로세스 집합과 1:1) ⒞ assign/unassign 순계가 가동 존 수와 일치(driverAssigns−driverUnassigns==runningCount = 실 host 가동 존과 1:1). 드라이버 미부착이면 ⒜ 만(0353 이전 동형). 참이면 "orch 의 논리 host 컨테이너가 실 cluster 드라이버 명령과 완전 정합 → 실 OS 프로세스/존 집합으로 그대로 물질화 가능". #57 드라이버 계약 sub-arc(0351~0360) capstone. 읽기 전용.
+  clusterHostsCoherent() {
+    if (!this.clusterDriver) return this.hostContainerCoherent();
+    return this.hostContainerCoherent() &&
+      (this.driverSpawns - this.driverDespawns) === this.zoneHosts.size &&
+      (this.driverAssigns - this.driverUnassigns) === this.runningCount();
+  },
 };
 
 const __part = { OrchHostProc };

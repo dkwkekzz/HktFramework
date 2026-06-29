@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0360](step-0360.md) — **#57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent + 실 다중 host E2E** — 논리 host 컨테이너 ↔ 드라이버 계약(spawn/despawn·assign/unassign 순계)이 가동 host/존 수와 한 몸 + 실 Cluster 로 host.js 2 프로세스 spawn(A=[z1,z2]·B=[z3]). **#57 드라이버 계약 sub-arc(0351~0360) 닫기**. 직전: 0359 실 host 다중 존 incremental.
-- **한 줄 상태**: reg ALL OK·clusterhostcap 5/5(clusterHostsCoherent·실 host.js 2 프로세스·A=[z1,z2]·B=[z3])·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0361](step-0361.md) — **#57 실 데이터 평면 1: 실 host.js deliver E2E** — `onFrame` 이 frame 동봉·`flush` deliver 가 실 host.js `{cmd:'deliver',items}` 집행 → 실 프로세스 `zone.onMsg` 가 entity 적용. snapshot a1 위치 == in-proc 권위(desync 0). **#57 실 데이터 평면 arc 시작**. 직전: 0360 드라이버 계약 capstone.
+- **한 줄 상태**: reg ALL OK·hostdeliverreal 5/5(실 host.js a1 {x:5,y:5}==in-proc 권위)·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#57 실 host.js OS 프로세스 spawn — 드라이버 계약+실 spawn (0351~0360 ✅ 닫힘)**: 매니페스트(0351)·델타(0352)·clusterDriver 훅 seam(0353)·roster(0354)·frame(0355)·egress(0356)·ClusterHostDriver 번역+flush(0357)·실 child_process 존 인스턴스화(0358)·다중 존 incremental(0359)·capstone(0360). orch 논리 zoneHost → 실 host.js OS 프로세스/존 물질화 입증. **후속(다음 arc)**: ⒜ deliver/egress 실 소켓 데이터 평면 집행·migrate/killHost 실 프로세스 전환·cluster-run.js runMulti 통합 ⒝ 업스트림 intent 실 클라 경로(#61) ⒞ 진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 미실시(7묶음 누적·적기)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **다음 초점 = #57 잔여 — 실 데이터 평면 집행 + runMulti 통합** — 드라이버 계약+실 spawn 은 0351~0360 ✅(orch 논리 zoneHost → 실 host.js OS 프로세스/존 물질화 입증·clusterHostsCoherent·실 Cluster 다중 host E2E). **다음 한 조각 후보**: ⒜ deliver/egress 의 실 소켓 데이터 평면 집행(현 flush 는 spawn+zoneadd 만·deliver 는 실 frame items 필요) ⒝ migrate/killHost 실 프로세스 전환(graceful 상태 이전) ⒞ ClusterHostDriver 를 cluster-run.js runMulti 에 통합(orch 가 broker 측 제어 평면으로 실 배선). 그 다음: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4).
+> 🎯 **현재 초점 = #57 실 데이터 평면 집행 + runMulti 통합 sub-arc(0361~)** — 드라이버 계약+실 spawn 은 0351~0360 ✅. 이제 *실 소켓 데이터 평면*: deliver(0361 ✅·실 host.js zone.onMsg·desync 0)→ host.js zonedel(존 제거)→ 실 tick+egress(move 적용·view 산출)→ 실 migrate(snapshot+loadstate 상태 이전)→ 실 killHost·failover→ reconcile→ 다중 host 격리→ runMulti 통합(#62)→ capstone(in-proc 권위==실 host.js snapshot desync 0). 그 다음: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4).
 > **설계 제약**: spine 게이트는 `verify.js all` — orch 드라이버 계약은 인프로세스 recorder 로, 실 spawn/zoneadd 는 실 Cluster(child_process)로 검증(둘 다 spine 안·기존 e2e 와 동형). reg 는 항상 in-proc run() 비트 대조(드라이버 OFF→null).
 
 **후속 백로그 (#57 닫은 뒤)**: ⒝ 업스트림 intent 실 클라 경로(경로1·#61). ⒞ 진짜 비동기(#4·논리클럭)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4·HktGameplay). 방향 권위 = `infra-review`(0291~0350 6묶음 리뷰 적기).
@@ -153,3 +153,4 @@
 | [0358](step-0358.md) | #57 실 host.js OS 프로세스 spawn 8: flush(cluster,specOf) 실 child_process E2E(orch zoneHost spawnOne/init→실 Cluster→실 host.js spawn+존 makeActor 인스턴스화·논리 컨테이너→실 OS 프로세스 존) | 통과(reg 0·spine OK) · hostspawnreal 5/5 livePid1·zone z1 인스턴스·kind zone |
 | [0359](step-0359.md) | #57 실 host.js OS 프로세스 spawn 9: 실 host 다중 존 incremental(host.js zoneadd cmd 기존 보존·flush specOf→zoneadd·한 실 host.js 프로세스가 여러 존 소유·기존 cmd 무변경 e2e 동일) | 통과(reg 0·spine OK) · hostmultizone 5/5 livePid1·z1·z2 둘 다 인스턴스 |
 | [0360](step-0360.md) | #57 실 host.js OS 프로세스 spawn 10·capstone: clusterHostsCoherent(논리 host 컨테이너↔드라이버 계약 순계==가동 host/존) + 실 Cluster 다중 host E2E·#57 드라이버 계약 0351~0360 닫기 | 통과(reg 0·spine OK) · clusterhostcap 5/5 coherent·실 host.js 2 프로세스 A=[z1,z2]·B=[z3] |
+| [0361](step-0361.md) | #57 실 데이터 평면 1: 실 host.js deliver E2E(onFrame frame 동봉·flush deliver→실 host.js {cmd:'deliver',items}→실 프로세스 zone.onMsg entity 적용·in-proc 권위와 desync 0) | 통과(reg 0·spine OK) · hostdeliverreal 5/5 실 a1 {x:5,y:5}==in-proc 권위 |

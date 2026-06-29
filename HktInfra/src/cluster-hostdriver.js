@@ -1,4 +1,5 @@
 'use strict';
+// step-0361 — #57 실 데이터 평면 1: flush deliver 가 frame 동봉 시 실 host.js deliver(items·m.to=존·zone.onMsg) 집행 → entity 가 실 프로세스 존에 산다(논리 frame→실 소켓 데이터 평면).
 // step-0359 — #57 실 host.js OS 프로세스 spawn 9: flush specOf init→host.js zoneadd(증분·기존 존 보존) 로 다중 존을 한 host.js 프로세스에 incremental 가동.
 // step-0358 — #57 실 host.js OS 프로세스 spawn 8: flush(cluster, specOf) — specOf(zone)→존 spec 면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로 보내 *실 host.js 자식 프로세스가 그 존을 makeActor 로 인스턴스화*. orch zoneHost 컨테이너 → 실 OS 프로세스 존 가동 E2E.
 // step-0357 — #57 실 host.js OS 프로세스 spawn 7: ClusterHostDriver — orch 드라이버 계약(0353~0356) 이벤트를 *실 cluster 명령*으로 번역.
@@ -16,7 +17,7 @@ function makeClusterHostDriver() {
     onDespawn(h) { this.commands.push({ op: 'killHost', host: h }); },   // 마지막 존 잃음 → 프로세스 kill.
     onAssign(h, z) { this.commands.push({ op: 'init', host: h, zone: z }); },     // 존 귀속 → host 에 그 존 init/loadstate.
     onUnassign(h, z) { this.commands.push({ op: 'stop', host: h, zone: z }); },   // 존 이탈 → host 에서 그 존 stop/migrate-out.
-    onFrame(h, z) { this.commands.push({ op: 'deliver', host: h, zoneId: z }); }, // entity frame → cluster.rpc(host,{cmd:'deliver'}).
+    onFrame(h, z, frame) { this.commands.push({ op: 'deliver', host: h, zoneId: z, frame }); }, // entity frame → cluster.rpc(host,{cmd:'deliver'}). step-0361: frame 동봉(실 deliver 페이로드).
     onEgress(h, k) { this.commands.push({ op: 'egress', host: h, key: k }); },    // 다운스트림 view 송출(host→게이트웨이 소켓 out·집행 별 경로).
     // 명령 큐를 실 Cluster 에 집행(async) — spawnOne/killHost 는 child_process, rpc 는 소켓. specOf(zone)→존 spec 가 주어지면 init 을 host.js 호환 {cmd:'init',specs:[spec]} 로(실 host.js 가 makeActor 로 그 존을 인스턴스화) 보낸다. specOf 없으면 {cmd:'init',zone}(mock cluster 동기 기록·검증용). step-0358.
     async flush(cluster, specOf) {
@@ -24,7 +25,11 @@ function makeClusterHostDriver() {
         if (c.op === 'spawnOne') { await cluster.spawnOne(c.host); }
         else if (c.op === 'killHost') { await cluster.killHost(c.host); }
         else if (c.op === 'init') { await cluster.rpc(c.host, specOf ? { cmd: 'zoneadd', specs: [specOf(c.zone)] } : { cmd: 'init', zone: c.zone }); }   // step-0359 — specOf 면 zoneadd(증분·기존 존 보존) 로 다중 존 한 host 가동.
-        else if (c.op === 'deliver') { await cluster.rpc(c.host, { cmd: 'deliver', zoneId: c.zoneId }); }
+        else if (c.op === 'deliver') {
+          // step-0361 — frame 동봉 시 실 host.js deliver(items=[{gi,m}]·m.to=존 addr·zone.onMsg 적용). 미동봉(0357 mock)이면 zoneId 만.
+          if (c.frame) await cluster.rpc(c.host, { cmd: 'deliver', items: [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }] });
+          else await cluster.rpc(c.host, { cmd: 'deliver', zoneId: c.zoneId });
+        }
         // 'stop'/'egress' 의 실 집행(host stop rpc·다운스트림 소켓 out)은 후속 — 여기선 큐 소비만(executed 기록).
         this.executed.push(c.op);
       }
