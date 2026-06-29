@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0369](step-0369.md) — **#57 실 데이터 평면 9: clusterDesync 정합 술어** — 실 host.js entity 위치 vs in-proc 권위 불일치 수(양방향). driveCluster 뒤 desync 0(수렴)·권위 밖 ghost 주입 시 desync 1(민감·by-construction 아님). 직전: 0368 driveCluster.
-- **한 줄 상태**: reg ALL OK·hostdesyncreal 5/5(정상 desync 0·ghost 주입 1)·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#57 실 데이터 평면 집행(0361~)**: deliver(0361 ✅)·zonedel(0362 ✅)·실 tick/egress(0363 ✅) → 실 migrate(snapshot+loadstate 상태 이전)·실 killHost/failover·reconcile·다중 host 격리·runMulti 통합(#62)·capstone. **후속**: 업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0291~0360 묶음 리뷰 ✅(review-0351-0360 완료)·0361~ 진행 중**.
+- **닫힌 step**: [step-0370](step-0370.md) — **#57 실 데이터 평면 10·grand capstone: 실 cluster 데이터 평면 E2E** — `clusterCoherent`(clusterDesync==0) + 2 host·3 zone driveCluster 뒤 전 entity 실 host==권위·실 migrate z1 A→B 상태 보존·hostA release. host→실 host.js OS 프로세스/소켓 데이터 평면 E2E. **#57 실 데이터 평면 sub-arc(0361~0370) 닫기**. 직전: 0369 clusterDesync.
+- **한 줄 상태**: reg ALL OK·clusterdatacap 5/5(coherent desync0·migrate 보존·release)·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#57 실 데이터 평면(0361~0370 ✅ 닫힘)**: deliver·zonedel·실 tick/egress·실 migrate(상태 보존)·실 killHost/failover·reconcile·다중 host 격리·driveCluster 통합 E2E(#62)·clusterDesync·grand capstone(desync 0). **후속(다음 arc)**: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라 경로(#61)·진짜 비동기(#4). 🔎 **0361~0370 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -32,7 +32,7 @@
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
-| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn ✅ · 실 데이터 평면 🟡)** | 코디네이션/엣지 | 0291~0300 직접 라우팅(directFlowCoherent)·0301~0310 host 1급 컨테이너(hostProcCoherent)·0319~0350 월드 다운스트림 E2E(downstreamWorldCoherent). **#57 실 host.js OS 프로세스 spawn ✅(0351~0360·ClusterHostDriver: orch zoneHost 이벤트→cluster 명령 번역+flush·실 host.js child_process 다중 host spawn·zoneadd 다중 존·clusterHostsCoherent)**. **남은 것: deliver/egress 실 소켓 데이터 평면 집행·migrate/killHost 실 프로세스 전환·runMulti 통합·업스트림 intent 실 클라 경로(#61)**. |
+| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn 드라이버 계약+실 spawn(0351~60·clusterHostsCoherent·ClusterHostDriver·실 host.js child_process 다중 host E2E)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn(0351~60·ClusterHostDriver·clusterHostsCoherent) + 실 데이터 평면(0361~70·deliver/tick/migrate 상태보존/kill·failover/reconcile/driveCluster·clusterCoherent desync 0·실 host.js child_process E2E)**. orch 정리(0251·0267·0305·0323·0332)·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -153,3 +153,4 @@
 | [0367](step-0367.md) | #57 실 데이터 평면 7: 실 다중 host 격리(hostEntities 헬퍼·실 host 존별 entity·교차 누수 0·실 프로세스 경계가 격리 강제) | 통과(reg 0·spine OK) · hostisoreal 5/5 hostA={z1:[a1]}·hostB={z2:[b1]}·누수0 |
 | [0368](step-0368.md) | #57 실 데이터 평면 8: driveCluster 통합 E2E(#62 runMulti analog·reconcile+deliver 재생+전 존 tick 한 호출·orch 드라이버가 실 cluster 전체 데이터 평면 구동) | 통과(reg 0·spine OK) · hostdrivereal 5/5 2 host a1{x:9,y:9}·b1{x:10,y:5}==in-proc·views2 |
 | [0369](step-0369.md) | #57 실 데이터 평면 9: clusterDesync 정합 술어(실 host entity 위치 vs in-proc 권위 양방향 불일치 수·desync 0=수렴·ghost 주입 검출로 by-construction 아님) | 통과(reg 0·spine OK) · hostdesyncreal 5/5 정상 0·ghost 주입 1 |
+| [0370](step-0370.md) | #57 실 데이터 평면 10·grand capstone: clusterCoherent(clusterDesync==0)·2 host·3 zone driveCluster→전 entity 실 host==권위·실 migrate 상태 보존·release·실 데이터 평면 0361~0370 닫기 | 통과(reg 0·spine OK) · clusterdatacap 5/5 coherent·migrate 보존·release |

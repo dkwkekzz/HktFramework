@@ -1,4 +1,5 @@
 'use strict';
+// step-0369 — #57 실 데이터 평면 9: clusterDesync(orch,cluster) 정합 술어 — 실 host.js entity 위치 vs in-proc 권위 불일치 수(양방향·desync 0=실 프로세스 경계 넘어 수렴).
 // step-0368 — #57 실 데이터 평면 8: driveCluster(orch,cluster,specOf) 통합 E2E(#62·runMulti analog) — reconcile+deliver 재생+전 존 tick 을 한 호출에. orch 드라이버가 실 cluster 전체 데이터 평면 구동.
 // step-0367 — #57 실 데이터 평면 7: hostEntities(cluster,host) 읽기 헬퍼 — 실 host 의 존별 entity 관찰(다중 host 격리 검증·교차 누수 0).
 // step-0366 — #57 실 데이터 평면 6: reconcile(plan,cluster,specOf) — orch hostSpawnPlan 목표에 실 cluster 를 spawn/zoneadd/killHost 로 수렴(상태 기반 집행·표준 reconcile).
@@ -92,6 +93,21 @@ function makeClusterHostDriver() {
       let views = 0;
       for (const h of plan.order) for (const z of plan.hosts[h].zones) views += (await this.tickZone(cluster, h, z, tick)).filter(s => s.payload && /^view/.test(s.payload.type)).length;   // ③ 전 존 tick
       return views;
+    },
+    // step-0369 — 실 데이터 평면 정합 술어: 실 host.js 의 entity 위치가 in-proc orch 권위와 어긋난 수(양방향). desync 0 = 실 프로세스 경계 넘어 모든 entity 가 권위 재현(SPINE §5 수렴). 실 cluster 데이터 평면의 단일 건강 지표.
+    async clusterDesync(orch, cluster) {
+      let desync = 0;
+      const plan = orch.hostSpawnPlan();
+      for (const h of plan.order) {
+        const snap = await cluster.rpc(h, { cmd: 'snapshot' });
+        for (const z of plan.hosts[h].zones) {
+          const zs = snap && snap.snap ? snap.snap[z] : null;
+          const real = new Map((zs && zs.ents) || []);
+          for (const [id, pos] of real) { const a = orch.zoneEntityPos(z, id); if (!a || a.x !== pos.x || a.y !== pos.y) desync++; }   // 실에 있는데 권위와 위치 불일치/부재
+          const auth = orch.zoneRuntimes && orch.zoneRuntimes.get(z); if (auth) for (const id of auth.zone.ents.keys()) if (!real.has(id)) desync++;   // 권위에 있는데 실에 부재
+        }
+      }
+      return desync;
     },
   };
 }
