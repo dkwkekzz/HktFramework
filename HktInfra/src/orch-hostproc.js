@@ -18,11 +18,12 @@ const OrchHostProc = {
   // host 컨테이너 귀속 갱신(step-0301·#9 잔여) — zoneId 를 *정확히 한* host 컨테이너에 귀속시킨다(host==null 이면 어느 컨테이너에서도 떼기만). 어디 있든 먼저 떼고(멱등) 새 host 에 붙인다 → start/migrate/hostdown/stop 어느 집행에서 불러도 같은 결과(낡은 host 추적 불필요). 컨테이너 첫 생성=hostRegisters++(spawn 씨앗)·빈 컨테이너 제거=hostDeregisters++(despawn 씨앗·step-0304). zoneHostProc OFF 면 no-op = 0300 비트 동일.
   _hostSet(zoneId, host) {
     if (!this.zoneHostProc) return;
-    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId) && c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host: h, kind: 'despawn', seq: this.hostLifecycleLog.length }); if (this.clusterDriver) { this.clusterDriver.onDespawn(h); this.driverDespawns++; } } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗. step-0312 — despawn 이벤트 로그(실 killHost 지점). step-0353 — clusterDriver 면 실 cluster.killHost 집행 훅(미부착→호출 0·비트 동일).
+    for (const [h, c] of this.zoneHosts) { if (c.zones.delete(zoneId)) { if (this.clusterDriver) { this.clusterDriver.onUnassign(h, zoneId); this.driverUnassigns++; } if (c.zones.size === 0) { this.zoneHosts.delete(h); this.hostDeregisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host: h, kind: 'despawn', seq: this.hostLifecycleLog.length }); if (this.clusterDriver) { this.clusterDriver.onDespawn(h); this.driverDespawns++; } } } }   // step-0304 — 마지막 존 잃은 host 컨테이너 제거 = 프로세스 despawn 씨앗. step-0312 — despawn 이벤트 로그(실 killHost 지점). step-0353/0354 — clusterDriver 면 onUnassign(존 떨어짐)+onDespawn(실 cluster.killHost) 집행 훅(미부착→호출 0·비트 동일).
     if (host == null) return;             // 퇴역/소실 — 떼기만(어느 host 도 소유 안 함).
     let c = this.zoneHosts.get(host);
     if (!c) { c = { zones: new Set() }; this.zoneHosts.set(host, c); this.hostRegisters++; if (this.zoneHostLifecycle) this.hostLifecycleLog.push({ host, kind: 'spawn', seq: this.hostLifecycleLog.length }); if (this.clusterDriver) { this.clusterDriver.onSpawn(host); this.driverSpawns++; } }   // step-0304 — 첫 존 받아 새 host 컨테이너 생성 = 프로세스 spawn 씨앗. step-0312 — spawn 이벤트 로그(실 cluster.spawnOne 지점). step-0353 — clusterDriver 면 실 cluster.spawnOne 집행 훅(미부착→호출 0·비트 동일).
     c.zones.add(zoneId);
+    if (this.clusterDriver) { this.clusterDriver.onAssign(host, zoneId); this.driverAssigns++; }   // step-0354 — 존이 host 컨테이너에 붙음 = 실 host 에 그 존 init/loadstate 집행 훅(미부착→호출 0·비트 동일).
   },
   // host 컨테이너 질의(step-0301·#9 잔여) — "이 host 프로세스가 몇 존을 소유하나 / 이 존은 어느 host 프로세스에 사나 / 지금 존을 하나라도 돌리는 host 집합". flat zoneRuntimes 의 host 별 묶음이 실 host.js 분리의 씨앗(host=프로세스 단위). 읽기 전용.
   hostRuntimeCount(host) { const c = this.zoneHosts.get(host); return c ? c.zones.size : 0; },
