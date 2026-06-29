@@ -1,4 +1,5 @@
 'use strict';
+// step-0391 — #66 tick placement-aware 1: tick() 존 순회를 placement 권위(this.placement)로 전환(orch.hostSpawnPlan 아님). 0390 capstone 은 lifecycle(migrate)을 run 루프 *뒤*에 둬 #66(tick 이 stale orch plan 사용)을 미발현시켰다 — tick 이 placement 를 직접 순회하면 run *도중* migrate 도 즉시 따라가 정합(0393 발현). 정상 경로(placement==orch plan)에선 같은 (host,zone) 집합 → 0390 동치.
 // step-0390 — #65 양방향 동기 10·grand capstone: syncedCoherent() — 연속 루프 내내(maxDesync==0) + 현 coordDesync==0(lost 제외) + placementCoherent(placement⟷실 1:1). 0380 coordCoherent 가 *migrate/failover 를 제외*해야 했던 것과 대조 — 양방향 동기(0381~0389)로 *migrate/failover 를 포함한* 전체 lifecycle 뒤에도 참. #65 양방향 동기 sub-arc(0381~0390) 종합. OFF 동치: 미호출이면 0389 동치.
 // step-0389 — #65 양방향 동기 9: placementCoherent() 양방향 bijection 불변. 코디네이터 placement(where 권위) ⟷ 실 cluster host 의 존 배치가 정확히 일치하는가: ⒜ forward — placement[z]=h 인 모든 존이 실 host h 에 존재 ⒝ reverse — 실 host h 의 모든 존이 placement[z]==h. 양방향 동기의 단일 술어(placement 가 진짜 실 cluster 를 반영). OFF 동치: 미호출이면 0388 동치.
 // step-0388 — #65 양방향 동기 8: syncPlan 이 placement 권위 기준(orch.hostSpawnPlan 아님). 0377 syncPlan 은 orch plan 으로 차분했다 → migrate 후엔 stale(z1@A)이라 잘못된 host 에 복원하려 든다. placement(z1@B·실 위치)로 차분해 *옳은* host 에 누락 존 복원. OFF 동치: 정상 경로(placement==orch plan) 결과 동일 = 0387 동치.
@@ -65,13 +66,14 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
       return desync;
     },
     // 제어 평면 데이터 평면 1 tick(연속 루프 0373 의 단위). ① pending entity frame 재생(driver.commands 의 deliver frame→실 host zone.onMsg·첫 tick 에 enter/move 적용·이후 빈 큐) ② 전 존 1 tick(pending move 적용 + AOI view_delta egress 산출). 반환=이 tick 산출 view 수.
+    //   step-0391 (#66) — 존 순회를 *placement 권위*(this.placement)로(orch.hostSpawnPlan 아님). run 루프 *도중* migrate 가 일어나도 tick 이 새 host 를 즉시 따라가 정합. 정상 경로(placement==orch plan)에선 같은 (host,zone) 쌍 집합 → views/egress 동일 = 0390 동치.
     async tick(t) {
       for (const c of this.driver.commands) if (c.op === 'deliver' && c.frame)
         await this.cluster.rpc(c.host, { cmd: 'deliver', items: [{ gi: 0, m: { to: c.zoneId, from: c.frame.from, payload: c.frame.payload } }] });
       this.driver.commands = [];
-      const plan = this.orch.hostSpawnPlan();
       let views = 0;
-      for (const h of plan.order) for (const z of plan.hosts[h].zones) {
+      for (const z of Object.keys(this.placement)) {        // step-0391 — placement 권위 순회(삽입 순·결정론). orch plan stale 무관.
+        const h = this.placement[z];
         const v = (await this.driver.tickZone(this.cluster, h, z, t)).filter(s => s.payload && /^view/.test(s.payload.type)).length;
         if (v) this.egressByZone[z] = (this.egressByZone[z] || 0) + v;   // step-0378 — 존별 다운스트림 송출 회계.
         views += v;

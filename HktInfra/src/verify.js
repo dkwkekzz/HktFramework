@@ -1,8 +1,8 @@
-// HktInfra step-0391 — 헤드리스 검증 (#66 tick placement-aware 1: tick() 존 순회를 placement 권위로)
+// HktInfra step-0392 — 헤드리스 검증 (#66 tick placement-aware 2: deliver 재생도 placement 권위로 host 조회)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordtickplace`.
-//   더한 한 조각: cluster-coord.js tick() 이 orch.hostSpawnPlan 대신 this.placement(권위)로 존을 순회. 정상 경로(placement==orch plan)에선 0390 동치. 새 박스·run() 미사용 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordtickplace` — 2 host·3 zone: run(5) 가 placement 권위 순회로 전 존을 tick → coordDesync 0·placementCoherent Y·egressByZone ⊆ placement(placement 집합만 tick).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddeliverplace`.
+//   더한 한 조각: cluster-coord.js tick() 의 deliver 재생이 c.host 대신 placement[c.zoneId] 로 현 host 조회. 정상 경로(placement==c.host)=0391 동치. 새 박스·run() 미사용 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `coorddeliverplace` — 2 host·3 zone: run(5) 후 a1 이 placement[z1] host 에 적용(deliver 가 placement host 로)·coordDesync 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -31,31 +31,32 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0391 #66 tick placement-aware 1 — coordtickplace: run(5) 가 placement 권위 순회로 전 존 tick → coordDesync 0·placementCoherent Y·egressByZone ⊆ placement(placement 집합만 tick·orch plan stale 무관).
-async function coordtickplace(seeds) {
+// step-0392 #66 tick placement-aware 2 — coorddeliverplace: run(5) 의 deliver 재생이 placement[zoneId] host 로 → a1 이 placement[z1] host 에 적용·coordDesync 0(deliver 가 옳은 host 로).
+async function coorddeliverplace(seeds) {
   const BASE = coordScenario();
-  console.log('== coordtickplace (0391·#66): tick() 이 placement 권위로 존 순회. run(5) 정합. ==');
-  console.log('seed   | views | coordDesync | placecoh | egress⊆place | 판정');
+  console.log('== coorddeliverplace (0392·#66): deliver 재생도 placement 권위 host. run(5) 후 a1@placement[z1]. ==');
+  console.log('seed   | a1@place(z1) | a1 pos | coordDesync | 판정');
   for (const seed of seeds) {
     const r = run({ seed, ticks: 12, ...BASE });
     const o = r.orch, drv = o.clusterDriver;
     const cluster = new Cluster([]);
-    let views = 0, cd = -1, pc = false, subset = false;
+    let landed = false, cd = -1, posStr = '-';
     try {
       await cluster.spawn();
       const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      views = await coord.run(5);                                        // 연속 루프 — tick 이 placement 권위 순회(0391)
+      await coord.run(5);                                                // deliver 재생이 placement[z1] host 로(0392)
+      const host = coord.placedHost('z1');
+      const snap = await cluster.rpc(host, { cmd: 'snapshot' });
+      const pos = realPos(snap, 'z1', 'a1');                             // a1 이 placement host 에 적용됐나
+      landed = !!pos; posStr = pos ? `{${pos.x},${pos.y}}` : 'null';
       cd = await coord.coordDesync();
-      pc = await coord.placementCoherent();
-      const placeKeys = new Set(Object.keys(coord.placement));
-      subset = Object.keys(coord.egressByZone).every(z => placeKeys.has(z));   // tick 은 placement 집합만 순회 → egress 도 그 안
     } finally { await cluster.shutdown(); }
-    const ok = check(views > 0 && cd === 0 && pc && subset, `seed ${seed}: 위반 (views ${views}·cd ${cd}·pc ${pc}·subset ${subset})`);
-    console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(cd, 11)} | ${pad(pc ? 'Y' : 'N', 8)} | ${pad(subset ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(landed && cd === 0, `seed ${seed}: 위반 (landed ${landed}·pos ${posStr}·cd ${cd})`);
+    console.log(`${pad(seed, 6)} | ${pad(landed ? 'Y' : 'N', 12)} | ${pad(posStr, 6)} | ${pad(cd, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordtickplace'] = coordtickplace;
-kit.ORDER.splice(1, 0, 'coordtickplace');
+kit.MODES['coorddeliverplace'] = coorddeliverplace;
+kit.ORDER.splice(1, 0, 'coorddeliverplace');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
