@@ -1,3 +1,4 @@
+// HktInfra step-0419 — #62 코드 합류 9: runMulti 가 opts.viaCoord 이면 runMultiViaCoord(코디네이터 단일 진입점)로 *위임*. OFF(미설정)→옛 전 토폴로지 경로 비트 동일 → reg 0·e2e 보존. *옛 runMulti 가 코디네이터를 호출* 달성.
 // HktInfra step-0418 — #62 코드 합류 8: coordScenarioFromOpts 에 restart(상태 보존 계획 재시작) case 추가(runScenario 가 이미 처리·0403). 미부착 → reg 0.
 // HktInfra step-0417 — #62 코드 합류 7: coordScenarioFromOpts 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리). 미부착 → reg 0.
 // HktInfra step-0416 — #62 코드 합류 6: coordScenarioFromOpts 에 kill·promote(warm failover) case 추가 + coord runScenario promote 처리. 미부착 → reg 0.
@@ -23,6 +24,9 @@ function computePlacement(topo, custom) {
 
 // ── 멀티프로세스 실행 — 같은 buildTopology, lockstep 배리어로 구동. 와이어(버스·열화·kill 생애주기)만 교체. ──
 async function runMulti(opts, deps) {
+  // step-0419 (#62 코드 합류) — OFF-게이트 위임: opts.viaCoord 이면 zone-cluster 복원력을 코디네이터 단일 진입점(runMultiViaCoord)으로 *호출*한다.
+  //   기존 호출(NET.runMulti·viaCoord 미설정)은 이 분기를 건너뛰어 옛 전 토폴로지 lockstep 경로 그대로 = 비트 동일(reg 0·e2e 보존). deps 에 run·zoneSpecOf 필요(verify 직접 호출 시 주입).
+  if (opts.viaCoord) return runMultiViaCoord(opts, deps);
   const { buildTopology, Net } = deps;
   const topo = buildTopology(opts);
   const placement = computePlacement(topo, opts.placement);
