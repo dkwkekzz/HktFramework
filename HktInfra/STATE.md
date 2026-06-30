@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0428](step-0428.md) — **#61 업스트림 intent 실 클라 8**: 손실 하 수렴 — 다운스트림 egress 손실(egressDrop) 주입에도 실 클라 uc0 가 gap-resync(0337)로 수렴(desync 0). 손실 진짜(gaps≥1)+복구(resyncs≥1). 검증 전용·reg 0. **#61 sub-arc(0421~) 진행**. 직전: 0427 leave.
-- **한 줄 상태**: reg ALL OK·uplossy 5/5(gaps1·resyncs1·uc0 수렴)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0429](step-0429.md) — **#61 업스트림 intent 실 클라 9**: 업스트림 회계 — `UpClient.intentLog`(발신 매니페스트)·`intentDelta` — enter 위치+발신 변위 == 권위 최종(발신 손실 0)·intentLog==sent. upClients=null→reg 0. **#61 sub-arc(0421~) 진행**. 직전: 0428 손실 하 수렴.
+- **한 줄 상태**: reg ALL OK·upaccount 5/5(intentLog4==sent·{9,9}==enter+Δ)·client.js 20.8KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~)**: UpClient 골격(0421)→move 발신(0422)→뷰 수신 양방향(0423)→수렴 desync0(0424)→entityOps 동치(0425)→다중 클라(0426)→leave(0427)→손실 하 수렴(0428)→업스트림 회계(0429)→capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속**: ⒟ 진짜 비동기(#4)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0411~0420 묶음 리뷰 ✅(review-0411-0420)**.
 
 ---
@@ -154,3 +154,4 @@
 | [0426](step-0426.md) | #61 업스트림 실 클라 6: 다중 UpClient 인터리빙(uc0=a1@z1·uc1=b1@z2 동시 발신·각자 자기 존 권위 수렴·desync0) | 통과(reg 0·spine OK) · upmulti 5/5 uc0·uc1 수렴·a1@z1 {7,7}·b1@z2 {8,6} |
 | [0427](step-0427.md) | #61 업스트림 실 클라 7: UpClient.leaveAt(zoneLeave 발신·접속 생애주기 enter→move→leave 완결) | 통과(reg 0·spine OK) · upleave 5/5 sent4→a1 제거 |
 | [0428](step-0428.md) | #61 업스트림 실 클라 8: 손실 하 수렴(egress 손실→gap-resync→uc0 desync0·손실 진짜 gaps≥1+복구 resyncs≥1)·검증 전용 | 통과(reg 0·spine OK) · uplossy 5/5 gaps1·resyncs1·uc0 수렴 |
+| [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
