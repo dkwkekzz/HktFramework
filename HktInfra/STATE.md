@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0417](step-0417.md) — **#62 코드 합류 7**: `coordScenarioFromOpts` 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리·0401~02). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0416 warm failover.
-- **한 줄 상태**: reg ALL OK·coorddelegfence 5/5(순수번역 Y·epoch1·presumedDead⊇hostB·fencedTicks3)·cluster-run.js 25.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0418](step-0418.md) — **#62 코드 합류 8**: `coordScenarioFromOpts` 에 restart(상태 보존 계획 재시작·옛 runMulti invRestart 판) case 추가(runScenario 가 이미 처리·0403). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행** — 시나리오 번역기가 migrate/reprovision/kill/promote/fence/sweepSilence/restart 전부 커버. 직전: 0417 fence/sweepSilence.
+- **한 줄 상태**: reg ALL OK·coorddelegrestart 5/5(coherent Y·restarts1·a1 보존·z1@hostA_r)·cluster-run.js 26.4KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코드 합류 sub-arc(0411~)**: coordSetup(0411)→coordScenarioFromOpts(0412)→runMultiViaCoord(0413)→clusterInfo parity(0414)→equivalence(0415)→promote(0416)→fence/silence(0417)→restart(0418)→runMulti OFF-게이트 위임(0419)→capstone(0420). 코디네이터(0401~0410 능력 superset)를 cluster-run.js 가 *호출*하는 단일 진입점으로 합류·OFF→옛 runMulti 비트 동일=reg 0. **후속**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -143,3 +143,4 @@
 | [0415](step-0415.md) | #62 코드 합류 5: coordAuthEquiv — 실 cluster entity 위치 == in-proc run() 권위(공유 기준 귀착 ⇒ runMultiViaCoord≡runMulti) | 통과(reg 0·spine OK) · coordvsauth 5/5 coherent Y·match 2/2 a1·b1==권위 |
 | [0416](step-0416.md) | #62 코드 합류 6: warm failover 번역·구동 — runScenario promote(kill 동일 onTick 원자) + coordScenarioFromOpts kill/promote case | 통과(reg 0·spine OK) · coorddelegpromote 5/5 coherent Y·promo1·a1 보존·z1@hostA_s |
 | [0417](step-0417.md) | #62 코드 합류 7: coordScenarioFromOpts fence·sweepSilence case(epoch 펜싱·lease-timeout·runScenario 가 이미 처리) | 통과(reg 0·spine OK) · coorddelegfence 5/5 순수번역 Y·epoch1·presumedDead⊇hostB·fencedTicks3 |
+| [0418](step-0418.md) | #62 코드 합류 8: coordScenarioFromOpts restart case(상태 보존 계획 재시작·runScenario 가 이미 처리·0403) | 통과(reg 0·spine OK) · coorddelegrestart 5/5 coherent Y·restarts1·a1 보존·z1@hostA_r |

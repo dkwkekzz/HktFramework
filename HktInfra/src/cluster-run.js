@@ -1,3 +1,4 @@
+// HktInfra step-0418 — #62 코드 합류 8: coordScenarioFromOpts 에 restart(상태 보존 계획 재시작) case 추가(runScenario 가 이미 처리·0403). 미부착 → reg 0.
 // HktInfra step-0417 — #62 코드 합류 7: coordScenarioFromOpts 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리). 미부착 → reg 0.
 // HktInfra step-0416 — #62 코드 합류 6: coordScenarioFromOpts 에 kill·promote(warm failover) case 추가 + coord runScenario promote 처리. 미부착 → reg 0.
 // HktInfra step-0415 — #62 코드 합류 5: coordAuthEquiv(coord,cluster,ents) — 실 cluster entity 위치 == in-proc run() 권위(둘 다 귀착하는 공유 기준 ⇒ runMultiViaCoord≡runMulti). 미부착 → reg 0.
@@ -297,6 +298,7 @@ function coordScenarioFromOpts(opts) {
   if (sc.promote) out.promote = { zone: sc.promote.zone, at: sc.promote.at }; // step-0416 — 따뜻한 standby 승격(warm failover·kill 과 같은 at 권장)
   if (sc.fence) out.fence = { host: sc.fence.host, at: sc.fence.at };       // step-0417 — 수동 epoch 펜싱(옛 runMulti presumedDead/epoch 판)
   if (sc.sweepSilence) out.sweepSilence = true;                            // step-0417 — 매 tick silence lease-timeout 자동 펜싱 sweep(옛 runMulti observeSilence 판)
+  if (sc.restart) out.restart = { zone: sc.restart.zone, host: sc.restart.host, at: sc.restart.at }; // step-0418 — 상태 보존 계획 재시작(옛 runMulti invRestart 의 zone cluster 판)
   return out;
 }
 
