@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microcosm — 아트 스튜디오 (SDF 통일 렌더러)</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0b12; --panel:#13141d; --panel2:#191b26; --line:#262838;
+    --ink:#e9e7df; --dim:#9a988f; --accent:#6fd3a8; --warm:#ff8a4c; --cool:#52a8e8;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#15182400,#070810);color:var(--ink);
+    font-family:-apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;
+    gap:12px;padding:18px 14px 28px;min-height:100vh}
+  header{text-align:center;max-width:900px}
+  h1{font-size:20px;font-weight:600;margin:0;letter-spacing:.2px}
+  .eq{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace;color:var(--accent);font-size:13px;margin-top:6px}
+  p.sub{margin:6px 0 0;color:var(--dim);font-size:13px;line-height:1.5}
+  .stage{position:relative;width:100%;max-width:920px}
+  canvas#art{width:100%;border-radius:14px;border:1px solid var(--line);display:block;
+    background:#0c0e17;box-shadow:0 18px 60px -30px #000;image-rendering:auto}
+  #status{position:absolute;left:14px;top:12px;font-size:12px;background:rgba(10,11,18,.6);backdrop-filter:blur(4px);
+    border:1px solid var(--line);border-radius:9px;padding:6px 10px;pointer-events:none;line-height:1.5}
+  #status b{color:var(--accent)}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:920px}
+  button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;font-size:14px;cursor:pointer;transition:.12s;user-select:none}
+  button:hover{background:var(--panel2);border-color:#3a3d52}
+  button.primary{background:#22372c;border-color:var(--accent);color:#bff0d8}
+  button.ghost{color:var(--dim)}
+  label.ctl{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 11px}
+  label.ctl input[type=range]{width:96px;accent-color:var(--accent)}
+  label.ctl b{color:var(--ink);font-variant-numeric:tabular-nums;min-width:30px;text-align:right}
+  .dash{display:grid;grid-template-columns:1fr 1fr;gap:12px;width:100%;max-width:920px}
+  @media(max-width:680px){.dash{grid-template-columns:1fr}}
+  .card{background:linear-gradient(180deg,var(--panel),#101220);border:1px solid var(--line);border-radius:12px;padding:13px 15px}
+  .card h2{font-size:12px;margin:0 0 9px;color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .cells{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;font-size:12px}
+  .cell{background:var(--panel2);border:1px solid var(--line);border-radius:9px;padding:8px 9px;line-height:1.35}
+  .cell b{display:block;color:var(--accent);font-size:11px;margin-bottom:2px;letter-spacing:.3px}
+  .cell span{color:var(--dim)}
+  .swatches{display:flex;flex-wrap:wrap;gap:7px;margin-top:4px}
+  .sw{display:flex;align-items:center;gap:5px;font-size:11px;color:var(--dim)}
+  .sw i{width:13px;height:13px;border-radius:3px;display:inline-block;border:1px solid #0006}
+  footer{color:#5d5b54;font-size:11px;max-width:760px;text-align:center;line-height:1.6;margin-top:2px}
+</style>
+</head>
+<body>
+<header>
+  <h1>microcosm — 아트 스튜디오</h1>
+  <div class="eq">하나의 SDF/메타볼 렌더러 → 지형·바다·나무·캐릭터를 통일 스타일로</div>
+  <p class="sub">아트를 손으로 그리지 않는다. 입자+장 기질 위에 아트 폼(<b>art_tree·skeleton</b>)이 단위를 배치하면
+  형태가 <b>창발</b>하고, 거리장(SDF) 렌더러가 그 배치만 읽어 매끈한 표면을 셰이딩한다. 전혀 다른 네 자산이
+  <b>같은 재질 팔레트·같은 광원·같은 외곽선</b>으로 그려져 스타일이 일관된다. 결과는 <b>PNG 아트 리소스로 베이크</b>.</p>
+</header>
+
+<div class="bar">
+  <button id="regen" class="primary">↻ 재생성 (새 시드)</button>
+  <button id="bake">⬇ PNG 베이크 (내보내기)</button>
+  <label class="ctl">시드 <b id="vSeed">1</b></label>
+  <label class="ctl">scale <input id="cScale" type="range" min="3" max="8" step="1" value="5"><b id="vScale">5</b></label>
+  <label class="ctl">supersample <input id="cSS" type="range" min="1" max="3" step="1" value="2"><b id="vSS">2</b></label>
+  <label class="ctl">smin <input id="cSmin" type="range" min="6" max="22" step="1" value="14"><b id="vSmin">1.4</b></label>
+</div>
+
+<div class="stage">
+  <canvas id="art" width="850" height="475"></canvas>
+  <div id="status">준비 중…</div>
+</div>
+
+<div class="dash">
+  <div class="card">
+    <h2>한 렌더러, 네 자산</h2>
+    <div class="cells">
+      <div class="cell"><b>지형</b><span>높이함수 h(x) 아래 흙·풀 재질 밴드</span></div>
+      <div class="cell"><b>바다</b><span>물 입자 metaball → 임계 표면·거품</span></div>
+      <div class="cell"><b>나무</b><span>바크 캡슐 줄기/가지 + 잎 blob 캐노피</span></div>
+      <div class="cell"><b>캐릭터</b><span>관절=입자, 뼈=캡슐(두께·재질)</span></div>
+    </div>
+    <p class="sub" style="font-size:12px;margin-top:11px">캡슐 SDF + smooth-min 으로 관절을 잇고, sdf 기울기로 노멀을
+    추정해 람베르트 셰이딩 + 가장자리 그늘(AO) + 외곽선을 입힌다 — 전 자산 공통 경로라 스타일이 통일된다.</p>
+  </div>
+  <div class="card">
+    <h2>재질 팔레트 (통일 스타일의 근거)</h2>
+    <div class="swatches" id="palette"></div>
+    <p class="sub" style="font-size:12px;margin-top:11px">색은 자산이 아니라 <b>재질</b>에 묶인다(skin·cloth·hair·bark·leaf·rock·water).
+    같은 팔레트·광원·셰이딩을 모든 자산이 공유하므로, 새 폼을 추가해도 자동으로 같은 톤으로 합쳐진다.</p>
+  </div>
+</div>
+
+<footer>코어 렌더러(artrender.js)는 DOM 비의존 — World 상태(px,py,kind,skins,ground)만 읽어 RGBA 버퍼를 만든다(Node 검증 가능).
+파이썬 microcosm/artrender.py 의 충실 이식. "프로토타입 검증 후 베이크"의 베이크 단계.</footer>
+
+<script src="engine.js"></script>
+<script src="artrender.js"></script>
+<script>
+(function () {
+  'use strict';
+  const cv = document.getElementById('art');
+  const statusEl = document.getElementById('status');
+  let seed = 1;
+
+  // ── 시드 가능한 RNG(mulberry32) — 씬 빌드 동안 Math.random 을 대체해 재현 가능한 베이크 ──
+  function mulberry32(a) {
+    return function () {
+      a |= 0; a = a + 0x6D2B79F5 | 0;
+      let t = Math.imul(a ^ a >>> 15, 1 | a);
+      t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+      return ((t ^ t >>> 14) >>> 0) / 4294967296;
+    };
+  }
+  function withSeed(s, fn) {
+    const orig = Math.random; Math.random = mulberry32(s);
+    try { return fn(); } finally { Math.random = orig; }
+  }
+
+  // ── 통일 씬 구성 (art_world.py 의 웹판): 분지 + 바다 정착 + 나무 2 + 캐릭터 ──
+  function buildWorld(s) {
+    return withSeed(s, () => {
+      const w = new MC.World({ W: 170, H: 95, gravity: 16 });
+      w.ground = (x) => 24.0 - 13.0 * Math.exp(-Math.pow((x - 42.0) / 15.0, 2)) + 3.0 * Math.sin(x * 0.05);
+      for (const cx of [38, 42, 46]) MC.Forms.water(w, cx, 70, 9, w.ground(cx) + 24);
+      for (let i = 0; i < 650; i++) w.step(0.02);     // 흘러내려 웅덩이에 고임
+      MC.Forms.art_tree(w, 118, { scale: 1.7 });
+      MC.Forms.art_tree(w, 150, { scale: 1.2 });
+      MC.Forms.skeleton(w, 88, { scale: 1.5, anchored: true });
+      return w;
+    });
+  }
+
+  function opts() {
+    const sminK = (+document.getElementById('cSmin').value) / 10;
+    return {
+      scale: +document.getElementById('cScale').value,
+      supersample: +document.getElementById('cSS').value,
+      sminK, outline: 0.6,
+    };
+  }
+
+  let busy = false;
+  function render() {
+    if (busy) return;
+    busy = true;
+    statusEl.innerHTML = '시뮬레이션 + 렌더링…';
+    // 다음 프레임에 무거운 작업 — 상태 텍스트가 먼저 그려지게
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const t0 = performance.now();
+      const w = buildWorld(seed);
+      const o = opts();
+      const { pxw, pxh } = ArtRender.drawToCanvas(w, cv, o);
+      let nW = 0; for (let i = 0; i < w.n; i++) if (w.alive[i] && w.kind[i] === MC.KIND.WATER) nW++;
+      const ms = Math.round(performance.now() - t0);
+      statusEl.innerHTML = `<b>${pxw}×${pxh}</b> · 단위 ${w.n} · 물 ${nW} · 스킨 ${w.skins.length} · ${ms}ms`;
+      busy = false;
+    }));
+  }
+
+  // ── PNG 베이크: 현재 캔버스를 아트 리소스 PNG 로 저장 ──
+  function bake() {
+    const a = document.createElement('a');
+    a.download = `microcosm-art-seed${seed}-${cv.width}x${cv.height}.png`;
+    a.href = cv.toDataURL('image/png');
+    a.click();
+  }
+
+  // ── 팔레트 스와치 + 슬라이더 표시 ──
+  function rgb(c) { return `rgb(${(c[0] * 255) | 0},${(c[1] * 255) | 0},${(c[2] * 255) | 0})`; }
+  (function paletteUI() {
+    const box = document.getElementById('palette');
+    const entries = Object.entries(ArtRender.MAT).concat([['water', [ArtRender.WATER_COL[0]]]]);
+    for (const [name, cols] of entries) {
+      const el = document.createElement('span'); el.className = 'sw';
+      el.innerHTML = `<i style="background:${rgb(cols[0])}"></i>${name}`;
+      box.appendChild(el);
+    }
+  })();
+
+  document.getElementById('regen').onclick = () => { seed = (seed % 9999) + 1; document.getElementById('vSeed').textContent = seed; render(); };
+  document.getElementById('bake').onclick = bake;
+  const bind = (id, vid, fmt) => { const el = document.getElementById(id);
+    el.oninput = () => { document.getElementById(vid).textContent = fmt(el.value); }; el.onchange = render; };
+  bind('cScale', 'vScale', (v) => v);
+  bind('cSS', 'vSS', (v) => v);
+  bind('cSmin', 'vSmin', (v) => (v / 10).toFixed(1));
+
+  render();
+})();
+</script>
+</body>
+</html>
