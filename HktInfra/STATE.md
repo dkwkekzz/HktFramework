@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0436](step-0436.md) — **#4 진짜 비동기 6: async 수렴 desync 0**: `async-core.js` `applyDigest`(배달열 순차 fold→상태 다이제스트·순서 민감·내용 함수). 두 site 가 *상이 도착 순열*을 각자 holdback 재구성·적용 → digestA==digestB==정전 → desync 0(lockstep 없이 수렴·#4 핵심 명제). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asyncconv 5/5(도착 상이·desync 0·정전 일치)·async-core.js 11.4KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0437](step-0437.md) — **#4 진짜 비동기 7: 배리어-free 진행**: `async-core.js` `makeAsyncSite`(receive 도착/tick 진행 분리). 3 복제가 불균등 속도(진행 skew 16~32=비-lockstep)로 굴러도 최종 다이제스트 전부 일치==정전 → desync 0(진행 입도 무관·중앙 배리어 불요). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asyncprogress 5/5(skew>0 비-lockstep·desync 0)·async-core.js 12.6KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
@@ -153,3 +153,4 @@
 | [0434](step-0434.md) | #4 진짜 비동기 4: makeHoldback(교차-site 재정렬·FIFO·low-water-mark 안정성 점진 방출) | 통과(reg 0·spine OK) · lcreorder 5/5 인터리빙 불변·close前 방출>0 |
 | [0435](step-0435.md) | #4 진짜 비동기 5: causalDeliver(deps=happens-before 선행 충족 방출·FIFO-free)·causalViolations | 통과(reg 0·spine OK) · lccausal 5/5 적대적 도착 위반0·stuck0 |
 | [0436](step-0436.md) | #4 진짜 비동기 6: applyDigest(배달열 순차 fold→상태 다이제스트) — 두 site 상이 도착→desync 0 수렴 | 통과(reg 0·spine OK) · asyncconv 5/5 desync 0·정전 일치 |
+| [0437](step-0437.md) | #4 진짜 비동기 7: makeAsyncSite(receive/tick 분리) — 복제 불균등 속도(비-lockstep)·페이스 무관 수렴 | 통과(reg 0·spine OK) · asyncprogress 5/5 skew>0·desync 0 |
