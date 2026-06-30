@@ -1,8 +1,10 @@
-// HktInfra step-0430 — 헤드리스 검증 (#61 업스트림 intent 실 클라 10·capstone: 양방향 실 클라 E2E)
+// HktInfra step-0440 — 헤드리스 검증 (#4 진짜 비동기 10·grand capstone: async substrate E2E)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upe2ecap`.
-//   더한 한 조각: 검증 전용 grand capstone — 실 클라(UpClient)들이 intent 발신→게이트웨이→실 존→egress→자기 뷰 수신으로 양방향 E2E(desync 0)·생애주기(enter/move/leave)·보존(enters−leaves==present). #61 sub-arc(0421~0430) 닫기. reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `upe2ecap` — uc0(체류) 수렴·uc1(leave) 후 b1 제거·보존(present==enters−leaves)·발신 회계.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `asynce2ecap`.
+//   더한 한 조각: 검증 전용 grand capstone — M 복제 site 가 *서로 다른 순열+손실* 도착을 각자 resync+holdback 으로 재구성·배리어-free
+//   진행 → ⒜ clock condition 위반 0 ⒝ 전 복제 desync 0(==정전 전순서) ⒞ 인과 존중(전순서 sound) ⒟ exactly-once(complete) ⒠ 손실 발생.
+//   #4 substrate sub-arc(0431~0440) 닫기. async-core 는 run() 밖 substrate → reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `asynce2ecap` — clock0·전복제수렴·sound·complete·lossy.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,39 +15,54 @@ const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; cons
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { run } = NET;
 
-const BASE = {
-  ticks: 16, clients: 0, moves: 0, radius: 4, grid: 16, zones: 2, bus: true, failover: true,
-  placeExecute: true, zoneBridge: true, zoneEntityFlow: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneEgress: true,
-  placementOps: [{ at: 1, op: { type: 'placeZone', zoneId: 'z1', host: 'hostA' } }, { at: 1, op: { type: 'placeZone', zoneId: 'z2', host: 'hostB' } }],
-};
+const siteOf = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
+function shuffle(arr, rnd) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+function arrivalFor(events, nsites, rnd) {
+  const queues = Array.from({ length: nsites }, () => []);
+  for (const e of events) queues[siteOf(e)].push(e);
+  const out = []; let rem = events.length;
+  while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && queues[s].length === 0; k++) s = (s + 1) % nsites; out.push(queues[s].shift()); rem--; }
+  return out;
+}
+// 한 복제: 순열 도착 + ~20% 손실 + 재전송(임의 순서) + 배리어-free 진행(receive 뒤 즉시 처리는 resync site 내부). → {delivered, resyncs}.
+function replica(events, N, rnd) {
+  const site = NET.makeResyncSite(N);
+  const dropped = [];
+  for (const e of arrivalFor(events, N, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+  for (const e of shuffle(dropped, rnd)) site.resync(e);
+  return { delivered: site.finish(), resyncs: site.resyncs() };
+}
 
-// step-0430 #61 10·capstone — upe2ecap: 양방향 실 클라 E2E — uc0(a1@z1 체류) 수렴·uc1(b1@z2 leave@9) 후 b1 제거·보존(enters2−leaves1==present1=a1)·발신 회계. 0421~0430 닫기.
-function upe2ecap(seeds) {
-  console.log('== upe2ecap (0430·#61 grand capstone): 양방향 실 클라 E2E — uc0 체류 수렴·uc1 leave 후 b1 제거·보존(enters−leaves==present)·발신 회계. 0421~0430 닫기. ==');
-  console.log('seed   | uc0 수렴 | a1 체류 | b1 제거 | 보존 | 발신회계 | 판정');
+// step-0440 #4 10·grand capstone — asynce2ecap: M 복제·순열+손실·인과 정렬→전 복제 desync 0·exactly-once·clock0·sound·lossy. 0431~0440 닫기.
+function asynce2ecap(seeds) {
+  console.log('== asynce2ecap (0440·#4 grand capstone): M 복제 순열+손실→전 복제 desync 0·exactly-once·clock0·인과 존중. 0431~0440 닫기. ==');
+  console.log('seed   | 이벤트 | clock위반 | 전복제수렴 | 인과존중 | exactly-once | 손실 | 판정');
   for (const seed of seeds) {
-    const r = run({
-      seed, ...BASE, upClients: [
-        { addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan: [[1, 1], [1, 1], [1, 1]] },
-        { addr: 'uc1', avatar: 'b1', zoneId: 'z2', joinAt: 3, plan: [[1, 0], [0, 1]], leaveAt: 9 },
-      ],
-    });
-    const [uc0, uc1] = r.upclients;
-    const a1 = r.orch.zoneEntityPos('z1', 'a1'), b1 = r.orch.zoneEntityPos('z2', 'b1');
-    const conv0 = uc0.convergedTo(r.orch.zoneAuthSig('z1', 'a1'));
-    const present = (a1 ? 1 : 0) + (b1 ? 1 : 0);
-    const enters = 2, leaves = 1;   // uc0·uc1 enter·uc1 leave
-    const conserved = present === enters - leaves;
-    const acct = uc0.intentLog.length === uc0.sent && uc1.intentLog.length === uc1.sent && uc1.intentLog.some(o => o.type === 'zoneLeave');
-    const ok = check(conv0 && !!a1 && b1 == null && conserved && acct,
-      `seed ${seed}: capstone 위반 (conv0 ${conv0}·a1 ${JSON.stringify(a1)}·b1 ${JSON.stringify(b1)}·present ${present}·acct ${acct})`);
-    console.log(`${pad(seed, 6)} | ${pad(conv0 ? 'Y' : 'N', 8)} | ${pad(a1 ? 'Y' : 'N', 7)} | ${pad(b1 == null ? 'Y' : 'N', 7)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${pad(acct ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const N = 4, M = 3;
+    const base = NET.lamportExchange(seed, { sites: N, rounds: 56 });
+    const events = NET.withSseq(base.events);
+    const canonical = NET.applyDigest(NET.totalOrder(events));
+    const clockViol = NET.clockConditionViolations(base.events, base.edges);
+    const sound = NET.totalOrderSound(events, base.edges);   // 엄격 + 인과 존중
+    let allConv = true, allComplete = true, lossy = true;
+    for (let m = 0; m < M; m++) {
+      const r = replica(events, N, NET.mulberry32((seed ^ (0x4000 + m * 97)) >>> 0));
+      if (NET.applyDigest(r.delivered) !== canonical) allConv = false;
+      if (!NET.accountDelivered(r.delivered, events).complete) allComplete = false;
+      if (r.resyncs === 0) lossy = false;
+    }
+    const ok = check(clockViol === 0 && allConv && sound.strict && sound.causal && allComplete && lossy,
+      `seed ${seed}: clock ${clockViol}·conv ${allConv}·sound ${sound.strict && sound.causal}·complete ${allComplete}·lossy ${lossy}`);
+    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(clockViol, 9)} | ${pad(allConv ? 'Y' : 'N', 10)} | ${pad(sound.causal ? 'Y' : 'N', 8)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(lossy ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['upe2ecap'] = upe2ecap;
-kit.ORDER.splice(1, 0, 'upe2ecap');
+kit.MODES['asynce2ecap'] = asynce2ecap;
+kit.ORDER.splice(1, 0, 'asynce2ecap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
