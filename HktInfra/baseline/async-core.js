@@ -101,6 +101,34 @@ function totalOrderSound(events, edges) {
   return { strict, causal, sig: orderSig(ord) };
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0434 — holdback 재정렬 버퍼(low-water-mark 안정성) ──────────────────
+//   전순서(0433)는 *전체 집합이 손에 있을 때* 계산. 실제론 이벤트가 *교차-site 재정렬*로 도착한다(링크별 지연 상이).
+//   holdback: 사이트별 링크는 FIFO(같은 site 이벤트는 발신 순서대로 도착)지만 site 끼리는 임의 인터리빙.
+//   안정성 규칙 — lwm(low-water-mark) = min_s (그 site 에서 마지막으로 도착한 lc). 어떤 미래 이벤트든 lc > lwm 이므로,
+//   lc ≤ lwm 인 버퍼 이벤트는 *더 작은 키가 더 못 온다*(FIFO 보장) → 전순서로 안전 방출. 미도착 site 1개라도 있으면 lwm=-1(보류).
+//   close() = 스트림 종료 → 잔여 전부 전순서 flush. 핵심: 어떤 인터리빙이든 방출열 == totalOrder(전체).
+function makeHoldback(nsites) {
+  const maxSeen = new Array(nsites).fill(-1);   // site 별 마지막 도착 lc (FIFO → 그 site 의 lc 연속 frontier)
+  let pending = [];
+  const delivered = [];
+  let beforeClose = 0;                          // close 이전에 방출된 수(진짜 holdback 증거)
+  const lwm = () => { let m = Infinity; for (let s = 0; s < nsites; s++) m = Math.min(m, maxSeen[s]); return m; };
+  function flushStable() {
+    const w = lwm();
+    if (w < 0) return;
+    const ready = pending.filter(e => e.lc <= w);
+    if (!ready.length) return;
+    ready.sort(totalOrderCmp);
+    for (const e of ready) delivered.push(e);
+    pending = pending.filter(e => e.lc > w);
+  }
+  return {
+    offer(e) { maxSeen[siteIdx(e)] = Math.max(maxSeen[siteIdx(e)], e.lc); pending.push(e); flushStable(); },
+    close() { beforeClose = delivered.length; pending.sort(totalOrderCmp); for (const e of pending) delivered.push(e); pending = []; return delivered; },
+    delivered, sig() { return orderSig(delivered); }, beforeCloseCount() { return beforeClose; },
+  };
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;

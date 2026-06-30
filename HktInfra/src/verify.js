@@ -1,9 +1,9 @@
-// HktInfra step-0434 — 헤드리스 검증 (#4 진짜 비동기 4: holdback 재정렬 버퍼)
+// HktInfra step-0435 — 헤드리스 검증 (#4 진짜 비동기 5: 인과 의존 배달)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `lcreorder`.
-//   더한 한 조각: async-core.js — makeHoldback(nsites): 교차-site 재정렬 도착(사이트별 FIFO)에서 low-water-mark 안정성으로
-//   전순서 점진 방출. 어떤 인터리빙이든 방출열 == totalOrder(전체)·일부는 close 이전 방출(진짜 holdback). run() 미호출 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `lcreorder` — P 인터리빙 전부 같은 방출 sig == 정전 전순서·close 이전 방출>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `lccausal`.
+//   더한 한 조각: async-core.js — causalDeliver(events,edges,arrival): deps(=happens-before 선행) 충족 시에만 방출 →
+//   FIFO 없이 어떤 적대적 도착(역순/셔플)에도 원인→결과 보존(causalViolations 0)·전부 배달(stuck 0). run() 미호출 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `lccausal` — 역순+셔플 6 도착 전부 violations 0·stuck 0·전부 배달.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,45 +15,36 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad } = kit.helpers;
 
-const siteOf = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
-
-// 이벤트를 site 별 발신순(FIFO) 큐로 나눈 뒤, 시드 PRNG 로 site 를 골라 한 발씩 offer — 사이트별 FIFO 보존·교차 site 임의 인터리빙.
-function interleaveFIFO(events, nsites, rnd, hb) {
-  const queues = Array.from({ length: nsites }, () => []);
-  for (const e of events) queues[siteOf(e)].push(e);   // events 는 발신순 → 큐도 발신순
-  let remaining = events.length;
-  while (remaining > 0) {
-    let s = rnd() % nsites;
-    for (let k = 0; k < nsites && queues[s].length === 0; k++) s = (s + 1) % nsites;
-    hb.offer(queues[s].shift());
-    remaining--;
-  }
-  return hb.close();
+function shuffle(arr, rnd) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
 }
 
-// step-0434 #4 진짜 비동기 4 — lcreorder: holdback 재정렬. 6 인터리빙 전부 같은 방출 sig==정전 전순서·close 이전 방출>0.
-function lcreorder(seeds) {
-  console.log('== lcreorder (0434·#4): holdback 재정렬 — P 인터리빙 전부 같은 방출열 == 전순서·일부 close 이전 방출 ==');
-  console.log('seed   | 이벤트 | 인터리빙 | 동일==전순서 | close前방출 | 판정');
+// step-0435 #4 진짜 비동기 5 — lccausal: 인과 의존 배달. 적대적 도착(역순·역전순서·셔플) 전부 인과 위반 0·stuck 0·전부 배달.
+function lccausal(seeds) {
+  console.log('== lccausal (0435·#4): 인과 의존 배달 — 적대적 도착(역순/셔플)에도 원인→결과 보존(위반 0)·전부 배달 ==');
+  console.log('seed   | 이벤트 | 도착패턴 | 위반합 | 미배달 | 판정');
   for (const seed of seeds) {
-    const N = 4;
-    const { events } = NET.lamportExchange(seed, { sites: N, rounds: 40 });
-    const canonical = NET.orderSig(NET.totalOrder(events));
-    const rnd = NET.mulberry32((seed ^ 0xC0FFEE) >>> 0);
-    const P = 6;
-    let same = true, minBefore = Infinity;
-    for (let p = 0; p < P; p++) {
-      const hb = NET.makeHoldback(N);
-      interleaveFIFO(events, N, rnd, hb);
-      if (hb.sig() !== canonical) same = false;
-      minBefore = Math.min(minBefore, hb.beforeCloseCount());
+    const { events, edges } = NET.lamportExchange(seed, { sites: 4, rounds: 44 });
+    const rnd = NET.mulberry32((seed ^ 0xDEAD) >>> 0);
+    const arrivals = [
+      events.slice().reverse(),                          // 발신 역순(적대적)
+      NET.totalOrder(events).reverse(),                  // 전순서 역전(적대적)
+      shuffle(events, rnd), shuffle(events, rnd), shuffle(events, rnd), shuffle(events, rnd),
+    ];
+    let violSum = 0, stuckSum = 0;
+    for (const arr of arrivals) {
+      const r = NET.causalDeliver(events, edges, arr);
+      violSum += NET.causalViolations(r.order, edges);
+      stuckSum += r.stuck + (r.deliveredN !== events.length ? 1 : 0);
     }
-    const ok = check(same && minBefore > 0, `seed ${seed}: same ${same}·minBefore ${minBefore}`);
-    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(P, 8)} | ${pad(same ? 'Y' : 'N', 12)} | ${pad(minBefore, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(violSum === 0 && stuckSum === 0, `seed ${seed}: viol ${violSum}·stuck ${stuckSum}`);
+    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(arrivals.length, 8)} | ${pad(violSum, 6)} | ${pad(stuckSum, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['lcreorder'] = lcreorder;
-kit.ORDER.splice(1, 0, 'lcreorder');
+kit.MODES['lccausal'] = lccausal;
+kit.ORDER.splice(1, 0, 'lccausal');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
