@@ -266,7 +266,8 @@ class UpClient {
     this.avatar = script.avatar; this.zoneId = script.zoneId;
     this.joinAt = script.joinAt || 1;
     this.plan = script.plan || [];   // step-0422 — 발신할 이동열 [[dx,dy]…]. enter 이후 매 tick 한 발씩 zoneMove.
-    this.idx = 0; this.joined = false; this.sent = 0;
+    this.leaveAt = script.leaveAt != null ? script.leaveAt : null;   // step-0427 — 이 tick(절대)에 zoneLeave 발신(접속 종료). null=영구 체류.
+    this.idx = 0; this.joined = false; this.left = false; this.sent = 0;
     // step-0423 — 수신(양방향·DownClient 동형): enter 가 uc0 발신이라 게이트웨이가 세션→uc0 바인딩 → 자기 AOI 뷰가 uc0 으로 온다.
     this.seen = new Map(); this.views = 0; this.deltas = 0; this.resets = 0;
     // this.net, this.addr 는 net.register(0067·engine) 가 주입.
@@ -288,8 +289,9 @@ class UpClient {
   convergedTo(authSig) { return this.seenSig() === authSig; }   // step-0424 — 권위 AOI 서명 수렴(desync 0) 여부.
   // step-0422 (#61) — onTick: joinAt 에 zoneEnter, 이후 매 tick plan 한 발씩 zoneMove(클라가 자기 plan 으로 intent 생성·합성 entityOps 대체).
   onTick(S) {
-    if (S < this.joinAt) return;
+    if (this.left || S < this.joinAt) return;
     if (!this.joined) { this.joined = true; this._emit({ type: 'zoneEnter', zoneId: this.zoneId, avatar: this.avatar }); return; }
+    if (this.leaveAt != null && S >= this.leaveAt) { this.left = true; this._emit({ type: 'zoneLeave', zoneId: this.zoneId, avatar: this.avatar }); return; }   // step-0427 — 접속 종료(이후 발신 0).
     if (this.idx < this.plan.length) { const [dx, dy] = this.plan[this.idx++]; this._emit({ type: 'zoneMove', zoneId: this.zoneId, avatar: this.avatar, dx, dy }); }
   }
   _emit(op) { this.sent++; this.net.send(this.addr, 'gateway', op); }   // 클라→게이트웨이(gatewayDirectZone 직접 라우팅·합성 entityOps 대체).
