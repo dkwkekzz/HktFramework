@@ -1,8 +1,8 @@
-// HktInfra step-0426 — 헤드리스 검증 (#61 업스트림 intent 실 클라 6: 다중 UpClient 인터리빙 수렴)
+// HktInfra step-0427 — 헤드리스 검증 (#61 업스트림 intent 실 클라 7: UpClient leave — zoneLeave 발신·접속 종료)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upmulti`.
-//   더한 한 조각: 검증 전용 — 2 실 클라(uc0=a1@z1·uc1=b1@z2)가 동시 발신·각자 자기 존 권위로 수렴(다중 클라 intent 인터리빙·desync 0). 코드 박스 무변경(topo-build 가 upClients 배열 지원)→reg 0.
-//   검증: ⒜ `reg`. ⒝ `upmulti` — uc0·uc1 둘 다 각자 권위 AOI 로 수렴·a1@z1·b1@z2 권위 위치 정확.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upleave`.
+//   더한 한 조각: UpClient.onTick 이 leaveAt 에 zoneLeave 발신(이후 발신 0). upClients=null→reg 0.
+//   검증: ⒜ `reg`. ⒝ `upleave` — uc0 가 enter+move 후 leaveAt 에 zoneLeave → 권위 존서 a1 제거(zoneEntityPos null).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -21,27 +21,22 @@ const BASE = {
   placementOps: [{ at: 1, op: { type: 'placeZone', zoneId: 'z1', host: 'hostA' } }, { at: 1, op: { type: 'placeZone', zoneId: 'z2', host: 'hostB' } }],
 };
 
-// step-0426 #61 6 — upmulti: 2 실 클라(uc0=a1@z1·uc1=b1@z2) 동시 발신 → 각자 자기 존 권위로 수렴(인터리빙·desync 0).
-function upmulti(seeds) {
-  console.log('== upmulti (0426·#61 6): 2 실 클라(uc0=a1@z1·uc1=b1@z2) 동시 발신 → 각자 자기 존 권위 AOI 로 수렴(인터리빙·desync 0). ==');
-  console.log('seed   | uc0 수렴 | uc1 수렴 | a1@z1 | b1@z2 | 판정');
+// step-0427 #61 7 — upleave: uc0 가 enter+move 후 leaveAt(8) 에 zoneLeave → 권위 존서 a1 제거(생애주기 완결). sent=enter+move+leave.
+function upleave(seeds) {
+  console.log('== upleave (0427·#61 7): UpClient.onTick leaveAt 에 zoneLeave 발신 → 권위 존서 a1 제거(enter→move→leave 생애주기). ==');
+  console.log('seed   | sent | a1 leave 전 | a1 최종(제거) | 판정');
+  const plan = [[1, 1], [1, 1]];
   for (const seed of seeds) {
-    const r = run({
-      seed, ...BASE, upClients: [
-        { addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan: [[1, 1], [1, 1]] },
-        { addr: 'uc1', avatar: 'b1', zoneId: 'z2', joinAt: 3, plan: [[1, 0], [0, 1]] },
-      ],
-    });
-    const [uc0, uc1] = r.upclients;
-    const c0 = uc0.convergedTo(r.orch.zoneAuthSig('z1', 'a1'));
-    const c1 = uc1.convergedTo(r.orch.zoneAuthSig('z2', 'b1'));
-    const p0 = r.orch.zoneEntityPos('z1', 'a1'), p1 = r.orch.zoneEntityPos('z2', 'b1');
-    const ok = check(c0 && c1 && !!p0 && !!p1, `seed ${seed}: 다중 수렴 실패 (c0 ${c0}·c1 ${c1}·a1 ${JSON.stringify(p0)}·b1 ${JSON.stringify(p1)})`);
-    console.log(`${pad(seed, 6)} | ${pad(c0 ? 'Y' : 'N', 8)} | ${pad(c1 ? 'Y' : 'N', 8)} | ${pad(p0 ? `{${p0.x},${p0.y}}` : 'N', 5)} | ${pad(p1 ? `{${p1.x},${p1.y}}` : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({ seed, ...BASE, upClients: [{ addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan, leaveAt: 8 }] });
+    const uc0 = r.upclients[0];
+    const finalPos = r.orch.zoneEntityPos('z1', 'a1');
+    const ok = check(uc0.sent === 1 + plan.length + 1 && finalPos == null,
+      `seed ${seed}: leave 실패 (sent ${uc0.sent}·기대 ${1 + plan.length + 1}·최종 ${JSON.stringify(finalPos)})`);
+    console.log(`${pad(seed, 6)} | ${pad(uc0.sent, 4)} | ${pad('moved', 11)} | ${pad(finalPos == null ? '제거됨' : JSON.stringify(finalPos), 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['upmulti'] = upmulti;
-kit.ORDER.splice(1, 0, 'upmulti');
+kit.MODES['upleave'] = upleave;
+kit.ORDER.splice(1, 0, 'upleave');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
