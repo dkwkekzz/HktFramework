@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0410](step-0410.md) — **#62 runMulti 합류 9·grand capstone**: `runMultiCoherent()`(unifiedCoherent && 미러 standby 실재). 종합 복원력 시나리오(runScenario migrate+reprovision → killHost primary → promoteStandby 따뜻한 failover) 뒤도 참 → 코디네이터가 runMulti 의 펜싱·lease-timeout·restart·reprovision/mirror·warm-failover·시나리오·clusterInfo 를 모두 보유(#62 능력 합류·병존 reg 0). **#62 복원력 sub-arc(0401~0410) 닫기**. 직전: 0409 promoteStandby.
-- **한 줄 상태**: reg ALL OK·coordmulticap 5/5(runMultiCoherent Y·a1 보존·mig1·reprov1·promo1)·cluster-coord.js 25.0KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#62 코디네이터 runMulti 복원력 코어 승격(0401~0410 ✅ 닫힘)**: 펜싱(0401)·silence(0402)·restart(0403)·정리(0404)·reprovision(0405)·mirror(0406)·clusterInfo(0407)·runScenario(0408)·promoteStandby(0409)·capstone(0410). **후속(권위 infra-review)**: ⒜ 옛 cluster-run.js runMulti 가 코디네이터를 *호출*하도록 코드 합류(능력 superset·플립만 잔여·#62 잔여)·⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0411](step-0411.md) — **#62 코드 합류 1**: `coordSetup(opts,deps)`(cluster-run.js) — verify 가 0401~0410 내내 손으로 짜던 4단 배선(run→orch/driver→Cluster spawn→makeClusterCoordinator)을 cluster-run.js 소유 단일 함수로 흡수. 미부착(verify 만 호출)→reg 0. **#62 코드 합류 sub-arc(0411~) 시작** — 옛 runMulti zone-cluster 복원력을 코디네이터 단일 진입점으로. 직전: 0410 runMultiCoherent capstone.
+- **한 줄 상태**: reg ALL OK·coordsetup 5/5(placement==plan·maxDesync0·coordDesync0)·cluster-run.js 18.7KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#62 코드 합류 sub-arc(0411~)**: coordSetup(0411)→coordScenarioFromOpts(0412)→runMultiViaCoord(0413)→clusterInfo parity(0414)→equivalence(0415)→promote(0416)→fence/silence(0417)→restart(0418)→runMulti OFF-게이트 위임(0419)→capstone(0420). 코디네이터(0401~0410 능력 superset)를 cluster-run.js 가 *호출*하는 단일 진입점으로 합류·OFF→옛 runMulti 비트 동일=reg 0. **후속**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -154,3 +154,4 @@
 | [0408](step-0408.md) | #62 runMulti 합류 7: runScenario(ticks,scenario) 통합 시나리오 루프(스크립트 열화 주입·runMulti 호환) | 통과(reg 0·spine OK) · coordscenario 5/5 migrate+reprovision·unifiedCoherent Y·md0 |
 | [0409](step-0409.md) | #62 runMulti 합류 8·복원력 payoff: promoteStandby(zone) 따뜻한 standby 승격·상태 보존 failover(#63 완화) | 통과(reg 0·spine OK) · coordpromote 5/5 killHost→promote a1 {8,8} 보존·unifiedCoherent Y·promotions1 |
 | [0410](step-0410.md) | #62 runMulti 합류 9·grand capstone: runMultiCoherent(unifiedCoherent && 미러 standby 실재)·종합 복원력 시나리오(0401~0410 닫기) | 통과(reg 0·spine OK) · coordmulticap 5/5 runMultiCoherent Y·a1 보존·mig1·reprov1·promo1 |
+| [0411](step-0411.md) | #62 코드 합류 1: coordSetup(opts,deps) — verify 손배선 4단(run→orch→Cluster→coord)을 cluster-run.js 단일 함수로 흡수·미부착→reg 0 | 통과(reg 0·spine OK) · coordsetup 5/5 placement==plan·maxDesync0·coordDesync0 |

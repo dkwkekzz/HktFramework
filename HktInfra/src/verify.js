@@ -1,14 +1,13 @@
-// HktInfra step-0410 — 헤드리스 검증 (#62 runMulti 합류 9·grand capstone: runMultiCoherent 종합 복원력)
+// HktInfra step-0411 — 헤드리스 검증 (#62 코드 합류 1: coordSetup — 코디네이터 zone-cluster 배선 단일 함수 패키지)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmulticap`.
-//   더한 한 조각: cluster-coord.js runMultiCoherent()=unifiedCoherent && 미러 standby 실재. 종합 복원력 시나리오 뒤 #62 능력 합류 완성. 0401~0410 닫기. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordmulticap` — 2 host·3 zone: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordsetup`.
+//   더한 한 조각: cluster-run.js coordSetup(opts,deps) — verify 손배선(run→orch→Cluster→coord) 4단을 한 함수로. 미부착(verify 만 호출)→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coordsetup` — coordSetup 으로 구성한 coord.start() 후 placement==orch plan·coordDesync 0(배선이 0410 손배선과 동치).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
 const makeVerifyKit = require('../engine/verify-kit.js');
-const { Cluster } = require('./cluster-core.js');
-const { makeClusterCoordinator } = require('./cluster-coord.js');
+const { coordSetup } = require('./cluster-run.js');
 
 const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
@@ -31,34 +30,26 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0410 #62 runMulti 합류 9·grand capstone — coordmulticap: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1. #62 복원력 sub-arc(0401~0410) 닫기.
-async function coordmulticap(seeds) {
-  const BASE = coordScenario();
-  console.log('== coordmulticap (0410·#62 grand capstone): 종합 복원력 시나리오 후 runMultiCoherent. 0401~0410 닫기. ==');
-  console.log('seed   | runMultiCoherent | a1 보존 | mig | reprov | promo | 판정');
+// step-0411 #62 코드 합류 1 — coordsetup: cluster-run.coordSetup 으로 구성한 코디네이터를 run(6) 구동 후 placement==orch plan·maxDesync 0·coordDesync 0. 손배선(0410)과 동치 증명.
+async function coordsetup(seeds) {
+  console.log('== coordsetup (0411·#62 코드 합류 1): cluster-run.coordSetup(run→orch→Cluster→coord) 단일 함수 → run(6) 후 placement==orch plan·maxDesync 0·coordDesync 0. ==');
+  console.log('seed   | views | placement==plan | maxDesync | coordDesync | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE });
-    const o = r.orch, drv = o.clusterDriver;
-    const cluster = new Cluster([]);
-    let rmc = false, preserved = false, info = {};
+    const { orch, cluster, coord } = await coordSetup({ seed, ticks: 12, ...coordScenario() }, { run, zoneSpecOf });
+    let views = 0, planMatch = false, desync = -1, maxd = -1;
     try {
-      await cluster.spawn();
-      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.runScenario(6, { migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z1', host: 'hostA_s', at: 3 } });
-      const pre = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');   // 따뜻한 standby 의 a1
-      await cluster.killHost('hostA');                                  // primary 사망
-      await coord.promoteStandby('z1');                                 // 따뜻한 failover
-      const post = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
-      preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
-      rmc = await coord.runMultiCoherent(); info = coord.clusterInfo();
+      views = await coord.run(6);
+      const plan = orch.hostSpawnPlan();
+      planMatch = plan.order.every(h => plan.hosts[h].zones.every(z => coord.placement[z] === h));
+      maxd = coord.maxDesync;
+      desync = await coord.coordDesync();
     } finally { await cluster.shutdown(); }
-    const ok = check(rmc && preserved && info.migrations === 1 && info.reprovisions === 1 && info.promotions === 1,
-      `seed ${seed}: capstone 위반 (rmc ${rmc}·preserved ${preserved}·${JSON.stringify({ mg: info.migrations, rp: info.reprovisions, pr: info.promotions })})`);
-    console.log(`${pad(seed, 6)} | ${pad(rmc ? 'Y' : 'N', 16)} | ${pad(preserved ? 'Y' : 'N', 7)} | ${pad(info.migrations, 3)} | ${pad(info.reprovisions, 6)} | ${pad(info.promotions, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(planMatch && maxd === 0 && desync === 0, `seed ${seed}: coordSetup 배선 불일치 (planMatch ${planMatch}·maxDesync ${maxd}·desync ${desync})`);
+    console.log(`${pad(seed, 6)} | ${pad(views, 5)} | ${pad(planMatch ? 'Y' : 'N', 15)} | ${pad(maxd, 9)} | ${pad(desync, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordmulticap'] = coordmulticap;
-kit.ORDER.splice(1, 0, 'coordmulticap');
+kit.MODES['coordsetup'] = coordsetup;
+kit.ORDER.splice(1, 0, 'coordsetup');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
