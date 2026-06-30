@@ -267,8 +267,25 @@ class UpClient {
     this.joinAt = script.joinAt || 1;
     this.plan = script.plan || [];   // step-0422 — 발신할 이동열 [[dx,dy]…]. enter 이후 매 tick 한 발씩 zoneMove.
     this.idx = 0; this.joined = false; this.sent = 0;
+    // step-0423 — 수신(양방향·DownClient 동형): enter 가 uc0 발신이라 게이트웨이가 세션→uc0 바인딩 → 자기 AOI 뷰가 uc0 으로 온다.
+    this.seen = new Map(); this.views = 0; this.deltas = 0; this.resets = 0;
     // this.net, this.addr 는 net.register(0067·engine) 가 주입.
   }
+  // step-0423 (#61) — 수신: 자기 AOI 뷰(view/view_delta)를 seen 으로 적용(DownClient 동형). 발신+수신 = 실 양방향 클라.
+  onMsg(m) {
+    const p = m.payload;
+    if (p.type === 'view') { this.views++; this.seen = new Map(p.entities.map(e => [e.id, { x: e.x, y: e.y }])); }
+    else if (p.type === 'view_delta') {
+      this.deltas++;
+      if (p.reset) { this.seen = new Map(); this.resets++; }
+      for (const e of (p.enter || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const e of (p.update || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const id of (p.exit || [])) this.seen.delete(id);
+    }
+  }
+  seenIds() { return [...this.seen.keys()].sort(); }
+  seenSig() { return [...this.seen.entries()].map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';'); }
+  convergedTo(authSig) { return this.seenSig() === authSig; }   // step-0424 — 권위 AOI 서명 수렴(desync 0) 여부.
   // step-0422 (#61) — onTick: joinAt 에 zoneEnter, 이후 매 tick plan 한 발씩 zoneMove(클라가 자기 plan 으로 intent 생성·합성 entityOps 대체).
   onTick(S) {
     if (S < this.joinAt) return;

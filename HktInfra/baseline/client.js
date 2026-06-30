@@ -265,12 +265,15 @@ class UpClient {
   constructor(script = {}) {
     this.avatar = script.avatar; this.zoneId = script.zoneId;
     this.joinAt = script.joinAt || 1;
-    this.joined = false; this.sent = 0;
+    this.plan = script.plan || [];   // step-0422 — 발신할 이동열 [[dx,dy]…]. enter 이후 매 tick 한 발씩 zoneMove.
+    this.idx = 0; this.joined = false; this.sent = 0;
     // this.net, this.addr 는 net.register(0067·engine) 가 주입.
   }
+  // step-0422 (#61) — onTick: joinAt 에 zoneEnter, 이후 매 tick plan 한 발씩 zoneMove(클라가 자기 plan 으로 intent 생성·합성 entityOps 대체).
   onTick(S) {
-    if (S < this.joinAt || this.joined) return;
-    this.joined = true; this._emit({ type: 'zoneEnter', zoneId: this.zoneId, avatar: this.avatar });
+    if (S < this.joinAt) return;
+    if (!this.joined) { this.joined = true; this._emit({ type: 'zoneEnter', zoneId: this.zoneId, avatar: this.avatar }); return; }
+    if (this.idx < this.plan.length) { const [dx, dy] = this.plan[this.idx++]; this._emit({ type: 'zoneMove', zoneId: this.zoneId, avatar: this.avatar, dx, dy }); }
   }
   _emit(op) { this.sent++; this.net.send(this.addr, 'gateway', op); }   // 클라→게이트웨이(gatewayDirectZone 직접 라우팅·합성 entityOps 대체).
 }

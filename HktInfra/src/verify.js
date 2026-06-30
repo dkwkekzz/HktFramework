@@ -1,8 +1,8 @@
-// HktInfra step-0422 — 헤드리스 검증 (#61 업스트림 intent 실 클라 2: UpClient move 발신 — plan 한 발씩 zoneMove)
+// HktInfra step-0423 — 헤드리스 검증 (#61 업스트림 intent 실 클라 3: UpClient 양방향 — 자기 AOI 뷰 수신)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upmove`.
-//   더한 한 조각: UpClient.onTick 이 enter 이후 plan 한 발씩 zoneMove 발신. upClients=null(기본)→스폰 0→reg 0.
-//   검증: ⒜ `reg`. ⒝ `upmove` — uc0 가 enter(5,5)+plan[[3,2],[1,1]] 발신 → a1 최종 위치 == enter+Σplan.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `uprecv`.
+//   더한 한 조각: UpClient.onMsg(view/view_delta→seen)·seenIds/seenSig(DownClient 동형). 발신 enter 가 세션→uc0 바인딩→자기 뷰 수신. upClients=null→reg 0.
+//   검증: ⒜ `reg`. ⒝ `uprecv` — uc0 가 발신+수신(deltas>0)·seenIds 에 a1·seenSig 가 a1 권위 위치 포함.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -24,23 +24,22 @@ function upScenario(ucs) {
   };
 }
 
-// step-0422 #61 2 — upmove: uc0 가 enter+plan 발신 → a1 최종 위치 == enter(5,5)+Σplan(클램프 없으면). plan=[[3,2],[1,1]] → (5,5)→(8,7)→(9,8).
-function upmove(seeds) {
-  console.log('== upmove (0422·#61 2): UpClient.onTick plan 한 발씩 zoneMove → a1 최종 위치 == enter(5,5)+Σplan. ==');
-  console.log('seed   | uc0.sent | a1 최종 | 기대 | 판정');
+// step-0423 #61 3 — uprecv: uc0 가 발신(enter+move)+수신(view_delta)→ seenIds 에 a1·seenSig 가 a1 권위 위치 반영(양방향 실 클라).
+function uprecv(seeds) {
+  console.log('== uprecv (0423·#61 3): UpClient 양방향 — 발신 enter 가 세션→uc0 바인딩→자기 AOI 뷰 수신(deltas>0·seen 에 a1). ==');
+  console.log('seed   | sent | deltas | seenIds | seenSig | 판정');
   const plan = [[3, 2], [1, 1]];
-  const exp = { x: 5 + 3 + 1, y: 5 + 2 + 1 };   // 그리드 16·반경 4 내라 클램프 0
   for (const seed of seeds) {
     const r = run({ seed, ...upScenario([{ addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan }]) });
     const uc0 = r.upclients[0];
-    const pos = r.orch.zoneEntityPos('z1', 'a1');
-    const ok = check(uc0 && uc0.sent === 1 + plan.length && pos && pos.x === exp.x && pos.y === exp.y,
-      `seed ${seed}: move 실패 (sent ${uc0 && uc0.sent}·a1 ${JSON.stringify(pos)}·기대 ${JSON.stringify(exp)})`);
-    console.log(`${pad(seed, 6)} | ${pad(uc0 ? uc0.sent : 0, 8)} | ${pad(pos ? `{${pos.x},${pos.y}}` : 'N', 7)} | ${pad(`{${exp.x},${exp.y}}`, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ids = uc0.seenIds();
+    const ok = check(uc0.sent === 1 + plan.length && uc0.deltas > 0 && ids.includes('a1'),
+      `seed ${seed}: 수신 실패 (sent ${uc0.sent}·deltas ${uc0.deltas}·seen ${JSON.stringify(ids)})`);
+    console.log(`${pad(seed, 6)} | ${pad(uc0.sent, 4)} | ${pad(uc0.deltas, 6)} | ${pad(JSON.stringify(ids), 8)} | ${pad(uc0.seenSig(), 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['upmove'] = upmove;
-kit.ORDER.splice(1, 0, 'upmove');
+kit.MODES['uprecv'] = uprecv;
+kit.ORDER.splice(1, 0, 'uprecv');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0422](step-0422.md) — **#61 업스트림 intent 실 클라 2**: `UpClient.onTick` 가 enter 이후 매 tick `plan` 한 발씩 zoneMove 발신(클라가 자기 plan 으로 intent 생성·합성 entityOps move 대체). upClients=null→reg 0. **#61 업스트림 실 클라 sub-arc(0421~) 진행**. 직전: 0421 UpClient 골격.
-- **한 줄 상태**: reg ALL OK·upmove 5/5(uc0 enter+plan→a1 {9,8}==enter+Σplan)·client.js 18.4KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0423](step-0423.md) — **#61 업스트림 intent 실 클라 3**: `UpClient` 양방향 — `onMsg(view/view_delta→seen)`·seenSig(DownClient 동형). enter 가 uc0 발신이라 세션→uc0 바인딩→자기 AOI 뷰 수신. 발신+수신 = 실 양방향 클라. upClients=null→reg 0. **#61 sub-arc(0421~) 진행**. 직전: 0422 move 발신.
+- **한 줄 상태**: reg ALL OK·uprecv 5/5(uc0 sent3+deltas3·seenSig a1@9,8 권위 반영)·client.js 19.4KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~)**: UpClient 골격(0421)→move 발신(0422)→뷰 수신 양방향(0423)→수렴 desync0(0424)→entityOps 동치(0425)→다중 클라(0426)→leave(0427)→손실 하 수렴(0428)→업스트림 회계(0429)→capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속**: ⒟ 진짜 비동기(#4)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0411~0420 묶음 리뷰 ✅(review-0411-0420)**.
 
 ---
@@ -148,3 +148,4 @@
 | [0420](step-0420.md) | #62 코드 합류 10·grand capstone: 단일 진입점 종합 warm-failover(migrate+reprovision+kill+promote)·runMultiCoherent+clusterInfo parity·0411~0420 닫기 | 통과(reg 0·e2e OK·spine OK) · coordmergecap 5/5 runMultiCoherent Y·mig1·reprov1·promo1·a1 보존·parity |
 | [0421](step-0421.md) | #61 업스트림 실 클라 1: UpClient(발신 액터·kind 'upclient')·onTick joinAt zoneEnter 발신·topo 배선·upClients OFF→reg 0 | 통과(reg 0·spine OK) · upclient 5/5 uc0 zoneEnter 발신·a1@z1 {5,5} |
 | [0422](step-0422.md) | #61 업스트림 실 클라 2: UpClient.onTick plan 한 발씩 zoneMove 발신(클라가 자기 plan 으로 intent 생성) | 통과(reg 0·spine OK) · upmove 5/5 a1 {9,8}==enter(5,5)+Σplan |
+| [0423](step-0423.md) | #61 업스트림 실 클라 3: UpClient 양방향(onMsg view→seen·DownClient 동형)·세션→uc0 바인딩→자기 AOI 뷰 수신 | 통과(reg 0·spine OK) · uprecv 5/5 sent3+deltas3·seenSig a1@9,8 |
