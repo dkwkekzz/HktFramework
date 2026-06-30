@@ -1,8 +1,8 @@
-// HktInfra step-0415 — 헤드리스 검증 (#62 코드 합류 5: coordAuthEquiv — runMultiViaCoord 실 cluster == in-proc 권위 동치)
+// HktInfra step-0416 — 헤드리스 검증 (#62 코드 합류 6: warm failover — kill+promote 시나리오 번역·구동)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordvsauth`.
-//   더한 한 조각: cluster-run.js coordAuthEquiv(coord,cluster,ents) — 실 cluster entity 위치 == in-proc run() 권위(공유 기준 ⇒ runMultiViaCoord≡runMulti). 미부착→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordvsauth` — migrate+reprovision 시나리오 한 호출 후 a1@z1·b1@z2 실 위치 == 권위(match==total)·coherent Y.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coorddelegpromote`.
+//   더한 한 조각: coordScenarioFromOpts kill·promote case + coord runScenario promote 처리(kill 과 같은 at·원자). 미부착→reg 0.
+//   검증: ⒜ `reg`. ⒝ `coorddelegpromote` — migrate z3+reprovision z1@hostA_s+kill hostA+promote z1(@동일 tick) → coherent Y·promotions 1·a1 보존(상태 손실 0).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -29,25 +29,24 @@ function coordScenario() {
   return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
 }
 
-// step-0415 #62 코드 합류 5 — coordvsauth: runMultiViaCoord 구동 후 실 cluster entity(a1@z1·b1@z2) 위치 == in-proc run() 권위(coordAuthEquiv match==total)·coherent Y.
-async function coordvsauth(seeds) {
-  console.log('== coordvsauth (0415·#62 코드 합류 5): runMultiViaCoord 실 cluster entity 위치 == in-proc run() 권위(공유 기준 ⇒ ≡runMulti)·coherent Y. ==');
-  console.log('seed   | coherent | match/total | a1==권위 | b1==권위 | 판정');
-  const spec = { migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z1', host: 'hostA_s', at: 3 } };
-  const ENTS = [['z1', 'a1'], ['z2', 'b1']];
+// step-0416 #62 코드 합류 6 — coorddelegpromote: 따뜻한 failover 시나리오(migrate z3 off hostA·reprovision z1 standby·kill hostA·promote z1 동일 tick) → coherent Y·promotions 1·a1 보존.
+async function coorddelegpromote(seeds) {
+  console.log('== coorddelegpromote (0416·#62 코드 합류 6): warm failover 번역·구동 — migrate z3+reprovision z1@hostA_s+kill hostA+promote z1(동일 tick) → coherent Y·promo1·a1 보존. ==');
+  console.log('seed   | coherent | promo | a1==권위 | placement[z1] | 판정');
+  const spec = { migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z1', host: 'hostA_s', at: 3 }, kill: { host: 'hostA', at: 4 }, promote: { zone: 'z1', at: 4 } };
   for (const seed of seeds) {
     const res = await runMultiViaCoord(
       { seed, ticks: 12, coordTicks: 6, coordSc: spec, ...coordScenario() },
       { run, zoneSpecOf },
-      async (coord, cluster) => coordAuthEquiv(coord, cluster, ENTS));
-    const eq = res.probe;
-    const ok = check(res.coherent && eq.match === eq.total,
-      `seed ${seed}: 동치 위반 (coherent ${res.coherent}·match ${eq.match}/${eq.total})`);
-    console.log(`${pad(seed, 6)} | ${pad(res.coherent ? 'Y' : 'N', 8)} | ${pad(eq.match + '/' + eq.total, 11)} | ${pad(eq.match >= 1 ? 'Y' : 'N', 8)} | ${pad(eq.match >= 2 ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+      async (coord, cluster) => ({ eq: await coordAuthEquiv(coord, cluster, [['z1', 'a1']]), z1: coord.placement['z1'] }));
+    const info = res.info, eq = res.probe.eq;
+    const ok = check(res.coherent && info.promotions === 1 && eq.match === eq.total && res.probe.z1 === 'hostA_s',
+      `seed ${seed}: warm failover 위반 (coherent ${res.coherent}·promo ${info.promotions}·a1 ${eq.match}/${eq.total}·z1@${res.probe.z1})`);
+    console.log(`${pad(seed, 6)} | ${pad(res.coherent ? 'Y' : 'N', 8)} | ${pad(info.promotions, 5)} | ${pad(eq.match + '/' + eq.total, 8)} | ${pad(res.probe.z1, 13)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordvsauth'] = coordvsauth;
-kit.ORDER.splice(1, 0, 'coordvsauth');
+kit.MODES['coorddelegpromote'] = coorddelegpromote;
+kit.ORDER.splice(1, 0, 'coorddelegpromote');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

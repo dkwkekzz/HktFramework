@@ -1,3 +1,4 @@
+// HktInfra step-0416 — #62 코드 합류 6: coordScenarioFromOpts 에 kill·promote(warm failover) case 추가 + coord runScenario promote 처리. 미부착 → reg 0.
 // HktInfra step-0415 — #62 코드 합류 5: coordAuthEquiv(coord,cluster,ents) — 실 cluster entity 위치 == in-proc run() 권위(둘 다 귀착하는 공유 기준 ⇒ runMultiViaCoord≡runMulti). 미부착 → reg 0.
 // HktInfra step-0414 — #62 코드 합류 4: runMultiViaCoord 결과 info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·port·ipcMsgs/Bytes·allSerializable·wire) parity 병합. 미부착 → reg 0.
 // HktInfra step-0413 — #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 단일 진입점(코디네이터를 한 호출로 구동·집계). 미부착 → reg 0.
@@ -291,6 +292,8 @@ function coordScenarioFromOpts(opts) {
   const out = {};
   if (sc.migrate) out.migrate = { zone: sc.migrate.zone, from: sc.migrate.from, to: sc.migrate.to, at: sc.migrate.at };
   if (sc.reprovision) out.reprovision = { zone: sc.reprovision.zone, host: sc.reprovision.host, at: sc.reprovision.at };
+  if (sc.kill) out.kill = { host: sc.kill.host, at: sc.kill.at };          // step-0416 — host 사망(옛 runMulti wire.kill 판)
+  if (sc.promote) out.promote = { zone: sc.promote.zone, at: sc.promote.at }; // step-0416 — 따뜻한 standby 승격(warm failover·kill 과 같은 at 권장)
   return out;
 }
 
