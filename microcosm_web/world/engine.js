@@ -40,6 +40,11 @@
       this.bonds = [];   // {i,j,rest,k,melt}
       this.bolts = [];   // 벼락 채널 시각화 {path:[[x,y]...], life}
       this.agents = [];  // 자율 훅 {update(world,dt)}
+      // 아트 프리미티브(렌더 전용, 읽기 전용 소비) — artrender.js 가 읽어 SDF 표면을 뽑는다.
+      //   {kind:'capsule', i, j, r, mat}  선분(입자 i↔j)+반경 캡슐
+      //   {kind:'blob', idx:[...], r, mat} 입자 metaball 덩어리
+      // 물리(step)는 skins 를 보지 않는다 — 형태는 입자/본드 배치에서 창발, 렌더만 소비.
+      this.skins = [];
       this.time = 0;
       this.entropyOut = 0;  // 누적 엔트로피 방출(냉각으로 빠진 열) — 소산 계측
       this.ground = (x) => 20;
@@ -358,6 +363,73 @@
           if (dx * dx + dy * dy < 16) w.addBond(units[a], units[b], 90, null, 0.35);
         }
       return { units };
+    },
+
+    // ─────────────────────────────────────────────────────────────────────
+    // 아트 폼: 입자/본드로 형태를 '창발'시키고 w.skins 에 재질·두께를 채운다.
+    //   엔진 물리는 손대지 않는다 — artrender.js 가 위치만 읽어 통일 스타일로 셰이딩.
+    //   (파이썬 microcosm/forms.py 의 skeleton·art_tree 충실 이식.)
+    // ─────────────────────────────────────────────────────────────────────
+
+    // 아트용 나무: 줄기·가지=바크 캡슐, 캐노피=잎 blob 메타볼. (렌더 형태 전용)
+    art_tree(w, baseX, opt = {}) {
+      const scale = opt.scale || 1, baseY = w.ground(baseX);
+      const P = (dx, dy, kind) => w.spawn({
+        x: baseX + dx * scale, y: baseY + dy * scale, M: 1, kind, fixed: true, gScale: 0,
+      });
+      const base = P(0, 0, KIND.WOOD), mid = P(0.4, 9, KIND.WOOD), top = P(-0.3, 17, KIND.WOOD);
+      const bL = P(-6, 21, KIND.WOOD), bR = P(6, 20, KIND.WOOD), bM = P(0, 24, KIND.WOOD);
+      const cap = (i, j, r) => w.skins.push({ kind: 'capsule', i, j, r: r * scale, mat: 'bark' });
+      cap(base, mid, 2.3); cap(mid, top, 1.6);
+      cap(top, bL, 1.0); cap(top, bR, 1.0); cap(top, bM, 1.1);   // 가지
+      const centers = [[0, 25], [-6, 22], [6, 21], [-3, 28], [4, 27], [0, 30.5], [-8, 26], [8, 25]];
+      const canopy = centers.map(([dx, dy]) => P(dx, dy, KIND.LEAF));
+      for (const k of canopy) w.skins.push({ kind: 'blob', idx: [k], r: 5.0 * scale, mat: 'leaf' });
+      return { trunk: [base, mid, top, bL, bR, bM], canopy };
+    },
+
+    // 휴머노이드 스켈레톤: 관절=입자, 뼈=본드(+스킨 캡슐). 뼈별 두께·재질로
+    //   artrender 가 셰이딩된 사람 실루엣을 뽑는다. anchored=true 면 정지 포즈(고정).
+    skeleton(w, cx, opt = {}) {
+      const scale = opt.scale || 1, anchored = opt.anchored !== false;
+      const baseY = w.ground(cx), K = KIND.CHARACTER;
+      const J = (dx, dy) => w.spawn({
+        x: cx + dx * scale, y: baseY + dy * scale, M: 1, kind: K,
+        fixed: anchored, gScale: anchored ? 0 : 1,
+      });
+      const j = {
+        footL: J(-2.5, 0.6), footR: J(2.5, 0.6),
+        kneeL: J(-2.2, 7.0), kneeR: J(2.2, 7.0),
+        hipL: J(-2.0, 14.0), hipR: J(2.0, 14.0),
+        pelvis: J(0.0, 14.0), chest: J(0.0, 22.0), neck: J(0.0, 25.0),
+        head: J(0.0, 29.2), hair: J(0.0, 30.4),
+        shL: J(-3.2, 24.0), shR: J(3.2, 24.0),
+        elL: J(-5.0, 18.5), elR: J(5.0, 18.5),
+        haL: J(-5.3, 12.8), haR: J(5.3, 12.8),
+      };
+      const bones = [
+        ['hipL', 'kneeL'], ['kneeL', 'footL'], ['hipR', 'kneeR'], ['kneeR', 'footR'],
+        ['hipL', 'hipR'], ['hipL', 'pelvis'], ['hipR', 'pelvis'],
+        ['pelvis', 'chest'], ['chest', 'neck'], ['neck', 'head'],
+        ['chest', 'shL'], ['chest', 'shR'],
+        ['shL', 'elL'], ['elL', 'haL'], ['shR', 'elR'], ['elR', 'haR'],
+      ];
+      for (const [a, b] of bones) w.addBond(j[a], j[b], 120, null, 9);
+      const cap = (a, b, r, mat) => w.skins.push({ kind: 'capsule', i: j[a], j: j[b], r: r * scale, mat });
+      const blob = (name, r, mat) => w.skins.push({ kind: 'blob', idx: [j[name]], r: r * scale, mat });
+      cap('pelvis', 'chest', 2.6, 'cloth');                                   // 몸통
+      cap('hipL', 'hipR', 2.2, 'cloth');                                      // 골반
+      cap('chest', 'shL', 1.6, 'cloth'); cap('chest', 'shR', 1.6, 'cloth');   // 어깨
+      cap('hipL', 'kneeL', 1.9, 'cloth'); cap('kneeL', 'footL', 1.5, 'cloth');// 다리(바지)
+      cap('hipR', 'kneeR', 1.9, 'cloth'); cap('kneeR', 'footR', 1.5, 'cloth');
+      blob('footL', 1.6, 'cloth'); blob('footR', 1.6, 'cloth');              // 신발
+      cap('shL', 'elL', 1.4, 'cloth'); cap('shR', 'elR', 1.4, 'cloth');      // 위팔(소매)
+      cap('elL', 'haL', 1.05, 'skin'); cap('elR', 'haR', 1.05, 'skin');      // 아래팔(피부)
+      blob('haL', 1.25, 'skin'); blob('haR', 1.25, 'skin');                  // 손
+      cap('chest', 'neck', 1.0, 'skin'); cap('neck', 'head', 0.85, 'skin');  // 목
+      blob('hair', 3.4, 'hair');                                             // 머리카락(뒤)
+      blob('head', 3.2, 'skin');                                             // 머리(앞)
+      return { joints: j, units: Object.values(j) };
     },
   };
 

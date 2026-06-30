@@ -71,6 +71,9 @@ world/
   index.html    2D 게임 UI·Canvas 렌더·입력·창발 대시보드 (engine.js 로드).
   engine3d.js   World(3D) — 같은 규칙을 R³로. 높이장 지형·3D 결합/지지·3D 벼락.
   index3d.html  3D 게임 UI·Three.js 렌더·궤도 카메라·조준 (engine3d.js 로드).
+  artrender.js  SDF/메타볼 통일 아트 렌더러 — 지형·바다·나무·캐릭터를 한 스타일로.
+                DOM 비의존 코어(renderScene) → Node 검증. (artrender.py 이식)
+  art.html      아트 스튜디오 — 통일 씬을 SDF 아트로 렌더하고 PNG 리소스로 베이크.
 web/
   microcosm.html        2D 전투(캐릭터·파이어볼·벼락·사슬갑옷)
   microcosm3d.html      3D 빌드 (Three.js r128) — 규칙이 차원에 무관함을 보임
@@ -79,6 +82,35 @@ web/
 
 핵심 분리: **엔진(engine.js) 은 "무엇이 가능한가"를, 레시피(Forms) 는 "무엇을
 만들 것인가"를** 담당한다. 새 요소를 추가할 때 엔진은 건드리지 않는다.
+
+## 일관된 스타일로 아트 리소스 생성 (art.html)
+
+손으로 그리지 않고 **기질에서 아트를 뽑는다**. 아트 폼(`art_tree`·`skeleton`)이 입자+본드로
+형태를 *창발*시키고, `artrender.js` 의 **하나의 SDF/메타볼 렌더러**가 그 배치만 읽어
+지형·바다·나무·캐릭터를 **같은 재질 팔레트·같은 광원·같은 외곽선**으로 그린다 — 전혀 다른
+네 자산이 통일 스타일로 합쳐진다(`world/art.html`). "프로토타입 검증 후 베이크" 의 베이크
+단계로, **PNG 아트 리소스로 내보낸다**.
+
+```
+뼈/가지/줄기 = capsule SDF (선분+반경) + smooth-min 관절 융합
+머리/캐노피  = blob (입자 metaball)
+바다         = 물 입자 metaball → 임계 표면
+지형         = 높이함수 아래 재질 밴드
+셰이딩       = sdf 기울기로 노멀 추정 → 람베르트 + 가장자리 그늘(AO) + 외곽선
+```
+
+색은 자산이 아니라 **재질**(skin·cloth·hair·bark·leaf·rock·water)에 묶이므로, 새 폼을
+추가해도 자동으로 같은 톤으로 합쳐진다 — 이것이 *일관된 스타일*의 근거다. 코어
+`renderScene` 은 DOM 비의존이라 브라우저 없이 검증된다:
+
+```bash
+node -e "const MC=require('./world/engine.js'),R=require('./world/artrender.js');
+  const w=new MC.World({W:170,H:95}); w.ground=x=>24-13*Math.exp(-Math.pow((x-42)/15,2));
+  MC.Forms.water(w,42,70,9,w.ground(42)+24); for(let s=0;s<400;s++) w.step(0.02);
+  MC.Forms.art_tree(w,118,{scale:1.7}); MC.Forms.skeleton(w,88,{scale:1.5});
+  const r=R.renderScene(w,{scale:4,supersample:1});
+  console.log('px',r.pxw+'x'+r.pxh,'skins',w.skins.length);"
+```
 
 ## 엔진 검증 (Node)
 
