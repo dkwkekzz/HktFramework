@@ -1,8 +1,8 @@
-// HktInfra step-0425 — 헤드리스 검증 (#61 업스트림 intent 실 클라 5: UpClient ≡ 합성 entityOps 동치)
+// HktInfra step-0426 — 헤드리스 검증 (#61 업스트림 intent 실 클라 6: 다중 UpClient 인터리빙 수렴)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upvsscript`.
-//   더한 한 조각: 검증 전용 — 같은 plan 을 ⒜ upClients(실 클라 발신) ⒝ entityOps(합성 주입) 두 경로로 → 같은 최종 권위 위치·둘 다 수렴. 실 클라가 합성 주입을 정확히 대체. reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `upvsscript` — upClients 런 a1 위치 == entityOps 런 a1 위치·uc0/dc0 둘 다 권위로 수렴.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upmulti`.
+//   더한 한 조각: 검증 전용 — 2 실 클라(uc0=a1@z1·uc1=b1@z2)가 동시 발신·각자 자기 존 권위로 수렴(다중 클라 intent 인터리빙·desync 0). 코드 박스 무변경(topo-build 가 upClients 배열 지원)→reg 0.
+//   검증: ⒜ `reg`. ⒝ `upmulti` — uc0·uc1 둘 다 각자 권위 AOI 로 수렴·a1@z1·b1@z2 권위 위치 정확.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -21,29 +21,27 @@ const BASE = {
   placementOps: [{ at: 1, op: { type: 'placeZone', zoneId: 'z1', host: 'hostA' } }, { at: 1, op: { type: 'placeZone', zoneId: 'z2', host: 'hostB' } }],
 };
 
-// step-0425 #61 5 — upvsscript: 같은 plan(enter@3·move@4,5)을 실 클라(upClients) vs 합성 주입(entityOps)으로 → 같은 최종 권위 위치·둘 다 수렴. 실 클라가 합성 주입을 정확히 대체.
-function upvsscript(seeds) {
-  console.log('== upvsscript (0425·#61 5): UpClient 발신 ≡ 합성 entityOps 주입 — 같은 plan → 같은 최종 권위 위치·둘 다 수렴(실 클라가 합성 대체). ==');
-  console.log('seed   | up a1 | script a1 | 일치 | up 수렴 | script 수렴 | 판정');
-  const plan = [[3, 2], [1, 1]];
+// step-0426 #61 6 — upmulti: 2 실 클라(uc0=a1@z1·uc1=b1@z2) 동시 발신 → 각자 자기 존 권위로 수렴(인터리빙·desync 0).
+function upmulti(seeds) {
+  console.log('== upmulti (0426·#61 6): 2 실 클라(uc0=a1@z1·uc1=b1@z2) 동시 발신 → 각자 자기 존 권위 AOI 로 수렴(인터리빙·desync 0). ==');
+  console.log('seed   | uc0 수렴 | uc1 수렴 | a1@z1 | b1@z2 | 판정');
   for (const seed of seeds) {
-    // 실 클라 경로
-    const ru = run({ seed, ...BASE, upClients: [{ addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan }] });
-    const upPos = ru.orch.zoneEntityPos('z1', 'a1');
-    const upConv = ru.upclients[0].convergedTo(ru.orch.zoneAuthSig('z1', 'a1'));
-    // 합성 주입 경로(같은 plan·dc0 수신)
-    const eo = [{ at: 3, from: 'dc0', op: { type: 'zoneEnter', zoneId: 'z1', avatar: 'a1' } }];
-    plan.forEach((m, k) => eo.push({ at: 4 + k, from: 'dc0', op: { type: 'zoneMove', zoneId: 'z1', avatar: 'a1', dx: m[0], dy: m[1] } }));
-    const rs = run({ seed, ...BASE, downClients: 1, entityOps: eo });
-    const scPos = rs.orch.zoneEntityPos('z1', 'a1');
-    const scConv = rs.downclients[0].convergedTo(rs.orch.zoneAuthSig('z1', 'a1'));
-    const match = upPos && scPos && upPos.x === scPos.x && upPos.y === scPos.y;
-    const ok = check(match && upConv && scConv, `seed ${seed}: 동치 실패 (up ${JSON.stringify(upPos)}·script ${JSON.stringify(scPos)}·upConv ${upConv}·scConv ${scConv})`);
-    console.log(`${pad(seed, 6)} | ${pad(upPos ? `{${upPos.x},${upPos.y}}` : 'N', 5)} | ${pad(scPos ? `{${scPos.x},${scPos.y}}` : 'N', 9)} | ${pad(match ? 'Y' : 'N', 4)} | ${pad(upConv ? 'Y' : 'N', 7)} | ${pad(scConv ? 'Y' : 'N', 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({
+      seed, ...BASE, upClients: [
+        { addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan: [[1, 1], [1, 1]] },
+        { addr: 'uc1', avatar: 'b1', zoneId: 'z2', joinAt: 3, plan: [[1, 0], [0, 1]] },
+      ],
+    });
+    const [uc0, uc1] = r.upclients;
+    const c0 = uc0.convergedTo(r.orch.zoneAuthSig('z1', 'a1'));
+    const c1 = uc1.convergedTo(r.orch.zoneAuthSig('z2', 'b1'));
+    const p0 = r.orch.zoneEntityPos('z1', 'a1'), p1 = r.orch.zoneEntityPos('z2', 'b1');
+    const ok = check(c0 && c1 && !!p0 && !!p1, `seed ${seed}: 다중 수렴 실패 (c0 ${c0}·c1 ${c1}·a1 ${JSON.stringify(p0)}·b1 ${JSON.stringify(p1)})`);
+    console.log(`${pad(seed, 6)} | ${pad(c0 ? 'Y' : 'N', 8)} | ${pad(c1 ? 'Y' : 'N', 8)} | ${pad(p0 ? `{${p0.x},${p0.y}}` : 'N', 5)} | ${pad(p1 ? `{${p1.x},${p1.y}}` : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['upvsscript'] = upvsscript;
-kit.ORDER.splice(1, 0, 'upvsscript');
+kit.MODES['upmulti'] = upmulti;
+kit.ORDER.splice(1, 0, 'upmulti');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0425](step-0425.md) — **#61 업스트림 intent 실 클라 5**: UpClient ≡ 합성 entityOps 동치 — 같은 plan 을 실 클라(upClients) vs 합성 주입(entityOps) 두 경로로 → 같은 최종 권위 위치·둘 다 수렴(실 클라가 합성 정확히 대체). 검증 전용·reg 구조적 0. **#61 sub-arc(0421~) 진행**. 직전: 0424 수렴 desync 0.
-- **한 줄 상태**: reg ALL OK·upvsscript 5/5(up a1=={script} {9,8}·uc0·dc0 수렴)·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0426](step-0426.md) — **#61 업스트림 intent 실 클라 6**: 다중 UpClient 인터리빙 — 2 실 클라(uc0=a1@z1·uc1=b1@z2) 동시 발신·각자 자기 존 권위로 수렴(다중 클라 intent·desync 0). 검증 전용·reg 0. **#61 sub-arc(0421~) 진행**. 직전: 0425 entityOps 동치.
+- **한 줄 상태**: reg ALL OK·upmulti 5/5(uc0·uc1 수렴·a1@z1 {7,7}·b1@z2 {8,6})·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~)**: UpClient 골격(0421)→move 발신(0422)→뷰 수신 양방향(0423)→수렴 desync0(0424)→entityOps 동치(0425)→다중 클라(0426)→leave(0427)→손실 하 수렴(0428)→업스트림 회계(0429)→capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속**: ⒟ 진짜 비동기(#4)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0411~0420 묶음 리뷰 ✅(review-0411-0420)**.
 
 ---
@@ -151,3 +151,4 @@
 | [0423](step-0423.md) | #61 업스트림 실 클라 3: UpClient 양방향(onMsg view→seen·DownClient 동형)·세션→uc0 바인딩→자기 AOI 뷰 수신 | 통과(reg 0·spine OK) · uprecv 5/5 sent3+deltas3·seenSig a1@9,8 |
 | [0424](step-0424.md) | #61 업스트림 실 클라 4: 수렴 desync 0(uc0.seenSig==orch.zoneAuthSig·convergedTo·발신→권위 반영→뷰 수렴)·검증 전용 | 통과(reg 0·spine OK) · upconverge 5/5 seenSig==authSig a1@9,8·converged Y |
 | [0425](step-0425.md) | #61 업스트림 실 클라 5: UpClient ≡ 합성 entityOps 동치(같은 plan→같은 최종 권위 위치·둘 다 수렴·실 클라가 합성 대체) | 통과(reg 0·spine OK) · upvsscript 5/5 up a1=={script} {9,8}·uc0·dc0 수렴 |
+| [0426](step-0426.md) | #61 업스트림 실 클라 6: 다중 UpClient 인터리빙(uc0=a1@z1·uc1=b1@z2 동시 발신·각자 자기 존 권위 수렴·desync0) | 통과(reg 0·spine OK) · upmulti 5/5 uc0·uc1 수렴·a1@z1 {7,7}·b1@z2 {8,6} |
