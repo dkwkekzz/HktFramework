@@ -92,19 +92,19 @@ TArrayCollection           ── 열 목록 + 락스텝 리사이즈 (저장 �
 
 **TParticles → 위치만.** §1 에서 본 점.
 
-**TSimpleGeometryParticles → 자세와 모양이 붙는다.** `MR`(회전, `SimpleGeometryParticles.h:127`)과 `MGeometry`(임플리싯 지오메트리 포인터, `:130`)가 추가된다. 이제 파티클은 "월드 어디에, 어떤 방향으로, 어떤 모양으로" 있다. 모양 자체(Box·Convex·TriMesh…)는 C03 의 주제이고, 여기서는 파티클이 그것을 *가리키는 포인터 열*을 갖는다는 것만 안다.
+**TSimpleGeometryParticles → 자세와 모양이 붙는다.** `MR`(회전, `SimpleGeometryParticles.h:127`)과 `MGeometry`(implicit geometry 포인터, `:130`)가 추가된다. 이제 파티클은 "월드 어디에, 어떤 방향으로, 어떤 모양으로" 있다. 모양 자체(Box·Convex·TriMesh…)는 C03 의 주제이고, 여기서는 파티클이 그것을 *가리키는 포인터 열*을 갖는다는 것만 안다.
 
-**TGeometryParticlesImp(=`TGeometryParticles`, `EParticleType::Static`) → 시뮬레이션 시민권.** **모든 시뮬레이션 파티클이 공유하는 공통 인프라가 여기 한꺼번에 등록된다**(`GeometryParticles.h:267~`, 22개 열) — 영구 ID `MUniqueIdx`, 게임스레드 파티클·핸들로의 역참조, 충돌 형상 인스턴스 `MShapesArray`, 로컬/월드 바운드, 공간 가속 구조 인덱스 `MSpatialIdx`, 충돌·구속 그래프 연결, 동기화·resim 상태 등. 이 열들은 정적이든 동적이든 *모두* 필요하다는 게 핵심이다 — 벽·바닥도 충돌 형상과 바운드가 있어야 하고, 움직이는 물체가 공간 가속 구조로 질의해 올 수 있게 공간 인덱스도 등록돼야 한다. 그래서 **이 단계가 "정적(Static) 파티클"의 완성형**이다. 움직이지 않는 벽·바닥은 여기까지면 충분하다 — 속도도 질량도 필요 없으니까. `MParticleType = EParticleType::Static`(`:168`)이 그 표식이다. (참고로 한 층이 더하는 *열의 수*만 보면 아래 Rigid 층이 25개로 더 많다 — 다만 그쪽은 동적 강체만 쓰는 열들이다.)
+**TGeometryParticlesImp(=`TGeometryParticles`, `EParticleType::Static`) → 시뮬레이션 시민권.** **모든 시뮬레이션 파티클이 공유하는 공통 인프라가 여기 한꺼번에 등록된다**(`GeometryParticles.h:267~`, 22개 열) — 영구 ID `MUniqueIdx`, 게임스레드 파티클·핸들로의 역참조, 충돌 형상 instance `MShapesArray`, 로컬·월드 bound, 공간 가속 구조 인덱스 `MSpatialIdx`, 충돌·구속 그래프 연결, 동기화·resim 상태 등. 이 열들은 정적이든 동적이든 *모두* 필요하다는 게 핵심이다 — 벽·바닥도 충돌 형상과 bound가 있어야 하고, 움직이는 물체가 공간 가속 구조로 질의해 올 수 있게 공간 인덱스도 등록돼야 한다. 그래서 **이 단계가 "정적(Static) 파티클"의 완성형**이다. 움직이지 않는 벽·바닥은 여기까지면 충분하다 — 속도도 질량도 필요 없으니까. `MParticleType = EParticleType::Static`(`:168`)이 그 표식이다. (참고로 한 층이 더하는 *열의 수*만 보면 아래 Rigid 층이 25개로 더 많다 — 다만 그쪽은 동적 강체만 쓰는 열들이다.)
 
 **TKinematicGeometryParticlesImp(`EParticleType::Kinematic`) → 속도가 붙는다.** `MV`(선속도)·`MW`(각속도)·`KinematicTargets` 세 열을 추가한다(`KinematicGeometryParticles.h:19~`). 키네마틱 파티클은 "스스로 정해진 대로 움직이지만, 힘에는 반응하지 않는" 몸이다(엘리베이터·플랫폼). 속도는 있는데 질량은 아직 없다는 점이 정확히 그 성격을 코드로 표현한다 — 외력으로 가속될 수 없으니 질량이 무의미하다. `KinematicTarget` 은 "다음에 여기로 가라"는 목표 자세를 담는 열로, 속도를 역산하는 근거가 된다.
 
-**TRigidParticles(`EParticleType::Rigid`) → 비로소 질량·관성·힘.** 진짜 동역학이 여기서 시작된다(`RigidParticles.h:122~` RegisterArrays). 질량 `MM`/역질량 `MInvM`, 관성 `MI`/역관성 `MInvI`, 가속도, 임펄스, 무게중심 `MCenterOfMass`·`MRotationOfMass`, 그리고 상태·플래그를 묶은 `CoreData`. 이것이 Concepts 02 동역학의 양들이 처음으로 전부 모이는 지점이다. 질량·관성의 디테일은 §5.
+**TRigidParticles(`EParticleType::Rigid`) → 비로소 질량·관성·힘.** 진짜 동역학이 여기서 시작된다(`RigidParticles.h:122~` RegisterArrays). 질량 `MM`/역질량 `MInvM`, 관성 `MI`/역관성 `MInvI`, 가속도, 임펄스, 무게중심 `MCenterOfMass`·`MRotationOfMass`, 그리고 상태·플래그를 묶은 `CoreData`. 이것이 Concepts 02 동역학의 양들이 처음으로 전부 모이는 지점이다. 질량·관성의 세부는 §5.
 
 **TPBDRigidParticles → 솔버가 쓰는 예측 상태.** 최종 층은 `MP`·`MQ`(예측 위치·자세), `MPreV`·`MPreW`, `MSolverBodyIndex` 를 더한다(`PBDRigidParticles.h:53~` RegisterArrays, 멤버 `:277,278`). 이 `P/Q` 의 의미가 §4 의 주제이고, Chaos 가 "PBD(Position-Based Dynamics)" 엔진인 이유가 바로 이 한 쌍에 담겨 있다.
 
 > **두 개의 enum, 두 개의 시선.** 같은 사다리를 두 enum 이 본다. `EParticleType`(`GeometryParticlesfwd.h:10`: Static/Kinematic/Rigid/Clustered…)은 **"어느 SOA 컨테이너에 사는가"** = 클래스 종류를 가리키고, `EObjectStateType`(`Particle/ObjectState.h`: Static/Kinematic/Dynamic/Sleeping)은 **"지금 어떻게 행동하는가"** = 런타임 상태를 가리킨다. 둘은 대개 맞물리지만 같지 않다 — 한 Rigid 컨테이너의 파티클이 Dynamic 이었다가 Sleeping 이 되기도 하고(§5), 심지어 Kinematic 으로 전환되기도 한다. 컨테이너는 그대로 둔 채 상태만 바꾼다.
 
-또 하나 헷갈리기 쉬운 갈래가 있다. `TDynamicParticles`(`DynamicParticles.h`)는 위 강체 사다리와 **다른 가지**다. 이름이 "Dynamic" 이라 강체의 동적 상태처럼 보이지만, 실제로는 `TParticles` 에서 곧장 갈라져 나와 속도·질량만 얹은 별도 계열로, 천·소프트바디(PBD softs) 솔버가 쓴다. 강체는 `TKinematic…→TRigid…→TPBDRigid…` 줄기를 타고, `TDynamicParticles` 줄기와 만나지 않는다. 이름에 속지 말 것.
+또 하나 헷갈리기 쉬운 갈래가 있다. `TDynamicParticles`(`DynamicParticles.h`)는 위 강체 사다리와 **다른 가지**다. 이름이 "Dynamic" 이라 강체의 동적 상태처럼 보이지만, 실제로는 `TParticles` 에서 곧장 갈라져 나와 속도·질량만 얹은 별도 계열로, 천·soft body(PBD softs) 솔버가 쓴다. 강체는 `TKinematic…→TRigid…→TPBDRigid…` 줄기를 타고, `TDynamicParticles` 줄기와 만나지 않는다. 이름에 속지 말 것.
 
 ---
 
@@ -169,7 +169,7 @@ EParticleType Type;  // 어느 종류인가
 
 핸들 계층도 SOA 사다리를 그대로 거울처럼 따른다(`TGeometryParticleHandleImp` → `TKinematicGeometryParticleHandleImp` → `TPBDRigidParticleHandleImp`). 그래서 종류를 좁히는 **다운캐스트**가 `Type` enum 한 번 비교로 끝난다 — `CastToRigidParticle()` 은 `Type >= EParticleType::Rigid` 일 때만 캐스팅하고 아니면 nullptr 을 준다(`ParticleHandle.h:1697~`). 정적 파티클 핸들에 `CastToRigidParticle()` 을 부르면 안전하게 nullptr 이 떨어지는 식이다. 이게 fwd 헤더 주석 "Used for down casting when iterating over multiple SOAs"(`GeometryParticlesfwd.h:9`)의 의미다.
 
-매번 캐스트하기 번거로운 코드를 위해 `FGenericParticleHandle`(`ParticleHandle.h:1765~`)이라는 통합 래퍼가 있다. 어떤 핸들이든 받아 균일한 API 를 주되, 그 종류에 없는 속성은 안전한 기본값을 돌려준다 — 예컨대 `GetV()` 는 키네마틱이 아니면 영벡터를 반환한다(`:1853`). "타입을 따지지 않고 일단 물어보는" 호출부를 위한 문법 설탕이다.
+매번 캐스트하기 번거로운 코드를 위해 `FGenericParticleHandle`(`ParticleHandle.h:1765~`)이라는 통합 wrapper가 있다. 어떤 핸들이든 받아 균일한 API 를 주되, 그 종류에 없는 속성은 안전한 기본값을 돌려준다 — 예컨대 `GetV()` 는 키네마틱이 아니면 영벡터를 반환한다(`:1853`). "타입을 따지지 않고 일단 물어보는" 호출부를 위한 문법 설탕이다.
 
 마지막으로, 지금까지의 핸들은 전부 **물리 스레드(PT) 쪽** 이야기다. 게임 스레드(GT)에는 그림자 짝이 따로 산다 — `TGeometryParticle`/`FPBDRigidParticle`(`ParticleHandleFwd.h` 끝부분). `TThreadParticle<EThreadContext>` 가 컨텍스트에 따라 GT 파티클이냐 PT 핸들이냐를 골라준다(`ParticleHandleFwd.h` 마지막). 이 **GT/PT 이중화**가 Chaos 비동기 구조의 출발점인데, 둘 사이의 마샬링·dirty 추적은 **C12(Solver 프런트엔드·스레딩)**·**C14(GT 인터페이스)** 의 본론이다. 여기서는 "핸들은 PT 측 손잡이이고, GT 에는 별도 표현이 있다"는 경계선만 그어 둔다.
 
@@ -191,7 +191,7 @@ EParticleType Type;  // 어느 종류인가
 
 첫째, **Chaos 는 강체를 객체가 아니라 열(SOA)로 저장한다** — `TArrayCollection` 이 모든 속성 열을 락스텝으로 관리하고, 정수 인덱스 하나가 한 파티클의 전 상태를 가리킨다. 단 그 인덱스는 `RemoveAtSwap` 때문에 변하므로 정체성이 아니며, 그래서 **핸들**(SOA 포인터 + 인덱스 + 타입)이 존재한다. 둘째, **상속은 능력의 사다리다** — Static(위치·자세·모양) → Kinematic(+속도) → Rigid(+질량·관성·힘) → PBDRigid(+예측 `P/Q`)로 한 칸씩 열이 쌓이고, `P/Q` 가 PBD 솔버의 작업면이다. 셋째, **질량·관성은 역값(0=무한질량)으로, 텐서는 대각 3-벡터 + RotationOfMass 로 접혀** 저장된다 — C01 의 `FMatrix33` 은 계산 중간에만 등장한다.
 
-다음은 **C03 — 임플리싯 지오메트리**다. §3 에서 파티클이 `MGeometry` 라는 *모양으로의 포인터 열*을 든다고만 하고 미뤄 둔, 바로 그 모양의 정체를 본다. `FImplicitObject` 계층이 Box·Sphere·Convex·HeightField·TriangleMesh 를 어떻게 한 추상으로 묶고, Scaled/Transformed/Union 으로 합성하는가. C02 가 "강체의 상태를 어떻게 저장하는가"였다면, C03 은 "그 강체가 점유하는 공간을 무엇으로 기술하는가"다.
+다음은 **C03 — implicit geometry**다. §3 에서 파티클이 `MGeometry` 라는 *모양으로의 포인터 열*을 든다고만 하고 미뤄 둔, 바로 그 모양의 정체를 본다. `FImplicitObject` 계층이 Box·Sphere·Convex·HeightField·TriangleMesh 를 어떻게 한 추상으로 묶고, Scaled/Transformed/Union 으로 합성하는가. C02 가 "강체의 상태를 어떻게 저장하는가"였다면, C03 은 "그 강체가 점유하는 공간을 무엇으로 기술하는가"다.
 
 ---
 
@@ -217,6 +217,6 @@ EParticleType Type;  // 어느 종류인가
 | 핸들 = SOA 포인터 union + ParticleIdx + Type | `ParticleHandle.h:400~,412` |
 | 핸들 접근자 = SOA 위임(GetX/GetP) | `ParticleHandle.h:558,1106` |
 | 타입 기반 다운캐스트 Cast*Particle | `ParticleHandle.h:1691~,1697~` |
-| `FGenericParticleHandle` 통합 래퍼(없는 속성=기본값) | `ParticleHandle.h:1765~,1853` |
+| `FGenericParticleHandle` 통합 wrapper(없는 속성=기본값) | `ParticleHandle.h:1765~,1853` |
 | GT 파티클 ↔ PT 핸들 이중화, 컨텍스트 선택 | `ParticleHandleFwd.h`(끝부분 `TThreadParticle`) |
 | 단정밀도 직렬화 전환(SinglePrecisonParticleDataPT) | `KinematicGeometryParticles.h`·`PBDRigidParticles.h` Serialize |
