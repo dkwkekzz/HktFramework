@@ -164,6 +164,17 @@ function causalViolations(order, edges) {
   let v = 0; for (const [a, b] of edges) if (!(pos.get(a) < pos.get(b))) v++; return v;
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0436 — 결정론 적용 다이제스트(replicated state machine fold) ─────────
+//   순서(0433)·재정렬(0434)·인과(0435)는 *배달 순서*만 다뤘다. 결정론 *수렴*은 그 순서로 *상태를 접었을 때* 두 site 가
+//   같은 최종 상태(다이제스트)에 도달함을 뜻한다. applyDigest: 배달열을 순차 fold(state_n = h(state_{n-1} | key(e))) —
+//   순서 민감(틀린 순서면 다이제스트 갈림)·내용 함수(같은 전순서면 같은 다이제스트). key=(site,lc,kind)=내용(도착 무관).
+//   이로써 "서로 다른 도착 순열을 각자 holdback 으로 재구성→같은 다이제스트"가 곧 desync 0(lockstep 없이 수렴).
+function applyDigest(ordered) {
+  let state = 0x811c9dc5 >>> 0;
+  for (const e of ordered) state = fnv1a(state.toString(16) + '|' + siteIdx(e) + ':' + e.lc + ':' + e.kind);
+  return state >>> 0;
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;

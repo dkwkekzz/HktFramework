@@ -129,6 +129,41 @@ function makeHoldback(nsites) {
   };
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0435 — 인과 의존 배달(dependency-based causal delivery) ─────────────
+//   holdback(0434)은 *사이트별 FIFO* 가정에 기댄다. 인과 배달은 더 강하다: 각 이벤트의 *직접 인과 선행*(deps)을
+//   명시 추적해, 그 선행이 모두 배달되기 전엔 보류 → FIFO 없이도(어떤 적대적 도착 순열이든) 원인→결과 순서를 보장.
+//   deps(e) = happens-before 간선 a→e 의 a 집합(program order 선행 + 받은 send). DAG 라 deadlock 없음(전부 결국 배달).
+function depsFromEdges(events, edges) {
+  const deps = new Map(events.map(e => [e.id, []]));
+  for (const [a, b] of edges) deps.get(b).push(a);
+  return deps;
+}
+// arrival(물리 도착 순열)대로 버퍼에 넣되, deps 가 모두 delivered 면 방출(연쇄 flush). 반환 order = 인과 존중 배달열.
+function causalDeliver(events, edges, arrival) {
+  const deps = depsFromEdges(events, edges);
+  const delivered = new Set();
+  const order = [];
+  const buf = [];
+  const flush = () => {
+    let progress = true;
+    while (progress) {
+      progress = false;
+      for (let i = 0; i < buf.length; i++) {
+        if (deps.get(buf[i].id).every(d => delivered.has(d))) {
+          const e = buf.splice(i, 1)[0]; delivered.add(e.id); order.push(e); progress = true; i--;
+        }
+      }
+    }
+  };
+  for (const e of arrival) { buf.push(e); flush(); }
+  return { order, deliveredN: order.length, stuck: buf.length };
+}
+// 인과 위반 — 배달열에서 간선 a→b 의 pos(a)<pos(b) 위반 수.
+function causalViolations(order, edges) {
+  const pos = new Map(order.map((e, i) => [e.id, i]));
+  let v = 0; for (const [a, b] of edges) if (!(pos.get(a) < pos.get(b))) v++; return v;
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;
