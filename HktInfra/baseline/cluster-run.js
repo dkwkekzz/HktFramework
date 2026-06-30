@@ -1,3 +1,4 @@
+// HktInfra step-0413 — #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 단일 진입점(코디네이터를 한 호출로 구동·집계). 미부착 → reg 0.
 // HktInfra step-0412 — #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 스크립트 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역. 순수 함수·미부착 → reg 0.
 // HktInfra step-0411 — #62 코드 합류 1: coordSetup(opts,deps) — 코디네이터 zone-cluster 배선을 단일 함수로 패키지(verify 손배선 흡수). run() 미사용·OFF-게이트 → reg 0. (아래 §코드 합류)
 // HktInfra step-0048 — cluster 분할 ④: computePlacement + runMulti(멀티프로세스 lockstep 드라이버). cluster.js 에서 추출.
@@ -291,4 +292,21 @@ function coordScenarioFromOpts(opts) {
   return out;
 }
 
-module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts };
+// runMultiViaCoord(opts, deps, probe) — #62 코드 합류 단일 진입점(0413). coordSetup→coord.runScenario(coordScenarioFromOpts)→probe→집계→shutdown.
+//   옛 runMulti(전 토폴로지 lockstep)의 *zone-cluster 복원력 판*: 코디네이터(0401~0410 superset)를 한 호출로 구동하고 결과를 모은다.
+//   probe(coord,cluster) 는 shutdown 전 커스텀 단언/측정(예: 따뜻한 standby a1 보존)용 — 반환값을 result.probe 에 담는다. run() 데이터 평면 미수정→reg 0.
+//   반환 { coherent(runMultiCoherent), desync(coordDesync), maxDesync, info(clusterInfo), probe }.
+async function runMultiViaCoord(opts, deps, probe) {
+  const { cluster, coord } = await coordSetup(opts, deps);
+  let result;
+  try {
+    await coord.runScenario(opts.coordTicks || 6, coordScenarioFromOpts(opts));
+    const probed = probe ? await probe(coord, cluster) : undefined;
+    const coherent = await coord.runMultiCoherent();
+    const desync = await coord.coordDesync();
+    result = { coherent, desync, maxDesync: coord.maxDesync, info: coord.clusterInfo(), probe: probed };
+  } finally { await cluster.shutdown(); }
+  return result;
+}
+
+module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts, runMultiViaCoord };
