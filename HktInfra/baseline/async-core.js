@@ -224,6 +224,19 @@ function makeResyncSite(nsites) {
   };
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, makeAsyncSite, withSseq, makeResyncSite, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0439 — 인과 회계(exactly-once 보존·다이제스트 불변) ─────────────────
+//   수렴(0436)·배리어-free(0437)·손실 복원(0438)이 *맞게* 동작하려면 회계가 닫혀야 한다: 발신한 모든 이벤트가
+//   결국 *정확히 한 번* 적용(손실 0·중복 0)되고, 순열/손실 교란에도 최종 전순서(다이제스트)가 불변.
+//   accountDelivered: 배달열 vs 전체 집합 대조 → {emitted, applied, unique, dups, missing, complete}. 닫힌 장부의 논리 클럭 판.
+function accountDelivered(delivered, allEvents) {
+  const ids = delivered.map(e => e.id);
+  const set = new Set(ids);
+  const allIds = new Set(allEvents.map(e => e.id));
+  let missing = 0; for (const id of allIds) if (!set.has(id)) missing++;
+  const dups = ids.length - set.size;
+  return { emitted: allIds.size, applied: ids.length, unique: set.size, dups, missing, complete: dups === 0 && missing === 0 && set.size === allIds.size };
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, makeAsyncSite, withSseq, makeResyncSite, accountDelivered, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;

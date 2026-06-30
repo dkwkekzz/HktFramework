@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0439](step-0439.md) — **#4 진짜 비동기 9: 인과 회계·exactly-once**: `async-core.js` `accountDelivered`(배달열 vs 전체→emitted/applied/dups/missing/complete). 순열+~20% 손실 5 시행 전부 complete(applied==emitted·dups0·missing0)·손실 발생·다이제스트 불변(정전). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행·capstone 0440 남음**.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asyncaccount 5/5(exactly-once·다이제스트 불변)·async-core.js 16.0KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
+- **닫힌 step**: [step-0440](step-0440.md) — **#4 진짜 비동기 10·grand capstone**: 검증 전용 `asynce2ecap` — M 복제 순열+손실 도착을 각자 resync+holdback 재구성 → clock condition 위반 0·전 복제 desync 0(정전)·인과 존중·exactly-once·손실 발생. **#4 진짜 비동기 in-proc substrate sub-arc(0431~0440) 닫기** — 중앙 lockstep 없이 인과 복원으로 결정론 수렴하는 기계 완성. 코드 무변경 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asynce2ecap 5/5(clock0·전복제 desync0·exactly-once)·async-core.js 16.0KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440 ✅ 닫힘)**: Lamport 클럭(0431)·send/recv 인과(0432)·전순서(0433)·holdback(0434)·인과 배달(0435)·수렴 desync0(0436)·배리어-free(0437)·손실 resync(0438)·회계(0439)·grand capstone(0440). async-core 는 run() 밖 substrate → 매 step reg 구조적 0. **후속(권위 infra-review)**: ⒜ #4 substrate 를 실 `net.step` lockstep 배리어 치환에 배선(다음 큰 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미. 🔎 **0431~0440 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -33,7 +33,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
-| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | 결정론은 중앙 lockstep 배리어가 떠받침. **#4 substrate arc(0431~) 착수**: `async-core.js` 논리 클럭(Lamport·0431)→인과 순서·holdback·async 수렴(0432~0440 in-proc). 남은 것: 실 net.step 배리어 치환(후속 arc). |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~0440·`async-core.js`)**: Lamport 클럭·인과 규칙·전순서·holdback·인과 배달·수렴 desync0·배리어-free·손실 resync·회계·capstone — 순열/손실에도 인과 복원→결정론 수렴(lockstep 없이). 남은 것: 실 `net.step` 배리어 치환 배선(후속 arc). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~0350·desync 0) + **업스트림 실 UpClient(0421~0430·#61·자기 plan 으로 intent 발신·자기 뷰 수신·다중 클라 인터리빙·손실 하 수렴·생애주기/보존·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝)·예측/롤백은 뷰의 것(더미 충족). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -156,3 +156,4 @@
 | [0437](step-0437.md) | #4 진짜 비동기 7: makeAsyncSite(receive/tick 분리) — 복제 불균등 속도(비-lockstep)·페이스 무관 수렴 | 통과(reg 0·spine OK) · asyncprogress 5/5 skew>0·desync 0 |
 | [0438](step-0438.md) | #4 진짜 비동기 8: withSseq·makeResyncSite(연속분만 holdback·hole 감지·재전송) — 손실 하 수렴 | 통과(reg 0·spine OK) · asynclossy 5/5 손실→재전송→desync 0 |
 | [0439](step-0439.md) | #4 진짜 비동기 9: accountDelivered(emitted/applied/dups/missing/complete) — 순열+손실 exactly-once·다이제스트 불변 | 통과(reg 0·spine OK) · asyncaccount 5/5 complete·digInv |
+| [0440](step-0440.md) | #4 진짜 비동기 10·grand capstone: asynce2ecap — M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once·0431~0440 닫기 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
