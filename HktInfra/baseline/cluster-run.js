@@ -1,3 +1,4 @@
+// HktInfra step-0414 — #62 코드 합류 4: runMultiViaCoord 결과 info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·port·ipcMsgs/Bytes·allSerializable·wire) parity 병합. 미부착 → reg 0.
 // HktInfra step-0413 — #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 단일 진입점(코디네이터를 한 호출로 구동·집계). 미부착 → reg 0.
 // HktInfra step-0412 — #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 스크립트 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역. 순수 함수·미부착 → reg 0.
 // HktInfra step-0411 — #62 코드 합류 1: coordSetup(opts,deps) — 코디네이터 zone-cluster 배선을 단일 함수로 패키지(verify 손배선 흡수). run() 미사용·OFF-게이트 → reg 0. (아래 §코드 합류)
@@ -304,7 +305,13 @@ async function runMultiViaCoord(opts, deps, probe) {
     const probed = probe ? await probe(coord, cluster) : undefined;
     const coherent = await coord.runMultiCoherent();
     const desync = await coord.coordDesync();
-    result = { coherent, desync, maxDesync: coord.maxDesync, info: coord.clusterInfo(), probe: probed };
+    // step-0414 — runMulti clusterInfo 반환 계약 parity: 코디네이터 clusterInfo(생애주기)에 실 cluster 전송/토폴로지 필드(옛 runMulti cluster-run.js:227~)를 병합.
+    const info = Object.assign(coord.clusterInfo(), {
+      pids: cluster.pids(), parentPid: process.pid, port: cluster.port,
+      ipcMsgs: cluster.frames, ipcBytes: cluster.bytes, ipcMsgsIn: cluster.framesIn, ipcBytesIn: cluster.bytesIn,
+      allSerializable: cluster.allSerializable, wire: 'topic-bus',
+    });
+    result = { coherent, desync, maxDesync: coord.maxDesync, info, probe: probed };
   } finally { await cluster.shutdown(); }
   return result;
 }

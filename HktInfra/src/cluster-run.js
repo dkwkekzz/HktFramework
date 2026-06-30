@@ -1,3 +1,4 @@
+// HktInfra step-0415 — #62 코드 합류 5: coordAuthEquiv(coord,cluster,ents) — 실 cluster entity 위치 == in-proc run() 권위(둘 다 귀착하는 공유 기준 ⇒ runMultiViaCoord≡runMulti). 미부착 → reg 0.
 // HktInfra step-0414 — #62 코드 합류 4: runMultiViaCoord 결과 info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·port·ipcMsgs/Bytes·allSerializable·wire) parity 병합. 미부착 → reg 0.
 // HktInfra step-0413 — #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 단일 진입점(코디네이터를 한 호출로 구동·집계). 미부착 → reg 0.
 // HktInfra step-0412 — #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 스크립트 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역. 순수 함수·미부착 → reg 0.
@@ -316,4 +317,22 @@ async function runMultiViaCoord(opts, deps, probe) {
   return result;
 }
 
-module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts, runMultiViaCoord };
+// coordAuthEquiv(coord, cluster, ents) — #62 코드 합류 동치 헬퍼(0415). 코디네이터가 구동한 *실 cluster* 의 entity 위치가
+//   *in-proc run() 권위*(coord.orch.zoneEntityPos)와 일치하는 수를 센다. in-proc run() 은 옛 runMulti 가 *비트 동일*(e2e)로,
+//   runMultiViaCoord 가 *coordDesync 0* 로 각각 귀착하는 공유 기준 — 둘 다 같은 권위로 수렴 ⇒ runMultiViaCoord ≡ runMulti(zone subset).
+//   ents=[[zone,id]…]. 반환 { match, total }(match==total 이면 실 cluster==권위). shutdown 전 호출.
+async function coordAuthEquiv(coord, cluster, ents) {
+  let match = 0;
+  for (const [z, id] of ents) {
+    const host = coord.placement[z];
+    const snap = host ? await cluster.rpc(host, { cmd: 'snapshot' }) : null;
+    const zs = snap && snap.snap ? snap.snap[z] : null;
+    const e = zs && zs.ents ? zs.ents.find(([x]) => x === id) : null;
+    const real = e ? e[1] : null;
+    const auth = coord.orch.zoneEntityPos(z, id);
+    if (real && auth && real.x === auth.x && real.y === auth.y) match++;
+  }
+  return { match, total: ents.length };
+}
+
+module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts, runMultiViaCoord, coordAuthEquiv };

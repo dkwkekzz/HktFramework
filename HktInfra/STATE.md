@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0414](step-0414.md) — **#62 코드 합류 4**: `runMultiViaCoord` 결과 `info` 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·port·ipcMsgs/Bytes·allSerializable·wire) parity 병합. 합류 후 runMulti 가 그대로 반환할 계약 완비. 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0413 runMultiViaCoord.
-- **한 줄 상태**: reg ALL OK·coordinfoparity 5/5(runMulti 키 14종 완비·pids3·ipcMsgs>0·parentPid==self·serializable)·cluster-run.js 21.4KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0415](step-0415.md) — **#62 코드 합류 5**: `coordAuthEquiv(coord,cluster,ents)`(cluster-run.js) — 실 cluster entity 위치 == in-proc run() 권위(옛 runMulti·runMultiViaCoord 둘 다 귀착하는 공유 기준 ⇒ ≡runMulti). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0414 clusterInfo parity.
+- **한 줄 상태**: reg ALL OK·coordvsauth 5/5(coherent Y·match 2/2 a1·b1==권위)·cluster-run.js 22.6KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코드 합류 sub-arc(0411~)**: coordSetup(0411)→coordScenarioFromOpts(0412)→runMultiViaCoord(0413)→clusterInfo parity(0414)→equivalence(0415)→promote(0416)→fence/silence(0417)→restart(0418)→runMulti OFF-게이트 위임(0419)→capstone(0420). 코디네이터(0401~0410 능력 superset)를 cluster-run.js 가 *호출*하는 단일 진입점으로 합류·OFF→옛 runMulti 비트 동일=reg 0. **후속**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -140,3 +140,4 @@
 | [0412](step-0412.md) | #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 열화 스펙(opts.coordSc)→코디네이터 runScenario 시나리오 순수 번역(migrate·reprovision) | 통과(reg 0·spine OK) · coordscenfromopts 5/5 순수번역 Y·unifiedCoherent Y·mig1·reprov1 |
 | [0413](step-0413.md) | #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+scenarioFromOpts+runScenario 단일 진입점 한 호출 구동·집계 | 통과(reg 0·spine OK) · runviacoord 5/5 runMultiCoherent Y·desync0·mig1·reprov1·standby a1 {8,8} |
 | [0414](step-0414.md) | #62 코드 합류 4: runMultiViaCoord info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·ipcMsgs/Bytes·wire) parity 병합 | 통과(reg 0·spine OK) · coordinfoparity 5/5 키 14종 완비·pids3·ipcMsgs>0·parentPid==self |
+| [0415](step-0415.md) | #62 코드 합류 5: coordAuthEquiv — 실 cluster entity 위치 == in-proc run() 권위(공유 기준 귀착 ⇒ runMultiViaCoord≡runMulti) | 통과(reg 0·spine OK) · coordvsauth 5/5 coherent Y·match 2/2 a1·b1==권위 |
