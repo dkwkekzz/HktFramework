@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0412](step-0412.md) — **#62 코드 합류 2**: `coordScenarioFromOpts(opts)`(cluster-run.js) — 옛 runMulti 스크립트 열화 스펙(`opts.coordSc`)을 코디네이터 `runScenario` 시나리오로 번역하는 순수 함수(0412 는 migrate·reprovision). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0411 coordSetup.
-- **한 줄 상태**: reg ALL OK·coordscenfromopts 5/5(순수번역 Y·unifiedCoherent Y·mig1·reprov1)·cluster-run.js 19.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0413](step-0413.md) — **#62 코드 합류 3**: `runMultiViaCoord(opts,deps,probe)`(cluster-run.js) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 *단일 진입점*. 코디네이터 zone-cluster 복원력을 한 호출로 구동·집계(coherent/desync/info/probe). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0412 coordScenarioFromOpts.
+- **한 줄 상태**: reg ALL OK·runviacoord 5/5(runMultiCoherent Y·desync0·mig1·reprov1·standby a1 {8,8})·cluster-run.js 20.6KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코드 합류 sub-arc(0411~)**: coordSetup(0411)→coordScenarioFromOpts(0412)→runMultiViaCoord(0413)→clusterInfo parity(0414)→equivalence(0415)→promote(0416)→fence/silence(0417)→restart(0418)→runMulti OFF-게이트 위임(0419)→capstone(0420). 코디네이터(0401~0410 능력 superset)를 cluster-run.js 가 *호출*하는 단일 진입점으로 합류·OFF→옛 runMulti 비트 동일=reg 0. **후속**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -138,3 +138,4 @@
 | [0401–0410](reviews/review-0401-0410.md) | #62 runMulti 합류·복원력 코어 승격: 펜싱(0401)·silence(0402)·restart(0403)·정리(0404)·reprovision+mirror(0405~06)·clusterInfo(0407)·runScenario(0408)·promoteStandby(0409)·capstone runMultiCoherent(0410) | 통과(reg 0·spine OK) · coordmulticap 5/5 runMultiCoherent Y·a1 보존 |
 | [0411](step-0411.md) | #62 코드 합류 1: coordSetup(opts,deps) — verify 손배선 4단(run→orch→Cluster→coord)을 cluster-run.js 단일 함수로 흡수·미부착→reg 0 | 통과(reg 0·spine OK) · coordsetup 5/5 placement==plan·maxDesync0·coordDesync0 |
 | [0412](step-0412.md) | #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 열화 스펙(opts.coordSc)→코디네이터 runScenario 시나리오 순수 번역(migrate·reprovision) | 통과(reg 0·spine OK) · coordscenfromopts 5/5 순수번역 Y·unifiedCoherent Y·mig1·reprov1 |
+| [0413](step-0413.md) | #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+scenarioFromOpts+runScenario 단일 진입점 한 호출 구동·집계 | 통과(reg 0·spine OK) · runviacoord 5/5 runMultiCoherent Y·desync0·mig1·reprov1·standby a1 {8,8} |
