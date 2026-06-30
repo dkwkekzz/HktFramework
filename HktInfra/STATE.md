@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0431](step-0431.md) — **#4 진짜 비동기 1: Lamport 논리 클럭 원시**: 신규 박스 `async-core.js`(`makeLamportClock` — local/send/recv·clock condition a→b⇒C(a)<C(b)). lockstep 배리어(net.step) 해제를 위한 *논리 클럭·인과 정렬 substrate* 의 첫 조각. run() 경로 미호출 → reg 구조적 0. **#4 진짜 비동기 in-proc sub-arc(0431~) 개시** — 0421~0430 양방향 실 클라 닫힌 뒤 리뷰 1순위 권고 = #4.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·lcstamp 5/5(스탬프 1..K 단조)·async-core.js 1.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0432](step-0432.md) — **#4 진짜 비동기 2: send/recv 인과 규칙·clock condition**: `async-core.js` `lamportExchange`(N site Lamport 교환 결정론 스케줄→이벤트 로그+happens-before 간선)·`clockConditionViolations`. 3 site·30 라운드에서 인과 간선 a→b 전부 C(a)<C(b)(위반 0). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·lcrecv 5/5(clock condition 위반 0·간선31~36)·async-core.js 4.4KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
@@ -148,3 +148,4 @@
 | [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
 | [0430](step-0430.md) | #61 업스트림 실 클라 10·grand capstone: 양방향 실 클라 E2E(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존·발신 회계)·0421~0430 닫기 | 통과(reg 0·spine OK) · upe2ecap 5/5 uc0 수렴·a1 체류·b1 제거·보존 Y |
 | [0431](step-0431.md) | #4 진짜 비동기 1: 신규 박스 async-core.js Lamport 논리 클럭 원시(makeLamportClock·local/send/recv·clock condition)·run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · lcstamp 5/5 스탬프 1..K 단조 |
+| [0432](step-0432.md) | #4 진짜 비동기 2: lamportExchange(N site 교환→이벤트 로그+happens-before 간선)·clockConditionViolations | 통과(reg 0·spine OK) · lcrecv 5/5 clock condition 위반 0 |

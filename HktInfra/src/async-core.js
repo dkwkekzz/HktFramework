@@ -28,6 +28,58 @@ function makeLamportClock(site) {
   };
 }
 
-const __part = { makeLamportClock, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0432 — 다중 site send/recv 인과 규칙 + clock condition 검증 substrate ──
+//   N site 가 Lamport 클럭으로 메시지를 주고받는 결정론 스케줄을 돌려 *이벤트 로그 + happens-before 간선*을 낸다.
+//   링크는 FIFO(이 step 은 순서 보존 배달 — 재정렬은 0434). 인과 간선 = ⒜ program order(같은 site 연속 이벤트) ⒝ send→recv.
+//   clock condition(Lamport): 모든 간선 a→b 에서 C(a) < C(b). 이 함수가 그 substrate 를 만들고 0433~ 전순서/holdback 이 소비.
+//   결정: 시드 PRNG 만(Math.random 0). 같은 (seed, sites, rounds) → 같은 로그(재현).
+function lamportExchange(seed, { sites = 2, rounds = 24 } = {}) {
+  const rnd = mulberry32((seed ^ 0x4A11) >>> 0);
+  const clocks = Array.from({ length: sites }, (_, s) => makeLamportClock('s' + s));
+  const seqOf = new Array(sites).fill(0);           // site 별 발신 시퀀스(FIFO 키)
+  const inbox = Array.from({ length: sites }, () => []);  // 각 site 의 도착 대기(FIFO)
+  const lastEvId = new Array(sites).fill(-1);        // program-order 간선용(같은 site 직전 이벤트)
+  const events = [];                                 // { id, site, lc, kind, seq?, refId? }
+  const edges = [];                                  // [aId, bId] — a happens-before b
+  let nextId = 0;
+  const emit = (site, lc, kind, extra) => {
+    const id = nextId++;
+    events.push({ id, site, lc, kind, ...extra });
+    if (lastEvId[site] >= 0) edges.push([lastEvId[site], id]);  // program order
+    lastEvId[site] = id;
+    return id;
+  };
+  for (let r = 0; r < rounds; r++) {
+    const site = rnd() % sites;
+    const hasInc = inbox[site].length > 0;
+    const choice = rnd() % 3;   // 0 local · 1 send · 2 recv(가능하면)
+    if (choice === 2 && hasInc) {
+      const msg = inbox[site].shift();              // FIFO 배달
+      const lc = clocks[site].recv(msg.sendLc);
+      const id = emit(site, lc, 'recv', { refId: msg.sendEvId, from: msg.fromSite });
+      edges.push([msg.sendEvId, id]);               // send → recv 인과 간선
+    } else if (choice === 1 || (choice === 2 && !hasInc)) {
+      const to = sites === 1 ? site : ((site + 1 + (rnd() % (sites - 1))) % sites);
+      const lc = clocks[site].send();
+      const seq = seqOf[site]++;
+      const id = emit(site, lc, 'send', { seq, to });
+      inbox[to].push({ fromSite: site, sendEvId: id, sendLc: lc, seq });
+    } else {
+      const lc = clocks[site].local();
+      emit(site, lc, 'local', {});
+    }
+  }
+  return { events, edges, finalClocks: clocks.map(c => c.now()) };
+}
+
+// clock condition 검증 — 모든 happens-before 간선 a→b 에서 C(a) < C(b) 인가? (위반 간선 수 반환)
+function clockConditionViolations(events, edges) {
+  const lcOf = new Map(events.map(e => [e.id, e.lc]));
+  let v = 0;
+  for (const [a, b] of edges) if (!(lcOf.get(a) < lcOf.get(b))) v++;
+  return v;
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;
