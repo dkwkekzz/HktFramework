@@ -268,6 +268,7 @@ class UpClient {
     this.plan = script.plan || [];   // step-0422 — 발신할 이동열 [[dx,dy]…]. enter 이후 매 tick 한 발씩 zoneMove.
     this.leaveAt = script.leaveAt != null ? script.leaveAt : null;   // step-0427 — 이 tick(절대)에 zoneLeave 발신(접속 종료). null=영구 체류.
     this.idx = 0; this.joined = false; this.left = false; this.sent = 0;
+    this.intentLog = [];   // step-0429 — 발신한 intent 매니페스트([{type,...}]) — 업스트림 회계(발신==반영 단언·실 클라 발신 손실 0).
     // step-0423 — 수신(양방향·DownClient 동형): enter 가 uc0 발신이라 게이트웨이가 세션→uc0 바인딩 → 자기 AOI 뷰가 uc0 으로 온다.
     this.seen = new Map(); this.views = 0; this.deltas = 0; this.resets = 0;
     // this.net, this.addr 는 net.register(0067·engine) 가 주입.
@@ -294,7 +295,9 @@ class UpClient {
     if (this.leaveAt != null && S >= this.leaveAt) { this.left = true; this._emit({ type: 'zoneLeave', zoneId: this.zoneId, avatar: this.avatar }); return; }   // step-0427 — 접속 종료(이후 발신 0).
     if (this.idx < this.plan.length) { const [dx, dy] = this.plan[this.idx++]; this._emit({ type: 'zoneMove', zoneId: this.zoneId, avatar: this.avatar, dx, dy }); }
   }
-  _emit(op) { this.sent++; this.net.send(this.addr, 'gateway', op); }   // 클라→게이트웨이(gatewayDirectZone 직접 라우팅·합성 entityOps 대체).
+  _emit(op) { this.sent++; this.intentLog.push(op); this.net.send(this.addr, 'gateway', op); }   // 클라→게이트웨이(gatewayDirectZone 직접 라우팅·합성 entityOps 대체). step-0429 — intentLog 기록(업스트림 회계).
+  // step-0429 (#61) — 발신 move 의 누적 변위(클램프 전 의도) — 업스트림 회계: enter 위치 + 이 합 == 권위 최종(클램프 0 시)이면 발신 손실 0.
+  intentDelta() { let dx = 0, dy = 0; for (const op of this.intentLog) if (op.type === 'zoneMove') { dx += op.dx; dy += op.dy; } return { dx, dy }; }
 }
 
 const __part = { Client, DownClient, UpClient };

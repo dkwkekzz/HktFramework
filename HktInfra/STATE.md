@@ -9,16 +9,16 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0429](step-0429.md) — **#61 업스트림 intent 실 클라 9**: 업스트림 회계 — `UpClient.intentLog`(발신 매니페스트)·`intentDelta` — enter 위치+발신 변위 == 권위 최종(발신 손실 0)·intentLog==sent. upClients=null→reg 0. **#61 sub-arc(0421~) 진행**. 직전: 0428 손실 하 수렴.
-- **한 줄 상태**: reg ALL OK·upaccount 5/5(intentLog4==sent·{9,9}==enter+Δ)·client.js 20.8KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~)**: UpClient 골격(0421)→move 발신(0422)→뷰 수신 양방향(0423)→수렴 desync0(0424)→entityOps 동치(0425)→다중 클라(0426)→leave(0427)→손실 하 수렴(0428)→업스트림 회계(0429)→capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속**: ⒟ 진짜 비동기(#4)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0411~0420 묶음 리뷰 ✅(review-0411-0420)**.
+- **닫힌 step**: [step-0430](step-0430.md) — **#61 업스트림 intent 실 클라 10·grand capstone**: 양방향 실 클라 E2E — `UpClient` 들이 intent 발신→게이트웨이→실 존→egress→자기 뷰 수신으로 desync 0·생애주기(enter/move/leave)·보존(enters−leaves==present)·발신 회계. **#61 업스트림 실 클라 sub-arc(0421~0430) 닫기** — 다운스트림(0342~0350 DownClient)에 이어 업스트림도 실 클라(합성 entityOps 종료). 직전: 0429 업스트림 회계.
+- **한 줄 상태**: reg ALL OK·upe2ecap 5/5(uc0 수렴·a1 체류·b1 제거·보존 Y·발신 회계 Y)·client.js 20.8KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~0430 ✅ 닫힘)**: UpClient 골격(0421)·move(0422)·양방향 수신(0423)·수렴 desync0(0424)·entityOps 동치(0425)·다중 클라(0426)·leave(0427)·손실 하 수렴(0428)·업스트림 회계(0429)·capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속(권위 infra-review)**: ⒟ 진짜 비동기(#4·lockstep 해제)·실 host.js child 경계 업스트림(#57 짝)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0421~0430 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#62 코드 합류 sub-arc(0411~0420 ✅ 닫힘)** — 0401~0410 이 코디네이터(`cluster-coord.js`)에 쌓은 runMulti 복원력 *superset* 을, cluster-run.js 가 소유한 *단일 진입점*으로 묶어 옛 runMulti 가 코디네이터를 *호출*하게 합류: coordSetup(0411)·coordScenarioFromOpts(0412)·runMultiViaCoord(0413)·clusterInfo parity(0414)·equivalence(0415)·promote/warm-failover(0416)·fence/sweepSilence(0417)·restart(0418)·runMulti OFF-게이트 위임(0419)·grand capstone(0420). OFF→옛 전 토폴로지 경로 비트 동일(reg 0·e2e 보존). **다음 후보(권위는 infra-review)**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). ⛔ 전 토폴로지(bus/svc) runMulti 흡수는 #62 범위 밖(코디네이터=zone-cluster 전용).
-> **설계 제약**: spine 게이트는 `verify.js all`. 코드 합류 함수(cluster-run.js)는 run() 데이터 평면 미사용·OFF-게이트 → reg 0. reg 는 항상 in-proc run() 비트 대조.
+> 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~0430 ✅ 닫힘)** — 다운스트림(0342~0350 실 DownClient)에 이어 업스트림도 실 클라: `UpClient`(client.js·kind 'upclient') 가 자기 plan 으로 intent(zoneEnter/zoneMove/zoneLeave)를 게이트웨이로 *발신*하고 자기 AOI 뷰를 *수신*해 권위로 수렴(desync 0) — 합성 entityOps 주입을 실 클라 액터 발신으로 대체. 골격(0421)·move(0422)·양방향 수신(0423)·수렴(0424)·entityOps 동치(0425)·다중 클라(0426)·leave(0427)·손실 하 수렴(0428)·업스트림 회계(0429)·capstone 양방향 E2E(0430). upClients OFF(기본)→스폰 0→비트 동일(reg 0). **다음 후보(권위는 infra-review)**: ⒞ 진짜 비동기(#4·lockstep 해제)·⒝ 실 host.js child 경계 업스트림(#57 짝)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미).
+> **설계 제약**: spine 게이트는 `verify.js all`. UpClient 는 액터(net.register 가 net/addr 주입)·upClients 미설정 시 미스폰 → this.order 불변 → reg 0. reg 는 항상 in-proc run() 비트 대조.
 
 **후속 백로그**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0390 9묶음 리뷰 적기).
 
@@ -35,7 +35,7 @@
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
 | 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
-| ⬜ | **다중 클라 결정론 *전파*·예측** | 월드 | HktInfra 몫 = 같은 intent 스트림을 모든 클라가 재현해 같은 뷰로 수렴(desync 0)·예측/롤백은 *뷰*의 것(더미로 충족). 시뮬 *계산*은 범위 밖. 다중 클라 intent 인터리빙(0001 §8.6). |
+| 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~0350·desync 0) + **업스트림 실 UpClient(0421~0430·#61·자기 plan 으로 intent 발신·자기 뷰 수신·다중 클라 인터리빙·손실 하 수렴·생애주기/보존·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝)·예측/롤백은 뷰의 것(더미 충족). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0029·0085·0184). 버스 라우팅 영속 0. |
@@ -136,16 +136,7 @@
 | [0381–0390](reviews/review-0381-0390.md) | #65 양방향 동기·코디네이터 placement 권위(where) SSOT: placement SSOT(0381)·coordDesync(0382)·migrate/failover placement 갱신+lost(0383~86)·placement-aware report/syncPlan(0387~88)·placementCoherent bijection(0389)·capstone syncedCoherent(0390·migrate/failover 포함) | 통과(reg 0·spine OK) · coordsyncedcap 5/5 syncedCoherent Y·coordDesync0 |
 | [0391–0400](reviews/review-0391-0400.md) | #66 tick placement-aware(0391~93)+#67 orch 이중 권위 합류(0394~98): tick/deliver placement 순회·mid-run migrate 발현·orchWhere/authoritiesAgree·migrate/failover where write-back·통합 unifiedCoherent(0399)·grand capstone(0400) | 통과(reg 0·spine OK) · coordunifiedcap 5/5 unified Y·maxDesync0 |
 | [0401–0410](reviews/review-0401-0410.md) | #62 runMulti 합류·복원력 코어 승격: 펜싱(0401)·silence(0402)·restart(0403)·정리(0404)·reprovision+mirror(0405~06)·clusterInfo(0407)·runScenario(0408)·promoteStandby(0409)·capstone runMultiCoherent(0410) | 통과(reg 0·spine OK) · coordmulticap 5/5 runMultiCoherent Y·a1 보존 |
-| [0411](step-0411.md) | #62 코드 합류 1: coordSetup(opts,deps) — verify 손배선 4단(run→orch→Cluster→coord)을 cluster-run.js 단일 함수로 흡수·미부착→reg 0 | 통과(reg 0·spine OK) · coordsetup 5/5 placement==plan·maxDesync0·coordDesync0 |
-| [0412](step-0412.md) | #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 열화 스펙(opts.coordSc)→코디네이터 runScenario 시나리오 순수 번역(migrate·reprovision) | 통과(reg 0·spine OK) · coordscenfromopts 5/5 순수번역 Y·unifiedCoherent Y·mig1·reprov1 |
-| [0413](step-0413.md) | #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+scenarioFromOpts+runScenario 단일 진입점 한 호출 구동·집계 | 통과(reg 0·spine OK) · runviacoord 5/5 runMultiCoherent Y·desync0·mig1·reprov1·standby a1 {8,8} |
-| [0414](step-0414.md) | #62 코드 합류 4: runMultiViaCoord info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·ipcMsgs/Bytes·wire) parity 병합 | 통과(reg 0·spine OK) · coordinfoparity 5/5 키 14종 완비·pids3·ipcMsgs>0·parentPid==self |
-| [0415](step-0415.md) | #62 코드 합류 5: coordAuthEquiv — 실 cluster entity 위치 == in-proc run() 권위(공유 기준 귀착 ⇒ runMultiViaCoord≡runMulti) | 통과(reg 0·spine OK) · coordvsauth 5/5 coherent Y·match 2/2 a1·b1==권위 |
-| [0416](step-0416.md) | #62 코드 합류 6: warm failover 번역·구동 — runScenario promote(kill 동일 onTick 원자) + coordScenarioFromOpts kill/promote case | 통과(reg 0·spine OK) · coorddelegpromote 5/5 coherent Y·promo1·a1 보존·z1@hostA_s |
-| [0417](step-0417.md) | #62 코드 합류 7: coordScenarioFromOpts fence·sweepSilence case(epoch 펜싱·lease-timeout·runScenario 가 이미 처리) | 통과(reg 0·spine OK) · coorddelegfence 5/5 순수번역 Y·epoch1·presumedDead⊇hostB·fencedTicks3 |
-| [0418](step-0418.md) | #62 코드 합류 8: coordScenarioFromOpts restart case(상태 보존 계획 재시작·runScenario 가 이미 처리·0403) | 통과(reg 0·spine OK) · coorddelegrestart 5/5 coherent Y·restarts1·a1 보존·z1@hostA_r |
-| [0419](step-0419.md) | #62 코드 합류 9: runMulti OFF-게이트 위임(opts.viaCoord→runMultiViaCoord)·옛 runMulti 가 코디네이터 호출·OFF→옛 경로 비트 동일 | 통과(reg 0·e2e OK·spine OK) · coorddelegate 5/5 coord shape·coherent Y·mig1·reprov1 |
-| [0420](step-0420.md) | #62 코드 합류 10·grand capstone: 단일 진입점 종합 warm-failover(migrate+reprovision+kill+promote)·runMultiCoherent+clusterInfo parity·0411~0420 닫기 | 통과(reg 0·e2e OK·spine OK) · coordmergecap 5/5 runMultiCoherent Y·mig1·reprov1·promo1·a1 보존·parity |
+| [0411–0420](reviews/review-0411-0420.md) | #62 코드 합류 — 코디네이터를 runMulti zone-cluster 복원력의 단일 진입점으로: coordSetup(0411)·coordScenarioFromOpts(0412)·runMultiViaCoord(0413)·clusterInfo parity(0414)·equivalence(0415)·warm-failover/fence/restart 번역(0416~18)·runMulti OFF-게이트 위임(0419)·capstone(0420) | 통과(reg 0·e2e OK·spine OK) · coordmergecap 5/5 runMultiCoherent Y·mig/reprov/promo 1·a1 보존 |
 | [0421](step-0421.md) | #61 업스트림 실 클라 1: UpClient(발신 액터·kind 'upclient')·onTick joinAt zoneEnter 발신·topo 배선·upClients OFF→reg 0 | 통과(reg 0·spine OK) · upclient 5/5 uc0 zoneEnter 발신·a1@z1 {5,5} |
 | [0422](step-0422.md) | #61 업스트림 실 클라 2: UpClient.onTick plan 한 발씩 zoneMove 발신(클라가 자기 plan 으로 intent 생성) | 통과(reg 0·spine OK) · upmove 5/5 a1 {9,8}==enter(5,5)+Σplan |
 | [0423](step-0423.md) | #61 업스트림 실 클라 3: UpClient 양방향(onMsg view→seen·DownClient 동형)·세션→uc0 바인딩→자기 AOI 뷰 수신 | 통과(reg 0·spine OK) · uprecv 5/5 sent3+deltas3·seenSig a1@9,8 |
@@ -155,3 +146,4 @@
 | [0427](step-0427.md) | #61 업스트림 실 클라 7: UpClient.leaveAt(zoneLeave 발신·접속 생애주기 enter→move→leave 완결) | 통과(reg 0·spine OK) · upleave 5/5 sent4→a1 제거 |
 | [0428](step-0428.md) | #61 업스트림 실 클라 8: 손실 하 수렴(egress 손실→gap-resync→uc0 desync0·손실 진짜 gaps≥1+복구 resyncs≥1)·검증 전용 | 통과(reg 0·spine OK) · uplossy 5/5 gaps1·resyncs1·uc0 수렴 |
 | [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
+| [0430](step-0430.md) | #61 업스트림 실 클라 10·grand capstone: 양방향 실 클라 E2E(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존·발신 회계)·0421~0430 닫기 | 통과(reg 0·spine OK) · upe2ecap 5/5 uc0 수렴·a1 체류·b1 제거·보존 Y |
