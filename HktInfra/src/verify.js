@@ -1,9 +1,9 @@
-// HktInfra step-0438 — 헤드리스 검증 (#4 진짜 비동기 8: 손실 하 gap-resync 수렴)
+// HktInfra step-0439 — 헤드리스 검증 (#4 진짜 비동기 9: 인과 회계·exactly-once)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `asynclossy`.
-//   더한 한 조각: async-core.js — withSseq(per-source 연속 시퀀스)·makeResyncSite(연속분만 holdback 에 넘김·hole 감지·재전송 채움).
-//   도착 중 ~20% 손실→갭 검출(gaps≥1)→재전송 resync(resyncs≥1)→홀 채워 전부 배달·desync 0(digest==정전). run() 미호출 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `asynclossy` — gaps≥1·resyncs≥1·전부 배달·정전 일치(손실 하 수렴).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `asyncaccount`.
+//   더한 한 조각: async-core.js — accountDelivered(배달열 vs 전체 집합 대조→emitted/applied/dups/missing/complete).
+//   순열+손실 교란 R회 시행 전부 정확히-한-번(applied==emitted·dups0·missing0)·다이제스트 불변(==정전). run() 미호출 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `asyncaccount` — R 시행 전부 complete·손실 발생(resyncs>0)·digest 전부 정전 일치.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -22,7 +22,6 @@ function shuffle(arr, rnd) {
   for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
   return a;
 }
-// 사이트별 FIFO·교차 site 임의 인터리빙 도착열.
 function arrivalFor(events, nsites, rnd) {
   const queues = Array.from({ length: nsites }, () => []);
   for (const e of events) queues[siteOf(e)].push(e);
@@ -34,32 +33,41 @@ function arrivalFor(events, nsites, rnd) {
   }
   return out;
 }
+// 한 시행: 순열 도착 + ~20% 손실 + 재전송 → { delivered, resyncs }.
+function trial(events, N, rnd) {
+  const site = NET.makeResyncSite(N);
+  const arrival = arrivalFor(events, N, rnd);
+  const dropped = [];
+  for (const e of arrival) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+  for (const e of shuffle(dropped, rnd)) site.resync(e);
+  const delivered = site.finish();
+  return { delivered, resyncs: site.resyncs(), digest: NET.applyDigest(delivered) };
+}
 
-// step-0438 #4 진짜 비동기 8 — asynclossy: 손실 하 gap-resync. ~20% 손실→gaps≥1·resyncs≥1→재전송 채움→전부 배달·desync 0.
-function asynclossy(seeds) {
-  console.log('== asynclossy (0438·#4): 손실 하 gap-resync — ~20% 손실→갭 검출·재전송→전부 배달·desync 0(정전 일치) ==');
-  console.log('seed   | 이벤트 | 손실 | gaps | resyncs | 배달 | 정전 | 판정');
+// step-0439 #4 진짜 비동기 9 — asyncaccount: 인과 회계. 순열+손실 R 시행 전부 정확히-한-번(complete)·손실 발생·다이제스트 불변.
+function asyncaccount(seeds) {
+  console.log('== asyncaccount (0439·#4): 인과 회계 — 순열+손실 R 시행 전부 exactly-once(complete)·다이제스트 불변(정전) ==');
+  console.log('seed   | 이벤트 | 시행 | complete | dups | missing | 손실발생 | digest불변 | 판정');
   for (const seed of seeds) {
-    const N = 4;
-    const base = NET.lamportExchange(seed, { sites: N, rounds: 50 });
-    const events = NET.withSseq(base.events);
+    const N = 4, R = 5;
+    const events = NET.withSseq(NET.lamportExchange(seed, { sites: N, rounds: 52 }).events);
     const canonical = NET.applyDigest(NET.totalOrder(events));
-    const rnd = NET.mulberry32((seed ^ 0x1055) >>> 0);
-    const arrival = arrivalFor(events, N, rnd);
-    const site = NET.makeResyncSite(N);
-    const dropped = [];
-    for (const e of arrival) { if (rnd() % 5 === 0) { dropped.push(e); } else { site.receive(e); } }   // ~20% 손실
-    for (const e of shuffle(dropped, rnd)) site.resync(e);                                              // 재전송(임의 순서)
-    site.finish();
-    const delivered = site.deliveredN() === events.length;
-    const conv = site.digest() === canonical;
-    const ok = check(dropped.length >= 1 && site.gaps() >= 1 && site.resyncs() >= 1 && delivered && conv,
-      `seed ${seed}: drop ${dropped.length}·gaps ${site.gaps()}·resync ${site.resyncs()}·deliv ${site.deliveredN()}/${events.length}·conv ${conv}`);
-    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(dropped.length, 4)} | ${pad(site.gaps(), 4)} | ${pad(site.resyncs(), 7)} | ${pad(delivered ? 'Y' : 'N', 4)} | ${pad(conv ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    let allComplete = true, dupSum = 0, missSum = 0, lossy = true, digInv = true;
+    for (let t = 0; t < R; t++) {
+      const r = trial(events, N, NET.mulberry32((seed ^ (0x7000 + t * 31)) >>> 0));
+      const acc = NET.accountDelivered(r.delivered, events);
+      allComplete = allComplete && acc.complete;
+      dupSum += acc.dups; missSum += acc.missing;
+      if (r.resyncs === 0) lossy = false;
+      if (r.digest !== canonical) digInv = false;
+    }
+    const ok = check(allComplete && dupSum === 0 && missSum === 0 && lossy && digInv,
+      `seed ${seed}: complete ${allComplete}·dups ${dupSum}·miss ${missSum}·lossy ${lossy}·digInv ${digInv}`);
+    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(R, 4)} | ${pad(allComplete ? 'Y' : 'N', 8)} | ${pad(dupSum, 4)} | ${pad(missSum, 7)} | ${pad(lossy ? 'Y' : 'N', 8)} | ${pad(digInv ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['asynclossy'] = asynclossy;
-kit.ORDER.splice(1, 0, 'asynclossy');
+kit.MODES['asyncaccount'] = asyncaccount;
+kit.ORDER.splice(1, 0, 'asyncaccount');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

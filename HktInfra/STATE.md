@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0438](step-0438.md) — **#4 진짜 비동기 8: 손실 하 gap-resync 수렴**: `async-core.js` `withSseq`·`makeResyncSite`(per-source 연속분만 holdback 에·hole 감지·재전송 채움). ~20% 손실→gaps 27~35·resyncs==손실수→전부 배달·digest==정전 → 손실 하 desync 0. run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asynclossy 5/5(손실5~13·재전송 채움·desync 0)·async-core.js 15.0KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0439](step-0439.md) — **#4 진짜 비동기 9: 인과 회계·exactly-once**: `async-core.js` `accountDelivered`(배달열 vs 전체→emitted/applied/dups/missing/complete). 순열+~20% 손실 5 시행 전부 complete(applied==emitted·dups0·missing0)·손실 발생·다이제스트 불변(정전). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행·capstone 0440 남음**.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asyncaccount 5/5(exactly-once·다이제스트 불변)·async-core.js 16.0KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
@@ -155,3 +155,4 @@
 | [0436](step-0436.md) | #4 진짜 비동기 6: applyDigest(배달열 순차 fold→상태 다이제스트) — 두 site 상이 도착→desync 0 수렴 | 통과(reg 0·spine OK) · asyncconv 5/5 desync 0·정전 일치 |
 | [0437](step-0437.md) | #4 진짜 비동기 7: makeAsyncSite(receive/tick 분리) — 복제 불균등 속도(비-lockstep)·페이스 무관 수렴 | 통과(reg 0·spine OK) · asyncprogress 5/5 skew>0·desync 0 |
 | [0438](step-0438.md) | #4 진짜 비동기 8: withSseq·makeResyncSite(연속분만 holdback·hole 감지·재전송) — 손실 하 수렴 | 통과(reg 0·spine OK) · asynclossy 5/5 손실→재전송→desync 0 |
+| [0439](step-0439.md) | #4 진짜 비동기 9: accountDelivered(emitted/applied/dups/missing/complete) — 순열+손실 exactly-once·다이제스트 불변 | 통과(reg 0·spine OK) · asyncaccount 5/5 complete·digInv |
