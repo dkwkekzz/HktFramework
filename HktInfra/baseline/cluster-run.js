@@ -1,8 +1,19 @@
+// HktInfra step-0420 — #62 코드 합류 10·grand capstone: 단일 진입점(runMultiViaCoord·runMulti viaCoord 위임)이 종합 warm-failover 복원력 시나리오(migrate+reprovision+kill+promote)를 runMultiCoherent + clusterInfo parity 로 구동. #62 코드 합류 sub-arc(0411~0420) 닫기. 코드 변경 0(검증만)·reg 0.
+// HktInfra step-0419 — #62 코드 합류 9: runMulti 가 opts.viaCoord 이면 runMultiViaCoord(코디네이터 단일 진입점)로 *위임*. OFF(미설정)→옛 전 토폴로지 경로 비트 동일 → reg 0·e2e 보존. *옛 runMulti 가 코디네이터를 호출* 달성.
+// HktInfra step-0418 — #62 코드 합류 8: coordScenarioFromOpts 에 restart(상태 보존 계획 재시작) case 추가(runScenario 가 이미 처리·0403). 미부착 → reg 0.
+// HktInfra step-0417 — #62 코드 합류 7: coordScenarioFromOpts 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리). 미부착 → reg 0.
+// HktInfra step-0416 — #62 코드 합류 6: coordScenarioFromOpts 에 kill·promote(warm failover) case 추가 + coord runScenario promote 처리. 미부착 → reg 0.
+// HktInfra step-0415 — #62 코드 합류 5: coordAuthEquiv(coord,cluster,ents) — 실 cluster entity 위치 == in-proc run() 권위(둘 다 귀착하는 공유 기준 ⇒ runMultiViaCoord≡runMulti). 미부착 → reg 0.
+// HktInfra step-0414 — #62 코드 합류 4: runMultiViaCoord 결과 info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·port·ipcMsgs/Bytes·allSerializable·wire) parity 병합. 미부착 → reg 0.
+// HktInfra step-0413 — #62 코드 합류 3: runMultiViaCoord(opts,deps,probe) — coordSetup+coordScenarioFromOpts+runScenario 를 묶은 단일 진입점(코디네이터를 한 호출로 구동·집계). 미부착 → reg 0.
+// HktInfra step-0412 — #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 스크립트 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역. 순수 함수·미부착 → reg 0.
+// HktInfra step-0411 — #62 코드 합류 1: coordSetup(opts,deps) — 코디네이터 zone-cluster 배선을 단일 함수로 패키지(verify 손배선 흡수). run() 미사용·OFF-게이트 → reg 0. (아래 §코드 합류)
 // HktInfra step-0048 — cluster 분할 ④: computePlacement + runMulti(멀티프로세스 lockstep 드라이버). cluster.js 에서 추출.
 //   기능 0 — Cluster(cluster-core)·reconstruct(cluster-reconstruct)를 조립해 멀티프로세스 E2E 를 구동. 바이트 동일(verbatim 이동) → reg 0.
 'use strict';
 const { Cluster } = require('./cluster-core.js');
 const { reconstruct } = require('./cluster-reconstruct.js');
+const { makeClusterCoordinator } = require('./cluster-coord.js');
 
 // 배치(placement): addr → hostId. 기본 = 각 서버 박스가 자기 프로세스, 클라는 한 호스트(엣지). 0012 그대로.
 function computePlacement(topo, custom) {
@@ -14,6 +25,9 @@ function computePlacement(topo, custom) {
 
 // ── 멀티프로세스 실행 — 같은 buildTopology, lockstep 배리어로 구동. 와이어(버스·열화·kill 생애주기)만 교체. ──
 async function runMulti(opts, deps) {
+  // step-0419 (#62 코드 합류) — OFF-게이트 위임: opts.viaCoord 이면 zone-cluster 복원력을 코디네이터 단일 진입점(runMultiViaCoord)으로 *호출*한다.
+  //   기존 호출(NET.runMulti·viaCoord 미설정)은 이 분기를 건너뛰어 옛 전 토폴로지 lockstep 경로 그대로 = 비트 동일(reg 0·e2e 보존). deps 에 run·zoneSpecOf 필요(verify 직접 호출 시 주입).
+  if (opts.viaCoord) return runMultiViaCoord(opts, deps);
   const { buildTopology, Net } = deps;
   const topo = buildTopology(opts);
   const placement = computePlacement(topo, opts.placement);
@@ -254,4 +268,84 @@ async function runMulti(opts, deps) {
   return reconstruct(net_, topo, snaps, placement, clusterInfo, opts);
 }
 
-module.exports = { runMulti, computePlacement };
+// ════════════════════════════════════════════════════════════════════════
+//  #62 코드 합류 — 코디네이터를 runMulti zone-cluster 복원력의 *단일 진입점*으로 (0411~).
+//   0401~0410 이 cluster-coord.js(ClusterCoordinator)에 runMulti 복원력의 *superset*(fence·silence·restart·
+//   reprovision·mirror·promote·runScenario·clusterInfo·runMultiCoherent)을 쌓았다. 남은 #62 = 옛 runMulti(전 토폴로지
+//   lockstep)와 *병존*하던 그 능력을, cluster-run.js 가 소유한 단일 진입점으로 묶어 runMulti 가 zone-cluster 복원력을
+//   코디네이터로 *호출*하게 한다. 이 블록이 그 진입점 — run() 데이터 평면 미수정·미부착(verify 만 호출)→reg 0.
+// ════════════════════════════════════════════════════════════════════════
+
+// coordSetup(opts, deps) — runMulti-스타일 opts 로 코디네이터 zone-cluster 배선을 한 번에 구성(0411·#62).
+//   verify 가 0401~0410 내내 손으로 짜던 4단(run→orch/driver→Cluster spawn→makeClusterCoordinator)을 한 함수로 흡수.
+//   ① deps.run(opts) = in-proc 권위(orch·orch.clusterDriver) — 코디네이터가 실 cluster 를 이 권위에 수렴시킨다(읽기만)
+//   ② new Cluster([]) spawn(빈 broker — start()/reconcile 이 host 를 채운다) ③ makeClusterCoordinator(orch,cluster,zoneSpecOf,drv).
+//   반환={orch, cluster, coord, drv}. 호출자가 coord.start()/runScenario 후 cluster.shutdown(). run() 은 데이터 평면 비-수정 → reg 0.
+async function coordSetup(opts, deps) {
+  const r = deps.run(opts);
+  const orch = r.orch, drv = orch.clusterDriver;
+  const cluster = new Cluster([]);
+  await cluster.spawn();
+  const coord = makeClusterCoordinator(orch, cluster, deps.zoneSpecOf, drv);
+  return { orch, cluster, coord, drv };
+}
+
+// coordScenarioFromOpts(opts) — runMulti-스타일 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역(0412·#62).
+//   옛 runMulti 은 wire.kill/reprovision 등 스크립트 열화를 tick 루프에 직접 주입했다(cluster-run.js:176·202). 코디네이터 runScenario 는
+//   {migrate/reprovision/restart/kill/fence/promote/sweepSilence@at} 선언을 onTick 으로 번역한다(cluster-coord.js runScenario). 이 함수가 그
+//   *번역기* — verify 가 매번 손으로 짜던 scenario 객체를 opts.coordSc 한 곳에서 만든다. 0412 는 migrate·reprovision 만(이후 step 이 case 확장).
+function coordScenarioFromOpts(opts) {
+  const sc = (opts && opts.coordSc) || {};
+  const out = {};
+  if (sc.migrate) out.migrate = { zone: sc.migrate.zone, from: sc.migrate.from, to: sc.migrate.to, at: sc.migrate.at };
+  if (sc.reprovision) out.reprovision = { zone: sc.reprovision.zone, host: sc.reprovision.host, at: sc.reprovision.at };
+  if (sc.kill) out.kill = { host: sc.kill.host, at: sc.kill.at };          // step-0416 — host 사망(옛 runMulti wire.kill 판)
+  if (sc.promote) out.promote = { zone: sc.promote.zone, at: sc.promote.at }; // step-0416 — 따뜻한 standby 승격(warm failover·kill 과 같은 at 권장)
+  if (sc.fence) out.fence = { host: sc.fence.host, at: sc.fence.at };       // step-0417 — 수동 epoch 펜싱(옛 runMulti presumedDead/epoch 판)
+  if (sc.sweepSilence) out.sweepSilence = true;                            // step-0417 — 매 tick silence lease-timeout 자동 펜싱 sweep(옛 runMulti observeSilence 판)
+  if (sc.restart) out.restart = { zone: sc.restart.zone, host: sc.restart.host, at: sc.restart.at }; // step-0418 — 상태 보존 계획 재시작(옛 runMulti invRestart 의 zone cluster 판)
+  return out;
+}
+
+// runMultiViaCoord(opts, deps, probe) — #62 코드 합류 단일 진입점(0413). coordSetup→coord.runScenario(coordScenarioFromOpts)→probe→집계→shutdown.
+//   옛 runMulti(전 토폴로지 lockstep)의 *zone-cluster 복원력 판*: 코디네이터(0401~0410 superset)를 한 호출로 구동하고 결과를 모은다.
+//   probe(coord,cluster) 는 shutdown 전 커스텀 단언/측정(예: 따뜻한 standby a1 보존)용 — 반환값을 result.probe 에 담는다. run() 데이터 평면 미수정→reg 0.
+//   반환 { coherent(runMultiCoherent), desync(coordDesync), maxDesync, info(clusterInfo), probe }.
+async function runMultiViaCoord(opts, deps, probe) {
+  const { cluster, coord } = await coordSetup(opts, deps);
+  let result;
+  try {
+    await coord.runScenario(opts.coordTicks || 6, coordScenarioFromOpts(opts));
+    const probed = probe ? await probe(coord, cluster) : undefined;
+    const coherent = await coord.runMultiCoherent();
+    const desync = await coord.coordDesync();
+    // step-0414 — runMulti clusterInfo 반환 계약 parity: 코디네이터 clusterInfo(생애주기)에 실 cluster 전송/토폴로지 필드(옛 runMulti cluster-run.js:227~)를 병합.
+    const info = Object.assign(coord.clusterInfo(), {
+      pids: cluster.pids(), parentPid: process.pid, port: cluster.port,
+      ipcMsgs: cluster.frames, ipcBytes: cluster.bytes, ipcMsgsIn: cluster.framesIn, ipcBytesIn: cluster.bytesIn,
+      allSerializable: cluster.allSerializable, wire: 'topic-bus',
+    });
+    result = { coherent, desync, maxDesync: coord.maxDesync, info, probe: probed };
+  } finally { await cluster.shutdown(); }
+  return result;
+}
+
+// coordAuthEquiv(coord, cluster, ents) — #62 코드 합류 동치 헬퍼(0415). 코디네이터가 구동한 *실 cluster* 의 entity 위치가
+//   *in-proc run() 권위*(coord.orch.zoneEntityPos)와 일치하는 수를 센다. in-proc run() 은 옛 runMulti 가 *비트 동일*(e2e)로,
+//   runMultiViaCoord 가 *coordDesync 0* 로 각각 귀착하는 공유 기준 — 둘 다 같은 권위로 수렴 ⇒ runMultiViaCoord ≡ runMulti(zone subset).
+//   ents=[[zone,id]…]. 반환 { match, total }(match==total 이면 실 cluster==권위). shutdown 전 호출.
+async function coordAuthEquiv(coord, cluster, ents) {
+  let match = 0;
+  for (const [z, id] of ents) {
+    const host = coord.placement[z];
+    const snap = host ? await cluster.rpc(host, { cmd: 'snapshot' }) : null;
+    const zs = snap && snap.snap ? snap.snap[z] : null;
+    const e = zs && zs.ents ? zs.ents.find(([x]) => x === id) : null;
+    const real = e ? e[1] : null;
+    const auth = coord.orch.zoneEntityPos(z, id);
+    if (real && auth && real.x === auth.x && real.y === auth.y) match++;
+  }
+  return { match, total: ents.length };
+}
+
+module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts, runMultiViaCoord, coordAuthEquiv };

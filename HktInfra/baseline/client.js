@@ -257,6 +257,49 @@ class DownClient {
   convergedTo(authSig) { return this.seenSig() === authSig; }
 }
 
-const __part = { Client, DownClient };
+// ── 업스트림 intent 실 클라(step-0421·#61) — DownClient(수신 전용)의 *발신* 짝. ──
+//   왜: 브리지/실 데이터 평면(#56·#9)의 *업스트림*(zoneEnter/zoneMove)은 여태 topo-inject 합성 주입(entityOps·net.send 'dc0'→gateway)이었다 — 실 클라가 *없었다*. 다운스트림은 0342~0350 으로 실 DownClient 가 받아 desync 0 닫혔으나 업스트림은 합성(#61).
+//   UpClient 는 실 액터(kind 'upclient'·addr 'uc0')로 *자기 plan 으로 intent 를 발신*한다 — net.register 가 this.net/this.addr 주입·net.step() 이 매 tick onTick 구동(등록 순서 결정론). upClients=0(기본)이면 스폰 0 = 비트 동일(reg 0).
+//   step-0421: 골격 — joinAt 에 zoneEnter 1발만(이후 step 이 move/수신/leave 추가). 게이트웨이로 보내 gatewayDirectZone 경로(클라→게이트웨이→실 존)를 탄다(합성 entityOps 와 같은 도착·세션→uc0 다운스트림 바인딩).
+class UpClient {
+  constructor(script = {}) {
+    this.avatar = script.avatar; this.zoneId = script.zoneId;
+    this.joinAt = script.joinAt || 1;
+    this.plan = script.plan || [];   // step-0422 — 발신할 이동열 [[dx,dy]…]. enter 이후 매 tick 한 발씩 zoneMove.
+    this.leaveAt = script.leaveAt != null ? script.leaveAt : null;   // step-0427 — 이 tick(절대)에 zoneLeave 발신(접속 종료). null=영구 체류.
+    this.idx = 0; this.joined = false; this.left = false; this.sent = 0;
+    this.intentLog = [];   // step-0429 — 발신한 intent 매니페스트([{type,...}]) — 업스트림 회계(발신==반영 단언·실 클라 발신 손실 0).
+    // step-0423 — 수신(양방향·DownClient 동형): enter 가 uc0 발신이라 게이트웨이가 세션→uc0 바인딩 → 자기 AOI 뷰가 uc0 으로 온다.
+    this.seen = new Map(); this.views = 0; this.deltas = 0; this.resets = 0;
+    // this.net, this.addr 는 net.register(0067·engine) 가 주입.
+  }
+  // step-0423 (#61) — 수신: 자기 AOI 뷰(view/view_delta)를 seen 으로 적용(DownClient 동형). 발신+수신 = 실 양방향 클라.
+  onMsg(m) {
+    const p = m.payload;
+    if (p.type === 'view') { this.views++; this.seen = new Map(p.entities.map(e => [e.id, { x: e.x, y: e.y }])); }
+    else if (p.type === 'view_delta') {
+      this.deltas++;
+      if (p.reset) { this.seen = new Map(); this.resets++; }
+      for (const e of (p.enter || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const e of (p.update || [])) this.seen.set(e.id, { x: e.x, y: e.y });
+      for (const id of (p.exit || [])) this.seen.delete(id);
+    }
+  }
+  seenIds() { return [...this.seen.keys()].sort(); }
+  seenSig() { return [...this.seen.entries()].map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';'); }
+  convergedTo(authSig) { return this.seenSig() === authSig; }   // step-0424 — 권위 AOI 서명 수렴(desync 0) 여부.
+  // step-0422 (#61) — onTick: joinAt 에 zoneEnter, 이후 매 tick plan 한 발씩 zoneMove(클라가 자기 plan 으로 intent 생성·합성 entityOps 대체).
+  onTick(S) {
+    if (this.left || S < this.joinAt) return;
+    if (!this.joined) { this.joined = true; this._emit({ type: 'zoneEnter', zoneId: this.zoneId, avatar: this.avatar }); return; }
+    if (this.leaveAt != null && S >= this.leaveAt) { this.left = true; this._emit({ type: 'zoneLeave', zoneId: this.zoneId, avatar: this.avatar }); return; }   // step-0427 — 접속 종료(이후 발신 0).
+    if (this.idx < this.plan.length) { const [dx, dy] = this.plan[this.idx++]; this._emit({ type: 'zoneMove', zoneId: this.zoneId, avatar: this.avatar, dx, dy }); }
+  }
+  _emit(op) { this.sent++; this.intentLog.push(op); this.net.send(this.addr, 'gateway', op); }   // 클라→게이트웨이(gatewayDirectZone 직접 라우팅·합성 entityOps 대체). step-0429 — intentLog 기록(업스트림 회계).
+  // step-0429 (#61) — 발신 move 의 누적 변위(클램프 전 의도) — 업스트림 회계: enter 위치 + 이 합 == 권위 최종(클램프 0 시)이면 발신 손실 0.
+  intentDelta() { let dx = 0, dy = 0; for (const op of this.intentLog) if (op.type === 'zoneMove') { dx += op.dx; dy += op.dy; } return { dx, dy }; }
+}
+
+const __part = { Client, DownClient, UpClient };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).client = __part;

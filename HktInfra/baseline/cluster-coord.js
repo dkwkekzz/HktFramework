@@ -1,4 +1,6 @@
 'use strict';
+// step-0416 — #62 코드 합류 6: runScenario 가 promote(따뜻한 standby 승격)를 처리(kill 과 같은 at 이면 동일 onTick·desync 윈도 0). 미호출이면 0410 동치·run() 미사용→reg 0.
+// step-0410 — #62 runMulti 합류 9·grand capstone: runMultiCoherent() — 코디네이터가 runMulti 호환 복원력 코어로 정합한가의 단일 술어. unifiedCoherent(데이터 평면+두 where 권위 한 몸·0399) && 미러 standby 가 실재(따뜻한 사본 alibi). 종합 시나리오(runScenario migrate+reprovision → killHost primary → promoteStandby 따뜻한 failover) 뒤에도 참 → 코디네이터가 runMulti 의 *펜싱·lease-timeout·restart·reprovision+mirror·warm-failover·시나리오 루프·재구성 보고*를 zone cluster 상주 제어 평면으로 모두 갖췄음(#62 능력 합류·병존 reg 0). #62 runMulti 합류 복원력 sub-arc(0401~0410) 닫기. 미호출이면 0409 동치. 새 박스·run() 미사용→reg 0.
 // step-0409 — #62 runMulti 합류 8·복원력 payoff: promoteStandby(zone) — 따뜻한 standby 승격(상태 보존 failover). 0376 failover 는 죽은 host 의 존을 *빈* 인스턴스로 재가동해 entity 소실(#63·정직한 한계)했다. 0405/0406 의 따뜻한 standby(미러로 lockstep 동기)가 있으면 primary host 사망 시 그 standby 를 primary 로 승격(placement→standby host·미러 해제) → *상태 손실 0*. runMulti 의 reprovision→승격(kill→추종자 승격·`cluster-run.js` mirrors→primary)의 zone cluster 판. #63(failover 상태 소실)을 따뜻한 standby 로 완화. 미호출이면 0408 동치. 새 박스·run() 미사용→reg 0.
 // step-0408 — #62 runMulti 합류 7: runScenario(ticks, scenario) 통합 시나리오 루프. runMulti 의 핵심은 *스크립트된 열화 시나리오*(kill@at·reprovision@at·…)를 tick 루프에 주입하는 것(`cluster-run.js:176` kill·`:202` rep). 코디네이터가 그 시나리오 구동을 run(ticks,onTick·0393) 위에 단일 진입점으로 감싼다 — scenario={migrate/restart/reprovision/kill/fence@at·sweepSilence} 를 매 tick onTick 으로 번역. verify 가 직접 짜던 onTick 을 runMulti 호환 시나리오 선언으로. 빈 시나리오면 run(ticks)=0407 동치. 새 박스·run() 미사용→reg 0.
 // step-0407 — #62 runMulti 합류 6: clusterInfo() 재구성 보고 — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227` livePids/placement/epoch/presumedDead/…)의 코디네이터 판. report()(0379·운영 건강)와 직교: clusterInfo 는 *runMulti 호환 토폴로지/생애주기 스냅샷*(livePids·hostIds·placement·epoch·presumedDead·migrations/failovers/restarts/reprovisions·lost·mirrors). 코디네이터가 옛 runMulti 의 반환 계약까지 노출 → 코드 합류 시 runMulti 가 이 보고를 그대로 반환 가능. 읽기 전용·새 메서드. 새 박스·run() 미사용→reg 0.
@@ -122,6 +124,7 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
         if (s.migrate && s.migrate.at === t) await c.migrate(s.migrate.zone, s.migrate.from, s.migrate.to);
         if (s.restart && s.restart.at === t) await c.restart(s.restart.zone, s.restart.host);
         if (s.kill && s.kill.at === t) await c.cluster.killHost(s.kill.host);
+        if (s.promote && s.promote.at === t) await c.promoteStandby(s.promote.zone);   // step-0416 (#62) — 따뜻한 standby 승격(kill 과 같은 at 이면 동일 onTick: kill→promote 원자·desync 윈도 0).
         if (s.fence && s.fence.at === t) c.fence(s.fence.host);
         if (s.sweepSilence) c.sweepSilence();
       });
@@ -231,12 +234,18 @@ function makeClusterCoordinator(orch, cluster, specOf, driver) {
     async unifiedCoherent() {
       return (await this.syncedCoherent()) && this.authoritiesAgree();
     },
+    // grand capstone 술어(0410·#62) — 코디네이터가 runMulti 호환 복원력 코어로 정합. ⒜ unifiedCoherent(데이터 평면+두 where 권위 한 몸) ⒝ 등록된 미러 standby 가 실 cluster 에 실재(따뜻한 사본 alibi). 종합 복원력 시나리오(migrate+reprovision+kill+promote) 뒤에도 참이면 #62 능력 합류 완성(펜싱·lease-timeout·restart·reprovision/mirror·warm-failover·시나리오·clusterInfo 를 모두 zone cluster 상주 제어 평면이 보유).
+    async runMultiCoherent() {
+      if (!(await this.unifiedCoherent())) return false;
+      for (const mir of this.mirrors) { const snap = await this.cluster.rpc(mir.dstHost, { cmd: 'snapshot' }); if (!(snap && snap.snap && snap.snap[mir.zone])) return false; }
+      return true;
+    },
     // runMulti 호환 재구성 보고(0407·#62) — runMulti 가 반환하던 clusterInfo(`cluster-run.js:227`)의 코디네이터 판: 실 cluster 토폴로지(livePids·hostIds)+코디네이터 생애주기 상태(placement·epoch·presumedDead·복원력 계측·lost·mirrors). report()(운영 desync 건강)와 직교 — 이건 *runMulti 반환 계약*. 코드 합류 시 runMulti 가 이걸 그대로 반환 가능. 읽기 전용.
     clusterInfo() {
       return {
         livePids: this.cluster.livePids ? this.cluster.livePids() : [], hostIds: this.cluster.hostIds.slice(),
         placement: { ...this.placement }, epoch: this.epoch, presumedDead: [...this.presumedDead],
-        ticks: this.ticks, migrations: this.migrations, failovers: this.failovers, restarts: this.restarts, reprovisions: this.reprovisions,
+        ticks: this.ticks, migrations: this.migrations, failovers: this.failovers, restarts: this.restarts, reprovisions: this.reprovisions, promotions: this.promotions,
         lost: [...this.lostZones], mirrors: this.mirrors.map(m => ({ zone: m.zone, host: m.dstHost })),
       };
     },

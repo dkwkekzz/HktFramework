@@ -1,64 +1,51 @@
-// HktInfra step-0410 — 헤드리스 검증 (#62 runMulti 합류 9·grand capstone: runMultiCoherent 종합 복원력)
+// HktInfra step-0430 — 헤드리스 검증 (#61 업스트림 intent 실 클라 10·capstone: 양방향 실 클라 E2E)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `coordmulticap`.
-//   더한 한 조각: cluster-coord.js runMultiCoherent()=unifiedCoherent && 미러 standby 실재. 종합 복원력 시나리오 뒤 #62 능력 합류 완성. 0401~0410 닫기. 새 박스·run() 미사용→reg 0.
-//   검증: ⒜ `reg`. ⒝ `coordmulticap` — 2 host·3 zone: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upe2ecap`.
+//   더한 한 조각: 검증 전용 grand capstone — 실 클라(UpClient)들이 intent 발신→게이트웨이→실 존→egress→자기 뷰 수신으로 양방향 E2E(desync 0)·생애주기(enter/move/leave)·보존(enters−leaves==present). #61 sub-arc(0421~0430) 닫기. reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `upe2ecap` — uc0(체류) 수렴·uc1(leave) 후 b1 제거·보존(present==enters−leaves)·발신 회계.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
 const makeVerifyKit = require('../engine/verify-kit.js');
-const { Cluster } = require('./cluster-core.js');
-const { makeClusterCoordinator } = require('./cluster-coord.js');
 
 const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
 const { check, pad } = kit.helpers;
-const { run, fnv1a } = NET;
+const { run } = NET;
 
-const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
-const realPos = (snap, zone, id) => { const z = snap && snap.snap ? snap.snap[zone] : null; const e = z && z.ents ? z.ents.find(([x]) => x === id) : null; return e ? e[1] : null; };
+const BASE = {
+  ticks: 16, clients: 0, moves: 0, radius: 4, grid: 16, zones: 2, bus: true, failover: true,
+  placeExecute: true, zoneBridge: true, zoneEntityFlow: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneEgress: true,
+  placementOps: [{ at: 1, op: { type: 'placeZone', zoneId: 'z1', host: 'hostA' } }, { at: 1, op: { type: 'placeZone', zoneId: 'z2', host: 'hostB' } }],
+};
 
-// 공유 시나리오 빌더 — 2 host·3 zone(z1@A·z2@B·z3@A)·entity a1@z1·b1@z2 + move. #62 코디네이터 arc 공통.
-function coordScenario() {
-  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
-  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
-  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
-  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostA')];
-  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(3, 'z2', 'b1', 'dc1')];
-  for (let k = 0; k < 3; k++) { ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0')); ENT.push(MOVE(4 + k, 'z2', 'b1', 1, 0, 'dc1')); }
-  return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
-}
-
-// step-0410 #62 runMulti 합류 9·grand capstone — coordmulticap: runScenario(6,{migrate z3 A→B@2·reprovision z1@hostA_s@3})+killHost(hostA)+promoteStandby(z1) → runMultiCoherent Y·a1 보존·migrations 1·reprovisions 1·promotions 1. #62 복원력 sub-arc(0401~0410) 닫기.
-async function coordmulticap(seeds) {
-  const BASE = coordScenario();
-  console.log('== coordmulticap (0410·#62 grand capstone): 종합 복원력 시나리오 후 runMultiCoherent. 0401~0410 닫기. ==');
-  console.log('seed   | runMultiCoherent | a1 보존 | mig | reprov | promo | 판정');
+// step-0430 #61 10·capstone — upe2ecap: 양방향 실 클라 E2E — uc0(a1@z1 체류) 수렴·uc1(b1@z2 leave@9) 후 b1 제거·보존(enters2−leaves1==present1=a1)·발신 회계. 0421~0430 닫기.
+function upe2ecap(seeds) {
+  console.log('== upe2ecap (0430·#61 grand capstone): 양방향 실 클라 E2E — uc0 체류 수렴·uc1 leave 후 b1 제거·보존(enters−leaves==present)·발신 회계. 0421~0430 닫기. ==');
+  console.log('seed   | uc0 수렴 | a1 체류 | b1 제거 | 보존 | 발신회계 | 판정');
   for (const seed of seeds) {
-    const r = run({ seed, ticks: 12, ...BASE });
-    const o = r.orch, drv = o.clusterDriver;
-    const cluster = new Cluster([]);
-    let rmc = false, preserved = false, info = {};
-    try {
-      await cluster.spawn();
-      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
-      await coord.runScenario(6, { migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 }, reprovision: { zone: 'z1', host: 'hostA_s', at: 3 } });
-      const pre = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');   // 따뜻한 standby 의 a1
-      await cluster.killHost('hostA');                                  // primary 사망
-      await coord.promoteStandby('z1');                                 // 따뜻한 failover
-      const post = realPos(await cluster.rpc('hostA_s', { cmd: 'snapshot' }), 'z1', 'a1');
-      preserved = !!pre && !!post && pre.x === post.x && pre.y === post.y;
-      rmc = await coord.runMultiCoherent(); info = coord.clusterInfo();
-    } finally { await cluster.shutdown(); }
-    const ok = check(rmc && preserved && info.migrations === 1 && info.reprovisions === 1 && info.promotions === 1,
-      `seed ${seed}: capstone 위반 (rmc ${rmc}·preserved ${preserved}·${JSON.stringify({ mg: info.migrations, rp: info.reprovisions, pr: info.promotions })})`);
-    console.log(`${pad(seed, 6)} | ${pad(rmc ? 'Y' : 'N', 16)} | ${pad(preserved ? 'Y' : 'N', 7)} | ${pad(info.migrations, 3)} | ${pad(info.reprovisions, 6)} | ${pad(info.promotions, 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const r = run({
+      seed, ...BASE, upClients: [
+        { addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan: [[1, 1], [1, 1], [1, 1]] },
+        { addr: 'uc1', avatar: 'b1', zoneId: 'z2', joinAt: 3, plan: [[1, 0], [0, 1]], leaveAt: 9 },
+      ],
+    });
+    const [uc0, uc1] = r.upclients;
+    const a1 = r.orch.zoneEntityPos('z1', 'a1'), b1 = r.orch.zoneEntityPos('z2', 'b1');
+    const conv0 = uc0.convergedTo(r.orch.zoneAuthSig('z1', 'a1'));
+    const present = (a1 ? 1 : 0) + (b1 ? 1 : 0);
+    const enters = 2, leaves = 1;   // uc0·uc1 enter·uc1 leave
+    const conserved = present === enters - leaves;
+    const acct = uc0.intentLog.length === uc0.sent && uc1.intentLog.length === uc1.sent && uc1.intentLog.some(o => o.type === 'zoneLeave');
+    const ok = check(conv0 && !!a1 && b1 == null && conserved && acct,
+      `seed ${seed}: capstone 위반 (conv0 ${conv0}·a1 ${JSON.stringify(a1)}·b1 ${JSON.stringify(b1)}·present ${present}·acct ${acct})`);
+    console.log(`${pad(seed, 6)} | ${pad(conv0 ? 'Y' : 'N', 8)} | ${pad(a1 ? 'Y' : 'N', 7)} | ${pad(b1 == null ? 'Y' : 'N', 7)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${pad(acct ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['coordmulticap'] = coordmulticap;
-kit.ORDER.splice(1, 0, 'coordmulticap');
+kit.MODES['upe2ecap'] = upe2ecap;
+kit.ORDER.splice(1, 0, 'upe2ecap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

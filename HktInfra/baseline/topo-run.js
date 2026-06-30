@@ -80,6 +80,7 @@ function run(opts) {
   const followers = ['zone1f', 'zone2f'].map(a => map.get(a)).filter(Boolean);
   const clis = topo.specs.filter(s => s.kind === 'client').map(s => map.get(s.addr));
   const downclis = topo.specs.filter(s => s.kind === 'downclient').map(s => map.get(s.addr));   // step-0342 (#9 후속) — 수신 전용 다운스트림 클라(desync 0 수렴 검증). downClients 0 면 [].
+  const upclis = topo.specs.filter(s => s.kind === 'upclient').map(s => map.get(s.addr));   // step-0421 (#61) — 업스트림 intent 실 클라(발신 액터). upClients 미설정이면 [].
   const allZones = zoneObjs.concat(followers);
 
   const trace = [], seenTrace = [], deltaTrace = [], replicaTrace = [];
@@ -131,7 +132,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, instance, cache, worldlog, loginqueue, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, downclients: downclis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, instance, cache, worldlog, loginqueue, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, downclients: downclis, upclients: upclis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
 }
 
 // ════════════════════════════════════════════════════════════════════════
