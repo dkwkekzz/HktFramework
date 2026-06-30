@@ -1,8 +1,8 @@
-// HktInfra step-0423 — 헤드리스 검증 (#61 업스트림 intent 실 클라 3: UpClient 양방향 — 자기 AOI 뷰 수신)
+// HktInfra step-0424 — 헤드리스 검증 (#61 업스트림 intent 실 클라 4: UpClient 수렴 desync 0)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `uprecv`.
-//   더한 한 조각: UpClient.onMsg(view/view_delta→seen)·seenIds/seenSig(DownClient 동형). 발신 enter 가 세션→uc0 바인딩→자기 뷰 수신. upClients=null→reg 0.
-//   검증: ⒜ `reg`. ⒝ `uprecv` — uc0 가 발신+수신(deltas>0)·seenIds 에 a1·seenSig 가 a1 권위 위치 포함.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upconverge`.
+//   더한 한 조각: 검증 전용 — uc0.seenSig() == orch.zoneAuthSig(권위 AOI)·desync 0(발신한 intent 가 권위에 반영되고 그 권위 뷰로 수렴). 코드 박스 무변경→reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `upconverge` — uc0 가 발신+수신 후 convergedTo(권위 AOI sig)·seenSig==authSig(desync 0).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -24,22 +24,22 @@ function upScenario(ucs) {
   };
 }
 
-// step-0423 #61 3 — uprecv: uc0 가 발신(enter+move)+수신(view_delta)→ seenIds 에 a1·seenSig 가 a1 권위 위치 반영(양방향 실 클라).
-function uprecv(seeds) {
-  console.log('== uprecv (0423·#61 3): UpClient 양방향 — 발신 enter 가 세션→uc0 바인딩→자기 AOI 뷰 수신(deltas>0·seen 에 a1). ==');
-  console.log('seed   | sent | deltas | seenIds | seenSig | 판정');
+// step-0424 #61 4 — upconverge: uc0 가 발신+수신 후 seenSig() == orch.zoneAuthSig(권위 AOI)·desync 0(자기 intent 가 권위에 반영되고 그 권위 뷰로 수렴).
+function upconverge(seeds) {
+  console.log('== upconverge (0424·#61 4): uc0 seenSig == 권위 AOI sig(orch.zoneAuthSig)·convergedTo·desync 0(발신→권위 반영→뷰 수렴). ==');
+  console.log('seed   | seenSig | authSig | converged | 판정');
   const plan = [[3, 2], [1, 1]];
   for (const seed of seeds) {
     const r = run({ seed, ...upScenario([{ addr: 'uc0', avatar: 'a1', zoneId: 'z1', joinAt: 3, plan }]) });
     const uc0 = r.upclients[0];
-    const ids = uc0.seenIds();
-    const ok = check(uc0.sent === 1 + plan.length && uc0.deltas > 0 && ids.includes('a1'),
-      `seed ${seed}: 수신 실패 (sent ${uc0.sent}·deltas ${uc0.deltas}·seen ${JSON.stringify(ids)})`);
-    console.log(`${pad(seed, 6)} | ${pad(uc0.sent, 4)} | ${pad(uc0.deltas, 6)} | ${pad(JSON.stringify(ids), 8)} | ${pad(uc0.seenSig(), 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const authSig = r.orch.zoneAuthSig('z1', 'a1');
+    const conv = uc0.convergedTo(authSig);
+    const ok = check(conv && uc0.seenSig() === authSig && authSig !== '', `seed ${seed}: 수렴 실패 (seen ${uc0.seenSig()}·auth ${authSig})`);
+    console.log(`${pad(seed, 6)} | ${pad(uc0.seenSig(), 8)} | ${pad(authSig, 8)} | ${pad(conv ? 'Y' : 'N', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['uprecv'] = uprecv;
-kit.ORDER.splice(1, 0, 'uprecv');
+kit.MODES['upconverge'] = upconverge;
+kit.ORDER.splice(1, 0, 'upconverge');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
