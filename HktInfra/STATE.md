@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0416](step-0416.md) — **#62 코드 합류 6**: warm failover 번역·구동 — `runScenario` promote 처리(kill 과 동일 onTick·원자) + `coordScenarioFromOpts` kill/promote case. migrate+reprovision+kill+promote 를 선언 시나리오 한 호출로. 미부착/휴면→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0415 coordAuthEquiv.
-- **한 줄 상태**: reg ALL OK·coorddelegpromote 5/5(coherent Y·promo1·a1 보존·z1@hostA_s)·cluster-coord.js 29.3KB·cluster-run.js 24.9KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0417](step-0417.md) — **#62 코드 합류 7**: `coordScenarioFromOpts` 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리·0401~02). 미부착→reg 0. **#62 코드 합류 sub-arc(0411~) 진행**. 직전: 0416 warm failover.
+- **한 줄 상태**: reg ALL OK·coorddelegfence 5/5(순수번역 Y·epoch1·presumedDead⊇hostB·fencedTicks3)·cluster-run.js 25.6KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#62 코드 합류 sub-arc(0411~)**: coordSetup(0411)→coordScenarioFromOpts(0412)→runMultiViaCoord(0413)→clusterInfo parity(0414)→equivalence(0415)→promote(0416)→fence/silence(0417)→restart(0418)→runMulti OFF-게이트 위임(0419)→capstone(0420). 코디네이터(0401~0410 능력 superset)를 cluster-run.js 가 *호출*하는 단일 진입점으로 합류·OFF→옛 runMulti 비트 동일=reg 0. **후속**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4). 🔎 **0401~0410 묶음 리뷰 적기(infra-review)**.
 
 ---
@@ -142,3 +142,4 @@
 | [0414](step-0414.md) | #62 코드 합류 4: runMultiViaCoord info 에 옛 runMulti clusterInfo 전송/토폴로지 필드(pids·parentPid·ipcMsgs/Bytes·wire) parity 병합 | 통과(reg 0·spine OK) · coordinfoparity 5/5 키 14종 완비·pids3·ipcMsgs>0·parentPid==self |
 | [0415](step-0415.md) | #62 코드 합류 5: coordAuthEquiv — 실 cluster entity 위치 == in-proc run() 권위(공유 기준 귀착 ⇒ runMultiViaCoord≡runMulti) | 통과(reg 0·spine OK) · coordvsauth 5/5 coherent Y·match 2/2 a1·b1==권위 |
 | [0416](step-0416.md) | #62 코드 합류 6: warm failover 번역·구동 — runScenario promote(kill 동일 onTick 원자) + coordScenarioFromOpts kill/promote case | 통과(reg 0·spine OK) · coorddelegpromote 5/5 coherent Y·promo1·a1 보존·z1@hostA_s |
+| [0417](step-0417.md) | #62 코드 합류 7: coordScenarioFromOpts fence·sweepSilence case(epoch 펜싱·lease-timeout·runScenario 가 이미 처리) | 통과(reg 0·spine OK) · coorddelegfence 5/5 순수번역 Y·epoch1·presumedDead⊇hostB·fencedTicks3 |
