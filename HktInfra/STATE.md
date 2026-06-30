@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0433](step-0433.md) — **#4 진짜 비동기 3: 결정론 전순서·인과 존중**: `async-core.js` `totalOrder`(키 (lc, siteIndex)·tie-break site)·`totalOrderSound`. 같은 이벤트의 8 물리 순열 전부 같은 전순서(orderSig)·엄격·인과 존중. run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·lcorder 5/5(8 순열 동일 전순서·엄격·인과)·async-core.js 6.4KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0434](step-0434.md) — **#4 진짜 비동기 4: holdback 재정렬 버퍼**: `async-core.js` `makeHoldback`(교차-site 재정렬 도착·사이트별 FIFO·low-water-mark 안정성 점진 방출). 6 인터리빙 전부 방출열 == 정전 전순서·close 이전 방출 23~37/40(진짜 holdback). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·lcreorder 5/5(인터리빙 불변 전순서·점진 방출)·async-core.js 8.5KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
@@ -150,3 +150,4 @@
 | [0431](step-0431.md) | #4 진짜 비동기 1: 신규 박스 async-core.js Lamport 논리 클럭 원시(makeLamportClock·local/send/recv·clock condition)·run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · lcstamp 5/5 스탬프 1..K 단조 |
 | [0432](step-0432.md) | #4 진짜 비동기 2: lamportExchange(N site 교환→이벤트 로그+happens-before 간선)·clockConditionViolations | 통과(reg 0·spine OK) · lcrecv 5/5 clock condition 위반 0 |
 | [0433](step-0433.md) | #4 진짜 비동기 3: totalOrder(키 (lc,siteIndex))·totalOrderSound — 전순서=내용 함수·순열 불변·엄격·인과 존중 | 통과(reg 0·spine OK) · lcorder 5/5 8 순열 동일 전순서 |
+| [0434](step-0434.md) | #4 진짜 비동기 4: makeHoldback(교차-site 재정렬·FIFO·low-water-mark 안정성 점진 방출) | 통과(reg 0·spine OK) · lcreorder 5/5 인터리빙 불변·close前 방출>0 |
