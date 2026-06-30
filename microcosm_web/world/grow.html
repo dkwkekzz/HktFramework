@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>microcosm — 성장하는 나무 (수식 창발 에셋)</title>
+<style>
+  :root{
+    color-scheme:dark;
+    --bg:#0a0b12; --panel:#13141d; --panel2:#191b26; --line:#262838;
+    --ink:#e9e7df; --dim:#9a988f; --accent:#6fd3a8; --warm:#ff8a4c;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;background:radial-gradient(1200px 700px at 70% -10%,#15182400,#070810);color:var(--ink);
+    font-family:-apple-system,"Noto Sans KR",system-ui,sans-serif;display:flex;flex-direction:column;align-items:center;
+    gap:14px;padding:18px 14px 30px;min-height:100vh}
+  header{text-align:center;max-width:920px}
+  h1{font-size:20px;font-weight:600;margin:0;letter-spacing:.2px}
+  .eq{font-family:"SFMono-Regular",ui-monospace,Menlo,monospace;color:var(--accent);font-size:12.5px;margin-top:6px}
+  p.sub{margin:7px 0 0;color:var(--dim);font-size:13px;line-height:1.55}
+  .bar{display:flex;gap:7px;flex-wrap:wrap;justify-content:center;align-items:center;max-width:980px}
+  button{background:var(--panel);color:var(--ink);border:1px solid var(--line);border-radius:10px;
+    padding:9px 13px;font-size:14px;cursor:pointer;transition:.12s;user-select:none}
+  button:hover{background:var(--panel2);border-color:#3a3d52}
+  button.primary{background:#22372c;border-color:var(--accent);color:#bff0d8}
+  label.ctl{display:flex;align-items:center;gap:7px;font-size:12px;color:var(--dim);
+    background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:6px 11px}
+  label.ctl input[type=range]{width:84px;accent-color:var(--accent)}
+  label.ctl b{color:var(--ink);font-variant-numeric:tabular-nums;min-width:26px;text-align:right}
+  #status{font-size:12px;color:var(--dim)}
+  #status b{color:var(--accent)}
+  .gallery{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;width:100%;max-width:980px}
+  @media(max-width:820px){.gallery{grid-template-columns:repeat(3,1fr)}}
+  @media(max-width:560px){.gallery{grid-template-columns:repeat(2,1fr)}}
+  .tile{position:relative;border:1px solid var(--line);border-radius:12px;overflow:hidden;cursor:pointer;
+    background:#0c0e17;transition:.12s}
+  .tile:hover{border-color:#3a3d52}
+  .tile.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent)}
+  .tile canvas{width:100%;display:block}
+  .tile .tag{position:absolute;left:7px;top:6px;font-size:11px;color:#cfe;background:rgba(8,10,16,.55);
+    border:1px solid var(--line);border-radius:7px;padding:2px 7px;pointer-events:none}
+  .dash{width:100%;max-width:980px;background:linear-gradient(180deg,var(--panel),#101220);
+    border:1px solid var(--line);border-radius:12px;padding:14px 16px}
+  .dash h2{font-size:12px;margin:0 0 8px;color:var(--dim);font-weight:600;letter-spacing:.4px;text-transform:uppercase}
+  .dash p{margin:0;color:var(--dim);font-size:12.5px;line-height:1.6}
+  .dash b{color:var(--ink)}
+  footer{color:#5d5b54;font-size:11px;max-width:820px;text-align:center;line-height:1.6}
+</style>
+</head>
+<body>
+<header>
+  <h1>microcosm — 성장하는 나무</h1>
+  <div class="eq">어트랙터 구름 → 가지가 끌려 자람 → 닿으면 소비 · 같은 규칙, 시드마다 다른 나무</div>
+  <p class="sub">손으로 가지를 배치하지 않는다. <b>공간식민화(space colonization)</b> 규칙 하나로 가지가 빛(어트랙터) 쪽으로
+  한 스텝씩 자라며 형태가 <b>창발</b>한다 — 아래 12그루는 전부 같은 코드, 다른 시드일 뿐인데 실루엣·가지수·기울기·캐노피가 모두 다르다.
+  같은 SDF 렌더러가 테이퍼 줄기와 볼륨 캐노피를 통일 스타일로 입히고, <b>PNG 에셋으로 베이크</b>한다.</p>
+</header>
+
+<div class="bar">
+  <button id="regen" class="primary">↻ 재생성 (새 시드)</button>
+  <button id="bake">⬇ 선택 나무 PNG 베이크</button>
+  <label class="ctl">어트랙터 <input id="cA" type="range" min="150" max="600" step="10" value="380"><b id="vA">380</b></label>
+  <label class="ctl">인지 di <input id="cDi" type="range" min="10" max="26" step="1" value="18"><b id="vDi">18</b></label>
+  <label class="ctl">킬 dk <input id="cDk" type="range" min="3" max="9" step="1" value="5"><b id="vDk">5</b></label>
+  <label class="ctl">스텝 D <input id="cD" type="range" min="15" max="34" step="1" value="24"><b id="vD">2.4</b></label>
+  <label class="ctl">중력굴성 <input id="cUp" type="range" min="0" max="60" step="2" value="26"><b id="vUp">0.26</b></label>
+</div>
+<div id="status">준비 중…</div>
+
+<div class="gallery" id="gallery"></div>
+
+<div class="dash">
+  <h2>왜 이게 "수식 창발"인가</h2>
+  <p>나무의 형태는 어디에도 적혀 있지 않다. 규칙은 단 하나 — <b>가지는 인지반경 di 안의 가장 가까운 어트랙터들 쪽으로,
+  중력굴성을 더해 한 스텝 D 만큼 자라고, 킬반경 dk 안에 든 어트랙터를 소비한다.</b> 줄기 굵기는 Murray 법칙
+  (r<sup>e</sup>=Σ자식 r<sup>e</sup>)으로 팁→루트 자동 결정. 슬라이더로 규칙 상수를 바꾸면 형태가 통째로 달라진다 —
+  손배치가 아니라 <b>규칙에서 형태가 나온다</b>. 캐릭터처럼 "창발+미려"가 어려운 자산이 아니라, 성장에 자연스러운
+  유기체(나무·덩굴·산호)부터 증명한다. 어트랙터 외피만 바꾸면 다른 식생으로 확장된다.</p>
+</div>
+
+<footer>grow.js(성장)·plantrender.js(렌더) 모두 DOM 비의존 코어 — Node 로 검증된다. 한 커밋 = 규칙 하나.
+이전 정적 씬(art.html)과 직교 — 이쪽은 *형태가 자라는* 트랙이다.</footer>
+
+<script src="grow.js"></script>
+<script src="plantrender.js"></script>
+<script>
+(function () {
+  'use strict';
+  const TILES = 12, COLS = 4;
+  const WORLD = { worldW: 70, worldH: 104, groundY: 7 };
+  const gallery = document.getElementById('gallery');
+  const statusEl = document.getElementById('status');
+  let baseSeed = 1, selected = 0;
+
+  // 타일별 결정적 시드 파생
+  const tileSeed = (k) => (Math.imul(baseSeed, 2654435761) + k * 0x9E3779B1) >>> 0;
+
+  function growOpts() {
+    return {
+      baseX: 35, baseY: WORLD.groundY, crownCY: 55,
+      nAttractors: +cA.value,
+      di: +cDi.value, dk: +cDk.value, D: (+cD.value) / 10, upBias: (+cUp.value) / 100,
+    };
+  }
+
+  // 타일 DOM 준비
+  const tiles = [];
+  for (let k = 0; k < TILES; k++) {
+    const div = document.createElement('div'); div.className = 'tile' + (k === 0 ? ' sel' : '');
+    const cv = document.createElement('canvas');
+    const tag = document.createElement('div'); tag.className = 'tag';
+    div.appendChild(cv); div.appendChild(tag); gallery.appendChild(div);
+    div.onclick = () => { selected = k; tiles.forEach((t, i) => t.div.classList.toggle('sel', i === k)); };
+    tiles.push({ div, cv, tag });
+  }
+
+  let busy = false;
+  function renderAll() {
+    if (busy) return; busy = true;
+    statusEl.innerHTML = '성장 + 렌더링…';
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      const t0 = performance.now(); const o = growOpts(); let totalNodes = 0;
+      for (let k = 0; k < TILES; k++) {
+        const seed = tileSeed(k);
+        const tree = Grow.grow(Grow.mulberry32(seed), o);
+        PlantRender.drawToCanvas(tree, tiles[k].cv, Object.assign({}, WORLD, { seed, scale: 4, supersample: 1 }));
+        tiles[k].tag.textContent = 'seed ' + seed % 100000 + ' · ' + tree.nNodes + ' 노드';
+        totalNodes += tree.nNodes;
+      }
+      const ms = Math.round(performance.now() - t0);
+      statusEl.innerHTML = `<b>${TILES}</b> 그루 · 평균 ${Math.round(totalNodes / TILES)} 노드 · ${ms}ms · 타일 클릭 → 선택, 베이크로 고해상 PNG 저장`;
+      busy = false;
+    }));
+  }
+
+  // ── 선택 나무를 고해상으로 베이크 ──
+  function bake() {
+    const seed = tileSeed(selected), o = growOpts();
+    const tree = Grow.grow(Grow.mulberry32(seed), o);
+    const cv = document.createElement('canvas');
+    PlantRender.drawToCanvas(tree, cv, Object.assign({}, WORLD, { seed, scale: 10, supersample: 2 }));
+    const a = document.createElement('a');
+    a.download = `microcosm-tree-seed${seed}-${cv.width}x${cv.height}.png`;
+    a.href = cv.toDataURL('image/png'); a.click();
+  }
+
+  const cA = document.getElementById('cA'), cDi = document.getElementById('cDi'), cDk = document.getElementById('cDk'),
+        cD = document.getElementById('cD'), cUp = document.getElementById('cUp');
+  const bind = (el, vid, fmt) => { el.oninput = () => { document.getElementById(vid).textContent = fmt(el.value); }; el.onchange = renderAll; };
+  bind(cA, 'vA', (v) => v); bind(cDi, 'vDi', (v) => v); bind(cDk, 'vDk', (v) => v);
+  bind(cD, 'vD', (v) => (v / 10).toFixed(1)); bind(cUp, 'vUp', (v) => (v / 100).toFixed(2));
+  document.getElementById('regen').onclick = () => { baseSeed = (baseSeed % 99999) + 7; renderAll(); };
+  document.getElementById('bake').onclick = bake;
+
+  renderAll();
+})();
+</script>
+</body>
+</html>

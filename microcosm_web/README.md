@@ -71,9 +71,13 @@ world/
   index.html    2D 게임 UI·Canvas 렌더·입력·창발 대시보드 (engine.js 로드).
   engine3d.js   World(3D) — 같은 규칙을 R³로. 높이장 지형·3D 결합/지지·3D 벼락.
   index3d.html  3D 게임 UI·Three.js 렌더·궤도 카메라·조준 (engine3d.js 로드).
-  artrender.js  SDF/메타볼 통일 아트 렌더러 — 지형·바다·나무·캐릭터를 한 스타일로.
+  artrender.js  SDF/메타볼 통일 아트 렌더러 — 정적 씬(지형·바다·나무·캐릭터)을 한 스타일로.
                 DOM 비의존 코어(renderScene) → Node 검증. (artrender.py 이식)
-  art.html      아트 스튜디오 — 통일 씬을 SDF 아트로 렌더하고 PNG 리소스로 베이크.
+  art.html      아트 스튜디오(정적 씬) — 통일 씬을 SDF 아트로 렌더하고 PNG 로 베이크.
+  grow.js       성장(공간식민화) 엔진 — 어트랙터 구름에서 가지가 자라 매 시드 다른 나무.
+                Murray 반경 테이퍼. DOM 비의존 → Node 검증.
+  plantrender.js 에셋급 식물 렌더러 — 테이퍼 줄기 + 볼륨 캐노피 + 접지 그림자(grow.js 소비).
+  grow.html     성장 갤러리 — 같은 규칙·다른 시드로 12그루를 렌더하고 고해상 PNG 로 베이크.
 web/
   microcosm.html        2D 전투(캐릭터·파이어볼·벼락·사슬갑옷)
   microcosm3d.html      3D 빌드 (Three.js r128) — 규칙이 차원에 무관함을 보임
@@ -110,6 +114,34 @@ node -e "const MC=require('./world/engine.js'),R=require('./world/artrender.js')
   MC.Forms.art_tree(w,118,{scale:1.7}); MC.Forms.skeleton(w,88,{scale:1.5});
   const r=R.renderScene(w,{scale:4,supersample:1});
   console.log('px',r.pxw+'x'+r.pxh,'skins',w.skins.length);"
+```
+
+## 형태가 자라는 트랙 — 성장 나무 (grow.html)
+
+위 정적 씬의 `art_tree`·`skeleton` 은 좌표를 손배치한다 — 시드를 바꿔도 형태가 거의 같다.
+**성장 트랙은 그 한계를 넘는다**: 형태가 *규칙에서 자라난다*.
+
+`grow.js` 의 **공간식민화(space colonization)** 는 어트랙터(빛) 구름을 크라운에 뿌리고,
+가지가 인지반경 `di` 안의 가장 가까운 어트랙터 쪽으로 중력굴성을 더해 한 스텝 `D` 자라며,
+킬반경 `dk` 안의 어트랙터를 소비한다. 줄기 굵기는 Murray 법칙 `r^e=Σ자식 r^e` 로 팁→루트
+자동 결정. **같은 규칙이라도 시드(어트랙터 배치)가 다르면 매번 다른 나무가 창발**한다 —
+손배치가 아니라 형태가 수식에서 나온다. `plantrender.js` 가 테이퍼 줄기 + 볼륨 캐노피 +
+접지 그림자로 에셋급 렌더하고 고해상 PNG 로 베이크한다(`world/grow.html`, 12그루 갤러리).
+
+```
+가지 성장 = normalize(Σ pull(di) + 중력굴성·up) · D,  닿은 어트랙터(dk) 소비
+줄기 반경 = Murray  r^e = Σ child r^e  (e≈2.3),  팁 r0 → 루트 후처리
+캐노피    = 팁마다 작은 잎 메타볼 다수 + 수직 광 그라디언트(볼륨)
+```
+
+`grow.js`·`plantrender.js` 둘 다 DOM 비의존 — 브라우저 없이 검증된다:
+
+```bash
+node -e "const G=require('./world/grow.js'),P=require('./world/plantrender.js');
+  const a=G.grow(G.mulberry32(1),{baseX:35,baseY:7}), b=G.grow(G.mulberry32(2),{baseX:35,baseY:7});
+  const r=P.renderScene(a,{seed:1,scale:5,supersample:1});
+  console.log('seed1',a.nNodes,'seed2',b.nNodes,'다름',a.nNodes!==b.nNodes,
+    'rootR>tipR',a.radius[0]>a.radius[a.nNodes-1],'px',r.pxw+'x'+r.pxh);"
 ```
 
 ## 엔진 검증 (Node)
