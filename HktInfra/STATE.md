@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0420](step-0420.md) — **#62 코드 합류 10·grand capstone**: 단일 진입점(`runMultiViaCoord`·`runMulti viaCoord` 위임)이 종합 warm-failover 복원력(migrate+reprovision+kill+promote)을 한 호출로 구동해 `runMultiCoherent` + 옛 runMulti `clusterInfo` parity 동시 만족. **#62 코드 합류 sub-arc(0411~0420) 닫기** — 옛 runMulti zone-cluster 복원력이 코디네이터 단일 진입점으로 합류 완료. 직전: 0419 runMulti OFF-게이트 위임.
-- **한 줄 상태**: reg ALL OK·e2e ALL OK(OFF 경로 보존)·coordmergecap 5/5(runMultiCoherent Y·mig1·reprov1·promo1·a1 보존·parity)·cluster-run.js 27.5KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#62 코드 합류 sub-arc(0411~0420 ✅ 닫힘)**: coordSetup(0411)·coordScenarioFromOpts(0412)·runMultiViaCoord(0413)·clusterInfo parity(0414)·equivalence(0415)·promote(0416)·fence/silence(0417)·restart(0418)·runMulti OFF-게이트 위임(0419)·capstone(0420). **후속(권위 infra-review)**: ⒝ orch zoneHost entity 컨테이너 동기(#68·경미)·⒞ 업스트림 intent 실 클라(#61)·⒟ 진짜 비동기(#4)·전 토폴로지(bus/svc) runMulti 흡수는 #62 범위 밖. 🔎 **0411~0420 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0421](step-0421.md) — **#61 업스트림 intent 실 클라 1**: `UpClient`(client.js·발신 액터·kind 'upclient') — DownClient(수신 전용)의 발신 짝. onTick 이 joinAt 에 zoneEnter 를 게이트웨이로 발신(합성 entityOps 대체). topo-actors/build/run 배선. upClients=null(기본)→스폰 0→reg 0. **#61 업스트림 실 클라 sub-arc(0421~) 시작** — 다운스트림(0342~0350 실 DownClient)에 이어 업스트림도 실 클라. 직전: 0420 #62 코드 합류 capstone.
+- **한 줄 상태**: reg ALL OK·upclient 5/5(uc0 zoneEnter 발신·a1@z1 {5,5})·client.js 18.0KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~)**: UpClient 골격(0421)→move 발신(0422)→뷰 수신 양방향(0423)→수렴 desync0(0424)→entityOps 동치(0425)→다중 클라(0426)→leave(0427)→손실 하 수렴(0428)→업스트림 회계(0429)→capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속**: ⒟ 진짜 비동기(#4)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0411~0420 묶음 리뷰 ✅(review-0411-0420)**.
 
 ---
 
@@ -146,3 +146,4 @@
 | [0418](step-0418.md) | #62 코드 합류 8: coordScenarioFromOpts restart case(상태 보존 계획 재시작·runScenario 가 이미 처리·0403) | 통과(reg 0·spine OK) · coorddelegrestart 5/5 coherent Y·restarts1·a1 보존·z1@hostA_r |
 | [0419](step-0419.md) | #62 코드 합류 9: runMulti OFF-게이트 위임(opts.viaCoord→runMultiViaCoord)·옛 runMulti 가 코디네이터 호출·OFF→옛 경로 비트 동일 | 통과(reg 0·e2e OK·spine OK) · coorddelegate 5/5 coord shape·coherent Y·mig1·reprov1 |
 | [0420](step-0420.md) | #62 코드 합류 10·grand capstone: 단일 진입점 종합 warm-failover(migrate+reprovision+kill+promote)·runMultiCoherent+clusterInfo parity·0411~0420 닫기 | 통과(reg 0·e2e OK·spine OK) · coordmergecap 5/5 runMultiCoherent Y·mig1·reprov1·promo1·a1 보존·parity |
+| [0421](step-0421.md) | #61 업스트림 실 클라 1: UpClient(발신 액터·kind 'upclient')·onTick joinAt zoneEnter 발신·topo 배선·upClients OFF→reg 0 | 통과(reg 0·spine OK) · upclient 5/5 uc0 zoneEnter 발신·a1@z1 {5,5} |

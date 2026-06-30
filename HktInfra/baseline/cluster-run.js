@@ -1,3 +1,4 @@
+// HktInfra step-0420 — #62 코드 합류 10·grand capstone: 단일 진입점(runMultiViaCoord·runMulti viaCoord 위임)이 종합 warm-failover 복원력 시나리오(migrate+reprovision+kill+promote)를 runMultiCoherent + clusterInfo parity 로 구동. #62 코드 합류 sub-arc(0411~0420) 닫기. 코드 변경 0(검증만)·reg 0.
 // HktInfra step-0419 — #62 코드 합류 9: runMulti 가 opts.viaCoord 이면 runMultiViaCoord(코디네이터 단일 진입점)로 *위임*. OFF(미설정)→옛 전 토폴로지 경로 비트 동일 → reg 0·e2e 보존. *옛 runMulti 가 코디네이터를 호출* 달성.
 // HktInfra step-0418 — #62 코드 합류 8: coordScenarioFromOpts 에 restart(상태 보존 계획 재시작) case 추가(runScenario 가 이미 처리·0403). 미부착 → reg 0.
 // HktInfra step-0417 — #62 코드 합류 7: coordScenarioFromOpts 에 fence·sweepSilence(epoch 펜싱·lease-timeout) case 추가(runScenario 가 이미 처리). 미부착 → reg 0.
