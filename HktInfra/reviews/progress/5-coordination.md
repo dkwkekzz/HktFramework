@@ -58,4 +58,22 @@
 
 > **📦 구조 분할(#49 arc·0267·0305·0323·기능 0)**: 오케스트레이터 제어 평면 핸들러(`onMsg`·`onTick`)를 `orch-control.js` 믹스인으로 분리(0251 `orch-placement.js`[배치 런타임]의 짝·`Object.assign(prototype)`·verbatim·reg 0·27.5→18.9KB). 이어 host-proc 층→`orch-hostproc.js`(0305) · 다운스트림 뷰 질의 6종→`orch-views.js`(0323·`orch-zonebridge.js` 30.6→28.1KB 유계화). 오케 믹스인 다분할(코어 + placement + control + zonebridge + hostproc + views + **bridge-init**)·전부 `Object.assign(Orchestrator.prototype)`·능력 무변경(reg 0). **#58 해소(0332)**: 생성자의 브리지/데이터평면/host컨테이너/egress 필드 대입 블록(0272~0331)을 전용 `orch-bridge-init.js` `_initBridgeFields(opts)` 로 이동 → 코어 `orchestrator.js` **29.7KB→22.8KB**(생성자 한 줄 호출·세 박스 모두 <30KB).
 
-> **이 계층 다음 걸음**: ⒜ *진짜 비동기*(lockstep 배리어 제거·논리/벡터 클럭). ⒝ 플레이어 프레즌스 실사용. ⒞ 치유(HealService) 분리.
+## 비동기 실행 substrate (#4) 🟡 자라는 중 *(논리 클럭·인과 정렬·in-proc substrate)*
+
+**무슨 서버인가**: lockstep 배리어 없이도 결정론을 지키는 *논리 클럭·인과 정렬 기계*(`src/async-core.js`). 오늘 결정론은 `net.step()` 중앙 lockstep 배리어가 떠받친다(모든 참여자 동기 tick·#4). 이 substrate 는 그걸 해제하되 결정론을 지키는 토대 — 메시지가 *물리적으로 다른 순서/손실*로 도착해도 인과(happens-before)를 복원해 *결정론 전순서*로 적용해 수렴한다. *비유 — 회의록 정리*: 여러 사람이 제각기 다른 순서로 말해도(또는 일부 발언이 누락돼 재전송돼도), 누가 무엇에 *이어서* 말했는지(인과)를 복원해 모두가 같은 회의록에 도달한다. **이 박스는 `run()` 경로가 호출하지 않는 검증 전용 substrate → run() 비트 불변(매 step reg 구조적 0)**.
+
+**필요한 기능들**:
+1. **논리 클럭(Lamport)** ✅ in-proc — 왜: 물리 시계 없이 인과를 측정해야(분산엔 전역 시계 없음). / 어떻게: Lamport(1978) 단조 카운터 — local/send 마다 +1·recv 는 max(local,msg)+1 → clock condition(a→b ⇒ C(a)<C(b)). / 했나: `step-0431` `makeLamportClock`(`async-core.js:17`·`recv:27`)·`step-0432` `lamportExchange`(N site 교환→이벤트 로그+happens-before 간선·`:36`)+`clockConditionViolations`(위반 0).
+2. **결정론 전순서** ✅ in-proc — 왜: 인과(부분순서)만으론 *동시* 이벤트의 적용 순서가 안 정해진다(결정론 수렴 불가). / 어떻게: Lamport 전순서 키 (lc, siteIndex) — 동시 이벤트만 site 로 tie-break·clock condition 덕에 인과 존중·*내용의 함수*라 순열 불변. / 했나: `step-0433` `totalOrder`(`:90`)·`totalOrderSound`(strict+causal·`:94`) — 8 물리 순열 전부 같은 전순서.
+3. **holdback 재정렬** ✅ in-proc — 왜: 실제론 이벤트가 교차-site 재정렬로 도착(링크별 지연 상이)·전체 집합 없이 안전 방출해야. / 어떻게: low-water-mark 안정성 — lwm=min_s(마지막 도착 lc)·lc≤lwm 만 방출(FIFO 가 더 작은 키 못 옴 보장). / 했나: `step-0434` `makeHoldback`(`:110`) — 인터리빙 불변·close 이전 23~37/40 점진 방출.
+4. **인과 의존 배달** ✅ in-proc — 왜: holdback 은 사이트별 FIFO 가정에 기댐·더 강한 FIFO-free 보장 필요. / 어떻게: 각 이벤트 deps(=happens-before 선행) 명시 추적·선행 다 배달 전 보류(DAG→deadlock 0). / 했나: `step-0435` `causalDeliver`(`:142`)+`causalViolations` — 적대적 도착(역순/셔플) 6종 위반 0·stuck 0.
+5. **async 수렴 desync 0** ✅ in-proc — 왜: 순서/재정렬/인과를 *상태 수렴*으로 마무리해야(#4 핵심 명제). / 어떻게: 배달열 순차 fold→상태 다이제스트(순서 민감·내용 함수)·두 site 상이 도착 순열→같은 다이제스트=desync 0. / 했나: `step-0436` `applyDigest`(`:172`)·`step-0437` `makeAsyncSite`(receive/tick 분리·`:183`·복제 불균등 속도 skew>0 비-lockstep·페이스 무관 수렴).
+6. **손실 하 gap-resync** ✅ in-proc — 왜: 손실 시 holdback FIFO 불변이 깨짐(빠진 lc 건너뜀). / 어떻게: per-source 연속 시퀀스(sseq)·연속분만 holdback 에·hole 감지(gap)·재전송 채움. / 했나: `step-0438` `withSseq`·`makeResyncSite`(`:205`) — ~20% 손실→재전송→전부 배달·desync 0.
+7. **인과 회계·exactly-once** ✅ in-proc — 왜: 수렴/복원이 *맞게* 동작하려면 장부가 닫혀야(손실 0·중복 0). / 어떻게: 배달열 vs 전체 집합 대조→emitted/applied/dups/missing/complete·순열+손실 교란에도 다이제스트 불변. / 했나: `step-0439` `accountDelivered`(`:231`)·`step-0440` grand capstone `asynce2ecap`(M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once).
+8. **실 net.step 배리어 치환** ⬜ 남음 — 왜: substrate 가 in-proc 으로 증명됐으니 실 전송(net.step lockstep)을 이 인과 정렬로 대체해야 진짜 비동기. / 어떻게: net.step 의 동기 tick 배리어를 논리 클럭+holdback+resync 배선으로 교체(끄면 현 lockstep=회귀 0). / 했나: ⬜ 후속 arc(DownClient/UpClient 가 in-proc 먼저였듯).
+
+**지금 어디 / 다음**: in-proc substrate(논리 클럭→인과 규칙→전순서→holdback→인과 배달→수렴→배리어-free→손실 resync→회계→capstone) ✅ 완성(0431~0440·`asynce2ecap` 5/5). 다음 = 실 `net.step` lockstep 배리어를 이 substrate 로 치환(후속 arc·load-bearing). #4 가 0001 이래 열린 채였던 lockstep 의존을 *해제할 기계*를 처음 손에 쥠.
+
+---
+
+> **이 계층 다음 걸음**: ⒜ *진짜 비동기*(lockstep 배리어 제거·논리/벡터 클럭) — **substrate ✅ in-proc(0431~0440·`async-core.js`)·잔여=실 net.step 치환**. ⒝ 플레이어 프레즌스 실사용. ⒞ 치유(HealService) 분리.
