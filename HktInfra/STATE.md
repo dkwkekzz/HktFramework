@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0437](step-0437.md) — **#4 진짜 비동기 7: 배리어-free 진행**: `async-core.js` `makeAsyncSite`(receive 도착/tick 진행 분리). 3 복제가 불균등 속도(진행 skew 16~32=비-lockstep)로 굴러도 최종 다이제스트 전부 일치==정전 → desync 0(진행 입도 무관·중앙 배리어 불요). run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asyncprogress 5/5(skew>0 비-lockstep·desync 0)·async-core.js 12.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0438](step-0438.md) — **#4 진짜 비동기 8: 손실 하 gap-resync 수렴**: `async-core.js` `withSseq`·`makeResyncSite`(per-source 연속분만 holdback 에·hole 감지·재전송 채움). ~20% 손실→gaps 27~35·resyncs==손실수→전부 배달·digest==정전 → 손실 하 desync 0. run() 미호출 → reg 구조적 0. **#4 substrate sub-arc(0431~0440) 진행**.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asynclossy 5/5(손실5~13·재전송 채움·desync 0)·async-core.js 15.0KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
@@ -20,9 +20,9 @@
 > 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)** — 0421~0430 양방향 실 클라 닫힌 뒤 infra-review 1순위 권고. 오늘 결정론은 `net.step()` 중앙 lockstep 배리어가 떠받친다(모든 참여자 동기 tick). #4 는 이를 해제하되 결정론(같은 이벤트 multiset→같은 수렴)을 지킨다 — 메시지가 *물리적으로 다른 순서/손실*로 도착해도 인과(happens-before)를 복원해 *결정론 전순서*로 적용해 수렴. 신규 박스 `async-core.js` 가 그 기계를 든다: Lamport 클럭(0431 ✅)→send/recv 인과(0432)→전순서(0433)→holdback(0434)→인과 배달(0435)→수렴 desync0(0436)→배리어-free(0437)→손실 resync(0438)→회계(0439)→capstone(0440). DownClient/UpClient 처럼 *in-proc substrate 먼저*, 실 net.step 치환은 후속 arc. **매 step reg 구조적 0**(async-core run() 미호출).
 > **설계 제약**: spine 게이트는 `verify.js all`. async-core 는 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 export 1줄만 추가). 새 모드는 async-core 를 직접 구동(시드 PRNG mulberry32·uint32 반환·정규화 주의).
 
-**후속 백로그**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0390 9묶음 리뷰 적기).
+**후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·ISimCore·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정. 훅 inject(미제공=reg 0).
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
 ---
 
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~0013) · **인스턴스 🟡 spawn+despawn(0201~0202)+수요 자동 spawn(0215)+라우팅(0216)+이탈(0221)+수요 자동 despawn(0222·탄력 축소)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~0063)·귓속말/파티(0071~0106)·거래소(0107~0140)·우편(0142~0180) 동형(escrow/발행/3leg/saga)·길드(0181~0190·로스터/마스터십/배지/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합). 금고↔가방 escrow 연동 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→발신 소비자→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory(0203~24)→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80·fullyCoherent)·#56 entity 데이터 평면(0281~90·entityFlowCoherent)·#9 직접 라우팅(0291~300·directFlowCoherent)·실 host.js 컨테이너(0301~10·hostProcCoherent)·부하 균형(0311~18·hostBalanced)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent: 포착→전파→실 클라 수렴 desync0). **#57 실 OS 프로세스 spawn(0351~60·ClusterHostDriver·clusterHostsCoherent) + 실 데이터 평면(0361~70·deliver/tick/migrate 상태보존/kill·failover/reconcile/driveCluster·clusterCoherent desync 0·실 host.js child_process E2E) + #62 runMulti 통합(0371~80·`cluster-coord.js` ClusterCoordinator·broker 측 제어 평면 상주·연속 tick 루프·coordCoherent) + #65 양방향 동기(0381~90·코디네이터 placement 권위 SSOT·migrate/failover 가 placement 갱신·lost 추적·coordDesync/placementCoherent·syncedCoherent capstone — migrate/failover 후도 정합) + #66 tick placement-aware + #67 orch 이중 권위 합류(0391~0400·tick/deliver placement 순회·mid-run migrate 발현·orchWhere/authoritiesAgree·migrate/failover orch where-view write-back·unifiedCoherent capstone — 루프 중 migrate+failover 후도 두 where 권위 한 몸) + #62 코디네이터 runMulti 복원력 코어 승격(0401~0410·epoch 펜싱·silence lease-timeout·상태 보존 restart·reprovisionStandby+미러·clusterInfo·runScenario·promoteStandby 따뜻한 failover[#63 완화]·runMultiCoherent capstone — 능력 superset·병존 reg 0) + #62 코드 합류(0411~0420·cluster-run.js 단일 진입점 coordSetup/coordScenarioFromOpts/runMultiViaCoord·clusterInfo parity·equivalence·warm-failover/fence/restart 번역·runMulti OFF-게이트 위임·coordmergecap capstone — 옛 runMulti 가 코디네이터 호출·OFF→비트 동일 reg 0)**. orch 정리(0251·0267·0305·0323·0332·0404)·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory→executed SSOT #51(0241~50)→실 zone.js 브리지 #51b(0272~80)·#56 entity 데이터 평면(0281~90)·#9 직접 라우팅(0291~300)·실 host.js 컨테이너(0301~10)·부하 균형(0311~18)·월드 다운스트림 E2E(0319~50·downstreamWorldCoherent). **#57 실 OS 프로세스(0351~60 spawn·0361~70 데이터 평면 clusterCoherent desync0) + #62 broker 측 상주 코디네이터(0371~80 coordCoherent) + #65 placement 권위 양방향 동기(0381~90 syncedCoherent) + #66/#67 tick placement-aware·orch 이중 권위 합류(0391~400 unifiedCoherent) + #62 runMulti 복원력 승격·코드 합류(0401~20·cluster-run.js 단일 진입점·coordmergecap·OFF→reg 0)**. **#4 async substrate(0431~·async-core.js 논리클럭·인과 정렬·run() 밖)**. orch 정리(0251·0267·0305·0323·0332·0404)·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU 용량/recency(0205~0226)+Redis-like 4차 arc(0252~0260·write-through·bulk·negative·SETNX·SETEX·delete·stats·prefix·coherent capstone)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind 버퍼·fsync durable barrier(0207~0228)**. 버스 영속 후속 |
 
 ---
@@ -154,3 +154,4 @@
 | [0435](step-0435.md) | #4 진짜 비동기 5: causalDeliver(deps=happens-before 선행 충족 방출·FIFO-free)·causalViolations | 통과(reg 0·spine OK) · lccausal 5/5 적대적 도착 위반0·stuck0 |
 | [0436](step-0436.md) | #4 진짜 비동기 6: applyDigest(배달열 순차 fold→상태 다이제스트) — 두 site 상이 도착→desync 0 수렴 | 통과(reg 0·spine OK) · asyncconv 5/5 desync 0·정전 일치 |
 | [0437](step-0437.md) | #4 진짜 비동기 7: makeAsyncSite(receive/tick 분리) — 복제 불균등 속도(비-lockstep)·페이스 무관 수렴 | 통과(reg 0·spine OK) · asyncprogress 5/5 skew>0·desync 0 |
+| [0438](step-0438.md) | #4 진짜 비동기 8: withSseq·makeResyncSite(연속분만 holdback·hole 감지·재전송) — 손실 하 수렴 | 통과(reg 0·spine OK) · asynclossy 5/5 손실→재전송→desync 0 |

@@ -193,6 +193,37 @@ function makeAsyncSite(nsites) {
   };
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, makeAsyncSite, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0438 — 손실 하 gap-resync(per-source 시퀀스 재전송) ─────────────────
+//   holdback(0434)은 *사이트별 링크 FIFO* 가 깨지면(이벤트 누락) 무너진다 — 빠진 lc 를 건너뛰고 잘못 방출.
+//   해법: 각 이벤트에 per-source 연속 시퀀스(sseq)를 붙여, 수신측이 *연속분만* 안쪽 holdback 에 넘긴다 →
+//   sseq 가 expected 를 앞지르면 hole=손실 감지(gap)·앞선 이벤트는 버퍼에 보류·재전송(resync)으로 hole 채우면 frontier 전진.
+//   이로써 손실/재정렬 아래서도 holdback 의 FIFO 불변을 *복원*해 desync 0 수렴 유지. (다운스트림 egress gap-resync 의 논리 클럭 판.)
+function withSseq(events) {                          // 이벤트에 per-source 연속 시퀀스 부여(순수·발신순 보존)
+  const c = {};
+  return events.map(e => { const s = (typeof e.site === 'number' ? e.site : e.site); c[s] = (c[s] || 0); return { ...e, sseq: c[s]++ }; });
+}
+function makeResyncSite(nsites) {
+  const hb = makeHoldback(nsites);
+  const buf = Array.from({ length: nsites }, () => new Map());   // src → (sseq → event)
+  const expected = new Array(nsites).fill(0);
+  let gaps = 0, resyncs = 0;
+  const advance = src => { while (buf[src].has(expected[src])) { hb.offer(buf[src].get(expected[src])); buf[src].delete(expected[src]); expected[src]++; } };
+  function take(e, isResync) {
+    const src = siteIdx(e);
+    if (e.sseq < expected[src] || buf[src].has(e.sseq)) return;   // dup/old
+    if (e.sseq > expected[src]) gaps++;                            // hole 앞선 도착 = 손실 감지
+    if (isResync) resyncs++;
+    buf[src].set(e.sseq, e); advance(src);
+  }
+  return {
+    receive(e) { take(e, false); },
+    resync(e) { take(e, true); },
+    missing() { const m = []; for (let s = 0; s < nsites; s++) { let mx = -1; for (const k of buf[s].keys()) mx = Math.max(mx, k); for (let q = expected[s]; q < mx; q++) if (!buf[s].has(q)) m.push([s, q]); } return m; },
+    finish() { return hb.close(); }, digest() { return applyDigest(hb.delivered); },
+    gaps() { return gaps; }, resyncs() { return resyncs; }, deliveredN() { return hb.delivered.length; },
+  };
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, makeAsyncSite, withSseq, makeResyncSite, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;

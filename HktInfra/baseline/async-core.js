@@ -175,6 +175,24 @@ function applyDigest(ordered) {
   return state >>> 0;
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0437 — 배리어-free 진행(독립 페이스 site) ──────────────────────────
+//   lockstep 은 모든 site 를 *한 동기 tick* 으로 묶는다(net.step). 배리어-free 는 각 site 가 *독립 속도*로 전진한다 —
+//   receive(도착=버퍼)와 tick(진행=받은 것 1개를 holdback 에 반영)을 분리. 한 site 가 5보 가는 동안 다른 site 는 1보 가도
+//   (진행 skew>0=비-lockstep) holdback 안정성은 페이스 무관 → 최종 다이제스트는 진행 입도에 *무관*(같은 수렴).
+//   핵심: net.step 의 중앙 배리어 없이도(site 들이 제각각 굴러도) desync 0.
+function makeAsyncSite(nsites) {
+  const hb = makeHoldback(nsites);
+  const rx = [];                                   // 도착했으나 아직 holdback 미반영(독립 진행 버퍼)
+  return {
+    receive(e) { rx.push(e); },                    // 도착(버퍼만 — 진행 아님)
+    tick() { if (rx.length === 0) return false; hb.offer(rx.shift()); return true; },  // 진행 1보
+    pending() { return rx.length; },
+    appliedN() { return hb.delivered.length; },
+    finish() { while (rx.length) hb.offer(rx.shift()); return hb.close(); },
+    digest() { return applyDigest(hb.delivered); },
+  };
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, makeHoldback, depsFromEdges, causalDeliver, causalViolations, applyDigest, makeAsyncSite, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;
