@@ -181,6 +181,7 @@ function buildTopology(opts) {
     egressDrop = null,         // step-0337 (#9 후속) — 다운스트림 전송 손실 주입(["sid#dseq"…]·테스트). 미설정→손실 0 = 비트 동일.
     egressTimeout = 0,         // step-0338 (#9 후속) — 미-ack egress frame 타임아웃 재전송 tick(0=off·마지막 frame 손실 복구). 0→비트 동일.
     downClients = 0,           // step-0342 (#9 후속) — 수신 전용 실 다운스트림 클라 수(dc0..·desync 0 수렴 검증). 0→스폰 0 = 비트 동일.
+    upClients = null,          // step-0421 (#61) — 업스트림 intent 실 클라 spec 열([{avatar,zoneId,joinAt,plan,leaveAt}]·uc0..). 발신 액터(합성 entityOps 대체). null/[]→스폰 0 = 비트 동일.
     downRecvWindow = 0,        // step-0347 (#9 후속) — 게이트웨이 세션별 수신 버퍼 유계 창 K(0=무계). 0→비트 동일.
     clusterDriverRecord = false, // step-0353 (#57) — orch host spawn/despawn 훅에 인프로세스 recorder 드라이버 부착(검증용·실 드라이버는 cluster-run.js 가 직접 교체). OFF→드라이버 null·호출 0 = 0352 비트 동일.
     clusterDriverReal = false, // step-0357 (#57) — orch.clusterDriver 를 실 ClusterHostDriver(이벤트→cluster 명령 번역)로 주입(topo-run). OFF→null·호출 0 = 0356 비트 동일.
@@ -260,6 +261,8 @@ function buildTopology(opts) {
   }
   // 다운스트림 클라(step-0342·#9 후속) — 수신 전용 실 클라(host 산출 AOI 뷰 종단·desync 0 수렴). downClients=0(기본)이면 0개 = 비트 동일.
   for (let i = 0; i < downClients; i++) add({ addr: 'dc' + i, kind: 'downclient', opts: {} });
+  // 업스트림 intent 실 클라(step-0421·#61) — 발신 액터(uc0..). null/[](기본)이면 0개 = 비트 동일.
+  if (upClients) (Array.isArray(upClients) ? upClients : [upClients]).forEach((uc, i) => add({ addr: uc.addr || ('uc' + i), kind: 'upclient', opts: uc }));
   return { specs, order, zoneAddrs, H, grid, radius, hasInventory: !!inventory, hasChat: !!chat, hasBus: !!bus, hasAudit: !!(bus && audit), hasPersist: !!persistAddr };
 }
 
