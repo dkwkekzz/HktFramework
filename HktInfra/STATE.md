@@ -9,16 +9,16 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0430](step-0430.md) — **#61 업스트림 intent 실 클라 10·grand capstone**: 양방향 실 클라 E2E — `UpClient` 들이 intent 발신→게이트웨이→실 존→egress→자기 뷰 수신으로 desync 0·생애주기(enter/move/leave)·보존(enters−leaves==present)·발신 회계. **#61 업스트림 실 클라 sub-arc(0421~0430) 닫기** — 다운스트림(0342~0350 DownClient)에 이어 업스트림도 실 클라(합성 entityOps 종료). 직전: 0429 업스트림 회계.
-- **한 줄 상태**: reg ALL OK·upe2ecap 5/5(uc0 수렴·a1 체류·b1 제거·보존 Y·발신 회계 Y)·client.js 20.8KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~0430 ✅ 닫힘)**: UpClient 골격(0421)·move(0422)·양방향 수신(0423)·수렴 desync0(0424)·entityOps 동치(0425)·다중 클라(0426)·leave(0427)·손실 하 수렴(0428)·업스트림 회계(0429)·capstone 양방향 E2E(0430). 합성 entityOps 를 실 클라 액터 발신으로·upClients OFF→비트 동일=reg 0. **후속(권위 infra-review)**: ⒟ 진짜 비동기(#4·lockstep 해제)·실 host.js child 경계 업스트림(#57 짝)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미). 🔎 **0421~0430 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0431](step-0431.md) — **#4 진짜 비동기 1: Lamport 논리 클럭 원시**: 신규 박스 `async-core.js`(`makeLamportClock` — local/send/recv·clock condition a→b⇒C(a)<C(b)). lockstep 배리어(net.step) 해제를 위한 *논리 클럭·인과 정렬 substrate* 의 첫 조각. run() 경로 미호출 → reg 구조적 0. **#4 진짜 비동기 in-proc sub-arc(0431~) 개시** — 0421~0430 양방향 실 클라 닫힌 뒤 리뷰 1순위 권고 = #4.
+- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·lcstamp 5/5(스탬프 1..K 단조)·async-core.js 1.6KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)**: Lamport 클럭(0431 ✅)→send/recv 인과 규칙(0432)→결정론 전순서(0433)→holdback 재정렬(0434)→인과 의존 배달(0435)→async 수렴 desync0(0436)→배리어-free 진행(0437)→손실 하 resync(0438)→인과 회계(0439)→grand capstone(0440). async-core 는 run() 밖 검증 전용 substrate → 매 step reg 구조적 0. **이 arc 가 증명하는 것**: 메시지가 물리적으로 다른 순서/손실로 도착해도 인과를 복원해 결정론 전순서로 적용 → 수렴(lockstep 없이). 실 net.step 배리어 치환은 후속 arc.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#61 업스트림 intent 실 클라 sub-arc(0421~0430 ✅ 닫힘)** — 다운스트림(0342~0350 실 DownClient)에 이어 업스트림도 실 클라: `UpClient`(client.js·kind 'upclient') 가 자기 plan 으로 intent(zoneEnter/zoneMove/zoneLeave)를 게이트웨이로 *발신*하고 자기 AOI 뷰를 *수신*해 권위로 수렴(desync 0) — 합성 entityOps 주입을 실 클라 액터 발신으로 대체. 골격(0421)·move(0422)·양방향 수신(0423)·수렴(0424)·entityOps 동치(0425)·다중 클라(0426)·leave(0427)·손실 하 수렴(0428)·업스트림 회계(0429)·capstone 양방향 E2E(0430). upClients OFF(기본)→스폰 0→비트 동일(reg 0). **다음 후보(권위는 infra-review)**: ⒞ 진짜 비동기(#4·lockstep 해제)·⒝ 실 host.js child 경계 업스트림(#57 짝)·#68 entity 컨테이너 동기(경미)·#69 동치 transitive(경미).
-> **설계 제약**: spine 게이트는 `verify.js all`. UpClient 는 액터(net.register 가 net/addr 주입)·upClients 미설정 시 미스폰 → this.order 불변 → reg 0. reg 는 항상 in-proc run() 비트 대조.
+> 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)** — 0421~0430 양방향 실 클라 닫힌 뒤 infra-review 1순위 권고. 오늘 결정론은 `net.step()` 중앙 lockstep 배리어가 떠받친다(모든 참여자 동기 tick). #4 는 이를 해제하되 결정론(같은 이벤트 multiset→같은 수렴)을 지킨다 — 메시지가 *물리적으로 다른 순서/손실*로 도착해도 인과(happens-before)를 복원해 *결정론 전순서*로 적용해 수렴. 신규 박스 `async-core.js` 가 그 기계를 든다: Lamport 클럭(0431 ✅)→send/recv 인과(0432)→전순서(0433)→holdback(0434)→인과 배달(0435)→수렴 desync0(0436)→배리어-free(0437)→손실 resync(0438)→회계(0439)→capstone(0440). DownClient/UpClient 처럼 *in-proc substrate 먼저*, 실 net.step 치환은 후속 arc. **매 step reg 구조적 0**(async-core run() 미호출).
+> **설계 제약**: spine 게이트는 `verify.js all`. async-core 는 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 export 1줄만 추가). 새 모드는 async-core 를 직접 구동(시드 PRNG mulberry32·uint32 반환·정규화 주의).
 
 **후속 백로그**: ⒝ 업스트림 intent 실 클라(#61). ⒞ 진짜 비동기(#4)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`(0291~0390 9묶음 리뷰 적기).
 
@@ -33,7 +33,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
-| 🔴 | **비동기 실행 아래 결정론 (lockstep 배리어 해제)** | 코디네이션 | 0013 까지 결정론은 중앙 lockstep 배리어가 떠받침. 진짜 비동기는 논리 클럭(Lamport/벡터)·인과 순서로 후속(0012 §9-3·0105 §9). |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | 결정론은 중앙 lockstep 배리어가 떠받침. **#4 substrate arc(0431~) 착수**: `async-core.js` 논리 클럭(Lamport·0431)→인과 순서·holdback·async 수렴(0432~0440 in-proc). 남은 것: 실 net.step 배리어 치환(후속 arc). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~0350·desync 0) + **업스트림 실 UpClient(0421~0430·#61·자기 plan 으로 intent 발신·자기 뷰 수신·다중 클라 인터리빙·손실 하 수렴·생애주기/보존·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝)·예측/롤백은 뷰의 것(더미 충족). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -147,3 +147,4 @@
 | [0428](step-0428.md) | #61 업스트림 실 클라 8: 손실 하 수렴(egress 손실→gap-resync→uc0 desync0·손실 진짜 gaps≥1+복구 resyncs≥1)·검증 전용 | 통과(reg 0·spine OK) · uplossy 5/5 gaps1·resyncs1·uc0 수렴 |
 | [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
 | [0430](step-0430.md) | #61 업스트림 실 클라 10·grand capstone: 양방향 실 클라 E2E(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존·발신 회계)·0421~0430 닫기 | 통과(reg 0·spine OK) · upe2ecap 5/5 uc0 수렴·a1 체류·b1 제거·보존 Y |
+| [0431](step-0431.md) | #4 진짜 비동기 1: 신규 박스 async-core.js Lamport 논리 클럭 원시(makeLamportClock·local/send/recv·clock condition)·run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · lcstamp 5/5 스탬프 1..K 단조 |
