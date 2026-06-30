@@ -80,6 +80,27 @@ function clockConditionViolations(events, edges) {
   return v;
 }
 
-const __part = { makeLamportClock, lamportExchange, clockConditionViolations, _h: fnv1a, _rnd: mulberry32 };
+// ── step-0433 — 결정론 전순서(total order) — Lamport 시각 + site tie-break ──
+//   인과(부분순서)만으론 동시(concurrent) 이벤트의 적용 순서가 안 정해진다. 결정론 수렴엔 *전순서*가 필요 →
+//   Lamport 전순서: 키 = (lc, siteIndex). 같은 site 이벤트는 lc 가 엄격 증가(program order)·다른 site 동시 이벤트는
+//   site 로 tie-break → 모든 이벤트가 *유일* 키를 가진다. clock condition(a→b⇒C(a)<C(b)) 덕에 이 순서는 인과를 존중한다
+//   (동시 이벤트의 tie-break 만 임의·인과 무관). 핵심: 순서가 *내용의 함수*라서 어떤 물리 도착 순열이든 같은 전순서를 낸다.
+const siteIdx = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
+function totalOrderCmp(a, b) { return (a.lc - b.lc) || (siteIdx(a) - siteIdx(b)); }
+function totalOrder(events) { return events.slice().sort(totalOrderCmp); }
+// 전순서 서명 — 적용 순서의 id 열 해시(두 순열이 같은 전순서를 내는지 비교용).
+function orderSig(events) { return fnv1a(events.map(e => e.id).join(',')); }
+// 전순서가 *엄격*(동률 키 0)이며 *인과를 존중*(모든 간선 a→b 에서 pos(a)<pos(b))하는가? { strict, causal } 반환.
+function totalOrderSound(events, edges) {
+  const ord = totalOrder(events);
+  let strict = true;
+  for (let i = 1; i < ord.length; i++) if (totalOrderCmp(ord[i - 1], ord[i]) === 0) strict = false;
+  const pos = new Map(ord.map((e, i) => [e.id, i]));
+  let causal = true;
+  for (const [a, b] of edges) if (!(pos.get(a) < pos.get(b))) causal = false;
+  return { strict, causal, sig: orderSig(ord) };
+}
+
+const __part = { makeLamportClock, lamportExchange, clockConditionViolations, totalOrder, totalOrderCmp, orderSig, totalOrderSound, _h: fnv1a, _rnd: mulberry32 };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_core = __part;
