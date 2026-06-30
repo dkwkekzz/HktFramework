@@ -1,8 +1,10 @@
+// HktInfra step-0411 — #62 코드 합류 1: coordSetup(opts,deps) — 코디네이터 zone-cluster 배선을 단일 함수로 패키지(verify 손배선 흡수). run() 미사용·OFF-게이트 → reg 0. (아래 §코드 합류)
 // HktInfra step-0048 — cluster 분할 ④: computePlacement + runMulti(멀티프로세스 lockstep 드라이버). cluster.js 에서 추출.
 //   기능 0 — Cluster(cluster-core)·reconstruct(cluster-reconstruct)를 조립해 멀티프로세스 E2E 를 구동. 바이트 동일(verbatim 이동) → reg 0.
 'use strict';
 const { Cluster } = require('./cluster-core.js');
 const { reconstruct } = require('./cluster-reconstruct.js');
+const { makeClusterCoordinator } = require('./cluster-coord.js');
 
 // 배치(placement): addr → hostId. 기본 = 각 서버 박스가 자기 프로세스, 클라는 한 호스트(엣지). 0012 그대로.
 function computePlacement(topo, custom) {
@@ -254,4 +256,26 @@ async function runMulti(opts, deps) {
   return reconstruct(net_, topo, snaps, placement, clusterInfo, opts);
 }
 
-module.exports = { runMulti, computePlacement };
+// ════════════════════════════════════════════════════════════════════════
+//  #62 코드 합류 — 코디네이터를 runMulti zone-cluster 복원력의 *단일 진입점*으로 (0411~).
+//   0401~0410 이 cluster-coord.js(ClusterCoordinator)에 runMulti 복원력의 *superset*(fence·silence·restart·
+//   reprovision·mirror·promote·runScenario·clusterInfo·runMultiCoherent)을 쌓았다. 남은 #62 = 옛 runMulti(전 토폴로지
+//   lockstep)와 *병존*하던 그 능력을, cluster-run.js 가 소유한 단일 진입점으로 묶어 runMulti 가 zone-cluster 복원력을
+//   코디네이터로 *호출*하게 한다. 이 블록이 그 진입점 — run() 데이터 평면 미수정·미부착(verify 만 호출)→reg 0.
+// ════════════════════════════════════════════════════════════════════════
+
+// coordSetup(opts, deps) — runMulti-스타일 opts 로 코디네이터 zone-cluster 배선을 한 번에 구성(0411·#62).
+//   verify 가 0401~0410 내내 손으로 짜던 4단(run→orch/driver→Cluster spawn→makeClusterCoordinator)을 한 함수로 흡수.
+//   ① deps.run(opts) = in-proc 권위(orch·orch.clusterDriver) — 코디네이터가 실 cluster 를 이 권위에 수렴시킨다(읽기만)
+//   ② new Cluster([]) spawn(빈 broker — start()/reconcile 이 host 를 채운다) ③ makeClusterCoordinator(orch,cluster,zoneSpecOf,drv).
+//   반환={orch, cluster, coord, drv}. 호출자가 coord.start()/runScenario 후 cluster.shutdown(). run() 은 데이터 평면 비-수정 → reg 0.
+async function coordSetup(opts, deps) {
+  const r = deps.run(opts);
+  const orch = r.orch, drv = orch.clusterDriver;
+  const cluster = new Cluster([]);
+  await cluster.spawn();
+  const coord = makeClusterCoordinator(orch, cluster, deps.zoneSpecOf, drv);
+  return { orch, cluster, coord, drv };
+}
+
+module.exports = { runMulti, computePlacement, coordSetup };

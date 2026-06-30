@@ -1,3 +1,4 @@
+// HktInfra step-0412 — #62 코드 합류 2: coordScenarioFromOpts(opts) — runMulti 스크립트 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역. 순수 함수·미부착 → reg 0.
 // HktInfra step-0411 — #62 코드 합류 1: coordSetup(opts,deps) — 코디네이터 zone-cluster 배선을 단일 함수로 패키지(verify 손배선 흡수). run() 미사용·OFF-게이트 → reg 0. (아래 §코드 합류)
 // HktInfra step-0048 — cluster 분할 ④: computePlacement + runMulti(멀티프로세스 lockstep 드라이버). cluster.js 에서 추출.
 //   기능 0 — Cluster(cluster-core)·reconstruct(cluster-reconstruct)를 조립해 멀티프로세스 E2E 를 구동. 바이트 동일(verbatim 이동) → reg 0.
@@ -278,4 +279,16 @@ async function coordSetup(opts, deps) {
   return { orch, cluster, coord, drv };
 }
 
-module.exports = { runMulti, computePlacement, coordSetup };
+// coordScenarioFromOpts(opts) — runMulti-스타일 열화 스펙(opts.coordSc)을 코디네이터 runScenario 시나리오로 번역(0412·#62).
+//   옛 runMulti 은 wire.kill/reprovision 등 스크립트 열화를 tick 루프에 직접 주입했다(cluster-run.js:176·202). 코디네이터 runScenario 는
+//   {migrate/reprovision/restart/kill/fence/promote/sweepSilence@at} 선언을 onTick 으로 번역한다(cluster-coord.js runScenario). 이 함수가 그
+//   *번역기* — verify 가 매번 손으로 짜던 scenario 객체를 opts.coordSc 한 곳에서 만든다. 0412 는 migrate·reprovision 만(이후 step 이 case 확장).
+function coordScenarioFromOpts(opts) {
+  const sc = (opts && opts.coordSc) || {};
+  const out = {};
+  if (sc.migrate) out.migrate = { zone: sc.migrate.zone, from: sc.migrate.from, to: sc.migrate.to, at: sc.migrate.at };
+  if (sc.reprovision) out.reprovision = { zone: sc.reprovision.zone, host: sc.reprovision.host, at: sc.reprovision.at };
+  return out;
+}
+
+module.exports = { runMulti, computePlacement, coordSetup, coordScenarioFromOpts };
