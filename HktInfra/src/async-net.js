@@ -192,6 +192,32 @@ function runLockstepEngine(events, seed, avatars, nsites) {
   };
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas, runLockstepEngine };
+// ── step-0450 — grand capstone: 실 net.step 배리어 치환 in-proc 등가 E2E ──────
+//   0441~0449 의 모든 조각(실 Net-형 스트림·sim fold·holdback·디스패치·resync·복제 수렴·배리어-free·exactly-once·배리어 등가)을
+//   한 시나리오로 묶는다: M 복제 존이 *서로 다른 순열+손실*을 *독립 페이스*(pace 1·2·3)로 받아 makeZoneResync 재구성·동결 sim fold
+//   → 전 복제 실 월드 desync 0·exactly-once·손실 발생·진행 skew>0. capstoneReplicas 가 그 복합 드라이버.
+function capstoneReplicas(events, M, seed, avatars, nsites) {
+  const reps = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0x1A00 + m * 173)) >>> 0);
+    reps.push({ rnd, arr: _interleave(events, nsites, rnd), i: 0, site: makeZoneResync(nsites), dropped: [], pace: 1 + (m % 3) });
+  }
+  let progressing = true, maxSkew = 0;
+  while (progressing) {
+    progressing = false;
+    for (const r of reps) for (let p = 0; p < r.pace; p++) if (r.i < r.arr.length) { const e = r.arr[r.i++]; if (r.rnd() % 5 === 0) r.dropped.push(e); else r.site.receive(e); progressing = true; }
+    const consumed = reps.map(r => r.i);
+    maxSkew = Math.max(maxSkew, Math.max(...consumed) - Math.min(...consumed));
+  }
+  const out = [];
+  for (const r of reps) {
+    for (const e of _shuffle(r.dropped, r.rnd)) r.site.resync(e);
+    const delivered = r.site.finish();
+    out.push({ digest: simFold(delivered, seed, avatars).digest, complete: AC.accountDelivered(delivered, events).complete, resyncs: r.site.resyncs() });
+  }
+  return { reps: out, skew: maxSkew };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas, runLockstepEngine, capstoneReplicas };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

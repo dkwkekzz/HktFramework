@@ -167,6 +167,31 @@ function accountReplicas(events, M, seed, avatars, nsites) {
   return out;
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas };
+// ── step-0449 — lockstep 배리어 등가(실 engine Net 대조) ──────────────────────
+//   여기서 처음으로 *실 engine Net*(중앙 lockstep 배리어 net.step)을 실체로 세운다: client 발신 actor 들 + 존 수신 actor 를
+//   register 하고 net.step() 을 T tick 굴린다(중앙 큐 하나 = 배리어). 존은 도착 intent 를 버퍼링 → 전순서 적용(substrate) →
+//   실 월드. 명제: **배리어(net.step)로 배달하든 배리어-free substrate 로 배달하든 존의 실 월드 상태가 동일**(== canonical) →
+//   배리어를 substrate 로 *치환해도 결과 불변*. 대조(naive): net.step 도착 순서 그대로 fold 는 canonical 과 갈릴 수 있음(전순서 미적용).
+function runLockstepEngine(events, seed, avatars, nsites) {
+  const net = new __c.Net({});                          // transport=null → 무손실 FIFO lockstep(중앙 배리어)
+  const byClient = Array.from({ length: nsites }, () => []);
+  for (const e of events) byClient[e.site].push(e);
+  const buffer = [];
+  for (let s = 0; s < nsites; s++) {
+    const outbox = byClient[s].slice(); let idx = 0;
+    net.register('client' + s, { onTick() { if (idx < outbox.length) { const e = outbox[idx++]; this.net.send('client' + s, 'zone1', { type: 'intent', site: e.site, lc: e.lc, avatar: e.payload.avatar, dx: e.payload.dx, dy: e.payload.dy }); } } });
+  }
+  net.register('zone1', { onMsg(m) { const p = m.payload; if (p && p.type === 'intent') buffer.push({ site: p.site, lc: p.lc, payload: { avatar: p.avatar, dx: p.dx, dy: p.dy } }); } });
+  const ticks = Math.max(0, ...byClient.map(a => a.length)) + 3;
+  for (let t = 0; t < ticks; t++) net.step();
+  return {
+    delivered: buffer.length,
+    arrivalDigest: simFold(buffer, seed, avatars).digest,              // net.step 도착 순서 그대로(naive·전순서 미적용)
+    totalDigest: simFold(AC.totalOrder(buffer), seed, avatars).digest, // 배리어 배달 + substrate 전순서 적용
+    stats: net.stats,
+  };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas, runLockstepEngine };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

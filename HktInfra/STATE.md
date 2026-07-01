@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0449](step-0449.md) — **#4 실 net.step 배리어 치환 9**: `async-net.runLockstepEngine` — 처음으로 **실 engine Net**(중앙 배리어 net.step)에 client 발신+존 수신 actor register·구동. 명제 확립: 배리어(net.step)로 배달하든 배리어-free substrate 로 배달하든 존 실 월드 == canonical(치환 결과 불변). run() 미호출 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·netbarrier 5/5(배리어+substrate==canonical·배리어-free async==canonical·delivered40)·async-net.js 13.9KB·spine ALL OK.
-- **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
+- **닫힌 step**: [step-0450](step-0450.md) — **#4 실 net.step 배리어 치환 10·grand capstone**: 검증 전용 `nete2ecap` — M 복제 존이 순열+손실+독립 페이스 재구성 → 실 engine Net 배리어 == 배리어-free substrate == canonical·전 복제 desync0·exactly-once·전순서 sound·skew>0·손실 발생. **#4 실 net.step 배리어 치환 in-proc 등가 sub-arc(0441~0450) 닫기** — 실 Net 메시지·실 sim 위에서 배리어 치환 등가 완성. 코드 무변경 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK(async-net run() 미호출)·nete2ecap 5/5(배리어==substrate==canonical·desync0·exactly-once·skew26)·async-net.js 15.4KB·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 치환 in-proc 등가 sub-arc(0441~0450 ✅ 닫힘)**: 스트림+스탬프(0441)·sim fold(0442)·holdback(0443)·디스패치(0444)·resync(0445)·복제 수렴(0446)·배리어-free(0447)·exactly-once(0448)·lockstep 등가(0449)·capstone(0450). **후속(권위 infra-review)**: ⒜ 실 `net.step` 배리어 *실제 치환*(async-net 을 run() 배선에·다음 큰 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미. 🔎 **0441~0450 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -33,7 +33,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | 결정론 시뮬 *내부 구현*은 범위 밖 — `ISimCore` 뒤 블랙박스·HktGameplay 소관·더미 stub 영구(§4·[SPINE](SPINE.md) §0). |
 | ✅ | **#56 브리지 존 데이터 평면** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·entityFlowCoherent). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
-| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40·`async-core.js`)** + **실 Net·sim seam 브리지 진행(0441~49·`async-net.js`·스트림→fold→재정렬→디스패치→resync→복제수렴→배리어-free→exactly-once→lockstep 등가)**. 남은 것: capstone(0450)·그 뒤 실 `net.step` 배리어 *실제 치환*. |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40·`async-core.js`) + 실 Net·sim seam 브리지 in-proc 등가 ✅(0441~50·`async-net.js`·실 engine Net 배리어==배리어-free substrate==canonical·desync0·exactly-once)**. 남은 것: 실 `net.step` 배리어 *실제 치환*(async-net→run() 배선·후속 arc). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~50·desync 0) + **업스트림 실 UpClient(0421~30·#61·자기 plan intent 발신·자기 뷰 수신·다중 인터리빙·손실 수렴·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -79,8 +79,8 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~13) · **인스턴스 🟡 spawn/despawn+수요 자동 spawn/despawn+라우팅+이탈(0201~0222)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~63)·귓속말/파티(0071~106)·거래소(0107~40)·우편(0142~80) 동형(escrow/3leg/saga)·길드+금고(0181~0200·로스터/마스터십/공유 원장/영속/정합). 금고↔가방 escrow 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: advisory→executed SSOT #51→실 zone.js 브리지 #51b·#56 entity 데이터 평면·#9 직접 라우팅·실 host.js 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350·downstreamWorldCoherent). **#57 실 OS 프로세스 spawn+데이터 평면(0351~70·clusterCoherent) + #62 broker 측 상주 코디네이터(0371~80) + #65 placement 양방향 동기(0381~90) + #66/#67 tick placement-aware·orch 이중 권위(0391~400·unifiedCoherent) + #62 runMulti 복원력 코드 합류(0401~20·cluster-run.js 단일 진입점)**. **#4 async substrate(0431~40·async-core.js) + 실 Net·sim seam 브리지(0441~·async-net.js·run() 밖)**. orch 정리·도구 #43(0271) |
-| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay)→스냅샷 압축→복구→홉 신뢰→failover/N-replica quorum→윈도(0017~0062) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like 4차(0205~0260·write-through/bulk/SETNX/SETEX/prefix/coherent)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync barrier(0207~0228)**. 버스 영속 후속 |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지 in-proc 등가(0441~50·async-net·run() 밖)**. orch 정리·도구 #43(0271) |
+| 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay·스냅샷 압축·복구·홉 신뢰·failover/quorum·윈도 0017~62) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like(0205~60)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync(0207~28)**. 버스 영속 후속 |
 
 ---
 
@@ -166,3 +166,4 @@
 | [0447](step-0447.md) | #4 실 net.step 배리어 치환 7: async-net.driveAsyncReplicas — receive/tick 분리·독립 페이스 skew>0(비-lockstep)에도 전 복제 ==canonical | 통과(reg 0·spine OK) · netpace 5/5 skew12~28·desync 0 |
 | [0448](step-0448.md) | #4 실 net.step 배리어 치환 8: async-net.accountReplicas — 순열+손실 재구성 후 exactly-once 회계(complete·dups0·missing0)·digest==canonical | 통과(reg 0·spine OK) · netaccount 5/5 exactly-once |
 | [0449](step-0449.md) | #4 실 net.step 배리어 치환 9: async-net.runLockstepEngine — 실 engine Net 배리어 vs 배리어-free substrate 실 월드 등가(둘 다 ==canonical) | 통과(reg 0·spine OK) · netbarrier 5/5 배리어==배리어-free==canonical |
+| [0450](step-0450.md) | #4 실 net.step 배리어 치환 10·grand capstone: nete2ecap — 순열+손실+페이스→배리어==substrate==canonical·전복제 desync0·exactly-once·sound·skew>0·0441~0450 닫기 | 통과(reg 0·spine OK) · nete2ecap 5/5 |
