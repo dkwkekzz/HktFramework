@@ -1,3 +1,4 @@
+// HktInfra step-0451 — 진입점에 async-barrier(async-net substrate 를 실 run() net.step 배리어에 꽂는 #4 실제 치환 arc) 박스 등록(__p('async-barrier')). asyncBarrier OFF → run() 미호출 → reg 구조적 0.
 // HktInfra step-0441 — 진입점에 async-net(async-core substrate 를 실 Net 메시지·동결 sim seam 에 잇는 #4 배리어 치환 arc) 박스 등록(__p('async-net')). run() 경로 미호출 → reg 구조적 0.
 // HktInfra step-0431 — 진입점에 async-core(Lamport 논리 클럭·인과 정렬 substrate·#4 진짜 비동기) 박스 등록(__p('async-core')). run() 경로 미호출 → reg 구조적 0.
 // HktInfra step-0371 — 진입점에 cluster-coord(ClusterCoordinator·broker 측 제어 평면 상주·#62) 박스 등록(__p('cluster-coord')). run() 데이터 평면 미사용 → reg 0.
@@ -27,7 +28,7 @@ const __hktNet = Object.assign(
   __p('orch-placement'), __p('gateway'), __p('orchestrator'), __p('zone'), __p('instance'), __p('loginqueue'),
   __p('svc-inventory'), __p('svc-chat'), __p('svc-bus'), __p('svc-audit'), __p('svc-ranking'),
   __p('svc-presence-monitor'), __p('svc-presence'), __p('svc-whisper'), __p('svc-party'), __p('svc-mailbox'), __p('svc-exchange'), __p('svc-market'), __p('svc-mail'), __p('svc-mailfeed'), __p('svc-guild'), __p('svc-guildfeed'),
-  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('cluster-hostdriver'), __p('cluster-coord'), __p('async-core'), __p('async-net'), __p('topo-build'), __p('topology'),
+  __p('cache'), __p('worldlog'), __p('persist'), __p('client'), __p('metrics'), __p('cluster-hostdriver'), __p('cluster-coord'), __p('async-core'), __p('async-net'), __p('async-barrier'), __p('topo-build'), __p('topology'),
   { PUBLIC_ADDRS, DEFAULTS: __c.DEFAULTS, SUPPORTS });
 if (typeof module !== 'undefined' && module.exports) module.exports = __hktNet;
 if (typeof globalThis !== 'undefined') globalThis.HktNet = __hktNet;

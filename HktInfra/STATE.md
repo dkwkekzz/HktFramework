@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0451](step-0451.md) — **#4 실 net.step 배리어 실제 치환 1**: 신규 박스 `async-barrier.js` — async-net(in-proc 등가) substrate 를 **실 `run()` 전송 배선**에 꽂는 arc 시작. run() 이 매 tick net.step() 대신 부를 stepper seam(0451 투명 pass-through) + topo-run.js gated 배선(`opts.asyncBarrier` OFF→net.step() 그대로). run({asyncBarrier}) world/log == run({})(lockstep). OFF→reg 구조적 0.
-- **한 줄 상태**: reg ALL OK(asyncBarrier 미설정)·barpass 5/5(run({asyncBarrier}) world/log==lockstep)·async-barrier.js 2.3KB·spine ALL OK.
-- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452)→holdback 배달(0453)→전송 재정렬(0454)→손실 resync(0455)→무-resync 대조 발산(0456)→배리어-free 페이스(0457)→exactly-once(0458)→다중 존(0459)→grand capstone run() E2E(0460). 실 존 intent 적용 순서 무관→재정렬 월드 중립·substrate load-bearing=손실 복원+배리어-free. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
+- **닫힌 step**: [step-0452](step-0452.md) — **#4 실 net.step 배리어 실제 치환 2**: `async-barrier` stepper 가 net.step() 배달을 *인라인*(verbatim·같은 순서→world/log 불변) + **월드 입력**(zone enter/move/leave)에 **per-site Lamport 스탬프**(site=intent 원발신 sessionId/avatar·재정렬 없음·스탬프 배리어 내부 기록). run({asyncBarrier}) world/log==lockstep·stamped>0. OFF→reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·barstamp 5/5(world/log==lockstep·stamped244·sites4)·async-barrier.js 3.3KB·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→holdback 배달(0453)→전송 재정렬(0454)→손실 resync(0455)→무-resync 대조 발산(0456)→배리어-free 페이스(0457)→exactly-once(0458)→다중 존(0459)→grand capstone run() E2E(0460). 실 존 intent 적용 순서 무관→재정렬 월드 중립·substrate load-bearing=손실 복원+배리어-free. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 실 net.step 배리어 *실제 치환* arc(0451~0460)** — async-net(0441~0450·in-proc 등가) substrate 를 **실 `run()` 전송 배선**에 꽂는다. 신규 박스 `async-barrier.js`: run() 이 매 tick `net.step()`(중앙 lockstep 배리어) 대신 부를 stepper 가 *월드 입력*(gateway→zone enter/move/leave)을 async substrate(Lamport·holdback·resync)로 배달·그 외 메시지/onTick 그대로. stepper seam(0451 ✅)→월드입력 스탬프(0452)→holdback 배달(0453)→전송 재정렬(0454)→손실 resync(0455)→무-resync 대조(0456)→배리어-free(0457)→exactly-once(0458)→다중 존(0459)→grand capstone(0460). **핵심**: 실 존 per-tick intent 적용은 *순서 무관*(위치 가산·교차-avatar 카운터 없음)→재정렬 월드 중립·substrate load-bearing=손실 복원+배리어-free → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(lockstep). **매 step reg 구조적 0**(asyncBarrier OFF→run() 이 async-barrier 미생성·net.step() 그대로).
+> 🎯 **#4 실 net.step 배리어 *실제 치환* arc(0451~0460)** — async-net(0441~0450·in-proc 등가) substrate 를 **실 `run()` 전송 배선**에 꽂는다. 신규 박스 `async-barrier.js`: run() 이 매 tick `net.step()`(중앙 lockstep 배리어) 대신 부를 stepper 가 *월드 입력*(gateway→zone enter/move/leave)을 async substrate(Lamport·holdback·resync)로 배달·그 외 메시지/onTick 그대로. stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→holdback 배달(0453)→전송 재정렬(0454)→손실 resync(0455)→무-resync 대조(0456)→배리어-free(0457)→exactly-once(0458)→다중 존(0459)→grand capstone(0460). **핵심**: 실 존 per-tick intent 적용은 *순서 무관*(위치 가산·교차-avatar 카운터 없음)→재정렬 월드 중립·substrate load-bearing=손실 복원+배리어-free → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(lockstep). **매 step reg 구조적 0**(asyncBarrier OFF→run() 이 async-barrier 미생성·net.step() 그대로).
 > **설계 제약**: `opts.asyncBarrier` OFF(기본) → topo-run.js 가 ab 미생성·net.step() 경로 = baseline 비트 동일(reg 0). ON 은 새 모드만. substrate 원시는 async-core 재사용.
 
 **후속 백로그**: ⒜ #4 실 net.step 배리어 *실제 치환*(0441~0450 in-proc 등가 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
@@ -159,3 +159,4 @@
 | [0440](step-0440.md) | #4 진짜 비동기 10·grand capstone: asynce2ecap — M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once·0431~0440 닫기 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | [0451](step-0451.md) | #4 실 net.step 배리어 *실제* 치환 1: 신규 `async-barrier.js`·stepper seam(투명)+topo-run gated 배선·run({asyncBarrier}) world/log==lockstep·OFF→reg 구조적 0 | 통과(reg 0·spine OK) · barpass 5/5 world/log==lockstep |
+| [0452](step-0452.md) | #4 실 net.step 배리어 *실제* 치환 2: stepper 인라인 배달+월드 입력 per-site Lamport 스탬프·world/log==lockstep·stamped>0 | 통과(reg 0·spine OK) · barstamp 5/5 stamped244·sites4 |

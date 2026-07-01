@@ -1,9 +1,9 @@
-// HktInfra step-0451 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 1: 배리어 stepper seam 투명)
+// HktInfra step-0452 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 2: 월드 입력 per-site Lamport 스탬프)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `barpass`.
-//   더한 한 조각: 신규 박스 async-barrier.js — run() 이 매 tick net.step() 대신 부를 stepper seam(투명 pass-through) +
-//   topo-run.js gated 배선(opts.asyncBarrier OFF→net.step() 그대로=reg 0). run({asyncBarrier}) world/log == run({})(lockstep).
-//   검증: ⒜ `reg`(asyncBarrier 미설정→비트 동일). ⒝ `barpass` — run({asyncBarrier:true}) worldDigest/logDigest == run({}).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `barstamp`.
+//   더한 한 조각: async-barrier stepper 가 net.step() 배달을 인라인(같은 순서→world/log 불변) + 월드 입력(zone enter/move/leave)에
+//   per-site Lamport 스탬프 부여(site=intent 원발신 sessionId/avatar). 스탬프만 기록·재정렬 없음 → run({asyncBarrier}) world/log==lockstep.
+//   검증: ⒜ `reg`(asyncBarrier 미설정→net.step 비트 동일). ⒝ `barstamp` — world/log==lockstep·stamped>0·sites>1.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,22 +15,23 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest, logDigest } = kit.helpers;
 
-// step-0451 #4 실 치환 1 — barpass: run({asyncBarrier}) == run({})(lockstep)·투명 seam(world/log 불변).
-function barpass(seeds) {
-  console.log('== barpass (0451·#4 실 치환 1): 배리어 stepper seam 투명 — run({asyncBarrier}) world/log == run({}) lockstep. ==');
-  console.log('seed   | world== | log== | 판정');
+// step-0452 #4 실 치환 2 — barstamp: 월드 입력 스탬프·world/log==lockstep·stamped>0.
+function barstamp(seeds) {
+  console.log('== barstamp (0452·#4 실 치환 2): 월드 입력 per-site Lamport 스탬프 — world/log==lockstep·stamped>0. ==');
+  console.log('seed   | world== | log== | stamped | sites | 판정');
   for (const seed of seeds) {
     const base = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true };
     const off = NET.run({ ...base });
     const on = NET.run({ ...base, asyncBarrier: true });
     const wEq = worldDigest(off) === worldDigest(on);
     const lEq = logDigest(off) === logDigest(on);
-    const ok = check(wEq && lEq, `seed ${seed}: world ${wEq}·log ${lEq}`);
-    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(lEq ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+    const st = on.asyncBarrier || { stamped: 0, sites: 0 };
+    const ok = check(wEq && lEq && st.stamped > 0 && st.sites > 1, `seed ${seed}: world ${wEq}·log ${lEq}·stamped ${st.stamped}·sites ${st.sites}`);
+    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(lEq ? 'Y' : 'N', 5)} | ${pad(st.stamped, 7)} | ${pad(st.sites, 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['barpass'] = barpass;
-kit.ORDER.splice(1, 0, 'barpass');
+kit.MODES['barstamp'] = barstamp;
+kit.ORDER.splice(1, 0, 'barstamp');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
