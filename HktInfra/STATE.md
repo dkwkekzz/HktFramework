@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0465](step-0465.md) — **#4 완전 async 전환 5 — 유계 resync 증명**: `mzbound` — `async-barrier.js` 에 deferSpan 회계(maxSpan·deferN·horizon) 노출. 명제 `maxSpan < horizon` 성립(3<4·deferN 44~103) → interior move 만 defer 하므로 재배달까지 엔티티가 이주 경계에 못 닿음 = 이주 전 유계 resync. barrier ON 회계만 → reg 0.
-- **한 줄 상태**: reg ALL OK·mzbound 5/5(maxSpan3<horizon4·deferN44~103·world==lockstep)·spine ALL OK.
+- **닫힌 step**: [step-0466](step-0466.md) — **#4 완전 async 전환 6 — 가드 load-bearing 대조**: `mzguardctl` — `async-barrier.js` 에 `cfg.mzGuard` 토글(기본 ON) 추가. 같은 다중 존 결합 섭동을 가드 ON→world==lockstep(수렴)·OFF(우회)→발산 으로 대조 → interior 유계 resync 가드가 load-bearing(0455 무-resync 대조의 다중 존 판). OFF→net.step reg 0.
+- **한 줄 상태**: reg ALL OK·mzguardctl 5/5(가드 ON 수렴 && OFF 발산)·spine ALL OK.
 - **다음**: 🎯 **#4 완전 async 전환 sub-arc(0461~0470) — 다중 존 이주 하 유계 resync**: 발산 포착(0461 ✅)→ownerZone+interior loss 가드(0462)→delay 가드(0463)→결합(0464)→유계 증명(0465)→가드 대조(0466)→이주 전 유계 resync 명제(0467)→exactly-once(0468)→다운스트림 수렴(0469)→capstone(0470). **핵심 메커니즘(검증됨)**: barrier 가 소유 존을 peek 해 *wrap-aware interior*(엔티티가 region 양 끝에서 horizon=max(resyncDelay,delayMax)+1 이상 떨어짐)인 move 만 loss/delay 로 흡수 → deferred move 가 엔티티가 이주 경계에 닿기 전 재배달 = 유계 resync → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(grid≥24·5/5·resync114+/delay206+). **매 step reg 구조적 0**(asyncBarrier OFF→net.step).
 
 ---
@@ -155,3 +155,4 @@
 | [0463](step-0463.md) | #4 완전 async 전환 3(delay 가드): interior 유계 resync 가드를 delay(지연 jitter) 경로로 확장 → 다중 존 delay-only world==lockstep(loss·delay 둘 다 게이트) | 통과(reg 0·spine OK) · mzdelayguard 5/5 same·handoff4~15·delayed27~60 |
 | [0464](step-0464.md) | #4 완전 async 전환 4(결합+exactly-once): loss+delay 동시 섭동 다중 존 → world==lockstep + moveDup0(유계 resync 로 유실·중복 0). 코드 무변경 | 통과(reg 0·spine OK) · mzresync 5/5 same·moveDup0·r18~46·d26~57 |
 | [0465](step-0465.md) | #4 완전 async 전환 5(유계 증명): async-barrier deferSpan 회계(maxSpan·deferN·horizon) 노출 — maxSpan<horizon 이면 이주 전 확실 재배달. barrier ON 회계만 | 통과(reg 0·spine OK) · mzbound 5/5 maxSpan3<horizon4·deferN44~103 |
+| [0466](step-0466.md) | #4 완전 async 전환 6(가드 대조): `cfg.mzGuard` 토글 — 가드 ON→world==lockstep·OFF(우회)→발산 대조로 interior 유계 resync 가드 load-bearing 확증 | 통과(reg 0·spine OK) · mzguardctl 5/5 ON수렴&&OFF발산 |
