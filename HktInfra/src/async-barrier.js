@@ -1,5 +1,5 @@
 'use strict';
-// HktInfra async-barrier — #4 실 net.step 배리어 *실제* 치환 arc(0451~). async-net(0441~0450)이 실 Net 메시지·실 sim seam
+// HktInfra async-barrier — #4 실 net.step 배리어 *실제* 치환 arc(0451~) + 완전 async 전환 다중 존 유계 resync 가드(0462~). async-net(0441~0450)이 실 Net 메시지·실 sim seam
 //   위에서 배리어 치환 *in-proc 등가*를 증명한 뒤, 이 박스는 그 substrate 를 **실 `run()` 전송 배선**에 꽂는다:
 //   run() 의 매 tick `net.step()`(중앙 lockstep 배리어) 대신 이 stepper 가 *월드 입력*(gateway→zone enter/move/leave)을
 //   async substrate(Lamport 스탬프·holdback·resync)로 배달하고, 그 외 메시지·onTick 은 그대로. **`opts.asyncBarrier` OFF →
@@ -38,6 +38,9 @@ function makeAsyncBarrier(net, cfg) {
   let stamped = 0, held = 0, resyncs = 0, lost = 0;
   // step-0456 — exactly-once 회계: move 를 존에 *정확히 한 번* 배달했나(손실 하 복원해도 중복 0·유실 0).
   let moveDeliv = 0, moveDup = 0;    // moveDeliv=고유 배달·moveDup=이미 배달된 move 재배달 시도(dedup skip)
+  let maxSpan = 0, deferN = 0;       // step-0465 — 유계 resync 회계: deferSpan=재배달 tick − defer tick(loss=resyncDelay·delay=1..delayMax). maxSpan < horizon 이면 이주 전 확실 재배달.
+  const pendingMoves = new Map();    // step-0467 — 현재 미결(defer 됐으나 미재배달) move id → avatar. 이주(handoff) 관측 시 해당 avatar 미결 move 있으면 위반.
+  let handoffsObs = 0, deferredAcrossHandoff = 0;   // 이주 전 유계 resync 명제: deferredAcrossHandoff==0(이주 경계에 미결 deferred move 없음).
   const isWorldInput = m => /^zone/.test(m.to) && m.payload && (m.payload.type === 'enter' || m.payload.type === 'move' || m.payload.type === 'leave');
   const siteOf = m => (m.payload && (m.payload.sessionId || m.payload.avatar)) || m.from;
   function stamp(m) { const s = siteOf(m); clocks[s] = (clocks[s] || 0) + 1; stamped++; return { m, site: s, lc: clocks[s] }; }
@@ -55,11 +58,24 @@ function makeAsyncBarrier(net, cfg) {
   //   entity 존재 요구) → 임의 재정렬은 월드 파괴. substrate 의 일 = 도착이 흐트러져도 *발신 순서(m.id)를 재구성*해 배달 → lockstep
   //   과 같은 순서 = 같은 월드. 한 tick 큐는 이미 발신 순서라 이 정렬은 항등(투명) — load-bearing 은 손실 복원(move·0455).
   const cmp = (a, b) => a.m.id - b.m.id;
+  // ── step-0462 (#4 완전 async 전환) — wrap-aware interior 유계 resync 가드 ──
+  //   0451~0460 은 loss/delay 를 *단일 존*에서만 흡수(가환·무이주)했다. 다중 존에선 이주 타이밍이 바뀌면 lockstep 의
+  //   move-drop 집합이 달라져 발산(0461·#72). 해법: barrier 가 소유 존을 peek 해 *interior* 인 move 만 loss/delay 로 흡수한다.
+  //   interior = 엔티티가 자기 region 양 끝(경계 + wrap 경계 둘 다)에서 horizon 이상 떨어짐 → deferred move 가 재배달되기 전
+  //   엔티티가 이주 경계에 닿을 수 없다(이주 전 유계 resync). 그래서 이주에 간섭하지 않고 world==lockstep 보존.
+  //   ownerZone·region 접근은 barrier ON 경로에서만(OFF→net.step·reg 0). loss/resync(0462)·delay(0463) 둘 다 interior 게이트.
+  const horizon = Math.max(resyncDelay, delayMax) + 1;   // deferred move 는 horizon tick 내 재배달(resync/delay 상한)
+  function ownerZone(av) { for (const a of net.actors.values()) if (a && a.ents && typeof a.isAuthority === 'function' && a.isAuthority() && a.ents.has(av)) return a; return null; }
+  const guardOn = C.mzGuard !== false;   // step-0466 — 유계 resync 가드 load-bearing 대조 토글(기본 ON). false=우회(전 move 흡수→발산).
+  function interior(wm) { if (!guardOn) return true; const z = ownerZone(wm.payload.avatar); if (!z) return false; const e = z.ents.get(wm.payload.avatar); return (e.x - z.region.lo) >= horizon && (z.region.hi - 1 - e.x) >= horizon; }
   return {
     step() {
       net.tick++;
       const due = net.queue.get(net.tick) || [];
       net.queue.delete(net.tick);
+      // step-0467 — 이주(handoff) 관측: 이 tick 에 배달될 handoff 의 avatar 가 미결 deferred move 를 갖고 있으면 위반(이주 경계 걸침).
+      //   유계 resync 가 정상이면 defer 는 항상 이주 전 재배달돼 이 카운터는 0(이주 전 유계 resync 명제).
+      for (const m of due) if (m.payload && m.payload.type === 'handoff') { handoffsObs++; for (const av of pendingMoves.values()) if (av === m.payload.avatar) { deferredAcrossHandoff++; break; } }
       // step-0453 — 월드 입력을 holdback 버퍼로 모아 *발신 순서(m.id)*로 방출(정전 순서 재구성)·그 외는 원순서. 정상 run() 에선
       //   큐가 이미 발신 순서라 항등 → world/log 불변(투명·배리어 기계가 실 run() 전송에 실동작). 손실/지연 복원은 0455~.
       const world = [];
@@ -70,22 +86,23 @@ function makeAsyncBarrier(net, cfg) {
         if (!isWorldInput(m)) { deliverMsg(m); continue; }
         const wm = world[wi++].m; held++;
         // step-0454 — move 손실+resync: move 만 확률 드롭(재전송분·enter/leave 는 무손실)·resync 로 resyncDelay tick 뒤 재enqueue.
-        if (lrnd && wm.payload.type === 'move' && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
-          if (doResync) { resyncedIds.add(wm.id); net._enqueue(net.tick + resyncDelay, wm); resyncs++; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달)
+        if (lrnd && wm.payload.type === 'move' && interior(wm) && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
+          if (doResync) { resyncedIds.add(wm.id); pendingMoves.set(wm.id, wm.payload.avatar); net._enqueue(net.tick + resyncDelay, wm); resyncs++; deferN++; if (resyncDelay > maxSpan) maxSpan = resyncDelay; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달·span=resyncDelay)
           else lost++;                                                             // 무-resync 대조(0455)
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
         }
         // step-0457 — 교차-tick 지연: move 를 1..delayMax tick 늦게 재enqueue(재지연 없음·past-end 방지). 손실 아님.
-        if (drnd && wm.payload.type === 'move' && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
-          delayedIds.add(wm.id); delayed++; net._enqueue(net.tick + 1 + (drnd() % delayMax), wm); continue;
+        if (drnd && wm.payload.type === 'move' && interior(wm) && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
+          const dspan = 1 + (drnd() % delayMax); delayedIds.add(wm.id); pendingMoves.set(wm.id, wm.payload.avatar); delayed++; deferN++; if (dspan > maxSpan) maxSpan = dspan; net._enqueue(net.tick + dspan, wm); continue;
         }
         if (wm.payload.type === 'move') { if (net.delivered.has(wm.id)) moveDup++; else moveDeliv++; }   // 회계: 고유 배달 vs 중복
+        if (pendingMoves.has(wm.id)) pendingMoves.delete(wm.id);   // step-0467 — 재배달 완료 → 미결 해제
         deliverMsg(wm);
       }
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, deferN, maxSpan, horizon, handoffsObs, deferredAcrossHandoff, pendingAtEnd: pendingMoves.size, sites: Object.keys(clocks).length }; },
   };
 }
 

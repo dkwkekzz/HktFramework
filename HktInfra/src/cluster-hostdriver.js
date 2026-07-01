@@ -112,6 +112,65 @@ function makeClusterHostDriver() {
     },
     // step-0370 — 실 데이터 평면 grand capstone 술어: 실 cluster 전체가 in-proc 권위와 한 몸인가(clusterDesync==0). 실 host.js 프로세스/소켓 데이터 평면이 SPINE §5 수렴을 실 프로세스 경계 넘어 만족. #57 실 데이터 평면 sub-arc(0361~0370) 종합.
     async clusterCoherent(orch, cluster) { return (await this.clusterDesync(orch, cluster)) === 0; },
+    // ── step-0471 (#70 실 host.js child 경계 업스트림) — 실 UpClient 의 *발신* intent 가 실 프로세스 경계를 넘어 실 host.js zone 에 닿는다. ──
+    //   #61(0421~0430)은 UpClient 를 *in-proc* 액터로 세웠고(같은 프로세스 net), 다운스트림은 0361~0370 이 실 host.js 데이터 평면을
+    //   집행했다. #70 = 그 업스트림 짝 — UpClient(부모/broker 측)의 게이트웨이-형 intent(zoneEnter/zoneMove/zoneLeave)를 *실 host.js
+    //   자식 프로세스의 존*으로 소켓 배달한다. 게이트웨이가 하던 번역(zoneEnter→enter…)을 이 seam 이 재현한다.
+    //   intentToZoneMsg: 게이트웨이-형 intent → 존 msg(net.step 이 존에 배달하던 형). from='gateway'(존 입장 불변). step-0471=enter 만(move/leave 는 0472/0476).
+    intentToZoneMsg(op, from = 'gateway') {
+      if (op.type === 'zoneEnter') return { to: op.zoneId, from, payload: { type: 'enter', sessionId: 's:' + op.avatar, avatar: op.avatar } };
+      if (op.type === 'zoneMove') return { to: op.zoneId, from, payload: { type: 'move', avatar: op.avatar, d: { dx: op.dx, dy: op.dy } } };   // step-0472 — 이동 intent → 존 move(존 onTick 이 pending 적용).
+      if (op.type === 'zoneLeave') return { to: op.zoneId, from, payload: { type: 'leave', sessionId: 's:' + op.avatar, avatar: op.avatar } };   // step-0476 — 접속 종료 intent → 존 leave(entity 제거·세션 정리).
+      return null;
+    },
+    // step-0471 — 실 host.js 경계 업스트림 배달: intent 1발을 존 msg 로 번역해 실 host.js deliver(zone.onMsg) 로 보낸다. 미번역(null)이면 배달 0.
+    async deliverIntent(cluster, host, op) {
+      const m = this.intentToZoneMsg(op);
+      if (!m) return null;
+      await cluster.rpc(host, { cmd: 'deliver', items: [{ gi: 0, m }] });
+      return m;
+    },
+    // step-0473 (#70) — egress 뷰를 실 UpClient 로 되먹임: 실 host.js 존 tick 이 낸 send 중 게이트웨이-향 view/view_delta 를 골라
+    //   해당 클라(자기 세션 's:'+avatar)의 onMsg 로 배달한다. 다운스트림 짝(0333 게이트웨이→클라 라우팅)의 경계 업스트림 판 —
+    //   존→(소켓)→게이트웨이→실 UpClient. 반환=배달한 뷰 수. 세션 미지정 뷰(sessionId 무)는 all 클라.
+    feedViews(sends, upclient) {
+      let n = 0;
+      const sid = 's:' + upclient.avatar;
+      for (const s of sends) {
+        if (s.to !== 'gateway' || !s.payload || !/^view/.test(s.payload.type)) continue;
+        if (s.payload.sessionId && s.payload.sessionId !== sid) continue;
+        upclient.onMsg({ payload: s.payload }); n++;
+      }
+      return n;
+    },
+    // step-0474 (#70) — 실 host.js 존의 권위 AOI 서명: snapshot 의 존 entity 위치를 UpClient.seenSig 와 같은 형식('id@x,y' 정렬)으로.
+    //   경계 넘어 수렴 판정(upclient.seenSig()==authSig ⇒ desync 0)의 권위 기준(실 프로세스의 실 월드 상태·in-proc 권위 대신).
+    async upstreamAuthSig(cluster, host, zone) {
+      const s = await cluster.rpc(host, { cmd: 'snapshot' });
+      const ents = (s.snap[zone] && s.snap[zone].ents) || [];
+      return ents.map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';');
+    },
+    // step-0479 (#70) — 실 host.js 존의 한 entity 위치 읽기(업스트림 회계용). 미존재면 null.
+    async zoneEntity(cluster, host, zone, id) {
+      const s = await cluster.rpc(host, { cmd: 'snapshot' });
+      const ents = new Map((s.snap[zone] && s.snap[zone].ents) || []);
+      return ents.get(id) || null;
+    },
+    // step-0475 (#70) — 실 UpClient E2E 경계 구동: 매 tick ⒜ upclient.onTick 발신 intent 를 capturing net 으로 포착·경계 배달
+    //   ⒝ 그 존을 실 host.js tick(move 적용+뷰 산출) ⒞ egress 뷰를 upclient 로 되먹임. 다중 tick plan 을 경계 넘어 완결(0471~0474 합).
+    //   upclient 는 zone → host 매핑(zoneOf: zone→host)으로 라우팅. 반환 = 발신 intent 총수(applied).
+    async driveUpstream(cluster, upclients, ticks, zoneOf) {
+      const host = z => (zoneOf ? zoneOf(z) : cluster.hostIds[0]);
+      const caps = new Map();
+      for (const uc of upclients) { caps.set(uc, []); uc.net = { send: (f, to, p) => caps.get(uc).push(p) }; }
+      let applied = 0;
+      const zones = new Set(upclients.map(uc => uc.zoneId));
+      for (let t = 1; t <= ticks; t++) {
+        for (const uc of upclients) { caps.get(uc).length = 0; uc.onTick(t); for (const op of caps.get(uc)) { await this.deliverIntent(cluster, host(uc.zoneId), op); applied++; } }
+        for (const z of zones) { const sends = await this.tickZone(cluster, host(z), z, t); for (const uc of upclients) if (uc.zoneId === z) this.feedViews(sends, uc); }
+      }
+      return applied;
+    },
   };
 }
 
