@@ -9,16 +9,16 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0440](step-0440.md) — **#4 진짜 비동기 10·grand capstone**: 검증 전용 `asynce2ecap` — M 복제 순열+손실 도착을 각자 resync+holdback 재구성 → clock condition 위반 0·전 복제 desync 0(정전)·인과 존중·exactly-once·손실 발생. **#4 진짜 비동기 in-proc substrate sub-arc(0431~0440) 닫기** — 중앙 lockstep 없이 인과 복원으로 결정론 수렴하는 기계 완성. 코드 무변경 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK(async-core run() 미호출)·asynce2ecap 5/5(clock0·전복제 desync0·exactly-once)·async-core.js 16.0KB·박스 >30KB 0개·spine ALL OK.
-- **다음**: 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440 ✅ 닫힘)**: Lamport 클럭(0431)·send/recv 인과(0432)·전순서(0433)·holdback(0434)·인과 배달(0435)·수렴 desync0(0436)·배리어-free(0437)·손실 resync(0438)·회계(0439)·grand capstone(0440). async-core 는 run() 밖 substrate → 매 step reg 구조적 0. **후속(권위 infra-review)**: ⒜ #4 substrate 를 실 `net.step` lockstep 배리어 치환에 배선(다음 큰 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미. 🔎 **0431~0440 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0441](step-0441.md) — **#4 실 net.step 배리어 치환 1**: 신규 박스 `async-net.js` — async-core(0431~0440·추상 이벤트) substrate 를 **실 engine Net 메시지 형태**(client→zone intent)·동결 sim seam 에 잇는 arc 시작. `worldIntentStream` — 다중 client 가 각자 Lamport 클럭으로 실 Net-형 intent 발신 + program-order 간선. run() 미호출 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK(async-net run() 미호출)·netintent 5/5(lc단조·clock0·재현)·async-net.js 2.9KB·박스 >30KB 0개·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 진짜 비동기 substrate sub-arc(0431~0440)** — 0421~0430 양방향 실 클라 닫힌 뒤 infra-review 1순위 권고. 오늘 결정론은 `net.step()` 중앙 lockstep 배리어가 떠받친다(모든 참여자 동기 tick). #4 는 이를 해제하되 결정론(같은 이벤트 multiset→같은 수렴)을 지킨다 — 메시지가 *물리적으로 다른 순서/손실*로 도착해도 인과(happens-before)를 복원해 *결정론 전순서*로 적용해 수렴. 신규 박스 `async-core.js` 가 그 기계를 든다: Lamport 클럭(0431 ✅)→send/recv 인과(0432)→전순서(0433)→holdback(0434)→인과 배달(0435)→수렴 desync0(0436)→배리어-free(0437)→손실 resync(0438)→회계(0439)→capstone(0440). DownClient/UpClient 처럼 *in-proc substrate 먼저*, 실 net.step 치환은 후속 arc. **매 step reg 구조적 0**(async-core run() 미호출).
-> **설계 제약**: spine 게이트는 `verify.js all`. async-core 는 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 export 1줄만 추가). 새 모드는 async-core 를 직접 구동(시드 PRNG mulberry32·uint32 반환·정규화 주의).
+> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442)→holdback 재정렬(0443)→실 actor.onMsg 디스패치(0444·net.step 배달 절반 치환)→손실 resync(0445)→M 복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
+> **설계 제약**: spine 게이트는 `verify.js all`. async-net 은 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 require 1줄만 추가). substrate 원시는 async-core 재사용(복제 금지)·sim fold 는 engine DummySimCore(동결 seam) 사용.
 
 **후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
 
@@ -33,7 +33,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소: enter/move/leave·런타임 tick·migrate 무손실(행동적)·hostdown 소실·stop 폐기·단일 소유·정합·graceful census 보존·capstone(entityFlowCoherent·entityConserved). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
-| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~0440·`async-core.js`)**: Lamport 클럭·인과 규칙·전순서·holdback·인과 배달·수렴 desync0·배리어-free·손실 resync·회계·capstone — 순열/손실에도 인과 복원→결정론 수렴(lockstep 없이). 남은 것: 실 `net.step` 배리어 치환 배선(후속 arc). |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~0440·`async-core.js`)** + **실 Net 메시지·sim seam 브리지 진행(0441~·`async-net.js`)**: 추상 substrate(Lamport·holdback·전순서·resync·회계)를 실 engine Net 메시지 형태·동결 DummySimCore 에 잇는 중(0441 스트림+스탬프 ✅). 남은 것: sim fold/디스패치/복제 수렴/등가(0442~0450)·그 뒤 실 `net.step` 배리어 *실제 치환*. |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~0350·desync 0) + **업스트림 실 UpClient(0421~0430·#61·자기 plan 으로 intent 발신·자기 뷰 수신·다중 클라 인터리빙·손실 하 수렴·생애주기/보존·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝)·예측/롤백은 뷰의 것(더미 충족). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -157,3 +157,4 @@
 | [0438](step-0438.md) | #4 진짜 비동기 8: withSseq·makeResyncSite(연속분만 holdback·hole 감지·재전송) — 손실 하 수렴 | 통과(reg 0·spine OK) · asynclossy 5/5 손실→재전송→desync 0 |
 | [0439](step-0439.md) | #4 진짜 비동기 9: accountDelivered(emitted/applied/dups/missing/complete) — 순열+손실 exactly-once·다이제스트 불변 | 통과(reg 0·spine OK) · asyncaccount 5/5 complete·digInv |
 | [0440](step-0440.md) | #4 진짜 비동기 10·grand capstone: asynce2ecap — M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once·0431~0440 닫기 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
+| [0441](step-0441.md) | #4 실 net.step 배리어 치환 1: 신규 `async-net.js`·worldIntentStream — 다중 client 실 Net-형 intent+Lamport 스탬프·program 간선·run() 밖 reg 구조적 0 | 통과(reg 0·spine OK) · netintent 5/5 lc단조·clock0·재현 |
