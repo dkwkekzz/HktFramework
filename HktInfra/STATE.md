@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0446](step-0446.md) — **#4 실 net.step 배리어 치환 6**: `async-net.convergeReplicas` — M 복제 존이 각자 다른 순열+손실 도착을 makeZoneResync 재구성·동결 sim fold → 배리어 없이도 전 복제 실 월드 digest 서로 같고(desync 0) == canonical. run() 미호출 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·netconverge 5/5(전복제일치·==canonical·desync 0)·async-net.js 9.0KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0447](step-0447.md) — **#4 실 net.step 배리어 치환 7**: `async-net.driveAsyncReplicas` — M 복제가 receive/tick 분리·서로 다른 페이스(1·2·3보)로 굴러 진행 skew>0(비-lockstep)이어도 최종 실 월드 digest == canonical. 중앙 배리어(동기 tick) 제거 후에도 페이스 무관 desync 0. run() 미호출 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·netpace 5/5(skew12~28·==canonical·desync 0)·async-net.js 10.5KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445 ✅)→M 복제 수렴 desync0(0446 ✅)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
+> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445 ✅)→M 복제 수렴 desync0(0446 ✅)→배리어-free 진행(0447 ✅)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
 > **설계 제약**: spine 게이트는 `verify.js all`. async-net 은 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 require 1줄만 추가). substrate 원시는 async-core 재사용(복제 금지)·sim fold 는 engine DummySimCore(동결 seam) 사용.
 
 **후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
@@ -30,23 +30,23 @@
 
 | 마커 | 격차 | 계층 | 상태 |
 |---|---|---|---|
-| ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
-| ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·capstone entityFlowCoherent). |
+| ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | 결정론 시뮬 *내부 구현*은 범위 밖 — `ISimCore` 뒤 블랙박스·HktGameplay 소관·더미 stub 영구(§4·[SPINE](SPINE.md) §0). |
+| ✅ | **#56 브리지 존 데이터 평면** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·entityFlowCoherent). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
 | 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~0440·`async-core.js`)** + **실 Net 메시지·sim seam 브리지 진행(0441~·`async-net.js`)**: 추상 substrate(Lamport·holdback·전순서·resync·회계)를 실 engine Net 메시지 형태·동결 DummySimCore 에 잇는 중(0441 스트림+스탬프 ✅). 남은 것: sim fold/디스패치/복제 수렴/등가(0442~0450)·그 뒤 실 `net.step` 배리어 *실제 치환*. |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~50·desync 0) + **업스트림 실 UpClient(0421~30·#61·자기 plan intent 발신·자기 뷰 수신·다중 인터리빙·손실 수렴·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
-| 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
-| 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0029·0085·0184). 버스 라우팅 영속 0. |
+| 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~61). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
+| 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0184). 버스 라우팅 영속 0. |
 | 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅** | 서비스 | 거래소(0107~40)·우편(0142~80)·길드(0181~90·로스터/마스터십/이양)·길드 금고(0191~0200·공유 원장/예치/인출/영속/정합) 동형. 금고↔가방 escrow 후속. |
-| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
-| 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
+| 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
+| 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
 
-> **✅ 해소된 격차** — 전문은 §7 INDEX·각 `step-NNNN.md`. 묶음: 골격~전송(01~04)·AOI~failover(05~13)·게임서비스+영속+quorum(14~32)·버스(33~63)·프레즌스/귓속말/파티(64~106)·거래소/우편(107~180)·길드(181~).
+> **✅ 해소된 격차** — 전문은 §7 INDEX·각 `step-NNNN.md`. 묶음: 골격~전송·AOI~failover·게임서비스+영속+quorum·버스·프레즌스/귓속말/파티·거래소/우편·길드(01~200).
 
-> **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5): 매 step은 verify 4기둥 + 척추 5항(①신성한 tick ②결정론 코어 ③권위 단일 소유 ④은닉·단일 연결 ⑤headless·원격 검증). 분리 기준: *존 tick 과 같은 박자로 돌아야 하는가?*
+> **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5): 매 step은 verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 과 같은 박자로 돌아야 하는가?*
 
 ---
 
@@ -163,3 +163,4 @@
 | [0444](step-0444.md) | #4 실 net.step 배리어 치환 4: async-net.makeZoneActor·deliverToActor — net.step 배달 절반 치환·실 actor.onMsg→동결 sim·상태==canonical | 통과(reg 0·spine OK) · netdispatch 5/5 actor==canonical·applied40 |
 | [0445](step-0445.md) | #4 실 net.step 배리어 치환 5: async-net.makeZoneResync — per-client sseq gap-resync·실 전송 손실 복원·손실+재정렬에도 simFold 수렴 | 통과(reg 0·spine OK) · netlossy 5/5 수렴·gaps≥10·resyncs≥4 |
 | [0446](step-0446.md) | #4 실 net.step 배리어 치환 6: async-net.convergeReplicas — M 복제 존 상이 순열+손실→배리어 없이 전 복제 실 월드 desync 0·==canonical | 통과(reg 0·spine OK) · netconverge 5/5 desync 0 |
+| [0447](step-0447.md) | #4 실 net.step 배리어 치환 7: async-net.driveAsyncReplicas — receive/tick 분리·독립 페이스 skew>0(비-lockstep)에도 전 복제 ==canonical | 통과(reg 0·spine OK) · netpace 5/5 skew12~28·desync 0 |

@@ -129,6 +129,24 @@ function convergeReplicas(events, M, seed, avatars, nsites, { lossy = true } = {
   return digests;
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas };
+// ── step-0447 — 배리어-free 진행: 독립 페이스 복제 존 ─────────────────────────
+//   0446 복제는 도착 순열은 달라도 *한 번에 전부 재구성*(암묵 동기)했다. net.step 배리어의 본질은 모든 참여자를 *한 동기 tick*
+//   으로 묶는 것 → 배리어-free 는 각 복제가 *독립 속도*로 전진해야 한다. driveAsyncReplicas: M 복제가 receive(도착 버퍼)와
+//   tick(진행 1보)을 분리(async-core.makeAsyncSite 재사용)하고 서로 다른 페이스(1·2·3보/라운드)로 굴러 → 진행 skew>0(비-lockstep).
+//   holdback 안정성은 페이스 무관 → 최종 실 월드 digest 는 진행 입도에 무관(전 복제 == canonical). 중앙 배리어 없이 desync 0.
+function driveAsyncReplicas(events, M, seed, avatars, nsites) {
+  const reps = [];
+  for (let m = 0; m < M; m++) reps.push({ site: AC.makeAsyncSite(nsites), pace: 1 + (m % 3), arr: _interleave(events, nsites, mulberry32((seed ^ (0xE000 + m * 163)) >>> 0)), i: 0 });
+  let progressing = true, maxSkew = 0;
+  while (progressing) {
+    progressing = false;
+    for (const r of reps) for (let p = 0; p < r.pace; p++) { if (r.i < r.arr.length) { r.site.receive(r.arr[r.i++]); progressing = true; } r.site.tick(); }
+    const applied = reps.map(r => r.site.appliedN());
+    maxSkew = Math.max(maxSkew, Math.max(...applied) - Math.min(...applied));
+  }
+  return { digests: reps.map(r => simFold(r.site.finish(), seed, avatars).digest), skew: maxSkew };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

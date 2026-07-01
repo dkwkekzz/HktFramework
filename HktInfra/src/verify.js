@@ -1,9 +1,9 @@
-// HktInfra step-0446 — 헤드리스 검증 (#4 실 net.step 배리어 치환 6: M 복제 존 수렴 desync 0)
+// HktInfra step-0447 — 헤드리스 검증 (#4 실 net.step 배리어 치환 7: 배리어-free 독립 페이스 복제)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netconverge`.
-//   더한 한 조각: async-net.convergeReplicas — M 복제 존이 각자 다른 순열+손실 도착을 makeZoneResync 재구성·동결 sim fold →
-//   배리어 없이도 전 복제 digest 서로 같고(desync 0) == canonical(totalOrder). async-net 은 run() 밖 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `netconverge` — 전 복제 desync 0·== canonical.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netpace`.
+//   더한 한 조각: async-net.driveAsyncReplicas — M 복제가 receive/tick 분리·서로 다른 페이스(1·2·3보)로 굴러 진행 skew>0
+//   (비-lockstep)이어도 최종 실 월드 digest == canonical(전 복제). 중앙 배리어 없이 desync 0. async-net 은 run() 밖 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `netpace` — 진행 skew>0·전 복제 == canonical·desync 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,25 +15,25 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad } = kit.helpers;
 
-// step-0446 #4 배리어 치환 6 — netconverge: M 복제 존 상이 도착 → 전 복제 desync 0·==canonical.
-function netconverge(seeds) {
-  console.log('== netconverge (0446·#4 배리어 치환 6): M 복제 존 상이 순열+손실 → 배리어 없이 전 복제 desync 0·==canonical. ==');
-  console.log('seed   | 이벤트 | 복제 | 전복제일치 | ==canonical | desync | 판정');
+// step-0447 #4 배리어 치환 7 — netpace: 독립 페이스 복제 진행 skew>0·전 복제 ==canonical·desync 0.
+function netpace(seeds) {
+  console.log('== netpace (0447·#4 배리어 치환 7): 배리어-free 독립 페이스 복제 — 진행 skew>0·전 복제 ==canonical·desync 0. ==');
+  console.log('seed   | 이벤트 | 복제 | 진행skew | ==canonical | desync | 판정');
   for (const seed of seeds) {
     const C = 4, M = 4;
     const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: 40 });
     const events = NET.withSseq(s.events);
     const canonical = NET.simFold(NET.totalOrder(events), seed, s.avatars).digest;
-    const digests = NET.convergeReplicas(events, M, seed, s.avatars, C, { lossy: true });
+    const { digests, skew } = NET.driveAsyncReplicas(events, M, seed, s.avatars, C);
     const allEq = digests.every(d => d === digests[0]);
     const eqCanon = digests[0] === canonical;
     const desync = (allEq && eqCanon) ? 0 : 1;
-    const ok = check(allEq && eqCanon, `seed ${seed}: allEq ${allEq}·eqCanon ${eqCanon}`);
-    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(M, 4)} | ${pad(allEq ? 'Y' : 'N', 10)} | ${pad(eqCanon ? 'Y' : 'N', 11)} | ${pad(desync, 6)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(allEq && eqCanon && skew > 0, `seed ${seed}: skew ${skew}·allEq ${allEq}·eqCanon ${eqCanon}`);
+    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(M, 4)} | ${pad(skew, 8)} | ${pad(eqCanon ? 'Y' : 'N', 11)} | ${pad(desync, 6)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['netconverge'] = netconverge;
-kit.ORDER.splice(1, 0, 'netconverge');
+kit.MODES['netpace'] = netpace;
+kit.ORDER.splice(1, 0, 'netpace');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
