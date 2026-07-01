@@ -1,10 +1,10 @@
-// HktInfra step-0468 — 헤드리스 검증 (#4 완전 async 전환 — exactly-once 완전 회계)
+// HktInfra step-0469 — 헤드리스 검증 (#4 완전 async 전환 — 다운스트림 뷰 수렴 desync 0)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzexactly`.
-//   더한 한 조각: `async-barrier.js` 에 `pendingAtEnd`(종료 시 미결 deferred move 수) 노출. exactly-once 완전 회계:
-//   moveDup==0(중복 배달 0)·lost==0(resync ON→유실 0)·pendingAtEnd==0(모든 deferred move 결국 배달)·moveDeliv>0 →
-//   유계 resync 가 redirect 없이 *정확히 한 번* 배달(유실·중복·미결 0). asyncBarrier OFF → net.step reg 0.
-//   검증: ⒜ `reg`. ⒝ `mzexactly` — moveDup0·lost0·pendingAtEnd0·moveDeliv>0·world==lockstep.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzdownstream`.
+//   더한 한 조각: 다중 존(grid24) 결합 loss+delay 하에서 *모든 클라의 AOI 뷰*(seenSig)가 lockstep(무섭동) 뷰와 정확히 일치
+//   = 다운스트림 desync 0(0459 단일 존 수렴의 다중 존+이주 판). 유계 resync 가 월드뿐 아니라 클라 관찰 뷰까지 수렴시킴을 단언.
+//   barrier 코드 무변경(뷰는 월드의 함수) → reg 0.
+//   검증: ⒜ `reg`. ⒝ `mzdownstream` — 전 클라 seenSig(on)==seenSig(off)·resyncs/delayed>0·handoffs>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,23 +16,25 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest } = kit.helpers;
 
-// step-0468 #4 완전 async — mzexactly: exactly-once 완전 회계(moveDup0·lost0·pendingAtEnd0).
-function mzexactly(seeds) {
-  console.log('== mzexactly (0468·#4 완전 async): exactly-once 완전 회계 — moveDup0·lost0·pendingAtEnd0(유계 resync 로 정확히 한 번 배달) + world==lockstep. ==');
-  console.log('seed   | moveDeliv | moveDup | lost | pendingEnd | world==lockstep | 판정');
+// step-0469 #4 완전 async — mzdownstream: 다중 존 loss+delay 하 전 클라 AOI 뷰 수렴(desync 0).
+function mzdownstream(seeds) {
+  console.log('== mzdownstream (0469·#4 완전 async): 다중 존(grid24) loss+delay 하 전 클라 AOI 뷰 == lockstep(desync 0) + 섭동/이주 실재. ==');
+  console.log('seed   | 클라 뷰 수렴 | resync·delay | handoffs | 판정');
   for (const seed of seeds) {
     const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
     const off = NET.run({ ...b });
     const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
-    const same = worldDigest(off) === worldDigest(on);
-    const st = on.asyncBarrier || { moveDeliv: 0, moveDup: 1, lost: 1, pendingAtEnd: 1 };
-    const once = st.moveDup === 0 && st.lost === 0 && st.pendingAtEnd === 0 && st.moveDeliv > 0;
-    const ok = check(same && once, `seed ${seed}: same${same}·dup${st.moveDup}·lost${st.lost}·pend${st.pendingAtEnd}·deliv${st.moveDeliv}`);
-    console.log(`${pad(seed, 6)} | ${pad(st.moveDeliv, 9)} | ${pad(st.moveDup, 7)} | ${pad(st.lost, 4)} | ${pad(st.pendingAtEnd, 10)} | ${pad(same ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
+    const vOff = off.clients.map(c => c.seenSig());
+    const vOn = on.clients.map(c => c.seenSig());
+    const converged = vOff.length > 0 && vOff.every((s, i) => s === vOn[i]);
+    const st = on.asyncBarrier || { resyncs: 0, delayed: 0 };
+    const pert = st.resyncs > 0 && st.delayed > 0 && off.totals.handoffs > 0;
+    const ok = check(converged && pert, `seed ${seed}: 뷰수렴${converged}·r${st.resyncs}/d${st.delayed}·handoff${off.totals.handoffs}`);
+    console.log(`${pad(seed, 6)} | ${pad(converged ? 'Y (' + vOff.length + '/' + vOff.length + ')' : 'N', 12)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['mzexactly'] = mzexactly;
-kit.ORDER.splice(1, 0, 'mzexactly');
+kit.MODES['mzdownstream'] = mzdownstream;
+kit.ORDER.splice(1, 0, 'mzdownstream');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

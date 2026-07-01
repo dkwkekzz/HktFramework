@@ -102,7 +102,7 @@ function makeAsyncBarrier(net, cfg) {
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, deferN, maxSpan, horizon, handoffsObs, deferredAcrossHandoff, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, deferN, maxSpan, horizon, handoffsObs, deferredAcrossHandoff, pendingAtEnd: pendingMoves.size, sites: Object.keys(clocks).length }; },
   };
 }
 
