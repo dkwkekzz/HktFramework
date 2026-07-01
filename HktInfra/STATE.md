@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0456](step-0456.md) — **#4 실 net.step 배리어 실제 치환 6**: exactly-once 회계(`moveDeliv`=고유 배달·`moveDup`=중복). 손실+resync 하에서도 배리어가 move 를 존에 *정확히 한 번* 배달 — moveDeliv==발신 move·moveDup 0. net.delivered dedup + resync = 닫힌 장부. world==lockstep. OFF→reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·baraccount 5/5(world==lockstep·moveDeliv120==발신·moveDup0)·async-barrier.js 4.7KB·spine ALL OK.
-- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→정전 순서 holdback(0453 ✅)→move 손실+resync 복원(0454 ✅)→무-resync 대조 발산(0455 ✅)→exactly-once 회계(0456 ✅)→교차-tick 지연 복원(0457)→다중 존(0458)→다운스트림 수렴(0459)→grand capstone run() E2E(0460). 실 존 순서 민감(enter rng·move 존재)→배리어는 발신 순서 재구성·load-bearing=손실 복원. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
+- **닫힌 step**: [step-0457](step-0457.md) — **#4 실 net.step 배리어 실제 치환 7**: cfg `{delay,delayMax}` — 배리어가 move 를 확률적으로 1..delayMax tick 늦게 배달(손실 아님·재enqueue) → 배달 타이밍을 tick 배리어에서 *분리*(배리어-free 진행 판). move 가환이라 늦게 적용해도 world==lockstep·delayed>0. OFF→reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·bardelay 5/5(world==lockstep·delayed39~58·moveDup0)·async-barrier.js 5.3KB·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→정전 순서 holdback(0453 ✅)→move 손실+resync 복원(0454 ✅)→무-resync 대조 발산(0455 ✅)→exactly-once 회계(0456 ✅)→교차-tick 지연 복원(0457 ✅)→다중 존(0458)→다운스트림 수렴(0459)→grand capstone run() E2E(0460). 실 존 순서 민감(enter rng·move 존재)→배리어는 발신 순서 재구성·load-bearing=손실 복원. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
@@ -164,3 +164,4 @@
 | [0454](step-0454.md) | #4 실 net.step 배리어 *실제* 치환 4: move 손실+resync 복원(가환·재드롭 없음·단일 존)·run({asyncBarrier:loss,resync}) world==lockstep·resyncs>0 | 통과(reg 0·spine OK) · barlossy 5/5 resyncs18~26·lost0 |
 | [0455](step-0455.md) | #4 실 net.step 배리어 *실제* 치환 5: 무-resync 대조 발산(world!=lockstep)·resync 복원(==lockstep)·배리어 resync load-bearing 확증·코드 무변경 | 통과(reg 0·spine OK) · barnoresync 5/5 발산·복원·lost>0 |
 | [0456](step-0456.md) | #4 실 net.step 배리어 *실제* 치환 6: exactly-once 회계·손실+resync 하 move 정확히 한 번(moveDeliv==발신·moveDup0)·world==lockstep | 통과(reg 0·spine OK) · baraccount 5/5 120==120·dup0 |
+| [0457](step-0457.md) | #4 실 net.step 배리어 *실제* 치환 7: 교차-tick 지연 jitter(move 1..delayMax tick 늦게·배달 타이밍 tick 분리·가환)·world==lockstep·delayed>0 | 통과(reg 0·spine OK) · bardelay 5/5 delayed39~58·dup0 |

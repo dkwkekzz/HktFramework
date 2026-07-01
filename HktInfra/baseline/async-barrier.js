@@ -29,6 +29,8 @@ function makeAsyncBarrier(net, cfg) {
   const resyncedIds = new Set();     // 이미 한 번 resync 된 move id(재전송분은 재드롭 안 함 → 체인 길이 1·유계·확실 배달)
   const clocks = {};                 // site → Lamport 카운터(per-source 단조)
   let stamped = 0, held = 0, resyncs = 0, lost = 0;
+  // step-0456 — exactly-once 회계: move 를 존에 *정확히 한 번* 배달했나(손실 하 복원해도 중복 0·유실 0).
+  let moveDeliv = 0, moveDup = 0;    // moveDeliv=고유 배달·moveDup=이미 배달된 move 재배달 시도(dedup skip)
   const isWorldInput = m => /^zone/.test(m.to) && m.payload && (m.payload.type === 'enter' || m.payload.type === 'move' || m.payload.type === 'leave');
   const siteOf = m => (m.payload && (m.payload.sessionId || m.payload.avatar)) || m.from;
   function stamp(m) { const s = siteOf(m); clocks[s] = (clocks[s] || 0) + 1; stamped++; return { m, site: s, lc: clocks[s] }; }
@@ -66,12 +68,13 @@ function makeAsyncBarrier(net, cfg) {
           else lost++;                                                             // 무-resync 대조(0455)
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
         }
+        if (wm.payload.type === 'move') { if (net.delivered.has(wm.id)) moveDup++; else moveDeliv++; }   // 회계: 고유 배달 vs 중복
         deliverMsg(wm);
       }
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, lost, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, moveDeliv, moveDup, sites: Object.keys(clocks).length }; },
   };
 }
 

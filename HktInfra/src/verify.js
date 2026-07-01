@@ -1,9 +1,9 @@
-// HktInfra step-0456 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 6: exactly-once 회계)
+// HktInfra step-0457 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 7: 교차-tick 지연 jitter)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `baraccount`.
-//   더한 한 조각: 배리어가 move 를 존에 *정확히 한 번* 배달했나 회계(moveDeliv=고유 배달·moveDup=중복). 손실+resync 하에서도
-//   moveDeliv == 발신 move 수·moveDup 0 → exactly-once. run({asyncBarrier:{loss,resync}}) world==lockstep.
-//   검증: ⒜ `reg`. ⒝ `baraccount` — world==lockstep·moveDeliv==발신 move·moveDup 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `bardelay`.
+//   더한 한 조각: 배리어가 move 를 확률적으로 1..delayMax tick 늦게 배달(손실 아님·재enqueue) — 배달 타이밍을 tick 배리어에서 분리
+//   (배리어-free 진행 판). move 는 가환이라 늦게 적용해도 최종 월드 동일 → run({asyncBarrier:{delay}}) world==lockstep·delayed>0.
+//   검증: ⒜ `reg`. ⒝ `bardelay` — world==lockstep·delayed>0·moveDup 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,23 +15,22 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest } = kit.helpers;
 
-// step-0456 #4 실 치환 6 — baraccount: 손실+resync 하 move exactly-once(moveDeliv==발신·moveDup0)·world==lockstep.
-function baraccount(seeds) {
-  console.log('== baraccount (0456·#4 실 치환 6): move exactly-once 회계 — moveDeliv==발신·moveDup0·world==lockstep. ==');
-  console.log('seed   | world== | moveDeliv | 발신move | moveDup | 판정');
+// step-0457 #4 실 치환 7 — bardelay: 교차-tick 지연 jitter·world==lockstep·delayed>0.
+function bardelay(seeds) {
+  console.log('== bardelay (0457·#4 실 치환 7): 교차-tick 지연 jitter — 배달 타이밍 tick 분리·world==lockstep·delayed>0. ==');
+  console.log('seed   | world== | delayed | moveDup | 판정');
   for (const seed of seeds) {
     const base = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true, zones: 1 };
     const off = NET.run({ ...base });
-    const on = NET.run({ ...base, asyncBarrier: { loss: 0.2, seed, resync: true, resyncDelay: 2, ticks: 48 } });
-    const sentMoves = on.net.log.filter(m => m.from === 'gateway' && /^zone/.test(m.to) && m.payload && m.payload.type === 'move').length;
-    const st = on.asyncBarrier || { moveDeliv: 0, moveDup: 0 };
+    const on = NET.run({ ...base, asyncBarrier: { delay: 0.4, delayMax: 4, seed, ticks: 48 } });
     const wEq = worldDigest(off) === worldDigest(on);
-    const ok = check(wEq && st.moveDeliv === sentMoves && st.moveDup === 0, `seed ${seed}: world ${wEq}·deliv ${st.moveDeliv}/${sentMoves}·dup ${st.moveDup}`);
-    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(st.moveDeliv, 9)} | ${pad(sentMoves, 8)} | ${pad(st.moveDup, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const st = on.asyncBarrier || { delayed: 0, moveDup: 0 };
+    const ok = check(wEq && st.delayed > 0 && st.moveDup === 0, `seed ${seed}: world ${wEq}·delayed ${st.delayed}·dup ${st.moveDup}`);
+    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(st.delayed, 7)} | ${pad(st.moveDup, 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['baraccount'] = baraccount;
-kit.ORDER.splice(1, 0, 'baraccount');
+kit.MODES['bardelay'] = bardelay;
+kit.ORDER.splice(1, 0, 'bardelay');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

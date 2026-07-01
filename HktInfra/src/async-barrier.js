@@ -26,6 +26,13 @@ function makeAsyncBarrier(net, cfg) {
   const resyncDelay = C.resyncDelay || 2;
   const endTick = C.ticks || Infinity;             // 재전송이 끝나기 전 배달·적용되도록 마지막 여유 tick 은 무손실(past-end 방지)
   const lrnd = lossRate ? __c.mulberry32(((C.seed || 0) ^ 0x8ABB) >>> 0) : null;
+  // step-0457 — 교차-tick 지연 jitter: move 를 확률적으로 1..delayMax tick 늦게 배달(손실 아님·항상 재enqueue). 배달 타이밍을
+  //   tick 배리어에서 분리(배리어-free 진행 판) — move 는 가환이라 늦게 적용해도 최종 월드 동일 → world==lockstep.
+  const delayRate = C.delay || 0;
+  const delayMax = C.delayMax || 3;
+  const drnd = delayRate ? __c.mulberry32(((C.seed || 0) ^ 0x0DEC) >>> 0) : null;
+  const delayedIds = new Set();      // 이미 한 번 지연된 move(재지연 없음·유계)
+  let delayed = 0;
   const resyncedIds = new Set();     // 이미 한 번 resync 된 move id(재전송분은 재드롭 안 함 → 체인 길이 1·유계·확실 배달)
   const clocks = {};                 // site → Lamport 카운터(per-source 단조)
   let stamped = 0, held = 0, resyncs = 0, lost = 0;
@@ -68,13 +75,17 @@ function makeAsyncBarrier(net, cfg) {
           else lost++;                                                             // 무-resync 대조(0455)
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
         }
+        // step-0457 — 교차-tick 지연: move 를 1..delayMax tick 늦게 재enqueue(재지연 없음·past-end 방지). 손실 아님.
+        if (drnd && wm.payload.type === 'move' && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
+          delayedIds.add(wm.id); delayed++; net._enqueue(net.tick + 1 + (drnd() % delayMax), wm); continue;
+        }
         if (wm.payload.type === 'move') { if (net.delivered.has(wm.id)) moveDup++; else moveDeliv++; }   // 회계: 고유 배달 vs 중복
         deliverMsg(wm);
       }
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, lost, moveDeliv, moveDup, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, sites: Object.keys(clocks).length }; },
   };
 }
 
