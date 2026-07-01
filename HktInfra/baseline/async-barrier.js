@@ -60,7 +60,7 @@ function makeAsyncBarrier(net, cfg) {
   //   move-drop 집합이 달라져 발산(0461·#72). 해법: barrier 가 소유 존을 peek 해 *interior* 인 move 만 loss/delay 로 흡수한다.
   //   interior = 엔티티가 자기 region 양 끝(경계 + wrap 경계 둘 다)에서 horizon 이상 떨어짐 → deferred move 가 재배달되기 전
   //   엔티티가 이주 경계에 닿을 수 없다(이주 전 유계 resync). 그래서 이주에 간섭하지 않고 world==lockstep 보존.
-  //   ownerZone·region 접근은 barrier ON 경로에서만(OFF→net.step·reg 0). 이번 step 은 *loss/resync* 만 게이트(delay 는 0463).
+  //   ownerZone·region 접근은 barrier ON 경로에서만(OFF→net.step·reg 0). loss/resync(0462)·delay(0463) 둘 다 interior 게이트.
   const horizon = Math.max(resyncDelay, delayMax) + 1;   // deferred move 는 horizon tick 내 재배달(resync/delay 상한)
   function ownerZone(av) { for (const a of net.actors.values()) if (a && a.ents && typeof a.isAuthority === 'function' && a.isAuthority() && a.ents.has(av)) return a; return null; }
   function interior(wm) { const z = ownerZone(wm.payload.avatar); if (!z) return false; const e = z.ents.get(wm.payload.avatar); return (e.x - z.region.lo) >= horizon && (z.region.hi - 1 - e.x) >= horizon; }
@@ -85,7 +85,7 @@ function makeAsyncBarrier(net, cfg) {
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
         }
         // step-0457 — 교차-tick 지연: move 를 1..delayMax tick 늦게 재enqueue(재지연 없음·past-end 방지). 손실 아님.
-        if (drnd && wm.payload.type === 'move' && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
+        if (drnd && wm.payload.type === 'move' && interior(wm) && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
           delayedIds.add(wm.id); delayed++; net._enqueue(net.tick + 1 + (drnd() % delayMax), wm); continue;
         }
         if (wm.payload.type === 'move') { if (net.delivered.has(wm.id)) moveDup++; else moveDeliv++; }   // 회계: 고유 배달 vs 중복

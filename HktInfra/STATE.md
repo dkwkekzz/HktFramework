@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0463](step-0463.md) — **#4 완전 async 전환 3 — 다중 존 delay 유계 resync 가드**: `mzdelayguard` — 0462 의 wrap-aware interior 가드를 *delay(지연 jitter)* 경로로 확장 → 다중 존 delay-only 도 world==lockstep. 이제 loss·delay 두 섭동 모두 interior 게이트(경계 근처 즉시 배달·interior 만 async 흡수). OFF→net.step reg 0.
-- **한 줄 상태**: reg ALL OK·mzdelayguard 5/5(다중존 delay-only world==lockstep·handoff 4~15·delayed 27~60)·spine ALL OK.
+- **닫힌 step**: [step-0464](step-0464.md) — **#4 완전 async 전환 4 — 다중 존 결합 loss+delay + exactly-once**: `mzresync` — 0462(loss)·0463(delay) 가드를 동시 적용해 다중 존(grid24) 결합 섭동에서 world==lockstep + **moveDup==0**(exactly-once·redirect 없이 유계 resync 로 유실·중복 0). 코드 무변경 → reg 0.
+- **한 줄 상태**: reg ALL OK·mzresync 5/5(결합 loss+delay world==lockstep·moveDup0·resync18~46·delay26~57)·spine ALL OK.
 - **다음**: 🎯 **#4 완전 async 전환 sub-arc(0461~0470) — 다중 존 이주 하 유계 resync**: 발산 포착(0461 ✅)→ownerZone+interior loss 가드(0462)→delay 가드(0463)→결합(0464)→유계 증명(0465)→가드 대조(0466)→이주 전 유계 resync 명제(0467)→exactly-once(0468)→다운스트림 수렴(0469)→capstone(0470). **핵심 메커니즘(검증됨)**: barrier 가 소유 존을 peek 해 *wrap-aware interior*(엔티티가 region 양 끝에서 horizon=max(resyncDelay,delayMax)+1 이상 떨어짐)인 move 만 loss/delay 로 흡수 → deferred move 가 엔티티가 이주 경계에 닿기 전 재배달 = 유계 resync → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(grid≥24·5/5·resync114+/delay206+). **매 step reg 구조적 0**(asyncBarrier OFF→net.step).
 
 ---
@@ -147,18 +147,10 @@
 | [0428](step-0428.md) | #61 업스트림 실 클라 8: 손실 하 수렴(egress 손실→gap-resync→uc0 desync0·손실 진짜 gaps≥1+복구 resyncs≥1)·검증 전용 | 통과(reg 0·spine OK) · uplossy 5/5 gaps1·resyncs1·uc0 수렴 |
 | [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
 | [0430](step-0430.md) | #61 업스트림 실 클라 10·grand capstone: 양방향 실 클라 E2E(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존·발신 회계)·0421~0430 닫기 | 통과(reg 0·spine OK) · upe2ecap 5/5 uc0 수렴·a1 체류·b1 제거·보존 Y |
-| [0431](step-0431.md) | #4 진짜 비동기 1: 신규 박스 async-core.js Lamport 논리 클럭 원시(makeLamportClock·local/send/recv·clock condition)·run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · lcstamp 5/5 스탬프 1..K 단조 |
-| [0432](step-0432.md) | #4 진짜 비동기 2: lamportExchange(N site 교환→이벤트 로그+happens-before 간선)·clockConditionViolations | 통과(reg 0·spine OK) · lcrecv 5/5 clock condition 위반 0 |
-| [0433](step-0433.md) | #4 진짜 비동기 3: totalOrder(키 (lc,siteIndex))·totalOrderSound — 전순서=내용 함수·순열 불변·엄격·인과 존중 | 통과(reg 0·spine OK) · lcorder 5/5 8 순열 동일 전순서 |
-| [0434](step-0434.md) | #4 진짜 비동기 4: makeHoldback(교차-site 재정렬·FIFO·low-water-mark 안정성 점진 방출) | 통과(reg 0·spine OK) · lcreorder 5/5 인터리빙 불변·close前 방출>0 |
-| [0435](step-0435.md) | #4 진짜 비동기 5: causalDeliver(deps=happens-before 선행 충족 방출·FIFO-free)·causalViolations | 통과(reg 0·spine OK) · lccausal 5/5 적대적 도착 위반0·stuck0 |
-| [0436](step-0436.md) | #4 진짜 비동기 6: applyDigest(배달열 순차 fold→상태 다이제스트) — 두 site 상이 도착→desync 0 수렴 | 통과(reg 0·spine OK) · asyncconv 5/5 desync 0·정전 일치 |
-| [0437](step-0437.md) | #4 진짜 비동기 7: makeAsyncSite(receive/tick 분리) — 복제 불균등 속도(비-lockstep)·페이스 무관 수렴 | 통과(reg 0·spine OK) · asyncprogress 5/5 skew>0·desync 0 |
-| [0438](step-0438.md) | #4 진짜 비동기 8: withSseq·makeResyncSite(연속분만 holdback·hole 감지·재전송) — 손실 하 수렴 | 통과(reg 0·spine OK) · asynclossy 5/5 손실→재전송→desync 0 |
-| [0439](step-0439.md) | #4 진짜 비동기 9: accountDelivered(emitted/applied/dups/missing/complete) — 순열+손실 exactly-once·다이제스트 불변 | 통과(reg 0·spine OK) · asyncaccount 5/5 complete·digInv |
-| [0440](step-0440.md) | #4 진짜 비동기 10·grand capstone: asynce2ecap — M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once·0431~0440 닫기 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
+| 0431–[0440](step-0440.md) | #4 진짜 비동기 substrate in-proc arc: `async-core.js` — Lamport 클럭→인과 교환→전순서→holdback 재정렬→인과 배달→async 수렴→비-lockstep 진행→손실 resync→exactly-once 회계→capstone(M 복제 순열+손실 desync0·인과존중). run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
 | [0461](step-0461.md) | #4 완전 async 전환 1(발산 포착·negative control): 다중 존(grid24·zones2) loss+delay 무-가드 barrier → world != lockstep(#72 고정·이주 경계 move-drop). barrier 코드 무변경 | 통과(reg 0·spine OK) · mzdiverge 5/5 발산·handoff>0·resync/delay>0 |
 | [0462](step-0462.md) | #4 완전 async 전환 2(loss 가드): `async-barrier.js` ownerZone 오라클 + wrap-aware interior 술어(region 양 끝+wrap 경계에서 horizon 이상) → loss/resync 를 interior 게이트 → 다중 존 loss-only world==lockstep. OFF→net.step reg 0 | 통과(reg 0·spine OK) · mzlossguard 5/5 same·handoff4~15·resync17~32 |
 | [0463](step-0463.md) | #4 완전 async 전환 3(delay 가드): interior 유계 resync 가드를 delay(지연 jitter) 경로로 확장 → 다중 존 delay-only world==lockstep(loss·delay 둘 다 게이트) | 통과(reg 0·spine OK) · mzdelayguard 5/5 same·handoff4~15·delayed27~60 |
+| [0464](step-0464.md) | #4 완전 async 전환 4(결합+exactly-once): loss+delay 동시 섭동 다중 존 → world==lockstep + moveDup0(유계 resync 로 유실·중복 0). 코드 무변경 | 통과(reg 0·spine OK) · mzresync 5/5 same·moveDup0·r18~46·d26~57 |
