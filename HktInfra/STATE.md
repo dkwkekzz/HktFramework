@@ -9,20 +9,20 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0447](step-0447.md) — **#4 실 net.step 배리어 치환 7**: `async-net.driveAsyncReplicas` — M 복제가 receive/tick 분리·서로 다른 페이스(1·2·3보)로 굴러 진행 skew>0(비-lockstep)이어도 최종 실 월드 digest == canonical. 중앙 배리어(동기 tick) 제거 후에도 페이스 무관 desync 0. run() 미호출 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·netpace 5/5(skew12~28·==canonical·desync 0)·async-net.js 10.5KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0448](step-0448.md) — **#4 실 net.step 배리어 치환 8**: `async-net.accountReplicas` — M 복제 순열+손실 재구성 후 async-core.accountDelivered 로 {complete,dups,missing} 대조 + 실 월드 digest. 배리어 없이도 발신 intent == 적용(exactly-once·dups0·missing0)·digest==canonical. run() 미호출 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·netaccount 5/5(complete·dups0·missing0·==canonical)·async-net.js 12.0KB·spine ALL OK.
 - **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445 ✅)→M 복제 수렴 desync0(0446 ✅)→배리어-free 진행(0447 ✅)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
+> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445 ✅)→M 복제 수렴 desync0(0446 ✅)→배리어-free 진행(0447 ✅)→exactly-once 회계(0448 ✅)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
 > **설계 제약**: spine 게이트는 `verify.js all`. async-net 은 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 require 1줄만 추가). substrate 원시는 async-core 재사용(복제 금지)·sim fold 는 engine DummySimCore(동결 seam) 사용.
 
-**후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
+**후속 백로그**: ⒜ #4 실 net.step 배리어 *실제 치환*(0441~0450 in-proc 등가 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: `engine/`=VM·PRNG·FNV·Net·verify-kit(추가만)·close-step·new-step. **절차**: ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
+**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: **절차** ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
 ---
 
@@ -164,3 +164,4 @@
 | [0445](step-0445.md) | #4 실 net.step 배리어 치환 5: async-net.makeZoneResync — per-client sseq gap-resync·실 전송 손실 복원·손실+재정렬에도 simFold 수렴 | 통과(reg 0·spine OK) · netlossy 5/5 수렴·gaps≥10·resyncs≥4 |
 | [0446](step-0446.md) | #4 실 net.step 배리어 치환 6: async-net.convergeReplicas — M 복제 존 상이 순열+손실→배리어 없이 전 복제 실 월드 desync 0·==canonical | 통과(reg 0·spine OK) · netconverge 5/5 desync 0 |
 | [0447](step-0447.md) | #4 실 net.step 배리어 치환 7: async-net.driveAsyncReplicas — receive/tick 분리·독립 페이스 skew>0(비-lockstep)에도 전 복제 ==canonical | 통과(reg 0·spine OK) · netpace 5/5 skew12~28·desync 0 |
+| [0448](step-0448.md) | #4 실 net.step 배리어 치환 8: async-net.accountReplicas — 순열+손실 재구성 후 exactly-once 회계(complete·dups0·missing0)·digest==canonical | 통과(reg 0·spine OK) · netaccount 5/5 exactly-once |
