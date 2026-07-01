@@ -81,7 +81,7 @@
 		reader.onload = () => {
 			try {
 				const t0 = performance.now();
-				const cloud = HktSplatPly.parse(reader.result);
+				const cloud = HktSplatPly.parse(reader.result, file.name);
 				renderer.setCloud(cloud.count, cloud.texData);
 				worker.postMessage({ type: 'cloud', count: cloud.count, positions: cloud.positions }, [cloud.positions.buffer]);
 				camera.frame(cloud.bounds.center, cloud.bounds.radius);

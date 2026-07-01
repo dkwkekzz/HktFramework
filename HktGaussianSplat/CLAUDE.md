@@ -48,7 +48,7 @@ UHktSplatSubsystem ─소유─► FHktSplatSceneViewExtension
 2. `SplatComponent.PlyFilePath` 에 `.ply` 경로 지정 (프로젝트 상대 또는 절대)
 3. 자동 로드 → 렌더. 런타임에서는 `UHktSplatComponent::LoadPlyFromFile()` 호출
 
-지원 PLY: INRIA 3DGS 계열 `binary_little_endian` (x,y,z / scale_0..2 / rot_0..3 / opacity / f_dc_0..2).
+지원 포맷: PLY `binary_little_endian`·`ascii` (x,y,z / scale_0..2 / rot_0..3 / opacity / f_dc_0..2), antimatter15 `.splat`(32B). 공통 `EmitSplat()` 이 좌표변환·공분산·컬링 담당.
 
 ## 좌표계
 
@@ -72,4 +72,4 @@ UHktSplatSubsystem ─소유─► FHktSplatSceneViewExtension
 - 타일 기반 래스터 (원조 3DGS 방식, 오버드로 절감)
 - 뷰 의존 SH (f_rest 고차 계수 — 현재 DC only)
 - 프록시 간 전역 통합 정렬, 컬링(프러스텀/거리 LOD)
-- `.splat`/`.spz` 포맷, ASCII PLY, 에디터 임포터(UFactory)
+- `.spz` 포맷, 에디터 임포터(UFactory)

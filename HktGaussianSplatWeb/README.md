@@ -20,8 +20,9 @@ python -m http.server 8080
 2. 마우스 드래그=회전, 휠=줌, 우클릭(또는 Shift)드래그=이동.
 3. 우측 패널에서 불투명도·포인트 크기·배경 조절.
 
-지원 포맷: INRIA 3DGS 계열 `binary_little_endian` PLY
-(`x,y,z / scale_0..2 / rot_0..3 / opacity / f_dc_0..2`).
+지원 포맷:
+- **PLY** `binary_little_endian` / `ascii` (`x,y,z / scale_0..2 / rot_0..3 / opacity / f_dc_0..2`)
+- **`.splat`** (antimatter15 32바이트 포맷: pos·scale·rgba·rot)
 
 ## 구조
 
@@ -42,5 +43,5 @@ python -m http.server 8080
 
 - GPU 정렬(현재 워커 CPU counting sort)
 - 뷰 의존 SH(f_rest) — 현재 DC 색상만
-- `.splat`/`.spz` 압축 포맷, 스트리밍 로드
+- `.spz` 압축 포맷, 스트리밍 로드
 - WebGPU 백엔드

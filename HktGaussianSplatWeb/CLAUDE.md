@@ -37,6 +37,12 @@
 - 블렌딩: back-to-front 정렬 + `(ONE, ONE_MINUS_SRC_ALPHA)` premultiplied over.
 - 큰 파일 파싱은 메인 스레드(블로킹) — 필요 시 파서도 워커로 이관(로드맵).
 
+## 포맷
+
+`HktSplatPly.parse(arrayBuffer, filename)` 가 매직/확장자로 디스패치:
+PLY `binary_little_endian`·`ascii`, antimatter15 `.splat`(32B/splat). 공통 `writeSplat()`
+이 3D 공분산 계산·기록을 담당(PLY 는 exp/sigmoid/SH 선적용, .splat 은 선형 스케일 직접).
+
 ## 로드맵
 
-GPU 정렬 · 뷰 의존 SH · `.splat`/`.spz` · 스트리밍 · WebGPU 백엔드 · 파서 워커화
+GPU 정렬 · 뷰 의존 SH · `.spz` · 스트리밍 · WebGPU 백엔드 · 파서 워커화
