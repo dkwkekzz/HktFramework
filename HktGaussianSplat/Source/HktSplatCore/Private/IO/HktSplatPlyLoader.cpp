@@ -189,7 +189,8 @@ bool FHktSplatPlyLoader::LoadFromBuffer(
 		const char* Needle = "end_header";
 		for (int32 i = 0; i + 10 <= Total; ++i)
 		{
-			if (FMemory::Memcmp(Bytes.GetData() + i, Needle, 10) == 0)
+			// 라인 시작에서만 매칭 — 주석/이름에 포함된 "end_header" 부분문자열 오탐 방지
+			if ((i == 0 || Bytes[i - 1] == '\n') && FMemory::Memcmp(Bytes.GetData() + i, Needle, 10) == 0)
 			{
 				int32 j = i + 10;
 				while (j < Total && Bytes[j] != '\n') ++j;
@@ -273,8 +274,8 @@ bool FHktSplatPlyLoader::LoadFromBuffer(
 		for (int64 v = 0; v < VertexCount; ++v)
 		{
 			const uint8* Rec = Body + v * Stride;
-			const float opLogit = POpacity ? ReadAsFloat(Rec, *POpacity, bLittleEndian) : 8.0f;
-			const float opacity = HktSplat::Sigmoid(opLogit);
+			// opacity 없으면 완전 불투명(1.0). ascii 경로와 동일 규약 — 인코딩별 편차 제거.
+			const float opacity = POpacity ? HktSplat::Sigmoid(ReadAsFloat(Rec, *POpacity, bLittleEndian)) : 1.0f;
 			float cr = 0.5f, cg = 0.5f, cb = 0.5f;
 			if (PDC[0] && PDC[1] && PDC[2])
 			{

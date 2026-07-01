@@ -55,9 +55,13 @@ void FHktSplatRenderProxy::ReleaseResources_RenderThread()
 	check(IsInRenderingThread());
 	SplatBufferSRV.SafeRelease();
 	SplatBuffer.SafeRelease();
-	SortedIndexSRV.SafeRelease();
-	SortedIndexBuffer.SafeRelease();
-	SortedIndexCapacity = 0;
+	for (int32 i = 0; i < kSortRing; ++i)
+	{
+		SortedIndexSRV[i].SafeRelease();
+		SortedIndexBuffer[i].SafeRelease();
+		SortedIndexCapacity[i] = 0;
+	}
+	SortRingCursor = 0;
 }
 
 int32 FHktSplatRenderProxy::UpdateSortedIndices_RenderThread(FRHICommandListBase& RHICmdList, const FVector3f& ViewOriginLocal)
@@ -79,28 +83,32 @@ int32 FHktSplatRenderProxy::UpdateSortedIndices_RenderThread(FRHICommandListBase
 		return DepthKeys[A] > DepthKeys[B];
 	});
 
-	// ── SortedIndex StructuredBuffer<uint> 업로드 (용량 부족 시 재생성) ──
+	// ── SortedIndex StructuredBuffer<uint> 업로드 — 링에서 다음 슬롯 사용 ──
+	// (직전 프레임 슬롯은 GPU 가 아직 읽는 중일 수 있으므로 건드리지 않는다.)
+	SortRingCursor = (SortRingCursor + 1) % kSortRing;
+	const int32 Slot = SortRingCursor;
+
 	const uint32 Size = sizeof(uint32) * (uint32)NumSplats;
-	if (!SortedIndexBuffer.IsValid() || SortedIndexCapacity < (uint32)NumSplats)
+	if (!SortedIndexBuffer[Slot].IsValid() || SortedIndexCapacity[Slot] < (uint32)NumSplats)
 	{
-		SortedIndexSRV.SafeRelease();
-		SortedIndexBuffer.SafeRelease();
+		SortedIndexSRV[Slot].SafeRelease();
+		SortedIndexBuffer[Slot].SafeRelease();
 
 		const FRHIBufferCreateDesc Desc =
 			FRHIBufferCreateDesc::CreateStructured(TEXT("HktSplatSortedIndex"), Size, sizeof(uint32))
 			.AddUsage(EBufferUsageFlags::ShaderResource | EBufferUsageFlags::Dynamic)
 			.SetInitialState(ERHIAccess::SRVMask);
-		SortedIndexBuffer = RHICmdList.CreateBuffer(Desc);
-		SortedIndexSRV = RHICmdList.CreateShaderResourceView(
-			SortedIndexBuffer,
+		SortedIndexBuffer[Slot] = RHICmdList.CreateBuffer(Desc);
+		SortedIndexSRV[Slot] = RHICmdList.CreateShaderResourceView(
+			SortedIndexBuffer[Slot],
 			FRHIViewDesc::CreateBufferSRV().SetType(FRHIViewDesc::EBufferType::Structured));
-		SortedIndexCapacity = (uint32)NumSplats;
+		SortedIndexCapacity[Slot] = (uint32)NumSplats;
 	}
 
 	{
-		void* Ptr = RHICmdList.LockBuffer(SortedIndexBuffer, 0, Size, RLM_WriteOnly);
+		void* Ptr = RHICmdList.LockBuffer(SortedIndexBuffer[Slot], 0, Size, RLM_WriteOnly);
 		FMemory::Memcpy(Ptr, SortedIndices.GetData(), Size);
-		RHICmdList.UnlockBuffer(SortedIndexBuffer);
+		RHICmdList.UnlockBuffer(SortedIndexBuffer[Slot]);
 	}
 
 	return NumSplats;

@@ -41,7 +41,7 @@ public:
 	int32 UpdateSortedIndices_RenderThread(FRHICommandListBase& RHICmdList, const FVector3f& ViewOriginLocal);
 
 	int32 GetNumSplats() const { return NumSplats; }
-	bool HasValidResources() const { return SplatBufferSRV.IsValid() && SortedIndexSRV.IsValid(); }
+	bool HasValidResources() const { return SplatBufferSRV.IsValid() && SortedIndexSRV[SortRingCursor].IsValid(); }
 
 	// ── 게임 스레드에서 세팅, 렌더 스레드에서 읽음 (등록/트랜스폼 커맨드로 동기화) ──
 	FMatrix44f LocalToWorld = FMatrix44f::Identity;
@@ -50,7 +50,7 @@ public:
 	float      GlobalOpacityScale = 1.0f;
 
 	FRHIShaderResourceView* GetSplatSRV() const { return SplatBufferSRV; }
-	FRHIShaderResourceView* GetSortedIndexSRV() const { return SortedIndexSRV; }
+	FRHIShaderResourceView* GetSortedIndexSRV() const { return SortedIndexSRV[SortRingCursor]; }
 
 private:
 	// 렌더 스레드 전용 CPU 캐시 — 정렬 키 계산용 위치/깊이
@@ -62,7 +62,12 @@ private:
 	FBufferRHIRef SplatBuffer;
 	FShaderResourceViewRHIRef SplatBufferSRV;
 
-	FBufferRHIRef SortedIndexBuffer;
-	FShaderResourceViewRHIRef SortedIndexSRV;
-	uint32 SortedIndexCapacity = 0;
+	// SortedIndex 는 매 프레임 CPU 로 재작성된다. 직전 프레임 패스가 아직 GPU 에서
+	// SRV 를 읽는 중일 수 있으므로 단일 버퍼를 재-lock 하면 경쟁이 난다.
+	// N-슬롯 링으로 프레임마다 다른 버퍼를 써서 in-flight 읽기와 충돌하지 않게 한다.
+	static constexpr int32 kSortRing = 3;
+	FBufferRHIRef SortedIndexBuffer[kSortRing];
+	FShaderResourceViewRHIRef SortedIndexSRV[kSortRing];
+	uint32 SortedIndexCapacity[kSortRing] = { 0 };
+	int32 SortRingCursor = 0;
 };

@@ -4,6 +4,7 @@
 #include "Rendering/HktSplatSceneViewExtension.h"
 #include "HktSplatCoreLog.h"
 #include "SceneViewExtension.h"
+#include "RenderingThread.h"
 
 void UHktSplatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 {
@@ -14,15 +15,21 @@ void UHktSplatSubsystem::Initialize(FSubsystemCollectionBase& Collection)
 
 void UHktSplatSubsystem::Deinitialize()
 {
-	// SVE 는 공유 참조가 사라지면 엔진 레지스트리에서 자동 해제된다.
+	// SVE 가 in-flight 렌더 커맨드에서 raw `this` 를 캡처하므로, 공유 참조를 놓기 전에
+	// 렌더 스레드를 flush 해 큐잉된 커맨드가 모두 실행되도록 보장한다 (use-after-free 방지).
+	if (ViewExtension.IsValid())
+	{
+		FlushRenderingCommands();
+	}
 	ViewExtension.Reset();
 	Super::Deinitialize();
 }
 
 bool UHktSplatSubsystem::DoesSupportWorldType(const EWorldType::Type WorldType) const
 {
+	// EditorPreview(썸네일/BP/머티리얼 프리뷰)는 제외 — 짧게 살고 사라지는 프리뷰 월드마다
+	// SVE + 수MB GPU 버퍼를 할당할 이유가 없다.
 	return WorldType == EWorldType::Game
 		|| WorldType == EWorldType::PIE
-		|| WorldType == EWorldType::Editor
-		|| WorldType == EWorldType::EditorPreview;
+		|| WorldType == EWorldType::Editor;
 }

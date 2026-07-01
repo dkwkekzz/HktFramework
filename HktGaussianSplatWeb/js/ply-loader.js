@@ -77,6 +77,7 @@
 		const marker = 'end_header';
 		let headerEnd = -1;
 		for (let i = 0; i + marker.length <= bytes.length; i++) {
+			if (i !== 0 && bytes[i - 1] !== 10) continue; // 라인 시작에서만 매칭
 			let ok = true;
 			for (let j = 0; j < marker.length; j++) { if (bytes[i + j] !== marker.charCodeAt(j)) { ok = false; break; } }
 			if (ok) { let k = i + marker.length; while (k < bytes.length && bytes[k] !== 10) k++; headerEnd = k + 1; break; }

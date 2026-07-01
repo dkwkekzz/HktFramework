@@ -27,6 +27,7 @@ BEGIN_SHADER_PARAMETER_STRUCT(FHktSplatPassParameters, )
 	SHADER_PARAMETER(FVector2f, Focal)
 	SHADER_PARAMETER(float, OpacityScale)
 	SHADER_PARAMETER(uint32, NumSplats)
+	SHADER_PARAMETER(uint32, SortOffset)
 	RENDER_TARGET_BINDING_SLOTS()
 END_SHADER_PARAMETER_STRUCT()
 
@@ -181,7 +182,10 @@ void FHktSplatSceneViewExtension::PrePostProcessPass_RenderThread(
 		{
 			continue;
 		}
+		// MaxCount 로 자를 때: 정렬은 far→near 이므로 뒤쪽(가까운 스플랫)을 남긴다.
+		// SortOffset 만큼 건너뛰고 그리면 시각적으로 중요한 근거리 스플랫이 유지된다.
 		const uint32 NumInstances = (uint32)FMath::Min(NumDrawn, MaxCount);
+		const uint32 SortOffset = (uint32)(NumDrawn - (int32)NumInstances);
 
 		// LocalToTranslatedWorld = LocalToWorld * Translate(PreViewTranslation)
 		FMatrix44f LocalToTranslatedWorld = LocalToWorld;
@@ -198,6 +202,7 @@ void FHktSplatSceneViewExtension::PrePostProcessPass_RenderThread(
 		Pass->Focal = Focal;
 		Pass->OpacityScale = Proxy->GlobalOpacityScale;
 		Pass->NumSplats = NumInstances;
+		Pass->SortOffset = SortOffset;
 		Pass->RenderTargets[0] = FRenderTargetBinding(SceneColor, ERenderTargetLoadAction::ELoad);
 		Pass->RenderTargets.DepthStencil = FDepthStencilBinding(
 			SceneDepth, ERenderTargetLoadAction::ENoAction, ERenderTargetLoadAction::ENoAction,

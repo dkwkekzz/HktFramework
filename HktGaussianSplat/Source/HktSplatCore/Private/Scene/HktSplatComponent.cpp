@@ -9,6 +9,7 @@
 #include "HktSplatCoreLog.h"
 #include "Engine/World.h"
 #include "Misc/Paths.h"
+#include "RenderingThread.h"
 
 UHktSplatComponent::UHktSplatComponent()
 {
@@ -68,7 +69,7 @@ void UHktSplatComponent::ClearCloud()
 
 void UHktSplatComponent::RegisterProxy()
 {
-	if (!RenderProxy) return;
+	if (!RenderProxy || bProxyRegistered) return; // 중복 등록 방지 (NumRegistered drift 차단)
 	TSharedPtr<FHktSplatSceneViewExtension, ESPMode::ThreadSafe> SVE = GetViewExtension();
 	if (!SVE.IsValid())
 	{
@@ -86,12 +87,23 @@ void UHktSplatComponent::UnregisterProxy()
 
 	if (bProxyRegistered)
 	{
-		// RT 가 GPU 리소스를 쥐고 있으므로 RT 에서 해제 + delete.
 		if (TSharedPtr<FHktSplatSceneViewExtension, ESPMode::ThreadSafe> SVE = GetViewExtension())
 		{
+			// 정상 경로: SVE 가 RT 에서 리소스 해제 + delete + 리스트 제거.
 			SVE->UnregisterProxy(RenderProxy);
 		}
-		// SVE 가 이미 사라졌다면(월드 종료 등) RT 리소스는 엔진 teardown 이 회수.
+		else
+		{
+			// SVE 가 먼저 사라진 경로(서브시스템 선-Deinit, GC 중 World null).
+			// 엔진은 이 raw 포인터를 모르므로 직접 RT 에서 해제+delete 해야 누수가 없다.
+			FHktSplatRenderProxy* Orphan = RenderProxy;
+			ENQUEUE_RENDER_COMMAND(HktSplatOrphanRelease)(
+				[Orphan](FRHICommandListImmediate&)
+				{
+					Orphan->ReleaseResources_RenderThread();
+					delete Orphan;
+				});
+		}
 	}
 	else
 	{

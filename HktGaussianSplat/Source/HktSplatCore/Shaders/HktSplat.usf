@@ -14,7 +14,8 @@ float4x4 LocalToTranslatedWorld;  // 로컬 → translated world (LWC-safe, PreV
 float2   ViewportSize;            // 렌더 타겟 픽셀 크기
 float2   Focal;                   // (focalX, focalY) 픽셀 초점거리 (CPU 계산)
 float    OpacityScale;            // 전역 불투명도 배율
-uint     NumSplats;
+uint     NumSplats;               // 이번 드로우의 인스턴스 수
+uint     SortOffset;              // 정렬 버퍼에서 건너뛸 앞쪽(원거리) 개수
 
 // ============================================================================
 // Vertex Shader
@@ -37,7 +38,7 @@ void MainVS(
 		return;
 	}
 
-	const uint Index = SortedIndices[InstanceId];
+	const uint Index = SortedIndices[InstanceId + SortOffset];
 	const FHktSplatData S = SplatBuffer[Index];
 
 	// 로컬 → translated world → view / clip

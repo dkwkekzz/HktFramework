@@ -41,17 +41,21 @@
 				for (let b = 0; b < 65536; b++) { starts[b] = sum; sum += counts[b]; }
 				const order = new Uint32Array(n);
 				for (let i = 0; i < n; i++) { order[starts[bucket[i]]++] = i; }
-				self.postMessage({ type: 'sorted', order }, [order.buffer]);
+				self.postMessage({ type: 'sorted', order, gen: m.gen }, [order.buffer]);
 			}
 		};`;
 	const worker = new Worker(URL.createObjectURL(new Blob([WORKER_SRC], { type: 'text/javascript' })));
 
-	let sortPending = false, latestOrder = null, needSort = true;
+	let sortPending = false, latestOrder = null, needSort = true, loadGen = 0;
 	worker.onmessage = (e) => {
 		if (e.data.type === 'sorted') {
-			latestOrder = e.data.order;
-			renderer.setIndices(latestOrder);
 			sortPending = false;
+			// 이전 클라우드의 늦게 도착한 정렬 결과 폐기:
+			// (a) 로드 세대가 다르거나 (b) 길이가 현재 스플랫 수와 다르면 무시.
+			if (e.data.gen === loadGen && e.data.order.length === renderer.count) {
+				latestOrder = e.data.order;
+				renderer.setIndices(latestOrder);
+			}
 		}
 	};
 
@@ -85,6 +89,10 @@
 				renderer.setCloud(cloud.count, cloud.texData);
 				worker.postMessage({ type: 'cloud', count: cloud.count, positions: cloud.positions }, [cloud.positions.buffer]);
 				camera.frame(cloud.bounds.center, cloud.bounds.radius);
+				// 새 로드 세대 — in-flight 정렬 결과 무효화, 정렬 상태 리셋
+				loadGen++;
+				sortPending = false;
+				latestOrder = null;
 				needSort = true;
 				elCount.textContent = cloud.count.toLocaleString();
 				elDrop.classList.add('hide');
@@ -118,7 +126,7 @@
 		// 카메라가 움직였으면 재정렬 요청 (워커 응답 대기 중이면 스킵)
 		if ((camera._dirty || needSort) && !sortPending && renderer.count) {
 			camera._dirty = false; needSort = false; sortPending = true;
-			worker.postMessage({ type: 'sort', view: view });
+			worker.postMessage({ type: 'sort', view: view, gen: loadGen });
 		}
 
 		renderer.render(view, proj, opt);
