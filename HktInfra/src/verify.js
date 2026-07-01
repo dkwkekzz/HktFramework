@@ -1,10 +1,10 @@
-// HktInfra step-0460 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 10·grand capstone: run() E2E)
+// HktInfra step-0461 — 헤드리스 검증 (#4 완전 async 전환 arc 시작 — 다중 존 이주 하 유계 resync)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `bare2ecap`.
-//   더한 한 조각: grand capstone — 실 `run()` 의 net.step 중앙 배리어를 async-barrier 로 치환해 ⒜ 단일 존 손실+지연+resync 하
-//   world==lockstep·exactly-once(moveDup0)·다운스트림 뷰 수렴(desync0) ⒝ 다중 존+핸드오프 투명(world/log==lockstep) 를 한 시나리오로
-//   단언. #4 실 net.step 배리어 실제 치환 sub-arc(0451~0460) 닫기. asyncBarrier OFF → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `bare2ecap` — 손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명·resyncs/delayed>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzdiverge`.
+//   더한 한 조각: 발산 포착(negative control) — 다중 존(grid24·zones2) loss+delay 를 *무-가드* barrier(현행)로 돌리면
+//   world != lockstep(발산). 원인: 지연/손실이 이주 타이밍을 바꿔 lockstep 의 move-drop 집합(stale 존 도착 move 폐기·zone.js)이
+//   달라짐. #72 격차(이주 경계 넘는 지연 move)를 수치로 고정 → 0462~ 가 wrap-aware interior 가드로 해소. barrier 코드 무변경 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `mzdiverge` — 다중 존 loss+delay world != lockstep(발산 관측)·handoffs>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -14,33 +14,27 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { check, pad, worldDigest, logDigest } = kit.helpers;
+const { check, pad, worldDigest } = kit.helpers;
 
-// step-0460 #4 실 치환 10·grand capstone — bare2ecap: run() 배리어 치환 E2E(손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명). 0451~0460 닫기.
-function bare2ecap(seeds) {
-  console.log('== bare2ecap (0460·#4 grand capstone): run() net.step 배리어 치환 — 손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명. 0451~0460 닫기. ==');
-  console.log('seed   | 단일존 world/뷰 | exactly-once | resync·delay | 다중존 world/log | 판정');
+// step-0461 #4 완전 async 전환 arc 시작 — mzdiverge: 다중 존 loss+delay 무-가드 barrier → world != lockstep(발산 포착·#72 고정).
+function mzdiverge(seeds) {
+  console.log('== mzdiverge (0461·#4 완전 async): 다중 존(grid24·zones2) loss+delay 무-가드 → world != lockstep(발산). #72 이주 경계 move-drop 고정. ==');
+  console.log('seed   | handoffs | resync·delay | world==lockstep | 발산? | 판정');
   for (const seed of seeds) {
-    // ⒜ 단일 존: 손실+지연+resync
-    const b1 = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true, zones: 1 };
-    const off1 = NET.run({ ...b1 });
-    const on1 = NET.run({ ...b1, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 48 } });
-    const sig = r => r.clients.map(c => c.seenSig()).join('|');
-    const wv1 = worldDigest(off1) === worldDigest(on1) && sig(off1) === sig(on1);
-    const st = on1.asyncBarrier || { moveDup: 0, resyncs: 0, delayed: 0 };
-    const once = st.moveDup === 0;
-    const pert = st.resyncs > 0 && st.delayed > 0;
-    // ⒝ 다중 존+핸드오프: 투명
-    const b2 = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, incremental: true, zones: 2 };
-    const off2 = NET.run({ ...b2 });
-    const on2 = NET.run({ ...b2, asyncBarrier: true });
-    const mz = worldDigest(off2) === worldDigest(on2) && logDigest(off2) === logDigest(on2) && off2.totals.handoffs > 0;
-    const ok = check(wv1 && once && pert && mz, `seed ${seed}: 단일 ${wv1}·once ${once}·pert r${st.resyncs}/d${st.delayed}·다중 ${mz}`);
-    console.log(`${pad(seed, 6)} | ${pad(wv1 ? 'Y' : 'N', 14)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(mz ? 'Y' : 'N', 16)} | ${ok ? 'OK' : 'FAIL'}`);
+    const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
+    const off = NET.run({ ...b });
+    const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
+    const same = worldDigest(off) === worldDigest(on);
+    const st = on.asyncBarrier || { resyncs: 0, delayed: 0 };
+    const pert = st.resyncs > 0 || st.delayed > 0;
+    // negative control: 무-가드 다중 존은 *발산해야* 정상(가드 부재 확증). handoffs>0(실 이주) + 섭동>0 + world != lockstep.
+    const diverges = !same;
+    const ok = check(off.totals.handoffs > 0 && pert && diverges, `seed ${seed}: handoff${off.totals.handoffs}·pert${pert}·발산${diverges}`);
+    console.log(`${pad(seed, 6)} | ${pad(off.totals.handoffs, 8)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(same ? 'Y' : 'N', 15)} | ${pad(diverges ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['bare2ecap'] = bare2ecap;
-kit.ORDER.splice(1, 0, 'bare2ecap');
+kit.MODES['mzdiverge'] = mzdiverge;
+kit.ORDER.splice(1, 0, 'mzdiverge');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
