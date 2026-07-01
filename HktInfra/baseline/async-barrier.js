@@ -64,7 +64,8 @@ function makeAsyncBarrier(net, cfg) {
   //   ownerZone·region 접근은 barrier ON 경로에서만(OFF→net.step·reg 0). loss/resync(0462)·delay(0463) 둘 다 interior 게이트.
   const horizon = Math.max(resyncDelay, delayMax) + 1;   // deferred move 는 horizon tick 내 재배달(resync/delay 상한)
   function ownerZone(av) { for (const a of net.actors.values()) if (a && a.ents && typeof a.isAuthority === 'function' && a.isAuthority() && a.ents.has(av)) return a; return null; }
-  function interior(wm) { const z = ownerZone(wm.payload.avatar); if (!z) return false; const e = z.ents.get(wm.payload.avatar); return (e.x - z.region.lo) >= horizon && (z.region.hi - 1 - e.x) >= horizon; }
+  const guardOn = C.mzGuard !== false;   // step-0466 — 유계 resync 가드 load-bearing 대조 토글(기본 ON). false=우회(전 move 흡수→발산).
+  function interior(wm) { if (!guardOn) return true; const z = ownerZone(wm.payload.avatar); if (!z) return false; const e = z.ents.get(wm.payload.avatar); return (e.x - z.region.lo) >= horizon && (z.region.hi - 1 - e.x) >= horizon; }
   return {
     step() {
       net.tick++;

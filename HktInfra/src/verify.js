@@ -1,10 +1,10 @@
-// HktInfra step-0466 — 헤드리스 검증 (#4 완전 async 전환 — 유계 resync 가드 load-bearing 대조)
+// HktInfra step-0467 — 헤드리스 검증 (#4 완전 async 전환 — 이주 전 유계 resync 명제)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzguardctl`.
-//   더한 한 조각: `async-barrier.js` 에 `cfg.mzGuard` 토글(기본 ON) 추가 — false 면 interior() 우회(전 move 흡수). 같은 시나리오를
-//   ⒜ 가드 ON → world==lockstep(수렴) ⒝ 가드 OFF → world != lockstep(발산) 로 대조해 interior 유계 resync 가드가 *load-bearing*
-//   (없으면 발산·있으면 수렴)임을 확증(0455 무-resync 대조의 다중 존 판). asyncBarrier OFF → net.step reg 0.
-//   검증: ⒜ `reg`. ⒝ `mzguardctl` — ON 수렴 && OFF 발산(둘 다 성립해야 통과).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzhandoff`.
+//   더한 한 조각: `async-barrier.js` 에 이주 경계 걸침 회계 — pendingMoves(미결 deferred move → avatar)·handoffsObs·
+//   deferredAcrossHandoff. 명제: **이주(handoff) 관측 시 그 avatar 의 미결 deferred move 는 0**(deferredAcrossHandoff==0)
+//   = 이주 전 유계 resync(defer 는 항상 이주 전 재배달). handoffsObs>0(실 이주 관측). asyncBarrier OFF → net.step reg 0.
+//   검증: ⒜ `reg`. ⒝ `mzhandoff` — deferredAcrossHandoff==0·handoffsObs>0·deferN>0·world==lockstep.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,24 +16,23 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest } = kit.helpers;
 
-// step-0466 #4 완전 async — mzguardctl: 유계 resync 가드 load-bearing 대조(ON 수렴 vs OFF 발산).
-function mzguardctl(seeds) {
-  console.log('== mzguardctl (0466·#4 완전 async): interior 유계 resync 가드 load-bearing — 가드 ON→world==lockstep, OFF→발산. ==');
-  console.log('seed   | 가드ON 수렴 | 가드OFF 발산 | 판정');
+// step-0467 #4 완전 async — mzhandoff: 이주 전 유계 resync 명제(deferredAcrossHandoff==0·handoffsObs>0).
+function mzhandoff(seeds) {
+  console.log('== mzhandoff (0467·#4 완전 async): 이주 전 유계 resync — 이주 관측 시 미결 deferred move 0(deferredAcrossHandoff==0) + world==lockstep. ==');
+  console.log('seed   | deferN | handoffsObs | deferredAcrossHandoff | world==lockstep | 판정');
   for (const seed of seeds) {
     const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
     const off = NET.run({ ...b });
-    const abBase = { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 };
-    const onGuard = NET.run({ ...b, asyncBarrier: { ...abBase } });                 // 가드 ON(기본)
-    const onBypass = NET.run({ ...b, asyncBarrier: { ...abBase, mzGuard: false } }); // 가드 OFF(우회)
-    const converges = worldDigest(off) === worldDigest(onGuard);
-    const diverges = worldDigest(off) !== worldDigest(onBypass);
-    const ok = check(converges && diverges, `seed ${seed}: ON수렴${converges}·OFF발산${diverges}`);
-    console.log(`${pad(seed, 6)} | ${pad(converges ? 'Y' : 'N', 11)} | ${pad(diverges ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
+    const same = worldDigest(off) === worldDigest(on);
+    const st = on.asyncBarrier || { deferN: 0, handoffsObs: 0, deferredAcrossHandoff: 1 };
+    const clean = st.deferredAcrossHandoff === 0 && st.handoffsObs > 0 && st.deferN > 0;
+    const ok = check(same && clean, `seed ${seed}: same${same}·hobs${st.handoffsObs}·across${st.deferredAcrossHandoff}·deferN${st.deferN}`);
+    console.log(`${pad(seed, 6)} | ${pad(st.deferN, 6)} | ${pad(st.handoffsObs, 11)} | ${pad(st.deferredAcrossHandoff, 21)} | ${pad(same ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['mzguardctl'] = mzguardctl;
-kit.ORDER.splice(1, 0, 'mzguardctl');
+kit.MODES['mzhandoff'] = mzhandoff;
+kit.ORDER.splice(1, 0, 'mzhandoff');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
