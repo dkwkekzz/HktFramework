@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0461](step-0461.md) — **#4 완전 async 전환 arc 시작 — 다중 존 loss+delay 발산 포착(negative control)**: `mzdiverge` — 0451~0460 이 흡수한 loss+delay 를 *다중 존(grid24·zones2)* 무-가드 barrier 로 돌리면 **world != lockstep(발산)**. 원인=지연/손실이 이주 타이밍을 바꿔 lockstep 의 이주 경계 move-drop 집합(stale 존 도착 move 폐기)이 달라짐 = #72 고정. barrier 코드 무변경 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·mzdiverge 5/5(다중존 loss+delay 발산 관측·handoff>0·resync/delay>0)·spine ALL OK.
+- **닫힌 step**: [step-0462](step-0462.md) — **#4 완전 async 전환 2 — 다중 존 loss 유계 resync 가드**: `mzlossguard` — `async-barrier.js` 에 `ownerZone` 오라클 + **wrap-aware interior** 술어(엔티티가 region 양 끝+wrap 경계에서 horizon 이상 떨어짐) 추가, *loss/resync* 경로를 interior() 로 게이트 → 다중 존 loss-only 도 world==lockstep(경계 근처 move 는 in-order 배달·이주 타이밍 불변). OFF→net.step reg 0.
+- **한 줄 상태**: reg ALL OK·mzlossguard 5/5(다중존 loss-only world==lockstep·handoff 4~15·resync 17~32)·spine ALL OK.
 - **다음**: 🎯 **#4 완전 async 전환 sub-arc(0461~0470) — 다중 존 이주 하 유계 resync**: 발산 포착(0461 ✅)→ownerZone+interior loss 가드(0462)→delay 가드(0463)→결합(0464)→유계 증명(0465)→가드 대조(0466)→이주 전 유계 resync 명제(0467)→exactly-once(0468)→다운스트림 수렴(0469)→capstone(0470). **핵심 메커니즘(검증됨)**: barrier 가 소유 존을 peek 해 *wrap-aware interior*(엔티티가 region 양 끝에서 horizon=max(resyncDelay,delayMax)+1 이상 떨어짐)인 move 만 loss/delay 로 흡수 → deferred move 가 엔티티가 이주 경계에 닿기 전 재배달 = 유계 resync → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(grid≥24·5/5·resync114+/delay206+). **매 step reg 구조적 0**(asyncBarrier OFF→net.step).
 
 ---
@@ -160,3 +160,4 @@
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
 | [0461](step-0461.md) | #4 완전 async 전환 1(발산 포착·negative control): 다중 존(grid24·zones2) loss+delay 무-가드 barrier → world != lockstep(#72 고정·이주 경계 move-drop). barrier 코드 무변경 | 통과(reg 0·spine OK) · mzdiverge 5/5 발산·handoff>0·resync/delay>0 |
+| [0462](step-0462.md) | #4 완전 async 전환 2(loss 가드): `async-barrier.js` ownerZone 오라클 + wrap-aware interior 술어(region 양 끝+wrap 경계에서 horizon 이상) → loss/resync 를 interior 게이트 → 다중 존 loss-only world==lockstep. OFF→net.step reg 0 | 통과(reg 0·spine OK) · mzlossguard 5/5 same·handoff4~15·resync17~32 |
