@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0473](step-0473.md) — **#70 실 host.js child 경계 업스트림 3 — egress 뷰→UpClient**: `upcrecv` — `feedViews(sends, upclient)` — 실 host.js 존 tick 이 낸 게이트웨이-향 view_delta 중 자기 세션 것을 실 UpClient.onMsg 로 배달(다운스트림 라우팅의 경계 업스트림 판). 실 UpClient 가 자기 AOI 뷰를 경계 넘어 수신. 드라이버 미부착→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upcrecv 5/5(뷰 배달 1·UpClient.seen 에 a1@enter pos)·spine ALL OK.
+- **닫힌 step**: [step-0474](step-0474.md) — **#70 실 host.js child 경계 업스트림 4 — 경계 넘어 수렴 desync 0**: `upcconverge` — `upstreamAuthSig(cluster,host,zone)`(실 존 권위 AOI 서명). 실 UpClient 발신(enter+move)→경계 넘어 실 존 적용→egress 뷰 수신 뒤 seenSig()==authSig(desync 0) — 발신→권위 반영→뷰 수렴이 실 프로세스 경계 넘어 성립. 드라이버 미부착→run() reg 0.
+- **한 줄 상태**: reg ALL OK·upcconverge 5/5(seenSig==authSig 경계 넘어 desync 0)·spine ALL OK.
 - **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480)**: enter 배달(0471)→move(0472)→egress view_delta→UpClient(0473)→경계 desync0(0474)→driveUpstream 다중 tick(0475)→leave(0476)→다중 클라(0477)→소켓 손실 멱등(0478)→회계(0479)→capstone(0480). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync 0). **매 step 드라이버 미부착→run() reg 0**(cluster-hostdriver 메서드는 clusterDriverReal ON 경로 전용·default OFF).
 
 ---
@@ -154,3 +154,4 @@
 | [0471](step-0471.md) | #70 실 host.js child 경계 업스트림 1(enter): cluster-hostdriver `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`(실 host.js deliver 소켓 배달). 실 UpClient zoneEnter 경계 넘어 실 host.js 존 entity 생성. 드라이버 미부착→reg 0 | 통과(reg 0·spine OK) · upclenter 5/5 a1 present |
 | [0472](step-0472.md) | #70 경계 업스트림 2(move): intentToZoneMsg 에 zoneMove→존 move 번역. 실 UpClient 이동 intent 경계 넘어 실 host.js 존 적용(onTick pending)·(dx,dy) 이동·wrap | 통과(reg 0·spine OK) · upcmove 5/5 enter+2,1==move후 |
 | [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
+| [0474](step-0474.md) | #70 경계 업스트림 4(수렴): `upstreamAuthSig` — 발신(enter+move)→경계 넘어 실 존→egress 뷰 뒤 seenSig==authSig(desync 0) | 통과(reg 0·spine OK) · upcconverge 5/5 경계 desync0 |

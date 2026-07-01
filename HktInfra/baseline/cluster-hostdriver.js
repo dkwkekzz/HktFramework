@@ -129,6 +129,19 @@ function makeClusterHostDriver() {
       await cluster.rpc(host, { cmd: 'deliver', items: [{ gi: 0, m }] });
       return m;
     },
+    // step-0473 (#70) — egress 뷰를 실 UpClient 로 되먹임: 실 host.js 존 tick 이 낸 send 중 게이트웨이-향 view/view_delta 를 골라
+    //   해당 클라(자기 세션 's:'+avatar)의 onMsg 로 배달한다. 다운스트림 짝(0333 게이트웨이→클라 라우팅)의 경계 업스트림 판 —
+    //   존→(소켓)→게이트웨이→실 UpClient. 반환=배달한 뷰 수. 세션 미지정 뷰(sessionId 무)는 all 클라.
+    feedViews(sends, upclient) {
+      let n = 0;
+      const sid = 's:' + upclient.avatar;
+      for (const s of sends) {
+        if (s.to !== 'gateway' || !s.payload || !/^view/.test(s.payload.type)) continue;
+        if (s.payload.sessionId && s.payload.sessionId !== sid) continue;
+        upclient.onMsg({ payload: s.payload }); n++;
+      }
+      return n;
+    },
   };
 }
 

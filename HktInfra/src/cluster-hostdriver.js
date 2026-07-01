@@ -142,6 +142,13 @@ function makeClusterHostDriver() {
       }
       return n;
     },
+    // step-0474 (#70) — 실 host.js 존의 권위 AOI 서명: snapshot 의 존 entity 위치를 UpClient.seenSig 와 같은 형식('id@x,y' 정렬)으로.
+    //   경계 넘어 수렴 판정(upclient.seenSig()==authSig ⇒ desync 0)의 권위 기준(실 프로세스의 실 월드 상태·in-proc 권위 대신).
+    async upstreamAuthSig(cluster, host, zone) {
+      const s = await cluster.rpc(host, { cmd: 'snapshot' });
+      const ents = (s.snap[zone] && s.snap[zone].ents) || [];
+      return ents.map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';');
+    },
   };
 }
 
