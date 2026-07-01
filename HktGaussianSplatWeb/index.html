@@ -1,0 +1,79 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no" />
+<title>HktGaussianSplat — Web Viewer</title>
+<style>
+	* { margin: 0; padding: 0; box-sizing: border-box; }
+	html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0d12; font-family: system-ui, sans-serif; }
+	#gl { display: block; width: 100vw; height: 100vh; touch-action: none; }
+
+	#hud {
+		position: fixed; top: 12px; left: 12px; color: #cdd3df;
+		font-size: 12px; line-height: 1.6; pointer-events: none;
+		text-shadow: 0 1px 2px #000; user-select: none;
+	}
+	#hud b { color: #7fd3ff; }
+
+	#drop {
+		position: fixed; inset: 0; display: flex; align-items: center; justify-content: center;
+		flex-direction: column; gap: 14px; color: #aeb6c6; text-align: center;
+		transition: opacity .25s; background: radial-gradient(circle at 50% 40%, #141824, #0b0d12);
+	}
+	#drop.hide { opacity: 0; pointer-events: none; }
+	#drop h1 { color: #eaf0fb; font-size: 22px; font-weight: 600; }
+	#drop p { font-size: 13px; max-width: 460px; }
+	#pick {
+		margin-top: 8px; padding: 10px 18px; border: 1px solid #2b3346; border-radius: 8px;
+		background: #171c28; color: #cdd3df; cursor: pointer; font-size: 13px;
+	}
+	#pick:hover { background: #1e2534; }
+	#drop.dragover { outline: 2px dashed #7fd3ff; outline-offset: -14px; }
+
+	#err { position: fixed; bottom: 12px; left: 12px; color: #ff8f8f; font-size: 12px; display: none; }
+
+	#panel {
+		position: fixed; top: 12px; right: 12px; width: 200px; color: #cdd3df; font-size: 12px;
+		background: rgba(20,24,34,.72); border: 1px solid #232b3d; border-radius: 8px; padding: 10px 12px;
+	}
+	#panel label { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin: 6px 0; }
+	#panel input[type=range] { width: 96px; }
+</style>
+</head>
+<body>
+	<canvas id="gl"></canvas>
+
+	<div id="hud">
+		<div>HktGaussianSplat <b>Web</b></div>
+		<div>splats: <b><span id="count">0</span></b></div>
+		<div>fps: <b><span id="fps">0</span></b></div>
+		<div style="margin-top:6px; color:#8791a5">
+			drag: 회전 · wheel: 줌 · 우클릭드래그: 이동
+		</div>
+	</div>
+
+	<div id="panel">
+		<label>불투명도 <input id="opacity" type="range" min="0" max="1" step="0.01" value="1"></label>
+		<label>포인트 크기 <input id="scale" type="range" min="0.2" max="3" step="0.05" value="1"></label>
+		<label>배경 <input id="bg" type="range" min="0" max="1" step="0.01" value="0.04"></label>
+	</div>
+
+	<div id="drop">
+		<h1>3D Gaussian Splatting — Web Viewer</h1>
+		<p>3DGS <code>.ply</code> 파일을 이 창에 드래그하거나 아래 버튼으로 여세요.
+		   (INRIA 3DGS 계열 <code>binary_little_endian</code> 지원)</p>
+		<label id="pick">.ply 파일 선택
+			<input id="file" type="file" accept=".ply" hidden>
+		</label>
+	</div>
+
+	<div id="err"></div>
+
+	<!-- classic scripts (no build step) — file:// 에서도 동작 -->
+	<script src="js/camera.js"></script>
+	<script src="js/ply-loader.js"></script>
+	<script src="js/renderer.js"></script>
+	<script src="js/app.js"></script>
+</body>
+</html>
