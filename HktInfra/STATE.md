@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0444](step-0444.md) — **#4 실 net.step 배리어 치환 4**: `async-net.makeZoneActor`(실 Net onMsg→동결 sim tick)·`deliverToActor` — net.step 배달 절반을 중앙 배리어에서 떼어냄: 존 메일박스 holdback 방출을 실 수신 actor.onMsg 로 배달(전역 FIFO 큐 대신 substrate 전순서) → actor 실 sim 상태==canonical. run() 미호출 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·netdispatch 5/5(actor sim==canonical·applied==40·불변)·async-net.js 6.8KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0445](step-0445.md) — **#4 실 net.step 배리어 치환 5**: `async-net.makeZoneResync` — 실 intent 에 per-client sseq 부여, 연속분만 holdback 통과·hole 감지·재전송으로 frontier 전진(async-core.makeResyncSite 재사용). 실 전송 손실을 substrate 가 복원 → 손실+재정렬에도 방출열==totalOrder→simFold 수렴. run() 미호출 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·netlossy 5/5(simFold수렴·gaps≥10·resyncs≥4)·async-net.js 7.7KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445)→M 복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
+> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445 ✅)→M 복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
 > **설계 제약**: spine 게이트는 `verify.js all`. async-net 은 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 require 1줄만 추가). substrate 원시는 async-core 재사용(복제 금지)·sim fold 는 engine DummySimCore(동결 seam) 사용.
 
 **후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
@@ -161,3 +161,4 @@
 | [0442](step-0442.md) | #4 실 net.step 배리어 치환 2: async-net.simFold — 배달 순서대로 동결 sim seam DummySimCore 에 fold·totalOrder 정규화 순열 불변·raw 도착 갈림(substrate load-bearing) | 통과(reg 0·spine OK) · netsimfold 5/5 순열불변·raw갈림 |
 | [0443](step-0443.md) | #4 실 net.step 배리어 치환 3: async-net.makeZoneMailbox — 교차-client 재정렬 스트림 수신·holdback 점진 방출·인터리빙 불변·simFold 수렴 | 통과(reg 0·spine OK) · netreorder 5/5 sig불변·수렴·close前16~32 |
 | [0444](step-0444.md) | #4 실 net.step 배리어 치환 4: async-net.makeZoneActor·deliverToActor — net.step 배달 절반 치환·실 actor.onMsg→동결 sim·상태==canonical | 통과(reg 0·spine OK) · netdispatch 5/5 actor==canonical·applied40 |
+| [0445](step-0445.md) | #4 실 net.step 배리어 치환 5: async-net.makeZoneResync — per-client sseq gap-resync·실 전송 손실 복원·손실+재정렬에도 simFold 수렴 | 통과(reg 0·spine OK) · netlossy 5/5 수렴·gaps≥10·resyncs≥4 |

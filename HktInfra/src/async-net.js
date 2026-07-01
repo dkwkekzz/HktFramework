@@ -90,6 +90,20 @@ function makeZoneActor(seed, avatars) {
 }
 function deliverToActor(orderedMsgs, actor) { for (const m of orderedMsgs) actor.onMsg(m); return actor; }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor };
+// ── step-0445 — 손실 하 존 수신: per-client sseq gap-resync ──────────────────
+//   0443 메일박스 holdback 은 *client 링크 FIFO* 가 깨지면(intent 누락) 무너진다 — 빠진 lc 를 건너뛰고 오방출. 실 전송은
+//   손실이 있으므로(net.step transport loss), 각 intent 에 per-client 연속 시퀀스(sseq)를 붙여 *연속분만* 안쪽 holdback 에
+//   넘긴다 → sseq 가 expected 를 앞지르면 hole=손실 감지·재전송(resync)으로 채우면 frontier 전진. async-core.makeResyncSite
+//   재사용. 이로써 손실+재정렬 아래서도 방출열 == totalOrder → simFold 수렴. (다운스트림 egress gap-resync 의 논리 클럭 판.)
+function makeZoneResync(nsites) {
+  const site = AC.makeResyncSite(nsites);
+  return {
+    receive(e) { site.receive(e); }, resync(e) { site.resync(e); },
+    finish() { return site.finish(); }, missing() { return site.missing(); },
+    gaps() { return site.gaps(); }, resyncs() { return site.resyncs(); },
+  };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

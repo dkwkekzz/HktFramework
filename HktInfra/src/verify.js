@@ -1,10 +1,9 @@
-// HktInfra step-0444 — 헤드리스 검증 (#4 실 net.step 배리어 치환 4: 실 actor.onMsg 디스패치)
+// HktInfra step-0445 — 헤드리스 검증 (#4 실 net.step 배리어 치환 5: 손실 하 per-client sseq gap-resync)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netdispatch`.
-//   더한 한 조각: async-net.makeZoneActor(실 Net onMsg → 동결 sim tick)·deliverToActor — 존 메일박스 holdback 방출을
-//   실 수신 actor.onMsg 로 배달(net.step 전역 FIFO 큐 대신 substrate 재구성 전순서). actor 실 sim 상태 == canonical.
-//   async-net 은 run() 밖 substrate → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `netdispatch` — actor.digest==canonical·applied==msgs·전 인터리빙 불변.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netlossy`.
+//   더한 한 조각: async-net.makeZoneResync — 실 intent 에 per-client sseq 부여, 연속분만 holdback 통과·hole 감지·재전송으로
+//   frontier 전진(async-core.makeResyncSite 재사용). 손실+재정렬 아래서도 방출열==totalOrder → simFold 수렴. run() 밖 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `netlossy` — 손실→재전송→방출 simFold==canonical·gaps>0·resyncs>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -23,33 +22,35 @@ function interleave(events, nsites, rnd) {
   while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && q[s].length === 0; k++) s = (s + 1) % nsites; out.push(q[s].shift()); rem--; }
   return out;
 }
+function shuffle(arr, rnd) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
 
-// step-0444 #4 배리어 치환 4 — netdispatch: 메일박스 방출 → 실 actor.onMsg 배달·상태==canonical·불변.
-function netdispatch(seeds) {
-  console.log('== netdispatch (0444·#4 배리어 치환 4): 실 actor.onMsg 디스패치 — actor sim==canonical·applied==msgs·불변. ==');
-  console.log('seed   | 이벤트 | actor상태==canonical | applied==msgs | 인터리빙불변 | 판정');
+// step-0445 #4 배리어 치환 5 — netlossy: 손실+재정렬→gap-resync→방출 simFold 수렴·gaps/resyncs>0.
+function netlossy(seeds) {
+  console.log('== netlossy (0445·#4 배리어 치환 5): 손실 하 per-client sseq gap-resync — 방출 simFold 수렴·재전송 실동작. ==');
+  console.log('seed   | 이벤트 | simFold수렴 | gaps | resyncs | 판정');
   for (const seed of seeds) {
-    const C = 4, MS = 40;
-    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: MS });
-    const canonical = NET.simFold(NET.totalOrder(s.events), seed, s.avatars).digest;
-    let eqCanon = true, appliedOk = true, inv = true; let dig0 = null;
+    const C = 4;
+    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: 40 });
+    const events = NET.withSseq(s.events);
+    const canonical = NET.simFold(NET.totalOrder(events), seed, s.avatars).digest;
+    let conv = true, gapsMin = Infinity, resMin = Infinity;
     const K = 6;
     for (let k = 0; k < K; k++) {
-      const rnd = NET.mulberry32((seed ^ (0xB000 + k * 149)) >>> 0);
-      const mbox = NET.makeZoneMailbox(C);
-      for (const e of interleave(s.events, C, rnd)) mbox.receive(e);
-      const actor = NET.makeZoneActor(seed, s.avatars);
-      NET.deliverToActor(mbox.close(), actor);
-      if (actor.digest() !== canonical) eqCanon = false;
-      if (actor.appliedN() !== MS) appliedOk = false;
-      if (dig0 === null) dig0 = actor.digest(); else if (actor.digest() !== dig0) inv = false;
+      const rnd = NET.mulberry32((seed ^ (0xC000 + k * 151)) >>> 0);
+      const site = NET.makeZoneResync(C);
+      const dropped = [];
+      for (const e of interleave(events, C, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+      for (const e of shuffle(dropped, rnd)) site.resync(e);   // 재전송(임의 순서)
+      const delivered = site.finish();
+      if (NET.simFold(delivered, seed, s.avatars).digest !== canonical) conv = false;
+      gapsMin = Math.min(gapsMin, site.gaps()); resMin = Math.min(resMin, site.resyncs());
     }
-    const ok = check(eqCanon && appliedOk && inv, `seed ${seed}: eqCanon ${eqCanon}·applied ${appliedOk}·inv ${inv}`);
-    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(eqCanon ? 'Y' : 'N', 20)} | ${pad(appliedOk ? 'Y' : 'N', 13)} | ${pad(inv ? 'Y' : 'N', 12)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(conv && gapsMin > 0 && resMin > 0, `seed ${seed}: conv ${conv}·gaps≥${gapsMin}·resyncs≥${resMin}`);
+    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(conv ? 'Y' : 'N', 11)} | ${pad(gapsMin, 4)} | ${pad(resMin, 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['netdispatch'] = netdispatch;
-kit.ORDER.splice(1, 0, 'netdispatch');
+kit.MODES['netlossy'] = netlossy;
+kit.ORDER.splice(1, 0, 'netlossy');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
