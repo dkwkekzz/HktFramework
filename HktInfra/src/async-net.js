@@ -58,6 +58,21 @@ function simFold(orderedEvents, seed, avatars) {
   return { ser, digest: fnv1a(ser) };
 }
 
-const __part = { worldIntentStream, streamSig, simFold };
+// ── step-0443 — 존 수신 메일박스: 스트리밍 holdback 재정렬(교차-client 재정렬 안정 방출) ──
+//   0442 simFold 는 *전체 집합이 손에 있을 때* totalOrder 로 정규화했다. 실제 존은 intent 를 *교차-client 재정렬*로
+//   스트림으로 받는다(client 별 링크는 FIFO·client 끼리 임의 인터리빙). makeZoneMailbox 는 async-core.makeHoldback 을
+//   재사용해 low-water-mark 안정성으로 *도착하는 족족* 안전분만 점진 방출 → close 시 잔여 flush. 핵심: 어떤 인터리빙이든
+//   방출열 == totalOrder(전체) → 그 방출열 simFold == canonical(수렴). beforeClose>0 = 진짜 점진 holdback(전체 대기 아님).
+function makeZoneMailbox(nsites) {
+  const hb = AC.makeHoldback(nsites);
+  return {
+    receive(msg) { hb.offer(msg); },                    // 실 Net intent 도착(교차-client 재정렬)
+    close() { return hb.close(); },                     // 스트림 종료 → 잔여 전순서 flush
+    delivered: hb.delivered, sig() { return hb.sig(); },
+    beforeCloseCount() { return hb.beforeCloseCount(); },   // close 이전 방출 수(점진 holdback 증거)
+  };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

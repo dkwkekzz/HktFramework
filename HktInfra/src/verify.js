@@ -1,10 +1,10 @@
-// HktInfra step-0442 — 헤드리스 검증 (#4 실 net.step 배리어 치환 2: 실 sim seam fold — 수렴 다이제스트)
+// HktInfra step-0443 — 헤드리스 검증 (#4 실 net.step 배리어 치환 3: 존 수신 메일박스 스트리밍 holdback 재정렬)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netsimfold`.
-//   더한 한 조각: async-net.simFold — 배달 순서대로 동결 DummySimCore(engine sim seam)에 intent fold → 실 월드 serialize/digest.
-//   totalOrder(0433) 정규화 fold 는 *도착 순열 불변*(수렴 다이제스트)·raw 도착 fold 는 갈릴 수 있음(substrate load-bearing).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netreorder`.
+//   더한 한 조각: async-net.makeZoneMailbox — 실 Net intent 를 교차-client 재정렬로 스트림 수신, low-water-mark 안정
+//   holdback(async-core 재사용)으로 점진 방출 → close 잔여 flush. 어떤 인터리빙이든 방출열==totalOrder → simFold 수렴.
 //   async-net 은 run() 밖 substrate → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `netsimfold` — totalOrder fold K-순열 불변·결정론·raw 도착 갈림(diverge).
+//   검증: ⒜ `reg`. ⒝ `netreorder` — 인터리빙 불변 방출 sig·방출 simFold==canonical·close前 방출>0(점진).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,34 +16,40 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad } = kit.helpers;
 
-function shuffle(arr, rnd) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
-  return a;
+// 교차-client 재정렬 도착: client 별 링크는 FIFO(각 client subseq 순서 보존)·client 끼리 임의 인터리빙.
+function interleave(events, nsites, rnd) {
+  const q = Array.from({ length: nsites }, () => []);
+  for (const e of events) q[e.site].push(e);
+  const out = []; let rem = events.length;
+  while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && q[s].length === 0; k++) s = (s + 1) % nsites; out.push(q[s].shift()); rem--; }
+  return out;
 }
 
-// step-0442 #4 배리어 치환 2 — netsimfold: totalOrder 정규화 fold 도착 순열 불변·raw 도착 fold 갈림(substrate 필요 증거).
-function netsimfold(seeds) {
-  console.log('== netsimfold (0442·#4 배리어 치환 2): 실 sim seam fold — totalOrder 도착 순열 불변(수렴)·raw 갈림. ==');
-  console.log('seed   | 이벤트 | 순열불변 | 결정론 | raw갈림 | 판정');
+// step-0443 #4 배리어 치환 3 — netreorder: 스트리밍 holdback 재정렬 → 인터리빙 불변·simFold 수렴·점진 방출.
+function netreorder(seeds) {
+  console.log('== netreorder (0443·#4 배리어 치환 3): 존 메일박스 스트리밍 holdback — 인터리빙 불변·simFold 수렴·점진. ==');
+  console.log('seed   | 이벤트 | 방출sig불변 | simFold수렴 | close前방출 | 판정');
   for (const seed of seeds) {
-    const s = NET.worldIntentStream(seed, { clients: 4, avatars: 4, msgs: 40 });
+    const C = 4;
+    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: 40 });
     const canonical = NET.simFold(NET.totalOrder(s.events), seed, s.avatars).digest;
-    let permInv = true, rawDiverge = false;
-    const K = 6;
+    let sigInv = true, foldConv = true, beforeMin = Infinity;
+    const K = 6; let sig0 = null;
     for (let k = 0; k < K; k++) {
-      const rnd = NET.mulberry32((seed ^ (0x9000 + k * 131)) >>> 0);
-      const arr = shuffle(s.events, rnd);
-      if (NET.simFold(NET.totalOrder(arr), seed, s.avatars).digest !== canonical) permInv = false;   // 정규화 → 불변
-      if (NET.simFold(arr, seed, s.avatars).digest !== canonical) rawDiverge = true;                 // raw 도착 → 갈림 가능
+      const rnd = NET.mulberry32((seed ^ (0xA000 + k * 137)) >>> 0);
+      const mbox = NET.makeZoneMailbox(C);
+      for (const e of interleave(s.events, C, rnd)) mbox.receive(e);
+      const delivered = mbox.close();
+      if (sig0 === null) sig0 = mbox.sig(); else if (mbox.sig() !== sig0) sigInv = false;
+      if (NET.simFold(delivered, seed, s.avatars).digest !== canonical) foldConv = false;
+      beforeMin = Math.min(beforeMin, mbox.beforeCloseCount());
     }
-    const determ = NET.simFold(NET.totalOrder(s.events), seed, s.avatars).digest === canonical;
-    const ok = check(permInv && determ, `seed ${seed}: permInv ${permInv}·determ ${determ}·rawDiverge ${rawDiverge}`);
-    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(permInv ? 'Y' : 'N', 8)} | ${pad(determ ? 'Y' : 'N', 6)} | ${pad(rawDiverge ? 'Y' : 'N', 7)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = check(sigInv && foldConv && beforeMin > 0, `seed ${seed}: sigInv ${sigInv}·fold ${foldConv}·before ${beforeMin}`);
+    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(sigInv ? 'Y' : 'N', 11)} | ${pad(foldConv ? 'Y' : 'N', 11)} | ${pad(beforeMin, 11)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['netsimfold'] = netsimfold;
-kit.ORDER.splice(1, 0, 'netsimfold');
+kit.MODES['netreorder'] = netreorder;
+kit.ORDER.splice(1, 0, 'netreorder');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
