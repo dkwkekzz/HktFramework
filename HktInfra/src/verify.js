@@ -1,10 +1,10 @@
-// HktInfra step-0440 — 헤드리스 검증 (#4 진짜 비동기 10·grand capstone: async substrate E2E)
+// HktInfra step-0460 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 10·grand capstone: run() E2E)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `asynce2ecap`.
-//   더한 한 조각: 검증 전용 grand capstone — M 복제 site 가 *서로 다른 순열+손실* 도착을 각자 resync+holdback 으로 재구성·배리어-free
-//   진행 → ⒜ clock condition 위반 0 ⒝ 전 복제 desync 0(==정전 전순서) ⒞ 인과 존중(전순서 sound) ⒟ exactly-once(complete) ⒠ 손실 발생.
-//   #4 substrate sub-arc(0431~0440) 닫기. async-core 는 run() 밖 substrate → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `asynce2ecap` — clock0·전복제수렴·sound·complete·lossy.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `bare2ecap`.
+//   더한 한 조각: grand capstone — 실 `run()` 의 net.step 중앙 배리어를 async-barrier 로 치환해 ⒜ 단일 존 손실+지연+resync 하
+//   world==lockstep·exactly-once(moveDup0)·다운스트림 뷰 수렴(desync0) ⒝ 다중 존+핸드오프 투명(world/log==lockstep) 를 한 시나리오로
+//   단언. #4 실 net.step 배리어 실제 치환 sub-arc(0451~0460) 닫기. asyncBarrier OFF → reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `bare2ecap` — 손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명·resyncs/delayed>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -14,55 +14,33 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { check, pad } = kit.helpers;
+const { check, pad, worldDigest, logDigest } = kit.helpers;
 
-const siteOf = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
-function shuffle(arr, rnd) {
-  const a = arr.slice();
-  for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
-  return a;
-}
-function arrivalFor(events, nsites, rnd) {
-  const queues = Array.from({ length: nsites }, () => []);
-  for (const e of events) queues[siteOf(e)].push(e);
-  const out = []; let rem = events.length;
-  while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && queues[s].length === 0; k++) s = (s + 1) % nsites; out.push(queues[s].shift()); rem--; }
-  return out;
-}
-// 한 복제: 순열 도착 + ~20% 손실 + 재전송(임의 순서) + 배리어-free 진행(receive 뒤 즉시 처리는 resync site 내부). → {delivered, resyncs}.
-function replica(events, N, rnd) {
-  const site = NET.makeResyncSite(N);
-  const dropped = [];
-  for (const e of arrivalFor(events, N, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
-  for (const e of shuffle(dropped, rnd)) site.resync(e);
-  return { delivered: site.finish(), resyncs: site.resyncs() };
-}
-
-// step-0440 #4 10·grand capstone — asynce2ecap: M 복제·순열+손실·인과 정렬→전 복제 desync 0·exactly-once·clock0·sound·lossy. 0431~0440 닫기.
-function asynce2ecap(seeds) {
-  console.log('== asynce2ecap (0440·#4 grand capstone): M 복제 순열+손실→전 복제 desync 0·exactly-once·clock0·인과 존중. 0431~0440 닫기. ==');
-  console.log('seed   | 이벤트 | clock위반 | 전복제수렴 | 인과존중 | exactly-once | 손실 | 판정');
+// step-0460 #4 실 치환 10·grand capstone — bare2ecap: run() 배리어 치환 E2E(손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명). 0451~0460 닫기.
+function bare2ecap(seeds) {
+  console.log('== bare2ecap (0460·#4 grand capstone): run() net.step 배리어 치환 — 손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명. 0451~0460 닫기. ==');
+  console.log('seed   | 단일존 world/뷰 | exactly-once | resync·delay | 다중존 world/log | 판정');
   for (const seed of seeds) {
-    const N = 4, M = 3;
-    const base = NET.lamportExchange(seed, { sites: N, rounds: 56 });
-    const events = NET.withSseq(base.events);
-    const canonical = NET.applyDigest(NET.totalOrder(events));
-    const clockViol = NET.clockConditionViolations(base.events, base.edges);
-    const sound = NET.totalOrderSound(events, base.edges);   // 엄격 + 인과 존중
-    let allConv = true, allComplete = true, lossy = true;
-    for (let m = 0; m < M; m++) {
-      const r = replica(events, N, NET.mulberry32((seed ^ (0x4000 + m * 97)) >>> 0));
-      if (NET.applyDigest(r.delivered) !== canonical) allConv = false;
-      if (!NET.accountDelivered(r.delivered, events).complete) allComplete = false;
-      if (r.resyncs === 0) lossy = false;
-    }
-    const ok = check(clockViol === 0 && allConv && sound.strict && sound.causal && allComplete && lossy,
-      `seed ${seed}: clock ${clockViol}·conv ${allConv}·sound ${sound.strict && sound.causal}·complete ${allComplete}·lossy ${lossy}`);
-    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(clockViol, 9)} | ${pad(allConv ? 'Y' : 'N', 10)} | ${pad(sound.causal ? 'Y' : 'N', 8)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(lossy ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    // ⒜ 단일 존: 손실+지연+resync
+    const b1 = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true, zones: 1 };
+    const off1 = NET.run({ ...b1 });
+    const on1 = NET.run({ ...b1, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 48 } });
+    const sig = r => r.clients.map(c => c.seenSig()).join('|');
+    const wv1 = worldDigest(off1) === worldDigest(on1) && sig(off1) === sig(on1);
+    const st = on1.asyncBarrier || { moveDup: 0, resyncs: 0, delayed: 0 };
+    const once = st.moveDup === 0;
+    const pert = st.resyncs > 0 && st.delayed > 0;
+    // ⒝ 다중 존+핸드오프: 투명
+    const b2 = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, incremental: true, zones: 2 };
+    const off2 = NET.run({ ...b2 });
+    const on2 = NET.run({ ...b2, asyncBarrier: true });
+    const mz = worldDigest(off2) === worldDigest(on2) && logDigest(off2) === logDigest(on2) && off2.totals.handoffs > 0;
+    const ok = check(wv1 && once && pert && mz, `seed ${seed}: 단일 ${wv1}·once ${once}·pert r${st.resyncs}/d${st.delayed}·다중 ${mz}`);
+    console.log(`${pad(seed, 6)} | ${pad(wv1 ? 'Y' : 'N', 14)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(mz ? 'Y' : 'N', 16)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['asynce2ecap'] = asynce2ecap;
-kit.ORDER.splice(1, 0, 'asynce2ecap');
+kit.MODES['bare2ecap'] = bare2ecap;
+kit.ORDER.splice(1, 0, 'bare2ecap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

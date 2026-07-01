@@ -1,0 +1,223 @@
+'use strict';
+// HktInfra async-net — #4 실 net.step 배리어 치환 arc(0441~). async-core(0431~0440)가 *추상 이벤트*로 증명한
+//   논리 클럭·인과 정렬 substrate 를, 이 박스가 **실 engine Net 메시지 형태**(from/to/payload)와 **동결 sim seam(DummySimCore)**
+//   에 잇는다 — DownClient/UpClient 가 in-proc 먼저였듯, 실 net.step() 중앙 lockstep 배리어를 *치환할* 기계를
+//   먼저 실 메시지·실 월드 상태 위에서 증명한다. 이 박스는 run() 경로가 호출하지 않는다 → run() 비트 불변(reg 구조적 0).
+//   substrate 원시(Lamport 클럭·holdback·전순서·resync·회계)는 async-core 를 *재사용*한다(복제 금지).
+// dual-mode(검증 전용·Node): common.js(engine 재노출) + async-core 재사용. 브라우저는 <script> 선행 로드.
+const __isNode = typeof module !== 'undefined' && module.exports && typeof require !== 'undefined';
+const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;
+const __p = n => __isNode ? require('./' + n + '.js') : globalThis.__HktNetParts[n.replace(/-/g, '_')];
+const { mulberry32, fnv1a } = __c;
+const AC = __p('async-core');   // 논리 클럭·holdback·전순서·resync·회계 원시(0431~0440) 재사용
+const __eng = __isNode ? require('../engine/index.js') : globalThis.HktEngine;   // 동결 sim seam(DummySimCore) — 실 월드 상태 fold 용
+
+// ── step-0441 — 실 Net 메시지 형태 intent 스트림 + per-client Lamport 스탬프 ──
+//   오늘 결정론은 net.step() 이 모든 참여자를 한 동기 tick 으로 묶어 *중앙 큐 하나*로 배달함이 떠받친다. #4 는 이를 해제한다 —
+//   그러려면 먼저 *실 전송 메시지*(gateway→zone 의 월드 입력 intent)를 논리 클럭으로 스탬프해야 한다. 다중 client(발신 site)가
+//   각자 Lamport 클럭으로 intent 를 발신 → 이벤트 로그 + program-order 간선(같은 client 연속). client 끼리 인과 없음(각자 독립
+//   발신) → 전순서 tie-break 는 site 로(0433). 메시지 형태 = 실 Net 계약: { id, from:'client'+s, to:'zone1', payload:{type:'intent',...} }.
+//   결정: 시드 PRNG 만(Math.random 0). 같은 (seed, clients, avatars, msgs) → 같은 로그(재현).
+function worldIntentStream(seed, { clients = 4, avatars = 4, msgs = 40 } = {}) {
+  const rnd = mulberry32((seed ^ 0x4E7C) >>> 0);
+  const clocks = Array.from({ length: clients }, (_, s) => AC.makeLamportClock('c' + s));
+  const avatarIds = Array.from({ length: avatars }, (_, a) => 'a' + a);
+  const events = [];              // { id, site, from, to, lc, kind:'intent', payload }
+  const edges = [];               // [aId, bId] — a happens-before b (program order·같은 client)
+  const lastEvId = new Array(clients).fill(-1);
+  let nextId = 0;
+  for (let k = 0; k < msgs; k++) {
+    const site = rnd() % clients;
+    const lc = clocks[site].send();                       // 발신 이벤트 — 클럭 1 전진
+    const avatar = avatarIds[rnd() % avatars];
+    const dx = (rnd() % 3) - 1;                            // {-1,0,1}
+    const dy = (rnd() % 3) - 1;
+    const id = nextId++;
+    events.push({ id, site, from: 'client' + site, to: 'zone1', lc, kind: 'intent', payload: { type: 'intent', avatar, dx, dy } });
+    if (lastEvId[site] >= 0) edges.push([lastEvId[site], id]);
+    lastEvId[site] = id;
+  }
+  return { events, edges, avatars: avatarIds, finalClocks: clocks.map(c => c.now()) };
+}
+// 스트림 서명 — (site,lc,avatar,dx,dy) 열 해시(재현 대조용·도착 무관 내용 함수).
+function streamSig(events) {
+  return fnv1a(events.map(e => e.site + ':' + e.lc + ':' + e.payload.avatar + ':' + e.payload.dx + ',' + e.payload.dy).join('|'));
+}
+
+// ── step-0442 — 배달 순서대로 동결 sim seam(DummySimCore)에 fold → 실 월드 상태 다이제스트 ──
+//   async-core 의 applyDigest 는 *추상* fnv fold 였다. 실 net.step 배리어 치환은 결국 *실 월드 상태*의 수렴을 뜻하므로,
+//   여기서는 배달된 intent 를 **동결 ISimCore(DummySimCore·engine)** 에 순차 tick 으로 접어 serialize()·해시를 낸다.
+//   핵심(순서 민감): DummySimCore.counter 는 매 tick 전 avatar 위치를 누적 해시 → 같은 intent 라도 *적용 순서가 다르면* 다른
+//   serialize()(위치는 가환이어도 counter 가 갈림). 그래서 totalOrder(0433)로 정규화한 fold 는 *도착 순열 불변*(수렴 다이제스트) —
+//   반대로 raw 도착 순서 fold 는 갈릴 수 있다(substrate 가 load-bearing 인 이유). avatar 는 정렬 순 spawn(결정론).
+function simFold(orderedEvents, seed, avatars) {
+  const sim = __eng.DEFAULT_MAKE_SIM(seed >>> 0);   // DummySimCore(seed)
+  for (const a of avatars.slice().sort()) sim.spawn(a);
+  for (const e of orderedEvents) sim.tick([{ avatar: e.payload.avatar, intent: { dx: e.payload.dx, dy: e.payload.dy } }]);
+  const ser = sim.serialize();
+  return { ser, digest: fnv1a(ser) };
+}
+
+// ── step-0443 — 존 수신 메일박스: 스트리밍 holdback 재정렬(교차-client 재정렬 안정 방출) ──
+//   0442 simFold 는 *전체 집합이 손에 있을 때* totalOrder 로 정규화했다. 실제 존은 intent 를 *교차-client 재정렬*로
+//   스트림으로 받는다(client 별 링크는 FIFO·client 끼리 임의 인터리빙). makeZoneMailbox 는 async-core.makeHoldback 을
+//   재사용해 low-water-mark 안정성으로 *도착하는 족족* 안전분만 점진 방출 → close 시 잔여 flush. 핵심: 어떤 인터리빙이든
+//   방출열 == totalOrder(전체) → 그 방출열 simFold == canonical(수렴). beforeClose>0 = 진짜 점진 holdback(전체 대기 아님).
+function makeZoneMailbox(nsites) {
+  const hb = AC.makeHoldback(nsites);
+  return {
+    receive(msg) { hb.offer(msg); },                    // 실 Net intent 도착(교차-client 재정렬)
+    close() { return hb.close(); },                     // 스트림 종료 → 잔여 전순서 flush
+    delivered: hb.delivered, sig() { return hb.sig(); },
+    beforeCloseCount() { return hb.beforeCloseCount(); },   // close 이전 방출 수(점진 holdback 증거)
+  };
+}
+
+// ── step-0444 — 실 actor.onMsg 디스패치(net.step 배달 절반 치환) ──────────────
+//   net.step() 은 두 일을 한다: ⒜ 도착 메시지를 actor.onMsg 로 *배달* ⒝ actor.onTick 진행. 이 조각은 ⒜(배달)를
+//   중앙 배리어에서 떼어낸다: makeZoneActor 는 실 Net 메시지 계약(onMsg(m){ m.payload → 동결 sim tick })을 든 *실 수신
+//   actor*, deliverToActor 는 존 메일박스 holdback 방출열을 그 actor.onMsg 로 흘린다. net.step 의 전역 FIFO 큐 대신
+//   substrate 가 재구성한 전순서로 배달 → actor 의 실 sim 상태 == canonical(전 인터리빙 불변). onTick(진행)은 아직 lockstep.
+function makeZoneActor(seed, avatars) {
+  const sim = __eng.DEFAULT_MAKE_SIM(seed >>> 0);
+  for (const a of avatars.slice().sort()) sim.spawn(a);
+  let applied = 0;
+  return {
+    addr: 'zone1', kind: 'zone',
+    onMsg(m) { const p = m && m.payload; if (p && p.type === 'intent') { sim.tick([{ avatar: p.avatar, intent: { dx: p.dx, dy: p.dy } }]); applied++; } },
+    appliedN() { return applied; }, serialize() { return sim.serialize(); }, digest() { return fnv1a(sim.serialize()); },
+  };
+}
+function deliverToActor(orderedMsgs, actor) { for (const m of orderedMsgs) actor.onMsg(m); return actor; }
+
+// ── step-0445 — 손실 하 존 수신: per-client sseq gap-resync ──────────────────
+//   0443 메일박스 holdback 은 *client 링크 FIFO* 가 깨지면(intent 누락) 무너진다 — 빠진 lc 를 건너뛰고 오방출. 실 전송은
+//   손실이 있으므로(net.step transport loss), 각 intent 에 per-client 연속 시퀀스(sseq)를 붙여 *연속분만* 안쪽 holdback 에
+//   넘긴다 → sseq 가 expected 를 앞지르면 hole=손실 감지·재전송(resync)으로 채우면 frontier 전진. async-core.makeResyncSite
+//   재사용. 이로써 손실+재정렬 아래서도 방출열 == totalOrder → simFold 수렴. (다운스트림 egress gap-resync 의 논리 클럭 판.)
+function makeZoneResync(nsites) {
+  const site = AC.makeResyncSite(nsites);
+  return {
+    receive(e) { site.receive(e); }, resync(e) { site.resync(e); },
+    finish() { return site.finish(); }, missing() { return site.missing(); },
+    gaps() { return site.gaps(); }, resyncs() { return site.resyncs(); },
+  };
+}
+
+// ── step-0446 — M 복제 존 수렴(desync 0) ────────────────────────────────────
+//   net.step() lockstep 은 *중앙 큐 하나*라 모든 참여자가 자명히 같은 배달을 본다. 배리어를 없애면 복제마다 *물리적으로 다른
+//   순열+손실*로 받는다. convergeReplicas: M 복제 존이 각자 다른 인터리빙+손실 도착을 makeZoneResync 로 재구성·동결 sim 에
+//   fold → 각 복제의 실 월드 digest. 핵심 명제: 배리어 없이도 전 복제 digest 가 서로 같고(desync 0) == canonical(totalOrder).
+function _interleave(events, nsites, rnd) {
+  const q = Array.from({ length: nsites }, () => []);
+  for (const e of events) q[e.site].push(e);
+  const out = []; let rem = events.length;
+  while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && q[s].length === 0; k++) s = (s + 1) % nsites; out.push(q[s].shift()); rem--; }
+  return out;
+}
+function _shuffle(arr, rnd) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function convergeReplicas(events, M, seed, avatars, nsites, { lossy = true } = {}) {
+  const digests = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0xD000 + m * 157)) >>> 0);
+    const site = makeZoneResync(nsites);
+    const dropped = [];
+    for (const e of _interleave(events, nsites, rnd)) { if (lossy && rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of _shuffle(dropped, rnd)) site.resync(e);
+    digests.push(simFold(site.finish(), seed, avatars).digest);
+  }
+  return digests;
+}
+
+// ── step-0447 — 배리어-free 진행: 독립 페이스 복제 존 ─────────────────────────
+//   0446 복제는 도착 순열은 달라도 *한 번에 전부 재구성*(암묵 동기)했다. net.step 배리어의 본질은 모든 참여자를 *한 동기 tick*
+//   으로 묶는 것 → 배리어-free 는 각 복제가 *독립 속도*로 전진해야 한다. driveAsyncReplicas: M 복제가 receive(도착 버퍼)와
+//   tick(진행 1보)을 분리(async-core.makeAsyncSite 재사용)하고 서로 다른 페이스(1·2·3보/라운드)로 굴러 → 진행 skew>0(비-lockstep).
+//   holdback 안정성은 페이스 무관 → 최종 실 월드 digest 는 진행 입도에 무관(전 복제 == canonical). 중앙 배리어 없이 desync 0.
+function driveAsyncReplicas(events, M, seed, avatars, nsites) {
+  const reps = [];
+  for (let m = 0; m < M; m++) reps.push({ site: AC.makeAsyncSite(nsites), pace: 1 + (m % 3), arr: _interleave(events, nsites, mulberry32((seed ^ (0xE000 + m * 163)) >>> 0)), i: 0 });
+  let progressing = true, maxSkew = 0;
+  while (progressing) {
+    progressing = false;
+    for (const r of reps) for (let p = 0; p < r.pace; p++) { if (r.i < r.arr.length) { r.site.receive(r.arr[r.i++]); progressing = true; } r.site.tick(); }
+    const applied = reps.map(r => r.site.appliedN());
+    maxSkew = Math.max(maxSkew, Math.max(...applied) - Math.min(...applied));
+  }
+  return { digests: reps.map(r => simFold(r.site.finish(), seed, avatars).digest), skew: maxSkew };
+}
+
+// ── step-0448 — exactly-once 회계(실 intent 순열+손실) ───────────────────────
+//   수렴(0446)·배리어-free(0447)·손실 복원(0445)이 *맞게* 동작하려면 회계가 닫혀야 한다: 발신한 모든 실 intent 가 결국
+//   *정확히 한 번* 적용(손실 0·중복 0)되고, 순열/손실 교란에도 최종 실 월드 digest 불변. accountReplicas: M 복제가 순열+손실
+//   도착을 makeZoneResync 재구성 후 async-core.accountDelivered(배달열 vs 전체 집합)로 {complete,dups,missing} 대조 +
+//   실 월드 digest. 닫힌 장부의 논리 클럭 판 — 배리어 없이도 발신==적용(exactly-once).
+function accountReplicas(events, M, seed, avatars, nsites) {
+  const out = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0xF000 + m * 167)) >>> 0);
+    const site = makeZoneResync(nsites);
+    const dropped = [];
+    for (const e of _interleave(events, nsites, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of _shuffle(dropped, rnd)) site.resync(e);
+    const delivered = site.finish();
+    const acct = AC.accountDelivered(delivered, events);
+    out.push({ complete: acct.complete, dups: acct.dups, missing: acct.missing, digest: simFold(delivered, seed, avatars).digest, resyncs: site.resyncs() });
+  }
+  return out;
+}
+
+// ── step-0449 — lockstep 배리어 등가(실 engine Net 대조) ──────────────────────
+//   여기서 처음으로 *실 engine Net*(중앙 lockstep 배리어 net.step)을 실체로 세운다: client 발신 actor 들 + 존 수신 actor 를
+//   register 하고 net.step() 을 T tick 굴린다(중앙 큐 하나 = 배리어). 존은 도착 intent 를 버퍼링 → 전순서 적용(substrate) →
+//   실 월드. 명제: **배리어(net.step)로 배달하든 배리어-free substrate 로 배달하든 존의 실 월드 상태가 동일**(== canonical) →
+//   배리어를 substrate 로 *치환해도 결과 불변*. 대조(naive): net.step 도착 순서 그대로 fold 는 canonical 과 갈릴 수 있음(전순서 미적용).
+function runLockstepEngine(events, seed, avatars, nsites) {
+  const net = new __c.Net({});                          // transport=null → 무손실 FIFO lockstep(중앙 배리어)
+  const byClient = Array.from({ length: nsites }, () => []);
+  for (const e of events) byClient[e.site].push(e);
+  const buffer = [];
+  for (let s = 0; s < nsites; s++) {
+    const outbox = byClient[s].slice(); let idx = 0;
+    net.register('client' + s, { onTick() { if (idx < outbox.length) { const e = outbox[idx++]; this.net.send('client' + s, 'zone1', { type: 'intent', site: e.site, lc: e.lc, avatar: e.payload.avatar, dx: e.payload.dx, dy: e.payload.dy }); } } });
+  }
+  net.register('zone1', { onMsg(m) { const p = m.payload; if (p && p.type === 'intent') buffer.push({ site: p.site, lc: p.lc, payload: { avatar: p.avatar, dx: p.dx, dy: p.dy } }); } });
+  const ticks = Math.max(0, ...byClient.map(a => a.length)) + 3;
+  for (let t = 0; t < ticks; t++) net.step();
+  return {
+    delivered: buffer.length,
+    arrivalDigest: simFold(buffer, seed, avatars).digest,              // net.step 도착 순서 그대로(naive·전순서 미적용)
+    totalDigest: simFold(AC.totalOrder(buffer), seed, avatars).digest, // 배리어 배달 + substrate 전순서 적용
+    stats: net.stats,
+  };
+}
+
+// ── step-0450 — grand capstone: 실 net.step 배리어 치환 in-proc 등가 E2E ──────
+//   0441~0449 의 모든 조각(실 Net-형 스트림·sim fold·holdback·디스패치·resync·복제 수렴·배리어-free·exactly-once·배리어 등가)을
+//   한 시나리오로 묶는다: M 복제 존이 *서로 다른 순열+손실*을 *독립 페이스*(pace 1·2·3)로 받아 makeZoneResync 재구성·동결 sim fold
+//   → 전 복제 실 월드 desync 0·exactly-once·손실 발생·진행 skew>0. capstoneReplicas 가 그 복합 드라이버.
+function capstoneReplicas(events, M, seed, avatars, nsites) {
+  const reps = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0x1A00 + m * 173)) >>> 0);
+    reps.push({ rnd, arr: _interleave(events, nsites, rnd), i: 0, site: makeZoneResync(nsites), dropped: [], pace: 1 + (m % 3) });
+  }
+  let progressing = true, maxSkew = 0;
+  while (progressing) {
+    progressing = false;
+    for (const r of reps) for (let p = 0; p < r.pace; p++) if (r.i < r.arr.length) { const e = r.arr[r.i++]; if (r.rnd() % 5 === 0) r.dropped.push(e); else r.site.receive(e); progressing = true; }
+    const consumed = reps.map(r => r.i);
+    maxSkew = Math.max(maxSkew, Math.max(...consumed) - Math.min(...consumed));
+  }
+  const out = [];
+  for (const r of reps) {
+    for (const e of _shuffle(r.dropped, r.rnd)) r.site.resync(e);
+    const delivered = r.site.finish();
+    out.push({ digest: simFold(delivered, seed, avatars).digest, complete: AC.accountDelivered(delivered, events).complete, resyncs: r.site.resyncs() });
+  }
+  return { reps: out, skew: maxSkew };
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas, runLockstepEngine, capstoneReplicas };
+if (typeof module !== 'undefined' && module.exports) module.exports = __part;
+if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

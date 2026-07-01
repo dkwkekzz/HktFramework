@@ -83,6 +83,9 @@ function run(opts) {
   const upclis = topo.specs.filter(s => s.kind === 'upclient').map(s => map.get(s.addr));   // step-0421 (#61) — 업스트림 intent 실 클라(발신 액터). upClients 미설정이면 [].
   const allZones = zoneObjs.concat(followers);
 
+  // step-0451 (#4 실 net.step 배리어 치환) — asyncBarrier ON 이면 매 tick net.step() 대신 async substrate stepper 로 월드 입력 배달.
+  //   OFF(기본·미설정)면 ab=null → net.step() 그대로 = baseline 비트 동일(reg 구조적 0). flush 는 루프 뒤 홀드백 잔여 방출(0453~).
+  const ab = opts.asyncBarrier ? __p('async-barrier').makeAsyncBarrier(net, opts.asyncBarrier) : null;
   const trace = [], seenTrace = [], deltaTrace = [], replicaTrace = [];
   let prevDeltaRec = 0;
   // step-0261 분할 — 주입열(topo-inject.applyInjections)이 쓰는 박스 핸들 묶음(루프 전 1회 구성·verbatim 동치).
@@ -96,7 +99,7 @@ function run(opts) {
     // step-0261 분할 — per-tick 제어 평면 메시지 주입열(rankDie/rankStall/producerInject/presenceFailover/whispers~loginOps/inject)을 topo-inject.js 로 위임.
     //   verbatim 이동·ctx 핸들만 주입·기능 0(reg 0). 주입 가드는 미수신 박스(null)에서 휴면 = 직전 step 비트 동일.
     applyInjections(opts, i, __ctx);
-    net.step();
+    if (ab) ab.step(); else net.step();
     const committed = new Map();
     for (const z of allZones) if (z.isAuthority()) for (const av of z.ents.keys()) committed.set(av, (committed.get(av) || 0) + 1);
     const inflight = inflightSet(net, allZones);
@@ -114,6 +117,7 @@ function run(opts) {
       onTick(i + 1, { ents, radius: topo.radius, grid: topo.grid });
     }
   }
+  if (ab) ab.flush();   // step-0451 — 루프 뒤 홀드백 잔여 방출(0453~·투명 단계 no-op)
   const sum = (f) => zoneObjs.reduce((a, z) => a + f(z), 0);
   const sumAll = (f) => allZones.reduce((a, z) => a + f(z), 0);
   const totals = {
@@ -132,7 +136,7 @@ function run(opts) {
   };
   totals.deltaRecords = totals.deltaEnter + totals.deltaExit + totals.deltaUpdate;
   totals.netLost = net.stats.lost;
-  return { net, login, registry, gateway, orch, instance, cache, worldlog, loginqueue, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, downclients: downclis, upclients: upclis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc' };
+  return { net, login, registry, gateway, orch, instance, cache, worldlog, loginqueue, inventory, chat, bus, audit, ranking, ranking2, presmon, presence, presenceShadow, wrouter, pservice, mbox, mbox2, exchange, market, mail, mailfeed, guild, guildfeed, persist, persist2, replicaStores, chatpersist, zones: zoneObjs, followers, allZones, zoneAddrs: topo.zoneAddrs, clients: clis, downclients: downclis, upclients: upclis, trace, seenTrace, deltaTrace, replicaTrace, totals, H: topo.H, grid: topo.grid, radius: topo.radius, deathTick: opts.deathTick != null ? opts.deathTick : null, killZone: opts.killZone || 'zone1', mode: 'inproc', asyncBarrier: ab ? ab.stats() : null };
 }
 
 // ════════════════════════════════════════════════════════════════════════
