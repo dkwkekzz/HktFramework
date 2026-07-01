@@ -120,6 +120,7 @@ function makeClusterHostDriver() {
     intentToZoneMsg(op, from = 'gateway') {
       if (op.type === 'zoneEnter') return { to: op.zoneId, from, payload: { type: 'enter', sessionId: 's:' + op.avatar, avatar: op.avatar } };
       if (op.type === 'zoneMove') return { to: op.zoneId, from, payload: { type: 'move', avatar: op.avatar, d: { dx: op.dx, dy: op.dy } } };   // step-0472 — 이동 intent → 존 move(존 onTick 이 pending 적용).
+      if (op.type === 'zoneLeave') return { to: op.zoneId, from, payload: { type: 'leave', sessionId: 's:' + op.avatar, avatar: op.avatar } };   // step-0476 — 접속 종료 intent → 존 leave(entity 제거·세션 정리).
       return null;
     },
     // step-0471 — 실 host.js 경계 업스트림 배달: intent 1발을 존 msg 로 번역해 실 host.js deliver(zone.onMsg) 로 보낸다. 미번역(null)이면 배달 0.

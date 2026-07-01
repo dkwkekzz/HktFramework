@@ -149,6 +149,21 @@ function makeClusterHostDriver() {
       const ents = (s.snap[zone] && s.snap[zone].ents) || [];
       return ents.map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';');
     },
+    // step-0475 (#70) — 실 UpClient E2E 경계 구동: 매 tick ⒜ upclient.onTick 발신 intent 를 capturing net 으로 포착·경계 배달
+    //   ⒝ 그 존을 실 host.js tick(move 적용+뷰 산출) ⒞ egress 뷰를 upclient 로 되먹임. 다중 tick plan 을 경계 넘어 완결(0471~0474 합).
+    //   upclient 는 zone → host 매핑(zoneOf: zone→host)으로 라우팅. 반환 = 발신 intent 총수(applied).
+    async driveUpstream(cluster, upclients, ticks, zoneOf) {
+      const host = z => (zoneOf ? zoneOf(z) : cluster.hostIds[0]);
+      const caps = new Map();
+      for (const uc of upclients) { caps.set(uc, []); uc.net = { send: (f, to, p) => caps.get(uc).push(p) }; }
+      let applied = 0;
+      const zones = new Set(upclients.map(uc => uc.zoneId));
+      for (let t = 1; t <= ticks; t++) {
+        for (const uc of upclients) { caps.get(uc).length = 0; uc.onTick(t); for (const op of caps.get(uc)) { await this.deliverIntent(cluster, host(uc.zoneId), op); applied++; } }
+        for (const z of zones) { const sends = await this.tickZone(cluster, host(z), z, t); for (const uc of upclients) if (uc.zoneId === z) this.feedViews(sends, uc); }
+      }
+      return applied;
+    },
   };
 }
 

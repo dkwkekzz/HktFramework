@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0475](step-0475.md) — **#70 실 host.js child 경계 업스트림 5 — driveUpstream 다중 tick**: `upcdrive` — `driveUpstream(cluster, upclients, ticks, zoneOf)` 로 0471~0474 를 매-tick 루프 통합(발신 포착→경계 배달→실 존 tick→egress 되먹임). 실 UpClient 다중 tick plan 경계 넘어 완결·최종 seenSig==authSig. 드라이버 미부착→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upcdrive 5/5(applied4==sent·경계 넘어 desync0)·spine ALL OK.
+- **닫힌 step**: [step-0476](step-0476.md) — **#70 실 host.js child 경계 업스트림 6 — leave 생애주기**: `upcleave` — `intentToZoneMsg` 에 `zoneLeave`→존 leave 번역. 실 UpClient.leaveAt 종료 intent 가 경계 넘어 실 host.js 존 entity 제거(enter→move→leave 완결). driveUpstream 이 leave 자동 배달. 드라이버 미부착→run() reg 0.
+- **한 줄 상태**: reg ALL OK·upcleave 5/5(applied3·leave 후 존 size0·a1 제거)·spine ALL OK.
 - **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480)**: enter 배달(0471)→move(0472)→egress view_delta→UpClient(0473)→경계 desync0(0474)→driveUpstream 다중 tick(0475)→leave(0476)→다중 클라(0477)→소켓 손실 멱등(0478)→회계(0479)→capstone(0480). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync 0). **매 step 드라이버 미부착→run() reg 0**(cluster-hostdriver 메서드는 clusterDriverReal ON 경로 전용·default OFF).
 
 ---
@@ -156,3 +156,4 @@
 | [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
 | [0474](step-0474.md) | #70 경계 업스트림 4(수렴): `upstreamAuthSig` — 발신(enter+move)→경계 넘어 실 존→egress 뷰 뒤 seenSig==authSig(desync 0) | 통과(reg 0·spine OK) · upcconverge 5/5 경계 desync0 |
 | [0475](step-0475.md) | #70 경계 업스트림 5(driveUpstream): 매-tick 루프 통합(발신 포착→경계 배달→실 존 tick→egress 되먹임)·다중 tick plan 경계 넘어 완결·수렴 | 통과(reg 0·spine OK) · upcdrive 5/5 applied4==sent |
+| [0476](step-0476.md) | #70 경계 업스트림 6(leave): intentToZoneMsg 에 zoneLeave→존 leave. 실 UpClient.leaveAt 종료 intent 경계 넘어 실 존 entity 제거(생애주기 완결) | 통과(reg 0·spine OK) · upcleave 5/5 leave 후 존0 |
