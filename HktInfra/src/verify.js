@@ -1,9 +1,10 @@
-// HktInfra step-0448 — 헤드리스 검증 (#4 실 net.step 배리어 치환 8: exactly-once 회계)
+// HktInfra step-0449 — 헤드리스 검증 (#4 실 net.step 배리어 치환 9: lockstep 배리어 등가·실 engine Net 대조)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netaccount`.
-//   더한 한 조각: async-net.accountReplicas — M 복제가 순열+손실 재구성 후 async-core.accountDelivered 로 {complete,dups,missing}
-//   대조 + 실 월드 digest. 배리어 없이도 발신 intent == 적용(exactly-once)·순열/손실 교란에도 digest 불변. run() 밖 → reg 0.
-//   검증: ⒜ `reg`. ⒝ `netaccount` — 전 복제 complete·dups0·missing0·digest==canonical·손실 발생.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netbarrier`.
+//   더한 한 조각: async-net.runLockstepEngine — 실 engine Net(중앙 lockstep 배리어 net.step)에 client 발신 actor+존 수신 actor
+//   register·구동. 명제: 배리어(net.step)로 배달하든 배리어-free substrate 로 배달하든 존 실 월드 == canonical(치환 결과 불변).
+//   대조: net.step 도착 순서 그대로 fold(naive)는 전순서 미적용→갈림(substrate load-bearing). run() 밖 → reg 0.
+//   검증: ⒜ `reg`. ⒝ `netbarrier` — 배리어+substrate==canonical·배리어-free async==canonical·naive 갈림·무손실 delivered==N.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,27 +16,26 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad } = kit.helpers;
 
-// step-0448 #4 배리어 치환 8 — netaccount: 전 복제 exactly-once(complete·dups0·missing0)·digest==canonical.
-function netaccount(seeds) {
-  console.log('== netaccount (0448·#4 배리어 치환 8): exactly-once 회계 — 전 복제 complete·dups0·missing0·digest==canonical. ==');
-  console.log('seed   | 이벤트 | 복제 | complete | dups | missing | ==canonical | 판정');
+// step-0449 #4 배리어 치환 9 — netbarrier: 실 engine Net 배리어 vs 배리어-free substrate 등가(둘 다 canonical)·naive 갈림.
+function netbarrier(seeds) {
+  console.log('== netbarrier (0449·#4 배리어 치환 9): 실 engine Net 배리어 == 배리어-free substrate(둘 다 canonical)·naive 갈림. ==');
+  console.log('seed   | 이벤트 | delivered | 배리어+substrate | 배리어-free async | naive갈림 | 판정');
   for (const seed of seeds) {
-    const C = 4, M = 4;
-    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: 40 });
+    const C = 4, M = 4, MS = 40;
+    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: MS });
     const events = NET.withSseq(s.events);
     const canonical = NET.simFold(NET.totalOrder(events), seed, s.avatars).digest;
-    const reps = NET.accountReplicas(events, M, seed, s.avatars, C);
-    const allComplete = reps.every(r => r.complete);
-    const dups = reps.reduce((a, r) => a + r.dups, 0);
-    const missing = reps.reduce((a, r) => a + r.missing, 0);
-    const eqCanon = reps.every(r => r.digest === canonical);
-    const lossy = reps.some(r => r.resyncs > 0);
-    const ok = check(allComplete && dups === 0 && missing === 0 && eqCanon && lossy, `seed ${seed}: complete ${allComplete}·dups ${dups}·missing ${missing}·eqCanon ${eqCanon}`);
-    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(M, 4)} | ${pad(allComplete ? 'Y' : 'N', 8)} | ${pad(dups, 4)} | ${pad(missing, 7)} | ${pad(eqCanon ? 'Y' : 'N', 11)} | ${ok ? 'OK' : 'FAIL'}`);
+    const L = NET.runLockstepEngine(s.events, seed, s.avatars, C);       // 실 engine Net lockstep
+    const asyncD = NET.convergeReplicas(events, M, seed, s.avatars, C, { lossy: true });   // 배리어-free
+    const lockstepEq = L.totalDigest === canonical && L.delivered === MS;
+    const asyncEq = asyncD.every(d => d === canonical);
+    const naiveDiv = L.arrivalDigest !== canonical;
+    const ok = check(lockstepEq && asyncEq, `seed ${seed}: barrier ${lockstepEq}·async ${asyncEq}·delivered ${L.delivered}·naiveDiv ${naiveDiv}`);
+    console.log(`${pad(seed, 6)} | ${pad(MS, 6)} | ${pad(L.delivered, 9)} | ${pad(lockstepEq ? 'Y' : 'N', 16)} | ${pad(asyncEq ? 'Y' : 'N', 17)} | ${pad(naiveDiv ? 'Y' : 'N', 9)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['netaccount'] = netaccount;
-kit.ORDER.splice(1, 0, 'netaccount');
+kit.MODES['netbarrier'] = netbarrier;
+kit.ORDER.splice(1, 0, 'netbarrier');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

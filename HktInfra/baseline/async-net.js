@@ -147,6 +147,26 @@ function driveAsyncReplicas(events, M, seed, avatars, nsites) {
   return { digests: reps.map(r => simFold(r.site.finish(), seed, avatars).digest), skew: maxSkew };
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas };
+// ── step-0448 — exactly-once 회계(실 intent 순열+손실) ───────────────────────
+//   수렴(0446)·배리어-free(0447)·손실 복원(0445)이 *맞게* 동작하려면 회계가 닫혀야 한다: 발신한 모든 실 intent 가 결국
+//   *정확히 한 번* 적용(손실 0·중복 0)되고, 순열/손실 교란에도 최종 실 월드 digest 불변. accountReplicas: M 복제가 순열+손실
+//   도착을 makeZoneResync 재구성 후 async-core.accountDelivered(배달열 vs 전체 집합)로 {complete,dups,missing} 대조 +
+//   실 월드 digest. 닫힌 장부의 논리 클럭 판 — 배리어 없이도 발신==적용(exactly-once).
+function accountReplicas(events, M, seed, avatars, nsites) {
+  const out = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0xF000 + m * 167)) >>> 0);
+    const site = makeZoneResync(nsites);
+    const dropped = [];
+    for (const e of _interleave(events, nsites, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of _shuffle(dropped, rnd)) site.resync(e);
+    const delivered = site.finish();
+    const acct = AC.accountDelivered(delivered, events);
+    out.push({ complete: acct.complete, dups: acct.dups, missing: acct.missing, digest: simFold(delivered, seed, avatars).digest, resyncs: site.resyncs() });
+  }
+  return out;
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas, driveAsyncReplicas, accountReplicas };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;
