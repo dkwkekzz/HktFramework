@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0459](step-0459.md) — **#4 실 net.step 배리어 실제 치환 9**: `barview` — 배리어 상류 손실+resync 이 *다운스트림 뷰*에도 정합: 클라 AOI 뷰(seenSig)·마지막 seenTrace 가 lockstep 과 수렴(desync 0). 상류 손실을 배리어가 복원하므로 하류 뷰 스트림도 최종 일치. 코드 무변경(reg 구조적 0).
-- **한 줄 상태**: reg ALL OK·barview 5/5(world==lockstep·seenSig/seenTrace==lockstep·desync0)·async-barrier.js 5.3KB·spine ALL OK.
-- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→정전 순서 holdback(0453 ✅)→move 손실+resync 복원(0454 ✅)→무-resync 대조 발산(0455 ✅)→exactly-once 회계(0456 ✅)→교차-tick 지연 복원(0457 ✅)→다중 존(0458 ✅)→다운스트림 수렴(0459 ✅)→grand capstone run() E2E(0460). 실 존 순서 민감(enter rng·move 존재)→배리어는 발신 순서 재구성·load-bearing=손실 복원. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
+- **닫힌 step**: [step-0460](step-0460.md) — **#4 실 net.step 배리어 실제 치환 10·grand capstone**: `bare2ecap` — 실 `run()` net.step 중앙 배리어를 `async-barrier` 로 치환해 ⒜ 단일 존 손실+지연+resync 하 world==lockstep·다운스트림 뷰 수렴·exactly-once(moveDup0) ⒝ 다중 존+핸드오프 투명(world/log==lockstep). **#4 실 net.step 배리어 실제 치환 sub-arc(0451~0460) 닫기**. 코드 무변경 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·bare2ecap 5/5(단일존 손실+지연 world/뷰==lockstep·exactly-once·다중존 투명)·async-barrier.js 5.3KB·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 sub-arc(0451~0460 ✅ 닫힘)**: seam(0451)·스탬프(0452)·정전 순서 holdback(0453)·손실+resync(0454)·무-resync 대조(0455)·exactly-once(0456)·지연 jitter(0457)·다중 존(0458)·다운스트림 수렴(0459)·capstone(0460). 실 run() 전송서 net.step 중앙 배리어를 async substrate 로 치환해도 월드/뷰가 lockstep 수렴(OFF→기본 lockstep 보존·reg 0). **후속(권위 infra-review)**: ⒜ 완전 async 전환(항상 ON·이주 하 유계 resync·downstream 손실/재접속)·⒝ 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미. 🔎 **0451~0460 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -33,7 +33,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | 결정론 시뮬 *내부 구현*은 범위 밖 — `ISimCore` 뒤 블랙박스·HktGameplay 소관·더미 stub 영구(§4·[SPINE](SPINE.md) §0). |
 | ✅ | **#56 브리지 존 데이터 평면** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·entityFlowCoherent). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
-| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40·`async-core.js`) + 실 Net·sim seam 브리지 in-proc 등가 ✅(0441~50·`async-net.js`) + 실 `run()` net.step 배리어 실제 치환 진행(0451~·`async-barrier.js`·stepper seam ✅·OFF→net.step 그대로 reg 0)**. 남은 것: 월드입력 스탬프/holdback/resync 를 seam 에 얹어 run({asyncBarrier}) world==lockstep(0452~0460). |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40) + 실 Net·sim seam 브리지 in-proc 등가 ✅(0441~50) + 실 `run()` net.step 배리어 실제 치환 ✅(0451~60·`async-barrier.js`·월드입력을 holdback/resync 로 배달·손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0)**. 남은 것: 완전 async 전환(항상 ON·이주 하 유계 resync·downstream 손실/재접속). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~50·desync 0) + **업스트림 실 UpClient(0421~30·#61·자기 plan intent 발신·자기 뷰 수신·다중 인터리빙·손실 수렴·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~13) · **인스턴스 🟡 spawn/despawn+수요 자동 spawn/despawn+라우팅+이탈(0201~0222)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~63)·귓속말/파티(0071~106)·거래소(0107~40)·우편(0142~80) 동형(escrow/3leg/saga)·길드+금고(0181~0200·로스터/마스터십/공유 원장/영속/정합). 금고↔가방 escrow 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지 in-proc 등가(0441~50·async-net·run() 밖)**. orch 정리·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지(0441~50·async-net) + 실 run() net.step 배리어 치환(0451~60·async-barrier·월드입력 holdback/resync·손실+지연 하 world==lockstep·OFF→reg 0)**. orch 정리·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay·스냅샷 압축·복구·홉 신뢰·failover/quorum·윈도 0017~62) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like(0205~60)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync(0207~28)**. 버스 영속 후속 |
 
 ---
@@ -158,12 +158,4 @@
 | [0439](step-0439.md) | #4 진짜 비동기 9: accountDelivered(emitted/applied/dups/missing/complete) — 순열+손실 exactly-once·다이제스트 불변 | 통과(reg 0·spine OK) · asyncaccount 5/5 complete·digInv |
 | [0440](step-0440.md) | #4 진짜 비동기 10·grand capstone: asynce2ecap — M 복제 순열+손실→clock0·전복제 desync0·인과존중·exactly-once·0431~0440 닫기 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
-| [0451](step-0451.md) | #4 실 net.step 배리어 *실제* 치환 1: 신규 `async-barrier.js`·stepper seam(투명)+topo-run gated 배선·OFF→reg 구조적 0 | 통과 · barpass 5/5 world/log==lockstep |
-| [0452](step-0452.md) | #4 실 net.step 배리어 *실제* 치환 2: stepper 인라인 배달+월드 입력 per-site Lamport 스탬프·world/log==lockstep | 통과 · barstamp 5/5 stamped244·sites4 |
-| [0453](step-0453.md) | #4 실 net.step 배리어 *실제* 치환 3: 월드 입력 정전 순서(m.id) holdback 제자리 슬롯·실 존 순서민감 발견·투명 | 통과 · barhold 5/5 held244 |
-| [0454](step-0454.md) | #4 실 net.step 배리어 *실제* 치환 4: move 손실+resync 복원(가환·재드롭 없음·단일 존)·world==lockstep | 통과 · barlossy 5/5 resyncs18~26·lost0 |
-| [0455](step-0455.md) | #4 실 net.step 배리어 *실제* 치환 5: 무-resync 대조 발산·resync 복원·배리어 resync load-bearing 확증 | 통과 · barnoresync 5/5 발산·복원·lost>0 |
-| [0456](step-0456.md) | #4 실 net.step 배리어 *실제* 치환 6: exactly-once 회계·손실+resync 하 move 정확히 한 번(moveDup0)·world==lockstep | 통과 · baraccount 5/5 120==120·dup0 |
-| [0457](step-0457.md) | #4 실 net.step 배리어 *실제* 치환 7: 교차-tick 지연 jitter(배달 타이밍 tick 분리·가환)·world==lockstep·delayed>0 | 통과 · bardelay 5/5 delayed39~58 |
-| [0458](step-0458.md) | #4 실 net.step 배리어 *실제* 치환 8: 다중 존(2존·핸드오프/이주) 통합·holdback 발신순서 재구성 투명·world/log==lockstep·handoffs>0 | 통과 · barmultizone 5/5 handoffs17~20 |
-| [0459](step-0459.md) | #4 실 net.step 배리어 *실제* 치환 9: 다운스트림 뷰 수렴·상류 손실+resync 하 클라 seenSig/seenTrace==lockstep·desync 0 | 통과 · barview 5/5 desync0 |
+| 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
