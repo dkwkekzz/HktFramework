@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0454](step-0454.md) — **#4 실 net.step 배리어 실제 치환 4**: 배리어가 *move* 만 확률 손실(enter/leave 무손실)·`resync` 로 resyncDelay tick 뒤 재enqueue → 복원. move 는 위치 가산(가환)이라 늦게 적용돼도 최종 월드 동일 → 단일 존서 `run({asyncBarrier:{loss,resync}})` world==lockstep·resyncs>0. OFF→reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·barlossy 5/5(단일존·world==lockstep·resyncs18~26·lost0)·async-barrier.js 4.4KB·spine ALL OK.
-- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→정전 순서 holdback(0453 ✅)→move 손실+resync 복원(0454 ✅)→무-resync 대조 발산(0455)→exactly-once 회계(0456)→교차-tick 지연 복원(0457)→다중 존(0458)→다운스트림 수렴(0459)→grand capstone run() E2E(0460). 실 존 순서 민감(enter rng·move 존재)→배리어는 발신 순서 재구성·load-bearing=손실 복원. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
+- **닫힌 step**: [step-0455](step-0455.md) — **#4 실 net.step 배리어 실제 치환 5**: 대조 실험 `barnoresync` — 같은 move 손실을 resync:false 로 돌리면 world != lockstep(발산)·resync:true 면 == lockstep(복원). 배리어 resync 가 실 run() 손실 하 결정론에 *load-bearing* 임을 대조로 확증. 코드 박스 무변경(reg 구조적 0).
+- **한 줄 상태**: reg ALL OK·barnoresync 5/5(무resync발산·resync복원·lost18~26)·async-barrier.js 4.4KB·spine ALL OK.
+- **다음**: 🎯 **#4 실 net.step 배리어 실제 치환 arc(0451~0460 진행 중)**: stepper seam(0451 ✅)→월드입력 스탬프(0452 ✅)→정전 순서 holdback(0453 ✅)→move 손실+resync 복원(0454 ✅)→무-resync 대조 발산(0455 ✅)→exactly-once 회계(0456)→교차-tick 지연 복원(0457)→다중 존(0458)→다운스트림 수렴(0459)→grand capstone run() E2E(0460). 실 존 순서 민감(enter rng·move 존재)→배리어는 발신 순서 재구성·load-bearing=손실 복원. asyncBarrier OFF→reg 구조적 0. **후속**: 실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
@@ -162,3 +162,4 @@
 | [0452](step-0452.md) | #4 실 net.step 배리어 *실제* 치환 2: stepper 인라인 배달+월드 입력 per-site Lamport 스탬프·world/log==lockstep·stamped>0 | 통과(reg 0·spine OK) · barstamp 5/5 stamped244·sites4 |
 | [0453](step-0453.md) | #4 실 net.step 배리어 *실제* 치환 3: 월드 입력 정전 순서(m.id 발신순서) holdback 제자리 슬롯 방출·실 존 순서민감 발견·world/log==lockstep 항등 | 통과(reg 0·spine OK) · barhold 5/5 held244 |
 | [0454](step-0454.md) | #4 실 net.step 배리어 *실제* 치환 4: move 손실+resync 복원(가환·재드롭 없음·단일 존)·run({asyncBarrier:loss,resync}) world==lockstep·resyncs>0 | 통과(reg 0·spine OK) · barlossy 5/5 resyncs18~26·lost0 |
+| [0455](step-0455.md) | #4 실 net.step 배리어 *실제* 치환 5: 무-resync 대조 발산(world!=lockstep)·resync 복원(==lockstep)·배리어 resync load-bearing 확증·코드 무변경 | 통과(reg 0·spine OK) · barnoresync 5/5 발산·복원·lost>0 |

@@ -18,8 +18,17 @@ const AC = __p('async-core');   // Lamport 클럭·holdback·resync·전순서 �
 //   0452 는 스탬프만 기록(재정렬 없음·배달 순서 net.step 동일) → world/log 불변(스탬프는 배리어 내부 기록·메시지/log 미변경).
 //   이후 holdback(0453)·재정렬(0454)·resync(0455)가 이 스탬프를 소비. cfg = opts.asyncBarrier(현재 truthy·이후 {loss,pace} 등).
 function makeAsyncBarrier(net, cfg) {
+  const C = (cfg && typeof cfg === 'object') ? cfg : {};
+  // step-0454 — move 손실+resync: 배리어가 *move* 만 확률 손실(enter/leave 는 rng/존재 민감이라 무손실)·resync 로 재전송.
+  //   move 는 위치 가산(가환)이라 늦게 적용돼도 최종 월드 동일 → 복원만 하면 world==lockstep. resyncDelay tick 뒤 재enqueue.
+  const lossRate = C.loss || 0;
+  const doResync = C.resync !== false;             // 기본 true(0455 에서 false 대조)
+  const resyncDelay = C.resyncDelay || 2;
+  const endTick = C.ticks || Infinity;             // 재전송이 끝나기 전 배달·적용되도록 마지막 여유 tick 은 무손실(past-end 방지)
+  const lrnd = lossRate ? __c.mulberry32(((C.seed || 0) ^ 0x8ABB) >>> 0) : null;
+  const resyncedIds = new Set();     // 이미 한 번 resync 된 move id(재전송분은 재드롭 안 함 → 체인 길이 1·유계·확실 배달)
   const clocks = {};                 // site → Lamport 카운터(per-source 단조)
-  let stamped = 0, held = 0, resyncs = 0;
+  let stamped = 0, held = 0, resyncs = 0, lost = 0;
   const isWorldInput = m => /^zone/.test(m.to) && m.payload && (m.payload.type === 'enter' || m.payload.type === 'move' || m.payload.type === 'leave');
   const siteOf = m => (m.payload && (m.payload.sessionId || m.payload.avatar)) || m.from;
   function stamp(m) { const s = siteOf(m); clocks[s] = (clocks[s] || 0) + 1; stamped++; return { m, site: s, lc: clocks[s] }; }
@@ -48,11 +57,21 @@ function makeAsyncBarrier(net, cfg) {
       for (const m of due) if (isWorldInput(m)) world.push(stamp(m));
       world.sort(cmp);                             // 월드 입력: 정전 순서(m.id) 재구성 — 정상 run() 항등
       let wi = 0;                                  // 월드 입력을 *제자리 슬롯*에 방출(비월드 위치 불변 → 상호작용 보존)
-      for (const m of due) { if (isWorldInput(m)) { held++; deliverMsg(world[wi++].m); } else deliverMsg(m); }
+      for (const m of due) {
+        if (!isWorldInput(m)) { deliverMsg(m); continue; }
+        const wm = world[wi++].m; held++;
+        // step-0454 — move 손실+resync: move 만 확률 드롭(재전송분·enter/leave 는 무손실)·resync 로 resyncDelay tick 뒤 재enqueue.
+        if (lrnd && wm.payload.type === 'move' && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
+          if (doResync) { resyncedIds.add(wm.id); net._enqueue(net.tick + resyncDelay, wm); resyncs++; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달)
+          else lost++;                                                             // 무-resync 대조(0455)
+          continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
+        }
+        deliverMsg(wm);
+      }
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, sites: Object.keys(clocks).length }; },
   };
 }
 
