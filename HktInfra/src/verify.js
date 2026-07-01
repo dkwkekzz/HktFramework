@@ -1,10 +1,11 @@
-// HktInfra step-0469 — 헤드리스 검증 (#4 완전 async 전환 — 다운스트림 뷰 수렴 desync 0)
+// HktInfra step-0470 — 헤드리스 검증 (#4 완전 async 전환 10·grand capstone: 다중 존 이주 하 유계 resync E2E)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzdownstream`.
-//   더한 한 조각: 다중 존(grid24) 결합 loss+delay 하에서 *모든 클라의 AOI 뷰*(seenSig)가 lockstep(무섭동) 뷰와 정확히 일치
-//   = 다운스트림 desync 0(0459 단일 존 수렴의 다중 존+이주 판). 유계 resync 가 월드뿐 아니라 클라 관찰 뷰까지 수렴시킴을 단언.
-//   barrier 코드 무변경(뷰는 월드의 함수) → reg 0.
-//   검증: ⒜ `reg`. ⒝ `mzdownstream` — 전 클라 seenSig(on)==seenSig(off)·resyncs/delayed>0·handoffs>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mze2ecap`.
+//   더한 한 조각: grand capstone — 다중 존(grid24·zones2) 결합 loss+delay+핸드오프를 한 시나리오로 돌려 arc 전체를 단언:
+//   ⒜ world==lockstep(유계 resync·이주 타이밍 불변) ⒝ exactly-once(moveDup0·lost0·pendingAtEnd0) ⒞ 다운스트림 desync 0(전
+//   클라 뷰==lockstep) ⒟ 유계 resync(maxSpan<horizon·deferredAcrossHandoff0·handoffs>0). #4 완전 async 전환 sub-arc(0461~0470) 닫기.
+//   asyncBarrier OFF → reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `mze2ecap` — 위 4항 전부 + 섭동/이주 실재.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,25 +17,26 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest } = kit.helpers;
 
-// step-0469 #4 완전 async — mzdownstream: 다중 존 loss+delay 하 전 클라 AOI 뷰 수렴(desync 0).
-function mzdownstream(seeds) {
-  console.log('== mzdownstream (0469·#4 완전 async): 다중 존(grid24) loss+delay 하 전 클라 AOI 뷰 == lockstep(desync 0) + 섭동/이주 실재. ==');
-  console.log('seed   | 클라 뷰 수렴 | resync·delay | handoffs | 판정');
+// step-0470 #4 완전 async 10·grand capstone — mze2ecap: 다중 존 이주 하 유계 resync E2E(world/뷰==lockstep·exactly-once·유계). 0461~0470 닫기.
+function mze2ecap(seeds) {
+  console.log('== mze2ecap (0470·#4 grand capstone): 다중 존 loss+delay+핸드오프 — world==lockstep·exactly-once·다운스트림 desync0·유계 resync. 0461~0470 닫기. ==');
+  console.log('seed   | world | exactly-once | 뷰수렴 | 유계(span<H·across0) | handoffs | 판정');
   for (const seed of seeds) {
     const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
     const off = NET.run({ ...b });
     const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
-    const vOff = off.clients.map(c => c.seenSig());
-    const vOn = on.clients.map(c => c.seenSig());
-    const converged = vOff.length > 0 && vOff.every((s, i) => s === vOn[i]);
-    const st = on.asyncBarrier || { resyncs: 0, delayed: 0 };
-    const pert = st.resyncs > 0 && st.delayed > 0 && off.totals.handoffs > 0;
-    const ok = check(converged && pert, `seed ${seed}: 뷰수렴${converged}·r${st.resyncs}/d${st.delayed}·handoff${off.totals.handoffs}`);
-    console.log(`${pad(seed, 6)} | ${pad(converged ? 'Y (' + vOff.length + '/' + vOff.length + ')' : 'N', 12)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const st = on.asyncBarrier || {};
+    const world = worldDigest(off) === worldDigest(on);
+    const once = st.moveDup === 0 && st.lost === 0 && st.pendingAtEnd === 0 && st.moveDeliv > 0;
+    const view = off.clients.map(c => c.seenSig()).every((s, i) => s === on.clients[i].seenSig());
+    const bounded = st.maxSpan < st.horizon && st.deferredAcrossHandoff === 0 && st.deferN > 0;
+    const migrated = off.totals.handoffs > 0 && st.handoffsObs > 0;
+    const ok = check(world && once && view && bounded && migrated, `seed ${seed}: w${world}·once${once}·view${view}·bnd${bounded}·mig${migrated}`);
+    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad(view ? 'Y' : 'N', 6)} | ${pad('span' + st.maxSpan + '<' + st.horizon + '·a' + st.deferredAcrossHandoff, 20)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['mzdownstream'] = mzdownstream;
-kit.ORDER.splice(1, 0, 'mzdownstream');
+kit.MODES['mze2ecap'] = mze2ecap;
+kit.ORDER.splice(1, 0, 'mze2ecap');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
