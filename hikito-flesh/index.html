@@ -1,0 +1,99 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
+<title>Skeleton → Flesh · Mixamo</title>
+<style>
+  :root{
+    --bg:#141019; --panel:rgba(28,22,38,0.74); --line:rgba(255,255,255,0.09);
+    --ink:#efe9f5; --ink-dim:#a99fc0; --accent:#ff9d6e; --accent-2:#8fd6ff; --ok:#7dd1a0;
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
+    font-family:"Pretendard","Inter",system-ui,-apple-system,sans-serif;overflow:hidden;}
+  #app{position:fixed;inset:0;} canvas{display:block;width:100%;height:100%;}
+
+  .hud{position:fixed;top:18px;left:20px;pointer-events:none;user-select:none;max-width:46ch;}
+  .hud .kicker{font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;}
+  .hud .title{font-size:19px;font-weight:700;margin-top:4px;letter-spacing:-0.01em;}
+  .hud .title b{color:var(--accent);}
+  .hud .sub{font-size:12.5px;color:var(--ink-dim);margin-top:3px;line-height:1.5;}
+
+  .panel{position:fixed;right:18px;top:18px;width:256px;background:var(--panel);
+    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);
+    border-radius:16px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.45);}
+  .panel h2{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-dim);
+    margin:0 0 11px;font-weight:600;}
+  .panel h2:not(:first-child){margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
+  .row{margin:0 0 12px;}
+  .row label{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;}
+  .row label span{color:var(--accent-2);font-variant-numeric:tabular-nums;}
+  input[type=range]{width:100%;-webkit-appearance:none;height:3px;border-radius:3px;background:rgba(255,255,255,0.16);outline:none;}
+  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #241b30;}
+  select{width:100%;font:inherit;font-size:12.5px;color:var(--ink);background:rgba(255,255,255,0.06);
+    border:1px solid var(--line);border-radius:9px;padding:8px 9px;outline:none;}
+  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;
+    background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:10px;padding:9px 8px;transition:.15s;}
+  button:hover{background:rgba(255,255,255,0.11);}
+  button.on{background:rgba(255,157,110,0.16);border-color:rgba(255,157,110,0.5);color:#ffd0b6;}
+  .drop{margin-top:10px;border:1.5px dashed var(--line);border-radius:11px;padding:12px;text-align:center;
+    font-size:12px;color:var(--ink-dim);cursor:pointer;transition:.15s;line-height:1.5;}
+  .drop.hot{border-color:var(--accent);background:rgba(255,157,110,0.08);color:var(--ink);}
+  .status{margin-top:8px;font-size:11px;line-height:1.5;color:var(--ink-dim);}
+  .status b{color:var(--ok);}
+  .foot{position:fixed;left:20px;bottom:16px;font-size:11.5px;color:var(--ink-dim);pointer-events:none;line-height:1.6;}
+  .foot b{color:var(--ink);}
+  @media (max-width:680px){
+    .panel{right:10px;left:10px;top:auto;bottom:10px;width:auto;max-height:58vh;overflow:auto;}
+    .hud{left:14px;top:12px;max-width:26ch;} .foot{display:none;}
+  }
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="hud">
+  <div class="kicker">skeleton → flesh · rig-agnostic</div>
+  <div class="title">Mixamo 리그 위에서 <b>살이 자란다</b></div>
+  <div class="sub">뼈대는 IR로 추상화 — 이름으로 반지름을 매기는 grammar 하나면 어떤 리그든 같은 스타일로 살이 붙는다. 모션은 Mixamo가 담당.</div>
+</div>
+
+<div class="panel">
+  <h2>모션</h2>
+  <div class="row"><select id="clip">
+    <option value="walk">걷기 (built-in)</option>
+    <option value="idle">대기 (built-in)</option>
+    <option value="wave">손 흔들기 (built-in)</option>
+    <option value="external" id="extOpt" disabled>불러온 Mixamo 클립</option>
+  </select></div>
+  <div class="row">
+    <label>속도 <span id="spdVal">1.0</span></label>
+    <input id="spd" type="range" min="0" max="2.4" step="0.02" value="1.0">
+  </div>
+
+  <h2>살 grammar</h2>
+  <div class="row">
+    <label>뭉툭함 (smin) <span id="kVal">0.30</span></label>
+    <input id="k" type="range" min="0.05" max="0.9" step="0.01" value="0.30">
+  </div>
+  <div class="row">
+    <label>통통함 <span id="fatVal">1.00</span></label>
+    <input id="fat" type="range" min="0.6" max="1.7" step="0.01" value="1.0">
+  </div>
+  <div class="btns">
+    <button id="btnBone">뼈대 보기</button>
+    <button id="btnFinger">손가락</button>
+  </div>
+
+  <h2>Mixamo 불러오기</h2>
+  <div id="drop" class="drop">FBX 파일을 여기에 드롭<br>(Mixamo → Download → FBX)</div>
+  <div id="status" class="status"></div>
+</div>
+
+<div class="foot">드래그 <b>회전</b> · 휠 <b>줌</b><br>뼈대=genome · 살=grammar · 모션=Mixamo</div>
+
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
