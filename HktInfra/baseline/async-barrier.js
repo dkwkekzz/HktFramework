@@ -33,18 +33,25 @@ function makeAsyncBarrier(net, cfg) {
     const a = net.actors.get(m.to);
     if (a && a.onMsg) a.onMsg(m);
   }
+  // step-0453 — 정전(canonical) 순서 재구성 키 = 전역 발신 순서 m.id. 실 존은 *순서 민감*(enter 가 zone.rng() 소비·move 는
+  //   entity 존재 요구) → 임의 재정렬은 월드 파괴. substrate 의 일 = 도착이 흐트러져도 *발신 순서(m.id)를 재구성*해 배달 → lockstep
+  //   과 같은 순서 = 같은 월드. 한 tick 큐는 이미 발신 순서라 이 정렬은 항등(투명) — load-bearing 은 손실 복원(move·0455).
+  const cmp = (a, b) => a.m.id - b.m.id;
   return {
     step() {
       net.tick++;
       const due = net.queue.get(net.tick) || [];
       net.queue.delete(net.tick);
-      for (const m of due) {
-        if (isWorldInput(m)) stamp(m);   // 0452: 스탬프만(재정렬 없음·같은 순서 배달)
-        deliverMsg(m);
-      }
+      // step-0453 — 월드 입력을 holdback 버퍼로 모아 *발신 순서(m.id)*로 방출(정전 순서 재구성)·그 외는 원순서. 정상 run() 에선
+      //   큐가 이미 발신 순서라 항등 → world/log 불변(투명·배리어 기계가 실 run() 전송에 실동작). 손실/지연 복원은 0455~.
+      const world = [];
+      for (const m of due) if (isWorldInput(m)) world.push(stamp(m));
+      world.sort(cmp);                             // 월드 입력: 정전 순서(m.id) 재구성 — 정상 run() 항등
+      let wi = 0;                                  // 월드 입력을 *제자리 슬롯*에 방출(비월드 위치 불변 → 상호작용 보존)
+      for (const m of due) { if (isWorldInput(m)) { held++; deliverMsg(world[wi++].m); } else deliverMsg(m); }
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
-    flush() {},                          // 홀드백 잔여 flush(0453~)·스탬프 단계는 no-op
+    flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
     stats() { return { stamped, held, resyncs, sites: Object.keys(clocks).length }; },
   };
 }

@@ -1,9 +1,9 @@
-// HktInfra step-0453 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 3: 월드 입력 per-tick 전순서 holdback)
+// HktInfra step-0454 — 헤드리스 검증 (#4 실 net.step 배리어 실제 치환 4: move 손실+resync 복원)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `barhold`.
-//   더한 한 조각: async-barrier stepper 가 월드 입력을 holdback 버퍼로 모아 *전순서*(lc,site)로 방출(그 외 원순서). 실 존 intent 적용은
-//   순서 무관(위치 가산·onMsg→pending·onTick 일괄) → 재정렬해도 world/log 불변(투명·배리어 기계 실동작). run({asyncBarrier}) world/log==lockstep·held>0.
-//   검증: ⒜ `reg`(asyncBarrier 미설정→net.step 비트 동일). ⒝ `barhold` — world/log==lockstep·held>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `barlossy`.
+//   더한 한 조각: 배리어가 *move* 만 확률 손실(enter/leave 무손실)·resync 로 resyncDelay tick 뒤 재enqueue. move 는 위치 가산(가환)이라
+//   늦게 적용돼도 최종 월드 동일 → 복원만 하면 run({asyncBarrier:{loss,resync}}) world==lockstep. resyncs>0(손실 실발생).
+//   검증: ⒜ `reg`(asyncBarrier 미설정→net.step 비트 동일). ⒝ `barlossy` — world==lockstep·resyncs>0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -13,25 +13,24 @@ const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { check, pad, worldDigest, logDigest } = kit.helpers;
+const { check, pad, worldDigest } = kit.helpers;
 
-// step-0453 #4 실 치환 3 — barhold: 월드 입력 per-tick 전순서 holdback·world/log==lockstep·held>0.
-function barhold(seeds) {
-  console.log('== barhold (0453·#4 실 치환 3): 월드 입력 per-tick 전순서 holdback — world/log==lockstep(투명)·held>0. ==');
-  console.log('seed   | world== | log== | held | 판정');
+// step-0454 #4 실 치환 4 — barlossy: move 손실+resync→world==lockstep·resyncs>0.
+function barlossy(seeds) {
+  console.log('== barlossy (0454·#4 실 치환 4): move 손실+resync 복원 — run({asyncBarrier:loss,resync}) world==lockstep·resyncs>0. ==');
+  console.log('seed   | world== | resyncs | lost | 판정');
   for (const seed of seeds) {
-    const base = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true };
+    const base = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true, zones: 1 };  // 단일 존(핸드오프/이주 없음) — 지연 move 가 이주 경계를 못 넘어 손실되는 경우 배제(이주 하 resync 지연 유계는 후속 한계)
     const off = NET.run({ ...base });
-    const on = NET.run({ ...base, asyncBarrier: true });
+    const on = NET.run({ ...base, asyncBarrier: { loss: 0.2, seed, resync: true, resyncDelay: 2, ticks: 48 } });
     const wEq = worldDigest(off) === worldDigest(on);
-    const lEq = logDigest(off) === logDigest(on);
-    const st = on.asyncBarrier || { held: 0 };
-    const ok = check(wEq && lEq && st.held > 0, `seed ${seed}: world ${wEq}·log ${lEq}·held ${st.held}`);
-    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(lEq ? 'Y' : 'N', 5)} | ${pad(st.held, 4)} | ${ok ? 'OK' : 'FAIL'}`);
+    const st = on.asyncBarrier || { resyncs: 0, lost: 0 };
+    const ok = check(wEq && st.resyncs > 0 && st.lost === 0, `seed ${seed}: world ${wEq}·resyncs ${st.resyncs}·lost ${st.lost}`);
+    console.log(`${pad(seed, 6)} | ${pad(wEq ? 'Y' : 'N', 7)} | ${pad(st.resyncs, 7)} | ${pad(st.lost, 4)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['barhold'] = barhold;
-kit.ORDER.splice(1, 0, 'barhold');
+kit.MODES['barlossy'] = barlossy;
+kit.ORDER.splice(1, 0, 'barlossy');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
