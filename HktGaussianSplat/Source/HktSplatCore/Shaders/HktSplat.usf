@@ -1,0 +1,117 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktSplat.usf — 3D Gaussian Splatting 인스턴스드 쿼드 래스터 (VS/PS)
+//
+// 인스턴스 = 정렬된 스플랫 하나. VertexID 0..3 으로 카메라 정렬 쿼드를 확장하고,
+// 카메라 공간 3D 공분산을 2D 로 투영해 픽셀별 가우시안 falloff 를 계산한다.
+
+#include "/Engine/Private/Common.ush"
+#include "HktSplatCommon.ush"
+
+StructuredBuffer<FHktSplatData> SplatBuffer;
+StructuredBuffer<uint>          SortedIndices;
+
+float4x4 LocalToTranslatedWorld;  // 로컬 → translated world (LWC-safe, PreViewTranslation 포함)
+float2   ViewportSize;            // 렌더 타겟 픽셀 크기
+float2   Focal;                   // (focalX, focalY) 픽셀 초점거리 (CPU 계산)
+float    OpacityScale;            // 전역 불투명도 배율
+uint     NumSplats;               // 이번 드로우의 인스턴스 수
+uint     SortOffset;              // 정렬 버퍼에서 건너뛸 앞쪽(원거리) 개수
+
+// ============================================================================
+// Vertex Shader
+// ============================================================================
+void MainVS(
+	uint VertexId   : SV_VertexID,
+	uint InstanceId : SV_InstanceID,
+	out float4 OutPosition : SV_POSITION,
+	out float2 OutDelta    : TEXCOORD0,   // 중심으로부터의 픽셀 오프셋
+	out float3 OutConic    : TEXCOORD1,   // Cov2D 역행렬 (a,b,c)
+	out float4 OutColor    : TEXCOORD2)   // rgb + alpha(opacity)
+{
+	OutDelta = float2(0, 0);
+	OutConic = float3(0, 0, 0);
+	OutColor = float4(0, 0, 0, 0);
+
+	if (InstanceId >= NumSplats)
+	{
+		OutPosition = float4(2, 2, 2, 1); // 클립 아웃
+		return;
+	}
+
+	const uint Index = SortedIndices[InstanceId + SortOffset];
+	const FHktSplatData S = SplatBuffer[Index];
+
+	// 로컬 → translated world → view / clip
+	const float3 TWorld = mul(float4(S.Position, 1.0), LocalToTranslatedWorld).xyz;
+	const float4 ViewPos = mul(float4(TWorld, 1.0), View.TranslatedWorldToView);
+	const float4 CenterClip = mul(float4(TWorld, 1.0), View.TranslatedWorldToClip);
+
+	// 카메라 뒤쪽이면 컬
+	if (ViewPos.z <= 0.01 || CenterClip.w <= 0.0)
+	{
+		OutPosition = float4(2, 2, 2, 1);
+		return;
+	}
+
+	// 로컬 3D 공분산 → 카메라 공간 공분산: Cov_view = M3ᵀ · Σ · M3  (row-vector 규약)
+	const float4x4 LocalToView = mul(LocalToTranslatedWorld, View.TranslatedWorldToView);
+	const float3x3 M3 = (float3x3)LocalToView;
+	const float3x3 Sigma = HktUnpackCov3D(S.Cov3D);
+	const float3x3 Cov3DView = mul(transpose(M3), mul(Sigma, M3));
+
+	// 2D 스크린 공분산 + 원뿔(역행렬)
+	const float3 Cov2D = HktProjectCov2D(ViewPos.xyz, Focal, Cov3DView);
+	const float Det = Cov2D.x * Cov2D.z - Cov2D.y * Cov2D.y;
+	if (Det <= 0.0)
+	{
+		OutPosition = float4(2, 2, 2, 1);
+		return;
+	}
+	const float3 Conic = float3(Cov2D.z, -Cov2D.y, Cov2D.x) / Det;
+
+	// 3σ 커버리지 반경 (픽셀) — 최대 고유값 기반
+	const float Mid = 0.5 * (Cov2D.x + Cov2D.z);
+	const float Lambda = Mid + sqrt(max(0.1, Mid * Mid - Det));
+	const float RadiusPx = ceil(3.0 * sqrt(Lambda));
+
+	// 쿼드 코너: (-1,-1),(1,-1),(-1,1),(1,1)  (triangle strip)
+	const float2 Corner = float2((VertexId & 1) ? 1.0 : -1.0, (VertexId & 2) ? 1.0 : -1.0);
+	const float2 DeltaPx = Corner * RadiusPx;
+
+	// 픽셀 오프셋 → NDC 오프셋 (깊이 유지 위해 w 곱)
+	const float2 NdcOffset = DeltaPx / (0.5 * ViewportSize);
+
+	OutPosition = CenterClip;
+	OutPosition.xy += NdcOffset * CenterClip.w;
+	OutDelta = DeltaPx;
+	OutConic = Conic;
+	OutColor = float4(S.Color, saturate(S.Opacity * OpacityScale));
+}
+
+// ============================================================================
+// Pixel Shader — 가우시안 falloff + premultiplied alpha 출력
+// ============================================================================
+void MainPS(
+	float4 SvPosition : SV_POSITION,
+	float2 Delta      : TEXCOORD0,
+	float3 Conic      : TEXCOORD1,
+	float4 Color      : TEXCOORD2,
+	out float4 OutColor : SV_Target0)
+{
+	// 가우시안 지수: -0.5 · dᵀ · Conic · d
+	const float Power = -0.5 * (Conic.x * Delta.x * Delta.x + Conic.z * Delta.y * Delta.y)
+	                    - Conic.y * Delta.x * Delta.y;
+	if (Power > 0.0)
+	{
+		discard;
+	}
+
+	const float Alpha = min(0.99, Color.a * exp(Power));
+	if (Alpha < (1.0 / 255.0))
+	{
+		discard;
+	}
+
+	// premultiplied over — 블렌드: Src=One, Dst=InvSrcAlpha
+	OutColor = float4(Color.rgb * Alpha, Alpha);
+}

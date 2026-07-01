@@ -1,0 +1,60 @@
+// Copyright Hkt Studios, Inc. All Rights Reserved.
+// HktSplatCommon.ush — 3D Gaussian Splatting 공통 정의 (CPU FHktSplatVertexGPU 와 바이트 일치)
+
+#pragma once
+
+// StructuredBuffer 원소 — 64바이트. CPU FHktSplatVertexGPU 와 필드/오프셋 일치.
+// StructuredBuffer 는 scalar 패킹이므로 배열/스칼라가 tight 하게 정렬된다.
+struct FHktSplatData
+{
+	float3 Position;   // 로컬 공간 (cm)
+	float  Opacity;    // [0,1]
+	float3 Color;      // 선형 RGB [0,1]
+	float  Pad0;
+	float  Cov3D[6];   // xx, xy, xz, yy, yz, zz (로컬 공간)
+	float  Pad1;
+	float  Pad2;
+};
+
+// 로컬 3D 공분산(상삼각 6) → 3x3 대칭 행렬
+float3x3 HktUnpackCov3D(float C[6])
+{
+	return float3x3(
+		C[0], C[1], C[2],
+		C[1], C[3], C[4],
+		C[2], C[4], C[5]);
+}
+
+// 카메라 공간 3D 공분산 → 2D 스크린 공분산 (EWA, perspective Jacobian)
+//   ViewPos   : 카메라 공간 스플랫 중심 (UE view space, +Z forward)
+//   Focal     : (focalX, focalY) 픽셀 단위 초점거리
+//   Cov3DView : 카메라 공간으로 회전된 3D 공분산
+float3 HktProjectCov2D(float3 ViewPos, float2 Focal, float3x3 Cov3DView)
+{
+	const float Tz = max(abs(ViewPos.z), 1e-4);
+	const float Sz = sign(ViewPos.z);
+
+	// 원근 투영 야코비안 (2x3). 화면 밖 클램프로 수치 안정성 확보.
+	const float Jxx = Focal.x / (Tz * Sz);
+	const float Jyy = Focal.y / (Tz * Sz);
+	const float Jxz = -Focal.x * ViewPos.x / (Tz * Tz * Sz);
+	const float Jyz = -Focal.y * ViewPos.y / (Tz * Tz * Sz);
+
+	// J (2x3)
+	const float3 J0 = float3(Jxx, 0,   Jxz);
+	const float3 J1 = float3(0,   Jyy, Jyz);
+
+	// Cov2D = J * Cov3DView * Jᵀ  (2x2)
+	const float3 M0 = mul(Cov3DView, J0);  // Cov3DView * J0ᵀ
+	const float3 M1 = mul(Cov3DView, J1);
+
+	float a = dot(J0, M0);
+	float b = dot(J0, M1);
+	float c = dot(J1, M1);
+
+	// 저역통과 필터 — 최소 1px 반경 보장 (앤티에일리어싱)
+	a += 0.3;
+	c += 0.3;
+
+	return float3(a, b, c);  // Cov2D = [[a,b],[b,c]]
+}
