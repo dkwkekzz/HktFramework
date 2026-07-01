@@ -1,5 +1,5 @@
 'use strict';
-// HktInfra async-barrier — #4 실 net.step 배리어 *실제* 치환 arc(0451~). async-net(0441~0450)이 실 Net 메시지·실 sim seam
+// HktInfra async-barrier — #4 실 net.step 배리어 *실제* 치환 arc(0451~) + 완전 async 전환 다중 존 유계 resync 가드(0462~). async-net(0441~0450)이 실 Net 메시지·실 sim seam
 //   위에서 배리어 치환 *in-proc 등가*를 증명한 뒤, 이 박스는 그 substrate 를 **실 `run()` 전송 배선**에 꽂는다:
 //   run() 의 매 tick `net.step()`(중앙 lockstep 배리어) 대신 이 stepper 가 *월드 입력*(gateway→zone enter/move/leave)을
 //   async substrate(Lamport 스탬프·holdback·resync)로 배달하고, 그 외 메시지·onTick 은 그대로. **`opts.asyncBarrier` OFF →
@@ -55,6 +55,15 @@ function makeAsyncBarrier(net, cfg) {
   //   entity 존재 요구) → 임의 재정렬은 월드 파괴. substrate 의 일 = 도착이 흐트러져도 *발신 순서(m.id)를 재구성*해 배달 → lockstep
   //   과 같은 순서 = 같은 월드. 한 tick 큐는 이미 발신 순서라 이 정렬은 항등(투명) — load-bearing 은 손실 복원(move·0455).
   const cmp = (a, b) => a.m.id - b.m.id;
+  // ── step-0462 (#4 완전 async 전환) — wrap-aware interior 유계 resync 가드 ──
+  //   0451~0460 은 loss/delay 를 *단일 존*에서만 흡수(가환·무이주)했다. 다중 존에선 이주 타이밍이 바뀌면 lockstep 의
+  //   move-drop 집합이 달라져 발산(0461·#72). 해법: barrier 가 소유 존을 peek 해 *interior* 인 move 만 loss/delay 로 흡수한다.
+  //   interior = 엔티티가 자기 region 양 끝(경계 + wrap 경계 둘 다)에서 horizon 이상 떨어짐 → deferred move 가 재배달되기 전
+  //   엔티티가 이주 경계에 닿을 수 없다(이주 전 유계 resync). 그래서 이주에 간섭하지 않고 world==lockstep 보존.
+  //   ownerZone·region 접근은 barrier ON 경로에서만(OFF→net.step·reg 0). 이번 step 은 *loss/resync* 만 게이트(delay 는 0463).
+  const horizon = Math.max(resyncDelay, delayMax) + 1;   // deferred move 는 horizon tick 내 재배달(resync/delay 상한)
+  function ownerZone(av) { for (const a of net.actors.values()) if (a && a.ents && typeof a.isAuthority === 'function' && a.isAuthority() && a.ents.has(av)) return a; return null; }
+  function interior(wm) { const z = ownerZone(wm.payload.avatar); if (!z) return false; const e = z.ents.get(wm.payload.avatar); return (e.x - z.region.lo) >= horizon && (z.region.hi - 1 - e.x) >= horizon; }
   return {
     step() {
       net.tick++;
@@ -70,7 +79,7 @@ function makeAsyncBarrier(net, cfg) {
         if (!isWorldInput(m)) { deliverMsg(m); continue; }
         const wm = world[wi++].m; held++;
         // step-0454 — move 손실+resync: move 만 확률 드롭(재전송분·enter/leave 는 무손실)·resync 로 resyncDelay tick 뒤 재enqueue.
-        if (lrnd && wm.payload.type === 'move' && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
+        if (lrnd && wm.payload.type === 'move' && interior(wm) && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
           if (doResync) { resyncedIds.add(wm.id); net._enqueue(net.tick + resyncDelay, wm); resyncs++; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달)
           else lost++;                                                             // 무-resync 대조(0455)
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
