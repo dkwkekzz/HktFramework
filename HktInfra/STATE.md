@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0467](step-0467.md) — **#4 완전 async 전환 7 — 이주 전 유계 resync 명제**: `mzhandoff` — `async-barrier.js` 에 이주 경계 걸침 회계(pendingMoves·handoffsObs·deferredAcrossHandoff). 명제 성립: 이주 관측 시 그 avatar 미결 deferred move **0**(handoffsObs 4~15) → defer 는 항상 이주 전 재배달 = 이주 전 유계 resync 인과 확증. barrier ON 회계만 → reg 0.
-- **한 줄 상태**: reg ALL OK·mzhandoff 5/5(deferredAcrossHandoff0·handoffsObs4~15·deferN44~103·world==lockstep)·spine ALL OK.
+- **닫힌 step**: [step-0468](step-0468.md) — **#4 완전 async 전환 8 — exactly-once 완전 회계**: `mzexactly` — `async-barrier.js` 에 `pendingAtEnd` 노출. moveDup0·lost0·pendingAtEnd0·moveDeliv 360(전 시드 일정) → 유계 resync 가 redirect 없이 *정확히 한 번* 배달(유실·중복·미결 0). barrier ON 회계만 → reg 0.
+- **한 줄 상태**: reg ALL OK·mzexactly 5/5(moveDeliv360·dup0·lost0·pendingEnd0·world==lockstep)·spine ALL OK.
 - **다음**: 🎯 **#4 완전 async 전환 sub-arc(0461~0470) — 다중 존 이주 하 유계 resync**: 발산 포착(0461 ✅)→ownerZone+interior loss 가드(0462)→delay 가드(0463)→결합(0464)→유계 증명(0465)→가드 대조(0466)→이주 전 유계 resync 명제(0467)→exactly-once(0468)→다운스트림 수렴(0469)→capstone(0470). **핵심 메커니즘(검증됨)**: barrier 가 소유 존을 peek 해 *wrap-aware interior*(엔티티가 region 양 끝에서 horizon=max(resyncDelay,delayMax)+1 이상 떨어짐)인 move 만 loss/delay 로 흡수 → deferred move 가 엔티티가 이주 경계에 닿기 전 재배달 = 유계 resync → `worldDigest(run{asyncBarrier}) == worldDigest(run{})`(grid≥24·5/5·resync114+/delay206+). **매 step reg 구조적 0**(asyncBarrier OFF→net.step).
 
 ---
@@ -137,16 +137,7 @@
 | [0391–0400](reviews/review-0391-0400.md) | #66 tick placement-aware(0391~93)+#67 orch 이중 권위 합류(0394~98): tick/deliver placement 순회·mid-run migrate 발현·orchWhere/authoritiesAgree·migrate/failover where write-back·통합 unifiedCoherent(0399)·grand capstone(0400) | 통과(reg 0·spine OK) · coordunifiedcap 5/5 unified Y·maxDesync0 |
 | [0401–0410](reviews/review-0401-0410.md) | #62 runMulti 합류·복원력 코어 승격: 펜싱(0401)·silence(0402)·restart(0403)·정리(0404)·reprovision+mirror(0405~06)·clusterInfo(0407)·runScenario(0408)·promoteStandby(0409)·capstone runMultiCoherent(0410) | 통과(reg 0·spine OK) · coordmulticap 5/5 runMultiCoherent Y·a1 보존 |
 | [0411–0420](reviews/review-0411-0420.md) | #62 코드 합류 — 코디네이터를 runMulti zone-cluster 복원력의 단일 진입점으로: coordSetup(0411)·coordScenarioFromOpts(0412)·runMultiViaCoord(0413)·clusterInfo parity(0414)·equivalence(0415)·warm-failover/fence/restart 번역(0416~18)·runMulti OFF-게이트 위임(0419)·capstone(0420) | 통과(reg 0·e2e OK·spine OK) · coordmergecap 5/5 runMultiCoherent Y·mig/reprov/promo 1·a1 보존 |
-| [0421](step-0421.md) | #61 업스트림 실 클라 1: UpClient(발신 액터·kind 'upclient')·onTick joinAt zoneEnter 발신·topo 배선·upClients OFF→reg 0 | 통과(reg 0·spine OK) · upclient 5/5 uc0 zoneEnter 발신·a1@z1 {5,5} |
-| [0422](step-0422.md) | #61 업스트림 실 클라 2: UpClient.onTick plan 한 발씩 zoneMove 발신(클라가 자기 plan 으로 intent 생성) | 통과(reg 0·spine OK) · upmove 5/5 a1 {9,8}==enter(5,5)+Σplan |
-| [0423](step-0423.md) | #61 업스트림 실 클라 3: UpClient 양방향(onMsg view→seen·DownClient 동형)·세션→uc0 바인딩→자기 AOI 뷰 수신 | 통과(reg 0·spine OK) · uprecv 5/5 sent3+deltas3·seenSig a1@9,8 |
-| [0424](step-0424.md) | #61 업스트림 실 클라 4: 수렴 desync 0(uc0.seenSig==orch.zoneAuthSig·convergedTo·발신→권위 반영→뷰 수렴)·검증 전용 | 통과(reg 0·spine OK) · upconverge 5/5 seenSig==authSig a1@9,8·converged Y |
-| [0425](step-0425.md) | #61 업스트림 실 클라 5: UpClient ≡ 합성 entityOps 동치(같은 plan→같은 최종 권위 위치·둘 다 수렴·실 클라가 합성 대체) | 통과(reg 0·spine OK) · upvsscript 5/5 up a1=={script} {9,8}·uc0·dc0 수렴 |
-| [0426](step-0426.md) | #61 업스트림 실 클라 6: 다중 UpClient 인터리빙(uc0=a1@z1·uc1=b1@z2 동시 발신·각자 자기 존 권위 수렴·desync0) | 통과(reg 0·spine OK) · upmulti 5/5 uc0·uc1 수렴·a1@z1 {7,7}·b1@z2 {8,6} |
-| [0427](step-0427.md) | #61 업스트림 실 클라 7: UpClient.leaveAt(zoneLeave 발신·접속 생애주기 enter→move→leave 완결) | 통과(reg 0·spine OK) · upleave 5/5 sent4→a1 제거 |
-| [0428](step-0428.md) | #61 업스트림 실 클라 8: 손실 하 수렴(egress 손실→gap-resync→uc0 desync0·손실 진짜 gaps≥1+복구 resyncs≥1)·검증 전용 | 통과(reg 0·spine OK) · uplossy 5/5 gaps1·resyncs1·uc0 수렴 |
-| [0429](step-0429.md) | #61 업스트림 실 클라 9: 업스트림 회계(UpClient.intentLog/intentDelta·발신 intent==권위 반영·발신 손실 0) | 통과(reg 0·spine OK) · upaccount 5/5 intentLog4==sent·{9,9}==enter+Δ |
-| [0430](step-0430.md) | #61 업스트림 실 클라 10·grand capstone: 양방향 실 클라 E2E(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존·발신 회계)·0421~0430 닫기 | 통과(reg 0·spine OK) · upe2ecap 5/5 uc0 수렴·a1 체류·b1 제거·보존 Y |
+| 0421–[0430](step-0430.md) | #61 업스트림 실 클라 arc: UpClient(발신 액터)·enter/move/leave 발신·양방향 뷰 수신·수렴 desync0·합성 동치·다중 인터리빙·손실 gap-resync·업스트림 회계·grand capstone(발신→게이트웨이→존→egress→수신 desync0·생애주기·보존) | 통과(reg 0·spine OK) · upe2ecap 5/5 |
 | 0431–[0440](step-0440.md) | #4 진짜 비동기 substrate in-proc arc: `async-core.js` — Lamport 클럭→인과 교환→전순서→holdback 재정렬→인과 배달→async 수렴→비-lockstep 진행→손실 resync→exactly-once 회계→capstone(M 복제 순열+손실 desync0·인과존중). run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
@@ -157,3 +148,4 @@
 | [0465](step-0465.md) | #4 완전 async 전환 5(유계 증명): async-barrier deferSpan 회계(maxSpan·deferN·horizon) 노출 — maxSpan<horizon 이면 이주 전 확실 재배달. barrier ON 회계만 | 통과(reg 0·spine OK) · mzbound 5/5 maxSpan3<horizon4·deferN44~103 |
 | [0466](step-0466.md) | #4 완전 async 전환 6(가드 대조): `cfg.mzGuard` 토글 — 가드 ON→world==lockstep·OFF(우회)→발산 대조로 interior 유계 resync 가드 load-bearing 확증 | 통과(reg 0·spine OK) · mzguardctl 5/5 ON수렴&&OFF발산 |
 | [0467](step-0467.md) | #4 완전 async 전환 7(이주 명제): async-barrier 이주 경계 걸침 회계(pendingMoves·handoffsObs·deferredAcrossHandoff) — 이주 관측 시 미결 deferred move 0 = 이주 전 유계 resync 인과 확증 | 통과(reg 0·spine OK) · mzhandoff 5/5 across0·hobs4~15·deferN44~103 |
+| [0468](step-0468.md) | #4 완전 async 전환 8(exactly-once): async-barrier pendingAtEnd 노출 — moveDup0·lost0·pendingAtEnd0·moveDeliv360(전 시드 일정) = redirect 없이 정확히 한 번 배달 | 통과(reg 0·spine OK) · mzexactly 5/5 deliv360·dup0·lost0·pend0 |
