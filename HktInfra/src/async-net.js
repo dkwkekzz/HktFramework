@@ -104,6 +104,31 @@ function makeZoneResync(nsites) {
   };
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync };
+// ── step-0446 — M 복제 존 수렴(desync 0) ────────────────────────────────────
+//   net.step() lockstep 은 *중앙 큐 하나*라 모든 참여자가 자명히 같은 배달을 본다. 배리어를 없애면 복제마다 *물리적으로 다른
+//   순열+손실*로 받는다. convergeReplicas: M 복제 존이 각자 다른 인터리빙+손실 도착을 makeZoneResync 로 재구성·동결 sim 에
+//   fold → 각 복제의 실 월드 digest. 핵심 명제: 배리어 없이도 전 복제 digest 가 서로 같고(desync 0) == canonical(totalOrder).
+function _interleave(events, nsites, rnd) {
+  const q = Array.from({ length: nsites }, () => []);
+  for (const e of events) q[e.site].push(e);
+  const out = []; let rem = events.length;
+  while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && q[s].length === 0; k++) s = (s + 1) % nsites; out.push(q[s].shift()); rem--; }
+  return out;
+}
+function _shuffle(arr, rnd) { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; }
+function convergeReplicas(events, M, seed, avatars, nsites, { lossy = true } = {}) {
+  const digests = [];
+  for (let m = 0; m < M; m++) {
+    const rnd = mulberry32((seed ^ (0xD000 + m * 157)) >>> 0);
+    const site = makeZoneResync(nsites);
+    const dropped = [];
+    for (const e of _interleave(events, nsites, rnd)) { if (lossy && rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of _shuffle(dropped, rnd)) site.resync(e);
+    digests.push(simFold(site.finish(), seed, avatars).digest);
+  }
+  return digests;
+}
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor, makeZoneResync, convergeReplicas };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;
