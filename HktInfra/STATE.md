@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0479](step-0479.md) — **#70 실 host.js child 경계 업스트림 9 — 업스트림 경계 회계**: `upcaccount` — `zoneEntity(cluster,host,zone,id)`. 발신 intent(intentLog/Delta)==실 host.js 존 반영: enterPos + Σ발신 move == 최종 실 존 pos(경계 넘어 발신 손실 0). 드라이버 미부착→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upcaccount 5/5(enterPos+Δ(4,3)==실 존 최종·손실 0)·spine ALL OK.
-- **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480)**: enter 배달(0471)→move(0472)→egress view_delta→UpClient(0473)→경계 desync0(0474)→driveUpstream 다중 tick(0475)→leave(0476)→다중 클라(0477)→소켓 손실 멱등(0478)→회계(0479)→capstone(0480). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync 0). **매 step 드라이버 미부착→run() reg 0**(cluster-hostdriver 메서드는 clusterDriverReal ON 경로 전용·default OFF).
+- **닫힌 step**: [step-0480](step-0480.md) — **#70 실 host.js child 경계 업스트림 10·grand capstone — E2E**: `upce2ecap` — 실 UpClient 발신 intent 가 실 프로세스 경계 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴을 손실 wire·2 존 시나리오로 ⒜ 수렴(seenSig==authSig·desync0) ⒝ exactly-once(손실 resends>0 하 수렴+회계) ⒞ 회계(enterPos+Σmove==실 존) ⒟ 생애주기(leave→제거). **#70 sub-arc(0471~0480) 닫기**. 코드 무변경→run() reg 0.
+- **한 줄 상태**: reg ALL OK·upce2ecap 5/5(수렴·회계·exactly-once resends6~18·leave 제거)·spine ALL OK.
+- **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480 ✅ 닫힘)**: enter/move/leave 번역 seam(`intentToZoneMsg`)+경계 배달(`deliverIntent`)+egress 되먹임(`feedViews`)+수렴 대조(`upstreamAuthSig`)+통합 구동(`driveUpstream`)+회계(`zoneEntity`). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync0·exactly-once·생애주기). #61 in-proc UpClient 의 실 OS 프로세스 짝(DownClient #57·UpClient #70 둘 다 실 경계 확보). **후속(권위 infra-review)**: ⒜ 실 게이트웨이 프로세스 분리(seam→실 GW)·⒝ 완전-ON(경계 포함 async·#73)·⒞ #68/#69 경미. 🔎 **0471~0480 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -35,7 +35,7 @@
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
 | 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40) + 실 Net·sim seam 브리지 등가 ✅(0441~50) + 실 run() net.step 배리어 치환 ✅(0451~60) + 다중 존 이주 하 유계 resync ✅(0461~70·`async-barrier.js` wrap-aware interior 가드·다중 존 loss+delay 하 world/뷰==lockstep·exactly-once·deferSpan<horizon·deferredAcrossHandoff0·OFF→net.step reg 0)**. 남은 것: 완전-ON(경계 포함 async·lockstep 등가 불가·0461 발견)·downstream 재접속·실 host.js child 업스트림(#70). |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
-| 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~50·desync 0) + **업스트림 실 UpClient(0421~30·#61·자기 plan intent 발신·자기 뷰 수신·다중 인터리빙·손실 수렴·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝). |
+| 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc+실 경계)** | 월드/엣지 | 다운스트림 실 DownClient(0342~50·desync 0) + 업스트림 실 UpClient(0421~30·#61·in-proc) + **실 host.js child 경계 업스트림 ✅(0471~80·#70·intent 소켓 넘어 실 host.js 존→egress 뷰 되먹임·경계 넘어 desync0·손실 exactly-once·생애주기)**. 남은 것: 실 게이트웨이 프로세스 분리(seam→실 GW). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~61). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0184). 버스 라우팅 영속 0. |
@@ -79,7 +79,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~13) · **인스턴스 🟡 spawn/despawn+수요 자동 spawn/despawn+라우팅+이탈(0201~0222)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~63)·귓속말/파티(0071~106)·거래소(0107~40)·우편(0142~80) 동형(escrow/3leg/saga)·길드+금고(0181~0200·로스터/마스터십/공유 원장/영속/정합). 금고↔가방 escrow 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지(0441~50·async-net) + 실 run() net.step 배리어 치환(0451~60·async-barrier) + 다중 존 이주 하 유계 resync(0461~70·async-barrier wrap-aware interior 가드·다중 존 loss+delay 하 world/뷰==lockstep·exactly-once·deferSpan<horizon·이주 전 재배달·OFF→reg 0)**. orch 정리·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지(0441~50·async-net) + 실 run() net.step 배리어 치환(0451~60·async-barrier) + 다중 존 이주 하 유계 resync(0461~70·wrap-aware interior 가드)**. **#70 실 host.js child 경계 업스트림(0471~80·cluster-hostdriver·실 UpClient intent 소켓 넘어 실 host.js 존→egress 뷰 되먹임·경계 넘어 desync0·손실 exactly-once·생애주기·회계·드라이버 미부착→reg 0)**. orch 정리·도구 #43(0271) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay·스냅샷 압축·복구·홉 신뢰·failover/quorum·윈도 0017~62) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like(0205~60)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync(0207~28)**. 버스 영속 후속 |
 
 ---
@@ -151,3 +151,4 @@
 | [0477](step-0477.md) | #70 경계 업스트림 7(다중 클라): driveUpstream 다중 클라를 2 존·2 UpClient(a1@z1·b1@z2)로 검증·각자 자기 존 authSig 수렴·격리. 코드 무변경 | 통과(reg 0·spine OK) · upcmulti 5/5 각 seen==auth |
 | [0478](step-0478.md) | #70 경계 업스트림 8(손실 멱등): 손실 wire(drop 0.3)→rpc 재전송+host reqId 멱등 dedup→재전송 intent 경계 넘어 exactly-once→seenSig==authSig. 코드 무변경 | 통과(reg 0·spine OK) · upclossy 5/5 dup3~9·idem>0·수렴 |
 | [0479](step-0479.md) | #70 경계 업스트림 9(회계): `zoneEntity` — 발신 intent(intentLog/Delta)==실 존 반영·enterPos+Σmove==최종 실 존 pos(경계 넘어 손실 0) | 통과(reg 0·spine OK) · upcaccount 5/5 log4·enter+Δ==fin |
+| [0480](step-0480.md) | #70 경계 업스트림 10·grand capstone: 실 UpClient E2E 경계(손실 wire·2 존)—수렴 seenSig==authSig·exactly-once(resends>0 하 수렴+회계)·회계·생애주기 leave 제거. 0471~0480 닫기 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
