@@ -1,0 +1,25 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "0.1",
+	"FriendlyName": "HktGaussianSplat",
+	"Description": "Self-contained 3D Gaussian Splatting renderer. PLY loader + SceneViewExtension 기반 자체 스플랫 래스터라이저. 기존 Hkt 플러그인과 완전히 독립.",
+	"Category": "HktProto",
+	"CreatedBy": "Hkt Studios",
+	"CreatedByURL": "",
+	"DocsURL": "",
+	"MarketplaceURL": "",
+	"SupportURL": "",
+	"CanContainContent": true,
+	"IsBetaVersion": false,
+	"IsExperimentalVersion": true,
+	"Installed": false,
+	"Modules": [
+		{
+			"Name": "HktSplatCore",
+			"Type": "Runtime",
+			"LoadingPhase": "PostConfigInit"
+		}
+	],
+	"Plugins": []
+}
