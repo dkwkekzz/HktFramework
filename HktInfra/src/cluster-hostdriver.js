@@ -150,6 +150,12 @@ function makeClusterHostDriver() {
       const ents = (s.snap[zone] && s.snap[zone].ents) || [];
       return ents.map(([id, e]) => id + '@' + e.x + ',' + e.y).sort().join(';');
     },
+    // step-0479 (#70) — 실 host.js 존의 한 entity 위치 읽기(업스트림 회계용). 미존재면 null.
+    async zoneEntity(cluster, host, zone, id) {
+      const s = await cluster.rpc(host, { cmd: 'snapshot' });
+      const ents = new Map((s.snap[zone] && s.snap[zone].ents) || []);
+      return ents.get(id) || null;
+    },
     // step-0475 (#70) — 실 UpClient E2E 경계 구동: 매 tick ⒜ upclient.onTick 발신 intent 를 capturing net 으로 포착·경계 배달
     //   ⒝ 그 존을 실 host.js tick(move 적용+뷰 산출) ⒞ egress 뷰를 upclient 로 되먹임. 다중 tick plan 을 경계 넘어 완결(0471~0474 합).
     //   upclient 는 zone → host 매핑(zoneOf: zone→host)으로 라우팅. 반환 = 발신 intent 총수(applied).

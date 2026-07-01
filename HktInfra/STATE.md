@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0478](step-0478.md) — **#70 실 host.js child 경계 업스트림 8 — 소켓 손실 하 멱등 수렴**: `upclossy` — 코드 무변경, 손실 wire(drop 0.3)로 실 소켓 유실 주입. rpc 결정론 재전송 + host reqId 멱등(replyCache) dedup → 재전송 intent 경계 넘어 정확히 한 번 적용(exactly-once) → seenSig==authSig 수렴. run() reg 0.
-- **한 줄 상태**: reg ALL OK·upclossy 5/5(resends6~21·dupCmds3~9·host idem>0·수렴)·spine ALL OK.
+- **닫힌 step**: [step-0479](step-0479.md) — **#70 실 host.js child 경계 업스트림 9 — 업스트림 경계 회계**: `upcaccount` — `zoneEntity(cluster,host,zone,id)`. 발신 intent(intentLog/Delta)==실 host.js 존 반영: enterPos + Σ발신 move == 최종 실 존 pos(경계 넘어 발신 손실 0). 드라이버 미부착→run() reg 0.
+- **한 줄 상태**: reg ALL OK·upcaccount 5/5(enterPos+Δ(4,3)==실 존 최종·손실 0)·spine ALL OK.
 - **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480)**: enter 배달(0471)→move(0472)→egress view_delta→UpClient(0473)→경계 desync0(0474)→driveUpstream 다중 tick(0475)→leave(0476)→다중 클라(0477)→소켓 손실 멱등(0478)→회계(0479)→capstone(0480). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync 0). **매 step 드라이버 미부착→run() reg 0**(cluster-hostdriver 메서드는 clusterDriverReal ON 경로 전용·default OFF).
 
 ---
@@ -141,16 +141,7 @@
 | 0431–[0440](step-0440.md) | #4 진짜 비동기 substrate in-proc arc: `async-core.js` — Lamport 클럭→인과 교환→전순서→holdback 재정렬→인과 배달→async 수렴→비-lockstep 진행→손실 resync→exactly-once 회계→capstone(M 복제 순열+손실 desync0·인과존중). run() 미호출 reg 구조적 0 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
-| [0461](step-0461.md) | #4 완전 async 전환 1(발산 포착·negative control): 다중 존(grid24·zones2) loss+delay 무-가드 barrier → world != lockstep(#72 고정·이주 경계 move-drop). barrier 코드 무변경 | 통과(reg 0·spine OK) · mzdiverge 5/5 발산·handoff>0·resync/delay>0 |
-| [0462](step-0462.md) | #4 완전 async 전환 2(loss 가드): `async-barrier.js` ownerZone 오라클 + wrap-aware interior 술어(region 양 끝+wrap 경계에서 horizon 이상) → loss/resync 를 interior 게이트 → 다중 존 loss-only world==lockstep. OFF→net.step reg 0 | 통과(reg 0·spine OK) · mzlossguard 5/5 same·handoff4~15·resync17~32 |
-| [0463](step-0463.md) | #4 완전 async 전환 3(delay 가드): interior 유계 resync 가드를 delay(지연 jitter) 경로로 확장 → 다중 존 delay-only world==lockstep(loss·delay 둘 다 게이트) | 통과(reg 0·spine OK) · mzdelayguard 5/5 same·handoff4~15·delayed27~60 |
-| [0464](step-0464.md) | #4 완전 async 전환 4(결합+exactly-once): loss+delay 동시 섭동 다중 존 → world==lockstep + moveDup0(유계 resync 로 유실·중복 0). 코드 무변경 | 통과(reg 0·spine OK) · mzresync 5/5 same·moveDup0·r18~46·d26~57 |
-| [0465](step-0465.md) | #4 완전 async 전환 5(유계 증명): async-barrier deferSpan 회계(maxSpan·deferN·horizon) 노출 — maxSpan<horizon 이면 이주 전 확실 재배달. barrier ON 회계만 | 통과(reg 0·spine OK) · mzbound 5/5 maxSpan3<horizon4·deferN44~103 |
-| [0466](step-0466.md) | #4 완전 async 전환 6(가드 대조): `cfg.mzGuard` 토글 — 가드 ON→world==lockstep·OFF(우회)→발산 대조로 interior 유계 resync 가드 load-bearing 확증 | 통과(reg 0·spine OK) · mzguardctl 5/5 ON수렴&&OFF발산 |
-| [0467](step-0467.md) | #4 완전 async 전환 7(이주 명제): async-barrier 이주 경계 걸침 회계(pendingMoves·handoffsObs·deferredAcrossHandoff) — 이주 관측 시 미결 deferred move 0 = 이주 전 유계 resync 인과 확증 | 통과(reg 0·spine OK) · mzhandoff 5/5 across0·hobs4~15·deferN44~103 |
-| [0468](step-0468.md) | #4 완전 async 전환 8(exactly-once): async-barrier pendingAtEnd 노출 — moveDup0·lost0·pendingAtEnd0·moveDeliv360(전 시드 일정) = redirect 없이 정확히 한 번 배달 | 통과(reg 0·spine OK) · mzexactly 5/5 deliv360·dup0·lost0·pend0 |
-| [0469](step-0469.md) | #4 완전 async 전환 9(다운스트림 수렴): 다중 존 loss+delay 하 전 클라 AOI 뷰==lockstep = 다운스트림 desync 0(클라 관찰 차원 명시). 코드 무변경 | 통과(reg 0·spine OK) · mzdownstream 5/5 뷰6/6·r18~46·d26~57 |
-| [0470](step-0470.md) | #4 완전 async 전환 10·grand capstone: 다중 존 loss+delay+핸드오프 → world==lockstep·exactly-once·다운스트림 desync0·유계 resync(span<H·across0). 0461~0470 닫기 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
+| [0461–0470](reviews/review-0461-0470.md) | #4 완전 async 전환 arc: `async-barrier.js` wrap-aware interior 유계 resync 가드 — 발산 포착(0461)→loss/delay 가드(0462~63)→결합+exactly-once(0464)→유계 증명(0465)→가드 대조(0466)→이주 명제(0467)→exactly-once 완전 회계(0468)→다운스트림(0469)→capstone(0470). 다중 존 loss+delay world/뷰==lockstep·이주 전 유계 resync·OFF→net.step reg 0 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
 | [0471](step-0471.md) | #70 실 host.js child 경계 업스트림 1(enter): cluster-hostdriver `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`(실 host.js deliver 소켓 배달). 실 UpClient zoneEnter 경계 넘어 실 host.js 존 entity 생성. 드라이버 미부착→reg 0 | 통과(reg 0·spine OK) · upclenter 5/5 a1 present |
 | [0472](step-0472.md) | #70 경계 업스트림 2(move): intentToZoneMsg 에 zoneMove→존 move 번역. 실 UpClient 이동 intent 경계 넘어 실 host.js 존 적용(onTick pending)·(dx,dy) 이동·wrap | 통과(reg 0·spine OK) · upcmove 5/5 enter+2,1==move후 |
 | [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
@@ -159,3 +150,4 @@
 | [0476](step-0476.md) | #70 경계 업스트림 6(leave): intentToZoneMsg 에 zoneLeave→존 leave. 실 UpClient.leaveAt 종료 intent 경계 넘어 실 존 entity 제거(생애주기 완결) | 통과(reg 0·spine OK) · upcleave 5/5 leave 후 존0 |
 | [0477](step-0477.md) | #70 경계 업스트림 7(다중 클라): driveUpstream 다중 클라를 2 존·2 UpClient(a1@z1·b1@z2)로 검증·각자 자기 존 authSig 수렴·격리. 코드 무변경 | 통과(reg 0·spine OK) · upcmulti 5/5 각 seen==auth |
 | [0478](step-0478.md) | #70 경계 업스트림 8(손실 멱등): 손실 wire(drop 0.3)→rpc 재전송+host reqId 멱등 dedup→재전송 intent 경계 넘어 exactly-once→seenSig==authSig. 코드 무변경 | 통과(reg 0·spine OK) · upclossy 5/5 dup3~9·idem>0·수렴 |
+| [0479](step-0479.md) | #70 경계 업스트림 9(회계): `zoneEntity` — 발신 intent(intentLog/Delta)==실 존 반영·enterPos+Σmove==최종 실 존 pos(경계 넘어 손실 0) | 통과(reg 0·spine OK) · upcaccount 5/5 log4·enter+Δ==fin |
