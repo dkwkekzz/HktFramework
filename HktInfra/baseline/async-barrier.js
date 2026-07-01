@@ -12,15 +12,40 @@ const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;
 const __p = n => __isNode ? require('./' + n + '.js') : globalThis.__HktNetParts[n.replace(/-/g, '_')];
 const AC = __p('async-core');   // Lamport 클럭·holdback·resync·전순서 원시(0431~0440) 재사용
 
-// ── step-0451 — 배리어 stepper seam(투명 pass-through) ────────────────────────
-//   첫 조각은 *이음새*만 세운다: run() 이 net.step() 대신 부를 stepper 를 만들되, 아직 아무 것도 가로채지 않고 net.step() 에
-//   그대로 위임(투명). 이후 step 이 월드 입력 스탬프(0452)·holdback(0453)·재정렬(0454)·resync(0455)를 이 seam 에 얹는다.
-//   cfg = opts.asyncBarrier 값(현재 truthy 여부만). 투명 단계라 ON 이어도 net.step() 과 동일 → world/log 불변.
+// ── step-0451/0452 — 배리어 stepper: 인라인 배달 + 월드 입력 per-site Lamport 스탬프 ──
+//   0451 은 이음새(투명)였고, 0452 는 stepper 가 net.step() 의 배달을 *직접* 인라인한다(같은 순서·같은 stats·같은 onTick → world/log
+//   불변). 그 위에 *월드 입력*(zone 행 enter/move/leave)에 per-site Lamport 스탬프를 부여한다(site = intent 원발신자 sessionId/avatar).
+//   0452 는 스탬프만 기록(재정렬 없음·배달 순서 net.step 동일) → world/log 불변(스탬프는 배리어 내부 기록·메시지/log 미변경).
+//   이후 holdback(0453)·재정렬(0454)·resync(0455)가 이 스탬프를 소비. cfg = opts.asyncBarrier(현재 truthy·이후 {loss,pace} 등).
 function makeAsyncBarrier(net, cfg) {
+  const clocks = {};                 // site → Lamport 카운터(per-source 단조)
+  let stamped = 0, held = 0, resyncs = 0;
+  const isWorldInput = m => /^zone/.test(m.to) && m.payload && (m.payload.type === 'enter' || m.payload.type === 'move' || m.payload.type === 'leave');
+  const siteOf = m => (m.payload && (m.payload.sessionId || m.payload.avatar)) || m.from;
+  function stamp(m) { const s = siteOf(m); clocks[s] = (clocks[s] || 0) + 1; stamped++; return { m, site: s, lc: clocks[s] }; }
+  // net.step() 의 per-message 배달을 verbatim 인라인(dedup·delay·stats·onMsg) — 배달 순서 동일 → world/log 불변.
+  function deliverMsg(m) {
+    if (net.delivered.has(m.id)) { net.stats.dupSkipped++; return; }
+    net.delivered.add(m.id);
+    const delay = net.tick - m.tick - 1;
+    if (delay > net.stats.maxDelay) net.stats.maxDelay = delay;
+    net.stats.deliveredN++;
+    const a = net.actors.get(m.to);
+    if (a && a.onMsg) a.onMsg(m);
+  }
   return {
-    step() { net.step(); },      // 투명 pass-through(0451) — 이후 step 이 월드 입력 배달만 substrate 로 치환
-    flush() {},                  // 홀드백 잔여 flush(0453~)·투명 단계는 no-op
-    stats() { return { stamped: 0, held: 0, resyncs: 0 }; },
+    step() {
+      net.tick++;
+      const due = net.queue.get(net.tick) || [];
+      net.queue.delete(net.tick);
+      for (const m of due) {
+        if (isWorldInput(m)) stamp(m);   // 0452: 스탬프만(재정렬 없음·같은 순서 배달)
+        deliverMsg(m);
+      }
+      for (const a of net.order) if (a.onTick) a.onTick(net.tick);
+    },
+    flush() {},                          // 홀드백 잔여 flush(0453~)·스탬프 단계는 no-op
+    stats() { return { stamped, held, resyncs, sites: Object.keys(clocks).length }; },
   };
 }
 
