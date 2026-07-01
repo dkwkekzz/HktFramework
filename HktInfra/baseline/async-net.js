@@ -10,7 +10,6 @@ const __c = __isNode ? require('./common.js') : globalThis.__HktNetCommon;
 const __p = n => __isNode ? require('./' + n + '.js') : globalThis.__HktNetParts[n.replace(/-/g, '_')];
 const { mulberry32, fnv1a } = __c;
 const AC = __p('async-core');   // 논리 클럭·holdback·전순서·resync·회계 원시(0431~0440) 재사용
-const __eng = __isNode ? require('../engine/index.js') : globalThis.HktEngine;   // 동결 sim seam(DummySimCore) — 실 월드 상태 fold 용
 
 // ── step-0441 — 실 Net 메시지 형태 intent 스트림 + per-client Lamport 스탬프 ──
 //   오늘 결정론은 net.step() 이 모든 참여자를 한 동기 tick 으로 묶어 *중앙 큐 하나*로 배달함이 떠받친다. #4 는 이를 해제한다 —
@@ -44,20 +43,6 @@ function streamSig(events) {
   return fnv1a(events.map(e => e.site + ':' + e.lc + ':' + e.payload.avatar + ':' + e.payload.dx + ',' + e.payload.dy).join('|'));
 }
 
-// ── step-0442 — 배달 순서대로 동결 sim seam(DummySimCore)에 fold → 실 월드 상태 다이제스트 ──
-//   async-core 의 applyDigest 는 *추상* fnv fold 였다. 실 net.step 배리어 치환은 결국 *실 월드 상태*의 수렴을 뜻하므로,
-//   여기서는 배달된 intent 를 **동결 ISimCore(DummySimCore·engine)** 에 순차 tick 으로 접어 serialize()·해시를 낸다.
-//   핵심(순서 민감): DummySimCore.counter 는 매 tick 전 avatar 위치를 누적 해시 → 같은 intent 라도 *적용 순서가 다르면* 다른
-//   serialize()(위치는 가환이어도 counter 가 갈림). 그래서 totalOrder(0433)로 정규화한 fold 는 *도착 순열 불변*(수렴 다이제스트) —
-//   반대로 raw 도착 순서 fold 는 갈릴 수 있다(substrate 가 load-bearing 인 이유). avatar 는 정렬 순 spawn(결정론).
-function simFold(orderedEvents, seed, avatars) {
-  const sim = __eng.DEFAULT_MAKE_SIM(seed >>> 0);   // DummySimCore(seed)
-  for (const a of avatars.slice().sort()) sim.spawn(a);
-  for (const e of orderedEvents) sim.tick([{ avatar: e.payload.avatar, intent: { dx: e.payload.dx, dy: e.payload.dy } }]);
-  const ser = sim.serialize();
-  return { ser, digest: fnv1a(ser) };
-}
-
-const __part = { worldIntentStream, streamSig, simFold };
+const __part = { worldIntentStream, streamSig };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;

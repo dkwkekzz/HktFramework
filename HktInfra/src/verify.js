@@ -1,10 +1,10 @@
-// HktInfra step-0441 — 헤드리스 검증 (#4 실 net.step 배리어 치환 1: 실 Net 메시지 intent 스트림 + Lamport 스탬프)
+// HktInfra step-0442 — 헤드리스 검증 (#4 실 net.step 배리어 치환 2: 실 sim seam fold — 수렴 다이제스트)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netintent`.
-//   더한 한 조각: 신규 박스 async-net.js — 다중 client(발신 site)가 각자 Lamport 클럭으로 실 Net-형 intent 메시지 발신
-//   (from:'client'+s → to:'zone1' payload:{type:'intent',avatar,dx,dy}) + program-order 간선. async-core substrate 를
-//   *실 전송 메시지*에 잇는 첫 조각. async-net 은 run() 밖 substrate → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `netintent` — 결정론(같은 seed 동일 streamSig)·per-client lc 단조·clock condition(program 간선) 위반 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `netsimfold`.
+//   더한 한 조각: async-net.simFold — 배달 순서대로 동결 DummySimCore(engine sim seam)에 intent fold → 실 월드 serialize/digest.
+//   totalOrder(0433) 정규화 fold 는 *도착 순열 불변*(수렴 다이제스트)·raw 도착 fold 는 갈릴 수 있음(substrate load-bearing).
+//   async-net 은 run() 밖 substrate → reg 구조적 0.
+//   검증: ⒜ `reg`. ⒝ `netsimfold` — totalOrder fold K-순열 불변·결정론·raw 도착 갈림(diverge).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -16,26 +16,34 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad } = kit.helpers;
 
-// step-0441 #4 실 net.step 배리어 치환 1 — netintent: 실 Net-형 intent 스트림 결정론·per-client lc 단조·clock condition 0.
-function netintent(seeds) {
-  console.log('== netintent (0441·#4 배리어 치환 1): 실 Net-형 intent 스트림 + Lamport 스탬프 — 결정론·lc 단조·clock condition 0. ==');
-  console.log('seed   | 이벤트 | client | lc단조 | clock위반 | 재현(streamSig) | 판정');
+function shuffle(arr, rnd) {
+  const a = arr.slice();
+  for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; }
+  return a;
+}
+
+// step-0442 #4 배리어 치환 2 — netsimfold: totalOrder 정규화 fold 도착 순열 불변·raw 도착 fold 갈림(substrate 필요 증거).
+function netsimfold(seeds) {
+  console.log('== netsimfold (0442·#4 배리어 치환 2): 실 sim seam fold — totalOrder 도착 순열 불변(수렴)·raw 갈림. ==');
+  console.log('seed   | 이벤트 | 순열불변 | 결정론 | raw갈림 | 판정');
   for (const seed of seeds) {
-    const opts = { clients: 4, avatars: 4, msgs: 40 };
-    const a = NET.worldIntentStream(seed, opts);
-    const b = NET.worldIntentStream(seed, opts);   // 재현 — 같은 seed 동일 스트림
-    // per-client lc 단조: 같은 site 연속 이벤트의 lc 가 엄격 증가.
-    const lastLc = {}; let monotone = true;
-    for (const e of a.events) { if (lastLc[e.site] != null && !(e.lc > lastLc[e.site])) monotone = false; lastLc[e.site] = e.lc; }
-    const clockViol = NET.clockConditionViolations(a.events, a.edges);   // program 간선 a→b ⇒ lc(a)<lc(b)
-    const repro = NET.streamSig(a.events) === NET.streamSig(b.events);
-    const ok = check(monotone && clockViol === 0 && repro && a.events.length === opts.msgs,
-      `seed ${seed}: monotone ${monotone}·clock ${clockViol}·repro ${repro}`);
-    console.log(`${pad(seed, 6)} | ${pad(a.events.length, 6)} | ${pad(opts.clients, 6)} | ${pad(monotone ? 'Y' : 'N', 6)} | ${pad(clockViol, 9)} | ${pad(repro ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
+    const s = NET.worldIntentStream(seed, { clients: 4, avatars: 4, msgs: 40 });
+    const canonical = NET.simFold(NET.totalOrder(s.events), seed, s.avatars).digest;
+    let permInv = true, rawDiverge = false;
+    const K = 6;
+    for (let k = 0; k < K; k++) {
+      const rnd = NET.mulberry32((seed ^ (0x9000 + k * 131)) >>> 0);
+      const arr = shuffle(s.events, rnd);
+      if (NET.simFold(NET.totalOrder(arr), seed, s.avatars).digest !== canonical) permInv = false;   // 정규화 → 불변
+      if (NET.simFold(arr, seed, s.avatars).digest !== canonical) rawDiverge = true;                 // raw 도착 → 갈림 가능
+    }
+    const determ = NET.simFold(NET.totalOrder(s.events), seed, s.avatars).digest === canonical;
+    const ok = check(permInv && determ, `seed ${seed}: permInv ${permInv}·determ ${determ}·rawDiverge ${rawDiverge}`);
+    console.log(`${pad(seed, 6)} | ${pad(s.events.length, 6)} | ${pad(permInv ? 'Y' : 'N', 8)} | ${pad(determ ? 'Y' : 'N', 6)} | ${pad(rawDiverge ? 'Y' : 'N', 7)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['netintent'] = netintent;
-kit.ORDER.splice(1, 0, 'netintent');
+kit.MODES['netsimfold'] = netsimfold;
+kit.ORDER.splice(1, 0, 'netsimfold');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
