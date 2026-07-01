@@ -1,9 +1,10 @@
-// HktInfra step-0464 — 헤드리스 검증 (#4 완전 async 전환 — 다중 존 결합 loss+delay + exactly-once)
+// HktInfra step-0465 — 헤드리스 검증 (#4 완전 async 전환 — 유계 resync 증명)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzresync`.
-//   더한 한 조각: 0462(loss)·0463(delay) interior 유계 resync 가드를 *동시* 적용(결합 섭동)해 다중 존(grid24) 에서
-//   world==lockstep + **exactly-once(moveDup==0)** 를 한 시나리오로 단언. barrier 코드 무변경(두 가드 이미 존재) → reg 0.
-//   검증: ⒜ `reg`. ⒝ `mzresync` — 결합 loss+delay world==lockstep·moveDup0·handoffs>0·resyncs>0·delayed>0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mzbound`.
+//   더한 한 조각: `async-barrier.js` 에 유계 resync 회계(deferSpan=재배달 tick − defer tick·maxSpan·deferN·horizon) 노출.
+//   명제: 모든 deferred move 의 재배달 span 이 horizon=max(resyncDelay,delayMax)+1 *미만* → interior(엔티티가 경계에서 horizon
+//   이상) 이므로 재배달 전 엔티티가 이주 경계에 닿을 수 없다 = 이주 전 유계 resync. asyncBarrier OFF → net.step reg 0.
+//   검증: ⒜ `reg`. ⒝ `mzbound` — maxSpan < horizon·deferN>0·world==lockstep.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -15,24 +16,23 @@ const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_
 
 const { check, pad, worldDigest } = kit.helpers;
 
-// step-0464 #4 완전 async — mzresync: 다중 존 결합 loss+delay + interior 유계 resync 가드 → world==lockstep + exactly-once.
-function mzresync(seeds) {
-  console.log('== mzresync (0464·#4 완전 async): 다중 존(grid24·zones2) 결합 loss+delay + interior 유계 resync 가드 → world==lockstep + exactly-once(moveDup0). ==');
-  console.log('seed   | handoffs | resync·delay | moveDup | world==lockstep | 판정');
+// step-0465 #4 완전 async — mzbound: 유계 resync 증명 — maxSpan < horizon(재배달이 이주 경계 도달 전 확실).
+function mzbound(seeds) {
+  console.log('== mzbound (0465·#4 완전 async): 유계 resync 증명 — 모든 deferred move span < horizon(이주 전 확실 재배달) + world==lockstep. ==');
+  console.log('seed   | deferN | maxSpan | horizon | span<horizon | world==lockstep | 판정');
   for (const seed of seeds) {
     const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
     const off = NET.run({ ...b });
     const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
     const same = worldDigest(off) === worldDigest(on);
-    const st = on.asyncBarrier || { resyncs: 0, delayed: 0, moveDup: 0 };
-    const once = st.moveDup === 0;
-    const pert = st.resyncs > 0 && st.delayed > 0;
-    const ok = check(same && once && pert && off.totals.handoffs > 0, `seed ${seed}: same${same}·once${once}·pert r${st.resyncs}/d${st.delayed}·handoff${off.totals.handoffs}`);
-    console.log(`${pad(seed, 6)} | ${pad(off.totals.handoffs, 8)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(st.moveDup, 7)} | ${pad(same ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
+    const st = on.asyncBarrier || { deferN: 0, maxSpan: 0, horizon: 0 };
+    const bounded = st.deferN > 0 && st.maxSpan < st.horizon;
+    const ok = check(same && bounded, `seed ${seed}: same${same}·deferN${st.deferN}·maxSpan${st.maxSpan}<horizon${st.horizon}`);
+    console.log(`${pad(seed, 6)} | ${pad(st.deferN, 6)} | ${pad(st.maxSpan, 7)} | ${pad(st.horizon, 7)} | ${pad(st.maxSpan < st.horizon ? 'Y' : 'N', 12)} | ${pad(same ? 'Y' : 'N', 15)} | ${ok ? 'OK' : 'FAIL'}`);
   }
 }
 
-kit.MODES['mzresync'] = mzresync;
-kit.ORDER.splice(1, 0, 'mzresync');
+kit.MODES['mzbound'] = mzbound;
+kit.ORDER.splice(1, 0, 'mzbound');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

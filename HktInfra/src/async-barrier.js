@@ -38,6 +38,7 @@ function makeAsyncBarrier(net, cfg) {
   let stamped = 0, held = 0, resyncs = 0, lost = 0;
   // step-0456 — exactly-once 회계: move 를 존에 *정확히 한 번* 배달했나(손실 하 복원해도 중복 0·유실 0).
   let moveDeliv = 0, moveDup = 0;    // moveDeliv=고유 배달·moveDup=이미 배달된 move 재배달 시도(dedup skip)
+  let maxSpan = 0, deferN = 0;       // step-0465 — 유계 resync 회계: deferSpan=재배달 tick − defer tick(loss=resyncDelay·delay=1..delayMax). maxSpan < horizon 이면 이주 전 확실 재배달.
   const isWorldInput = m => /^zone/.test(m.to) && m.payload && (m.payload.type === 'enter' || m.payload.type === 'move' || m.payload.type === 'leave');
   const siteOf = m => (m.payload && (m.payload.sessionId || m.payload.avatar)) || m.from;
   function stamp(m) { const s = siteOf(m); clocks[s] = (clocks[s] || 0) + 1; stamped++; return { m, site: s, lc: clocks[s] }; }
@@ -80,13 +81,13 @@ function makeAsyncBarrier(net, cfg) {
         const wm = world[wi++].m; held++;
         // step-0454 — move 손실+resync: move 만 확률 드롭(재전송분·enter/leave 는 무손실)·resync 로 resyncDelay tick 뒤 재enqueue.
         if (lrnd && wm.payload.type === 'move' && interior(wm) && !resyncedIds.has(wm.id) && net.tick + resyncDelay + 1 < endTick && (lrnd() % 1000) < Math.floor(lossRate * 1000)) {
-          if (doResync) { resyncedIds.add(wm.id); net._enqueue(net.tick + resyncDelay, wm); resyncs++; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달)
+          if (doResync) { resyncedIds.add(wm.id); net._enqueue(net.tick + resyncDelay, wm); resyncs++; deferN++; if (resyncDelay > maxSpan) maxSpan = resyncDelay; }   // 재전송(가환 move·재드롭 없음→유계·확실 배달·span=resyncDelay)
           else lost++;                                                             // 무-resync 대조(0455)
           continue;                                                               // 이번 배달은 드롭(net.delivered 미등록)
         }
         // step-0457 — 교차-tick 지연: move 를 1..delayMax tick 늦게 재enqueue(재지연 없음·past-end 방지). 손실 아님.
         if (drnd && wm.payload.type === 'move' && interior(wm) && !delayedIds.has(wm.id) && net.tick + delayMax + 1 < endTick && (drnd() % 1000) < Math.floor(delayRate * 1000)) {
-          delayedIds.add(wm.id); delayed++; net._enqueue(net.tick + 1 + (drnd() % delayMax), wm); continue;
+          const dspan = 1 + (drnd() % delayMax); delayedIds.add(wm.id); delayed++; deferN++; if (dspan > maxSpan) maxSpan = dspan; net._enqueue(net.tick + dspan, wm); continue;
         }
         if (wm.payload.type === 'move') { if (net.delivered.has(wm.id)) moveDup++; else moveDeliv++; }   // 회계: 고유 배달 vs 중복
         deliverMsg(wm);
@@ -94,7 +95,7 @@ function makeAsyncBarrier(net, cfg) {
       for (const a of net.order) if (a.onTick) a.onTick(net.tick);
     },
     flush() {},                          // 홀드백 잔여 flush(0455 resync 단계)·per-tick 방출은 no-op
-    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, sites: Object.keys(clocks).length }; },
+    stats() { return { stamped, held, resyncs, lost, delayed, moveDeliv, moveDup, deferN, maxSpan, horizon, sites: Object.keys(clocks).length }; },
   };
 }
 
