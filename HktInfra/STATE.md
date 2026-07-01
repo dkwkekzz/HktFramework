@@ -9,15 +9,15 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0443](step-0443.md) — **#4 실 net.step 배리어 치환 3**: `async-net.makeZoneMailbox` — 실 Net intent 를 교차-client 재정렬로 스트림 수신, low-water-mark holdback(async-core 재사용)으로 점진 방출 → close 잔여 flush. net.step 중앙 큐 대신 존별 홀드백이 재정렬 흡수. 어떤 인터리빙이든 방출열==totalOrder → simFold 수렴. run() 미호출 → reg 구조적 0.
-- **한 줄 상태**: reg ALL OK·netreorder 5/5(방출sig불변·simFold수렴·close前16~32 점진)·async-net.js 5.6KB·박스 >30KB 0개·spine ALL OK.
+- **닫힌 step**: [step-0444](step-0444.md) — **#4 실 net.step 배리어 치환 4**: `async-net.makeZoneActor`(실 Net onMsg→동결 sim tick)·`deliverToActor` — net.step 배달 절반을 중앙 배리어에서 떼어냄: 존 메일박스 holdback 방출을 실 수신 actor.onMsg 로 배달(전역 FIFO 큐 대신 substrate 전순서) → actor 실 sim 상태==canonical. run() 미호출 → reg 구조적 0.
+- **한 줄 상태**: reg ALL OK·netdispatch 5/5(actor sim==canonical·applied==40·불변)·async-net.js 6.8KB·박스 >30KB 0개·spine ALL OK.
 - **다음**: 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450 진행 중)**: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443)→실 actor 디스패치(0444)→손실 resync(0445)→복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep 보장 등가(0449)→grand capstone(0450). async-net 는 run() 밖 substrate → 매 step reg 구조적 0. **후속**: 실 net.step 배리어 *실제 치환*(이 arc 는 in-proc 등가 증명 먼저)·실 host.js child 업스트림(#70·#57 짝)·#68/#69 경미.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444·net.step 배달 절반 치환)→손실 resync(0445)→M 복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
+> 🎯 **#4 실 net.step 배리어 치환 arc(0441~0450)** — async-core(0431~0440)가 *추상 이벤트*로 증명한 substrate 를 **실 engine Net 메시지 형태**(client→zone intent·from/to/payload)·**동결 sim seam(DummySimCore)**에 잇는다. 신규 박스 `async-net.js`: 실 Net-형 intent 스트림+스탬프(0441 ✅)→sim fold(0442 ✅)→holdback 재정렬(0443 ✅)→실 actor.onMsg 디스패치(0444 ✅·net.step 배달 절반 치환)→손실 resync(0445)→M 복제 수렴 desync0(0446)→배리어-free 진행(0447)→exactly-once 회계(0448)→lockstep *보장* 등가(0449·실 engine Net 배리어 대조)→grand capstone(0450). DownClient/UpClient·async-core 처럼 *in-proc 등가 먼저*, 실 net.step 배리어 *실제 치환*은 후속 arc. **매 step reg 구조적 0**(async-net run() 미호출).
 > **설계 제약**: spine 게이트는 `verify.js all`. async-net 은 run() 경로가 호출하지 않는 검증 전용 박스 → run() 비트 불변 → reg 0(net-core 는 require 1줄만 추가). substrate 원시는 async-core 재사용(복제 금지)·sim fold 는 engine DummySimCore(동결 seam) 사용.
 
 **후속 백로그**: ⒜ #4 substrate 실 net.step 배리어 치환(0431~0440 in-proc 다음 arc)·⒝ 실 host.js child 업스트림(#70·#57 짝)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69 경미. **⛔ "C++ 시뮬 코어"는 백로그에 없다**(범위 밖·§4). 방향 권위 = `infra-review`.
@@ -32,14 +32,14 @@
 |---|---|---|---|
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | **결정론 시뮬 *내부 구현*은 HktInfra 범위가 아니다** — `ISimCore` 이음새 뒤 블랙박스·HktGameplay(C++ HktCore) 소관. HktInfra 는 이음새로 *이벤트만 받아 클라에 전파*. 더미 stub 은 영구 stub(C++ 화 숙제 아님). 반복 오해 금지 — [SPINE.md](SPINE.md) §0. |
 | ✅ | **#56 브리지 존 데이터 평면 (entity 트래픽)** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·capstone entityFlowCoherent). |
-| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅 ✅ · host 컨테이너 ✅ · 월드 다운스트림 E2E ✅ · #57 드라이버+실 spawn+실 데이터 평면 ✅ · runMulti 코어 통합 🟡)** | 코디네이션/엣지 | 0291~0310 직접 라우팅·host 컨테이너·0319~0350 월드 다운스트림 E2E. **#57 ✅(0351~0360 드라이버+실 spawn·clusterHostsCoherent · 0361~0370 실 데이터 평면: deliver/zonedel/tick/egress/migrate 상태보존/killHost·failover/reconcile/격리/driveCluster 통합·clusterCoherent desync 0)**. **남은 것: cluster-run.js runMulti 코어에 orch 상주(broker 측 제어 평면)·연속 tick 루프·업스트림 intent 실 클라(#61)**. |
+| 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
 | 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~0440·`async-core.js`)** + **실 Net 메시지·sim seam 브리지 진행(0441~·`async-net.js`)**: 추상 substrate(Lamport·holdback·전순서·resync·회계)를 실 engine Net 메시지 형태·동결 DummySimCore 에 잇는 중(0441 스트림+스탬프 ✅). 남은 것: sim fold/디스패치/복제 수렴/등가(0442~0450)·그 뒤 실 `net.step` 배리어 *실제 치환*. |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc)** | 월드 | 다운스트림 실 DownClient(0342~0350·desync 0) + **업스트림 실 UpClient(0421~0430·#61·자기 plan 으로 intent 발신·자기 뷰 수신·다중 클라 인터리빙·손실 하 수렴·생애주기/보존·desync 0)**. 남은 것: 실 host.js child 경계 업스트림(#57 짝)·예측/롤백은 뷰의 것(더미 충족). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~0061). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0029·0085·0184). 버스 라우팅 영속 0. |
-| 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅** | 서비스 | 거래소(0107~0140)·우편(0142~0180)·길드(0181~0190·로스터/마스터십/이양)·길드 금고(0191~0200·공유 아이템 원장·예치/인출/발행/영속/스냅샷/배지/정합 capstone) 동형. 금고↔가방 escrow 연동 후속. |
+| 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅** | 서비스 | 거래소(0107~40)·우편(0142~80)·길드(0181~90·로스터/마스터십/이양)·길드 금고(0191~0200·공유 원장/예치/인출/영속/정합) 동형. 금고↔가방 escrow 후속. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~0106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/N-replica/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -61,8 +61,8 @@
 - **은닉·단일 연결**: 클라는 게이트웨이만 안다. 서버간은 버스/명시 인터페이스만 — 타 서버 내부·DB 직접 접근 금지.
 - **수렴(desync 0)**: 클라 예측 뷰는 권위 재현으로 수렴. 겹친 뷰의 참여자는 조정 후 일치.
 - **복제 = 재현, 상태 전송 아님**: `(seed+params+intent 로그)` 가 기본. 전체 스냅샷은 late-join·복구의 최후 수단.
-- **⛔ Sim = HktInfra 범위 밖(이음새 뒤 블랙박스)**: 존 시뮬의 *내부 구현*은 동결 `ISimCore` 이음새 뒤에 살고 **HktGameplay(C++ HktCore)의 일이다** — HktInfra 는 더미 stub 으로 *전파 배선*만 검증하고, C++ 화는 HktInfra 숙제가 *아니다*. HktInfra 가 시뮬에 대해 하는 일 = *이음새로 intent 넘기고 결과 이벤트 받아 클라에 전파*. (반복 오해 금지 — [SPINE.md](SPINE.md) §0.)
-- **headless·원격 검증(전송·전파 서버, 협상 불가)**: HktInfra 가 *짓는* 박스(전송·전파)는 UE·GUI 없이 headless·원격(이 환경/CI)서 검증 가능. 더미=Node 자명 충족. **시뮬 *내부*의 headless 빌드·UObject 0 순수성은 HktInfra 통과 조건이 아니다**(이음새 뒤 HktGameplay 소관) — HktInfra 는 시뮬 코드를 끌어안지 않고 이벤트만 전파한다.
+- **⛔ Sim = HktInfra 범위 밖(이음새 뒤 블랙박스)**: 존 시뮬 *내부 구현*은 동결 `ISimCore` 뒤·**HktGameplay(C++ HktCore) 소관**. HktInfra 는 더미 stub 으로 *전파 배선*만 검증(C++ 화는 숙제 아님)·이음새로 intent 넘기고 결과 이벤트를 클라에 전파. (반복 오해 금지 — [SPINE.md](SPINE.md) §0.)
+- **headless·원격 검증(전송·전파 서버, 협상 불가)**: HktInfra 가 *짓는* 박스(전송·전파)는 UE·GUI 없이 headless·원격(CI)서 검증(더미=Node 자명). 시뮬 *내부*의 headless 빌드·UObject 0 순수성은 통과 조건 아님(이음새 뒤 HktGameplay 소관).
 - **수치 = verify 출력**: 모든 문서 수치는 시드 [42, 7, 1234, 99, 2026] 평균으로 재현.
 - **코어 netcode 불변(HktInfra 가 *지키되 시뮬 코어는 안 짓는다*)**: 서버 권위(클라 읽기전용) · ISP 3-Layer · 시뮬 상태 직접쓰기 금지(intent 경유). 인프라는 *확장*하되 *깨지 않는다*. (시뮬 코어 결정론·UObject 0 순수성 = 이음새 뒤 HktGameplay 불변·HktInfra 는 존중만.)
 - **한 step = 한 조각**: 더 떠올라도 다음으로 전가. 새 코어는 직전 코어를 잇고 박스/계약 하나만 더한다.
@@ -160,3 +160,4 @@
 | [0441](step-0441.md) | #4 실 net.step 배리어 치환 1: 신규 `async-net.js`·worldIntentStream — 다중 client 실 Net-형 intent+Lamport 스탬프·program 간선·run() 밖 reg 구조적 0 | 통과(reg 0·spine OK) · netintent 5/5 lc단조·clock0·재현 |
 | [0442](step-0442.md) | #4 실 net.step 배리어 치환 2: async-net.simFold — 배달 순서대로 동결 sim seam DummySimCore 에 fold·totalOrder 정규화 순열 불변·raw 도착 갈림(substrate load-bearing) | 통과(reg 0·spine OK) · netsimfold 5/5 순열불변·raw갈림 |
 | [0443](step-0443.md) | #4 실 net.step 배리어 치환 3: async-net.makeZoneMailbox — 교차-client 재정렬 스트림 수신·holdback 점진 방출·인터리빙 불변·simFold 수렴 | 통과(reg 0·spine OK) · netreorder 5/5 sig불변·수렴·close前16~32 |
+| [0444](step-0444.md) | #4 실 net.step 배리어 치환 4: async-net.makeZoneActor·deliverToActor — net.step 배달 절반 치환·실 actor.onMsg→동결 sim·상태==canonical | 통과(reg 0·spine OK) · netdispatch 5/5 actor==canonical·applied40 |

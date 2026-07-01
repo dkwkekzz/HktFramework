@@ -73,6 +73,23 @@ function makeZoneMailbox(nsites) {
   };
 }
 
-const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox };
+// ── step-0444 — 실 actor.onMsg 디스패치(net.step 배달 절반 치환) ──────────────
+//   net.step() 은 두 일을 한다: ⒜ 도착 메시지를 actor.onMsg 로 *배달* ⒝ actor.onTick 진행. 이 조각은 ⒜(배달)를
+//   중앙 배리어에서 떼어낸다: makeZoneActor 는 실 Net 메시지 계약(onMsg(m){ m.payload → 동결 sim tick })을 든 *실 수신
+//   actor*, deliverToActor 는 존 메일박스 holdback 방출열을 그 actor.onMsg 로 흘린다. net.step 의 전역 FIFO 큐 대신
+//   substrate 가 재구성한 전순서로 배달 → actor 의 실 sim 상태 == canonical(전 인터리빙 불변). onTick(진행)은 아직 lockstep.
+function makeZoneActor(seed, avatars) {
+  const sim = __eng.DEFAULT_MAKE_SIM(seed >>> 0);
+  for (const a of avatars.slice().sort()) sim.spawn(a);
+  let applied = 0;
+  return {
+    addr: 'zone1', kind: 'zone',
+    onMsg(m) { const p = m && m.payload; if (p && p.type === 'intent') { sim.tick([{ avatar: p.avatar, intent: { dx: p.dx, dy: p.dy } }]); applied++; } },
+    appliedN() { return applied; }, serialize() { return sim.serialize(); }, digest() { return fnv1a(sim.serialize()); },
+  };
+}
+function deliverToActor(orderedMsgs, actor) { for (const m of orderedMsgs) actor.onMsg(m); return actor; }
+
+const __part = { worldIntentStream, streamSig, simFold, makeZoneMailbox, makeZoneActor, deliverToActor };
 if (typeof module !== 'undefined' && module.exports) module.exports = __part;
 if (typeof globalThis !== 'undefined') (globalThis.__HktNetParts = globalThis.__HktNetParts || {}).async_net = __part;
