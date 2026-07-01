@@ -1,10 +1,10 @@
-// HktInfra step-0472 — 헤드리스 검증 (#70 실 host.js child 경계 업스트림 — move intent 배달)
+// HktInfra step-0473 — 헤드리스 검증 (#70 실 host.js child 경계 업스트림 — egress 뷰→UpClient)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upcmove`.
-//   더한 한 조각: `cluster-hostdriver.intentToZoneMsg` 에 `zoneMove`→존 move 번역 추가. 실 UpClient 의 이동 intent 가 경계 넘어
-//   실 host.js 존에 적용되어(존 onTick 이 pending move 적용) entity 가 (dx,dy) 만큼 이동함을 단언(경계 넘어 이동 결정론).
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upcrecv`.
+//   더한 한 조각: `cluster-hostdriver.feedViews(sends, upclient)` — 실 host.js 존 tick 이 낸 게이트웨이-향 view/view_delta 를 골라
+//   자기 세션 클라(UpClient)의 onMsg 로 배달(다운스트림 0333 라우팅의 경계 업스트림 판). 실 UpClient 가 자기 AOI 뷰를 *경계 넘어* 수신.
 //   드라이버 미부착 → run() reg 0.
-//   검증: ⒜ `reg`. ⒝ `upcmove` — enter 위치 + (dx,dy) == move 후 실 존 위치.
+//   검증: ⒜ `reg`. ⒝ `upcrecv` — enter+tick 후 UpClient.seen 에 a1(자기)·seenSig 비어있지 않음.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
@@ -26,31 +26,27 @@ async function withCluster(hosts, fn) {
   try { return await fn(cluster); } finally { for (const h of hosts.slice()) { try { await cluster.killHost(h); } catch {} } }
 }
 function tickUp(uc, t) { const cap = []; uc.net = { send: (f, to, p) => cap.push(p) }; uc.onTick(t); return cap; }
-async function zoneEnts(cluster, host, zone) { const s = await cluster.rpc(host, { cmd: 'snapshot' }); return new Map((s.snap[zone] && s.snap[zone].ents) || []); }
 
-// step-0472 #70 — upcmove: enter 후 move intent 경계 배달 → 실 존 tick 이 (dx,dy) 적용.
-async function upcmove(seeds) {
-  console.log('== upcmove (0472·#70 경계 업스트림): 실 UpClient zoneMove → 실 host.js 존 entity 가 (dx,dy) 이동(경계 넘어 적용). ==');
-  console.log('seed   | enter pos | +plan | move 후 pos | 예상 일치 | 판정');
+// step-0473 #70 — upcrecv: 실 host.js 존 egress 뷰가 경계 넘어 실 UpClient 로 되먹임.
+async function upcrecv(seeds) {
+  console.log('== upcrecv (0473·#70 경계 업스트림): 실 host.js 존 egress view_delta → 실 UpClient.onMsg(경계 넘어 뷰 수신). ==');
+  console.log('seed   | 뷰 배달 | UpClient seen | a1 in seen | 판정');
   for (const seed of seeds) {
     await withCluster(['hostA'], async (cluster) => {
       await cluster.init(new Map([['hostA', [zoneSpecOf('zone1', seed)]]]));
       const drv = makeClusterHostDriver();
-      const uc = new NET.UpClient({ avatar: 'a1', zoneId: 'zone1', joinAt: 1, plan: [[2, 1]] });
+      const uc = new NET.UpClient({ avatar: 'a1', zoneId: 'zone1', joinAt: 1 });
       for (const op of tickUp(uc, 1)) await drv.deliverIntent(cluster, 'hostA', op);   // enter
-      const p0 = (await zoneEnts(cluster, 'hostA', 'zone1')).get('a1');
-      for (const op of tickUp(uc, 2)) await drv.deliverIntent(cluster, 'hostA', op);   // move [2,1]
-      await drv.tickZone(cluster, 'hostA', 'zone1', 2);                                 // 존 onTick → pending move 적용
-      const p1 = (await zoneEnts(cluster, 'hostA', 'zone1')).get('a1');
-      const exp = { x: (p0.x + 2 + GRID) % GRID, y: (p0.y + 1 + GRID) % GRID };
-      const match = p1 && p1.x === exp.x && p1.y === exp.y;
-      const pass = check(!!match, `seed ${seed}: p0(${p0.x},${p0.y})+2,1→p1(${p1 && p1.x},${p1 && p1.y})==exp(${exp.x},${exp.y})`);
-      console.log(`${pad(seed, 6)} | ${pad(p0.x + ',' + p0.y, 9)} | ${pad('2,1', 5)} | ${pad((p1 ? p1.x + ',' + p1.y : '-'), 11)} | ${pad(match ? 'Y' : 'N', 9)} | ${pass ? 'OK' : 'FAIL'}`);
+      const sends = await drv.tickZone(cluster, 'hostA', 'zone1', 1);                   // 존 tick → egress view_delta
+      const fed = drv.feedViews(sends, uc);                                             // 경계 넘어 되먹임
+      const hasSelf = uc.seen.has('a1');
+      const pass = check(fed >= 1 && hasSelf && uc.seenSig() !== '', `seed ${seed}: fed${fed}·seen${uc.seenSig()}`);
+      console.log(`${pad(seed, 6)} | ${pad(fed, 7)} | ${pad(uc.seenSig() || '-', 13)} | ${pad(hasSelf ? 'Y' : 'N', 10)} | ${pass ? 'OK' : 'FAIL'}`);
     });
   }
 }
 
-kit.MODES['upcmove'] = upcmove;
-kit.ORDER.splice(1, 0, 'upcmove');
+kit.MODES['upcrecv'] = upcrecv;
+kit.ORDER.splice(1, 0, 'upcrecv');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();

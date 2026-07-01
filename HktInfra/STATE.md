@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0472](step-0472.md) — **#70 실 host.js child 경계 업스트림 2 — move intent 배달**: `upcmove` — `intentToZoneMsg` 에 `zoneMove`→존 move 번역 추가. 실 UpClient 이동 intent 가 경계 넘어 실 host.js 존에 적용(존 onTick pending move) → entity (dx,dy) 이동·wrap 결정론. 드라이버 미부착→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upcmove 5/5(enter pos+(2,1)==실 존 move 후 pos·wrap)·spine ALL OK.
+- **닫힌 step**: [step-0473](step-0473.md) — **#70 실 host.js child 경계 업스트림 3 — egress 뷰→UpClient**: `upcrecv` — `feedViews(sends, upclient)` — 실 host.js 존 tick 이 낸 게이트웨이-향 view_delta 중 자기 세션 것을 실 UpClient.onMsg 로 배달(다운스트림 라우팅의 경계 업스트림 판). 실 UpClient 가 자기 AOI 뷰를 경계 넘어 수신. 드라이버 미부착→run() reg 0.
+- **한 줄 상태**: reg ALL OK·upcrecv 5/5(뷰 배달 1·UpClient.seen 에 a1@enter pos)·spine ALL OK.
 - **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480)**: enter 배달(0471)→move(0472)→egress view_delta→UpClient(0473)→경계 desync0(0474)→driveUpstream 다중 tick(0475)→leave(0476)→다중 클라(0477)→소켓 손실 멱등(0478)→회계(0479)→capstone(0480). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync 0). **매 step 드라이버 미부착→run() reg 0**(cluster-hostdriver 메서드는 clusterDriverReal ON 경로 전용·default OFF).
 
 ---
@@ -153,3 +153,4 @@
 | [0470](step-0470.md) | #4 완전 async 전환 10·grand capstone: 다중 존 loss+delay+핸드오프 → world==lockstep·exactly-once·다운스트림 desync0·유계 resync(span<H·across0). 0461~0470 닫기 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
 | [0471](step-0471.md) | #70 실 host.js child 경계 업스트림 1(enter): cluster-hostdriver `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`(실 host.js deliver 소켓 배달). 실 UpClient zoneEnter 경계 넘어 실 host.js 존 entity 생성. 드라이버 미부착→reg 0 | 통과(reg 0·spine OK) · upclenter 5/5 a1 present |
 | [0472](step-0472.md) | #70 경계 업스트림 2(move): intentToZoneMsg 에 zoneMove→존 move 번역. 실 UpClient 이동 intent 경계 넘어 실 host.js 존 적용(onTick pending)·(dx,dy) 이동·wrap | 통과(reg 0·spine OK) · upcmove 5/5 enter+2,1==move후 |
+| [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
