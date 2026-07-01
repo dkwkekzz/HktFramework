@@ -112,6 +112,22 @@ function makeClusterHostDriver() {
     },
     // step-0370 — 실 데이터 평면 grand capstone 술어: 실 cluster 전체가 in-proc 권위와 한 몸인가(clusterDesync==0). 실 host.js 프로세스/소켓 데이터 평면이 SPINE §5 수렴을 실 프로세스 경계 넘어 만족. #57 실 데이터 평면 sub-arc(0361~0370) 종합.
     async clusterCoherent(orch, cluster) { return (await this.clusterDesync(orch, cluster)) === 0; },
+    // ── step-0471 (#70 실 host.js child 경계 업스트림) — 실 UpClient 의 *발신* intent 가 실 프로세스 경계를 넘어 실 host.js zone 에 닿는다. ──
+    //   #61(0421~0430)은 UpClient 를 *in-proc* 액터로 세웠고(같은 프로세스 net), 다운스트림은 0361~0370 이 실 host.js 데이터 평면을
+    //   집행했다. #70 = 그 업스트림 짝 — UpClient(부모/broker 측)의 게이트웨이-형 intent(zoneEnter/zoneMove/zoneLeave)를 *실 host.js
+    //   자식 프로세스의 존*으로 소켓 배달한다. 게이트웨이가 하던 번역(zoneEnter→enter…)을 이 seam 이 재현한다.
+    //   intentToZoneMsg: 게이트웨이-형 intent → 존 msg(net.step 이 존에 배달하던 형). from='gateway'(존 입장 불변). step-0471=enter 만(move/leave 는 0472/0476).
+    intentToZoneMsg(op, from = 'gateway') {
+      if (op.type === 'zoneEnter') return { to: op.zoneId, from, payload: { type: 'enter', sessionId: 's:' + op.avatar, avatar: op.avatar } };
+      return null;
+    },
+    // step-0471 — 실 host.js 경계 업스트림 배달: intent 1발을 존 msg 로 번역해 실 host.js deliver(zone.onMsg) 로 보낸다. 미번역(null)이면 배달 0.
+    async deliverIntent(cluster, host, op) {
+      const m = this.intentToZoneMsg(op);
+      if (!m) return null;
+      await cluster.rpc(host, { cmd: 'deliver', items: [{ gi: 0, m }] });
+      return m;
+    },
   };
 }
 

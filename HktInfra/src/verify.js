@@ -1,42 +1,56 @@
-// HktInfra step-0470 — 헤드리스 검증 (#4 완전 async 전환 10·grand capstone: 다중 존 이주 하 유계 resync E2E)
+// HktInfra step-0471 — 헤드리스 검증 (#70 실 host.js child 경계 업스트림 — enter intent 배달)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `mze2ecap`.
-//   더한 한 조각: grand capstone — 다중 존(grid24·zones2) 결합 loss+delay+핸드오프를 한 시나리오로 돌려 arc 전체를 단언:
-//   ⒜ world==lockstep(유계 resync·이주 타이밍 불변) ⒝ exactly-once(moveDup0·lost0·pendingAtEnd0) ⒞ 다운스트림 desync 0(전
-//   클라 뷰==lockstep) ⒟ 유계 resync(maxSpan<horizon·deferredAcrossHandoff0·handoffs>0). #4 완전 async 전환 sub-arc(0461~0470) 닫기.
-//   asyncBarrier OFF → reg 구조적 0.
-//   검증: ⒜ `reg`. ⒝ `mze2ecap` — 위 4항 전부 + 섭동/이주 실재.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 새 모드 = `upclenter`.
+//   더한 한 조각: `cluster-hostdriver.js` 에 업스트림 seam — `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`
+//   (실 host.js 존으로 소켓 배달). 실 UpClient(부모) 의 zoneEnter intent 가 *실 프로세스 경계*를 넘어 실 host.js 자식의 존에
+//   entity 를 생성함을 단언(#61 in-proc UpClient 의 실 OS 프로세스 짝·#57 다운스트림의 업스트림 대칭). 드라이버 미부착 → run() reg 0.
+//   검증: ⒜ `reg`. ⒝ `upclenter` — 실 host.js 존에 a1 present(경계 넘어 enter 적용).
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
 const makeVerifyKit = require('../engine/verify-kit.js');
+const { Cluster } = require('./cluster-core.js');
+const { makeClusterHostDriver } = require('./cluster-hostdriver.js');
 
 const SEEDS = [42, 7, 1234, 99, 2026];
 const DEATH = 40; const LEASE = 3; const RESTART_AT = 60; const SNAP_N = 6; const CHAT_SNAP_N = 5; const JLOSS = 0.3;
 const kit = makeVerifyKit({ NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS });
 
-const { check, pad, worldDigest } = kit.helpers;
+const { check, pad } = kit.helpers;
 
-// step-0470 #4 완전 async 10·grand capstone — mze2ecap: 다중 존 이주 하 유계 resync E2E(world/뷰==lockstep·exactly-once·유계). 0461~0470 닫기.
-function mze2ecap(seeds) {
-  console.log('== mze2ecap (0470·#4 grand capstone): 다중 존 loss+delay+핸드오프 — world==lockstep·exactly-once·다운스트림 desync0·유계 resync. 0461~0470 닫기. ==');
-  console.log('seed   | world | exactly-once | 뷰수렴 | 유계(span<H·across0) | handoffs | 판정');
+// ── #70 실 host.js 경계 업스트림 공용 헬퍼 ──
+const zoneSpecOf = (addr, seed) => ({ addr, kind: 'zone', seed, opts: { region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, grid: 16, radius: 4 } });
+async function withCluster(hosts, fn) {
+  const cluster = new Cluster(hosts);
+  await cluster.spawn();
+  try { return await fn(cluster); } finally { for (const h of hosts.slice()) { try { await cluster.killHost(h); } catch {} } }
+}
+// UpClient 를 capturing net 으로 구동해 이번 tick 에 발신한 intent 열을 반환.
+function tickUp(uc, t) { const cap = []; uc.net = { send: (f, to, p) => cap.push(p) }; uc.onTick(t); return cap; }
+
+// step-0471 #70 — upclenter: 실 UpClient enter intent 가 실 host.js 경계 넘어 존에 entity 생성.
+async function upclenter(seeds) {
+  console.log('== upclenter (0471·#70 경계 업스트림): 실 UpClient zoneEnter → 실 host.js 자식 존에 entity present(경계 넘어 enter). ==');
+  console.log('seed   | 발신 intent | 실 존 entity | a1 present | 판정');
   for (const seed of seeds) {
-    const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
-    const off = NET.run({ ...b });
-    const on = NET.run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
-    const st = on.asyncBarrier || {};
-    const world = worldDigest(off) === worldDigest(on);
-    const once = st.moveDup === 0 && st.lost === 0 && st.pendingAtEnd === 0 && st.moveDeliv > 0;
-    const view = off.clients.map(c => c.seenSig()).every((s, i) => s === on.clients[i].seenSig());
-    const bounded = st.maxSpan < st.horizon && st.deferredAcrossHandoff === 0 && st.deferN > 0;
-    const migrated = off.totals.handoffs > 0 && st.handoffsObs > 0;
-    const ok = check(world && once && view && bounded && migrated, `seed ${seed}: w${world}·once${once}·view${view}·bnd${bounded}·mig${migrated}`);
-    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad(view ? 'Y' : 'N', 6)} | ${pad('span' + st.maxSpan + '<' + st.horizon + '·a' + st.deferredAcrossHandoff, 20)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
+    const ok = await withCluster(['hostA'], async (cluster) => {
+      await cluster.init(new Map([['hostA', [zoneSpecOf('zone1', seed)]]]));
+      const drv = makeClusterHostDriver();
+      const uc = new NET.UpClient({ avatar: 'a1', zoneId: 'zone1', joinAt: 1 });
+      const ops = tickUp(uc, 1);                       // joinAt 1 → zoneEnter 발신
+      for (const op of ops) await drv.deliverIntent(cluster, 'hostA', op);
+      const snap = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      const ents = new Map((snap.snap.zone1 && snap.snap.zone1.ents) || []);
+      const present = ents.has('a1');
+      const pass = check(ops.length === 1 && present, `seed ${seed}: sent${ops.length}·a1${present}`);
+      console.log(`${pad(seed, 6)} | ${pad(ops.length, 11)} | ${pad(ents.size, 12)} | ${pad(present ? 'Y' : 'N', 10)} | ${pass ? 'OK' : 'FAIL'}`);
+      return pass;
+    });
+    if (!ok) { /* check() 이 이미 기록 */ }
   }
 }
 
-kit.MODES['mze2ecap'] = mze2ecap;
-kit.ORDER.splice(1, 0, 'mze2ecap');
+kit.MODES['upclenter'] = upclenter;
+kit.ORDER.splice(1, 0, 'upclenter');
 
 (async () => { process.exit(await kit.cli(process.argv)); })();
