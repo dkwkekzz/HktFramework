@@ -155,10 +155,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 				}
 			}
 			// 이웃 힘 크기 캡 — 초기 과밀(수십 개 중첩 반발)에서도 폭발하지 않게
-			var fn = fsum * P.binding;
-			let fl = length(fn);
-			if (fl > 80.0) { fn *= 80.0 / fl; }
-			acc += fn;
+			var nForce = fsum * P.binding;
+			let nMag = length(nForce);
+			if (nMag > 80.0) { nForce *= 80.0 / nMag; }
+			acc += nForce;
 			if (wsum > 0.0) {
 				// 점성: 이웃 평균 속도로 이완
 				s.vel += ((vsum / wsum) - s.vel) * min(P.viscosity * P.dt, 1.0);
