@@ -29,7 +29,7 @@ L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) �
 L6 히키토(hikito-flesh 이식): 뼈대를 먼저 정의하고, 살은 **뼈대의 순수 함수**다.
 `js/skeleton.js` 가 Skeleton IR(joints[{name,parent,offset}] 관절 53 = Mixamo 계층 그대로 +
 절차 클립 walk/idle/wave → CPU FK)과 살 문법(`radiusForName` — 이름 기반, 특정 리그 하드코딩
-금지)을 담당하고, 매 프레임 taper 캡슐 세그먼트(≤MAX_BONES 64)를 bones storage 로 올린다.
+금지)을 담당하고, 매 프레임 taper 캡슐 세그먼트(≤MAX_BONES 128)를 bones storage 로 올린다.
 form 3(살 구름)은 스플랫마다 뼈 친화(rest.w, 세그먼트 부피 가중)를 배정하고, SIM 의 `fleshK`
 유전자(Entity 옛 `_e0` 슬롯, stride 불변) 규칙이 (축 t, 방위 θ, 깊이 u) **성장 자리**를 시드에서
 *현재 뼈 포즈로 매 프레임 유도*해 스프링으로 끌어당긴다 — hikito 가 SDF 로 그리는 round-cone
@@ -37,6 +37,12 @@ form 3(살 구름)은 스플랫마다 뼈 친화(rest.w, 세그먼트 부피 가
 뼈대 오버레이(OVERLAY: 라인+관절 점, `뼈대 표시` 토글)는 입력의 시각화라 절대 원칙 1 과 무관.
 SimParams 의 floorY 뒤 슬롯이 boneCount. `pose()` 는 친화 인덱스의 기준이므로 항상 전체
 세그먼트를 같은 순서로 반환한다(필터 금지).
+
+L6 FBX 드롭(뼈대 탭): `ExternalSkeleton` 이 실제 Mixamo FBX 를 three FBXLoader 로 파싱해
+같은 세그먼트 인터페이스로 흘린다 (스케일 정규화 1.7/height + 중심 재배치 — hikito 와 동일).
+built-in 은 절대 시간 pose(clip, t), 외부 클립은 증분 시간 pose(dt) — mixer 가 상태를 가진다.
+built-in ↔ 외부 전환·FBX 로드 시 세그먼트 수/순서가 바뀌므로 **친화 재배정(reseed) 필수**
+(app.js 의 currentBindBones()). 미지의 뼈 이름은 grammar 기본값 → 임의 리그도 안 깨진다.
 
 L6 방울 함정 (재발 금지): ① 전역 SDF 최근접 추종은 축 방향 힘이 0 — 중력이 스플랫을 뼈 끝으로
 흘려 뼈당 방울 하나로 뭉갠다. ② L2 인력(표면장력)이 자리 스프링을 이겨도 방울이 된다 — 히키토
@@ -49,9 +55,11 @@ L6 방울 함정 (재발 금지): ① 전역 SDF 최근접 추종은 축 방향 
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
-- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법(radiusForName). 살 힘 자체는
-  wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. 세그먼트 순서가 뼈 친화
-  인덱스의 기준 (setScene 의 bindBones = frame 의 bones 와 동일 순서 필수).
+- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법(radiusForName) + ExternalSkeleton(FBX).
+  살 힘 자체는 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. 세그먼트 순서가
+  뼈 친화 인덱스의 기준 (setScene 의 bindBones = frame 의 bones 와 동일 순서 필수).
+- `vendor/` — three.min.js r147 + FBXLoader + fflate (FBX 전용, 위 컨벤션 참조).
+- UI 는 패널 탭 2개: `유전자`(프리셋/장면/슬라이더/팔레트/시스템) · `뼈대`(모션/살 문법/FBX 드롭존).
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 
@@ -69,7 +77,9 @@ L6 방울 함정 (재발 금지): ① 전역 SDF 최근접 추종은 축 방향 
 
 ## 컨벤션
 
-- classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/`HktOrbitCamera`), 빌드 스텝 없음, 주석 한국어.
+- classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/`HktOrbitCamera`/`HktGenesisSkeleton`), 빌드 스텝 없음, 주석 한국어.
+- `vendor/` 는 유일한 서드파티 예외 — three r147 UMD(+FBXLoader/fflate, examples/js 마지막 세대).
+  **FBX 파싱/FK 전용** — 렌더·시뮬 경로에서 three 사용 금지 (뼈대 세그먼트라는 입력만 만든다).
 - 튜닝 노브는 하드코딩하지 않고 `GENE_DEFS` 슬라이더로 노출 (UE CVar 관례의 웹 대응).
 
 ## 로드맵

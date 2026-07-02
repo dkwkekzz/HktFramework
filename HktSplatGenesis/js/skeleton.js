@@ -176,5 +176,70 @@
 		return segs;
 	};
 
-	global.HktGenesisSkeleton = { Skeleton, buildHumanoidRig, radiusForName, isFinger };
+	// ── (3-b) 외부 리그: Mixamo FBX 드롭 — vendor/three.min.js 는 FBX 파싱/FK 전용.
+	// 렌더·시뮬은 여전히 자체 WebGPU 파이프라인 — three 는 뼈대라는 *입력* 만 만든다.
+	// 이름 기반 문법 덕에 어떤 리그든 같은 스타일로 살이 붙는다 (rig-agnostic).
+	function ExternalSkeleton(object3d) {
+		this.root = object3d;
+		let bones = [];
+		object3d.traverse((o) => { if (o.isBone) bones.push(o); });
+		if (!bones.length) object3d.traverse((o) => { if (o.isSkinnedMesh) bones = o.skeleton.bones; });
+		this.bones = bones;
+		// 스케일 정규화(Mixamo 100배) + 중심 재배치 + 발 높이 — hikito-flesh 와 동일 정식
+		const box = new THREE.Box3().setFromObject(object3d);
+		const size = new THREE.Vector3();
+		box.getSize(size);
+		this.scale = 1.7 / Math.max(size.y, 1e-3);
+		this.center = new THREE.Vector3();
+		box.getCenter(this.center);
+		this.mixer = null;
+		this.clipName = '';
+		if (object3d.animations && object3d.animations.length) {
+			this.mixer = new THREE.AnimationMixer(object3d);
+			this.mixer.clipAction(object3d.animations[0]).play();
+			this.clipName = object3d.animations[0].name || '';
+		}
+		this._wp = new THREE.Vector3();
+		this._wpp = new THREE.Vector3();
+	}
+	ExternalSkeleton.prototype.valid = function () { return this.bones.length > 0; };
+	// 클립을 dt·speed 만큼 진행하고 세그먼트 추출.
+	// 순서는 bones 배열 고정 — 뼈 친화(rest.w) 인덱스의 기준이므로 포즈별 필터 금지.
+	ExternalSkeleton.prototype.pose = function (dt, speed, fat) {
+		if (this.mixer && dt > 0) this.mixer.update(dt * (speed || 1));
+		this.root.updateMatrixWorld(true);
+		const f = fat || 1.0;
+		const segs = [];
+		for (const bone of this.bones) {
+			if (!bone.parent || !bone.parent.isBone) continue; // 루트 제외 (리그 구조상 고정)
+			bone.getWorldPosition(this._wp);
+			bone.parent.getWorldPosition(this._wpp);
+			segs.push({
+				a: [
+					(this._wpp.x - this.center.x) * this.scale,
+					(this._wpp.y - this.center.y) * this.scale + 0.98,
+					(this._wpp.z - this.center.z) * this.scale,
+				],
+				b: [
+					(this._wp.x - this.center.x) * this.scale,
+					(this._wp.y - this.center.y) * this.scale + 0.98,
+					(this._wp.z - this.center.z) * this.scale,
+				],
+				ra: radiusForName(bone.parent.name) * f,
+				rb: radiusForName(bone.name) * f,
+			});
+		}
+		return segs;
+	};
+
+	// FBX 바이너리 → ExternalSkeleton (vendor 스크립트 미로드/스켈레톤 부재 시 throw)
+	function parseFBX(buffer) {
+		if (typeof THREE === 'undefined' || !THREE.FBXLoader) throw new Error('vendor/three.min.js 가 로드되지 않았습니다');
+		const obj = new THREE.FBXLoader().parse(buffer, '');
+		const ext = new ExternalSkeleton(obj);
+		if (!ext.valid()) throw new Error('FBX 에서 스켈레톤을 찾지 못했습니다');
+		return ext;
+	}
+
+	global.HktGenesisSkeleton = { Skeleton, ExternalSkeleton, parseFBX, buildHumanoidRig, radiusForName, isFinger };
 })(window);

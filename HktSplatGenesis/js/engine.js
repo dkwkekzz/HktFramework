@@ -15,7 +15,7 @@
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
 	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
-	const MAX_BONES = 64;        // L6 뼈 세그먼트 상한 (휴머노이드 손가락 포함 52개 + 여유)
+	const MAX_BONES = 128;       // L6 뼈 세그먼트 상한 (Mixamo FBX 풀 리그 ~65개 + 여유)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -396,7 +396,8 @@
 	// 전역 최근접 표면점으로 몰려 몇 개 방울로 뭉친다 (온몸 분포 보장 장치).
 	HktGenesisEngine.prototype._initFleshCloud = function (n, genes) {
 		const init = this._initCloud(n, genes);
-		const segs = genes.bindBones || [];
+		// MAX_BONES 초과분은 업로드에서 잘리므로 친화도 같은 범위로 제한
+		const segs = (genes.bindBones || []).slice(0, MAX_BONES);
 		if (segs.length) {
 			// 세그먼트 부피 가중 (원뿔대 부피 ∝ len·(ra²+ra·rb+rb²))
 			const w = segs.map((s) => {

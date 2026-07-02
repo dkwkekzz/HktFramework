@@ -111,6 +111,12 @@
 	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
 	const skeleton = new HktGenesisSkeleton.Skeleton();
 	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true };
+	let extSkel = null; // FBX 드롭으로 불러온 외부 리그 (없으면 built-in)
+
+	// 뼈 친화(rest.w) 배정 기준 세그먼트 — 현재 모션 소스와 같은 리그/순서여야 한다
+	function currentBindBones() {
+		return (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1) : skeleton.pose('idle', 0, 1, 1);
+	}
 
 	function hexToVec4(hex) {
 		const v = parseInt(hex.slice(1), 16);
@@ -132,7 +138,7 @@
 		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무, 3 = 살 구름 (setScene 이 해석)
 		genes.emitter = p.emitter || [0, 0.6, 0];
 		// form 3: 뼈 친화 배정 기준이 되는 바인드 세그먼트 (순서 = 매 프레임 pose 와 동일)
-		if (genes.form === 3) genes.bindBones = skeleton.pose('idle', 0, 1, 1);
+		if (genes.form === 3) genes.bindBones = currentBindBones();
 		sceneEntities = [genes];  // 단일 개체 장면
 		if (reseedFn) reseedFn(); // 프리셋 = 새 존재 → 형태 재생성
 	}
@@ -145,7 +151,7 @@
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;
 		g.emitter = emitter || p.emitter || [0, 0.6, 0];
-		if (g.form === 3) g.bindBones = skeleton.pose('idle', 0, 1, 1);
+		if (g.form === 3) g.bindBones = currentBindBones();
 		return g;
 	}
 
@@ -225,8 +231,25 @@
 		const camera = new HktOrbitCamera(canvas);
 		camera.radius = 4.5;
 
+		// ── 패널 탭: 유전자 | 뼈대 ──
+		for (const b of document.querySelectorAll('#tabs .tab')) {
+			b.addEventListener('click', () => {
+				document.querySelectorAll('#tabs .tab').forEach((x) => x.classList.toggle('on', x === b));
+				document.getElementById('tab-genes').style.display = b.dataset.tab === 'genes' ? '' : 'none';
+				document.getElementById('tab-skel').style.display = b.dataset.tab === 'skel' ? '' : 'none';
+			});
+		}
+
 		// L6 뼈대 UI (skeleton/skel 은 모듈 스코프 — applyPreset 의 bindBones 계산과 공유)
-		document.getElementById('skelClip').addEventListener('change', (e) => { skel.clip = e.target.value; });
+		document.getElementById('skelClip').addEventListener('change', (e) => {
+			const wasExternal = skel.clip === 'external';
+			skel.clip = e.target.value;
+			// built-in ↔ 외부 리그 전환은 세그먼트 수/순서가 달라지므로 친화 재배정
+			if (wasExternal !== (skel.clip === 'external') && genes.form === 3) {
+				genes.bindBones = currentBindBones();
+				if (reseedFn) reseedFn();
+			}
+		});
 		for (const [id, key] of [['skelSpeed', 'speed'], ['skelFat', 'fat']]) {
 			const el = document.getElementById(id);
 			el.addEventListener('input', () => {
@@ -235,6 +258,45 @@
 			});
 		}
 		document.getElementById('skelBones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
+
+		// ── FBX 드롭: 실제 Mixamo 클립 — hikito-flesh 의 드롭존 대응 ──
+		const drop = document.getElementById('drop');
+		const fbxFile = document.getElementById('fbxFile');
+		const statusEl = document.getElementById('skelStatus');
+		const setStatus = (html) => { statusEl.innerHTML = html; };
+		setStatus(typeof THREE !== 'undefined' && THREE.FBXLoader
+			? 'FBX 로더 준비됨 — Mixamo FBX 를 드롭하세요.'
+			: 'vendor/three.min.js 미로드 — FBX 드롭 비활성.');
+		function loadFBXBuffer(buf, name) {
+			try {
+				extSkel = HktGenesisSkeleton.parseFBX(buf);
+				document.getElementById('extOpt').disabled = false;
+				document.getElementById('skelClip').value = 'external';
+				skel.clip = 'external';
+				// 새 리그 기준으로 뼈 친화 재배정 — 살이 새 뼈대로 옮겨 자란다
+				if (genes.form === 3) {
+					genes.bindBones = currentBindBones();
+					if (reseedFn) reseedFn();
+				}
+				setStatus(`<b>불러오기 완료</b> — ${name}` +
+					(extSkel.clipName ? ` · 클립 “${extSkel.clipName}”` : ' · 클립 없음(바인드 포즈)') +
+					` · 뼈 ${extSkel.bones.length}개`);
+			} catch (e) {
+				setStatus('FBX 파싱 실패: ' + e.message);
+			}
+		}
+		function readFBXFile(f) {
+			if (!f) return;
+			setStatus('읽는 중… ' + f.name);
+			const r = new FileReader();
+			r.onload = () => loadFBXBuffer(r.result, f.name);
+			r.readAsArrayBuffer(f);
+		}
+		['dragover', 'dragenter'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('hot'); }));
+		['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('hot'); }));
+		drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) readFBXFile(e.dataTransfer.files[0]); });
+		drop.addEventListener('click', () => fbxFile.click());
+		fbxFile.addEventListener('change', (e) => readFBXFile(e.target.files[0]));
 
 		const countSel = document.getElementById('count');
 		engine.setScene(parseInt(countSel.value), sceneEntities);
@@ -293,9 +355,13 @@
 
 			const aspect = canvas.width / canvas.height;
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
-			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK — 세그먼트가 SDF 의 유일한 입력
+			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK — 세그먼트가 살 규칙의 유일한 형태 입력
 			let bones = null;
-			if (sceneEntities.some((g) => g.fleshK > 0)) bones = skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);
+			if (sceneEntities.some((g) => g.fleshK > 0)) {
+				bones = (skel.clip === 'external' && extSkel)
+					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat) // 외부 클립은 증분 시간
+					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);       // built-in 은 절대 시간
+			}
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
