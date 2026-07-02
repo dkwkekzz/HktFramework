@@ -38,7 +38,7 @@ struct Cluster {
 	com : vec3f,    strain : f32,  // 무게중심, 최대 본드 변형률 (렌더 발광용)
 	restCom : vec3f, flags : u32,  // 휴지 무게중심, 본드 생존 비트마스크(하위 8)
 	vel : vec3f,    _p : f32,      // 무게중심 속도 (본드 감쇠용)
-	bonds : array<u32, 8>,         // 이웃 클러스터 인덱스 (0xffffffff = 빈 슬롯)
+	bonds : array<u32, 8>,         // (역참조 슬롯 << 28) | 이웃 인덱스. 0xffffffff = 빈 슬롯
 };
 `;
 
@@ -275,8 +275,10 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 		var maxStrain = 0.0;
 		var flags = cl.flags;
 		for (var b = 0u; b < 8u; b++) {
-			let nIdx = cl.bonds[b];
-			if (nIdx == 0xffffffffu) { continue; }
+			let entry = cl.bonds[b];
+			if (entry == 0xffffffffu) { continue; }
+			let nIdx = entry & 0x0fffffffu;
+			let revBit = 1u << (entry >> 28u); // 상대 쪽에서 나를 가리키는 본드 비트
 			let restOff = clusters[nIdx].restCom - cl.restCom;
 			let restLen = length(restOff) + 1e-6;
 			let actual = clusters[nIdx].com - shCom;
@@ -285,7 +287,8 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 				let strain = length(err) / restLen;
 				if (strain > P.toughness) {
 					flags &= ~(1u << b); // 파단 — 균열이 생긴다
-				} else {
+				} else if ((clusters[nIdx].flags & revBit) != 0u) {
+					// 양측 생존 시에만 힘 발생 — 한쪽 스프링은 쌍에 운동량을 주입한다
 					acc += err * P.bondK + (clusters[nIdx].vel - myVel) * bondDamp;
 					maxStrain = max(maxStrain, strain);
 				}

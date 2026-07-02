@@ -241,9 +241,13 @@
 				if (d < CUTOFF) edges.push([d, ci, cj]);
 			}
 		edges.sort((a, b) => a[0] - b[0]);
+		// 엔트리 = (역참조 슬롯 << 28) | 이웃 인덱스 — 셰이더가 상대 생존 비트를 확인한다
 		const bonds = Array.from({ length: C }, () => []);
 		for (const [, ci, cj] of edges)
-			if (bonds[ci].length < 8 && bonds[cj].length < 8) { bonds[ci].push(cj); bonds[cj].push(ci); }
+			if (bonds[ci].length < 8 && bonds[cj].length < 8) {
+				bonds[ci].push((bonds[cj].length << 28) | cj);
+				bonds[cj].push(((bonds[ci].length - 1) << 28) | ci);
+			}
 
 		const splat = new Float32Array(n * SPLAT_STRIDE);
 		const restA = new Float32Array(n * 4);
