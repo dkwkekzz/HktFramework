@@ -6,9 +6,23 @@
 
 ## 실행
 
+**원클릭 시뮬레이션** — 설치→테스트→서버→봇 8기→관전 브라우저까지 한 번에:
+
+```
+run.bat            # Windows
+./run.sh [봇수]    # macOS / Linux (관전: http://localhost:8080/?name=관전자)
+```
+
+봇(`tools/bots.js`)은 특권이 없다 — 브라우저 클라이언트와 동일한 프로토콜·동일한
+미러 원장으로 채집(⛏)/사냥(⚔)/응축/무기제작을 스스로 수행하며, 서버는 봇의
+비콘·인텐트를 똑같이 검증한다. 5초마다 콘솔에 각 봇 에너지와 세계 총합을 출력한다.
+
+개별 실행:
+
 ```bash
 npm install
-npm start          # http://localhost:8080  (탭 여러 개 = 멀티플레이)
+npm start          # 서버만 — http://localhost:8080 (탭 여러 개 = 멀티플레이)
+node tools/bots.js 8
 npm test           # 보존 불변식·중재·미러 정합 테스트 13종
 ```
 

@@ -105,7 +105,16 @@ export class ClientState {
 
   #applyTx(tx) {
     if (tx.iid) this.pending.delete(tx.iid); // 예측 → 확정 치환
-    this.ledger.applyTx(tx); // 양끝 풀이 시야 밖이면 skip — 체크섬이 잡는다
+    // 시야 밖 액터의 무지역 풀(플레이어·타인 인벤토리)은 잔고 0 으로 물질화한다.
+    // 무지역 풀은 체크섬 대상이 아니라 오차가 무해하고(ENTER 가 오면 정정),
+    // 덕분에 시야 "안" 의 지역 풀(노드·몬스터) 쪽 절반이 유실되지 않는다 —
+    // 예: 내 시야 경계 밖 플레이어가 시야 안 노드를 채집하는 경우.
+    for (const id of [tx.from, tx.to]) {
+      if (!this.ledger.get(id) && (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM))) {
+        this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
+      }
+    }
+    this.ledger.applyTx(tx); // 지역 풀 끝단이 시야 밖인 tx 는 skip — 체크섬이 잡는다
     this.txFeed.push(tx);
   }
 
