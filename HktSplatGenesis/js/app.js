@@ -133,8 +133,12 @@
 	const SCENES = {
 		'불×나무': () => {
 			applyPreset(PRESETS['나무']); // 개체 0 = 나무 (슬라이더 연동)
-			const fire = prepGenes(PRESETS['불의 정령'], [1.05, 0.45, 0]);
-			fire.emitRadius = 0.3; // 나무 곁의 작은 모닥불
+			const fire = prepGenes(PRESETS['불의 정령'], [1.15, 0.35, 0]);
+			// 나무 곁의 작은 모닥불 — 플룸이 수관을 삼키지 않게 축소
+			fire.emitRadius = 0.22;
+			fire.lifeBase = 1.0;
+			fire.updraft = 1.5;
+			fire.size = 0.03;
 			sceneEntities = [genes, fire];
 			if (reseedFn) reseedFn();
 		},
