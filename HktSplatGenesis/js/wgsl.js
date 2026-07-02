@@ -16,16 +16,62 @@ struct Splat {
 };
 `;
 
-	// ── 시뮬 패스: per-splat 자율 규칙 (L1 — 이웃 상호작용 없음) ─────────────
-	const SIM = SPLAT_STRUCT + /* wgsl */`
+	// 시뮬 유니폼 128B — engine.js frame() 의 패킹과 바이트 일치 필수
+	const SIM_PARAMS = /* wgsl */`
 struct SimParams {
-	emitter : vec3f,  dt : f32,
-	time : f32,       cohesion : f32,  volatility : f32, updraft : f32,
-	damping : f32,    lifeBase : f32,  emitRadius : f32, flowFreq : f32,
-	flowSpeed : f32,  count : u32,     _p0 : f32,        _p1 : f32,
+	emitter : vec3f,    dt : f32,
+	time : f32,         cohesion : f32,  volatility : f32, updraft : f32,
+	damping : f32,      lifeBase : f32,  emitRadius : f32, flowFreq : f32,
+	flowSpeed : f32,    count : u32,     gravity : f32,    mortality : f32,
+	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 상호작용)
+	gridOrigin : vec3f, cellSize : f32,
+	binding : f32,      restDist : f32,  viscosity : f32,  floorY : f32,
+	_pad : vec4f,
 };
+`;
+
+	// 고정 격자 상수 — L2 이웃 탐색 (해시 충돌 없는 유계 dense grid + 셀당 고정 슬롯)
+	const GRID_CONST = /* wgsl */`
+const GD : i32 = 64;           // 격자 한 변 셀 수
+const GDU : u32 = 64u;
+const CELLS : u32 = 262144u;   // 64³
+const SLOTS : u32 = 16u;       // 셀당 최대 기록 수 (초과분은 이웃 힘에서 누락 — 우아한 저하)
+`;
+
+	// ── 격자 클리어: 셀 카운터 0 초기화 ─────────────────────────────────────
+	const GRID_CLEAR = GRID_CONST + /* wgsl */`
+@group(0) @binding(0) var<storage, read_write> gridCount : array<atomic<u32>>;
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+	if (gid.x < CELLS) { atomicStore(&gridCount[gid.x], 0u); }
+}
+`;
+
+	// ── 격자 빌드: 스플랫 → 셀 슬롯 등록 ───────────────────────────────────
+	const GRID_BUILD = SPLAT_STRUCT + SIM_PARAMS + GRID_CONST + /* wgsl */`
+@group(0) @binding(0) var<storage, read> splats : array<Splat>;
+@group(0) @binding(1) var<uniform> P : SimParams;
+@group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
+@group(0) @binding(3) var<storage, read_write> gridSlots : array<u32>;
+@compute @workgroup_size(256)
+fn main(@builtin(global_invocation_id) gid : vec3u) {
+	let i = gid.x;
+	if (i >= P.count) { return; }
+	let c = vec3i(floor((splats[i].pos - P.gridOrigin) / P.cellSize));
+	if (all(c >= vec3i(0)) && all(c < vec3i(GD))) {
+		let cidx = u32(c.x) + u32(c.y) * GDU + u32(c.z) * GDU * GDU;
+		let slot = atomicAdd(&gridCount[cidx], 1u);
+		if (slot < SLOTS) { gridSlots[cidx * SLOTS + slot] = i; }
+	}
+}
+`;
+
+	// ── 시뮬 패스: per-splat 자율 규칙 (L1) + 이웃 규칙 (L2) ────────────────
+	const SIM = SPLAT_STRUCT + SIM_PARAMS + GRID_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
+@group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
+@group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -48,28 +94,84 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (i >= P.count) { return; }
 	var s = splats[i];
 
-	s.age += P.dt;
-	if (s.age >= s.life) {
-		// 수명 종료 → 코어 주변에서 재생성 (세대 교대)
-		let r = hash31(f32(i) * 0.719 + fract(P.time) * 113.1) * 2.0 - 1.0;
-		s.pos = P.emitter + r * P.emitRadius;
-		s.vel = vec3f(0.0);
-		s.age = 0.0;
-		s.life = P.lifeBase * (0.5 + hash31(f32(i) * 1.37 + s.misc.y).x);
+	if (P.mortality > 0.5) {
+		// 필멸 개체(불꽃 등): 세대 교대 + 에너지 곡선
+		s.age += P.dt;
+		if (s.age >= s.life) {
+			// 수명 종료 → 코어 주변에서 재생성
+			let r = hash31(f32(i) * 0.719 + fract(P.time) * 113.1) * 2.0 - 1.0;
+			s.pos = P.emitter + r * P.emitRadius;
+			s.vel = vec3f(0.0);
+			s.age = 0.0;
+			s.life = P.lifeBase * (0.5 + hash31(f32(i) * 1.37 + s.misc.y).x);
+		}
+		let u = s.age / s.life;
+		s.misc.x = smoothstep(0.0, 0.15, u) * (1.0 - smoothstep(0.65, 1.0, u));
+	} else {
+		// 불멸 개체(슬라임·액체): 물질 보존 — 죽지 않고 에너지 일정
+		s.misc.x = 1.0;
 	}
 
-	// 규칙: 구심(응집) + 난류(휘발) + 부력(상승) — 유전자 3개가 형태를 결정
+	// L1 규칙: 구심(응집) + 난류(휘발) + 부력(상승) + 중력
 	let toCore = P.emitter - s.pos;
 	var acc = toCore * P.cohesion;
 	acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility;
-	acc.y += P.updraft;
+	acc.y += P.updraft - P.gravity;
+
+	// 포인터 인력 (Alt+드래그): 국소 가우시안 감쇠 — 슬라임을 찢고 당기는 손
+	if (P.pull.w > 0.0) {
+		let d = P.pull.xyz - s.pos;
+		acc += d * P.pull.w * exp(-dot(d, d) * 0.8);
+	}
+
+	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다
+	if (P.binding > 0.0) {
+		let ci = vec3i(floor((s.pos - P.gridOrigin) / P.cellSize));
+		if (all(ci >= vec3i(1)) && all(ci <= vec3i(GD - 2))) {
+			var fsum = vec3f(0.0);
+			var vsum = vec3f(0.0);
+			var wsum = 0.0;
+			for (var dz = -1; dz <= 1; dz++) {
+				for (var dy = -1; dy <= 1; dy++) {
+					for (var dx = -1; dx <= 1; dx++) {
+						let c = ci + vec3i(dx, dy, dz);
+						let cidx = u32(c.x) + u32(c.y) * GDU + u32(c.z) * GDU * GDU;
+						let cnt = min(atomicLoad(&gridCount[cidx]), SLOTS);
+						for (var k = 0u; k < cnt; k++) {
+							let j = gridSlots[cidx * SLOTS + k];
+							if (j == i) { continue; }
+							let d = splats[j].pos - s.pos;
+							let r = length(d);
+							if (r < P.cellSize && r > 1e-5) {
+								// 휴지 간격보다 가까우면 반발(비압축), 멀면 인력(표면장력)
+								var m = r / P.cellSize - P.restDist;
+								if (m < 0.0) { m *= 4.0; }
+								fsum += (d / r) * m;
+								vsum += splats[j].vel;
+								wsum += 1.0;
+							}
+						}
+					}
+				}
+			}
+			acc += fsum * P.binding;
+			if (wsum > 0.0) {
+				// 점성: 이웃 평균 속도로 이완
+				s.vel += ((vsum / wsum) - s.vel) * min(P.viscosity * P.dt, 1.0);
+			}
+		}
+	}
 
 	s.vel = (s.vel + acc * P.dt) * exp(-P.damping * P.dt);
 	s.pos += s.vel * P.dt;
 
-	// 에너지 곡선: 태어나며 점화, 죽어가며 소산 → 불투명도·발광·크기로 유도됨
-	let u = s.age / s.life;
-	s.misc.x = smoothstep(0.0, 0.15, u) * (1.0 - smoothstep(0.65, 1.0, u));
+	// 바닥 (y = floorY): 감쇠 반사 + 마찰
+	if (s.pos.y < P.floorY) {
+		s.pos.y = P.floorY;
+		if (s.vel.y < 0.0) { s.vel.y *= -0.25; }
+		let fr = exp(-6.0 * P.dt);
+		s.vel = vec3f(s.vel.x * fr, s.vel.y, s.vel.z * fr);
+	}
 
 	splats[i] = s;
 }
@@ -222,5 +324,5 @@ fn fs(in : VOut) -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER };
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD };
 })(window);

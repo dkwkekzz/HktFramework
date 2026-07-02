@@ -53,6 +53,7 @@
 
 		canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 		canvas.addEventListener('pointerdown', (e) => {
+			if (e.altKey) return; // Alt+드래그는 인력 상호작용(app.js) 몫
 			dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
 			lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId);
 		});

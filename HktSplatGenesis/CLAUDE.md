@@ -11,10 +11,12 @@
 ## 아키텍처
 
 ```
-sim(compute, 자율 규칙) → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
+grid clear/build(64³, 셀당 16슬롯) → sim(compute: L1 자율 + L2 이웃 규칙)
+→ key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
 ```
 
-- `js/wgsl.js` — 셰이더 4종. `Splat` 구조체(48B)는 `engine.js` `SPLAT_STRIDE`(12 float) 와 바이트 일치 필수.
+- `js/wgsl.js` — 셰이더 6종. `Splat` 구조체(48B)는 `engine.js` `SPLAT_STRIDE`(12 float) 와,
+  `SimParams`(128B)는 `frame()` 패킹과 바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)도 engine.js 와 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
@@ -22,6 +24,9 @@ sim(compute, 자율 규칙) → key(뷰 깊이→단조 uint) → bitonic sort �
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 
 - 스플랫 수 N 은 **2의 거듭제곱** (바이토닉 정렬 전제, `setCount` 가 검증).
+- L2 이웃 힘은 프레임 시작 시점 격자를 기준으로 하되 위치는 in-place 갱신(Jacobi/Gauss-Seidel 혼합) —
+  프로토타입 허용 오차. 지터가 문제 되면 위치 더블 버퍼가 정석 (로드맵).
+- 격자 셀 초과분(SLOTS 넘는 스플랫)은 이웃 힘에서 조용히 누락 — 우아한 저하가 의도.
 - 정렬 키: 카메라 앞 = 음수 뷰 z → orderable uint 오름차순 = **far→near** (back-to-front over 블렌딩 전제).
 - 블렌딩 premultiplied over: FS 출력 `vec4(rgb*B, B)` + (one, one-minus-src-alpha).
 - 렌더 VS 의 퇴화 처리: 컬 시 네 꼭짓점 동일 위치 반환 (discard 아님).
@@ -33,4 +38,4 @@ sim(compute, 자율 규칙) → key(뷰 깊이→단조 uint) → bitonic sort �
 
 ## 로드맵
 
-L2 spatial hash 이웃 규칙(슬라임) → L3 본드/shape matching(골렘) → L4 성장(나무) → L5 원소 상호작용. 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼)도 대기열.
+L3 본드/shape matching(골렘) → L4 성장(나무) → L5 원소 상호작용. 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼도 대기열.
