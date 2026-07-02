@@ -11,7 +11,7 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열)
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열 + L6 기억)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
 → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
 ```
@@ -20,14 +20,23 @@ L4 나무는 sim 안의 조기 경로(`E.growRate > 0`): rest 버퍼가 (부착�
 `misc.z/w` 가 (heat, fuel) 연소 상태. fuel 채널 도입으로 모든 init 은 `misc.w = 1` 필수
 (0 이면 렌더가 재로 해석해 어두워진다).
 
-L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) — 스플랫 풀을 균등
+L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 160B×8) — 스플랫 풀을 균등
 슬라이스로 개체에 배정(`eid = i / sliceSize`, sliceSize 는 256 의 배수 필수 — CLUSTER 의
 워크그룹 균일 조기 return 전제). 격자가 전 개체 공유라 다른 개체의 스플랫이 이웃으로
 잡힌다 — `heatEmit` 유전자(불 정령)가 나무의 연소 전파 규칙에 그대로 물리는 이유.
 격자 셀 크기는 전역 GRID_CELL(0.15) 고정, 개체 reach 는 이하로 클램프.
 
+L6 기억(form 3): 이미지를 중요도 샘플링해 rest 버퍼를 (기억 앵커, 개화 시점) 으로 채우고
+(`_initMemory`), sim 이 `memory` 유전자의 *약한* 스프링으로 앵커에 끌어당긴다 — 난류·응집과
+경합하므로 복제가 아니라 응결. rest 는 form 별 배타 재사용(나무=골격, 골렘=q0, 기억=앵커).
+앵커 픽셀색은 memColor 버퍼(u32 RGBA8×N)로 렌더에 전달되고, 앵커 *근처에 앉은* 스플랫에만
+스민다(위치가 색을 유도 — 원칙 1 유지). 열은 기억을 지운다(`k *= 1-heat`) — 비-나무 가연체의
+연소 집계는 L2 이웃 루프에 편승(`E.flamm > 0 && growRate <= 0` 이면 binding 0 이어도 스캔),
+burnN 은 8 캡(조밀한 2D 앵커 시트의 연쇄 폭주 방지), 재가 식으면 나무처럼 재생.
+기본 프리셋은 binding 0 필수 — 조밀 앵커 vs 이웃 반발이 정면 충돌해 binding 1 에도 수렴이 무너진다.
+
 - `js/wgsl.js` — 셰이더 7종. `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
-  `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
+  `Entity`(160B)=`ENTITY_STRIDE`(40 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
   바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.

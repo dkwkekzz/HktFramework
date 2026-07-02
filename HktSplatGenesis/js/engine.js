@@ -13,7 +13,7 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
+	const ENTITY_STRIDE = 40;    // f32 40개 = 160B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
@@ -113,22 +113,26 @@
 		this.entities = ents;
 		this.sliceSize = slice;
 
-		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); this.restBuf.destroy(); this.clusterBuf.destroy(); }
+		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); this.restBuf.destroy(); this.clusterBuf.destroy(); this.memColorBuf.destroy(); }
 		this.splatBuf = d.createBuffer({ size: n * SPLAT_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
 		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		this.memColorBuf = d.createBuffer({ size: n * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		// 슬라이스별 초기화 조립 — 골렘 본드의 클러스터 인덱스는 전역 기준으로 보정
 		const splatAll = new Float32Array(n * SPLAT_STRIDE);
 		const restAll = new Float32Array(n * 4);
+		const memAll = new Uint32Array(n);
 		const clusterAll = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);
 		const clusterAllU = new Uint32Array(clusterAll.buffer);
 		ents.forEach((genes, ei) => {
 			const init = (genes.form === 1) ? this._initGolem(slice, genes)
 				: (genes.form === 2) ? this._initTree(slice, genes)
+				: (genes.form === 3) ? this._initMemory(slice, genes)
 				: this._initCloud(slice, genes);
 			splatAll.set(init.splat, ei * slice * SPLAT_STRIDE);
 			restAll.set(init.rest, ei * slice * 4);
+			if (init.mem) memAll.set(init.mem, ei * slice);
 			const cBase = ei * (slice / CLUSTER_K);
 			clusterAll.set(init.cluster, cBase * CLUSTER_STRIDE);
 			const cu = new Uint32Array(init.cluster.buffer);
@@ -142,6 +146,7 @@
 		});
 		d.queue.writeBuffer(this.splatBuf, 0, splatAll);
 		d.queue.writeBuffer(this.restBuf, 0, restAll);
+		d.queue.writeBuffer(this.memColorBuf, 0, memAll);
 		d.queue.writeBuffer(this.clusterBuf, 0, clusterAll);
 
 		// 바이토닉 단계 테이블: (k, j) 를 256B 정렬 슬롯에 미리 기록 → 프레임마다 동적 오프셋만 변경
@@ -197,6 +202,8 @@
 				{ binding: 2, resource: { buffer: this.camUB } },
 				{ binding: 3, resource: { buffer: this.clusterBuf } },
 				{ binding: 4, resource: { buffer: this.entityBuf } },
+				{ binding: 5, resource: { buffer: this.restBuf } },
+				{ binding: 6, resource: { buffer: this.memColorBuf } },
 			],
 		});
 		this.clusterBG = d.createBindGroup({
@@ -226,6 +233,7 @@
 			a.set(g.colorA, o + 24);
 			a.set(g.colorB, o + 28);
 			a.set([g.size, g.stretch, g.opacity, g.luminosity], o + 32);
+			a.set([g.memory || 0, g.memRate || 0, g.memColor || 0, 0], o + 36);
 		});
 		return a;
 	};
@@ -349,6 +357,59 @@
 			}
 		}
 		return { splat, rest: restA, cluster };
+	};
+
+	// form 3 — 기억의 정령: 이미지 중요도 샘플링 → 스플랫별 기억 앵커(rest)와 앵커 픽셀색.
+	// 이미지는 세워진 부조 평면으로 해석한다 — 휘도가 샘플 밀도와 릴리프(z)를 함께 결정.
+	// 시작 상태는 emitter 구름(_initCloud) — 스플랫이 앵커로 *여행해 와서* 형태가 떠오른다.
+	HktGenesisEngine.prototype._initMemory = function (n, genes) {
+		const img = genes.image;
+		if (!img) return this._initCloud(n, genes); // 이미지 없으면 구름 (rest 0 → memory 무해)
+		const em = genes.emitter || [0, 0.6, 0];
+		const { data, w, h } = img;
+
+		// 픽셀 중요도 CDF — 알파 × (바닥 + 휘도): 어두운 영역도 옅게나마 살아남는다
+		const cdf = new Float32Array(w * h);
+		let total = 0;
+		for (let p = 0; p < w * h; p++) {
+			const lum = (0.2126 * data[p * 4] + 0.7152 * data[p * 4 + 1] + 0.0722 * data[p * 4 + 2]) / 255;
+			total += (data[p * 4 + 3] / 255) * (0.15 + 0.85 * lum);
+			cdf[p] = total;
+		}
+		if (total <= 0) return this._initCloud(n, genes);
+
+		// 월드 배치: 가로세로비 유지, 최장변 ≈ 2.2, 바닥 여유 0.15 (floorY 와의 경합 방지)
+		const scale = 2.2 / Math.max(w, h);
+		const W = w * scale, H = h * scale;
+		const gauss = (s) => (Math.random() + Math.random() + Math.random() - 1.5) * 2 * s;
+
+		const cloud = this._initCloud(n, genes);
+		const restA = new Float32Array(n * 4);
+		const mem = new Uint32Array(n);
+		let cx = 0, cy = 0;
+		for (let i = 0; i < n; i++) {
+			// CDF 이분탐색 — 밝은 픽셀일수록 앵커가 많이 배정된다 (밀도 = 이미지)
+			const t = Math.random() * total;
+			let lo = 0, hi = w * h - 1;
+			while (lo < hi) { const mid = (lo + hi) >> 1; if (cdf[mid] < t) lo = mid + 1; else hi = mid; }
+			const px = lo % w, py = (lo / w) | 0;
+			const u = (px + Math.random()) / w, v = (py + Math.random()) / h;
+			const lum = (0.2126 * data[lo * 4] + 0.7152 * data[lo * 4 + 1] + 0.0722 * data[lo * 4 + 2]) / 255;
+			restA[i * 4 + 0] = em[0] + (u - 0.5) * W;
+			restA[i * 4 + 1] = 0.15 + (1 - v) * H;
+			restA[i * 4 + 2] = em[2] + (lum - 0.5) * 0.25 + gauss(0.05);
+			cx += restA[i * 4 + 0]; cy += restA[i * 4 + 1];
+			mem[i] = data[lo * 4] | (data[lo * 4 + 1] << 8) | (data[lo * 4 + 2] << 16) | (255 << 24);
+		}
+		// 개화 시점(birth) = 앵커 무게중심으로부터의 정규화 거리 — 중심→바깥으로 응결
+		cx /= n; cy /= n;
+		let maxD = 1e-6;
+		for (let i = 0; i < n; i++)
+			maxD = Math.max(maxD, Math.hypot(restA[i * 4] - cx, restA[i * 4 + 1] - cy));
+		for (let i = 0; i < n; i++)
+			restA[i * 4 + 3] = Math.min(
+				Math.hypot(restA[i * 4] - cx, restA[i * 4 + 1] - cy) / maxD + Math.random() * 0.1, 1);
+		return { splat: cloud.splat, rest: restA, cluster: cloud.cluster, mem };
 	};
 
 	// form 2 — 나무: 재귀 가지 골격을 절차 생성하고 스플랫마다 (부착점, 성장 시점) 부여.

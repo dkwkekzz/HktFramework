@@ -36,6 +36,10 @@
 		flamm:      ['가연성',      0,    3,    0.1],
 		// ── L5: 상호작용 유전자 ──
 		heatEmit:   ['발열',        0,    2,    0.1],
+		// ── L6: 기억(이미지 형태 attractor) 유전자 ──
+		memory:     ['기억 인력',   0,    20,   0.5],
+		memRate:    ['기억 속도',   0,    1,    0.02],
+		memColor:   ['기억 색',     0,    1,    0.05],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -45,7 +49,7 @@
 			lifeBase: 1.6, emitRadius: 0.35, flowFreq: 2.2, flowSpeed: 1.6,
 			size: 0.035, stretch: 1.1, opacity: 0.5, luminosity: 2.4,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 1.2,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 1.2, memory: 0, memRate: 0, memColor: 0,
 			colorA: '#a81c06', colorB: '#ffe08a',
 		},
 		'물': {
@@ -53,7 +57,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.4,
 			size: 0.05, stretch: 0.8, opacity: 0.65, luminosity: 0.8,
 			gravity: 7, binding: 10, restDist: 0.55, viscosity: 6, reach: 0.15, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, memory: 0, memRate: 0, memColor: 0,
 			colorA: '#0a2a8a', colorB: '#7fe9ff',
 		},
 		'숲의 정령': {
@@ -61,7 +65,7 @@
 			lifeBase: 3.2, emitRadius: 0.85, flowFreq: 1.3, flowSpeed: 0.55,
 			size: 0.045, stretch: 1.6, opacity: 0.45, luminosity: 1.3,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, memory: 0, memRate: 0, memColor: 0,
 			colorA: '#0d3410', colorB: '#a8ff6b',
 		},
 		'나무': {
@@ -69,7 +73,7 @@
 			lifeBase: 3.0, emitRadius: 0.5, flowFreq: 1.8, flowSpeed: 0.9,
 			size: 0.05, stretch: 0.8, opacity: 0.75, luminosity: 0.8,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.12, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, heatEmit: 0, form: 2,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, heatEmit: 0, memory: 0, memRate: 0, memColor: 0, form: 2,
 			colorA: '#5a4a2e', colorB: '#86e05c',
 		},
 		'돌골렘': {
@@ -77,7 +81,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.055, stretch: 0.3, opacity: 0.9, luminosity: 0.6,
 			gravity: 6, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 0,
-			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1, growRate: 0, flamm: 0, heatEmit: 0,
+			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1, growRate: 0, flamm: 0, heatEmit: 0, memory: 0, memRate: 0, memColor: 0,
 			colorA: '#57534b', colorB: '#ff9b3d',
 		},
 		'슬라임': {
@@ -85,8 +89,21 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.06, stretch: 0.5, opacity: 0.8, luminosity: 0.5,
 			gravity: 4, binding: 14, restDist: 0.6, viscosity: 8, reach: 0.16, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, memory: 0, memRate: 0, memColor: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
+		},
+		// L6 — 이미지가 유전적 기억이 되는 존재: memory 스프링이 난류와 경합하며 형태가
+		// 서서히 응결한다. 이미지 없이는 은은한 구름 (form 3 이 _initCloud 폴백).
+		// 기본값은 수치 검증 결과: binding 0 이 핵심 — 조밀한 앵커와 이웃 반발이 정면
+		// 충돌해 binding 1 만 줘도 수렴률이 99%→39% 로 무너진다. 경합의 미학은 슬라이더로.
+		'기억의 정령': {
+			cohesion: 0.2, volatility: 0.6, updraft: 0, damping: 2.5,
+			lifeBase: 3.0, emitRadius: 0.9, flowFreq: 1.4, flowSpeed: 0.6,
+			size: 0.04, stretch: 1.2, opacity: 0.55, luminosity: 1.6,
+			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.12, mortality: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0.25, heatEmit: 0,
+			memory: 12, memRate: 0.2, memColor: 0.75, form: 3,
+			colorA: '#2a1a5e', colorB: '#cfe8ff',
 		},
 	};
 
@@ -94,6 +111,7 @@
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
 	let reseedFn = null;     // boot 이후 연결 — 프리셋 전환 시 형태(form) 재생성용
 	let sceneEntities = [genes]; // 장면의 개체 목록 — 개체 0 은 항상 genes(슬라이더 연동)
+	let memoryImage = null;  // L6 기억 이미지 {data, w, h} — engine._initMemory 가 소비
 
 	function hexToVec4(hex) {
 		const v = parseInt(hex.slice(1), 16);
@@ -112,8 +130,9 @@
 		document.getElementById('colorB').value = p.colorB;
 		genes.colorA = hexToVec4(p.colorA);
 		genes.colorB = hexToVec4(p.colorB);
-		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무 (setScene 이 해석)
+		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무, 3 = 기억 (setScene 이 해석)
 		genes.emitter = [0, 0.6, 0];
+		genes.image = memoryImage;
 		sceneEntities = [genes];  // 단일 개체 장면
 		if (reseedFn) reseedFn(); // 프리셋 = 새 존재 → 형태 재생성
 	}
@@ -126,7 +145,22 @@
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;
 		g.emitter = emitter || [0, 0.6, 0];
+		g.image = memoryImage;
 		return g;
+	}
+
+	// ── L6 기억 이미지 인제스트: 다운스케일 → 픽셀 재료화 → '기억의 정령' 발아 ──
+	async function loadMemoryImage(blob) {
+		const bmp = await createImageBitmap(blob);
+		const sc = Math.min(1, 256 / Math.max(bmp.width, bmp.height));
+		const w = Math.max(1, Math.round(bmp.width * sc));
+		const h = Math.max(1, Math.round(bmp.height * sc));
+		const cv = document.createElement('canvas');
+		cv.width = w; cv.height = h;
+		const ctx = cv.getContext('2d');
+		ctx.drawImage(bmp, 0, 0, w, h);
+		memoryImage = { data: ctx.getImageData(0, 0, w, h).data, w, h };
+		applyPreset(PRESETS['기억의 정령']); // 새 기억 = 새 존재 → 재시드
 	}
 
 	// ── L5 장면: 다중 개체 공존 — 개체 간 상호작용은 공유 격자의 창발 ──
@@ -138,6 +172,18 @@
 			fire.emitRadius = 0.22;
 			fire.lifeBase = 1.0;
 			fire.updraft = 1.5;
+			fire.size = 0.03;
+			sceneEntities = [genes, fire];
+			if (reseedFn) reseedFn();
+		},
+		'불×기억': () => {
+			applyPreset(PRESETS['기억의 정령']); // 개체 0 = 기억의 정령 (슬라이더 연동)
+			// 이미지 평면 아래 모서리 곁 — 어떤 가로세로비에서도 불씨가 닿는 위치.
+			// 닿은 곳부터 기억이 풀리고 재가 되며, 재가 식으면 다시 떠오른다.
+			const fire = prepGenes(PRESETS['불의 정령'], [0.7, 0.3, 0]);
+			fire.emitRadius = 0.2;
+			fire.lifeBase = 0.9;
+			fire.updraft = 1.4;
 			fire.size = 0.03;
 			sceneEntities = [genes, fire];
 			if (reseedFn) reseedFn();
@@ -179,6 +225,17 @@
 			b.addEventListener('click', fn);
 			sceneBox.appendChild(b);
 		}
+		// L6 기억 이미지: 파일 선택 또는 캔버스에 드롭
+		document.getElementById('memImage').addEventListener('change', (e) => {
+			if (e.target.files[0]) loadMemoryImage(e.target.files[0]).catch(console.error);
+		});
+		const gpuCanvas = document.getElementById('gpu');
+		gpuCanvas.addEventListener('dragover', (e) => e.preventDefault());
+		gpuCanvas.addEventListener('drop', (e) => {
+			e.preventDefault();
+			const f = e.dataTransfer.files && e.dataTransfer.files[0];
+			if (f && f.type.startsWith('image/')) loadMemoryImage(f).catch(console.error);
+		});
 	}
 
 	function fail(msg) {

@@ -31,7 +31,7 @@ struct SimParams {
 };
 `;
 
-	// 개체 유전자 144B — engine.js ENTITY_STRIDE(36 float) 와 바이트 일치 필수
+	// 개체 유전자 160B — engine.js ENTITY_STRIDE(40 float) 와 바이트 일치 필수
 	const ENTITY_STRUCT = /* wgsl */`
 struct Entity {
 	emitter : vec3f,   cohesion : f32,
@@ -42,6 +42,7 @@ struct Entity {
 	growRate : f32,    flamm : f32,     heatEmit : f32,  _e0 : f32,
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
+	memory : f32,      memRate : f32,   memColor : f32,  _e1 : f32,
 };
 `;
 
@@ -99,7 +100,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 @group(0) @binding(1) var<uniform> P : SimParams;
 @group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
 @group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
-@group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
+@group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점 · L6: xyz=기억 앵커, w=개화 시점
 @group(0) @binding(5) var<storage, read> entities : array<Entity>;
 
 // 1D → 3D 해시 (Hoskins)
@@ -228,7 +229,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다
-	if (E.binding > 0.0) {
+	// burnN 은 이 스캔에 편승한 연소 이웃 수 — 비-나무 가연체(기억의 정령)의 점화 통로.
+	// binding 0 이어도 가연체는 스캔한다 (힘 항은 binding/viscosity 0 으로 자체 소멸).
+	var burnN = 0.0;
+	if (E.binding > 0.0 || (E.flamm > 0.0 && E.growRate <= 0.0)) {
 		let ci = vec3i(floor((s.pos - P.gridOrigin) / P.cellSize));
 		if (all(ci >= vec3i(1)) && all(ci <= vec3i(GD - 2))) {
 			let reach = min(E.reach, P.cellSize);
@@ -244,6 +248,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 						for (var k = 0u; k < cnt; k++) {
 							let j = gridSlots[cidx * SLOTS + k];
 							if (j == i) { continue; }
+							let jm = splats[j].misc;
+							if (jm.z > 1.0 && jm.w > 0.0) { burnN += 1.0; }
 							let d = splats[j].pos - s.pos;
 							let r = length(d);
 							if (r < reach && r > 1e-5) {
@@ -268,6 +274,33 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 				s.vel += ((vsum / wsum) - s.vel) * min(E.viscosity * P.dt, 1.0);
 			}
 		}
+	}
+
+	// ── L4' 비-나무 가연체(기억의 정령): 이웃 연소열 축적 + 냉각 + 연료 소모 ──
+	// heatEmit 개체(불)와 배타 전제 — 불은 flamm 0. burnN 캡 필수: 조밀한 2D 앵커
+	// 시트는 27셀에 연소 이웃이 수백까지 잡혀 캡 없이는 전면이 순간 발화한다.
+	if (E.flamm > 0.0 && E.growRate <= 0.0) {
+		var heat = s.misc.z + min(burnN, 8.0) * E.flamm * P.dt * 0.35;
+		heat = max(heat - 0.5 * P.dt, 0.0);
+		var fuel = s.misc.w;
+		if (heat > 1.0 && fuel > 0.0) { fuel = max(fuel - P.dt * 0.35, 0.0); }
+		// 재생: 재가 식으면 시간이 흘러 기억이 다시 떠오른다 (나무와 동일 규칙)
+		if (fuel <= 0.0 && heat < 0.5) {
+			s.age += P.dt;
+			if (s.age > E.lifeBase) { fuel = 1.0; s.age = 0.0; }
+		}
+		s.misc.z = heat;
+		s.misc.w = fuel;
+	}
+
+	// ── L6 유전적 기억: rest 앵커로의 약한 스프링 — 난류·응집·점성과 *경합*한다 ──
+	// 나무(growRate)는 조기 return, 골렘은 memory=0 전제 — rest 의미 충돌 없음.
+	// 나무처럼 개화 전 동결하지 않고 스프링 강도만 게이팅한다: 전체가 구름으로
+	// 소용돌이치다 중심(birth 작음)부터 바깥으로 서서히 응결하는 연출.
+	if (E.memory > 0.0) {
+		let awake = clamp((P.time * E.memRate - rest[i].w) * 3.0, 0.0, 1.0);
+		let mk = E.memory * awake * max(1.0 - s.misc.z, 0.0); // 열이 기억을 지운다
+		acc += (rest[i].xyz - s.pos) * mk;
 	}
 
 	s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
@@ -483,6 +516,8 @@ struct CamParams {
 @group(0) @binding(2) var<uniform> C : CamParams;
 @group(0) @binding(3) var<storage, read> clusters : array<Cluster>;
 @group(0) @binding(4) var<storage, read> entities : array<Entity>;
+@group(0) @binding(5) var<storage, read> rest : array<vec4f>;    // L6: xyz=기억 앵커
+@group(0) @binding(6) var<storage, read> memColor : array<u32>;  // L6: 앵커 픽셀색 RGBA8
 
 struct VOut {
 	@builtin(position) pos : vec4f,
@@ -560,6 +595,14 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let heat = clamp(1.0 - exp(-0.5 * speed) + max(strain - 0.25, 0.0) * 1.4, 0.0, 1.0);
 	var rgb = mix(E.colorA.rgb, E.colorB.rgb, heat);
 	rgb *= 1.0 + E.luminosity * energy;
+	// ── L6 색 기억: 앵커 *근처에 앉은* 스플랫에만 이미지 색이 스민다 ──
+	// 위치(시뮬 상태)가 색을 유도한다 — 고속/열이면 원소 팔레트로 이탈, 돌아오면 다시 물든다.
+	if (E.memColor > 0.0) {
+		let dv = s.pos - rest[idx].xyz;
+		let near = exp(-dot(dv, dv) * 60.0);
+		let mc = unpack4x8unorm(memColor[idx]).rgb;
+		rgb = mix(rgb, mc * (0.5 + E.luminosity * energy), E.memColor * near * (1.0 - heat));
+	}
 	// L4/L5 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
 	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
 	if (fireHeat > 0.02) {
