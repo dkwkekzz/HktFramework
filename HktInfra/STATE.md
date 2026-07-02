@@ -20,7 +20,13 @@
 > 🎯 **#4 완전 async 전환 arc(0461~0470 ✅ 닫힘) — 다중 존 이주 하 유계 resync** — 0451~0460 이 *단일 존* loss+delay 를 흡수한 뒤, 이 arc 는 *다중 존*(이주 있음)에서 `async-barrier.js` 에 **wrap-aware interior 유계 resync 가드**를 더했다. barrier 가 소유 존을 peek(`ownerZone`) 해 엔티티가 region 양 끝+wrap 경계에서 `horizon=max(resyncDelay,delayMax)+1` 이상 떨어진(interior) move 만 loss/delay 로 흡수 → deferred move 가 이주 경계 도달 전 재배달(유계 resync·deferSpan<horizon·deferredAcrossHandoff0) → 다중 존 world/뷰==lockstep·exactly-once. **핵심(0461 발견)**: lockstep 자체가 이주 경계 move-drop 을 타이밍 의존적으로 함 → 완전-ON(경계 포함 async)은 lockstep 등가 불가·interior 유계가 이 모델 정합 최대치. **매 step reg 구조적 0**(asyncBarrier OFF→net.step()).
 > **설계 제약**: `opts.asyncBarrier` OFF(기본) → topo-run.js 가 ab 미생성·net.step() 경로 = baseline 비트 동일(reg 0). ON 은 새 모드만. interior peek 은 barrier ON 경로 전용.
 
-**후속 백로그**: ⒜ 실 host.js child 경계 업스트림(#70·#57 짝)·⒝ 완전-ON 경계 포함 async(lockstep 등가 불가·별 정합 기준 필요)·금고↔가방 escrow·per-producer ack·버스 라우팅 영속·#68/#69/#72 경미. **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
+**후속 백로그**: ⒜ 완전-ON 경계 포함 async(lockstep 등가 불가·별 정합 기준 필요·#73)·금고↔가방 escrow(#46)·per-producer ack·버스 라우팅 영속·#68/#69 경미. (#70 은 0471~0480 ✅.) **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
+
+> 🔎 **서버 구현 외부 감사(2026-07-02) 권고 — 다음 step 부터 순서대로 반영**: 감사는 `run.js`/`spine` ALL OK + 시대별 grand capstone 재현(worldcap 0350·clusterdatacap 0370·coordmergecap 0420·mze2ecap 0470·upce2ecap 0480 전부 5/5)으로 문서 주장을 사실 확인했다. 남은 구조적 격차 우선순위:
+> ① **#16 승급 라운드 2차(최우선)** — 영구 회귀(verify-kit ORDER)에 exchange/mail/guild 참조 **0건** → 거래소·우편·길드·귓속말/파티 capstone(0140/0180/0200 등)이 git per-commit 에만 살아 HEAD 재검증 불가("수치=verify 출력" 원칙이 이 구간에서 실효 깨짐). 0231~0240 승급 라운드 판으로: 서비스 saga capstone 재작성 편입 + 시대별 grand capstone(worldcap·clusterdatacap·coordmergecap·mze2ecap·upce2ecap) ORDER 승격.
+> ② **#74 실 게이트웨이 프로세스 분리**(업스트림 seam→실 GW·기존 권고 유지).
+> ③ **#46 금고↔가방 escrow** + 서버간 인증 씨앗(§3 ⬜).
+> ④ **#75(신규) 프로덕션 프로파일** — 유계 노브 기본값이 전부 무계(reg-0 부작용: downRecvWindow 0·capacity ∞·leaseSpan 0·saga 재시도 무제한). 권장값 1벌을 verify 모드로 봉인.
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: **절차** ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
@@ -43,6 +49,8 @@
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
+| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 가능 검증 0** | 전체 | verify-kit ORDER 에 거래소·우편·길드 참조 0건·capstone 은 git per-commit 에만(HEAD 재검증 불가). 승급 라운드(0231~0240 판) 필요(감사 2026-07·§2 권고 ①). |
+| ⬜ | **#75 프로덕션 프로파일(유계 기본값 1벌)** | 전체 | reg-0 규칙 부작용 — 유계 노브 기본 무계(downRecvWindow 0·capacity ∞·leaseSpan 0·재시도 무제한). 권장값 세트를 verify 모드로 봉인(감사 2026-07·§2 권고 ④). |
 
 > **✅ 해소된 격차** — 전문은 §7 INDEX·각 `step-NNNN.md`. 묶음: 골격~전송·AOI~failover·게임서비스+영속+quorum·버스·프레즌스/귓속말/파티·거래소/우편·길드(01~200).
 
