@@ -39,10 +39,10 @@
 			colorA: '#a81c06', colorB: '#ffe08a',
 		},
 		'물': {
-			cohesion: 0.8, volatility: 0.3, updraft: 0, damping: 0.6,
-			lifeBase: 4.0, emitRadius: 0.5, flowFreq: 1.0, flowSpeed: 0.4,
+			cohesion: 1.2, volatility: 0.3, updraft: 0, damping: 1.0,
+			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.4,
 			size: 0.05, stretch: 0.8, opacity: 0.65, luminosity: 0.8,
-			gravity: 7, binding: 10, restDist: 0.55, viscosity: 5, reach: 0.13, mortality: 0,
+			gravity: 7, binding: 10, restDist: 0.55, viscosity: 6, reach: 0.15, mortality: 0,
 			colorA: '#0a2a8a', colorB: '#7fe9ff',
 		},
 		'숲의 정령': {
@@ -53,10 +53,10 @@
 			colorA: '#0d3410', colorB: '#a8ff6b',
 		},
 		'슬라임': {
-			cohesion: 0.6, volatility: 0.25, updraft: 0, damping: 0.8,
-			lifeBase: 4.0, emitRadius: 0.45, flowFreq: 1.0, flowSpeed: 0.3,
+			cohesion: 3.0, volatility: 0.25, updraft: 0, damping: 2.0,
+			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.06, stretch: 0.5, opacity: 0.8, luminosity: 0.5,
-			gravity: 5, binding: 16, restDist: 0.6, viscosity: 6, reach: 0.14, mortality: 0,
+			gravity: 4, binding: 14, restDist: 0.6, viscosity: 8, reach: 0.16, mortality: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
 		},
 	};
@@ -169,7 +169,7 @@
 		canvas.addEventListener('pointerdown', (e) => {
 			if (!e.altKey) return;
 			const p = pullPointFromEvent(e);
-			if (p) { pull[0] = p[0]; pull[1] = p[1]; pull[2] = p[2]; pull[3] = 70; }
+			if (p) { pull[0] = p[0]; pull[1] = p[1]; pull[2] = p[2]; pull[3] = 30; }
 		});
 		canvas.addEventListener('pointermove', (e) => {
 			if (pull[3] <= 0) return;

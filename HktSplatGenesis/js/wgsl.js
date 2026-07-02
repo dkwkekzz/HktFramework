@@ -154,7 +154,11 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 					}
 				}
 			}
-			acc += fsum * P.binding;
+			// 이웃 힘 크기 캡 — 초기 과밀(수십 개 중첩 반발)에서도 폭발하지 않게
+			var fn = fsum * P.binding;
+			let fl = length(fn);
+			if (fl > 80.0) { fn *= 80.0 / fl; }
+			acc += fn;
 			if (wsum > 0.0) {
 				// 점성: 이웃 평균 속도로 이완
 				s.vel += ((vsum / wsum) - s.vel) * min(P.viscosity * P.dt, 1.0);
@@ -163,6 +167,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	}
 
 	s.vel = (s.vel + acc * P.dt) * exp(-P.damping * P.dt);
+	// 속도 상한 — 수치 안정 가드 (셀 크기 대비 과속 이동은 이웃 탐색도 깨뜨림)
+	let sp = length(s.vel);
+	if (sp > 10.0) { s.vel *= 10.0 / sp; }
 	s.pos += s.vel * P.dt;
 
 	// 바닥 (y = floorY): 감쇠 반사 + 마찰
