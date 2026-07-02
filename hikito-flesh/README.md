@@ -7,12 +7,18 @@ Skeleton → Flesh: rig-agnostic SDF flesh 렌더러 (Mixamo 리그 지원).
 
 ## 실행
 
+**Windows 원클릭**: `run.bat` 더블클릭 → 최초 1회 자동 `npm install` 후 dev 서버 실행 + 브라우저 자동 오픈.
+
+수동 실행:
+
 ```bash
 npm install
 npm run dev
 ```
 
 브라우저에서 `http://localhost:5173` 접속.
+
+> 참고: 이 프로토타입은 `three` 를 npm 패키지로 `import` 하는 ES Module 구조라 `file://` 더블클릭으로는 열리지 않는다. dev 서버(Vite)가 ①정상 origin 제공(ES Module CORS) ②bare import(`'three'`) 경로 해석 두 가지를 담당하므로 서버 실행이 필요하다. `run.bat` 은 이 과정을 원클릭으로 감싼 것.
 
 ## Mixamo 사용
 
