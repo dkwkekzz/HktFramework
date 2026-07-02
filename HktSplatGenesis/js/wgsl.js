@@ -307,7 +307,8 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 	let goal = shCom + shR * q0;
 	let corr = (goal - s.pos) * P.rigid;
 	s.pos += corr;
-	s.vel += corr * (0.5 / max(P.dt, 1e-4));
+	// 속도 킥은 약하게 — 강한 킥은 본드 스프링과 공진해 골격을 무너뜨린다
+	s.vel += corr * (0.15 / max(P.dt, 1e-4));
 	s.vel += shBondAcc * P.dt;
 	splats[i] = s;
 }

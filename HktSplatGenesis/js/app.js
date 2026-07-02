@@ -30,7 +30,7 @@
 		// ── L3: 골격(클러스터) 유전자 ──
 		rigid:      ['강성',        0,    1,    0.05],
 		toughness:  ['인성(파단)',  0.2,  3,    0.05],
-		bondK:      ['골격 결합',   0,    120,  1],
+		bondK:      ['골격 결합',   0,    500,  5],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -60,11 +60,11 @@
 			colorA: '#0d3410', colorB: '#a8ff6b',
 		},
 		'돌골렘': {
-			cohesion: 0, volatility: 0, updraft: 0, damping: 1.0,
+			cohesion: 0, volatility: 0, updraft: 0, damping: 2.5,
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
-			size: 0.055, stretch: 0.3, opacity: 0.9, luminosity: 1.4,
+			size: 0.055, stretch: 0.3, opacity: 0.9, luminosity: 0.6,
 			gravity: 6, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 0,
-			rigid: 0.35, toughness: 0.9, bondK: 60, form: 1,
+			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1,
 			colorA: '#57534b', colorB: '#ff9b3d',
 		},
 		'슬라임': {
