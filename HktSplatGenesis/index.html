@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HktSplatGenesis — 속성이 형태가 되는 스플랫 생명</title>
+<style>
+	html, body { margin: 0; height: 100%; background: #06070f; color: #cfd4e8;
+		font: 13px/1.5 system-ui, 'Segoe UI', sans-serif; overflow: hidden; }
+	#gpu { position: absolute; inset: 0; width: 100%; height: 100%; display: block; touch-action: none; }
+	#hud { position: absolute; top: 12px; left: 14px; pointer-events: none; text-shadow: 0 1px 3px #000; }
+	#hud h1 { font-size: 15px; margin: 0 0 2px; color: #fff; }
+	#hud .sub { opacity: .65; font-size: 11.5px; }
+	#fps { margin-top: 6px; color: #8be9a8; font-variant-numeric: tabular-nums; }
+	#panel { position: absolute; top: 12px; right: 12px; width: 244px; max-height: calc(100% - 24px);
+		overflow-y: auto; background: rgba(12, 14, 26, .82); border: 1px solid #262a44;
+		border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); }
+	#panel h2 { font-size: 12px; margin: 10px 0 6px; color: #9aa3c7; text-transform: none; }
+	#presets { display: flex; gap: 6px; }
+	#presets button { flex: 1; background: #1b2038; color: #dfe4ff; border: 1px solid #303757;
+		border-radius: 6px; padding: 5px 2px; cursor: pointer; font-size: 12px; }
+	#presets button:hover { background: #262d4e; }
+	.row { display: grid; grid-template-columns: 84px 1fr 34px; align-items: center; gap: 6px; margin: 3px 0; }
+	.row label { opacity: .8; font-size: 11.5px; }
+	.row .val { text-align: right; font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
+	input[type=range] { width: 100%; accent-color: #7a8cff; height: 14px; }
+	.inline { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+	.inline label { opacity: .8; font-size: 11.5px; }
+	select, button.small { background: #1b2038; color: #dfe4ff; border: 1px solid #303757;
+		border-radius: 6px; padding: 3px 6px; font-size: 12px; cursor: pointer; }
+	input[type=color] { width: 40px; height: 22px; border: none; background: none; padding: 0; cursor: pointer; }
+	#overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
+		background: rgba(4, 5, 12, .92); font-size: 15px; padding: 40px; text-align: center; z-index: 10; }
+</style>
+</head>
+<body>
+<canvas id="gpu"></canvas>
+
+<div id="hud">
+	<h1>HktSplatGenesis</h1>
+	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L1</div>
+	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동</div>
+	<div id="fps">— fps</div>
+</div>
+
+<div id="panel">
+	<h2>원소 프리셋 (유전자 공간의 점)</h2>
+	<div id="presets"></div>
+
+	<h2>유전자</h2>
+	<div id="genes"></div>
+
+	<h2>팔레트</h2>
+	<div class="inline">
+		<label>몸통(저속)</label><input type="color" id="colorA">
+		<label>끝(고속)</label><input type="color" id="colorB">
+	</div>
+
+	<h2>시스템</h2>
+	<div class="inline">
+		<label>스플랫 수</label>
+		<select id="count">
+			<option value="65536">64k</option>
+			<option value="131072" selected>128k</option>
+			<option value="262144">256k</option>
+		</select>
+		<button class="small" id="reseed">재시드</button>
+	</div>
+	<div class="inline">
+		<label><input type="checkbox" id="pause"> 일시정지</label>
+	</div>
+</div>
+
+<div id="overlay"></div>
+
+<script src="js/math.js"></script>
+<script src="js/wgsl.js"></script>
+<script src="js/engine.js"></script>
+<script src="js/app.js"></script>
+</body>
+</html>
