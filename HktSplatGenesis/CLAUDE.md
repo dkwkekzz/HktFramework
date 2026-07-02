@@ -11,13 +11,17 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯) → sim(compute: L1 자율 + L2 이웃 규칙)
+grid clear/build(64³, 셀당 16슬롯) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
 → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
 ```
 
+L4 나무는 sim 안의 조기 경로(`P.growRate > 0`): rest 버퍼가 (부착점, birth) 골격을 담고,
+`misc.z/w` 가 (heat, fuel) 연소 상태. fuel 채널 도입으로 모든 init 은 `misc.w = 1` 필수
+(0 이면 렌더가 재로 해석해 어두워진다).
+
 - `js/wgsl.js` — 셰이더 7종. `Splat` 구조체(48B)는 `engine.js` `SPLAT_STRIDE`(12 float) 와,
-  `SimParams`(128B)는 `frame()` 패킹과, `Cluster`(80B)는 `CLUSTER_STRIDE`(20) 와 바이트 일치 필수.
+  `SimParams`(144B)는 `frame()` 패킹과, `Cluster`(96B)는 `CLUSTER_STRIDE`(24) 와 바이트 일치 필수.
   격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 engine.js 와 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
@@ -44,4 +48,4 @@ grid clear/build(64³, 셀당 16슬롯) → sim(compute: L1 자율 + L2 이웃 �
 
 ## 로드맵
 
-L4 성장(나무) → L5 원소 상호작용. 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼, L3 본드 더블 버퍼도 대기열.
+L5 원소 상호작용(불 정령 ↔ 나무, 슬라임의 포식). 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼, L3 본드 더블 버퍼도 대기열.

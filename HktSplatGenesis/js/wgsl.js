@@ -23,10 +23,11 @@ struct SimParams {
 	time : f32,         cohesion : f32,  volatility : f32, updraft : f32,
 	damping : f32,      lifeBase : f32,  emitRadius : f32, flowFreq : f32,
 	flowSpeed : f32,    count : u32,     gravity : f32,    mortality : f32,
-	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 상호작용)
+	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 상호작용 — 나무에서는 불씨)
 	gridOrigin : vec3f, cellSize : f32,
 	binding : f32,      restDist : f32,  viscosity : f32,  floorY : f32,
 	rigid : f32,        toughness : f32, bondK : f32,      _p2 : f32, // L3 유전자
+	growRate : f32,     flamm : f32,     _g0 : f32,        _g1 : f32, // L4 유전자
 };
 `;
 
@@ -78,12 +79,13 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 }
 `;
 
-	// ── 시뮬 패스: per-splat 자율 규칙 (L1) + 이웃 규칙 (L2) ────────────────
+	// ── 시뮬 패스: per-splat 자율 규칙 (L1) + 이웃 규칙 (L2) + 성장/연소 (L4) ──
 	const SIM = SPLAT_STRUCT + SIM_PARAMS + GRID_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
 @group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
 @group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
+@group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -105,6 +107,75 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	let i = gid.x;
 	if (i >= P.count) { return; }
 	var s = splats[i];
+
+	// ── L4 나무 경로: 성장(휴면 스플랫 활성화) + 연소 전파 + 재생 ──
+	// misc = (energy, seed, heat, fuel). 형태는 rest 골격, 시점은 birth 가 결정한다.
+	if (P.growRate > 0.0) {
+		let attach = rest[i].xyz;
+		let birth = rest[i].w;
+		var heat = s.misc.z;
+		var fuel = s.misc.w;
+		// 전역 성장 시계 — birth(뿌리로부터의 그래프 거리)를 지나면 깨어난다
+		let myGrow = clamp((P.time * P.growRate - birth) * 4.0, 0.0, 1.0);
+		if (myGrow <= 0.001) {
+			s.pos = attach;
+			s.vel = vec3f(0.0);
+			s.misc.x = 0.0;
+			splats[i] = s;
+			return;
+		}
+		// 점화: 포인터 = 불씨 (좁은 가우시안)
+		if (P.pull.w > 0.0) {
+			let dv = P.pull.xyz - s.pos;
+			heat += exp(-dot(dv, dv) * 8.0) * P.dt * 40.0;
+		}
+		// 이웃 연소 전파 (L2 격자 재활용): 불타는 이웃 수에 비례해 가열
+		if (P.flamm > 0.0 && fuel > 0.0 && heat < 1.5) {
+			let ci = vec3i(floor((s.pos - P.gridOrigin) / P.cellSize));
+			if (all(ci >= vec3i(1)) && all(ci <= vec3i(GD - 2))) {
+				var burnN = 0.0;
+				for (var dz = -1; dz <= 1; dz++) {
+					for (var dy = -1; dy <= 1; dy++) {
+						for (var dx = -1; dx <= 1; dx++) {
+							let c = ci + vec3i(dx, dy, dz);
+							let cidx = u32(c.x) + u32(c.y) * GDU + u32(c.z) * GDU * GDU;
+							let cnt = min(atomicLoad(&gridCount[cidx]), SLOTS);
+							for (var k = 0u; k < cnt; k++) {
+								let j = gridSlots[cidx * SLOTS + k];
+								if (j == i) { continue; }
+								let m = splats[j].misc;
+								if (m.z > 1.0 && m.w > 0.0) { burnN += 1.0; }
+							}
+						}
+					}
+				}
+				heat += burnN * P.flamm * P.dt * 0.35;
+			}
+		}
+		heat = max(heat - 0.5 * P.dt, 0.0); // 냉각
+		let burning = heat > 1.0 && fuel > 0.0;
+		if (burning) { fuel = max(fuel - P.dt * 0.35, 0.0); }
+		// 재생: 재가 다 식으면 시간이 흐른 뒤 새잎이 돋는다
+		if (fuel <= 0.0 && heat < 0.5) {
+			s.age += P.dt;
+			if (s.age > P.lifeBase) { fuel = 1.0; heat = 0.0; s.age = 0.0; }
+		}
+		// 운동: 부착 스프링(나무는 단단) + 바람 — 가지끝(birth 큼)일수록 유연하게 흔들린다
+		var acc = (attach - s.pos) * 50.0;
+		acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility * (0.2 + 1.3 * birth);
+		if (burning) {
+			// 불길: 상승 + 거센 난류 (부착은 유지 — 나무가 무너지지는 않는다)
+			acc += vec3f(0.0, 2.5, 0.0) + flow(s.pos * 3.0, P.time * 2.5) * 4.0;
+		}
+		s.vel = (s.vel + acc * P.dt) * exp(-P.damping * P.dt);
+		let spd = length(s.vel);
+		if (spd > 10.0) { s.vel *= 10.0 / spd; }
+		s.pos += s.vel * P.dt;
+		// 재(fuel 0)는 어둡고 작게 남는다 — 검게 탄 가지
+		s.misc = vec4f(myGrow * (0.35 + 0.65 * step(0.01, fuel)), s.misc.y, heat, fuel);
+		splats[i] = s;
+		return;
+	}
 
 	if (P.mortality > 0.5) {
 		// 필멸 개체(불꽃 등): 세대 교대 + 에너지 곡선
@@ -462,6 +533,12 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let heat = clamp(1.0 - exp(-0.5 * speed) + max(strain - 0.25, 0.0) * 1.4, 0.0, 1.0);
 	var rgb = mix(C.colorA.rgb, C.colorB.rgb, heat);
 	rgb *= 1.0 + C.luminosity * energy;
+	// L4 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
+	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
+	if (fireHeat > 0.02) {
+		rgb = mix(rgb, vec3f(1.1, 0.5, 0.15), min(fireHeat, 1.0)) * (1.0 + fireHeat);
+	}
+	rgb *= 0.15 + 0.85 * clamp(s.misc.w, 0.0, 1.0);
 	o.col = vec4f(rgb, alpha);
 	return o;
 }

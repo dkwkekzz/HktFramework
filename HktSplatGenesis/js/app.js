@@ -31,6 +31,9 @@
 		rigid:      ['강성',        0,    1,    0.05],
 		toughness:  ['인성(파단)',  0.2,  3,    0.05],
 		bondK:      ['골격 결합',   0,    500,  5],
+		// ── L4: 성장/연소 유전자 ──
+		growRate:   ['성장 속도',   0,    0.6,  0.01],
+		flamm:      ['가연성',      0,    3,    0.1],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -40,7 +43,7 @@
 			lifeBase: 1.6, emitRadius: 0.35, flowFreq: 2.2, flowSpeed: 1.6,
 			size: 0.035, stretch: 1.1, opacity: 0.5, luminosity: 2.4,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
 			colorA: '#a81c06', colorB: '#ffe08a',
 		},
 		'물': {
@@ -48,7 +51,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.4,
 			size: 0.05, stretch: 0.8, opacity: 0.65, luminosity: 0.8,
 			gravity: 7, binding: 10, restDist: 0.55, viscosity: 6, reach: 0.15, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
 			colorA: '#0a2a8a', colorB: '#7fe9ff',
 		},
 		'숲의 정령': {
@@ -56,15 +59,23 @@
 			lifeBase: 3.2, emitRadius: 0.85, flowFreq: 1.3, flowSpeed: 0.55,
 			size: 0.045, stretch: 1.6, opacity: 0.45, luminosity: 1.3,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
 			colorA: '#0d3410', colorB: '#a8ff6b',
+		},
+		'나무': {
+			cohesion: 0, volatility: 1.2, updraft: 0, damping: 3.0,
+			lifeBase: 3.0, emitRadius: 0.5, flowFreq: 1.5, flowSpeed: 0.5,
+			size: 0.05, stretch: 0.8, opacity: 0.75, luminosity: 0.8,
+			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.12, mortality: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, form: 2,
+			colorA: '#5a4a2e', colorB: '#86e05c',
 		},
 		'돌골렘': {
 			cohesion: 0, volatility: 0, updraft: 0, damping: 2.5,
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.055, stretch: 0.3, opacity: 0.9, luminosity: 0.6,
 			gravity: 6, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 0,
-			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1,
+			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1, growRate: 0, flamm: 0,
 			colorA: '#57534b', colorB: '#ff9b3d',
 		},
 		'슬라임': {
@@ -72,7 +83,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.06, stretch: 0.5, opacity: 0.8, luminosity: 0.5,
 			gravity: 4, binding: 14, restDist: 0.6, viscosity: 8, reach: 0.16, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
 		},
 	};
@@ -160,7 +171,7 @@
 		engine.setCount(parseInt(countSel.value), genes);
 		countSel.addEventListener('change', () => engine.setCount(parseInt(countSel.value), genes));
 		document.getElementById('reseed').addEventListener('click', () => engine.setCount(engine.count, genes));
-		reseedFn = () => engine.setCount(engine.count, genes);
+		reseedFn = () => { engine.setCount(engine.count, genes); simTime = 0; }; // 성장 시계도 리셋
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');

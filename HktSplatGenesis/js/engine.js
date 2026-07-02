@@ -79,7 +79,7 @@
 		});
 
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
-		this.simUB = d.createBuffer({ size: 128, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.simUB = d.createBuffer({ size: 144, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.camUB = d.createBuffer({ size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 
@@ -103,7 +103,9 @@
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
 		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-		const init = (genes.form === 1) ? this._initGolem(n, genes) : this._initCloud(n, genes);
+		const init = (genes.form === 1) ? this._initGolem(n, genes)
+			: (genes.form === 2) ? this._initTree(n, genes)
+			: this._initCloud(n, genes);
 		d.queue.writeBuffer(this.splatBuf, 0, init.splat);
 		d.queue.writeBuffer(this.restBuf, 0, init.rest);
 		d.queue.writeBuffer(this.clusterBuf, 0, init.cluster);
@@ -125,6 +127,7 @@
 				{ binding: 1, resource: { buffer: this.simUB } },
 				{ binding: 2, resource: { buffer: this.gridCountBuf } },
 				{ binding: 3, resource: { buffer: this.gridSlotsBuf } },
+				{ binding: 4, resource: { buffer: this.restBuf } },
 			],
 		});
 		this.gridBuildBG = d.createBindGroup({
@@ -194,8 +197,9 @@
 			a[o + 3] = Math.random() * life;   // age
 			// vel = 0 (o+4..6)
 			a[o + 7] = life;                    // life
-			// misc: energy=0, seed
+			// misc: energy=0, seed, heat=0, fuel=1
 			a[o + 9] = Math.random() * 100;
+			a[o + 11] = 1;
 		}
 		return { splat: a, rest: new Float32Array(n * 4), cluster: this._emptyClusters(n) };
 	};
@@ -281,10 +285,85 @@
 				splat[o + 2] = centers[ci][2] + oz;
 				splat[o + 7] = 1e9; // 불멸 (mortality 0 이 정석이지만 이중 안전)
 				splat[o + 9] = Math.random() * 100;
+				splat[o + 11] = 1; // fuel
 				restA[i * 4 + 0] = ox; restA[i * 4 + 1] = oy; restA[i * 4 + 2] = oz;
 			}
 		}
 		return { splat, rest: restA, cluster };
+	};
+
+	// form 2 — 나무: 재귀 가지 골격을 절차 생성하고 스플랫마다 (부착점, 성장 시점) 부여.
+	// "증식"은 실제 할당이 아니라 휴면 스플랫의 활성화 — birth(뿌리로부터의 그래프 거리)
+	// 순서로 깨어나므로 뿌리→가지끝으로 자라 보인다.
+	HktGenesisEngine.prototype._initTree = function (n, genes) {
+		const segs = [];   // {a, b, r, birthA, birthB}
+		const leaves = []; // {c, r, birth}
+		const rot = (v, axis, ang) => { // 로드리게스 회전
+			const [ax, ay, az] = axis, ca = Math.cos(ang), sa = Math.sin(ang);
+			const dot = ax * v[0] + ay * v[1] + az * v[2];
+			return [
+				v[0] * ca + (ay * v[2] - az * v[1]) * sa + ax * dot * (1 - ca),
+				v[1] * ca + (az * v[0] - ax * v[2]) * sa + ay * dot * (1 - ca),
+				v[2] * ca + (ax * v[1] - ay * v[0]) * sa + az * dot * (1 - ca),
+			];
+		};
+		let maxBirth = 0;
+		const branch = (a, dir, len, r, birth, depth) => {
+			const b = [a[0] + dir[0] * len, a[1] + dir[1] * len, a[2] + dir[2] * len];
+			segs.push({ a, b, r, birthA: birth, birthB: birth + len });
+			maxBirth = Math.max(maxBirth, birth + len);
+			if (depth >= 4) { leaves.push({ c: b, r: 0.16 + Math.random() * 0.08, birth: birth + len }); return; }
+			const kids = depth === 0 ? 3 : 2 + (Math.random() < 0.5 ? 1 : 0);
+			for (let k = 0; k < kids; k++) {
+				// 위쪽 편향 원뿔 안에서 랜덤 방향
+				const axis = Math.abs(dir[1]) > 0.9 ? [1, 0, 0] : [0, 1, 0];
+				let side = rot(dir, axis, Math.PI / 2);
+				side = rot(side, dir, Math.random() * Math.PI * 2);
+				const spread = 0.5 + Math.random() * 0.45;
+				let nd = [dir[0] + side[0] * spread, dir[1] + side[1] * spread + 0.35, dir[2] + side[2] * spread];
+				const nl = Math.hypot(...nd); nd = nd.map((v) => v / nl);
+				branch(b, nd, len * (0.62 + Math.random() * 0.12), r * 0.55, birth + len, depth + 1);
+			}
+		};
+		branch([0, 0, 0], [0, 1, 0], 0.85, 0.13, 0, 0);
+
+		// 스플랫 배분: 줄기(세그 부피 비례) 60% / 잎 40%
+		const segW = segs.map((s) => s.r * Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]));
+		const segTotal = segW.reduce((x, y) => x + y, 0);
+		const nTrunk = Math.floor(n * 0.6);
+		const splat = new Float32Array(n * SPLAT_STRIDE);
+		const restA = new Float32Array(n * 4);
+		const put = (i, p, birth) => {
+			const o = i * SPLAT_STRIDE;
+			splat[o + 0] = p[0]; splat[o + 1] = p[1]; splat[o + 2] = p[2];
+			splat[o + 7] = 1e9;
+			splat[o + 9] = Math.random() * 100;
+			splat[o + 11] = 1; // fuel
+			restA[i * 4 + 0] = p[0]; restA[i * 4 + 1] = p[1]; restA[i * 4 + 2] = p[2];
+			restA[i * 4 + 3] = birth / maxBirth;
+		};
+		for (let i = 0; i < nTrunk; i++) {
+			let w = Math.random() * segTotal, si = 0;
+			while (w > segW[si] && si < segs.length - 1) { w -= segW[si]; si++; }
+			const s = segs[si], t = Math.random();
+			const jr = s.r * Math.sqrt(Math.random());
+			const th = Math.random() * Math.PI * 2;
+			put(i, [
+				s.a[0] + (s.b[0] - s.a[0]) * t + Math.cos(th) * jr,
+				s.a[1] + (s.b[1] - s.a[1]) * t + Math.sin(th) * jr * 0.4,
+				s.a[2] + (s.b[2] - s.a[2]) * t + Math.sin(th) * jr,
+			], s.birthA + (s.birthB - s.birthA) * t);
+		}
+		for (let i = nTrunk; i < n; i++) {
+			const lf = leaves[Math.floor(Math.random() * leaves.length)];
+			let ox, oy, oz;
+			for (;;) {
+				ox = Math.random() * 2 - 1; oy = Math.random() * 2 - 1; oz = Math.random() * 2 - 1;
+				if (ox * ox + oy * oy + oz * oz <= 1) break;
+			}
+			put(i, [lf.c[0] + ox * lf.r, lf.c[1] + oy * lf.r * 0.8, lf.c[2] + oz * lf.r], lf.birth + 0.06);
+		}
+		return { splat, rest: restA, cluster: this._emptyClusters(n) };
 	};
 
 	// 유전자 + 카메라 → 유니폼 기록 + 한 프레임 인코드/제출
@@ -297,7 +376,7 @@
 		const em = opts.emitter || [0, 0.6, 0];
 		const half = GRID_DIM * g.reach * 0.5; // 격자를 코어 중심에 배치
 		const pull = opts.pull || [0, 0, 0, 0];
-		const sim = new ArrayBuffer(128);
+		const sim = new ArrayBuffer(144);
 		const sf = new Float32Array(sim);
 		const su = new Uint32Array(sim);
 		sf.set([em[0], em[1], em[2], opts.dt, opts.time, g.cohesion, g.volatility, g.updraft,
@@ -306,7 +385,8 @@
 		sf.set(pull, 16);
 		sf.set([em[0] - half, em[1] - half, em[2] - half, g.reach,
 			g.binding, g.restDist, g.viscosity, 0 /* floorY */,
-			g.rigid, g.toughness, g.bondK, 0], 20);
+			g.rigid, g.toughness, g.bondK, 0,
+			g.growRate, g.flamm, 0, 0], 20);
 		d.queue.writeBuffer(this.simUB, 0, sim);
 
 		// KeyParams (32B) — view 의 z-행
