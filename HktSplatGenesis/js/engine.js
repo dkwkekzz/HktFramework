@@ -15,6 +15,7 @@
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
 	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
+	const MAX_BONES = 32;        // L6 뼈 세그먼트 상한 (휴머노이드 22개 + 여유)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -87,6 +88,8 @@
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.camUB = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
+		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
 		// L2 이웃 격자 (스플랫 수와 무관 — 1회 생성)
 		this.gridCountBuf = d.createBuffer({ size: GRID_CELLS * 4, usage: GPUBufferUsage.STORAGE });
@@ -163,6 +166,7 @@
 				{ binding: 3, resource: { buffer: this.gridSlotsBuf } },
 				{ binding: 4, resource: { buffer: this.restBuf } },
 				{ binding: 5, resource: { buffer: this.entityBuf } },
+				{ binding: 6, resource: { buffer: this.boneBuf } },
 			],
 		});
 		this.gridBuildBG = d.createBindGroup({
@@ -222,7 +226,7 @@
 				g.emitRadius, g.flowFreq, g.flowSpeed, g.gravity,
 				g.mortality, g.binding, g.restDist, g.viscosity,
 				Math.min(g.reach, GRID_CELL), g.rigid, g.toughness, g.bondK,
-				g.growRate, g.flamm, g.heatEmit || 0, 0], o);
+				g.growRate, g.flamm, g.heatEmit || 0, g.fleshK || 0], o);
 			a.set(g.colorA, o + 24);
 			a.set(g.colorB, o + 28);
 			a.set([g.size, g.stretch, g.opacity, g.luminosity], o + 32);
@@ -443,6 +447,19 @@
 		su[10] = n;
 		su[11] = this.sliceSize;
 		sf[12] = 0; // floorY
+		// L6 뼈대: FK 결과 세그먼트를 테이블에 올린다 — 살(fleshK)의 유일한 형태 입력
+		const bones = opts.bones || [];
+		const nb = Math.min(bones.length, MAX_BONES);
+		if (nb > 0) {
+			const ba = new Float32Array(nb * 8);
+			for (let i = 0; i < nb; i++) {
+				const s = bones[i];
+				ba.set([s.a[0], s.a[1], s.a[2], s.ra, s.b[0], s.b[1], s.b[2], s.rb], i * 8);
+			}
+			d.queue.writeBuffer(this.boneBuf, 0, ba);
+		}
+		sf[13] = nb;                       // boneCount
+		sf[14] = opts.sminK || 0.2;        // 살 뭉침(smin k) — 스타일 노브
 		d.queue.writeBuffer(this.simUB, 0, sim);
 		d.queue.writeBuffer(this.entityBuf, 0, this._packEntities(ents));
 

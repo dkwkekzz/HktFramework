@@ -39,8 +39,8 @@
 
 <div id="hud">
 	<h1>HktSplatGenesis</h1>
-	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L5</div>
-	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동 · Alt+드래그 끌어당기기(슬라임 가르기·골렘 팔 뜯기·나무 점화)</div>
+	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L6</div>
+	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동 · Alt+드래그 끌어당기기(슬라임 가르기·골렘 팔 뜯기·나무 점화·히키토 살 뜯기)</div>
 	<div id="fps">— fps</div>
 </div>
 
@@ -53,6 +53,19 @@
 
 	<h2>유전자</h2>
 	<div id="genes"></div>
+
+	<h2>뼈대 (히키토 — L6)</h2>
+	<div class="inline">
+		<label>클립</label>
+		<select id="skelClip">
+			<option value="walk" selected>걷기</option>
+			<option value="idle">숨쉬기</option>
+			<option value="wave">인사</option>
+		</select>
+	</div>
+	<div class="row"><label>클립 속도</label><input type="range" id="skelSpeed" min="0" max="2.5" step="0.05" value="1"><span class="val">1</span></div>
+	<div class="row"><label>살 뭉침(smin)</label><input type="range" id="skelSmin" min="0.05" max="0.5" step="0.01" value="0.22"><span class="val">0.22</span></div>
+	<div class="row"><label>통통함</label><input type="range" id="skelFat" min="0.5" max="1.8" step="0.05" value="1"><span class="val">1</span></div>
 
 	<h2>팔레트</h2>
 	<div class="inline">
@@ -78,6 +91,7 @@
 <div id="overlay"></div>
 
 <script src="js/math.js"></script>
+<script src="js/skeleton.js"></script>
 <script src="js/wgsl.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/app.js"></script>

@@ -11,7 +11,7 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열)
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열 + L6 뼈대 SDF 살)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
 → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
 ```
@@ -26,12 +26,23 @@ L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) �
 잡힌다 — `heatEmit` 유전자(불 정령)가 나무의 연소 전파 규칙에 그대로 물리는 이유.
 격자 셀 크기는 전역 GRID_CELL(0.15) 고정, 개체 reach 는 이하로 클램프.
 
+L6 히키토(hikito-flesh 이식): 뼈대를 먼저 정의하고, 살은 **뼈대의 순수 함수(SDF)** 다.
+`js/skeleton.js` 가 Skeleton IR(joints[{name,parent,offset}] + 절차 클립 walk/idle/wave → CPU FK)과
+살 문법(`radiusForName` — 이름 기반, 특정 리그 하드코딩 금지)을 담당하고, 매 프레임 taper 캡슐
+세그먼트(≤MAX_BONES 32)를 bones storage 로 올린다. `fleshK` 유전자(Entity 의 옛 `_e0` 슬롯 재활용,
+stride 불변)가 켜진 스플랫은 round-cone smin 거리장의 표피 아래 개인 깊이(seed 산포) 등고면으로
+끌려간다 — 스플랫-뼈 손 바인딩(스키닝)은 없다. hikito-flesh 와 달리 살을 레이마칭으로 "그리지"
+않고 스플랫 세포가 자라 붙는다 (절대 원칙 1 유지). SimParams 의 floorY 뒤 두 슬롯이
+boneCount/sminK(살 뭉침 스타일 노브).
+
 - `js/wgsl.js` — 셰이더 7종. `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
   `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
   바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
+- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법(radiusForName). 살 힘 자체는
+  wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 

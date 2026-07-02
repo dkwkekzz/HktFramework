@@ -27,7 +27,7 @@ struct SimParams {
 	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 — 구름엔 인력, 나무엔 불씨)
 	gridOrigin : vec3f, cellSize : f32,
 	dt : f32, time : f32, count : u32, sliceSize : u32,
-	floorY : f32, _s0 : f32, _s1 : f32, _s2 : f32,
+	floorY : f32, boneCount : f32, sminK : f32, _s2 : f32, // L6: 뼈 세그먼트 수, 살 뭉침(smin k)
 };
 `;
 
@@ -39,7 +39,7 @@ struct Entity {
 	emitRadius : f32,  flowFreq : f32,  flowSpeed : f32, gravity : f32,
 	mortality : f32,   binding : f32,   restDist : f32,  viscosity : f32,
 	reach : f32,       rigid : f32,     toughness : f32, bondK : f32,
-	growRate : f32,    flamm : f32,     heatEmit : f32,  _e0 : f32,
+	growRate : f32,    flamm : f32,     heatEmit : f32,  fleshK : f32, // fleshK: L6 뼈대 SDF 추종 강도
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
 };
@@ -93,7 +93,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 }
 `;
 
-	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 ────
+	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 + L6 뼈대 SDF 살 ──
 	const SIM = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + GRID_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
@@ -101,6 +101,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 @group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
 @group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
 @group(0) @binding(5) var<storage, read> entities : array<Entity>;
+@group(0) @binding(6) var<storage, read> bones : array<vec4f>; // L6: [2i]=(a.xyz, r1), [2i+1]=(b.xyz, r2)
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -115,6 +116,30 @@ fn flow(p : vec3f, t : f32) -> vec3f {
 	v += 0.5 * sin(p.zxy * 2.3 + vec3f(1.3 + t * 1.6, 4.1 + t * 1.2, 2.2 + t * 0.8));
 	v += 0.25 * sin(p * 4.9 + vec3f(t * 2.1, 1.7 + t * 1.9, 3.9 + t * 1.4));
 	return v;
+}
+
+// ── L6: 뼈대 SDF — 살은 뼈대의 순수 함수 (hikito-flesh 의 round-cone + smin 이식) ──
+fn sminF(a : f32, b : f32, k : f32) -> f32 {
+	let h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
+	return mix(b, a, h) - k * h * (1.0 - h);
+}
+// taper 캡슐 (iq round cone) — a/b 끝점, r1/r2 반지름
+fn sdRoundCone(p : vec3f, a : vec3f, b : vec3f, r1 : f32, r2 : f32) -> f32 {
+	let ba = b - a; let l2 = dot(ba, ba); let rr = r1 - r2; let a2 = l2 - rr * rr; let il2 = 1.0 / l2;
+	let pa = p - a; let y = dot(pa, ba); let z = y - l2; let xv = pa * l2 - ba * y; let x2 = dot(xv, xv);
+	let y2 = y * y * l2; let z2 = z * z * l2; let k = sign(rr) * rr * rr * x2;
+	if (sign(z) * a2 * z2 > k) { return sqrt(x2 + z2) * il2 - r2; }
+	if (sign(y) * a2 * y2 < k) { return sqrt(x2 + y2) * il2 - r1; }
+	return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
+}
+fn fleshMap(p : vec3f, nb : u32, k : f32) -> f32 {
+	var d = 1e9;
+	for (var bi = 0u; bi < nb; bi++) {
+		let A = bones[bi * 2u];
+		let B = bones[bi * 2u + 1u];
+		d = sminF(d, sdRoundCone(p, A.xyz, B.xyz, A.w, B.w), k);
+	}
+	return d;
 }
 
 @compute @workgroup_size(256)
@@ -225,6 +250,33 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (P.pull.w > 0.0) {
 		let d = P.pull.xyz - s.pos;
 		acc += d * P.pull.w * exp(-dot(d, d) * 3.0);
+	}
+
+	// L6 규칙: 뼈대 SDF 살 — 스플랫은 표피 아래 개인 깊이의 등고면으로 끌려간다.
+	// 손 바인딩(스키닝) 없음: 힘은 순전히 현재 뼈대의 거리장에서 나온다.
+	// 뼈대가 움직이면 살이 지연 추종(출렁임), 뜯긴 살은 같은 힘으로 다시 자란다.
+	let nb = u32(P.boneCount);
+	if (E.fleshK > 0.0 && nb > 0u) {
+		// 사면체 4탭: 평균 ≈ 거리, 가중합 ≈ 기울기 — map 4회로 둘 다 얻는다
+		let te = 0.012;
+		let k0 = vec3f( 1.0, -1.0, -1.0);
+		let k1 = vec3f(-1.0, -1.0,  1.0);
+		let k2 = vec3f(-1.0,  1.0, -1.0);
+		let k3 = vec3f( 1.0,  1.0,  1.0);
+		let m0 = fleshMap(s.pos + k0 * te, nb, P.sminK);
+		let m1 = fleshMap(s.pos + k1 * te, nb, P.sminK);
+		let m2 = fleshMap(s.pos + k2 * te, nb, P.sminK);
+		let m3 = fleshMap(s.pos + k3 * te, nb, P.sminK);
+		let d = (m0 + m1 + m2 + m3) * 0.25;
+		var grad = k0 * m0 + k1 * m1 + k2 * m2 + k3 * m3;
+		let gl = length(grad);
+		if (gl > 1e-5) {
+			grad /= gl;
+			// 개인 목표 깊이: seed 로 표피 아래 [−0.05, 0] 에 흩뿌려 살에 부피를 준다
+			let dTarget = -0.05 * fract(s.misc.y * 0.6180339);
+			// 오차 클램프 — 멀리서 응축해 올 때(성장 장면) 힘 폭주 방지
+			acc -= grad * clamp(d - dTarget, -0.35, 0.7) * E.fleshK;
+		}
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다

@@ -39,6 +39,8 @@ python -m http.server 8123
                         │            L2 이웃 규칙 — 응집/분리(휴지 간격) + 점성, 바닥, 포인터 인력
                         │            L4 나무 — rest 골격 부착 + birth 성장 시계, heat/fuel 연소 전파
                         │            L5 발열(heatEmit) — 다른 개체의 연소 규칙에 열원으로 잡힘
+                        │            L6 뼈대 SDF 살(fleshK) — CPU FK 뼈대(taper 캡슐 ≤32)의
+                        │              round-cone smin 거리장 등고면으로 스플랫이 끌려가 "자란다"
                         │  storage: Splat{pos, vel, age, life, energy, heat, fuel} × N
                         ▼
                   cluster 패스(compute, L3): 워크그룹 1개 = 돌덩이(스플랫 256개) 1개
@@ -62,6 +64,7 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 | 파일 | 역할 |
 |---|---|
 | `js/math.js` | mat4 유틸 + 오빗 카메라 (WebGPU 클립 규약) |
+| `js/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) |
 | `js/wgsl.js` | WGSL 7종: grid clear/build / sim / cluster / key / bitonic sort / render |
 | `js/engine.js` | 버퍼·파이프라인·프레임 인코딩 |
 | `js/app.js` | 유전자 UI + 프리셋 + 루프 |
@@ -74,5 +77,6 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 - **L3 본드/클러스터** ✅ shape matching + 본드 파단/재흡수 → **돌골렘** (팔 뜯기, 균열 발광)
 - **L4 성장** ✅ 절차 가지 골격 + birth 성장 시계 + heat/fuel 연소 전파 → **나무** (성장→점화→연소→재→재생)
 - **L5 원소 상호작용** ✅ 다중 개체 공존(Entity 테이블) + 발열(heatEmit) 유전자 → **불×나무 장면** (모닥불이 나무를 점화)
+- **L6 뼈대 SDF 살** ✅ hikito-flesh 이식: Skeleton IR(FK) + 이름 기반 살 문법 + fleshK SDF 추종 → **히키토** (구름이 뼈대 위로 응축해 살이 되고, 클립을 지연 추종하며 출렁이고, Alt+드래그로 뜯으면 다시 자란다)
 
 이후 UE5 이식: 이 compute 파이프라인이 그대로 설계도가 된다 (`HktGaussianSplat` 플러그인의 래스터 + Niagara/compute 시뮬).
