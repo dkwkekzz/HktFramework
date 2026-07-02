@@ -1,0 +1,13 @@
+{
+  "name": "hkt-ledger-web",
+  "version": "0.1.0",
+  "description": "에너지 보존 동기화(Energy Ledger) MMORPG 웹 프로토타입 — 서버는 원장 중재자, 클라이언트는 세부 시뮬레이터",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
