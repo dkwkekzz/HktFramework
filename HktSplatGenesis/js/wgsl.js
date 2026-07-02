@@ -160,8 +160,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			s.age += P.dt;
 			if (s.age > P.lifeBase) { fuel = 1.0; heat = 0.0; s.age = 0.0; }
 		}
-		// 운동: 부착 스프링(나무는 단단) + 바람 — 가지끝(birth 큼)일수록 유연하게 흔들린다
-		var acc = (attach - s.pos) * 50.0;
+		// 운동: 부착 스프링 + 바람 — 가지끝(birth 큼)일수록 스프링이 유연해 크게 흔들린다.
+		// 이 유연성 차이가 속도 팔레트를 통해 잎/줄기 색 분화를 만든다 (창발 색).
+		var acc = (attach - s.pos) * (50.0 - 35.0 * birth);
 		acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility * (0.2 + 1.3 * birth);
 		if (burning) {
 			// 불길: 상승 + 거센 난류 (부착은 유지 — 나무가 무너지지는 않는다)

@@ -63,8 +63,8 @@
 			colorA: '#0d3410', colorB: '#a8ff6b',
 		},
 		'나무': {
-			cohesion: 0, volatility: 1.2, updraft: 0, damping: 3.0,
-			lifeBase: 3.0, emitRadius: 0.5, flowFreq: 1.5, flowSpeed: 0.5,
+			cohesion: 0, volatility: 2.4, updraft: 0, damping: 2.0,
+			lifeBase: 3.0, emitRadius: 0.5, flowFreq: 1.8, flowSpeed: 0.9,
 			size: 0.05, stretch: 0.8, opacity: 0.75, luminosity: 0.8,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.12, mortality: 0,
 			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, form: 2,
