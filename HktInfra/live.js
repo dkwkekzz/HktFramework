@@ -21,16 +21,20 @@ function layerOf(spec) {
     case 'registry': case 'orch': return 'coord';
     case 'zone': return 'world';
     case 'client': return 'client';
+    case 'loginqueue': return 'edge';
     default: return 'other';
   }
 }
 const EVENT_KINDS = new Set(['handoff', 'handoff_ack', 'lease', 'promote', 'relink', 'reroute', 'retire', 'leave']);
 
 // 기본 라이브 시나리오 — failover 머신 켜고 *사망은 미예약*(kill 은 라이브 명령으로).
+//   loginQueue ON: 엣지 로그인 큐 박스(loginqueue)를 상주시켜 큐 주입(enqueue/dequeue/auth…)을 관찰 가능하게 한다.
+//   스크립트 클라는 여전히 login 박스로 직접 auth(큐 우회) → 큐 박스는 주입 전엔 idle = 기존 거동 불변.
 function defaultOpts() {
   return { seed: 42, ticks: 0, transport: null,
     clients: 6, moves: 120, radius: 4, grid: 16, zones: 2,
-    incremental: true, recovery: true, failover: true, deathTick: null, leaseTimeout: 4 };
+    incremental: true, recovery: true, failover: true, deathTick: null, leaseTimeout: 4,
+    loginQueue: true };
 }
 
 function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
@@ -41,6 +45,8 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
 
   function buildWorld() {
     const o = state.opts;
+    // loginqueue 의 loginAuth 검증 계정을 현재 클라 수에 맞춘다(hero0..N) — addclient/restart 후에도 정합.
+    o.loginAccounts = Array.from({ length: o.clients }, (_, i) => 'hero' + i);
     const topo = NET.buildTopology(o);
     const net = new NET.Net({ transport: o.transport, seed: o.seed });
     const actors = new Map();
@@ -48,10 +54,12 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
     const zoneObjs = topo.zoneAddrs.map(a => actors.get(a));
     const followers = ['zone1f', 'zone2f'].map(a => actors.get(a)).filter(Boolean);
     const clients = topo.specs.filter(s => s.kind === 'client').map(s => actors.get(s.addr));
+    const clientAddrs = topo.specs.filter(s => s.kind === 'client').map(s => s.addr);
     state.net = net; state.actors = actors; state.tick = 0; state.killed = new Set();
     state.refs = {
       boxes: topo.specs.map(s => ({ addr: s.addr, kind: s.kind, layer: layerOf(s) })),
-      zoneObjs, followers, clients, allZones: zoneObjs.concat(followers), orch: actors.get('orch') || null,
+      zoneObjs, followers, clients, clientAddrs, allZones: zoneObjs.concat(followers),
+      orch: actors.get('orch') || null, loginq: actors.get('loginqueue') || null,
     };
     broadcastInit();
   }
@@ -61,6 +69,7 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
       step: state.step, seed: state.opts.seed, speed: state.speed, running: state.running,
       clients: state.opts.clients, zones: state.opts.zones, restarts: state.restarts,
       zoneAddrs: state.refs.boxes.filter(b => b.kind === 'zone' && !/f$/.test(b.addr)).map(b => b.addr),
+      clientAddrs: state.refs.clientAddrs, hasLoginq: !!state.refs.loginq,
     };
   }
 
@@ -92,7 +101,13 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
     const msgs = [...edgeMap.entries()].map(([k, n]) => { const [from, to, kind] = k.split('|'); return { from, to, kind, n }; });
     const deadNow = R.allZones.filter(z => z.dead && !z.shadow).map(z => z.addr)
       .concat(R.boxes.filter(b => state.killed.has(b.addr)).map(b => b.addr));
-    return { t: net.tick, owners, violations, liveN: avatars.size, msgs, events, dead: [...new Set(deadNow)] };
+    const lq = R.loginq;
+    const loginq = lq ? {
+      queue: lq.queueLength(), admitted: lq.admittedCount(),
+      enqueues: lq.enqueues | 0, dequeues: lq.dequeues | 0, auths: lq.auths | 0,
+      reconnects: lq.reconnects | 0, abandons: lq.abandons | 0, expires: lq.expires | 0,
+    } : null;
+    return { t: net.tick, owners, violations, liveN: avatars.size, msgs, events, dead: [...new Set(deadNow)], loginq };
   }
 
   // ── SSE 클라이언트 풀 ──
@@ -136,6 +151,36 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
         break;
       }
       case 'restart': restart(c.seed != null ? +c.seed : state.opts.seed + 1); break;
+      // ── 클라 로그인/로그아웃 주입(스크립트 클라의 실 상태기계 구동) ──────────────
+      case 'clogin': {   // 재접속: 클라를 idle 로 되돌려 다음 tick 에 auth→ticket→zoneEnter(아바타 재등장).
+        const a = state.actors.get(c.client);
+        if (a && /^client/.test(c.client || '')) { a.phase = 'idle'; a.ticket = null; a.avatar = null; a.seen = new Map(); a.sent = 0; }
+        break;
+      }
+      case 'clogout': {  // 접속 종료: gateway 로 disconnect 발신(client.js:53 leaveTick 경로와 동일) → 존서 제거.
+        const a = state.actors.get(c.client);
+        if (a && /^client/.test(c.client || '')) { a.phase = 'disconnecting'; state.net.send(c.client, 'gateway', { type: 'disconnect' }); }
+        break;
+      }
+      // ── 이동 입력 주입(inject write-seam 과 동일 경로: 클라→게이트웨이 move intent) ──
+      case 'cmove': {
+        if (c.client && state.actors.has(c.client))
+          state.net.send(c.client, 'gateway', { type: 'move', d: { dx: (+c.dx || 0), dy: (+c.dy || 0) } });
+        break;
+      }
+      // ── 로그인 큐 입력 주입(loginqueue 박스로 큐 op 발신) ────────────────────────
+      case 'lq': {
+        if (state.refs.loginq) {
+          const pl = { type: c.op, player: c.player || 'guest' };
+          if (c.op === 'loginCapacity') pl.cap = (c.cap == null || c.cap === '' ? null : +c.cap);
+          if (c.op === 'loginExpire') pl.ttl = (+c.ttl || 0);
+          state.net.send('gateway', 'loginqueue', pl);
+        }
+        break;
+      }
+      // ── 임의 클라 add/remove(월드 재생성으로 클라 수 증감·late-join/부하 관찰) ──────
+      case 'addclient': state.opts.clients = Math.min(24, state.opts.clients + 1); buildWorld(); break;
+      case 'removeclient': state.opts.clients = Math.max(1, state.opts.clients - 1); buildWorld(); break;
       default: return { ok: false, err: 'unknown cmd' };
     }
     broadcast('meta', meta());
@@ -167,8 +212,8 @@ function serve(NET, { port = 8080, host = '0.0.0.0', step = 'current' } = {}) {
   server.listen(port, host, () => {
     console.log(`▶ live — ${state.step} 라이브 모니터링 서버`);
     console.log(`  열기: http://localhost:${port}   (로컬 실행이면 포트포워딩 불요)`);
-    console.log(`  서버: 로그인·게이트웨이·존×2·추종자×2·orch·레지스트리·클라×${state.opts.clients} 가 실시간 tick 루프로 돕니다.`);
-    console.log(`  명령: 대시보드에서 play/pause·속도·존 kill(라이브 failover)·restart. Ctrl+C 로 종료.`);
+    console.log(`  서버: 로그인·로그인큐·게이트웨이·존×2·추종자×2·orch·레지스트리·클라×${state.opts.clients} 가 실시간 tick 루프로 돕니다.`);
+    console.log(`  명령: play/pause·속도·존 kill(failover)·restart + 클라 로그인/로그아웃·이동 주입·로그인 큐 주입·클라 add/remove. Ctrl+C 로 종료.`);
   });
   return { server, state, restart };
 }
@@ -222,6 +267,8 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
     <div class="kv"><span>live 엔티티</span><b id="sLive">—</b></div>
     <div class="kv"><span>권위 위반</span><b id="sViol">—</b></div>
     <div class="kv"><span>메시지 흐름</span><b id="sMsgs">—</b></div>
+    <h2>로그인 큐</h2>
+    <div id="lqstat"><span style="color:#6e7681">—</span></div>
     <h2>권위 소유자 (=1 이어야 함)</h2>
     <div id="owners"></div>
     <h2>이벤트 (라이브)</h2>
@@ -235,6 +282,26 @@ const DASHBOARD_HTML = `<!DOCTYPE html>
   <span style="flex:1"></span>
   <span id="killbtns"></span>
   <button id="restart">↻ restart</button>
+</div>
+<div class="bar">
+  <label>클라</label><select id="csel" style="background:#21262d;color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px"></select>
+  <button id="clogin">⏻ login</button>
+  <button id="clogout" class="kill">⏏ logout</button>
+  <span style="width:6px"></span>
+  <label>이동</label>
+  <button data-mv="0,-1">↑</button><button data-mv="0,1">↓</button><button data-mv="-1,0">←</button><button data-mv="1,0">→</button>
+  <span style="flex:1"></span>
+  <button id="addc">＋ 클라</button><button id="remc">－ 클라</button>
+</div>
+<div class="bar" id="lqbar">
+  <label>로그인 큐</label>
+  <input id="lqp" placeholder="player" value="guestA" style="width:82px;background:#21262d;color:var(--fg);border:1px solid var(--line);border-radius:5px;padding:3px 6px">
+  <button data-lq="loginAuth">auth</button>
+  <button data-lq="loginEnqueue">enqueue</button>
+  <button data-lq="loginDequeue">dequeue</button>
+  <button data-lq="loginReconnect">reconnect</button>
+  <button data-lq="loginAbandon" class="kill">abandon</button>
+  <button data-lq="loginExpire" class="kill">expire</button>
 </div>
 <script>
 const NS='http://www.w3.org/2000/svg';
@@ -283,6 +350,13 @@ function drawFrame(fr){
     const w=Math.min(1+m.n*0.8,6);const isEv=['handoff','promote','lease','relink','reroute','retire'].includes(m.kind);
     const ctrl=' Q '+((a.x+b.x)/2+(b.y-a.y)*0.06)+' '+((a.y+b.y)/2-(b.x-a.x)*0.06)+' ';
     gEdges.appendChild(el('path',{d:'M '+a.x+' '+a.y+ctrl+b.x+' '+b.y,fill:'none',stroke:isEv?'#d29922':'#3a4250','stroke-width':w,opacity:isEv?0.95:0.55,'marker-end':'url(#arr)'}));});
+  const lq=fr.loginq,ls=$('lqstat');
+  if(lq){ls.innerHTML=''
+    +'<div class=kv><span>대기열</span><b>'+lq.queue+'</b></div>'
+    +'<div class=kv><span>입장(admitted)</span><b>'+lq.admitted+'</b></div>'
+    +'<div class=kv><span>enq/deq</span><b>'+lq.enqueues+' / '+lq.dequeues+'</b></div>'
+    +'<div class=kv><span>auth/재접속/이탈</span><b>'+lq.auths+' / '+lq.reconnects+' / '+lq.abandons+'</b></div>';}
+  else ls.innerHTML='<span style="color:#6e7681">(loginQueue OFF)</span>';
   const ow=$('owners');ow.innerHTML=fr.owners.length?'':'<span style="color:#6e7681">—</span>';
   fr.owners.forEach(o=>{const d=document.createElement('div');d.className='owner';
     d.innerHTML='<span>'+o.id+(o.inflight?' <span class=warn>(in-flight)</span>':'')+'</span><b class="'+(o.ok?'ok':'bad')+'">'+o.count+'</b>';ow.appendChild(d);});
@@ -303,6 +377,13 @@ function applyMeta(m){
   // kill 버튼 (권위 존만)
   const kb=$('killbtns');if(kb.dataset.zones!==JSON.stringify(m.zoneAddrs)){kb.dataset.zones=JSON.stringify(m.zoneAddrs);kb.innerHTML='';
     (m.zoneAddrs||[]).forEach(z=>{const b=document.createElement('button');b.className='kill';b.textContent='✗ kill '+z;b.onclick=()=>cmd({cmd:'kill',zone:z});kb.appendChild(b);});}
+  // 클라 셀렉터 (add/remove 로 목록이 바뀌면 갱신·선택 보존)
+  const cs=$('csel'),addrs=m.clientAddrs||[];
+  if(cs.dataset.addrs!==JSON.stringify(addrs)){const prev=cs.value;cs.dataset.addrs=JSON.stringify(addrs);cs.innerHTML='';
+    addrs.forEach(a=>{const o=document.createElement('option');o.value=a;o.textContent=a;cs.appendChild(o);});
+    if(addrs.includes(prev))cs.value=prev;}
+  // 로그인 큐 미가동이면 큐 바 흐리게
+  $('lqbar').style.opacity=m.hasLoginq?'1':'.4';
 }
 async function cmd(body){try{await fetch('/cmd',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});}catch(e){}}
 
@@ -318,6 +399,17 @@ $('play').onclick=()=>cmd({cmd:$('hlivetxt').textContent==='LIVE'?'pause':'play'
 $('step').onclick=()=>cmd({cmd:'step'});
 $('restart').onclick=()=>cmd({cmd:'restart'});
 $('speed').oninput=()=>{$('speedv').textContent=$('speed').value;cmd({cmd:'speed',speed:+$('speed').value});};
+// 클라 로그인/로그아웃·이동·add/remove 주입
+$('clogin').onclick=()=>{const c=$('csel').value;if(c)cmd({cmd:'clogin',client:c});};
+$('clogout').onclick=()=>{const c=$('csel').value;if(c)cmd({cmd:'clogout',client:c});};
+$('addc').onclick=()=>cmd({cmd:'addclient'});
+$('remc').onclick=()=>cmd({cmd:'removeclient'});
+document.querySelectorAll('button[data-mv]').forEach(b=>b.onclick=()=>{
+  const c=$('csel').value;if(!c)return;const[dx,dy]=b.dataset.mv.split(',').map(Number);cmd({cmd:'cmove',client:c,dx,dy});});
+// 로그인 큐 op 주입
+document.querySelectorAll('button[data-lq]').forEach(b=>b.onclick=()=>{
+  const op=b.dataset.lq,player=$('lqp').value||'guest';const body={cmd:'lq',op,player};
+  if(op==='loginExpire')body.ttl=3;cmd(body);});
 connect();
 </script></body></html>`;
 
