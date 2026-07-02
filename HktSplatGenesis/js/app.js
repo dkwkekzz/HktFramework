@@ -11,7 +11,7 @@
 		cohesion:   ['응집력',      0,    14,   0.1],
 		volatility: ['휘발성(난류)', 0,    8,    0.1],
 		updraft:    ['상승력',      -3,   5,    0.1],
-		damping:    ['감쇠',        0,    6,    0.05],
+		damping:    ['감쇠',        0,    14,   0.05],
 		lifeBase:   ['수명(초)',    0.3,  6,    0.1],
 		emitRadius: ['방사 반경',   0.05, 2,    0.05],
 		flowFreq:   ['난류 스케일', 0.3,  8,    0.1],
@@ -90,15 +90,15 @@
 			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, fleshK: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
 		},
-		// L6: 뼈대 SDF 살 — 구름으로 태어난 스플랫이 뼈대 위로 응축해 살이 된다.
-		// 뼈대 자체는 skeleton.js (FK + 살 문법), 여기 유전자는 살의 재질만 정한다.
+		// L6: 뼈대 SDF 살 — 구름으로 태어난 스플랫이 제 뼈(부피 가중 친화)를 찾아가
+		// 살이 된다. 뼈대 자체는 skeleton.js (FK + 살 문법), 여기 유전자는 살의 재질만.
 		'히키토': {
-			cohesion: 0, volatility: 0.5, updraft: 0, damping: 3.0,
+			cohesion: 0, volatility: 0.15, updraft: 0, damping: 9.0,
 			lifeBase: 4.0, emitRadius: 1.0, flowFreq: 1.5, flowSpeed: 0.6,
-			size: 0.045, stretch: 0.5, opacity: 0.8, luminosity: 0.5,
-			gravity: 1.5, binding: 8, restDist: 0.55, viscosity: 5, reach: 0.13, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, fleshK: 35,
-			emitter: [0, 1.0, 0],
+			size: 0.035, stretch: 0.5, opacity: 0.9, luminosity: 0.5,
+			gravity: 1.0, binding: 0, restDist: 0.9, viscosity: 0, reach: 0.13, mortality: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, fleshK: 60,
+			emitter: [0, 1.0, 0], form: 3,
 			colorA: '#7a3b2a', colorB: '#ffd9a8',
 		},
 	};
@@ -107,6 +107,10 @@
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
 	let reseedFn = null;     // boot 이후 연결 — 프리셋 전환 시 형태(form) 재생성용
 	let sceneEntities = [genes]; // 장면의 개체 목록 — 개체 0 은 항상 genes(슬라이더 연동)
+
+	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
+	const skeleton = new HktGenesisSkeleton.Skeleton();
+	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true };
 
 	function hexToVec4(hex) {
 		const v = parseInt(hex.slice(1), 16);
@@ -125,8 +129,10 @@
 		document.getElementById('colorB').value = p.colorB;
 		genes.colorA = hexToVec4(p.colorA);
 		genes.colorB = hexToVec4(p.colorB);
-		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무 (setScene 이 해석)
+		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무, 3 = 살 구름 (setScene 이 해석)
 		genes.emitter = p.emitter || [0, 0.6, 0];
+		// form 3: 뼈 친화 배정 기준이 되는 바인드 세그먼트 (순서 = 매 프레임 pose 와 동일)
+		if (genes.form === 3) genes.bindBones = skeleton.pose('idle', 0, 1, 1);
 		sceneEntities = [genes];  // 단일 개체 장면
 		if (reseedFn) reseedFn(); // 프리셋 = 새 존재 → 형태 재생성
 	}
@@ -139,6 +145,7 @@
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;
 		g.emitter = emitter || p.emitter || [0, 0.6, 0];
+		if (g.form === 3) g.bindBones = skeleton.pose('idle', 0, 1, 1);
 		return g;
 	}
 
@@ -218,17 +225,16 @@
 		const camera = new HktOrbitCamera(canvas);
 		camera.radius = 4.5;
 
-		// ── L6 뼈대: FK 는 CPU(관절 ~23개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
-		const skeleton = new HktGenesisSkeleton.Skeleton();
-		const skel = { clip: 'walk', speed: 1.0, smin: 0.22, fat: 1.0 };
+		// L6 뼈대 UI (skeleton/skel 은 모듈 스코프 — applyPreset 의 bindBones 계산과 공유)
 		document.getElementById('skelClip').addEventListener('change', (e) => { skel.clip = e.target.value; });
-		for (const [id, key] of [['skelSpeed', 'speed'], ['skelSmin', 'smin'], ['skelFat', 'fat']]) {
+		for (const [id, key] of [['skelSpeed', 'speed'], ['skelFat', 'fat']]) {
 			const el = document.getElementById(id);
 			el.addEventListener('input', () => {
 				skel[key] = parseFloat(el.value);
 				el.nextElementSibling.textContent = el.value;
 			});
 		}
+		document.getElementById('skelBones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
 
 		const countSel = document.getElementById('count');
 		engine.setScene(parseInt(countSel.value), sceneEntities);
@@ -292,7 +298,7 @@
 			if (sceneEntities.some((g) => g.fleshK > 0)) bones = skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
-				bones, sminK: skel.smin,
+				bones, showBones: skel.bones,
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});

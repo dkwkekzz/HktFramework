@@ -27,7 +27,7 @@ struct SimParams {
 	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 — 구름엔 인력, 나무엔 불씨)
 	gridOrigin : vec3f, cellSize : f32,
 	dt : f32, time : f32, count : u32, sliceSize : u32,
-	floorY : f32, boneCount : f32, sminK : f32, _s2 : f32, // L6: 뼈 세그먼트 수, 살 뭉침(smin k)
+	floorY : f32, boneCount : f32, _s1 : f32, _s2 : f32, // L6: 뼈 세그먼트 수
 };
 `;
 
@@ -39,7 +39,7 @@ struct Entity {
 	emitRadius : f32,  flowFreq : f32,  flowSpeed : f32, gravity : f32,
 	mortality : f32,   binding : f32,   restDist : f32,  viscosity : f32,
 	reach : f32,       rigid : f32,     toughness : f32, bondK : f32,
-	growRate : f32,    flamm : f32,     heatEmit : f32,  fleshK : f32, // fleshK: L6 뼈대 SDF 추종 강도
+	growRate : f32,    flamm : f32,     heatEmit : f32,  fleshK : f32, // fleshK: L6 살 자리 스프링 강도
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
 };
@@ -116,30 +116,6 @@ fn flow(p : vec3f, t : f32) -> vec3f {
 	v += 0.5 * sin(p.zxy * 2.3 + vec3f(1.3 + t * 1.6, 4.1 + t * 1.2, 2.2 + t * 0.8));
 	v += 0.25 * sin(p * 4.9 + vec3f(t * 2.1, 1.7 + t * 1.9, 3.9 + t * 1.4));
 	return v;
-}
-
-// ── L6: 뼈대 SDF — 살은 뼈대의 순수 함수 (hikito-flesh 의 round-cone + smin 이식) ──
-fn sminF(a : f32, b : f32, k : f32) -> f32 {
-	let h = clamp(0.5 + 0.5 * (b - a) / k, 0.0, 1.0);
-	return mix(b, a, h) - k * h * (1.0 - h);
-}
-// taper 캡슐 (iq round cone) — a/b 끝점, r1/r2 반지름
-fn sdRoundCone(p : vec3f, a : vec3f, b : vec3f, r1 : f32, r2 : f32) -> f32 {
-	let ba = b - a; let l2 = dot(ba, ba); let rr = r1 - r2; let a2 = l2 - rr * rr; let il2 = 1.0 / l2;
-	let pa = p - a; let y = dot(pa, ba); let z = y - l2; let xv = pa * l2 - ba * y; let x2 = dot(xv, xv);
-	let y2 = y * y * l2; let z2 = z * z * l2; let k = sign(rr) * rr * rr * x2;
-	if (sign(z) * a2 * z2 > k) { return sqrt(x2 + z2) * il2 - r2; }
-	if (sign(y) * a2 * y2 < k) { return sqrt(x2 + y2) * il2 - r1; }
-	return (sqrt(x2 * a2 * il2) + y * rr) * il2 - r1;
-}
-fn fleshMap(p : vec3f, nb : u32, k : f32) -> f32 {
-	var d = 1e9;
-	for (var bi = 0u; bi < nb; bi++) {
-		let A = bones[bi * 2u];
-		let B = bones[bi * 2u + 1u];
-		d = sminF(d, sdRoundCone(p, A.xyz, B.xyz, A.w, B.w), k);
-	}
-	return d;
 }
 
 @compute @workgroup_size(256)
@@ -252,31 +228,33 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		acc += d * P.pull.w * exp(-dot(d, d) * 3.0);
 	}
 
-	// L6 규칙: 뼈대 SDF 살 — 스플랫은 표피 아래 개인 깊이의 등고면으로 끌려간다.
-	// 손 바인딩(스키닝) 없음: 힘은 순전히 현재 뼈대의 거리장에서 나온다.
-	// 뼈대가 움직이면 살이 지연 추종(출렁임), 뜯긴 살은 같은 힘으로 다시 자란다.
+	// L6 규칙: 뼈대 살 — 스플랫은 *제 뼈*(rest.w, 부피 가중 친화) 위의 개인 성장 자리로
+	// 끌려간다. 자리는 시드가 정하는 (축 위치 t, 방위각 θ, 깊이 u) — hikito-flesh 가 SDF 로
+	// 그리는 taper 캡슐 부피를 매개변수로 샘플한 것과 동치이고, L4 나무의 rest 부착점과
+	// 같은 원리를 *현재 뼈 포즈에서 매 프레임 유도*한다 (바인드 포즈 저장 없음 = 스키닝 없음).
+	// 전역 SDF 최근접만 쓰면 축 방향 힘이 0 이라 중력에 뼈 끝으로 흘러 방울로 뭉친다 —
+	// 개인 자리가 온몸 분포를 보장하고, 뼈가 움직이면 그 뼈의 살이 지연 추종한다(출렁임).
 	let nb = u32(P.boneCount);
 	if (E.fleshK > 0.0 && nb > 0u) {
-		// 사면체 4탭: 평균 ≈ 거리, 가중합 ≈ 기울기 — map 4회로 둘 다 얻는다
-		let te = 0.012;
-		let k0 = vec3f( 1.0, -1.0, -1.0);
-		let k1 = vec3f(-1.0, -1.0,  1.0);
-		let k2 = vec3f(-1.0,  1.0, -1.0);
-		let k3 = vec3f( 1.0,  1.0,  1.0);
-		let m0 = fleshMap(s.pos + k0 * te, nb, P.sminK);
-		let m1 = fleshMap(s.pos + k1 * te, nb, P.sminK);
-		let m2 = fleshMap(s.pos + k2 * te, nb, P.sminK);
-		let m3 = fleshMap(s.pos + k3 * te, nb, P.sminK);
-		let d = (m0 + m1 + m2 + m3) * 0.25;
-		var grad = k0 * m0 + k1 * m1 + k2 * m2 + k3 * m3;
-		let gl = length(grad);
-		if (gl > 1e-5) {
-			grad /= gl;
-			// 개인 목표 깊이: seed 로 표피 아래 [−0.05, 0] 에 흩뿌려 살에 부피를 준다
-			let dTarget = -0.05 * fract(s.misc.y * 0.6180339);
-			// 오차 클램프 — 멀리서 응축해 올 때(성장 장면) 힘 폭주 방지
-			acc -= grad * clamp(d - dTarget, -0.35, 0.7) * E.fleshK;
-		}
+		let bi = min(u32(rest[i].w), nb - 1u);
+		let A = bones[bi * 2u];
+		let B = bones[bi * 2u + 1u];
+		let ba = B.xyz - A.xyz;
+		let bl = max(length(ba), 1e-5);
+		let axis = ba / bl;
+		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u)
+		let h = hash31(s.misc.y + f32(bi) * 0.317);
+		let rr = mix(A.w, B.w, h.x) * sqrt(h.y);
+		// 뼈 축 수직 기저 — 상수 기준축(어느 뼈와도 평행하지 않게 기울임)이라 포즈 변화에 연속
+		let e1 = normalize(cross(axis, vec3f(0.402, 0.618, 0.675)));
+		let e2 = cross(axis, e1);
+		let th = h.z * 6.2831853;
+		let site = A.xyz + axis * (h.x * bl) + (e1 * cos(th) + e2 * sin(th)) * rr;
+		// 자리 스프링 — 오차 클램프로 원거리 응축(성장) 시 힘 폭주 방지
+		var dv = site - s.pos;
+		let dl = length(dv);
+		if (dl > 0.9) { dv *= 0.9 / dl; }
+		acc += dv * E.fleshK;
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다
@@ -631,5 +609,40 @@ fn fs(in : VOut) -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER };
+	// ── 뼈대 오버레이: L6 디버그 시각화 — 뼈 라인 + 관절 점 (hikito-flesh 의 본 오버레이 대응) ──
+	// 스플랫이 아니라 *입력*(뼈대)의 표시이므로 절대 원칙 1 과 무관. 살 위에 겹쳐 그린다.
+	const OVERLAY = /* wgsl */`
+struct CamParams {
+	view : mat4x4f, proj : mat4x4f,
+	viewport : vec2f, focal : vec2f,
+	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+};
+@group(0) @binding(0) var<storage, read> bones : array<vec4f>;
+@group(0) @binding(1) var<uniform> C : CamParams;
+
+// 뼈 라인: bones 는 [2i]=(a,r1), [2i+1]=(b,r2) — line-list 정점 인덱스가 그대로 끝점
+@vertex
+fn vsLine(@builtin(vertex_index) vi : u32) -> @builtin(position) vec4f {
+	return C.proj * (C.view * vec4f(bones[vi].xyz, 1.0));
+}
+@fragment
+fn fsLine() -> @location(0) vec4f {
+	return vec4f(0.98, 0.82, 0.45, 1.0) * 0.9; // premultiplied over
+}
+
+// 관절 점: 끝점당 화면 고정 크기(±5px) 쿼드
+@vertex
+fn vsJoint(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> @builtin(position) vec4f {
+	var clip = C.proj * (C.view * vec4f(bones[ii].xyz, 1.0));
+	if (clip.w <= 0.0) { return vec4f(0.0, 0.0, 2.0, 1.0); } // 카메라 뒤 퇴화
+	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 2.0 - 1.0;
+	return vec4f(clip.xy + corner * (5.0 / C.viewport) * clip.w, clip.z, clip.w);
+}
+@fragment
+fn fsJoint() -> @location(0) vec4f {
+	return vec4f(1.0, 1.0, 1.0, 1.0) * 0.95;
+}
+`;
+
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY };
 })(window);

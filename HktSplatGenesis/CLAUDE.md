@@ -11,9 +11,9 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열 + L6 뼈대 SDF 살)
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열 + L6 뼈대 살)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
-→ key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
+→ key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드 (+ L6 뼈대 오버레이 라인/관절)
 ```
 
 L4 나무는 sim 안의 조기 경로(`E.growRate > 0`): rest 버퍼가 (부착점, birth) 골격을 담고,
@@ -26,14 +26,22 @@ L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) �
 잡힌다 — `heatEmit` 유전자(불 정령)가 나무의 연소 전파 규칙에 그대로 물리는 이유.
 격자 셀 크기는 전역 GRID_CELL(0.15) 고정, 개체 reach 는 이하로 클램프.
 
-L6 히키토(hikito-flesh 이식): 뼈대를 먼저 정의하고, 살은 **뼈대의 순수 함수(SDF)** 다.
-`js/skeleton.js` 가 Skeleton IR(joints[{name,parent,offset}] + 절차 클립 walk/idle/wave → CPU FK)과
-살 문법(`radiusForName` — 이름 기반, 특정 리그 하드코딩 금지)을 담당하고, 매 프레임 taper 캡슐
-세그먼트(≤MAX_BONES 32)를 bones storage 로 올린다. `fleshK` 유전자(Entity 의 옛 `_e0` 슬롯 재활용,
-stride 불변)가 켜진 스플랫은 round-cone smin 거리장의 표피 아래 개인 깊이(seed 산포) 등고면으로
-끌려간다 — 스플랫-뼈 손 바인딩(스키닝)은 없다. hikito-flesh 와 달리 살을 레이마칭으로 "그리지"
-않고 스플랫 세포가 자라 붙는다 (절대 원칙 1 유지). SimParams 의 floorY 뒤 두 슬롯이
-boneCount/sminK(살 뭉침 스타일 노브).
+L6 히키토(hikito-flesh 이식): 뼈대를 먼저 정의하고, 살은 **뼈대의 순수 함수**다.
+`js/skeleton.js` 가 Skeleton IR(joints[{name,parent,offset}] 관절 53 = Mixamo 계층 그대로 +
+절차 클립 walk/idle/wave → CPU FK)과 살 문법(`radiusForName` — 이름 기반, 특정 리그 하드코딩
+금지)을 담당하고, 매 프레임 taper 캡슐 세그먼트(≤MAX_BONES 64)를 bones storage 로 올린다.
+form 3(살 구름)은 스플랫마다 뼈 친화(rest.w, 세그먼트 부피 가중)를 배정하고, SIM 의 `fleshK`
+유전자(Entity 옛 `_e0` 슬롯, stride 불변) 규칙이 (축 t, 방위 θ, 깊이 u) **성장 자리**를 시드에서
+*현재 뼈 포즈로 매 프레임 유도*해 스프링으로 끌어당긴다 — hikito 가 SDF 로 그리는 round-cone
+부피의 매개변수 샘플이고, L4 나무 rest 부착점과 같은 원리(바인드 포즈 저장·스키닝 없음).
+뼈대 오버레이(OVERLAY: 라인+관절 점, `뼈대 표시` 토글)는 입력의 시각화라 절대 원칙 1 과 무관.
+SimParams 의 floorY 뒤 슬롯이 boneCount. `pose()` 는 친화 인덱스의 기준이므로 항상 전체
+세그먼트를 같은 순서로 반환한다(필터 금지).
+
+L6 방울 함정 (재발 금지): ① 전역 SDF 최근접 추종은 축 방향 힘이 0 — 중력이 스플랫을 뼈 끝으로
+흘려 뼈당 방울 하나로 뭉갠다. ② L2 인력(표면장력)이 자리 스프링을 이겨도 방울이 된다 — 히키토
+프리셋이 binding 0 인 이유. ③ 자리 스프링 k 에 임계 감쇠(2√k)를 못 맞추면 진동 블롭 — fleshK 60
+이면 damping ~9 이상.
 
 - `js/wgsl.js` — 셰이더 7종. `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
   `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
@@ -42,7 +50,8 @@ boneCount/sminK(살 뭉침 스타일 노브).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
 - `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법(radiusForName). 살 힘 자체는
-  wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
+  wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. 세그먼트 순서가 뼈 친화
+  인덱스의 기준 (setScene 의 bindBones = frame 의 bones 와 동일 순서 필수).
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 

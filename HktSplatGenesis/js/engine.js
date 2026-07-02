@@ -15,7 +15,7 @@
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
 	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
-	const MAX_BONES = 32;        // L6 뼈 세그먼트 상한 (휴머노이드 22개 + 여유)
+	const MAX_BONES = 64;        // L6 뼈 세그먼트 상한 (휴머노이드 손가락 포함 52개 + 여유)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -90,6 +90,40 @@
 		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		this._boneCount = 0;
+
+		// L6 뼈대 오버레이 (라인 + 관절 점) — 살 위에 겹쳐 그리는 디버그 시각화
+		const overlayModule = d.createShaderModule({ code: W.OVERLAY });
+		const overlayBlend = {
+			color: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+			alpha: { srcFactor: 'one', dstFactor: 'one-minus-src-alpha' },
+		};
+		this.overlayLinePipe = d.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module: overlayModule, entryPoint: 'vsLine' },
+			fragment: { module: overlayModule, entryPoint: 'fsLine', targets: [{ format: this.format, blend: overlayBlend }] },
+			primitive: { topology: 'line-list' },
+		});
+		this.overlayJointPipe = d.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module: overlayModule, entryPoint: 'vsJoint' },
+			fragment: { module: overlayModule, entryPoint: 'fsJoint', targets: [{ format: this.format, blend: overlayBlend }] },
+			primitive: { topology: 'triangle-strip' },
+		});
+		this.overlayLineBG = d.createBindGroup({
+			layout: this.overlayLinePipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.boneBuf } },
+				{ binding: 1, resource: { buffer: this.camUB } },
+			],
+		});
+		this.overlayJointBG = d.createBindGroup({
+			layout: this.overlayJointPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.boneBuf } },
+				{ binding: 1, resource: { buffer: this.camUB } },
+			],
+		});
 
 		// L2 이웃 격자 (스플랫 수와 무관 — 1회 생성)
 		this.gridCountBuf = d.createBuffer({ size: GRID_CELLS * 4, usage: GPUBufferUsage.STORAGE });
@@ -129,6 +163,7 @@
 		ents.forEach((genes, ei) => {
 			const init = (genes.form === 1) ? this._initGolem(slice, genes)
 				: (genes.form === 2) ? this._initTree(slice, genes)
+				: (genes.form === 3) ? this._initFleshCloud(slice, genes)
 				: this._initCloud(slice, genes);
 			splatAll.set(init.splat, ei * slice * SPLAT_STRIDE);
 			restAll.set(init.rest, ei * slice * 4);
@@ -355,6 +390,29 @@
 		return { splat, rest: restA, cluster };
 	};
 
+	// form 3 — L6 살 구름: 구름 초기화에 뼈 친화(rest.w)를 부피 가중으로 부여.
+	// 스플랫은 태어날 때 "어느 뼈의 살이 될지"만 정해지고(시드), 위치는 구름 —
+	// SIM 의 fleshK 규칙이 제 뼈로 끌어당겨 살이 자라난다. 친화가 없으면 전 스플랫이
+	// 전역 최근접 표면점으로 몰려 몇 개 방울로 뭉친다 (온몸 분포 보장 장치).
+	HktGenesisEngine.prototype._initFleshCloud = function (n, genes) {
+		const init = this._initCloud(n, genes);
+		const segs = genes.bindBones || [];
+		if (segs.length) {
+			// 세그먼트 부피 가중 (원뿔대 부피 ∝ len·(ra²+ra·rb+rb²))
+			const w = segs.map((s) => {
+				const len = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
+				return len * (s.ra * s.ra + s.ra * s.rb + s.rb * s.rb);
+			});
+			const total = w.reduce((x, y) => x + y, 0);
+			for (let i = 0; i < n; i++) {
+				let r = Math.random() * total, si = 0;
+				while (r > w[si] && si < segs.length - 1) { r -= w[si]; si++; }
+				init.rest[i * 4 + 3] = si;
+			}
+		}
+		return init;
+	};
+
 	// form 2 — 나무: 재귀 가지 골격을 절차 생성하고 스플랫마다 (부착점, 성장 시점) 부여.
 	// "증식"은 실제 할당이 아니라 휴면 스플랫의 활성화 — birth(뿌리로부터의 그래프 거리)
 	// 순서로 깨어나므로 뿌리→가지끝으로 자라 보인다.
@@ -459,7 +517,7 @@
 			d.queue.writeBuffer(this.boneBuf, 0, ba);
 		}
 		sf[13] = nb;                       // boneCount
-		sf[14] = opts.sminK || 0.2;        // 살 뭉침(smin k) — 스타일 노브
+		this._boneCount = nb;
 		d.queue.writeBuffer(this.simUB, 0, sim);
 		d.queue.writeBuffer(this.entityBuf, 0, this._packEntities(ents));
 
@@ -522,6 +580,15 @@
 		rp.setPipeline(this.renderPipe);
 		rp.setBindGroup(0, this.renderBG);
 		rp.draw(4, n);
+		// L6 뼈대 오버레이 — 살 위에 라인 + 관절 점 (bones 가 있고 토글이 켜진 프레임만)
+		if (opts.showBones && this._boneCount > 0) {
+			rp.setPipeline(this.overlayLinePipe);
+			rp.setBindGroup(0, this.overlayLineBG);
+			rp.draw(this._boneCount * 2);
+			rp.setPipeline(this.overlayJointPipe);
+			rp.setBindGroup(0, this.overlayJointBG);
+			rp.draw(4, this._boneCount * 2);
+		}
 		rp.end();
 
 		d.queue.submit([enc.finish()]);

@@ -32,11 +32,13 @@
 		if (has('Leg'))    return 0.078;
 		if (has('ToeBase') || has('Toe')) return 0.035;
 		if (has('Foot'))   return 0.052;
+		if (has('Thumb') || has('Index') || has('Middle') || has('Ring') || has('Pinky') || has('Finger')) return 0.014;
 		return 0.05; // 미지의 뼈 → 기본값
 	}
+	function isFinger(name) { return /Thumb|Index|Middle|Ring|Pinky|Finger/.test(simpleName(name)); }
 
 	// ── (1) Skeleton IR: 휴머노이드 계층 (T-pose, 단위 ~m, 발끝 y≈0) ────────
-	// Mixamo 표준 계층에서 손가락만 뺐다 — 스플랫 셀 해상도(격자 0.15) 이하의 디테일.
+	// hikito-flesh buildMixamoRig 와 동일 계층 (손가락 포함, 접두어만 생략).
 	function buildHumanoidRig() {
 		const J = []; const idx = {};
 		const add = (name, parent, ox, oy, oz) => {
@@ -55,6 +57,13 @@
 			add(`${S}Arm`, `${S}Shoulder`, x * 0.13, 0, 0);
 			add(`${S}ForeArm`, `${S}Arm`, x * 0.28, 0, 0);
 			add(`${S}Hand`, `${S}ForeArm`, x * 0.25, 0, 0);
+			const fingers = [['Thumb', 0.55, 0.03], ['Index', 0.14, 0.04], ['Middle', -0.02, 0.045], ['Ring', -0.16, 0.04], ['Pinky', -0.30, 0.032]];
+			for (const [fn, ang, len] of fingers) {
+				const zoff = Math.sin(ang) * 0.03;
+				add(`${S}Hand${fn}1`, `${S}Hand`, x * (len * 0.5), 0, zoff * 3.0);
+				add(`${S}Hand${fn}2`, `${S}Hand${fn}1`, x * len, 0, 0);
+				add(`${S}Hand${fn}3`, `${S}Hand${fn}2`, x * len * 0.8, 0, 0);
+			}
 			add(`${S}UpLeg`, 'Hips', x * 0.09, -0.06, 0);
 			add(`${S}Leg`, `${S}UpLeg`, 0, -0.42, 0);
 			add(`${S}Foot`, `${S}Leg`, 0, -0.42, 0);
@@ -129,7 +138,9 @@
 
 	// FK 한 바퀴: 클립 포즈 → world 관절 위치 → taper 캡슐 세그먼트 목록
 	// (defs 는 부모가 항상 자식보다 먼저 — buildHumanoidRig 가 보장)
-	// 반환: [{a:[x,y,z], b:[x,y,z], ra, rb}] — engine.frame 의 bones 입력
+	// 반환: [{a:[x,y,z], b:[x,y,z], ra, rb}] — engine.frame 의 bones 입력이자
+	// setScene 의 bindBones 입력. 순서가 뼈 친화(rest.w) 인덱스의 기준이므로
+	// 포즈와 무관하게 항상 전체 세그먼트를 같은 순서로 반환한다 (필터 금지).
 	Skeleton.prototype.pose = function (clip, t, speed, fat) {
 		const ph = t * speed * 4.0;
 		const f = fat || 1.0;
@@ -165,5 +176,5 @@
 		return segs;
 	};
 
-	global.HktGenesisSkeleton = { Skeleton, buildHumanoidRig, radiusForName };
+	global.HktGenesisSkeleton = { Skeleton, buildHumanoidRig, radiusForName, isFinger };
 })(window);
