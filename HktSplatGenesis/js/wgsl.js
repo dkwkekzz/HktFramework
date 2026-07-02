@@ -37,6 +37,7 @@ struct Cluster {
 	quat : vec4f,                  // 현재 회전 (shape matching 결과)
 	com : vec3f,    strain : f32,  // 무게중심, 최대 본드 변형률 (렌더 발광용)
 	restCom : vec3f, flags : u32,  // 휴지 무게중심, 본드 생존 비트마스크(하위 8)
+	vel : vec3f,    _p : f32,      // 무게중심 속도 (본드 감쇠용)
 	bonds : array<u32, 8>,         // 이웃 클러스터 인덱스 (0xffffffff = 빈 슬롯)
 };
 `;
@@ -267,7 +268,9 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 		}
 		shR = quatMat(q);
 
-		// 본드: 스프링 + 파단 + 재결합. 이웃 com 은 이전/현재 프레임 혼재(Jacobi 근사) 허용.
+		// 본드: 스프링 + 감쇠 + 파단 + 재결합. 이웃 com/vel 은 프레임 혼재(Jacobi 근사) 허용.
+		let myVel = (shCom - cl.com) / max(P.dt, 1e-4);
+		let bondDamp = 0.4 * sqrt(max(P.bondK, 0.0)); // 본드당 감쇠 — 6~8개 합산 시 임계 감쇠 근방
 		var acc = vec3f(0.0);
 		var maxStrain = 0.0;
 		var flags = cl.flags;
@@ -283,12 +286,16 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 				if (strain > P.toughness) {
 					flags &= ~(1u << b); // 파단 — 균열이 생긴다
 				} else {
-					acc += err * P.bondK;
+					acc += err * P.bondK + (clusters[nIdx].vel - myVel) * bondDamp;
 					maxStrain = max(maxStrain, strain);
 				}
 			} else {
-				// 재흡수: 끊긴 이웃이 휴지 거리 근처로 돌아오면 재결합
-				if (abs(length(actual) - restLen) < 0.12 * restLen + 0.04) {
+				// 재흡수: 거리 + *방향* 이 휴지 배치와 일치할 때만 재결합
+				// (방향 없이 거리만 보면 무너진 더미도 안정 구조로 재용접된다)
+				let al = length(actual) + 1e-6;
+				let restDir = shR * restOff / restLen;
+				if (abs(al - restLen) < 0.12 * restLen + 0.04 &&
+					dot(actual / al, restDir) > 0.85) {
 					flags |= (1u << b);
 				}
 			}
@@ -296,6 +303,7 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 		shBondAcc = acc;
 		cl.quat = q;
 		cl.com = shCom;
+		cl.vel = myVel;
 		cl.strain = maxStrain;
 		cl.flags = flags;
 		clusters[ci] = cl;

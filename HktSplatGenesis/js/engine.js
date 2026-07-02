@@ -12,7 +12,7 @@
 	const GRID_SLOTS = 16;
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
-	const CLUSTER_STRIDE = 20;   // u32/f32 20개 = 80B (wgsl.js Cluster 와 일치)
+	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
 
 	function HktGenesisEngine(device, context, format) {
 		this.device = device;
@@ -177,7 +177,7 @@
 		const cu = new Uint32Array(c.buffer);
 		for (let ci = 0; ci < n / CLUSTER_K; ci++) {
 			c[ci * CLUSTER_STRIDE + 3] = 1; // quat = identity
-			for (let b = 0; b < 8; b++) cu[ci * CLUSTER_STRIDE + 12 + b] = 0xffffffff;
+			for (let b = 0; b < 8; b++) cu[ci * CLUSTER_STRIDE + 16 + b] = 0xffffffff;
 		}
 		return c;
 	};
@@ -231,18 +231,19 @@
 			centers.push(samplePart(parts[pi]));
 		}
 
-		// 본드: 컷오프 내 최근접 8개 (대칭 보장은 하지 않음 — 셰이더가 Jacobi 근사 허용)
+		// 본드: 전역 간선 삽입(거리 오름차순) — 대칭 보장. 비대칭 본드는 운동량을 주입해
+		// 골격을 서서히 무너뜨린다 (한쪽만 당기는 스프링).
 		const CUTOFF = 0.5;
-		const bonds = centers.map((c, ci) => {
-			const near = [];
-			for (let cj = 0; cj < C; cj++) {
-				if (cj === ci) continue;
-				const d = Math.hypot(c[0] - centers[cj][0], c[1] - centers[cj][1], c[2] - centers[cj][2]);
-				if (d < CUTOFF) near.push([d, cj]);
+		const edges = [];
+		for (let ci = 0; ci < C; ci++)
+			for (let cj = ci + 1; cj < C; cj++) {
+				const d = Math.hypot(centers[ci][0] - centers[cj][0], centers[ci][1] - centers[cj][1], centers[ci][2] - centers[cj][2]);
+				if (d < CUTOFF) edges.push([d, ci, cj]);
 			}
-			near.sort((a, b) => a[0] - b[0]);
-			return near.slice(0, 8).map((x) => x[1]);
-		});
+		edges.sort((a, b) => a[0] - b[0]);
+		const bonds = Array.from({ length: C }, () => []);
+		for (const [, ci, cj] of edges)
+			if (bonds[ci].length < 8 && bonds[cj].length < 8) { bonds[ci].push(cj); bonds[cj].push(ci); }
 
 		const splat = new Float32Array(n * SPLAT_STRIDE);
 		const restA = new Float32Array(n * 4);
@@ -256,8 +257,8 @@
 			cluster[co + 8] = centers[ci][0]; cluster[co + 9] = centers[ci][1]; cluster[co + 10] = centers[ci][2]; // restCom
 			let flags = 0;
 			for (let b = 0; b < 8; b++) {
-				if (b < bonds[ci].length) { cu[co + 12 + b] = bonds[ci][b]; flags |= 1 << b; }
-				else cu[co + 12 + b] = 0xffffffff;
+				if (b < bonds[ci].length) { cu[co + 16 + b] = bonds[ci][b]; flags |= 1 << b; }
+				else cu[co + 16 + b] = 0xffffffff;
 			}
 			cu[co + 11] = flags;
 
