@@ -90,8 +90,10 @@
 			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, fleshK: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
 		},
-		// L6: 뼈대 SDF 살 — 구름으로 태어난 스플랫이 제 뼈(부피 가중 친화)를 찾아가
-		// 살이 된다. 뼈대 자체는 skeleton.js (FK + 살 문법), 여기 유전자는 살의 재질만.
+		// L6: 뼈대 살 — 구름으로 태어난 스플랫이 제 뼈(부피 가중 친화)를 찾아가 살이 된다.
+		// 뼈대 자체는 skeleton.js (FK + 살 문법), 여기 유전자는 살의 재질만.
+		// 제약: binding 0 필수 — L2 인력(표면장력)이 자리 스프링을 이기면 살이 방울로 뭉친다.
+		// damping 은 임계 감쇠 2√fleshK 근방 유지 (fleshK 60 → ~9 이상, 미달 시 진동 블롭).
 		'히키토': {
 			cohesion: 0, volatility: 0.15, updraft: 0, damping: 9.0,
 			lifeBase: 4.0, emitRadius: 1.0, flowFreq: 1.5, flowSpeed: 0.6,
