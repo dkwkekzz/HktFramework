@@ -26,21 +26,24 @@ python -m http.server 8123
 # 브라우저에서 http://localhost:8123
 ```
 
-우측 패널: 원소 프리셋(불/물/숲) → 유전자 슬라이더로 연속 변형 → 중간 생물 탐색.
+우측 패널: 원소 프리셋 → 유전자 슬라이더로 연속 변형 → 중간 생물 탐색. 장면 버튼(불×나무)은 다중 개체 공존 데모.
 
 ## 아키텍처 (전부 GPU 상주, CPU 왕복 없음)
 
 ```
-유전자(uniform) ─► grid clear/build: 64³ dense grid, 셀당 16슬롯 (L2 이웃 탐색)
+개체(Entity) 테이블(storage, 개체=풀의 균등 슬라이스, eid = i / sliceSize)
+                        ▼
+                  grid clear/build: 64³ dense grid, 셀당 16슬롯 — *전 개체 공유* (L5 통로)
                         ▼
                   sim 패스(compute): L1 자율 규칙 — 구심 + 난류 + 부력 + 중력, 수명/재생성
                         │            L2 이웃 규칙 — 응집/분리(휴지 간격) + 점성, 바닥, 포인터 인력
-                        │  storage: Splat{pos, vel, age, life, energy} × N
+                        │            L4 나무 — rest 골격 부착 + birth 성장 시계, heat/fuel 연소 전파
+                        │            L5 발열(heatEmit) — 다른 개체의 연소 규칙에 열원으로 잡힘
+                        │  storage: Splat{pos, vel, age, life, energy, heat, fuel} × N
                         ▼
                   cluster 패스(compute, L3): 워크그룹 1개 = 돌덩이(스플랫 256개) 1개
                         │  공유 메모리 리덕션 → 무게중심·회전(shape matching) → 강체 복원
                         │  클러스터 간 본드 스프링 — 변형률 > 인성이면 파단, 복귀 시 재흡수
-                        │  L4 나무: rest 골격 부착 + birth 성장 시계, heat/fuel 연소 상태 전파
                         ▼
                   key 패스: 뷰 깊이 → 단조 uint 키
                         ▼
@@ -70,6 +73,6 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 - **L2 이웃 규칙** ✅ dense grid + 응집/분리/점성 → **슬라임·물** (분열·합체, 필멸/불멸 구분)
 - **L3 본드/클러스터** ✅ shape matching + 본드 파단/재흡수 → **돌골렘** (팔 뜯기, 균열 발광)
 - **L4 성장** ✅ 절차 가지 골격 + birth 성장 시계 + heat/fuel 연소 전파 → **나무** (성장→점화→연소→재→재생)
-- **L5 원소 상호작용**: 개체 간 에너지 교환 (불 vs 나무, 슬라임의 포식)
+- **L5 원소 상호작용** ✅ 다중 개체 공존(Entity 테이블) + 발열(heatEmit) 유전자 → **불×나무 장면** (모닥불이 나무를 점화)
 
 이후 UE5 이식: 이 compute 파이프라인이 그대로 설계도가 된다 (`HktGaussianSplat` 플러그인의 래스터 + Niagara/compute 시뮬).

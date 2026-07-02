@@ -13,6 +13,10 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
+	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
+	const MAX_ENTITIES = 8;
+	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
+	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
 	function HktGenesisEngine(device, context, format) {
 		this.device = device;
@@ -79,9 +83,10 @@
 		});
 
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
-		this.simUB = d.createBuffer({ size: 144, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.simUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-		this.camUB = d.createBuffer({ size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.camUB = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
 		// L2 이웃 격자 (스플랫 수와 무관 — 1회 생성)
 		this.gridCountBuf = d.createBuffer({ size: GRID_CELLS * 4, usage: GPUBufferUsage.STORAGE });
@@ -92,23 +97,52 @@
 		});
 	};
 
-	// 스플랫 수 변경 (2의 거듭제곱 필수 — 바이토닉 정렬 전제)
+	// 단일 개체 호환 래퍼
 	HktGenesisEngine.prototype.setCount = function (n, genes) {
+		this.setScene(n, [genes]);
+	};
+
+	// 장면 구성: 스플랫 풀을 균등 슬라이스로 개체들에 배정 (2의 거듭제곱 필수 — 바이토닉 전제)
+	HktGenesisEngine.prototype.setScene = function (n, ents) {
 		if ((n & (n - 1)) !== 0) throw new Error('count 는 2의 거듭제곱이어야 함: ' + n);
+		if (ents.length < 1 || ents.length > MAX_ENTITIES) throw new Error('개체 수 1..8');
+		const slice = n / ents.length;
+		if (slice % CLUSTER_K !== 0) throw new Error('슬라이스는 256 의 배수여야 함');
 		const d = this.device;
 		this.count = n;
+		this.entities = ents;
+		this.sliceSize = slice;
 
 		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); this.restBuf.destroy(); this.clusterBuf.destroy(); }
 		this.splatBuf = d.createBuffer({ size: n * SPLAT_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
 		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-		const init = (genes.form === 1) ? this._initGolem(n, genes)
-			: (genes.form === 2) ? this._initTree(n, genes)
-			: this._initCloud(n, genes);
-		d.queue.writeBuffer(this.splatBuf, 0, init.splat);
-		d.queue.writeBuffer(this.restBuf, 0, init.rest);
-		d.queue.writeBuffer(this.clusterBuf, 0, init.cluster);
+		// 슬라이스별 초기화 조립 — 골렘 본드의 클러스터 인덱스는 전역 기준으로 보정
+		const splatAll = new Float32Array(n * SPLAT_STRIDE);
+		const restAll = new Float32Array(n * 4);
+		const clusterAll = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);
+		const clusterAllU = new Uint32Array(clusterAll.buffer);
+		ents.forEach((genes, ei) => {
+			const init = (genes.form === 1) ? this._initGolem(slice, genes)
+				: (genes.form === 2) ? this._initTree(slice, genes)
+				: this._initCloud(slice, genes);
+			splatAll.set(init.splat, ei * slice * SPLAT_STRIDE);
+			restAll.set(init.rest, ei * slice * 4);
+			const cBase = ei * (slice / CLUSTER_K);
+			clusterAll.set(init.cluster, cBase * CLUSTER_STRIDE);
+			const cu = new Uint32Array(init.cluster.buffer);
+			for (let ci = 0; ci < slice / CLUSTER_K; ci++)
+				for (let b = 0; b < 8; b++) {
+					const e = cu[ci * CLUSTER_STRIDE + 16 + b];
+					if (e !== 0xffffffff)
+						clusterAllU[(cBase + ci) * CLUSTER_STRIDE + 16 + b] =
+							(e & 0xf0000000) | ((e & 0x0fffffff) + cBase);
+				}
+		});
+		d.queue.writeBuffer(this.splatBuf, 0, splatAll);
+		d.queue.writeBuffer(this.restBuf, 0, restAll);
+		d.queue.writeBuffer(this.clusterBuf, 0, clusterAll);
 
 		// 바이토닉 단계 테이블: (k, j) 를 256B 정렬 슬롯에 미리 기록 → 프레임마다 동적 오프셋만 변경
 		this._passes = [];
@@ -128,6 +162,7 @@
 				{ binding: 2, resource: { buffer: this.gridCountBuf } },
 				{ binding: 3, resource: { buffer: this.gridSlotsBuf } },
 				{ binding: 4, resource: { buffer: this.restBuf } },
+				{ binding: 5, resource: { buffer: this.entityBuf } },
 			],
 		});
 		this.gridBuildBG = d.createBindGroup({
@@ -161,6 +196,7 @@
 				{ binding: 1, resource: { buffer: this.pairBuf } },
 				{ binding: 2, resource: { buffer: this.camUB } },
 				{ binding: 3, resource: { buffer: this.clusterBuf } },
+				{ binding: 4, resource: { buffer: this.entityBuf } },
 			],
 		});
 		this.clusterBG = d.createBindGroup({
@@ -170,8 +206,28 @@
 				{ binding: 1, resource: { buffer: this.simUB } },
 				{ binding: 2, resource: { buffer: this.restBuf } },
 				{ binding: 3, resource: { buffer: this.clusterBuf } },
+				{ binding: 4, resource: { buffer: this.entityBuf } },
 			],
 		});
+	};
+
+	// 개체 유전자 → GPU 테이블 (wgsl.js Entity 레이아웃과 일치)
+	HktGenesisEngine.prototype._packEntities = function (ents) {
+		const a = new Float32Array(MAX_ENTITIES * ENTITY_STRIDE);
+		ents.forEach((g, ei) => {
+			const em = g.emitter || [0, 0.6, 0];
+			const o = ei * ENTITY_STRIDE;
+			a.set([em[0], em[1], em[2], g.cohesion,
+				g.volatility, g.updraft, g.damping, g.lifeBase,
+				g.emitRadius, g.flowFreq, g.flowSpeed, g.gravity,
+				g.mortality, g.binding, g.restDist, g.viscosity,
+				Math.min(g.reach, GRID_CELL), g.rigid, g.toughness, g.bondK,
+				g.growRate, g.flamm, g.heatEmit || 0, 0], o);
+			a.set(g.colorA, o + 24);
+			a.set(g.colorB, o + 28);
+			a.set([g.size, g.stretch, g.opacity, g.luminosity], o + 32);
+		});
+		return a;
 	};
 
 	// 빈 클러스터 테이블 (form 0 — 클러스터 패스 미사용, 렌더 strain 참조용 0 초기화)
@@ -185,15 +241,16 @@
 		return c;
 	};
 
-	// form 0 — 코어 주변 랜덤 구름, 수명 위상 분산 (세대 교대가 자연히 이어지도록)
+	// form 0 — 코어(emitter) 주변 랜덤 구름, 수명 위상 분산 (세대 교대가 자연히 이어지도록)
 	HktGenesisEngine.prototype._initCloud = function (n, genes) {
+		const em = genes.emitter || [0, 0.6, 0];
 		const a = new Float32Array(n * SPLAT_STRIDE);
 		for (let i = 0; i < n; i++) {
 			const o = i * SPLAT_STRIDE;
 			const life = genes.lifeBase * (0.5 + Math.random());
-			a[o + 0] = (Math.random() * 2 - 1) * genes.emitRadius;
-			a[o + 1] = 0.6 + (Math.random() * 2 - 1) * genes.emitRadius; // 기본 코어 높이
-			a[o + 2] = (Math.random() * 2 - 1) * genes.emitRadius;
+			a[o + 0] = em[0] + (Math.random() * 2 - 1) * genes.emitRadius;
+			a[o + 1] = em[1] + (Math.random() * 2 - 1) * genes.emitRadius;
+			a[o + 2] = em[2] + (Math.random() * 2 - 1) * genes.emitRadius;
 			a[o + 3] = Math.random() * life;   // age
 			// vel = 0 (o+4..6)
 			a[o + 7] = life;                    // life
@@ -206,6 +263,7 @@
 
 	// form 1 — 돌골렘: 신체 파트에 클러스터(돌덩이)를 배치하고 근접 클러스터끼리 본드 연결
 	HktGenesisEngine.prototype._initGolem = function (n, genes) {
+		const em = genes.emitter || [0, 0, 0];
 		const C = n / CLUSTER_K;
 		// 파트: [cx, cy, cz, rx, ry, rz] 타원체 — 다리 2, 몸통, 팔 2, 머리
 		const parts = [
@@ -232,7 +290,8 @@
 		for (let ci = 0; ci < C; ci++) {
 			let r = Math.random() * wTotal, pi = 0;
 			while (r > weights[pi] && pi < parts.length - 1) { r -= weights[pi]; pi++; }
-			centers.push(samplePart(parts[pi]));
+			const c0 = samplePart(parts[pi]);
+			centers.push([c0[0] + em[0], c0[1], c0[2] + em[2]]);
 		}
 
 		// 본드: 전역 간선 삽입(거리 오름차순) — 대칭 보장. 비대칭 본드는 운동량을 주입해
@@ -325,7 +384,8 @@
 				branch(b, nd, len * (0.62 + Math.random() * 0.12), r * 0.55, birth + len, depth + 1);
 			}
 		};
-		branch([0, 0, 0], [0, 1, 0], 0.85, 0.13, 0, 0);
+		const em = genes.emitter || [0, 0, 0];
+		branch([em[0], 0, em[2]], [0, 1, 0], 0.85, 0.13, 0, 0);
 
 		// 스플랫 배분: 줄기(세그 부피 비례) 60% / 잎 40%
 		const segW = segs.map((s) => s.r * Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]));
@@ -372,22 +432,19 @@
 		const n = this.count;
 		const g = opts.genes;
 
-		// SimParams (128B) — wgsl.js SimParams 레이아웃과 일치
-		const em = opts.emitter || [0, 0.6, 0];
-		const half = GRID_DIM * g.reach * 0.5; // 격자를 코어 중심에 배치
+		// SimParams (64B) — wgsl.js SimParams 레이아웃과 일치. 유전자는 entity 테이블로.
+		const ents = opts.entities || [g];
 		const pull = opts.pull || [0, 0, 0, 0];
-		const sim = new ArrayBuffer(144);
+		const sim = new ArrayBuffer(64);
 		const sf = new Float32Array(sim);
 		const su = new Uint32Array(sim);
-		sf.set([em[0], em[1], em[2], opts.dt, opts.time, g.cohesion, g.volatility, g.updraft,
-			g.damping, g.lifeBase, g.emitRadius, g.flowFreq, g.flowSpeed, 0, g.gravity, g.mortality], 0);
-		su[13] = n;
-		sf.set(pull, 16);
-		sf.set([em[0] - half, em[1] - half, em[2] - half, g.reach,
-			g.binding, g.restDist, g.viscosity, 0 /* floorY */,
-			g.rigid, g.toughness, g.bondK, 0,
-			g.growRate, g.flamm, 0, 0], 20);
+		sf.set(pull, 0);
+		sf.set([GRID_ORIGIN[0], GRID_ORIGIN[1], GRID_ORIGIN[2], GRID_CELL, opts.dt, opts.time], 4);
+		su[10] = n;
+		su[11] = this.sliceSize;
+		sf[12] = 0; // floorY
 		d.queue.writeBuffer(this.simUB, 0, sim);
+		d.queue.writeBuffer(this.entityBuf, 0, this._packEntities(ents));
 
 		// KeyParams (32B) — view 의 z-행
 		const v = opts.view;
@@ -396,14 +453,13 @@
 		new Uint32Array(key)[4] = n;
 		d.queue.writeBuffer(this.keyUB, 0, key);
 
-		// CamParams (192B)
-		const cam = new Float32Array(48);
-		cam.set(v, 0);
-		cam.set(opts.proj, 16);
-		cam.set([opts.viewport[0], opts.viewport[1], opts.focal[0], opts.focal[1]], 32);
-		cam.set(g.colorA, 36);
-		cam.set(g.colorB, 40);
-		cam.set([g.size, g.stretch, g.opacity, g.luminosity], 44);
+		// CamParams (160B)
+		const cam = new ArrayBuffer(160);
+		const cf = new Float32Array(cam);
+		cf.set(v, 0);
+		cf.set(opts.proj, 16);
+		cf.set([opts.viewport[0], opts.viewport[1], opts.focal[0], opts.focal[1]], 32);
+		new Uint32Array(cam)[36] = this.sliceSize;
 		d.queue.writeBuffer(this.camUB, 0, cam);
 
 		const wgs = Math.ceil(n / WG);
@@ -421,8 +477,8 @@
 			cp.setPipeline(this.simPipe);
 			cp.setBindGroup(0, this.simBG);
 			cp.dispatchWorkgroups(wgs);
-			// L3: 강성 유전자가 있으면 shape matching + 본드 골격 (워크그룹 1개 = 클러스터 1개)
-			if (g.rigid > 0) {
+			// L3: 강성 개체가 하나라도 있으면 shape matching + 본드 골격 (셰이더가 개체별 가드)
+			if (ents.some((e) => e.rigid > 0)) {
 				cp.setPipeline(this.clusterPipe);
 				cp.setBindGroup(0, this.clusterBG);
 				cp.dispatchWorkgroups(n / CLUSTER_K);

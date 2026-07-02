@@ -1,34 +1,56 @@
 // HktSplatGenesis — WGSL 셰이더 모음 (classic script, 전역 HktGenesisWGSL)
 //
-// 설계 원칙: 스플랫 = 세포. 시뮬 상태(pos/vel/age/energy)가 유일한 원본이고
+// 설계 원칙: 스플랫 = 세포. 시뮬 상태(pos/vel/age/energy/heat/fuel)가 유일한 원본이고
 // 렌더 속성(공분산·색·불투명도)은 매 프레임 셰이더에서 *유도*된다.
 // 렌더 속성을 직접 만드는 코드는 어디에도 없어야 한다.
+//
+// L5: 유전자는 유니폼이 아니라 개체(Entity) 테이블 — 스플랫 풀을 균등 슬라이스로
+// 개체에 배정한다 (eid = i / sliceSize). 격자는 전 개체 공유이므로 서로 다른
+// 개체의 스플랫이 서로의 이웃으로 잡힌다 — 개체 간 상호작용(발열→점화)의 통로.
 
 (function (global) {
 	'use strict';
 
-	// 시뮬 상태 48B/스플랫 — JS 초기화 코드(engine.js)와 바이트 일치 필수
+	// 시뮬 상태 48B/스플랫 — engine.js SPLAT_STRIDE 와 바이트 일치 필수
+	// misc = (energy, seed, heat, fuel)
 	const SPLAT_STRUCT = /* wgsl */`
 struct Splat {
 	pos : vec3f,  age : f32,
 	vel : vec3f,  life : f32,
-	misc : vec4f, // x=energy(0..1), y=seed, z/w 예약
+	misc : vec4f, // x=energy(0..1), y=seed, z=열(연소), w=연료(0=재)
 };
 `;
 
-	// 시뮬 유니폼 128B — engine.js frame() 의 패킹과 바이트 일치 필수
+	// 전역 시뮬 유니폼 64B — engine.js frame() 패킹과 바이트 일치 필수
 	const SIM_PARAMS = /* wgsl */`
 struct SimParams {
-	emitter : vec3f,    dt : f32,
-	time : f32,         cohesion : f32,  volatility : f32, updraft : f32,
-	damping : f32,      lifeBase : f32,  emitRadius : f32, flowFreq : f32,
-	flowSpeed : f32,    count : u32,     gravity : f32,    mortality : f32,
-	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 상호작용 — 나무에서는 불씨)
+	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 — 구름엔 인력, 나무엔 불씨)
 	gridOrigin : vec3f, cellSize : f32,
-	binding : f32,      restDist : f32,  viscosity : f32,  floorY : f32,
-	rigid : f32,        toughness : f32, bondK : f32,      _p2 : f32, // L3 유전자
-	growRate : f32,     flamm : f32,     _g0 : f32,        _g1 : f32, // L4 유전자
+	dt : f32, time : f32, count : u32, sliceSize : u32,
+	floorY : f32, _s0 : f32, _s1 : f32, _s2 : f32,
 };
+`;
+
+	// 개체 유전자 144B — engine.js ENTITY_STRIDE(36 float) 와 바이트 일치 필수
+	const ENTITY_STRUCT = /* wgsl */`
+struct Entity {
+	emitter : vec3f,   cohesion : f32,
+	volatility : f32,  updraft : f32,   damping : f32,   lifeBase : f32,
+	emitRadius : f32,  flowFreq : f32,  flowSpeed : f32, gravity : f32,
+	mortality : f32,   binding : f32,   restDist : f32,  viscosity : f32,
+	reach : f32,       rigid : f32,     toughness : f32, bondK : f32,
+	growRate : f32,    flamm : f32,     heatEmit : f32,  _e0 : f32,
+	colorA : vec4f,    colorB : vec4f,
+	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
+};
+`;
+
+	// 고정 격자 상수 — L2/L4/L5 이웃 탐색 (전 개체 공유 dense grid + 셀당 고정 슬롯)
+	const GRID_CONST = /* wgsl */`
+const GD : i32 = 64;           // 격자 한 변 셀 수
+const GDU : u32 = 64u;
+const CELLS : u32 = 262144u;   // 64³
+const SLOTS : u32 = 16u;       // 셀당 최대 기록 수 (초과분은 이웃 힘에서 누락 — 우아한 저하)
 `;
 
 	// L3 클러스터(돌덩이) 상태 — 워크그룹 1개 = 클러스터 1개 = 스플랫 256개
@@ -41,14 +63,6 @@ struct Cluster {
 	vel : vec3f,    _p : f32,      // 무게중심 속도 (본드 감쇠용)
 	bonds : array<u32, 8>,         // (역참조 슬롯 << 28) | 이웃 인덱스. 0xffffffff = 빈 슬롯
 };
-`;
-
-	// 고정 격자 상수 — L2 이웃 탐색 (해시 충돌 없는 유계 dense grid + 셀당 고정 슬롯)
-	const GRID_CONST = /* wgsl */`
-const GD : i32 = 64;           // 격자 한 변 셀 수
-const GDU : u32 = 64u;
-const CELLS : u32 = 262144u;   // 64³
-const SLOTS : u32 = 16u;       // 셀당 최대 기록 수 (초과분은 이웃 힘에서 누락 — 우아한 저하)
 `;
 
 	// ── 격자 클리어: 셀 카운터 0 초기화 ─────────────────────────────────────
@@ -79,13 +93,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 }
 `;
 
-	// ── 시뮬 패스: per-splat 자율 규칙 (L1) + 이웃 규칙 (L2) + 성장/연소 (L4) ──
-	const SIM = SPLAT_STRUCT + SIM_PARAMS + GRID_CONST + /* wgsl */`
+	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 ────
+	const SIM = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + GRID_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
 @group(0) @binding(2) var<storage, read_write> gridCount : array<atomic<u32>>;
 @group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
 @group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
+@group(0) @binding(5) var<storage, read> entities : array<Entity>;
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -94,7 +109,7 @@ fn hash31(p : f32) -> vec3f {
 	return fract((q.xxy + q.yzz) * q.zyx);
 }
 
-// 사인 합성 난류장 — L1 용 저비용 근사 (발산 없는 진짜 curl noise 는 L2 로드맵)
+// 사인 합성 난류장 — 저비용 근사 (발산 없는 진짜 curl noise 는 로드맵)
 fn flow(p : vec3f, t : f32) -> vec3f {
 	var v = sin(p.yzx + vec3f(t * 0.9, t * 0.7, t * 1.1));
 	v += 0.5 * sin(p.zxy * 2.3 + vec3f(1.3 + t * 1.6, 4.1 + t * 1.2, 2.2 + t * 0.8));
@@ -106,17 +121,18 @@ fn flow(p : vec3f, t : f32) -> vec3f {
 fn main(@builtin(global_invocation_id) gid : vec3u) {
 	let i = gid.x;
 	if (i >= P.count) { return; }
+	let E = entities[i / P.sliceSize];
 	var s = splats[i];
 
 	// ── L4 나무 경로: 성장(휴면 스플랫 활성화) + 연소 전파 + 재생 ──
-	// misc = (energy, seed, heat, fuel). 형태는 rest 골격, 시점은 birth 가 결정한다.
-	if (P.growRate > 0.0) {
+	// 형태는 rest 골격, 시점은 birth 가 결정한다.
+	if (E.growRate > 0.0) {
 		let attach = rest[i].xyz;
 		let birth = rest[i].w;
 		var heat = s.misc.z;
 		var fuel = s.misc.w;
 		// 전역 성장 시계 — birth(뿌리로부터의 그래프 거리)를 지나면 깨어난다
-		let myGrow = clamp((P.time * P.growRate - birth) * 4.0, 0.0, 1.0);
+		let myGrow = clamp((P.time * E.growRate - birth) * 4.0, 0.0, 1.0);
 		if (myGrow <= 0.001) {
 			s.pos = attach;
 			s.vel = vec3f(0.0);
@@ -129,8 +145,8 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 			let dv = P.pull.xyz - s.pos;
 			heat += exp(-dot(dv, dv) * 8.0) * P.dt * 40.0;
 		}
-		// 이웃 연소 전파 (L2 격자 재활용): 불타는 이웃 수에 비례해 가열
-		if (P.flamm > 0.0 && fuel > 0.0 && heat < 1.5) {
+		// 이웃 연소 전파: 불타는 이웃(자기 개체든 불 정령이든)에 비례해 가열 — L5 통로
+		if (E.flamm > 0.0 && fuel > 0.0 && heat < 1.5) {
 			let ci = vec3i(floor((s.pos - P.gridOrigin) / P.cellSize));
 			if (all(ci >= vec3i(1)) && all(ci <= vec3i(GD - 2))) {
 				var burnN = 0.0;
@@ -149,7 +165,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 						}
 					}
 				}
-				heat += burnN * P.flamm * P.dt * 0.35;
+				heat += burnN * E.flamm * P.dt * 0.35;
 			}
 		}
 		heat = max(heat - 0.5 * P.dt, 0.0); // 냉각
@@ -158,17 +174,17 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		// 재생: 재가 다 식으면 시간이 흐른 뒤 새잎이 돋는다
 		if (fuel <= 0.0 && heat < 0.5) {
 			s.age += P.dt;
-			if (s.age > P.lifeBase) { fuel = 1.0; heat = 0.0; s.age = 0.0; }
+			if (s.age > E.lifeBase) { fuel = 1.0; heat = 0.0; s.age = 0.0; }
 		}
 		// 운동: 부착 스프링 + 바람 — 가지끝(birth 큼)일수록 스프링이 유연해 크게 흔들린다.
 		// 이 유연성 차이가 속도 팔레트를 통해 잎/줄기 색 분화를 만든다 (창발 색).
 		var acc = (attach - s.pos) * (50.0 - 35.0 * birth);
-		acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility * (0.2 + 1.3 * birth);
+		acc += flow(s.pos * E.flowFreq, P.time * E.flowSpeed) * E.volatility * (0.2 + 1.3 * birth);
 		if (burning) {
 			// 불길: 상승 + 거센 난류 (부착은 유지 — 나무가 무너지지는 않는다)
 			acc += vec3f(0.0, 2.5, 0.0) + flow(s.pos * 3.0, P.time * 2.5) * 4.0;
 		}
-		s.vel = (s.vel + acc * P.dt) * exp(-P.damping * P.dt);
+		s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
 		let spd = length(s.vel);
 		if (spd > 10.0) { s.vel *= 10.0 / spd; }
 		s.pos += s.vel * P.dt;
@@ -178,16 +194,16 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		return;
 	}
 
-	if (P.mortality > 0.5) {
+	if (E.mortality > 0.5) {
 		// 필멸 개체(불꽃 등): 세대 교대 + 에너지 곡선
 		s.age += P.dt;
 		if (s.age >= s.life) {
 			// 수명 종료 → 코어 주변에서 재생성
 			let r = hash31(f32(i) * 0.719 + fract(P.time) * 113.1) * 2.0 - 1.0;
-			s.pos = P.emitter + r * P.emitRadius;
+			s.pos = E.emitter + r * E.emitRadius;
 			s.vel = vec3f(0.0);
 			s.age = 0.0;
-			s.life = P.lifeBase * (0.5 + hash31(f32(i) * 1.37 + s.misc.y).x);
+			s.life = E.lifeBase * (0.5 + hash31(f32(i) * 1.37 + s.misc.y).x);
 		}
 		let u = s.age / s.life;
 		s.misc.x = smoothstep(0.0, 0.15, u) * (1.0 - smoothstep(0.65, 1.0, u));
@@ -196,11 +212,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		s.misc.x = 1.0;
 	}
 
+	// L5 발열원: 불 정령 등 — 자기 스플랫이 열을 띠어 이웃 개체(나무)를 점화한다
+	if (E.heatEmit > 0.0) { s.misc.z = E.heatEmit * s.misc.x; }
+
 	// L1 규칙: 구심(응집) + 난류(휘발) + 부력(상승) + 중력
-	let toCore = P.emitter - s.pos;
-	var acc = toCore * P.cohesion;
-	acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility;
-	acc.y += P.updraft - P.gravity;
+	let toCore = E.emitter - s.pos;
+	var acc = toCore * E.cohesion;
+	acc += flow(s.pos * E.flowFreq, P.time * E.flowSpeed) * E.volatility;
+	acc.y += E.updraft - E.gravity;
 
 	// 포인터 인력 (Alt+드래그): 좁은 가우시안 감쇠(σ≈0.4) — 덩어리 일부만 집어 뜯는 손
 	if (P.pull.w > 0.0) {
@@ -209,9 +228,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다
-	if (P.binding > 0.0) {
+	if (E.binding > 0.0) {
 		let ci = vec3i(floor((s.pos - P.gridOrigin) / P.cellSize));
 		if (all(ci >= vec3i(1)) && all(ci <= vec3i(GD - 2))) {
+			let reach = min(E.reach, P.cellSize);
 			var fsum = vec3f(0.0);
 			var vsum = vec3f(0.0);
 			var wsum = 0.0;
@@ -226,9 +246,9 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 							if (j == i) { continue; }
 							let d = splats[j].pos - s.pos;
 							let r = length(d);
-							if (r < P.cellSize && r > 1e-5) {
+							if (r < reach && r > 1e-5) {
 								// 휴지 간격보다 가까우면 반발(비압축), 멀면 인력(표면장력)
-								var m = r / P.cellSize - P.restDist;
+								var m = r / reach - E.restDist;
 								if (m < 0.0) { m *= 4.0; }
 								fsum += (d / r) * m;
 								vsum += splats[j].vel;
@@ -239,18 +259,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 				}
 			}
 			// 이웃 힘 크기 캡 — 초기 과밀(수십 개 중첩 반발)에서도 폭발하지 않게
-			var nForce = fsum * P.binding;
-			let nMag = length(nForce);
-			if (nMag > 80.0) { nForce *= 80.0 / nMag; }
-			acc += nForce;
+			var fn2 = fsum * E.binding;
+			let fl = length(fn2);
+			if (fl > 80.0) { fn2 *= 80.0 / fl; }
+			acc += fn2;
 			if (wsum > 0.0) {
 				// 점성: 이웃 평균 속도로 이완
-				s.vel += ((vsum / wsum) - s.vel) * min(P.viscosity * P.dt, 1.0);
+				s.vel += ((vsum / wsum) - s.vel) * min(E.viscosity * P.dt, 1.0);
 			}
 		}
 	}
 
-	s.vel = (s.vel + acc * P.dt) * exp(-P.damping * P.dt);
+	s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
 	// 속도 상한 — 수치 안정 가드 (셀 크기 대비 과속 이동은 이웃 탐색도 깨뜨림)
 	let sp = length(s.vel);
 	if (sp > 10.0) { s.vel *= 10.0 / sp; }
@@ -271,12 +291,14 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	// ── 클러스터 패스 (L3): shape matching + 본드 골격 — 골렘의 뼈대 ────────
 	// 워크그룹 하나가 클러스터(스플랫 256개) 하나를 담당. 공유 메모리 리덕션으로
 	// 무게중심과 변형 행렬 A 를 구하고, 회전을 추출해 강체 목표 자세로 복원한다.
-	// 본드는 클러스터 무게중심 간 스프링 — 변형률 > 인성이면 파단, 제자리 복귀 시 재결합.
-	const CLUSTER = SPLAT_STRUCT + SIM_PARAMS + CLUSTER_STRUCT + /* wgsl */`
+	// 본드는 클러스터 무게중심 간 스프링+감쇠 — 변형률 > 인성이면 파단,
+	// 거리+방향이 휴지 배치와 일치하면 재결합. 힘은 양측 생존 시에만 발생.
+	const CLUSTER = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + CLUSTER_STRUCT + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
 @group(0) @binding(2) var<storage, read> rest : array<vec4f>; // 휴지 오프셋 q0 (클러스터 restCom 기준)
 @group(0) @binding(3) var<storage, read_write> clusters : array<Cluster>;
+@group(0) @binding(4) var<storage, read> entities : array<Entity>;
 
 var<workgroup> sh : array<vec4f, K>; // 리덕션 작업 공간 (com, A 열 3개 순차 재사용)
 var<workgroup> shCom : vec3f;
@@ -298,6 +320,10 @@ fn quatMat(q : vec4f) -> mat3x3f {
 fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : vec3u) {
 	let ci = wid.x;
 	let i = ci * K + lid.x;
+	// eid 는 lid 와 무관하게 계산 — 조기 return 이 워크그룹 균일해야 barrier 가 성립
+	// (sliceSize 는 K 의 배수를 engine 이 보장)
+	let E = entities[(ci * K) / P.sliceSize];
+	if (E.rigid <= 0.0) { return; } // 강성 없는 개체는 클러스터 규칙 없음
 	let p = splats[i].pos;
 	let q0 = rest[i].xyz;
 
@@ -342,7 +368,7 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 
 		// 본드: 스프링 + 감쇠 + 파단 + 재결합. 이웃 com/vel 은 프레임 혼재(Jacobi 근사) 허용.
 		let myVel = (shCom - cl.com) / max(P.dt, 1e-4);
-		let bondDamp = 0.4 * sqrt(max(P.bondK, 0.0)); // 본드당 감쇠 — 6~8개 합산 시 임계 감쇠 근방
+		let bondDamp = 0.4 * sqrt(max(E.bondK, 0.0)); // 본드당 감쇠 — 6~8개 합산 시 임계 감쇠 근방
 		var acc = vec3f(0.0);
 		var maxStrain = 0.0;
 		var flags = cl.flags;
@@ -357,11 +383,11 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 			if ((flags & (1u << b)) != 0u) {
 				let err = actual - shR * restOff;
 				let strain = length(err) / restLen;
-				if (strain > P.toughness) {
+				if (strain > E.toughness) {
 					flags &= ~(1u << b); // 파단 — 균열이 생긴다
 				} else if ((clusters[nIdx].flags & revBit) != 0u) {
 					// 양측 생존 시에만 힘 발생 — 한쪽 스프링은 쌍에 운동량을 주입한다
-					acc += err * P.bondK + (clusters[nIdx].vel - myVel) * bondDamp;
+					acc += err * E.bondK + (clusters[nIdx].vel - myVel) * bondDamp;
 					maxStrain = max(maxStrain, strain);
 				}
 			} else {
@@ -388,7 +414,7 @@ fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : 
 	// 4) 전 스레드: 강체 목표 자세로 복원 + 본드 가속 적용
 	var s = splats[i];
 	let goal = shCom + shR * q0;
-	let corr = (goal - s.pos) * P.rigid;
+	let corr = (goal - s.pos) * E.rigid;
 	s.pos += corr;
 	// 속도 킥은 약하게 — 강한 킥은 본드 스프링과 공진해 골격을 무너뜨린다
 	s.vel += corr * (0.15 / max(P.dt, 1e-4));
@@ -445,19 +471,18 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 `;
 
 	// ── 렌더 패스: 시뮬 상태 → 스플랫 유도 → EWA 투영 래스터 ────────────────
-	const RENDER = SPLAT_STRUCT + CLUSTER_STRUCT + /* wgsl */`
+	const RENDER = SPLAT_STRUCT + ENTITY_STRUCT + CLUSTER_STRUCT + /* wgsl */`
 struct CamParams {
 	view : mat4x4f,
 	proj : mat4x4f,
 	viewport : vec2f, focal : vec2f,
-	colorA : vec4f,   // 유전자 팔레트: 몸통(저속)
-	colorB : vec4f,   // 유전자 팔레트: 끝(고속·고열)
-	size : f32, stretch : f32, opacity : f32, luminosity : f32,
+	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
 };
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
 @group(0) @binding(2) var<uniform> C : CamParams;
 @group(0) @binding(3) var<storage, read> clusters : array<Cluster>;
+@group(0) @binding(4) var<storage, read> entities : array<Entity>;
 
 struct VOut {
 	@builtin(position) pos : vec4f,
@@ -474,8 +499,9 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 
 	let idx = pairs[ii].y;
 	let s = splats[idx];
+	let E = entities[idx / C.sliceSize];
 	let energy = s.misc.x;
-	let alpha = energy * C.opacity;
+	let alpha = energy * E.opacity;
 	if (alpha < 0.004) { return o; }
 
 	let t4 = C.view * vec4f(s.pos, 1.0);
@@ -487,8 +513,8 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let speed = length(s.vel);
 	var e0 = vec3f(0.0, 1.0, 0.0);
 	if (speed > 1e-4) { e0 = s.vel / speed; }
-	let elong = 1.0 + C.stretch * speed;
-	let base = C.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
+	let elong = 1.0 + E.stretch * speed;
+	let base = E.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
 	let sAlong = base * elong;
 	let sPerp = base * inverseSqrt(elong); // 부피 근사 보존
 	var upv = vec3f(0.0, 1.0, 0.0);
@@ -532,9 +558,9 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	// 변형률 발광: 골렘의 균열(스트레스 받는 본드)이 뜨겁게 빛난다
 	let strain = clusters[idx / K].strain;
 	let heat = clamp(1.0 - exp(-0.5 * speed) + max(strain - 0.25, 0.0) * 1.4, 0.0, 1.0);
-	var rgb = mix(C.colorA.rgb, C.colorB.rgb, heat);
-	rgb *= 1.0 + C.luminosity * energy;
-	// L4 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
+	var rgb = mix(E.colorA.rgb, E.colorB.rgb, heat);
+	rgb *= 1.0 + E.luminosity * energy;
+	// L4/L5 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
 	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
 	if (fireHeat > 0.02) {
 		rgb = mix(rgb, vec3f(1.1, 0.5, 0.15), min(fireHeat, 1.0)) * (1.0 + fireHeat);

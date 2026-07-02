@@ -34,6 +34,8 @@
 		// ── L4: 성장/연소 유전자 ──
 		growRate:   ['성장 속도',   0,    0.6,  0.01],
 		flamm:      ['가연성',      0,    3,    0.1],
+		// ── L5: 상호작용 유전자 ──
+		heatEmit:   ['발열',        0,    2,    0.1],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -43,7 +45,7 @@
 			lifeBase: 1.6, emitRadius: 0.35, flowFreq: 2.2, flowSpeed: 1.6,
 			size: 0.035, stretch: 1.1, opacity: 0.5, luminosity: 2.4,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 1.2,
 			colorA: '#a81c06', colorB: '#ffe08a',
 		},
 		'물': {
@@ -51,7 +53,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.4,
 			size: 0.05, stretch: 0.8, opacity: 0.65, luminosity: 0.8,
 			gravity: 7, binding: 10, restDist: 0.55, viscosity: 6, reach: 0.15, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
 			colorA: '#0a2a8a', colorB: '#7fe9ff',
 		},
 		'숲의 정령': {
@@ -59,7 +61,7 @@
 			lifeBase: 3.2, emitRadius: 0.85, flowFreq: 1.3, flowSpeed: 0.55,
 			size: 0.045, stretch: 1.6, opacity: 0.45, luminosity: 1.3,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 1,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
 			colorA: '#0d3410', colorB: '#a8ff6b',
 		},
 		'나무': {
@@ -67,7 +69,7 @@
 			lifeBase: 3.0, emitRadius: 0.5, flowFreq: 1.8, flowSpeed: 0.9,
 			size: 0.05, stretch: 0.8, opacity: 0.75, luminosity: 0.8,
 			gravity: 0, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.12, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, form: 2,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0.12, flamm: 1.2, heatEmit: 0, form: 2,
 			colorA: '#5a4a2e', colorB: '#86e05c',
 		},
 		'돌골렘': {
@@ -75,7 +77,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.055, stretch: 0.3, opacity: 0.9, luminosity: 0.6,
 			gravity: 6, binding: 0, restDist: 0.6, viscosity: 0, reach: 0.14, mortality: 0,
-			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1, growRate: 0, flamm: 0,
+			rigid: 0.5, toughness: 0.5, bondK: 300, form: 1, growRate: 0, flamm: 0, heatEmit: 0,
 			colorA: '#57534b', colorB: '#ff9b3d',
 		},
 		'슬라임': {
@@ -83,7 +85,7 @@
 			lifeBase: 4.0, emitRadius: 0.9, flowFreq: 1.0, flowSpeed: 0.3,
 			size: 0.06, stretch: 0.5, opacity: 0.8, luminosity: 0.5,
 			gravity: 4, binding: 14, restDist: 0.6, viscosity: 8, reach: 0.16, mortality: 0,
-			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0,
+			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0,
 			colorA: '#1c7a2f', colorB: '#b7ff5e',
 		},
 	};
@@ -91,6 +93,7 @@
 	const genes = {};        // 현재 유전자 (숫자) + colorA/colorB 는 vec4 배열로 유지
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
 	let reseedFn = null;     // boot 이후 연결 — 프리셋 전환 시 형태(form) 재생성용
+	let sceneEntities = [genes]; // 장면의 개체 목록 — 개체 0 은 항상 genes(슬라이더 연동)
 
 	function hexToVec4(hex) {
 		const v = parseInt(hex.slice(1), 16);
@@ -109,9 +112,33 @@
 		document.getElementById('colorB').value = p.colorB;
 		genes.colorA = hexToVec4(p.colorA);
 		genes.colorB = hexToVec4(p.colorB);
-		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘 신체 (setCount 가 해석)
+		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무 (setScene 이 해석)
+		genes.emitter = [0, 0.6, 0];
+		sceneEntities = [genes];  // 단일 개체 장면
 		if (reseedFn) reseedFn(); // 프리셋 = 새 존재 → 형태 재생성
 	}
+
+	// 프리셋 → 독립 유전자 사본 (장면의 부가 개체용 — 슬라이더 비연동)
+	function prepGenes(p, emitter) {
+		const g = {};
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k];
+		g.colorA = hexToVec4(p.colorA);
+		g.colorB = hexToVec4(p.colorB);
+		g.form = p.form || 0;
+		g.emitter = emitter || [0, 0.6, 0];
+		return g;
+	}
+
+	// ── L5 장면: 다중 개체 공존 — 개체 간 상호작용은 공유 격자의 창발 ──
+	const SCENES = {
+		'불×나무': () => {
+			applyPreset(PRESETS['나무']); // 개체 0 = 나무 (슬라이더 연동)
+			const fire = prepGenes(PRESETS['불의 정령'], [1.05, 0.45, 0]);
+			fire.emitRadius = 0.3; // 나무 곁의 작은 모닥불
+			sceneEntities = [genes, fire];
+			if (reseedFn) reseedFn();
+		},
+	};
 
 	function buildPanel() {
 		const panel = document.getElementById('genes');
@@ -141,6 +168,13 @@
 			b.addEventListener('click', () => applyPreset(PRESETS[name]));
 			presetBox.appendChild(b);
 		}
+		const sceneBox = document.getElementById('scenes');
+		for (const [name, fn] of Object.entries(SCENES)) {
+			const b = document.createElement('button');
+			b.textContent = name;
+			b.addEventListener('click', fn);
+			sceneBox.appendChild(b);
+		}
 	}
 
 	function fail(msg) {
@@ -168,10 +202,10 @@
 		camera.radius = 4.5;
 
 		const countSel = document.getElementById('count');
-		engine.setCount(parseInt(countSel.value), genes);
-		countSel.addEventListener('change', () => engine.setCount(parseInt(countSel.value), genes));
-		document.getElementById('reseed').addEventListener('click', () => engine.setCount(engine.count, genes));
-		reseedFn = () => { engine.setCount(engine.count, genes); simTime = 0; }; // 성장 시계도 리셋
+		engine.setScene(parseInt(countSel.value), sceneEntities);
+		countSel.addEventListener('change', () => engine.setScene(parseInt(countSel.value), sceneEntities));
+		document.getElementById('reseed').addEventListener('click', () => { engine.setScene(engine.count, sceneEntities); simTime = 0; });
+		reseedFn = () => { engine.setScene(engine.count, sceneEntities); simTime = 0; }; // 성장 시계도 리셋
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
@@ -225,7 +259,7 @@
 			const aspect = canvas.width / canvas.height;
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
 			engine.frame({
-				dt, time: simTime, genes, paused: pauseChk.checked, pull,
+				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});

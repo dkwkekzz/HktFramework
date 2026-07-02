@@ -11,18 +11,24 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소)
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
 → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드
 ```
 
-L4 나무는 sim 안의 조기 경로(`P.growRate > 0`): rest 버퍼가 (부착점, birth) 골격을 담고,
+L4 나무는 sim 안의 조기 경로(`E.growRate > 0`): rest 버퍼가 (부착점, birth) 골격을 담고,
 `misc.z/w` 가 (heat, fuel) 연소 상태. fuel 채널 도입으로 모든 init 은 `misc.w = 1` 필수
 (0 이면 렌더가 재로 해석해 어두워진다).
 
-- `js/wgsl.js` — 셰이더 7종. `Splat` 구조체(48B)는 `engine.js` `SPLAT_STRIDE`(12 float) 와,
-  `SimParams`(144B)는 `frame()` 패킹과, `Cluster`(96B)는 `CLUSTER_STRIDE`(24) 와 바이트 일치 필수.
-  격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 engine.js 와 동기.
+L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) — 스플랫 풀을 균등
+슬라이스로 개체에 배정(`eid = i / sliceSize`, sliceSize 는 256 의 배수 필수 — CLUSTER 의
+워크그룹 균일 조기 return 전제). 격자가 전 개체 공유라 다른 개체의 스플랫이 이웃으로
+잡힌다 — `heatEmit` 유전자(불 정령)가 나무의 연소 전파 규칙에 그대로 물리는 이유.
+격자 셀 크기는 전역 GRID_CELL(0.15) 고정, 개체 reach 는 이하로 클램프.
+
+- `js/wgsl.js` — 셰이더 7종. `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
+  `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
+  바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
 - `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
@@ -48,4 +54,4 @@ L4 나무는 sim 안의 조기 경로(`P.growRate > 0`): rest 버퍼가 (부착�
 
 ## 로드맵
 
-L5 원소 상호작용(불 정령 ↔ 나무, 슬라임의 포식). 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼, L3 본드 더블 버퍼도 대기열.
+장면 편집기(개체 추가/배치 UI), 슬라임의 포식(질량 이전). 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼, L3 본드 더블 버퍼도 대기열.

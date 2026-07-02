@@ -16,10 +16,11 @@
 		overflow-y: auto; background: rgba(12, 14, 26, .82); border: 1px solid #262a44;
 		border-radius: 10px; padding: 12px 14px; backdrop-filter: blur(6px); }
 	#panel h2 { font-size: 12px; margin: 10px 0 6px; color: #9aa3c7; text-transform: none; }
-	#presets { display: flex; gap: 6px; }
-	#presets button { flex: 1; background: #1b2038; color: #dfe4ff; border: 1px solid #303757;
-		border-radius: 6px; padding: 5px 2px; cursor: pointer; font-size: 12px; }
-	#presets button:hover { background: #262d4e; }
+	#presets, #scenes { display: flex; flex-wrap: wrap; gap: 6px; }
+	#presets button, #scenes button { flex: 1 1 30%; background: #1b2038; color: #dfe4ff;
+		border: 1px solid #303757; border-radius: 6px; padding: 5px 2px; cursor: pointer; font-size: 12px; }
+	#presets button:hover, #scenes button:hover { background: #262d4e; }
+	#scenes button { border-color: #6a4a2a; }
 	.row { display: grid; grid-template-columns: 84px 1fr 34px; align-items: center; gap: 6px; margin: 3px 0; }
 	.row label { opacity: .8; font-size: 11.5px; }
 	.row .val { text-align: right; font-size: 11px; opacity: .7; font-variant-numeric: tabular-nums; }
@@ -38,7 +39,7 @@
 
 <div id="hud">
 	<h1>HktSplatGenesis</h1>
-	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L4</div>
+	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L5</div>
 	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동 · Alt+드래그 끌어당기기(슬라임 가르기·골렘 팔 뜯기·나무 점화)</div>
 	<div id="fps">— fps</div>
 </div>
@@ -46,6 +47,9 @@
 <div id="panel">
 	<h2>원소 프리셋 (유전자 공간의 점)</h2>
 	<div id="presets"></div>
+
+	<h2>장면 (다중 개체 — L5)</h2>
+	<div id="scenes"></div>
 
 	<h2>유전자</h2>
 	<div id="genes"></div>
