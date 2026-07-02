@@ -11,6 +11,8 @@
 	const GRID_CELLS = 262144; // 64³ (wgsl.js GRID_CONST 와 일치)
 	const GRID_SLOTS = 16;
 	const GRID_DIM = 64;
+	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
+	const CLUSTER_STRIDE = 20;   // u32/f32 20개 = 80B (wgsl.js Cluster 와 일치)
 
 	function HktGenesisEngine(device, context, format) {
 		this.device = device;
@@ -36,6 +38,10 @@
 		this.gridBuildPipe = d.createComputePipeline({
 			layout: 'auto',
 			compute: { module: d.createShaderModule({ code: W.GRID_BUILD }), entryPoint: 'main' },
+		});
+		this.clusterPipe = d.createComputePipeline({
+			layout: 'auto',
+			compute: { module: d.createShaderModule({ code: W.CLUSTER }), entryPoint: 'main' },
 		});
 		this.keyPipe = d.createComputePipeline({
 			layout: 'auto',
@@ -92,10 +98,15 @@
 		const d = this.device;
 		this.count = n;
 
-		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); }
+		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); this.restBuf.destroy(); this.clusterBuf.destroy(); }
 		this.splatBuf = d.createBuffer({ size: n * SPLAT_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
-		d.queue.writeBuffer(this.splatBuf, 0, this._initData(n, genes));
+		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		const init = (genes.form === 1) ? this._initGolem(n, genes) : this._initCloud(n, genes);
+		d.queue.writeBuffer(this.splatBuf, 0, init.splat);
+		d.queue.writeBuffer(this.restBuf, 0, init.rest);
+		d.queue.writeBuffer(this.clusterBuf, 0, init.cluster);
 
 		// 바이토닉 단계 테이블: (k, j) 를 256B 정렬 슬롯에 미리 기록 → 프레임마다 동적 오프셋만 변경
 		this._passes = [];
@@ -146,12 +157,33 @@
 				{ binding: 0, resource: { buffer: this.splatBuf } },
 				{ binding: 1, resource: { buffer: this.pairBuf } },
 				{ binding: 2, resource: { buffer: this.camUB } },
+				{ binding: 3, resource: { buffer: this.clusterBuf } },
+			],
+		});
+		this.clusterBG = d.createBindGroup({
+			layout: this.clusterPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.splatBuf } },
+				{ binding: 1, resource: { buffer: this.simUB } },
+				{ binding: 2, resource: { buffer: this.restBuf } },
+				{ binding: 3, resource: { buffer: this.clusterBuf } },
 			],
 		});
 	};
 
-	// 초기 상태: 코어 주변 랜덤 분포, 수명 위상 분산 (세대 교대가 자연히 이어지도록)
-	HktGenesisEngine.prototype._initData = function (n, genes) {
+	// 빈 클러스터 테이블 (form 0 — 클러스터 패스 미사용, 렌더 strain 참조용 0 초기화)
+	HktGenesisEngine.prototype._emptyClusters = function (n) {
+		const c = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);
+		const cu = new Uint32Array(c.buffer);
+		for (let ci = 0; ci < n / CLUSTER_K; ci++) {
+			c[ci * CLUSTER_STRIDE + 3] = 1; // quat = identity
+			for (let b = 0; b < 8; b++) cu[ci * CLUSTER_STRIDE + 12 + b] = 0xffffffff;
+		}
+		return c;
+	};
+
+	// form 0 — 코어 주변 랜덤 구름, 수명 위상 분산 (세대 교대가 자연히 이어지도록)
+	HktGenesisEngine.prototype._initCloud = function (n, genes) {
 		const a = new Float32Array(n * SPLAT_STRIDE);
 		for (let i = 0; i < n; i++) {
 			const o = i * SPLAT_STRIDE;
@@ -165,7 +197,89 @@
 			// misc: energy=0, seed
 			a[o + 9] = Math.random() * 100;
 		}
-		return a;
+		return { splat: a, rest: new Float32Array(n * 4), cluster: this._emptyClusters(n) };
+	};
+
+	// form 1 — 돌골렘: 신체 파트에 클러스터(돌덩이)를 배치하고 근접 클러스터끼리 본드 연결
+	HktGenesisEngine.prototype._initGolem = function (n, genes) {
+		const C = n / CLUSTER_K;
+		// 파트: [cx, cy, cz, rx, ry, rz] 타원체 — 다리 2, 몸통, 팔 2, 머리
+		const parts = [
+			[-0.26, 0.48, 0, 0.18, 0.46, 0.18],
+			[0.26, 0.48, 0, 0.18, 0.46, 0.18],
+			[0, 1.18, 0, 0.44, 0.38, 0.3],
+			[-0.68, 0.98, 0, 0.14, 0.42, 0.14],
+			[0.68, 0.98, 0, 0.14, 0.42, 0.14],
+			[0, 1.76, 0, 0.2, 0.2, 0.2],
+		];
+		const weights = parts.map((p) => p[3] * p[4] * p[5]);
+		const wTotal = weights.reduce((s, w) => s + w, 0);
+
+		// 타원체 내부 균등 샘플 (rejection)
+		const samplePart = (p) => {
+			for (;;) {
+				const x = Math.random() * 2 - 1, y = Math.random() * 2 - 1, z = Math.random() * 2 - 1;
+				if (x * x + y * y + z * z <= 1) return [p[0] + x * p[3], p[1] + y * p[4], p[2] + z * p[5]];
+			}
+		};
+
+		// 클러스터 중심 배치 (파트 부피 비례)
+		const centers = [];
+		for (let ci = 0; ci < C; ci++) {
+			let r = Math.random() * wTotal, pi = 0;
+			while (r > weights[pi] && pi < parts.length - 1) { r -= weights[pi]; pi++; }
+			centers.push(samplePart(parts[pi]));
+		}
+
+		// 본드: 컷오프 내 최근접 8개 (대칭 보장은 하지 않음 — 셰이더가 Jacobi 근사 허용)
+		const CUTOFF = 0.5;
+		const bonds = centers.map((c, ci) => {
+			const near = [];
+			for (let cj = 0; cj < C; cj++) {
+				if (cj === ci) continue;
+				const d = Math.hypot(c[0] - centers[cj][0], c[1] - centers[cj][1], c[2] - centers[cj][2]);
+				if (d < CUTOFF) near.push([d, cj]);
+			}
+			near.sort((a, b) => a[0] - b[0]);
+			return near.slice(0, 8).map((x) => x[1]);
+		});
+
+		const splat = new Float32Array(n * SPLAT_STRIDE);
+		const restA = new Float32Array(n * 4);
+		const cluster = new Float32Array(C * CLUSTER_STRIDE);
+		const cu = new Uint32Array(cluster.buffer);
+		for (let ci = 0; ci < C; ci++) {
+			const co = ci * CLUSTER_STRIDE;
+			const boulderR = 0.12 + Math.random() * 0.06;
+			cluster[co + 3] = 1; // quat identity
+			cluster[co + 4] = centers[ci][0]; cluster[co + 5] = centers[ci][1]; cluster[co + 6] = centers[ci][2]; // com
+			cluster[co + 8] = centers[ci][0]; cluster[co + 9] = centers[ci][1]; cluster[co + 10] = centers[ci][2]; // restCom
+			let flags = 0;
+			for (let b = 0; b < 8; b++) {
+				if (b < bonds[ci].length) { cu[co + 12 + b] = bonds[ci][b]; flags |= 1 << b; }
+				else cu[co + 12 + b] = 0xffffffff;
+			}
+			cu[co + 11] = flags;
+
+			for (let k = 0; k < CLUSTER_K; k++) {
+				const i = ci * CLUSTER_K + k;
+				// 돌덩이: 구 내부 균등 샘플 오프셋
+				let ox, oy, oz;
+				for (;;) {
+					ox = Math.random() * 2 - 1; oy = Math.random() * 2 - 1; oz = Math.random() * 2 - 1;
+					if (ox * ox + oy * oy + oz * oz <= 1) break;
+				}
+				ox *= boulderR; oy *= boulderR; oz *= boulderR;
+				const o = i * SPLAT_STRIDE;
+				splat[o + 0] = centers[ci][0] + ox;
+				splat[o + 1] = centers[ci][1] + oy;
+				splat[o + 2] = centers[ci][2] + oz;
+				splat[o + 7] = 1e9; // 불멸 (mortality 0 이 정석이지만 이중 안전)
+				splat[o + 9] = Math.random() * 100;
+				restA[i * 4 + 0] = ox; restA[i * 4 + 1] = oy; restA[i * 4 + 2] = oz;
+			}
+		}
+		return { splat, rest: restA, cluster };
 	};
 
 	// 유전자 + 카메라 → 유니폼 기록 + 한 프레임 인코드/제출
@@ -186,7 +300,8 @@
 		su[13] = n;
 		sf.set(pull, 16);
 		sf.set([em[0] - half, em[1] - half, em[2] - half, g.reach,
-			g.binding, g.restDist, g.viscosity, 0 /* floorY */], 20);
+			g.binding, g.restDist, g.viscosity, 0 /* floorY */,
+			g.rigid, g.toughness, g.bondK, 0], 20);
 		d.queue.writeBuffer(this.simUB, 0, sim);
 
 		// KeyParams (32B) — view 의 z-행
@@ -221,6 +336,12 @@
 			cp.setPipeline(this.simPipe);
 			cp.setBindGroup(0, this.simBG);
 			cp.dispatchWorkgroups(wgs);
+			// L3: 강성 유전자가 있으면 shape matching + 본드 골격 (워크그룹 1개 = 클러스터 1개)
+			if (g.rigid > 0) {
+				cp.setPipeline(this.clusterPipe);
+				cp.setBindGroup(0, this.clusterBG);
+				cp.dispatchWorkgroups(n / CLUSTER_K);
+			}
 		}
 		cp.setPipeline(this.keyPipe);
 		cp.setBindGroup(0, this.keyBG);

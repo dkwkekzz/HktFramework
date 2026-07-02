@@ -26,7 +26,18 @@ struct SimParams {
 	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 상호작용)
 	gridOrigin : vec3f, cellSize : f32,
 	binding : f32,      restDist : f32,  viscosity : f32,  floorY : f32,
-	_pad : vec4f,
+	rigid : f32,        toughness : f32, bondK : f32,      _p2 : f32, // L3 유전자
+};
+`;
+
+	// L3 클러스터(돌덩이) 상태 — 워크그룹 1개 = 클러스터 1개 = 스플랫 256개
+	const CLUSTER_STRUCT = /* wgsl */`
+const K = 256u; // 클러스터 크기 (engine.js CLUSTER_K 와 일치)
+struct Cluster {
+	quat : vec4f,                  // 현재 회전 (shape matching 결과)
+	com : vec3f,    strain : f32,  // 무게중심, 최대 본드 변형률 (렌더 발광용)
+	restCom : vec3f, flags : u32,  // 휴지 무게중심, 본드 생존 비트마스크(하위 8)
+	bonds : array<u32, 8>,         // 이웃 클러스터 인덱스 (0xffffffff = 빈 슬롯)
 };
 `;
 
@@ -184,6 +195,124 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 }
 `;
 
+	// ── 클러스터 패스 (L3): shape matching + 본드 골격 — 골렘의 뼈대 ────────
+	// 워크그룹 하나가 클러스터(스플랫 256개) 하나를 담당. 공유 메모리 리덕션으로
+	// 무게중심과 변형 행렬 A 를 구하고, 회전을 추출해 강체 목표 자세로 복원한다.
+	// 본드는 클러스터 무게중심 간 스프링 — 변형률 > 인성이면 파단, 제자리 복귀 시 재결합.
+	const CLUSTER = SPLAT_STRUCT + SIM_PARAMS + CLUSTER_STRUCT + /* wgsl */`
+@group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
+@group(0) @binding(1) var<uniform> P : SimParams;
+@group(0) @binding(2) var<storage, read> rest : array<vec4f>; // 휴지 오프셋 q0 (클러스터 restCom 기준)
+@group(0) @binding(3) var<storage, read_write> clusters : array<Cluster>;
+
+var<workgroup> sh : array<vec4f, K>; // 리덕션 작업 공간 (com, A 열 3개 순차 재사용)
+var<workgroup> shCom : vec3f;
+var<workgroup> shR : mat3x3f;        // 추출된 회전
+var<workgroup> shBondAcc : vec3f;    // 본드 스프링 가속 (클러스터 전체 공유)
+
+fn quatMul(a : vec4f, b : vec4f) -> vec4f {
+	return vec4f(a.w * b.xyz + b.w * a.xyz + cross(a.xyz, b.xyz), a.w * b.w - dot(a.xyz, b.xyz));
+}
+fn quatMat(q : vec4f) -> mat3x3f {
+	let x = q.x; let y = q.y; let z = q.z; let w = q.w;
+	return mat3x3f(
+		vec3f(1.0 - 2.0 * (y * y + z * z), 2.0 * (x * y + w * z), 2.0 * (x * z - w * y)),
+		vec3f(2.0 * (x * y - w * z), 1.0 - 2.0 * (x * x + z * z), 2.0 * (y * z + w * x)),
+		vec3f(2.0 * (x * z + w * y), 2.0 * (y * z - w * x), 1.0 - 2.0 * (x * x + y * y)));
+}
+
+@compute @workgroup_size(256)
+fn main(@builtin(workgroup_id) wid : vec3u, @builtin(local_invocation_id) lid : vec3u) {
+	let ci = wid.x;
+	let i = ci * K + lid.x;
+	let p = splats[i].pos;
+	let q0 = rest[i].xyz;
+
+	// 1) 무게중심 리덕션
+	sh[lid.x] = vec4f(p, 0.0);
+	workgroupBarrier();
+	for (var st = K / 2u; st > 0u; st >>= 1u) {
+		if (lid.x < st) { sh[lid.x] += sh[lid.x + st]; }
+		workgroupBarrier();
+	}
+	if (lid.x == 0u) { shCom = sh[0].xyz / f32(K); }
+	workgroupBarrier();
+	let d = p - shCom;
+
+	// 2) 변형 행렬 A = Σ d·q0ᵀ — 열 단위 3회 리덕션
+	var A : mat3x3f;
+	for (var j = 0u; j < 3u; j++) {
+		sh[lid.x] = vec4f(d * q0[j], 0.0);
+		workgroupBarrier();
+		for (var st = K / 2u; st > 0u; st >>= 1u) {
+			if (lid.x < st) { sh[lid.x] += sh[lid.x + st]; }
+			workgroupBarrier();
+		}
+		if (lid.x == 0u) { A[j] = sh[0].xyz; }
+		workgroupBarrier();
+	}
+
+	// 3) 회전 추출 + 본드 처리 — thread 0 단독 (클러스터당 스칼라 작업)
+	if (lid.x == 0u) {
+		var cl = clusters[ci];
+		// Müller 회전 추출: 이전 프레임 쿼터니언에서 반복 수렴
+		var q = cl.quat;
+		for (var it = 0; it < 8; it++) {
+			let R = quatMat(q);
+			let denom = abs(dot(R[0], A[0]) + dot(R[1], A[1]) + dot(R[2], A[2])) + 1e-9;
+			let omega = (cross(R[0], A[0]) + cross(R[1], A[1]) + cross(R[2], A[2])) / denom;
+			let w = length(omega);
+			if (w < 1e-6) { break; }
+			q = normalize(quatMul(vec4f(omega / w * sin(0.5 * w), cos(0.5 * w)), q));
+		}
+		shR = quatMat(q);
+
+		// 본드: 스프링 + 파단 + 재결합. 이웃 com 은 이전/현재 프레임 혼재(Jacobi 근사) 허용.
+		var acc = vec3f(0.0);
+		var maxStrain = 0.0;
+		var flags = cl.flags;
+		for (var b = 0u; b < 8u; b++) {
+			let nIdx = cl.bonds[b];
+			if (nIdx == 0xffffffffu) { continue; }
+			let restOff = clusters[nIdx].restCom - cl.restCom;
+			let restLen = length(restOff) + 1e-6;
+			let actual = clusters[nIdx].com - shCom;
+			if ((flags & (1u << b)) != 0u) {
+				let err = actual - shR * restOff;
+				let strain = length(err) / restLen;
+				if (strain > P.toughness) {
+					flags &= ~(1u << b); // 파단 — 균열이 생긴다
+				} else {
+					acc += err * P.bondK;
+					maxStrain = max(maxStrain, strain);
+				}
+			} else {
+				// 재흡수: 끊긴 이웃이 휴지 거리 근처로 돌아오면 재결합
+				if (abs(length(actual) - restLen) < 0.12 * restLen + 0.04) {
+					flags |= (1u << b);
+				}
+			}
+		}
+		shBondAcc = acc;
+		cl.quat = q;
+		cl.com = shCom;
+		cl.strain = maxStrain;
+		cl.flags = flags;
+		clusters[ci] = cl;
+	}
+	workgroupBarrier();
+
+	// 4) 전 스레드: 강체 목표 자세로 복원 + 본드 가속 적용
+	var s = splats[i];
+	let goal = shCom + shR * q0;
+	let corr = (goal - s.pos) * P.rigid;
+	s.pos += corr;
+	s.vel += corr * (0.5 / max(P.dt, 1e-4));
+	s.vel += shBondAcc * P.dt;
+	splats[i] = s;
+}
+`;
+
 	// ── 키 패스: 뷰 깊이 → 정렬 가능 uint 키 ────────────────────────────────
 	const KEY = SPLAT_STRUCT + /* wgsl */`
 struct KeyParams {
@@ -232,7 +361,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 `;
 
 	// ── 렌더 패스: 시뮬 상태 → 스플랫 유도 → EWA 투영 래스터 ────────────────
-	const RENDER = SPLAT_STRUCT + /* wgsl */`
+	const RENDER = SPLAT_STRUCT + CLUSTER_STRUCT + /* wgsl */`
 struct CamParams {
 	view : mat4x4f,
 	proj : mat4x4f,
@@ -244,6 +373,7 @@ struct CamParams {
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
 @group(0) @binding(2) var<uniform> C : CamParams;
+@group(0) @binding(3) var<storage, read> clusters : array<Cluster>;
 
 struct VOut {
 	@builtin(position) pos : vec4f,
@@ -314,8 +444,10 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	o.pos = vec4f(cNdc + corner.x * major / C.viewport + corner.y * minor / C.viewport, 0.0, 1.0);
 	o.quad = corner;
 
-	// ── 시뮬 상태 → 색 유도: 속도가 열(팔레트 보간), 에너지가 발광 ──
-	let heat = 1.0 - exp(-0.5 * speed);
+	// ── 시뮬 상태 → 색 유도: 속도·본드 변형률이 열(팔레트 보간), 에너지가 발광 ──
+	// 변형률 발광: 골렘의 균열(스트레스 받는 본드)이 뜨겁게 빛난다
+	let strain = clusters[idx / K].strain;
+	let heat = clamp(1.0 - exp(-0.5 * speed) + max(strain - 0.25, 0.0) * 1.4, 0.0, 1.0);
 	var rgb = mix(C.colorA.rgb, C.colorB.rgb, heat);
 	rgb *= 1.0 + C.luminosity * energy;
 	o.col = vec4f(rgb, alpha);
@@ -331,5 +463,5 @@ fn fs(in : VOut) -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD };
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER };
 })(window);
