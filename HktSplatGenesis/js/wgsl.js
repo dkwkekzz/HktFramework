@@ -118,10 +118,10 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	acc += flow(s.pos * P.flowFreq, P.time * P.flowSpeed) * P.volatility;
 	acc.y += P.updraft - P.gravity;
 
-	// 포인터 인력 (Alt+드래그): 국소 가우시안 감쇠 — 슬라임을 찢고 당기는 손
+	// 포인터 인력 (Alt+드래그): 좁은 가우시안 감쇠(σ≈0.4) — 덩어리 일부만 집어 뜯는 손
 	if (P.pull.w > 0.0) {
 		let d = P.pull.xyz - s.pos;
-		acc += d * P.pull.w * exp(-dot(d, d) * 0.8);
+		acc += d * P.pull.w * exp(-dot(d, d) * 3.0);
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다

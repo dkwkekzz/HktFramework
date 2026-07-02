@@ -169,7 +169,7 @@
 		canvas.addEventListener('pointerdown', (e) => {
 			if (!e.altKey) return;
 			const p = pullPointFromEvent(e);
-			if (p) { pull[0] = p[0]; pull[1] = p[1]; pull[2] = p[2]; pull[3] = 30; }
+			if (p) { pull[0] = p[0]; pull[1] = p[1]; pull[2] = p[2]; pull[3] = 55; }
 		});
 		canvas.addEventListener('pointermove', (e) => {
 			if (pull[3] <= 0) return;
