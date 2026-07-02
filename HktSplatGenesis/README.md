@@ -13,12 +13,17 @@
 
 ## 실행
 
-WebGPU 지원 브라우저(Chrome/Edge 113+) 필요. 로컬 정적 서버 권장:
+WebGPU 지원 브라우저(Chrome/Edge 113+) 필요.
+
+- **Windows**: `run.bat` 더블클릭 (Python 필요 — py 런처/python 자동 탐색)
+- **macOS/Linux**: `./run.sh`
+
+둘 다 로컬 정적 서버(`:8123`)를 띄우고 기본 브라우저를 연다. 수동 실행은:
 
 ```bash
 cd HktSplatGenesis
-python -m http.server 8080
-# 브라우저에서 http://localhost:8080
+python -m http.server 8123
+# 브라우저에서 http://localhost:8123
 ```
 
 우측 패널: 원소 프리셋(불/물/숲) → 유전자 슬라이더로 연속 변형 → 중간 생물 탐색.
