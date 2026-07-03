@@ -37,11 +37,14 @@
 	#tabs .tab { flex: 1; background: #141830; color: #9aa3c7; border: 1px solid #262a44;
 		border-radius: 8px; padding: 6px 0; font-size: 12px; font-weight: 600; cursor: pointer; }
 	#tabs .tab.on { background: #262d4e; color: #fff; border-color: #3d466f; }
-	#drop { margin-top: 8px; border: 1.5px dashed #3d466f; border-radius: 9px; padding: 12px;
+	#drop, #stageDrop { margin-top: 8px; border: 1.5px dashed #3d466f; border-radius: 9px; padding: 12px;
 		text-align: center; font-size: 12px; color: #9aa3c7; cursor: pointer; line-height: 1.5; transition: .15s; }
-	#drop.hot { border-color: #ff9d6e; background: rgba(255, 157, 110, .08); color: #dfe4ff; }
-	#skelStatus { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #9aa3c7; }
-	#skelStatus b { color: #8be9a8; }
+	#drop.hot, #stageDrop.hot { border-color: #ff9d6e; background: rgba(255, 157, 110, .08); color: #dfe4ff; }
+	#skelStatus, #stageStatus { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #9aa3c7; }
+	#skelStatus b, #stageStatus b { color: #8be9a8; }
+	#stageUrl { width: 100%; box-sizing: border-box; background: #1b2038; color: #dfe4ff;
+		border: 1px solid #303757; border-radius: 6px; padding: 4px 6px; font-size: 11.5px; }
+	.note { margin-top: 8px; font-size: 11px; color: #9aa3c7; opacity: .8; line-height: 1.5; }
 </style>
 </head>
 <body>
@@ -58,6 +61,7 @@
 	<div id="tabs">
 		<button class="tab on" data-tab="genes">유전자</button>
 		<button class="tab" data-tab="skel">뼈대</button>
+		<button class="tab" data-tab="stage">무대</button>
 	</div>
 
 	<div id="tab-genes">
@@ -114,6 +118,35 @@
 		<input type="file" id="fbxFile" accept=".fbx" style="display: none">
 		<div id="skelStatus"></div>
 	</div>
+
+	<!-- S 트랙: 무대 — 외부 생성 3DGS 월드(worldlabs Marble)를 Spark 로 로드. 생명과 별개 레이어 -->
+	<div id="tab-stage" style="display: none">
+		<h2>월드 (Marble → Spark)</h2>
+		<div class="inline" style="display: block">
+			<input type="text" id="stageUrl" placeholder="월드 URL (.spz / .ply / .rad …)">
+		</div>
+		<div class="inline">
+			<button class="small" id="stageLoad">URL 불러오기</button>
+			<button class="small" id="stageSample">샘플 (네트워크)</button>
+		</div>
+		<div id="stageDrop">.spz / .ply 파일을 여기에 드롭<br>(Marble → Export → Splats)</div>
+		<input type="file" id="stageFile" accept=".spz,.ply,.splat,.ksplat,.sog,.rad" style="display: none">
+		<div id="stageStatus">월드 미로드 — 수급 안내: assets/worlds/README.md</div>
+		<div class="inline">
+			<label><input type="checkbox" id="stageOn"> 무대 표시</label>
+		</div>
+
+		<h2>정합 (Marble 좌표 → 생명 월드)</h2>
+		<div class="row"><label>오프셋 X</label><input type="range" id="stX" min="-15" max="15" step="0.05" value="0"><span class="val">0</span></div>
+		<div class="row"><label>오프셋 Y</label><input type="range" id="stY" min="-15" max="15" step="0.05" value="0"><span class="val">0</span></div>
+		<div class="row"><label>오프셋 Z</label><input type="range" id="stZ" min="-15" max="15" step="0.05" value="0"><span class="val">0</span></div>
+		<div class="row"><label>스케일</label><input type="range" id="stScale" min="0.05" max="8" step="0.05" value="1"><span class="val">1</span></div>
+		<div class="row"><label>회전 Y°</label><input type="range" id="stYaw" min="-180" max="180" step="1" value="0"><span class="val">0</span></div>
+		<div class="inline">
+			<label><input type="checkbox" id="stFlip"> 상하 뒤집기 (캡처 y-down)</label>
+		</div>
+		<div class="note">무대는 로드, 생명은 배양 — Docs/PLAN-SparkTerrain.md</div>
+	</div>
 </div>
 
 <div id="overlay"></div>
@@ -128,5 +161,16 @@
 <script src="js/wgsl.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/app.js"></script>
+<!-- S 트랙 무대: Spark(WebGL2) + three r180 ESM — vendor/spark/ 로 격리, 전역 THREE(r147)와 혼용 금지 -->
+<script type="importmap">
+{
+	"imports": {
+		"three": "./vendor/spark/three.module.min.js",
+		"three/addons/postprocessing/Pass.js": "./vendor/spark/Pass.js",
+		"@sparkjsdev/spark": "./vendor/spark/spark.module.min.js"
+	}
+}
+</script>
+<script type="module" src="js/stage.js"></script>
 </body>
 </html>

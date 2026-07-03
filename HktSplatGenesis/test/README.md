@@ -18,6 +18,7 @@ npm install                # playwright (브라우저 포함)
 | `node render-shot.js walk.png walk` | 히키토 built-in 클립(walk/idle/wave) — 살이 뼈대를 덮는가 (사진) |
 | `node fbx-shot.js` | Mixamo FBX 드롭 경로 — 파싱→친화→살 성장 (사진, samba.fbx 필요: 파일 상단 주석의 curl) |
 | `node app-smoke.js` | 실제 index.html 부트 — 프리셋/탭/클립 전환/FBX 입력, 콘솔·GPU 오류 0 |
+| `node stage-shot.js out.png` | S 트랙 무대 합성 — 절차 지형 fixture(PLY 즉석 생성)를 Spark 로 로드, 생명(WebGPU readback)과 페이지 내 합성 사진 + 판정 |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

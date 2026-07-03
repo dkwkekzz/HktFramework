@@ -35,8 +35,10 @@
 상세 계획·아키텍처·리스크는 [PLAN-SparkTerrain.md](PLAN-SparkTerrain.md) 참조. 무대(외부 생성
 3DGS 지형, Spark 렌더) 위에 생명(기존 WebGPU 배양)이 사는 2층 세계 — R 트랙과 독립 진행 가능.
 
-- **S1 — 무대 로더 + 카메라 동기**: `vendor/spark/`(three r180+ ESM 격리) + `js/stage.js` +
-  WebGPU 캔버스 투명 합성. 완료: 무대 위 생명 오버레이 스크린샷 (오클루전 없음 상태).
+- ✅ **S1 — 무대 로더 + 카메라 동기**: `vendor/spark/`(spark 2.1.0 + three 0.180 ESM 격리) +
+  `js/stage.js`(무대 탭: URL/드롭/정합 노브, `?world=` 딥링크) + WebGPU 캔버스 premultiplied
+  투명 합성. 검증: `node test/stage-shot.js` — 절차 지형 fixture(PLY) 위 생명 오버레이 사진.
+  함정: SparkRenderer 는 자동 생성이 아니다 — scene 에 명시적으로 추가해야 그려진다.
 - **S2 — collider GLB → heightfield → 시뮬 바닥**: 평면 바닥을 지형 샘플로 교체.
   완료: 슬라임이 경사를 흘러내리는 스크린샷 + 평지 폴백 회귀 없음.
 - **S3 — 오클루전 합성**: collider depth prepass + soft fade, fog 톤 정합.

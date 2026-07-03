@@ -1,0 +1,5 @@
+# 월드 에셋(수백 MB)은 커밋 금지 — 안내와 정합 사이드카(json)만 버전 관리
+*
+!.gitignore
+!README.md
+!*.json

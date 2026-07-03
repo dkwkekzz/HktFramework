@@ -51,6 +51,9 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
 - `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
   살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
+- `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
+  생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
+  클립 규약이 다르다). 생명→무대 데이터 흐름 없음.
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 

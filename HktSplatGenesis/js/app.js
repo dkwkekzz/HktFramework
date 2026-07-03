@@ -121,18 +121,23 @@
 		const canvas = document.getElementById('gpu');
 		const context = canvas.getContext('webgpu');
 		const format = navigator.gpu.getPreferredCanvasFormat();
-		context.configure({ device, format, alphaMode: 'opaque' });
+		// premultiplied: 무대(stage) 레이어 위에 캔버스 알파로 합성 (무대 꺼짐 = a1 클리어라 기존과 동일)
+		// COPY_SRC: 하니스가 스왑체인을 readback 으로 촬영할 수 있게 (test/stage-shot.js)
+		context.configure({
+			device, format, alphaMode: 'premultiplied',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+		});
 
 		const engine = new HktGenesisEngine(device, context, format);
 		const camera = new HktOrbitCamera(canvas);
 		camera.radius = 4.5;
 
-		// ── 패널 탭: 유전자 | 뼈대 ──
+		// ── 패널 탭: 유전자 | 뼈대 | 무대 ──
+		const TABS = ['genes', 'skel', 'stage'];
 		for (const b of document.querySelectorAll('#tabs .tab')) {
 			b.addEventListener('click', () => {
 				document.querySelectorAll('#tabs .tab').forEach((x) => x.classList.toggle('on', x === b));
-				document.getElementById('tab-genes').style.display = b.dataset.tab === 'genes' ? '' : 'none';
-				document.getElementById('tab-skel').style.display = b.dataset.tab === 'skel' ? '' : 'none';
+				for (const t of TABS) document.getElementById('tab-' + t).style.display = b.dataset.tab === t ? '' : 'none';
 			});
 		}
 
@@ -193,6 +198,55 @@
 		drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) readFBXFile(e.dataTransfer.files[0]); });
 		drop.addEventListener('click', () => fbxFile.click());
 		fbxFile.addEventListener('change', (e) => readFBXFile(e.target.files[0]));
+
+		// ── S 트랙 무대 UI: js/stage.js(ES module) 는 classic 스크립트보다 늦게 실행된다 —
+		// 전역 접근은 항상 지연 getter 로 (부트 시점엔 HktGenesisStage 가 없을 수 있음) ──
+		const stage = () => window.HktGenesisStage;
+		const stageStatusEl = document.getElementById('stageStatus');
+		let stageStatusBound = false;
+		function bindStageStatus() {
+			if (stageStatusBound || !stage()) return;
+			stage().onStatus((html) => { stageStatusEl.innerHTML = html; });
+			stageStatusBound = true;
+		}
+		document.getElementById('stageLoad').addEventListener('click', () => {
+			const url = document.getElementById('stageUrl').value.trim();
+			if (!url || !stage()) return;
+			bindStageStatus();
+			stage().load(url);
+		});
+		document.getElementById('stageSample').addEventListener('click', () => {
+			if (!stage()) return;
+			bindStageStatus();
+			document.getElementById('stageUrl').value = stage().SAMPLE_URL;
+			stage().load(stage().SAMPLE_URL);
+		});
+		document.getElementById('stageOn').addEventListener('change', (e) => {
+			if (stage()) stage().setEnabled(e.target.checked);
+		});
+		const stageDrop = document.getElementById('stageDrop');
+		const stageFile = document.getElementById('stageFile');
+		function loadStageFile(f) {
+			if (!f || !stage()) return;
+			bindStageStatus();
+			stage().load(f);
+		}
+		['dragover', 'dragenter'].forEach((ev) => stageDrop.addEventListener(ev, (e) => { e.preventDefault(); stageDrop.classList.add('hot'); }));
+		['dragleave', 'drop'].forEach((ev) => stageDrop.addEventListener(ev, (e) => { e.preventDefault(); stageDrop.classList.remove('hot'); }));
+		stageDrop.addEventListener('drop', (e) => loadStageFile(e.dataTransfer.files[0]));
+		stageDrop.addEventListener('click', () => stageFile.click());
+		stageFile.addEventListener('change', (e) => loadStageFile(e.target.files[0]));
+		// 정합 노브 → stage.setTransform (Marble 좌표계를 생명 월드에 맞추는 유일한 통로)
+		for (const [id, key] of [['stX', 'x'], ['stY', 'y'], ['stZ', 'z'], ['stScale', 'scale'], ['stYaw', 'yawDeg']]) {
+			const el = document.getElementById(id);
+			el.addEventListener('input', () => {
+				el.nextElementSibling.textContent = el.value;
+				if (stage()) stage().setTransform({ [key]: parseFloat(el.value) });
+			});
+		}
+		document.getElementById('stFlip').addEventListener('change', (e) => {
+			if (stage()) stage().setTransform({ flip: e.target.checked });
+		});
 
 		const countSel = document.getElementById('count');
 		engine.setScene(parseInt(countSel.value), sceneEntities);
@@ -258,12 +312,19 @@
 					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat) // 외부 클립은 증분 시간
 					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);       // built-in 은 절대 시간
 			}
+			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
+			bindStageStatus();
+			const stageOn = stage() && stage().enabled;
+			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
+				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
+			// 하니스 훅: 스왑체인 readback 은 present 전(같은 태스크)이어야 한다 — test/README 함정
+			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats`;

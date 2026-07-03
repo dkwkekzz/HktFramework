@@ -573,7 +573,9 @@
 		const rp = enc.beginRenderPass({
 			colorAttachments: [{
 				view: this.context.getCurrentTexture().createView(),
-				clearValue: { r: 0.012, g: 0.014, b: 0.03, a: 1 },
+				// 무대(stage) 합성 시 a=0 투명 클리어 — premultiplied over 가 dst 알파에
+				// 커버리지를 누적하므로 캔버스 알파 합성이 그대로 성립한다 (S 트랙)
+				clearValue: opts.background || { r: 0.012, g: 0.014, b: 0.03, a: 1 },
 				loadOp: 'clear',
 				storeOp: 'store',
 			}],
