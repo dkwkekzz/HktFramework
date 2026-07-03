@@ -2,6 +2,14 @@
 
 캡처 없는 절차적/창발 3DGS 실험장. **스플랫 = 세포** — 시뮬 상태가 유일한 원본이고 렌더 속성은 항상 유도된다. `HktGaussianSplatWeb`(PLY 뷰어)과 별개 프로젝트지만 무-빌드 컨벤션과 EWA 렌더 수학을 공유한다.
 
+## 작업 절차 (새 세션 진입 순서)
+
+1. **[Docs/DESIGN.md](Docs/DESIGN.md)** — 구현 의도, 레이어 지도(의도→구현→검증→한계), 설계 결정.
+2. **[Docs/ROADMAP.md](Docs/ROADMAP.md)** — 단계별 작업 큐 (목표·구현 지점·완료 기준). 여기서 다음 단계를 고른다.
+3. 해당 코드 주석 — 세부 설계·함정의 원본.
+4. 검증은 `test/` 하니스([test/README.md](test/README.md)) — 사진 없는 "동작함" 주장 금지.
+5. 단계 완료 시 ROADMAP 체크, 새 결정·함정은 DESIGN 에 기록. 이 문서(CLAUDE.md)에는 쌓지 않는다.
+
 ## 절대 원칙
 
 1. **렌더 속성 직접 생성 금지** — 공분산·색·불투명도는 반드시 시뮬 상태(pos/vel/age/energy)와 유전자로부터 셰이더에서 유도한다. "모양을 그리는" 코드가 생기는 순간 이 프로젝트의 존재 이유가 사라진다.
@@ -37,7 +45,8 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
   `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
   바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
 - `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
-- `js/app.js` — 유전자 정의(`GENE_DEFS`)·프리셋(`PRESETS`)·UI. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
+- `js/presets.js` — 유전자 스키마(`GENE_DEFS`)·프리셋(`PRESETS`)의 유일한 원본 (app.js 와 test/ 가 공유 — 드리프트 방지).
+- `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
 - `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
   살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
@@ -64,9 +73,5 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `vendor/` 는 유일한 서드파티 예외 — three r147 UMD(+FBXLoader/fflate). **FBX 파싱/FK 전용**,
   렌더·시뮬 경로에서 three 사용 금지.
 - 튜닝 노브는 하드코딩하지 않고 `GENE_DEFS` 슬라이더로 노출 (UE CVar 관례의 웹 대응).
-- **이 문서는 얇게 유지** — 위치·불변 조건·함정 포인터만. 경위, 서사, 튜닝 수치, 세부 설계는
-  코드 주석이 원본이고 여기 중복 기재하지 않는다. 레이어당 한 문단을 넘기면 잘라낼 것.
-
-## 로드맵
-
-장면 편집기(개체 추가/배치 UI), 슬라임의 포식(질량 이전). 진짜 curl noise(발산 무), GPU radix sort 대체, 다중 개체(유전자 per-entity 버퍼), L2 위치 더블 버퍼, L3 본드 더블 버퍼도 대기열.
+- **문서 역할 분담** — CLAUDE.md: 위치·불변·컨벤션(얇게, 레이어당 한 문단). DESIGN.md: 의도·결정.
+  ROADMAP.md: 다음 단계. 코드 주석: 세부·함정의 원본. 경위/서사는 커밋 메시지에만.

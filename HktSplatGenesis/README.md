@@ -82,3 +82,5 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 - **L6 뼈대 살** ✅ hikito-flesh 이식: Skeleton IR(FK, 관절 53) + 이름 기반 살 문법 + fleshK 성장 자리 스프링 + 뼈대 오버레이 + **Mixamo FBX 드롭** → **히키토** (구름이 뼈대 위로 응축해 살이 되고, built-in 클립(걷기/숨쉬기/인사)과 실제 Mixamo 클립을 지연 추종하며 출렁이고, Alt+드래그로 뜯으면 다시 자란다)
 
 이후 UE5 이식: 이 compute 파이프라인이 그대로 설계도가 된다 (`HktGaussianSplat` 플러그인의 래스터 + Niagara/compute 시뮬).
+
+다음 단계 큐(살 이음새, Evaluator, detail 층, 메시화…)와 완료 기준은 [Docs/ROADMAP.md](Docs/ROADMAP.md), 구현 의도·설계 결정은 [Docs/DESIGN.md](Docs/DESIGN.md) 참조.

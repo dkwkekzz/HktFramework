@@ -1,0 +1,8 @@
+{
+	"name": "hktsplatgenesis-test",
+	"private": true,
+	"description": "HktSplatGenesis 검증 하니스 (헤드리스 WebGPU 촬영/스모크)",
+	"devDependencies": {
+		"playwright": "^1.40.0"
+	}
+}
