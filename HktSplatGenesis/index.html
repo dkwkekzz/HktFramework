@@ -32,6 +32,16 @@
 	input[type=color] { width: 40px; height: 22px; border: none; background: none; padding: 0; cursor: pointer; }
 	#overlay { position: absolute; inset: 0; display: none; align-items: center; justify-content: center;
 		background: rgba(4, 5, 12, .92); font-size: 15px; padding: 40px; text-align: center; z-index: 10; }
+	/* ── 패널 탭 (hikito-flesh 패널 스타일 대응) ── */
+	#tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+	#tabs .tab { flex: 1; background: #141830; color: #9aa3c7; border: 1px solid #262a44;
+		border-radius: 8px; padding: 6px 0; font-size: 12px; font-weight: 600; cursor: pointer; }
+	#tabs .tab.on { background: #262d4e; color: #fff; border-color: #3d466f; }
+	#drop { margin-top: 8px; border: 1.5px dashed #3d466f; border-radius: 9px; padding: 12px;
+		text-align: center; font-size: 12px; color: #9aa3c7; cursor: pointer; line-height: 1.5; transition: .15s; }
+	#drop.hot { border-color: #ff9d6e; background: rgba(255, 157, 110, .08); color: #dfe4ff; }
+	#skelStatus { margin-top: 8px; font-size: 11px; line-height: 1.5; color: #9aa3c7; }
+	#skelStatus b { color: #8be9a8; }
 </style>
 </head>
 <body>
@@ -39,45 +49,82 @@
 
 <div id="hud">
 	<h1>HktSplatGenesis</h1>
-	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L5</div>
-	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동 · Alt+드래그 끌어당기기(슬라임 가르기·골렘 팔 뜯기·나무 점화)</div>
+	<div class="sub">캡처 없음 — 유전자(속성)로부터 창발하는 가우시안 스플랫 생명 · L6</div>
+	<div class="sub">드래그 회전 · 휠 줌 · Shift+드래그 이동 · Alt+드래그 끌어당기기(슬라임 가르기·골렘 팔 뜯기·나무 점화·히키토 살 뜯기)</div>
 	<div id="fps">— fps</div>
 </div>
 
 <div id="panel">
-	<h2>원소 프리셋 (유전자 공간의 점)</h2>
-	<div id="presets"></div>
-
-	<h2>장면 (다중 개체 — L5)</h2>
-	<div id="scenes"></div>
-
-	<h2>유전자</h2>
-	<div id="genes"></div>
-
-	<h2>팔레트</h2>
-	<div class="inline">
-		<label>몸통(저속)</label><input type="color" id="colorA">
-		<label>끝(고속)</label><input type="color" id="colorB">
+	<div id="tabs">
+		<button class="tab on" data-tab="genes">유전자</button>
+		<button class="tab" data-tab="skel">뼈대</button>
 	</div>
 
-	<h2>시스템</h2>
-	<div class="inline">
-		<label>스플랫 수</label>
-		<select id="count">
-			<option value="65536">64k</option>
-			<option value="131072" selected>128k</option>
-			<option value="262144">256k</option>
-		</select>
-		<button class="small" id="reseed">재시드</button>
+	<div id="tab-genes">
+		<h2>원소 프리셋 (유전자 공간의 점)</h2>
+		<div id="presets"></div>
+
+		<h2>장면 (다중 개체 — L5)</h2>
+		<div id="scenes"></div>
+
+		<h2>유전자</h2>
+		<div id="genes"></div>
+
+		<h2>팔레트</h2>
+		<div class="inline">
+			<label>몸통(저속)</label><input type="color" id="colorA">
+			<label>끝(고속)</label><input type="color" id="colorB">
+		</div>
+
+		<h2>시스템</h2>
+		<div class="inline">
+			<label>스플랫 수</label>
+			<select id="count">
+				<option value="65536">64k</option>
+				<option value="131072" selected>128k</option>
+				<option value="262144">256k</option>
+			</select>
+			<button class="small" id="reseed">재시드</button>
+		</div>
+		<div class="inline">
+			<label><input type="checkbox" id="pause"> 일시정지</label>
+		</div>
 	</div>
-	<div class="inline">
-		<label><input type="checkbox" id="pause"> 일시정지</label>
+
+	<div id="tab-skel" style="display: none">
+		<h2>모션</h2>
+		<div class="inline" style="display: block">
+			<select id="skelClip" style="width: 100%">
+				<option value="walk" selected>걷기 (built-in)</option>
+				<option value="idle">숨쉬기 (built-in)</option>
+				<option value="wave">인사 (built-in)</option>
+				<option value="external" id="extOpt" disabled>불러온 Mixamo 클립</option>
+			</select>
+		</div>
+		<div class="row"><label>클립 속도</label><input type="range" id="skelSpeed" min="0" max="2.5" step="0.05" value="1"><span class="val">1</span></div>
+
+		<h2>살 문법</h2>
+		<div class="row"><label>통통함</label><input type="range" id="skelFat" min="0.5" max="1.8" step="0.05" value="1"><span class="val">1</span></div>
+		<div class="inline">
+			<label><input type="checkbox" id="skelBones" checked> 뼈대 표시</label>
+		</div>
+
+		<h2>Mixamo 불러오기</h2>
+		<div id="drop">FBX 파일을 여기에 드롭<br>(Mixamo → Download → FBX)</div>
+		<input type="file" id="fbxFile" accept=".fbx" style="display: none">
+		<div id="skelStatus"></div>
 	</div>
 </div>
 
 <div id="overlay"></div>
 
+<!-- vendor: FBX 드롭 전용 (three 는 뼈대 FK 입력만 담당 — 렌더/시뮬은 자체 WebGPU) -->
+<script src="vendor/three.min.js"></script>
+<script src="vendor/fflate.min.js"></script>
+<script src="vendor/FBXLoader.js"></script>
 <script src="js/math.js"></script>
+<script src="js/skeleton.js"></script>
+<script src="js/presets.js"></script>
 <script src="js/wgsl.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/app.js"></script>

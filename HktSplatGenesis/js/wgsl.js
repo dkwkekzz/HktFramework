@@ -27,7 +27,7 @@ struct SimParams {
 	pull : vec4f,       // xyz = 인력점, w = 강도 (포인터 — 구름엔 인력, 나무엔 불씨)
 	gridOrigin : vec3f, cellSize : f32,
 	dt : f32, time : f32, count : u32, sliceSize : u32,
-	floorY : f32, _s0 : f32, _s1 : f32, _s2 : f32,
+	floorY : f32, boneCount : f32, _s1 : f32, _s2 : f32, // L6: 뼈 세그먼트 수
 };
 `;
 
@@ -39,7 +39,7 @@ struct Entity {
 	emitRadius : f32,  flowFreq : f32,  flowSpeed : f32, gravity : f32,
 	mortality : f32,   binding : f32,   restDist : f32,  viscosity : f32,
 	reach : f32,       rigid : f32,     toughness : f32, bondK : f32,
-	growRate : f32,    flamm : f32,     heatEmit : f32,  _e0 : f32,
+	growRate : f32,    flamm : f32,     heatEmit : f32,  fleshK : f32, // fleshK: L6 살 자리 스프링 강도
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
 };
@@ -93,7 +93,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 }
 `;
 
-	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 ────
+	// ── 시뮬 패스: L1 자율 + L2 이웃 + L4 성장/연소 + L5 개체 간 열 전달 + L6 뼈대 SDF 살 ──
 	const SIM = SPLAT_STRUCT + SIM_PARAMS + ENTITY_STRUCT + GRID_CONST + /* wgsl */`
 @group(0) @binding(0) var<storage, read_write> splats : array<Splat>;
 @group(0) @binding(1) var<uniform> P : SimParams;
@@ -101,6 +101,7 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 @group(0) @binding(3) var<storage, read> gridSlots : array<u32>;
 @group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
 @group(0) @binding(5) var<storage, read> entities : array<Entity>;
+@group(0) @binding(6) var<storage, read> bones : array<vec4f>; // L6: [2i]=(a.xyz, r1), [2i+1]=(b.xyz, r2)
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -225,6 +226,35 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (P.pull.w > 0.0) {
 		let d = P.pull.xyz - s.pos;
 		acc += d * P.pull.w * exp(-dot(d, d) * 3.0);
+	}
+
+	// L6 규칙: 뼈대 살 — 스플랫은 *제 뼈*(rest.w, 부피 가중 친화) 위의 개인 성장 자리로
+	// 끌려간다. 자리는 시드가 정하는 (축 위치 t, 방위각 θ, 깊이 u) — hikito-flesh 가 SDF 로
+	// 그리는 taper 캡슐 부피를 매개변수로 샘플한 것과 동치이고, L4 나무의 rest 부착점과
+	// 같은 원리를 *현재 뼈 포즈에서 매 프레임 유도*한다 (바인드 포즈 저장 없음 = 스키닝 없음).
+	// 전역 SDF 최근접만 쓰면 축 방향 힘이 0 이라 중력에 뼈 끝으로 흘러 방울로 뭉친다 —
+	// 개인 자리가 온몸 분포를 보장하고, 뼈가 움직이면 그 뼈의 살이 지연 추종한다(출렁임).
+	let nb = u32(P.boneCount);
+	if (E.fleshK > 0.0 && nb > 0u) {
+		let bi = min(u32(rest[i].w), nb - 1u);
+		let A = bones[bi * 2u];
+		let B = bones[bi * 2u + 1u];
+		let ba = B.xyz - A.xyz;
+		let bl = max(length(ba), 1e-5);
+		let axis = ba / bl;
+		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u)
+		let h = hash31(s.misc.y + f32(bi) * 0.317);
+		let rr = mix(A.w, B.w, h.x) * sqrt(h.y);
+		// 뼈 축 수직 기저 — 상수 기준축(어느 뼈와도 평행하지 않게 기울임)이라 포즈 변화에 연속
+		let e1 = normalize(cross(axis, vec3f(0.402, 0.618, 0.675)));
+		let e2 = cross(axis, e1);
+		let th = h.z * 6.2831853;
+		let site = A.xyz + axis * (h.x * bl) + (e1 * cos(th) + e2 * sin(th)) * rr;
+		// 자리 스프링 — 오차 클램프로 원거리 응축(성장) 시 힘 폭주 방지
+		var dv = site - s.pos;
+		let dl = length(dv);
+		if (dl > 0.9) { dv *= 0.9 / dl; }
+		acc += dv * E.fleshK;
 	}
 
 	// L2 규칙: 이웃 응집/분리/점성 — 형태(방울·젤리)가 여기서 창발한다
@@ -579,5 +609,40 @@ fn fs(in : VOut) -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER };
+	// ── 뼈대 오버레이: L6 디버그 시각화 — 뼈 라인 + 관절 점 (hikito-flesh 의 본 오버레이 대응) ──
+	// 스플랫이 아니라 *입력*(뼈대)의 표시이므로 절대 원칙 1 과 무관. 살 위에 겹쳐 그린다.
+	const OVERLAY = /* wgsl */`
+struct CamParams {
+	view : mat4x4f, proj : mat4x4f,
+	viewport : vec2f, focal : vec2f,
+	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+};
+@group(0) @binding(0) var<storage, read> bones : array<vec4f>;
+@group(0) @binding(1) var<uniform> C : CamParams;
+
+// 뼈 라인: bones 는 [2i]=(a,r1), [2i+1]=(b,r2) — line-list 정점 인덱스가 그대로 끝점
+@vertex
+fn vsLine(@builtin(vertex_index) vi : u32) -> @builtin(position) vec4f {
+	return C.proj * (C.view * vec4f(bones[vi].xyz, 1.0));
+}
+@fragment
+fn fsLine() -> @location(0) vec4f {
+	return vec4f(0.98, 0.82, 0.45, 1.0) * 0.9; // premultiplied over
+}
+
+// 관절 점: 끝점당 화면 고정 크기(±5px) 쿼드
+@vertex
+fn vsJoint(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> @builtin(position) vec4f {
+	var clip = C.proj * (C.view * vec4f(bones[ii].xyz, 1.0));
+	if (clip.w <= 0.0) { return vec4f(0.0, 0.0, 2.0, 1.0); } // 카메라 뒤 퇴화
+	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 2.0 - 1.0;
+	return vec4f(clip.xy + corner * (5.0 / C.viewport) * clip.w, clip.z, clip.w);
+}
+@fragment
+fn fsJoint() -> @location(0) vec4f {
+	return vec4f(1.0, 1.0, 1.0, 1.0) * 0.95;
+}
+`;
+
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY };
 })(window);

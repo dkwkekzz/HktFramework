@@ -26,7 +26,7 @@ python -m http.server 8123
 # 브라우저에서 http://localhost:8123
 ```
 
-우측 패널: 원소 프리셋 → 유전자 슬라이더로 연속 변형 → 중간 생물 탐색. 장면 버튼(불×나무)은 다중 개체 공존 데모.
+우측 패널은 탭 2개: **유전자** 탭(원소 프리셋 → 슬라이더로 연속 변형 → 중간 생물 탐색, 장면 버튼(불×나무)은 다중 개체 공존 데모) · **뼈대** 탭(히키토의 모션 클립/속도·통통함·뼈대 표시, 그리고 **Mixamo FBX 드롭존** — Mixamo 에서 FBX 로 받은 캐릭터/클립을 놓으면 실제 클립 위에 살이 자란다).
 
 ## 아키텍처 (전부 GPU 상주, CPU 왕복 없음)
 
@@ -39,6 +39,8 @@ python -m http.server 8123
                         │            L2 이웃 규칙 — 응집/분리(휴지 간격) + 점성, 바닥, 포인터 인력
                         │            L4 나무 — rest 골격 부착 + birth 성장 시계, heat/fuel 연소 전파
                         │            L5 발열(heatEmit) — 다른 개체의 연소 규칙에 열원으로 잡힘
+                        │            L6 뼈대 살(fleshK) — CPU FK 뼈대(taper 캡슐 ≤64) 위
+                        │              개인 성장 자리(시드 → 축 t·방위 θ·깊이 u)로 스플랫이 끌려가 "자란다"
                         │  storage: Splat{pos, vel, age, life, energy, heat, fuel} × N
                         ▼
                   cluster 패스(compute, L3): 워크그룹 1개 = 돌덩이(스플랫 256개) 1개
@@ -51,6 +53,7 @@ python -m http.server 8123
                         ▼
                   렌더: 시뮬 상태 → 3D 공분산 유도(속도 정렬 이방성) + 본드 변형률 → 균열 발광
                         → EWA 2D 투영 → 인스턴스드 쿼드, premultiplied over
+                        → L6 뼈대 오버레이 (라인 + 관절 점, 토글) — 입력의 시각화
 ```
 
 슬라임의 분열·합체도, 골렘의 파괴·재생도, 나무의 연소도 별도 기능이 아니라 규칙의 결과다 —
@@ -62,6 +65,8 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 | 파일 | 역할 |
 |---|---|
 | `js/math.js` | mat4 유틸 + 오빗 카메라 (WebGPU 클립 규약) |
+| `js/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) + FBX 외부 리그 |
+| `vendor/` | three r147 UMD + FBXLoader + fflate — FBX 파싱/FK 전용 (렌더·시뮬은 자체 WebGPU) |
 | `js/wgsl.js` | WGSL 7종: grid clear/build / sim / cluster / key / bitonic sort / render |
 | `js/engine.js` | 버퍼·파이프라인·프레임 인코딩 |
 | `js/app.js` | 유전자 UI + 프리셋 + 루프 |
@@ -74,5 +79,8 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 - **L3 본드/클러스터** ✅ shape matching + 본드 파단/재흡수 → **돌골렘** (팔 뜯기, 균열 발광)
 - **L4 성장** ✅ 절차 가지 골격 + birth 성장 시계 + heat/fuel 연소 전파 → **나무** (성장→점화→연소→재→재생)
 - **L5 원소 상호작용** ✅ 다중 개체 공존(Entity 테이블) + 발열(heatEmit) 유전자 → **불×나무 장면** (모닥불이 나무를 점화)
+- **L6 뼈대 살** ✅ hikito-flesh 이식: Skeleton IR(FK, 관절 53) + 이름 기반 살 문법 + fleshK 성장 자리 스프링 + 뼈대 오버레이 + **Mixamo FBX 드롭** → **히키토** (구름이 뼈대 위로 응축해 살이 되고, built-in 클립(걷기/숨쉬기/인사)과 실제 Mixamo 클립을 지연 추종하며 출렁이고, Alt+드래그로 뜯으면 다시 자란다)
 
 이후 UE5 이식: 이 compute 파이프라인이 그대로 설계도가 된다 (`HktGaussianSplat` 플러그인의 래스터 + Niagara/compute 시뮬).
+
+다음 단계 큐(살 이음새, Evaluator, detail 층, 메시화…)와 완료 기준은 [Docs/ROADMAP.md](Docs/ROADMAP.md), 구현 의도·설계 결정은 [Docs/DESIGN.md](Docs/DESIGN.md) 참조.
