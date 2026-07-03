@@ -224,10 +224,50 @@
 		document.getElementById('stageOn').addEventListener('change', (e) => {
 			if (stage()) stage().setEnabled(e.target.checked);
 		});
+		// ── S2 충돌 지형: collider GLB → heightfield → 시뮬 바닥 ──
+		// 삼각형 수프는 원본 좌표로 보관 — 정합 노브가 바뀌면 같은 변환으로 다시 굽는다
+		let colliderTris = null, colliderName = '', bakeTimer = 0;
+		const HF_REGION = { res: 128, originX: -4.8, originZ: -4.8, cell: 9.6 / 127 }; // 시뮬 격자 XZ 영역
+		function applyCollider() {
+			if (!colliderTris) return;
+			const tf = stage() ? stage().getTransform() : undefined;
+			const hf = HktHeightfield.bake(colliderTris, Object.assign({ transform: tf }, HF_REGION));
+			engine.setHeightfield(hf);
+			document.getElementById('stCollide').disabled = false;
+			document.getElementById('stCollide').checked = true;
+			stageStatusEl.innerHTML = `<b>충돌 지형 적용</b> — ${colliderName} · 커버리지 ${(hf.coverage * 100).toFixed(0)}%`;
+			if (reseedFn) reseedFn(); // 나무 뿌리/재생성 지점이 지형을 반영하도록
+		}
+		function rebakeCollider() { // 정합 슬라이더 조작 중 과도한 재베이크 방지
+			if (!colliderTris || !document.getElementById('stCollide').checked) return;
+			clearTimeout(bakeTimer);
+			bakeTimer = setTimeout(applyCollider, 300);
+		}
+		function loadColliderBuffer(buf, name) {
+			try {
+				colliderTris = HktHeightfield.parseGLB(buf);
+				colliderName = name;
+				applyCollider();
+			} catch (e) {
+				stageStatusEl.innerHTML = 'collider 파싱 실패: ' + e.message;
+			}
+		}
+		document.getElementById('stCollide').addEventListener('change', (e) => {
+			if (e.target.checked) applyCollider();
+			else { engine.setHeightfield(null); reseedFn(); }
+		});
+
 		const stageDrop = document.getElementById('stageDrop');
 		const stageFile = document.getElementById('stageFile');
 		function loadStageFile(f) {
-			if (!f || !stage()) return;
+			if (!f) return;
+			if (/\.glb$/i.test(f.name)) { // collider 경로 — 무대(비주얼)와 별개
+				const r = new FileReader();
+				r.onload = () => loadColliderBuffer(r.result, f.name);
+				r.readAsArrayBuffer(f);
+				return;
+			}
+			if (!stage()) return;
 			bindStageStatus();
 			stage().load(f);
 		}
@@ -237,16 +277,29 @@
 		stageDrop.addEventListener('click', () => stageFile.click());
 		stageFile.addEventListener('change', (e) => loadStageFile(e.target.files[0]));
 		// 정합 노브 → stage.setTransform (Marble 좌표계를 생명 월드에 맞추는 유일한 통로)
+		// collider heightfield 도 같은 변환을 쓰므로 노브가 바뀌면 재베이크 (디바운스)
 		for (const [id, key] of [['stX', 'x'], ['stY', 'y'], ['stZ', 'z'], ['stScale', 'scale'], ['stYaw', 'yawDeg']]) {
 			const el = document.getElementById(id);
 			el.addEventListener('input', () => {
 				el.nextElementSibling.textContent = el.value;
 				if (stage()) stage().setTransform({ [key]: parseFloat(el.value) });
+				rebakeCollider();
 			});
 		}
 		document.getElementById('stFlip').addEventListener('change', (e) => {
 			if (stage()) stage().setTransform({ flip: e.target.checked });
+			rebakeCollider();
 		});
+
+		// ?collider= 딥링크 (하니스/재현용) — 무대 ?world= 와 대칭
+		const colliderUrl = new URLSearchParams(location.search).get('collider');
+		if (colliderUrl) {
+			fetch(colliderUrl).then((r) => {
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.arrayBuffer();
+			}).then((buf) => loadColliderBuffer(buf, colliderUrl))
+				.catch((e) => { stageStatusEl.innerHTML = 'collider 로드 실패: ' + e.message; });
+		}
 
 		const countSel = document.getElementById('count');
 		engine.setScene(parseInt(countSel.value), sceneEntities);

@@ -6,44 +6,7 @@
 // 함정: swapchain readback 은 마지막 frame 과 같은 태스크여야 한다 (present 함정 — README).
 //       app.js 의 window.__hktAfterFrame 훅이 그 태스크 안에서 호출된다.
 const { serve, launch, collectErrors, savePng } = require('./_common');
-
-// ── 절차 지형 fixture: 3DGS PLY (binary_little_endian, 표준 17 속성) ──
-function genTerrainPly() {
-	const G = 72, N = G * G;
-	const SH_C0 = 0.28209479177387814;
-	const header = 'ply\nformat binary_little_endian 1.0\n' +
-		`element vertex ${N}\n` +
-		['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity',
-			'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
-			.map((p) => `property float ${p}`).join('\n') + '\nend_header\n';
-	const body = Buffer.alloc(N * 17 * 4);
-	const hash = (i) => { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; return ((x >>> 0) / 4294967296); };
-	const height = (x, z) =>
-		0.55 * Math.sin(0.9 * x) * Math.cos(0.7 * z) +
-		0.35 * Math.sin(1.7 * z + 1.3) * Math.cos(1.3 * x - 0.7) +
-		0.18 * Math.sin(2.6 * x + 2.1 * z) - 0.25;
-	let o = 0;
-	const put = (v) => { body.writeFloatLE(v, o); o += 4; };
-	for (let i = 0; i < N; i++) {
-		const gx = i % G, gz = (i / G) | 0;
-		const x = -4.2 + 8.4 * (gx + hash(i * 3) - 0.5) / (G - 1);
-		const z = -4.2 + 8.4 * (gz + hash(i * 3 + 1) - 0.5) / (G - 1);
-		const y = height(x, z);
-		// 팔레트: 계곡 짙은 녹색 → 풀 → 바위 → 설선 (높이 밴드 + 지터)
-		const t = Math.max(0, Math.min(1, (y + 0.6) / 1.2));
-		let r, g, b;
-		if (t < 0.45) { const u = t / 0.45; r = 0.10 + 0.18 * u; g = 0.30 + 0.20 * u; b = 0.12 + 0.07 * u; }
-		else if (t < 0.8) { const u = (t - 0.45) / 0.35; r = 0.28 + 0.18 * u; g = 0.50 - 0.09 * u; b = 0.19 + 0.20 * u; }
-		else { const u = (t - 0.8) / 0.2; r = 0.46 + 0.45 * u; g = 0.41 + 0.51 * u; b = 0.39 + 0.56 * u; }
-		const j = (hash(i * 7) - 0.5) * 0.06;
-		put(x); put(y); put(z); put(0); put(0); put(0);
-		put((r + j - 0.5) / SH_C0); put((g + j - 0.5) / SH_C0); put((b + j - 0.5) / SH_C0);
-		put(2.44); // opacity 0.92 의 logit
-		put(Math.log(0.17)); put(Math.log(0.06)); put(Math.log(0.17)); // 납작한 surfel
-		put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
-	}
-	return Buffer.concat([Buffer.from(header, 'ascii'), body]);
-}
+const { genTerrainPly } = require('./_fixture');
 
 (async () => {
 	const out = process.argv[2] || 'stage.png';

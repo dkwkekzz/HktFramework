@@ -102,6 +102,28 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 @group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
 @group(0) @binding(5) var<storage, read> entities : array<Entity>;
 @group(0) @binding(6) var<storage, read> bones : array<vec4f>; // L6: [2i]=(a.xyz, r1), [2i+1]=(b.xyz, r2)
+// S2 지형: collider 메시에서 CPU 베이크한 heightfield (r32float) — 무대와의 유일한 접점.
+// 없으면 1×1 더미 + on=0 → 평면 바닥(floorY) 폴백 (engine.js setHeightfield)
+@group(0) @binding(7) var hfTex : texture_2d<f32>;
+@group(0) @binding(8) var<uniform> HF : HfParams;
+
+struct HfParams {
+	origin : vec2f, cell : f32, res : f32, // 월드 xz 원점, 텍셀 크기, 한 변 텍셀 수
+	on : f32, _h1 : f32, _h2 : f32, _h3 : f32,
+};
+
+// 지형 높이 — r32float 는 필터 불가라 수동 bilinear (가장자리는 clamp = 지형 연장)
+fn terrainH(xz : vec2f) -> f32 {
+	if (HF.on < 0.5) { return P.floorY; }
+	let uv = clamp((xz - HF.origin) / HF.cell, vec2f(0.0), vec2f(HF.res - 2.0));
+	let i0 = vec2i(floor(uv));
+	let f = uv - floor(uv);
+	let h00 = textureLoad(hfTex, i0, 0).r;
+	let h10 = textureLoad(hfTex, i0 + vec2i(1, 0), 0).r;
+	let h01 = textureLoad(hfTex, i0 + vec2i(0, 1), 0).r;
+	let h11 = textureLoad(hfTex, i0 + vec2i(1, 1), 0).r;
+	return mix(mix(h00, h10, f.x), mix(h01, h11, f.x), f.y);
+}
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -306,12 +328,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (sp > 10.0) { s.vel *= 10.0 / sp; }
 	s.pos += s.vel * P.dt;
 
-	// 바닥 (y = floorY): 감쇠 반사 + 마찰
-	if (s.pos.y < P.floorY) {
-		s.pos.y = P.floorY;
-		if (s.vel.y < 0.0) { s.vel.y *= -0.25; }
-		let fr = exp(-6.0 * P.dt);
-		s.vel = vec3f(s.vel.x * fr, s.vel.y, s.vel.z * fr);
+	// 바닥: 평면(floorY) 또는 S2 지형 heightfield — 법선 기준 감쇠 반사 + 접선 마찰
+	// (평면일 때 법선 (0,1,0) 이라 기존 거동과 정확히 일치: y 반사 -0.25, xz 마찰 exp(-6dt))
+	let ground = terrainH(s.pos.xz);
+	if (s.pos.y < ground) {
+		s.pos.y = ground;
+		var nrm = vec3f(0.0, 1.0, 0.0);
+		if (HF.on > 0.5) {
+			// 중앙 차분 기울기 → 표면 법선: 경사면에서 반사·마찰이 비탈을 따르게 (흘러내림)
+			let e = HF.cell;
+			let hx = terrainH(s.pos.xz + vec2f(e, 0.0)) - terrainH(s.pos.xz - vec2f(e, 0.0));
+			let hz = terrainH(s.pos.xz + vec2f(0.0, e)) - terrainH(s.pos.xz - vec2f(0.0, e));
+			nrm = normalize(vec3f(-hx, 2.0 * e, -hz));
+		}
+		let vn = dot(s.vel, nrm);
+		let vt = s.vel - nrm * vn;
+		s.vel = vt * exp(-6.0 * P.dt) + nrm * select(vn, vn * -0.25, vn < 0.0);
 	}
 
 	splats[i] = s;

@@ -54,6 +54,8 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음.
+- `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
+  (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 

@@ -125,6 +125,11 @@
 			],
 		});
 
+		// S2 지형 heightfield — 기본은 1×1 더미 + on=0 (평면 바닥 폴백). setHeightfield 로 교체.
+		this.hfUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.hfTex = d.createTexture({ size: [1, 1], format: 'r32float', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+		this._hf = null; // CPU 사본 — terrainHeightAt (emitter 보정, 하니스 지표)
+
 		// L2 이웃 격자 (스플랫 수와 무관 — 1회 생성)
 		this.gridCountBuf = d.createBuffer({ size: GRID_CELLS * 4, usage: GPUBufferUsage.STORAGE });
 		this.gridSlotsBuf = d.createBuffer({ size: GRID_CELLS * GRID_SLOTS * 4, usage: GPUBufferUsage.STORAGE });
@@ -151,7 +156,8 @@
 		this.sliceSize = slice;
 
 		if (this.splatBuf) { this.splatBuf.destroy(); this.pairBuf.destroy(); this.sortUB.destroy(); this.restBuf.destroy(); this.clusterBuf.destroy(); }
-		this.splatBuf = d.createBuffer({ size: n * SPLAT_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		// COPY_SRC: 하니스/Evaluator 의 스플랫 상태 readback 용 (디버그 한정 — 프레임 경로 왕복 금지)
+		this.splatBuf = d.createBuffer({ size: n * SPLAT_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST | GPUBufferUsage.COPY_SRC });
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
 		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -160,7 +166,8 @@
 		const restAll = new Float32Array(n * 4);
 		const clusterAll = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);
 		const clusterAllU = new Uint32Array(clusterAll.buffer);
-		ents.forEach((genes, ei) => {
+		ents.forEach((rawGenes, ei) => {
+			const genes = this._terrainAdjust(rawGenes); // S2: emitter 를 지형 위로 (나무가 능선에 뿌리내림)
 			const init = (genes.form === 1) ? this._initGolem(slice, genes)
 				: (genes.form === 2) ? this._initTree(slice, genes)
 				: (genes.form === 3) ? this._initFleshCloud(slice, genes)
@@ -192,18 +199,7 @@
 		d.queue.writeBuffer(this.sortUB, 0, table);
 
 		// 바인드 그룹 재구성
-		this.simBG = d.createBindGroup({
-			layout: this.simPipe.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: this.splatBuf } },
-				{ binding: 1, resource: { buffer: this.simUB } },
-				{ binding: 2, resource: { buffer: this.gridCountBuf } },
-				{ binding: 3, resource: { buffer: this.gridSlotsBuf } },
-				{ binding: 4, resource: { buffer: this.restBuf } },
-				{ binding: 5, resource: { buffer: this.entityBuf } },
-				{ binding: 6, resource: { buffer: this.boneBuf } },
-			],
-		});
+		this._buildSimBG();
 		this.gridBuildBG = d.createBindGroup({
 			layout: this.gridBuildPipe.getBindGroupLayout(0),
 			entries: [
@@ -250,10 +246,70 @@
 		});
 	};
 
+	// simBG 는 setScene(버퍼 재생성)과 setHeightfield(텍스처 교체) 양쪽에서 재구성된다
+	HktGenesisEngine.prototype._buildSimBG = function () {
+		if (!this.splatBuf) return;
+		this.simBG = this.device.createBindGroup({
+			layout: this.simPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.splatBuf } },
+				{ binding: 1, resource: { buffer: this.simUB } },
+				{ binding: 2, resource: { buffer: this.gridCountBuf } },
+				{ binding: 3, resource: { buffer: this.gridSlotsBuf } },
+				{ binding: 4, resource: { buffer: this.restBuf } },
+				{ binding: 5, resource: { buffer: this.entityBuf } },
+				{ binding: 6, resource: { buffer: this.boneBuf } },
+				{ binding: 7, resource: this.hfTex.createView() },
+				{ binding: 8, resource: { buffer: this.hfUB } },
+			],
+		});
+	};
+
+	// S2 지형 heightfield 설치/해제 — hf = { data: Float32Array(res²), res, originX, originZ, cell } | null
+	// 무대(collider 메시)와 시뮬의 유일한 접점: 시뮬은 이 텍스처만 안다 (GPU 상주 원칙 유지)
+	HktGenesisEngine.prototype.setHeightfield = function (hf) {
+		const d = this.device;
+		this.hfTex.destroy();
+		this._hf = hf || null;
+		const u = new Float32Array(8);
+		if (hf) {
+			this.hfTex = d.createTexture({
+				size: [hf.res, hf.res], format: 'r32float',
+				usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST,
+			});
+			d.queue.writeTexture({ texture: this.hfTex }, hf.data, { bytesPerRow: hf.res * 4 }, [hf.res, hf.res]);
+			u.set([hf.originX, hf.originZ, hf.cell, hf.res, 1]);
+		} else {
+			this.hfTex = d.createTexture({ size: [1, 1], format: 'r32float', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
+		}
+		d.queue.writeBuffer(this.hfUB, 0, u);
+		this._buildSimBG();
+	};
+
+	// CPU 측 지형 높이 (bilinear) — emitter 보정·하니스 지표용. 지형 없으면 평면 0.
+	HktGenesisEngine.prototype.terrainHeightAt = function (x, z) {
+		const hf = this._hf;
+		if (!hf) return 0;
+		const cl = (v) => Math.max(0, Math.min(hf.res - 2, v));
+		const u = cl((x - hf.originX) / hf.cell), v = cl((z - hf.originZ) / hf.cell);
+		const iu = Math.floor(u), iv = Math.floor(v), fu = u - iu, fv = v - iv;
+		const at = (a, b) => hf.data[b * hf.res + a];
+		return (at(iu, iv) * (1 - fu) + at(iu + 1, iv) * fu) * (1 - fv) +
+			(at(iu, iv + 1) * (1 - fu) + at(iu + 1, iv + 1) * fu) * fv;
+	};
+
+	// emitter y 를 지형 위 상대 높이로 해석 — 프리셋의 y(지상고)에 지형 높이를 더한다
+	HktGenesisEngine.prototype._terrainAdjust = function (g) {
+		if (!this._hf) return g;
+		const em = g.emitter || [0, 0.6, 0];
+		return Object.assign({}, g, { emitter: [em[0], em[1] + this.terrainHeightAt(em[0], em[2]), em[2]] });
+	};
+
 	// 개체 유전자 → GPU 테이블 (wgsl.js Entity 레이아웃과 일치)
 	HktGenesisEngine.prototype._packEntities = function (ents) {
 		const a = new Float32Array(MAX_ENTITIES * ENTITY_STRIDE);
-		ents.forEach((g, ei) => {
+		ents.forEach((raw, ei) => {
+			const g = this._terrainAdjust(raw); // 재생성(respawn)도 지형 위에서
 			const em = g.emitter || [0, 0.6, 0];
 			const o = ei * ENTITY_STRIDE;
 			a.set([em[0], em[1], em[2], g.cohesion,

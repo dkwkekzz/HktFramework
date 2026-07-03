@@ -129,8 +129,8 @@
 			<button class="small" id="stageLoad">URL 불러오기</button>
 			<button class="small" id="stageSample">샘플 (네트워크)</button>
 		</div>
-		<div id="stageDrop">.spz / .ply 파일을 여기에 드롭<br>(Marble → Export → Splats)</div>
-		<input type="file" id="stageFile" accept=".spz,.ply,.splat,.ksplat,.sog,.rad" style="display: none">
+		<div id="stageDrop">.spz / .ply (무대) 또는 collider .glb (충돌 지형)를 드롭<br>(Marble → Export → Splats + Collider Mesh)</div>
+		<input type="file" id="stageFile" accept=".spz,.ply,.splat,.ksplat,.sog,.rad,.glb" style="display: none">
 		<div id="stageStatus">월드 미로드 — 수급 안내: assets/worlds/README.md</div>
 		<div class="inline">
 			<label><input type="checkbox" id="stageOn"> 무대 표시</label>
@@ -145,6 +145,11 @@
 		<div class="inline">
 			<label><input type="checkbox" id="stFlip"> 상하 뒤집기 (캡처 y-down)</label>
 		</div>
+
+		<h2>충돌 지형 (S2 — collider → 시뮬 바닥)</h2>
+		<div class="inline">
+			<label><input type="checkbox" id="stCollide" disabled> 지형 충돌</label>
+		</div>
 		<div class="note">무대는 로드, 생명은 배양 — Docs/PLAN-SparkTerrain.md</div>
 	</div>
 </div>
@@ -156,6 +161,7 @@
 <script src="vendor/fflate.min.js"></script>
 <script src="vendor/FBXLoader.js"></script>
 <script src="js/math.js"></script>
+<script src="js/heightfield.js"></script>
 <script src="js/skeleton.js"></script>
 <script src="js/presets.js"></script>
 <script src="js/wgsl.js"></script>
