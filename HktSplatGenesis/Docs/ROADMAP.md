@@ -46,8 +46,11 @@
   검증: `node test/terrain-shot.js` — 침투 0% + 바닥 포락선 지형 밀착(0.10 vs 평면 0.32) +
   슬라임 경사 정착·불×나무 골짜기 사진. 한계: 골짜기가 격자 바닥(y=-0.8) 아래면 L2 이웃
   규칙이 꺼진다 — S5 시뮬 버블에서 해소.
-- **S3 — 오클루전 합성**: collider depth prepass + soft fade, fog 톤 정합.
-  완료: 생명이 언덕 뒤로 가려지는 전후 스크린샷.
+- ✅ **S3 — 오클루전 합성**: collider 를 depth-only prepass 로(OCC 셰이더, 무대 정합 변환 공유)
+  → 렌더 FS 가 뷰 거리 vs 선형화 깊이를 비교해 soft fade(마진 0.15). 스플랫 VS 가 NDC z 를
+  0 고정하므로 viewZ 를 varying 으로 전달하는 것이 핵심. 검증: `node test/occlusion-shot.js` —
+  능선 가림 시점에서 생명 픽셀 60501→3202 (5%), 전후 사진. 남김: fog 톤 정합(무대·생명 공용
+  안개)은 시각 폴리시 항목으로 보류.
 - **S4 — LoD 스트리밍(.rad) + 성능 예산**: Range 지원 서버로 교체 필수. 완료: 목표 fps 수치.
 - **S5 — 상호작용 심화 (선택)**: 흔적 데칼 스폰, 시뮬 버블(GRID_ORIGIN 추종).
 

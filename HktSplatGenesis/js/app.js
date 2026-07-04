@@ -233,6 +233,8 @@
 			const tf = stage() ? stage().getTransform() : undefined;
 			const hf = HktHeightfield.bake(colliderTris, Object.assign({ transform: tf }, HF_REGION));
 			engine.setHeightfield(hf);
+			engine.setOccluder(colliderTris);      // S3: 같은 collider 가 가림의 근거
+			engine.setOccluderTransform(tf);
 			document.getElementById('stCollide').disabled = false;
 			document.getElementById('stCollide').checked = true;
 			stageStatusEl.innerHTML = `<b>충돌 지형 적용</b> — ${colliderName} · 커버리지 ${(hf.coverage * 100).toFixed(0)}%`;
@@ -254,7 +256,7 @@
 		}
 		document.getElementById('stCollide').addEventListener('change', (e) => {
 			if (e.target.checked) applyCollider();
-			else { engine.setHeightfield(null); reseedFn(); }
+			else { engine.setHeightfield(null); engine.setOccluder(null); reseedFn(); }
 		});
 
 		const stageDrop = document.getElementById('stageDrop');

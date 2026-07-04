@@ -125,6 +125,20 @@
 			],
 		});
 
+		// S3 오클루전: collider depth prepass — depth 텍스처는 캔버스 크기 추적(_ensureDepth)
+		this.occPipe = d.createRenderPipeline({
+			layout: 'auto',
+			vertex: { module: d.createShaderModule({ code: W.OCC }), entryPoint: 'vs' },
+			primitive: { topology: 'triangle-list', cullMode: 'none' }, // collider 는 양면
+			depthStencil: { format: 'depth32float', depthWriteEnabled: true, depthCompare: 'less' },
+		});
+		this.occUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		d.queue.writeBuffer(this.occUB, 0, new Float32Array([1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1, 0, 0, 0, 0, 1]));
+		this.occBuf = null;
+		this._occVerts = 0;
+		this.depthTex = d.createTexture({ size: [1, 1], format: 'depth32float', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING });
+		this._depthSize = [1, 1]; // 첫 frame 의 _ensureDepth 가 캔버스 크기로 교체 (1×1 은 렌더 안 됨)
+
 		// S2 지형 heightfield — 기본은 1×1 더미 + on=0 (평면 바닥 폴백). setHeightfield 로 교체.
 		this.hfUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.hfTex = d.createTexture({ size: [1, 1], format: 'r32float', usage: GPUTextureUsage.TEXTURE_BINDING | GPUTextureUsage.COPY_DST });
@@ -224,16 +238,7 @@
 				{ binding: 1, resource: { buffer: this.sortUB, offset: 0, size: 16 } },
 			],
 		});
-		this.renderBG = d.createBindGroup({
-			layout: this.renderPipe.getBindGroupLayout(0),
-			entries: [
-				{ binding: 0, resource: { buffer: this.splatBuf } },
-				{ binding: 1, resource: { buffer: this.pairBuf } },
-				{ binding: 2, resource: { buffer: this.camUB } },
-				{ binding: 3, resource: { buffer: this.clusterBuf } },
-				{ binding: 4, resource: { buffer: this.entityBuf } },
-			],
-		});
+		this._buildRenderBG();
 		this.clusterBG = d.createBindGroup({
 			layout: this.clusterPipe.getBindGroupLayout(0),
 			entries: [
@@ -244,6 +249,66 @@
 				{ binding: 4, resource: { buffer: this.entityBuf } },
 			],
 		});
+	};
+
+	// renderBG 는 setScene(버퍼 재생성)과 _ensureDepth(depth 텍스처 리사이즈)에서 재구성된다
+	HktGenesisEngine.prototype._buildRenderBG = function () {
+		if (!this.splatBuf) return;
+		this.renderBG = this.device.createBindGroup({
+			layout: this.renderPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.splatBuf } },
+				{ binding: 1, resource: { buffer: this.pairBuf } },
+				{ binding: 2, resource: { buffer: this.camUB } },
+				{ binding: 3, resource: { buffer: this.clusterBuf } },
+				{ binding: 4, resource: { buffer: this.entityBuf } },
+				{ binding: 5, resource: this.depthTex.createView() },
+			],
+		});
+	};
+
+	// S3: depth 텍스처를 스왑체인 크기에 맞춘다 — FS 의 textureLoad(fragcoord)가 항상 in-bounds 이도록
+	HktGenesisEngine.prototype._ensureDepth = function (w, h) {
+		if (this._depthSize[0] === w && this._depthSize[1] === h) return;
+		this.depthTex.destroy();
+		this.depthTex = this.device.createTexture({
+			size: [w, h], format: 'depth32float',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.TEXTURE_BINDING,
+		});
+		this._depthSize = [w, h];
+		this._buildRenderBG();
+	};
+
+	// S3 오클루더 설치/해제 — positions: collider 삼각형 수프 (원본 좌표, heightfield.parseGLB 결과)
+	HktGenesisEngine.prototype.setOccluder = function (positions) {
+		if (!positions) { this._occVerts = 0; return; }
+		const d = this.device;
+		if (this.occBuf) this.occBuf.destroy();
+		this.occBuf = d.createBuffer({ size: positions.byteLength, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		d.queue.writeBuffer(this.occBuf, 0, positions);
+		this._occVerts = positions.length / 3;
+		this.occBG = d.createBindGroup({
+			layout: this.occPipe.getBindGroupLayout(0),
+			entries: [
+				{ binding: 0, resource: { buffer: this.occBuf } },
+				{ binding: 1, resource: { buffer: this.camUB } },
+				{ binding: 2, resource: { buffer: this.occUB } },
+			],
+		});
+	};
+
+	// 무대 정합 변환 → 오클루더 행렬 (heightfield.bake 의 CPU 변환과 동일: T·Ry(yaw)·S·Rx(flip))
+	HktGenesisEngine.prototype.setOccluderTransform = function (t) {
+		t = t || { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
+		const cy = Math.cos(t.yawDeg * Math.PI / 180), sy = Math.sin(t.yawDeg * Math.PI / 180);
+		const s = t.scale, f = t.flip ? -1 : 1;
+		// column-major: Ry·S·Rx 합성 — Rx(π) 는 y·z 부호 반전
+		this.device.queue.writeBuffer(this.occUB, 0, new Float32Array([
+			cy * s, 0, -sy * s, 0,
+			0, f * s, 0, 0,
+			sy * f * s, 0, cy * f * s, 0,
+			t.x, t.y, t.z, 1,
+		]));
 	};
 
 	// simBG 는 setScene(버퍼 재생성)과 setHeightfield(텍스처 교체) 양쪽에서 재구성된다
@@ -626,9 +691,26 @@
 		}
 		cp.end();
 
+		// S3 오클루전 prepass: collider 를 depth-only 로 — 없는 프레임도 1.0 클리어(무효과 보장)
+		const swap = this.context.getCurrentTexture();
+		this._ensureDepth(swap.width, swap.height);
+		const dp = enc.beginRenderPass({
+			colorAttachments: [],
+			depthStencilAttachment: {
+				view: this.depthTex.createView(),
+				depthClearValue: 1, depthLoadOp: 'clear', depthStoreOp: 'store',
+			},
+		});
+		if (this._occVerts > 0) {
+			dp.setPipeline(this.occPipe);
+			dp.setBindGroup(0, this.occBG);
+			dp.draw(this._occVerts);
+		}
+		dp.end();
+
 		const rp = enc.beginRenderPass({
 			colorAttachments: [{
-				view: this.context.getCurrentTexture().createView(),
+				view: swap.createView(),
 				// 무대(stage) 합성 시 a=0 투명 클리어 — premultiplied over 가 dst 알파에
 				// 커버리지를 누적하므로 캔버스 알파 합성이 그대로 성립한다 (S 트랙)
 				clearValue: opts.background || { r: 0.012, g: 0.014, b: 0.03, a: 1 },

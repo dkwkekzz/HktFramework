@@ -545,11 +545,15 @@ struct CamParams {
 @group(0) @binding(2) var<uniform> C : CamParams;
 @group(0) @binding(3) var<storage, read> clusters : array<Cluster>;
 @group(0) @binding(4) var<storage, read> entities : array<Entity>;
+// S3 오클루전: collider depth prepass 결과 — 생명이 지형 뒤에 있으면 soft fade.
+// occluder 미설치 프레임도 prepass 가 1.0 으로 클리어하므로 자연히 무효과.
+@group(0) @binding(5) var occDepth : texture_depth_2d;
 
 struct VOut {
 	@builtin(position) pos : vec4f,
 	@location(0) col : vec4f,   // premultiplied 전 단계 (rgb, alpha)
 	@location(1) quad : vec2f,  // 가우시안 로컬 좌표 [-2, 2]
+	@location(2) viewZ : f32,   // 뷰 공간 거리 — VS 가 NDC z 를 0 고정하므로 별도 전달
 };
 
 @vertex
@@ -558,6 +562,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	o.pos = vec4f(0.0, 0.0, 2.0, 1.0); // 퇴화 기본값 (네 꼭짓점 동일 → 래스터 없음)
 	o.col = vec4f(0.0);
 	o.quad = vec2f(0.0);
+	o.viewZ = 0.0;
 
 	let idx = pairs[ii].y;
 	let s = splats[idx];
@@ -615,6 +620,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 4.0 - 2.0; // {-2,+2} 쿼드
 	o.pos = vec4f(cNdc + corner.x * major / C.viewport + corner.y * minor / C.viewport, 0.0, 1.0);
 	o.quad = corner;
+	o.viewZ = -t.z; // 카메라 앞 = 음수 뷰 z → 양수 거리
 
 	// ── 시뮬 상태 → 색 유도: 속도·본드 변형률이 열(팔레트 보간), 에너지가 발광 ──
 	// 변형률 발광: 골렘의 균열(스트레스 받는 본드)이 뜨겁게 빛난다
@@ -636,8 +642,31 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 fn fs(in : VOut) -> @location(0) vec4f {
 	let a = -dot(in.quad, in.quad);
 	if (a < -4.0) { discard; }
-	let b = exp(a) * in.col.a;
+	// S3: collider depth 와 뷰 거리 비교 — 지형 뒤면 soft fade (경계 팝 방지 마진 0.15)
+	// 깊이 선형화: viewDist = proj[3].z / (d + proj[2].z) (WebGPU z∈[0,1] 원근, math.js 참조)
+	let od = textureLoad(occDepth, vec2i(in.pos.xy), 0);
+	let occDist = C.proj[3].z / (od + C.proj[2].z);
+	let fade = clamp(1.0 + (occDist - in.viewZ) / 0.15, 0.0, 1.0);
+	let b = exp(a) * in.col.a * fade;
 	return vec4f(in.col.rgb * b, b); // premultiplied over
+}
+`;
+
+	// ── S3 오클루전 prepass: collider 메시 depth-only — 생명 가림의 유일한 근거 ──
+	// 무대(Spark) 스플랫이 아니라 collider 근사를 쓰는 이유: 스플랫엔 정확한 깊이가 없다 (PLAN S3).
+	const OCC = /* wgsl */`
+struct CamParams {
+	view : mat4x4f, proj : mat4x4f,
+	viewport : vec2f, focal : vec2f,
+	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+};
+@group(0) @binding(0) var<storage, read> pos : array<f32>; // 삼각형 수프 (collider 원본 좌표)
+@group(0) @binding(1) var<uniform> C : CamParams;
+@group(0) @binding(2) var<uniform> M : mat4x4f; // 무대 정합 변환 (offset·yaw·scale·flip)
+@vertex
+fn vs(@builtin(vertex_index) vi : u32) -> @builtin(position) vec4f {
+	let p = vec4f(pos[vi * 3u], pos[vi * 3u + 1u], pos[vi * 3u + 2u], 1.0);
+	return C.proj * C.view * (M * p);
 }
 `;
 
@@ -676,5 +705,5 @@ fn fsJoint() -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY };
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY, OCC };
 })(window);
