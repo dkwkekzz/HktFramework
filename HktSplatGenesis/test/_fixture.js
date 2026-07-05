@@ -16,8 +16,9 @@ function height(x, z) {
 const hash = (i) => { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; return ((x >>> 0) / 4294967296); };
 
 // 3DGS PLY (binary_little_endian, 표준 17 속성) — 무대 비주얼용 스플랫 지형
-function genTerrainPly() {
-	const G = 72, N = G * G;
+// G: 한 변 스플랫 수 (하니스 72, 샘플 에셋은 tools/gen-sample-terrain.js 가 밀도 상향)
+function genTerrainPly(G = 72, splatScale = 1) {
+	const N = G * G;
 	const header = 'ply\nformat binary_little_endian 1.0\n' +
 		`element vertex ${N}\n` +
 		['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity',
@@ -41,15 +42,15 @@ function genTerrainPly() {
 		put(x); put(y); put(z); put(0); put(0); put(0);
 		put((r + j - 0.5) / SH_C0); put((g + j - 0.5) / SH_C0); put((b + j - 0.5) / SH_C0);
 		put(2.44); // opacity 0.92 의 logit
-		put(Math.log(0.17)); put(Math.log(0.06)); put(Math.log(0.17)); // 납작한 surfel
+		// 납작한 surfel — 밀도(G)를 올리면 splatScale 로 개별 크기를 줄여 커버리지 유지
+		put(Math.log(0.17 * splatScale)); put(Math.log(0.06 * splatScale)); put(Math.log(0.17 * splatScale));
 		put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
 	}
 	return Buffer.concat([Buffer.from(header, 'ascii'), body]);
 }
 
 // collider GLB — 같은 height() 의 삼각형 격자 메시 (POSITION + uint32 indices, 비압축)
-function genTerrainGlb() {
-	const G = 96; // 셀 수 (정점 97² = 9409, 삼각형 18432)
+function genTerrainGlb(G = 96) {
 	const V = (G + 1) * (G + 1);
 	const pos = new Float32Array(V * 3);
 	const mn = [1e9, 1e9, 1e9], mx = [-1e9, -1e9, -1e9];

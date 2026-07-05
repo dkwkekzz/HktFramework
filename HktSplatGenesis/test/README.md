@@ -21,6 +21,9 @@ npm install                # playwright (브라우저 포함)
 | `node stage-shot.js out.png` | S 트랙 무대 합성 — 절차 지형 fixture(PLY 즉석 생성)를 Spark 로 로드, 생명(WebGPU readback)과 페이지 내 합성 사진 + 판정 |
 | `node terrain-shot.js out.png [frames] [count] [프리셋/장면]` | S2 충돌 지형 — 같은 fixture 의 collider GLB 로 heightfield 를 굽고, 슬라임 바닥 포락선이 평면이 아닌 지형을 따르는지 판정 + 합성 사진 (`불×나무` 는 사진 위주) |
 | `node occlusion-shot.js on.png off.png` | S3 오클루전 — 능선이 시선을 막는 카메라를 height() 로 찾아 이동, 오클루전 on/off 생명 픽셀 비교(<50%) + 전후 사진 |
+| `node range-server.js` | S4 — tools/serve.py 의 HTTP Range 계약(206/Content-Range/suffix/416) 검증 |
+| `node bubble-shot.js a.png b.png` | S5 시뮬 버블 — 격자 밖 슬라임이 gridCenter 추종 시 L2 휴지 간격을 유지하는지 (엔진 직접 구동) |
+| `node ash-shot.js out.png` | S5 낙재 — 불×나무 연소에서 재가 분리→낙하→바닥 정착하는지 스플랫 readback 판정 + 사진 |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

@@ -9,7 +9,8 @@ if [ -z "$PY" ]; then
 	exit 1
 fi
 
-"$PY" -m http.server "$PORT" &
+# tools/serve.py: Range 지원 정적 서버 — .rad LoD 스트리밍 필수 (S4)
+"$PY" tools/serve.py "$PORT" &
 SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null' EXIT
 sleep 1

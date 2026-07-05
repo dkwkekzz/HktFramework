@@ -215,11 +215,20 @@
 			bindStageStatus();
 			stage().load(url);
 		});
+		// 샘플 지형: repo 동봉 생성 에셋 — 무대(ply)와 collider(glb)를 한 번에 (오프라인 동작)
 		document.getElementById('stageSample').addEventListener('click', () => {
 			if (!stage()) return;
 			bindStageStatus();
 			document.getElementById('stageUrl').value = stage().SAMPLE_URL;
 			stage().load(stage().SAMPLE_URL);
+			fetch(stage().SAMPLE_URL.replace(/\.ply$/, '.glb')).then((r) => {
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.arrayBuffer();
+			}).then((buf) => loadColliderBuffer(buf, 'sample-terrain.glb'))
+				.catch((e) => { stageStatusEl.innerHTML = '샘플 collider 로드 실패: ' + e.message; });
+		});
+		document.getElementById('stLod').addEventListener('change', (e) => {
+			if (stage()) stage().setLod(e.target.checked);
 		});
 		document.getElementById('stageOn').addEventListener('change', (e) => {
 			if (stage()) stage().setEnabled(e.target.checked);
@@ -227,18 +236,32 @@
 		// ── S2 충돌 지형: collider GLB → heightfield → 시뮬 바닥 ──
 		// 삼각형 수프는 원본 좌표로 보관 — 정합 노브가 바뀌면 같은 변환으로 다시 굽는다
 		let colliderTris = null, colliderName = '', bakeTimer = 0;
-		const HF_REGION = { res: 128, originX: -4.8, originZ: -4.8, cell: 9.6 / 127 }; // 시뮬 격자 XZ 영역
-		function applyCollider() {
+		let bakeCenter = [0, 0]; // 마지막 베이크 중심 (xz) — S5 버블 추종 판정
+		// 베이크 영역 = 시뮬 버블 XZ (중심 ±4.8) — 버블이 움직이면 같은 영역을 다시 굽는다
+		const hfRegion = (cx, cz) => ({ res: 128, originX: cx - 4.8, originZ: cz - 4.8, cell: 9.6 / 127 });
+		function applyCollider(center, opts) {
 			if (!colliderTris) return;
+			const c = center || [camera.target[0], camera.target[2]];
 			const tf = stage() ? stage().getTransform() : undefined;
-			const hf = HktHeightfield.bake(colliderTris, Object.assign({ transform: tf }, HF_REGION));
+			const hf = HktHeightfield.bake(colliderTris, Object.assign({ transform: tf }, hfRegion(c[0], c[1])));
+			bakeCenter = c;
 			engine.setHeightfield(hf);
 			engine.setOccluder(colliderTris);      // S3: 같은 collider 가 가림의 근거
 			engine.setOccluderTransform(tf);
 			document.getElementById('stCollide').disabled = false;
 			document.getElementById('stCollide').checked = true;
+			if (opts && opts.silent) return; // 버블 추종 재베이크 — 상태/장면 유지
 			stageStatusEl.innerHTML = `<b>충돌 지형 적용</b> — ${colliderName} · 커버리지 ${(hf.coverage * 100).toFixed(0)}%`;
 			if (reseedFn) reseedFn(); // 나무 뿌리/재생성 지점이 지형을 반영하도록
+		}
+		// S5: 카메라 타깃이 베이크 중심에서 멀어지면 heightfield 를 새 버블 위치로 다시 굽는다
+		let followCd = 0;
+		function followCollider() {
+			if (!colliderTris || !document.getElementById('stCollide').checked) return;
+			if (++followCd < 30) return; // 매 프레임 검사 불필요 — 0.5초 간격
+			followCd = 0;
+			const dx = camera.target[0] - bakeCenter[0], dz = camera.target[2] - bakeCenter[1];
+			if (dx * dx + dz * dz > 4) applyCollider([camera.target[0], camera.target[2]], { silent: true });
 		}
 		function rebakeCollider() { // 정합 슬라이더 조작 중 과도한 재베이크 방지
 			if (!colliderTris || !document.getElementById('stCollide').checked) return;
@@ -311,7 +334,7 @@
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
-		let last = performance.now(), simTime = 0, fpsAvg = 0;
+		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
 
 		// ── Alt+드래그 인력: 화면 광선 ∩ 수평면(카메라 타겟 높이) 을 인력점으로 ──
 		const pull = [0, 0, 0, 0];
@@ -370,19 +393,26 @@
 			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
 			bindStageStatus();
 			const stageOn = stage() && stage().enabled;
-			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
+			if (stageOn) {
+				const t0 = performance.now();
+				stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
+				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
+			}
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
+				gridCenter: camera.target, // S5 시뮬 버블 — 이웃 규칙이 시점을 따라간다
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
+			followCollider(); // S5: heightfield 베이크 영역도 버블을 따라 (재시드 없음)
 			// 하니스 훅: 스왑체인 readback 은 present 전(같은 태스크)이어야 한다 — test/README 함정
 			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
-			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats`;
+			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats` +
+				(stageOn ? ` · 무대 ${stageMs.toFixed(1)}ms` : '');
 			requestAnimationFrame(tick);
 		}
 		requestAnimationFrame(tick);

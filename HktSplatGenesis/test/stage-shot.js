@@ -2,7 +2,8 @@
 // 무대(WebGL, Spark)와 생명(WebGPU, readback) 을 페이지 안에서 합성해 PNG 로 찍는다.
 // 무대는 "로드 대상"이므로 fixture 를 코드로 만드는 것은 절대 원칙 1 위배가 아니다 (생명이 아님).
 //
-// 사용: node stage-shot.js out.png [frames=30] [count=65536]
+// 사용: node stage-shot.js out.png [frames=30] [count=65536] [world=/assets/worlds/test-terrain.ply] [lod=0]
+//   world 에 커밋된 샘플(/assets/worlds/sample-terrain.ply)을 주면 동봉 에셋 + Tiny-LoD(lod=1) 검증
 // 함정: swapchain readback 은 마지막 frame 과 같은 태스크여야 한다 (present 함정 — README).
 //       app.js 의 window.__hktAfterFrame 훅이 그 태스크 안에서 호출된다.
 const { serve, launch, collectErrors, savePng } = require('./_common');
@@ -12,6 +13,8 @@ const { genTerrainPly } = require('./_fixture');
 	const out = process.argv[2] || 'stage.png';
 	const FRAMES = parseInt(process.argv[3] || '30');
 	const COUNT = process.argv[4] || '65536';
+	const WORLD = process.argv[5] || '/assets/worlds/test-terrain.ply';
+	const LOD = process.argv[6] || '0';
 	const ply = genTerrainPly();
 	const server = await serve(8134, {
 		'/assets/worlds/test-terrain.ply': (req, res) => {
@@ -32,7 +35,7 @@ const { genTerrainPly } = require('./_fixture');
 			return d;
 		};
 	});
-	await page.goto('http://localhost:8134/?world=/assets/worlds/test-terrain.ply', { waitUntil: 'load' });
+	await page.goto(`http://localhost:8134/?world=${WORLD}&lod=${LOD}`, { waitUntil: 'load' });
 	// Spark 로드는 rAF 와 무관(fetch+parse) — hasWorld 플래그로 대기
 	// (#stageStatus DOM 은 app.js tick 이 콜백을 바인딩해야 갱신되는데 rAF 가 스텁이라 안 돈다)
 	try {

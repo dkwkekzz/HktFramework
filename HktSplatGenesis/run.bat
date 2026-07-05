@@ -6,10 +6,10 @@ setlocal
 cd /d "%~dp0"
 set PORT=8123
 
-rem Python 탐색: py 런처 → python
+rem Python 탐색: py 런처 → python (tools\serve.py: Range 지원 — .rad LoD 스트리밍 필수)
 set RUN=
-where py >nul 2>nul && set RUN=py -3 -m http.server %PORT%
-if not defined RUN where python >nul 2>nul && set RUN=python -m http.server %PORT%
+where py >nul 2>nul && set RUN=py -3 tools\serve.py %PORT%
+if not defined RUN where python >nul 2>nul && set RUN=python tools\serve.py %PORT%
 if not defined RUN (
 	echo [HktSplatGenesis] Python 을 찾지 못했습니다. https://www.python.org/downloads/ 에서 설치 후 다시 실행하세요.
 	pause

@@ -20,7 +20,7 @@
 ## 아키텍처
 
 ```
-grid clear/build(64³, 셀당 16슬롯, 전 개체 공유) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소 + L5 발열 + L6 뼈대 살)
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유, 원점 = 카메라 타깃 추종 시뮬 버블) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소/낙재 + L5 발열 + L6 뼈대 살)
 → cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
 → key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드 (+ L6 뼈대 오버레이 라인/관절)
 ```

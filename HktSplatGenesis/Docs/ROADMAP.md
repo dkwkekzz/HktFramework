@@ -51,8 +51,22 @@
   0 고정하므로 viewZ 를 varying 으로 전달하는 것이 핵심. 검증: `node test/occlusion-shot.js` —
   능선 가림 시점에서 생명 픽셀 60501→3202 (5%), 전후 사진. 남김: fog 톤 정합(무대·생명 공용
   안개)은 시각 폴리시 항목으로 보류.
-- **S4 — LoD 스트리밍(.rad) + 성능 예산**: Range 지원 서버로 교체 필수. 완료: 목표 fps 수치.
-- **S5 — 상호작용 심화 (선택)**: 흔적 데칼 스폰, 시뮬 버블(GRID_ORIGIN 추종).
+- ✅ **S4 — LoD + 스트리밍 인프라 + 샘플 지형**: SparkRenderer `enableLod` + 예산
+  `lodSplatCount`(1.5M), SplatMesh `lod:true`(브라우저 Tiny-LoD, UI 토글·`?lod=`) —
+  오프라인 Bhatt-LoD 베이커는 Spark repo 의 Rust 도구라 npm 미제공, `.rad` 는 로드 경로만
+  준비(포맷 지원 + Range 서버). `tools/serve.py`(stdlib Range 서버)로 run.sh/run.bat 교체,
+  test 서버도 Range 지원. `tools/gen-sample-terrain.js` → `assets/worlds/sample-terrain.{ply,glb}`
+  (2.3MB 커밋) — 무대 탭 [샘플 지형] 버튼이 무대+collider 를 한 번에 로드 (오프라인 동작).
+  검증: `node test/range-server.js`(9/9) + stage-shot sample+lod=1. 남김: 실제 Marble 대용량
+  월드/.rad 에서의 fps·점진 로드 실측 (실에셋 필요 — swiftshader 하니스로는 무의미).
+- ✅ **S5 — 상호작용 심화**: ① 낙재(落灰) — 나무가 다 타는 순간 일부가 시드 확률로 가지에서
+  분리(life 음수 플래그 — 나무 초기값 1e9)되어 불씨로 떨어지고 지면에 붙어 그을음 흔적이 되며,
+  재생 시계가 차면 가지로 복귀. 렌더 변경 없음(재 색은 기존 fuel 채널 유도). ② 시뮬 버블 —
+  gridOrigin 은 이미 프레임 유니폼이라 카메라 타깃 추종만 배선(`opts.gridCenter`, 격자는 매
+  프레임 재구축이라 이동 안전), heightfield 베이크 영역도 타깃을 따라 재베이크(2u 이동 시,
+  재시드 없음). 부수 수정: 나무 뿌리가 emitter y 무시하고 y=0 고정이던 것을 지형 높이로.
+  검증: `node test/ash-shot.js`(연소 963·분리 519·정착 335) + `node test/bubble-shot.js`
+  (격자 밖 [7,*,7] 슬라임 — 버블 시 휴지 간격 2.2배 = L2 생존) + 회귀 없음.
 
 ## R5 — 엔진 일반 큐 (L6 무관, 독립)
 

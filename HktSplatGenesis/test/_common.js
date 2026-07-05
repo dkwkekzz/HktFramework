@@ -15,6 +15,7 @@ const ROOT = path.join(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.fbx': 'application/octet-stream' };
 
 // 프로젝트 루트를 서빙. routes = { '/경로': (req, res) => ... } 로 가상 파일 추가.
+// HTTP Range(단일 구간) 지원 — .rad LoD 스트리밍 경로 검증용 (tools/serve.py 와 동일 계약)
 function serve(port, routes) {
 	const server = http.createServer((req, res) => {
 		const url = req.url.split('?')[0];
@@ -22,7 +23,26 @@ function serve(port, routes) {
 		const p = path.join(ROOT, url === '/' ? 'index.html' : url);
 		fs.readFile(p, (err, data) => {
 			if (err) { res.writeHead(404); res.end(); return; }
-			res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+			const type = MIME[path.extname(p)] || 'application/octet-stream';
+			const m = req.headers.range && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range.trim());
+			if (m && (m[1] !== '' || m[2] !== '')) {
+				const size = data.length;
+				let start, end;
+				if (m[1] === '') { const len = Math.min(parseInt(m[2]), size); start = size - len; end = size - 1; }
+				else { start = parseInt(m[1]); end = m[2] ? Math.min(parseInt(m[2]), size - 1) : size - 1; }
+				if (start > end || start >= size) {
+					res.writeHead(416, { 'content-range': `bytes */${size}` });
+					res.end();
+					return;
+				}
+				res.writeHead(206, {
+					'content-type': type, 'accept-ranges': 'bytes',
+					'content-range': `bytes ${start}-${end}/${size}`,
+				});
+				res.end(data.slice(start, end + 1));
+				return;
+			}
+			res.writeHead(200, { 'content-type': type, 'accept-ranges': 'bytes' });
 			res.end(data);
 		});
 	});
@@ -57,7 +77,7 @@ const HARNESS_ROUTE = (req, res) => {
 // 페이지 컨텍스트에서 쓸 촬영 루프 소스 — new Function 으로 주입한다.
 // (page.evaluate 에 문자열 결합 대신 한곳에 모아 두 하니스가 공유)
 const DRIVE_AND_SHOOT = `
-async function driveAndShoot({ FRAMES, N, makeBones, genes }) {
+async function driveAndShoot({ FRAMES, N, makeBones, genes, entities, gridCenter, eye, center, keepState }) {
 	const ad = await navigator.gpu.requestAdapter();
 	const device = await ad.requestDevice();
 	const gpuErrs = [];
@@ -66,8 +86,9 @@ async function driveAndShoot({ FRAMES, N, makeBones, genes }) {
 	const format = navigator.gpu.getPreferredCanvasFormat();
 	ctx.configure({ device, format, alphaMode: 'opaque', usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC });
 	const engine = new HktGenesisEngine(device, ctx, format);
-	engine.setScene(N, [genes]);
-	const view = HktMat.lookAt([0.9, 1.35, 3.1], [0, 0.9, 0], [0, 1, 0]);
+	const ents = entities || [genes];
+	engine.setScene(N, ents);
+	const view = HktMat.lookAt(eye || [0.9, 1.35, 3.1], center || [0, 0.9, 0], [0, 1, 0]);
 	const proj = HktMat.perspective(0.9, 1.0, 0.05, 100);
 	const focalY = 0.5 * 640 / Math.tan(0.45);
 	const dt = 1 / 60;
@@ -75,8 +96,8 @@ async function driveAndShoot({ FRAMES, N, makeBones, genes }) {
 	for (let fr = 0; fr < FRAMES; fr++) {
 		simTime += dt;
 		engine.frame({
-			dt, time: simTime, genes, entities: [genes], paused: false,
-			pull: [0, 0, 0, 0], bones: makeBones(simTime, dt), showBones: true,
+			dt, time: simTime, genes, entities: ents, paused: false, gridCenter,
+			pull: [0, 0, 0, 0], bones: makeBones ? makeBones(simTime, dt) : null, showBones: true,
 			view, proj, viewport: [640, 640], focal: [focalY, focalY],
 		});
 		// 마지막 프레임 뒤 양보 금지 (상단 주석의 present 함정)
@@ -85,10 +106,14 @@ async function driveAndShoot({ FRAMES, N, makeBones, genes }) {
 	const tex = ctx.getCurrentTexture();
 	const bpr = 640 * 4;
 	const rb = device.createBuffer({ size: bpr * 640, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
+	const sb = device.createBuffer({ size: N * 48, usage: GPUBufferUsage.COPY_DST | GPUBufferUsage.MAP_READ });
 	const enc = device.createCommandEncoder();
 	enc.copyTextureToBuffer({ texture: tex }, { buffer: rb, bytesPerRow: bpr }, [640, 640, 1]);
+	enc.copyBufferToBuffer(engine.splatBuf, 0, sb, 0, N * 48);
 	device.queue.submit([enc.finish()]);
 	await rb.mapAsync(GPUMapMode.READ);
+	await sb.mapAsync(GPUMapMode.READ);
+	const splatState = new Float32Array(sb.getMappedRange()).slice(); // 하니스별 지표 계산용
 	const px = new Uint8Array(rb.getMappedRange());
 	const c2d = document.getElementById('c2d').getContext('2d');
 	const img = c2d.createImageData(640, 640);
@@ -100,7 +125,11 @@ async function driveAndShoot({ FRAMES, N, makeBones, genes }) {
 		img.data[i * 4 + 3] = 255;
 	}
 	c2d.putImageData(img, 0, 0);
-	return { dataUrl: gpuErrs.length ? null : document.getElementById('c2d').toDataURL('image/png'), gpuErrs };
+	// splatState 는 페이지 안 지표 계산용(keepState) — evaluate 경계 밖으로는 내보내지 말 것
+	return {
+		dataUrl: gpuErrs.length ? null : document.getElementById('c2d').toDataURL('image/png'),
+		gpuErrs, splatState: keepState ? splatState : undefined,
+	};
 }
 `;
 

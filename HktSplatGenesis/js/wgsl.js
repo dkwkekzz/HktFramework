@@ -193,24 +193,41 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		}
 		heat = max(heat - 0.5 * P.dt, 0.0); // 냉각
 		let burning = heat > 1.0 && fuel > 0.0;
-		if (burning) { fuel = max(fuel - P.dt * 0.35, 0.0); }
-		// 재생: 재가 다 식으면 시간이 흐른 뒤 새잎이 돋는다
+		if (burning) {
+			fuel = max(fuel - P.dt * 0.35, 0.0);
+			// S5 낙재: 다 타는 순간 일부(시드 확률)가 가지에서 떨어진다 — life 음수를
+			// 분리 플래그로 쓴다 (나무 초기값 1e9, 나무 경로에서 달리 미사용).
+			if (fuel <= 0.0 && hash31(s.misc.y * 0.173).x < 0.55) { s.life = -1.0; }
+		}
+		// 재생: 재가 다 식으면 시간이 흐른 뒤 새잎이 돋는다 — 낙재는 가지로 복귀
 		if (fuel <= 0.0 && heat < 0.5) {
 			s.age += P.dt;
-			if (s.age > E.lifeBase) { fuel = 1.0; heat = 0.0; s.age = 0.0; }
+			if (s.age > E.lifeBase) {
+				fuel = 1.0; heat = 0.0; s.age = 0.0;
+				if (s.life < 0.0) { s.life = 1e9; s.pos = attach; s.vel = vec3f(0.0); }
+			}
 		}
-		// 운동: 부착 스프링 + 바람 — 가지끝(birth 큼)일수록 스프링이 유연해 크게 흔들린다.
-		// 이 유연성 차이가 속도 팔레트를 통해 잎/줄기 색 분화를 만든다 (창발 색).
-		var acc = (attach - s.pos) * (50.0 - 35.0 * birth);
-		acc += flow(s.pos * E.flowFreq, P.time * E.flowSpeed) * E.volatility * (0.2 + 1.3 * birth);
-		if (burning) {
-			// 불길: 상승 + 거센 난류 (부착은 유지 — 나무가 무너지지는 않는다)
-			acc += vec3f(0.0, 2.5, 0.0) + flow(s.pos * 3.0, P.time * 2.5) * 4.0;
+		if (s.life < 0.0) {
+			// 낙재 운동: 부착 스프링 없음 — 불씨로 떨어져(초기엔 heat 잔광) 지면에 붙는다.
+			// L4 는 조기 return 이라 공통 바닥 코드를 안 지나므로 지면 부착을 여기서 처리.
+			s.vel = (s.vel + vec3f(0.0, -3.0, 0.0) * P.dt) * exp(-1.5 * P.dt);
+			s.pos += s.vel * P.dt;
+			let g4 = terrainH(s.pos.xz);
+			if (s.pos.y < g4 + 0.01) { s.pos.y = g4 + 0.01; s.vel = vec3f(0.0); }
+		} else {
+			// 운동: 부착 스프링 + 바람 — 가지끝(birth 큼)일수록 스프링이 유연해 크게 흔들린다.
+			// 이 유연성 차이가 속도 팔레트를 통해 잎/줄기 색 분화를 만든다 (창발 색).
+			var acc = (attach - s.pos) * (50.0 - 35.0 * birth);
+			acc += flow(s.pos * E.flowFreq, P.time * E.flowSpeed) * E.volatility * (0.2 + 1.3 * birth);
+			if (burning) {
+				// 불길: 상승 + 거센 난류 (부착은 유지 — 나무가 무너지지는 않는다)
+				acc += vec3f(0.0, 2.5, 0.0) + flow(s.pos * 3.0, P.time * 2.5) * 4.0;
+			}
+			s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
+			let spd = length(s.vel);
+			if (spd > 10.0) { s.vel *= 10.0 / spd; }
+			s.pos += s.vel * P.dt;
 		}
-		s.vel = (s.vel + acc * P.dt) * exp(-E.damping * P.dt);
-		let spd = length(s.vel);
-		if (spd > 10.0) { s.vel *= 10.0 / spd; }
-		s.pos += s.vel * P.dt;
 		// 재(fuel 0)는 어둡고 작게 남는다 — 검게 탄 가지
 		s.misc = vec4f(myGrow * (0.35 + 0.65 * step(0.01, fuel)), s.misc.y, heat, fuel);
 		splats[i] = s;
