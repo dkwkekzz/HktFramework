@@ -569,7 +569,8 @@
 			}
 		};
 		const em = genes.emitter || [0, 0, 0];
-		branch([em[0], 0, em[2]], [0, 1, 0], 0.85, 0.13, 0, 0);
+		// 뿌리는 지형 표면에 — 평지에선 y=0 (기존 거동), S2 지형에선 능선/골짜기 높이
+		branch([em[0], this.terrainHeightAt(em[0], em[2]), em[2]], [0, 1, 0], 0.85, 0.13, 0, 0);
 
 		// 스플랫 배분: 줄기(세그 부피 비례) 60% / 잎 40%
 		const segW = segs.map((s) => s.r * Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]));
@@ -623,7 +624,10 @@
 		const sf = new Float32Array(sim);
 		const su = new Uint32Array(sim);
 		sf.set(pull, 0);
-		sf.set([GRID_ORIGIN[0], GRID_ORIGIN[1], GRID_ORIGIN[2], GRID_CELL, opts.dt, opts.time], 4);
+		// S5 시뮬 버블: 격자는 매 프레임 재구축이라 원점이 카메라 타깃을 따라가도 안전 —
+		// 이웃 규칙(L2/L4/L5)이 항상 시점 주변에서 산다. 기본 중심 [0,0.8,0] = 기존 GRID_ORIGIN.
+		const gc = opts.gridCenter || [0, 0.8, 0];
+		sf.set([gc[0] - 4.8, gc[1] - 1.6, gc[2] - 4.8, GRID_CELL, opts.dt, opts.time], 4);
 		su[10] = n;
 		su[11] = this.sliceSize;
 		sf[12] = 0; // floorY
