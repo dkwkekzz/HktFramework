@@ -121,18 +121,23 @@
 		const canvas = document.getElementById('gpu');
 		const context = canvas.getContext('webgpu');
 		const format = navigator.gpu.getPreferredCanvasFormat();
-		context.configure({ device, format, alphaMode: 'opaque' });
+		// premultiplied: 무대(stage) 레이어 위에 캔버스 알파로 합성 (무대 꺼짐 = a1 클리어라 기존과 동일)
+		// COPY_SRC: 하니스가 스왑체인을 readback 으로 촬영할 수 있게 (test/stage-shot.js)
+		context.configure({
+			device, format, alphaMode: 'premultiplied',
+			usage: GPUTextureUsage.RENDER_ATTACHMENT | GPUTextureUsage.COPY_SRC,
+		});
 
 		const engine = new HktGenesisEngine(device, context, format);
 		const camera = new HktOrbitCamera(canvas);
 		camera.radius = 4.5;
 
-		// ── 패널 탭: 유전자 | 뼈대 ──
+		// ── 패널 탭: 유전자 | 뼈대 | 무대 ──
+		const TABS = ['genes', 'skel', 'stage'];
 		for (const b of document.querySelectorAll('#tabs .tab')) {
 			b.addEventListener('click', () => {
 				document.querySelectorAll('#tabs .tab').forEach((x) => x.classList.toggle('on', x === b));
-				document.getElementById('tab-genes').style.display = b.dataset.tab === 'genes' ? '' : 'none';
-				document.getElementById('tab-skel').style.display = b.dataset.tab === 'skel' ? '' : 'none';
+				for (const t of TABS) document.getElementById('tab-' + t).style.display = b.dataset.tab === t ? '' : 'none';
 			});
 		}
 
@@ -193,6 +198,110 @@
 		drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) readFBXFile(e.dataTransfer.files[0]); });
 		drop.addEventListener('click', () => fbxFile.click());
 		fbxFile.addEventListener('change', (e) => readFBXFile(e.target.files[0]));
+
+		// ── S 트랙 무대 UI: js/stage.js(ES module) 는 classic 스크립트보다 늦게 실행된다 —
+		// 전역 접근은 항상 지연 getter 로 (부트 시점엔 HktGenesisStage 가 없을 수 있음) ──
+		const stage = () => window.HktGenesisStage;
+		const stageStatusEl = document.getElementById('stageStatus');
+		let stageStatusBound = false;
+		function bindStageStatus() {
+			if (stageStatusBound || !stage()) return;
+			stage().onStatus((html) => { stageStatusEl.innerHTML = html; });
+			stageStatusBound = true;
+		}
+		document.getElementById('stageLoad').addEventListener('click', () => {
+			const url = document.getElementById('stageUrl').value.trim();
+			if (!url || !stage()) return;
+			bindStageStatus();
+			stage().load(url);
+		});
+		document.getElementById('stageSample').addEventListener('click', () => {
+			if (!stage()) return;
+			bindStageStatus();
+			document.getElementById('stageUrl').value = stage().SAMPLE_URL;
+			stage().load(stage().SAMPLE_URL);
+		});
+		document.getElementById('stageOn').addEventListener('change', (e) => {
+			if (stage()) stage().setEnabled(e.target.checked);
+		});
+		// ── S2 충돌 지형: collider GLB → heightfield → 시뮬 바닥 ──
+		// 삼각형 수프는 원본 좌표로 보관 — 정합 노브가 바뀌면 같은 변환으로 다시 굽는다
+		let colliderTris = null, colliderName = '', bakeTimer = 0;
+		const HF_REGION = { res: 128, originX: -4.8, originZ: -4.8, cell: 9.6 / 127 }; // 시뮬 격자 XZ 영역
+		function applyCollider() {
+			if (!colliderTris) return;
+			const tf = stage() ? stage().getTransform() : undefined;
+			const hf = HktHeightfield.bake(colliderTris, Object.assign({ transform: tf }, HF_REGION));
+			engine.setHeightfield(hf);
+			engine.setOccluder(colliderTris);      // S3: 같은 collider 가 가림의 근거
+			engine.setOccluderTransform(tf);
+			document.getElementById('stCollide').disabled = false;
+			document.getElementById('stCollide').checked = true;
+			stageStatusEl.innerHTML = `<b>충돌 지형 적용</b> — ${colliderName} · 커버리지 ${(hf.coverage * 100).toFixed(0)}%`;
+			if (reseedFn) reseedFn(); // 나무 뿌리/재생성 지점이 지형을 반영하도록
+		}
+		function rebakeCollider() { // 정합 슬라이더 조작 중 과도한 재베이크 방지
+			if (!colliderTris || !document.getElementById('stCollide').checked) return;
+			clearTimeout(bakeTimer);
+			bakeTimer = setTimeout(applyCollider, 300);
+		}
+		function loadColliderBuffer(buf, name) {
+			try {
+				colliderTris = HktHeightfield.parseGLB(buf);
+				colliderName = name;
+				applyCollider();
+			} catch (e) {
+				stageStatusEl.innerHTML = 'collider 파싱 실패: ' + e.message;
+			}
+		}
+		document.getElementById('stCollide').addEventListener('change', (e) => {
+			if (e.target.checked) applyCollider();
+			else { engine.setHeightfield(null); engine.setOccluder(null); reseedFn(); }
+		});
+
+		const stageDrop = document.getElementById('stageDrop');
+		const stageFile = document.getElementById('stageFile');
+		function loadStageFile(f) {
+			if (!f) return;
+			if (/\.glb$/i.test(f.name)) { // collider 경로 — 무대(비주얼)와 별개
+				const r = new FileReader();
+				r.onload = () => loadColliderBuffer(r.result, f.name);
+				r.readAsArrayBuffer(f);
+				return;
+			}
+			if (!stage()) return;
+			bindStageStatus();
+			stage().load(f);
+		}
+		['dragover', 'dragenter'].forEach((ev) => stageDrop.addEventListener(ev, (e) => { e.preventDefault(); stageDrop.classList.add('hot'); }));
+		['dragleave', 'drop'].forEach((ev) => stageDrop.addEventListener(ev, (e) => { e.preventDefault(); stageDrop.classList.remove('hot'); }));
+		stageDrop.addEventListener('drop', (e) => loadStageFile(e.dataTransfer.files[0]));
+		stageDrop.addEventListener('click', () => stageFile.click());
+		stageFile.addEventListener('change', (e) => loadStageFile(e.target.files[0]));
+		// 정합 노브 → stage.setTransform (Marble 좌표계를 생명 월드에 맞추는 유일한 통로)
+		// collider heightfield 도 같은 변환을 쓰므로 노브가 바뀌면 재베이크 (디바운스)
+		for (const [id, key] of [['stX', 'x'], ['stY', 'y'], ['stZ', 'z'], ['stScale', 'scale'], ['stYaw', 'yawDeg']]) {
+			const el = document.getElementById(id);
+			el.addEventListener('input', () => {
+				el.nextElementSibling.textContent = el.value;
+				if (stage()) stage().setTransform({ [key]: parseFloat(el.value) });
+				rebakeCollider();
+			});
+		}
+		document.getElementById('stFlip').addEventListener('change', (e) => {
+			if (stage()) stage().setTransform({ flip: e.target.checked });
+			rebakeCollider();
+		});
+
+		// ?collider= 딥링크 (하니스/재현용) — 무대 ?world= 와 대칭
+		const colliderUrl = new URLSearchParams(location.search).get('collider');
+		if (colliderUrl) {
+			fetch(colliderUrl).then((r) => {
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.arrayBuffer();
+			}).then((buf) => loadColliderBuffer(buf, colliderUrl))
+				.catch((e) => { stageStatusEl.innerHTML = 'collider 로드 실패: ' + e.message; });
+		}
 
 		const countSel = document.getElementById('count');
 		engine.setScene(parseInt(countSel.value), sceneEntities);
@@ -258,12 +367,19 @@
 					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat) // 외부 클립은 증분 시간
 					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);       // built-in 은 절대 시간
 			}
+			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
+			bindStageStatus();
+			const stageOn = stage() && stage().enabled;
+			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
+				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
+			// 하니스 훅: 스왑체인 readback 은 present 전(같은 태스크)이어야 한다 — test/README 함정
+			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats`;

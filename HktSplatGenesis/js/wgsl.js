@@ -102,6 +102,28 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 @group(0) @binding(4) var<storage, read> rest : array<vec4f>; // L4: xyz=부착점, w=성장 시점
 @group(0) @binding(5) var<storage, read> entities : array<Entity>;
 @group(0) @binding(6) var<storage, read> bones : array<vec4f>; // L6: [2i]=(a.xyz, r1), [2i+1]=(b.xyz, r2)
+// S2 지형: collider 메시에서 CPU 베이크한 heightfield (r32float) — 무대와의 유일한 접점.
+// 없으면 1×1 더미 + on=0 → 평면 바닥(floorY) 폴백 (engine.js setHeightfield)
+@group(0) @binding(7) var hfTex : texture_2d<f32>;
+@group(0) @binding(8) var<uniform> HF : HfParams;
+
+struct HfParams {
+	origin : vec2f, cell : f32, res : f32, // 월드 xz 원점, 텍셀 크기, 한 변 텍셀 수
+	on : f32, _h1 : f32, _h2 : f32, _h3 : f32,
+};
+
+// 지형 높이 — r32float 는 필터 불가라 수동 bilinear (가장자리는 clamp = 지형 연장)
+fn terrainH(xz : vec2f) -> f32 {
+	if (HF.on < 0.5) { return P.floorY; }
+	let uv = clamp((xz - HF.origin) / HF.cell, vec2f(0.0), vec2f(HF.res - 2.0));
+	let i0 = vec2i(floor(uv));
+	let f = uv - floor(uv);
+	let h00 = textureLoad(hfTex, i0, 0).r;
+	let h10 = textureLoad(hfTex, i0 + vec2i(1, 0), 0).r;
+	let h01 = textureLoad(hfTex, i0 + vec2i(0, 1), 0).r;
+	let h11 = textureLoad(hfTex, i0 + vec2i(1, 1), 0).r;
+	return mix(mix(h00, h10, f.x), mix(h01, h11, f.x), f.y);
+}
 
 // 1D → 3D 해시 (Hoskins)
 fn hash31(p : f32) -> vec3f {
@@ -306,12 +328,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 	if (sp > 10.0) { s.vel *= 10.0 / sp; }
 	s.pos += s.vel * P.dt;
 
-	// 바닥 (y = floorY): 감쇠 반사 + 마찰
-	if (s.pos.y < P.floorY) {
-		s.pos.y = P.floorY;
-		if (s.vel.y < 0.0) { s.vel.y *= -0.25; }
-		let fr = exp(-6.0 * P.dt);
-		s.vel = vec3f(s.vel.x * fr, s.vel.y, s.vel.z * fr);
+	// 바닥: 평면(floorY) 또는 S2 지형 heightfield — 법선 기준 감쇠 반사 + 접선 마찰
+	// (평면일 때 법선 (0,1,0) 이라 기존 거동과 정확히 일치: y 반사 -0.25, xz 마찰 exp(-6dt))
+	let ground = terrainH(s.pos.xz);
+	if (s.pos.y < ground) {
+		s.pos.y = ground;
+		var nrm = vec3f(0.0, 1.0, 0.0);
+		if (HF.on > 0.5) {
+			// 중앙 차분 기울기 → 표면 법선: 경사면에서 반사·마찰이 비탈을 따르게 (흘러내림)
+			let e = HF.cell;
+			let hx = terrainH(s.pos.xz + vec2f(e, 0.0)) - terrainH(s.pos.xz - vec2f(e, 0.0));
+			let hz = terrainH(s.pos.xz + vec2f(0.0, e)) - terrainH(s.pos.xz - vec2f(0.0, e));
+			nrm = normalize(vec3f(-hx, 2.0 * e, -hz));
+		}
+		let vn = dot(s.vel, nrm);
+		let vt = s.vel - nrm * vn;
+		s.vel = vt * exp(-6.0 * P.dt) + nrm * select(vn, vn * -0.25, vn < 0.0);
 	}
 
 	splats[i] = s;
@@ -513,11 +545,15 @@ struct CamParams {
 @group(0) @binding(2) var<uniform> C : CamParams;
 @group(0) @binding(3) var<storage, read> clusters : array<Cluster>;
 @group(0) @binding(4) var<storage, read> entities : array<Entity>;
+// S3 오클루전: collider depth prepass 결과 — 생명이 지형 뒤에 있으면 soft fade.
+// occluder 미설치 프레임도 prepass 가 1.0 으로 클리어하므로 자연히 무효과.
+@group(0) @binding(5) var occDepth : texture_depth_2d;
 
 struct VOut {
 	@builtin(position) pos : vec4f,
 	@location(0) col : vec4f,   // premultiplied 전 단계 (rgb, alpha)
 	@location(1) quad : vec2f,  // 가우시안 로컬 좌표 [-2, 2]
+	@location(2) viewZ : f32,   // 뷰 공간 거리 — VS 가 NDC z 를 0 고정하므로 별도 전달
 };
 
 @vertex
@@ -526,6 +562,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	o.pos = vec4f(0.0, 0.0, 2.0, 1.0); // 퇴화 기본값 (네 꼭짓점 동일 → 래스터 없음)
 	o.col = vec4f(0.0);
 	o.quad = vec2f(0.0);
+	o.viewZ = 0.0;
 
 	let idx = pairs[ii].y;
 	let s = splats[idx];
@@ -583,6 +620,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	let corner = vec2f(f32(vi & 1u), f32(vi >> 1u)) * 4.0 - 2.0; // {-2,+2} 쿼드
 	o.pos = vec4f(cNdc + corner.x * major / C.viewport + corner.y * minor / C.viewport, 0.0, 1.0);
 	o.quad = corner;
+	o.viewZ = -t.z; // 카메라 앞 = 음수 뷰 z → 양수 거리
 
 	// ── 시뮬 상태 → 색 유도: 속도·본드 변형률이 열(팔레트 보간), 에너지가 발광 ──
 	// 변형률 발광: 골렘의 균열(스트레스 받는 본드)이 뜨겁게 빛난다
@@ -604,8 +642,31 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 fn fs(in : VOut) -> @location(0) vec4f {
 	let a = -dot(in.quad, in.quad);
 	if (a < -4.0) { discard; }
-	let b = exp(a) * in.col.a;
+	// S3: collider depth 와 뷰 거리 비교 — 지형 뒤면 soft fade (경계 팝 방지 마진 0.15)
+	// 깊이 선형화: viewDist = proj[3].z / (d + proj[2].z) (WebGPU z∈[0,1] 원근, math.js 참조)
+	let od = textureLoad(occDepth, vec2i(in.pos.xy), 0);
+	let occDist = C.proj[3].z / (od + C.proj[2].z);
+	let fade = clamp(1.0 + (occDist - in.viewZ) / 0.15, 0.0, 1.0);
+	let b = exp(a) * in.col.a * fade;
 	return vec4f(in.col.rgb * b, b); // premultiplied over
+}
+`;
+
+	// ── S3 오클루전 prepass: collider 메시 depth-only — 생명 가림의 유일한 근거 ──
+	// 무대(Spark) 스플랫이 아니라 collider 근사를 쓰는 이유: 스플랫엔 정확한 깊이가 없다 (PLAN S3).
+	const OCC = /* wgsl */`
+struct CamParams {
+	view : mat4x4f, proj : mat4x4f,
+	viewport : vec2f, focal : vec2f,
+	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+};
+@group(0) @binding(0) var<storage, read> pos : array<f32>; // 삼각형 수프 (collider 원본 좌표)
+@group(0) @binding(1) var<uniform> C : CamParams;
+@group(0) @binding(2) var<uniform> M : mat4x4f; // 무대 정합 변환 (offset·yaw·scale·flip)
+@vertex
+fn vs(@builtin(vertex_index) vi : u32) -> @builtin(position) vec4f {
+	let p = vec4f(pos[vi * 3u], pos[vi * 3u + 1u], pos[vi * 3u + 2u], 1.0);
+	return C.proj * C.view * (M * p);
 }
 `;
 
@@ -644,5 +705,5 @@ fn fsJoint() -> @location(0) vec4f {
 }
 `;
 
-	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY };
+	global.HktGenesisWGSL = { SIM, KEY, SORT, RENDER, GRID_CLEAR, GRID_BUILD, CLUSTER, OVERLAY, OCC };
 })(window);

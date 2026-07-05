@@ -30,6 +30,30 @@
   정점 웨이트를 "어느 뼈 친화 스플랫이 근처인가"에서 자동 도출하면 스키닝이 공짜.
 - **완료 기준**: 바인드 포즈 → 메시(+웨이트) 내보내기, UE5 에서 Mixamo 클립으로 재생 확인.
 
+## S 트랙 — Spark 지형 무대 (worldlabs Marble)
+
+상세 계획·아키텍처·리스크는 [PLAN-SparkTerrain.md](PLAN-SparkTerrain.md) 참조. 무대(외부 생성
+3DGS 지형, Spark 렌더) 위에 생명(기존 WebGPU 배양)이 사는 2층 세계 — R 트랙과 독립 진행 가능.
+
+- ✅ **S1 — 무대 로더 + 카메라 동기**: `vendor/spark/`(spark 2.1.0 + three 0.180 ESM 격리) +
+  `js/stage.js`(무대 탭: URL/드롭/정합 노브, `?world=` 딥링크) + WebGPU 캔버스 premultiplied
+  투명 합성. 검증: `node test/stage-shot.js` — 절차 지형 fixture(PLY) 위 생명 오버레이 사진.
+  함정: SparkRenderer 는 자동 생성이 아니다 — scene 에 명시적으로 추가해야 그려진다.
+- ✅ **S2 — collider GLB → heightfield → 시뮬 바닥**: `js/heightfield.js`(최소 GLB 파서 + 최대
+  높이 베이크, three 무의존) → `engine.setHeightfield`(r32float 텍스처) → SIM 바닥을
+  `terrainH()` bilinear + 법선 반사로 교체 (평면 폴백 = 기존 거동과 일치). emitter y 는 지상고로
+  해석(지형 높이 가산) — 나무가 능선에 뿌리내린다. 정합 노브 변경 시 재베이크(디바운스).
+  검증: `node test/terrain-shot.js` — 침투 0% + 바닥 포락선 지형 밀착(0.10 vs 평면 0.32) +
+  슬라임 경사 정착·불×나무 골짜기 사진. 한계: 골짜기가 격자 바닥(y=-0.8) 아래면 L2 이웃
+  규칙이 꺼진다 — S5 시뮬 버블에서 해소.
+- ✅ **S3 — 오클루전 합성**: collider 를 depth-only prepass 로(OCC 셰이더, 무대 정합 변환 공유)
+  → 렌더 FS 가 뷰 거리 vs 선형화 깊이를 비교해 soft fade(마진 0.15). 스플랫 VS 가 NDC z 를
+  0 고정하므로 viewZ 를 varying 으로 전달하는 것이 핵심. 검증: `node test/occlusion-shot.js` —
+  능선 가림 시점에서 생명 픽셀 60501→3202 (5%), 전후 사진. 남김: fog 톤 정합(무대·생명 공용
+  안개)은 시각 폴리시 항목으로 보류.
+- **S4 — LoD 스트리밍(.rad) + 성능 예산**: Range 지원 서버로 교체 필수. 완료: 목표 fps 수치.
+- **S5 — 상호작용 심화 (선택)**: 흔적 데칼 스폰, 시뮬 버블(GRID_ORIGIN 추종).
+
 ## R5 — 엔진 일반 큐 (L6 무관, 독립)
 
 - 장면 편집기 (개체 추가/배치 UI) · 슬라임의 포식(질량 이전)

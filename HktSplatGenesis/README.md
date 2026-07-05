@@ -26,7 +26,7 @@ python -m http.server 8123
 # 브라우저에서 http://localhost:8123
 ```
 
-우측 패널은 탭 2개: **유전자** 탭(원소 프리셋 → 슬라이더로 연속 변형 → 중간 생물 탐색, 장면 버튼(불×나무)은 다중 개체 공존 데모) · **뼈대** 탭(히키토의 모션 클립/속도·통통함·뼈대 표시, 그리고 **Mixamo FBX 드롭존** — Mixamo 에서 FBX 로 받은 캐릭터/클립을 놓으면 실제 클립 위에 살이 자란다).
+우측 패널은 탭 3개: **유전자** 탭(원소 프리셋 → 슬라이더로 연속 변형 → 중간 생물 탐색, 장면 버튼(불×나무)은 다중 개체 공존 데모) · **뼈대** 탭(히키토의 모션 클립/속도·통통함·뼈대 표시, 그리고 **Mixamo FBX 드롭존** — Mixamo 에서 FBX 로 받은 캐릭터/클립을 놓으면 실제 클립 위에 살이 자란다) · **무대** 탭(S 트랙 — worldlabs Marble 등 외부 생성 3DGS 월드(.spz/.ply)를 드롭하면 Spark 레이어가 생명 아래에 깔린다. "무대는 로드, 생명은 배양" — [Docs/PLAN-SparkTerrain.md](Docs/PLAN-SparkTerrain.md), 수급: [assets/worlds/README.md](assets/worlds/README.md)).
 
 ## 아키텍처 (전부 GPU 상주, CPU 왕복 없음)
 
