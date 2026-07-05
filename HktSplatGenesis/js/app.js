@@ -215,11 +215,20 @@
 			bindStageStatus();
 			stage().load(url);
 		});
+		// 샘플 지형: repo 동봉 생성 에셋 — 무대(ply)와 collider(glb)를 한 번에 (오프라인 동작)
 		document.getElementById('stageSample').addEventListener('click', () => {
 			if (!stage()) return;
 			bindStageStatus();
 			document.getElementById('stageUrl').value = stage().SAMPLE_URL;
 			stage().load(stage().SAMPLE_URL);
+			fetch(stage().SAMPLE_URL.replace(/\.ply$/, '.glb')).then((r) => {
+				if (!r.ok) throw new Error('HTTP ' + r.status);
+				return r.arrayBuffer();
+			}).then((buf) => loadColliderBuffer(buf, 'sample-terrain.glb'))
+				.catch((e) => { stageStatusEl.innerHTML = '샘플 collider 로드 실패: ' + e.message; });
+		});
+		document.getElementById('stLod').addEventListener('change', (e) => {
+			if (stage()) stage().setLod(e.target.checked);
 		});
 		document.getElementById('stageOn').addEventListener('change', (e) => {
 			if (stage()) stage().setEnabled(e.target.checked);
@@ -311,7 +320,7 @@
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
-		let last = performance.now(), simTime = 0, fpsAvg = 0;
+		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
 
 		// ── Alt+드래그 인력: 화면 광선 ∩ 수평면(카메라 타겟 높이) 을 인력점으로 ──
 		const pull = [0, 0, 0, 0];
@@ -370,7 +379,11 @@
 			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
 			bindStageStatus();
 			const stageOn = stage() && stage().enabled;
-			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
+			if (stageOn) {
+				const t0 = performance.now();
+				stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
+				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
+			}
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
@@ -382,7 +395,8 @@
 			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
-			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats`;
+			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats` +
+				(stageOn ? ` · 무대 ${stageMs.toFixed(1)}ms` : '');
 			requestAnimationFrame(tick);
 		}
 		requestAnimationFrame(tick);

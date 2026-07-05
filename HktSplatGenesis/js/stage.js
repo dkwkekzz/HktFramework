@@ -15,13 +15,17 @@
 import * as THREE from 'three';
 import { SparkRenderer, SplatMesh } from '@sparkjsdev/spark';
 
-// Spark 공개 데모 에셋 — Marble 월드가 없을 때의 폴백 (네트워크 필요)
-const SAMPLE_URL = 'https://sparkjs.dev/assets/splats/butterfly.spz';
+// 생성 샘플 지형 (repo 동봉, 오프라인 동작) — Marble 월드가 없을 때의 시작점
+const SAMPLE_URL = 'assets/worlds/sample-terrain.ply';
+// S4 스플랫 예산: LoD 슬라이스가 프레임당 이 수를 넘지 않게 (Spark 권장 0.5M~2.5M 중간값)
+const LOD_BUDGET = 1500000;
 
 let canvas = null, renderer = null, scene = null, camera = null;
 let rig = null;      // 정합 노브(offset/scale/yaw)가 걸리는 부모 그룹
 let mesh = null;     // 현재 SplatMesh
 let objectUrl = null; // 파일 드롭용 blob URL (교체 시 revoke)
+let lastSrc = null, lastName = null; // LoD 토글 시 재로드용
+let lodOn = true;    // S4: Tiny-LoD (브라우저에서 LoD 트리 생성) / .rad 는 precomputed
 let enabled = false;
 let statusCb = null, lastStatus = null; // 모듈이 app.js 보다 먼저 상태를 낼 수 있어(?world=) 버퍼링
 
@@ -41,8 +45,9 @@ function init() {
 	renderer.setClearColor(0x06070f, 1); // 월드가 하늘을 안 덮을 때 페이지 배경과 연속
 	scene = new THREE.Scene();
 	camera = new THREE.PerspectiveCamera(55, 1, 0.05, 1000);
-	// SparkRenderer 는 자동 생성이 아니다 — 공식 예제대로 scene 에 명시적으로 넣어야 스플랫이 그려진다
-	scene.add(new SparkRenderer({ renderer }));
+	// SparkRenderer 는 자동 생성이 아니다 — 공식 예제대로 scene 에 명시적으로 넣어야 스플랫이 그려진다.
+	// S4: LoD 구동 + 프레임 스플랫 예산 — 대용량 월드에서 시점 기준 슬라이스만 렌더/fetch
+	scene.add(new SparkRenderer({ renderer, enableLod: true, lodSplatCount: LOD_BUDGET }));
 	rig = new THREE.Group();
 	scene.add(rig);
 }
@@ -67,9 +72,11 @@ async function load(src, name) {
 		// blob URL 은 확장자가 없다 — fileName 힌트로 Spark 가 포맷을 추정하게 한다
 		name = name || src.name;
 	}
+	lastSrc = src; lastName = name;
 	setStatus('불러오는 중… ' + (name || url));
 	try {
-		const opts = { url };
+		// lod: 로드 시 Tiny-LoD 트리 생성 (브라우저) — .rad 는 트리가 파일에 있어 그대로 스트리밍
+		const opts = { url, lod: lodOn };
 		if (name) opts.fileName = name;
 		mesh = new SplatMesh(opts);
 		await mesh.initialized;
@@ -125,9 +132,16 @@ window.HktGenesisStage = {
 	init, load, setEnabled, frame, capture,
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
 	getTransform() { return { ...transform }; },
+	get lod() { return lodOn; },
+	setLod(on) { // 로드 시점 옵션이라 현재 월드를 같은 소스로 재로드
+		lodOn = !!on;
+		if (lastSrc) load(lastSrc, lastName);
+	},
 	onStatus(cb) { statusCb = cb; if (lastStatus) cb(lastStatus); },
 };
 
-// ?world=<url> — 하니스/딥링크용 자동 로드
-const auto = new URLSearchParams(location.search).get('world');
+// ?world=<url> [&lod=0|1] — 하니스/딥링크용 자동 로드
+const q = new URLSearchParams(location.search);
+if (q.get('lod') != null) lodOn = q.get('lod') !== '0';
+const auto = q.get('world');
 if (auto) load(auto);

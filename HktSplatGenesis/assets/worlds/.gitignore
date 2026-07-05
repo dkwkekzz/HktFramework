@@ -1,5 +1,7 @@
-# 월드 에셋(수백 MB)은 커밋 금지 — 안내와 정합 사이드카(json)만 버전 관리
+# 월드 에셋(수백 MB)은 커밋 금지 — 안내·정합 사이드카(json)·생성 샘플만 버전 관리
 *
 !.gitignore
 !README.md
 !*.json
+!sample-terrain.ply
+!sample-terrain.glb

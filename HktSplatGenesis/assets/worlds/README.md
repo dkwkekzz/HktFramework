@@ -18,5 +18,6 @@
 
 ## Marble 없이 확인
 
-- 무대 탭의 **샘플** 버튼 — Spark 공개 데모 에셋 (네트워크 필요).
-- `test/stage-shot.js` — 합성 파이프라인 검증용 절차 지형 fixture 를 즉석 생성 (네트워크 불필요).
+- 무대 탭의 **[샘플 지형]** 버튼 — repo 동봉 `sample-terrain.{ply,glb}` 를 무대+collider 로
+  한 번에 로드 (오프라인 동작). 재생성: `node tools/gen-sample-terrain.js`.
+- `test/stage-shot.js` — 합성 파이프라인 검증용 절차 지형 fixture 를 즉석 생성.

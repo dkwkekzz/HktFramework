@@ -15,6 +15,7 @@ const ROOT = path.join(__dirname, '..');
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.fbx': 'application/octet-stream' };
 
 // 프로젝트 루트를 서빙. routes = { '/경로': (req, res) => ... } 로 가상 파일 추가.
+// HTTP Range(단일 구간) 지원 — .rad LoD 스트리밍 경로 검증용 (tools/serve.py 와 동일 계약)
 function serve(port, routes) {
 	const server = http.createServer((req, res) => {
 		const url = req.url.split('?')[0];
@@ -22,7 +23,26 @@ function serve(port, routes) {
 		const p = path.join(ROOT, url === '/' ? 'index.html' : url);
 		fs.readFile(p, (err, data) => {
 			if (err) { res.writeHead(404); res.end(); return; }
-			res.writeHead(200, { 'content-type': MIME[path.extname(p)] || 'application/octet-stream' });
+			const type = MIME[path.extname(p)] || 'application/octet-stream';
+			const m = req.headers.range && /^bytes=(\d*)-(\d*)$/.exec(req.headers.range.trim());
+			if (m && (m[1] !== '' || m[2] !== '')) {
+				const size = data.length;
+				let start, end;
+				if (m[1] === '') { const len = Math.min(parseInt(m[2]), size); start = size - len; end = size - 1; }
+				else { start = parseInt(m[1]); end = m[2] ? Math.min(parseInt(m[2]), size - 1) : size - 1; }
+				if (start > end || start >= size) {
+					res.writeHead(416, { 'content-range': `bytes */${size}` });
+					res.end();
+					return;
+				}
+				res.writeHead(206, {
+					'content-type': type, 'accept-ranges': 'bytes',
+					'content-range': `bytes ${start}-${end}/${size}`,
+				});
+				res.end(data.slice(start, end + 1));
+				return;
+			}
+			res.writeHead(200, { 'content-type': type, 'accept-ranges': 'bytes' });
 			res.end(data);
 		});
 	});
