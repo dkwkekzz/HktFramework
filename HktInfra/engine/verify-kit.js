@@ -1229,11 +1229,34 @@ function svcmailcap(seeds) {
   }
 }
 
+// step-0494 재작성 — svcmailxfer: 우편↔가방 2-서비스 교차 회계 + saga liveness(0164/0180 판). mail giveOks==가방 escrowXfers·sagaLivenessConsistent(pending 3분할).
+function svcmailxfer(seeds) {
+  console.log('== svcmailxfer (0494·서비스 재작성): 우편↔가방 2-서비스 교차 + saga liveness — mail giveOks==escrowXfers·sagaLivenessConsistent(pending 3분할). ==');
+  console.log('seed   | giveOks | escrowXfers | pending | sagaLive+ness | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 16, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r0' } }],
+      mailOps: [
+        { at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'gift', item: 'item0' } },
+        { at: 9, op: { type: 'mailFetch', to: 'bob' } },
+      ],
+    });
+    const m = r.mail, inv = r.inventory;
+    const cross = m.giveOks === inv.escrowXfers && m.giveOks === 2;         // 두 서비스 escrow 회계 합치
+    const liveness = m.sagaLivenessConsistent() && m.sagaConsistent();      // pending 3분할 + 회계 닫힘
+    const conserved = inv.ownerOf('item0') === 'bob' && inv.minted === 1;   // 무손실 단일 소유
+    const ok = check(cross && liveness && conserved, `seed ${seed}: cross${cross}(oks${m.giveOks}==xfer${inv.escrowXfers})·liveness${liveness}·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(m.pending.size, 7)} | ${pad(liveness ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
