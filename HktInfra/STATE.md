@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0504](step-0504.md) — **#16 라운드 4차 4: mailsagaabandonpub — 포기 발행 E2E 관측**: 포기 시 svc.mail.saga_abandoned 발행→버스→audit 수신. abandonPublished==giveAbandoned==audit.seen. 운영 가시화가 은닉 통신으로 실제 닿음. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagaabandonpub 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: transient(0501)·unacked(0502)·abandon(0503)·abandonpub(0504). 남은 조각: readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0505](step-0505.md) — **#16 라운드 4차 5: mailsagareadmit — 포기 give 재admission 복구 기제**: 포기 후 mailReadmit → abandonedGive→pendingGive 역이행·readmitted>0·pending 불변·sagaLive. 포기(0503)의 역이행. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagareadmit 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: transient(0501)·unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505). 남은 조각: readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -157,3 +157,4 @@
 | [0502](step-0502.md) | #16 라운드 4차 2: mailsagaunacked — 지속 손실(mailAckDropAlways·상한없음) 하 미해결 give 무손실 회계(gives==acked+pending·pending==pendingGive) | 통과(reg 0·spine OK) · mailsagaunacked 5/5 |
 | [0503](step-0503.md) | #16 라운드 4차 3: mailsagaabandon — 재시도 상한(mailMaxRetries) 도달 → 포기(giveAbandoned>0·pendingGive→abandonedGive·pending==abandonedGive) | 통과(reg 0·spine OK) · mailsagaabandon 5/5 |
 | [0504](step-0504.md) | #16 라운드 4차 4: mailsagaabandonpub — 포기 발행 E2E(svc.mail.saga_abandoned 발행→버스→audit·abandonPublished==giveAbandoned==audit.seen) | 통과(reg 0·spine OK) · mailsagaabandonpub 5/5 |
+| [0505](step-0505.md) | #16 라운드 4차 5: mailsagareadmit — 포기 give 재admission(abandonedGive→pendingGive 역이행·readmitted>0·pending 불변) | 통과(reg 0·spine OK) · mailsagareadmit 5/5 |
