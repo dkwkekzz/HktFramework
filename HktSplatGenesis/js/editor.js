@@ -257,14 +257,35 @@
 		d.appendChild(numRow('위치 Z', skel.origin[1], 0.1, (v) => { skel.origin[1] = v; refreshUI(); }));
 		d.appendChild(el('<h2>살 문법</h2>'));
 		d.appendChild(sliderRow('통통함', 0.5, 1.8, 0.05, skel.fat, (v) => { skel.fat = v; }));
-		// 형태 게놈 ① — 부위별 반지름 배율 (기본 문법 위에 곱). 항등(1)이면 기존 살.
-		d.appendChild(el('<h2>형태 게놈 (반지름 배율)</h2>'));
-		const P = HktGenesisGenome.PROFILE.radiusMul;
-		const morphLabels = { head: '머리', torso: '몸통', shoulder: '어깨', arm: '팔', hand: '손', leg: '다리', foot: '발' };
-		for (const [g, label] of Object.entries(morphLabels))
-			d.appendChild(sliderRow(label, P.min, P.max, P.step, skel.genome.morph[g] != null ? skel.genome.morph[g] : 1,
-				(v) => { if (Math.abs(v - 1) < 1e-6) delete skel.genome.morph[g]; else skel.genome.morph[g] = v; }));
-		d.appendChild(el('<div class="note">부위 반지름 배율 — 같은 클립을 무수정 재생하며 실루엣만 바뀐다(형태 = 게놈 데이터). 미지정(1) 부위는 기본 문법 그대로.</div>'));
+		// 형태 게놈 ① — 부위별 반지름·길이 배율 (기본 문법 위에 곱). 항등(1)이면 기존 살.
+		d.appendChild(el('<h2>형태 게놈 (반지름·길이 배율)</h2>'));
+		// 체형 프리셋 — 수동 게놈(덩치/호리호리) 즉시 적용 (C2 비율 실증)
+		const bodyBox = el('<div class="inline"><label>체형</label></div>');
+		for (const [name, gen] of [['항등', null], ...Object.entries(HktGenesisGenome.GENOMES)]) {
+			const b = el(`<button style="margin-right:4px">${name}</button>`);
+			b.addEventListener('click', () => {
+				skel.genome.morph = gen ? JSON.parse(JSON.stringify(gen.morph)) : {};
+				refreshUI();
+			});
+			bodyBox.appendChild(b);
+		}
+		d.appendChild(bodyBox);
+		const PR = HktGenesisGenome.PROFILE.radiusMul, PL = HktGenesisGenome.PROFILE.lengthMul;
+		const morphLabels = { head: '머리', neck: '목', torso: '몸통', shoulder: '어깨', arm: '팔', hand: '손', leg: '다리', foot: '발' };
+		// 엔트리는 {r, l} 객체 — 슬라이더가 r/l 을 각각 쓰고, 둘 다 항등이면 엔트리 제거
+		const rd = (g, key) => { const e = skel.genome.morph[g]; if (e == null) return 1; return (typeof e === 'number') ? (key === 'r' ? e : 1) : (e[key] != null ? e[key] : 1); };
+		const wr = (g, key, v) => {
+			let e = skel.genome.morph[g];
+			if (e == null || typeof e === 'number') e = { r: typeof e === 'number' ? e : 1 };
+			e[key] = v;
+			if (Math.abs((e.r != null ? e.r : 1) - 1) < 1e-6 && Math.abs((e.l != null ? e.l : 1) - 1) < 1e-6) delete skel.genome.morph[g];
+			else skel.genome.morph[g] = e;
+		};
+		for (const [g, label] of Object.entries(morphLabels)) {
+			d.appendChild(sliderRow(`${label} 굵기`, PR.min, PR.max, PR.step, rd(g, 'r'), (v) => wr(g, 'r', v)));
+			d.appendChild(sliderRow(`${label} 길이`, PL.min, PL.max, PL.step, rd(g, 'l'), (v) => wr(g, 'l', v)));
+		}
+		d.appendChild(el('<div class="note">부위 굵기(반지름)·길이 배율 — 같은 클립을 무수정 재생하며 실루엣·비율만 바뀐다(형태 = 게놈 데이터). 다리 길이는 힙 보정이 발을 지면에 붙인다. 미지정(1) 부위는 기본 문법 그대로.</div>'));
 		const bonesRow = el('<div class="inline"><label><input type="checkbox"> 뼈대 표시</label></div>');
 		bonesRow.querySelector('input').checked = skel.bones;
 		bonesRow.querySelector('input').addEventListener('change', (e) => { skel.bones = e.target.checked; });

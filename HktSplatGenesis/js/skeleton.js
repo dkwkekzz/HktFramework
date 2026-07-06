@@ -46,6 +46,31 @@
 		const mul = (G && genome) ? G.radiusScale(genome, name) : 1;
 		return radiusForName(name) * (fat || 1.0) * mul;
 	}
+	// 뼈 길이 배율 (C2: 형태 게놈 ①). FK offset 에 곱한다 — 클립(로컬 회전)과 직교라
+	// 회전 데이터는 어떤 비율에도 무수정 적용된다 (애니메이션 보존).
+	function lengthG(name, genome) {
+		const G = global.HktGenesisGenome;
+		return (G && genome) ? G.lengthScale(genome, name) : 1;
+	}
+	// 힙 보정 (C2): 다리 길이 배율로 발이 뚫리거나 뜨지 않게 루트 y 를 보정한다.
+	// 대표 발(왼쪽 Toe/Foot)에서 루트까지 offset.y × (1 − 길이배율) 을 누적 —
+	// 다리가 짧으면(배율<1) 양수 → 힙 하강, 길면 음수 → 힙 상승. rest 포즈 근사(PLAN 정식).
+	function hipYCorrection(defs, genome) {
+		const G = global.HktGenesisGenome;
+		if (!G || !genome) return 0;
+		let leaf = -1;
+		for (let i = 0; i < defs.length; i++) {
+			const n = simpleName(defs[i].name);
+			if (/^Left/.test(n) && (n.indexOf('Toe') >= 0 || n.indexOf('Foot') >= 0)) leaf = i;
+		}
+		if (leaf < 0) return 0;
+		let corr = 0, i = leaf;
+		while (i >= 0 && defs[i].parent >= 0) {
+			corr += defs[i].offset[1] * (1 - G.lengthScale(genome, defs[i].name));
+			i = defs[i].parent;
+		}
+		return corr;
+	}
 
 	// ── (1) Skeleton IR: 휴머노이드 계층 (T-pose, 단위 ~m, 발끝 y≈0) ────────
 	// hikito-flesh buildMixamoRig 와 동일 계층 (손가락 포함, 접두어만 생략).
@@ -154,6 +179,7 @@
 	Skeleton.prototype.pose = function (clip, t, speed, fat, genome) {
 		const ph = t * speed * 4.0;
 		const f = fat || 1.0;
+		const hipCorr = hipYCorrection(this.defs, genome); // C2: 다리 길이 배율 → 힙 y 보정
 		for (let i = 0; i < this.defs.length; i++) {
 			const d = this.defs[i];
 			const e = this._euler(simpleName(d.name), clip, t, ph);
@@ -161,10 +187,12 @@
 			if (d.parent < 0) {
 				const bob = clip === 'walk' ? Math.sin(ph * 2.0) * 0.03
 					: clip === 'idle' ? Math.sin(t * 1.1) * 0.008 : 0;
-				this._wpos[i] = [d.offset[0], this.bindHipY + bob, d.offset[2]];
+				this._wpos[i] = [d.offset[0], this.bindHipY + bob + hipCorr, d.offset[2]];
 				this._wrot[i] = local;
 			} else {
-				const off = mulVec(this._wrot[d.parent], d.offset);
+				// C2: offset × 길이 배율 (회전 뒤). 클립 회전과 직교라 클립 무수정.
+				const s = lengthG(d.name, genome);
+				const off = mulVec(this._wrot[d.parent], [d.offset[0] * s, d.offset[1] * s, d.offset[2] * s]);
 				const pp = this._wpos[d.parent];
 				this._wpos[i] = [pp[0] + off[0], pp[1] + off[1], pp[2] + off[2]];
 				this._wrot[i] = mulMat(this._wrot[d.parent], local);

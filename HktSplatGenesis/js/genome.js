@@ -35,20 +35,36 @@
 	// 후보정 UI(에디터)가 노출하는 대표 그룹 — 세부 그룹은 위 분류를 그대로 쓴다.
 	const GROUPS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot'];
 
-	// ── 스타일 프로파일: 반지름 배율의 범위·양자화 (PLAN 초안값 0.5~2.2, 스텝 0.1) ──
+	// ── 스타일 프로파일: 배율의 범위·양자화 (PLAN 초안값 반지름 0.5~2.2·스텝 0.1) ──
 	// 극단 비율을 차단해 어떤 게놈에서 뽑혀도 한 게임의 캐릭터로 보이게 한다.
-	const PROFILE = { radiusMul: { min: 0.5, max: 2.2, step: 0.1 } };
+	// 길이 배율(C2)도 같은 울타리 — 팔다리·몸통 비율의 하한/상한.
+	const PROFILE = {
+		radiusMul: { min: 0.5, max: 2.2, step: 0.1 },
+		lengthMul: { min: 0.5, max: 1.8, step: 0.05 },
+	};
 	function snap(v, p) {
 		const c = Math.min(p.max, Math.max(p.min, v));
 		return Math.round(c / p.step) * p.step;
 	}
 
-	// 게놈 → 부위 반지름 배율. morph 미지정 부위는 항등(1) — 스냅을 타지 않아 회귀 0.
-	function radiusScale(genome, name) {
+	// morph 엔트리는 숫자(반지름 배율만, C1 호환) 또는 {r, l}(반지름·길이 배율, C2).
+	// 미지정 부위·미지 뼈는 항등(1) — 스냅을 타지 않아 항등 게놈 회귀 0.
+	function entryOf(genome, name) {
 		const m = genome && genome.morph;
-		if (!m) return 1;
-		const v = m[groupForName(name)];
+		return m ? m[groupForName(name)] : null;
+	}
+	// 게놈 → 부위 반지름 배율 (형태 게놈 ①). 세그먼트 ra/rb 에 곱한다.
+	function radiusScale(genome, name) {
+		const e = entryOf(genome, name);
+		if (e == null) return 1;
+		const v = (typeof e === 'number') ? e : e.r;
 		return (v == null) ? 1 : snap(v, PROFILE.radiusMul);
+	}
+	// 게놈 → 부위 길이 배율 (형태 게놈 ①, C2). FK offset 에 곱한다 — 클립과 직교.
+	function lengthScale(genome, name) {
+		const e = entryOf(genome, name);
+		if (e == null || typeof e === 'number') return 1;
+		return (e.l == null) ? 1 : snap(e.l, PROFILE.lengthMul);
 	}
 
 	// 항등 게놈 — 기존 히키토 사진을 그대로 재현하는 기준선.
@@ -56,5 +72,13 @@
 	// 배율 게놈: create({ head: 1.6, arm: 0.8 }) → { morph: { head: 1.6, arm: 0.8 } }
 	function create(morph) { return { morph: Object.assign({}, morph || {}) }; }
 
-	global.HktGenesisGenome = { groupForName, radiusScale, IDENTITY, create, GROUPS, PROFILE };
+	// ── 수동 게놈 (C2 비율 실증) — 같은 표준 리그·같은 클립, 게놈만으로 체형 대비 ──
+	// {r: 반지름 배율, l: 길이 배율}. 힙 보정(skeleton FK)이 다리 길이차를 흡수해
+	// 두 체형 모두 발이 지면에 붙은 채 walk/idle/wave 를 무수정 재생한다.
+	const GENOMES = {
+		'덩치':   { morph: { head: { r: 1.15 }, neck: { r: 1.2 }, torso: { r: 1.45, l: 1.05 }, shoulder: { r: 1.4 }, arm: { r: 1.3, l: 0.85 }, hand: { r: 1.2 }, leg: { r: 1.35, l: 0.72 }, foot: { r: 1.25 } } },
+		'호리호리': { morph: { head: { r: 0.9 }, neck: { r: 0.8, l: 1.15 }, torso: { r: 0.78, l: 1.05 }, shoulder: { r: 0.8 }, arm: { r: 0.72, l: 1.3 }, hand: { r: 0.75 }, leg: { r: 0.7, l: 1.32 }, foot: { r: 0.8 } } },
+	};
+
+	global.HktGenesisGenome = { groupForName, radiusScale, lengthScale, entryOf, IDENTITY, create, GENOMES, GROUPS, PROFILE };
 })(typeof window !== 'undefined' ? window : globalThis);
