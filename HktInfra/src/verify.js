@@ -1,7 +1,7 @@
-// HktInfra step-0508 — 헤드리스 검증 (#16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E·수명주기 발행 삼종 완비)
+// HktInfra step-0509 — 헤드리스 검증 (#16 라운드 4차 9: mailsaga3way — 완전 saga liveness grand capstone)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 영구 실패 시 svc.mail.saga_failed 발행→버스→audit 수신
-//   (failPublished==permFailed==audit.seen) 을 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed
+//   *동시 nonzero*·sagaLivenessConsistent 비자명 성립을 verify-kit ORDER 편입(0501~0508 종합). 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

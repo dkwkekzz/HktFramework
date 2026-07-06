@@ -1562,11 +1562,34 @@ function mailsagafailpub(seeds) {
   }
 }
 
+// step-0509 — mailsaga3way: 완전 saga liveness *grand capstone*. 세 미해결 give 를 각각 다른 종결 상태로 몰아 pendingGive>0 AND abandonedGive>0 AND permFailed>0 을 *동시에* 발현(각 항 nonzero) — sagaLivenessConsistent(pending==pg+ab+perm) 가 (0,0,0) 자명 참이 아니라 *비자명*하게 성립함을 단언. 0501~0508 국면들의 종합.
+//   gid0→영구실패(포기→재admission→재포기)·gid1→포기 대기(재admission 안 함)·gid2→재전송 중(미포기). readmit 은 abandonedGive 전량을 옮기므로 gid1 은 마지막 readmit *후* 포기시켜 잔존시킨다.
+function mailsaga3way(seeds) {
+  console.log('== mailsaga3way (0509·손실 체제 grand): 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero·sagaLivenessConsistent 비자명 성립. ==');
+  console.log('seed   | pendingGive | abandonedGive | permFailed | pending | 3way | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0, 1, 2], mailMaxRetries: 1, mailReadmitMax: 1 },
+      [{ at: 2, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g0', item: 'item0' } },   // gid0 → permFailed
+       { at: 3, op: { type: 'mailSweep', now: 3 } }, { at: 4, op: { type: 'mailSweep', now: 4 } },  // gid0 포기
+       { at: 5, op: { type: 'mailReadmit' } },                                                       // gid0 재admission(rc=1)
+       { at: 6, op: { type: 'mailSweep', now: 6 } }, { at: 7, op: { type: 'mailSweep', now: 7 } },  // gid0 재포기 → 영구실패
+       { at: 9, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g1', item: 'item1' } },   // gid1 → abandonedGive
+       { at: 10, op: { type: 'mailSweep', now: 10 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }, // gid1 포기(이후 재admission 없음)
+       { at: 13, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g2', item: 'item2' } }],  // gid2 → pendingGive(이후 sweep 없음)
+      ['item0', 'item1', 'item2']).mail;
+    const three = m.pendingGive.size > 0 && m.abandonedGive.size > 0 && m.permFailed > 0;    // 세 분할 동시 nonzero(비자명)
+    const partition = m.pending.size === m.pendingGive.size + m.abandonedGive.size + m.permFailed;  // 3분할 합 == pending(공백·중복 0)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(three && partition && cons, `seed ${seed}: 3way${three}(pg${m.pendingGive.size}·ab${m.abandonedGive.size}·pf${m.permFailed})·part${partition}·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.permFailed, 10)} | ${pad(m.pending.size, 7)} | ${pad(three ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail, mailsagafailpub };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail, mailsagafailpub, mailsaga3way };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0508](step-0508.md) — **#16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E·수명주기 발행 삼종 완비**: 영구 실패 시 svc.mail.saga_failed 발행→버스→audit. failPublished==permFailed==audit.seen. 포기(0504)·재admission(0506)의 종결 마디 — abandon/readmit/fail 발행 완비. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagafailpub 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510)** — 닫힘 0501~0508. 남은 조각: 3way grand(0509·pg/ab/perm 동시 nonzero)·promotedsagaloss 가드(0510·arc 닫기). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0509](step-0509.md) — **#16 라운드 4차 9: mailsaga3way — 완전 saga liveness grand capstone**: 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero → sagaLivenessConsistent 가 (0,0,0) 자명이 아니라 *비자명* 성립. 0501~0508 종합·#16 완전 saga liveness 격차 해소. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsaga3way 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510)** — 닫힘 0501~0509. 남은 조각: promotedsagaloss 가드(0510·9모드 ORDER/MODES 등록 단언·arc 닫기). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0510 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -30,7 +30,7 @@
 | ⛔범위밖 | **C++ 시뮬 코어 (HktInfra 과제 아님)** | 월드 | 결정론 시뮬 *내부 구현*은 범위 밖 — `ISimCore` 뒤 블랙박스·HktGameplay 소관·더미 stub 영구(§4·[SPINE](SPINE.md) §0). |
 | ✅ | **#56 브리지 존 데이터 평면** | 코디네이션/월드 | 0281~0290 해소(enter/move/leave·migrate 무손실·단일 소유·entityFlowCoherent). |
 | 🟡 | **#9 멀티프로세스 배선 (직접 라우팅·host 컨테이너·월드 다운스트림 E2E·#57 실 spawn+데이터 평면 ✅)** | 코디네이션/엣지 | 0291~0350 직접 라우팅·host 컨테이너·월드 다운스트림 E2E · **#57 ✅(0351~0370 드라이버+실 spawn+실 데이터 평면·clusterCoherent desync 0)**. 남은 것: cluster-run.js runMulti 코어 orch 상주·연속 tick 루프·업스트림 실 클라(#61). |
-| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | **#4 in-proc substrate ✅(0431~40) + 실 Net·sim seam 브리지 등가 ✅(0441~50) + 실 run() net.step 배리어 치환 ✅(0451~60) + 다중 존 이주 하 유계 resync ✅(0461~70·`async-barrier.js` wrap-aware interior 가드·다중 존 loss+delay 하 world/뷰==lockstep·exactly-once·deferSpan<horizon·deferredAcrossHandoff0·OFF→net.step reg 0)**. 남은 것: 완전-ON(경계 포함 async·lockstep 등가 불가·0461 발견)·downstream 재접속·실 host.js child 업스트림(#70). |
+| 🟡 | **비동기 실행 아래 결정론 (#4·lockstep 배리어 해제)** | 코디네이션 | in-proc substrate→실 Net·sim seam 등가→net.step 치환→다중 존 이주 유계 resync ✅(0431~70·`async-barrier.js`·loss+delay 하 world/뷰==lockstep·exactly-once·OFF→reg 0). 남은 것: 완전-ON(경계 async·lockstep 등가 불가·0461)·downstream 재접속. |
 | ⬜ | **로그인 큐·티켓 실체화** | 엣지 | 스텁→계정검증·대기열·만료(0001). |
 | 🟡 | **다중 클라 결정론 *전파*·예측 (업스트림 실 클라 ✅ in-proc+실 경계)** | 월드/엣지 | 다운스트림 실 DownClient(0342~50·desync 0) + 업스트림 실 UpClient(0421~30·#61·in-proc) + **실 host.js child 경계 업스트림 ✅(0471~80·#70·intent 소켓 넘어 실 host.js 존→egress 뷰 되먹임·경계 넘어 desync0·손실 exactly-once·생애주기)**. 남은 것: 실 게이트웨이 프로세스 분리(seam→실 GW). |
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
@@ -159,3 +159,4 @@
 | [0506](step-0506.md) | #16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E(svc.mail.saga_readmitted 발행→버스→audit·readmitPublished==readmitted==audit.seen) | 통과(reg 0·spine OK) · mailsagareadmitpub 5/5 |
 | [0507](step-0507.md) | #16 라운드 4차 7: mailsagapermfail — 재admission 상한(mailReadmitMax) → 영구 실패(permFailed>0·재admission 차단·pending==pg+ab+perm nonzero) | 통과(reg 0·spine OK) · mailsagapermfail 5/5 |
 | [0508](step-0508.md) | #16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E(svc.mail.saga_failed 발행→버스→audit·failPublished==permFailed==audit.seen)·발행 삼종 완비 | 통과(reg 0·spine OK) · mailsagafailpub 5/5 |
+| [0509](step-0509.md) | #16 라운드 4차 9: mailsaga3way — grand capstone: 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero·sagaLivenessConsistent 비자명 성립 | 통과(reg 0·spine OK) · mailsaga3way 5/5 |
