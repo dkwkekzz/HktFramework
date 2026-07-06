@@ -191,8 +191,50 @@
 			return [r, g, bl];
 		}
 
+		// 타일 PLY (T2 청크 스트리밍) — [x0,x0+size)×[z0,z0+size) 를 굽는다.
+		// 이음새 정합의 핵심: 스플랫을 **전역 셀 격자**에 배치한다. 셀 크기 cell=size/G,
+		// 전역 셀 인덱스 = round(x0/cell)+i. 지터는 셀 인덱스 해시(월드 좌표 기준)로 셀
+		// *내부*에 가둔다 — 이웃 타일과 셀이 겹치지도 벌어지지도 않고, 같은 밀도 타일끼리는
+		// 같은 격자를 공유하므로 같은 월드 셀 = 같은 스플랫(이음새 없음). splatScale 은
+		// 셀 크기에 비례해 커버리지 유지(외곽 저밀도 타일은 스플랫이 자동으로 커진다).
+		function tilePly(x0, z0, size, G, splatScale) {
+			G = G || 64; splatScale = splatScale || 1;
+			const N = G * G, cell = size / G;
+			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
+			const header = 'ply\nformat binary_little_endian 1.0\n' +
+				`element vertex ${N}\n` +
+				['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity',
+					'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
+					.map((p) => `property float ${p}`).join('\n') + '\nend_header\n';
+			const head = new TextEncoder().encode(header);
+			const body = new DataView(new ArrayBuffer(N * 17 * 4));
+			const sx = cell * 0.95 * splatScale, sy = cell * 0.34 * splatScale;
+			const lsx = Math.log(sx), lsy = Math.log(sy);
+			let o = 0;
+			const put = (v) => { body.setFloat32(o, v, true); o += 4; };
+			for (let i = 0; i < N; i++) {
+				const cellX = cx0 + (i % G), cellZ = cz0 + ((i / G) | 0);
+				const jx = latticeHash(cellX, cellZ, P.seed + 1301) - 0.5;
+				const jz = latticeHash(cellX, cellZ, P.seed + 2609) - 0.5;
+				const x = (cellX + 0.5) * cell + jx * cell * 0.8;
+				const z = (cellZ + 0.5) * cell + jz * cell * 0.8;
+				const y = height(x, z);
+				const rgb = colorAt(x, z, y);
+				const jc = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.05;
+				put(x); put(y); put(z); put(0); put(0); put(0);
+				put((rgb[0] + jc - 0.5) / SH_C0); put((rgb[1] + jc - 0.5) / SH_C0); put((rgb[2] + jc - 0.5) / SH_C0);
+				put(2.44); // opacity 0.92 의 logit
+				put(lsx); put(lsy); put(lsx);
+				put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
+			}
+			const out = new Uint8Array(head.length + body.byteLength);
+			out.set(head, 0);
+			out.set(new Uint8Array(body.buffer), head.length);
+			return out;
+		}
+
 		return {
-			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate,
+			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}

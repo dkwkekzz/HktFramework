@@ -31,6 +31,16 @@ let statusCb = null, lastStatus = null; // 모듈이 app.js 보다 먼저 상태
 
 const transform = { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
 
+// ── T2 청크 스트리밍 상태 ────────────────────────────────────────────────
+// 절차 월드를 정사각 타일로 나눠 카메라 타깃 중심의 링을 로드한다. 근접 링(ring 0)은
+// 풀 밀도, 외곽 링(ring 1)은 저밀도(격자 반감), 링 밖은 dispose. 타일 PLY 는 월드
+// 함수 평가로 브라우저에서 즉석 생성 — 네트워크·디스크 불필요(오프라인 동작).
+let tileWorld = null;            // HktGenesisTerrainGen.world 결과 (PLY 굽는 원본)
+let tileCfg = null;              // { tileSize, nearR, farR, nearG, farG, splatScale }
+const tiles = new Map();         // "tx,tz" -> { mesh, url, ring }
+const tilePending = new Set();   // 로드 진행 중 키 (중복 로드 방지)
+let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 재계산
+
 function setStatus(html) { lastStatus = html; if (statusCb) statusCb(html); }
 
 // 캔버스/렌더러는 최초 필요 시점에 생성 — WebGL 컨텍스트를 공짜로 잡지 않는다
@@ -93,15 +103,115 @@ async function load(src, name) {
 	}
 }
 
+function hasContent() { return !!mesh || tiles.size > 0; }
+
 function setEnabled(on) {
-	enabled = !!on && !!mesh;
+	enabled = !!on && hasContent();
 	if (canvas) canvas.style.display = enabled ? 'block' : 'none';
 	const chk = document.getElementById('stageOn');
 	if (chk) chk.checked = enabled;
 }
 
+// ── T2 타일 스트리밍 ─────────────────────────────────────────────────────
+// 절차 월드 스트리밍 시작 — 이후 updateTileCenter(카메라 타깃)로 링을 갱신한다.
+// params: 월드 파라미터(seed/amp/…) + { tile: { tileSize, nearR, farR, nearG, farG, splatScale } }
+function startTileWorld(params) {
+	init();
+	if (!window.HktGenesisTerrainGen) { console.error('[HktGenesisStage] terrain-gen 미로드'); return; }
+	if (mesh) { rig.remove(mesh); if (mesh.dispose) mesh.dispose(); mesh = null; }
+	for (const t of tiles.values()) disposeTile(t);
+	tiles.clear(); tilePending.clear(); tileCenterKey = null;
+	tileWorld = window.HktGenesisTerrainGen.world(params);
+	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32, splatScale: 1 }, params && params.tile);
+	setStatus('타일 월드 스트리밍 — 시드 ' + tileWorld.params.seed);
+}
+
+function stopTileWorld() {
+	for (const t of tiles.values()) disposeTile(t);
+	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileCfg = null;
+	setEnabled(false);
+}
+
+function disposeTile(t) {
+	if (!t) return;
+	rig.remove(t.mesh);
+	if (t.mesh.dispose) t.mesh.dispose();
+	if (t.url) URL.revokeObjectURL(t.url);
+}
+
+// 현재 중심 기준으로 key 타일이 속할 링(0 근접·1 외곽) — 범위 밖이면 null
+function desiredRing(tx, tz) {
+	if (!tileCenterKey) return null;
+	const [ctx, ctz] = tileCenterKey.split(',').map(Number);
+	const dx = Math.abs(tx - ctx), dz = Math.abs(tz - ctz);
+	if (dx > tileCfg.farR || dz > tileCfg.farR) return null;
+	return (dx <= tileCfg.nearR && dz <= tileCfg.nearR) ? 0 : 1;
+}
+
+async function loadTile(tx, tz, ring) {
+	const key = tx + ',' + tz;
+	if (tilePending.has(key)) return;
+	tilePending.add(key);
+	const S = tileCfg.tileSize, G = ring === 0 ? tileCfg.nearG : tileCfg.farG;
+	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale);
+	const url = URL.createObjectURL(new File([bytes], 'tile.ply'));
+	try {
+		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
+		await m.initialized;
+		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
+		if (desiredRing(tx, tz) !== ring) { if (m.dispose) m.dispose(); URL.revokeObjectURL(url); return; }
+		rig.add(m);
+		tiles.set(key, { mesh: m, url, ring });
+		if (!enabled) setEnabled(true);
+	} catch (e) {
+		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
+		URL.revokeObjectURL(url);
+	} finally {
+		tilePending.delete(key);
+	}
+}
+
+// 카메라 타깃 월드 좌표로 링을 갱신. 중심 타일이 바뀔 때만 재계산(값싸다).
+// 반환: 모든 로드/언로드가 끝나는 프라미스 (하니스가 await, 앱은 fire-and-forget).
+function updateTileCenter(wx, wz) {
+	if (!tileWorld) return Promise.resolve();
+	const S = tileCfg.tileSize;
+	const ctx = Math.floor(wx / S), ctz = Math.floor(wz / S);
+	const ck = ctx + ',' + ctz;
+	if (ck === tileCenterKey) return Promise.resolve();
+	tileCenterKey = ck;
+	// 원하는 타일 집합
+	const want = new Map();
+	for (let dz = -tileCfg.farR; dz <= tileCfg.farR; dz++)
+		for (let dx = -tileCfg.farR; dx <= tileCfg.farR; dx++) {
+			const tx = ctx + dx, tz = ctz + dz;
+			want.set(tx + ',' + tz, (Math.abs(dx) <= tileCfg.nearR && Math.abs(dz) <= tileCfg.nearR) ? 0 : 1);
+		}
+	// 범위 밖 dispose
+	for (const [k, t] of tiles) if (!want.has(k)) { disposeTile(t); tiles.delete(k); }
+	// 신규 로드 + 링 변경(near↔far) 재로드
+	const loads = [];
+	for (const [k, ring] of want) {
+		const cur = tiles.get(k);
+		if (cur && cur.ring === ring) continue;
+		if (cur) { disposeTile(cur); tiles.delete(k); }
+		const [tx, tz] = k.split(',').map(Number);
+		loads.push(loadTile(tx, tz, ring));
+	}
+	return Promise.all(loads);
+}
+
+function tileStats() {
+	let splats = 0;
+	for (const t of tiles.values()) splats += (t.mesh.numSplats || 0);
+	return { meshes: tiles.size, splats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
+}
+
 // 오빗 카메라 미러 + 리사이즈 + 렌더 — app.js 의 tick 에서 매 프레임 호출
 function frame(orbit, cssW, cssH) {
+	// 타일 모드면 카메라 타깃을 따라 링 갱신 (중심 타일 불변 시 즉시 반환 — 값싸다).
+	// fire-and-forget: 로드는 비동기, 다음 프레임부터 화면에 반영된다.
+	if (tileWorld && orbit && orbit.target) updateTileCenter(orbit.target[0], orbit.target[2]);
 	if (!enabled || !renderer) return;
 	const dpr = Math.min(devicePixelRatio || 1, 2);
 	const w = Math.floor(cssW * dpr), h = Math.floor(cssH * dpr);
@@ -127,9 +237,11 @@ function capture(orbit, cssW, cssH) {
 
 window.HktGenesisStage = {
 	get enabled() { return enabled; },
-	get hasWorld() { return !!mesh; },
+	get hasWorld() { return hasContent(); },
 	SAMPLE_URL,
 	init, load, setEnabled, frame, capture,
+	startTileWorld, stopTileWorld, updateTileCenter, tileStats,
+	get tiledMode() { return !!tileWorld; },
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
 	getTransform() { return { ...transform }; },
 	get lod() { return lodOn; },
@@ -145,3 +257,6 @@ const q = new URLSearchParams(location.search);
 if (q.get('lod') != null) lodOn = q.get('lod') !== '0';
 const auto = q.get('world');
 if (auto) load(auto);
+// ?tiles=<seed> — 절차 월드 타일 스트리밍 자동 시작 (frame 이 카메라 타깃을 따라 링 갱신)
+const tilesSeed = q.get('tiles');
+if (tilesSeed != null) startTileWorld({ seed: parseInt(tilesSeed) || 1 });

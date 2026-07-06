@@ -26,6 +26,7 @@ npm install                # playwright (브라우저 포함)
 | `node ash-shot.js out.png` | S5 낙재 — 불×나무 연소에서 재가 분리→낙하→바닥 정착하는지 스플랫 readback 판정 + 사진 |
 | `node editor-shot.js out.png` | E1 에디터 — editor.html 부트, 지형 생성(시드 fBm)+개체 5 배치(void 패딩 슬라이스 8)+히키토 walk 를 API 로 구동, 합성 사진 + 판정 |
 | `node biome-shot.js [out.png] [seed=7]` | T1 월드 함수 — ① 원점 다른 두 창의 겹침 height/biome/color diff 0 (순수 Node) + ② 넓은 파노라마 PLY 를 Spark 로 로드해 조감 촬영, 렌더 색족 ≥4(바이옴 구분) 판정 사진 |
+| `node world-pan-shot.js [out.png] [seed=7]` | T2 청크 스트리밍 — index.html 에서 타일 월드를 켜고 카메라 +x 직진, 타일 교체(합집합>25)+메시·스플랫 상한 유지(O(시야반경))+중앙밴드 지형 100%(이음새 틈 없음) 판정 사진 |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

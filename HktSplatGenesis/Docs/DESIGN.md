@@ -42,7 +42,8 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
   살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
 - `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
-  클립 규약이 다르다). 생명→무대 데이터 흐름 없음.
+  클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
+  Map·링 정책·SplatMesh 부착/폐기, `startTileWorld`/`updateTileCenter`/`tileStats`, `?tiles=`).
 - `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
 - `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
@@ -84,6 +85,8 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 월드는 순수 함수 `world(x,z)→{height,biome}`, 청크는 그 창 (T1) | 시드+월드좌표만으로 어느 창이든 독립 생성 → 창 경계 연속성이 *자동* 보장(봉합 코드 불필요). `create` 창의 `height()` 가 곧 `world.heightAt` 이라 원점이 달라도 겹침 diff 0 (biome-shot ① 로 확인). 청크 스트리밍(T2)의 전제 |
 | 바이옴 = 온·습도 평면의 소프트맥스 경계 보간 (T1) | 바이옴별 relief(진폭·ridged 비중)·팔레트를 가중 혼합하면 경계에서 지형 성격과 색이 *함께* 매끄럽게 바뀐다 — 하드 경계는 이음새를 만든다. 수역은 별도 채널이 아니라 `height<waterY` 판정(습도 연동은 T5) |
 | Spark 스플랫은 로드 후 렌더 몇 프레임 뒤 GPU 패킹 완료 | `mesh.initialized`(파싱 완료) 후에도 첫 수 프레임은 빈 화면 — 하니스는 캡처 전 워밍업 프레임 필요 (biome-shot 6프레임). stage-shot 이 안 걸린 건 30프레임 구동 덕 |
+| 타일 이음새 = 전역 셀 격자 + 셀 내부 지터 (T2) | 타일을 창-상대 격자로 굽으면 경계에서 셀이 어긋나 겹침/틈이 생긴다. 스플랫을 전역 셀(=`round(x0/cell)+i`)에 놓고 지터를 셀 인덱스 해시로 셀 폭의 0.8 안에 가두면, 이웃 타일이 같은 전역 셀을 공유하지 않으면서도 셀이 정확히 맞닿는다 — 같은 밀도 타일끼리 봉합 코드 없이 이음새 0. 스플랫 크기는 셀 크기 비례라 외곽 저밀도 타일도 커버리지 유지 |
+| 타일 관리는 stage.js(rig/Spark 소유), 월드는 window 전역에서 참조 | 타일 SplatMesh 부착/폐기·링 정책은 rig 를 가진 stage 모듈에 둔다. PLY 원본(terrain-gen)은 classic 전역이라 `window.HktGenesisTerrainGen` 로 참조 — 모듈 격리(three 사본) 유지하며 결합 최소화. `frame()` 이 카메라 타깃으로 링을 fire-and-forget 갱신(중심 타일 불변 시 즉시 반환) |
 
 ## 검증 방법
 
