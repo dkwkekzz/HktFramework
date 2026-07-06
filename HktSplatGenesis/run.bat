@@ -19,5 +19,5 @@ if not defined RUN (
 echo [HktSplatGenesis] http://localhost:%PORT% 서버 시작 (창을 닫으면 종료)
 start "HktSplatGenesis Server" cmd /k "%RUN%"
 timeout /t 2 /nobreak >nul
-start "" "http://localhost:%PORT%"
+start "" "http://localhost:%PORT%/editor.html"
 endlocal

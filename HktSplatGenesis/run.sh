@@ -15,7 +15,7 @@ SERVER_PID=$!
 trap 'kill $SERVER_PID 2>/dev/null' EXIT
 sleep 1
 
-URL="http://localhost:$PORT"
+URL="http://localhost:$PORT/editor.html"
 if command -v open >/dev/null; then open "$URL"; # macOS
 elif command -v xdg-open >/dev/null; then xdg-open "$URL"; fi
 
