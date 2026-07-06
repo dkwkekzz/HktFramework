@@ -555,7 +555,8 @@ struct CamParams {
 	view : mat4x4f,
 	proj : mat4x4f,
 	viewport : vec2f, focal : vec2f,
-	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+	sliceSize : u32, fogOn : u32, fogNear : f32, fogFar : f32, // T5: 무대·생명 공용 fog
+	fogColor : vec4f,                                          // rgb = 안개/하늘 톤
 };
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
@@ -665,7 +666,13 @@ fn fs(in : VOut) -> @location(0) vec4f {
 	let occDist = C.proj[3].z / (od + C.proj[2].z);
 	let fade = clamp(1.0 + (occDist - in.viewZ) / 0.15, 0.0, 1.0);
 	let b = exp(a) * in.col.a * fade;
-	return vec4f(in.col.rgb * b, b); // premultiplied over
+	// T5: 뷰 거리 기반 fog — 원거리 생명이 무대와 같은 안개 톤으로 소실 (fogOn=0 이면 무효과)
+	var rgb = in.col.rgb;
+	if (C.fogOn != 0u) {
+		let ft = clamp((in.viewZ - C.fogNear) / max(C.fogFar - C.fogNear, 1e-3), 0.0, 1.0);
+		rgb = mix(rgb, C.fogColor.rgb, ft);
+	}
+	return vec4f(rgb * b, b); // premultiplied over
 }
 `;
 

@@ -29,6 +29,7 @@ npm install                # playwright (브라우저 포함)
 | `node world-pan-shot.js [out.png] [seed=7]` | T2 청크 스트리밍 — index.html 에서 타일 월드를 켜고 카메라 +x 직진, 타일 교체(합집합>25)+메시·스플랫 상한 유지(O(시야반경))+중앙밴드 지형 100%(이음새 틈 없음) 판정 사진 |
 | `node terrain-bubble-shot.js [follow.png] [fixed.png]` | T3 버블 y 추종 — ① 버킷 인덱스 O(창) 베이크가 나이브 bake 와 diff 0(순수 Node) + ② 원점 ≈70u 3m 분지에서 침투 0%·계곡 바닥 정착·L2 생존(확산 vs 버블 고정 대조군) 판정 사진 |
 | `node scatter-shot.js [scatter.png] [fire.png] [seed=7]` | T4 개체 스트리밍 — ① 결정론 스폰+게이팅(나무 물속 0, 순수 Node) + ② 직진 팬 슬롯 재활용(합집합>8·매 스텝 다른 구성·setScene 무재초기화) + ③ 불×나무 임의 좌표 연소(나무 heat 상승) 사진 2장 |
+| `node water-shot.js [water.png] [seed=7]` | T5 물+fog — ① 호수 파노라마(수면 픽셀·하늘 톤=fog 색 Δ) + ② 생명 렌더 fog(원거리 개체가 fog 색으로 소실, fog on/off B−R 반전) 판정 사진 |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

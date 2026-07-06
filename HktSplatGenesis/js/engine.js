@@ -86,7 +86,7 @@
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
 		this.simUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-		this.camUB = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.camUB = d.createBuffer({ size: 176, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }); // +16B T5 fog
 		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -370,6 +370,12 @@
 	HktGenesisEngine.prototype.bubbleCenter = function (target) {
 		if (!this._hf) return target;
 		return [target[0], this.terrainHeightAt(target[0], target[2]) + 0.8, target[2]];
+	};
+
+	// T5 공용 fog — 무대(three fog)와 같은 색·거리로 원거리 생명을 소실시킨다. 인자 없으면 해제.
+	// color: [r,g,b] 0..1, near/far: 뷰 거리(m). 미설정이면 fogOn 0 → 렌더 불변.
+	HktGenesisEngine.prototype.setFog = function (f) {
+		this._fog = f ? { enabled: 1, color: f.color || [0.56, 0.7, 0.85], near: f.near != null ? f.near : 20, far: f.far != null ? f.far : 60 } : null;
 	};
 
 	// emitter y 를 지형 위 상대 높이로 해석 — 프리셋의 y(지상고)에 지형 높이를 더한다
@@ -694,13 +700,17 @@
 		new Uint32Array(key)[4] = n;
 		d.queue.writeBuffer(this.keyUB, 0, key);
 
-		// CamParams (160B)
-		const cam = new ArrayBuffer(160);
+		// CamParams (176B — T5 fog 포함)
+		const cam = new ArrayBuffer(176);
 		const cf = new Float32Array(cam);
 		cf.set(v, 0);
 		cf.set(opts.proj, 16);
 		cf.set([opts.viewport[0], opts.viewport[1], opts.focal[0], opts.focal[1]], 32);
 		new Uint32Array(cam)[36] = this.sliceSize;
+		const fg = this._fog; // 기본 미설정 = fogOn 0 (기존 렌더 불변)
+		new Uint32Array(cam)[37] = fg && fg.enabled ? 1 : 0;
+		cf[38] = fg ? fg.near : 0; cf[39] = fg ? fg.far : 1;
+		if (fg) cf.set(fg.color, 40);
 		d.queue.writeBuffer(this.camUB, 0, cam);
 
 		const wgs = Math.ceil(n / WG);

@@ -103,6 +103,18 @@ async function load(src, name) {
 	}
 }
 
+// T5 공용 fog — three fog + 스카이 톤(clear color = fog 색, 원거리 소실이 하늘로 이어짐).
+// 생명(engine.setFog)과 같은 색·거리를 쓰면 두 층의 안개 톤이 일치한다. 인자 없으면 해제.
+let fogState = null;
+function setFog(f) {
+	init();
+	fogState = f || null;
+	if (!f) { scene.fog = null; renderer.setClearColor(0x06070f, 1); return; }
+	const hex = f.hex != null ? f.hex : 0x93b4d6;
+	scene.fog = new THREE.Fog(hex, f.near != null ? f.near : 20, f.far != null ? f.far : 70);
+	renderer.setClearColor(hex, 1);
+}
+
 function hasContent() { return !!mesh || tiles.size > 0; }
 
 function setEnabled(on) {
@@ -137,6 +149,7 @@ function disposeTile(t) {
 	rig.remove(t.mesh);
 	if (t.mesh.dispose) t.mesh.dispose();
 	if (t.url) URL.revokeObjectURL(t.url);
+	if (t.water) { rig.remove(t.water.mesh); if (t.water.mesh.dispose) t.water.mesh.dispose(); URL.revokeObjectURL(t.water.url); }
 }
 
 // 현재 중심 기준으로 key 타일이 속할 링(0 근접·1 외곽) — 범위 밖이면 null
@@ -161,7 +174,17 @@ async function loadTile(tx, tz, ring) {
 		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
 		if (desiredRing(tx, tz) !== ring) { if (m.dispose) m.dispose(); URL.revokeObjectURL(url); return; }
 		rig.add(m);
-		tiles.set(key, { mesh: m, url, ring });
+		const entry = { mesh: m, url, ring };
+		// T5: 잠긴 셀이 있으면 같은 타일에 반투명 수면 스플랫(무대 층, 항등 정합)을 얹는다
+		const wbytes = tileWorld.waterPly(tx * S, tz * S, S, G, tileCfg.splatScale);
+		if (wbytes) {
+			const wurl = URL.createObjectURL(new File([wbytes], 'water.ply'));
+			const wm = new SplatMesh({ url: wurl, fileName: 'water.ply', lod: false });
+			await wm.initialized;
+			if (desiredRing(tx, tz) === ring) { rig.add(wm); entry.water = { mesh: wm, url: wurl }; }
+			else { if (wm.dispose) wm.dispose(); URL.revokeObjectURL(wurl); }
+		}
+		tiles.set(key, entry);
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
@@ -240,7 +263,7 @@ window.HktGenesisStage = {
 	get hasWorld() { return hasContent(); },
 	SAMPLE_URL,
 	init, load, setEnabled, frame, capture,
-	startTileWorld, stopTileWorld, updateTileCenter, tileStats,
+	startTileWorld, stopTileWorld, updateTileCenter, tileStats, setFog,
 	get tiledMode() { return !!tileWorld; },
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
 	getTransform() { return { ...transform }; },

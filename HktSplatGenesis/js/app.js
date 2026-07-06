@@ -348,6 +348,10 @@
 			reseedFn = () => { initScatter(); simTime = 0; }; // 스캐터 모드 재시드 = 슬롯 재구성
 			// 개체 수 변경(setScene 재초기화) 뒤 슬롯을 다시 구성 (원 핸들러 다음에 실행)
 			countSel.addEventListener('change', () => HktGenesisScatter.configure(engine, scatterWorld, scatterCfg));
+			// T5 공용 fog — 무대(three)·생명(렌더 셰이더)에 같은 색·거리 (원거리 소실 톤 일치)
+			const FOG = { hex: 0x93b4d6, color: [0.576, 0.706, 0.839], near: 16, far: 50 };
+			engine.setFog(FOG);
+			if (stage()) stage().setFog(FOG);
 			scatterMode = true;
 		}
 

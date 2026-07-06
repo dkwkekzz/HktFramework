@@ -270,8 +270,51 @@
 			return out;
 		}
 
+		// 수면 타일 PLY (T5) — waterY 평면의 반투명 수면 스플랫. 지형이 waterY 아래인 셀에만
+		// 놓고(호수·바다), 심도(waterY - 지형높이)로 색을 얕은 청록→깊은 남색으로. 무대 층(항등
+		// 정합) — 시뮬은 heightfield(지형 바닥)를 그대로 보고, 시각만 물이다. 잠긴 셀이 없으면 null.
+		function waterPly(x0, z0, size, G, splatScale) {
+			G = G || 96; splatScale = splatScale || 1;
+			const cell = size / G;
+			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
+			const recs = [];
+			for (let j = 0; j < G; j++) for (let i = 0; i < G; i++) {
+				const cellX = cx0 + i, cellZ = cz0 + j;
+				const x = (cellX + 0.5) * cell, z = (cellZ + 0.5) * cell;
+				const depth = P.waterY - reliefAt(x, z);
+				if (depth <= 0.03) continue; // 뭍 — 물 없음
+				recs.push([x, z, depth]);
+			}
+			if (!recs.length) return null;
+			const N = recs.length;
+			const header = 'ply\nformat binary_little_endian 1.0\n' +
+				`element vertex ${N}\n` +
+				['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity',
+					'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
+					.map((p) => `property float ${p}`).join('\n') + '\nend_header\n';
+			const head = new TextEncoder().encode(header);
+			const body = new DataView(new ArrayBuffer(N * 17 * 4));
+			const sx = cell * 0.95 * splatScale, sy = cell * 0.12; // 납작한 수평 수면 surfel
+			const lsx = Math.log(sx), lsy = Math.log(sy);
+			let o = 0; const put = (v) => { body.setFloat32(o, v, true); o += 4; };
+			for (let k = 0; k < N; k++) {
+				const d = clamp01(recs[k][2] / 1.2);
+				const r = mix(WATER_COL.shallow[0], WATER_COL.deep[0], d);
+				const g = mix(WATER_COL.shallow[1], WATER_COL.deep[1], d);
+				const b = mix(WATER_COL.shallow[2], WATER_COL.deep[2], d);
+				put(recs[k][0]); put(P.waterY); put(recs[k][1]); put(0); put(0); put(0);
+				put((r - 0.5) / SH_C0); put((g - 0.5) / SH_C0); put((b - 0.5) / SH_C0);
+				put(0.2); // opacity 0.55 근처 logit — 반투명 수면
+				put(lsx); put(lsy); put(lsx);
+				put(1); put(0); put(0); put(0);
+			}
+			const out = new Uint8Array(head.length + body.byteLength);
+			out.set(head, 0); out.set(new Uint8Array(body.buffer), head.length);
+			return out;
+		}
+
 		return {
-			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly, scatter,
+			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly, scatter, waterPly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}

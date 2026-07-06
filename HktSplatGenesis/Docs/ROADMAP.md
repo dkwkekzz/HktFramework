@@ -133,8 +133,15 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   (나무 물속 0) + 직진 팬에서 슬롯 재활용(본 스폰 합집합 24>8, 매 스텝 다른 구성, setScene
   무재초기화) + 불×나무 임의 좌표 연소(나무 heat 0.32) 사진 2장. 회귀(bubble/app-smoke 등) 없음.
   남김: 개체 상한 8 자체 상향(MAX_ENTITIES)은 별도 검토(Entity 144B).
-- **T5 — 물 + 원거리 폴리시**: 수면 타일 + 무대·생명 공용 fog (**S3 잔여 합류**). 완료 기준:
-  호수 파노라마 — 수면·안개 톤 양층 일치.
+- ✅ **T5 — 물 + 원거리 폴리시** (**S3 잔여 합류**): ① `world.waterPly` — `waterY` 평면의 반투명
+  수면 스플랫(지형이 waterY 아래인 셀에만, 심도 색 얕은 청록→깊은 남색, 납작한 수평 surfel).
+  stage 타일 로더가 잠긴 타일에 수면 서브메시를 얹는다(무대 층, 항등 정합 — 시뮬은 지형 바닥
+  그대로, 시각만 물). ② 공용 fog — 무대는 three fog + 스카이 톤(clear=fog 색), 생명은 wgsl
+  RENDER FS 가 뷰 거리로 fog 색에 mix(CamParams 160→176B 확장, fogOn 기본 0 = 렌더 불변).
+  `engine.setFog`/`stage.setFog` 에 같은 색·거리, app.js `?scatter` 가 양층에 동일 FOG 배선.
+  검증: `node test/water-shot.js` — 호수 파노라마 수면 픽셀 6.3만 + 하늘 톤 = fog 색 Δ0 + 원거리
+  생명이 fog 색으로 소실(B−R off −145 → on +51) 사진. 회귀(render/occlusion/world-pan/editor/
+  app-smoke 등) 없음.
 - **T6 — 실측·예산**: 실 Marble/.rad + 청크 월드 fps·메모리 HUD (**S4 잔여 합류**). 완료 기준:
   데스크톱 60fps 수치 기록.
 
