@@ -48,8 +48,11 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
   지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
   개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
-- `js/terrain-gen.js` — 에디터 절차 지형: 시드 fBm 단일 height 원본 → 무대 PLY + collider
-  삼각형 수프 (test/_fixture.js 의 브라우저·매개변수판, 골짜기 -0.72 클램프 동일).
+- `js/terrain-gen.js` — 절차 지형 (T1): 순수 무한 도메인 `world(x,z)` → 무대 PLY + collider
+  삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
+  + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는
+  월드의 한 창(`cx,cz` 중심) — 창 좌표=월드 좌표라 원점 무관 연속. 창 `height()` 는 시뮬
+  격자 바닥용 -0.72 클램프 유지, `world.heightAt()` 은 순수(클램프 없음).
 
 ## L6 의 구조 (hikito-flesh 3층 매핑)
 
@@ -78,6 +81,9 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 에디터는 별도 진입점(editor.html) — 엔진/셰이더 무수정 | 데모(index.html)는 불변 레퍼런스, 에디터는 시뮬 *입력*(유전자·emitter·뼈대·heightfield)만 만든다 |
 | 에디터 개체 수 2^k 패딩 = void 개체 (opacity 0 + emitter y=64) | opacity 0 은 렌더 VS 조기 컬(alpha<0.004)로 완전 불가시, y=64 는 격자 밖이라 이웃 규칙 오염 없음 — 엔진 슬라이스 제약을 셰이더 수정 없이 흡수 |
 | 에디터 생성 지형도 "무대는 로드" 원칙의 연장 | 절차 PLY 를 Spark 무대로 로드하고 같은 height 의 collider 로 시뮬 바닥을 굽는다 — 생명 원칙(속성 유도) 불변, fixture 와 동일 논리 |
+| 월드는 순수 함수 `world(x,z)→{height,biome}`, 청크는 그 창 (T1) | 시드+월드좌표만으로 어느 창이든 독립 생성 → 창 경계 연속성이 *자동* 보장(봉합 코드 불필요). `create` 창의 `height()` 가 곧 `world.heightAt` 이라 원점이 달라도 겹침 diff 0 (biome-shot ① 로 확인). 청크 스트리밍(T2)의 전제 |
+| 바이옴 = 온·습도 평면의 소프트맥스 경계 보간 (T1) | 바이옴별 relief(진폭·ridged 비중)·팔레트를 가중 혼합하면 경계에서 지형 성격과 색이 *함께* 매끄럽게 바뀐다 — 하드 경계는 이음새를 만든다. 수역은 별도 채널이 아니라 `height<waterY` 판정(습도 연동은 T5) |
+| Spark 스플랫은 로드 후 렌더 몇 프레임 뒤 GPU 패킹 완료 | `mesh.initialized`(파싱 완료) 후에도 첫 수 프레임은 빈 화면 — 하니스는 캡처 전 워밍업 프레임 필요 (biome-shot 6프레임). stage-shot 이 안 걸린 건 30프레임 구동 덕 |
 
 ## 검증 방법
 
