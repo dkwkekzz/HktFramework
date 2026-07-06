@@ -1300,11 +1300,33 @@ function svcbankcap(seeds) {
   }
 }
 
+// step-0497 재작성 — svcmailexpire: 우편 메시지 통수 회계(0150 mailConsistent 판). 만료 TTL 포함 — sent == 보유(held) + 수령(fetched) + 만료(expired)·공백/중복 0.
+function svcmailexpire(seeds) {
+  console.log('== svcmailexpire (0497·서비스 재작성): 우편 메시지 통수 회계 — 만료 TTL 하 sent==held+fetched+expired(공백·중복 0·mailConsistent). ==');
+  console.log('seed   | sent | held | fetched | expired | mailC | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 20, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailTtl: 4,
+      mailOps: [
+        { at: 2, op: { type: 'mailSend', from: 'a', to: 'bob', body: 'm1' } },
+        { at: 2, op: { type: 'mailSend', from: 'a', to: 'carol', body: 'm2' } },
+        { at: 4, op: { type: 'mailFetch', to: 'bob' } },        // bob 수령
+        { at: 12, op: { type: 'mailSweep', now: 12 } },          // carol m2(sentAt2·ttl4) 만료
+      ],
+    });
+    const m = r.mail;
+    const mailC = m.mailConsistent();                            // sent == held + fetched + expired
+    const split = m.sent === 2 && m.fetched === 1 && m.expired === 1 && m.totalHeld() === 0;   // 세 종결로 분할·잔여 0
+    const ok = check(mailC && split, `seed ${seed}: mailC${mailC}·split${split}(sent${m.sent}·f${m.fetched}·e${m.expired}·h${m.totalHeld()})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.sent, 4)} | ${pad(m.totalHeld(), 4)} | ${pad(m.fetched, 7)} | ${pad(m.expired, 7)} | ${pad(mailC ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
