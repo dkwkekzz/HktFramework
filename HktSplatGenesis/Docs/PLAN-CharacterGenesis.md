@@ -1,6 +1,6 @@
 # PLAN — 캐릭터 배양 (C 트랙: 이미지 컨셉 → 게놈 → 살)
 
-상태: **제안 (2026-07, 초안)** — 검토 후 확정 시 상태를 갱신하고 단계 큐를 [ROADMAP.md](ROADMAP.md) C 트랙에서 관리한다.
+상태: **진행 중 (2026-07)** — C1(문법의 데이터화) 완료, 단계 큐·현황은 [ROADMAP.md](ROADMAP.md) C 트랙에서 관리한다.
 전제가 되는 L6(뼈대 살) 구조는 [DESIGN.md](DESIGN.md) 「L6 의 구조」, 지형 쪽 스케일 경로는 [PLAN-OpenWorldTerrain.md](PLAN-OpenWorldTerrain.md)(T 트랙).
 
 ## 목표

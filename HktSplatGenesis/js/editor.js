@@ -29,7 +29,8 @@
 	// 스켈레톤은 장면 공용 1개 — 엔진 bones 버퍼가 단일이라 fleshK 개체 전부가 공유한다.
 	// origin(xz)으로 지형 위 어디에 세울지 정하고, 발 높이는 매 프레임 지형에서 유도.
 	const skeleton = new HktGenesisSkeleton.Skeleton();
-	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, origin: [0, 0] };
+	// genome: 형태 게놈 ① (C1) — 부위 반지름 배율. 항등이면 기존 살 그대로.
+	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, origin: [0, 0], genome: HktGenesisGenome.create() };
 	let extSkel = null;
 
 	let terrain = null;        // terrain-gen 결과 {params, height, triSoup, plyBytes}
@@ -82,7 +83,7 @@
 	}
 	// 뼈 친화(rest.w) 배정 기준 — 현재 모션 소스와 같은 리그/순서 (app.js 와 동일 규칙)
 	function currentBindBones() {
-		const raw = (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1) : skeleton.pose('idle', 0, 1, 1);
+		const raw = (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
 		return offsetSegs(raw);
 	}
 
@@ -256,6 +257,14 @@
 		d.appendChild(numRow('위치 Z', skel.origin[1], 0.1, (v) => { skel.origin[1] = v; refreshUI(); }));
 		d.appendChild(el('<h2>살 문법</h2>'));
 		d.appendChild(sliderRow('통통함', 0.5, 1.8, 0.05, skel.fat, (v) => { skel.fat = v; }));
+		// 형태 게놈 ① — 부위별 반지름 배율 (기본 문법 위에 곱). 항등(1)이면 기존 살.
+		d.appendChild(el('<h2>형태 게놈 (반지름 배율)</h2>'));
+		const P = HktGenesisGenome.PROFILE.radiusMul;
+		const morphLabels = { head: '머리', torso: '몸통', shoulder: '어깨', arm: '팔', hand: '손', leg: '다리', foot: '발' };
+		for (const [g, label] of Object.entries(morphLabels))
+			d.appendChild(sliderRow(label, P.min, P.max, P.step, skel.genome.morph[g] != null ? skel.genome.morph[g] : 1,
+				(v) => { if (Math.abs(v - 1) < 1e-6) delete skel.genome.morph[g]; else skel.genome.morph[g] = v; }));
+		d.appendChild(el('<div class="note">부위 반지름 배율 — 같은 클립을 무수정 재생하며 실루엣만 바뀐다(형태 = 게놈 데이터). 미지정(1) 부위는 기본 문법 그대로.</div>'));
 		const bonesRow = el('<div class="inline"><label><input type="checkbox"> 뼈대 표시</label></div>');
 		bonesRow.querySelector('input').checked = skel.bones;
 		bonesRow.querySelector('input').addEventListener('change', (e) => { skel.bones = e.target.checked; });
@@ -586,8 +595,8 @@
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
 				const raw = (skel.clip === 'external' && extSkel)
-					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat) // 외부 클립은 증분 시간
-					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);
+					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
+					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
 				bones = offsetSegs(raw);
 			}
 			const stageOn = stage() && stage().enabled;

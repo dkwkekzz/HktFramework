@@ -15,6 +15,8 @@
 
 	// ── (2) 살 문법: 이름 → 반지름 ─────────────────────────────────────────
 	function simpleName(n) { return n.replace(/^mixamorig:?/i, ''); }
+	// 기본 문법(base grammar): 이름 → 반지름. C1 부터 이 위에 게놈 배율이 곱해진다
+	// (radiusG 참조) — 이 함수 자체는 스타일의 정의라 데이터화하지 않고 코드로 남긴다.
 	function radiusForName(name) {
 		const n = simpleName(name), has = (s) => n.indexOf(s) >= 0;
 		if (n === 'Hips') return 0.135;
@@ -36,6 +38,14 @@
 		return 0.05; // 미지의 뼈 → 기본값
 	}
 	function isFinger(name) { return /Thumb|Index|Middle|Ring|Pinky|Finger/.test(simpleName(name)); }
+
+	// 살 문법 × 게놈 배율 (C1: 형태 게놈 ①). 게놈 없음/항등 → 기본 문법 그대로(회귀 0).
+	// HktGenesisGenome 미로드 시에도 안전하게 기본 문법으로 폴백한다 (rig-agnostic).
+	function radiusG(name, genome, fat) {
+		const G = global.HktGenesisGenome;
+		const mul = (G && genome) ? G.radiusScale(genome, name) : 1;
+		return radiusForName(name) * (fat || 1.0) * mul;
+	}
 
 	// ── (1) Skeleton IR: 휴머노이드 계층 (T-pose, 단위 ~m, 발끝 y≈0) ────────
 	// hikito-flesh buildMixamoRig 와 동일 계층 (손가락 포함, 접두어만 생략).
@@ -141,7 +151,7 @@
 	// 반환: [{a:[x,y,z], b:[x,y,z], ra, rb}] — engine.frame 의 bones 입력이자
 	// setScene 의 bindBones 입력. 순서가 뼈 친화(rest.w) 인덱스의 기준이므로
 	// 포즈와 무관하게 항상 전체 세그먼트를 같은 순서로 반환한다 (필터 금지).
-	Skeleton.prototype.pose = function (clip, t, speed, fat) {
+	Skeleton.prototype.pose = function (clip, t, speed, fat, genome) {
 		const ph = t * speed * 4.0;
 		const f = fat || 1.0;
 		for (let i = 0; i < this.defs.length; i++) {
@@ -169,8 +179,8 @@
 			if (dx * dx + dy * dy + dz * dz < 1e-8) continue;
 			segs.push({
 				a, b,
-				ra: radiusForName(this.defs[p].name) * f,
-				rb: radiusForName(this.defs[i].name) * f,
+				ra: radiusG(this.defs[p].name, genome, f),
+				rb: radiusG(this.defs[i].name, genome, f),
 			});
 		}
 		return segs;
@@ -205,7 +215,7 @@
 	ExternalSkeleton.prototype.valid = function () { return this.bones.length > 0; };
 	// 클립을 dt·speed 만큼 진행하고 세그먼트 추출.
 	// 순서는 bones 배열 고정 — 뼈 친화(rest.w) 인덱스의 기준이므로 포즈별 필터 금지.
-	ExternalSkeleton.prototype.pose = function (dt, speed, fat) {
+	ExternalSkeleton.prototype.pose = function (dt, speed, fat, genome) {
 		if (this.mixer && dt > 0) this.mixer.update(dt * (speed || 1));
 		this.root.updateMatrixWorld(true);
 		const f = fat || 1.0;
@@ -225,8 +235,8 @@
 					(this._wp.y - this.center.y) * this.scale + 0.98,
 					(this._wp.z - this.center.z) * this.scale,
 				],
-				ra: radiusForName(bone.parent.name) * f,
-				rb: radiusForName(bone.name) * f,
+				ra: radiusG(bone.parent.name, genome, f),
+				rb: radiusG(bone.name, genome, f),
 			});
 		}
 		return segs;
@@ -241,5 +251,5 @@
 		return ext;
 	}
 
-	global.HktGenesisSkeleton = { Skeleton, ExternalSkeleton, parseFBX, buildHumanoidRig, radiusForName, isFinger };
+	global.HktGenesisSkeleton = { Skeleton, ExternalSkeleton, parseFBX, buildHumanoidRig, radiusForName, radiusG, isFinger };
 })(window);

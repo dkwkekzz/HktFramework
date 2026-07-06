@@ -39,7 +39,12 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
 - `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
-  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
+  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. C1: `pose(...,genome)`
+  5번째 인자로 세그먼트 반지름에 게놈 배율을 곱한다(`radiusG` = 기본 문법 × fat × 게놈 배율).
+- `js/genome.js` — C 트랙 캐릭터 게놈(`HktGenesisGenome`). C1 은 ① 형태(morph)만: 뼈 이름 →
+  부위 그룹(`groupForName`, 이름 기반 rig-agnostic) → 반지름 배율. `radiusScale(genome,name)` 는
+  스타일 프로파일(`PROFILE.radiusMul` 0.5~2.2·스텝 0.1)로 스냅, 미지정 부위는 항등(1)이라 회귀 0.
+  게놈은 데이터(JSON)일 뿐 — skeleton/engine 은 소비만 한다. ②~④(채색/재질/부속)는 C3~ 확장 지점.
 - `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
@@ -72,6 +77,8 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 결정 | 이유 |
 |---|---|
 | 살은 뼈대의 함수 — 메시/웨이트 손 바인딩 금지 | 모델링·리깅·스키닝 붕괴가 프로젝트 존재 이유 |
+| 게놈 = 데이터, 기본 문법(radiusForName)은 코드로 유지 (C1) | grammar 는 "일관된 스타일의 정의"라 데이터화하면 스타일 기준이 사라진다 — 게놈은 그 위에 곱하는 개체별 *배율*(형태)만 데이터로. 항등 게놈 = 기본 문법 그대로라 회귀 0 (genome-shot 세그먼트 bit-exact). "정체성=게놈, 스타일=문법×프로파일" |
+| 회귀 0 검증은 GPU 사진이 아니라 CPU 세그먼트 동일성 (C1) | swiftshader 는 device 인스턴스마다 미세 변동(격자 atomic 순서 등)이 있어 같은 입력도 픽셀·스플랫 수가 달라진다 — "항등 게놈 = 현행" 은 `pose(없음)≡pose(항등)` 세그먼트 bit-exact 로 증명하고, 사진은 실루엣 *차이*(head 1.6×) 판정에만 쓴다 |
 | grammar 는 이름 기반, 특정 리그 하드코딩 금지 | 임의 리그(FBX 드롭)가 깨지지 않아야 스타일=grammar 가 성립 |
 | 살 힘 = 성장 자리 스프링 (전역 SDF 최근접 추종 아님) | 전역 최근접은 축 방향 힘 0 → 중력에 뼈당 방울 하나로 붕괴 (검증 사진으로 확인) |
 | 히키토 프리셋 binding 0 | L2 인력(표면장력)이 자리 스프링을 이기면 방울 재발 |
