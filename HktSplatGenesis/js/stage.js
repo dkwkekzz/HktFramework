@@ -40,6 +40,7 @@ let tileCfg = null;              // { tileSize, nearR, farR, nearG, farG, splatS
 const tiles = new Map();         // "tx,tz" -> { mesh, url, ring }
 const tilePending = new Set();   // 로드 진행 중 키 (중복 로드 방지)
 let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 재계산
+let lastTileMs = 0;              // T6: 최근 타일 로드 지연(ms) — 계측 HUD
 
 function setStatus(html) { lastStatus = html; if (statusCb) statusCb(html); }
 
@@ -165,6 +166,7 @@ async function loadTile(tx, tz, ring) {
 	const key = tx + ',' + tz;
 	if (tilePending.has(key)) return;
 	tilePending.add(key);
+	const t0 = performance.now(); // T6: 타일 교체 지연 계측 (생성 + SplatMesh 초기화)
 	const S = tileCfg.tileSize, G = ring === 0 ? tileCfg.nearG : tileCfg.farG;
 	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale);
 	const url = URL.createObjectURL(new File([bytes], 'tile.ply'));
@@ -185,6 +187,7 @@ async function loadTile(tx, tz, ring) {
 			else { if (wm.dispose) wm.dispose(); URL.revokeObjectURL(wurl); }
 		}
 		tiles.set(key, entry);
+		lastTileMs = performance.now() - t0; // T6 계측
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
@@ -225,9 +228,13 @@ function updateTileCenter(wx, wz) {
 }
 
 function tileStats() {
-	let splats = 0;
-	for (const t of tiles.values()) splats += (t.mesh.numSplats || 0);
-	return { meshes: tiles.size, splats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
+	let splats = 0, waterMeshes = 0, waterSplats = 0;
+	for (const t of tiles.values()) {
+		splats += (t.mesh.numSplats || 0);
+		if (t.water) { waterSplats += (t.water.mesh.numSplats || 0); waterMeshes++; }
+	}
+	// meshes·splats 는 지형 타일 기준(T2 계약 유지). 수면/지연은 별도 필드.
+	return { meshes: tiles.size, splats, waterMeshes, waterSplats, pending: tilePending.size, center: tileCenterKey, lastTileMs, keys: [...tiles.keys()] };
 }
 
 // 오빗 카메라 미러 + 리사이즈 + 렌더 — app.js 의 tick 에서 매 프레임 호출

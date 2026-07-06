@@ -142,8 +142,11 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   검증: `node test/water-shot.js` — 호수 파노라마 수면 픽셀 6.3만 + 하늘 톤 = fog 색 Δ0 + 원거리
   생명이 fog 색으로 소실(B−R off −145 → on +51) 사진. 회귀(render/occlusion/world-pan/editor/
   app-smoke 등) 없음.
-- **T6 — 실측·예산**: 실 Marble/.rad + 청크 월드 fps·메모리 HUD (**S4 잔여 합류**). 완료 기준:
-  데스크톱 60fps 수치 기록.
+- 🚧 **T6 — 실측·예산** (**S4 잔여 합류**): 계측 HUD 배선(`?hud=1`) — 프레임 타임 분해(WebGL2
+  무대 vs WebGPU 생명, CPU 인코드 시간 근사) + 생명/무대 스플랫·메시 수 + 타일 교체 지연
+  (`stage.tileStats().lastTileMs`) + JS heap. **남김**: 실 Marble/.rad 대용량 월드 로드와
+  데스크톱 60fps 수치 기록은 실 GPU·실에셋 필요(헤드리스 swiftshader 는 CPU 라 무의미) — 사용자
+  실기에서 확인. GPU 타임스탬프(진짜 GPU 시간)도 후속.
 
 ## E 트랙 — 에디터 (작업 확인 도구, R 트랙과 독립)
 
