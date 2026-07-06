@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0511](step-0511.md) — **#46 금고↔가방 escrow 1: guildbankdeposit — 예치 escrow 실 이동**: 0191~0200 가짜 escrow(vault=itemId 문자열)를 실연동 — 새 `guildBankInv` 플래그+`_custody` 로 guildDeposit 이 멤버 가방→'escrow' give(아이템 실제로 가방서 빠짐). 거래소 list leg 0117 의 금고 판. guildBankInv OFF→give 0→reg 0.
-- **한 줄 상태**: reg ALL OK·guildbankdeposit 5/5·spine ALL OK.
-- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 예치 leg(0511)·인출 leg(0512)·2-서비스 보존(0513)·crash 보존(0514)·saga 회신(0515)·pending/손실(0516)·재전송/dedup(0517)·saga 정합(0518)·교차 회계(0519)·grand capstone(0520). **arc 후 후속**: ① #74 실 GW ② #77 거래소 손실 seam ③ #75 프로파일. 🔎 0501~0510 리뷰 완료(#76·#16 해소·#77·#78 신규).
+- **닫힌 step**: [step-0512](step-0512.md) — **#46 금고↔가방 escrow 2: guildbankwithdraw — 인출 escrow 복귀**: guildWithdraw 이 `_custody('escrow'→멤버)` give → 아이템이 escrow 서 멤버 가방으로 실 복귀·vault/escrowIds 이탈. 거래소 buy leg 0118 의 금고 판(0511 예치의 짝). guildBankInv OFF→give 0→reg 0.
+- **한 줄 상태**: reg ALL OK·guildbankwithdraw 5/5(왕복 gives 2·escrowXfers 2)·spine ALL OK.
+- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: deposit(0511)·withdraw(0512). 남은 조각: 2-서비스 보존(0513)·crash 보존(0514)·saga 회신(0515)·pending/손실(0516)·재전송/dedup(0517)·saga 정합(0518)·교차 회계(0519)·grand capstone(0520). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
 
 ---
 
@@ -146,3 +146,4 @@
 | [0491–0500](reviews/review-0491-0500.md) | #16 라운드 3차: 서비스 saga capstone 9종 재작성 verify-kit ORDER 편입(거래소·우편·길드 정합 술어 행복 경로·서비스 계층 실행 검증)+promotedsvc 가드 | 통과(reg 0·spine OK) · promotedsvc 9/9 |
 | [0501–0510](reviews/review-0501-0510.md) | #16 라운드 4차: 완전 saga liveness 손실 체제 9종(우편 saga 손실 seam→재전송/포기/재admission/영구실패 3분할 비자명·mailsaga3way)+promotedsagaloss 가드·#16 완전 해소 | 통과(reg 0·spine OK) · promotedsagaloss 9/9 |
 | [0511](step-0511.md) | #46 금고↔가방 escrow 1: guildbankdeposit — 예치가 멤버 가방→escrow 실 give(guildBankInv·가짜 escrow 해소)·inv.ownerOf==escrow·escrowXfers 발현 | 통과(reg 0·spine OK) · guildbankdeposit 5/5 |
+| [0512](step-0512.md) | #46 금고↔가방 escrow 2: guildbankwithdraw — 인출이 escrow→멤버 가방 실 복귀(0511 짝)·vault/escrowIds 이탈·왕복 escrowXfers 2 | 통과(reg 0·spine OK) · guildbankwithdraw 5/5 |

@@ -1,7 +1,7 @@
-// HktInfra step-0511 — 헤드리스 검증 (#46 금고↔가방 escrow 1: guildbankdeposit — 예치가 멤버 가방→escrow 실 이동)
+// HktInfra step-0512 — 헤드리스 검증 (#46 금고↔가방 escrow 2: guildbankwithdraw — 인출이 escrow→멤버 가방 복귀)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 길드 금고 예치를 멤버 가방→escrow 실 give(guildBankInv)로 실체화
-//   (inv.ownerOf==escrow·vault 보유·escrowXfers 발현) verify-kit ORDER 편입. guildBankInv OFF→give 0→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 길드 금고 인출을 escrow→멤버 가방 실 give(0511 짝)로 실체화
+//   (ownerOf==멤버 복귀·vault/escrowIds 이탈·escrowXfers 2) verify-kit ORDER 편입. guildBankInv OFF→give 0→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

@@ -47,7 +47,7 @@ const GuildTxn = {
       const g = this.guilds.get(p.guildId);
       if (g && g.members.includes(p.member)) {
         const v = this.vault.get(p.guildId) || [];
-        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194).
+        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); this._custody(p.itemId, p.member, 'escrow', { kind: 'deposit', guildId: p.guildId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194)·escrow 인출 leg(0511·멤버 가방→escrow·invMode ON 일 때만).
       }
       return;
     }
