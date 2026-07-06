@@ -37,6 +37,7 @@
 	};
 
 	// 타겟 주위를 도는 오빗 카메라. yaw/pitch/radius + pan 오프셋.
+	// 조작: 좌클릭 드래그=회전, 우클릭(또는 Shift+좌클릭) 드래그=이동(pan), 휠=줌.
 	function HktOrbitCamera(canvas) {
 		this.target = [0, 0.8, 0];
 		this.yaw = 0.5;
@@ -54,6 +55,7 @@
 		canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 		canvas.addEventListener('pointerdown', (e) => {
 			if (e.altKey) return; // Alt+드래그는 인력 상호작용(app.js) 몫
+			// 좌클릭=회전, 우클릭 또는 Shift+좌클릭=이동(pan). 마커 드래그는 마커가 stopPropagation.
 			dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
 			lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId);
 		});
