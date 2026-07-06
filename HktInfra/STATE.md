@@ -9,26 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0480](step-0480.md) — **#70 실 host.js child 경계 업스트림 10·grand capstone — E2E**: `upce2ecap` — 실 UpClient 발신 intent 가 실 프로세스 경계 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴을 손실 wire·2 존 시나리오로 ⒜ 수렴(seenSig==authSig·desync0) ⒝ exactly-once(손실 resends>0 하 수렴+회계) ⒞ 회계(enterPos+Σmove==실 존) ⒟ 생애주기(leave→제거). **#70 sub-arc(0471~0480) 닫기**. 코드 무변경→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upce2ecap 5/5(수렴·회계·exactly-once resends6~18·leave 제거)·spine ALL OK.
-- **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480 ✅ 닫힘)**: enter/move/leave 번역 seam(`intentToZoneMsg`)+경계 배달(`deliverIntent`)+egress 되먹임(`feedViews`)+수렴 대조(`upstreamAuthSig`)+통합 구동(`driveUpstream`)+회계(`zoneEntity`). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync0·exactly-once·생애주기). #61 in-proc UpClient 의 실 OS 프로세스 짝(DownClient #57·UpClient #70 둘 다 실 경계 확보). **후속(권위 infra-review)**: ⒜ 실 게이트웨이 프로세스 분리(seam→실 GW)·⒝ 완전-ON(경계 포함 async·#73)·⒞ #68/#69 경미. 🔎 **0471~0480 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0500](step-0500.md) — **#16 승급 라운드 3차 10·arc 닫기: promotedsvc 등록 가드**: 재작성 편입한 서비스 saga capstone 9종이 ORDER/MODES 항구 등록됐는지 단언하는 가드 mode `promotedsvc` 추가 + 헤더 카탈로그 갱신. **#16 라운드 3차 arc(0491~0500) 닫힘** — 서비스 계층(거래소·우편·길드) 실행 검증 verify-kit ORDER 상주(감사 §2 ①-b 해소). 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·promotedsvc 9/9 등록·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 3차 arc(0491~0500 ✅ 닫힘)** — 서비스 saga capstone 9종(거래소 3·우편 3·길드 2·종합 1) verify-kit ORDER 편입·promotedsvc 가드. **#16 대체로 해소**(grand+서비스 capstone HEAD 재검증). **후속(우선순위)**: ⒜ 완전 saga liveness(회신 손실 주입→abandon/permFailed 3분할 발현·loss seam) ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 완전 async 전환 arc(0461~0470 ✅ 닫힘) — 다중 존 이주 하 유계 resync** — 0451~0460 이 *단일 존* loss+delay 를 흡수한 뒤, 이 arc 는 *다중 존*(이주 있음)에서 `async-barrier.js` 에 **wrap-aware interior 유계 resync 가드**를 더했다. barrier 가 소유 존을 peek(`ownerZone`) 해 엔티티가 region 양 끝+wrap 경계에서 `horizon=max(resyncDelay,delayMax)+1` 이상 떨어진(interior) move 만 loss/delay 로 흡수 → deferred move 가 이주 경계 도달 전 재배달(유계 resync·deferSpan<horizon·deferredAcrossHandoff0) → 다중 존 world/뷰==lockstep·exactly-once. **핵심(0461 발견)**: lockstep 자체가 이주 경계 move-drop 을 타이밍 의존적으로 함 → 완전-ON(경계 포함 async)은 lockstep 등가 불가·interior 유계가 이 모델 정합 최대치. **매 step reg 구조적 0**(asyncBarrier OFF→net.step()).
-> **설계 제약**: `opts.asyncBarrier` OFF(기본) → topo-run.js 가 ab 미생성·net.step() 경로 = baseline 비트 동일(reg 0). ON 은 새 모드만. interior peek 은 barrier ON 경로 전용.
+> 🎯 **#16 승급 라운드 3차 arc(0491~0500 ✅ 닫힘) — 서비스 saga capstone 재작성 편입(감사 §2 ①-b)**: 옛 서비스 capstone 코드가 git 소실(history ~0248)이라 **재작성** — `run()` 을 서비스 opts(exchange/mail/guild+saga)로 구동하고 노출 정합 술어를 단언 후 ORDER 편입. 편입 9종: 거래소 saga/교차/취소(0491·0492·0499)·우편 saga/교차/만료(0493·0494·0497)·길드 로스터/금고(0495·0496)·종합 격리(0498)·promotedsvc 가드(0500). 자기완결(NET.run)·박스 무수정→매 step reg 0. **#16 대체로 해소**(grand+서비스 capstone HEAD 재검증). **남은 #16(경미)**: 완전 saga liveness(회신 손실 주입 seam→abandon/permFailed 3분할 발현).
 
-**후속 백로그**: ⒜ 완전-ON 경계 포함 async(lockstep 등가 불가·별 정합 기준 필요·#73)·금고↔가방 escrow(#46)·per-producer ack·버스 라우팅 영속·#68/#69 경미. (#70 은 0471~0480 ✅.) **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
-
-> 🔎 **서버 구현 외부 감사(2026-07-02) 권고 — 다음 step 부터 순서대로 반영**: 감사는 `run.js`/`spine` ALL OK + 시대별 grand capstone 재현(worldcap 0350·clusterdatacap 0370·coordmergecap 0420·mze2ecap 0470·upce2ecap 0480 전부 5/5)으로 문서 주장을 사실 확인했다. 남은 구조적 격차 우선순위:
-> ① **#16 승급 라운드 2차(최우선)** — 영구 회귀(verify-kit ORDER)에 exchange/mail/guild 참조 **0건** → 거래소·우편·길드·귓속말/파티 capstone(0140/0180/0200 등)이 git per-commit 에만 살아 HEAD 재검증 불가("수치=verify 출력" 원칙이 이 구간에서 실효 깨짐). 0231~0240 승급 라운드 판으로: 서비스 saga capstone 재작성 편입 + 시대별 grand capstone(worldcap·clusterdatacap·coordmergecap·mze2ecap·upce2ecap) ORDER 승격.
-> ② **#74 실 게이트웨이 프로세스 분리**(업스트림 seam→실 GW·기존 권고 유지).
-> ③ **#46 금고↔가방 escrow** + 서버간 인증 씨앗(§3 ⬜).
-> ④ **#75(신규) 프로덕션 프로파일** — 유계 노브 기본값이 전부 무계(reg-0 부작용: downRecvWindow 0·capacity ∞·leaseSpan 0·saga 재시도 무제한). 권장값 1벌을 verify 모드로 봉인.
-
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: **절차** ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
+> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16**(2차 grand capstone ✅ + **3차 서비스 saga capstone 진행 중**·위 arc) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
 ---
 
@@ -49,12 +40,10 @@
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
-| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 가능 검증 0** | 전체 | verify-kit ORDER 에 거래소·우편·길드 참조 0건·capstone 은 git per-commit 에만(HEAD 재검증 불가). 승급 라운드(0231~0240 판) 필요(감사 2026-07·§2 권고 ①). |
+| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 검증 0** | 전체 | 시대별 grand capstone 9종 승급 완료(0481~0489·verify-kit ORDER). 남음: 서비스 saga capstone(거래소/우편/길드) 재작성 편입(git per-commit 에만·HEAD 재검증 불가·감사 §2 ①-b). |
 | ⬜ | **#75 프로덕션 프로파일(유계 기본값 1벌)** | 전체 | reg-0 규칙 부작용 — 유계 노브 기본 무계(downRecvWindow 0·capacity ∞·leaseSpan 0·재시도 무제한). 권장값 세트를 verify 모드로 봉인(감사 2026-07·§2 권고 ④). |
 
-> **✅ 해소된 격차** — 전문은 §7 INDEX·각 `step-NNNN.md`. 묶음: 골격~전송·AOI~failover·게임서비스+영속+quorum·버스·프레즌스/귓속말/파티·거래소/우편·길드(01~200).
-
-> **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5): 매 step은 verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 과 같은 박자로 돌아야 하는가?*
+> **✅ 해소된 격차** 전문: §7 INDEX·각 `step-NNNN.md`. **상시 렌즈 — 척추**([SPINE.md](SPINE.md) §5): 매 step verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 박자로 돌아야 하나?*
 
 ---
 
@@ -87,7 +76,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~13) · **인스턴스 🟡 spawn/despawn+수요 자동 spawn/despawn+라우팅+이탈(0201~0222)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~63)·귓속말/파티(0071~106)·거래소(0107~40)·우편(0142~80) 동형(escrow/3leg/saga)·길드+금고(0181~0200·로스터/마스터십/공유 원장/영속/정합). 금고↔가방 escrow 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지(0441~50·async-net) + 실 run() net.step 배리어 치환(0451~60·async-barrier) + 다중 존 이주 하 유계 resync(0461~70·wrap-aware interior 가드)**. **#70 실 host.js child 경계 업스트림(0471~80·cluster-hostdriver·실 UpClient intent 소켓 넘어 실 host.js 존→egress 뷰 되먹임·경계 넘어 desync0·손실 exactly-once·생애주기·회계·드라이버 미부착→reg 0)**. orch 정리·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치 executed SSOT→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70)·#62 상주 코디네이터(0371~80)·#65 placement 동기(0381~90)·#66/#67 이중 권위(0391~400)·#62 runMulti 합류(0401~20)**. **#4 async: substrate(0431~40)→실 Net·sim seam(0441~50)→net.step 배리어 치환(0451~60)→다중 존 이주 유계 resync(0461~70·async-barrier)**. **#70 실 host.js child 경계 업스트림(0471~80·cluster-hostdriver)**. #16 승급 라운드 2차 grand capstone 항구화(0481~·coord* capstone 승격 포함) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay·스냅샷 압축·복구·홉 신뢰·failover/quorum·윈도 0017~62) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like(0205~60)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync(0207~28)**. 버스 영속 후속 |
 
 ---
@@ -150,13 +139,15 @@
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
 | [0461–0470](reviews/review-0461-0470.md) | #4 완전 async 전환 arc: `async-barrier.js` wrap-aware interior 유계 resync 가드 — 발산 포착(0461)→loss/delay 가드(0462~63)→결합+exactly-once(0464)→유계 증명(0465)→가드 대조(0466)→이주 명제(0467)→exactly-once 완전 회계(0468)→다운스트림(0469)→capstone(0470). 다중 존 loss+delay world/뷰==lockstep·이주 전 유계 resync·OFF→net.step reg 0 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
-| [0471](step-0471.md) | #70 실 host.js child 경계 업스트림 1(enter): cluster-hostdriver `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`(실 host.js deliver 소켓 배달). 실 UpClient zoneEnter 경계 넘어 실 host.js 존 entity 생성. 드라이버 미부착→reg 0 | 통과(reg 0·spine OK) · upclenter 5/5 a1 present |
-| [0472](step-0472.md) | #70 경계 업스트림 2(move): intentToZoneMsg 에 zoneMove→존 move 번역. 실 UpClient 이동 intent 경계 넘어 실 host.js 존 적용(onTick pending)·(dx,dy) 이동·wrap | 통과(reg 0·spine OK) · upcmove 5/5 enter+2,1==move후 |
-| [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
-| [0474](step-0474.md) | #70 경계 업스트림 4(수렴): `upstreamAuthSig` — 발신(enter+move)→경계 넘어 실 존→egress 뷰 뒤 seenSig==authSig(desync 0) | 통과(reg 0·spine OK) · upcconverge 5/5 경계 desync0 |
-| [0475](step-0475.md) | #70 경계 업스트림 5(driveUpstream): 매-tick 루프 통합(발신 포착→경계 배달→실 존 tick→egress 되먹임)·다중 tick plan 경계 넘어 완결·수렴 | 통과(reg 0·spine OK) · upcdrive 5/5 applied4==sent |
-| [0476](step-0476.md) | #70 경계 업스트림 6(leave): intentToZoneMsg 에 zoneLeave→존 leave. 실 UpClient.leaveAt 종료 intent 경계 넘어 실 존 entity 제거(생애주기 완결) | 통과(reg 0·spine OK) · upcleave 5/5 leave 후 존0 |
-| [0477](step-0477.md) | #70 경계 업스트림 7(다중 클라): driveUpstream 다중 클라를 2 존·2 UpClient(a1@z1·b1@z2)로 검증·각자 자기 존 authSig 수렴·격리. 코드 무변경 | 통과(reg 0·spine OK) · upcmulti 5/5 각 seen==auth |
-| [0478](step-0478.md) | #70 경계 업스트림 8(손실 멱등): 손실 wire(drop 0.3)→rpc 재전송+host reqId 멱등 dedup→재전송 intent 경계 넘어 exactly-once→seenSig==authSig. 코드 무변경 | 통과(reg 0·spine OK) · upclossy 5/5 dup3~9·idem>0·수렴 |
-| [0479](step-0479.md) | #70 경계 업스트림 9(회계): `zoneEntity` — 발신 intent(intentLog/Delta)==실 존 반영·enterPos+Σmove==최종 실 존 pos(경계 넘어 손실 0) | 통과(reg 0·spine OK) · upcaccount 5/5 log4·enter+Δ==fin |
-| [0480](step-0480.md) | #70 경계 업스트림 10·grand capstone: 실 UpClient E2E 경계(손실 wire·2 존)—수렴 seenSig==authSig·exactly-once(resends>0 하 수렴+회계)·회계·생애주기 leave 제거. 0471~0480 닫기 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
+| [0471–0480](reviews/review-0471-0480.md) | #70 실 host.js child 경계 업스트림: `cluster-hostdriver.js` 업스트림 seam(intentToZoneMsg/deliverIntent/feedViews/upstreamAuthSig/driveUpstream/zoneEntity) — 실 UpClient intent 소켓 넘어 실 host.js 존→egress 되먹임(경계 desync0·손실 exactly-once·생애주기·회계). clusterDriverReal OFF→reg 0 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
+| [0481–0490](reviews/review-0481-0490.md) | #16 승급 라운드 2차: 시대별 grand capstone 9종(mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap)을 verify-kit ORDER 항구화 + promoted16 등록 가드(0490). cluster capstone 은 makeVerifyKit ctx dep 주입·박스 무수정→reg 0 | 통과(reg 0·spine OK) · promoted16 9/9·capstone 5/5 |
+| [0491](step-0491.md) | #16 승급 라운드 3차 1: 거래소↔가방 saga 정합 capstone(0140 sagaLiveConsistent 판) 재작성해 verify-kit ORDER 편입·서비스 계층 첫 실행 검증 | 통과(reg 0·spine OK) · svcexchangecap 5/5 |
+| [0492](step-0492.md) | #16 승급 라운드 3차 2: 거래소↔가방 2-서비스 교차 회계 capstone(0130 판·giveOks==escrowXfers) 재작성 편입 | 통과(reg 0·spine OK) · svcexchangexfer 5/5 |
+| [0493](step-0493.md) | #16 승급 라운드 3차 3: 아이템 우편↔가방 saga 정합 capstone(0170 sagaLiveConsistent 판·mailC+itemC+escrowC+sagaC) 재작성 편입 | 통과(reg 0·spine OK) · svcmailcap 5/5 |
+| [0494](step-0494.md) | #16 승급 라운드 3차 4: 우편↔가방 2-서비스 교차+saga liveness capstone(0164/0180 판·giveOks==escrowXfers·pending 3분할) 재작성 편입 | 통과(reg 0·spine OK) · svcmailxfer 5/5 |
+| [0495](step-0495.md) | #16 승급 라운드 3차 5: 길드 로스터 single-master 정합 capstone(0190 rosterConsistent 판·이양 쌍 거래·master 보호) 재작성 편입 | 통과(reg 0·spine OK) · svcguildcap 5/5 |
+| [0496](step-0496.md) | #16 승급 라운드 3차 6: 길드 금고 원장 정합 capstone(0199 bankConsistent 판·itemId 단일 길드 소유·예치−인출==잔여) 재작성 편입 | 통과(reg 0·spine OK) · svcbankcap 5/5 |
+| [0497](step-0497.md) | #16 승급 라운드 3차 7: 우편 메시지 통수 회계 capstone(0150 mailConsistent 판·sent==held+fetched+expired·만료 TTL) 재작성 편입 | 통과(reg 0·spine OK) · svcmailexpire 5/5 |
+| [0498](step-0498.md) | #16 승급 라운드 3차 8: 서비스 종합 격리 capstone 신규(거래소+우편+길드 한 run()·각 술어 동시 성립·공유 가방 격리) | 통과(reg 0·spine OK) · svcsvccombined 5/5 |
+| [0499](step-0499.md) | #16 승급 라운드 3차 9: 거래소 release 경로(취소·만료 TTL) escrow 반환 capstone 재작성 편입·아이템 판매자 복귀 | 통과(reg 0·spine OK) · svcexchangecancel 5/5 |
+| [0500](step-0500.md) | #16 승급 라운드 3차 10·arc 닫기: 서비스 saga capstone 9종 ORDER/MODES 등록 가드 promotedsvc 추가·헤더 카탈로그 갱신(0491~0500 닫힘) | 통과(reg 0·spine OK) · promotedsvc 9/9 |

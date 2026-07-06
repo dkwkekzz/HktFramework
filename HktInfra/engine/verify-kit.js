@@ -14,6 +14,9 @@
 //   process.exit(await kit.cli(process.argv));
 // 모드 카탈로그(아래 문구의 "이 step"은 각 모드의 도입 step 기준 — 정식 문서는 해당 step-NNNN.md):
 //   mode: reg | wquorum | inflight | tail | reliable | chat-compact | recover-chat | rank | recover-rank | e2e | sacred | recover | compact | degrade | inject | isolate | hide | repro | all
+//   + #16 라운드 2차 grand capstone 승급(0481~0490): mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap · promoted16(등록 가드)
+//   + #16 라운드 3차 서비스 saga capstone 재작성 편입(0491~0500): svcexchangecap·svcexchangexfer·svcmailcap·svcmailxfer·svcguildcap·svcbankcap·svcmailexpire·svcsvccombined·svcexchangecancel · promotedsvc(등록 가드)
+//     3차 균형 승급(0231~0240): instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon
 //     reg          — 회귀 0: 인프로세스 모드(quorumW 0) → step-0028 와 *비트 동일*(net.log + 상태 + inv/chat/bus/rank).
 //                  저널 q 플래그·ack 회신·durableSeq 집계는 quorumW 0 이면 *휴면*(q 0·ack 0·워터마크 미사용)임을 직접 증명.
 //     wquorum      — *이 step 의 가설*: W=3 쓰기 정족수 ack 후에만 durable 선언(primary+복제3=N+1=4 사본). ⒜ 무손실=4 스토어 ack→전 seq durable(win 0)
@@ -50,6 +53,8 @@
 
 module.exports = function makeVerifyKit(ctx) {
   const { NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS } = ctx;
+  // #16 승급 라운드 2차(0486~) — cluster child_process grand capstone 승격용 주입 deps(engine→src 결합 없이 verify.js 셸이 ctx 로 넘김).
+  const { Cluster, makeClusterHostDriver, makeClusterCoordinator, runMultiViaCoord, coordAuthEquiv } = ctx;
   const { run, runMulti, fnv1a, buildTopology, PUBLIC_ADDRS, quorumMergeJournals,
         chatDesync, chatPhantom, chatLeak, chatClientNoLeak, chatDigest,
         itemConserved, ledgerConsistent, maxItemBeliefOwners, itemDesync, invDigest,
@@ -871,10 +876,539 @@ function loginabandon(seeds) {
   }
 }
 
+// ── 시대별 grand capstone 승급 (#16 라운드 2차·0481~) ──
+//   각 시대 arc 의 grand capstone 을 누적 회귀로 승격 — 옛 bespoke 검증(그 step 의 verify.js·git per-commit)이
+//   HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 해소한다. 박스 코드 무수정(reg 0 자명).
+// step-0470 #4 완전 async 10·grand capstone — mze2ecap: 다중 존 이주 하 유계 resync E2E(world/뷰==lockstep·exactly-once·유계).
+function mze2ecap(seeds) {
+  console.log('== mze2ecap (0470·#4 grand capstone): 다중 존 loss+delay+핸드오프 — world==lockstep·exactly-once·다운스트림 desync0·유계 resync. ==');
+  console.log('seed   | world | exactly-once | 뷰수렴 | 유계(span<H·across0) | handoffs | 판정');
+  for (const seed of seeds) {
+    const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
+    const off = run({ ...b });
+    const on = run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
+    const st = on.asyncBarrier || {};
+    const world = worldDigest(off) === worldDigest(on);
+    const once = st.moveDup === 0 && st.lost === 0 && st.pendingAtEnd === 0 && st.moveDeliv > 0;
+    const view = off.clients.map(c => c.seenSig()).every((s, i) => s === on.clients[i].seenSig());
+    const bounded = st.maxSpan < st.horizon && st.deferredAcrossHandoff === 0 && st.deferN > 0;
+    const migrated = off.totals.handoffs > 0 && st.handoffsObs > 0;
+    const ok = check(world && once && view && bounded && migrated, `seed ${seed}: w${world}·once${once}·view${view}·bnd${bounded}·mig${migrated}`);
+    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad(view ? 'Y' : 'N', 6)} | ${pad('span' + st.maxSpan + '<' + st.horizon + '·a' + st.deferredAcrossHandoff, 20)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0460 #4 실 치환 10·grand capstone — bare2ecap: run() 배리어 치환 E2E(손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명).
+function bare2ecap(seeds) {
+  console.log('== bare2ecap (0460·#4 grand capstone): run() net.step 배리어 치환 — 손실+지연 world/뷰==lockstep·exactly-once·다중 존 투명. ==');
+  console.log('seed   | 단일존 world/뷰 | exactly-once | resync·delay | 다중존 world/log | 판정');
+  for (const seed of seeds) {
+    const b1 = { seed, ticks: 48, clients: 4, moves: 30, radius: 4, grid: 16, incremental: true, zones: 1 };
+    const off1 = run({ ...b1 });
+    const on1 = run({ ...b1, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 48 } });
+    const sig = r => r.clients.map(c => c.seenSig()).join('|');
+    const wv1 = worldDigest(off1) === worldDigest(on1) && sig(off1) === sig(on1);
+    const st = on1.asyncBarrier || { moveDup: 0, resyncs: 0, delayed: 0 };
+    const once = st.moveDup === 0;
+    const pert = st.resyncs > 0 && st.delayed > 0;
+    const b2 = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 16, incremental: true, zones: 2 };
+    const off2 = run({ ...b2 });
+    const on2 = run({ ...b2, asyncBarrier: true });
+    const mz = worldDigest(off2) === worldDigest(on2) && logDigest(off2) === logDigest(on2) && off2.totals.handoffs > 0;
+    const ok = check(wv1 && once && pert && mz, `seed ${seed}: 단일 ${wv1}·once ${once}·pert r${st.resyncs}/d${st.delayed}·다중 ${mz}`);
+    console.log(`${pad(seed, 6)} | ${pad(wv1 ? 'Y' : 'N', 14)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad('r' + st.resyncs + '·d' + st.delayed, 12)} | ${pad(mz ? 'Y' : 'N', 16)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0450 #4 10·grand capstone — nete2ecap: 실 engine Net 배리어==배리어-free substrate==canonical·전복제 desync0·exactly-once·sound·lossy.
+function nete2ecap(seeds) {
+  console.log('== nete2ecap (0450·#4 grand capstone): 실 배리어==substrate==canonical·전복제 desync0·exactly-once·sound·배리어-free·lossy. ==');
+  console.log('seed   | 이벤트 | 배리어등가 | 전복제desync0 | exactly-once | sound | skew | lossy | 판정');
+  for (const seed of seeds) {
+    const C = 4, M = 3, MS = 40;
+    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: MS });
+    const events = NET.withSseq(s.events);
+    const canonical = NET.simFold(NET.totalOrder(events), seed, s.avatars).digest;
+    const sound = NET.totalOrderSound(events, s.edges);
+    const L = NET.runLockstepEngine(s.events, seed, s.avatars, C);
+    const barrierEq = L.totalDigest === canonical && L.delivered === MS;
+    const cap = NET.capstoneReplicas(events, M, seed, s.avatars, C);
+    const allConv = cap.reps.every(r => r.digest === canonical);
+    const allComplete = cap.reps.every(r => r.complete);
+    const lossy = cap.reps.some(r => r.resyncs > 0);
+    const skew = cap.skew;
+    const ok = check(barrierEq && allConv && allComplete && sound.strict && sound.causal && skew > 0 && lossy,
+      `seed ${seed}: barrier ${barrierEq}·conv ${allConv}·once ${allComplete}·sound ${sound.strict && sound.causal}·skew ${skew}·lossy ${lossy}`);
+    console.log(`${pad(seed, 6)} | ${pad(MS, 6)} | ${pad(barrierEq ? 'Y' : 'N', 10)} | ${pad(allConv ? 'Y' : 'N', 13)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(sound.causal ? 'Y' : 'N', 5)} | ${pad(skew, 4)} | ${pad(lossy ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0440 #4 10·grand capstone — asynce2ecap: M 복제 순열+손실→전 복제 desync0·exactly-once·clock0·sound·lossy. (지역 helper: siteOf/shuffle/arrivalFor/replica)
+function asynce2ecap(seeds) {
+  const siteOf = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
+  const shuffle = (arr, rnd) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+  const arrivalFor = (events, nsites, rnd) => {
+    const queues = Array.from({ length: nsites }, () => []);
+    for (const e of events) queues[siteOf(e)].push(e);
+    const out = []; let rem = events.length;
+    while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && queues[s].length === 0; k++) s = (s + 1) % nsites; out.push(queues[s].shift()); rem--; }
+    return out;
+  };
+  const replica = (events, N, rnd) => {
+    const site = NET.makeResyncSite(N); const dropped = [];
+    for (const e of arrivalFor(events, N, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of shuffle(dropped, rnd)) site.resync(e);
+    return { delivered: site.finish(), resyncs: site.resyncs() };
+  };
+  console.log('== asynce2ecap (0440·#4 grand capstone): M 복제 순열+손실→전 복제 desync0·exactly-once·clock0·인과 존중. ==');
+  console.log('seed   | 이벤트 | clock위반 | 전복제수렴 | 인과존중 | exactly-once | 손실 | 판정');
+  for (const seed of seeds) {
+    const N = 4, M = 3;
+    const base = NET.lamportExchange(seed, { sites: N, rounds: 56 });
+    const events = NET.withSseq(base.events);
+    const canonical = NET.applyDigest(NET.totalOrder(events));
+    const clockViol = NET.clockConditionViolations(base.events, base.edges);
+    const sound = NET.totalOrderSound(events, base.edges);
+    let allConv = true, allComplete = true, lossy = true;
+    for (let m = 0; m < M; m++) {
+      const r = replica(events, N, NET.mulberry32((seed ^ (0x4000 + m * 97)) >>> 0));
+      if (NET.applyDigest(r.delivered) !== canonical) allConv = false;
+      if (!NET.accountDelivered(r.delivered, events).complete) allComplete = false;
+      if (r.resyncs === 0) lossy = false;
+    }
+    const ok = check(clockViol === 0 && allConv && sound.strict && sound.causal && allComplete && lossy,
+      `seed ${seed}: clock ${clockViol}·conv ${allConv}·sound ${sound.strict && sound.causal}·complete ${allComplete}·lossy ${lossy}`);
+    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(clockViol, 9)} | ${pad(allConv ? 'Y' : 'N', 10)} | ${pad(sound.causal ? 'Y' : 'N', 8)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(lossy ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0350 #9 후속 grand capstone — worldcap: 월드 다운스트림 E2E(host AOI→포착→전파→실 DownClient 수렴 desync0·게이트웨이 격리). SPINE §4 경로2.
+function worldcap(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostC'), MIG(18, 'z1', 'hostB')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(5, 'z2', 'b1', 'dc2')];
+  for (let k = 0; k < 8; k++) ENT.push(MOVE(6 + k, 'z1', 'a1', 1, 1, 'dc0'));
+  ENT.push(ENTER(15, 'z1', 'a2', 'dc1'));
+  ENT.push(MOVE(16, 'z2', 'b1', 1, 0, 'dc2'));
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 3, egressDrop: ['s:a1#2'], egressTimeout: 4 };
+  console.log('== worldcap (0350·#9 후속 grand capstone): 월드 다운스트림 E2E. worldCoherent·dc0·dc1·dc2 수렴·iso. ==');
+  console.log('seed   | world | dc0 | dc1 | dc2 | iso | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 30, ...BASE, placementOps: OPS, entityOps: ENT });
+    const o = r.orch, g = r.gateway;
+    const world = o.downstreamWorldCoherent();
+    const c0 = r.downclients[0].convergedTo(o.zoneAuthSig('z1', 'a1'));
+    const c1 = r.downclients[1].convergedTo(o.zoneAuthSig('z1', 'a2'));
+    const c2 = r.downclients[2].convergedTo(o.zoneAuthSig('z2', 'b1'));
+    const iso = g.gatewayDeliveryIsolated();
+    const ok = check(world && c0 && c1 && c2 && iso, `seed ${seed}: world ${world} c ${c0}/${c1}/${c2} iso ${iso}`);
+    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(c0 ? 'Y' : 'N', 3)} | ${pad(c1 ? 'Y' : 'N', 3)} | ${pad(c2 ? 'Y' : 'N', 3)} | ${pad(iso ? 'Y' : 'N', 3)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0480 #70 grand capstone — upce2ecap: 실 UpClient E2E 경계(수렴·exactly-once·회계·생애주기). (cluster child_process — ctx dep Cluster/makeClusterHostDriver 주입)
+async function upce2ecap(seeds) {
+  const GRID = 16;
+  const zoneSpecOf = (addr, seed) => ({ addr, kind: 'zone', seed, opts: { region: { lo: 0, hi: GRID }, sibling: null, boundary: GRID, grid: GRID, radius: 4 } });
+  const withCluster = async (hosts, wire, fn) => {
+    const cluster = new Cluster(hosts, wire);
+    await cluster.spawn();
+    try { return await fn(cluster); } finally { for (const h of hosts.slice()) { try { await cluster.killHost(h); } catch {} } }
+  };
+  const tickUp = (uc, t) => { const cap = []; uc.net = { send: (f, to, p) => cap.push(p) }; uc.onTick(t); return cap; };
+  console.log('== upce2ecap (0480·#70 grand capstone): 실 UpClient E2E 경계 — 수렴·exactly-once(손실)·회계·생애주기(leave). ==');
+  console.log('seed   | uc0 수렴 | 회계 | exactly-once(dup) | uc1 leave 제거 | 판정');
+  for (const seed of seeds) {
+    await withCluster(['hostA'], { drop: 0.25, dropSeed: (seed ^ 0x7EE5) >>> 0 }, async (cluster) => {
+      await cluster.init(new Map([['hostA', [zoneSpecOf('zone1', seed), zoneSpecOf('zone2', seed)]]]));
+      const drv = makeClusterHostDriver();
+      const uc0 = new NET.UpClient({ avatar: 'a1', zoneId: 'zone1', joinAt: 1, plan: [[2, 1], [3, 0], [-1, 2]] });
+      for (const op of tickUp(uc0, 1)) await drv.deliverIntent(cluster, 'hostA', op);
+      drv.feedViews(await drv.tickZone(cluster, 'hostA', 'zone1', 1), uc0);
+      const e0 = await drv.zoneEntity(cluster, 'hostA', 'zone1', 'a1');
+      for (let t = 2; t <= 5; t++) { for (const op of tickUp(uc0, t)) await drv.deliverIntent(cluster, 'hostA', op); drv.feedViews(await drv.tickZone(cluster, 'hostA', 'zone1', t), uc0); }
+      const authA = await drv.upstreamAuthSig(cluster, 'hostA', 'zone1');
+      const converged = uc0.seenSig() === authA && authA !== '';
+      const d = uc0.intentDelta();
+      const exp = { x: ((e0.x + d.dx) % GRID + GRID) % GRID, y: ((e0.y + d.dy) % GRID + GRID) % GRID };
+      const fin = await drv.zoneEntity(cluster, 'hostA', 'zone1', 'a1');
+      const accounted = fin && fin.x === exp.x && fin.y === exp.y;
+      const uc1 = new NET.UpClient({ avatar: 'b1', zoneId: 'zone2', joinAt: 1, plan: [[1, 1]], leaveAt: 3 });
+      await drv.driveUpstream(cluster, [uc1], 4, () => 'hostA');
+      const removed = (await drv.zoneEntity(cluster, 'hostA', 'zone2', 'b1')) === null;
+      const once = cluster.resends > 0 && converged && accounted;
+      const pass = check(converged && accounted && once && removed, `seed ${seed}: conv${converged}·acct${accounted}·resend${cluster.resends}·removed${removed}`);
+      console.log(`${pad(seed, 6)} | ${pad(converged ? 'Y' : 'N', 8)} | ${pad(accounted ? 'Y' : 'N', 4)} | ${pad('Y(rs' + cluster.resends + '·dup' + cluster.dupCmds + ')', 17)} | ${pad(removed ? 'Y' : 'N', 14)} | ${pass ? 'OK' : 'FAIL'}`);
+    });
+  }
+}
+
+// step-0370 #57 grand capstone — clusterdatacap: 실 데이터 평면 E2E(driveCluster→coherent·실 migrate z1 A→B 상태 보존·hostA release). (cluster child_process — ctx dep Cluster)
+async function clusterdatacap(seeds) {
+  const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
+  const realPos = (snap, zone, id) => { const z = snap && snap.snap ? snap.snap[zone] : null; const e = z && z.ents ? z.ents.find(([x]) => x === id) : null; return e ? e[1] : null; };
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostA')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(3, 'z2', 'b1', 'dc1')];
+  for (let k = 0; k < 3; k++) { ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0')); ENT.push(MOVE(4 + k, 'z2', 'b1', 1, 0, 'dc1')); }
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
+  console.log('== clusterdatacap (0370·#57 grand capstone): 실 데이터 평면 E2E — coherent + 실 migrate 상태 보존. ==');
+  console.log('seed   | coherent | mig a1 보존 | hostA release | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 12, ...BASE });
+    const o = r.orch, drv = o.clusterDriver;
+    const cluster = new Cluster([]);
+    let coherent = false, migOk = false, released = false;
+    try {
+      await cluster.spawn();
+      await drv.driveCluster(o, cluster, zoneSpecOf, 1);
+      coherent = await drv.clusterCoherent(o, cluster);
+      const a1Auth = o.zoneEntityPos('z1', 'a1');
+      await drv.migrateZone(cluster, 'z1', 'hostA', 'hostB', zoneSpecOf);
+      const a1B = realPos(await cluster.rpc('hostB', { cmd: 'snapshot' }), 'z1', 'a1');
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      migOk = a1B && a1Auth && a1B.x === a1Auth.x && a1B.y === a1Auth.y;
+      released = !(sa && sa.snap && sa.snap['z1']);
+    } finally { await cluster.shutdown(); }
+    const ok = check(coherent && migOk && released, `seed ${seed}: capstone 위반 (coh ${coherent}·mig ${migOk}·rel ${released})`);
+    console.log(`${pad(seed, 6)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(migOk ? 'Y' : 'N', 11)} | ${pad(released ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// 공유 시나리오 빌더 — 2 host·3 zone(z1@A·z2@B·z3@A)·entity a1@z1·b1@z2 + move. #62 코디네이터 arc capstone 공통(coordmergecap·coordcap).
+function coordScenario() {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostA')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(3, 'z2', 'b1', 'dc1')];
+  for (let k = 0; k < 3; k++) { ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0')); ENT.push(MOVE(4 + k, 'z2', 'b1', 1, 0, 'dc1')); }
+  return { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
+}
+
+// step-0420 #62 코드 합류 grand capstone — coordmergecap: 단일 진입점 종합 warm-failover(migrate+reprovision+kill+promote) → runMultiCoherent·mig1·reprov1·promo1·a1 보존·parity. (cluster child_process — ctx dep runMultiViaCoord/coordAuthEquiv)
+async function coordmergecap(seeds) {
+  const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
+  const RUNMULTI_KEYS = ['livePids', 'hostIds', 'placement', 'epoch', 'presumedDead', 'migrations', 'reprovisions', 'promotions', 'pids', 'parentPid', 'port', 'ipcMsgs', 'ipcBytes', 'allSerializable', 'wire'];
+  console.log('== coordmergecap (0420·#62 코드 합류 grand capstone): 단일 진입점 종합 warm-failover(migrate+reprovision+kill+promote) → runMultiCoherent·mig1·reprov1·promo1·a1 보존·parity. ==');
+  console.log('seed   | coherent | mig | reprov | promo | a1 보존 | parity | 판정');
+  const spec = {
+    migrate: { zone: 'z3', from: 'hostA', to: 'hostB', at: 2 },
+    reprovision: { zone: 'z1', host: 'hostA_s', at: 3 },
+    kill: { host: 'hostA', at: 4 }, promote: { zone: 'z1', at: 4 },
+  };
+  for (const seed of seeds) {
+    const res = await runMultiViaCoord(
+      { seed, ticks: 12, coordTicks: 6, coordSc: spec, ...coordScenario() },
+      { run, zoneSpecOf },
+      async (coord, cluster) => coordAuthEquiv(coord, cluster, [['z1', 'a1']]));
+    const info = res.info, eq = res.probe;
+    const preserved = eq.match === eq.total;
+    const parity = RUNMULTI_KEYS.every(k => k in info);
+    const ok = check(res.coherent && info.migrations === 1 && info.reprovisions === 1 && info.promotions === 1 && preserved && parity,
+      `seed ${seed}: capstone 위반 (coherent ${res.coherent}·mig ${info.migrations}·reprov ${info.reprovisions}·promo ${info.promotions}·a1 ${eq.match}/${eq.total}·parity ${parity})`);
+    console.log(`${pad(seed, 6)} | ${pad(res.coherent ? 'Y' : 'N', 8)} | ${pad(info.migrations, 3)} | ${pad(info.reprovisions, 6)} | ${pad(info.promotions, 5)} | ${pad(preserved ? 'Y' : 'N', 7)} | ${pad(parity ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0380 #62 통합 grand capstone — coordcap: broker 측 제어 평면 E2E(start→연속 run→z3 drift→syncPlan 치유 뒤에도 실 cluster==in-proc 권위). (cluster child_process — ctx dep Cluster/makeClusterCoordinator)
+async function coordcap(seeds) {
+  const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
+  const BASE = coordScenario();
+  console.log('== coordcap (0380·#62 grand capstone): broker 측 제어 평면 E2E — run+drift+syncPlan 뒤 coordCoherent. ==');
+  console.log('seed   | maxDesync | drift heal | coordCoherent | report coh | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 12, ...BASE });
+    const o = r.orch, drv = o.clusterDriver;
+    const cluster = new Cluster([]);
+    let maxD = -1, healed = false, coh = false, repCoh = false;
+    try {
+      await cluster.spawn();
+      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
+      await coord.run(5);
+      maxD = coord.maxDesync;
+      await cluster.rpc('hostA', { cmd: 'zonedel', addr: 'z3' });
+      await coord.syncPlan();
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      healed = !!(sa && sa.snap && sa.snap['z3']);
+      coh = await coord.coordCoherent();
+      repCoh = (await coord.report()).coherent;
+    } finally { await cluster.shutdown(); }
+    const ok = check(maxD === 0 && healed && coh && repCoh, `seed ${seed}: capstone 위반 (maxD ${maxD}·heal ${healed}·coh ${coh}·rep ${repCoh})`);
+    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(healed ? 'Y' : 'N', 10)} | ${pad(coh ? 'Y' : 'N', 13)} | ${pad(repCoh ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0490 #16 라운드 2차 정리 — promoted16: 시대별 grand capstone 9종이 ORDER 누적 회귀에 항구 등록됐는지 가드(향후 우발 제거 방지·"no silent cap"·arc 닫기).
+function promoted16(seeds) {
+  const PROMOTED = ['mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap'];
+  console.log('== promoted16 (0490·#16 라운드 2차 정리): 시대별 grand capstone 9종 ORDER/MODES 항구 등록 가드 — 향후 제거 방지. #16 라운드 2차 arc 닫기. ==');
+  console.log('capstone       | ORDER | MODES | 판정');
+  for (const m of PROMOTED) {
+    const inOrder = ORDER.includes(m);
+    const inModes = typeof MODES[m] === 'function';
+    const ok = check(inOrder && inModes, `${m}: order ${inOrder}·modes ${inModes}`);
+    console.log(`${m.padEnd(14)} | ${pad(inOrder ? 'Y' : 'N', 5)} | ${pad(inModes ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+  check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promoted16: grand capstone 9종 전부 등록`);
+}
+
+// ── #16 승급 라운드 3차: 서비스 saga capstone 재작성 편입 (0491~·감사 §2 ①-b) ──
+//   grand capstone(0481~0490)이 월드/async/cluster 를 항구화한 뒤, 이 라운드는 *서비스 계층*(거래소·우편·길드)의
+//   실행 검증을 verify-kit ORDER 로 편입한다 — 옛 capstone 코드가 git 에 없어(단일 src 전환·history 소실) *재작성*이다.
+//   각 capstone 은 run() 을 서비스 opts(exchange/mail/guild + saga)로 구동하고 노출된 정합 술어를 단언한다. 박스 무수정→reg 0.
+// step-0491 재작성 — svcexchangecap: 거래소↔가방 saga 정합(0140 sagaLiveConsistent 판). list+buy escrow→가방 give→saga 회신 drain·회계 닫힘.
+function svcexchangecap(seeds) {
+  console.log('== svcexchangecap (0491·서비스 재작성): 거래소↔가방 saga — list+buy escrow give→회신 drain·sagaLiveConsistent(pending 3분할+회계 닫힘). ==');
+  console.log('seed   | gives | acked | oks | pending | sagaLive | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 14, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } }],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+    });
+    const e = r.exchange;
+    const drained = e.pending.size === 0 && e.gives === 2 && e.ackedGives === 2 && e.giveOks === 2;
+    const live = e.sagaLiveConsistent() && e.sagaConsistent();
+    const moved = r.inventory.ownerOf('item0') === 'buyer';   // 아이템이 seller→escrow→buyer 실물 이동
+    const ok = check(drained && live && moved, `seed ${seed}: drain${drained}·live${live}·moved${moved}(gives${e.gives}·pend${e.pending.size})`);
+    console.log(`${pad(seed, 6)} | ${pad(e.gives, 5)} | ${pad(e.ackedGives, 5)} | ${pad(e.giveOks, 3)} | ${pad(e.pending.size, 7)} | ${pad(live ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0492 재작성 — svcexchangexfer: 거래소↔가방 2-서비스 교차 회계(0130 판). 거래소 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치)·아이템 무손실 보존.
+function svcexchangexfer(seeds) {
+  console.log('== svcexchangexfer (0492·서비스 재작성): 거래소↔가방 2-서비스 교차 회계 — 거래소 giveOks == 가방 escrowXfers·아이템 단일 소유 보존. ==');
+  console.log('seed   | giveOks | escrowXfers | minted | 보존 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 14, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } }],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+    });
+    const e = r.exchange, inv = r.inventory;
+    const cross = e.giveOks === inv.escrowXfers && e.giveOks === 2;         // 두 서비스 escrow 회계 합치
+    const conserved = inv.minted === 1 && inv.ownerOf('item0') === 'buyer';  // 아이템 무손실·단일 소유(dupe 0)
+    const ok = check(cross && conserved, `seed ${seed}: cross${cross}(oks${e.giveOks}==xfer${inv.escrowXfers})·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(e.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.minted, 6)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0493 재작성 — svcmailcap: 아이템 첨부 우편↔가방 saga 정합(0170 sagaLiveConsistent 판). mailSend(첨부·escrow 인출)→mailFetch(입금)·네 회계층 동시 닫힘.
+function svcmailcap(seeds) {
+  console.log('== svcmailcap (0493·서비스 재작성): 아이템 우편↔가방 saga — mailC+itemC+escrowC+sagaC 동시 닫힘(sagaLiveConsistent). ==');
+  console.log('seed   | sent | itemFetched | gives | oks | sagaLive | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 16, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r0' } }],
+      mailOps: [
+        { at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'gift', item: 'item0' } },
+        { at: 9, op: { type: 'mailFetch', to: 'bob' } },
+      ],
+    });
+    const m = r.mail;
+    const live = m.sagaLiveConsistent() && m.mailConsistent() && m.itemConsistent() && m.escrowConsistent() && m.sagaConsistent();
+    const acked = m.gives === 2 && m.ackedGives === 2 && m.giveOks === 2 && m.pending.size === 0;
+    const moved = r.inventory.ownerOf('item0') === 'bob' && r.inventory.escrowXfers === 2;   // 아이템 alice→escrow→bob
+    const ok = check(live && acked && moved, `seed ${seed}: live${live}·acked${acked}·moved${moved}(gives${m.gives})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.sent, 4)} | ${pad(m.itemFetched, 11)} | ${pad(m.gives, 5)} | ${pad(m.giveOks, 3)} | ${pad(live ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0494 재작성 — svcmailxfer: 우편↔가방 2-서비스 교차 회계 + saga liveness(0164/0180 판). mail giveOks==가방 escrowXfers·sagaLivenessConsistent(pending 3분할).
+function svcmailxfer(seeds) {
+  console.log('== svcmailxfer (0494·서비스 재작성): 우편↔가방 2-서비스 교차 + saga liveness — mail giveOks==escrowXfers·sagaLivenessConsistent(pending 3분할). ==');
+  console.log('seed   | giveOks | escrowXfers | pending | sagaLive+ness | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 16, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r0' } }],
+      mailOps: [
+        { at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'gift', item: 'item0' } },
+        { at: 9, op: { type: 'mailFetch', to: 'bob' } },
+      ],
+    });
+    const m = r.mail, inv = r.inventory;
+    const cross = m.giveOks === inv.escrowXfers && m.giveOks === 2;         // 두 서비스 escrow 회계 합치
+    const liveness = m.sagaLivenessConsistent() && m.sagaConsistent();      // pending 3분할 + 회계 닫힘
+    const conserved = inv.ownerOf('item0') === 'bob' && inv.minted === 1;   // 무손실 단일 소유
+    const ok = check(cross && liveness && conserved, `seed ${seed}: cross${cross}(oks${m.giveOks}==xfer${inv.escrowXfers})·liveness${liveness}·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(m.pending.size, 7)} | ${pad(liveness ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0495 재작성 — svcguildcap: 길드 로스터 single-master 정합(0190 rosterConsistent 판). create+join+master 이양(쌍 거래) 후 정확히 한 master·고아 0·중복 0.
+function svcguildcap(seeds) {
+  console.log('== svcguildcap (0495·서비스 재작성): 길드 single-master — create+join+이양(쌍 거래) 후 rosterConsistent(한 master·master∈members·중복0). ==');
+  console.log('seed   | creates | master | members | roster | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 12, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, guildService: true,
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 2, op: { type: 'guildJoin', guildId: 'g1', member: 'bob' } },
+        { at: 3, op: { type: 'guildTransfer', guildId: 'g1', from: 'alice', to: 'bob' } },
+        { at: 4, op: { type: 'guildLeave', guildId: 'g1', member: 'bob' } },   // master 탈퇴 보호(no-op)
+      ],
+    });
+    const g = r.guild, gd = g.guilds.get('g1');
+    const roster = g.rosterConsistent();
+    const transferred = gd && gd.master === 'bob' && gd.members.includes('alice') && gd.members.includes('bob');   // 이양 성사·from 잔류
+    const masterProtected = gd && gd.members.includes('bob');   // master(bob) 탈퇴 no-op(single-master 보존)
+    const ok = check(roster && transferred && masterProtected, `seed ${seed}: roster${roster}·transferred${transferred}·protected${masterProtected}`);
+    console.log(`${pad(seed, 6)} | ${pad(g.creates, 7)} | ${pad(gd ? gd.master : '-', 6)} | ${pad(gd ? gd.members.length : 0, 7)} | ${pad(roster ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0496 재작성 — svcbankcap: 길드 금고 원장 정합(0199 bankConsistent 판). deposit/withdraw 후 itemId 단일 길드 소유(교차 중복 0·금고 내 중복 0)·금고 회계(예치−인출==잔여).
+function svcbankcap(seeds) {
+  console.log('== svcbankcap (0496·서비스 재작성): 길드 금고 원장 — deposit/withdraw 후 bankConsistent(itemId 단일 길드 소유)·금고 회계(예치−인출==잔여). ==');
+  console.log('seed   | g1 vault | g2 vault | bankC | 회계 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 12, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true,
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 1, op: { type: 'guildCreate', guildId: 'g2', master: 'carol', members: ['carol'] } },
+        { at: 2, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold0', member: 'alice' } },
+        { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold1', member: 'alice' } },
+        { at: 4, op: { type: 'guildDeposit', guildId: 'g2', itemId: 'gem0', member: 'carol' } },
+        { at: 5, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'gold0', member: 'alice' } },   // g1: 예치2−인출1=잔여1(gold1)
+      ],
+    });
+    const g = r.guild;
+    const v1 = g.bankOf('g1'), v2 = g.bankOf('g2');
+    const bankC = g.bankConsistent();                                   // itemId 단일 길드 소유(교차 중복 0)
+    const accounting = v1.length === 1 && v1[0] === 'gold1' && v2.length === 1 && v2[0] === 'gem0';   // 예치−인출==잔여·격리
+    const ok = check(bankC && accounting, `seed ${seed}: bankC${bankC}·acct${accounting}(g1[${v1}]·g2[${v2}])`);
+    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(v1), 8)} | ${pad(JSON.stringify(v2), 8)} | ${pad(bankC ? 'Y' : 'N', 5)} | ${pad(accounting ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0497 재작성 — svcmailexpire: 우편 메시지 통수 회계(0150 mailConsistent 판). 만료 TTL 포함 — sent == 보유(held) + 수령(fetched) + 만료(expired)·공백/중복 0.
+function svcmailexpire(seeds) {
+  console.log('== svcmailexpire (0497·서비스 재작성): 우편 메시지 통수 회계 — 만료 TTL 하 sent==held+fetched+expired(공백·중복 0·mailConsistent). ==');
+  console.log('seed   | sent | held | fetched | expired | mailC | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 20, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, mail: true, mailTtl: 4,
+      mailOps: [
+        { at: 2, op: { type: 'mailSend', from: 'a', to: 'bob', body: 'm1' } },
+        { at: 2, op: { type: 'mailSend', from: 'a', to: 'carol', body: 'm2' } },
+        { at: 4, op: { type: 'mailFetch', to: 'bob' } },        // bob 수령
+        { at: 12, op: { type: 'mailSweep', now: 12 } },          // carol m2(sentAt2·ttl4) 만료
+      ],
+    });
+    const m = r.mail;
+    const mailC = m.mailConsistent();                            // sent == held + fetched + expired
+    const split = m.sent === 2 && m.fetched === 1 && m.expired === 1 && m.totalHeld() === 0;   // 세 종결로 분할·잔여 0
+    const ok = check(mailC && split, `seed ${seed}: mailC${mailC}·split${split}(sent${m.sent}·f${m.fetched}·e${m.expired}·h${m.totalHeld()})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.sent, 4)} | ${pad(m.totalHeld(), 4)} | ${pad(m.fetched, 7)} | ${pad(m.expired, 7)} | ${pad(mailC ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0498 재작성 — svcsvccombined: 거래소+우편+길드 세 서비스 한 run() 동시 구동 — 각 정합 술어 동시 성립 + 상호 비간섭(서비스 격리·아이템 무손실 종합).
+function svcsvccombined(seeds) {
+  console.log('== svcsvccombined (0498·서비스 재작성): 거래소+우편+길드 한 run() 종합 — 각 정합 술어 동시 성립·서비스 격리(상호 비간섭). ==');
+  console.log('seed   | exch | mail | roster | bank | 격리 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 18, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true,
+      exchange: true, exchInventory: true, exchSaga: true,
+      mail: true, mailItem: true, mailInv: true, mailSaga: true,
+      guildService: true, guildBank: true,
+      invOps: [
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } },   // item0
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r1' } },     // item1
+      ],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+      mailOps: [
+        { at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'gift', item: 'item1' } },
+        { at: 9, op: { type: 'mailFetch', to: 'bob' } },
+      ],
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 2, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold0', member: 'alice' } },
+      ],
+    });
+    const e = r.exchange, m = r.mail, g = r.guild, inv = r.inventory;
+    const exchOk = e.sagaLiveConsistent() && e.giveOks === 2 && inv.ownerOf('item0') === 'buyer';
+    const mailOk = m.sagaLiveConsistent() && m.giveOks === 2 && inv.ownerOf('item1') === 'bob';
+    const rosterOk = g.rosterConsistent();
+    const bankOk = g.bankConsistent() && JSON.stringify(g.bankOf('g1')) === '["gold0"]';
+    const isolated = inv.minted === 2 && e.giveOks + m.giveOks === inv.escrowXfers;   // 두 서비스 escrow 합·아이템 무손실(item0·item1 각 단일 소유)
+    const ok = check(exchOk && mailOk && rosterOk && bankOk && isolated, `seed ${seed}: exch${exchOk}·mail${mailOk}·roster${rosterOk}·bank${bankOk}·iso${isolated}`);
+    console.log(`${pad(seed, 6)} | ${pad(exchOk ? 'Y' : 'N', 4)} | ${pad(mailOk ? 'Y' : 'N', 4)} | ${pad(rosterOk ? 'Y' : 'N', 6)} | ${pad(bankOk ? 'Y' : 'N', 4)} | ${pad(isolated ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0499 재작성 — svcexchangecancel: 거래소 release 경로(취소·만료 TTL) escrow 반환. cancel/expire 로 escrow 아이템이 판매자 가방으로 돌아옴·sagaLiveConsistent 보존.
+function svcexchangecancel(seeds) {
+  console.log('== svcexchangecancel (0499·서비스 재작성): 거래소 release 경로 — cancel/expire escrow 반환·아이템 판매자 복귀·sagaLiveConsistent 보존. ==');
+  console.log('seed   | cancelled | expired | item0/1 소유 | sagaLive | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 18, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true, exchangeTtl: 4,
+      invOps: [
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } },   // item0
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r1' } },   // item1
+      ],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'shield', price: 5, itemId: 'item1' } },
+        { at: 5, op: { type: 'exchCancel', id: 1, seller: 'seller' } },   // item0 취소 반환
+        { at: 12, op: { type: 'exchSweep', now: 12 } },                    // item1(listedAt3·ttl4) 만료 반환
+      ],
+    });
+    const e = r.exchange, inv = r.inventory;
+    const released = e.cancelled === 1 && e.expired === 1;                       // 취소 1·만료 1
+    const returned = inv.ownerOf('item0') === 'seller' && inv.ownerOf('item1') === 'seller';   // 둘 다 판매자 복귀
+    const live = e.sagaLiveConsistent() && e.sagaConsistent() && e.pending.size === 0;
+    const ok = check(released && returned && live, `seed ${seed}: released${released}·returned${returned}·live${live}(o0${inv.ownerOf('item0')}·o1${inv.ownerOf('item1')})`);
+    console.log(`${pad(seed, 6)} | ${pad(e.cancelled, 9)} | ${pad(e.expired, 7)} | ${pad(inv.ownerOf('item0') + '/' + inv.ownerOf('item1'), 13)} | ${pad(live ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0500 #16 라운드 3차 정리 — promotedsvc: 서비스 saga capstone 9종이 ORDER 누적 회귀에 항구 등록됐는지 가드(향후 우발 제거 방지·"no silent cap"·arc 닫기).
+function promotedsvc(seeds) {
+  const PROMOTED = ['svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel'];
+  console.log('== promotedsvc (0500·#16 라운드 3차 정리): 서비스 saga capstone 9종 ORDER/MODES 항구 등록 가드 — 향후 제거 방지. #16 라운드 3차 arc 닫기. ==');
+  console.log('capstone           | ORDER | MODES | 판정');
+  for (const m of PROMOTED) {
+    const inOrder = ORDER.includes(m);
+    const inModes = typeof MODES[m] === 'function';
+    const ok = check(inOrder && inModes, `${m}: order ${inOrder}·modes ${inModes}`);
+    console.log(`${m.padEnd(18)} | ${pad(inOrder ? 'Y' : 'N', 5)} | ${pad(inModes ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+  check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promotedsvc: 서비스 saga capstone 9종 전부 등록`);
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
-                 'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
+                 'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
