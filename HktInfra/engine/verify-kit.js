@@ -1275,11 +1275,36 @@ function svcguildcap(seeds) {
   }
 }
 
+// step-0496 재작성 — svcbankcap: 길드 금고 원장 정합(0199 bankConsistent 판). deposit/withdraw 후 itemId 단일 길드 소유(교차 중복 0·금고 내 중복 0)·금고 회계(예치−인출==잔여).
+function svcbankcap(seeds) {
+  console.log('== svcbankcap (0496·서비스 재작성): 길드 금고 원장 — deposit/withdraw 후 bankConsistent(itemId 단일 길드 소유)·금고 회계(예치−인출==잔여). ==');
+  console.log('seed   | g1 vault | g2 vault | bankC | 회계 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 12, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, guildService: true, guildBank: true,
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 1, op: { type: 'guildCreate', guildId: 'g2', master: 'carol', members: ['carol'] } },
+        { at: 2, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold0', member: 'alice' } },
+        { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold1', member: 'alice' } },
+        { at: 4, op: { type: 'guildDeposit', guildId: 'g2', itemId: 'gem0', member: 'carol' } },
+        { at: 5, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'gold0', member: 'alice' } },   // g1: 예치2−인출1=잔여1(gold1)
+      ],
+    });
+    const g = r.guild;
+    const v1 = g.bankOf('g1'), v2 = g.bankOf('g2');
+    const bankC = g.bankConsistent();                                   // itemId 단일 길드 소유(교차 중복 0)
+    const accounting = v1.length === 1 && v1[0] === 'gold1' && v2.length === 1 && v2[0] === 'gem0';   // 예치−인출==잔여·격리
+    const ok = check(bankC && accounting, `seed ${seed}: bankC${bankC}·acct${accounting}(g1[${v1}]·g2[${v2}])`);
+    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(v1), 8)} | ${pad(JSON.stringify(v2), 8)} | ${pad(bankC ? 'Y' : 'N', 5)} | ${pad(accounting ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
