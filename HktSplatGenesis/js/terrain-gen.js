@@ -234,8 +234,44 @@
 			return out;
 		}
 
+		// 결정론 스폰 테이블 (T4 스캐터) — 창 [x0,x0+size)×[z0,z0+size) 안의 개체 후보.
+		// 스폰 격자 셀마다 셀 해시로 존재 여부·종류를 정한다(같은 시드=같은 배치). 바이옴·경사·
+		// 수위 조건으로 종류를 게이팅: 평야/설원 나무, 산악·급경사 바위, 수변 슬라임. Math.random
+		// 금지 — 전부 셀 좌표+시드 해시. 반환 각 원소: { x, z, y, kind, key, seed }.
+		function scatter(x0, z0, size, opts) {
+			opts = opts || {};
+			const cell = opts.cell || 6.0;               // 스폰 격자 한 변(m)
+			const density = opts.density != null ? opts.density : 0.5; // 셀당 스폰 확률
+			const out = [];
+			const cx0 = Math.floor(x0 / cell), cz0 = Math.floor(z0 / cell);
+			const cx1 = Math.floor((x0 + size) / cell), cz1 = Math.floor((z0 + size) / cell);
+			for (let cz = cz0; cz <= cz1; cz++) for (let cx = cx0; cx <= cx1; cx++) {
+				if (latticeHash(cx, cz, P.seed + 5501) > density) continue; // 이 셀엔 스폰 없음
+				const jx = latticeHash(cx, cz, P.seed + 6607), jz = latticeHash(cx, cz, P.seed + 7703);
+				const x = (cx + jx) * cell, z = (cz + jz) * cell;
+				const y = reliefAt(x, z);
+				const key = cx + '_' + cz, seed = (latticeHash(cx, cz, P.seed + 99) * 4294967296) >>> 0;
+				if (y < P.waterY + 0.05) { // 물속/물가 — 수변에만 가끔 슬라임
+					if (y > P.waterY - 0.4 && latticeHash(cx, cz, P.seed + 811) < 0.4)
+						out.push({ x, z, y, kind: 'slime', key, seed });
+					continue;
+				}
+				// 경사(기울기 크기) — 가파르거나 산악이면 바위, 평야/설원은 나무, 사막은 드문 바위
+				const e = 0.6;
+				const hx = reliefAt(x + e, z) - reliefAt(x - e, z), hz = reliefAt(x, z + e) - reliefAt(x, z - e);
+				const slope = Math.hypot(hx, hz) / (2 * e);
+				const bi = biomeAt(x, z).key;
+				let kind;
+				if (slope > 0.8 || bi === 'mountain') kind = 'rock';
+				else if (bi === 'desert') { if (latticeHash(cx, cz, P.seed + 321) >= 0.28) continue; kind = 'rock'; }
+				else kind = 'tree'; // 평야·설원
+				out.push({ x, z, y, kind, key, seed });
+			}
+			return out;
+		}
+
 		return {
-			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly,
+			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly, scatter,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}

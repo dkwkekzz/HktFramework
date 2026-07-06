@@ -399,6 +399,37 @@
 		return a;
 	};
 
+	// T4 슬롯 증분 교체 — setScene 전체 재초기화 없이 개체 슬롯 ei 하나만 새 유전자로 바꾼다.
+	// 레이아웃(N·슬라이스 수)은 불변이라 버퍼 슬라이스만 부분 업로드(바이트 일치 유지). 스트리밍
+	// 스캐터가 카메라 거리순으로 슬롯을 재활용하는 경로 — 개체 상한 8을 넘겨 월드를 채운다.
+	HktGenesisEngine.prototype.setEntitySlot = function (ei, rawGenes) {
+		if (!this.splatBuf) throw new Error('setEntitySlot 은 setScene 이후에만');
+		if (ei < 0 || ei >= this.entities.length) throw new Error('슬롯 범위 밖: ' + ei);
+		const d = this.device, slice = this.sliceSize;
+		this.entities[ei] = rawGenes;
+		// 1) 엔티티 테이블 행 ei 만 부분 업로드
+		const packed = this._packEntities(this.entities);
+		d.queue.writeBuffer(this.entityBuf, ei * ENTITY_STRIDE * 4, packed, ei * ENTITY_STRIDE, ENTITY_STRIDE);
+		// 2) 슬라이스 ei 의 스플랫·rest·클러스터 재시드 후 부분 업로드
+		const genes = this._terrainAdjust(rawGenes); // setScene 과 동일하게 지형 위로
+		const init = (genes.form === 1) ? this._initGolem(slice, genes)
+			: (genes.form === 2) ? this._initTree(slice, genes)
+				: (genes.form === 3) ? this._initFleshCloud(slice, genes)
+					: this._initCloud(slice, genes);
+		d.queue.writeBuffer(this.splatBuf, ei * slice * SPLAT_STRIDE * 4, init.splat);
+		d.queue.writeBuffer(this.restBuf, ei * slice * 4 * 4, init.rest);
+		// 클러스터 본드 인덱스는 전역 기준으로 보정 (setScene 과 동일)
+		const cBase = ei * (slice / CLUSTER_K);
+		const cluster = init.cluster.slice();
+		const cu = new Uint32Array(cluster.buffer);
+		for (let ci = 0; ci < slice / CLUSTER_K; ci++)
+			for (let b = 0; b < 8; b++) {
+				const e = cu[ci * CLUSTER_STRIDE + 16 + b];
+				if (e !== 0xffffffff) cu[ci * CLUSTER_STRIDE + 16 + b] = (e & 0xf0000000) | ((e & 0x0fffffff) + cBase);
+			}
+		d.queue.writeBuffer(this.clusterBuf, cBase * CLUSTER_STRIDE * 4, cluster);
+	};
+
 	// 빈 클러스터 테이블 (form 0 — 클러스터 패스 미사용, 렌더 strain 참조용 0 초기화)
 	HktGenesisEngine.prototype._emptyClusters = function (n) {
 		const c = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);

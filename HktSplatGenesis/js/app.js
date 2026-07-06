@@ -332,6 +332,25 @@
 		document.getElementById('reseed').addEventListener('click', () => { engine.setScene(engine.count, sceneEntities); simTime = 0; });
 		reseedFn = () => { engine.setScene(engine.count, sceneEntities); simTime = 0; }; // 성장 시계도 리셋
 
+		// ?scatter=<seed> — 절차 월드 개체 스트리밍 (T4). 지형 시각은 &tiles=<seed> 로 함께 켠다
+		// (무대 타일과 같은 시드면 지형·개체가 정합). 장면을 8 void 슬롯으로 두고 스캐터가 채운다.
+		let scatterMode = false, scatterWorld = null, scatterBakeAt = null, scatterCd = 0;
+		const scatterSeed = new URLSearchParams(location.search).get('scatter');
+		if (scatterSeed != null && window.HktGenesisScatter && window.HktGenesisTerrainGen) {
+			scatterWorld = HktGenesisTerrainGen.world({ seed: parseInt(scatterSeed) || 1 });
+			const scatterCfg = { radius: 20, slotStart: 0, slotCount: 8, cell: 6, density: 0.6 };
+			const initScatter = () => {
+				sceneEntities = Array.from({ length: 8 }, () => HktGenesisScatter.voidGenes());
+				engine.setScene(engine.count, sceneEntities);
+				HktGenesisScatter.configure(engine, scatterWorld, scatterCfg);
+			};
+			initScatter();
+			reseedFn = () => { initScatter(); simTime = 0; }; // 스캐터 모드 재시드 = 슬롯 재구성
+			// 개체 수 변경(setScene 재초기화) 뒤 슬롯을 다시 구성 (원 핸들러 다음에 실행)
+			countSel.addEventListener('change', () => HktGenesisScatter.configure(engine, scatterWorld, scatterCfg));
+			scatterMode = true;
+		}
+
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
@@ -389,6 +408,19 @@
 				bones = (skel.clip === 'external' && extSkel)
 					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat) // 외부 클립은 증분 시간
 					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);       // built-in 은 절대 시간
+			}
+			// T4 스캐터: 카메라 타깃 밑 지형을 함수로 직접 베이크(버블 창)하고 근접 개체를 슬롯에 스트리밍
+			if (scatterMode) {
+				if (--scatterCd <= 0) {
+					scatterCd = 12; // 0.2초 간격 재베이크 (버블 창)
+					const tx = camera.target[0], tz = camera.target[2];
+					if (!scatterBakeAt || (tx - scatterBakeAt[0]) ** 2 + (tz - scatterBakeAt[1]) ** 2 > 4) {
+						engine.setHeightfield(HktHeightfield.bakeFn((x, z) => scatterWorld.height(x, z),
+							{ res: 128, originX: tx - 4.8, originZ: tz - 4.8, cell: 9.6 / 127 }));
+						scatterBakeAt = [tx, tz];
+					}
+				}
+				HktGenesisScatter.update(camera.target[0], camera.target[2]);
 			}
 			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
 			bindStageStatus();
