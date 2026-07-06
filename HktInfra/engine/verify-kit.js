@@ -1361,11 +1361,39 @@ function svcsvccombined(seeds) {
   }
 }
 
+// step-0499 재작성 — svcexchangecancel: 거래소 release 경로(취소·만료 TTL) escrow 반환. cancel/expire 로 escrow 아이템이 판매자 가방으로 돌아옴·sagaLiveConsistent 보존.
+function svcexchangecancel(seeds) {
+  console.log('== svcexchangecancel (0499·서비스 재작성): 거래소 release 경로 — cancel/expire escrow 반환·아이템 판매자 복귀·sagaLiveConsistent 보존. ==');
+  console.log('seed   | cancelled | expired | item0/1 소유 | sagaLive | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 18, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true, exchangeTtl: 4,
+      invOps: [
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } },   // item0
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r1' } },   // item1
+      ],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'shield', price: 5, itemId: 'item1' } },
+        { at: 5, op: { type: 'exchCancel', id: 1, seller: 'seller' } },   // item0 취소 반환
+        { at: 12, op: { type: 'exchSweep', now: 12 } },                    // item1(listedAt3·ttl4) 만료 반환
+      ],
+    });
+    const e = r.exchange, inv = r.inventory;
+    const released = e.cancelled === 1 && e.expired === 1;                       // 취소 1·만료 1
+    const returned = inv.ownerOf('item0') === 'seller' && inv.ownerOf('item1') === 'seller';   // 둘 다 판매자 복귀
+    const live = e.sagaLiveConsistent() && e.sagaConsistent() && e.pending.size === 0;
+    const ok = check(released && returned && live, `seed ${seed}: released${released}·returned${returned}·live${live}(o0${inv.ownerOf('item0')}·o1${inv.ownerOf('item1')})`);
+    console.log(`${pad(seed, 6)} | ${pad(e.cancelled, 9)} | ${pad(e.expired, 7)} | ${pad(inv.ownerOf('item0') + '/' + inv.ownerOf('item1'), 13)} | ${pad(live ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0498](step-0498.md) — **#16 승급 라운드 3차 8: svcsvccombined 편입**: 서비스 계층 종합 격리 capstone 신규 — 거래소+우편+길드 한 run() 동시 구동·각 정합 술어 동시 성립·상호 비간섭(공유 가방 격리·아이템 무손실). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·svcsvccombined 5/5(exch/mail/roster/bank/격리 전부 Y)·spine ALL OK.
+- **닫힌 step**: [step-0499](step-0499.md) — **#16 승급 라운드 3차 9: svcexchangecancel 편입**: 거래소 release 경로(취소·만료 TTL) escrow 반환 capstone 재작성 편입 — cancel/expire 로 아이템이 판매자 가방 복귀(cancelled1·expired1)·sagaLiveConsistent 보존. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·svcexchangecancel 5/5(cancelled1·expired1·둘 다 seller 복귀·sagaLiveConsistent)·spine ALL OK.
 - **다음**: 🎯 **#16 라운드 3차 arc(0491~) — 서비스 saga capstone 재작성 편입**(상세 §2). 편입 완료: 거래소 saga/교차·우편 saga/교차/만료·길드 로스터/금고(0491~0497). 남음: 종합 격리·가드+arc 닫기.
 
 ---
@@ -139,16 +139,7 @@
 | [0441–0450](reviews/review-0441-0450.md) | #4 실 net.step 배리어 치환 in-proc 등가 arc: async-net.js — 실 Net-형 intent 스트림·sim fold·holdback·디스패치·resync·복제수렴·배리어-free·exactly-once·lockstep 등가·capstone(실 engine Net 배리어==배리어-free substrate==canonical) | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | 0451–[0460](step-0460.md) | #4 실 net.step 배리어 *실제* 치환 arc: 신규 `async-barrier.js`·run() 이 net.step 대신 stepper 로 월드입력을 정전 순서(m.id) holdback/resync 배달 — seam→스탬프→holdback→손실+resync→무-resync 대조→exactly-once→지연 jitter→다중 존→다운스트림 수렴→capstone. 손실+지연 하 world/뷰==lockstep·exactly-once·다중존 투명·OFF→net.step reg 0 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
 | [0461–0470](reviews/review-0461-0470.md) | #4 완전 async 전환 arc: `async-barrier.js` wrap-aware interior 유계 resync 가드 — 발산 포착(0461)→loss/delay 가드(0462~63)→결합+exactly-once(0464)→유계 증명(0465)→가드 대조(0466)→이주 명제(0467)→exactly-once 완전 회계(0468)→다운스트림(0469)→capstone(0470). 다중 존 loss+delay world/뷰==lockstep·이주 전 유계 resync·OFF→net.step reg 0 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
-| [0471](step-0471.md) | #70 실 host.js child 경계 업스트림 1(enter): cluster-hostdriver `intentToZoneMsg`(게이트웨이-형 intent→존 msg·enter)+`deliverIntent`(실 host.js deliver 소켓 배달). 실 UpClient zoneEnter 경계 넘어 실 host.js 존 entity 생성. 드라이버 미부착→reg 0 | 통과(reg 0·spine OK) · upclenter 5/5 a1 present |
-| [0472](step-0472.md) | #70 경계 업스트림 2(move): intentToZoneMsg 에 zoneMove→존 move 번역. 실 UpClient 이동 intent 경계 넘어 실 host.js 존 적용(onTick pending)·(dx,dy) 이동·wrap | 통과(reg 0·spine OK) · upcmove 5/5 enter+2,1==move후 |
-| [0473](step-0473.md) | #70 경계 업스트림 3(egress 뷰): `feedViews(sends,upclient)` — 실 host.js 존 tick view_delta 중 자기 세션 것을 실 UpClient.onMsg 배달(경계 넘어 뷰 수신) | 통과(reg 0·spine OK) · upcrecv 5/5 seen a1@enter |
-| [0474](step-0474.md) | #70 경계 업스트림 4(수렴): `upstreamAuthSig` — 발신(enter+move)→경계 넘어 실 존→egress 뷰 뒤 seenSig==authSig(desync 0) | 통과(reg 0·spine OK) · upcconverge 5/5 경계 desync0 |
-| [0475](step-0475.md) | #70 경계 업스트림 5(driveUpstream): 매-tick 루프 통합(발신 포착→경계 배달→실 존 tick→egress 되먹임)·다중 tick plan 경계 넘어 완결·수렴 | 통과(reg 0·spine OK) · upcdrive 5/5 applied4==sent |
-| [0476](step-0476.md) | #70 경계 업스트림 6(leave): intentToZoneMsg 에 zoneLeave→존 leave. 실 UpClient.leaveAt 종료 intent 경계 넘어 실 존 entity 제거(생애주기 완결) | 통과(reg 0·spine OK) · upcleave 5/5 leave 후 존0 |
-| [0477](step-0477.md) | #70 경계 업스트림 7(다중 클라): driveUpstream 다중 클라를 2 존·2 UpClient(a1@z1·b1@z2)로 검증·각자 자기 존 authSig 수렴·격리. 코드 무변경 | 통과(reg 0·spine OK) · upcmulti 5/5 각 seen==auth |
-| [0478](step-0478.md) | #70 경계 업스트림 8(손실 멱등): 손실 wire(drop 0.3)→rpc 재전송+host reqId 멱등 dedup→재전송 intent 경계 넘어 exactly-once→seenSig==authSig. 코드 무변경 | 통과(reg 0·spine OK) · upclossy 5/5 dup3~9·idem>0·수렴 |
-| [0479](step-0479.md) | #70 경계 업스트림 9(회계): `zoneEntity` — 발신 intent(intentLog/Delta)==실 존 반영·enterPos+Σmove==최종 실 존 pos(경계 넘어 손실 0) | 통과(reg 0·spine OK) · upcaccount 5/5 log4·enter+Δ==fin |
-| [0480](step-0480.md) | #70 경계 업스트림 10·grand capstone: 실 UpClient E2E 경계(손실 wire·2 존)—수렴 seenSig==authSig·exactly-once(resends>0 하 수렴+회계)·회계·생애주기 leave 제거. 0471~0480 닫기 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
+| [0471–0480](reviews/review-0471-0480.md) | #70 실 host.js child 경계 업스트림: `cluster-hostdriver.js` 업스트림 seam(intentToZoneMsg/deliverIntent/feedViews/upstreamAuthSig/driveUpstream/zoneEntity) — 실 UpClient intent 소켓 넘어 실 host.js 존→egress 되먹임(경계 desync0·손실 exactly-once·생애주기·회계). clusterDriverReal OFF→reg 0 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
 | [0481–0490](reviews/review-0481-0490.md) | #16 승급 라운드 2차: 시대별 grand capstone 9종(mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap)을 verify-kit ORDER 항구화 + promoted16 등록 가드(0490). cluster capstone 은 makeVerifyKit ctx dep 주입·박스 무수정→reg 0 | 통과(reg 0·spine OK) · promoted16 9/9·capstone 5/5 |
 | [0491](step-0491.md) | #16 승급 라운드 3차 1: 거래소↔가방 saga 정합 capstone(0140 sagaLiveConsistent 판) 재작성해 verify-kit ORDER 편입·서비스 계층 첫 실행 검증 | 통과(reg 0·spine OK) · svcexchangecap 5/5 |
 | [0492](step-0492.md) | #16 승급 라운드 3차 2: 거래소↔가방 2-서비스 교차 회계 capstone(0130 판·giveOks==escrowXfers) 재작성 편입 | 통과(reg 0·spine OK) · svcexchangexfer 5/5 |
@@ -158,3 +149,4 @@
 | [0496](step-0496.md) | #16 승급 라운드 3차 6: 길드 금고 원장 정합 capstone(0199 bankConsistent 판·itemId 단일 길드 소유·예치−인출==잔여) 재작성 편입 | 통과(reg 0·spine OK) · svcbankcap 5/5 |
 | [0497](step-0497.md) | #16 승급 라운드 3차 7: 우편 메시지 통수 회계 capstone(0150 mailConsistent 판·sent==held+fetched+expired·만료 TTL) 재작성 편입 | 통과(reg 0·spine OK) · svcmailexpire 5/5 |
 | [0498](step-0498.md) | #16 승급 라운드 3차 8: 서비스 종합 격리 capstone 신규(거래소+우편+길드 한 run()·각 술어 동시 성립·공유 가방 격리) | 통과(reg 0·spine OK) · svcsvccombined 5/5 |
+| [0499](step-0499.md) | #16 승급 라운드 3차 9: 거래소 release 경로(취소·만료 TTL) escrow 반환 capstone 재작성 편입·아이템 판매자 복귀 | 통과(reg 0·spine OK) · svcexchangecancel 5/5 |
