@@ -6,6 +6,8 @@
 const GuildTxn = {
   onMsg(m) {
     const p = m.payload;
+    // 금고 saga 회신 수신(step-0515·guildBankSaga) — _custody 가 replyTo 로 보낸 give 의 item_result echo. saga OFF 면 replyTo 부재→이 메시지 안 옴(0514 비트 동일).
+    if (p.type === 'item_result' && p.op === 'give') { this._onGiveReply(p); return; }
     // 길드 결성/갱신(로스터 SSOT 쓰기) — guildId 의 master+멤버를 설정. 같은 guildId 재-create 면 덮어씀(단순 모델·후속 step 이 증분 가입/탈퇴로 정련). master 는 항상 멤버.
     if (p.type === 'guildCreate') {
       const mem = this._normalize(p.master, p.members);

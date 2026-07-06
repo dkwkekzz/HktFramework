@@ -56,15 +56,28 @@ class GuildService {
     this.invMode = opts.invMode || false;   // 금고 escrow 실연동 활성(step-0511·guildBankInv). OFF 면 _custody no-op → give 0(0510 비트 동일).
     this.gives = 0;               // 금고가 가방에 보낸 give 요청 수(step-0511·계측·거래소 gives 의 금고 판).
     this.escrowIds = new Set();   // 금고 escrow 진입 itemId 집합(step-0511·2-서비스 보존 추적 0513·거래소 escrowItemIds 0120·우편 escrowItemIds 0164 의 금고 판). 예치=add·인출=delete.
+    this.saga = opts.saga || false;   // 금고 saga 회신 수신(step-0515·guildBankSaga) — ON 이면 give 에 replyTo+gid 를 실어 가방이 item_result 를 echo(2-서비스 피드백). OFF 면 fire-and-forget(0514 비트 동일). 거래소 0121·우편 0166 의 금고 판.
+    this.gid = 0;                 // 단조 give id(step-0515) — saga 회신 매칭 키. _custody 가 발급.
+    this.ackedGives = 0;          // 가방서 회신(item_result) 받은 give 수(step-0515·무손실서 gives==ackedGives·닫힌 고리 liveness).
+    this.giveOks = 0;             // 성공 회신 수(step-0515·0519 giveOks==가방 escrowXfers 교차 정합의 좌변).
+    this.giveFails = 0;           // 실패 회신 수(step-0515·sagaConsistent 의 acked==oks+fails 우변).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 금고 아이템 custody 이동 헬퍼(step-0511·#46) — invMode ON 이고 itemId 있을 때만 가방에 give(from→to). 가방이 원장 권위·금고는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 vault·0200 비트 동일·reg 0). 거래소 _custody(0117)·우편 _custody(0161)의 금고 판. 예치=멤버→'escrow'(leg 진입)·인출='escrow'→멤버(leg 이탈).
   _custody(itemId, from, to, cause) {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
-    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
+    const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
+    // saga 피드백(step-0515·guildBankSaga) — ON 이면 replyTo(금고 주소)+cause+gid 를 실어 가방이 item_result 를 금고로도 회신. OFF 면 msg 가 0514 와 정확히 같다(키 없음)→가방 echo 휴면=비트 동일(reg 0).
+    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; msg.gid = this.gid++; }
+    this.net.send(this.addr, this.inv, msg);
     this.gives++;
     if (to === 'escrow') this.escrowIds.add(itemId);          // 예치 인출(leg 진입) — escrow 진입(2-서비스 보존 추적·0513)
     else if (from === 'escrow') this.escrowIds.delete(itemId);   // 인출 입금(leg 이탈) — escrow 이탈
+  }
+  // 2-서비스 saga 회신 수신(step-0515·거래소 0121·우편 0166 의 금고 판) — _custody 가 replyTo 로 보낸 give 의 item_result echo. 회계 집계(ackedGives·giveOks·giveFails). saga OFF 면 이 메시지가 영영 안 옴(0514 비트 동일).
+  _onGiveReply(p) {
+    this.ackedGives++;
+    if (p.ok) this.giveOks++; else this.giveFails++;
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
   _normalize(master, members) {
