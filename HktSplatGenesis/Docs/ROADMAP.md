@@ -1,8 +1,25 @@
-# ROADMAP — 단계별 작업 큐
+# ROADMAP — 구현 현황 + 다음 단계
 
-작업 규약: 한 단계 = 한 PR 권장. 시작 전 [DESIGN.md](DESIGN.md) 로 의도를 잡고, 단계의
-**완료 기준**을 통과하면 체크(✅)하고 결정·함정을 DESIGN.md 에 반영한다. 순서는 권장이며
+이 문서가 **현재 상태의 원본**이다 — 매 세션 갱신한다. 세션 진행 방식은 [../SKILL.md](../SKILL.md),
+목표·원칙은 [../CLAUDE.md](../CLAUDE.md), 설계 근거·구조는 [DESIGN.md](DESIGN.md). 단계의
+**완료 기준**을 통과하면 체크(✅)하고 결정·함정은 DESIGN.md 에 반영한다. 순서는 권장이며
 독립 단계는 건너뛸 수 있다. 완료 기준은 가능한 한 `test/` 하니스로 재현 가능하게 쓴다.
+
+## 구현 현황
+
+각 레이어는 독립 데모를 가진다 (레이어 = 데모). L0~L6 모두 ✅ 구현 완료. 설계 근거·구조 상세는 [DESIGN.md](DESIGN.md).
+
+| 층 | 의도 | 구현 (파일 · 심볼) | 데모 | 알려진 한계 |
+|---|---|---|---|---|
+| L0 렌더 | GPU 상주 3DGS 래스터 | engine.js 파이프라인, wgsl KEY/SORT/RENDER | 모든 프리셋 | bitonic O(N log²N) — radix 후보 |
+| L1 자율 | 이웃 없는 per-splat 규칙 | wgsl SIM (cohesion/flow/updraft), 필멸 세대 교대 | 불·숲의 정령 | flow 는 발산 있는 가짜 curl |
+| L2 이웃 | 응집/분리/점성 → 형태 창발 | wgsl SIM `E.binding` 블록 + dense grid | 슬라임·물 | in-place 갱신 지터, SLOTS 초과 누락(의도) |
+| L3 골격 | shape matching + 본드 파단/재흡수 | wgsl CLUSTER, engine `_initGolem` | 돌골렘 | 본드 Jacobi 혼재 — 더블 버퍼 후보 |
+| L4 성장 | rest 부착 + birth 성장 시계 + 연소 | wgsl SIM `E.growRate` 조기 경로, `_initTree` | 나무 | — |
+| L5 상호작용 | 다중 개체 + 공유 격자 창발 | Entity 테이블, `heatEmit`, `setScene` | 불×나무 | 개체 8 상한 |
+| L6 뼈대 살 | 뼈대의 순수 함수로 살이 자란다 | skeleton.js(IR/FK/문법/FBX), wgsl SIM `E.fleshK`, `_initFleshCloud`, OVERLAY | 히키토(+FBX 드롭) | 관절 이음새 단차, 부피 보존 없음, Evaluator 없음 |
+
+S 트랙(무대)·E 트랙(에디터)의 완료 상태는 아래 각 트랙 절의 ✅ 표시를 원본으로 삼는다.
 
 ## R1 — 살 이음새·부피 (L6 품질)
 
