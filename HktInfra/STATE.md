@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0483](step-0483.md) — **#16 승급 라운드 2차 3: nete2ecap 승격**: 0450 grand capstone `nete2ecap`(실 engine Net 배리어==배리어-free substrate==canonical 등가)을 누적 회귀로 승격. mze2ecap+bare2ecap+nete2ecap 셋 항구화(0441~0470 #4 사슬). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·nete2ecap 5/5(배리어등가·전복제 desync0·exactly-once·sound·skew26·lossy)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~) — 시대별 grand capstone 을 verify-kit ORDER 로 항구화**: 옛 arc 의 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차를 0231~0240 판(3차 균형 승급)처럼 해소. 순서: mze2ecap(0470·✅0481)→bare2ecap(0460)→nete2ecap(0450)→asynce2ecap(0440)→worldcap/downstream(0350)→upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리+서비스 saga capstone 재작성 후속 명시. 자기완결(NET.run 기반) capstone 먼저·cluster child_process capstone 은 dep 주입 후 승격. **후속**: 서비스 saga capstone(거래소/우편/길드) 재작성 편입(감사 §2 권고 ①-b)·실 GW 분리(#74)·escrow(#46)·프로덕션 프로파일(#75).
+- **닫힌 step**: [step-0484](step-0484.md) — **#16 승급 라운드 2차 4: asynce2ecap 승격**: 0440 grand capstone `asynce2ecap`(진짜 비동기 substrate in-proc: M 복제 순열+손실→인과 정렬→전 복제 desync0)을 누적 회귀로 승격. #4 async 사슬 4종(0431~0470) 전부 항구화. 자기완결 capstone 5종 완료. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·asynce2ecap 5/5(clock0·전복제 수렴·인과 존중·exactly-once·lossy)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster child_process capstone·makeVerifyKit dep 주입 필요): worldcap(0350)→upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
 
 ---
 
@@ -157,3 +157,4 @@
 | [0481](step-0481.md) | #16 승급 라운드 2차 1: 0470 grand capstone mze2ecap(다중 존 이주 하 유계 resync E2E)을 verify-kit 누적 회귀로 승격·verify.js 순수 셸 | 통과(reg 0·spine OK) · mze2ecap 5/5 |
 | [0482](step-0482.md) | #16 승급 라운드 2차 2: 0460 grand capstone bare2ecap(run() net.step 배리어 실제 치환 E2E)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · bare2ecap 5/5 |
 | [0483](step-0483.md) | #16 승급 라운드 2차 3: 0450 grand capstone nete2ecap(실 engine Net 배리어==배리어-free substrate==canonical 등가)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · nete2ecap 5/5 |
+| [0484](step-0484.md) | #16 승급 라운드 2차 4: 0440 grand capstone asynce2ecap(진짜 비동기 substrate in-proc·M 복제 순열+손실→전 복제 desync0)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |

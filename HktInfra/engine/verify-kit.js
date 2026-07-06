@@ -938,11 +938,50 @@ function nete2ecap(seeds) {
   }
 }
 
+// step-0440 #4 10·grand capstone — asynce2ecap: M 복제 순열+손실→전 복제 desync0·exactly-once·clock0·sound·lossy. (지역 helper: siteOf/shuffle/arrivalFor/replica)
+function asynce2ecap(seeds) {
+  const siteOf = e => (typeof e.site === 'number' ? e.site : parseInt(String(e.site).replace(/^s/, ''), 10));
+  const shuffle = (arr, rnd) => { const a = arr.slice(); for (let i = a.length - 1; i > 0; i--) { const j = rnd() % (i + 1); const t = a[i]; a[i] = a[j]; a[j] = t; } return a; };
+  const arrivalFor = (events, nsites, rnd) => {
+    const queues = Array.from({ length: nsites }, () => []);
+    for (const e of events) queues[siteOf(e)].push(e);
+    const out = []; let rem = events.length;
+    while (rem > 0) { let s = rnd() % nsites; for (let k = 0; k < nsites && queues[s].length === 0; k++) s = (s + 1) % nsites; out.push(queues[s].shift()); rem--; }
+    return out;
+  };
+  const replica = (events, N, rnd) => {
+    const site = NET.makeResyncSite(N); const dropped = [];
+    for (const e of arrivalFor(events, N, rnd)) { if (rnd() % 5 === 0) dropped.push(e); else site.receive(e); }
+    for (const e of shuffle(dropped, rnd)) site.resync(e);
+    return { delivered: site.finish(), resyncs: site.resyncs() };
+  };
+  console.log('== asynce2ecap (0440·#4 grand capstone): M 복제 순열+손실→전 복제 desync0·exactly-once·clock0·인과 존중. ==');
+  console.log('seed   | 이벤트 | clock위반 | 전복제수렴 | 인과존중 | exactly-once | 손실 | 판정');
+  for (const seed of seeds) {
+    const N = 4, M = 3;
+    const base = NET.lamportExchange(seed, { sites: N, rounds: 56 });
+    const events = NET.withSseq(base.events);
+    const canonical = NET.applyDigest(NET.totalOrder(events));
+    const clockViol = NET.clockConditionViolations(base.events, base.edges);
+    const sound = NET.totalOrderSound(events, base.edges);
+    let allConv = true, allComplete = true, lossy = true;
+    for (let m = 0; m < M; m++) {
+      const r = replica(events, N, NET.mulberry32((seed ^ (0x4000 + m * 97)) >>> 0));
+      if (NET.applyDigest(r.delivered) !== canonical) allConv = false;
+      if (!NET.accountDelivered(r.delivered, events).complete) allComplete = false;
+      if (r.resyncs === 0) lossy = false;
+    }
+    const ok = check(clockViol === 0 && allConv && sound.strict && sound.causal && allComplete && lossy,
+      `seed ${seed}: clock ${clockViol}·conv ${allConv}·sound ${sound.strict && sound.causal}·complete ${allComplete}·lossy ${lossy}`);
+    console.log(`${pad(seed, 6)} | ${pad(events.length, 6)} | ${pad(clockViol, 9)} | ${pad(allConv ? 'Y' : 'N', 10)} | ${pad(sound.causal ? 'Y' : 'N', 8)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(lossy ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
