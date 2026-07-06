@@ -9,17 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0509](step-0509.md) — **#16 라운드 4차 9: mailsaga3way — 완전 saga liveness grand capstone**: 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero → sagaLivenessConsistent 가 (0,0,0) 자명이 아니라 *비자명* 성립. 0501~0508 종합·#16 완전 saga liveness 격차 해소. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsaga3way 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510)** — 닫힘 0501~0509. 남은 조각: promotedsagaloss 가드(0510·9모드 ORDER/MODES 등록 단언·arc 닫기). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0510 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0510](step-0510.md) — **#16 라운드 4차 10·arc 닫기: promotedsagaloss 등록 가드**: 손실 체제 saga liveness 9종(0501~0509)이 ORDER/MODES 항구 등록됐는지 단언. **#16 라운드 4차 arc(0501~0510) 닫힘** — 완전 saga liveness 가 실 회신 손실 하 verify-kit ORDER 상주. **#16 완전 해소**(grand 9종+서비스 행복 9종+손실 체제 9종 전부 HEAD 재검증). 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·promotedsagaloss 9/9·spine ALL OK.
+- **다음**: 🎯 **#16 ✅ 완전 해소**(라운드 2·3·4차 승급 완료). **후속(우선순위)**: ⒝ #74 실 GW 프로세스 분리 ⒞ #46 금고↔가방 escrow ⒟ #75 프로덕션 프로파일(유계 기본값 봉인). 🔎 **0501~0510 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 라운드 4차 arc(0501~0510 진행 중) — 완전 saga liveness *손실 체제* 편입(STATE §2 ⒜)**: 0491~0500 서비스 capstone 은 *행복 경로*만 봐 sagaLivenessConsistent(pending==pendingGive+abandonedGive+permFailed)가 (0,0,0) 자명 참. 이 arc 는 우편 saga 내장 손실 seam(mailAckDrop 1회·mailAckDropAlways 지속)으로 *실제 회신 손실*을 주입해 재전송→포기→재admission→영구실패 수명주기를 발현·각 국면 3분할·회계 정합이 *비자명*(각 항 nonzero) 성립함을 단언. 편입 10모드(§1 다음 참조)·공용 하니스 `runMailLoss`·박스 무수정→reg 0. **닫히면 #16 완전 해소**. (라운드 3차 0491~0500 ✅ = 서비스 capstone 9종 행복 경로 편입·손실 체제를 4차가 이음.)
+> ✅ **#16 완전 해소(0481~0510)** — 시대별 grand capstone 9종(2차 0481~90)+서비스 saga capstone 행복 9종(3차 0491~0500)+완전 saga liveness *손실 체제* 9종(4차 0501~09·공용 하니스 `runMailLoss`·mailAckDrop/AckDropAlways 손실 seam→재전송→포기→재admission→영구실패 3분할 비자명 발현)+등록 가드 3종(promoted16·promotedsvc·promotedsagaloss)이 전부 verify-kit ORDER 상주·매 spine HEAD 재검증. bespoke 검증 spine 미승급 격차 종결.
 
-> 🔎 **감사 남은 우선순위**: ① **#16**(2·3차 ✅·**4차 손실 체제 진행 중**·위 arc) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
+> 🔎 **다음 우선순위(#16 이후)**: ① #74 실 GW 프로세스 분리(seam→실 게이트웨이) ② #46 금고↔가방 escrow+서버간 인증 ③ #75 프로덕션 프로파일(유계 기본값 1벌 봉인). **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
 ---
 
@@ -40,7 +40,7 @@
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
-| 🟡 | **#16 검증 spine 승급** | 전체 | grand capstone 9종(0481~89)+서비스 saga capstone 9종 행복(0491~0500)+손실 체제(0501~·라운드 4차 진행) verify-kit ORDER. 닫히면 ✅. |
+| ✅ | **#16 검증 spine 승급** | 전체 | grand 9종(0481~89)+서비스 saga 행복 9종(0491~0500)+손실 체제 9종(0501~09)+가드 3종 verify-kit ORDER 상주(HEAD 재검증). 0510 완전 해소. |
 | ⬜ | **#75 프로덕션 프로파일(유계 기본값 1벌)** | 전체 | reg-0 규칙 부작용 — 유계 노브 기본 무계(downRecvWindow 0·capacity ∞·leaseSpan 0·재시도 무제한). 권장값 세트를 verify 모드로 봉인(감사 2026-07·§2 권고 ④). |
 
 > **✅ 해소된 격차** 전문: §7 INDEX·각 `step-NNNN.md`. **상시 렌즈 — 척추**([SPINE.md](SPINE.md) §5): 매 step verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 박자로 돌아야 하나?*
@@ -160,3 +160,4 @@
 | [0507](step-0507.md) | #16 라운드 4차 7: mailsagapermfail — 재admission 상한(mailReadmitMax) → 영구 실패(permFailed>0·재admission 차단·pending==pg+ab+perm nonzero) | 통과(reg 0·spine OK) · mailsagapermfail 5/5 |
 | [0508](step-0508.md) | #16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E(svc.mail.saga_failed 발행→버스→audit·failPublished==permFailed==audit.seen)·발행 삼종 완비 | 통과(reg 0·spine OK) · mailsagafailpub 5/5 |
 | [0509](step-0509.md) | #16 라운드 4차 9: mailsaga3way — grand capstone: 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero·sagaLivenessConsistent 비자명 성립 | 통과(reg 0·spine OK) · mailsaga3way 5/5 |
+| [0510](step-0510.md) | #16 라운드 4차 10·arc 닫기: promotedsagaloss — 손실 체제 saga liveness 9종 ORDER/MODES 등록 가드(0501~0510 닫힘·#16 완전 해소) | 통과(reg 0·spine OK) · promotedsagaloss 9/9 |

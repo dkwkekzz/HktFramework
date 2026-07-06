@@ -1,7 +1,7 @@
-// HktInfra step-0509 — 헤드리스 검증 (#16 라운드 4차 9: mailsaga3way — 완전 saga liveness grand capstone)
+// HktInfra step-0510 — 헤드리스 검증 (#16 라운드 4차 10·arc 닫기: promotedsagaloss — 손실 체제 saga liveness 9종 등록 가드)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed
-//   *동시 nonzero*·sagaLivenessConsistent 비자명 성립을 verify-kit ORDER 편입(0501~0508 종합). 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 손실 체제 saga liveness 모드 9종(0501~0509)이 ORDER/MODES 항구
+//   등록됐는지 단언하는 가드 promotedsagaloss(promoted16/promotedsvc 의 손실 체제 판)를 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
