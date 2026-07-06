@@ -357,7 +357,41 @@
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
-		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
+		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0, lifeMs = 0, frameMs = 0;
+
+		// ── T6 계측 HUD (?hud=1) — 청크 월드 예산 관찰: 프레임 타임 분해(WebGL2 무대 vs
+		// WebGPU 생명, CPU 인코드 시간 근사), 스플랫·메시 수, 타일 교체 지연, 메모리. 실 GPU
+		// 프레임 시간(GPU 타임스탬프)이 아니라 CPU 인코드 시간이라 상대 비교·추세용 — 절대 60fps
+		// 판정은 실 GPU 에서. swiftshader(헤드리스)는 CPU 라 수치가 실기와 다르다. ──
+		const hudOn = new URLSearchParams(location.search).get('hud') != null;
+		let hudEl = null, hudCd = 0;
+		if (hudOn) {
+			hudEl = document.createElement('div');
+			hudEl.id = 'hud';
+			hudEl.style.cssText = 'position:fixed;top:8px;right:8px;z-index:9999;font:11px/1.55 ui-monospace,monospace;color:#bfe;background:rgba(6,8,14,0.72);padding:8px 11px;border-radius:7px;white-space:pre;pointer-events:none;border:1px solid rgba(120,170,220,0.25)';
+			document.body.appendChild(hudEl);
+		}
+		function updateHud() {
+			if (!hudEl || --hudCd > 0) return;
+			hudCd = 6; // ~0.1s 간격
+			const mem = (performance.memory && performance.memory.usedJSHeapSize) ? (performance.memory.usedJSHeapSize / 1048576).toFixed(0) + 'MB' : 'n/a';
+			const lifeN = engine.count, lifeMB = (lifeN * 48 / 1048576).toFixed(1);
+			let stageLine = '무대: off';
+			if (stage() && stage().tiledMode && stage().tileStats) {
+				const ts = stage().tileStats();
+				stageLine = `무대 타일 ${ts.meshes}${ts.waterMeshes ? '(+물 ' + ts.waterMeshes + ')' : ''} · ${(ts.splats / 1000).toFixed(0)}k spl · 교체 ${ts.lastTileMs.toFixed(0)}ms`;
+			} else if (stage() && stage().hasWorld) {
+				stageLine = '무대: 단일 월드';
+			}
+			hudEl.textContent =
+				`FPS ${fpsAvg.toFixed(0)}  frame ${frameMs.toFixed(1)}ms\n` +
+				`life(WebGPU enc) ${lifeMs.toFixed(1)}ms\n` +
+				`stage(WebGL2 enc) ${stageMs.toFixed(1)}ms\n` +
+				`생명 ${(lifeN / 1024).toFixed(0)}k spl · ${lifeMB}MB\n` +
+				`${stageLine}\n` +
+				`JS heap ${mem}` +
+				(hudOn ? '\n(enc=CPU 인코드, 실 GPU 시간 아님)' : '');
+		}
 
 		// ── Alt+드래그 인력: 화면 광선 ∩ 수평면(카메라 타겟 높이) 을 인력점으로 ──
 		const pull = [0, 0, 0, 0];
@@ -403,6 +437,7 @@
 			const dt = Math.min((now - last) / 1000, 0.05); // 탭 복귀 시 폭주 방지
 			last = now;
 			if (!pauseChk.checked) simTime += dt;
+			frameMs = frameMs * 0.9 + dt * 1000 * 0.1; // T6: 총 프레임 시간(rAF 간격)
 
 			const aspect = canvas.width / canvas.height;
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
@@ -434,6 +469,7 @@
 				stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
 				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
 			}
+			const l0 = performance.now();
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
@@ -442,10 +478,12 @@
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
+			lifeMs = lifeMs * 0.9 + (performance.now() - l0) * 0.1; // T6: 생명(WebGPU) CPU 인코드 시간
 			followCollider(); // S5: heightfield 베이크 영역도 버블을 따라 (재시드 없음)
 			// 하니스 훅: 스왑체인 readback 은 present 전(같은 태스크)이어야 한다 — test/README 함정
 			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
+			updateHud();
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats` +
 				(stageOn ? ` · 무대 ${stageMs.toFixed(1)}ms` : '');
