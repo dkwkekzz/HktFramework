@@ -11,7 +11,7 @@
 
 - **닫힌 step**: [step-0520](step-0520.md) — **#46 금고↔가방 escrow 10·arc 닫기: guildbankcap grand capstone**: 물리 이동+2-서비스 보존+saga 정합+교차 회계 네 층 동시 성립(거래소 0140·우편 0180 의 금고 판). **#46 arc(0511~0520) 닫힘** — 가짜 escrow 해소·금고가 가방과 실연동. 박스 무변→reg 0.
 - **한 줄 상태**: reg ALL OK·guildbankcap 5/5·spine ALL OK.
-- **다음**: 🎯 **#46 금고↔가방 escrow 코어 ✅ 해소**(0511~0520·예치/인출 실 이동·보존·crash·saga·재전송·정합·교차·capstone). **후속(우선순위)**: ① #74 실 GW 프로세스 분리 ② #77 거래소 손실 seam ③ 금고 완전 liveness 2차(재시도 상한/포기/영구실패·우편 0172~0180 판) ④ #75 프로파일. 🔎 **0511~0520 묶음 리뷰 적기(infra-review)**.
+- **다음**: 🎯 **#46 금고↔가방 escrow 코어 ✅ 해소**(0511~0520·예치/인출 실 이동·보존·crash·saga·재전송·정합·교차·capstone). ⚠ **정리 step 선결(#79)**: `svc-guild.js` 31.8KB>30KB(escrow 추가로 초과) — 다음 *기능* step 전 재분할(saga 헬퍼→`svc-guild-bank.js` 등·기능 0·reg 0). **후속(우선순위)**: ⓪ #79 정리 ① #74 실 GW ② #77 거래소 손실 seam ③ 금고 완전 liveness 2차 ④ #75 프로파일. 🔎 **0511~0520 묶음 리뷰 적기(infra-review)**.
 
 ---
 
