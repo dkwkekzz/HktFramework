@@ -1,7 +1,7 @@
-// HktInfra step-0516 — 헤드리스 검증 (#46 금고↔가방 escrow 6: guildbankpending — saga 미해결 추적·회신 손실 감지)
+// HktInfra step-0517 — 헤드리스 검증 (#46 금고↔가방 escrow 7: guildbankresend — 재전송+멱등 dedup)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 금고 gid pending 추적·회신 손실(ackDropAlways) 주입 시 미해결 잔존(acked<gives)·pendingGive 재전송 소스 보관
-//   svc-guild.js pending/pendingGive/손실 seam verify-kit ORDER 편입. saga OFF→pending 0→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 일시 손실 후 guildBankRetry 가 같은 gid 재발신→가방 sagaDedup 재회신→pending drain·escrowXfers 무증가(재실행 0)
+//   svc-guild.js _resendPending/guildBankRetry verify-kit ORDER 편입. op 미주입→no-op→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

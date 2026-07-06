@@ -61,6 +61,10 @@ class GuildService {
     this.ackedGives = 0;          // 가방서 회신(item_result) 받은 give 수(step-0515·무손실서 gives==ackedGives·닫힌 고리 liveness).
     this.giveOks = 0;             // 성공 회신 수(step-0515·0519 giveOks==가방 escrowXfers 교차 정합의 좌변).
     this.giveFails = 0;           // 실패 회신 수(step-0515·sagaConsistent 의 acked==oks+fails 우변).
+    this.pending = new Set();     // 미해결 give 의 gid 집합(step-0516) — _custody add·item_result 회신이 delete. 정상 0 drain·회신 손실 시 잔존(ack 미수신 격차 가시). 거래소 0125·우편 0167 의 금고 판.
+    this.pendingGive = new Map(); // gid -> {itemId,from,to,cause}(step-0516) — 재전송 소스(0517 대비·회신 손실 시 같은 gid 재발신).
+    this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0516) — 수신 시 *1회* 드롭할 gid(transient 회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
+    this.ackDropAlways = opts.ackDropAlways ? new Set(opts.ackDropAlways) : null;   // 테스트 seam(step-0516) — 수신 시 *매번* 드롭할 gid(지속 회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
   }
   // 금고 아이템 custody 이동 헬퍼(step-0511·#46) — invMode ON 이고 itemId 있을 때만 가방에 give(from→to). 가방이 원장 권위·금고는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 vault·0200 비트 동일·reg 0). 거래소 _custody(0117)·우편 _custody(0161)의 금고 판. 예치=멤버→'escrow'(leg 진입)·인출='escrow'→멤버(leg 이탈).
@@ -68,7 +72,12 @@ class GuildService {
     if (!this.invMode || !this.inv || itemId == null || !this.net) return;
     const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
     // saga 피드백(step-0515·guildBankSaga) — ON 이면 replyTo(금고 주소)+cause+gid 를 실어 가방이 item_result 를 금고로도 회신. OFF 면 msg 가 0514 와 정확히 같다(키 없음)→가방 echo 휴면=비트 동일(reg 0).
-    if (this.saga) { msg.replyTo = this.addr; msg.cause = cause; msg.gid = this.gid++; }
+    if (this.saga) {
+      const gid = this.gid++;
+      msg.replyTo = this.addr; msg.cause = cause; msg.gid = gid;
+      this.pending.add(gid);                                                  // 미해결 추적(step-0516) — 회신 도착 시 제거
+      this.pendingGive.set(gid, { itemId, from, to, cause });                 // 재전송 소스(step-0516·0517 대비)
+    }
     this.net.send(this.addr, this.inv, msg);
     this.gives++;
     if (to === 'escrow') this.escrowIds.add(itemId);          // 예치 인출(leg 진입) — escrow 진입(2-서비스 보존 추적·0513)
@@ -76,9 +85,14 @@ class GuildService {
   }
   // 2-서비스 saga 회신 수신(step-0515·거래소 0121·우편 0166 의 금고 판) — _custody 가 replyTo 로 보낸 give 의 item_result echo. 회계 집계(ackedGives·giveOks·giveFails). saga OFF 면 이 메시지가 영영 안 옴(0514 비트 동일).
   _onGiveReply(p) {
+    // 회신 손실 주입(step-0516·테스트 seam) — ackDropAlways 는 매번·ackDrop 은 1회 폐기 → 그 gid 는 pending 잔존(ack 미수신 격차 가시). 손실 없으면(seam 미제공) 정상 처리(0515 비트 동일).
+    if (this.ackDropAlways && this.ackDropAlways.has(p.gid)) return;
+    if (this.ackDrop && this.ackDrop.has(p.gid)) { this.ackDrop.delete(p.gid); return; }
     this.ackedGives++;
     if (p.ok) this.giveOks++; else this.giveFails++;
+    this.pending.delete(p.gid); this.pendingGive.delete(p.gid);   // 미해결 추적서 제거(step-0516) — 회신 도착 give 를 정상 drain
   }
+  pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0516) — 정상 0·회신 손실 시 잔존.
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
   _normalize(master, members) {
     const out = [master];

@@ -61,6 +61,7 @@ class GuildService {
     this.ackedGives = 0;          // 가방서 회신(item_result) 받은 give 수(step-0515·무손실서 gives==ackedGives·닫힌 고리 liveness).
     this.giveOks = 0;             // 성공 회신 수(step-0515·0519 giveOks==가방 escrowXfers 교차 정합의 좌변).
     this.giveFails = 0;           // 실패 회신 수(step-0515·sagaConsistent 의 acked==oks+fails 우변).
+    this.retries = 0;             // saga 재전송 수(step-0517·guildBankRetry) — 재발신은 gives 무증가·이 별도 계측. 거래소 0126·우편 0168 의 금고 판.
     this.pending = new Set();     // 미해결 give 의 gid 집합(step-0516) — _custody add·item_result 회신이 delete. 정상 0 drain·회신 손실 시 잔존(ack 미수신 격차 가시). 거래소 0125·우편 0167 의 금고 판.
     this.pendingGive = new Map(); // gid -> {itemId,from,to,cause}(step-0516) — 재전송 소스(0517 대비·회신 손실 시 같은 gid 재발신).
     this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0516) — 수신 시 *1회* 드롭할 gid(transient 회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
@@ -93,6 +94,14 @@ class GuildService {
     this.pending.delete(p.gid); this.pendingGive.delete(p.gid);   // 미해결 추적서 제거(step-0516) — 회신 도착 give 를 정상 drain
   }
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0516) — 정상 0·회신 손실 시 잔존.
+  // 미해결 give 재전송(step-0517·guildBankRetry) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). 재전송이라 gives/escrowIds 무증가·retries++. pendingGive 비었으면 no-op(0516 비트 동일). 거래소 0126·우편 0168 의 금고 판.
+  _resendPending() {
+    if (!this.invMode || !this.inv || !this.net) return;
+    for (const [gid, g] of this.pendingGive) {
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+      this.retries++;
+    }
+  }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
   _normalize(master, members) {
     const out = [master];
