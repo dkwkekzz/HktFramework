@@ -1,8 +1,7 @@
-// HktInfra step-0481 — 헤드리스 검증 (#16 승급 라운드 2차 1: mze2ecap 누적 회귀 승격)
+// HktInfra step-0482 — 헤드리스 검증 (#16 승급 라운드 2차 2: bare2ecap 누적 회귀 승격)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0470 grand capstone `mze2ecap` 를
-//   engine/verify-kit.js 의 누적 회귀(MODES+ORDER)로 승격 — 옛 bespoke 검증이 HEAD 재검증 불가였던 격차 해소.
-//   박스 `.js` 0줄 수정(verify-kit·verify 는 baseline 비대상) → reg 0 자명. verify.js 는 순수 셸로 위임.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0460 grand capstone `bare2ecap`(run() net.step
+//   배리어 실제 치환 E2E)를 engine/verify-kit.js 누적 회귀(MODES+ORDER)로 승격. 박스 무수정→reg 0 자명·verify.js 순수 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
