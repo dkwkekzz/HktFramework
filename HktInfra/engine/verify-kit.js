@@ -1588,7 +1588,7 @@ function mailsaga3way(seeds) {
 
 // step-0510 #16 라운드 4차 정리 — promotedsagaloss: 손실 체제 saga liveness 모드 9종이 ORDER 누적 회귀에 항구 등록됐는지 가드(향후 우발 제거 방지·"no silent cap"·arc 닫기). promoted16(0490)·promotedsvc(0500)의 손실 체제 판.
 function promotedsagaloss(seeds) {
-  const PROMOTED = ['mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons'];
+  const PROMOTED = ['mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons', 'guildbankxfer'];
   console.log('== promotedsagaloss (0510·#16 라운드 4차 정리): 손실 체제 saga liveness 9종 ORDER/MODES 항구 등록 가드 — 향후 제거 방지. #16 라운드 4차 arc 닫기. ==');
   console.log('capstone           | ORDER | MODES | 판정');
   for (const m of PROMOTED) {
@@ -1777,11 +1777,30 @@ function guildbanksagacons(seeds) {
   }
 }
 
+// step-0519 — guildbankxfer: 금고↔가방 2-서비스 교차 회계(거래소 0130·우편 0170 의 금고 판). 금고 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치·정확히 한 번 이동 증명) AND 아이템 무손실 단일 소유. saga 회신 성공 수와 가방 escrow transfer 수가 정확히 일치.
+function guildbankxfer(seeds) {
+  console.log('== guildbankxfer (0519·#46): 2-서비스 교차 회계 — 금고 giveOks == 가방 escrowXfers·아이템 단일 소유. 예치/인출 escrow 회계 합치. ==');
+  console.log('seed   | giveOks | escrowXfers | minted | 보존 | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, guildBankSaga: true }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }, { who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const cross = g.giveOks === inv.escrowXfers && g.giveOks === 3;                            // 두 서비스 escrow 회계 합치(예치2+인출1)
+    const conserved = inv.minted === 2 && inv.ownerOf('item0') === 'alice' && inv.ownerOf('item1') === 'escrow';   // 아이템 무손실·단일 소유(item0 복귀·item1 금고)
+    const ok = check(cross && conserved, `seed ${seed}: cross${cross}(oks${g.giveOks}==xfer${inv.escrowXfers})·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(g.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.minted, 6)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail, mailsagafailpub, mailsaga3way, promotedsagaloss, guildbankdeposit, guildbankwithdraw, guildbankconserved, guildbankcrash, guildbanksaga, guildbankpending, guildbankresend, guildbanksagacons };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail, mailsagafailpub, mailsaga3way, promotedsagaloss, guildbankdeposit, guildbankwithdraw, guildbankconserved, guildbankcrash, guildbanksaga, guildbankpending, guildbankresend, guildbanksagacons, guildbankxfer };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons', 'guildbankxfer'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

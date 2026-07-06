@@ -94,6 +94,8 @@ class GuildService {
     this.pending.delete(p.gid); this.pendingGive.delete(p.gid);   // 미해결 추적서 제거(step-0516) — 회신 도착 give 를 정상 drain
   }
   pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0516) — 정상 0·회신 손실 시 잔존.
+  // 금고 saga 회계 정합(step-0518·bankSagaConsistent·거래소 0128·우편 0169 의 금고 판) — 두 불변: ① gives == ackedGives + pending(보낸 give 는 정확히 acked 또는 pending·새는 give 0) ② ackedGives == giveOks + giveFails(회신은 ok/fail 분류·누락 0). 정상·손실·재전송 모든 체제서 성립. 순수 읽기(권위 0)→직전 비트 동일(reg).
+  bankSagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
   // 미해결 give 재전송(step-0517·guildBankRetry) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). 재전송이라 gives/escrowIds 무증가·retries++. pendingGive 비었으면 no-op(0516 비트 동일). 거래소 0126·우편 0168 의 금고 판.
   _resendPending() {
     if (!this.invMode || !this.inv || !this.net) return;
