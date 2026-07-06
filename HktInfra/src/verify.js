@@ -1,8 +1,7 @@
-// HktInfra step-0486 — 헤드리스 검증 (#16 승급 라운드 2차 6: upce2ecap 누적 회귀 승격)
+// HktInfra step-0487 — 헤드리스 검증 (#16 승급 라운드 2차 7: clusterdatacap 누적 회귀 승격)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0480 grand capstone `upce2ecap`(실 UpClient 발신 intent 가
-//   실 host.js child 프로세스 경계를 넘어 존에 닿고 egress 뷰 되먹임 E2E)을 누적 회귀로 승격. 첫 cluster child_process capstone
-//   승급 — verify.js 셸이 Cluster/makeClusterHostDriver 등 cluster deps 를 ctx 로 주입(engine→src 결합 없이). 박스 무수정→reg 0 자명.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0370 grand capstone `clusterdatacap`(실 host.js child
+//   프로세스 데이터 평면 E2E: driveCluster→coherent·실 migrate z1 A→B 상태 보존·hostA release)을 누적 회귀로 승격. 박스 무수정→reg 0 자명.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

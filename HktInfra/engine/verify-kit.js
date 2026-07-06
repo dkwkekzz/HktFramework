@@ -1043,11 +1043,45 @@ async function upce2ecap(seeds) {
   }
 }
 
+// step-0370 #57 grand capstone — clusterdatacap: 실 데이터 평면 E2E(driveCluster→coherent·실 migrate z1 A→B 상태 보존·hostA release). (cluster child_process — ctx dep Cluster)
+async function clusterdatacap(seeds) {
+  const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
+  const realPos = (snap, zone, id) => { const z = snap && snap.snap ? snap.snap[zone] : null; const e = z && z.ents ? z.ents.find(([x]) => x === id) : null; return e ? e[1] : null; };
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostB'), PLACE(3, 'z3', 'hostA')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(3, 'z2', 'b1', 'dc1')];
+  for (let k = 0; k < 3; k++) { ENT.push(MOVE(4 + k, 'z1', 'a1', 1, 1, 'dc0')); ENT.push(MOVE(4 + k, 'z2', 'b1', 1, 0, 'dc1')); }
+  const BASE = { clients: 6, moves: 20, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostProc: true, gatewayZoneDir: true, gatewayDirectZone: true, clusterDriverReal: true, placementOps: OPS, entityOps: ENT };
+  console.log('== clusterdatacap (0370·#57 grand capstone): 실 데이터 평면 E2E — coherent + 실 migrate 상태 보존. ==');
+  console.log('seed   | coherent | mig a1 보존 | hostA release | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 12, ...BASE });
+    const o = r.orch, drv = o.clusterDriver;
+    const cluster = new Cluster([]);
+    let coherent = false, migOk = false, released = false;
+    try {
+      await cluster.spawn();
+      await drv.driveCluster(o, cluster, zoneSpecOf, 1);
+      coherent = await drv.clusterCoherent(o, cluster);
+      const a1Auth = o.zoneEntityPos('z1', 'a1');
+      await drv.migrateZone(cluster, 'z1', 'hostA', 'hostB', zoneSpecOf);
+      const a1B = realPos(await cluster.rpc('hostB', { cmd: 'snapshot' }), 'z1', 'a1');
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      migOk = a1B && a1Auth && a1B.x === a1Auth.x && a1B.y === a1Auth.y;
+      released = !(sa && sa.snap && sa.snap['z1']);
+    } finally { await cluster.shutdown(); }
+    const ok = check(coherent && migOk && released, `seed ${seed}: capstone 위반 (coh ${coherent}·mig ${migOk}·rel ${released})`);
+    console.log(`${pad(seed, 6)} | ${pad(coherent ? 'Y' : 'N', 8)} | ${pad(migOk ? 'Y' : 'N', 11)} | ${pad(released ? 'Y' : 'N', 13)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

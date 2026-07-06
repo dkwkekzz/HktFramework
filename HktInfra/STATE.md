@@ -9,20 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0486](step-0486.md) — **#16 승급 라운드 2차 6: upce2ecap 승격(첫 cluster child_process)**: 0480 grand capstone `upce2ecap`(실 UpClient intent→실 host.js child 경계→존→egress 되먹임 E2E)을 누적 회귀로 승격. makeVerifyKit ctx 에 cluster deps 주입 배선(Cluster/HostDriver/Coordinator/runMultiViaCoord/coordAuthEquiv) 추가. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·upce2ecap 5/5(실 경계 수렴·회계·exactly-once resends6~18·leave 제거)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster·ctx 주입 완료): clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
+- **닫힌 step**: [step-0487](step-0487.md) — **#16 승급 라운드 2차 7: clusterdatacap 승격**: 0370 grand capstone `clusterdatacap`(실 host.js child 데이터 평면 E2E: driveCluster→coherent·실 migrate z1 A→B 상태 보존·hostA release)을 누적 회귀로 승격. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·clusterdatacap 5/5(coherent·migrate 보존·release)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster·ctx 주입 완료): coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 승급 라운드 2차 arc(0481~) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 0231~0240 판(3차 균형 승급)처럼 `engine/verify-kit.js` ORDER 로 항구화. 승격 순서: mze2ecap(0470·✅0481)→bare2ecap(0460)→nete2ecap(0450)→asynce2ecap(0440)→worldcap/downstream(0350)→upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리. 자기완결(NET.run 기반) capstone 먼저, cluster child_process capstone 은 makeVerifyKit dep 주입 후 승격. 박스 무수정→매 step reg 0 자명.
-> **설계 제약**: verify-kit·verify 는 baseline 비대상 → 모드 추가로 reg 0. cluster capstone 은 Cluster/makeClusterHostDriver 등을 ctx 로 주입(engine→src 결합 없이).
+> 🎯 **#16 승급 라운드 2차 arc(0481~) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 0231~0240 판처럼 `engine/verify-kit.js` ORDER 로 항구화. 진행: mze2ecap✅0481·bare2ecap✅0482·nete2ecap✅0483·asynce2ecap✅0484·worldcap✅0485·upce2ecap✅0486 → 남음 clusterdatacap(0370)·coordmergecap(0420)·coordcap(0380)·arc 정리. 자기완결 capstone 먼저, cluster child_process 는 makeVerifyKit ctx dep 주입(engine→src 결합 없이) 후. 박스 무수정→매 step reg 0.
 
-> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차** — 위 arc 로 진행 중(grand capstone ORDER 승격 → 서비스 saga capstone[거래소0140/우편0180/길드0200] 재작성 편입은 arc 후속). ② **#74 실 게이트웨이 프로세스 분리**(업스트림 seam→실 GW). ③ **#46 금고↔가방 escrow** + 서버간 인증. ④ **#75 프로덕션 프로파일**(유계 노브 기본 무계→권장값 verify 모드 봉인). **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4).
+> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차** — 위 arc 진행 중(grand capstone ORDER 승격 → 서비스 saga capstone[거래소0140/우편0180/길드0200] 재작성 편입은 arc 후속). ② **#74 실 GW 프로세스 분리**. ③ **#46 escrow** + 서버간 인증. ④ **#75 프로덕션 프로파일**(유계 노브 기본값 봉인). **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4).
 
-**빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: **절차** ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
+**빌드 인프라(0049)**: 절차 ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
 ---
 
@@ -160,3 +159,4 @@
 | [0484](step-0484.md) | #16 승급 라운드 2차 4: 0440 grand capstone asynce2ecap(진짜 비동기 substrate in-proc·M 복제 순열+손실→전 복제 desync0)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0485](step-0485.md) | #16 승급 라운드 2차 5: 0350 grand capstone worldcap(월드 다운스트림 E2E·host AOI→전파→실 DownClient 수렴 desync0·게이트웨이 격리)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · worldcap 5/5 |
 | [0486](step-0486.md) | #16 승급 라운드 2차 6: 0480 grand capstone upce2ecap(실 UpClient→실 host.js child 경계→존→egress E2E)을 승격·makeVerifyKit ctx cluster dep 주입 배선 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
+| [0487](step-0487.md) | #16 승급 라운드 2차 7: 0370 grand capstone clusterdatacap(실 host.js child 데이터 평면 E2E·driveCluster coherent·migrate 상태 보존·release)을 승격 | 통과(reg 0·spine OK) · clusterdatacap 5/5 |
