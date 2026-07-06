@@ -20,6 +20,7 @@ npm install                # playwright (브라우저 포함)
 | `node genome-body-shot.js [stocky.png] [slim.png] [frames] [count]` | C2 수동 게놈 — ① 덩치/호리호리가 walk·idle·wave 에서 발 최저 y 지면 근방(힙 보정, CPU) + ② 같은 walk 에 덩치<호리호리 키/상단 y 대비 사진 (애니메이션 보존 증명) |
 | `node genome-color-shot.js [palette.png] [plain.png] [frames] [count]` | C3 부위 채색 — ① palette 게놈(머리 빨강·몸통 초록·다리 파랑)에서 밴드 색상(hue) 크게 구분 + ② 무팔레트 밴드 색상 동일(속도 유도만, 회귀) 사진 |
 | `node genome-append-shot.js [tail.png] [frames] [count]` | C4 부속 리그 — ① 꼬리 게놈의 실뼈 세그 bit-exact(클립 무수정) + ② walk 중 꼬리 이탈각 요동·굽힘(스프링 지연 추종, CPU) + ③ 꼬리 위치에 초록 램프 살 성장 사진 |
+| `node genome-extract-shot.js [출력디렉토리] [frames] [count]` | C5 추출 파이프라인 — 합성 컨셉 2장 생성 → tools/genome-extract 추출(ANTHROPIC_API_KEY 있으면 실호출, 없으면 mock) → 반려 경로 + 부속 세그 수 + 3클립 사진 + 팔레트 색상 번역 판정 |
 | `node fbx-shot.js` | Mixamo FBX 드롭 경로 — 파싱→친화→살 성장 (사진, samba.fbx 필요: 파일 상단 주석의 curl) |
 | `node app-smoke.js` | 실제 index.html 부트 — 프리셋/탭/클립 전환/FBX 입력, 콘솔·GPU 오류 0 |
 | `node stage-shot.js out.png` | S 트랙 무대 합성 — 절차 지형 fixture(PLY 즉석 생성)를 Spark 로 로드, 생명(WebGPU readback)과 페이지 내 합성 사진 + 판정 |

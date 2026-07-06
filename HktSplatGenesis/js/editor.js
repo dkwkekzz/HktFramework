@@ -90,8 +90,13 @@
 	// ── 장면 → 엔진: void 패딩으로 개체 수를 2^k 로 맞춰 setScene ──────────
 	function syncScene(keepTime) {
 		if (!engine) return;
-		// 살 개체는 장면 공용 스켈레톤 게놈 1벌을 공유 — 형태(pose)·채색(palette) 동일 캐릭터
-		objects.forEach((o) => { if (o.genes.form === 3) { o.genes.bindBones = currentBindBones(); o.genes.genome = skel.genome; } });
+		// 살 개체는 장면 공용 스켈레톤 게놈 1벌을 공유 — 형태(pose)·채색(palette)·재질(matter) 동일 캐릭터
+		objects.forEach((o) => {
+			if (o.genes.form !== 3) return;
+			o.genes.bindBones = currentBindBones();
+			o.genes.genome = skel.genome;
+			HktGenesisGenome.applyMatter(o.genes, skel.genome); // ③ 재질 차분 (미지정이면 무변)
+		});
 		const ents = objects.map((o) => o.genes);
 		let pow = 1;
 		while (pow < Math.max(1, ents.length)) pow <<= 1;
@@ -321,6 +326,32 @@
 		}
 		d.appendChild(apBox);
 		d.appendChild(el('<div class="note">꼬리·뿔 같은 부속은 리그 밖 가상 뼈 — 클립은 이 뼈들을 모르고(클립 무수정), 움직임은 스프링 지연 추종이 만든다. 실뼈 뒤 고정 순서 append 라 뼈 친화 규약 유지.</div>'));
+		// 게놈 입출력 (C5) — 추출기(tools/genome-extract) 게놈을 불러와 이 패널로 후보정한다
+		d.appendChild(el('<h2>게놈 파일</h2>'));
+		const ioBox = el('<div class="inline"><label>게놈 JSON</label><button>내보내기</button><button>불러오기</button></div>');
+		const [expBtn, impBtn] = ioBox.querySelectorAll('button');
+		expBtn.addEventListener('click', () => {
+			const a = document.createElement('a');
+			a.href = URL.createObjectURL(new Blob([JSON.stringify(skel.genome, null, '\t')], { type: 'application/json' }));
+			a.download = (skel.genome.name || 'genome') + '.json';
+			a.click();
+			URL.revokeObjectURL(a.href);
+		});
+		const impFile = el('<input type="file" accept=".json" style="display:none">');
+		impBtn.addEventListener('click', () => impFile.click());
+		impFile.addEventListener('change', () => {
+			const f = impFile.files[0];
+			if (!f) return;
+			f.text().then((t) => {
+				skel.genome = JSON.parse(t);
+				syncScene(); // 부속 세그 수가 바뀔 수 있으므로 재시드
+				refreshUI();
+				setStatus(`게놈 불러옴: ${skel.genome.name || f.name}`);
+			}).catch((e) => setStatus('게놈 파싱 실패: ' + e.message));
+		});
+		ioBox.appendChild(impFile);
+		d.appendChild(ioBox);
+		d.appendChild(el('<div class="note">tools/genome-extract 가 이미지에서 추출한 게놈을 불러와 위 슬라이더로 후보정하고 다시 내보낸다 — 확정된 JSON 이 캐릭터의 원본.</div>'));
 		const bonesRow = el('<div class="inline"><label><input type="checkbox"> 뼈대 표시</label></div>');
 		bonesRow.querySelector('input').checked = skel.bones;
 		bonesRow.querySelector('input').addEventListener('change', (e) => { skel.bones = e.target.checked; });

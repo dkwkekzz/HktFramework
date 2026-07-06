@@ -150,6 +150,16 @@
 		],
 	};
 
+	// ── ③ 재질(matter): 기존 GENE_DEFS 부분집합 — "기본 살" 위에 덮는 차분 ──
+	// 게놈이 정하는 건 값뿐, 규칙은 기존 유전자 그대로 (절대 원칙 2). 허용 키는
+	// 추출기 프로파일(tools/genome-extract)과 동기 — 결정론에 닿는 키는 넣지 않는다.
+	const MATTER_KEYS = ['size', 'stretch', 'opacity', 'luminosity', 'fleshK'];
+	function applyMatter(genes, genome) {
+		const m = genome && genome.matter;
+		if (m) for (const k of MATTER_KEYS) if (m[k] != null) genes[k] = m[k];
+		return genes;
+	}
+
 	// 항등 게놈 — 기존 히키토 사진을 그대로 재현하는 기준선.
 	const IDENTITY = { morph: {} };
 	// 배율 게놈: create({ head: 1.6, arm: 0.8 }) → { morph: { head: 1.6, arm: 0.8 } }
@@ -163,5 +173,5 @@
 		'호리호리': { morph: { head: { r: 0.9 }, neck: { r: 0.8, l: 1.15 }, torso: { r: 0.78, l: 1.05 }, shoulder: { r: 0.8 }, arm: { r: 0.72, l: 1.3 }, hand: { r: 0.75 }, leg: { r: 0.7, l: 1.32 }, foot: { r: 0.8 } } },
 	};
 
-	global.HktGenesisGenome = { groupForName, groupId, radiusScale, lengthScale, entryOf, groupColors, hexToRgba, chains, IDENTITY, create, GENOMES, GROUPS, GROUP_IDS, PROFILE, APPENDIX_PRESETS };
+	global.HktGenesisGenome = { groupForName, groupId, radiusScale, lengthScale, entryOf, groupColors, hexToRgba, chains, applyMatter, IDENTITY, create, GENOMES, GROUPS, GROUP_IDS, PROFILE, APPENDIX_PRESETS, MATTER_KEYS };
 })(typeof window !== 'undefined' ? window : globalThis);
