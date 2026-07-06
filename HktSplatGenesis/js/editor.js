@@ -596,7 +596,7 @@
 				dt, time: simTime, genes: sceneEntities[0], entities: sceneEntities, paused: !playing, pull,
 				bones, showBones: skel.bones,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
-				gridCenter: camera.target, // S5 시뮬 버블
+				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
 				view: lastView, proj: lastProj,
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});

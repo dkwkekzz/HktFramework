@@ -46,6 +46,8 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
   Map·링 정책·SplatMesh 부착/폐기, `startTileWorld`/`updateTileCenter`/`tileStats`, `?tiles=`).
 - `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
+  T3: `bakeFn`(height 함수 직접 베이크 — 절차 월드, O(창)) + `buildIndex`/`bakeIndexed`
+  (실에셋 삼각형 XZ 버킷 인덱스 — 창에 걸린 것만, O(창)). Node require 가능(하니스 검증용).
 - `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
   지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
   개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
@@ -87,6 +89,8 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | Spark 스플랫은 로드 후 렌더 몇 프레임 뒤 GPU 패킹 완료 | `mesh.initialized`(파싱 완료) 후에도 첫 수 프레임은 빈 화면 — 하니스는 캡처 전 워밍업 프레임 필요 (biome-shot 6프레임). stage-shot 이 안 걸린 건 30프레임 구동 덕 |
 | 타일 이음새 = 전역 셀 격자 + 셀 내부 지터 (T2) | 타일을 창-상대 격자로 굽으면 경계에서 셀이 어긋나 겹침/틈이 생긴다. 스플랫을 전역 셀(=`round(x0/cell)+i`)에 놓고 지터를 셀 인덱스 해시로 셀 폭의 0.8 안에 가두면, 이웃 타일이 같은 전역 셀을 공유하지 않으면서도 셀이 정확히 맞닿는다 — 같은 밀도 타일끼리 봉합 코드 없이 이음새 0. 스플랫 크기는 셀 크기 비례라 외곽 저밀도 타일도 커버리지 유지 |
 | 타일 관리는 stage.js(rig/Spark 소유), 월드는 window 전역에서 참조 | 타일 SplatMesh 부착/폐기·링 정책은 rig 를 가진 stage 모듈에 둔다. PLY 원본(terrain-gen)은 classic 전역이라 `window.HktGenesisTerrainGen` 로 참조 — 모듈 격리(three 사본) 유지하며 결합 최소화. `frame()` 이 카메라 타깃으로 링을 fire-and-forget 갱신(중심 타일 불변 시 즉시 반환) |
+| 버블 y 를 지형 높이에 추종, height 클램프는 폐기(T3) | 격자 y 는 [gc.y-1.6, gc.y+8] 로 9.6m 창. gc.y=지형높이+0.8 이면 지형이 격자 바닥 0.8m 위에 놓여 어느 고도에서도 생명이 격자 안에 산다. 그래서 "골짜기를 절대 격자 바닥 위로 눌러두던" -0.72 클램프가 불필요 — 느슨한 안전 하한(-3)만 남기고 고저차 큰 지형을 허용한다. 평면(heightfield 없음)은 타깃 y 그대로라 기존 거동 불변 |
+| L2 생존 지표 = 확산(RMS 반경), nn 아님 (T3 하니스) | 분지에 갇힌 슬라임은 밀집 코어 때문에 최근접 이웃(nn)이 버블 유무와 무관하게 작다. L2 의 분리력은 *부피 유지*로 드러난다 — 격자 밖(L2 꺼짐)이면 응집만 남아 한 점으로 붕괴(작은 RMS), 살아 있으면 웅덩이로 퍼진다(큰 RMS). terrain-bubble-shot 은 무게중심 RMS 반경으로 판정 |
 
 ## 검증 방법
 

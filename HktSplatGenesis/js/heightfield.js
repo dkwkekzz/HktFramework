@@ -114,47 +114,55 @@
 		return all; // 정점 9 float = 삼각형 1개
 	}
 
+	// 삼각형 하나(월드 좌표 a,b,c)를 XZ 격자에 래스터라이즈, 셀 중심의 최대 y 갱신.
+	function rasterTri(a, b, c, data, res, originX, originZ, cell) {
+		// XZ 투영 barycentric — 수직 벽(퇴화 투영)은 스킵
+		const d00x = b[0] - a[0], d00z = b[2] - a[2];
+		const d01x = c[0] - a[0], d01z = c[2] - a[2];
+		const den = d00x * d01z - d01x * d00z;
+		if (Math.abs(den) < 1e-12) return;
+		const minU = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - originX) / cell));
+		const maxU = Math.min(res - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - originX) / cell));
+		const minV = Math.max(0, Math.floor((Math.min(a[2], b[2], c[2]) - originZ) / cell));
+		const maxV = Math.min(res - 1, Math.ceil((Math.max(a[2], b[2], c[2]) - originZ) / cell));
+		for (let v = minV; v <= maxV; v++) {
+			const pz = originZ + v * cell;
+			for (let u = minU; u <= maxU; u++) {
+				const px = originX + u * cell;
+				const w1 = ((px - a[0]) * d01z - (pz - a[2]) * d01x) / den;
+				const w2 = ((pz - a[2]) * d00x - (px - a[0]) * d00z) / den;
+				if (w1 < -1e-4 || w2 < -1e-4 || w1 + w2 > 1.0001) continue;
+				const h = a[1] + w1 * (b[1] - a[1]) + w2 * (c[1] - a[1]);
+				const di = v * res + u;
+				if (h > data[di]) data[di] = h;
+			}
+		}
+	}
+
+	// triSoup 정점 → 무대 정합 변환(v → offset + Ry(yaw)·(scale·Rx(flip)·v)) 적용
+	function makeXform(t) {
+		t = t || { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
+		const cy = Math.cos(t.yawDeg * Math.PI / 180), sy = Math.sin(t.yawDeg * Math.PI / 180);
+		const fs = t.flip ? -1 : 1; // Rx(π): y→-y, z→-z
+		return (arr, i) => {
+			const x0 = arr[i], y0 = arr[i + 1] * fs, z0 = arr[i + 2] * fs;
+			const sx = x0 * t.scale, sy2 = y0 * t.scale, sz = z0 * t.scale;
+			return [cy * sx + sy * sz + t.x, sy2 + t.y, -sy * sx + cy * sz + t.z];
+		};
+	}
+
 	// 삼각형 수프 → heightfield: 각 삼각형을 XZ 격자에 래스터라이즈, 셀 중심의 최대 y 를 기록.
-	// transform: 무대 정합 노브와 동일한 변환 (v → offset + Ry(yaw)·(scale·Rx(flip)·v)).
-	// 커버되지 않은 셀은 floorY(기본 0) — 지형 밖은 기존 평면 거동.
+	// 커버되지 않은 셀은 floorY(기본 0) — 지형 밖은 기존 평면 거동. O(전체 삼각형) —
+	// 대용량 실에셋은 buildIndex + bakeIndexed 로 O(창) 경로를 쓴다.
 	function bake(triSoup, opts) {
 		const res = opts.res || 128;
 		const originX = opts.originX, originZ = opts.originZ, cell = opts.cell;
 		const floorY = opts.floorY || 0;
-		const t = opts.transform || { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
-		const cy = Math.cos(t.yawDeg * Math.PI / 180), sy = Math.sin(t.yawDeg * Math.PI / 180);
-		const fs = t.flip ? -1 : 1; // Rx(π): y→-y, z→-z
+		const xf = makeXform(opts.transform);
 		const data = new Float32Array(res * res).fill(-1e9);
-		const xf = (i) => { // triSoup[i..i+2] → 월드 (무대 rig 와 동일 변환)
-			const x0 = triSoup[i], y0 = triSoup[i + 1] * fs, z0 = triSoup[i + 2] * fs;
-			const sx = x0 * t.scale, sy2 = y0 * t.scale, sz = z0 * t.scale;
-			return [cy * sx + sy * sz + t.x, sy2 + t.y, -sy * sx + cy * sz + t.z];
-		};
 		const nTri = triSoup.length / 9;
-		for (let ti = 0; ti < nTri; ti++) {
-			const a = xf(ti * 9), b = xf(ti * 9 + 3), c = xf(ti * 9 + 6);
-			// XZ 투영 barycentric — 수직 벽(퇴화 투영)은 스킵
-			const d00x = b[0] - a[0], d00z = b[2] - a[2];
-			const d01x = c[0] - a[0], d01z = c[2] - a[2];
-			const den = d00x * d01z - d01x * d00z;
-			if (Math.abs(den) < 1e-12) continue;
-			const minU = Math.max(0, Math.floor((Math.min(a[0], b[0], c[0]) - originX) / cell));
-			const maxU = Math.min(res - 1, Math.ceil((Math.max(a[0], b[0], c[0]) - originX) / cell));
-			const minV = Math.max(0, Math.floor((Math.min(a[2], b[2], c[2]) - originZ) / cell));
-			const maxV = Math.min(res - 1, Math.ceil((Math.max(a[2], b[2], c[2]) - originZ) / cell));
-			for (let v = minV; v <= maxV; v++) {
-				const pz = originZ + v * cell;
-				for (let u = minU; u <= maxU; u++) {
-					const px = originX + u * cell;
-					const w1 = ((px - a[0]) * d01z - (pz - a[2]) * d01x) / den;
-					const w2 = ((pz - a[2]) * d00x - (px - a[0]) * d00z) / den;
-					if (w1 < -1e-4 || w2 < -1e-4 || w1 + w2 > 1.0001) continue;
-					const h = a[1] + w1 * (b[1] - a[1]) + w2 * (c[1] - a[1]);
-					const di = v * res + u;
-					if (h > data[di]) data[di] = h;
-				}
-			}
-		}
+		for (let ti = 0; ti < nTri; ti++)
+			rasterTri(xf(triSoup, ti * 9), xf(triSoup, ti * 9 + 3), xf(triSoup, ti * 9 + 6), data, res, originX, originZ, cell);
 		let covered = 0;
 		for (let i = 0; i < data.length; i++) {
 			if (data[i] < -1e8) data[i] = floorY; else covered++;
@@ -162,5 +170,83 @@
 		return { data, res, originX, originZ, cell, coverage: covered / data.length };
 	}
 
-	global.HktHeightfield = { parseGLB, bake };
-})(window);
+	// T3 시뮬 바닥 가상화 (절차 월드): height(x,z) 함수를 창 위에서 직접 평가한다.
+	// triSoup 경유·삼각형 순회 없음 — 비용 O(창), 월드 전체 크기와 무관. 청크 스트리밍
+	// 월드의 시뮬 바닥은 이 경로로 굽는다 (커버리지 1 — 함수는 어디서나 값이 있다).
+	function bakeFn(heightFn, opts) {
+		const res = opts.res || 128;
+		const originX = opts.originX, originZ = opts.originZ, cell = opts.cell;
+		const data = new Float32Array(res * res);
+		for (let v = 0; v < res; v++) {
+			const z = originZ + v * cell;
+			for (let u = 0; u < res; u++) data[v * res + u] = heightFn(originX + u * cell, z);
+		}
+		return { data, res, originX, originZ, cell, coverage: 1 };
+	}
+
+	// T3 확장성(실에셋): 대용량 collider 삼각형을 월드 XZ 버킷으로 인덱싱한다. transform 은
+	// 인덱스 빌드 시 한 번만 적용해 월드 좌표 삼각형으로 저장 — 이후 bakeIndexed 는 창에 걸린
+	// 버킷의 삼각형만 순회(O(창)). 한 번 만들어 두고 버블이 움직일 때마다 재사용한다.
+	function buildIndex(triSoup, opts) {
+		opts = opts || {};
+		const bucket = opts.bucket || 4.8;      // 버킷 한 변(m) — 시뮬 버블 반폭
+		const xf = makeXform(opts.transform);
+		const nTri = triSoup.length / 9;
+		const tris = new Float32Array(nTri * 9); // 월드 좌표 삼각형(변환 적용)
+		let minX = 1e30, minZ = 1e30, maxX = -1e30, maxZ = -1e30;
+		for (let k = 0; k < nTri; k++)
+			for (let c = 0; c < 3; c++) {
+				const p = xf(triSoup, k * 9 + c * 3);
+				tris[k * 9 + c * 3] = p[0]; tris[k * 9 + c * 3 + 1] = p[1]; tris[k * 9 + c * 3 + 2] = p[2];
+				if (p[0] < minX) minX = p[0]; if (p[0] > maxX) maxX = p[0];
+				if (p[2] < minZ) minZ = p[2]; if (p[2] > maxZ) maxZ = p[2];
+			}
+		const nx = Math.max(1, Math.ceil((maxX - minX) / bucket) + 1);
+		const nz = Math.max(1, Math.ceil((maxZ - minZ) / bucket) + 1);
+		const cells = new Array(nx * nz);
+		for (let i = 0; i < cells.length; i++) cells[i] = [];
+		for (let k = 0; k < nTri; k++) {
+			let tminX = 1e30, tmaxX = -1e30, tminZ = 1e30, tmaxZ = -1e30;
+			for (let c = 0; c < 3; c++) {
+				const x = tris[k * 9 + c * 3], z = tris[k * 9 + c * 3 + 2];
+				if (x < tminX) tminX = x; if (x > tmaxX) tmaxX = x;
+				if (z < tminZ) tminZ = z; if (z > tmaxZ) tmaxZ = z;
+			}
+			const u0 = Math.max(0, Math.floor((tminX - minX) / bucket)), u1 = Math.min(nx - 1, Math.floor((tmaxX - minX) / bucket));
+			const v0 = Math.max(0, Math.floor((tminZ - minZ) / bucket)), v1 = Math.min(nz - 1, Math.floor((tmaxZ - minZ) / bucket));
+			for (let v = v0; v <= v1; v++) for (let u = u0; u <= u1; u++) cells[v * nx + u].push(k);
+		}
+		return { tris, cells, nx, nz, minX, minZ, bucket, nTri };
+	}
+
+	// 인덱스 기반 창 베이크 — tris 는 이미 월드 좌표라 transform 무시. bake 와 동일 결과(창 안).
+	function bakeIndexed(index, opts) {
+		const res = opts.res || 128;
+		const originX = opts.originX, originZ = opts.originZ, cell = opts.cell, floorY = opts.floorY || 0;
+		const data = new Float32Array(res * res).fill(-1e9);
+		const u0 = Math.max(0, Math.floor((originX - index.minX) / index.bucket));
+		const u1 = Math.min(index.nx - 1, Math.floor((originX + res * cell - index.minX) / index.bucket));
+		const v0 = Math.max(0, Math.floor((originZ - index.minZ) / index.bucket));
+		const v1 = Math.min(index.nz - 1, Math.floor((originZ + res * cell - index.minZ) / index.bucket));
+		const tris = index.tris, seen = new Set();
+		let touched = 0;
+		for (let v = v0; v <= v1; v++) for (let u = u0; u <= u1; u++) {
+			const arr = index.cells[v * index.nx + u];
+			for (let m = 0; m < arr.length; m++) {
+				const k = arr[m];
+				if (seen.has(k)) continue; seen.add(k); touched++;
+				const o = k * 9;
+				rasterTri([tris[o], tris[o + 1], tris[o + 2]], [tris[o + 3], tris[o + 4], tris[o + 5]], [tris[o + 6], tris[o + 7], tris[o + 8]], data, res, originX, originZ, cell);
+			}
+		}
+		let covered = 0;
+		for (let i = 0; i < data.length; i++) {
+			if (data[i] < -1e8) data[i] = floorY; else covered++;
+		}
+		return { data, res, originX, originZ, cell, coverage: covered / data.length, touched };
+	}
+
+	const api = { parseGLB, bake, bakeFn, buildIndex, bakeIndexed };
+	global.HktHeightfield = api;
+	if (typeof module !== 'undefined' && module.exports) module.exports = api;
+})(typeof window !== 'undefined' ? window : globalThis);

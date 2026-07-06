@@ -113,8 +113,16 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   타일 교체(합집합 45>25) + 메시 25·스플랫 53k 상한 유지(O(시야반경)) + 중앙밴드 지형 100%
   (틈 없음) 사진. 남김: near↔far 링 경계의 밀도 불연속 이음새(외곽·원거리라 fog 로 가려질
   것 — T5)는 미봉합. Marble 실에셋은 사전 분할 타일(.spz/.rad)을 같은 링 정책으로 → T6.
-- **T3 — 시뮬 바닥 가상화**: height 직접 베이크(triSoup 경유 제거) + collider XZ 버킷 인덱스
-  + 버블 y 지형 추종. 완료 기준: 원점 50u 밖에서 침투 0% + L2 생존 + 전 프리셋 회귀 없음.
+- ✅ **T3 — 시뮬 바닥 가상화 + 버블 y 추종**: ① `heightfield.bakeFn(heightFn, region)` — 절차
+  월드의 시뮬 바닥을 height 함수에서 창 위로 직접 굽는다(triSoup 순회 없음, O(창)). ② 실에셋용
+  `buildIndex`/`bakeIndexed` — collider 삼각형을 월드 XZ 버킷으로 인덱싱해 창에 걸린 것만
+  순회(O(창), 나이브 bake 와 창 안 diff 0, 순회 3%). ③ `engine.bubbleCenter(target)` — 격자 y
+  중심을 카메라 밑 지형 높이+0.8 로 추종(평면 폴백은 타깃 y 그대로 = 기존 불변), app.js·editor.js
+  가 gridCenter 로 사용. terrain-gen floor 클램프 -0.72→-3.0(버블 추종 후 느슨한 안전 하한 —
+  고저차 큰 산·계곡 가능). 검증: `node test/terrain-bubble-shot.js` — 원점 ≈70u 3m 분지에서
+  침투 0%·계곡 바닥 정착(사발내 100%)·L2 생존(확산 0.27 vs 버블 고정 0.08) + 버킷 인덱스 diff 0.
+  전 프리셋 회귀(terrain/ash/editor/render/bubble/occlusion/stage/app-smoke) 없음. 남김: L4 rest·L6
+  자리 등 y 절대 가정은 없었음(격자 매 프레임 재구축) — 회귀로 확인.
 - **T4 — 스캐터·개체 스트리밍**: 청크 시드 결정론 스폰 테이블 + 엔진 슬롯 증분 교체(거리순 활성).
   완료 기준: 이동 중 능선마다 나무 등장·소멸, 불×나무가 임의 좌표에서 성립.
 - **T5 — 물 + 원거리 폴리시**: 수면 타일 + 무대·생명 공용 fog (**S3 잔여 합류**). 완료 기준:

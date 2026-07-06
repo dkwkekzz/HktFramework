@@ -15,9 +15,10 @@
 // 보간해 지형 성격(진폭·ridged 비중)과 색을 함께 바꾼다. domain warp 로 격자감을 지우고,
 // ridged multifractal 로 산맥 능선을 만든다.
 //
-// 주의(T1 한정): 시뮬 격자 바닥(y = -0.8) 아래로 골짜기가 내려가면 그 영역에서 L2 이웃
-// 규칙이 꺼진다 — 창의 height() 는 여전히 -0.72 로 클램프한다. (버블 y 추종으로 이 제약을
-// 푸는 것은 T3 일감. world.heightAt() 은 클램프 없는 순수 원본.)
+// 버블 y 추종(T3): 시뮬 격자 y 중심이 카메라 밑 지형 높이를 따라오므로(engine.bubbleCenter)
+// 골짜기가 깊어도 격자가 함께 내려가 L2 이웃 규칙이 산다. 그래서 창 height() 의 floor 클램프는
+// 더 이상 "절대 격자 바닥"이 아니라 느슨한 안전 하한(-3)일 뿐 — 고저차 큰 산·계곡이 가능해진다.
+// world.heightAt() 은 클램프 없는 순수 원본.
 
 (function (global) {
 	'use strict';
@@ -97,7 +98,7 @@
 		const P = Object.assign({
 			seed: 1, amp: 0.9, scale: 3.0, octaves: 4, base: 0.5,
 			biomeScale: 40, warpAmp: 0.6, warpScale: 9, waterY: -0.2,
-			floor: -0.72, biomes: true, biomeSharp: 22,
+			floor: -3.0, biomes: true, biomeSharp: 22, // floor: 버블 y 추종 후 느슨한 안전 하한(T3)
 		}, params);
 		P.seed = P.seed | 0;
 		P.octaves = Math.max(1, Math.min(6, Math.round(P.octaves)));
@@ -175,7 +176,7 @@
 					mix(WATER_COL.shallow[2], WATER_COL.deep[2], d)];
 			}
 			if (!P.biomes) {
-				const t = clamp01((y - P.floor) / Math.max(yMax - P.floor, 1e-3));
+				const t = clamp01((y - P.waterY) / Math.max(yMax - P.waterY, 1e-3));
 				return [mix(0.20, 0.70, t), mix(0.38, 0.72, t), mix(0.16, 0.75, t)];
 			}
 			const c = climate(x, z);
