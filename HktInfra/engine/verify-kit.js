@@ -1525,11 +1525,29 @@ function mailsagareadmitpub(seeds) {
   }
 }
 
+// step-0507 — mailsagapermfail: 재admission 상한(mailReadmitMax) 도달 → 영구 실패(permFailed). readmitMax 회 재admission 된 give 가 또 포기되면 abandonedGive 제외(재admission 차단)·permFailed++. 무한 abandon↔readmit 루프 방지. pending 잔존·pending==pendingGive+abandonedGive+permFailed(perm 항 nonzero)·sagaLive. 미해결의 세 번째 종결 분할.
+function mailsagapermfail(seeds) {
+  console.log('== mailsagapermfail (0507·손실 체제): 재admission 상한 도달 → 영구 실패. permFailed>0·재admission 차단·pending==pg+ab+perm(perm nonzero)·sagaLive. ==');
+  console.log('seed   | permFailed | pendingGive | abandonedGive | pending | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0], mailMaxRetries: 1, mailReadmitMax: 1 },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 5, op: { type: 'mailSweep', now: 5 } }, { at: 7, op: { type: 'mailSweep', now: 7 } },
+       { at: 9, op: { type: 'mailReadmit' } },
+       { at: 11, op: { type: 'mailSweep', now: 11 } }, { at: 13, op: { type: 'mailSweep', now: 13 } }]).mail;
+    const permanent = m.permFailed === 1 && m.abandonedGive.size === 0 && m.readmitted === 1;   // 재admission 1회 후 또 포기 → 영구 종결(재admission 차단)
+    const held = m.pending.size === 1 && m.pending.size === m.pendingGive.size + m.abandonedGive.size + m.permFailed;  // 3분할 합·perm 항 nonzero
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(permanent && held && cons, `seed ${seed}: perm${permanent}·held${held}·cons${cons}(pf${m.permFailed})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.permFailed, 10)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.pending.size, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

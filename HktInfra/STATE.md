@@ -9,19 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0506](step-0506.md) — **#16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E 관측**: 재admission 시 svc.mail.saga_readmitted 발행→버스→audit. readmitPublished==readmitted==audit.seen. 포기 발행(0504)의 짝. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagareadmitpub 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: 0501~0506(transient·unacked·abandon·abandonpub·readmit·readmitpub). 남은 조각: permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0507](step-0507.md) — **#16 라운드 4차 7: mailsagapermfail — 재admission 상한 → 영구 실패 종결**: mailReadmitMax 도달 → permFailed>0·재admission 차단(무한 루프 방지)·pending==pg+ab+perm(perm nonzero)·sagaLive. 미해결 세 번째(종결) 분할. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagapermfail 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: 0501~0507(transient·unacked·abandon·abandonpub·readmit·readmitpub·permfail). 남은 조각: failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 라운드 4차 arc(0501~0510 진행 중) — 완전 saga liveness *손실 체제* 편입(STATE §2 ⒜·라운드 3차 잔여 집행)**: 0491~0500 서비스 capstone 은 *행복 경로*만 구동해 sagaLivenessConsistent(pending==pendingGive+abandonedGive+permFailed)가 (0,0,0) 자명 참이었다. 이 arc 는 우편 saga 내장 손실 seam(mailAckDrop 1회 드롭·mailAckDropAlways 지속 드롭)으로 *실제 회신 손실*을 주입해 재전송→포기(abandon)→재admission(readmit)→영구실패(permFailed) 수명주기를 발현시키고 각 국면에서 3분할·회계 정합이 *비자명*(각 항 nonzero) 성립함을 단언. 편입: transient(0501)·unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). 공용 하니스 `runMailLoss`·박스 무수정→매 step reg 0. **이 arc 닫히면 #16 완전 해소**.
+> 🎯 **#16 라운드 4차 arc(0501~0510 진행 중) — 완전 saga liveness *손실 체제* 편입(STATE §2 ⒜)**: 0491~0500 서비스 capstone 은 *행복 경로*만 봐 sagaLivenessConsistent(pending==pendingGive+abandonedGive+permFailed)가 (0,0,0) 자명 참. 이 arc 는 우편 saga 내장 손실 seam(mailAckDrop 1회·mailAckDropAlways 지속)으로 *실제 회신 손실*을 주입해 재전송→포기→재admission→영구실패 수명주기를 발현·각 국면 3분할·회계 정합이 *비자명*(각 항 nonzero) 성립함을 단언. 편입 10모드(§1 다음 참조)·공용 하니스 `runMailLoss`·박스 무수정→reg 0. **닫히면 #16 완전 해소**. (라운드 3차 0491~0500 ✅ = 서비스 capstone 9종 행복 경로 편입·손실 체제를 4차가 이음.)
 
-> 🎯 **(닫힘) #16 라운드 3차 arc(0491~0500 ✅) — 서비스 saga capstone 재작성 편입(감사 §2 ①-b)**: 거래소 saga/교차/취소·우편 saga/교차/만료·길드 로스터/금고·종합 격리·promotedsvc 가드 9종 ORDER 편입(행복 경로). 손실 체제는 라운드 4차(위)가 이음.
-
-> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16**(2차 grand capstone ✅ + **3차 서비스 saga capstone 진행 중**·위 arc) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
+> 🔎 **감사 남은 우선순위**: ① **#16**(2·3차 ✅·**4차 손실 체제 진행 중**·위 arc) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
 ---
 
@@ -159,3 +157,4 @@
 | [0504](step-0504.md) | #16 라운드 4차 4: mailsagaabandonpub — 포기 발행 E2E(svc.mail.saga_abandoned 발행→버스→audit·abandonPublished==giveAbandoned==audit.seen) | 통과(reg 0·spine OK) · mailsagaabandonpub 5/5 |
 | [0505](step-0505.md) | #16 라운드 4차 5: mailsagareadmit — 포기 give 재admission(abandonedGive→pendingGive 역이행·readmitted>0·pending 불변) | 통과(reg 0·spine OK) · mailsagareadmit 5/5 |
 | [0506](step-0506.md) | #16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E(svc.mail.saga_readmitted 발행→버스→audit·readmitPublished==readmitted==audit.seen) | 통과(reg 0·spine OK) · mailsagareadmitpub 5/5 |
+| [0507](step-0507.md) | #16 라운드 4차 7: mailsagapermfail — 재admission 상한(mailReadmitMax) → 영구 실패(permFailed>0·재admission 차단·pending==pg+ab+perm nonzero) | 통과(reg 0·spine OK) · mailsagapermfail 5/5 |
