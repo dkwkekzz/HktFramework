@@ -9,24 +9,18 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0480](step-0480.md) — **#70 실 host.js child 경계 업스트림 10·grand capstone — E2E**: `upce2ecap` — 실 UpClient 발신 intent 가 실 프로세스 경계 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴을 손실 wire·2 존 시나리오로 ⒜ 수렴(seenSig==authSig·desync0) ⒝ exactly-once(손실 resends>0 하 수렴+회계) ⒞ 회계(enterPos+Σmove==실 존) ⒟ 생애주기(leave→제거). **#70 sub-arc(0471~0480) 닫기**. 코드 무변경→run() reg 0.
-- **한 줄 상태**: reg ALL OK·upce2ecap 5/5(수렴·회계·exactly-once resends6~18·leave 제거)·spine ALL OK.
-- **다음**: 🎯 **#70 실 host.js child 경계 업스트림 sub-arc(0471~0480 ✅ 닫힘)**: enter/move/leave 번역 seam(`intentToZoneMsg`)+경계 배달(`deliverIntent`)+egress 되먹임(`feedViews`)+수렴 대조(`upstreamAuthSig`)+통합 구동(`driveUpstream`)+회계(`zoneEntity`). 실 UpClient intent 가 소켓 넘어 실 host.js 존에 닿고 egress 뷰가 실 클라로 돌아옴(경계 넘어 desync0·exactly-once·생애주기). #61 in-proc UpClient 의 실 OS 프로세스 짝(DownClient #57·UpClient #70 둘 다 실 경계 확보). **후속(권위 infra-review)**: ⒜ 실 게이트웨이 프로세스 분리(seam→실 GW)·⒝ 완전-ON(경계 포함 async·#73)·⒞ #68/#69 경미. 🔎 **0471~0480 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0481](step-0481.md) — **#16 승급 라운드 2차 1: mze2ecap 승격**: 0470 grand capstone `mze2ecap`(다중 존 이주 하 유계 resync E2E)을 `engine/verify-kit.js` 누적 회귀(MODES+ORDER)로 승격. 옛 bespoke 검증이 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐·감사 §2 권고 ①) 해소 시작. 박스 무수정→reg 0 자명·verify.js 순수 셸.
+- **한 줄 상태**: reg ALL OK·mze2ecap 5/5(world==lockstep·exactly-once·유계 span3<4·handoffs4~15)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~) — 시대별 grand capstone 을 verify-kit ORDER 로 항구화**: 옛 arc 의 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차를 0231~0240 판(3차 균형 승급)처럼 해소. 순서: mze2ecap(0470·✅0481)→bare2ecap(0460)→nete2ecap(0450)→asynce2ecap(0440)→worldcap/downstream(0350)→upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리+서비스 saga capstone 재작성 후속 명시. 자기완결(NET.run 기반) capstone 먼저·cluster child_process capstone 은 dep 주입 후 승격. **후속**: 서비스 saga capstone(거래소/우편/길드) 재작성 편입(감사 §2 권고 ①-b)·실 GW 분리(#74)·escrow(#46)·프로덕션 프로파일(#75).
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#4 완전 async 전환 arc(0461~0470 ✅ 닫힘) — 다중 존 이주 하 유계 resync** — 0451~0460 이 *단일 존* loss+delay 를 흡수한 뒤, 이 arc 는 *다중 존*(이주 있음)에서 `async-barrier.js` 에 **wrap-aware interior 유계 resync 가드**를 더했다. barrier 가 소유 존을 peek(`ownerZone`) 해 엔티티가 region 양 끝+wrap 경계에서 `horizon=max(resyncDelay,delayMax)+1` 이상 떨어진(interior) move 만 loss/delay 로 흡수 → deferred move 가 이주 경계 도달 전 재배달(유계 resync·deferSpan<horizon·deferredAcrossHandoff0) → 다중 존 world/뷰==lockstep·exactly-once. **핵심(0461 발견)**: lockstep 자체가 이주 경계 move-drop 을 타이밍 의존적으로 함 → 완전-ON(경계 포함 async)은 lockstep 등가 불가·interior 유계가 이 모델 정합 최대치. **매 step reg 구조적 0**(asyncBarrier OFF→net.step()).
-> **설계 제약**: `opts.asyncBarrier` OFF(기본) → topo-run.js 가 ab 미생성·net.step() 경로 = baseline 비트 동일(reg 0). ON 은 새 모드만. interior peek 은 barrier ON 경로 전용.
+> 🎯 **#16 승급 라운드 2차 arc(0481~) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 0231~0240 판(3차 균형 승급)처럼 `engine/verify-kit.js` ORDER 로 항구화. 승격 순서: mze2ecap(0470·✅0481)→bare2ecap(0460)→nete2ecap(0450)→asynce2ecap(0440)→worldcap/downstream(0350)→upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리. 자기완결(NET.run 기반) capstone 먼저, cluster child_process capstone 은 makeVerifyKit dep 주입 후 승격. 박스 무수정→매 step reg 0 자명.
+> **설계 제약**: verify-kit·verify 는 baseline 비대상 → 모드 추가로 reg 0. cluster capstone 은 Cluster/makeClusterHostDriver 등을 ctx 로 주입(engine→src 결합 없이).
 
-**후속 백로그**: ⒜ 완전-ON 경계 포함 async(lockstep 등가 불가·별 정합 기준 필요·#73)·금고↔가방 escrow(#46)·per-producer ack·버스 라우팅 영속·#68/#69 경미. (#70 은 0471~0480 ✅.) **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4). 방향 권위 = `infra-review`.
-
-> 🔎 **서버 구현 외부 감사(2026-07-02) 권고 — 다음 step 부터 순서대로 반영**: 감사는 `run.js`/`spine` ALL OK + 시대별 grand capstone 재현(worldcap 0350·clusterdatacap 0370·coordmergecap 0420·mze2ecap 0470·upce2ecap 0480 전부 5/5)으로 문서 주장을 사실 확인했다. 남은 구조적 격차 우선순위:
-> ① **#16 승급 라운드 2차(최우선)** — 영구 회귀(verify-kit ORDER)에 exchange/mail/guild 참조 **0건** → 거래소·우편·길드·귓속말/파티 capstone(0140/0180/0200 등)이 git per-commit 에만 살아 HEAD 재검증 불가("수치=verify 출력" 원칙이 이 구간에서 실효 깨짐). 0231~0240 승급 라운드 판으로: 서비스 saga capstone 재작성 편입 + 시대별 grand capstone(worldcap·clusterdatacap·coordmergecap·mze2ecap·upce2ecap) ORDER 승격.
-> ② **#74 실 게이트웨이 프로세스 분리**(업스트림 seam→실 GW·기존 권고 유지).
-> ③ **#46 금고↔가방 escrow** + 서버간 인증 씨앗(§3 ⬜).
-> ④ **#75(신규) 프로덕션 프로파일** — 유계 노브 기본값이 전부 무계(reg-0 부작용: downRecvWindow 0·capacity ∞·leaseSpan 0·saga 재시도 무제한). 권장값 1벌을 verify 모드로 봉인.
+> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차** — 위 arc 로 진행 중(grand capstone ORDER 승격 → 서비스 saga capstone[거래소0140/우편0180/길드0200] 재작성 편입은 arc 후속). ② **#74 실 게이트웨이 프로세스 분리**(업스트림 seam→실 GW). ③ **#46 금고↔가방 escrow** + 서버간 인증. ④ **#75 프로덕션 프로파일**(유계 노브 기본 무계→권장값 verify 모드 봉인). **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4).
 
 **빌드 인프라 — `engine/` 공유 커널 + `src/` 단일 소스(0049)**: **절차** ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
@@ -160,3 +154,4 @@
 | [0478](step-0478.md) | #70 경계 업스트림 8(손실 멱등): 손실 wire(drop 0.3)→rpc 재전송+host reqId 멱등 dedup→재전송 intent 경계 넘어 exactly-once→seenSig==authSig. 코드 무변경 | 통과(reg 0·spine OK) · upclossy 5/5 dup3~9·idem>0·수렴 |
 | [0479](step-0479.md) | #70 경계 업스트림 9(회계): `zoneEntity` — 발신 intent(intentLog/Delta)==실 존 반영·enterPos+Σmove==최종 실 존 pos(경계 넘어 손실 0) | 통과(reg 0·spine OK) · upcaccount 5/5 log4·enter+Δ==fin |
 | [0480](step-0480.md) | #70 경계 업스트림 10·grand capstone: 실 UpClient E2E 경계(손실 wire·2 존)—수렴 seenSig==authSig·exactly-once(resends>0 하 수렴+회계)·회계·생애주기 leave 제거. 0471~0480 닫기 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
+| [0481](step-0481.md) | #16 승급 라운드 2차 1: 0470 grand capstone mze2ecap(다중 존 이주 하 유계 resync E2E)을 verify-kit 누적 회귀로 승격·verify.js 순수 셸 | 통과(reg 0·spine OK) · mze2ecap 5/5 |

@@ -871,10 +871,33 @@ function loginabandon(seeds) {
   }
 }
 
+// ── 시대별 grand capstone 승급 (#16 라운드 2차·0481~) ──
+//   각 시대 arc 의 grand capstone 을 누적 회귀로 승격 — 옛 bespoke 검증(그 step 의 verify.js·git per-commit)이
+//   HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 해소한다. 박스 코드 무수정(reg 0 자명).
+// step-0470 #4 완전 async 10·grand capstone — mze2ecap: 다중 존 이주 하 유계 resync E2E(world/뷰==lockstep·exactly-once·유계).
+function mze2ecap(seeds) {
+  console.log('== mze2ecap (0470·#4 grand capstone): 다중 존 loss+delay+핸드오프 — world==lockstep·exactly-once·다운스트림 desync0·유계 resync. ==');
+  console.log('seed   | world | exactly-once | 뷰수렴 | 유계(span<H·across0) | handoffs | 판정');
+  for (const seed of seeds) {
+    const b = { seed, ticks: 70, clients: 6, moves: 30, radius: 4, grid: 24, incremental: true, zones: 2 };
+    const off = run({ ...b });
+    const on = run({ ...b, asyncBarrier: { loss: 0.2, delay: 0.3, delayMax: 3, resync: true, resyncDelay: 2, seed, ticks: 70 } });
+    const st = on.asyncBarrier || {};
+    const world = worldDigest(off) === worldDigest(on);
+    const once = st.moveDup === 0 && st.lost === 0 && st.pendingAtEnd === 0 && st.moveDeliv > 0;
+    const view = off.clients.map(c => c.seenSig()).every((s, i) => s === on.clients[i].seenSig());
+    const bounded = st.maxSpan < st.horizon && st.deferredAcrossHandoff === 0 && st.deferN > 0;
+    const migrated = off.totals.handoffs > 0 && st.handoffsObs > 0;
+    const ok = check(world && once && view && bounded && migrated, `seed ${seed}: w${world}·once${once}·view${view}·bnd${bounded}·mig${migrated}`);
+    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(once ? 'Y' : 'N', 12)} | ${pad(view ? 'Y' : 'N', 6)} | ${pad('span' + st.maxSpan + '<' + st.horizon + '·a' + st.deferredAcrossHandoff, 20)} | ${pad(off.totals.handoffs, 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
-                 'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro'];
+                 'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
+                 'mze2ecap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
