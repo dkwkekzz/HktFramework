@@ -1,7 +1,7 @@
-// HktInfra step-0503 — 헤드리스 검증 (#16 라운드 4차 3: mailsagaabandon — 재시도 상한 도달 → 포기 국면)
+// HktInfra step-0504 — 헤드리스 검증 (#16 라운드 4차 4: mailsagaabandonpub — 포기 발행 E2E 관측)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 지속 손실+mailMaxRetries 상한 도달 시 포기
-//   (giveAbandoned>0·pendingGive→abandonedGive 이행·pending==abandonedGive) 를 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 포기 시 svc.mail.saga_abandoned 발행→버스→audit 수신
+//   (abandonPublished==giveAbandoned==audit.seen) 을 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
