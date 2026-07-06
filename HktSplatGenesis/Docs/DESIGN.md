@@ -1,33 +1,55 @@
-# DESIGN — HktSplatGenesis 구현 의도
+# DESIGN — HktSplatGenesis 설계 근거·구조
 
-새 세션은 이 문서를 먼저 읽는다. 순서: 비전 → 레이어 지도(현재 상태) → 설계 결정 → [ROADMAP.md](ROADMAP.md)(다음 단계).
+목표·원칙은 [../CLAUDE.md](../CLAUDE.md), 현황·다음 단계는 [ROADMAP.md](ROADMAP.md), 세션 진행
+방식은 [../SKILL.md](../SKILL.md). 이 문서는 **어떻게 짜였나**(아키텍처·코드 지도)와
+**왜 이렇게 했나**(되돌리면 안 되는 결정의 근거)를 담는다 — 새 결정·함정은 여기에 쌓는다.
 
-## 비전 (한 줄)
+## 아키텍처
 
-캡처 없는 3DGS: 존재를 "모델링"하지 않고 **유전자(속성)로부터 배양**한다.
-스플랫 = 세포 — 시뮬 상태가 유일한 원본, 렌더 속성은 항상 셰이더에서 유도.
+```
+grid clear/build(64³, 셀당 16슬롯, 전 개체 공유, 원점 = 카메라 타깃 추종 시뮬 버블) → sim(compute: L1 자율 + L2 이웃 + L4 성장/연소/낙재 + L5 발열 + L6 뼈대 살)
+→ cluster(L3: 워크그룹=클러스터 256스플랫, shape matching + 본드 파단/재흡수)
+→ key(뷰 깊이→단조 uint) → bitonic sort → EWA 인스턴스드 쿼드 (+ L6 뼈대 오버레이 라인/관절)
+```
 
-2026-07 개정 — 세계는 2층: **무대**(worldlabs Marble 생성 3DGS 지형, Spark 렌더러로 로드)와
-**생명**(배양, 위 원칙 그대로). "캡처 없음"은 생명에만 적용된다.
-계획: [PLAN-SparkTerrain.md](PLAN-SparkTerrain.md).
+L4 나무는 sim 안의 조기 경로(`E.growRate > 0`): rest 버퍼가 (부착점, birth) 골격을 담고,
+`misc.z/w` 가 (heat, fuel) 연소 상태. fuel 채널 도입으로 모든 init 은 `misc.w = 1` 필수
+(0 이면 렌더가 재로 해석해 어두워진다).
 
-최종 목표는 UE5 이식의 설계도: 이 compute 파이프라인이 `HktGaussianSplat` 플러그인의
-래스터 + Niagara/compute 시뮬로 그대로 옮겨진다. 그 전 단계로 hikito-flesh 의
-에셋 파이프라인(뼈대 → 살 자동 생성)을 스플랫 생명 위에 얹는 것이 L6 이후의 줄기.
+L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) — 스플랫 풀을 균등
+슬라이스로 개체에 배정(`eid = i / sliceSize`, sliceSize 는 256 의 배수 필수 — CLUSTER 의
+워크그룹 균일 조기 return 전제). 격자가 전 개체 공유라 다른 개체의 스플랫이 이웃으로
+잡힌다 — `heatEmit` 유전자(불 정령)가 나무의 연소 전파 규칙에 그대로 물리는 이유.
+격자 셀 크기는 전역 GRID_CELL(0.15) 고정, 개체 reach 는 이하로 클램프.
 
-## 레이어 지도 — 의도 → 구현 → 검증 → 한계
+L6 히키토(hikito-flesh 이식): 살은 **뼈대의 순수 함수**. skeleton.js 의 뼈대(built-in FK 리그
++ FBX `ExternalSkeleton`, 이름 기반 살 문법)가 매 프레임 taper 캡슐 세그먼트(≤128)를 bones
+storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 자리(축 t·방위 θ·깊이 u)를
+*현재 포즈에서 유도*해 스프링 추종한다 — L4 rest 부착점과 같은 원리, 스키닝 없음. 세그먼트
+**순서**가 친화 인덱스의 기준이라 모션 소스(built-in↔FBX)가 바뀌면 재시드 필수. 세부·설계
+근거는 wgsl.js SIM L6 블록·skeleton.js·app.js 주석이 원본.
 
-각 레이어는 독립 데모를 가진다 (레이어 = 데모 원칙). 모두 ✅ 구현 완료.
+### 코드 지도
 
-| 층 | 의도 | 구현 (파일 · 심볼) | 데모 | 알려진 한계 |
-|---|---|---|---|---|
-| L0 렌더 | GPU 상주 3DGS 래스터 | engine.js 파이프라인, wgsl KEY/SORT/RENDER | 모든 프리셋 | bitonic O(N log²N) — radix 후보 |
-| L1 자율 | 이웃 없는 per-splat 규칙 | wgsl SIM (cohesion/flow/updraft), 필멸 세대 교대 | 불·숲의 정령 | flow 는 발산 있는 가짜 curl |
-| L2 이웃 | 응집/분리/점성 → 형태 창발 | wgsl SIM `E.binding` 블록 + dense grid | 슬라임·물 | in-place 갱신 지터, SLOTS 초과 누락(의도) |
-| L3 골격 | shape matching + 본드 파단/재흡수 | wgsl CLUSTER, engine `_initGolem` | 돌골렘 | 본드 Jacobi 혼재 — 더블 버퍼 후보 |
-| L4 성장 | rest 부착 + birth 성장 시계 + 연소 | wgsl SIM `E.growRate` 조기 경로, `_initTree` | 나무 | — |
-| L5 상호작용 | 다중 개체 + 공유 격자 창발 | Entity 테이블, `heatEmit`, `setScene` | 불×나무 | 개체 8 상한 |
-| L6 뼈대 살 | 뼈대의 순수 함수로 살이 자란다 | skeleton.js(IR/FK/문법/FBX), wgsl SIM `E.fleshK`, `_initFleshCloud`, OVERLAY | 히키토(+FBX 드롭) | 관절 이음새 단차, 부피 보존 없음, Evaluator 없음 |
+- `js/wgsl.js` — 셰이더 8종(+뼈대 오버레이). `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
+  `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
+  바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
+- `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
+- `js/presets.js` — 유전자 스키마(`GENE_DEFS`)·프리셋(`PRESETS`)의 유일한 원본 (app.js 와 test/ 가 공유 — 드리프트 방지).
+- `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
+- `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
+- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
+  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
+- `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
+  생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
+  클립 규약이 다르다). 생명→무대 데이터 흐름 없음.
+- `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
+  (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
+- `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
+  지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
+  개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
+- `js/terrain-gen.js` — 에디터 절차 지형: 시드 fBm 단일 height 원본 → 무대 PLY + collider
+  삼각형 수프 (test/_fixture.js 의 브라우저·매개변수판, 골짜기 -0.72 클램프 동일).
 
 ## L6 의 구조 (hikito-flesh 3층 매핑)
 

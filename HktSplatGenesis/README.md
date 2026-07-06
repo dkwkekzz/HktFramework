@@ -96,4 +96,4 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 
 이후 UE5 이식: 이 compute 파이프라인이 그대로 설계도가 된다 (`HktGaussianSplat` 플러그인의 래스터 + Niagara/compute 시뮬).
 
-다음 단계 큐(살 이음새, Evaluator, detail 층, 메시화…)와 완료 기준은 [Docs/ROADMAP.md](Docs/ROADMAP.md), 구현 의도·설계 결정은 [Docs/DESIGN.md](Docs/DESIGN.md) 참조.
+구현 현황과 다음 단계 큐(살 이음새, Evaluator, detail 층, 메시화…)는 [Docs/ROADMAP.md](Docs/ROADMAP.md), 설계 근거·결정·코드 지도는 [Docs/DESIGN.md](Docs/DESIGN.md) 참조. (문서 지도: [CLAUDE.md](CLAUDE.md))
