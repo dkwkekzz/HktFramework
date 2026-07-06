@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0487](step-0487.md) — **#16 승급 라운드 2차 7: clusterdatacap 승격**: 0370 grand capstone `clusterdatacap`(실 host.js child 데이터 평면 E2E: driveCluster→coherent·실 migrate z1 A→B 상태 보존·hostA release)을 누적 회귀로 승격. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·clusterdatacap 5/5(coherent·migrate 보존·release)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster·ctx 주입 완료): coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
+- **닫힌 step**: [step-0488](step-0488.md) — **#16 승급 라운드 2차 8: coordmergecap 승격**: 0420 grand capstone `coordmergecap`(#62 단일 진입점 runMultiViaCoord 가 종합 warm-failover→runMultiCoherent·a1 보존·parity)을 누적 회귀로 승격. 공유 coordScenario() verify-kit 함수 승격(coordcap 재사용). 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·coordmergecap 5/5(coherent·mig1·reprov1·promo1·a1 보존·parity)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격: coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
 
 ---
 
@@ -160,3 +160,4 @@
 | [0485](step-0485.md) | #16 승급 라운드 2차 5: 0350 grand capstone worldcap(월드 다운스트림 E2E·host AOI→전파→실 DownClient 수렴 desync0·게이트웨이 격리)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · worldcap 5/5 |
 | [0486](step-0486.md) | #16 승급 라운드 2차 6: 0480 grand capstone upce2ecap(실 UpClient→실 host.js child 경계→존→egress E2E)을 승격·makeVerifyKit ctx cluster dep 주입 배선 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
 | [0487](step-0487.md) | #16 승급 라운드 2차 7: 0370 grand capstone clusterdatacap(실 host.js child 데이터 평면 E2E·driveCluster coherent·migrate 상태 보존·release)을 승격 | 통과(reg 0·spine OK) · clusterdatacap 5/5 |
+| [0488](step-0488.md) | #16 승급 라운드 2차 8: 0420 grand capstone coordmergecap(#62 단일 진입점 종합 warm-failover→runMultiCoherent·a1 보존·parity)을 승격·coordScenario 공유화 | 통과(reg 0·spine OK) · coordmergecap 5/5 |
