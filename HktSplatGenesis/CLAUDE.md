@@ -46,6 +46,7 @@
 | [Docs/ROADMAP.md](Docs/ROADMAP.md) | **구현 현황 + 다음 단계 TODO** — 매 세션 갱신 | 다음 작업을 고를 때 |
 | [Docs/DESIGN.md](Docs/DESIGN.md) | 설계 근거·결정(되돌리지 말 것) + 아키텍처·코드 지도 | 제약·구조를 확인할 때 |
 | [Docs/PLAN-SparkTerrain.md](Docs/PLAN-SparkTerrain.md) | S 트랙(무대) 심층 계획 | 무대 작업 시 |
+| [Docs/PLAN-OpenWorldTerrain.md](Docs/PLAN-OpenWorldTerrain.md) | T 트랙(오픈월드 지형) 심층 계획 — 현황 진단 포함 | 지형 확장 작업 시 |
 | [test/README.md](test/README.md) | 검증 하니스 사용법 | 검증할 때 |
 | [README.md](README.md) | 외부 공개 개요 | — |
 | 코드 주석 | 세부 설계·함정의 원본 | 구현 파고들 때 |
