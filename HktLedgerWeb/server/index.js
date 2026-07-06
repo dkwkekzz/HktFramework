@@ -9,8 +9,9 @@ import { extname, join, normalize } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from './game.js';
+import { MonsterController } from './monster.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE } from '../shared/constants.js';
+import { TICK_RATE, BEACON_INTERVAL_MS, MONSTER_BOT_COUNT } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = {
@@ -55,6 +56,11 @@ wss.on('connection', (socket) => {
 });
 
 setInterval(() => game.tick(), 1000 / TICK_RATE);
+
+// A5: 몬스터 = 특권 없는 서버 봇 (비콘·인텐트로만 구동, 서버가 플레이어와 동일 검증)
+const monsters = new MonsterController(game);
+for (let i = 0; i < MONSTER_BOT_COUNT; i++) monsters.spawn(`몬스터${i}`);
+setInterval(() => monsters.step(), BEACON_INTERVAL_MS);
 
 const PORT = process.env.PORT ?? 8080;
 httpServer.listen(PORT, () => {

@@ -11,13 +11,14 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
+import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
-  CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST,
+  CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -337,6 +338,45 @@ test('A3 영속화 — 스냅샷 저장→복원 후 지역 체크섬 일치 + �
   // 복원된 세계가 계속 굴러가도 보존 유지 (죽은 노드도 필드에서 재충전)
   for (let i = 0; i < 60; i++) revived.tick();
   assert.equal(revived.ledger.totalSum(), WORLD_SOURCE_INITIAL, '복원 후 계속 틱 — 총합 불변');
+});
+
+test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
+  const { clock, game, join, warp, total } = setup();
+  const prey = join('사냥감');
+  warp(prey.player, SPAWN_POS.x + 300, SPAWN_POS.y); // 사거리 밖 → 몬스터가 이동해야 함
+  game.tick();
+
+  const mc = new MonsterController(game);
+  const mon = mc.spawn('몬스터');
+  game.tick(); // 몬스터 미러가 사냥감 ENTER 수신
+
+  const startX = mon.x;
+  const preyStart = game.ledger.balance(prey.player.id);
+  for (let i = 0; i < 40 && !mon.mirror.dead; i++) {
+    clock.t += BEACON_INTERVAL_MS;
+    mc.step();       // 몬스터 AI = 비콘/인텐트만 (특권 없음)
+    game.tick();
+    assert.equal(total(), WORLD_SOURCE_INITIAL, `틱 ${i} 총합 보존`);
+  }
+
+  assert.ok(mon.x > startX + 50, '몬스터가 비콘으로 사냥감을 향해 이동');
+  assert.ok(game.ledger.balance(prey.player.id) < preyStart, '몬스터 공격으로 사냥감 에너지 감소');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '몬스터 구동 내내 총합 불변');
+});
+
+test('A5 몬스터도 특권 없음 — 스피드핵 비콘은 플레이어와 똑같이 기각', () => {
+  const { clock, game } = setup();
+  const mc = new MonsterController(game);
+  const mon = mc.spawn('치터몬');
+  game.tick();
+
+  clock.t += 100; // 0.1초 만에 500px = 예산 초과
+  game.onMessage(mon.id, { t: MSG.BEACON, x: SPAWN_POS.x + 500, y: SPAWN_POS.y });
+
+  // 서버는 몬스터를 플레이어와 구분하지 않는다 — 위치 갱신 거부, TELEPORT 정정
+  assert.equal(game.players.get(mon.id).x, SPAWN_POS.x, '치트 비콘 무시 (위치 불변)');
+  assert.equal(mon.x, SPAWN_POS.x, '몬스터 미러도 TELEPORT 정정 수용');
+  assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
 });
 
 test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크섬과 일치', () => {

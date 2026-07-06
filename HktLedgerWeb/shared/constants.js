@@ -68,6 +68,8 @@ export const AUDIT_SAMPLE_DEN = 4;       // → 25% 표본
 export const MOB_COUNT = 12;
 export const MOB_ENERGY = 200;
 export const MOB_RESPAWN_MS = 10000;
+// A5: 특권 없는 서버 봇으로 구동하는 몬스터 수 (동일 프로토콜 — server/monster.js)
+export const MONSTER_BOT_COUNT = 6;
 
 // --- 아이템 (아이템 = 응축된 에너지 풀. 내구도·가치·회복량이 전부 같은 잔고) ---
 export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아이템 풀 100
