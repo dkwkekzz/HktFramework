@@ -40,11 +40,16 @@ class Bot {
     this.lastAttack = 0;
     this.craftPendingUntil = 0;
     this.iidNo = 0;
+    this.bytesInWindow = 0; // A4: 수신 대역폭 계측 (5초 요약에서 B/s 환산)
     this.state.onTeleport = ({ x, y }) => { this.x = x; this.y = y; }; // 서버 정정 수용
 
     this.ws = new WebSocket(URL);
+    this.ws.binaryType = 'arraybuffer'; // A4: 바이너리 OPS 프레임 수신
     this.ws.onopen = () => { this.retries = 0; this.send(MSG.HELLO, { name: this.name }); };
-    this.ws.onmessage = (ev) => { const m = decode(ev.data); if (m) this.state.handle(m); };
+    this.ws.onmessage = (ev) => {
+      this.bytesInWindow += typeof ev.data === 'string' ? ev.data.length : ev.data.byteLength;
+      const m = decode(ev.data); if (m) this.state.handle(m);
+    };
     this.ws.onerror = () => {};
     this.ws.onclose = () => {
       clearInterval(this.timer);
@@ -55,7 +60,7 @@ class Bot {
   }
 
   send(t, payload = {}) { if (this.ws.readyState === 1) this.ws.send(encode(t, payload)); }
-  intent(kind, data = {}) { this.send(MSG.INTENT, { iid: `b${++this.iidNo}`, kind, ...data }); }
+  intent(kind, data = {}) { this.send(MSG.INTENT, { iid: (this.iidNo = this.iidNo % 65000 + 1), kind, ...data }); } // A4: u16 숫자 iid
   energy() { return this.state.ledger.balance(this.state.playerId); }
 
   #items(type) {
@@ -162,8 +167,12 @@ setInterval(() => {
   if (!lead?.playerId) return;
   const line = bots.map(b =>
     `${b.name} ${String(b.energy()).padStart(4)}${b.mode === 'hunt' ? '⚔' : '⛏'}`).join(' | ');
+  const totalBytes = bots.reduce((s, b) => s + b.bytesInWindow, 0);
+  bots.forEach(b => { b.bytesInWindow = 0; });
+  const perBotPerSec = totalBytes / 5 / bots.length;
   console.log(`[시뮬] ${line}`);
   console.log(`[원장] 세계 총 에너지 ${lead.worldTotal.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
+  console.log(`[대역폭] 봇 평균 수신 ${perBotPerSec.toFixed(0)} B/s (A4 바이너리 tx)`);
 }, 5000);
 
 console.log(`[HktLedgerWeb] 봇 ${COUNT}기 기동 → ${URL} (같은 프로토콜, 특권 없음)`);

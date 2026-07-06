@@ -36,7 +36,7 @@ const httpServer = http.createServer(async (req, res) => {
   }
 });
 
-const game = new GameServer();
+const game = new GameServer({ binaryOps: process.env.HKT_JSON !== '1' }); // HKT_JSON=1 → 대역폭 A/B 비교용 JSON
 const wss = new WebSocketServer({ server: httpServer });
 
 wss.on('connection', (socket) => {

@@ -12,7 +12,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { ClientState } from '../client/state.js';
-import { MSG, INTENT } from '../shared/protocol.js';
+import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
@@ -21,7 +21,8 @@ import {
 } from '../shared/constants.js';
 
 function makeConn() {
-  return { msgs: [], send(s) { this.msgs.push(JSON.parse(s)); } };
+  // 문자열(JSON) 또는 Uint8Array(A4 바이너리 OPS 프레임) 모두 수신 — 같은 JS 객체로 정규화
+  return { msgs: [], send(s) { this.msgs.push(typeof s === 'string' ? JSON.parse(s) : decode(s)); } };
 }
 
 function setup() {

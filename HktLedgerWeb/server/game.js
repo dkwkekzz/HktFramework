@@ -18,7 +18,7 @@ import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
 import { mulberry32 } from '../shared/rng.js';
-import { MSG, INTENT, encode } from '../shared/protocol.js';
+import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
@@ -37,9 +37,10 @@ const RANGE_SLACK = 10; // 비콘 양자화·지연 흡수용 사거리 여유
 function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 
 export class GameServer {
-  constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED, snapshot = null } = {}) {
+  constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED, snapshot = null, binaryOps = true } = {}) {
     this.now = now;
     this.auditSeed = auditSeed >>> 0;
+    this.binaryOps = binaryOps; // A4: false 면 OPS 를 JSON 으로 (대역폭 A/B 계측용)
     // A2 감사 집계 — sampled: 감사한 위임 판정 수, caught: 조작 적발 수, cheaters: 적발자별 횟수
     this.audit = { delegated: 0, sampled: 0, caught: 0, cheaters: new Map() };
     this.ledger = new EnergyLedger();
@@ -554,7 +555,9 @@ export class GameServer {
       const ops = this.pendingOps
         .filter(op => this.#opRelevant(op, p))
         .map(({ _at, _only, ...op }) => op);
-      if (ops.length) p.conn.send(encode(MSG.OPS, { tick: this.tickCount, ops }));
+      // A4: tx-only(숫자/무 iid) 프레임은 16B 바이너리, 이벤트/문자열 iid 는 JSON 폴백
+      if (ops.length)
+        p.conn.send(this.binaryOps ? encodeOps(this.tickCount, ops) : encode(MSG.OPS, { tick: this.tickCount, ops }));
 
       if (enters.length) p.conn.send(encode(MSG.ENTER, { entities: enters }));
 

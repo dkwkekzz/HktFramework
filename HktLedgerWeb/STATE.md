@@ -9,13 +9,13 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0004](steps/step-0004.md) — **A3 영속화 완료**: `EnergyLedger.serialize/load` + `GameServer.snapshot/#restore`. 원장 잔고만 저장하고 배치는 시드 재유도 → 재시작(스냅샷 로드) 후 지역 체크섬 일치·총합 불변.
-- **한 줄 상태**: `npm test` 21/21 OK · 스냅샷 복원 후 총 10⁹·전 지역 체크섬 일치 · 조작봇 감사 전건 적발.
+- **닫힌 step**: [step-0005](steps/step-0005.md) — **A4 바이너리 tx 완료**: tx-only OPS 를 16B/tx 바이너리 프레임으로(`shared/protocol.js encodeOps`), 이벤트·문자열 iid 는 JSON 폴백. tx 레코드 85% 절감, 봇 8기 총 수신 ~65% 절감.
+- **한 줄 상태**: `npm test` 24/24 OK · 봇 A/B JSON ~4.8KB/s→바이너리 ~1.7KB/s·체크섬 OK · tx 107.5→16.0 B/tx.
 
 ## 2. NEXT — 가설 (다음 조각의 권위는 이 절)
 
-> 🎯 **A4 바이너리 tx** ([SPINE](SPINE.md) §1) — JSON 인코딩을 tx 만 16B 바이너리로 교체해 대역폭을 줄인다. 인코딩은 `shared/protocol.js` 한 곳 — `encode/decode` 를 tx op 에 한해 고정폭 바이너리(seq·from·to·amount·cause 를 정수 필드로)로 바꾸고, 나머지 메시지는 JSON 유지. 클라 `net.js` 계측으로 절감 실측.
-> 완료 판정(SPINE §1): 봇 8기 시뮬 실측 B/s 절감 수치 — 기존 300~400 B/s(JSON) 대비 감소를 `net.js` 대역폭 계측으로 확인.
+> 🎯 **A5 몬스터 권위 이관** ([SPINE](SPINE.md) §1) — 지금 몬스터는 서버 정적 배치(이동 없음) — "서버는 시뮬레이션하지 않는다"의 마지막 예외. 몬스터를 특권 없는 클라이언트(서버 봇)로 만든다: 몬스터 AI 가 봇·플레이어와 동일 프로토콜(비콘·인텐트)로 이동·공격하고, 서버는 몬스터의 비콘·인텐트를 똑같이 검증한다.
+> 완료 판정(SPINE §1): 몬스터 AI 가 봇과 동일 프로토콜로 구동 + 불변식(보존·검증·미러) 유지 — `game.test.js` 에 몬스터 봇이 이동·공격하며 총합 불변 테스트로 닫는다.
 
 **백로그**: A2 판정 감사 · A3 영속화 · A4 바이너리 tx · A5 몬스터 권위 이관 (각 완료 판정은 SPINE §1 표).
 
@@ -27,7 +27,7 @@
 | ✅ | A1 필드 확산 | step-0002 — `SOURCE→셀→노드`+`셀↔셀 diffuse`, test 5종(field 3·game 2) |
 | ✅ | A2 판정 감사 | step-0003 — 위임 데미지 판정 25% 표본 재시뮬, 조작 전건 적발 |
 | ✅ | A3 영속화 | step-0004 — 원장 serialize/load + snapshot/restore, 복원 후 체크섬 일치 |
-| ⬜ | A4 바이너리 tx | JSON 인코딩 그대로 |
+| ✅ | A4 바이너리 tx | step-0005 — tx-only 16B 프레임, 레코드 85%·봇 총량 ~65% 절감 |
 | ⬜ | A5 몬스터 권위 이관 | 서버 정적 배치 — "서버 무시뮬" 원칙의 마지막 예외 |
 
 ## 4. DURABLE CONSTRAINTS — 반복 참조 수치 (원칙의 권위는 CLAUDE.md)
@@ -44,4 +44,5 @@
 0002 | A1 필드 확산 서버 배관(SOURCE→셀→노드+diffuse) | test 18/18 · 봇 8기 총 10⁹ 불변·체크섬 OK
 0003 | A2 판정 감사(위임 데미지 25% 표본 재시뮬) | test 19/19 · 조작봇 감사표본 전건 적발·정직봇 오탐 0
 0004 | A3 영속화(원장 serialize/load + snapshot/restore) | test 21/21 · 복원 후 총 10⁹·전 지역 체크섬 일치
+0005 | A4 바이너리 tx(16B 프레임 encodeOps) | test 24/24 · tx 107.5→16.0 B/tx·봇 총량 ~65%↓
 ```
