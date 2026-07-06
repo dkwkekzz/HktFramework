@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0488](step-0488.md) — **#16 승급 라운드 2차 8: coordmergecap 승격**: 0420 grand capstone `coordmergecap`(#62 단일 진입점 runMultiViaCoord 가 종합 warm-failover→runMultiCoherent·a1 보존·parity)을 누적 회귀로 승격. 공유 coordScenario() verify-kit 함수 승격(coordcap 재사용). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·coordmergecap 5/5(coherent·mig1·reprov1·promo1·a1 보존·parity)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격: coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
+- **닫힌 step**: [step-0489](step-0489.md) — **#16 승급 라운드 2차 9: coordcap 승격**: 0380 grand capstone `coordcap`(#62 broker 측 제어 평면 상주 코디네이터: run→drift→syncPlan 치유 뒤 실 cluster==in-proc 권위)을 누적 회귀로 승격. cluster child_process capstone 4종 완료. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·coordcap 5/5(maxDesync0·drift heal·coordCoherent·report coh)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~) — grand capstone 9종 승격 완료·0490 arc 정리 예정**. **arc 후속(0490+)**: 서비스 saga capstone(거래소0140/우편0180/길드0200) 재작성 편입(감사 §2 ①-b·이 arc 는 grand capstone 만·서비스 계층 실행 검증 0 잔존) → #74 실 GW·#46 escrow·#75 프로파일.
 
 ---
 
@@ -19,7 +19,7 @@
 
 > 🎯 **#16 승급 라운드 2차 arc(0481~) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 0231~0240 판처럼 `engine/verify-kit.js` ORDER 로 항구화. 진행: mze2ecap✅0481·bare2ecap✅0482·nete2ecap✅0483·asynce2ecap✅0484·worldcap✅0485·upce2ecap✅0486 → 남음 clusterdatacap(0370)·coordmergecap(0420)·coordcap(0380)·arc 정리. 자기완결 capstone 먼저, cluster child_process 는 makeVerifyKit ctx dep 주입(engine→src 결합 없이) 후. 박스 무수정→매 step reg 0.
 
-> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차** — 위 arc 진행 중(grand capstone ORDER 승격 → 서비스 saga capstone[거래소0140/우편0180/길드0200] 재작성 편입은 arc 후속). ② **#74 실 GW 프로세스 분리**. ③ **#46 escrow** + 서버간 인증. ④ **#75 프로덕션 프로파일**(유계 노브 기본값 봉인). **⛔ "C++ 시뮬 코어" 백로그 없음**(범위 밖·§4).
+> 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차**(위 arc·grand capstone ORDER 승격 → 서비스 saga capstone 재작성 편입은 arc 후속) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
 **빌드 인프라(0049)**: 절차 ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
@@ -42,12 +42,10 @@
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
-| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 가능 검증 0** | 전체 | verify-kit ORDER 에 거래소·우편·길드 참조 0건·capstone 은 git per-commit 에만(HEAD 재검증 불가). 승급 라운드(0231~0240 판) 필요(감사 2026-07·§2 권고 ①). |
+| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 검증 0** | 전체 | 시대별 grand capstone 9종 승급 완료(0481~0489·verify-kit ORDER). 남음: 서비스 saga capstone(거래소/우편/길드) 재작성 편입(git per-commit 에만·HEAD 재검증 불가·감사 §2 ①-b). |
 | ⬜ | **#75 프로덕션 프로파일(유계 기본값 1벌)** | 전체 | reg-0 규칙 부작용 — 유계 노브 기본 무계(downRecvWindow 0·capacity ∞·leaseSpan 0·재시도 무제한). 권장값 세트를 verify 모드로 봉인(감사 2026-07·§2 권고 ④). |
 
-> **✅ 해소된 격차** — 전문은 §7 INDEX·각 `step-NNNN.md`. 묶음: 골격~전송·AOI~failover·게임서비스+영속+quorum·버스·프레즌스/귓속말/파티·거래소/우편·길드(01~200).
-
-> **상시 렌즈 — 척추** ([SPINE.md](SPINE.md) §5): 매 step은 verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 과 같은 박자로 돌아야 하는가?*
+> **✅ 해소된 격차** 전문: §7 INDEX·각 `step-NNNN.md`. **상시 렌즈 — 척추**([SPINE.md](SPINE.md) §5): 매 step verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 박자로 돌아야 하나?*
 
 ---
 
@@ -80,7 +78,7 @@
 | 2 | 월드 | 존 · 인스턴스 (분할·AOI·조정·핸드오프) | 🟡 존 VM+결정론 복제+AOI+분할·핸드오프(소유자=1)+failover+별 프로세스(0001~13) · **인스턴스 🟡 spawn/despawn+수요 자동 spawn/despawn+라우팅+이탈(0201~0222)**. 존 N개 후속 |
 | 3 | 게임 서비스 | 가방 · 채팅 · 길드 · 거래소 · 우편 · 랭킹 | 🟡 가방/채팅/ranking/읽기모델+write-behind/quorum(0014~63)·귓속말/파티(0071~106)·거래소(0107~40)·우편(0142~80) 동형(escrow/3leg/saga)·길드+금고(0181~0200·로스터/마스터십/공유 원장/영속/정합). 금고↔가방 escrow 후속 |
 | 4 | 버스 | 이벤트 버스 | 🟡 substrate→토픽 pub/sub→ServiceBus→동적구독/failover/무손실/replay 유계·ack 자기조정/min-wm/lease·ns·lifecycle·적응형(0004~0054). 분산·per-producer ack·라우팅 영속 후속 |
-| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치: executed SSOT #51→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·부하 균형·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70) + #62 상주 코디네이터(0371~80) + #65 placement 동기(0381~90) + #66/#67 이중 권위(0391~400) + #62 runMulti 코드 합류(0401~20)**. **#4 async substrate(0431~40·async-core) + 실 Net·sim seam 브리지(0441~50·async-net) + 실 run() net.step 배리어 치환(0451~60·async-barrier) + 다중 존 이주 하 유계 resync(0461~70·wrap-aware interior 가드)**. **#70 실 host.js child 경계 업스트림(0471~80·cluster-hostdriver·실 UpClient intent 소켓 넘어 실 host.js 존→egress 뷰 되먹임·경계 넘어 desync0·손실 exactly-once·생애주기·회계·드라이버 미부착→reg 0)**. orch 정리·도구 #43(0271) |
+| 5 | 코디네이션 | 세션/프레즌스 · 오케스트레이터 | 🟡 레지스트리+Orchestrator+broker(0001~13)·프레즌스 SSOT·self-healing·epoch 펜싱(0054~106). 존 배치 executed SSOT→실 zone.js 브리지·#56 데이터 평면·#9 직접 라우팅·host 컨테이너·월드 다운스트림 E2E(0241~0350). **#57 실 OS 프로세스+데이터 평면(0351~70)·#62 상주 코디네이터(0371~80)·#65 placement 동기(0381~90)·#66/#67 이중 권위(0391~400)·#62 runMulti 합류(0401~20)**. **#4 async: substrate(0431~40)→실 Net·sim seam(0441~50)→net.step 배리어 치환(0451~60)→다중 존 이주 유계 resync(0461~70·async-barrier)**. **#70 실 host.js child 경계 업스트림(0471~80·cluster-hostdriver)**. #16 승급 라운드 2차 grand capstone 항구화(0481~·coord* capstone 승격 포함) |
 | 6 | 데이터 | 캐시 · DB · write-behind | 🟡 PersistStore(효과 저널·write-behind·kill→replay·스냅샷 압축·복구·홉 신뢰·failover/quorum·윈도 0017~62) · **캐시 🟡 set/get·read-through·TTL·무효화·LRU+Redis-like(0205~60)** · **월드 영속 🟡 intent 로그·replay·스냅샷·crash/recover·write-behind·fsync(0207~28)**. 버스 영속 후속 |
 
 ---
@@ -161,3 +159,4 @@
 | [0486](step-0486.md) | #16 승급 라운드 2차 6: 0480 grand capstone upce2ecap(실 UpClient→실 host.js child 경계→존→egress E2E)을 승격·makeVerifyKit ctx cluster dep 주입 배선 | 통과(reg 0·spine OK) · upce2ecap 5/5 |
 | [0487](step-0487.md) | #16 승급 라운드 2차 7: 0370 grand capstone clusterdatacap(실 host.js child 데이터 평면 E2E·driveCluster coherent·migrate 상태 보존·release)을 승격 | 통과(reg 0·spine OK) · clusterdatacap 5/5 |
 | [0488](step-0488.md) | #16 승급 라운드 2차 8: 0420 grand capstone coordmergecap(#62 단일 진입점 종합 warm-failover→runMultiCoherent·a1 보존·parity)을 승격·coordScenario 공유화 | 통과(reg 0·spine OK) · coordmergecap 5/5 |
+| [0489](step-0489.md) | #16 승급 라운드 2차 9: 0380 grand capstone coordcap(#62 broker 측 제어 평면·run+drift+syncPlan 치유 뒤 coordCoherent)을 승격 | 통과(reg 0·spine OK) · coordcap 5/5 |

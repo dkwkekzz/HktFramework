@@ -1113,11 +1113,39 @@ async function coordmergecap(seeds) {
   }
 }
 
+// step-0380 #62 통합 grand capstone — coordcap: broker 측 제어 평면 E2E(start→연속 run→z3 drift→syncPlan 치유 뒤에도 실 cluster==in-proc 권위). (cluster child_process — ctx dep Cluster/makeClusterCoordinator)
+async function coordcap(seeds) {
+  const zoneSpecOf = (zone) => ({ addr: zone, kind: 'zone', seed: fnv1a(String(zone)) >>> 0, opts: { grid: 16, radius: 4, region: { lo: 0, hi: 16 }, sibling: null, boundary: 16, orch: null, incremental: true } });
+  const BASE = coordScenario();
+  console.log('== coordcap (0380·#62 grand capstone): broker 측 제어 평면 E2E — run+drift+syncPlan 뒤 coordCoherent. ==');
+  console.log('seed   | maxDesync | drift heal | coordCoherent | report coh | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 12, ...BASE });
+    const o = r.orch, drv = o.clusterDriver;
+    const cluster = new Cluster([]);
+    let maxD = -1, healed = false, coh = false, repCoh = false;
+    try {
+      await cluster.spawn();
+      const coord = makeClusterCoordinator(o, cluster, zoneSpecOf, drv);
+      await coord.run(5);
+      maxD = coord.maxDesync;
+      await cluster.rpc('hostA', { cmd: 'zonedel', addr: 'z3' });
+      await coord.syncPlan();
+      const sa = await cluster.rpc('hostA', { cmd: 'snapshot' });
+      healed = !!(sa && sa.snap && sa.snap['z3']);
+      coh = await coord.coordCoherent();
+      repCoh = (await coord.report()).coherent;
+    } finally { await cluster.shutdown(); }
+    const ok = check(maxD === 0 && healed && coh && repCoh, `seed ${seed}: capstone 위반 (maxD ${maxD}·heal ${healed}·coh ${coh}·rep ${repCoh})`);
+    console.log(`${pad(seed, 6)} | ${pad(maxD, 9)} | ${pad(healed ? 'Y' : 'N', 10)} | ${pad(coh ? 'Y' : 'N', 13)} | ${pad(repCoh ? 'Y' : 'N', 10)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

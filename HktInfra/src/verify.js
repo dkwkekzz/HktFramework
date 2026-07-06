@@ -1,7 +1,7 @@
-// HktInfra step-0488 — 헤드리스 검증 (#16 승급 라운드 2차 8: coordmergecap 누적 회귀 승격)
+// HktInfra step-0489 — 헤드리스 검증 (#16 승급 라운드 2차 9: coordcap 누적 회귀 승격)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0420 grand capstone `coordmergecap`(#62 단일 진입점
-//   runMultiViaCoord 가 종합 warm-failover[migrate+reprovision+kill+promote]를 한 호출로 → runMultiCoherent·a1 보존·parity)을 누적 회귀로 승격. 박스 무수정→reg 0.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 0380 grand capstone `coordcap`(#62 broker 측 제어 평면
+//   상주 코디네이터 E2E: start→연속 run→z3 drift→syncPlan 자가 치유 뒤에도 실 cluster==in-proc 권위)을 누적 회귀로 승격. 박스 무수정→reg 0.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
