@@ -14,6 +14,8 @@
 //   process.exit(await kit.cli(process.argv));
 // 모드 카탈로그(아래 문구의 "이 step"은 각 모드의 도입 step 기준 — 정식 문서는 해당 step-NNNN.md):
 //   mode: reg | wquorum | inflight | tail | reliable | chat-compact | recover-chat | rank | recover-rank | e2e | sacred | recover | compact | degrade | inject | isolate | hide | repro | all
+//   + #16 라운드 2차 grand capstone 승급(0481~0490): mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap · promoted16(등록 가드)
+//     3차 균형 승급(0231~0240): instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon
 //     reg          — 회귀 0: 인프로세스 모드(quorumW 0) → step-0028 와 *비트 동일*(net.log + 상태 + inv/chat/bus/rank).
 //                  저널 q 플래그·ack 회신·durableSeq 집계는 quorumW 0 이면 *휴면*(q 0·ack 0·워터마크 미사용)임을 직접 증명.
 //     wquorum      — *이 step 의 가설*: W=3 쓰기 정족수 ack 후에만 durable 선언(primary+복제3=N+1=4 사본). ⒜ 무손실=4 스토어 ack→전 seq durable(win 0)
@@ -1141,11 +1143,25 @@ async function coordcap(seeds) {
   }
 }
 
+// step-0490 #16 라운드 2차 정리 — promoted16: 시대별 grand capstone 9종이 ORDER 누적 회귀에 항구 등록됐는지 가드(향후 우발 제거 방지·"no silent cap"·arc 닫기).
+function promoted16(seeds) {
+  const PROMOTED = ['mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap'];
+  console.log('== promoted16 (0490·#16 라운드 2차 정리): 시대별 grand capstone 9종 ORDER/MODES 항구 등록 가드 — 향후 제거 방지. #16 라운드 2차 arc 닫기. ==');
+  console.log('capstone       | ORDER | MODES | 판정');
+  for (const m of PROMOTED) {
+    const inOrder = ORDER.includes(m);
+    const inModes = typeof MODES[m] === 'function';
+    const ok = check(inOrder && inModes, `${m}: order ${inOrder}·modes ${inModes}`);
+    console.log(`${m.padEnd(14)} | ${pad(inOrder ? 'Y' : 'N', 5)} | ${pad(inModes ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+  check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promoted16: grand capstone 9종 전부 등록`);
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16 };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

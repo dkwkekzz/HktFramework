@@ -9,19 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0489](step-0489.md) — **#16 승급 라운드 2차 9: coordcap 승격**: 0380 grand capstone `coordcap`(#62 broker 측 제어 평면 상주 코디네이터: run→drift→syncPlan 치유 뒤 실 cluster==in-proc 권위)을 누적 회귀로 승격. cluster child_process capstone 4종 완료. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·coordcap 5/5(maxDesync0·drift heal·coordCoherent·report coh)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~) — grand capstone 9종 승격 완료·0490 arc 정리 예정**. **arc 후속(0490+)**: 서비스 saga capstone(거래소0140/우편0180/길드0200) 재작성 편입(감사 §2 ①-b·이 arc 는 grand capstone 만·서비스 계층 실행 검증 0 잔존) → #74 실 GW·#46 escrow·#75 프로파일.
+- **닫힌 step**: [step-0490](step-0490.md) — **#16 승급 라운드 2차 10·arc 닫기: promoted16 등록 가드**: 승급한 grand capstone 9종이 ORDER/MODES 항구 등록됐는지 단언하는 가드 모드 `promoted16` 추가(향후 우발 제거 방지) + 헤더 카탈로그 갱신. **#16 라운드 2차 arc(0481~0490) 닫힘** — grand capstone 9종 verify-kit ORDER 항구화. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·promoted16 9/9 등록·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 2차 arc(0481~0490 ✅ 닫힘)** — grand capstone 9종 ORDER 항구화·promoted16 가드. **후속**: ⒜ 서비스 saga capstone 재작성 편입(#16 잔여·§2 ①-b·서비스 계층 실행 검증 0 잔존) ⒝ #74 실 GW ⒞ #46 escrow ⒟ #75 프로파일. 🔎 **0481~0490 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 승급 라운드 2차 arc(0481~) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 0231~0240 판처럼 `engine/verify-kit.js` ORDER 로 항구화. 진행: mze2ecap✅0481·bare2ecap✅0482·nete2ecap✅0483·asynce2ecap✅0484·worldcap✅0485·upce2ecap✅0486 → 남음 clusterdatacap(0370)·coordmergecap(0420)·coordcap(0380)·arc 정리. 자기완결 capstone 먼저, cluster child_process 는 makeVerifyKit ctx dep 주입(engine→src 결합 없이) 후. 박스 무수정→매 step reg 0.
+> 🎯 **#16 승급 라운드 2차 arc(0481~0490 ✅ 닫힘) — 최우선(감사 §2 ①)**: 시대별 grand capstone 이 생성 step verify.js(git per-commit)에만 살아 HEAD 재검증 불가였던 격차("수치=verify 출력" 실효 깨짐)를 `engine/verify-kit.js` ORDER 로 항구화. grand capstone 9종 승급(0481~0489·목록 §7)·promoted16 등록 가드(0490). 자기완결 capstone 먼저, cluster child_process 는 makeVerifyKit ctx dep 주입(engine→src 결합 없이). 박스 무수정→매 step reg 0. **잔여(#16)**: 서비스 saga capstone(거래소/우편/길드) 재작성 편입.
 
 > 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16 승급 라운드 2차**(위 arc·grand capstone ORDER 승격 → 서비스 saga capstone 재작성 편입은 arc 후속) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
-
-**빌드 인프라(0049)**: 절차 ①new-step ②닿는 박스 Edit+verify 새 모드 ③close-step ④델타 커밋+git tag. NETPREV=`../baseline` 고정.
 
 ---
 
@@ -160,3 +158,4 @@
 | [0487](step-0487.md) | #16 승급 라운드 2차 7: 0370 grand capstone clusterdatacap(실 host.js child 데이터 평면 E2E·driveCluster coherent·migrate 상태 보존·release)을 승격 | 통과(reg 0·spine OK) · clusterdatacap 5/5 |
 | [0488](step-0488.md) | #16 승급 라운드 2차 8: 0420 grand capstone coordmergecap(#62 단일 진입점 종합 warm-failover→runMultiCoherent·a1 보존·parity)을 승격·coordScenario 공유화 | 통과(reg 0·spine OK) · coordmergecap 5/5 |
 | [0489](step-0489.md) | #16 승급 라운드 2차 9: 0380 grand capstone coordcap(#62 broker 측 제어 평면·run+drift+syncPlan 치유 뒤 coordCoherent)을 승격 | 통과(reg 0·spine OK) · coordcap 5/5 |
+| [0490](step-0490.md) | #16 승급 라운드 2차 10·arc 닫기: grand capstone 9종 ORDER/MODES 등록 가드 promoted16 추가·헤더 카탈로그 갱신(0481~0490 닫힘) | 통과(reg 0·spine OK) · promoted16 9/9 |
