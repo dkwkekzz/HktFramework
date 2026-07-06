@@ -16,6 +16,8 @@
 import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
+import { canonicalDamage } from '../shared/audit.js';
+import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL,
@@ -23,9 +25,10 @@ import {
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
-  ATTACK_RANGE, ATTACK_COST, ATTACK_DAMAGE, WEAPON_BONUS, WEAPON_WEAR,
+  ATTACK_RANGE, ATTACK_COST, WEAPON_BONUS, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE,
+  AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
@@ -34,8 +37,11 @@ const RANGE_SLACK = 10; // 비콘 양자화·지연 흡수용 사거리 여유
 function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 
 export class GameServer {
-  constructor({ now = () => Date.now() } = {}) {
+  constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED } = {}) {
     this.now = now;
+    this.auditSeed = auditSeed >>> 0;
+    // A2 감사 집계 — sampled: 감사한 위임 판정 수, caught: 조작 적발 수, cheaters: 적발자별 횟수
+    this.audit = { delegated: 0, sampled: 0, caught: 0, cheaters: new Map() };
     this.ledger = new EnergyLedger();
 
     // 창세: 세계의 모든 에너지는 SOURCE 에서 출발한다.
@@ -104,7 +110,7 @@ export class GameServer {
       id, name: String(name).slice(0, 12) || '모험가', conn,
       x: SPAWN_POS.x, y: SPAWN_POS.y,
       lastBeaconMs: this.now(), moveDebt: 0,
-      cooldownUntil: 0, dead: false, respawnAt: 0,
+      cooldownUntil: 0, dead: false, respawnAt: 0, atkSeq: 0,
       regions: new Set(regionNeighbors(SPAWN_POS.x, SPAWN_POS.y)),
       visible: new Set(),
     };
@@ -195,6 +201,14 @@ export class GameServer {
     p.conn.send(encode(MSG.REJECT, { iid, reason }));
   }
 
+  // A2: 이 (공격자, seq) 판정을 감사할지 — 서버 비밀 시드 기반이라 클라가 예측할 수 없다.
+  #shouldAudit(attackerId, seq) {
+    let h = 2166136261 >>> 0;
+    for (let i = 0; i < attackerId.length; i++) h = Math.imul(h ^ attackerId.charCodeAt(i), 16777619);
+    const s = (h ^ Math.imul((seq + 1) >>> 0, 40503) ^ this.auditSeed) >>> 0;
+    return mulberry32(s)() * AUDIT_SAMPLE_DEN < AUDIT_SAMPLE_NUM;
+  }
+
   #ownedItems(playerId) {
     return [...this.items.values()].filter(i => i.owner === playerId);
   }
@@ -238,12 +252,37 @@ export class GameServer {
           return this.#reject(p, iid, 'out-of-range');
         if (this.ledger.balance(p.id) < ATTACK_COST) return this.#reject(p, iid, 'no-energy');
 
+        // A2: 공격 시퀀스 — 클라가 제공하면 anti-replay(단조 증가) 검증, 없으면 서버 채번.
+        const seq = Number.isInteger(msg.seq) ? msg.seq : p.atkSeq + 1;
+        if (seq <= p.atkSeq) return this.#reject(p, iid, 'stale-seq');
+        p.atkSeq = seq;
+        const canonical = canonicalDamage(WORLD_SEED, p.id, seq);
+
+        // 기본 데미지 판정: 클라가 dmg 를 선언하면 위임(응답성), 아니면 서버가 canonical 계산.
+        // 위임 판정은 표본을 뽑아 재시뮬 — 불일치 = 조작, 정정 후 적발 집계.
+        let base;
+        if (Number.isInteger(msg.dmg)) {
+          base = Math.max(0, msg.dmg);
+          this.audit.delegated++;
+          if (this.#shouldAudit(p.id, seq)) {
+            this.audit.sampled++;
+            if (base !== canonical) {
+              this.audit.caught++;
+              this.audit.cheaters.set(p.id, (this.audit.cheaters.get(p.id) ?? 0) + 1);
+              base = canonical;                       // 판정 정정 — 조작분 무효
+              this.#reject(p, iid, 'audit-fail');
+            }
+          }
+        } else {
+          base = canonical;                           // 위임 안 함 — 서버 권위 계산
+        }
+
         this.#tx(p.id, POOL.SINK, ATTACK_COST, CAUSE.ATTACK_COST, p, iid);
         p.cooldownUntil = nowMs + ATTACK_COOLDOWN_MS;
 
         // 무기 = 응축 에너지. 내구도 소모도 그저 이체다.
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
-        let damage = ATTACK_DAMAGE;
+        let damage = base;
         if (weapon) {
           damage += WEAPON_BONUS;
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);

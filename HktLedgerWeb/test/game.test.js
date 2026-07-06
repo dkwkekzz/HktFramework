@@ -13,9 +13,10 @@ import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT } from '../shared/protocol.js';
+import { canonicalDamage } from '../shared/audit.js';
 import {
-  POOL, WORLD_SOURCE_INITIAL, SPAWN_GRANT, SPAWN_POS,
-  GATHER_AMOUNT, ATTACK_COOLDOWN_MS, MOB_ENERGY,
+  POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
+  GATHER_AMOUNT, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST,
 } from '../shared/constants.js';
 
@@ -254,6 +255,49 @@ test('A1 미러 정합 — 필드 재충전(셀→노드)을 클라 미러가 �
   assert.equal(client.ledger.balance(node.id), game.ledger.balance(node.id), '노드 잔고 정합');
   assert.equal(resyncs.length, 0, '재동기화 불필요');
   assert.equal(client.checksumStatus, 'OK');
+});
+
+test('A2 판정 감사 — 정직 봇 무경보, 조작 봇 탐지 (탐지율 실측)', () => {
+  // 위임 데미지 판정을 N회 쏘고 감사 집계를 본다. tamper 로 조작 여부를 준다.
+  function run(tamper) {
+    const clock = { t: 1_000_000 };
+    const game = new GameServer({ now: () => clock.t });
+    const atkConn = makeConn(), tgtConn = makeConn();
+    const atk = game.addPlayer(atkConn, 'ATK');
+    const tgt = game.addPlayer(tgtConn, 'TGT');
+    game.tick();
+    // 공격자를 대상 사거리 안으로 (큰 시간 간격 = 예산 내 순간이동)
+    clock.t += 60_000; game.onMessage(atk.id, { t: MSG.BEACON, x: tgt.x + 30, y: tgt.y });
+    game.tick();
+
+    const N = 40;
+    for (let seq = 1; seq <= N; seq++) {
+      // 대상을 매번 만충으로 유지 (오래 생존 — 감사 표본 확보). 테스트 전용 이체(보존).
+      const deficit = PLAYER_MAX_ENERGY - game.ledger.balance(tgt.id);
+      if (deficit > 0) game.ledger.transfer(POOL.SOURCE, tgt.id, deficit, 'test');
+      clock.t += ATTACK_COOLDOWN_MS + 10;
+      const honest = canonicalDamage(WORLD_SEED, atk.id, seq);
+      const dmg = tamper ? honest + 50 : honest; // 조작 봇은 데미지 부풀림
+      game.onMessage(atk.id, { t: MSG.INTENT, iid: `a${seq}`, kind: INTENT.ATTACK, targetId: tgt.id, seq, dmg });
+      game.tick();
+    }
+    assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL, '조작 여부와 무관하게 총합 보존');
+    return game.audit;
+  }
+
+  const honest = run(false);
+  assert.equal(honest.delegated, 40, '위임 판정 40건');
+  assert.ok(honest.sampled > 0, '표본 감사 발생');
+  assert.equal(honest.caught, 0, '정직 봇은 무경보');
+
+  const cheat = run(true);
+  assert.equal(cheat.delegated, 40);
+  assert.ok(cheat.sampled > 0, '표본 감사 발생');
+  assert.equal(cheat.caught, cheat.sampled, '감사된 조작은 전부 적발');
+  assert.ok(cheat.cheaters.size === 1, '적발자 식별');
+  // 실측 탐지율 = 표본율 (감사된 공격은 100% 적발). 조작 봇은 곧 확실히 걸린다.
+  const rate = (cheat.sampled / cheat.delegated * 100).toFixed(0);
+  console.log(`    [A2] 위임 ${cheat.delegated} · 감사표본 ${cheat.sampled}(${rate}%) · 적발 ${cheat.caught} · 정직봇 오경보 ${honest.caught}`);
 });
 
 test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크섬과 일치', () => {

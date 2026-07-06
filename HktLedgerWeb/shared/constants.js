@@ -52,11 +52,17 @@ export const GATHER_AMOUNT = 25;         // 채집 1회 요청량 (잔고·수�
 // --- 전투 ---
 export const ATTACK_RANGE = 120;
 export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
-export const ATTACK_DAMAGE = 30;         // 맨손 데미지
+export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
+export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
 export const WEAPON_BONUS = 30;          // 무기 소지 시 추가 데미지
 export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
+
+// --- A2 판정 감사 (클라 위임 데미지 판정의 샘플링 재시뮬 탐지 — 표본 추출은 서버 정책) ---
+export const AUDIT_SEED = 0x5eed;        // 감사 표본 추출 기본 시드 (프로덕션은 서버 비밀로 주입)
+export const AUDIT_SAMPLE_NUM = 1;       // 감사 표본 비율 = NUM/DEN
+export const AUDIT_SAMPLE_DEN = 4;       // → 25% 표본
 
 // --- 몬스터 (웹 단계: 정적 에너지 덩어리 — 서버는 이동을 시뮬레이션하지 않는다) ---
 export const MOB_COUNT = 12;
