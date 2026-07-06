@@ -34,6 +34,10 @@
 	}
 	// 후보정 UI(에디터)가 노출하는 대표 그룹 — 세부 그룹은 위 분류를 그대로 쓴다.
 	const GROUPS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot'];
+	// 채색(② palette)·GPU 그룹 인덱스의 정렬된 원본 — engine.js GROUP_COUNT·boneGroup 업로드와
+	// 순서 일치 필수. groupId(name) 가 이 배열의 인덱스를 돌려준다.
+	const GROUP_IDS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot', 'other'];
+	function groupId(name) { return GROUP_IDS.indexOf(groupForName(name)); }
 
 	// ── 스타일 프로파일: 배율의 범위·양자화 (PLAN 초안값 반지름 0.5~2.2·스텝 0.1) ──
 	// 극단 비율을 차단해 어떤 게놈에서 뽑혀도 한 게임의 캐릭터로 보이게 한다.
@@ -67,6 +71,29 @@
 		return (e.l == null) ? 1 : snap(e.l, PROFILE.lengthMul);
 	}
 
+	// ── ② 채색(palette): 부위 그룹 → 램프 양 끝(colorA/colorB) ─────────────
+	// 스플랫은 이미 제 뼈(rest.w)를 안다 — 그룹별 램프의 *양 끝*만 게놈이 정하고,
+	// 보간 factor(heat=속도·변형률)는 렌더가 유도한다 (절대 원칙 1 유지).
+	function hexToRgba(hex) {
+		if (Array.isArray(hex)) return hex; // 이미 vec4
+		const v = parseInt(String(hex).slice(1), 16);
+		return [((v >> 16) & 255) / 255, ((v >> 8) & 255) / 255, (v & 255) / 255, 1];
+	}
+	// 게놈 palette + 개체 기본색(defA/defB, vec4) → GPU 램프 버퍼 Float32Array(GROUP_IDS×2×4).
+	// palette 미지정 그룹은 개체 기본색으로 채워 항등(회귀 0). 반환 레이아웃: [2g]=A, [2g+1]=B.
+	function groupColors(genome, defA, defB) {
+		const pal = (genome && genome.palette) || {};
+		const out = new Float32Array(GROUP_IDS.length * 8);
+		for (let gi = 0; gi < GROUP_IDS.length; gi++) {
+			const p = pal[GROUP_IDS[gi]];
+			const A = p && p.a != null ? hexToRgba(p.a) : defA;
+			const B = p && p.b != null ? hexToRgba(p.b) : defB;
+			out.set(A, gi * 8);
+			out.set(B, gi * 8 + 4);
+		}
+		return out;
+	}
+
 	// 항등 게놈 — 기존 히키토 사진을 그대로 재현하는 기준선.
 	const IDENTITY = { morph: {} };
 	// 배율 게놈: create({ head: 1.6, arm: 0.8 }) → { morph: { head: 1.6, arm: 0.8 } }
@@ -80,5 +107,5 @@
 		'호리호리': { morph: { head: { r: 0.9 }, neck: { r: 0.8, l: 1.15 }, torso: { r: 0.78, l: 1.05 }, shoulder: { r: 0.8 }, arm: { r: 0.72, l: 1.3 }, hand: { r: 0.75 }, leg: { r: 0.7, l: 1.32 }, foot: { r: 0.8 } } },
 	};
 
-	global.HktGenesisGenome = { groupForName, radiusScale, lengthScale, entryOf, IDENTITY, create, GENOMES, GROUPS, PROFILE };
+	global.HktGenesisGenome = { groupForName, groupId, radiusScale, lengthScale, entryOf, groupColors, hexToRgba, IDENTITY, create, GENOMES, GROUPS, GROUP_IDS, PROFILE };
 })(typeof window !== 'undefined' ? window : globalThis);

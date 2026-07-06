@@ -90,7 +90,8 @@
 	// ── 장면 → 엔진: void 패딩으로 개체 수를 2^k 로 맞춰 setScene ──────────
 	function syncScene(keepTime) {
 		if (!engine) return;
-		objects.forEach((o) => { if (o.genes.form === 3) o.genes.bindBones = currentBindBones(); });
+		// 살 개체는 장면 공용 스켈레톤 게놈 1벌을 공유 — 형태(pose)·채색(palette) 동일 캐릭터
+		objects.forEach((o) => { if (o.genes.form === 3) { o.genes.bindBones = currentBindBones(); o.genes.genome = skel.genome; } });
 		const ents = objects.map((o) => o.genes);
 		let pow = 1;
 		while (pow < Math.max(1, ents.length)) pow <<= 1;
@@ -286,6 +287,25 @@
 			d.appendChild(sliderRow(`${label} 길이`, PL.min, PL.max, PL.step, rd(g, 'l'), (v) => wr(g, 'l', v)));
 		}
 		d.appendChild(el('<div class="note">부위 굵기(반지름)·길이 배율 — 같은 클립을 무수정 재생하며 실루엣·비율만 바뀐다(형태 = 게놈 데이터). 다리 길이는 힙 보정이 발을 지면에 붙인다. 미지정(1) 부위는 기본 문법 그대로.</div>'));
+		// 채색 게놈 ② — 부위 그룹 램프 양 끝(저속·고속). 보간은 속도·변형률 유도(절대 원칙 1).
+		d.appendChild(el('<h2>부위 채색 (그룹 램프)</h2>'));
+		if (!skel.genome.palette) skel.genome.palette = {};
+		const palLabels = { head: '머리', torso: '몸통', arm: '팔', leg: '다리' };
+		const palDef = { a: '#7a3b2a', b: '#ffd9a8' }; // 히키토 기본색
+		for (const [g, label] of Object.entries(palLabels)) {
+			const cur = skel.genome.palette[g] || {};
+			const row = el(`<div class="inline"><label>${label}</label><input type="color" data-k="a" title="저속"><input type="color" data-k="b" title="고속"></div>`);
+			for (const inp of row.querySelectorAll('input')) {
+				const key = inp.dataset.k;
+				inp.value = cur[key] || palDef[key];
+				inp.addEventListener('input', () => {
+					if (!skel.genome.palette[g]) skel.genome.palette[g] = {};
+					skel.genome.palette[g][key] = inp.value;
+				});
+			}
+			d.appendChild(row);
+		}
+		d.appendChild(el('<div class="note">부위별 색 램프의 양 끝(저속·고속) — 채색은 이 양 끝만 게놈이 정하고, 보간(heat=속도·변형률)은 렌더가 유도한다. 미지정 부위는 개체 팔레트 그대로.</div>'));
 		const bonesRow = el('<div class="inline"><label><input type="checkbox"> 뼈대 표시</label></div>');
 		bonesRow.querySelector('input').checked = skel.bones;
 		bonesRow.querySelector('input').addEventListener('change', (e) => { skel.bones = e.target.checked; });

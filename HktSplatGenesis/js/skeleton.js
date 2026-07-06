@@ -52,6 +52,12 @@
 		const G = global.HktGenesisGenome;
 		return (G && genome) ? G.lengthScale(genome, name) : 1;
 	}
+	// 뼈 → 부위 그룹 id (C3: 채색 ②). 세그먼트에 실어 GPU boneGroup 테이블로 올라간다.
+	// HktGenesisGenome 미로드 시 'other'(마지막 인덱스)로 폴백.
+	function groupIdOf(name) {
+		const G = global.HktGenesisGenome;
+		return G ? G.groupId(name) : 9;
+	}
 	// 힙 보정 (C2): 다리 길이 배율로 발이 뚫리거나 뜨지 않게 루트 y 를 보정한다.
 	// 대표 발(왼쪽 Toe/Foot)에서 루트까지 offset.y × (1 − 길이배율) 을 누적 —
 	// 다리가 짧으면(배율<1) 양수 → 힙 하강, 길면 음수 → 힙 상승. rest 포즈 근사(PLAN 정식).
@@ -209,6 +215,7 @@
 				a, b,
 				ra: radiusG(this.defs[p].name, genome, f),
 				rb: radiusG(this.defs[i].name, genome, f),
+				g: groupIdOf(this.defs[i].name), // C3: 자식 뼈 기준 부위 그룹
 			});
 		}
 		return segs;
@@ -265,6 +272,7 @@
 				],
 				ra: radiusG(bone.parent.name, genome, f),
 				rb: radiusG(bone.name, genome, f),
+				g: groupIdOf(bone.name), // C3: 자식 뼈 기준 부위 그룹
 			});
 		}
 		return segs;

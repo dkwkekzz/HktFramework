@@ -39,6 +39,7 @@
 		genes.colorB = hexToVec4(p.colorB);
 		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무, 3 = 살 구름 (setScene 이 해석)
 		genes.emitter = p.emitter || [0, 0.6, 0];
+		genes.genome = skel.genome; // C3: 캐릭터 게놈 1벌 — 형태(pose)·채색(palette)을 함께 안는다
 		// form 3: 뼈 친화 배정 기준이 되는 바인드 세그먼트 (순서 = 매 프레임 pose 와 동일)
 		if (genes.form === 3) genes.bindBones = currentBindBones();
 		sceneEntities = [genes];  // 단일 개체 장면
