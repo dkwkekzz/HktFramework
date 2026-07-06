@@ -1184,11 +1184,33 @@ function svcexchangecap(seeds) {
   }
 }
 
+// step-0492 재작성 — svcexchangexfer: 거래소↔가방 2-서비스 교차 회계(0130 판). 거래소 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치)·아이템 무손실 보존.
+function svcexchangexfer(seeds) {
+  console.log('== svcexchangexfer (0492·서비스 재작성): 거래소↔가방 2-서비스 교차 회계 — 거래소 giveOks == 가방 escrowXfers·아이템 단일 소유 보존. ==');
+  console.log('seed   | giveOks | escrowXfers | minted | 보존 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 14, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } }],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+    });
+    const e = r.exchange, inv = r.inventory;
+    const cross = e.giveOks === inv.escrowXfers && e.giveOks === 2;         // 두 서비스 escrow 회계 합치
+    const conserved = inv.minted === 1 && inv.ownerOf('item0') === 'buyer';  // 아이템 무손실·단일 소유(dupe 0)
+    const ok = check(cross && conserved, `seed ${seed}: cross${cross}(oks${e.giveOks}==xfer${inv.escrowXfers})·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(e.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.minted, 6)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
