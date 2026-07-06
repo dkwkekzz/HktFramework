@@ -1439,11 +1439,28 @@ function mailsagatransient(seeds) {
   }
 }
 
+// step-0502 — mailsagaunacked: 지속 회신 손실(mailAckDropAlways·상한 없음) 하 미해결 give 무손실 회계. 재전송이 영영 통과 못 해도 gives==acked+pending(새는 give 0)·pending==pendingGive(전량 재전송 중)·sagaConsistent. 미해결이 *가시하고 유계*임을 단언(누락 0).
+function mailsagaunacked(seeds) {
+  console.log('== mailsagaunacked (0502·손실 체제): 지속 손실(drop-always·상한없음) → 미해결 give 무손실 회계·pending==pendingGive·gives==acked+pending. ==');
+  console.log('seed   | gives | acked | pending | pendingGive | retries | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0] },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }]).mail;
+    const unresolved = m.pending.size === 1 && m.ackedGives === 0;                       // 회신 영영 미도착 → 미해결 잔존
+    const accounted = m.gives === m.ackedGives + m.pending.size && m.pending.size === m.pendingGive.size;  // 새는 give 0·전량 재전송 중
+    const retried = m.retries >= 2;                                                       // 지속 재전송(포기 상한 없음)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(unresolved && accounted && retried && cons, `seed ${seed}: unres${unresolved}·acct${accounted}·ret${m.retries}·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.gives, 5)} | ${pad(m.ackedGives, 5)} | ${pad(m.pending.size, 7)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.retries, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

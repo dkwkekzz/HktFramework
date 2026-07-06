@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0501](step-0501.md) — **#16 라운드 4차 1: mailsagatransient — 완전 saga liveness *손실 체제* 편입 시작**: 우편 saga 를 내장 손실 seam `mailAckDrop`(1회 드롭)+autoRetry 로 구동해 *실제 회신 손실*을 주입, 재전송 자가 치유(pending 0 drain·gives==acked·retries≥1) 를 verify-kit ORDER 편입. 공용 하니스 `runMailLoss` 추가. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagatransient 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — 0491~0500 서비스 capstone 이 *행복 경로*(pending/abandon/permFailed 0 자명)만 봤던 sagaLivenessConsistent 를 손실 하 비자명 검증. 남은 조각: unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0502](step-0502.md) — **#16 라운드 4차 2: mailsagaunacked — 지속 손실 하 미해결 무손실 회계**: 우편 saga 를 지속 손실 seam `mailAckDropAlways`(상한없음)로 구동 — 재전송이 영영 통과 못 해도 gives==acked+pending·pending==pendingGive·sagaConsistent. 미해결 give 가 *가시하고 유계*(누락 0). 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagaunacked 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: transient(0501)·unacked(0502). 남은 조각: abandon(0503)·abandonpub(0504)·readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -154,3 +154,4 @@
 | [0499](step-0499.md) | #16 승급 라운드 3차 9: 거래소 release 경로(취소·만료 TTL) escrow 반환 capstone 재작성 편입·아이템 판매자 복귀 | 통과(reg 0·spine OK) · svcexchangecancel 5/5 |
 | [0500](step-0500.md) | #16 승급 라운드 3차 10·arc 닫기: 서비스 saga capstone 9종 ORDER/MODES 등록 가드 promotedsvc 추가·헤더 카탈로그 갱신(0491~0500 닫힘) | 통과(reg 0·spine OK) · promotedsvc 9/9 |
 | [0501](step-0501.md) | #16 라운드 4차 1: mailsagatransient — 우편 saga 일시 회신 손실(mailAckDrop drop-once)+autoRetry 자가 치유 편입·공용 하니스 runMailLoss | 통과(reg 0·spine OK) · mailsagatransient 5/5 |
+| [0502](step-0502.md) | #16 라운드 4차 2: mailsagaunacked — 지속 손실(mailAckDropAlways·상한없음) 하 미해결 give 무손실 회계(gives==acked+pending·pending==pendingGive) | 통과(reg 0·spine OK) · mailsagaunacked 5/5 |

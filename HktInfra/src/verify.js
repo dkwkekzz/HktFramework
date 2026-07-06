@@ -1,7 +1,7 @@
-// HktInfra step-0501 — 헤드리스 검증 (#16 라운드 4차 1: mailsagatransient — 완전 saga liveness 손실 체제 편입)
+// HktInfra step-0502 — 헤드리스 검증 (#16 라운드 4차 2: mailsagaunacked — 지속 손실 하 미해결 give 무손실 회계)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 일시 회신 손실(mailAckDrop drop-once)+autoRetry 재전송
-//   자가 치유 capstone(pending 0 drain·gives==acked) 을 verify-kit ORDER 로 편입. 박스 무수정→reg 0 자명. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 지속 회신 손실(mailAckDropAlways·상한없음) 하
+//   미해결 give 무손실 회계(gives==acked+pending·pending==pendingGive) 를 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
