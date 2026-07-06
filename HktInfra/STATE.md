@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0497](step-0497.md) — **#16 승급 라운드 3차 7: svcmailexpire 편입**: 우편 메시지 통수 회계 capstone(옛 0150 mailConsistent 판)을 재작성 편입 — 만료 TTL 하 sent==held+fetched+expired(세 종결 분할·공백/중복 0). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·svcmailexpire 5/5(sent2==fetched1+expired1+held0·mailConsistent)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 3차 arc(0491~) — 서비스 saga capstone 재작성 편입** — 상세·순서는 §2. 거래소 saga(✅0491)→거래소 교차→우편 saga→우편 교차→길드 로스터→길드 금고→liveness→가드+arc 닫기.
+- **닫힌 step**: [step-0498](step-0498.md) — **#16 승급 라운드 3차 8: svcsvccombined 편입**: 서비스 계층 종합 격리 capstone 신규 — 거래소+우편+길드 한 run() 동시 구동·각 정합 술어 동시 성립·상호 비간섭(공유 가방 격리·아이템 무손실). 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·svcsvccombined 5/5(exch/mail/roster/bank/격리 전부 Y)·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 3차 arc(0491~) — 서비스 saga capstone 재작성 편입**(상세 §2). 편입 완료: 거래소 saga/교차·우편 saga/교차/만료·길드 로스터/금고(0491~0497). 남음: 종합 격리·가드+arc 닫기.
 
 ---
 
@@ -157,3 +157,4 @@
 | [0495](step-0495.md) | #16 승급 라운드 3차 5: 길드 로스터 single-master 정합 capstone(0190 rosterConsistent 판·이양 쌍 거래·master 보호) 재작성 편입 | 통과(reg 0·spine OK) · svcguildcap 5/5 |
 | [0496](step-0496.md) | #16 승급 라운드 3차 6: 길드 금고 원장 정합 capstone(0199 bankConsistent 판·itemId 단일 길드 소유·예치−인출==잔여) 재작성 편입 | 통과(reg 0·spine OK) · svcbankcap 5/5 |
 | [0497](step-0497.md) | #16 승급 라운드 3차 7: 우편 메시지 통수 회계 capstone(0150 mailConsistent 판·sent==held+fetched+expired·만료 TTL) 재작성 편입 | 통과(reg 0·spine OK) · svcmailexpire 5/5 |
+| [0498](step-0498.md) | #16 승급 라운드 3차 8: 서비스 종합 격리 capstone 신규(거래소+우편+길드 한 run()·각 술어 동시 성립·공유 가방 격리) | 통과(reg 0·spine OK) · svcsvccombined 5/5 |

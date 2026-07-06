@@ -1322,11 +1322,50 @@ function svcmailexpire(seeds) {
   }
 }
 
+// step-0498 재작성 — svcsvccombined: 거래소+우편+길드 세 서비스 한 run() 동시 구동 — 각 정합 술어 동시 성립 + 상호 비간섭(서비스 격리·아이템 무손실 종합).
+function svcsvccombined(seeds) {
+  console.log('== svcsvccombined (0498·서비스 재작성): 거래소+우편+길드 한 run() 종합 — 각 정합 술어 동시 성립·서비스 격리(상호 비간섭). ==');
+  console.log('seed   | exch | mail | roster | bank | 격리 | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 18, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true,
+      exchange: true, exchInventory: true, exchSaga: true,
+      mail: true, mailItem: true, mailInv: true, mailSaga: true,
+      guildService: true, guildBank: true,
+      invOps: [
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } },   // item0
+        { at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r1' } },     // item1
+      ],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+      mailOps: [
+        { at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'gift', item: 'item1' } },
+        { at: 9, op: { type: 'mailFetch', to: 'bob' } },
+      ],
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 2, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'gold0', member: 'alice' } },
+      ],
+    });
+    const e = r.exchange, m = r.mail, g = r.guild, inv = r.inventory;
+    const exchOk = e.sagaLiveConsistent() && e.giveOks === 2 && inv.ownerOf('item0') === 'buyer';
+    const mailOk = m.sagaLiveConsistent() && m.giveOks === 2 && inv.ownerOf('item1') === 'bob';
+    const rosterOk = g.rosterConsistent();
+    const bankOk = g.bankConsistent() && JSON.stringify(g.bankOf('g1')) === '["gold0"]';
+    const isolated = inv.minted === 2 && e.giveOks + m.giveOks === inv.escrowXfers;   // 두 서비스 escrow 합·아이템 무손실(item0·item1 각 단일 소유)
+    const ok = check(exchOk && mailOk && rosterOk && bankOk && isolated, `seed ${seed}: exch${exchOk}·mail${mailOk}·roster${rosterOk}·bank${bankOk}·iso${isolated}`);
+    console.log(`${pad(seed, 6)} | ${pad(exchOk ? 'Y' : 'N', 4)} | ${pad(mailOk ? 'Y' : 'N', 4)} | ${pad(rosterOk ? 'Y' : 'N', 6)} | ${pad(bankOk ? 'Y' : 'N', 4)} | ${pad(isolated ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
