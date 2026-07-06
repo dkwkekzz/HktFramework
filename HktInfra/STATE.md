@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0485](step-0485.md) — **#16 승급 라운드 2차 5: worldcap 승격**: 0350 grand capstone `worldcap`(월드 다운스트림 E2E·host AOI→전파→실 DownClient 수렴 desync0·게이트웨이 격리·SPINE §4 경로2)을 누적 회귀로 승격. 자기완결(in-proc run/NET.*) capstone 5종 완료. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·worldcap 5/5(downstreamWorldCoherent·dc0/1/2 수렴·iso)·spine ALL OK.
-- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster child_process capstone·makeVerifyKit dep 주입 필요): upce2ecap(0480)→clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
+- **닫힌 step**: [step-0486](step-0486.md) — **#16 승급 라운드 2차 6: upce2ecap 승격(첫 cluster child_process)**: 0480 grand capstone `upce2ecap`(실 UpClient intent→실 host.js child 경계→존→egress 되먹임 E2E)을 누적 회귀로 승격. makeVerifyKit ctx 에 cluster deps 주입 배선(Cluster/HostDriver/Coordinator/runMultiViaCoord/coordAuthEquiv) 추가. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·upce2ecap 5/5(실 경계 수렴·회계·exactly-once resends6~18·leave 제거)·spine ALL OK.
+- **다음**: 🎯 **#16 승급 라운드 2차 arc(0481~)** — 상세는 §2. 남은 승격(cluster·ctx 주입 완료): clusterdatacap(0370)→coordmergecap(0420)→coordcap(0380)→arc 정리(서비스 saga capstone 재작성 후속 명시).
 
 ---
 
@@ -159,3 +159,4 @@
 | [0483](step-0483.md) | #16 승급 라운드 2차 3: 0450 grand capstone nete2ecap(실 engine Net 배리어==배리어-free substrate==canonical 등가)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · nete2ecap 5/5 |
 | [0484](step-0484.md) | #16 승급 라운드 2차 4: 0440 grand capstone asynce2ecap(진짜 비동기 substrate in-proc·M 복제 순열+손실→전 복제 desync0)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · asynce2ecap 5/5 |
 | [0485](step-0485.md) | #16 승급 라운드 2차 5: 0350 grand capstone worldcap(월드 다운스트림 E2E·host AOI→전파→실 DownClient 수렴 desync0·게이트웨이 격리)을 verify-kit 누적 회귀로 승격 | 통과(reg 0·spine OK) · worldcap 5/5 |
+| [0486](step-0486.md) | #16 승급 라운드 2차 6: 0480 grand capstone upce2ecap(실 UpClient→실 host.js child 경계→존→egress E2E)을 승격·makeVerifyKit ctx cluster dep 주입 배선 | 통과(reg 0·spine OK) · upce2ecap 5/5 |

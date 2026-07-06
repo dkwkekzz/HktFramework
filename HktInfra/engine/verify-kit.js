@@ -50,6 +50,8 @@
 
 module.exports = function makeVerifyKit(ctx) {
   const { NET, NETPREV, SEEDS, DEATH, LEASE, RESTART_AT, SNAP_N, CHAT_SNAP_N, JLOSS } = ctx;
+  // #16 승급 라운드 2차(0486~) — cluster child_process grand capstone 승격용 주입 deps(engine→src 결합 없이 verify.js 셸이 ctx 로 넘김).
+  const { Cluster, makeClusterHostDriver, makeClusterCoordinator, runMultiViaCoord, coordAuthEquiv } = ctx;
   const { run, runMulti, fnv1a, buildTopology, PUBLIC_ADDRS, quorumMergeJournals,
         chatDesync, chatPhantom, chatLeak, chatClientNoLeak, chatDigest,
         itemConserved, ledgerConsistent, maxItemBeliefOwners, itemDesync, invDigest,
@@ -1004,11 +1006,48 @@ function worldcap(seeds) {
   }
 }
 
+// step-0480 #70 grand capstone — upce2ecap: 실 UpClient E2E 경계(수렴·exactly-once·회계·생애주기). (cluster child_process — ctx dep Cluster/makeClusterHostDriver 주입)
+async function upce2ecap(seeds) {
+  const GRID = 16;
+  const zoneSpecOf = (addr, seed) => ({ addr, kind: 'zone', seed, opts: { region: { lo: 0, hi: GRID }, sibling: null, boundary: GRID, grid: GRID, radius: 4 } });
+  const withCluster = async (hosts, wire, fn) => {
+    const cluster = new Cluster(hosts, wire);
+    await cluster.spawn();
+    try { return await fn(cluster); } finally { for (const h of hosts.slice()) { try { await cluster.killHost(h); } catch {} } }
+  };
+  const tickUp = (uc, t) => { const cap = []; uc.net = { send: (f, to, p) => cap.push(p) }; uc.onTick(t); return cap; };
+  console.log('== upce2ecap (0480·#70 grand capstone): 실 UpClient E2E 경계 — 수렴·exactly-once(손실)·회계·생애주기(leave). ==');
+  console.log('seed   | uc0 수렴 | 회계 | exactly-once(dup) | uc1 leave 제거 | 판정');
+  for (const seed of seeds) {
+    await withCluster(['hostA'], { drop: 0.25, dropSeed: (seed ^ 0x7EE5) >>> 0 }, async (cluster) => {
+      await cluster.init(new Map([['hostA', [zoneSpecOf('zone1', seed), zoneSpecOf('zone2', seed)]]]));
+      const drv = makeClusterHostDriver();
+      const uc0 = new NET.UpClient({ avatar: 'a1', zoneId: 'zone1', joinAt: 1, plan: [[2, 1], [3, 0], [-1, 2]] });
+      for (const op of tickUp(uc0, 1)) await drv.deliverIntent(cluster, 'hostA', op);
+      drv.feedViews(await drv.tickZone(cluster, 'hostA', 'zone1', 1), uc0);
+      const e0 = await drv.zoneEntity(cluster, 'hostA', 'zone1', 'a1');
+      for (let t = 2; t <= 5; t++) { for (const op of tickUp(uc0, t)) await drv.deliverIntent(cluster, 'hostA', op); drv.feedViews(await drv.tickZone(cluster, 'hostA', 'zone1', t), uc0); }
+      const authA = await drv.upstreamAuthSig(cluster, 'hostA', 'zone1');
+      const converged = uc0.seenSig() === authA && authA !== '';
+      const d = uc0.intentDelta();
+      const exp = { x: ((e0.x + d.dx) % GRID + GRID) % GRID, y: ((e0.y + d.dy) % GRID + GRID) % GRID };
+      const fin = await drv.zoneEntity(cluster, 'hostA', 'zone1', 'a1');
+      const accounted = fin && fin.x === exp.x && fin.y === exp.y;
+      const uc1 = new NET.UpClient({ avatar: 'b1', zoneId: 'zone2', joinAt: 1, plan: [[1, 1]], leaveAt: 3 });
+      await drv.driveUpstream(cluster, [uc1], 4, () => 'hostA');
+      const removed = (await drv.zoneEntity(cluster, 'hostA', 'zone2', 'b1')) === null;
+      const once = cluster.resends > 0 && converged && accounted;
+      const pass = check(converged && accounted && once && removed, `seed ${seed}: conv${converged}·acct${accounted}·resend${cluster.resends}·removed${removed}`);
+      console.log(`${pad(seed, 6)} | ${pad(converged ? 'Y' : 'N', 8)} | ${pad(accounted ? 'Y' : 'N', 4)} | ${pad('Y(rs' + cluster.resends + '·dup' + cluster.dupCmds + ')', 17)} | ${pad(removed ? 'Y' : 'N', 14)} | ${pass ? 'OK' : 'FAIL'}`);
+    });
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
