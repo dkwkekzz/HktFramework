@@ -33,7 +33,7 @@ const { serve, launch, collectErrors, savePng } = require('./_common');
 	await page.selectOption('#count', COUNT);
 
 	// ① 지형 생성 → 무대 로드 대기 (Spark 로드는 rAF 무관 — hasWorld 플래그)
-	await page.evaluate(() => window.HktGenesisEditor.generateTerrain({ seed: 7, amp: 0.9, scale: 3.2, octaves: 4, extent: 4.8 }));
+	await page.evaluate(() => window.HktGenesisEditor.generateTerrain({ seed: 8, amp: 0.9, scale: 3.2, octaves: 4, extent: 4.8 }));
 	try {
 		await page.waitForFunction(() => window.HktGenesisStage && window.HktGenesisStage.hasWorld,
 			null, { timeout: 60000, polling: 500 });
@@ -127,7 +127,7 @@ const { serve, launch, collectErrors, savePng } = require('./_common');
 	// 판정: 생명 렌더 + 무대 요철 + 배치 5/슬라이스 8(void 패딩) + heightfield 커버리지 + 스켈레톤 walk
 	const ok = shot.lifePx > 500 && shot.stageSd > 4
 		&& dbg.objects.length === 5 && dbg.entities === 8
-		&& dbg.coverage > 0.5 && dbg.terrain && dbg.terrain.seed === 7
+		&& dbg.coverage > 0.5 && dbg.terrain && dbg.terrain.seed === 8
 		&& dbg.skeleton.clip === 'walk'
 		&& real.length === 0;
 	if (!ok) console.error('판정 실패:', JSON.stringify({ lifePx: shot.lifePx, stageSd: shot.stageSd, dbg, errors: real }));

@@ -402,7 +402,7 @@
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
 				bones, showBones: skel.bones,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
-				gridCenter: camera.target, // S5 시뮬 버블 — 이웃 규칙이 시점을 따라간다
+				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});

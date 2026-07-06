@@ -363,6 +363,15 @@
 			(at(iu, iv + 1) * (1 - fu) + at(iu + 1, iv + 1) * fu) * fv;
 	};
 
+	// T3 버블 y 추종 — 시뮬 격자 중심을 카메라 타깃 밑 지형 높이에 맞춘다. 격자 y 는
+	// [gc.y-1.6, gc.y+8] 이라, gc.y = 지형높이 + 0.8 이면 지형 표면이 격자 바닥 0.8m 위에
+	// 놓여 고저차가 큰 산·계곡에서도 생명이 격자 안에 산다(평면 지형은 +0.8 = 기존 기본과 동일).
+	// heightfield 가 없으면(평면 폴백) 타깃 y 그대로 — 기존 거동 불변.
+	HktGenesisEngine.prototype.bubbleCenter = function (target) {
+		if (!this._hf) return target;
+		return [target[0], this.terrainHeightAt(target[0], target[2]) + 0.8, target[2]];
+	};
+
 	// emitter y 를 지형 위 상대 높이로 해석 — 프리셋의 y(지상고)에 지형 높이를 더한다
 	HktGenesisEngine.prototype._terrainAdjust = function (g) {
 		if (!this._hf) return g;

@@ -207,7 +207,7 @@
 	}
 
 	// 지형 생성 파라미터 — 시드/진폭/기복/옥타브/범위 → [생성] 이 무대+collider 를 한 번에 굽는다
-	const terrParams = { seed: 7, amp: 0.9, scale: 3.0, octaves: 4, extent: 4.8 };
+	const terrParams = { seed: 8, amp: 0.9, scale: 3.0, octaves: 4, extent: 4.8, biomes: true, waterY: -0.2, biomeScale: 40 };
 	function buildTerrainDetail(d) {
 		d.appendChild(el('<h2>절차 지형 (시드 → 무대 + 시뮬 바닥)</h2>'));
 		const seedRow = el('<div class="inline"><label>시드</label><input type="number" step="1"><button>🎲</button></div>');
@@ -223,7 +223,15 @@
 		d.appendChild(sliderRow('진폭', 0.2, 1.1, 0.05, terrParams.amp, (v) => { terrParams.amp = v; }));
 		d.appendChild(sliderRow('기복 크기', 1, 8, 0.1, terrParams.scale, (v) => { terrParams.scale = v; }));
 		d.appendChild(sliderRow('옥타브', 1, 6, 1, terrParams.octaves, (v) => { terrParams.octaves = v; }));
-		d.appendChild(sliderRow('범위(반폭)', 4.8, 15, 0.1, terrParams.extent, (v) => { terrParams.extent = v; }));
+		// 범위를 키우면 바이옴(온·습도)이 창 안에서 바뀌어 보인다 — T2 청크 스트리밍 전의 단일창 미리보기
+		d.appendChild(sliderRow('범위(반폭)', 4.8, 40, 0.1, terrParams.extent, (v) => { terrParams.extent = v; }));
+		// 바이옴: 저주파 2채널(온·습도)로 평야/산악/사막/설원 을 경계 보간 (끄면 단일 fBm)
+		const bioRow = el('<div class="inline"><label><input type="checkbox"> 바이옴</label></div>');
+		bioRow.querySelector('input').checked = terrParams.biomes;
+		bioRow.querySelector('input').addEventListener('change', (e) => { terrParams.biomes = e.target.checked; });
+		d.appendChild(bioRow);
+		d.appendChild(sliderRow('바이옴 크기(m)', 15, 80, 1, terrParams.biomeScale, (v) => { terrParams.biomeScale = v; }));
+		d.appendChild(sliderRow('수위 Y', -0.7, 0.6, 0.05, terrParams.waterY, (v) => { terrParams.waterY = v; }));
 		const btns = el('<div class="inline"><button>지형 생성</button><button>지형 제거</button></div>');
 		btns.children[0].addEventListener('click', () => generateTerrain());
 		btns.children[1].addEventListener('click', () => clearTerrain());
@@ -588,7 +596,7 @@
 				dt, time: simTime, genes: sceneEntities[0], entities: sceneEntities, paused: !playing, pull,
 				bones, showBones: skel.bones,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
-				gridCenter: camera.target, // S5 시뮬 버블
+				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
 				view: lastView, proj: lastProj,
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
