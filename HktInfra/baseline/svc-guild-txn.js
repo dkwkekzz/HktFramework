@@ -58,7 +58,7 @@ const GuildTxn = {
       const g = this.guilds.get(p.guildId);
       const v = this.vault.get(p.guildId);
       if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
-        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194).
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId }); this._custody(p.itemId, 'escrow', p.member, { kind: 'withdraw', guildId: p.guildId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194)·escrow 입금 leg(0512·escrow→멤버 가방·인출 0117 짝·invMode ON 일 때만).
       }
       return;
     }
