@@ -9,15 +9,17 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0500](step-0500.md) — **#16 승급 라운드 3차 10·arc 닫기: promotedsvc 등록 가드**: 재작성 편입한 서비스 saga capstone 9종이 ORDER/MODES 항구 등록됐는지 단언하는 가드 mode `promotedsvc` 추가 + 헤더 카탈로그 갱신. **#16 라운드 3차 arc(0491~0500) 닫힘** — 서비스 계층(거래소·우편·길드) 실행 검증 verify-kit ORDER 상주(감사 §2 ①-b 해소). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·promotedsvc 9/9 등록·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 3차 arc(0491~0500 ✅ 닫힘)** — 서비스 saga capstone 9종(거래소 3·우편 3·길드 2·종합 1) verify-kit ORDER 편입·promotedsvc 가드. **#16 대체로 해소**(grand+서비스 capstone HEAD 재검증). **후속(우선순위)**: ⒜ 완전 saga liveness(회신 손실 주입→abandon/permFailed 3분할 발현·loss seam) ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0501](step-0501.md) — **#16 라운드 4차 1: mailsagatransient — 완전 saga liveness *손실 체제* 편입 시작**: 우편 saga 를 내장 손실 seam `mailAckDrop`(1회 드롭)+autoRetry 로 구동해 *실제 회신 손실*을 주입, 재전송 자가 치유(pending 0 drain·gives==acked·retries≥1) 를 verify-kit ORDER 편입. 공용 하니스 `runMailLoss` 추가. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagatransient 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — 0491~0500 서비스 capstone 이 *행복 경로*(pending/abandon/permFailed 0 자명)만 봤던 sagaLivenessConsistent 를 손실 하 비자명 검증. 남은 조각: unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#16 승급 라운드 3차 arc(0491~0500 ✅ 닫힘) — 서비스 saga capstone 재작성 편입(감사 §2 ①-b)**: 옛 서비스 capstone 코드가 git 소실(history ~0248)이라 **재작성** — `run()` 을 서비스 opts(exchange/mail/guild+saga)로 구동하고 노출 정합 술어를 단언 후 ORDER 편입. 편입 9종: 거래소 saga/교차/취소(0491·0492·0499)·우편 saga/교차/만료(0493·0494·0497)·길드 로스터/금고(0495·0496)·종합 격리(0498)·promotedsvc 가드(0500). 자기완결(NET.run)·박스 무수정→매 step reg 0. **#16 대체로 해소**(grand+서비스 capstone HEAD 재검증). **남은 #16(경미)**: 완전 saga liveness(회신 손실 주입 seam→abandon/permFailed 3분할 발현).
+> 🎯 **#16 라운드 4차 arc(0501~0510 진행 중) — 완전 saga liveness *손실 체제* 편입(STATE §2 ⒜·라운드 3차 잔여 집행)**: 0491~0500 서비스 capstone 은 *행복 경로*만 구동해 sagaLivenessConsistent(pending==pendingGive+abandonedGive+permFailed)가 (0,0,0) 자명 참이었다. 이 arc 는 우편 saga 내장 손실 seam(mailAckDrop 1회 드롭·mailAckDropAlways 지속 드롭)으로 *실제 회신 손실*을 주입해 재전송→포기(abandon)→재admission(readmit)→영구실패(permFailed) 수명주기를 발현시키고 각 국면에서 3분할·회계 정합이 *비자명*(각 항 nonzero) 성립함을 단언. 편입: transient(0501)·unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505)·readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). 공용 하니스 `runMailLoss`·박스 무수정→매 step reg 0. **이 arc 닫히면 #16 완전 해소**.
+
+> 🎯 **(닫힘) #16 라운드 3차 arc(0491~0500 ✅) — 서비스 saga capstone 재작성 편입(감사 §2 ①-b)**: 거래소 saga/교차/취소·우편 saga/교차/만료·길드 로스터/금고·종합 격리·promotedsvc 가드 9종 ORDER 편입(행복 경로). 손실 체제는 라운드 4차(위)가 이음.
 
 > 🔎 **감사(2026-07-02) 남은 우선순위**: ① **#16**(2차 grand capstone ✅ + **3차 서비스 saga capstone 진행 중**·위 arc) ② #74 실 GW 분리 ③ #46 escrow+서버간 인증 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
@@ -151,3 +153,4 @@
 | [0498](step-0498.md) | #16 승급 라운드 3차 8: 서비스 종합 격리 capstone 신규(거래소+우편+길드 한 run()·각 술어 동시 성립·공유 가방 격리) | 통과(reg 0·spine OK) · svcsvccombined 5/5 |
 | [0499](step-0499.md) | #16 승급 라운드 3차 9: 거래소 release 경로(취소·만료 TTL) escrow 반환 capstone 재작성 편입·아이템 판매자 복귀 | 통과(reg 0·spine OK) · svcexchangecancel 5/5 |
 | [0500](step-0500.md) | #16 승급 라운드 3차 10·arc 닫기: 서비스 saga capstone 9종 ORDER/MODES 등록 가드 promotedsvc 추가·헤더 카탈로그 갱신(0491~0500 닫힘) | 통과(reg 0·spine OK) · promotedsvc 9/9 |
+| [0501](step-0501.md) | #16 라운드 4차 1: mailsagatransient — 우편 saga 일시 회신 손실(mailAckDrop drop-once)+autoRetry 자가 치유 편입·공용 하니스 runMailLoss | 통과(reg 0·spine OK) · mailsagatransient 5/5 |

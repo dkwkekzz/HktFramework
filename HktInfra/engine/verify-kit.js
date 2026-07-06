@@ -16,6 +16,7 @@
 //   mode: reg | wquorum | inflight | tail | reliable | chat-compact | recover-chat | rank | recover-rank | e2e | sacred | recover | compact | degrade | inject | isolate | hide | repro | all
 //   + #16 라운드 2차 grand capstone 승급(0481~0490): mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap · promoted16(등록 가드)
 //   + #16 라운드 3차 서비스 saga capstone 재작성 편입(0491~0500): svcexchangecap·svcexchangexfer·svcmailcap·svcmailxfer·svcguildcap·svcbankcap·svcmailexpire·svcsvccombined·svcexchangecancel · promotedsvc(등록 가드)
+//   + #16 라운드 4차 완전 saga liveness 손실 체제 편입(0501~0510·STATE §2 ⒜): mailsagatransient·mailsagaunacked·mailsagaabandon·mailsagaabandonpub·mailsagareadmit·mailsagareadmitpub·mailsagapermfail·mailsagafailpub·mailsaga3way · promotedsagaloss(등록 가드)
 //     3차 균형 승급(0231~0240): instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon
 //     reg          — 회귀 0: 인프로세스 모드(quorumW 0) → step-0028 와 *비트 동일*(net.log + 상태 + inv/chat/bus/rank).
 //                  저널 q 플래그·ack 회신·durableSeq 집계는 quorumW 0 이면 *휴면*(q 0·ack 0·워터마크 미사용)임을 직접 증명.
@@ -1404,11 +1405,45 @@ function promotedsvc(seeds) {
   check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promotedsvc: 서비스 saga capstone 9종 전부 등록`);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  #16 라운드 4차 — 완전 saga liveness *손실 체제* 편입(0501~0510·STATE §2 ⒜)
+//   0491~0500 서비스 saga capstone 은 *행복 경로*(pending 0·abandon 0·permFailed 0)만 구동했다 —
+//   3분할 술어(sagaLivenessConsistent)는 참이었으나 (0,0,0) 자명 참이었다. 이 arc 는 우편 saga 의
+//   내장 손실 seam(mailAckDrop 1회 드롭·mailAckDropAlways 지속 드롭)으로 *실제 회신 손실*을 주입해
+//   재전송→포기(abandon)→재admission(readmit)→영구실패(permFailed) 수명주기를 발현시키고, 각 국면에서
+//   sagaConsistent(gives==acked+pending·acked==oks+fails)·sagaLivenessConsistent(pending==pendingGive+
+//   abandonedGive+permFailed) 가 *비자명하게*(각 항 nonzero) 성립함을 단언한다. 박스 무수정→reg 0 자명.
+// runMailLoss(extra, mailOps, invItems) — 우편 아이템 saga 를 손실 opts 로 구동하는 공용 하니스(9 모드 공유).
+function runMailLoss(extra, mailOps, invItems) {
+  const invOps = (invItems || ['item0']).map((_, i) => ({ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r' + i } }));
+  return run(Object.assign({
+    seed: 0, ticks: 40, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+    bus: true, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true, mailAutoRetry: true,
+    invOps, mailOps,
+  }, extra));
+}
+
+// step-0501 — mailsagatransient: 일시적 회신 손실(mailAckDrop 1회 드롭) 하 자가 치유. autoRetry sweep 1회 재전송이 ack 를 재유도 → pending 0 drain·gives==ackedGives. transient 손실은 스스로 낫는다.
+function mailsagatransient(seeds) {
+  console.log('== mailsagatransient (0501·손실 체제): 일시 회신 손실(drop-once)+autoRetry → 재전송이 ack 재유도·pending 0 drain·gives==acked. ==');
+  console.log('seed   | gives | acked | pending | retries | sagaC | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDrop: [0] },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }]).mail;
+    const healed = m.pending.size === 0 && m.ackedGives === m.gives && m.gives === 1;   // 재전송으로 회신 재도착·미해결 0
+    const retried = m.retries >= 1;                                                      // 최소 1회 재전송(손실이 발현했음)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(healed && retried && cons, `seed ${seed}: healed${healed}·retried${retried}(ret${m.retries})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.gives, 5)} | ${pad(m.ackedGives, 5)} | ${pad(m.pending.size, 7)} | ${pad(m.retries, 7)} | ${pad(cons ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
