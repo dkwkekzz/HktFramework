@@ -137,6 +137,8 @@ class GuildService {
     }
     this.guilds = m;
     this.vault = bank;
+    // step-0514 — 금고 escrow 집합 재구성(guildBankInv·#46): crash 로 휘발한 escrowIds(가방 escrow 추적)를 복원한 vault 에서 재계산. vault 아이템 = escrow 에 있는 아이템(가방은 별 박스라 crash 무관·여전히 'escrow' 소유)이므로 escrowIds == Σvault → 재구성 후 2-서비스 보존(0513) 유지. invMode OFF 면 skip(escrowIds 무의미·직전 비트 동일·reg 0).
+    if (this.invMode) { this.escrowIds = new Set(); for (const v of bank.values()) for (const id of v) this.escrowIds.add(id); }
   }
 }
 

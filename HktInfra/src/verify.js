@@ -1,7 +1,7 @@
-// HktInfra step-0513 — 헤드리스 검증 (#46 금고↔가방 escrow 3: guildbankconserved — 2-서비스 보존 capstone)
+// HktInfra step-0514 — 헤드리스 검증 (#46 금고↔가방 escrow 4: guildbankcrash — crash→reconstruct escrow 보존)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 금고 escrowIds == 가방 escrow 소유 집합·Σvault==escrowIds.size(거래소 0120·우편 0164 의 금고 판)
-//   pure-verify 교차 단언(박스 무수정) verify-kit ORDER 편입. 박스 무변→reg 0 자명. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 금고 crash→reconstruct 후 escrowIds 를 vault 에서 재구성해 가방 escrow 소유와 일치 유지(2-서비스 보존 crash 체제)
+//   svc-guild.js reconstruct 확장(guildBankInv gated) verify-kit ORDER 편입. invMode OFF→skip→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
