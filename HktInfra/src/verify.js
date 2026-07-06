@@ -1,7 +1,7 @@
-// HktInfra step-0505 — 헤드리스 검증 (#16 라운드 4차 5: mailsagareadmit — 포기 give 재admission 복구 기제)
+// HktInfra step-0506 — 헤드리스 검증 (#16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E 관측)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 포기 give 를 mailReadmit 으로 재admission
-//   (abandonedGive→pendingGive 역이행·readmitted>0·pending 불변) 을 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 우편 saga 재admission 시 svc.mail.saga_readmitted 발행→버스→audit 수신
+//   (readmitPublished==readmitted==audit.seen) 을 verify-kit ORDER 편입. 박스 무수정→reg 0. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');

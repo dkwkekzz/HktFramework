@@ -1507,11 +1507,29 @@ function mailsagareadmit(seeds) {
   }
 }
 
+// step-0506 — mailsagareadmitpub: 재admission 발행 E2E 관측(mailReadmitPublish+audit). 재admission 시 svc.mail.saga_readmitted 1회 발행 → 버스 → audit 수신. readmitPublished==readmitted==audit.seen. 포기 발행(0504)의 짝 — 복구 사건도 은닉 통신으로 가시.
+function mailsagareadmitpub(seeds) {
+  console.log('== mailsagareadmitpub (0506·손실 체제): 재admission 발행 E2E — svc.mail.saga_readmitted 발행→버스→audit. readmitPublished==readmitted==audit.seen. ==');
+  console.log('seed   | readmitted | readmitPublished | auditSeen | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, audit: true, mailAckDropAlways: [0], mailMaxRetries: 2, mailReadmitPublish: true },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } },
+       { at: 13, op: { type: 'mailReadmit' } }]);
+    const svc = m.mail, seen = m.audit ? (m.audit.seen.get('svc.mail.saga_readmitted') || 0) : -1;
+    const published = svc.readmitted === 1 && svc.readmitPublished === svc.readmitted;   // 재admission 마다 1회 발행(1:1)
+    const observed = seen === svc.readmitted;                                            // 버스 경유 audit 수신 일치
+    const cons = svc.sagaConsistent() && svc.sagaLivenessConsistent();
+    const ok = check(published && observed && cons, `seed ${seed}: pub${published}·obs${observed}(seen${seen})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(svc.readmitted, 10)} | ${pad(svc.readmitPublished, 16)} | ${pad(seen, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);

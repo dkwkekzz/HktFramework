@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0505](step-0505.md) — **#16 라운드 4차 5: mailsagareadmit — 포기 give 재admission 복구 기제**: 포기 후 mailReadmit → abandonedGive→pendingGive 역이행·readmitted>0·pending 불변·sagaLive. 포기(0503)의 역이행. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagareadmit 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: transient(0501)·unacked(0502)·abandon(0503)·abandonpub(0504)·readmit(0505). 남은 조각: readmitpub(0506)·permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0506](step-0506.md) — **#16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E 관측**: 재admission 시 svc.mail.saga_readmitted 발행→버스→audit. readmitPublished==readmitted==audit.seen. 포기 발행(0504)의 짝. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagareadmitpub 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: 0501~0506(transient·unacked·abandon·abandonpub·readmit·readmitpub). 남은 조각: permfail(0507)·failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -158,3 +158,4 @@
 | [0503](step-0503.md) | #16 라운드 4차 3: mailsagaabandon — 재시도 상한(mailMaxRetries) 도달 → 포기(giveAbandoned>0·pendingGive→abandonedGive·pending==abandonedGive) | 통과(reg 0·spine OK) · mailsagaabandon 5/5 |
 | [0504](step-0504.md) | #16 라운드 4차 4: mailsagaabandonpub — 포기 발행 E2E(svc.mail.saga_abandoned 발행→버스→audit·abandonPublished==giveAbandoned==audit.seen) | 통과(reg 0·spine OK) · mailsagaabandonpub 5/5 |
 | [0505](step-0505.md) | #16 라운드 4차 5: mailsagareadmit — 포기 give 재admission(abandonedGive→pendingGive 역이행·readmitted>0·pending 불변) | 통과(reg 0·spine OK) · mailsagareadmit 5/5 |
+| [0506](step-0506.md) | #16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E(svc.mail.saga_readmitted 발행→버스→audit·readmitPublished==readmitted==audit.seen) | 통과(reg 0·spine OK) · mailsagareadmitpub 5/5 |
