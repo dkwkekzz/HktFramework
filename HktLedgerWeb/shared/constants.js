@@ -5,11 +5,12 @@
 // 에너지 단위는 전부 정수. 보존 불변식: 전 풀 합계 = WORLD_SOURCE_INITIAL 고정.
 // ============================================================================
 
-// --- 월드 ---
-export const WORLD_SIZE = 2000;          // 월드 한 변 (px)
-export const REGION_SIZE = 500;          // 관심영역/체크섬 격자 한 변 → 4x4 지역
+// --- 월드 (공간은 3D — x,y 수평 + z 높이. region/필드 격자는 (x,y) 컬럼, z 는 컬럼 내 자유) ---
+export const WORLD_SIZE = 2000;          // 월드 수평 한 변 (px)
+export const WORLD_HEIGHT = 1000;        // 월드 수직 범위 (z, px)
+export const REGION_SIZE = 500;          // 관심영역/체크섬 격자 한 변 → 수평 4x4 컬럼
 export const WORLD_SEED = 20260702;      // 결정론 월드 시딩 (서버·클라 동일 유도)
-export const SPAWN_POS = { x: 1000, y: 1000 };
+export const SPAWN_POS = { x: 1000, y: 1000, z: WORLD_HEIGHT / 2 };
 
 // --- 틱 / 네트워크 ---
 export const TICK_RATE = 10;             // 서버 원장 틱 (Hz) — 서버는 이 빈도로만 깨어난다
@@ -29,6 +30,18 @@ export const PLAYER_MAX_ENERGY = 1000;
 export const SPAWN_GRANT = 300;          // 스폰/리스폰 시 WORLD_SOURCE 에서 인출
 export const RESPAWN_DELAY_MS = 3000;
 
+// --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
+// 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
+// 이체 — 별도 동기화 채널 없이 원장에 편입된다. 보존은 transfer 클램프가 강제한다.
+export const FIELD_CELL_SIZE = 250;                        // 셀 한 변 (px)
+export const FIELD_GRID = WORLD_SIZE / FIELD_CELL_SIZE;    // 8x8 = 64 셀
+export const FIELD_CELL_MAX = 100_000;                     // 셀 용량 상한
+// 확산 흐름 = floor(기울기 * NUM / DEN). NUM/DEN ≤ 1/2 여야 오버슛·진동 없이 평형 수렴.
+export const FIELD_DIFFUSE_NUM = 1;
+export const FIELD_DIFFUSE_DEN = 4;
+export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 (셀당)
+export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 (필드 지속)
+
 // --- 채집 ---
 export const NODE_COUNT = 40;
 export const NODE_MIN_MAX = 400;         // 노드 용량 하한
@@ -40,16 +53,24 @@ export const GATHER_AMOUNT = 25;         // 채집 1회 요청량 (잔고·수�
 // --- 전투 ---
 export const ATTACK_RANGE = 120;
 export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
-export const ATTACK_DAMAGE = 30;         // 맨손 데미지
+export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
+export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
 export const WEAPON_BONUS = 30;          // 무기 소지 시 추가 데미지
 export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
 
+// --- A2 판정 감사 (클라 위임 데미지 판정의 샘플링 재시뮬 탐지 — 표본 추출은 서버 정책) ---
+export const AUDIT_SEED = 0x5eed;        // 감사 표본 추출 기본 시드 (프로덕션은 서버 비밀로 주입)
+export const AUDIT_SAMPLE_NUM = 1;       // 감사 표본 비율 = NUM/DEN
+export const AUDIT_SAMPLE_DEN = 4;       // → 25% 표본
+
 // --- 몬스터 (웹 단계: 정적 에너지 덩어리 — 서버는 이동을 시뮬레이션하지 않는다) ---
 export const MOB_COUNT = 12;
 export const MOB_ENERGY = 200;
 export const MOB_RESPAWN_MS = 10000;
+// A5: 특권 없는 서버 봇으로 구동하는 몬스터 수 (동일 프로토콜 — server/monster.js)
+export const MONSTER_BOT_COUNT = 6;
 
 // --- 아이템 (아이템 = 응축된 에너지 풀. 내구도·가치·회복량이 전부 같은 잔고) ---
 export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아이템 풀 100
@@ -63,6 +84,7 @@ export const WORLD_SOURCE_INITIAL = 1_000_000_000;
 export const POOL = {
   PLAYER: 'P:',   // 플레이어 생체 에너지
   NODE: 'N:',     // 자원 노드 (필드 풀)
+  CELL: 'F:',     // 필드 셀 (확산 격자 풀)
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
   SOURCE: 'W:SRC',
@@ -74,10 +96,16 @@ export const CAUSE = {
   SPAWN: 'spawn', MOVE: 'move', GATHER: 'gather', REGEN: 'regen',
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
-  DEATH_DROP: 'death-drop',
+  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse',
 };
 
-// 지역 키 유도 — 서버·클라 동일 함수 사용 (체크섬 정합의 전제)
+// 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
+export function dist3(ax, ay, az, bx, by, bz) {
+  return Math.hypot(ax - bx, ay - by, az - bz);
+}
+
+// 지역 키 유도 — 서버·클라 동일 함수 사용 (체크섬 정합의 전제).
+// 컬럼형: 파티션은 (x,y) 수평 격자 — z 는 같은 컬럼 안에서 자유(수직은 분할하지 않는다).
 export function regionKey(x, y) {
   return `${Math.floor(x / REGION_SIZE)}_${Math.floor(y / REGION_SIZE)}`;
 }

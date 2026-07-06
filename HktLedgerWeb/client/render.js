@@ -1,16 +1,18 @@
 // ============================================================================
-// Render — Canvas 2D 시각화. 원장 미러를 읽기만 한다 (쓰기 금지).
+// Render — 3D 원근 투영 시각화 (Canvas 2D 위 소프트웨어 카메라, 외부 의존 0).
+// 원장 미러를 읽기만 한다 (쓰기 금지). z 는 높이(up), x·y 는 지면.
+// 카메라: 플레이어를 도는 orbit(드래그=회전, 휠=줌). HUD 는 화면공간 유지.
 // ============================================================================
 
 import {
-  WORLD_SIZE, REGION_SIZE, PLAYER_MAX_ENERGY,
+  WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, PLAYER_MAX_ENERGY,
   GATHER_RANGE, ATTACK_RANGE, POOL,
 } from '../shared/constants.js';
 
 const CAUSE_LABEL = {
   'gather': '채집', 'leech': '흡수', 'burn': '피해', 'move': '이동',
   'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
-  'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸',
+  'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
 };
 
 function poolLabel(state, id) {
@@ -20,6 +22,7 @@ function poolLabel(state, id) {
   if (id.startsWith(POOL.NODE)) return '노드';
   if (id.startsWith(POOL.MOB)) return '몬스터';
   if (id.startsWith(POOL.ITEM)) return '아이템';
+  if (id.startsWith(POOL.CELL)) return '필드';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -31,76 +34,117 @@ export class Render {
     this.state = state;
     this.sim = sim;
     this.net = net;
+
+    // orbit 카메라 (z-up). yaw=방위각, pitch=올려본 각, dist=거리.
+    this.yaw = -Math.PI * 0.75;
+    this.pitch = 0.55;
+    this.dist = 620;
+    this.focal = this.h * 0.9;
+
+    // 입력: 드래그 회전 · 휠 줌
+    let drag = null;
+    canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
+    addEventListener('mouseup', () => { drag = null; });
+    addEventListener('mousemove', (e) => {
+      if (!drag) return;
+      this.yaw -= (e.clientX - drag.x) * 0.006;
+      this.pitch = Math.max(0.05, Math.min(1.45, this.pitch + (e.clientY - drag.y) * 0.005));
+      drag = { x: e.clientX, y: e.clientY };
+    });
+    canvas.addEventListener('wheel', (e) => {
+      this.dist = Math.max(150, Math.min(1600, this.dist * (1 + Math.sign(e.deltaY) * 0.12)));
+      e.preventDefault();
+    }, { passive: false });
+  }
+
+  // --- 카메라 기저 (target=플레이어) ---
+  #camera() {
+    const { sim } = this;
+    const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
+    // 카메라→타깃 방향 (내려다봄): 수평 cp, 수직 -sp
+    const fwd = [cp * Math.cos(this.yaw), cp * Math.sin(this.yaw), -sp];
+    const target = [sim.x, sim.y, sim.z + 20];
+    const pos = [target[0] - fwd[0] * this.dist, target[1] - fwd[1] * this.dist, target[2] - fwd[2] * this.dist];
+    // right = fwd × up0, up = right × fwd  (up0 = z축)
+    const rx = fwd[1] * 1 - fwd[2] * 0, ry = fwd[2] * 0 - fwd[0] * 1, rz = fwd[0] * 0 - fwd[1] * 0;
+    const rl = Math.hypot(rx, ry, rz) || 1;
+    const right = [rx / rl, ry / rl, rz / rl];
+    const up = [
+      right[1] * fwd[2] - right[2] * fwd[1],
+      right[2] * fwd[0] - right[0] * fwd[2],
+      right[0] * fwd[1] - right[1] * fwd[0],
+    ];
+    return { pos, right, up, fwd };
+  }
+
+  // 월드점 → 카메라 좌표 [right, up, forward(depth)]
+  #toCam(cam, x, y, z) {
+    const rx = x - cam.pos[0], ry = y - cam.pos[1], rz = z - cam.pos[2];
+    return [
+      rx * cam.right[0] + ry * cam.right[1] + rz * cam.right[2],
+      rx * cam.up[0] + ry * cam.up[1] + rz * cam.up[2],
+      rx * cam.fwd[0] + ry * cam.fwd[1] + rz * cam.fwd[2],
+    ];
+  }
+
+  // 카메라 좌표 → 화면. depth ≤ near 면 null.
+  #project(c) {
+    if (c[2] <= 1) return null;
+    return { sx: this.w / 2 + (c[0] / c[2]) * this.focal, sy: this.h / 2 - (c[1] / c[2]) * this.focal, f: c[2] };
+  }
+
+  #pt(cam, x, y, z) { return this.#project(this.#toCam(cam, x, y, z)); }
+
+  // near 평면 클립 후 선분 그리기
+  #seg(cam, ax, ay, az, bx, by, bz) {
+    let a = this.#toCam(cam, ax, ay, az), b = this.#toCam(cam, bx, by, bz);
+    const near = 1;
+    if (a[2] <= near && b[2] <= near) return;
+    if (a[2] <= near || b[2] <= near) {
+      const t = (near - a[2]) / (b[2] - a[2]);
+      const mid = [a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t, near];
+      if (a[2] <= near) a = mid; else b = mid;
+    }
+    const pa = this.#project(a), pb = this.#project(b);
+    if (!pa || !pb) return;
+    this.ctx.beginPath(); this.ctx.moveTo(pa.sx, pa.sy); this.ctx.lineTo(pb.sx, pb.sy); this.ctx.stroke();
   }
 
   draw() {
-    const { ctx, w, h, state, sim } = this;
-    const camX = Math.max(0, Math.min(WORLD_SIZE - w, sim.x - w / 2));
-    const camY = Math.max(0, Math.min(WORLD_SIZE - h, sim.y - h / 2));
+    const { ctx, w, h, state } = this;
+    const cam = this.#camera();
 
-    ctx.fillStyle = '#0e1116';
+    ctx.fillStyle = '#0a0d13';
     ctx.fillRect(0, 0, w, h);
 
-    // 지역(체크섬) 격자
-    ctx.strokeStyle = '#1c2330';
+    // 지면(z=0) 지역 격자
+    ctx.strokeStyle = '#1a2130';
     ctx.lineWidth = 1;
-    for (let gx = 0; gx <= WORLD_SIZE; gx += REGION_SIZE) {
-      ctx.beginPath(); ctx.moveTo(gx - camX, -camY); ctx.lineTo(gx - camX, WORLD_SIZE - camY); ctx.stroke();
-      ctx.beginPath(); ctx.moveTo(-camX, gx - camY); ctx.lineTo(WORLD_SIZE - camX, gx - camY); ctx.stroke();
+    for (let g = 0; g <= WORLD_SIZE; g += REGION_SIZE) {
+      this.#seg(cam, g, 0, 0, g, WORLD_SIZE, 0);
+      this.#seg(cam, 0, g, 0, WORLD_SIZE, g, 0);
     }
 
-    // 사거리 표시
+    // 사거리 링 (플레이어 z 평면 위 원)
     if (!state.dead) {
-      ctx.strokeStyle = 'rgba(120,220,140,0.15)';
-      ctx.beginPath(); ctx.arc(sim.x - camX, sim.y - camY, GATHER_RANGE, 0, 7); ctx.stroke();
-      ctx.strokeStyle = 'rgba(240,110,110,0.12)';
-      ctx.beginPath(); ctx.arc(sim.x - camX, sim.y - camY, ATTACK_RANGE, 0, 7); ctx.stroke();
+      this.#ring(cam, this.sim.x, this.sim.y, this.sim.z, GATHER_RANGE, 'rgba(120,220,140,0.25)');
+      this.#ring(cam, this.sim.x, this.sim.y, this.sim.z, ATTACK_RANGE, 'rgba(240,110,110,0.18)');
     }
 
+    // 엔티티 — 자신 포함, 깊이순(먼 것 먼저)
+    const draws = [];
     for (const e of state.entities.values()) {
-      const x = e.x - camX, y = e.y - camY;
-      if (x < -60 || y < -60 || x > w + 60 || y > h + 60) continue;
-      const bal = state.ledger.balance(e.id);
-
-      if (e.kind === 'node') {
-        const r = 7 + 15 * (bal / e.max);
-        ctx.fillStyle = `rgba(90,210,120,${0.25 + 0.6 * (bal / e.max)})`;
-        ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
-        ctx.fillStyle = '#9fe8b0';
-        ctx.font = '11px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(String(bal), x, y - r - 4);
-      } else if (e.kind === 'mob') {
-        ctx.fillStyle = '#d95f5f';
-        ctx.fillRect(x - 10, y - 10, 20, 20);
-        this.#bar(x, y - 18, 26, bal / e.max, '#e08888');
-      } else if (e.kind === 'item') {
-        ctx.save();
-        ctx.translate(x, y); ctx.rotate(Math.PI / 4);
-        ctx.fillStyle = e.itemType === 'weapon' ? '#e0b34e' : '#7ec8e8';
-        ctx.fillRect(-7, -7, 14, 14);
-        ctx.restore();
-        ctx.fillStyle = '#cfe3ef';
-        ctx.font = '10px monospace';
-        ctx.textAlign = 'center';
-        ctx.fillText(`${e.itemType === 'weapon' ? '무기' : '결정'} ${bal}`, x, y - 14);
-      } else if (e.kind === 'player') {
-        ctx.fillStyle = '#5aa7d9';
-        ctx.beginPath(); ctx.arc(x, y, 11, 0, 7); ctx.fill();
-        this.#bar(x, y - 20, 30, bal / PLAYER_MAX_ENERGY, '#7ec3ea');
-        ctx.fillStyle = '#bcd8ea';
-        ctx.font = '11px sans-serif';
-        ctx.textAlign = 'center';
-        ctx.fillText(e.name ?? '', x, y - 26);
-      }
+      const c = this.#toCam(cam, e.x, e.y, e.z);
+      if (c[2] > 1) draws.push({ e, cam: c });
     }
+    const selfC = this.#toCam(cam, this.sim.x, this.sim.y, this.sim.z);
+    if (selfC[2] > 1) draws.push({ self: true, cam: selfC });
+    draws.sort((a, b) => b.cam[2] - a.cam[2]);
 
-    // 나
-    const mx = sim.x - camX, my = sim.y - camY;
-    ctx.fillStyle = state.dead ? '#555' : '#f0f4f8';
-    ctx.beginPath(); ctx.arc(mx, my, 11, 0, 7); ctx.fill();
-    ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.arc(mx, my, 14, 0, 7); ctx.stroke();
+    for (const d of draws) {
+      if (d.self) { this.#drawSelf(cam); continue; }
+      this.#drawEntity(cam, d.e, d.cam[2]);
+    }
 
     this.#hud();
     if (state.dead) {
@@ -113,7 +157,88 @@ export class Render {
     }
   }
 
+  // 높이 스틱 — 엔티티에서 지면(z=0)까지 수선 (고도 가독성)
+  #stick(cam, x, y, z, color) {
+    const { ctx } = this;
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    ctx.setLineDash([2, 3]);
+    this.#seg(cam, x, y, 0, x, y, z);
+    ctx.setLineDash([]);
+    const g = this.#pt(cam, x, y, 0);
+    if (g) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(g.sx, g.sy, 5, 2.5, 0, 0, 7); ctx.fill(); }
+  }
+
+  #ring(cam, x, y, z, r, color) {
+    const { ctx } = this;
+    ctx.strokeStyle = color; ctx.lineWidth = 1;
+    let prev = null, first = null;
+    for (let i = 0; i <= 24; i++) {
+      const a = (i / 24) * Math.PI * 2;
+      const p = this.#pt(cam, x + Math.cos(a) * r, y + Math.sin(a) * r, z);
+      if (p && prev) { ctx.beginPath(); ctx.moveTo(prev.sx, prev.sy); ctx.lineTo(p.sx, p.sy); ctx.stroke(); }
+      prev = p; if (i === 0) first = p;
+    }
+  }
+
+  #drawEntity(cam, e, depth) {
+    const { ctx } = this;
+    const p = this.#pt(cam, e.x, e.y, e.z);
+    if (!p) return;
+    const scale = this.focal / depth;
+    const bal = this.state.ledger.balance(e.id);
+
+    if (e.kind === 'node') {
+      this.#stick(cam, e.x, e.y, e.z, 'rgba(90,210,120,0.4)');
+      const r = (5 + 13 * (bal / e.max)) * scale;
+      ctx.fillStyle = `rgba(90,210,120,${0.25 + 0.6 * (bal / e.max)})`;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(2, r), 0, 7); ctx.fill();
+      this.#label(p.sx, p.sy - r - 4, String(bal), '#9fe8b0', scale);
+    } else if (e.kind === 'mob') {
+      this.#stick(cam, e.x, e.y, e.z, 'rgba(217,95,95,0.4)');
+      const s = 18 * scale;
+      ctx.fillStyle = '#d95f5f';
+      ctx.fillRect(p.sx - s / 2, p.sy - s / 2, s, s);
+      this.#bar(p.sx, p.sy - s / 2 - 6, 26 * scale, bal / e.max, '#e08888');
+    } else if (e.kind === 'item') {
+      this.#stick(cam, e.x, e.y, e.z, 'rgba(200,180,120,0.4)');
+      const s = 12 * scale;
+      ctx.save(); ctx.translate(p.sx, p.sy); ctx.rotate(Math.PI / 4);
+      ctx.fillStyle = e.itemType === 'weapon' ? '#e0b34e' : '#7ec8e8';
+      ctx.fillRect(-s / 2, -s / 2, s, s);
+      ctx.restore();
+      this.#label(p.sx, p.sy - s - 4, `${e.itemType === 'weapon' ? '무기' : '결정'} ${bal}`, '#cfe3ef', scale);
+    } else if (e.kind === 'player') {
+      this.#stick(cam, e.x, e.y, e.z, 'rgba(90,167,217,0.4)');
+      ctx.fillStyle = '#5aa7d9';
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(3, 10 * scale), 0, 7); ctx.fill();
+      this.#bar(p.sx, p.sy - 12 * scale, 30 * scale, bal / PLAYER_MAX_ENERGY, '#7ec3ea');
+      this.#label(p.sx, p.sy - 20 * scale, e.name ?? '', '#bcd8ea', scale);
+    }
+  }
+
+  #drawSelf(cam) {
+    const { ctx, sim, state } = this;
+    this.#stick(cam, sim.x, sim.y, sim.z, 'rgba(255,215,110,0.5)');
+    const p = this.#pt(cam, sim.x, sim.y, sim.z);
+    if (!p) return;
+    const scale = this.focal / this.#toCam(cam, sim.x, sim.y, sim.z)[2];
+    ctx.fillStyle = state.dead ? '#555' : '#f0f4f8';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(4, 11 * scale), 0, 7); ctx.fill();
+    ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(6, 14 * scale), 0, 7); ctx.stroke();
+  }
+
+  #label(x, y, text, color, scale) {
+    if (scale < 0.35 || !text) return;
+    const { ctx } = this;
+    ctx.fillStyle = color;
+    ctx.font = `${Math.max(9, Math.round(11 * Math.min(1.4, scale)))}px monospace`;
+    ctx.textAlign = 'center';
+    ctx.fillText(text, x, y);
+  }
+
   #bar(cx, y, width, ratio, color) {
+    if (width < 6) return;
     const { ctx } = this;
     ctx.fillStyle = '#2a3040';
     ctx.fillRect(cx - width / 2, y, width, 4);
@@ -122,19 +247,19 @@ export class Render {
   }
 
   #hud() {
-    const { ctx, w, state, net } = this;
+    const { ctx, w, state, net, sim } = this;
     ctx.textAlign = 'left';
 
-    // 좌상: 내 에너지 + 인벤토리
+    // 좌상: 내 에너지 + 고도 + 인벤토리
     const energy = state.displayEnergy();
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(10, 10, 250, 66 + state.inventory.size * 16);
+    ctx.fillRect(10, 10, 270, 66 + state.inventory.size * 16);
     ctx.fillStyle = '#e8eef4';
     ctx.font = 'bold 13px sans-serif';
-    ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}`, 20, 30);
-    ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 38, 230, 10);
+    ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}  ·  고도 ${Math.round(sim.z)}`, 20, 30);
+    ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 38, 250, 10);
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
-    ctx.fillRect(20, 38, 230 * energy / PLAYER_MAX_ENERGY, 10);
+    ctx.fillRect(20, 38, 250 * energy / PLAYER_MAX_ENERGY, 10);
     ctx.fillStyle = '#9db2c4';
     ctx.font = '12px sans-serif';
     let iy = 66;
@@ -178,7 +303,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · E 채집/줍기 · Space 공격 · C 결정응축 · B 무기제작 · V 결정사용 · X 버리기', w - 14, this.h - 12);
+    ctx.fillText('WASD 이동 · R/F 상승·하강 · 드래그 회전 · 휠 줌 · E 채집/줍기 · Space 공격 · C/B/V/X', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }

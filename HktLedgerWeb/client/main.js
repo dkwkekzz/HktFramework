@@ -30,7 +30,7 @@ function nearest(kinds, range) {
   let best = null, bestD = range;
   for (const e of state.entities.values()) {
     if (!kinds.includes(e.kind)) continue;
-    const d = Math.hypot(e.x - sim.x, e.y - sim.y);
+    const d = Math.hypot(e.x - sim.x, e.y - sim.y, e.z - sim.z); // 3D 거리
     if (d <= bestD) { best = e; bestD = d; }
   }
   return best;
