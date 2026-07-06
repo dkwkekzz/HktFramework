@@ -103,6 +103,9 @@
 	// 이동/수치 입력 연타 시 과도한 재시드 방지
 	let reseedTimer = 0;
 	function scheduleReseed() { clearTimeout(reseedTimer); reseedTimer = setTimeout(() => syncScene(), 250); }
+	// 드래그 이동 중엔 성장 시계를 유지한 채 재생성 — 나무/골렘/살이 자란 모습 그대로 새 위치를 따라오게 한다
+	let liveReseedTimer = 0;
+	function scheduleReseedKeepTime() { clearTimeout(liveReseedTimer); liveReseedTimer = setTimeout(() => syncScene(true), 60); }
 
 	// ── 개체 CRUD ──────────────────────────────────────────────────────────
 	function addObject(presetName, x, z) {
@@ -471,6 +474,26 @@
 		return [(c[0] / c[3] * 0.5 + 0.5) * canvas.clientWidth, (0.5 - c[1] / c[3] * 0.5) * canvas.clientHeight];
 	}
 	const markerEls = new Map(); // key: 'obj:<id>' | 'skel'
+	// 드래그 이동은 window 리스너로 처리한다 — select() 가 마커 DOM 을 재생성해도(요소 교체)
+	// 진행 중인 드래그가 끊기지 않는다. 좌클릭만 반응(우/중클릭은 카메라 회전·이동 몫).
+	function startMarkerDrag(pointerId, onMove, onMoveEnd) {
+		let moved = false;
+		const onPm = (ev) => {
+			if (ev.pointerId !== pointerId) return;
+			const hit = groundHit(ev.clientX, ev.clientY);
+			if (hit) { moved = true; onMove(hit); }
+		};
+		const onUp = (ev) => {
+			if (ev.pointerId !== pointerId) return;
+			window.removeEventListener('pointermove', onPm);
+			window.removeEventListener('pointerup', onUp);
+			window.removeEventListener('pointercancel', onUp);
+			if (moved && onMoveEnd) onMoveEnd();
+		};
+		window.addEventListener('pointermove', onPm);
+		window.addEventListener('pointerup', onUp);
+		window.addEventListener('pointercancel', onUp);
+	}
 	function buildMarkers() {
 		const box = $('markers');
 		box.textContent = '';
@@ -478,31 +501,23 @@
 		const mk = (key, label, sel, onMove, onMoveEnd) => {
 			const m = el(`<div class="marker${isSelected(sel) ? ' on' : ''}"><span class="tag">${label}</span></div>`);
 			m.addEventListener('pointerdown', (e) => {
+				if (e.button !== 0 || e.altKey || e.shiftKey) return; // 좌클릭 순수만 = 기즈모 드래그
 				e.preventDefault();
+				e.stopPropagation(); // 배치 모드에서 마커 클릭이 지형 배치로 새지 않게
 				select(sel);
-				const mEl = markerEls.get(key); // select 의 rebuild 로 요소가 교체된다
-				if (!mEl) return;
-				mEl.setPointerCapture(e.pointerId);
-				let moved = false;
-				const onPm = (ev) => {
-					const hit = groundHit(ev.clientX, ev.clientY);
-					if (hit) { moved = true; onMove(hit); }
-				};
-				const onUp = () => {
-					mEl.removeEventListener('pointermove', onPm);
-					mEl.removeEventListener('pointerup', onUp);
-					if (moved && onMoveEnd) onMoveEnd();
-				};
-				mEl.addEventListener('pointermove', onPm);
-				mEl.addEventListener('pointerup', onUp);
+				startMarkerDrag(e.pointerId, onMove, onMoveEnd);
 			});
 			box.appendChild(m);
 			markerEls.set(key, m);
 		};
 		for (const o of objects)
 			mk('obj:' + o.id, o.name, { kind: 'object', id: o.id },
-				(hit) => { o.genes.emitter[0] = hit[0]; o.genes.emitter[2] = hit[2]; },
-				() => { buildTree(); buildDetail(); if (findObject(o.id).genes.form > 0) scheduleReseed(); });
+				(hit) => {
+					o.genes.emitter[0] = hit[0]; o.genes.emitter[2] = hit[2];
+					buildTree();
+					if (o.genes.form > 0) scheduleReseedKeepTime(); // 형태 개체는 재생성으로 따라오되 성장 유지
+				},
+				() => { buildDetail(); if (findObject(o.id).genes.form > 0) syncScene(true); });
 		mk('skel', '스켈레톤', { kind: 'skeleton' },
 			(hit) => { skel.origin = [hit[0], hit[2]]; },
 			() => buildDetail());
@@ -579,17 +594,38 @@
 		});
 
 		engine = new HktGenesisEngine(device, context, format);
-		camera = new HktOrbitCamera(canvas);
+		camera = new HktOrbitCamera(canvas, { unityControls: true }); // 유니티식: 우클릭=회전·중클릭=이동·좌클릭=에디터
 		camera.radius = 5.5;
 		syncScene();
 		select({ kind: 'terrain' }); // 첫 작업 = 지형 생성으로 유도
 		ready = true;
 
-		// 배치 클릭 (드래그 회전과 구분: 이동량 작을 때만)
-		let downXY = null;
-		canvas.addEventListener('pointerdown', (e) => { if (!e.altKey) downXY = [e.clientX, e.clientY]; });
+		// ── 배치: 좌클릭이 더는 회전을 안 하므로(우클릭=회전) 클릭 = 즉시 배치.
+		// 유령(ghost) 프리뷰가 커서 아래 지형 착지점을 실시간으로 보여준다.
+		const ghost = el('<div class="marker ghost"><span class="tag"></span></div>');
+		ghost.style.display = 'none';
+		// #markers 는 buildMarkers 가 매번 비운다 — 유령은 #viewport 에 붙여 유지 (좌표 원점 동일)
+		$('viewport').appendChild(ghost);
+		let placeHit = null; // 현재 프레임의 배치 착지점 (world)
+		function updateGhost(cx, cy) {
+			if (mode !== 'place' || cx == null) { ghost.style.display = 'none'; placeHit = null; return; }
+			placeHit = groundHit(cx, cy);
+			if (!placeHit) { ghost.style.display = 'none'; return; }
+			const css = projectToCss([placeHit[0], placeHit[1], placeHit[2]]);
+			if (!css) { ghost.style.display = 'none'; return; }
+			ghost.style.display = '';
+			ghost.style.left = css[0] + 'px';
+			ghost.style.top = css[1] + 'px';
+			ghost.querySelector('.tag').textContent = pal.value;
+		}
+		let downXY = null, downBtn = -1, lastCx = null, lastCy = null;
+		canvas.addEventListener('pointerdown', (e) => { downXY = [e.clientX, e.clientY]; downBtn = e.button; });
+		canvas.addEventListener('pointermove', (e) => { lastCx = e.clientX; lastCy = e.clientY; updateGhost(e.clientX, e.clientY); });
+		canvas.addEventListener('pointerleave', () => { lastCx = null; updateGhost(null); });
+		window.__updateGhost = () => updateGhost(lastCx, lastCy); // 카메라 회전/모드 전환 시 매 프레임 갱신
 		canvas.addEventListener('click', (e) => {
-			if (mode !== 'place' || e.altKey || !downXY) return;
+			// 좌클릭(button 0) · 회전/이동 드래그(우/중클릭·shift)·인력(alt) 제외 · 실이동 작을 때만
+			if (mode !== 'place' || e.button !== 0 || e.altKey || e.shiftKey || downBtn !== 0 || !downXY) return;
 			if (Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]) > 5) return;
 			const hit = groundHit(e.clientX, e.clientY);
 			if (hit) addObject(pal.value, hit[0], hit[2]);
@@ -655,6 +691,7 @@
 			if (window.__hktAfterFrame) window.__hktAfterFrame({ device, context, canvas, camera, engine });
 
 			updateMarkers();
+			if (window.__updateGhost) window.__updateGhost();
 			if (!window.__tlScrubbing()) $('tlScrub').value = simTime % 60;
 			$('tlTime').textContent = simTime.toFixed(1) + 's';
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;

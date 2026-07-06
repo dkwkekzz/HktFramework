@@ -37,13 +37,16 @@
 	};
 
 	// 타겟 주위를 도는 오빗 카메라. yaw/pitch/radius + pan 오프셋.
-	function HktOrbitCamera(canvas) {
+	// opts.unityControls: 유니티 씬 뷰식 버튼 매핑(우클릭=회전·중클릭=이동·좌클릭=앱 몫).
+	//   기본(false)은 index.html 데모용 레거시(좌클릭=회전·우/Shift=이동).
+	function HktOrbitCamera(canvas, opts) {
 		this.target = [0, 0.8, 0];
 		this.yaw = 0.5;
 		this.pitch = 0.15;
 		this.radius = 5;
 		this.fov = 55 * Math.PI / 180;
 		this.up = [0, 1, 0];
+		this.unityControls = !!(opts && opts.unityControls);
 		this._bind(canvas);
 	}
 
@@ -54,9 +57,23 @@
 		canvas.addEventListener('contextmenu', (e) => e.preventDefault());
 		canvas.addEventListener('pointerdown', (e) => {
 			if (e.altKey) return; // Alt+드래그는 인력 상호작용(app.js) 몫
-			dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
+			if (self.unityControls) {
+				// 유니티 씬 뷰 관례: 우클릭=회전(orbit), 중클릭=이동(pan), 휠=줌.
+				// 좌클릭은 에디터(선택/배치/기즈모 드래그) 몫이라 카메라는 건드리지 않는다.
+				// Shift+좌클릭은 3버튼 마우스가 없는 환경을 위한 pan 대체.
+				if (e.button === 2) dragging = 1;                     // 우클릭 = 회전
+				else if (e.button === 1) dragging = 2;                // 중클릭 = 이동(pan)
+				else if (e.button === 0 && e.shiftKey) dragging = 2;  // Shift+좌클릭 = 이동 대체
+				else return;                                          // 좌클릭 = 에디터 몫
+			} else {
+				// 레거시(index.html 데모): 좌클릭=회전, 우클릭·Shift=이동
+				dragging = (e.button === 2 || e.shiftKey) ? 2 : 1;
+			}
+			e.preventDefault(); // 중클릭 자동 스크롤/좌클릭 텍스트 선택 억제
 			lx = e.clientX; ly = e.clientY; canvas.setPointerCapture(e.pointerId);
 		});
+		// 중클릭 auxclick(브라우저 자동 스크롤 트리거) 차단
+		canvas.addEventListener('auxclick', (e) => { if (e.button === 1) e.preventDefault(); });
 		canvas.addEventListener('pointerup', (e) => {
 			dragging = 0; try { canvas.releasePointerCapture(e.pointerId); } catch (_) {}
 		});
