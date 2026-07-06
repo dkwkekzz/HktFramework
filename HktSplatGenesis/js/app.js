@@ -15,12 +15,13 @@
 
 	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
 	const skeleton = new HktGenesisSkeleton.Skeleton();
-	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true };
+	// genome: 형태 게놈 ① (C1). 항등이면 기존 살 그대로 — 미래 UI/추출기가 morph 를 채운다.
+	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, genome: HktGenesisGenome.IDENTITY };
 	let extSkel = null; // FBX 드롭으로 불러온 외부 리그 (없으면 built-in)
 
 	// 뼈 친화(rest.w) 배정 기준 세그먼트 — 현재 모션 소스와 같은 리그/순서여야 한다
 	function currentBindBones() {
-		return (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1) : skeleton.pose('idle', 0, 1, 1);
+		return (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
 	}
 
 
@@ -38,6 +39,7 @@
 		genes.colorB = hexToVec4(p.colorB);
 		genes.form = p.form || 0; // 0 = 코어 구름, 1 = 골렘, 2 = 나무, 3 = 살 구름 (setScene 이 해석)
 		genes.emitter = p.emitter || [0, 0.6, 0];
+		genes.genome = skel.genome; // C3: 캐릭터 게놈 1벌 — 형태(pose)·채색(palette)을 함께 안는다
 		// form 3: 뼈 친화 배정 기준이 되는 바인드 세그먼트 (순서 = 매 프레임 pose 와 동일)
 		if (genes.form === 3) genes.bindBones = currentBindBones();
 		sceneEntities = [genes];  // 단일 개체 장면
@@ -387,8 +389,8 @@
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
 				bones = (skel.clip === 'external' && extSkel)
-					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat) // 외부 클립은 증분 시간
-					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);       // built-in 은 절대 시간
+					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
+					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);       // built-in 은 절대 시간
 			}
 			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
 			bindStageStatus();

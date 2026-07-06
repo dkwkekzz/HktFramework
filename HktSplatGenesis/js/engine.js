@@ -16,6 +16,7 @@
 	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
 	const MAX_BONES = 128;       // L6 뼈 세그먼트 상한 (Mixamo FBX 풀 리그 ~65개 + 여유)
+	const GROUP_COUNT = 10;      // C3 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -91,6 +92,9 @@
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this._boneCount = 0;
+		// C3 부위 채색: 뼈 인덱스 → 그룹 id (u32/뼈), 그룹 → 램프 양 끝 (vec4 2개/그룹)
+		this.boneGroupBuf = d.createBuffer({ size: MAX_BONES * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
+		this.groupColorBuf = d.createBuffer({ size: GROUP_COUNT * 2 * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 
 		// L6 뼈대 오버레이 (라인 + 관절 점) — 살 위에 겹쳐 그리는 디버그 시각화
 		const overlayModule = d.createShaderModule({ code: W.OVERLAY });
@@ -263,6 +267,9 @@
 				{ binding: 3, resource: { buffer: this.clusterBuf } },
 				{ binding: 4, resource: { buffer: this.entityBuf } },
 				{ binding: 5, resource: this.depthTex.createView() },
+				{ binding: 6, resource: { buffer: this.restBuf } },
+				{ binding: 7, resource: { buffer: this.boneGroupBuf } },
+				{ binding: 8, resource: { buffer: this.groupColorBuf } },
 			],
 		});
 	};
@@ -650,9 +657,25 @@
 				ba.set([s.a[0], s.a[1], s.a[2], s.ra, s.b[0], s.b[1], s.b[2], s.rb], i * 8);
 			}
 			d.queue.writeBuffer(this.boneBuf, 0, ba);
+			// C3 부위 채색: 뼈 인덱스 → 그룹 id 테이블 (렌더가 rest.w 로 조회)
+			const bg = new Uint32Array(nb);
+			for (let i = 0; i < nb; i++) bg[i] = (bones[i].g != null ? bones[i].g : GROUP_COUNT - 1);
+			d.queue.writeBuffer(this.boneGroupBuf, 0, bg);
 		}
 		sf[13] = nb;                       // boneCount
 		this._boneCount = nb;
+		// C3 그룹 램프: 살(fleshK>0) 개체 기본색을 전 그룹에 채우고 게놈 palette 로 덮어쓴다.
+		// palette 미지정이면 기본색뿐 → mix 결과 기존과 동일 (회귀 0). 매 프레임 tiny 업로드.
+		const flesh = ents.find((e) => (e.fleshK || 0) > 0);
+		if (flesh) {
+			const A = flesh.colorA || [1, 1, 1, 1], B = flesh.colorB || [1, 1, 1, 1];
+			const Gn = (typeof HktGenesisGenome !== 'undefined') ? HktGenesisGenome
+				: (typeof window !== 'undefined' ? window.HktGenesisGenome : null);
+			let gc;
+			if (Gn) gc = Gn.groupColors(flesh.genome, A, B);
+			else { gc = new Float32Array(GROUP_COUNT * 8); for (let i = 0; i < GROUP_COUNT; i++) { gc.set(A, i * 8); gc.set(B, i * 8 + 4); } }
+			d.queue.writeBuffer(this.groupColorBuf, 0, gc);
+		}
 		d.queue.writeBuffer(this.simUB, 0, sim);
 		d.queue.writeBuffer(this.entityBuf, 0, this._packEntities(ents));
 

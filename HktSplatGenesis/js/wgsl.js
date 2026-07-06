@@ -565,6 +565,11 @@ struct CamParams {
 // S3 오클루전: collider depth prepass 결과 — 생명이 지형 뒤에 있으면 soft fade.
 // occluder 미설치 프레임도 prepass 가 1.0 으로 클리어하므로 자연히 무효과.
 @group(0) @binding(5) var occDepth : texture_depth_2d;
+// C3 부위 채색: 살(fleshK>0) 스플랫의 그룹 램프. rest.w=뼈 친화 → boneGroup=그룹 id →
+// groupColors 램프 양 끝. 보간 factor 는 여전히 속도·변형률 유도 (절대 원칙 1).
+@group(0) @binding(6) var<storage, read> rest : array<vec4f>;        // L6 살 뼈 친화(.w)
+@group(0) @binding(7) var<storage, read> boneGroup : array<u32>;     // 뼈 인덱스 → 부위 그룹 id
+@group(0) @binding(8) var<storage, read> groupColors : array<vec4f>; // 그룹 램프 [2g]=A, [2g+1]=B
 
 struct VOut {
 	@builtin(position) pos : vec4f,
@@ -643,7 +648,16 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	// 변형률 발광: 골렘의 균열(스트레스 받는 본드)이 뜨겁게 빛난다
 	let strain = clusters[idx / K].strain;
 	let heat = clamp(1.0 - exp(-0.5 * speed) + max(strain - 0.25, 0.0) * 1.4, 0.0, 1.0);
-	var rgb = mix(E.colorA.rgb, E.colorB.rgb, heat);
+	// C3: 살은 뼈 그룹 램프의 양 끝(게놈)으로 채색, 비-살은 개체 팔레트 그대로.
+	// 램프 양 끝만 게놈이 정하고 보간 factor(heat)는 유도 → 속도 팔레트 유도 회귀 없음.
+	var cA = E.colorA.rgb;
+	var cB = E.colorB.rgb;
+	if (E.fleshK > 0.0) {
+		let g = boneGroup[min(u32(rest[idx].w), 127u)];
+		cA = groupColors[g * 2u].rgb;
+		cB = groupColors[g * 2u + 1u].rgb;
+	}
+	var rgb = mix(cA, cB, heat);
 	rgb *= 1.0 + E.luminosity * energy;
 	// L4/L5 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
 	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);

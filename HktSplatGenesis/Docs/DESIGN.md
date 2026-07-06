@@ -39,7 +39,20 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
 - `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
 - `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
-  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다.
+  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. C1: `pose(...,genome)`
+  5번째 인자로 세그먼트 반지름에 게놈 배율을 곱한다(`radiusG` = 기본 문법 × fat × 게놈 배율).
+- `js/genome.js` — C 트랙 캐릭터 게놈(`HktGenesisGenome`). ① 형태(morph): 뼈 이름 → 부위 그룹
+  (`groupForName`, 이름 기반 rig-agnostic) → 배율. morph 엔트리는 숫자(반지름만, C1) 또는
+  `{r, l}`(반지름·길이, C2). `radiusScale`/`lengthScale` 가 각각 스타일 프로파일
+  (`PROFILE.radiusMul` 0.5~2.2, `lengthMul` 0.5~1.8)로 스냅, 미지정 부위는 항등(1)이라 회귀 0.
+  `GENOMES`(덩치/호리호리) = 수동 게놈. ② 채색(palette): 부위 그룹 → 램프 양 끝
+  (`groupColors(genome, defA, defB)` → GPU 버퍼, `GROUP_IDS` 순서 = engine `GROUP_COUNT` 동기).
+  게놈은 데이터(JSON)일 뿐 — skeleton/engine 은 소비만 한다. ③~④(재질/부속)는 C6~ 확장 지점.
+- **C3 렌더 채색 경로**: 렌더 VS 에 `rest`(binding 6)+`boneGroup`(7, 뼈→그룹 id)+`groupColors`(8,
+  그룹 램프) 추가. 살(`E.fleshK>0`)만 `rest.w`(뼈 친화)→`boneGroup`→`groupColors` 로 램프 양 끝을
+  갈아끼우고, 비-살은 개체 `colorA/colorB` 그대로. wgsl.js 렌더 바인딩 ↔ engine `_buildRenderBG`
+  엔트리 ↔ genome `GROUP_IDS` 길이(=engine `GROUP_COUNT`=10) 3자 동기 필수. `boneGroupBuf`는
+  bones 와 함께, `groupColorBuf`는 매 프레임 살 개체 기본색 + `genes.genome.palette` 로 채운다.
 - `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
@@ -72,6 +85,11 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 결정 | 이유 |
 |---|---|
 | 살은 뼈대의 함수 — 메시/웨이트 손 바인딩 금지 | 모델링·리깅·스키닝 붕괴가 프로젝트 존재 이유 |
+| 게놈 = 데이터, 기본 문법(radiusForName)은 코드로 유지 (C1) | grammar 는 "일관된 스타일의 정의"라 데이터화하면 스타일 기준이 사라진다 — 게놈은 그 위에 곱하는 개체별 *배율*(형태)만 데이터로. 항등 게놈 = 기본 문법 그대로라 회귀 0 (genome-shot 세그먼트 bit-exact). "정체성=게놈, 스타일=문법×프로파일" |
+| 회귀 0 검증은 GPU 사진이 아니라 CPU 세그먼트 동일성 (C1) | swiftshader 는 device 인스턴스마다 미세 변동(격자 atomic 순서 등)이 있어 같은 입력도 픽셀·스플랫 수가 달라진다 — "항등 게놈 = 현행" 은 `pose(없음)≡pose(항등)` 세그먼트 bit-exact 로 증명하고, 사진은 실루엣 *차이*(head 1.6×) 판정에만 쓴다 |
+| 길이 배율은 FK offset 에 곱, 힙 보정으로 접지 (C2) | 클립은 로컬 회전이고 FK 는 `offset × 길이배율` 에 회전을 곱하므로 회전 데이터가 무수정 적용된다(애니메이션 보존). 다리 길이가 바뀌면 발이 뚫리거나 뜨므로 대표 발→루트의 `offset.y×(1−배율)` 누적으로 루트 y 를 보정 — rest 포즈 근사지만 walk/idle/wave 접지에 충분(genome-body-shot: 발 최저 y 지면 근방). FBX 외부 리그는 offset 을 소유하지 않아 길이 배율 미적용(반지름만) |
+| 채색은 그룹 램프 *양 끝*만 게놈, 보간은 유도 유지 (C3) | 절대 원칙 1 — 렌더 속성 직접 생성 금지. 부위색을 픽셀에 칠하지 않고, 뼈 그룹별 `mix(colorA,colorB,heat)` 램프의 *양 끝*만 게놈이 정한다. 보간 factor(heat=속도·변형률)는 그대로라 속도 팔레트 유도가 살아 있다(genome-color-shot: 무팔레트 밴드 hue 동일=0.01, palette 밴드 hue 크게 구분). 회귀 판정은 hue 로 — 밝기는 속도로 정당히 변하므로 RGB 거리는 부적합 |
+| 그룹 램프는 전역 1벌, 개체별 팔레트는 아직 (C3) | groupColors 버퍼가 장면 공용이라 살 개체가 둘 이상이면 팔레트가 섞인다. 단일 캐릭터엔 충분하고, 개체별 팔레트(버퍼를 개체×그룹으로)는 C7 다개체에서 함께 — 지금 확장하면 안 쓰는 버퍼만 커진다 |
 | grammar 는 이름 기반, 특정 리그 하드코딩 금지 | 임의 리그(FBX 드롭)가 깨지지 않아야 스타일=grammar 가 성립 |
 | 살 힘 = 성장 자리 스프링 (전역 SDF 최근접 추종 아님) | 전역 최근접은 축 방향 힘 0 → 중력에 뼈당 방울 하나로 붕괴 (검증 사진으로 확인) |
 | 히키토 프리셋 binding 0 | L2 인력(표면장력)이 자리 스프링을 이기면 방울 재발 |

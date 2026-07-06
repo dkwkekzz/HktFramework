@@ -29,7 +29,8 @@
 	// 스켈레톤은 장면 공용 1개 — 엔진 bones 버퍼가 단일이라 fleshK 개체 전부가 공유한다.
 	// origin(xz)으로 지형 위 어디에 세울지 정하고, 발 높이는 매 프레임 지형에서 유도.
 	const skeleton = new HktGenesisSkeleton.Skeleton();
-	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, origin: [0, 0] };
+	// genome: 형태 게놈 ① (C1) — 부위 반지름 배율. 항등이면 기존 살 그대로.
+	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, origin: [0, 0], genome: HktGenesisGenome.create() };
 	let extSkel = null;
 
 	let terrain = null;        // terrain-gen 결과 {params, height, triSoup, plyBytes}
@@ -82,14 +83,15 @@
 	}
 	// 뼈 친화(rest.w) 배정 기준 — 현재 모션 소스와 같은 리그/순서 (app.js 와 동일 규칙)
 	function currentBindBones() {
-		const raw = (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1) : skeleton.pose('idle', 0, 1, 1);
+		const raw = (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
 		return offsetSegs(raw);
 	}
 
 	// ── 장면 → 엔진: void 패딩으로 개체 수를 2^k 로 맞춰 setScene ──────────
 	function syncScene(keepTime) {
 		if (!engine) return;
-		objects.forEach((o) => { if (o.genes.form === 3) o.genes.bindBones = currentBindBones(); });
+		// 살 개체는 장면 공용 스켈레톤 게놈 1벌을 공유 — 형태(pose)·채색(palette) 동일 캐릭터
+		objects.forEach((o) => { if (o.genes.form === 3) { o.genes.bindBones = currentBindBones(); o.genes.genome = skel.genome; } });
 		const ents = objects.map((o) => o.genes);
 		let pow = 1;
 		while (pow < Math.max(1, ents.length)) pow <<= 1;
@@ -256,6 +258,54 @@
 		d.appendChild(numRow('위치 Z', skel.origin[1], 0.1, (v) => { skel.origin[1] = v; refreshUI(); }));
 		d.appendChild(el('<h2>살 문법</h2>'));
 		d.appendChild(sliderRow('통통함', 0.5, 1.8, 0.05, skel.fat, (v) => { skel.fat = v; }));
+		// 형태 게놈 ① — 부위별 반지름·길이 배율 (기본 문법 위에 곱). 항등(1)이면 기존 살.
+		d.appendChild(el('<h2>형태 게놈 (반지름·길이 배율)</h2>'));
+		// 체형 프리셋 — 수동 게놈(덩치/호리호리) 즉시 적용 (C2 비율 실증)
+		const bodyBox = el('<div class="inline"><label>체형</label></div>');
+		for (const [name, gen] of [['항등', null], ...Object.entries(HktGenesisGenome.GENOMES)]) {
+			const b = el(`<button style="margin-right:4px">${name}</button>`);
+			b.addEventListener('click', () => {
+				skel.genome.morph = gen ? JSON.parse(JSON.stringify(gen.morph)) : {};
+				refreshUI();
+			});
+			bodyBox.appendChild(b);
+		}
+		d.appendChild(bodyBox);
+		const PR = HktGenesisGenome.PROFILE.radiusMul, PL = HktGenesisGenome.PROFILE.lengthMul;
+		const morphLabels = { head: '머리', neck: '목', torso: '몸통', shoulder: '어깨', arm: '팔', hand: '손', leg: '다리', foot: '발' };
+		// 엔트리는 {r, l} 객체 — 슬라이더가 r/l 을 각각 쓰고, 둘 다 항등이면 엔트리 제거
+		const rd = (g, key) => { const e = skel.genome.morph[g]; if (e == null) return 1; return (typeof e === 'number') ? (key === 'r' ? e : 1) : (e[key] != null ? e[key] : 1); };
+		const wr = (g, key, v) => {
+			let e = skel.genome.morph[g];
+			if (e == null || typeof e === 'number') e = { r: typeof e === 'number' ? e : 1 };
+			e[key] = v;
+			if (Math.abs((e.r != null ? e.r : 1) - 1) < 1e-6 && Math.abs((e.l != null ? e.l : 1) - 1) < 1e-6) delete skel.genome.morph[g];
+			else skel.genome.morph[g] = e;
+		};
+		for (const [g, label] of Object.entries(morphLabels)) {
+			d.appendChild(sliderRow(`${label} 굵기`, PR.min, PR.max, PR.step, rd(g, 'r'), (v) => wr(g, 'r', v)));
+			d.appendChild(sliderRow(`${label} 길이`, PL.min, PL.max, PL.step, rd(g, 'l'), (v) => wr(g, 'l', v)));
+		}
+		d.appendChild(el('<div class="note">부위 굵기(반지름)·길이 배율 — 같은 클립을 무수정 재생하며 실루엣·비율만 바뀐다(형태 = 게놈 데이터). 다리 길이는 힙 보정이 발을 지면에 붙인다. 미지정(1) 부위는 기본 문법 그대로.</div>'));
+		// 채색 게놈 ② — 부위 그룹 램프 양 끝(저속·고속). 보간은 속도·변형률 유도(절대 원칙 1).
+		d.appendChild(el('<h2>부위 채색 (그룹 램프)</h2>'));
+		if (!skel.genome.palette) skel.genome.palette = {};
+		const palLabels = { head: '머리', torso: '몸통', arm: '팔', leg: '다리' };
+		const palDef = { a: '#7a3b2a', b: '#ffd9a8' }; // 히키토 기본색
+		for (const [g, label] of Object.entries(palLabels)) {
+			const cur = skel.genome.palette[g] || {};
+			const row = el(`<div class="inline"><label>${label}</label><input type="color" data-k="a" title="저속"><input type="color" data-k="b" title="고속"></div>`);
+			for (const inp of row.querySelectorAll('input')) {
+				const key = inp.dataset.k;
+				inp.value = cur[key] || palDef[key];
+				inp.addEventListener('input', () => {
+					if (!skel.genome.palette[g]) skel.genome.palette[g] = {};
+					skel.genome.palette[g][key] = inp.value;
+				});
+			}
+			d.appendChild(row);
+		}
+		d.appendChild(el('<div class="note">부위별 색 램프의 양 끝(저속·고속) — 채색은 이 양 끝만 게놈이 정하고, 보간(heat=속도·변형률)은 렌더가 유도한다. 미지정 부위는 개체 팔레트 그대로.</div>'));
 		const bonesRow = el('<div class="inline"><label><input type="checkbox"> 뼈대 표시</label></div>');
 		bonesRow.querySelector('input').checked = skel.bones;
 		bonesRow.querySelector('input').addEventListener('change', (e) => { skel.bones = e.target.checked; });
@@ -586,8 +636,8 @@
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
 				const raw = (skel.clip === 'external' && extSkel)
-					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat) // 외부 클립은 증분 시간
-					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat);
+					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
+					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
 				bones = offsetSegs(raw);
 			}
 			const stageOn = stage() && stage().enabled;
