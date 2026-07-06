@@ -51,7 +51,20 @@ class GuildService {
     this.withdraws = 0;           // 처리한 guildWithdraw 수(step-0192·계측·no-op 포함).
     this.bankPublish = opts.bankPublish || false;   // 금고 변경 발행(step-0193·guildBankPublish) — 예치/인출을 svc.guild.bank.changed 로. OFF·bus 부재면 발행 0(0192 동일).
     this.bankPublished = 0;       // svc.guild.bank.changed 발행 수(step-0193·계측). 실 변경과 1:1(no-op 발행 안 함).
+    // step-0511 — 금고↔가방 escrow 실연동(guildBankInv·#46): 0191~0200 금고 vault 는 itemId *문자열*만 보유(가짜 escrow) — 예치해도 멤버 가방서 안 빠졌다. 거래소 escrow(0117~0120)·우편 custody(0161~0164)의 *조직 공유* 판을 적용: 예치=멤버 가방→escrow give·인출=escrow→멤버 가방 give(가방이 원장 권위·금고는 요청만·은닉). inv/invMode 미주입이면 give 0 = 직전 비트 동일(reg 0).
+    this.inv = opts.inv || null;        // 가방(inventory) 주소 — guildBankInv ON 이면 예치/인출이 여기로 give 요청. null 이면 추상 vault(0200 비트 동일).
+    this.invMode = opts.invMode || false;   // 금고 escrow 실연동 활성(step-0511·guildBankInv). OFF 면 _custody no-op → give 0(0510 비트 동일).
+    this.gives = 0;               // 금고가 가방에 보낸 give 요청 수(step-0511·계측·거래소 gives 의 금고 판).
+    this.escrowIds = new Set();   // 금고 escrow 진입 itemId 집합(step-0511·2-서비스 보존 추적 0513·거래소 escrowItemIds 0120·우편 escrowItemIds 0164 의 금고 판). 예치=add·인출=delete.
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 금고 아이템 custody 이동 헬퍼(step-0511·#46) — invMode ON 이고 itemId 있을 때만 가방에 give(from→to). 가방이 원장 권위·금고는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 vault·0200 비트 동일·reg 0). 거래소 _custody(0117)·우편 _custody(0161)의 금고 판. 예치=멤버→'escrow'(leg 진입)·인출='escrow'→멤버(leg 이탈).
+  _custody(itemId, from, to, cause) {
+    if (!this.invMode || !this.inv || itemId == null || !this.net) return;
+    this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to });
+    this.gives++;
+    if (to === 'escrow') this.escrowIds.add(itemId);          // 예치 인출(leg 진입) — escrow 진입(2-서비스 보존 추적·0513)
+    else if (from === 'escrow') this.escrowIds.delete(itemId);   // 인출 입금(leg 이탈) — escrow 이탈
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
   _normalize(master, members) {
