@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0514](step-0514.md) — **#46 금고↔가방 escrow 4: guildbankcrash — crash→reconstruct escrow 보존**: reconstruct 가 crash 휘발 escrowIds 를 vault 에서 재구성(guildBankInv gated)→가방 escrow 소유와 일치 유지·2-서비스 보존 crash 후에도 성립. invMode OFF→skip→reg 0.
-- **한 줄 상태**: reg ALL OK·guildbankcrash 5/5·spine ALL OK.
-- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: deposit(0511)·withdraw(0512)·conserved(0513)·crash(0514). 남은 조각: saga 회신(0515)·pending/손실(0516)·재전송/dedup(0517)·saga 정합(0518)·교차 회계(0519)·grand capstone(0520). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
+- **닫힌 step**: [step-0515](step-0515.md) — **#46 금고↔가방 escrow 5: guildbanksaga — saga 회신 닫힌 고리**: 새 `guildBankSaga` — _custody give 에 replyTo+gid 동봉→가방 item_result echo→ackedGives/giveOks/giveFails 집계. 무손실서 gives==acked==oks(닫힌 고리). saga OFF→echo 0→reg 0.
+- **한 줄 상태**: reg ALL OK·guildbanksaga 5/5·spine ALL OK.
+- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: 0511~0515(deposit·withdraw·conserved·crash·saga). 남은 조각: pending/손실(0516)·재전송/dedup(0517)·saga 정합(0518)·교차 회계(0519)·grand capstone(0520). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
 
 ---
 
@@ -149,3 +149,4 @@
 | [0512](step-0512.md) | #46 금고↔가방 escrow 2: guildbankwithdraw — 인출이 escrow→멤버 가방 실 복귀(0511 짝)·vault/escrowIds 이탈·왕복 escrowXfers 2 | 통과(reg 0·spine OK) · guildbankwithdraw 5/5 |
 | [0513](step-0513.md) | #46 금고↔가방 escrow 3: guildbankconserved — 2-서비스 보존(금고 escrowIds==가방 escrow 소유·Σvault==escrowIds.size·bankConsistent·다중 길드) | 통과(reg 0·spine OK) · guildbankconserved 5/5 |
 | [0514](step-0514.md) | #46 금고↔가방 escrow 4: guildbankcrash — crash→reconstruct 후 escrowIds 를 vault 에서 재구성·가방 escrow 소유와 일치 유지(2-서비스 보존 crash 체제) | 통과(reg 0·spine OK) · guildbankcrash 5/5 |
+| [0515](step-0515.md) | #46 금고↔가방 escrow 5: guildbanksaga — 금고↔가방 saga 회신(give→가방 item_result echo→ackedGives/giveOks·무손실 닫힌 고리 gives==acked==oks) | 통과(reg 0·spine OK) · guildbanksaga 5/5 |
