@@ -428,7 +428,9 @@
 		const eye = camera._eye();
 		let f = [camera.target[0] - eye[0], camera.target[1] - eye[1], camera.target[2] - eye[2]];
 		const fl = Math.hypot(...f); f = f.map((v) => v / fl);
-		let r = [f[2], 0, -f[0]];
+		// 카메라 오른쪽 = cross(forward, up) = [-f.z, 0, f.x]. (이전 [f.z,0,-f.x] 은 부호 반대라
+		// 픽킹이 커서의 좌우·상하 반대편을 집었다 — 배치/드래그가 커서와 어긋나던 원인)
+		let r = [-f[2], 0, f[0]];
 		const rl = Math.hypot(...r) || 1; r = r.map((v) => v / rl);
 		const u = [r[1] * f[2] - r[2] * f[1], r[2] * f[0] - r[0] * f[2], r[0] * f[1] - r[1] * f[0]];
 		const dir = [0, 1, 2].map((i) => r[i] * nx * th * lastAspect + u[i] * ny * th + f[i]);
@@ -594,7 +596,7 @@
 		});
 
 		engine = new HktGenesisEngine(device, context, format);
-		camera = new HktOrbitCamera(canvas, { unityControls: true }); // 유니티식: 우클릭=회전·중클릭=이동·좌클릭=에디터
+		camera = new HktOrbitCamera(canvas);
 		camera.radius = 5.5;
 		syncScene();
 		select({ kind: 'terrain' }); // 첫 작업 = 지형 생성으로 유도
