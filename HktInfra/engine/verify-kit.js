@@ -1157,11 +1157,38 @@ function promoted16(seeds) {
   check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promoted16: grand capstone 9종 전부 등록`);
 }
 
+// ── #16 승급 라운드 3차: 서비스 saga capstone 재작성 편입 (0491~·감사 §2 ①-b) ──
+//   grand capstone(0481~0490)이 월드/async/cluster 를 항구화한 뒤, 이 라운드는 *서비스 계층*(거래소·우편·길드)의
+//   실행 검증을 verify-kit ORDER 로 편입한다 — 옛 capstone 코드가 git 에 없어(단일 src 전환·history 소실) *재작성*이다.
+//   각 capstone 은 run() 을 서비스 opts(exchange/mail/guild + saga)로 구동하고 노출된 정합 술어를 단언한다. 박스 무수정→reg 0.
+// step-0491 재작성 — svcexchangecap: 거래소↔가방 saga 정합(0140 sagaLiveConsistent 판). list+buy escrow→가방 give→saga 회신 drain·회계 닫힘.
+function svcexchangecap(seeds) {
+  console.log('== svcexchangecap (0491·서비스 재작성): 거래소↔가방 saga — list+buy escrow give→회신 drain·sagaLiveConsistent(pending 3분할+회계 닫힘). ==');
+  console.log('seed   | gives | acked | oks | pending | sagaLive | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 14, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+      bus: true, inventory: true, exchange: true, exchInventory: true, exchSaga: true,
+      invOps: [{ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'seller', reqId: 'r0' } }],
+      exchangeOps: [
+        { at: 3, op: { type: 'exchList', seller: 'seller', item: 'sword', price: 10, itemId: 'item0' } },
+        { at: 7, op: { type: 'exchBuy', id: 1, buyer: 'buyer' } },
+      ],
+    });
+    const e = r.exchange;
+    const drained = e.pending.size === 0 && e.gives === 2 && e.ackedGives === 2 && e.giveOks === 2;
+    const live = e.sagaLiveConsistent() && e.sagaConsistent();
+    const moved = r.inventory.ownerOf('item0') === 'buyer';   // 아이템이 seller→escrow→buyer 실물 이동
+    const ok = check(drained && live && moved, `seed ${seed}: drain${drained}·live${live}·moved${moved}(gives${e.gives}·pend${e.pending.size})`);
+    console.log(`${pad(seed, 6)} | ${pad(e.gives, 5)} | ${pad(e.ackedGives, 5)} | ${pad(e.giveOks, 3)} | ${pad(e.pending.size, 7)} | ${pad(live ? 'Y' : 'N', 8)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16 };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
