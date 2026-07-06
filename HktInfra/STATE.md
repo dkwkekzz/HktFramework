@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0492](step-0492.md) — **#16 승급 라운드 3차 2: svcexchangexfer 편입**: 거래소↔가방 2-서비스 교차 회계 capstone(옛 0130 판)을 재작성 편입 — 거래소 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치)·아이템 무손실 단일 소유. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·svcexchangexfer 5/5(giveOks2==escrowXfers2·minted1·buyer 소유)·spine ALL OK.
+- **닫힌 step**: [step-0493](step-0493.md) — **#16 승급 라운드 3차 3: svcmailcap 편입**: 아이템 첨부 우편↔가방 saga 정합 capstone(옛 0170 sagaLiveConsistent 판)을 재작성 편입 — mailC+itemC+escrowC+sagaC 네 회계층 동시 닫힘·item alice→escrow→bob. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·svcmailcap 5/5(gives2==oks2·pending0·네 회계층 AND·escrowXfers2)·spine ALL OK.
 - **다음**: 🎯 **#16 승급 라운드 3차 arc(0491~) — 서비스 saga capstone 재작성 편입** — 상세·순서는 §2. 거래소 saga(✅0491)→거래소 교차→우편 saga→우편 교차→길드 로스터→길드 금고→liveness→가드+arc 닫기.
 
 ---
@@ -152,3 +152,4 @@
 | [0481–0490](reviews/review-0481-0490.md) | #16 승급 라운드 2차: 시대별 grand capstone 9종(mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap)을 verify-kit ORDER 항구화 + promoted16 등록 가드(0490). cluster capstone 은 makeVerifyKit ctx dep 주입·박스 무수정→reg 0 | 통과(reg 0·spine OK) · promoted16 9/9·capstone 5/5 |
 | [0491](step-0491.md) | #16 승급 라운드 3차 1: 거래소↔가방 saga 정합 capstone(0140 sagaLiveConsistent 판) 재작성해 verify-kit ORDER 편입·서비스 계층 첫 실행 검증 | 통과(reg 0·spine OK) · svcexchangecap 5/5 |
 | [0492](step-0492.md) | #16 승급 라운드 3차 2: 거래소↔가방 2-서비스 교차 회계 capstone(0130 판·giveOks==escrowXfers) 재작성 편입 | 통과(reg 0·spine OK) · svcexchangexfer 5/5 |
+| [0493](step-0493.md) | #16 승급 라운드 3차 3: 아이템 우편↔가방 saga 정합 capstone(0170 sagaLiveConsistent 판·mailC+itemC+escrowC+sagaC) 재작성 편입 | 통과(reg 0·spine OK) · svcmailcap 5/5 |
