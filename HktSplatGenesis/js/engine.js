@@ -16,7 +16,7 @@
 	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
 	const MAX_ENTITIES = 8;
 	const MAX_BONES = 128;       // L6 뼈 세그먼트 상한 (Mixamo FBX 풀 리그 ~65개 + 여유)
-	const GROUP_COUNT = 10;      // C3 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치)
+	const GROUP_COUNT = 11;      // C3/C4 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치 — 'other' 가 항상 마지막)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -659,7 +659,11 @@
 			d.queue.writeBuffer(this.boneBuf, 0, ba);
 			// C3 부위 채색: 뼈 인덱스 → 그룹 id 테이블 (렌더가 rest.w 로 조회)
 			const bg = new Uint32Array(nb);
-			for (let i = 0; i < nb; i++) bg[i] = (bones[i].g != null ? bones[i].g : GROUP_COUNT - 1);
+			// 그룹 미상(-1/null/범위 밖)은 'other'(GROUP_COUNT-1) 로 흡수
+			for (let i = 0; i < nb; i++) {
+				const g = bones[i].g;
+				bg[i] = (g != null && g >= 0 && g < GROUP_COUNT) ? g : GROUP_COUNT - 1;
+			}
 			d.queue.writeBuffer(this.boneGroupBuf, 0, bg);
 		}
 		sf[13] = nb;                       // boneCount

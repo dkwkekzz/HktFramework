@@ -53,10 +53,10 @@
 		return (G && genome) ? G.lengthScale(genome, name) : 1;
 	}
 	// 뼈 → 부위 그룹 id (C3: 채색 ②). 세그먼트에 실어 GPU boneGroup 테이블로 올라간다.
-	// HktGenesisGenome 미로드 시 'other'(마지막 인덱스)로 폴백.
+	// HktGenesisGenome 미로드 시 -1 — engine 이 그룹 미상(-1/null)을 'other'(GROUP_COUNT-1)로 흡수.
 	function groupIdOf(name) {
 		const G = global.HktGenesisGenome;
-		return G ? G.groupId(name) : 9;
+		return G ? G.groupId(name) : -1;
 	}
 	// 힙 보정 (C2): 다리 길이 배율로 발이 뚫리거나 뜨지 않게 루트 y 를 보정한다.
 	// 대표 발(왼쪽 Toe/Foot)에서 루트까지 offset.y × (1 − 길이배율) 을 누적 —
@@ -139,13 +139,90 @@
 		];
 	}
 
+	// ── (3-c) C4 부속 리그: 가상 뼈 스프링 체인 — 리그에 없는 꼬리/뿔/귀/망토 ──
+	// 클립은 가상 뼈를 모른다(클립 데이터 무수정) — 부착 관절의 world 변환에 매달린
+	// 스프링 체인이 지연 추종으로 움직임을 만든다 (L6 살의 출렁임과 같은 미학).
+	// 불변: 가상 뼈 세그먼트는 항상 실뼈 세그먼트 *뒤에* 고정 순서로 append —
+	// "세그먼트 순서 = 뼈 친화(rest.w) 인덱스" 규약 유지. 부속 정의가 바뀌면 세그먼트
+	// 수가 변하므로 호출측은 재시드(bindBones 재계산)해야 한다.
+	function AppendixRig() { this.sig = ''; this.chains = []; this.lastT = null; }
+	// 게놈 ④ 와 동기 — 정의가 바뀌면 체인 상태를 버리고 재구축(강체 목표 재시드).
+	AppendixRig.prototype.sync = function (genome) {
+		const G = global.HktGenesisGenome;
+		const defs = (G && genome && G.chains) ? G.chains(genome) : [];
+		const sig = JSON.stringify(defs);
+		if (sig !== this.sig) {
+			this.sig = sig;
+			this.chains = defs.map((def) => ({ def, p: null, v: null }));
+		}
+		return this.chains;
+	};
+	// 한 스텝: 부착점(aPos)+회전(aRot, row-major 3x3)의 강체 목표를 스프링 추종.
+	// p 미초기화(재시드 직후)면 강체 목표에 정지 상태로 놓는다 — 결정론(t=0 bind 포함).
+	// 스프링(k) + 감쇠(damp, 기본 임계 2√k) + 중력, 이후 마디 길이 구속(뿌리→끝) —
+	// 실루엣(총 길이)은 고정한 채 굽힘(잔상 곡선)만 남긴다.
+	AppendixRig.prototype.step = function (chain, dt, aPos, aRot) {
+		const def = chain.def, n = def.links, ll = def.len / n;
+		const dw = aRot ? mulVec(aRot, def.dir) : def.dir.slice();
+		if (!chain.p) {
+			chain.p = []; chain.v = [];
+			for (let i = 0; i < n; i++) {
+				chain.p.push([aPos[0] + dw[0] * ll * (i + 1), aPos[1] + dw[1] * ll * (i + 1), aPos[2] + dw[2] * ll * (i + 1)]);
+				chain.v.push([0, 0, 0]);
+			}
+		}
+		if (dt > 0) {
+			for (let i = 0; i < n; i++) {
+				const tx = aPos[0] + dw[0] * ll * (i + 1), ty = aPos[1] + dw[1] * ll * (i + 1), tz = aPos[2] + dw[2] * ll * (i + 1);
+				const p = chain.p[i], v = chain.v[i];
+				v[0] += (def.k * (tx - p[0]) - def.damp * v[0]) * dt;
+				v[1] += (def.k * (ty - p[1]) - def.damp * v[1] - def.gravity) * dt;
+				v[2] += (def.k * (tz - p[2]) - def.damp * v[2]) * dt;
+				p[0] += v[0] * dt; p[1] += v[1] * dt; p[2] += v[2] * dt;
+			}
+		}
+		// 길이 구속 — 체인은 늘어나지 않는다 (마디 수 × ll = 총 길이 불변)
+		let prev = aPos;
+		for (let i = 0; i < n; i++) {
+			const p = chain.p[i];
+			const dx = p[0] - prev[0], dy = p[1] - prev[1], dz = p[2] - prev[2];
+			const d = Math.hypot(dx, dy, dz) || 1;
+			p[0] = prev[0] + dx / d * ll; p[1] = prev[1] + dy / d * ll; p[2] = prev[2] + dz / d * ll;
+			prev = p;
+		}
+	};
+	// 체인 → 세그먼트 append. 반지름은 뿌리→끝 프로파일(r0→r1) × fat × 게놈 배율
+	// (체인 이름이 'appendix' 그룹으로 분류되므로 morph.appendix.r 이 그대로 먹는다).
+	AppendixRig.prototype.appendSegs = function (segs, chain, aPos, genome, f) {
+		const def = chain.def, n = def.links;
+		const G = global.HktGenesisGenome;
+		const mul = (G && genome) ? G.radiusScale(genome, def.name) : 1;
+		const rAt = (u) => (def.r0 + (def.r1 - def.r0) * u) * (f || 1) * mul;
+		let prev = aPos;
+		for (let i = 0; i < n; i++) {
+			segs.push({ a: prev, b: chain.p[i], ra: rAt(i / n), rb: rAt((i + 1) / n), g: groupIdOf(def.name) });
+			prev = chain.p[i];
+		}
+	};
+
 	function Skeleton(defs) {
 		this.defs = defs || buildHumanoidRig();
 		this.rootIdx = this.defs.findIndex((d) => d.parent < 0);
 		this.bindHipY = this.rootIdx >= 0 ? this.defs[this.rootIdx].offset[1] : 0;
 		this._wpos = this.defs.map(() => [0, 0, 0]);
 		this._wrot = this.defs.map(() => null);
+		this._appendix = new AppendixRig();
 	}
+	// 부착 관절 해석: simpleName 완전 일치 → 포함 → 루트 폴백 (rig-agnostic).
+	Skeleton.prototype._jointIdx = function (name) {
+		let contains = -1;
+		for (let i = 0; i < this.defs.length; i++) {
+			const n = simpleName(this.defs[i].name);
+			if (n === name) return i;
+			if (contains < 0 && n.indexOf(name) >= 0) contains = i;
+		}
+		return contains >= 0 ? contains : this.rootIdx;
+	};
 
 	// ── (3-a) 절차 클립: 이름 기반 회전 — hikito-flesh applyPose 이식 ────────
 	Skeleton.prototype._euler = function (n, clip, t, ph) {
@@ -218,6 +295,23 @@
 				g: groupIdOf(this.defs[i].name), // C3: 자식 뼈 기준 부위 그룹
 			});
 		}
+		// C4 부속: 실뼈 뒤 고정 순서 append. built-in 클립은 절대 시간이라 dt 를 유도 —
+		// 시간 역행(리셋·bindBones 의 t=0 호출)은 체인 재시드로 처리한다 (결정론 유지).
+		const chains = this._appendix.sync(genome);
+		if (chains.length) {
+			let dt = 0;
+			if (this._appendix.lastT != null) {
+				dt = t - this._appendix.lastT;
+				if (dt < 0) { for (const c of chains) c.p = null; dt = 0; }
+			}
+			this._appendix.lastT = t;
+			dt = Math.min(dt, 0.05);
+			for (const ch of chains) {
+				const ai = this._jointIdx(ch.def.attach);
+				this._appendix.step(ch, dt, this._wpos[ai], this._wrot[ai]);
+				this._appendix.appendSegs(segs, ch, this._wpos[ai], genome, f);
+			}
+		}
 		return segs;
 	};
 
@@ -246,8 +340,20 @@
 		}
 		this._wp = new THREE.Vector3();
 		this._wpp = new THREE.Vector3();
+		this._appendix = new AppendixRig();
+		this._aq = new THREE.Quaternion();
 	}
 	ExternalSkeleton.prototype.valid = function () { return this.bones.length > 0; };
+	// 부착 뼈 해석 — simpleName 완전 일치 → 포함 → 루트 뼈 폴백 (rig-agnostic).
+	ExternalSkeleton.prototype._attachBone = function (name) {
+		let contains = null;
+		for (const b of this.bones) {
+			const n = simpleName(b.name);
+			if (n === name) return b;
+			if (!contains && n.indexOf(name) >= 0) contains = b;
+		}
+		return contains || this.bones[0];
+	};
 	// 클립을 dt·speed 만큼 진행하고 세그먼트 추출.
 	// 순서는 bones 배열 고정 — 뼈 친화(rest.w) 인덱스의 기준이므로 포즈별 필터 금지.
 	ExternalSkeleton.prototype.pose = function (dt, speed, fat, genome) {
@@ -274,6 +380,31 @@
 				rb: radiusG(bone.name, genome, f),
 				g: groupIdOf(bone.name), // C3: 자식 뼈 기준 부위 그룹
 			});
+		}
+		// C4 부속: 실뼈 뒤 고정 순서 append — 부착 뼈의 (정규화 world 위치, world 회전) 기준.
+		// 외부 클립은 증분 시간이라 dt 를 그대로 물리 스텝에 쓴다 (bind 호출 dt=0 은 무동작).
+		const chains = this._appendix.sync(genome);
+		if (chains.length) {
+			const step = Math.min(Math.max(dt || 0, 0), 0.05);
+			for (const ch of chains) {
+				const ab = this._attachBone(ch.def.attach);
+				ab.getWorldPosition(this._wp);
+				ab.getWorldQuaternion(this._aq);
+				const q = this._aq, xx = q.x * q.x, yy = q.y * q.y, zz = q.z * q.z,
+					xy = q.x * q.y, xz = q.x * q.z, yz = q.y * q.z, wx = q.w * q.x, wy = q.w * q.y, wz = q.w * q.z;
+				const rot = [
+					1 - 2 * (yy + zz), 2 * (xy - wz), 2 * (xz + wy),
+					2 * (xy + wz), 1 - 2 * (xx + zz), 2 * (yz - wx),
+					2 * (xz - wy), 2 * (yz + wx), 1 - 2 * (xx + yy),
+				];
+				const aPos = [
+					(this._wp.x - this.center.x) * this.scale,
+					(this._wp.y - this.center.y) * this.scale + 0.98,
+					(this._wp.z - this.center.z) * this.scale,
+				];
+				this._appendix.step(ch, step, aPos, rot);
+				this._appendix.appendSegs(segs, ch, aPos, genome, f);
+			}
 		}
 		return segs;
 	};
