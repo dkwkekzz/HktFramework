@@ -1456,11 +1456,27 @@ function mailsagaunacked(seeds) {
   }
 }
 
+// step-0503 — mailsagaabandon: 재시도 상한(mailMaxRetries) 도달 → 포기(abandon) 국면. 지속 손실 하 gid 당 N회 재전송 후 포기 → giveAbandoned>0·pendingGive 0(재전송 중단)·abandonedGive>0(재admission 대기)·pending 잔존. 미해결의 두 번째 분할(pendingGive→abandonedGive) 발현·pending==abandonedGive.
+function mailsagaabandon(seeds) {
+  console.log('== mailsagaabandon (0503·손실 체제): 재시도 상한 도달 → 포기. giveAbandoned>0·pendingGive 0·abandonedGive>0·pending==abandonedGive·sagaLive. ==');
+  console.log('seed   | giveAbandoned | pendingGive | abandonedGive | pending | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0], mailMaxRetries: 2 },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }]).mail;
+    const abandoned = m.giveAbandoned === 1 && m.pendingGive.size === 0 && m.abandonedGive.size === 1;   // 상한 도달 → pendingGive→abandonedGive 이행
+    const held = m.pending.size === 1 && m.pending.size === m.abandonedGive.size;                        // pending 잔존(미해결)·전량 재admission 대기
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(abandoned && held && cons, `seed ${seed}: aban${abandoned}·held${held}·cons${cons}(ga${m.giveAbandoned})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.giveAbandoned, 13)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.pending.size, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
