@@ -20,7 +20,7 @@ import { canonicalDamage } from '../shared/audit.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
-  POOL, CAUSE, WORLD_SEED, WORLD_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL,
+  POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
@@ -32,9 +32,7 @@ import {
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
-const RANGE_SLACK = 10; // 비콘 양자화·지연 흡수용 사거리 여유
-
-function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
+const RANGE_SLACK = 10; // 비콘 양자화·지연 흡수용 사거리 여유 (3D 사거리 = shared dist3)
 
 export class GameServer {
   constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED, snapshot = null, binaryOps = true } = {}) {
@@ -49,7 +47,7 @@ export class GameServer {
     this.players = new Map(); // id -> player
     this.intents = [];        // 도착 순 큐 — 순서 중재의 실체
     this.pendingOps = [];     // 이번 틱 확정 tx + 사실 이벤트 (인과 순서 유지)
-    this.pendingMoves = new Map(); // playerId -> [x, y] (비콘 릴레이)
+    this.pendingMoves = new Map(); // playerId -> [x, y, z] (3D 비콘 릴레이)
     this.nextPlayerNo = 1;
 
     // A3: 스냅샷이 있으면 원장 잔고 복원, 없으면 창세. 세계 = 원장 잔고뿐이라 이 둘로 충분.
@@ -99,7 +97,7 @@ export class GameServer {
       txSeq: this.txSeq,
       nextItemNo: this.nextItemNo,
       pools: this.ledger.serialize(),
-      items: [...this.items.values()].map(i => [i.id, i.itemType, i.owner, i.x, i.y]),
+      items: [...this.items.values()].map(i => [i.id, i.itemType, i.owner, i.x, i.y, i.z]),
       mobs: [...this.mobs.values()].map(m => [m.id, m.dead, m.respawnAt]),
     };
   }
@@ -124,8 +122,8 @@ export class GameServer {
       this.mobs.set(m.id, { ...m, dead: meta.dead, respawnAt: meta.respawnAt });
     }
     this.items = new Map();
-    for (const [id, itemType, owner, x, y] of snap.items) {
-      this.items.set(id, { id, itemType, owner, x, y });
+    for (const [id, itemType, owner, x, y, z] of snap.items) {
+      this.items.set(id, { id, itemType, owner, x, y, z });
     }
   }
 
@@ -155,7 +153,7 @@ export class GameServer {
     const id = `${POOL.PLAYER}${this.nextPlayerNo++}`;
     const player = {
       id, name: String(name).slice(0, 12) || '모험가', conn,
-      x: SPAWN_POS.x, y: SPAWN_POS.y,
+      x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z,
       lastBeaconMs: this.now(), moveDebt: 0,
       cooldownUntil: 0, dead: false, respawnAt: 0, atkSeq: 0,
       regions: new Set(regionNeighbors(SPAWN_POS.x, SPAWN_POS.y)),
@@ -169,7 +167,7 @@ export class GameServer {
       playerId: id, name: player.name, seed: WORLD_SEED, tick: this.tickCount,
       total: this.ledger.totalSum(),
       src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
-      x: player.x, y: player.y,
+      x: player.x, y: player.y, z: player.z,
     }));
     this.#tx(POOL.SOURCE, id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
     return player;
@@ -208,13 +206,14 @@ export class GameServer {
     if (p.dead) return;
     const x = Math.max(0, Math.min(WORLD_SIZE, Math.round(msg.x ?? p.x)));
     const y = Math.max(0, Math.min(WORLD_SIZE, Math.round(msg.y ?? p.y)));
+    const z = Math.max(0, Math.min(WORLD_HEIGHT, Math.round(msg.z ?? p.z)));
     const nowMs = this.now();
     const dt = Math.max(0.05, (nowMs - p.lastBeaconMs) / 1000);
-    const d = dist(p.x, p.y, x, y);
+    const d = dist3(p.x, p.y, p.z, x, y, z); // 속도 예산은 3D 이동거리로 검증
 
     if (d > MAX_SPEED * dt * BEACON_TOLERANCE + BEACON_SLACK_PX) {
       // 예산 초과 — 서버는 물리를 몰라도 '불가능' 은 안다. 마지막 정합 위치로 정정.
-      p.conn.send(encode(MSG.TELEPORT, { x: p.x, y: p.y }));
+      p.conn.send(encode(MSG.TELEPORT, { x: p.x, y: p.y, z: p.z }));
       p.lastBeaconMs = nowMs;
       return;
     }
@@ -222,9 +221,9 @@ export class GameServer {
     const { cost, debt } = moveCost(p.moveDebt, d);
     p.moveDebt = debt;
     if (cost > 0) this.#tx(p.id, POOL.SINK, cost, CAUSE.MOVE, { x, y });
-    p.x = x; p.y = y; p.lastBeaconMs = nowMs;
-    p.regions = new Set(regionNeighbors(x, y));
-    this.pendingMoves.set(p.id, [x, y]);
+    p.x = x; p.y = y; p.z = z; p.lastBeaconMs = nowMs;
+    p.regions = new Set(regionNeighbors(x, y)); // 파티션은 컬럼(x,y) — z 무관
+    this.pendingMoves.set(p.id, [x, y, z]);
   }
 
   #onResync(p, msg) {
@@ -263,11 +262,11 @@ export class GameServer {
   #targetInfo(id) {
     if (id.startsWith(POOL.PLAYER)) {
       const t = this.players.get(id);
-      return t && !t.dead ? { x: t.x, y: t.y, isPlayer: true } : null;
+      return t && !t.dead ? { x: t.x, y: t.y, z: t.z, isPlayer: true } : null;
     }
     if (id.startsWith(POOL.MOB)) {
       const m = this.mobs.get(id);
-      return m && !m.dead ? { x: m.x, y: m.y, isPlayer: false } : null;
+      return m && !m.dead ? { x: m.x, y: m.y, z: m.z, isPlayer: false } : null;
     }
     return null;
   }
@@ -282,7 +281,7 @@ export class GameServer {
       case INTENT.GATHER: {
         const node = this.nodes.get(msg.nodeId);
         if (!node) return this.#reject(p, iid, 'no-target');
-        if (dist(p.x, p.y, node.x, node.y) > GATHER_RANGE + RANGE_SLACK)
+        if (dist3(p.x, p.y, p.z, node.x, node.y, node.z) > GATHER_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
         const got = this.#tx(node.id, p.id, GATHER_AMOUNT, CAUSE.GATHER, node, iid);
@@ -295,7 +294,7 @@ export class GameServer {
         if (nowMs < p.cooldownUntil) return this.#reject(p, iid, 'cooldown');
         const target = this.#targetInfo(msg.targetId ?? '');
         if (!target || msg.targetId === p.id) return this.#reject(p, iid, 'no-target');
-        if (dist(p.x, p.y, target.x, target.y) > ATTACK_RANGE + RANGE_SLACK)
+        if (dist3(p.x, p.y, p.z, target.x, target.y, target.z) > ATTACK_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
         if (this.ledger.balance(p.id) < ATTACK_COST) return this.#reject(p, iid, 'no-energy');
 
@@ -355,7 +354,7 @@ export class GameServer {
         const item = {
           id: `${POOL.ITEM}${this.nextItemNo++}`,
           itemType: isWeapon ? 'weapon' : 'crystal',
-          owner: p.id, x: 0, y: 0,
+          owner: p.id, x: 0, y: 0, z: 0,
         };
         this.items.set(item.id, item);
         this.ledger.createPool(item.id, 0, cost, null);
@@ -377,7 +376,7 @@ export class GameServer {
       case INTENT.DROP: {
         const item = this.items.get(msg.itemId ?? '');
         if (!item || item.owner !== p.id) return this.#reject(p, iid, 'no-item');
-        this.#dropToGround(item, p.x, p.y);
+        this.#dropToGround(item, p.x, p.y, p.z);
         break;
       }
 
@@ -385,7 +384,7 @@ export class GameServer {
         const item = this.items.get(msg.itemId ?? '');
         // 소유권 선점 = 순서 중재 그 자체. 먼저 처리된 인텐트가 이긴다.
         if (!item || item.owner !== null) return this.#reject(p, iid, 'gone');
-        if (dist(p.x, p.y, item.x, item.y) > PICKUP_RANGE + RANGE_SLACK)
+        if (dist3(p.x, p.y, p.z, item.x, item.y, item.z) > PICKUP_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
         item.owner = p.id;
         this.ledger.setRegion(item.id, null);
@@ -406,10 +405,10 @@ export class GameServer {
     if (item.owner) this.#event({ kind: 'item-gone', id: item.id }, { only: item.owner });
   }
 
-  #dropToGround(item, x, y) {
+  #dropToGround(item, x, y, z) {
     item.owner = null;
-    item.x = x; item.y = y;
-    this.ledger.setRegion(item.id, regionKey(x, y));
+    item.x = x; item.y = y; item.z = z;
+    this.ledger.setRegion(item.id, regionKey(x, y)); // 파티션은 컬럼(x,y)
     // 시야 진입(ENTER)이 각 클라에 전달 — 별도 이벤트 불필요
   }
 
@@ -424,7 +423,7 @@ export class GameServer {
     const t = this.players.get(targetId);
     t.dead = true;
     t.respawnAt = this.now() + RESPAWN_DELAY_MS;
-    for (const item of this.#ownedItems(targetId)) this.#dropToGround(item, t.x, t.y); // 전리품
+    for (const item of this.#ownedItems(targetId)) this.#dropToGround(item, t.x, t.y, t.z); // 전리품
     this.#event({ kind: 'death', id: targetId }, { at: pos });
   }
 
@@ -446,12 +445,12 @@ export class GameServer {
     for (const p of this.players.values()) {
       if (p.dead && nowMs >= p.respawnAt) {
         p.dead = false;
-        p.x = SPAWN_POS.x; p.y = SPAWN_POS.y; p.moveDebt = 0;
+        p.x = SPAWN_POS.x; p.y = SPAWN_POS.y; p.z = SPAWN_POS.z; p.moveDebt = 0;
         p.lastBeaconMs = nowMs;
         p.regions = new Set(regionNeighbors(p.x, p.y));
         this.#tx(POOL.SOURCE, p.id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
-        this.#event({ kind: 'respawn', id: p.id, x: p.x, y: p.y }, { at: SPAWN_POS });
-        p.conn.send(encode(MSG.TELEPORT, { x: p.x, y: p.y }));
+        this.#event({ kind: 'respawn', id: p.id, x: p.x, y: p.y, z: p.z }, { at: SPAWN_POS });
+        p.conn.send(encode(MSG.TELEPORT, { x: p.x, y: p.y, z: p.z }));
       }
     }
 
@@ -498,7 +497,7 @@ export class GameServer {
       if (q.id === p.id || q.dead) continue;
       if (p.regions.has(regionKey(q.x, q.y))) {
         vis.set(q.id, {
-          id: q.id, kind: 'player', name: q.name, x: q.x, y: q.y,
+          id: q.id, kind: 'player', name: q.name, x: q.x, y: q.y, z: q.z,
           balance: this.ledger.balance(q.id), max: PLAYER_MAX_ENERGY,
         });
       }
@@ -514,7 +513,7 @@ export class GameServer {
     for (const i of this.items.values()) {
       if (i.owner === null && p.regions.has(regionKey(i.x, i.y))) {
         vis.set(i.id, {
-          id: i.id, kind: 'item', itemType: i.itemType, x: i.x, y: i.y,
+          id: i.id, kind: 'item', itemType: i.itemType, x: i.x, y: i.y, z: i.z,
           balance: this.ledger.balance(i.id), max: this.ledger.get(i.id).max,
         });
       }
@@ -562,8 +561,8 @@ export class GameServer {
       if (enters.length) p.conn.send(encode(MSG.ENTER, { entities: enters }));
 
       const moves = [];
-      for (const [id, [x, y]] of this.pendingMoves) {
-        if (id !== p.id && vis.has(id)) moves.push([id, x, y]);
+      for (const [id, [x, y, z]] of this.pendingMoves) {
+        if (id !== p.id && vis.has(id)) moves.push([id, x, y, z]);
       }
       if (moves.length) p.conn.send(encode(MSG.POS, { moves }));
 

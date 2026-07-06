@@ -7,7 +7,7 @@
 
 import { mulberry32, randInt } from './rng.js';
 import {
-  WORLD_SEED, WORLD_SIZE, NODE_COUNT, NODE_MIN_MAX, NODE_MAX_MAX,
+  WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, NODE_COUNT, NODE_MIN_MAX, NODE_MAX_MAX,
   MOB_COUNT, MOB_ENERGY, POOL,
 } from './constants.js';
 
@@ -21,6 +21,7 @@ export function generateWorld(seed = WORLD_SEED) {
       id: `${POOL.NODE}${i}`,
       x: randInt(rng, margin, WORLD_SIZE - margin),
       y: randInt(rng, margin, WORLD_SIZE - margin),
+      z: randInt(rng, margin, WORLD_HEIGHT - margin),   // 3D 배치 (높이)
       max: randInt(rng, NODE_MIN_MAX, NODE_MAX_MAX),
     });
   }
@@ -31,6 +32,7 @@ export function generateWorld(seed = WORLD_SEED) {
       id: `${POOL.MOB}${i}`,
       x: randInt(rng, margin, WORLD_SIZE - margin),
       y: randInt(rng, margin, WORLD_SIZE - margin),
+      z: randInt(rng, margin, WORLD_HEIGHT - margin),
       max: MOB_ENERGY,
     });
   }

@@ -11,10 +11,10 @@
 
 import { ClientState } from '../client/state.js';
 import { decode, MSG, INTENT } from '../shared/protocol.js';
-import { MAX_SPEED, ATTACK_RANGE, BEACON_INTERVAL_MS, WORLD_SIZE } from '../shared/constants.js';
+import { MAX_SPEED, ATTACK_RANGE, BEACON_INTERVAL_MS, WORLD_SIZE, WORLD_HEIGHT, dist3 } from '../shared/constants.js';
 
-function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
-function clampPos(v) { return Math.max(0, Math.min(WORLD_SIZE, v)); }
+const clampXY = (v) => Math.max(0, Math.min(WORLD_SIZE, v));
+const clampZ = (v) => Math.max(0, Math.min(WORLD_HEIGHT, v));
 
 export class MonsterController {
   constructor(game) {
@@ -23,15 +23,15 @@ export class MonsterController {
   }
 
   // 몬스터 = 무특권 플레이어 액터. addPlayer 그대로 — 서버는 플레이어와 구분하지 않는다.
-  spawn(name, x, y) {
+  spawn(name, x, y, z) {
     const mirror = new ClientState();
-    const mon = { id: null, mirror, x, y, iid: 0, wanderT: 0 };
+    const mon = { id: null, mirror, x, y, z, iid: 0, wanderT: 0 };
     // in-process 수송: 서버→몬스터 메시지를 미러에 그대로 먹인다 (클라와 동일)
     const conn = { send: (s) => { const m = decode(s); if (m) mirror.handle(m); } };
-    mirror.onTeleport = ({ x: tx, y: ty }) => { mon.x = tx; mon.y = ty; }; // 서버 정정 수용
+    mirror.onTeleport = ({ x: tx, y: ty, z: tz }) => { mon.x = tx; mon.y = ty; mon.z = tz; }; // 서버 정정 수용
     const player = this.game.addPlayer(conn, name);
     mon.id = player.id;
-    mon.x = x ?? player.x; mon.y = y ?? player.y;
+    mon.x = x ?? player.x; mon.y = y ?? player.y; mon.z = z ?? player.z;
     this.monsters.push(mon);
     return mon;
   }
@@ -45,33 +45,34 @@ export class MonsterController {
       let target = null, best = Infinity;
       for (const e of mon.mirror.entities.values()) {
         if (e.kind !== 'player') continue;
-        const d = dist(mon.x, mon.y, e.tx, e.ty);
+        const d = dist3(mon.x, mon.y, mon.z, e.tx, e.ty, e.tz);
         if (d < best) { best = d; target = e; }
       }
 
       if (target && best <= ATTACK_RANGE - 10) {
         this.#attack(mon, target.id);
       } else if (target) {
-        this.#moveToward(mon, target.tx, target.ty, budget);
+        this.#moveToward(mon, target.tx, target.ty, target.tz, budget);
       } else {
         this.#wander(mon, budget); // 사냥감 없으면 배회 (필드 순찰)
       }
     }
   }
 
-  #moveToward(mon, tx, ty, budget) {
-    const d = dist(mon.x, mon.y, tx, ty) || 1;
+  #moveToward(mon, tx, ty, tz, budget) {
+    const d = dist3(mon.x, mon.y, mon.z, tx, ty, tz) || 1;
     const s = Math.min(budget, d);
-    mon.x = clampPos(mon.x + (tx - mon.x) / d * s);
-    mon.y = clampPos(mon.y + (ty - mon.y) / d * s);
-    this.game.onMessage(mon.id, { t: MSG.BEACON, x: Math.round(mon.x), y: Math.round(mon.y) });
+    mon.x = clampXY(mon.x + (tx - mon.x) / d * s);
+    mon.y = clampXY(mon.y + (ty - mon.y) / d * s);
+    mon.z = clampZ(mon.z + (tz - mon.z) / d * s);
+    this.game.onMessage(mon.id, { t: MSG.BEACON, x: Math.round(mon.x), y: Math.round(mon.y), z: Math.round(mon.z) });
   }
 
   #wander(mon, budget) {
-    // 결정론 순찰 — id·시간 기반 각도 (RNG·특권 없음)
+    // 결정론 순찰 — id·시간 기반 각도 (RNG·특권 없음). 수평 배회, 높이는 유지.
     mon.wanderT += 1;
     const a = (mon.wanderT * 0.7 + mon.id.length) % (Math.PI * 2);
-    this.#moveToward(mon, mon.x + Math.cos(a) * budget * 4, mon.y + Math.sin(a) * budget * 4, budget);
+    this.#moveToward(mon, mon.x + Math.cos(a) * budget * 4, mon.y + Math.sin(a) * budget * 4, mon.z, budget);
   }
 
   #attack(mon, targetId) {

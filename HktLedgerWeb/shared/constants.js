@@ -5,11 +5,12 @@
 // 에너지 단위는 전부 정수. 보존 불변식: 전 풀 합계 = WORLD_SOURCE_INITIAL 고정.
 // ============================================================================
 
-// --- 월드 ---
-export const WORLD_SIZE = 2000;          // 월드 한 변 (px)
-export const REGION_SIZE = 500;          // 관심영역/체크섬 격자 한 변 → 4x4 지역
+// --- 월드 (공간은 3D — x,y 수평 + z 높이. region/필드 격자는 (x,y) 컬럼, z 는 컬럼 내 자유) ---
+export const WORLD_SIZE = 2000;          // 월드 수평 한 변 (px)
+export const WORLD_HEIGHT = 1000;        // 월드 수직 범위 (z, px)
+export const REGION_SIZE = 500;          // 관심영역/체크섬 격자 한 변 → 수평 4x4 컬럼
 export const WORLD_SEED = 20260702;      // 결정론 월드 시딩 (서버·클라 동일 유도)
-export const SPAWN_POS = { x: 1000, y: 1000 };
+export const SPAWN_POS = { x: 1000, y: 1000, z: WORLD_HEIGHT / 2 };
 
 // --- 틱 / 네트워크 ---
 export const TICK_RATE = 10;             // 서버 원장 틱 (Hz) — 서버는 이 빈도로만 깨어난다
@@ -98,7 +99,13 @@ export const CAUSE = {
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse',
 };
 
-// 지역 키 유도 — 서버·클라 동일 함수 사용 (체크섬 정합의 전제)
+// 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
+export function dist3(ax, ay, az, bx, by, bz) {
+  return Math.hypot(ax - bx, ay - by, az - bz);
+}
+
+// 지역 키 유도 — 서버·클라 동일 함수 사용 (체크섬 정합의 전제).
+// 컬럼형: 파티션은 (x,y) 수평 격자 — z 는 같은 컬럼 안에서 자유(수직은 분할하지 않는다).
 export function regionKey(x, y) {
   return `${Math.floor(x / REGION_SIZE)}_${Math.floor(y / REGION_SIZE)}`;
 }

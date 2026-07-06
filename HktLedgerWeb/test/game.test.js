@@ -17,7 +17,7 @@ import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
-  GATHER_AMOUNT, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
+  GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
 } from '../shared/constants.js';
 
@@ -34,10 +34,10 @@ function setup() {
     const player = game.addPlayer(conn, name);
     return { conn, player };
   };
-  // 큰 시간 간격의 비콘 = 속도 예산 안에서의 순간이동 (테스트 배치용)
-  const warp = (player, x, y) => {
+  // 큰 시간 간격의 비콘 = 속도 예산 안에서의 순간이동 (테스트 배치용). z 는 3D 배치.
+  const warp = (player, x, y, z = SPAWN_POS.z) => {
     clock.t += 60_000;
-    game.onMessage(player.id, { t: MSG.BEACON, x, y });
+    game.onMessage(player.id, { t: MSG.BEACON, x, y, z });
   };
   const intent = (player, kind, data = {}, iid = `t${Math.floor(clock.t)}`) => {
     game.onMessage(player.id, { t: MSG.INTENT, iid, kind, ...data });
@@ -79,7 +79,7 @@ test('동시 채집 중재 — FIFO 클램프, Got<Want, 고갈 기각', () => {
   const { game, join, warp, intent, total } = setup();
   const [a, b, c] = [join('A'), join('B'), join('C')];
   const node = game.nodes.values().next().value;
-  for (const p of [a, b, c]) { warp(p.player, node.x + 10, node.y); game.tick(); }
+  for (const p of [a, b, c]) { warp(p.player, node.x + 10, node.y, node.z); game.tick(); }
 
   // 노드를 30 만 남기고 비운다 (테스트 전용 직접 이체 — 역시 보존)
   game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id) - 30, 'test');
@@ -115,7 +115,7 @@ test('전투 — 데미지 = 흡수+소각 이체, 사거리 기각, 몬스터 �
   game.tick();
   assert.equal(a.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'far')?.reason, 'out-of-range');
 
-  warp(a.player, mob.x + 50, mob.y);
+  warp(a.player, mob.x + 50, mob.y, mob.z);
   game.tick();
 
   const before = game.ledger.balance(a.player.id);
@@ -214,7 +214,7 @@ test('A1 필드 확산 — 노드 재충전이 세계→노드 주입이 아니�
   const { game, join, warp, total } = setup();
   const a = join('A');
   const node = game.nodes.values().next().value;
-  warp(a.player, node.x + 10, node.y); // 노드 지역 구독
+  warp(a.player, node.x + 10, node.y, node.z); // 노드 지역 구독
   game.tick();
 
   // 노드와 그 지역 셀을 모두 고갈 — 재충전이 두 홉(SOURCE→셀→노드)을 거치는지 본다
@@ -244,7 +244,7 @@ test('A1 미러 정합 — 필드 재충전(셀→노드)을 클라 미러가 �
   const node = game.nodes.values().next().value;
   // 시야 진입(ENTER) 전에 고갈시켜 ENTER 가 고갈 잔고를 싣게 한다 (실제 채집과 동형)
   game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id), 'test');
-  warp(a.player, node.x + 10, node.y);
+  warp(a.player, node.x + 10, node.y, node.z);
   game.tick();
 
   while (game.tickCount % 30 !== 1 || game.tickCount < 60) game.tick(); // 재충전·체크섬 틱 포함
@@ -308,13 +308,13 @@ test('A3 영속화 — 스냅샷 저장→복원 후 지역 체크섬 일치 + �
   const node = game.nodes.values().next().value;
 
   // 잔고 분포를 흐트러뜨린다: 채집·응축·몬스터 처치(dead 상태도 스냅샷에 실림)
-  warp(a.player, node.x + 10, node.y);
+  warp(a.player, node.x + 10, node.y, node.z);
   game.tick();
   for (let i = 0; i < 3; i++) { intent(a.player, INTENT.GATHER, { nodeId: node.id }, `g${i}`); game.tick(); }
   intent(a.player, INTENT.CONDENSE, {}, 'c1');
   game.tick();
   const mob = game.mobs.values().next().value;
-  warp(a.player, mob.x + 30, mob.y);
+  warp(a.player, mob.x + 30, mob.y, mob.z);
   game.tick();
   while (!mob.dead) {
     clock.t += ATTACK_COOLDOWN_MS + 10;
@@ -379,6 +379,38 @@ test('A5 몬스터도 특권 없음 — 스피드핵 비콘은 플레이어와 �
   assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
 });
 
+test('3D 공간 — 사거리가 z 를 포함한다 (수직 분리 사거리 밖 → z 정렬로 진입)', () => {
+  const { game, join, warp, intent, total } = setup();
+  const a = join('A');
+  const node = game.nodes.values().next().value;
+
+  // 같은 (x,y) 지만 z 를 노드에서 사거리 밖으로 — 3D 거리라면 채집 불가
+  warp(a.player, node.x, node.y, node.z + GATHER_RANGE + 40);
+  game.tick();
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g-far');
+  game.tick();
+  assert.equal(a.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'g-far')?.reason,
+    'out-of-range', 'z 분리만으로 사거리 밖');
+
+  // z 를 노드 높이에 맞추면 (x,y 동일) 채집 성공 — 거리가 3D 임을 증명
+  warp(a.player, node.x, node.y, node.z);
+  game.tick();
+  const before = game.ledger.balance(a.player.id);
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g-near');
+  game.tick();
+  assert.ok(game.ledger.balance(a.player.id) > before, 'z 정렬 후 채집 성공');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+});
+
+test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {
+  const { clock, game, join } = setup();
+  const a = join('A');
+  clock.t += 100; // 0.1초 만에 수직 500px = 예산 초과
+  game.onMessage(a.player.id, { t: MSG.BEACON, x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z + 500 });
+  assert.ok(a.conn.msgs.find(m => m.t === MSG.TELEPORT), '수직 스피드핵 TELEPORT 정정');
+  assert.equal(a.player.z, SPAWN_POS.z, 'z 불변');
+});
+
 test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크섬과 일치', () => {
   const { clock, game, join, warp, intent } = setup();
   const a = join('A');
@@ -387,7 +419,7 @@ test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크
 
   // 실전 유사 시퀀스: 이동 → 채집 → 응축 → 용해 → 드랍 → 픽업 → 전투
   const node = game.nodes.values().next().value;
-  warp(a.player, node.x + 10, node.y);
+  warp(a.player, node.x + 10, node.y, node.z);
   game.tick();
   for (let i = 0; i < 3; i++) { intent(a.player, INTENT.GATHER, { nodeId: node.id }, `g${i}`); game.tick(); }
   intent(a.player, INTENT.CONDENSE, {}, 'c1');

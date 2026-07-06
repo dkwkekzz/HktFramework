@@ -73,13 +73,13 @@ export class ClientState {
 
   #onEnter(msg) {
     for (const e of msg.entities) {
-      let x = e.x, y = e.y, max = e.max;
-      if (e.kind === 'node') ({ x, y, max } = this.nodesById.get(e.id));
-      if (e.kind === 'mob') ({ x, y, max } = this.mobsById.get(e.id));
-      const region = e.kind === 'player' ? null : regionKey(x, y);
+      let x = e.x, y = e.y, z = e.z, max = e.max;
+      if (e.kind === 'node') ({ x, y, z, max } = this.nodesById.get(e.id)); // 배치는 시드 유도
+      if (e.kind === 'mob') ({ x, y, z, max } = this.mobsById.get(e.id));
+      const region = e.kind === 'player' ? null : regionKey(x, y); // 파티션은 컬럼(x,y)
       this.ledger.mirrorSet(e.id, e.balance, max, region);
       this.entities.set(e.id, {
-        id: e.id, kind: e.kind, x, y, tx: x, ty: y,
+        id: e.id, kind: e.kind, x, y, z, tx: x, ty: y, tz: z,
         name: e.name, itemType: e.itemType, max,
       });
       // 내 인벤토리 아이템이 땅에 나타났다 = 드랍(사망 포함)된 것
@@ -151,9 +151,9 @@ export class ClientState {
   }
 
   #onPos(msg) {
-    for (const [id, x, y] of msg.moves) {
+    for (const [id, x, y, z] of msg.moves) {
       const e = this.entities.get(id);
-      if (e) { e.tx = x; e.ty = y; }
+      if (e) { e.tx = x; e.ty = y; e.tz = z; }
     }
   }
 

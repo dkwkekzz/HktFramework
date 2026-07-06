@@ -15,22 +15,22 @@ import { POOL, CAUSE, FIELD_GRID } from './constants.js';
 export const MSG = {
   // 클라 → 서버
   HELLO: 'hello',        // { name }
-  BEACON: 'beacon',      // { x, y }  (정수 양자화)
+  BEACON: 'beacon',      // { x, y, z }  (정수 양자화 3D 좌표)
   INTENT: 'intent',      // { iid, kind, ... } kind: gather|attack|condense|craft|use|drop|pickup
   RESYNC: 'resync',      // { regions: [key] } — 체크섬 불일치 지역의 스냅샷 요청
 
   // 서버 → 클라
-  WELCOME: 'welcome',    // { playerId, name, seed, tick, total, src, sink, x, y }
+  WELCOME: 'welcome',    // { playerId, name, seed, tick, total, src, sink, x, y, z }
   OPS: 'ops',            // { tick, ops: [...] } — tx 와 사실 이벤트의 "인과 순서" 단일 스트림
                          //   { op:'tx', seq, from, to, amount, cause, at?, iid? }
                          //   { op:'event', kind: death|respawn|item-spawn|item-gone|pickup, ... }
   CHECKSUM: 'checksum',  // { tick, total, regions: { key: sum } }
   SNAPSHOT: 'snapshot',  // { regions: [key], pools: [{ id, balance, max, region }] } — 지역 단위 복구
-  POS: 'pos',            // { moves: [[id, x, y]] } — 관심영역 내 좌표 비콘 릴레이 (권위 아님, 표시용)
-  ENTER: 'enter',        // { entities: [{ id, kind, x, y, balance, max, ... }] } — 시야 진입 (틱 종료 잔고)
+  POS: 'pos',            // { moves: [[id, x, y, z]] } — 관심영역 내 3D 좌표 비콘 릴레이 (권위 아님, 표시용)
+  ENTER: 'enter',        // { entities: [{ id, kind, x, y, z, balance, max, ... }] } — 시야 진입 (틱 종료 잔고)
   LEAVE: 'leave',        // { ids: [] } — 시야 이탈 (미러에서 잊기)
   REJECT: 'reject',      // { iid, reason }
-  TELEPORT: 'teleport',  // { x, y } — 비콘 예산 위반·리스폰 시 위치 정정
+  TELEPORT: 'teleport',  // { x, y, z } — 비콘 예산 위반·리스폰 시 위치 정정
 
   // 틱 플러시 순서 규약: LEAVE → OPS → ENTER → POS → CHECKSUM
   //   OPS 가 ENTER 앞이어야 "이번 틱 tx + 틱 종료 잔고 ENTER" 이중 적용이 없다.

@@ -122,7 +122,7 @@ export class Render {
   }
 
   #hud() {
-    const { ctx, w, state, net } = this;
+    const { ctx, w, state, net, sim } = this;
     ctx.textAlign = 'left';
 
     // 좌상: 내 에너지 + 인벤토리
@@ -131,7 +131,7 @@ export class Render {
     ctx.fillRect(10, 10, 250, 66 + state.inventory.size * 16);
     ctx.fillStyle = '#e8eef4';
     ctx.font = 'bold 13px sans-serif';
-    ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}`, 20, 30);
+    ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}  ·  고도 ${Math.round(sim.z)}`, 20, 30);
     ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 38, 230, 10);
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 38, 230 * energy / PLAYER_MAX_ENERGY, 10);
@@ -178,7 +178,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · E 채집/줍기 · Space 공격 · C 결정응축 · B 무기제작 · V 결정사용 · X 버리기', w - 14, this.h - 12);
+    ctx.fillText('WASD 이동 · R/F 상승·하강 · E 채집/줍기 · Space 공격 · C 응축 · B 제작 · V 사용 · X 버리기', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }
