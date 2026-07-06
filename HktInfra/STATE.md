@@ -9,19 +9,19 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0519](step-0519.md) — **#46 금고↔가방 escrow 9: guildbankxfer — 2-서비스 교차 회계**: 금고 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치·정확히 한 번 이동)·아이템 단일 소유(거래소 0130·우편 0170 의 금고 판). pure-verify·박스 무변→reg 0.
-- **한 줄 상태**: reg ALL OK·guildbankxfer 5/5·spine ALL OK.
-- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: 0511~0519. 남은 조각: grand capstone(0520·bankConsistent+conserved+sagaCons+교차 합류). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
+- **닫힌 step**: [step-0520](step-0520.md) — **#46 금고↔가방 escrow 10·arc 닫기: guildbankcap grand capstone**: 물리 이동+2-서비스 보존+saga 정합+교차 회계 네 층 동시 성립(거래소 0140·우편 0180 의 금고 판). **#46 arc(0511~0520) 닫힘** — 가짜 escrow 해소·금고가 가방과 실연동. 박스 무변→reg 0.
+- **한 줄 상태**: reg ALL OK·guildbankcap 5/5·spine ALL OK.
+- **다음**: 🎯 **#46 금고↔가방 escrow 코어 ✅ 해소**(0511~0520·예치/인출 실 이동·보존·crash·saga·재전송·정합·교차·capstone). **후속(우선순위)**: ① #74 실 GW 프로세스 분리 ② #77 거래소 손실 seam ③ 금고 완전 liveness 2차(재시도 상한/포기/영구실패·우편 0172~0180 판) ④ #75 프로파일. 🔎 **0511~0520 묶음 리뷰 적기(infra-review)**.
 
 ---
 
 ## 2. NEXT — 가설 (후보, 권위는 이 절)
 
-> 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중·STATE §2 ②·2차 심화)**: 0191~0200 길드 금고는 vault 에 itemId *문자열*만 적재(가짜 escrow) — 예치해도 멤버 가방서 안 빠졌다. 이 arc 는 거래소 escrow(0117~0130)·우편 custody(0161~0170)의 *조직 공유* 판 — 새 `guildBankInv` 플래그로 예치=멤버 가방→'escrow' give·인출='escrow'→멤버 give(가방이 원장 권위·금고는 요청만·은닉)·2-서비스 보존·saga 신뢰 전달. 편입: deposit(0511)·withdraw(0512)·conserved(0513)·crash(0514)·saga(0515)·pending(0516)·resend(0517)·sagacons(0518)·xfer(0519)·capstone(0520). 공용 하니스 `runGuildBank`·guildBankInv OFF→give 0→매 step reg 0. **닫히면 #46 해소**(완전 liveness[retry cap/abandon/permFail]는 2차 arc·우편 0172~0180 판).
+> ✅ **#46 금고↔가방 escrow 코어 해소(0511~0520)** — 0191~0200 가짜 escrow(vault=itemId 문자열)를 실연동: `guildBankInv` 로 예치=멤버 가방→'escrow' give·인출='escrow'→멤버 give(거래소 0117~0130·우편 0161~0170 의 *조직 공유* 판). 네 정합층 — 물리 이동(0511~12)·2-서비스 보존(0513)·crash 보존(0514)·saga 신뢰 전달(0515~18·회신/pending/재전송/dedup/정합)·교차 회계(0519)·grand capstone(0520). 공용 하니스 `runGuildBank`·guildBankInv OFF→give 0→매 step reg 0. **잔여(2차)**: 완전 liveness(재시도 상한·포기·재admission·영구실패 3분할·우편 0172~0180 판).
 
-> ✅ **#16 완전 해소(0481~0510)** — grand 9종+서비스 행복 9종+손실 체제 9종+가드 3종 verify-kit ORDER 상주·매 spine HEAD 재검증.
+> ✅ **#16 완전 해소(0481~0510)** — grand 9종+서비스 행복 9종+손실 체제 9종+가드 3종 verify-kit ORDER 상주.
 
-> 🔎 **#46 이후 우선순위**: ① #74 실 GW 프로세스 분리(seam→실 게이트웨이) ② #77 거래소 손실 seam(우편 판 이식) ③ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
+> 🔎 **#46 이후 우선순위**: ① #74 실 GW 프로세스 분리(seam→실 게이트웨이) ② #77 거래소 손실 seam ③ 금고 완전 liveness 2차 ④ #75 프로덕션 프로파일. **⛔ "C++ 시뮬 코어" 백로그 없음**(§4).
 
 ---
 
@@ -38,7 +38,7 @@
 | ⬜ | **서버간 인증 없음** | 버스 | 존이 게이트웨이 발신 암묵 신뢰(0001). |
 | 🟡 | **버스 단일점·분산·영속** | 버스 | 동적구독/failover/무손실/lease/self-healing ✅(0016~61). 남은 것: 라우팅 영속·다중 브로커·per-producer ack. |
 | 🟡 | **서비스 영속·failover (가방·채팅·파티·길드 ✅·버스 ⬜)** | 서비스/데이터 | 저널+압축+write-behind(0017~0184). 버스 라우팅 영속 0. |
-| 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅ (금고↔가방 escrow 진행 중)** | 서비스 | 거래소(0107~40)·우편(0142~80)·길드(0181~90)·길드 금고(0191~0200·공유 원장) 동형. **#46 금고↔가방 escrow 실연동 arc(0511~·guildBankInv·예치=멤버→escrow give·인출=escrow→멤버)** 진행 중. |
+| 🟡 | **거래소·우편·랭킹·길드·길드 금고 ✅ (금고↔가방 escrow 코어 ✅)** | 서비스 | 거래소(0107~40)·우편(0142~80)·길드(0181~90)·길드 금고(0191~0200) 동형. **#46 금고↔가방 escrow 실연동 코어 ✅(0511~0520·guildBankInv·예치/인출 실 이동·2-서비스 보존·crash·saga·재전송·교차·capstone)**. 완전 liveness 2차 잔여. |
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
@@ -154,3 +154,4 @@
 | [0517](step-0517.md) | #46 금고↔가방 escrow 7: guildbankresend — 재전송(guildBankRetry)+멱등 dedup(같은 gid 재발신→가방 sagaDedup 재회신→pending drain·escrowXfers 무증가·이중적용 0) | 통과(reg 0·spine OK) · guildbankresend 5/5 |
 | [0518](step-0518.md) | #46 금고↔가방 escrow 8: guildbanksagacons — saga 회계 정합(bankSagaConsistent·gives==acked+pending·acked==oks+fails·정상/손실/재전송 세 체제) | 통과(reg 0·spine OK) · guildbanksagacons 5/5 |
 | [0519](step-0519.md) | #46 금고↔가방 escrow 9: guildbankxfer — 2-서비스 교차 회계(금고 giveOks==가방 escrowXfers·아이템 단일 소유·정확히 한 번 이동) | 통과(reg 0·spine OK) · guildbankxfer 5/5 |
+| [0520](step-0520.md) | #46 금고↔가방 escrow 10·arc 닫기: guildbankcap grand capstone — 물리 이동+2-서비스 보존+saga 정합+교차 회계 네 층 동시(0511~0520 닫힘·#46 코어 해소) | 통과(reg 0·spine OK) · guildbankcap 5/5 |

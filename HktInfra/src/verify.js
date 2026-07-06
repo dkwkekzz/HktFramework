@@ -1,7 +1,7 @@
-// HktInfra step-0519 — 헤드리스 검증 (#46 금고↔가방 escrow 9: guildbankxfer — 2-서비스 교차 회계)
+// HktInfra step-0520 — 헤드리스 검증 (#46 금고↔가방 escrow 10·arc 닫기: guildbankcap — grand capstone 네 정합층)
 // 사용: node src/verify.js <mode> [seed]
-//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 금고 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치·정확히 한 번 이동)·아이템 단일 소유
-//   pure-verify 교차 단언(박스 무수정) verify-kit ORDER 편입. 박스 무변→reg 0 자명. verify.js 는 cluster deps 주입 셸.
+//   mode 카탈로그: engine/verify-kit.js 헤더. 이 step 의 한 조각 = 물리 이동+2-서비스 보존+saga 정합+교차 회계 네 층 동시 성립(거래소 0140·우편 0180 의 금고 판·#46 arc 닫기)
+//   pure-verify grand capstone verify-kit ORDER 편입. 박스 무변→reg 0 자명. verify.js 는 cluster deps 주입 셸.
 'use strict';
 const NET = require('./net-core.js');
 const NETPREV = require('../baseline/net-core.js');
