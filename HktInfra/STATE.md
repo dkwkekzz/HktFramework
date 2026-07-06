@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0517](step-0517.md) — **#46 금고↔가방 escrow 7: guildbankresend — 재전송+멱등 dedup**: `_resendPending`+`guildBankRetry` op 이 pendingGive 를 같은 gid 재발신→가방 sagaDedup 재회신→pending drain·escrowXfers 무증가(이중적용 0). op 미주입→no-op→reg 0.
-- **한 줄 상태**: reg ALL OK·guildbankresend 5/5·spine ALL OK.
-- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: 0511~0517. 남은 조각: saga 정합(0518)·교차 회계(0519)·grand capstone(0520). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
+- **닫힌 step**: [step-0518](step-0518.md) — **#46 금고↔가방 escrow 8: guildbanksagacons — saga 회계 정합**: 순수 accessor `bankSagaConsistent`(gives==acked+pending·acked==oks+fails)이 정상·손실·재전송 세 체제서 성립. 순수 읽기→reg 0.
+- **한 줄 상태**: reg ALL OK·guildbanksagacons 5/5·spine ALL OK.
+- **다음**: 🎯 **#46 금고↔가방 escrow arc(0511~0520 진행 중)** — 닫힘: 0511~0518. 남은 조각: 교차 회계(0519)·grand capstone(0520). **arc 후 후속**: #74 실 GW·#77 거래소 손실 seam·#75 프로파일.
 
 ---
 
@@ -152,3 +152,4 @@
 | [0515](step-0515.md) | #46 금고↔가방 escrow 5: guildbanksaga — 금고↔가방 saga 회신(give→가방 item_result echo→ackedGives/giveOks·무손실 닫힌 고리 gives==acked==oks) | 통과(reg 0·spine OK) · guildbanksaga 5/5 |
 | [0516](step-0516.md) | #46 금고↔가방 escrow 6: guildbankpending — saga 미해결 추적(gid pending/pendingGive)·회신 손실(ackDropAlways) 감지·무손실 0 drain·손실 gid 잔존 | 통과(reg 0·spine OK) · guildbankpending 5/5 |
 | [0517](step-0517.md) | #46 금고↔가방 escrow 7: guildbankresend — 재전송(guildBankRetry)+멱등 dedup(같은 gid 재발신→가방 sagaDedup 재회신→pending drain·escrowXfers 무증가·이중적용 0) | 통과(reg 0·spine OK) · guildbankresend 5/5 |
+| [0518](step-0518.md) | #46 금고↔가방 escrow 8: guildbanksagacons — saga 회계 정합(bankSagaConsistent·gives==acked+pending·acked==oks+fails·정상/손실/재전송 세 체제) | 통과(reg 0·spine OK) · guildbanksagacons 5/5 |
