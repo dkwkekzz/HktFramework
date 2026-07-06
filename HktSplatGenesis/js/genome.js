@@ -19,8 +19,11 @@
 
 	// ── 부위 그룹: 뼈 이름 → morph 축 ─────────────────────────────────────
 	// 손가락 뼈는 'Hand' 를 이름에 포함하므로 hand 보다 먼저 판정한다 (순서 의존).
+	// 부속(가상 뼈, C4)은 우리가 짓는 이름(Tail/Horn/Ear/Cape/Appendix)이라 최우선 판정 —
+	// 대소문자 구분 indexOf 라 'Ear' 가 'ForeArm'(eAr) 과 충돌하지 않는다.
 	function groupForName(name) {
 		const n = simpleName(name), has = (s) => n.indexOf(s) >= 0;
+		if (has('Tail') || has('Horn') || has('Ear') || has('Cape') || has('Appendix')) return 'appendix';
 		if (has('Head') || has('_End')) return 'head';
 		if (has('Neck'))               return 'neck';
 		if (n === 'Hips' || has('Spine')) return 'torso';
@@ -36,7 +39,9 @@
 	const GROUPS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot'];
 	// 채색(② palette)·GPU 그룹 인덱스의 정렬된 원본 — engine.js GROUP_COUNT·boneGroup 업로드와
 	// 순서 일치 필수. groupId(name) 가 이 배열의 인덱스를 돌려준다.
-	const GROUP_IDS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot', 'other'];
+	// C4: 'appendix' 는 기존 인덱스를 흔들지 않게 'other' 직전에 삽입 — 'other' 는 항상 마지막
+	// (engine 의 그룹 미상 폴백 = GROUP_COUNT-1 이 'other' 를 가리키는 규약 유지).
+	const GROUP_IDS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'hand', 'finger', 'leg', 'foot', 'appendix', 'other'];
 	function groupId(name) { return GROUP_IDS.indexOf(groupForName(name)); }
 
 	// ── 스타일 프로파일: 배율의 범위·양자화 (PLAN 초안값 반지름 0.5~2.2·스텝 0.1) ──
@@ -45,11 +50,20 @@
 	const PROFILE = {
 		radiusMul: { min: 0.5, max: 2.2, step: 0.1 },
 		lengthMul: { min: 0.5, max: 1.8, step: 0.05 },
+		// ④ 부속 울타리 (PLAN 초안값: 꼬리 ≤8마디, 체인 ≤4개) — 마디·길이·반지름·강성 범위.
+		appendix: {
+			maxChains: 4,
+			links: { min: 1, max: 8 },
+			len: { min: 0.08, max: 1.4 },
+			radius: { min: 0.008, max: 0.16 },
+			k: { min: 8, max: 160 },
+		},
 	};
 	function snap(v, p) {
 		const c = Math.min(p.max, Math.max(p.min, v));
 		return Math.round(c / p.step) * p.step;
 	}
+	function clampP(v, p, dflt) { return (v == null) ? dflt : Math.min(p.max, Math.max(p.min, v)); }
 
 	// morph 엔트리는 숫자(반지름 배율만, C1 호환) 또는 {r, l}(반지름·길이 배율, C2).
 	// 미지정 부위·미지 뼈는 항등(1) — 스냅을 타지 않아 항등 게놈 회귀 0.
@@ -94,6 +108,58 @@
 		return out;
 	}
 
+	// ── ④ 부속(appendix): 가상 뼈 스프링 체인 — 리그에 없는 꼬리/뿔/귀/망토 ──
+	// 클립은 이 뼈들을 모른다(클립 무수정) — 움직임은 물리(지연 추종)가 만든다.
+	// 체인 정의: { name, attach(부착 관절 이름), dir(부착 로컬 방향), links(마디 수),
+	//             len(총 길이), r0/r1(뿌리→끝 반지름), k(스프링 강성), damp(기본 2√k), gravity }
+	// 프로파일 울타리로 정규화해 돌려준다 — 체인 수·마디 수 초과는 잘라낸다(스타일 통일).
+	function chains(genome) {
+		const ap = (genome && genome.appendix) || [];
+		const P = PROFILE.appendix;
+		const out = [];
+		for (let i = 0; i < ap.length && out.length < P.maxChains; i++) {
+			const c = ap[i] || {};
+			const links = Math.round(clampP(c.links, P.links, 5));
+			const k = clampP(c.k, P.k, 40);
+			const d = Array.isArray(c.dir) && c.dir.length === 3 ? c.dir : [0, -0.4, -1];
+			const dl = Math.hypot(d[0], d[1], d[2]) || 1;
+			out.push({
+				name: c.name || ('Appendix' + i),
+				attach: c.attach || 'Hips',
+				dir: [d[0] / dl, d[1] / dl, d[2] / dl],
+				links,
+				len: clampP(c.len, P.len, 0.5),
+				r0: clampP(c.r0, P.radius, 0.06),
+				r1: clampP(c.r1, P.radius, 0.02),
+				k,
+				damp: (c.damp == null) ? 2 * Math.sqrt(k) : Math.max(0, c.damp), // 임계 감쇠 기본 (L6 함정과 동일 근거)
+				gravity: (c.gravity == null) ? 0.35 : Math.max(0, Math.min(3, c.gravity)),
+			});
+		}
+		return out;
+	}
+
+	// 부속 프리셋 — 에디터 원클릭·하니스 공용 (유전자 공간의 점일 뿐, 새 코드 경로 아님).
+	const APPENDIX_PRESETS = {
+		'꼬리': [{ name: 'Tail', attach: 'Hips', dir: [0, -0.35, -1], links: 6, len: 0.62, r0: 0.065, r1: 0.016, k: 36 }],
+		'도마뱀 꼬리': [{ name: 'Tail', attach: 'Hips', dir: [0, -0.15, -1], links: 8, len: 0.9, r0: 0.1, r1: 0.012, k: 50 }],
+		'뿔+꼬리': [
+			{ name: 'Tail', attach: 'Hips', dir: [0, -0.35, -1], links: 6, len: 0.62, r0: 0.065, r1: 0.016, k: 36 },
+			{ name: 'HornL', attach: 'Head', dir: [0.35, 1, -0.25], links: 2, len: 0.2, r0: 0.035, r1: 0.01, k: 140, gravity: 0 },
+			{ name: 'HornR', attach: 'Head', dir: [-0.35, 1, -0.25], links: 2, len: 0.2, r0: 0.035, r1: 0.01, k: 140, gravity: 0 },
+		],
+	};
+
+	// ── ③ 재질(matter): 기존 GENE_DEFS 부분집합 — "기본 살" 위에 덮는 차분 ──
+	// 게놈이 정하는 건 값뿐, 규칙은 기존 유전자 그대로 (절대 원칙 2). 허용 키는
+	// 추출기 프로파일(tools/genome-extract)과 동기 — 결정론에 닿는 키는 넣지 않는다.
+	const MATTER_KEYS = ['size', 'stretch', 'opacity', 'luminosity', 'fleshK'];
+	function applyMatter(genes, genome) {
+		const m = genome && genome.matter;
+		if (m) for (const k of MATTER_KEYS) if (m[k] != null) genes[k] = m[k];
+		return genes;
+	}
+
 	// 항등 게놈 — 기존 히키토 사진을 그대로 재현하는 기준선.
 	const IDENTITY = { morph: {} };
 	// 배율 게놈: create({ head: 1.6, arm: 0.8 }) → { morph: { head: 1.6, arm: 0.8 } }
@@ -107,5 +173,5 @@
 		'호리호리': { morph: { head: { r: 0.9 }, neck: { r: 0.8, l: 1.15 }, torso: { r: 0.78, l: 1.05 }, shoulder: { r: 0.8 }, arm: { r: 0.72, l: 1.3 }, hand: { r: 0.75 }, leg: { r: 0.7, l: 1.32 }, foot: { r: 0.8 } } },
 	};
 
-	global.HktGenesisGenome = { groupForName, groupId, radiusScale, lengthScale, entryOf, groupColors, hexToRgba, IDENTITY, create, GENOMES, GROUPS, GROUP_IDS, PROFILE };
+	global.HktGenesisGenome = { groupForName, groupId, radiusScale, lengthScale, entryOf, groupColors, hexToRgba, chains, applyMatter, IDENTITY, create, GENOMES, GROUPS, GROUP_IDS, PROFILE, APPENDIX_PRESETS, MATTER_KEYS };
 })(typeof window !== 'undefined' ? window : globalThis);

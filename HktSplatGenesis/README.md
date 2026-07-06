@@ -29,7 +29,7 @@ python -m http.server 8123
 ### 에디터 (작업 확인 도구)
 
 `http://localhost:8123/editor.html` — 일반 게임 에디터 형태의 별도 진입점 (데모 index.html 불변).
-툴바(모드/팔레트/스플랫 수) · 아웃라이너(지형/스켈레톤/개체) · 뷰포트(마커 선택·드래그 이동, 배치 모드 클릭 배치) · 디테일(선택 대상의 파라미터 — 지형 시드/진폭, 개체 유전자 슬라이더, 스켈레톤 위치/FBX) · 타임라인(재생/스크럽/클립/배속). 세 기둥:
+툴바(모드/팔레트/스플랫 수) · 아웃라이너(지형/스켈레톤/개체) · 뷰포트(마커 선택·드래그 이동, 배치 모드 클릭 배치) · 디테일(선택 대상의 파라미터 — 지형 시드/진폭, 개체 유전자 슬라이더, 스켈레톤 위치/FBX + 캐릭터 게놈: 체형 프리셋·부위 굵기/길이·부위 채색·부속·게놈 JSON 입출력) · 타임라인(재생/스크럽/클립/배속). 세 기둥:
 
 1. **지형 생성** — 시드 fBm 절차 지형을 무대(PLY→Spark)와 시뮬 바닥(collider→heightfield)에 한 번에 굽는다.
 2. **오브젝트 배치** — 프리셋 개체(최대 8)를 지형 클릭 지점에 배치, 마커 드래그로 이동, 유전자 라이브 튜닝.
@@ -40,6 +40,22 @@ python -m http.server 8123
 ### 데모 (index.html)
 
 우측 패널은 탭 3개: **유전자** 탭(원소 프리셋 → 슬라이더로 연속 변형 → 중간 생물 탐색, 장면 버튼(불×나무)은 다중 개체 공존 데모) · **뼈대** 탭(히키토의 모션 클립/속도·통통함·뼈대 표시, 그리고 **Mixamo FBX 드롭존** — Mixamo 에서 FBX 로 받은 캐릭터/클립을 놓으면 실제 클립 위에 살이 자란다) · **무대** 탭(S 트랙 — worldlabs Marble 등 외부 생성 3DGS 월드(.spz/.ply)를 드롭하면 Spark 레이어가 생명 아래에 깔린다. "무대는 로드, 생명은 배양" — [Docs/PLAN-SparkTerrain.md](Docs/PLAN-SparkTerrain.md), 수급: [assets/worlds/README.md](assets/worlds/README.md)).
+
+### 캐릭터 게놈 (C 트랙) — 이미지 몇 장으로 캐릭터
+
+캐릭터의 정체성은 메시가 아니라 **게놈(JSON, 수 KB)** — ①형태(부위별 반지름·길이 배율)
+②채색(부위 그룹 램프) ③재질(유전자 차분) ④부속(꼬리·뿔 = 가상 뼈 스프링 체인, 클립 무수정)
+4층의 데이터다. 표준 리그의 모든 클립이 어떤 게놈에서도 무수정 재생된다 — 스키닝이 없으므로
+리타게팅도 없다.
+
+```bash
+# 컨셉 이미지 → 게놈 번역 (스타일 프로파일이 울타리 — 벗어나면 반려)
+node tools/genome-extract/extract.js front.png side.png --out newt.genome.json
+```
+
+추출된 게놈은 에디터(스켈레톤 디테일 패널)에서 불러와 체형·부위 채색·부속 슬라이더로
+후보정하고 다시 내보낸다. 상세: [tools/genome-extract/README.md](tools/genome-extract/README.md) ·
+계획: [Docs/PLAN-CharacterGenesis.md](Docs/PLAN-CharacterGenesis.md).
 
 ## 아키텍처 (전부 GPU 상주, CPU 왕복 없음)
 
@@ -78,7 +94,9 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 | 파일 | 역할 |
 |---|---|
 | `js/math.js` | mat4 유틸 + 오빗 카메라 (WebGPU 클립 규약) |
-| `js/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) + FBX 외부 리그 |
+| `js/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) + 부속 가상 뼈 체인 + FBX 외부 리그 |
+| `js/genome.js` | C 트랙 캐릭터 게놈: 형태 배율·부위 램프·재질 차분·부속 체인 + 스타일 프로파일 |
+| `tools/genome-extract/` | 이미지 → 게놈 추출기 (LLM vision + 프로파일 검증기) |
 | `vendor/` | three r147 UMD + FBXLoader + fflate — FBX 파싱/FK 전용 (렌더·시뮬은 자체 WebGPU) |
 | `js/wgsl.js` | WGSL 7종: grid clear/build / sim / cluster / key / bitonic sort / render |
 | `js/engine.js` | 버퍼·파이프라인·프레임 인코딩 |
