@@ -9,8 +9,8 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0494](step-0494.md) — **#16 승급 라운드 3차 4: svcmailxfer 편입**: 우편↔가방 2-서비스 교차 회계 + saga liveness capstone(옛 0164/0180 판)을 재작성 편입 — mail giveOks==가방 escrowXfers·sagaLivenessConsistent(pending 3분할). 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·svcmailxfer 5/5(giveOks2==escrowXfers2·pending0·3분할 닫힘)·spine ALL OK.
+- **닫힌 step**: [step-0495](step-0495.md) — **#16 승급 라운드 3차 5: svcguildcap 편입**: 길드 로스터 single-master 정합 capstone(옛 0190 rosterConsistent 판)을 재작성 편입 — create+join+master 이양(쌍 거래)+master 탈퇴 보호 후 정확히 한 master·고아 0·중복 0. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·svcguildcap 5/5(master alice→bob 이양·rosterConsistent·master 탈퇴 no-op)·spine ALL OK.
 - **다음**: 🎯 **#16 승급 라운드 3차 arc(0491~) — 서비스 saga capstone 재작성 편입** — 상세·순서는 §2. 거래소 saga(✅0491)→거래소 교차→우편 saga→우편 교차→길드 로스터→길드 금고→liveness→가드+arc 닫기.
 
 ---
@@ -154,3 +154,4 @@
 | [0492](step-0492.md) | #16 승급 라운드 3차 2: 거래소↔가방 2-서비스 교차 회계 capstone(0130 판·giveOks==escrowXfers) 재작성 편입 | 통과(reg 0·spine OK) · svcexchangexfer 5/5 |
 | [0493](step-0493.md) | #16 승급 라운드 3차 3: 아이템 우편↔가방 saga 정합 capstone(0170 sagaLiveConsistent 판·mailC+itemC+escrowC+sagaC) 재작성 편입 | 통과(reg 0·spine OK) · svcmailcap 5/5 |
 | [0494](step-0494.md) | #16 승급 라운드 3차 4: 우편↔가방 2-서비스 교차+saga liveness capstone(0164/0180 판·giveOks==escrowXfers·pending 3분할) 재작성 편입 | 통과(reg 0·spine OK) · svcmailxfer 5/5 |
+| [0495](step-0495.md) | #16 승급 라운드 3차 5: 길드 로스터 single-master 정합 capstone(0190 rosterConsistent 판·이양 쌍 거래·master 보호) 재작성 편입 | 통과(reg 0·spine OK) · svcguildcap 5/5 |

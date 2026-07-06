@@ -1252,11 +1252,34 @@ function svcmailxfer(seeds) {
   }
 }
 
+// step-0495 재작성 — svcguildcap: 길드 로스터 single-master 정합(0190 rosterConsistent 판). create+join+master 이양(쌍 거래) 후 정확히 한 master·고아 0·중복 0.
+function svcguildcap(seeds) {
+  console.log('== svcguildcap (0495·서비스 재작성): 길드 single-master — create+join+이양(쌍 거래) 후 rosterConsistent(한 master·master∈members·중복0). ==');
+  console.log('seed   | creates | master | members | roster | 판정');
+  for (const seed of seeds) {
+    const r = run({
+      seed, ticks: 12, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2, bus: true, guildService: true,
+      guildOps: [
+        { at: 1, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+        { at: 2, op: { type: 'guildJoin', guildId: 'g1', member: 'bob' } },
+        { at: 3, op: { type: 'guildTransfer', guildId: 'g1', from: 'alice', to: 'bob' } },
+        { at: 4, op: { type: 'guildLeave', guildId: 'g1', member: 'bob' } },   // master 탈퇴 보호(no-op)
+      ],
+    });
+    const g = r.guild, gd = g.guilds.get('g1');
+    const roster = g.rosterConsistent();
+    const transferred = gd && gd.master === 'bob' && gd.members.includes('alice') && gd.members.includes('bob');   // 이양 성사·from 잔류
+    const masterProtected = gd && gd.members.includes('bob');   // master(bob) 탈퇴 no-op(single-master 보존)
+    const ok = check(roster && transferred && masterProtected, `seed ${seed}: roster${roster}·transferred${transferred}·protected${masterProtected}`);
+    console.log(`${pad(seed, 6)} | ${pad(g.creates, 7)} | ${pad(gd ? gd.master : '-', 6)} | ${pad(gd ? gd.members.length : 0, 7)} | ${pad(roster ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
