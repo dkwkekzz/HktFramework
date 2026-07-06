@@ -110,8 +110,14 @@ export class ClientState {
     // 덕분에 시야 "안" 의 지역 풀(노드·몬스터) 쪽 절반이 유실되지 않는다 —
     // 예: 내 시야 경계 밖 플레이어가 시야 안 노드를 채집하는 경우.
     for (const id of [tx.from, tx.to]) {
-      if (!this.ledger.get(id) && (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM))) {
+      if (this.ledger.get(id)) continue;
+      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM)) {
         this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
+      } else if (id.startsWith(POOL.CELL)) {
+        // 필드 셀은 서버 내부 저수지(SOURCE/SINK 급) — 클라는 잔고를 추적하지 않는다.
+        // 무한 저수지로 물질화해 셀→노드 재충전 tx 재생 시 노드가 전액을 받게 한다
+        // (region=null → 체크섬 무관, 셀 쪽 잔고 오차는 무해).
+        this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
       }
     }
     this.ledger.applyTx(tx); // 지역 풀 끝단이 시야 밖인 tx 는 skip — 체크섬이 잡는다

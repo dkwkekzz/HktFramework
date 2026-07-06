@@ -207,6 +207,55 @@ test('접속 종료 — 소지 에너지는 SINK 로 환원 (원장에서 소멸
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 });
 
+test('A1 필드 확산 — 노드 재충전이 세계→노드 주입이 아니라 필드(셀)에서 흐른다', () => {
+  const { game, join, warp, total } = setup();
+  const a = join('A');
+  const node = game.nodes.values().next().value;
+  warp(a.player, node.x + 10, node.y); // 노드 지역 구독
+  game.tick();
+
+  // 노드와 그 지역 셀을 모두 고갈 — 재충전이 두 홉(SOURCE→셀→노드)을 거치는지 본다
+  game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id), 'test');
+  game.ledger.transfer(node.cell, POOL.SINK, game.ledger.balance(node.cell), 'test');
+  assert.equal(game.ledger.balance(node.id), 0);
+  assert.equal(game.ledger.balance(node.cell), 0);
+
+  a.conn.msgs.length = 0; // 이후 방송만 관찰
+  for (let i = 0; i < 120; i++) game.tick();
+
+  assert.ok(game.ledger.balance(node.id) > 0, '고갈→회복');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '재충전 내내 총합 불변');
+
+  // 방송된 노드 재충전 tx 는 전부 필드 셀에서 나온다 — SOURCE→노드 직접 주입 없음
+  const regenTxs = a.conn.msgs
+    .filter(m => m.t === MSG.OPS).flatMap(m => m.ops)
+    .filter(op => op.op === 'tx' && op.to === node.id && op.cause === 'regen');
+  assert.ok(regenTxs.length > 0, '셀→노드 재충전 tx 관찰됨');
+  assert.ok(regenTxs.every(tx => tx.from.startsWith(POOL.CELL)), '재충전은 필드 셀에서만');
+  assert.ok(regenTxs.every(tx => tx.from !== POOL.SOURCE), 'SOURCE→노드 직접 주입 없음');
+});
+
+test('A1 미러 정합 — 필드 재충전(셀→노드)을 클라 미러가 재생한다', () => {
+  const { game, join, warp } = setup();
+  const a = join('A');
+  const node = game.nodes.values().next().value;
+  // 시야 진입(ENTER) 전에 고갈시켜 ENTER 가 고갈 잔고를 싣게 한다 (실제 채집과 동형)
+  game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id), 'test');
+  warp(a.player, node.x + 10, node.y);
+  game.tick();
+
+  while (game.tickCount % 30 !== 1 || game.tickCount < 60) game.tick(); // 재충전·체크섬 틱 포함
+
+  const client = new ClientState();
+  const resyncs = [];
+  client.onResync = (k) => resyncs.push(...k);
+  for (const m of a.conn.msgs) client.handle(m);
+
+  assert.equal(client.ledger.balance(node.id), game.ledger.balance(node.id), '노드 잔고 정합');
+  assert.equal(resyncs.length, 0, '재동기화 불필요');
+  assert.equal(client.checksumStatus, 'OK');
+});
+
 test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크섬과 일치', () => {
   const { clock, game, join, warp, intent } = setup();
   const a = join('A');

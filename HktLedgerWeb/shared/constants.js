@@ -38,6 +38,8 @@ export const FIELD_CELL_MAX = 100_000;                     // 셀 용량 상한
 // 확산 흐름 = floor(기울기 * NUM / DEN). NUM/DEN ≤ 1/2 여야 오버슛·진동 없이 평형 수렴.
 export const FIELD_DIFFUSE_NUM = 1;
 export const FIELD_DIFFUSE_DEN = 4;
+export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 (셀당)
+export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 (필드 지속)
 
 // --- 채집 ---
 export const NODE_COUNT = 40;

@@ -15,12 +15,14 @@
 
 import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
+import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { MSG, INTENT, encode } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
+  FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   ATTACK_RANGE, ATTACK_COST, ATTACK_DAMAGE, WEAPON_BONUS, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE,
@@ -41,10 +43,18 @@ export class GameServer {
     this.ledger.createPool(POOL.SOURCE, WORLD_SOURCE_INITIAL, Number.MAX_SAFE_INTEGER, null);
     this.ledger.createPool(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
 
+    // 필드 셀 격자 — SOURCE/SINK 처럼 region=null 서버 내부 저수지 (방송·체크섬 대상 아님).
+    // A1: 노드 재충전이 이 필드에서 확산으로 흐른다. 창세 적립도 SOURCE 인출이라 보존 유지.
+    createField(this.ledger);
+    for (let cy = 0; cy < FIELD_GRID; cy++)
+      for (let cx = 0; cx < FIELD_GRID; cx++)
+        this.ledger.transfer(POOL.SOURCE, fieldCellId(cx, cy), FIELD_CELL_SEED, CAUSE.SPAWN);
+
     const world = generateWorld(WORLD_SEED);
-    this.nodes = new Map(); // id -> { id, x, y, max }
+    this.nodes = new Map(); // id -> { id, x, y, max, cell }
     for (const n of world.nodes) {
-      this.nodes.set(n.id, n);
+      const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
       this.ledger.createPool(n.id, 0, n.max, regionKey(n.x, n.y));
       this.ledger.transfer(POOL.SOURCE, n.id, n.max, CAUSE.SPAWN); // 창세 이체 (방송 대상 없음)
     }
@@ -364,11 +374,25 @@ export class GameServer {
     this.intents = [];
     for (const { playerId, msg } of batch) this.#processIntent(playerId, msg);
 
-    // 3) 자원 재충전 — 고갈→회복 루프. SOURCE 예산에서의 이체이므로 역시 보존.
+    // 3) 필드 확산 — 매 틱 이웃 셀 간 zero-sum 정수 이체 (서버 내부: region=null,
+    //    ledger.transfer 직결이라 방송·pendingOps 에 남지 않는다). A1: 노드 재충전이
+    //    세계→노드 주입이 아니라 이 필드를 통해 흐른다.
+    diffuseTick(this.ledger);
+
+    // 재충전 주기: SOURCE→셀 보충(씨앗값까지 top-up, 필드 지속) + 셀→노드 인출(고갈→회복).
+    // 둘 다 보존. 셀→노드 만 #tx 로 방송 — 클라 미러는 셀을 저수지로 물질화해 재생한다.
     if (this.tickCount % REGEN_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      for (let cy = 0; cy < FIELD_GRID; cy++) {
+        for (let cx = 0; cx < FIELD_GRID; cx++) {
+          const id = fieldCellId(cx, cy);
+          const deficit = FIELD_CELL_SEED - this.ledger.balance(id);
+          if (deficit > 0)
+            this.ledger.transfer(POOL.SOURCE, id, Math.min(FIELD_INJECT_AMOUNT, deficit), CAUSE.REGEN);
+        }
+      }
       for (const n of this.nodes.values()) {
         if (this.ledger.balance(n.id) < n.max) {
-          this.#tx(POOL.SOURCE, n.id, NODE_REGEN_AMOUNT, CAUSE.REGEN, n);
+          this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT, CAUSE.REGEN, n);
         }
       }
     }
