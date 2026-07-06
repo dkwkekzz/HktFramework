@@ -51,7 +51,58 @@ class GuildService {
     this.withdraws = 0;           // 처리한 guildWithdraw 수(step-0192·계측·no-op 포함).
     this.bankPublish = opts.bankPublish || false;   // 금고 변경 발행(step-0193·guildBankPublish) — 예치/인출을 svc.guild.bank.changed 로. OFF·bus 부재면 발행 0(0192 동일).
     this.bankPublished = 0;       // svc.guild.bank.changed 발행 수(step-0193·계측). 실 변경과 1:1(no-op 발행 안 함).
+    // step-0511 — 금고↔가방 escrow 실연동(guildBankInv·#46): 0191~0200 금고 vault 는 itemId *문자열*만 보유(가짜 escrow) — 예치해도 멤버 가방서 안 빠졌다. 거래소 escrow(0117~0120)·우편 custody(0161~0164)의 *조직 공유* 판을 적용: 예치=멤버 가방→escrow give·인출=escrow→멤버 가방 give(가방이 원장 권위·금고는 요청만·은닉). inv/invMode 미주입이면 give 0 = 직전 비트 동일(reg 0).
+    this.inv = opts.inv || null;        // 가방(inventory) 주소 — guildBankInv ON 이면 예치/인출이 여기로 give 요청. null 이면 추상 vault(0200 비트 동일).
+    this.invMode = opts.invMode || false;   // 금고 escrow 실연동 활성(step-0511·guildBankInv). OFF 면 _custody no-op → give 0(0510 비트 동일).
+    this.gives = 0;               // 금고가 가방에 보낸 give 요청 수(step-0511·계측·거래소 gives 의 금고 판).
+    this.escrowIds = new Set();   // 금고 escrow 진입 itemId 집합(step-0511·2-서비스 보존 추적 0513·거래소 escrowItemIds 0120·우편 escrowItemIds 0164 의 금고 판). 예치=add·인출=delete.
+    this.saga = opts.saga || false;   // 금고 saga 회신 수신(step-0515·guildBankSaga) — ON 이면 give 에 replyTo+gid 를 실어 가방이 item_result 를 echo(2-서비스 피드백). OFF 면 fire-and-forget(0514 비트 동일). 거래소 0121·우편 0166 의 금고 판.
+    this.gid = 0;                 // 단조 give id(step-0515) — saga 회신 매칭 키. _custody 가 발급.
+    this.ackedGives = 0;          // 가방서 회신(item_result) 받은 give 수(step-0515·무손실서 gives==ackedGives·닫힌 고리 liveness).
+    this.giveOks = 0;             // 성공 회신 수(step-0515·0519 giveOks==가방 escrowXfers 교차 정합의 좌변).
+    this.giveFails = 0;           // 실패 회신 수(step-0515·sagaConsistent 의 acked==oks+fails 우변).
+    this.retries = 0;             // saga 재전송 수(step-0517·guildBankRetry) — 재발신은 gives 무증가·이 별도 계측. 거래소 0126·우편 0168 의 금고 판.
+    this.pending = new Set();     // 미해결 give 의 gid 집합(step-0516) — _custody add·item_result 회신이 delete. 정상 0 drain·회신 손실 시 잔존(ack 미수신 격차 가시). 거래소 0125·우편 0167 의 금고 판.
+    this.pendingGive = new Map(); // gid -> {itemId,from,to,cause}(step-0516) — 재전송 소스(0517 대비·회신 손실 시 같은 gid 재발신).
+    this.ackDrop = opts.ackDrop ? new Set(opts.ackDrop) : null;   // 테스트 seam(step-0516) — 수신 시 *1회* 드롭할 gid(transient 회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
+    this.ackDropAlways = opts.ackDropAlways ? new Set(opts.ackDropAlways) : null;   // 테스트 seam(step-0516) — 수신 시 *매번* 드롭할 gid(지속 회신 손실 모의). 미제공이면 무손실(production 무영향·reg 0).
     this.net = null; this.addr = null;   // net.register 가 주입(send 경로).
+  }
+  // 금고 아이템 custody 이동 헬퍼(step-0511·#46) — invMode ON 이고 itemId 있을 때만 가방에 give(from→to). 가방이 원장 권위·금고는 요청만(은닉·명시 인터페이스). 미충족이면 no-op(추상 vault·0200 비트 동일·reg 0). 거래소 _custody(0117)·우편 _custody(0161)의 금고 판. 예치=멤버→'escrow'(leg 진입)·인출='escrow'→멤버(leg 이탈).
+  _custody(itemId, from, to, cause) {
+    if (!this.invMode || !this.inv || itemId == null || !this.net) return;
+    const msg = { type: 'item_req', op: 'give', itemId, fromAvatar: from, toAvatar: to };
+    // saga 피드백(step-0515·guildBankSaga) — ON 이면 replyTo(금고 주소)+cause+gid 를 실어 가방이 item_result 를 금고로도 회신. OFF 면 msg 가 0514 와 정확히 같다(키 없음)→가방 echo 휴면=비트 동일(reg 0).
+    if (this.saga) {
+      const gid = this.gid++;
+      msg.replyTo = this.addr; msg.cause = cause; msg.gid = gid;
+      this.pending.add(gid);                                                  // 미해결 추적(step-0516) — 회신 도착 시 제거
+      this.pendingGive.set(gid, { itemId, from, to, cause });                 // 재전송 소스(step-0516·0517 대비)
+    }
+    this.net.send(this.addr, this.inv, msg);
+    this.gives++;
+    if (to === 'escrow') this.escrowIds.add(itemId);          // 예치 인출(leg 진입) — escrow 진입(2-서비스 보존 추적·0513)
+    else if (from === 'escrow') this.escrowIds.delete(itemId);   // 인출 입금(leg 이탈) — escrow 이탈
+  }
+  // 2-서비스 saga 회신 수신(step-0515·거래소 0121·우편 0166 의 금고 판) — _custody 가 replyTo 로 보낸 give 의 item_result echo. 회계 집계(ackedGives·giveOks·giveFails). saga OFF 면 이 메시지가 영영 안 옴(0514 비트 동일).
+  _onGiveReply(p) {
+    // 회신 손실 주입(step-0516·테스트 seam) — ackDropAlways 는 매번·ackDrop 은 1회 폐기 → 그 gid 는 pending 잔존(ack 미수신 격차 가시). 손실 없으면(seam 미제공) 정상 처리(0515 비트 동일).
+    if (this.ackDropAlways && this.ackDropAlways.has(p.gid)) return;
+    if (this.ackDrop && this.ackDrop.has(p.gid)) { this.ackDrop.delete(p.gid); return; }
+    this.ackedGives++;
+    if (p.ok) this.giveOks++; else this.giveFails++;
+    this.pending.delete(p.gid); this.pendingGive.delete(p.gid);   // 미해결 추적서 제거(step-0516) — 회신 도착 give 를 정상 drain
+  }
+  pendingGives() { return this.pending.size; }   // 미해결(회신 미수신) give 수(step-0516) — 정상 0·회신 손실 시 잔존.
+  // 금고 saga 회계 정합(step-0518·bankSagaConsistent·거래소 0128·우편 0169 의 금고 판) — 두 불변: ① gives == ackedGives + pending(보낸 give 는 정확히 acked 또는 pending·새는 give 0) ② ackedGives == giveOks + giveFails(회신은 ok/fail 분류·누락 0). 정상·손실·재전송 모든 체제서 성립. 순수 읽기(권위 0)→직전 비트 동일(reg).
+  bankSagaConsistent() { return this.gives === this.ackedGives + this.pending.size && this.ackedGives === this.giveOks + this.giveFails; }
+  // 미해결 give 재전송(step-0517·guildBankRetry) — pendingGive 에 남은(회신 손실) give 를 *같은 gid* 로 재발신(재실행 아닌 *재회신* 유도·가방 sagaDedup 전제). 재전송이라 gives/escrowIds 무증가·retries++. pendingGive 비었으면 no-op(0516 비트 동일). 거래소 0126·우편 0168 의 금고 판.
+  _resendPending() {
+    if (!this.invMode || !this.inv || !this.net) return;
+    for (const [gid, g] of this.pendingGive) {
+      this.net.send(this.addr, this.inv, { type: 'item_req', op: 'give', itemId: g.itemId, fromAvatar: g.from, toAvatar: g.to, replyTo: this.addr, cause: g.cause, gid });
+      this.retries++;
+    }
   }
   // 로스터 정규화 — master 를 항상 멤버에 포함하고 중복 제거(집합 의미론·결정론적 삽입 순서: master 선두). single-master 불변 보조.
   _normalize(master, members) {
@@ -124,6 +175,8 @@ class GuildService {
     }
     this.guilds = m;
     this.vault = bank;
+    // step-0514 — 금고 escrow 집합 재구성(guildBankInv·#46): crash 로 휘발한 escrowIds(가방 escrow 추적)를 복원한 vault 에서 재계산. vault 아이템 = escrow 에 있는 아이템(가방은 별 박스라 crash 무관·여전히 'escrow' 소유)이므로 escrowIds == Σvault → 재구성 후 2-서비스 보존(0513) 유지. invMode OFF 면 skip(escrowIds 무의미·직전 비트 동일·reg 0).
+    if (this.invMode) { this.escrowIds = new Set(); for (const v of bank.values()) for (const id of v) this.escrowIds.add(id); }
   }
 }
 

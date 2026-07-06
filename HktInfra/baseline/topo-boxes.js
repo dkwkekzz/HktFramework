@@ -14,7 +14,7 @@ function addServiceBoxes(ctx, add) {
     chatAddr, chatPersistAddr, chatSnapshot, chatpersist, deliverAckDrop, deliverDedup, deliverDedupBound, deliverDrop,
     deliverEpochBound, deliverEpochGrace, deliverMaxRetries, deliverNotify, deliverRetry, deliverTimeout, deliveredPublish, dropRecover,
     epochKeyed, exchCompensate, exchInventory, exchSaga, exchange, exchangePersist, exchangePublish, exchangeSnapshot,
-    exchangeTtl, expirePublish, failPublish, failedPublish, failover, guildBank, guildBankFeed, guildBankPublish,
+    exchangeTtl, expirePublish, failPublish, failedPublish, failover, guildBank, guildBankAckDrop, guildBankAckDropAlways, guildBankFeed, guildBankInv, guildBankPublish, guildBankSaga,
     guildChangePublish, guildFeed, guildFeedPersist, guildPersist, guildService, guildSnapshot, hbTimeout, instanceService,
     invUpPublish, inventory, inventoryAddr, journalHeartbeat, journalReliable, leaseSpan, loginAccounts, loginQueue,
     mail, mailAbandonPublish, mailAckDrop, mailAckDropAlways, mailAutoRetry, mailExpirePublish, mailFailPublish, mailFeed,
@@ -95,7 +95,7 @@ function addServiceBoxes(ctx, add) {
   // [게임 서비스] 우편 미읽음 배지(step-0151·MailFeed) — 우편 발행 스트림(svc.mail.*) 구독 읽기 모델(거래소 MarketFeed 0112 의 우편 판). 발신 0·권위 0(순수 관찰). mailFeed OFF·우편 부재면 박스 0 = 0150 비트 동일.
   if (mailFeed && mail) add({ addr: 'mailfeed', kind: 'mailfeed', opts: { bus: busAddr } });
   // [게임 서비스] 길드(step-0181·GuildService) — 오래 사는 명명된 조직 박스(로스터+마스터십 SSOT·존 tick 밖·onTick 없음). 파티(0075)의 *영속 조직* 판·single-master 권위. guildService OFF 면 박스 0 = 0180 비트 동일.
-  if (guildService) add({ addr: 'guild', kind: 'guild', opts: { bus: busAddr, changePublish: guildChangePublish, persist: guildPersist, snapInterval: guildPersist ? guildSnapshot : 0, bank: guildBank, bankPublish: guildBankPublish } });   // changePublish(0183): svc.guild.changed 발행. persist(0184): 변경 저널 영속·crash replay. snapInterval(0185): 저널 스냅샷 압축(0 면 0184 비트 동일).
+  if (guildService) add({ addr: 'guild', kind: 'guild', opts: { bus: busAddr, changePublish: guildChangePublish, persist: guildPersist, snapInterval: guildPersist ? guildSnapshot : 0, bank: guildBank, bankPublish: guildBankPublish, inv: (guildBankInv && inventory) ? inventoryAddr : null, invMode: guildBankInv, saga: guildBankSaga, ackDrop: guildBankAckDrop, ackDropAlways: guildBankAckDropAlways } });   // inv/invMode(0511·guildBankInv): 금고↔가방 escrow 실연동. saga(0515·guildBankSaga): give 회신 수신. ackDrop/ackDropAlways(0516): 회신 손실 seam(pending 발현). OFF 면 추상 vault(0510 비트 동일).   // changePublish(0183): svc.guild.changed 발행. persist(0184): 변경 저널 영속·crash replay. snapInterval(0185): 저널 스냅샷 압축(0 면 0184 비트 동일).
   // [게임 서비스] 길드 멤버 수 배지(step-0186·GuildFeed) — svc.guild.changed 구독 읽기 모델(우편 MailFeed 0151 의 길드 판). 발신 0·권위 0(순수 관찰). guildFeed OFF·길드 부재면 박스 0 = 0185 비트 동일.
   if (guildFeed && guildService) add({ addr: 'guildfeed', kind: 'guildfeed', opts: { bus: busAddr, persist: guildFeedPersist } });   // persist(0187): 소비 op 저널 replay·crash 후 배지 재구성(OFF 면 0186 비트 동일).
   // [게임 서비스] 대체 소비자(step-0061·spawnReplace) — ranking 의 *대기(standby)* 복제(RankingService 재사용). 초기엔 svc.item.out 미구독(토폴로지가 svc.presence 만 구독시킴)·busMinWm 불참(min-워터마크 정의역 무영향=비-침습). orch 가 'permanent' 발행 시 스스로 활성화해 역할 인계. OFF 면 토폴로지에 없음(0060 비트 동일).

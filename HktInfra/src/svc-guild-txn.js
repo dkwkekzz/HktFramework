@@ -6,6 +6,10 @@
 const GuildTxn = {
   onMsg(m) {
     const p = m.payload;
+    // 금고 saga 회신 수신(step-0515·guildBankSaga) — _custody 가 replyTo 로 보낸 give 의 item_result echo. saga OFF 면 replyTo 부재→이 메시지 안 옴(0514 비트 동일).
+    if (p.type === 'item_result' && p.op === 'give') { this._onGiveReply(p); return; }
+    // 미해결 give 재전송(step-0517·guildBankRetry) — 회신 손실로 pending 에 남은 give 를 같은 gid 로 재발신(가방 sagaDedup 전제·재실행 0). pendingGive 비었으면 no-op = 0516 비트 동일.
+    if (p.type === 'guildBankRetry') { this._resendPending(); return; }
     // 길드 결성/갱신(로스터 SSOT 쓰기) — guildId 의 master+멤버를 설정. 같은 guildId 재-create 면 덮어씀(단순 모델·후속 step 이 증분 가입/탈퇴로 정련). master 는 항상 멤버.
     if (p.type === 'guildCreate') {
       const mem = this._normalize(p.master, p.members);
@@ -47,7 +51,7 @@ const GuildTxn = {
       const g = this.guilds.get(p.guildId);
       if (g && g.members.includes(p.member)) {
         const v = this.vault.get(p.guildId) || [];
-        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194).
+        if (!v.includes(p.itemId)) { v.push(p.itemId); this.vault.set(p.guildId, v); this._publishBank(p.guildId, 'deposit', p.itemId, p.member); this._journalChange({ kind: 'deposit', guildId: p.guildId, itemId: p.itemId }); this._custody(p.itemId, p.member, 'escrow', { kind: 'deposit', guildId: p.guildId }); }   // 권위 단일 소유: itemId 는 길드 금고 1곳에만(중복 0). 실 변경 발행(0193)·저널(0194)·escrow 인출 leg(0511·멤버 가방→escrow·invMode ON 일 때만).
       }
       return;
     }
@@ -58,7 +62,7 @@ const GuildTxn = {
       const g = this.guilds.get(p.guildId);
       const v = this.vault.get(p.guildId);
       if (g && g.members.includes(p.member) && v && v.includes(p.itemId)) {
-        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194).
+        this.vault.set(p.guildId, v.filter(x => x !== p.itemId)); this._publishBank(p.guildId, 'withdraw', p.itemId, p.member); this._journalChange({ kind: 'withdraw', guildId: p.guildId, itemId: p.itemId }); this._custody(p.itemId, 'escrow', p.member, { kind: 'withdraw', guildId: p.guildId });   // 권위 단일 소유: itemId 가 금고를 떠남(이중쓰기 0). 실 변경 발행(0193)·저널(0194)·escrow 입금 leg(0512·escrow→멤버 가방·인출 0117 짝·invMode ON 일 때만).
       }
       return;
     }

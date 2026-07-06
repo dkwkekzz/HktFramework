@@ -16,6 +16,8 @@
 //   mode: reg | wquorum | inflight | tail | reliable | chat-compact | recover-chat | rank | recover-rank | e2e | sacred | recover | compact | degrade | inject | isolate | hide | repro | all
 //   + #16 라운드 2차 grand capstone 승급(0481~0490): mze2ecap·bare2ecap·nete2ecap·asynce2ecap·worldcap·upce2ecap·clusterdatacap·coordmergecap·coordcap · promoted16(등록 가드)
 //   + #16 라운드 3차 서비스 saga capstone 재작성 편입(0491~0500): svcexchangecap·svcexchangexfer·svcmailcap·svcmailxfer·svcguildcap·svcbankcap·svcmailexpire·svcsvccombined·svcexchangecancel · promotedsvc(등록 가드)
+//   + #16 라운드 4차 완전 saga liveness 손실 체제 편입(0501~0510·STATE §2 ⒜): mailsagatransient·mailsagaunacked·mailsagaabandon·mailsagaabandonpub·mailsagareadmit·mailsagareadmitpub·mailsagapermfail·mailsagafailpub·mailsaga3way · promotedsagaloss(등록 가드)
+//   + #46 금고↔가방 escrow 실연동 arc(0511~0520·STATE §2 ②): guildbankdeposit·guildbankwithdraw·guildbankconserved·guildbankcrash·guildbanksaga·guildbankpending·guildbankresend·guildbanksagacons·guildbankxfer·guildbankcap
 //     3차 균형 승급(0231~0240): instanceleave·instancereap·placerebalance·placedrain·cachecapacity·cachetouch·worldwb·worldfsync·loginauth·loginabandon
 //     reg          — 회귀 0: 인프로세스 모드(quorumW 0) → step-0028 와 *비트 동일*(net.log + 상태 + inv/chat/bus/rank).
 //                  저널 q 플래그·ack 회신·durableSeq 집계는 quorumW 0 이면 *휴면*(q 0·ack 0·워터마크 미사용)임을 직접 증명.
@@ -1404,11 +1406,425 @@ function promotedsvc(seeds) {
   check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promotedsvc: 서비스 saga capstone 9종 전부 등록`);
 }
 
+// ════════════════════════════════════════════════════════════════════════
+//  #16 라운드 4차 — 완전 saga liveness *손실 체제* 편입(0501~0510·STATE §2 ⒜)
+//   0491~0500 서비스 saga capstone 은 *행복 경로*(pending 0·abandon 0·permFailed 0)만 구동했다 —
+//   3분할 술어(sagaLivenessConsistent)는 참이었으나 (0,0,0) 자명 참이었다. 이 arc 는 우편 saga 의
+//   내장 손실 seam(mailAckDrop 1회 드롭·mailAckDropAlways 지속 드롭)으로 *실제 회신 손실*을 주입해
+//   재전송→포기(abandon)→재admission(readmit)→영구실패(permFailed) 수명주기를 발현시키고, 각 국면에서
+//   sagaConsistent(gives==acked+pending·acked==oks+fails)·sagaLivenessConsistent(pending==pendingGive+
+//   abandonedGive+permFailed) 가 *비자명하게*(각 항 nonzero) 성립함을 단언한다. 박스 무수정→reg 0 자명.
+// runMailLoss(extra, mailOps, invItems) — 우편 아이템 saga 를 손실 opts 로 구동하는 공용 하니스(9 모드 공유).
+function runMailLoss(extra, mailOps, invItems) {
+  const invOps = (invItems || ['item0']).map((_, i) => ({ at: 1, op: { type: 'item_req', op: 'pickup', avatar: 'alice', reqId: 'r' + i } }));
+  return run(Object.assign({
+    seed: 0, ticks: 40, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+    bus: true, inventory: true, mail: true, mailItem: true, mailInv: true, mailSaga: true, mailAutoRetry: true,
+    invOps, mailOps,
+  }, extra));
+}
+
+// step-0501 — mailsagatransient: 일시적 회신 손실(mailAckDrop 1회 드롭) 하 자가 치유. autoRetry sweep 1회 재전송이 ack 를 재유도 → pending 0 drain·gives==ackedGives. transient 손실은 스스로 낫는다.
+function mailsagatransient(seeds) {
+  console.log('== mailsagatransient (0501·손실 체제): 일시 회신 손실(drop-once)+autoRetry → 재전송이 ack 재유도·pending 0 drain·gives==acked. ==');
+  console.log('seed   | gives | acked | pending | retries | sagaC | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDrop: [0] },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }]).mail;
+    const healed = m.pending.size === 0 && m.ackedGives === m.gives && m.gives === 1;   // 재전송으로 회신 재도착·미해결 0
+    const retried = m.retries >= 1;                                                      // 최소 1회 재전송(손실이 발현했음)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(healed && retried && cons, `seed ${seed}: healed${healed}·retried${retried}(ret${m.retries})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.gives, 5)} | ${pad(m.ackedGives, 5)} | ${pad(m.pending.size, 7)} | ${pad(m.retries, 7)} | ${pad(cons ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0502 — mailsagaunacked: 지속 회신 손실(mailAckDropAlways·상한 없음) 하 미해결 give 무손실 회계. 재전송이 영영 통과 못 해도 gives==acked+pending(새는 give 0)·pending==pendingGive(전량 재전송 중)·sagaConsistent. 미해결이 *가시하고 유계*임을 단언(누락 0).
+function mailsagaunacked(seeds) {
+  console.log('== mailsagaunacked (0502·손실 체제): 지속 손실(drop-always·상한없음) → 미해결 give 무손실 회계·pending==pendingGive·gives==acked+pending. ==');
+  console.log('seed   | gives | acked | pending | pendingGive | retries | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0] },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }]).mail;
+    const unresolved = m.pending.size === 1 && m.ackedGives === 0;                       // 회신 영영 미도착 → 미해결 잔존
+    const accounted = m.gives === m.ackedGives + m.pending.size && m.pending.size === m.pendingGive.size;  // 새는 give 0·전량 재전송 중
+    const retried = m.retries >= 2;                                                       // 지속 재전송(포기 상한 없음)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(unresolved && accounted && retried && cons, `seed ${seed}: unres${unresolved}·acct${accounted}·ret${m.retries}·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.gives, 5)} | ${pad(m.ackedGives, 5)} | ${pad(m.pending.size, 7)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.retries, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0503 — mailsagaabandon: 재시도 상한(mailMaxRetries) 도달 → 포기(abandon) 국면. 지속 손실 하 gid 당 N회 재전송 후 포기 → giveAbandoned>0·pendingGive 0(재전송 중단)·abandonedGive>0(재admission 대기)·pending 잔존. 미해결의 두 번째 분할(pendingGive→abandonedGive) 발현·pending==abandonedGive.
+function mailsagaabandon(seeds) {
+  console.log('== mailsagaabandon (0503·손실 체제): 재시도 상한 도달 → 포기. giveAbandoned>0·pendingGive 0·abandonedGive>0·pending==abandonedGive·sagaLive. ==');
+  console.log('seed   | giveAbandoned | pendingGive | abandonedGive | pending | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0], mailMaxRetries: 2 },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }]).mail;
+    const abandoned = m.giveAbandoned === 1 && m.pendingGive.size === 0 && m.abandonedGive.size === 1;   // 상한 도달 → pendingGive→abandonedGive 이행
+    const held = m.pending.size === 1 && m.pending.size === m.abandonedGive.size;                        // pending 잔존(미해결)·전량 재admission 대기
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(abandoned && held && cons, `seed ${seed}: aban${abandoned}·held${held}·cons${cons}(ga${m.giveAbandoned})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.giveAbandoned, 13)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.pending.size, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0504 — mailsagaabandonpub: 포기 발행 E2E 관측(mailAbandonPublish+audit). 포기 시 svc.mail.saga_abandoned 1회 발행 → 버스 → audit 수신. abandonPublished==giveAbandoned AND audit.seen 카운트 일치. 운영 가시화가 발행→버스→감사로 실제 닿음(은닉 통신).
+function mailsagaabandonpub(seeds) {
+  console.log('== mailsagaabandonpub (0504·손실 체제): 포기 발행 E2E — svc.mail.saga_abandoned 발행→버스→audit. abandonPublished==giveAbandoned==audit.seen. ==');
+  console.log('seed   | giveAbandoned | abandonPublished | auditSeen | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, audit: true, mailAckDropAlways: [0], mailMaxRetries: 2, mailAbandonPublish: true },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }]);
+    const svc = m.mail, seen = m.audit ? (m.audit.seen.get('svc.mail.saga_abandoned') || 0) : -1;
+    const published = svc.giveAbandoned === 1 && svc.abandonPublished === svc.giveAbandoned;   // 포기마다 1회 발행(1:1)
+    const observed = seen === svc.giveAbandoned;                                               // 버스 경유 audit 수신 일치
+    const cons = svc.sagaConsistent() && svc.sagaLivenessConsistent();
+    const ok = check(published && observed && cons, `seed ${seed}: pub${published}·obs${observed}(seen${seen})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(svc.giveAbandoned, 13)} | ${pad(svc.abandonPublished, 16)} | ${pad(seen, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0505 — mailsagareadmit: 포기 give 재admission(mailReadmit) 복구 기제. 포기(abandonedGive) 후 운영이 mailReadmit → abandonedGive→pendingGive 되돌림·readmitted>0·retryCount 리셋(재전송 재개). pending 불변(여전히 미해결)·sagaLive. 포기의 역이행 — 손실 해소 후 재개의 발판.
+function mailsagareadmit(seeds) {
+  console.log('== mailsagareadmit (0505·손실 체제): 포기 give 재admission — abandonedGive→pendingGive 되돌림·readmitted>0·pending 불변·sagaLive. 복구 기제(포기의 역이행). ==');
+  console.log('seed   | readmitted | abandonedGive | pendingGive | pending | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0], mailMaxRetries: 2 },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } },
+       { at: 13, op: { type: 'mailReadmit' } }]).mail;
+    const readmitted = m.readmitted === 1 && m.giveAbandoned === 1;                            // 포기 1건이 재admission
+    const rolled = m.abandonedGive.size === 0 && m.pendingGive.size === 1;                     // abandonedGive→pendingGive 역이행(재전송 재개 대기)
+    const held = m.pending.size === 1;                                                          // pending 불변(재admission 은 미해결 상태 안 바꿈)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(readmitted && rolled && held && cons, `seed ${seed}: radm${readmitted}·rolled${rolled}·held${held}·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.readmitted, 10)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.pending.size, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0506 — mailsagareadmitpub: 재admission 발행 E2E 관측(mailReadmitPublish+audit). 재admission 시 svc.mail.saga_readmitted 1회 발행 → 버스 → audit 수신. readmitPublished==readmitted==audit.seen. 포기 발행(0504)의 짝 — 복구 사건도 은닉 통신으로 가시.
+function mailsagareadmitpub(seeds) {
+  console.log('== mailsagareadmitpub (0506·손실 체제): 재admission 발행 E2E — svc.mail.saga_readmitted 발행→버스→audit. readmitPublished==readmitted==audit.seen. ==');
+  console.log('seed   | readmitted | readmitPublished | auditSeen | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, audit: true, mailAckDropAlways: [0], mailMaxRetries: 2, mailReadmitPublish: true },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 7, op: { type: 'mailSweep', now: 7 } }, { at: 9, op: { type: 'mailSweep', now: 9 } }, { at: 11, op: { type: 'mailSweep', now: 11 } },
+       { at: 13, op: { type: 'mailReadmit' } }]);
+    const svc = m.mail, seen = m.audit ? (m.audit.seen.get('svc.mail.saga_readmitted') || 0) : -1;
+    const published = svc.readmitted === 1 && svc.readmitPublished === svc.readmitted;   // 재admission 마다 1회 발행(1:1)
+    const observed = seen === svc.readmitted;                                            // 버스 경유 audit 수신 일치
+    const cons = svc.sagaConsistent() && svc.sagaLivenessConsistent();
+    const ok = check(published && observed && cons, `seed ${seed}: pub${published}·obs${observed}(seen${seen})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(svc.readmitted, 10)} | ${pad(svc.readmitPublished, 16)} | ${pad(seen, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0507 — mailsagapermfail: 재admission 상한(mailReadmitMax) 도달 → 영구 실패(permFailed). readmitMax 회 재admission 된 give 가 또 포기되면 abandonedGive 제외(재admission 차단)·permFailed++. 무한 abandon↔readmit 루프 방지. pending 잔존·pending==pendingGive+abandonedGive+permFailed(perm 항 nonzero)·sagaLive. 미해결의 세 번째 종결 분할.
+function mailsagapermfail(seeds) {
+  console.log('== mailsagapermfail (0507·손실 체제): 재admission 상한 도달 → 영구 실패. permFailed>0·재admission 차단·pending==pg+ab+perm(perm nonzero)·sagaLive. ==');
+  console.log('seed   | permFailed | pendingGive | abandonedGive | pending | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0], mailMaxRetries: 1, mailReadmitMax: 1 },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 5, op: { type: 'mailSweep', now: 5 } }, { at: 7, op: { type: 'mailSweep', now: 7 } },
+       { at: 9, op: { type: 'mailReadmit' } },
+       { at: 11, op: { type: 'mailSweep', now: 11 } }, { at: 13, op: { type: 'mailSweep', now: 13 } }]).mail;
+    const permanent = m.permFailed === 1 && m.abandonedGive.size === 0 && m.readmitted === 1;   // 재admission 1회 후 또 포기 → 영구 종결(재admission 차단)
+    const held = m.pending.size === 1 && m.pending.size === m.pendingGive.size + m.abandonedGive.size + m.permFailed;  // 3분할 합·perm 항 nonzero
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(permanent && held && cons, `seed ${seed}: perm${permanent}·held${held}·cons${cons}(pf${m.permFailed})`);
+    console.log(`${pad(seed, 6)} | ${pad(m.permFailed, 10)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.pending.size, 7)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0508 — mailsagafailpub: 영구 실패 발행 E2E 관측(mailFailPublish+audit). 영구 실패 시 svc.mail.saga_failed 1회 발행 → 버스 → audit 수신. failPublished==permFailed==audit.seen. 포기(0504)·재admission(0506) 발행의 종결 마디 — saga liveness 수명주기 발행 삼종(abandon/readmit/fail) 완비.
+function mailsagafailpub(seeds) {
+  console.log('== mailsagafailpub (0508·손실 체제): 영구 실패 발행 E2E — svc.mail.saga_failed 발행→버스→audit. failPublished==permFailed==audit.seen. 수명주기 발행 삼종 완비. ==');
+  console.log('seed   | permFailed | failPublished | auditSeen | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, audit: true, mailAckDropAlways: [0], mailMaxRetries: 1, mailReadmitMax: 1, mailFailPublish: true },
+      [{ at: 3, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g', item: 'item0' } },
+       { at: 5, op: { type: 'mailSweep', now: 5 } }, { at: 7, op: { type: 'mailSweep', now: 7 } },
+       { at: 9, op: { type: 'mailReadmit' } },
+       { at: 11, op: { type: 'mailSweep', now: 11 } }, { at: 13, op: { type: 'mailSweep', now: 13 } }]);
+    const svc = m.mail, seen = m.audit ? (m.audit.seen.get('svc.mail.saga_failed') || 0) : -1;
+    const published = svc.permFailed === 1 && svc.failPublished === svc.permFailed;   // 영구 실패마다 1회 발행(1:1)
+    const observed = seen === svc.permFailed;                                          // 버스 경유 audit 수신 일치
+    const cons = svc.sagaConsistent() && svc.sagaLivenessConsistent();
+    const ok = check(published && observed && cons, `seed ${seed}: pub${published}·obs${observed}(seen${seen})·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(svc.permFailed, 10)} | ${pad(svc.failPublished, 13)} | ${pad(seen, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0509 — mailsaga3way: 완전 saga liveness *grand capstone*. 세 미해결 give 를 각각 다른 종결 상태로 몰아 pendingGive>0 AND abandonedGive>0 AND permFailed>0 을 *동시에* 발현(각 항 nonzero) — sagaLivenessConsistent(pending==pg+ab+perm) 가 (0,0,0) 자명 참이 아니라 *비자명*하게 성립함을 단언. 0501~0508 국면들의 종합.
+//   gid0→영구실패(포기→재admission→재포기)·gid1→포기 대기(재admission 안 함)·gid2→재전송 중(미포기). readmit 은 abandonedGive 전량을 옮기므로 gid1 은 마지막 readmit *후* 포기시켜 잔존시킨다.
+function mailsaga3way(seeds) {
+  console.log('== mailsaga3way (0509·손실 체제 grand): 세 give 를 서로 다른 종결로 몰아 pendingGive·abandonedGive·permFailed 동시 nonzero·sagaLivenessConsistent 비자명 성립. ==');
+  console.log('seed   | pendingGive | abandonedGive | permFailed | pending | 3way | 판정');
+  for (const seed of seeds) {
+    const m = runMailLoss({ seed, mailAckDropAlways: [0, 1, 2], mailMaxRetries: 1, mailReadmitMax: 1 },
+      [{ at: 2, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g0', item: 'item0' } },   // gid0 → permFailed
+       { at: 3, op: { type: 'mailSweep', now: 3 } }, { at: 4, op: { type: 'mailSweep', now: 4 } },  // gid0 포기
+       { at: 5, op: { type: 'mailReadmit' } },                                                       // gid0 재admission(rc=1)
+       { at: 6, op: { type: 'mailSweep', now: 6 } }, { at: 7, op: { type: 'mailSweep', now: 7 } },  // gid0 재포기 → 영구실패
+       { at: 9, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g1', item: 'item1' } },   // gid1 → abandonedGive
+       { at: 10, op: { type: 'mailSweep', now: 10 } }, { at: 11, op: { type: 'mailSweep', now: 11 } }, // gid1 포기(이후 재admission 없음)
+       { at: 13, op: { type: 'mailSend', from: 'alice', to: 'bob', body: 'g2', item: 'item2' } }],  // gid2 → pendingGive(이후 sweep 없음)
+      ['item0', 'item1', 'item2']).mail;
+    const three = m.pendingGive.size > 0 && m.abandonedGive.size > 0 && m.permFailed > 0;    // 세 분할 동시 nonzero(비자명)
+    const partition = m.pending.size === m.pendingGive.size + m.abandonedGive.size + m.permFailed;  // 3분할 합 == pending(공백·중복 0)
+    const cons = m.sagaConsistent() && m.sagaLivenessConsistent();
+    const ok = check(three && partition && cons, `seed ${seed}: 3way${three}(pg${m.pendingGive.size}·ab${m.abandonedGive.size}·pf${m.permFailed})·part${partition}·cons${cons}`);
+    console.log(`${pad(seed, 6)} | ${pad(m.pendingGive.size, 11)} | ${pad(m.abandonedGive.size, 13)} | ${pad(m.permFailed, 10)} | ${pad(m.pending.size, 7)} | ${pad(three ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0510 #16 라운드 4차 정리 — promotedsagaloss: 손실 체제 saga liveness 모드 9종이 ORDER 누적 회귀에 항구 등록됐는지 가드(향후 우발 제거 방지·"no silent cap"·arc 닫기). promoted16(0490)·promotedsvc(0500)의 손실 체제 판.
+function promotedsagaloss(seeds) {
+  const PROMOTED = ['mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons', 'guildbankxfer', 'guildbankcap'];
+  console.log('== promotedsagaloss (0510·#16 라운드 4차 정리): 손실 체제 saga liveness 9종 ORDER/MODES 항구 등록 가드 — 향후 제거 방지. #16 라운드 4차 arc 닫기. ==');
+  console.log('capstone           | ORDER | MODES | 판정');
+  for (const m of PROMOTED) {
+    const inOrder = ORDER.includes(m);
+    const inModes = typeof MODES[m] === 'function';
+    const ok = check(inOrder && inModes, `${m}: order ${inOrder}·modes ${inModes}`);
+    console.log(`${m.padEnd(18)} | ${pad(inOrder ? 'Y' : 'N', 5)} | ${pad(inModes ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+  check(PROMOTED.every(m => ORDER.includes(m) && typeof MODES[m] === 'function'), `promotedsagaloss: 손실 체제 saga liveness 9종 전부 등록`);
+}
+
+// ════════════════════════════════════════════════════════════════════════
+//  #46 금고↔가방 escrow 실연동 arc(0511~0520·STATE §2 ②·2차 심화)
+//   0191~0200 길드 금고는 itemId *문자열*만 vault 에 적재(가짜 escrow) — 예치해도 멤버 가방서 안 빠졌다. 이 arc 는
+//   거래소 escrow(0117~0130)·우편 custody(0161~0170)의 *조직 공유* 판을 적용: 예치=멤버 가방→escrow give·
+//   인출=escrow→멤버 가방 give(가방이 원장 권위·금고는 요청만·은닉). guildBankInv OFF→give 0→reg 0.
+// runGuildBank(extra, guildOps, invItems) — 길드 금고 escrow 를 구동하는 공용 하니스(arc 공유).
+function runGuildBank(extra, guildOps, invItems) {
+  const invOps = (invItems || []).map((it, i) => ({ at: 1, op: { type: 'item_req', op: 'pickup', avatar: it.who, reqId: 'gr' + i } }));
+  return run(Object.assign({
+    seed: 0, ticks: 16, clients: 2, moves: 4, radius: 4, grid: 16, zones: 2,
+    bus: true, inventory: true, guildService: true, guildBank: true, guildBankInv: true,
+    invOps, guildOps,
+  }, extra));
+}
+
+// step-0511 — guildbankdeposit: 금고 예치가 멤버 가방→escrow 실 이동(가짜 escrow 해소·#46). guildDeposit 이 _custody(멤버→'escrow') give → 가방서 아이템이 실제로 빠져 escrow 소유·vault 에도 기록·gives 계측. 거래소 list leg(0117)의 금고 판.
+function guildbankdeposit(seeds) {
+  console.log('== guildbankdeposit (0511·#46): 금고 예치 = 멤버 가방→escrow 실 이동. gives 1·inv.ownerOf==escrow·vault 보유·escrowIds 추적. ==');
+  console.log('seed   | gives | ownerOf(item0) | vault | escrowXfers | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const moved = inv.ownerOf('item0') === 'escrow' && g.gives === 1;                        // 아이템이 alice 가방→escrow 실 이동
+    const tracked = g.escrowIds.has('item0') && (g.vault.get('g1') || []).includes('item0');  // vault + escrow 집합 추적
+    const crossed = inv.escrowXfers === 1;                                                    // 가방 escrow 회계 발현
+    const ok = check(moved && tracked && crossed, `seed ${seed}: moved${moved}·tracked${tracked}·crossed${crossed}(own${inv.ownerOf('item0')})`);
+    console.log(`${pad(seed, 6)} | ${pad(g.gives, 5)} | ${pad(inv.ownerOf('item0'), 14)} | ${pad(JSON.stringify(g.vault.get('g1')), 5)} | ${pad(inv.escrowXfers, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0512 — guildbankwithdraw: 금고 인출이 escrow→멤버 가방 실 이동(0511 짝). guildWithdraw 이 _custody('escrow'→멤버) give → 아이템이 escrow 서 멤버 가방으로 복귀·vault 에서 제거·escrowIds 이탈. 거래소 buy leg(0118)·우편 fetch(0158)의 금고 판.
+function guildbankwithdraw(seeds) {
+  console.log('== guildbankwithdraw (0512·#46): 금고 인출 = escrow→멤버 가방 실 이동. 예치 후 인출→ownerOf==멤버·vault 비움·escrowIds 이탈·escrowXfers 2. ==');
+  console.log('seed   | gives | ownerOf(item0) | vault | escrowIds | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const returned = inv.ownerOf('item0') === 'alice' && g.gives === 2;                       // 아이템이 escrow→alice 가방 복귀(예치+인출 give 2)
+    const cleared = !(g.vault.get('g1') || []).includes('item0') && !g.escrowIds.has('item0'); // vault·escrow 집합서 제거
+    const crossed = inv.escrowXfers === 2;                                                     // 두 escrow give 회계(예치 1+인출 1)
+    const ok = check(returned && cleared && crossed, `seed ${seed}: returned${returned}·cleared${cleared}·crossed${crossed}(own${inv.ownerOf('item0')})`);
+    console.log(`${pad(seed, 6)} | ${pad(g.gives, 5)} | ${pad(inv.ownerOf('item0'), 14)} | ${pad(JSON.stringify(g.vault.get('g1')), 5)} | ${pad([...g.escrowIds].length, 9)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0513 — guildbankconserved: 금고↔가방 2-서비스 보존 capstone(거래소 0120·우편 0164 의 금고 판). 금고 escrowIds(길드가 escrow 로 보낸 itemId) == 가방서 'escrow' 소유 itemId(두 서비스 escrow 회계 합치) AND Σvault==escrowIds.size(아이템 무손실·단일 소유). 다중 길드·예치/인출 혼합서 성립.
+function guildbankconserved(seeds) {
+  console.log('== guildbankconserved (0513·#46): 2-서비스 보존 — 금고 escrowIds == 가방 escrow 소유 집합·Σvault==escrowIds.size·bankConsistent. 다중 길드. ==');
+  console.log('seed   | escrowIds | invEscrow | Σvault | match | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 2, op: { type: 'guildCreate', guildId: 'g2', master: 'carol', members: ['carol'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 5, op: { type: 'guildDeposit', guildId: 'g2', itemId: 'item2', member: 'carol' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },   // g1: 예치2−인출1=잔여1
+    ], [{ who: 'alice' }, { who: 'alice' }, { who: 'carol' }]);
+    const g = r.guild, inv = r.inventory;
+    const invEscrow = [...inv.ledger].filter(([, v]) => v === 'escrow').map(([k]) => k).sort();
+    const escrowIds = [...g.escrowIds].sort();
+    const vaultTotal = [...g.vault.values()].reduce((a, v) => a + v.length, 0);
+    const conserved = JSON.stringify(escrowIds) === JSON.stringify(invEscrow);   // 금고 escrow 집합 == 가방 escrow 소유(두 서비스 합치)
+    const noLoss = vaultTotal === escrowIds.length && g.bankConsistent();        // Σvault==escrow·단일 소유(itemId 한 길드)
+    const ok = check(conserved && noLoss, `seed ${seed}: conserved${conserved}·noLoss${noLoss}(esc${escrowIds.length}·vault${vaultTotal})`);
+    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(escrowIds), 9)} | ${pad(JSON.stringify(invEscrow), 9)} | ${pad(vaultTotal, 6)} | ${pad(conserved ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0514 — guildbankcrash: 금고 crash→reconstruct 후 escrow 배선 보존. 예치/인출 저널 replay 로 vault 복원 + escrowIds 를 vault 에서 재구성 → 가방(별 박스·crash 무관)의 'escrow' 소유와 여전히 일치(2-서비스 보존 0513 이 crash 후에도 성립). 거래소 0120·우편 0164 crash 체제의 금고 판.
+function guildbankcrash(seeds) {
+  console.log('== guildbankcrash (0514·#46): 금고 crash→reconstruct 후 escrow 보존. vault replay 복원+escrowIds 재구성==가방 escrow 소유·bankConsistent. ==');
+  console.log('seed   | before | after | ==invEscrow | vault | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, guildPersist: true }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }, { who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const before = [...g.escrowIds].sort();
+    g.guilds = new Map(); g.vault = new Map(); g.escrowIds = new Set();   // crash 모의 — 휘발 projection 소실(저널·스냅샷은 durable 잔존)
+    g.reconstruct();
+    const after = [...g.escrowIds].sort();
+    const invEscrow = [...inv.ledger].filter(([, v]) => v === 'escrow').map(([k]) => k).sort();
+    const preserved = JSON.stringify(before) === JSON.stringify(after) && (g.vault.get('g1') || []).includes('item1');   // crash 전후 escrow 집합 동일·vault 복원
+    const conserved = JSON.stringify(after) === JSON.stringify(invEscrow) && g.bankConsistent();                        // 재구성 escrowIds == 가방 escrow(2-서비스 보존 유지)
+    const ok = check(preserved && conserved, `seed ${seed}: preserved${preserved}·conserved${conserved}(after${JSON.stringify(after)})`);
+    console.log(`${pad(seed, 6)} | ${pad(JSON.stringify(before), 6)} | ${pad(JSON.stringify(after), 5)} | ${pad(conserved ? 'Y' : 'N', 11)} | ${pad(JSON.stringify(g.vault.get('g1')), 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0515 — guildbanksaga: 금고↔가방 saga 회신(닫힌 고리·거래소 0121·우편 0166 의 금고 판). guildBankSaga ON 이면 _custody give 에 replyTo+gid 동봉 → 가방이 item_result 를 금고로 echo → ackedGives/giveOks/giveFails 집계. 무손실서 gives==ackedGives==giveOks(fails 0·닫힌 고리 liveness).
+function guildbanksaga(seeds) {
+  console.log('== guildbanksaga (0515·#46): 금고↔가방 saga 회신 — give→가방 item_result echo→집계. 무손실서 gives==acked==oks·fails 0(닫힌 고리). ==');
+  console.log('seed   | gives | acked | oks | fails | closed | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, guildBankSaga: true }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }, { who: 'alice' }]);
+    const g = r.guild;
+    const closed = g.gives === 3 && g.ackedGives === g.gives && g.giveOks === g.gives && g.giveFails === 0;   // 닫힌 고리 — 모든 give acked·성공
+    const ok = check(closed, `seed ${seed}: closed${closed}(gives${g.gives}·acked${g.ackedGives}·oks${g.giveOks}·fails${g.giveFails})`);
+    console.log(`${pad(seed, 6)} | ${pad(g.gives, 5)} | ${pad(g.ackedGives, 5)} | ${pad(g.giveOks, 3)} | ${pad(g.giveFails, 5)} | ${pad(closed ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0516 — guildbankpending: 금고 saga 미해결 추적 + 회신 손실 감지(거래소 0125·우편 0167 의 금고 판). _custody 가 gid 를 pending 에 넣고 회신이 delete → 무손실 0 drain. 회신 경로에 손실(ackDropAlalways) 주입 시 그 gid pending 잔존(acked<gives·미해결 격차 가시)·재전송 소스 pendingGive 보관.
+function guildbankpending(seeds) {
+  console.log('== guildbankpending (0516·#46): saga 미해결 추적·회신 손실 감지 — 무손실 pending 0 drain·손실 시 gid 잔존(acked<gives)·pendingGive 보관. ==');
+  console.log('seed   | gives | acked | pending | pendingGive | 판정');
+  for (const seed of seeds) {
+    const guildOps = [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+    ];
+    const items = [{ who: 'alice' }, { who: 'alice' }];
+    const normal = runGuildBank({ seed, guildBankSaga: true }, guildOps, items).guild;
+    const loss = runGuildBank({ seed, guildBankSaga: true, guildBankAckDropAlways: [0] }, guildOps, items).guild;
+    const drained = normal.pending.size === 0 && normal.ackedGives === normal.gives;                    // 무손실 — 미해결 0
+    const held = loss.pending.size === 1 && loss.pendingGive.size === 1 && loss.ackedGives === loss.gives - 1;   // 손실 gid0 잔존·재전송 소스 보관
+    const ok = check(drained && held, `seed ${seed}: drained${drained}·held${held}(loss pend${loss.pending.size}·acked${loss.ackedGives}/${loss.gives})`);
+    console.log(`${pad(seed, 6)} | ${pad(loss.gives, 5)} | ${pad(loss.ackedGives, 5)} | ${pad(loss.pending.size, 7)} | ${pad(loss.pendingGive.size, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0517 — guildbankresend: 금고 saga 재전송 + 멱등 dedup(거래소 0126·우편 0168 의 금고 판). 일시 회신 손실(ackDrop) 후 guildBankRetry 가 pendingGive 를 같은 gid 로 재발신 → 가방 sagaDedup(replyTo,gid)이 *재실행 없이* 저장된 결과 재회신 → pending drain·escrowXfers 무증가(이중적용 0·아이템 안전).
+function guildbankresend(seeds) {
+  console.log('== guildbankresend (0517·#46): 재전송+멱등 dedup — 일시 손실 후 guildBankRetry 재발신→가방 dedup 재회신→pending drain·escrowXfers 무증가(재실행 0). ==');
+  console.log('seed   | gives | retries | acked | pending | escrowXfers | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, sagaDedup: true, guildBankSaga: true, guildBankAckDrop: [0] }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 7, op: { type: 'guildBankRetry' } },
+    ], [{ who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const recovered = g.pending.size === 0 && g.ackedGives === g.gives && g.retries >= 1;   // 재전송이 손실 회신 재유도·미해결 0 drain
+    const idempotent = inv.escrowXfers === 1 && inv.ownerOf('item0') === 'escrow';           // dedup — 재전송이 아이템 이중적용 안 함
+    const ok = check(recovered && idempotent, `seed ${seed}: recovered${recovered}·idem${idempotent}(ret${g.retries}·xfer${inv.escrowXfers})`);
+    console.log(`${pad(seed, 6)} | ${pad(g.gives, 5)} | ${pad(g.retries, 7)} | ${pad(g.ackedGives, 5)} | ${pad(g.pending.size, 7)} | ${pad(inv.escrowXfers, 11)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0518 — guildbanksagacons: 금고 saga 회계 정합(bankSagaConsistent·거래소 0128·우편 0169 의 금고 판). 두 불변 ① gives==acked+pending(새는 give 0) ② acked==oks+fails(회신 분류 누락 0)이 세 체제(정상 drain·지속 손실 잔존·재전송 회복) 모두서 성립.
+function guildbanksagacons(seeds) {
+  console.log('== guildbanksagacons (0518·#46): saga 회계 정합 — gives==acked+pending·acked==oks+fails, 정상·손실·재전송 세 체제 모두 성립. ==');
+  console.log('seed   | normal | loss | resend | 판정');
+  for (const seed of seeds) {
+    const base = [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+    ];
+    const items = [{ who: 'alice' }, { who: 'alice' }];
+    const n = runGuildBank({ seed, guildBankSaga: true }, base, items).guild;                                       // 정상 drain
+    const l = runGuildBank({ seed, guildBankSaga: true, guildBankAckDropAlways: [0] }, base, items).guild;          // 지속 손실 잔존
+    const rs = runGuildBank({ seed, sagaDedup: true, guildBankSaga: true, guildBankAckDrop: [0] },                 // 재전송 회복
+      base.concat([{ at: 8, op: { type: 'guildBankRetry' } }]), items).guild;
+    const cn = n.bankSagaConsistent() && n.pending.size === 0, cl = l.bankSagaConsistent() && l.pending.size === 1, cr = rs.bankSagaConsistent() && rs.pending.size === 0;
+    const ok = check(cn && cl && cr, `seed ${seed}: normal${cn}·loss${cl}·resend${cr}`);
+    console.log(`${pad(seed, 6)} | ${pad(cn ? 'Y' : 'N', 6)} | ${pad(cl ? 'Y' : 'N', 4)} | ${pad(cr ? 'Y' : 'N', 6)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0519 — guildbankxfer: 금고↔가방 2-서비스 교차 회계(거래소 0130·우편 0170 의 금고 판). 금고 giveOks == 가방 escrowXfers(두 서비스 escrow 회계 합치·정확히 한 번 이동 증명) AND 아이템 무손실 단일 소유. saga 회신 성공 수와 가방 escrow transfer 수가 정확히 일치.
+function guildbankxfer(seeds) {
+  console.log('== guildbankxfer (0519·#46): 2-서비스 교차 회계 — 금고 giveOks == 가방 escrowXfers·아이템 단일 소유. 예치/인출 escrow 회계 합치. ==');
+  console.log('seed   | giveOks | escrowXfers | minted | 보존 | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, guildBankSaga: true }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 6, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }, { who: 'alice' }]);
+    const g = r.guild, inv = r.inventory;
+    const cross = g.giveOks === inv.escrowXfers && g.giveOks === 3;                            // 두 서비스 escrow 회계 합치(예치2+인출1)
+    const conserved = inv.minted === 2 && inv.ownerOf('item0') === 'alice' && inv.ownerOf('item1') === 'escrow';   // 아이템 무손실·단일 소유(item0 복귀·item1 금고)
+    const ok = check(cross && conserved, `seed ${seed}: cross${cross}(oks${g.giveOks}==xfer${inv.escrowXfers})·conserved${conserved}`);
+    console.log(`${pad(seed, 6)} | ${pad(g.giveOks, 7)} | ${pad(inv.escrowXfers, 11)} | ${pad(inv.minted, 6)} | ${pad(conserved ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
+// step-0520 — guildbankcap: 금고↔가방 escrow arc grand capstone(#46 arc 닫기·거래소 0140·우편 0180 의 금고 판). 네 정합층 한 진입점 결합 — ① 물리 이동(아이템 실 가방↔escrow) ② 2-서비스 보존(escrowIds==가방 escrow·bankConsistent) ③ saga 정합(bankSagaConsistent) ④ 교차 회계(giveOks==escrowXfers). 풍부한 연산(다중 길드·예치/인출·saga)서 동시 성립 → 금고가 가방과 실제로 엮여 아이템 권위를 깨지 않음.
+function guildbankcap(seeds) {
+  console.log('== guildbankcap (0520·#46 arc 닫기): grand capstone — 물리 이동+2-서비스 보존+saga 정합+교차 회계 네 층 동시 성립. 금고↔가방 실연동 완결. ==');
+  console.log('seed   | move | conserved | sagaCons | xfer | 판정');
+  for (const seed of seeds) {
+    const r = runGuildBank({ seed, guildBankSaga: true }, [
+      { at: 2, op: { type: 'guildCreate', guildId: 'g1', master: 'alice', members: ['alice'] } },
+      { at: 2, op: { type: 'guildCreate', guildId: 'g2', master: 'carol', members: ['carol'] } },
+      { at: 3, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+      { at: 4, op: { type: 'guildDeposit', guildId: 'g1', itemId: 'item1', member: 'alice' } },
+      { at: 5, op: { type: 'guildDeposit', guildId: 'g2', itemId: 'item2', member: 'carol' } },
+      { at: 7, op: { type: 'guildWithdraw', guildId: 'g1', itemId: 'item0', member: 'alice' } },
+    ], [{ who: 'alice' }, { who: 'alice' }, { who: 'carol' }]);
+    const g = r.guild, inv = r.inventory;
+    const invEscrow = [...inv.ledger].filter(([, v]) => v === 'escrow').map(([k]) => k).sort();
+    const move = inv.ownerOf('item0') === 'alice' && inv.ownerOf('item1') === 'escrow' && inv.ownerOf('item2') === 'escrow';   // ① 물리: item0 복귀·item1/item2 금고
+    const conserved = JSON.stringify([...g.escrowIds].sort()) === JSON.stringify(invEscrow) && g.bankConsistent();            // ② 2-서비스 보존·단일 소유
+    const sagaCons = g.bankSagaConsistent() && g.pending.size === 0;                                                          // ③ saga 회계 정합·drain
+    const xfer = g.giveOks === inv.escrowXfers && g.giveOks === 4;                                                            // ④ 교차 회계(예치3+인출1)
+    const ok = check(move && conserved && sagaCons && xfer, `seed ${seed}: move${move}·cons${conserved}·saga${sagaCons}·xfer${xfer}(oks${g.giveOks})`);
+    console.log(`${pad(seed, 6)} | ${pad(move ? 'Y' : 'N', 4)} | ${pad(conserved ? 'Y' : 'N', 9)} | ${pad(sagaCons ? 'Y' : 'N', 8)} | ${pad(xfer ? 'Y' : 'N', 4)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap, upce2ecap, clusterdatacap, coordmergecap, coordcap, promoted16, svcexchangecap, svcexchangexfer, svcmailcap, svcmailxfer, svcguildcap, svcbankcap, svcmailexpire, svcsvccombined, svcexchangecancel, promotedsvc, mailsagatransient, mailsagaunacked, mailsagaabandon, mailsagaabandonpub, mailsagareadmit, mailsagareadmitpub, mailsagapermfail, mailsagafailpub, mailsaga3way, promotedsagaloss, guildbankdeposit, guildbankwithdraw, guildbankconserved, guildbankcrash, guildbanksaga, guildbankpending, guildbankresend, guildbanksagacons, guildbankxfer, guildbankcap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap', 'upce2ecap', 'clusterdatacap', 'coordmergecap', 'coordcap', 'promoted16', 'svcexchangecap', 'svcexchangexfer', 'svcmailcap', 'svcmailxfer', 'svcguildcap', 'svcbankcap', 'svcmailexpire', 'svcsvccombined', 'svcexchangecancel', 'promotedsvc', 'mailsagatransient', 'mailsagaunacked', 'mailsagaabandon', 'mailsagaabandonpub', 'mailsagareadmit', 'mailsagareadmitpub', 'mailsagapermfail', 'mailsagafailpub', 'mailsaga3way', 'promotedsagaloss', 'guildbankdeposit', 'guildbankwithdraw', 'guildbankconserved', 'guildbankcrash', 'guildbanksaga', 'guildbankpending', 'guildbankresend', 'guildbanksagacons', 'guildbankxfer', 'guildbankcap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
