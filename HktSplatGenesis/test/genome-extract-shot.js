@@ -20,35 +20,38 @@ const out = (f) => path.resolve(outDir, f);
 	const server = await serve(8142, { '/harness.html': HARNESS_ROUTE });
 	const browser = await launch();
 
-	// ── ① 합성 컨셉 이미지: 초록 양서류형(큰 머리·짧은 다리·긴 꼬리) 정면+측면 ──
+	// ── ① 합성 컨셉 이미지: 초록 양서류형 + 옷(머스터드 조끼·파란 반바지) 정면+측면 ──
+	// 아주 큰 머리 · 짧고 굵은 다리 — 비율 번역이 사진에서 보여야 하는 극단 체형.
 	// 컨셉 아트는 외부 입력의 대역이라 절대 원칙 1 과 무관 (생명 렌더가 아니다).
 	const cpage = await browser.newPage();
 	await cpage.goto('http://localhost:8142/harness.html');
 	const concepts = await cpage.evaluate(() => {
 		const c = document.getElementById('c2d'), x = c.getContext('2d');
 		const blob = (cx, cy, rx, ry, fill) => { x.fillStyle = fill; x.beginPath(); x.ellipse(cx, cy, rx, ry, 0, 0, Math.PI * 2); x.fill(); };
+		const G1 = '#357a49', G2 = '#9fe6a8', VEST = '#c99a2e', SHORTS = '#3a63b8';
 		const shots = [];
 		for (const view of ['front', 'side']) {
 			x.fillStyle = '#e8e2d4'; x.fillRect(0, 0, 640, 640); // 단색 배경 (입력 규약)
-			const G1 = '#357a49', G2 = '#9fe6a8';
 			if (view === 'front') {
-				blob(320, 350, 96, 110, G1);            // 둥근 몸통
-				blob(320, 385, 62, 66, G2);             // 밝은 배
-				blob(320, 185, 92, 86, G1);             // 큰 머리
-				blob(285, 175, 16, 20, '#1c1c1c'); blob(355, 175, 16, 20, '#1c1c1c'); // 눈
-				blob(215, 330, 26, 62, G1); blob(425, 330, 26, 62, G1); // 짧은 팔
-				blob(275, 505, 32, 52, G1); blob(365, 505, 32, 52, G1); // 짧고 굵은 다리
+				blob(320, 400, 104, 96, VEST);          // 몸통 = 머스터드 조끼
+				blob(320, 430, 58, 52, '#e8b84b');      // 조끼 밝은 배판
+				blob(320, 210, 120, 112, G1);           // 아주 큰 머리 (맨살)
+				blob(276, 198, 18, 23, '#1c1c1c'); blob(364, 198, 18, 23, '#1c1c1c'); // 눈
+				blob(206, 392, 24, 50, G1); blob(434, 392, 24, 50, G1); // 짧은 맨팔
+				blob(278, 522, 40, 40, SHORTS); blob(362, 522, 40, 40, SHORTS); // 파란 반바지(짧고 굵은 다리)
+				blob(278, 572, 34, 18, G1); blob(362, 572, 34, 18, G1); // 맨발
 			} else {
-				blob(300, 350, 88, 108, G1);
-				blob(325, 390, 52, 60, G2);
-				blob(310, 185, 88, 84, G1);
-				blob(365, 175, 15, 19, '#1c1c1c');
-				blob(300, 505, 34, 52, G1);
-				// 긴 꼬리 — 힙에서 뒤로 처지는 테이퍼 곡선
+				blob(300, 400, 96, 94, VEST);
+				blob(330, 428, 48, 46, '#e8b84b');
+				blob(310, 210, 116, 110, G1);
+				blob(372, 198, 17, 22, '#1c1c1c');
+				blob(300, 522, 42, 40, SHORTS);
+				blob(310, 572, 36, 18, G1);
+				// 긴 꼬리 — 힙에서 뒤로 처지는 테이퍼 곡선 (맨살)
 				x.fillStyle = G1; x.beginPath();
-				x.moveTo(250, 330);
-				x.quadraticCurveTo(120, 380, 60, 520);
-				x.quadraticCurveTo(130, 430, 255, 415);
+				x.moveTo(240, 400);
+				x.quadraticCurveTo(110, 440, 55, 565);
+				x.quadraticCurveTo(125, 480, 245, 470);
 				x.closePath(); x.fill();
 			}
 			shots.push(c.toDataURL('image/png'));
@@ -81,18 +84,76 @@ const out = (f) => path.resolve(outDir, f);
 		'--mock', badPath, '--out', out('never.genome.json'),
 	], { encoding: 'utf8' }).status === 2 && !fs.existsSync(out('never.genome.json'));
 
-	// ── ④ 게놈 배양: 3클립 사진 + 부속 세그 수(CPU) + 팔레트 색상 판정 ─────────
+	// ── ④ 게놈 배양: 3클립 사진 + 비율(CPU) + 부위별 옷 색(스크린 투영 샘플) 판정 ──
 	const page = await browser.newPage();
 	const errors = collectErrors(page);
 	await page.goto('http://localhost:8142/harness.html');
 	const result = await page.evaluate(async ({ FRAMES, N, DRIVE, GENOME }) => {
 		eval(DRIVE);
+		const G = HktGenesisGenome;
 		const skeleton = new HktGenesisSkeleton.Skeleton();
-		// 부속 세그 검증: 실뼈 수 + 체인 마디 합 (클립 무수정 append)
-		const plain = new HktGenesisSkeleton.Skeleton().pose('walk', 0.5, 1, 1, null).length;
-		const chains = HktGenesisGenome.chains(GENOME);
-		const expectSegs = plain + chains.reduce((s, c) => s + c.links, 0);
-		const gotSegs = new HktGenesisSkeleton.Skeleton().pose('walk', 0.5, 1, 1, GENOME).length;
+
+		// CPU 비율 검증 — 게놈이 선언한 배율이 pose 에 그대로 반영되는가 ("이미지에 맞게 조절")
+		// 세그 g: head=0, leg=7. 다리 총길이 비 = leg.l, 머리 최대 반지름 비 = head.r 이 정확식.
+		const stats = (g) => {
+			const segs = new HktGenesisSkeleton.Skeleton().pose('idle', 0, 1, 1, g);
+			let top = -9, bot = 9, headR = 0, legLen = 0;
+			for (const s of segs) {
+				top = Math.max(top, s.a[1], s.b[1]); bot = Math.min(bot, s.a[1], s.b[1]);
+				if (s.g === 0) headR = Math.max(headR, s.rb, s.ra);
+				if (s.g === 7) legLen += Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
+			}
+			return { height: top - bot, headR, legLen, count: segs.length };
+		};
+		const id = stats({ morph: {} }), mk = stats(GENOME); // mk.count 는 부속 체인 포함
+		const declared = (grp, key) => { const e = (GENOME.morph || {})[grp]; return (e && e[key] != null) ? e[key] : 1; };
+		const ratios = {
+			leg: { got: mk.legLen / id.legLen, want: declared('leg', 'l') },
+			head: { got: mk.headR / id.headR, want: declared('head', 'r') },
+			height: mk.height / id.height,
+		};
+		const chains = G.chains(GENOME);
+		const expectSegs = id.count + chains.reduce((s, c) => s + c.links, 0);
+
+		// 부위 색 판정 준비 — 관절 world 위치를 스크린에 투영해 그 자리 색을 샘플한다.
+		// 게놈 팔레트가 사진의 *그 부위*에 칠해졌는가 = 옷 색 구획의 증명.
+		const EYE = [2.3, 1.35, 2.3], CTR = [0, 0.9, 0];
+		const view = HktMat.lookAt(EYE, CTR, [0, 1, 0]);
+		const proj = HktMat.perspective(0.9, 1.0, 0.05, 100);
+		const mulP = (m, v) => [ // column-major mat4 × [v,1]
+			m[0] * v[0] + m[4] * v[1] + m[8] * v[2] + m[12],
+			m[1] * v[0] + m[5] * v[1] + m[9] * v[2] + m[13],
+			m[2] * v[0] + m[6] * v[1] + m[10] * v[2] + m[14],
+			m[3] * v[0] + m[7] * v[1] + m[11] * v[2] + m[15],
+		];
+		const toPx = (p) => {
+			const c = mulP(proj, mulP(view, p));
+			return [(c[0] / c[3] * 0.5 + 0.5) * 640, (1 - (c[1] / c[3] * 0.5 + 0.5)) * 640];
+		};
+		// idle 정지 포즈에서 부위 대표점: 머리(g0 최대 rb 세그의 b), 가슴(g2 최대 rb 세그의 b),
+		// 허벅지(g7 최장 세그 중점) — 각각 head/torso/leg 램프가 칠해질 자리.
+		const samplePts = (() => {
+			const segs = skeleton.pose('idle', 0, 1, 1, GENOME);
+			let headSeg, torsoSeg, legSeg, hr = 0, tr = 0, ll = 0;
+			for (const s of segs) {
+				if (s.g === 0 && s.rb > hr) { hr = s.rb; headSeg = s; }
+				if (s.g === 2 && s.rb > tr) { tr = s.rb; torsoSeg = s; }
+				const L = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
+				if (s.g === 7 && L > ll) { ll = L; legSeg = s; }
+			}
+			const mid = (s) => [(s.a[0] + s.b[0]) / 2, (s.a[1] + s.b[1]) / 2, (s.a[2] + s.b[2]) / 2];
+			return { head: toPx(headSeg.b), torso: toPx(torsoSeg.b), leg: toPx(mid(legSeg)) };
+		})();
+
+		const hueOf = (r8, g8, b8) => {
+			const mx = Math.max(r8, g8, b8), mn = Math.min(r8, g8, b8), d = mx - mn;
+			if (d < 10) return -1;
+			let h;
+			if (mx === r8) h = (((g8 - b8) / d) % 6) / 6; else if (mx === g8) h = ((b8 - r8) / d + 2) / 6; else h = ((r8 - g8) / d + 4) / 6;
+			return h < 0 ? h + 1 : h;
+		};
+		const hexHue = (hex) => { const v = parseInt(hex.slice(1), 16); return hueOf((v >> 16) & 255, (v >> 8) & 255, v & 255); };
+		const hdist = (a, b) => { if (a < 0 || b < 0) return 1; const d = Math.abs(a - b); return Math.min(d, 1 - d); };
 
 		const shots = {};
 		for (const clip of ['walk', 'idle', 'wave']) {
@@ -103,42 +164,60 @@ const out = (f) => path.resolve(outDir, f);
 			const r = await driveAndShoot({
 				FRAMES, N, genes,
 				makeBones: (t) => skeleton.pose(clip, t, 1.0, 1.0, GENOME),
-				eye: [2.3, 1.35, 2.3], center: [0, 0.9, 0], // 3/4 시점 — 꼬리(-z 후방) 노출
+				eye: EYE, center: CTR, // 3/4 시점 — 꼬리(-z 후방) 노출
 			});
 			if (r.gpuErrs.length) return { err: 'GPU: ' + r.gpuErrs.join(';') };
-			// 밝은 픽셀 수 + 유채색 픽셀의 게놈 팔레트(초록 밴드) 비율
 			const img = document.getElementById('c2d').getContext('2d').getImageData(0, 0, 640, 640).data;
-			let lit = 0, hueN = 0, hueHit = 0;
-			for (let i = 0; i < img.length; i += 4) {
-				const r8 = img[i], g8 = img[i + 1], b8 = img[i + 2];
-				if (r8 + g8 + b8 < 70) continue;
-				lit++;
-				const mx = Math.max(r8, g8, b8), mn = Math.min(r8, g8, b8), d = mx - mn;
-				if (d < 14) continue;
-				let h;
-				if (mx === r8) h = (((g8 - b8) / d) % 6) / 6; else if (mx === g8) h = ((b8 - r8) / d + 2) / 6; else h = ((r8 - g8) / d + 4) / 6;
-				if (h < 0) h += 1;
-				hueN++;
-				if (h > 0.2 && h < 0.48) hueHit++; // 초록 밴드 (mock/컨셉 팔레트)
+			let lit = 0;
+			for (let i = 0; i < img.length; i += 4) if (img[i] + img[i + 1] + img[i + 2] > 70) lit++;
+			const shot = { dataUrl: r.dataUrl, lit };
+			if (clip === 'idle') {
+				// 정지 포즈에서 부위 대표점 주변 유채색 *중앙값* 색상 ↔ 게놈 램프 a 의 색상 대조
+				// (평균은 이웃 부위/꼬리 픽셀 오염에 끌린다 — 중앙값 + 좁은 창이 대표색에 강건)
+				shot.parts = {};
+				for (const [part, [px, py]] of Object.entries(samplePts)) {
+					const hues = [];
+					for (let y = Math.max(0, py - 14) | 0; y < Math.min(640, py + 14); y++)
+						for (let x = Math.max(0, px - 14) | 0; x < Math.min(640, px + 14); x++) {
+							const i = (y * 640 + x) * 4;
+							if (img[i] + img[i + 1] + img[i + 2] < 70) continue;
+							const h = hueOf(img[i], img[i + 1], img[i + 2]);
+							if (h >= 0) hues.push(h);
+						}
+					hues.sort((a, b) => a - b);
+					const pal = (GENOME.palette || {})[part];
+					shot.parts[part] = {
+						got: hues.length ? hues[hues.length >> 1] : -1,
+						want: pal ? hexHue(pal.a) : -1,
+						n: hues.length,
+					};
+				}
 			}
-			shots[clip] = { dataUrl: r.dataUrl, lit, hueFrac: hueN ? hueHit / hueN : 0 };
+			shots[clip] = shot;
 		}
-		return { shots, plain, expectSegs, gotSegs };
+		return { shots, ratios, gotSegs: mk.count, expectSegs, plain: id.count };
 	}, { FRAMES: parseInt(framesArg), N: parseInt(nArg), DRIVE: DRIVE_AND_SHOOT, GENOME: genome });
 
 	if (result.err) { console.error(result.err); process.exit(1); }
 	for (const clip of ['walk', 'idle', 'wave']) savePng(result.shots[clip].dataUrl, out(`extracted-${clip}.png`));
 
+	const hd = (a, b) => { if (a < 0 || b < 0) return 1; const d = Math.abs(a - b); return Math.min(d, 1 - d); };
+	const R = result.ratios;
+	const propOk = Math.abs(R.leg.got - R.leg.want) < 0.01 && Math.abs(R.head.got - R.head.want) < 0.01 && (R.leg.want >= 1 || R.height < 0.98);
 	const segOk = result.gotSegs === result.expectSegs;
 	const litOk = ['walk', 'idle', 'wave'].every((c) => result.shots[c].lit > 3000);
-	const hueOk = result.shots.walk.hueFrac > 0.5;
+	const P = result.shots.idle.parts;
+	const partOk = Object.values(P).every((p) => p.n > 60 && hd(p.got, p.want) < 0.09);
+	const clothOk = hd(P.torso.got, P.leg.got) > 0.08 && hd(P.torso.got, P.head.got) > 0.08; // 옷 구획: 조끼≠바지≠맨살
 	console.log(`추출: ${live ? '실호출(LLM)' : 'mock(오프라인)'} — '${genome.name}' 프로파일 통과 ✅ · 반려 경로 ${rejected ? '✅' : '❌'}`);
+	console.log(`비율 번역: 다리 길이 ×${R.leg.got.toFixed(2)}(선언 ${R.leg.want}) · 머리 반지름 ×${R.head.got.toFixed(2)}(선언 ${R.head.want}) · 키 ×${R.height.toFixed(2)} ${propOk ? '✅' : '❌'}`);
 	console.log(`부속 세그: 실뼈 ${result.plain} + 체인 = ${result.gotSegs} (기대 ${result.expectSegs}) ${segOk ? '✅' : '❌'}`);
 	console.log(`3클립 렌더: walk ${result.shots.walk.lit}px · idle ${result.shots.idle.lit}px · wave ${result.shots.wave.lit}px ${litOk ? '✅' : '❌'}`);
-	console.log(`팔레트 번역: walk 유채색 중 초록 밴드 ${(result.shots.walk.hueFrac * 100).toFixed(0)}% ${hueOk ? '✅' : '❌'}`);
+	const fmtH = (h) => h < 0 ? '무채색' : h.toFixed(2);
+	console.log(`부위 색(옷 구획): 머리 h${fmtH(P.head.got)}→${fmtH(P.head.want)} · 조끼 h${fmtH(P.torso.got)}→${fmtH(P.torso.want)} · 바지 h${fmtH(P.leg.got)}→${fmtH(P.leg.want)} ${partOk ? '✅' : '❌'} · 구획 대비 ${clothOk ? '✅' : '❌'}`);
 	console.log('저장:', out('concept-*.png'), out('extracted-*.png'), '· 페이지 오류:', errors.filter((e) => !e.includes('404')).length ? errors : '없음');
 
 	await browser.close();
 	server.close();
-	process.exit(rejected && segOk && litOk && hueOk ? 0 : 1);
+	process.exit(rejected && propOk && segOk && litOk && partOk && clothOk ? 0 : 1);
 })().catch((e) => { console.error(e); process.exit(1); });
