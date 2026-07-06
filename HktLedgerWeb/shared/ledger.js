@@ -68,6 +68,25 @@ export class EnergyLedger {
     return this.transfer(tx.from, tx.to, tx.amount, tx.cause) === tx.amount;
   }
 
+  // --------------------------------------------------------------------------
+  // 영속화 (A3) — 세계 상태 = 원장 잔고뿐. 배치·시드 유도 값은 담지 않는다.
+  // 직렬화·복원이 순수 로직이라 C++ 이식 시 저장 계층과 무관하게 그대로 옮겨진다.
+  // --------------------------------------------------------------------------
+
+  // 전 풀을 [id, balance, max, region] 배열로 — 바깥(서버)이 JSON/DB 로 저장한다.
+  serialize() {
+    const out = [];
+    for (const p of this.pools.values()) out.push([p.id, p.balance, p.max, p.region]);
+    return out;
+  }
+
+  // 직렬화 레코드로 원장을 통째로 재구축 (지역 합계도 createPool 이 O(1) 로 복원).
+  load(records) {
+    this.pools.clear();
+    this.regionSums.clear();
+    for (const [id, balance, max, region] of records) this.createPool(id, balance, max, region);
+  }
+
   regionSum(regionKey) { return this.regionSums.get(regionKey) ?? 0; }
 
   // 전 풀 합계 — 보존 불변식 검증용. O(N) 이므로 검증·표시 채널에서만 사용.

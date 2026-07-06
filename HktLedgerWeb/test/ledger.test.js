@@ -71,6 +71,31 @@ test('무작위 이체 폭풍에서도 총합·지역 합계 불변식 유지', 
   }
 });
 
+test('직렬화→복원 라운드트립 — 잔고·지역 합계 완전 일치 (A3)', () => {
+  const rng = mulberry32(7);
+  const l = new EnergyLedger();
+  let genesis = 0;
+  for (let i = 0; i < 40; i++) {
+    const b = randInt(rng, 0, 900);
+    const region = rng() < 0.6 ? `r${randInt(rng, 0, 5)}` : null;
+    l.createPool(`p${i}`, b, b + randInt(rng, 0, 300), region);
+    genesis += b;
+  }
+  const ids = [...l.pools.keys()];
+  for (let i = 0; i < 2000; i++)
+    l.transfer(ids[randInt(rng, 0, ids.length - 1)], ids[randInt(rng, 0, ids.length - 1)], randInt(rng, 1, 100), 'f');
+
+  // 서버가 JSON/DB 로 저장했다 되불러오는 경로 모사
+  const data = JSON.parse(JSON.stringify(l.serialize()));
+  const l2 = new EnergyLedger();
+  l2.load(data);
+
+  assert.equal(l2.totalSum(), l.totalSum(), '복원 총합 일치');
+  assert.equal(l2.totalSum(), genesis, '창세 총합 보존');
+  for (const p of l.pools.values()) assert.equal(l2.balance(p.id), p.balance, `풀 ${p.id} 잔고`);
+  for (const [k, s] of l.regionSums) assert.equal(l2.regionSum(k), s, `지역 ${k} 합계`);
+});
+
 test('미러 연산(mirrorSet/forget)도 지역 합계를 정확히 유지한다', () => {
   const l = new EnergyLedger();
   l.mirrorSet('a', 100, 200, 'r1');

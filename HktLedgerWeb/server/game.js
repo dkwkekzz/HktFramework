@@ -37,15 +37,28 @@ const RANGE_SLACK = 10; // 비콘 양자화·지연 흡수용 사거리 여유
 function dist(ax, ay, bx, by) { return Math.hypot(ax - bx, ay - by); }
 
 export class GameServer {
-  constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED } = {}) {
+  constructor({ now = () => Date.now(), auditSeed = AUDIT_SEED, snapshot = null } = {}) {
     this.now = now;
     this.auditSeed = auditSeed >>> 0;
     // A2 감사 집계 — sampled: 감사한 위임 판정 수, caught: 조작 적발 수, cheaters: 적발자별 횟수
     this.audit = { delegated: 0, sampled: 0, caught: 0, cheaters: new Map() };
     this.ledger = new EnergyLedger();
 
-    // 창세: 세계의 모든 에너지는 SOURCE 에서 출발한다.
-    // 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL — 이것이 보존 불변식.
+    // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
+    this.players = new Map(); // id -> player
+    this.intents = [];        // 도착 순 큐 — 순서 중재의 실체
+    this.pendingOps = [];     // 이번 틱 확정 tx + 사실 이벤트 (인과 순서 유지)
+    this.pendingMoves = new Map(); // playerId -> [x, y] (비콘 릴레이)
+    this.nextPlayerNo = 1;
+
+    // A3: 스냅샷이 있으면 원장 잔고 복원, 없으면 창세. 세계 = 원장 잔고뿐이라 이 둘로 충분.
+    if (snapshot) this.#restore(snapshot);
+    else this.#genesis();
+  }
+
+  // 창세: 세계의 모든 에너지는 SOURCE 에서 출발한다.
+  // 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL — 이것이 보존 불변식.
+  #genesis() {
     this.ledger.createPool(POOL.SOURCE, WORLD_SOURCE_INITIAL, Number.MAX_SAFE_INTEGER, null);
     this.ledger.createPool(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
 
@@ -71,15 +84,48 @@ export class GameServer {
       this.ledger.transfer(POOL.SOURCE, m.id, m.max, CAUSE.SPAWN);
     }
 
-    this.players = new Map(); // id -> player
     this.items = new Map();   // id -> { id, itemType, owner, x, y }
-    this.intents = [];        // 도착 순 큐 — 순서 중재의 실체
-    this.pendingOps = [];     // 이번 틱 확정 tx + 사실 이벤트 (인과 순서 유지)
-    this.pendingMoves = new Map(); // playerId -> [x, y] (비콘 릴레이)
     this.tickCount = 0;
     this.txSeq = 0;
-    this.nextPlayerNo = 1;
     this.nextItemNo = 1;
+  }
+
+  // A3: 원장 잔고 저장 — 세계 상태의 전부. 배치·max 는 시드 유도라 담지 않는다.
+  snapshot() {
+    return {
+      v: 1,
+      tickCount: this.tickCount,
+      txSeq: this.txSeq,
+      nextItemNo: this.nextItemNo,
+      pools: this.ledger.serialize(),
+      items: [...this.items.values()].map(i => [i.id, i.itemType, i.owner, i.x, i.y]),
+      mobs: [...this.mobs.values()].map(m => [m.id, m.dead, m.respawnAt]),
+    };
+  }
+
+  // A3: 스냅샷에서 세계 복원. 원장 잔고는 그대로 로드, 배치·max·cell 은 시드에서 재유도.
+  #restore(snap) {
+    this.ledger.load(snap.pools);
+    this.tickCount = snap.tickCount;
+    this.txSeq = snap.txSeq;
+    this.nextItemNo = snap.nextItemNo;
+
+    const world = generateWorld(WORLD_SEED);
+    this.nodes = new Map();
+    for (const n of world.nodes) {
+      const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
+    }
+    const mobMeta = new Map(snap.mobs.map(([id, dead, respawnAt]) => [id, { dead, respawnAt }]));
+    this.mobs = new Map();
+    for (const m of world.mobs) {
+      const meta = mobMeta.get(m.id) ?? { dead: false, respawnAt: 0 };
+      this.mobs.set(m.id, { ...m, dead: meta.dead, respawnAt: meta.respawnAt });
+    }
+    this.items = new Map();
+    for (const [id, itemType, owner, x, y] of snap.items) {
+      this.items.set(id, { id, itemType, owner, x, y });
+    }
   }
 
   // --- 원장 커밋 + tx 기록 (모든 에너지 변화는 이 함수를 지난다) ---

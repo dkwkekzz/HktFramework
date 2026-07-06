@@ -300,6 +300,44 @@ test('A2 판정 감사 — 정직 봇 무경보, 조작 봇 탐지 (탐지율 �
   console.log(`    [A2] 위임 ${cheat.delegated} · 감사표본 ${cheat.sampled}(${rate}%) · 적발 ${cheat.caught} · 정직봇 오경보 ${honest.caught}`);
 });
 
+test('A3 영속화 — 스냅샷 저장→복원 후 지역 체크섬 일치 + 세계 총합 불변', () => {
+  const { clock, game, join, warp, intent } = setup();
+  const a = join('A');
+  const node = game.nodes.values().next().value;
+
+  // 잔고 분포를 흐트러뜨린다: 채집·응축·몬스터 처치(dead 상태도 스냅샷에 실림)
+  warp(a.player, node.x + 10, node.y);
+  game.tick();
+  for (let i = 0; i < 3; i++) { intent(a.player, INTENT.GATHER, { nodeId: node.id }, `g${i}`); game.tick(); }
+  intent(a.player, INTENT.CONDENSE, {}, 'c1');
+  game.tick();
+  const mob = game.mobs.values().next().value;
+  warp(a.player, mob.x + 30, mob.y);
+  game.tick();
+  while (!mob.dead) {
+    clock.t += ATTACK_COOLDOWN_MS + 10;
+    intent(a.player, INTENT.ATTACK, { targetId: mob.id }, `k${Math.floor(clock.t)}`);
+    game.tick();
+  }
+  for (let i = 0; i < 60; i++) game.tick(); // 재충전 등 진행
+
+  // 저장→(JSON 직렬화)→로드로 새 서버 부팅 (재시작 모사)
+  const snap = JSON.parse(JSON.stringify(game.snapshot()));
+  const revived = new GameServer({ now: () => clock.t, snapshot: snap });
+
+  assert.equal(revived.ledger.totalSum(), WORLD_SOURCE_INITIAL, '복원 후 세계 총합 불변');
+  for (const [key] of game.ledger.regionSums)
+    assert.equal(revived.ledger.regionSum(key), game.ledger.regionSum(key), `지역 ${key} 체크섬 일치`);
+  for (const p of game.ledger.pools.values())
+    assert.equal(revived.ledger.balance(p.id), p.balance, `풀 ${p.id} 잔고 일치`);
+  assert.equal(revived.mobs.get(mob.id).dead, game.mobs.get(mob.id).dead, '몬스터 dead 복원');
+  assert.equal(revived.items.size, game.items.size, '아이템 메타 복원');
+
+  // 복원된 세계가 계속 굴러가도 보존 유지 (죽은 노드도 필드에서 재충전)
+  for (let i = 0; i < 60; i++) revived.tick();
+  assert.equal(revived.ledger.totalSum(), WORLD_SOURCE_INITIAL, '복원 후 계속 틱 — 총합 불변');
+});
+
 test('미러 정합 — 서버 메시지 재생만으로 클라 원장이 체크섬과 일치', () => {
   const { clock, game, join, warp, intent } = setup();
   const a = join('A');

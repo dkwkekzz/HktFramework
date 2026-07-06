@@ -9,13 +9,13 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0003](steps/step-0003.md) — **A2 판정 감사 완료**: 전투 데미지에 결정론 롤(`shared/audit.js`) 도입, 클라 위임 판정을 서버가 표본(25%) 재시뮬로 검증. 조작 봇 감사 표본 100% 적발, 정직 봇 오경보 0.
-- **한 줄 상태**: `npm test` 19/19 OK · 조작봇 감사표본 전건 적발·정직봇 오탐 0 · 봇 8기 세계 총 10⁹ 불변.
+- **닫힌 step**: [step-0004](steps/step-0004.md) — **A3 영속화 완료**: `EnergyLedger.serialize/load` + `GameServer.snapshot/#restore`. 원장 잔고만 저장하고 배치는 시드 재유도 → 재시작(스냅샷 로드) 후 지역 체크섬 일치·총합 불변.
+- **한 줄 상태**: `npm test` 21/21 OK · 스냅샷 복원 후 총 10⁹·전 지역 체크섬 일치 · 조작봇 감사 전건 적발.
 
 ## 2. NEXT — 가설 (다음 조각의 권위는 이 절)
 
-> 🎯 **A3 영속화** ([SPINE](SPINE.md) §1) — 지금 서버 재시작 = 세계 소멸. "상태 = 원장뿐" 주장의 최종 시험: 영속은 원장 잔고 저장·복원이 전부여야 한다. `EnergyLedger` 직렬화/역직렬화(풀 잔고·max·region + txSeq/tickCount 최소 메타)를 `shared/`(순수) 에 얹고, `server/` 가 저장·로드한다. 셀·노드·SOURCE/SINK 전부 원장 풀이므로 잔고만 담으면 세계가 되살아난다.
-> 완료 판정(SPINE §1): 재시작(직렬화→새 서버 로드) 후 지역 체크섬 일치 + 세계 총합 불변 — `game.test.js` 저장→복원 라운드트립 테스트로 닫는다.
+> 🎯 **A4 바이너리 tx** ([SPINE](SPINE.md) §1) — JSON 인코딩을 tx 만 16B 바이너리로 교체해 대역폭을 줄인다. 인코딩은 `shared/protocol.js` 한 곳 — `encode/decode` 를 tx op 에 한해 고정폭 바이너리(seq·from·to·amount·cause 를 정수 필드로)로 바꾸고, 나머지 메시지는 JSON 유지. 클라 `net.js` 계측으로 절감 실측.
+> 완료 판정(SPINE §1): 봇 8기 시뮬 실측 B/s 절감 수치 — 기존 300~400 B/s(JSON) 대비 감소를 `net.js` 대역폭 계측으로 확인.
 
 **백로그**: A2 판정 감사 · A3 영속화 · A4 바이너리 tx · A5 몬스터 권위 이관 (각 완료 판정은 SPINE §1 표).
 
@@ -26,7 +26,7 @@
 | ✅ | 보존·중재·검증·미러 정합 (핵심 불변식 4종) | step-0000 — test 13종 |
 | ✅ | A1 필드 확산 | step-0002 — `SOURCE→셀→노드`+`셀↔셀 diffuse`, test 5종(field 3·game 2) |
 | ✅ | A2 판정 감사 | step-0003 — 위임 데미지 판정 25% 표본 재시뮬, 조작 전건 적발 |
-| ⬜ | A3 영속화 | 서버 재시작 = 세계 소멸 |
+| ✅ | A3 영속화 | step-0004 — 원장 serialize/load + snapshot/restore, 복원 후 체크섬 일치 |
 | ⬜ | A4 바이너리 tx | JSON 인코딩 그대로 |
 | ⬜ | A5 몬스터 권위 이관 | 서버 정적 배치 — "서버 무시뮬" 원칙의 마지막 예외 |
 
@@ -43,4 +43,5 @@
 0001 | A1 필드 확산 프리미티브(shared/field.js diffuseTick) | test 16/16 · 확산 200틱 총합 불변
 0002 | A1 필드 확산 서버 배관(SOURCE→셀→노드+diffuse) | test 18/18 · 봇 8기 총 10⁹ 불변·체크섬 OK
 0003 | A2 판정 감사(위임 데미지 25% 표본 재시뮬) | test 19/19 · 조작봇 감사표본 전건 적발·정직봇 오탐 0
+0004 | A3 영속화(원장 serialize/load + snapshot/restore) | test 21/21 · 복원 후 총 10⁹·전 지역 체크섬 일치
 ```
