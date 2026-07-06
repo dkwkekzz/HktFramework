@@ -9,9 +9,9 @@
 
 ## 1. NOW
 
-- **닫힌 step**: [step-0507](step-0507.md) — **#16 라운드 4차 7: mailsagapermfail — 재admission 상한 → 영구 실패 종결**: mailReadmitMax 도달 → permFailed>0·재admission 차단(무한 루프 방지)·pending==pg+ab+perm(perm nonzero)·sagaLive. 미해결 세 번째(종결) 분할. 박스 무수정→reg 0.
-- **한 줄 상태**: reg ALL OK·mailsagapermfail 5/5·spine ALL OK.
-- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510 진행 중)** — sagaLivenessConsistent 손실 하 비자명 검증. 닫힘: 0501~0507(transient·unacked·abandon·abandonpub·readmit·readmitpub·permfail). 남은 조각: failpub(0508)·3way grand(0509)·promotedsagaloss 가드(0510). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
+- **닫힌 step**: [step-0508](step-0508.md) — **#16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E·수명주기 발행 삼종 완비**: 영구 실패 시 svc.mail.saga_failed 발행→버스→audit. failPublished==permFailed==audit.seen. 포기(0504)·재admission(0506)의 종결 마디 — abandon/readmit/fail 발행 완비. 박스 무수정→reg 0.
+- **한 줄 상태**: reg ALL OK·mailsagafailpub 5/5·spine ALL OK.
+- **다음**: 🎯 **#16 라운드 4차 arc(0501~0510)** — 닫힘 0501~0508. 남은 조각: 3way grand(0509·pg/ab/perm 동시 nonzero)·promotedsagaloss 가드(0510·arc 닫기). **arc 후 후속**: ⒝ #74 실 GW ⒞ #46 금고↔가방 escrow ⒟ #75 프로파일. 🔎 **0491~0500 묶음 리뷰 적기(infra-review)**.
 
 ---
 
@@ -40,7 +40,7 @@
 | 🟡 | **세션/프레즌스 + 오케스트레이터** | 코디네이션 | 프레즌스 박스·귓속말/파티 라우팅(0064~106). 남은 것: cluster kill→replay·존 배치·부하 분산. |
 | 🟡 | **캐시 + write-behind 영속 (저널+압축·홉 신뢰·failover/quorum/윈도 ✅)** | 데이터 | PersistStore+압축·홉 신뢰→quorum→윈도(0017~0032). fsync 0·월드 영속 0. |
 | ⬜ | **크래시 복구·재접속·late-join** | 전체 | 영속서 뷰/권위 재구성. |
-| 🟡 | **#16 bespoke 검증 spine 미승급 — 서비스 계층 실행 검증 0** | 전체 | 시대별 grand capstone 9종 승급 완료(0481~0489·verify-kit ORDER). 남음: 서비스 saga capstone(거래소/우편/길드) 재작성 편입(git per-commit 에만·HEAD 재검증 불가·감사 §2 ①-b). |
+| 🟡 | **#16 검증 spine 승급** | 전체 | grand capstone 9종(0481~89)+서비스 saga capstone 9종 행복(0491~0500)+손실 체제(0501~·라운드 4차 진행) verify-kit ORDER. 닫히면 ✅. |
 | ⬜ | **#75 프로덕션 프로파일(유계 기본값 1벌)** | 전체 | reg-0 규칙 부작용 — 유계 노브 기본 무계(downRecvWindow 0·capacity ∞·leaseSpan 0·재시도 무제한). 권장값 세트를 verify 모드로 봉인(감사 2026-07·§2 권고 ④). |
 
 > **✅ 해소된 격차** 전문: §7 INDEX·각 `step-NNNN.md`. **상시 렌즈 — 척추**([SPINE.md](SPINE.md) §5): 매 step verify 4기둥 + 척추 5항(①tick ②결정론 ③권위 단일 ④은닉 ⑤headless). 분리 기준: *존 tick 박자로 돌아야 하나?*
@@ -158,3 +158,4 @@
 | [0505](step-0505.md) | #16 라운드 4차 5: mailsagareadmit — 포기 give 재admission(abandonedGive→pendingGive 역이행·readmitted>0·pending 불변) | 통과(reg 0·spine OK) · mailsagareadmit 5/5 |
 | [0506](step-0506.md) | #16 라운드 4차 6: mailsagareadmitpub — 재admission 발행 E2E(svc.mail.saga_readmitted 발행→버스→audit·readmitPublished==readmitted==audit.seen) | 통과(reg 0·spine OK) · mailsagareadmitpub 5/5 |
 | [0507](step-0507.md) | #16 라운드 4차 7: mailsagapermfail — 재admission 상한(mailReadmitMax) → 영구 실패(permFailed>0·재admission 차단·pending==pg+ab+perm nonzero) | 통과(reg 0·spine OK) · mailsagapermfail 5/5 |
+| [0508](step-0508.md) | #16 라운드 4차 8: mailsagafailpub — 영구 실패 발행 E2E(svc.mail.saga_failed 발행→버스→audit·failPublished==permFailed==audit.seen)·발행 삼종 완비 | 통과(reg 0·spine OK) · mailsagafailpub 5/5 |
