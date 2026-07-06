@@ -29,6 +29,16 @@ export const PLAYER_MAX_ENERGY = 1000;
 export const SPAWN_GRANT = 300;          // 스폰/리스폰 시 WORLD_SOURCE 에서 인출
 export const RESPAWN_DELAY_MS = 3000;
 
+// --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
+// 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
+// 이체 — 별도 동기화 채널 없이 원장에 편입된다. 보존은 transfer 클램프가 강제한다.
+export const FIELD_CELL_SIZE = 250;                        // 셀 한 변 (px)
+export const FIELD_GRID = WORLD_SIZE / FIELD_CELL_SIZE;    // 8x8 = 64 셀
+export const FIELD_CELL_MAX = 100_000;                     // 셀 용량 상한
+// 확산 흐름 = floor(기울기 * NUM / DEN). NUM/DEN ≤ 1/2 여야 오버슛·진동 없이 평형 수렴.
+export const FIELD_DIFFUSE_NUM = 1;
+export const FIELD_DIFFUSE_DEN = 4;
+
 // --- 채집 ---
 export const NODE_COUNT = 40;
 export const NODE_MIN_MAX = 400;         // 노드 용량 하한
@@ -63,6 +73,7 @@ export const WORLD_SOURCE_INITIAL = 1_000_000_000;
 export const POOL = {
   PLAYER: 'P:',   // 플레이어 생체 에너지
   NODE: 'N:',     // 자원 노드 (필드 풀)
+  CELL: 'F:',     // 필드 셀 (확산 격자 풀)
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
   SOURCE: 'W:SRC',
@@ -74,7 +85,7 @@ export const CAUSE = {
   SPAWN: 'spawn', MOVE: 'move', GATHER: 'gather', REGEN: 'regen',
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
-  DEATH_DROP: 'death-drop',
+  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse',
 };
 
 // 지역 키 유도 — 서버·클라 동일 함수 사용 (체크섬 정합의 전제)
