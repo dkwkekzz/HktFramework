@@ -977,11 +977,38 @@ function asynce2ecap(seeds) {
   }
 }
 
+// step-0350 #9 후속 grand capstone — worldcap: 월드 다운스트림 E2E(host AOI→포착→전파→실 DownClient 수렴 desync0·게이트웨이 격리). SPINE §4 경로2.
+function worldcap(seeds) {
+  const PLACE = (at, zoneId, host) => ({ at, op: { type: 'placeZone', zoneId, host } });
+  const ENTER = (at, zoneId, avatar, from) => ({ at, from, op: { type: 'zoneEnter', zoneId, avatar } });
+  const MOVE = (at, zoneId, avatar, dx, dy, from) => ({ at, from, op: { type: 'zoneMove', zoneId, avatar, dx, dy } });
+  const MIG = (at, zoneId, toHost) => ({ at, op: { type: 'placeMigrate', zoneId, toHost } });
+  const OPS = [PLACE(1, 'z1', 'hostA'), PLACE(2, 'z2', 'hostC'), MIG(18, 'z1', 'hostB')];
+  const ENT = [ENTER(3, 'z1', 'a1', 'dc0'), ENTER(5, 'z2', 'b1', 'dc2')];
+  for (let k = 0; k < 8; k++) ENT.push(MOVE(6 + k, 'z1', 'a1', 1, 1, 'dc0'));
+  ENT.push(ENTER(15, 'z1', 'a2', 'dc1'));
+  ENT.push(MOVE(16, 'z2', 'b1', 1, 0, 'dc2'));
+  const BASE = { clients: 6, moves: 24, radius: 4, grid: 16, zones: 2, bus: true, failover: true, placeExecute: true, zoneBridge: true, zoneEntityFlow: true, zoneHostHandle: true, zoneHostMailbox: true, gatewayZoneDir: true, gatewayDirectZone: true, zoneHostProc: true, zoneEgress: true, downClients: 3, egressDrop: ['s:a1#2'], egressTimeout: 4 };
+  console.log('== worldcap (0350·#9 후속 grand capstone): 월드 다운스트림 E2E. worldCoherent·dc0·dc1·dc2 수렴·iso. ==');
+  console.log('seed   | world | dc0 | dc1 | dc2 | iso | 판정');
+  for (const seed of seeds) {
+    const r = run({ seed, ticks: 30, ...BASE, placementOps: OPS, entityOps: ENT });
+    const o = r.orch, g = r.gateway;
+    const world = o.downstreamWorldCoherent();
+    const c0 = r.downclients[0].convergedTo(o.zoneAuthSig('z1', 'a1'));
+    const c1 = r.downclients[1].convergedTo(o.zoneAuthSig('z1', 'a2'));
+    const c2 = r.downclients[2].convergedTo(o.zoneAuthSig('z2', 'b1'));
+    const iso = g.gatewayDeliveryIsolated();
+    const ok = check(world && c0 && c1 && c2 && iso, `seed ${seed}: world ${world} c ${c0}/${c1}/${c2} iso ${iso}`);
+    console.log(`${pad(seed, 6)} | ${pad(world ? 'Y' : 'N', 5)} | ${pad(c0 ? 'Y' : 'N', 3)} | ${pad(c1 ? 'Y' : 'N', 3)} | ${pad(c2 ? 'Y' : 'N', 3)} | ${pad(iso ? 'Y' : 'N', 3)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap, asynce2ecap, worldcap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap', 'asynce2ecap', 'worldcap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
