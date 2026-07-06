@@ -56,6 +56,11 @@ storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 �
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음.
 - `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
+- `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
+  지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
+  개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
+- `js/terrain-gen.js` — 에디터 절차 지형: 시드 fBm 단일 height 원본 → 무대 PLY + collider
+  삼각형 수프 (test/_fixture.js 의 브라우저·매개변수판, 골짜기 -0.72 클램프 동일).
 
 ## 불변 조건 (깨지면 화면이 즉시 무너짐)
 

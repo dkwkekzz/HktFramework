@@ -26,6 +26,19 @@ python -m http.server 8123
 # 브라우저에서 http://localhost:8123
 ```
 
+### 에디터 (작업 확인 도구)
+
+`http://localhost:8123/editor.html` — 일반 게임 에디터 형태의 별도 진입점 (데모 index.html 불변).
+툴바(모드/팔레트/스플랫 수) · 아웃라이너(지형/스켈레톤/개체) · 뷰포트(마커 선택·드래그 이동, 배치 모드 클릭 배치) · 디테일(선택 대상의 파라미터 — 지형 시드/진폭, 개체 유전자 슬라이더, 스켈레톤 위치/FBX) · 타임라인(재생/스크럽/클립/배속). 세 기둥:
+
+1. **지형 생성** — 시드 fBm 절차 지형을 무대(PLY→Spark)와 시뮬 바닥(collider→heightfield)에 한 번에 굽는다.
+2. **오브젝트 배치** — 프리셋 개체(최대 8)를 지형 클릭 지점에 배치, 마커 드래그로 이동, 유전자 라이브 튜닝.
+3. **애니메이션** — 장면 공용 스켈레톤(built-in 클립/Mixamo FBX)을 지형 위에 세우고 타임라인으로 확인.
+
+검증: `node test/editor-shot.js` (합성 사진 + 판정).
+
+### 데모 (index.html)
+
 우측 패널은 탭 3개: **유전자** 탭(원소 프리셋 → 슬라이더로 연속 변형 → 중간 생물 탐색, 장면 버튼(불×나무)은 다중 개체 공존 데모) · **뼈대** 탭(히키토의 모션 클립/속도·통통함·뼈대 표시, 그리고 **Mixamo FBX 드롭존** — Mixamo 에서 FBX 로 받은 캐릭터/클립을 놓으면 실제 클립 위에 살이 자란다) · **무대** 탭(S 트랙 — worldlabs Marble 등 외부 생성 3DGS 월드(.spz/.ply)를 드롭하면 Spark 레이어가 생명 아래에 깔린다. "무대는 로드, 생명은 배양" — [Docs/PLAN-SparkTerrain.md](Docs/PLAN-SparkTerrain.md), 수급: [assets/worlds/README.md](assets/worlds/README.md)).
 
 ## 아키텍처 (전부 GPU 상주, CPU 왕복 없음)
