@@ -915,11 +915,34 @@ function bare2ecap(seeds) {
   }
 }
 
+// step-0450 #4 10·grand capstone — nete2ecap: 실 engine Net 배리어==배리어-free substrate==canonical·전복제 desync0·exactly-once·sound·lossy.
+function nete2ecap(seeds) {
+  console.log('== nete2ecap (0450·#4 grand capstone): 실 배리어==substrate==canonical·전복제 desync0·exactly-once·sound·배리어-free·lossy. ==');
+  console.log('seed   | 이벤트 | 배리어등가 | 전복제desync0 | exactly-once | sound | skew | lossy | 판정');
+  for (const seed of seeds) {
+    const C = 4, M = 3, MS = 40;
+    const s = NET.worldIntentStream(seed, { clients: C, avatars: 4, msgs: MS });
+    const events = NET.withSseq(s.events);
+    const canonical = NET.simFold(NET.totalOrder(events), seed, s.avatars).digest;
+    const sound = NET.totalOrderSound(events, s.edges);
+    const L = NET.runLockstepEngine(s.events, seed, s.avatars, C);
+    const barrierEq = L.totalDigest === canonical && L.delivered === MS;
+    const cap = NET.capstoneReplicas(events, M, seed, s.avatars, C);
+    const allConv = cap.reps.every(r => r.digest === canonical);
+    const allComplete = cap.reps.every(r => r.complete);
+    const lossy = cap.reps.some(r => r.resyncs > 0);
+    const skew = cap.skew;
+    const ok = check(barrierEq && allConv && allComplete && sound.strict && sound.causal && skew > 0 && lossy,
+      `seed ${seed}: barrier ${barrierEq}·conv ${allConv}·once ${allComplete}·sound ${sound.strict && sound.causal}·skew ${skew}·lossy ${lossy}`);
+    console.log(`${pad(seed, 6)} | ${pad(MS, 6)} | ${pad(barrierEq ? 'Y' : 'N', 10)} | ${pad(allConv ? 'Y' : 'N', 13)} | ${pad(allComplete ? 'Y' : 'N', 12)} | ${pad(sound.causal ? 'Y' : 'N', 5)} | ${pad(skew, 4)} | ${pad(lossy ? 'Y' : 'N', 5)} | ${ok ? 'OK' : 'FAIL'}`);
+  }
+}
+
 // ── CLI (step verify.js 가 위임) ──
-const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap };
+const MODES = { reg, wquorum, rank, e2e, sacred, recover, 'recover-rank': recoverRank, 'recover-chat': recoverChat, compact, 'chat-compact': chatCompact, reliable, tail, inflight, degrade, inject, isolate, hide, repro, instanceleave, instancereap, placerebalance, placedrain, cachecapacity, cachetouch, worldwb, worldfsync, loginauth, loginabandon, mze2ecap, bare2ecap, nete2ecap };
   const ORDER = ['reg', 'instanceleave', 'instancereap', 'placerebalance', 'placedrain', 'cachecapacity', 'cachetouch', 'worldwb', 'worldfsync', 'loginauth', 'loginabandon', 'wquorum', 'rank', 'e2e', 'sacred', 'recover', 'recover-rank', 'recover-chat',
                  'compact', 'chat-compact', 'reliable', 'tail', 'inflight', 'degrade', 'inject', 'isolate', 'hide', 'repro',
-                 'mze2ecap', 'bare2ecap'];
+                 'mze2ecap', 'bare2ecap', 'nete2ecap'];
   async function runAll(seedArg) {
     for (const m of ORDER) { await MODES[m](seedArg); console.log(''); }
     await summary(seedArg);
