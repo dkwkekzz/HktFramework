@@ -65,8 +65,14 @@ export const FIELD_CELL_MAX = 100_000;                     // 셀 용량 상한
 // 확산 흐름 = floor(기울기 * NUM / DEN). NUM/DEN ≤ 1/2 여야 오버슛·진동 없이 평형 수렴.
 export const FIELD_DIFFUSE_NUM = 1;
 export const FIELD_DIFFUSE_DEN = 4;
-export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 (셀당)
-export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 (필드 지속)
+export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 기준량 (풍요도 배수로 스케일)
+export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 기준량 (풍요도 배수로 스케일)
+// A7-2 필드 이질화: 필드 셀은 균질하지 않다. 지역별 풍요도(배수)가 시드에서 유도되어
+// 부유/빈곤 지역이 갈린다 — 셀 목표 잔고·주입량이 이 배수에 비례한다. "지구 같은 복합계"의
+// 공간 에너지 구배: 부유 셀은 높은 정상상태로 채워져 노드를 잘 먹이고, 빈곤 셀은 낮게 유지.
+// 순수 원장 구조(셀은 서버 내부 저수지·region=null) — 리소스/렌더 아님·미러 무관.
+export const FIELD_RICH_MIN = 1;           // 빈곤 셀 풍요도 배수
+export const FIELD_RICH_MAX = 4;           // 부유 셀 풍요도 배수 (풍요도 = [MIN..MAX] 시드 유도)
 
 // --- 채집 ---
 export const NODE_COUNT = 40;

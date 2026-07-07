@@ -13,6 +13,7 @@ import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
+import { generateFieldRichness } from '../shared/worldgen.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
@@ -22,6 +23,7 @@ import {
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
   RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
+  FIELD_RICH_MIN, FIELD_RICH_MAX, REGEN_INTERVAL_TICKS, NODE_REGEN_AMOUNT,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -727,6 +729,38 @@ test('A7-1 구조 분화 — 조직별 예치가 서로 다른 흐름 계수에 
   assert.equal(upkeepFor(totB), upkeepFor(totF), '같은 총 구조 → 같은 유지비');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '전 과정 보존');
   console.log(`    [A7-1] 발산빌드 공격+${attackBonus(300)}·채집 ${gainB} | 대사빌드 공격+0·채집 ${gainF}(+${gatherStructBonus(300)}) · 같은 유지비 ${upkeepFor(totB)} · 총합 ${total()} 불변`);
+});
+
+test('A7-2 필드 이질화 — 지역별 풍요도가 노드 재충전 속도를 가른다 (영토 가치·시드 유도·보존)', () => {
+  // 순수 유도: 풍요도는 결정론·이질적 (같은 시드 → 같은 맵, 범위 내, 부유/빈곤 공존)
+  const r1 = generateFieldRichness(WORLD_SEED);
+  assert.deepEqual([...r1.entries()], [...generateFieldRichness(WORLD_SEED).entries()], '풍요도는 시드 결정론');
+  const vals = [...r1.values()];
+  assert.ok(Math.max(...vals) > Math.min(...vals), '이질적 — 부유/빈곤 셀 공존');
+  assert.ok(vals.every(v => v >= FIELD_RICH_MIN && v <= FIELD_RICH_MAX), '배수 범위 내');
+
+  const { game, total } = setup();
+  // 풍요도가 다른 두 노드 (부유 셀 노드 / 빈곤 셀 노드) — 노드는 자기 셀 풍요도를 물려받는다
+  const nodes = [...game.nodes.values()];
+  const rich = nodes.reduce((a, b) => (b.richness > a.richness ? b : a));
+  const poor = nodes.reduce((a, b) => (b.richness < a.richness ? b : a));
+  assert.ok(rich.richness > poor.richness, `부유 노드 풍요도 ${rich.richness} > 빈곤 ${poor.richness}`);
+
+  // 두 노드를 0 으로 비우고 (테스트 전용 이체·보존) 재충전 주기 하나를 통과시킨다
+  game.ledger.transfer(rich.id, POOL.SINK, game.ledger.balance(rich.id), 'test');
+  game.ledger.transfer(poor.id, POOL.SINK, game.ledger.balance(poor.id), 'test');
+  assert.equal(game.ledger.balance(rich.id), 0);
+  assert.equal(game.ledger.balance(poor.id), 0);
+
+  // 한 재충전 경계(tickCount=REGEN_INTERVAL_TICKS) 통과 — 노드가 풍요도 배수만큼 회복
+  for (let i = 0; i <= REGEN_INTERVAL_TICKS; i++) game.tick();
+  const richGain = game.ledger.balance(rich.id);
+  const poorGain = game.ledger.balance(poor.id);
+  assert.equal(poorGain, NODE_REGEN_AMOUNT * poor.richness, '빈곤 노드 회복 = 기준 × 풍요도');
+  assert.equal(richGain, NODE_REGEN_AMOUNT * rich.richness, '부유 노드 회복 = 기준 × 풍요도');
+  assert.ok(richGain > poorGain, `부유 지역 노드가 빨리 찬다 (영토 가치): ${richGain} > ${poorGain}`);
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이질화도 이체 — 총합 불변');
+  console.log(`    [A7-2] 풍요도 ${poor.richness}~${rich.richness} · 1주기 노드 회복 부유 ${richGain} > 빈곤 ${poorGain} · 총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

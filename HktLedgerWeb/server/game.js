@@ -14,7 +14,7 @@
 // ============================================================================
 
 import { EnergyLedger } from '../shared/ledger.js';
-import { generateWorld } from '../shared/worldgen.js';
+import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
@@ -65,16 +65,19 @@ export class GameServer {
 
     // 필드 셀 격자 — SOURCE/SINK 처럼 region=null 서버 내부 저수지 (방송·체크섬 대상 아님).
     // A1: 노드 재충전이 이 필드에서 확산으로 흐른다. 창세 적립도 SOURCE 인출이라 보존 유지.
+    // 셀 자체는 균질 저수지로 둔다(강한 확산이 셀 구배를 씻으므로) — 이질성은 노드 재충전에 싣는다.
     createField(this.ledger);
+    this.cellRichness = generateFieldRichness(WORLD_SEED); // A7-2: `cx_cy` -> 배수 (시드 유도·비영속)
     for (let cy = 0; cy < FIELD_GRID; cy++)
       for (let cx = 0; cx < FIELD_GRID; cx++)
         this.ledger.transfer(POOL.SOURCE, fieldCellId(cx, cy), FIELD_CELL_SEED, CAUSE.SPAWN);
 
     const world = generateWorld(WORLD_SEED);
-    this.nodes = new Map(); // id -> { id, x, y, max, cell }
+    this.nodes = new Map(); // id -> { id, x, y, max, cell, richness }
     for (const n of world.nodes) {
       const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
-      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
+      // A7-2 이질화: 노드가 속한 셀의 풍요도가 이 노드의 재충전 속도를 정한다(= 영토 가치).
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy), richness: this.#richness(cell.cx, cell.cy) });
       this.ledger.createPool(n.id, 0, n.max, regionKey(n.x, n.y));
       this.ledger.transfer(POOL.SOURCE, n.id, n.max, CAUSE.SPAWN); // 창세 이체 (방송 대상 없음)
     }
@@ -112,10 +115,11 @@ export class GameServer {
     this.nextItemNo = snap.nextItemNo;
 
     const world = generateWorld(WORLD_SEED);
+    this.cellRichness = generateFieldRichness(WORLD_SEED); // A7-2: 시드 유도(비영속) — 복원 시 재유도
     this.nodes = new Map();
     for (const n of world.nodes) {
       const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
-      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy), richness: this.#richness(cell.cx, cell.cy) });
     }
     const mobMeta = new Map(snap.mobs.map(([id, dead, respawnAt]) => [id, { dead, respawnAt }]));
     this.mobs = new Map();
@@ -150,6 +154,9 @@ export class GameServer {
   // ==========================================================================
   // 접속 수명
   // ==========================================================================
+
+  // A7-2: 셀 풍요도 배수 (시드 유도) — 재충전 목표·주입 스케일의 근거.
+  #richness(cx, cy) { return this.cellRichness.get(`${cx}_${cy}`) ?? 1; }
 
   // A7-1: 조직별 구조 풀 id — `S:<playerId>#<organ>`. POOL.STRUCT 접두 유지(클라 자동 물질화 동일).
   #structId(playerId, organ) { return `${POOL.STRUCT}${playerId}#${organ}`; }
@@ -574,7 +581,9 @@ export class GameServer {
       }
       for (const n of this.nodes.values()) {
         if (this.ledger.balance(n.id) < n.max) {
-          this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT, CAUSE.REGEN, n);
+          // A7-2 이질화: 재충전량 = 기준량 × 셀 풍요도. 부유 지역 노드가 빨리 차고, 빈곤 지역은
+          //   느리다 → 영토 가치의 공간 분포. 셀→노드 이체(클램프)라 민팅 없음·확산에 무너지지 않음.
+          this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT * n.richness, CAUSE.REGEN, n);
         }
       }
     }

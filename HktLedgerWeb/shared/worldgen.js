@@ -8,7 +8,7 @@
 import { mulberry32, randInt } from './rng.js';
 import {
   WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, NODE_COUNT, NODE_MIN_MAX, NODE_MAX_MAX,
-  MOB_COUNT, MOB_ENERGY, POOL,
+  MOB_COUNT, MOB_ENERGY, POOL, FIELD_GRID, FIELD_RICH_MIN, FIELD_RICH_MAX,
 } from './constants.js';
 
 export function generateWorld(seed = WORLD_SEED) {
@@ -38,4 +38,16 @@ export function generateWorld(seed = WORLD_SEED) {
   }
 
   return { nodes, mobs };
+}
+
+// A7-2 필드 이질화: 셀별 풍요도(배수)를 시드에서 유도한다 (배치처럼 동기화하지 않는 시드 유도).
+// 노드/몹 유도와 독립 스트림(seed 파생)이라 generateWorld 결정론에 영향 없음. 결정론 정수.
+// 반환: Map `cx_cy` -> 풍요도 배수 [FIELD_RICH_MIN..FIELD_RICH_MAX].
+export function generateFieldRichness(seed = WORLD_SEED) {
+  const rng = mulberry32((seed ^ 0x0f1e1d2c) >>> 0);
+  const richness = new Map();
+  for (let cy = 0; cy < FIELD_GRID; cy++)
+    for (let cx = 0; cx < FIELD_GRID; cx++)
+      richness.set(`${cx}_${cy}`, randInt(rng, FIELD_RICH_MIN, FIELD_RICH_MAX));
+  return richness;
 }
