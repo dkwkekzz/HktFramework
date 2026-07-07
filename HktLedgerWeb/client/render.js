@@ -6,14 +6,14 @@
 
 import {
   WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, PLAYER_MAX_ENERGY,
-  GATHER_RANGE, ATTACK_RANGE, POOL,
+  GATHER_RANGE, ATTACK_RANGE, POOL, ORGANS, FIELD_RICH_MAX,
 } from '../shared/constants.js';
 
 const CAUSE_LABEL = {
   'gather': '채집', 'leech': '흡수', 'burn': '피해', 'move': '이동',
   'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
   'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
-  'upkeep': '대사', 'recycle': '순환', 'grow': '성장',
+  'upkeep': '대사', 'recycle': '순환', 'grow': '성장', 'catabolism': '이화', 'give': '증여',
 };
 
 function poolLabel(state, id) {
@@ -190,11 +190,14 @@ export class Render {
     const bal = this.state.ledger.balance(e.id);
 
     if (e.kind === 'node') {
-      this.#stick(cam, e.x, e.y, e.z, 'rgba(90,210,120,0.4)');
+      // A7-2 영토 가치: 풍요도로 색을 물들인다 — 빈곤=초록, 부유=금빛(재충전 빠른 옥토).
+      const rr = ((e.richness ?? 1) - 1) / Math.max(1, FIELD_RICH_MAX - 1);
+      const cr = Math.round(90 + rr * 150), cg = Math.round(210 - rr * 12), cb = Math.round(120 - rr * 45);
+      this.#stick(cam, e.x, e.y, e.z, `rgba(${cr},${cg},${cb},0.4)`);
       const r = (5 + 13 * (bal / e.max)) * scale;
-      ctx.fillStyle = `rgba(90,210,120,${0.25 + 0.6 * (bal / e.max)})`;
+      ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.25 + 0.6 * (bal / e.max)})`;
       ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(2, r), 0, 7); ctx.fill();
-      this.#label(p.sx, p.sy - r - 4, String(bal), '#9fe8b0', scale);
+      this.#label(p.sx, p.sy - r - 4, `${bal} ×${e.richness ?? 1}`, `rgb(${cr},${cg},${cb})`, scale);
     } else if (e.kind === 'mob') {
       this.#stick(cam, e.x, e.y, e.z, 'rgba(217,95,95,0.4)');
       const s = 18 * scale;
@@ -252,19 +255,27 @@ export class Render {
     const { ctx, w, state, net, sim } = this;
     ctx.textAlign = 'left';
 
-    // 좌상: 내 에너지 + 고도 + 인벤토리
+    // 좌상: 내 에너지 + 고도 + 구조(조직) + 인벤토리
     const energy = state.displayEnergy();
+    // A7-1: 조직별 구조 잔고 (빌드) — 시야와 무관한 내 무지역 풀, 미러 재생으로 추적
+    const sAtk = state.ledger.balance(POOL.STRUCT + state.playerId + '#atk');
+    const sMeta = state.ledger.balance(POOL.STRUCT + state.playerId + '#meta');
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(10, 10, 270, 66 + state.inventory.size * 16);
+    ctx.fillRect(10, 10, 270, 86 + state.inventory.size * 16);
     ctx.fillStyle = '#e8eef4';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}  ·  고도 ${Math.round(sim.z)}`, 20, 30);
     ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 38, 250, 10);
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 38, 250 * energy / PLAYER_MAX_ENERGY, 10);
-    ctx.fillStyle = '#9db2c4';
+    // 구조(성장) — 조직별. 굶으면 이화로 줄고, 예치로 는다.
     ctx.font = '12px sans-serif';
-    let iy = 66;
+    ctx.fillStyle = '#e0b34e';
+    ctx.fillText(`구조 🗡발산 ${sAtk}`, 20, 62);
+    ctx.fillStyle = '#7fd08c';
+    ctx.fillText(`🌿대사 ${sMeta}`, 150, 62);
+    ctx.fillStyle = '#9db2c4';
+    let iy = 82;
     ctx.fillText(`인벤토리 (${state.inventory.size})`, 20, iy);
     for (const [id, item] of state.inventory) {
       iy += 16;
@@ -305,7 +316,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · R/F 상승·하강 · 드래그 회전 · 휠 줌 · E 채집/줍기 · Space 공격 · C/B/V/X', w - 14, this.h - 12);
+    ctx.fillText('WASD 이동 · R/F 상승·하강 · E 채집/줍기 · Space 공격 · Q 강타/Z 흡정 · G 발산성장/H 대사성장 · T 증여 · C/B/V/X', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }

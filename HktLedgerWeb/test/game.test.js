@@ -808,6 +808,22 @@ test('A7-3 생명 간 이체 — 플레이어끼리 자유 에너지를 증여�
   console.log(`    [A7-3] 증여 giver→taker 120·자기증여/사거리밖 기각·부양 50 · 총합 ${total()} 불변`);
 });
 
+test('A7-4 클라 관측 — 노드 풍요도를 시드에서 서버와 동일하게 유도 (영토 색 표시 정합)', () => {
+  const { game } = setup();
+  const client = new ClientState();
+  client.handle({
+    t: 'welcome', playerId: 'P:1', name: 'X', seed: WORLD_SEED, tick: 0,
+    total: WORLD_SOURCE_INITIAL, src: 0, sink: 0, x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z,
+  });
+  let checked = 0;
+  for (const n of game.nodes.values()) {
+    assert.equal(client.nodesById.get(n.id).richness, n.richness, `노드 ${n.id} 풍요도 클라=서버`);
+    checked++;
+  }
+  assert.ok(checked > 0, '노드 존재');
+  console.log(`    [A7-4] 노드 ${checked}개 풍요도 클라 유도 = 서버 (렌더 영토 색 정합)`);
+});
+
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
   const { clock, game, join, warp, total } = setup();
   const prey = join('사냥감');
