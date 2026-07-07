@@ -34,6 +34,7 @@ npm install                # playwright (브라우저 포함)
 | `node world-genome.js [seed=7]` | W1 월드 게놈의 데이터화(순수 Node) — ① temperate 프리셋 경유가 현행 플랫 기본과 height/color/biome diff 0(회귀) + ② ashen 프리셋이 평균색거리>0.08·육상 바이옴 완전 분리(다채로움) |
 | `node preset-shot.js <preset\|genome.json> [out.png] [seed]` | W1/W4 시각 — 내장 프리셋 또는 게놈 JSON(추출물)을 즉석 파노라마로 Spark 렌더(예: `ashen`, `tools/world-extract/genomes/breeze-meadow.json`). JSON 게놈은 렌더 전 W2 프로파일 검증. biome-shot 렌더 절반의 일반화, W3 concept-shot 원형 |
 | `node world-profile.js` | W2 스타일 프로파일(순수 Node) — ① temperate·ashen·최소 게놈·W4 v0 게놈이 울타리 통과 + ② 극단 게놈(과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·과ampMul) 반려(위반 필드 확인) |
+| `node concept-shot.js <genome.json> <src-img> [out.png] [seed]` | W3 컨셉 대조 카드 — 추출 게놈 파노라마 + 원본 컨셉 이미지를 좌우 2패널로 합성(렌더 전 W2 검증, 두 패널 내용 판정) |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

@@ -153,7 +153,10 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   검증(판정에 프로파일 포함). 검증: `node test/world-profile.js`(순수 Node, 10/10) — ① temperate·
   ashen·최소 게놈·W4 v0 breeze-meadow 전부 통과 + ② 과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·
   과ampMul 반려(위반 필드 확인).
-- **W3 — 컨셉 검증 하니스**: `test/concept-shot.js` — 게놈 → 대조용 대표 파노라마. 완료 기준: 규격 PNG 산출.
+- ✅ **W3 — 컨셉 검증 하니스**: `test/concept-shot.js` — 게놈 JSON + 원본 이미지 → 좌(컨셉)·우(생성 파노라마)
+  2패널 대조 카드 PNG. 렌더 전 W2 검증 + 두 패널 내용 판정(빈 카드 방지). 검증: breeze-meadow ×
+  IMG_5669 → 프로파일 OK·생성 지형 364k·원본 486k·오류 0·exit 0 (색족 일치 카드, 우상단 검정=미구현
+  하늘 W6 노출).
 - 🚧 **W4 — 이미지 → 월드 게놈 추출기 v0** (부분): `tools/world-extract/` 거처 신설 + `preset-shot.js` 가
   게놈 JSON 파일 경로를 받도록 일반화(W4 산출물 렌더 경로). **수동 v0 실증**: LLM vision 이 스타일라이즈드
   오픈월드 컨셉 이미지를 읽어 게놈(`genomes/breeze-meadow.json`, 초원·암석대지·물가 3바이옴+청록 수역)으로
