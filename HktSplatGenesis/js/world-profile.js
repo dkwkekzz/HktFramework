@@ -27,6 +27,8 @@
 		biomeMinSep: 0.07,           // 두 바이옴 중심의 최소 거리 (퇴화 중복 차단)
 		// 채색: 채도 상한만(하한 없음 — 설선·설원 같은 저채도 흰색은 정당). 각 채널 [0,1].
 		satMax: 0.9,
+		// 대기(mood, W6): 하늘/fog 색은 색 규칙(채널 [0,1]·채도 ≤ satMax) 공유. fog 거리는 양수·순서만.
+		fogMin: 0.0,
 	};
 
 	function sat(c) { // 색의 채도 = (max-min)/max, max=0 이면 0
@@ -75,6 +77,17 @@
 		if (g.water !== undefined) {
 			if (g.water && g.water.shallow) colorOk('water.shallow', g.water.shallow);
 			if (g.water && g.water.deep) colorOk('water.deep', g.water.deep);
+		}
+
+		// 대기(mood, W6) — 하늘/fog 색은 색 규칙(채널 [0,1]·채도 상한) 공유, fog 거리는 양수·순서만
+		if (g.mood !== undefined) {
+			const m = g.mood || {};
+			if (m.skyTop !== undefined) colorOk('mood.skyTop', m.skyTop);
+			if (m.skyHorizon !== undefined) colorOk('mood.skyHorizon', m.skyHorizon);
+			if (m.fogColor !== undefined) colorOk('mood.fogColor', m.fogColor);
+			if (m.fogStart !== undefined && (!isNum(m.fogStart) || m.fogStart < PROFILE.fogMin)) push('mood.fogStart', m.fogStart, `숫자·≥${PROFILE.fogMin} 아님`);
+			if (m.fogEnd !== undefined && (!isNum(m.fogEnd) || m.fogEnd <= PROFILE.fogMin)) push('mood.fogEnd', m.fogEnd, `숫자·>${PROFILE.fogMin} 아님`);
+			if (isNum(m.fogStart) && isNum(m.fogEnd) && m.fogStart >= m.fogEnd) push('mood.fogRange', [m.fogStart, m.fogEnd], 'fogStart ≥ fogEnd (역순)');
 		}
 
 		// 바이옴 셋

@@ -74,6 +74,9 @@ const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
 		process.exit(1);
 	}
 
+	// W6: 게놈 대기(mood)를 무대 하늘 돔에 배선 (ashen=붉은 하늘, temperate=파란 하늘).
+	await page.evaluate((mood) => { if (mood && window.HktGenesisStage.setMood) window.HktGenesisStage.setMood(mood); }, genome.mood || null);
+
 	const CAM = { fov: 0.92, up: [0, 1, 0], target: [0, 0, 0], eye: [0, 58, 92] };
 	for (let k = 0; k < 6; k++) {
 		await page.evaluate((cm) => HktGenesisStage.capture({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye }, 768, 640), CAM);

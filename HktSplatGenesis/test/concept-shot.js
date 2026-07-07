@@ -49,6 +49,11 @@ const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 		await page.waitForFunction(() => window.HktGenesisStage && window.HktGenesisStage.hasWorld, null, { timeout: 60000, polling: 500 });
 	} catch (e) { console.error('무대 로드 초과 — 오류:', errors); process.exit(1); }
 
+	// W6: 게놈 대기(mood)를 무대 하늘 돔·fog 에 배선 — 검정 하늘이 게놈 톤으로 채워진다.
+	const hasMood = !!(genome.mood && (genome.mood.skyTop || genome.mood.skyHorizon));
+	await page.evaluate((mood) => { if (mood && window.HktGenesisStage.setMood) window.HktGenesisStage.setMood(mood); }, genome.mood || null);
+	console.log(`[${LABEL}] 대기(mood): ${hasMood ? JSON.stringify(genome.mood) : '없음(검정 하늘 유지)'}`);
+
 	const CAM = { fov: 0.92, up: [0, 1, 0], target: [0, 0, 0], eye: [0, 58, 92] };
 	for (let k = 0; k < 6; k++) {
 		await page.evaluate((cm) => HktGenesisStage.capture({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye }, 640, 760), CAM);
@@ -77,17 +82,27 @@ const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 		// 우 패널 지형 픽셀 측정 (빈 카드 방지)
 		const px = g.getImageData(PANEL_W, 0, PANEL_W, PANEL_H).data;
 		let land = 0; for (let i = 0; i < PANEL_W * PANEL_H; i++) { const r = px[i * 4], gr = px[i * 4 + 1], b = px[i * 4 + 2]; if (!(r * 0.3 + gr * 0.5 + b * 0.2 < 24 && b >= r)) land++; }
+		// W6: 생성 패널 상단 하늘 밴드 측정 — mood 배선 시 검정 하늘이 게놈 톤으로 채워졌는가.
+		// 상단 90px 중 어두운(검정) 픽셀 비율이 낮아야 한다 (하늘이 실제로 칠해짐).
+		const SKY_H = 90;
+		const skB = g.getImageData(PANEL_W, 0, PANEL_W, SKY_H).data;
+		let skySum = [0, 0, 0], skyDark = 0, skyN = PANEL_W * SKY_H;
+		for (let i = 0; i < skyN; i++) { const r = skB[i * 4], gr = skB[i * 4 + 1], b = skB[i * 4 + 2]; skySum[0] += r; skySum[1] += gr; skySum[2] += b; if (r + gr + b < 40) skyDark++; }
+		const skyMean = skySum.map((s) => s / skyN);
 		// 좌 패널 비배경 픽셀
 		const sp = g.getImageData(0, 0, PANEL_W, PANEL_H).data;
 		let srcPix = 0; for (let i = 0; i < PANEL_W * PANEL_H; i++) { const r = sp[i * 4], gr = sp[i * 4 + 1], b = sp[i * 4 + 2]; if (r + gr + b > 40) srcPix++; }
-		return { dataUrl: card.toDataURL('image/png'), land, srcPix };
+		return { dataUrl: card.toDataURL('image/png'), land, srcPix, skyMean, skyDarkFrac: skyDark / skyN };
 	}, { camEye: CAM.eye, camFov: CAM.fov, PANEL_W, PANEL_H });
 
 	savePng(card.dataUrl, OUT);
 	const real = errors.filter((e) => !e.includes('404'));
-	const ok = val.ok && card.land > 30000 && card.srcPix > 30000 && real.length === 0;
-	console.log(`저장: ${OUT} · 생성 패널 지형 ${card.land} · 원본 패널 픽셀 ${card.srcPix}`);
-	console.log(`판정: 프로파일 ${val.ok} · 생성 내용 ${card.land > 30000} · 원본 내용 ${card.srcPix > 30000} · 오류 ${real.length} → ${ok ? 'OK' : '실패'}`);
+	// W6: mood 가 있으면 하늘이 채워져야 한다(검정 밴드 비율 낮음). mood 없으면 판정 생략(하위 호환).
+	const skyMean = card.skyMean.map((v) => Math.round(v));
+	const skyFilled = !hasMood || card.skyDarkFrac < 0.30;
+	const ok = val.ok && card.land > 30000 && card.srcPix > 30000 && skyFilled && real.length === 0;
+	console.log(`저장: ${OUT} · 생성 패널 지형 ${card.land} · 원본 패널 픽셀 ${card.srcPix} · 하늘 μ[${skyMean.join(',')}] 검정비율 ${(card.skyDarkFrac * 100).toFixed(1)}%`);
+	console.log(`판정: 프로파일 ${val.ok} · 생성 내용 ${card.land > 30000} · 원본 내용 ${card.srcPix > 30000} · 하늘채움 ${skyFilled}${hasMood ? '' : '(mood 없음)'} · 오류 ${real.length} → ${ok ? 'OK' : '실패'}`);
 	if (real.length) console.error('콘솔 오류:', real);
 	await browser.close(); server.close();
 	process.exit(ok ? 0 : 1);

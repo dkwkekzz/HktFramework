@@ -46,6 +46,7 @@ let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 �
 // 생명(WebGPU)의 원거리 fog 와 *같은 색*을 공유해 두 층이 지평선에서 같은 톤으로 만난다.
 // stage 가 이 톤의 원본 — app/하니스는 getSkyFog() 로 읽어 engine.frame({fog}) 에 넘긴다.
 let skyFog = { color: [0.62, 0.70, 0.82], start: 20, end: 55 }; // 기본: 옅은 청회색 하늘
+let skyMesh = null; // W6 하늘 그라데이션 돔 (mood 에 skyTop/skyHorizon 이 있을 때만 생성)
 
 function setStatus(html) { lastStatus = html; if (statusCb) statusCb(html); }
 
@@ -81,6 +82,7 @@ async function load(src, name) {
 	init();
 	if (mesh) { rig.remove(mesh); if (mesh.dispose) mesh.dispose(); mesh = null; }
 	if (objectUrl) { URL.revokeObjectURL(objectUrl); objectUrl = null; }
+	if (skyMesh) skyMesh.visible = false; // 단일 월드는 mood 를 명시할 때만(setMood) 하늘 돔을 켠다
 	let url = src;
 	if (src instanceof File) {
 		objectUrl = URL.createObjectURL(src);
@@ -129,16 +131,18 @@ function startTileWorld(params) {
 	tiles.clear(); tilePending.clear(); tileCenterKey = null;
 	tileWorld = window.HktGenesisTerrainGen.world(params);
 	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32, splatScale: 1 }, params && params.tile);
-	// T5 공용 sky/fog — 게놈 mood(있으면) 또는 기본 톤. fog end 는 far 링 반경에 맞춰 지평선에서 소실.
+	// T5/W6 공용 sky/fog — 게놈 mood(있으면 하늘 돔+fog) 또는 기본 톤. fog end 는 far 링 반경에
+	// 맞춰 지평선에서 소실(mood 가 명시 안 하면 기본값). mood.skyTop/skyHorizon 이 있으면 하늘 돔.
 	const mood = (params && params.mood) || {};
 	const farReach = tileCfg.tileSize * (tileCfg.farR + 0.5);
-	setSkyFog({ color: mood.sky || skyFog.color, start: mood.fogStart != null ? mood.fogStart : farReach * 0.55, end: mood.fogEnd != null ? mood.fogEnd : farReach });
+	setMood(Object.assign({ fogStart: farReach * 0.55, fogEnd: farReach }, mood));
 	setStatus('타일 월드 스트리밍 — 시드 ' + tileWorld.params.seed);
 }
 
 function stopTileWorld() {
 	for (const t of tiles.values()) disposeTile(t);
 	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileCfg = null;
+	if (skyMesh) skyMesh.visible = false;
 	setEnabled(false);
 }
 
@@ -165,6 +169,46 @@ function setSkyFog(cfg) {
 		const l = skyFog.color.map(srgbToLinear); // three 가 다시 sRGB 로 인코딩 → 화면 = skyFog.color
 		renderer.setClearColor(new THREE.Color(l[0], l[1], l[2]), 1);
 	}
+}
+
+// ── W6 대기(mood): 하늘 그라데이션 돔 + fog 배선 ──────────────────────────────
+// 게놈 mood 를 무대(하늘 돔)와 생명 fog 톤(setSkyFog)에 배선한다. 하늘은 카메라를 따라오는
+// 큰 구(BackSide)에 skyTop(천정)→skyHorizon(지평선) 세로 그라데이션을 굽는다 — 스크린 배경
+// 텍스처가 아니라 **월드 y 방향** 기준이라 실제 지평선과 정합하고(카메라 각과 무관), 지평선에서
+// skyHorizon = fog 톤과 같은 색으로 만나 생명·무대가 이어진다. mood 에 skyTop/skyHorizon 이
+// 하나라도 있을 때만 돔을 세운다 — 없으면(구 sky 필드/무-mood) 기존 flat clear 거동 유지(회귀 안전).
+const SKY_VERT = 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
+const SKY_FRAG = 'uniform vec3 topC; uniform vec3 botC; varying vec3 vDir;\n' +
+	'void main(){ float h = pow(clamp(normalize(vDir).y, 0.0, 1.0), 0.5); gl_FragColor = vec4(mix(botC, topC, h), 1.0);\n' +
+	'#include <colorspace_fragment>\n}'; // 유니폼은 linear — colorspace_fragment 가 출력 sRGB 인코딩
+
+function applySky(top, horizon) {
+	init();
+	const tl = top.map(srgbToLinear), hl = horizon.map(srgbToLinear);
+	if (!skyMesh) {
+		const geo = new THREE.SphereGeometry(500, 24, 12);
+		const mat = new THREE.ShaderMaterial({
+			uniforms: { topC: { value: new THREE.Color() }, botC: { value: new THREE.Color() } },
+			vertexShader: SKY_VERT, fragmentShader: SKY_FRAG,
+			side: THREE.BackSide, depthWrite: false, fog: false,
+		});
+		skyMesh = new THREE.Mesh(geo, mat);
+		skyMesh.renderOrder = -1;      // 스플랫보다 먼저 (배경)
+		skyMesh.frustumCulled = false; // 카메라를 감싸므로 컬링 금지
+		scene.add(skyMesh);
+	}
+	skyMesh.visible = true;
+	skyMesh.material.uniforms.topC.value.setRGB(tl[0], tl[1], tl[2]);
+	skyMesh.material.uniforms.botC.value.setRGB(hl[0], hl[1], hl[2]);
+}
+
+// 게놈 mood → 하늘 돔 + fog. skyHorizon(없으면 구 sky/현 fog 톤)이 지평선·fog 의 단일 원본.
+function setMood(mood) {
+	mood = mood || {};
+	const horizon = mood.skyHorizon || mood.sky || skyFog.color;
+	if (mood.skyTop || mood.skyHorizon) applySky(mood.skyTop || horizon, horizon);
+	else if (skyMesh) skyMesh.visible = false; // mood 없는 새 월드로 전환 시 이전 돔 숨김
+	setSkyFog({ color: mood.fogColor || horizon, start: mood.fogStart, end: mood.fogEnd });
 }
 
 // 현재 중심 기준으로 key 타일이 속할 링(0 근접·1 외곽) — 범위 밖이면 null
@@ -264,6 +308,7 @@ function frame(orbit, cssW, cssH) {
 	camera.position.fromArray(orbit._eye());
 	camera.lookAt(orbit.target[0], orbit.target[1], orbit.target[2]);
 	camera.updateProjectionMatrix();
+	if (skyMesh && skyMesh.visible) skyMesh.position.copy(camera.position); // 하늘 돔은 카메라를 따라옴(무한 원경)
 	renderer.render(scene, camera);
 }
 
@@ -283,7 +328,7 @@ window.HktGenesisStage = {
 	SAMPLE_URL,
 	init, load, setEnabled, frame, capture,
 	startTileWorld, stopTileWorld, updateTileCenter, tileStats,
-	setSkyFog, getSkyFog() { return { color: skyFog.color.slice(), start: skyFog.start, end: skyFog.end }; },
+	setSkyFog, setMood, getSkyFog() { return { color: skyFog.color.slice(), start: skyFog.start, end: skyFog.end }; },
 	get tiledMode() { return !!tileWorld; },
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
 	getTransform() { return { ...transform }; },

@@ -157,8 +157,8 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 
 ## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
 
-상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4
-완료(이미지→게놈→검증→걷는 월드 루프 성립), 남은 W5·W6 은 T4·T5 의존. 여기서 단계를 관리). C 트랙(이미지→
+상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4·W6
+완료(이미지→게놈→검증→걷는 월드→대기 루프 성립), 남은 W5 는 T4 위 게놈 스폰 배선. 여기서 단계를 관리). C 트랙(이미지→
 캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
 
@@ -195,20 +195,30 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   완료 기준: 이동 중 컨셉대로 개체 등장·소멸. T4 가 슬롯 증분 교체(`engine.respawnEntity`)와 결정론 스폰
   테이블(`js/scatter.js`)을 깔았으므로, W5 는 게놈이 스폰 규칙(종·밀도·바이옴 조건)을 정하도록 `scatter`
   후보 생성에 게놈 층을 물리면 된다 — 큰 엔진 확장이 아니라 게놈→스폰 규칙 매핑.
-- **W6 — 대기·물 정합** (**T5 완료로 선행 해소**): 게놈 대기 층 = fog·스카이·수면. 완료 기준: 무드 재현
-  사진(concept-shot 우상단 검정 하늘이 채워짐). T5 가 수면 타일 + 무대·생명 공용 sky/fog 톤(`stage.setSkyFog`
-  단일 원본)을 깔았으므로, W6 는 게놈 `mood`(sky/fogStart/fogEnd)를 `startTileWorld({mood})` 로 흘리고
-  `world-profile.js` 에 대기 밴드를 더하면 된다 — concept-shot 렌더가 mood 를 소비하도록 배선.
+- ✅ **W6 — 대기·물 정합** (**T5 완료로 선행 해소**): 게놈 대기 층 `mood`(skyTop/skyHorizon + 선택
+  fogColor/fogStart/fogEnd)를 데이터화. ① 무대 하늘 — `stage.js` 가 카메라를 따라오는 큰 구(BackSide)에
+  skyTop(천정)→skyHorizon(지평선) **월드 y 방향** 세로 그라데이션을 굽는다(스크린 배경 텍스처의 aspect
+  cover 왜곡 회피, 실제 지평선과 정합). 지평선 톤 = fog 톤이라 두 층이 지평선에서 이어진다. mood 에
+  skyTop/skyHorizon 이 있을 때만 돔을 세운다 — 없으면(구 sky 필드/무-mood) 기존 flat clear 유지(T5 회귀
+  안전). 셰이더 유니폼은 linear, `colorspace_fragment` 로 출력 sRGB 인코딩(clear srgbToLinear 관례와 동일).
+  ② `setMood(mood)` 단일 진입 — `startTileWorld` 가 소비하고(걷는 게놈 월드 자동), concept/preset-shot 이
+  단일 파노라마에도 배선. ③ `world-profile.js` 에 대기 밴드(하늘/fog 색 채도 상한·fog 거리 순서) + validate.
+  ④ 프리셋 mood(temperate 파랑·ashen 붉음) + breeze-meadow.json mood + extract.js 스키마·프롬프트 동기.
+  검증: `node test/concept-shot.js <genome> <img>` — 우패널 상단 하늘 검정비율 0%(=채워짐)·μ가 skyHorizon
+  톤과 일치 + 대조 카드 사진. `node test/preset-shot.js ashen`(붉은 하늘 파노라마). 순수 Node: world-genome
+  (mood 담김·깊은복사 독립·색족 대비)·world-profile(mood accept/reject) 회귀 없음. 브라우저 회귀 없음
+  (world-water 하늘톤 0.5·world-pan·biome·openworld 21.1·stage·app-smoke).
 
-> **다음 세션 진입점 (2026-07 기준)**: T1~T5 완료(월드함수·청크·시뮬바닥·스캐터·물/fog) — 오픈월드 지형
-> 본체가 섰다. 남은 갈래:
-> ① **W6 (대기·물 정합)** — T5 로 선행 해소. 게놈 `mood`(sky/fog)를 `startTileWorld({mood})`·concept-shot
->   에 배선하면 concept-shot 검정 하늘이 채워진다. 진입: `js/stage.js`(setSkyFog 소비) + `js/world-profile.js`
->   대기 밴드 + `test/concept-shot.js`. 가장 체감 큰 다음 수(이미지 절반이 하늘).
-> ② **W5 (생명 스캐터)** — T4 로 선행 해소. 게놈이 스폰 규칙을 정하게(scatter 후보에 게놈 층) + 앱 tick 에
->   스캐터 팔로 루프 배선(무대 T2 타일과 병행 걷는 월드). 진입: `js/scatter.js`(ScatterStream) + `js/app.js` tick.
-> ③ **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
-> 두 경로 모두 게놈 스키마 확장 시 `js/world-profile.js` 검증기와 `test/world-genome.js` 회귀를 함께 갱신할 것.
+> **다음 세션 진입점 (2026-07 기준)**: T1~T5·W6 완료(월드함수·청크·시뮬바닥·스캐터·물/fog·대기) —
+> 오픈월드 지형 본체 + 이미지→게놈→대기 루프가 섰다. 남은 갈래:
+> ① **W5 (생명 스캐터)** — T4 로 선행 해소. 게놈이 스폰 규칙을 정하게(scatter 후보에 게놈 ⑤ 생명 층) +
+>   앱 tick 에 스캐터 팔로 루프 배선(무대 T2 타일과 병행 걷는 월드). 이미지→게놈→걷는 월드에 "무엇이 사는가"
+>   를 더하는 마지막 조각. 진입: `js/scatter.js`(ScatterStream) + `js/app.js` tick + `js/world-profile.js` 생명 밴드.
+> ② **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
+> ③ **W6 폴리시(선택)** — 하늘 돔은 mood 톤만; 태양/구름/점진 fog 착색은 미구현. concept-shot 카메라를
+>   저각으로 낮추면 skyTop 그라데이션이 더 드러난다(현재 조감이라 지평선 톤 위주).
+> 게놈 스키마 확장 시 `js/world-profile.js` 검증기·`test/world-genome.js` 회귀·`tools/world-extract/extract.js`
+> 프롬프트 스키마를 함께 갱신할 것(W6 에서 mood 3자 동기 유지).
 
 ## C 트랙 — 캐릭터 배양 (이미지 컨셉 → 게놈 → 살)
 
