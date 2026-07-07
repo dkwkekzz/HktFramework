@@ -17,7 +17,7 @@ import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor, skillDamage } from '../shared/growth.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
@@ -27,7 +27,7 @@ import {
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
-  ATTACK_RANGE, ATTACK_COST, WEAPON_BONUS, WEAPON_WEAR,
+  ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
@@ -292,8 +292,11 @@ export class GameServer {
         if (!node) return this.#reject(p, iid, 'no-target');
         if (dist3(p.x, p.y, p.z, node.x, node.y, node.z) > GATHER_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
+        // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
+        const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
+        const want = GATHER_AMOUNT + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0);
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
-        const got = this.#tx(node.id, p.id, GATHER_AMOUNT, CAUSE.GATHER, node, iid);
+        const got = this.#tx(node.id, p.id, want, CAUSE.GATHER, node, iid);
         if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
         break;
       }
@@ -340,7 +343,8 @@ export class GameServer {
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
         let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id)));
         if (weapon) {
-          damage += WEAPON_BONUS;
+          // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
+          damage += weaponBonus(this.ledger.balance(weapon.id));
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
           if (this.ledger.balance(weapon.id) === 0) this.#destroyItem(weapon, p);
         }

@@ -7,7 +7,10 @@
 // 결정론 정수 연산만 사용한다.
 // ============================================================================
 
-import { UPKEEP_AMOUNT, GROWTH_ATK_DIVISOR, GROWTH_UPKEEP_DIVISOR } from './constants.js';
+import {
+  UPKEEP_AMOUNT, GROWTH_ATK_DIVISOR, GROWTH_UPKEEP_DIVISOR,
+  WEAPON_ATK_DIVISOR, CRYSTAL_GATHER_DIVISOR,
+} from './constants.js';
 
 // 공격 보너스 — 구조가 클수록 데미지 출력↑. 데미지는 여전히 피격자 풀로 클램프되므로
 // "무에서 에너지 창조" 가 아니라 인출 상한을 높일 뿐이다.
@@ -24,4 +27,14 @@ export function upkeepFor(struct) {
 // 스킬 위력 (A6-4) — 스킬 base + 구조 스케일. 데미지는 여전히 피격자 풀로 클램프된다.
 export function skillDamage(skill, struct) {
   return skill.base + Math.floor(Math.max(0, struct) / skill.structDiv);
+}
+
+// 아이템 증폭 (A6-5) — 아이템의 현재 잔고를 읽어 스탯을 키운다(민팅 없음).
+// 무기: 발산(공격) 증폭 — 마모로 잔고가 줄면 증폭도 준다.
+export function weaponBonus(weaponBalance) {
+  return Math.floor(Math.max(0, weaponBalance) / WEAPON_ATK_DIVISOR);
+}
+// 결정: 획득(채집) 증폭 — 소지한 결정의 잔고가 세계에서 끌어오는 양을 키운다.
+export function gatherBonus(crystalBalance) {
+  return Math.floor(Math.max(0, crystalBalance) / CRYSTAL_GATHER_DIVISOR);
 }

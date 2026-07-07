@@ -15,8 +15,8 @@ import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor, skillDamage } from '../shared/growth.js';
-import { SKILLS } from '../shared/constants.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
+import { SKILLS, WEAPON_COST } from '../shared/constants.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
@@ -535,6 +535,72 @@ test('A6-4 스킬 = 발산 패턴 — 비용 있는 증폭 이체, 흡수/소각
   assert.equal(bal(POOL.SINK) - sinkB, SKILLS.smash.cost + sBurn, '강타 = 시전비 + 큰 소각 (SINK↑)');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
   console.log(`    [A6-4] 흡정 흡수 ${dLeech}/${dDmg}(cost ${SKILLS.drain.cost}) · 강타 소각 ${sBurn}/${sDmg}(cost ${SKILLS.smash.cost}) · 쿨다운 강제 · 총합 ${total()} 불변`);
+});
+
+test('A6-5 아이템 = 결정체 장착 — 아이템 잔고가 스탯을 증폭(민팅 없음), 획득·발산·해제 (보존)', () => {
+  // 순수 함수: 아이템 잔고↑ → 증폭↑
+  assert.ok(weaponBonus(250) > weaponBonus(50), '무기 잔고↑ → 공격 증폭↑');
+  assert.ok(gatherBonus(100) > gatherBonus(0), '결정 잔고↑ → 채집 증폭↑');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const a = join('A');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+
+  // (1) 무기 발산 증폭 — 데미지 = canonical + weaponBonus(무기 잔고). 여전히 피격자 클램프.
+  setBal(a.player.id, PLAYER_MAX_ENERGY);
+  intent(a.player, INTENT.CRAFT, {}, 'craft'); // 무기 250
+  game.tick();
+  const weapon = [...game.items.values()].find(i => i.itemType === 'weapon');
+  assert.equal(bal(weapon.id), WEAPON_COST);
+
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(WEAPON_COST),
+    '데미지 = canonical + 무기 잔고 증폭(마모 전 잔고)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (2) 결정 획득 증폭 — 결정 소지 시 채집량 = 기본 + gatherBonus(결정 잔고). 노드가 제공(민팅 아님).
+  const node = game.nodes.values().next().value;
+  setBal(a.player.id, PLAYER_MAX_ENERGY);
+  intent(a.player, INTENT.CONDENSE, {}, 'cond'); // 결정 100
+  game.tick();
+  const crystal = [...game.items.values()].find(i => i.itemType === 'crystal');
+  warp(a.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(a.player.id, 500);
+  const pBefore = bal(a.player.id);
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g1');
+  game.tick();
+  assert.equal(bal(a.player.id) - pBefore, GATHER_AMOUNT + gatherBonus(bal(crystal.id)),
+    '채집량 = 기본 + 결정 잔고 증폭');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (3) 드랍 시 증폭 제거 — 무기를 버리면 발산 증폭이 사라진다 (같은 틱: 드랍 FIFO 먼저 → 공격)
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z); // TGT 사거리로 복귀 (beacon)
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before2 = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.DROP, { itemId: weapon.id }, 'drop');
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 2 }, 'a2');
+  game.tick();
+  const dealt2 = before2 - bal(tgt.player.id);
+  assert.equal(dealt2, canonicalDamage(WORLD_SEED, a.player.id, 2), '무기 드랍 후 = 증폭 없는 기본 데미지');
+  assert.ok(dealt2 < dealt, '드랍으로 발산 증폭 사라짐');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-5] 무기 발산 +${weaponBonus(WEAPON_COST)}(드랍 시 0) · 결정 획득 +${gatherBonus(100)} · 민팅 없음(클램프)·총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

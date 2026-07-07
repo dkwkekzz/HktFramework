@@ -76,7 +76,9 @@ export const ATTACK_RANGE = 120;
 export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
 export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
 export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
-export const WEAPON_BONUS = 30;          // 무기 소지 시 추가 데미지
+// A6-5 아이템 = 결정체 장착: 아이템의 현재 잔고가 유효 스탯을 증폭한다(실재 에너지 읽기, 민팅 없음).
+export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (마모하면 증폭 감소)
+export const CRYSTAL_GATHER_DIVISOR = 10; // 결정 소지 시 잔고 10 당 채집 +1 (획득 증폭)
 export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
