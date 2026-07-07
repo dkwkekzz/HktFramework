@@ -21,7 +21,7 @@ import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
-  RECYCLE_INTERVAL_TICKS,
+  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
@@ -459,6 +459,17 @@ export class GameServer {
     const batch = this.intents;
     this.intents = [];
     for (const { playerId, msg } of batch) this.#processIntent(playerId, msg);
+
+    // 2b) 대사 (A6-1) — 생명은 매 주기 upkeep 를 SINK 로 지불한다. 소모·갈구·유지의 압력:
+    //   채집·전투로 못 채우면 잔고 0 → 아사(기존 사망 경로). upkeep tx 는 비공간이라
+    //   소유자에게만 방송(무지역 player 풀 — 체크섬 무관). 소산분은 태양 순환(A6-0)이 되돌린다.
+    if (this.tickCount % UPKEEP_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      for (const p of this.players.values()) {
+        if (p.dead) continue;
+        this.#tx(p.id, POOL.SINK, UPKEEP_AMOUNT, CAUSE.UPKEEP);
+        if (this.ledger.balance(p.id) === 0) this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
+      }
+    }
 
     // 3) 필드 확산 — 매 틱 이웃 셀 간 zero-sum 정수 이체 (서버 내부: region=null,
     //    ledger.transfer 직결이라 방송·pendingOps 에 남지 않는다). A1: 노드 재충전이

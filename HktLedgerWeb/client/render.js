@@ -13,6 +13,7 @@ const CAUSE_LABEL = {
   'gather': '채집', 'leech': '흡수', 'burn': '피해', 'move': '이동',
   'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
   'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
+  'upkeep': '대사', 'recycle': '순환',
 };
 
 function poolLabel(state, id) {

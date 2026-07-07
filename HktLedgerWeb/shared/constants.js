@@ -29,6 +29,10 @@ export const BEACON_SLACK_PX = 24;       // 속도 검증 고정 여유
 export const PLAYER_MAX_ENERGY = 1000;
 export const SPAWN_GRANT = 300;          // 스폰/리스폰 시 WORLD_SOURCE 에서 인출
 export const RESPAWN_DELAY_MS = 3000;
+// A6-1 대사(metabolism): 생명은 매 주기 이만큼 SINK 로 지불한다. 못 채우면 잔고 0 → 아사.
+// "지속 소모·세계를 갈구·유지 못하면 죽음" — 소산 구조의 압력 엔진. (구조 스케일링은 A6-3)
+export const UPKEEP_INTERVAL_TICKS = 10; // 1초마다 대사
+export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향후 구조 함수)
 
 // --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
 // 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
@@ -100,7 +104,7 @@ export const CAUSE = {
   SPAWN: 'spawn', MOVE: 'move', GATHER: 'gather', REGEN: 'regen',
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
-  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle',
+  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

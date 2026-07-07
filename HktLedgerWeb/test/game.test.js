@@ -19,7 +19,7 @@ import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
-  RECYCLE_INTERVAL_TICKS,
+  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -367,6 +367,37 @@ test('A6-0 태양 순환 — 소산(SINK)이 재순환 주기마다 SOURCE 로 �
   assert.equal(game.ledger.balance(POOL.SOURCE), src0, 'SOURCE 정상상태 — 고갈 없이 순환');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
   console.log(`    [A6-0] 재순환 주기 ${RECYCLE_INTERVAL_TICKS}틱 · SINK 최고 ${sinkPeak}→0 · SOURCE 정상상태 · 총합 ${total()} 불변`);
+});
+
+test('A6-1 대사 — 생명은 매 주기 upkeep 를 지불하고, 못 채우면 굶어 죽는다 (아사도 보존)', () => {
+  const { clock, game, join, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
+
+  // 대사 1주기 = upkeep 1회 (player→SINK)
+  const before = game.ledger.balance(a.player.id);
+  while (game.tickCount < UPKEEP_INTERVAL_TICKS) game.tick();
+  assert.equal(game.ledger.balance(a.player.id), before, '주기 경계 전에는 소모 없음');
+  game.tick(); // tickCount === UPKEEP_INTERVAL_TICKS → 대사
+  assert.equal(game.ledger.balance(a.player.id), before - UPKEEP_AMOUNT, '대사 1주기 = upkeep 1회');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '대사도 이체 — 총합 불변');
+
+  // 빈사로 만든 뒤(테스트 전용 이체) 유지 실패 → 아사
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
+  assert.equal(game.ledger.balance(a.player.id), UPKEEP_AMOUNT, '잔고 = upkeep 1회분');
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
+  assert.ok(a.player.dead, '대사 유지 실패 = 아사');
+  assert.equal(game.ledger.balance(a.player.id), 0, '사망 시 잔고 0 (전량 SINK)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '아사도 보존 (에너지는 SINK 로)');
+
+  // 리스폰 — SOURCE 인출로 다시 산다
+  clock.t += RESPAWN_DELAY_MS + 100;
+  game.tick();
+  assert.ok(!a.player.dead, '리스폰');
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-1] upkeep ${UPKEEP_AMOUNT}/${UPKEEP_INTERVAL_TICKS}틱 · 유지 실패=아사(잔고0)·리스폰 SOURCE 인출·총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
