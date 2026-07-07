@@ -132,8 +132,8 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 
 ## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
 
-상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1·W2
-완료 + W4 v0(수동) 실증, 다음은 W3(concept-shot 정식화) 또는 W4 자동화. 여기서 단계를 관리). C 트랙(이미지→
+상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4
+완료(이미지→게놈→검증→걷는 월드 루프 성립), 남은 W5·W6 은 T4·T5 의존. 여기서 단계를 관리). C 트랙(이미지→
 캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
 
@@ -157,14 +157,15 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   2패널 대조 카드 PNG. 렌더 전 W2 검증 + 두 패널 내용 판정(빈 카드 방지). 검증: breeze-meadow ×
   IMG_5669 → 프로파일 OK·생성 지형 364k·원본 486k·오류 0·exit 0 (색족 일치 카드, 우상단 검정=미구현
   하늘 W6 노출).
-- 🚧 **W4 — 이미지 → 월드 게놈 추출기 v0** (부분): `tools/world-extract/` 거처 신설 + `preset-shot.js` 가
-  게놈 JSON 파일 경로를 받도록 일반화(W4 산출물 렌더 경로). **수동 v0 실증**: LLM vision 이 스타일라이즈드
-  오픈월드 컨셉 이미지를 읽어 게놈(`genomes/breeze-meadow.json`, 초원·암석대지·물가 3바이옴+청록 수역)으로
-  번역 → 후보정 1회(green 우세·물 확대) → 초록 초원+청록 호수 월드 렌더(색족·물 일치). **걷는 월드로도
-  실증**: `stage.js` `?tilesGenome=<url>` 딥링크 + `world-pan-shot.js [out] [seed] [genome.json]` — 추출 게놈이
-  T2 타일 스트리밍(`world(genome)` 경유)으로 흘러 걷는 월드가 된다(팬 중 타일교체 45>25·스플랫 53k 상한·
-  이음새 100%·exit 0, 색·지형 게놈 유도). W2 검증 통과. 남김(정식 완료 기준): ① 이미지→vision API→게놈
-  **자동화** ② 대기·스캐터는 W5·W6.
+- ✅ **W4 — 이미지 → 월드 게놈 추출기 v0**: `tools/world-extract/extract.js` — 이미지 → Anthropic vision
+  (`claude-opus-4-8`) → 게놈 JSON. 스타일 프로파일(W2)을 프롬프트 제약으로 주고 반환 게놈을 `validate` 로
+  검증해 벗어나면 위반을 되먹여 재시도(최대 3회, 클램프 아닌 반려). 라이브는 `ANTHROPIC_API_KEY` 필요,
+  `HKT_EXTRACT_MOCK` 목 모드로 파이프라인 검증. 검증: `node test/world-extract.js`(순수 Node, 3/3) —
+  프로파일 안 게놈 저장·_meta + 과진폭 게놈 반려·미저장. **수동 v0 실증**(키 없이도): LLM vision 이 컨셉
+  이미지를 게놈(`genomes/breeze-meadow.json`, 3바이옴+청록 수역)으로 번역 → 후보정 1회 → 초록 초원+청록
+  호수 렌더(색족·물 일치, `concept-shot` 대조 카드). **걷는 월드로도 실증**: `stage.js` `?tilesGenome=<url>` +
+  `world-pan-shot.js [out] [seed] [genome.json]` — 추출 게놈이 T2 스트리밍(`world(genome)`)으로 흘러 걷는 월드
+  (타일교체 45>25·스플랫 53k 상한·이음새 100%·exit 0). 남김: 라이브 vision 실측(키)·대기/스캐터는 W6·W5.
 - **W5 — 생명/스캐터 연동** (**T4 의존**): 게놈 생명 층 = 스폰 테이블. 완료 기준: 이동 중 컨셉대로 개체 등장.
 - **W6 — 대기·물 정합** (**T5 의존**): 게놈 대기 층 = fog·스카이·수면. 완료 기준: 무드 재현 사진.
 
