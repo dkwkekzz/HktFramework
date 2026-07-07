@@ -46,6 +46,7 @@ export const INTENT = {
   DROP: 'drop',          // { itemId }
   PICKUP: 'pickup',      // { itemId }
   GROW: 'grow',          // { amount? }   A6-2 성장: 자유 에너지 → 구조 풀 예치
+  SKILL: 'skill',        // { skillId, targetId }  A6-4 스킬: 비용 있는 증폭 이체 패턴
 };
 
 export function encode(type, payload) {

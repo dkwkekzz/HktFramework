@@ -17,7 +17,7 @@ import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor } from '../shared/growth.js';
+import { attackBonus, upkeepFor, skillDamage } from '../shared/growth.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
@@ -29,7 +29,7 @@ import {
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   ATTACK_RANGE, ATTACK_COST, WEAPON_BONUS, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
-  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT,
+  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -159,7 +159,7 @@ export class GameServer {
       id, name: String(name).slice(0, 12) || '모험가', conn,
       x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z,
       lastBeaconMs: this.now(), moveDebt: 0,
-      cooldownUntil: 0, dead: false, respawnAt: 0, atkSeq: 0,
+      cooldownUntil: 0, skillCd: {}, dead: false, respawnAt: 0, atkSeq: 0,
       regions: new Set(regionNeighbors(SPAWN_POS.x, SPAWN_POS.y)),
       visible: new Set(),
     };
@@ -387,6 +387,31 @@ export class GameServer {
         const item = this.items.get(msg.itemId ?? '');
         if (!item || item.owner !== p.id) return this.#reject(p, iid, 'no-item');
         this.#dropToGround(item, p.x, p.y, p.z);
+        break;
+      }
+
+      case INTENT.SKILL: {
+        // A6-4 스킬 = 발산 패턴: 비용 있는 증폭 이체. 스킬마다 흡수/소각 형태가 다르다.
+        const skill = SKILLS[msg.skillId];
+        if (!skill) return this.#reject(p, iid, 'no-skill');
+        const nowMs = this.now();
+        if (nowMs < (p.skillCd[msg.skillId] ?? 0)) return this.#reject(p, iid, 'cooldown');
+        const target = this.#targetInfo(msg.targetId ?? '');
+        if (!target || msg.targetId === p.id) return this.#reject(p, iid, 'no-target');
+        if (dist3(p.x, p.y, p.z, target.x, target.y, target.z) > ATTACK_RANGE + RANGE_SLACK)
+          return this.#reject(p, iid, 'out-of-range');
+        if (this.ledger.balance(p.id) < skill.cost) return this.#reject(p, iid, 'no-energy');
+
+        // 시전 비용 = 대사 스파이크(player→SINK). 쿨다운은 스킬별.
+        this.#tx(p.id, POOL.SINK, skill.cost, CAUSE.ATTACK_COST, p, iid);
+        p.skillCd[msg.skillId] = nowMs + skill.cooldownMs;
+
+        // 위력 = 구조의 함수(A6-3 동형). 데미지 = 피격자 풀 인출, leechPct 로 흡수/소각 분배.
+        const struct = this.ledger.balance(this.#structId(p.id));
+        const total = Math.min(skillDamage(skill, struct), this.ledger.balance(msg.targetId));
+        const leechGot = this.#tx(msg.targetId, p.id, Math.floor(total * skill.leechPct / 100), CAUSE.DAMAGE_LEECH, target, iid);
+        this.#tx(msg.targetId, POOL.SINK, total - leechGot, CAUSE.DAMAGE_BURN, target);
+        if (this.ledger.balance(msg.targetId) === 0) this.#kill(msg.targetId, target);
         break;
       }
 

@@ -43,6 +43,14 @@ export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg
 export const GROWTH_ATK_DIVISOR = 100;    // 구조 100 당 공격 +1 (피격자 클램프 내)
 export const GROWTH_UPKEEP_DIVISOR = 200; // 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
 
+// A6-4 스킬 = 발산 패턴: 각 스킬은 비용·증폭·흡수비·쿨다운이 다른 이체 패턴이다.
+// 데미지 = base + floor(struct/structDiv) — 구조가 위력을 키운다(여전히 피격자 클램프).
+// leechPct 로 흡수(피격자→공격자) vs 소각(피격자→SINK) 비율이 갈린다.
+export const SKILLS = {
+  smash: { cost: 20, base: 35, structDiv: 60,  leechPct: 20, cooldownMs: 2500 }, // 강타: 큰 소각 버스트
+  drain: { cost: 8,  base: 15, structDiv: 120, leechPct: 90, cooldownMs: 1500 }, // 흡정: 큰 흡수(지속)
+};
+
 // --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
 // 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
 // 이체 — 별도 동기화 채널 없이 원장에 편입된다. 보존은 transfer 클램프가 강제한다.

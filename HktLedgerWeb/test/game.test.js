@@ -15,7 +15,8 @@ import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor } from '../shared/growth.js';
+import { attackBonus, upkeepFor, skillDamage } from '../shared/growth.js';
+import { SKILLS } from '../shared/constants.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
@@ -484,6 +485,56 @@ test('A6-3 스탯 = 흐름 계수 — 구조가 공격력·대사를 키운다 (
   assert.ok(upkeepFor(800) > upkeepFor(0), '성장은 공짜가 아니다 — 큰 몸일수록 유지비↑');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
   console.log(`    [A6-3] 구조 800 → 공격 +${attackBonus(800)}·대사 ${upkeepFor(0)}→${upkeepFor(800)} · 데미지 클램프·총합 ${total()} 불변`);
+});
+
+test('A6-4 스킬 = 발산 패턴 — 비용 있는 증폭 이체, 흡수/소각 형태 차별·쿨다운·보존', () => {
+  const { clock, game, join, warp, intent, total } = setup();
+  const atk = join('ATK');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  // 잔고를 목표값으로 설정 (테스트 전용 이체 — 보존). 공격자는 흡수 여유를 위해 중간값.
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+
+  // 순수 함수: 구조가 스킬 위력을 키운다
+  assert.ok(skillDamage(SKILLS.smash, 600) > skillDamage(SKILLS.smash, 0), '구조↑ → 스킬 위력↑');
+  assert.ok(SKILLS.drain.leechPct > SKILLS.smash.leechPct, '스킬마다 흡수/소각 형태가 다르다');
+
+  warp(atk.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+
+  // 흡정(drain): 높은 흡수 — 공격자가 크게 흡수, 소각 적음
+  setBal(atk.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY); // 공격자 흡수 여유 확보
+  const atkB = bal(atk.player.id), tgtB = bal(tgt.player.id);
+  clock.t += 3000;
+  intent(atk.player, INTENT.SKILL, { skillId: 'drain', targetId: tgt.player.id }, 'd1');
+  game.tick();
+  const dDmg = skillDamage(SKILLS.drain, 0);
+  const dLeech = Math.floor(dDmg * SKILLS.drain.leechPct / 100);
+  assert.equal(tgtB - bal(tgt.player.id), dDmg, '흡정 데미지 = skillDamage (피격자 인출)');
+  assert.equal(bal(atk.player.id) - atkB, dLeech - SKILLS.drain.cost, '흡정 = 큰 흡수 − 시전비');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // 쿨다운: 즉시 재시전 기각
+  intent(atk.player, INTENT.SKILL, { skillId: 'drain', targetId: tgt.player.id }, 'd2');
+  game.tick();
+  assert.equal(atk.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'd2')?.reason, 'cooldown');
+
+  // 강타(smash): 높은 소각 — SINK 로 큰 소각, 흡수 적음
+  setBal(atk.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const sinkB = bal(POOL.SINK);
+  clock.t += 3000;
+  intent(atk.player, INTENT.SKILL, { skillId: 'smash', targetId: tgt.player.id }, 's1');
+  game.tick();
+  const sDmg = skillDamage(SKILLS.smash, 0);
+  const sBurn = sDmg - Math.floor(sDmg * SKILLS.smash.leechPct / 100);
+  assert.equal(bal(POOL.SINK) - sinkB, SKILLS.smash.cost + sBurn, '강타 = 시전비 + 큰 소각 (SINK↑)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-4] 흡정 흡수 ${dLeech}/${dDmg}(cost ${SKILLS.drain.cost}) · 강타 소각 ${sBurn}/${sDmg}(cost ${SKILLS.smash.cost}) · 쿨다운 강제 · 총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

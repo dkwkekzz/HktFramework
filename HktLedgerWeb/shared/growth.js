@@ -20,3 +20,8 @@ export function attackBonus(struct) {
 export function upkeepFor(struct) {
   return UPKEEP_AMOUNT + Math.floor(Math.max(0, struct) / GROWTH_UPKEEP_DIVISOR);
 }
+
+// 스킬 위력 (A6-4) — 스킬 base + 구조 스케일. 데미지는 여전히 피격자 풀로 클램프된다.
+export function skillDamage(skill, struct) {
+  return skill.base + Math.floor(Math.max(0, struct) / skill.structDiv);
+}
