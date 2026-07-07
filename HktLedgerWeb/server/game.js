@@ -30,6 +30,7 @@ import {
   ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
+  MATERIALS, STASH_MAX, MINE_AMOUNT, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -88,7 +89,7 @@ export class GameServer {
       this.ledger.transfer(POOL.SOURCE, m.id, m.max, CAUSE.SPAWN);
     }
 
-    this.items = new Map();   // id -> { id, itemType, owner, x, y }
+    this.items = new Map();   // id -> { id, itemType, mat, owner, x, y, z }
     this.tickCount = 0;
     this.txSeq = 0;
     this.nextItemNo = 1;
@@ -102,7 +103,7 @@ export class GameServer {
       txSeq: this.txSeq,
       nextItemNo: this.nextItemNo,
       pools: this.ledger.serialize(),
-      items: [...this.items.values()].map(i => [i.id, i.itemType, i.owner, i.x, i.y, i.z]),
+      items: [...this.items.values()].map(i => [i.id, i.itemType, i.owner, i.x, i.y, i.z, i.mat ?? null]),
       mobs: [...this.mobs.values()].map(m => [m.id, m.dead, m.respawnAt]),
     };
   }
@@ -128,8 +129,8 @@ export class GameServer {
       this.mobs.set(m.id, { ...m, dead: meta.dead, respawnAt: meta.respawnAt });
     }
     this.items = new Map();
-    for (const [id, itemType, owner, x, y, z] of snap.items) {
-      this.items.set(id, { id, itemType, owner, x, y, z });
+    for (const [id, itemType, owner, x, y, z, mat] of snap.items) {
+      this.items.set(id, { id, itemType, owner, x, y, z, mat: mat ?? null });
     }
   }
 
@@ -160,6 +161,8 @@ export class GameServer {
 
   // A7-1: 조직별 구조 풀 id — `S:<playerId>#<organ>`. POOL.STRUCT 접두 유지(클라 자동 물질화 동일).
   #structId(playerId, organ) { return `${POOL.STRUCT}${playerId}#${organ}`; }
+  // A8-1: 종류별 재료 창고 풀 id — `G:<playerId>#<mat>`. region=null(비공간·사적). 없으면 온디맨드 생성.
+  #stashId(playerId, mat) { return `${POOL.STASH}${playerId}#${mat}`; }
   // 총 구조 = 모든 조직 합 (대사·사망 판정의 근거)
   #structTotal(playerId) {
     let sum = 0;
@@ -209,6 +212,13 @@ export class GameServer {
       const structId = this.#structId(id, o);
       this.#tx(structId, POOL.SINK, this.ledger.balance(structId), CAUSE.DEATH_DROP, p);
       this.ledger.removePool(structId);
+    }
+    // A8-1: 미합성 재료 창고도 이탈 시 SINK 로 환원 — 채집한 종류만큼 풀이 있을 수 있다(보존)
+    for (const mat of Object.keys(MATERIALS)) {
+      const stashId = this.#stashId(id, mat);
+      if (!this.ledger.get(stashId)) continue;
+      this.#tx(stashId, POOL.SINK, this.ledger.balance(stashId), CAUSE.DEATH_DROP, p);
+      this.ledger.removePool(stashId);
     }
     this.players.delete(id);
   }
@@ -311,9 +321,10 @@ export class GameServer {
           return this.#reject(p, iid, 'out-of-range');
         // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
         // A7-1: 대사(meta) 조직도 채집을 증폭한다(구조적 획득 계수) — 결정 증폭과 합산.
+        // A8-1: 합성 결정은 재료 종류(라벨)가 계수(div)를 고른다 — 보석 결정이 나무 결정보다 잘 끌어온다.
         const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
         const want = GATHER_AMOUNT
-          + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0)
+          + (crystal ? gatherBonus(this.ledger.balance(crystal.id), crystal.mat ? MATERIALS[crystal.mat].div : undefined) : 0)
           + gatherStructBonus(this.ledger.balance(this.#structId(p.id, 'meta')));
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
         const got = this.#tx(node.id, p.id, want, CAUSE.GATHER, node, iid);
@@ -364,7 +375,8 @@ export class GameServer {
         let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id, 'atk')));
         if (weapon) {
           // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
-          damage += weaponBonus(this.ledger.balance(weapon.id));
+          // A8-1: 합성 무기는 재료 종류(라벨)가 계수(div)를 고른다 — 금 무기가 돌 무기보다 세다.
+          damage += weaponBonus(this.ledger.balance(weapon.id), weapon.mat ? MATERIALS[weapon.mat].div : undefined);
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
           if (this.ledger.balance(weapon.id) === 0) this.#destroyItem(weapon, p);
         }
@@ -387,13 +399,51 @@ export class GameServer {
         if (this.ledger.balance(p.id) < cost) return this.#reject(p, iid, 'no-energy');
         const item = {
           id: `${POOL.ITEM}${this.nextItemNo++}`,
-          itemType: isWeapon ? 'weapon' : 'crystal',
+          itemType: isWeapon ? 'weapon' : 'crystal', mat: null, // 무타입 결정(A6-5) — 기본 계수
           owner: p.id, x: 0, y: 0, z: 0,
         };
         this.items.set(item.id, item);
         this.ledger.createPool(item.id, 0, cost, null);
-        this.#event({ kind: 'item-spawn', id: item.id, itemType: item.itemType }, { only: p.id });
+        this.#event({ kind: 'item-spawn', id: item.id, itemType: item.itemType, max: cost, mat: null }, { only: p.id });
         this.#tx(p.id, item.id, cost, CAUSE.CONDENSE, p, iid);
+        break;
+      }
+
+      case INTENT.MINE: {
+        // A8-1 타입 채집: 노드가 발산하는 종류의 결정을 캐서 종류별 창고로 옮긴다(노드→창고).
+        // 채집(GATHER)이 생체 에너지를 얻는다면, MINE 은 합성용 재료(라벨 있는 결정)를 캔다.
+        // 창고는 종류마다 온디맨드로 물질화(region=null). Got<Want 는 게임플레이(고갈/창고 가득).
+        const node = this.nodes.get(msg.nodeId);
+        if (!node) return this.#reject(p, iid, 'no-target');
+        if (dist3(p.x, p.y, p.z, node.x, node.y, node.z) > GATHER_RANGE + RANGE_SLACK)
+          return this.#reject(p, iid, 'out-of-range');
+        const stashId = this.#stashId(p.id, node.mat);
+        if (!this.ledger.get(stashId)) this.ledger.createPool(stashId, 0, STASH_MAX, null);
+        const got = this.#tx(node.id, stashId, MINE_AMOUNT, CAUSE.MINE, node, iid);
+        if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
+        break;
+      }
+
+      case INTENT.FORGE: {
+        // A8-1 합성: "금이 아이템이 된다" — 재료 창고 + 생체(속성) 에너지를 한 그릇(아이템 풀)에
+        // 결정화한다. 금은 변환되지 않는다: 재료 100단위는 아이템 안에서도 100단위 그대로이고,
+        // 라벨(item.mat)이 어느 흐름 계수를 고를지만 정한다. 위력은 여전히 f(잔고) 상한(민팅 없음).
+        const mat = MATERIALS[msg.mat] ? msg.mat : null;
+        if (!mat) return this.#reject(p, iid, 'bad-mat');
+        const stashId = this.#stashId(p.id, mat);
+        if (this.ledger.balance(stashId) < FORGE_MAT_REQUIRE) return this.#reject(p, iid, 'no-material');
+        if (this.ledger.balance(p.id) < FORGE_ATTR_COST) return this.#reject(p, iid, 'no-energy');
+        const item = {
+          id: `${POOL.ITEM}${this.nextItemNo++}`,
+          itemType: MATERIALS[mat].affinity, mat, // 라벨: 종류가 거동(발산/획득)과 계수를 고른다
+          owner: p.id, x: 0, y: 0, z: 0,
+        };
+        this.items.set(item.id, item);
+        this.ledger.createPool(item.id, 0, FORGE_ITEM_MAX, null);
+        this.#event({ kind: 'item-spawn', id: item.id, itemType: item.itemType, max: FORGE_ITEM_MAX, mat }, { only: p.id });
+        // 두 이체 = 결합. 재료(몸통) + 생체(속성 주입). 아이템 잔고 = 두 이체의 합(보존).
+        this.#tx(stashId, item.id, FORGE_MAT_REQUIRE, CAUSE.FORGE, p, iid);
+        this.#tx(p.id, item.id, FORGE_ATTR_COST, CAUSE.FORGE, p, iid);
         break;
       }
 
@@ -474,7 +524,7 @@ export class GameServer {
         item.owner = p.id;
         this.ledger.setRegion(item.id, null);
         this.#event({
-          kind: 'pickup', id: item.id, itemType: item.itemType,
+          kind: 'pickup', id: item.id, itemType: item.itemType, mat: item.mat ?? null,
           balance: this.ledger.balance(item.id), max: this.ledger.get(item.id).max,
         }, { only: p.id });
         break;
@@ -634,7 +684,7 @@ export class GameServer {
     for (const i of this.items.values()) {
       if (i.owner === null && p.regions.has(regionKey(i.x, i.y))) {
         vis.set(i.id, {
-          id: i.id, kind: 'item', itemType: i.itemType, x: i.x, y: i.y, z: i.z,
+          id: i.id, kind: 'item', itemType: i.itemType, mat: i.mat ?? null, x: i.x, y: i.y, z: i.z,
           balance: this.ledger.balance(i.id), max: this.ledger.get(i.id).max,
         });
       }

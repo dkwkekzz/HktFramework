@@ -48,6 +48,8 @@ export const INTENT = {
   GROW: 'grow',          // { organ?, amount? }  A6-2/A7-1 성장: 자유 에너지 → 조직 구조 풀 예치
   SKILL: 'skill',        // { skillId, targetId }  A6-4 스킬: 비용 있는 증폭 이체 패턴
   GIVE: 'give',          // { targetId, amount }  A7-3 생명 간 이체: player→player 자유 에너지 증여
+  MINE: 'mine',          // { nodeId }    A8-1 타입 채집: 노드 → 종류별 재료 창고
+  FORGE: 'forge',        // { mat }       A8-1 합성: 재료 창고 + 생체 에너지 → 아이템(결정)
 };
 
 export function encode(type, payload) {

@@ -19,7 +19,7 @@ export class ClientState {
     this.myName = '';
     this.ledger = new EnergyLedger();
     this.entities = new Map();  // id -> { id, kind, x, y, tx, ty, name?, itemType? } (표시용)
-    this.inventory = new Map(); // id -> { itemType }
+    this.inventory = new Map(); // id -> { itemType, mat }  (mat: A8-1 재료 종류 라벨·무타입이면 null)
     this.pending = new Map();   // iid -> { delta } 낙관 예측 (서버 tx/reject 로 해소)
     this.nodesById = new Map();
     this.mobsById = new Map();
@@ -86,7 +86,7 @@ export class ClientState {
       this.ledger.mirrorSet(e.id, e.balance, max, region);
       this.entities.set(e.id, {
         id: e.id, kind: e.kind, x, y, z, tx: x, ty: y, tz: z,
-        name: e.name, itemType: e.itemType, max, richness,
+        name: e.name, itemType: e.itemType, mat: e.mat ?? null, max, richness,
       });
       // 내 인벤토리 아이템이 땅에 나타났다 = 드랍(사망 포함)된 것
       if (this.inventory.has(e.id)) this.inventory.delete(e.id);
@@ -117,9 +117,9 @@ export class ClientState {
     // 예: 내 시야 경계 밖 플레이어가 시야 안 노드를 채집하는 경우.
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
-      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM) || id.startsWith(POOL.STRUCT)) {
-        // 무지역 액터 풀(플레이어·아이템·구조 A6-2) — 빈 채로 물질화(무한 수용).
-        // 구조 풀은 체크섬 무관(region=null)이라 잔고 오차 무해, GROW tx 재생만 정확하면 된다.
+      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM) || id.startsWith(POOL.STRUCT) || id.startsWith(POOL.STASH)) {
+        // 무지역 액터 풀(플레이어·아이템·구조 A6-2·재료 창고 A8-1) — 빈 채로 물질화(무한 수용).
+        // 구조·창고 풀은 체크섬 무관(region=null)이라 잔고 오차 무해, 관련 tx 재생만 정확하면 된다.
         this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
       } else if (id.startsWith(POOL.CELL)) {
         // 필드 셀은 서버 내부 저수지(SOURCE/SINK 급) — 클라는 잔고를 추적하지 않는다.
@@ -135,14 +135,15 @@ export class ClientState {
   #applyEvent(ev) {
     switch (ev.kind) {
       case 'item-spawn': {
-        const max = ev.itemType === 'weapon' ? WEAPON_COST : CRYSTAL_COST;
+        // A8-1: 합성 아이템은 용량(max)이 레시피에서 나오므로 서버가 실어 준다(무기/결정 상수 폴백).
+        const max = ev.max ?? (ev.itemType === 'weapon' ? WEAPON_COST : CRYSTAL_COST);
         this.ledger.mirrorSet(ev.id, 0, max, null);
-        this.inventory.set(ev.id, { itemType: ev.itemType });
+        this.inventory.set(ev.id, { itemType: ev.itemType, mat: ev.mat ?? null });
         break;
       }
       case 'pickup':
         this.ledger.mirrorSet(ev.id, ev.balance, ev.max, null);
-        this.inventory.set(ev.id, { itemType: ev.itemType });
+        this.inventory.set(ev.id, { itemType: ev.itemType, mat: ev.mat ?? null });
         this.entities.delete(ev.id);
         break;
       case 'item-gone':

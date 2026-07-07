@@ -9,11 +9,16 @@ import { mulberry32, randInt } from './rng.js';
 import {
   WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, NODE_COUNT, NODE_MIN_MAX, NODE_MAX_MAX,
   MOB_COUNT, MOB_ENERGY, POOL, FIELD_GRID, FIELD_RICH_MIN, FIELD_RICH_MAX,
+  MATERIAL_KEYS,
 } from './constants.js';
 
 export function generateWorld(seed = WORLD_SEED) {
   const rng = mulberry32(seed);
   const margin = 100;
+
+  // A8-1: 노드 재료 종류는 배치 rng 와 독립한 시드 스트림에서 유도한다 — 위치·용량 유도 순서를
+  // 건드리지 않아 기존 배치가 바이트 동일하게 보존된다(회귀 안전). 배치처럼 동기화 없이 시드 유도.
+  const matRng = mulberry32((seed ^ 0x00a7a7a7) >>> 0);
 
   const nodes = [];
   for (let i = 0; i < NODE_COUNT; i++) {
@@ -23,6 +28,7 @@ export function generateWorld(seed = WORLD_SEED) {
       y: randInt(rng, margin, WORLD_SIZE - margin),
       z: randInt(rng, margin, WORLD_HEIGHT - margin),   // 3D 배치 (높이)
       max: randInt(rng, NODE_MIN_MAX, NODE_MAX_MAX),
+      mat: MATERIAL_KEYS[randInt(matRng, 0, MATERIAL_KEYS.length - 1)], // 이 노드가 발산하는 재료 종류
     });
   }
 

@@ -40,10 +40,12 @@ export function skillDamage(skill, atkStruct) {
 
 // 아이템 증폭 (A6-5) — 아이템의 현재 잔고를 읽어 스탯을 키운다(민팅 없음).
 // 무기: 발산(공격) 증폭 — 마모로 잔고가 줄면 증폭도 준다.
-export function weaponBonus(weaponBalance) {
-  return Math.floor(Math.max(0, weaponBalance) / WEAPON_ATK_DIVISOR);
+// A8-1: div 는 재료 종류(라벨)가 고르는 계수다. 같은 잔고라도 금(div↓)이 돌(div↑)보다 세다 —
+//   위력의 상한은 여전히 잔고, 라벨은 "잔고를 얼마나 효율로 읽을지"만 정한다(민팅 아님).
+export function weaponBonus(weaponBalance, div = WEAPON_ATK_DIVISOR) {
+  return Math.floor(Math.max(0, weaponBalance) / div);
 }
 // 결정: 획득(채집) 증폭 — 소지한 결정의 잔고가 세계에서 끌어오는 양을 키운다.
-export function gatherBonus(crystalBalance) {
-  return Math.floor(Math.max(0, crystalBalance) / CRYSTAL_GATHER_DIVISOR);
+export function gatherBonus(crystalBalance, div = CRYSTAL_GATHER_DIVISOR) {
+  return Math.floor(Math.max(0, crystalBalance) / div);
 }

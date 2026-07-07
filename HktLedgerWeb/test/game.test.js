@@ -19,6 +19,9 @@ import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
 import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
+  MATERIALS, MINE_AMOUNT, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
+} from '../shared/constants.js';
+import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
@@ -884,6 +887,122 @@ test('3D 공간 — 사거리가 z 를 포함한다 (수직 분리 사거리 밖
   game.tick();
   assert.ok(game.ledger.balance(a.player.id) > before, 'z 정렬 후 채집 성공');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
+});
+
+test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고 채굴, 창고+생체→결정, 라벨이 계수를 고름 (민팅 없음·보존)', () => {
+  // (0) 순수: 종류(라벨)가 계수를 고른다 — 같은 잔고라도 금(div↓)이 돌보다 세고, 보석이 나무보다 잘 끌어온다.
+  assert.ok(MATERIALS.gold.div < MATERIALS.stone.div, '금 발산 계수 > 돌 (div 작을수록 강함)');
+  assert.ok(weaponBonus(150, MATERIALS.gold.div) > weaponBonus(150, MATERIALS.stone.div), '같은 잔고 금 무기 > 돌 무기');
+  assert.ok(gatherBonus(150, MATERIALS.gem.div) > gatherBonus(150, MATERIALS.wood.div), '같은 잔고 보석 결정 > 나무 결정');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+  const stashId = (mat) => `${POOL.STASH}${a.player.id}#${mat}`;
+
+  // 발산 계수 재료(무기 친화) 노드 하나를 골라 그 종류를 캔다.
+  const wNode = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  assert.ok(wNode, '발산 친화 재료 노드 존재');
+  const mat = wNode.mat;
+
+  // (1) 타입 채집(MINE) — 노드가 발산하는 종류의 결정을 캐서 종류별 창고로 옮긴다(노드→창고).
+  warp(a.player, wNode.x + 10, wNode.y, wNode.z);
+  game.tick();
+  const nodeBefore = bal(wNode.id);
+  intent(a.player, INTENT.MINE, { nodeId: wNode.id }, 'm1');
+  game.tick();
+  assert.equal(bal(stashId(mat)), MINE_AMOUNT, '창고에 재료 적립 = MINE_AMOUNT');
+  assert.equal(nodeBefore - bal(wNode.id), MINE_AMOUNT, '노드에서 정확히 그만큼 빠짐(민팅 아님)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '채굴 후 총합 보존');
+
+  // 창고를 합성 요건까지 채운다 (4회 채굴 = 100).
+  while (bal(stashId(mat)) < FORGE_MAT_REQUIRE) { intent(a.player, INTENT.MINE, { nodeId: wNode.id }); game.tick(); }
+  assert.ok(bal(stashId(mat)) >= FORGE_MAT_REQUIRE, '창고 ≥ 합성 요건');
+
+  // (2) 합성(FORGE) = "금이 아이템이 된다" — 재료 창고 + 생체(속성) 에너지를 한 결정으로 결합.
+  setBal(a.player.id, FORGE_ATTR_COST + 10); // 속성 주입분 확보
+  const stashBefore = bal(stashId(mat));
+  const freeBefore = bal(a.player.id);
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+  assert.ok(item, '결정 아이템 생성됨');
+  assert.equal(item.mat, mat, '아이템에 재료 종류 라벨');
+  assert.equal(item.itemType, MATERIALS[mat].affinity, '거동(발산/획득)은 종류가 정함');
+  // 금은 변환되지 않는다: 아이템 잔고 = 재료 100 + 생체 50, 두 이체의 합 그대로(민팅 없음).
+  assert.equal(bal(item.id), FORGE_ITEM_MAX, '아이템 잔고 = 재료 + 속성 (두 이체의 합)');
+  assert.equal(stashBefore - bal(stashId(mat)), FORGE_MAT_REQUIRE, '창고에서 정확히 재료분만 빠짐');
+  assert.equal(freeBefore - bal(a.player.id), FORGE_ATTR_COST, '생체에서 정확히 속성분만 빠짐');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '합성 후 총합 보존');
+
+  // (3) 라벨이 전투 계수를 고른다 — 합성 무기 데미지 = canonical + weaponBonus(잔고, 재료 div).
+  const tgt = join('TGT');
+  game.tick();
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before = bal(tgt.player.id);
+  const wBalPreWear = bal(item.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(wBalPreWear, MATERIALS[mat].div),
+    '데미지 = canonical + 재료 계수 증폭(민팅 아님·피격자 클램프)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전투 후 총합 보존');
+
+  // (4) 잘못된 요청 기각 — 재료 없는 종류 합성 시도.
+  const emptyMat = Object.keys(MATERIALS).find(m => bal(stashId(m)) < FORGE_MAT_REQUIRE);
+  intent(a.player, INTENT.FORGE, { mat: emptyMat }, 'fx');
+  game.tick();
+  assert.ok(a.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'fx'), '재료 부족 합성 기각');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  console.log(`    [A8-1] 채굴 ${mat} +${MINE_AMOUNT}/회 · 합성 = 재료 ${FORGE_MAT_REQUIRE}+생체 ${FORGE_ATTR_COST}=결정 ${FORGE_ITEM_MAX}(민팅 없음) · ${mat} 무기 발산 +${weaponBonus(FORGE_ITEM_MAX, MATERIALS[mat].div)} · 총합 ${total()} 불변`);
+});
+
+test('A8-1 미러 정합 — 타입 채집·합성 tx 재생 후 지역 체크섬 일치 (창고 region=null 무해)', () => {
+  const { clock, game, join, warp, intent } = setup();
+  const a = join('A');
+  const b = join('B');
+  game.tick();
+
+  const node = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  const mat = node.mat;
+  warp(a.player, node.x + 10, node.y, node.z);
+  game.tick();
+  // 채굴 4회 → 창고 채우고 → 합성 → 드랍 → 픽업
+  for (let i = 0; i < 5; i++) { intent(a.player, INTENT.MINE, { nodeId: node.id }, `m${i}`); game.tick(); }
+  // 속성분(생체 에너지)은 스폰 지급분(300)으로 충당 — 직접 주입은 미러가 못 보므로 금지.
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+  intent(a.player, INTENT.DROP, { itemId: item.id }, 'd1');
+  game.tick();
+  intent(a.player, INTENT.PICKUP, { itemId: item.id }, 'p1');
+  game.tick();
+
+  // 다음 체크섬 틱까지 진행
+  while (game.tickCount % 30 !== 1) game.tick();
+
+  const client = new ClientState();
+  const resyncs = [];
+  client.onResync = (keys) => resyncs.push(...keys);
+  for (const msg of a.conn.msgs) client.handle(msg);
+
+  assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id), '자기 풀 잔고 정합');
+  assert.equal(client.ledger.balance(item.id), game.ledger.balance(item.id), '합성 아이템 잔고 정합');
+  for (const key of a.player.regions) {
+    assert.equal(client.ledger.regionSum(key), game.ledger.regionSum(key), `지역 ${key} 체크섬 정합`);
+  }
+  assert.equal(resyncs.length, 0, '재동기화 불필요');
+  assert.equal(client.checksumStatus, 'OK');
 });
 
 test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {

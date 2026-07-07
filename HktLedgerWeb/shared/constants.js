@@ -115,6 +115,31 @@ export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아�
 export const WEAPON_COST = 250;          // 무기 제작: 플레이어 → 아이템 풀 250
 export const PICKUP_RANGE = 60;
 
+// A8-1 타입 채집·합성: "금이 어떻게 아이템이 되나" — 세계가 발산한 결정(노드)을 종류별로 캐서
+// (MINE) 재료 창고에 쌓고, 재료 + 생체(속성) 에너지를 결합(FORGE)해 고귀한 결정=아이템으로
+// 보존한다. 핵심: **금은 "변환"되지 않는다** — 금 100단위는 아이템이 된 뒤에도 100단위 그대로.
+// 바뀌는 건 그 단위에 붙은 라벨(descriptor)뿐이다. 그래서 보존 코어(ledger.js)는 불변:
+//   · 양(quantity) = 원장 풀 잔고 (이체로만 변함·보존 강제)
+//   · 종류(type)   = 노드·창고·아이템의 라벨 (에너지가 아니라 보존 대상 밖) = 어느 흐름 계수를 고를지
+// 아이템 위력은 여전히 f(잔고) 상한(민팅 없음) — 라벨은 divisor(계수)만 고른다.
+// 다양성(7종)은 시드 태그 + 창고 네임스페이스뿐이라 구조적으로 공짜 — 프로토타입은 각만 본다.
+export const MATERIALS = {
+  //  종류   → { affinity: 어느 아이템 거동('weapon'=발산/'crystal'=획득), div: 잔고당 계수 (작을수록 강함) }
+  wood:  { affinity: 'crystal', div: 14 }, // 나무: 흔한 채집 — 약한 획득 증폭
+  stone: { affinity: 'weapon',  div: 12 }, // 돌: 단단하되 둔함 — 약한 발산
+  iron:  { affinity: 'weapon',  div: 9  }, // 철: 실용 발산
+  herb:  { affinity: 'crystal', div: 9  }, // 약초: 중간 획득 증폭
+  gem:   { affinity: 'crystal', div: 7  }, // 보석: 정련된 획득 증폭
+  gold:  { affinity: 'weapon',  div: 6  }, // 금: 고귀 — 강한 발산
+  ember: { affinity: 'weapon',  div: 5  }, // 불의 정수: 최강 발산(희귀)
+};
+export const MATERIAL_KEYS = Object.keys(MATERIALS); // 7종 (결정론 순서 — 시드 유도 인덱싱)
+export const STASH_MAX = 10_000;         // 재료 창고 풀(종류별) 용량 상한
+export const MINE_AMOUNT = 25;           // MINE 1회 요청량 (노드 잔고·창고 수용량으로 클램프)
+export const FORGE_MAT_REQUIRE = 100;    // 합성 소요 재료량 (창고 → 아이템)
+export const FORGE_ATTR_COST = 50;       // 속성 주입 = 생체 에너지 (플레이어 → 아이템)
+export const FORGE_ITEM_MAX = FORGE_MAT_REQUIRE + FORGE_ATTR_COST; // 아이템 용량 = 두 이체의 합
+
 // --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝: SOURCE=태양 원점, SINK=소산) ---
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
 // A6-0 태양 순환: 소산된 에너지(SINK)를 이 주기마다 SOURCE 로 되돌린다.
@@ -130,6 +155,7 @@ export const POOL = {
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
   STRUCT: 'S:',   // A6-2 구조 풀 (성장 = 잠긴 질서, 플레이어당 1)
+  STASH: 'G:',    // A8-1 재료 창고 (종류별 채집물, region=null·플레이어당 종류마다 1)
   SOURCE: 'W:SRC',
   SINK: 'W:SINK',
 };
@@ -141,6 +167,7 @@ export const CAUSE = {
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
   GROW: 'grow', CATABOLISM: 'catabolism', GIVE: 'give',
+  MINE: 'mine', FORGE: 'forge',   // A8-1: 타입 채집(노드→창고) · 합성(창고+생체→아이템)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
