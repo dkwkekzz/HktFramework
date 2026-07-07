@@ -28,7 +28,7 @@ import {
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
-  LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
+  LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
@@ -447,6 +447,21 @@ export class GameServer {
         const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : GROW_AMOUNT;
         const got = this.#tx(p.id, this.#structId(p.id, organ), want, CAUSE.GROW, null, iid);
         if (got === 0) return this.#reject(p, iid, 'no-energy-or-full');
+        break;
+      }
+
+      case INTENT.GIVE: {
+        // A7-3 생명 간 이체: 자유 에너지를 다른 플레이어에게 증여(협력·교환·부양) = MMO 관계.
+        // 강제 없는 자발적 `player→player` 이체 — 사거리 안에서만. Got<Want 는 게임플레이
+        // (증여자 고갈/수령자 만충) — 0 일 때만 기각. 사거리 안이면 양쪽 시야가 겹쳐 미러 정합.
+        const target = this.#targetInfo(msg.targetId ?? '');
+        if (!target || !target.isPlayer || msg.targetId === p.id) return this.#reject(p, iid, 'no-target');
+        if (dist3(p.x, p.y, p.z, target.x, target.y, target.z) > GIVE_RANGE + RANGE_SLACK)
+          return this.#reject(p, iid, 'out-of-range');
+        const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : 0;
+        if (want === 0) return this.#reject(p, iid, 'bad-amount');
+        const got = this.#tx(p.id, msg.targetId, want, CAUSE.GIVE, target, iid);
+        if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
         break;
       }
 

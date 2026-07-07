@@ -45,8 +45,9 @@ export const INTENT = {
   USE: 'use',            // { itemId }    결정 용해 → 에너지 회복
   DROP: 'drop',          // { itemId }
   PICKUP: 'pickup',      // { itemId }
-  GROW: 'grow',          // { amount? }   A6-2 성장: 자유 에너지 → 구조 풀 예치
+  GROW: 'grow',          // { organ?, amount? }  A6-2/A7-1 성장: 자유 에너지 → 조직 구조 풀 예치
   SKILL: 'skill',        // { skillId, targetId }  A6-4 스킬: 비용 있는 증폭 이체 패턴
+  GIVE: 'give',          // { targetId, amount }  A7-3 생명 간 이체: player→player 자유 에너지 증여
 };
 
 export function encode(type, payload) {

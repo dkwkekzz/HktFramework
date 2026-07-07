@@ -763,6 +763,51 @@ test('A7-2 필드 이질화 — 지역별 풍요도가 노드 재충전 속도�
   console.log(`    [A7-2] 풍요도 ${poor.richness}~${rich.richness} · 1주기 노드 회복 부유 ${richGain} > 빈곤 ${poorGain} · 총합 ${total()} 불변`);
 });
 
+test('A7-3 생명 간 이체 — 플레이어끼리 자유 에너지를 증여한다 (협력·사거리·미러·보존)', () => {
+  const { game, join, warp, intent, total } = setup();
+  const giver = join('GIVER');
+  const taker = join('TAKER');
+  game.tick(); // 스폰 grant 300 each (스폰 위치 동일 = 사거리 안)
+  const bal = (id) => game.ledger.balance(id);
+
+  // (1) 증여: giver→taker 자유 에너지 이체
+  const g0 = bal(giver.player.id), t0 = bal(taker.player.id);
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 120 }, 'gv1');
+  game.tick();
+  assert.equal(bal(giver.player.id), g0 - 120, '증여자 자유 감소');
+  assert.equal(bal(taker.player.id), t0 + 120, '수령자 자유 증가');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '증여도 이체 — 총합 불변');
+
+  // 미러 정합: 양쪽 클라가 증여 tx 를 재생 (giver=from, taker=to 로 relevant, 사거리 안이라 시야 겹침)
+  const gc = new ClientState(); for (const m of giver.conn.msgs) gc.handle(m);
+  const tc = new ClientState(); for (const m of taker.conn.msgs) tc.handle(m);
+  assert.equal(gc.ledger.balance(giver.player.id), bal(giver.player.id), '증여자 미러 정합');
+  assert.equal(tc.ledger.balance(taker.player.id), bal(taker.player.id), '수령자 미러 정합');
+
+  // (2) 자기 자신에게는 못 준다
+  intent(giver.player, INTENT.GIVE, { targetId: giver.player.id, amount: 10 }, 'gv2');
+  game.tick();
+  assert.equal(giver.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'gv2')?.reason, 'no-target');
+
+  // (3) 사거리 밖 = 기각
+  warp(taker.player, 100, 100, taker.player.z);
+  game.tick();
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 10 }, 'gv3');
+  game.tick();
+  assert.equal(giver.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'gv3')?.reason, 'out-of-range');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (4) 협력 = 부양: 굶주린 동료를 증여로 되살린다 (자유 0 → 증여 → 생존)
+  warp(taker.player, giver.player.x + 20, giver.player.y, giver.player.z); // 다시 사거리 안
+  game.tick();
+  game.ledger.transfer(taker.player.id, POOL.SINK, bal(taker.player.id), 'test'); // 굶주림
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 50 }, 'gv4');
+  game.tick();
+  assert.equal(bal(taker.player.id), 50, '증여로 부양 — 동료가 되살아난다');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전 과정 보존');
+  console.log(`    [A7-3] 증여 giver→taker 120·자기증여/사거리밖 기각·부양 50 · 총합 ${total()} 불변`);
+});
+
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
   const { clock, game, join, warp, total } = setup();
   const prey = join('사냥감');

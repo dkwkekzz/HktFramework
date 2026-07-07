@@ -94,6 +94,10 @@ export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
 
+// A7-3 생명 간 이체: 플레이어끼리 자유 에너지를 증여(협력·교환·부양)한다 = MMO 관계.
+// 강제 없는 자발적 이체(`player→player`) — 사거리 안에서만(사회적 근접·전송 검증). 보존은 클램프.
+export const GIVE_RANGE = 120;           // 증여 사거리 (근접해야 준다)
+
 // --- A2 판정 감사 (클라 위임 데미지 판정의 샘플링 재시뮬 탐지 — 표본 추출은 서버 정책) ---
 export const AUDIT_SEED = 0x5eed;        // 감사 표본 추출 기본 시드 (프로덕션은 서버 비밀로 주입)
 export const AUDIT_SAMPLE_NUM = 1;       // 감사 표본 비율 = NUM/DEN
@@ -136,7 +140,7 @@ export const CAUSE = {
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
-  GROW: 'grow', CATABOLISM: 'catabolism',
+  GROW: 'grow', CATABOLISM: 'catabolism', GIVE: 'give',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

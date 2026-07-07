@@ -13,7 +13,7 @@ import { encode, decode, MSG, INTENT } from '../shared/protocol.js';
 import {
   SPAWN_POS, WORLD_SIZE, WORLD_HEIGHT, MAX_SPEED, BEACON_INTERVAL_MS, dist3,
   GATHER_RANGE, ATTACK_RANGE, PICKUP_RANGE, ATTACK_COOLDOWN_MS,
-  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL, ORGANS,
+  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL, ORGANS, GIVE_RANGE,
 } from '../shared/constants.js';
 
 const COUNT = Math.max(1, parseInt(process.argv[2] ?? '8', 10) || 8);
@@ -42,6 +42,8 @@ class Bot {
     this.lastAttack = 0;
     this.lastSkill = 0;
     this.lastGrow = 0;
+    this.lastGive = 0;
+    this.gaveCount = 0; // A7-3: 증여 횟수 (협력 관측)
     this.craftPendingUntil = 0;
     this.iidNo = 0;
     this.bytesInWindow = 0; // A4: 수신 대역폭 계측 (5초 요약에서 B/s 환산)
@@ -118,6 +120,17 @@ class Bot {
     }
     const loot = this.#nearest(['item'], PICKUP_RANGE);
     if (loot) this.intent(INTENT.PICKUP, { itemId: loot.id });
+
+    // --- 생명 간 이체(A7-3): 여유 있고 근처(사거리 안)에 나보다 궁한 동료가 있으면 나눈다 (협력).
+    //     봇은 인기 노드에서 종종 모이므로 그때 부유→빈곤으로 에너지가 흐른다. ---
+    if (e > 400 && now - this.lastGive >= 1200) {
+      const ally = this.#nearest(['player'], GIVE_RANGE, (q) => s.ledger.balance(q.id) < e - 120);
+      if (ally) {
+        this.lastGive = now;
+        this.gaveCount++;
+        this.intent(INTENT.GIVE, { targetId: ally.id, amount: 60 });
+      }
+    }
 
     // --- 성장(A6): 잘 먹었으면 잉여 에너지를 구조로 예치(질서화). bias 큰 개체가 더
     //     공격적으로(더 낮은 배부름에, 더 큰 덩어리로) 성장 → 라이브에서 빌드가 분화한다.
@@ -201,8 +214,9 @@ setInterval(() => {
   const structs = bots.map(b => b.struct());
   const grown = structs.reduce((s, v) => s + v, 0);
   const atkBuilds = bots.filter(b => b.organ === 'atk').length;
+  const gives = bots.reduce((s, b) => s + b.gaveCount, 0);
   console.log(`[시뮬] ${line}`);   // E=자유, S=구조, 🗡발산빌드/🌿대사빌드, ⚔사냥/⛏채집
-  console.log(`[성장] 구조 총 ${grown} · 최소 ${Math.min(...structs)} ~ 최대 ${Math.max(...structs)} · 빌드 분화 발산 ${atkBuilds}/${bots.length}`);
+  console.log(`[성장] 구조 총 ${grown} · 최소 ${Math.min(...structs)} ~ 최대 ${Math.max(...structs)} · 빌드 분화 발산 ${atkBuilds}/${bots.length} · 증여 누적 ${gives}회(협력)`);
   console.log(`[원장] 세계 총 에너지 ${lead.worldTotal.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
   console.log(`[대역폭] 봇 평균 수신 ${perBotPerSec.toFixed(0)} B/s (A4 바이너리 tx)`);
 }, 5000);
