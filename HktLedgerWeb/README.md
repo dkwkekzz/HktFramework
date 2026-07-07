@@ -1,7 +1,7 @@
 # HktLedgerWeb — 에너지 보존 동기화 MMORPG 웹 프로토타입
 
 > 설계: [Docs/Design-EnergyConservationSync.md](../Docs/Design-EnergyConservationSync.md)
-> 목적: "서버는 에너지 원장만 동기화한다" 를 웹에서 각을 본 뒤 게임 엔진으로 고도화하기 위한 기반.
+> 목적: "서버는 에너지 원장만 동기화한다" 를 웹에서 각을 보는 설계 검증 프로토타입.
 > 기존 HktGameplay 구현과 독립 — 참조 관계 없음.
 
 **작업 세션 필독 순서**: [CLAUDE.md](CLAUDE.md)(규칙·절차) → [SPINE.md](SPINE.md)(방향·arc) → [STATE.md](STATE.md)(현재·다음) — step 기록은 `steps/`. 이 README 는 사람 진입용 실행·구조 스냅샷이다.
@@ -35,7 +35,7 @@ npm test           # 보존·중재·검증·미러 + 필드/감사/영속/바�
 ## 구조 — 서버/클라 경계가 곧 설계의 경계
 
 ```
-shared/    서버·클라 공용 결정론 코어 (외부 API 의존 0 — C++ 이식 대상)
+shared/    서버·클라 공용 결정론 코어 (외부 API 의존 0 — 순수 결정론 로직)
  ├─ ledger.js      에너지 원장 — 유일한 상태. 이체 클램프 = 보존 강제 지점 · serialize/load(A3)
  ├─ constants.js   시뮬 상수 단일 출처 (에너지 정수) · dist3 3D 거리
  ├─ worldgen.js    시드 → 월드 3D 배치 유도 (배치는 동기화하지 않는다)
@@ -93,6 +93,6 @@ client/    세부 시뮬레이터 — 이동 적분·예측·연출은 전부 �
 
 전 arc 회귀 무손실 — `npm test` **28종** 통과. 불변식 4종은 매 step 유지.
 
-## 다음 단계·엔진 이식
+## 다음 단계
 
-열린 후보(WebGL 진짜 3D · 볼류메트릭 파티션 · 잔여 완성도)와 엔진 이식 시 가져갈 것/버릴 것은 [SPINE.md](SPINE.md), 현재 진행 상태·다음 조각은 [STATE.md](STATE.md) 참조. 엔진 이식(§3)은 A1~A5 를 전부 닫은 지금 HktGameplay 소관으로 시작 가능하다.
+**리소스 관련(맵·캐릭터·비주얼 에셋·렌더 고도화)은 이 트랙 범위 밖**이다(SPINE §0). 기존 Canvas 렌더는 원장을 눈으로 확인하는 읽기 전용 최소 뷰어일 뿐이다. 열린 후보(이체 문법 프론티어: 보존 하 성장 · 공유 풀 · A 잔여 완성도)는 [SPINE.md](SPINE.md), 현재 진행 상태·다음 조각은 [STATE.md](STATE.md) 참조.
