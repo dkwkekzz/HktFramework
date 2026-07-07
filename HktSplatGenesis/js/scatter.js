@@ -32,21 +32,38 @@
 		return Math.hypot(hx, hz) / (2 * e);
 	}
 
-	// 바이옴별 나무 밀도 배수 — 다채로움(지형 성격에 맞는 생명 분포). 미상 바이옴은 중립(0.5).
+	// 바이옴별 나무 밀도 배수 (기본 프리셋) — 게놈 생명 층(life.biomeDensity)이 없을 때의 폴백.
+	// 다채로움(지형 성격에 맞는 생명 분포). 미상 바이옴은 중립(0.5).
 	const BIOME_TREE = {
 		plains: 1.0, mountain: 0.7, desert: 0.12, snow: 0.22, water: 0,
 		ashflat: 0.35, lavaridge: 0.12, ashdune: 0.18,
 	};
-	function biomeDensity(key, base) {
+	// W-Q2a 게놈 생명 층 — 스폰 규칙(밀도·바이옴 조건·크기·색)의 단일 원본. Bake·시뮬 두 레이어가
+	// 이 값을 공유한다. 존재하지 않으면 기본(BIOME_TREE 폴백)이라 기존 거동 불변(무회귀).
+	//   { treeDensity, biomeDensity:{key:배수}, treeSize, leaf/trunk(색), rockDensity, rock(색), campfireRate }
+	function lifeOf(world, cfg) {
+		return (cfg && cfg.life) || (world.params && world.params.life) || null;
+	}
+	// 바이옴별 밀도 배수 — 게놈 life.biomeDensity 우선(선언 바이옴만, 미선언=0), 없으면 기본표.
+	function biomeDensity(key, base, life) {
+		if (life && life.biomeDensity) {
+			const f = (key in life.biomeDensity) ? life.biomeDensity[key] : 0;
+			return base * f;
+		}
 		const f = (key in BIOME_TREE) ? BIOME_TREE[key] : 0.5;
 		return base * f;
 	}
 
 	// 결정론 스폰 후보 — cx,cz 중심 반경 radius 안. 각 스폰은 안정 key(셀 인덱스 기반)로
 	// 식별되므로 프레임이 바뀌어도 같은 스폰은 같은 슬롯을 유지한다(재시드 없음의 근거).
-	// 반환: [{ x, y, z, kind:'tree'|'campfire', key, biome, host? }]
+	// 게놈 생명 층(life)이 있으면 밀도·종을 게놈이 정한다(W-Q2a). rock 은 Bake 전용(시뮬 승격 안 함).
+	// 반환: [{ x, y, z, kind:'tree'|'campfire'|'rock', key, biome, host? }]
 	function candidates(world, cx, cz, radius, cfg) {
 		cfg = Object.assign({ cell: 6.0, treeDensity: 0.5, campfireRate: 0.16, maxSlope: 1.2, jitter: 0.7 }, cfg);
+		const life = lifeOf(world, cfg);
+		const treeBase = (life && life.treeDensity != null) ? life.treeDensity : cfg.treeDensity;
+		const rockBase = (life && life.rockDensity != null) ? life.rockDensity : 0; // 기본 0 = 기존 거동
+		const campfireRate = (life && life.campfireRate != null) ? life.campfireRate : cfg.campfireRate;
 		const seed = ((world.params && world.params.seed) | 0) || 0;
 		const cell = cfg.cell, waterY = (world.waterY != null ? world.waterY : -1e9);
 		const out = [];
@@ -61,15 +78,20 @@
 				if (dx * dx + dz * dz > radius * radius) continue;
 				const y = world.heightAt(x, z);
 				if (y < waterY + 0.15) continue;                       // 수역·물가 제외
-				if (slopeAt(world, x, z) > cfg.maxSlope) continue;     // 급경사(절벽) 제외
+				const slope = slopeAt(world, x, z);
 				const b = world.biomeAt(x, z);
-				if (hash(u, v, seed + 101) > biomeDensity(b.key, cfg.treeDensity)) continue;
-				const key = 't:' + u + ',' + v;
-				out.push({ x, y, z, kind: 'tree', key, biome: b.key });
-				// 일부 나무 곁 모닥불 — 호스트 나무와 같은 셀에서 함께 스트리밍(불×나무 실증)
-				if (hash(u, v, seed + 777) < cfg.campfireRate) {
-					const fx = x + 0.6, fz = z;
-					out.push({ x: fx, y: world.heightAt(fx, fz), z: fz, kind: 'campfire', key: 'f:' + u + ',' + v, host: key });
+				// 나무 — 게놈(또는 기본) 바이옴 밀도. 급경사(절벽) 제외.
+				if (slope <= cfg.maxSlope && hash(u, v, seed + 101) <= biomeDensity(b.key, treeBase, life)) {
+					const key = 't:' + u + ',' + v;
+					out.push({ x, y, z, kind: 'tree', key, biome: b.key });
+					// 일부 나무 곁 모닥불 — 호스트 나무와 같은 셀에서 함께 스트리밍(불×나무 실증)
+					if (hash(u, v, seed + 777) < campfireRate) {
+						const fx = x + 0.6, fz = z;
+						out.push({ x: fx, y: world.heightAt(fx, fz), z: fz, kind: 'campfire', key: 'f:' + u + ',' + v, host: key });
+					}
+				} else if (rockBase > 0 && hash(u, v, seed + 209) <= biomeDensity(b.key, rockBase, life)) {
+					// 바위 — Bake 전용 장식(나무 안 난 셀). 시뮬 승격은 안 한다(ScatterStream 필터).
+					out.push({ x, y, z, kind: 'rock', key: 'r:' + u + ',' + v, biome: b.key });
 				}
 			}
 		return out;
@@ -89,7 +111,7 @@
 
 	// 후보 종류 → 시뮬 입력 유전자. 프리셋(presets.js)을 원본으로 삼되 스폰 위치를 emitter 에
 	// 심는다. 나무는 form 2(가지 골격), 모닥불은 축소한 불 정령(app.js 불×나무 튜닝과 동일).
-	function genesFor(cand) {
+	function genesFor(cand, life) {
 		const G = global.HktGenesisGenes;
 		if (!G) throw new Error('presets.js(HktGenesisGenes) 선행 필요');
 		const P = G.PRESETS;
@@ -98,7 +120,9 @@
 			g.emitRadius = 0.22; g.lifeBase = 1.0; g.updraft = 1.5; g.size = 0.03;
 			return g;
 		}
-		return G.materialize(P['나무'], [cand.x, 0.6, cand.z]); // 뿌리 y 는 엔진이 지형 높이로
+		const g = G.materialize(P['나무'], [cand.x, 0.6, cand.z]); // 뿌리 y 는 엔진이 지형 높이로
+		if (life && life.treeSize) { g.size *= life.treeSize; g.emitRadius *= life.treeSize; } // 게놈 나무 크기
+		return g;
 	}
 
 	// ── 스트리밍 관리: 슬롯 배정 diff → engine.respawnEntity ──────────────────
@@ -120,7 +144,8 @@
 	// 카메라 타깃(월드 xz)으로 활성 스폰을 갱신. 거리순 상위 maxActive 를 활성, 나머지는 void.
 	// 반환: { active, spawned, removed, candidates } (하니스 지표).
 	ScatterStream.prototype.update = function (cx, cz) {
-		const cands = candidates(this.world, cx, cz, this.opts.radius, this.opts);
+		// rock 은 Bake 전용(시뮬 승격 안 함) — 시뮬 스트림은 상호작용 종(tree/campfire)만.
+		const cands = candidates(this.world, cx, cz, this.opts.radius, this.opts).filter((c) => c.kind !== 'rock');
 		for (let i = 0; i < cands.length; i++) {
 			const c = cands[i]; c.d2 = (c.x - cx) * (c.x - cx) + (c.z - cz) * (c.z - cz);
 		}
@@ -129,6 +154,7 @@
 		const wantKeys = new Set();
 		for (const c of want) wantKeys.add(c.key);
 		let spawned = 0, removed = 0;
+		const life = lifeOf(this.world, this.opts);
 		// 떠난 스폰 → 슬롯 반납(void)
 		for (let s = this.reserve; s < this.keyAt.length; s++) {
 			const k = this.keyAt[s];
@@ -141,7 +167,7 @@
 			for (let i = this.reserve; i < this.keyAt.length; i++) if (this.keyAt[i] === null) { s = i; break; }
 			if (s < 0) break; // 남는 슬롯 없음 (거리순이라 가장 가까운 것들이 이미 차 있음)
 			this.keyAt[s] = c.key; this.slotOf[c.key] = s;
-			this.engine.respawnEntity(s, genesFor(c));
+			this.engine.respawnEntity(s, genesFor(c, life));
 			spawned++;
 		}
 		return { active: Object.keys(this.slotOf).length, spawned, removed, candidates: cands.length };

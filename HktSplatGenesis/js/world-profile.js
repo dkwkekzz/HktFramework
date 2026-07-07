@@ -79,6 +79,20 @@
 			if (g.water && g.water.deep) colorOk('water.deep', g.water.deep);
 		}
 
+		// 생명(life, W-Q2a) — 스폰 규칙 밴드. 밀도·비율은 [0,1], treeSize 는 합리 범위, 색은 색 규칙.
+		// 바이옴 밀도 배수는 0..과밀 상한. 존재하는 필드만 검사(생략=기본=위반 아님).
+		if (g.life !== undefined) {
+			const L = g.life || {};
+			const num01 = (f, v, hi) => { if (v === undefined) return; if (!isNum(v) || v < 0 || v > (hi || 1)) push(`life.${f}`, v, `범위 [0, ${hi || 1}] 벗어남`); };
+			num01('treeDensity', L.treeDensity); num01('rockDensity', L.rockDensity); num01('campfireRate', L.campfireRate);
+			if (L.treeSize !== undefined && (!isNum(L.treeSize) || L.treeSize < 0.3 || L.treeSize > 3.0)) push('life.treeSize', L.treeSize, '범위 [0.3, 3.0] 벗어남');
+			if (L.biomeDensity !== undefined) {
+				if (typeof L.biomeDensity !== 'object' || L.biomeDensity === null) push('life.biomeDensity', L.biomeDensity, '객체 아님');
+				else for (const k in L.biomeDensity) num01(`biomeDensity.${k}`, L.biomeDensity[k], 2.0);
+			}
+			for (const cf of ['leaf', 'leaf2', 'trunk', 'rock']) if (L[cf] !== undefined) colorOk(`life.${cf}`, L[cf]);
+		}
+
 		// 대기(mood, W6) — 하늘/fog 색은 색 규칙(채널 [0,1]·채도 상한) 공유, fog 거리는 양수·순서만
 		if (g.mood !== undefined) {
 			const m = g.mood || {};
@@ -88,6 +102,7 @@
 			if (m.fogStart !== undefined && (!isNum(m.fogStart) || m.fogStart < PROFILE.fogMin)) push('mood.fogStart', m.fogStart, `숫자·≥${PROFILE.fogMin} 아님`);
 			if (m.fogEnd !== undefined && (!isNum(m.fogEnd) || m.fogEnd <= PROFILE.fogMin)) push('mood.fogEnd', m.fogEnd, `숫자·>${PROFILE.fogMin} 아님`);
 			if (isNum(m.fogStart) && isNum(m.fogEnd) && m.fogStart >= m.fogEnd) push('mood.fogRange', [m.fogStart, m.fogEnd], 'fogStart ≥ fogEnd (역순)');
+			if (m.cloud !== undefined && (!isNum(m.cloud) || m.cloud < 0 || m.cloud > 1)) push('mood.cloud', m.cloud, '범위 [0, 1] 벗어남'); // W-Q3 구름 커버리지
 		}
 
 		// 바이옴 셋

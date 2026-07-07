@@ -158,7 +158,9 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 ## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
 
 상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4·W6
-완료(이미지→게놈→검증→걷는 월드→대기 루프 성립), 남은 W5 는 T4 위 게놈 스폰 배선. 여기서 단계를 관리). C 트랙(이미지→
+완료(이미지→게놈→검증→걷는 월드→대기 루프 성립) + **W-Q 컨셉 퀄리티 격차 W-Q1~4 완료**(물 얼룩→호수·게놈
+생명 층+Bake 식생·Bake 셰이딩·구름 vista — 아래 W-Q 절). 남은: W-Q2c(승격 훅) + W5 앱 tick 배선. 여기서 단계를
+관리). C 트랙(이미지→
 캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
 
@@ -209,16 +211,85 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   (mood 담김·깊은복사 독립·색족 대비)·world-profile(mood accept/reject) 회귀 없음. 브라우저 회귀 없음
   (world-water 하늘톤 0.5·world-pan·biome·openworld 21.1·stage·app-smoke).
 
-> **다음 세션 진입점 (2026-07 기준)**: T1~T5·W6 완료(월드함수·청크·시뮬바닥·스캐터·물/fog·대기) —
-> 오픈월드 지형 본체 + 이미지→게놈→대기 루프가 섰다. 남은 갈래:
-> ① **W5 (생명 스캐터)** — T4 로 선행 해소. 게놈이 스폰 규칙을 정하게(scatter 후보에 게놈 ⑤ 생명 층) +
->   앱 tick 에 스캐터 팔로 루프 배선(무대 T2 타일과 병행 걷는 월드). 이미지→게놈→걷는 월드에 "무엇이 사는가"
->   를 더하는 마지막 조각. 진입: `js/scatter.js`(ScatterStream) + `js/app.js` tick + `js/world-profile.js` 생명 밴드.
-> ② **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
-> ③ **W6 폴리시(선택)** — 하늘 돔은 mood 톤만; 태양/구름/점진 fog 착색은 미구현. concept-shot 카메라를
->   저각으로 낮추면 skyTop 그라데이션이 더 드러난다(현재 조감이라 지평선 톤 위주).
-> 게놈 스키마 확장 시 `js/world-profile.js` 검증기·`test/world-genome.js` 회귀·`tools/world-extract/extract.js`
-> 프롬프트 스키마를 함께 갱신할 것(W6 에서 mood 3자 동기 유지).
+### W-Q — 컨셉 퀄리티 격차 (사진 대비 진단)
+
+**왜**: W1~W6 은 지형·바이옴·물·대기 **게놈 파이프라인**을 완성했지만, 컨셉 사진(원신/BotW 풍 vista)과
+`test/concept-shot.js` 우패널을 나란히 놓으면 격차가 크다. concept-shot 은 그중에서도 **맨 지형 파노라마**
+(`plyBytes` — 스캐터·수면 메시·구름 없음)만 굽는다. 원인을 영향 큰 순서로:
+① **생명(나무·바위·건물) 부재** — 스캐터(W5/T4) 영역이라 지형 게놈에서 제외. 사진 풍부함의 절반. → W5.
+② **물 얼룩(speckle)** — 수몰 판정이 고주파 `reliefAt` 을 그대로 써서 고립 pit 마다 파란 점이 흩뿌려지고,
+   물 스플랫을 울퉁불퉁한 지형 높이에 두어 낱개로 보였다(+ breeze `waterY 0.06` 이 base 0.5 대비 너무 낮아
+   물이 거의 안 참). → **W-Q1 에서 해결**.
+③ **구름·태양 부재** — W6 은 skyTop→skyHorizon 그라데이션 돔만. 뭉게구름 미구현. → W-Q3.
+④ **surfel 뭉개짐** — 평평한 가우시안을 스치는 저각에서 봐 흐릿(스플랫 근본 한계). 조감각·detail 로 완화. → R3/T5.
+
+- ✅ **W-Q1 — 물 얼룩 → 연결 호수**: 수몰 판정(`terrain-gen.js isWater`)을 **저주파 macro 포락**
+  (`macroReliefAt` — 옥타브 2·ridged 포함·파장 동일) 기준으로 바꿔 고립 고주파 웅덩이 speckle 을 없애고,
+  bakers(`plyBytes`·`tilePly`·`waterTilePly`)가 물 셀을 **평평한 수면(y=waterY)** 으로 굽게 해 분지 바닥
+  요철을 수면 아래로 잠근다 = 매끄러운 호수(물가 shallow→중앙 deep 색 심도는 실제 `reliefAt` 기준 유지).
+  `reliefAt` 은 `reliefCore(oct, withRidged, scaleBoost)` 로 리팩터(거동 불변, macro 와 코어 공유).
+  게놈 `breeze-meadow.waterY` 0.06→0.18(분지가 차게). **함정**: macro 에 ridged 를 빼면 능선 협곡에 고인 물
+  (temperate 시드7 호수)이 사라진다(회귀) — ridged 포함·파장 동일이 필수(파장 늘리면 다른 노이즈장 봐 실
+  분지 놓침). 검증: `concept-shot`(breeze) 흩뿌린 얼룩 → 청록 호수 · `world-water-shot` 수면 14250px(무회귀)
+  · world-genome(temperate 바이트 동일)·biome·preset(ashen)·world-pan·app-smoke 회귀 없음.
+- **W-Q2 — 식생 밀도 = Bake + 근처 승격** (= W5 + 정적 식생): 사진처럼 초원을 나무로 **채우려면** 시뮬
+  개체(`MAX_ENTITIES=8`)로는 불가 — 8 상한은 "동시 **시뮬**되는 생명"의 한계이고(스플랫 풀 N 을 8 슬라이스로
+  등분, `eid = i/sliceSize`), 이는 하드웨어 벽이 아니라 **개체당 스플랫 해상도 예산**이다(N 고정, 정렬
+  O(N log²N)). **결정: 밀도는 상한을 올려서가 아니라 Bake 로 푼다.** 정적으로 구운 식생 스플랫은 우리
+  시뮬 풀(8슬라이스·바이토닉)을 안 거치고 지형 PLY 에 실려 Spark(무대)가 그리므로 개수 제한이 사실상 없다.
+  구조는 "**전부 Bake 로 세계를 채우고, 카메라 근처 몇 개만 8 슬롯으로 승격(promote)해 살아있게**":
+  - ✅ **W-Q2a — 게놈 생명 층**: 스폰 규칙(종·바이옴별 밀도·크기·색)의 **단일 원본**. `scatter.js candidates`
+    의 하드코딩 `BIOME_TREE` 표를 `genome.life` 가 대체(있으면 소비, 없으면 기본 = 무회귀). rock 종 추가(Bake
+    전용 — `ScatterStream` 이 시뮬 승격에서 필터). `genesFor` 가 `life.treeSize` 소비. `world-profile.js` 생명
+    밴드 검증 + `breeze-meadow.json` life 층. 검증: `world-life.js`(순수 Node 9/9 — 게놈 밀도→바이옴별 나무 수
+    meadow 120≫highland 11, life 없음→rock 0 무회귀, 겹침 diff 0 연속성, 생명밴드 accept/reject).
+  - ✅ **W-Q2b — Bake 식생 레이어(v0, 파노라마 + 타일 스트리밍)**: `js/vegetation.js`(`HktGenesisVegetation`) —
+    `scatter.candidates`(게놈 생명 층 공유)로 나무(기둥+수관 램프)·바위(회색 타원) 정적 스플랫을 굽는다(좌표
+    해시 결정론 = 스트리밍 연속성). `bakePanorama`(단일 창)·`bakeTile`(타일)·`mergePly`(지형+식생 한 PLY).
+    ① 파노라마: `concept-shot` 이 지형 PLY 에 식생을 합쳐 로드 → **우패널 초원이 나무 893그루로 채워짐**(완료
+    기준 충족). ② **걷는 월드**: `stage.js loadTile` 이 **근접 링(0)만** 식생 타일 메시를 붙인다(외곽 링은
+    fog 로 소실 = LoD, 예산 절약) — `disposeTile`/`tileStats`(veg 카운트) 동기. 원경은 "생성된 씬"(무대 예외 —
+    승인 하이브리드). 검증: `concept-shot`(breeze) 초원 채움 · `openworld-shot`(걷는 월드 나무 배치) · `world-pan`
+    (default+breeze 게놈 걷는 월드 — 이음새 100%·스플랫 상한 무회귀) · `world-life.js`(순수 Node 9/9). 회귀:
+    world-scatter·app-smoke·world-genome·world-profile 없음.
+    남김: **v1**(시뮬 배양 나무 스냅샷 인스턴싱 — 원칙 정합) · 외곽 링 저밀도 식생(현재 미배치) · 자동차폐/조명
+    (렌더 이슈, 보류) · 나무 외형(v0 절차 블롭 — 브로콜리감).
+  - **W-Q2c — 승격 훅**: 근처 Bake 스폰을 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
+    확장. v0 는 하드컷(경계 팝 허용), 후속에 크로스페이드. **왜 이 구조**: 8 상한 = 상호작용 전용, 밀도 =
+    Bake — Bake 하면 상태 유도(성장·연소·바람)가 얼어붙어 "죽으므로", 상호작용하는 것만 시뮬로 남긴다.
+- ✅ **W-Q4 — 지형 Bake 셰이딩**: 스플랫은 런타임 조명이 없어(SH 0차 = 상수색) 절차 지형이 무광 평면으로
+  보인다("점에 색만 찍은" 품질). 우리는 지형을 *생성*하므로 bake 시점에 명암을 색에 굽는다 — `terrain-gen.js`
+  `shadeAt`(reliefAt 유한차분 법선 → diffuse(N·태양) + ambient 0.52, 태양·앰비언트는 `P.sun`/`mood.sun` 로
+  덮음)를 `plyBytes`·`tilePly` 의 `f_dc` 에 곱한다. 수면은 균일(1 — 심도색 유지, 바닥 요철이 수면 명암으로
+  새는 것 방지). 식생도 스폰 자리의 지면 명암을 곱해 통합(`vegetation.js splatsFor` — 그늘 슬로프 나무는
+  어둡게 + 수관 위쪽 살짝 밝게). `colorAt`/`heightAt` 불변이라 world-genome(바이트 동일)·biome(색족 4/4)·
+  world-life(9/9) 무회귀. 완료 기준: 우패널 지형에 능선 음영·입체감(무광 평면 탈피). 남김: **물 스페큘러/프레넬**
+  (시점 의존 = SH0 원리상 불가 — 물을 생명 WebGPU 경로로 옮겨 FS 셰이딩이 정석) · 나무 자체 법선 음영 · 저각
+  surfel 뭉개짐(스플랫 근본 한계, 조감각으로 완화 = W-Q3).
+- ✅ **W-Q3 — 하늘 구름 + vista 카메라**: ① **구름** — `stage.js` 하늘 돔 셰이더(SKY_FRAG)에 fbm 절차 구름을
+  더한다(시선을 하늘 평면에 투영 = 천정 뭉게·지평선 늘어남, 지평선 근처 소실로 fog 톤과 충돌 방지). `mood.cloud`
+  (0..1 커버리지) opt-in — 없으면 cloudCov 0 = 구름 없음(temperate/ashen 프리셋 무회귀, world-water 하늘톤 0.5
+  불변). `world-profile.js` 구름 밴드 검증 + `breeze-meadow.json` mood.cloud 0.55. ② **vista 카메라** — concept-shot
+  시선을 지평선 위로(target y 0→38) 올려 상단에 하늘·구름 밴드가 드러나게(전엔 저각이라 프레임 top 이 지평선 밑 =
+  구름 off-screen). 완료 기준 충족: 우패널이 구름 하늘 + 지평선 + 셰이딩 초원/호수/나무의 vista. 검증: `concept-shot`
+  (breeze) 구름 vista 사진. 회귀: world-profile(14/14)·world-life(9/9)·world-water(하늘톤 0.5) 없음.
+  남김: 구름 드리프트(정적 — 시간 유니폼)·중간 하늘 구름(현재 상단 밴드 위주)·저각 surfel 뭉개짐(스플랫 근본 한계).
+
+> **다음 세션 진입점 (2026-07 기준)**: T1~T5·W6 완료(월드함수·청크·시뮬바닥·스캐터·물/fog·대기) + **W-Q 컨셉
+> 퀄리티(W-Q1~4) 완료** — 컨셉 사진 대비 격차를 진단하고 대부분 메웠다. concept-shot 우패널이 "흩뿌린 물 얼룩의
+> 벌거벗은 초원" → **구름 하늘 + 연결 호수 + Bake 식생으로 채워진 셰이딩 초원 vista** 로 왔다:
+> ✅ W-Q1 물 얼룩→연결 호수(macro 포락+평평 수면) · ✅ W-Q2a/b 게놈 생명 층+Bake 식생(파노라마+걷는 타일 월드) ·
+> ✅ W-Q4 지형/식생 Bake 셰이딩(무광 탈피) · ✅ W-Q3 fbm 구름+vista 카메라. **핵심 결정**: 밀도는 8-엔티티 상한을
+> 올려서가 아니라 Bake(정적 무대 스플랫)로 풀고, 8 슬롯은 상호작용 생명 전용(DESIGN W-Q2 행).
+> 남은 갈래:
+> ① **W-Q2c (승격 훅)** — 근처 Bake 나무를 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
+>   확장. "밀도=Bake, 상호작용=시뮬" 구조의 마지막 조각. + **W5 앱 tick 스캐터 팔로 루프**(현재 openworld 버튼
+>   경로만; 게놈 생명 스캐터를 앱 tick 에). 진입: `js/scatter.js`(ScatterStream)·`js/app.js` tick.
+> ② **렌더 심화** — 나무 외형 v1(배양 나무 스냅샷 인스턴싱, 브로콜리감 해소) · 물 스페큘러/프레넬(시점 의존 →
+>   물을 생명 WebGPU 경로로) · 구름 드리프트 · 저각 surfel 뭉개짐(근본 한계, 조감으로 완화).
+> ③ **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
+> 게놈 스키마 확장 시 `js/world-profile.js` 검증기·`test/world-genome.js`·`test/world-life.js` 회귀·
+> `tools/world-extract/extract.js` 프롬프트 스키마를 함께 갱신할 것(mood·life 동기 유지).
 
 ## C 트랙 — 캐릭터 배양 (이미지 컨셉 → 게놈 → 살)
 

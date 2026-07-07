@@ -153,6 +153,8 @@ function disposeTile(t) {
 	if (t.url) URL.revokeObjectURL(t.url);
 	if (t.water) { rig.remove(t.water); if (t.water.dispose) t.water.dispose(); }
 	if (t.waterUrl) URL.revokeObjectURL(t.waterUrl);
+	if (t.veg) { rig.remove(t.veg); if (t.veg.dispose) t.veg.dispose(); }
+	if (t.vegUrl) URL.revokeObjectURL(t.vegUrl);
 }
 
 // 공용 sky/fog 톤 설정 — 무대 clear 색(= 지평선 fog)과 생명 fog 가 공유하는 단일 원본.
@@ -178,17 +180,40 @@ function setSkyFog(cfg) {
 // skyHorizon = fog 톤과 같은 색으로 만나 생명·무대가 이어진다. mood 에 skyTop/skyHorizon 이
 // 하나라도 있을 때만 돔을 세운다 — 없으면(구 sky 필드/무-mood) 기존 flat clear 거동 유지(회귀 안전).
 const SKY_VERT = 'varying vec3 vDir; void main(){ vDir = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }';
-const SKY_FRAG = 'uniform vec3 topC; uniform vec3 botC; varying vec3 vDir;\n' +
-	'void main(){ float h = pow(clamp(normalize(vDir).y, 0.0, 1.0), 0.5); gl_FragColor = vec4(mix(botC, topC, h), 1.0);\n' +
+// W-Q3 구름 — 그라데이션 하늘 위에 fbm 절차 구름. 시선을 하늘 평면에 투영(원근)해 천정에
+// 뭉게구름, 지평선으로 갈수록 소실(지평선 fog 톤과 충돌 방지). cloudCov 0 이면 구름 없음(회귀).
+const SKY_FRAG =
+	'uniform vec3 topC; uniform vec3 botC; uniform float cloudCov; varying vec3 vDir;\n' +
+	'float h21(vec2 p){ p = fract(p*vec2(123.34, 456.21)); p += dot(p, p+45.32); return fract(p.x*p.y); }\n' +
+	'float vn(vec2 p){ vec2 i=floor(p), f=fract(p); f=f*f*(3.0-2.0*f);\n' +
+	' float a=h21(i), b=h21(i+vec2(1.0,0.0)), c=h21(i+vec2(0.0,1.0)), d=h21(i+vec2(1.0,1.0));\n' +
+	' return mix(mix(a,b,f.x), mix(c,d,f.x), f.y); }\n' +
+	'float fbm(vec2 p){ float s=0.0, a=0.55; for(int i=0;i<5;i++){ s+=a*vn(p); p=p*2.03+7.1; a*=0.5; } return s; }\n' +
+	'void main(){\n' +
+	' vec3 dir = normalize(vDir);\n' +
+	' float hh = pow(clamp(dir.y, 0.0, 1.0), 0.5);\n' +
+	' vec3 sky = mix(botC, topC, hh);\n' +
+	' if (cloudCov > 0.001) {\n' +
+	'  float dy = max(dir.y, 0.06);\n' +
+	'  vec2 uv = dir.xz / dy * 1.05;\n' +         // 하늘 평면 투영 — 천정 뭉게, 지평선 늘어남(큰 puff)
+	'  float n = fbm(uv);\n' +
+	'  float thr = 0.90 - cloudCov * 0.55;\n' +   // 커버리지 ↑ → 임계 ↓ → 구름 ↑
+	'  float cov = smoothstep(thr, thr + 0.22, n);\n' +
+	'  float fade = smoothstep(0.04, 0.24, dir.y);\n' + // 지평선 근처 구름 소실
+	'  float cl = cov * fade;\n' +
+	'  vec3 cloudC = mix(vec3(0.62, 0.66, 0.74), vec3(1.0), smoothstep(0.45, 0.95, n));\n' + // 바닥 회색·윗면 흰색
+	'  sky = mix(sky, cloudC, cl);\n' +
+	' }\n' +
+	' gl_FragColor = vec4(sky, 1.0);\n' +
 	'#include <colorspace_fragment>\n}'; // 유니폼은 linear — colorspace_fragment 가 출력 sRGB 인코딩
 
-function applySky(top, horizon) {
+function applySky(top, horizon, cloud) {
 	init();
 	const tl = top.map(srgbToLinear), hl = horizon.map(srgbToLinear);
 	if (!skyMesh) {
 		const geo = new THREE.SphereGeometry(500, 24, 12);
 		const mat = new THREE.ShaderMaterial({
-			uniforms: { topC: { value: new THREE.Color() }, botC: { value: new THREE.Color() } },
+			uniforms: { topC: { value: new THREE.Color() }, botC: { value: new THREE.Color() }, cloudCov: { value: 0 } },
 			vertexShader: SKY_VERT, fragmentShader: SKY_FRAG,
 			side: THREE.BackSide, depthWrite: false, fog: false,
 		});
@@ -200,13 +225,14 @@ function applySky(top, horizon) {
 	skyMesh.visible = true;
 	skyMesh.material.uniforms.topC.value.setRGB(tl[0], tl[1], tl[2]);
 	skyMesh.material.uniforms.botC.value.setRGB(hl[0], hl[1], hl[2]);
+	skyMesh.material.uniforms.cloudCov.value = (cloud != null) ? cloud : 0; // 없으면 구름 없음(회귀)
 }
 
 // 게놈 mood → 하늘 돔 + fog. skyHorizon(없으면 구 sky/현 fog 톤)이 지평선·fog 의 단일 원본.
 function setMood(mood) {
 	mood = mood || {};
 	const horizon = mood.skyHorizon || mood.sky || skyFog.color;
-	if (mood.skyTop || mood.skyHorizon) applySky(mood.skyTop || horizon, horizon);
+	if (mood.skyTop || mood.skyHorizon) applySky(mood.skyTop || horizon, horizon, mood.cloud);
 	else if (skyMesh) skyMesh.visible = false; // mood 없는 새 월드로 전환 시 이전 돔 숨김
 	setSkyFog({ color: mood.fogColor || horizon, start: mood.fogStart, end: mood.fogEnd });
 }
@@ -230,25 +256,34 @@ async function loadTile(tx, tz, ring) {
 	// T5 수면 타일 — 이 타일에 수몰 셀이 있으면(null 아니면) 반투명 수면 메시를 함께 붙인다
 	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale) : null;
 	const waterUrl = waterBytes ? URL.createObjectURL(new File([waterBytes], 'water.ply')) : null;
+	// W-Q2b Bake 식생 — 근접 링(0)만 정적 나무·바위 스플랫(밀도 = 게놈 생명 층 `world.params.life`).
+	// 원경 링(1)은 굽지 않는다(LoD): fog(fogEnd=far 링 반경)로 소실되는 구간이라 예산을 아낀다.
+	const vegBytes = (ring === 0 && window.HktGenesisVegetation)
+		? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, {}) : null;
+	const vegUrl = vegBytes ? URL.createObjectURL(new File([vegBytes], 'veg.ply')) : null;
 	try {
 		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
 		await m.initialized;
-		let water = null;
+		let water = null, veg = null;
 		if (waterUrl) { water = new SplatMesh({ url: waterUrl, fileName: 'water.ply', lod: false }); await water.initialized; }
+		if (vegUrl) { veg = new SplatMesh({ url: vegUrl, fileName: 'veg.ply', lod: false }); await veg.initialized; }
 		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
 		if (desiredRing(tx, tz) !== ring) {
 			if (m.dispose) m.dispose(); URL.revokeObjectURL(url);
 			if (water && water.dispose) water.dispose(); if (waterUrl) URL.revokeObjectURL(waterUrl);
+			if (veg && veg.dispose) veg.dispose(); if (vegUrl) URL.revokeObjectURL(vegUrl);
 			return;
 		}
 		rig.add(m);
 		if (water) rig.add(water);
-		tiles.set(key, { mesh: m, water, url, waterUrl, ring });
+		if (veg) rig.add(veg);
+		tiles.set(key, { mesh: m, water, veg, url, waterUrl, vegUrl, ring });
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
 		URL.revokeObjectURL(url);
 		if (waterUrl) URL.revokeObjectURL(waterUrl);
+		if (vegUrl) URL.revokeObjectURL(vegUrl);
 	} finally {
 		tilePending.delete(key);
 	}
@@ -285,12 +320,13 @@ function updateTileCenter(wx, wz) {
 }
 
 function tileStats() {
-	let splats = 0, waterMeshes = 0, waterSplats = 0;
+	let splats = 0, waterMeshes = 0, waterSplats = 0, vegMeshes = 0, vegSplats = 0;
 	for (const t of tiles.values()) {
 		splats += (t.mesh.numSplats || 0);
 		if (t.water) { waterMeshes++; waterSplats += (t.water.numSplats || 0); }
+		if (t.veg) { vegMeshes++; vegSplats += (t.veg.numSplats || 0); }
 	}
-	return { meshes: tiles.size, splats, waterMeshes, waterSplats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
+	return { meshes: tiles.size, splats, waterMeshes, waterSplats, vegMeshes, vegSplats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
 }
 
 // 오빗 카메라 미러 + 리사이즈 + 렌더 — app.js 의 tick 에서 매 프레임 호출
