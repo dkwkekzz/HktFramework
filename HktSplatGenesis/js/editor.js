@@ -248,6 +248,11 @@
 		input.addEventListener('change', () => onChange(parseFloat(input.value) || 0));
 		return row;
 	}
+	// [0,1] rgb → #rrggbb (색 피커 초기값). 역변환은 hexToVec4(genes.js).
+	function vec3ToHex(c) {
+		const h = (x) => Math.max(0, Math.min(255, Math.round(x * 255))).toString(16).padStart(2, '0');
+		return '#' + h(c[0]) + h(c[1]) + h(c[2]);
+	}
 
 	function buildDetail() {
 		const d = $('detail');
@@ -262,9 +267,42 @@
 	}
 
 	// 지형 생성 파라미터 — 시드/진폭/기복/옥타브/범위 → [생성] 이 무대+collider 를 한 번에 굽는다
-	const terrParams = { seed: 8, amp: 0.9, scale: 3.0, octaves: 4, extent: 4.8, biomes: true, waterY: -0.2, biomeScale: 40 };
+	// W6 대기(mood) 는 terrParams 에 함께 실린다 — skyTop(천정)/skyHorizon(지평선). stage.setMood 로
+	// 무대 하늘 돔에 배선(지형과 무관한 상층). skyOn 으로 켜고 끈다.
+	const terrParams = { seed: 8, amp: 0.9, scale: 3.0, octaves: 4, extent: 4.8, biomes: true, waterY: -0.2, biomeScale: 40,
+		skyOn: true, mood: { skyTop: [0.28, 0.45, 0.72], skyHorizon: [0.68, 0.78, 0.86] } };
+	// 하늘 프리셋 — 빠른 무드 비교용 (맑음=컨셉 계열 진한 파랑, 황혼, 재)
+	const SKY_PRESETS = {
+		'맑음': { skyTop: [0.20, 0.45, 0.85], skyHorizon: [0.78, 0.87, 0.94] },
+		'황혼': { skyTop: [0.18, 0.15, 0.34], skyHorizon: [0.95, 0.55, 0.30] },
+		'재': { skyTop: [0.14, 0.10, 0.12], skyHorizon: [0.55, 0.24, 0.16] },
+	};
 	function buildTerrainDetail(d) {
 		d.appendChild(el('<h2>절차 지형 (시드 → 무대 + 시뮬 바닥)</h2>'));
+
+		// ── W1·W2·W4 월드 게놈: 프리셋 · 추출 JSON 로드 · 프로파일 검증 ──────────
+		// 게놈 하나가 바이옴 셋·팔레트·수역·relief·대기(mood)를 정한다. 프리셋(W1)이나 이미지에서
+		// 추출한 JSON(W4)을 불러오면 색족·성격이 통째로 바뀐다. 로드 시 W2 프로파일로 검증.
+		d.appendChild(el('<h2 style="margin-top:4px">월드 게놈 (W1·W2·W4)</h2>'));
+		const gPreset = el('<div class="inline"><label>프리셋</label></div>');
+		for (const name of Object.keys(HktGenesisTerrainGen.PRESETS)) {
+			const b = el(`<button style="margin-right:4px">${name}</button>`);
+			b.addEventListener('click', () => applyWorldGenome(HktGenesisTerrainGen.preset(name), name));
+			gPreset.appendChild(b);
+		}
+		d.appendChild(gPreset);
+		const gLoad = el('<div class="inline"><label>게놈 JSON</label><input type="file" accept=".json,application/json"></div>');
+		gLoad.querySelector('input').addEventListener('change', (e) => {
+			const f = e.target.files[0]; if (!f) return;
+			const r = new FileReader();
+			r.onload = () => { try { applyWorldGenome(JSON.parse(r.result), f.name); } catch (err) { setStatus('게놈 JSON 파싱 실패: ' + err.message); } };
+			r.readAsText(f);
+		});
+		d.appendChild(gLoad);
+		if (worldGenomeStatus)
+			d.appendChild(el(`<div class="note">게놈 <b>${worldGenomeStatus.label}</b>: ${worldGenomeStatus.ok ? '✅' : '⚠️'} ${worldGenomeStatus.text} · 바이옴 ${(terrParams.biomeSet || []).length || '기본'} · 범위↑ 로 바이옴 다양성 확인</div>`));
+		d.appendChild(el('<h2 style="margin-top:8px">지형 relief</h2>'));
+
 		const seedRow = el('<div class="inline"><label>시드</label><input type="number" step="1"><button>🎲</button></div>');
 		const seedInput = seedRow.querySelector('input');
 		seedInput.value = terrParams.seed;
@@ -287,6 +325,36 @@
 		d.appendChild(bioRow);
 		d.appendChild(sliderRow('바이옴 크기(m)', 15, 80, 1, terrParams.biomeScale, (v) => { terrParams.biomeScale = v; }));
 		d.appendChild(sliderRow('수위 Y', -0.7, 0.6, 0.05, terrParams.waterY, (v) => { terrParams.waterY = v; }));
+
+		// ── W6 대기(mood): 하늘 그라데이션 ─────────────────────────────────────
+		// 무대 하늘 돔(setMood)에 라이브 배선 — 색을 바꾸면 지형 재생성 없이 즉시 반영된다.
+		d.appendChild(el('<h2>하늘 (대기 mood)</h2>'));
+		const applyMood = () => { if (stage() && stage().enabled) stage().setMood(terrParams.skyOn ? terrParams.mood : {}); };
+		const skyOnRow = el('<div class="inline"><label><input type="checkbox"> 하늘 표시</label></div>');
+		skyOnRow.querySelector('input').checked = terrParams.skyOn;
+		skyOnRow.querySelector('input').addEventListener('change', (e) => { terrParams.skyOn = e.target.checked; applyMood(); });
+		d.appendChild(skyOnRow);
+		const skyRow = el('<div class="inline"><label>천정 / 지평선</label><input type="color" data-k="top" title="천정(하늘 위)"><input type="color" data-k="horizon" title="지평선(안개 톤)"></div>');
+		const topPick = skyRow.querySelector('[data-k="top"]'), horPick = skyRow.querySelector('[data-k="horizon"]');
+		topPick.value = vec3ToHex(terrParams.mood.skyTop);
+		horPick.value = vec3ToHex(terrParams.mood.skyHorizon);
+		topPick.addEventListener('input', () => { terrParams.mood.skyTop = hexToVec4(topPick.value).slice(0, 3); applyMood(); });
+		horPick.addEventListener('input', () => { terrParams.mood.skyHorizon = hexToVec4(horPick.value).slice(0, 3); applyMood(); });
+		d.appendChild(skyRow);
+		const skyPresetRow = el('<div class="inline"><label>프리셋</label></div>');
+		for (const [name, m] of Object.entries(SKY_PRESETS)) {
+			const b = el(`<button style="margin-right:4px">${name}</button>`);
+			b.addEventListener('click', () => {
+				terrParams.mood = { skyTop: m.skyTop.slice(), skyHorizon: m.skyHorizon.slice() };
+				terrParams.skyOn = true; skyOnRow.querySelector('input').checked = true;
+				topPick.value = vec3ToHex(m.skyTop); horPick.value = vec3ToHex(m.skyHorizon);
+				applyMood();
+			});
+			skyPresetRow.appendChild(b);
+		}
+		d.appendChild(skyPresetRow);
+		d.appendChild(el('<div class="note">천정→지평선 세로 그라데이션(월드 y 기준). 지형 생성 후 무대가 켜지면 보인다 — 색은 라이브 반영.</div>'));
+
 		const btns = el('<div class="inline"><button>지형 생성</button><button>지형 제거</button></div>');
 		btns.children[0].addEventListener('click', () => generateTerrain());
 		btns.children[1].addEventListener('click', () => clearTerrain());
@@ -499,6 +567,24 @@
 	// ── 지형 생성/제거 ─────────────────────────────────────────────────────
 	const stage = () => window.HktGenesisStage;
 	let lastCoverage = 0;
+	let worldGenomeStatus = null; // { label, ok, text } — 마지막 적용 게놈의 W2 프로파일 판정
+
+	// W1·W2·W4: 월드 게놈(프리셋 또는 추출 JSON)을 지형 파라미터로 적용한다. biomeSet/water/relief/
+	// mood 가 terrParams 에 실려 create(terrParams) → world(genome) 이 그대로 소비한다(창 파라미터
+	// seed/extent 는 유지). 적용 전 W2 스타일 프로파일로 검증해 판정을 패널에 남긴다(클램프 아님 — 표시).
+	function applyWorldGenome(src, label) {
+		const g = {}; for (const k in src) if (k[0] !== '_') g[k] = src[k]; // _meta 등 렌더 무관 키 제거
+		if (window.HktGenesisWorldProfile) {
+			const val = window.HktGenesisWorldProfile.validate(g);
+			worldGenomeStatus = { label, ok: val.ok, text: val.ok ? '프로파일 OK' : '반려: ' + val.violations.map((v) => v.field).join(', ') };
+		} else worldGenomeStatus = { label, ok: true, text: '(프로파일 검증기 미로드)' };
+		const keep = { seed: terrParams.seed, extent: terrParams.extent }; // 창 파라미터 유지
+		Object.assign(terrParams, g, keep);
+		if (!terrParams.mood) terrParams.mood = { skyTop: [0.28, 0.45, 0.72], skyHorizon: [0.68, 0.78, 0.86] };
+		terrParams.skyOn = true;
+		generateTerrain(); // create(terrParams) 가 biomeSet/water/mood 소비 — 끝에서 buildDetail 재빌드
+		setStatus(`월드 게놈 적용 — ${label} · ${worldGenomeStatus.text}`);
+	}
 	function generateTerrain(params) {
 		Object.assign(terrParams, params || {});
 		terrain = HktGenesisTerrainGen.create(terrParams);
@@ -510,6 +596,8 @@
 			const dens = Math.min(320, Math.round(160 * ext / 4.8));
 			const scale = 0.55 * (ext / 4.8) * (160 / dens);
 			stage().load(new File([terrain.plyBytes(dens, scale)], 'editor-terrain.ply'));
+			// W6: load() 는 하늘 돔을 숨기므로(단일 월드는 명시 적용) 여기서 mood 를 다시 켠다.
+			if (terrParams.skyOn && terrParams.mood) stage().setMood(terrParams.mood);
 		}
 		if (selection && selection.kind === 'terrain') buildDetail(); else buildTree();
 		setStatus(`지형 생성 — 시드 ${terrain.params.seed}`);
@@ -848,6 +936,8 @@
 	window.HktGenesisEditor = {
 		get ready() { return ready; },
 		generateTerrain, clearTerrain,
+		applyWorldGenome, // W1·W2·W4: 프리셋/추출 게놈 적용 (하니스/자동화)
+		get worldGenomeStatus() { return worldGenomeStatus; },
 		addObject, removeObject,
 		selectObject: (id) => select(id == null ? null : { kind: 'object', id }),
 		// A 트랙 개체별 애니메이션 제어 (하니스/자동화)
