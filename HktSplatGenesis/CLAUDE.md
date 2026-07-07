@@ -31,7 +31,6 @@
 - 블렌딩 premultiplied over: FS 출력 `vec4(rgb*B, B)` + (one, one-minus-src-alpha).
 - 렌더 VS 의 퇴화 처리: 컬 시 네 꼭짓점 동일 위치 반환 (discard 아님).
 - L6 살은 자리 스프링 + 친화 분포 + 임계 감쇠 전제 — 전역 SDF 최근접 추종·L2 인력 우세·저감쇠 중 무엇이든 살이 방울로 붕괴한다 (근거: [Docs/DESIGN.md](Docs/DESIGN.md), 함정 3종 상세: wgsl.js SIM L6 주석).
-- L6 뼈대는 **하나의 스켈레톤 정의를 여러 캐릭터가 참조** — 살 개체마다 제 위치에 인스턴스를 세우고 단일 `boneBuf` 에 이어붙인다. 개체 뼈 친화(`rest.w`)는 제 구간 `[boneBase, boneBase+count)` 의 절대 인덱스(공용 뼈로 뭉치던 버그의 해법). `MAX_BONES`(engine.js, 장면 전체 뼈 합계 상한 512) ↔ render 셰이더 `rest.w` clamp(511u) 동기 필수 (E2, [Docs/DESIGN.md](Docs/DESIGN.md)).
 
 ### 컨벤션
 
