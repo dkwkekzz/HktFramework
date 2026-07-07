@@ -88,9 +88,14 @@ export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
 export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
 export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
 // A6-5 아이템 = 결정체 장착: 아이템의 현재 잔고가 유효 스탯을 증폭한다(실재 에너지 읽기, 민팅 없음).
-export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (마모하면 증폭 감소)
+export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (누수로 잔고 줄면 증폭 감소)
 export const CRYSTAL_GATHER_DIVISOR = 10; // 결정 소지 시 잔고 10 당 채집 +1 (획득 증폭)
-export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
+// A9-2 엔트로픽 누수: 감가(옛 공격당 WEAPON_WEAR 상수)를 법칙으로 대체한다. 집중된 질서(아이템)는
+// 쓰지 않아도 자발적으로 SINK로 흩어진다 — 누수 = floor(잔고 × NUM/DEN)(shared/entropy.js). 손으로 쓴
+// 상수가 아니라 엔트로피. 매 틱이 아니라 주기로 양자화해 미러 대역폭을 지킨다. 소산분은 태양 순환이 되돌린다.
+export const DECAY_INTERVAL_TICKS = 50;  // 5초마다 엔트로픽 이완 (재충전과 같은 주기)
+export const ITEM_DECAY_NUM = 1;
+export const ITEM_DECAY_DEN = 50;        // 주기당 아이템 잔고의 2% 누수 (NUM/DEN ≤ 1/2)
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
 
@@ -170,6 +175,7 @@ export const CAUSE = {
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
   GROW: 'grow', CATABOLISM: 'catabolism', GIVE: 'give',
   MINE: 'mine', FORGE: 'forge',   // A8-1: 타입 채집(노드→창고) · 합성(창고+생체→아이템)
+  DECAY: 'decay',                 // A9-2: 엔트로픽 누수(아이템→SINK) — 질서의 자발적 소산
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

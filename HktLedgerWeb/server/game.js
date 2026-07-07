@@ -18,6 +18,7 @@ import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
+import { entropicLeak } from '../shared/entropy.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
@@ -27,7 +28,8 @@ import {
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
-  ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
+  DECAY_INTERVAL_TICKS, ITEM_DECAY_NUM, ITEM_DECAY_DEN,
+  ATTACK_RANGE, ATTACK_COST,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
   MATERIALS, STASH_MAX, MINE_AMOUNT, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
@@ -374,11 +376,10 @@ export class GameServer {
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
         let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id, 'atk')));
         if (weapon) {
-          // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
+          // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님).
           // A9-1: 위력은 오직 잔고 — 재료 종류는 배율에 개입하지 않는다(금 무기=돌 무기, 같은 잔고면 같음).
+          // A9-2: 공격당 마모(손으로 쓴 WEAPON_WEAR)는 제거 — 감가는 이제 엔트로픽 누수(주기 decay)가 담당한다.
           damage += weaponBonus(this.ledger.balance(weapon.id));
-          this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
-          if (this.ledger.balance(weapon.id) === 0) this.#destroyItem(weapon, p);
         }
 
         // 데미지 = 피격자 풀에서의 인출. 흡수분은 공격자에게, 잔여는 SINK 로.
@@ -650,6 +651,25 @@ export class GameServer {
           //   느리다 → 영토 가치의 공간 분포. 셀→노드 이체(클램프)라 민팅 없음·확산에 무너지지 않음.
           this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT * n.richness, CAUSE.REGEN, n);
         }
+      }
+    }
+
+    // 3c) 엔트로픽 누수 (A9-2) — 집중된 질서(아이템)는 쓰지 않아도 자발적으로 SINK로 흩어진다.
+    //   감가는 손으로 쓴 상수가 아니라 엔트로피 법칙: 누수 = floor(잔고 × NUM/DEN)(shared/entropy.js).
+    //   매 틱이 아니라 주기로 양자화해 미러 대역폭을 지킨다. 잔고 0 = 결정이 완전히 흩어짐 → 소멸.
+    //   소산분은 태양 순환(A6-0)이 되돌린다(보존). **소유 아이템만** 대상: region=null 이라 체크섬
+    //   무관하고 소유자 relevance 로 정확히 도달한다. 땅에 떨어진 전리품(region 有)은 relevancy/스냅샷
+    //   레이스(§3 🟡)에서 미materialize 클라가 region=null 로 물질화해 체크섬이 어긋나므로 제외한다.
+    if (this.tickCount % DECAY_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      for (const item of [...this.items.values()]) {
+        if (!item.owner) continue; // 땅 전리품은 제외 (위 주석 — relevancy 레이스 회피)
+        const bal = this.ledger.balance(item.id);
+        // 양자 바닥: mean-field 가 sub-1 흐름을 0으로 버려 잔여가 고이는 걸, "요동이 마지막 양자를
+        // 흩는다"는 결정론적 대역으로 최소 1 보장 → 손 안 댄 질서는 결국 완전히 소산한다.
+        const leak = Math.max(entropicLeak(bal, ITEM_DECAY_NUM, ITEM_DECAY_DEN), bal > 0 ? 1 : 0);
+        if (leak <= 0) continue;
+        this.#tx(item.id, POOL.SINK, leak, CAUSE.DECAY); // 소유자 relevance(item owner check)로 도달
+        if (this.ledger.balance(item.id) === 0) this.#destroyItem(item);
       }
     }
 

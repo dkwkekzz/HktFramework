@@ -14,6 +14,7 @@ const CAUSE_LABEL = {
   'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
   'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
   'upkeep': '대사', 'recycle': '순환', 'grow': '성장', 'catabolism': '이화', 'give': '증여',
+  'mine': '채굴', 'forge': '합성', 'decay': '소산',
 };
 
 function poolLabel(state, id) {

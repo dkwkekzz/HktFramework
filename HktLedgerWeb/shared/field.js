@@ -16,6 +16,7 @@ import {
   POOL, CAUSE, FIELD_GRID, FIELD_CELL_MAX,
   FIELD_DIFFUSE_NUM, FIELD_DIFFUSE_DEN,
 } from './constants.js';
+import { relaxGradient } from './entropy.js';
 
 export function fieldCellId(cx, cy) { return `${POOL.CELL}${cx}_${cy}`; }
 
@@ -53,14 +54,8 @@ export function diffuseTick(ledger, {
   return moved;
 }
 
-// 간선 하나의 흐름 — 높은 셀 → 낮은 셀. NUM/DEN ≤ 1/2 이므로 평형을 넘지 않는다.
+// 간선 하나의 흐름 — 높은 셀 → 낮은 셀. A9: 엔트로픽 이완 커널(relaxGradient)의 특수해다.
+// 필드 확산은 "흐름=엔트로피" 공리의 최초 원시함수였고, 이제 그 커널을 공유한다(한 법칙).
 function flow(ledger, ax, ay, bx, by, num, den) {
-  const aId = fieldCellId(ax, ay), bId = fieldCellId(bx, by);
-  const grad = ledger.balance(aId) - ledger.balance(bId);
-  if (grad === 0) return 0;
-  const amount = Math.floor(Math.abs(grad) * num / den);
-  if (amount <= 0) return 0;
-  return grad > 0
-    ? ledger.transfer(aId, bId, amount, CAUSE.DIFFUSE)
-    : ledger.transfer(bId, aId, amount, CAUSE.DIFFUSE);
+  return relaxGradient(ledger, fieldCellId(ax, ay), fieldCellId(bx, by), num, den, CAUSE.DIFFUSE);
 }

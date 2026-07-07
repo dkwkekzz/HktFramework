@@ -20,7 +20,10 @@ import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherSt
 import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
   MATERIALS, MINE_AMOUNT, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
+  DECAY_INTERVAL_TICKS, ITEM_DECAY_NUM, ITEM_DECAY_DEN,
 } from '../shared/constants.js';
+import { EnergyLedger } from '../shared/ledger.js';
+import { entropicLeak, relaxGradient } from '../shared/entropy.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
@@ -1027,6 +1030,76 @@ test('A9-1 가치 단일화 — 위력은 오직 에너지(재료 라벨 무관)
   assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
 
   console.log(`    [A9-1] div 제거·weaponBonus(잔고) 재료 무관 +${weaponBonus(FORGE_ITEM_MAX)} · 노드 분포 흔함 ${common} > 희소 ${rare}(희소성=분포) · 총합 ${game.ledger.totalSum()} 불변`);
+});
+
+test('A9-2 엔트로픽 누수 — 손 안 댄 질서(아이템)는 SINK로 자발 이완·결국 완전 소산 (커널 통일·보존)', () => {
+  // (0) 순수 커널: 누수 = floor(잔고 × num/den) · relaxGradient 는 높은 쪽 → 낮은 쪽(필드 확산과 한 법칙).
+  assert.equal(entropicLeak(1000, ITEM_DECAY_NUM, ITEM_DECAY_DEN), 20, '1000의 2% = 20');
+  assert.equal(entropicLeak(49, 1, 50), 0, 'sub-1 흐름은 mean-field 에서 0 (양자 바닥은 호출측 책임)');
+  const L = new EnergyLedger();
+  L.createPool('a', 100, 1000); L.createPool('b', 20, 1000);
+  assert.equal(relaxGradient(L, 'a', 'b', 1, 4, 'diffuse'), 20, 'grad 80 → floor(80/4)=20');
+  assert.equal(L.balance('a'), 80); assert.equal(L.balance('b'), 40, '높은 쪽 → 낮은 쪽');
+
+  const { game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+
+  // 결정(잔고 100) 응축 — 이후 아무것도 안 한다(손 안 댐).
+  intent(a.player, INTENT.CONDENSE, {}, 'c1');
+  game.tick();
+  const crystal = [...game.items.values()][0];
+  assert.equal(bal(crystal.id), CRYSTAL_COST);
+
+  // (1) 한 감쇠 주기 — 손 안 댄 결정이 SINK로 이완. 누수 = max(floor(100/50),1)=2.
+  while (game.tickCount === 0 || game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick();
+  const before = bal(crystal.id);
+  game.tick(); // 진입 tickCount = 50의 배수 → 감쇠 발화
+  const leaked = before - bal(crystal.id);
+  assert.equal(leaked, Math.max(Math.floor(before / ITEM_DECAY_DEN), 1), '아이템 엔트로픽 누수 = floor(잔고/DEN)(양자 바닥 1)');
+  assert.ok(leaked > 0, '손 안 댔는데도 감소(엔트로피)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '누수 후 총합 보존');
+  // 소유자에게 누수 tx(decay) 방송 — 미러가 재생할 수 있다.
+  const decayTx = a.conn.msgs.flatMap(m => m.t === MSG.OPS ? m.ops : []).find(o => o.op === 'tx' && o.cause === 'decay' && o.from === crystal.id);
+  assert.ok(decayTx, '소유자에게 누수 tx(decay) 방송');
+
+  // (2) 결국 완전 소산 — 잔고를 1로 몰아넣고 한 주기 더 돌리면 흩어져 사라진다(소멸).
+  game.ledger.transfer(crystal.id, POOL.SINK, bal(crystal.id) - 1, 'test'); // 잔고 1 (SINK로 — 보존)
+  while (game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick();
+  game.tick(); // 감쇠 발화 → leak=max(0,1)=1 → 0 → 소멸
+  assert.ok(!game.items.has(crystal.id), '완전 소산한 결정은 소멸(원장에서도 제거)');
+  const goneEv = a.conn.msgs.flatMap(m => m.t === MSG.OPS ? m.ops : []).find(o => o.op === 'event' && o.kind === 'item-gone' && o.id === crystal.id);
+  assert.ok(goneEv, '소멸 시 소유자에게 item-gone');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '소멸 후에도 총합 보존');
+
+  console.log(`    [A9-2] 아이템 누수 ${before}→${before - leaked}(=${leaked}·감가=엔트로피) · 손 안 댄 질서 결국 소멸 · WEAPON_WEAR 상수 제거 · 총합 ${total()} 불변`);
+});
+
+test('A9-2 미러 정합 — 엔트로픽 누수 tx 재생 후 아이템 잔고·지역 체크섬 일치', () => {
+  const { game, join, intent } = setup();
+  const a = join('A');
+  game.tick();
+  intent(a.player, INTENT.CONDENSE, {}, 'c1');
+  game.tick();
+  const crystal = [...game.items.values()][0];
+
+  // 여러 감쇠 주기 경과 (전부 mirrored decay tx) → 체크섬 틱까지 진행
+  for (let i = 0; i < 3; i++) { while (game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick(); game.tick(); }
+  while (game.tickCount % 30 !== 1) game.tick();
+
+  const client = new ClientState();
+  const resyncs = [];
+  client.onResync = (keys) => resyncs.push(...keys);
+  for (const msg of a.conn.msgs) client.handle(msg);
+
+  assert.ok(game.ledger.balance(crystal.id) < CRYSTAL_COST, '누수로 잔고 감소했다');
+  assert.equal(client.ledger.balance(crystal.id), game.ledger.balance(crystal.id), '누수 후 아이템 잔고 정합');
+  for (const key of a.player.regions) {
+    assert.equal(client.ledger.regionSum(key), game.ledger.regionSum(key), `지역 ${key} 체크섬 정합`);
+  }
+  assert.equal(resyncs.length, 0, '재동기화 불필요');
+  assert.equal(client.checksumStatus, 'OK');
 });
 
 test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {
