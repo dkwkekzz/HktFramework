@@ -80,6 +80,9 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
 - `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
   지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
   개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
+  A1e: 살 개체 디테일에 `입력 상태 머신 사용` 토글 — 켠 개체는 `o.anim`(제 AnimationController+
+  CharacterInput+Skeleton 인스턴스)로 독립 구동, 끈 개체는 공용 클립. `concatInstances(sharedRaw,dt)`
+  가 개체별로 anim/공용 포즈를 골라 이어붙인다. 정의(게놈·리그) 공용이라 세그 순서 동일 = 친화 호환.
 - `js/terrain-gen.js` — 절차 지형 (T1): 순수 무한 도메인 `world(x,z)` → 무대 PLY + collider
   삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
   + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는

@@ -279,6 +279,15 @@ skeleton.js·app.js·index.html·`test/_common.js` 배선. C·R 트랙과 독립
   구동 세그먼트 위 살 배양 사진. 회귀: genome-shot(세그먼트 bit-exact 0)·app-smoke 무영향.
   한계: built-in↔FBX 소스 전환은 하드 컷(친화 재시드) — 같은 소스 안에서만 크로스페이드. 이동
   루트모션(발 미끄러짐)은 제자리 데모라 미대응(단일 스켈레톤 범위). 다개체 상태 머신은 C7 합류.
+- ✅ **A1e — 에디터 개체별 애니 토글**: 살(fleshK) 개체 디테일 패널에 `입력 상태 머신 사용`
+  체크박스 — 켠 개체만 제 컨트롤러(입력→상태→클립)로 독립 구동하고, 끈 개체는 장면 공용 클립
+  (타임라인)을 따른다. 개체별 `이동 강도` 슬라이더(→moveMag)로 idle→walk→run 전이, 점프·인사
+  버튼(트리거). 개체마다 제 Skeleton 인스턴스지만 정의(게놈·리그)는 공용이라 세그먼트 순서가
+  같아 친화 호환(애니 개체는 제 컨트롤러 bind 로 시드 → 공용 클립이 external 이어도 정합).
+  하니스 API `setObjectAnim`/`setObjectMove`/`triggerObject` + `debug().flesh[].anim`. 검증:
+  `node test/editor-anim-shot.js` — 히키토 2개 중 우측만 애니 ON(이동 1.0→run)·좌측 공용 idle,
+  ① 데이터(우 anim='run'·좌 anim=null·서로 다른 boneBase) ② 좌/우 분리 렌더 ③ 하체폭 run>idle
+  (다리 스트라이드) 사진. 회귀: editor-shot·editor-multi-hikito 무영향(anim 필드 하위호환).
 
 ## R5 — 엔진 일반 큐 (L6 무관, 독립)
 
