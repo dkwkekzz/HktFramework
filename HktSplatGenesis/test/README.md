@@ -32,7 +32,8 @@ npm install                # playwright (브라우저 포함)
 | `node world-pan-shot.js [out.png] [seed=7]` | T2 청크 스트리밍 — index.html 에서 타일 월드를 켜고 카메라 +x 직진, 타일 교체(합집합>25)+메시·스플랫 상한 유지(O(시야반경))+중앙밴드 지형 100%(이음새 틈 없음) 판정 사진 |
 | `node terrain-bubble-shot.js [follow.png] [fixed.png]` | T3 버블 y 추종 — ① 버킷 인덱스 O(창) 베이크가 나이브 bake 와 diff 0(순수 Node) + ② 원점 ≈70u 3m 분지에서 침투 0%·계곡 바닥 정착·L2 생존(확산 vs 버블 고정 대조군) 판정 사진 |
 | `node world-genome.js [seed=7]` | W1 월드 게놈의 데이터화(순수 Node) — ① temperate 프리셋 경유가 현행 플랫 기본과 height/color/biome diff 0(회귀) + ② ashen 프리셋이 평균색거리>0.08·육상 바이옴 완전 분리(다채로움) |
-| `node preset-shot.js <preset> [out.png] [seed=7]` | W1 시각 — 이름 붙은 월드 프리셋(게놈)을 즉석 파노라마로 Spark 렌더(예: `ashen` = 용암능선/재사구). biome-shot 렌더 절반의 프리셋 일반화, W3 concept-shot 원형 |
+| `node preset-shot.js <preset\|genome.json> [out.png] [seed]` | W1/W4 시각 — 내장 프리셋 또는 게놈 JSON(추출물)을 즉석 파노라마로 Spark 렌더(예: `ashen`, `tools/world-extract/genomes/breeze-meadow.json`). JSON 게놈은 렌더 전 W2 프로파일 검증. biome-shot 렌더 절반의 일반화, W3 concept-shot 원형 |
+| `node world-profile.js` | W2 스타일 프로파일(순수 Node) — ① temperate·ashen·최소 게놈·W4 v0 게놈이 울타리 통과 + ② 극단 게놈(과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·과ampMul) 반려(위반 필드 확인) |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

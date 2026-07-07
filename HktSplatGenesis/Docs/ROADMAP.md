@@ -132,10 +132,10 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 
 ## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
 
-상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1
-완료, 다음은 W2. 여기서 단계를 관리). C 트랙(이미지→캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을
-월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립,
-W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
+상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1·W2
+완료 + W4 v0(수동) 실증, 다음은 W3(concept-shot 정식화) 또는 W4 자동화. 여기서 단계를 관리). C 트랙(이미지→
+캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
+트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
 
 - ✅ **W1 — 월드 게놈의 데이터화**: `terrain-gen.js` 의 하드코딩 `BIOMES`/`WATER_COL` 을 게놈 필드로
   승격 — `world(genome)` 이 `genome.biomeSet`/`water` 를 있으면 소비, 없으면 기본 프리셋. `WATER_ID` 는
@@ -146,8 +146,13 @@ W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
   바이옴 완전 분리(다채로움). `node test/biome-shot.js`(회귀, 연속성 diff 0·렌더색족 4/4·exit 0) +
   `node test/preset-shot.js ashen`(용암능선 파노라마 사진). 남김: 대기·생명은 W6·W5, 스타일 프로파일
   검증기는 W2.
-- **W2 — 월드 스타일 프로파일**: 진폭·바이옴 수·채도·수위 울타리 + `validate(genome)` 검증기(반려).
-  완료 기준: 프로파일 안 통과·극단 반려 판정 하니스.
+- ✅ **W2 — 월드 스타일 프로파일**: `js/world-profile.js`(`HktGenesisWorldProfile`) — 진폭·기복·바이옴
+  수·ampMul·채도(상한만, 설선 저채도 허용)·수위(relief 포락 동적)·바이옴 중심 최소 거리 울타리 +
+  `validate(genome)→{ok, violations}`. 벗어난 값은 클램프가 아니라 반려(이상치 재추출, C 트랙 원칙).
+  존재하는 필드만 검사(생략=기본 프리셋 폴백=위반 아님). `preset-shot.js` 가 JSON 게놈을 렌더 전
+  검증(판정에 프로파일 포함). 검증: `node test/world-profile.js`(순수 Node, 10/10) — ① temperate·
+  ashen·최소 게놈·W4 v0 breeze-meadow 전부 통과 + ② 과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·
+  과ampMul 반려(위반 필드 확인).
 - **W3 — 컨셉 검증 하니스**: `test/concept-shot.js` — 게놈 → 대조용 대표 파노라마. 완료 기준: 규격 PNG 산출.
 - 🚧 **W4 — 이미지 → 월드 게놈 추출기 v0** (부분): `tools/world-extract/` 거처 신설 + `preset-shot.js` 가
   게놈 JSON 파일 경로를 받도록 일반화(W4 산출물 렌더 경로). **수동 v0 실증**: LLM vision 이 스타일라이즈드

@@ -10,6 +10,7 @@ const fs = require('fs');
 const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
 const T = require('../js/terrain-gen.js');
+const WP = require('../js/world-profile.js');
 
 const ARG = process.argv[2] || 'ashen';
 const IS_JSON = ARG.endsWith('.json');
@@ -28,6 +29,14 @@ if (IS_JSON) {
 }
 // 게놈 → 파노라마 PLY (즉석). biomeSet/water/relief 전부 게놈에서. genome.seed 가 있으면 우선.
 const genome = Object.assign({ seed: SEED, extent: EXT }, src);
+
+// W2: 게놈이 스타일 프로파일 울타리 안인지 검증 (JSON 추출물 전용 — 내장 프리셋은 통과 자명).
+let profileOk = true;
+if (IS_JSON) {
+	const val = WP.validate(genome);
+	profileOk = val.ok;
+	console.log(`[${LABEL}] 스타일 프로파일: ${val.ok ? 'OK' : '반려 ' + JSON.stringify(val.violations)}`);
+}
 const W = T.world(genome);
 const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
 
@@ -99,8 +108,8 @@ const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
 	const m = shot.mean.map((v) => Math.round(v));
 	console.log(`저장: ${OUT} · 지형 픽셀 ${shot.land} · 렌더 평균 RGB [${m.join(',')}]`);
 	const real = errors.filter((e) => !e.includes('404'));
-	const ok = shot.land > 40000 && real.length === 0;
-	console.log(`판정: 렌더 픽셀 충분 ${shot.land > 40000} · 콘솔오류 ${real.length} → ${ok ? 'OK' : '실패'}`);
+	const ok = shot.land > 40000 && real.length === 0 && profileOk;
+	console.log(`판정: 렌더 픽셀 충분 ${shot.land > 40000} · 콘솔오류 ${real.length} · 프로파일 ${profileOk} → ${ok ? 'OK' : '실패'}`);
 	if (real.length) console.error('콘솔 오류:', real);
 	await browser.close();
 	server.close();

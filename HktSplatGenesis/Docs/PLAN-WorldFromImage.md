@@ -1,6 +1,6 @@
 # PLAN — 이미지 컨셉 → 월드 (W 트랙: 한 이미지에서 유사한 상호작용 월드)
 
-상태: **진행 중 (2026-07)** — W1(월드 게놈의 데이터화) 완료, 다음은 W2. 단계 큐·현황은 [ROADMAP.md](ROADMAP.md) W 트랙에서 관리한다.
+상태: **진행 중 (2026-07)** — W1(게놈 데이터화)·W2(스타일 프로파일) 완료 + W4 v0(수동 추출) 실증. 단계 큐·현황은 [ROADMAP.md](ROADMAP.md) W 트랙에서 관리한다.
 전제가 되는 월드 함수·스트리밍은 [PLAN-OpenWorldTerrain.md](PLAN-OpenWorldTerrain.md)(T 트랙), 같은 방법론의 캐릭터 판은
 [PLAN-CharacterGenesis.md](PLAN-CharacterGenesis.md)(C 트랙), 2층 세계 결정은 [PLAN-SparkTerrain.md](PLAN-SparkTerrain.md)·[DESIGN.md](DESIGN.md).
 
