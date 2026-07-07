@@ -7,7 +7,7 @@
       "meadow": "지배 바이옴 — 밝고 채도 높은 풀색, 완만한 기복(ampMul 낮음)",
       "highland": "회청 암석 대지/절벽 — 높은 ampMul + 중간 ridged 로 솟은 대지, 설선 없이 밝은 회색까지만",
       "shore": "물가·마른 흙 패치의 따뜻한 탄색 — 소수 비중",
-      "water": "청록(shallow)→남색(deep), waterY 를 올려 전경 호수·만이 크게 차게",
+      "water": "청록(shallow)→남색(deep). waterY 는 저주파 분지(macro)가 잠기는 높이 — base(0.5) 아래로 충분히 올려(0.18) 넓은 초원에 연결된 호수들이 고이게 한다. 구 0.06 은 base 대비 너무 낮아 물이 안 차고, 게다가 macro 게이팅 전엔 고주파 요철마다 파란 얼룩(speckle)이 흩뿌려졌다.",
       "mood": "원경 옅은 파란 하늘·구름(W6) — skyTop 하늘색→skyHorizon 옅은 회청 지평선"
     }
   },
@@ -21,7 +21,7 @@
   "warpScale": 9,
   "biomeScale": 40,
   "biomeSharp": 20,
-  "waterY": 0.06,
+  "waterY": 0.18,
   "water": { "shallow": [0.30, 0.64, 0.68], "deep": [0.10, 0.30, 0.52] },
   "biomeSet": [
     { "id": 0, "key": "meadow", "name": "초원", "temp": 0.52, "humid": 0.55, "ampMul": 0.55, "scaleMul": 1.00, "ridged": 0.06, "warpMul": 0.50,

@@ -183,9 +183,12 @@
 
 		const _w = new Array(BIOMES.length), _p = [0, 0];
 
-		// relief [-보정]: 바이옴 파라미터로 fBm + ridged 혼합. 순수(클램프 없음).
-		function reliefAt(x, z) {
-			if (!P.biomes) return fbm(x / P.scale, z / P.scale, P.seed, P.octaves) * P.amp;
+		// relief 코어 — oct(옥타브 수)·withRidged(능선 혼합 여부)·scaleBoost(파장 배수)를 받아
+		// 한 함수로 통일한다. reliefAt(실 지형) 은 전 옥타브+능선, macroReliefAt(수문 포락) 은
+		// 저옥타브·능선 제거·긴 파장(분지 규모).
+		function reliefCore(x, z, oct, withRidged, scaleBoost) {
+			scaleBoost = scaleBoost || 1;
+			if (!P.biomes) return fbm(x / (P.scale * scaleBoost), z / (P.scale * scaleBoost), P.seed, oct) * P.amp;
 			const c = climate(x, z);
 			const w = biomeWeights(c[0], c[1], _w);
 			let ampMul = 0, scaleMul = 0, ridgedMul = 0, warpMul = 0;
@@ -195,11 +198,30 @@
 				ridgedMul += w[i] * b.ridged; warpMul += w[i] * b.warpMul;
 			}
 			warp(x, z, warpMul, _p);
-			const sc = P.scale * scaleMul;
-			const base = fbm(_p[0] / sc, _p[1] / sc, P.seed, P.octaves);          // [-1,1]
-			const rdg = ridgedFbm(_p[0] / sc, _p[1] / sc, P.seed + 47, P.octaves) * 2 - 1; // [-1,1]
-			const relief = mix(base, rdg, ridgedMul);
+			const sc = P.scale * scaleMul * scaleBoost;
+			const base = fbm(_p[0] / sc, _p[1] / sc, P.seed, oct);                  // [-1,1]
+			let relief = base;
+			if (withRidged) {
+				const rdg = ridgedFbm(_p[0] / sc, _p[1] / sc, P.seed + 47, oct) * 2 - 1; // [-1,1]
+				relief = mix(base, rdg, ridgedMul);
+			}
 			return P.base + relief * P.amp * ampMul;
+		}
+
+		// relief [-보정]: 바이옴 파라미터로 fBm + ridged 혼합. 순수(클램프 없음).
+		function reliefAt(x, z) { return reliefCore(x, z, P.octaves, true, 1); }
+
+		// 저주파 '수문(hydrology)' 포락 — 물 판정 보조. 능선(ridged) 협곡의 물(temperate 호수)도
+		// 잡히도록 ridged 를 포함하되 옥타브를 2로 줄여 고주파만 걷어낸다. 파장은 reliefAt 과
+		// 동일(scaleBoost 1)해야 실제 분지와 정렬된다.
+		function macroReliefAt(x, z) { return reliefCore(x, z, 2, true, 1); }
+
+		// 수몰 판정 — ① 실 지형이 수위 밑(물리적으로 맞는 조건) & ② 저주파 macro 가 수위 근처
+		// 이하(분지 소속). ②가 없으면 높은 지대의 고립 고주파 웅덩이가 파란 얼룩(speckle)으로
+		// 흩뿌려지고, ②만으론 능선 협곡 물이 사라진다(회귀). margin(진폭 비례)이 물가를 남기되
+		// 외딴 pit(주변 macro 가 훨씬 높은 곳)은 배제한다. 색·높이는 실 reliefAt·평평한 수면(bakers).
+		function isWater(x, z) {
+			return macroReliefAt(x, z) < P.waterY;
 		}
 
 		function heightAt(x, z) { return reliefAt(x, z); }             // 순수 원본
@@ -211,15 +233,18 @@
 			const w = biomeWeights(c[0], c[1], _w);
 			let bi = 0; for (let i = 1; i < BIOMES.length; i++) if (w[i] > w[bi]) bi = i;
 			const y = reliefAt(x, z);
-			if (y < P.waterY) return { id: WATER_ID, key: 'water', name: '수역', temp: c[0], humid: c[1], height: y };
+			if (isWater(x, z)) return { id: WATER_ID, key: 'water', name: '수역', temp: c[0], humid: c[1], height: y };
 			return { id: BIOMES[bi].id, key: BIOMES[bi].key, name: BIOMES[bi].name, temp: c[0], humid: c[1], height: y };
 		}
 
 		// 색 — 바이옴 팔레트를 가중 혼합(경계 연속) + 고도 램프 + 수역 심도 색
 		function colorAt(x, z, y) {
 			if (y == null) y = reliefAt(x, z);
-			if (y < P.waterY) {
-				const d = clamp01((P.waterY - y) / 0.8);
+			if (isWater(x, z)) {
+				// 심도는 **실제 바닥**(reliefAt) 기준 — bakers 가 y 를 수면(waterY)으로 넘겨도
+				// 얕은 물가→깊은 중앙 색이 살아 있게 한다.
+				const bed = reliefAt(x, z);
+				const d = clamp01((P.waterY - bed) / 0.8);
 				return [mix(WATER_COL.shallow[0], WATER_COL.deep[0], d),
 					mix(WATER_COL.shallow[1], WATER_COL.deep[1], d),
 					mix(WATER_COL.shallow[2], WATER_COL.deep[2], d)];
@@ -268,7 +293,9 @@
 				const jz = latticeHash(cellX, cellZ, P.seed + 2609) - 0.5;
 				const x = (cellX + 0.5) * cell + jx * cell * 0.8;
 				const z = (cellZ + 0.5) * cell + jz * cell * 0.8;
-				const y = height(x, z);
+				// 수역 셀은 평평한 수면(y=waterY)으로 — 분지 바닥 요철을 수면 아래로 잠근다(연결 호수)
+				const water = isWater(x, z);
+				const y = water ? P.waterY : height(x, z);
 				const rgb = colorAt(x, z, y);
 				const jc = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.05;
 				put(x); put(y); put(z); put(0); put(0); put(0);
@@ -300,7 +327,7 @@
 					const jz = latticeHash(cellX, cellZ, P.seed + 2609) - 0.5;
 					const x = (cellX + 0.5) * cell + jx * cell * 0.8;
 					const z = (cellZ + 0.5) * cell + jz * cell * 0.8;
-					if (reliefAt(x, z) >= P.waterY) continue; // 마른 셀 — 수면 없음
+					if (!isWater(x, z)) continue; // 마른 셀 — 수면 없음(연결 분지만)
 					cells.push([x, z, reliefAt(x, z)]);
 				}
 			if (!cells.length) return null;
@@ -336,7 +363,7 @@
 		}
 
 		return {
-			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly, waterTilePly,
+			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}
@@ -389,7 +416,8 @@
 				const gx = i % G, gz = (i / G) | 0;
 				const x = cx - spread + 2 * spread * (gx + jitterHash(i * 3) - 0.5) / (G - 1);
 				const z = cz - spread + 2 * spread * (gz + jitterHash(i * 3 + 1) - 0.5) / (G - 1);
-				const y = height(x, z);
+				// 수역 셀은 평평한 수면(y=waterY) — 연결 호수(분지 바닥 요철 잠김)
+				const y = W.isWater(x, z) ? W.waterY : height(x, z);
 				const rgb = W.colorAt(x, z, y);
 				const j = (jitterHash(i * 7) - 0.5) * 0.05;
 				put(x); put(y); put(z); put(0); put(0); put(0);
