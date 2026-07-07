@@ -15,6 +15,7 @@ import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
+import { attackBonus, upkeepFor } from '../shared/growth.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
@@ -438,6 +439,51 @@ test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아�
   assert.equal(game.ledger.get(structId), undefined, '구조 풀 제거');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이탈 환원도 보존');
   console.log(`    [A6-2] 성장 player→STRUCT 120 · 사망/리스폰 지속(영구)·이탈 환원 SINK · 총합 ${total()} 불변`);
+});
+
+test('A6-3 스탯 = 흐름 계수 — 구조가 공격력·대사를 키운다 (구조의 함수·보존)', () => {
+  // 순수 함수: 단조 증가·결정론
+  assert.ok(attackBonus(1000) > attackBonus(0), '구조↑ → 공격 보너스↑');
+  assert.ok(upkeepFor(1000) > upkeepFor(0), '구조↑ → 대사 비용↑');
+  assert.equal(attackBonus(500), attackBonus(500), '결정론');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const atk = join('ATK');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const refill = (id) => game.ledger.transfer(POOL.SOURCE, id, PLAYER_MAX_ENERGY - bal(id), 'test');
+
+  // 공격자를 구조 800 으로 성장 (만충 후 예치 → 자유 200 남김)
+  refill(atk.player.id);
+  intent(atk.player, INTENT.GROW, { amount: 800 }, 'grow');
+  game.tick();
+  const structId = POOL.STRUCT + atk.player.id;
+  assert.equal(bal(structId), 800);
+
+  // (1) 공격력 = 구조의 함수 — 데미지 = canonical + 구조 보너스 (피격자 클램프 내)
+  warp(atk.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  refill(tgt.player.id);
+  const before = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(atk.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, atk.player.id, 1) + attackBonus(800),
+    '데미지 = canonical + 구조 공격 보너스');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (2) 대사 비용 = 구조의 함수 — 구조 큰 ATK 가 구조 0 TGT 보다 더 많이 지불
+  while (game.tickCount % UPKEEP_INTERVAL_TICKS !== 0) game.tick(); // upkeep 경계 직전(tickCount 배수)
+  refill(atk.player.id); refill(tgt.player.id);
+  const atkB = bal(atk.player.id), tgtB = bal(tgt.player.id);
+  game.tick(); // upkeep 발생
+  assert.equal(atkB - bal(atk.player.id), upkeepFor(800), '구조 큰 쪽 대사 = upkeepFor(800)');
+  assert.equal(tgtB - bal(tgt.player.id), upkeepFor(0), '구조 0 쪽 = 기본 대사');
+  assert.ok(upkeepFor(800) > upkeepFor(0), '성장은 공짜가 아니다 — 큰 몸일수록 유지비↑');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-3] 구조 800 → 공격 +${attackBonus(800)}·대사 ${upkeepFor(0)}→${upkeepFor(800)} · 데미지 클램프·총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

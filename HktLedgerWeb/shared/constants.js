@@ -39,6 +39,9 @@ export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향
 // 자유 에너지의 질서화다(총합 불변). 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
 export const STRUCT_MAX = 10_000;        // 구조 풀 용량 상한 (성장 여지)
 export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg.amount 로 재정의 가능)
+// A6-3 스탯 = 흐름 계수: 스탯은 저장 숫자가 아니라 구조 예치의 결정론 함수 (shared/growth.js).
+export const GROWTH_ATK_DIVISOR = 100;    // 구조 100 당 공격 +1 (피격자 클램프 내)
+export const GROWTH_UPKEEP_DIVISOR = 200; // 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
 
 // --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
 // 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수

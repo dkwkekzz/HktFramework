@@ -17,11 +17,12 @@ import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
+import { attackBonus, upkeepFor } from '../shared/growth.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
-  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
+  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
@@ -335,8 +336,9 @@ export class GameServer {
         p.cooldownUntil = nowMs + ATTACK_COOLDOWN_MS;
 
         // 무기 = 응축 에너지. 내구도 소모도 그저 이체다.
+        // A6-3: 구조 예치가 공격력을 키운다(흐름 계수) — 데미지는 여전히 피격자 풀로 클램프.
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
-        let damage = base;
+        let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id)));
         if (weapon) {
           damage += WEAPON_BONUS;
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
@@ -482,7 +484,9 @@ export class GameServer {
     if (this.tickCount % UPKEEP_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       for (const p of this.players.values()) {
         if (p.dead) continue;
-        this.#tx(p.id, POOL.SINK, UPKEEP_AMOUNT, CAUSE.UPKEEP);
+        // A6-3: 대사 비용 = 구조의 함수 (큰 질서일수록 더 갈구)
+        const upkeep = upkeepFor(this.ledger.balance(this.#structId(p.id)));
+        this.#tx(p.id, POOL.SINK, upkeep, CAUSE.UPKEEP);
         if (this.ledger.balance(p.id) === 0) this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
       }
     }
