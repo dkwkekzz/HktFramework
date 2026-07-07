@@ -182,6 +182,23 @@ concept-shot 파노라마 vs 원본 이미지 대조 → 게놈 확정·저장·
 - 월드 게놈 ④ 대기 층 = fog·스카이·수면 톤. 무대(three fog)·생명(렌더 셰이더) 공용 파라미터.
 - **완료 기준**: 이미지의 무드(석양/안개/맑음)가 concept-shot·실제 월드에서 재현 — 모양뿐 아니라 분위기 일치 사진.
 
+### 다음 세션 진입점 (W1~W4 완료 후)
+
+이미지→게놈→검증→걷는 월드 루프는 성립했다(W1~W4). 남은 W5·W6 은 "월드를 채우고 분위기를 입히는"
+단계이며 둘 다 T-트랙 본체(T4·T5)에 막혀 있다. 권장 순서와 진입점:
+
+1. **W6-lite (대기/하늘 먼저)** — 이미지의 절반이 하늘이라 체감 효과가 가장 크다. 최소 버전: 게놈에 `mood`
+   층(`skyTop`/`skyHorizon`/`fogColor`/`fogDensity`) 추가 → `js/stage.js` 의 three 씬에 스카이 그라데이션 + fog
+   배선 → `js/world-profile.js` 프로파일에 대기 밴드 + `validate` → `concept-shot` 검정 하늘 해소 판정. 수면
+   타일·생명 공용 fog 는 T5 본체로 후속.
+2. **T4 → W5 (생명 스캐터)** — 엔진 슬롯 증분 교체(`setScene` 전체 재초기화 대신 슬라이스 부분 업로드)가
+   선행. 진입: `js/engine.js`(Entity/버퍼) + `js/wgsl.js`. 범위가 커서 별도 세션 권장. 그 위에 게놈 ⑤ 생명
+   층(스폰 테이블) = 이미지의 식생/생물 인상 씨딩.
+
+공통 규약: 게놈 스키마를 확장할 때마다 `js/world-profile.js`(검증기)·`tools/world-extract/extract.js`(프롬프트
+스키마)·`test/world-genome.js`(회귀)를 함께 갱신한다. 현행 하니스(world-genome/world-profile/world-extract/
+concept-shot/preset-shot/world-pan-shot/biome-shot)는 회귀 없음을 유지.
+
 ## 결정 필요 (확정 전)
 
 | # | 결정 | 권장 | 대안 |
