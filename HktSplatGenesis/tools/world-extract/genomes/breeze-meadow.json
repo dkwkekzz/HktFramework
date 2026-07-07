@@ -30,5 +30,13 @@
       "lo": [0.34, 0.36, 0.40], "hi": [0.62, 0.66, 0.72] },
     { "id": 2, "key": "shore", "name": "물가", "temp": 0.90, "humid": 0.12, "ampMul": 0.50, "scaleMul": 1.40, "ridged": 0.12, "warpMul": 0.65,
       "lo": [0.55, 0.50, 0.34], "hi": [0.80, 0.74, 0.55] }
-  ]
+  ],
+  "life": {
+    "treeDensity": 0.85,
+    "biomeDensity": { "meadow": 1.0, "highland": 0.22, "shore": 0.18 },
+    "treeSize": 1.0,
+    "leaf": [0.20, 0.50, 0.18], "leaf2": [0.52, 0.72, 0.24], "trunk": [0.30, 0.22, 0.14],
+    "rockDensity": 0.22, "rock": [0.40, 0.42, 0.47],
+    "campfireRate": 0.1
+  }
 }

@@ -11,6 +11,8 @@ const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
 const T = require('../js/terrain-gen.js');
 const WP = require('../js/world-profile.js');
+require('../js/scatter.js');           // global.HktGenesisScatter (candidates — vegetation Bake 배치)
+const V = require('../js/vegetation.js'); // W-Q2b Bake 식생 레이어
 
 const GENOME_PATH = process.argv[2];
 const SRC_IMG = process.argv[3];
@@ -27,7 +29,12 @@ const src = {}; for (const k in raw) if (k[0] !== '_') src[k] = raw[k];
 const genome = Object.assign({ seed: SEED, extent: EXT }, src);
 const val = WP.validate(genome);
 console.log(`[${LABEL}] 스타일 프로파일: ${val.ok ? 'OK' : '반려 ' + JSON.stringify(val.violations)}`);
-const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
+const chunk = T.create(genome);
+const terrainPly = chunk.plyBytes(G, 1.7);
+// W-Q2b: 게놈 생명 층으로 나무·바위를 Bake 해 지형 PLY 에 합쳐 무대가 함께 그린다(초원 채움).
+const veg = V.bakePanorama(chunk, EXT * 0.875, 0, 0, {});
+console.log(`[${LABEL}] Bake 식생: 나무 ${veg.trees} · 바위 ${veg.rocks} (스플랫 ${veg.ply ? (veg.ply.length - 400) / 68 | 0 : 0})`);
+const ply = Buffer.from(V.mergePly(terrainPly, veg.ply));
 const srcBytes = fs.readFileSync(SRC_IMG);
 const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 

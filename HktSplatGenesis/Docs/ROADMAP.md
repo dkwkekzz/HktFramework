@@ -231,9 +231,28 @@ W-Q1 물 얼룩 해결 완료) — 아래 각 절 참조. 여기서 단계를 �
   (temperate 시드7 호수)이 사라진다(회귀) — ridged 포함·파장 동일이 필수(파장 늘리면 다른 노이즈장 봐 실
   분지 놓침). 검증: `concept-shot`(breeze) 흩뿌린 얼룩 → 청록 호수 · `world-water-shot` 수면 14250px(무회귀)
   · world-genome(temperate 바이트 동일)·biome·preset(ashen)·world-pan·app-smoke 회귀 없음.
-- **W-Q2 — 스캐터 밀도·외형** (= W5 + 튜닝): 게놈 생명 층으로 나무·바위를 초원에 심되, 현재 나무 스플랫이
-  희소·왜소(`openworld-shot` 참조 — 낱개 노란 막대)한 것을 밀도·크기로 튜닝. 완료 기준: concept-shot 우패널에
-  나무 실루엣이 초원을 채운다. 진입: `js/scatter.js` `candidates`(게놈 밀도)·`genesFor`(나무 크기).
+- **W-Q2 — 식생 밀도 = Bake + 근처 승격** (= W5 + 정적 식생): 사진처럼 초원을 나무로 **채우려면** 시뮬
+  개체(`MAX_ENTITIES=8`)로는 불가 — 8 상한은 "동시 **시뮬**되는 생명"의 한계이고(스플랫 풀 N 을 8 슬라이스로
+  등분, `eid = i/sliceSize`), 이는 하드웨어 벽이 아니라 **개체당 스플랫 해상도 예산**이다(N 고정, 정렬
+  O(N log²N)). **결정: 밀도는 상한을 올려서가 아니라 Bake 로 푼다.** 정적으로 구운 식생 스플랫은 우리
+  시뮬 풀(8슬라이스·바이토닉)을 안 거치고 지형 PLY 에 실려 Spark(무대)가 그리므로 개수 제한이 사실상 없다.
+  구조는 "**전부 Bake 로 세계를 채우고, 카메라 근처 몇 개만 8 슬롯으로 승격(promote)해 살아있게**":
+  - ✅ **W-Q2a — 게놈 생명 층**: 스폰 규칙(종·바이옴별 밀도·크기·색)의 **단일 원본**. `scatter.js candidates`
+    의 하드코딩 `BIOME_TREE` 표를 `genome.life` 가 대체(있으면 소비, 없으면 기본 = 무회귀). rock 종 추가(Bake
+    전용 — `ScatterStream` 이 시뮬 승격에서 필터). `genesFor` 가 `life.treeSize` 소비. `world-profile.js` 생명
+    밴드 검증 + `breeze-meadow.json` life 층. 검증: `world-life.js`(순수 Node 9/9 — 게놈 밀도→바이옴별 나무 수
+    meadow 120≫highland 11, life 없음→rock 0 무회귀, 겹침 diff 0 연속성, 생명밴드 accept/reject).
+  - ✅ **W-Q2b(파노라마) — Bake 식생 레이어(v0)**: `js/vegetation.js`(`HktGenesisVegetation`) — `scatter.candidates`
+    (게놈 생명 층 공유)로 나무(기둥+수관 램프)·바위(회색 타원) 정적 스플랫을 굽는다(좌표 해시 결정론 = 스트리밍
+    연속성). `bakePanorama`(단일 창)·`bakeTile`(T2 스트리밍용)·`mergePly`(지형+식생 한 PLY). `concept-shot` 이
+    지형 PLY 에 식생을 합쳐 로드 → **우패널 초원이 나무 893그루로 채워짐**(완료 기준 충족). 원경은 "생성된 씬"
+    (무대 예외 — 승인 하이브리드). 검증: `concept-shot`(breeze) 초원 채움 사진 + `world-life.js` mergePly 정점 합.
+    회귀: world-scatter(불×나무 100%·슬롯교체)·app-smoke·world-genome·world-profile 없음.
+    남김: **타일 스트리밍 배선**(`bakeTile` → `stage.js` 걷는 월드, T2 링 LOD) · **v1**(시뮬 배양 나무 스냅샷
+    인스턴싱 — 원칙 정합) · 자동차폐/조명(렌더 이슈, 보류).
+  - **W-Q2c — 승격 훅**: 근처 Bake 스폰을 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
+    확장. v0 는 하드컷(경계 팝 허용), 후속에 크로스페이드. **왜 이 구조**: 8 상한 = 상호작용 전용, 밀도 =
+    Bake — Bake 하면 상태 유도(성장·연소·바람)가 얼어붙어 "죽으므로", 상호작용하는 것만 시뮬로 남긴다.
 - **W-Q3 — 하늘 구름 + 조감 카메라**: mood 에 구름 층(절차 빌보드/노이즈 돔) + concept-shot 카메라를 저각→
   조감으로(스치는 각 뭉개짐 완화, W6 폴리시 합류). 완료 기준: 우패널 하늘에 뭉게구름, 지형 크리스프.
 
