@@ -16,8 +16,13 @@
 	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
 	const skeleton = new HktGenesisSkeleton.Skeleton();
 	// genome: 형태 게놈 ① (C1). 항등이면 기존 살 그대로 — 미래 UI/추출기가 morph 를 채운다.
-	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, genome: HktGenesisGenome.IDENTITY };
+	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, genome: HktGenesisGenome.IDENTITY, inputDriven: false };
 	let extSkel = null; // FBX 드롭으로 불러온 외부 리그 (없으면 built-in)
+
+	// ── A 트랙: 입력 → 상태 → 클립 (skeleton 인스턴스 공유 — 세그먼트 순서 동일 = 친화 호환) ──
+	const input = new HktGenesisAnim.CharacterInput();
+	const controller = new HktGenesisAnim.AnimationController(skeleton);
+	const keys = {}; // 눌린 키 집합 (WASD 이동 축)
 
 	// 뼈 친화(rest.w) 배정 기준 세그먼트 — 현재 모션 소스와 같은 리그/순서여야 한다
 	function currentBindBones() {
@@ -162,6 +167,24 @@
 		}
 		document.getElementById('skelBones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
 
+		// ── A 트랙: 입력 구동(상태 머신) 토글 + 키보드 입력 주입 ──
+		const stateEl = document.getElementById('skelState');
+		document.getElementById('skelInput').addEventListener('change', (e) => {
+			skel.inputDriven = e.target.checked;
+			// 클립 드롭다운은 상태 머신이 대신 몰므로 입력 구동 중엔 비활성 표시
+			document.getElementById('skelClip').disabled = skel.inputDriven;
+			if (skel.inputDriven && genes.form === 3) { genes.bindBones = controller.bindBones(); if (reseedFn) reseedFn(); }
+		});
+		// 키보드: WASD=이동 축, Space=점프 트리거, Q=인사 트리거 (에지)
+		const MOVE_KEYS = { KeyW: 1, KeyS: 1, KeyA: 1, KeyD: 1, ArrowUp: 1, ArrowDown: 1, ArrowLeft: 1, ArrowRight: 1 };
+		window.addEventListener('keydown', (e) => {
+			if (!skel.inputDriven) return;
+			if (e.code === 'Space') { input.trigger('jump'); e.preventDefault(); }
+			else if (e.code === 'KeyQ') input.trigger('action', 'wave');
+			else if (MOVE_KEYS[e.code]) { keys[e.code] = true; e.preventDefault(); }
+		});
+		window.addEventListener('keyup', (e) => { if (MOVE_KEYS[e.code]) keys[e.code] = false; });
+
 		// ── FBX 드롭: 실제 Mixamo 클립 — hikito-flesh 의 드롭존 대응 ──
 		const drop = document.getElementById('drop');
 		const fbxFile = document.getElementById('fbxFile');
@@ -173,6 +196,7 @@
 		function loadFBXBuffer(buf, name) {
 			try {
 				extSkel = HktGenesisSkeleton.parseFBX(buf);
+				controller.useFbx(extSkel); // A 트랙: 상태 그래프를 FBX 클립 이름에 자동 배선
 				document.getElementById('extOpt').disabled = false;
 				document.getElementById('skelClip').value = 'external';
 				skel.clip = 'external';
@@ -388,9 +412,21 @@
 			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK — 세그먼트가 살 규칙의 유일한 형태 입력
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
-				bones = (skel.clip === 'external' && extSkel)
-					? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
-					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);       // built-in 은 절대 시간
+				if (skel.inputDriven) {
+					// A 트랙: WASD → 이동 축 주입(전/후만 사용 — 단일 스켈레톤 제자리 데모)
+					const fwd = (keys.KeyW || keys.ArrowUp ? 1 : 0) - (keys.KeyS || keys.ArrowDown ? 1 : 0);
+					const strafe = (keys.KeyD || keys.ArrowRight ? 1 : 0) - (keys.KeyA || keys.ArrowLeft ? 1 : 0);
+					input.setMove(strafe, fwd);
+					const r = controller.update(pauseChk.checked ? 0 : dt, input, { fat: skel.fat, genome: skel.genome });
+					bones = r.segs;
+					// 소스 전환(built-in↔FBX) 시 세그먼트 순서가 바뀌므로 뼈 친화 재시드
+					if (r.sourceChanged && genes.form === 3) { genes.bindBones = controller.bindBones(); if (reseedFn) reseedFn(); }
+					if (stateEl) stateEl.innerHTML = `상태: <b>${r.state.name}</b><br>WASD 이동 · Space 점프 · Q 인사`;
+				} else {
+					bones = (skel.clip === 'external' && extSkel)
+						? extSkel.pose(pauseChk.checked ? 0 : dt, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
+						: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);       // built-in 은 절대 시간
+				}
 			}
 			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
 			bindStageStatus();
