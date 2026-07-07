@@ -73,6 +73,8 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
   Map·링 정책·SplatMesh 부착/폐기, `startTileWorld`/`updateTileCenter`/`tileStats`, `?tiles=`).
+  T5: 지형 타일과 함께 수면 타일(`waterTilePly`)을 스트리밍(마른 타일은 물 메시 없음), 공용
+  sky/fog 톤의 단일 원본(`setSkyFog`/`getSkyFog` — clear 색 = 지평선 fog, 생명이 같은 톤 소비).
 - `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
   T3: `bakeFn`(height 함수 직접 베이크 — 절차 월드, O(창)) + `buildIndex`/`bakeIndexed`
@@ -87,7 +89,15 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
   + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는
   월드의 한 창(`cx,cz` 중심) — 창 좌표=월드 좌표라 원점 무관 연속. 창 `height()` 는 시뮬
-  격자 바닥용 -0.72 클램프 유지, `world.heightAt()` 은 순수(클램프 없음).
+  격자 바닥용 -0.72 클램프 유지, `world.heightAt()` 은 순수(클램프 없음). T5: `waterTilePly` —
+  waterY 평면의 반투명 수면 스플랫(tilePly 와 같은 전역 셀 격자, 수몰 셀만, 심도 기반 색).
+- `js/scatter.js` — 스캐터·개체 스트리밍 (T4): `HktGenesisScatter`. ① `candidates(world,cx,cz,r,cfg)` —
+  월드 함수 위 결정론 스폰 테이블(좌표·시드 latticeHash, Math.random 금지). 셀마다 후보 1개를 셀
+  내부로 지터하고 수위·경사·바이옴 밀도(`BIOME_TREE`)로 거른다. 일부 나무 곁 모닥불 스폰을 호스트
+  나무와 같은 셀에 함께 낸다(불×나무 임의 좌표). ② `ScatterStream` — 카메라 타깃 거리순 상위 k 후보를
+  슬롯에 활성, 멀어진 슬롯은 void, 이미 활성인 스폰은 재배정 안 함(재시드 없음). 슬롯 교체는
+  `engine.respawnEntity`(슬라이스 부분 업로드). `genesFor`(프리셋→유전자)·`voidEntity`(editor VOID
+  규약과 동일). terrain-gen·presets 는 소비만 — 스캐터는 데이터(후보)만 만든다.
 
 ## L6 의 구조 (hikito-flesh 3층 매핑)
 
@@ -133,6 +143,13 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 타일 관리는 stage.js(rig/Spark 소유), 월드는 window 전역에서 참조 | 타일 SplatMesh 부착/폐기·링 정책은 rig 를 가진 stage 모듈에 둔다. PLY 원본(terrain-gen)은 classic 전역이라 `window.HktGenesisTerrainGen` 로 참조 — 모듈 격리(three 사본) 유지하며 결합 최소화. `frame()` 이 카메라 타깃으로 링을 fire-and-forget 갱신(중심 타일 불변 시 즉시 반환) |
 | 버블 y 를 지형 높이에 추종, height 클램프는 폐기(T3) | 격자 y 는 [gc.y-1.6, gc.y+8] 로 9.6m 창. gc.y=지형높이+0.8 이면 지형이 격자 바닥 0.8m 위에 놓여 어느 고도에서도 생명이 격자 안에 산다. 그래서 "골짜기를 절대 격자 바닥 위로 눌러두던" -0.72 클램프가 불필요 — 느슨한 안전 하한(-3)만 남기고 고저차 큰 지형을 허용한다. 평면(heightfield 없음)은 타깃 y 그대로라 기존 거동 불변 |
 | L2 생존 지표 = 확산(RMS 반경), nn 아님 (T3 하니스) | 분지에 갇힌 슬라임은 밀집 코어 때문에 최근접 이웃(nn)이 버블 유무와 무관하게 작다. L2 의 분리력은 *부피 유지*로 드러난다 — 격자 밖(L2 꺼짐)이면 응집만 남아 한 점으로 붕괴(작은 RMS), 살아 있으면 웅덩이로 퍼진다(큰 RMS). terrain-bubble-shot 은 무게중심 RMS 반경으로 판정 |
+| 슬롯 증분 교체 = 슬라이스 부분 업로드, 레이아웃 불변 (T4) | 스캐터 스트리밍은 매 프레임 개체가 바뀌는데 `setScene` 은 전 버퍼를 파괴·재생성한다(모든 슬롯 재시드 = 깜빡임 + O(N) 업로드). `respawnEntity(ei)` 는 개체 ei 의 슬라이스만 오프셋 `writeBuffer` — 슬라이스 크기·개수·스트라이드가 그대로라 바이트 일치 불변 조건이 유지되고, 교체 안 된 슬롯의 스플랫은 계속 시뮬된다. setScene 조립과 클러스터 본드 인덱스 전역 보정을 `_sliceInit` 헬퍼로 공유해 두 경로가 같은 초기화를 쓴다 |
+| 스폰 결정론 = 좌표·시드 해시, 창 무관 (T4) | 스캐터는 T2 청크와 같은 원리 — 스폰을 좌표·시드 latticeHash 로 뽑으면 어느 창(카메라 위치)에서 조회해도 같은 좌표는 같은 스폰이라 스트리밍 경계 이음새가 없다(world-scatter-shot ⓪: 원점 다른 두 창 겹침 위치 diff 0). Math.random 은 프레임마다 다른 배치를 만들어 이 연속성을 깬다 — 금지 |
+| 불×나무 = 호스트 나무와 같은 셀의 모닥불 스폰 (T4) | "임의 좌표에서 불×나무 성립"을 새 코드 경로 없이 — 일부 나무 셀에 모닥불 후보를 함께 낸다(같은 셀 해시). 스트림이 둘을 나란히 활성화하면 공유 격자에서 연소가 창발한다(절대 원칙 2: 상호작용 = 새 유전자 배치, 새 규칙 아님). 하니스는 나무 슬롯 스플랫의 heat 채널(misc.z) 상승률로 상호작용을 판정 — 완전 연소(fuel 소진)보다 이른·민감한 신호라 스웜셰이더 프레임 예산 안에서 확실히 잡힌다 |
+| 무대 fog = clear 색, 생명 fog = 렌더 FS, 톤 공유 (T5) | Spark 스플랫 셰이더는 three fog 를 지원하지 않는다(spark.module 에 fog 심볼 없음) — 무대 지형에 *점진적* fog 를 칠할 수 없다. 그래서 무대 fog 는 clear 색(지평선 = 타일 링 밖)으로, 생명 fog 는 렌더 FS(viewZ→fogColor)로 각각 구현하되 *같은 색*을 공유(`stage.getSkyFog` 단일 원본 → `engine.frame({fog})`)해 두 층이 지평선에서 같은 톤으로 만난다. fog 는 tile 월드에서만(단일 데모 clear 불변 = 회귀 0), CamParams fog/fogRange + camUB 160→192B(fogAmount 0 = off) |
+| sky/fog 톤은 디스플레이(sRGB) 공간, 무대 clear 는 linear 로 넣는다 (T5) | 무대(three, sRGB 출력 캔버스)는 clear 색을 linear→sRGB 인코딩해 화면에 낸다(0.62 linear → 화면 206). 생명(WebGPU 비-sRGB 캔버스)은 fog 색을 raw 로 써서 화면에 그대로 낸다. 두 층 픽셀이 *일치*하려면 톤을 디스플레이(sRGB) 값으로 정의하고, 무대엔 그 톤의 linear 역변환을 clear 로 넣어야 한다(three 가 다시 sRGB 인코딩 → 화면 = 톤). 생명은 톤 raw 그대로. 안 맞추면 하늘밴드 거리 67, 맞추면 0.5(world-water-shot ①) |
+| 오픈월드 앱 배선 = "오픈월드" 버튼 → startTileWorld + ScatterStream, tick 이 팔로 (T4·T5 통합) | T2·T4·T5 는 각각 하니스로 실증했지만 클릭 가능한 앱엔 없었다(URL/하니스 전용). `app.js startOpenWorld(seed)` 가 무대(startTileWorld=T2 타일+T5 수면/sky) + 생명(8 슬롯 ScatterStream=T4)을 한 번에 켜고, tick 이 카메라 타깃을 따라 heightfield 를 굽고(T3 bakeFn) 스폰을 갱신한다. 함정: 무대 `stage.frame` 은 원래 `enabled` 게이트였는데 타일은 프레임을 돌려야 로드가 시작돼 enabled 로 뒤집힌다(닭-달걀) — openWorld 일 땐 `enabled` 무관하게 frame 을 돌린다. 프리셋 클릭 = 모드 종료(heightfield 정리). 조감 각은 가파르게(pitch 0.82)—낮은 각은 flat surfel 이 뭉개진다. 실증: `test/openworld-shot.js`(지형·수면·나무·하늘톤 한 프레임) |
+| 수면 = waterY 평면의 반투명 flat surfel, 수몰 셀만 (T5) | 수면은 "무대(로드 대상)"의 시각 층 — 시뮬은 heightfield 를 그대로 보고(생명은 물속에서도 바닥 충돌), 물은 시각뿐(PLAN §5). 지형이 waterY 밑인 셀에만 납작한 surfel 을 놓아 마른 땅에 물이 안 뜨고, tilePly 와 같은 전역 셀 격자라 이음새가 없다. 한계: 근접 저각에서 flat surfel(지형·수면 공통)이 뭉개진다 — 스타일 폴리시로 남김 |
 | 애니메이션은 입력·상태·클립 3층 분리, 상태 그래프는 선언적 데이터 (A1) | 입력 *소스*(키보드/에디터/AI/네트워크)를 `CharacterInput`(축+트리거)으로 캐릭터에서 분리하면 같은 상태 머신을 어느 소스든 몬다. 상태 그래프는 술어 함수가 아니라 직렬화 가능한 조건 DSL(`{axis,op,value}`/`{trigger}`/`{clipDone}`/`{after}`)로 — 정체성=데이터 원칙의 애니메이션 판(게놈이 몸을 데이터화하듯 상태 전이를 데이터화). 함수 이스케이프는 최후 수단. 트리거는 1프레임 수명 에지(상태 스텝 후 소멸)라 공중 점프 등 미소비 입력이 무한 버퍼되지 않는다 |
 | 클립 크로스페이드는 같은 소스·같은 리그 안에서만 (A1) | 세그먼트 순서 = 뼈 친화(rest.w) 인덱스 규약(위) 때문에, 세그먼트 수/순서가 바뀌는 전환(built-in↔FBX)은 부드럽게 섞을 수 없다 — 하드 컷 + 재시드. 같은 FBX 리그의 클립끼리는 뼈 순서가 불변이라 mixer 크로스페이드가 안전(친화 유지), built-in 끼리는 위상 리셋(즉시)이며 살 스프링이 지연 흡수. controller.update 가 `sourceChanged` 로 재시드 필요를 호출측에 알린다 |
 | FBX 배선은 상태 이름 우선, 논리 클립명 폴백 (A1) | 상태↔FBX 클립 매핑은 상태 이름(run→'Run')을 먼저 찾고, 없으면 상태의 논리 클립명(run 은 clip 'walk'→'Walking')으로 폴백 — 전용 Run 클립이 있으면 그걸, 없으면 walk 재사용. Mixamo `mixamorig\|Run`·`Armature\|Walk.001` 접두어·꼬리는 `normClip` 으로 흡수(rig-agnostic). built-in jump 는 절차 원샷(도약 포물선 + bell 무릎 당김)이라 FBX 없이도 트리거 구동을 실증(anim-shot A) |

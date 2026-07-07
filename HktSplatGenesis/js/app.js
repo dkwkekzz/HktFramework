@@ -12,6 +12,7 @@
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
 	let reseedFn = null;     // boot 이후 연결 — 프리셋 전환 시 형태(form) 재생성용
 	let sceneEntities = [genes]; // 장면의 개체 목록 — 개체 0 은 항상 genes(슬라이더 연동)
+	let openWorld = null;    // T 트랙 오픈월드 모드({world, stream}) — 켜지면 tick 이 스캐터 스트리밍
 
 	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
 	const skeleton = new HktGenesisSkeleton.Skeleton();
@@ -31,6 +32,7 @@
 
 
 	function applyPreset(p) {
+		openWorld = null; // 프리셋 선택 = 오픈월드 모드 종료 (단일 개체 데모로 복귀)
 		for (const k of Object.keys(GENE_DEFS)) {
 			genes[k] = p[k];
 			const el = document.getElementById('g-' + k);
@@ -361,6 +363,31 @@
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
+		let owWasActive = false; // 오픈월드 종료 시 heightfield 정리용
+
+		// ── T 트랙 오픈월드: 절차 지형 타일(무대) + 수면 + sky/fog + 스트리밍 나무(생명) ──
+		// 무대는 stage.startTileWorld(T2 타일+T5 수면/sky), 생명은 8 슬롯 ScatterStream(T4).
+		// tick 이 카메라 타깃을 따라 heightfield 를 굽고(T3 bakeFn) 스폰을 갱신한다.
+		function startOpenWorld(seed) {
+			if (!window.HktGenesisScatter || !window.HktGenesisTerrainGen || !stage()) return;
+			seed = seed || 7;
+			openWorld = null;
+			const world = HktGenesisTerrainGen.world({ seed });
+			bindStageStatus();
+			stage().startTileWorld({ seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32 } });
+			// 8 슬롯 void 장면 → 스캐터가 슬롯을 증분 교체 (count 는 8·256 배수여야 = 기본 128k OK)
+			const N = (engine.count && engine.count % (8 * 256) === 0) ? engine.count : 131072;
+			engine.setScene(N, Array.from({ length: 8 }, () => HktGenesisScatter.voidEntity()));
+			sceneEntities = engine.entities;
+			const stream = new HktGenesisScatter.ScatterStream(engine, world,
+				{ radius: 16, maxActive: 8, cell: 6, treeDensity: 0.55, campfireRate: 0.2, maxSlope: 1.3 });
+			openWorld = { world, stream, bakeCd: 0 };
+			// 지형을 내려다보는 조감 시점 (낮은 각은 flat surfel 이 뭉개진다 — 가파른 각이 깨끗)
+			camera.target = [0, 0.2, 0]; camera.radius = 16; camera.pitch = 0.82; camera.yaw = 0.5; simTime = 0;
+			stageStatusEl.innerHTML = '<b>오픈월드</b> — 절차 지형·수면·안개 + 스트리밍 나무 (Shift+드래그로 이동)';
+		}
+		const owBtn = document.getElementById('owStart');
+		if (owBtn) owBtn.addEventListener('click', () => startOpenWorld(7));
 
 		// ── Alt+드래그 인력: 화면 광선 ∩ 수평면(카메라 타겟 높이) 을 인력점으로 ──
 		const pull = [0, 0, 0, 0];
@@ -407,6 +434,20 @@
 			last = now;
 			if (!pauseChk.checked) simTime += dt;
 
+			// T 트랙 오픈월드: 카메라 타깃을 따라 시뮬 바닥(heightfield)을 굽고 스폰을 갱신한다.
+			// bakeFn 창(±20m)이 스캐터 반경을 덮어 먼 나무 뿌리도 지형 높이에 정확히 앉는다.
+			if (openWorld) {
+				if (openWorld.bakeCd++ % 12 === 0) {
+					const t = camera.target, R = 20, cell = 2 * R / 127;
+					engine.setHeightfield(HktHeightfield.bakeFn((x, z) => openWorld.world.height(x, z),
+						{ res: 128, originX: t[0] - R, originZ: t[2] - R, cell }));
+					openWorld.stream.update(t[0], t[2]);
+				}
+				owWasActive = true;
+			} else if (owWasActive) {
+				engine.setHeightfield(null); owWasActive = false; // 모드 종료 — 평면 바닥 복귀
+			}
+
 			const aspect = canvas.width / canvas.height;
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
 			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK — 세그먼트가 살 규칙의 유일한 형태 입력
@@ -428,17 +469,22 @@
 						: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);       // built-in 은 절대 시간
 				}
 			}
-			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성
+			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성.
+			// 오픈월드는 타일이 아직 안 실려 enabled=false 여도 stage.frame 을 돌려야 링 로드가
+			// 시작된다(frame 이 updateTileCenter 를 부르고, 첫 타일이 실리면 enabled 로 뒤집힌다).
 			bindStageStatus();
-			const stageOn = stage() && stage().enabled;
-			if (stageOn) {
+			const st = stage();
+			if (st && (st.enabled || openWorld)) {
 				const t0 = performance.now();
-				stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
+				st.frame(camera, canvas.clientWidth, canvas.clientHeight);
 				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
 			}
+			const stageOn = st && st.enabled;
+			// T5: 무대 타일 월드가 켜져 있으면 생명도 무대와 같은 sky/fog 톤으로 원거리 페이드
+			const fog = (stageOn && st.tiledMode) ? st.getSkyFog() : null;
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
-				bones, showBones: skel.bones,
+				bones, showBones: skel.bones, fog,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
 				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
 				view: camera.view(), proj: camera.proj(aspect),

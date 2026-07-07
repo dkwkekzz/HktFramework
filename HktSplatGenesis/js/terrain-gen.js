@@ -277,8 +277,60 @@
 			return out;
 		}
 
+		// 수면 타일 (T5) — waterY 평면의 반투명 수면 스플랫. tilePly 와 같은 전역 셀 격자를
+		// 쓰되(이음새 정합), 지형이 수위 밑인 셀(`heightAt < waterY`)에만 납작한 surfel 을 놓는다.
+		// 색은 심도 기반(얕은 곳 청록 → 깊은 곳 남색, colorAt 수역 분기와 동일 팔레트). 수몰 셀이
+		// 없으면 null(무대가 이 타일에 물 메시를 안 붙인다). 반환: Uint8Array PLY | null.
+		function waterTilePly(x0, z0, size, G, splatScale) {
+			G = G || 64; splatScale = splatScale || 1;
+			const cell = size / G;
+			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
+			// 먼저 수몰 셀 수집 (PLY 헤더에 정확한 정점 수 필요)
+			const cells = [];
+			for (let gz = 0; gz < G; gz++)
+				for (let gx = 0; gx < G; gx++) {
+					const cellX = cx0 + gx, cellZ = cz0 + gz;
+					const jx = latticeHash(cellX, cellZ, P.seed + 1301) - 0.5;
+					const jz = latticeHash(cellX, cellZ, P.seed + 2609) - 0.5;
+					const x = (cellX + 0.5) * cell + jx * cell * 0.8;
+					const z = (cellZ + 0.5) * cell + jz * cell * 0.8;
+					if (reliefAt(x, z) >= P.waterY) continue; // 마른 셀 — 수면 없음
+					cells.push([x, z, reliefAt(x, z)]);
+				}
+			if (!cells.length) return null;
+			const N = cells.length;
+			const header = 'ply\nformat binary_little_endian 1.0\n' +
+				`element vertex ${N}\n` +
+				['x', 'y', 'z', 'nx', 'ny', 'nz', 'f_dc_0', 'f_dc_1', 'f_dc_2', 'opacity',
+					'scale_0', 'scale_1', 'scale_2', 'rot_0', 'rot_1', 'rot_2', 'rot_3']
+					.map((p) => `property float ${p}`).join('\n') + '\nend_header\n';
+			const head = new TextEncoder().encode(header);
+			const body = new DataView(new ArrayBuffer(N * 17 * 4));
+			// 납작한 수면 surfel — xz 로 넓고 y 로 얇다. 셀 폭 비례라 외곽 저밀도도 커버.
+			const sxz = Math.log(cell * 1.05 * splatScale), sy = Math.log(0.02);
+			const wc = WATER_COL;
+			let o = 0;
+			const put = (v) => { body.setFloat32(o, v, true); o += 4; };
+			for (let i = 0; i < N; i++) {
+				const x = cells[i][0], z = cells[i][1], y = cells[i][2];
+				const d = clamp01((P.waterY - y) / 0.8); // 심도 [0,1]
+				const r = mix(wc.shallow[0], wc.deep[0], d);
+				const g = mix(wc.shallow[1], wc.deep[1], d);
+				const b = mix(wc.shallow[2], wc.deep[2], d);
+				put(x); put(P.waterY); put(z); put(0); put(0); put(0);
+				put((r - 0.5) / SH_C0); put((g - 0.5) / SH_C0); put((b - 0.5) / SH_C0);
+				put(0.2); // opacity ≈ 0.55 (logit) — 반투명 수면
+				put(sxz); put(sy); put(sxz);
+				put(1); put(0); put(0); put(0);
+			}
+			const out = new Uint8Array(head.length + body.byteLength);
+			out.set(head, 0);
+			out.set(new Uint8Array(body.buffer), head.length);
+			return out;
+		}
+
 		return {
-			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly,
+			params: P, heightAt, height, reliefAt, biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}
