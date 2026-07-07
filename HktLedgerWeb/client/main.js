@@ -7,8 +7,9 @@ import { ClientState } from './state.js';
 import { Sim } from './sim.js';
 import { Render } from './render.js';
 import { MSG, INTENT } from '../shared/protocol.js';
+import { nodeTap } from '../shared/entropy.js';
 import {
-  GATHER_RANGE, GATHER_AMOUNT, ATTACK_RANGE, PICKUP_RANGE,
+  GATHER_RANGE, NODE_TAP_NUM, NODE_TAP_DEN, ATTACK_RANGE, PICKUP_RANGE,
   ATTACK_COST, CRYSTAL_COST, WEAPON_COST, GIVE_RANGE, GROW_AMOUNT, SKILLS,
 } from '../shared/constants.js';
 
@@ -51,7 +52,8 @@ addEventListener('keydown', (e) => {
       const item = nearest(['item'], PICKUP_RANGE);
       if (item) { net.intent(INTENT.PICKUP, { itemId: item.id }); return; }
       const node = nearest(['node'], GATHER_RANGE);
-      if (node) state.predict(net.intent(INTENT.GATHER, { nodeId: node.id }), +GATHER_AMOUNT);
+      // A9-3: 예측량도 미러 노드 잔고에서 같은 커널로 창발(서버와 동일 값) — 확정 tx 로 정정.
+      if (node) state.predict(net.intent(INTENT.GATHER, { nodeId: node.id }), +nodeTap(state.ledger.balance(node.id), NODE_TAP_NUM, NODE_TAP_DEN));
       break;
     }
     case 'Space': {

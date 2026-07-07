@@ -31,3 +31,12 @@ export function relaxGradient(ledger, aId, bId, num, den, cause) {
 export function entropicLeak(balance, num, den) {
   return Math.floor(Math.max(0, balance) * num / den);
 }
+
+// (C) 노드 탭 — A9-3: 채집/채굴이 여는 채널의 흐름량. 손으로 쓴 상수가 아니라 노드의 집중도(잔고)
+//     에서 창발한다: 풍부한 노드는 많이(floor(잔고 × num/den)), 고갈된 노드는 적게, 거의 빈 노드는 0.
+//     감소 수익이 클램프가 아니라 법칙에서 나온다. **양자 바닥을 두지 않는다**(감가와 다른 점): 근접
+//     빈 노드는 구배가 거의 0이라 흐름 0이 충실한 결과이고, 그래야 채취자가 고갈 노드를 떠나 풍부한
+//     노드로 흩어진다(로밍이 창발). 서버·클라 공용(클라 예측도 같은 값) — 순수 결정론.
+export function nodeTap(balance, num, den) {
+  return entropicLeak(balance, num, den);
+}

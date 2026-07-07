@@ -18,7 +18,7 @@ import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
-import { entropicLeak } from '../shared/entropy.js';
+import { entropicLeak, nodeTap } from '../shared/entropy.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
@@ -26,13 +26,13 @@ import {
   RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
-  GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
+  GATHER_RANGE, NODE_TAP_NUM, NODE_TAP_DEN, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   DECAY_INTERVAL_TICKS, ITEM_DECAY_NUM, ITEM_DECAY_DEN,
   ATTACK_RANGE, ATTACK_COST,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
-  MATERIALS, STASH_MAX, MINE_AMOUNT, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
+  MATERIALS, STASH_MAX, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -323,9 +323,10 @@ export class GameServer {
           return this.#reject(p, iid, 'out-of-range');
         // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
         // A7-1: 대사(meta) 조직도 채집을 증폭한다(구조적 획득 계수) — 결정 증폭과 합산.
-        // A9-1: 결정 증폭도 오직 잔고 — 재료 종류는 배율에 개입하지 않는다(보석 결정=나무 결정, 같은 잔고면 같음).
+        // A9-3: 채집량은 상수가 아니라 노드 집중도에서 창발한다 — 탭 = nodeTap(노드 잔고)(엔트로픽 채널).
+        //   결정·대사 조직은 채널을 넓힌다(획득 증폭 = 탭에 가산). A9-1: 증폭도 오직 잔고(재료 무관).
         const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
-        const want = GATHER_AMOUNT
+        const want = nodeTap(this.ledger.balance(node.id), NODE_TAP_NUM, NODE_TAP_DEN)
           + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0)
           + gatherStructBonus(this.ledger.balance(this.#structId(p.id, 'meta')));
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
@@ -420,7 +421,8 @@ export class GameServer {
           return this.#reject(p, iid, 'out-of-range');
         const stashId = this.#stashId(p.id, node.mat);
         if (!this.ledger.get(stashId)) this.ledger.createPool(stashId, 0, STASH_MAX, null);
-        const got = this.#tx(node.id, stashId, MINE_AMOUNT, CAUSE.MINE, node, iid);
+        // A9-3: 채굴량도 노드 집중도에서 창발한다 — 같은 엔트로픽 탭(노드→창고).
+        const got = this.#tx(node.id, stashId, nodeTap(this.ledger.balance(node.id), NODE_TAP_NUM, NODE_TAP_DEN), CAUSE.MINE, node, iid);
         if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
         break;
       }

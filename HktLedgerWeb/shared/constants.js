@@ -80,7 +80,11 @@ export const NODE_MIN_MAX = 400;         // 노드 용량 하한
 export const NODE_MAX_MAX = 1200;        // 노드 용량 상한
 export const NODE_REGEN_AMOUNT = 40;     // 재충전 틱당 SRC→노드 이체량
 export const GATHER_RANGE = 80;
-export const GATHER_AMOUNT = 25;         // 채집 1회 요청량 (잔고·수용량으로 클램프)
+// A9-3 흐름 흡수: 채집·채굴량은 손으로 쓴 상수(옛 GATHER_AMOUNT/MINE_AMOUNT=25)가 아니라 노드
+// 집중도에서 창발한다. 탭 = floor(노드 잔고 × NUM/DEN)(shared/entropy.js `nodeTap`, 양자 바닥 1).
+// DEN=20 → 잔고 500 노드가 옛 상수와 같은 25를 준다(중간 노드 정합). 풍부한 노드는 더, 고갈은 덜.
+export const NODE_TAP_NUM = 1;
+export const NODE_TAP_DEN = 10;          // 잔고 250 노드 ≈ 옛 상수 25. 풍부한 노드는 더, 고갈은 덜.
 
 // --- 전투 ---
 export const ATTACK_RANGE = 120;

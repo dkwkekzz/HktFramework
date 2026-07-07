@@ -15,7 +15,9 @@ import {
   GATHER_RANGE, ATTACK_RANGE, PICKUP_RANGE, ATTACK_COOLDOWN_MS,
   PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL, ORGANS, GIVE_RANGE,
   MATERIALS, MATERIAL_KEYS, FORGE_MAT_REQUIRE, FORGE_ATTR_COST,
+  NODE_TAP_NUM, NODE_TAP_DEN,
 } from '../shared/constants.js';
+import { nodeTap } from '../shared/entropy.js';
 
 const COUNT = Math.max(1, parseInt(process.argv[2] ?? '8', 10) || 8);
 const URL = process.argv[3] ?? process.env.WS_URL ?? 'ws://localhost:8080';
@@ -169,10 +171,13 @@ class Bot {
       // A8-1: 잘 먹었고 선호 재료가 덜 모였으면 그 종류의 노드를 찾아 캔다(MINE) — 아니면 생체 채집(GATHER).
       const wantMine = e > 500 && favStash < FORGE_MAT_REQUIRE;
       const matOf = (n) => s.nodesById.get(n.id)?.mat;
+      // A9-3: 엔트로픽 탭은 잔고<DEN 노드에 흐름 0 을 준다 → 잔고>0 이 아니라 "실제로 나오는" 노드를
+      //   고른다(yields>0). 안 그러면 잔여만 남은 노드를 붙잡고 헛채집한다. 고갈 노드는 떠나 로밍한다.
+      const yields = (n) => nodeTap(s.ledger.balance(n.id), NODE_TAP_NUM, NODE_TAP_DEN) > 0;
       const node =
-        (wantMine ? this.#nearest(['node'], Infinity, (n) => matOf(n) === this.favMat && s.ledger.balance(n.id) > 0) : null)
+        (wantMine ? this.#nearest(['node'], Infinity, (n) => matOf(n) === this.favMat && yields(n)) : null)
         ?? (wantMine ? this.#randomKnownMat(s.nodesById, this.favMat) : null) // 시야 밖이면 아는 favMat 노드로 원정
-        ?? this.#nearest(['node'], Infinity, (n) => s.ledger.balance(n.id) > 0)
+        ?? this.#nearest(['node'], Infinity, yields)
         ?? this.#randomKnown(s.nodesById);
       if (node) {
         if (dist3(this.x, this.y, this.z, node.x, node.y, node.z) <= GATHER_RANGE * 0.9) {
