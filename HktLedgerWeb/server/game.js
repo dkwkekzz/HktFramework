@@ -17,17 +17,19 @@ import { EnergyLedger } from '../shared/ledger.js';
 import { generateWorld } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
+  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
-  ATTACK_RANGE, ATTACK_COST, WEAPON_BONUS, WEAPON_WEAR,
+  ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
-  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE,
+  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -149,18 +151,21 @@ export class GameServer {
   // 접속 수명
   // ==========================================================================
 
+  #structId(playerId) { return POOL.STRUCT + playerId; } // 플레이어당 구조 풀 (A6-2)
+
   addPlayer(conn, name = '모험가') {
     const id = `${POOL.PLAYER}${this.nextPlayerNo++}`;
     const player = {
       id, name: String(name).slice(0, 12) || '모험가', conn,
       x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z,
       lastBeaconMs: this.now(), moveDebt: 0,
-      cooldownUntil: 0, dead: false, respawnAt: 0, atkSeq: 0,
+      cooldownUntil: 0, skillCd: {}, dead: false, respawnAt: 0, atkSeq: 0,
       regions: new Set(regionNeighbors(SPAWN_POS.x, SPAWN_POS.y)),
       visible: new Set(),
     };
     this.players.set(id, player);
     this.ledger.createPool(id, 0, PLAYER_MAX_ENERGY, null);
+    this.ledger.createPool(this.#structId(id), 0, STRUCT_MAX, null); // A6-2 구조 풀 (성장 저장소)
 
     // 미러 기준점: 잔고 0 시점의 스냅샷을 먼저 보내고, 스폰 인출은 tx 로 도달시킨다.
     conn.send(encode(MSG.WELCOME, {
@@ -184,6 +189,10 @@ export class GameServer {
     }
     this.#tx(id, POOL.SINK, this.ledger.balance(id), CAUSE.DEATH_DROP, p);
     this.ledger.removePool(id);
+    // A6-2: 구조(잠긴 질서)도 이탈 시 SINK 로 환원 — 원장에서 소멸 없음(보존)
+    const structId = this.#structId(id);
+    this.#tx(structId, POOL.SINK, this.ledger.balance(structId), CAUSE.DEATH_DROP, p);
+    this.ledger.removePool(structId);
     this.players.delete(id);
   }
 
@@ -283,8 +292,11 @@ export class GameServer {
         if (!node) return this.#reject(p, iid, 'no-target');
         if (dist3(p.x, p.y, p.z, node.x, node.y, node.z) > GATHER_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
+        // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
+        const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
+        const want = GATHER_AMOUNT + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0);
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
-        const got = this.#tx(node.id, p.id, GATHER_AMOUNT, CAUSE.GATHER, node, iid);
+        const got = this.#tx(node.id, p.id, want, CAUSE.GATHER, node, iid);
         if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
         break;
       }
@@ -327,10 +339,12 @@ export class GameServer {
         p.cooldownUntil = nowMs + ATTACK_COOLDOWN_MS;
 
         // 무기 = 응축 에너지. 내구도 소모도 그저 이체다.
+        // A6-3: 구조 예치가 공격력을 키운다(흐름 계수) — 데미지는 여전히 피격자 풀로 클램프.
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
-        let damage = base;
+        let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id)));
         if (weapon) {
-          damage += WEAPON_BONUS;
+          // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
+          damage += weaponBonus(this.ledger.balance(weapon.id));
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
           if (this.ledger.balance(weapon.id) === 0) this.#destroyItem(weapon, p);
         }
@@ -377,6 +391,40 @@ export class GameServer {
         const item = this.items.get(msg.itemId ?? '');
         if (!item || item.owner !== p.id) return this.#reject(p, iid, 'no-item');
         this.#dropToGround(item, p.x, p.y, p.z);
+        break;
+      }
+
+      case INTENT.SKILL: {
+        // A6-4 스킬 = 발산 패턴: 비용 있는 증폭 이체. 스킬마다 흡수/소각 형태가 다르다.
+        const skill = SKILLS[msg.skillId];
+        if (!skill) return this.#reject(p, iid, 'no-skill');
+        const nowMs = this.now();
+        if (nowMs < (p.skillCd[msg.skillId] ?? 0)) return this.#reject(p, iid, 'cooldown');
+        const target = this.#targetInfo(msg.targetId ?? '');
+        if (!target || msg.targetId === p.id) return this.#reject(p, iid, 'no-target');
+        if (dist3(p.x, p.y, p.z, target.x, target.y, target.z) > ATTACK_RANGE + RANGE_SLACK)
+          return this.#reject(p, iid, 'out-of-range');
+        if (this.ledger.balance(p.id) < skill.cost) return this.#reject(p, iid, 'no-energy');
+
+        // 시전 비용 = 대사 스파이크(player→SINK). 쿨다운은 스킬별.
+        this.#tx(p.id, POOL.SINK, skill.cost, CAUSE.ATTACK_COST, p, iid);
+        p.skillCd[msg.skillId] = nowMs + skill.cooldownMs;
+
+        // 위력 = 구조의 함수(A6-3 동형). 데미지 = 피격자 풀 인출, leechPct 로 흡수/소각 분배.
+        const struct = this.ledger.balance(this.#structId(p.id));
+        const total = Math.min(skillDamage(skill, struct), this.ledger.balance(msg.targetId));
+        const leechGot = this.#tx(msg.targetId, p.id, Math.floor(total * skill.leechPct / 100), CAUSE.DAMAGE_LEECH, target, iid);
+        this.#tx(msg.targetId, POOL.SINK, total - leechGot, CAUSE.DAMAGE_BURN, target);
+        if (this.ledger.balance(msg.targetId) === 0) this.#kill(msg.targetId, target);
+        break;
+      }
+
+      case INTENT.GROW: {
+        // A6-2 성장: 자유 에너지를 구조 풀로 예치 (창조 아님 — 자유→잠긴 질서 재분배).
+        // Got<Want 는 게임플레이(자유 고갈/구조 포화) — 0 일 때만 기각. 스탯 이득은 A6-3.
+        const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : GROW_AMOUNT;
+        const got = this.#tx(p.id, this.#structId(p.id), want, CAUSE.GROW, null, iid);
+        if (got === 0) return this.#reject(p, iid, 'no-energy-or-full');
         break;
       }
 
@@ -459,10 +507,33 @@ export class GameServer {
     this.intents = [];
     for (const { playerId, msg } of batch) this.#processIntent(playerId, msg);
 
+    // 2b) 대사 (A6-1) — 생명은 매 주기 upkeep 를 SINK 로 지불한다. 소모·갈구·유지의 압력:
+    //   채집·전투로 못 채우면 잔고 0 → 아사(기존 사망 경로). upkeep tx 는 비공간이라
+    //   소유자에게만 방송(무지역 player 풀 — 체크섬 무관). 소산분은 태양 순환(A6-0)이 되돌린다.
+    if (this.tickCount % UPKEEP_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      for (const p of this.players.values()) {
+        if (p.dead) continue;
+        // A6-3: 대사 비용 = 구조의 함수 (큰 질서일수록 더 갈구)
+        const upkeep = upkeepFor(this.ledger.balance(this.#structId(p.id)));
+        this.#tx(p.id, POOL.SINK, upkeep, CAUSE.UPKEEP);
+        if (this.ledger.balance(p.id) === 0) this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
+      }
+    }
+
     // 3) 필드 확산 — 매 틱 이웃 셀 간 zero-sum 정수 이체 (서버 내부: region=null,
     //    ledger.transfer 직결이라 방송·pendingOps 에 남지 않는다). A1: 노드 재충전이
     //    세계→노드 주입이 아니라 이 필드를 통해 흐른다.
     diffuseTick(this.ledger);
+
+    // 3b) 태양 순환 (A6-0) — 소산 에너지(SINK)를 주기적으로 SOURCE 로 되돌려 열역학 루프를 닫는다.
+    //   서버는 유일한 에너지 원점(태양)이되 생성기가 아니라 순환의 원점: SOURCE→생명→SINK→SOURCE.
+    //   닫힌 루프라 총합은 여전히 WORLD_SOURCE_INITIAL 불변. 이 순환이 없으면 이동·전투·(향후)대사가
+    //   세계를 SINK 로 말려 영속이 깨진다. region=null 저수지 간 이체 → 방송·체크섬 무관(무음 transfer).
+    //   재충전(아래)보다 먼저 실행해 SOURCE 를 채운 뒤 세계로 흘려보낸다.
+    if (this.tickCount % RECYCLE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      const dissipated = this.ledger.balance(POOL.SINK);
+      if (dissipated > 0) this.ledger.transfer(POOL.SINK, POOL.SOURCE, dissipated, CAUSE.RECYCLE);
+    }
 
     // 재충전 주기: SOURCE→셀 보충(씨앗값까지 top-up, 필드 지속) + 셀→노드 인출(고갈→회복).
     // 둘 다 보존. 셀→노드 만 #tx 로 방송 — 클라 미러는 셀을 저수지로 물질화해 재생한다.

@@ -13,7 +13,7 @@ import { encode, decode, MSG, INTENT } from '../shared/protocol.js';
 import {
   SPAWN_POS, WORLD_SIZE, WORLD_HEIGHT, MAX_SPEED, BEACON_INTERVAL_MS, dist3,
   GATHER_RANGE, ATTACK_RANGE, PICKUP_RANGE, ATTACK_COOLDOWN_MS,
-  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST,
+  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL,
 } from '../shared/constants.js';
 
 const COUNT = Math.max(1, parseInt(process.argv[2] ?? '8', 10) || 8);
@@ -24,8 +24,9 @@ const BOT_NAMES = ['도토리', '이끼', '반딧불', '조약돌', '민들레',
                    '억새', '개울', '서리', '메아리', '들불', '안개', '까치', '숲지기'];
 
 class Bot {
-  constructor(name) {
+  constructor(name, bias = 0.5) {
     this.name = name;
+    this.bias = bias;   // A6 성장 편향 (0=거의 안 키움 ~ 1=공격적으로 키움) → 빌드 분화
     this.mode = 'gather';
     this.retries = 0;
     this.#connect();
@@ -37,10 +38,13 @@ class Bot {
     this.y = SPAWN_POS.y;
     this.z = SPAWN_POS.z; // 3D 높이
     this.lastAttack = 0;
+    this.lastSkill = 0;
+    this.lastGrow = 0;
     this.craftPendingUntil = 0;
     this.iidNo = 0;
     this.bytesInWindow = 0; // A4: 수신 대역폭 계측 (5초 요약에서 B/s 환산)
     this.state.onTeleport = ({ x, y, z }) => { this.x = x; this.y = y; this.z = z ?? this.z; }; // 서버 정정 수용
+    this.state.onResync = (regions) => this.send(MSG.RESYNC, { regions }); // 체크섬 불일치 → 스냅샷 요청(자가치유, main.js 와 동일)
 
     this.ws = new WebSocket(URL);
     this.ws.binaryType = 'arraybuffer'; // A4: 바이너리 OPS 프레임 수신
@@ -61,6 +65,7 @@ class Bot {
   send(t, payload = {}) { if (this.ws.readyState === 1) this.ws.send(encode(t, payload)); }
   intent(kind, data = {}) { this.send(MSG.INTENT, { iid: (this.iidNo = this.iidNo % 65000 + 1), kind, ...data }); } // A4: u16 숫자 iid
   energy() { return this.state.ledger.balance(this.state.playerId); }
+  struct() { return this.state.ledger.balance(POOL.STRUCT + this.state.playerId); } // A6-2 성장(구조) 잔고
 
   #items(type) {
     const out = [];
@@ -107,6 +112,16 @@ class Bot {
     const loot = this.#nearest(['item'], PICKUP_RANGE);
     if (loot) this.intent(INTENT.PICKUP, { itemId: loot.id });
 
+    // --- 성장(A6): 잘 먹었으면 잉여 에너지를 구조로 예치(질서화). bias 큰 개체가 더
+    //     공격적으로(더 낮은 배부름에, 더 큰 덩어리로) 성장 → 라이브에서 빌드가 분화한다.
+    //     대사 비용은 구조에 비례해 오르므로(A6-3) 과성장은 스스로 대가를 치른다.
+    const struct = this.struct();
+    const surplus = e - 450; // 운영 여유분만 성장에 쓴다 — 자유 잔고를 450 아래로 떨구지 않는다
+    if (surplus > 30 && struct < 4000 && now - this.lastGrow >= 1000) {
+      this.lastGrow = now;
+      this.intent(INTENT.GROW, { amount: Math.round(Math.min(surplus, 15 + 60 * this.bias)) }); // bias 큰 개체가 더 크게
+    }
+
     // --- 모드 전환: 배부르면 사냥, 허기지면 채집 ---
     const hasWeapon = this.#items('weapon').length > 0;
     this.mode = (e > 600 && (hasWeapon || e > WEAPON_COST + 200)) ? 'hunt' : 'gather';
@@ -131,7 +146,11 @@ class Bot {
       const mob = this.#nearest(['mob']) ?? this.#randomKnown(s.mobsById);
       if (mob) {
         if (dist3(this.x, this.y, this.z, mob.x, mob.y, mob.z) <= ATTACK_RANGE * 0.9) {
-          if (now - this.lastAttack >= ATTACK_COOLDOWN_MS + 50) {
+          // A6-4: 성장한 개체는 스킬을 쓴다 — 여유 있으면 강타(소각 버스트), 허기지면 흡정(흡수).
+          if (struct > 300 && now - this.lastSkill >= 2600) {
+            this.lastSkill = now;
+            this.intent(INTENT.SKILL, { skillId: e > 400 ? 'smash' : 'drain', targetId: mob.id });
+          } else if (now - this.lastAttack >= ATTACK_COOLDOWN_MS + 50) {
             this.lastAttack = now;
             this.intent(INTENT.ATTACK, { targetId: mob.id });
           }
@@ -158,7 +177,8 @@ class Bot {
 const bots = [];
 for (let i = 0; i < COUNT; i++) {
   const name = `${BOT_NAMES[i % BOT_NAMES.length]}${i >= BOT_NAMES.length ? i : ''}`;
-  setTimeout(() => bots.push(new Bot(name)), i * 150); // 접속 폭주 완화
+  const bias = 0.2 + 0.75 * (i / Math.max(1, COUNT - 1)); // 0.2~0.95 로 성장 편향 분산 → 빌드 분화
+  setTimeout(() => bots.push(new Bot(name, bias)), i * 150); // 접속 폭주 완화
 }
 
 // --- 5초마다 시뮬레이션 요약 (봇 0 의 미러가 관측한 세계) ---
@@ -166,11 +186,14 @@ setInterval(() => {
   const lead = bots[0]?.state;
   if (!lead?.playerId) return;
   const line = bots.map(b =>
-    `${b.name} ${String(b.energy()).padStart(4)}${b.mode === 'hunt' ? '⚔' : '⛏'}`).join(' | ');
+    `${b.name} E${String(b.energy()).padStart(4)} S${String(b.struct()).padStart(4)}${b.mode === 'hunt' ? '⚔' : '⛏'}`).join(' | ');
   const totalBytes = bots.reduce((s, b) => s + b.bytesInWindow, 0);
   bots.forEach(b => { b.bytesInWindow = 0; });
   const perBotPerSec = totalBytes / 5 / bots.length;
-  console.log(`[시뮬] ${line}`);
+  const structs = bots.map(b => b.struct());
+  const grown = structs.reduce((s, v) => s + v, 0);
+  console.log(`[시뮬] ${line}`);   // E=자유 에너지, S=구조(성장), ⚔사냥/⛏채집
+  console.log(`[성장] 구조 총 ${grown} · 최소 ${Math.min(...structs)} ~ 최대 ${Math.max(...structs)} (bias 분산 → 빌드 분화)`);
   console.log(`[원장] 세계 총 에너지 ${lead.worldTotal.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
   console.log(`[대역폭] 봇 평균 수신 ${perBotPerSec.toFixed(0)} B/s (A4 바이너리 tx)`);
 }, 5000);

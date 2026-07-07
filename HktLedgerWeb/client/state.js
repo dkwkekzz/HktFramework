@@ -111,7 +111,9 @@ export class ClientState {
     // 예: 내 시야 경계 밖 플레이어가 시야 안 노드를 채집하는 경우.
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
-      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM)) {
+      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM) || id.startsWith(POOL.STRUCT)) {
+        // 무지역 액터 풀(플레이어·아이템·구조 A6-2) — 빈 채로 물질화(무한 수용).
+        // 구조 풀은 체크섬 무관(region=null)이라 잔고 오차 무해, GROW tx 재생만 정확하면 된다.
         this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
       } else if (id.startsWith(POOL.CELL)) {
         // 필드 셀은 서버 내부 저수지(SOURCE/SINK 급) — 클라는 잔고를 추적하지 않는다.
