@@ -28,7 +28,7 @@ import {
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   ATTACK_RANGE, ATTACK_COST, WEAPON_BONUS, WEAPON_WEAR,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
-  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE,
+  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -150,6 +150,8 @@ export class GameServer {
   // 접속 수명
   // ==========================================================================
 
+  #structId(playerId) { return POOL.STRUCT + playerId; } // 플레이어당 구조 풀 (A6-2)
+
   addPlayer(conn, name = '모험가') {
     const id = `${POOL.PLAYER}${this.nextPlayerNo++}`;
     const player = {
@@ -162,6 +164,7 @@ export class GameServer {
     };
     this.players.set(id, player);
     this.ledger.createPool(id, 0, PLAYER_MAX_ENERGY, null);
+    this.ledger.createPool(this.#structId(id), 0, STRUCT_MAX, null); // A6-2 구조 풀 (성장 저장소)
 
     // 미러 기준점: 잔고 0 시점의 스냅샷을 먼저 보내고, 스폰 인출은 tx 로 도달시킨다.
     conn.send(encode(MSG.WELCOME, {
@@ -185,6 +188,10 @@ export class GameServer {
     }
     this.#tx(id, POOL.SINK, this.ledger.balance(id), CAUSE.DEATH_DROP, p);
     this.ledger.removePool(id);
+    // A6-2: 구조(잠긴 질서)도 이탈 시 SINK 로 환원 — 원장에서 소멸 없음(보존)
+    const structId = this.#structId(id);
+    this.#tx(structId, POOL.SINK, this.ledger.balance(structId), CAUSE.DEATH_DROP, p);
+    this.ledger.removePool(structId);
     this.players.delete(id);
   }
 
@@ -378,6 +385,15 @@ export class GameServer {
         const item = this.items.get(msg.itemId ?? '');
         if (!item || item.owner !== p.id) return this.#reject(p, iid, 'no-item');
         this.#dropToGround(item, p.x, p.y, p.z);
+        break;
+      }
+
+      case INTENT.GROW: {
+        // A6-2 성장: 자유 에너지를 구조 풀로 예치 (창조 아님 — 자유→잠긴 질서 재분배).
+        // Got<Want 는 게임플레이(자유 고갈/구조 포화) — 0 일 때만 기각. 스탯 이득은 A6-3.
+        const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : GROW_AMOUNT;
+        const got = this.#tx(p.id, this.#structId(p.id), want, CAUSE.GROW, null, iid);
+        if (got === 0) return this.#reject(p, iid, 'no-energy-or-full');
         break;
       }
 

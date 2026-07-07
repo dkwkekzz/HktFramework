@@ -400,6 +400,46 @@ test('A6-1 대사 — 생명은 매 주기 upkeep 를 지불하고, 못 채우�
   console.log(`    [A6-1] upkeep ${UPKEEP_AMOUNT}/${UPKEEP_INTERVAL_TICKS}틱 · 유지 실패=아사(잔고0)·리스폰 SOURCE 인출·총합 ${total()} 불변`);
 });
 
+test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아님), 사망 지속·이탈 환원 (보존)', () => {
+  const { clock, game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant 300
+  const structId = POOL.STRUCT + a.player.id;
+  assert.equal(game.ledger.balance(structId), 0, '구조 풀은 빈 채로 생성');
+
+  // 성장: 자유 에너지를 구조로 예치 (player→STRUCT) — 창조가 아니라 재분배
+  intent(a.player, INTENT.GROW, { amount: 120 }, 'g1');
+  game.tick();
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT - 120, '자유 잔고 감소');
+  assert.equal(game.ledger.balance(structId), 120, '구조로 예치 (질서화)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '창조 아님 — 재분배라 총합 불변');
+
+  // 미러 정합: 소유자 클라가 GROW tx 를 재생해 자유 잔고가 일치 (구조 풀 물질화 검증)
+  const client = new ClientState();
+  for (const m of a.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id),
+    '미러 자유 잔고 정합 (GROW 재생)');
+
+  // 사망해도 성장은 지속된다 (영구 성장) — 자유만 고갈시켜 아사(구조는 불가침)
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
+  assert.ok(a.player.dead, '자유 에너지 고갈 = 아사');
+  assert.equal(game.ledger.balance(structId), 120, '사망해도 구조 지속 (영구 성장)');
+
+  // 리스폰 후에도 구조 유지
+  clock.t += RESPAWN_DELAY_MS + 100;
+  game.tick();
+  assert.ok(!a.player.dead, '리스폰');
+  assert.equal(game.ledger.balance(structId), 120, '리스폰 후에도 구조 유지');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // 접속 종료 시 구조 에너지는 SINK 로 환원 (원장에서 소멸 없음)
+  game.removePlayer(a.player.id);
+  assert.equal(game.ledger.get(structId), undefined, '구조 풀 제거');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이탈 환원도 보존');
+  console.log(`    [A6-2] 성장 player→STRUCT 120 · 사망/리스폰 지속(영구)·이탈 환원 SINK · 총합 ${total()} 불변`);
+});
+
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
   const { clock, game, join, warp, total } = setup();
   const prey = join('사냥감');

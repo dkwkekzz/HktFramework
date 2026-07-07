@@ -45,6 +45,7 @@ export const INTENT = {
   USE: 'use',            // { itemId }    결정 용해 → 에너지 회복
   DROP: 'drop',          // { itemId }
   PICKUP: 'pickup',      // { itemId }
+  GROW: 'grow',          // { amount? }   A6-2 성장: 자유 에너지 → 구조 풀 예치
 };
 
 export function encode(type, payload) {
@@ -80,7 +81,7 @@ const OPS_HEADER_BYTES = 8;
 const CAUSE_LIST = [
   CAUSE.SPAWN, CAUSE.MOVE, CAUSE.GATHER, CAUSE.REGEN, CAUSE.ATTACK_COST,
   CAUSE.DAMAGE_LEECH, CAUSE.DAMAGE_BURN, CAUSE.WEAPON_WEAR, CAUSE.CONDENSE,
-  CAUSE.DISSOLVE, CAUSE.DEATH_DROP, CAUSE.DIFFUSE,
+  CAUSE.DISSOLVE, CAUSE.DEATH_DROP, CAUSE.DIFFUSE, CAUSE.UPKEEP,
 ];
 const CAUSE_CODE = new Map(CAUSE_LIST.map((c, i) => [c, i]));
 const PT = { [POOL.PLAYER[0]]: 0, [POOL.NODE[0]]: 1, [POOL.MOB[0]]: 2, [POOL.ITEM[0]]: 3, [POOL.CELL[0]]: 4 };

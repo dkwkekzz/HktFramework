@@ -34,6 +34,12 @@ export const RESPAWN_DELAY_MS = 3000;
 export const UPKEEP_INTERVAL_TICKS = 10; // 1초마다 대사
 export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향후 구조 함수)
 
+// --- 성장 / 구조 (A6-2) — 성장 = 자유 에너지를 잠긴 질서(구조 풀)로 재분배 ---
+// 구조 풀 `S:<playerId>` 는 플레이어당 1개. 예치는 `player→STRUCT` 이체 — 창조가 아니라
+// 자유 에너지의 질서화다(총합 불변). 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
+export const STRUCT_MAX = 10_000;        // 구조 풀 용량 상한 (성장 여지)
+export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg.amount 로 재정의 가능)
+
 // --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
 // 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
 // 이체 — 별도 동기화 채널 없이 원장에 편입된다. 보존은 transfer 클램프가 강제한다.
@@ -95,6 +101,7 @@ export const POOL = {
   CELL: 'F:',     // 필드 셀 (확산 격자 풀)
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
+  STRUCT: 'S:',   // A6-2 구조 풀 (성장 = 잠긴 질서, 플레이어당 1)
   SOURCE: 'W:SRC',
   SINK: 'W:SINK',
 };
@@ -105,6 +112,7 @@ export const CAUSE = {
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
+  GROW: 'grow',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
