@@ -93,14 +93,35 @@
 		return (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
 	}
 	// 원점 기준 raw 포즈를 전 살 인스턴스 위치로 이어붙인다 (전역 뼈 테이블). 순서는 fleshObjects.
-	function concatInstances(raw) {
+	// A 트랙: 개체별 애니메이션. `o.anim` 이 있으면 그 개체의 컨트롤러(입력→상태→클립)가 제
+	// 포즈를 내고(이동 강도 주입 → 상태 머신 전이), 없으면 장면 공용 클립 포즈(sharedRaw)를 따른다.
+	// built-in 리그·같은 게놈이라 세그먼트 수/순서가 공용 rest 와 동일 → 친화 인덱스 호환(재시드 불필요).
+	function concatInstances(sharedRaw, dt) {
 		const bones = [];
 		for (const o of fleshObjects()) {
 			const em = o.genes.emitter;
+			let raw = sharedRaw;
+			if (o.anim) {
+				o.anim.input.setMove(0, o.anim.moveMag || 0);
+				const r = o.anim.controller.update(playing ? (dt || 0) : 0, o.anim.input, { fat: skel.fat, genome: skel.genome });
+				raw = r.segs;
+				o.anim.stateName = r.state.name;
+			}
 			for (const s of offsetSegsBy(raw, em[0], em[2])) bones.push(s);
 		}
 		return bones;
 	}
+	// 개체별 A 트랙 애니메이션 켜기/끄기 — 켜면 제 스켈레톤 인스턴스 + 입력 + 상태 머신을 갖는다.
+	// 스켈레톤 *정의*(게놈·리그)는 여전히 공용이라 세그먼트 순서가 같다 (친화 호환).
+	function enableAnim(o) {
+		if (o.anim) return;
+		o.anim = {
+			input: new HktGenesisAnim.CharacterInput(),
+			controller: new HktGenesisAnim.AnimationController(new HktGenesisSkeleton.Skeleton()),
+			moveMag: 0.5, stateName: 'idle',
+		};
+	}
+	function disableAnim(o) { o.anim = null; }
 
 	// ── 장면 → 엔진: void 패딩으로 개체 수를 2^k 로 맞춰 setScene ──────────
 	function syncScene(keepTime) {
@@ -113,7 +134,9 @@
 		objects.forEach((o) => {
 			if (o.genes.form !== 3) return;
 			const em = o.genes.emitter;
-			o.genes.bindBones = offsetSegsBy(rest, em[0], em[2]); // 이 인스턴스의 rest 뼈 (친화 가중용)
+			// A 트랙: 애니 개체는 제 컨트롤러의 rest 로 시드 (공용 클립이 external 이어도 built-in 정합)
+			const restRaw = o.anim ? o.anim.controller.bindBones() : rest;
+			o.genes.bindBones = offsetSegsBy(restRaw, em[0], em[2]); // 이 인스턴스의 rest 뼈 (친화 가중용)
 			o.genes.boneBase = base;                              // 전역 테이블 내 이 인스턴스의 시작 인덱스
 			base += o.genes.bindBones.length;
 			o.genes.genome = skel.genome;
@@ -418,6 +441,33 @@
 			input.addEventListener('input', () => { o.colors[k] = input.value; o.genes[k] = hexToVec4(input.value); });
 		}
 		d.appendChild(colors);
+
+		// ── A 트랙: 개체별 애니메이션 사용 여부 ──────────────────────────────
+		if (o.genes.form === 3) {
+			d.appendChild(el('<h2>애니메이션 (A 트랙)</h2>'));
+			const useRow = el('<div class="inline"><label><input type="checkbox"> 입력 상태 머신 사용</label></div>');
+			const chk = useRow.querySelector('input');
+			chk.checked = !!o.anim;
+			chk.addEventListener('change', () => {
+				if (chk.checked) enableAnim(o); else disableAnim(o);
+				syncScene(true); // 친화 재시드 (bind 소스 정합)
+				buildDetail();
+				buildTree();
+			});
+			d.appendChild(useRow);
+			if (o.anim) {
+				// 이동 강도 → moveMag 주입: 상태 머신이 idle→walk→run 으로 전이 (입력→상태→클립 실증)
+				d.appendChild(sliderRow('이동 강도', 0, 1, 0.05, o.anim.moveMag, (v) => { o.anim.moveMag = v; }));
+				const btns = el('<div class="inline"><button data-a="jump">점프</button><button data-a="wave">인사</button></div>');
+				for (const b of btns.querySelectorAll('button'))
+					b.addEventListener('click', () => o.anim.input.trigger(b.dataset.a === 'jump' ? 'jump' : 'action', b.dataset.a === 'jump' ? undefined : 'wave'));
+				d.appendChild(btns);
+				d.appendChild(el(`<div class="note" id="animState-${o.id}">상태: ${o.anim.stateName}</div>`));
+			} else {
+				d.appendChild(el('<div class="note">끄면 장면 공용 클립(하단 타임라인)을 따른다. 켜면 이 개체만 입력→상태→클립으로 독립 구동.</div>'));
+			}
+		}
+
 		const delBtn = el('<div class="inline"><button>개체 삭제</button></div>');
 		delBtn.querySelector('button').addEventListener('click', () => removeObject(o.id));
 		d.appendChild(delBtn);
@@ -752,10 +802,15 @@
 			// 위치에 제 스켈레톤을 참조한다. 순서·boneBase 는 syncScene 과 동일(fleshObjects).
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
-				const raw = (skel.clip === 'external' && extSkel)
-					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
-					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
-				bones = concatInstances(raw);
+				// 공용 클립 포즈는 애니 미사용 개체가 하나라도 있을 때만 계산(외부 클립 mixer 중복 진행 방지)
+				const needShared = fleshObjects().some((o) => !o.anim);
+				const raw = !needShared ? null
+					: (skel.clip === 'external' && extSkel)
+						? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
+						: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
+				bones = concatInstances(raw, dt);
+				// A 트랙: 선택된 애니 개체의 상태 HUD 갱신 (디테일 패널 노트)
+				for (const o of fleshObjects()) if (o.anim) { const se = $('animState-' + o.id); if (se) se.textContent = '상태: ' + o.anim.stateName; }
 			}
 			const stageOn = stage() && stage().enabled;
 			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
@@ -795,6 +850,10 @@
 		generateTerrain, clearTerrain,
 		addObject, removeObject,
 		selectObject: (id) => select(id == null ? null : { kind: 'object', id }),
+		// A 트랙 개체별 애니메이션 제어 (하니스/자동화)
+		setObjectAnim: (id, on) => { const o = findObject(id); if (o && o.genes.form === 3) { on ? enableAnim(o) : disableAnim(o); syncScene(true); } },
+		setObjectMove: (id, mag) => { const o = findObject(id); if (o && o.anim) o.anim.moveMag = mag; },
+		triggerObject: (id, name, val) => { const o = findObject(id); if (o && o.anim) o.anim.input.trigger(name, val); },
 		setMode, setPalette: (p) => { $('palette').value = p; },
 		setClip: (c) => { $('tlClip').value = c; $('tlClip').dispatchEvent(new Event('change')); },
 		setTime, play: setPlaying,
@@ -810,6 +869,7 @@
 				flesh: objects.filter((o) => o.genes.form === 3).map((o) => ({
 					id: o.id, emitter: o.genes.emitter.slice(),
 					boneBase: o.genes.boneBase || 0, boneCount: (o.genes.bindBones || []).length,
+					anim: o.anim ? o.anim.stateName : null, // A 트랙: 애니 사용 여부·현재 상태
 				})),
 				objects: objects.map((o) => ({ id: o.id, name: o.name, preset: o.presetName, emitter: o.genes.emitter.slice() })),
 			};

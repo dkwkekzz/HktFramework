@@ -284,6 +284,36 @@ C1~C5(형태·채색·부속·추출기 v0) 완료, 다음은 C6 오버레이. �
   검증: `node test/editor-multi-hikito-shot.js` — 히키토 2개 배치, 서로 다른 boneBase + 살 픽셀
   좌/우 분리(가운데 골짜기) 판정 사진.
 
+## A 트랙 — 애니메이션 (입력 → 상태 → 클립, 단일 스켈레톤)
+
+상세 설계·근거는 [PLAN-Animation.md](PLAN-Animation.md) 참조. L6 뼈대(세그먼트=살 입력) 위에 얹히는
+순수 입력 계층 — 하나의 표준 스켈레톤을 입력으로 몬다. 새 모듈 `js/anim.js`(`HktGenesisAnim`),
+skeleton.js·app.js·index.html·`test/_common.js` 배선. C·R 트랙과 독립.
+
+- ✅ **A1 — 입력·상태·클립 3층**: ① `CharacterInput` — 입력 소스(키보드/에디터/AI/네트워크)를
+  캐릭터에서 분리(연속 축 move + 1회성 트리거 jump/action). ② `CharacterStateMachine` — 선언적
+  (직렬화 가능) 조건 DSL(`{axis,op,value}`/`{trigger}`/`{clipDone}`/`{after}`, 배열=AND·`any`=OR,
+  함수 이스케이프)로 도는 상태 그래프 + 기본 휴머노이드 그래프(idle↔walk↔run + wave/jump 원샷).
+  ③ `AnimationController` — 상태의 논리 클립을 built-in 절차 클립 / FBX 명명 클립으로 해석해 매
+  프레임 세그먼트 산출. **FBX 설정**: `ExternalSkeleton` 다중 클립화(`clipNames`/`play(name,fade)`
+  크로스페이드) + `useFbx` 가 상태를 클립 이름에 자동 배선(상태 이름 우선, 논리 클립명 폴백,
+  Mixamo 접두어 흡수). built-in 절차 `jump` 원샷 추가(도약 포물선 + bell 무릎 당김) — FBX 없이도
+  트리거 구동 실증. app.js: `입력 구동` 토글 + WASD 이동·Space 점프·Q 인사 키보드 주입 + 상태 HUD,
+  소스 전환 시 뼈 친화 재시드. 검증: `node test/anim-shot.js` — ① 상태 전이(무입력→idle·이동→walk→run·
+  정지→idle·wave/jump 트리거→원샷 후 clipDone 복귀) ② FBX 자동 배선(Mixamo 접두어 매핑) ③ 컨트롤러
+  구동 세그먼트 위 살 배양 사진. 회귀: genome-shot(세그먼트 bit-exact 0)·app-smoke 무영향.
+  한계: built-in↔FBX 소스 전환은 하드 컷(친화 재시드) — 같은 소스 안에서만 크로스페이드. 이동
+  루트모션(발 미끄러짐)은 제자리 데모라 미대응(단일 스켈레톤 범위). 다개체 상태 머신은 C7 합류.
+- ✅ **A1e — 에디터 개체별 애니 토글**: 살(fleshK) 개체 디테일 패널에 `입력 상태 머신 사용`
+  체크박스 — 켠 개체만 제 컨트롤러(입력→상태→클립)로 독립 구동하고, 끈 개체는 장면 공용 클립
+  (타임라인)을 따른다. 개체별 `이동 강도` 슬라이더(→moveMag)로 idle→walk→run 전이, 점프·인사
+  버튼(트리거). 개체마다 제 Skeleton 인스턴스지만 정의(게놈·리그)는 공용이라 세그먼트 순서가
+  같아 친화 호환(애니 개체는 제 컨트롤러 bind 로 시드 → 공용 클립이 external 이어도 정합).
+  하니스 API `setObjectAnim`/`setObjectMove`/`triggerObject` + `debug().flesh[].anim`. 검증:
+  `node test/editor-anim-shot.js` — 히키토 2개 중 우측만 애니 ON(이동 1.0→run)·좌측 공용 idle,
+  ① 데이터(우 anim='run'·좌 anim=null·서로 다른 boneBase) ② 좌/우 분리 렌더 ③ 하체폭 run>idle
+  (다리 스트라이드) 사진. 회귀: editor-shot·editor-multi-hikito 무영향(anim 필드 하위호환).
+
 ## R5 — 엔진 일반 큐 (L6 무관, 독립)
 
 - ~~장면 편집기 (개체 추가/배치 UI)~~ → E1 에서 구현 · 슬라임의 포식(질량 이전)

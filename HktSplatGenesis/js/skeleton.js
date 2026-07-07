@@ -78,6 +78,9 @@
 		return corr;
 	}
 
+	// A 트랙: built-in 절차 점프 원샷 — 소요 시간·도약 높이 (애니메이션 상수, armDown 과 같은 급).
+	const JUMP_DUR = 0.75, JUMP_H = 0.5;
+
 	// ── (1) Skeleton IR: 휴머노이드 계층 (T-pose, 단위 ~m, 발끝 y≈0) ────────
 	// hikito-flesh buildMixamoRig 와 동일 계층 (손가락 포함, 접두어만 생략).
 	function buildHumanoidRig() {
@@ -250,6 +253,14 @@
 			if (n === 'RightArm')     { rz = -1.55; rx = 0.2; }
 			if (n === 'RightForeArm') { rz = Math.sin(t * 7.0) * 0.5 - 0.2; }
 			if (n === 'Spine1') ry = 0.08;
+		} else if (clip === 'jump') {
+			// 원샷: t 는 클립 로컬 시각. bell(0→1→0) 로 도약 중 무릎 당김·팔 들기.
+			const bell = Math.sin(Math.min(t / JUMP_DUR, 1) * Math.PI);
+			if (n === 'LeftUpLeg' || n === 'RightUpLeg') rx = -0.6 * bell;
+			if (n === 'LeftLeg'  || n === 'RightLeg')    rx =  1.0 * bell;
+			if (n === 'LeftArm')  rz = -armDown + 0.7 * bell;
+			if (n === 'RightArm') rz =  armDown - 0.7 * bell;
+			if (n === 'Spine1') rx = -0.12 * bell;
 		}
 		return [rx, ry, rz];
 	};
@@ -269,7 +280,8 @@
 			const local = rotXYZ(e[0], e[1], e[2]);
 			if (d.parent < 0) {
 				const bob = clip === 'walk' ? Math.sin(ph * 2.0) * 0.03
-					: clip === 'idle' ? Math.sin(t * 1.1) * 0.008 : 0;
+					: clip === 'idle' ? Math.sin(t * 1.1) * 0.008
+					: clip === 'jump' ? JUMP_H * 4 * Math.min(t / JUMP_DUR, 1) * (1 - Math.min(t / JUMP_DUR, 1)) : 0;
 				this._wpos[i] = [d.offset[0], this.bindHipY + bob + hipCorr, d.offset[2]];
 				this._wrot[i] = local;
 			} else {
@@ -333,10 +345,16 @@
 		box.getCenter(this.center);
 		this.mixer = null;
 		this.clipName = '';
+		// A 트랙: 클립을 *전부* 보관한다 (전엔 animations[0] 하나만). 상태 머신이 이름으로
+		// 골라 play(name, fade) 로 크로스페이드한다 — FBX 로 상태 그래프를 배선하는 토대.
+		this.clips = {};      // 이름 → THREE.AnimationClip
+		this._actions = {};   // 이름 → AnimationAction (지연 생성)
+		this._active = '';    // 현재 재생 중인 클립 이름
 		if (object3d.animations && object3d.animations.length) {
 			this.mixer = new THREE.AnimationMixer(object3d);
-			this.mixer.clipAction(object3d.animations[0]).play();
+			for (const c of object3d.animations) this.clips[c.name || `clip${Object.keys(this.clips).length}`] = c;
 			this.clipName = object3d.animations[0].name || '';
+			this.play(this.clipName, 0); // 기본은 첫 클립(기존 거동과 동일)
 		}
 		this._wp = new THREE.Vector3();
 		this._wpp = new THREE.Vector3();
@@ -344,6 +362,21 @@
 		this._aq = new THREE.Quaternion();
 	}
 	ExternalSkeleton.prototype.valid = function () { return this.bones.length > 0; };
+	// 보관 중인 클립 이름 목록 (상태↔클립 자동 배선의 후보).
+	ExternalSkeleton.prototype.clipNames = function () { return Object.keys(this.clips); };
+	// 이름 클립으로 전환 — fade>0 이면 크로스페이드(같은 리그라 뼈 순서 불변 = 친화 안전).
+	// 미지 이름/믹서 없음이면 무동작(현재 클립 유지).
+	ExternalSkeleton.prototype.play = function (name, fade) {
+		if (!this.mixer || !this.clips[name] || this._active === name) return;
+		if (!this._actions[name]) this._actions[name] = this.mixer.clipAction(this.clips[name]);
+		const next = this._actions[name];
+		const prev = this._active && this._actions[this._active];
+		next.enabled = true; next.setEffectiveWeight(1).play();
+		if (prev && fade > 0) { next.reset(); prev.crossFadeTo(next, fade, false); }
+		else if (prev) prev.stop();
+		this._active = name;
+		this.clipName = name;
+	};
 	// 부착 뼈 해석 — simpleName 완전 일치 → 포함 → 루트 뼈 폴백 (rig-agnostic).
 	ExternalSkeleton.prototype._attachBone = function (name) {
 		let contains = null;

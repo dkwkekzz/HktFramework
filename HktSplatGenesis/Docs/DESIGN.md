@@ -47,9 +47,16 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
 - `js/presets.js` — 유전자 스키마(`GENE_DEFS`)·프리셋(`PRESETS`)의 유일한 원본 (app.js 와 test/ 가 공유 — 드리프트 방지).
 - `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
 - `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
-- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK + 살 문법 + ExternalSkeleton(FBX).
-  살 힘은 wgsl.js SIM 의 fleshK 규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. C1: `pose(...,genome)`
-  5번째 인자로 세그먼트 반지름에 게놈 배율을 곱한다(`radiusG` = 기본 문법 × fat × 게놈 배율).
+- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK(walk/idle/wave/jump) + 살 문법 +
+  ExternalSkeleton(FBX, 다중 클립·`play(name,fade)` 크로스페이드). 살 힘은 wgsl.js SIM 의 fleshK
+  규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. C1: `pose(...,genome)` 5번째 인자로 세그먼트
+  반지름에 게놈 배율을 곱한다(`radiusG` = 기본 문법 × fat × 게놈 배율).
+- `js/anim.js` — A 트랙 애니메이션 3층(`HktGenesisAnim`): ① `CharacterInput`(입력 주입 —
+  축 move + 1회성 트리거) ② `CharacterStateMachine`(선언적 상태 그래프 + 조건 DSL, 기본
+  휴머노이드 그래프 내장) ③ `AnimationController`(상태→클립: built-in `Skeleton.pose` /
+  FBX `ExternalSkeleton`, `useFbx` 로 상태를 클립 이름에 자동 배선, `sourceChanged` 로 재시드
+  신호). skeleton.js 위에 얹히는 순수 입력 계층 — 세그먼트를 새로 만들지 않고 소스를 고를 뿐.
+  Node require 가능(하니스·단위 검증용).
 - `js/genome.js` — C 트랙 캐릭터 게놈(`HktGenesisGenome`). ① 형태(morph): 뼈 이름 → 부위 그룹
   (`groupForName`, 이름 기반 rig-agnostic) → 배율. morph 엔트리는 숫자(반지름만, C1) 또는
   `{r, l}`(반지름·길이, C2). `radiusScale`/`lengthScale` 가 각각 스타일 프로파일
@@ -75,6 +82,9 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
 - `editor.html` + `js/editor.js` — E 트랙 에디터(별도 진입점, index.html 데모 불변):
   지형 생성·오브젝트 배치·애니메이션 타임라인. 엔진/셰이더 무수정 — 시뮬 *입력*만 만진다.
   개체 수 2^k 제약은 무(void) 개체(opacity 0 = VS 컬, emitter y=64 = 격자 밖) 패딩으로 흡수.
+  A1e: 살 개체 디테일에 `입력 상태 머신 사용` 토글 — 켠 개체는 `o.anim`(제 AnimationController+
+  CharacterInput+Skeleton 인스턴스)로 독립 구동, 끈 개체는 공용 클립. `concatInstances(sharedRaw,dt)`
+  가 개체별로 anim/공용 포즈를 골라 이어붙인다. 정의(게놈·리그) 공용이라 세그 순서 동일 = 친화 호환.
 - `js/terrain-gen.js` — 절차 지형 (T1): 순수 무한 도메인 `world(x,z)` → 무대 PLY + collider
   삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
   + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는
@@ -139,6 +149,9 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 무대 fog = clear 색, 생명 fog = 렌더 FS, 톤 공유 (T5) | Spark 스플랫 셰이더는 three fog 를 지원하지 않는다(spark.module 에 fog 심볼 없음) — 무대 지형에 *점진적* fog 를 칠할 수 없다. 그래서 무대 fog 는 clear 색(지평선 = 타일 링 밖)으로, 생명 fog 는 렌더 FS(viewZ→fogColor)로 각각 구현하되 *같은 색*을 공유(`stage.getSkyFog` 단일 원본 → `engine.frame({fog})`)해 두 층이 지평선에서 같은 톤으로 만난다. fog 는 tile 월드에서만(단일 데모 clear 불변 = 회귀 0), CamParams fog/fogRange + camUB 160→192B(fogAmount 0 = off) |
 | sky/fog 톤은 디스플레이(sRGB) 공간, 무대 clear 는 linear 로 넣는다 (T5) | 무대(three, sRGB 출력 캔버스)는 clear 색을 linear→sRGB 인코딩해 화면에 낸다(0.62 linear → 화면 206). 생명(WebGPU 비-sRGB 캔버스)은 fog 색을 raw 로 써서 화면에 그대로 낸다. 두 층 픽셀이 *일치*하려면 톤을 디스플레이(sRGB) 값으로 정의하고, 무대엔 그 톤의 linear 역변환을 clear 로 넣어야 한다(three 가 다시 sRGB 인코딩 → 화면 = 톤). 생명은 톤 raw 그대로. 안 맞추면 하늘밴드 거리 67, 맞추면 0.5(world-water-shot ①) |
 | 수면 = waterY 평면의 반투명 flat surfel, 수몰 셀만 (T5) | 수면은 "무대(로드 대상)"의 시각 층 — 시뮬은 heightfield 를 그대로 보고(생명은 물속에서도 바닥 충돌), 물은 시각뿐(PLAN §5). 지형이 waterY 밑인 셀에만 납작한 surfel 을 놓아 마른 땅에 물이 안 뜨고, tilePly 와 같은 전역 셀 격자라 이음새가 없다. 한계: 근접 저각에서 flat surfel(지형·수면 공통)이 뭉개진다 — 스타일 폴리시로 남김 |
+| 애니메이션은 입력·상태·클립 3층 분리, 상태 그래프는 선언적 데이터 (A1) | 입력 *소스*(키보드/에디터/AI/네트워크)를 `CharacterInput`(축+트리거)으로 캐릭터에서 분리하면 같은 상태 머신을 어느 소스든 몬다. 상태 그래프는 술어 함수가 아니라 직렬화 가능한 조건 DSL(`{axis,op,value}`/`{trigger}`/`{clipDone}`/`{after}`)로 — 정체성=데이터 원칙의 애니메이션 판(게놈이 몸을 데이터화하듯 상태 전이를 데이터화). 함수 이스케이프는 최후 수단. 트리거는 1프레임 수명 에지(상태 스텝 후 소멸)라 공중 점프 등 미소비 입력이 무한 버퍼되지 않는다 |
+| 클립 크로스페이드는 같은 소스·같은 리그 안에서만 (A1) | 세그먼트 순서 = 뼈 친화(rest.w) 인덱스 규약(위) 때문에, 세그먼트 수/순서가 바뀌는 전환(built-in↔FBX)은 부드럽게 섞을 수 없다 — 하드 컷 + 재시드. 같은 FBX 리그의 클립끼리는 뼈 순서가 불변이라 mixer 크로스페이드가 안전(친화 유지), built-in 끼리는 위상 리셋(즉시)이며 살 스프링이 지연 흡수. controller.update 가 `sourceChanged` 로 재시드 필요를 호출측에 알린다 |
+| FBX 배선은 상태 이름 우선, 논리 클립명 폴백 (A1) | 상태↔FBX 클립 매핑은 상태 이름(run→'Run')을 먼저 찾고, 없으면 상태의 논리 클립명(run 은 clip 'walk'→'Walking')으로 폴백 — 전용 Run 클립이 있으면 그걸, 없으면 walk 재사용. Mixamo `mixamorig\|Run`·`Armature\|Walk.001` 접두어·꼬리는 `normClip` 으로 흡수(rig-agnostic). built-in jump 는 절차 원샷(도약 포물선 + bell 무릎 당김)이라 FBX 없이도 트리거 구동을 실증(anim-shot A) |
 
 ## 검증 방법
 

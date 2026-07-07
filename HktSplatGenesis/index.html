@@ -107,6 +107,12 @@
 		</div>
 		<div class="row"><label>클립 속도</label><input type="range" id="skelSpeed" min="0" max="2.5" step="0.05" value="1"><span class="val">1</span></div>
 
+		<h2>입력 → 상태 (A 트랙)</h2>
+		<div class="inline">
+			<label><input type="checkbox" id="skelInput"> 입력 구동 (상태 머신)</label>
+		</div>
+		<div class="note" id="skelState">상태: —<br>WASD 이동 · Space 점프 · Q 인사</div>
+
 		<h2>살 문법</h2>
 		<div class="row"><label>통통함</label><input type="range" id="skelFat" min="0.5" max="1.8" step="0.05" value="1"><span class="val">1</span></div>
 		<div class="inline">
@@ -168,6 +174,7 @@
 <script src="js/terrain-gen.js"></script>
 <script src="js/genome.js"></script>
 <script src="js/skeleton.js"></script>
+<script src="js/anim.js"></script>
 <script src="js/presets.js"></script>
 <script src="js/wgsl.js"></script>
 <script src="js/engine.js"></script>

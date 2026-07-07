@@ -15,10 +15,13 @@ import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
+import { SKILLS, WEAPON_COST } from '../shared/constants.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
+  RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -338,6 +341,266 @@ test('A3 영속화 — 스냅샷 저장→복원 후 지역 체크섬 일치 + �
   // 복원된 세계가 계속 굴러가도 보존 유지 (죽은 노드도 필드에서 재충전)
   for (let i = 0; i < 60; i++) revived.tick();
   assert.equal(revived.ledger.totalSum(), WORLD_SOURCE_INITIAL, '복원 후 계속 틱 — 총합 불변');
+});
+
+test('A6-0 태양 순환 — 소산(SINK)이 재순환 주기마다 SOURCE 로 되돌아 세계가 영속 (닫힌 루프·보존)', () => {
+  const { game, total } = setup();
+  const src0 = game.ledger.balance(POOL.SOURCE);
+
+  // (1) 기본: 한 주기 소산이 경계 tick 에서 전량 SOURCE 로 되돌아온다
+  game.ledger.transfer(POOL.SOURCE, POOL.SINK, 12345, 'test'); // 소산 모사 (보존 이체)
+  while (game.tickCount < RECYCLE_INTERVAL_TICKS) game.tick();  // 경계 직전까지 SINK 유지
+  assert.equal(game.ledger.balance(POOL.SINK), 12345, '재순환 전에는 소산이 SINK 에 쌓여 있다');
+  game.tick(); // tickCount === RECYCLE_INTERVAL_TICKS → 재순환 실행
+  assert.equal(game.ledger.balance(POOL.SINK), 0, '경계 tick 에서 소산 전량 재순환');
+  assert.equal(game.ledger.balance(POOL.SOURCE), src0, 'SOURCE 로 온전히 되돌아옴');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '순환도 이체 — 총합 불변');
+
+  // (2) 반복: 여러 주기를 돌려도 SINK 는 유계, SOURCE 는 정상상태 (영속)
+  let sinkPeak = 0;
+  for (let cycle = 0; cycle < 4; cycle++) {
+    game.ledger.transfer(POOL.SOURCE, POOL.SINK, 5000, 'test');
+    sinkPeak = Math.max(sinkPeak, game.ledger.balance(POOL.SINK));
+    for (let i = 0; i < RECYCLE_INTERVAL_TICKS; i++) game.tick(); // 정확히 한 재순환 경계 통과
+    assert.equal(total(), WORLD_SOURCE_INITIAL, `주기 ${cycle} 총합 보존`);
+  }
+  assert.ok(sinkPeak <= 5000, `SINK 유계 — 무한 성장 없음 (최고 ${sinkPeak})`);
+  assert.equal(game.ledger.balance(POOL.SINK), 0, '마지막 주기도 재순환 완료');
+  assert.equal(game.ledger.balance(POOL.SOURCE), src0, 'SOURCE 정상상태 — 고갈 없이 순환');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-0] 재순환 주기 ${RECYCLE_INTERVAL_TICKS}틱 · SINK 최고 ${sinkPeak}→0 · SOURCE 정상상태 · 총합 ${total()} 불변`);
+});
+
+test('A6-1 대사 — 생명은 매 주기 upkeep 를 지불하고, 못 채우면 굶어 죽는다 (아사도 보존)', () => {
+  const { clock, game, join, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
+
+  // 대사 1주기 = upkeep 1회 (player→SINK)
+  const before = game.ledger.balance(a.player.id);
+  while (game.tickCount < UPKEEP_INTERVAL_TICKS) game.tick();
+  assert.equal(game.ledger.balance(a.player.id), before, '주기 경계 전에는 소모 없음');
+  game.tick(); // tickCount === UPKEEP_INTERVAL_TICKS → 대사
+  assert.equal(game.ledger.balance(a.player.id), before - UPKEEP_AMOUNT, '대사 1주기 = upkeep 1회');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '대사도 이체 — 총합 불변');
+
+  // 빈사로 만든 뒤(테스트 전용 이체) 유지 실패 → 아사
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
+  assert.equal(game.ledger.balance(a.player.id), UPKEEP_AMOUNT, '잔고 = upkeep 1회분');
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
+  assert.ok(a.player.dead, '대사 유지 실패 = 아사');
+  assert.equal(game.ledger.balance(a.player.id), 0, '사망 시 잔고 0 (전량 SINK)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '아사도 보존 (에너지는 SINK 로)');
+
+  // 리스폰 — SOURCE 인출로 다시 산다
+  clock.t += RESPAWN_DELAY_MS + 100;
+  game.tick();
+  assert.ok(!a.player.dead, '리스폰');
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-1] upkeep ${UPKEEP_AMOUNT}/${UPKEEP_INTERVAL_TICKS}틱 · 유지 실패=아사(잔고0)·리스폰 SOURCE 인출·총합 ${total()} 불변`);
+});
+
+test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아님), 사망 지속·이탈 환원 (보존)', () => {
+  const { clock, game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant 300
+  const structId = POOL.STRUCT + a.player.id;
+  assert.equal(game.ledger.balance(structId), 0, '구조 풀은 빈 채로 생성');
+
+  // 성장: 자유 에너지를 구조로 예치 (player→STRUCT) — 창조가 아니라 재분배
+  intent(a.player, INTENT.GROW, { amount: 120 }, 'g1');
+  game.tick();
+  assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT - 120, '자유 잔고 감소');
+  assert.equal(game.ledger.balance(structId), 120, '구조로 예치 (질서화)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '창조 아님 — 재분배라 총합 불변');
+
+  // 미러 정합: 소유자 클라가 GROW tx 를 재생해 자유 잔고가 일치 (구조 풀 물질화 검증)
+  const client = new ClientState();
+  for (const m of a.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id),
+    '미러 자유 잔고 정합 (GROW 재생)');
+
+  // 사망해도 성장은 지속된다 (영구 성장) — 자유만 고갈시켜 아사(구조는 불가침)
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
+  assert.ok(a.player.dead, '자유 에너지 고갈 = 아사');
+  assert.equal(game.ledger.balance(structId), 120, '사망해도 구조 지속 (영구 성장)');
+
+  // 리스폰 후에도 구조 유지
+  clock.t += RESPAWN_DELAY_MS + 100;
+  game.tick();
+  assert.ok(!a.player.dead, '리스폰');
+  assert.equal(game.ledger.balance(structId), 120, '리스폰 후에도 구조 유지');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // 접속 종료 시 구조 에너지는 SINK 로 환원 (원장에서 소멸 없음)
+  game.removePlayer(a.player.id);
+  assert.equal(game.ledger.get(structId), undefined, '구조 풀 제거');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이탈 환원도 보존');
+  console.log(`    [A6-2] 성장 player→STRUCT 120 · 사망/리스폰 지속(영구)·이탈 환원 SINK · 총합 ${total()} 불변`);
+});
+
+test('A6-3 스탯 = 흐름 계수 — 구조가 공격력·대사를 키운다 (구조의 함수·보존)', () => {
+  // 순수 함수: 단조 증가·결정론
+  assert.ok(attackBonus(1000) > attackBonus(0), '구조↑ → 공격 보너스↑');
+  assert.ok(upkeepFor(1000) > upkeepFor(0), '구조↑ → 대사 비용↑');
+  assert.equal(attackBonus(500), attackBonus(500), '결정론');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const atk = join('ATK');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const refill = (id) => game.ledger.transfer(POOL.SOURCE, id, PLAYER_MAX_ENERGY - bal(id), 'test');
+
+  // 공격자를 구조 800 으로 성장 (만충 후 예치 → 자유 200 남김)
+  refill(atk.player.id);
+  intent(atk.player, INTENT.GROW, { amount: 800 }, 'grow');
+  game.tick();
+  const structId = POOL.STRUCT + atk.player.id;
+  assert.equal(bal(structId), 800);
+
+  // (1) 공격력 = 구조의 함수 — 데미지 = canonical + 구조 보너스 (피격자 클램프 내)
+  warp(atk.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  refill(tgt.player.id);
+  const before = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(atk.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, atk.player.id, 1) + attackBonus(800),
+    '데미지 = canonical + 구조 공격 보너스');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (2) 대사 비용 = 구조의 함수 — 구조 큰 ATK 가 구조 0 TGT 보다 더 많이 지불
+  while (game.tickCount % UPKEEP_INTERVAL_TICKS !== 0) game.tick(); // upkeep 경계 직전(tickCount 배수)
+  refill(atk.player.id); refill(tgt.player.id);
+  const atkB = bal(atk.player.id), tgtB = bal(tgt.player.id);
+  game.tick(); // upkeep 발생
+  assert.equal(atkB - bal(atk.player.id), upkeepFor(800), '구조 큰 쪽 대사 = upkeepFor(800)');
+  assert.equal(tgtB - bal(tgt.player.id), upkeepFor(0), '구조 0 쪽 = 기본 대사');
+  assert.ok(upkeepFor(800) > upkeepFor(0), '성장은 공짜가 아니다 — 큰 몸일수록 유지비↑');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-3] 구조 800 → 공격 +${attackBonus(800)}·대사 ${upkeepFor(0)}→${upkeepFor(800)} · 데미지 클램프·총합 ${total()} 불변`);
+});
+
+test('A6-4 스킬 = 발산 패턴 — 비용 있는 증폭 이체, 흡수/소각 형태 차별·쿨다운·보존', () => {
+  const { clock, game, join, warp, intent, total } = setup();
+  const atk = join('ATK');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  // 잔고를 목표값으로 설정 (테스트 전용 이체 — 보존). 공격자는 흡수 여유를 위해 중간값.
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+
+  // 순수 함수: 구조가 스킬 위력을 키운다
+  assert.ok(skillDamage(SKILLS.smash, 600) > skillDamage(SKILLS.smash, 0), '구조↑ → 스킬 위력↑');
+  assert.ok(SKILLS.drain.leechPct > SKILLS.smash.leechPct, '스킬마다 흡수/소각 형태가 다르다');
+
+  warp(atk.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+
+  // 흡정(drain): 높은 흡수 — 공격자가 크게 흡수, 소각 적음
+  setBal(atk.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY); // 공격자 흡수 여유 확보
+  const atkB = bal(atk.player.id), tgtB = bal(tgt.player.id);
+  clock.t += 3000;
+  intent(atk.player, INTENT.SKILL, { skillId: 'drain', targetId: tgt.player.id }, 'd1');
+  game.tick();
+  const dDmg = skillDamage(SKILLS.drain, 0);
+  const dLeech = Math.floor(dDmg * SKILLS.drain.leechPct / 100);
+  assert.equal(tgtB - bal(tgt.player.id), dDmg, '흡정 데미지 = skillDamage (피격자 인출)');
+  assert.equal(bal(atk.player.id) - atkB, dLeech - SKILLS.drain.cost, '흡정 = 큰 흡수 − 시전비');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // 쿨다운: 즉시 재시전 기각
+  intent(atk.player, INTENT.SKILL, { skillId: 'drain', targetId: tgt.player.id }, 'd2');
+  game.tick();
+  assert.equal(atk.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'd2')?.reason, 'cooldown');
+
+  // 강타(smash): 높은 소각 — SINK 로 큰 소각, 흡수 적음
+  setBal(atk.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const sinkB = bal(POOL.SINK);
+  clock.t += 3000;
+  intent(atk.player, INTENT.SKILL, { skillId: 'smash', targetId: tgt.player.id }, 's1');
+  game.tick();
+  const sDmg = skillDamage(SKILLS.smash, 0);
+  const sBurn = sDmg - Math.floor(sDmg * SKILLS.smash.leechPct / 100);
+  assert.equal(bal(POOL.SINK) - sinkB, SKILLS.smash.cost + sBurn, '강타 = 시전비 + 큰 소각 (SINK↑)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-4] 흡정 흡수 ${dLeech}/${dDmg}(cost ${SKILLS.drain.cost}) · 강타 소각 ${sBurn}/${sDmg}(cost ${SKILLS.smash.cost}) · 쿨다운 강제 · 총합 ${total()} 불변`);
+});
+
+test('A6-5 아이템 = 결정체 장착 — 아이템 잔고가 스탯을 증폭(민팅 없음), 획득·발산·해제 (보존)', () => {
+  // 순수 함수: 아이템 잔고↑ → 증폭↑
+  assert.ok(weaponBonus(250) > weaponBonus(50), '무기 잔고↑ → 공격 증폭↑');
+  assert.ok(gatherBonus(100) > gatherBonus(0), '결정 잔고↑ → 채집 증폭↑');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const a = join('A');
+  const tgt = join('TGT');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+
+  // (1) 무기 발산 증폭 — 데미지 = canonical + weaponBonus(무기 잔고). 여전히 피격자 클램프.
+  setBal(a.player.id, PLAYER_MAX_ENERGY);
+  intent(a.player, INTENT.CRAFT, {}, 'craft'); // 무기 250
+  game.tick();
+  const weapon = [...game.items.values()].find(i => i.itemType === 'weapon');
+  assert.equal(bal(weapon.id), WEAPON_COST);
+
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(WEAPON_COST),
+    '데미지 = canonical + 무기 잔고 증폭(마모 전 잔고)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (2) 결정 획득 증폭 — 결정 소지 시 채집량 = 기본 + gatherBonus(결정 잔고). 노드가 제공(민팅 아님).
+  const node = game.nodes.values().next().value;
+  setBal(a.player.id, PLAYER_MAX_ENERGY);
+  intent(a.player, INTENT.CONDENSE, {}, 'cond'); // 결정 100
+  game.tick();
+  const crystal = [...game.items.values()].find(i => i.itemType === 'crystal');
+  warp(a.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(a.player.id, 500);
+  const pBefore = bal(a.player.id);
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g1');
+  game.tick();
+  assert.equal(bal(a.player.id) - pBefore, GATHER_AMOUNT + gatherBonus(bal(crystal.id)),
+    '채집량 = 기본 + 결정 잔고 증폭');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (3) 드랍 시 증폭 제거 — 무기를 버리면 발산 증폭이 사라진다 (같은 틱: 드랍 FIFO 먼저 → 공격)
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z); // TGT 사거리로 복귀 (beacon)
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before2 = bal(tgt.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.DROP, { itemId: weapon.id }, 'drop');
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 2 }, 'a2');
+  game.tick();
+  const dealt2 = before2 - bal(tgt.player.id);
+  assert.equal(dealt2, canonicalDamage(WORLD_SEED, a.player.id, 2), '무기 드랍 후 = 증폭 없는 기본 데미지');
+  assert.ok(dealt2 < dealt, '드랍으로 발산 증폭 사라짐');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-5] 무기 발산 +${weaponBonus(WEAPON_COST)}(드랍 시 0) · 결정 획득 +${gatherBonus(100)} · 민팅 없음(클램프)·총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

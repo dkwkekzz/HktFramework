@@ -29,6 +29,27 @@ export const BEACON_SLACK_PX = 24;       // 속도 검증 고정 여유
 export const PLAYER_MAX_ENERGY = 1000;
 export const SPAWN_GRANT = 300;          // 스폰/리스폰 시 WORLD_SOURCE 에서 인출
 export const RESPAWN_DELAY_MS = 3000;
+// A6-1 대사(metabolism): 생명은 매 주기 이만큼 SINK 로 지불한다. 못 채우면 잔고 0 → 아사.
+// "지속 소모·세계를 갈구·유지 못하면 죽음" — 소산 구조의 압력 엔진. (구조 스케일링은 A6-3)
+export const UPKEEP_INTERVAL_TICKS = 10; // 1초마다 대사
+export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향후 구조 함수)
+
+// --- 성장 / 구조 (A6-2) — 성장 = 자유 에너지를 잠긴 질서(구조 풀)로 재분배 ---
+// 구조 풀 `S:<playerId>` 는 플레이어당 1개. 예치는 `player→STRUCT` 이체 — 창조가 아니라
+// 자유 에너지의 질서화다(총합 불변). 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
+export const STRUCT_MAX = 10_000;        // 구조 풀 용량 상한 (성장 여지)
+export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg.amount 로 재정의 가능)
+// A6-3 스탯 = 흐름 계수: 스탯은 저장 숫자가 아니라 구조 예치의 결정론 함수 (shared/growth.js).
+export const GROWTH_ATK_DIVISOR = 100;    // 구조 100 당 공격 +1 (피격자 클램프 내)
+export const GROWTH_UPKEEP_DIVISOR = 200; // 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
+
+// A6-4 스킬 = 발산 패턴: 각 스킬은 비용·증폭·흡수비·쿨다운이 다른 이체 패턴이다.
+// 데미지 = base + floor(struct/structDiv) — 구조가 위력을 키운다(여전히 피격자 클램프).
+// leechPct 로 흡수(피격자→공격자) vs 소각(피격자→SINK) 비율이 갈린다.
+export const SKILLS = {
+  smash: { cost: 20, base: 35, structDiv: 60,  leechPct: 20, cooldownMs: 2500 }, // 강타: 큰 소각 버스트
+  drain: { cost: 8,  base: 15, structDiv: 120, leechPct: 90, cooldownMs: 1500 }, // 흡정: 큰 흡수(지속)
+};
 
 // --- 필드 확산 (A1: 노드 재충전을 세계→노드 주입이 아니라 이웃 셀 간 이체로) ---
 // 셀 격자는 원장 안의 풀들이다 (id `F:cx_cy`). 확산은 이웃 셀 간 zero-sum 정수
@@ -55,7 +76,9 @@ export const ATTACK_RANGE = 120;
 export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
 export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
 export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
-export const WEAPON_BONUS = 30;          // 무기 소지 시 추가 데미지
+// A6-5 아이템 = 결정체 장착: 아이템의 현재 잔고가 유효 스탯을 증폭한다(실재 에너지 읽기, 민팅 없음).
+export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (마모하면 증폭 감소)
+export const CRYSTAL_GATHER_DIVISOR = 10; // 결정 소지 시 잔고 10 당 채집 +1 (획득 증폭)
 export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
@@ -77,8 +100,12 @@ export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아�
 export const WEAPON_COST = 250;          // 무기 제작: 플레이어 → 아이템 풀 250
 export const PICKUP_RANGE = 60;
 
-// --- 월드 소스/싱크 (비보존 게임플레이의 감사 추적용 서버 전용 풀) ---
+// --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝: SOURCE=태양 원점, SINK=소산) ---
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
+// A6-0 태양 순환: 소산된 에너지(SINK)를 이 주기마다 SOURCE 로 되돌린다.
+// 서버는 유일한 에너지 원점(태양)이되 생성기가 아니라 순환의 원점 — SOURCE→생명→SINK→SOURCE
+// 로 영원히 돈다(총합 불변). 이 순환이 없으면 이동·전투·(향후)대사가 세계를 SINK 로 말린다.
+export const RECYCLE_INTERVAL_TICKS = 50;   // 5초마다 소산 재순환
 
 // --- 풀 ID 접두 ---
 export const POOL = {
@@ -87,6 +114,7 @@ export const POOL = {
   CELL: 'F:',     // 필드 셀 (확산 격자 풀)
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
+  STRUCT: 'S:',   // A6-2 구조 풀 (성장 = 잠긴 질서, 플레이어당 1)
   SOURCE: 'W:SRC',
   SINK: 'W:SINK',
 };
@@ -96,7 +124,8 @@ export const CAUSE = {
   SPAWN: 'spawn', MOVE: 'move', GATHER: 'gather', REGEN: 'regen',
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
-  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse',
+  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
+  GROW: 'grow',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
