@@ -94,14 +94,16 @@ const out = (f) => path.resolve(outDir, f);
 		const skeleton = new HktGenesisSkeleton.Skeleton();
 
 		// CPU 비율 검증 — 게놈이 선언한 배율이 pose 에 그대로 반영되는가 ("이미지에 맞게 조절")
-		// 세그 g: head=0, leg=7. 다리 총길이 비 = leg.l, 머리 최대 반지름 비 = head.r 이 정확식.
+		// 채색 그룹 g: head=0. 길이 그룹 lg: leg=7 — 허벅지(UpLeg→Leg)+정강이(Leg→Foot)를
+		// 모두 포함하므로 다리 *전체* 길이가 leg.l 로 줄어드는지 정확히 잰다 (자식 기준 g 로 재면
+		// 정강이가 빠져 거짓 통과). 머리 최대 반지름 비 = head.r.
 		const stats = (g) => {
 			const segs = new HktGenesisSkeleton.Skeleton().pose('idle', 0, 1, 1, g);
 			let top = -9, bot = 9, headR = 0, legLen = 0;
 			for (const s of segs) {
 				top = Math.max(top, s.a[1], s.b[1]); bot = Math.min(bot, s.a[1], s.b[1]);
 				if (s.g === 0) headR = Math.max(headR, s.rb, s.ra);
-				if (s.g === 7) legLen += Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
+				if (s.lg === 7) legLen += Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
 			}
 			return { height: top - bot, headR, legLen, count: segs.length };
 		};
