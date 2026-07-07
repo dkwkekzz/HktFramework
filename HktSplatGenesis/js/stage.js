@@ -153,6 +153,8 @@ function disposeTile(t) {
 	if (t.url) URL.revokeObjectURL(t.url);
 	if (t.water) { rig.remove(t.water); if (t.water.dispose) t.water.dispose(); }
 	if (t.waterUrl) URL.revokeObjectURL(t.waterUrl);
+	if (t.veg) { rig.remove(t.veg); if (t.veg.dispose) t.veg.dispose(); }
+	if (t.vegUrl) URL.revokeObjectURL(t.vegUrl);
 }
 
 // 공용 sky/fog 톤 설정 — 무대 clear 색(= 지평선 fog)과 생명 fog 가 공유하는 단일 원본.
@@ -230,25 +232,34 @@ async function loadTile(tx, tz, ring) {
 	// T5 수면 타일 — 이 타일에 수몰 셀이 있으면(null 아니면) 반투명 수면 메시를 함께 붙인다
 	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale) : null;
 	const waterUrl = waterBytes ? URL.createObjectURL(new File([waterBytes], 'water.ply')) : null;
+	// W-Q2b Bake 식생 — 근접 링(0)만 정적 나무·바위 스플랫(밀도 = 게놈 생명 층 `world.params.life`).
+	// 원경 링(1)은 굽지 않는다(LoD): fog(fogEnd=far 링 반경)로 소실되는 구간이라 예산을 아낀다.
+	const vegBytes = (ring === 0 && window.HktGenesisVegetation)
+		? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, {}) : null;
+	const vegUrl = vegBytes ? URL.createObjectURL(new File([vegBytes], 'veg.ply')) : null;
 	try {
 		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
 		await m.initialized;
-		let water = null;
+		let water = null, veg = null;
 		if (waterUrl) { water = new SplatMesh({ url: waterUrl, fileName: 'water.ply', lod: false }); await water.initialized; }
+		if (vegUrl) { veg = new SplatMesh({ url: vegUrl, fileName: 'veg.ply', lod: false }); await veg.initialized; }
 		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
 		if (desiredRing(tx, tz) !== ring) {
 			if (m.dispose) m.dispose(); URL.revokeObjectURL(url);
 			if (water && water.dispose) water.dispose(); if (waterUrl) URL.revokeObjectURL(waterUrl);
+			if (veg && veg.dispose) veg.dispose(); if (vegUrl) URL.revokeObjectURL(vegUrl);
 			return;
 		}
 		rig.add(m);
 		if (water) rig.add(water);
-		tiles.set(key, { mesh: m, water, url, waterUrl, ring });
+		if (veg) rig.add(veg);
+		tiles.set(key, { mesh: m, water, veg, url, waterUrl, vegUrl, ring });
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
 		URL.revokeObjectURL(url);
 		if (waterUrl) URL.revokeObjectURL(waterUrl);
+		if (vegUrl) URL.revokeObjectURL(vegUrl);
 	} finally {
 		tilePending.delete(key);
 	}
@@ -285,12 +296,13 @@ function updateTileCenter(wx, wz) {
 }
 
 function tileStats() {
-	let splats = 0, waterMeshes = 0, waterSplats = 0;
+	let splats = 0, waterMeshes = 0, waterSplats = 0, vegMeshes = 0, vegSplats = 0;
 	for (const t of tiles.values()) {
 		splats += (t.mesh.numSplats || 0);
 		if (t.water) { waterMeshes++; waterSplats += (t.water.numSplats || 0); }
+		if (t.veg) { vegMeshes++; vegSplats += (t.veg.numSplats || 0); }
 	}
-	return { meshes: tiles.size, splats, waterMeshes, waterSplats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
+	return { meshes: tiles.size, splats, waterMeshes, waterSplats, vegMeshes, vegSplats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
 }
 
 // 오빗 카메라 미러 + 리사이즈 + 렌더 — app.js 의 tick 에서 매 프레임 호출

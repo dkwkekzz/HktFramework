@@ -242,14 +242,17 @@ W-Q1 물 얼룩 해결 완료) — 아래 각 절 참조. 여기서 단계를 �
     전용 — `ScatterStream` 이 시뮬 승격에서 필터). `genesFor` 가 `life.treeSize` 소비. `world-profile.js` 생명
     밴드 검증 + `breeze-meadow.json` life 층. 검증: `world-life.js`(순수 Node 9/9 — 게놈 밀도→바이옴별 나무 수
     meadow 120≫highland 11, life 없음→rock 0 무회귀, 겹침 diff 0 연속성, 생명밴드 accept/reject).
-  - ✅ **W-Q2b(파노라마) — Bake 식생 레이어(v0)**: `js/vegetation.js`(`HktGenesisVegetation`) — `scatter.candidates`
-    (게놈 생명 층 공유)로 나무(기둥+수관 램프)·바위(회색 타원) 정적 스플랫을 굽는다(좌표 해시 결정론 = 스트리밍
-    연속성). `bakePanorama`(단일 창)·`bakeTile`(T2 스트리밍용)·`mergePly`(지형+식생 한 PLY). `concept-shot` 이
-    지형 PLY 에 식생을 합쳐 로드 → **우패널 초원이 나무 893그루로 채워짐**(완료 기준 충족). 원경은 "생성된 씬"
-    (무대 예외 — 승인 하이브리드). 검증: `concept-shot`(breeze) 초원 채움 사진 + `world-life.js` mergePly 정점 합.
-    회귀: world-scatter(불×나무 100%·슬롯교체)·app-smoke·world-genome·world-profile 없음.
-    남김: **타일 스트리밍 배선**(`bakeTile` → `stage.js` 걷는 월드, T2 링 LOD) · **v1**(시뮬 배양 나무 스냅샷
-    인스턴싱 — 원칙 정합) · 자동차폐/조명(렌더 이슈, 보류).
+  - ✅ **W-Q2b — Bake 식생 레이어(v0, 파노라마 + 타일 스트리밍)**: `js/vegetation.js`(`HktGenesisVegetation`) —
+    `scatter.candidates`(게놈 생명 층 공유)로 나무(기둥+수관 램프)·바위(회색 타원) 정적 스플랫을 굽는다(좌표
+    해시 결정론 = 스트리밍 연속성). `bakePanorama`(단일 창)·`bakeTile`(타일)·`mergePly`(지형+식생 한 PLY).
+    ① 파노라마: `concept-shot` 이 지형 PLY 에 식생을 합쳐 로드 → **우패널 초원이 나무 893그루로 채워짐**(완료
+    기준 충족). ② **걷는 월드**: `stage.js loadTile` 이 **근접 링(0)만** 식생 타일 메시를 붙인다(외곽 링은
+    fog 로 소실 = LoD, 예산 절약) — `disposeTile`/`tileStats`(veg 카운트) 동기. 원경은 "생성된 씬"(무대 예외 —
+    승인 하이브리드). 검증: `concept-shot`(breeze) 초원 채움 · `openworld-shot`(걷는 월드 나무 배치) · `world-pan`
+    (default+breeze 게놈 걷는 월드 — 이음새 100%·스플랫 상한 무회귀) · `world-life.js`(순수 Node 9/9). 회귀:
+    world-scatter·app-smoke·world-genome·world-profile 없음.
+    남김: **v1**(시뮬 배양 나무 스냅샷 인스턴싱 — 원칙 정합) · 외곽 링 저밀도 식생(현재 미배치) · 자동차폐/조명
+    (렌더 이슈, 보류) · 나무 외형(v0 절차 블롭 — 브로콜리감).
   - **W-Q2c — 승격 훅**: 근처 Bake 스폰을 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
     확장. v0 는 하드컷(경계 팝 허용), 후속에 크로스페이드. **왜 이 구조**: 8 상한 = 상호작용 전용, 밀도 =
     Bake — Bake 하면 상태 유도(성장·연소·바람)가 얼어붙어 "죽으므로", 상호작용하는 것만 시뮬로 남긴다.
