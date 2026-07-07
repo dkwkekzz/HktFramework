@@ -61,6 +61,7 @@
 	// 힙 보정 (C2): 다리 길이 배율로 발이 뚫리거나 뜨지 않게 루트 y 를 보정한다.
 	// 대표 발(왼쪽 Toe/Foot)에서 루트까지 offset.y × (1 − 길이배율) 을 누적 —
 	// 다리가 짧으면(배율<1) 양수 → 힙 하강, 길면 음수 → 힙 상승. rest 포즈 근사(PLAN 정식).
+	// 세그먼트 길이 = 부모 뼈가 속한 팔다리이므로(아래 pose 참조), 배율도 부모 그룹 기준.
 	function hipYCorrection(defs, genome) {
 		const G = global.HktGenesisGenome;
 		if (!G || !genome) return 0;
@@ -72,7 +73,7 @@
 		if (leaf < 0) return 0;
 		let corr = 0, i = leaf;
 		while (i >= 0 && defs[i].parent >= 0) {
-			corr += defs[i].offset[1] * (1 - G.lengthScale(genome, defs[i].name));
+			corr += defs[i].offset[1] * (1 - G.lengthScale(genome, defs[defs[i].parent].name));
 			i = defs[i].parent;
 		}
 		return corr;
@@ -199,8 +200,9 @@
 		const mul = (G && genome) ? G.radiusScale(genome, def.name) : 1;
 		const rAt = (u) => (def.r0 + (def.r1 - def.r0) * u) * (f || 1) * mul;
 		let prev = aPos;
+		const gid = groupIdOf(def.name);
 		for (let i = 0; i < n; i++) {
-			segs.push({ a: prev, b: chain.p[i], ra: rAt(i / n), rb: rAt((i + 1) / n), g: groupIdOf(def.name) });
+			segs.push({ a: prev, b: chain.p[i], ra: rAt(i / n), rb: rAt((i + 1) / n), g: gid, lg: gid });
 			prev = chain.p[i];
 		}
 	};
@@ -274,7 +276,11 @@
 				this._wrot[i] = local;
 			} else {
 				// C2: offset × 길이 배율 (회전 뒤). 클립 회전과 직교라 클립 무수정.
-				const s = lengthG(d.name, genome);
+				// offset = (부모 관절 → 이 뼈) 벡터 = *부모 뼈* 세그먼트의 길이. 따라서 배율은
+				// 부모 뼈가 속한 팔다리 기준 — 정강이(Foot offset)·아래팔(Hand offset)이 각각
+				// leg·arm 배율을 온전히 받아 팔다리 전체가 함께 줄고 늘어난다 (자식 기준일 때
+				// 아래 절반이 배율에서 빠지던 버그 수정).
+				const s = lengthG(this.defs[d.parent].name, genome);
 				const off = mulVec(this._wrot[d.parent], [d.offset[0] * s, d.offset[1] * s, d.offset[2] * s]);
 				const pp = this._wpos[d.parent];
 				this._wpos[i] = [pp[0] + off[0], pp[1] + off[1], pp[2] + off[2]];
@@ -292,7 +298,8 @@
 				a, b,
 				ra: radiusG(this.defs[p].name, genome, f),
 				rb: radiusG(this.defs[i].name, genome, f),
-				g: groupIdOf(this.defs[i].name), // C3: 자식 뼈 기준 부위 그룹
+				g: groupIdOf(this.defs[i].name),  // C3: 자식 뼈 기준 부위 그룹 (채색·반지름)
+				lg: groupIdOf(this.defs[p].name), // 길이 기준 팔다리 그룹 (이 세그먼트 = 부모 뼈)
 			});
 		}
 		// C4 부속: 실뼈 뒤 고정 순서 append. built-in 클립은 절대 시간이라 dt 를 유도 —
@@ -378,7 +385,8 @@
 				],
 				ra: radiusG(bone.parent.name, genome, f),
 				rb: radiusG(bone.name, genome, f),
-				g: groupIdOf(bone.name), // C3: 자식 뼈 기준 부위 그룹
+				g: groupIdOf(bone.name),        // C3: 자식 뼈 기준 부위 그룹 (채색·반지름)
+				lg: groupIdOf(bone.parent.name), // 길이 기준 팔다리 그룹 (이 세그먼트 = 부모 뼈)
 			});
 		}
 		// C4 부속: 실뼈 뒤 고정 순서 append — 부착 뼈의 (정규화 world 위치, world 회전) 기준.

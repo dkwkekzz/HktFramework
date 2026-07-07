@@ -544,10 +544,14 @@
 		// MAX_BONES 초과분은 업로드에서 잘리므로 친화도 같은 범위로 제한
 		const segs = (genes.bindBones || []).slice(0, MAX_BONES);
 		if (segs.length) {
-			// 세그먼트 부피 가중 (원뿔대 부피 ∝ len·(ra²+ra·rb+rb²))
+			// 세그먼트 부피 가중 (원뿔대 + 반구 캡 — SIM L6 캡슐 성장과 정합)
+			// 원뿔대 ∝ len·(ra²+ra·rb+rb²), 캡 ∝ ra³+rb³ — 짧고 굵은 뼈(머리)가 제 부피만큼
+			// 스플랫을 받아 둥근 공으로 채워진다.
 			const w = segs.map((s) => {
 				const len = Math.hypot(s.b[0] - s.a[0], s.b[1] - s.a[1], s.b[2] - s.a[2]);
-				return len * (s.ra * s.ra + s.ra * s.rb + s.rb * s.rb);
+				const frustum = len * (s.ra * s.ra + s.ra * s.rb + s.rb * s.rb);
+				const caps = 2 * (s.ra * s.ra * s.ra + s.rb * s.rb * s.rb);
+				return frustum + caps;
 			});
 			const total = w.reduce((x, y) => x + y, 0);
 			for (let i = 0; i < n; i++) {
