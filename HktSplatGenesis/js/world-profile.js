@@ -102,6 +102,7 @@
 			if (m.fogStart !== undefined && (!isNum(m.fogStart) || m.fogStart < PROFILE.fogMin)) push('mood.fogStart', m.fogStart, `숫자·≥${PROFILE.fogMin} 아님`);
 			if (m.fogEnd !== undefined && (!isNum(m.fogEnd) || m.fogEnd <= PROFILE.fogMin)) push('mood.fogEnd', m.fogEnd, `숫자·>${PROFILE.fogMin} 아님`);
 			if (isNum(m.fogStart) && isNum(m.fogEnd) && m.fogStart >= m.fogEnd) push('mood.fogRange', [m.fogStart, m.fogEnd], 'fogStart ≥ fogEnd (역순)');
+			if (m.cloud !== undefined && (!isNum(m.cloud) || m.cloud < 0 || m.cloud > 1)) push('mood.cloud', m.cloud, '범위 [0, 1] 벗어남'); // W-Q3 구름 커버리지
 		}
 
 		// 바이옴 셋

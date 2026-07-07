@@ -11,7 +11,7 @@
       "mood": "원경 옅은 파란 하늘·구름(W6) — skyTop 하늘색→skyHorizon 옅은 회청 지평선"
     }
   },
-  "mood": { "skyTop": [0.35, 0.52, 0.78], "skyHorizon": [0.74, 0.82, 0.88] },
+  "mood": { "skyTop": [0.35, 0.52, 0.78], "skyHorizon": [0.74, 0.82, 0.88], "cloud": 0.55 },
   "seed": 7,
   "amp": 0.95,
   "scale": 3.2,

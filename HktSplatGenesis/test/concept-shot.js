@@ -61,7 +61,8 @@ const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 	await page.evaluate((mood) => { if (mood && window.HktGenesisStage.setMood) window.HktGenesisStage.setMood(mood); }, genome.mood || null);
 	console.log(`[${LABEL}] 대기(mood): ${hasMood ? JSON.stringify(genome.mood) : '없음(검정 하늘 유지)'}`);
 
-	const CAM = { fov: 0.92, up: [0, 1, 0], target: [0, 0, 0], eye: [0, 58, 92] };
+	// 조감 vista(W-Q3) — 시선을 지평선 위로 올려(target y↑) 상단에 하늘·구름 밴드가 드러나게 한다.
+	const CAM = { fov: 0.92, up: [0, 1, 0], target: [0, 38, 0], eye: [0, 58, 92] };
 	for (let k = 0; k < 6; k++) {
 		await page.evaluate((cm) => HktGenesisStage.capture({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye }, 640, 760), CAM);
 		await page.waitForTimeout(120);
@@ -69,8 +70,8 @@ const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 
 	// 파노라마 캡처 + 원본 이미지 로드 → 2패널 카드 합성
 	const card = await page.evaluate(async (cfg) => {
-		const { camEye, camFov, PANEL_W, PANEL_H } = cfg;
-		const orbit = { fov: camFov, up: [0, 1, 0], target: [0, 0, 0], _eye: () => camEye };
+		const { camEye, camFov, camTarget, PANEL_W, PANEL_H } = cfg;
+		const orbit = { fov: camFov, up: [0, 1, 0], target: camTarget, _eye: () => camEye };
 		const panoUrl = HktGenesisStage.capture(orbit, PANEL_W, PANEL_H);
 		const loadImg = (u) => new Promise((res, rej) => { const im = new Image(); im.onload = () => res(im); im.onerror = () => rej(new Error('img load ' + u)); im.src = u; });
 		const pano = await loadImg(panoUrl);
@@ -100,7 +101,7 @@ const srcMime = SRC_IMG.endsWith('.png') ? 'image/png' : 'image/jpeg';
 		const sp = g.getImageData(0, 0, PANEL_W, PANEL_H).data;
 		let srcPix = 0; for (let i = 0; i < PANEL_W * PANEL_H; i++) { const r = sp[i * 4], gr = sp[i * 4 + 1], b = sp[i * 4 + 2]; if (r + gr + b > 40) srcPix++; }
 		return { dataUrl: card.toDataURL('image/png'), land, srcPix, skyMean, skyDarkFrac: skyDark / skyN };
-	}, { camEye: CAM.eye, camFov: CAM.fov, PANEL_W, PANEL_H });
+	}, { camEye: CAM.eye, camFov: CAM.fov, camTarget: CAM.target, PANEL_W, PANEL_H });
 
 	savePng(card.dataUrl, OUT);
 	const real = errors.filter((e) => !e.includes('404'));
