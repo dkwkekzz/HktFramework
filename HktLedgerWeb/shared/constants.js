@@ -121,17 +121,19 @@ export const PICKUP_RANGE = 60;
 // 바뀌는 건 그 단위에 붙은 라벨(descriptor)뿐이다. 그래서 보존 코어(ledger.js)는 불변:
 //   · 양(quantity) = 원장 풀 잔고 (이체로만 변함·보존 강제)
 //   · 종류(type)   = 노드·창고·아이템의 라벨 (에너지가 아니라 보존 대상 밖) = 어느 흐름 계수를 고를지
-// 아이템 위력은 여전히 f(잔고) 상한(민팅 없음) — 라벨은 divisor(계수)만 고른다.
-// 다양성(7종)은 시드 태그 + 창고 네임스페이스뿐이라 구조적으로 공짜 — 프로토타입은 각만 본다.
+// A9-1 가치 단일화: 아이템 위력은 재료 라벨과 **무관**하고 오직 에너지 잔고로 결정된다(반응성 균일).
+// 재료의 차이는 위력 배율이 아니라 (a) affinity = 어느 흐름을 증폭할지(채널 선택·배율 아님)
+// (b) abundance = 세계 분포(희소성). "총량이 가치를 결정한다" — 금이 귀한 건 계수가 세서가 아니라
+// 세계가 적게 뿜어서다(희소). 배율 상수(옛 div)를 제거해 공리를 코드에 실현한다. (Docs/Design-EntropicFlow.md)
 export const MATERIALS = {
-  //  종류   → { affinity: 어느 아이템 거동('weapon'=발산/'crystal'=획득), div: 잔고당 계수 (작을수록 강함) }
-  wood:  { affinity: 'crystal', div: 14 }, // 나무: 흔한 채집 — 약한 획득 증폭
-  stone: { affinity: 'weapon',  div: 12 }, // 돌: 단단하되 둔함 — 약한 발산
-  iron:  { affinity: 'weapon',  div: 9  }, // 철: 실용 발산
-  herb:  { affinity: 'crystal', div: 9  }, // 약초: 중간 획득 증폭
-  gem:   { affinity: 'crystal', div: 7  }, // 보석: 정련된 획득 증폭
-  gold:  { affinity: 'weapon',  div: 6  }, // 금: 고귀 — 강한 발산
-  ember: { affinity: 'weapon',  div: 5  }, // 불의 정수: 최강 발산(희귀)
+  //  종류   → { affinity: 거동('weapon'=발산/'crystal'=획득) · abundance: 세계 분포 가중(클수록 흔함) }
+  wood:  { affinity: 'crystal', abundance: 6 }, // 나무: 흔함
+  stone: { affinity: 'weapon',  abundance: 6 }, // 돌: 흔함
+  herb:  { affinity: 'crystal', abundance: 4 }, // 약초: 보통
+  iron:  { affinity: 'weapon',  abundance: 3 }, // 철: 보통
+  gem:   { affinity: 'crystal', abundance: 2 }, // 보석: 드묾
+  gold:  { affinity: 'weapon',  abundance: 1 }, // 금: 희소
+  ember: { affinity: 'weapon',  abundance: 1 }, // 불의 정수: 희소
 };
 export const MATERIAL_KEYS = Object.keys(MATERIALS); // 7종 (결정론 순서 — 시드 유도 인덱싱)
 export const STASH_MAX = 10_000;         // 재료 창고 풀(종류별) 용량 상한

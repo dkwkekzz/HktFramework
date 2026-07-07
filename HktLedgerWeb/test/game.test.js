@@ -889,11 +889,10 @@ test('3D 공간 — 사거리가 z 를 포함한다 (수직 분리 사거리 밖
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 });
 
-test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고 채굴, 창고+생체→결정, 라벨이 계수를 고름 (민팅 없음·보존)', () => {
-  // (0) 순수: 종류(라벨)가 계수를 고른다 — 같은 잔고라도 금(div↓)이 돌보다 세고, 보석이 나무보다 잘 끌어온다.
-  assert.ok(MATERIALS.gold.div < MATERIALS.stone.div, '금 발산 계수 > 돌 (div 작을수록 강함)');
-  assert.ok(weaponBonus(150, MATERIALS.gold.div) > weaponBonus(150, MATERIALS.stone.div), '같은 잔고 금 무기 > 돌 무기');
-  assert.ok(gatherBonus(150, MATERIALS.gem.div) > gatherBonus(150, MATERIALS.wood.div), '같은 잔고 보석 결정 > 나무 결정');
+test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고 채굴, 창고+생체→결정 (민팅 없음·보존)', () => {
+  // (0) 순수: 재료 라벨은 거동(채널)을 고를 뿐 위력 배율이 아니다(A9-1). 금·돌은 발산, 나무·보석은 획득.
+  assert.equal(MATERIALS.gold.affinity, 'weapon', '금 = 발산 채널');
+  assert.equal(MATERIALS.wood.affinity, 'crystal', '나무 = 획득 채널');
 
   const { clock, game, join, warp, intent, total } = setup();
   const a = join('A');
@@ -941,7 +940,7 @@ test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고
   assert.equal(freeBefore - bal(a.player.id), FORGE_ATTR_COST, '생체에서 정확히 속성분만 빠짐');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '합성 후 총합 보존');
 
-  // (3) 라벨이 전투 계수를 고른다 — 합성 무기 데미지 = canonical + weaponBonus(잔고, 재료 div).
+  // (3) 합성 무기 전투 증폭 = weaponBonus(잔고) — 위력은 오직 에너지(재료 무관·A9-1)·피격자 클램프.
   const tgt = join('TGT');
   game.tick();
   warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
@@ -953,8 +952,8 @@ test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고
   intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
   game.tick();
   const dealt = before - bal(tgt.player.id);
-  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(wBalPreWear, MATERIALS[mat].div),
-    '데미지 = canonical + 재료 계수 증폭(민팅 아님·피격자 클램프)');
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(wBalPreWear),
+    '데미지 = canonical + 잔고 증폭(민팅 아님·피격자 클램프)');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '전투 후 총합 보존');
 
   // (4) 잘못된 요청 기각 — 재료 없는 종류 합성 시도.
@@ -964,7 +963,7 @@ test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고
   assert.ok(a.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'fx'), '재료 부족 합성 기각');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 
-  console.log(`    [A8-1] 채굴 ${mat} +${MINE_AMOUNT}/회 · 합성 = 재료 ${FORGE_MAT_REQUIRE}+생체 ${FORGE_ATTR_COST}=결정 ${FORGE_ITEM_MAX}(민팅 없음) · ${mat} 무기 발산 +${weaponBonus(FORGE_ITEM_MAX, MATERIALS[mat].div)} · 총합 ${total()} 불변`);
+  console.log(`    [A8-1] 채굴 ${mat} +${MINE_AMOUNT}/회 · 합성 = 재료 ${FORGE_MAT_REQUIRE}+생체 ${FORGE_ATTR_COST}=결정 ${FORGE_ITEM_MAX}(민팅 없음) · 무기 발산 +${weaponBonus(FORGE_ITEM_MAX)}(재료 무관) · 총합 ${total()} 불변`);
 });
 
 test('A8-1 미러 정합 — 타입 채집·합성 tx 재생 후 지역 체크섬 일치 (창고 region=null 무해)', () => {
@@ -1003,6 +1002,31 @@ test('A8-1 미러 정합 — 타입 채집·합성 tx 재생 후 지역 체크�
   }
   assert.equal(resyncs.length, 0, '재동기화 불필요');
   assert.equal(client.checksumStatus, 'OK');
+});
+
+test('A9-1 가치 단일화 — 위력은 오직 에너지(재료 라벨 무관)·재료 차이는 분포(희소성)에서 (보존)', () => {
+  // (0) 배율 상수(옛 div) 제거 — 재료는 위력에 개입하지 않는다. 위력 함수는 재료를 인자로 안 받는다.
+  for (const k of Object.keys(MATERIALS)) assert.equal(MATERIALS[k].div, undefined, `${k}: div 제거됨`);
+  assert.equal(weaponBonus.length, 1, 'weaponBonus 는 잔고 하나만 받는다(재료 인자 없음)');
+  assert.equal(gatherBonus.length, 1, 'gatherBonus 는 잔고 하나만 받는다');
+  // 위력을 키우는 유일한 축은 에너지(잔고) — 더 많은 에너지 = 더 센 위력. 재료는 못 바꾼다.
+  assert.ok(weaponBonus(300) > weaponBonus(150), '에너지↑ → 위력↑ (가치=에너지)');
+
+  const { game } = setup();
+  // (1) 분포 비균일 = 희소성: 흔한 재료(abundance↑) 노드가 희소 재료보다 많다 — 시드 유도.
+  const counts = {};
+  for (const n of game.nodes.values()) counts[n.mat] = (counts[n.mat] ?? 0) + 1;
+  const common = (counts.wood ?? 0) + (counts.stone ?? 0);
+  const rare = (counts.gold ?? 0) + (counts.ember ?? 0);
+  assert.ok(common > rare, `흔한 재료(${common}) > 희소 재료(${rare}) — 다양성이 분포(희소성)에서 창발`);
+  assert.ok(Object.keys(counts).length >= 3, '재료 종류 다양성 유지');
+
+  // (2) 가치 = 에너지: FORGE 는 재료와 무관하게 같은 에너지(FORGE_ITEM_MAX)를 담으므로 모든 합성
+  //     무기는 같은 위력이다 — 금 무기도 돌 무기도 동일. 희소 재료는 "더 세다"가 아니라 "더 귀하다".
+  assert.equal(weaponBonus(FORGE_ITEM_MAX), weaponBonus(FORGE_ITEM_MAX), '같은 에너지 → 같은 위력(재료 무관)');
+  assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
+
+  console.log(`    [A9-1] div 제거·weaponBonus(잔고) 재료 무관 +${weaponBonus(FORGE_ITEM_MAX)} · 노드 분포 흔함 ${common} > 희소 ${rare}(희소성=분포) · 총합 ${game.ledger.totalSum()} 불변`);
 });
 
 test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {

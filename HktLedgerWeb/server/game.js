@@ -321,10 +321,10 @@ export class GameServer {
           return this.#reject(p, iid, 'out-of-range');
         // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
         // A7-1: 대사(meta) 조직도 채집을 증폭한다(구조적 획득 계수) — 결정 증폭과 합산.
-        // A8-1: 합성 결정은 재료 종류(라벨)가 계수(div)를 고른다 — 보석 결정이 나무 결정보다 잘 끌어온다.
+        // A9-1: 결정 증폭도 오직 잔고 — 재료 종류는 배율에 개입하지 않는다(보석 결정=나무 결정, 같은 잔고면 같음).
         const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
         const want = GATHER_AMOUNT
-          + (crystal ? gatherBonus(this.ledger.balance(crystal.id), crystal.mat ? MATERIALS[crystal.mat].div : undefined) : 0)
+          + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0)
           + gatherStructBonus(this.ledger.balance(this.#structId(p.id, 'meta')));
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
         const got = this.#tx(node.id, p.id, want, CAUSE.GATHER, node, iid);
@@ -375,8 +375,8 @@ export class GameServer {
         let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id, 'atk')));
         if (weapon) {
           // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
-          // A8-1: 합성 무기는 재료 종류(라벨)가 계수(div)를 고른다 — 금 무기가 돌 무기보다 세다.
-          damage += weaponBonus(this.ledger.balance(weapon.id), weapon.mat ? MATERIALS[weapon.mat].div : undefined);
+          // A9-1: 위력은 오직 잔고 — 재료 종류는 배율에 개입하지 않는다(금 무기=돌 무기, 같은 잔고면 같음).
+          damage += weaponBonus(this.ledger.balance(weapon.id));
           this.#tx(weapon.id, POOL.SINK, WEAPON_WEAR, CAUSE.WEAPON_WEAR, p);
           if (this.ledger.balance(weapon.id) === 0) this.#destroyItem(weapon, p);
         }
