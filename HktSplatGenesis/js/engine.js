@@ -183,29 +183,15 @@
 		this.pairBuf = d.createBuffer({ size: n * 8, usage: GPUBufferUsage.STORAGE });
 		this.restBuf = d.createBuffer({ size: n * 16, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		this.clusterBuf = d.createBuffer({ size: (n / CLUSTER_K) * CLUSTER_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
-		// 슬라이스별 초기화 조립 — 골렘 본드의 클러스터 인덱스는 전역 기준으로 보정
+		// 슬라이스별 초기화 조립 — 골렘 본드의 클러스터 인덱스는 전역 기준으로 보정(_sliceInit)
 		const splatAll = new Float32Array(n * SPLAT_STRIDE);
 		const restAll = new Float32Array(n * 4);
 		const clusterAll = new Float32Array((n / CLUSTER_K) * CLUSTER_STRIDE);
-		const clusterAllU = new Uint32Array(clusterAll.buffer);
 		ents.forEach((rawGenes, ei) => {
-			const genes = this._terrainAdjust(rawGenes); // S2: emitter 를 지형 위로 (나무가 능선에 뿌리내림)
-			const init = (genes.form === 1) ? this._initGolem(slice, genes)
-				: (genes.form === 2) ? this._initTree(slice, genes)
-				: (genes.form === 3) ? this._initFleshCloud(slice, genes)
-				: this._initCloud(slice, genes);
+			const init = this._sliceInit(ei, rawGenes);
 			splatAll.set(init.splat, ei * slice * SPLAT_STRIDE);
 			restAll.set(init.rest, ei * slice * 4);
-			const cBase = ei * (slice / CLUSTER_K);
-			clusterAll.set(init.cluster, cBase * CLUSTER_STRIDE);
-			const cu = new Uint32Array(init.cluster.buffer);
-			for (let ci = 0; ci < slice / CLUSTER_K; ci++)
-				for (let b = 0; b < 8; b++) {
-					const e = cu[ci * CLUSTER_STRIDE + 16 + b];
-					if (e !== 0xffffffff)
-						clusterAllU[(cBase + ci) * CLUSTER_STRIDE + 16 + b] =
-							(e & 0xf0000000) | ((e & 0x0fffffff) + cBase);
-				}
+			clusterAll.set(init.cluster, ei * (slice / CLUSTER_K) * CLUSTER_STRIDE);
 		});
 		d.queue.writeBuffer(this.splatBuf, 0, splatAll);
 		d.queue.writeBuffer(this.restBuf, 0, restAll);
@@ -257,6 +243,42 @@
 				{ binding: 4, resource: { buffer: this.entityBuf } },
 			],
 		});
+	};
+
+	// 한 슬롯(개체 ei)의 초기 상태를 만든다 — form 별 init + 클러스터 본드 인덱스를
+	// 전역(슬롯 오프셋 cBase) 기준으로 in-place 보정. setScene 조립과 respawnEntity 가 공유.
+	HktGenesisEngine.prototype._sliceInit = function (ei, rawGenes) {
+		const slice = this.sliceSize;
+		const genes = this._terrainAdjust(rawGenes); // S2: emitter 를 지형 위로 (나무가 능선에 뿌리내림)
+		const init = (genes.form === 1) ? this._initGolem(slice, genes)
+			: (genes.form === 2) ? this._initTree(slice, genes)
+			: (genes.form === 3) ? this._initFleshCloud(slice, genes)
+			: this._initCloud(slice, genes);
+		const cPer = slice / CLUSTER_K, cBase = ei * cPer;
+		const cu = new Uint32Array(init.cluster.buffer);
+		for (let ci = 0; ci < cPer; ci++)
+			for (let b = 0; b < 8; b++) {
+				const e = cu[ci * CLUSTER_STRIDE + 16 + b];
+				if (e !== 0xffffffff)
+					cu[ci * CLUSTER_STRIDE + 16 + b] = (e & 0xf0000000) | ((e & 0x0fffffff) + cBase);
+			}
+		return init;
+	};
+
+	// T4 슬롯 증분 교체 — 장면 전체 재초기화(setScene) 없이 한 개체 슬롯만 갈아끼운다.
+	// 스캐터 스트리밍의 전제: 카메라가 이동하면 멀어진 스폰 슬롯을 가까워진 스폰으로 교체한다.
+	// 버퍼 레이아웃은 불변(슬라이스 오프셋에 부분 업로드)이라 바이트 일치 원칙이 유지되고,
+	// 교체하지 않은 슬롯의 스플랫은 계속 시뮬돼 재시드 깜빡임이 없다. 다음 frame() 이
+	// opts.entities(= this.entities)를 packEntities 로 올리므로 유전자 테이블도 함께 갱신한다.
+	HktGenesisEngine.prototype.respawnEntity = function (ei, rawGenes) {
+		if (!this.splatBuf) throw new Error('setScene 선행 필요');
+		if (ei < 0 || ei >= this.entities.length) throw new Error('슬롯 범위 밖: ' + ei);
+		const d = this.device, slice = this.sliceSize;
+		const init = this._sliceInit(ei, rawGenes);
+		d.queue.writeBuffer(this.splatBuf, ei * slice * SPLAT_STRIDE * 4, init.splat);
+		d.queue.writeBuffer(this.restBuf, ei * slice * 4 * 4, init.rest);
+		d.queue.writeBuffer(this.clusterBuf, ei * (slice / CLUSTER_K) * CLUSTER_STRIDE * 4, init.cluster);
+		this.entities[ei] = rawGenes;
 	};
 
 	// renderBG 는 setScene(버퍼 재생성)과 _ensureDepth(depth 텍스처 리사이즈)에서 재구성된다
