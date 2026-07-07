@@ -422,10 +422,14 @@ test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아�
   assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id),
     '미러 자유 잔고 정합 (GROW 재생)');
 
-  // 사망해도 성장은 지속된다 (영구 성장) — 자유만 고갈시켜 아사(구조는 불가침)
-  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
-  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
-  assert.ok(a.player.dead, '자유 에너지 고갈 = 아사');
+  // 사망해도 성장은 지속된다 (영구 성장) — 전투사(戰死)는 잠긴 질서를 건드리지 않는다.
+  // (굶주림은 구조를 태우지만[A6-6], 전투 사망은 자유 풀만 인출하므로 구조는 불가침)
+  const b = join('B'); // 공격자 (스폰 위치 동일 = 사거리 안)
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - 15, 'test'); // A 빈사
+  clock.t += ATTACK_COOLDOWN_MS + 50;
+  intent(b.player, INTENT.ATTACK, { targetId: a.player.id }, 'pk');
+  game.tick();
+  assert.ok(a.player.dead, '전투 사망');
   assert.equal(game.ledger.balance(structId), 120, '사망해도 구조 지속 (영구 성장)');
 
   // 리스폰 후에도 구조 유지
@@ -601,6 +605,44 @@ test('A6-5 아이템 = 결정체 장착 — 아이템 잔고가 스탯을 증폭
   assert.ok(dealt2 < dealt, '드랍으로 발산 증폭 사라짐');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
   console.log(`    [A6-5] 무기 발산 +${weaponBonus(WEAPON_COST)}(드랍 시 0) · 결정 획득 +${gatherBonus(100)} · 민팅 없음(클램프)·총합 ${total()} 불변`);
+});
+
+test('A6-6 항상성 — 자유가 마르면 구조를 태워 연명하고, 구조까지 마르면 그때 아사 (구조 이화도 보존)', () => {
+  const { clock, game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant 300
+  const structId = POOL.STRUCT + a.player.id;
+
+  // 큰 구조를 예치 (비상 연료 저장고) 후 자유를 0 으로 — 이제 대사는 구조에서 나와야 한다
+  intent(a.player, INTENT.GROW, { amount: 250 }, 'g1');
+  game.tick();
+  const struct0 = game.ledger.balance(structId);
+  assert.equal(struct0, 250, '구조 250 예치');
+  const atk0 = attackBonus(struct0);
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id), 'test'); // 자유 고갈
+  assert.equal(game.ledger.balance(a.player.id), 0, '자유 에너지 0');
+
+  // 여러 대사 주기 — 죽지 않고 구조를 태워 연명한다 (가역적 성장)
+  for (let i = 0; i < UPKEEP_INTERVAL_TICKS * 5; i++) game.tick();
+  assert.ok(!a.player.dead, '구조가 남아 있는 한 아사하지 않는다 (이화로 연명)');
+  const struct1 = game.ledger.balance(structId);
+  assert.ok(struct1 < struct0, `구조가 줄었다 (이화): ${struct0}→${struct1}`);
+  assert.ok(attackBonus(struct1) <= atk0, '굶주릴수록 스탯도 준다 (구조의 함수)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이화도 이체 — 총합 불변');
+
+  // 미러 정합: 소유자 클라가 이화 tx(구조→플레이어)를 재생해 구조 잔고가 일치
+  const client = new ClientState();
+  for (const m of a.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(structId), game.ledger.balance(structId),
+    '미러 구조 잔고 정합 (이화 tx 재생)');
+
+  // 계속 굶기면 구조까지 마르고 그때가 진짜 아사 (태울 몸조차 없음)
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 200) game.tick();
+  assert.ok(a.player.dead, '구조까지 고갈 = 진짜 아사');
+  assert.equal(game.ledger.balance(structId), 0, '태울 몸조차 없음 (구조 0)');
+  assert.equal(game.ledger.balance(a.player.id), 0, '자유도 0');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '아사도 보존');
+  console.log(`    [A6-6] 자유0 → 구조 ${struct0}→${struct1} 이화로 연명 · 구조 고갈 시 아사 · 총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

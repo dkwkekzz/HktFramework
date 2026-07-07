@@ -125,7 +125,7 @@ export const CAUSE = {
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
-  GROW: 'grow',
+  GROW: 'grow', CATABOLISM: 'catabolism',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

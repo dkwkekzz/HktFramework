@@ -508,15 +508,23 @@ export class GameServer {
     for (const { playerId, msg } of batch) this.#processIntent(playerId, msg);
 
     // 2b) 대사 (A6-1) — 생명은 매 주기 upkeep 를 SINK 로 지불한다. 소모·갈구·유지의 압력:
-    //   채집·전투로 못 채우면 잔고 0 → 아사(기존 사망 경로). upkeep tx 는 비공간이라
-    //   소유자에게만 방송(무지역 player 풀 — 체크섬 무관). 소산분은 태양 순환(A6-0)이 되돌린다.
+    //   upkeep tx 는 비공간이라 소유자에게만 방송(무지역 player 풀 — 체크섬 무관).
+    //   소산분은 태양 순환(A6-0)이 되돌린다.
+    //   A6-6 항상성(구조 이화): 자유 에너지로 대사를 못 덮으면 곧바로 죽지 않는다 — 몸(구조)을
+    //   태워(구조→플레이어) 자유로 전환해 연명한다. 성장이 비상 연료가 되는 가역적 성장:
+    //   굶주릴수록 구조가 줄고, 구조가 줄면 스탯도 준다(attackBonus·upkeep = f(구조)).
+    //   자유·구조가 함께 마르면 그때가 진짜 아사(태울 몸조차 없음). 이화도 이체 — 보존 유지.
     if (this.tickCount % UPKEEP_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       for (const p of this.players.values()) {
         if (p.dead) continue;
+        const structId = this.#structId(p.id);
         // A6-3: 대사 비용 = 구조의 함수 (큰 질서일수록 더 갈구)
-        const upkeep = upkeepFor(this.ledger.balance(this.#structId(p.id)));
+        const upkeep = upkeepFor(this.ledger.balance(structId));
+        const deficit = upkeep - this.ledger.balance(p.id);
+        if (deficit > 0) this.#tx(structId, p.id, deficit, CAUSE.CATABOLISM); // 이화: 구조→자유
         this.#tx(p.id, POOL.SINK, upkeep, CAUSE.UPKEEP);
-        if (this.ledger.balance(p.id) === 0) this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
+        if (this.ledger.balance(p.id) === 0 && this.ledger.balance(structId) === 0)
+          this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
       }
     }
 
