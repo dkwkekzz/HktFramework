@@ -71,19 +71,21 @@ AABB 가 겹친다고 다 충돌 후보는 아니다. broad phase 는 narrow pha
 
 ---
 
-## 4. 왜 mid phase 가 끼는가 — 몸쌍을 shape쌍으로
+## 4. 왜 mid phase 가 끼는가 — 복합체(여러 shape인 몸)를 복잡도별로 특수 처리
 
-여기가 Chaos 가 2단계가 아니라 3단계인 이유다. broad phase 가 뱉는 건 "**파티클** A 와 **파티클** B 의 바운드가 겹친다"는 정보다. 그런데 C03 에서 봤듯 파티클 하나의 geometry 는 여러 shape 의 **Union** 일 수 있다(자동차 = 바퀴 4개 + 차체…). narrow phase(GJK)는 "**shape** 대 **shape**" 단위로만 돈다. 이 간극 — 몸쌍(particle pair) ↔ shape쌍(shape pair) — 을 메우는 게 **mid phase** 다.
+여기가 Chaos 가 2단계가 아니라 3단계인 이유다. 근본 문제는 **세 단계가 다루는 단위가 다르다**는 데 있다. broad phase 는 **몸(body) 단위**로 본다 — 물체 하나를 상자 하나로 감싸 "이 상자와 저 상자가 겹치나"만 묻는다. narrow phase(GJK)는 정반대로 **shape 하나 대 shape 하나**만 비교할 줄 안다. 그런데 C03 에서 봤듯 한 몸의 geometry 는 여러 shape 의 **Union** 일 수 있다(자동차 = 차체 + 바퀴 4개…). 그래서 broad 가 "**몸** A 와 **몸** B 의 바운드가 겹친다"고 해도 narrow 에 곧장 못 넘긴다 — narrow 는 "몸"을 모르고 "shape"만 아니까, *어느 shape 과 어느 shape 을 볼지* 누군가 골라줘야 한다. 이 간극 — 몸쌍(particle pair) ↔ shape쌍(shape pair) — 을 메우는 게 **mid phase** 다.
 
-겹치는 파티클 쌍마다 `FParticlePairMidPhase`(`ParticlePairMidPhase.h:191`)가 하나 배정된다. 그 임무는 **파티클 쌍을 실제 충돌할 수 있는 shape 쌍들로 전개**하고, 각 shape 쌍을 narrow phase 검출기(`FSingleShapePairCollisionDetector`, `:49`)에 넘기는 것이다. 파티클 A 의 shape m개 × 파티클 B 의 shape n개 중, 바운드가 겹치는 조합만 골라 narrow 로 보낸다.
+**왜 broad 나 narrow 에서 그냥 안 하나?** broad 에서 하려면 모든 shape 을 공간 구조(C04)에 낱개로 넣어야 하는데, 몸당 shape 이 여럿이면 원소 수가 폭발해 구조 갱신이 감당 안 된다 — 그래서 broad 는 일부러 몸당 상자 하나만 넣어 가볍게 굴린다. narrow 는 두 shape 비교 말고는 아무것도 관리하지 않는다. 그 사이의 관리자 자리가 비어 있어, mid phase 가 그것을 채운다. 비유하면 broad 는 "두 사람이 부딪힐 만큼 가깝다", mid 는 "그럼 A의 손과 B의 어깨처럼 실제로 가까운 부위끼리만 검사하자", narrow 는 "그 손이 정확히 닿았나·얼마나 깊이"다.
 
-mid phase 는 geometry 복잡도에 따라 세 종류로 갈린다 — `EParticlePairMidPhaseType`(`ParticlePairMidPhase.h:29~42`):
+겹치는 파티클 쌍마다 `FParticlePairMidPhase`(`ParticlePairMidPhase.h:191`)가 하나 배정된다. 그 임무는 **몸쌍을 실제 충돌할 수 있는 shape 쌍들로 전개**하는 것 — 파티클 A 의 shape m개 × B 의 shape n개 중 바운드가 겹치는 조합만 골라 narrow phase 검출기(`FSingleShapePairCollisionDetector`, `:49`)에 넘긴다.
 
-- **`Generic`** — BVH·mesh·Union of Unions 같은 복잡한 계층을 다루는 범용판. (C03 의 Union 내장 BVH·trimesh 가 여기서 쓰인다.)
-- **`ShapePair`** — shape 가 소수인 흔한 경우에 최적화. 충돌 가능 shape 쌍 집합을 *미리 전개*해 캐시한다.
-- **`SphereApproximation`** — 구 근사로 싸게 처리하는 경로.
+**여기가 이 단계의 핵심이다.** "몸이 얼마나 복잡한가"는 천차만별이다 — shape 하나짜리 단순한 공일 수도, 자동차처럼 shape 대여섯 개일 수도, 수만 삼각형짜리 지형 mesh 일 수도 있다. 이 복잡도에 따라 shape 쌍을 뽑는 최선의 방법이 완전히 다르다. **mid phase 는 복합체(compound, 여러 shape 로 이뤄진 몸)를 그 복잡도에 맞는 방식으로 특수 처리한다** — `EParticlePairMidPhaseType`(`ParticlePairMidPhase.h:29~42`)이 세 갈래로 갈리는 이유가 이것이다:
 
-즉 broad phase 의 "몸쌍 목록"이 mid phase 를 거쳐 "shape쌍 목록"으로 펼쳐지고, 그제서야 C06 의 GJK 가 개별 shape 쌍에 돈다.
+- **`ShapePair`** — shape 가 소수인 흔한 몸(공·상자·자동차 등). 충돌 가능한 shape 쌍을 **미리 전부 펼쳐** 캐시한다. 조합이 적으니 통째로 전개하는 게 가장 빠르다.
+- **`Generic`** — 한쪽이 거대한 mesh·BVH·Union of Unions 인 복잡한 계층. shape(삼각형)이 수만 개라 미리 다 펼칠 수 없어, C03 의 **내장 BVH 로 겹치는 부분만 그때그때 훑어** 좁힌다.
+- **`SphereApproximation`** — 정밀 shape 대신 구 근사로 싸게 처리하는 경로.
+
+즉 broad 가 "몸 A ~ 몸 B 근접"만 거칠게 알려주면, mid phase 가 **그 몸의 복잡도를 보고 알맞은 방식으로 shape 쌍을 골라** C06 의 GJK 에 넘긴다. 이 '복합체를 복잡도별로 특수 처리'가, 대부분 엔진이 2단계인데 Chaos 가 mid phase 를 별도 단계로 두는 진짜 이유다.
 
 ---
 
@@ -91,11 +93,17 @@ mid phase 는 geometry 복잡도에 따라 세 종류로 갈린다 — `EParticl
 
 mid phase 의 진짜 값어치는 전개만이 아니다. **프레임을 가로질러 살아남아 접촉 정보를 나른다**는 데 있다.
 
-broad phase 는 매 프레임 겹치는 쌍을 새로 뽑지만, 같은 두 물체가 여러 프레임 붙어 있으면 그 mid phase 객체는 *재사용*된다 — 검출기가 새로 만들지 않고 allocator 에서 파티클 쌍을 키로 기존 것을 찾아 돌려준다(`GetMidPhase(ParticleA, ParticleB, …)`). 덕분에 지난 프레임의 **접촉점 다양체(manifold — 두 shape 가 닿은 접점들의 집합, C06)**·분리 축(두 볼록을 갈라놓는 축, C06 SAT) 같은 상태가 살아남아 **warm start**(지난 프레임의 해를 이번 반복의 출발점으로 재사용하는 것) 에 쓰인다. 솔버(C07·C11)가 매번 0에서 시작하지 않고 지난 해를 출발점으로 삼아, 훨씬 적은 반복으로 안정적으로 수렴한다.
+broad phase 는 매 프레임 겹치는 쌍을 새로 뽑지만, 같은 두 물체가 여러 프레임 붙어 있으면 그 mid phase 객체는 *재사용*된다 — 검출기가 새로 만들지 않고 allocator 에서 파티클 쌍을 키로 기존 것을 찾아 돌려준다(`GetMidPhase(ParticleA, ParticleB, …)`). 덕분에 지난 프레임의 상태가 살아남아 **warm start**(지난 프레임의 해를 이번 반복의 출발점으로 재사용하는 것)에 쓰인다.
 
-정리하면 **산출물이 두 층**이다 — broad 단계의 *직접* 산출은 이 수명 있는 mid phase 객체들의 집합이고, 그것을 narrow(C06)까지 굴려 얻는 *파이프라인 전체*의 산출이 §1 의 `FPBDCollisionConstraints`(C07 입력)다. C05 가 만드는 것은 전자, 최종적으로 흘러가는 것은 후자로 구분하면 된다.
+**무엇이 저장되어 warm start 가 되는가.** mid phase 안의 충돌 constraint(`FPBDCollisionConstraint`)가 프레임을 넘겨 세 가지 기억을 이월한다:
 
-이 지속성이 broad phase 를 단순한 "쌍 뽑기" 이상으로 만든다 — broad phase 의 산출물은 *휘발성 쌍 목록*이 아니라 *수명을 갖는 mid phase 객체들의 집합*이고, 그 수명이 시뮬레이션의 안정성을 떠받친다. (접촉점을 실제로 어떻게 재사용·갱신하는지는 C06·C07 에서.)
+- **`AccumulatedImpulse`** — 지난 프레임 이 접촉을 붙잡는 데 실제로 준 총 impulse(`Collision/PBDCollisionConstraint.h:762,826`). 솔버(C07)가 이 값에서 반복을 시작한다.
+- **`SavedManifoldPoints`** — 지난 프레임의 접촉점 다양체(manifold — 두 shape 가 닿은 접점들의 집합)(`:727~739`).
+- **`GJKWarmStartData`** — GJK 가 멈춘 위치(simplex)(`:702`). narrow phase(C06)의 GJK 가 여기서 다시 출발한다.
+
+게다가 물체가 거의 안 움직였으면 `TryRestoreManifold`(`:696`)로 접촉을 새로 계산하지 않고 지난 것을 그대로 복원하기까지 한다. 요점은 이것이다 — 만약 `GetMidPhase` 가 매 프레임 새 객체를 준다면 이 값들이 전부 0으로 초기화되어 **warm start 자체가 불가능**해진다. 그래서 솔버(C07·C11)가 매번 0(cold start)이 아니라 지난 해에서 시작해 훨씬 적은 반복으로 안정적으로 수렴하는 것은, 순전히 이 **객체 재사용(persistence)이 그 기억을 살려두기 때문**이다. 재사용이 곧 기억의 생명줄이고, 그 기억이 warm start 를 만든다.
+
+정리하면 **broad 단계가 직접 만드는 것**과 **파이프라인 전체가 내놓는 것**이 다르다. C05 가 직접 만드는 것은 이 mid phase 객체들 — 매 프레임 버려지지 않고, 같은 두 물체가 붙어 있는 한 계속 재사용되는 것들 — 이고, 그것을 narrow(C06)까지 굴려 최종적으로 나오는 것이 §1 의 `FPBDCollisionConstraints`(C07 입력)다. 이 '버리지 않고 재사용한다'는 점 하나가 broad phase 를 단순한 쌍 뽑기 이상으로 만든다 — 그 재사용이 warm start 를 통해 시뮬레이션 안정성을 떠받치기 때문이다. (접촉점을 실제로 어떻게 재사용·갱신하는지는 C06·C07 에서.)
 
 ---
 
@@ -132,7 +140,7 @@ broad phase 가 mid phase 들을 준비하면, 그 뒤처리는 엄밀히는 `Ru
 
 세 문장으로 압축하면:
 
-첫째, **broad phase 는 각 파티클의 부풀린 AABB 로 C04 가속 구조를 Overlap 질의해 겹치는 쌍을 뽑고**, HasCollision → self(UniqueIdx) → filter data 의 싼 필터 계단으로 쓸데없는 쌍을 쳐낸다. 둘째, **Chaos 는 broad→mid→narrow 3단계**이며, mid phase 가 "몸쌍"을 "shape쌍"으로 전개(Generic/ShapePair/SphereApproximation)하고 **프레임을 가로질러 재사용되어 warm start** 를 가능하게 한다. 셋째, **산출물은 `FPBDCollisionConstraints`** 이며, 병렬 수집 후 결정론 정렬로 순서를 못박아 narrow phase(C06)·솔버(C07)로 넘긴다.
+첫째, **broad phase 는 각 파티클의 부풀린 AABB 로 C04 가속 구조를 Overlap 질의해 겹치는 쌍을 뽑고**, HasCollision → self(UniqueIdx) → filter data 의 싼 필터 계단으로 쓸데없는 쌍을 쳐낸다. 둘째, **Chaos 는 broad→mid→narrow 3단계**이며, mid phase 가 **복합체(여러 shape 인 몸)를 복잡도별로 특수 처리**해 "몸쌍"을 "shape쌍"으로 전개한다(소수 shape 면 `ShapePair` 로 미리 다 펼치고, 거대 mesh 면 `Generic` 으로 내장 BVH 로 좁힘). 또 그 mid phase 객체가 **프레임을 넘겨 재사용되어 warm start** 를 가능하게 한다. 셋째, **산출물은 `FPBDCollisionConstraints`** 이며, 병렬 수집 후 결정론 정렬로 순서를 못박아 narrow phase(C06)·솔버(C07)로 넘긴다.
 
 다음은 **C06 — narrow phase** 다. mid phase 가 넘긴 각 shape 쌍에 대해, 실제로 겹쳤는지·얼마나·어디서를 계산하는 GJK/EPA/SAT 와 contact manifold 생성을 본다. C05 가 "누구와 누가 부딪힐 수 있나"였다면, C06 은 "그 둘이 정확히 어떻게 닿았나"다.
 
@@ -150,10 +158,11 @@ broad phase 가 mid phase 들을 준비하면, 그 뒤처리는 엄밀히는 `Ru
 | 필터: self-컷(UniqueIdx) ShouldIgnore | `SpatialAccelerationBroadPhase.h:285` |
 | 필터: collision filter data PrePreFilter/PrePreSimFilter | `SpatialAccelerationBroadPhase.h:300~` |
 | 필터: HasCollision 조기 반환 | `Chaos/Public/Chaos/Collision/BasicBroadPhase.h`(ProduceOverlaps) |
-| mid phase = 파티클쌍 → shape쌍 전개, 지속 객체 | `Chaos/Public/Chaos/Collision/ParticlePairMidPhase.h:191` |
+| mid phase = 복합체를 복잡도별 특수 처리(몸쌍 → shape쌍 전개), 재사용 객체 | `Chaos/Public/Chaos/Collision/ParticlePairMidPhase.h:191` |
 | mid phase 3종(Generic/ShapePair/SphereApproximation) | `ParticlePairMidPhase.h:29~42` |
 | shape쌍 narrow 검출기 | `ParticlePairMidPhase.h:49`(FSingleShapePairCollisionDetector) |
 | mid phase 재사용(persistence, GetMidPhase 키=파티클쌍) | `BasicBroadPhase.h`(GetMidPhase); `SpatialAccelerationBroadPhase.h:940` |
+| warm start 로 이월되는 상태(impulse·manifold·GJK simplex·복원) | `Collision/PBDCollisionConstraint.h:762,826`(AccumulatedImpulse), `:727~739`(SavedManifoldPoints), `:702`(GJKWarmStartData), `:696`(TryRestoreManifold) |
 | narrow 실행 + 결정론 수집 | `SpatialAccelerationBroadPhase.h:438`(ProduceCollisions), `:470`(GatherConstraints) |
 | 병렬 컨텍스트 merge/sort | `SpatialAccelerationBroadPhase.h:477~639` |
 | 산출물 컨테이너 `FPBDCollisionConstraints`(→C07) | `Chaos/Public/Chaos/Collision/CollisionDetector.h`(CollisionContainer) |
