@@ -132,13 +132,20 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 
 ## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
 
-상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **제안** — 확정 시
-여기서 단계를 관리). C 트랙(이미지→캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·
-바이옴·수역·대기·생명)으로 번역해 T 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤,
-W4 는 W2+W3, W5 는 T4, W6 은 T5.
+상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1
+완료, 다음은 W2. 여기서 단계를 관리). C 트랙(이미지→캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을
+월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립,
+W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
 
-- **W1 — 월드 게놈의 데이터화**: 하드코딩 `BIOMES`/`WATER_COL` → 게놈 JSON, `world(genome)` 소비.
-  완료 기준: 기본 프리셋 biome-shot 재현(diff 0) + 2번째 프리셋 뚜렷이 다른 파노라마.
+- ✅ **W1 — 월드 게놈의 데이터화**: `terrain-gen.js` 의 하드코딩 `BIOMES`/`WATER_COL` 을 게놈 필드로
+  승격 — `world(genome)` 이 `genome.biomeSet`/`water` 를 있으면 소비, 없으면 기본 프리셋. `WATER_ID` 는
+  바이옴 수(`biomeSet.length`)로 유도해 바이옴 개수가 프리셋마다 달라도 성립(기본 4). `P.biomes`(불리언
+  토글)와 충돌 없도록 배열은 `biomeSet` 신규 필드. `PRESETS`/`preset(name)`(깊은 복사) 신규 — `temperate`
+  (현행 상수와 바이트 동일)·`ashen`(3바이옴·붉은 팔레트·물 없음). 검증: `node test/world-genome.js`(순수
+  Node) — ① temperate 프리셋 경유가 현행 플랫 기본과 diff 0(회귀) + ② ashen 이 평균색거리 0.295·육상
+  바이옴 완전 분리(다채로움). `node test/biome-shot.js`(회귀, 연속성 diff 0·렌더색족 4/4·exit 0) +
+  `node test/preset-shot.js ashen`(용암능선 파노라마 사진). 남김: 대기·생명은 W6·W5, 스타일 프로파일
+  검증기는 W2.
 - **W2 — 월드 스타일 프로파일**: 진폭·바이옴 수·채도·수위 울타리 + `validate(genome)` 검증기(반려).
   완료 기준: 프로파일 안 통과·극단 반려 판정 하니스.
 - **W3 — 컨셉 검증 하니스**: `test/concept-shot.js` — 게놈 → 대조용 대표 파노라마. 완료 기준: 규격 PNG 산출.
