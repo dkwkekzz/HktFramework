@@ -24,6 +24,18 @@
 후보정: JSON 노브 ≤5개 조정 재렌더 (waterY·ampMul·바이옴 중심·팔레트)
 ```
 
+## 걷는 월드로 (T2 스트리밍)
+
+게놈은 파노라마 대조뿐 아니라 **걷는 타일 월드**로도 흐른다 (`world(genome)` → T2):
+
+```
+# 하니스: 게놈 월드를 +x 로 팬하며 타일 스트리밍 판정 + 사진
+node test/world-pan-shot.js out.png 7 tools/world-extract/genomes/breeze-meadow.json
+
+# 앱: 딥링크로 걷는 월드 자동 시작 (index.html)
+index.html?tilesGenome=/tools/world-extract/genomes/breeze-meadow.json
+```
+
 ## 게놈 목록
 
 | 파일 | 출처 | 인상 요약 |

@@ -29,7 +29,7 @@ npm install                # playwright (브라우저 포함)
 | `node ash-shot.js out.png` | S5 낙재 — 불×나무 연소에서 재가 분리→낙하→바닥 정착하는지 스플랫 readback 판정 + 사진 |
 | `node editor-shot.js out.png` | E1 에디터 — editor.html 부트, 지형 생성(시드 fBm)+개체 5 배치(void 패딩 슬라이스 8)+히키토 walk 를 API 로 구동, 합성 사진 + 판정 |
 | `node biome-shot.js [out.png] [seed=7]` | T1 월드 함수 — ① 원점 다른 두 창의 겹침 height/biome/color diff 0 (순수 Node) + ② 넓은 파노라마 PLY 를 Spark 로 로드해 조감 촬영, 렌더 색족 ≥4(바이옴 구분) 판정 사진 |
-| `node world-pan-shot.js [out.png] [seed=7]` | T2 청크 스트리밍 — index.html 에서 타일 월드를 켜고 카메라 +x 직진, 타일 교체(합집합>25)+메시·스플랫 상한 유지(O(시야반경))+중앙밴드 지형 100%(이음새 틈 없음) 판정 사진 |
+| `node world-pan-shot.js [out.png] [seed=7] [genome.json]` | T2 청크 스트리밍 — index.html 에서 타일 월드를 켜고 카메라 +x 직진, 타일 교체(합집합>25)+메시·스플랫 상한 유지(O(시야반경))+중앙밴드 지형 100%(이음새 틈 없음) 판정 사진. `genome.json` 인자를 주면 추출된 월드 게놈으로 걷는 월드 스트리밍(W4 산출물 → T2, 색·지형 게놈 유도) |
 | `node terrain-bubble-shot.js [follow.png] [fixed.png]` | T3 버블 y 추종 — ① 버킷 인덱스 O(창) 베이크가 나이브 bake 와 diff 0(순수 Node) + ② 원점 ≈70u 3m 분지에서 침투 0%·계곡 바닥 정착·L2 생존(확산 vs 버블 고정 대조군) 판정 사진 |
 | `node world-genome.js [seed=7]` | W1 월드 게놈의 데이터화(순수 Node) — ① temperate 프리셋 경유가 현행 플랫 기본과 height/color/biome diff 0(회귀) + ② ashen 프리셋이 평균색거리>0.08·육상 바이옴 완전 분리(다채로움) |
 | `node preset-shot.js <preset\|genome.json> [out.png] [seed]` | W1/W4 시각 — 내장 프리셋 또는 게놈 JSON(추출물)을 즉석 파노라마로 Spark 렌더(예: `ashen`, `tools/world-extract/genomes/breeze-meadow.json`). JSON 게놈은 렌더 전 W2 프로파일 검증. biome-shot 렌더 절반의 일반화, W3 concept-shot 원형 |
