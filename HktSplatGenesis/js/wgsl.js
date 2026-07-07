@@ -653,7 +653,7 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	var cA = E.colorA.rgb;
 	var cB = E.colorB.rgb;
 	if (E.fleshK > 0.0) {
-		let g = boneGroup[min(u32(rest[idx].w), 127u)];
+		let g = boneGroup[min(u32(rest[idx].w), 511u)]; // 511 = engine.js MAX_BONES-1 과 동기
 		cA = groupColors[g * 2u].rgb;
 		cB = groupColors[g * 2u + 1u].rgb;
 	}
