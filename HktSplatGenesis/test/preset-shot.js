@@ -2,18 +2,32 @@
 // biome-shot 의 렌더 절반을 프리셋 인자로 일반화 — W3(concept-shot)의 원형이다.
 // 파노라마 PLY 는 create(preset) 로 브라우저 없이 굽고, Spark 무대로 로드해 조감 촬영.
 //
-// 사용: CHROMIUM_PATH=... node preset-shot.js <preset> [out.png] [seed=7]
+// 인자: 내장 프리셋 이름(temperate/ashen) 또는 게놈 JSON 파일 경로(.json) — W4 추출기 산출물.
+// 사용: CHROMIUM_PATH=... node preset-shot.js <preset|genome.json> [out.png] [seed]
 //   예: node preset-shot.js ashen ashen.png 7
+//       node preset-shot.js ../tools/world-extract/genomes/breeze-meadow.json out.png
+const fs = require('fs');
+const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
 const T = require('../js/terrain-gen.js');
 
-const PRESET = process.argv[2] || 'ashen';
-const OUT = process.argv[3] || `${PRESET}.png`;
+const ARG = process.argv[2] || 'ashen';
+const IS_JSON = ARG.endsWith('.json');
+const LABEL = IS_JSON ? path.basename(ARG, '.json') : ARG;
+const OUT = process.argv[3] || `${LABEL}.png`;
 const SEED = parseInt(process.argv[4] || '7');
 const EXT = 90, G = 384;
 
-// 프리셋 게놈 → 파노라마 PLY (즉석). biomeSet/water/relief 전부 게놈에서.
-const genome = Object.assign({ seed: SEED, extent: EXT }, T.preset(PRESET));
+// 게놈 소스: JSON 파일이면 로드(렌더 무관 _meta 키 제거), 아니면 내장 프리셋.
+let src;
+if (IS_JSON) {
+	const raw = JSON.parse(fs.readFileSync(ARG, 'utf8'));
+	src = {}; for (const k in raw) if (!k.startsWith('_')) src[k] = raw[k];
+} else {
+	src = T.preset(ARG);
+}
+// 게놈 → 파노라마 PLY (즉석). biomeSet/water/relief 전부 게놈에서. genome.seed 가 있으면 우선.
+const genome = Object.assign({ seed: SEED, extent: EXT }, src);
 const W = T.world(genome);
 const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
 
@@ -27,7 +41,7 @@ const ply = Buffer.from(T.create(genome).plyBytes(G, 1.7));
 		const b = W.biomeAt(x, z);
 		hist[b.key] = (hist[b.key] || 0) + 1;
 	}
-	console.log(`[${PRESET}] 바이옴 분포: ${JSON.stringify(hist)} · 스플랫 ${G * G} · ${(ply.length / 1e6).toFixed(2)}MB`);
+	console.log(`[${LABEL}] 바이옴 분포: ${JSON.stringify(hist)} · 스플랫 ${G * G} · ${(ply.length / 1e6).toFixed(2)}MB`);
 
 	const server = await serve(8139, {
 		'/assets/worlds/preset-panorama.ply': (req, res) => {
