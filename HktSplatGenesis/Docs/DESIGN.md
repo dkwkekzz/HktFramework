@@ -66,6 +66,8 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
   Map·링 정책·SplatMesh 부착/폐기, `startTileWorld`/`updateTileCenter`/`tileStats`, `?tiles=`).
+  T5: 지형 타일과 함께 수면 타일(`waterTilePly`)을 스트리밍(마른 타일은 물 메시 없음), 공용
+  sky/fog 톤의 단일 원본(`setSkyFog`/`getSkyFog` — clear 색 = 지평선 fog, 생명이 같은 톤 소비).
 - `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
   T3: `bakeFn`(height 함수 직접 베이크 — 절차 월드, O(창)) + `buildIndex`/`bakeIndexed`
@@ -77,7 +79,8 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
   + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는
   월드의 한 창(`cx,cz` 중심) — 창 좌표=월드 좌표라 원점 무관 연속. 창 `height()` 는 시뮬
-  격자 바닥용 -0.72 클램프 유지, `world.heightAt()` 은 순수(클램프 없음).
+  격자 바닥용 -0.72 클램프 유지, `world.heightAt()` 은 순수(클램프 없음). T5: `waterTilePly` —
+  waterY 평면의 반투명 수면 스플랫(tilePly 와 같은 전역 셀 격자, 수몰 셀만, 심도 기반 색).
 - `js/scatter.js` — 스캐터·개체 스트리밍 (T4): `HktGenesisScatter`. ① `candidates(world,cx,cz,r,cfg)` —
   월드 함수 위 결정론 스폰 테이블(좌표·시드 latticeHash, Math.random 금지). 셀마다 후보 1개를 셀
   내부로 지터하고 수위·경사·바이옴 밀도(`BIOME_TREE`)로 거른다. 일부 나무 곁 모닥불 스폰을 호스트
@@ -133,6 +136,9 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | 슬롯 증분 교체 = 슬라이스 부분 업로드, 레이아웃 불변 (T4) | 스캐터 스트리밍은 매 프레임 개체가 바뀌는데 `setScene` 은 전 버퍼를 파괴·재생성한다(모든 슬롯 재시드 = 깜빡임 + O(N) 업로드). `respawnEntity(ei)` 는 개체 ei 의 슬라이스만 오프셋 `writeBuffer` — 슬라이스 크기·개수·스트라이드가 그대로라 바이트 일치 불변 조건이 유지되고, 교체 안 된 슬롯의 스플랫은 계속 시뮬된다. setScene 조립과 클러스터 본드 인덱스 전역 보정을 `_sliceInit` 헬퍼로 공유해 두 경로가 같은 초기화를 쓴다 |
 | 스폰 결정론 = 좌표·시드 해시, 창 무관 (T4) | 스캐터는 T2 청크와 같은 원리 — 스폰을 좌표·시드 latticeHash 로 뽑으면 어느 창(카메라 위치)에서 조회해도 같은 좌표는 같은 스폰이라 스트리밍 경계 이음새가 없다(world-scatter-shot ⓪: 원점 다른 두 창 겹침 위치 diff 0). Math.random 은 프레임마다 다른 배치를 만들어 이 연속성을 깬다 — 금지 |
 | 불×나무 = 호스트 나무와 같은 셀의 모닥불 스폰 (T4) | "임의 좌표에서 불×나무 성립"을 새 코드 경로 없이 — 일부 나무 셀에 모닥불 후보를 함께 낸다(같은 셀 해시). 스트림이 둘을 나란히 활성화하면 공유 격자에서 연소가 창발한다(절대 원칙 2: 상호작용 = 새 유전자 배치, 새 규칙 아님). 하니스는 나무 슬롯 스플랫의 heat 채널(misc.z) 상승률로 상호작용을 판정 — 완전 연소(fuel 소진)보다 이른·민감한 신호라 스웜셰이더 프레임 예산 안에서 확실히 잡힌다 |
+| 무대 fog = clear 색, 생명 fog = 렌더 FS, 톤 공유 (T5) | Spark 스플랫 셰이더는 three fog 를 지원하지 않는다(spark.module 에 fog 심볼 없음) — 무대 지형에 *점진적* fog 를 칠할 수 없다. 그래서 무대 fog 는 clear 색(지평선 = 타일 링 밖)으로, 생명 fog 는 렌더 FS(viewZ→fogColor)로 각각 구현하되 *같은 색*을 공유(`stage.getSkyFog` 단일 원본 → `engine.frame({fog})`)해 두 층이 지평선에서 같은 톤으로 만난다. fog 는 tile 월드에서만(단일 데모 clear 불변 = 회귀 0), CamParams fog/fogRange + camUB 160→192B(fogAmount 0 = off) |
+| sky/fog 톤은 디스플레이(sRGB) 공간, 무대 clear 는 linear 로 넣는다 (T5) | 무대(three, sRGB 출력 캔버스)는 clear 색을 linear→sRGB 인코딩해 화면에 낸다(0.62 linear → 화면 206). 생명(WebGPU 비-sRGB 캔버스)은 fog 색을 raw 로 써서 화면에 그대로 낸다. 두 층 픽셀이 *일치*하려면 톤을 디스플레이(sRGB) 값으로 정의하고, 무대엔 그 톤의 linear 역변환을 clear 로 넣어야 한다(three 가 다시 sRGB 인코딩 → 화면 = 톤). 생명은 톤 raw 그대로. 안 맞추면 하늘밴드 거리 67, 맞추면 0.5(world-water-shot ①) |
+| 수면 = waterY 평면의 반투명 flat surfel, 수몰 셀만 (T5) | 수면은 "무대(로드 대상)"의 시각 층 — 시뮬은 heightfield 를 그대로 보고(생명은 물속에서도 바닥 충돌), 물은 시각뿐(PLAN §5). 지형이 waterY 밑인 셀에만 납작한 surfel 을 놓아 마른 땅에 물이 안 뜨고, tilePly 와 같은 전역 셀 격자라 이음새가 없다. 한계: 근접 저각에서 flat surfel(지형·수면 공통)이 뭉개진다 — 스타일 폴리시로 남김 |
 
 ## 검증 방법
 

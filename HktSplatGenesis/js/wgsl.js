@@ -556,6 +556,8 @@ struct CamParams {
 	proj : mat4x4f,
 	viewport : vec2f, focal : vec2f,
 	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+	fog : vec4f,      // T5: rgb=fogColor, a=fogAmount(0=off)
+	fogRange : vec4f, // x=start(거리), y=end(완전 fog)
 };
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
@@ -678,8 +680,15 @@ fn fs(in : VOut) -> @location(0) vec4f {
 	let od = textureLoad(occDepth, vec2i(in.pos.xy), 0);
 	let occDist = C.proj[3].z / (od + C.proj[2].z);
 	let fade = clamp(1.0 + (occDist - in.viewZ) / 0.15, 0.0, 1.0);
+	// T5 원거리 fog — viewZ(양수 거리)로 fogColor 로 페이드. 무대 clear(=sky/fog 톤)와 같은
+	// 색이라 두 층이 지평선에서 같은 톤으로 만난다. fogAmount 0 = off(기존 거동 불변).
+	var rgb = in.col.rgb;
+	if (C.fog.a > 0.0) {
+		let f = clamp((in.viewZ - C.fogRange.x) / max(C.fogRange.y - C.fogRange.x, 1e-3), 0.0, 1.0) * C.fog.a;
+		rgb = mix(rgb, C.fog.rgb, f);
+	}
 	let b = exp(a) * in.col.a * fade;
-	return vec4f(in.col.rgb * b, b); // premultiplied over
+	return vec4f(rgb * b, b); // premultiplied over
 }
 `;
 

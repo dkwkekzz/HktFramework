@@ -137,8 +137,19 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   전 프리셋 회귀(app-smoke/bubble/ash/editor-multi/render/world-pan) 없음. 편의: `js/scatter.js` 를
   index.html 에 동봉(모듈 전역 노출). 남김: 앱 tick 에 스캐터 팔로 루프 배선(무대 T2 타일과
   병행 걷는 월드) — 하니스가 메커니즘을 실증하므로 UI 결선은 후속. W5(게놈 생명 스캐터)의 선행.
-- **T5 — 물 + 원거리 폴리시**: 수면 타일 + 무대·생명 공용 fog (**S3 잔여 합류**). 완료 기준:
-  호수 파노라마 — 수면·안개 톤 양층 일치.
+- ✅ **T5 — 물 + 원거리 폴리시** (**S3 잔여 합류**): ① 수면 타일 — `world.waterTilePly` 가 waterY
+  평면의 반투명 수면 스플랫을 지형이 수위 밑인 셀에만(심도 기반 청록→남색 팔레트) 굽고, stage.js 가
+  지형 타일과 함께 스트리밍(마른 타일은 물 메시 없음). ② 무대·생명 공용 sky/fog 톤 — Spark 스플랫은
+  three fog 미지원이라 **무대 fog = clear 색**(지평선), **생명 fog = 렌더 FS**(viewZ 로 fogColor 페이드,
+  camUB 160→192B + CamParams fog/fogRange). stage 가 톤의 단일 원본(`getSkyFog`), app 이 그 값을
+  engine.frame({fog}) 로 넘겨 두 층이 지평선에서 같은 색으로 만난다. **색공간 정합**: 무대(three)는
+  clear 를 linear→sRGB 인코딩하므로 화면에 톤이 그대로 나오도록 linear(톤)을 넣는다(생명 비-sRGB
+  캔버스는 톤 raw 사용). ③ fog 는 tile 월드에서만 켜짐 — 단일 데모(비-tile)는 기존 어두운 clear 불변.
+  검증: `node test/world-water-shot.js` — ⓪ 수면 타일 재생성 diff 0(순수 Node) + ① 호수 파노라마
+  (수면 메시 12·수면 픽셀 13k·하늘밴드 μ가 공용 sky 톤과 거리 0.5) + ② 생명 fog on/off(sky색 거리
+  113<317, 근경 초록→원경 sky색 그라데이션) 사진. 회귀 없음(app-smoke/world-pan/scatter/render/ash/
+  bubble). 남김: 근접 저각에서 flat 수면/지형 surfel 이 뭉개짐(스타일 폴리시) · 무대 지형의 *점진적*
+  fog(스플랫 착색)은 Spark 셰이더 미지원이라 clear-지평선 방식으로 대체.
 - **T6 — 실측·예산**: 실 Marble/.rad + 청크 월드 fps·메모리 HUD (**S4 잔여 합류**). 완료 기준:
   데스크톱 60fps 수치 기록.
 
@@ -182,20 +193,19 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   완료 기준: 이동 중 컨셉대로 개체 등장·소멸. T4 가 슬롯 증분 교체(`engine.respawnEntity`)와 결정론 스폰
   테이블(`js/scatter.js`)을 깔았으므로, W5 는 게놈이 스폰 규칙(종·밀도·바이옴 조건)을 정하도록 `scatter`
   후보 생성에 게놈 층을 물리면 된다 — 큰 엔진 확장이 아니라 게놈→스폰 규칙 매핑.
-- **W6 — 대기·물 정합** (**T5 의존**): 게놈 대기 층 = fog·스카이·수면. 완료 기준: 무드 재현 사진(concept-shot
-  우상단 검정 하늘이 채워짐). **선행 T5 필요** — 수면 타일 + 무대(vendor/spark three 씬)·생명(WebGPU 렌더
-  셰이더) 공용 fog·스카이 톤. 중간 규모.
+- **W6 — 대기·물 정합** (**T5 완료로 선행 해소**): 게놈 대기 층 = fog·스카이·수면. 완료 기준: 무드 재현
+  사진(concept-shot 우상단 검정 하늘이 채워짐). T5 가 수면 타일 + 무대·생명 공용 sky/fog 톤(`stage.setSkyFog`
+  단일 원본)을 깔았으므로, W6 는 게놈 `mood`(sky/fogStart/fogEnd)를 `startTileWorld({mood})` 로 흘리고
+  `world-profile.js` 에 대기 밴드를 더하면 된다 — concept-shot 렌더가 mood 를 소비하도록 배선.
 
-> **다음 세션 진입점 (2026-07 기준)**: 이미지→게놈→검증→걷는 월드 루프(W1~W4)는 완성 — 이후는 "월드를
-> 채우고 분위기를 입히는" 두 갈래이며 둘 다 T-트랙 본체 기능에 막혀 있다. 권장 순서:
-> ① **W6-lite (대기/하늘 먼저)** — 이미지의 절반이 하늘이라 체감 효과가 가장 크다. 최소 버전으로 `stage.js`
->   의 three 씬에 게놈 `mood`(skyTop/skyHorizon/fog) 기반 스카이 그라데이션+fog 를 넣으면 concept-shot 검정
->   하늘이 해소된다(수면 타일·생명 공용 fog 는 T5 본체로 후속). 진입: `js/stage.js` 무대 씬 셋업 +
->   게놈 스키마에 `mood` 층 추가 + `world-profile.js` 프로파일에 대기 밴드 추가.
-> ② **W5 (생명 스캐터)** — T4 완료로 선행 해소(엔진 슬롯 증분 교체 `engine.respawnEntity` + 결정론 스폰
->   `js/scatter.js` 존재). 남은 일은 게놈이 스폰 규칙을 정하게 하는 것 + 앱 tick 에 스캐터 팔로 루프 배선
->   (무대 T2 타일과 병행 걷는 월드). 진입: `js/scatter.js`(ScatterStream) + `js/app.js` tick.
-> ③ **T5 (물 + 원거리 fog)** — W6-lite 하늘과 합류 지점. 진입: `js/stage.js` + 렌더 셰이더 fog.
+> **다음 세션 진입점 (2026-07 기준)**: T1~T5 완료(월드함수·청크·시뮬바닥·스캐터·물/fog) — 오픈월드 지형
+> 본체가 섰다. 남은 갈래:
+> ① **W6 (대기·물 정합)** — T5 로 선행 해소. 게놈 `mood`(sky/fog)를 `startTileWorld({mood})`·concept-shot
+>   에 배선하면 concept-shot 검정 하늘이 채워진다. 진입: `js/stage.js`(setSkyFog 소비) + `js/world-profile.js`
+>   대기 밴드 + `test/concept-shot.js`. 가장 체감 큰 다음 수(이미지 절반이 하늘).
+> ② **W5 (생명 스캐터)** — T4 로 선행 해소. 게놈이 스폰 규칙을 정하게(scatter 후보에 게놈 층) + 앱 tick 에
+>   스캐터 팔로 루프 배선(무대 T2 타일과 병행 걷는 월드). 진입: `js/scatter.js`(ScatterStream) + `js/app.js` tick.
+> ③ **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
 > 두 경로 모두 게놈 스키마 확장 시 `js/world-profile.js` 검증기와 `test/world-genome.js` 회귀를 함께 갱신할 것.
 
 ## C 트랙 — 캐릭터 배양 (이미지 컨셉 → 게놈 → 살)

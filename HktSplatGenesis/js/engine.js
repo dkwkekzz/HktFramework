@@ -91,7 +91,7 @@
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
 		this.simUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-		this.camUB = d.createBuffer({ size: 160, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
+		this.camUB = d.createBuffer({ size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }); // 160 + fog(vec4)·fogRange(vec4)
 		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -720,13 +720,19 @@
 		new Uint32Array(key)[4] = n;
 		d.queue.writeBuffer(this.keyUB, 0, key);
 
-		// CamParams (160B)
-		const cam = new ArrayBuffer(160);
+		// CamParams (192B = 160 + fog vec4 + fogRange vec4)
+		const cam = new ArrayBuffer(192);
 		const cf = new Float32Array(cam);
 		cf.set(v, 0);
 		cf.set(opts.proj, 16);
 		cf.set([opts.viewport[0], opts.viewport[1], opts.focal[0], opts.focal[1]], 32);
 		new Uint32Array(cam)[36] = this.sliceSize;
+		// T5 원거리 fog — opts.fog = { color:[r,g,b], start, end } | falsy(off). 무대 sky 톤과 공유.
+		const fog = opts.fog;
+		if (fog && fog.color) {
+			cf.set([fog.color[0], fog.color[1], fog.color[2], fog.amount != null ? fog.amount : 1], 40);
+			cf.set([fog.start != null ? fog.start : 12, fog.end != null ? fog.end : 40], 44);
+		}
 		d.queue.writeBuffer(this.camUB, 0, cam);
 
 		const wgs = Math.ceil(n / WG);

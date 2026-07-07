@@ -37,9 +37,15 @@ const transform = { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
 // 함수 평가로 브라우저에서 즉석 생성 — 네트워크·디스크 불필요(오프라인 동작).
 let tileWorld = null;            // HktGenesisTerrainGen.world 결과 (PLY 굽는 원본)
 let tileCfg = null;              // { tileSize, nearR, farR, nearG, farG, splatScale }
-const tiles = new Map();         // "tx,tz" -> { mesh, url, ring }
+const tiles = new Map();         // "tx,tz" -> { mesh, water, url, waterUrl, ring }
 const tilePending = new Set();   // 로드 진행 중 키 (중복 로드 방지)
 let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 재계산
+
+// ── T5 공용 sky/fog 톤 ────────────────────────────────────────────────────
+// Spark 스플랫은 three fog 를 지원하지 않으므로(무대 지형엔 clear 색이 곧 지평선 fog),
+// 생명(WebGPU)의 원거리 fog 와 *같은 색*을 공유해 두 층이 지평선에서 같은 톤으로 만난다.
+// stage 가 이 톤의 원본 — app/하니스는 getSkyFog() 로 읽어 engine.frame({fog}) 에 넘긴다.
+let skyFog = { color: [0.62, 0.70, 0.82], start: 20, end: 55 }; // 기본: 옅은 청회색 하늘
 
 function setStatus(html) { lastStatus = html; if (statusCb) statusCb(html); }
 
@@ -123,6 +129,10 @@ function startTileWorld(params) {
 	tiles.clear(); tilePending.clear(); tileCenterKey = null;
 	tileWorld = window.HktGenesisTerrainGen.world(params);
 	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32, splatScale: 1 }, params && params.tile);
+	// T5 공용 sky/fog — 게놈 mood(있으면) 또는 기본 톤. fog end 는 far 링 반경에 맞춰 지평선에서 소실.
+	const mood = (params && params.mood) || {};
+	const farReach = tileCfg.tileSize * (tileCfg.farR + 0.5);
+	setSkyFog({ color: mood.sky || skyFog.color, start: mood.fogStart != null ? mood.fogStart : farReach * 0.55, end: mood.fogEnd != null ? mood.fogEnd : farReach });
 	setStatus('타일 월드 스트리밍 — 시드 ' + tileWorld.params.seed);
 }
 
@@ -137,6 +147,24 @@ function disposeTile(t) {
 	rig.remove(t.mesh);
 	if (t.mesh.dispose) t.mesh.dispose();
 	if (t.url) URL.revokeObjectURL(t.url);
+	if (t.water) { rig.remove(t.water); if (t.water.dispose) t.water.dispose(); }
+	if (t.waterUrl) URL.revokeObjectURL(t.waterUrl);
+}
+
+// 공용 sky/fog 톤 설정 — 무대 clear 색(= 지평선 fog)과 생명 fog 가 공유하는 단일 원본.
+// skyFog.color 는 *디스플레이(sRGB) 톤* — 화면에 실제로 보이는 색이다. 생명(WebGPU 비-sRGB
+// 캔버스)은 이 값을 그대로 써서 그 톤으로 보인다. 무대(three)는 출력 시 linear→sRGB 인코딩을
+// 하므로, 화면에 같은 톤이 나오려면 clear 를 linear(톤)으로 넣어야 한다(양층 픽셀 일치의 핵심).
+const srgbToLinear = (c) => (c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4));
+function setSkyFog(cfg) {
+	cfg = cfg || {};
+	if (cfg.color) skyFog.color = cfg.color.slice(0, 3);
+	if (cfg.start != null) skyFog.start = cfg.start;
+	if (cfg.end != null) skyFog.end = cfg.end;
+	if (renderer) {
+		const l = skyFog.color.map(srgbToLinear); // three 가 다시 sRGB 로 인코딩 → 화면 = skyFog.color
+		renderer.setClearColor(new THREE.Color(l[0], l[1], l[2]), 1);
+	}
 }
 
 // 현재 중심 기준으로 key 타일이 속할 링(0 근접·1 외곽) — 범위 밖이면 null
@@ -155,17 +183,28 @@ async function loadTile(tx, tz, ring) {
 	const S = tileCfg.tileSize, G = ring === 0 ? tileCfg.nearG : tileCfg.farG;
 	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale);
 	const url = URL.createObjectURL(new File([bytes], 'tile.ply'));
+	// T5 수면 타일 — 이 타일에 수몰 셀이 있으면(null 아니면) 반투명 수면 메시를 함께 붙인다
+	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale) : null;
+	const waterUrl = waterBytes ? URL.createObjectURL(new File([waterBytes], 'water.ply')) : null;
 	try {
 		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
 		await m.initialized;
+		let water = null;
+		if (waterUrl) { water = new SplatMesh({ url: waterUrl, fileName: 'water.ply', lod: false }); await water.initialized; }
 		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
-		if (desiredRing(tx, tz) !== ring) { if (m.dispose) m.dispose(); URL.revokeObjectURL(url); return; }
+		if (desiredRing(tx, tz) !== ring) {
+			if (m.dispose) m.dispose(); URL.revokeObjectURL(url);
+			if (water && water.dispose) water.dispose(); if (waterUrl) URL.revokeObjectURL(waterUrl);
+			return;
+		}
 		rig.add(m);
-		tiles.set(key, { mesh: m, url, ring });
+		if (water) rig.add(water);
+		tiles.set(key, { mesh: m, water, url, waterUrl, ring });
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
 		URL.revokeObjectURL(url);
+		if (waterUrl) URL.revokeObjectURL(waterUrl);
 	} finally {
 		tilePending.delete(key);
 	}
@@ -202,9 +241,12 @@ function updateTileCenter(wx, wz) {
 }
 
 function tileStats() {
-	let splats = 0;
-	for (const t of tiles.values()) splats += (t.mesh.numSplats || 0);
-	return { meshes: tiles.size, splats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
+	let splats = 0, waterMeshes = 0, waterSplats = 0;
+	for (const t of tiles.values()) {
+		splats += (t.mesh.numSplats || 0);
+		if (t.water) { waterMeshes++; waterSplats += (t.water.numSplats || 0); }
+	}
+	return { meshes: tiles.size, splats, waterMeshes, waterSplats, pending: tilePending.size, center: tileCenterKey, keys: [...tiles.keys()] };
 }
 
 // 오빗 카메라 미러 + 리사이즈 + 렌더 — app.js 의 tick 에서 매 프레임 호출
@@ -241,6 +283,7 @@ window.HktGenesisStage = {
 	SAMPLE_URL,
 	init, load, setEnabled, frame, capture,
 	startTileWorld, stopTileWorld, updateTileCenter, tileStats,
+	setSkyFog, getSkyFog() { return { color: skyFog.color.slice(), start: skyFog.start, end: skyFog.end }; },
 	get tiledMode() { return !!tileWorld; },
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
 	getTransform() { return { ...transform }; },

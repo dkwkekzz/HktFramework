@@ -400,9 +400,12 @@
 				stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
 				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
 			}
+			// T5: 무대 타일 월드가 켜져 있으면 생명도 무대와 같은 sky/fog 톤으로 원거리 페이드
+			const st = stage();
+			const fog = (stageOn && st && st.tiledMode) ? st.getSkyFog() : null;
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
-				bones, showBones: skel.bones,
+				bones, showBones: skel.bones, fog,
 				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
 				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
 				view: camera.view(), proj: camera.proj(aspect),
