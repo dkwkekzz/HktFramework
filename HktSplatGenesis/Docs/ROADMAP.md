@@ -135,8 +135,9 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   스폰 위치 diff 0(순수 Node) + ① +x 직진 중 슬롯 교체(합집합 13>최대 활성 7)·활성 상한 유지 +
   ② 원점 119u 임의 좌표의 스트리밍 나무+모닥불 연소(나무 가열 100% vs 불 없는 대조군 0%) 사진.
   전 프리셋 회귀(app-smoke/bubble/ash/editor-multi/render/world-pan) 없음. 편의: `js/scatter.js` 를
-  index.html 에 동봉(모듈 전역 노출). 남김: 앱 tick 에 스캐터 팔로 루프 배선(무대 T2 타일과
-  병행 걷는 월드) — 하니스가 메커니즘을 실증하므로 UI 결선은 후속. W5(게놈 생명 스캐터)의 선행.
+  index.html 에 동봉(모듈 전역 노출). **앱 배선 완료**: 무대 탭 "오픈월드" 버튼이 T2 타일+T5 수면/fog+
+  T4 스캐터를 한 번에 켠다(`app.js startOpenWorld` + tick 이 카메라 따라 heightfield 굽고 스폰 갱신) —
+  `test/openworld-shot.js` 로 네 요소(지형·수면·나무·하늘톤) 한 프레임 합성 실증. W5(게놈 생명 스캐터)의 선행.
 - ✅ **T5 — 물 + 원거리 폴리시** (**S3 잔여 합류**): ① 수면 타일 — `world.waterTilePly` 가 waterY
   평면의 반투명 수면 스플랫을 지형이 수위 밑인 셀에만(심도 기반 청록→남색 팔레트) 굽고, stage.js 가
   지형 타일과 함께 스트리밍(마른 타일은 물 메시 없음). ② 무대·생명 공용 sky/fog 톤 — Spark 스플랫은
@@ -148,8 +149,9 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   검증: `node test/world-water-shot.js` — ⓪ 수면 타일 재생성 diff 0(순수 Node) + ① 호수 파노라마
   (수면 메시 12·수면 픽셀 13k·하늘밴드 μ가 공용 sky 톤과 거리 0.5) + ② 생명 fog on/off(sky색 거리
   113<317, 근경 초록→원경 sky색 그라데이션) 사진. 회귀 없음(app-smoke/world-pan/scatter/render/ash/
-  bubble). 남김: 근접 저각에서 flat 수면/지형 surfel 이 뭉개짐(스타일 폴리시) · 무대 지형의 *점진적*
-  fog(스플랫 착색)은 Spark 셰이더 미지원이라 clear-지평선 방식으로 대체.
+  bubble). **앱 배선 완료**: 무대 탭 "오픈월드" 버튼(위 T4 참조)이 수면·sky/fog 를 함께 켠다. 남김:
+  근접 저각에서 flat 수면/지형 surfel 이 뭉개짐(스타일 폴리시 — 조감 각을 가파르게 하면 완화) · 무대
+  지형의 *점진적* fog(스플랫 착색)은 Spark 셰이더 미지원이라 clear-지평선 방식으로 대체.
 - **T6 — 실측·예산**: 실 Marble/.rad + 청크 월드 fps·메모리 HUD (**S4 잔여 합류**). 완료 기준:
   데스크톱 60fps 수치 기록.
 
