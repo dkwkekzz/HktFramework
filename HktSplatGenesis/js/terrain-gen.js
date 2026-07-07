@@ -148,6 +148,15 @@
 		P.octaves = Math.max(1, Math.min(6, Math.round(P.octaves)));
 		const yMax = P.base + P.amp * 2.0; // relief 상한 근사(산악 ampMul≈2) — 색 정규화용
 
+		// ── Bake 셰이딩(W-Q3) — 생성 시점에 지형 법선 기반 명암을 f_dc 색에 굽는다 ──
+		// 스플랫은 런타임 조명이 없다(SH 0차 = 상수색). 그래서 절차 지형이 무광 평면으로 보인다.
+		// 우리는 지형을 *생성*하므로 bake 시점에 diffuse(N·태양) + ambient 를 색에 곱해 넣으면
+		// 런타임 비용 0 으로 입체감(능선 음영)이 산다. 태양·앰비언트는 게놈(mood.sun)이 덮을 수 있다.
+		const _sun = P.sun || (P.mood && P.mood.sun) || [0.35, 0.9, 0.32];
+		const _sl = Math.hypot(_sun[0], _sun[1], _sun[2]) || 1;
+		const SUN = [_sun[0] / _sl, _sun[1] / _sl, _sun[2] / _sl];
+		const SHADE_AMB = (P.shadeAmbient != null) ? P.shadeAmbient : 0.52; // 그림자 최저 밝기
+
 		// W1: 바이옴 셋·수역색을 게놈에서 (없으면 기본 프리셋). WATER_ID 는 바이옴 수로 유도.
 		const BIOMES = P.biomeSet || DEFAULT_BIOMES;
 		const WATER_COL = P.water || DEFAULT_WATER;
@@ -224,6 +233,19 @@
 			return macroReliefAt(x, z) < P.waterY;
 		}
 
+		// 지형 법선 기반 명암 [SHADE_AMB, 1] — reliefAt 유한차분으로 노멀을 잡아 diffuse(N·태양).
+		// 수면(평평)은 균일(1) — 심도 색을 그대로 두고 바닥 요철이 수면 명암으로 새는 것 방지.
+		function shadeAt(x, z, water) {
+			if (water) return 1.0;
+			const e = P.scale * 0.18; // 노멀 스텝 — 기복 파장 비례(미세 요철 말고 형태 음영)
+			const hx = reliefAt(x + e, z) - reliefAt(x - e, z);
+			const hz = reliefAt(x, z + e) - reliefAt(x, z - e);
+			const nx = -hx, ny = 2 * e, nz = -hz;
+			const inv = 1 / (Math.hypot(nx, ny, nz) || 1);
+			const dif = Math.max((nx * SUN[0] + ny * SUN[1] + nz * SUN[2]) * inv, 0);
+			return SHADE_AMB + (1 - SHADE_AMB) * dif;
+		}
+
 		function heightAt(x, z) { return reliefAt(x, z); }             // 순수 원본
 		function height(x, z) { return Math.max(reliefAt(x, z), P.floor); } // 창용 클램프
 
@@ -297,9 +319,10 @@
 				const water = isWater(x, z);
 				const y = water ? P.waterY : height(x, z);
 				const rgb = colorAt(x, z, y);
+				const sh = shadeAt(x, z, water); // Bake 셰이딩 — 법선 명암을 색에 굽는다(입체감)
 				const jc = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.05;
 				put(x); put(y); put(z); put(0); put(0); put(0);
-				put((rgb[0] + jc - 0.5) / SH_C0); put((rgb[1] + jc - 0.5) / SH_C0); put((rgb[2] + jc - 0.5) / SH_C0);
+				put((rgb[0] * sh + jc - 0.5) / SH_C0); put((rgb[1] * sh + jc - 0.5) / SH_C0); put((rgb[2] * sh + jc - 0.5) / SH_C0);
 				put(2.44); // opacity 0.92 의 logit
 				put(lsx); put(lsy); put(lsx);
 				put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
@@ -363,7 +386,7 @@
 		}
 
 		return {
-			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, biomeAt, colorAt, climate, tilePly, waterTilePly,
+			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, shadeAt, biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}
@@ -417,11 +440,13 @@
 				const x = cx - spread + 2 * spread * (gx + jitterHash(i * 3) - 0.5) / (G - 1);
 				const z = cz - spread + 2 * spread * (gz + jitterHash(i * 3 + 1) - 0.5) / (G - 1);
 				// 수역 셀은 평평한 수면(y=waterY) — 연결 호수(분지 바닥 요철 잠김)
-				const y = W.isWater(x, z) ? W.waterY : height(x, z);
+				const water = W.isWater(x, z);
+				const y = water ? W.waterY : height(x, z);
 				const rgb = W.colorAt(x, z, y);
+				const sh = W.shadeAt(x, z, water); // Bake 셰이딩(법선 명암) — 입체감
 				const j = (jitterHash(i * 7) - 0.5) * 0.05;
 				put(x); put(y); put(z); put(0); put(0); put(0);
-				put((rgb[0] + j - 0.5) / SH_C0); put((rgb[1] + j - 0.5) / SH_C0); put((rgb[2] + j - 0.5) / SH_C0);
+				put((rgb[0] * sh + j - 0.5) / SH_C0); put((rgb[1] * sh + j - 0.5) / SH_C0); put((rgb[2] * sh + j - 0.5) / SH_C0);
 				put(2.44); // opacity 0.92 의 logit
 				// 납작한 surfel — 밀도(G)·범위(extent)에 맞춰 splatScale 로 커버리지 유지
 				put(Math.log(0.17 * splatScale)); put(Math.log(0.06 * splatScale)); put(Math.log(0.17 * splatScale));
@@ -435,7 +460,7 @@
 
 		return {
 			params: P, world: W, height, heightAt: W.heightAt, biomeAt: W.biomeAt,
-			colorAt: W.colorAt, waterY: P.waterY, triSoup, plyBytes,
+			colorAt: W.colorAt, isWater: W.isWater, shadeAt: W.shadeAt, waterY: P.waterY, triSoup, plyBytes,
 		};
 	}
 
