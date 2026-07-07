@@ -68,32 +68,54 @@
 		return engine ? engine.terrainHeightAt(x, z) : 0;
 	}
 
-	// ── 스켈레톤 배치: FK 세그먼트를 origin 만큼 평행이동 (발 높이 = 지형) ──
-	function skelOffset() {
-		return [skel.origin[0], groundAt(skel.origin[0], skel.origin[1]), skel.origin[1]];
-	}
-	function offsetSegs(segs) {
-		const o = skelOffset();
-		if (!o[0] && !o[1] && !o[2]) return segs;
+	// ── 스켈레톤 배치 ────────────────────────────────────────────────────────
+	// 스켈레톤 정의(게놈·클립·통통함)는 장면 공용 1벌이지만, 살(fleshK) 개체는 각자 제
+	// emitter 위치에 이 스켈레톤의 *인스턴스*를 세운다 — 일반 엔진처럼 "하나의 스켈레톤을
+	// 여러 캐릭터가 참조". 엔진 boneBuf 는 단일이라 전 인스턴스를 하나의 전역 뼈 테이블로
+	// 이어붙이고(sceneBones), 개체별 뼈 친화(rest.w)는 제 구간의 절대 인덱스를 쓰도록
+	// boneBase 를 실어 보낸다 (engine._initFleshCloud 가 base+si 로 시드).
+
+	// 원점 기준 FK 세그먼트를 (ox,oz) 로 평행이동 (발 높이 = 지형). g(부위 그룹) 보존 —
+	// 보존하지 않으면 채색(C3) 이 'other' 로 흡수돼 부위 색이 사라진다.
+	function offsetSegsBy(segs, ox, oz) {
+		const oy = groundAt(ox, oz);
+		if (!ox && !oy && !oz) return segs;
 		return segs.map((s) => ({
-			a: [s.a[0] + o[0], s.a[1] + o[1], s.a[2] + o[2]],
-			b: [s.b[0] + o[0], s.b[1] + o[1], s.b[2] + o[2]],
-			ra: s.ra, rb: s.rb,
+			a: [s.a[0] + ox, s.a[1] + oy, s.a[2] + oz],
+			b: [s.b[0] + ox, s.b[1] + oy, s.b[2] + oz],
+			ra: s.ra, rb: s.rb, g: s.g,
 		}));
 	}
-	// 뼈 친화(rest.w) 배정 기준 — 현재 모션 소스와 같은 리그/순서 (app.js 와 동일 규칙)
-	function currentBindBones() {
-		const raw = (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
-		return offsetSegs(raw);
+	// 살 개체 목록 (배치 순서 = boneBase 배정 순서). 인스턴스는 이 순서로 뼈 테이블에 이어붙는다.
+	function fleshObjects() { return objects.filter((o) => o.genes.form === 3); }
+	// 뼈 친화(rest.w) 배정용 rest 포즈 — 원점 기준 (app.js 와 동일 규칙). 인스턴스별로 offset.
+	function bindPoseRaw() {
+		return (skel.clip === 'external' && extSkel) ? extSkel.pose(0, 1, 1, skel.genome) : skeleton.pose('idle', 0, 1, 1, skel.genome);
+	}
+	// 원점 기준 raw 포즈를 전 살 인스턴스 위치로 이어붙인다 (전역 뼈 테이블). 순서는 fleshObjects.
+	function concatInstances(raw) {
+		const bones = [];
+		for (const o of fleshObjects()) {
+			const em = o.genes.emitter;
+			for (const s of offsetSegsBy(raw, em[0], em[2])) bones.push(s);
+		}
+		return bones;
 	}
 
 	// ── 장면 → 엔진: void 패딩으로 개체 수를 2^k 로 맞춰 setScene ──────────
 	function syncScene(keepTime) {
 		if (!engine) return;
-		// 살 개체는 장면 공용 스켈레톤 게놈 1벌을 공유 — 형태(pose)·채색(palette)·재질(matter) 동일 캐릭터
+		// 살 개체는 스켈레톤 정의(게놈·클립·재질) 1벌을 공유하되, 인스턴스는 각자 제 emitter 에
+		// 선다. 전 인스턴스를 하나의 전역 뼈 테이블로 이어붙이므로 개체별 뼈 친화 인덱스가 제
+		// 구간의 절대값이 되도록 boneBase 를 실어 보낸다 (engine._initFleshCloud 가 base+si 로 시드).
+		const rest = bindPoseRaw();
+		let base = 0;
 		objects.forEach((o) => {
 			if (o.genes.form !== 3) return;
-			o.genes.bindBones = currentBindBones();
+			const em = o.genes.emitter;
+			o.genes.bindBones = offsetSegsBy(rest, em[0], em[2]); // 이 인스턴스의 rest 뼈 (친화 가중용)
+			o.genes.boneBase = base;                              // 전역 테이블 내 이 인스턴스의 시작 인덱스
+			base += o.genes.bindBones.length;
 			o.genes.genome = skel.genome;
 			HktGenesisGenome.applyMatter(o.genes, skel.genome); // ③ 재질 차분 (미지정이면 무변)
 		});
@@ -261,9 +283,16 @@
 
 	// 스켈레톤 — 위치/살 문법/뼈대 표시/FBX 드롭 (클립·배속은 하단 타임라인)
 	function buildSkeletonDetail(d) {
-		d.appendChild(el('<h2>스켈레톤 (장면 공용 1개)</h2>'));
-		d.appendChild(numRow('위치 X', skel.origin[0], 0.1, (v) => { skel.origin[0] = v; refreshUI(); }));
-		d.appendChild(numRow('위치 Z', skel.origin[1], 0.1, (v) => { skel.origin[1] = v; refreshUI(); }));
+		d.appendChild(el('<h2>스켈레톤 (정의 공용 · 인스턴스별 배치)</h2>'));
+		// 살 개체마다 이 스켈레톤의 인스턴스가 제 위치에 선다 — 위치는 각 히키토의 emitter.
+		// 스켈레톤이 없을 때만 미리보기 원점을 노출(배치 전 포즈 확인용).
+		if (!objects.some((o) => o.genes.form === 3)) {
+			d.appendChild(numRow('미리보기 X', skel.origin[0], 0.1, (v) => { skel.origin[0] = v; refreshUI(); }));
+			d.appendChild(numRow('미리보기 Z', skel.origin[1], 0.1, (v) => { skel.origin[1] = v; refreshUI(); }));
+			d.appendChild(el('<div class="note">스켈레톤 정의(게놈·클립·통통함)는 공용 1벌 — 히키토(살) 개체를 배치하면 각 개체가 제 위치에 이 스켈레톤 인스턴스를 세운다. 여러 히키토는 각자 제 스켈레톤을 참조한다.</div>'));
+		} else {
+			d.appendChild(el('<div class="note">히키토 개체마다 이 스켈레톤 인스턴스가 제 위치(각 히키토 마커)에 선다 — 아래 게놈·클립·통통함은 전 인스턴스에 공통 적용된다.</div>'));
+		}
 		d.appendChild(el('<h2>살 문법</h2>'));
 		d.appendChild(sliderRow('통통함', 0.5, 1.8, 0.05, skel.fat, (v) => { skel.fat = v; }));
 		// 형태 게놈 ① — 부위별 반지름·길이 배율 (기본 문법 위에 곱). 항등(1)이면 기존 살.
@@ -574,9 +603,11 @@
 		for (const [key, m] of markerEls) {
 			let wp;
 			if (key === 'skel') {
-				const o = skelOffset();
-				wp = [o[0], o[1] + 0.98, o[2]]; // Hips 높이
-				m.style.display = sceneEntities.some((g) => g.fleshK > 0) || isSelected({ kind: 'skeleton' }) ? '' : 'none';
+				const ox = skel.origin[0], oz = skel.origin[1];
+				wp = [ox, groundAt(ox, oz) + 0.98, oz]; // Hips 높이 (미리보기 원점)
+				// 살 개체가 있으면 각 히키토가 제 마커로 위치를 갖는다 — 공용 스켈레톤 마커는
+				// 히키토가 없을 때만(선택 시) 미리보기 배치 핸들로 노출.
+				m.style.display = (!sceneEntities.some((g) => g.fleshK > 0) && isSelected({ kind: 'skeleton' })) ? '' : 'none';
 			} else {
 				const o = findObject(parseInt(key.slice(4)));
 				if (!o) continue;
@@ -716,13 +747,15 @@
 			lastView = camera.view();
 			lastProj = camera.proj(lastAspect);
 
-			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK — origin 오프셋을 얹어 지형 위에 세운다
+			// L6: 살(fleshK) 개체가 있을 때만 뼈대 FK. raw 포즈를 한 번만 계산(mixer/스프링 1회
+			// 스텝)하고, 전 살 인스턴스 위치로 이어붙여 전역 뼈 테이블을 만든다 — 각 히키토가 제
+			// 위치에 제 스켈레톤을 참조한다. 순서·boneBase 는 syncScene 과 동일(fleshObjects).
 			let bones = null;
 			if (sceneEntities.some((g) => g.fleshK > 0)) {
 				const raw = (skel.clip === 'external' && extSkel)
 					? extSkel.pose(playing ? dt : 0, skel.speed, skel.fat, skel.genome) // 외부 클립은 증분 시간
 					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
-				bones = offsetSegs(raw);
+				bones = concatInstances(raw);
 			}
 			const stageOn = stage() && stage().enabled;
 			if (stageOn) stage().frame(camera, canvas.clientWidth, canvas.clientHeight);
@@ -772,6 +805,12 @@
 				coverage: lastCoverage,
 				entities: sceneEntities.length,
 				skeleton: { clip: skel.clip, origin: skel.origin.slice() },
+				// 살 인스턴스: 개체마다 제 스켈레톤이 전역 뼈 테이블의 [boneBase, boneBase+boneCount)
+				// 구간을 차지한다 — 서로 다른 boneBase = 서로 다른 스켈레톤 참조 (다중 히키토 검증 지표).
+				flesh: objects.filter((o) => o.genes.form === 3).map((o) => ({
+					id: o.id, emitter: o.genes.emitter.slice(),
+					boneBase: o.genes.boneBase || 0, boneCount: (o.genes.bindBones || []).length,
+				})),
 				objects: objects.map((o) => ({ id: o.id, name: o.name, preset: o.presetName, emitter: o.genes.emitter.slice() })),
 			};
 		},

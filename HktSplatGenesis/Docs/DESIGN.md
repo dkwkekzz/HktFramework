@@ -24,10 +24,19 @@ L5: 유전자는 유니폼이 아니라 **Entity 테이블**(storage, 144B×8) �
 
 L6 히키토(hikito-flesh 이식): 살은 **뼈대의 순수 함수**. skeleton.js 의 뼈대(built-in FK 리그
 + FBX `ExternalSkeleton`, 이름 기반 살 문법)가 매 프레임 taper 캡슐 세그먼트(≤128)를 bones
-storage 로 올리고, form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 자리(축 t·방위 θ·깊이 u)를
+storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w) + 시드 성장 자리(축 t·방위 θ·깊이 u)를
 *현재 포즈에서 유도*해 스프링 추종한다 — L4 rest 부착점과 같은 원리, 스키닝 없음. 세그먼트
 **순서**가 친화 인덱스의 기준이라 모션 소스(built-in↔FBX)가 바뀌면 재시드 필수. 세부·설계
 근거는 wgsl.js SIM L6 블록·skeleton.js·app.js 주석이 원본.
+
+**다중 인스턴스(E2, 에디터 다중 히키토)**: 엔진 boneBuf 는 단일이라, 살 개체가 둘 이상이면
+각 개체의 스켈레톤 인스턴스를 *하나의 전역 뼈 테이블로 이어붙인다*. 개체 k 의 뼈는 구간
+`[boneBase_k, boneBase_k+count_k)` 를 차지하고, 그 개체 스플랫의 친화(rest.w)는 이 구간의
+**절대** 인덱스로 시드된다(`_initFleshCloud`: base+si). fleshK 규칙은 rest.w 를 그대로 색인만
+하므로 셰이더 로직은 무변 — 인스턴스 분리는 순전히 데이터(뼈 테이블 이어붙이기 + boneBase)로
+성립한다. editor.js 가 개체 emitter 마다 같은 raw 포즈를 offset 해 인스턴스를 만든다(스켈레톤
+정의 = 게놈·클립·통통함은 공용 1벌). 전에는 공용 스켈레톤 1개라 2개 히키토가 한 덩어리로
+뭉치던 것을 이 방식으로 갈랐다 (검증: test/editor-multi-hikito-shot.js).
 
 ### 코드 지도
 

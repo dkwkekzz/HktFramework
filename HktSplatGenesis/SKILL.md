@@ -40,3 +40,12 @@ CLAUDE.md 는 거의 안 변하는 것만 — 애매하면 DESIGN(근거) 또는
 1. 완료한 단계는 ROADMAP 에서 체크(✅)하고, 필요 시 「완료 이력」으로 옮겨 현황을 갱신.
 2. 새 결정·함정·구조는 DESIGN 에 기록. **CLAUDE.md·이 문서에는 쌓지 않는다** (위 표에 해당하지 않으면 CLAUDE 에 넣지 말 것).
 3. 경위/서사는 커밋 메시지에만.
+
+## 5. 작업 시 유의 (플러그인 메모)
+
+- **L6 뼈대 = 하나의 스켈레톤 정의를 여러 캐릭터가 참조** (E2). 살(fleshK) 개체마다 제 위치에
+  인스턴스를 세우고 단일 `boneBuf` 에 이어붙인다 — 개체 뼈 친화(`rest.w`)는 제 구간
+  `[boneBase, boneBase+count)` 의 절대 인덱스(공용 뼈로 뭉치던 버그의 해법). 뼈 테이블·인덱싱을
+  건드리면 `MAX_BONES`(engine.js, 장면 전체 뼈 합계 상한 512) ↔ render 셰이더 `rest.w`
+  clamp(511u) 를 함께 맞춘다. 근거·상세: [Docs/DESIGN.md](Docs/DESIGN.md), 검증:
+  `test/editor-multi-hikito-shot.js`.
