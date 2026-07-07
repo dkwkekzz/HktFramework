@@ -1,6 +1,6 @@
 # PLAN — 이미지 컨셉 → 월드 (W 트랙: 한 이미지에서 유사한 상호작용 월드)
 
-상태: **진행 중 (2026-07)** — W1~W4 완료(이미지→게놈→검증→걷는 월드 루프 성립), 남은 W5·W6 은 T4·T5 의존. 단계 큐·현황은 [ROADMAP.md](ROADMAP.md) W 트랙에서 관리한다.
+상태: **진행 중 (2026-07)** — W1~W4·W6 완료(이미지→게놈→검증→걷는 월드→대기 루프 성립), 남은 W5 는 T4 위 게놈 스폰 배선. 단계 큐·현황은 [ROADMAP.md](ROADMAP.md) W 트랙에서 관리한다.
 전제가 되는 월드 함수·스트리밍은 [PLAN-OpenWorldTerrain.md](PLAN-OpenWorldTerrain.md)(T 트랙), 같은 방법론의 캐릭터 판은
 [PLAN-CharacterGenesis.md](PLAN-CharacterGenesis.md)(C 트랙), 2층 세계 결정은 [PLAN-SparkTerrain.md](PLAN-SparkTerrain.md)·[DESIGN.md](DESIGN.md).
 
@@ -177,23 +177,27 @@ concept-shot 파노라마 vs 원본 이미지 대조 → 게놈 확정·저장·
   선택: 지배 생물의 캐릭터 게놈(C 트랙)까지 동시 산출 — 한 이미지에서 지형+주민.
 - **완료 기준**: 이미지에서 추출한 월드를 직진 이동 시 능선·수변에 컨셉대로 개체 등장·소멸(사진 시퀀스).
 
-### W6 — 대기·물 정합 (**T5 의존, 합류**)
+### W6 — 대기·물 정합 (**T5 의존, 합류**) ✅
 
-- 월드 게놈 ④ 대기 층 = fog·스카이·수면 톤. 무대(three fog)·생명(렌더 셰이더) 공용 파라미터.
-- **완료 기준**: 이미지의 무드(석양/안개/맑음)가 concept-shot·실제 월드에서 재현 — 모양뿐 아니라 분위기 일치 사진.
+- 월드 게놈 ④ 대기 층 `mood`(skyTop/skyHorizon + 선택 fogColor/fogStart/fogEnd) = 하늘·fog 톤.
+  무대 하늘 = 카메라 추종 구(BackSide)의 월드 y 그라데이션(스크린 배경 aspect-cover 왜곡 회피),
+  생명 fog = 렌더 FS(T5) 공용 톤. `stage.setMood` 단일 진입(startTileWorld 자동 + concept/preset-shot
+  단일 파노라마 배선), `world-profile.js` 대기 밴드 + validate, extract.js 스키마·프롬프트 동기.
+- **완료 기준(달성)**: concept-shot 우패널 상단 검정 하늘이 게놈 skyHorizon 톤으로 채워짐(검정비율 0%),
+  ashen 붉은 하늘/temperate 파란 하늘 프리셋 파노라마. 회귀 0. 남김: 태양/구름·점진 fog 착색은 폴리시.
 
 ### 다음 세션 진입점 (W1~W4 완료 후)
 
 이미지→게놈→검증→걷는 월드 루프는 성립했다(W1~W4). 남은 W5·W6 은 "월드를 채우고 분위기를 입히는"
 단계이며 둘 다 T-트랙 본체(T4·T5)에 막혀 있다. 권장 순서와 진입점:
 
-1. **W6-lite (대기/하늘 먼저)** — 이미지의 절반이 하늘이라 체감 효과가 가장 크다. 최소 버전: 게놈에 `mood`
-   층(`skyTop`/`skyHorizon`/`fogColor`/`fogDensity`) 추가 → `js/stage.js` 의 three 씬에 스카이 그라데이션 + fog
-   배선 → `js/world-profile.js` 프로파일에 대기 밴드 + `validate` → `concept-shot` 검정 하늘 해소 판정. 수면
-   타일·생명 공용 fog 는 T5 본체로 후속.
-2. **T4 → W5 (생명 스캐터)** — 엔진 슬롯 증분 교체(`setScene` 전체 재초기화 대신 슬라이스 부분 업로드)가
-   선행. 진입: `js/engine.js`(Entity/버퍼) + `js/wgsl.js`. 범위가 커서 별도 세션 권장. 그 위에 게놈 ⑤ 생명
-   층(스폰 테이블) = 이미지의 식생/생물 인상 씨딩.
+1. ~~**W6-lite (대기/하늘 먼저)**~~ ✅ 완료 — 게놈 `mood`(skyTop/skyHorizon)를 `stage.setMood` 로 하늘
+   그라데이션 돔 + fog 에 배선, `world-profile` 대기 밴드, concept-shot 검정 하늘 해소. (T4·T5 완료로
+   생명 공용 fog 도 이미 배선됨.)
+2. **W5 (생명 스캐터)** — T4 완료로 엔진 선행(`respawnEntity` 슬롯 증분 교체 + `ScatterStream`) 해소.
+   남은 것은 게놈 ⑤ 생명 층(바이옴·경사·수위 조건 스폰 규칙)을 `js/scatter.js` 후보 생성에 물리고
+   `js/app.js` tick 에 스캐터 팔로 루프를 잇는 것 — 이미지의 식생/생물 인상 씨딩. `world-profile.js` 에
+   생명 밴드 추가.
 
 공통 규약: 게놈 스키마를 확장할 때마다 `js/world-profile.js`(검증기)·`tools/world-extract/extract.js`(프롬프트
 스키마)·`test/world-genome.js`(회귀)를 함께 갱신한다. 현행 하니스(world-genome/world-profile/world-extract/

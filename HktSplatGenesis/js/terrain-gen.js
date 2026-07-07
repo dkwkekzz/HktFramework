@@ -107,14 +107,19 @@
 
 	// ── 프리셋 = 월드 게놈의 지형·바이옴·수역 층 (relief 전역 + biomeSet + water + waterY) ──
 	// 기본값(temperate)의 relief 노브는 world() 기본값과 바이트 동일 — 프리셋 경유가 현행을 재현.
+	// mood(대기, W6) — skyTop(천정)→skyHorizon(지평선) 하늘 그라데이션. skyHorizon 은 무대·생명
+	// fog 톤의 단일 원본(지평선에서 두 층이 같은 색으로 만난다). world() 는 mood 를 안 쓰고(지형만),
+	// stage.js 가 게놈 옆에 실려온 mood 를 읽어 하늘 돔·fog 에 배선한다. 지형과 무관한 상층이다.
+	const TEMPERATE_MOOD = { skyTop: [0.28, 0.45, 0.72], skyHorizon: [0.68, 0.78, 0.86] };
+	const ASHEN_MOOD = { skyTop: [0.14, 0.10, 0.12], skyHorizon: [0.55, 0.24, 0.16] };
 	const PRESETS = {
 		temperate: {
 			amp: 0.9, scale: 3.0, octaves: 4, base: 0.5, warpAmp: 0.6, warpScale: 9,
-			biomeScale: 40, biomeSharp: 22, waterY: -0.2, biomeSet: DEFAULT_BIOMES, water: DEFAULT_WATER,
+			biomeScale: 40, biomeSharp: 22, waterY: -0.2, biomeSet: DEFAULT_BIOMES, water: DEFAULT_WATER, mood: TEMPERATE_MOOD,
 		},
 		ashen: {
 			amp: 1.3, scale: 2.6, octaves: 5, base: 0.35, warpAmp: 0.7, warpScale: 8,
-			biomeScale: 34, biomeSharp: 20, waterY: -2.0, biomeSet: ASHEN_BIOMES, water: DEFAULT_WATER,
+			biomeScale: 34, biomeSharp: 20, waterY: -2.0, biomeSet: ASHEN_BIOMES, water: DEFAULT_WATER, mood: ASHEN_MOOD,
 		},
 	};
 	// 프리셋 깊은 복사 — 호출자가 게놈을 자유롭게 후보정해도 원본 표가 오염되지 않는다.
@@ -125,6 +130,7 @@
 			warpScale: p.warpScale, biomeScale: p.biomeScale, biomeSharp: p.biomeSharp, waterY: p.waterY,
 			water: { shallow: p.water.shallow.slice(), deep: p.water.deep.slice() },
 			biomeSet: p.biomeSet.map((b) => Object.assign({}, b, { lo: b.lo.slice(), hi: b.hi.slice() })),
+			mood: p.mood ? { skyTop: p.mood.skyTop.slice(), skyHorizon: p.mood.skyHorizon.slice() } : undefined,
 		};
 	}
 

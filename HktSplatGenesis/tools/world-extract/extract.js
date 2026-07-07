@@ -31,6 +31,7 @@ function profileText() {
 		`- 바이옴: ${P.biomeCount.join('~')}개, ampMul ${P.ampMul.join('~')}, scaleMul ${P.scaleMul.join('~')}, ridged ${P.ridged.join('~')}, warpMul ${P.warpMul.join('~')}, temp/humid ${P.tempHumid.join('~')}, 서로 중심 거리 ≥ ${P.biomeMinSep}`,
 		`- 색: lo/hi 각 채널 0~1, 채도 ≤ ${P.satMax}(설선 같은 저채도 흰색 허용)`,
 		`- 수역: waterY 는 relief 포락(base±amp*2.2) 안. water.shallow/deep 각 채널 0~1`,
+		`- 대기(mood): skyTop(천정)/skyHorizon(지평선) 각 채널 0~1·채도 ≤ ${P.satMax}. 지평선은 안개 톤과 만나므로 대체로 옅게`,
 	].join('\n');
 }
 
@@ -40,6 +41,7 @@ const GENOME_SCHEMA = `{
   "warpAmp": <num>, "warpScale": <num>, "biomeScale": <num>, "biomeSharp": <num>,
   "waterY": <num>,
   "water": { "shallow": [r,g,b], "deep": [r,g,b] },
+  "mood": { "skyTop": [r,g,b], "skyHorizon": [r,g,b] },
   "biomeSet": [
     { "id": <int>, "key": "<en>", "name": "<ko>", "temp": <0..1>, "humid": <0..1>,
       "ampMul": <num>, "scaleMul": <num>, "ridged": <0..1>, "warpMul": <num>,
@@ -50,8 +52,8 @@ const GENOME_SCHEMA = `{
 function buildPrompt(feedback) {
 	let p = `너는 컨셉 아트를 절차 지형 월드 게놈으로 번역하는 도구다. 이 이미지의 *인상*(지배 팔레트,
 지형 성격=뾰족한 봉우리/완만한 구릉/평탄 사막, 물 유무·수위, 바이옴 혼합)을 아래 월드 게놈 JSON 으로
-번역하라. 픽셀 복원이 목표가 아니라 번역이다 — 하늘·구름·나무·건물 같은 스캐터/대기 요소는 제외하고
-**지형·바이옴·수역**만 담는다.
+번역하라. 픽셀 복원이 목표가 아니라 번역이다 — 나무·건물 같은 스캐터(생물/구조물)는 제외하고
+**지형·바이옴·수역·대기(하늘 톤)**를 담는다. 하늘·안개는 mood(skyTop/skyHorizon)로만 요약한다.
 
 게놈은 반드시 아래 스타일 프로파일 울타리 안이어야 한다 (벗어나면 반려된다):
 ${profileText()}

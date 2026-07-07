@@ -71,8 +71,24 @@ function distinctCheck() {
 	return ok;
 }
 
+// ── ③ 대기(mood, W6): 프리셋이 mood 를 담고 깊은 복사가 독립인가 ────────────
+// mood 는 지형 무관 상층(stage 가 소비) — 회귀(①)엔 영향 없지만 스키마 확장 시 회귀 감시.
+function moodCheck() {
+	const a = T.preset('temperate'), b = T.preset('temperate');
+	const has = a.mood && a.mood.skyTop.length === 3 && a.mood.skyHorizon.length === 3 && T.preset('ashen').mood;
+	a.mood.skyTop[0] = 9; // 후보정 흉내 — 원본 표·다른 복사본이 오염되면 안 된다
+	const indep = b.mood.skyTop[0] !== 9 && T.preset('temperate').mood.skyTop[0] !== 9;
+	// temperate(파란 하늘) vs ashen(붉은 하늘) 지평선 색족이 다르다 (데이터로 무드가 바뀜)
+	const tH = T.preset('temperate').mood.skyHorizon, aH = T.preset('ashen').mood.skyHorizon;
+	const distinct = (tH[2] > tH[0]) && (aH[0] > aH[2]); // temperate 청색 우세 · ashen 적색 우세
+	const ok = has && indep && distinct;
+	console.log(`③ mood: 담김 ${!!has} · 깊은복사 독립 ${indep} · 무드 색족 대비(temp청/ashen적) ${distinct} → ${ok ? 'OK' : '실패'}`);
+	return ok;
+}
+
 const ok1 = regressionCheck();
 const ok2 = distinctCheck();
-const ok = ok1 && ok2;
-console.log(`\n판정: 회귀 ${ok1} · 다채로움 ${ok2} → ${ok ? 'OK' : '실패'}`);
+const ok3 = moodCheck();
+const ok = ok1 && ok2 && ok3;
+console.log(`\n판정: 회귀 ${ok1} · 다채로움 ${ok2} · 대기 ${ok3} → ${ok ? 'OK' : '실패'}`);
 process.exit(ok ? 0 : 1);

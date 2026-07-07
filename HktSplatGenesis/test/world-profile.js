@@ -29,6 +29,10 @@ for (const name of ['temperate', 'ashen']) {
 	const r = P.validate(g);
 	ok('W4 v0 breeze-meadow.json', r.ok, r.ok ? '' : JSON.stringify(r.violations));
 }
+{	// W6 대기(mood) 게놈 통과 — 하늘/fog 색 울타리 안 + fog 거리 순서 정상
+	const r = P.validate({ seed: 1, mood: { skyTop: [0.30, 0.45, 0.72], skyHorizon: [0.70, 0.80, 0.86], fogColor: [0.70, 0.80, 0.86], fogStart: 20, fogEnd: 55 } });
+	ok('mood 게놈(하늘·fog)', r.ok, r.ok ? '' : JSON.stringify(r.violations));
+}
 
 // ── ② 반려: 극단 게놈은 위반과 함께 반려 ──────────────────────────────────
 console.log('② 반려해야 하는 게놈 (위반 필드 확인):');
@@ -44,6 +48,9 @@ rejects('과채도 색 [1,0,0]', { biomeSet: [{ temp: 0.5, humid: 0.5, lo: [1, 0
 rejects('퇴화 중복 바이옴', { biomeSet: [{ temp: 0.5, humid: 0.5 }, { temp: 0.51, humid: 0.5 }] }, ['biomeSet[0,1]']);
 rejects('수위 relief 이탈 waterY=9', { base: 0.5, amp: 0.9, waterY: 9 }, ['waterY']);
 rejects('과ampMul 3.0', { biomeSet: [{ temp: 0.5, humid: 0.5, ampMul: 3.0 }] }, ['biomeSet[0].ampMul']);
+rejects('과채도 하늘 skyTop [1,0,0]', { mood: { skyTop: [1, 0, 0] } }, ['mood.skyTop']);
+rejects('하늘 채널 이탈 skyHorizon [1.4,.5,.5]', { mood: { skyHorizon: [1.4, 0.5, 0.5] } }, ['mood.skyHorizon']);
+rejects('fog 역순 start≥end', { mood: { fogStart: 60, fogEnd: 20 } }, ['mood.fogRange']);
 
 console.log(`\n판정: 통과 ${pass} · 실패 ${fail} → ${fail === 0 ? 'OK' : '실패'}`);
 process.exit(fail === 0 ? 0 : 1);
