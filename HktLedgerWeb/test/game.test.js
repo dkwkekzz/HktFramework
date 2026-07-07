@@ -15,8 +15,8 @@ import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
-import { SKILLS, WEAPON_COST } from '../shared/constants.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
+import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
@@ -406,7 +406,7 @@ test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아�
   const { clock, game, join, intent, total } = setup();
   const a = join('A');
   game.tick(); // 스폰 grant 300
-  const structId = POOL.STRUCT + a.player.id;
+  const structId = POOL.STRUCT + a.player.id + '#atk'; // A7-1: GROW 기본 조직 = 발산(atk)
   assert.equal(game.ledger.balance(structId), 0, '구조 풀은 빈 채로 생성');
 
   // 성장: 자유 에너지를 구조로 예치 (player→STRUCT) — 창조가 아니라 재분배
@@ -463,7 +463,7 @@ test('A6-3 스탯 = 흐름 계수 — 구조가 공격력·대사를 키운다 (
   refill(atk.player.id);
   intent(atk.player, INTENT.GROW, { amount: 800 }, 'grow');
   game.tick();
-  const structId = POOL.STRUCT + atk.player.id;
+  const structId = POOL.STRUCT + atk.player.id + '#atk'; // A7-1: 발산 조직에 예치(기본 조직)
   assert.equal(bal(structId), 800);
 
   // (1) 공격력 = 구조의 함수 — 데미지 = canonical + 구조 보너스 (피격자 클램프 내)
@@ -611,7 +611,7 @@ test('A6-6 항상성 — 자유가 마르면 구조를 태워 연명하고, 구�
   const { clock, game, join, intent, total } = setup();
   const a = join('A');
   game.tick(); // 스폰 grant 300
-  const structId = POOL.STRUCT + a.player.id;
+  const structId = POOL.STRUCT + a.player.id + '#atk'; // A7-1: GROW 기본 조직 = 발산(atk)
 
   // 큰 구조를 예치 (비상 연료 저장고) 후 자유를 0 으로 — 이제 대사는 구조에서 나와야 한다
   intent(a.player, INTENT.GROW, { amount: 250 }, 'g1');
@@ -643,6 +643,90 @@ test('A6-6 항상성 — 자유가 마르면 구조를 태워 연명하고, 구�
   assert.equal(game.ledger.balance(a.player.id), 0, '자유도 0');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '아사도 보존');
   console.log(`    [A6-6] 자유0 → 구조 ${struct0}→${struct1} 이화로 연명 · 구조 고갈 시 아사 · 총합 ${total()} 불변`);
+});
+
+test('A7-1 구조 분화 — 조직별 예치가 서로 다른 흐름 계수에 결합 (빌드 분화·보존)', () => {
+  const { clock, game, join, warp, intent, total } = setup();
+  const bruiser = join('BRUISER'); // 발산(atk) 빌드
+  const forager = join('FORAGER'); // 대사(meta) 빌드
+  const tgtB = join('TB');
+  const tgtF = join('TF');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+  const organId = (p, o) => POOL.STRUCT + p.id + '#' + o;
+  assert.deepEqual(ORGANS, ['atk', 'meta'], '조직 목록');
+
+  // 같은 양(300)을 서로 다른 조직에 예치 → 구조가 구조적으로 분화한다.
+  // (자연 스폰 grant 300 범위 내 예치 — setBal 은 방송되지 않아 미러가 재생 못 하므로 GROW 전엔 쓰지 않는다)
+  intent(bruiser.player, INTENT.GROW, { organ: 'atk', amount: 300 }, 'gb');
+  intent(forager.player, INTENT.GROW, { organ: 'meta', amount: 300 }, 'gf');
+  game.tick();
+  assert.equal(bal(organId(bruiser.player, 'atk')), 300, 'bruiser 발산 조직 300');
+  assert.equal(bal(organId(bruiser.player, 'meta')), 0, 'bruiser 대사 조직 0 (분화)');
+  assert.equal(bal(organId(forager.player, 'meta')), 300, 'forager 대사 조직 300');
+  assert.equal(bal(organId(forager.player, 'atk')), 0, 'forager 발산 조직 0 (분화)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '예치는 재분배 — 총합 불변');
+
+  // 미러 정합: 소유자 클라가 분화 GROW tx 를 재생해 조직 잔고가 일치
+  const client = new ClientState();
+  for (const m of bruiser.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(organId(bruiser.player, 'atk')), 300, '미러 조직 잔고 정합 (분화 재생)');
+
+  // (1) 발산 조직 → 공격 결합: bruiser = canonical + attackBonus(300), forager = canonical (atk 조직 0)
+  warp(bruiser.player, tgtB.player.x + 30, tgtB.player.y, tgtB.player.z);
+  warp(forager.player, tgtF.player.x + 30, tgtF.player.y, tgtF.player.z);
+  game.tick();
+  setBal(bruiser.player.id, 500); setBal(forager.player.id, 500);
+  setBal(tgtB.player.id, PLAYER_MAX_ENERGY); setBal(tgtF.player.id, PLAYER_MAX_ENERGY);
+  const tbBefore = bal(tgtB.player.id), tfBefore = bal(tgtF.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(bruiser.player, INTENT.ATTACK, { targetId: tgtB.player.id, seq: 1 }, 'ab');
+  intent(forager.player, INTENT.ATTACK, { targetId: tgtF.player.id, seq: 1 }, 'af');
+  game.tick();
+  const dmgB = tbBefore - bal(tgtB.player.id);
+  const dmgF = tfBefore - bal(tgtF.player.id);
+  assert.equal(dmgB, canonicalDamage(WORLD_SEED, bruiser.player.id, 1) + attackBonus(300),
+    '발산 빌드 데미지 = canonical + attackBonus(발산 조직)');
+  assert.equal(dmgF, canonicalDamage(WORLD_SEED, forager.player.id, 1),
+    '대사 빌드는 발산 증폭 없음 (발산 조직 0)');
+  assert.ok(attackBonus(300) > 0, '발산 조직이 공격을 키운다');
+
+  // (2) 대사 조직 → 채집 결합: forager 채집 = 기본 + gatherStructBonus(400), bruiser 는 기본
+  const node = game.nodes.values().next().value;
+  setBal(node.id, node.max);
+  warp(bruiser.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(bruiser.player.id, 500);
+  let pBefore = bal(bruiser.player.id);
+  intent(bruiser.player, INTENT.GATHER, { nodeId: node.id }, 'grb');
+  game.tick();
+  const gainB = bal(bruiser.player.id) - pBefore;
+
+  setBal(node.id, node.max);
+  warp(forager.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(forager.player.id, 500);
+  pBefore = bal(forager.player.id);
+  intent(forager.player, INTENT.GATHER, { nodeId: node.id }, 'grf');
+  game.tick();
+  const gainF = bal(forager.player.id) - pBefore;
+
+  assert.equal(gainB, GATHER_AMOUNT, '발산 빌드 채집 = 기본 (대사 조직 0)');
+  assert.equal(gainF, GATHER_AMOUNT + gatherStructBonus(300), '대사 빌드 채집 = 기본 + gatherStructBonus(대사 조직)');
+  assert.ok(gainF > gainB, '대사 조직이 획득을 키운다 (분화의 다른 축)');
+
+  // (3) 유지비는 총 구조의 함수 — 빌드가 달라도 총량 같으면 유지비 동일 (분화는 계수만 가른다)
+  const totB = bal(organId(bruiser.player, 'atk')) + bal(organId(bruiser.player, 'meta'));
+  const totF = bal(organId(forager.player, 'atk')) + bal(organId(forager.player, 'meta'));
+  assert.equal(totB, totF, '두 빌드 총 구조 동일 (300)');
+  assert.equal(upkeepFor(totB), upkeepFor(totF), '같은 총 구조 → 같은 유지비');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전 과정 보존');
+  console.log(`    [A7-1] 발산빌드 공격+${attackBonus(300)}·채집 ${gainB} | 대사빌드 공격+0·채집 ${gainF}(+${gatherStructBonus(300)}) · 같은 유지비 ${upkeepFor(totB)} · 총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

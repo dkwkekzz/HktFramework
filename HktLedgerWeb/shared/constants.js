@@ -35,13 +35,18 @@ export const UPKEEP_INTERVAL_TICKS = 10; // 1초마다 대사
 export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향후 구조 함수)
 
 // --- 성장 / 구조 (A6-2) — 성장 = 자유 에너지를 잠긴 질서(구조 풀)로 재분배 ---
-// 구조 풀 `S:<playerId>` 는 플레이어당 1개. 예치는 `player→STRUCT` 이체 — 창조가 아니라
-// 자유 에너지의 질서화다(총합 불변). 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
-export const STRUCT_MAX = 10_000;        // 구조 풀 용량 상한 (성장 여지)
+// 예치는 `player→STRUCT` 이체 — 창조가 아니라 자유 에너지의 질서화다(총합 불변).
+// 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
+// A7-1 구조 분화: 성장은 단일 스칼라가 아니라 조직(organ)별 예치다 — 조직 풀 id 는
+// `S:<playerId>#<organ>` (POOL.STRUCT 접두 유지 → 클라 자동 물질화 동일). 각 조직은 서로 다른
+// 흐름 계수에 결합하므로, 예치가 "어느 장기를 키울지" 선택이 되어 빌드가 구조적으로 분화한다.
+export const ORGANS = ['atk', 'meta'];   // 발산 조직(공격) / 대사 조직(획득) — 조직 추가 지점
+export const STRUCT_MAX = 10_000;        // 조직 풀 용량 상한 (조직당, 성장 여지)
 export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg.amount 로 재정의 가능)
 // A6-3 스탯 = 흐름 계수: 스탯은 저장 숫자가 아니라 구조 예치의 결정론 함수 (shared/growth.js).
-export const GROWTH_ATK_DIVISOR = 100;    // 구조 100 당 공격 +1 (피격자 클램프 내)
-export const GROWTH_UPKEEP_DIVISOR = 200; // 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
+export const GROWTH_ATK_DIVISOR = 100;    // 발산(atk) 조직 100 당 공격 +1 (피격자 클램프 내)
+export const GROWTH_META_DIVISOR = 40;    // 대사(meta) 조직 40 당 채집 +1 (구조적 획득 증폭)
+export const GROWTH_UPKEEP_DIVISOR = 200; // 총 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
 
 // A6-4 스킬 = 발산 패턴: 각 스킬은 비용·증폭·흡수비·쿨다운이 다른 이체 패턴이다.
 // 데미지 = base + floor(struct/structDiv) — 구조가 위력을 키운다(여전히 피격자 클램프).
