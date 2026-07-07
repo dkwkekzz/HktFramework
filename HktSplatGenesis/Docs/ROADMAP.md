@@ -130,6 +130,59 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 - **T6 — 실측·예산**: 실 Marble/.rad + 청크 월드 fps·메모리 HUD (**S4 잔여 합류**). 완료 기준:
   데스크톱 60fps 수치 기록.
 
+## W 트랙 — 이미지 컨셉 → 월드 (한 이미지에서 유사한 상호작용 월드)
+
+상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4
+완료(이미지→게놈→검증→걷는 월드 루프 성립), 남은 W5·W6 은 T4·T5 의존. 여기서 단계를 관리). C 트랙(이미지→
+캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
+트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
+
+- ✅ **W1 — 월드 게놈의 데이터화**: `terrain-gen.js` 의 하드코딩 `BIOMES`/`WATER_COL` 을 게놈 필드로
+  승격 — `world(genome)` 이 `genome.biomeSet`/`water` 를 있으면 소비, 없으면 기본 프리셋. `WATER_ID` 는
+  바이옴 수(`biomeSet.length`)로 유도해 바이옴 개수가 프리셋마다 달라도 성립(기본 4). `P.biomes`(불리언
+  토글)와 충돌 없도록 배열은 `biomeSet` 신규 필드. `PRESETS`/`preset(name)`(깊은 복사) 신규 — `temperate`
+  (현행 상수와 바이트 동일)·`ashen`(3바이옴·붉은 팔레트·물 없음). 검증: `node test/world-genome.js`(순수
+  Node) — ① temperate 프리셋 경유가 현행 플랫 기본과 diff 0(회귀) + ② ashen 이 평균색거리 0.295·육상
+  바이옴 완전 분리(다채로움). `node test/biome-shot.js`(회귀, 연속성 diff 0·렌더색족 4/4·exit 0) +
+  `node test/preset-shot.js ashen`(용암능선 파노라마 사진). 남김: 대기·생명은 W6·W5, 스타일 프로파일
+  검증기는 W2.
+- ✅ **W2 — 월드 스타일 프로파일**: `js/world-profile.js`(`HktGenesisWorldProfile`) — 진폭·기복·바이옴
+  수·ampMul·채도(상한만, 설선 저채도 허용)·수위(relief 포락 동적)·바이옴 중심 최소 거리 울타리 +
+  `validate(genome)→{ok, violations}`. 벗어난 값은 클램프가 아니라 반려(이상치 재추출, C 트랙 원칙).
+  존재하는 필드만 검사(생략=기본 프리셋 폴백=위반 아님). `preset-shot.js` 가 JSON 게놈을 렌더 전
+  검증(판정에 프로파일 포함). 검증: `node test/world-profile.js`(순수 Node, 10/10) — ① temperate·
+  ashen·최소 게놈·W4 v0 breeze-meadow 전부 통과 + ② 과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·
+  과ampMul 반려(위반 필드 확인).
+- ✅ **W3 — 컨셉 검증 하니스**: `test/concept-shot.js` — 게놈 JSON + 원본 이미지 → 좌(컨셉)·우(생성 파노라마)
+  2패널 대조 카드 PNG. 렌더 전 W2 검증 + 두 패널 내용 판정(빈 카드 방지). 검증: breeze-meadow ×
+  IMG_5669 → 프로파일 OK·생성 지형 364k·원본 486k·오류 0·exit 0 (색족 일치 카드, 우상단 검정=미구현
+  하늘 W6 노출).
+- ✅ **W4 — 이미지 → 월드 게놈 추출기 v0**: `tools/world-extract/extract.js` — 이미지 → Anthropic vision
+  (`claude-opus-4-8`) → 게놈 JSON. 스타일 프로파일(W2)을 프롬프트 제약으로 주고 반환 게놈을 `validate` 로
+  검증해 벗어나면 위반을 되먹여 재시도(최대 3회, 클램프 아닌 반려). 라이브는 `ANTHROPIC_API_KEY` 필요,
+  `HKT_EXTRACT_MOCK` 목 모드로 파이프라인 검증. 검증: `node test/world-extract.js`(순수 Node, 3/3) —
+  프로파일 안 게놈 저장·_meta + 과진폭 게놈 반려·미저장. **수동 v0 실증**(키 없이도): LLM vision 이 컨셉
+  이미지를 게놈(`genomes/breeze-meadow.json`, 3바이옴+청록 수역)으로 번역 → 후보정 1회 → 초록 초원+청록
+  호수 렌더(색족·물 일치, `concept-shot` 대조 카드). **걷는 월드로도 실증**: `stage.js` `?tilesGenome=<url>` +
+  `world-pan-shot.js [out] [seed] [genome.json]` — 추출 게놈이 T2 스트리밍(`world(genome)`)으로 흘러 걷는 월드
+  (타일교체 45>25·스플랫 53k 상한·이음새 100%·exit 0). 남김: 라이브 vision 실측(키)·대기/스캐터는 W6·W5.
+- **W5 — 생명/스캐터 연동** (**T4 의존**): 게놈 생명 층 = 스폰 테이블(바이옴·경사·수위 조건). 완료 기준:
+  이동 중 컨셉대로 개체 등장·소멸. **선행 T4 필요** — 엔진에 `setScene` 전체 재초기화 대신 슬롯 단위 증분
+  교체(버퍼 슬라이스 부분 업로드) 경로를 깔아야 한다(개체 상한 8 슬롯 재활용). 큰 엔진 확장.
+- **W6 — 대기·물 정합** (**T5 의존**): 게놈 대기 층 = fog·스카이·수면. 완료 기준: 무드 재현 사진(concept-shot
+  우상단 검정 하늘이 채워짐). **선행 T5 필요** — 수면 타일 + 무대(vendor/spark three 씬)·생명(WebGPU 렌더
+  셰이더) 공용 fog·스카이 톤. 중간 규모.
+
+> **다음 세션 진입점 (2026-07 기준)**: 이미지→게놈→검증→걷는 월드 루프(W1~W4)는 완성 — 이후는 "월드를
+> 채우고 분위기를 입히는" 두 갈래이며 둘 다 T-트랙 본체 기능에 막혀 있다. 권장 순서:
+> ① **W6-lite (대기/하늘 먼저)** — 이미지의 절반이 하늘이라 체감 효과가 가장 크다. 최소 버전으로 `stage.js`
+>   의 three 씬에 게놈 `mood`(skyTop/skyHorizon/fog) 기반 스카이 그라데이션+fog 를 넣으면 concept-shot 검정
+>   하늘이 해소된다(수면 타일·생명 공용 fog 는 T5 본체로 후속). 진입: `js/stage.js` 무대 씬 셋업 +
+>   게놈 스키마에 `mood` 층 추가 + `world-profile.js` 프로파일에 대기 밴드 추가.
+> ② **T4 → W5 (생명 스캐터)** — 엔진 슬롯 증분 교체가 선행. 진입: `js/engine.js` `setScene`/`Entity` 버퍼 +
+>   `wgsl.js`. 범위가 커서 별도 세션 권장. 상세 설계는 [PLAN-OpenWorldTerrain.md](PLAN-OpenWorldTerrain.md) T4.
+> 두 경로 모두 게놈 스키마 확장 시 `js/world-profile.js` 검증기와 `test/world-genome.js` 회귀를 함께 갱신할 것.
+
 ## C 트랙 — 캐릭터 배양 (이미지 컨셉 → 게놈 → 살)
 
 상세 제안·설계 근거·리스크는 [PLAN-CharacterGenesis.md](PLAN-CharacterGenesis.md) 참조 (상태: **진행 중** —

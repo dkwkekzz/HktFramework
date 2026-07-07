@@ -260,3 +260,12 @@ if (auto) load(auto);
 // ?tiles=<seed> — 절차 월드 타일 스트리밍 자동 시작 (frame 이 카메라 타깃을 따라 링 갱신)
 const tilesSeed = q.get('tiles');
 if (tilesSeed != null) startTileWorld({ seed: parseInt(tilesSeed) || 1 });
+// ?tilesGenome=<url> — 추출된 월드 게놈(JSON)으로 걷는 타일 월드 시작 (W4 산출물 → T2 스트리밍).
+// biomeSet/water 등 게놈 필드가 그대로 world(genome) 로 흘러 지형·색이 게놈에서 유도된다.
+const tilesGenome = q.get('tilesGenome');
+if (tilesGenome != null) {
+	fetch(tilesGenome).then((r) => r.json()).then((raw) => {
+		const g = {}; for (const k in raw) if (k[0] !== '_') g[k] = raw[k]; // _meta 등 렌더 무관 키 제거
+		startTileWorld(g);
+	}).catch((e) => console.error('[HktGenesisStage] 타일 게놈 로드 실패', e));
+}

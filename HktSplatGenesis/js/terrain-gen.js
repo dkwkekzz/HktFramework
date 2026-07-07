@@ -74,10 +74,14 @@
 	// 스플랫별 지터 해시 (시드 무관 인덱스 지터 — 창 내부 국소 지터)
 	const jitterHash = (i) => { let x = Math.imul(i ^ 0x9e3779b9, 0x85ebca6b); x ^= x >>> 13; return ((x >>> 0) / 4294967296); };
 
-	// ── 바이옴 표 (온도·습도 평면의 점) ──────────────────────────────────────
+	// ── 바이옴 표 (온도·습도 평면의 점) — W1: 코드 상수에서 게놈 데이터로 승격 ──
 	// ampMul: relief 진폭 배수 · ridged: 능선 혼합 비중 · scaleMul: 기복 파장 배수 ·
 	// warpMul: domain warp 세기 · lo/hi: 저지대→고지대 색 램프 (설선·설원캡은 hi 로)
-	const BIOMES = [
+	//
+	// 아래는 **기본 프리셋(temperate)의 바이옴 셋**일 뿐이다 — world(genome) 은 genome.biomeSet
+	// 이 있으면 그것을, 없으면 이 기본값을 쓴다. WATER_ID 는 바이옴 수(= biomeSet.length)로
+	// 유도하므로 바이옴 개수가 프리셋마다 달라도 성립한다 (기본 4 → WATER_ID 4, 하위 호환).
+	const DEFAULT_BIOMES = [
 		{ id: 0, key: 'plains', name: '평야', temp: 0.60, humid: 0.52, ampMul: 0.55, scaleMul: 1.00, ridged: 0.05, warpMul: 0.45,
 			lo: [0.12, 0.34, 0.14], hi: [0.42, 0.55, 0.24] },
 		{ id: 1, key: 'mountain', name: '산악', temp: 0.40, humid: 0.82, ampMul: 1.95, scaleMul: 1.35, ridged: 0.85, warpMul: 0.90,
@@ -87,8 +91,42 @@
 		{ id: 3, key: 'snow', name: '설원', temp: 0.13, humid: 0.55, ampMul: 1.00, scaleMul: 1.10, ridged: 0.40, warpMul: 0.55,
 			lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
 	];
-	const WATER_ID = 4;
-	const WATER_COL = { shallow: [0.16, 0.42, 0.55], deep: [0.06, 0.16, 0.42] };
+	const DEFAULT_WATER = { shallow: [0.16, 0.42, 0.55], deep: [0.06, 0.16, 0.42] };
+
+	// 화산재 황무지 — 3바이옴, 붉은/검은 팔레트, 물 없음(수위 밑바닥). 데이터만으로 성격이
+	// 완전히 다른 월드가 나온다는 실증(W1 완료 기준 ②). 온·습도 중심을 넓게 벌려 파노라마에
+	// 세 바이옴이 함께 보이게 한다.
+	const ASHEN_BIOMES = [
+		{ id: 0, key: 'ashflat', name: '재평원', temp: 0.55, humid: 0.30, ampMul: 0.60, scaleMul: 1.10, ridged: 0.10, warpMul: 0.50,
+			lo: [0.16, 0.11, 0.10], hi: [0.44, 0.31, 0.26] },
+		{ id: 1, key: 'lavaridge', name: '용암능선', temp: 0.88, humid: 0.70, ampMul: 1.90, scaleMul: 1.30, ridged: 0.92, warpMul: 0.95,
+			lo: [0.34, 0.10, 0.05], hi: [0.98, 0.46, 0.14] },
+		{ id: 2, key: 'ashdune', name: '재사구', temp: 0.22, humid: 0.22, ampMul: 0.50, scaleMul: 1.55, ridged: 0.15, warpMul: 0.70,
+			lo: [0.30, 0.26, 0.24], hi: [0.60, 0.55, 0.50] },
+	];
+
+	// ── 프리셋 = 월드 게놈의 지형·바이옴·수역 층 (relief 전역 + biomeSet + water + waterY) ──
+	// 기본값(temperate)의 relief 노브는 world() 기본값과 바이트 동일 — 프리셋 경유가 현행을 재현.
+	const PRESETS = {
+		temperate: {
+			amp: 0.9, scale: 3.0, octaves: 4, base: 0.5, warpAmp: 0.6, warpScale: 9,
+			biomeScale: 40, biomeSharp: 22, waterY: -0.2, biomeSet: DEFAULT_BIOMES, water: DEFAULT_WATER,
+		},
+		ashen: {
+			amp: 1.3, scale: 2.6, octaves: 5, base: 0.35, warpAmp: 0.7, warpScale: 8,
+			biomeScale: 34, biomeSharp: 20, waterY: -2.0, biomeSet: ASHEN_BIOMES, water: DEFAULT_WATER,
+		},
+	};
+	// 프리셋 깊은 복사 — 호출자가 게놈을 자유롭게 후보정해도 원본 표가 오염되지 않는다.
+	function preset(name) {
+		const p = PRESETS[name] || PRESETS.temperate;
+		return {
+			amp: p.amp, scale: p.scale, octaves: p.octaves, base: p.base, warpAmp: p.warpAmp,
+			warpScale: p.warpScale, biomeScale: p.biomeScale, biomeSharp: p.biomeSharp, waterY: p.waterY,
+			water: { shallow: p.water.shallow.slice(), deep: p.water.deep.slice() },
+			biomeSet: p.biomeSet.map((b) => Object.assign({}, b, { lo: b.lo.slice(), hi: b.hi.slice() })),
+		};
+	}
 
 	// ── 월드 함수: 순수 무한 도메인 world(x,z) ───────────────────────────────
 	// params: { seed, amp(전역 진폭), scale(기복 파장 m), octaves, base(평균 높이),
@@ -103,6 +141,11 @@
 		P.seed = P.seed | 0;
 		P.octaves = Math.max(1, Math.min(6, Math.round(P.octaves)));
 		const yMax = P.base + P.amp * 2.0; // relief 상한 근사(산악 ampMul≈2) — 색 정규화용
+
+		// W1: 바이옴 셋·수역색을 게놈에서 (없으면 기본 프리셋). WATER_ID 는 바이옴 수로 유도.
+		const BIOMES = P.biomeSet || DEFAULT_BIOMES;
+		const WATER_COL = P.water || DEFAULT_WATER;
+		const WATER_ID = BIOMES.length;
 
 		// 온·습도 2채널 [0,1] — 저주파. 팔레트/relief 를 함께 결정한다.
 		function climate(x, z) {
@@ -310,7 +353,7 @@
 		};
 	}
 
-	const api = { create, world, BIOMES, WATER_ID };
+	const api = { create, world, preset, PRESETS, BIOMES: DEFAULT_BIOMES, WATER_ID: DEFAULT_BIOMES.length };
 	global.HktGenesisTerrainGen = api;
 	if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);

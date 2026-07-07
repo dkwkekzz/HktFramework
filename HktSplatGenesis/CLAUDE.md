@@ -48,6 +48,7 @@
 | [Docs/PLAN-SparkTerrain.md](Docs/PLAN-SparkTerrain.md) | S 트랙(무대) 심층 계획 | 무대 작업 시 |
 | [Docs/PLAN-OpenWorldTerrain.md](Docs/PLAN-OpenWorldTerrain.md) | T 트랙(오픈월드 지형) 심층 계획 — 현황 진단 포함 | 지형 확장 작업 시 |
 | [Docs/PLAN-CharacterGenesis.md](Docs/PLAN-CharacterGenesis.md) | C 트랙(캐릭터 배양: 이미지→게놈→살) 심층 제안 | 캐릭터 확장 작업 시 |
+| [Docs/PLAN-WorldFromImage.md](Docs/PLAN-WorldFromImage.md) | W 트랙(이미지 컨셉→월드 게놈→지형·생명) 심층 제안 | 이미지 기반 월드 생성 작업 시 |
 | [test/README.md](test/README.md) | 검증 하니스 사용법 | 검증할 때 |
 | [README.md](README.md) | 외부 공개 개요 | — |
 | 코드 주석 | 세부 설계·함정의 원본 | 구현 파고들 때 |

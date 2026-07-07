@@ -5,10 +5,19 @@
 //  ③ 지형 커버리지가 전 구간 안정 — 타일 경계에 검은 틈(이음새)이 생기지 않는다(+사진).
 //
 // 무대는 "로드 대상" — 타일 PLY 는 월드 함수 평가로 즉석 생성(생명 아님, 절대 원칙 1 무관).
-// 사용: node world-pan-shot.js [out.png] [seed=7]
+// 사용: node world-pan-shot.js [out.png] [seed=7] [genome.json]
+//   genome.json 을 주면 추출된 월드 게놈(biomeSet/water/relief)으로 걷는 타일 월드를 스트리밍한다
+//   (W4 산출물 → T2). 색·지형이 게놈에서 유도되므로 이미지→걷는 월드의 실증.
+const fs = require('fs');
 const { serve, launch, collectErrors, savePng } = require('./_common');
 
 const SEED = parseInt(process.argv[3] || '7');
+const GENOME_PATH = process.argv[4] || null;
+let GENOME = null;
+if (GENOME_PATH) {
+	const raw = JSON.parse(fs.readFileSync(GENOME_PATH, 'utf8'));
+	GENOME = {}; for (const k in raw) if (k[0] !== '_') GENOME[k] = raw[k];
+}
 const TILE = 19.2;                 // 타일 한 변(m) — 시뮬 버블(9.6)의 2배
 const CENTERS = [0, TILE, 2 * TILE, 3 * TILE, 4 * TILE]; // +x 직진(5 스텝)
 const NEAR_R = 1, FAR_R = 2, NEAR_G = 64, FAR_G = 32;
@@ -60,9 +69,11 @@ function shootSrc() {
 	// stage.js 는 모듈(지연 로드) — HktGenesisStage 노출까지 대기
 	await page.waitForFunction(() => window.HktGenesisStage && window.HktGenesisTerrainGen, null, { timeout: 30000, polling: 200 });
 
-	await page.evaluate((cfg) => window.HktGenesisStage.startTileWorld({
-		seed: cfg.seed, tile: { tileSize: cfg.tile, nearR: cfg.nearR, farR: cfg.farR, nearG: cfg.nearG, farG: cfg.farG },
-	}), { seed: SEED, tile: TILE, nearR: NEAR_R, farR: FAR_R, nearG: NEAR_G, farG: FAR_G });
+	await page.evaluate((cfg) => window.HktGenesisStage.startTileWorld(Object.assign({}, cfg.genome || {}, {
+		seed: (cfg.genome && cfg.genome.seed) || cfg.seed,
+		tile: { tileSize: cfg.tile, nearR: cfg.nearR, farR: cfg.farR, nearG: cfg.nearG, farG: cfg.farG },
+	})), { seed: SEED, genome: GENOME, tile: TILE, nearR: NEAR_R, farR: FAR_R, nearG: NEAR_G, farG: FAR_G });
+	console.log(GENOME_PATH ? `게놈 월드: ${GENOME_PATH}` : `시드 월드: ${SEED}`);
 
 	const shoot = new Function('return (' + shootSrc().toString() + ')')();
 	const seen = new Set();
