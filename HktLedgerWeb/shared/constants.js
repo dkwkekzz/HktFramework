@@ -35,13 +35,18 @@ export const UPKEEP_INTERVAL_TICKS = 10; // 1초마다 대사
 export const UPKEEP_AMOUNT = 5;          // 주기당 player→SINK (플랫; 향후 구조 함수)
 
 // --- 성장 / 구조 (A6-2) — 성장 = 자유 에너지를 잠긴 질서(구조 풀)로 재분배 ---
-// 구조 풀 `S:<playerId>` 는 플레이어당 1개. 예치는 `player→STRUCT` 이체 — 창조가 아니라
-// 자유 에너지의 질서화다(총합 불변). 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
-export const STRUCT_MAX = 10_000;        // 구조 풀 용량 상한 (성장 여지)
+// 예치는 `player→STRUCT` 이체 — 창조가 아니라 자유 에너지의 질서화다(총합 불변).
+// 사망 시 지속(영구 성장), 접속 종료 시 SINK 로 환원.
+// A7-1 구조 분화: 성장은 단일 스칼라가 아니라 조직(organ)별 예치다 — 조직 풀 id 는
+// `S:<playerId>#<organ>` (POOL.STRUCT 접두 유지 → 클라 자동 물질화 동일). 각 조직은 서로 다른
+// 흐름 계수에 결합하므로, 예치가 "어느 장기를 키울지" 선택이 되어 빌드가 구조적으로 분화한다.
+export const ORGANS = ['atk', 'meta'];   // 발산 조직(공격) / 대사 조직(획득) — 조직 추가 지점
+export const STRUCT_MAX = 10_000;        // 조직 풀 용량 상한 (조직당, 성장 여지)
 export const GROW_AMOUNT = 50;           // GROW 인텐트 기본 예치량 (msg.amount 로 재정의 가능)
 // A6-3 스탯 = 흐름 계수: 스탯은 저장 숫자가 아니라 구조 예치의 결정론 함수 (shared/growth.js).
-export const GROWTH_ATK_DIVISOR = 100;    // 구조 100 당 공격 +1 (피격자 클램프 내)
-export const GROWTH_UPKEEP_DIVISOR = 200; // 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
+export const GROWTH_ATK_DIVISOR = 100;    // 발산(atk) 조직 100 당 공격 +1 (피격자 클램프 내)
+export const GROWTH_META_DIVISOR = 40;    // 대사(meta) 조직 40 당 채집 +1 (구조적 획득 증폭)
+export const GROWTH_UPKEEP_DIVISOR = 200; // 총 구조 200 당 대사 +1 (큰 질서일수록 유지 비용↑)
 
 // A6-4 스킬 = 발산 패턴: 각 스킬은 비용·증폭·흡수비·쿨다운이 다른 이체 패턴이다.
 // 데미지 = base + floor(struct/structDiv) — 구조가 위력을 키운다(여전히 피격자 클램프).
@@ -60,8 +65,14 @@ export const FIELD_CELL_MAX = 100_000;                     // 셀 용량 상한
 // 확산 흐름 = floor(기울기 * NUM / DEN). NUM/DEN ≤ 1/2 여야 오버슛·진동 없이 평형 수렴.
 export const FIELD_DIFFUSE_NUM = 1;
 export const FIELD_DIFFUSE_DEN = 4;
-export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 (셀당)
-export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 (필드 지속)
+export const FIELD_CELL_SEED = 3000;       // 창세 시 SOURCE→셀 초기 적립 기준량 (풍요도 배수로 스케일)
+export const FIELD_INJECT_AMOUNT = 40;     // 재충전 틱당 SOURCE→셀 보충 기준량 (풍요도 배수로 스케일)
+// A7-2 필드 이질화: 필드 셀은 균질하지 않다. 지역별 풍요도(배수)가 시드에서 유도되어
+// 부유/빈곤 지역이 갈린다 — 셀 목표 잔고·주입량이 이 배수에 비례한다. "지구 같은 복합계"의
+// 공간 에너지 구배: 부유 셀은 높은 정상상태로 채워져 노드를 잘 먹이고, 빈곤 셀은 낮게 유지.
+// 순수 원장 구조(셀은 서버 내부 저수지·region=null) — 리소스/렌더 아님·미러 무관.
+export const FIELD_RICH_MIN = 1;           // 빈곤 셀 풍요도 배수
+export const FIELD_RICH_MAX = 4;           // 부유 셀 풍요도 배수 (풍요도 = [MIN..MAX] 시드 유도)
 
 // --- 채집 ---
 export const NODE_COUNT = 40;
@@ -82,6 +93,10 @@ export const CRYSTAL_GATHER_DIVISOR = 10; // 결정 소지 시 잔고 10 당 채
 export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
+
+// A7-3 생명 간 이체: 플레이어끼리 자유 에너지를 증여(협력·교환·부양)한다 = MMO 관계.
+// 강제 없는 자발적 이체(`player→player`) — 사거리 안에서만(사회적 근접·전송 검증). 보존은 클램프.
+export const GIVE_RANGE = 120;           // 증여 사거리 (근접해야 준다)
 
 // --- A2 판정 감사 (클라 위임 데미지 판정의 샘플링 재시뮬 탐지 — 표본 추출은 서버 정책) ---
 export const AUDIT_SEED = 0x5eed;        // 감사 표본 추출 기본 시드 (프로덕션은 서버 비밀로 주입)
@@ -125,7 +140,7 @@ export const CAUSE = {
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
-  GROW: 'grow',
+  GROW: 'grow', CATABOLISM: 'catabolism', GIVE: 'give',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

@@ -13,7 +13,7 @@ import { encode, decode, MSG, INTENT } from '../shared/protocol.js';
 import {
   SPAWN_POS, WORLD_SIZE, WORLD_HEIGHT, MAX_SPEED, BEACON_INTERVAL_MS, dist3,
   GATHER_RANGE, ATTACK_RANGE, PICKUP_RANGE, ATTACK_COOLDOWN_MS,
-  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL,
+  PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, POOL, ORGANS, GIVE_RANGE,
 } from '../shared/constants.js';
 
 const COUNT = Math.max(1, parseInt(process.argv[2] ?? '8', 10) || 8);
@@ -27,6 +27,8 @@ class Bot {
   constructor(name, bias = 0.5) {
     this.name = name;
     this.bias = bias;   // A6 성장 편향 (0=거의 안 키움 ~ 1=공격적으로 키움) → 빌드 분화
+    // A7-1: 키울 조직 선택 = 빌드. 편향 큰 개체는 발산(공격), 작은 개체는 대사(획득) 특화.
+    this.organ = bias >= 0.55 ? 'atk' : 'meta';
     this.mode = 'gather';
     this.retries = 0;
     this.#connect();
@@ -40,6 +42,8 @@ class Bot {
     this.lastAttack = 0;
     this.lastSkill = 0;
     this.lastGrow = 0;
+    this.lastGive = 0;
+    this.gaveCount = 0; // A7-3: 증여 횟수 (협력 관측)
     this.craftPendingUntil = 0;
     this.iidNo = 0;
     this.bytesInWindow = 0; // A4: 수신 대역폭 계측 (5초 요약에서 B/s 환산)
@@ -65,7 +69,12 @@ class Bot {
   send(t, payload = {}) { if (this.ws.readyState === 1) this.ws.send(encode(t, payload)); }
   intent(kind, data = {}) { this.send(MSG.INTENT, { iid: (this.iidNo = this.iidNo % 65000 + 1), kind, ...data }); } // A4: u16 숫자 iid
   energy() { return this.state.ledger.balance(this.state.playerId); }
-  struct() { return this.state.ledger.balance(POOL.STRUCT + this.state.playerId); } // A6-2 성장(구조) 잔고
+  // A7-1: 총 구조 = 모든 조직 합 (조직 풀 id = `S:<playerId>#<organ>`)
+  struct() {
+    let s = 0;
+    for (const o of ORGANS) s += this.state.ledger.balance(`${POOL.STRUCT}${this.state.playerId}#${o}`);
+    return s;
+  }
 
   #items(type) {
     const out = [];
@@ -112,6 +121,17 @@ class Bot {
     const loot = this.#nearest(['item'], PICKUP_RANGE);
     if (loot) this.intent(INTENT.PICKUP, { itemId: loot.id });
 
+    // --- 생명 간 이체(A7-3): 여유 있고 근처(사거리 안)에 나보다 궁한 동료가 있으면 나눈다 (협력).
+    //     봇은 인기 노드에서 종종 모이므로 그때 부유→빈곤으로 에너지가 흐른다. ---
+    if (e > 400 && now - this.lastGive >= 1200) {
+      const ally = this.#nearest(['player'], GIVE_RANGE, (q) => s.ledger.balance(q.id) < e - 120);
+      if (ally) {
+        this.lastGive = now;
+        this.gaveCount++;
+        this.intent(INTENT.GIVE, { targetId: ally.id, amount: 60 });
+      }
+    }
+
     // --- 성장(A6): 잘 먹었으면 잉여 에너지를 구조로 예치(질서화). bias 큰 개체가 더
     //     공격적으로(더 낮은 배부름에, 더 큰 덩어리로) 성장 → 라이브에서 빌드가 분화한다.
     //     대사 비용은 구조에 비례해 오르므로(A6-3) 과성장은 스스로 대가를 치른다.
@@ -119,7 +139,8 @@ class Bot {
     const surplus = e - 450; // 운영 여유분만 성장에 쓴다 — 자유 잔고를 450 아래로 떨구지 않는다
     if (surplus > 30 && struct < 4000 && now - this.lastGrow >= 1000) {
       this.lastGrow = now;
-      this.intent(INTENT.GROW, { amount: Math.round(Math.min(surplus, 15 + 60 * this.bias)) }); // bias 큰 개체가 더 크게
+      // A7-1: 자기 특화 조직에 예치 → 빌드가 구조적으로 분화한다
+      this.intent(INTENT.GROW, { organ: this.organ, amount: Math.round(Math.min(surplus, 15 + 60 * this.bias)) });
     }
 
     // --- 모드 전환: 배부르면 사냥, 허기지면 채집 ---
@@ -186,14 +207,16 @@ setInterval(() => {
   const lead = bots[0]?.state;
   if (!lead?.playerId) return;
   const line = bots.map(b =>
-    `${b.name} E${String(b.energy()).padStart(4)} S${String(b.struct()).padStart(4)}${b.mode === 'hunt' ? '⚔' : '⛏'}`).join(' | ');
+    `${b.name} E${String(b.energy()).padStart(4)} S${String(b.struct()).padStart(4)}${b.organ === 'atk' ? '🗡' : '🌿'}${b.mode === 'hunt' ? '⚔' : '⛏'}`).join(' | ');
   const totalBytes = bots.reduce((s, b) => s + b.bytesInWindow, 0);
   bots.forEach(b => { b.bytesInWindow = 0; });
   const perBotPerSec = totalBytes / 5 / bots.length;
   const structs = bots.map(b => b.struct());
   const grown = structs.reduce((s, v) => s + v, 0);
-  console.log(`[시뮬] ${line}`);   // E=자유 에너지, S=구조(성장), ⚔사냥/⛏채집
-  console.log(`[성장] 구조 총 ${grown} · 최소 ${Math.min(...structs)} ~ 최대 ${Math.max(...structs)} (bias 분산 → 빌드 분화)`);
+  const atkBuilds = bots.filter(b => b.organ === 'atk').length;
+  const gives = bots.reduce((s, b) => s + b.gaveCount, 0);
+  console.log(`[시뮬] ${line}`);   // E=자유, S=구조, 🗡발산빌드/🌿대사빌드, ⚔사냥/⛏채집
+  console.log(`[성장] 구조 총 ${grown} · 최소 ${Math.min(...structs)} ~ 최대 ${Math.max(...structs)} · 빌드 분화 발산 ${atkBuilds}/${bots.length} · 증여 누적 ${gives}회(협력)`);
   console.log(`[원장] 세계 총 에너지 ${lead.worldTotal.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
   console.log(`[대역폭] 봇 평균 수신 ${perBotPerSec.toFixed(0)} B/s (A4 바이너리 tx)`);
 }, 5000);

@@ -14,10 +14,10 @@
 // ============================================================================
 
 import { EnergyLedger } from '../shared/ledger.js';
-import { generateWorld } from '../shared/worldgen.js';
+import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
 import { createField, diffuseTick, fieldCellId, fieldCellOf } from '../shared/field.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
 import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
@@ -28,8 +28,8 @@ import {
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
   FIELD_GRID, FIELD_CELL_SIZE, FIELD_CELL_SEED, FIELD_INJECT_AMOUNT, FIELD_CELL_MAX,
   ATTACK_RANGE, ATTACK_COST, WEAPON_WEAR,
-  LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS,
-  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS,
+  LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
+  CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -65,16 +65,19 @@ export class GameServer {
 
     // 필드 셀 격자 — SOURCE/SINK 처럼 region=null 서버 내부 저수지 (방송·체크섬 대상 아님).
     // A1: 노드 재충전이 이 필드에서 확산으로 흐른다. 창세 적립도 SOURCE 인출이라 보존 유지.
+    // 셀 자체는 균질 저수지로 둔다(강한 확산이 셀 구배를 씻으므로) — 이질성은 노드 재충전에 싣는다.
     createField(this.ledger);
+    this.cellRichness = generateFieldRichness(WORLD_SEED); // A7-2: `cx_cy` -> 배수 (시드 유도·비영속)
     for (let cy = 0; cy < FIELD_GRID; cy++)
       for (let cx = 0; cx < FIELD_GRID; cx++)
         this.ledger.transfer(POOL.SOURCE, fieldCellId(cx, cy), FIELD_CELL_SEED, CAUSE.SPAWN);
 
     const world = generateWorld(WORLD_SEED);
-    this.nodes = new Map(); // id -> { id, x, y, max, cell }
+    this.nodes = new Map(); // id -> { id, x, y, max, cell, richness }
     for (const n of world.nodes) {
       const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
-      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
+      // A7-2 이질화: 노드가 속한 셀의 풍요도가 이 노드의 재충전 속도를 정한다(= 영토 가치).
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy), richness: this.#richness(cell.cx, cell.cy) });
       this.ledger.createPool(n.id, 0, n.max, regionKey(n.x, n.y));
       this.ledger.transfer(POOL.SOURCE, n.id, n.max, CAUSE.SPAWN); // 창세 이체 (방송 대상 없음)
     }
@@ -112,10 +115,11 @@ export class GameServer {
     this.nextItemNo = snap.nextItemNo;
 
     const world = generateWorld(WORLD_SEED);
+    this.cellRichness = generateFieldRichness(WORLD_SEED); // A7-2: 시드 유도(비영속) — 복원 시 재유도
     this.nodes = new Map();
     for (const n of world.nodes) {
       const cell = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
-      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy) });
+      this.nodes.set(n.id, { ...n, cell: fieldCellId(cell.cx, cell.cy), richness: this.#richness(cell.cx, cell.cy) });
     }
     const mobMeta = new Map(snap.mobs.map(([id, dead, respawnAt]) => [id, { dead, respawnAt }]));
     this.mobs = new Map();
@@ -151,7 +155,17 @@ export class GameServer {
   // 접속 수명
   // ==========================================================================
 
-  #structId(playerId) { return POOL.STRUCT + playerId; } // 플레이어당 구조 풀 (A6-2)
+  // A7-2: 셀 풍요도 배수 (시드 유도) — 재충전 목표·주입 스케일의 근거.
+  #richness(cx, cy) { return this.cellRichness.get(`${cx}_${cy}`) ?? 1; }
+
+  // A7-1: 조직별 구조 풀 id — `S:<playerId>#<organ>`. POOL.STRUCT 접두 유지(클라 자동 물질화 동일).
+  #structId(playerId, organ) { return `${POOL.STRUCT}${playerId}#${organ}`; }
+  // 총 구조 = 모든 조직 합 (대사·사망 판정의 근거)
+  #structTotal(playerId) {
+    let sum = 0;
+    for (const o of ORGANS) sum += this.ledger.balance(this.#structId(playerId, o));
+    return sum;
+  }
 
   addPlayer(conn, name = '모험가') {
     const id = `${POOL.PLAYER}${this.nextPlayerNo++}`;
@@ -165,7 +179,8 @@ export class GameServer {
     };
     this.players.set(id, player);
     this.ledger.createPool(id, 0, PLAYER_MAX_ENERGY, null);
-    this.ledger.createPool(this.#structId(id), 0, STRUCT_MAX, null); // A6-2 구조 풀 (성장 저장소)
+    // A7-1: 조직마다 구조 풀 1개 (성장 저장소·빌드 분화의 실체)
+    for (const o of ORGANS) this.ledger.createPool(this.#structId(id, o), 0, STRUCT_MAX, null);
 
     // 미러 기준점: 잔고 0 시점의 스냅샷을 먼저 보내고, 스폰 인출은 tx 로 도달시킨다.
     conn.send(encode(MSG.WELCOME, {
@@ -189,10 +204,12 @@ export class GameServer {
     }
     this.#tx(id, POOL.SINK, this.ledger.balance(id), CAUSE.DEATH_DROP, p);
     this.ledger.removePool(id);
-    // A6-2: 구조(잠긴 질서)도 이탈 시 SINK 로 환원 — 원장에서 소멸 없음(보존)
-    const structId = this.#structId(id);
-    this.#tx(structId, POOL.SINK, this.ledger.balance(structId), CAUSE.DEATH_DROP, p);
-    this.ledger.removePool(structId);
+    // A6-2/A7-1: 각 조직의 구조(잠긴 질서)도 이탈 시 SINK 로 환원 — 원장에서 소멸 없음(보존)
+    for (const o of ORGANS) {
+      const structId = this.#structId(id, o);
+      this.#tx(structId, POOL.SINK, this.ledger.balance(structId), CAUSE.DEATH_DROP, p);
+      this.ledger.removePool(structId);
+    }
     this.players.delete(id);
   }
 
@@ -293,8 +310,11 @@ export class GameServer {
         if (dist3(p.x, p.y, p.z, node.x, node.y, node.z) > GATHER_RANGE + RANGE_SLACK)
           return this.#reject(p, iid, 'out-of-range');
         // A6-5: 결정 소지 시 채집 증폭(획득) = 결정 잔고의 함수(민팅 아님 — 노드가 제공, Got<Want 클램프).
+        // A7-1: 대사(meta) 조직도 채집을 증폭한다(구조적 획득 계수) — 결정 증폭과 합산.
         const crystal = this.#ownedItems(p.id).find(i => i.itemType === 'crystal');
-        const want = GATHER_AMOUNT + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0);
+        const want = GATHER_AMOUNT
+          + (crystal ? gatherBonus(this.ledger.balance(crystal.id)) : 0)
+          + gatherStructBonus(this.ledger.balance(this.#structId(p.id, 'meta')));
         // Got < Want 는 게임플레이(고갈/가방 가득) — 0 일 때만 기각
         const got = this.#tx(node.id, p.id, want, CAUSE.GATHER, node, iid);
         if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
@@ -341,7 +361,7 @@ export class GameServer {
         // 무기 = 응축 에너지. 내구도 소모도 그저 이체다.
         // A6-3: 구조 예치가 공격력을 키운다(흐름 계수) — 데미지는 여전히 피격자 풀로 클램프.
         const weapon = this.#ownedItems(p.id).find(i => i.itemType === 'weapon');
-        let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id)));
+        let damage = base + attackBonus(this.ledger.balance(this.#structId(p.id, 'atk')));
         if (weapon) {
           // A6-5: 무기 증폭 = 현재 잔고의 함수(민팅 아님). 마모 전 잔고로 계산한 뒤 마모.
           damage += weaponBonus(this.ledger.balance(weapon.id));
@@ -410,8 +430,8 @@ export class GameServer {
         this.#tx(p.id, POOL.SINK, skill.cost, CAUSE.ATTACK_COST, p, iid);
         p.skillCd[msg.skillId] = nowMs + skill.cooldownMs;
 
-        // 위력 = 구조의 함수(A6-3 동형). 데미지 = 피격자 풀 인출, leechPct 로 흡수/소각 분배.
-        const struct = this.ledger.balance(this.#structId(p.id));
+        // 위력 = 발산(atk) 조직의 함수(A6-3 동형). 데미지 = 피격자 풀 인출, leechPct 로 흡수/소각 분배.
+        const struct = this.ledger.balance(this.#structId(p.id, 'atk'));
         const total = Math.min(skillDamage(skill, struct), this.ledger.balance(msg.targetId));
         const leechGot = this.#tx(msg.targetId, p.id, Math.floor(total * skill.leechPct / 100), CAUSE.DAMAGE_LEECH, target, iid);
         this.#tx(msg.targetId, POOL.SINK, total - leechGot, CAUSE.DAMAGE_BURN, target);
@@ -421,10 +441,27 @@ export class GameServer {
 
       case INTENT.GROW: {
         // A6-2 성장: 자유 에너지를 구조 풀로 예치 (창조 아님 — 자유→잠긴 질서 재분배).
+        // A7-1 분화: 어느 조직(organ)에 예치할지 선택 → 빌드가 갈린다(기본 = 첫 조직).
         // Got<Want 는 게임플레이(자유 고갈/구조 포화) — 0 일 때만 기각. 스탯 이득은 A6-3.
+        const organ = ORGANS.includes(msg.organ) ? msg.organ : ORGANS[0];
         const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : GROW_AMOUNT;
-        const got = this.#tx(p.id, this.#structId(p.id), want, CAUSE.GROW, null, iid);
+        const got = this.#tx(p.id, this.#structId(p.id, organ), want, CAUSE.GROW, null, iid);
         if (got === 0) return this.#reject(p, iid, 'no-energy-or-full');
+        break;
+      }
+
+      case INTENT.GIVE: {
+        // A7-3 생명 간 이체: 자유 에너지를 다른 플레이어에게 증여(협력·교환·부양) = MMO 관계.
+        // 강제 없는 자발적 `player→player` 이체 — 사거리 안에서만. Got<Want 는 게임플레이
+        // (증여자 고갈/수령자 만충) — 0 일 때만 기각. 사거리 안이면 양쪽 시야가 겹쳐 미러 정합.
+        const target = this.#targetInfo(msg.targetId ?? '');
+        if (!target || !target.isPlayer || msg.targetId === p.id) return this.#reject(p, iid, 'no-target');
+        if (dist3(p.x, p.y, p.z, target.x, target.y, target.z) > GIVE_RANGE + RANGE_SLACK)
+          return this.#reject(p, iid, 'out-of-range');
+        const want = Number.isInteger(msg.amount) && msg.amount > 0 ? msg.amount : 0;
+        if (want === 0) return this.#reject(p, iid, 'bad-amount');
+        const got = this.#tx(p.id, msg.targetId, want, CAUSE.GIVE, target, iid);
+        if (got === 0) return this.#reject(p, iid, 'depleted-or-full');
         break;
       }
 
@@ -508,15 +545,26 @@ export class GameServer {
     for (const { playerId, msg } of batch) this.#processIntent(playerId, msg);
 
     // 2b) 대사 (A6-1) — 생명은 매 주기 upkeep 를 SINK 로 지불한다. 소모·갈구·유지의 압력:
-    //   채집·전투로 못 채우면 잔고 0 → 아사(기존 사망 경로). upkeep tx 는 비공간이라
-    //   소유자에게만 방송(무지역 player 풀 — 체크섬 무관). 소산분은 태양 순환(A6-0)이 되돌린다.
+    //   upkeep tx 는 비공간이라 소유자에게만 방송(무지역 player 풀 — 체크섬 무관).
+    //   소산분은 태양 순환(A6-0)이 되돌린다.
+    //   A6-6 항상성(구조 이화): 자유 에너지로 대사를 못 덮으면 곧바로 죽지 않는다 — 몸(구조)을
+    //   태워(구조→플레이어) 자유로 전환해 연명한다. 성장이 비상 연료가 되는 가역적 성장:
+    //   굶주릴수록 구조가 줄고, 구조가 줄면 스탯도 준다(attackBonus·upkeep = f(구조)).
+    //   자유·구조가 함께 마르면 그때가 진짜 아사(태울 몸조차 없음). 이화도 이체 — 보존 유지.
     if (this.tickCount % UPKEEP_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       for (const p of this.players.values()) {
         if (p.dead) continue;
-        // A6-3: 대사 비용 = 구조의 함수 (큰 질서일수록 더 갈구)
-        const upkeep = upkeepFor(this.ledger.balance(this.#structId(p.id)));
+        // A6-3/A7-1: 대사 비용 = 총 구조(모든 조직 합)의 함수 (큰 질서일수록 더 갈구)
+        const upkeep = upkeepFor(this.#structTotal(p.id));
+        let deficit = upkeep - this.ledger.balance(p.id);
+        // A6-6 이화: 부족분을 조직에서 태워(구조→자유) 연명. 조직을 정해진 순서로 소진한다.
+        for (const o of ORGANS) {
+          if (deficit <= 0) break;
+          deficit -= this.#tx(this.#structId(p.id, o), p.id, deficit, CAUSE.CATABOLISM);
+        }
         this.#tx(p.id, POOL.SINK, upkeep, CAUSE.UPKEEP);
-        if (this.ledger.balance(p.id) === 0) this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
+        if (this.ledger.balance(p.id) === 0 && this.#structTotal(p.id) === 0)
+          this.#kill(p.id, { x: p.x, y: p.y, z: p.z });
       }
     }
 
@@ -548,7 +596,9 @@ export class GameServer {
       }
       for (const n of this.nodes.values()) {
         if (this.ledger.balance(n.id) < n.max) {
-          this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT, CAUSE.REGEN, n);
+          // A7-2 이질화: 재충전량 = 기준량 × 셀 풍요도. 부유 지역 노드가 빨리 차고, 빈곤 지역은
+          //   느리다 → 영토 가치의 공간 분포. 셀→노드 이체(클램프)라 민팅 없음·확산에 무너지지 않음.
+          this.#tx(n.cell, n.id, NODE_REGEN_AMOUNT * n.richness, CAUSE.REGEN, n);
         }
       }
     }

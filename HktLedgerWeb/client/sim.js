@@ -20,6 +20,8 @@ export class Sim {
     this.z = SPAWN_POS.z; // 3D — 높이 (R/F 로 상승·하강)
     this.keys = new Set();
     this.lastBeacon = 0;
+    // 카메라 yaw 제공자 — main.js 가 render 와 결선(카메라 상대 이동). 기본은 render 초기 yaw.
+    this.getYaw = () => -Math.PI * 0.75;
 
     addEventListener('keydown', (e) => this.keys.add(e.code));
     addEventListener('keyup', (e) => this.keys.delete(e.code));
@@ -28,11 +30,18 @@ export class Sim {
 
   update(dt, nowMs) {
     if (!this.state.dead) {
-      let dx = (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0)
-             - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0);
-      let dy = (this.keys.has('KeyS') || this.keys.has('ArrowDown') ? 1 : 0)
-             - (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0);
-      let dz = (this.keys.has('KeyR') ? 1 : 0) - (this.keys.has('KeyF') ? 1 : 0); // 상승/하강
+      // 카메라 상대 이동: W=화면 안쪽(카메라가 보는 방향)·S=앞으로 당김·D=오른쪽·A=왼쪽.
+      // 카메라를 회전(드래그)해도 늘 "보는 대로" 움직인다. 이동 축은 카메라 yaw 를 따른다.
+      const fwd = (this.keys.has('KeyW') || this.keys.has('ArrowUp') ? 1 : 0)
+                - (this.keys.has('KeyS') || this.keys.has('ArrowDown') ? 1 : 0);
+      const strafe = (this.keys.has('KeyD') || this.keys.has('ArrowRight') ? 1 : 0)
+                   - (this.keys.has('KeyA') || this.keys.has('ArrowLeft') ? 1 : 0);
+      const yaw = this.getYaw();
+      const cy = Math.cos(yaw), sy = Math.sin(yaw);
+      // 지면 기저: 전방(카메라가 보는 쪽)=(cos,sin), 우측(화면 오른쪽)=(sin,-cos) — render 카메라와 정합
+      let dx = fwd * cy + strafe * sy;
+      let dy = fwd * sy + strafe * -cy;
+      let dz = (this.keys.has('KeyR') ? 1 : 0) - (this.keys.has('KeyF') ? 1 : 0); // 상승/하강(월드 수직)
       if (dx || dy || dz) {
         const len = Math.hypot(dx, dy, dz);
         this.x = Math.max(0, Math.min(WORLD_SIZE, this.x + (dx / len) * RUN_SPEED * dt));

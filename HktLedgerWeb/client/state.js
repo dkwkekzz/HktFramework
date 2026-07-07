@@ -7,9 +7,10 @@
 // ============================================================================
 
 import { EnergyLedger } from '../shared/ledger.js';
-import { generateWorld } from '../shared/worldgen.js';
+import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
+import { fieldCellOf } from '../shared/field.js';
 import {
-  POOL, PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, regionKey,
+  POOL, PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, FIELD_CELL_SIZE, regionKey,
 } from '../shared/constants.js';
 
 export class ClientState {
@@ -66,21 +67,26 @@ export class ClientState {
     this.ledger.mirrorSet(POOL.SOURCE, msg.src, Number.MAX_SAFE_INTEGER, null);
     this.ledger.mirrorSet(POOL.SINK, msg.sink, Number.MAX_SAFE_INTEGER, null);
     const world = generateWorld(msg.seed);
-    for (const n of world.nodes) this.nodesById.set(n.id, n);
+    // A7-2: 노드 풍요도(영토 가치)를 시드에서 유도 — 서버와 동일 함수(동기화 아님, 시드만 공유)
+    const richness = generateFieldRichness(msg.seed);
+    for (const n of world.nodes) {
+      const c = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
+      this.nodesById.set(n.id, { ...n, richness: richness.get(`${c.cx}_${c.cy}`) ?? 1 });
+    }
     for (const m of world.mobs) this.mobsById.set(m.id, m);
     this.onTeleport?.(msg);
   }
 
   #onEnter(msg) {
     for (const e of msg.entities) {
-      let x = e.x, y = e.y, z = e.z, max = e.max;
-      if (e.kind === 'node') ({ x, y, z, max } = this.nodesById.get(e.id)); // 배치는 시드 유도
+      let x = e.x, y = e.y, z = e.z, max = e.max, richness = 1;
+      if (e.kind === 'node') ({ x, y, z, max, richness } = this.nodesById.get(e.id)); // 배치·풍요도는 시드 유도
       if (e.kind === 'mob') ({ x, y, z, max } = this.mobsById.get(e.id));
       const region = e.kind === 'player' ? null : regionKey(x, y); // 파티션은 컬럼(x,y)
       this.ledger.mirrorSet(e.id, e.balance, max, region);
       this.entities.set(e.id, {
         id: e.id, kind: e.kind, x, y, z, tx: x, ty: y, tz: z,
-        name: e.name, itemType: e.itemType, max,
+        name: e.name, itemType: e.itemType, max, richness,
       });
       // 내 인벤토리 아이템이 땅에 나타났다 = 드랍(사망 포함)된 것
       if (this.inventory.has(e.id)) this.inventory.delete(e.id);

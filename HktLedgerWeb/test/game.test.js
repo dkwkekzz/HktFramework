@@ -13,15 +13,17 @@ import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { MonsterController } from '../server/monster.js';
 import { ClientState } from '../client/state.js';
+import { generateFieldRichness } from '../shared/worldgen.js';
 import { MSG, INTENT, decode } from '../shared/protocol.js';
 import { canonicalDamage } from '../shared/audit.js';
-import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus } from '../shared/growth.js';
-import { SKILLS, WEAPON_COST } from '../shared/constants.js';
+import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
+import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
   RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
+  FIELD_RICH_MIN, FIELD_RICH_MAX, REGEN_INTERVAL_TICKS, NODE_REGEN_AMOUNT,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -406,7 +408,7 @@ test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아�
   const { clock, game, join, intent, total } = setup();
   const a = join('A');
   game.tick(); // 스폰 grant 300
-  const structId = POOL.STRUCT + a.player.id;
+  const structId = POOL.STRUCT + a.player.id + '#atk'; // A7-1: GROW 기본 조직 = 발산(atk)
   assert.equal(game.ledger.balance(structId), 0, '구조 풀은 빈 채로 생성');
 
   // 성장: 자유 에너지를 구조로 예치 (player→STRUCT) — 창조가 아니라 재분배
@@ -422,10 +424,14 @@ test('A6-2 구조 예치 — 성장 = 자유 에너지의 질서화(창조 아�
   assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id),
     '미러 자유 잔고 정합 (GROW 재생)');
 
-  // 사망해도 성장은 지속된다 (영구 성장) — 자유만 고갈시켜 아사(구조는 불가침)
-  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - UPKEEP_AMOUNT, 'test');
-  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 100) game.tick();
-  assert.ok(a.player.dead, '자유 에너지 고갈 = 아사');
+  // 사망해도 성장은 지속된다 (영구 성장) — 전투사(戰死)는 잠긴 질서를 건드리지 않는다.
+  // (굶주림은 구조를 태우지만[A6-6], 전투 사망은 자유 풀만 인출하므로 구조는 불가침)
+  const b = join('B'); // 공격자 (스폰 위치 동일 = 사거리 안)
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id) - 15, 'test'); // A 빈사
+  clock.t += ATTACK_COOLDOWN_MS + 50;
+  intent(b.player, INTENT.ATTACK, { targetId: a.player.id }, 'pk');
+  game.tick();
+  assert.ok(a.player.dead, '전투 사망');
   assert.equal(game.ledger.balance(structId), 120, '사망해도 구조 지속 (영구 성장)');
 
   // 리스폰 후에도 구조 유지
@@ -459,7 +465,7 @@ test('A6-3 스탯 = 흐름 계수 — 구조가 공격력·대사를 키운다 (
   refill(atk.player.id);
   intent(atk.player, INTENT.GROW, { amount: 800 }, 'grow');
   game.tick();
-  const structId = POOL.STRUCT + atk.player.id;
+  const structId = POOL.STRUCT + atk.player.id + '#atk'; // A7-1: 발산 조직에 예치(기본 조직)
   assert.equal(bal(structId), 800);
 
   // (1) 공격력 = 구조의 함수 — 데미지 = canonical + 구조 보너스 (피격자 클램프 내)
@@ -601,6 +607,221 @@ test('A6-5 아이템 = 결정체 장착 — 아이템 잔고가 스탯을 증폭
   assert.ok(dealt2 < dealt, '드랍으로 발산 증폭 사라짐');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
   console.log(`    [A6-5] 무기 발산 +${weaponBonus(WEAPON_COST)}(드랍 시 0) · 결정 획득 +${gatherBonus(100)} · 민팅 없음(클램프)·총합 ${total()} 불변`);
+});
+
+test('A6-6 항상성 — 자유가 마르면 구조를 태워 연명하고, 구조까지 마르면 그때 아사 (구조 이화도 보존)', () => {
+  const { clock, game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick(); // 스폰 grant 300
+  const structId = POOL.STRUCT + a.player.id + '#atk'; // A7-1: GROW 기본 조직 = 발산(atk)
+
+  // 큰 구조를 예치 (비상 연료 저장고) 후 자유를 0 으로 — 이제 대사는 구조에서 나와야 한다
+  intent(a.player, INTENT.GROW, { amount: 250 }, 'g1');
+  game.tick();
+  const struct0 = game.ledger.balance(structId);
+  assert.equal(struct0, 250, '구조 250 예치');
+  const atk0 = attackBonus(struct0);
+  game.ledger.transfer(a.player.id, POOL.SINK, game.ledger.balance(a.player.id), 'test'); // 자유 고갈
+  assert.equal(game.ledger.balance(a.player.id), 0, '자유 에너지 0');
+
+  // 여러 대사 주기 — 죽지 않고 구조를 태워 연명한다 (가역적 성장)
+  for (let i = 0; i < UPKEEP_INTERVAL_TICKS * 5; i++) game.tick();
+  assert.ok(!a.player.dead, '구조가 남아 있는 한 아사하지 않는다 (이화로 연명)');
+  const struct1 = game.ledger.balance(structId);
+  assert.ok(struct1 < struct0, `구조가 줄었다 (이화): ${struct0}→${struct1}`);
+  assert.ok(attackBonus(struct1) <= atk0, '굶주릴수록 스탯도 준다 (구조의 함수)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이화도 이체 — 총합 불변');
+
+  // 미러 정합: 소유자 클라가 이화 tx(구조→플레이어)를 재생해 구조 잔고가 일치
+  const client = new ClientState();
+  for (const m of a.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(structId), game.ledger.balance(structId),
+    '미러 구조 잔고 정합 (이화 tx 재생)');
+
+  // 계속 굶기면 구조까지 마르고 그때가 진짜 아사 (태울 몸조차 없음)
+  while (!a.player.dead && game.tickCount < UPKEEP_INTERVAL_TICKS * 200) game.tick();
+  assert.ok(a.player.dead, '구조까지 고갈 = 진짜 아사');
+  assert.equal(game.ledger.balance(structId), 0, '태울 몸조차 없음 (구조 0)');
+  assert.equal(game.ledger.balance(a.player.id), 0, '자유도 0');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '아사도 보존');
+  console.log(`    [A6-6] 자유0 → 구조 ${struct0}→${struct1} 이화로 연명 · 구조 고갈 시 아사 · 총합 ${total()} 불변`);
+});
+
+test('A7-1 구조 분화 — 조직별 예치가 서로 다른 흐름 계수에 결합 (빌드 분화·보존)', () => {
+  const { clock, game, join, warp, intent, total } = setup();
+  const bruiser = join('BRUISER'); // 발산(atk) 빌드
+  const forager = join('FORAGER'); // 대사(meta) 빌드
+  const tgtB = join('TB');
+  const tgtF = join('TF');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+  const organId = (p, o) => POOL.STRUCT + p.id + '#' + o;
+  assert.deepEqual(ORGANS, ['atk', 'meta'], '조직 목록');
+
+  // 같은 양(300)을 서로 다른 조직에 예치 → 구조가 구조적으로 분화한다.
+  // (자연 스폰 grant 300 범위 내 예치 — setBal 은 방송되지 않아 미러가 재생 못 하므로 GROW 전엔 쓰지 않는다)
+  intent(bruiser.player, INTENT.GROW, { organ: 'atk', amount: 300 }, 'gb');
+  intent(forager.player, INTENT.GROW, { organ: 'meta', amount: 300 }, 'gf');
+  game.tick();
+  assert.equal(bal(organId(bruiser.player, 'atk')), 300, 'bruiser 발산 조직 300');
+  assert.equal(bal(organId(bruiser.player, 'meta')), 0, 'bruiser 대사 조직 0 (분화)');
+  assert.equal(bal(organId(forager.player, 'meta')), 300, 'forager 대사 조직 300');
+  assert.equal(bal(organId(forager.player, 'atk')), 0, 'forager 발산 조직 0 (분화)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '예치는 재분배 — 총합 불변');
+
+  // 미러 정합: 소유자 클라가 분화 GROW tx 를 재생해 조직 잔고가 일치
+  const client = new ClientState();
+  for (const m of bruiser.conn.msgs) client.handle(m);
+  assert.equal(client.ledger.balance(organId(bruiser.player, 'atk')), 300, '미러 조직 잔고 정합 (분화 재생)');
+
+  // (1) 발산 조직 → 공격 결합: bruiser = canonical + attackBonus(300), forager = canonical (atk 조직 0)
+  warp(bruiser.player, tgtB.player.x + 30, tgtB.player.y, tgtB.player.z);
+  warp(forager.player, tgtF.player.x + 30, tgtF.player.y, tgtF.player.z);
+  game.tick();
+  setBal(bruiser.player.id, 500); setBal(forager.player.id, 500);
+  setBal(tgtB.player.id, PLAYER_MAX_ENERGY); setBal(tgtF.player.id, PLAYER_MAX_ENERGY);
+  const tbBefore = bal(tgtB.player.id), tfBefore = bal(tgtF.player.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(bruiser.player, INTENT.ATTACK, { targetId: tgtB.player.id, seq: 1 }, 'ab');
+  intent(forager.player, INTENT.ATTACK, { targetId: tgtF.player.id, seq: 1 }, 'af');
+  game.tick();
+  const dmgB = tbBefore - bal(tgtB.player.id);
+  const dmgF = tfBefore - bal(tgtF.player.id);
+  assert.equal(dmgB, canonicalDamage(WORLD_SEED, bruiser.player.id, 1) + attackBonus(300),
+    '발산 빌드 데미지 = canonical + attackBonus(발산 조직)');
+  assert.equal(dmgF, canonicalDamage(WORLD_SEED, forager.player.id, 1),
+    '대사 빌드는 발산 증폭 없음 (발산 조직 0)');
+  assert.ok(attackBonus(300) > 0, '발산 조직이 공격을 키운다');
+
+  // (2) 대사 조직 → 채집 결합: forager 채집 = 기본 + gatherStructBonus(400), bruiser 는 기본
+  const node = game.nodes.values().next().value;
+  setBal(node.id, node.max);
+  warp(bruiser.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(bruiser.player.id, 500);
+  let pBefore = bal(bruiser.player.id);
+  intent(bruiser.player, INTENT.GATHER, { nodeId: node.id }, 'grb');
+  game.tick();
+  const gainB = bal(bruiser.player.id) - pBefore;
+
+  setBal(node.id, node.max);
+  warp(forager.player, node.x + 10, node.y, node.z);
+  game.tick();
+  setBal(forager.player.id, 500);
+  pBefore = bal(forager.player.id);
+  intent(forager.player, INTENT.GATHER, { nodeId: node.id }, 'grf');
+  game.tick();
+  const gainF = bal(forager.player.id) - pBefore;
+
+  assert.equal(gainB, GATHER_AMOUNT, '발산 빌드 채집 = 기본 (대사 조직 0)');
+  assert.equal(gainF, GATHER_AMOUNT + gatherStructBonus(300), '대사 빌드 채집 = 기본 + gatherStructBonus(대사 조직)');
+  assert.ok(gainF > gainB, '대사 조직이 획득을 키운다 (분화의 다른 축)');
+
+  // (3) 유지비는 총 구조의 함수 — 빌드가 달라도 총량 같으면 유지비 동일 (분화는 계수만 가른다)
+  const totB = bal(organId(bruiser.player, 'atk')) + bal(organId(bruiser.player, 'meta'));
+  const totF = bal(organId(forager.player, 'atk')) + bal(organId(forager.player, 'meta'));
+  assert.equal(totB, totF, '두 빌드 총 구조 동일 (300)');
+  assert.equal(upkeepFor(totB), upkeepFor(totF), '같은 총 구조 → 같은 유지비');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전 과정 보존');
+  console.log(`    [A7-1] 발산빌드 공격+${attackBonus(300)}·채집 ${gainB} | 대사빌드 공격+0·채집 ${gainF}(+${gatherStructBonus(300)}) · 같은 유지비 ${upkeepFor(totB)} · 총합 ${total()} 불변`);
+});
+
+test('A7-2 필드 이질화 — 지역별 풍요도가 노드 재충전 속도를 가른다 (영토 가치·시드 유도·보존)', () => {
+  // 순수 유도: 풍요도는 결정론·이질적 (같은 시드 → 같은 맵, 범위 내, 부유/빈곤 공존)
+  const r1 = generateFieldRichness(WORLD_SEED);
+  assert.deepEqual([...r1.entries()], [...generateFieldRichness(WORLD_SEED).entries()], '풍요도는 시드 결정론');
+  const vals = [...r1.values()];
+  assert.ok(Math.max(...vals) > Math.min(...vals), '이질적 — 부유/빈곤 셀 공존');
+  assert.ok(vals.every(v => v >= FIELD_RICH_MIN && v <= FIELD_RICH_MAX), '배수 범위 내');
+
+  const { game, total } = setup();
+  // 풍요도가 다른 두 노드 (부유 셀 노드 / 빈곤 셀 노드) — 노드는 자기 셀 풍요도를 물려받는다
+  const nodes = [...game.nodes.values()];
+  const rich = nodes.reduce((a, b) => (b.richness > a.richness ? b : a));
+  const poor = nodes.reduce((a, b) => (b.richness < a.richness ? b : a));
+  assert.ok(rich.richness > poor.richness, `부유 노드 풍요도 ${rich.richness} > 빈곤 ${poor.richness}`);
+
+  // 두 노드를 0 으로 비우고 (테스트 전용 이체·보존) 재충전 주기 하나를 통과시킨다
+  game.ledger.transfer(rich.id, POOL.SINK, game.ledger.balance(rich.id), 'test');
+  game.ledger.transfer(poor.id, POOL.SINK, game.ledger.balance(poor.id), 'test');
+  assert.equal(game.ledger.balance(rich.id), 0);
+  assert.equal(game.ledger.balance(poor.id), 0);
+
+  // 한 재충전 경계(tickCount=REGEN_INTERVAL_TICKS) 통과 — 노드가 풍요도 배수만큼 회복
+  for (let i = 0; i <= REGEN_INTERVAL_TICKS; i++) game.tick();
+  const richGain = game.ledger.balance(rich.id);
+  const poorGain = game.ledger.balance(poor.id);
+  assert.equal(poorGain, NODE_REGEN_AMOUNT * poor.richness, '빈곤 노드 회복 = 기준 × 풍요도');
+  assert.equal(richGain, NODE_REGEN_AMOUNT * rich.richness, '부유 노드 회복 = 기준 × 풍요도');
+  assert.ok(richGain > poorGain, `부유 지역 노드가 빨리 찬다 (영토 가치): ${richGain} > ${poorGain}`);
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '이질화도 이체 — 총합 불변');
+  console.log(`    [A7-2] 풍요도 ${poor.richness}~${rich.richness} · 1주기 노드 회복 부유 ${richGain} > 빈곤 ${poorGain} · 총합 ${total()} 불변`);
+});
+
+test('A7-3 생명 간 이체 — 플레이어끼리 자유 에너지를 증여한다 (협력·사거리·미러·보존)', () => {
+  const { game, join, warp, intent, total } = setup();
+  const giver = join('GIVER');
+  const taker = join('TAKER');
+  game.tick(); // 스폰 grant 300 each (스폰 위치 동일 = 사거리 안)
+  const bal = (id) => game.ledger.balance(id);
+
+  // (1) 증여: giver→taker 자유 에너지 이체
+  const g0 = bal(giver.player.id), t0 = bal(taker.player.id);
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 120 }, 'gv1');
+  game.tick();
+  assert.equal(bal(giver.player.id), g0 - 120, '증여자 자유 감소');
+  assert.equal(bal(taker.player.id), t0 + 120, '수령자 자유 증가');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '증여도 이체 — 총합 불변');
+
+  // 미러 정합: 양쪽 클라가 증여 tx 를 재생 (giver=from, taker=to 로 relevant, 사거리 안이라 시야 겹침)
+  const gc = new ClientState(); for (const m of giver.conn.msgs) gc.handle(m);
+  const tc = new ClientState(); for (const m of taker.conn.msgs) tc.handle(m);
+  assert.equal(gc.ledger.balance(giver.player.id), bal(giver.player.id), '증여자 미러 정합');
+  assert.equal(tc.ledger.balance(taker.player.id), bal(taker.player.id), '수령자 미러 정합');
+
+  // (2) 자기 자신에게는 못 준다
+  intent(giver.player, INTENT.GIVE, { targetId: giver.player.id, amount: 10 }, 'gv2');
+  game.tick();
+  assert.equal(giver.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'gv2')?.reason, 'no-target');
+
+  // (3) 사거리 밖 = 기각
+  warp(taker.player, 100, 100, taker.player.z);
+  game.tick();
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 10 }, 'gv3');
+  game.tick();
+  assert.equal(giver.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'gv3')?.reason, 'out-of-range');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  // (4) 협력 = 부양: 굶주린 동료를 증여로 되살린다 (자유 0 → 증여 → 생존)
+  warp(taker.player, giver.player.x + 20, giver.player.y, giver.player.z); // 다시 사거리 안
+  game.tick();
+  game.ledger.transfer(taker.player.id, POOL.SINK, bal(taker.player.id), 'test'); // 굶주림
+  intent(giver.player, INTENT.GIVE, { targetId: taker.player.id, amount: 50 }, 'gv4');
+  game.tick();
+  assert.equal(bal(taker.player.id), 50, '증여로 부양 — 동료가 되살아난다');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전 과정 보존');
+  console.log(`    [A7-3] 증여 giver→taker 120·자기증여/사거리밖 기각·부양 50 · 총합 ${total()} 불변`);
+});
+
+test('A7-4 클라 관측 — 노드 풍요도를 시드에서 서버와 동일하게 유도 (영토 색 표시 정합)', () => {
+  const { game } = setup();
+  const client = new ClientState();
+  client.handle({
+    t: 'welcome', playerId: 'P:1', name: 'X', seed: WORLD_SEED, tick: 0,
+    total: WORLD_SOURCE_INITIAL, src: 0, sink: 0, x: SPAWN_POS.x, y: SPAWN_POS.y, z: SPAWN_POS.z,
+  });
+  let checked = 0;
+  for (const n of game.nodes.values()) {
+    assert.equal(client.nodesById.get(n.id).richness, n.richness, `노드 ${n.id} 풍요도 클라=서버`);
+    checked++;
+  }
+  assert.ok(checked > 0, '노드 존재');
+  console.log(`    [A7-4] 노드 ${checked}개 풍요도 클라 유도 = 서버 (렌더 영토 색 정합)`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {
