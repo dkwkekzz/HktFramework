@@ -48,6 +48,8 @@ export const INTENT = {
   GROW: 'grow',          // { organ?, amount? }  A6-2/A7-1 성장: 자유 에너지 → 조직 구조 풀 예치
   SKILL: 'skill',        // { skillId, targetId }  A6-4 스킬: 비용 있는 증폭 이체 패턴
   GIVE: 'give',          // { targetId, amount }  A7-3 생명 간 이체: player→player 자유 에너지 증여
+  MINE: 'mine',          // { nodeId }    A8-1 타입 채집: 노드 → 종류별 재료 창고
+  FORGE: 'forge',        // { mat }       A8-1 합성: 재료 창고 + 생체 에너지 → 아이템(결정)
 };
 
 export function encode(type, payload) {
@@ -84,6 +86,7 @@ const CAUSE_LIST = [
   CAUSE.SPAWN, CAUSE.MOVE, CAUSE.GATHER, CAUSE.REGEN, CAUSE.ATTACK_COST,
   CAUSE.DAMAGE_LEECH, CAUSE.DAMAGE_BURN, CAUSE.WEAPON_WEAR, CAUSE.CONDENSE,
   CAUSE.DISSOLVE, CAUSE.DEATH_DROP, CAUSE.DIFFUSE, CAUSE.UPKEEP,
+  CAUSE.DECAY, // A9-2 (append-only — 기존 코드 불변, 바이너리 하위호환)
 ];
 const CAUSE_CODE = new Map(CAUSE_LIST.map((c, i) => [c, i]));
 const PT = { [POOL.PLAYER[0]]: 0, [POOL.NODE[0]]: 1, [POOL.MOB[0]]: 2, [POOL.ITEM[0]]: 3, [POOL.CELL[0]]: 4 };

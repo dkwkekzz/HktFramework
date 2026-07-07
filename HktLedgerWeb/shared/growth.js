@@ -40,10 +40,12 @@ export function skillDamage(skill, atkStruct) {
 
 // 아이템 증폭 (A6-5) — 아이템의 현재 잔고를 읽어 스탯을 키운다(민팅 없음).
 // 무기: 발산(공격) 증폭 — 마모로 잔고가 줄면 증폭도 준다.
+// A9-1 가치 단일화: 위력은 **오직 잔고(에너지)**의 함수다. 재료 종류는 배율에 개입하지 않는다 —
+//   금 무기든 돌 무기든 같은 잔고면 같은 위력. "총량이 가치를 결정한다"의 코드 실현(옛 div 제거).
 export function weaponBonus(weaponBalance) {
   return Math.floor(Math.max(0, weaponBalance) / WEAPON_ATK_DIVISOR);
 }
-// 결정: 획득(채집) 증폭 — 소지한 결정의 잔고가 세계에서 끌어오는 양을 키운다.
+// 결정: 획득(채집) 증폭 — 소지한 결정의 잔고가 세계에서 끌어오는 양을 키운다. 종류 무관·잔고만.
 export function gatherBonus(crystalBalance) {
   return Math.floor(Math.max(0, crystalBalance) / CRYSTAL_GATHER_DIVISOR);
 }

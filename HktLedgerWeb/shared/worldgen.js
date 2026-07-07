@@ -9,11 +9,21 @@ import { mulberry32, randInt } from './rng.js';
 import {
   WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, NODE_COUNT, NODE_MIN_MAX, NODE_MAX_MAX,
   MOB_COUNT, MOB_ENERGY, POOL, FIELD_GRID, FIELD_RICH_MIN, FIELD_RICH_MAX,
+  MATERIALS, MATERIAL_KEYS,
 } from './constants.js';
 
 export function generateWorld(seed = WORLD_SEED) {
   const rng = mulberry32(seed);
   const margin = 100;
+
+  // A8-1/A9-1: 노드 재료 종류는 배치 rng 와 독립한 시드 스트림에서 유도한다 — 위치·용량 유도 순서를
+  // 건드리지 않아 기존 배치가 바이트 동일하게 보존된다(회귀 안전). 배치처럼 동기화 없이 시드 유도.
+  // A9-1: abundance 가중 분포 — 재료 차이가 위력 배율이 아니라 **희소성**에서 나온다(값=에너지 공리).
+  //   흔한 재료(나무·돌)는 노드가 많고, 희소 재료(금·불)는 드물다 → 같은 위력 아이템도 희소 재료는
+  //   더 많이 캐야 모은다. 가중 주머니에서 시드로 뽑는다(결정론 정수).
+  const matRng = mulberry32((seed ^ 0x00a7a7a7) >>> 0);
+  const matBag = [];
+  for (const k of MATERIAL_KEYS) for (let w = 0; w < MATERIALS[k].abundance; w++) matBag.push(k);
 
   const nodes = [];
   for (let i = 0; i < NODE_COUNT; i++) {
@@ -23,6 +33,7 @@ export function generateWorld(seed = WORLD_SEED) {
       y: randInt(rng, margin, WORLD_SIZE - margin),
       z: randInt(rng, margin, WORLD_HEIGHT - margin),   // 3D 배치 (높이)
       max: randInt(rng, NODE_MIN_MAX, NODE_MAX_MAX),
+      mat: matBag[randInt(matRng, 0, matBag.length - 1)], // 발산 재료 종류 (abundance 가중)
     });
   }
 

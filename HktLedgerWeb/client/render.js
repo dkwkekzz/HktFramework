@@ -14,6 +14,7 @@ const CAUSE_LABEL = {
   'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
   'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
   'upkeep': '대사', 'recycle': '순환', 'grow': '성장', 'catabolism': '이화', 'give': '증여',
+  'mine': '채굴', 'forge': '합성', 'decay': '소산',
 };
 
 function poolLabel(state, id) {
@@ -260,8 +261,15 @@ export class Render {
     // A7-1: 조직별 구조 잔고 (빌드) — 시야와 무관한 내 무지역 풀, 미러 재생으로 추적
     const sAtk = state.ledger.balance(POOL.STRUCT + state.playerId + '#atk');
     const sMeta = state.ledger.balance(POOL.STRUCT + state.playerId + '#meta');
+    // A8-1: 내 재료 창고(종류별 G:me#mat) — 채굴로 쌓이고, 합성으로 소진된다.
+    const stashes = [];
+    const sPrefix = POOL.STASH + state.playerId + '#';
+    for (const [id, pool] of state.ledger.pools) {
+      if (id.startsWith(sPrefix) && pool.balance > 0) stashes.push([id.slice(sPrefix.length), pool.balance]);
+    }
+    const rows = state.inventory.size + (stashes.length ? stashes.length + 1 : 0);
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(10, 10, 270, 86 + state.inventory.size * 16);
+    ctx.fillRect(10, 10, 270, 86 + rows * 16);
     ctx.fillStyle = '#e8eef4';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}  ·  고도 ${Math.round(sim.z)}`, 20, 30);
@@ -279,8 +287,16 @@ export class Render {
     ctx.fillText(`인벤토리 (${state.inventory.size})`, 20, iy);
     for (const [id, item] of state.inventory) {
       iy += 16;
-      const bal = state.ledger.balance(id);
-      ctx.fillText(`· ${item.itemType === 'weapon' ? '무기(내구' : '결정(에너지'} ${bal})`, 26, iy);
+      const bal = state.ledger.balance(id); // A9-2/A9-4: 잔고는 시간이 지나며 소산(누수)한다
+      const label = item.itemType === 'weapon' ? '무기(내구' : '결정(에너지';
+      ctx.fillText(`· ${item.mat ? item.mat + ' ' : ''}${label} ${bal})`, 26, iy);
+    }
+    // A8-1: 재료 창고 (채굴로 쌓임 → 합성 재료). 종류별 라벨 = 원장 밖 정체성.
+    if (stashes.length) {
+      iy += 16;
+      ctx.fillStyle = '#c9a86a';
+      ctx.fillText(`재료 창고`, 20, iy);
+      for (const [mat, bal] of stashes) { iy += 16; ctx.fillText(`· ${mat} ${bal}`, 26, iy); }
     }
 
     // 우상: 보존 불변식 전시 + 네트워크 계측
@@ -316,7 +332,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · R/F 상승·하강 · E 채집/줍기 · Space 공격 · Q 강타/Z 흡정 · G 발산성장/H 대사성장 · T 증여 · C/B/V/X', w - 14, this.h - 12);
+    ctx.fillText('WASD 이동 · R/F 상하 · E 채집 · M 채굴/N 합성 · Space 공격 · Q/Z 스킬 · G/H 성장 · T 증여 · C 결정/B 무기/V 용해/X 드랍', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }

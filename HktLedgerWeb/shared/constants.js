@@ -80,7 +80,11 @@ export const NODE_MIN_MAX = 400;         // 노드 용량 하한
 export const NODE_MAX_MAX = 1200;        // 노드 용량 상한
 export const NODE_REGEN_AMOUNT = 40;     // 재충전 틱당 SRC→노드 이체량
 export const GATHER_RANGE = 80;
-export const GATHER_AMOUNT = 25;         // 채집 1회 요청량 (잔고·수용량으로 클램프)
+// A9-3 흐름 흡수: 채집·채굴량은 손으로 쓴 상수(옛 GATHER_AMOUNT/MINE_AMOUNT=25)가 아니라 노드
+// 집중도에서 창발한다. 탭 = floor(노드 잔고 × NUM/DEN)(shared/entropy.js `nodeTap`, 양자 바닥 1).
+// DEN=20 → 잔고 500 노드가 옛 상수와 같은 25를 준다(중간 노드 정합). 풍부한 노드는 더, 고갈은 덜.
+export const NODE_TAP_NUM = 1;
+export const NODE_TAP_DEN = 10;          // 잔고 250 노드 ≈ 옛 상수 25. 풍부한 노드는 더, 고갈은 덜.
 
 // --- 전투 ---
 export const ATTACK_RANGE = 120;
@@ -88,9 +92,14 @@ export const ATTACK_COST = 5;            // 시전 비용: 공격자 → SINK
 export const ATTACK_DAMAGE = 30;         // 맨손 데미지 (결정론 롤의 중앙값)
 export const ATTACK_DAMAGE_VAR = 10;     // A2: 데미지 롤 분산 → 위임 판정이 의미를 갖는 폭 [30±10]
 // A6-5 아이템 = 결정체 장착: 아이템의 현재 잔고가 유효 스탯을 증폭한다(실재 에너지 읽기, 민팅 없음).
-export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (마모하면 증폭 감소)
+export const WEAPON_ATK_DIVISOR = 8;     // 무기 잔고 8 당 공격 +1 (누수로 잔고 줄면 증폭 감소)
 export const CRYSTAL_GATHER_DIVISOR = 10; // 결정 소지 시 잔고 10 당 채집 +1 (획득 증폭)
-export const WEAPON_WEAR = 5;            // 공격 1회당 무기 내구(=에너지) → SINK
+// A9-2 엔트로픽 누수: 감가(옛 공격당 WEAPON_WEAR 상수)를 법칙으로 대체한다. 집중된 질서(아이템)는
+// 쓰지 않아도 자발적으로 SINK로 흩어진다 — 누수 = floor(잔고 × NUM/DEN)(shared/entropy.js). 손으로 쓴
+// 상수가 아니라 엔트로피. 매 틱이 아니라 주기로 양자화해 미러 대역폭을 지킨다. 소산분은 태양 순환이 되돌린다.
+export const DECAY_INTERVAL_TICKS = 50;  // 5초마다 엔트로픽 이완 (재충전과 같은 주기)
+export const ITEM_DECAY_NUM = 1;
+export const ITEM_DECAY_DEN = 50;        // 주기당 아이템 잔고의 2% 누수 (NUM/DEN ≤ 1/2)
 export const LEECH_PERCENT = 50;         // 데미지 중 공격자가 흡수하는 비율 (%), 나머지는 SINK
 export const ATTACK_COOLDOWN_MS = 800;
 
@@ -115,6 +124,37 @@ export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아�
 export const WEAPON_COST = 250;          // 무기 제작: 플레이어 → 아이템 풀 250
 export const PICKUP_RANGE = 60;
 
+// A8-1 타입 채집·합성: "금이 어떻게 아이템이 되나" — 세계가 발산한 결정(노드)을 종류별로 캐서
+// (MINE) 재료 창고에 쌓고, 재료 + 생체(속성) 에너지를 결합(FORGE)해 고귀한 결정=아이템으로
+// 보존한다. 핵심: **금은 "변환"되지 않는다** — 금 100단위는 아이템이 된 뒤에도 100단위 그대로.
+// 바뀌는 건 그 단위에 붙은 라벨(descriptor)뿐이다. 그래서 보존 코어(ledger.js)는 불변:
+//   · 양(quantity) = 원장 풀 잔고 (이체로만 변함·보존 강제)
+//   · 종류(type)   = 노드·창고·아이템의 라벨 (에너지가 아니라 보존 대상 밖) = 어느 흐름 계수를 고를지
+// A9-1 가치 단일화: 아이템 위력은 재료 라벨과 **무관**하고 오직 에너지 잔고로 결정된다(반응성 균일).
+// 재료의 차이는 위력 배율이 아니라 (a) affinity = 어느 흐름을 증폭할지(채널 선택·배율 아님)
+// (b) abundance = 세계 분포(희소성). "총량이 가치를 결정한다" — 금이 귀한 건 계수가 세서가 아니라
+// 세계가 적게 뿜어서다(희소). 배율 상수(옛 div)를 제거해 공리를 코드에 실현한다. (Docs/Design-EntropicFlow.md)
+export const MATERIALS = {
+  //  종류   → { affinity: 거동('weapon'=발산/'crystal'=획득) · abundance: 세계 분포 가중(클수록 흔함) }
+  wood:  { affinity: 'crystal', abundance: 6 }, // 나무: 흔함
+  stone: { affinity: 'weapon',  abundance: 6 }, // 돌: 흔함
+  herb:  { affinity: 'crystal', abundance: 4 }, // 약초: 보통
+  iron:  { affinity: 'weapon',  abundance: 3 }, // 철: 보통
+  gem:   { affinity: 'crystal', abundance: 2 }, // 보석: 드묾
+  gold:  { affinity: 'weapon',  abundance: 1 }, // 금: 희소
+  ember: { affinity: 'weapon',  abundance: 1 }, // 불의 정수: 희소
+};
+export const MATERIAL_KEYS = Object.keys(MATERIALS); // 7종 (결정론 순서 — 시드 유도 인덱싱)
+export const STASH_MAX = 10_000;         // 재료 창고 풀(종류별) 용량 상한
+export const FORGE_MAT_REQUIRE = 100;    // 합성 소요 재료량 (창고 → 아이템)
+export const FORGE_ATTR_COST = 50;       // 속성 주입 = 생체 에너지 (플레이어 → 아이템)
+export const FORGE_ITEM_MAX = FORGE_MAT_REQUIRE + FORGE_ATTR_COST; // 아이템 용량 = 두 이체의 합
+// A9-4 엔트로피 세금: 질서를 *만드는*(집중하는) 것은 공짜가 아니다 — 열역학 제2법칙. 재료를 아이템으로
+// 잠글 때 일부가 SINK로 소산한다(오르막 집중의 대가). A9-2 누수(질서는 가만두면 무너진다)의 대칭:
+// 만들 때도 대가를 치른다. 세금 = entropicLeak(집중량 × NUM/DEN). 소산분은 태양 순환 복귀(보존).
+export const FORGE_TAX_NUM = 1;
+export const FORGE_TAX_DEN = 5;          // 합성 결정의 20%가 소산(150 투입 → 아이템 120 + SINK 30)
+
 // --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝: SOURCE=태양 원점, SINK=소산) ---
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
 // A6-0 태양 순환: 소산된 에너지(SINK)를 이 주기마다 SOURCE 로 되돌린다.
@@ -130,6 +170,7 @@ export const POOL = {
   MOB: 'M:',      // 몬스터
   ITEM: 'I:',     // 아이템 (응축 에너지)
   STRUCT: 'S:',   // A6-2 구조 풀 (성장 = 잠긴 질서, 플레이어당 1)
+  STASH: 'G:',    // A8-1 재료 창고 (종류별 채집물, region=null·플레이어당 종류마다 1)
   SOURCE: 'W:SRC',
   SINK: 'W:SINK',
 };
@@ -141,6 +182,8 @@ export const CAUSE = {
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
   DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle', UPKEEP: 'upkeep',
   GROW: 'grow', CATABOLISM: 'catabolism', GIVE: 'give',
+  MINE: 'mine', FORGE: 'forge',   // A8-1: 타입 채집(노드→창고) · 합성(창고+생체→아이템)
+  DECAY: 'decay',                 // A9-2: 엔트로픽 누수(아이템→SINK) — 질서의 자발적 소산
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

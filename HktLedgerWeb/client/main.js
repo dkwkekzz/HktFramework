@@ -7,10 +7,22 @@ import { ClientState } from './state.js';
 import { Sim } from './sim.js';
 import { Render } from './render.js';
 import { MSG, INTENT } from '../shared/protocol.js';
+import { nodeTap } from '../shared/entropy.js';
 import {
-  GATHER_RANGE, GATHER_AMOUNT, ATTACK_RANGE, PICKUP_RANGE,
+  GATHER_RANGE, NODE_TAP_NUM, NODE_TAP_DEN, ATTACK_RANGE, PICKUP_RANGE,
   ATTACK_COST, CRYSTAL_COST, WEAPON_COST, GIVE_RANGE, GROW_AMOUNT, SKILLS,
+  POOL, FORGE_ATTR_COST,
 } from '../shared/constants.js';
+
+// A8-1/A9-4 관측: 내 재료 창고 중 가장 많이 모인 종류 (FORGE 대상 자동 선택)
+function largestStash() {
+  let best = null, bestBal = 0;
+  const prefix = POOL.STASH + state.playerId + '#';
+  for (const [id, pool] of state.ledger.pools) {
+    if (id.startsWith(prefix) && pool.balance > bestBal) { bestBal = pool.balance; best = id.slice(prefix.length); }
+  }
+  return best;
+}
 
 const GIVE_CHUNK = 50; // 증여 1회 기본량 (T 키)
 
@@ -19,6 +31,8 @@ const net = new Net();
 const state = new ClientState();
 const sim = new Sim(net, state);
 const render = new Render(canvas, state, sim, net);
+// 관측/디버그 훅 — 읽기 전용 뷰어의 미러 원장·좌표를 콘솔에서 들여다보게 노출(권위 아님, 표시용).
+if (typeof window !== 'undefined') window.__hkt = { state, sim, net };
 sim.getYaw = () => render.yaw; // 카메라 상대 이동 — 이동 축을 현재 카메라 방향에 맞춘다
 
 state.onResync = (regions) => net.send(MSG.RESYNC, { regions });
@@ -51,7 +65,8 @@ addEventListener('keydown', (e) => {
       const item = nearest(['item'], PICKUP_RANGE);
       if (item) { net.intent(INTENT.PICKUP, { itemId: item.id }); return; }
       const node = nearest(['node'], GATHER_RANGE);
-      if (node) state.predict(net.intent(INTENT.GATHER, { nodeId: node.id }), +GATHER_AMOUNT);
+      // A9-3: 예측량도 미러 노드 잔고에서 같은 커널로 창발(서버와 동일 값) — 확정 tx 로 정정.
+      if (node) state.predict(net.intent(INTENT.GATHER, { nodeId: node.id }), +nodeTap(state.ledger.balance(node.id), NODE_TAP_NUM, NODE_TAP_DEN));
       break;
     }
     case 'Space': {
@@ -62,6 +77,18 @@ addEventListener('keydown', (e) => {
     }
     case 'KeyC': state.predict(net.intent(INTENT.CONDENSE), -CRYSTAL_COST); break;
     case 'KeyB': state.predict(net.intent(INTENT.CRAFT), -WEAPON_COST); break;
+    // A8-1/A9-3 관측: M=채굴(근처 노드 → 종류별 재료 창고, 창발량). 예측 없음(생체 에너지 아닌 창고로).
+    case 'KeyM': {
+      const node = nearest(['node'], GATHER_RANGE);
+      if (node) net.intent(INTENT.MINE, { nodeId: node.id });
+      break;
+    }
+    // A8-1/A9-4 관측: N=합성(가장 많이 모은 재료 → 결정, 엔트로피 세금). 생체 에너지 주입분만 예측.
+    case 'KeyN': {
+      const mat = largestStash();
+      if (mat) state.predict(net.intent(INTENT.FORGE, { mat }), -FORGE_ATTR_COST);
+      break;
+    }
     case 'KeyV': {
       const id = firstItem('crystal');
       if (id) state.predict(net.intent(INTENT.USE, { itemId: id }), +state.ledger.balance(id));

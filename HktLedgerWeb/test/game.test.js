@@ -19,8 +19,14 @@ import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
 import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
+  MATERIALS, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN,
+  DECAY_INTERVAL_TICKS, ITEM_DECAY_NUM, ITEM_DECAY_DEN, NODE_TAP_NUM, NODE_TAP_DEN,
+} from '../shared/constants.js';
+import { EnergyLedger } from '../shared/ledger.js';
+import { entropicLeak, relaxGradient, nodeTap } from '../shared/entropy.js';
+import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
-  GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
+  GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
   RECYCLE_INTERVAL_TICKS, UPKEEP_INTERVAL_TICKS, UPKEEP_AMOUNT,
   FIELD_RICH_MIN, FIELD_RICH_MAX, REGEN_INTERVAL_TICKS, NODE_REGEN_AMOUNT,
@@ -86,8 +92,10 @@ test('동시 채집 중재 — FIFO 클램프, Got<Want, 고갈 기각', () => {
   const node = game.nodes.values().next().value;
   for (const p of [a, b, c]) { warp(p.player, node.x + 10, node.y, node.z); game.tick(); }
 
-  // 노드를 30 만 남기고 비운다 (테스트 전용 직접 이체 — 역시 보존)
-  game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id) - 30, 'test');
+  // 노드를 DEN(20)만 남긴다 (테스트 전용 직접 이체 — 역시 보존). A9-3: 엔트로픽 탭 = floor(잔고/20)
+  // → A 가 1(20→19)을 FIFO 로 선점하고, 남은 19 는 탭이 floor(19/20)=0 이라 B·C 는 0 채집 → 고갈 기각.
+  // 감소 수익이 클램프가 아니라 법칙: 노드가 완전히 비지 않아도 흐름이 0으로 잦아든다.
+  game.ledger.transfer(node.id, POOL.SINK, game.ledger.balance(node.id) - NODE_TAP_DEN, 'test');
 
   const ia = intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'ia');
   const ib = intent(b.player, INTENT.GATHER, { nodeId: node.id }, 'ib');
@@ -95,12 +103,12 @@ test('동시 채집 중재 — FIFO 클램프, Got<Want, 고갈 기각', () => {
   game.tick();
 
   const balA = game.ledger.balance(a.player.id);
-  const balB = game.ledger.balance(b.player.id);
-  assert.ok(balA > game.ledger.balance(c.player.id), 'A 가 먼저 채집');
-  const gotA = 25, gotB = 5; // 30 잔고 → A 25, B 5 (Got<Want), C 0
-  assert.equal(game.ledger.balance(node.id), 0);
+  assert.ok(balA > game.ledger.balance(c.player.id), 'A 가 먼저 채집(FIFO 선점)');
+  assert.equal(game.ledger.balance(node.id), NODE_TAP_DEN - 1, 'A 가 1 선점, 잔여(19)는 탭 0 — 흐름 고갈');
+  const rejB = b.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'ib');
   const rejC = c.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'ic');
-  assert.equal(rejC?.reason, 'depleted-or-full');
+  assert.equal(rejB?.reason, 'depleted-or-full', '흐름 잦아든 노드 채집 = 기각(B)');
+  assert.equal(rejC?.reason, 'depleted-or-full', '흐름 잦아든 노드 채집 = 기각(C)');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 
   // 재충전 루프: REGEN 틱까지 진행하면 SOURCE 에서 다시 채워진다
@@ -588,10 +596,11 @@ test('A6-5 아이템 = 결정체 장착 — 아이템 잔고가 스탯을 증폭
   game.tick();
   setBal(a.player.id, 500);
   const pBefore = bal(a.player.id);
+  const nodeBal = bal(node.id); // A9-3: 채집량은 노드 집중도에서 창발
   intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g1');
   game.tick();
-  assert.equal(bal(a.player.id) - pBefore, GATHER_AMOUNT + gatherBonus(bal(crystal.id)),
-    '채집량 = 기본 + 결정 잔고 증폭');
+  assert.equal(bal(a.player.id) - pBefore, nodeTap(nodeBal, NODE_TAP_NUM, NODE_TAP_DEN) + gatherBonus(bal(crystal.id)),
+    '채집량 = 노드 탭(창발) + 결정 잔고 증폭');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 
   // (3) 드랍 시 증폭 제거 — 무기를 버리면 발산 증폭이 사라진다 (같은 틱: 드랍 FIFO 먼저 → 공격)
@@ -718,8 +727,10 @@ test('A7-1 구조 분화 — 조직별 예치가 서로 다른 흐름 계수에 
   game.tick();
   const gainF = bal(forager.player.id) - pBefore;
 
-  assert.equal(gainB, GATHER_AMOUNT, '발산 빌드 채집 = 기본 (대사 조직 0)');
-  assert.equal(gainF, GATHER_AMOUNT + gatherStructBonus(300), '대사 빌드 채집 = 기본 + gatherStructBonus(대사 조직)');
+  // A9-3: 기본 채집량 = 노드 탭(둘 다 node.max 에서 채집하므로 base 동일). 대사 조직이 채널을 넓힌다.
+  const tapBase = nodeTap(node.max, NODE_TAP_NUM, NODE_TAP_DEN);
+  assert.equal(gainB, tapBase, '발산 빌드 채집 = 노드 탭 기본 (대사 조직 0)');
+  assert.equal(gainF, tapBase + gatherStructBonus(300), '대사 빌드 채집 = 노드 탭 + gatherStructBonus(대사 조직)');
   assert.ok(gainF > gainB, '대사 조직이 획득을 키운다 (분화의 다른 축)');
 
   // (3) 유지비는 총 구조의 함수 — 빌드가 달라도 총량 같으면 유지비 동일 (분화는 계수만 가른다)
@@ -884,6 +895,294 @@ test('3D 공간 — 사거리가 z 를 포함한다 (수직 분리 사거리 밖
   game.tick();
   assert.ok(game.ledger.balance(a.player.id) > before, 'z 정렬 후 채집 성공');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
+});
+
+test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고 채굴, 창고+생체→결정 (민팅 없음·보존)', () => {
+  // (0) 순수: 재료 라벨은 거동(채널)을 고를 뿐 위력 배율이 아니다(A9-1). 금·돌은 발산, 나무·보석은 획득.
+  assert.equal(MATERIALS.gold.affinity, 'weapon', '금 = 발산 채널');
+  assert.equal(MATERIALS.wood.affinity, 'crystal', '나무 = 획득 채널');
+
+  const { clock, game, join, warp, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => {
+    const cur = bal(id);
+    if (v > cur) game.ledger.transfer(POOL.SOURCE, id, v - cur, 'test');
+    else if (v < cur) game.ledger.transfer(id, POOL.SINK, cur - v, 'test');
+  };
+  const stashId = (mat) => `${POOL.STASH}${a.player.id}#${mat}`;
+
+  // 발산 계수 재료(무기 친화) 노드 하나를 골라 그 종류를 캔다.
+  const wNode = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  assert.ok(wNode, '발산 친화 재료 노드 존재');
+  const mat = wNode.mat;
+
+  // (1) 타입 채집(MINE) — 노드가 발산하는 종류의 결정을 캐서 종류별 창고로 옮긴다(노드→창고).
+  warp(a.player, wNode.x + 10, wNode.y, wNode.z);
+  game.tick();
+  const nodeBefore = bal(wNode.id);
+  const expectMine = nodeTap(nodeBefore, NODE_TAP_NUM, NODE_TAP_DEN); // A9-3: 채굴량도 노드 집중도에서 창발
+  intent(a.player, INTENT.MINE, { nodeId: wNode.id }, 'm1');
+  game.tick();
+  assert.equal(bal(stashId(mat)), expectMine, '창고에 재료 적립 = 노드 탭(창발)');
+  assert.equal(nodeBefore - bal(wNode.id), expectMine, '노드에서 정확히 그만큼 빠짐(민팅 아님)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '채굴 후 총합 보존');
+
+  // 창고를 합성 요건까지 채운다 (4회 채굴 = 100).
+  while (bal(stashId(mat)) < FORGE_MAT_REQUIRE) { intent(a.player, INTENT.MINE, { nodeId: wNode.id }); game.tick(); }
+  assert.ok(bal(stashId(mat)) >= FORGE_MAT_REQUIRE, '창고 ≥ 합성 요건');
+
+  // (2) 합성(FORGE) = "금이 아이템이 된다" — 재료 창고 + 생체(속성) 에너지를 한 결정으로 결합.
+  setBal(a.player.id, FORGE_ATTR_COST + 10); // 속성 주입분 확보
+  const stashBefore = bal(stashId(mat));
+  const freeBefore = bal(a.player.id);
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+  assert.ok(item, '결정 아이템 생성됨');
+  assert.equal(item.mat, mat, '아이템에 재료 종류 라벨');
+  assert.equal(item.itemType, MATERIALS[mat].affinity, '거동(발산/획득)은 종류가 정함');
+  // 금은 변환되지 않는다: 투입 = 재료 100 + 생체 50. A9-4: 오르막 집중의 엔트로피 세금만큼 소산 →
+  // 아이템은 투입보다 작다(민팅 아님·오히려 손실). 잔고 = 투입 - 세금.
+  const forgeTax = entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.equal(bal(item.id), FORGE_ITEM_MAX - forgeTax, '아이템 잔고 = 투입 - 엔트로피 세금');
+  assert.equal(stashBefore - bal(stashId(mat)), FORGE_MAT_REQUIRE, '창고에서 정확히 재료분만 빠짐');
+  assert.equal(freeBefore - bal(a.player.id), FORGE_ATTR_COST, '생체에서 정확히 속성분만 빠짐');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '합성 후 총합 보존(세금은 SINK로)');
+
+  // (3) 합성 무기 전투 증폭 = weaponBonus(잔고) — 위력은 오직 에너지(재료 무관·A9-1)·피격자 클램프.
+  const tgt = join('TGT');
+  game.tick();
+  warp(a.player, tgt.player.x + 30, tgt.player.y, tgt.player.z);
+  game.tick();
+  setBal(a.player.id, 500); setBal(tgt.player.id, PLAYER_MAX_ENERGY);
+  const before = bal(tgt.player.id);
+  const wBalPreWear = bal(item.id);
+  clock.t += ATTACK_COOLDOWN_MS + 10;
+  intent(a.player, INTENT.ATTACK, { targetId: tgt.player.id, seq: 1 }, 'a1'); // 위임 없음 = 서버 canonical
+  game.tick();
+  const dealt = before - bal(tgt.player.id);
+  assert.equal(dealt, canonicalDamage(WORLD_SEED, a.player.id, 1) + weaponBonus(wBalPreWear),
+    '데미지 = canonical + 잔고 증폭(민팅 아님·피격자 클램프)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '전투 후 총합 보존');
+
+  // (4) 잘못된 요청 기각 — 재료 없는 종류 합성 시도.
+  const emptyMat = Object.keys(MATERIALS).find(m => bal(stashId(m)) < FORGE_MAT_REQUIRE);
+  intent(a.player, INTENT.FORGE, { mat: emptyMat }, 'fx');
+  game.tick();
+  assert.ok(a.conn.msgs.find(m => m.t === MSG.REJECT && m.iid === 'fx'), '재료 부족 합성 기각');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+
+  console.log(`    [A8-1] 채굴 ${mat}(창발량) · 합성 = 재료 ${FORGE_MAT_REQUIRE}+생체 ${FORGE_ATTR_COST}=결정 ${FORGE_ITEM_MAX}(민팅 없음) · 무기 발산 +${weaponBonus(FORGE_ITEM_MAX)}(재료 무관) · 총합 ${total()} 불변`);
+});
+
+test('A8-1 미러 정합 — 타입 채집·합성 tx 재생 후 지역 체크섬 일치 (창고 region=null 무해)', () => {
+  const { clock, game, join, warp, intent } = setup();
+  const a = join('A');
+  const b = join('B');
+  game.tick();
+
+  const node = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  const mat = node.mat;
+  warp(a.player, node.x + 10, node.y, node.z);
+  game.tick();
+  // 채굴 4회 → 창고 채우고 → 합성 → 드랍 → 픽업
+  for (let i = 0; i < 5; i++) { intent(a.player, INTENT.MINE, { nodeId: node.id }, `m${i}`); game.tick(); }
+  // 속성분(생체 에너지)은 스폰 지급분(300)으로 충당 — 직접 주입은 미러가 못 보므로 금지.
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+  intent(a.player, INTENT.DROP, { itemId: item.id }, 'd1');
+  game.tick();
+  intent(a.player, INTENT.PICKUP, { itemId: item.id }, 'p1');
+  game.tick();
+
+  // 다음 체크섬 틱까지 진행
+  while (game.tickCount % 30 !== 1) game.tick();
+
+  const client = new ClientState();
+  const resyncs = [];
+  client.onResync = (keys) => resyncs.push(...keys);
+  for (const msg of a.conn.msgs) client.handle(msg);
+
+  assert.equal(client.ledger.balance(a.player.id), game.ledger.balance(a.player.id), '자기 풀 잔고 정합');
+  assert.equal(client.ledger.balance(item.id), game.ledger.balance(item.id), '합성 아이템 잔고 정합');
+  for (const key of a.player.regions) {
+    assert.equal(client.ledger.regionSum(key), game.ledger.regionSum(key), `지역 ${key} 체크섬 정합`);
+  }
+  assert.equal(resyncs.length, 0, '재동기화 불필요');
+  assert.equal(client.checksumStatus, 'OK');
+});
+
+test('A9-1 가치 단일화 — 위력은 오직 에너지(재료 라벨 무관)·재료 차이는 분포(희소성)에서 (보존)', () => {
+  // (0) 배율 상수(옛 div) 제거 — 재료는 위력에 개입하지 않는다. 위력 함수는 재료를 인자로 안 받는다.
+  for (const k of Object.keys(MATERIALS)) assert.equal(MATERIALS[k].div, undefined, `${k}: div 제거됨`);
+  assert.equal(weaponBonus.length, 1, 'weaponBonus 는 잔고 하나만 받는다(재료 인자 없음)');
+  assert.equal(gatherBonus.length, 1, 'gatherBonus 는 잔고 하나만 받는다');
+  // 위력을 키우는 유일한 축은 에너지(잔고) — 더 많은 에너지 = 더 센 위력. 재료는 못 바꾼다.
+  assert.ok(weaponBonus(300) > weaponBonus(150), '에너지↑ → 위력↑ (가치=에너지)');
+
+  const { game } = setup();
+  // (1) 분포 비균일 = 희소성: 흔한 재료(abundance↑) 노드가 희소 재료보다 많다 — 시드 유도.
+  const counts = {};
+  for (const n of game.nodes.values()) counts[n.mat] = (counts[n.mat] ?? 0) + 1;
+  const common = (counts.wood ?? 0) + (counts.stone ?? 0);
+  const rare = (counts.gold ?? 0) + (counts.ember ?? 0);
+  assert.ok(common > rare, `흔한 재료(${common}) > 희소 재료(${rare}) — 다양성이 분포(희소성)에서 창발`);
+  assert.ok(Object.keys(counts).length >= 3, '재료 종류 다양성 유지');
+
+  // (2) 가치 = 에너지: FORGE 는 재료와 무관하게 같은 에너지(투입-세금)를 담으므로 모든 합성 무기는
+  //     같은 위력이다 — 금 무기도 돌 무기도 동일. 희소 재료는 "더 세다"가 아니라 "더 귀하다".
+  const forged = FORGE_ITEM_MAX - entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.equal(weaponBonus(forged), weaponBonus(forged), '같은 에너지 → 같은 위력(재료 무관)');
+  assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
+
+  console.log(`    [A9-1] div 제거·weaponBonus(잔고) 재료 무관 +${weaponBonus(FORGE_ITEM_MAX)} · 노드 분포 흔함 ${common} > 희소 ${rare}(희소성=분포) · 총합 ${game.ledger.totalSum()} 불변`);
+});
+
+test('A9-2 엔트로픽 누수 — 손 안 댄 질서(아이템)는 SINK로 자발 이완·결국 완전 소산 (커널 통일·보존)', () => {
+  // (0) 순수 커널: 누수 = floor(잔고 × num/den) · relaxGradient 는 높은 쪽 → 낮은 쪽(필드 확산과 한 법칙).
+  assert.equal(entropicLeak(1000, ITEM_DECAY_NUM, ITEM_DECAY_DEN), 20, '1000의 2% = 20');
+  assert.equal(entropicLeak(49, 1, 50), 0, 'sub-1 흐름은 mean-field 에서 0 (양자 바닥은 호출측 책임)');
+  const L = new EnergyLedger();
+  L.createPool('a', 100, 1000); L.createPool('b', 20, 1000);
+  assert.equal(relaxGradient(L, 'a', 'b', 1, 4, 'diffuse'), 20, 'grad 80 → floor(80/4)=20');
+  assert.equal(L.balance('a'), 80); assert.equal(L.balance('b'), 40, '높은 쪽 → 낮은 쪽');
+
+  const { game, join, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+
+  // 결정(잔고 100) 응축 — 이후 아무것도 안 한다(손 안 댐).
+  intent(a.player, INTENT.CONDENSE, {}, 'c1');
+  game.tick();
+  const crystal = [...game.items.values()][0];
+  assert.equal(bal(crystal.id), CRYSTAL_COST);
+
+  // (1) 한 감쇠 주기 — 손 안 댄 결정이 SINK로 이완. 누수 = max(floor(100/50),1)=2.
+  while (game.tickCount === 0 || game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick();
+  const before = bal(crystal.id);
+  game.tick(); // 진입 tickCount = 50의 배수 → 감쇠 발화
+  const leaked = before - bal(crystal.id);
+  assert.equal(leaked, Math.max(Math.floor(before / ITEM_DECAY_DEN), 1), '아이템 엔트로픽 누수 = floor(잔고/DEN)(양자 바닥 1)');
+  assert.ok(leaked > 0, '손 안 댔는데도 감소(엔트로피)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '누수 후 총합 보존');
+  // 소유자에게 누수 tx(decay) 방송 — 미러가 재생할 수 있다.
+  const decayTx = a.conn.msgs.flatMap(m => m.t === MSG.OPS ? m.ops : []).find(o => o.op === 'tx' && o.cause === 'decay' && o.from === crystal.id);
+  assert.ok(decayTx, '소유자에게 누수 tx(decay) 방송');
+
+  // (2) 결국 완전 소산 — 잔고를 1로 몰아넣고 한 주기 더 돌리면 흩어져 사라진다(소멸).
+  game.ledger.transfer(crystal.id, POOL.SINK, bal(crystal.id) - 1, 'test'); // 잔고 1 (SINK로 — 보존)
+  while (game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick();
+  game.tick(); // 감쇠 발화 → leak=max(0,1)=1 → 0 → 소멸
+  assert.ok(!game.items.has(crystal.id), '완전 소산한 결정은 소멸(원장에서도 제거)');
+  const goneEv = a.conn.msgs.flatMap(m => m.t === MSG.OPS ? m.ops : []).find(o => o.op === 'event' && o.kind === 'item-gone' && o.id === crystal.id);
+  assert.ok(goneEv, '소멸 시 소유자에게 item-gone');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '소멸 후에도 총합 보존');
+
+  console.log(`    [A9-2] 아이템 누수 ${before}→${before - leaked}(=${leaked}·감가=엔트로피) · 손 안 댄 질서 결국 소멸 · WEAPON_WEAR 상수 제거 · 총합 ${total()} 불변`);
+});
+
+test('A9-2 미러 정합 — 엔트로픽 누수 tx 재생 후 아이템 잔고·지역 체크섬 일치', () => {
+  const { game, join, intent } = setup();
+  const a = join('A');
+  game.tick();
+  intent(a.player, INTENT.CONDENSE, {}, 'c1');
+  game.tick();
+  const crystal = [...game.items.values()][0];
+
+  // 여러 감쇠 주기 경과 (전부 mirrored decay tx) → 체크섬 틱까지 진행
+  for (let i = 0; i < 3; i++) { while (game.tickCount % DECAY_INTERVAL_TICKS !== 0) game.tick(); game.tick(); }
+  while (game.tickCount % 30 !== 1) game.tick();
+
+  const client = new ClientState();
+  const resyncs = [];
+  client.onResync = (keys) => resyncs.push(...keys);
+  for (const msg of a.conn.msgs) client.handle(msg);
+
+  assert.ok(game.ledger.balance(crystal.id) < CRYSTAL_COST, '누수로 잔고 감소했다');
+  assert.equal(client.ledger.balance(crystal.id), game.ledger.balance(crystal.id), '누수 후 아이템 잔고 정합');
+  for (const key of a.player.regions) {
+    assert.equal(client.ledger.regionSum(key), game.ledger.regionSum(key), `지역 ${key} 체크섬 정합`);
+  }
+  assert.equal(resyncs.length, 0, '재동기화 불필요');
+  assert.equal(client.checksumStatus, 'OK');
+});
+
+test('A9-3 흐름 흡수 — 채집량은 상수가 아니라 노드 집중도에서 창발 (풍부>고갈·엔트로픽 탭·보존)', () => {
+  // (0) 순수 커널: nodeTap = floor(잔고 × num/den). 풍부한 노드가 더 주고, 거의 빈 노드는 0(로밍 유도).
+  assert.equal(nodeTap(1000, NODE_TAP_NUM, NODE_TAP_DEN), Math.floor(1000 * NODE_TAP_NUM / NODE_TAP_DEN), 'floor(잔고 × rate)');
+  assert.ok(nodeTap(1000, NODE_TAP_NUM, NODE_TAP_DEN) > nodeTap(200, NODE_TAP_NUM, NODE_TAP_DEN), '풍부 > 고갈');
+  assert.equal(nodeTap(NODE_TAP_DEN - 1, NODE_TAP_NUM, NODE_TAP_DEN), 0, '거의 빈 노드(<DEN)는 흐름 0 — 양자 바닥 없음');
+  assert.equal(nodeTap(0, NODE_TAP_NUM, NODE_TAP_DEN), 0, '빈 노드는 0');
+
+  const { game, join, warp, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => { const c = bal(id); if (v > c) game.ledger.transfer(POOL.SOURCE, id, v - c, 'test'); else if (v < c) game.ledger.transfer(id, POOL.SINK, c - v, 'test'); };
+
+  const node = game.nodes.values().next().value;
+  warp(a.player, node.x + 10, node.y, node.z);
+  game.tick();
+
+  // (1) 풍부한 노드에서 채집 = 큰 흐름.
+  setBal(node.id, node.max); const nbRich = bal(node.id);
+  setBal(a.player.id, 300);
+  let p = bal(a.player.id);
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g-rich');
+  game.tick();
+  const rich = bal(a.player.id) - p;
+  assert.equal(rich, nodeTap(nbRich, NODE_TAP_NUM, NODE_TAP_DEN), '풍부 노드 채집량 = 탭(노드 잔고)');
+
+  // (2) 같은 노드를 고갈시키면 채집량이 법칙에 따라 줄어든다 — 감소수익이 클램프가 아니라 법칙.
+  setBal(node.id, 100); const nbPoor = bal(node.id);
+  setBal(a.player.id, 300);
+  p = bal(a.player.id);
+  intent(a.player, INTENT.GATHER, { nodeId: node.id }, 'g-poor');
+  game.tick();
+  const poor = bal(a.player.id) - p;
+  assert.equal(poor, nodeTap(nbPoor, NODE_TAP_NUM, NODE_TAP_DEN), '고갈 노드 채집량 = 탭(노드 잔고)');
+  assert.ok(rich > poor, '풍부할수록 많이·고갈될수록 적게 (감소수익=법칙·상수 아님)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '채집 창발 후에도 보존');
+
+  console.log(`    [A9-3] 채집 창발 — 풍부(${nbRich})→${rich} · 고갈(${nbPoor})→${poor} · GATHER_AMOUNT/MINE_AMOUNT 상수 제거 · 총합 ${total()} 불변`);
+});
+
+test('A9-4 엔트로피 세금 — 합성(질서 집중)은 소산을 낳는다: 아이템 < 투입 (A9-2 누수의 대칭·보존)', () => {
+  // (0) 세금 = entropicLeak(집중량) — 오르막(질서 창조)의 대가. 투입 150 → 세금 30.
+  const tax = entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.ok(tax > 0, '집중에는 대가가 있다(열역학 제2법칙)');
+
+  const { game, join, warp, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => { const c = bal(id); if (v > c) game.ledger.transfer(POOL.SOURCE, id, v - c, 'test'); else if (v < c) game.ledger.transfer(id, POOL.SINK, c - v, 'test'); };
+
+  // 무기 친화 노드를 채굴해 재료 창고를 요건까지 채운다.
+  const wNode = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  const mat = wNode.mat;
+  const stashId = `${POOL.STASH}${a.player.id}#${mat}`;
+  warp(a.player, wNode.x + 10, wNode.y, wNode.z);
+  game.tick();
+  while (bal(stashId) < FORGE_MAT_REQUIRE) { intent(a.player, INTENT.MINE, { nodeId: wNode.id }); game.tick(); }
+  setBal(a.player.id, FORGE_ATTR_COST + 10);
+
+  const inputs = FORGE_MAT_REQUIRE + FORGE_ATTR_COST;
+  const sinkBefore = bal(POOL.SINK);
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+
+  assert.equal(bal(item.id), inputs - tax, '아이템 = 투입 - 세금 (오르막 집중의 소산)');
+  assert.ok(bal(item.id) < inputs, '만든 것이 넣은 것보다 작다 — 민팅의 반대(질서 창조의 대가)');
+  assert.ok(bal(POOL.SINK) - sinkBefore >= tax, '세금만큼(이상) SINK로 소산');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '세금 포함 총합 보존');
+
+  console.log(`    [A9-4] 합성 세금 — 투입 ${inputs} → 아이템 ${bal(item.id)} + SINK 소산 ${tax}(질서 집중의 대가·A9-2 누수의 대칭) · 총합 ${total()} 불변`);
 });
 
 test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {
