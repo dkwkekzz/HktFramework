@@ -283,12 +283,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		let axis = ba / bl;
 		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u)
 		let h = hash31(s.misc.y + f32(bi) * 0.317);
-		let rr = mix(A.w, B.w, h.x) * sqrt(h.y);
+		// 캡슐(둥근 끝) 부피 채우기: 축을 캡 포함 [-ra, bl+rb] 로 확장하고, 캡 구간은
+		// 단면 반지름을 반구로 수축시킨다 — 원기둥 끝이 반구로 마감돼 뼈가 진짜 캡슐이 된다.
+		// (짧고 굵은 머리 뼈 = 공, 몸통 = 둥근 배). 자리는 여전히 포즈의 순수 함수(절대 원칙 1).
+		let ra = A.w;
+		let rb = B.w;
+		let axPos = mix(-ra, bl + rb, h.x);
+		let tc = clamp(axPos, 0.0, bl);
+		var rmax = mix(ra, rb, tc / bl);
+		if (axPos < 0.0) { rmax = sqrt(max(ra * ra - axPos * axPos, 0.0)); }
+		else if (axPos > bl) { let d = axPos - bl; rmax = sqrt(max(rb * rb - d * d, 0.0)); }
+		let rr = rmax * sqrt(h.y);
 		// 뼈 축 수직 기저 — 상수 기준축(어느 뼈와도 평행하지 않게 기울임)이라 포즈 변화에 연속
 		let e1 = normalize(cross(axis, vec3f(0.402, 0.618, 0.675)));
 		let e2 = cross(axis, e1);
 		let th = h.z * 6.2831853;
-		let site = A.xyz + axis * (h.x * bl) + (e1 * cos(th) + e2 * sin(th)) * rr;
+		let site = A.xyz + axis * axPos + (e1 * cos(th) + e2 * sin(th)) * rr;
 		// 자리 스프링 — 오차 클램프로 원거리 응축(성장) 시 힘 폭주 방지
 		var dv = site - s.pos;
 		let dl = length(dv);
