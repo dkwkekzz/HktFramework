@@ -19,7 +19,7 @@ import { canonicalDamage } from '../shared/audit.js';
 import { attackBonus, upkeepFor, skillDamage, weaponBonus, gatherBonus, gatherStructBonus } from '../shared/growth.js';
 import { SKILLS, WEAPON_COST, ORGANS } from '../shared/constants.js';
 import {
-  MATERIALS, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
+  MATERIALS, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN,
   DECAY_INTERVAL_TICKS, ITEM_DECAY_NUM, ITEM_DECAY_DEN, NODE_TAP_NUM, NODE_TAP_DEN,
 } from '../shared/constants.js';
 import { EnergyLedger } from '../shared/ledger.js';
@@ -943,11 +943,13 @@ test('A8-1 타입 채집·합성 — 금이 아이템이 된다: 노드→창고
   assert.ok(item, '결정 아이템 생성됨');
   assert.equal(item.mat, mat, '아이템에 재료 종류 라벨');
   assert.equal(item.itemType, MATERIALS[mat].affinity, '거동(발산/획득)은 종류가 정함');
-  // 금은 변환되지 않는다: 아이템 잔고 = 재료 100 + 생체 50, 두 이체의 합 그대로(민팅 없음).
-  assert.equal(bal(item.id), FORGE_ITEM_MAX, '아이템 잔고 = 재료 + 속성 (두 이체의 합)');
+  // 금은 변환되지 않는다: 투입 = 재료 100 + 생체 50. A9-4: 오르막 집중의 엔트로피 세금만큼 소산 →
+  // 아이템은 투입보다 작다(민팅 아님·오히려 손실). 잔고 = 투입 - 세금.
+  const forgeTax = entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.equal(bal(item.id), FORGE_ITEM_MAX - forgeTax, '아이템 잔고 = 투입 - 엔트로피 세금');
   assert.equal(stashBefore - bal(stashId(mat)), FORGE_MAT_REQUIRE, '창고에서 정확히 재료분만 빠짐');
   assert.equal(freeBefore - bal(a.player.id), FORGE_ATTR_COST, '생체에서 정확히 속성분만 빠짐');
-  assert.equal(total(), WORLD_SOURCE_INITIAL, '합성 후 총합 보존');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '합성 후 총합 보존(세금은 SINK로)');
 
   // (3) 합성 무기 전투 증폭 = weaponBonus(잔고) — 위력은 오직 에너지(재료 무관·A9-1)·피격자 클램프.
   const tgt = join('TGT');
@@ -1030,9 +1032,10 @@ test('A9-1 가치 단일화 — 위력은 오직 에너지(재료 라벨 무관)
   assert.ok(common > rare, `흔한 재료(${common}) > 희소 재료(${rare}) — 다양성이 분포(희소성)에서 창발`);
   assert.ok(Object.keys(counts).length >= 3, '재료 종류 다양성 유지');
 
-  // (2) 가치 = 에너지: FORGE 는 재료와 무관하게 같은 에너지(FORGE_ITEM_MAX)를 담으므로 모든 합성
-  //     무기는 같은 위력이다 — 금 무기도 돌 무기도 동일. 희소 재료는 "더 세다"가 아니라 "더 귀하다".
-  assert.equal(weaponBonus(FORGE_ITEM_MAX), weaponBonus(FORGE_ITEM_MAX), '같은 에너지 → 같은 위력(재료 무관)');
+  // (2) 가치 = 에너지: FORGE 는 재료와 무관하게 같은 에너지(투입-세금)를 담으므로 모든 합성 무기는
+  //     같은 위력이다 — 금 무기도 돌 무기도 동일. 희소 재료는 "더 세다"가 아니라 "더 귀하다".
+  const forged = FORGE_ITEM_MAX - entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.equal(weaponBonus(forged), weaponBonus(forged), '같은 에너지 → 같은 위력(재료 무관)');
   assert.equal(game.ledger.totalSum(), WORLD_SOURCE_INITIAL);
 
   console.log(`    [A9-1] div 제거·weaponBonus(잔고) 재료 무관 +${weaponBonus(FORGE_ITEM_MAX)} · 노드 분포 흔함 ${common} > 희소 ${rare}(희소성=분포) · 총합 ${game.ledger.totalSum()} 불변`);
@@ -1146,6 +1149,40 @@ test('A9-3 흐름 흡수 — 채집량은 상수가 아니라 노드 집중도�
   assert.equal(total(), WORLD_SOURCE_INITIAL, '채집 창발 후에도 보존');
 
   console.log(`    [A9-3] 채집 창발 — 풍부(${nbRich})→${rich} · 고갈(${nbPoor})→${poor} · GATHER_AMOUNT/MINE_AMOUNT 상수 제거 · 총합 ${total()} 불변`);
+});
+
+test('A9-4 엔트로피 세금 — 합성(질서 집중)은 소산을 낳는다: 아이템 < 투입 (A9-2 누수의 대칭·보존)', () => {
+  // (0) 세금 = entropicLeak(집중량) — 오르막(질서 창조)의 대가. 투입 150 → 세금 30.
+  const tax = entropicLeak(FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN);
+  assert.ok(tax > 0, '집중에는 대가가 있다(열역학 제2법칙)');
+
+  const { game, join, warp, intent, total } = setup();
+  const a = join('A');
+  game.tick();
+  const bal = (id) => game.ledger.balance(id);
+  const setBal = (id, v) => { const c = bal(id); if (v > c) game.ledger.transfer(POOL.SOURCE, id, v - c, 'test'); else if (v < c) game.ledger.transfer(id, POOL.SINK, c - v, 'test'); };
+
+  // 무기 친화 노드를 채굴해 재료 창고를 요건까지 채운다.
+  const wNode = [...game.nodes.values()].find(n => MATERIALS[n.mat].affinity === 'weapon');
+  const mat = wNode.mat;
+  const stashId = `${POOL.STASH}${a.player.id}#${mat}`;
+  warp(a.player, wNode.x + 10, wNode.y, wNode.z);
+  game.tick();
+  while (bal(stashId) < FORGE_MAT_REQUIRE) { intent(a.player, INTENT.MINE, { nodeId: wNode.id }); game.tick(); }
+  setBal(a.player.id, FORGE_ATTR_COST + 10);
+
+  const inputs = FORGE_MAT_REQUIRE + FORGE_ATTR_COST;
+  const sinkBefore = bal(POOL.SINK);
+  intent(a.player, INTENT.FORGE, { mat }, 'f1');
+  game.tick();
+  const item = [...game.items.values()].find(i => i.owner === a.player.id);
+
+  assert.equal(bal(item.id), inputs - tax, '아이템 = 투입 - 세금 (오르막 집중의 소산)');
+  assert.ok(bal(item.id) < inputs, '만든 것이 넣은 것보다 작다 — 민팅의 반대(질서 창조의 대가)');
+  assert.ok(bal(POOL.SINK) - sinkBefore >= tax, '세금만큼(이상) SINK로 소산');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '세금 포함 총합 보존');
+
+  console.log(`    [A9-4] 합성 세금 — 투입 ${inputs} → 아이템 ${bal(item.id)} + SINK 소산 ${tax}(질서 집중의 대가·A9-2 누수의 대칭) · 총합 ${total()} 불변`);
 });
 
 test('3D 속도 예산 — 수직 순간이동 비콘도 기각', () => {

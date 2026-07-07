@@ -32,7 +32,7 @@ import {
   ATTACK_RANGE, ATTACK_COST,
   LEECH_PERCENT, ATTACK_COOLDOWN_MS, MOB_RESPAWN_MS, GIVE_RANGE,
   CRYSTAL_COST, WEAPON_COST, PICKUP_RANGE, STRUCT_MAX, GROW_AMOUNT, SKILLS, ORGANS,
-  MATERIALS, STASH_MAX, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX,
+  MATERIALS, STASH_MAX, FORGE_MAT_REQUIRE, FORGE_ATTR_COST, FORGE_ITEM_MAX, FORGE_TAX_NUM, FORGE_TAX_DEN,
   AUDIT_SEED, AUDIT_SAMPLE_NUM, AUDIT_SAMPLE_DEN,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -447,6 +447,9 @@ export class GameServer {
         // 두 이체 = 결합. 재료(몸통) + 생체(속성 주입). 아이템 잔고 = 두 이체의 합(보존).
         this.#tx(stashId, item.id, FORGE_MAT_REQUIRE, CAUSE.FORGE, p, iid);
         this.#tx(p.id, item.id, FORGE_ATTR_COST, CAUSE.FORGE, p, iid);
+        // A9-4 엔트로피 세금: 오르막 집중(질서 창조)의 대가 — 갓 빚은 결정이 즉시 일부를 SINK로 소산한다.
+        //   세금 = entropicLeak(집중량). 아이템은 투입보다 작아진다(민팅 아님·오히려 손실). region=null → 소유자 도달.
+        this.#tx(item.id, POOL.SINK, entropicLeak(this.ledger.balance(item.id), FORGE_TAX_NUM, FORGE_TAX_DEN), CAUSE.DECAY, p);
         break;
       }
 

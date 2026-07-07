@@ -146,10 +146,14 @@ export const MATERIALS = {
 };
 export const MATERIAL_KEYS = Object.keys(MATERIALS); // 7종 (결정론 순서 — 시드 유도 인덱싱)
 export const STASH_MAX = 10_000;         // 재료 창고 풀(종류별) 용량 상한
-export const MINE_AMOUNT = 25;           // MINE 1회 요청량 (노드 잔고·창고 수용량으로 클램프)
 export const FORGE_MAT_REQUIRE = 100;    // 합성 소요 재료량 (창고 → 아이템)
 export const FORGE_ATTR_COST = 50;       // 속성 주입 = 생체 에너지 (플레이어 → 아이템)
 export const FORGE_ITEM_MAX = FORGE_MAT_REQUIRE + FORGE_ATTR_COST; // 아이템 용량 = 두 이체의 합
+// A9-4 엔트로피 세금: 질서를 *만드는*(집중하는) 것은 공짜가 아니다 — 열역학 제2법칙. 재료를 아이템으로
+// 잠글 때 일부가 SINK로 소산한다(오르막 집중의 대가). A9-2 누수(질서는 가만두면 무너진다)의 대칭:
+// 만들 때도 대가를 치른다. 세금 = entropicLeak(집중량 × NUM/DEN). 소산분은 태양 순환 복귀(보존).
+export const FORGE_TAX_NUM = 1;
+export const FORGE_TAX_DEN = 5;          // 합성 결정의 20%가 소산(150 투입 → 아이템 120 + SINK 30)
 
 // --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝: SOURCE=태양 원점, SINK=소산) ---
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
