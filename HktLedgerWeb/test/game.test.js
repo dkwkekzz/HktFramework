@@ -19,6 +19,7 @@ import {
   POOL, WORLD_SOURCE_INITIAL, WORLD_SEED, SPAWN_GRANT, SPAWN_POS,
   GATHER_AMOUNT, GATHER_RANGE, ATTACK_COOLDOWN_MS, MOB_ENERGY, PLAYER_MAX_ENERGY,
   CRYSTAL_COST, RESPAWN_DELAY_MS, ATTACK_COST, BEACON_INTERVAL_MS,
+  RECYCLE_INTERVAL_TICKS,
 } from '../shared/constants.js';
 
 function makeConn() {
@@ -338,6 +339,34 @@ test('A3 영속화 — 스냅샷 저장→복원 후 지역 체크섬 일치 + �
   // 복원된 세계가 계속 굴러가도 보존 유지 (죽은 노드도 필드에서 재충전)
   for (let i = 0; i < 60; i++) revived.tick();
   assert.equal(revived.ledger.totalSum(), WORLD_SOURCE_INITIAL, '복원 후 계속 틱 — 총합 불변');
+});
+
+test('A6-0 태양 순환 — 소산(SINK)이 재순환 주기마다 SOURCE 로 되돌아 세계가 영속 (닫힌 루프·보존)', () => {
+  const { game, total } = setup();
+  const src0 = game.ledger.balance(POOL.SOURCE);
+
+  // (1) 기본: 한 주기 소산이 경계 tick 에서 전량 SOURCE 로 되돌아온다
+  game.ledger.transfer(POOL.SOURCE, POOL.SINK, 12345, 'test'); // 소산 모사 (보존 이체)
+  while (game.tickCount < RECYCLE_INTERVAL_TICKS) game.tick();  // 경계 직전까지 SINK 유지
+  assert.equal(game.ledger.balance(POOL.SINK), 12345, '재순환 전에는 소산이 SINK 에 쌓여 있다');
+  game.tick(); // tickCount === RECYCLE_INTERVAL_TICKS → 재순환 실행
+  assert.equal(game.ledger.balance(POOL.SINK), 0, '경계 tick 에서 소산 전량 재순환');
+  assert.equal(game.ledger.balance(POOL.SOURCE), src0, 'SOURCE 로 온전히 되돌아옴');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '순환도 이체 — 총합 불변');
+
+  // (2) 반복: 여러 주기를 돌려도 SINK 는 유계, SOURCE 는 정상상태 (영속)
+  let sinkPeak = 0;
+  for (let cycle = 0; cycle < 4; cycle++) {
+    game.ledger.transfer(POOL.SOURCE, POOL.SINK, 5000, 'test');
+    sinkPeak = Math.max(sinkPeak, game.ledger.balance(POOL.SINK));
+    for (let i = 0; i < RECYCLE_INTERVAL_TICKS; i++) game.tick(); // 정확히 한 재순환 경계 통과
+    assert.equal(total(), WORLD_SOURCE_INITIAL, `주기 ${cycle} 총합 보존`);
+  }
+  assert.ok(sinkPeak <= 5000, `SINK 유계 — 무한 성장 없음 (최고 ${sinkPeak})`);
+  assert.equal(game.ledger.balance(POOL.SINK), 0, '마지막 주기도 재순환 완료');
+  assert.equal(game.ledger.balance(POOL.SOURCE), src0, 'SOURCE 정상상태 — 고갈 없이 순환');
+  assert.equal(total(), WORLD_SOURCE_INITIAL);
+  console.log(`    [A6-0] 재순환 주기 ${RECYCLE_INTERVAL_TICKS}틱 · SINK 최고 ${sinkPeak}→0 · SOURCE 정상상태 · 총합 ${total()} 불변`);
 });
 
 test('A5 몬스터 권위 이관 — 몬스터가 동일 프로토콜로 이동·공격, 불변식 유지', () => {

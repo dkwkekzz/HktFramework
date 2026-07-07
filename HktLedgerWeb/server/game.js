@@ -21,6 +21,7 @@ import { mulberry32 } from '../shared/rng.js';
 import { MSG, INTENT, encode, encodeOps } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
+  RECYCLE_INTERVAL_TICKS,
   PLAYER_MAX_ENERGY, SPAWN_GRANT, RESPAWN_DELAY_MS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   GATHER_RANGE, GATHER_AMOUNT, NODE_REGEN_AMOUNT, REGEN_INTERVAL_TICKS,
@@ -463,6 +464,16 @@ export class GameServer {
     //    ledger.transfer 직결이라 방송·pendingOps 에 남지 않는다). A1: 노드 재충전이
     //    세계→노드 주입이 아니라 이 필드를 통해 흐른다.
     diffuseTick(this.ledger);
+
+    // 3b) 태양 순환 (A6-0) — 소산 에너지(SINK)를 주기적으로 SOURCE 로 되돌려 열역학 루프를 닫는다.
+    //   서버는 유일한 에너지 원점(태양)이되 생성기가 아니라 순환의 원점: SOURCE→생명→SINK→SOURCE.
+    //   닫힌 루프라 총합은 여전히 WORLD_SOURCE_INITIAL 불변. 이 순환이 없으면 이동·전투·(향후)대사가
+    //   세계를 SINK 로 말려 영속이 깨진다. region=null 저수지 간 이체 → 방송·체크섬 무관(무음 transfer).
+    //   재충전(아래)보다 먼저 실행해 SOURCE 를 채운 뒤 세계로 흘려보낸다.
+    if (this.tickCount % RECYCLE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      const dissipated = this.ledger.balance(POOL.SINK);
+      if (dissipated > 0) this.ledger.transfer(POOL.SINK, POOL.SOURCE, dissipated, CAUSE.RECYCLE);
+    }
 
     // 재충전 주기: SOURCE→셀 보충(씨앗값까지 top-up, 필드 지속) + 셀→노드 인출(고갈→회복).
     // 둘 다 보존. 셀→노드 만 #tx 로 방송 — 클라 미러는 셀을 저수지로 물질화해 재생한다.

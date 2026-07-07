@@ -77,8 +77,12 @@ export const CRYSTAL_COST = 100;         // 결정 응축: 플레이어 → 아�
 export const WEAPON_COST = 250;          // 무기 제작: 플레이어 → 아이템 풀 250
 export const PICKUP_RANGE = 60;
 
-// --- 월드 소스/싱크 (비보존 게임플레이의 감사 추적용 서버 전용 풀) ---
+// --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝: SOURCE=태양 원점, SINK=소산) ---
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
+// A6-0 태양 순환: 소산된 에너지(SINK)를 이 주기마다 SOURCE 로 되돌린다.
+// 서버는 유일한 에너지 원점(태양)이되 생성기가 아니라 순환의 원점 — SOURCE→생명→SINK→SOURCE
+// 로 영원히 돈다(총합 불변). 이 순환이 없으면 이동·전투·(향후)대사가 세계를 SINK 로 말린다.
+export const RECYCLE_INTERVAL_TICKS = 50;   // 5초마다 소산 재순환
 
 // --- 풀 ID 접두 ---
 export const POOL = {
@@ -96,7 +100,7 @@ export const CAUSE = {
   SPAWN: 'spawn', MOVE: 'move', GATHER: 'gather', REGEN: 'regen',
   ATTACK_COST: 'atk-cost', DAMAGE_LEECH: 'leech', DAMAGE_BURN: 'burn',
   WEAPON_WEAR: 'wear', CONDENSE: 'condense', DISSOLVE: 'dissolve',
-  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse',
+  DEATH_DROP: 'death-drop', DIFFUSE: 'diffuse', RECYCLE: 'recycle',
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
