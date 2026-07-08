@@ -72,20 +72,23 @@ test('핵생성 — 과포화면 결정이 석출되고, 과포화가 오래 지
   assert.ok(big > small * 5, `과포화가 오래 지속될수록 결정이 훨씬 많다 (${small} → ${big})`);
 });
 
-test('정적성(면역) — 결정은 확산·복사 틱을 아무리 돌려도 불변, 같은 자리 국소장은 샌다', () => {
-  const { seed, runTicks, bal, cryTotal, matTotal, total } = setup();
-  // hotspot 을 만들되(과포화 → 석출) 전체 에너지는 평형이 포화 아래가 되게(8000/64≈125 < 200) —
-  //   확산이 장을 포화 밑으로 펼치면 석출이 멈추고 결정만 남아 얼어붙는다.
-  seed('1_1_1', 8_000);
-  runTicks(500);                  // 확산이 장을 포화 아래로 펼쳐 석출이 멈출 때까지
+test('정적성(면역) — 결정은 확산·복사·중력 틱을 아무리 돌려도 불변, 같은 자리 국소장은 샌다', () => {
+  const { game, runTicks, bal, cryTotal, matTotal, total } = setup();
+  // 죽음으로 결정 하나만 만든다(반응 상대 없음 → 순수 면역만 관측). 잔해는 결정, 무른 조직은 국소장으로.
+  const p = game.addPlayer({ send() {} }, '희생자');
+  const pl = game.players.get(p.id);
+  pl.x = 300; pl.y = 1700; pl.z = 500; // 외딴 자리(다른 결정과 반경 밖)
+  game.removePlayer(p.id);
+  const c = [...game.crystals.values()].find(x => bal(x.id) > 0);
+  assert.ok(c && bal(c.id) > 0, '죽음이 결정 하나를 남겼다');
   const cry0 = cryTotal();
-  assert.ok(cry0 > 0, '과포화(hotspot)에서 결정이 석출됐다');
   const sink0 = bal(POOL.SINK);
   const mat0 = matTotal();
 
-  runTicks(4000);                 // 남은 국소장은 계속 심우주로 복사돼 샌다
-  assert.equal(cryTotal(), cry0, '결정은 확산·복사에 면역 — 잔고가 전혀 변하지 않는다(정적)');
-  assert.ok(bal(POOL.SINK) > sink0, '같은 동안 국소장은 계속 심우주로 샜다');
+  runTicks(4000);                 // 확산·복사·중력이 국소장을 휘저어도…
+  assert.equal(cryTotal(), cry0, '결정은 확산·복사·중력에 면역 — 잔고가 전혀 변하지 않는다(정적)');
+  assert.equal(bal(c.id), cry0, '그 개별 결정도 그대로 서 있다');
+  assert.ok(bal(POOL.SINK) > sink0, '같은 동안 국소장(무른 조직)은 계속 심우주로 샜다');
   assert.ok(matTotal() < mat0, '국소장(흩어진 등급)은 줄어드는데 결정(동결 등급)만 서 있다');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '보존 불변 — 결정도 결국 태양에서 온 에너지다');
 });

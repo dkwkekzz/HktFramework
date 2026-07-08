@@ -25,6 +25,7 @@ import {
   CRYSTAL_SATURATION, CRYSTAL_PRECIPITATE_DIVISOR, CRYSTAL_PRECIPITATE_MAX, CRYSTAL_INTERVAL_TICKS,
   DEATH_CRYSTAL_FRACTION, pickSpecies,
   CRYSTAL_REACT_INTERVAL_TICKS, CRYSTAL_REACT_RADIUS, CRYSTAL_REACT_RELEASE_DIVISOR, reactSpecies,
+  LIQUID_CONDENSE, LIQUID_CAPACITY, LIQUID_SETTLE_MAX, LIQUID_RADIATE_DIVISOR, LIQUID_COHESION,
   FIELD_Z_LAYERS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
@@ -69,6 +70,7 @@ export class GameServer {
 
     // 국소장은 3D 복셀 격자 — 수평 cols×cols 컬럼 × 수직 FIELD_Z_LAYERS 층.
     const cols = Math.ceil(WORLD_SIZE / REGION_SIZE); // 4x4 컬럼
+    this.cols = cols; // 액체 침강 컬럼 순회용 (feature-0005 step4)
     const id = (cx, cy, cz) => `${POOL.MATERIAL}${cx}_${cy}_${cz}`;
     for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
       for (let cy = 0; cy < cols; cy++)
@@ -233,6 +235,7 @@ export class GameServer {
     //   무관)라 서버 내부에서만 돈다. 소산은 태양으로 되돌아가지 않고 SINK 는 단조 증가한다(엔트로피의 화살).
     if (this.tickCount % MATERIAL_DIFFUSE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#diffuseMaterial();
+      this.#settleLiquid();   // 액체 중력 침강(feature-0005 step4) — 확산 뒤 중밀도가 아래로 흐른다
       this.#radiateMaterial();
     }
     // feature-0005 결정화 — 과포화된 국소장 복셀은 초과분의 일부를 결정으로 석출한다.
@@ -261,7 +264,11 @@ export class GameServer {
         if (id >= nb) continue; // 각 무방향 이웃쌍을 한 번만 처리(중복 방지)
         const a = this.ledger.balance(id), b = this.ledger.balance(nb);
         if (a + b === 0) continue;
-        const quantum = Math.max(1, Math.floor((a + b) / MATERIAL_DIFFUSE_QUANTUM_DIVISOR));
+        let quantum = Math.max(1, Math.floor((a + b) / MATERIAL_DIFFUSE_QUANTUM_DIVISOR));
+        // feature-0005 step4 — 액체(중밀도)는 응집해 등방 확산이 약하다(1/COHESION). 그래서 기체처럼
+        //   퍼지지 않고 뭉쳐 중력(#settleLiquid)으로 아래로 흐른다. 기체·고밀도는 그대로.
+        const hi = Math.max(a, b);
+        if (hi >= LIQUID_CONDENSE && hi < CRYSTAL_SATURATION) quantum = Math.max(1, Math.floor(quantum / LIQUID_COHESION));
         // 높은 확률로 고농도 쪽에서 저농도 쪽으로 — "엔트로픽 법칙에 따라 높은 확률로 이동할 뿐"
         if (this.rng() < entropicOutProb(a, b)) this.ledger.transfer(id, nb, quantum, CAUSE.DIFFUSE);
         else this.ledger.transfer(nb, id, quantum, CAUSE.DIFFUSE);
@@ -277,11 +284,32 @@ export class GameServer {
     for (const id of this.materialKeys) {
       const bal = this.ledger.balance(id);
       if (bal <= 0) continue;
-      let rad = Math.floor(bal / MATERIAL_RADIATE_DIVISOR);
-      const frac = bal % MATERIAL_RADIATE_DIVISOR;
-      if (frac > 0 && this.rng() * MATERIAL_RADIATE_DIVISOR < frac) rad += 1;
+      // 상태별 증발 — 액체(중밀도)는 응집해 덜 샌다(divisor 큼 = 손실↓). 기체·고밀도는 기본율.
+      const divisor = (bal >= LIQUID_CONDENSE && bal < CRYSTAL_SATURATION) ? LIQUID_RADIATE_DIVISOR : MATERIAL_RADIATE_DIVISOR;
+      let rad = Math.floor(bal / divisor);
+      const frac = bal % divisor;
+      if (frac > 0 && this.rng() * divisor < frac) rad += 1;
       if (rad > 0) this.ledger.transfer(id, POOL.SINK, rad, CAUSE.RADIATE);
     }
+  }
+
+  // 액체 중력 침강 — feature-0005 step4. 중밀도(액체) 국소장은 중력에 따라 아래 복셀로 흐른다.
+  //   아래가 용량(LIQUID_CAPACITY)까지 차면 넘쳐 위에 남는다 → 바닥부터 고여 수평 수면을 이룬다.
+  //   기체(저밀도)와 고밀도(과포화·석출)는 침강하지 않는다(액체 밴드에서만 중력) — 그래서 저밀도는 등방으로
+  //   퍼지고(feature-0004 불변) 중밀도만 가라앉는다. 침강은 국소장→국소장 무음 이체(보존·정수).
+  #settleLiquid() {
+    const M = POOL.MATERIAL;
+    for (let cy = 0; cy < this.cols; cy++)
+      for (let cx = 0; cx < this.cols; cx++)
+        for (let cz = 1; cz < FIELD_Z_LAYERS; cz++) { // 아래 쌍부터 처리 → 바닥이 먼저 찬다
+          const V = `${M}${cx}_${cy}_${cz}`, W = `${M}${cx}_${cy}_${cz - 1}`;
+          const bv = this.ledger.balance(V);
+          if (bv < LIQUID_CONDENSE || bv >= CRYSTAL_SATURATION) continue; // 액체 밴드만 침강
+          const room = LIQUID_CAPACITY - this.ledger.balance(W);
+          if (room <= 0) continue; // 아래가 찼다 → 여기 고인다(수면)
+          const q = Math.min(bv, room, LIQUID_SETTLE_MAX);
+          if (q > 0) this.ledger.transfer(V, W, q, CAUSE.SETTLE);
+        }
   }
 
   // 결정화(석출) — feature-0005. 국소장 복셀 농도가 포화 임계를 넘으면(과포화) 초과분의 일부가

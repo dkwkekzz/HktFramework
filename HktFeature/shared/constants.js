@@ -76,6 +76,23 @@ export function reactSpecies(a, b) {
   return (a + b + 1) % CRYSTAL_SPECIES_COUNT;
 }
 
+// feature-0005 step4 — 물질 상태(기체/액체/고체)는 새 물질이 아니라 국소장 에너지의 밀도 regime 이다.
+//   저밀도=기체(등방 확산, 잘 샌다), 중밀도=액체(중력 따라 아래로 흐르고 고여 수면, 응집해 덜 샌다),
+//   고밀도(포화 초과)=고체(결정 석출, feature-0005 step1). 상태는 농도 임계로 갈리고 상전이는 임계 통과로 창발.
+export const LIQUID_CONDENSE = 100;      // 기체→액체 응축 임계 — 이 농도 이상이면 응집해 흐른다(액체). 국소장 평형(수십)보다 위 = 몰린 곳만 액체
+export const LIQUID_CAPACITY = 180;      // 한 복셀이 액체로 담는 용량 — 아래가 이만큼 차면 넘쳐 위로(수면 상승). 포화(석출=200)보다 아래
+export const LIQUID_SETTLE_MAX = 12;     // 한 틱에 아래 복셀로 가라앉는 최대량(점진적 = 수면이 서서히 형성)
+export const LIQUID_COHESION = 6;        // 액체는 응집해 등방 확산이 1/이 값 (기체처럼 퍼지지 않고 뭉쳐 중력으로 흐른다)
+export const LIQUID_RADIATE_DIVISOR = 16384; // 액체는 응집해 덜 증발한다 — 기체(MATERIAL_RADIATE_DIVISOR=4096)보다 4배 큰 = 손실 1/4
+
+// 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
+export function fieldPhase(balance) {
+  if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도
+  if (balance >= LIQUID_CONDENSE) return 'liquid';   // 중밀도 — 흐르고 고인다
+  if (balance > 0) return 'gas';                     // 저밀도 — 퍼진다
+  return 'empty';
+}
+
 // --- 풀 ID 접두 ---
 export const POOL = {
   PLAYER: 'P:',    // 플레이어 생체 에너지 (region=null — 좌표는 권위가 아니다)
@@ -94,6 +111,7 @@ export const CAUSE = {
   RADIATE: 'radiate',   // 국소장 → SINK (심우주 복사 — 되돌아오지 않는 엔트로피 세금)
   CRYSTALLIZE: 'crystallize', // 국소장 → 결정 (과포화 석출 · 죽음의 응결 — 정적 저엔트로피 형태로 동결, feature-0005)
   REACT: 'react',       // 결정 ↔ 결정 / 결정 → 국소장 (반응: 융합·화합·반응열 방출, feature-0005 step3)
+  SETTLE: 'settle',     // 국소장 → 아래 국소장 (액체 중력 침강 — 아래로 흐르고 고인다, feature-0005 step4)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
