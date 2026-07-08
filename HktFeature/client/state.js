@@ -24,7 +24,7 @@ export class ClientState {
     this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
     this.worldCrystal = 0;      // 결정 총량 — 국소장에서 석출돼 동결된 정적 에너지 (feature-0005)
     this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
-    this.crystals = new Map();  // "cx_cy_cz" -> 결정 복셀 잔고 (3D 스냅샷, 결정 마커 — 읽기 전용, feature-0005)
+    this.crystals = new Map();  // seq -> { x, y, z, balance, species } (개별 결정 스냅샷, 마커 — 읽기 전용, feature-0005)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -93,8 +93,8 @@ export class ClientState {
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
       if (id === POOL.SOURCE) this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
-      // SINK·플레이어·국소장(M:) 은 받는 쪽/무지역 → 잔고 0·무한 수용으로 물질화(오차 무해).
-      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER) || id.startsWith(POOL.MATERIAL))
+      // SINK·플레이어·국소장(M:)·결정(I:) 은 받는 쪽/무지역 → 잔고 0·무한 수용으로 물질화(오차 무해).
+      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER) || id.startsWith(POOL.MATERIAL) || id.startsWith(POOL.CRYSTAL))
         this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
     }
     this.ledger.applyTx(tx);
@@ -113,14 +113,13 @@ export class ClientState {
     for (const [cx, cy, cz, balance] of msg.cells) this.field.set(`${cx}_${cy}_${cz}`, balance);
   }
 
-  // 결정 복셀 스냅샷 — 잔고>0 인 결정만 실려온다. 렌더가 이산 결정 마커로 읽는다(권위 아님, 표시용).
-  //   방송에 없는(=잔고 0) 복셀은 미러에서 지운다 — 용해 등으로 사라진 결정이 유령으로 남지 않게(후속 step 대비).
+  // 개별 결정 스냅샷 — 잔고>0 인 결정만 실려온다. 렌더가 종별 색 마커로 읽는다(권위 아님, 표시용).
+  //   방송에 없는(=사라진) 결정은 미러에서 지운다 — 반응·채집으로 소멸한 결정이 유령으로 남지 않게(후속 step 대비).
   #onCrystal(msg) {
     const seen = new Set();
-    for (const [cx, cy, cz, balance] of msg.cells) {
-      const key = `${cx}_${cy}_${cz}`;
-      this.crystals.set(key, balance);
-      seen.add(key);
+    for (const [seq, x, y, z, balance, species] of msg.cells) {
+      this.crystals.set(seq, { x, y, z, balance, species });
+      seen.add(seq);
     }
     for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
   }

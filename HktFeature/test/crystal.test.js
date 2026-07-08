@@ -11,7 +11,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
-import { POOL, WORLD_SOURCE_INITIAL, CRYSTAL_SATURATION } from '../shared/constants.js';
+import { POOL, WORLD_SOURCE_INITIAL, CRYSTAL_SATURATION, SPAWN_GRANT, DEATH_CRYSTAL_FRACTION } from '../shared/constants.js';
 
 function setup() {
   const clock = { t: 1_000_000 };
@@ -35,10 +35,12 @@ function setup() {
     const f = msgs.filter(m => m.t === MSG.CRYSTAL);
     const last = f[f.length - 1];
     const map = new Map();
-    if (last) for (const [cx, cy, cz, b] of last.cells) map.set(`${cx}_${cy}_${cz}`, b);
+    if (last) for (const [id, x, y, z, b, species] of last.cells) map.set(id, { x, y, z, balance: b, species });
     return map;
   };
-  return { game, bal, total, matTotal, cryTotal, seed, runTicks, lastCrystalSnapshot };
+  const cryCount = () => { let n = 0; for (const c of game.crystals.values()) if (game.ledger.balance(c.id) > 0) n++; return n; };
+  const speciesSet = () => { const s = new Set(); for (const c of game.crystals.values()) if (game.ledger.balance(c.id) > 0) s.add(c.species); return s; };
+  return { game, bal, total, matTotal, cryTotal, cryCount, speciesSet, seed, runTicks, lastCrystalSnapshot };
 }
 
 test('창세 — 결정은 비어 시작한다 (석출 전)', () => {
@@ -103,18 +105,45 @@ test('결정론 — 같은 시드/이벤트열이면 결정 분포가 비트 단
     const s = setup();
     s.seed('1_1_1', 500_000);
     s.runTicks(400);
-    return s.game.crystalCells.map(([, , , , cryId]) => s.bal(cryId));
+    return [...s.game.crystals.values()].map(c => [c.species, s.bal(c.id)]);
   };
-  assert.deepEqual(run(), run(), '동일 시드 → 비트 단위 동일 결정 분포');
+  assert.deepEqual(run(), run(), '동일 시드 → 비트 단위 동일 결정 분포(종·잔고)');
 });
 
-test('CRYSTAL 방송 — 석출된 결정이 읽기 전용 스냅샷으로 실린다(뷰어가 마커로 그린다)', () => {
+test('CRYSTAL 방송 — 개별 결정이 [id,x,y,z,잔고,종] 스냅샷으로 실린다(뷰어가 마커로 그린다)', () => {
   const { seed, runTicks, lastCrystalSnapshot } = setup();
   seed('1_1_1', 500_000);
   runTicks(300);
   const snap = lastCrystalSnapshot();
-  assert.ok(snap.size > 0, '결정 스냅샷에 최소 하나의 결정이 실린다');
-  let maxBal = 0;
-  for (const b of snap.values()) if (b > maxBal) maxBal = b;
-  assert.ok(maxBal > 0, '실린 결정의 잔고가 0 보다 크다');
+  assert.ok(snap.size > 0, '결정 스냅샷에 최소 하나의 개별 결정이 실린다');
+  const one = [...snap.values()][0];
+  assert.ok(one.balance > 0, '실린 결정의 잔고가 0 보다 크다');
+  assert.ok(Number.isInteger(one.species) && one.species >= 0, '결정은 종(species)을 가진다');
+});
+
+test('죽음의 결정화 — 생명체가 죽으면 잔해가 결정으로 분해되어 나온다', () => {
+  const { game, bal, total, cryTotal, matTotal } = setup();
+  const p = game.addPlayer({ send() {} }, '희생자'); // 스폰 300
+  const e = bal(p.id);
+  assert.equal(e, SPAWN_GRANT);
+  const cry0 = cryTotal(), mat0 = matTotal();
+  game.removePlayer(p.id);
+  const cryAdded = cryTotal() - cry0, matAdded = matTotal() - mat0;
+  assert.ok(cryAdded > 0, '죽음이 결정(단단한 잔해)을 만들어냈다');
+  assert.equal(cryAdded, Math.floor(e * DEATH_CRYSTAL_FRACTION), '설정 비율만큼 결정으로 응결');
+  assert.equal(cryAdded + matAdded, e, '나머지는 국소장으로 — 죽음 에너지 전부가 두 갈래로 보존');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '보존 불변');
+  const c = [...game.crystals.values()].find(c => bal(c.id) > 0);
+  assert.ok(c && Number.isInteger(c.species), '죽음 결정은 위치·종을 가진 개별 결정이다');
+  assert.equal(c.x, p.x, '결정은 죽은 자리에 맺힌다');
+});
+
+test('생성 다양성 — 여러 죽음이 서로 다른 종의 결정을 낸다', () => {
+  const { game, speciesSet, cryCount } = setup();
+  for (let i = 0; i < 40; i++) {
+    const p = game.addPlayer({ send() {} }, `v${i}`);
+    game.removePlayer(p.id);
+  }
+  assert.equal(cryCount(), 40, '죽음마다 개별 결정이 하나씩(버킷 병합 없음)');
+  assert.ok(speciesSet().size >= 3, `죽음마다 다양한 종의 결정이 나온다 (종 ${speciesSet().size}가지)`);
 });

@@ -23,8 +23,9 @@ import {
   PLAYER_MAX_ENERGY, SPAWN_GRANT,
   MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
   CRYSTAL_SATURATION, CRYSTAL_PRECIPITATE_DIVISOR, CRYSTAL_PRECIPITATE_MAX, CRYSTAL_INTERVAL_TICKS,
+  DEATH_CRYSTAL_FRACTION, pickSpecies,
   FIELD_Z_LAYERS,
-  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, crystalKey, entropicOutProb,
+  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
@@ -35,6 +36,8 @@ export class GameServer {
     // 엔트로픽 확산의 "동전" — 결정론 PRNG. 서버 전용(클라는 결과 tx만 받는다)이라
     // 미러 정합과 무관하고, 같은 이벤트열이면 같은 흐름을 재현한다(테스트 재현성의 근거).
     this.rng = mulberry32(WORLD_SEED);
+    // 결정 종(species) 추첨용 별도 스트림 — 확산 rng 를 건드리지 않게 분리(결정론 유지). (feature-0005 step2)
+    this.crystalRng = mulberry32(WORLD_SEED ^ 0x9e3779b1);
 
     // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
     this.players = new Map();      // id -> player
@@ -45,9 +48,12 @@ export class GameServer {
     this.txSeq = 0;
 
     this.materialKeys = [];        // 국소장 풀 id 목록 (확산 순회용)
-    this.materialCells = [];       // [cx, cy, id] — 국소장 그리드 방송용 (좌표 동반)
+    this.materialCells = [];       // [cx, cy, cz, id] — 국소장 그리드 방송용 (좌표 동반)
     this.materialNeighbors = new Map(); // 국소장 id -> 이웃 국소장 id 목록 (엔트로픽 확산 인접)
-    this.crystalCells = [];        // [cx, cy, cz, matId, cryId] — 복셀별 국소장↔결정 쌍 (석출·방송용, feature-0005)
+    // 결정은 개별 discrete 객체다 (feature-0005 step2) — 확산·복사 순회 밖(=면역).
+    this.crystals = new Map();     // cryId -> { id, seq, x, y, z, species } (잔고는 원장 풀에)
+    this.voxelResident = new Map();// voxelKey -> cryId — 과포화 석출이 키우는 그 복셀의 "거주" 결정
+    this.crystalSeq = 0;
     this.#genesis();
   }
 
@@ -63,17 +69,12 @@ export class GameServer {
     // 국소장은 3D 복셀 격자 — 수평 cols×cols 컬럼 × 수직 FIELD_Z_LAYERS 층.
     const cols = Math.ceil(WORLD_SIZE / REGION_SIZE); // 4x4 컬럼
     const id = (cx, cy, cz) => `${POOL.MATERIAL}${cx}_${cy}_${cz}`;
-    // feature-0005: 복셀마다 결정 풀(I:<voxel>)도 0 으로 함께 연다. 국소장(M:)과 같은 자리의 "고체상".
-    //   결정은 materialKeys(확산·복사 순회)에 넣지 않는다 — 순회 대상이 아닌 것이 곧 면역이다(정적).
     for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
       for (let cy = 0; cy < cols; cy++)
         for (let cx = 0; cx < cols; cx++) {
-          const matId = id(cx, cy, cz), cryId = crystalKey(cx, cy, cz);
-          this.ledger.createPool(matId, 0, Number.MAX_SAFE_INTEGER, null);
-          this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
-          this.materialKeys.push(matId);
-          this.materialCells.push([cx, cy, cz, matId]);
-          this.crystalCells.push([cx, cy, cz, matId, cryId]);
+          this.ledger.createPool(id(cx, cy, cz), 0, Number.MAX_SAFE_INTEGER, null);
+          this.materialKeys.push(id(cx, cy, cz));
+          this.materialCells.push([cx, cy, cz, id(cx, cy, cz)]);
         }
     // 6방향 인접(±x,±y,±z) — 엔트로픽 확산은 이웃 복셀 사이에서만, 수직으로도 일어난다.
     for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
@@ -96,11 +97,21 @@ export class GameServer {
     return sum;
   }
 
-  // 결정 총량 (전시용 — feature-0005). 국소장에서 석출돼 동결된 정적 에너지의 합.
+  // 결정 총량 (전시용 — feature-0005). 국소장에서 응결돼 동결된 정적 에너지의 합.
   #crystalTotal() {
     let sum = 0;
-    for (const [, , , , cryId] of this.crystalCells) sum += this.ledger.balance(cryId);
+    for (const cryId of this.crystals.keys()) sum += this.ledger.balance(cryId);
     return sum;
+  }
+
+  // 개별 결정 하나를 연다 (feature-0005 step2) — 위치·종을 가진 discrete 객체. 잔고는 이후 이체로 채운다.
+  //   확산·복사 순회(materialKeys) 밖이라 태생적으로 면역(정적)이다. region=null → 읽기 전용 스냅샷 방송.
+  #spawnCrystal(x, y, z, species) {
+    const seq = ++this.crystalSeq;
+    const cryId = `${POOL.CRYSTAL}${seq}`;
+    this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
+    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species });
+    return cryId;
   }
 
   // --- 원장 커밋 + tx 기록 (모든 에너지 변화는 이 함수를 지난다) ---
@@ -144,8 +155,17 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    // 이탈 = 응집 소멸. 소지 에너지는 그 자리 국소장 복셀로 흩어진다(거름).
-    this.#tx(id, materialKey(p.x, p.y, p.z), this.ledger.balance(id), CAUSE.DEATH, p);
+    // 이탈 = 응집 소멸. 생명체의 에너지는 두 갈래로 분해된다(feature-0005 step2):
+    //   (1) 단단한 잔해 → 그 자리에 결정으로 응결(discrete, 종을 가짐 = 다양한 드랍/채집물의 씨앗)
+    //   (2) 무른 조직 → 국소장 복셀로 흩어진다(거름, feature-0004 의 열린 흐름 유지)
+    const energy = this.ledger.balance(id);
+    const cryAmt = Math.floor(energy * DEATH_CRYSTAL_FRACTION);
+    if (cryAmt > 0) {
+      const cryId = this.#spawnCrystal(p.x, p.y, p.z, pickSpecies(this.crystalRng));
+      this.#tx(id, cryId, cryAmt, CAUSE.CRYSTALLIZE, p); // 죽음의 결정화
+    }
+    const rest = this.ledger.balance(id); // 남은 무른 조직 전부
+    if (rest > 0) this.#tx(id, materialKey(p.x, p.y, p.z), rest, CAUSE.DEATH, p);
     this.ledger.removePool(id);
     this.players.delete(id);
   }
@@ -264,9 +284,16 @@ export class GameServer {
   //   "저엔트로피 요동(국소에 에너지가 쌓인 드문 사건) 자체가 희귀도"다. 결정은 확산·복사 순회
   //   대상이 아니므로(materialKeys 밖) 한 번 동결되면 가만두는 한 잔고가 불변이다(정적성).
   #crystallize() {
-    for (const [, , , matId, cryId] of this.crystalCells) {
+    const LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
+    for (const [cx, cy, cz, matId] of this.materialCells) {
       const bal = this.ledger.balance(matId);
       if (bal <= CRYSTAL_SATURATION) continue; // 과포화가 아니면 석출 없음
+      // 그 복셀의 "거주 결정"을 얻거나(없으면 hotspot 중심에 새로 핵생성) 키운다 — 개별 결정으로 자란다.
+      let cryId = this.voxelResident.get(matId);
+      if (cryId === undefined) {
+        cryId = this.#spawnCrystal((cx + 0.5) * REGION_SIZE, (cy + 0.5) * REGION_SIZE, (cz + 0.5) * LS, pickSpecies(this.crystalRng));
+        this.voxelResident.set(matId, cryId);
+      }
       // 과포화도(초과분)에 비례해 석출하되 상한으로 묶는다 — 몰릴수록 잘 맺히되 확산을 이기지 않는다.
       const quantum = Math.min(CRYSTAL_PRECIPITATE_MAX, Math.max(1, Math.floor((bal - CRYSTAL_SATURATION) / CRYSTAL_PRECIPITATE_DIVISOR)));
       this.ledger.transfer(matId, cryId, quantum, CAUSE.CRYSTALLIZE); // 확산처럼 무음 내부 이체(상태는 CRYSTAL 스냅샷으로 방송)
@@ -303,11 +330,11 @@ export class GameServer {
     const fieldCells = broadcastField
       ? this.materialCells.map(([cx, cy, cz, id]) => [cx, cy, cz, this.ledger.balance(id)])
       : null;
-    // 결정 스냅샷 — 잔고>0 인 결정만(이산·희소하므로 전 복셀을 실을 필요 없다). FIELD 와 같은 읽기 전용 표시값.
+    // 결정 스냅샷 — 개별 결정 [id, x, y, z, balance, species] (잔고>0). FIELD 와 같은 읽기 전용 표시값.
     const crystalCells = broadcastField
-      ? this.crystalCells.reduce((acc, [cx, cy, cz, , cryId]) => {
-          const b = this.ledger.balance(cryId);
-          if (b > 0) acc.push([cx, cy, cz, b]);
+      ? [...this.crystals.values()].reduce((acc, c) => {
+          const b = this.ledger.balance(c.id);
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species]);
           return acc;
         }, [])
       : null;

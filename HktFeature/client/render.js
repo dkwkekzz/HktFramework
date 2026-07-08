@@ -165,38 +165,37 @@ export class Render {
     }
   }
 
-  // 결정 마커 — 각 결정을 복셀 중심에 밝은 8면체(옥타)로 그린다(먼 것부터, painter's).
-  //   확산장(파랑→빨강 반투명 큐브)과 대비되는 선명한 청록 고체 — "흩어진 것 vs 동결된 것".
+  // 결정 마커 — 각 개별 결정을 제 위치에 8면체(옥타)로 그린다(먼 것부터, painter's).
+  //   확산장(파랑→빨강 반투명 큐브)과 대비되는 선명한 고체. 색상은 종(species)마다 다르다 —
+  //   죽음의 잔해·hotspot 석출 등 다양하게 생성된 결정이 저마다 다른 색으로 선다(feature-0005 step2).
   //   가만두면 이 잔고는 불변이다(확산·복사 면역) — 국소장은 새어도 결정은 그대로 서 있다.
   #crystalMarkers(cam) {
     const { state } = this;
     if (state.crystals.size === 0) return;
     let max = 1;
-    for (const v of state.crystals.values()) if (v > max) max = v;
-    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
+    for (const c of state.crystals.values()) if (c.balance > max) max = c.balance;
     const marks = [];
-    for (const [key, bal] of state.crystals) {
-      if (bal <= 0) continue;
-      const [cx, cy, cz] = key.split('_').map(Number);
-      const wx = (cx + 0.5) * RS, wy = (cy + 0.5) * RS, wz = (cz + 0.5) * LS;
-      const d = this.#toCam(cam, wx, wy, wz)[2];
-      if (d > 1) marks.push({ wx, wy, wz, t: bal / max, bal, d });
+    for (const c of state.crystals.values()) {
+      if (c.balance <= 0) continue;
+      const d = this.#toCam(cam, c.x, c.y, c.z)[2];
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#crystalOcta(cam, m.wx, m.wy, m.wz, m.t, m.bal);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species);
   }
 
-  #crystalOcta(cam, cx, cy, cz, t, bal) {
+  #crystalOcta(cam, cx, cy, cz, t, bal, species) {
     const { ctx } = this;
-    const r = 30 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
-    this.#stick(cam, cx, cy, cz, 'rgba(120,240,225,0.35)'); // 지면까지 수선 — 고도·위치 가독성
+    const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
+    const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
+    this.#stick(cam, cx, cy, cz, `hsla(${hue},80%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
     const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
     const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
     if (P.some(p => !p)) return;
-    // 8 삼각면 (위쪽 4 + 아래쪽 4). 밝은 청록 반투명 + 선명한 외곽선 → 고체 결정감.
+    // 8 삼각면 (위쪽 4 + 아래쪽 4). 밝은 반투명 + 선명한 외곽선 → 고체 결정감.
     const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
-    ctx.fillStyle = `hsla(170, 90%, ${60 + t * 20}%, ${0.30 + 0.4 * t})`;
-    ctx.strokeStyle = `hsla(165, 95%, 80%, ${0.6 + 0.35 * t})`;
+    ctx.fillStyle = `hsla(${hue}, 85%, ${58 + t * 20}%, ${0.34 + 0.4 * t})`;
+    ctx.strokeStyle = `hsla(${hue}, 95%, 82%, ${0.6 + 0.35 * t})`;
     ctx.lineWidth = 1.5;
     for (const f of faces) {
       ctx.beginPath();
@@ -210,7 +209,7 @@ export class Render {
     // 잔고 라벨 (결정 위)
     const top = P[4];
     if (top) {
-      ctx.fillStyle = '#bff5ec';
+      ctx.fillStyle = `hsl(${hue}, 90%, 88%)`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`◆ ${bal.toLocaleString()}`, top.sx, top.sy - 6);
@@ -324,7 +323,7 @@ export class Render {
     ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 92);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`큐브=국소장 확산 · 결정=과포화 석출(면역)`, w - 255, 106);
+    ctx.fillText(`큐브=국소장 확산 · 결정=죽음·석출로 응결(종별 색)`, w - 255, 106);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
     ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 124);

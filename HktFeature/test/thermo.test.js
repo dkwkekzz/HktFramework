@@ -30,12 +30,17 @@ function setup() {
     for (const [id, p] of game.ledger.pools) if (id.startsWith(POOL.MATERIAL)) s += p.balance;
     return s;
   };
+  const cryTotal = () => {
+    let s = 0;
+    for (const [id, p] of game.ledger.pools) if (id.startsWith(POOL.CRYSTAL)) s += p.balance;
+    return s;
+  };
   const matSpread = () => { // 국소장 최대-최소 (0=완전 균일=평형)
     let lo = Infinity, hi = -Infinity;
     for (const id of game.materialKeys) { const b = bal(id); if (b < lo) lo = b; if (b > hi) hi = b; }
     return hi - lo;
   };
-  return { game, join, warp, bal, total, matTotal, matSpread };
+  return { game, join, warp, bal, total, matTotal, cryTotal, matSpread };
 }
 
 test('창세 — 태양이 전 에너지를 쥐고 국소장·심우주는 비어 시작', () => {
@@ -46,16 +51,17 @@ test('창세 — 태양이 전 에너지를 쥐고 국소장·심우주는 비�
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 });
 
-test('죽음·이동은 국소장으로 흩어진다 — 태양으로 되돌아가지 않는다', () => {
-  const { game, join, warp, bal, total, matTotal } = setup();
+test('죽음·이동 — 이동은 국소장으로, 죽음은 결정(잔해)+국소장(거름)으로 (태양행 아님)', () => {
+  const { game, join, warp, bal, total, matTotal, cryTotal } = setup();
   const a = join('A'); // 태양: 1e9-300, A: 300
   warp(a, SPAWN_POS.x + 500, SPAWN_POS.y); // 500px 이동 → 소산 floor(500/50)=10 이 국소장으로
   assert.equal(matTotal(), 10, '이동 소산은 국소장으로');
   const srcBefore = bal(POOL.SOURCE);
 
-  game.removePlayer(a.id); // 이탈 = 응집 소멸 → 잔여(290)가 국소장으로 (태양행 아님)
+  game.removePlayer(a.id); // 이탈 = 응집 소멸 → 결정(단단한 잔해) + 국소장(무른 조직), 태양행 아님
   assert.equal(bal(POOL.SOURCE), srcBefore, '죽음 에너지는 태양으로 가지 않는다');
-  assert.equal(matTotal(), SPAWN_GRANT, '스폰분 전부가 국소장으로 흩어졌다(10 이동 + 290 죽음)');
+  assert.ok(cryTotal() > 0, '죽음의 단단한 잔해가 결정으로 응결됐다(feature-0005)');
+  assert.equal(matTotal() + cryTotal(), SPAWN_GRANT, '스폰분 전부가 국소장+결정으로 분해(10 이동 + 290 죽음)');
   assert.equal(bal(POOL.SINK), 0, '아직 복사(심우주)는 없다');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '보존 불변');
 });

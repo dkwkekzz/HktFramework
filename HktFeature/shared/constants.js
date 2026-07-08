@@ -59,6 +59,11 @@ export const CRYSTAL_PRECIPITATE_DIVISOR = 64;   // 석출량 곡선 = floor((�
 export const CRYSTAL_PRECIPITATE_MAX = 8;        // 한 복셀이 한 틱에 석출하는 최대량 — 확산을 이기지 않게 하는 속도 상한
 export const CRYSTAL_INTERVAL_TICKS = 1;         // 석출 판정 주기(틱) — 확산과 같은 리듬
 
+// feature-0005 step2 — 결정은 개별 discrete 객체(I:<seq>)이며 여러 경로로 다양하게 생성된다:
+//   (1) 과포화 석출(hotspot), (2) 죽음의 분해(생명체의 응집이 잔해 결정으로). 각 결정은 "종(species)"을 갖는다.
+export const CRYSTAL_SPECIES_COUNT = 12;         // 결정 종 수 — 생성 다양성(색·후속 반응 규칙의 씨앗)
+export const DEATH_CRYSTAL_FRACTION = 0.5;       // 죽을 때 결정(단단한 잔해)으로 응결되는 비율 — 나머지는 국소장으로 흩어진다(무른 조직)
+
 // --- 풀 ID 접두 ---
 export const POOL = {
   PLAYER: 'P:',    // 플레이어 생체 에너지 (region=null — 좌표는 권위가 아니다)
@@ -118,9 +123,9 @@ export function materialKey(x, y, z) {
   return `${POOL.MATERIAL}${regionKey(x, y)}_${fieldLayer(z)}`;
 }
 
-// 복셀에 석출되는 결정 id — I:<cx>_<cy>_<cz>. 복셀당 하나(용해된 국소장 M: 과 같은 자리의 고체상). (feature-0005)
-export function crystalKey(cx, cy, cz) {
-  return `${POOL.CRYSTAL}${cx}_${cy}_${cz}`;
+// 결정 종 유도 — 결정론 rng(형성 문맥) 으로 종을 뽑는다. 종은 색·후속 반응 규칙의 씨앗. (feature-0005 step2)
+export function pickSpecies(rng) {
+  return Math.floor(rng() * CRYSTAL_SPECIES_COUNT);
 }
 
 // 엔트로픽 이체 방향 확률 (feature-0004 의 핵심 법칙) —
