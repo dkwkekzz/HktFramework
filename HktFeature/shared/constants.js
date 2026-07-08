@@ -85,6 +85,39 @@ export const LIQUID_SETTLE_MAX = 12;     // 한 틱에 아래 복셀로 가라�
 export const LIQUID_COHESION = 6;        // 액체는 응집해 등방 확산이 1/이 값 (기체처럼 퍼지지 않고 뭉쳐 중력으로 흐른다)
 export const LIQUID_RADIATE_DIVISOR = 16384; // 액체는 응집해 덜 증발한다 — 기체(MATERIAL_RADIATE_DIVISOR=4096)보다 4배 큰 = 손실 1/4
 
+// --- 생명체(creature) (feature-0006) — 능동적 저엔트로피 섬(dissipative structure) ---
+// 생명체는 스스로 에너지 질서를 유지한다: 살아있음 자체가 비용(물질대사)이고, 그 비용을 대기 위해
+// 세계로부터 에너지를 갈구(forage)하며, 대지 못하면(최소 예비 아래로 떨어지면) 질서가 붕괴해 죽는다.
+//   흐름: SOURCE →(스폰)→ 생명체 →(대사)→ 심우주(SINK)  +  국소장 →(갈구)→ 생명체.
+//   즉 생명체는 세계의 흩어진 에너지(국소장)를 제 몸으로 끌어와 질서를 유지하고, 그 유지 비용은
+//   되돌아오지 않는 손실(심우주)로 export 한다 — 저엔트로피를 유지하려면 반드시 엔트로피를 밖으로 버려야 한다.
+//   그래서 자기 폐기물을 재섭취할 수 없고(심우주로 새 나감), 계속 세계로부터 갈구해야만 산다.
+//   결정론 시뮬 상수(런타임 튜닝 금지) — rng 미사용(순수 클램프)이라 확산 결정론에 영향 없다.
+export const CREATURE_MAX_ENERGY = 1000;             // 내부 에너지 용량(질서의 상한 = setpoint)
+export const CREATURE_SPAWN_GRANT = 400;             // 스폰 시 SOURCE 에서 인출(저엔트로피 주입 — feature-0003)
+export const CREATURE_BASAL_COST = 3;                // 매 대사 틱 심우주로 방출하는 질서 유지 비용(살아있음의 엔트로피 세금)
+export const CREATURE_FORAGE_RATE = 5;               // 매 대사 틱 국소장에서 흡수 시도하는 최대량(갈구) — 대사보다 커야 풍요 환경에서 산다
+export const CREATURE_DEATH_THRESHOLD = 60;          // 최소 예비 에너지(size 1 기준) — 갈구 후에도 이 아래면 질서 붕괴(죽음). 0 보다 위라 죽을 때 잔해가 남는다
+export const CREATURE_METABOLISM_INTERVAL_TICKS = 1; // 대사(갈구+소모+생사판정) 주기(틱) — 확산과 같은 리듬
+
+// feature-0006 step2 — 성장·스탯: 질서 유지에 흑자가 쌓이면 성장한다. 스탯(size)은 에너지 이력의 창발 지표다.
+//   용량·갈구·대사·예비가 전부 size 에 비례한다 — 큰 몸은 더 많이 담고 더 많이 갈구하되 더 많이 대사한다.
+//   그래서 큰 몸을 유지하려면 세계가 그만큼 받쳐줘야 하고, 세계 풍요도가 개체 크기의 상한을 자연히 정한다.
+//   성장은 hard-won — 굶주리면 성장점이 깎여 진척이 되돌아간다. 큰 몸은 대사도 커서 세계가 못 받치면 굶어 죽는다.
+//   결정론 시뮬 상수(rng 미사용) — size·growth 는 순수 상태 변수(에너지 풀이 아님)라 보존과 무관하게 창발한다.
+export const CREATURE_SIZE_MAX = 5;                  // 스탯 상한(size 1~5)
+export const CREATURE_GROWTH_FULL_FRACTION = 0.9;    // 잔고가 용량의 이 비율 이상이면 흑자(성장점 +1 적립)
+export const CREATURE_GROWTH_HUNGRY_FRACTION = 0.25; // 잔고가 용량의 이 비율 미만이면 적자(성장점 −2, 0 에서 클램프 = 진척 되돌아감)
+export const CREATURE_GROWTH_THRESHOLD = 300;        // 성장 문턱 — 흑자로 이 값에 닿으면 size +1(용량·능력 확장)
+
+// feature-0007 채집·섭취 — 생명체가 근접 결정(=아이템, 에너지의 결정체)을 흡수한다. 결정은 원래 정적·면역
+//   (feature-0005)이지만 생명이 가까이 오면 그 정적 질서가 풀린다 — 결정 → 생명체로 농축 에너지가 흘러든다.
+//   확산장 갈구(feature-0006)가 옅은 에너지를 조금씩 긁는 것이라면, 채집은 결정에 뭉친 에너지를 크게 들이켜는
+//   것(증폭). 그래서 결정 곁의 생명체는 훨씬 빨리 채워지고 성장한다. 결정을 다 먹으면 그 결정은 소멸한다.
+//   결정론 시뮬 상수(rng 미사용, 순수 클램프) — 확산·성장 결정론에 영향 없다.
+export const CREATURE_HARVEST_RADIUS = 300;    // 이 반경 안의 결정을 채집한다(px) — 정적 질서가 풀리는 근접 거리
+export const CREATURE_HARVEST_RATE = 40;       // 매 대사 틱 결정에서 흡수하는 최대량(size 비례) — 확산 갈구(5)보다 훨씬 크다(농축=증폭)
+
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
   if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도
@@ -100,6 +133,7 @@ export const POOL = {
   SINK: 'W:SINK',  // 심우주 — 복사로 새어나간 진짜 손실 (단조 증가, 복귀 없음)
   MATERIAL: 'M:',  // 국소장 접두 — M:<regionKey> 가 그 지역의 흩어진 에너지(중등급, 재응집 가능)
   CRYSTAL: 'I:',   // 결정 접두 — I:<voxel> 가 그 복셀에 석출된 정적 저엔트로피 형태(확산·복사 면역, feature-0005)
+  CREATURE: 'C:',  // 생명체 접두 — C:<seq> 가 능동적 저엔트로피 섬(대사로 질서 유지, 갈구로 보충 — feature-0006)
 };
 
 // --- 이체 원인 태그 ---
@@ -112,6 +146,9 @@ export const CAUSE = {
   CRYSTALLIZE: 'crystallize', // 국소장 → 결정 (과포화 석출 · 죽음의 응결 — 정적 저엔트로피 형태로 동결, feature-0005)
   REACT: 'react',       // 결정 ↔ 결정 / 결정 → 국소장 (반응: 융합·화합·반응열 방출, feature-0005 step3)
   SETTLE: 'settle',     // 국소장 → 아래 국소장 (액체 중력 침강 — 아래로 흐르고 고인다, feature-0005 step4)
+  FORAGE: 'forage',     // 국소장 → 생명체 (갈구 — 세계의 흩어진 에너지를 흡수해 내부 질서를 보충, feature-0006)
+  METABOLIZE: 'metabolize', // 생명체 → 심우주 (물질대사 — 살아있음의 엔트로피 세금, 되돌아오지 않는 손실, feature-0006)
+  HARVEST: 'harvest',   // 결정 → 생명체 (채집 — 근접 결정의 농축 에너지를 흡수, 정적 질서를 푼다, feature-0007)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

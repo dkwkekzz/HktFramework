@@ -27,6 +27,10 @@ import {
   CRYSTAL_REACT_INTERVAL_TICKS, CRYSTAL_REACT_RADIUS, CRYSTAL_REACT_RELEASE_DIVISOR, reactSpecies,
   LIQUID_CONDENSE, LIQUID_CAPACITY, LIQUID_SETTLE_MAX, LIQUID_RADIATE_DIVISOR, LIQUID_COHESION,
   FIELD_Z_LAYERS,
+  CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
+  CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
+  CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
+  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -56,6 +60,10 @@ export class GameServer {
     this.crystals = new Map();     // cryId -> { id, seq, x, y, z, species } (잔고는 원장 풀에)
     this.voxelResident = new Map();// voxelKey -> cryId — 과포화 석출이 키우는 그 복셀의 "거주" 결정
     this.crystalSeq = 0;
+    // 생명체(feature-0006) — 능동적 저엔트로피 섬. 개별 discrete 객체이며 매 대사 틱마다 갈구·소모·생사판정을
+    // 스스로 돌린다(확산·복사 순회 밖). 잔고는 원장 풀에, 상태는 CREATURE 스냅샷으로 방송(읽기 전용).
+    this.creatures = new Map();    // creId -> { id, seq, x, y, z }
+    this.creatureSeq = 0;
     this.#genesis();
   }
 
@@ -107,6 +115,26 @@ export class GameServer {
     return sum;
   }
 
+  // 생명체 총량 (전시용 — feature-0006). 능동적으로 질서를 유지하는 살아있는 에너지의 합.
+  #creatureTotal() {
+    let sum = 0;
+    for (const creId of this.creatures.keys()) sum += this.ledger.balance(creId);
+    return sum;
+  }
+
+  // 생명체 하나를 스폰한다 (feature-0006) — 위치를 가진 discrete 저엔트로피 섬. SOURCE 에서 저엔트로피를
+  //   주입받아(feature-0003: 유일한 원점) 태어난다. 이후 스스로 대사·갈구로 질서를 유지한다.
+  //   확산·복사 순회 밖(materialKeys/crystals 와 별개)이라 오직 #metabolizeCreatures 만이 잔고를 움직인다.
+  spawnCreature(x, y, z) {
+    const seq = ++this.creatureSeq;
+    const creId = `${POOL.CREATURE}${seq}`;
+    this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0 }; // size=스탯(feature-0006 step2), growth=흑/적자 누적점
+    this.creatures.set(creId, cre);
+    this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
+    return cre;
+  }
+
   // 개별 결정 하나를 연다 (feature-0005 step2) — 위치·종을 가진 discrete 객체. 잔고는 이후 이체로 채운다.
   //   확산·복사 순회(materialKeys) 밖이라 태생적으로 면역(정적)이다. region=null → 읽기 전용 스냅샷 방송.
   #spawnCrystal(x, y, z, species) {
@@ -149,6 +177,7 @@ export class GameServer {
       playerId: id, name: player.name, seed: WORLD_SEED, tick: this.tickCount,
       total: this.ledger.totalSum(), src: this.ledger.balance(POOL.SOURCE),
       sink: this.ledger.balance(POOL.SINK), mat: this.#materialTotal(), cry: this.#crystalTotal(),
+      cre: this.#creatureTotal(),
       x: player.x, y: player.y, z: player.z,
     }));
     this.#tx(POOL.SOURCE, id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
@@ -158,19 +187,25 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    // 이탈 = 응집 소멸. 생명체의 에너지는 두 갈래로 분해된다(feature-0005 step2):
-    //   (1) 단단한 잔해 → 그 자리에 결정으로 응결(discrete, 종을 가짐 = 다양한 드랍/채집물의 씨앗)
-    //   (2) 무른 조직 → 국소장 복셀로 흩어진다(거름, feature-0004 의 열린 흐름 유지)
-    const energy = this.ledger.balance(id);
-    const cryAmt = Math.floor(energy * DEATH_CRYSTAL_FRACTION);
-    if (cryAmt > 0) {
-      const cryId = this.#spawnCrystal(p.x, p.y, p.z, pickSpecies(this.crystalRng));
-      this.#tx(id, cryId, cryAmt, CAUSE.CRYSTALLIZE, p); // 죽음의 결정화
-    }
-    const rest = this.ledger.balance(id); // 남은 무른 조직 전부
-    if (rest > 0) this.#tx(id, materialKey(p.x, p.y, p.z), rest, CAUSE.DEATH, p);
+    this.#decompose(id, p.x, p.y, p.z); // 이탈 = 응집 소멸 → 결정(잔해)+국소장(거름)으로 분해
     this.ledger.removePool(id);
     this.players.delete(id);
+  }
+
+  // 죽음의 분해 (feature-0005 step2) — 살아있는 풀(플레이어·생명체)이 파괴되면 그 에너지는 두 갈래로 흩어진다:
+  //   (1) 단단한 잔해 → 그 자리에 결정으로 응결(discrete, 종을 가짐 = 다양한 드랍/채집물의 씨앗)
+  //   (2) 무른 조직 → 국소장 복셀로 흩어진다(거름, feature-0004 의 열린 흐름 유지)
+  //   플레이어 이탈·생명체 아사가 공유한다 — "생명체가 파괴되면 결정체가 나타나고 주변 에너지와 섞인다".
+  //   분해 tx 는 at(좌표)을 실어 근처 플레이어 시야에 방송된다(누가 죽어 무엇을 남겼는지 보인다).
+  #decompose(fromId, x, y, z) {
+    const energy = this.ledger.balance(fromId);
+    const cryAmt = Math.floor(energy * DEATH_CRYSTAL_FRACTION);
+    if (cryAmt > 0) {
+      const cryId = this.#spawnCrystal(x, y, z, pickSpecies(this.crystalRng));
+      this.#tx(fromId, cryId, cryAmt, CAUSE.CRYSTALLIZE, { x, y }); // 죽음의 결정화
+    }
+    const rest = this.ledger.balance(fromId); // 남은 무른 조직 전부
+    if (rest > 0) this.#tx(fromId, materialKey(x, y, z), rest, CAUSE.DEATH, { x, y });
   }
 
   onMessage(playerId, msg) {
@@ -248,6 +283,12 @@ export class GameServer {
     //   쌓인 결정을 소비해 개수를 묶으며(무한 누적 방지), 종 분포를 계속 뒤섞는다(창발).
     if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#react();
+    }
+    // feature-0006 생명체 대사 — 각 생명체가 스스로 국소장을 갈구해 질서를 보충하고(field→생명체),
+    //   살아있음의 비용을 심우주로 방출하며(생명체→SINK), 그래도 최소 예비 아래로 떨어지면 죽는다(분해).
+    //   확산·석출 뒤에 돌린다 — 세계의 에너지가 흩어져 자리 잡은 뒤 그 자리에서 갈구한다.
+    if (this.tickCount % CREATURE_METABOLISM_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#metabolizeCreatures();
     }
     this.#flush();
     this.pendingOps = [];
@@ -378,6 +419,69 @@ export class GameServer {
     this.ledger.removePool(id);
   }
 
+  // 생명체 대사 — feature-0006. 각 생명체가 한 대사 틱에 스스로 도는 항상성 순환:
+  //   ① 갈구(forage): 그 자리 국소장에서 최대 FORAGE_RATE 를 흡수한다(field→생명체, 용량·잔고로 클램프).
+  //      세계에 에너지가 있으면 채워지고, 없으면 못 채운다 — "세계로부터 에너지를 갈구한다".
+  //   ② 생사판정: 갈구 후에도 최소 예비(DEATH_THRESHOLD) 아래면 질서가 붕괴한다 → 죽음(분해). 갈구가
+  //      먼저라 굶주리다가도 마침 에너지를 만나면 되살 수 있다(때맞춘 섭취). 못 만나면 결국 죽는다.
+  //   ③ 물질대사(metabolize): 살아있음의 비용 BASAL 을 심우주로 방출한다(생명체→SINK, 되돌아오지 않는 손실).
+  //      대사는 항상 예비 위에서 지불되므로 온전히 나간다 — 갈구가 대사를 못 따라가면 예비가 마르고 죽는다.
+  //   전부 순수 클램프 이체(rng 미사용)라 확산 결정론에 영향 없고, 갈구·대사는 무음 내부 이체(상태는 CREATURE 방송).
+  //   feature-0006 step2 — 용량·갈구·대사·예비가 스탯(size)에 비례한다. 대사 뒤 잔고가 용량 근처면 흑자로
+  //   성장점을 쌓아 성장하고(size↑), 굶주리면 진척이 깎인다 — 큰 몸은 세계가 못 받치면 몰락한다(#growCreature).
+  #metabolizeCreatures() {
+    for (const cre of [...this.creatures.values()]) {
+      const matId = materialKey(cre.x, cre.y, cre.z);
+      this.#harvestNearbyCrystal(cre);                                       // ⓪ 채집(feature-0007) — 농축 에너지 우선 섭취
+      this.ledger.transfer(matId, cre.id, CREATURE_FORAGE_RATE * cre.size, CAUSE.FORAGE); // ① 갈구(size 비례)
+      const bal = this.ledger.balance(cre.id);
+      if (bal < CREATURE_DEATH_THRESHOLD * cre.size) { this.#killCreature(cre); continue; }  // ② 붕괴(예비도 size 비례)
+      this.ledger.transfer(cre.id, POOL.SINK, CREATURE_BASAL_COST * cre.size, CAUSE.METABOLIZE); // ③ 대사(size 비례)
+      this.#growCreature(cre); // ④ 성장 판정(에너지 이력 → 스탯)
+    }
+  }
+
+  // 채집 — feature-0007. 반경 안 가장 가까운 결정 하나에서 농축 에너지를 흡수한다(결정 → 생명체). 결정은 원래
+  //   정적·면역(feature-0005)이지만 생명이 가까이 오면 그 정적 질서가 풀린다 — feature-0005 step5(상호작용)를
+  //   생명 쪽에서 구현한 것. 흡수량은 size 비례·용량으로 클램프(배부르면 못 먹는다). 다 먹힌 결정은 소멸한다.
+  //   확산 갈구(옅은 에너지)와 달리 결정은 뭉친 에너지라 크게 들이켠다 = 증폭. tx 에 at 을 실어 근처 시야에 방송.
+  #harvestNearbyCrystal(cre) {
+    let best = null, bestD = Infinity;
+    for (const c of this.crystals.values()) {
+      if (this.ledger.balance(c.id) <= 0) continue;
+      const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
+      if (d <= CREATURE_HARVEST_RADIUS && d < bestD) { best = c; bestD = d; }
+    }
+    if (!best) return;
+    const got = this.#tx(best.id, cre.id, CREATURE_HARVEST_RATE * cre.size, CAUSE.HARVEST, { x: cre.x, y: cre.y });
+    if (got > 0 && this.ledger.balance(best.id) === 0) this.#removeCrystal(best.id); // 다 먹힌 결정은 소멸
+  }
+
+  // 성장 — feature-0006 step2. 대사 뒤 잔고가 용량 근처(흑자)면 성장점을 쌓고, 굶주림(적자)이면 깎는다(성장은
+  //   hard-won — 한 번 굶으면 진척이 되돌아간다). 성장점이 문턱에 닿으면 성장(size↑)한다. size 는 순수 상태
+  //   변수(에너지 풀 아님)라 보존과 무관하다 — 용량(max)만 커지고 에너지는 그대로다. 큰 몸은 대사도 size 비례로
+  //   커지므로(#metabolizeCreatures) 세계가 그만큼 받쳐주지 못하면 곧 굶어 죽는다 — 세계 풍요도가 크기 상한을 정한다.
+  #growCreature(cre) {
+    if (cre.size >= CREATURE_SIZE_MAX) return; // 스탯 상한
+    const cap = CREATURE_MAX_ENERGY * cre.size;
+    const bal = this.ledger.balance(cre.id);
+    if (bal >= CREATURE_GROWTH_FULL_FRACTION * cap) cre.growth += 1;                       // 흑자 — 여유가 쌓인다
+    else if (bal < CREATURE_GROWTH_HUNGRY_FRACTION * cap) cre.growth = Math.max(0, cre.growth - 2); // 적자 — 진척이 깎인다
+    if (cre.growth >= CREATURE_GROWTH_THRESHOLD) {
+      cre.size += 1; cre.growth = 0;
+      const pool = this.ledger.get(cre.id);
+      if (pool) pool.max = CREATURE_MAX_ENERGY * cre.size; // 성장 = 용량 확장(에너지 이동 없음 → 보존 무관)
+    }
+  }
+
+  // 생명체 죽음 — 질서 유지에 실패한(굶주린) 생명체가 붕괴한다. 남은 에너지는 결정(잔해)+국소장(거름)으로
+  //   분해되고(feature-0005 죽음 경로 공유 — 근처 플레이어 시야에 방송), 레지스트리·원장 풀에서 지운다.
+  #killCreature(cre) {
+    this.#decompose(cre.id, cre.x, cre.y, cre.z);
+    this.ledger.removePool(cre.id);
+    this.creatures.delete(cre.id);
+  }
+
   // --- 시야에 들어와야 하는 엔티티 집합 (지역 구독 기준) ---
   //   최소 코어에는 플레이어만 있다 — feature 가 노드·몬스터·아이템을 여기 더한다.
   #visibleFor(p) {
@@ -416,6 +520,14 @@ export class GameServer {
           return acc;
         }, [])
       : null;
+    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size] (feature-0006). CRYSTAL 과 같은 읽기 전용 표시값.
+    const creatureCells = broadcastField
+      ? [...this.creatures.values()].reduce((acc, c) => {
+          const b = this.ledger.balance(c.id);
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size]);
+          return acc;
+        }, [])
+      : null;
     for (const p of this.players.values()) {
       // 시야 diff → ENTER / LEAVE (원장 미러의 관측 경계)
       const vis = this.#visibleFor(p);
@@ -442,6 +554,7 @@ export class GameServer {
 
       if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
       if (crystalCells) p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
+      if (creatureCells) p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
 
       if (checksumDue) {
         const regions = {};
@@ -449,7 +562,7 @@ export class GameServer {
         p.conn.send(encode(MSG.CHECKSUM, {
           tick: this.tickCount, total: this.ledger.totalSum(), regions,
           src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
-          mat: this.#materialTotal(), cry: this.#crystalTotal(),
+          mat: this.#materialTotal(), cry: this.#crystalTotal(), cre: this.#creatureTotal(),
         }));
       }
     }

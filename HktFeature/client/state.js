@@ -23,8 +23,10 @@ export class ClientState {
     this.worldSink = 0;         // SINK(심우주) 잔고 — 복사로 새어나간 손실, 단조 증가
     this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
     this.worldCrystal = 0;      // 결정 총량 — 국소장에서 석출돼 동결된 정적 에너지 (feature-0005)
+    this.worldCreature = 0;     // 생명체 총량 — 대사로 질서를 유지하는 살아있는 에너지 (feature-0006)
     this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
     this.crystals = new Map();  // seq -> { x, y, z, balance, species } (개별 결정 스냅샷, 마커 — 읽기 전용, feature-0005)
+    this.creatures = new Map();  // seq -> { x, y, z, balance, size } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -39,6 +41,7 @@ export class ClientState {
       case 'pos': return this.#onPos(msg);
       case 'field': return this.#onField(msg);
       case 'crystal': return this.#onCrystal(msg);
+      case 'creature': return this.#onCreature(msg);
       case 'checksum': return this.#onChecksum(msg);
       case 'snapshot': return this.#onSnapshot(msg);
       case 'teleport': return this.onTeleport?.(msg);
@@ -53,6 +56,7 @@ export class ClientState {
     this.worldSink = msg.sink ?? 0;
     this.worldMaterial = msg.mat ?? 0;
     this.worldCrystal = msg.cry ?? 0;
+    this.worldCreature = msg.cre ?? 0;
     // 잔고 0 기준점 — 스폰 인출은 곧 도착할 tx 가 채운다
     this.ledger.mirrorSet(this.playerId, 0, PLAYER_MAX_ENERGY, null);
     // SOURCE/SINK 는 서버 내부 저수지 — 무한 저수지로 물질화해 관련 tx 재생이 정확하게 한다
@@ -94,7 +98,7 @@ export class ClientState {
       if (this.ledger.get(id)) continue;
       if (id === POOL.SOURCE) this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
       // SINK·플레이어·국소장(M:)·결정(I:) 은 받는 쪽/무지역 → 잔고 0·무한 수용으로 물질화(오차 무해).
-      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER) || id.startsWith(POOL.MATERIAL) || id.startsWith(POOL.CRYSTAL))
+      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER) || id.startsWith(POOL.MATERIAL) || id.startsWith(POOL.CRYSTAL) || id.startsWith(POOL.CREATURE))
         this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
     }
     this.ledger.applyTx(tx);
@@ -124,12 +128,24 @@ export class ClientState {
     for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
   }
 
+  // 생명체 스냅샷 — 잔고>0 인 생명체만 실려온다. 렌더가 살아있는 마커로 읽는다(권위 아님, 표시용).
+  //   방송에 없는(=죽은) 생명체는 미러에서 지운다 — 아사·소멸한 생명체가 유령으로 남지 않게(CRYSTAL 과 같은 처리).
+  #onCreature(msg) {
+    const seen = new Set();
+    for (const [seq, x, y, z, balance, size] of msg.cells) {
+      this.creatures.set(seq, { x, y, z, balance, size: size ?? 1 });
+      seen.add(seq);
+    }
+    for (const key of this.creatures.keys()) if (!seen.has(key)) this.creatures.delete(key);
+  }
+
   #onChecksum(msg) {
     this.worldTotal = msg.total;
     if (msg.src !== undefined) this.worldSrc = msg.src;
     if (msg.sink !== undefined) this.worldSink = msg.sink;
     if (msg.mat !== undefined) this.worldMaterial = msg.mat;
     if (msg.cry !== undefined) this.worldCrystal = msg.cry;
+    if (msg.cre !== undefined) this.worldCreature = msg.cre;
     const bad = [];
     for (const [key, sum] of Object.entries(msg.regions)) {
       if (this.ledger.regionSum(key) !== sum) bad.push(key);
