@@ -7,9 +7,9 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL, fieldPhase } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, POOL, fieldPhase } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
@@ -17,6 +17,7 @@ function poolLabel(state, id) {
   if (id === POOL.SINK) return '심우주';
   if (id.startsWith(POOL.MATERIAL)) return '국소장';
   if (id.startsWith(POOL.CRYSTAL)) return '결정';
+  if (id.startsWith(POOL.CREATURE)) return '생명체';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -121,6 +122,9 @@ export class Render {
     // 결정 마커 — 국소장에서 석출돼 동결된 정적 에너지를 밝은 결정으로 그린다 (feature-0005)
     this.#crystalMarkers(cam);
 
+    // 생명체 마커 — 스스로 대사로 질서를 유지하는 살아있는 저엔트로피 섬 (feature-0006)
+    this.#creatureMarkers(cam);
+
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
     for (const e of state.entities.values()) {
@@ -213,6 +217,54 @@ export class Render {
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`◆ ${bal.toLocaleString()}`, top.sx, top.sy - 6);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // 생명체 마커 — feature-0006. 각 살아있는 생명체를 제 위치에 따뜻한 구체로 그린다(먼 것부터, painter's).
+  //   정적 결정(옥타)·차가운 확산장(큐브)과 대비되는 살아있는 형태. 색은 활력(잔고/용량)에 따라
+  //   건강한 초록(가득)→굶주린 붉음(임계 근처)으로 변한다 — 갈구가 대사를 못 따라가면 붉어지다 죽는다.
+  //   잔고는 스스로 도는 항상성의 결과다: 세계가 풍요로우면 가득 차 안정, 고갈되면 말라 붕괴한다.
+  #creatureMarkers(cam) {
+    const { state } = this;
+    if (!state.creatures || state.creatures.size === 0) return;
+    const marks = [];
+    for (const c of state.creatures.values()) {
+      if (c.balance <= 0) continue;
+      const d = this.#toCam(cam, c.x, c.y, c.z)[2];
+      if (d > 1) marks.push({ ...c, d });
+    }
+    marks.sort((a, b) => b.d - a.d);
+    for (const m of marks) this.#creatureOrb(cam, m.x, m.y, m.z, m.balance, m.d);
+  }
+
+  #creatureOrb(cam, cx, cy, cz, bal, depth) {
+    const { ctx } = this;
+    const p = this.#pt(cam, cx, cy, cz);
+    if (!p) return;
+    const vit = Math.max(0, Math.min(1, bal / CREATURE_MAX_ENERGY)); // 활력 = 잔고/용량
+    const starving = bal < CREATURE_DEATH_THRESHOLD * 3;             // 임계 근처면 굶주림 경고색
+    const hue = starving ? 8 + 60 * (bal / (CREATURE_DEATH_THRESHOLD * 3)) : 95 + 40 * vit; // 붉음→초록
+    const scale = this.focal / depth;
+    const r = Math.max(4, (10 + 10 * vit) * scale);
+    this.#stick(cam, cx, cy, cz, `hsla(${hue},70%,60%,0.4)`);        // 지면까지 수선(고도 가독성)
+    // 살아있는 광채 — 안쪽 밝은 코어 + 바깥 후광(맥동감)
+    const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, r * 1.8);
+    glow.addColorStop(0, `hsla(${hue},90%,${60 + 20 * vit}%,0.95)`);
+    glow.addColorStop(1, `hsla(${hue},85%,55%,0)`);
+    ctx.fillStyle = glow;
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r * 1.8, 0, 7); ctx.fill();
+    ctx.fillStyle = `hsl(${hue},85%,${58 + 18 * vit}%)`;
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = `hsla(${hue},95%,85%,0.9)`; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.stroke();
+    // 에너지(질서) 막대 + 잔고 라벨
+    this.#bar(p.sx, p.sy - r - 6, 34 * scale, vit, `hsl(${hue},80%,70%)`);
+    if (scale > 0.4) {
+      ctx.fillStyle = `hsl(${hue},85%,88%)`;
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`❋ ${bal}`, p.sx, p.sy - r - 10);
       ctx.textAlign = 'left';
     }
   }
@@ -310,29 +362,31 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·심우주) 전시 + 네트워크 계측
+    // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·생명체·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 140);
+    ctx.fillRect(w - 265, 10, 255, 172);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
     ctx.fillStyle = '#9db2c4';
     ctx.fillText(`(창세 이후 불변 = 보존 법칙)`, w - 255, 44);
-    // feature-0004: 태양(고)→국소장(중, 확산)→심우주(저, 손실) · feature-0005: 결정(국소장 석출, 정적·면역)
+    // feature-0004: 태양(고)→국소장(중, 확산)→심우주(저, 손실) · feature-0005: 결정(석출, 정적·면역) · feature-0006: 생명체(대사로 질서 유지)
     ctx.fillStyle = '#e0b34e';
     ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  국소장 ${state.worldMaterial.toLocaleString()}`, w - 255, 60);
     ctx.fillStyle = '#7cebd8';
     ctx.fillText(`◆ 결정(정적) ${state.worldCrystal.toLocaleString()}`, w - 255, 76);
+    ctx.fillStyle = '#8fe6a0';
+    ctx.fillText(`❋ 생명체(능동) ${state.worldCreature.toLocaleString()}`, w - 255, 92);
     ctx.fillStyle = '#7a8aa0';
-    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 92);
+    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 108);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`상태: 기체(옅음)·액체(바닥 고임)·고체(결정)`, w - 255, 106);
+    ctx.fillText(`상태: 기체·액체·고체 · 생명체(갈구↔대사)`, w - 255, 122);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 124);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 140);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 140);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 156);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';
