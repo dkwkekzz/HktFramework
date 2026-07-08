@@ -258,10 +258,20 @@ async function loadTile(tx, tz, ring) {
 	if (tilePending.has(key)) return;
 	tilePending.add(key);
 	const S = tileCfg.tileSize, G = ring === 0 ? tileCfg.nearG : tileCfg.farG;
-	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale);
+	// E16 bake 옵션 — 근접 링은 풀 조명(cast shadow·AO), 전 링에 fog 프리블렌드(링 중심 기준
+	// 거리 감쇠 — 스플랫엔 three fog 가 안 걸리므로 bake 에 굽는 정적 근사). fog 색은 clear 와
+	// 같은 linear 톤(setSkyFog 와 동일 변환)이라 지평선에서 배경과 이음새 없이 만난다.
+	const [bcx, bcz] = tileCenterKey ? tileCenterKey.split(',').map(Number) : [tx, tz];
+	const bakeOpts = {
+		full: ring === 0,
+		fogColor: skyFog.color.map(srgbToLinear),
+		fogCx: (bcx + 0.5) * S, fogCz: (bcz + 0.5) * S,
+		fogStart: skyFog.start, fogEnd: skyFog.end,
+	};
+	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale, bakeOpts);
 	const url = URL.createObjectURL(new File([bytes], 'tile.ply'));
 	// T5 수면 타일 — 이 타일에 수몰 셀이 있으면(null 아니면) 반투명 수면 메시를 함께 붙인다
-	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale) : null;
+	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale, bakeOpts) : null;
 	const waterUrl = waterBytes ? URL.createObjectURL(new File([waterBytes], 'water.ply')) : null;
 	// W-Q2b Bake 식생 — 근접 링(0)만 정적 나무·바위 스플랫(밀도 = 게놈 생명 층 `world.params.life`).
 	// 원경 링(1)은 굽지 않는다(LoD): fog(fogEnd=far 링 반경)로 소실되는 구간이라 예산을 아낀다.

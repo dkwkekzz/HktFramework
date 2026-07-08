@@ -42,7 +42,7 @@
 	}
 
 	// 기본 태양 방향(정규화) — world.sun 이 없을 때의 폴백(terrain-gen 기본 태양과 동일 값)
-	const DEFAULT_SUN = (() => { const s = [0.35, 0.9, 0.32], l = Math.hypot(s[0], s[1], s[2]); return [s[0] / l, s[1] / l, s[2] / l]; })();
+	const DEFAULT_SUN = (() => { const s = [0.55, 0.62, 0.38], l = Math.hypot(s[0], s[1], s[2]); return [s[0] / l, s[1] / l, s[2] / l]; })();
 	// 형태 음영 — 수관/바위 중심에서 블롭까지의 방향과 태양의 내적(diffuse). amb 는 그늘면 최저 밝기.
 	function formShade(dx, dy, dz, sun, amb) {
 		const l = Math.hypot(dx, dy, dz) || 1;
@@ -75,13 +75,13 @@
 		const trunkR = 0.10 * s, tr = life.trunk, lean = jit(k, 6, 0.10) * s;
 		for (let i = 0; i < 3; i++) {
 			const ty = cand.y + h * (0.10 + i * 0.15), lx = lean * i / 3;
-			pushSplat(arr, cx + lx, ty, cz, [tr[0] * gsh, tr[1] * gsh, tr[2] * gsh], 0.95, trunkR, h * 0.13, trunkR);
+			pushSplat(arr, cx + lx, ty, cz, [tr[0] * gsh[0], tr[1] * gsh[1], tr[2] * gsh[2]], 0.95, trunkR, h * 0.13, trunkR);
 		}
 		// 수관 코어 — 어두운 내부 블롭(껍질 클러스터 틈으로 배경 대신 그늘이 보이게 = 깊이감)
 		for (let i = 0; i < 4; i++) {
 			const dx = jit(k, 40 + i, 1), dy = jit(k, 50 + i, 0.7), dz = jit(k, 60 + i, 1);
 			const rr = crownR * 0.35;
-			const rgb = [leaf[0] * 0.45 * gsh, leaf[1] * 0.45 * gsh, leaf[2] * 0.45 * gsh];
+			const rgb = [leaf[0] * 0.45 * gsh[0], leaf[1] * 0.45 * gsh[1], leaf[2] * 0.45 * gsh[2]];
 			pushSplat(arr, cx + dx * rr, cy + dy * rr, cz + dz * rr, rgb, 0.95, crownR * 0.5, crownR * 0.42, crownR * 0.5);
 		}
 		// 수관 껍질 — 작은 잎 클러스터 20개를 타원 껍질에 배치, 태양면은 밝고 그늘면은 어둡다
@@ -93,8 +93,8 @@
 			const rr = crownR * (0.55 + keyHash(k, 400 + i) * 0.45);
 			const px = cx + dx * rr, py = cy + dy * rr * 0.85, pz = cz + dz * rr; // 세로 살짝 눌러 활엽 실루엣
 			const t = 0.25 + 0.6 * keyHash(k, 500 + i);
-			const sh = gsh * formShade(dx, dy, dz, sun, 0.45); // 태양면/그늘면 — 구형 입체감의 핵심
-			const rgb = [mix(leaf[0], leaf2[0], t) * sh, mix(leaf[1], leaf2[1], t) * sh, mix(leaf[2], leaf2[2], t) * sh];
+			const sh = formShade(dx, dy, dz, sun, 0.45); // 태양면/그늘면 — 구형 입체감의 핵심
+			const rgb = [mix(leaf[0], leaf2[0], t) * sh * gsh[0], mix(leaf[1], leaf2[1], t) * sh * gsh[1], mix(leaf[2], leaf2[2], t) * sh * gsh[2]];
 			const blobR = crownR * (0.22 + keyHash(k, 600 + i) * 0.16); // 예전 0.42~0.77 → 절반 이하(클럼피 실루엣)
 			pushSplat(arr, px, py, pz, rgb, 0.92, blobR, blobR * 0.8, blobR);
 		}
@@ -106,20 +106,20 @@
 		const cx = cand.x, cz = cand.z;
 		const leaf = [life.leaf[0] * 0.55, life.leaf[1] * 0.75, life.leaf[2] * 0.7]; // 차가운 침엽 톤
 		const tr = life.trunk;
-		pushSplat(arr, cx, cand.y + h * 0.12, cz, [tr[0] * gsh, tr[1] * gsh, tr[2] * gsh], 0.95, 0.09 * s, h * 0.16, 0.09 * s);
+		pushSplat(arr, cx, cand.y + h * 0.12, cz, [tr[0] * gsh[0], tr[1] * gsh[1], tr[2] * gsh[2]], 0.95, 0.09 * s, h * 0.16, 0.09 * s);
 		const L = 5;
 		for (let li = 0; li < L; li++) {
 			const f = li / (L - 1);                       // 0(아래)~1(꼭대기)
 			const ly = cand.y + h * (0.28 + 0.62 * f);
 			const lr = 0.62 * s * (1 - 0.78 * f);         // 위로 갈수록 좁게
 			// 층 중심 원반 + 둘레 클러스터 4개 — 층별 링이 원뿔 실루엣을 만든다
-			const csh = gsh * (0.55 + 0.45 * f);          // 위층이 밝다(태양)
-			pushSplat(arr, cx, ly, cz, [leaf[0] * csh, leaf[1] * csh, leaf[2] * csh], 0.94, lr, lr * 0.3, lr);
+			const csh = 0.55 + 0.45 * f;                  // 위층이 밝다(태양)
+			pushSplat(arr, cx, ly, cz, [leaf[0] * csh * gsh[0], leaf[1] * csh * gsh[1], leaf[2] * csh * gsh[2]], 0.94, lr, lr * 0.3, lr);
 			for (let i = 0; i < 4; i++) {
 				const a = (keyHash(k, 700 + li * 7 + i) + i / 4) * 6.2831853;
 				const dx = Math.cos(a), dz = Math.sin(a);
-				const sh = gsh * formShade(dx, 0.35, dz, sun, 0.45);
-				const rgb = [leaf[0] * sh, leaf[1] * sh, leaf[2] * sh];
+				const sh = formShade(dx, 0.35, dz, sun, 0.45);
+				const rgb = [leaf[0] * sh * gsh[0], leaf[1] * sh * gsh[1], leaf[2] * sh * gsh[2]];
 				pushSplat(arr, cx + dx * lr * 0.7, ly + jit(k, 800 + li * 7 + i, 0.08) * s, cz + dz * lr * 0.7,
 					rgb, 0.9, lr * 0.5, lr * 0.35, lr * 0.5);
 			}
@@ -135,8 +135,8 @@
 			const dx = jit(k, 10 + i, 0.35 * s), dz = jit(k, 20 + i, 0.35 * s);
 			const px = cand.x + dx, pz = cand.z + dz;
 			const py = cand.y + 0.12 * s;
-			const shade = gsh * formShade(dx, 0.5, dz, sun, 0.6) * (0.9 + jit(k, 30 + i, 0.1));
-			const rgb = [life.rock[0] * shade, life.rock[1] * shade, life.rock[2] * shade];
+			const shade = formShade(dx, 0.5, dz, sun, 0.6) * (0.9 + jit(k, 30 + i, 0.1));
+			const rgb = [life.rock[0] * shade * gsh[0], life.rock[1] * shade * gsh[1], life.rock[2] * shade * gsh[2]];
 			const rx = 0.34 * s * (0.7 + keyHash(k, 40 + i) * 0.7);
 			pushSplat(arr, px, py, pz, rgb, 0.98, rx, rx * 0.6, rx * 0.85);
 		}
@@ -146,10 +146,14 @@
 	// world.shadeAt 이 있으면 스폰 자리의 지면 명암을 곱해 지형 Bake 셰이딩과 통합한다.
 	function splatsFor(cands, life, world) {
 		const arr = [];
-		const shadeAt = (world && world.shadeAt) ? world.shadeAt : null;
+		// E16: 지면 명암을 채널별(RGB)로 — 그림자·AO·하늘 쿨톤이 나무 밑동에도 적용된다.
+		// shadeRGBAt 이 없으면(구 world) 스칼라 shadeAt 을 벡터로 승격.
+		const shadeV = (world && world.shadeRGBAt) ? ((x, z) => world.shadeRGBAt(x, z, false))
+			: (world && world.shadeAt) ? ((x, z) => { const s = world.shadeAt(x, z, false); return [s, s, s]; })
+			: (() => [1, 1, 1]);
 		const sun = (world && world.sun) || DEFAULT_SUN; // 지형 bake 와 같은 광원
 		for (const c of cands) {
-			const gsh = shadeAt ? shadeAt(c.x, c.z, false) : 1;
+			const gsh = shadeV(c.x, c.z);
 			if (c.kind === 'tree') treeSplats(c, life, arr, gsh, sun);
 			else if (c.kind === 'rock') rockSplats(c, life, arr, gsh, sun);
 		}

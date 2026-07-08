@@ -152,10 +152,23 @@
 		// 스플랫은 런타임 조명이 없다(SH 0차 = 상수색). 그래서 절차 지형이 무광 평면으로 보인다.
 		// 우리는 지형을 *생성*하므로 bake 시점에 diffuse(N·태양) + ambient 를 색에 곱해 넣으면
 		// 런타임 비용 0 으로 입체감(능선 음영)이 산다. 태양·앰비언트는 게놈(mood.sun)이 덮을 수 있다.
-		const _sun = P.sun || (P.mood && P.mood.sun) || [0.35, 0.9, 0.32];
+		// 태양 고도 ≈42° — cast shadow(E16)가 실제로 드리워지는 각도(예전 64° 는 그림자가 거의 안 생김)
+		const _sun = P.sun || (P.mood && P.mood.sun) || [0.55, 0.62, 0.38];
 		const _sl = Math.hypot(_sun[0], _sun[1], _sun[2]) || 1;
 		const SUN = [_sun[0] / _sl, _sun[1] / _sl, _sun[2] / _sl];
-		const SHADE_AMB = (P.shadeAmbient != null) ? P.shadeAmbient : 0.52; // 그림자 최저 밝기
+		const SHADE_AMB = (P.shadeAmbient != null) ? P.shadeAmbient : 0.5; // ambient 비중(하늘광)
+		// E16 2색 조명 — 태양은 웜톤, ambient 는 하늘 쿨톤: 그늘이 회색이 아니라 푸르게 식는다.
+		// 스칼라 명암(shadeAt)은 하위 호환으로 남긴다.
+		const SUN_COL = P.sunColor || (P.mood && P.mood.sunColor) || [1.18, 1.10, 0.96];
+		const SKY_COL = P.skyAmbient || (P.mood && P.mood.skyAmbient) || [0.60, 0.72, 0.95];
+		// 평지 정규화 — 평지(노멀=up)·완전 수광이 정확히 알베도가 되게 채널별 스케일.
+		// 팔레트가 저작된 색 그대로 나오고, 태양면 경사는 웜톤 부스트·그늘은 쿨톤 감쇠로만 벗어난다.
+		const _flatDif = SUN[1];
+		const SHADE_NORM = [
+			1 / (SHADE_AMB * SKY_COL[0] + (1 - SHADE_AMB) * _flatDif * SUN_COL[0]),
+			1 / (SHADE_AMB * SKY_COL[1] + (1 - SHADE_AMB) * _flatDif * SUN_COL[1]),
+			1 / (SHADE_AMB * SKY_COL[2] + (1 - SHADE_AMB) * _flatDif * SUN_COL[2]),
+		];
 
 		// W1: 바이옴 셋·수역색을 게놈에서 (없으면 기본 프리셋). WATER_ID 는 바이옴 수로 유도.
 		const BIOMES = P.biomeSet || DEFAULT_BIOMES;
@@ -257,11 +270,53 @@
 			return shadeFromNormal(normalAt(x, z));
 		}
 
+		// ── E16 조명 bake — cast shadow · AO · 2색(태양/하늘) 명암 ──────────────────
+		// 드리운 그림자: heightfield 를 태양 방향으로 레이마치(지수 간격 6스텝). 차폐 높이차가
+		// 클수록·가까울수록 진하게 — 산이 골짜기에 그림자를 던진다. 잔광 10%(완전 검정 방지).
+		function shadowAt(x, z, y) {
+			let occ = 0, t = 0.7;
+			for (let i = 0; i < 6; i++) {
+				const dh = reliefAt(x + SUN[0] * t, z + SUN[2] * t) - (y + SUN[1] * t);
+				if (dh > 0) { const s = dh / (0.25 + t * 0.18); if (s > occ) occ = s > 1 ? 1 : s; }
+				t *= 1.75; // 0.7 → 11.5m
+			}
+			return 1 - occ * 0.9;
+		}
+
+		// AO — 주변 4방 평균 높이 대비 파임 정도(저주파 cavity). 골짜기 바닥·크레바스가 어둡다.
+		function aoAt(x, z, y) {
+			const r = P.scale * 0.5;
+			const avg = (reliefAt(x + r, z) + reliefAt(x - r, z) + reliefAt(x, z + r) + reliefAt(x, z - r)) * 0.25;
+			const cav = Math.max(avg - y, 0) / (r * 0.8);
+			return 1 - (cav > 1 ? 1 : cav) * 0.45;
+		}
+
+		// 채널별 명암 [r,g,b] — ambient(하늘 쿨톤 × AO) + diffuse(태양 웜톤 × cast shadow).
+		// full=false 면 그림자·AO 생략(원경 등 값싼 경로 — fog 프리블렌드가 어차피 가린다).
+		const _sv = [1, 1, 1];
+		function shadeRGBFromNormal(n, x, z, y, full) {
+			let dif = Math.max(n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2], 0);
+			let ao = 1;
+			if (full) { dif *= shadowAt(x, z, y); ao = aoAt(x, z, y); }
+			const a = SHADE_AMB * ao, d = (1 - SHADE_AMB) * dif;
+			_sv[0] = (a * SKY_COL[0] + d * SUN_COL[0]) * SHADE_NORM[0];
+			_sv[1] = (a * SKY_COL[1] + d * SUN_COL[1]) * SHADE_NORM[1];
+			_sv[2] = (a * SKY_COL[2] + d * SUN_COL[2]) * SHADE_NORM[2];
+			return _sv;
+		}
+
+		// 단독 호출용(식생 bake 등) — 그림자·AO 포함 풀 조명. 반환 배열은 호출마다 새로 만든다.
+		function shadeRGBAt(x, z, water) {
+			if (water) return [1, 1, 1];
+			const y = reliefAt(x, z);
+			return shadeRGBFromNormal(normalAt(x, z), x, z, y, true).slice();
+		}
+
 		// ── 재질 디테일(E15) — 전부 좌표·시드 결정론(스트리밍 연속) ──────────────
 		// 고주파 알베도 변주 2채널: [0] 미세 럼프 밝기 배수(파장 ~0.9m, 풀숲·자갈 질감),
 		// [1] 패치 노이즈 [-1,1](파장 ~5.5m) — 고도 램프 t 를 흔들어 마른 풀/눈/모래 얼룩을 만든다.
-		const DETAIL_AMP = (P.detailAmp != null) ? P.detailAmp : 0.12;
-		const PATCH_AMP = (P.patchAmp != null) ? P.patchAmp : 0.35;
+		const DETAIL_AMP = (P.detailAmp != null) ? P.detailAmp : 0.10;
+		const PATCH_AMP = (P.patchAmp != null) ? P.patchAmp : 0.24; // 0.35 는 산악 흰 얼룩이 노이즈로 읽힘
 		function detailAt(x, z) {
 			const lum = 1 + DETAIL_AMP * fbm(x / 0.9 + 3.1, z / 0.9 - 6.7, P.seed + 8111, 2);
 			const patch = fbm(x / 5.5 - 11.9, z / 5.5 + 4.3, P.seed + 8333, 2);
@@ -341,8 +396,13 @@
 		// *내부*에 가둔다 — 이웃 타일과 셀이 겹치지도 벌어지지도 않고, 같은 밀도 타일끼리는
 		// 같은 격자를 공유하므로 같은 월드 셀 = 같은 스플랫(이음새 없음). splatScale 은
 		// 셀 크기에 비례해 커버리지 유지(외곽 저밀도 타일은 스플랫이 자동으로 커진다).
-		function tilePly(x0, z0, size, G, splatScale) {
-			G = G || 64; splatScale = splatScale || 1;
+		// opts(E16): { full: 그림자·AO 포함 풀 조명(근접 링), fogColor(린니어)/fogCx/fogCz/fogStart/
+		// fogEnd: 원경 fog 프리블렌드 — 링 중심 거리 기준으로 색을 fog 톤에 섞어 지평선 하드 에지를
+		// 없앤다(스플랫엔 three fog 가 안 걸리는 것의 정적 근사 — 링 거리≈시거리라 성립). }
+		function tilePly(x0, z0, size, G, splatScale, opts) {
+			G = G || 64; splatScale = splatScale || 1; opts = opts || {};
+			const fogC = opts.fogColor || null;
+			const fogInv = fogC ? 1 / Math.max((opts.fogEnd || 1) - (opts.fogStart || 0), 1e-3) : 0;
 			const N = G * G, cell = size / G;
 			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
 			const header = 'ply\nformat binary_little_endian 1.0\n' +
@@ -367,24 +427,34 @@
 				// 수역 셀은 평평한 수면(y=waterY)으로 — 분지 바닥 요철을 수면 아래로 잠근다(연결 호수)
 				const water = isWater(x, z);
 				const y = water ? P.waterY : height(x, z);
-				let rgb, sh, qw = 1, qx = 0, qz = 0; // 수면은 identity(수평 그대로)
+				let rgb, sv = null, qw = 1, qx = 0, qz = 0; // 수면은 identity(수평 그대로)
 				if (water) {
-					rgb = colorAt(x, z, y); sh = 1.0;
+					rgb = colorAt(x, z, y);
 				} else {
 					const n = normalAt(x, z); // 스플랫당 한 번 — 명암·경사 재질·정렬에 공유
-					sh = shadeFromNormal(n);
+					sv = shadeRGBFromNormal(n, x, z, y, !!opts.full); // E16 2색 조명(+그림자·AO)
 					rgb = colorAt(x, z, y, n[1]);
 					// 표면 정렬(E14): up(0,1,0)→노멀 회전 쿼터니언 — 경사면에서 surfel 이 지면에 눕는다
 					qw = 1 + n[1]; qx = n[2]; qz = -n[0];
 					const qi = 1 / (Math.hypot(qw, qx, qz) || 1);
 					qw *= qi; qx *= qi; qz *= qi;
 				}
-				// 채널별 미세 지터 — 단색 뭉침 방지(예전 단일 회색 지터를 대체)
-				const jr = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.06;
-				const jg = (latticeHash(cellX, cellZ, P.seed + 7719) - 0.5) * 0.06;
-				const jb = (latticeHash(cellX, cellZ, P.seed + 7721) - 0.5) * 0.06;
+				// 원경 fog 프리블렌드 — 링 중심에서 먼 스플랫일수록 fog 톤으로
+				let ff = 0;
+				if (fogC) {
+					const fd = Math.hypot(x - opts.fogCx, z - opts.fogCz);
+					ff = clamp01((fd - opts.fogStart) * fogInv);
+					ff = ff * ff * (3 - 2 * ff);
+				}
+				// 채널별 미세 지터 — 단색 뭉침 방지(예전 단일 회색 지터를 대체). fog 에 섞이면 감쇠.
+				const jr = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.06 * (1 - ff);
+				const jg = (latticeHash(cellX, cellZ, P.seed + 7719) - 0.5) * 0.06 * (1 - ff);
+				const jb = (latticeHash(cellX, cellZ, P.seed + 7721) - 0.5) * 0.06 * (1 - ff);
+				// 태양면 부스트가 밝은 팔레트(설원 등)에서 넘치지 않게 클램프
+				let cr = Math.min(rgb[0] * (sv ? sv[0] : 1), 1), cg = Math.min(rgb[1] * (sv ? sv[1] : 1), 1), cb = Math.min(rgb[2] * (sv ? sv[2] : 1), 1);
+				if (ff > 0) { cr = mix(cr, fogC[0], ff); cg = mix(cg, fogC[1], ff); cb = mix(cb, fogC[2], ff); }
 				put(x); put(y); put(z); put(0); put(0); put(0);
-				put((rgb[0] * sh + jr - 0.5) / SH_C0); put((rgb[1] * sh + jg - 0.5) / SH_C0); put((rgb[2] * sh + jb - 0.5) / SH_C0);
+				put((cr + jr - 0.5) / SH_C0); put((cg + jg - 0.5) / SH_C0); put((cb + jb - 0.5) / SH_C0);
 				put(2.44); // opacity 0.92 의 logit
 				put(lsx); put(lsy); put(lsx);
 				put(qw); put(qx); put(0); put(qz); // 쿼터니언 (w,x,y,z) — y축 회전 성분 없음
@@ -399,8 +469,10 @@
 		// 쓰되(이음새 정합), 지형이 수위 밑인 셀(`heightAt < waterY`)에만 납작한 surfel 을 놓는다.
 		// 색은 심도 기반(얕은 곳 청록 → 깊은 곳 남색, colorAt 수역 분기와 동일 팔레트). 수몰 셀이
 		// 없으면 null(무대가 이 타일에 물 메시를 안 붙인다). 반환: Uint8Array PLY | null.
-		function waterTilePly(x0, z0, size, G, splatScale) {
-			G = G || 64; splatScale = splatScale || 1;
+		function waterTilePly(x0, z0, size, G, splatScale, opts) {
+			G = G || 64; splatScale = splatScale || 1; opts = opts || {};
+			const fogC = opts.fogColor || null;
+			const fogInv = fogC ? 1 / Math.max((opts.fogEnd || 1) - (opts.fogStart || 0), 1e-3) : 0;
 			const cell = size / G;
 			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
 			// 먼저 수몰 셀 수집 (PLY 헤더에 정확한 정점 수 필요)
@@ -432,9 +504,14 @@
 			for (let i = 0; i < N; i++) {
 				const x = cells[i][0], z = cells[i][1], y = cells[i][2];
 				const d = clamp01((P.waterY - y) / 0.8); // 심도 [0,1]
-				const r = mix(wc.shallow[0], wc.deep[0], d);
-				const g = mix(wc.shallow[1], wc.deep[1], d);
-				const b = mix(wc.shallow[2], wc.deep[2], d);
+				let r = mix(wc.shallow[0], wc.deep[0], d);
+				let g = mix(wc.shallow[1], wc.deep[1], d);
+				let b = mix(wc.shallow[2], wc.deep[2], d);
+				if (fogC) { // 원경 fog 프리블렌드 — 지형 tilePly 와 동일 규칙
+					let ff = clamp01((Math.hypot(x - opts.fogCx, z - opts.fogCz) - opts.fogStart) * fogInv);
+					ff = ff * ff * (3 - 2 * ff);
+					r = mix(r, fogC[0], ff); g = mix(g, fogC[1], ff); b = mix(b, fogC[2], ff);
+				}
 				put(x); put(P.waterY); put(z); put(0); put(0); put(0);
 				put((r - 0.5) / SH_C0); put((g - 0.5) / SH_C0); put((b - 0.5) / SH_C0);
 				put(0.2); // opacity ≈ 0.55 (logit) — 반투명 수면
@@ -449,7 +526,7 @@
 
 		return {
 			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, shadeAt, normalAt, shadeFromNormal,
-			biomeAt, colorAt, climate, tilePly, waterTilePly,
+			shadeRGBAt, shadowAt, aoAt, biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 			sun: SUN, // 정규화 태양 방향 — 식생 bake 가 지형과 같은 광원으로 음영을 굽는다
 		};
