@@ -54,12 +54,24 @@
 		return base * f;
 	}
 
+	// key 제외 집합 정규화 — Set(has) · 배열 · 평면 객체(in) 모두 받아 (key)→bool 술어로.
+	// null/미지정이면 null 반환(제외 없음). W-Q2c: 시뮬로 승격된 스폰을 Bake 에서 빼는 데 쓴다.
+	function excludePredicate(ex) {
+		if (!ex) return null;
+		if (typeof ex.has === 'function') return (k) => ex.has(k);
+		if (Array.isArray(ex)) { const s = new Set(ex); return (k) => s.has(k); }
+		return (k) => k in ex;
+	}
+
 	// 결정론 스폰 후보 — cx,cz 중심 반경 radius 안. 각 스폰은 안정 key(셀 인덱스 기반)로
 	// 식별되므로 프레임이 바뀌어도 같은 스폰은 같은 슬롯을 유지한다(재시드 없음의 근거).
 	// 게놈 생명 층(life)이 있으면 밀도·종을 게놈이 정한다(W-Q2a). rock 은 Bake 전용(시뮬 승격 안 함).
+	// cfg.excludeKeys 가 있으면 그 key 스폰을 결과에서 뺀다(W-Q2c 승격 훅 — 시뮬로 올라간 나무를
+	// Bake 가 안 그리게, 같은 셀 격자를 공유해 key 가 정확히 일치하는 게 전제).
 	// 반환: [{ x, y, z, kind:'tree'|'campfire'|'rock', key, biome, host? }]
 	function candidates(world, cx, cz, radius, cfg) {
 		cfg = Object.assign({ cell: 6.0, treeDensity: 0.5, campfireRate: 0.16, maxSlope: 1.2, jitter: 0.7 }, cfg);
+		const excluded = excludePredicate(cfg.excludeKeys);
 		const life = lifeOf(world, cfg);
 		const treeBase = (life && life.treeDensity != null) ? life.treeDensity : cfg.treeDensity;
 		const rockBase = (life && life.rockDensity != null) ? life.rockDensity : 0; // 기본 0 = 기존 거동
@@ -94,7 +106,7 @@
 					out.push({ x, y, z, kind: 'rock', key: 'r:' + u + ',' + v, biome: b.key });
 				}
 			}
-		return out;
+		return excluded ? out.filter((c) => !excluded(c.key)) : out;
 	}
 
 	// 무(void) 개체 — 슬롯 패딩 전용(비활성 슬롯). editor.js VOID_ENTITY 와 동일 규약:
@@ -175,6 +187,10 @@
 
 	ScatterStream.prototype.activeKeys = function () { return Object.keys(this.slotOf); };
 	ScatterStream.prototype.slotForKey = function (k) { return this.slotOf[k]; };
+	// W-Q2c 승격 훅 — 현재 시뮬로 승격된 스폰 key 집합. Bake 식생 층에 넘겨(setVegExclusion)
+	// 승격된 나무의 정적 사본을 빼면 이중 그리기(같은 나무가 Bake+시뮬로 두 번)를 없앤다.
+	// 나무만 Bake 되므로 campfire key 가 섞여도 무해(Bake 에 없어 no-op). Set 반환(candidates 소비).
+	ScatterStream.prototype.promotedKeys = function () { return new Set(Object.keys(this.slotOf)); };
 
 	const api = { candidates, genesFor, voidEntity, slopeAt, ScatterStream };
 	global.HktGenesisScatter = api;

@@ -368,19 +368,25 @@
 		// ── T 트랙 오픈월드: 절차 지형 타일(무대) + 수면 + sky/fog + 스트리밍 나무(생명) ──
 		// 무대는 stage.startTileWorld(T2 타일+T5 수면/sky), 생명은 8 슬롯 ScatterStream(T4).
 		// tick 이 카메라 타깃을 따라 heightfield 를 굽고(T3 bakeFn) 스폰을 갱신한다.
-		function startOpenWorld(seed) {
+		function startOpenWorld(seed, genome) {
 			if (!window.HktGenesisScatter || !window.HktGenesisTerrainGen || !stage()) return;
 			seed = seed || 7;
 			openWorld = null;
-			const world = HktGenesisTerrainGen.world({ seed });
+			// W5: 월드 파라미터 = (게놈 있으면 게놈) + seed. 게놈 생명 층(life)이 있으면 Bake·시뮬 두
+			// 레이어가 같은 스폰 규칙(종·밀도·바이옴 조건)을 공유한다. mood 도 함께 흘러 하늘/fog 가 게놈대로.
+			const wparams = Object.assign({}, genome || {}, { seed });
+			const world = HktGenesisTerrainGen.world(wparams);
 			bindStageStatus();
-			stage().startTileWorld({ seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32 } });
+			stage().startTileWorld(Object.assign({}, wparams, { tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32 } }));
 			// 8 슬롯 void 장면 → 스캐터가 슬롯을 증분 교체 (count 는 8·256 배수여야 = 기본 128k OK)
 			const N = (engine.count && engine.count % (8 * 256) === 0) ? engine.count : 131072;
 			engine.setScene(N, Array.from({ length: 8 }, () => HktGenesisScatter.voidEntity()));
 			sceneEntities = engine.entities;
+			// W-Q2c: 시뮬 스트림이 Bake 식생(vegetation.bakeTile 기본 cell 3.4·maxSlope 2.2·jitter 0.8)과
+			// 같은 셀 격자를 봐야 승격 스폰 key 가 Bake key 와 정확히 일치해 이중 그리기를 뺄 수 있다 —
+			// cell·maxSlope·jitter 를 맞춘다(밀도·종은 genome.life 가, 없으면 기본 폴백이 정함 = 무회귀).
 			const stream = new HktGenesisScatter.ScatterStream(engine, world,
-				{ radius: 16, maxActive: 8, cell: 6, treeDensity: 0.55, campfireRate: 0.2, maxSlope: 1.3 });
+				{ radius: 16, maxActive: 8, cell: 3.4, jitter: 0.8, campfireRate: 0.2, maxSlope: 2.2 });
 			openWorld = { world, stream, bakeCd: 0 };
 			// 지형을 내려다보는 조감 시점 (낮은 각은 flat surfel 이 뭉개진다 — 가파른 각이 깨끗)
 			camera.target = [0, 0.2, 0]; camera.radius = 16; camera.pitch = 0.82; camera.yaw = 0.5; simTime = 0;
@@ -388,6 +394,8 @@
 		}
 		const owBtn = document.getElementById('owStart');
 		if (owBtn) owBtn.addEventListener('click', () => startOpenWorld(7));
+		// 하니스 훅 — 게놈(생명 층·mood)으로 오픈월드를 켜서 W5/W-Q2c 를 검증(버튼은 기본 시드 전용).
+		window.__hktStartOpenWorld = startOpenWorld;
 
 		// ── Alt+드래그 인력: 화면 광선 ∩ 수평면(카메라 타겟 높이) 을 인력점으로 ──
 		const pull = [0, 0, 0, 0];
@@ -442,6 +450,10 @@
 					engine.setHeightfield(HktHeightfield.bakeFn((x, z) => openWorld.world.height(x, z),
 						{ res: 128, originX: t[0] - R, originZ: t[2] - R, cell }));
 					openWorld.stream.update(t[0], t[2]);
+					// W-Q2c 승격 훅: 시뮬로 올라간 나무를 Bake 식생에서 제외(이중 그리기 제거). 승격
+					// 집합이 안 바뀌면 setVegExclusion 이 즉시 반환(값싼 게이트) — 바뀔 때만 근접 링 재Bake.
+					const s = stage();
+					if (s && s.setVegExclusion) s.setVegExclusion(openWorld.stream.promotedKeys());
 				}
 				owWasActive = true;
 			} else if (owWasActive) {

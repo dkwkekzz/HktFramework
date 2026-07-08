@@ -42,6 +42,8 @@ npm install                # playwright (브라우저 포함)
 | `node world-profile.js` | W2 스타일 프로파일(순수 Node) — ① temperate·ashen·최소 게놈·W4 v0 게놈이 울타리 통과 + ② 극단 게놈(과진폭·바이옴 초과·과채도·퇴화 중복·수위 이탈·과ampMul) 반려(위반 필드 확인) |
 | `node concept-shot.js <genome.json> <src-img> [out.png] [seed]` | W3 컨셉 대조 카드 — 추출 게놈 파노라마 + 원본 컨셉 이미지를 좌우 2패널로 합성(렌더 전 W2 검증, 두 패널 내용 판정) |
 | `node world-extract.js` | W4 추출기 파이프라인(순수 Node, 목 모드) — 프로파일 안 게놈 저장·_meta + 프로파일 밖 게놈 반려·미저장(라이브 vision 은 `tools/world-extract/extract.js`, `ANTHROPIC_API_KEY` 필요) |
+| `node world-life.js` | W-Q2a 게놈 생명 층(순수 Node) — 게놈 밀도→바이옴별 나무 수·rock 조건·스트리밍 연속성·Bake 식생 PLY·생명 밴드 검증(9/9) |
+| `node world-promote.js` | W-Q2c 승격 훅(순수 Node, 목 엔진) — ① 승격 key ⊆ Bake 후보 key(격자 공유) + ② excludeKeys 가 승격 key 만 제거(나머지 diff 0) + ③ bakePanorama 나무 수 = 제외 전 − 승격 나무 + ④ 강등 복귀 + ⑤ 무회귀(6/6) |
 
 프레임수·스플랫수 인자는 각 파일 상단 주석 참조. swiftshader(CPU) 라 300프레임 촬영에
 수 분 걸린다 — 빠른 확인은 프레임 120 · 스플랫 4096 으로.

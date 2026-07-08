@@ -40,6 +40,8 @@ let tileCfg = null;              // { tileSize, nearR, farR, nearG, farG, splatS
 const tiles = new Map();         // "tx,tz" -> { mesh, water, url, waterUrl, ring }
 const tilePending = new Set();   // 로드 진행 중 키 (중복 로드 방지)
 let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 재계산
+let vegExclude = null;           // W-Q2c: 시뮬 승격된 스폰 key Set — Bake 식생에서 제외
+let vegExcludeSig = '';          // 위 집합의 서명(정렬 join) — 바뀔 때만 재Bake(값싼 no-op 게이트)
 
 // ── T5 공용 sky/fog 톤 ────────────────────────────────────────────────────
 // Spark 스플랫은 three fog 를 지원하지 않으므로(무대 지형엔 clear 색이 곧 지평선 fog),
@@ -129,6 +131,7 @@ function startTileWorld(params) {
 	if (mesh) { rig.remove(mesh); if (mesh.dispose) mesh.dispose(); mesh = null; }
 	for (const t of tiles.values()) disposeTile(t);
 	tiles.clear(); tilePending.clear(); tileCenterKey = null;
+	vegExclude = null; vegExcludeSig = ''; // 승격 제외는 월드마다 초기화(이전 월드 key 잔류 방지)
 	tileWorld = window.HktGenesisTerrainGen.world(params);
 	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32, splatScale: 1 }, params && params.tile);
 	// T5/W6 공용 sky/fog — 게놈 mood(있으면 하늘 돔+fog) 또는 기본 톤. fog end 는 far 링 반경에
@@ -142,6 +145,7 @@ function startTileWorld(params) {
 function stopTileWorld() {
 	for (const t of tiles.values()) disposeTile(t);
 	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileCfg = null;
+	vegExclude = null; vegExcludeSig = '';
 	if (skyMesh) skyMesh.visible = false;
 	setEnabled(false);
 }
@@ -259,7 +263,7 @@ async function loadTile(tx, tz, ring) {
 	// W-Q2b Bake 식생 — 근접 링(0)만 정적 나무·바위 스플랫(밀도 = 게놈 생명 층 `world.params.life`).
 	// 원경 링(1)은 굽지 않는다(LoD): fog(fogEnd=far 링 반경)로 소실되는 구간이라 예산을 아낀다.
 	const vegBytes = (ring === 0 && window.HktGenesisVegetation)
-		? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, {}) : null;
+		? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, { excludeKeys: vegExclude }) : null;
 	const vegUrl = vegBytes ? URL.createObjectURL(new File([vegBytes], 'veg.ply')) : null;
 	try {
 		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
@@ -319,6 +323,42 @@ function updateTileCenter(wx, wz) {
 	return Promise.all(loads);
 }
 
+// ── W-Q2c 승격 훅: Bake 식생에서 시뮬 승격된 나무 제외 ─────────────────────────
+// "밀도=Bake, 상호작용=시뮬" 구조의 마지막 조각. ScatterStream 이 카메라 근처 나무를 8 슬롯
+// 시뮬로 승격하면(불×나무·성장·연소 = 상태 유도가 살아남), 그 정적 Bake 사본은 빼야 한다 —
+// 안 그러면 같은 나무가 두 번 그려진다(Bake 블롭 + 시뮬 개체). 승격 key 는 시뮬·Bake 가 같은
+// 셀 격자를 공유할 때만 정확히 일치하므로(app.js 가 stream/veg 에 같은 cell 을 준다), 여기서
+// 그 key 를 excludeKeys 로 넘겨 근접 링(0) 식생 타일을 다시 굽는다. v0 하드컷(경계 팝 허용).
+async function rebakeTileVeg(key) {
+	const t = tiles.get(key);
+	if (!t || t.ring !== 0 || !window.HktGenesisVegetation) return;
+	const [tx, tz] = key.split(',').map(Number);
+	const S = tileCfg.tileSize;
+	const vegBytes = window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, { excludeKeys: vegExclude });
+	// 기존 식생 메시 제거(동기) — await 전에 떼어 이중 표시 방지
+	if (t.veg) { rig.remove(t.veg); if (t.veg.dispose) t.veg.dispose(); t.veg = null; }
+	if (t.vegUrl) { URL.revokeObjectURL(t.vegUrl); t.vegUrl = null; }
+	if (!vegBytes) return; // 전부 제외 = 빈 식생(완전히 승격된 셀뿐)
+	const vegUrl = URL.createObjectURL(new File([vegBytes], 'veg.ply'));
+	const veg = new SplatMesh({ url: vegUrl, fileName: 'veg.ply', lod: false });
+	await veg.initialized;
+	// await 사이 타일이 폐기/교체됐으면(팬) 새 메시 버림 — 누수 방지
+	if (tiles.get(key) !== t) { if (veg.dispose) veg.dispose(); URL.revokeObjectURL(vegUrl); return; }
+	t.veg = veg; t.vegUrl = vegUrl; rig.add(veg);
+}
+
+// 승격 key 집합(Set)을 받아 Bake 식생 제외를 갱신. 집합이 안 바뀌면 즉시 반환(값싼 게이트) —
+// app.js tick 이 매 bake 주기 호출해도 실제 재Bake 는 승격이 바뀔 때만. 반환: 재Bake 프라미스.
+function setVegExclusion(keys) {
+	const sig = keys ? [...keys].sort().join('|') : '';
+	if (sig === vegExcludeSig) return Promise.resolve();
+	vegExcludeSig = sig;
+	vegExclude = (keys && keys.size) ? keys : null;
+	const jobs = [];
+	for (const key of [...tiles.keys()]) { const t = tiles.get(key); if (t && t.ring === 0) jobs.push(rebakeTileVeg(key)); }
+	return Promise.all(jobs);
+}
+
 function tileStats() {
 	let splats = 0, waterMeshes = 0, waterSplats = 0, vegMeshes = 0, vegSplats = 0;
 	for (const t of tiles.values()) {
@@ -363,7 +403,7 @@ window.HktGenesisStage = {
 	get hasWorld() { return hasContent(); },
 	SAMPLE_URL,
 	init, load, setEnabled, frame, capture,
-	startTileWorld, stopTileWorld, updateTileCenter, tileStats,
+	startTileWorld, stopTileWorld, updateTileCenter, tileStats, setVegExclusion,
 	setSkyFog, setMood, getSkyFog() { return { color: skyFog.color.slice(), start: skyFog.start, end: skyFog.end }; },
 	get tiledMode() { return !!tileWorld; },
 	setTransform(patch) { Object.assign(transform, patch); applyTransform(); },
