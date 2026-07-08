@@ -6,8 +6,8 @@
 // 브라우저 불필요. 사용: node world-profile.js
 const path = require('path');
 const fs = require('fs');
-const T = require('../js/terrain-gen.js');
-const P = require('../js/world-profile.js');
+const T = require('../js/env/terrain-gen.js');
+const P = require('../js/env/world-profile.js');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, extra) => { (cond ? pass++ : fail++); console.log(`  ${cond ? 'OK ' : '실패'} · ${name}${extra ? ' — ' + extra : ''}`); };

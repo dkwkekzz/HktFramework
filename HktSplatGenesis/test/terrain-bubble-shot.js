@@ -8,17 +8,17 @@
 // 사용: node terrain-bubble-shot.js [follow.png] [fixed.png] [frames=160] [n=8192]
 const path = require('path');
 const { serve, launch, savePng } = require('./_common');
-const HF = require('../js/heightfield.js');
-const TG = require('../js/terrain-gen.js');
+const HF = require('../js/life/heightfield.js');
+const TG = require('../js/env/terrain-gen.js');
 
 // 엔진 직접 구동 페이지 (heightfield + terrain-gen 포함)
 const ROUTE = (req, res) => {
 	res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
 	res.end('<!doctype html><meta charset="utf-8"><canvas id="gpu" width="640" height="640"></canvas>'
 		+ '<script src="/vendor/three.min.js"><\/script><script src="/vendor/fflate.min.js"><\/script><script src="/vendor/FBXLoader.js"><\/script>'
-		+ '<script src="/js/math.js"><\/script><script src="/js/heightfield.js"><\/script><script src="/js/terrain-gen.js"><\/script>'
-		+ '<script src="/js/skeleton.js"><\/script><script src="/js/presets.js"><\/script>'
-		+ '<script src="/js/wgsl.js"><\/script><script src="/js/engine.js"><\/script>');
+		+ '<script src="/js/life/math.js"><\/script><script src="/js/life/heightfield.js"><\/script><script src="/js/env/terrain-gen.js"><\/script>'
+		+ '<script src="/js/life/skeleton.js"><\/script><script src="/js/life/presets.js"><\/script>'
+		+ '<script src="/js/life/wgsl.js"><\/script><script src="/js/life/engine.js"><\/script>');
 };
 
 // 계곡: [50,50] 중심의 평바닥 분지 — 반경 RFLAT 까지 바닥 y=0, 그 밖으로 반경 R 에서 벽 y=3.

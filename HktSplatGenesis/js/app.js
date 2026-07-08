@@ -6,7 +6,7 @@
 (function () {
 	'use strict';
 
-	const { GENE_DEFS, PRESETS, hexToVec4 } = HktGenesisGenes; // js/presets.js 가 원본
+	const { GENE_DEFS, PRESETS, hexToVec4 } = HktGenesisGenes; // js/life/presets.js 가 원본
 
 	const genes = {};        // 현재 유전자 (숫자) + colorA/colorB 는 vec4 배열로 유지
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
@@ -230,7 +230,7 @@
 		drop.addEventListener('click', () => fbxFile.click());
 		fbxFile.addEventListener('change', (e) => readFBXFile(e.target.files[0]));
 
-		// ── S 트랙 무대 UI: js/stage.js(ES module) 는 classic 스크립트보다 늦게 실행된다 —
+		// ── S 트랙 무대 UI: js/env/stage.js(ES module) 는 classic 스크립트보다 늦게 실행된다 —
 		// 전역 접근은 항상 지연 getter 로 (부트 시점엔 HktGenesisStage 가 없을 수 있음) ──
 		const stage = () => window.HktGenesisStage;
 		const stageStatusEl = document.getElementById('stageStatus');

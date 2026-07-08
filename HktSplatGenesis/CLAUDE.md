@@ -35,6 +35,7 @@
 ### 컨벤션
 
 - classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/`HktOrbitCamera`/`HktGenesisSkeleton`), 빌드 스텝 없음, 주석 한국어.
+- **렌더 영역 분리**(PLAN-RenderSeparation): `js/` 는 `life/`(캐릭터=동적, WebGPU) · `env/`(환경=정적, Spark) · `shared/`(공유 스폰 계약) · 루트(합성: app·editor·`render-director.js`)로 나뉜다. 두 렌더러는 서로를 모르고 `render-director.js`(경계 소유자)를 통해서만 명시 계약(카메라·sky/fog 톤·heightfield·식생 승격)으로 만난다. 파일 참조는 전부 `window.HktGenesis*` 전역 — 경로 독립.
 - `vendor/` 는 유일한 서드파티 예외 — ① three r147 UMD(+FBXLoader/fflate): **FBX 파싱/FK 전용**. ② `vendor/spark/`(S 트랙): Spark + three r180+ ESM — **무대 렌더 전용**, 모듈 스코프로 격리. 두 three 사본 혼용 금지. 생명 렌더·시뮬 경로에서 three 사용 금지.
 - 튜닝 노브는 하드코딩하지 않고 `GENE_DEFS` 슬라이더로 노출 (UE CVar 관례의 웹 대응).
 

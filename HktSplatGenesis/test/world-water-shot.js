@@ -10,7 +10,7 @@
 // 사용: node world-water-shot.js [lake.png] [fog.png] [seed=7]
 const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
-const TG = require('../js/terrain-gen.js');
+const TG = require('../js/env/terrain-gen.js');
 
 const SEED = parseInt(process.argv[4] || '7');
 
@@ -18,8 +18,8 @@ const SEED = parseInt(process.argv[4] || '7');
 const LIFE_ROUTE = (req, res) => {
 	res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
 	res.end('<!doctype html><meta charset="utf-8"><canvas id="gpu" width="640" height="640"></canvas>'
-		+ '<script src="/js/math.js"><\/script><script src="/js/presets.js"><\/script>'
-		+ '<script src="/js/wgsl.js"><\/script><script src="/js/engine.js"><\/script>');
+		+ '<script src="/js/life/math.js"><\/script><script src="/js/life/presets.js"><\/script>'
+		+ '<script src="/js/life/wgsl.js"><\/script><script src="/js/life/engine.js"><\/script>');
 };
 
 const dist3 = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1], a[2] - b[2]);

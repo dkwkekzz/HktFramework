@@ -1,9 +1,25 @@
 # PLAN — 렌더러 경계 정리 (환경=정적 / 캐릭터=동적)
 
-상태: **제안**. 목표·원칙은 [../CLAUDE.md](../CLAUDE.md), 현황은 [ROADMAP.md](ROADMAP.md),
-구조·결정 근거는 [DESIGN.md](DESIGN.md). 이 문서는 이미 물리적으로 갈라진 두 렌더러(무대/생명)의
-**경계를 형식화**하고, 그 사이 회색지대(식생 승격·톤 공유)의 소유권과 데이터 계약을 정돈하는
-설계다. GPU 파이프라인·셰이더는 **건드리지 않는다** — 순수 리팩터(회귀 0)를 지향한다.
+상태: **구현 완료** (조정층 + 디렉터리 분리). 목표·원칙은 [../CLAUDE.md](../CLAUDE.md), 현황은
+[ROADMAP.md](ROADMAP.md), 구조·결정 근거는 [DESIGN.md](DESIGN.md). 이 문서는 이미 물리적으로
+갈라진 두 렌더러(무대/생명)의 **경계를 형식화**하고, 그 사이 회색지대(식생 승격·톤 공유)의
+소유권과 데이터 계약을 정돈한 설계다. GPU 파이프라인·셰이더는 **건드리지 않았다** — 순수 리팩터.
+
+## 구현 요약 (완료)
+
+- **조정층**: `js/render-director.js`(RenderDirector) 도입 — app.tick 에 흩어져 있던 env↔life 배관
+  (heightfield bake·스트림·승격 제외·sky/fog 톤 미러·프레임 시퀀싱·버블 gridCenter)을 한 소유자로.
+  app.tick 렌더 본문은 `director.updateOpenWorld(camera)` + `director.frame(...)` 로 축약. 의존성
+  주입(engine·getStage·heightfield)이라 전역 직결 회피.
+- **승격 계약 단일 원본**: `scatter.PROMOTE_CFG`(Object.freeze, cell 3.4·maxSlope 2.2·jitter 0.8) —
+  vegetation·app ScatterStream 하드코딩 제거(§2.① 해소).
+- **디렉터리 분리**: `js/` 를 렌더 영역별로 물리 분리 —
+  `js/life/`(캐릭터=동적, WebGPU: math·heightfield·wgsl·engine·genome·skeleton·anim·presets),
+  `js/env/`(환경=정적, Spark: terrain-gen·world-profile·stage·vegetation),
+  `js/shared/`(공유 계약: scatter), `js/`(합성 루트: app·editor·render-director).
+  index.html·editor.html 스크립트 경로 + test 하니스(require·인라인 script src) + tools require 갱신.
+- **검증(회귀 0)**: node — world-promote 6/6·world-life 9/9·world-genome·world-profile 14/14·
+  world-extract 3/3. browser — app-smoke 오류 0·editor-shot OK·openworld-shot OK(판정 baseline 동일).
 
 ## 1. 왜 (문제 정의)
 

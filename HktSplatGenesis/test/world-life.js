@@ -7,11 +7,11 @@
 //  ⑥ world-profile 생명 밴드: 정상 accept · 과범위 reject
 //
 // 브라우저/GPU 불필요. 사용: node world-life.js
-const T = require('../js/terrain-gen.js');
-const WP = require('../js/world-profile.js');
-require('../js/scatter.js');
+const T = require('../js/env/terrain-gen.js');
+const WP = require('../js/env/world-profile.js');
+require('../js/shared/scatter.js');
 const S = global.HktGenesisScatter;
-const V = require('../js/vegetation.js');
+const V = require('../js/env/vegetation.js');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, info) => { console.log(`  ${cond ? 'OK ' : 'FAIL'} · ${name}${info ? ' — ' + info : ''}`); cond ? pass++ : fail++; };

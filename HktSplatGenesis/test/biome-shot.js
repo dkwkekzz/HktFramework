@@ -7,7 +7,7 @@
 // 무대는 "로드 대상"이므로 지형을 코드로 생성하는 것은 절대 원칙 1 위배가 아니다 (생명 아님).
 // 사용: node biome-shot.js [out.png] [seed=7]
 const { serve, launch, collectErrors, savePng } = require('./_common');
-const T = require('../js/terrain-gen.js');
+const T = require('../js/env/terrain-gen.js');
 
 // ── ① 연속성 (순수 Node) ────────────────────────────────────────────────
 function continuityCheck(seed) {

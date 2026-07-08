@@ -24,7 +24,7 @@
 const fs = require('fs');
 const path = require('path');
 const { validate } = require('./validate');
-require('../../js/genome.js');
+require('../../js/life/genome.js');
 const G = globalThis.HktGenesisGenome;
 
 // ── 인자 파싱 ─────────────────────────────────────────────────────────────

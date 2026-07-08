@@ -93,13 +93,13 @@ Alt+드래그로 슬라임을 가르면 두 덩어리가 되고, 골렘 팔을 �
 
 | 파일 | 역할 |
 |---|---|
-| `js/math.js` | mat4 유틸 + 오빗 카메라 (WebGPU 클립 규약) |
-| `js/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) + 부속 가상 뼈 체인 + FBX 외부 리그 |
-| `js/genome.js` | C 트랙 캐릭터 게놈: 형태 배율·부위 램프·재질 차분·부속 체인 + 스타일 프로파일 |
+| `js/life/math.js` | mat4 유틸 + 오빗 카메라 (WebGPU 클립 규약) |
+| `js/life/skeleton.js` | L6 뼈대: Skeleton IR(joints+FK) + 절차 클립(walk/idle/wave) + 살 문법(radiusForName) + 부속 가상 뼈 체인 + FBX 외부 리그 |
+| `js/life/genome.js` | C 트랙 캐릭터 게놈: 형태 배율·부위 램프·재질 차분·부속 체인 + 스타일 프로파일 |
 | `tools/genome-extract/` | 이미지 → 게놈 추출기 (LLM vision + 프로파일 검증기) |
 | `vendor/` | three r147 UMD + FBXLoader + fflate — FBX 파싱/FK 전용 (렌더·시뮬은 자체 WebGPU) |
-| `js/wgsl.js` | WGSL 7종: grid clear/build / sim / cluster / key / bitonic sort / render |
-| `js/engine.js` | 버퍼·파이프라인·프레임 인코딩 |
+| `js/life/wgsl.js` | WGSL 7종: grid clear/build / sim / cluster / key / bitonic sort / render |
+| `js/life/engine.js` | 버퍼·파이프라인·프레임 인코딩 |
 | `js/app.js` | 유전자 UI + 프리셋 + 루프 |
 
 ## 로드맵 (레이어 = 데모)

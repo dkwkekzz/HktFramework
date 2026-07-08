@@ -5,7 +5,7 @@
 //     temperate 와 색족·바이옴이 뚜렷이 다른 월드를 낸다 — 데이터만으로 성격이 바뀐다는 실증.
 //
 // 브라우저/GPU 불필요 (결정론 순수 함수). 사용: node world-genome.js [seed=7]
-const T = require('../js/terrain-gen.js');
+const T = require('../js/env/terrain-gen.js');
 const SEED = parseInt(process.argv[2] || '7');
 
 // 파노라마 영역을 규칙적으로 훑는 좌표열 (두 월드에 동일 입력)

@@ -172,17 +172,21 @@
 <script src="vendor/three.min.js"></script>
 <script src="vendor/fflate.min.js"></script>
 <script src="vendor/FBXLoader.js"></script>
-<script src="js/math.js"></script>
-<script src="js/heightfield.js"></script>
-<script src="js/terrain-gen.js"></script>
-<script src="js/genome.js"></script>
-<script src="js/skeleton.js"></script>
-<script src="js/anim.js"></script>
-<script src="js/presets.js"></script>
-<script src="js/wgsl.js"></script>
-<script src="js/engine.js"></script>
-<script src="js/scatter.js"></script>
-<script src="js/vegetation.js"></script>
+<!-- 생명(캐릭터=동적, WebGPU) -->
+<script src="js/life/math.js"></script>
+<script src="js/life/heightfield.js"></script>
+<script src="js/life/genome.js"></script>
+<script src="js/life/skeleton.js"></script>
+<script src="js/life/anim.js"></script>
+<script src="js/life/presets.js"></script>
+<script src="js/life/wgsl.js"></script>
+<script src="js/life/engine.js"></script>
+<!-- 환경(정적) — 무대 렌더러(stage)는 아래 module 로, 여기는 월드 데이터 생성 -->
+<script src="js/env/terrain-gen.js"></script>
+<script src="js/env/vegetation.js"></script>
+<!-- 공유 계약(스폰 규칙) -->
+<script src="js/shared/scatter.js"></script>
+<!-- 합성 루트 -->
 <script src="js/render-director.js"></script>
 <script src="js/app.js"></script>
 <!-- S 트랙 무대: Spark(WebGL2) + three r180 ESM — vendor/spark/ 로 격리, 전역 THREE(r147)와 혼용 금지 -->
@@ -195,6 +199,6 @@
 	}
 }
 </script>
-<script type="module" src="js/stage.js"></script>
+<script type="module" src="js/env/stage.js"></script>
 </body>
 </html>
