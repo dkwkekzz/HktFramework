@@ -1,0 +1,2 @@
+# 검증 하니스 의존성 (test/package.json 이 원본, lockfile 은 추적)
+node_modules/
