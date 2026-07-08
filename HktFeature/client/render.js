@@ -106,8 +106,11 @@ export class Render {
     ctx.fillStyle = '#0a0d13';
     ctx.fillRect(0, 0, w, h);
 
+    // 국소장 히트맵 — 지면 컬럼을 농도에 따라 칠한다 (feature-0004 step2: 에너지 확산 시각화)
+    this.#fieldHeatmap(cam);
+
     // 지면(z=0) 지역 격자
-    ctx.strokeStyle = '#1a2130';
+    ctx.strokeStyle = '#2a3446';
     ctx.lineWidth = 1;
     for (let g = 0; g <= WORLD_SIZE; g += REGION_SIZE) {
       this.#seg(cam, g, 0, 0, g, WORLD_SIZE, 0);
@@ -130,6 +133,37 @@ export class Render {
     }
 
     this.#hud();
+  }
+
+  // 국소장 히트맵 — 각 지역 컬럼을 농도(에너지)에 비례한 색으로 지면에 칠한다.
+  //   차가움(파랑, 저농도) → 뜨거움(주황·빨강, 고농도). 확산이 진행되면 뜨거운 얼룩이
+  //   이웃으로 번지고, 평형에 이르면 색이 고르게 수렴한다 — "높은 확률로 전파"를 눈으로 본다.
+  #fieldHeatmap(cam) {
+    const { ctx, state } = this;
+    if (state.field.size === 0) return;
+    let max = 1;
+    for (const v of state.field.values()) if (v > max) max = v;
+    // 먼 컬럼부터 그려 겹침을 자연스럽게 (지면 평면이라 깊이 정렬은 근사)
+    const cells = [];
+    for (const [key, bal] of state.field) {
+      const [cx, cy] = key.split('_').map(Number);
+      const mx = (cx + 0.5) * REGION_SIZE, my = (cy + 0.5) * REGION_SIZE;
+      cells.push({ cx, cy, bal, d: this.#toCam(cam, mx, my, 0)[2] });
+    }
+    cells.sort((a, b) => b.d - a.d);
+    for (const c of cells) {
+      const t = Math.min(1, c.bal / max);
+      const p0 = this.#pt(cam, c.cx * REGION_SIZE, c.cy * REGION_SIZE, 0);
+      const p1 = this.#pt(cam, (c.cx + 1) * REGION_SIZE, c.cy * REGION_SIZE, 0);
+      const p2 = this.#pt(cam, (c.cx + 1) * REGION_SIZE, (c.cy + 1) * REGION_SIZE, 0);
+      const p3 = this.#pt(cam, c.cx * REGION_SIZE, (c.cy + 1) * REGION_SIZE, 0);
+      if (!p0 || !p1 || !p2 || !p3) continue; // 카메라 뒤 컬럼은 생략(근사)
+      ctx.fillStyle = `hsla(${210 - 210 * t}, 85%, ${28 + 34 * t}%, ${0.12 + 0.55 * t})`;
+      ctx.beginPath();
+      ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
+      ctx.lineTo(p2.sx, p2.sy); ctx.lineTo(p3.sx, p3.sy); ctx.closePath();
+      ctx.fill();
+    }
   }
 
   // 높이 스틱 — 엔티티에서 지면(z=0)까지 수선 (고도 가독성)
@@ -203,7 +237,7 @@ export class Render {
 
     // 우상: 보존 불변식 + 에너지 세 등급(태양·국소장·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 108);
+    ctx.fillRect(w - 265, 10, 255, 122);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
@@ -214,10 +248,14 @@ export class Render {
     ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  국소장 ${state.worldMaterial.toLocaleString()}`, w - 255, 60);
     ctx.fillStyle = '#7a8aa0';
     ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
+    ctx.fillStyle = '#6b7a8c';
+    ctx.font = '10px monospace';
+    ctx.fillText(`지면색 = 국소장 농도(확산 = 엔트로픽 전파)`, w - 255, 90);
+    ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 92);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 108);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 124);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';

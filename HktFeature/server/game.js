@@ -23,7 +23,7 @@ import {
   PLAYER_MAX_ENERGY, SPAWN_GRANT,
   MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
-  CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
+  CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
 export class GameServer {
@@ -43,6 +43,7 @@ export class GameServer {
     this.txSeq = 0;
 
     this.materialKeys = [];        // 국소장 풀 id 목록 (확산 순회용)
+    this.materialCells = [];       // [cx, cy, id] — 국소장 그리드 방송용 (좌표 동반)
     this.materialNeighbors = new Map(); // 국소장 id -> 이웃 국소장 id 목록 (엔트로픽 확산 인접)
     this.#genesis();
   }
@@ -62,6 +63,7 @@ export class GameServer {
         const id = `${POOL.MATERIAL}${cx}_${cy}`;
         this.ledger.createPool(id, 0, Number.MAX_SAFE_INTEGER, null);
         this.materialKeys.push(id);
+        this.materialCells.push([cx, cy, id]);
       }
     }
     // 4방향 인접(같은 컬럼 격자) — 엔트로픽 확산은 이웃 사이에서만 일어난다.
@@ -260,6 +262,11 @@ export class GameServer {
   // 플러시 순서 규약 (protocol.js 참조): LEAVE → OPS → ENTER → POS → CHECKSUM
   #flush() {
     const checksumDue = this.tickCount % CHECKSUM_INTERVAL_TICKS === 0;
+    // 국소장 그리드 스냅샷 — 세계 수준 표시 데이터(보존 readout 처럼 전역). 4x4 라 방송 비용이 미미하고,
+    //   관전자도 세계 전역의 확산을 지도에서 본다. 원장 tx 가 아니라 읽기 전용 관측값이다(POS 와 같은 성격).
+    const fieldCells = (this.tickCount % FIELD_INTERVAL_TICKS === 0)
+      ? this.materialCells.map(([cx, cy, id]) => [cx, cy, this.ledger.balance(id)])
+      : null;
     for (const p of this.players.values()) {
       // 시야 diff → ENTER / LEAVE (원장 미러의 관측 경계)
       const vis = this.#visibleFor(p);
@@ -283,6 +290,8 @@ export class GameServer {
         if (id !== p.id && vis.has(id)) moves.push([id, x, y, z]);
       }
       if (moves.length) p.conn.send(encode(MSG.POS, { moves }));
+
+      if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
 
       if (checksumDue) {
         const regions = {};

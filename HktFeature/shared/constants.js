@@ -19,6 +19,7 @@ export const SPAWN_POS = { x: 1000, y: 1000, z: WORLD_HEIGHT / 2 };
 export const TICK_RATE = 10;             // 서버 원장 틱 (Hz) — 서버는 이 빈도로만 깨어난다
 export const BEACON_INTERVAL_MS = 200;   // 클라 좌표 비콘 5Hz
 export const CHECKSUM_INTERVAL_TICKS = 30; // 3초마다 지역 보존 체크섬
+export const FIELD_INTERVAL_TICKS = 5;     // 0.5초마다 국소장 그리드 스냅샷 방송 (확산 시각화)
 export const RELEVANCY_RADIUS = 1;       // 자기 지역 기준 (2R+1)^2 = 3x3 구독
 
 // --- 이동 (에너지 지출 = 스피드핵 예산 검증의 근거) ---
