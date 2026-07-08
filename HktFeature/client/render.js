@@ -143,7 +143,7 @@ export class Render {
     if (state.field.size === 0) return;
     let max = 1;
     for (const v of state.field.values()) if (v > max) max = v;
-    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS, m = 0.14; // 셀 안쪽 여백(복셀 분리)
+    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS, m = 0.02; // 셀 경계 얇은 실선용 미세 여백(복셀은 공간을 빈틈없이 채운다 — 간격은 표시용일 뿐)
     const cells = [];
     for (const [key, bal] of state.field) {
       const t = bal / max;
@@ -265,7 +265,7 @@ export class Render {
     ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`글로우 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
+    ctx.fillText(`복셀 색 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
     ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);
