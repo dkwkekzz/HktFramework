@@ -39,15 +39,63 @@
 		}
 		camera.target = [spawn[0], w.heightAt(spawn[0], spawn[1]) + 1, spawn[1]];
 
+		// ── E25 걷기 모드 — 정적 무대 위의 게임형 인터랙션 실증 ─────────────────────
+		// 'V' 토글: 오빗(부감) ↔ 1인칭 걷기. WASD 이동(Shift 달리기), 좌드래그 시선.
+		// 지면 충돌은 물리엔진이 아니라 **월드 함수** heightAt(눈높이 = 지형 + 1.7m) — 무한
+		// 스트리밍 세계 어디서든 성립한다(스플랫은 배경, 인터랙션은 함수 레이어 = 2층 구조).
+		const EYE = 1.7;
+		const walk = { on: false, x: spawn[0], z: spawn[1], yaw: 2.6, pitch: -0.06 };
+		const keys = {};
+		const clamp = (v, a, b) => (v < a ? a : v > b ? v : b);
+		addEventListener('keydown', (e) => {
+			if (e.code === 'KeyV') {
+				walk.on = !walk.on;
+				if (walk.on) { // 켤 때 오빗 타깃 자리에서 시작 — 시점 연속
+					walk.x = camera.target[0]; walk.z = camera.target[2];
+					walk.yaw = camera.yaw + Math.PI; // 오빗이 보던 방향을 그대로 바라본다
+				} else { // 끌 때 서 있던 자리를 오빗 타깃으로
+					camera.target = [walk.x, Math.max(w.heightAt(walk.x, walk.z), w.waterY) + 1, walk.z];
+				}
+			}
+			keys[e.code] = true;
+		});
+		addEventListener('keyup', (e) => { keys[e.code] = false; });
+		view.addEventListener('pointermove', (e) => { // 걷기 시선 — 좌드래그(오빗 핸들러와 공존, 모드로 분기)
+			if (walk.on && (e.buttons & 1)) {
+				walk.yaw -= e.movementX * 0.0032;
+				walk.pitch = clamp(walk.pitch - e.movementY * 0.0032, -1.25, 1.25);
+			}
+		});
+		// 걷기 카메라 — stage.frame 이 기대하는 오빗 호환 뷰(fov/up/target/_eye)를 합성한다
+		function walkCam() {
+			const ey = Math.max(w.heightAt(walk.x, walk.z), w.waterY) + EYE; // 지면·수면 위 눈높이
+			const cp = Math.cos(walk.pitch);
+			const dir = [cp * Math.sin(walk.yaw), Math.sin(walk.pitch), cp * Math.cos(walk.yaw)];
+			return { fov: 1.0, up: [0, 1, 0],
+				target: [walk.x + dir[0] * 4, ey + dir[1] * 4, walk.z + dir[2] * 4],
+				_eye: () => [walk.x, ey, walk.z] };
+		}
+		function walkMove(dt) {
+			const f = (keys.KeyW ? 1 : 0) - (keys.KeyS ? 1 : 0);
+			const s = (keys.KeyD ? 1 : 0) - (keys.KeyA ? 1 : 0);
+			if (!f && !s) return;
+			const sp = (keys.ShiftLeft || keys.ShiftRight ? 10 : 4.5) * dt;
+			const sy = Math.sin(walk.yaw), cy = Math.cos(walk.yaw);
+			walk.x += (sy * f + cy * s) * sp;
+			walk.z += (cy * f - sy * s) * sp;
+		}
+		window.__envWalk = walk; // 하니스 기능 검증용(위치·모드 관찰)
+
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;
 		function tick(now) {
 			const dt = Math.min((now - last) / 1000, 0.05); last = now;
+			if (walk.on) walkMove(dt);
 			// stage.frame: 카메라 타깃을 따라 타일 링을 갱신(fire-and-forget)하고 렌더한다.
-			S.frame(camera, view.clientWidth, view.clientHeight);
+			S.frame(walk.on ? walkCam() : camera, view.clientWidth, view.clientHeight);
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 			const st = S.tileStats ? S.tileStats() : {};
-			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · 타일 ${st.meshes || 0} · 스플랫 ${((st.splats || 0) / 1000).toFixed(0)}k` +
+			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${walk.on ? '걷기(V로 오빗)' : '오빗(V로 걷기)'} · 타일 ${st.meshes || 0} · 스플랫 ${((st.splats || 0) / 1000).toFixed(0)}k` +
 				(st.vegMeshes ? ` · 식생 ${st.vegMeshes}` : '');
 			requestAnimationFrame(tick);
 		}
