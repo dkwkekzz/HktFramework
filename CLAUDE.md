@@ -14,7 +14,9 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 
 작업 대상 플러그인을 먼저 식별하고 해당 CLAUDE.md를 읽을 것. 루트는 위 문서들에 중복 기재하지 않는다.
 
-플러그인 외 독립 트랙: [HktLedgerWeb/CLAUDE.md](HktLedgerWeb/CLAUDE.md) — 에너지 원장 동기화 MMORPG 웹 프로토타입 (UE 빌드·타 플러그인과 무관).
+플러그인 외 독립 트랙:
+- [HktLedgerWeb/CLAUDE.md](HktLedgerWeb/CLAUDE.md) — 에너지 원장 동기화 MMORPG 웹 프로토타입 (UE 빌드·타 플러그인과 무관).
+- [HktFeature/CLAUDE.md](HktFeature/CLAUDE.md) — 오픈월드 MMORPG 규칙을 feature 단위로 정의·시뮬레이션하는 웹 트랙 (원장 엔진 기반, UE 빌드·타 플러그인과 무관).
 
 ## Coding Conventions
 
