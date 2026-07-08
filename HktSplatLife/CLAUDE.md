@@ -26,8 +26,9 @@
 ### 불변 조건 (깨지면 화면이 즉시 무너짐)
 
 - 스플랫 수 N = **2의 거듭제곱** (바이토닉 정렬 전제), 슬라이스 256 배수.
-- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 144B(36) ·
-  `Cluster` 96B(24) · 격자 상수(GD=64, SLOTS=16) · `CLUSTER_K`=256 — `wgsl.js`↔`engine.js` 동기 필수.
+- 셰이더↔엔진 **바이트 일치**: `Splat` 48B=`SPLAT_STRIDE` 12 float · `Entity` 160B(40, R1 재질 포함) ·
+  `Cluster` 96B(24) · `CamParams` 256B(fog+조명) · 격자 상수(GD=64, SLOTS=16) · `CLUSTER_K`=256 ·
+  `GROUP_COUNT`=14(=genome.js GROUP_IDS 길이) — `wgsl.js`↔`engine.js`↔`genome.js` 동기 필수.
 - L6 살 뼈 세그먼트 상한 `MAX_BONES`=512 (render 셰이더 `rest.w` clamp 511u 와 동기).
 - L6 살 = 자리 스프링 + 친화 분포 + 임계 감쇠 전제 — 셋 중 하나라도 무너지면 살이 방울로 붕괴한다.
 - 정렬 far→near (back-to-front), 블렌딩 premultiplied over.

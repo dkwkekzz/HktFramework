@@ -31,7 +31,7 @@ struct SimParams {
 };
 `;
 
-	// 개체 유전자 144B — engine.js ENTITY_STRIDE(36 float) 와 바이트 일치 필수
+	// 개체 유전자 160B — engine.js ENTITY_STRIDE(40 float) 와 바이트 일치 필수
 	const ENTITY_STRUCT = /* wgsl */`
 struct Entity {
 	emitter : vec3f,   cohesion : f32,
@@ -42,6 +42,7 @@ struct Entity {
 	growRate : f32,    flamm : f32,     heatEmit : f32,  fleshK : f32, // fleshK: L6 살 자리 스프링 강도
 	colorA : vec4f,    colorB : vec4f,
 	size : f32,        stretch : f32,   opacity : f32,   luminosity : f32,
+	spec : f32,        specPow : f32,   rim : f32,       wrap : f32,   // R1 재질: 스펙큘러·광택·림·랩 확산
 };
 `;
 
@@ -281,14 +282,21 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		let ba = B.xyz - A.xyz;
 		let bl = max(length(ba), 1e-5);
 		let axis = ba / bl;
-		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u)
+		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u).
+		// 축 구간을 [-r1, bl+r2] 로 확장해 양끝 *반구 캡*까지 샘플한다 (진짜 캡슐) —
+		// 캡이 없으면 머리·손끝이 뭉툭한 원기둥으로 잘려 얼굴이 공 모양이 되지 않는다.
 		let h = hash31(s.misc.y + f32(bi) * 0.317);
-		let rr = mix(A.w, B.w, h.x) * sqrt(h.y);
+		let tx = h.x * (bl + A.w + B.w) - A.w; // 축 좌표 ∈ [-r1, bl+r2]
+		var Rt : f32;
+		if (tx < 0.0) { Rt = sqrt(max(A.w * A.w - tx * tx, 0.0)); }               // 캡 A: 구 단면
+		else if (tx > bl) { let e = tx - bl; Rt = sqrt(max(B.w * B.w - e * e, 0.0)); } // 캡 B
+		else { Rt = mix(A.w, B.w, tx / bl); }                                     // 몸통: taper
+		let rr = Rt * sqrt(h.y);
 		// 뼈 축 수직 기저 — 상수 기준축(어느 뼈와도 평행하지 않게 기울임)이라 포즈 변화에 연속
 		let e1 = normalize(cross(axis, vec3f(0.402, 0.618, 0.675)));
 		let e2 = cross(axis, e1);
 		let th = h.z * 6.2831853;
-		let site = A.xyz + axis * (h.x * bl) + (e1 * cos(th) + e2 * sin(th)) * rr;
+		let site = A.xyz + axis * tx + (e1 * cos(th) + e2 * sin(th)) * rr;
 		// 자리 스프링 — 오차 클램프로 원거리 응축(성장) 시 힘 폭주 방지
 		var dv = site - s.pos;
 		let dl = length(dv);
@@ -550,14 +558,22 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 `;
 
 	// ── 렌더 패스: 시뮬 상태 → 스플랫 유도 → EWA 투영 래스터 ────────────────
+	// R1 조명: 살(fleshK>0)은 제 뼈 축에서 법선을 *매 프레임 유도*해(저장 없음 — 스키닝 없음
+	// 원칙과 동형) linear 공간에서 셰이딩하고 톤맵한다. 빛은 뼈대·heightfield 처럼 환경 *입력*.
+	// R2 형상: 살 스플랫은 법선으로 납작한 디스크(surfel) — 표면이 서고 실루엣이 조여진다.
+	// 비-살 개체(fleshK=0)는 기존 발광 경로 그대로 (회귀 0).
 	const RENDER = SPLAT_STRUCT + ENTITY_STRUCT + CLUSTER_STRUCT + /* wgsl */`
 struct CamParams {
 	view : mat4x4f,
 	proj : mat4x4f,
 	viewport : vec2f, focal : vec2f,
-	sliceSize : u32, _c0 : u32, _c1 : u32, _c2 : u32,
+	sliceSize : u32, boneCount : u32, _c1 : u32, _c2 : u32,
 	fog : vec4f,      // T5: rgb=fogColor, a=fogAmount(0=off)
 	fogRange : vec4f, // x=start(거리), y=end(완전 fog)
+	light : vec4f,       // R1: xyz=키 라이트 방향(월드), w=강도(0=조명 끔 → 발광 폴백)
+	lightColor : vec4f,  // R1: rgb=키 라이트 색
+	skyColor : vec4f,    // R1: rgb=하늘 앰비언트, a=앰비언트 강도
+	groundColor : vec4f, // R1: rgb=지면 앰비언트
 };
 @group(0) @binding(0) var<storage, read> splats : array<Splat>;
 @group(0) @binding(1) var<storage, read> pairs : array<vec2u>;
@@ -568,10 +584,19 @@ struct CamParams {
 // occluder 미설치 프레임도 prepass 가 1.0 으로 클리어하므로 자연히 무효과.
 @group(0) @binding(5) var occDepth : texture_depth_2d;
 // C3 부위 채색: 살(fleshK>0) 스플랫의 그룹 램프. rest.w=뼈 친화 → boneGroup=그룹 id →
-// groupColors 램프 양 끝. 보간 factor 는 여전히 속도·변형률 유도 (절대 원칙 1).
+// groupColors 램프 양 끝. 보간 factor 는 유도값 — 살은 뼈 축 위치(tAx), 비-살은 속도·변형률(heat).
 @group(0) @binding(6) var<storage, read> rest : array<vec4f>;        // L6 살 뼈 친화(.w)
 @group(0) @binding(7) var<storage, read> boneGroup : array<u32>;     // 뼈 인덱스 → 부위 그룹 id
 @group(0) @binding(8) var<storage, read> groupColors : array<vec4f>; // 그룹 램프 [2g]=A, [2g+1]=B
+// R1: 뼈 세그먼트 — 살 법선·접선의 유일한 형태 근거 (SIM 과 같은 테이블)
+@group(0) @binding(9) var<storage, read> bones : array<vec4f>;       // [2i]=(a.xyz,r1), [2i+1]=(b.xyz,r2)
+
+// 1D → 3D 해시 (Hoskins) — SIM 과 동일 정식. 자리 깊이 시드(h.y) 재유도(유사 AO)용.
+fn hash31(p : f32) -> vec3f {
+	var q = fract(vec3f(p) * vec3f(0.1031, 0.1030, 0.0973));
+	q += dot(q, q.yzx + 33.33);
+	return fract((q.xxy + q.yzz) * q.zyx);
+}
 
 struct VOut {
 	@builtin(position) pos : vec4f,
@@ -600,19 +625,51 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	if (t.z > -0.05) { return o; } // 카메라 뒤/근접 컬
 
 	// ── 시뮬 상태 → 3D 공분산 유도 ──
-	// 속도 방향 정렬 이방성: 빠를수록 진행 방향으로 늘어난다 (질감의 원천)
 	let speed = length(s.vel);
-	var e0 = vec3f(0.0, 1.0, 0.0);
-	if (speed > 1e-4) { e0 = s.vel / speed; }
 	let elong = 1.0 + E.stretch * speed;
 	let base = E.size * (0.35 + 0.65 * energy); // 에너지로 크기 맥동
-	let sAlong = base * elong;
-	let sPerp = base * inverseSqrt(elong); // 부피 근사 보존
-	var upv = vec3f(0.0, 1.0, 0.0);
-	if (abs(e0.y) > 0.9) { upv = vec3f(1.0, 0.0, 0.0); }
-	let e1 = normalize(cross(e0, upv));
-	let e2 = cross(e0, e1);
-	let M = mat3x3f(e0 * sAlong, e1 * sPerp, e2 * sPerp);
+	let isFlesh = E.fleshK > 0.0 && C.boneCount > 0u;
+	let lit = isFlesh && C.light.w > 0.0;
+
+	// R1 살 법선: 제 뼈(rest.w) 축 위 최근접점에서의 방사 방향 — 현재 위치 기준이라
+	// 지연 추종(출렁임)까지 법선에 실린다. 캡슐 끝단(t 클램프)은 구면 법선으로 자연 연속.
+	var nrm = vec3f(0.0, 1.0, 0.0);
+	var axis = vec3f(0.0, 1.0, 0.0);
+	var bi = 0u;
+	var tAx = 0.0; // 뼈 축 위 위치 (0=부모 관절, 1=자식 관절) — 살 램프의 보간 인자
+	if (isFlesh) {
+		bi = min(min(u32(rest[idx].w), C.boneCount - 1u), 511u); // 511 = MAX_BONES-1 동기
+		let A = bones[bi * 2u].xyz;
+		let ba = bones[bi * 2u + 1u].xyz - A;
+		let bl2 = max(dot(ba, ba), 1e-9);
+		axis = ba * inverseSqrt(bl2);
+		tAx = clamp(dot(s.pos - A, ba) / bl2, 0.0, 1.0);
+		let dv = s.pos - (A + ba * tAx);
+		let dl = length(dv);
+		if (dl > 1e-5) { nrm = dv / dl; }
+	}
+
+	var M : mat3x3f;
+	if (isFlesh) {
+		// R2 surfel: 법선으로 납작(두께 0.55 — 더 얇으면 실루엣에서 edge-on 디스크가 보풀로
+		// 곤두선다), 접선1 = 뼈 축의 접평면 사영(해부학적 결), 접선2 = 원주 방향.
+		// 속도 신축은 접평면 안에서 유지하되 클램프 — 출렁임 속도가 살을 털처럼 세우지 않게.
+		let elongF = min(elong, 1.6);
+		var t1 = axis - nrm * dot(axis, nrm);
+		let t1l = length(t1);
+		if (t1l > 1e-4) { t1 /= t1l; } else { t1 = normalize(cross(nrm, vec3f(0.402, 0.618, 0.675))); }
+		let t2 = cross(nrm, t1);
+		M = mat3x3f(t1 * (base * elongF), t2 * (base * inverseSqrt(elongF)), nrm * (base * 0.55));
+	} else {
+		// 기존 속도 방향 정렬 이방성 (비-살 회귀 0): 빠를수록 진행 방향으로 늘어난다
+		var e0 = vec3f(0.0, 1.0, 0.0);
+		if (speed > 1e-4) { e0 = s.vel / speed; }
+		var upv = vec3f(0.0, 1.0, 0.0);
+		if (abs(e0.y) > 0.9) { upv = vec3f(1.0, 0.0, 0.0); }
+		let e1 = normalize(cross(e0, upv));
+		let e2 = cross(e0, e1);
+		M = mat3x3f(e0 * (base * elong), e1 * (base * inverseSqrt(elong)), e2 * (base * inverseSqrt(elong)));
+	}
 	let Vrk = M * transpose(M); // Σ = M·Mᵀ
 
 	// ── EWA 2D 투영 (HktGaussianSplat/Web 과 동일 정식) ──
@@ -659,8 +716,37 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 		cA = groupColors[g * 2u].rgb;
 		cB = groupColors[g * 2u + 1u].rgb;
 	}
-	var rgb = mix(cA, cB, heat);
-	rgb *= 1.0 + E.luminosity * energy;
+	// 램프 보간 인자 — 비-살: 속도·변형률(heat). 살: 뼈 축 위 위치(tAx, 부모→자식) —
+	// 소매 끝·반바지 밑단 같은 *의상 경계*가 축 그라데이션으로 생긴다 (여전히 유도값, 원칙 1).
+	var f = heat;
+	if (isFlesh) { f = tAx; }
+	var rgb = mix(cA, cB, f);
+	if (lit) {
+		// R1 조명 합성 (linear 공간): 램프는 albedo — sRGB→linear 근사(γ2).
+		let albedo = rgb * rgb;
+		// 유사 AO: 자리 깊이 시드(h.y, SIM 과 동일 해시) — 살 내부 스플랫이 어둡다(오목부 음영).
+		// 대비를 세게 주면 표면 틈으로 내부 스플랫이 점박이로 비친다 — 완만하게.
+		let h = hash31(s.misc.y + f32(bi) * 0.317);
+		let ao = 0.62 + 0.38 * sqrt(h.y);
+		let L = normalize(C.light.xyz);
+		// half-Lambert wrap: 명암 경계를 부드럽게 (피부) — wrap 은 재질 유전자
+		let ndl = clamp((dot(nrm, L) + E.wrap) / (1.0 + E.wrap), 0.0, 1.0);
+		// 반구 앰비언트: 위=하늘, 아래=지면 — 기본 부피감의 바탕
+		let hemi = mix(C.groundColor.rgb, C.skyColor.rgb, nrm.y * 0.5 + 0.5) * C.skyColor.a;
+		// 카메라 위치 = -Rᵀt (world→view 역산) — 스펙큘러·림의 시선
+		let R3 = mat3x3f(C.view[0].xyz, C.view[1].xyz, C.view[2].xyz);
+		let Vv = normalize(-(transpose(R3) * C.view[3].xyz) - s.pos);
+		let spec = pow(clamp(dot(nrm, normalize(Vv + L)), 0.0, 1.0), max(E.specPow, 1.0)) * E.spec * ndl;
+		let fres = pow(1.0 - clamp(dot(nrm, Vv), 0.0, 1.0), 3.0) * E.rim;
+		var lin = albedo * (hemi + C.lightColor.rgb * (C.light.w * ndl)) * ao
+			+ C.lightColor.rgb * spec + C.skyColor.rgb * fres
+			+ albedo * (E.luminosity * energy); // 자가 발광 잔여 (발광 개체용, 기본 0)
+		// ACES 근사 톤맵 → sRGB 근사(√) — halo 억제의 1차 방어선
+		lin = clamp((lin * (2.51 * lin + 0.03)) / (lin * (2.43 * lin + 0.59) + 0.14), vec3f(0.0), vec3f(1.0));
+		rgb = sqrt(lin);
+	} else {
+		rgb *= 1.0 + E.luminosity * energy; // 기존 발광 경로 (비-살 개체 회귀 0)
+	}
 	// L4/L5 연소 채널: misc.z = 열(불 오버라이드), misc.w = 연료(0 = 재 → 어둡게)
 	let fireHeat = clamp(s.misc.z * 0.8, 0.0, 1.3);
 	if (fireHeat > 0.02) {
