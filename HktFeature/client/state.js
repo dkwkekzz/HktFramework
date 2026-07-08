@@ -19,8 +19,10 @@ export class ClientState {
     this.entities = new Map();  // id -> { id, kind, x, y, z, tx, ty, tz, name, max } (표시용)
     this.txFeed = [];           // 최근 tx 표시용
     this.worldTotal = 0;        // 서버가 선언한 전 풀 합계 — 보존 불변식의 전시
-    this.worldSrc = 0;          // SOURCE(태양) 잔고 — feature-0003 닫힌 루프 전시
-    this.worldSink = 0;         // SINK(소산) 잔고 — 이동으로 차오르고 태양 순환에 비워진다
+    this.worldSrc = 0;          // SOURCE(태양) 잔고 — 저엔트로피 원천 (feature-0004)
+    this.worldSink = 0;         // SINK(심우주) 잔고 — 복사로 새어나간 손실, 단조 증가
+    this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
+    this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -33,6 +35,7 @@ export class ClientState {
       case 'leave': return this.#onLeave(msg);
       case 'ops': return this.#onOps(msg);
       case 'pos': return this.#onPos(msg);
+      case 'field': return this.#onField(msg);
       case 'checksum': return this.#onChecksum(msg);
       case 'snapshot': return this.#onSnapshot(msg);
       case 'teleport': return this.onTeleport?.(msg);
@@ -45,6 +48,7 @@ export class ClientState {
     this.worldTotal = msg.total;
     this.worldSrc = msg.src;
     this.worldSink = msg.sink ?? 0;
+    this.worldMaterial = msg.mat ?? 0;
     // 잔고 0 기준점 — 스폰 인출은 곧 도착할 tx 가 채운다
     this.ledger.mirrorSet(this.playerId, 0, PLAYER_MAX_ENERGY, null);
     // SOURCE/SINK 는 서버 내부 저수지 — 무한 저수지로 물질화해 관련 tx 재생이 정확하게 한다
@@ -85,7 +89,9 @@ export class ClientState {
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
       if (id === POOL.SOURCE) this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
-      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER)) this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
+      // SINK·플레이어·국소장(M:) 은 받는 쪽/무지역 → 잔고 0·무한 수용으로 물질화(오차 무해).
+      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER) || id.startsWith(POOL.MATERIAL))
+        this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
     }
     this.ledger.applyTx(tx);
     this.txFeed.push(tx);
@@ -98,10 +104,16 @@ export class ClientState {
     }
   }
 
+  // 국소장 3D 복셀 스냅샷 — 렌더가 볼류메트릭 글로우로 읽는다(권위 아님, 표시용).
+  #onField(msg) {
+    for (const [cx, cy, cz, balance] of msg.cells) this.field.set(`${cx}_${cy}_${cz}`, balance);
+  }
+
   #onChecksum(msg) {
     this.worldTotal = msg.total;
     if (msg.src !== undefined) this.worldSrc = msg.src;
     if (msg.sink !== undefined) this.worldSink = msg.sink;
+    if (msg.mat !== undefined) this.worldMaterial = msg.mat;
     const bad = [];
     for (const [key, sum] of Object.entries(msg.regions)) {
       if (this.ledger.regionSum(key) !== sum) bad.push(key);

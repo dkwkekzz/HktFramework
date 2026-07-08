@@ -1,9 +1,11 @@
 // ============================================================================
-// feature-0003 — 닫힌 열역학 루프 (SOURCE=태양, SINK=소산, 세계는 영속한다)
+// feature-0004 — 엔트로픽 (에너지는 높은 확률로 흩어질 뿐, 세계는 평형으로 향한다)
 //
-// 직관: 이동하면 에너지가 소실(SINK)로 흩어져 쌓이고, 태양 순환이 주기적으로
-//   그 전부를 태양(SOURCE)으로 되돌린다. 총합은 늘 창세 총량 — 세계는 마르지 않는다.
-// 강제: SINK→SOURCE 재순환도 이체(보존). 어느 순간에도 자유+태양+소실 = 창세 총량.
+// 직관: 에너지는 세 등급으로 흐른다 — 태양(고)→국소장(중, 흩어짐)→심우주(저, 손실).
+//   죽음/이동은 에너지를 "그 자리" 국소장으로 흩고, 국소장은 이웃으로 높은 확률로 확산해
+//   균일(평형=최대 엔트로피)로 수렴한다. 일부는 심우주로 복사돼 영영 사라진다(SINK 단조 증가).
+// 강제: 모든 흐름은 ledger.transfer(보존·정수). 소산은 태양으로 되돌아가지 않는다 —
+//   어느 순간에도 자유+태양+국소장+심우주 = 창세 총량.
 // ============================================================================
 
 import { test } from 'node:test';
@@ -12,8 +14,8 @@ import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
 import { mulberry32, randInt } from '../shared/rng.js';
 import {
-  POOL, WORLD_SOURCE_INITIAL, SPAWN_POS, RECYCLE_INTERVAL_TICKS,
-  WORLD_SIZE, WORLD_HEIGHT,
+  POOL, WORLD_SOURCE_INITIAL, SPAWN_POS, SPAWN_GRANT,
+  WORLD_SIZE, WORLD_HEIGHT, entropicOutProb,
 } from '../shared/constants.js';
 
 function setup() {
@@ -23,48 +25,89 @@ function setup() {
   const warp = (p, x, y, z = SPAWN_POS.z) => { clock.t += 60_000; game.onMessage(p.id, { t: MSG.BEACON, x, y, z }); };
   const bal = (id) => game.ledger.balance(id);
   const total = () => game.ledger.totalSum();
-  return { game, join, warp, bal, total };
+  const matTotal = () => {
+    let s = 0;
+    for (const [id, p] of game.ledger.pools) if (id.startsWith(POOL.MATERIAL)) s += p.balance;
+    return s;
+  };
+  const matSpread = () => { // 국소장 최대-최소 (0=완전 균일=평형)
+    let lo = Infinity, hi = -Infinity;
+    for (const id of game.materialKeys) { const b = bal(id); if (b < lo) lo = b; if (b > hi) hi = b; }
+    return hi - lo;
+  };
+  return { game, join, warp, bal, total, matTotal, matSpread };
 }
 
-test('창세에 태양(SOURCE)·소실(SINK)이 함께 열린다 — SINK 는 0에서 시작', () => {
-  const { bal, total } = setup();
+test('창세 — 태양이 전 에너지를 쥐고 국소장·심우주는 비어 시작', () => {
+  const { bal, total, matTotal } = setup();
   assert.equal(bal(POOL.SOURCE), WORLD_SOURCE_INITIAL, '태양이 전 에너지를 쥔다');
-  assert.equal(bal(POOL.SINK), 0, '소실은 비어 시작');
+  assert.equal(bal(POOL.SINK), 0, '심우주는 비어 시작');
+  assert.equal(matTotal(), 0, '국소장도 비어 시작');
   assert.equal(total(), WORLD_SOURCE_INITIAL);
 });
 
-test('방출→소산→순환 — 이동은 SINK로 흩어지고 태양 순환이 SOURCE로 되돌린다', () => {
-  const { game, join, warp, bal, total } = setup();
-  const a = join('A');
-  warp(a, SPAWN_POS.x + 800, SPAWN_POS.y); // 800px 이동 → 소산 floor(800/50)=16
-  const dissipated = bal(POOL.SINK);
-  assert.ok(dissipated > 0, '이동이 SINK 로 소산');
+test('죽음·이동은 국소장으로 흩어진다 — 태양으로 되돌아가지 않는다', () => {
+  const { game, join, warp, bal, total, matTotal } = setup();
+  const a = join('A'); // 태양: 1e9-300, A: 300
+  warp(a, SPAWN_POS.x + 500, SPAWN_POS.y); // 500px 이동 → 소산 floor(500/50)=10 이 국소장으로
+  assert.equal(matTotal(), 10, '이동 소산은 국소장으로');
   const srcBefore = bal(POOL.SOURCE);
 
-  for (let i = 0; i <= RECYCLE_INTERVAL_TICKS; i++) game.tick(); // 태양 순환 주기 통과
-  assert.equal(bal(POOL.SINK), 0, '태양 순환이 소실을 비운다');
-  assert.equal(bal(POOL.SOURCE), srcBefore + dissipated, 'SINK→SOURCE 복귀(전량)');
-  assert.equal(total(), WORLD_SOURCE_INITIAL, '순환 내내 총합 불변');
+  game.removePlayer(a.id); // 이탈 = 응집 소멸 → 잔여(290)가 국소장으로 (태양행 아님)
+  assert.equal(bal(POOL.SOURCE), srcBefore, '죽음 에너지는 태양으로 가지 않는다');
+  assert.equal(matTotal(), SPAWN_GRANT, '스폰분 전부가 국소장으로 흩어졌다(10 이동 + 290 죽음)');
+  assert.equal(bal(POOL.SINK), 0, '아직 복사(심우주)는 없다');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '보존 불변');
 });
 
-test('세계는 영속한다 — 이동↔순환을 반복해도 태양은 마르지 않고 총합 불변', () => {
+test('엔트로픽 법칙 — 몰린 국소장이 높은 확률로 이웃으로 흩어져 평형(균일)으로 수렴', () => {
+  // 법칙 자체: 고농도에서 나갈 확률이 높고, 농도가 같으면 1/2 (순 흐름 0 = 평형)
+  assert.ok(entropicOutProb(100, 0) > 0.99, '고농도→저농도 확률 압도적');
+  assert.equal(entropicOutProb(0, 100), 0, '저농도에서 나갈 확률 0');
+  assert.equal(entropicOutProb(50, 50), 0.5, '평형에서 1/2 → 순 흐름 0');
+
+  // 통합: 한 복셀에 전부 몰아넣고 확산을 돌리면 스프레드(최대-최소)가 급감한다
+  const { game, matSpread } = setup();
+  game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}0_0_0`, 4_000_000, 'seed'); // 한 구석 복셀에 집중
+  const spread0 = matSpread();
+  for (let i = 0; i < 600; i++) game.tick();
+  const spread1 = matSpread();
+  assert.ok(spread1 < spread0 * 0.25, `확산이 균일로 수렴 (${spread0} → ${spread1})`);
+});
+
+test('결정론 — 같은 시드/이벤트열이면 확산 결과가 완전히 동일하다', () => {
+  const run = () => {
+    const s = setup();
+    s.game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}1_1_1`, 3_000_000, 'seed');
+    for (let i = 0; i < 200; i++) s.game.tick();
+    return s.game.materialKeys.map(id => s.bal(id));
+  };
+  assert.deepEqual(run(), run(), '동일 시드 → 비트 단위 동일 국소장 분포');
+});
+
+test('엔트로피의 화살 — 심우주(SINK)는 단조 증가한다 (복사는 되돌아오지 않는다)', () => {
   const { game, join, warp, bal, total } = setup();
   const players = [];
   for (let i = 0; i < 6; i++) players.push(join(`P${i}`));
   const rng = mulberry32(2026);
-  const floor = WORLD_SOURCE_INITIAL - players.length * 1000; // 태양 하한(전원이 만충이어도 이 아래로 안 감)
 
+  let prevSink = bal(POOL.SINK);
   for (let cycle = 0; cycle < 8; cycle++) {
     for (let m = 0; m < 40; m++) {
       const p = players[randInt(rng, 0, players.length - 1)];
       warp(p, randInt(rng, 0, WORLD_SIZE), randInt(rng, 0, WORLD_SIZE), randInt(rng, 0, WORLD_HEIGHT));
     }
-    for (let i = 0; i < RECYCLE_INTERVAL_TICKS; i++) game.tick(); // 순환 한 바퀴
-    assert.equal(total(), WORLD_SOURCE_INITIAL, `cycle ${cycle} 총합 불변`);
-    assert.ok(bal(POOL.SOURCE) > floor, `cycle ${cycle} 태양이 마르지 않음`);
+    for (let i = 0; i < 20; i++) game.tick();
+    const sink = bal(POOL.SINK);
+    assert.ok(sink >= prevSink, `cycle ${cycle} 심우주는 줄지 않는다 (${prevSink} → ${sink})`);
+    prevSink = sink;
+    assert.equal(total(), WORLD_SOURCE_INITIAL, `cycle ${cycle} 보존 불변`);
   }
-  // 어느 순간에도 에너지는 세 곳에만: 자유 + 태양 + 소실 = 창세 총량
-  let free = 0;
+  assert.ok(prevSink > 0, '복사로 실제 에너지가 심우주로 새어나갔다');
+
+  // 어느 순간에도 에너지는 네 곳에만: 자유 + 태양 + 국소장 + 심우주 = 창세 총량
+  let free = 0, mat = 0;
   for (const p of players) free += bal(p.id);
-  assert.equal(free + bal(POOL.SOURCE) + bal(POOL.SINK), WORLD_SOURCE_INITIAL);
+  for (const [id, pool] of game.ledger.pools) if (id.startsWith(POOL.MATERIAL)) mat += pool.balance;
+  assert.equal(free + bal(POOL.SOURCE) + mat + bal(POOL.SINK), WORLD_SOURCE_INITIAL);
 });

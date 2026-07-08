@@ -7,14 +7,15 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, REGION_SIZE, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', leave: '환원', recycle: '순환' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
   if (id === POOL.SOURCE) return '태양';
-  if (id === POOL.SINK) return '소실';
+  if (id === POOL.SINK) return '심우주';
+  if (id.startsWith(POOL.MATERIAL)) return '국소장';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -106,12 +107,15 @@ export class Render {
     ctx.fillRect(0, 0, w, h);
 
     // 지면(z=0) 지역 격자
-    ctx.strokeStyle = '#1a2130';
+    ctx.strokeStyle = '#2a3446';
     ctx.lineWidth = 1;
     for (let g = 0; g <= WORLD_SIZE; g += REGION_SIZE) {
       this.#seg(cam, g, 0, 0, g, WORLD_SIZE, 0);
       this.#seg(cam, 0, g, 0, WORLD_SIZE, g, 0);
     }
+
+    // 국소장 3D 볼류메트릭 — 각 복셀을 농도에 따라 글로우로 그린다 (에너지 확산을 3D 로 시각화)
+    this.#fieldVolume(cam);
 
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
@@ -129,6 +133,52 @@ export class Render {
     }
 
     this.#hud();
+  }
+
+  // 국소장 3D 볼류메트릭 — 각 복셀의 에너지를 반투명 정육면체로 그린다(먼 것부터, painter's).
+  //   차가움(파랑, 저농도) → 뜨거움(주황·빨강, 고농도). 이동으로 뜨거운 복셀이 생기고
+  //   이웃 복셀로(수평·수직 모두) 번지며 평형으로 수렴한다 — "높은 확률로 전파"를 3D 로 본다.
+  #fieldVolume(cam) {
+    const { state } = this;
+    if (state.field.size === 0) return;
+    let max = 1;
+    for (const v of state.field.values()) if (v > max) max = v;
+    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS, m = 0.02; // 셀 경계 얇은 실선용 미세 여백(복셀은 공간을 빈틈없이 채운다 — 간격은 표시용일 뿐)
+    const cells = [];
+    for (const [key, bal] of state.field) {
+      const t = bal / max;
+      if (t < 0.05) continue; // 거의 빈 복셀은 생략(시야 정리)
+      const [cx, cy, cz] = key.split('_').map(Number);
+      const d = this.#toCam(cam, (cx + 0.5) * RS, (cy + 0.5) * RS, (cz + 0.5) * LS)[2];
+      cells.push({ cx, cy, cz, t, d });
+    }
+    cells.sort((a, b) => b.d - a.d); // 먼 복셀 먼저 그린다
+    for (const c of cells) {
+      this.#voxelCube(cam,
+        (c.cx + m) * RS, (c.cx + 1 - m) * RS,
+        (c.cy + m) * RS, (c.cy + 1 - m) * RS,
+        (c.cz + m) * LS, (c.cz + 1 - m) * LS, c.t);
+    }
+  }
+
+  #voxelCube(cam, x0, x1, y0, y1, z0, z1, t) {
+    const V = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+               [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+    const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
+    if (P.some(p => !p)) return; // 카메라 뒤 복셀 생략(근사)
+    const { ctx } = this;
+    const hue = 210 - 210 * t; // 파랑(저) → 빨강(고)
+    ctx.fillStyle = `hsla(${hue}, 90%, ${42 + t * 16}%, ${0.09 + 0.28 * t})`;
+    ctx.strokeStyle = `hsla(${hue}, 95%, 66%, ${0.22 + 0.45 * t})`;
+    ctx.lineWidth = 1;
+    for (const f of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [2, 3, 7, 6], [1, 2, 6, 5], [0, 3, 7, 4]]) {
+      ctx.beginPath();
+      ctx.moveTo(P[f[0]].sx, P[f[0]].sy);
+      for (let i = 1; i < 4; i++) ctx.lineTo(P[f[i]].sx, P[f[i]].sy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
   }
 
   // 높이 스틱 — 엔티티에서 지면(z=0)까지 수선 (고도 가독성)
@@ -200,21 +250,27 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 우상: 보존 불변식 + 닫힌 열역학 루프(태양·소실) 전시 + 네트워크 계측
+    // 우상: 보존 불변식 + 에너지 세 등급(태양·국소장·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 92);
+    ctx.fillRect(w - 265, 10, 255, 122);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
     ctx.fillStyle = '#9db2c4';
     ctx.fillText(`(창세 이후 불변 = 보존 법칙)`, w - 255, 44);
-    // feature-0003: 소실(SINK)이 이동으로 차오르고 태양 순환에 비워진다 → 닫힌 루프
+    // feature-0004: 태양(고등급)→국소장(중등급, 확산)→심우주(저등급, 단조 증가) 세 등급
     ctx.fillStyle = '#e0b34e';
-    ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  소실 ${state.worldSink.toLocaleString()}`, w - 255, 60);
+    ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  국소장 ${state.worldMaterial.toLocaleString()}`, w - 255, 60);
+    ctx.fillStyle = '#7a8aa0';
+    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
+    ctx.fillStyle = '#6b7a8c';
+    ctx.font = '10px monospace';
+    ctx.fillText(`복셀 색 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
+    ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 76);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 92);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 124);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';
