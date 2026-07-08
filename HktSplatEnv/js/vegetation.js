@@ -142,6 +142,63 @@
 		}
 	}
 
+	// ── E20 지면 클러터(풀·꽃·자갈) — 눈높이 디테일을 밀도가 아니라 '내용'으로 채운다 ──
+	// 지면 surfel 을 더 잘게 쪼개는 대신(중심 타일 256격자 = bake 잭), 풀 포기(수직 얇은 스플랫)·
+	// 평야 꽃 악센트·산악 자갈을 근접 링 식생 PLY 에 합친다. 타일당 ~1천 스플랫(값싸다).
+	// 전역 셀 격자(0.55m) + 좌표·시드 해시 결정론 — 이웃 타일과 이음새 없음, Math.random 금지.
+	function cellHash(ix, iz, seed) {
+		let h = (Math.imul(ix, 374761393) + Math.imul(iz, 668265263) + Math.imul(seed, 2246822519)) | 0;
+		h = Math.imul(h ^ (h >>> 13), 1274126177); h ^= h >>> 16;
+		return (h >>> 0) / 4294967296;
+	}
+	const FLOWER_COLS = [[0.95, 0.93, 0.90], [0.95, 0.80, 0.25], [0.90, 0.38, 0.38], [0.60, 0.58, 0.95]];
+	const CLUTTER_KEEP = { plains: 0.62, mountain: 0.30, snow: 0.10, desert: 0.18 }; // 바이옴별 채움 확률
+	const GRASS_D = [0.20, 0.45, 0.16], GRASS_L = [0.45, 0.72, 0.28]; // 풀색 램프(어두움→밝음)
+	const GRASS_DRY = [0.58, 0.52, 0.26], PEBBLE = [0.45, 0.45, 0.47];
+	function clutterSplats(world, x0, z0, size, arr) {
+		if (!world.normalAt || !world.shadeRGBAt) return; // 구 world 폴백 — 클러터 없음(무회귀)
+		const seed = ((world.params && world.params.seed) | 0) || 0;
+		const waterY = (world.waterY != null) ? world.waterY : -1e9;
+		const cell = 0.55;
+		const u0 = Math.floor(x0 / cell), u1 = Math.floor((x0 + size) / cell);
+		const v0 = Math.floor(z0 / cell), v1 = Math.floor((z0 + size) / cell);
+		for (let v = v0; v <= v1; v++)
+			for (let u = u0; u <= u1; u++) {
+				const h0 = cellHash(u, v, seed + 5101);
+				if (h0 > 0.65) continue; // 상한 컷 — 바이옴 판정 전에 걸러 bake 비용 절감
+				const x = (u + 0.5) * cell + (cellHash(u, v, seed + 5203) - 0.5) * cell * 0.9;
+				const z = (v + 0.5) * cell + (cellHash(u, v, seed + 5309) - 0.5) * cell * 0.9;
+				if (x < x0 || x >= x0 + size || z < z0 || z >= z0 + size) continue; // 타일 창 밖
+				const y = world.heightAt(x, z);
+				if (y < waterY + 0.06) continue; // 수역·물가 제외
+				const b = world.biomeAt(x, z);
+				const keep = (b.key in CLUTTER_KEEP) ? CLUTTER_KEEP[b.key] : 0.25;
+				if (h0 > keep) continue;
+				const n = world.normalAt(x, z);
+				if (n[1] < 0.55) continue; // 절벽 제외(암반 노출 자리)
+				const gsh = world.shadeRGBAt(x, z, false); // 지형과 같은 조명(그림자·AO·쿨톤)
+				const h1 = cellHash(u, v, seed + 5417), h2 = cellHash(u, v, seed + 5501);
+				const pebble = (b.key === 'mountain' && h1 < 0.7) || b.key === 'snow';
+				if (pebble) { // 자갈 — 낮은 회색 타원
+					const r = 0.05 + h2 * 0.07, sh = 0.8 + h1 * 0.3;
+					pushSplat(arr, x, y + r * 0.4, z,
+						[PEBBLE[0] * sh * gsh[0], PEBBLE[1] * sh * gsh[1], PEBBLE[2] * sh * gsh[2]], 0.95, r, r * 0.6, r * 0.9);
+					continue;
+				}
+				// 풀 포기 — 수직으로 얇은 스플랫(눈높이에서 지면 결을 만드는 주역)
+				const dry = b.key === 'desert';
+				const hs = 0.10 + h2 * 0.13, t = cellHash(u, v, seed + 5601);
+				const gc = dry ? GRASS_DRY : [mix(GRASS_D[0], GRASS_L[0], t), mix(GRASS_D[1], GRASS_L[1], t), mix(GRASS_D[2], GRASS_L[2], t)];
+				pushSplat(arr, x, y + hs * 0.5, z,
+					[gc[0] * gsh[0], gc[1] * gsh[1], gc[2] * gsh[2]], 0.85, 0.06, hs * 0.55, 0.06);
+				// 평야 꽃 악센트(4%) — 풀 끝의 밝은 점(스타일라이즈드 팝, 조명 약하게만)
+				if (b.key === 'plains' && h1 < 0.04) {
+					const fc = FLOWER_COLS[(cellHash(u, v, seed + 5701) * FLOWER_COLS.length) | 0];
+					pushSplat(arr, x, y + hs + 0.02, z, [fc[0] * (0.7 + 0.3 * gsh[0]), fc[1] * (0.7 + 0.3 * gsh[1]), fc[2] * (0.7 + 0.3 * gsh[2])], 0.95, 0.045, 0.04, 0.045);
+				}
+			}
+	}
+
 	// 후보 목록 → 식생 스플랫 배열(10 float/스플랫). 나무·바위만(모닥불은 시뮬 전용).
 	// world.shadeAt 이 있으면 스폰 자리의 지면 명암을 곱해 지형 Bake 셰이딩과 통합한다.
 	function splatsFor(cands, life, world) {
@@ -213,7 +270,9 @@
 		const cx = x0 + size / 2, cz = z0 + size / 2;
 		const cands = S.candidates(world, cx, cz, size * 0.8, Object.assign({}, S.PROMOTE_CFG, cfg, { life }))
 			.filter((c) => c.x >= x0 && c.x < x0 + size && c.z >= z0 && c.z < z0 + size);
-		return plyFromSplats(splatsFor(cands, life, world));
+		const arr = splatsFor(cands, life, world);
+		clutterSplats(world, x0, z0, size, arr); // E20 풀·꽃·자갈 — 같은 근접 링 식생 PLY 에 합류
+		return plyFromSplats(arr);
 	}
 
 	// 두 PLY(동일 17속성 레이아웃) 를 하나로 합친다 — 무대가 단일 메시만 로드하는 경로(concept/preset-shot)
