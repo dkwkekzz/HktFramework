@@ -123,7 +123,8 @@
 
 	// ── 파노라마 Bake (concept/preset-shot 단일 창) ──────────────────────────
 	// world(terrain-gen) + 창 반폭 extent → 창 전체 식생 PLY. scatter.candidates 로 배치.
-	// cfg: { cell, maxSlope, jitter, life } — 없으면 게놈 생명 층(world.params.life).
+	// cfg: { cell, maxSlope, jitter, life, excludeKeys } — 없으면 게놈 생명 층(world.params.life).
+	// cfg.excludeKeys(W-Q2c): 시뮬로 승격된 스폰 key 는 candidates 가 걸러 Bake 에서 빠진다.
 	function bakePanorama(world, extent, cx, cz, cfg) {
 		const S = global.HktGenesisScatter;
 		if (!S) throw new Error('scatter.js(HktGenesisScatter) 선행 필요');
@@ -139,6 +140,7 @@
 	}
 
 	// ── 타일 Bake (T2 스트리밍) — [x0,x0+size)×[z0,z0+size) 식생 PLY. 링 밀도로 LoD. ──
+	// cfg.excludeKeys(W-Q2c): 시뮬 승격된 스폰 key 를 candidates 가 걸러 정적 사본을 뺀다(이중 그리기 제거).
 	function bakeTile(world, x0, z0, size, cfg) {
 		const S = global.HktGenesisScatter;
 		if (!S) throw new Error('scatter.js(HktGenesisScatter) 선행 필요');

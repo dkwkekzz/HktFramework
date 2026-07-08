@@ -159,7 +159,8 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 
 상세 제안·설계 근거·리스크는 [PLAN-WorldFromImage.md](PLAN-WorldFromImage.md) 참조 (상태: **진행 중** — W1~W4·W6
 완료(이미지→게놈→검증→걷는 월드→대기 루프 성립) + **W-Q 컨셉 퀄리티 격차 W-Q1~4 완료**(물 얼룩→호수·게놈
-생명 층+Bake 식생·Bake 셰이딩·구름 vista — 아래 W-Q 절). 남은: W-Q2c(승격 훅) + W5 앱 tick 배선. 여기서 단계를
+생명 층+Bake 식생·Bake 셰이딩·구름 vista — 아래 W-Q 절) + **W-Q2c(승격 훅)·W5(앱 tick 배선) 완료**. W1~W6 및
+W-Q 전부 완료 — 남은 건 렌더 심화·T6 실측(아래 「다음 세션 진입점」). 여기서 단계를
 관리). C 트랙(이미지→
 캐릭터 게놈) 방법론의 월드 판 — 컨셉 이미지 한 장을 월드 게놈(지형·바이옴·수역·대기·생명)으로 번역해 T
 트랙 스트리밍 월드 위에 배양한다. 의존: W1 선행·독립, W2·W3 은 W1 뒤, W4 는 W2+W3, W5 는 T4, W6 은 T5.
@@ -193,10 +194,13 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
   호수 렌더(색족·물 일치, `concept-shot` 대조 카드). **걷는 월드로도 실증**: `stage.js` `?tilesGenome=<url>` +
   `world-pan-shot.js [out] [seed] [genome.json]` — 추출 게놈이 T2 스트리밍(`world(genome)`)으로 흘러 걷는 월드
   (타일교체 45>25·스플랫 53k 상한·이음새 100%·exit 0). 남김: 라이브 vision 실측(키)·대기/스캐터는 W6·W5.
-- **W5 — 생명/스캐터 연동** (**T4 완료로 선행 해소**): 게놈 생명 층 = 스폰 테이블(바이옴·경사·수위 조건).
+- ✅ **W5 — 생명/스캐터 연동** (**T4 완료로 선행 해소**): 게놈 생명 층 = 스폰 테이블(바이옴·경사·수위 조건).
   완료 기준: 이동 중 컨셉대로 개체 등장·소멸. T4 가 슬롯 증분 교체(`engine.respawnEntity`)와 결정론 스폰
   테이블(`js/scatter.js`)을 깔았으므로, W5 는 게놈이 스폰 규칙(종·밀도·바이옴 조건)을 정하도록 `scatter`
-  후보 생성에 게놈 층을 물리면 된다 — 큰 엔진 확장이 아니라 게놈→스폰 규칙 매핑.
+  후보 생성에 게놈 층을 물리면 된다 — 큰 엔진 확장이 아니라 게놈→스폰 규칙 매핑. **앱 tick 배선**:
+  `app.js startOpenWorld(seed, genome)` 가 게놈(생명 층·mood)을 받아 `world(wparams)` + `startTileWorld`
+  양쪽에 흘려 Bake·시뮬 두 레이어가 같은 스폰 규칙을 공유한다. `__hktStartOpenWorld` 훅으로 하니스가
+  게놈 오픈월드를 켠다(버튼은 기본 시드). 스트림 cell 을 Bake 식생(3.4)에 맞춰 승격 훅(W-Q2c)이 성립.
 - ✅ **W6 — 대기·물 정합** (**T5 완료로 선행 해소**): 게놈 대기 층 `mood`(skyTop/skyHorizon + 선택
   fogColor/fogStart/fogEnd)를 데이터화. ① 무대 하늘 — `stage.js` 가 카메라를 따라오는 큰 구(BackSide)에
   skyTop(천정)→skyHorizon(지평선) **월드 y 방향** 세로 그라데이션을 굽는다(스크린 배경 텍스처의 aspect
@@ -254,9 +258,18 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
     world-scatter·app-smoke·world-genome·world-profile 없음.
     남김: **v1**(시뮬 배양 나무 스냅샷 인스턴싱 — 원칙 정합) · 외곽 링 저밀도 식생(현재 미배치) · 자동차폐/조명
     (렌더 이슈, 보류) · 나무 외형(v0 절차 블롭 — 브로콜리감).
-  - **W-Q2c — 승격 훅**: 근처 Bake 스폰을 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
-    확장. v0 는 하드컷(경계 팝 허용), 후속에 크로스페이드. **왜 이 구조**: 8 상한 = 상호작용 전용, 밀도 =
-    Bake — Bake 하면 상태 유도(성장·연소·바람)가 얼어붙어 "죽으므로", 상호작용하는 것만 시뮬로 남긴다.
+  - ✅ **W-Q2c — 승격 훅**: 근처 Bake 스폰을 8 슬롯 시뮬로 승격(불×나무 상호작용)하고, 그 정적 Bake 사본을
+    빼서 이중 그리기(같은 나무가 Bake 블롭 + 시뮬 개체로 두 번)를 없앤다. 핵심은 **좌표계 정합** — 시뮬
+    스트림과 Bake 식생이 같은 셀 격자(cell 3.4·maxSlope 2.2·jitter 0.8)를 봐야 승격 스폰 key(`t:u,v`)가
+    Bake key 와 정확히 일치한다(`app.js` 가 stream/veg 에 같은 cfg 를 준다). 배선: `scatter.candidates` 에
+    `cfg.excludeKeys`(승격 key 제외) + `ScatterStream.promotedKeys()`(현재 승격 집합 Set) 신설 · `vegetation`
+    (bakeTile/bakePanorama)이 excludeKeys 를 candidates 로 통과 · `stage.setVegExclusion(keys)` 가 승격 집합이
+    바뀔 때만(서명 비교) 근접 링(0) 식생 타일을 다시 굽는다(async SplatMesh 교체·팬 중 누수 가드) · `app.js`
+    tick 이 매 bake 주기 `stream.promotedKeys()` → `setVegExclusion`. v0 는 하드컷(경계 팝 허용), 후속에
+    크로스페이드. **왜 이 구조**: 8 상한 = 상호작용 전용, 밀도 = Bake — Bake 하면 상태 유도(성장·연소·바람)가
+    얼어붙어 "죽으므로", 상호작용하는 것만 시뮬로 남긴다. 검증: `node test/world-promote.js`(순수 Node 6/6 —
+    승격 key ⊆ Bake key·excludeKeys 정확 제거·나머지 diff 0·bakePanorama 나무 수 감소·강등 복귀·무회귀) +
+    `openworld-shot`(승격 훅 켜진 통합 프레임). 남김: 크로스페이드(v1)·타일별 diff 재Bake(현재 링0 전부).
 - ✅ **W-Q4 — 지형 Bake 셰이딩**: 스플랫은 런타임 조명이 없어(SH 0차 = 상수색) 절차 지형이 무광 평면으로
   보인다("점에 색만 찍은" 품질). 우리는 지형을 *생성*하므로 bake 시점에 명암을 색에 굽는다 — `terrain-gen.js`
   `shadeAt`(reliefAt 유한차분 법선 → diffuse(N·태양) + ambient 0.52, 태양·앰비언트는 `P.sun`/`mood.sun` 로
@@ -281,13 +294,16 @@ MMORPG 급으로 가려면 월드 함수·청크 스트리밍·바이옴·스캐
 > ✅ W-Q1 물 얼룩→연결 호수(macro 포락+평평 수면) · ✅ W-Q2a/b 게놈 생명 층+Bake 식생(파노라마+걷는 타일 월드) ·
 > ✅ W-Q4 지형/식생 Bake 셰이딩(무광 탈피) · ✅ W-Q3 fbm 구름+vista 카메라. **핵심 결정**: 밀도는 8-엔티티 상한을
 > 올려서가 아니라 Bake(정적 무대 스플랫)로 풀고, 8 슬롯은 상호작용 생명 전용(DESIGN W-Q2 행).
+> ✅ **W-Q2c (승격 훅) + W5 (앱 tick 배선) 완료** — 근처 Bake 나무를 8 슬롯 시뮬로 승격하고 정적 사본을 빼
+> 이중 그리기를 없앴다("밀도=Bake, 상호작용=시뮬" 구조의 마지막 조각). 시뮬·Bake 가 같은 셀 격자를 공유해
+> 승격 key 가 Bake key 와 일치(app.js 가 stream/veg 에 같은 cfg). `scatter.candidates(excludeKeys)` +
+> `ScatterStream.promotedKeys()` + `stage.setVegExclusion` + tick 훅. 게놈(생명·mood)이 `startOpenWorld(seed,
+> genome)` → world+startTileWorld 로 흘러 두 레이어 스폰 규칙 단일 원본. 검증 `test/world-promote.js`(6/6).
 > 남은 갈래:
-> ① **W-Q2c (승격 훅)** — 근처 Bake 나무를 8 슬롯 시뮬로 승격(불×나무 상호작용), 멀어지면 강등. `ScatterStream`
->   확장. "밀도=Bake, 상호작용=시뮬" 구조의 마지막 조각. + **W5 앱 tick 스캐터 팔로 루프**(현재 openworld 버튼
->   경로만; 게놈 생명 스캐터를 앱 tick 에). 진입: `js/scatter.js`(ScatterStream)·`js/app.js` tick.
-> ② **렌더 심화** — 나무 외형 v1(배양 나무 스냅샷 인스턴싱, 브로콜리감 해소) · 물 스페큘러/프레넬(시점 의존 →
->   물을 생명 WebGPU 경로로) · 구름 드리프트 · 저각 surfel 뭉개짐(근본 한계, 조감으로 완화).
-> ③ **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
+> ① **렌더 심화** — 나무 외형 v1(배양 나무 스냅샷 인스턴싱, 브로콜리감 해소) · 물 스페큘러/프레넬(시점 의존 →
+>   물을 생명 WebGPU 경로로) · 구름 드리프트 · 저각 surfel 뭉개짐(근본 한계, 조감으로 완화). 승격 크로스페이드
+>   (현재 하드컷 경계 팝) · 승격 훅 타일별 diff 재Bake(현재 링0 전부 재Bake).
+> ② **T6 (실측·예산)** — 실 Marble/.rad 대용량 월드 + fps·메모리 HUD (S4 잔여 합류). 실에셋 필요.
 > 게놈 스키마 확장 시 `js/world-profile.js` 검증기·`test/world-genome.js`·`test/world-life.js` 회귀·
 > `tools/world-extract/extract.js` 프롬프트 스키마를 함께 갱신할 것(mood·life 동기 유지).
 
