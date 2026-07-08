@@ -97,8 +97,18 @@ export const CREATURE_MAX_ENERGY = 1000;             // 내부 에너지 용량(
 export const CREATURE_SPAWN_GRANT = 400;             // 스폰 시 SOURCE 에서 인출(저엔트로피 주입 — feature-0003)
 export const CREATURE_BASAL_COST = 3;                // 매 대사 틱 심우주로 방출하는 질서 유지 비용(살아있음의 엔트로피 세금)
 export const CREATURE_FORAGE_RATE = 5;               // 매 대사 틱 국소장에서 흡수 시도하는 최대량(갈구) — 대사보다 커야 풍요 환경에서 산다
-export const CREATURE_DEATH_THRESHOLD = 60;          // 최소 예비 에너지 — 갈구 후에도 이 아래면 질서 붕괴(죽음). 0 보다 위라 죽을 때 잔해가 남는다
+export const CREATURE_DEATH_THRESHOLD = 60;          // 최소 예비 에너지(size 1 기준) — 갈구 후에도 이 아래면 질서 붕괴(죽음). 0 보다 위라 죽을 때 잔해가 남는다
 export const CREATURE_METABOLISM_INTERVAL_TICKS = 1; // 대사(갈구+소모+생사판정) 주기(틱) — 확산과 같은 리듬
+
+// feature-0006 step2 — 성장·스탯: 질서 유지에 흑자가 쌓이면 성장한다. 스탯(size)은 에너지 이력의 창발 지표다.
+//   용량·갈구·대사·예비가 전부 size 에 비례한다 — 큰 몸은 더 많이 담고 더 많이 갈구하되 더 많이 대사한다.
+//   그래서 큰 몸을 유지하려면 세계가 그만큼 받쳐줘야 하고, 세계 풍요도가 개체 크기의 상한을 자연히 정한다.
+//   성장은 hard-won — 굶주리면 성장점이 깎여 진척이 되돌아간다. 큰 몸은 대사도 커서 세계가 못 받치면 굶어 죽는다.
+//   결정론 시뮬 상수(rng 미사용) — size·growth 는 순수 상태 변수(에너지 풀이 아님)라 보존과 무관하게 창발한다.
+export const CREATURE_SIZE_MAX = 5;                  // 스탯 상한(size 1~5)
+export const CREATURE_GROWTH_FULL_FRACTION = 0.9;    // 잔고가 용량의 이 비율 이상이면 흑자(성장점 +1 적립)
+export const CREATURE_GROWTH_HUNGRY_FRACTION = 0.25; // 잔고가 용량의 이 비율 미만이면 적자(성장점 −2, 0 에서 클램프 = 진척 되돌아감)
+export const CREATURE_GROWTH_THRESHOLD = 300;        // 성장 문턱 — 흑자로 이 값에 닿으면 size +1(용량·능력 확장)
 
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {

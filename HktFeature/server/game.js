@@ -29,6 +29,7 @@ import {
   FIELD_Z_LAYERS,
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
+  CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -127,7 +128,7 @@ export class GameServer {
     const seq = ++this.creatureSeq;
     const creId = `${POOL.CREATURE}${seq}`;
     this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
-    const cre = { id: creId, seq, x, y, z };
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0 }; // size=스탯(feature-0006 step2), growth=흑/적자 누적점
     this.creatures.set(creId, cre);
     this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
     return cre;
@@ -425,12 +426,33 @@ export class GameServer {
   //   ③ 물질대사(metabolize): 살아있음의 비용 BASAL 을 심우주로 방출한다(생명체→SINK, 되돌아오지 않는 손실).
   //      대사는 항상 예비 위에서 지불되므로 온전히 나간다 — 갈구가 대사를 못 따라가면 예비가 마르고 죽는다.
   //   전부 순수 클램프 이체(rng 미사용)라 확산 결정론에 영향 없고, 갈구·대사는 무음 내부 이체(상태는 CREATURE 방송).
+  //   feature-0006 step2 — 용량·갈구·대사·예비가 스탯(size)에 비례한다. 대사 뒤 잔고가 용량 근처면 흑자로
+  //   성장점을 쌓아 성장하고(size↑), 굶주리면 진척이 깎인다 — 큰 몸은 세계가 못 받치면 몰락한다(#growCreature).
   #metabolizeCreatures() {
     for (const cre of [...this.creatures.values()]) {
       const matId = materialKey(cre.x, cre.y, cre.z);
-      this.ledger.transfer(matId, cre.id, CREATURE_FORAGE_RATE, CAUSE.FORAGE); // ① 갈구
-      if (this.ledger.balance(cre.id) < CREATURE_DEATH_THRESHOLD) { this.#killCreature(cre); continue; } // ② 붕괴
-      this.ledger.transfer(cre.id, POOL.SINK, CREATURE_BASAL_COST, CAUSE.METABOLIZE); // ③ 대사(엔트로피 세금)
+      this.ledger.transfer(matId, cre.id, CREATURE_FORAGE_RATE * cre.size, CAUSE.FORAGE); // ① 갈구(size 비례)
+      const bal = this.ledger.balance(cre.id);
+      if (bal < CREATURE_DEATH_THRESHOLD * cre.size) { this.#killCreature(cre); continue; }  // ② 붕괴(예비도 size 비례)
+      this.ledger.transfer(cre.id, POOL.SINK, CREATURE_BASAL_COST * cre.size, CAUSE.METABOLIZE); // ③ 대사(size 비례)
+      this.#growCreature(cre); // ④ 성장 판정(에너지 이력 → 스탯)
+    }
+  }
+
+  // 성장 — feature-0006 step2. 대사 뒤 잔고가 용량 근처(흑자)면 성장점을 쌓고, 굶주림(적자)이면 깎는다(성장은
+  //   hard-won — 한 번 굶으면 진척이 되돌아간다). 성장점이 문턱에 닿으면 성장(size↑)한다. size 는 순수 상태
+  //   변수(에너지 풀 아님)라 보존과 무관하다 — 용량(max)만 커지고 에너지는 그대로다. 큰 몸은 대사도 size 비례로
+  //   커지므로(#metabolizeCreatures) 세계가 그만큼 받쳐주지 못하면 곧 굶어 죽는다 — 세계 풍요도가 크기 상한을 정한다.
+  #growCreature(cre) {
+    if (cre.size >= CREATURE_SIZE_MAX) return; // 스탯 상한
+    const cap = CREATURE_MAX_ENERGY * cre.size;
+    const bal = this.ledger.balance(cre.id);
+    if (bal >= CREATURE_GROWTH_FULL_FRACTION * cap) cre.growth += 1;                       // 흑자 — 여유가 쌓인다
+    else if (bal < CREATURE_GROWTH_HUNGRY_FRACTION * cap) cre.growth = Math.max(0, cre.growth - 2); // 적자 — 진척이 깎인다
+    if (cre.growth >= CREATURE_GROWTH_THRESHOLD) {
+      cre.size += 1; cre.growth = 0;
+      const pool = this.ledger.get(cre.id);
+      if (pool) pool.max = CREATURE_MAX_ENERGY * cre.size; // 성장 = 용량 확장(에너지 이동 없음 → 보존 무관)
     }
   }
 
@@ -480,11 +502,11 @@ export class GameServer {
           return acc;
         }, [])
       : null;
-    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance] (feature-0006). CRYSTAL 과 같은 읽기 전용 표시값.
+    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size] (feature-0006). CRYSTAL 과 같은 읽기 전용 표시값.
     const creatureCells = broadcastField
       ? [...this.creatures.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b]);
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size]);
           return acc;
         }, [])
       : null;

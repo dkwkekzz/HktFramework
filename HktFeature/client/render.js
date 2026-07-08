@@ -235,18 +235,19 @@ export class Render {
       if (d > 1) marks.push({ ...c, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#creatureOrb(cam, m.x, m.y, m.z, m.balance, m.d);
+    for (const m of marks) this.#creatureOrb(cam, m.x, m.y, m.z, m.balance, m.size ?? 1, m.d);
   }
 
-  #creatureOrb(cam, cx, cy, cz, bal, depth) {
+  #creatureOrb(cam, cx, cy, cz, bal, size, depth) {
     const { ctx } = this;
     const p = this.#pt(cam, cx, cy, cz);
     if (!p) return;
-    const vit = Math.max(0, Math.min(1, bal / CREATURE_MAX_ENERGY)); // 활력 = 잔고/용량
-    const starving = bal < CREATURE_DEATH_THRESHOLD * 3;             // 임계 근처면 굶주림 경고색
-    const hue = starving ? 8 + 60 * (bal / (CREATURE_DEATH_THRESHOLD * 3)) : 95 + 40 * vit; // 붉음→초록
+    const cap = CREATURE_MAX_ENERGY * size;                          // 용량은 스탯(size)에 비례
+    const vit = Math.max(0, Math.min(1, bal / cap));                 // 활력 = 잔고/용량
+    const starving = bal < CREATURE_DEATH_THRESHOLD * size * 3;      // 임계 근처면 굶주림 경고색(예비도 size 비례)
+    const hue = starving ? 8 + 60 * (bal / (CREATURE_DEATH_THRESHOLD * size * 3)) : 95 + 40 * vit; // 붉음→초록
     const scale = this.focal / depth;
-    const r = Math.max(4, (10 + 10 * vit) * scale);
+    const r = Math.max(4, (8 + 5 * size + 8 * vit) * scale);         // 스탯이 높을수록 큰 몸
     this.#stick(cam, cx, cy, cz, `hsla(${hue},70%,60%,0.4)`);        // 지면까지 수선(고도 가독성)
     // 살아있는 광채 — 안쪽 밝은 코어 + 바깥 후광(맥동감)
     const glow = ctx.createRadialGradient(p.sx, p.sy, 0, p.sx, p.sy, r * 1.8);
@@ -258,13 +259,13 @@ export class Render {
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.fill();
     ctx.strokeStyle = `hsla(${hue},95%,85%,0.9)`; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.stroke();
-    // 에너지(질서) 막대 + 잔고 라벨
+    // 에너지(질서) 막대 + 스탯·잔고 라벨
     this.#bar(p.sx, p.sy - r - 6, 34 * scale, vit, `hsl(${hue},80%,70%)`);
     if (scale > 0.4) {
       ctx.fillStyle = `hsl(${hue},85%,88%)`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`❋ ${bal}`, p.sx, p.sy - r - 10);
+      ctx.fillText(`${'❋'.repeat(size)} ${bal}`, p.sx, p.sy - r - 10); // 스탯 = ❋ 개수
       ctx.textAlign = 'left';
     }
   }

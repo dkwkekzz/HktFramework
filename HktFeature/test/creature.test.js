@@ -16,7 +16,7 @@ import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, CREATURE_SPAWN_GRANT, CREATURE_MAX_ENERGY,
-  CREATURE_BASAL_COST, CREATURE_FORAGE_RATE, CREATURE_DEATH_THRESHOLD, materialKey,
+  CREATURE_BASAL_COST, CREATURE_FORAGE_RATE, CREATURE_DEATH_THRESHOLD, CREATURE_SIZE_MAX, materialKey,
 } from '../shared/constants.js';
 
 function setup() {
@@ -40,7 +40,7 @@ function setup() {
     const f = msgs.filter(m => m.t === MSG.CREATURE);
     const last = f[f.length - 1];
     const map = new Map();
-    if (last) for (const [seq, x, y, z, b] of last.cells) map.set(seq, { x, y, z, balance: b });
+    if (last) for (const [seq, x, y, z, b, size] of last.cells) map.set(seq, { x, y, z, balance: b, size });
     return map;
   };
   return {
@@ -154,6 +154,62 @@ test('CREATURE 방송 — 살아있는 생명체가 [seq,x,y,z,잔고] 스냅샷
   const one = snap.get(cre.seq);
   assert.ok(one && one.balance > 0, '실린 생명체의 잔고가 0 보다 크다');
   assert.equal(one.x, cre.x, '생명체는 제 위치로 실린다');
+  assert.ok(Number.isInteger(one.size) && one.size >= 1, '생명체는 스탯(size)을 가진다(뷰어가 크기·❋수로 그린다)');
+});
+
+// ---- feature-0006 step2: 성장·스탯 ----
+
+test('성장 — 흑자(풍요)가 지속되면 생명체가 성장한다 (스탯↑, 용량이 스탯에 비례)', () => {
+  const { game, bal, total, runTicks } = setup();
+  const cre = game.spawnCreature(1000, 1000, 500);
+  game.ledger.transfer(POOL.SOURCE, materialKey(1000, 1000, 500), 200_000_000, 'seed'); // 마르지 않는 풍요
+  assert.equal(cre.size, 1, '창세 스탯은 1');
+  runTicks(2000);
+  assert.ok(cre.size > 1, `풍요로운 세계에서 질서 유지 흑자가 쌓여 성장했다 (size ${cre.size})`);
+  assert.equal(game.ledger.get(cre.id).max, CREATURE_MAX_ENERGY * cre.size, '용량(max)이 스탯에 비례해 커졌다');
+  assert.ok(bal(cre.id) > CREATURE_MAX_ENERGY, '큰 몸은 기본 용량보다 많은 에너지를 담는다(용량·능력 확장)');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '성장 = 상태 변수(size) 변화일 뿐 에너지 이동 없음 → 보존 불변');
+});
+
+test('세계 풍요도가 크기 상한을 정한다 — 풍요로운 개체가 빈약한 개체보다 크게 자란다', () => {
+  const rich = setup();
+  const rc = rich.game.spawnCreature(1000, 1000, 500);
+  rich.game.ledger.transfer(POOL.SOURCE, materialKey(1000, 1000, 500), 200_000_000, 'seed');
+  rich.runTicks(2500);
+  const poor = setup();
+  const pc = poor.game.spawnCreature(1000, 1000, 500);
+  poor.game.ledger.transfer(POOL.SOURCE, materialKey(1000, 1000, 500), 6_000, 'seed'); // 유한한 얕은 웅덩이
+  poor.runTicks(2500);
+  const richSize = rich.game.creatures.has(rc.id) ? rc.size : 0;
+  const poorSize = poor.game.creatures.has(pc.id) ? pc.size : 0;
+  assert.ok(richSize > 1, `풍요로운 개체는 크게 자란다 (size ${richSize})`);
+  assert.ok(poorSize < richSize, `빈약한 세계의 개체는 덜 자라거나 못 자란다 (poor ${poorSize} < rich ${richSize})`);
+});
+
+test('큰 몸의 몰락 — 성장한 생명체도 세계가 못 받치면 굶어 죽는다 (크기 상한의 이면)', () => {
+  const { game, total, runTicks } = setup();
+  const cre = game.spawnCreature(1000, 1000, 500);
+  game.ledger.transfer(POOL.SOURCE, materialKey(1000, 1000, 500), 200_000_000, 'seed');
+  runTicks(2000);
+  assert.ok(cre.size > 1, '먼저 풍요 속에서 성장했다');
+  // 세계를 고갈시킨다 — 모든 국소장 복셀을 비운다. 큰 몸은 대사도 커서(size 비례) 빠르게 굶는다.
+  for (const id of game.materialKeys) { const b = game.ledger.balance(id); if (b > 0) game.ledger.transfer(id, POOL.SINK, b, 'drain'); }
+  for (let i = 0; i < 1000 && game.creatures.has(cre.id); i++) game.tick();
+  assert.ok(!game.creatures.has(cre.id), '세계가 큰 몸을 못 받치면 굶어 죽는다');
+  assert.equal(total(), WORLD_SOURCE_INITIAL, '몰락·분해에도 보존 불변');
+});
+
+test('결정론 — 같은 조건이면 성장(스탯) 궤적도 비트 단위로 동일하다', () => {
+  const run = () => {
+    const s = setup();
+    const c = s.game.spawnCreature(1000, 1000, 500);
+    s.game.ledger.transfer(POOL.SOURCE, materialKey(1000, 1000, 500), 50_000_000, 'seed');
+    s.runTicks(1500);
+    return [c.size, c.growth, s.bal(c.id)];
+  };
+  assert.deepEqual(run(), run(), '동일 조건 → 비트 단위 동일 스탯·성장점·잔고');
+  const [size] = run();
+  assert.ok(size >= 1 && size <= CREATURE_SIZE_MAX, '스탯은 1..SIZE_MAX 범위');
 });
 
 test('보존 — 다수 생명체가 갈구·대사·아사를 반복해도 전 풀 합계 = 10⁹', () => {
