@@ -77,7 +77,7 @@ const HARNESS_ROUTE = (req, res) => {
 // 페이지 컨텍스트에서 쓸 촬영 루프 소스 — new Function 으로 주입한다.
 // (page.evaluate 에 문자열 결합 대신 한곳에 모아 두 하니스가 공유)
 const DRIVE_AND_SHOOT = `
-async function driveAndShoot({ FRAMES, N, makeBones, genes, entities, gridCenter, eye, center, keepState }) {
+async function driveAndShoot({ FRAMES, N, makeBones, genes, entities, gridCenter, eye, center, keepState, showBones }) {
 	const ad = await navigator.gpu.requestAdapter();
 	const device = await ad.requestDevice();
 	const gpuErrs = [];
@@ -97,7 +97,7 @@ async function driveAndShoot({ FRAMES, N, makeBones, genes, entities, gridCenter
 		simTime += dt;
 		engine.frame({
 			dt, time: simTime, genes, entities: ents, paused: false, gridCenter,
-			pull: [0, 0, 0, 0], bones: makeBones ? makeBones(simTime, dt) : null, showBones: true,
+			pull: [0, 0, 0, 0], bones: makeBones ? makeBones(simTime, dt) : null, showBones: showBones !== false,
 			view, proj, viewport: [640, 640], focal: [focalY, focalY],
 		});
 		// 마지막 프레임 뒤 양보 금지 (상단 주석의 present 함정)

@@ -13,14 +13,14 @@
 	const GRID_DIM = 64;
 	const CLUSTER_K = 256;       // 클러스터 크기 (wgsl.js K 와 일치)
 	const CLUSTER_STRIDE = 24;   // u32/f32 24개 = 96B (wgsl.js Cluster 와 일치)
-	const ENTITY_STRIDE = 36;    // f32 36개 = 144B (wgsl.js Entity 와 일치)
+	const ENTITY_STRIDE = 40;    // f32 40개 = 160B (wgsl.js Entity 와 일치 — R1 재질 vec4 포함)
 	const MAX_ENTITIES = 8;
 	// L6 뼈 세그먼트 상한 — 단일 스켈레톤(휴머노이드 ~52 / Mixamo 풀 리그 ~65)이 아니라
 	// *장면 전체*의 뼈 합계 상한이다. 살 개체마다 제 위치에 스켈레톤 인스턴스를 세우고
 	// (editor 다중 히키토), 전 인스턴스를 이 단일 boneBuf 에 이어붙이므로 개체 수(≤8)만큼
 	// 필요. 8 × 52 = 416 을 넉넉히 덮도록 512. (render 셰이더의 rest.w clamp 511u 와 동기 필수)
 	const MAX_BONES = 512;
-	const GROUP_COUNT = 11;      // C3/C4 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치 — 'other' 가 항상 마지막)
+	const GROUP_COUNT = 13;      // C3/C4 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치 — 'other' 가 항상 마지막)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 
@@ -91,7 +91,7 @@
 		// 유니폼 버퍼 (크기는 wgsl.js 구조체와 일치)
 		this.simUB = d.createBuffer({ size: 64, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
 		this.keyUB = d.createBuffer({ size: 32, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST });
-		this.camUB = d.createBuffer({ size: 192, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }); // 160 + fog(vec4)·fogRange(vec4)
+		this.camUB = d.createBuffer({ size: 256, usage: GPUBufferUsage.UNIFORM | GPUBufferUsage.COPY_DST }); // 160 + fog·fogRange + R1 조명 vec4×4
 		this.entityBuf = d.createBuffer({ size: MAX_ENTITIES * ENTITY_STRIDE * 4, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
 		// L6 뼈대 세그먼트 테이블 — 세그먼트당 vec4 2개 (a.xyz+r1, b.xyz+r2)
 		this.boneBuf = d.createBuffer({ size: MAX_BONES * 32, usage: GPUBufferUsage.STORAGE | GPUBufferUsage.COPY_DST });
@@ -296,6 +296,7 @@
 				{ binding: 6, resource: { buffer: this.restBuf } },
 				{ binding: 7, resource: { buffer: this.boneGroupBuf } },
 				{ binding: 8, resource: { buffer: this.groupColorBuf } },
+				{ binding: 9, resource: { buffer: this.boneBuf } }, // R1: 살 법선·접선의 형태 근거
 			],
 		});
 	};
@@ -428,6 +429,8 @@
 			a.set(g.colorA, o + 24);
 			a.set(g.colorB, o + 28);
 			a.set([g.size, g.stretch, g.opacity, g.luminosity], o + 32);
+			// R1 재질: 스펙큘러·광택 지수·림·랩 확산 (미지정은 무광 폴백 — specPow 는 pow 가드 ≥1)
+			a.set([g.spec || 0, Math.max(g.specPow || 1, 1), g.rim || 0, g.wrap || 0], o + 36);
 		});
 		return a;
 	};
@@ -720,19 +723,32 @@
 		new Uint32Array(key)[4] = n;
 		d.queue.writeBuffer(this.keyUB, 0, key);
 
-		// CamParams (192B = 160 + fog vec4 + fogRange vec4)
-		const cam = new ArrayBuffer(192);
+		// CamParams (256B = 160 + fog vec4×2 + R1 조명 vec4×4)
+		const cam = new ArrayBuffer(256);
 		const cf = new Float32Array(cam);
 		cf.set(v, 0);
 		cf.set(opts.proj, 16);
 		cf.set([opts.viewport[0], opts.viewport[1], opts.focal[0], opts.focal[1]], 32);
 		new Uint32Array(cam)[36] = this.sliceSize;
+		new Uint32Array(cam)[37] = nb; // R1: 렌더 VS 의 살 법선 유도용 boneCount
 		// T5 원거리 fog — opts.fog = { color:[r,g,b], start, end } | falsy(off). 무대 sky 톤과 공유.
 		const fog = opts.fog;
 		if (fog && fog.color) {
 			cf.set([fog.color[0], fog.color[1], fog.color[2], fog.amount != null ? fog.amount : 1], 40);
 			cf.set([fog.start != null ? fog.start : 12, fog.end != null ? fog.end : 40], 44);
 		}
+		// R1 조명 환경 — opts.light = { dir, intensity, color, sky, skyAmount, ground } (부분 지정 가능).
+		// intensity 0 이면 셰이더가 발광 폴백(조명 끔). 기본값: 좌상·전방 키 라이트 + 푸른 하늘/따뜻한 지면.
+		const li = opts.light || {};
+		const ld = li.dir || [0.45, 0.8, 0.5];
+		const ll = 1 / Math.max(Math.hypot(ld[0], ld[1], ld[2]), 1e-6);
+		const lc = li.color || [1.0, 0.97, 0.9];
+		const sk = li.sky || [0.45, 0.47, 0.55]; // 살짝만 차갑게 — 과한 청색은 피부를 백화시킨다
+		const gr = li.ground || [0.24, 0.19, 0.16];
+		cf.set([ld[0] * ll, ld[1] * ll, ld[2] * ll, li.intensity != null ? li.intensity : 1.15], 48);
+		cf.set([lc[0], lc[1], lc[2], 0], 52);
+		cf.set([sk[0], sk[1], sk[2], li.skyAmount != null ? li.skyAmount : 1.0], 56);
+		cf.set([gr[0], gr[1], gr[2], 0], 60);
 		d.queue.writeBuffer(this.camUB, 0, cam);
 
 		const wgs = Math.ceil(n / WG);

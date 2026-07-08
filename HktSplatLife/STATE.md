@@ -7,18 +7,23 @@
 
 ## 현재 작업 상태
 
-- **지금 하는 일**: 품질 로드맵 수립 완료 — [PLAN-Quality.md](PLAN-Quality.md) (찰흙 탈출: 조명·형상·이미지 정합). 다음은 R1 착수.
-- **다음 후보**: R1 조명 → R2 형상 → R3 이미지→게놈 정합 도구 → R4 하니스 지표 (PLAN-Quality §5 순서).
+- **지금 하는 일**: R1/R2 구현 + 이미지 정합 1호 게놈(별지기) + fit-shot 하니스 완료.
+- **다음 후보**: R3 `genome-fit.html` 대화형 도구 (현재는 수동 게놈 도출) · 얼굴 디테일(눈) ·
+  반바지 경계 선명화(축 램프 비선형화) · halo 지표(R4 잔여).
 - **막힌 것**: 없음.
 
 ## 명제 — 렌더 품질 (R 트랙: PLAN-Quality)
 
-- 📌 R1 조명: 해석적 법선(뼈 축 방사, 매 프레임 유도) + 반구 앰비언트 + half-Lambert wrap +
-  스펙큘러/림 + linear 셰이딩·톤맵. 재질 유전자 vec4 추가(Entity 144→160B — 바이트 일치 갱신 필수).
-- 📌 R2 형상: 살 스플랫을 법선 납작 디스크(surfel)로 유도 + 깊이 시드(h.y) 유사 AO. 비-살 개체 회귀 0.
-- 📌 R3 이미지→게놈 정합: `genome-fit.html` — 레퍼런스 이미지에서 비율(morph {r,l})·부위색(palette)·
-  재질(matter)을 추출해 게놈 JSON 으로. 실루엣 IoU + 부위 ΔE 지표.
-- 📌 R4 하니스: life-shot 에 음영·halo·팔레트 정합·애니메이션(위상차 실루엣) 지표 추가 — 찰흙 회귀 게이트.
+- ✅ R1 조명: 해석적 법선(뼈 축 방사, 매 프레임 유도 — 저장·스키닝 없음) + 반구 앰비언트 +
+  half-Lambert wrap + 스펙큘러/림 + linear 셰이딩·ACES 톤맵. 재질 유전자 vec4(spec/specPow/rim/wrap,
+  Entity 144→160B) · 조명 환경은 `frame(opts.light)` 입력(기본값 내장). 비-살 개체는 발광 경로 유지.
+- ✅ R2 형상: 살 스플랫 = 법선 납작 surfel(두께 0.35, 접선 = 뼈 축 결) + 깊이 시드(h.y) 유사 AO.
+  살 램프 보간 인자를 heat → 뼈 축 위치(tAx)로 교체 — 소매·반바지 밑단이 축 그라데이션으로 생긴다.
+- 🚧 R3 이미지→게놈 정합: 1호 게놈 `별지기`(치비 보라 포니테일 소녀) 수동 도출 완료 —
+  비율(morph)·부위색(palette, 자식 관절 귀속 유의)·머리카락(appendix 4체인)·재질(matter).
+  부위 그룹 forearm/upleg 분리(GROUP_IDS 13 — engine GROUP_COUNT 동기). 대화형 `genome-fit.html` 은 미착수.
+- 🚧 R4 하니스: `test/fit-shot.js` — 음영 σ·부위색(보라/흰/피부)·walk 위상차 실루엣 diff·GPU 오류 0
+  게이트. halo 지표·레퍼런스 IoU 는 잔여.
 
 ## 명제 — 기반 (렌더·엔진)
 

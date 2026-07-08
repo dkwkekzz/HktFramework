@@ -38,6 +38,11 @@
 		heatEmit:   ['발열',        0,    2,    0.1],
 		// ── L6: 뼈대 SDF 살 유전자 ──
 		fleshK:     ['살 강성(SDF)', 0,   80,   1],
+		// ── R1: 재질 유전자 (살 전용 — 조명 합성 계수, 비-살은 무시) ──
+		spec:       ['스펙큘러',    0,    1,    0.02],
+		specPow:    ['광택 지수',   1,    128,  1],
+		rim:        ['림 라이트',   0,    1,    0.02],
+		wrap:       ['랩 확산',     0,    1,    0.05],
 	};
 
 	// ── 원소 프리셋: 유전자 값만 다르고 시스템은 동일 — 속성이 형태를 만든다 ──
@@ -97,9 +102,10 @@
 		'히키토': {
 			cohesion: 0, volatility: 0.15, updraft: 0, damping: 9.0,
 			lifeBase: 4.0, emitRadius: 1.0, flowFreq: 1.5, flowSpeed: 0.6,
-			size: 0.035, stretch: 0.5, opacity: 0.9, luminosity: 0.5,
+			size: 0.035, stretch: 0.5, opacity: 0.9, luminosity: 0,
 			gravity: 1.0, binding: 0, restDist: 0.9, viscosity: 0, reach: 0.13, mortality: 0,
 			rigid: 0, toughness: 1, bondK: 0, growRate: 0, flamm: 0, heatEmit: 0, fleshK: 60,
+			spec: 0.22, specPow: 26, rim: 0.18, wrap: 0.55, // R1: 피부 재질 (조명 켜지면 발광 대신 셰이딩)
 			emitter: [0, 1.0, 0], form: 3,
 			colorA: '#7a3b2a', colorB: '#ffd9a8',
 		},
@@ -112,9 +118,10 @@
 
 	// 프리셋 → 시뮬 입력 유전자 (숫자 + vec4 색 + form/emitter).
 	// form 3 의 bindBones 는 모션 소스를 아는 호출자(app.js / 하니스)가 붙인다.
+	// R1 재질 등 신설 유전자 미지정 프리셋은 0 폴백 (specPow 만 pow 가드 1) — NaN 업로드 방지.
 	function materialize(p, emitter) {
 		const g = {};
-		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k];
+		for (const k of Object.keys(GENE_DEFS)) g[k] = p[k] != null ? p[k] : (k === 'specPow' ? 1 : 0);
 		g.colorA = hexToVec4(p.colorA);
 		g.colorB = hexToVec4(p.colorB);
 		g.form = p.form || 0;

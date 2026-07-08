@@ -14,16 +14,24 @@
 	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, genome: HktGenesisGenome.IDENTITY };
 
 	let genes = null, sceneEntities = null, reseed = null, simTime = 0;
+	let lastPreset = '히키토';
 	const N = 65536; // 2^16 — 정렬·슬라이스 제약 충족
 
 	function bindBones() { return skeleton.pose('idle', 0, 1, 1, skel.genome); }
 	function applyPreset(name) {
+		lastPreset = name;
 		const p = PRESETS[name];
 		genes = materialize(p); // emitter 는 프리셋 기본
 		genes.genome = skel.genome;
+		HktGenesisGenome.applyMatter(genes, skel.genome); // 게놈 ③ 재질 차분 (미지정 = 무변경)
 		if (genes.form === 3) genes.bindBones = bindBones(); // 살: 뼈 친화 시드 기준 세그먼트
 		sceneEntities = [genes];
 		if (reseed) reseed();
+	}
+	// 게놈(체형·채색·부속) 전환 — 부속은 세그먼트 수를 바꾸므로 항상 재시드(applyPreset 경유)
+	function applyGenome(genome) {
+		skel.genome = genome;
+		applyPreset(lastPreset);
 	}
 
 	function fail(msg) { const m = document.getElementById('msg'); m.textContent = msg; m.style.display = 'flex'; }
@@ -52,6 +60,14 @@
 			const b = document.createElement('button'); b.textContent = name;
 			b.addEventListener('click', () => applyPreset(name));
 			box.appendChild(b);
+		}
+		// 게놈(체형) 버튼 — 정체성 = 데이터: 같은 프리셋·같은 클립에 게놈만 갈아끼운다
+		const gbox = document.getElementById('genomes');
+		const genomeList = Object.assign({ '기본': HktGenesisGenome.IDENTITY }, HktGenesisGenome.GENOMES);
+		for (const name of Object.keys(genomeList)) {
+			const b = document.createElement('button'); b.textContent = name;
+			b.addEventListener('click', () => applyGenome(genomeList[name]));
+			gbox.appendChild(b);
 		}
 		document.getElementById('bones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
 
