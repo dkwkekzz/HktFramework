@@ -24,6 +24,7 @@ import {
   MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
   CRYSTAL_SATURATION, CRYSTAL_PRECIPITATE_DIVISOR, CRYSTAL_PRECIPITATE_MAX, CRYSTAL_INTERVAL_TICKS,
   DEATH_CRYSTAL_FRACTION, pickSpecies,
+  CRYSTAL_REACT_INTERVAL_TICKS, CRYSTAL_REACT_RADIUS, CRYSTAL_REACT_RELEASE_DIVISOR, reactSpecies,
   FIELD_Z_LAYERS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
@@ -240,6 +241,11 @@ export class GameServer {
     if (this.tickCount % CRYSTAL_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#crystallize();
     }
+    // feature-0005 step3 반응 — 반경 안의 두 결정이 종에 따라 융합/화합하고 반응열을 국소장으로 방출한다.
+    //   쌓인 결정을 소비해 개수를 묶으며(무한 누적 방지), 종 분포를 계속 뒤섞는다(창발).
+    if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#react();
+    }
     this.#flush();
     this.pendingOps = [];
     this.pendingMoves.clear();
@@ -298,6 +304,50 @@ export class GameServer {
       const quantum = Math.min(CRYSTAL_PRECIPITATE_MAX, Math.max(1, Math.floor((bal - CRYSTAL_SATURATION) / CRYSTAL_PRECIPITATE_DIVISOR)));
       this.ledger.transfer(matId, cryId, quantum, CAUSE.CRYSTALLIZE); // 확산처럼 무음 내부 이체(상태는 CRYSTAL 스냅샷으로 방송)
     }
+  }
+
+  // 반응(화학) — feature-0005 step3. 반경 안의 두 결정이 종에 따라 반응한다.
+  //   결정론: seq 오름차순으로 훑어, 각 결정 A 는 반경 안에서 seq 가 더 큰 가장 이른 상대 B 와 1회 반응한다
+  //   (한 틱에 각 결정 최대 1회 = 점진적). 같은 종 → 융합(반응열 없음), 다른 종 → 화합(반응열 방출).
+  #react() {
+    const crys = [...this.crystals.values()]
+      .filter(c => this.ledger.balance(c.id) > 0)
+      .sort((a, b) => a.seq - b.seq);
+    const reacted = new Set();
+    for (const A of crys) {
+      if (reacted.has(A.id)) continue;
+      let B = null;
+      for (const C of crys) {
+        if (C.seq <= A.seq || reacted.has(C.id)) continue;
+        if (dist3(A.x, A.y, A.z, C.x, C.y, C.z) <= CRYSTAL_REACT_RADIUS) { B = C; break; }
+      }
+      if (!B) continue;
+      this.#reactPair(A, B);
+      reacted.add(A.id);
+      reacted.add(B.id);
+    }
+  }
+
+  // 두 결정을 반응시킨다 — B 를 A 로 합치고(전량 이체), 산물 종을 정하고, 다른 종이면 반응열을 방출한다.
+  #reactPair(A, B) {
+    const balB = this.ledger.balance(B.id);
+    const sum = this.ledger.balance(A.id) + balB;
+    this.ledger.transfer(B.id, A.id, balB, CAUSE.REACT); // B → A 전량 (B 잔고 0)
+    if (A.species === B.species) {
+      // 같은 종 → 순수 융합(응집). 반응열 없음, 종 그대로.
+    } else {
+      A.species = reactSpecies(A.species, B.species); // 다른 종 → 새 화합물
+      const release = Math.floor(sum / CRYSTAL_REACT_RELEASE_DIVISOR); // 발열 → 그 자리 국소장
+      if (release > 0) this.ledger.transfer(A.id, materialKey(A.x, A.y, A.z), release, CAUSE.REACT);
+    }
+    this.#removeCrystal(B.id); // 소진된 B 소멸(잔고 0)
+  }
+
+  // 결정 하나 제거 — 레지스트리·거주 인덱스·원장 풀에서 모두 지운다(잔고 0 전제).
+  #removeCrystal(id) {
+    this.crystals.delete(id);
+    for (const [k, v] of this.voxelResident) if (v === id) this.voxelResident.delete(k);
+    this.ledger.removePool(id);
   }
 
   // --- 시야에 들어와야 하는 엔티티 집합 (지역 구독 기준) ---

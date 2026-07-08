@@ -64,6 +64,18 @@ export const CRYSTAL_INTERVAL_TICKS = 1;         // 석출 판정 주기(틱) �
 export const CRYSTAL_SPECIES_COUNT = 12;         // 결정 종 수 — 생성 다양성(색·후속 반응 규칙의 씨앗)
 export const DEATH_CRYSTAL_FRACTION = 0.5;       // 죽을 때 결정(단단한 잔해)으로 응결되는 비율 — 나머지는 국소장으로 흩어진다(무른 조직)
 
+// feature-0005 step3 — 반응(화학): 반경 안의 두 결정이 종에 따라 반응한다.
+//   같은 종끼리 만나면 융합(순수 응집, 반응열 없음), 다른 종끼리 만나면 새 화합물 종으로 결합하며
+//   반응열 일부를 국소장으로 방출(발열)한다. 규칙은 결정론(rng 미사용) — 같은 종쌍이면 같은 산물.
+export const CRYSTAL_REACT_INTERVAL_TICKS = 5;   // 반응 판정 주기(틱) — 점진적(급격한 연쇄 방지)
+export const CRYSTAL_REACT_RADIUS = 400;         // 두 결정이 이 거리 안이면 반응(px)
+export const CRYSTAL_REACT_RELEASE_DIVISOR = 8;  // 다른 종 반응의 반응열 = floor(합/이 값) 을 국소장으로 방출
+
+// 두 종이 만나 태어나는 화합물 종 — 결정론적 규칙(가환: a,b 순서 무관). 후속 규칙 확장의 진입점.
+export function reactSpecies(a, b) {
+  return (a + b + 1) % CRYSTAL_SPECIES_COUNT;
+}
+
 // --- 풀 ID 접두 ---
 export const POOL = {
   PLAYER: 'P:',    // 플레이어 생체 에너지 (region=null — 좌표는 권위가 아니다)
@@ -80,7 +92,8 @@ export const CAUSE = {
   DEATH: 'death',       // 플레이어 → 국소장 (접속 종료 = 응집 소멸 → 그 자리 국소장으로, 태양행 아님)
   DIFFUSE: 'diffuse',   // 국소장 ↔ 국소장 (엔트로픽 확산 — 이웃으로 높은 확률로 흩어짐)
   RADIATE: 'radiate',   // 국소장 → SINK (심우주 복사 — 되돌아오지 않는 엔트로피 세금)
-  CRYSTALLIZE: 'crystallize', // 국소장 → 결정 (과포화 석출 — 정적 저엔트로피 형태로 동결, feature-0005)
+  CRYSTALLIZE: 'crystallize', // 국소장 → 결정 (과포화 석출 · 죽음의 응결 — 정적 저엔트로피 형태로 동결, feature-0005)
+  REACT: 'react',       // 결정 ↔ 결정 / 결정 → 국소장 (반응: 융합·화합·반응열 방출, feature-0005 step3)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
