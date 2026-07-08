@@ -20,7 +20,7 @@
 	// (editor 다중 히키토), 전 인스턴스를 이 단일 boneBuf 에 이어붙이므로 개체 수(≤8)만큼
 	// 필요. 8 × 52 = 416 을 넉넉히 덮도록 512. (render 셰이더의 rest.w clamp 511u 와 동기 필수)
 	const MAX_BONES = 512;
-	const GROUP_COUNT = 13;      // C3/C4 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치 — 'other' 가 항상 마지막)
+	const GROUP_COUNT = 14;      // C3/C4 부위 그룹 수 (genome.js GROUP_IDS 길이와 일치 — 'other' 가 항상 마지막)
 	const GRID_CELL = 0.15;      // 전역 격자 셀 크기 (개체 reach 는 이하로 클램프)
 	const GRID_ORIGIN = [-4.8, -0.8, -4.8];
 

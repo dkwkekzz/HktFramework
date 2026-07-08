@@ -26,6 +26,9 @@
 	function groupForName(name) {
 		const n = simpleName(name), has = (s) => n.indexOf(s) >= 0;
 		if (has('Tail') || has('Horn') || has('Ear') || has('Cape') || has('Appendix')) return 'appendix';
+		// crown = 정수리 세그먼트(HeadTop) 전용 — 헤어(두피)를 얼굴(head)과 다른 색으로.
+		// head 램프는 뼈 길이 ≪ 공 반지름이라 공 적도에서 수평 분할(턱=a / 두피=b)이 된다.
+		if (has('HeadTop'))            return 'crown';
 		if (has('Head') || has('_End')) return 'head';
 		if (has('Neck'))               return 'neck';
 		if (n === 'Hips' || has('Spine')) return 'torso';
@@ -40,12 +43,12 @@
 		return 'other';
 	}
 	// 후보정 UI(에디터)가 노출하는 대표 그룹 — 세부 그룹은 위 분류를 그대로 쓴다.
-	const GROUPS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'forearm', 'hand', 'finger', 'upleg', 'leg', 'foot'];
+	const GROUPS = ['head', 'crown', 'neck', 'torso', 'shoulder', 'arm', 'forearm', 'hand', 'finger', 'upleg', 'leg', 'foot'];
 	// 채색(② palette)·GPU 그룹 인덱스의 정렬된 원본 — engine.js GROUP_COUNT·boneGroup 업로드와
 	// 순서 일치 필수. groupId(name) 가 이 배열의 인덱스를 돌려준다.
 	// C4: 'appendix' 는 기존 인덱스를 흔들지 않게 'other' 직전에 삽입 — 'other' 는 항상 마지막
 	// (engine 의 그룹 미상 폴백 = GROUP_COUNT-1 이 'other' 를 가리키는 규약 유지).
-	const GROUP_IDS = ['head', 'neck', 'torso', 'shoulder', 'arm', 'forearm', 'hand', 'finger', 'upleg', 'leg', 'foot', 'appendix', 'other'];
+	const GROUP_IDS = ['head', 'crown', 'neck', 'torso', 'shoulder', 'arm', 'forearm', 'hand', 'finger', 'upleg', 'leg', 'foot', 'appendix', 'other'];
 	function groupId(name) { return GROUP_IDS.indexOf(groupForName(name)); }
 
 	// ── 스타일 프로파일: 배율의 범위·양자화 (PLAN 초안값 반지름 0.5~2.2·스텝 0.1) ──
@@ -54,9 +57,10 @@
 	const PROFILE = {
 		radiusMul: { min: 0.5, max: 2.2, step: 0.1 },
 		lengthMul: { min: 0.5, max: 1.8, step: 0.05 },
-		// ④ 부속 울타리 (PLAN 초안값: 꼬리 ≤8마디, 체인 ≤4개) — 마디·길이·반지름·강성 범위.
+		// ④ 부속 울타리 (PLAN 초안값 꼬리 ≤8마디) — 마디·길이·반지름·강성 범위.
+		// 체인 상한은 4→8 확장: 머리카락(3~4) + 이목구비(눈 2) + 꼬리류에 4개는 부족.
 		appendix: {
-			maxChains: 4,
+			maxChains: 8,
 			links: { min: 1, max: 8 },
 			len: { min: 0.08, max: 1.4 },
 			radius: { min: 0.008, max: 0.16 },
@@ -115,7 +119,8 @@
 	// ── ④ 부속(appendix): 가상 뼈 스프링 체인 — 리그에 없는 꼬리/뿔/귀/망토 ──
 	// 클립은 이 뼈들을 모른다(클립 무수정) — 움직임은 물리(지연 추종)가 만든다.
 	// 체인 정의: { name, attach(부착 관절 이름), dir(부착 로컬 방향), links(마디 수),
-	//             len(총 길이), r0/r1(뿌리→끝 반지름), k(스프링 강성), damp(기본 2√k), gravity }
+	//             len(총 길이), r0/r1(뿌리→끝 반지름), k(스프링 강성), damp(기본 2√k), gravity,
+	//             group(선택 — 채색 그룹 명시: 얼굴 패널처럼 'appendix' 색이 아닌 체인용) }
 	// 프로파일 울타리로 정규화해 돌려준다 — 체인 수·마디 수 초과는 잘라낸다(스타일 통일).
 	function chains(genome) {
 		const ap = (genome && genome.appendix) || [];
@@ -138,6 +143,7 @@
 				k,
 				damp: (c.damp == null) ? 2 * Math.sqrt(k) : Math.max(0, c.damp), // 임계 감쇠 기본 (L6 함정과 동일 근거)
 				gravity: (c.gravity == null) ? 0.35 : Math.max(0, Math.min(3, c.gravity)),
+				group: (typeof c.group === 'string' && GROUP_IDS.indexOf(c.group) >= 0) ? c.group : null,
 			});
 		}
 		return out;
@@ -186,15 +192,18 @@
 			// palette 램프는 뼈 축 그라데이션(a=부모 관절 쪽, b=자식 관절 쪽) — 의상 경계 표현.
 			// 비율은 레퍼런스 실측(머리 32% · 몸통 30% · 다리 38%)을 리그에 사상한 값 —
 			// 다리(leg=허벅지 뼈, foot=종아리 뼈)를 절반 가까이 줄여야 치비가 된다.
+			// 머리 공(반지름 0.12×r)의 하단은 머리 관절에서 반지름만큼 내려간다 — 목(neck.l)을
+			// 충분히 늘려야 공이 가슴에 파묻히지 않고 턱 밑에 목이 드러난다 (괴물 방지 기하).
 			morph: {
-				head: { r: 2.0 }, neck: { r: 0.7, l: 0.7 },
+				head: { r: 1.6 }, neck: { r: 0.65, l: 1.8 },
 				torso: { r: 1.0, l: 0.9 }, shoulder: { r: 0.8 },
 				arm: { r: 0.8 }, forearm: { r: 0.7, l: 0.75 }, hand: { r: 0.65, l: 0.75 },
 				upleg: { r: 1.2 }, leg: { r: 1.1, l: 0.55 }, foot: { r: 0.85, l: 0.55 },
-				appendix: { r: 1.0 },
+				appendix: { r: 1.15 },
 			},
 			palette: {
-				head:     { a: '#e2a98e', b: '#f5cfae' }, // 턱 그늘 → 얼굴 피부
+				head:     { a: '#3a1a58', b: '#54277e' }, // 머리 공 = 헤어 헬멧 (얼굴은 Face 패널 체인이 덮는다)
+				crown:    { a: '#46216b', b: '#5c2b8a' }, // 정수리 — head 와 같은 보라 계열 (이음매 없음)
 				neck:     { a: '#d9d3e2', b: '#f0c3a2' }, // 옷깃 → 목 피부
 				torso:    { a: '#c9c2cf', b: '#f2eef2' }, // 흰 티셔츠 (아래 그늘)
 				shoulder: { a: '#e6e1ec', b: '#efeaf2' }, // 어깨 = 반소매
@@ -206,17 +215,23 @@
 				leg:      { a: '#35405c', b: '#eebd98' }, // 허벅지: 반바지 밑단 → 맨살
 				foot:     { a: '#eebd98', b: '#332f3e' }, // 종아리 맨살 → 발끝 검은 신발
 				appendix: { a: '#3a1a58', b: '#6b2fa0' }, // 보라 머리카락 (뿌리 → 끝 하이라이트)
+				other:    { a: '#2a1430', b: '#4a2a6a' }, // 눈(EyeL/R 체인 — 미지 이름은 other 그룹)
 			},
 			appendix: [
-				// 포니테일: 옆-아래로 흘러내리는 큰 타래 — 자리 스프링은 마디를 *독립* 목표로
+				// 포니테일: 뒤-옆-아래로 흘러내리는 큰 타래 — 자리 스프링은 마디를 *독립* 목표로
 				// 당기므로(누적 호 없음) 흘러내림은 dir 자체가 만들고 중력·낮은 k 는 출렁임을 만든다.
-				// (x 성분 = 화자 왼쪽으로 흘러 정면/3·4 뷰에서 머리에 가려지지 않는다)
-				{ name: 'TailPony', attach: 'Head', dir: [0.5, -0.55, -0.55], links: 8, len: 0.95, r0: 0.085, r1: 0.024, k: 26, gravity: 1.6 },
-				// 정수리 볼륨: 짧고 굵은 사슬 — 머리 윗면을 머리카락 색으로 덮는다
-				{ name: 'HornPuff', attach: 'Head', dir: [0, 0.95, -0.25], links: 2, len: 0.3, r0: 0.16, r1: 0.1, k: 150, gravity: 0 },
-				// 좌우 앞머리: 얼굴 옆으로 흘러내리는 가닥
-				{ name: 'EarBangL', attach: 'Head', dir: [0.55, -0.75, 0.3], links: 3, len: 0.3, r0: 0.045, r1: 0.014, k: 110, gravity: 0.3 },
-				{ name: 'EarBangR', attach: 'Head', dir: [-0.55, -0.75, 0.3], links: 3, len: 0.3, r0: 0.045, r1: 0.014, k: 110, gravity: 0.3 },
+				// (-z 를 강하게 — 뿌리가 턱/가슴 앞으로 새면 보라 부스러기가 얼굴에 묻는다)
+				{ name: 'TailPony', attach: 'Head', dir: [0.42, -0.35, -0.84], links: 8, len: 0.95, r0: 0.085, r1: 0.024, k: 26, gravity: 1.4 },
+				// 얼굴 패널: 머리 중심→앞-아래로 뻗는 굵은 강체 슬래브 (group='hand' = 피부 램프).
+				// 헤어 헬멧(머리 공) 앞면을 피부로 덮는다 — 이마 위쪽은 보라로 남아 앞머리 인상.
+				{ name: 'Face', group: 'hand', attach: 'Head', dir: [0, -0.18, 0.98], links: 1, len: 0.12, r0: 0.16, r1: 0.14, k: 160, gravity: 0 },
+				// 좌우 앞머리: 관자놀이에서 얼굴 옆선을 따라 흘러내리는 가는 가닥
+				{ name: 'EarBangL', attach: 'Head', dir: [0.7, -0.05, 0.5], links: 3, len: 0.26, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
+				{ name: 'EarBangR', attach: 'Head', dir: [-0.7, -0.05, 0.5], links: 3, len: 0.26, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
+				// 눈: 머리 중심→얼굴 표면으로 뻗는 짧은 강체 스포크 — 몸통(가는 축)은 공 내부에
+				// 숨고 끝(r1)만 얼굴 패널 표면에 드러나 어두운 눈이 된다 ('other' 그룹 색).
+				{ name: 'EyeL', attach: 'Head', dir: [0.42, -0.18, 0.88], links: 1, len: 0.22, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
+				{ name: 'EyeR', attach: 'Head', dir: [-0.42, -0.18, 0.88], links: 1, len: 0.22, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
 			],
 			// 스펙·림 과다는 피부를 백화시키고, 신축 과다는 표면을 보풀로 세운다 — 무광·저신축
 			matter: { size: 0.032, stretch: 0.25, opacity: 1, luminosity: 0, spec: 0.15, specPow: 30, rim: 0.1, wrap: 0.6 },

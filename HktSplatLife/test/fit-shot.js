@@ -29,7 +29,7 @@ const [out = 'fit.png', framesArg = '240', nArg = '16384'] = process.argv.slice(
 			return await driveAndShoot({
 				FRAMES: frames, N, genes,
 				makeBones: (t) => skeleton.pose(clip, t, 1.0, 1.0, genome),
-				eye: [0.85, 0.78, 2.5], center: [0, 0.66, 0], // 3/4 뷰 — 치비 신장(~1.35m)에 맞춘 프레이밍
+				eye: [0.55, 0.82, 2.55], center: [0, 0.66, 0], // 준정면 뷰 — 얼굴·포니테일이 함께 보이는 각
 				showBones: false, // 정합 판정은 순수 살 픽셀로 (오버레이 흰 점이 상의 지표를 오염)
 			});
 		};

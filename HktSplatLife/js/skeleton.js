@@ -196,14 +196,17 @@
 	};
 	// 체인 → 세그먼트 append. 반지름은 뿌리→끝 프로파일(r0→r1) × fat × 게놈 배율
 	// (체인 이름이 'appendix' 그룹으로 분류되므로 morph.appendix.r 이 그대로 먹는다).
+	// def.group 명시 시 채색 그룹을 그 부위로 — 얼굴 패널처럼 'appendix' 색이 아닌 체인용.
 	AppendixRig.prototype.appendSegs = function (segs, chain, aPos, genome, f) {
 		const def = chain.def, n = def.links;
 		const G = global.HktGenesisGenome;
 		const mul = (G && genome) ? G.radiusScale(genome, def.name) : 1;
+		const gOverride = (def.group && G) ? G.GROUP_IDS.indexOf(def.group) : -1;
+		const g = gOverride >= 0 ? gOverride : groupIdOf(def.name);
 		const rAt = (u) => (def.r0 + (def.r1 - def.r0) * u) * (f || 1) * mul;
 		let prev = aPos;
 		for (let i = 0; i < n; i++) {
-			segs.push({ a: prev, b: chain.p[i], ra: rAt(i / n), rb: rAt((i + 1) / n), g: groupIdOf(def.name) });
+			segs.push({ a: prev, b: chain.p[i], ra: rAt(i / n), rb: rAt((i + 1) / n), g });
 			prev = chain.p[i];
 		}
 	};
