@@ -22,8 +22,9 @@ import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
   PLAYER_MAX_ENERGY, SPAWN_GRANT,
   MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
+  CRYSTAL_SATURATION, CRYSTAL_PRECIPITATE_DIVISOR, CRYSTAL_PRECIPITATE_MAX, CRYSTAL_INTERVAL_TICKS,
   FIELD_Z_LAYERS,
-  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
+  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, crystalKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
@@ -46,6 +47,7 @@ export class GameServer {
     this.materialKeys = [];        // 국소장 풀 id 목록 (확산 순회용)
     this.materialCells = [];       // [cx, cy, id] — 국소장 그리드 방송용 (좌표 동반)
     this.materialNeighbors = new Map(); // 국소장 id -> 이웃 국소장 id 목록 (엔트로픽 확산 인접)
+    this.crystalCells = [];        // [cx, cy, cz, matId, cryId] — 복셀별 국소장↔결정 쌍 (석출·방송용, feature-0005)
     this.#genesis();
   }
 
@@ -61,12 +63,17 @@ export class GameServer {
     // 국소장은 3D 복셀 격자 — 수평 cols×cols 컬럼 × 수직 FIELD_Z_LAYERS 층.
     const cols = Math.ceil(WORLD_SIZE / REGION_SIZE); // 4x4 컬럼
     const id = (cx, cy, cz) => `${POOL.MATERIAL}${cx}_${cy}_${cz}`;
+    // feature-0005: 복셀마다 결정 풀(I:<voxel>)도 0 으로 함께 연다. 국소장(M:)과 같은 자리의 "고체상".
+    //   결정은 materialKeys(확산·복사 순회)에 넣지 않는다 — 순회 대상이 아닌 것이 곧 면역이다(정적).
     for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
       for (let cy = 0; cy < cols; cy++)
         for (let cx = 0; cx < cols; cx++) {
-          this.ledger.createPool(id(cx, cy, cz), 0, Number.MAX_SAFE_INTEGER, null);
-          this.materialKeys.push(id(cx, cy, cz));
-          this.materialCells.push([cx, cy, cz, id(cx, cy, cz)]);
+          const matId = id(cx, cy, cz), cryId = crystalKey(cx, cy, cz);
+          this.ledger.createPool(matId, 0, Number.MAX_SAFE_INTEGER, null);
+          this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
+          this.materialKeys.push(matId);
+          this.materialCells.push([cx, cy, cz, matId]);
+          this.crystalCells.push([cx, cy, cz, matId, cryId]);
         }
     // 6방향 인접(±x,±y,±z) — 엔트로픽 확산은 이웃 복셀 사이에서만, 수직으로도 일어난다.
     for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
@@ -86,6 +93,13 @@ export class GameServer {
   #materialTotal() {
     let sum = 0;
     for (const id of this.materialKeys) sum += this.ledger.balance(id);
+    return sum;
+  }
+
+  // 결정 총량 (전시용 — feature-0005). 국소장에서 석출돼 동결된 정적 에너지의 합.
+  #crystalTotal() {
+    let sum = 0;
+    for (const [, , , , cryId] of this.crystalCells) sum += this.ledger.balance(cryId);
     return sum;
   }
 
@@ -120,7 +134,7 @@ export class GameServer {
     conn.send(encode(MSG.WELCOME, {
       playerId: id, name: player.name, seed: WORLD_SEED, tick: this.tickCount,
       total: this.ledger.totalSum(), src: this.ledger.balance(POOL.SOURCE),
-      sink: this.ledger.balance(POOL.SINK), mat: this.#materialTotal(),
+      sink: this.ledger.balance(POOL.SINK), mat: this.#materialTotal(), cry: this.#crystalTotal(),
       x: player.x, y: player.y, z: player.z,
     }));
     this.#tx(POOL.SOURCE, id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
@@ -200,6 +214,12 @@ export class GameServer {
       this.#diffuseMaterial();
       this.#radiateMaterial();
     }
+    // feature-0005 결정화 — 과포화된 국소장 복셀은 초과분의 일부를 결정으로 석출한다.
+    //   확산·복사 뒤에 돌린다(먼저 흩어질 만큼 흩어진 뒤 남아 몰린 것만 동결). 결정은 면역이라
+    //   이후 확산·복사에 흔들리지 않는다 — 조류에 맞선 정적 저엔트로피 섬.
+    if (this.tickCount % CRYSTAL_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#crystallize();
+    }
     this.#flush();
     this.pendingOps = [];
     this.pendingMoves.clear();
@@ -238,6 +258,21 @@ export class GameServer {
     }
   }
 
+  // 결정화(석출) — feature-0005. 국소장 복셀 농도가 포화 임계를 넘으면(과포화) 초과분의 일부가
+  //   같은 자리 결정 풀로 옮겨져 동결한다. 석출량 = floor((농도−포화)/DIVISOR) — 자기 제한이다:
+  //   장을 포화까지 끌어내리면 초과가 0 이 되어 멈춘다(현실의 침전 평형). 결정론(rng 미사용) —
+  //   "저엔트로피 요동(국소에 에너지가 쌓인 드문 사건) 자체가 희귀도"다. 결정은 확산·복사 순회
+  //   대상이 아니므로(materialKeys 밖) 한 번 동결되면 가만두는 한 잔고가 불변이다(정적성).
+  #crystallize() {
+    for (const [, , , matId, cryId] of this.crystalCells) {
+      const bal = this.ledger.balance(matId);
+      if (bal <= CRYSTAL_SATURATION) continue; // 과포화가 아니면 석출 없음
+      // 과포화도(초과분)에 비례해 석출하되 상한으로 묶는다 — 몰릴수록 잘 맺히되 확산을 이기지 않는다.
+      const quantum = Math.min(CRYSTAL_PRECIPITATE_MAX, Math.max(1, Math.floor((bal - CRYSTAL_SATURATION) / CRYSTAL_PRECIPITATE_DIVISOR)));
+      this.ledger.transfer(matId, cryId, quantum, CAUSE.CRYSTALLIZE); // 확산처럼 무음 내부 이체(상태는 CRYSTAL 스냅샷으로 방송)
+    }
+  }
+
   // --- 시야에 들어와야 하는 엔티티 집합 (지역 구독 기준) ---
   //   최소 코어에는 플레이어만 있다 — feature 가 노드·몬스터·아이템을 여기 더한다.
   #visibleFor(p) {
@@ -264,8 +299,17 @@ export class GameServer {
     const checksumDue = this.tickCount % CHECKSUM_INTERVAL_TICKS === 0;
     // 국소장 그리드 스냅샷 — 세계 수준 표시 데이터(보존 readout 처럼 전역). 4x4 라 방송 비용이 미미하고,
     //   관전자도 세계 전역의 확산을 지도에서 본다. 원장 tx 가 아니라 읽기 전용 관측값이다(POS 와 같은 성격).
-    const fieldCells = (this.tickCount % FIELD_INTERVAL_TICKS === 0)
+    const broadcastField = this.tickCount % FIELD_INTERVAL_TICKS === 0;
+    const fieldCells = broadcastField
       ? this.materialCells.map(([cx, cy, cz, id]) => [cx, cy, cz, this.ledger.balance(id)])
+      : null;
+    // 결정 스냅샷 — 잔고>0 인 결정만(이산·희소하므로 전 복셀을 실을 필요 없다). FIELD 와 같은 읽기 전용 표시값.
+    const crystalCells = broadcastField
+      ? this.crystalCells.reduce((acc, [cx, cy, cz, , cryId]) => {
+          const b = this.ledger.balance(cryId);
+          if (b > 0) acc.push([cx, cy, cz, b]);
+          return acc;
+        }, [])
       : null;
     for (const p of this.players.values()) {
       // 시야 diff → ENTER / LEAVE (원장 미러의 관측 경계)
@@ -292,6 +336,7 @@ export class GameServer {
       if (moves.length) p.conn.send(encode(MSG.POS, { moves }));
 
       if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
+      if (crystalCells) p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
 
       if (checksumDue) {
         const regions = {};
@@ -299,7 +344,7 @@ export class GameServer {
         p.conn.send(encode(MSG.CHECKSUM, {
           tick: this.tickCount, total: this.ledger.totalSum(), regions,
           src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
-          mat: this.#materialTotal(),
+          mat: this.#materialTotal(), cry: this.#crystalTotal(),
         }));
       }
     }

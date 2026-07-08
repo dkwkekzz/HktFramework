@@ -21,7 +21,8 @@ export const MSG = {
   CHECKSUM: 'checksum',  // { tick, total, regions: { key: sum } }
   SNAPSHOT: 'snapshot',  // { regions: [key], pools: [{ id, balance, max, region }] }
   POS: 'pos',            // { moves: [[id, x, y, z]] } — 관심영역 내 좌표 비콘 릴레이 (권위 아님, 표시용)
-  FIELD: 'field',        // { cells: [[cx, cy, balance]] } — 국소장 4x4 그리드 스냅샷 (feature-0004 step2, 표시용·읽기전용)
+  FIELD: 'field',        // { cells: [[cx, cy, cz, balance]] } — 국소장 복셀 그리드 스냅샷 (feature-0004 step2, 표시용·읽기전용)
+  CRYSTAL: 'crystal',    // { cells: [[cx, cy, cz, balance]] } — 결정 복셀 스냅샷 (feature-0005 step1, 표시용·읽기전용. FIELD 와 같은 성격)
   ENTER: 'enter',        // { entities: [{ id, kind, name, x, y, z, balance, max }] } — 시야 진입
   LEAVE: 'leave',        // { ids: [] } — 시야 이탈 (미러에서 잊기)
   TELEPORT: 'teleport',  // { x, y, z } — 비콘 예산 위반 시 위치 정정

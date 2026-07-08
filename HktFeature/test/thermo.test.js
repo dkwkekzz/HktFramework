@@ -105,9 +105,13 @@ test('엔트로피의 화살 — 심우주(SINK)는 단조 증가한다 (복사�
   }
   assert.ok(prevSink > 0, '복사로 실제 에너지가 심우주로 새어나갔다');
 
-  // 어느 순간에도 에너지는 네 곳에만: 자유 + 태양 + 국소장 + 심우주 = 창세 총량
-  let free = 0, mat = 0;
+  // 어느 순간에도 에너지는 다섯 곳에만: 자유 + 태양 + 국소장 + 결정 + 심우주 = 창세 총량
+  //   (feature-0005: 결정은 국소장에서 석출된 정적 등급 — 보존에 새 자리를 더한다)
+  let free = 0, mat = 0, cry = 0;
   for (const p of players) free += bal(p.id);
-  for (const [id, pool] of game.ledger.pools) if (id.startsWith(POOL.MATERIAL)) mat += pool.balance;
-  assert.equal(free + bal(POOL.SOURCE) + mat + bal(POOL.SINK), WORLD_SOURCE_INITIAL);
+  for (const [id, pool] of game.ledger.pools) {
+    if (id.startsWith(POOL.MATERIAL)) mat += pool.balance;
+    else if (id.startsWith(POOL.CRYSTAL)) cry += pool.balance;
+  }
+  assert.equal(free + bal(POOL.SOURCE) + mat + cry + bal(POOL.SINK), WORLD_SOURCE_INITIAL);
 });

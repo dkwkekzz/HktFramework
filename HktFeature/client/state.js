@@ -22,7 +22,9 @@ export class ClientState {
     this.worldSrc = 0;          // SOURCE(태양) 잔고 — 저엔트로피 원천 (feature-0004)
     this.worldSink = 0;         // SINK(심우주) 잔고 — 복사로 새어나간 손실, 단조 증가
     this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
+    this.worldCrystal = 0;      // 결정 총량 — 국소장에서 석출돼 동결된 정적 에너지 (feature-0005)
     this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
+    this.crystals = new Map();  // "cx_cy_cz" -> 결정 복셀 잔고 (3D 스냅샷, 결정 마커 — 읽기 전용, feature-0005)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -36,6 +38,7 @@ export class ClientState {
       case 'ops': return this.#onOps(msg);
       case 'pos': return this.#onPos(msg);
       case 'field': return this.#onField(msg);
+      case 'crystal': return this.#onCrystal(msg);
       case 'checksum': return this.#onChecksum(msg);
       case 'snapshot': return this.#onSnapshot(msg);
       case 'teleport': return this.onTeleport?.(msg);
@@ -49,6 +52,7 @@ export class ClientState {
     this.worldSrc = msg.src;
     this.worldSink = msg.sink ?? 0;
     this.worldMaterial = msg.mat ?? 0;
+    this.worldCrystal = msg.cry ?? 0;
     // 잔고 0 기준점 — 스폰 인출은 곧 도착할 tx 가 채운다
     this.ledger.mirrorSet(this.playerId, 0, PLAYER_MAX_ENERGY, null);
     // SOURCE/SINK 는 서버 내부 저수지 — 무한 저수지로 물질화해 관련 tx 재생이 정확하게 한다
@@ -109,11 +113,24 @@ export class ClientState {
     for (const [cx, cy, cz, balance] of msg.cells) this.field.set(`${cx}_${cy}_${cz}`, balance);
   }
 
+  // 결정 복셀 스냅샷 — 잔고>0 인 결정만 실려온다. 렌더가 이산 결정 마커로 읽는다(권위 아님, 표시용).
+  //   방송에 없는(=잔고 0) 복셀은 미러에서 지운다 — 용해 등으로 사라진 결정이 유령으로 남지 않게(후속 step 대비).
+  #onCrystal(msg) {
+    const seen = new Set();
+    for (const [cx, cy, cz, balance] of msg.cells) {
+      const key = `${cx}_${cy}_${cz}`;
+      this.crystals.set(key, balance);
+      seen.add(key);
+    }
+    for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
+  }
+
   #onChecksum(msg) {
     this.worldTotal = msg.total;
     if (msg.src !== undefined) this.worldSrc = msg.src;
     if (msg.sink !== undefined) this.worldSink = msg.sink;
     if (msg.mat !== undefined) this.worldMaterial = msg.mat;
+    if (msg.cry !== undefined) this.worldCrystal = msg.cry;
     const bad = [];
     for (const [key, sum] of Object.entries(msg.regions)) {
       if (this.ledger.regionSum(key) !== sum) bad.push(key);

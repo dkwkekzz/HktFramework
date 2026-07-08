@@ -47,12 +47,25 @@ export const MATERIAL_DIFFUSE_INTERVAL_TICKS = 1;   // 국소장 확산·복사 
 export const MATERIAL_DIFFUSE_QUANTUM_DIVISOR = 64; // 한 번에 옮기는 양자 = floor((a+b)/이 값)
 export const MATERIAL_RADIATE_DIVISOR = 4096;       // 심우주 복사 세금의 역수 (기대 복사율 = 국소장/이 값, 확률 반올림으로 정수화)
 
+// --- 결정화 (feature-0005) — 결정론 시뮬 상수 (런타임 튜닝 금지) ---
+// 결정 = 엔트로픽 조류에 맞서 맺히는 정적 저엔트로피 섬. 확산·복사 순회 대상이 아니라 면역이다.
+// 과포화(국소장 농도 > 포화 임계)일 때만 초과분의 일부가 석출(precipitate)되어 결정으로 동결한다.
+// 석출은 자기 제한 — 장을 포화까지 끌어내리면 멈춘다(현실의 침전 평형). 결정론(rng 미사용).
+//   포화 임계는 국소장 평형 농도보다 조금 위로 둔다: 에너지가 국소에 몰린 뜨거운 지점(hotspot)에서만
+//   결정이 맺히고, 평형(균일)에 이른 장에서는 맺히지 않는다 — "과포화 = 국소 저엔트로피 요동".
+//   석출 속도는 상한(MAX)으로 묶어 아무리 몰려도 조류(확산)를 압도하지 않게 한다(장은 매질로 남는다).
+export const CRYSTAL_SATURATION = 200;           // 복셀당 포화 임계 — 이 농도를 넘어야 석출 가능(과포화). 평형(~수십)보다 위, hotspot 에서 넘긴다
+export const CRYSTAL_PRECIPITATE_DIVISOR = 64;   // 석출량 곡선 = floor((농도−포화)/이 값) (과포화가 클수록 빠르게, 단 MAX 로 상한)
+export const CRYSTAL_PRECIPITATE_MAX = 8;        // 한 복셀이 한 틱에 석출하는 최대량 — 확산을 이기지 않게 하는 속도 상한
+export const CRYSTAL_INTERVAL_TICKS = 1;         // 석출 판정 주기(틱) — 확산과 같은 리듬
+
 // --- 풀 ID 접두 ---
 export const POOL = {
   PLAYER: 'P:',    // 플레이어 생체 에너지 (region=null — 좌표는 권위가 아니다)
   SOURCE: 'W:SRC', // 태양 — 유일한 저엔트로피 원점(생성기 아님, 스폰으로만 방출)
   SINK: 'W:SINK',  // 심우주 — 복사로 새어나간 진짜 손실 (단조 증가, 복귀 없음)
   MATERIAL: 'M:',  // 국소장 접두 — M:<regionKey> 가 그 지역의 흩어진 에너지(중등급, 재응집 가능)
+  CRYSTAL: 'I:',   // 결정 접두 — I:<voxel> 가 그 복셀에 석출된 정적 저엔트로피 형태(확산·복사 면역, feature-0005)
 };
 
 // --- 이체 원인 태그 ---
@@ -62,6 +75,7 @@ export const CAUSE = {
   DEATH: 'death',       // 플레이어 → 국소장 (접속 종료 = 응집 소멸 → 그 자리 국소장으로, 태양행 아님)
   DIFFUSE: 'diffuse',   // 국소장 ↔ 국소장 (엔트로픽 확산 — 이웃으로 높은 확률로 흩어짐)
   RADIATE: 'radiate',   // 국소장 → SINK (심우주 복사 — 되돌아오지 않는 엔트로피 세금)
+  CRYSTALLIZE: 'crystallize', // 국소장 → 결정 (과포화 석출 — 정적 저엔트로피 형태로 동결, feature-0005)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
@@ -102,6 +116,11 @@ export function fieldLayer(z) {
 // 좌표가 속한 국소장 복셀 id — M:<cx>_<cy>_<cz>. (feature-0004)
 export function materialKey(x, y, z) {
   return `${POOL.MATERIAL}${regionKey(x, y)}_${fieldLayer(z)}`;
+}
+
+// 복셀에 석출되는 결정 id — I:<cx>_<cy>_<cz>. 복셀당 하나(용해된 국소장 M: 과 같은 자리의 고체상). (feature-0005)
+export function crystalKey(cx, cy, cz) {
+  return `${POOL.CRYSTAL}${cx}_${cy}_${cz}`;
 }
 
 // 엔트로픽 이체 방향 확률 (feature-0004 의 핵심 법칙) —

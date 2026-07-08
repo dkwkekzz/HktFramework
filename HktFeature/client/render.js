@@ -9,13 +9,14 @@
 
 import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
   if (id === POOL.SOURCE) return '태양';
   if (id === POOL.SINK) return '심우주';
   if (id.startsWith(POOL.MATERIAL)) return '국소장';
+  if (id.startsWith(POOL.CRYSTAL)) return '결정';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -117,6 +118,9 @@ export class Render {
     // 국소장 3D 볼류메트릭 — 각 복셀을 농도에 따라 글로우로 그린다 (에너지 확산을 3D 로 시각화)
     this.#fieldVolume(cam);
 
+    // 결정 마커 — 국소장에서 석출돼 동결된 정적 에너지를 밝은 결정으로 그린다 (feature-0005)
+    this.#crystalMarkers(cam);
+
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
     for (const e of state.entities.values()) {
@@ -158,6 +162,59 @@ export class Render {
         (c.cx + m) * RS, (c.cx + 1 - m) * RS,
         (c.cy + m) * RS, (c.cy + 1 - m) * RS,
         (c.cz + m) * LS, (c.cz + 1 - m) * LS, c.t);
+    }
+  }
+
+  // 결정 마커 — 각 결정을 복셀 중심에 밝은 8면체(옥타)로 그린다(먼 것부터, painter's).
+  //   확산장(파랑→빨강 반투명 큐브)과 대비되는 선명한 청록 고체 — "흩어진 것 vs 동결된 것".
+  //   가만두면 이 잔고는 불변이다(확산·복사 면역) — 국소장은 새어도 결정은 그대로 서 있다.
+  #crystalMarkers(cam) {
+    const { state } = this;
+    if (state.crystals.size === 0) return;
+    let max = 1;
+    for (const v of state.crystals.values()) if (v > max) max = v;
+    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
+    const marks = [];
+    for (const [key, bal] of state.crystals) {
+      if (bal <= 0) continue;
+      const [cx, cy, cz] = key.split('_').map(Number);
+      const wx = (cx + 0.5) * RS, wy = (cy + 0.5) * RS, wz = (cz + 0.5) * LS;
+      const d = this.#toCam(cam, wx, wy, wz)[2];
+      if (d > 1) marks.push({ wx, wy, wz, t: bal / max, bal, d });
+    }
+    marks.sort((a, b) => b.d - a.d);
+    for (const m of marks) this.#crystalOcta(cam, m.wx, m.wy, m.wz, m.t, m.bal);
+  }
+
+  #crystalOcta(cam, cx, cy, cz, t, bal) {
+    const { ctx } = this;
+    const r = 30 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
+    this.#stick(cam, cx, cy, cz, 'rgba(120,240,225,0.35)'); // 지면까지 수선 — 고도·위치 가독성
+    const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
+    const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
+    if (P.some(p => !p)) return;
+    // 8 삼각면 (위쪽 4 + 아래쪽 4). 밝은 청록 반투명 + 선명한 외곽선 → 고체 결정감.
+    const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
+    ctx.fillStyle = `hsla(170, 90%, ${60 + t * 20}%, ${0.30 + 0.4 * t})`;
+    ctx.strokeStyle = `hsla(165, 95%, 80%, ${0.6 + 0.35 * t})`;
+    ctx.lineWidth = 1.5;
+    for (const f of faces) {
+      ctx.beginPath();
+      ctx.moveTo(P[f[0]].sx, P[f[0]].sy);
+      ctx.lineTo(P[f[1]].sx, P[f[1]].sy);
+      ctx.lineTo(P[f[2]].sx, P[f[2]].sy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    // 잔고 라벨 (결정 위)
+    const top = P[4];
+    if (top) {
+      ctx.fillStyle = '#bff5ec';
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`◆ ${bal.toLocaleString()}`, top.sx, top.sy - 6);
+      ctx.textAlign = 'left';
     }
   }
 
@@ -250,27 +307,29 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 우상: 보존 불변식 + 에너지 세 등급(태양·국소장·심우주) 전시 + 네트워크 계측
+    // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 122);
+    ctx.fillRect(w - 265, 10, 255, 140);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
     ctx.fillStyle = '#9db2c4';
     ctx.fillText(`(창세 이후 불변 = 보존 법칙)`, w - 255, 44);
-    // feature-0004: 태양(고등급)→국소장(중등급, 확산)→심우주(저등급, 단조 증가) 세 등급
+    // feature-0004: 태양(고)→국소장(중, 확산)→심우주(저, 손실) · feature-0005: 결정(국소장 석출, 정적·면역)
     ctx.fillStyle = '#e0b34e';
     ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  국소장 ${state.worldMaterial.toLocaleString()}`, w - 255, 60);
+    ctx.fillStyle = '#7cebd8';
+    ctx.fillText(`◆ 결정(정적) ${state.worldCrystal.toLocaleString()}`, w - 255, 76);
     ctx.fillStyle = '#7a8aa0';
-    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
+    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 92);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`복셀 색 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
+    ctx.fillText(`큐브=국소장 확산 · 결정=과포화 석출(면역)`, w - 255, 106);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 124);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 124);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 140);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';
