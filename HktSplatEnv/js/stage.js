@@ -32,11 +32,13 @@ let statusCb = null, lastStatus = null; // 모듈이 app.js 보다 먼저 상태
 const transform = { x: 0, y: 0, z: 0, scale: 1, yawDeg: 0, flip: false };
 
 // ── T2 청크 스트리밍 상태 ────────────────────────────────────────────────
-// 절차 월드를 정사각 타일로 나눠 카메라 타깃 중심의 링을 로드한다. 근접 링(ring 0)은
-// 풀 밀도, 외곽 링(ring 1)은 저밀도(격자 반감), 링 밖은 dispose. 타일 PLY 는 월드
-// 함수 평가로 브라우저에서 즉석 생성 — 네트워크·디스크 불필요(오프라인 동작).
-let tileWorld = null;            // HktGenesisTerrainGen.world 결과 (PLY 굽는 원본)
-let tileCfg = null;              // { tileSize, nearR, farR, nearG, farG, splatScale }
+// 절차 월드를 정사각 타일로 나눠 카메라 타깃 중심의 링을 로드한다. E21 3링:
+// ring 0 = 중심 타일(detG 초고밀도) · ring 1 = 근접(nearG, 식생 포함) · ring 2 = 외곽(farG
+// 저밀도), 링 밖은 dispose. 타일 PLY 는 월드 함수 평가로 브라우저/워커에서 즉석 생성 —
+// 네트워크·디스크 불필요(오프라인 동작). bake 는 워커 우선(팬 잭 방지), 실패 시 동기 폴백.
+let tileWorld = null;            // HktGenesisTerrainGen.world 결과 (동기 폴백 bake 원본)
+let tileParams = null;           // world() 입력 원본 — 워커가 같은 월드를 재구성한다
+let tileCfg = null;              // { tileSize, nearR, farR, detG, nearG, farG, splatScale }
 const tiles = new Map();         // "tx,tz" -> { mesh, water, url, waterUrl, ring }
 const tilePending = new Set();   // 로드 진행 중 키 (중복 로드 방지)
 let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 재계산
@@ -135,8 +137,9 @@ function startTileWorld(params) {
 	tiles.clear(); tilePending.clear(); tileCenterKey = null;
 	vegExclude = null; vegExcludeSig = ''; // 승격 제외는 월드마다 초기화(이전 월드 key 잔류 방지)
 	tileWorld = window.HktGenesisTerrainGen.world(params);
-	// E14 근접 밀도 상향: nearG 128(셀 0.15m)·farG 48 — LoD 예산(1.5M)의 노는 여유를 선명도로 쓴다
-	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48, splatScale: 1 }, params && params.tile);
+	tileParams = params; // 워커 전송용 — world() 와 동일 입력(결정론: 워커·폴백이 같은 바이트)
+	// E14/E21 밀도: detG 256(중심 셀 0.075m)·nearG 128(셀 0.15m)·farG 48 — LoD 예산(1.5M) 활용
+	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 128, farG: 48, splatScale: 1 }, params && params.tile);
 	// T5/W6 공용 sky/fog — 게놈 mood(있으면 하늘 돔+fog) 또는 기본 톤. fog end 는 far 링 반경에
 	// 맞춰 지평선에서 소실(mood 가 명시 안 하면 기본값). mood.skyTop/skyHorizon 이 있으면 하늘 돔.
 	const mood = (params && params.mood) || {};
@@ -147,7 +150,7 @@ function startTileWorld(params) {
 
 function stopTileWorld() {
 	for (const t of tiles.values()) disposeTile(t);
-	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileCfg = null;
+	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileParams = null; tileCfg = null;
 	vegExclude = null; vegExcludeSig = '';
 	if (skyMesh) skyMesh.visible = false;
 	setEnabled(false);
@@ -244,61 +247,110 @@ function setMood(mood) {
 	setSkyFog({ color: mood.fogColor || horizon, start: mood.fogStart, end: mood.fogEnd });
 }
 
-// 현재 중심 기준으로 key 타일이 속할 링(0 근접·1 외곽) — 범위 밖이면 null
+// 현재 중심 기준으로 key 타일이 속할 링(0 중심·1 근접·2 외곽) — 범위 밖이면 null
 function desiredRing(tx, tz) {
 	if (!tileCenterKey) return null;
 	const [ctx, ctz] = tileCenterKey.split(',').map(Number);
 	const dx = Math.abs(tx - ctx), dz = Math.abs(tz - ctz);
 	if (dx > tileCfg.farR || dz > tileCfg.farR) return null;
-	return (dx <= tileCfg.nearR && dz <= tileCfg.nearR) ? 0 : 1;
+	if (dx === 0 && dz === 0) return 0;
+	return (dx <= tileCfg.nearR && dz <= tileCfg.nearR) ? 1 : 2;
+}
+
+// ── E21 bake 워커 — 풀 조명 타일 bake(중심 256격자 ≈ 0.8s)를 오프스레드로 ────────
+// null = 미생성, false = 실패 확정(동기 폴백), Worker = 가동. 워커·폴백은 같은 코드
+// 경로(terrain-gen/vegetation)라 같은 입력 = 같은 바이트(결정론 유지).
+let bakeWorker = null, bakeSeq = 0;
+const bakePending = new Map(); // id -> resolve
+function getBakeWorker() {
+	if (bakeWorker !== null) return bakeWorker;
+	try {
+		bakeWorker = new Worker(new URL('./bake-worker.js', import.meta.url));
+		bakeWorker.onmessage = (e) => {
+			const res = bakePending.get(e.data.id);
+			if (res) { bakePending.delete(e.data.id); res(e.data.error ? null : e.data); }
+		};
+		bakeWorker.onerror = () => { // 워커 로드/치명 오류 — 진행분 폴백시키고 이후 동기 경로
+			for (const res of bakePending.values()) res(null);
+			bakePending.clear();
+			try { bakeWorker.terminate(); } catch (_) { /* no-op */ }
+			bakeWorker = false;
+		};
+	} catch (_) { bakeWorker = false; }
+	return bakeWorker;
+}
+
+// 타일 3종(지형·수면·식생) bake — 워커 우선, 실패 시 동기 폴백.
+// E16 bake 옵션 — 중심·근접 링은 풀 조명(cast shadow·AO), 전 링에 fog 프리블렌드(링 중심
+// 기준 거리 감쇠). fog 색은 clear 와 같은 linear 톤이라 지평선에서 배경과 이음새 없이 만난다.
+// 식생(나무·바위·클러터)은 중심·근접 링만 — 외곽은 fog 로 소실되는 구간이라 예산을 아낀다.
+async function bakeTileData(tx, tz, ring) {
+	const S = tileCfg.tileSize;
+	const G = ring === 0 ? tileCfg.detG : ring === 1 ? tileCfg.nearG : tileCfg.farG;
+	const [bcx, bcz] = tileCenterKey ? tileCenterKey.split(',').map(Number) : [tx, tz];
+	const opts = {
+		full: ring <= 1,
+		fogColor: skyFog.color.map(srgbToLinear),
+		fogCx: (bcx + 0.5) * S, fogCz: (bcz + 0.5) * S,
+		fogStart: skyFog.start, fogEnd: skyFog.end,
+	};
+	const wantVeg = ring <= 1 && !!window.HktGenesisVegetation;
+	const w = getBakeWorker();
+	if (w) {
+		const r = await new Promise((res) => {
+			const id = ++bakeSeq;
+			bakePending.set(id, res);
+			w.postMessage({
+				id, params: tileParams, x0: tx * S, z0: tz * S, size: S, G,
+				splatScale: tileCfg.splatScale, opts,
+				veg: wantVeg ? { exclude: vegExclude ? [...vegExclude] : null } : null,
+			});
+		});
+		if (r) return r;
+	}
+	return { // 동기 폴백 — 워커와 같은 함수·같은 입력(같은 바이트)
+		terrain: tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale, opts),
+		water: tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale, opts) : null,
+		veg: wantVeg ? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, { excludeKeys: vegExclude }) : null,
+	};
 }
 
 async function loadTile(tx, tz, ring) {
 	const key = tx + ',' + tz;
 	if (tilePending.has(key)) return;
 	tilePending.add(key);
-	const S = tileCfg.tileSize, G = ring === 0 ? tileCfg.nearG : tileCfg.farG;
-	// E16 bake 옵션 — 근접 링은 풀 조명(cast shadow·AO), 전 링에 fog 프리블렌드(링 중심 기준
-	// 거리 감쇠 — 스플랫엔 three fog 가 안 걸리므로 bake 에 굽는 정적 근사). fog 색은 clear 와
-	// 같은 linear 톤(setSkyFog 와 동일 변환)이라 지평선에서 배경과 이음새 없이 만난다.
-	const [bcx, bcz] = tileCenterKey ? tileCenterKey.split(',').map(Number) : [tx, tz];
-	const bakeOpts = {
-		full: ring === 0,
-		fogColor: skyFog.color.map(srgbToLinear),
-		fogCx: (bcx + 0.5) * S, fogCz: (bcz + 0.5) * S,
-		fogStart: skyFog.start, fogEnd: skyFog.end,
-	};
-	const bytes = tileWorld.tilePly(tx * S, tz * S, S, G, tileCfg.splatScale, bakeOpts);
-	const url = URL.createObjectURL(new File([bytes], 'tile.ply'));
-	// T5 수면 타일 — 이 타일에 수몰 셀이 있으면(null 아니면) 반투명 수면 메시를 함께 붙인다
-	const waterBytes = tileWorld.waterTilePly ? tileWorld.waterTilePly(tx * S, tz * S, S, G, tileCfg.splatScale, bakeOpts) : null;
-	const waterUrl = waterBytes ? URL.createObjectURL(new File([waterBytes], 'water.ply')) : null;
-	// W-Q2b Bake 식생 — 근접 링(0)만 정적 나무·바위 스플랫(밀도 = 게놈 생명 층 `world.params.life`).
-	// 원경 링(1)은 굽지 않는다(LoD): fog(fogEnd=far 링 반경)로 소실되는 구간이라 예산을 아낀다.
-	const vegBytes = (ring === 0 && window.HktGenesisVegetation)
-		? window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, { excludeKeys: vegExclude }) : null;
-	const vegUrl = vegBytes ? URL.createObjectURL(new File([vegBytes], 'veg.ply')) : null;
+	let url = null, waterUrl = null, vegUrl = null;
 	try {
+		const baked = await bakeTileData(tx, tz, ring);
+		url = URL.createObjectURL(new File([baked.terrain], 'tile.ply'));
+		waterUrl = baked.water ? URL.createObjectURL(new File([baked.water], 'water.ply')) : null;
+		vegUrl = baked.veg ? URL.createObjectURL(new File([baked.veg], 'veg.ply')) : null;
 		const m = new SplatMesh({ url, fileName: 'tile.ply', lod: false });
 		await m.initialized;
 		let water = null, veg = null;
 		if (waterUrl) { water = new SplatMesh({ url: waterUrl, fileName: 'water.ply', lod: false }); await water.initialized; }
 		if (vegUrl) { veg = new SplatMesh({ url: vegUrl, fileName: 'veg.ply', lod: false }); await veg.initialized; }
-		// 로드 중 중심이 옮겨가 더 이상 필요 없어졌으면 폐기 (팬 중 누수 방지)
-		if (desiredRing(tx, tz) !== ring) {
-			if (m.dispose) m.dispose(); URL.revokeObjectURL(url);
-			if (water && water.dispose) water.dispose(); if (waterUrl) URL.revokeObjectURL(waterUrl);
-			if (veg && veg.dispose) veg.dispose(); if (vegUrl) URL.revokeObjectURL(vegUrl);
+		// 로드 중 중심이 옮겨가 링이 표류했으면 폐기 — 새 링이 유효하면 그 링으로 재요청
+		const wantRing = desiredRing(tx, tz);
+		if (wantRing !== ring) {
+			if (m.dispose) m.dispose(); URL.revokeObjectURL(url); url = null;
+			if (water && water.dispose) water.dispose(); if (waterUrl) { URL.revokeObjectURL(waterUrl); waterUrl = null; }
+			if (veg && veg.dispose) veg.dispose(); if (vegUrl) { URL.revokeObjectURL(vegUrl); vegUrl = null; }
+			if (wantRing != null) { tilePending.delete(key); loadTile(tx, tz, wantRing); }
 			return;
 		}
+		// 링 승격/강등 교체 — 새 메시가 준비된 뒤에 옛 메시를 뗀다(교체 중 구멍 방지)
+		const old = tiles.get(key);
+		if (old) disposeTile(old);
 		rig.add(m);
 		if (water) rig.add(water);
 		if (veg) rig.add(veg);
 		tiles.set(key, { mesh: m, water, veg, url, waterUrl, vegUrl, ring });
+		url = waterUrl = vegUrl = null; // 소유권 이전 — catch 정리 대상 아님
 		if (!enabled) setEnabled(true);
 	} catch (e) {
 		console.error('[HktGenesisStage] 타일 로드 실패', key, e);
-		URL.revokeObjectURL(url);
+		if (url) URL.revokeObjectURL(url);
 		if (waterUrl) URL.revokeObjectURL(waterUrl);
 		if (vegUrl) URL.revokeObjectURL(vegUrl);
 	} finally {
@@ -315,21 +367,23 @@ function updateTileCenter(wx, wz) {
 	const ck = ctx + ',' + ctz;
 	if (ck === tileCenterKey) return Promise.resolve();
 	tileCenterKey = ck;
-	// 원하는 타일 집합
+	// 원하는 타일 집합 — E21 3링(0 중심 · 1 근접 · 2 외곽)
 	const want = new Map();
 	for (let dz = -tileCfg.farR; dz <= tileCfg.farR; dz++)
 		for (let dx = -tileCfg.farR; dx <= tileCfg.farR; dx++) {
 			const tx = ctx + dx, tz = ctz + dz;
-			want.set(tx + ',' + tz, (Math.abs(dx) <= tileCfg.nearR && Math.abs(dz) <= tileCfg.nearR) ? 0 : 1);
+			const ring = (dx === 0 && dz === 0) ? 0
+				: (Math.abs(dx) <= tileCfg.nearR && Math.abs(dz) <= tileCfg.nearR) ? 1 : 2;
+			want.set(tx + ',' + tz, ring);
 		}
 	// 범위 밖 dispose
 	for (const [k, t] of tiles) if (!want.has(k)) { disposeTile(t); tiles.delete(k); }
-	// 신규 로드 + 링 변경(near↔far) 재로드
+	// 신규 로드 + 링 변경 재로드 — 기존 메시는 여기서 떼지 않는다: loadTile 이 새 메시가
+	// 준비된 뒤 교체한다(워커 bake 지연 동안 구멍 방지, 옛 밀도가 잠시 남는 쪽이 낫다).
 	const loads = [];
 	for (const [k, ring] of want) {
 		const cur = tiles.get(k);
 		if (cur && cur.ring === ring) continue;
-		if (cur) { disposeTile(cur); tiles.delete(k); }
 		const [tx, tz] = k.split(',').map(Number);
 		loads.push(loadTile(tx, tz, ring));
 	}
@@ -344,7 +398,7 @@ function updateTileCenter(wx, wz) {
 // 그 key 를 excludeKeys 로 넘겨 근접 링(0) 식생 타일을 다시 굽는다. v0 하드컷(경계 팝 허용).
 async function rebakeTileVeg(key) {
 	const t = tiles.get(key);
-	if (!t || t.ring !== 0 || !window.HktGenesisVegetation) return;
+	if (!t || t.ring > 1 || !window.HktGenesisVegetation) return; // 식생은 중심·근접 링(0·1)만
 	const [tx, tz] = key.split(',').map(Number);
 	const S = tileCfg.tileSize;
 	const vegBytes = window.HktGenesisVegetation.bakeTile(tileWorld, tx * S, tz * S, S, { excludeKeys: vegExclude });
@@ -368,7 +422,7 @@ function setVegExclusion(keys) {
 	vegExcludeSig = sig;
 	vegExclude = (keys && keys.size) ? keys : null;
 	const jobs = [];
-	for (const key of [...tiles.keys()]) { const t = tiles.get(key); if (t && t.ring === 0) jobs.push(rebakeTileVeg(key)); }
+	for (const key of [...tiles.keys()]) { const t = tiles.get(key); if (t && t.ring <= 1) jobs.push(rebakeTileVeg(key)); }
 	return Promise.all(jobs);
 }
 
