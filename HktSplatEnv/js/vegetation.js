@@ -41,41 +41,101 @@
 		arr.push(x, y, z, rgb[0], rgb[1], rgb[2], opacity, sx, sy, sz);
 	}
 
-	// 나무 = 기둥(갈색, 세로로 늘인 소수 스플랫) + 수관(잎색 램프, 둥근 군집). 크기는 게놈 treeSize.
+	// 기본 태양 방향(정규화) — world.sun 이 없을 때의 폴백(terrain-gen 기본 태양과 동일 값)
+	const DEFAULT_SUN = (() => { const s = [0.35, 0.9, 0.32], l = Math.hypot(s[0], s[1], s[2]); return [s[0] / l, s[1] / l, s[2] / l]; })();
+	// 형태 음영 — 수관/바위 중심에서 블롭까지의 방향과 태양의 내적(diffuse). amb 는 그늘면 최저 밝기.
+	function formShade(dx, dy, dz, sun, amb) {
+		const l = Math.hypot(dx, dy, dz) || 1;
+		const d = Math.max((dx * sun[0] + dy * sun[1] + dz * sun[2]) / l, 0);
+		return amb + (1 - amb) * d;
+	}
+
+	// 단풍 변주 팔레트 — 레퍼런스(스타일라이즈드 오픈월드)의 노랑·주황 나무. 결정론 해시로 소수만.
+	const AUTUMN_GOLD = { leaf: [0.74, 0.54, 0.13], leaf2: [0.92, 0.72, 0.22] };
+	const AUTUMN_ORANGE = { leaf: [0.78, 0.40, 0.10], leaf2: [0.94, 0.58, 0.16] };
+	// 침엽수 비율(바이옴별) — 추운 곳일수록 침엽수. 미상 바이옴은 중립.
+	const CONIFER_RATE = { snow: 0.85, mountain: 0.6, plains: 0.15, desert: 0.05 };
+
+	// 나무(E13) — 종(활엽/침엽)·단풍 변주 + 태양면/그늘면 형태 음영. 크기는 게놈 treeSize.
 	// gsh: 지면 명암(0.52..1) — 지형 Bake 셰이딩과 통합(그늘 슬로프의 나무는 어둡게).
-	function treeSplats(cand, life, arr, gsh) {
+	// sun: 정규화 태양 방향(world.sun) — 지형과 같은 광원으로 수관 음영을 굽는다.
+	function treeSplats(cand, life, arr, gsh, sun) {
+		sun = sun || DEFAULT_SUN;
 		const k = cand.key, s = life.treeSize * (0.82 + keyHash(k, 5) * 0.5); // 개체별 크기 변주
-		const h = 1.7 * s, crownR = 0.72 * s, crownY = cand.y + h * 0.62;
-		// 기둥 — 아래→위 3단, 세로로 늘인 얇은 스플랫
-		const trunkR = 0.11 * s, tr = life.trunk;
+		const coniferRate = (cand.biome in CONIFER_RATE) ? CONIFER_RATE[cand.biome] : 0.3;
+		if (keyHash(k, 3) < coniferRate) return coniferSplats(cand, life, arr, gsh, sun, s);
+		// 잎 팔레트 — 소수 단풍(금빛 12% · 주황 6%), 나머지 게놈 잎색
+		let leaf = life.leaf, leaf2 = life.leaf2;
+		const av = keyHash(k, 4);
+		if (av < 0.06) { leaf = AUTUMN_ORANGE.leaf; leaf2 = AUTUMN_ORANGE.leaf2; }
+		else if (av < 0.18) { leaf = AUTUMN_GOLD.leaf; leaf2 = AUTUMN_GOLD.leaf2; }
+		const h = 1.8 * s, crownR = 0.78 * s;
+		const cx = cand.x, cz = cand.z, cy = cand.y + h * 0.66; // 수관 중심
+		// 기둥 — 아래→위 3단, 세로로 늘인 얇은 스플랫(해시로 살짝 기울여 개체 변주)
+		const trunkR = 0.10 * s, tr = life.trunk, lean = jit(k, 6, 0.10) * s;
 		for (let i = 0; i < 3; i++) {
-			const ty = cand.y + h * (0.12 + i * 0.16);
-			pushSplat(arr, cand.x, ty, cand.z, [tr[0] * gsh, tr[1] * gsh, tr[2] * gsh], 0.95, trunkR, h * 0.14, trunkR);
+			const ty = cand.y + h * (0.10 + i * 0.15), lx = lean * i / 3;
+			pushSplat(arr, cx + lx, ty, cz, [tr[0] * gsh, tr[1] * gsh, tr[2] * gsh], 0.95, trunkR, h * 0.13, trunkR);
 		}
-		// 수관 — 둥근 군집(잎색1↔잎색2 램프로 명암 변주), 위로 갈수록 밝게 · 전체는 지면 명암 gsh
-		const n = 11;
+		// 수관 코어 — 어두운 내부 블롭(껍질 클러스터 틈으로 배경 대신 그늘이 보이게 = 깊이감)
+		for (let i = 0; i < 4; i++) {
+			const dx = jit(k, 40 + i, 1), dy = jit(k, 50 + i, 0.7), dz = jit(k, 60 + i, 1);
+			const rr = crownR * 0.35;
+			const rgb = [leaf[0] * 0.45 * gsh, leaf[1] * 0.45 * gsh, leaf[2] * 0.45 * gsh];
+			pushSplat(arr, cx + dx * rr, cy + dy * rr, cz + dz * rr, rgb, 0.95, crownR * 0.5, crownR * 0.42, crownR * 0.5);
+		}
+		// 수관 껍질 — 작은 잎 클러스터 20개를 타원 껍질에 배치, 태양면은 밝고 그늘면은 어둡다
+		const n = 20;
 		for (let i = 0; i < n; i++) {
-			const a = keyHash(k, 100 + i) * 6.2831853;
-			const rr = crownR * (0.35 + keyHash(k, 200 + i) * 0.7);
-			const yy = crownY + jit(k, 300 + i, 1) * crownR * 0.85;
-			const px = cand.x + Math.cos(a) * rr, pz = cand.z + Math.sin(a) * rr;
-			const up = ((yy - (crownY - crownR)) / (2 * crownR));           // 0(아래)~1(위)
-			const t = 0.3 + 0.7 * up + jit(k, 400 + i, 0.15);
-			const sh = gsh * (0.82 + 0.18 * up); // 위쪽(태양 면) 살짝 더 밝게
-			const rgb = [mix(life.leaf[0], life.leaf2[0], t) * sh, mix(life.leaf[1], life.leaf2[1], t) * sh, mix(life.leaf[2], life.leaf2[2], t) * sh];
-			const blobR = crownR * (0.42 + keyHash(k, 500 + i) * 0.35);
-			pushSplat(arr, px, yy, pz, rgb, 0.9, blobR, blobR * 0.85, blobR);
+			// 껍질 방향 — 3축 해시 → 정규화(위쪽 살짝 비중)
+			let dx = jit(k, 100 + i, 1), dy = jit(k, 200 + i, 1) * 0.8 + 0.15, dz = jit(k, 300 + i, 1);
+			const dl = Math.hypot(dx, dy, dz) || 1; dx /= dl; dy /= dl; dz /= dl;
+			const rr = crownR * (0.55 + keyHash(k, 400 + i) * 0.45);
+			const px = cx + dx * rr, py = cy + dy * rr * 0.85, pz = cz + dz * rr; // 세로 살짝 눌러 활엽 실루엣
+			const t = 0.25 + 0.6 * keyHash(k, 500 + i);
+			const sh = gsh * formShade(dx, dy, dz, sun, 0.45); // 태양면/그늘면 — 구형 입체감의 핵심
+			const rgb = [mix(leaf[0], leaf2[0], t) * sh, mix(leaf[1], leaf2[1], t) * sh, mix(leaf[2], leaf2[2], t) * sh];
+			const blobR = crownR * (0.22 + keyHash(k, 600 + i) * 0.16); // 예전 0.42~0.77 → 절반 이하(클럼피 실루엣)
+			pushSplat(arr, px, py, pz, rgb, 0.92, blobR, blobR * 0.8, blobR);
 		}
 	}
 
-	// 바위 = 회색 타원 블롭 2~3개(지면에 낮게). 급경사에도 놓임. treeSize 무관(자체 크기).
-	function rockSplats(cand, life, arr, gsh) {
+	// 침엽수 — 납작 원반 층 + 링 클러스터를 쌓은 원뿔. 어두운 청록 팔레트(게놈 잎색을 차갑게).
+	function coniferSplats(cand, life, arr, gsh, sun, s) {
+		const k = cand.key, h = 2.3 * s;
+		const cx = cand.x, cz = cand.z;
+		const leaf = [life.leaf[0] * 0.55, life.leaf[1] * 0.75, life.leaf[2] * 0.7]; // 차가운 침엽 톤
+		const tr = life.trunk;
+		pushSplat(arr, cx, cand.y + h * 0.12, cz, [tr[0] * gsh, tr[1] * gsh, tr[2] * gsh], 0.95, 0.09 * s, h * 0.16, 0.09 * s);
+		const L = 5;
+		for (let li = 0; li < L; li++) {
+			const f = li / (L - 1);                       // 0(아래)~1(꼭대기)
+			const ly = cand.y + h * (0.28 + 0.62 * f);
+			const lr = 0.62 * s * (1 - 0.78 * f);         // 위로 갈수록 좁게
+			// 층 중심 원반 + 둘레 클러스터 4개 — 층별 링이 원뿔 실루엣을 만든다
+			const csh = gsh * (0.55 + 0.45 * f);          // 위층이 밝다(태양)
+			pushSplat(arr, cx, ly, cz, [leaf[0] * csh, leaf[1] * csh, leaf[2] * csh], 0.94, lr, lr * 0.3, lr);
+			for (let i = 0; i < 4; i++) {
+				const a = (keyHash(k, 700 + li * 7 + i) + i / 4) * 6.2831853;
+				const dx = Math.cos(a), dz = Math.sin(a);
+				const sh = gsh * formShade(dx, 0.35, dz, sun, 0.45);
+				const rgb = [leaf[0] * sh, leaf[1] * sh, leaf[2] * sh];
+				pushSplat(arr, cx + dx * lr * 0.7, ly + jit(k, 800 + li * 7 + i, 0.08) * s, cz + dz * lr * 0.7,
+					rgb, 0.9, lr * 0.5, lr * 0.35, lr * 0.5);
+			}
+		}
+	}
+
+	// 바위 = 회색 타원 블롭 2~3개(지면에 낮게) + 태양면 형태 음영. 급경사에도 놓임.
+	function rockSplats(cand, life, arr, gsh, sun) {
+		sun = sun || DEFAULT_SUN;
 		const k = cand.key, s = 0.5 + keyHash(k, 7) * 0.9;
 		const n = 2 + (keyHash(k, 9) > 0.5 ? 1 : 0);
 		for (let i = 0; i < n; i++) {
-			const px = cand.x + jit(k, 10 + i, 0.35 * s), pz = cand.z + jit(k, 20 + i, 0.35 * s);
+			const dx = jit(k, 10 + i, 0.35 * s), dz = jit(k, 20 + i, 0.35 * s);
+			const px = cand.x + dx, pz = cand.z + dz;
 			const py = cand.y + 0.12 * s;
-			const shade = gsh * (0.8 + jit(k, 30 + i, 0.18));
+			const shade = gsh * formShade(dx, 0.5, dz, sun, 0.6) * (0.9 + jit(k, 30 + i, 0.1));
 			const rgb = [life.rock[0] * shade, life.rock[1] * shade, life.rock[2] * shade];
 			const rx = 0.34 * s * (0.7 + keyHash(k, 40 + i) * 0.7);
 			pushSplat(arr, px, py, pz, rgb, 0.98, rx, rx * 0.6, rx * 0.85);
@@ -87,10 +147,11 @@
 	function splatsFor(cands, life, world) {
 		const arr = [];
 		const shadeAt = (world && world.shadeAt) ? world.shadeAt : null;
+		const sun = (world && world.sun) || DEFAULT_SUN; // 지형 bake 와 같은 광원
 		for (const c of cands) {
 			const gsh = shadeAt ? shadeAt(c.x, c.z, false) : 1;
-			if (c.kind === 'tree') treeSplats(c, life, arr, gsh);
-			else if (c.kind === 'rock') rockSplats(c, life, arr, gsh);
+			if (c.kind === 'tree') treeSplats(c, life, arr, gsh, sun);
+			else if (c.kind === 'rock') rockSplats(c, life, arr, gsh, sun);
 		}
 		return arr;
 	}

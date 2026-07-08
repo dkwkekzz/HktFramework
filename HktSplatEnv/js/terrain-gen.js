@@ -451,6 +451,7 @@
 			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, shadeAt, normalAt, shadeFromNormal,
 			biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
+			sun: SUN, // 정규화 태양 방향 — 식생 bake 가 지형과 같은 광원으로 음영을 굽는다
 		};
 	}
 
