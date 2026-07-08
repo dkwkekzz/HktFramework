@@ -1,11 +1,11 @@
 // C5 스타일 프로파일 검증기 — 게놈 공간의 울타리 (PLAN-CharacterGenesis 「스타일 프로파일」).
 // 추출(LLM)이 어떤 값을 내놓아도 이 울타리를 벗어나면 *클램프가 아니라 반려* 한다 —
 // 반려된 게놈은 재추출/후보정 대상이고, 통과한 게놈만 저장된다 (통일은 입력 제약).
-// 형태·부속 범위의 원본은 js/genome.js PROFILE (런타임 스냅과 같은 울타리),
+// 형태·부속 범위의 원본은 js/life/genome.js PROFILE (런타임 스냅과 같은 울타리),
 // 채색·재질 범위는 추출기 전용(아래 EXTRACT) — 런타임은 이 값을 강제하지 않는다.
 
 'use strict';
-require('../../js/genome.js'); // globalThis.HktGenesisGenome 등록 (브라우저/Node 겸용 IIFE)
+require('../../js/life/genome.js'); // globalThis.HktGenesisGenome 등록 (브라우저/Node 겸용 IIFE)
 const G = globalThis.HktGenesisGenome;
 
 // 추출기 전용 울타리 — 아트 바이블 초안값 (PLAN 표). 바꾸면 스타일 정의가 바뀐다.

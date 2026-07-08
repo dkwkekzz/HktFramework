@@ -9,10 +9,10 @@
 const fs = require('fs');
 const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
-const T = require('../js/terrain-gen.js');
-const WP = require('../js/world-profile.js');
-require('../js/scatter.js');           // global.HktGenesisScatter (candidates — vegetation Bake 배치)
-const V = require('../js/vegetation.js'); // W-Q2b Bake 식생 레이어
+const T = require('../js/env/terrain-gen.js');
+const WP = require('../js/env/world-profile.js');
+require('../js/shared/scatter.js');           // global.HktGenesisScatter (candidates — vegetation Bake 배치)
+const V = require('../js/env/vegetation.js'); // W-Q2b Bake 식생 레이어
 
 const GENOME_PATH = process.argv[2];
 const SRC_IMG = process.argv[3];

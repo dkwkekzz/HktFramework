@@ -13,7 +13,7 @@
 'use strict';
 const fs = require('fs');
 const path = require('path');
-const WP = require('../../js/world-profile.js');
+const WP = require('../../js/env/world-profile.js');
 
 const IMAGE = process.argv[2];
 const OUT = process.argv[3];

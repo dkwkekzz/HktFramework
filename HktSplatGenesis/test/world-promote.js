@@ -7,10 +7,10 @@
 //
 // ScatterStream 은 GPU 없이 목 엔진(entities·respawnEntity)으로 구동. 브라우저 불필요.
 // 사용: node world-promote.js
-const T = require('../js/terrain-gen.js');
-require('../js/scatter.js');
+const T = require('../js/env/terrain-gen.js');
+require('../js/shared/scatter.js');
 const S = global.HktGenesisScatter;
-const V = require('../js/vegetation.js');
+const V = require('../js/env/vegetation.js');
 
 let pass = 0, fail = 0;
 const ok = (name, cond, info) => { console.log(`  ${cond ? 'OK ' : 'FAIL'} · ${name}${info ? ' — ' + info : ''}`); cond ? pass++ : fail++; };

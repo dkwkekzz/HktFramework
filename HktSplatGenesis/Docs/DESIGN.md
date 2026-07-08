@@ -40,24 +40,35 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
 
 ### 코드 지도
 
-- `js/wgsl.js` — 셰이더 8종(+뼈대 오버레이). `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
+**디렉터리 구조 (렌더 영역 분리, PLAN-RenderSeparation)**: `js/` 는 두 렌더 영역 + 공유 계약 +
+합성 루트로 물리 분리된다. `js/life/`(캐릭터=동적, WebGPU: math·heightfield·wgsl·engine·genome·
+skeleton·anim·presets), `js/env/`(환경=정적, Spark: terrain-gen·world-profile·stage·vegetation),
+`js/shared/`(공유 스폰 계약: scatter), `js/`(합성 루트: app·editor·render-director). 두 렌더러는
+서로를 모르고 `render-director.js` 를 통해서만 명시된 계약(카메라 미러·sky/fog 톤·heightfield·
+식생 승격)으로 만난다. 파일 간 참조는 전부 `window.HktGenesis*` 전역이라 경로 독립.
+
+- `js/render-director.js` — 렌더 조정층(RenderDirector). 무대(환경)↔생명(캐릭터) 경계의 유일한
+  소유자: 프레임 시퀀싱(무대 먼저 → 투명 배경 생명 합성)·sky/fog 톤 미러·오픈월드 heightfield
+  bake·스트림 갱신·식생 승격 제외·버블 gridCenter. app.tick 은 시뮬 입력만 모아 `frame`/
+  `updateOpenWorld` 를 부른다. 의존성 주입(engine·getStage·heightfield) — 전역 직결 회피.
+- `js/life/wgsl.js` — 셰이더 8종(+뼈대 오버레이). `Splat`(48B)=`SPLAT_STRIDE`(12 float), `SimParams`(64B, 전역만),
   `Entity`(144B)=`ENTITY_STRIDE`(36 float), `Cluster`(96B)=`CLUSTER_STRIDE`(24) — engine.js 와
   바이트 일치 필수. 격자 상수(GD=64, SLOTS=16)·클러스터 크기(K=256=CLUSTER_K)도 동기.
-- `js/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
-- `js/presets.js` — 유전자 스키마(`GENE_DEFS`)·프리셋(`PRESETS`)의 유일한 원본 (app.js 와 test/ 가 공유 — 드리프트 방지).
-- `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 wgsl.js/engine.js 양쪽 동기화.
-- `js/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
-- `js/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK(walk/idle/wave/jump) + 살 문법 +
+- `js/life/engine.js` — 버퍼/파이프라인/프레임 인코딩. 정렬 단계 (k,j) 는 256B 슬롯 테이블 + 동적 오프셋 (WebGPU 는 push constant 없음).
+- `js/life/presets.js` — 유전자 스키마(`GENE_DEFS`)·프리셋(`PRESETS`)의 유일한 원본 (app.js 와 test/ 가 공유 — 드리프트 방지).
+- `js/app.js` — UI·부트·루프. 유니폼 레이아웃 변경 시 life/wgsl.js·life/engine.js 양쪽 동기화.
+- `js/life/math.js` — WebGPU 클립 규약(z∈[0,1]) 카메라. `HktGaussianSplatWeb` 의 GL 버전과 혼동 주의.
+- `js/life/skeleton.js` — L6 뼈대: Skeleton IR + 절차 클립 FK(walk/idle/wave/jump) + 살 문법 +
   ExternalSkeleton(FBX, 다중 클립·`play(name,fade)` 크로스페이드). 살 힘은 wgsl.js SIM 의 fleshK
   규칙 — 이 파일은 세그먼트라는 *입력* 만 만든다. C1: `pose(...,genome)` 5번째 인자로 세그먼트
   반지름에 게놈 배율을 곱한다(`radiusG` = 기본 문법 × fat × 게놈 배율).
-- `js/anim.js` — A 트랙 애니메이션 3층(`HktGenesisAnim`): ① `CharacterInput`(입력 주입 —
+- `js/life/anim.js` — A 트랙 애니메이션 3층(`HktGenesisAnim`): ① `CharacterInput`(입력 주입 —
   축 move + 1회성 트리거) ② `CharacterStateMachine`(선언적 상태 그래프 + 조건 DSL, 기본
   휴머노이드 그래프 내장) ③ `AnimationController`(상태→클립: built-in `Skeleton.pose` /
   FBX `ExternalSkeleton`, `useFbx` 로 상태를 클립 이름에 자동 배선, `sourceChanged` 로 재시드
   신호). skeleton.js 위에 얹히는 순수 입력 계층 — 세그먼트를 새로 만들지 않고 소스를 고를 뿐.
   Node require 가능(하니스·단위 검증용).
-- `js/genome.js` — C 트랙 캐릭터 게놈(`HktGenesisGenome`). ① 형태(morph): 뼈 이름 → 부위 그룹
+- `js/life/genome.js` — C 트랙 캐릭터 게놈(`HktGenesisGenome`). ① 형태(morph): 뼈 이름 → 부위 그룹
   (`groupForName`, 이름 기반 rig-agnostic) → 배율. morph 엔트리는 숫자(반지름만, C1) 또는
   `{r, l}`(반지름·길이, C2). `radiusScale`/`lengthScale` 가 각각 스타일 프로파일
   (`PROFILE.radiusMul` 0.5~2.2, `lengthMul` 0.5~1.8)로 스냅, 미지정 부위는 항등(1)이라 회귀 0.
@@ -69,7 +80,7 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   갈아끼우고, 비-살은 개체 `colorA/colorB` 그대로. wgsl.js 렌더 바인딩 ↔ engine `_buildRenderBG`
   엔트리 ↔ genome `GROUP_IDS` 길이(=engine `GROUP_COUNT`=10) 3자 동기 필수. `boneGroupBuf`는
   bones 와 함께, `groupColorBuf`는 매 프레임 살 개체 기본색 + `genes.genome.palette` 로 채운다.
-- `js/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
+- `js/env/stage.js` — S 트랙 무대(ES module, import map 배선): Spark(WebGL2)로 외부 3DGS 월드를
   생명 캔버스 아래 별도 캔버스에 렌더, 오빗 카메라 뷰 파라미터만 미러(투영 행렬 공유 금지 —
   클립 규약이 다르다). 생명→무대 데이터 흐름 없음. T2: 절차 월드 타일 스트리밍 관리(타일
   Map·링 정책·SplatMesh 부착/폐기, `startTileWorld`/`updateTileCenter`/`tileStats`, `?tiles=`).
@@ -77,7 +88,7 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   sky/fog 톤의 단일 원본(`setSkyFog`/`getSkyFog` — clear 색 = 지평선 fog, 생명이 같은 톤 소비).
   W6: 게놈 `mood`(skyTop/skyHorizon)를 `setMood` 로 하늘 그라데이션 돔(카메라 추종 구) + fog 에
   배선 — `startTileWorld` 자동 소비, concept/preset-shot 이 단일 파노라마에도 배선(설계 결정 참조).
-- `js/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
+- `js/life/heightfield.js` — S2 충돌 지형: collider GLB(비압축) 파싱 + heightfield 베이크
   (three 무의존 — 생명 쪽 입력이라 vendor three 반입 금지). 시뮬은 무대를 이 텍스처로만 안다.
   T3: `bakeFn`(height 함수 직접 베이크 — 절차 월드, O(창)) + `buildIndex`/`bakeIndexed`
   (실에셋 삼각형 XZ 버킷 인덱스 — 창에 걸린 것만, O(창)). Node require 가능(하니스 검증용).
@@ -87,7 +98,7 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   A1e: 살 개체 디테일에 `입력 상태 머신 사용` 토글 — 켠 개체는 `o.anim`(제 AnimationController+
   CharacterInput+Skeleton 인스턴스)로 독립 구동, 끈 개체는 공용 클립. `concatInstances(sharedRaw,dt)`
   가 개체별로 anim/공용 포즈를 골라 이어붙인다. 정의(게놈·리그) 공용이라 세그 순서 동일 = 친화 호환.
-- `js/terrain-gen.js` — 절차 지형 (T1): 순수 무한 도메인 `world(x,z)` → 무대 PLY + collider
+- `js/env/terrain-gen.js` — 절차 지형 (T1): 순수 무한 도메인 `world(x,z)` → 무대 PLY + collider
   삼각형 수프. `world(params)` 는 바이옴 2채널(온·습도) + domain warp + ridged 혼합 + 팔레트
   + `waterY` 를 좌표·시드만으로 평가(`heightAt`/`biomeAt`/`colorAt`). `create(params)` 는
   월드의 한 창(`cx,cz` 중심) — 창 좌표=월드 좌표라 원점 무관 연속. 창 `height()` 는 시뮬
@@ -95,7 +106,7 @@ storage 로 올리고(≤`MAX_BONES`=512), form 3 스플랫은 뼈 친화(rest.w
   waterY 평면의 반투명 수면 스플랫(tilePly 와 같은 전역 셀 격자, 수몰 셀만, 심도 기반 색).
   W1/W6: `preset(name)` = 월드 게놈(지형·바이옴·수역 + 대기 `mood`) 깊은 복사 — world() 는 지형만,
   stage 가 게놈 옆 `mood` 를 하늘 돔에 소비(mood 는 지형 무관 상층).
-- `js/scatter.js` — 스캐터·개체 스트리밍 (T4): `HktGenesisScatter`. ① `candidates(world,cx,cz,r,cfg)` —
+- `js/shared/scatter.js` — 스캐터·개체 스트리밍 (T4): `HktGenesisScatter`. ① `candidates(world,cx,cz,r,cfg)` —
   월드 함수 위 결정론 스폰 테이블(좌표·시드 latticeHash, Math.random 금지). 셀마다 후보 1개를 셀
   내부로 지터하고 수위·경사·바이옴 밀도(`BIOME_TREE`)로 거른다. 일부 나무 곁 모닥불 스폰을 호스트
   나무와 같은 셀에 함께 낸다(불×나무 임의 좌표). ② `ScatterStream` — 카메라 타깃 거리순 상위 k 후보를
@@ -135,6 +146,8 @@ hikito-flesh 는 살을 SDF **레이마칭으로 그리고**, 여기서는 같�
 | `pose()` 는 항상 전체 세그먼트를 같은 순서로 (필터 금지) | 순서가 뼈 친화 인덱스의 기준 — 소스 전환 시엔 재시드 |
 | vendor three 는 FBX 파싱/FK 전용 | 렌더·시뮬은 자체 WebGPU — three 는 뼈대라는 입력만 만든다 |
 | 무대는 로드, 생명은 배양 (2층 세계) | 절차 노이즈만으론 Marble 급 지형 충실도 불가 — 무대(정적 지형)는 외부 생성물을 Spark 으로 로드, 생명 원칙은 불변 (2026-07 사용자 결정) |
+| 두 렌더 영역은 render-director 를 통해서만 만난다 (렌더 경계 정리) | 무대(Spark/환경)↔생명(WebGPU/캐릭터) 배관이 app.tick 에 흩어져 경계에 소유자가 없었다 — 승격 계약이 세 곳 하드코딩이라 어긋나면 조용한 no-op(이중 그리기)으로만 드러났다. RenderDirector 가 그 유일 소유자가 되어 env↔life 계약(카메라·톤·heightfield·승격)을 명시하고, `js/env·life·shared` 디렉터리 분리로 두 영역이 물리적으로 갈린다(프로젝트 분리 대비). GPU 파이프라인 무변, 회귀 0 |
+| 승격 계약 상수는 scatter.PROMOTE_CFG 단일 원본 (렌더 경계 정리) | cell·maxSlope·jitter 가 vegetation·scatter·app 세 곳 하드코딩이면 하나만 바뀌어도 "승격 key ⊆ Bake key"(W-Q2c)가 깨지되 에러 없이 이중 그리기로만 드러난다 — Object.freeze 상수 하나로 세 곳 정합을 구조적으로 강제 |
 | 무대 렌더러 = Spark(WebGL2, 별도 캔버스) — WebGPU 재구현 금지 | LoD 트리·.RAD 스트리밍·포맷 파서 재작성 비용 > 2-캔버스 합성 비용. 시뮬은 무대를 collider 베이크 heightfield 로만 안다 |
 | 스플랫 수 2^n, 슬라이스 256 배수 | bitonic 정렬·CLUSTER 워크그룹 균일성 전제 |
 | 에디터는 별도 진입점(editor.html) — 엔진/셰이더 무수정 | 데모(index.html)는 불변 레퍼런스, 에디터는 시뮬 *입력*(유전자·emitter·뼈대·heightfield)만 만든다 |

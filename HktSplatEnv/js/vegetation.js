@@ -132,7 +132,7 @@
 		const life = lifeOf(world, cfg);
 		// 창 반폭을 덮는 반경(대각) — 창 밖 후보는 candidates 가 원형 컷하지만 사각 창을 다 채우려 여유
 		const radius = extent * 1.45;
-		const cands = S.candidates(world, cx, cz, radius, Object.assign({ cell: 3.4, maxSlope: 2.2, jitter: 0.8 }, cfg, { life }));
+		const cands = S.candidates(world, cx, cz, radius, Object.assign({}, S.PROMOTE_CFG, cfg, { life }));
 		// 사각 창(±extent) 안만 남긴다
 		const inWin = cands.filter((c) => Math.abs(c.x - cx) <= extent && Math.abs(c.z - cz) <= extent);
 		return { ply: plyFromSplats(splatsFor(inWin, life, world)), count: inWin.length,
@@ -146,7 +146,7 @@
 		if (!S) throw new Error('scatter.js(HktGenesisScatter) 선행 필요');
 		const life = lifeOf(world, cfg);
 		const cx = x0 + size / 2, cz = z0 + size / 2;
-		const cands = S.candidates(world, cx, cz, size * 0.8, Object.assign({ cell: 3.4, maxSlope: 2.2, jitter: 0.8 }, cfg, { life }))
+		const cands = S.candidates(world, cx, cz, size * 0.8, Object.assign({}, S.PROMOTE_CFG, cfg, { life }))
 			.filter((c) => c.x >= x0 && c.x < x0 + size && c.z >= z0 && c.z < z0 + size);
 		return plyFromSplats(splatsFor(cands, life, world));
 	}

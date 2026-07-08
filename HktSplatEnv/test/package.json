@@ -1,0 +1,6 @@
+{
+	"name": "hktsplatenv-test",
+	"private": true,
+	"description": "HktSplatEnv 검증 하니스 (헤드리스 촬영)",
+	"devDependencies": { "playwright": "^1.40.0" }
+}

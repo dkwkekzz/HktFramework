@@ -2,7 +2,7 @@
 
 컨셉 이미지 한 장의 *인상*을 월드 게놈(JSON)으로 **번역**한다. 복원이 아니라 번역이다
 (설계 근거: [../../Docs/PLAN-WorldFromImage.md](../../Docs/PLAN-WorldFromImage.md)). 게놈은
-`js/terrain-gen.js` 의 `world(genome)` 이 소비하는 데이터 — 지형·바이옴·수역 층(W1 데이터화 완료).
+`js/env/terrain-gen.js` 의 `world(genome)` 이 소비하는 데이터 — 지형·바이옴·수역 층(W1 데이터화 완료).
 
 ## 현황
 
@@ -11,7 +11,7 @@
   재시도(최대 3회, 클램프 아닌 반려·재추출). 라이브 실행은 `ANTHROPIC_API_KEY` 필요.
 - **W4 v0 (수동)**: 키 없이도, LLM vision 이 이미지를 읽어 게놈 JSON 을 손으로 작성할 수 있다
   (`genomes/breeze-meadow.json` 이 그 예). 자동/수동 모두 같은 프로파일 울타리를 통과한다.
-- **검증 (W2 완료)**: 게놈은 `js/world-profile.js` 의 `validate(genome)` 를 통과해야 확정. 벗어난 값은
+- **검증 (W2 완료)**: 게놈은 `js/env/world-profile.js` 의 `validate(genome)` 를 통과해야 확정. 벗어난 값은
   클램프가 아니라 반려(재추출). `preset-shot.js`·`concept-shot.js` 가 JSON 게놈을 렌더 전 자동 검증한다.
 
 ## 자동 추출 사용
@@ -73,7 +73,7 @@ index.html?tilesGenome=/tools/world-extract/genomes/breeze-meadow.json
 
 ## 남은 것 (W 트랙 로드맵)
 
-- ~~**W2**: 스타일 프로파일 + `validate(genome)`~~ ✅ `js/world-profile.js` — 렌더 전 검증.
+- ~~**W2**: 스타일 프로파일 + `validate(genome)`~~ ✅ `js/env/world-profile.js` — 렌더 전 검증.
 - ~~**W3**: `test/concept-shot.js` 정식화~~ ✅ 원본 이미지 + 생성 파노라마 2패널 대조 카드.
 - ~~**W4 자동화**: 이미지 → vision API → 게놈 (프로파일 제약 + validate 반려 재추출 루프)~~ ✅ `extract.js`
   (파이프라인 목 검증 완료 · 라이브 실행은 `ANTHROPIC_API_KEY` 필요).

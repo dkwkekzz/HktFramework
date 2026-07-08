@@ -9,8 +9,8 @@
 const fs = require('fs');
 const path = require('path');
 const { serve, launch, collectErrors, savePng } = require('./_common');
-const T = require('../js/terrain-gen.js');
-const WP = require('../js/world-profile.js');
+const T = require('../js/env/terrain-gen.js');
+const WP = require('../js/env/world-profile.js');
 
 const ARG = process.argv[2] || 'ashen';
 const IS_JSON = ARG.endsWith('.json');

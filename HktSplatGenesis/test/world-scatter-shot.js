@@ -10,17 +10,17 @@
 // 사용: node world-scatter-shot.js [pan.png] [fire.png] [seed=7]
 const path = require('path');
 const { serve, launch, savePng } = require('./_common');
-const TG = require('../js/terrain-gen.js');
-const SC = require('../js/scatter.js');
+const TG = require('../js/env/terrain-gen.js');
+const SC = require('../js/shared/scatter.js');
 // presets.js 는 window 전역 의존(HktGenesisGenes) — Node 순수 단계는 genesFor 를 안 부르므로 불요.
 
 // 엔진 직접 구동 페이지 (heightfield + terrain-gen + presets + scatter 포함, 뼈대 무관)
 const ROUTE = (req, res) => {
 	res.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
 	res.end('<!doctype html><meta charset="utf-8"><canvas id="gpu" width="640" height="640"></canvas>'
-		+ '<script src="/js/math.js"><\/script><script src="/js/heightfield.js"><\/script><script src="/js/terrain-gen.js"><\/script>'
-		+ '<script src="/js/presets.js"><\/script><script src="/js/scatter.js"><\/script>'
-		+ '<script src="/js/wgsl.js"><\/script><script src="/js/engine.js"><\/script>');
+		+ '<script src="/js/life/math.js"><\/script><script src="/js/life/heightfield.js"><\/script><script src="/js/env/terrain-gen.js"><\/script>'
+		+ '<script src="/js/life/presets.js"><\/script><script src="/js/shared/scatter.js"><\/script>'
+		+ '<script src="/js/life/wgsl.js"><\/script><script src="/js/life/engine.js"><\/script>');
 };
 
 const SEED = parseInt(process.argv[4] || '7');

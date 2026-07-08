@@ -8,7 +8,7 @@ const fs = require('fs');
 const os = require('os');
 const path = require('path');
 const { execFileSync } = require('child_process');
-const WP = require('../js/world-profile.js');
+const WP = require('../js/env/world-profile.js');
 
 const EXTRACT = path.join(__dirname, '..', 'tools', 'world-extract', 'extract.js');
 const tmp = fs.mkdtempSync(path.join(os.tmpdir(), 'wx-'));
