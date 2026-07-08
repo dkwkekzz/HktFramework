@@ -282,14 +282,21 @@ fn main(@builtin(global_invocation_id) gid : vec3u) {
 		let ba = B.xyz - A.xyz;
 		let bl = max(length(ba), 1e-5);
 		let axis = ba / bl;
-		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u)
+		// 시드 → 성장 자리 (스플랫마다 고정): 축 t 균등, 방위 θ 균등, 단면 원판 균등(√u).
+		// 축 구간을 [-r1, bl+r2] 로 확장해 양끝 *반구 캡*까지 샘플한다 (진짜 캡슐) —
+		// 캡이 없으면 머리·손끝이 뭉툭한 원기둥으로 잘려 얼굴이 공 모양이 되지 않는다.
 		let h = hash31(s.misc.y + f32(bi) * 0.317);
-		let rr = mix(A.w, B.w, h.x) * sqrt(h.y);
+		let tx = h.x * (bl + A.w + B.w) - A.w; // 축 좌표 ∈ [-r1, bl+r2]
+		var Rt : f32;
+		if (tx < 0.0) { Rt = sqrt(max(A.w * A.w - tx * tx, 0.0)); }               // 캡 A: 구 단면
+		else if (tx > bl) { let e = tx - bl; Rt = sqrt(max(B.w * B.w - e * e, 0.0)); } // 캡 B
+		else { Rt = mix(A.w, B.w, tx / bl); }                                     // 몸통: taper
+		let rr = Rt * sqrt(h.y);
 		// 뼈 축 수직 기저 — 상수 기준축(어느 뼈와도 평행하지 않게 기울임)이라 포즈 변화에 연속
 		let e1 = normalize(cross(axis, vec3f(0.402, 0.618, 0.675)));
 		let e2 = cross(axis, e1);
 		let th = h.z * 6.2831853;
-		let site = A.xyz + axis * (h.x * bl) + (e1 * cos(th) + e2 * sin(th)) * rr;
+		let site = A.xyz + axis * tx + (e1 * cos(th) + e2 * sin(th)) * rr;
 		// 자리 스프링 — 오차 클램프로 원거리 응축(성장) 시 힘 폭주 방지
 		var dv = site - s.pos;
 		let dl = length(dv);
@@ -644,13 +651,15 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 
 	var M : mat3x3f;
 	if (isFlesh) {
-		// R2 surfel: 법선으로 납작(두께 0.35), 접선1 = 뼈 축의 접평면 사영(해부학적 결),
-		// 접선2 = 원주 방향. 속도 신축은 접평면 안에서 유지 — 빠르면 결 방향으로 늘어난다.
+		// R2 surfel: 법선으로 납작(두께 0.55 — 더 얇으면 실루엣에서 edge-on 디스크가 보풀로
+		// 곤두선다), 접선1 = 뼈 축의 접평면 사영(해부학적 결), 접선2 = 원주 방향.
+		// 속도 신축은 접평면 안에서 유지하되 클램프 — 출렁임 속도가 살을 털처럼 세우지 않게.
+		let elongF = min(elong, 1.6);
 		var t1 = axis - nrm * dot(axis, nrm);
 		let t1l = length(t1);
 		if (t1l > 1e-4) { t1 /= t1l; } else { t1 = normalize(cross(nrm, vec3f(0.402, 0.618, 0.675))); }
 		let t2 = cross(nrm, t1);
-		M = mat3x3f(t1 * (base * elong), t2 * (base * inverseSqrt(elong)), nrm * (base * 0.35));
+		M = mat3x3f(t1 * (base * elongF), t2 * (base * inverseSqrt(elongF)), nrm * (base * 0.55));
 	} else {
 		// 기존 속도 방향 정렬 이방성 (비-살 회귀 0): 빠를수록 진행 방향으로 늘어난다
 		var e0 = vec3f(0.0, 1.0, 0.0);
@@ -715,9 +724,10 @@ fn vs(@builtin(vertex_index) vi : u32, @builtin(instance_index) ii : u32) -> VOu
 	if (lit) {
 		// R1 조명 합성 (linear 공간): 램프는 albedo — sRGB→linear 근사(γ2).
 		let albedo = rgb * rgb;
-		// 유사 AO: 자리 깊이 시드(h.y, SIM 과 동일 해시) — 살 내부 스플랫이 어둡다(오목부 음영)
+		// 유사 AO: 자리 깊이 시드(h.y, SIM 과 동일 해시) — 살 내부 스플랫이 어둡다(오목부 음영).
+		// 대비를 세게 주면 표면 틈으로 내부 스플랫이 점박이로 비친다 — 완만하게.
 		let h = hash31(s.misc.y + f32(bi) * 0.317);
-		let ao = 0.45 + 0.55 * sqrt(h.y);
+		let ao = 0.62 + 0.38 * sqrt(h.y);
 		let L = normalize(C.light.xyz);
 		// half-Lambert wrap: 명암 경계를 부드럽게 (피부) — wrap 은 재질 유전자
 		let ndl = clamp((dot(nrm, L) + E.wrap) / (1.0 + E.wrap), 0.0, 1.0);

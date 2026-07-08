@@ -184,11 +184,13 @@
 			//   arm = 어깨→상완뿌리 · forearm = 상완 뼈 · hand = 하완 뼈 ·
 			//   upleg = 골반 세그 · leg = 허벅지 뼈(길이 leg.l) · foot = 종아리 뼈+발(길이 foot.l).
 			// palette 램프는 뼈 축 그라데이션(a=부모 관절 쪽, b=자식 관절 쪽) — 의상 경계 표현.
+			// 비율은 레퍼런스 실측(머리 32% · 몸통 30% · 다리 38%)을 리그에 사상한 값 —
+			// 다리(leg=허벅지 뼈, foot=종아리 뼈)를 절반 가까이 줄여야 치비가 된다.
 			morph: {
-				head: { r: 2.2 }, neck: { r: 0.7, l: 0.7 },
-				torso: { r: 1.0, l: 0.85 }, shoulder: { r: 0.8 },
-				arm: { r: 0.85 }, forearm: { r: 0.8, l: 0.85 }, hand: { r: 0.7, l: 0.85 },
-				upleg: { r: 1.2 }, leg: { r: 1.0, l: 0.9 }, foot: { r: 0.85, l: 0.9 },
+				head: { r: 2.0 }, neck: { r: 0.7, l: 0.7 },
+				torso: { r: 1.0, l: 0.9 }, shoulder: { r: 0.8 },
+				arm: { r: 0.8 }, forearm: { r: 0.7, l: 0.75 }, hand: { r: 0.65, l: 0.75 },
+				upleg: { r: 1.2 }, leg: { r: 1.1, l: 0.55 }, foot: { r: 0.85, l: 0.55 },
 				appendix: { r: 1.0 },
 			},
 			palette: {
@@ -209,15 +211,15 @@
 				// 포니테일: 옆-아래로 흘러내리는 큰 타래 — 자리 스프링은 마디를 *독립* 목표로
 				// 당기므로(누적 호 없음) 흘러내림은 dir 자체가 만들고 중력·낮은 k 는 출렁임을 만든다.
 				// (x 성분 = 화자 왼쪽으로 흘러 정면/3·4 뷰에서 머리에 가려지지 않는다)
-				{ name: 'TailPony', attach: 'Head', dir: [0.5, -0.55, -0.55], links: 8, len: 1.25, r0: 0.11, r1: 0.028, k: 26, gravity: 1.6 },
+				{ name: 'TailPony', attach: 'Head', dir: [0.5, -0.55, -0.55], links: 8, len: 0.95, r0: 0.085, r1: 0.024, k: 26, gravity: 1.6 },
 				// 정수리 볼륨: 짧고 굵은 사슬 — 머리 윗면을 머리카락 색으로 덮는다
 				{ name: 'HornPuff', attach: 'Head', dir: [0, 0.95, -0.25], links: 2, len: 0.3, r0: 0.16, r1: 0.1, k: 150, gravity: 0 },
 				// 좌우 앞머리: 얼굴 옆으로 흘러내리는 가닥
 				{ name: 'EarBangL', attach: 'Head', dir: [0.55, -0.75, 0.3], links: 3, len: 0.3, r0: 0.045, r1: 0.014, k: 110, gravity: 0.3 },
 				{ name: 'EarBangR', attach: 'Head', dir: [-0.55, -0.75, 0.3], links: 3, len: 0.3, r0: 0.045, r1: 0.014, k: 110, gravity: 0.3 },
 			],
-			// 스펙·림 과다는 피부를 백화시킨다 — 무광에 가까운 부드러운 재질
-			matter: { size: 0.032, opacity: 0.95, luminosity: 0, spec: 0.15, specPow: 30, rim: 0.1, wrap: 0.6 },
+			// 스펙·림 과다는 피부를 백화시키고, 신축 과다는 표면을 보풀로 세운다 — 무광·저신축
+			matter: { size: 0.032, stretch: 0.25, opacity: 1, luminosity: 0, spec: 0.15, specPow: 30, rim: 0.1, wrap: 0.6 },
 		},
 	};
 
