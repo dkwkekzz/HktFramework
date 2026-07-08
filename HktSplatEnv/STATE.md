@@ -27,6 +27,7 @@
 | E16 | 조명 bake 는 태양(웜)·하늘(쿨) 2색 + cast shadow(레이마치) + AO 이고 평지 완전 수광 = 알베도로 정규화된다 | ✅ | `js/terrain-gen.js` shadeRGBFromNormal·shadowAt·aoAt |
 | E17 | 원경 스플랫은 링 중심 거리 기준 fog 톤으로 프리블렌드되어 지평선에서 배경과 이음새 없이 만난다 | ✅ | `js/terrain-gen.js` tilePly/waterTilePly opts, `js/stage.js` bakeOpts |
 | E18 | 나무는 종(활엽/침엽)·단풍 변주와 태양면/그늘면 형태 음영을 갖는 다중 클러스터다 | ✅ | `js/vegetation.js` treeSplats·coniferSplats |
+| E19 | 수면은 터쿼이즈 심도 팔레트 + 물가 포말 링 + 하늘 반사 틴트 + 스파클을 bake 한다 | ✅ | `js/terrain-gen.js` waterTilePly |
 
 ## 현재 작업 상태
 
@@ -43,7 +44,7 @@
     256 격자) 또는 bake 워커 분리가 후보.
   - 카메라 초근접 수관 블롭의 가우시안 꼬리가 큰 반투명 돔으로 보이는 3DGS floater 현상 —
     수관 σ 상한 또는 근접 페이드가 후보.
-  - 수면은 아직 반투명 스플랫 — three 평면 메시 + 프레넬 하늘 반사 셰이더로 교체(하늘 돔 선례).
+  - 수면 정적 근사(E19)를 넘어서는 실시간 반사 — three 평면 메시 + 프레넬 셰이더 교체(하늘 돔 선례).
   - E12(볼류메트릭 구름) · E13 잔여(식생 밀도/LoD·풀 레이어).
 - **검증**: `test/env-shot.js` OK (타일 25 · 스플랫 184k · 콘솔 오류 0). bake 예산: 근접 타일
   210ms(풀 조명)·외곽 19ms.

@@ -91,7 +91,8 @@
 		{ id: 3, key: 'snow', name: '설원', temp: 0.13, humid: 0.55, ampMul: 1.00, scaleMul: 1.10, ridged: 0.40, warpMul: 0.55,
 			lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
 	];
-	const DEFAULT_WATER = { shallow: [0.16, 0.42, 0.55], deep: [0.06, 0.16, 0.42] };
+	// E19 물빛 — 레퍼런스(스타일라이즈드 오픈월드)의 밝은 터쿼이즈 얕은 물 → 짙은 청록 깊은 물
+	const DEFAULT_WATER = { shallow: [0.22, 0.62, 0.66], deep: [0.05, 0.25, 0.50] };
 
 	// 화산재 황무지 — 3바이옴, 붉은/검은 팔레트, 물 없음(수위 밑바닥). 데이터만으로 성격이
 	// 완전히 다른 월드가 나온다는 실증(W1 완료 기준 ②). 온·습도 중심을 넓게 벌려 파노라마에
@@ -475,7 +476,7 @@
 			const fogInv = fogC ? 1 / Math.max((opts.fogEnd || 1) - (opts.fogStart || 0), 1e-3) : 0;
 			const cell = size / G;
 			const cx0 = Math.round(x0 / cell), cz0 = Math.round(z0 / cell);
-			// 먼저 수몰 셀 수집 (PLY 헤더에 정확한 정점 수 필요)
+			// 먼저 수몰 셀 수집 (PLY 헤더에 정확한 정점 수 필요) — 셀 인덱스도 보관(E19 스파클 해시용)
 			const cells = [];
 			for (let gz = 0; gz < G; gz++)
 				for (let gx = 0; gx < G; gx++) {
@@ -485,7 +486,7 @@
 					const x = (cellX + 0.5) * cell + jx * cell * 0.8;
 					const z = (cellZ + 0.5) * cell + jz * cell * 0.8;
 					if (!isWater(x, z)) continue; // 마른 셀 — 수면 없음(연결 분지만)
-					cells.push([x, z, reliefAt(x, z)]);
+					cells.push([x, z, reliefAt(x, z), cellX, cellZ]);
 				}
 			if (!cells.length) return null;
 			const N = cells.length;
@@ -502,11 +503,23 @@
 			let o = 0;
 			const put = (v) => { body.setFloat32(o, v, true); o += 4; };
 			for (let i = 0; i < N; i++) {
-				const x = cells[i][0], z = cells[i][1], y = cells[i][2];
+				const x = cells[i][0], z = cells[i][1], y = cells[i][2], cellX = cells[i][3], cellZ = cells[i][4];
 				const d = clamp01((P.waterY - y) / 0.8); // 심도 [0,1]
 				let r = mix(wc.shallow[0], wc.deep[0], d);
 				let g = mix(wc.shallow[1], wc.deep[1], d);
 				let b = mix(wc.shallow[2], wc.deep[2], d);
+				// E19 하늘 반사 틴트 — fog 톤(=지평선 하늘 린니어)을 정적 반사 근사로 섞는다.
+				// 깊은 물일수록 거울성 ↑(프레넬 흉내: 얕은 물은 바닥색, 깊은 물은 하늘빛).
+				if (fogC) {
+					const rf = 0.16 + 0.18 * d;
+					r = mix(r, fogC[0], rf); g = mix(g, fogC[1], rf); b = mix(b, fogC[2], rf);
+				}
+				// E19 물가 포말 — 아주 얕은 셀(물가 0.10m 이내)은 흰 거품 링 + 노이즈 끊김(자연스러운 테두리)
+				const foam = clamp01(1 - (P.waterY - y) / 0.10) * (0.5 + 0.5 * latticeHash(cellX, cellZ, P.seed + 4501));
+				if (foam > 0.01) { r = mix(r, 0.90, foam); g = mix(g, 0.96, foam); b = mix(b, 0.97, foam); }
+				// E19 스파클 — 셀 해시 잔물결 밝기 변주(정적이지만 수면 결이 생긴다)
+				const sp = (latticeHash(cellX, cellZ, P.seed + 4603) - 0.5) * 0.10 * (1 - foam);
+				r += sp; g += sp; b += sp * 1.2;
 				if (fogC) { // 원경 fog 프리블렌드 — 지형 tilePly 와 동일 규칙
 					let ff = clamp01((Math.hypot(x - opts.fogCx, z - opts.fogCz) - opts.fogStart) * fogInv);
 					ff = ff * ff * (3 - 2 * ff);
