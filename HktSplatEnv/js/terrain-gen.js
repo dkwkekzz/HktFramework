@@ -86,15 +86,16 @@
 	// 유도하므로 바이옴 개수가 프리셋마다 달라도 성립한다 (기본 4 → WATER_ID 4, 하위 호환).
 	// detail(E22): 고주파 감쇠 — 평야는 매끈한 구릉, 산악만 러프. terrace(E22): 계단 플래토
 	// 비중 — 절벽이 노이즈 비탈 대신 트레드(평지)+라이저(절벽) 밴드로 읽힌다(스타일라이즈드 지형).
+	// macro(E24): 파장 수십 m 매크로 지형(산맥·계곡) 진폭 가중 — 산악은 진짜 산, 평야는 완만한 구릉.
 	const DEFAULT_BIOMES = [
 		{ id: 0, key: 'plains', name: '평야', temp: 0.60, humid: 0.52, ampMul: 0.55, scaleMul: 1.00, ridged: 0.05, warpMul: 0.45,
-			detail: 0.25, terrace: 0.15, lo: [0.18, 0.46, 0.16], hi: [0.52, 0.68, 0.28] },
+			detail: 0.25, terrace: 0.15, macro: 0.35, lo: [0.18, 0.46, 0.16], hi: [0.52, 0.68, 0.28] },
 		{ id: 1, key: 'mountain', name: '산악', temp: 0.40, humid: 0.82, ampMul: 1.95, scaleMul: 1.35, ridged: 0.85, warpMul: 0.90,
-			detail: 0.9, terrace: 0.55, lo: [0.32, 0.30, 0.28], hi: [0.90, 0.92, 0.96] },
+			detail: 0.9, terrace: 0.55, macro: 1.6, lo: [0.32, 0.30, 0.28], hi: [0.90, 0.92, 0.96] },
 		{ id: 2, key: 'desert', name: '사막', temp: 0.88, humid: 0.16, ampMul: 0.50, scaleMul: 1.55, ridged: 0.18, warpMul: 0.70,
-			detail: 0.45, terrace: 0.40, lo: [0.60, 0.48, 0.28], hi: [0.86, 0.76, 0.50] },
+			detail: 0.45, terrace: 0.40, macro: 0.55, lo: [0.60, 0.48, 0.28], hi: [0.86, 0.76, 0.50] },
 		{ id: 3, key: 'snow', name: '설원', temp: 0.13, humid: 0.55, ampMul: 1.00, scaleMul: 1.10, ridged: 0.40, warpMul: 0.55,
-			detail: 0.6, terrace: 0.25, lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
+			detail: 0.6, terrace: 0.25, macro: 1.0, lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
 	];
 	// E19 물빛 — 레퍼런스(스타일라이즈드 오픈월드)의 밝은 터쿼이즈 얕은 물 → 짙은 청록 깊은 물
 	const DEFAULT_WATER = { shallow: [0.22, 0.62, 0.66], deep: [0.05, 0.25, 0.50] };
@@ -120,7 +121,7 @@
 	const ASHEN_MOOD = { skyTop: [0.14, 0.10, 0.12], skyHorizon: [0.55, 0.24, 0.16] };
 	const PRESETS = {
 		temperate: {
-			amp: 0.9, scale: 3.0, octaves: 4, base: 0.5, warpAmp: 0.6, warpScale: 9,
+			amp: 0.9, scale: 3.0, octaves: 4, base: 0.9, warpAmp: 0.6, warpScale: 9,
 			biomeScale: 40, biomeSharp: 22, waterY: -0.2, biomeSet: DEFAULT_BIOMES, water: DEFAULT_WATER, mood: TEMPERATE_MOOD,
 		},
 		ashen: {
@@ -146,13 +147,16 @@
 	//           waterY(수위), floor(창 클램프 바닥), biomes(바이옴 활성) }
 	function world(params) {
 		const P = Object.assign({
-			seed: 1, amp: 0.9, scale: 3.0, octaves: 4, base: 0.5,
+			seed: 1, amp: 0.9, scale: 3.0, octaves: 4, base: 0.9, // base: E24 매크로 계곡 대비 기준 상향
+
 			biomeScale: 40, warpAmp: 0.6, warpScale: 9, waterY: -0.2,
-			floor: -3.0, biomes: true, biomeSharp: 22, // floor: 버블 y 추종 후 느슨한 안전 하한(T3)
+			floor: -8.0, biomes: true, biomeSharp: 22, // floor: 매크로 계곡(E24)까지 허용하는 안전 하한
+			macroAmp: 6.5, macroScale: 64, // E24 매크로 지형 — 파장 수십 m 산맥·계곡 층
 		}, params);
 		P.seed = P.seed | 0;
 		P.octaves = Math.max(1, Math.min(6, Math.round(P.octaves)));
-		const yMax = P.base + P.amp * 2.0; // relief 상한 근사(산악 ampMul≈2) — 색 정규화용
+		// relief+매크로 상한 근사 — 고도 색 램프 정규화용(산꼭대기가 hi 색=설선에 닿게)
+		const yMax = P.base + P.amp * 2.0 + P.macroAmp * 1.2;
 
 		// ── Bake 셰이딩(W-Q3) — 생성 시점에 지형 법선 기반 명암을 f_dc 색에 굽는다 ──
 		// 스플랫은 런타임 조명이 없다(SH 0차 = 상수색). 그래서 절차 지형이 무광 평면으로 보인다.
@@ -219,13 +223,14 @@
 			if (!P.biomes) return fbm(x / (P.scale * scaleBoost), z / (P.scale * scaleBoost), P.seed, oct) * P.amp;
 			const c = climate(x, z);
 			const w = biomeWeights(c[0], c[1], _w);
-			let ampMul = 0, scaleMul = 0, ridgedMul = 0, warpMul = 0, detailMul = 0, terraceMul = 0;
+			let ampMul = 0, scaleMul = 0, ridgedMul = 0, warpMul = 0, detailMul = 0, terraceMul = 0, macroMul = 0;
 			for (let i = 0; i < BIOMES.length; i++) {
 				const b = BIOMES[i];
 				ampMul += w[i] * b.ampMul; scaleMul += w[i] * b.scaleMul;
 				ridgedMul += w[i] * b.ridged; warpMul += w[i] * b.warpMul;
 				detailMul += w[i] * ((b.detail != null) ? b.detail : 1);      // E22 — 구 게놈 셋은 1(무회귀)
 				terraceMul += w[i] * ((b.terrace != null) ? b.terrace : 0);   // E22 — 구 게놈 셋은 0
+				macroMul += w[i] * ((b.macro != null) ? b.macro : 0);         // E24 — 구 게놈 셋은 0(평탄 유지)
 			}
 			warp(x, z, warpMul, _p);
 			const sc = P.scale * scaleMul * scaleBoost;
@@ -236,6 +241,22 @@
 				relief = mix(base, rdg, ridgedMul);
 			}
 			let h = P.base + relief * P.amp * ampMul;
+			// E24 매크로 지형 — 파장 macroScale(수십 m)·진폭 macroAmp 의 큰 형태를 로컬 기복 위에
+			// 얹는다: 산악엔 ridged 능선 산맥, 평야엔 완만한 구릉, 저지대는 계곡·호수 분지가 된다.
+			// macroReliefAt(수문 판정)도 이 함수를 지나므로 물이 매크로 계곡에 자연히 고인다.
+			if (macroMul > 0.001) {
+				const MS = P.macroScale;
+				const mb = fbm(_p[0] / MS + 91.7, _p[1] / MS - 33.1, P.seed + 1717, 3);
+				let macro = mb;
+				if (withRidged && ridgedMul > 0.01) {
+					const mr = ridgedFbm(_p[0] / MS + 91.7, _p[1] / MS - 33.1, P.seed + 1919, 3) * 2 - 1;
+					macro = mix(mb, mr, ridgedMul * 0.85);
+				}
+				// 비대칭 셰이핑 — 봉우리는 그대로, 계곡은 0.35배: 절반이 수몰되는 '바다'가 아니라
+				// 산 사이 호수·저지대가 되게 한다(레퍼런스: 육지 위주 + 호수).
+				if (macro < 0) macro *= 0.35;
+				h += macro * P.macroAmp * macroMul;
+			}
 			// E22 계단 플래토 — 절벽 지대를 트레드(평지)+라이저(절벽) 밴드로: 노이즈 비탈이
 			// 플래토로 읽혀 스타일라이즈드 지형(레퍼런스 절벽)의 형태 언어가 된다. terrace 는
 			// 순수 함수(높이만의 셰이핑)라 결정론·창 연속성이 그대로다.
@@ -294,11 +315,11 @@
 		// 드리운 그림자: heightfield 를 태양 방향으로 레이마치(지수 간격 6스텝). 차폐 높이차가
 		// 클수록·가까울수록 진하게 — 산이 골짜기에 그림자를 던진다. 잔광 10%(완전 검정 방지).
 		function shadowAt(x, z, y) {
-			let occ = 0, t = 0.7;
-			for (let i = 0; i < 6; i++) {
+			let occ = 0, t = 0.8;
+			for (let i = 0; i < 7; i++) {
 				const dh = reliefAt(x + SUN[0] * t, z + SUN[2] * t) - (y + SUN[1] * t);
 				if (dh > 0) { const s = dh / (0.25 + t * 0.18); if (s > occ) occ = s > 1 ? 1 : s; }
-				t *= 1.75; // 0.7 → 11.5m
+				t *= 1.85; // 0.8 → 32m — 매크로 산(E24, ~8m)이 계곡에 던지는 그림자까지
 			}
 			return 1 - occ * 0.9;
 		}

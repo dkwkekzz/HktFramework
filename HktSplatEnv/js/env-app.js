@@ -26,6 +26,19 @@
 		genome.mood.cloud = 0.45; // W-Q3 절차 구름
 		S.startTileWorld(Object.assign(genome, { seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 192, farG: 48 } }));
 
+		// 육지 스폰(E24) — 매크로 계곡(호수)에 원점이 잠긴 시드도 있으므로, 원점에서 나선으로
+		// 물가 위 육지를 찾아 카메라 타깃을 옮긴다. 순수 월드 함수 평가라 값싸고 결정론이다.
+		const w = window.HktGenesisTerrainGen.world(Object.assign({}, genome, { seed }));
+		let spawn = [0, 0];
+		if (w.heightAt(0, 0) <= w.waterY + 0.4) {
+			outer: for (let r = 8; r <= 160; r += 8)
+				for (let a = 0; a < 6.283; a += 0.45) {
+					const x = Math.cos(a) * r, z = Math.sin(a) * r;
+					if (w.heightAt(x, z) > w.waterY + 0.6) { spawn = [x, z]; break outer; }
+				}
+		}
+		camera.target = [spawn[0], w.heightAt(spawn[0], spawn[1]) + 1, spawn[1]];
+
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;
 		function tick(now) {

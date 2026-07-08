@@ -28,12 +28,24 @@ const W = 768, H = 640;
 	// 타일 월드를 직접 시작하고, 비동기 타일 로드(mesh.initialized)가 끝나도록 캡처를 반복 구동.
 	// Spark 는 스플랫 GPU 패킹에 렌더 몇 프레임이 필요하다(DESIGN) — 워밍업 캡처로 채운다.
 	const CAM = { fov: 1.0, up: [0, 1, 0], target: [0, 0, 0], eye: [0, 34, 46] };
-	await page.evaluate((cm) => {
-		// 앱(env-app)과 같은 경로: temperate 프리셋(mood=하늘 돔·구름 포함) + 시드
+	const spawn = await page.evaluate((cm) => {
+		// 앱(env-app)과 같은 경로: temperate 프리셋(mood=하늘 돔·구름 포함) + 시드 + 육지 스폰(E24)
 		const genome = window.HktGenesisTerrainGen.preset('temperate');
 		genome.mood.cloud = 0.45;
 		HktGenesisStage.startTileWorld(Object.assign(genome, { seed: cm.seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 192, farG: 48 } }));
+		const w = window.HktGenesisTerrainGen.world(Object.assign({}, genome, { seed: cm.seed }));
+		let sp = [0, 0];
+		if (w.heightAt(0, 0) <= w.waterY + 0.4) {
+			outer: for (let r = 8; r <= 160; r += 8)
+				for (let a = 0; a < 6.283; a += 0.45) {
+					const x = Math.cos(a) * r, z = Math.sin(a) * r;
+					if (w.heightAt(x, z) > w.waterY + 0.6) { sp = [x, z]; break outer; }
+				}
+		}
+		return { x: sp[0], z: sp[1], y: w.heightAt(sp[0], sp[1]) };
 	}, { seed: SEED });
+	CAM.target = [spawn.x, spawn.y, spawn.z];
+	CAM.eye = [spawn.x, spawn.y + 34, spawn.z + 46];
 	const orbit = (cm) => ({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye });
 	for (let k = 0; k < 12; k++) {
 		await page.evaluate(async ({ cm, W, H }) => {

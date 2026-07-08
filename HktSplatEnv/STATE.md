@@ -32,6 +32,7 @@
 | E21 | 타일 bake 는 워커에서 돌고(동기 폴백 동일 바이트) 중심 타일은 256격자 디테일 링이다 | ✅ | `js/bake-worker.js`, `js/stage.js` bakeTileData·3링 |
 | E22 | 지형은 바이옴별 고주파 감쇠(매끈한 구릉)와 계단 플래토 셰이핑(트레드+라이저)을 갖는다 | ✅ | `js/terrain-gen.js` fbm detail·reliefCore terrace |
 | E23 | 나무는 로브 클럼프 + 2톤 하드 셰이딩의 스타일라이즈드 실루엣이다(가시 줄기·침엽 스파이어) | ✅ | `js/vegetation.js` treeSplats·coniferSplats·toonShade |
+| E24 | 파장 수십 m 매크로 층(산맥·구릉·계곡, 비대칭 셰이핑)이 큰 지형을 만들고 시작 카메라는 육지를 찾아 스폰한다 | ✅ | `js/terrain-gen.js` reliefCore macro, `js/env-app.js` 나선 탐색 |
 
 ## 현재 작업 상태
 
