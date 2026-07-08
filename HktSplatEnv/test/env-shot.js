@@ -32,7 +32,7 @@ const W = 768, H = 640;
 		// 앱(env-app)과 같은 경로: temperate 프리셋(mood=하늘 돔·구름 포함) + 시드
 		const genome = window.HktGenesisTerrainGen.preset('temperate');
 		genome.mood.cloud = 0.45;
-		HktGenesisStage.startTileWorld(Object.assign(genome, { seed: cm.seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48 } }));
+		HktGenesisStage.startTileWorld(Object.assign(genome, { seed: cm.seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 192, farG: 48 } }));
 	}, { seed: SEED });
 	const orbit = (cm) => ({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye });
 	for (let k = 0; k < 12; k++) {

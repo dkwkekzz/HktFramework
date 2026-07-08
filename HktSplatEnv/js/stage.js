@@ -45,6 +45,11 @@ let tileCenterKey = null;        // 현재 중심 타일 — 바뀔 때만 링 �
 let vegExclude = null;           // W-Q2c: 시뮬 승격된 스폰 key Set — Bake 식생에서 제외
 let vegExcludeSig = '';          // 위 집합의 서명(정렬 join) — 바뀔 때만 재Bake(값싼 no-op 게이트)
 
+// ── E12 볼류메트릭 구름 상태 — 큰 구름 타일(76.8m) 3×3 링, 지형 링과 독립 갱신 ──
+const cloudTiles = new Map();    // "tx,tz" -> { mesh, url }
+let cloudCenterKey = null;       // 구름 중심 타일 — 바뀔 때만 재계산
+let cloudCov = 0;                // 게놈 mood.cloud — 0 이면 볼류메트릭 구름 없음
+
 // ── T5 공용 sky/fog 톤 ────────────────────────────────────────────────────
 // Spark 스플랫은 three fog 를 지원하지 않으므로(무대 지형엔 clear 색이 곧 지평선 fog),
 // 생명(WebGPU)의 원거리 fog 와 *같은 색*을 공유해 두 층이 지평선에서 같은 톤으로 만난다.
@@ -138,13 +143,17 @@ function startTileWorld(params) {
 	vegExclude = null; vegExcludeSig = ''; // 승격 제외는 월드마다 초기화(이전 월드 key 잔류 방지)
 	tileWorld = window.HktGenesisTerrainGen.world(params);
 	tileParams = params; // 워커 전송용 — world() 와 동일 입력(결정론: 워커·폴백이 같은 바이트)
-	// E14/E21 밀도: detG 256(중심 셀 0.075m)·nearG 128(셀 0.15m)·farG 48 — LoD 예산(1.5M) 활용
-	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 128, farG: 48, splatScale: 1 }, params && params.tile);
+	// E14/E21 밀도: detG 256(중심 셀 0.075m)·nearG 192(셀 0.10m)·farG 48 — LoD 예산(1.5M) 활용.
+	// 워커 bake(192 풀 조명 ≈ 380ms/타일)가 잭을 흡수하고, 교체는 홀 없는 지연 교체라 팬이 매끈하다.
+	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 192, farG: 48, splatScale: 1 }, params && params.tile);
 	// T5/W6 공용 sky/fog — 게놈 mood(있으면 하늘 돔+fog) 또는 기본 톤. fog end 는 far 링 반경에
 	// 맞춰 지평선에서 소실(mood 가 명시 안 하면 기본값). mood.skyTop/skyHorizon 이 있으면 하늘 돔.
 	const mood = (params && params.mood) || {};
 	const farReach = tileCfg.tileSize * (tileCfg.farR + 0.5);
-	setMood(Object.assign({ fogStart: farReach * 0.55, fogEnd: farReach }, mood));
+	cloudCov = (mood.cloud || 0); // E12 볼류메트릭 구름 밀도(0 = 없음) — 돔 구름과 같은 노브
+	// 볼류메트릭이 근경 구름을 맡으면 돔 셰이더 구름(원경 배경)은 절반으로 — 이중 표현 완화
+	const domeCloud = (cloudCov > 0 && window.HktGenesisClouds) ? cloudCov * 0.5 : cloudCov;
+	setMood(Object.assign({ fogStart: farReach * 0.55, fogEnd: farReach }, mood, { cloud: domeCloud }));
 	setStatus('타일 월드 스트리밍 — 시드 ' + tileWorld.params.seed);
 }
 
@@ -152,8 +161,43 @@ function stopTileWorld() {
 	for (const t of tiles.values()) disposeTile(t);
 	tiles.clear(); tilePending.clear(); tileCenterKey = null; tileWorld = null; tileParams = null; tileCfg = null;
 	vegExclude = null; vegExcludeSig = '';
+	for (const c of cloudTiles.values()) disposeCloudTile(c);
+	cloudTiles.clear(); cloudCenterKey = null; cloudCov = 0;
 	if (skyMesh) skyMesh.visible = false;
 	setEnabled(false);
+}
+
+function disposeCloudTile(c) {
+	if (!c) return;
+	if (c.mesh) { rig.remove(c.mesh); if (c.mesh.dispose) c.mesh.dispose(); }
+	if (c.url) URL.revokeObjectURL(c.url);
+}
+
+// E12 구름 링 갱신 — 구름 타일(76.8m)이 커서 지형보다 훨씬 드물게 재계산된다. bake 는
+// 타일당 ~1ms(퍼프 수백 개)라 동기. 로드는 비동기(mesh.initialized 후 add) — 폐기 경합 가드.
+function updateClouds(wx, wz) {
+	if (!tileWorld || cloudCov <= 0.001 || !window.HktGenesisClouds) return;
+	const C = window.HktGenesisClouds.TILE;
+	const ctx = Math.floor(wx / C), ctz = Math.floor(wz / C);
+	const ck = ctx + ',' + ctz;
+	if (ck === cloudCenterKey) return;
+	cloudCenterKey = ck;
+	const want = new Set();
+	for (let dz = -1; dz <= 1; dz++)
+		for (let dx = -1; dx <= 1; dx++) want.add((ctx + dx) + ',' + (ctz + dz));
+	for (const [k, c] of cloudTiles) if (!want.has(k)) { disposeCloudTile(c); cloudTiles.delete(k); }
+	for (const k of want) {
+		if (cloudTiles.has(k)) continue;
+		const [tx, tz] = k.split(',').map(Number);
+		const bytes = window.HktGenesisClouds.bakeTile(tileWorld.params.seed, tx, tz, tileWorld.sun, cloudCov);
+		if (!bytes) { cloudTiles.set(k, { mesh: null, url: null }); continue; } // 빈 하늘도 기억(재bake 방지)
+		const url = URL.createObjectURL(new File([bytes], 'clouds.ply'));
+		const mesh = new SplatMesh({ url, fileName: 'clouds.ply', lod: false });
+		const entry = { mesh, url };
+		cloudTiles.set(k, entry);
+		mesh.initialized.then(() => { if (cloudTiles.get(k) === entry) rig.add(mesh); })
+			.catch((e) => console.error('[HktGenesisStage] 구름 타일 실패', k, e));
+	}
 }
 
 function disposeTile(t) {
@@ -440,7 +484,10 @@ function tileStats() {
 function frame(orbit, cssW, cssH) {
 	// 타일 모드면 카메라 타깃을 따라 링 갱신 (중심 타일 불변 시 즉시 반환 — 값싸다).
 	// fire-and-forget: 로드는 비동기, 다음 프레임부터 화면에 반영된다.
-	if (tileWorld && orbit && orbit.target) updateTileCenter(orbit.target[0], orbit.target[2]);
+	if (tileWorld && orbit && orbit.target) {
+		updateTileCenter(orbit.target[0], orbit.target[2]);
+		updateClouds(orbit.target[0], orbit.target[2]); // E12 볼류메트릭 구름 링 (76.8m 타일 — 드물게 갱신)
+	}
 	if (!enabled || !renderer) return;
 	const dpr = Math.min(devicePixelRatio || 1, 2);
 	const w = Math.floor(cssW * dpr), h = Math.floor(cssH * dpr);

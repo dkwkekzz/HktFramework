@@ -24,7 +24,7 @@
 		// mood(하늘 그라데이션 돔 + fog 톤)가 실려 밋밋한 flat clear 대신 하늘이 그려진다.
 		const genome = window.HktGenesisTerrainGen.preset('temperate');
 		genome.mood.cloud = 0.45; // W-Q3 절차 구름
-		S.startTileWorld(Object.assign(genome, { seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48 } }));
+		S.startTileWorld(Object.assign(genome, { seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, detG: 256, nearG: 192, farG: 48 } }));
 
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;
