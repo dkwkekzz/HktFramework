@@ -19,7 +19,7 @@ import { EnergyLedger } from '../shared/ledger.js';
 import { MSG, encode } from '../shared/protocol.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
-  PLAYER_MAX_ENERGY, SPAWN_GRANT,
+  PLAYER_MAX_ENERGY, SPAWN_GRANT, RECYCLE_INTERVAL_TICKS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -42,8 +42,10 @@ export class GameServer {
 
   // 창세: 세계의 모든 에너지는 SOURCE 에서 출발한다.
   // 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL — 이것이 보존 불변식.
+  // feature-0003: SINK(소산 저수지)도 함께 연다 — 닫힌 열역학 루프의 두 끝.
   #genesis() {
     this.ledger.createPool(POOL.SOURCE, WORLD_SOURCE_INITIAL, Number.MAX_SAFE_INTEGER, null);
+    this.ledger.createPool(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
   }
 
   // --- 원장 커밋 + tx 기록 (모든 에너지 변화는 이 함수를 지난다) ---
@@ -77,6 +79,7 @@ export class GameServer {
     conn.send(encode(MSG.WELCOME, {
       playerId: id, name: player.name, seed: WORLD_SEED, tick: this.tickCount,
       total: this.ledger.totalSum(), src: this.ledger.balance(POOL.SOURCE),
+      sink: this.ledger.balance(POOL.SINK),
       x: player.x, y: player.y, z: player.z,
     }));
     this.#tx(POOL.SOURCE, id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
@@ -123,7 +126,8 @@ export class GameServer {
 
     const { cost, debt } = moveCost(p.moveDebt, d);
     p.moveDebt = debt;
-    if (cost > 0) this.#tx(p.id, POOL.SOURCE, cost, CAUSE.MOVE, { x, y });
+    // feature-0003: 이동은 에너지를 소산(SINK)으로 흩는다 — 태양 순환이 SOURCE 로 되돌린다.
+    if (cost > 0) this.#tx(p.id, POOL.SINK, cost, CAUSE.MOVE, { x, y });
     p.x = x; p.y = y; p.z = z; p.lastBeaconMs = nowMs;
     p.regions = new Set(regionNeighbors(x, y)); // 파티션은 컬럼(x,y) — z 무관
     this.pendingMoves.set(p.id, [x, y, z]);
@@ -147,6 +151,14 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
+    // feature-0003 태양 순환 — 소산(SINK)을 주기적으로 SOURCE 로 되돌려 열역학 루프를 닫는다.
+    //   서버는 유일한 원점(태양)이되 생성기가 아니라 순환의 원점: SOURCE→생명→SINK→SOURCE.
+    //   닫힌 루프라 총합은 여전히 WORLD_SOURCE_INITIAL 불변. region=null 저수지 간 이체라
+    //   방송·체크섬 무관(무음 transfer). 이 순환이 없으면 이동이 세계를 SINK 로 말려 영속이 깨진다.
+    if (this.tickCount % RECYCLE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      const dissipated = this.ledger.balance(POOL.SINK);
+      if (dissipated > 0) this.ledger.transfer(POOL.SINK, POOL.SOURCE, dissipated, CAUSE.RECYCLE);
+    }
     this.#flush();
     this.pendingOps = [];
     this.pendingMoves.clear();
@@ -206,6 +218,7 @@ export class GameServer {
         for (const key of p.regions) regions[key] = this.ledger.regionSum(key);
         p.conn.send(encode(MSG.CHECKSUM, {
           tick: this.tickCount, total: this.ledger.totalSum(), regions,
+          src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
         }));
       }
     }

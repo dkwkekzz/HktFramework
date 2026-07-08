@@ -31,22 +31,26 @@ export const BEACON_SLACK_PX = 24;       // 속도 검증 고정 여유
 export const PLAYER_MAX_ENERGY = 1000;
 export const SPAWN_GRANT = 300;          // 스폰 시 WORLD_SOURCE 에서 인출
 
-// --- 월드 소스 (에너지 원점 — 최소 코어의 유일한 저수지) ---
-// 창세에 전 에너지가 여기 적립된다. 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL.
-// (소산 SINK·태양 순환 등 열역학 구조는 이후 feature 로 도입한다.)
+// --- 월드 소스/싱크 (닫힌 열역학 루프의 두 끝 — feature-0003) ---
+// 창세에 전 에너지가 SOURCE 에 적립된다. 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL.
+// SOURCE=태양(순환의 원점) · SINK=소산. 방출(이동 등)은 SINK 로 흩어지고, 태양 순환이
+// SINK→SOURCE 로 되돌린다 → 세계는 닫힌 루프(SOURCE→생명→SINK→SOURCE)로 영속한다.
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
+export const RECYCLE_INTERVAL_TICKS = 50;   // 5초마다 소산(SINK) 을 SOURCE 로 재순환 (태양 순환)
 
 // --- 풀 ID 접두 ---
 export const POOL = {
   PLAYER: 'P:',   // 플레이어 생체 에너지 (region=null — 좌표는 권위가 아니다)
-  SOURCE: 'W:SRC',
+  SOURCE: 'W:SRC', // 태양 — 유일한 에너지 원점(생성기 아님·순환의 원점)
+  SINK: 'W:SINK',  // 소산 — 방출된 에너지가 모이는 곳(태양 순환으로 SOURCE 복귀)
 };
 
 // --- 이체 원인 태그 ---
 export const CAUSE = {
-  SPAWN: 'spawn',   // SOURCE → 플레이어 (스폰 인출)
-  MOVE: 'move',     // 플레이어 → SOURCE (이동 지출)
-  LEAVE: 'leave',   // 플레이어 → SOURCE (접속 종료 시 잔여 환원)
+  SPAWN: 'spawn',     // SOURCE → 플레이어 (스폰 인출)
+  MOVE: 'move',       // 플레이어 → SINK (이동 소산)
+  LEAVE: 'leave',     // 플레이어 → SOURCE (접속 종료 시 잔여 환원)
+  RECYCLE: 'recycle', // SINK → SOURCE (태양 순환 — 닫힌 루프)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

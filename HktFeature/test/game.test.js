@@ -59,13 +59,15 @@ test('접속·스폰 — SOURCE→플레이어 인출도 원장 이체 (보존 �
   assert.equal(total(), WORLD_SOURCE_INITIAL, '스폰 후 총합 불변');
 });
 
-test('이동 — 비콘 이동은 player→SOURCE 지출 이체 (보존 유지)', () => {
+test('이동 — 비콘 이동은 player→SINK 소산 이체 (보존 유지, feature-0003)', () => {
   const { game, join, warp, total } = setup();
   const a = join('A');
   const before = game.ledger.balance(a.player.id);
-  // 스폰(1000,1000,500)에서 500px 이동 → 비용 floor(500/50)=10
+  const sinkBefore = game.ledger.balance(POOL.SINK);
+  // 스폰(1000,1000,500)에서 500px 이동 → 비용 floor(500/50)=10, SINK 로 소산
   warp(a.player, SPAWN_POS.x + 500, SPAWN_POS.y, SPAWN_POS.z);
   assert.equal(game.ledger.balance(a.player.id), before - 10, '이동 비용 = 거리/50');
+  assert.equal(game.ledger.balance(POOL.SINK), sinkBefore + 10, '소산분은 SINK 로');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이동 후 총합 불변');
 });
 
@@ -122,8 +124,8 @@ test('무작위 이동 폭풍 — 다수 플레이어가 배회해도 총합 불
     if (step % 10 === 0) game.tick();
   }
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이동 폭풍 후 총합 불변');
-  // 이동 지출은 전부 SOURCE 로 돌아간다 — 자유 에너지 + SOURCE = 창세 총량
+  // 에너지는 세 곳에만 있다: 자유(플레이어) + 태양(SOURCE) + 소실(SINK) = 창세 총량
   let free = 0;
   for (const p of players) free += game.ledger.balance(p.id);
-  assert.equal(free + game.ledger.balance(POOL.SOURCE), WORLD_SOURCE_INITIAL);
+  assert.equal(free + game.ledger.balance(POOL.SOURCE) + game.ledger.balance(POOL.SINK), WORLD_SOURCE_INITIAL);
 });

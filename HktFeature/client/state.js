@@ -19,6 +19,8 @@ export class ClientState {
     this.entities = new Map();  // id -> { id, kind, x, y, z, tx, ty, tz, name, max } (표시용)
     this.txFeed = [];           // 최근 tx 표시용
     this.worldTotal = 0;        // 서버가 선언한 전 풀 합계 — 보존 불변식의 전시
+    this.worldSrc = 0;          // SOURCE(태양) 잔고 — feature-0003 닫힌 루프 전시
+    this.worldSink = 0;         // SINK(소산) 잔고 — 이동으로 차오르고 태양 순환에 비워진다
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -41,9 +43,15 @@ export class ClientState {
     this.playerId = msg.playerId;
     this.myName = msg.name;
     this.worldTotal = msg.total;
+    this.worldSrc = msg.src;
+    this.worldSink = msg.sink ?? 0;
     // 잔고 0 기준점 — 스폰 인출은 곧 도착할 tx 가 채운다
     this.ledger.mirrorSet(this.playerId, 0, PLAYER_MAX_ENERGY, null);
-    this.ledger.mirrorSet(POOL.SOURCE, msg.src, Number.MAX_SAFE_INTEGER, null);
+    // SOURCE/SINK 는 서버 내부 저수지 — 무한 저수지로 물질화해 관련 tx 재생이 정확하게 한다
+    // (region=null → 체크섬 무관, 잔고 오차 무해). 전시값은 worldSrc/worldSink 를 쓴다.
+    //   SOURCE 는 내주는 쪽 → 잔고 가득(줄 수 있게) · SINK 는 받는 쪽 → 잔고 0·무한 수용(받을 수 있게).
+    this.ledger.mirrorSet(POOL.SOURCE, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
+    this.ledger.mirrorSet(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
     this.onTeleport?.(msg);
   }
 
@@ -77,7 +85,7 @@ export class ClientState {
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
       if (id === POOL.SOURCE) this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
-      else if (id.startsWith(POOL.PLAYER)) this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
+      else if (id === POOL.SINK || id.startsWith(POOL.PLAYER)) this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
     }
     this.ledger.applyTx(tx);
     this.txFeed.push(tx);
@@ -92,6 +100,8 @@ export class ClientState {
 
   #onChecksum(msg) {
     this.worldTotal = msg.total;
+    if (msg.src !== undefined) this.worldSrc = msg.src;
+    if (msg.sink !== undefined) this.worldSink = msg.sink;
     const bad = [];
     for (const [key, sum] of Object.entries(msg.regions)) {
       if (this.ledger.regionSum(key) !== sum) bad.push(key);

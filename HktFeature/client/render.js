@@ -9,11 +9,12 @@
 
 import { WORLD_SIZE, REGION_SIZE, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', leave: '환원' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', leave: '환원', recycle: '순환' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
-  if (id === POOL.SOURCE) return '세계';
+  if (id === POOL.SOURCE) return '태양';
+  if (id === POOL.SINK) return '소실';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -199,18 +200,21 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 우상: 보존 불변식 전시 + 네트워크 계측
+    // 우상: 보존 불변식 + 닫힌 열역학 루프(태양·소실) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 76);
+    ctx.fillRect(w - 265, 10, 255, 92);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
     ctx.fillStyle = '#9db2c4';
     ctx.fillText(`(창세 이후 불변 = 보존 법칙)`, w - 255, 44);
+    // feature-0003: 소실(SINK)이 이동으로 차오르고 태양 순환에 비워진다 → 닫힌 루프
+    ctx.fillStyle = '#e0b34e';
+    ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  소실 ${state.worldSink.toLocaleString()}`, w - 255, 60);
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 60);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 76);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 76);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 92);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';

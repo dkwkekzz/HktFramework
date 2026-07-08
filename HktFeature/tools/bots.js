@@ -96,8 +96,8 @@ setInterval(() => {
   const totalBytes = bots.reduce((s, b) => s + b.bytesInWindow, 0);
   bots.forEach(b => { b.bytesInWindow = 0; });
   const perBotPerSec = totalBytes / 5 / bots.length;
-  console.log(`[시뮬] ${line}`);   // E=자유 에너지(이동으로 소모 → SOURCE 로 환원)
-  console.log(`[원장] 세계 총 에너지 ${lead.worldTotal.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
+  console.log(`[시뮬] ${line}`);   // E=자유 에너지(이동으로 소산 → SINK → 태양 순환 → SOURCE)
+  console.log(`[원장] 세계 총 ${lead.worldTotal.toLocaleString()} · 태양 ${lead.worldSrc.toLocaleString()} · 소실 ${lead.worldSink.toLocaleString()} · 체크섬 ${lead.checksumStatus}`);
   console.log(`[대역폭] 봇 평균 수신 ${perBotPerSec.toFixed(0)} B/s`);
 }, 5000);
 
