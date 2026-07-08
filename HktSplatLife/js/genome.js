@@ -63,7 +63,8 @@
 			maxChains: 8,
 			links: { min: 1, max: 8 },
 			len: { min: 0.08, max: 1.4 },
-			radius: { min: 0.008, max: 0.16 },
+			radius: { min: 0.008, max: 0.2 }, // 얼굴 패널(넓은 슬래브)까지 수용 — 0.16 → 0.2
+
 			k: { min: 8, max: 160 },
 		},
 	};
@@ -190,15 +191,14 @@
 			//   arm = 어깨→상완뿌리 · forearm = 상완 뼈 · hand = 하완 뼈 ·
 			//   upleg = 골반 세그 · leg = 허벅지 뼈(길이 leg.l) · foot = 종아리 뼈+발(길이 foot.l).
 			// palette 램프는 뼈 축 그라데이션(a=부모 관절 쪽, b=자식 관절 쪽) — 의상 경계 표현.
-			// 비율은 레퍼런스 실측(머리 32% · 몸통 30% · 다리 38%)을 리그에 사상한 값 —
-			// 다리(leg=허벅지 뼈, foot=종아리 뼈)를 절반 가까이 줄여야 치비가 된다.
-			// 머리 공(반지름 0.12×r)의 하단은 머리 관절에서 반지름만큼 내려간다 — 목(neck.l)을
-			// 충분히 늘려야 공이 가슴에 파묻히지 않고 턱 밑에 목이 드러난다 (괴물 방지 기하).
+			// 비율은 test/genome-fit.js 자동 정합 산출값 (손실 0.690→0.612 · IoU 0.613 —
+			// 좌표 하강 3라운드 × 83회 평가, 레퍼런스 실루엣 IoU + 공간 색격자 ΔE).
+			// 목(neck.l)은 머리 공이 가슴에 파묻히지 않게 유지 (괴물 방지 기하 — STATE 얼굴 문법).
 			morph: {
-				head: { r: 1.6 }, neck: { r: 0.65, l: 1.8 },
-				torso: { r: 1.0, l: 0.9 }, shoulder: { r: 0.8 },
-				arm: { r: 0.8 }, forearm: { r: 0.7, l: 0.75 }, hand: { r: 0.65, l: 0.75 },
-				upleg: { r: 1.2 }, leg: { r: 1.1, l: 0.55 }, foot: { r: 0.85, l: 0.55 },
+				head: { r: 1.9 }, neck: { r: 0.85, l: 1.6 },
+				torso: { r: 1.0, l: 1.1 }, shoulder: { r: 0.8 },
+				arm: { r: 1.0 }, forearm: { r: 0.7, l: 0.5 }, hand: { r: 0.65, l: 0.6 },
+				upleg: { r: 1.2 }, leg: { r: 0.9, l: 0.55 }, foot: { r: 0.85, l: 0.75 },
 				appendix: { r: 1.15 },
 			},
 			palette: {
@@ -224,14 +224,16 @@
 				{ name: 'TailPony', attach: 'Head', dir: [0.42, -0.35, -0.84], links: 8, len: 0.95, r0: 0.085, r1: 0.024, k: 26, gravity: 1.4 },
 				// 얼굴 패널: 머리 중심→앞-아래로 뻗는 굵은 강체 슬래브 (group='hand' = 피부 램프).
 				// 헤어 헬멧(머리 공) 앞면을 피부로 덮는다 — 이마 위쪽은 보라로 남아 앞머리 인상.
-				{ name: 'Face', group: 'hand', attach: 'Head', dir: [0, -0.18, 0.98], links: 1, len: 0.12, r0: 0.16, r1: 0.14, k: 160, gravity: 0 },
+				// 얼굴 부속 기하는 머리 반지름(0.12×head.r)에 맞춰 조정 — head.r 이 바뀌면 재조정 필요
+				// (현재 head.r 1.9 → 헬멧 표면 0.228: 패널 표면 0.27, 눈 끝 0.29).
+				{ name: 'Face', group: 'hand', attach: 'Head', dir: [0, -0.18, 0.98], links: 1, len: 0.1, r0: 0.19, r1: 0.17, k: 160, gravity: 0 },
 				// 좌우 앞머리: 관자놀이에서 얼굴 옆선을 따라 흘러내리는 가는 가닥
-				{ name: 'EarBangL', attach: 'Head', dir: [0.7, -0.05, 0.5], links: 3, len: 0.26, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
-				{ name: 'EarBangR', attach: 'Head', dir: [-0.7, -0.05, 0.5], links: 3, len: 0.26, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
+				{ name: 'EarBangL', attach: 'Head', dir: [0.82, -0.12, 0.35], links: 3, len: 0.24, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
+				{ name: 'EarBangR', attach: 'Head', dir: [-0.82, -0.12, 0.35], links: 3, len: 0.24, r0: 0.034, r1: 0.012, k: 120, gravity: 0.4 },
 				// 눈: 머리 중심→얼굴 표면으로 뻗는 짧은 강체 스포크 — 몸통(가는 축)은 공 내부에
 				// 숨고 끝(r1)만 얼굴 패널 표면에 드러나 어두운 눈이 된다 ('other' 그룹 색).
-				{ name: 'EyeL', attach: 'Head', dir: [0.42, -0.18, 0.88], links: 1, len: 0.22, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
-				{ name: 'EyeR', attach: 'Head', dir: [-0.42, -0.18, 0.88], links: 1, len: 0.22, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
+				{ name: 'EyeL', attach: 'Head', dir: [0.42, -0.18, 0.88], links: 1, len: 0.24, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
+				{ name: 'EyeR', attach: 'Head', dir: [-0.42, -0.18, 0.88], links: 1, len: 0.24, r0: 0.012, r1: 0.05, k: 160, gravity: 0 },
 			],
 			// 스펙·림 과다는 피부를 백화시키고, 신축 과다는 표면을 보풀로 세운다 — 무광·저신축
 			matter: { size: 0.032, stretch: 0.25, opacity: 1, luminosity: 0, spec: 0.15, specPow: 30, rim: 0.1, wrap: 0.6 },
