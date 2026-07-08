@@ -17,6 +17,9 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 플러그인 외 독립 트랙:
 - [HktLedgerWeb/CLAUDE.md](HktLedgerWeb/CLAUDE.md) — 에너지 원장 동기화 MMORPG 웹 프로토타입 (UE 빌드·타 플러그인과 무관).
 - [HktFeature/CLAUDE.md](HktFeature/CLAUDE.md) — 오픈월드 MMORPG 규칙을 feature 단위로 정의·시뮬레이션하는 웹 트랙 (원장 엔진 기반, UE 빌드·타 플러그인과 무관).
+- [HktSplatGenesis/CLAUDE.md](HktSplatGenesis/CLAUDE.md) — 절차적/창발 3DGS 실험장 (무대=Spark 환경 + 생명=WebGPU 캐릭터 2층 합성; UE 빌드·타 플러그인과 무관).
+- [HktSplatLife/CLAUDE.md](HktSplatLife/CLAUDE.md) — HktSplatGenesis 의 **생명(캐릭터=동적)** 자립 분리판 (WebGPU 전용, 무대 없음).
+- [HktSplatEnv/CLAUDE.md](HktSplatEnv/CLAUDE.md) — HktSplatGenesis 의 **환경(정적=무대)** 자립 분리판 (Spark WebGL2 전용, 생명 없음).
 
 ## Coding Conventions
 
