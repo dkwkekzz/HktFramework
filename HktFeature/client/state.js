@@ -1,47 +1,27 @@
 // ============================================================================
-// ClientState — 미러 원장 + 시야 모델 (설계 문서 §3)
+// ClientState — 미러 원장 + 시야 모델 (최소 원장 코어)
 //
 // 클라이언트가 아는 "권위 상태" 는 서버가 확정한 tx 스트림뿐이다.
-// 월드 배치는 시드에서 유도하고, 시야(ENTER/LEAVE) 경계 안의 풀만 미러링하며,
-// 지역 체크섬으로 미러의 정합을 검증한다. 불일치 = 그 지역만 재동기화.
+// 시야(ENTER/LEAVE) 경계 안의 풀만 미러링하며, 지역 체크섬으로 미러의
+// 정합을 검증한다. 불일치 = 그 지역만 재동기화(RESYNC).
+//
+// 게임플레이(인벤토리·예측·이벤트)는 여기 없다 — feature 로 얹는다.
 // ============================================================================
 
 import { EnergyLedger } from '../shared/ledger.js';
-import { generateWorld, generateFieldRichness } from '../shared/worldgen.js';
-import { fieldCellOf } from '../shared/field.js';
-import {
-  POOL, PLAYER_MAX_ENERGY, CRYSTAL_COST, WEAPON_COST, FIELD_CELL_SIZE, regionKey,
-} from '../shared/constants.js';
+import { POOL, PLAYER_MAX_ENERGY, regionKey } from '../shared/constants.js';
 
 export class ClientState {
   constructor() {
     this.playerId = null;
     this.myName = '';
     this.ledger = new EnergyLedger();
-    this.entities = new Map();  // id -> { id, kind, x, y, tx, ty, name?, itemType? } (표시용)
-    this.inventory = new Map(); // id -> { itemType, mat }  (mat: A8-1 재료 종류 라벨·무타입이면 null)
-    this.pending = new Map();   // iid -> { delta } 낙관 예측 (서버 tx/reject 로 해소)
-    this.nodesById = new Map();
-    this.mobsById = new Map();
+    this.entities = new Map();  // id -> { id, kind, x, y, z, tx, ty, tz, name, max } (표시용)
     this.txFeed = [];           // 최근 tx 표시용
     this.worldTotal = 0;        // 서버가 선언한 전 풀 합계 — 보존 불변식의 전시
     this.checksumStatus = 'WAIT';
-    this.dead = false;
     this.onResync = null;       // (regionKeys) => void
-    this.onTeleport = null;     // ({x,y}) => void
-  }
-
-  // 표시용 에너지 = 미러 잔고 + 미확정 예측 (서버 확정 시 자연 수렴)
-  displayEnergy() {
-    let e = this.ledger.balance(this.playerId);
-    for (const p of this.pending.values()) e += p.delta;
-    return Math.max(0, Math.min(PLAYER_MAX_ENERGY, e));
-  }
-
-  predict(iid, delta) {
-    this.pending.set(iid, { delta, at: performance.now() });
-    // 서버 응답 유실 대비 — 2초 지나면 예측 파기 (권위는 어차피 원장)
-    setTimeout(() => this.pending.delete(iid), 2000);
+    this.onTeleport = null;     // ({x,y,z}) => void
   }
 
   handle(msg) {
@@ -54,7 +34,6 @@ export class ClientState {
       case 'checksum': return this.#onChecksum(msg);
       case 'snapshot': return this.#onSnapshot(msg);
       case 'teleport': return this.onTeleport?.(msg);
-      case 'reject': return this.pending.delete(msg.iid);
     }
   }
 
@@ -65,31 +44,16 @@ export class ClientState {
     // 잔고 0 기준점 — 스폰 인출은 곧 도착할 tx 가 채운다
     this.ledger.mirrorSet(this.playerId, 0, PLAYER_MAX_ENERGY, null);
     this.ledger.mirrorSet(POOL.SOURCE, msg.src, Number.MAX_SAFE_INTEGER, null);
-    this.ledger.mirrorSet(POOL.SINK, msg.sink, Number.MAX_SAFE_INTEGER, null);
-    const world = generateWorld(msg.seed);
-    // A7-2: 노드 풍요도(영토 가치)를 시드에서 유도 — 서버와 동일 함수(동기화 아님, 시드만 공유)
-    const richness = generateFieldRichness(msg.seed);
-    for (const n of world.nodes) {
-      const c = fieldCellOf(n.x, n.y, FIELD_CELL_SIZE);
-      this.nodesById.set(n.id, { ...n, richness: richness.get(`${c.cx}_${c.cy}`) ?? 1 });
-    }
-    for (const m of world.mobs) this.mobsById.set(m.id, m);
     this.onTeleport?.(msg);
   }
 
   #onEnter(msg) {
     for (const e of msg.entities) {
-      let x = e.x, y = e.y, z = e.z, max = e.max, richness = 1;
-      if (e.kind === 'node') ({ x, y, z, max, richness } = this.nodesById.get(e.id)); // 배치·풍요도는 시드 유도
-      if (e.kind === 'mob') ({ x, y, z, max } = this.mobsById.get(e.id));
-      const region = e.kind === 'player' ? null : regionKey(x, y); // 파티션은 컬럼(x,y)
-      this.ledger.mirrorSet(e.id, e.balance, max, region);
+      this.ledger.mirrorSet(e.id, e.balance, e.max, null); // 플레이어 풀은 region=null
       this.entities.set(e.id, {
-        id: e.id, kind: e.kind, x, y, z, tx: x, ty: y, tz: z,
-        name: e.name, itemType: e.itemType, mat: e.mat ?? null, max, richness,
+        id: e.id, kind: e.kind, x: e.x, y: e.y, z: e.z, tx: e.x, ty: e.y, tz: e.z,
+        name: e.name, max: e.max,
       });
-      // 내 인벤토리 아이템이 땅에 나타났다 = 드랍(사망 포함)된 것
-      if (this.inventory.has(e.id)) this.inventory.delete(e.id);
     }
   }
 
@@ -100,63 +64,23 @@ export class ClientState {
     }
   }
 
-  // tx 와 사실 이벤트를 서버가 커밋한 인과 순서 그대로 재생한다
+  // tx 를 서버가 커밋한 인과 순서 그대로 재생한다
   #onOps(msg) {
-    for (const op of msg.ops) {
-      if (op.op === 'tx') this.#applyTx(op);
-      else this.#applyEvent(op);
-    }
+    for (const op of msg.ops) if (op.op === 'tx') this.#applyTx(op);
     if (this.txFeed.length > 8) this.txFeed.splice(0, this.txFeed.length - 8);
   }
 
   #applyTx(tx) {
-    if (tx.iid) this.pending.delete(tx.iid); // 예측 → 확정 치환
-    // 시야 밖 액터의 무지역 풀(플레이어·타인 인벤토리)은 잔고 0 으로 물질화한다.
+    // 시야 밖 액터의 무지역 풀(플레이어·SOURCE)은 잔고 0 으로 물질화한다.
     // 무지역 풀은 체크섬 대상이 아니라 오차가 무해하고(ENTER 가 오면 정정),
-    // 덕분에 시야 "안" 의 지역 풀(노드·몬스터) 쪽 절반이 유실되지 않는다 —
-    // 예: 내 시야 경계 밖 플레이어가 시야 안 노드를 채집하는 경우.
+    // 관련 tx 재생만 정확하면 내 풀 쪽 절반이 유실되지 않는다.
     for (const id of [tx.from, tx.to]) {
       if (this.ledger.get(id)) continue;
-      if (id.startsWith(POOL.PLAYER) || id.startsWith(POOL.ITEM) || id.startsWith(POOL.STRUCT) || id.startsWith(POOL.STASH)) {
-        // 무지역 액터 풀(플레이어·아이템·구조 A6-2·재료 창고 A8-1) — 빈 채로 물질화(무한 수용).
-        // 구조·창고 풀은 체크섬 무관(region=null)이라 잔고 오차 무해, 관련 tx 재생만 정확하면 된다.
-        this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
-      } else if (id.startsWith(POOL.CELL)) {
-        // 필드 셀은 서버 내부 저수지(SOURCE/SINK 급) — 클라는 잔고를 추적하지 않는다.
-        // 무한 저수지로 물질화해 셀→노드 재충전 tx 재생 시 노드가 전액을 받게 한다
-        // (region=null → 체크섬 무관, 셀 쪽 잔고 오차는 무해).
-        this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
-      }
+      if (id === POOL.SOURCE) this.ledger.mirrorSet(id, Number.MAX_SAFE_INTEGER, Number.MAX_SAFE_INTEGER, null);
+      else if (id.startsWith(POOL.PLAYER)) this.ledger.mirrorSet(id, 0, Number.MAX_SAFE_INTEGER, null);
     }
-    this.ledger.applyTx(tx); // 지역 풀 끝단이 시야 밖인 tx 는 skip — 체크섬이 잡는다
+    this.ledger.applyTx(tx);
     this.txFeed.push(tx);
-  }
-
-  #applyEvent(ev) {
-    switch (ev.kind) {
-      case 'item-spawn': {
-        // A8-1: 합성 아이템은 용량(max)이 레시피에서 나오므로 서버가 실어 준다(무기/결정 상수 폴백).
-        const max = ev.max ?? (ev.itemType === 'weapon' ? WEAPON_COST : CRYSTAL_COST);
-        this.ledger.mirrorSet(ev.id, 0, max, null);
-        this.inventory.set(ev.id, { itemType: ev.itemType, mat: ev.mat ?? null });
-        break;
-      }
-      case 'pickup':
-        this.ledger.mirrorSet(ev.id, ev.balance, ev.max, null);
-        this.inventory.set(ev.id, { itemType: ev.itemType, mat: ev.mat ?? null });
-        this.entities.delete(ev.id);
-        break;
-      case 'item-gone':
-        this.inventory.delete(ev.id);
-        this.ledger.forget(ev.id);
-        break;
-      case 'death':
-        if (ev.id === this.playerId) this.dead = true;
-        break;
-      case 'respawn':
-        if (ev.id === this.playerId) this.dead = false;
-        break;
-    }
   }
 
   #onPos(msg) {

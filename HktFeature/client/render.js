@@ -2,30 +2,18 @@
 // Render — 3D 원근 투영 시각화 (Canvas 2D 위 소프트웨어 카메라, 외부 의존 0).
 // 원장 미러를 읽기만 한다 (쓰기 금지). z 는 높이(up), x·y 는 지면.
 // 카메라: 플레이어를 도는 orbit(드래그=회전, 휠=줌). HUD 는 화면공간 유지.
+//
+// 최소 코어 뷰어 — 플레이어와 원장 총합(보존)·체크섬·tx 스트림만 전시한다.
+// 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import {
-  WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, PLAYER_MAX_ENERGY,
-  GATHER_RANGE, ATTACK_RANGE, POOL, ORGANS, FIELD_RICH_MAX,
-} from '../shared/constants.js';
+import { WORLD_SIZE, REGION_SIZE, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
 
-const CAUSE_LABEL = {
-  'gather': '채집', 'leech': '흡수', 'burn': '피해', 'move': '이동',
-  'atk-cost': '시전', 'condense': '응축', 'dissolve': '용해',
-  'wear': '내구', 'regen': '재생', 'spawn': '스폰', 'death-drop': '소멸', 'diffuse': '확산',
-  'upkeep': '대사', 'recycle': '순환', 'grow': '성장', 'catabolism': '이화', 'give': '증여',
-  'mine': '채굴', 'forge': '합성', 'decay': '소산',
-};
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', leave: '환원' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
   if (id === POOL.SOURCE) return '세계';
-  if (id === POOL.SINK) return '소실';
-  if (id.startsWith(POOL.NODE)) return '노드';
-  if (id.startsWith(POOL.MOB)) return '몬스터';
-  if (id.startsWith(POOL.ITEM)) return '아이템';
-  if (id.startsWith(POOL.CELL)) return '필드';
-  if (id.startsWith(POOL.STRUCT)) return '구조';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -64,12 +52,10 @@ export class Render {
   #camera() {
     const { sim } = this;
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
-    // 카메라→타깃 방향 (내려다봄): 수평 cp, 수직 -sp
     const fwd = [cp * Math.cos(this.yaw), cp * Math.sin(this.yaw), -sp];
     const target = [sim.x, sim.y, sim.z + 20];
     const pos = [target[0] - fwd[0] * this.dist, target[1] - fwd[1] * this.dist, target[2] - fwd[2] * this.dist];
-    // right = fwd × up0, up = right × fwd  (up0 = z축)
-    const rx = fwd[1] * 1 - fwd[2] * 0, ry = fwd[2] * 0 - fwd[0] * 1, rz = fwd[0] * 0 - fwd[1] * 0;
+    const rx = fwd[1], ry = -fwd[0], rz = 0;
     const rl = Math.hypot(rx, ry, rz) || 1;
     const right = [rx / rl, ry / rl, rz / rl];
     const up = [
@@ -80,7 +66,6 @@ export class Render {
     return { pos, right, up, fwd };
   }
 
-  // 월드점 → 카메라 좌표 [right, up, forward(depth)]
   #toCam(cam, x, y, z) {
     const rx = x - cam.pos[0], ry = y - cam.pos[1], rz = z - cam.pos[2];
     return [
@@ -90,7 +75,6 @@ export class Render {
     ];
   }
 
-  // 카메라 좌표 → 화면. depth ≤ near 면 null.
   #project(c) {
     if (c[2] <= 1) return null;
     return { sx: this.w / 2 + (c[0] / c[2]) * this.focal, sy: this.h / 2 - (c[1] / c[2]) * this.focal, f: c[2] };
@@ -128,13 +112,7 @@ export class Render {
       this.#seg(cam, 0, g, 0, WORLD_SIZE, g, 0);
     }
 
-    // 사거리 링 (플레이어 z 평면 위 원)
-    if (!state.dead) {
-      this.#ring(cam, this.sim.x, this.sim.y, this.sim.z, GATHER_RANGE, 'rgba(120,220,140,0.25)');
-      this.#ring(cam, this.sim.x, this.sim.y, this.sim.z, ATTACK_RANGE, 'rgba(240,110,110,0.18)');
-    }
-
-    // 엔티티 — 자신 포함, 깊이순(먼 것 먼저)
+    // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
     for (const e of state.entities.values()) {
       const c = this.#toCam(cam, e.x, e.y, e.z);
@@ -150,14 +128,6 @@ export class Render {
     }
 
     this.#hud();
-    if (state.dead) {
-      ctx.fillStyle = 'rgba(0,0,0,0.55)';
-      ctx.fillRect(0, 0, w, h);
-      ctx.fillStyle = '#f2b8b8';
-      ctx.font = 'bold 26px sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('에너지 고갈 — 사망. 잠시 후 리스폰…', w / 2, h / 2);
-    }
   }
 
   // 높이 스틱 — 엔티티에서 지면(z=0)까지 수선 (고도 가독성)
@@ -171,64 +141,26 @@ export class Render {
     if (g) { ctx.fillStyle = 'rgba(0,0,0,0.35)'; ctx.beginPath(); ctx.ellipse(g.sx, g.sy, 5, 2.5, 0, 0, 7); ctx.fill(); }
   }
 
-  #ring(cam, x, y, z, r, color) {
-    const { ctx } = this;
-    ctx.strokeStyle = color; ctx.lineWidth = 1;
-    let prev = null, first = null;
-    for (let i = 0; i <= 24; i++) {
-      const a = (i / 24) * Math.PI * 2;
-      const p = this.#pt(cam, x + Math.cos(a) * r, y + Math.sin(a) * r, z);
-      if (p && prev) { ctx.beginPath(); ctx.moveTo(prev.sx, prev.sy); ctx.lineTo(p.sx, p.sy); ctx.stroke(); }
-      prev = p; if (i === 0) first = p;
-    }
-  }
-
   #drawEntity(cam, e, depth) {
     const { ctx } = this;
     const p = this.#pt(cam, e.x, e.y, e.z);
     if (!p) return;
     const scale = this.focal / depth;
     const bal = this.state.ledger.balance(e.id);
-
-    if (e.kind === 'node') {
-      // A7-2 영토 가치: 풍요도로 색을 물들인다 — 빈곤=초록, 부유=금빛(재충전 빠른 옥토).
-      const rr = ((e.richness ?? 1) - 1) / Math.max(1, FIELD_RICH_MAX - 1);
-      const cr = Math.round(90 + rr * 150), cg = Math.round(210 - rr * 12), cb = Math.round(120 - rr * 45);
-      this.#stick(cam, e.x, e.y, e.z, `rgba(${cr},${cg},${cb},0.4)`);
-      const r = (5 + 13 * (bal / e.max)) * scale;
-      ctx.fillStyle = `rgba(${cr},${cg},${cb},${0.25 + 0.6 * (bal / e.max)})`;
-      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(2, r), 0, 7); ctx.fill();
-      this.#label(p.sx, p.sy - r - 4, `${bal} ×${e.richness ?? 1}`, `rgb(${cr},${cg},${cb})`, scale);
-    } else if (e.kind === 'mob') {
-      this.#stick(cam, e.x, e.y, e.z, 'rgba(217,95,95,0.4)');
-      const s = 18 * scale;
-      ctx.fillStyle = '#d95f5f';
-      ctx.fillRect(p.sx - s / 2, p.sy - s / 2, s, s);
-      this.#bar(p.sx, p.sy - s / 2 - 6, 26 * scale, bal / e.max, '#e08888');
-    } else if (e.kind === 'item') {
-      this.#stick(cam, e.x, e.y, e.z, 'rgba(200,180,120,0.4)');
-      const s = 12 * scale;
-      ctx.save(); ctx.translate(p.sx, p.sy); ctx.rotate(Math.PI / 4);
-      ctx.fillStyle = e.itemType === 'weapon' ? '#e0b34e' : '#7ec8e8';
-      ctx.fillRect(-s / 2, -s / 2, s, s);
-      ctx.restore();
-      this.#label(p.sx, p.sy - s - 4, `${e.itemType === 'weapon' ? '무기' : '결정'} ${bal}`, '#cfe3ef', scale);
-    } else if (e.kind === 'player') {
-      this.#stick(cam, e.x, e.y, e.z, 'rgba(90,167,217,0.4)');
-      ctx.fillStyle = '#5aa7d9';
-      ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(3, 10 * scale), 0, 7); ctx.fill();
-      this.#bar(p.sx, p.sy - 12 * scale, 30 * scale, bal / PLAYER_MAX_ENERGY, '#7ec3ea');
-      this.#label(p.sx, p.sy - 20 * scale, e.name ?? '', '#bcd8ea', scale);
-    }
+    this.#stick(cam, e.x, e.y, e.z, 'rgba(90,167,217,0.4)');
+    ctx.fillStyle = '#5aa7d9';
+    ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(3, 10 * scale), 0, 7); ctx.fill();
+    this.#bar(p.sx, p.sy - 12 * scale, 30 * scale, bal / PLAYER_MAX_ENERGY, '#7ec3ea');
+    this.#label(p.sx, p.sy - 20 * scale, e.name ?? '', '#bcd8ea', scale);
   }
 
   #drawSelf(cam) {
-    const { ctx, sim, state } = this;
+    const { ctx, sim } = this;
     this.#stick(cam, sim.x, sim.y, sim.z, 'rgba(255,215,110,0.5)');
     const p = this.#pt(cam, sim.x, sim.y, sim.z);
     if (!p) return;
     const scale = this.focal / this.#toCam(cam, sim.x, sim.y, sim.z)[2];
-    ctx.fillStyle = state.dead ? '#555' : '#f0f4f8';
+    ctx.fillStyle = '#f0f4f8';
     ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(4, 11 * scale), 0, 7); ctx.fill();
     ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
     ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(6, 14 * scale), 0, 7); ctx.stroke();
@@ -256,48 +188,16 @@ export class Render {
     const { ctx, w, state, net, sim } = this;
     ctx.textAlign = 'left';
 
-    // 좌상: 내 에너지 + 고도 + 구조(조직) + 인벤토리
-    const energy = state.displayEnergy();
-    // A7-1: 조직별 구조 잔고 (빌드) — 시야와 무관한 내 무지역 풀, 미러 재생으로 추적
-    const sAtk = state.ledger.balance(POOL.STRUCT + state.playerId + '#atk');
-    const sMeta = state.ledger.balance(POOL.STRUCT + state.playerId + '#meta');
-    // A8-1: 내 재료 창고(종류별 G:me#mat) — 채굴로 쌓이고, 합성으로 소진된다.
-    const stashes = [];
-    const sPrefix = POOL.STASH + state.playerId + '#';
-    for (const [id, pool] of state.ledger.pools) {
-      if (id.startsWith(sPrefix) && pool.balance > 0) stashes.push([id.slice(sPrefix.length), pool.balance]);
-    }
-    const rows = state.inventory.size + (stashes.length ? stashes.length + 1 : 0);
+    // 좌상: 내 에너지 + 고도
+    const energy = state.ledger.balance(state.playerId);
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(10, 10, 270, 86 + rows * 16);
+    ctx.fillRect(10, 10, 270, 56);
     ctx.fillStyle = '#e8eef4';
     ctx.font = 'bold 13px sans-serif';
     ctx.fillText(`${state.myName}  에너지 ${energy} / ${PLAYER_MAX_ENERGY}  ·  고도 ${Math.round(sim.z)}`, 20, 30);
-    ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 38, 250, 10);
+    ctx.fillStyle = '#2a3040'; ctx.fillRect(20, 40, 250, 10);
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
-    ctx.fillRect(20, 38, 250 * energy / PLAYER_MAX_ENERGY, 10);
-    // 구조(성장) — 조직별. 굶으면 이화로 줄고, 예치로 는다.
-    ctx.font = '12px sans-serif';
-    ctx.fillStyle = '#e0b34e';
-    ctx.fillText(`구조 🗡발산 ${sAtk}`, 20, 62);
-    ctx.fillStyle = '#7fd08c';
-    ctx.fillText(`🌿대사 ${sMeta}`, 150, 62);
-    ctx.fillStyle = '#9db2c4';
-    let iy = 82;
-    ctx.fillText(`인벤토리 (${state.inventory.size})`, 20, iy);
-    for (const [id, item] of state.inventory) {
-      iy += 16;
-      const bal = state.ledger.balance(id); // A9-2/A9-4: 잔고는 시간이 지나며 소산(누수)한다
-      const label = item.itemType === 'weapon' ? '무기(내구' : '결정(에너지';
-      ctx.fillText(`· ${item.mat ? item.mat + ' ' : ''}${label} ${bal})`, 26, iy);
-    }
-    // A8-1: 재료 창고 (채굴로 쌓임 → 합성 재료). 종류별 라벨 = 원장 밖 정체성.
-    if (stashes.length) {
-      iy += 16;
-      ctx.fillStyle = '#c9a86a';
-      ctx.fillText(`재료 창고`, 20, iy);
-      for (const [mat, bal] of stashes) { iy += 16; ctx.fillText(`· ${mat} ${bal}`, 26, iy); }
-    }
+    ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
     // 우상: 보존 불변식 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
@@ -332,7 +232,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · R/F 상하 · E 채집 · M 채굴/N 합성 · Space 공격 · Q/Z 스킬 · G/H 성장 · T 증여 · C 결정/B 무기/V 용해/X 드랍', w - 14, this.h - 12);
+    ctx.fillText('WASD 이동 · R/F 상하 · 드래그 회전 · 휠 줌', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }
