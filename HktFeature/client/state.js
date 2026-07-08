@@ -22,7 +22,7 @@ export class ClientState {
     this.worldSrc = 0;          // SOURCE(태양) 잔고 — 저엔트로피 원천 (feature-0004)
     this.worldSink = 0;         // SINK(심우주) 잔고 — 복사로 새어나간 손실, 단조 증가
     this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
-    this.field = new Map();     // "cx_cy" -> 국소장 잔고 (그리드 스냅샷, 확산 시각화 — 읽기 전용)
+    this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -104,9 +104,9 @@ export class ClientState {
     }
   }
 
-  // 국소장 그리드 스냅샷 — 렌더가 지면 히트맵으로 읽는다(권위 아님, 표시용).
+  // 국소장 3D 복셀 스냅샷 — 렌더가 볼류메트릭 글로우로 읽는다(권위 아님, 표시용).
   #onField(msg) {
-    for (const [cx, cy, balance] of msg.cells) this.field.set(`${cx}_${cy}`, balance);
+    for (const [cx, cy, cz, balance] of msg.cells) this.field.set(`${cx}_${cy}_${cz}`, balance);
   }
 
   #onChecksum(msg) {

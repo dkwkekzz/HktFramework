@@ -7,7 +7,7 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, REGION_SIZE, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
 
 const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사' };
 
@@ -106,9 +106,6 @@ export class Render {
     ctx.fillStyle = '#0a0d13';
     ctx.fillRect(0, 0, w, h);
 
-    // 국소장 히트맵 — 지면 컬럼을 농도에 따라 칠한다 (feature-0004 step2: 에너지 확산 시각화)
-    this.#fieldHeatmap(cam);
-
     // 지면(z=0) 지역 격자
     ctx.strokeStyle = '#2a3446';
     ctx.lineWidth = 1;
@@ -116,6 +113,9 @@ export class Render {
       this.#seg(cam, g, 0, 0, g, WORLD_SIZE, 0);
       this.#seg(cam, 0, g, 0, WORLD_SIZE, g, 0);
     }
+
+    // 국소장 3D 볼류메트릭 — 각 복셀을 농도에 따라 글로우로 그린다 (에너지 확산을 3D 로 시각화)
+    this.#fieldVolume(cam);
 
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
@@ -135,34 +135,49 @@ export class Render {
     this.#hud();
   }
 
-  // 국소장 히트맵 — 각 지역 컬럼을 농도(에너지)에 비례한 색으로 지면에 칠한다.
-  //   차가움(파랑, 저농도) → 뜨거움(주황·빨강, 고농도). 확산이 진행되면 뜨거운 얼룩이
-  //   이웃으로 번지고, 평형에 이르면 색이 고르게 수렴한다 — "높은 확률로 전파"를 눈으로 본다.
-  #fieldHeatmap(cam) {
-    const { ctx, state } = this;
+  // 국소장 3D 볼류메트릭 — 각 복셀의 에너지를 반투명 정육면체로 그린다(먼 것부터, painter's).
+  //   차가움(파랑, 저농도) → 뜨거움(주황·빨강, 고농도). 이동으로 뜨거운 복셀이 생기고
+  //   이웃 복셀로(수평·수직 모두) 번지며 평형으로 수렴한다 — "높은 확률로 전파"를 3D 로 본다.
+  #fieldVolume(cam) {
+    const { state } = this;
     if (state.field.size === 0) return;
     let max = 1;
     for (const v of state.field.values()) if (v > max) max = v;
-    // 먼 컬럼부터 그려 겹침을 자연스럽게 (지면 평면이라 깊이 정렬은 근사)
+    const RS = REGION_SIZE, LS = WORLD_HEIGHT / FIELD_Z_LAYERS, m = 0.14; // 셀 안쪽 여백(복셀 분리)
     const cells = [];
     for (const [key, bal] of state.field) {
-      const [cx, cy] = key.split('_').map(Number);
-      const mx = (cx + 0.5) * REGION_SIZE, my = (cy + 0.5) * REGION_SIZE;
-      cells.push({ cx, cy, bal, d: this.#toCam(cam, mx, my, 0)[2] });
+      const t = bal / max;
+      if (t < 0.05) continue; // 거의 빈 복셀은 생략(시야 정리)
+      const [cx, cy, cz] = key.split('_').map(Number);
+      const d = this.#toCam(cam, (cx + 0.5) * RS, (cy + 0.5) * RS, (cz + 0.5) * LS)[2];
+      cells.push({ cx, cy, cz, t, d });
     }
-    cells.sort((a, b) => b.d - a.d);
+    cells.sort((a, b) => b.d - a.d); // 먼 복셀 먼저 그린다
     for (const c of cells) {
-      const t = Math.min(1, c.bal / max);
-      const p0 = this.#pt(cam, c.cx * REGION_SIZE, c.cy * REGION_SIZE, 0);
-      const p1 = this.#pt(cam, (c.cx + 1) * REGION_SIZE, c.cy * REGION_SIZE, 0);
-      const p2 = this.#pt(cam, (c.cx + 1) * REGION_SIZE, (c.cy + 1) * REGION_SIZE, 0);
-      const p3 = this.#pt(cam, c.cx * REGION_SIZE, (c.cy + 1) * REGION_SIZE, 0);
-      if (!p0 || !p1 || !p2 || !p3) continue; // 카메라 뒤 컬럼은 생략(근사)
-      ctx.fillStyle = `hsla(${210 - 210 * t}, 85%, ${28 + 34 * t}%, ${0.12 + 0.55 * t})`;
+      this.#voxelCube(cam,
+        (c.cx + m) * RS, (c.cx + 1 - m) * RS,
+        (c.cy + m) * RS, (c.cy + 1 - m) * RS,
+        (c.cz + m) * LS, (c.cz + 1 - m) * LS, c.t);
+    }
+  }
+
+  #voxelCube(cam, x0, x1, y0, y1, z0, z1, t) {
+    const V = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
+               [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
+    const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
+    if (P.some(p => !p)) return; // 카메라 뒤 복셀 생략(근사)
+    const { ctx } = this;
+    const hue = 210 - 210 * t; // 파랑(저) → 빨강(고)
+    ctx.fillStyle = `hsla(${hue}, 90%, ${42 + t * 16}%, ${0.09 + 0.28 * t})`;
+    ctx.strokeStyle = `hsla(${hue}, 95%, 66%, ${0.22 + 0.45 * t})`;
+    ctx.lineWidth = 1;
+    for (const f of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [2, 3, 7, 6], [1, 2, 6, 5], [0, 3, 7, 4]]) {
       ctx.beginPath();
-      ctx.moveTo(p0.sx, p0.sy); ctx.lineTo(p1.sx, p1.sy);
-      ctx.lineTo(p2.sx, p2.sy); ctx.lineTo(p3.sx, p3.sy); ctx.closePath();
+      ctx.moveTo(P[f[0]].sx, P[f[0]].sy);
+      for (let i = 1; i < 4; i++) ctx.lineTo(P[f[i]].sx, P[f[i]].sy);
+      ctx.closePath();
       ctx.fill();
+      ctx.stroke();
     }
   }
 
@@ -250,7 +265,7 @@ export class Render {
     ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`지면색 = 국소장 농도(확산 = 엔트로픽 전파)`, w - 255, 90);
+    ctx.fillText(`글로우 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
     ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);

@@ -71,10 +71,10 @@ test('이동 — 비콘 이동은 player→국소장 소산 이체 (보존 유�
   const a = join('A');
   const before = game.ledger.balance(a.player.id);
   // 스폰(1000,1000,500)에서 500px 이동 → 비용 floor(500/50)=10, "그 자리" 국소장으로 소산
-  const dst = { x: SPAWN_POS.x + 500, y: SPAWN_POS.y };
-  warp(a.player, dst.x, dst.y, SPAWN_POS.z);
+  const dst = { x: SPAWN_POS.x + 500, y: SPAWN_POS.y, z: SPAWN_POS.z };
+  warp(a.player, dst.x, dst.y, dst.z);
   assert.equal(game.ledger.balance(a.player.id), before - 10, '이동 비용 = 거리/50');
-  assert.equal(game.ledger.balance(materialKey(dst.x, dst.y)), 10, '소산분은 도착 지역 국소장으로');
+  assert.equal(game.ledger.balance(materialKey(dst.x, dst.y, dst.z)), 10, '소산분은 도착 복셀 국소장으로');
   assert.equal(materialTotal(game), 10, '국소장 총량 = 소산분');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이동 후 총합 불변');
 });

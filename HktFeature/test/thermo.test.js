@@ -4,8 +4,8 @@
 // 직관: 에너지는 세 등급으로 흐른다 — 태양(고)→국소장(중, 흩어짐)→심우주(저, 손실).
 //   죽음/이동은 에너지를 "그 자리" 국소장으로 흩고, 국소장은 이웃으로 높은 확률로 확산해
 //   균일(평형=최대 엔트로피)로 수렴한다. 일부는 심우주로 복사돼 영영 사라진다(SINK 단조 증가).
-// 강제: 모든 흐름은 ledger.transfer(보존·정수). 태양 순환(SINK→SOURCE 텔레포트)은 삭제됐다 —
-//   소산은 태양으로 되돌아가지 않는다. 어느 순간에도 자유+태양+국소장+심우주 = 창세 총량.
+// 강제: 모든 흐름은 ledger.transfer(보존·정수). 소산은 태양으로 되돌아가지 않는다 —
+//   어느 순간에도 자유+태양+국소장+심우주 = 창세 총량.
 // ============================================================================
 
 import { test } from 'node:test';
@@ -66,19 +66,19 @@ test('엔트로픽 법칙 — 몰린 국소장이 높은 확률로 이웃으로 
   assert.equal(entropicOutProb(0, 100), 0, '저농도에서 나갈 확률 0');
   assert.equal(entropicOutProb(50, 50), 0.5, '평형에서 1/2 → 순 흐름 0');
 
-  // 통합: 한 국소장에 전부 몰아넣고 확산을 돌리면 스프레드(최대-최소)가 급감한다
+  // 통합: 한 복셀에 전부 몰아넣고 확산을 돌리면 스프레드(최대-최소)가 급감한다
   const { game, matSpread } = setup();
-  game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}0_0`, 4_000_000, 'seed'); // 한 구석에 집중
+  game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}0_0_0`, 4_000_000, 'seed'); // 한 구석 복셀에 집중
   const spread0 = matSpread();
-  for (let i = 0; i < 400; i++) game.tick();
+  for (let i = 0; i < 600; i++) game.tick();
   const spread1 = matSpread();
-  assert.ok(spread1 < spread0 * 0.2, `확산이 균일로 수렴 (${spread0} → ${spread1})`);
+  assert.ok(spread1 < spread0 * 0.25, `확산이 균일로 수렴 (${spread0} → ${spread1})`);
 });
 
 test('결정론 — 같은 시드/이벤트열이면 확산 결과가 완전히 동일하다', () => {
   const run = () => {
     const s = setup();
-    s.game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}1_1`, 3_000_000, 'seed');
+    s.game.ledger.transfer(POOL.SOURCE, `${POOL.MATERIAL}1_1_1`, 3_000_000, 'seed');
     for (let i = 0; i < 200; i++) s.game.tick();
     return s.game.materialKeys.map(id => s.bal(id));
   };

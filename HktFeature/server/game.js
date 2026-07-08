@@ -22,6 +22,7 @@ import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
   PLAYER_MAX_ENERGY, SPAWN_GRANT,
   MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
+  FIELD_Z_LAYERS,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -57,27 +58,28 @@ export class GameServer {
     this.ledger.createPool(POOL.SOURCE, WORLD_SOURCE_INITIAL, Number.MAX_SAFE_INTEGER, null);
     this.ledger.createPool(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
 
+    // 국소장은 3D 복셀 격자 — 수평 cols×cols 컬럼 × 수직 FIELD_Z_LAYERS 층.
     const cols = Math.ceil(WORLD_SIZE / REGION_SIZE); // 4x4 컬럼
-    for (let cy = 0; cy < cols; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const id = `${POOL.MATERIAL}${cx}_${cy}`;
-        this.ledger.createPool(id, 0, Number.MAX_SAFE_INTEGER, null);
-        this.materialKeys.push(id);
-        this.materialCells.push([cx, cy, id]);
-      }
-    }
-    // 4방향 인접(같은 컬럼 격자) — 엔트로픽 확산은 이웃 사이에서만 일어난다.
-    for (let cy = 0; cy < cols; cy++) {
-      for (let cx = 0; cx < cols; cx++) {
-        const id = `${POOL.MATERIAL}${cx}_${cy}`;
-        const nb = [];
-        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
-          const nx = cx + dx, ny = cy + dy;
-          if (nx >= 0 && nx < cols && ny >= 0 && ny < cols) nb.push(`${POOL.MATERIAL}${nx}_${ny}`);
+    const id = (cx, cy, cz) => `${POOL.MATERIAL}${cx}_${cy}_${cz}`;
+    for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
+      for (let cy = 0; cy < cols; cy++)
+        for (let cx = 0; cx < cols; cx++) {
+          this.ledger.createPool(id(cx, cy, cz), 0, Number.MAX_SAFE_INTEGER, null);
+          this.materialKeys.push(id(cx, cy, cz));
+          this.materialCells.push([cx, cy, cz, id(cx, cy, cz)]);
         }
-        this.materialNeighbors.set(id, nb);
-      }
-    }
+    // 6방향 인접(±x,±y,±z) — 엔트로픽 확산은 이웃 복셀 사이에서만, 수직으로도 일어난다.
+    for (let cz = 0; cz < FIELD_Z_LAYERS; cz++)
+      for (let cy = 0; cy < cols; cy++)
+        for (let cx = 0; cx < cols; cx++) {
+          const nb = [];
+          for (const [dx, dy, dz] of [[1, 0, 0], [-1, 0, 0], [0, 1, 0], [0, -1, 0], [0, 0, 1], [0, 0, -1]]) {
+            const nx = cx + dx, ny = cy + dy, nz = cz + dz;
+            if (nx >= 0 && nx < cols && ny >= 0 && ny < cols && nz >= 0 && nz < FIELD_Z_LAYERS)
+              nb.push(id(nx, ny, nz));
+          }
+          this.materialNeighbors.set(id(cx, cy, cz), nb);
+        }
   }
 
   // 국소장 총량 (전시용 — SOURCE·SINK 처럼 aggregate 로 뷰어에 싣는다)
@@ -128,9 +130,8 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    // feature-0004: 이탈 = 응집 소멸. 소지 에너지는 태양으로 돌아가지 않고 "그 자리"
-    //   국소장으로 흩어진다(거름). 시체 에너지가 태양으로 텔레포트하던 옛 경로를 대체한다.
-    this.#tx(id, materialKey(p.x, p.y), this.ledger.balance(id), CAUSE.DEATH, p);
+    // 이탈 = 응집 소멸. 소지 에너지는 그 자리 국소장 복셀로 흩어진다(거름).
+    this.#tx(id, materialKey(p.x, p.y, p.z), this.ledger.balance(id), CAUSE.DEATH, p);
     this.ledger.removePool(id);
     this.players.delete(id);
   }
@@ -166,9 +167,9 @@ export class GameServer {
 
     const { cost, debt } = moveCost(p.moveDebt, d);
     p.moveDebt = debt;
-    // feature-0004: 이동은 활동 에너지를 "그 자리" 국소장으로 흩는다(소산). 예전 player→SINK 를
-    //   대체 — 흩어진 에너지는 심우주로 곧장 사라지지 않고 국소장에 쌓여 확산·재응집의 씨앗이 된다.
-    if (cost > 0) this.#tx(p.id, materialKey(x, y), cost, CAUSE.MOVE, { x, y });
+    // 이동은 활동 에너지를 그 자리 국소장 복셀로 흩는다(소산). 국소장에 쌓인 에너지는
+    // 이웃으로 엔트로픽 확산하고 일부는 심우주로 복사돼 사라진다.
+    if (cost > 0) this.#tx(p.id, materialKey(x, y, z), cost, CAUSE.MOVE, { x, y });
     p.x = x; p.y = y; p.z = z; p.lastBeaconMs = nowMs;
     p.regions = new Set(regionNeighbors(x, y)); // 파티션은 컬럼(x,y) — z 무관
     this.pendingMoves.set(p.id, [x, y, z]);
@@ -192,10 +193,9 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
-    // feature-0004 엔트로픽 장 갱신 — 국소장의 에너지가 (a) 이웃으로 높은 확률로 흩어지고
+    // feature-0004 엔트로픽 장 갱신 — 국소장의 에너지가 (a) 이웃 복셀로 높은 확률로 흩어지고
     //   (b) 일부가 심우주로 복사돼 영영 사라진다. 둘 다 region=null 풀 간 무음 이체(방송·체크섬
-    //   무관)라 서버 내부에서만 돈다. 옛 태양 순환(SINK→SOURCE 텔레포트)은 삭제됐다 — 소산은
-    //   태양으로 되돌아가지 않고, SINK 는 단조 증가한다(엔트로피의 화살).
+    //   무관)라 서버 내부에서만 돈다. 소산은 태양으로 되돌아가지 않고 SINK 는 단조 증가한다(엔트로피의 화살).
     if (this.tickCount % MATERIAL_DIFFUSE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#diffuseMaterial();
       this.#radiateMaterial();
@@ -265,7 +265,7 @@ export class GameServer {
     // 국소장 그리드 스냅샷 — 세계 수준 표시 데이터(보존 readout 처럼 전역). 4x4 라 방송 비용이 미미하고,
     //   관전자도 세계 전역의 확산을 지도에서 본다. 원장 tx 가 아니라 읽기 전용 관측값이다(POS 와 같은 성격).
     const fieldCells = (this.tickCount % FIELD_INTERVAL_TICKS === 0)
-      ? this.materialCells.map(([cx, cy, id]) => [cx, cy, this.ledger.balance(id)])
+      ? this.materialCells.map(([cx, cy, cz, id]) => [cx, cy, cz, this.ledger.balance(id)])
       : null;
     for (const p of this.players.values()) {
       // 시야 diff → ENTER / LEAVE (원장 미러의 관측 경계)

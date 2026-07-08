@@ -34,13 +34,11 @@ export const SPAWN_GRANT = 300;          // 스폰 시 WORLD_SOURCE 에서 인�
 
 // --- 월드 소스/싱크 + 국소장 (에너지의 세 등급 — feature-0004 엔트로픽) ---
 // 창세에 전 에너지가 SOURCE 에 적립된다. 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL(보존).
-// 엔트로피는 양이 아니라 "품질/등급"의 문제다 — 에너지는 세 등급으로 흐른다:
-//   고(저엔트로피) SOURCE=태양(영원한 저엔트로피 원천, 스폰으로만 방출)
-//   중            국소장 M:<region>=흩어진 에너지가 국소에 쌓인 것(거름·재료의 씨앗, 재응집 가능)
-//   저(고엔트로피) SINK=심우주(복사로 새어나간 진짜 손실 — 되돌아오지 않는다)
-// feature-0004 이전(0003)엔 태양 순환(SINK→SOURCE)이 닫힌 루프로 영속을 샀으나, 그 텔레포트는
-// "소산이 태양으로 되돌아간다"는 물리적 거짓이라 삭제했다. 이제 흐름은 열린 흐름이다:
+// 엔트로피는 양이 아니라 "품질/등급"의 문제다 — 에너지는 열린 흐름으로 세 등급을 지난다:
 //   SOURCE → 생명 → 국소장(엔트로픽 확산으로 균일화) → (복사) → SINK.
+//   고(저엔트로피) SOURCE=태양(영원한 저엔트로피 원천, 스폰으로만 방출)
+//   중            국소장 M:<voxel>=흩어진 에너지가 국소에 쌓인 것(거름·재료의 씨앗, 재응집 가능)
+//   저(고엔트로피) SINK=심우주(복사로 새어나간 진짜 손실 — 되돌아오지 않는다)
 // SINK 는 단조 증가한다(엔트로피의 화살). 영속은 태양의 방대함이 주는 실용적 영속이다.
 export const WORLD_SOURCE_INITIAL = 1_000_000_000;
 
@@ -92,9 +90,18 @@ export function moveCost(debtPx, distPx) {
   return { cost: Math.floor(total / MOVE_COST_STRIDE_PX), debt: total % MOVE_COST_STRIDE_PX };
 }
 
-// 좌표가 속한 국소장 풀 id — 지역 컬럼(x,y)마다 M:<regionKey> 하나. (feature-0004)
-export function materialKey(x, y) {
-  return `${POOL.MATERIAL}${regionKey(x, y)}`;
+// 국소장은 3D 복셀 격자다 (feature-0004 step2) — 수평은 지역 컬럼(x,y), 수직은 z 를
+//   FIELD_Z_LAYERS 층으로 나눈다. 세계가 3D 이므로 에너지도 3D 로 흩어지고 확산한다.
+export const FIELD_Z_LAYERS = 4;         // 국소장 복셀의 수직 분할 수 (층 높이 = WORLD_HEIGHT / 이 값)
+
+export function fieldLayer(z) {
+  const h = WORLD_HEIGHT / FIELD_Z_LAYERS;
+  return Math.max(0, Math.min(FIELD_Z_LAYERS - 1, Math.floor(z / h)));
+}
+
+// 좌표가 속한 국소장 복셀 id — M:<cx>_<cy>_<cz>. (feature-0004)
+export function materialKey(x, y, z) {
+  return `${POOL.MATERIAL}${regionKey(x, y)}_${fieldLayer(z)}`;
 }
 
 // 엔트로픽 이체 방향 확률 (feature-0004 의 핵심 법칙) —
