@@ -1,0 +1,13 @@
+{
+  "name": "hkt-feature",
+  "version": "0.1.0",
+  "description": "오픈월드 MMORPG 규칙 시뮬레이션 기반 — feature 단위로 규칙을 정의·검증하며 복잡계를 쌓는다. 서버는 원장 중재자, 클라이언트는 세부 시뮬레이터.",
+  "type": "module",
+  "scripts": {
+    "start": "node server/index.js",
+    "test": "node --test"
+  },
+  "dependencies": {
+    "ws": "^8.21.0"
+  }
+}
