@@ -50,6 +50,7 @@
 | [Docs/PLAN-CharacterGenesis.md](Docs/PLAN-CharacterGenesis.md) | C 트랙(캐릭터 배양: 이미지→게놈→살) 심층 제안 | 캐릭터 확장 작업 시 |
 | [Docs/PLAN-Animation.md](Docs/PLAN-Animation.md) | A 트랙(애니메이션: 입력→상태→클립) 심층 설계 | 애니메이션/상태 머신 작업 시 |
 | [Docs/PLAN-WorldFromImage.md](Docs/PLAN-WorldFromImage.md) | W 트랙(이미지 컨셉→월드 게놈→지형·생명) 심층 제안 | 이미지 기반 월드 생성 작업 시 |
+| [Docs/PLAN-RenderSeparation.md](Docs/PLAN-RenderSeparation.md) | 렌더러 경계 정리(환경=정적/캐릭터=동적) 제안 — 회색지대 소유권·계약 단일화 | 렌더 경계·식생 승격 구조 작업 시 |
 | [test/README.md](test/README.md) | 검증 하니스 사용법 | 검증할 때 |
 | [README.md](README.md) | 외부 공개 개요 | — |
 | 코드 주석 | 세부 설계·함정의 원본 | 구현 파고들 때 |
