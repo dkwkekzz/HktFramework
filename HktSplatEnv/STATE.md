@@ -30,6 +30,8 @@
 | E19 | 수면은 터쿼이즈 심도 팔레트 + 물가 포말 링 + 하늘 반사 틴트 + 스파클을 bake 한다 | ✅ | `js/terrain-gen.js` waterTilePly |
 | E20 | 근접 링은 지면 클러터(풀 포기·꽃 악센트·자갈)를 바이옴 규칙으로 bake 한다 | ✅ | `js/vegetation.js` clutterSplats |
 | E21 | 타일 bake 는 워커에서 돌고(동기 폴백 동일 바이트) 중심 타일은 256격자 디테일 링이다 | ✅ | `js/bake-worker.js`, `js/stage.js` bakeTileData·3링 |
+| E22 | 지형은 바이옴별 고주파 감쇠(매끈한 구릉)와 계단 플래토 셰이핑(트레드+라이저)을 갖는다 | ✅ | `js/terrain-gen.js` fbm detail·reliefCore terrace |
+| E23 | 나무는 로브 클럼프 + 2톤 하드 셰이딩의 스타일라이즈드 실루엣이다(가시 줄기·침엽 스파이어) | ✅ | `js/vegetation.js` treeSplats·coniferSplats·toonShade |
 
 ## 현재 작업 상태
 

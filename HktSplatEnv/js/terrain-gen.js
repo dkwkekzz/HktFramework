@@ -46,14 +46,17 @@
 	}
 
 	// value-fBm — 부호 있는 [-1,1] (옥타브마다 시드·위상 분리로 격자 정렬 아티팩트 방지)
-	function fbm(x, z, seed, octaves, lac, gain) {
-		lac = lac || 2.03; gain = gain || 0.5;
+	// detail(E22): 3옥타브 이후(고주파) 가중 배수 — 0에 가까울수록 매끈한 구릉(스타일라이즈드
+	// 언덕), 1이면 기존 러프 지형. 정규화(wsum)에 포함되므로 진폭 범위는 유지된다.
+	function fbm(x, z, seed, octaves, lac, gain, detail) {
+		lac = lac || 2.03; gain = gain || 0.5; detail = (detail == null) ? 1 : detail;
 		let a = 0, w = 1, wsum = 0, f = 1;
 		for (let o = 0; o < octaves; o++) {
-			a += (valueNoise(x * f + o * 17.17, z * f - o * 9.31, seed + o * 101) * 2 - 1) * w;
-			wsum += w; w *= gain; f *= lac;
+			const dw = o >= 2 ? w * detail : w;
+			a += (valueNoise(x * f + o * 17.17, z * f - o * 9.31, seed + o * 101) * 2 - 1) * dw;
+			wsum += dw; w *= gain; f *= lac;
 		}
-		return a / wsum;
+		return a / (wsum || 1);
 	}
 
 	// ridged multifractal — [0,1], 능선(1)이 날카롭다. 이전 옥타브가 다음을 게이팅해 능선 강조.
@@ -81,15 +84,17 @@
 	// 아래는 **기본 프리셋(temperate)의 바이옴 셋**일 뿐이다 — world(genome) 은 genome.biomeSet
 	// 이 있으면 그것을, 없으면 이 기본값을 쓴다. WATER_ID 는 바이옴 수(= biomeSet.length)로
 	// 유도하므로 바이옴 개수가 프리셋마다 달라도 성립한다 (기본 4 → WATER_ID 4, 하위 호환).
+	// detail(E22): 고주파 감쇠 — 평야는 매끈한 구릉, 산악만 러프. terrace(E22): 계단 플래토
+	// 비중 — 절벽이 노이즈 비탈 대신 트레드(평지)+라이저(절벽) 밴드로 읽힌다(스타일라이즈드 지형).
 	const DEFAULT_BIOMES = [
 		{ id: 0, key: 'plains', name: '평야', temp: 0.60, humid: 0.52, ampMul: 0.55, scaleMul: 1.00, ridged: 0.05, warpMul: 0.45,
-			lo: [0.12, 0.34, 0.14], hi: [0.42, 0.55, 0.24] },
+			detail: 0.25, terrace: 0.15, lo: [0.18, 0.46, 0.16], hi: [0.52, 0.68, 0.28] },
 		{ id: 1, key: 'mountain', name: '산악', temp: 0.40, humid: 0.82, ampMul: 1.95, scaleMul: 1.35, ridged: 0.85, warpMul: 0.90,
-			lo: [0.32, 0.30, 0.28], hi: [0.90, 0.92, 0.96] },
+			detail: 0.9, terrace: 0.55, lo: [0.32, 0.30, 0.28], hi: [0.90, 0.92, 0.96] },
 		{ id: 2, key: 'desert', name: '사막', temp: 0.88, humid: 0.16, ampMul: 0.50, scaleMul: 1.55, ridged: 0.18, warpMul: 0.70,
-			lo: [0.60, 0.48, 0.28], hi: [0.86, 0.76, 0.50] },
+			detail: 0.45, terrace: 0.40, lo: [0.60, 0.48, 0.28], hi: [0.86, 0.76, 0.50] },
 		{ id: 3, key: 'snow', name: '설원', temp: 0.13, humid: 0.55, ampMul: 1.00, scaleMul: 1.10, ridged: 0.40, warpMul: 0.55,
-			lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
+			detail: 0.6, terrace: 0.25, lo: [0.68, 0.76, 0.84], hi: [0.95, 0.97, 1.00] },
 	];
 	// E19 물빛 — 레퍼런스(스타일라이즈드 오픈월드)의 밝은 터쿼이즈 얕은 물 → 짙은 청록 깊은 물
 	const DEFAULT_WATER = { shallow: [0.22, 0.62, 0.66], deep: [0.05, 0.25, 0.50] };
@@ -214,21 +219,35 @@
 			if (!P.biomes) return fbm(x / (P.scale * scaleBoost), z / (P.scale * scaleBoost), P.seed, oct) * P.amp;
 			const c = climate(x, z);
 			const w = biomeWeights(c[0], c[1], _w);
-			let ampMul = 0, scaleMul = 0, ridgedMul = 0, warpMul = 0;
+			let ampMul = 0, scaleMul = 0, ridgedMul = 0, warpMul = 0, detailMul = 0, terraceMul = 0;
 			for (let i = 0; i < BIOMES.length; i++) {
 				const b = BIOMES[i];
 				ampMul += w[i] * b.ampMul; scaleMul += w[i] * b.scaleMul;
 				ridgedMul += w[i] * b.ridged; warpMul += w[i] * b.warpMul;
+				detailMul += w[i] * ((b.detail != null) ? b.detail : 1);      // E22 — 구 게놈 셋은 1(무회귀)
+				terraceMul += w[i] * ((b.terrace != null) ? b.terrace : 0);   // E22 — 구 게놈 셋은 0
 			}
 			warp(x, z, warpMul, _p);
 			const sc = P.scale * scaleMul * scaleBoost;
-			const base = fbm(_p[0] / sc, _p[1] / sc, P.seed, oct);                  // [-1,1]
+			const base = fbm(_p[0] / sc, _p[1] / sc, P.seed, oct, 0, 0, detailMul); // 고주파 감쇠 — 매끈한 구릉
 			let relief = base;
 			if (withRidged) {
 				const rdg = ridgedFbm(_p[0] / sc, _p[1] / sc, P.seed + 47, oct) * 2 - 1; // [-1,1]
 				relief = mix(base, rdg, ridgedMul);
 			}
-			return P.base + relief * P.amp * ampMul;
+			let h = P.base + relief * P.amp * ampMul;
+			// E22 계단 플래토 — 절벽 지대를 트레드(평지)+라이저(절벽) 밴드로: 노이즈 비탈이
+			// 플래토로 읽혀 스타일라이즈드 지형(레퍼런스 절벽)의 형태 언어가 된다. terrace 는
+			// 순수 함수(높이만의 셰이핑)라 결정론·창 연속성이 그대로다.
+			if (terraceMul > 0.01) {
+				const step = 1.1;                     // 플래토 간격(m)
+				const tt = h / step, fl = Math.floor(tt), fr = tt - fl;
+				const wRise = 0.35;                   // 라이저(절벽면) 폭 비율
+				let sf = clamp01((fr - (1 - wRise)) / wRise);
+				sf = sf * sf * (3 - 2 * sf);
+				h = mix(h, (fl + sf) * step, terraceMul);
+			}
+			return h;
 		}
 
 		// relief [-보정]: 바이옴 파라미터로 fBm + ridged 혼합. 순수(클램프 없음).
