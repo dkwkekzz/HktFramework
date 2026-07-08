@@ -17,10 +17,12 @@
 
 import { EnergyLedger } from '../shared/ledger.js';
 import { MSG, encode } from '../shared/protocol.js';
+import { mulberry32 } from '../shared/rng.js';
 import {
-  POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
-  PLAYER_MAX_ENERGY, SPAWN_GRANT, RECYCLE_INTERVAL_TICKS,
-  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost,
+  POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
+  PLAYER_MAX_ENERGY, SPAWN_GRANT,
+  MATERIAL_DIFFUSE_INTERVAL_TICKS, MATERIAL_DIFFUSE_QUANTUM_DIVISOR, MATERIAL_RADIATE_DIVISOR,
+  MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
 
@@ -28,6 +30,9 @@ export class GameServer {
   constructor({ now = () => Date.now() } = {}) {
     this.now = now;
     this.ledger = new EnergyLedger();
+    // 엔트로픽 확산의 "동전" — 결정론 PRNG. 서버 전용(클라는 결과 tx만 받는다)이라
+    // 미러 정합과 무관하고, 같은 이벤트열이면 같은 흐름을 재현한다(테스트 재현성의 근거).
+    this.rng = mulberry32(WORLD_SEED);
 
     // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
     this.players = new Map();      // id -> player
@@ -37,15 +42,47 @@ export class GameServer {
     this.tickCount = 0;
     this.txSeq = 0;
 
+    this.materialKeys = [];        // 국소장 풀 id 목록 (확산 순회용)
+    this.materialNeighbors = new Map(); // 국소장 id -> 이웃 국소장 id 목록 (엔트로픽 확산 인접)
     this.#genesis();
   }
 
   // 창세: 세계의 모든 에너지는 SOURCE 에서 출발한다.
   // 이후 전 풀 합계는 영원히 WORLD_SOURCE_INITIAL — 이것이 보존 불변식.
-  // feature-0003: SINK(소산 저수지)도 함께 연다 — 닫힌 열역학 루프의 두 끝.
+  // feature-0004: SINK(심우주 손실)와 국소장 M:<region>(중등급, 확산장)을 함께 연다.
+  //   국소장은 지역 컬럼마다 하나씩 0 으로 열린다. region=null 로 두어(step 1) 체크섬·방송
+  //   경로를 건드리지 않는다 — 확산은 서버 내부의 무음 이체다(공간 네트워킹은 step 2).
   #genesis() {
     this.ledger.createPool(POOL.SOURCE, WORLD_SOURCE_INITIAL, Number.MAX_SAFE_INTEGER, null);
     this.ledger.createPool(POOL.SINK, 0, Number.MAX_SAFE_INTEGER, null);
+
+    const cols = Math.ceil(WORLD_SIZE / REGION_SIZE); // 4x4 컬럼
+    for (let cy = 0; cy < cols; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const id = `${POOL.MATERIAL}${cx}_${cy}`;
+        this.ledger.createPool(id, 0, Number.MAX_SAFE_INTEGER, null);
+        this.materialKeys.push(id);
+      }
+    }
+    // 4방향 인접(같은 컬럼 격자) — 엔트로픽 확산은 이웃 사이에서만 일어난다.
+    for (let cy = 0; cy < cols; cy++) {
+      for (let cx = 0; cx < cols; cx++) {
+        const id = `${POOL.MATERIAL}${cx}_${cy}`;
+        const nb = [];
+        for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+          const nx = cx + dx, ny = cy + dy;
+          if (nx >= 0 && nx < cols && ny >= 0 && ny < cols) nb.push(`${POOL.MATERIAL}${nx}_${ny}`);
+        }
+        this.materialNeighbors.set(id, nb);
+      }
+    }
+  }
+
+  // 국소장 총량 (전시용 — SOURCE·SINK 처럼 aggregate 로 뷰어에 싣는다)
+  #materialTotal() {
+    let sum = 0;
+    for (const id of this.materialKeys) sum += this.ledger.balance(id);
+    return sum;
   }
 
   // --- 원장 커밋 + tx 기록 (모든 에너지 변화는 이 함수를 지난다) ---
@@ -79,7 +116,7 @@ export class GameServer {
     conn.send(encode(MSG.WELCOME, {
       playerId: id, name: player.name, seed: WORLD_SEED, tick: this.tickCount,
       total: this.ledger.totalSum(), src: this.ledger.balance(POOL.SOURCE),
-      sink: this.ledger.balance(POOL.SINK),
+      sink: this.ledger.balance(POOL.SINK), mat: this.#materialTotal(),
       x: player.x, y: player.y, z: player.z,
     }));
     this.#tx(POOL.SOURCE, id, SPAWN_GRANT, CAUSE.SPAWN, SPAWN_POS);
@@ -89,8 +126,9 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    // 이탈 시 소지 에너지는 SOURCE 로 환원 — 보존 유지, 원장에서 소멸 없음
-    this.#tx(id, POOL.SOURCE, this.ledger.balance(id), CAUSE.LEAVE, p);
+    // feature-0004: 이탈 = 응집 소멸. 소지 에너지는 태양으로 돌아가지 않고 "그 자리"
+    //   국소장으로 흩어진다(거름). 시체 에너지가 태양으로 텔레포트하던 옛 경로를 대체한다.
+    this.#tx(id, materialKey(p.x, p.y), this.ledger.balance(id), CAUSE.DEATH, p);
     this.ledger.removePool(id);
     this.players.delete(id);
   }
@@ -106,7 +144,7 @@ export class GameServer {
 
   // ==========================================================================
   // 비콘 — 좌표는 권위가 아니라 "개연성 증거". 검증은 속도 예산(스피드핵)뿐:
-  //   초과하면 마지막 정합 위치로 TELEPORT 정정. 이동 지출은 player→SOURCE 이체.
+  //   초과하면 마지막 정합 위치로 TELEPORT 정정. 이동 지출은 player→국소장 소산 이체(feature-0004).
   // ==========================================================================
 
   #onBeacon(p, msg) {
@@ -126,8 +164,9 @@ export class GameServer {
 
     const { cost, debt } = moveCost(p.moveDebt, d);
     p.moveDebt = debt;
-    // feature-0003: 이동은 에너지를 소산(SINK)으로 흩는다 — 태양 순환이 SOURCE 로 되돌린다.
-    if (cost > 0) this.#tx(p.id, POOL.SINK, cost, CAUSE.MOVE, { x, y });
+    // feature-0004: 이동은 활동 에너지를 "그 자리" 국소장으로 흩는다(소산). 예전 player→SINK 를
+    //   대체 — 흩어진 에너지는 심우주로 곧장 사라지지 않고 국소장에 쌓여 확산·재응집의 씨앗이 된다.
+    if (cost > 0) this.#tx(p.id, materialKey(x, y), cost, CAUSE.MOVE, { x, y });
     p.x = x; p.y = y; p.z = z; p.lastBeaconMs = nowMs;
     p.regions = new Set(regionNeighbors(x, y)); // 파티션은 컬럼(x,y) — z 무관
     this.pendingMoves.set(p.id, [x, y, z]);
@@ -151,18 +190,50 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
-    // feature-0003 태양 순환 — 소산(SINK)을 주기적으로 SOURCE 로 되돌려 열역학 루프를 닫는다.
-    //   서버는 유일한 원점(태양)이되 생성기가 아니라 순환의 원점: SOURCE→생명→SINK→SOURCE.
-    //   닫힌 루프라 총합은 여전히 WORLD_SOURCE_INITIAL 불변. region=null 저수지 간 이체라
-    //   방송·체크섬 무관(무음 transfer). 이 순환이 없으면 이동이 세계를 SINK 로 말려 영속이 깨진다.
-    if (this.tickCount % RECYCLE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
-      const dissipated = this.ledger.balance(POOL.SINK);
-      if (dissipated > 0) this.ledger.transfer(POOL.SINK, POOL.SOURCE, dissipated, CAUSE.RECYCLE);
+    // feature-0004 엔트로픽 장 갱신 — 국소장의 에너지가 (a) 이웃으로 높은 확률로 흩어지고
+    //   (b) 일부가 심우주로 복사돼 영영 사라진다. 둘 다 region=null 풀 간 무음 이체(방송·체크섬
+    //   무관)라 서버 내부에서만 돈다. 옛 태양 순환(SINK→SOURCE 텔레포트)은 삭제됐다 — 소산은
+    //   태양으로 되돌아가지 않고, SINK 는 단조 증가한다(엔트로피의 화살).
+    if (this.tickCount % MATERIAL_DIFFUSE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#diffuseMaterial();
+      this.#radiateMaterial();
     }
     this.#flush();
     this.pendingOps = [];
     this.pendingMoves.clear();
     this.tickCount++;
+  }
+
+  // 엔트로픽 확산 — 이웃한 두 국소장 사이에서 한 양자가 "높은 확률로" 고농도→저농도로 이동한다.
+  //   방향은 시드 동전(entropicOutProb)이 정하고, 양자는 정수. 앙상블은 압도적으로 down-gradient
+  //   → 장은 균일(평형, 최대 엔트로피)로 수렴한다. 농도가 같으면 1/2 확률 → 순 흐름 0.
+  #diffuseMaterial() {
+    for (const id of this.materialKeys) {
+      for (const nb of this.materialNeighbors.get(id)) {
+        if (id >= nb) continue; // 각 무방향 이웃쌍을 한 번만 처리(중복 방지)
+        const a = this.ledger.balance(id), b = this.ledger.balance(nb);
+        if (a + b === 0) continue;
+        const quantum = Math.max(1, Math.floor((a + b) / MATERIAL_DIFFUSE_QUANTUM_DIVISOR));
+        // 높은 확률로 고농도 쪽에서 저농도 쪽으로 — "엔트로픽 법칙에 따라 높은 확률로 이동할 뿐"
+        if (this.rng() < entropicOutProb(a, b)) this.ledger.transfer(id, nb, quantum, CAUSE.DIFFUSE);
+        else this.ledger.transfer(nb, id, quantum, CAUSE.DIFFUSE);
+      }
+    }
+  }
+
+  // 심우주 복사 — 국소장의 아주 작은 일부가 SINK 로 새어나간다(되돌아오지 않는 엔트로피 세금).
+  //   SINK 는 오직 받기만 하므로 단조 증가한다 — 태양이 이를 되돌리지 않는 한 세계는 서서히 식는다.
+  //   기대 복사량 = 잔고/RADIATE_DIVISOR. 정수 유지를 위해 나머지는 확률 반올림(stochastic rounding)
+  //   — 잔고가 작아도 기대율대로 이따금 1 을 복사한다(정수·결정론·기대값 정확).
+  #radiateMaterial() {
+    for (const id of this.materialKeys) {
+      const bal = this.ledger.balance(id);
+      if (bal <= 0) continue;
+      let rad = Math.floor(bal / MATERIAL_RADIATE_DIVISOR);
+      const frac = bal % MATERIAL_RADIATE_DIVISOR;
+      if (frac > 0 && this.rng() * MATERIAL_RADIATE_DIVISOR < frac) rad += 1;
+      if (rad > 0) this.ledger.transfer(id, POOL.SINK, rad, CAUSE.RADIATE);
+    }
   }
 
   // --- 시야에 들어와야 하는 엔티티 집합 (지역 구독 기준) ---
@@ -219,6 +290,7 @@ export class GameServer {
         p.conn.send(encode(MSG.CHECKSUM, {
           tick: this.tickCount, total: this.ledger.totalSum(), regions,
           src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
+          mat: this.#materialTotal(),
         }));
       }
     }

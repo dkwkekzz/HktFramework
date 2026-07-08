@@ -15,8 +15,15 @@ import { MSG, decode } from '../shared/protocol.js';
 import { mulberry32, randInt } from '../shared/rng.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, SPAWN_GRANT, SPAWN_POS, WORLD_SIZE, WORLD_HEIGHT,
-  MOVE_COST_STRIDE_PX, dist3,
+  MOVE_COST_STRIDE_PX, materialKey, dist3,
 } from '../shared/constants.js';
+
+// 전 국소장(M:) 잔고 합 — 에너지 등급 분할 검증용
+function materialTotal(game) {
+  let s = 0;
+  for (const [id, p] of game.ledger.pools) if (id.startsWith(POOL.MATERIAL)) s += p.balance;
+  return s;
+}
 
 function makeConn() {
   return { msgs: [], send(s) { this.msgs.push(typeof s === 'string' ? JSON.parse(s) : decode(s)); } };
@@ -59,15 +66,16 @@ test('접속·스폰 — SOURCE→플레이어 인출도 원장 이체 (보존 �
   assert.equal(total(), WORLD_SOURCE_INITIAL, '스폰 후 총합 불변');
 });
 
-test('이동 — 비콘 이동은 player→SINK 소산 이체 (보존 유지, feature-0003)', () => {
+test('이동 — 비콘 이동은 player→국소장 소산 이체 (보존 유지, feature-0004)', () => {
   const { game, join, warp, total } = setup();
   const a = join('A');
   const before = game.ledger.balance(a.player.id);
-  const sinkBefore = game.ledger.balance(POOL.SINK);
-  // 스폰(1000,1000,500)에서 500px 이동 → 비용 floor(500/50)=10, SINK 로 소산
-  warp(a.player, SPAWN_POS.x + 500, SPAWN_POS.y, SPAWN_POS.z);
+  // 스폰(1000,1000,500)에서 500px 이동 → 비용 floor(500/50)=10, "그 자리" 국소장으로 소산
+  const dst = { x: SPAWN_POS.x + 500, y: SPAWN_POS.y };
+  warp(a.player, dst.x, dst.y, SPAWN_POS.z);
   assert.equal(game.ledger.balance(a.player.id), before - 10, '이동 비용 = 거리/50');
-  assert.equal(game.ledger.balance(POOL.SINK), sinkBefore + 10, '소산분은 SINK 로');
+  assert.equal(game.ledger.balance(materialKey(dst.x, dst.y)), 10, '소산분은 도착 지역 국소장으로');
+  assert.equal(materialTotal(game), 10, '국소장 총량 = 소산분');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이동 후 총합 불변');
 });
 
@@ -85,13 +93,15 @@ test('검증 — 속도 예산 초과 비콘은 TELEPORT 로 기각 (지출·이
   assert.equal(game.players.get(a.player.id).x, SPAWN_POS.x, '서버 위치 불변');
 });
 
-test('접속 종료 — 잔여 에너지는 SOURCE 로 환원, 풀 소멸 (보존 유지)', () => {
+test('접속 종료 — 잔여 에너지는 국소장으로 흩어지고 풀 소멸 (보존 유지, feature-0004)', () => {
   const { game, join, total } = setup();
   const a = join('A');
   assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
-  game.removePlayer(a.player.id);
+  const srcBefore = game.ledger.balance(POOL.SOURCE); // 1e9 - SPAWN_GRANT
+  game.removePlayer(a.player.id); // 응집 소멸 → 그 자리 국소장으로 (태양행 아님)
   assert.equal(game.ledger.get(a.player.id), undefined, '풀 제거');
-  assert.equal(game.ledger.balance(POOL.SOURCE), WORLD_SOURCE_INITIAL, '전량 SOURCE 환원');
+  assert.equal(game.ledger.balance(POOL.SOURCE), srcBefore, '태양은 죽음 에너지를 받지 않는다');
+  assert.equal(materialTotal(game), SPAWN_GRANT, '잔여 전량이 국소장으로');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '종료 후 총합 불변');
 });
 
@@ -124,8 +134,10 @@ test('무작위 이동 폭풍 — 다수 플레이어가 배회해도 총합 불
     if (step % 10 === 0) game.tick();
   }
   assert.equal(total(), WORLD_SOURCE_INITIAL, '이동 폭풍 후 총합 불변');
-  // 에너지는 세 곳에만 있다: 자유(플레이어) + 태양(SOURCE) + 소실(SINK) = 창세 총량
+  // 에너지는 네 곳에만 있다: 자유(플레이어) + 태양 + 국소장 + 심우주 = 창세 총량
   let free = 0;
   for (const p of players) free += game.ledger.balance(p.id);
-  assert.equal(free + game.ledger.balance(POOL.SOURCE) + game.ledger.balance(POOL.SINK), WORLD_SOURCE_INITIAL);
+  assert.equal(
+    free + game.ledger.balance(POOL.SOURCE) + materialTotal(game) + game.ledger.balance(POOL.SINK),
+    WORLD_SOURCE_INITIAL);
 });
