@@ -12,7 +12,8 @@
 	let currentColors = { colorA: '#a81c06', colorB: '#ffe08a' };
 	let reseedFn = null;     // boot 이후 연결 — 프리셋 전환 시 형태(form) 재생성용
 	let sceneEntities = [genes]; // 장면의 개체 목록 — 개체 0 은 항상 genes(슬라이더 연동)
-	let openWorld = null;    // T 트랙 오픈월드 모드({world, stream}) — 켜지면 tick 이 스캐터 스트리밍
+	let director = null;     // 렌더 조정층(render-director.js) — 무대(환경)↔생명(캐릭터) 경계 소유자.
+	                         // 오픈월드 모드 상태(world/stream)는 director.openWorld 가 보관.
 
 	// ── L6 뼈대: FK 는 CPU(관절 53개), 살은 GPU(fleshK 유전자) — skeleton.js 참조 ──
 	const skeleton = new HktGenesisSkeleton.Skeleton();
@@ -32,7 +33,7 @@
 
 
 	function applyPreset(p) {
-		openWorld = null; // 프리셋 선택 = 오픈월드 모드 종료 (단일 개체 데모로 복귀)
+		if (director) director.setOpenWorld(null); // 프리셋 선택 = 오픈월드 모드 종료 (단일 개체 데모로 복귀)
 		for (const k of Object.keys(GENE_DEFS)) {
 			genes[k] = p[k];
 			const el = document.getElementById('g-' + k);
@@ -140,6 +141,8 @@
 		const engine = new HktGenesisEngine(device, context, format);
 		const camera = new HktOrbitCamera(canvas);
 		camera.radius = 4.5;
+		// 렌더 조정층 — 무대(환경)↔생명(캐릭터) 경계 소유자. 의존성 주입(전역 직결 회피).
+		director = HktGenesisRenderDirector.create({ engine, getStage: () => window.HktGenesisStage, heightfield: HktHeightfield });
 
 		// ── 패널 탭: 유전자 | 뼈대 | 무대 ──
 		const TABS = ['genes', 'skel', 'stage'];
@@ -362,8 +365,7 @@
 
 		const pauseChk = document.getElementById('pause');
 		const fpsEl = document.getElementById('fps');
-		let last = performance.now(), simTime = 0, fpsAvg = 0, stageMs = 0;
-		let owWasActive = false; // 오픈월드 종료 시 heightfield 정리용
+		let last = performance.now(), simTime = 0, fpsAvg = 0;
 
 		// ── T 트랙 오픈월드: 절차 지형 타일(무대) + 수면 + sky/fog + 스트리밍 나무(생명) ──
 		// 무대는 stage.startTileWorld(T2 타일+T5 수면/sky), 생명은 8 슬롯 ScatterStream(T4).
@@ -371,7 +373,7 @@
 		function startOpenWorld(seed, genome) {
 			if (!window.HktGenesisScatter || !window.HktGenesisTerrainGen || !stage()) return;
 			seed = seed || 7;
-			openWorld = null;
+			director.setOpenWorld(null);
 			// W5: 월드 파라미터 = (게놈 있으면 게놈) + seed. 게놈 생명 층(life)이 있으면 Bake·시뮬 두
 			// 레이어가 같은 스폰 규칙(종·밀도·바이옴 조건)을 공유한다. mood 도 함께 흘러 하늘/fog 가 게놈대로.
 			const wparams = Object.assign({}, genome || {}, { seed });
@@ -382,12 +384,12 @@
 			const N = (engine.count && engine.count % (8 * 256) === 0) ? engine.count : 131072;
 			engine.setScene(N, Array.from({ length: 8 }, () => HktGenesisScatter.voidEntity()));
 			sceneEntities = engine.entities;
-			// W-Q2c: 시뮬 스트림이 Bake 식생(vegetation.bakeTile 기본 cell 3.4·maxSlope 2.2·jitter 0.8)과
-			// 같은 셀 격자를 봐야 승격 스폰 key 가 Bake key 와 정확히 일치해 이중 그리기를 뺄 수 있다 —
-			// cell·maxSlope·jitter 를 맞춘다(밀도·종은 genome.life 가, 없으면 기본 폴백이 정함 = 무회귀).
+			// W-Q2c: 시뮬 스트림이 Bake 식생과 같은 셀 격자를 봐야 승격 스폰 key 가 Bake key 와 정확히
+			// 일치해 이중 그리기를 뺄 수 있다 — cell·maxSlope·jitter 는 승격 계약 단일 원본(PROMOTE_CFG)에서
+			// 가져와 세 곳(vegetation·여기·scatter) 정합을 구조적으로 강제한다(밀도·종은 genome.life 폴백).
 			const stream = new HktGenesisScatter.ScatterStream(engine, world,
-				{ radius: 16, maxActive: 8, cell: 3.4, jitter: 0.8, campfireRate: 0.2, maxSlope: 2.2 });
-			openWorld = { world, stream, bakeCd: 0 };
+				Object.assign({ radius: 16, maxActive: 8, campfireRate: 0.2 }, HktGenesisScatter.PROMOTE_CFG));
+			director.setOpenWorld({ world, stream, bakeCd: 0 });
 			// 지형을 내려다보는 조감 시점 (낮은 각은 flat surfel 이 뭉개진다 — 가파른 각이 깨끗)
 			camera.target = [0, 0.2, 0]; camera.radius = 16; camera.pitch = 0.82; camera.yaw = 0.5; simTime = 0;
 			stageStatusEl.innerHTML = '<b>오픈월드</b> — 절차 지형·수면·안개 + 스트리밍 나무 (Shift+드래그로 이동)';
@@ -442,23 +444,9 @@
 			last = now;
 			if (!pauseChk.checked) simTime += dt;
 
-			// T 트랙 오픈월드: 카메라 타깃을 따라 시뮬 바닥(heightfield)을 굽고 스폰을 갱신한다.
-			// bakeFn 창(±20m)이 스캐터 반경을 덮어 먼 나무 뿌리도 지형 높이에 정확히 앉는다.
-			if (openWorld) {
-				if (openWorld.bakeCd++ % 12 === 0) {
-					const t = camera.target, R = 20, cell = 2 * R / 127;
-					engine.setHeightfield(HktHeightfield.bakeFn((x, z) => openWorld.world.height(x, z),
-						{ res: 128, originX: t[0] - R, originZ: t[2] - R, cell }));
-					openWorld.stream.update(t[0], t[2]);
-					// W-Q2c 승격 훅: 시뮬로 올라간 나무를 Bake 식생에서 제외(이중 그리기 제거). 승격
-					// 집합이 안 바뀌면 setVegExclusion 이 즉시 반환(값싼 게이트) — 바뀔 때만 근접 링 재Bake.
-					const s = stage();
-					if (s && s.setVegExclusion) s.setVegExclusion(openWorld.stream.promotedKeys());
-				}
-				owWasActive = true;
-			} else if (owWasActive) {
-				engine.setHeightfield(null); owWasActive = false; // 모드 종료 — 평면 바닥 복귀
-			}
+			// T 트랙 오픈월드 env↔life 다리 — 카메라 타깃을 따라 시뮬 바닥(heightfield)·스폰·승격을
+			// 갱신한다. 배관은 조정층(director)이 소유 — tick 은 카메라만 넘긴다.
+			director.updateOpenWorld(camera);
 
 			const aspect = canvas.width / canvas.height;
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
@@ -481,24 +469,11 @@
 						: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);       // built-in 은 절대 시간
 				}
 			}
-			// S 트랙: 무대가 켜져 있으면 생명 캔버스는 투명 클리어 → 무대 위 알파 합성.
-			// 오픈월드는 타일이 아직 안 실려 enabled=false 여도 stage.frame 을 돌려야 링 로드가
-			// 시작된다(frame 이 updateTileCenter 를 부르고, 첫 타일이 실리면 enabled 로 뒤집힌다).
+			// 무대(환경)↔생명(캐릭터) 렌더 시퀀싱은 조정층이 소유 — tick 은 시뮬 입력만 모아 넘긴다.
 			bindStageStatus();
-			const st = stage();
-			if (st && (st.enabled || openWorld)) {
-				const t0 = performance.now();
-				st.frame(camera, canvas.clientWidth, canvas.clientHeight);
-				stageMs = stageMs * 0.9 + (performance.now() - t0) * 0.1; // S4 예산 계측 (CPU 인코드 시간)
-			}
-			const stageOn = st && st.enabled;
-			// T5: 무대 타일 월드가 켜져 있으면 생명도 무대와 같은 sky/fog 톤으로 원거리 페이드
-			const fog = (stageOn && st.tiledMode) ? st.getSkyFog() : null;
-			engine.frame({
+			const r = director.frame(camera, canvas.clientWidth, canvas.clientHeight, {
 				dt, time: simTime, genes, entities: sceneEntities, paused: pauseChk.checked, pull,
-				bones, showBones: skel.bones, fog,
-				background: stageOn ? { r: 0, g: 0, b: 0, a: 0 } : undefined,
-				gridCenter: engine.bubbleCenter(camera.target), // S5 버블 + T3 y 지형 추종
+				bones, showBones: skel.bones,
 				view: camera.view(), proj: camera.proj(aspect),
 				viewport: [canvas.width, canvas.height], focal: [focalY, focalY],
 			});
@@ -508,7 +483,7 @@
 
 			fpsAvg = fpsAvg * 0.95 + (1 / Math.max(dt, 1e-4)) * 0.05;
 			fpsEl.textContent = `${fpsAvg.toFixed(0)} fps · ${(engine.count / 1024).toFixed(0)}k splats` +
-				(stageOn ? ` · 무대 ${stageMs.toFixed(1)}ms` : '');
+				(r.stageOn ? ` · 무대 ${r.stageMs.toFixed(1)}ms` : '');
 			requestAnimationFrame(tick);
 		}
 		requestAnimationFrame(tick);

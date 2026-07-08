@@ -54,6 +54,16 @@
 		return base * f;
 	}
 
+	// ── 승격 계약(PROMOTE_CFG) — 정적↔동적 식생 핸드오프의 단일 원본 ─────────────
+	// "밀도=Bake(무대), 상호작용=시뮬(생명)"에서 카메라 근처 나무가 시뮬로 승격되면 그 Bake 사본을
+	// 빼야 이중 그리기가 없다(W-Q2c). 제외는 승격 스폰 key(셀 인덱스 u,v)가 Bake 후보 key 와
+	// **정확히 일치**할 때만 실효하므로, Bake(vegetation.bakeTile/bakePanorama)와 시뮬(ScatterStream)이
+	// **같은** cell·maxSlope·jitter 로 스폰 테이블을 봐야 한다. 이 상수가 그 계약의 단일 원본 —
+	// 세 곳(vegetation·app ScatterStream·여기)이 각자 하드코딩하면 어긋나도 조용한 no-op(이중 그리기)
+	// 으로만 드러난다. 얼려서(freeze) 우발적 변형 방지. candidates 의 일반 기본값(cell 6.0 등)과는 별개 —
+	// 이건 승격 정합 전용 프로파일이다.
+	const PROMOTE_CFG = Object.freeze({ cell: 3.4, maxSlope: 2.2, jitter: 0.8 });
+
 	// key 제외 집합 정규화 — Set(has) · 배열 · 평면 객체(in) 모두 받아 (key)→bool 술어로.
 	// null/미지정이면 null 반환(제외 없음). W-Q2c: 시뮬로 승격된 스폰을 Bake 에서 빼는 데 쓴다.
 	function excludePredicate(ex) {
@@ -192,7 +202,7 @@
 	// 나무만 Bake 되므로 campfire key 가 섞여도 무해(Bake 에 없어 no-op). Set 반환(candidates 소비).
 	ScatterStream.prototype.promotedKeys = function () { return new Set(Object.keys(this.slotOf)); };
 
-	const api = { candidates, genesFor, voidEntity, slopeAt, ScatterStream };
+	const api = { candidates, genesFor, voidEntity, slopeAt, ScatterStream, PROMOTE_CFG };
 	global.HktGenesisScatter = api;
 	if (typeof module !== 'undefined' && module.exports) module.exports = api;
 })(typeof window !== 'undefined' ? window : globalThis);
