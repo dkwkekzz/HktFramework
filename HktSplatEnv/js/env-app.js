@@ -20,7 +20,11 @@
 		camera.target = [0, 0, 0]; camera.radius = 24; camera.pitch = 0.82; camera.yaw = 0.5;
 
 		const seed = parseInt(new URLSearchParams(location.search).get('seed')) || 7;
-		S.startTileWorld({ seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32 } });
+		// temperate 프리셋 경유 — 지형 노브는 world() 기본값과 동일(바이트 동일)이고,
+		// mood(하늘 그라데이션 돔 + fog 톤)가 실려 밋밋한 flat clear 대신 하늘이 그려진다.
+		const genome = window.HktGenesisTerrainGen.preset('temperate');
+		genome.mood.cloud = 0.45; // W-Q3 절차 구름
+		S.startTileWorld(Object.assign(genome, { seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48 } }));
 
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;

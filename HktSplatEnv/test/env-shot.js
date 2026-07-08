@@ -29,7 +29,10 @@ const W = 768, H = 640;
 	// Spark 는 스플랫 GPU 패킹에 렌더 몇 프레임이 필요하다(DESIGN) — 워밍업 캡처로 채운다.
 	const CAM = { fov: 1.0, up: [0, 1, 0], target: [0, 0, 0], eye: [0, 34, 46] };
 	await page.evaluate((cm) => {
-		HktGenesisStage.startTileWorld({ seed: cm.seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32 } });
+		// 앱(env-app)과 같은 경로: temperate 프리셋(mood=하늘 돔·구름 포함) + 시드
+		const genome = window.HktGenesisTerrainGen.preset('temperate');
+		genome.mood.cloud = 0.45;
+		HktGenesisStage.startTileWorld(Object.assign(genome, { seed: cm.seed, tile: { tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48 } }));
 	}, { seed: SEED });
 	const orbit = (cm) => ({ fov: cm.fov, up: cm.up, target: cm.target, _eye: () => cm.eye });
 	for (let k = 0; k < 12; k++) {

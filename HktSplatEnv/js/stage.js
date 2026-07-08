@@ -135,7 +135,8 @@ function startTileWorld(params) {
 	tiles.clear(); tilePending.clear(); tileCenterKey = null;
 	vegExclude = null; vegExcludeSig = ''; // 승격 제외는 월드마다 초기화(이전 월드 key 잔류 방지)
 	tileWorld = window.HktGenesisTerrainGen.world(params);
-	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 64, farG: 32, splatScale: 1 }, params && params.tile);
+	// E14 근접 밀도 상향: nearG 128(셀 0.15m)·farG 48 — LoD 예산(1.5M)의 노는 여유를 선명도로 쓴다
+	tileCfg = Object.assign({ tileSize: 19.2, nearR: 1, farR: 2, nearG: 128, farG: 48, splatScale: 1 }, params && params.tile);
 	// T5/W6 공용 sky/fog — 게놈 mood(있으면 하늘 돔+fog) 또는 기본 톤. fog end 는 far 링 반경에
 	// 맞춰 지평선에서 소실(mood 가 명시 안 하면 기본값). mood.skyTop/skyHorizon 이 있으면 하늘 돔.
 	const mood = (params && params.mood) || {};

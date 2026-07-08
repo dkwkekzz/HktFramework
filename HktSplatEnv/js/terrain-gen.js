@@ -233,17 +233,49 @@
 			return macroReliefAt(x, z) < P.waterY;
 		}
 
-		// 지형 법선 기반 명암 [SHADE_AMB, 1] — reliefAt 유한차분으로 노멀을 잡아 diffuse(N·태양).
-		// 수면(평평)은 균일(1) — 심도 색을 그대로 두고 바닥 요철이 수면 명암으로 새는 것 방지.
-		function shadeAt(x, z, water) {
-			if (water) return 1.0;
-			const e = P.scale * 0.18; // 노멀 스텝 — 기복 파장 비례(미세 요철 말고 형태 음영)
+		// 지형 표면 노멀(정규화) — reliefAt 유한차분. 스텝은 기복 파장 비례(미세 요철 말고 형태).
+		// bakers 가 스플랫당 한 번만 계산해 명암(shadeFromNormal)·정렬 쿼터니언·경사 재질에 공유한다.
+		function normalAt(x, z) {
+			const e = P.scale * 0.18;
 			const hx = reliefAt(x + e, z) - reliefAt(x - e, z);
 			const hz = reliefAt(x, z + e) - reliefAt(x, z - e);
 			const nx = -hx, ny = 2 * e, nz = -hz;
 			const inv = 1 / (Math.hypot(nx, ny, nz) || 1);
-			const dif = Math.max((nx * SUN[0] + ny * SUN[1] + nz * SUN[2]) * inv, 0);
+			return [nx * inv, ny * inv, nz * inv];
+		}
+
+		// 노멀 → 명암 [SHADE_AMB, 1] — diffuse(N·태양)
+		function shadeFromNormal(n) {
+			const dif = Math.max(n[0] * SUN[0] + n[1] * SUN[1] + n[2] * SUN[2], 0);
 			return SHADE_AMB + (1 - SHADE_AMB) * dif;
+		}
+
+		// 지형 명암 (하위 호환 단독 호출용) — 수면(평평)은 균일(1): 심도 색을 그대로 두고
+		// 바닥 요철이 수면 명암으로 새는 것 방지.
+		function shadeAt(x, z, water) {
+			if (water) return 1.0;
+			return shadeFromNormal(normalAt(x, z));
+		}
+
+		// ── 재질 디테일(E15) — 전부 좌표·시드 결정론(스트리밍 연속) ──────────────
+		// 고주파 알베도 변주 2채널: [0] 미세 럼프 밝기 배수(파장 ~0.9m, 풀숲·자갈 질감),
+		// [1] 패치 노이즈 [-1,1](파장 ~5.5m) — 고도 램프 t 를 흔들어 마른 풀/눈/모래 얼룩을 만든다.
+		const DETAIL_AMP = (P.detailAmp != null) ? P.detailAmp : 0.12;
+		const PATCH_AMP = (P.patchAmp != null) ? P.patchAmp : 0.35;
+		function detailAt(x, z) {
+			const lum = 1 + DETAIL_AMP * fbm(x / 0.9 + 3.1, z / 0.9 - 6.7, P.seed + 8111, 2);
+			const patch = fbm(x / 5.5 - 11.9, z / 5.5 + 4.3, P.seed + 8333, 2);
+			return [lum, patch];
+		}
+
+		// 경사 재질(절벽 암반) — 노멀 y(=cos 경사각)가 완경사(≈35°)→절벽(≈55°)로 넘어가는 구간을
+		// 노이즈로 흔든 smoothstep. 급경사에 식생색 대신 암반이 드러난다(상용 지형의 기본기).
+		const CLIFF_LO = [0.33, 0.30, 0.28], CLIFF_HI = [0.60, 0.58, 0.56];
+		function cliffTOf(ny, x, z) {
+			const j = 0.06 * fbm(x / 2.3 + 9.7, z / 2.3 - 2.9, P.seed + 8555, 2);
+			const a = 0.82 + j, b = 0.57 + j; // cos35° ≈ 0.82, cos55° ≈ 0.57
+			const t = clamp01((a - ny) / (a - b));
+			return t * t * (3 - 2 * t);
 		}
 
 		function heightAt(x, z) { return reliefAt(x, z); }             // 순수 원본
@@ -259,8 +291,10 @@
 			return { id: BIOMES[bi].id, key: BIOMES[bi].key, name: BIOMES[bi].name, temp: c[0], humid: c[1], height: y };
 		}
 
-		// 색 — 바이옴 팔레트를 가중 혼합(경계 연속) + 고도 램프 + 수역 심도 색
-		function colorAt(x, z, y) {
+		// 색 — 바이옴 팔레트를 가중 혼합(경계 연속) + 고도 램프 + 수역 심도 색.
+		// E15: 패치 노이즈로 램프 요동(마른 풀/눈 얼룩) + 미세 럼프 밝기 변주. ny(표면 노멀 y)를
+		// 주면 경사 절벽 암반(층리 밴딩)을 섞는다 — bakers 가 노멀을 한 번만 계산해 넘긴다.
+		function colorAt(x, z, y, ny) {
 			if (y == null) y = reliefAt(x, z);
 			if (isWater(x, z)) {
 				// 심도는 **실제 바닥**(reliefAt) 기준 — bakers 가 y 를 수면(waterY)으로 넘겨도
@@ -271,21 +305,34 @@
 					mix(WATER_COL.shallow[1], WATER_COL.deep[1], d),
 					mix(WATER_COL.shallow[2], WATER_COL.deep[2], d)];
 			}
+			const det = detailAt(x, z);
+			const t0 = clamp01((y - P.waterY) / Math.max(yMax - P.waterY, 1e-3));
+			const t = clamp01(t0 + det[1] * PATCH_AMP); // 패치 얼룩 — 램프를 국소로 흔든다
+			let r, g, bl;
 			if (!P.biomes) {
-				const t = clamp01((y - P.waterY) / Math.max(yMax - P.waterY, 1e-3));
-				return [mix(0.20, 0.70, t), mix(0.38, 0.72, t), mix(0.16, 0.75, t)];
+				r = mix(0.20, 0.70, t); g = mix(0.38, 0.72, t); bl = mix(0.16, 0.75, t);
+			} else {
+				const c = climate(x, z);
+				const w = biomeWeights(c[0], c[1], _w);
+				r = 0; g = 0; bl = 0;
+				for (let i = 0; i < BIOMES.length; i++) {
+					const b = BIOMES[i];
+					r += w[i] * mix(b.lo[0], b.hi[0], t);
+					g += w[i] * mix(b.lo[1], b.hi[1], t);
+					bl += w[i] * mix(b.lo[2], b.hi[2], t);
+				}
 			}
-			const c = climate(x, z);
-			const w = biomeWeights(c[0], c[1], _w);
-			const t = clamp01((y - P.waterY) / Math.max(yMax - P.waterY, 1e-3));
-			let r = 0, g = 0, bl = 0;
-			for (let i = 0; i < BIOMES.length; i++) {
-				const b = BIOMES[i];
-				r += w[i] * mix(b.lo[0], b.hi[0], t);
-				g += w[i] * mix(b.lo[1], b.hi[1], t);
-				bl += w[i] * mix(b.lo[2], b.hi[2], t);
+			if (ny != null) {
+				const ct = cliffTOf(ny, x, z);
+				if (ct > 0.001) {
+					// 절벽 층리 — 높이 기반 밴딩(수평 줄무늬)로 민짜 회색을 깬다
+					const band = 1 + 0.14 * fbm(y / 0.8 + x * 0.07, z * 0.07 - y / 0.8, P.seed + 8777, 2);
+					r = mix(r, mix(CLIFF_LO[0], CLIFF_HI[0], t0) * band, ct);
+					g = mix(g, mix(CLIFF_LO[1], CLIFF_HI[1], t0) * band, ct);
+					bl = mix(bl, mix(CLIFF_LO[2], CLIFF_HI[2], t0) * band, ct);
+				}
 			}
-			return [r, g, bl];
+			return [r * det[0], g * det[0], bl * det[0]];
 		}
 
 		// 타일 PLY (T2 청크 스트리밍) — [x0,x0+size)×[z0,z0+size) 를 굽는다.
@@ -305,7 +352,9 @@
 					.map((p) => `property float ${p}`).join('\n') + '\nend_header\n';
 			const head = new TextEncoder().encode(header);
 			const body = new DataView(new ArrayBuffer(N * 17 * 4));
-			const sx = cell * 0.95 * splatScale, sy = cell * 0.34 * splatScale;
+			// E14 이방성 surfel — 접평면으로 넓고(σ=0.68cell, 지터 ±0.4cell 에도 이웃과 겹침 유지)
+			// 노멀 방향으로 얇다(σ=0.14cell). 예전 축정렬 0.95/0.34 대비 실루엣이 선명해진다.
+			const sx = cell * 0.68 * splatScale, sy = cell * 0.14 * splatScale;
 			const lsx = Math.log(sx), lsy = Math.log(sy);
 			let o = 0;
 			const put = (v) => { body.setFloat32(o, v, true); o += 4; };
@@ -318,14 +367,27 @@
 				// 수역 셀은 평평한 수면(y=waterY)으로 — 분지 바닥 요철을 수면 아래로 잠근다(연결 호수)
 				const water = isWater(x, z);
 				const y = water ? P.waterY : height(x, z);
-				const rgb = colorAt(x, z, y);
-				const sh = shadeAt(x, z, water); // Bake 셰이딩 — 법선 명암을 색에 굽는다(입체감)
-				const jc = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.05;
+				let rgb, sh, qw = 1, qx = 0, qz = 0; // 수면은 identity(수평 그대로)
+				if (water) {
+					rgb = colorAt(x, z, y); sh = 1.0;
+				} else {
+					const n = normalAt(x, z); // 스플랫당 한 번 — 명암·경사 재질·정렬에 공유
+					sh = shadeFromNormal(n);
+					rgb = colorAt(x, z, y, n[1]);
+					// 표면 정렬(E14): up(0,1,0)→노멀 회전 쿼터니언 — 경사면에서 surfel 이 지면에 눕는다
+					qw = 1 + n[1]; qx = n[2]; qz = -n[0];
+					const qi = 1 / (Math.hypot(qw, qx, qz) || 1);
+					qw *= qi; qx *= qi; qz *= qi;
+				}
+				// 채널별 미세 지터 — 단색 뭉침 방지(예전 단일 회색 지터를 대체)
+				const jr = (latticeHash(cellX, cellZ, P.seed + 7717) - 0.5) * 0.06;
+				const jg = (latticeHash(cellX, cellZ, P.seed + 7719) - 0.5) * 0.06;
+				const jb = (latticeHash(cellX, cellZ, P.seed + 7721) - 0.5) * 0.06;
 				put(x); put(y); put(z); put(0); put(0); put(0);
-				put((rgb[0] * sh + jc - 0.5) / SH_C0); put((rgb[1] * sh + jc - 0.5) / SH_C0); put((rgb[2] * sh + jc - 0.5) / SH_C0);
+				put((rgb[0] * sh + jr - 0.5) / SH_C0); put((rgb[1] * sh + jg - 0.5) / SH_C0); put((rgb[2] * sh + jb - 0.5) / SH_C0);
 				put(2.44); // opacity 0.92 의 logit
 				put(lsx); put(lsy); put(lsx);
-				put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
+				put(qw); put(qx); put(0); put(qz); // 쿼터니언 (w,x,y,z) — y축 회전 성분 없음
 			}
 			const out = new Uint8Array(head.length + body.byteLength);
 			out.set(head, 0);
@@ -386,7 +448,8 @@
 		}
 
 		return {
-			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, shadeAt, biomeAt, colorAt, climate, tilePly, waterTilePly,
+			params: P, heightAt, height, reliefAt, macroReliefAt, isWater, shadeAt, normalAt, shadeFromNormal,
+			biomeAt, colorAt, climate, tilePly, waterTilePly,
 			waterY: P.waterY, floor: P.floor, BIOMES, WATER_ID,
 		};
 	}
@@ -435,6 +498,7 @@
 			const spread = P.extent * 0.875, cx = P.cx, cz = P.cz;
 			let o = 0;
 			const put = (v) => { body.setFloat32(o, v, true); o += 4; };
+			const lsx = Math.log(0.17 * splatScale), lsy = Math.log(0.06 * splatScale);
 			for (let i = 0; i < N; i++) {
 				const gx = i % G, gz = (i / G) | 0;
 				const x = cx - spread + 2 * spread * (gx + jitterHash(i * 3) - 0.5) / (G - 1);
@@ -442,15 +506,24 @@
 				// 수역 셀은 평평한 수면(y=waterY) — 연결 호수(분지 바닥 요철 잠김)
 				const water = W.isWater(x, z);
 				const y = water ? W.waterY : height(x, z);
-				const rgb = W.colorAt(x, z, y);
-				const sh = W.shadeAt(x, z, water); // Bake 셰이딩(법선 명암) — 입체감
+				let rgb, sh, qw = 1, qx = 0, qz = 0;
+				if (water) {
+					rgb = W.colorAt(x, z, y); sh = 1.0;
+				} else {
+					const n = W.normalAt(x, z); // E14/E15 — tilePly 와 동일 경로(명암·경사 재질·정렬)
+					sh = W.shadeFromNormal(n);
+					rgb = W.colorAt(x, z, y, n[1]);
+					qw = 1 + n[1]; qx = n[2]; qz = -n[0];
+					const qi = 1 / (Math.hypot(qw, qx, qz) || 1);
+					qw *= qi; qx *= qi; qz *= qi;
+				}
 				const j = (jitterHash(i * 7) - 0.5) * 0.05;
 				put(x); put(y); put(z); put(0); put(0); put(0);
 				put((rgb[0] * sh + j - 0.5) / SH_C0); put((rgb[1] * sh + j - 0.5) / SH_C0); put((rgb[2] * sh + j - 0.5) / SH_C0);
 				put(2.44); // opacity 0.92 의 logit
 				// 납작한 surfel — 밀도(G)·범위(extent)에 맞춰 splatScale 로 커버리지 유지
-				put(Math.log(0.17 * splatScale)); put(Math.log(0.06 * splatScale)); put(Math.log(0.17 * splatScale));
-				put(1); put(0); put(0); put(0); // 쿼터니언 (w,x,y,z)
+				put(lsx); put(lsy); put(lsx);
+				put(qw); put(qx); put(0); put(qz); // 쿼터니언 (w,x,y,z)
 			}
 			const out = new Uint8Array(head.length + body.byteLength);
 			out.set(head, 0);
