@@ -25,6 +25,13 @@ function materialTotal(game) {
   return s;
 }
 
+// 전 결정(I:) 잔고 합 — feature-0005: 죽음·석출로 응결된 정적 등급
+function crystalTotal(game) {
+  let s = 0;
+  for (const [id, p] of game.ledger.pools) if (id.startsWith(POOL.CRYSTAL)) s += p.balance;
+  return s;
+}
+
 function makeConn() {
   return { msgs: [], send(s) { this.msgs.push(typeof s === 'string' ? JSON.parse(s) : decode(s)); } };
 }
@@ -93,15 +100,16 @@ test('검증 — 속도 예산 초과 비콘은 TELEPORT 로 기각 (지출·이
   assert.equal(game.players.get(a.player.id).x, SPAWN_POS.x, '서버 위치 불변');
 });
 
-test('접속 종료 — 잔여 에너지는 국소장으로 흩어지고 풀 소멸 (보존 유지, feature-0004)', () => {
+test('접속 종료 — 잔여 에너지는 결정(잔해)+국소장(거름)으로 분해되고 풀 소멸 (보존 유지, feature-0005)', () => {
   const { game, join, total } = setup();
   const a = join('A');
   assert.equal(game.ledger.balance(a.player.id), SPAWN_GRANT);
   const srcBefore = game.ledger.balance(POOL.SOURCE); // 1e9 - SPAWN_GRANT
-  game.removePlayer(a.player.id); // 응집 소멸 → 그 자리 국소장으로 (태양행 아님)
+  game.removePlayer(a.player.id); // 응집 소멸 → 결정(단단한 잔해) + 국소장(무른 조직), 태양행 아님
   assert.equal(game.ledger.get(a.player.id), undefined, '풀 제거');
   assert.equal(game.ledger.balance(POOL.SOURCE), srcBefore, '태양은 죽음 에너지를 받지 않는다');
-  assert.equal(materialTotal(game), SPAWN_GRANT, '잔여 전량이 국소장으로');
+  assert.ok(crystalTotal(game) > 0, '단단한 잔해는 결정으로 응결됐다');
+  assert.equal(materialTotal(game) + crystalTotal(game), SPAWN_GRANT, '잔여 전량이 결정+국소장 두 갈래로 보존');
   assert.equal(total(), WORLD_SOURCE_INITIAL, '종료 후 총합 불변');
 });
 

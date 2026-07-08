@@ -7,15 +7,16 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, POOL, fieldPhase } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
   if (id === POOL.SOURCE) return '태양';
   if (id === POOL.SINK) return '심우주';
   if (id.startsWith(POOL.MATERIAL)) return '국소장';
+  if (id.startsWith(POOL.CRYSTAL)) return '결정';
   return state.entities.get(id)?.name ?? id;
 }
 
@@ -117,6 +118,9 @@ export class Render {
     // 국소장 3D 볼류메트릭 — 각 복셀을 농도에 따라 글로우로 그린다 (에너지 확산을 3D 로 시각화)
     this.#fieldVolume(cam);
 
+    // 결정 마커 — 국소장에서 석출돼 동결된 정적 에너지를 밝은 결정으로 그린다 (feature-0005)
+    this.#crystalMarkers(cam);
+
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
     for (const e of state.entities.values()) {
@@ -135,9 +139,9 @@ export class Render {
     this.#hud();
   }
 
-  // 국소장 3D 볼류메트릭 — 각 복셀의 에너지를 반투명 정육면체로 그린다(먼 것부터, painter's).
-  //   차가움(파랑, 저농도) → 뜨거움(주황·빨강, 고농도). 이동으로 뜨거운 복셀이 생기고
-  //   이웃 복셀로(수평·수직 모두) 번지며 평형으로 수렴한다 — "높은 확률로 전파"를 3D 로 본다.
+  // 국소장 3D 볼류메트릭 — 각 복셀을 상태별 색으로 그린다(먼 것부터, painter's). feature-0005 step4:
+  //   기체(옅은 하늘빛, 퍼짐) · 액체(진한 물빛, 중력으로 바닥에 고임) · 고밀도(붉은 열, 과포화→석출).
+  //   에너지를 위에 부으면 액체가 아래 층으로 가라앉아 수평 수면을 이루는 걸 3D 로 본다.
   #fieldVolume(cam) {
     const { state } = this;
     if (state.field.size === 0) return;
@@ -150,26 +154,82 @@ export class Render {
       if (t < 0.05) continue; // 거의 빈 복셀은 생략(시야 정리)
       const [cx, cy, cz] = key.split('_').map(Number);
       const d = this.#toCam(cam, (cx + 0.5) * RS, (cy + 0.5) * RS, (cz + 0.5) * LS)[2];
-      cells.push({ cx, cy, cz, t, d });
+      cells.push({ cx, cy, cz, t, phase: fieldPhase(bal), d });
     }
     cells.sort((a, b) => b.d - a.d); // 먼 복셀 먼저 그린다
     for (const c of cells) {
       this.#voxelCube(cam,
         (c.cx + m) * RS, (c.cx + 1 - m) * RS,
         (c.cy + m) * RS, (c.cy + 1 - m) * RS,
-        (c.cz + m) * LS, (c.cz + 1 - m) * LS, c.t);
+        (c.cz + m) * LS, (c.cz + 1 - m) * LS, c.t, c.phase);
     }
   }
 
-  #voxelCube(cam, x0, x1, y0, y1, z0, z1, t) {
+  // 결정 마커 — 각 개별 결정을 제 위치에 8면체(옥타)로 그린다(먼 것부터, painter's).
+  //   확산장(파랑→빨강 반투명 큐브)과 대비되는 선명한 고체. 색상은 종(species)마다 다르다 —
+  //   죽음의 잔해·hotspot 석출 등 다양하게 생성된 결정이 저마다 다른 색으로 선다(feature-0005 step2).
+  //   가만두면 이 잔고는 불변이다(확산·복사 면역) — 국소장은 새어도 결정은 그대로 서 있다.
+  #crystalMarkers(cam) {
+    const { state } = this;
+    if (state.crystals.size === 0) return;
+    let max = 1;
+    for (const c of state.crystals.values()) if (c.balance > max) max = c.balance;
+    const marks = [];
+    for (const c of state.crystals.values()) {
+      if (c.balance <= 0) continue;
+      const d = this.#toCam(cam, c.x, c.y, c.z)[2];
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, d });
+    }
+    marks.sort((a, b) => b.d - a.d);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species);
+  }
+
+  #crystalOcta(cam, cx, cy, cz, t, bal, species) {
+    const { ctx } = this;
+    const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
+    const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
+    this.#stick(cam, cx, cy, cz, `hsla(${hue},80%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
+    const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
+    const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
+    if (P.some(p => !p)) return;
+    // 8 삼각면 (위쪽 4 + 아래쪽 4). 밝은 반투명 + 선명한 외곽선 → 고체 결정감.
+    const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
+    ctx.fillStyle = `hsla(${hue}, 85%, ${58 + t * 20}%, ${0.34 + 0.4 * t})`;
+    ctx.strokeStyle = `hsla(${hue}, 95%, 82%, ${0.6 + 0.35 * t})`;
+    ctx.lineWidth = 1.5;
+    for (const f of faces) {
+      ctx.beginPath();
+      ctx.moveTo(P[f[0]].sx, P[f[0]].sy);
+      ctx.lineTo(P[f[1]].sx, P[f[1]].sy);
+      ctx.lineTo(P[f[2]].sx, P[f[2]].sy);
+      ctx.closePath();
+      ctx.fill();
+      ctx.stroke();
+    }
+    // 잔고 라벨 (결정 위)
+    const top = P[4];
+    if (top) {
+      ctx.fillStyle = `hsl(${hue}, 90%, 88%)`;
+      ctx.font = '10px monospace';
+      ctx.textAlign = 'center';
+      ctx.fillText(`◆ ${bal.toLocaleString()}`, top.sx, top.sy - 6);
+      ctx.textAlign = 'left';
+    }
+  }
+
+  // 상태별 색 — 기체(옅은 하늘빛, 퍼짐) · 액체(진한 물빛, 불투명↑ = 고인 느낌) · 고밀도(붉은 열). feature-0005 step4.
+  #voxelCube(cam, x0, x1, y0, y1, z0, z1, t, phase) {
     const V = [[x0, y0, z0], [x1, y0, z0], [x1, y1, z0], [x0, y1, z0],
                [x0, y0, z1], [x1, y0, z1], [x1, y1, z1], [x0, y1, z1]];
     const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
     if (P.some(p => !p)) return; // 카메라 뒤 복셀 생략(근사)
     const { ctx } = this;
-    const hue = 210 - 210 * t; // 파랑(저) → 빨강(고)
-    ctx.fillStyle = `hsla(${hue}, 90%, ${42 + t * 16}%, ${0.09 + 0.28 * t})`;
-    ctx.strokeStyle = `hsla(${hue}, 95%, 66%, ${0.22 + 0.45 * t})`;
+    let hue, light, fillA, strokeA;
+    if (phase === 'liquid') { hue = 200; light = 52 + t * 12; fillA = 0.34 + 0.34 * t; strokeA = 0.5 + 0.4 * t; }
+    else if (phase === 'dense') { hue = 12; light = 50 + t * 16; fillA = 0.30 + 0.34 * t; strokeA = 0.5 + 0.4 * t; }
+    else { hue = 205; light = 46 + t * 12; fillA = 0.06 + 0.16 * t; strokeA = 0.16 + 0.30 * t; } // gas
+    ctx.fillStyle = `hsla(${hue}, 90%, ${light}%, ${fillA})`;
+    ctx.strokeStyle = `hsla(${hue}, 95%, 72%, ${strokeA})`;
     ctx.lineWidth = 1;
     for (const f of [[0, 1, 2, 3], [4, 5, 6, 7], [0, 1, 5, 4], [2, 3, 7, 6], [1, 2, 6, 5], [0, 3, 7, 4]]) {
       ctx.beginPath();
@@ -250,27 +310,29 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 우상: 보존 불변식 + 에너지 세 등급(태양·국소장·심우주) 전시 + 네트워크 계측
+    // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(w - 265, 10, 255, 122);
+    ctx.fillRect(w - 265, 10, 255, 140);
     ctx.font = '12px monospace';
     ctx.fillStyle = '#8fd9a8';
     ctx.fillText(`세계 총 에너지 ${state.worldTotal.toLocaleString()}`, w - 255, 28);
     ctx.fillStyle = '#9db2c4';
     ctx.fillText(`(창세 이후 불변 = 보존 법칙)`, w - 255, 44);
-    // feature-0004: 태양(고등급)→국소장(중등급, 확산)→심우주(저등급, 단조 증가) 세 등급
+    // feature-0004: 태양(고)→국소장(중, 확산)→심우주(저, 손실) · feature-0005: 결정(국소장 석출, 정적·면역)
     ctx.fillStyle = '#e0b34e';
     ctx.fillText(`☀ 태양 ${state.worldSrc.toLocaleString()}  ·  국소장 ${state.worldMaterial.toLocaleString()}`, w - 255, 60);
+    ctx.fillStyle = '#7cebd8';
+    ctx.fillText(`◆ 결정(정적) ${state.worldCrystal.toLocaleString()}`, w - 255, 76);
     ctx.fillStyle = '#7a8aa0';
-    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 76);
+    ctx.fillText(`심우주(손실) ${state.worldSink.toLocaleString()}  ↑엔트로피`, w - 255, 92);
     ctx.fillStyle = '#6b7a8c';
     ctx.font = '10px monospace';
-    ctx.fillText(`복셀 색 = 국소장 농도(3D 엔트로픽 확산)`, w - 255, 90);
+    ctx.fillText(`상태: 기체(옅음)·액체(바닥 고임)·고체(결정)`, w - 255, 106);
     ctx.font = '12px monospace';
     ctx.fillStyle = state.checksumStatus === 'OK' ? '#8fd9a8' : '#e0b34e';
-    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 108);
+    ctx.fillText(`지역 체크섬 ${state.checksumStatus}`, w - 255, 124);
     ctx.fillStyle = '#9db2c4';
-    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 124);
+    ctx.fillText(`수신 ${net.bytesPerSec.toLocaleString()} B/s`, w - 255, 140);
 
     // 좌하: tx 피드 — 동기화되는 것의 전부
     ctx.font = '11px monospace';
