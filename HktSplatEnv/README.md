@@ -1,14 +1,19 @@
-# HktSplatEnv — 환경(정적) 무대
+# HktSplatEnv — 정적 오픈월드 무대
 
-HktSplatGenesis 에서 갈라져 나온 **환경(정적=무대)** 단독 프로젝트. **Spark(WebGL2) 전용** —
-생명(WebGPU 캐릭터) 경로가 전혀 없다. 절차 월드 함수(terrain-gen)로 지형·바이옴·수역·하늘을
-평가하고, Bake 식생(나무·바위)을 얹어 타일 스트리밍으로 로드한다. "무대는 로드/생성한다".
-무-빌드(classic `<script>` + Spark ESM), 주석 한국어.
+정적 오픈월드(돌·나무·언덕·구름 등)를 3DGS 로 그리는 **단독 프로젝트**. **Spark(WebGL2) 전용** —
+캐릭터·생명(동적) 경로가 전혀 없다. 절차 월드 함수(terrain-gen)로 지형·바이옴·수역·하늘을
+평가하고, Bake 식생(나무·바위)을 얹어 무한 타일 스트리밍으로 로드한다. "무대는 로드/생성한다".
+무-빌드(classic `<script>` + Spark ESM), 주석 한국어. 목표·규칙은 [CLAUDE.md](CLAUDE.md), 진행
+현황·명제는 [STATE.md](STATE.md).
 
 ## 실행
 
 ```bash
 ./run.sh            # http://localhost:8210 — 브라우저에서 index.html 열기
+```
+
+```bat
+run.bat             :: Windows — 로컬 서버 + 브라우저 자동 열기
 ```
 
 WebGL2 브라우저. 좌드래그 회전 · 우/Shift드래그 이동 · 휠 줌 · `?seed=N` 으로 월드 시드 변경.
