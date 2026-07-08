@@ -110,6 +110,14 @@ export const CREATURE_GROWTH_FULL_FRACTION = 0.9;    // 잔고가 용량의 이 
 export const CREATURE_GROWTH_HUNGRY_FRACTION = 0.25; // 잔고가 용량의 이 비율 미만이면 적자(성장점 −2, 0 에서 클램프 = 진척 되돌아감)
 export const CREATURE_GROWTH_THRESHOLD = 300;        // 성장 문턱 — 흑자로 이 값에 닿으면 size +1(용량·능력 확장)
 
+// feature-0007 채집·섭취 — 생명체가 근접 결정(=아이템, 에너지의 결정체)을 흡수한다. 결정은 원래 정적·면역
+//   (feature-0005)이지만 생명이 가까이 오면 그 정적 질서가 풀린다 — 결정 → 생명체로 농축 에너지가 흘러든다.
+//   확산장 갈구(feature-0006)가 옅은 에너지를 조금씩 긁는 것이라면, 채집은 결정에 뭉친 에너지를 크게 들이켜는
+//   것(증폭). 그래서 결정 곁의 생명체는 훨씬 빨리 채워지고 성장한다. 결정을 다 먹으면 그 결정은 소멸한다.
+//   결정론 시뮬 상수(rng 미사용, 순수 클램프) — 확산·성장 결정론에 영향 없다.
+export const CREATURE_HARVEST_RADIUS = 300;    // 이 반경 안의 결정을 채집한다(px) — 정적 질서가 풀리는 근접 거리
+export const CREATURE_HARVEST_RATE = 40;       // 매 대사 틱 결정에서 흡수하는 최대량(size 비례) — 확산 갈구(5)보다 훨씬 크다(농축=증폭)
+
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
   if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도
@@ -140,6 +148,7 @@ export const CAUSE = {
   SETTLE: 'settle',     // 국소장 → 아래 국소장 (액체 중력 침강 — 아래로 흐르고 고인다, feature-0005 step4)
   FORAGE: 'forage',     // 국소장 → 생명체 (갈구 — 세계의 흩어진 에너지를 흡수해 내부 질서를 보충, feature-0006)
   METABOLIZE: 'metabolize', // 생명체 → 심우주 (물질대사 — 살아있음의 엔트로피 세금, 되돌아오지 않는 손실, feature-0006)
+  HARVEST: 'harvest',   // 결정 → 생명체 (채집 — 근접 결정의 농축 에너지를 흡수, 정적 질서를 푼다, feature-0007)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
