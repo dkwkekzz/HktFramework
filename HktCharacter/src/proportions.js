@@ -96,34 +96,45 @@ const REFERENCE = {
   skeleton: {
     hipsY: 0.88,
     spineLens: [0.10, 0.10, 0.12],  // 허리(Spine) 0.98 · 명치 1.08 · 흉곽 1.20
-    spineZ: [0.010, 0.004, -0.002], // 몸통을 살짝 앞으로 (시트 정렬 — 등이 뒤로 튀지 않게)
-    neckLen: 0.09, neckZ: 0.025,    // 목밑 1.29 ≈ 어깨선 — 목은 앞으로 기움
-    headLen: 0.17, headZ: 0.025,    // 두개골 중심 1.46 — 얼굴이 앞 (시트 측면 프로파일)
+    // ⚠ 이하 수치 다수는 eval/optimize.mjs 좌표 하강 결과 (dense 라인 손실 기준) —
+    //   손으로 크게 벗어나게 만지지 말고, 바꾸면 npm run eval + optimize --baseline 로 확인.
+    spineZ: [0.014, 0.0, -0.008],   // 몸통 전방 정렬 — 시트 측면은 등이 수직에 가깝다 (중심선 지표 기준)
+    neckLen: 0.09, neckZ: 0.012,    // 목밑 1.29 ≈ 어깨선 — 목은 앞으로 기움 (throat 가 턱보다 안 나가게)
+    headLen: 0.17, headZ: 0.012,    // 두개골 중심 1.46 — 전방 돌출은 Skull subBone 이 아니라 여기서 막는다
     headTopLen: 0.06, headTopZ: 0.0,
     shoulderX: 0.04, shoulderY: 0.075,
-    armX: 0.083,                    // 어깨 폭 절반 ≈ 0.123 + 삼각근 살
+    armX: 0.095,                    // 어깨 폭 절반 ≈ 0.135 + 삼각근 살
     upperArmLen: 0.25, foreArmLen: 0.245,
     upLegX: 0.08, upLegY: -0.07,    // 고관절 0.81 (골반 최광부)
     kneeX: 0.052, ankleX: 0.042,    // 시트처럼 다리가 발목으로 갈수록 안쪽 수렴
-    thighLen: 0.35, shinLen: 0.37,  // 무릎 0.46 · 발목 0.09
-    footDrop: 0.055, toeZ: 0.098,
+    upLegZ: 0.040, kneeZ: 0.034, ankleZ: 0.004, // 다리를 골반보다 앞에, 발목은 복귀 — 시트 측면 중심선 정렬
+    thighLen: 0.37, shinLen: 0.36,  // 무릎 0.46 · 발목 0.09
+    footDrop: 0.055, toeZ: 0.084,
     fingers: [['Thumb', 0.55, 0.025], ['Index', 0.14, 0.034], ['Middle', -0.02, 0.038], ['Ring', -0.16, 0.034], ['Pinky', -0.30, 0.027]],
   },
   rules: [
-    { match: '=Hips',    r: 0.092, group: 'hips'  },
+    { match: '=Hips',    r: 0.083, group: 'hips'  },
     // 흉곽: 앞뒤로 납작한 타원 단면 — 정면 폭은 살리고 측면 깊이는 얇게 (시트 특징)
-    { match: 'Spine2',   r: 0.060, group: 'chest', flatten: { dir: [0, 0, 1], f: 0.92 } },
-    { match: 'Spine1',   r: 0.070, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 } },
-    { match: 'Spine',    r: 0.072, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 } }, // 허리 최협부
-    { match: 'Neck',     r: 0.024, group: 'chest' },
-    { match: 'HeadTop',  r: 0.089, group: 'head'  }, // 'HeadTop_End' 포함 — 정수리
-    // 두상: 좌우로 살짝 납작 — 정면 폭 줄이고 측면 깊이 유지 (시트 계측 0.12H)
-    { match: 'Head',     r: 0.092, group: 'head', flatten: { dir: [1, 0, 0], f: 0.95 } },
-    { match: 'Shoulder', r: 0.033, group: 'chest' },
-    { match: 'ForeArm',  r: 0.022, group: 'arms'  },
+    { match: 'Spine2',   r: 0.055, group: 'chest', flatten: { dir: [0, 0, 1], f: 0.92 } },
+    // 허리·골반: 뒤(-z) 반만 납작 = 요추 아치 — 시트 측면의 등 안쪽 곡선 (배는 그대로)
+    { match: 'Spine1',   r: 0.0625, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 }, flatten2: { dir: [0, 0, -1], f: -0.62 } },
+    { match: 'Spine',    r: 0.072, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 }, flatten2: { dir: [0, 0, -1], f: -0.62 } }, // 허리 최협부
+    { match: 'Neck',     r: 0.0255, group: 'chest' },
+    // ---- 두상 (subBones 와 세트) -------------------------------------------
+    // 얼굴 평면: flatten2 f<0 = one-sided — 앞(+z) 반만 납작, 뒤통수는 원형 유지.
+    // 두개골을 이루는 캡슐(Skull·HeadTop·Occiput)이 같은 평면을 공유해야 이음새가 없다.
+    // Head 관절 자체는 가는 목-스텁(r 0.032) — 목→머리 테이퍼 콘이 턱밑을 삼키지 않게.
+    { match: 'Skull',    r: 0.086, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 두개골 본체
+    { match: 'Occiput',  r: 0.060, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 뒤통수
+    { match: 'JawSide',  r: 0.042, group: 'head' },                    // 귀밑점/뺨 (link 없음 — 앵커. 정면 뺨 폭 담당)
+    { match: 'JawTip',   r: 0.011, group: 'head', k: 0.048 },          // 턱끝 — 두개골 하단에 매끈히 붙되 뾰족함 유지
+    { match: 'HeadTop',  r: 0.084, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 정수리
+    { match: 'Head',     r: 0.032, group: 'head' },
+    { match: 'Shoulder', r: 0.035, group: 'chest' },
+    { match: 'ForeArm',  r: 0.0265, group: 'arms' },
     { match: 'Arm',      r: 0.027, group: 'arms'  },
-    { match: 'Hand',     r: 0.017, group: 'arms'  },
-    { match: 'UpLeg',    r: 0.066, group: 'legs'  }, // 허벅지 상단 — 골반 폭에도 기여
+    { match: 'Hand',     r: 0.014, group: 'arms'  },
+    { match: 'UpLeg',    r: 0.070, group: 'legs'  }, // 허벅지 상단 — 골반 폭에도 기여
     { match: 'Leg',      r: 0.042, group: 'legs'  }, // 무릎
     { match: 'ToeBase',  r: 0.020, group: 'legs'  },
     { match: 'Toe',      r: 0.020, group: 'legs'  }, // 'Toe_End' 포함 (아래 '_End' 보다 먼저)
@@ -137,26 +148,46 @@ const REFERENCE = {
     { match: 'Finger',   r: 0.010, group: 'arms'  },
   ],
   fallback: 0.04,
+  // 가상 하위 뼈 — 부모 관절 로컬 오프셋(m)으로 세분화 체인을 합성 (애니메이션 무영향).
+  // 두께/디테일은 rules 의 이름 매칭으로 결정 — grammar 원칙 그대로.
+  subBones: [
+    // 두개골 본체 — Head 관절(목 스텁) 위 (측면 시트: 눈높이 앞면 ~0.128, 뒤통수 ~-0.046)
+    { name: 'Skull',   parent: 'Head', offset: [0, 0.028, 0.006] },
+    // 뒤통수 — 두개골 중심에서 뒤로 (시트 측면의 후두 돌출)
+    { name: 'Occiput', parent: 'Skull', offset: [0, 0.004, -0.046] },
+    // 턱 — 귀밑 앵커(link 없음)에서 턱끝으로 수렴하는 좌우 쐐기 → 각진 턱선 + 뾰족한 턱
+    { name: 'JawSide', parent: 'Head', offset: [0.056, -0.028, 0.016], mirrorX: true, link: false },
+    { name: 'JawTip',  parent: 'JawSide', offset: [-0.050, -0.052, 0.040], mirrorX: true },
+  ],
   // 볼륨 헬퍼 — joint 로컬 공간(m): +x=캐릭터 왼쪽, +y=위, +z=정면
   extras: [
-    // 가슴 (Spine2 기준, 좌우 대칭 — 측면 돌출이 시트의 특징)
-    { joint: 'Spine2', mirrorX: true, a: [0.044, -0.05, 0.050], b: [0.052, -0.042, 0.104], ra: 0.048, rb: 0.058, group: 'chest' },
-    // 둔부 (Hips 기준, 좌우 대칭 — 뒤로 볼록)
-    { joint: 'Hips', mirrorX: true, a: [0.048, 0.005, -0.020], b: [0.055, -0.055, -0.038], ra: 0.056, rb: 0.058, group: 'hips' },
+    // 가슴 (Spine2 기준, 좌우 대칭 — 측면 돌출이 시트의 특징. k 는 좌우 캡슐
+    // 경계 주름이 정면 음영에 안 뜨는 하한 — 실루엣엔 안 잡힌다, 눈 검증 항목)
+    // 시트 측면: 가슴은 아래로 처지고(b.y 낮게) 밑가슴→배로 곡선이 이어진다
+    { joint: 'Spine2', mirrorX: true, a: [0.042, -0.030, 0.046], b: [0.050, -0.064, 0.096], ra: 0.042, rb: 0.054, k: 0.11, group: 'chest' },
+    // 승모근 — 목밑에서 어깨로 흐르는 경사 (시트의 수평 어깨선. 목이 덜 앙상해 보인다)
+    { joint: 'Spine2', mirrorX: true, a: [0.012, 0.088, 0.004], b: [0.062, 0.058, 0.0], ra: 0.020, rb: 0.026, group: 'chest' },
+    // 목덜미 — 목 뒤를 따라 오르는 승모근 상부 (측면 뒷목/후면 목 폭. 시트 잔차 지도 대응)
+    { joint: 'Neck', a: [0.0, 0.005, -0.012], b: [0.0, 0.055, -0.028], ra: 0.024, rb: 0.016, group: 'chest' },
+    // 둔부 (Hips 기준, 좌우 대칭 — 뒤로 볼록. 시트 측면 등 라인은 수직에 가까우니 과하게 뒤로 빼지 않는다)
+    { joint: 'Hips', mirrorX: true, a: [0.048, 0.005, 0.002], b: [0.055, -0.055, -0.012], ra: 0.056, rb: 0.058, group: 'hips' },
+    // 아랫배 — 시트 측면의 완만한 복부 전방 곡선 (둔부를 앞으로 당긴 만큼 앞폭을 채운다)
+    { joint: 'Hips', a: [0.0, 0.015, 0.048], b: [0.0, -0.045, 0.068], ra: 0.050, rb: 0.048, group: 'hips' },
     // 골반 옆폭 (Hips → 고관절 옆라인)
     { joint: 'Hips', mirrorX: true, a: [0.042, -0.01, 0.0], b: [0.068, -0.065, 0.0], ra: 0.048, rb: 0.048, group: 'hips' },
-    // 종아리 (Leg=무릎 아래 — 캡슐 선형 테이퍼로는 안 나오는 볼록 실루엣)
-    { joint: 'Leg', mirrorJoints: true, a: [0.0, -0.08, -0.006], b: [0.0, -0.15, -0.012], ra: 0.037, rb: 0.033, group: 'legs' },
+    // 종아리 (Leg=무릎 아래 — 캡슐 선형 테이퍼로는 안 나오는 볼록 실루엣.
+    // 후면 뷰가 과폭이라 반지름은 절제 — 볼록함은 뒤(z-) 방향 위주)
+    { joint: 'Leg', mirrorJoints: true, a: [0.0, -0.08, -0.006], b: [0.0, -0.15, -0.012], ra: 0.034, rb: 0.030, group: 'legs' },
     // 뒤꿈치 (후면에서 발이 바닥까지 닿아 보이게 + 측면 힐 라인)
-    { joint: 'Foot', mirrorJoints: true, a: [0.0, -0.02, -0.01], b: [0.0, -0.052, -0.018], ra: 0.020, rb: 0.016, group: 'legs' },
-    // 손바닥 (손가락 미표시 시에도 손목에서 끊기지 않게 — 손 로컬 +x = 팔 방향)
-    { joint: 'Hand', mirrorJoints: true, a: [0.0, 0.0, 0.0], b: [0.085, 0.0, 0.005], ra: 0.017, rb: 0.011, group: 'arms' },
-    // 턱끝 — 두개골 밑에 살짝만 뾰족하게 (시트 측면의 턱 라인. 과하면 정면에 범프가 뜬다)
-    { joint: 'Head', a: [0.0, -0.062, 0.014], b: [0.0, -0.092, 0.024], ra: 0.028, rb: 0.010, k: 0.055, group: 'head' },
+    { joint: 'Foot', mirrorJoints: true, a: [0.0, -0.02, -0.01], b: [0.0, -0.052, -0.018], ra: 0.018, rb: 0.013, group: 'legs' },
+    // 손바닥 (손가락 미표시 시에도 손목에서 끊기지 않게 — 손 로컬 +x = 팔 방향.
+    // 3뷰 잔차 지도 공통 돌출부라 슬림하게)
+    { joint: 'Hand', mirrorJoints: true, a: [0.0, 0.0, 0.0], b: [0.058, 0.0, 0.004], ra: 0.012, rb: 0.0075, group: 'arms' },
   ],
   defaults: { k: 0.05 }, // 가는 팔·목이 살아남아야 하는 체형 — smin 좁게
-  // 시트 A-포즈: 팔은 몸에 붙이고 전완만 살짝 밖, 손끝은 허벅지 쪽으로, 발끝만 벌림
-  pose: { armDown: 1.54, foreArmOut: 0.24, handIn: 0.85, footSplay: 0.22 },
+  // 시트 A-포즈: 팔은 몸에 붙이고 전완만 살짝 밖, 팔 전체가 살짝 앞으로 늘어져
+  // 손이 허벅지 "앞"에 온다 (시트 측면 — 중심선 지표의 허리~무릎 밴드가 이걸 본다)
+  pose: { armDown: 1.525, foreArmOut: 0.14, handIn: 0.50, footSplay: 0.12, armFwd: 0.12, foreArmFwd: 0.20 },
 };
 
 export const PROFILES = { standard: STANDARD, reference: REFERENCE };
