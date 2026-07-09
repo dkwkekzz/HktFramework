@@ -1,9 +1,9 @@
 // ===========================================================================
-//  Skeleton → Flesh  (rig-agnostic)  ·  히키토 asset pipeline prototype
+//  HktCharacter · Skeleton → Flesh  (rig-agnostic)  ·  asset pipeline prototype
 //
 //  1) Skeleton IR   : joints[{name,parent,offset}] + per-frame 회전 → world FK
 //  2) Flesh grammar : radiusForName(name) → 이름으로 반지름 → 어떤 리그든 같은 스타일
-//  3) Source        : built-in Mixamo 리그+클립 / FBX 드롭 (Vite에선 항상 동작)
+//  3) Source        : built-in Mixamo 리그+클립 / 동봉 로코모션 FBX 샘플 + FBX 드롭
 //
 //  ⓘ 아키텍처 매핑 (harness):
 //    - Planner   = 뼈대 그래프 = genome
@@ -260,37 +260,100 @@ function uploadBones(segs) {
 }
 
 // ===========================================================================
-//  (3-b) FBX 드롭 : 실제 Mixamo 클립 재생 (Vite에선 FBXLoader 항상 사용 가능)
+//  (3-b) FBX 소스 : 실제 Mixamo 클립 재생 (Vite에선 FBXLoader 항상 사용 가능)
+//    · 동봉 로코모션 샘플(public/assets/anim/*.fbx)을 fetch 로 바로 재생
+//    · 클립을 전부 보관하고 이름으로 전환 (Mixamo 단일-클립 FBX 는 1개)
+//    · 애니메이션-only FBX(스킨 메시 없음)는 뼈 world 위치로 바운드를 다시 잡는다
+//      — Box3.setFromObject 만 쓰면 지오메트리가 없어 size.y=0 → scale 폭주로
+//        캐릭터가 화면 밖으로 날아간다 (HktSplatLife ExternalSkeleton 과 동일 정식).
 // ===========================================================================
 let mode = 'builtin', extMixer = null, extRoot = null, extBones = [], extScale = 1, extCenter = new THREE.Vector3();
+let extClips = {}, extActions = {}, extActive = '';
 const statusEl = document.getElementById('status');
 const setStatus = html => { statusEl.innerHTML = html; };
-setStatus('FBX 로더 준비됨 — Mixamo FBX를 드롭하세요.');
+setStatus('FBX 로더 준비됨 — 로코모션 샘플 또는 Mixamo FBX를 드롭하세요.');
 
-function loadFBXBuffer(buf) {
+// 이름 클립으로 전환 — fade>0 이면 크로스페이드(같은 리그라 뼈 순서 불변 = 안전).
+function playExtClip(name, fade) {
+  if (!extMixer || !extClips[name] || extActive === name) return;
+  if (!extActions[name]) extActions[name] = extMixer.clipAction(extClips[name]);
+  const next = extActions[name];
+  const prev = extActive && extActions[extActive];
+  next.enabled = true; next.setEffectiveWeight(1).play();
+  if (prev && fade > 0) { next.reset(); prev.crossFadeTo(next, fade, false); }
+  else if (prev) prev.stop();
+  extActive = name;
+  refreshExtClips();
+}
+// 다중 클립 FBX 는 클립 버튼을 노출 (단일 클립이면 숨김).
+function refreshExtClips() {
+  const box = document.getElementById('extClips'); box.innerHTML = '';
+  const names = Object.keys(extClips);
+  if (mode !== 'external' || names.length < 2) return;
+  for (const name of names) {
+    const b = document.createElement('button'); b.textContent = name || '(무명)';
+    b.classList.toggle('on', name === extActive);
+    b.addEventListener('click', () => playExtClip(name, 0.25));
+    box.appendChild(b);
+  }
+}
+
+function loadFBXBuffer(buf, label) {
   try {
     const obj = new FBXLoader().parse(buf, '');
     let bones = []; obj.traverse(o => { if (o.isBone) bones.push(o); });
     if (!bones.length) obj.traverse(o => { if (o.isSkinnedMesh) bones = o.skeleton.bones; });
     if (!bones.length) { setStatus('스켈레톤을 못 찾았어요.'); return; }
-    const box = new THREE.Box3().setFromObject(obj);
+    // 바운드 정규화 — 스킨 메시가 없으면(애니메이션-only) 뼈 world 위치로 다시 잡는다.
+    obj.updateMatrixWorld(true);
+    let box = new THREE.Box3().setFromObject(obj);
+    if (box.isEmpty()) {
+      box = new THREE.Box3(); const wp = new THREE.Vector3();
+      for (const b of bones) { b.getWorldPosition(wp); box.expandByPoint(wp); }
+    }
     const size = new THREE.Vector3(); box.getSize(size);
     extScale = 1.7 / Math.max(size.y, 1e-3); box.getCenter(extCenter);
     extRoot = obj; extBones = bones;
+    extMixer = null; extClips = {}; extActions = {}; extActive = '';
     if (obj.animations && obj.animations.length) {
       extMixer = new THREE.AnimationMixer(obj);
-      extMixer.clipAction(obj.animations[0]).play();
+      for (const c of obj.animations) extClips[c.name || `clip${Object.keys(extClips).length}`] = c;
+      playExtClip(Object.keys(extClips)[0], 0);
     }
-    mode = 'external';
+    mode = 'external'; st.clip = 'external';
     document.getElementById('extOpt').disabled = false;
     document.getElementById('clip').value = 'external';
-    setStatus('<b>불러오기 완료</b> — 실제 Mixamo 클립 재생 중.');
+    refreshExtClips();
+    const nClip = Object.keys(extClips).length;
+    setStatus(`<b>${label} 로드</b> — 뼈 ${bones.length}개 · 클립 ${nClip}개 재생 중.`);
   } catch (e) {
     setStatus('FBX 파싱 실패: ' + e.message);
   }
 }
+
+// 동봉 로코모션 샘플 (Mixamo, public/assets/anim/). 라벨=한글, 파일=영문.
+const FBX_SAMPLES = [
+  ['걷기', 'walk'], ['뛰기', 'run'], ['대기', 'idle'],
+  ['점프', 'jump'], ['공격', 'attack'], ['삼바', 'samba'],
+];
+async function loadSample(file, label) {
+  setStatus(`샘플 로드 중… (${label})`);
+  try {
+    const buf = await (await fetch(`assets/anim/${file}.fbx`)).arrayBuffer();
+    loadFBXBuffer(buf, label);
+  } catch (e) { setStatus(`샘플 로드 실패(${label}): ` + e.message); }
+}
+// 내장 스켈레톤(절차적 클립)으로 복귀.
+function returnToBuiltin() {
+  mode = 'builtin'; extRoot = null; extMixer = null; extClips = {}; extActions = {}; extActive = '';
+  st.clip = 'walk';
+  document.getElementById('clip').value = 'walk';
+  document.getElementById('extOpt').disabled = true;
+  refreshExtClips();
+  setStatus('내장 스켈레톤 (built-in FK) — 절차적 클립.');
+}
 function extractExternal(showFingers, fat) {
-  if (extMixer) extMixer.update(1 / 60);
+  if (extMixer) extMixer.update((st.speed || 1) * (1 / 60));
   extRoot.updateMatrixWorld(true);
   const segs = [];
   for (const b of extBones) {
@@ -314,7 +377,7 @@ drop.addEventListener('click', () => {
 drop.addEventListener('drop', e => { if (e.dataTransfer.files[0]) readFile(e.dataTransfer.files[0]); });
 function readFile(f) {
   if (!f) return; setStatus('읽는 중… ' + f.name);
-  const r = new FileReader(); r.onload = () => loadFBXBuffer(r.result); r.readAsArrayBuffer(f);
+  const r = new FileReader(); r.onload = () => loadFBXBuffer(r.result, f.name); r.readAsArrayBuffer(f);
 }
 
 // ===========================================================================
@@ -356,6 +419,15 @@ $('k').addEventListener('input', e => { st.k = +e.target.value; uniforms.uK.valu
 $('fat').addEventListener('input', e => { st.fat = +e.target.value; $('fatVal').textContent = st.fat.toFixed(2); });
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });
+$('btnBuiltin').addEventListener('click', returnToBuiltin);
+
+// 동봉 로코모션 샘플 버튼 — 클릭 시 해당 FBX 를 fetch 해 살이 그 클립을 따라간다.
+const sbox = $('fbxSamples');
+for (const [label, file] of FBX_SAMPLES) {
+  const b = document.createElement('button'); b.textContent = label;
+  b.addEventListener('click', () => loadSample(file, label));
+  sbox.appendChild(b);
+}
 
 const clock = new THREE.Clock();
 function loop() {

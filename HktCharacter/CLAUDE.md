@@ -1,7 +1,7 @@
-# CLAUDE.md — hikito-flesh
+# CLAUDE.md — HktCharacter
 
-> Skeleton → Flesh: **rig-agnostic SDF flesh 렌더러** 프로토타입.
-> 히키토의 대모험 asset pipeline의 실현 가능성 검증용. AI-only 자산 제작 철학의 일부.
+> Skeleton → Flesh: **rig-agnostic SDF flesh 렌더러** 프로토타입. (이전 이름 `hikito-flesh`)
+> 캐릭터 asset pipeline의 실현 가능성 검증용. AI-only 자산 제작 철학의 일부.
 
 ## 한 줄 요약
 
@@ -14,7 +14,9 @@
    소스(built-in / Mixamo FBX / 임의 리그)를 몰라도 동일 경로로 흐른다. FK는 three Object3D 계층이 담당.
 2. **Flesh grammar** — `radiusForName(name)`. 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
    Mixamo 이름(`mixamorig:LeftForeArm`)은 접두어만 떼고 매칭. 미지의 뼈는 기본값 → 임의 리그도 안 깨진다.
-3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 그리고 FBX 드롭(실제 Mixamo 클립).
+3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
+   (`public/assets/anim/*.fbx` — 걷기·뛰기·대기·점프·공격·삼바), 그리고 FBX 드롭(실제 Mixamo 클립).
+   다중 클립 FBX 는 이름별 클립 전환(크로스페이드) 지원.
 
 ### harness 매핑
 - **Planner** = 뼈대 그래프 = genome
@@ -23,12 +25,14 @@
 
 ## 파일 맵
 
-- `index.html` — DOM(HUD/패널/드롭존) + CSS
+- `index.html` — DOM(HUD/패널/드롭존/로코모션 버튼) + CSS
+- `public/assets/anim/*.fbx` — 동봉 로코모션 샘플 (Mixamo, HktSplatLife 와 동일 세트)
 - `src/main.js` — 전체 로직. 섹션 주석으로 (1)IR (2)grammar (3)source 구분
   - `frag` : 레이마칭 프래그먼트 셰이더 (round-cone SDF의 smooth-union)
   - `buildMixamoRig()` : Mixamo 표준 humanoid 계층 (T-pose)
   - `radiusForName()` : flesh grammar
   - `extractBones()` / `extractExternal()` : 관절 → taper 캡슐 세그먼트
+  - `loadFBXBuffer()` / `loadSample()` / `playExtClip()` : FBX 파싱 + 샘플 fetch + 클립 전환
 
 ## 실행
 
@@ -37,12 +41,14 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-Mixamo에서 캐릭터/애니메이션을 **FBX**로 받아 우측 패널 드롭존에 놓으면 실제 클립이 재생된다.
-(스케일 정규화 포함 — Mixamo 100배 스케일 자동 처리)
+우측 패널 **로코모션** 버튼으로 동봉 FBX 샘플을 바로 재생하거나, Mixamo FBX 를 드롭존에 놓으면
+실제 클립이 재생된다. (스케일 정규화 포함 — Mixamo 100배 스케일 자동 처리, 애니메이션-only FBX 는
+뼈 world 위치로 바운드 재계산.)
 
 ## 현재 상태 / 다음 작업
 
-**동작함**: built-in Mixamo 리그 위에서 walk/idle/wave, 손가락 토글, 스타일 슬라이더(smin/통통함), 실제 FBX 드롭.
+**동작함**: built-in Mixamo 리그 위에서 walk/idle/wave, 손가락 토글, 스타일 슬라이더(smin/통통함),
+동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭.
 
 **다음 (우선순위 순)**:
 1. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.

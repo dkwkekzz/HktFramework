@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>Skeleton → Flesh · Mixamo</title>
+<title>HktCharacter · Skeleton → Flesh</title>
 <style>
   :root{
     --bg:#141019; --panel:rgba(28,22,38,0.74); --line:rgba(255,255,255,0.09);
@@ -34,6 +34,9 @@
   select{width:100%;font:inherit;font-size:12.5px;color:var(--ink);background:rgba(255,255,255,0.06);
     border:1px solid var(--line);border-radius:9px;padding:8px 9px;outline:none;}
   .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
+  .btns-wrap{grid-template-columns:repeat(3,1fr);}
+  .btns-wrap:empty{display:none;}
+  #extClips button{background:rgba(143,214,255,0.10);border-color:rgba(143,214,255,0.35);}
   button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;
     background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:10px;padding:9px 8px;transition:.15s;}
   button:hover{background:rgba(255,255,255,0.11);}
@@ -55,9 +58,9 @@
 <div id="app"></div>
 
 <div class="hud">
-  <div class="kicker">skeleton → flesh · rig-agnostic</div>
+  <div class="kicker">HktCharacter · skeleton → flesh</div>
   <div class="title">Mixamo 리그 위에서 <b>살이 자란다</b></div>
-  <div class="sub">뼈대는 IR로 추상화 — 이름으로 반지름을 매기는 grammar 하나면 어떤 리그든 같은 스타일로 살이 붙는다. 모션은 Mixamo가 담당.</div>
+  <div class="sub">뼈대는 IR로 추상화 — 이름으로 반지름을 매기는 grammar 하나면 어떤 리그든 같은 스타일로 살이 붙는다. 동봉 로코모션 샘플(걷기·뛰기·대기·점프·공격·삼바)을 바로 재생하거나 Mixamo FBX를 드롭한다.</div>
 </div>
 
 <div class="panel">
@@ -86,6 +89,11 @@
     <button id="btnBone">뼈대 보기</button>
     <button id="btnFinger">손가락</button>
   </div>
+
+  <h2>로코모션 (동봉 FBX)</h2>
+  <div id="fbxSamples" class="btns btns-wrap"></div>
+  <div id="extClips" class="btns btns-wrap" style="margin-top:8px;"></div>
+  <button id="btnBuiltin" style="margin-top:8px;width:100%;">내장 스켈레톤으로 복귀</button>
 
   <h2>Mixamo 불러오기</h2>
   <div id="drop" class="drop">FBX 파일을 여기에 드롭<br>(Mixamo → Download → FBX)</div>
