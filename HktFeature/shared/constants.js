@@ -169,11 +169,32 @@ export const DESIRE = {
   FORAGE: 'forage',   // 채집 — 먹을 수 있는 결정만 향해 먹는다(날것은 못 다룬다, feature-0007)
   HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향해 타격(포식, feature-0008)
   EAT: 'eat',         // 식사 — 결정(밥)을 향하되 날것이면 먼저 요리(변형)한 뒤 먹는다(절차적, feature-0011)
+  CRAFT: 'craft',     // 제조 — 가까이 놓인 두 재료 결정(조합 지점)으로 가 하나의 산물로 조합한다(feature-0010 step2)
 };
 export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
 export const CREATURE_SEEK_RADIUS = 900;         // 욕망의 표적을 감지하는 반경(px) — 무한 시야가 아니라 국소적 인지
 export const CREATURE_LEASH_STOP = 48;           // 소유 생명체가 주인 곁 이 거리 안이면 멈춘다(수동 추종의 도달 반경)
+
+// --- 욕구 우선순위·감정 (feature-0012) — 욕구는 중첩되고 우선순위가 다르다 ---
+// "차이는 신호이고, 욕구는 방향이며, 감정은 중요도다." 생명체는 차이를 인지해 욕구를 품고(방향, feature-0010),
+//   그 욕구를 절차로 수행한다(feature-0011). 이 feature 는 욕구가 **하나가 아니라 여럿 중첩**될 수 있음을 세운다:
+//   생명체는 상황에 따라 지속적으로 욕구를 주입받고, 각 욕구는 **우선순위(=중요도)**를 갖는다. **감정이 그
+//   우선순위를 증폭**한다 — 유효 우선순위 = priority + emotion. 엔진은 매 틱 **가장 높은 유효 우선순위의(지금
+//   수행 가능한) 욕구**의 절차를 수행한다 → 중첩된 욕구들 사이에서 우선순위가 행동을 정한다. 같은 욕구 재주입은
+//   무의미하다(idempotent·dedup — "같은 욕구를 또 주입할 필요는 없다"): 중첩되지 않고 우선순위만 갱신된다.
+export const DESIRE_BASE_PRIORITY = 1;   // 주입되는 욕구의 기본 우선순위(감정이 얹히기 전의 중요도 기준)
+export const DESIRE_EMOTION_MAX = 100;   // 감정 증폭 상한(정수, 과증폭 방지) — 감정은 우선순위에 더해진다
+// feature-0012 step2 — 감정은 두 갈래로 우선순위를 키운다:
+//   · emotion(외생) = 밖에서 실어주는 감정(플레이어/봇/API 의 emote·INJECT).
+//   · feeling(자율) = **상황(차이)이 스스로 만드는 감정** — "차이는 신호". 굶주림·위협 같은 차이가 클수록 오르고,
+//     차이가 사라지면(포만) 0 으로 감쇠해 다음 욕구로 넘어간다. 욕구 절차가 appraise(ctx) 로 스스로 계산한다(개방).
+// 유효 우선순위 = 기본 우선순위 + 외생 감정 + 자율 감정(둘 다 [0,MAX] 클램프). 정수·결정론(순수 함수).
+export function desireWeight(priority, emotion, feeling = 0) {
+  const clamp = (v) => Math.max(0, Math.min(DESIRE_EMOTION_MAX, v | 0));
+  return priority + clamp(emotion) + clamp(feeling);
+}
+export const DESIRE_COMFORT_FRACTION = 0.5; // 잔고가 용량의 이 비율 이상이면 '편안' → 굶주림 감정 0(포만 → 감쇠 → 다음 욕구)
 
 // --- 요리(cook) (feature-0011) — 욕구를 상황에 맞게 절차적으로 수행하는 한 단계 ---
 // 밥(결정)이 날것(raw)이면 그대로 못 먹는다 → 먼저 **요리**(변형)해야 먹을 수 있다. 요리는 질서를 바꾸는
@@ -182,6 +203,22 @@ export const CREATURE_LEASH_STOP = 48;           // 소유 생명체가 주인 �
 export const COOK_COST = 12;        // 한 번의 요리가 방출하는 일(×size) — 이동 소산보다 크고 발산 비용보다 작다
 export const COOK_BURN_PCT = 70;    // 요리 방출 중 심우주(열)로 가는 비율 — 나머지는 국소장(연기·냄새)
 export function cookedSpecies(species) { return (species + 1) % CRYSTAL_SPECIES_COUNT; } // 요리 = 종 변형(먹을 수 있게 + 색이 바뀐다)
+
+// --- 제조(craft) (feature-0010 step2) — 재료 결정을 조합해 새 산물을 만드는 새 욕구 ---
+// feature-0010 step1 은 채집·사냥 욕구를 세웠다. 이 step 은 **새 욕구(제조)**를 절차 레지스트리(feature-0011)에
+//   얹어 "욕망은 확장의 근간"임을 실제로 증명한다: 제조 욕구를 가진 생명체가 가까이 놓인 두 **재료(raw, 미가공)**
+//   결정(조합 지점)으로 이동해 하나의 **산물 결정**으로 조합한다. 조합은 질서를 바꾸는 일이라 에너지를 방출한다
+//   (열→심우주 + 연기→국소장, 요리·반응과 같은 결 = 순수 지출). 산물은 두 재료가 묶인(개수↓) 새 종(craftedSpecies)에
+//   crafted 표식이 붙는다. 재료(raw)는 수동 반응(#react)에 **면역**이라 생명체가 올 때까지 흩어지지 않는다(안정 유지).
+export const CRAFT_COST = 12;         // 한 번의 제조가 방출하는 일(×size) — 요리와 같은 크기(만드는 일의 대가)
+export const CRAFT_BURN_PCT = 60;     // 제조 방출 중 심우주(열)로 가는 비율 — 나머지는 국소장(연기)
+export const CRAFT_REACH = 300;       // 재료(조합 지점)에 이 거리 안이면 조합한다(px, 채집과 같은 근접)
+export const CRAFT_PAIR_RADIUS = 220; // 두 재료가 이 거리 안이면 '조합 가능한 쌍'(px) — 붙어 있어야 합친다
+export function craftedSpecies(a, b) { return (a + b * 2 + 3) % CRYSTAL_SPECIES_COUNT; } // 산물 종(재료와 다르다, 결정론)
+// feature-0011 step2 — **다단계 제조**: 제조는 한 번으로 끝나지 않는다. 결정에 tier(단계)를 두어 같은 단계 둘을
+//   합쳐 한 단계 올린다: 재료(tier0) → 중간물(tier1) → 완성물(tier2). 절차(shared/desires.js)에 단계를 더 얹어
+//   (완성 먼저·중간 나중) 상황에 맞게 다단계로 수행한다 — feature-0011 의 "절차 깊이 확장". tier==MAX 는 완성(더 못 만듦).
+export const CRAFT_MAX_TIER = 2;      // 제조 최고 단계 — 0=재료 · 1=중간물 · 2=완성물(터미널)
 
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
@@ -218,6 +255,7 @@ export const CAUSE = {
   BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008·0009 공용)
   DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
   COOK: 'cook',         // 생명체 → 심우주 / 생명체 → 국소장 (요리 = 날것을 먹을 수 있게 변형하는 일, 방출: 열+연기, feature-0011)
+  CRAFT: 'craft',       // 생명체 → 심우주 / 생명체 → 국소장 / 결정 → 결정 (제조: 두 재료를 산물로 조합, 만드는 일=열+연기 방출, feature-0010 step2)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

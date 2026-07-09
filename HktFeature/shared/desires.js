@@ -13,13 +13,16 @@
 //   않는다.** 런타임에 새 욕구를 등록해도 엔진이 그대로 실행한다(test/eat.test.js 가 이를 증명).
 //
 // ctx 계약 (game.js #desireCtx 가 구현):
-//   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP (도달 사거리)
+//   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP · CRAFT_REACH (도달 사거리)
 //   지각:  nearestCrystal({edibleOnly}?) · nearestPrey() · ownerPos() · inReach(target, radius) · edible(crystal)
+//          craftPair(tier?) — 조합 가능한 (같은 단계) 쌍 {a,b}. tier 주면 그 단계만 (feature-0010·0011 step2 다단계 제조)
+//          capacity() · balance() — 자기 상태(용량·잔고). appraise(ctx) 가 굶주림 같은 '차이'를 읽는다(feature-0012).
+//   행동:  … · craft(a, b) — 두 재료를 산물로 조합(만드는 일=방출, feature-0010 step2)
 //   행동:  moveToward(target, stop) · eat(crystal) · cook(crystal) · strike(prey) · dissipate(amount, cause)
 //          (모든 행동은 에너지를 이동/방출한다 = ledger.transfer)
 // ============================================================================
 
-import { DESIRE } from './constants.js';
+import { DESIRE, DESIRE_EMOTION_MAX, DESIRE_COMFORT_FRACTION } from './constants.js';
 
 // 욕구 이름 → { label, release, steps:[{name, applicable(ctx), act(ctx)}] }
 export const DESIRE_PROCEDURES = {};
@@ -74,6 +77,27 @@ const strikePrey = {
   act: (x) => { const p = x.nearestPrey(); if (p) x.strike(p); },
 };
 
+// 제조(CRAFT): 가까이 놓인 두 재료(raw, 미가공) 결정(조합 지점)으로 다가가 → 하나의 산물로 조합한다(feature-0010 step2).
+//   산물을 만드는 일은 에너지를 방출한다(열+연기, 순수 지출). 재료 쌍이 없으면 수행 불가(다음 우선순위로 내려간다).
+//   feature-0011 의 개방 레지스트리에 **새 욕구를 실제로 얹는 첫 사례** — 엔진은 이 욕구를 모르고 ctx 만으로 실행한다.
+//   **다단계(feature-0011 step2)**: 절차에 단계를 더 얹어 재료(tier0)→중간물(tier1)→완성물(tier2)로 깊어진다 —
+//   완성(중간물 두 개) 단계를 먼저, 중간(재료 두 개) 단계를 나중에 둬(첫 적용 단계 규칙) 상황에 맞게 다단계로 수행한다.
+const approachCraftSite = {
+  name: 'approach',
+  applicable: (x) => { const p = x.craftPair(); return !!p && !x.inReach(p.a, x.CRAFT_REACH); },
+  act: (x) => { const p = x.craftPair(); if (p) x.moveToward(p.a, x.CRAFT_REACH); },
+};
+const buildFinished = { // 중간물(tier1) 두 개 → 완성물(tier2). 상위 단계를 먼저 마무리한다.
+  name: 'finish',
+  applicable: (x) => { const p = x.craftPair(1); return !!p && x.inReach(p.a, x.CRAFT_REACH); },
+  act: (x) => { const p = x.craftPair(1); if (p) x.craft(p.a, p.b); },
+};
+const buildIntermediate = { // 재료(tier0) 두 개 → 중간물(tier1).
+  name: 'combine',
+  applicable: (x) => { const p = x.craftPair(0); return !!p && x.inReach(p.a, x.CRAFT_REACH); },
+  act: (x) => { const p = x.craftPair(0); if (p) x.craft(p.a, p.b); },
+};
+
 // 대기(NONE): 주인 곁으로(수동 이동 = 방향키). 주인 없으면(야생) 아무 단계도 적용 안 됨 → 정지.
 const leashOwner = {
   name: 'leash',
@@ -81,9 +105,24 @@ const leashOwner = {
   act: (x) => { const o = x.ownerPos(); if (o) x.moveToward(o, x.LEASH_STOP); },
 };
 
-// --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사) -------------------
+// --- 자율 감정(appraise) — 상황(차이)이 스스로 만드는 중요도 (feature-0012 step2) ------------
+//   "차이는 신호". 욕구 절차는 appraise(ctx) 로 지금 이 상황이 그 욕구를 얼마나 중요하게 느끼는지(feeling)를
+//   스스로 계산한다. 오직 ctx 만 쓰므로(개방 경계) 어떤 욕구든 자기 감정을 정의할 수 있다. 엔진은 이름을 모른다.
+
+// 굶주림 감정 — 잔고가 편안 임계(용량의 절반) 아래로 떨어질수록(=차이가 클수록) 오른다. 편안하면 0(포만 →
+//   감정 감쇠 → 다음 욕구로). 식사·채집이 공유한다: 굶주리면 먹는 욕구의 중요도가 스스로 치솟는다.
+function hungerFeeling(x) {
+  const cap = x.capacity(), bal = x.balance();
+  const comfort = DESIRE_COMFORT_FRACTION * cap;
+  if (bal >= comfort || comfort <= 0) return 0;
+  return Math.round(DESIRE_EMOTION_MAX * (comfort - bal) / comfort); // 차이(굶주림)에 비례 (0..MAX)
+}
+
+// --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사 + feature-0012 자율 감정) ----------
 //   release = 그 욕구가 주로 방출하는 형태(라벨·문서용). "욕구에 따라 방출 형태가 다르다".
+//   appraise = 상황이 스스로 만드는 감정(feeling). 없으면 그 욕구의 중요도는 외생(priority+emotion)만으로 정해진다.
 registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', steps: [leashOwner] });
-registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach] });
-registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach] });
-registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] });
+registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
+registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
+registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다
+registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // feature-0010 step2(단일)·0011 step2(다단계)

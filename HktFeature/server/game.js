@@ -36,7 +36,9 @@ import {
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
   DESIRE, CREATURE_PURSUE_INTERVAL_TICKS, CREATURE_STRIDE, CREATURE_SEEK_RADIUS, CREATURE_LEASH_STOP,
+  DESIRE_BASE_PRIORITY, DESIRE_EMOTION_MAX, desireWeight,
   COOK_COST, COOK_BURN_PCT, cookedSpecies,
+  CRAFT_COST, CRAFT_BURN_PCT, CRAFT_REACH, CRAFT_PAIR_RADIUS, CRAFT_MAX_TIER, craftedSpecies,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -135,9 +137,24 @@ export class GameServer {
     const seq = ++this.creatureSeq;
     const creId = `${POOL.CREATURE}${seq}`;
     this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
-    // owner=제어자(플레이어 id, null=야생), desire=욕망(feature-0010), moveDebt=이동 비용 누적(잔여 거리).
-    // 창세/생태 생명체는 owner=null·desire=NONE → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desire: DESIRE.NONE, moveDebt: 0 };
+    // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(feature-0012 중첩), moveDebt=이동 비용 누적(잔여 거리).
+    //   feature-0012: 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
+    //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0 };
+    // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
+    //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
+    Object.defineProperty(cre, 'desire', {
+      enumerable: true,
+      get() {
+        let best = DESIRE.NONE, bestW = -Infinity;
+        for (const [name, d] of cre.desires) { // 동률은 삽입(주입) 순서 유지 → 결정론
+          const w = desireWeight(d.priority, d.emotion, d.feeling);
+          if (w > bestW) { bestW = w; best = name; }
+        }
+        return best;
+      },
+      set(v) { cre.desires.clear(); if (v && v !== DESIRE.NONE) cre.desires.set(v, { priority: DESIRE_BASE_PRIORITY, emotion: 0, feeling: 0 }); },
+    });
     this.creatures.set(creId, cre);
     this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
     return cre;
@@ -161,6 +178,36 @@ export class GameServer {
     return d;
   }
 
+  // 욕구 주입 (feature-0012) — 내가 제어하는 생명체(들)의 욕구 **스택에 하나를 얹는다**(중첩). 기존 setDesire(스택
+  //   교체)와 달리 다른 욕구를 지우지 않는다 — 여러 욕구가 동시에 쌓인다. 같은 욕구를 또 주입해도 중첩되지 않고
+  //   우선순위만 갱신된다(idempotent·dedup, 감정은 보존) — "같은 욕구를 또 주입할 필요는 없다". 등록된 욕구만
+  //   받는다(개방). NONE 주입 = 스택 비우기(대기로 복귀). priority=우선순위(중요도, 감정 얹기 전 기준).
+  injectDesire(playerId, name, priority = DESIRE_BASE_PRIORITY) {
+    if (name === DESIRE.NONE) { for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desires.clear(); return; }
+    if (!DESIRE_PROCEDURES[name]) return; // 미등록 욕구는 무시(개방 레지스트리 기반)
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) {
+      const prev = cre.desires.get(name);
+      cre.desires.set(name, { priority, emotion: prev ? prev.emotion : 0, feeling: prev ? prev.feeling : 0 }); // dedup — 우선순위 갱신, 감정·자율감정 보존
+    }
+  }
+
+  // 감정 증폭 (feature-0012) — 욕구의 **중요도(우선순위)를 감정으로 키운다**("감정은 중요도다"). 유효 우선순위 =
+  //   priority + emotion 이므로, 감정을 실으면 낮은 기본 우선순위의 욕구도 다른 욕구를 이겨 **행동이 바뀐다**.
+  //   아직 스택에 없던 욕구면 기본 우선순위로 만들어 얹는다(감정이 곧 그 욕구를 부른다). 감정은 [0,MAX] 정수로 클램프.
+  emote(playerId, name, emotion) {
+    if (name === DESIRE.NONE || !DESIRE_PROCEDURES[name]) return;
+    const e = Math.max(0, Math.min(DESIRE_EMOTION_MAX, emotion | 0));
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) {
+      const prev = cre.desires.get(name);
+      cre.desires.set(name, { priority: prev ? prev.priority : DESIRE_BASE_PRIORITY, emotion: e, feeling: prev ? prev.feeling : 0 });
+    }
+  }
+
+  // 욕구 거둠 (feature-0012) — 상황이 해소된 욕구를 스택에서 뺀다. 그다음 우선순위의 욕구가 행동을 잇는다.
+  withdrawDesire(playerId, name) {
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desires.delete(name);
+  }
+
   // 개별 결정 하나를 연다 (feature-0005 step2) — 위치·종을 가진 discrete 객체. 잔고는 이후 이체로 채운다.
   //   확산·복사 순회(materialKeys) 밖이라 태생적으로 면역(정적)이다. region=null → 읽기 전용 스냅샷 방송.
   //   feature-0011: raw=날것 여부. 기본은 false(먹을 수 있음) — 석출·죽음의 결정은 모두 먹을 수 있다(기존 불변).
@@ -168,7 +215,9 @@ export class GameServer {
     const seq = ++this.crystalSeq;
     const cryId = `${POOL.CRYSTAL}${seq}`;
     this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
-    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw });
+    // crafted=제조 산물 표식(feature-0010 step2) · tier=제조 단계(feature-0011 step2: 0=재료·1=중간물·2=완성물).
+    //   기본 crafted=false·tier=0. 제조로 조합될 때만 crafted=true 로 바뀌고 tier 가 한 단계 오른다.
+    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false, tier: 0 });
     return cryId;
   }
 
@@ -252,7 +301,11 @@ export class GameServer {
     switch (msg.t) {
       case MSG.BEACON: this.#onBeacon(p, msg); break;
       case MSG.RESYNC: this.#onResync(p, msg); break;
-      case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // feature-0010 — 내 생명체에 욕망 부여
+      case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // feature-0010 — 내 생명체에 욕망 부여(스택 교체)
+      case MSG.INJECT: // feature-0012 — 욕구를 스택에 주입(중첩) + 감정으로 우선순위 증폭
+        this.injectDesire(p.id, msg.desire, Number.isFinite(msg.priority) ? (msg.priority | 0) : DESIRE_BASE_PRIORITY);
+        if (Number.isFinite(msg.emotion)) this.emote(p.id, msg.desire, msg.emotion);
+        break;
     }
   }
 
@@ -438,7 +491,7 @@ export class GameServer {
   //   (한 틱에 각 결정 최대 1회 = 점진적). 같은 종 → 융합(반응열 없음), 다른 종 → 화합(반응열 방출).
   #react() {
     const crys = [...this.crystals.values()]
-      .filter(c => this.ledger.balance(c.id) > 0)
+      .filter(c => this.ledger.balance(c.id) > 0 && !c.raw && !c.crafted) // 제조 결정(재료 raw·중간물/완성물 crafted)은 반응 면역 — 다단계 제조까지 안정(feature-0010·0011 step2)
       .sort((a, b) => a.seq - b.seq);
     const reacted = new Set();
     for (const A of crys) {
@@ -575,15 +628,59 @@ export class GameServer {
   //   얹기만 하면 이 엔진이 그대로 실행한다(개방성). 각 단계의 행동은 에너지를 방출/이동한다(전부 ledger.transfer).
   //   결정론: seq 오름차순 순회 + 순수 클램프(rng 미사용) → 확산·성장·전투 결정론 불변.
   #performDesire() {
+    this.#appraise(); // feature-0012 step2 — 먼저 상황(차이)이 자율 감정(feeling)을 갱신 → 우선순위 재정렬
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
-      const proc = DESIRE_PROCEDURES[cre.desire];
-      if (!proc) continue;
       const ctx = this.#desireCtx(cre);
-      for (const step of proc.steps) {
-        if (step.applicable(ctx)) { step.act(ctx); break; } // 첫 적용 가능한 단계 하나만(우선순위 절차)
+      // feature-0012: 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
+      //   단계를 실행한다. 최우선 욕구가 상황상 수행 불가(표적 없음 등)면 다음 우선순위로 내려간다 → "상황에 따라
+      //   행동이 달라진다". 감정으로 우선순위를 키우면 이 순서가 바뀌어 행동이 바뀐다(감정=중요도).
+      for (const name of this.#rankedDesires(cre)) {
+        const proc = DESIRE_PROCEDURES[name];
+        if (!proc) continue;
+        let acted = false;
+        for (const step of proc.steps) {
+          if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 욕구의 첫 적용 단계(우선순위 절차, feature-0011)
+        }
+        if (acted) break; // 가장 높은 우선순위의 수행 가능한 욕구가 이번 틱을 차지한다
       }
     }
+  }
+
+  // 욕구 스택을 유효 우선순위(priority+emotion+feeling) 내림차순으로 정렬한 이름 목록 (feature-0012). 동률은 주입
+  //   (삽입) 순서를 유지한다(결정론). 스택이 비면 대기(NONE) 하나 — 소유 생명체는 주인 곁을 따르고, 야생은 정지.
+  #rankedDesires(cre) {
+    if (cre.desires.size === 0) return [DESIRE.NONE];
+    return [...cre.desires.entries()]
+      .map(([name, d], i) => ({ name, w: desireWeight(d.priority, d.emotion, d.feeling), i }))
+      .sort((a, b) => b.w - a.w || a.i - b.i)
+      .map(x => x.name);
+  }
+
+  // 자율 감정 평가 (feature-0012 step2) — "차이는 신호". 각 생명체의 각 욕구에 대해, 그 욕구 절차가 appraise(ctx)
+  //   로 지금 상황(차이)이 얼마나 그 욕구를 중요하게 느끼는지(feeling)를 스스로 계산해 갱신한다. 굶주릴수록 식사의
+  //   feeling 이 치솟고, 배부르면 0 으로 감쇠(포만)한다 → 우선순위가 상황에 따라 스스로 재정렬된다(외부 주입 없이).
+  //   appraise 없는 욕구(예: 사냥)의 중요도는 외생(priority+emotion)만으로 정해진다. 순수 계산(rng 미사용) → 결정론.
+  #appraise() {
+    for (const cre of this.creatures.values()) {
+      if (cre.desires.size === 0) continue;
+      let ctx = null;
+      for (const [name, d] of cre.desires) {
+        const proc = DESIRE_PROCEDURES[name];
+        if (!proc || typeof proc.appraise !== 'function') { d.feeling = 0; continue; }
+        if (!ctx) ctx = this.#desireCtx(cre);
+        d.feeling = Math.max(0, Math.min(DESIRE_EMOTION_MAX, proc.appraise(ctx) | 0));
+      }
+    }
+  }
+
+  // 방송용 욕구 스택 — [[name, priority, emotion, feeling], ...] 유효 우선순위 내림차순 (feature-0012). 뷰어가 중첩·
+  //   승자·감정(외생+자율)을 그린다. feeling=상황이 스스로 만든 감정(굶주림 등, step2).
+  #desireStack(cre) {
+    return [...cre.desires.entries()]
+      .map(([name, d], i) => ({ name, d, w: desireWeight(d.priority, d.emotion, d.feeling), i }))
+      .sort((a, b) => b.w - a.w || a.i - b.i)
+      .map(x => [x.name, x.d.priority, x.d.emotion, x.d.feeling ?? 0]);
   }
 
   // 절차 단계에 넘기는 ctx — 지각·행동 API. 단계는 이것만 쓰고 게임 내부는 모른다(개방성의 경계). (feature-0011)
@@ -591,12 +688,17 @@ export class GameServer {
     const self = this;
     return {
       EAT_REACH: CREATURE_HARVEST_RADIUS, STRIKE_REACH: CREATURE_ATTACK_RADIUS, LEASH_STOP: CREATURE_LEASH_STOP,
+      CRAFT_REACH: CRAFT_REACH,
       cre,
       nearestCrystal: (opts) => self.#nearestCrystalFor(cre, opts),
       nearestPrey: () => self.#nearestPrey(cre),
+      craftPair: (tier) => self.#craftPairFor(cre, tier),       // feature-0010·0011 step2 — 조합 가능한 (같은 단계) 쌍
+      craft: (a, b) => self.#craft(cre, a, b),                  // feature-0010·0011 step2 — 두 결정을 다음 단계 산물로 조합(방출)
       ownerPos: () => { if (!cre.owner) return null; const p = self.players.get(cre.owner); return p ? { x: p.x, y: p.y, z: p.z } : null; },
       inReach: (t, r) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z) <= r,
       edible: (c) => !c.raw,
+      capacity: () => { const pool = self.ledger.get(cre.id); return pool ? pool.max : CREATURE_MAX_ENERGY * cre.size; }, // 자기 용량(feature-0012 appraise)
+      balance: () => self.ledger.balance(cre.id),                                                                        // 자기 잔고(feature-0012 appraise)
       moveToward: (t, stop) => self.#stepToward(cre, t, stop),
       eat: (c) => self.#eatCrystal(cre, c),
       cook: (c) => self.#cookCrystal(cre, c),
@@ -640,6 +742,44 @@ export class GameServer {
                + this.#tx(cre.id, materialKey(cre.x, cre.y, cre.z), cost - burn, CAUSE.COOK, { x: cre.x, y: cre.y }); // 연기 → 국소장
     c.species = cookedSpecies(c.species);
     c.raw = false;                                                     // 요리됨 = 이제 먹을 수 있다
+    return paid;
+  }
+
+  // 조합 가능한 재료 쌍 — feature-0010 step2 · **다단계** feature-0011 step2. 감지 반경(SEEK) 안, 서로
+  //   CRAFT_PAIR_RADIUS 안에 **붙어 있는** 두 **같은 단계(tier)** 의 제조 결정(재료 raw 또는 중간물 crafted, 단
+  //   tier<MAX). tier 를 주면 그 단계의 쌍만 찾는다(완성 먼저·중간 나중을 절차가 고른다). 제조 결정은 수동
+  //   반응(#react)에 면역이라 쌍이 안정 유지된다. 생명체에서 가까운 순(결정론: 거리→seq). 완성물(tier==MAX)은 제외.
+  #craftPairFor(cre, tier = null) {
+    const mats = [...this.crystals.values()]
+      .filter(c => this.ledger.balance(c.id) > 0 && (c.raw || c.crafted) && c.tier < CRAFT_MAX_TIER && dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z) <= CREATURE_SEEK_RADIUS)
+      .sort((a, b) => (dist3(cre.x, cre.y, cre.z, a.x, a.y, a.z) - dist3(cre.x, cre.y, cre.z, b.x, b.y, b.z)) || (a.seq - b.seq));
+    for (const a of mats) {
+      if (tier !== null && a.tier !== tier) continue;
+      for (const b of mats) {
+        if (b.id === a.id || b.tier !== a.tier) continue;                     // 같은 단계끼리만 조합
+        if (dist3(a.x, a.y, a.z, b.x, b.y, b.z) <= CRAFT_PAIR_RADIUS) return { a, b };
+      }
+    }
+    return null;
+  }
+
+  // 제조(조합) — feature-0010 step2 · **다단계** feature-0011 step2. 같은 단계 두 결정을 하나의 **다음 단계 산물**로
+  //   합친다(재료+재료→중간물, 중간물+중간물→완성물). **만드는 일**은 에너지를 방출한다: CRAFT_COST×size 를
+  //   열(심우주, BURN_PCT)+연기(국소장)로 흩는다(순수 지출, 회수 없음 = 요리·방출과 같은 결). b 를 a 로 전량 합치고
+  //   (조합), a 를 산물로 변형한다: **tier 한 단계↑**, 종=craftedSpecies(재료와 다름), crafted=true(표식), raw=false.
+  //   예비 없으면 못 만든다(굶주리면 제조 불가). 전부 ledger.transfer → 보존, rng 미사용 → 결정론.
+  #craft(cre, a, b) {
+    if (this.ledger.balance(cre.id) <= CREATURE_DEATH_THRESHOLD * cre.size) return 0; // 굶주리면 제조 불가
+    const cost = CRAFT_COST * cre.size;
+    const burn = Math.floor(cost * CRAFT_BURN_PCT / 100);
+    const paid = this.#tx(cre.id, POOL.SINK, burn, CAUSE.CRAFT, { x: cre.x, y: cre.y })                        // 열 → 심우주
+               + this.#tx(cre.id, materialKey(cre.x, cre.y, cre.z), cost - burn, CAUSE.CRAFT, { x: cre.x, y: cre.y }); // 연기 → 국소장
+    const balB = this.ledger.balance(b.id);
+    if (balB > 0) this.#tx(b.id, a.id, balB, CAUSE.CRAFT, { x: a.x, y: a.y }); // 재료 b → 산물 a (조합, 보존)
+    a.tier = a.tier + 1;                                                       // 다음 단계로(같은 tier 끼리 합쳤으니 +1)
+    a.species = craftedSpecies(a.species, b.species);
+    a.crafted = true; a.raw = false;                                          // 산물 = 재료와 다른 종·사용 가능
+    this.#removeCrystal(b.id);                                                // 소진된 재료 소멸(잔고 0)
     return paid;
   }
 
@@ -765,16 +905,16 @@ export class GameServer {
     const crystalCells = broadcastField
       ? [...this.crystals.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0]); // raw=날것(요리 전) — 뷰어가 구분(feature-0011)
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier]); // raw=날것·crafted=제조 산물·tier=제조 단계(feature-0011 step2)
           return acc;
         }, [])
       : null;
-    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size, desire, owner] (feature-0006·0010).
-    //   desire=욕망(뷰어가 라벨·표적선), owner=제어자(뷰어가 내 생명체 강조). CRYSTAL 과 같은 읽기 전용 표시값.
+    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size, desire, owner, desires] (feature-0006·0010·0012).
+    //   desire=승자 욕망(뷰어가 라벨·표적선), owner=제어자(강조), desires=중첩 스택(뷰어가 우선순위·감정 배지). CRYSTAL 과 같은 읽기 전용 표시값.
     const creatureCells = broadcastField
       ? [...this.creatures.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner]);
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c)]); // feature-0012: desires=중첩 스택
           return acc;
         }, [])
       : null;

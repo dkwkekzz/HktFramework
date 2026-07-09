@@ -9,9 +9,9 @@
 
 import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출', cook: '요리' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출', cook: '요리', craft: '제조' };
 // 욕구 라벨/색 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 적는다.
-const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사' };
+const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
@@ -184,13 +184,13 @@ export class Render {
     for (const c of state.crystals.values()) {
       if (c.balance <= 0) continue;
       const d = this.#toCam(cam, c.x, c.y, c.z)[2];
-      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, d });
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, crafted: c.crafted, tier: c.tier ?? 0, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw, m.crafted, m.tier);
   }
 
-  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw) {
+  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw, crafted, tier = 0) {
     const { ctx } = this;
     const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
     const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
@@ -204,7 +204,7 @@ export class Render {
     const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
     ctx.fillStyle = `hsla(${hue}, ${sat}%, ${58 + t * 20}%, ${(raw ? 0.18 : 0.34) + 0.4 * t})`;
     ctx.strokeStyle = `hsla(${hue}, ${raw ? 30 : 95}%, 82%, ${0.6 + 0.35 * t})`;
-    ctx.lineWidth = 1.5;
+    ctx.lineWidth = crafted ? 2.4 : 1.5;             // 제조 산물(feature-0010 step2)은 굵은 외곽으로 "만들어진 것" 강조
     if (raw) ctx.setLineDash([4, 3]); // 날것 = 점선(미완성 느낌)
     for (const f of faces) {
       ctx.beginPath();
@@ -216,13 +216,20 @@ export class Render {
       ctx.stroke();
     }
     ctx.setLineDash([]);
-    // 잔고 라벨 (결정 위) — 날것이면 "날것" 표식
+    // 제조 산물은 밝은 겹고리로 감싼다("가공된 결정"). 단계(tier)만큼 고리를 더 그린다 — 완성물(tier2)은 두 겹.
+    if (crafted) {
+      const c4 = P[4];
+      ctx.strokeStyle = `hsla(${hue}, 95%, 88%, 0.9)`; ctx.lineWidth = 1;
+      for (let k = 1; k <= tier; k++) { ctx.beginPath(); ctx.arc(c4.sx, c4.sy, r * (0.4 + 0.18 * k), 0, 7); ctx.stroke(); }
+    }
+    // 잔고 라벨 (결정 위) — 날것=재료, 제조 산물은 단계별로 ✦중간(tier1)·✦✦완성(tier2) 표식(feature-0011 step2 다단계)
     const top = P[4];
     if (top) {
       ctx.fillStyle = `hsl(${hue}, ${raw ? 25 : 90}%, 88%)`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`${raw ? '⋯날것 ' : '◆ '}${bal.toLocaleString()}`, top.sx, top.sy - 6);
+      const tag = crafted ? (tier >= 2 ? '✦✦완성 ' : '✦중간 ') : raw ? '⋯재료 ' : '◆ ';
+      ctx.fillText(`${tag}${bal.toLocaleString()}`, top.sx, top.sy - 6);
       ctx.textAlign = 'left';
     }
   }
@@ -249,13 +256,13 @@ export class Render {
   // 욕망 표적선 (feature-0010) — 욕망이 있는 생명체에서 그 표적(채집=결정·사냥=더 작은 생명체)까지 옅은 선.
   //   "이 생명체가 저것을 원해 저리로 간다"가 한눈에 보인다. 표적은 미러에서 유도(표시 전용, 서버 규칙 미러).
   #desireLink(cam, cre) {
-    if (cre.desire !== 'forage' && cre.desire !== 'hunt' && cre.desire !== 'eat') return;
+    if (cre.desire !== 'forage' && cre.desire !== 'hunt' && cre.desire !== 'eat' && cre.desire !== 'craft') return;
     const t = this.#desireTargetPos(cre);
     if (!t) return;
     const { ctx } = this;
     const mine = cre.owner && cre.owner === this.state.playerId;
     const a = mine ? 0.7 : 0.3;
-    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${a})` : cre.desire === 'eat' ? `rgba(240,180,90,${a})` : `rgba(120,220,150,${a})`;
+    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${a})` : cre.desire === 'eat' ? `rgba(240,180,90,${a})` : cre.desire === 'craft' ? `rgba(180,150,235,${a})` : `rgba(120,220,150,${a})`;
     ctx.lineWidth = mine ? 2 : 1;
     ctx.setLineDash([4, 4]);
     this.#seg(cam, cre.x, cre.y, cre.z, t.x, t.y, t.z);
@@ -266,10 +273,10 @@ export class Render {
   //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (feature-0010)
   #desireTargetPos(cre) {
     let best = null, bestD = CREATURE_SEEK_RADIUS;
-    if (cre.desire === 'forage' || cre.desire === 'eat') {
-      // 채집=먹을 수 있는 결정만 / 식사=날것이든 요리해 먹으니 아무 결정이나 (feature-0011)
+    if (cre.desire === 'forage' || cre.desire === 'eat' || cre.desire === 'craft') {
+      // 채집=먹을 수 있는 결정만 / 식사=아무 결정이나 / 제조=재료(raw, 아직 산물 아닌 결정) (feature-0011·0010 step2)
       for (const c of this.state.crystals.values()) {
-        if (c.balance <= 0 || (cre.desire === 'forage' && c.raw)) continue;
+        if (c.balance <= 0 || (cre.desire === 'forage' && c.raw) || (cre.desire === 'craft' && (!c.raw || c.crafted))) continue;
         const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
         if (d <= bestD) { best = c; bestD = d; }
       }
@@ -318,10 +325,20 @@ export class Render {
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${'❋'.repeat(size)} ${bal}`, p.sx, p.sy - r - 10); // 스탯 = ❋ 개수
-      // 욕망 라벨 — 이 생명체의 동기(채집·사냥·대기). 내 것이면 금색으로.
-      if (desire && desire !== 'none') {
-        ctx.fillStyle = mine ? '#ffd76e' : (desire === 'hunt' ? '#e6785a' : '#78dc96');
-        ctx.fillText(`▸ ${DESIRE_LABEL[desire] ?? desire}`, p.sx, p.sy - r - 22);
+      // 욕구 스택 라벨 (feature-0012) — 중첩된 욕구를 **우선순위 순으로 쌓아** 그린다. 승자(맨 위·최우선, ▸)는
+      //   밝게(내 것이면 금색), 나머지(·)는 흐리게 — "욕구는 중첩되고 우선순위가 다르다"가 한눈에. 감정(중요도
+      //   증폭)은 ♥ 개수로 표시한다("감정은 중요도다"). 스택이 비었으면 단일 desire(하위 호환)만 그린다.
+      const stack = (cre.desires && cre.desires.length) ? cre.desires
+        : (desire && desire !== 'none' ? [[desire, 1, 0]] : []);
+      for (let i = 0; i < stack.length; i++) {
+        const [name, , emotion = 0, feeling = 0] = stack[i];
+        const top = i === 0;
+        const base = name === 'hunt' ? '#e6785a' : name === 'eat' ? '#f0b45a' : name === 'forage' ? '#78dc96' : name === 'craft' ? '#b496eb' : '#9fb4c8';
+        ctx.fillStyle = top ? (mine ? '#ffd76e' : base) : `${base}88`; // 승자는 선명, 나머지는 반투명
+        // 중요도(감정) = 외생 emotion + 자율 feeling(굶주림 등 상황이 스스로 만든 감정, feature-0012 step2). ♥ 개수로.
+        const importance = emotion + feeling;
+        const heart = importance > 0 ? ' ' + '♥'.repeat(Math.min(3, Math.ceil(importance / 30))) : '';
+        ctx.fillText(`${top ? '▸' : '·'} ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, p.sy - r - 22 - i * 12);
       }
       ctx.textAlign = 'left';
     }
@@ -431,7 +448,7 @@ export class Render {
     if (mine) ctx.fillText(`❋ 내 생명체 ${'❋'.repeat(mine.size ?? 1)} E${mine.balance}`, 20, 88);
     else ctx.fillText(`❋ 내 생명체 (없음)`, 20, 88);
     ctx.fillStyle = '#8fd9a8';
-    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 3식사 0대기)`, 20, 104);
+    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 3식사 4제조 0대기)`, 20, 104);
 
     // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·생명체·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
