@@ -31,8 +31,11 @@ const uniforms = {
   uBoneA:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
   uBoneB:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
   // Detail 층: 세그먼트별 (k, 납작화 f, -, -) + 납작화 방향(단위 벡터)
+  // f<0 은 one-sided — dir의 +쪽 반만 납작화 (얼굴 앞면 평평 + 뒤통수 볼록 같은 비대칭)
   uBoneC:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4(-1, 1, 0, 0)) },
   uBoneN:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4(0, 0, 1, 0)) },
+  // 2축째 납작화 (dir2.xyz, f2) — 두개골(좌우+앞뒤)·손바닥(두께+폭) 같은 이중 타원 단면
+  uBoneM:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4(0, 0, 1, 1)) },
   uBoneCount: { value: 0 },
   uDetailStart: { value: 0 },  // 이 인덱스부터 detail 세그먼트(k/flatten/cut) — 앞쪽은 저비용 경로
   uCutStart:  { value: MAXB }, // 이 인덱스부터는 빼기(smooth-subtraction) 세그먼트
@@ -46,6 +49,7 @@ varying vec2 vUv;
 uniform vec3 uCamPos; uniform mat4 uInvVP;
 uniform vec4 uBoneA[${MAXB}]; uniform vec4 uBoneB[${MAXB}];
 uniform vec4 uBoneC[${MAXB}]; uniform vec4 uBoneN[${MAXB}];
+uniform vec4 uBoneM[${MAXB}];
 uniform int uBoneCount; uniform int uDetailStart; uniform int uCutStart;
 uniform float uK; uniform vec3 uColor;
 const vec3 L = normalize(vec3(0.55,0.85,0.45)); const float GY = 0.0;
@@ -57,14 +61,21 @@ float sdRoundCone(vec3 p,vec3 a,vec3 b,float r1,float r2){
   if(sign(z)*a2*z2>k)return sqrt(x2+z2)*il2-r2;
   if(sign(y)*a2*y2<k)return sqrt(x2+y2)*il2-r1;
   return (sqrt(x2*a2*il2)+y*rr)*il2-r1;}
-// 세그먼트 i 의 SDF — 납작화(f<1)는 방향 n 을 1/f 로 늘린 공간에서 평가 후
-// min(f,1) 배 (보수적 하한 → 레이마치 안전). 단면이 타원이 된다.
+// 납작화 — 방향 n 을 1/|f| 로 늘린 공간에서 평가 후 min(|f|,1) 배 (보수적 하한
+// → 레이마치 안전). f>0 은 양쪽(타원 단면), f<0 은 n 의 +쪽 반만(one-sided) —
+// 반대쪽은 원형 유지. one-sided 도 w 는 항상 곱한다 (경계 근방 하한 보장).
+vec3 flatP(vec3 p,vec3 a,vec3 n,float f,inout float w){
+  float fa=abs(f); if(fa>=0.999)return p;
+  w=min(w,fa);
+  float d=dot(p-a,n);
+  if(f>0.0||d>0.0)p+=(1.0/fa-1.0)*d*n;
+  return p;}
+// 세그먼트 i 의 SDF — 납작화 최대 2축 (uBoneN+C.y, uBoneM.xyz+M.w)
 float sdSeg(int i,vec3 p){
-  vec4 A=uBoneA[i];vec4 B=uBoneB[i];vec4 C=uBoneC[i];
+  vec4 A=uBoneA[i];vec4 B=uBoneB[i];vec4 C=uBoneC[i];vec4 M=uBoneM[i];
   float w=1.0;
-  if(C.y<0.999){
-    vec3 n=uBoneN[i].xyz;vec3 rel=p-A.xyz;
-    p=A.xyz+rel+(1.0/C.y-1.0)*dot(rel,n)*n;w=min(C.y,1.0);}
+  p=flatP(p,A.xyz,uBoneN[i].xyz,C.y,w);
+  p=flatP(p,A.xyz,M.xyz,M.w,w);
   return sdRoundCone(p,A.xyz,B.xyz,A.w,B.w)*w;}
 float map(vec3 p){float d=1e9;
   // 1) 평범한 캡슐 (대부분) — 저비용 경로. 셰이더 비용의 지배 항이라 분리 유지.
@@ -179,10 +190,12 @@ function buildMixamoRig(sk) {
       add(`mixamorig:${S}Hand${fn}3`, `mixamorig:${S}Hand${fn}2`, x * len * 0.8, 0, 0);
     }
     // kneeX/ankleX: 다리 안쪽 수렴 (미지정 시 upLegX = 수직 기둥)
+    // upLegZ/kneeZ/ankleZ: 다리 전후 배치 (미지정 시 0 = 골반 바로 아래 수직)
     const kneeX = sk.kneeX ?? sk.upLegX, ankleX = sk.ankleX ?? kneeX;
-    add(`mixamorig:${S}UpLeg`, 'mixamorig:Hips', x * sk.upLegX, sk.upLegY, 0);
-    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, x * (kneeX - sk.upLegX), -sk.thighLen, 0);
-    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, x * (ankleX - kneeX), -sk.shinLen, 0);
+    const upLegZ = sk.upLegZ ?? 0, kneeZ = sk.kneeZ ?? upLegZ, ankleZ = sk.ankleZ ?? kneeZ;
+    add(`mixamorig:${S}UpLeg`, 'mixamorig:Hips', x * sk.upLegX, sk.upLegY, upLegZ);
+    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, x * (kneeX - sk.upLegX), -sk.thighLen, kneeZ - upLegZ);
+    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, x * (ankleX - kneeX), -sk.shinLen, ankleZ - kneeZ);
     add(`mixamorig:${S}ToeBase`, `mixamorig:${S}Foot`, 0, -sk.footDrop, sk.toeZ);
   }
   return J;
@@ -215,14 +228,18 @@ function applyPose(clip, t, speed) {
   const footSplay = profile.pose?.footSplay ?? 0.0;
   const foreArmOut = profile.pose?.foreArmOut ?? 0.0;
   const handIn = profile.pose?.handIn ?? 0.0;
+  // 전방 스윙(rad): 시트 A-포즈는 팔이 몸 옆이 아니라 살짝 앞 — 손이 허벅지 앞에 온다.
+  // rx>0 은 뒤로 가므로 부호 반전해 적용한다.
+  const armFwd = profile.pose?.armFwd ?? 0.0;
+  const foreArmFwd = profile.pose?.foreArmFwd ?? 0.0;
   for (let i = 0; i < jointObjs.length; i++) {
     const n = simpleName(jointName[i]); let rx = 0, ry = 0, rz = 0;
     const R = n.startsWith('Right');
     if (clip !== 'wave' || !R) {
-      if (n === 'LeftArm') rz = -armDown;
-      if (n === 'RightArm') rz = armDown;
-      if (n === 'LeftForeArm') rz = foreArmOut;
-      if (n === 'RightForeArm') rz = -foreArmOut;
+      if (n === 'LeftArm') { rz = -armDown; rx = -armFwd; }
+      if (n === 'RightArm') { rz = armDown; rx = -armFwd; }
+      if (n === 'LeftForeArm') { rz = foreArmOut; rx = -foreArmFwd; }
+      if (n === 'RightForeArm') { rz = -foreArmOut; rx = -foreArmFwd; }
       if (n === 'LeftHand') rz = -handIn;
       if (n === 'RightHand') rz = handIn;
     }
@@ -256,16 +273,15 @@ function applyPose(clip, t, speed) {
 // ---- 세그먼트 추출 : 부모→자식 = taper 캡슐 -------------------------------
 const _wp = new THREE.Vector3(), _wpp = new THREE.Vector3(), _wq = new THREE.Quaternion();
 
-// Detail 층: 규칙/extras 의 k(blend 폭)·flatten(비원형 단면)을 세그먼트에 부여.
+// Detail 층: 규칙/extras/subBones 의 k(blend 폭)·flatten·flatten2 를 세그먼트에 부여.
 // flatten.dir 은 관절 로컬 → 월드 회전(quat), fx 는 미러 시 x 부호.
+// f<0 = one-sided (dir +쪽 반만 납작화) — 부호는 셰이더까지 그대로 흘러간다.
 function segDetail(seg, spec, quat, fx = 1) {
   if (!spec) return seg;
   if (spec.k != null) seg.k = spec.k;
-  if (spec.flatten) {
-    seg.f = spec.flatten.f;
-    seg.n = new THREE.Vector3(spec.flatten.dir[0] * fx, spec.flatten.dir[1], spec.flatten.dir[2])
-      .applyQuaternion(quat).normalize();
-  }
+  const world = dir => new THREE.Vector3(dir[0] * fx, dir[1], dir[2]).applyQuaternion(quat).normalize();
+  if (spec.flatten)  { seg.f  = spec.flatten.f;  seg.n  = world(spec.flatten.dir); }
+  if (spec.flatten2) { seg.f2 = spec.flatten2.f; seg.n2 = world(spec.flatten2.dir); }
   return seg;
 }
 
@@ -289,6 +305,39 @@ function appendExtras(segs, fat, resolveJoint) {
     }
   }
 }
+// 가상 하위 뼈(subBones) — 애니메이션 리그를 건드리지 않는 세분화 층.
+// 실제 관절(또는 앞서 정의된 가상 뼈)의 월드 변환에 프로파일 오프셋을 얹어
+// 관절 사슬을 "추출 시점에" 합성한다. 트랙이 없으므로 부모 FK 를 그대로 상속
+// → built-in 절차 클립/외부 FBX 클립 모두 무수정 (리그 비하드코딩 설계 결정 유지).
+//   · mirrorX  : Left/Right 쌍 생성 (offset.x 와 flatten dir.x 부호 반전)
+//   · link:false : 부모→가상 뼈 캡슐을 만들지 않는다 (자식 체인의 앵커 전용)
+//   · 두께/디테일은 rules 가 가상 뼈 "이름"으로 결정 — grammar 원칙 그대로.
+// 반환: 가상 관절 맵 (extras 가 가상 뼈에도 붙을 수 있게 결합 resolver 용).
+function appendSubBones(segs, fat, resolveJoint) {
+  const virt = {};
+  const resolve = n => virt[n] ?? resolveJoint(n);
+  for (const sb of profile.subBones ?? []) {
+    const sides = sb.mirrorX ? [['Left', 1], ['Right', -1]] : [['', 1]];
+    for (const [side, fx] of sides) {
+      let pName = side + sb.parent, parent = resolve(pName);
+      if (!parent) { pName = sb.parent; parent = resolve(pName); }
+      if (!parent) continue; // 관절이 없는 리그 → 조용히 건너뜀 (extras 와 동일 계약)
+      const pos = new THREE.Vector3(sb.offset[0] * fx, sb.offset[1], sb.offset[2])
+        .applyQuaternion(parent.quat).add(parent.pos);
+      virt[side + sb.name] = { pos, quat: parent.quat };
+      if (sb.link === false || pos.distanceToSquared(parent.pos) < 1e-8) continue;
+      const seg = {
+        a: parent.pos.clone(), b: pos,
+        ra: radiusForName(pName) * fat, rb: radiusForName(side + sb.name) * fat,
+      };
+      const rule = matchRule(profile, side + sb.name);
+      if (rule) segDetail(seg, rule, parent.quat, fx);
+      segDetail(seg, sb, parent.quat, fx); // 스펙 자체의 k/flatten 오버라이드 (rule 위에)
+      segs.push(seg);
+    }
+  }
+  return virt;
+}
 function builtinJoint(name) {
   const i = jointName.findIndex(jn => simpleName(jn) === name);
   if (i < 0) return null;
@@ -308,17 +357,18 @@ function extractBones(showFingers, fat) {
     };
     // 캡슐의 detail(k·flatten)은 자식 관절 규칙을 따른다
     const rule = matchRule(profile, simpleName(jointName[i]));
-    if (rule && (rule.k != null || rule.flatten)) {
+    if (rule && (rule.k != null || rule.flatten || rule.flatten2)) {
       segDetail(seg, rule, jointObjs[i].getWorldQuaternion(new THREE.Quaternion()));
     }
     segs.push(seg);
   }
-  appendExtras(segs, fat, builtinJoint);
+  const virt = appendSubBones(segs, fat, builtinJoint);
+  appendExtras(segs, fat, n => virt[n] ?? builtinJoint(n));
   return segs;
 }
 function uploadBones(segs) {
   // [평범한 캡슐 | detail 합집합 | 컷] 순서로 정렬 — 셰이더가 구간별 경로를 탄다
-  const isDetail = s => s.cut || s.k != null || s.f != null;
+  const isDetail = s => s.cut || s.k != null || s.f != null || s.f2 != null;
   const plain = segs.filter(s => !isDetail(s));
   const detail = segs.filter(s => isDetail(s) && !s.cut);
   const cuts = segs.filter(s => s.cut);
@@ -332,6 +382,7 @@ function uploadBones(segs) {
     uniforms.uBoneB.value[i].set(s.b.x, s.b.y, s.b.z, s.rb);
     uniforms.uBoneC.value[i].set(s.k ?? -1, s.f ?? 1, 0, 0);
     if (s.n) uniforms.uBoneN.value[i].set(s.n.x, s.n.y, s.n.z, 0);
+    uniforms.uBoneM.value[i].set(s.n2?.x ?? 0, s.n2?.y ?? 0, s.n2?.z ?? 1, s.f2 ?? 1);
     bonePos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
     jointPos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
   }
@@ -456,12 +507,13 @@ function extractExternal(showFingers, fat) {
     if (a.distanceToSquared(c) < 1e-8) continue;
     const seg = { a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat };
     const rule = matchRule(profile, simpleName(b.name));
-    if (rule && (rule.k != null || rule.flatten)) {
+    if (rule && (rule.k != null || rule.flatten || rule.flatten2)) {
       segDetail(seg, rule, b.getWorldQuaternion(new THREE.Quaternion()));
     }
     segs.push(seg);
   }
-  appendExtras(segs, fat, externalJoint);
+  const virt = appendSubBones(segs, fat, externalJoint);
+  appendExtras(segs, fat, n => virt[n] ?? externalJoint(n));
   return segs;
 }
 const drop = document.getElementById('drop');

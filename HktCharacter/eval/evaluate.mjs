@@ -7,7 +7,12 @@
 //  행별 오차를 판정한다. 오버레이 PNG(eval/out/)도 함께 생성 — 눈 검증용.
 //
 //  실행:  npm run eval   (dev 서버가 없으면 전용 포트로 vite 를 직접 띄운다)
-//  판정:  신뢰 행(시트 획이 뚜렷한 행) 기준 MAE ≤ 0.025 · 최대 오차 ≤ 0.06
+//  판정 지표 (신뢰 행 = 시트 획이 뚜렷한 행 기준):
+//    · 폭      : 행별 실루엣 폭(R-L)/H — MAE ≤ 0.025 · 최대 ≤ 0.06
+//    · 중심선  : 행별 centroid 의 몸 축 대비 오프셋 — MAE ≤ 0.015 · 최대 ≤ 0.045
+//                (폭만 보면 자세가 안 잡힌다 — 머리 전방 이동/굽은 등이 여기서 걸린다)
+//    · 머리 경계: 상단 f ≤ 0.20 행의 좌/우 경계를 "각각" 비교 — 최대 ≤ 0.05
+//                (폭이 같아도 뒤통수 부재·턱선 방향 차이는 좌우 비대칭으로 나타난다)
 //  브라우저: playwright-core 가 Chromium 을 못 찾으면 HKT_EVAL_BROWSER 로 지정.
 //
 //  ⓘ harness 매핑에서 이 파일이 Evaluator — 프로파일(genome+grammar) 변경이
@@ -36,8 +41,12 @@ const VIEWS = [['front', 0], ['side', Math.PI / 2], ['back', Math.PI]];
 // 계측 높이(정수리=0 → 발끝=1)와 판정 임계값
 const FRACS = []; for (let f = 0.04; f <= 0.985; f += 0.03) FRACS.push(+f.toFixed(3));
 const MIN_REF_W = 0.03;   // 시트 폭이 이보다 작은 행은 획이 끊긴 행 → 판정 제외
-const MAE_MAX = 0.025;    // 신뢰 행 평균 절대 오차 한도 (신장 대비)
-const ERR_MAX = 0.06;     // 신뢰 행 단일 최대 오차 한도
+const MAE_MAX = 0.025;    // [폭] 신뢰 행 평균 절대 오차 한도 (신장 대비)
+const ERR_MAX = 0.06;     // [폭] 신뢰 행 단일 최대 오차 한도
+const C_MAE_MAX = 0.015;  // [중심선] 행 centroid 오프셋 평균 오차 한도 — 자세(굽은 등) 회귀
+const C_ERR_MAX = 0.045;  // [중심선] 단일 최대 오차 한도
+const HEAD_F_MAX = 0.20;  // [머리 경계] 이 높이(정수리 기준)까지를 머리 구간으로 본다
+const HEAD_ERR_MAX = 0.05;// [머리 경계] 좌/우 경계 각각의 단일 최대 오차 한도 — 뒤통수/턱선 회귀
 
 // ---- Chromium 실행 파일 탐색 ------------------------------------------------
 function findChromium() {
@@ -92,16 +101,43 @@ const analyze = (page, b64, mime, crop, mode) => page.evaluate(async ({ b64, mim
   return { rows, top, bot };
 }, { b64, mime, crop, mode });
 
-// f 위치의 폭/신장 비 + 수평 중심(오버레이 정렬용)
+// f 위치의 행 측정값(픽셀) — 폭/중심/경계. 몸 축(cx)은 여기서 정하지 않는다:
+// 시트의 획 끊긴 행이 중심을 오염시키므로, 비교 단계에서 "신뢰 행" 기준으로
+// 양 이미지에 같은 행 집합을 써서 산출한다 (그래야 중심선 오프셋이 공정하다).
 function profile(a) {
-  const H = a.bot - a.top, prof = {}, centers = [];
+  const H = a.bot - a.top, rowAt = {};
   for (const f of FRACS) {
     const y = Math.round(a.top + f * H);
     const r = a.rows.find(r => r.y === y);
-    prof[f] = r && r.L >= 0 ? +((r.R - r.L + 1) / H).toFixed(3) : null;
-    if (r && r.L >= 0 && f > 0.1 && f < 0.9) centers.push((r.L + r.R) / 2);
+    rowAt[f] = r && r.L >= 0 ? r : null;
   }
-  return { H, prof, cx: centers.reduce((s, v) => s + v, 0) / centers.length, top: a.top, bot: a.bot };
+  const prof = {}, cpx = {}, Lpx = {}, Rpx = {};
+  for (const f of FRACS) {
+    const r = rowAt[f];
+    prof[f] = r ? +((r.R - r.L + 1) / H).toFixed(3) : null; // 폭/신장
+    cpx[f] = r ? (r.L + r.R) / 2 : null;                    // 행 중심 (px)
+    Lpx[f] = r ? r.L : null; Rpx[f] = r ? r.R : null;
+  }
+  return { H, prof, cpx, Lpx, Rpx, cx: NaN, top: a.top, bot: a.bot };
+}
+
+// 신뢰 행 판정 (시트 폭 기준 — 렌더와 무관하게 시트만 본다)
+function reliableSet(refP) {
+  const set = new Set();
+  for (let i = 0; i < FRACS.length; i++) {
+    const f = FRACS[i], a = refP.prof[f];
+    if (a == null) continue;
+    const near = [refP.prof[FRACS[i - 1]], refP.prof[FRACS[i + 1]]].filter(v => v != null);
+    const dropout = near.length > 0 && a < 0.65 * Math.max(...near);
+    if (a >= MIN_REF_W && !dropout) set.add(f);
+  }
+  return set;
+}
+
+// 몸 축: 신뢰 행(0.1<f<0.9) 의 행 중심 평균 — 양 이미지에 "같은 행 집합" 적용
+function bodyAxis(p, reliable) {
+  const cs = FRACS.filter(f => reliable.has(f) && f > 0.1 && f < 0.9 && p.cpx[f] != null).map(f => p.cpx[f]);
+  return cs.reduce((s, v) => s + v, 0) / cs.length;
 }
 
 // ---- 오버레이 PNG (시트 선화 위에 렌더 실루엣 반투명 적색) -------------------
@@ -156,25 +192,43 @@ try {
     const renB64 = readFileSync(shot).toString('base64');
     const renP = profile(await analyze(page, renB64, 'image/png', null, 'skin'));
 
+    // 몸 축을 "신뢰 행" 기준으로 양 이미지에 동일 산출 — 획 끊긴 행이 축을 오염 못 하게
+    const reliable = reliableSet(refP);
+    refP.cx = bodyAxis(refP, reliable);
+    renP.cx = bodyAxis(renP, reliable);
     const rows = [];
-    let sum = 0, n = 0, worst = 0;
-    for (let i = 0; i < FRACS.length; i++) {
-      const f = FRACS[i];
+    let sum = 0, n = 0, worst = 0;          // 폭
+    let cSum = 0, cWorst = 0;               // 중심선 오프셋
+    let hWorst = 0, hN = 0;                 // 머리 좌/우 경계
+    for (const f of FRACS) {
       const a = refP.prof[f], b = renP.prof[f];
       if (a == null || b == null) continue;
-      // 신뢰도: 절대 폭이 있고, 이웃 행 대비 급락하지 않은 행 (급락 = 시트 획 끊김)
-      const near = [refP.prof[FRACS[i - 1]], refP.prof[FRACS[i + 1]]].filter(v => v != null);
-      const dropout = near.length > 0 && a < 0.65 * Math.max(...near);
-      const reliable = a >= MIN_REF_W && !dropout;
+      const isRel = reliable.has(f);
+      // 축 기준 정규화 좌표 (신장 대비): lb=좌측 경계 거리, rb=우측 경계 거리
+      const lb = p => (p.cx - p.Lpx[f]) / p.H, rb = p => (p.Rpx[f] - p.cx) / p.H;
       const err = +(b - a).toFixed(3);
-      rows.push({ f, ref: a, render: b, err, reliable });
-      if (reliable) { sum += Math.abs(err); n++; worst = Math.max(worst, Math.abs(err)); }
+      const cErr = +((rb(renP) - lb(renP)) / 2 - (rb(refP) - lb(refP)) / 2).toFixed(3);
+      const row = { f, ref: a, render: b, err, cErr, reliable: isRel };
+      if (isRel) {
+        sum += Math.abs(err); n++; worst = Math.max(worst, Math.abs(err));
+        cSum += Math.abs(cErr); cWorst = Math.max(cWorst, Math.abs(cErr));
+        if (f <= HEAD_F_MAX) { // 머리 구간: 좌/우 경계를 각각 판정 (비대칭 = 뒤통수/턱선)
+          row.lErr = +(lb(renP) - lb(refP)).toFixed(3);
+          row.rErr = +(rb(renP) - rb(refP)).toFixed(3);
+          hWorst = Math.max(hWorst, Math.abs(row.lErr), Math.abs(row.rErr)); hN++;
+        }
+      }
+      rows.push(row);
     }
     const mae = +(sum / n).toFixed(4);
-    const pass = mae <= MAE_MAX && worst <= ERR_MAX;
+    const cMae = +(cSum / n).toFixed(4);
+    const passW = mae <= MAE_MAX && worst <= ERR_MAX;
+    const passC = cMae <= C_MAE_MAX && cWorst <= C_ERR_MAX;
+    const passH = hWorst <= HEAD_ERR_MAX;
+    const pass = passW && passC && passH;
     if (!pass) failed = true;
-    report[view] = { mae, worst, reliableRows: n, pass, rows };
-    console.log(`${pass ? 'PASS' : 'FAIL'}  ${view.padEnd(5)}  MAE=${mae} (≤${MAE_MAX})  max=${worst} (≤${ERR_MAX})  신뢰행 ${n}개`);
+    report[view] = { mae, worst, cMae, cWorst, headWorst: hWorst, headRows: hN, reliableRows: n, pass, passW, passC, passH, rows };
+    console.log(`${pass ? 'PASS' : 'FAIL'}  ${view.padEnd(5)}  폭 MAE=${mae}/max=${worst} ${passW ? '✓' : '✗'}  중심 MAE=${cMae}/max=${cWorst} ${passC ? '✓' : '✗'}  머리경계 max=${hWorst} ${passH ? '✓' : '✗'}  신뢰행 ${n}개`);
 
     writeFileSync(join(OUT, `overlay-${view}.png`),
       Buffer.from(await overlay(page, refB64, renB64, refP, renP), 'base64'));
