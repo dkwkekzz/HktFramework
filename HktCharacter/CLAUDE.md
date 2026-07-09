@@ -14,19 +14,31 @@
    소스(built-in / Mixamo FBX / 임의 리그)를 몰라도 동일 경로로 흐른다. FK는 three Object3D 계층이 담당.
 2. **Flesh grammar** — 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
    규칙·수치는 `src/proportions.js` 의 **비율 프로파일**(데이터)로 승격 — 이름 규칙(첫 매치 승리)
-   + 스켈레톤 치수 + 볼륨 헬퍼(extras: 가슴·둔부·종아리·손바닥) + 그룹 배율(UI 슬라이더)로 구성.
-   **Detail 층**: rules/extras/subBones 는 선택적으로 `k`(세그먼트별 blend 폭), `flatten`·`flatten2`
-   (방향성 납작화 2축 — f<0 은 one-sided: dir +쪽 반만 납작. 얼굴 앞면 평평+뒤통수 볼록 같은
-   비대칭 단면), `op:'cut'`(smooth-subtraction 깎기)을 가진다 — 캡슐+전역 smin 으로는 안 나오는
-   표현 어휘. 셰이더는 평범한 캡슐(저비용 경로)과 detail 세그먼트를 구간 분리해 순회한다
-   (`uDetailStart`/`uCutStart`). ⚠ one-sided 경계(d=0 평면)는 노멀에 옅은 킹크가 남는다 — 눈 검증 항목.
-   **subBones(가상 하위 뼈) 층**: 실제 관절의 월드 변환에 프로파일 오프셋을 얹어 추출 시점에
-   세분화 사슬(두개골·뒤통수·턱 쐐기 등)을 합성한다. 트랙이 없어 부모 FK 를 그대로 상속 —
-   애니메이션 리그 무수정, built-in/외부 FBX 동일 경로. 두께·디테일은 rules 가 가상 뼈 "이름"으로
-   결정(grammar 원칙). `mirrorX`(좌우 쌍), `link:false`(부모→가상 캡슐 생략 = 앵커 전용) 지원.
-   ⚠ 외부 리그는 자체 뼈 길이를 쓰므로 두개골 비율은 근사 — HeadTop 뼈가 긴 리그는 두상이 늘어난다.
-   프리셋: `standard`(기존 값 보존) · `reference`(첨부 캐릭터 시트 기준 6등신 여성 체형, 기본값).
+   + 스켈레톤 치수 + 볼륨 헬퍼(extras: 가슴·승모근·둔부·뒤꿈치·손바닥) + 그룹 배율(UI 슬라이더)로 구성.
+   **원판 로프트(disk-loft) 층 — 주 살 매체 (LOFT-PLAN 구현됨)**: 몸통·목·두상·다리는 캡슐
+   대신 프로파일 `loft` 절의 원판 스택이 살을 만든다. 스택 = 뼈(자식 관절 simple name,
+   Left/Right 접두어 자동 미러) → `{ group, k?, disks:[{t, rx, zf, zb, xo?}] }`.
+   t 는 뼈 축 위치(0=부모, 1=자식, 범위 밖=연장 — 골반은 Spine 의 t<0), rx/zf/zb 는 좌우
+   반경·앞/뒤 경계(관절 로컬), xo 는 단면 중심 좌우 오프셋(다리). 이웃 원판 쌍 → round-cone
+   세그먼트 1개, 타원 단면은 긴 반경을 캡슐 반지름으로 삼고 짧은 축을 flatten(f<1 유지 —
+   방향 스왑으로 f>1 회피). 시트의 곡선 프로파일(허리 S커브·종아리 볼록·두개골 곡률)이
+   최적화의 결과가 아니라 **구성상 보장**된다. loft 가 없는 뼈(팔·손가락·임의 리그)는 기존
+   캡슐 경로 — rig-agnostic 계약 유지. `disks:[]` = 그 뼈 살 생략(UpLeg — 골반·허벅지 loft 가
+   대체). 원판 데이터는 `eval/fit-loft.mjs` 가 시트에서 자동 피팅 — 수치를 손으로 만지지 말 것.
+   ⚠ **round-cone 은 원판이 아니라 "구의 볼록 껍질"** — 반지름이 축 간격보다 급히 줄면 큰
+   원판의 구가 축 방향으로 반지름만큼 튀어나온다 (두정이 +6cm 솟아 f 정렬 전체가 오염됐던
+   교훈). 두정은 "구 돔 꼭대기 == crown" 이 되는 원판에서 스택을 자른다 (fit 이 처리).
+   ⚠ smin 사슬은 이웃 세그먼트 등거리 지점(원판 평면)마다 표면을 k/4 부풀린다 — 스택 내부
+   k 는 0.008 기본, 목만 k 0.05 (승모근·어깨와의 웹이 시트의 어깨 경사선을 만든다).
+   **Detail 층**(캡슐 경로용): rules/extras 는 선택적으로 `k`, `flatten`·`flatten2`(2축 납작화,
+   f<0 은 one-sided), `op:'cut'` 을 가진다. 셰이더는 평범한 캡슐(저비용)과 detail 세그먼트를
+   구간 분리 순회(`uDetailStart`/`uCutStart`) — loft 세그먼트는 전부 detail 경로.
+   (두상 subBones 세분화는 loft 로 대체·제거됨 — appendSubBones 엔진 자체는 남아 있다.)
+   프리셋: `standard`(기존 값 보존, loft 없음 = 캡슐 경로 회귀 기준) · `reference`(첨부 캐릭터
+   시트 기준 6등신 여성 체형, 기본값, loft 사용).
    Mixamo 이름(`mixamorig:LeftForeArm`)은 접두어만 떼고 매칭. 미지의 뼈는 기본값 → 임의 리그도 안 깨진다.
+   ⚠ 외부 리그는 자체 뼈 길이를 쓰므로 loft 는 t 비례 근사 — HeadTop 뼈가 긴 리그는 두상이 늘어난다.
+   HeadTop_End 관절이 없는 리그는 두개골 스택이 안 붙는다 (Head 캡슐 폴백 — 알려진 한계).
 3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
    (`public/assets/anim/*.fbx` — 걷기·뛰기·대기·점프·공격·삼바), 그리고 FBX 드롭(실제 Mixamo 클립).
    다중 클립 FBX 는 이름별 클립 전환(크로스페이드) 지원.
@@ -47,12 +59,18 @@
 - `public/assets/anim/*.fbx` — 동봉 로코모션 샘플 (Mixamo, HktSplatLife 와 동일 세트)
 - `src/proportions.js` — **비율 프로파일 데이터** (`PROFILES.standard/reference`, `GROUPS`, `matchRule`)
   비율 변경은 이 파일의 수치만 만진다 — 이름 규칙 / skeleton 치수(다리 전후 배치 `upLegZ/kneeZ/ankleZ`
-  포함) / subBones(두개골·뒤통수·턱) / extras / 권장 smin / 휴식 포즈(`armFwd/foreArmFwd` 전방 스윙 포함)
-- `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이) + `lib.mjs`(공용 계측 로직)
-  + `optimize.mjs`(**프로파일 자동 최적화** — dense 라인 손실을 목적함수로 좌표 하강,
-  `node eval/optimize.mjs [--baseline|--sweeps N]`, 결과는 `eval/out/optimize-best.json` →
-  proportions.js 에 손으로 반영) + `fixtures/reference-sheet.jpeg`(기준 캐릭터 시트).
+  포함) / **loft 원판 스택**(몸통·목·두상·다리 — fit-loft 재피팅으로 갱신, 손 수정 금지) /
+  extras / 권장 smin / 휴식 포즈(`armFwd/foreArmFwd` 전방 스윙 포함)
+- `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이 — `HKT_EVAL_VP=WxH` 축소
+  뷰포트, `HKT_EVAL_VIEWS=front,side` 뷰 분할 실행 지원) + `lib.mjs`(공용 계측 로직)
+  + `fit-loft.mjs`(**시트 → loft 원판 피팅** — `--stage all` 또는 front-torso/side-torso/
+  build-torso/front-legs/side-legs/build-legs/apply 하위 단계 분할. 결과 `eval/out/loft-fit.json`
+  → proportions.js 의 loft 절로 반영)
+  + `optimize.mjs`(**프로파일 자동 최적화** — dense 라인 손실 좌표 하강. loft 전환 후 파라미터는
+  잔여 캡슐(팔·어깨)·extras·골격·포즈만, `node eval/optimize.mjs [--baseline|--sweeps N]`)
+  + `fixtures/reference-sheet.jpeg`(기준 캐릭터 시트 — 민머리 소체 3뷰).
   산출물은 `eval/out/`(gitignore). 비율을 만졌으면 `npm run eval` 로 회귀 확인.
+  계측 도구는 `?paused=1` + `st.pause` 로 필요한 프레임만 렌더 (소프트웨어 GL 대응).
   ⚠ optimize 실행 중 src/ 를 편집하지 말 것 — vite HMR 리로드로 상주 페이지 상태가 날아간다.
 - `src/main.js` — 전체 로직. 섹션 주석으로 (1)IR (2)grammar (3)source 구분
   - `frag` : 레이마칭 프래그먼트 셰이더 (round-cone SDF의 smooth-union)
@@ -80,24 +98,26 @@ npm run dev      # http://localhost:5173
 **동작함**: built-in Mixamo 리그 위에서 walk/idle/wave, 손가락 토글, 스타일 슬라이더(smin/통통함),
 동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭,
 **비율 프로파일**(standard/reference 프리셋 + 머리/가슴/허리/엉덩이/팔/다리 그룹 슬라이더 + 볼륨 헬퍼),
-**subBones 두상 세분화**(Skull/Occiput/Jaw — 시트 대비 얼굴 평면·뒤통수·턱선), **flatten 2축/one-sided**,
+**원판 로프트 살 층**(몸통·목·두상·다리 — 시트 자동 피팅, 두상 블렌드 융기 소멸, eval 3뷰
+3지표 PASS · dense 손실 0.0091 = 캡슐+최적화 기준과 동급을 피팅만으로 달성), **flatten 2축/one-sided**,
 **자세 정렬**(요추 아치·다리 전후 배치·팔 전방 스윙 — eval 중심선 지표 3방향 PASS).
 
 **다음 (우선순위 순)**:
-0. **원판 로프트 살 층** — 캡슐(직선 테이퍼) 어휘의 구조적 한계를 넘어 시트 라인을 구성상
-   보장하는 전환. 상세 계획: [LOFT-PLAN.md](LOFT-PLAN.md) (미구현 — 실행 지시 대기).
-1. **Detail 층 심화**: 엔진(flatten×2·one-sided·세그먼트별 k·cut·subBones)은 구현됨 — 남은 것:
-   프리미티브 종류 추가(토러스·쐐기 등), 세분화 확장(손가락 마디·발 아치 — 두상은 완료),
-   cut 의 실전 적용처 발굴(현재 미사용 — 언더버스트 컷은 실루엣 밴드 아티팩트로 보류),
-   가슴 볼륨 경계 음영·one-sided 킹크 정리(실루엣엔 안 잡힘 — 눈 검증 항목).
-   ⚠ 교훈: Evaluator 는 실루엣만 본다 — cut/급한 k 는 내부 음영 아티팩트를 만들 수 있으니
-   반드시 렌더 눈 검증 병행. ← "스타일"의 2차 정의가 여기 삼.
-2. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.
+1. **loft 잔차 다듬기**: dense 손실 0.0091 의 남은 지배 항은 매체가 아니라 **데이터 모순** —
+   시트의 팔 포즈가 렌더와 달라 측면 f≈0.39 대역이 −0.1H(환원 불가), 정면/후면 그림의 힙
+   최광부가 ~1cm 불일치(fit-loft 가 교집합 보정). 남은 것: 팔 loft 전환 여부 판단,
+   가슴 extras 를 측면 시트 라인에 재정합, one-sided 비대칭 단면(4반경) 원판 확장.
+   ⚠ 교훈: Evaluator 는 실루엣만 본다 — 반드시 렌더 눈 검증 병행. ← "스타일"의 2차 정의.
+2. **Detail 층 심화**(캡슐 경로): 프리미티브 추가(토러스·쐐기), 손가락 마디·발 아치 세분화,
+   cut 적용처 발굴, 가슴 볼륨 경계 음영·one-sided 킹크 정리(실루엣엔 안 잡힘 — 눈 검증 항목).
+3. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.
    각 표면 정점의 스킨 웨이트는 "그 정점에 어느 뼈 SDF가 얼마나 기여했나"에서 자동 도출 → 스키닝 공짜.
-3. **Evaluator 확장**: 실루엣 회귀는 구현됨(eval/). 남은 것 — 자기충돌 부피, 관절 볼륨 보존,
-   프로파일 수치 자동 최적화(실루엣 오차를 목적함수로 파라미터 탐색).
-4. **부피 보존**: 관절 압축 시 살 부풂(bulge) 근사.
-5. **성능**: 손가락 포함 시 셰이더 비용(캡슐 수 × march step). 필요 시 bounding volume / 해상도 스케일.
+4. **Evaluator 확장**: 실루엣 회귀는 구현됨(eval/). 남은 것 — 자기충돌 부피, 관절 볼륨 보존,
+   loft 미세조정 파라미터(스택별 반경 배율)의 optimize 노출.
+5. **부피 보존**: 관절 압축 시 살 부풂(bulge) 근사.
+6. **성능**: loft 로 세그먼트 ~120개(전부 detail 경로) — 소프트웨어 GL 에선 프레임이 수 초라
+   계측 도구는 `?paused=1`/`st.pause` 로 대응함. GPU 에선 문제없으나 손가락 포함 시
+   bounding volume / 해상도 스케일 검토.
 
 ## 설계 결정 (되돌리지 말 것)
 

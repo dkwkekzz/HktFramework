@@ -14,7 +14,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { PROFILES, GROUPS, matchRule } from './proportions.js';
 
-const MAXB = 96;
+const MAXB = 256; // loft 원판 사슬 포함 상한 (5 vec4 배열 × 256 = 1280 ≤ 프래그먼트 유니폼 4096)
 const app = document.getElementById('app');
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -285,11 +285,60 @@ function segDetail(seg, spec, quat, fx = 1) {
   return seg;
 }
 
+// ---- 원판 로프트(disk-loft) 살 층 (LOFT-PLAN §4) ---------------------------
+// profile.loft: { '<뼈 simple name>': { group, k?, disks:[{t, rx, zf, zb, xo?}] } }
+//   · t     : 뼈 축 위치 (0=부모 관절, 1=자식 관절 — 범위 밖 허용: 골반 t<0 등)
+//   · rx    : 좌우 반경(m) · zf/zb : 앞/뒤 경계(m, 관절 로컬 +z=정면, zb 는 보통 음수)
+//   · xo    : 단면 중심의 좌우 오프셋(m) — 다리처럼 축≠단면 중심일 때. mirror 시 부호 반전.
+// 키는 Left/Right 접두어를 뗀 이름과도 일치 ('UpLeg' → 양 다리, xo/fx 미러) — grammar 원칙.
+// 원판 (i,i+1) 쌍 → round-cone 세그먼트 1개. 타원 단면은 flatten 으로: 긴 반경을 캡슐
+// 반지름으로, 짧은 축을 f<1 납작화 (f>1 은 레이마치 하한 위반 — 방향을 바꿔서 회피).
+// 앞/뒤 비대칭은 원판 중심 오프셋 (zf+zb)/2 로 해소 — 셰이더 무변경.
+// ⚠ flatten 은 세그먼트 a 의 평면 기준 공간 스케일이라 축에서 벗어난 b 중심도 f 배
+//   끌려간다 → 방출 시 오프셋 차를 1/f 로 선보정해 피팅값이 그대로 렌더되게 한다.
+function loftStackFor(name) {
+  const L = profile.loft; if (!L) return null;
+  const n = simpleName(name);
+  if (L[n]) return { spec: L[n], fx: 1 };
+  const m = n.match(/^(Left|Right)(.+)$/);
+  if (m && L[m[2]]) return { spec: L[m[2]], fx: m[1] === 'Left' ? 1 : -1 };
+  return null;
+}
+function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
+  const mul = (groupMul[spec.group] ?? 1.0) * fat;
+  const axis = b.clone().sub(a);
+  const zdir = new THREE.Vector3(0, 0, 1).applyQuaternion(quat).normalize();
+  const xdir = new THREE.Vector3(1, 0, 0).applyQuaternion(quat).normalize();
+  const D = spec.disks;
+  const k = spec.k ?? 0.008; // 같은 뼈 안 원판끼리는 좁게 — 한 표면처럼. smin 사슬은
+  // 이웃 세그먼트 등거리 지점(원판 평면)마다 표면을 k/4 부풀린다 — k 를 줄여 리플 최소화.
+  for (let i = 0; i + 1 < D.length; i++) {
+    const d0 = D[i], d1 = D[i + 1];
+    const zc0 = (d0.zf + d0.zb) / 2, zc1 = (d1.zf + d1.zb) / 2;
+    const x0 = (d0.xo ?? 0) * fx,     x1 = (d1.xo ?? 0) * fx;
+    const rz0 = (d0.zf - d0.zb) / 2,  rz1 = (d1.zf - d1.zb) / 2;
+    const asp = (rz0 / d0.rx + rz1 / d1.rx) / 2; // 평균 종횡비 rz/rx
+    const zFlat = asp <= 1.0;                    // true: z 납작 / false: x 납작
+    const f = Math.min(zFlat ? asp : 1 / asp, 0.999);
+    const A = a.clone().addScaledVector(axis, d0.t).addScaledVector(zdir, zc0).addScaledVector(xdir, x0);
+    // b 중심 선보정: 납작화 방향 성분의 a 대비 차분만 1/f 로 확대
+    const dz = zFlat ? (zc1 - zc0) / f : (zc1 - zc0);
+    const dx = zFlat ? (x1 - x0)   : (x1 - x0) / f;
+    const B = a.clone().addScaledVector(axis, d1.t).addScaledVector(zdir, zc0 + dz).addScaledVector(xdir, x0 + dx);
+    segs.push({
+      a: A, b: B,
+      ra: (zFlat ? d0.rx : rz0) * mul, rb: (zFlat ? d1.rx : rz1) * mul,
+      k, f, n: zFlat ? zdir : xdir, id,
+    });
+  }
+}
+
 // 볼륨 헬퍼(extras) — 프로파일이 정의한 관절-로컬 세그먼트를 살에 추가한다.
 // resolveJoint(simpleName) → { pos, quat } (렌더 공간). 관절이 없으면 조용히 건너뜀
 // → extras 가 없는 임의 리그도 깨지지 않는다.
 function appendExtras(segs, fat, resolveJoint) {
-  for (const e of profile.extras) {
+  for (let ei = 0; ei < profile.extras.length; ei++) {
+    const e = profile.extras[ei];
     const mul = (groupMul[e.group] ?? 1.0) * fat;
     const targets = e.mirrorJoints ? [['Left' + e.joint, 1], ['Right' + e.joint, -1]] : [[e.joint, 1]];
     for (const [jname, jx] of targets) {
@@ -300,6 +349,7 @@ function appendExtras(segs, fat, resolveJoint) {
         const a = new THREE.Vector3(e.a[0] * fx, e.a[1], e.a[2]).applyQuaternion(jt.quat).add(jt.pos);
         const b = new THREE.Vector3(e.b[0] * fx, e.b[1], e.b[2]).applyQuaternion(jt.quat).add(jt.pos);
         const seg = segDetail({ a, b, ra: e.ra * mul, rb: e.rb * mul, cut: e.op === 'cut' }, e, jt.quat, fx);
+        seg.id = `extra:${ei}:${jname}`;
         segs.push(seg);
       }
     }
@@ -329,6 +379,7 @@ function appendSubBones(segs, fat, resolveJoint) {
       const seg = {
         a: parent.pos.clone(), b: pos,
         ra: radiusForName(pName) * fat, rb: radiusForName(side + sb.name) * fat,
+        id: 'sub:' + side + sb.name,
       };
       const rule = matchRule(profile, side + sb.name);
       if (rule) segDetail(seg, rule, parent.quat, fx);
@@ -351,9 +402,17 @@ function extractBones(showFingers, fat) {
     if (!showFingers && (isFinger(jointName[i]) || isFinger(jointName[p]))) continue;
     jointObjs[i].getWorldPosition(_wp); jointObjs[p].getWorldPosition(_wpp);
     if (_wp.distanceToSquared(_wpp) < 1e-8) continue;
+    // loft 스택 보유 뼈 → 캡슐 대신 원판 사슬 (없는 뼈는 기존 캡슐 — rig-agnostic 계약)
+    const lf = loftStackFor(jointName[i]);
+    if (lf) {
+      emitLoft(segs, lf.spec, lf.fx, _wpp.clone(), _wp.clone(),
+        jointObjs[i].getWorldQuaternion(new THREE.Quaternion()), fat, 'loft:' + simpleName(jointName[i]));
+      continue;
+    }
     const seg = {
       a: _wpp.clone(), b: _wp.clone(),
       ra: radiusForName(jointName[p]) * fat, rb: radiusForName(jointName[i]) * fat,
+      id: simpleName(jointName[i]),
     };
     // 캡슐의 detail(k·flatten)은 자식 관절 규칙을 따른다
     const rule = matchRule(profile, simpleName(jointName[i]));
@@ -505,7 +564,13 @@ function extractExternal(showFingers, fat) {
     const a = _wpp.clone().sub(extCenter).multiplyScalar(extScale); a.y += 0.98;
     const c = _wp.clone().sub(extCenter).multiplyScalar(extScale);  c.y += 0.98;
     if (a.distanceToSquared(c) < 1e-8) continue;
-    const seg = { a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat };
+    // 외부 리그도 loft 는 t 비례라 뼈 길이가 달라도 자연 스케일 (rig-agnostic)
+    const lf = loftStackFor(b.name);
+    if (lf) {
+      emitLoft(segs, lf.spec, lf.fx, a, c, b.getWorldQuaternion(new THREE.Quaternion()), fat, 'loft:' + simpleName(b.name));
+      continue;
+    }
+    const seg = { a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat, id: simpleName(b.name) };
     const rule = matchRule(profile, simpleName(b.name));
     if (rule && (rule.k != null || rule.flatten || rule.flatten2)) {
       segDetail(seg, rule, b.getWorldQuaternion(new THREE.Quaternion()));
@@ -532,7 +597,10 @@ function readFile(f) {
 // ===========================================================================
 //  카메라 / 입력 / 루프
 // ===========================================================================
-const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: profile.defaults?.k ?? 0.12, fat: 1.0, fingers: false, bone: false };
+const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: profile.defaults?.k ?? 0.12, fat: 1.0, fingers: false, bone: false, pause: false };
+// ?paused=1 — 계측 도구용: 첫 프레임부터 렌더를 쉰다 (소프트웨어 GL 은 프레임이 수 초 —
+// 페이지 로드 직후의 무거운 프레임들이 evaluate/fit 호출을 굶긴다)
+if (new URLSearchParams(location.search).has('paused')) st.pause = true;
 uniforms.uK.value = st.k;
 const target = new THREE.Vector3(0, 1.0, 0);
 function updateCam() {
@@ -604,8 +672,42 @@ for (const [key, label] of GROUPS) {
 // 시작 프로파일의 권장 smin 을 슬라이더에 반영.
 $('k').value = st.k; $('kVal').textContent = st.k.toFixed(2);
 
+// ---- 계측 훅 (eval/fit-loft.mjs 용) ----------------------------------------
+// screenToWorld: 렌더 버퍼 픽셀 → plane('z'|'x')=0 평면 교차 월드 좌표.
+//   정면(az=0)은 z=0, 측면(az=π/2)은 x=0 평면에 캐릭터가 서 있다.
+function screenToWorld(xpx, ypx, plane) {
+  updateCam(); // st.az 변경 직후 렌더 프레임 없이 호출돼도 카메라를 최신으로
+  const w = renderer.domElement.width, h = renderer.domElement.height;
+  const p0 = new THREE.Vector3((xpx + 0.5) / w * 2 - 1, -((ypx + 0.5) / h * 2 - 1), -1).unproject(cam);
+  const dir = p0.sub(cam.position).normalize();
+  const t = plane === 'x' ? -cam.position.x / dir.x : -cam.position.z / dir.z;
+  const q = cam.position.clone().addScaledVector(dir, t);
+  return [q.x, q.y, q.z];
+}
+// joints: 현재(포즈 적용된) built-in 관절 월드 좌표/회전 덤프 — 바인드 포즈 피팅용.
+function jointsDump() {
+  if (!rigRoot) return {};
+  rigRoot.updateMatrixWorld(true);
+  const out = {};
+  for (let i = 0; i < jointObjs.length; i++) {
+    const p = jointObjs[i].getWorldPosition(new THREE.Vector3());
+    const q = jointObjs[i].getWorldQuaternion(new THREE.Quaternion());
+    out[simpleName(jointName[i])] = {
+      pos: [p.x, p.y, p.z], quat: [q.x, q.y, q.z, q.w],
+      parent: jointDefs[i].parent >= 0 ? simpleName(jointName[jointDefs[i].parent]) : null,
+    };
+  }
+  return out;
+}
+// 세그먼트 제외 필터 (id 정규식) — "몸통만" 같은 부분 실루엣 계측용. null 로 해제.
+let segExcl = null;
+function setSegFilter(re) { segExcl = re ? new RegExp(re) : null; }
+
 // 디버그/튜닝 핸들 — 콘솔에서 프로파일 수치를 실시간으로 만질 수 있다.
-window.__hkt = { st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam };
+window.__hkt = {
+  st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam,
+  screenToWorld, joints: jointsDump, setSegFilter,
+};
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });
 $('btnBuiltin').addEventListener('click', returnToBuiltin);
@@ -620,6 +722,9 @@ for (const [label, file] of FBX_SAMPLES) {
 
 const clock = new THREE.Clock();
 function loop() {
+  // st.pause: 계측 도구용 — 레이마칭을 쉬어 페이지 evaluate 지연을 없앤다
+  // (소프트웨어 GL 에선 프레임이 수 초 — 시트 분석/좌표 변환은 렌더가 필요 없다)
+  if (st.pause) { requestAnimationFrame(loop); return; }
   const t = clock.getElapsedTime();
   let segs;
   if (mode === 'external' && extRoot) {
@@ -628,10 +733,11 @@ function loop() {
     applyPose(st.clip === 'external' ? 'idle' : st.clip, t, st.speed);
     segs = extractBones(st.fingers, st.fat);
   }
+  if (segExcl) segs = segs.filter(s => !segExcl.test(s.id ?? ''));
   uploadBones(segs); updateCam();
   renderer.clear();
   renderer.render(quadScene, quadCam);
   if (st.bone) renderer.render(skelScene, cam);
   requestAnimationFrame(loop);
 }
-loop();
+loop(); // 메인 루프 시작

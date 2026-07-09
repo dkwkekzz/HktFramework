@@ -53,41 +53,18 @@ const PARAMS = [
   P('kneeZ', 'skeleton.kneeZ', 0.000, 0.060, 0.008),
   P('ankleZ', 'skeleton.ankleZ', -0.010, 0.030, 0.006),
   P('toeZ', 'skeleton.toeZ', 0.060, 0.120, 0.008),
-  // 살 반지름 (그룹 배율은 1 고정 — 규칙 자체를 조정)
-  P('r.Hips', 'rules[=Hips].r', 0.070, 0.110, 0.006),
-  P('r.Spine2', 'rules[Spine2].r', 0.045, 0.075, 0.005),
-  P('r.Spine1', 'rules[Spine1].r', 0.055, 0.085, 0.005),
-  P('r.Spine', 'rules[Spine].r', 0.055, 0.090, 0.005),
-  P('r.Neck', 'rules[Neck].r', 0.018, 0.032, 0.003),
-  P('r.Skull', 'rules[Skull].r', 0.075, 0.100, 0.004),
-  P('r.Occiput', 'rules[Occiput].r', 0.045, 0.072, 0.004),
-  P('r.JawSide', 'rules[JawSide].r', 0.025, 0.050, 0.004),
-  P('r.HeadTop', 'rules[HeadTop].r', 0.070, 0.095, 0.004),
+  // 살 반지름 — loft 전환 후 남은 캡슐 경로(팔·어깨)만. 몸통·다리·두상 반지름은
+  // loft 데이터(fit-loft.mjs 재피팅)가 진실의 원천이라 여기서 만지지 않는다.
+  // TODO(LOFT-PLAN §8-5): 원판 반경 스케일 계수(스택별 loft.*.disks[*].rx 일괄 배율)를
+  // 파라미터로 노출하려면 런타임에 스택 스케일 지원이 먼저 필요하다.
   P('r.Shoulder', 'rules[Shoulder].r', 0.020, 0.048, 0.004),
   P('r.Arm', 'rules[Arm].r', 0.020, 0.036, 0.003),
   P('r.ForeArm', 'rules[ForeArm].r', 0.016, 0.030, 0.003),
-  P('r.UpLeg', 'rules[UpLeg].r', 0.050, 0.080, 0.004),
-  P('r.Leg', 'rules[Leg].r', 0.032, 0.056, 0.004),
-  P('r.Foot', 'rules[Foot].r', 0.012, 0.026, 0.003),
-  // 두상 납작화 — 두개골 캡슐 3종이 같은 평면을 공유해야 이음새가 없다 (동기)
-  P('skullFlatX', ['rules[Skull].flatten.f', 'rules[Occiput].flatten.f', 'rules[HeadTop].flatten.f'], 0.85, 1.00, 0.02),
-  P('faceFlat', ['rules[Skull].flatten2.f', 'rules[Occiput].flatten2.f', 'rules[HeadTop].flatten2.f'], -0.90, -0.60, 0.04),
-  P('lumbarFlat', ['rules[Spine].flatten2.f', 'rules[Spine1].flatten2.f'], -0.78, -0.40, 0.05),
-  // subBones — 두상 배치
-  P('skullY', 'subBones.0.offset.1', 0.015, 0.045, 0.005),
-  P('skullZ', 'subBones.0.offset.2', -0.012, 0.020, 0.005),
-  P('occipZ', 'subBones.1.offset.2', -0.062, -0.030, 0.005),
-  P('jawSideY', 'subBones.2.offset.1', -0.042, -0.015, 0.004),
-  P('jawTipY', 'subBones.3.offset.1', -0.072, -0.040, 0.005),
-  P('jawTipZ', 'subBones.3.offset.2', 0.030, 0.060, 0.004),
-  // extras — 볼륨 헬퍼 (인덱스: 0 가슴 · 2 둔부 · 4 아랫배 · 5 종아리)
+  // extras — 볼륨 헬퍼 (loft 전환 후 인덱스: 0 가슴 · 1 승모근 · 2 둔부 · 3 뒤꿈치 · 4 손바닥)
   P('breastZ', 'extras.0.b.2', 0.080, 0.115, 0.006),
   P('breastR', 'extras.0.rb', 0.045, 0.062, 0.004),
   P('buttZ', 'extras.2.b.2', -0.030, 0.000, 0.005),
   P('buttR', 'extras.2.rb', 0.050, 0.066, 0.004),
-  P('bellyZ', 'extras.4.b.2', 0.050, 0.080, 0.005),
-  P('bellyR', 'extras.4.rb', 0.040, 0.056, 0.004),
-  P('calfR', 'extras.5.ra', 0.030, 0.045, 0.003),
   // 포즈 (시트 A-포즈 정합)
   P('armDown', 'pose.armDown', 1.450, 1.620, 0.030),
   P('foreArmOut', 'pose.foreArmOut', 0.040, 0.300, 0.040),
@@ -132,10 +109,12 @@ const applyValues = (page, entries) => page.evaluate(entries => {
 async function evalLoss(page, refProfiles) {
   let total = 0; const perView = {};
   for (const [view, az] of VIEWS) {
-    await page.evaluate(az => { window.__hkt.st.az = az; }, az);
+    // 캡처할 때만 1 프레임 렌더 (st.pause) — 소프트웨어 GL 프레임 비용 절약.
     // 별도 프레임 대기 불필요 — analyzeCanvas 가 rAF 안에서 캡처한다:
     // 앱 루프 rAF(먼저 등록)가 새 az/파라미터로 렌더한 직후, 같은 프레임에 drawImage.
+    await page.evaluate(az => { const h = window.__hkt; h.st.az = az; h.st.pause = false; }, az);
     const ren = denseProfile(await analyzeCanvas(page));
+    await page.evaluate(() => { window.__hkt.st.pause = true; });
     const { loss } = denseLoss(refProfiles[view], ren);
     perView[view] = +loss.toFixed(5); total += loss;
   }
@@ -150,15 +129,14 @@ try {
   // ≈ ±0.003H)는 수백 행 평균으로 상쇄된다. 최종 판정은 evaluate.mjs(원래 해상도)로.
   const page = await browser.newPage({ viewport: { width: 240, height: 340 } });
   page.on('pageerror', e => console.error('[pageerror]', e.message));
-  await page.goto(server.url, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__hkt, null, { timeout: 60000 });
+  await page.goto(server.url + '/?paused=1', { waitUntil: 'load' }); // 캡처 시만 렌더
+  await page.waitForFunction(() => window.__hkt, null, { timeout: 120000 });
   await page.evaluate(() => {
     document.querySelectorAll('.panel,.hud,.foot').forEach(el => el.style.display = 'none');
     const h = window.__hkt;
     h.setPreset('reference');
     h.st.clip = 'apose'; h.st.speed = 0; h.st.dist = 3.4; h.st.el = 0.0; h.st.az = 0.0;
   });
-  await page.waitForTimeout(400);
 
   // 시트 기준 프로파일 (1회)
   const refB64 = readFileSync(FIXTURE).toString('base64');
@@ -174,9 +152,9 @@ try {
     // 부위별 분해 (side 뷰) — 어디가 어긋나는지 지도
     const ren = {}; // eslint 무마용 아님 — view 별 rows 재계측
     for (const [view, az] of VIEWS) {
-      await page.evaluate(az => { window.__hkt.st.az = az; }, az);
-      await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
+      await page.evaluate(az => { const h = window.__hkt; h.st.az = az; h.st.pause = false; }, az);
       const { rows } = denseLoss(refProfiles[view], denseProfile(await analyzeCanvas(page)));
+      await page.evaluate(() => { window.__hkt.st.pause = true; });
       const reg = {};
       for (const r of rows) {
         const key = r.f <= 0.20 ? '머리' : r.f <= 0.32 ? '가슴/어깨' : r.f <= 0.52 ? '허리/힙' : r.f <= 0.75 ? '허벅지/무릎' : '정강이/발';

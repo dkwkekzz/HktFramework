@@ -105,9 +105,12 @@ const server = await ensureServer(ROOT, PORT);
 const browser = await chromium.launch({ executablePath: findChromium() });
 let failed = false;
 try {
-  const page = await browser.newPage({ viewport: { width: 760, height: 1080 } });
+  // HKT_EVAL_VP=WxH — 소프트웨어 GL 환경용 축소 뷰포트 (레이마칭 비용 ∝ 픽셀 수).
+  // 경계 양자화 ±1px ≈ ±0.003H 노이즈가 생기니 최종 판정은 기본 해상도로.
+  const vp = (process.env.HKT_EVAL_VP ?? '760x1080').split('x').map(Number);
+  const page = await browser.newPage({ viewport: { width: vp[0], height: vp[1] } });
   page.on('pageerror', e => { console.error('[pageerror]', e.message); failed = true; });
-  await page.goto(server.url, { waitUntil: 'load' });
+  await page.goto(server.url + '/?paused=1', { waitUntil: 'load' }); // 로드 직후 프레임 정지 (뷰 캡처 시만 렌더)
   await page.waitForFunction(() => window.__hkt, null, { timeout: 60000 });
   await page.evaluate(() => {
     document.querySelectorAll('.panel,.hud,.foot').forEach(el => el.style.display = 'none');
@@ -115,15 +118,24 @@ try {
     h.setPreset('reference');
     // 'apose' 는 미정의 클립 → 회전 없이 pose 파라미터만 적용된 정적 A-포즈 (계측 결정론)
     h.st.clip = 'apose'; h.st.speed = 0; h.st.dist = 3.4; h.st.el = 0.0; h.st.az = 0.0;
+    h.st.pause = true; // 뷰 캡처 직전에만 프레임을 렌더 (소프트웨어 GL 비용 절약)
   });
-  await page.waitForTimeout(500);
 
   const refB64 = readFileSync(FIXTURE).toString('base64');
-  const report = {};
+  // HKT_EVAL_VIEWS=front,side — 뷰 분할 실행 (호출당 시간 제한이 있는 CI 용).
+  // report.json 은 부분 실행 시 기존 내용에 병합한다.
+  const only = process.env.HKT_EVAL_VIEWS ? process.env.HKT_EVAL_VIEWS.split(',') : null;
+  let report = {};
+  try { if (only) report = JSON.parse(readFileSync(join(OUT, 'report.json'), 'utf8')); } catch { /* 새로 시작 */ }
   for (const [view, az] of VIEWS) {
+    if (only && !only.includes(view)) continue;
+    await page.evaluate(() => { window.__hkt.st.pause = true; }); // 시트 분석은 렌더 불필요
     const refP = profile(await analyze(page, refB64, 'image/jpeg', CROPS[view], 'stroke'));
-    await page.evaluate(az => { window.__hkt.st.az = az; }, az);
-    await page.waitForTimeout(350);
+    // az 반영 프레임을 정확히 1장만 렌더하고 다시 멈춘다 — 소프트웨어 GL 프레임 비용 절약
+    await page.evaluate(az => new Promise(res => {
+      const h = window.__hkt; h.st.az = az; h.st.pause = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { h.st.pause = true; res(); }));
+    }), az);
     const shot = join(OUT, `render-${view}.png`);
     // 소프트웨어 GL 환경(CI 등)은 프레임이 수 초 걸린다 — 타임아웃 넉넉히
     await page.screenshot({ path: shot, timeout: 180000 });
@@ -177,4 +189,4 @@ try {
   await browser.close();
   server.proc?.kill();
 }
-process.exit(failed ? 1 : 0);
+process.exit(failed ? 1 : 0); // (참고: HKT_EVAL_VP 축소 뷰포트는 위 newPage 참조)
