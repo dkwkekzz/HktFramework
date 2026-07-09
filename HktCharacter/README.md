@@ -41,6 +41,19 @@ FBX 클립이 즉시 재생된다 — 파일을 직접 받을 필요 없다. 샘
   (이름 규칙 / 스켈레톤 치수 / 볼륨 헬퍼 / 권장 smin / 휴식 포즈). 콘솔의 `window.__hkt`
   핸들로도 실시간 튜닝이 가능하다.
 
+## 비율 검증 (Evaluator)
+
+```bash
+npm run eval
+```
+
+기준 캐릭터 시트(`eval/fixtures/reference-sheet.jpeg`)의 정면/측면/후면 실루엣과 현재
+`reference` 프리셋 렌더를 자동 대조한다 — 신장 정규화 폭 프로파일로 행별 오차를 재고
+(평균 ≤ 0.025H · 행 최대 ≤ 0.06H), 시트 위에 렌더를 겹친 오버레이 PNG 를 `eval/out/` 에
+남긴다. 비율 프로파일을 수정했다면 이걸 돌려 시트와 어긋나지 않았는지 확인할 것.
+헤드리스 Chromium 이 필요하다 (Playwright 설치본을 자동 탐색, 없으면 `HKT_EVAL_BROWSER`
+환경변수로 실행 파일 지정).
+
 ## Mixamo 직접 불러오기
 
 1. [mixamo.com](https://www.mixamo.com) 에서 캐릭터 + 애니메이션 선택
