@@ -30,10 +30,19 @@
 | `STATE.md` | feature 명제 목록 + 현재 작업 상태 |
 | `features/feature-NNNN-*.md` | 각 feature: 명제 → 최종 목적 → step → 검증 |
 
-## 4. 실행
+## 4. 실행 · 검증 (자동 회귀 + 시각 검증 — 둘 다 상시 재현)
 
 ```
 run.bat            # Windows — 설치→테스트→서버→봇 8기→관전 브라우저 원클릭
 ./run.sh [봇수]    # macOS / Linux (관전: http://localhost:8080/?name=관전자)
-npm test           # 규칙 회귀 검증 (보존 상시 확인)
+npm test           # 규칙 회귀 검증 (보존·불변식 상시 확인)
+npm run shot       # 시각 검증 — 헤드리스 크로미움이 실제 뷰어를 스크린샷으로 캡처 (tools/shots/*.png)
+npm run demo       # 시각 데모 서버 — 브라우저로 http://localhost:8080 열어 눈으로 확인
 ```
+
+> **시각 검증은 상시 재현된다 — 세션마다 다시 요청할 필요가 없다.** 불변 원칙(모든 feature 는 직관적으로
+> 검증 가능)을 자동화한 것이 `npm run shot` 이다: 제어 데모(`tools/demo-control.mjs`)를 띄우고 실제
+> `client/` 뷰어를 헤드리스 크로미움으로 열어 명제가 눈에 보이는 세 시점을 `tools/shots/control-*.png` 로
+> 굳힌다(클라우드 환경에 크로미움 사전 설치, `playwright-core` devDependency). 새 feature 를 세울 때는
+> **자동 회귀(`npm test`) + 시각 검증(`npm run shot` 또는 해당 데모)** 을 함께 남겨, 사람이 매번 "눈으로
+> 보여달라"고 요청하지 않아도 스크린샷/데모로 즉시 확인되게 한다. 시각 검증을 못 세우면 그 feature 는 아직 닫지 않는다.

@@ -25,8 +25,8 @@ export class ClientState {
     this.worldCrystal = 0;      // 결정 총량 — 국소장에서 석출돼 동결된 정적 에너지 (feature-0005)
     this.worldCreature = 0;     // 생명체 총량 — 대사로 질서를 유지하는 살아있는 에너지 (feature-0006)
     this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
-    this.crystals = new Map();  // seq -> { x, y, z, balance, species } (개별 결정 스냅샷, 마커 — 읽기 전용, feature-0005)
-    this.creatures = new Map();  // seq -> { x, y, z, balance, size } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006)
+    this.crystals = new Map();  // seq -> { x, y, z, balance, species, raw } (개별 결정 스냅샷, raw=날것 — 읽기 전용, feature-0005·0011)
+    this.creatures = new Map();  // seq -> { x, y, z, balance, size, desire, owner } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006·0010)
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -121,8 +121,8 @@ export class ClientState {
   //   방송에 없는(=사라진) 결정은 미러에서 지운다 — 반응·채집으로 소멸한 결정이 유령으로 남지 않게(후속 step 대비).
   #onCrystal(msg) {
     const seen = new Set();
-    for (const [seq, x, y, z, balance, species] of msg.cells) {
-      this.crystals.set(seq, { x, y, z, balance, species });
+    for (const [seq, x, y, z, balance, species, raw] of msg.cells) {
+      this.crystals.set(seq, { x, y, z, balance, species, raw: !!raw }); // raw=날것(요리 전, feature-0011)
       seen.add(seq);
     }
     for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
@@ -132,8 +132,8 @@ export class ClientState {
   //   방송에 없는(=죽은) 생명체는 미러에서 지운다 — 아사·소멸한 생명체가 유령으로 남지 않게(CRYSTAL 과 같은 처리).
   #onCreature(msg) {
     const seen = new Set();
-    for (const [seq, x, y, z, balance, size] of msg.cells) {
-      this.creatures.set(seq, { x, y, z, balance, size: size ?? 1 });
+    for (const [seq, x, y, z, balance, size, desire, owner] of msg.cells) {
+      this.creatures.set(seq, { x, y, z, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null });
       seen.add(seq);
     }
     for (const key of this.creatures.keys()) if (!seen.has(key)) this.creatures.delete(key);

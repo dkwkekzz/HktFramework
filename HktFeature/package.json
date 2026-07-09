@@ -5,9 +5,14 @@
   "type": "module",
   "scripts": {
     "start": "node server/index.js",
-    "test": "node --test"
+    "test": "node --test",
+    "demo": "node tools/demo-control.mjs",
+    "shot": "node tools/shot.mjs"
   },
   "dependencies": {
     "ws": "^8.21.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1"
   }
 }

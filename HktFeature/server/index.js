@@ -55,6 +55,7 @@ for (let k = 0; k < CLUSTERS; k++) {
   const pred = game.spawnCreature(cx, cy, cz);                                 // 자리 잡은 포식자(size2 선점)
   pred.size = 2; game.ledger.get(pred.id).max = 2_000;                         // 먹이(size1)보다 커야 강탈 성립
   game.ledger.transfer(POOL.SOURCE, materialKey(cx, cy, cz), 24_000, 'seed');  // 풍요 웅덩이 → 결정 석출 → 채집 → 성장(size↑)
+  game.spawnRawFood(cx + 160, cy - 60, cz, k % 12, 3_000);                     // 곁에 날것 밥(재료) — 식사 욕구가 요리해 먹는다(feature-0011)
   dens.push([cx, cy, cz]);
 }
 
@@ -66,7 +67,14 @@ wss.on('connection', (socket) => {
     const msg = decode(raw.toString());
     if (!msg) return;
     if (msg.t === MSG.HELLO && playerId === null) {
-      playerId = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name).id;
+      const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
+      playerId = player.id;
+      // feature-0010 제어 — 접속하면 스폰 곁에 자기 생명체 하나를 쥐어준다(한 사람=한 생명체). 겹치지 않게
+      //   생성 순번으로 둘레에 흩는다. 기본 욕망은 대기(수동) — 방향키로 곁에 데려가거나 1·2 로 채집·사냥을 건다.
+      const a = game.creatureSeq * 2.399963; // 황금각 근사 — 둘레 고른 분포(결정론)
+      const px = SPAWN_POS.x + Math.round(Math.cos(a) * 90);
+      const py = SPAWN_POS.y + Math.round(Math.sin(a) * 90);
+      game.possessCreature(playerId, px, py, SPAWN_POS.z);
       return;
     }
     if (playerId !== null) game.onMessage(playerId, msg);
@@ -86,6 +94,7 @@ setInterval(() => {
     const [cx, cy, cz] = dens[preyNo % dens.length]; preyNo++;                 // 한 서식지 곁에 먹이 하나
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대
     game.ledger.transfer(POOL.SOURCE, materialKey(cx + 120, cy + 40, cz), 1_500, 'seed');
+    game.spawnRawFood(cx + 160, cy - 60, cz, preyNo % 12, 2_500);              // 날것 밥 보충 — 식사 봇이 계속 요리·섭취(feature-0011)
   }
 }, 1000 / TICK_RATE);
 

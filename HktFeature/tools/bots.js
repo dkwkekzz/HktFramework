@@ -22,9 +22,20 @@ const STEP = (MAX_SPEED * 0.8) * (BEACON_INTERVAL_MS / 1000); // 예산 안의 �
 const BOT_NAMES = ['도토리', '이끼', '반딧불', '조약돌', '민들레', '소나기', '노을', '달팽이',
                    '억새', '개울', '서리', '메아리', '들불', '안개', '까치', '숲지기'];
 
+// 봇의 "브레인" — 욕망 선택 정책(feature-0010). 봇은 특권 없이 **자기 미러**(사람과 같은 관측 채널)로
+//   제 생명체 상태를 보고 스스로 욕망을 고른다. 성장 사다리에 따른 결정론적 규칙:
+//     · 아직 못 봄 / 작음(size<2) → **식사**: 밥(결정)을 먹되 날것이면 요리해 먹는다(feature-0011). 먼저 커야 사냥한다.
+//     · 충분히 자람(size≥2)     → **사냥**: 포식자가 되어 더 작은 생명체를 뜯는다(더 큰 수입).
+//   이 규칙이 곧 확장 지점이다 — 더 똑똑한 정책(가까운 표적 유무·위험 회피·LLM 의도)을 여기 얹으면 된다.
+function chooseDesire(mine) {
+  if (!mine) return 'eat';                     // 아직 제 생명체를 관측 못 함 → 안전하게 식사(성장)
+  return (mine.size ?? 1) >= 2 ? 'hunt' : 'eat'; // 작으면 밥을 먹어(날것이면 요리) 크고, 크면 사냥한다
+}
+
 class Bot {
   constructor(name) {
     this.name = name;
+    this.desire = 'none';   // 현재 서버에 부여한 욕망(중복 전송 방지용)
     this.retries = 0;
     this.#connect();
   }
@@ -34,13 +45,16 @@ class Bot {
     this.x = SPAWN_POS.x;
     this.y = SPAWN_POS.y;
     this.z = SPAWN_POS.z; // 3D 높이
-    this.goal = this.#randomGoal();
     this.bytesInWindow = 0; // 수신 대역폭 계측 (5초 요약에서 B/s 환산)
     this.state.onTeleport = ({ x, y, z }) => { this.x = x; this.y = y; this.z = z ?? this.z; }; // 서버 정정 수용
     this.state.onResync = (regions) => this.send(MSG.RESYNC, { regions }); // 체크섬 불일치 → 스냅샷 요청(자가치유)
 
     this.ws = new WebSocket(URL);
-    this.ws.onopen = () => { this.retries = 0; this.send(MSG.HELLO, { name: this.name }); };
+    this.ws.onopen = () => {
+      this.retries = 0;
+      this.desire = 'none';
+      this.send(MSG.HELLO, { name: this.name }); // 서버가 HELLO 처리 시 내 생명체를 스폰(possess) — 욕망은 #think 가 고른다
+    };
     this.ws.onmessage = (ev) => {
       this.bytesInWindow += typeof ev.data === 'string' ? ev.data.length : ev.data.byteLength;
       const m = decode(ev.data); if (m) this.state.handle(m);
@@ -57,25 +71,29 @@ class Bot {
   send(t, payload = {}) { if (this.ws.readyState === 1) this.ws.send(encode(t, payload)); }
   energy() { return this.state.ledger.balance(this.state.playerId); }
 
-  #randomGoal() {
-    return {
-      x: Math.random() * WORLD_SIZE,
-      y: Math.random() * WORLD_SIZE,
-      z: Math.random() * WORLD_HEIGHT,
-    };
+  // 내가 제어하는 생명체를 미러에서 찾는다(관측되면) — 사람과 같은 CREATURE 스냅샷 채널, 특권 없음.
+  #myCreature() {
+    for (const c of this.state.creatures.values()) if (c.owner && c.owner === this.state.playerId) return c;
+    return null;
   }
 
   #think() {
     const s = this.state;
     if (!s.playerId) return;
-    // 목적지에 닿으면 새 목적지 — 세계를 계속 배회한다(이동 검증·relevancy 부하)
-    const d = dist3(this.x, this.y, this.z, this.goal.x, this.goal.y, this.goal.z);
-    if (d < STEP) this.goal = this.#randomGoal();
-    else {
+    const mine = this.#myCreature();
+
+    // ① 욕망 선택(브레인) — 관측한 제 생명체 상태로 스스로 고른다. 바뀔 때만 서버에 부여(중복 방지).
+    const want = chooseDesire(mine);
+    if (want !== this.desire) { this.desire = want; this.send(MSG.DESIRE, { desire: want }); }
+
+    // ② 마커 이동 — 제 생명체 곁에 머문다(관측·relevancy 유지 = 계속 지켜보며 결정한다). 못 보면 스폰으로 복귀.
+    const goal = mine ? { x: mine.x, y: mine.y, z: mine.z } : SPAWN_POS;
+    const d = dist3(this.x, this.y, this.z, goal.x, goal.y, goal.z);
+    if (d > STEP) {
       const step = Math.min(STEP, d);
-      this.x = Math.max(0, Math.min(WORLD_SIZE, this.x + ((this.goal.x - this.x) / d) * step));
-      this.y = Math.max(0, Math.min(WORLD_SIZE, this.y + ((this.goal.y - this.y) / d) * step));
-      this.z = Math.max(0, Math.min(WORLD_HEIGHT, this.z + ((this.goal.z - this.z) / d) * step));
+      this.x = Math.max(0, Math.min(WORLD_SIZE, this.x + ((goal.x - this.x) / d) * step));
+      this.y = Math.max(0, Math.min(WORLD_SIZE, this.y + ((goal.y - this.y) / d) * step));
+      this.z = Math.max(0, Math.min(WORLD_HEIGHT, this.z + ((goal.z - this.z) / d) * step));
     }
     this.send(MSG.BEACON, { x: Math.round(this.x), y: Math.round(this.y), z: Math.round(this.z) });
   }
@@ -85,7 +103,7 @@ class Bot {
 const bots = [];
 for (let i = 0; i < COUNT; i++) {
   const name = `${BOT_NAMES[i % BOT_NAMES.length]}${i >= BOT_NAMES.length ? i : ''}`;
-  setTimeout(() => bots.push(new Bot(name)), i * 150); // 접속 폭주 완화
+  setTimeout(() => bots.push(new Bot(name)), i * 150); // 접속 폭주 완화 — 욕망은 각 봇이 스스로 고른다
 }
 
 // --- 5초마다 시뮬레이션 요약 (봇 0 의 미러가 관측한 세계) ---
