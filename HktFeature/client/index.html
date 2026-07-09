@@ -8,10 +8,27 @@
            display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 15px; font-weight: 600; margin: 12px 0 8px; color: #9db2c4; }
     canvas { border: 1px solid #1c2330; border-radius: 4px; }
+    /* 제어 UI (feature-0010) — 내 생명체에 욕망을 부여하는 실제 버튼(단축키 1·2·0 과 동일 동작) */
+    #desirebar { display: flex; gap: 8px; align-items: center; margin: 8px 0 4px; font-size: 13px; }
+    #desirebar .lbl { color: #7a8aa0; margin-right: 2px; }
+    #desirebar button { cursor: pointer; border: 1px solid #2a3648; border-radius: 6px;
+      background: #121826; color: #cdd8e6; padding: 6px 14px; font-size: 13px; font-family: inherit;
+      transition: background .12s, border-color .12s; }
+    #desirebar button:hover { background: #1a2334; }
+    #desirebar button.active[data-desire="forage"] { background: #17492f; border-color: #78dc96; color: #b6f5cc; }
+    #desirebar button.active[data-desire="hunt"]   { background: #4a2018; border-color: #e6785a; color: #f6c3b2; }
+    #desirebar button.active[data-desire="none"]   { background: #3a3116; border-color: #ffd76e; color: #ffe9b0; }
+    #desirebar kbd { color: #5f7285; font-size: 11px; }
   </style>
 </head>
 <body>
   <h1>HktFeature — 규칙을 정의하고 시뮬레이션한다 (관측 뷰어)</h1>
+  <div id="desirebar">
+    <span class="lbl">내 생명체 욕망 →</span>
+    <button data-desire="forage">🌿 채집 <kbd>1</kbd></button>
+    <button data-desire="hunt">⚔ 사냥 <kbd>2</kbd></button>
+    <button data-desire="none">✋ 대기 <kbd>0</kbd></button>
+  </div>
   <canvas id="game" width="960" height="640"></canvas>
   <script type="module" src="/client/main.js"></script>
 </body>
