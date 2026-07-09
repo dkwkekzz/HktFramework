@@ -134,10 +134,12 @@ function buildMixamoRig(sk) {
     idx[name] = J.length;
     J.push({ name, parent: parent == null ? -1 : idx[parent], offset: [ox, oy, oz] });
   };
+  // spineZ: 척추 전후 오프셋 (S-커브 — 가슴 앞벽 평평/등 뒤로. 미지정 시 일직선)
+  const sz = sk.spineZ ?? [0, 0, 0];
   add('mixamorig:Hips', null, 0, sk.hipsY, 0);
-  add('mixamorig:Spine', 'mixamorig:Hips', 0, sk.spineLens[0], 0);
-  add('mixamorig:Spine1', 'mixamorig:Spine', 0, sk.spineLens[1], 0);
-  add('mixamorig:Spine2', 'mixamorig:Spine1', 0, sk.spineLens[2], 0);
+  add('mixamorig:Spine', 'mixamorig:Hips', 0, sk.spineLens[0], sz[0]);
+  add('mixamorig:Spine1', 'mixamorig:Spine', 0, sk.spineLens[1], sz[1]);
+  add('mixamorig:Spine2', 'mixamorig:Spine1', 0, sk.spineLens[2], sz[2]);
   add('mixamorig:Neck', 'mixamorig:Spine2', 0, sk.neckLen, sk.neckZ);
   add('mixamorig:Head', 'mixamorig:Neck', 0, sk.headLen, sk.headZ);
   add('mixamorig:HeadTop_End', 'mixamorig:Head', 0, sk.headTopLen, sk.headTopZ);
@@ -152,9 +154,11 @@ function buildMixamoRig(sk) {
       add(`mixamorig:${S}Hand${fn}2`, `mixamorig:${S}Hand${fn}1`, x * len, 0, 0);
       add(`mixamorig:${S}Hand${fn}3`, `mixamorig:${S}Hand${fn}2`, x * len * 0.8, 0, 0);
     }
+    // kneeX/ankleX: 다리 안쪽 수렴 (미지정 시 upLegX = 수직 기둥)
+    const kneeX = sk.kneeX ?? sk.upLegX, ankleX = sk.ankleX ?? kneeX;
     add(`mixamorig:${S}UpLeg`, 'mixamorig:Hips', x * sk.upLegX, sk.upLegY, 0);
-    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, 0, -sk.thighLen, 0);
-    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, 0, -sk.shinLen, 0);
+    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, x * (kneeX - sk.upLegX), -sk.thighLen, 0);
+    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, x * (ankleX - kneeX), -sk.shinLen, 0);
     add(`mixamorig:${S}ToeBase`, `mixamorig:${S}Foot`, 0, -sk.footDrop, sk.toeZ);
   }
   return J;
@@ -184,13 +188,22 @@ const _e = new THREE.Euler();
 function applyPose(clip, t, speed) {
   const ph = t * speed * 4.0;
   const armDown = profile.pose?.armDown ?? 1.30;
+  const footSplay = profile.pose?.footSplay ?? 0.0;
+  const foreArmOut = profile.pose?.foreArmOut ?? 0.0;
+  const handIn = profile.pose?.handIn ?? 0.0;
   for (let i = 0; i < jointObjs.length; i++) {
     const n = simpleName(jointName[i]); let rx = 0, ry = 0, rz = 0;
     const R = n.startsWith('Right');
     if (clip !== 'wave' || !R) {
       if (n === 'LeftArm') rz = -armDown;
       if (n === 'RightArm') rz = armDown;
+      if (n === 'LeftForeArm') rz = foreArmOut;
+      if (n === 'RightForeArm') rz = -foreArmOut;
+      if (n === 'LeftHand') rz = -handIn;
+      if (n === 'RightHand') rz = handIn;
     }
+    if (n === 'LeftFoot') ry = footSplay;
+    if (n === 'RightFoot') ry = -footSplay;
     if (clip === 'walk') {
       if (n === 'LeftUpLeg')  rx =  Math.sin(ph) * 0.5;
       if (n === 'RightUpLeg') rx = -Math.sin(ph) * 0.5;

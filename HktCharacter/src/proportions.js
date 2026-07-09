@@ -90,35 +90,37 @@ const REFERENCE = {
   skeleton: {
     hipsY: 0.88,
     spineLens: [0.10, 0.10, 0.12],  // 허리(Spine) 0.98 · 명치 1.08 · 흉곽 1.20
-    neckLen: 0.09, neckZ: 0.01,     // 목밑 1.29 ≈ 어깨선
-    headLen: 0.17, headZ: 0.01,     // 두개골 중심 1.46 — 구 아래끝(턱) ~1.36, 목이 드러난다
+    spineZ: [0.010, 0.004, -0.002], // 몸통을 살짝 앞으로 (시트 정렬 — 등이 뒤로 튀지 않게)
+    neckLen: 0.09, neckZ: 0.025,    // 목밑 1.29 ≈ 어깨선 — 목은 앞으로 기움
+    headLen: 0.17, headZ: 0.025,    // 두개골 중심 1.46 — 얼굴이 앞 (시트 측면 프로파일)
     headTopLen: 0.06, headTopZ: 0.0,
-    shoulderX: 0.04, shoulderY: 0.06,
-    armX: 0.085,                    // 어깨 폭 절반 ≈ 0.125 + 삼각근 살 → 전체 ~0.36
-    upperArmLen: 0.25, foreArmLen: 0.23,
+    shoulderX: 0.04, shoulderY: 0.075,
+    armX: 0.083,                    // 어깨 폭 절반 ≈ 0.123 + 삼각근 살
+    upperArmLen: 0.25, foreArmLen: 0.245,
     upLegX: 0.08, upLegY: -0.07,    // 고관절 0.81 (골반 최광부)
+    kneeX: 0.052, ankleX: 0.042,    // 시트처럼 다리가 발목으로 갈수록 안쪽 수렴
     thighLen: 0.35, shinLen: 0.37,  // 무릎 0.46 · 발목 0.09
-    footDrop: 0.055, toeZ: 0.13,
+    footDrop: 0.055, toeZ: 0.098,
     fingers: [['Thumb', 0.55, 0.025], ['Index', 0.14, 0.034], ['Middle', -0.02, 0.038], ['Ring', -0.16, 0.034], ['Pinky', -0.30, 0.027]],
   },
   rules: [
-    { match: '=Hips',    r: 0.100, group: 'hips'  },
-    { match: 'Spine2',   r: 0.092, group: 'chest' }, // 흉곽 — 가슴 볼륨은 extras 담당
-    { match: 'Spine1',   r: 0.082, group: 'waist' },
-    { match: 'Spine',    r: 0.080, group: 'waist' }, // 허리 최협부 — 전체 폭 ~0.19
-    { match: 'Neck',     r: 0.026, group: 'chest' },
-    { match: 'HeadTop',  r: 0.102, group: 'head'  }, // 'HeadTop_End' 포함 — 정수리
-    { match: 'Head',     r: 0.105, group: 'head'  }, // 두상 폭 ~0.21 — 정수리까지 둥근 두개골
-    { match: 'Shoulder', r: 0.038, group: 'chest' },
-    { match: 'ForeArm',  r: 0.024, group: 'arms'  },
-    { match: 'Arm',      r: 0.030, group: 'arms'  },
-    { match: 'Hand',     r: 0.019, group: 'arms'  },
-    { match: 'UpLeg',    r: 0.076, group: 'legs'  }, // 허벅지 상단 — 골반 폭에도 기여
-    { match: 'Leg',      r: 0.046, group: 'legs'  }, // 무릎
-    { match: 'ToeBase',  r: 0.026, group: 'legs'  },
-    { match: 'Toe',      r: 0.026, group: 'legs'  }, // 'Toe_End' 포함 (아래 '_End' 보다 먼저)
-    { match: 'Foot',     r: 0.025, group: 'legs'  }, // 발목 — 가늘게
-    { match: '_End',     r: 0.020, group: 'arms'  }, // 그 밖의 말단 nub (임의 리그) — 작게
+    { match: '=Hips',    r: 0.092, group: 'hips'  },
+    { match: 'Spine2',   r: 0.058, group: 'chest' }, // 흉곽(얇게) — 가슴 볼륨·폭은 extras 담당
+    { match: 'Spine1',   r: 0.070, group: 'waist' },
+    { match: 'Spine',    r: 0.072, group: 'waist' }, // 허리 최협부
+    { match: 'Neck',     r: 0.024, group: 'chest' },
+    { match: 'HeadTop',  r: 0.089, group: 'head'  }, // 'HeadTop_End' 포함 — 정수리
+    { match: 'Head',     r: 0.092, group: 'head'  }, // 두상 폭 ~0.19 (시트 계측 0.12H)
+    { match: 'Shoulder', r: 0.033, group: 'chest' },
+    { match: 'ForeArm',  r: 0.022, group: 'arms'  },
+    { match: 'Arm',      r: 0.027, group: 'arms'  },
+    { match: 'Hand',     r: 0.017, group: 'arms'  },
+    { match: 'UpLeg',    r: 0.066, group: 'legs'  }, // 허벅지 상단 — 골반 폭에도 기여
+    { match: 'Leg',      r: 0.042, group: 'legs'  }, // 무릎
+    { match: 'ToeBase',  r: 0.020, group: 'legs'  },
+    { match: 'Toe',      r: 0.020, group: 'legs'  }, // 'Toe_End' 포함 (아래 '_End' 보다 먼저)
+    { match: 'Foot',     r: 0.018, group: 'legs'  }, // 발목 — 가늘게
+    { match: '_End',     r: 0.018, group: 'arms'  }, // 그 밖의 말단 nub (임의 리그) — 작게
     { match: 'Thumb',    r: 0.010, group: 'arms'  },
     { match: 'Index',    r: 0.010, group: 'arms'  },
     { match: 'Middle',   r: 0.010, group: 'arms'  },
@@ -129,19 +131,22 @@ const REFERENCE = {
   fallback: 0.04,
   // 볼륨 헬퍼 — joint 로컬 공간(m): +x=캐릭터 왼쪽, +y=위, +z=정면
   extras: [
-    // 가슴 (Spine2 기준, 좌우 대칭)
-    { joint: 'Spine2', mirrorX: true, a: [0.042, -0.035, 0.045], b: [0.050, -0.07, 0.082], ra: 0.048, rb: 0.058, group: 'chest' },
+    // 가슴 (Spine2 기준, 좌우 대칭 — 측면 돌출이 시트의 특징)
+    { joint: 'Spine2', mirrorX: true, a: [0.044, -0.05, 0.050], b: [0.052, -0.042, 0.104], ra: 0.048, rb: 0.058, group: 'chest' },
     // 둔부 (Hips 기준, 좌우 대칭 — 뒤로 볼록)
-    { joint: 'Hips', mirrorX: true, a: [0.050, 0.005, -0.025], b: [0.058, -0.055, -0.048], ra: 0.062, rb: 0.070, group: 'hips' },
-    // 골반 옆폭 (Hips → 고관절 옆라인, 시트의 최광부 0.33 확보)
-    { joint: 'Hips', mirrorX: true, a: [0.045, -0.01, 0.0], b: [0.078, -0.065, 0.0], ra: 0.052, rb: 0.052, group: 'hips' },
+    { joint: 'Hips', mirrorX: true, a: [0.048, 0.005, -0.020], b: [0.055, -0.055, -0.038], ra: 0.056, rb: 0.058, group: 'hips' },
+    // 골반 옆폭 (Hips → 고관절 옆라인)
+    { joint: 'Hips', mirrorX: true, a: [0.042, -0.01, 0.0], b: [0.068, -0.065, 0.0], ra: 0.048, rb: 0.048, group: 'hips' },
     // 종아리 (Leg=무릎 아래 — 캡슐 선형 테이퍼로는 안 나오는 볼록 실루엣)
-    { joint: 'Leg', mirrorJoints: true, a: [0.0, -0.08, -0.006], b: [0.0, -0.15, -0.012], ra: 0.038, rb: 0.034, group: 'legs' },
+    { joint: 'Leg', mirrorJoints: true, a: [0.0, -0.08, -0.006], b: [0.0, -0.15, -0.012], ra: 0.037, rb: 0.033, group: 'legs' },
+    // 뒤꿈치 (후면에서 발이 바닥까지 닿아 보이게 + 측면 힐 라인)
+    { joint: 'Foot', mirrorJoints: true, a: [0.0, -0.02, -0.01], b: [0.0, -0.052, -0.018], ra: 0.020, rb: 0.016, group: 'legs' },
     // 손바닥 (손가락 미표시 시에도 손목에서 끊기지 않게 — 손 로컬 +x = 팔 방향)
-    { joint: 'Hand', mirrorJoints: true, a: [0.0, 0.0, 0.0], b: [0.075, 0.0, 0.005], ra: 0.019, rb: 0.013, group: 'arms' },
+    { joint: 'Hand', mirrorJoints: true, a: [0.0, 0.0, 0.0], b: [0.085, 0.0, 0.005], ra: 0.017, rb: 0.011, group: 'arms' },
   ],
   defaults: { k: 0.05 }, // 가는 팔·목이 살아남아야 하는 체형 — smin 좁게
-  pose: { armDown: 1.33 }, // 시트처럼 팔을 늘어뜨림 (1.4+ 는 손이 골반 SDF 에 융착)
+  // 시트 A-포즈: 팔은 몸에 붙이고 전완만 살짝 밖, 손끝은 허벅지 쪽으로, 발끝만 벌림
+  pose: { armDown: 1.54, foreArmOut: 0.24, handIn: 0.85, footSplay: 0.22 },
 };
 
 export const PROFILES = { standard: STANDARD, reference: REFERENCE };
