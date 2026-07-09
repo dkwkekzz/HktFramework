@@ -151,7 +151,8 @@ try {
     await page.evaluate(az => { window.__hkt.st.az = az; }, az);
     await page.waitForTimeout(350);
     const shot = join(OUT, `render-${view}.png`);
-    await page.screenshot({ path: shot });
+    // 소프트웨어 GL 환경(CI 등)은 프레임이 수 초 걸린다 — 타임아웃 넉넉히
+    await page.screenshot({ path: shot, timeout: 180000 });
     const renB64 = readFileSync(shot).toString('base64');
     const renP = profile(await analyze(page, renB64, 'image/png', null, 'skin'));
 

@@ -30,7 +30,12 @@ const uniforms = {
   uInvVP:  { value: new THREE.Matrix4() },
   uBoneA:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
   uBoneB:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
+  // Detail 층: 세그먼트별 (k, 납작화 f, -, -) + 납작화 방향(단위 벡터)
+  uBoneC:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4(-1, 1, 0, 0)) },
+  uBoneN:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4(0, 0, 1, 0)) },
   uBoneCount: { value: 0 },
+  uDetailStart: { value: 0 },  // 이 인덱스부터 detail 세그먼트(k/flatten/cut) — 앞쪽은 저비용 경로
+  uCutStart:  { value: MAXB }, // 이 인덱스부터는 빼기(smooth-subtraction) 세그먼트
   uK:      { value: 0.12 }, // smin 블렌드 폭 — 작을수록 팔·다리·머리가 뚜렷(캐릭터 실루엣). 크게 하면 블롭.
   uColor:  { value: new THREE.Color('#f7b58c') },
 };
@@ -40,7 +45,9 @@ precision highp float;
 varying vec2 vUv;
 uniform vec3 uCamPos; uniform mat4 uInvVP;
 uniform vec4 uBoneA[${MAXB}]; uniform vec4 uBoneB[${MAXB}];
-uniform int uBoneCount; uniform float uK; uniform vec3 uColor;
+uniform vec4 uBoneC[${MAXB}]; uniform vec4 uBoneN[${MAXB}];
+uniform int uBoneCount; uniform int uDetailStart; uniform int uCutStart;
+uniform float uK; uniform vec3 uColor;
 const vec3 L = normalize(vec3(0.55,0.85,0.45)); const float GY = 0.0;
 float smin(float a,float b,float k){float h=clamp(0.5+0.5*(b-a)/k,0.0,1.0);return mix(b,a,h)-k*h*(1.0-h);}
 float sdRoundCone(vec3 p,vec3 a,vec3 b,float r1,float r2){
@@ -50,10 +57,27 @@ float sdRoundCone(vec3 p,vec3 a,vec3 b,float r1,float r2){
   if(sign(z)*a2*z2>k)return sqrt(x2+z2)*il2-r2;
   if(sign(y)*a2*y2<k)return sqrt(x2+y2)*il2-r1;
   return (sqrt(x2*a2*il2)+y*rr)*il2-r1;}
+// 세그먼트 i 의 SDF — 납작화(f<1)는 방향 n 을 1/f 로 늘린 공간에서 평가 후
+// min(f,1) 배 (보수적 하한 → 레이마치 안전). 단면이 타원이 된다.
+float sdSeg(int i,vec3 p){
+  vec4 A=uBoneA[i];vec4 B=uBoneB[i];vec4 C=uBoneC[i];
+  float w=1.0;
+  if(C.y<0.999){
+    vec3 n=uBoneN[i].xyz;vec3 rel=p-A.xyz;
+    p=A.xyz+rel+(1.0/C.y-1.0)*dot(rel,n)*n;w=min(C.y,1.0);}
+  return sdRoundCone(p,A.xyz,B.xyz,A.w,B.w)*w;}
 float map(vec3 p){float d=1e9;
-  for(int i=0;i<${MAXB};i++){ if(i>=uBoneCount)break;
+  // 1) 평범한 캡슐 (대부분) — 저비용 경로. 셰이더 비용의 지배 항이라 분리 유지.
+  for(int i=0;i<${MAXB};i++){ if(i>=uDetailStart)break;
     vec4 A=uBoneA[i];vec4 B=uBoneB[i];
-    d=smin(d,sdRoundCone(p,A.xyz,B.xyz,A.w,B.w),uK);} return d;}
+    d=smin(d,sdRoundCone(p,A.xyz,B.xyz,A.w,B.w),uK);}
+  // 2) detail 세그먼트 (소수) — k/flatten/cut 확장 경로
+  for(int j=uDetailStart;j<uBoneCount;j++){
+    float dj=sdSeg(j,p);
+    float k=uBoneC[j].x<0.0?uK:uBoneC[j].x;
+    if(j<uCutStart)d=smin(d,dj,k);          // 더하기 (smooth-union)
+    else d=-smin(-d,dj,k);                  // 빼기 (smooth-subtraction) — 주름/파임
+  } return d;}
 vec3 calcN(vec3 p){vec2 e=vec2(0.0012,0.0);
   return normalize(vec3(map(p+e.xyy)-map(p-e.xyy),map(p+e.yxy)-map(p-e.yxy),map(p+e.yyx)-map(p-e.yyx)));}
 float softshadow(vec3 ro,vec3 rd,float mint,float maxt,float w){float res=1.0,t=mint;
@@ -232,6 +256,19 @@ function applyPose(clip, t, speed) {
 // ---- 세그먼트 추출 : 부모→자식 = taper 캡슐 -------------------------------
 const _wp = new THREE.Vector3(), _wpp = new THREE.Vector3(), _wq = new THREE.Quaternion();
 
+// Detail 층: 규칙/extras 의 k(blend 폭)·flatten(비원형 단면)을 세그먼트에 부여.
+// flatten.dir 은 관절 로컬 → 월드 회전(quat), fx 는 미러 시 x 부호.
+function segDetail(seg, spec, quat, fx = 1) {
+  if (!spec) return seg;
+  if (spec.k != null) seg.k = spec.k;
+  if (spec.flatten) {
+    seg.f = spec.flatten.f;
+    seg.n = new THREE.Vector3(spec.flatten.dir[0] * fx, spec.flatten.dir[1], spec.flatten.dir[2])
+      .applyQuaternion(quat).normalize();
+  }
+  return seg;
+}
+
 // 볼륨 헬퍼(extras) — 프로파일이 정의한 관절-로컬 세그먼트를 살에 추가한다.
 // resolveJoint(simpleName) → { pos, quat } (렌더 공간). 관절이 없으면 조용히 건너뜀
 // → extras 가 없는 임의 리그도 깨지지 않는다.
@@ -246,7 +283,8 @@ function appendExtras(segs, fat, resolveJoint) {
       for (const fx of flips) {
         const a = new THREE.Vector3(e.a[0] * fx, e.a[1], e.a[2]).applyQuaternion(jt.quat).add(jt.pos);
         const b = new THREE.Vector3(e.b[0] * fx, e.b[1], e.b[2]).applyQuaternion(jt.quat).add(jt.pos);
-        segs.push({ a, b, ra: e.ra * mul, rb: e.rb * mul });
+        const seg = segDetail({ a, b, ra: e.ra * mul, rb: e.rb * mul, cut: e.op === 'cut' }, e, jt.quat, fx);
+        segs.push(seg);
       }
     }
   }
@@ -264,24 +302,42 @@ function extractBones(showFingers, fat) {
     if (!showFingers && (isFinger(jointName[i]) || isFinger(jointName[p]))) continue;
     jointObjs[i].getWorldPosition(_wp); jointObjs[p].getWorldPosition(_wpp);
     if (_wp.distanceToSquared(_wpp) < 1e-8) continue;
-    segs.push({
+    const seg = {
       a: _wpp.clone(), b: _wp.clone(),
       ra: radiusForName(jointName[p]) * fat, rb: radiusForName(jointName[i]) * fat,
-    });
+    };
+    // 캡슐의 detail(k·flatten)은 자식 관절 규칙을 따른다
+    const rule = matchRule(profile, simpleName(jointName[i]));
+    if (rule && (rule.k != null || rule.flatten)) {
+      segDetail(seg, rule, jointObjs[i].getWorldQuaternion(new THREE.Quaternion()));
+    }
+    segs.push(seg);
   }
   appendExtras(segs, fat, builtinJoint);
   return segs;
 }
 function uploadBones(segs) {
-  const n = Math.min(segs.length, MAXB);
+  // [평범한 캡슐 | detail 합집합 | 컷] 순서로 정렬 — 셰이더가 구간별 경로를 탄다
+  const isDetail = s => s.cut || s.k != null || s.f != null;
+  const plain = segs.filter(s => !isDetail(s));
+  const detail = segs.filter(s => isDetail(s) && !s.cut);
+  const cuts = segs.filter(s => s.cut);
+  const ordered = plain.concat(detail, cuts);
+  const detailStart = plain.length;
+  const cutStart = plain.length + detail.length;
+  const n = Math.min(ordered.length, MAXB);
   for (let i = 0; i < n; i++) {
-    const s = segs[i];
+    const s = ordered[i];
     uniforms.uBoneA.value[i].set(s.a.x, s.a.y, s.a.z, s.ra);
     uniforms.uBoneB.value[i].set(s.b.x, s.b.y, s.b.z, s.rb);
+    uniforms.uBoneC.value[i].set(s.k ?? -1, s.f ?? 1, 0, 0);
+    if (s.n) uniforms.uBoneN.value[i].set(s.n.x, s.n.y, s.n.z, 0);
     bonePos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
     jointPos.set([s.a.x, s.a.y, s.a.z, s.b.x, s.b.y, s.b.z], i * 6);
   }
   uniforms.uBoneCount.value = n;
+  uniforms.uDetailStart.value = Math.min(detailStart, n);
+  uniforms.uCutStart.value = Math.min(cutStart, n);
   boneGeo.setDrawRange(0, n * 2); jointGeo.setDrawRange(0, n * 2);
   boneGeo.attributes.position.needsUpdate = true;
   jointGeo.attributes.position.needsUpdate = true;
@@ -398,7 +454,12 @@ function extractExternal(showFingers, fat) {
     const a = _wpp.clone().sub(extCenter).multiplyScalar(extScale); a.y += 0.98;
     const c = _wp.clone().sub(extCenter).multiplyScalar(extScale);  c.y += 0.98;
     if (a.distanceToSquared(c) < 1e-8) continue;
-    segs.push({ a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat });
+    const seg = { a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat };
+    const rule = matchRule(profile, simpleName(b.name));
+    if (rule && (rule.k != null || rule.flatten)) {
+      segDetail(seg, rule, b.getWorldQuaternion(new THREE.Quaternion()));
+    }
+    segs.push(seg);
   }
   appendExtras(segs, fat, externalJoint);
   return segs;

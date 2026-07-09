@@ -15,6 +15,12 @@
 //                 관절 로컬 오프셋 세그먼트로 추가. mirrorX 면 x 부호 반전 쌍 생성.
 //                 관절 이름은 접두어 제거 후 매칭 → 외부 Mixamo 리그에도 그대로 붙는다.
 //
+//  Detail 층 (rules/extras 공통 선택 필드) — 캡슐+전역 smin 매체의 한계 돌파:
+//    · k        : 이 세그먼트의 blend 폭. 작으면 날카롭게 붙는다 (미지정 = 전역 uK).
+//    · flatten  : { dir:[x,y,z], f } — 관절 로컬 dir 방향으로 f 배 납작화(타원 단면).
+//                 dir 은 관절 회전을 따라간다. 예: 흉곽 [0,0,1](앞뒤 납작), 머리 [1,0,0].
+//    · op:'cut' : (extras 전용) 더하지 않고 깎는다(smooth-subtraction) — 주름/파임.
+//
 //  ⚠ grammar 는 계속 "이름 기반" — 특정 리그에 하드코딩하지 않는다 (설계 결정).
 // ===========================================================================
 
@@ -105,12 +111,14 @@ const REFERENCE = {
   },
   rules: [
     { match: '=Hips',    r: 0.092, group: 'hips'  },
-    { match: 'Spine2',   r: 0.058, group: 'chest' }, // 흉곽(얇게) — 가슴 볼륨·폭은 extras 담당
-    { match: 'Spine1',   r: 0.070, group: 'waist' },
-    { match: 'Spine',    r: 0.072, group: 'waist' }, // 허리 최협부
+    // 흉곽: 앞뒤로 납작한 타원 단면 — 정면 폭은 살리고 측면 깊이는 얇게 (시트 특징)
+    { match: 'Spine2',   r: 0.060, group: 'chest', flatten: { dir: [0, 0, 1], f: 0.92 } },
+    { match: 'Spine1',   r: 0.070, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 } },
+    { match: 'Spine',    r: 0.072, group: 'waist', flatten: { dir: [1, 0, 0], f: 0.92 } }, // 허리 최협부
     { match: 'Neck',     r: 0.024, group: 'chest' },
     { match: 'HeadTop',  r: 0.089, group: 'head'  }, // 'HeadTop_End' 포함 — 정수리
-    { match: 'Head',     r: 0.092, group: 'head'  }, // 두상 폭 ~0.19 (시트 계측 0.12H)
+    // 두상: 좌우로 살짝 납작 — 정면 폭 줄이고 측면 깊이 유지 (시트 계측 0.12H)
+    { match: 'Head',     r: 0.092, group: 'head', flatten: { dir: [1, 0, 0], f: 0.95 } },
     { match: 'Shoulder', r: 0.033, group: 'chest' },
     { match: 'ForeArm',  r: 0.022, group: 'arms'  },
     { match: 'Arm',      r: 0.027, group: 'arms'  },
@@ -143,6 +151,8 @@ const REFERENCE = {
     { joint: 'Foot', mirrorJoints: true, a: [0.0, -0.02, -0.01], b: [0.0, -0.052, -0.018], ra: 0.020, rb: 0.016, group: 'legs' },
     // 손바닥 (손가락 미표시 시에도 손목에서 끊기지 않게 — 손 로컬 +x = 팔 방향)
     { joint: 'Hand', mirrorJoints: true, a: [0.0, 0.0, 0.0], b: [0.085, 0.0, 0.005], ra: 0.017, rb: 0.011, group: 'arms' },
+    // 턱끝 — 두개골 밑에 살짝만 뾰족하게 (시트 측면의 턱 라인. 과하면 정면에 범프가 뜬다)
+    { joint: 'Head', a: [0.0, -0.062, 0.014], b: [0.0, -0.092, 0.024], ra: 0.028, rb: 0.010, k: 0.055, group: 'head' },
   ],
   defaults: { k: 0.05 }, // 가는 팔·목이 살아남아야 하는 체형 — smin 좁게
   // 시트 A-포즈: 팔은 몸에 붙이고 전완만 살짝 밖, 손끝은 허벅지 쪽으로, 발끝만 벌림

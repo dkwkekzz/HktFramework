@@ -15,6 +15,10 @@
 2. **Flesh grammar** — 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
    규칙·수치는 `src/proportions.js` 의 **비율 프로파일**(데이터)로 승격 — 이름 규칙(첫 매치 승리)
    + 스켈레톤 치수 + 볼륨 헬퍼(extras: 가슴·둔부·종아리·손바닥) + 그룹 배율(UI 슬라이더)로 구성.
+   **Detail 층**: rules/extras 는 선택적으로 `k`(세그먼트별 blend 폭), `flatten`(방향성 납작화
+   = 타원 단면), `op:'cut'`(smooth-subtraction 깎기)을 가진다 — 캡슐+전역 smin 으로는 안 나오는
+   납작한 흉곽·턱끝·주름의 표현 어휘. 셰이더는 평범한 캡슐(저비용 경로)과 detail 세그먼트를
+   구간 분리해 순회한다 (`uDetailStart`/`uCutStart`).
    프리셋: `standard`(기존 값 보존) · `reference`(첨부 캐릭터 시트 기준 6등신 여성 체형, 기본값).
    Mixamo 이름(`mixamorig:LeftForeArm`)은 접두어만 떼고 매칭. 미지의 뼈는 기본값 → 임의 리그도 안 깨진다.
 3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
@@ -63,10 +67,11 @@ npm run dev      # http://localhost:5173
 **비율 프로파일**(standard/reference 프리셋 + 머리/가슴/허리/엉덩이/팔/다리 그룹 슬라이더 + 볼륨 헬퍼).
 
 **다음 (우선순위 순)**:
-1. **Detail 층**: 캡슐+smin 매체의 한계(뾰족함·오목함·비원형 단면 불가) 돌파 —
-   프로파일 extras 를 프리미티브 어휘 확장으로 승격: 타원 스케일 / smooth-subtraction(주름 깎기) /
-   프리미티브별 blend 폭(k). 뼈대 세분화(가상 관절)도 여기. ← "스타일"의 2차 정의가 여기 삼.
-   Evaluator(`npm run eval`)가 안전망 — 시트 비율이 깨지면 즉시 FAIL.
+1. **Detail 층 심화**: 엔진(flatten·세그먼트별 k·cut)은 구현됨 — 남은 것은 어휘·적용 확장:
+   프리미티브 종류 추가(토러스·쐐기 등), 뼈대 세분화(가상 관절: 손가락 마디·발 아치),
+   cut 의 실전 적용처 발굴(현재 미사용 — 언더버스트 컷은 실루엣 밴드 아티팩트로 보류).
+   ⚠ 교훈: Evaluator 는 실루엣만 본다 — cut/급한 k 는 내부 음영 아티팩트를 만들 수 있으니
+   반드시 렌더 눈 검증 병행. ← "스타일"의 2차 정의가 여기 삼.
 2. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.
    각 표면 정점의 스킨 웨이트는 "그 정점에 어느 뼈 SDF가 얼마나 기여했나"에서 자동 도출 → 스키닝 공짜.
 3. **Evaluator 확장**: 실루엣 회귀는 구현됨(eval/). 남은 것 — 자기충돌 부피, 관절 볼륨 보존,
