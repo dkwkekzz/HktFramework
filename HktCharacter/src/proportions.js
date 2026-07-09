@@ -98,9 +98,9 @@ const REFERENCE = {
     spineLens: [0.10, 0.10, 0.12],  // 허리(Spine) 0.98 · 명치 1.08 · 흉곽 1.20
     // ⚠ 이하 수치 다수는 eval/optimize.mjs 좌표 하강 결과 (dense 라인 손실 기준) —
     //   손으로 크게 벗어나게 만지지 말고, 바꾸면 npm run eval + optimize --baseline 로 확인.
-    spineZ: [0.014, 0.0, 0.004],    // 몸통 전방 정렬 — 시트 측면은 등이 수직에 가깝다 (중심선 지표 기준)
+    spineZ: [0.014, 0.0, -0.008],   // 몸통 전방 정렬 — 시트 측면은 등이 수직에 가깝다 (중심선 지표 기준)
     neckLen: 0.09, neckZ: 0.012,    // 목밑 1.29 ≈ 어깨선 — 목은 앞으로 기움 (throat 가 턱보다 안 나가게)
-    headLen: 0.17, headZ: 0.006,    // 두개골 중심 1.46 — 전방 돌출은 Skull subBone 이 아니라 여기서 막는다
+    headLen: 0.17, headZ: 0.012,    // 두개골 중심 1.46 — 전방 돌출은 Skull subBone 이 아니라 여기서 막는다
     headTopLen: 0.06, headTopZ: 0.0,
     shoulderX: 0.04, shoulderY: 0.075,
     armX: 0.095,                    // 어깨 폭 절반 ≈ 0.135 + 삼각근 살
@@ -108,7 +108,7 @@ const REFERENCE = {
     upLegX: 0.08, upLegY: -0.07,    // 고관절 0.81 (골반 최광부)
     kneeX: 0.052, ankleX: 0.042,    // 시트처럼 다리가 발목으로 갈수록 안쪽 수렴
     upLegZ: 0.040, kneeZ: 0.034, ankleZ: 0.004, // 다리를 골반보다 앞에, 발목은 복귀 — 시트 측면 중심선 정렬
-    thighLen: 0.35, shinLen: 0.37,  // 무릎 0.46 · 발목 0.09
+    thighLen: 0.37, shinLen: 0.36,  // 무릎 0.46 · 발목 0.09
     footDrop: 0.055, toeZ: 0.084,
     fingers: [['Thumb', 0.55, 0.025], ['Index', 0.14, 0.034], ['Middle', -0.02, 0.038], ['Ring', -0.16, 0.034], ['Pinky', -0.30, 0.027]],
   },
@@ -124,11 +124,11 @@ const REFERENCE = {
     // 얼굴 평면: flatten2 f<0 = one-sided — 앞(+z) 반만 납작, 뒤통수는 원형 유지.
     // 두개골을 이루는 캡슐(Skull·HeadTop·Occiput)이 같은 평면을 공유해야 이음새가 없다.
     // Head 관절 자체는 가는 목-스텁(r 0.032) — 목→머리 테이퍼 콘이 턱밑을 삼키지 않게.
-    { match: 'Skull',    r: 0.086, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.93 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 두개골 본체
-    { match: 'Occiput',  r: 0.060, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.93 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 뒤통수
+    { match: 'Skull',    r: 0.086, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 두개골 본체
+    { match: 'Occiput',  r: 0.060, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 뒤통수
     { match: 'JawSide',  r: 0.042, group: 'head' },                    // 귀밑점/뺨 (link 없음 — 앵커. 정면 뺨 폭 담당)
     { match: 'JawTip',   r: 0.011, group: 'head', k: 0.048 },          // 턱끝 — 두개골 하단에 매끈히 붙되 뾰족함 유지
-    { match: 'HeadTop',  r: 0.084, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.93 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 정수리
+    { match: 'HeadTop',  r: 0.084, group: 'head', k: 0.065, flatten: { dir: [1, 0, 0], f: 0.89 }, flatten2: { dir: [0, 0, 1], f: -0.82 } }, // 정수리
     { match: 'Head',     r: 0.032, group: 'head' },
     { match: 'Shoulder', r: 0.035, group: 'chest' },
     { match: 'ForeArm',  r: 0.0265, group: 'arms' },
