@@ -14,6 +14,7 @@ import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, CREATURE_FORAGE_RATE, CREATURE_HARVEST_RADIUS, dist3,
+  CREATURE_HARVEST_YIELD, crystalYield,
 } from '../shared/constants.js';
 
 function setup() {
@@ -89,6 +90,40 @@ test('생태 루프 — 굶어 죽은 생명체의 결정을 다른 생명체가
   assert.ok(s.bal(c.id) < cry0, 'B 가 A 의 잔해(결정)를 먹어 결정이 줄었다 — 한 죽음이 다른 생명을 먹인다');
   assert.ok(s.bal(b.id) > b0, 'B 는 그만큼 에너지를 얻었다');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '생태 루프 전 과정에서 보존 불변');
+});
+
+// ---- feature-0007 step2: 종별 효과 (아이템이 나의 에너지에 영향을 준다) ----
+
+test('종별 효과 — 흡수 배율이 높은 종의 결정을 더 크게 들이켠다 (같은 잔고라도 아이템 종이 내 에너지에 영향)', () => {
+  // 종에서 배율이 갈리는 두 종을 고른다(고효율 vs 저효율). 배열 유도라 결정론적.
+  const hiSpecies = CREATURE_HARVEST_YIELD.indexOf(Math.max(...CREATURE_HARVEST_YIELD));
+  const loSpecies = CREATURE_HARVEST_YIELD.indexOf(Math.min(...CREATURE_HARVEST_YIELD));
+  assert.ok(crystalYield(hiSpecies) > crystalYield(loSpecies), '고효율 종 배율 > 저효율 종 배율');
+
+  const s = setup();
+  // 서로 멀리 떨어진(반경 밖) 두 자리에 같은 에너지의 결정을 떨구고 종만 다르게 세팅한다.
+  const cHi = s.dropCrystal(300, 300, 500); cHi.species = hiSpecies;
+  const cLo = s.dropCrystal(1700, 1700, 500); cLo.species = loSpecies;
+  assert.equal(s.bal(cHi.id), s.bal(cLo.id), '두 결정은 같은 잔고에서 출발한다(종만 다르다)');
+  const start = s.bal(cHi.id);
+
+  const creHi = s.game.spawnCreature(300, 300, 500); // 고효율 결정 곁
+  const creLo = s.game.spawnCreature(1700, 1700, 500); // 저효율 결정 곁
+  const hi0 = s.bal(creHi.id), lo0 = s.bal(creLo.id);
+  s.runTicks(2); // 첫 tick(0) 무동작 → 한 번의 채집 틱. 고효율은 더 크게 흡수(둘 다 아직 소진 전).
+
+  const gotHi = s.bal(creHi.id) - hi0, gotLo = s.bal(creLo.id) - lo0;
+  assert.ok(gotHi > gotLo, `고효율 종 결정을 먹은 생명체가 더 많이 얻는다 (+${gotHi} > +${gotLo}) — 아이템이 내 에너지에 영향`);
+  assert.ok(s.bal(cHi.id) < s.bal(cLo.id), `고효율 결정이 더 많이 줄어든다 (${s.bal(cHi.id)} < ${s.bal(cLo.id)}, 시작 ${start})`);
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '종별 효과에도 보존 불변(흡수 배율은 흐름 속도일 뿐, 에너지 창발 없음)');
+});
+
+test('종별 효과 — 배율은 결정론적으로 종에서 유도된다(범위·안정)', () => {
+  for (let sp = -3; sp < 30; sp++) {
+    const y = crystalYield(sp);
+    assert.ok(Number.isInteger(y) && y >= 1, `종 ${sp} 의 배율은 1 이상 정수 (${y})`);
+    assert.equal(crystalYield(sp), crystalYield(sp), '같은 종이면 같은 배율(결정론)');
+  }
 });
 
 test('결정론 — 같은 배치/이벤트열이면 채집 결과가 비트 단위로 동일하다', () => {

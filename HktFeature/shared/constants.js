@@ -118,6 +118,18 @@ export const CREATURE_GROWTH_THRESHOLD = 300;        // 성장 문턱 — 흑자
 export const CREATURE_HARVEST_RADIUS = 300;    // 이 반경 안의 결정을 채집한다(px) — 정적 질서가 풀리는 근접 거리
 export const CREATURE_HARVEST_RATE = 40;       // 매 대사 틱 결정에서 흡수하는 최대량(size 비례) — 확산 갈구(5)보다 훨씬 크다(농축=증폭)
 
+// feature-0007 step2 — 종별 효과: 아이템(결정)의 종(species)에 따라 채집이 다르게 작용한다.
+//   "아이템은 나의 에너지에 영향을 줄 수 있는 형태" — 같은 잔고의 결정이라도 종마다 흡수 배율(증폭 세기)이 다르다.
+//   순수 클램프·결정론(rng 미사용) — 배율은 종에서 결정론적으로 유도한다(색과 같은 씨앗). 종별 색 옥타가
+//   곧 "어떤 아이템인지"의 표식이 되고, 고효율 종 곁의 생명체는 같은 결정을 더 크게 들이켜 빨리 성장한다.
+export const CREATURE_HARVEST_YIELD = [3, 1, 2, 1, 2, 3, 1, 2, 1, 3, 2, 1]; // 종별 흡수 배율(길이=CRYSTAL_SPECIES_COUNT)
+
+// 결정 종 → 채집 흡수 배율. 종을 CRYSTAL_SPECIES_COUNT 로 감싸 항상 유효 범위. (feature-0007 step2)
+export function crystalYield(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  return CREATURE_HARVEST_YIELD[((species % n) + n) % n] ?? 1;
+}
+
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
   if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도

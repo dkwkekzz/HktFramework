@@ -30,7 +30,7 @@ import {
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
-  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE,
+  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -445,6 +445,8 @@ export class GameServer {
   //   정적·면역(feature-0005)이지만 생명이 가까이 오면 그 정적 질서가 풀린다 — feature-0005 step5(상호작용)를
   //   생명 쪽에서 구현한 것. 흡수량은 size 비례·용량으로 클램프(배부르면 못 먹는다). 다 먹힌 결정은 소멸한다.
   //   확산 갈구(옅은 에너지)와 달리 결정은 뭉친 에너지라 크게 들이켠다 = 증폭. tx 에 at 을 실어 근처 시야에 방송.
+  //   feature-0007 step2 — 종별 효과: 흡수 배율이 결정 종(species)에 따라 다르다(crystalYield). 같은 잔고라도
+  //   고효율 종은 더 크게 들이켜(빠른 성장), 저효율 종은 천천히 — "아이템이 나의 에너지에 영향을 준다".
   #harvestNearbyCrystal(cre) {
     let best = null, bestD = Infinity;
     for (const c of this.crystals.values()) {
@@ -453,7 +455,8 @@ export class GameServer {
       if (d <= CREATURE_HARVEST_RADIUS && d < bestD) { best = c; bestD = d; }
     }
     if (!best) return;
-    const got = this.#tx(best.id, cre.id, CREATURE_HARVEST_RATE * cre.size, CAUSE.HARVEST, { x: cre.x, y: cre.y });
+    const want = CREATURE_HARVEST_RATE * cre.size * crystalYield(best.species); // 종별 흡수 배율 = 아이템 효과
+    const got = this.#tx(best.id, cre.id, want, CAUSE.HARVEST, { x: cre.x, y: cre.y });
     if (got > 0 && this.ledger.balance(best.id) === 0) this.#removeCrystal(best.id); // 다 먹힌 결정은 소멸
   }
 
