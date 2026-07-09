@@ -13,9 +13,11 @@
 //   않는다.** 런타임에 새 욕구를 등록해도 엔진이 그대로 실행한다(test/eat.test.js 가 이를 증명).
 //
 // ctx 계약 (game.js #desireCtx 가 구현):
-//   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP (도달 사거리)
+//   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP · CRAFT_REACH (도달 사거리)
 //   지각:  nearestCrystal({edibleOnly}?) · nearestPrey() · ownerPos() · inReach(target, radius) · edible(crystal)
+//          craftPair() — 조합 가능한 재료 쌍 {a,b} (feature-0010 step2 제조)
 //          capacity() · balance() — 자기 상태(용량·잔고). appraise(ctx) 가 굶주림 같은 '차이'를 읽는다(feature-0012).
+//   행동:  … · craft(a, b) — 두 재료를 산물로 조합(만드는 일=방출, feature-0010 step2)
 //   행동:  moveToward(target, stop) · eat(crystal) · cook(crystal) · strike(prey) · dissipate(amount, cause)
 //          (모든 행동은 에너지를 이동/방출한다 = ledger.transfer)
 // ============================================================================
@@ -75,6 +77,20 @@ const strikePrey = {
   act: (x) => { const p = x.nearestPrey(); if (p) x.strike(p); },
 };
 
+// 제조(CRAFT): 가까이 놓인 두 재료(raw, 미가공) 결정(조합 지점)으로 다가가 → 하나의 산물로 조합한다(feature-0010 step2).
+//   산물을 만드는 일은 에너지를 방출한다(열+연기, 순수 지출). 재료 쌍이 없으면 수행 불가(다음 우선순위로 내려간다).
+//   feature-0011 의 개방 레지스트리에 **새 욕구를 실제로 얹는 첫 사례** — 엔진은 이 욕구를 모르고 ctx 만으로 실행한다.
+const approachCraftSite = {
+  name: 'approach',
+  applicable: (x) => { const p = x.craftPair(); return !!p && !x.inReach(p.a, x.CRAFT_REACH); },
+  act: (x) => { const p = x.craftPair(); if (p) x.moveToward(p.a, x.CRAFT_REACH); },
+};
+const craftHere = {
+  name: 'craft',
+  applicable: (x) => { const p = x.craftPair(); return !!p && x.inReach(p.a, x.CRAFT_REACH); },
+  act: (x) => { const p = x.craftPair(); if (p) x.craft(p.a, p.b); },
+};
+
 // 대기(NONE): 주인 곁으로(수동 이동 = 방향키). 주인 없으면(야생) 아무 단계도 적용 안 됨 → 정지.
 const leashOwner = {
   name: 'leash',
@@ -102,3 +118,4 @@ registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', 
 registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
 registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
 registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다
+registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, craftHere] }); // feature-0010 step2 — 새 욕구를 레지스트리에 얹는 첫 사례

@@ -72,6 +72,11 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const cry = game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 3, 9000); cry.raw = false;
     const prey = game.spawnCreature(PREY.x, PREY.y, PREY.z);
     game.ledger.transfer(POOL.SOURCE, prey.id, 900, CAUSE.SPAWN);
+  } else if (scene === 'craft') {
+    // 제조 씬(feature-0010 step2) — 붙어 놓인 두 재료(raw, 미가공 = 회색 점선 옥타). 제조 욕구를 가진 생명체가
+    //   다가가 하나의 **산물**(✦제조, 선명·굵은 외곽)로 조합한다. 재료는 수동 반응에 면역이라 흩어지지 않는다.
+    game.spawnRawFood(FOOD.x - 60, FOOD.y, FOOD.z, 2, 4500); // 재료 A (raw 유지)
+    game.spawnRawFood(FOOD.x + 60, FOOD.y, FOOD.z, 7, 4500); // 재료 B (raw 유지, A 와 붙어 있음 = 조합 쌍)
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -108,6 +113,12 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           return;
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
+        if (scene === 'craft') {
+          // 제조 욕구 하나 — 두 재료로 다가가 조합한다(찾기→조합). 조합의 일은 열+연기로 방출.
+          rear(cre, 1500); // 넉넉한 예비(제조 비용 지불)
+          game.setDesire(playerId, DESIRE.CRAFT);
+          return;
+        }
         if (scene === 'priority') {
           // 사냥 가능한 큰 몸(size 2)으로 세우고, **식사·사냥을 동시에 품는다(중첩)**. 감정을 식사에 실어
           //   우선순위를 키우면(식사=1+40 > 사냥=1) 밥 쪽으로 간다 — "중첩된 욕구 중 감정이 실린 쪽이 이긴다".
