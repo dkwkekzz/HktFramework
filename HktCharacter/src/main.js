@@ -30,7 +30,7 @@ const uniforms = {
   uBoneA:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
   uBoneB:  { value: Array.from({ length: MAXB }, () => new THREE.Vector4()) },
   uBoneCount: { value: 0 },
-  uK:      { value: 0.30 },
+  uK:      { value: 0.12 }, // smin 블렌드 폭 — 작을수록 팔·다리·머리가 뚜렷(캐릭터 실루엣). 크게 하면 블롭.
   uColor:  { value: new THREE.Color('#f7b58c') },
 };
 
@@ -383,7 +383,7 @@ function readFile(f) {
 // ===========================================================================
 //  카메라 / 입력 / 루프
 // ===========================================================================
-const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: 0.30, fat: 1.0, fingers: false, bone: false };
+const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: 0.12, fat: 1.0, fingers: false, bone: false };
 const target = new THREE.Vector3(0, 1.0, 0);
 function updateCam() {
   const ce = Math.cos(st.el), se = Math.sin(st.el);
