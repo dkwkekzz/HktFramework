@@ -1,13 +1,13 @@
 @echo off
 REM ============================================================
-REM  hikito-flesh 원클릭 실행 (Windows)
+REM  HktCharacter 원클릭 실행 (Windows)
 REM  - Node.js/npm 확인 -> 최초 1회 npm install -> vite dev 서버 실행
 REM  - 브라우저는 vite --open 이 자동으로 띄운다 (http://localhost:5173)
 REM  이 파일이 있는 폴더에서 더블클릭하면 된다.
 REM ============================================================
 setlocal
 chcp 65001 >nul
-title hikito-flesh dev server
+title HktCharacter dev server
 
 REM 이 배치 파일이 있는 폴더로 이동 (더블클릭 시 작업 폴더가 달라도 안전)
 cd /d "%~dp0"

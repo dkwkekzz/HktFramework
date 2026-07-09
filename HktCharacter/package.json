@@ -1,9 +1,9 @@
 {
-  "name": "hikito-flesh",
+  "name": "hktcharacter",
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "Skeleton → Flesh: rig-agnostic SDF flesh renderer (Mixamo rig 지원). 히키토 asset pipeline 프로토타입.",
+  "description": "HktCharacter — Skeleton → Flesh: rig-agnostic SDF flesh renderer (Mixamo rig + 동봉 로코모션 FBX). asset pipeline 프로토타입.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
