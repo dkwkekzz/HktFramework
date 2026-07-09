@@ -236,6 +236,7 @@ export const POOL = {
   MATERIAL: 'M:',  // 국소장 접두 — M:<regionKey> 가 그 지역의 흩어진 에너지(중등급, 재응집 가능)
   CRYSTAL: 'I:',   // 결정 접두 — I:<voxel> 가 그 복셀에 석출된 정적 저엔트로피 형태(확산·복사 면역, feature-0005)
   CREATURE: 'C:',  // 생명체 접두 — C:<seq> 가 능동적 저엔트로피 섬(대사로 질서 유지, 갈구로 보충 — feature-0006)
+  HEAT: 'H:',      // 결정 열(온도) 접두 — H:<seq> 가 그 결정이 흡수한 열 에너지(온도 = 원장 추적 → 보존, feature-0013)
 };
 
 // --- 이체 원인 태그 ---
@@ -256,6 +257,10 @@ export const CAUSE = {
   DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
   COOK: 'cook',         // 생명체 → 심우주 / 생명체 → 국소장 (요리 = 날것을 먹을 수 있게 변형하는 일, 방출: 열+연기, feature-0011)
   CRAFT: 'craft',       // 생명체 → 심우주 / 생명체 → 국소장 / 결정 → 결정 (제조: 두 재료를 산물로 조합, 만드는 일=열+연기 방출, feature-0010 step2)
+  HEAT: 'heat',         // 열원/연소체 → 결정 열(H:) (자극 = 열 이체, 온도를 올린다, feature-0013)
+  COMBUST: 'combust',   // 결정(내구도) → 심우주 / 국소장 (연소 = 내구도를 태워 열·연기로 방출 + 냉각 소산, feature-0013)
+  MELT: 'melt',         // 결정(내구도) → 국소장 (상전이=용해: 녹는점 넘은 비가연성 결정이 고체→액체로 녹아 흘러든다, feature-0013 step2)
+  SHATTER: 'shatter',   // 결정(내구도) → 파편 결정들 + 국소장 (파괴=물리력이 파괴강도를 넘어 부숨, feature-0013 step3)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)
@@ -303,11 +308,61 @@ export function pickSpecies(rng) {
   return Math.floor(rng() * CRYSTAL_SPECIES_COUNT);
 }
 
-// 엔트로픽 이체 방향 확률 (feature-0004 의 핵심 법칙) —
-//   이웃한 두 국소장 사이에서 한 양자가 from→to 로 갈 확률. concFrom/(concFrom+concTo).
-//   고농도 쪽에서 나갈 확률이 높다(down-gradient 편향). 농도가 같으면 1/2 → 순 흐름 0(평형).
-//   "엔트로픽 법칙에 따라 높은 확률로 이동할 뿐" — 강제가 아니라 확률적 경향이다.
-export function entropicOutProb(concFrom, concTo) {
-  const total = concFrom + concTo;
-  return total > 0 ? concFrom / total : 0.5;
+// --- feature-0013 물질 속성·자극·상태전이 (step1 연소) ---
+// 온도 = 결정이 흡수한 열(H:<seq> 원장 풀 → 보존). 가연성 결정이 열을 받아 발화점을 넘으면 점화(burning),
+//   스스로 내구도(잔고)를 태워 이웃 결정 열로 옮기고(전파) 심우주·국소장으로 방출한다(연쇄 연소·전소).
+//   데이터 주도: 태그·발화점은 종별 테이블, 규칙은 game.js #combust(보편 상태전이 규칙 A). 결정론(rng 미사용).
+export const MATERIAL_FLAMMABLE = [true, false, false, true, false, false, true, false, false, true, false, false]; // 종별 가연성(유기물) — 길이=CRYSTAL_SPECIES_COUNT, 4/12 가 탄다
+export const IGNITION_HEAT = [80, 0, 0, 90, 0, 0, 85, 0, 0, 100, 0, 0]; // 종별 발화점(heat 임계) — 가연성 종만 유의미
+export const COMBUST_INTERVAL_TICKS = 1;   // 연소 판정 주기(틱) — 확산과 같은 리듬
+export const BURN_RATE = 40;               // 매 연소 틱 내구도(잔고)를 태워 열로 바꾸는 양 — 전소 속도(순수 클램프)
+export const BURN_EMIT_RADIUS = 260;       // 연소열 전파 반경(px) — 이 안의 가연성 결정 열로 옮아 불이 번진다
+export const BURN_TO_SINK_PCT = 35;        // 태운 열 중 심우주로 복사(손실)되는 비율(%) — 되돌아오지 않는 엔트로피(2법칙)
+export const BURN_TO_NEIGHBOR_PCT = 45;    // 이웃 가연성 결정 열로 옮겨 번지게 하는 비율(%) — 나머지(15%)는 국소장(연기)
+export const HEAT_COOL_DIVISOR = 24;        // 비연소 결정의 자연 냉각 — 매틱 heat/이 값을 국소장으로 소산(점화 자기제한)
+
+// 종 → 가연성 여부. 종을 CRYSTAL_SPECIES_COUNT 로 감싸 항상 유효 범위. (feature-0013)
+export function isFlammable(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  return !!MATERIAL_FLAMMABLE[((species % n) + n) % n];
+}
+// 종 → 발화점(heat 임계). 비가연성은 Infinity(절대 점화 안 됨). (feature-0013)
+export function ignitionHeat(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  if (!isFlammable(species)) return Infinity;
+  return IGNITION_HEAT[((species % n) + n) % n] ?? 100;
+}
+
+// 엔트로픽 확산 방향 확률 — 고농도 a 에서 저농도 b 로 나갈 확률 = a/(a+b)(feature-0004).
+//   앙상블은 압도적으로 down-gradient(고→저), 평형(a=b)이면 1/2 로 순 흐름 0. a+b=0 은 확산이 건너뛴다.
+export function entropicOutProb(a, b) {
+  return (a + b) === 0 ? 0.5 : a / (a + b);
+}
+
+// --- feature-0013 step2 상전이(용해) — 비가연성 결정이 녹는점(heat)을 넘으면 고체→액체로 녹아 국소장으로 흐른다 ---
+// 가연성은 규칙 A(연소)로 타고, 비가연성은 규칙 B(용해)로 녹는다 — 태그로 분기(같은 열 자극, 다른 상태전이).
+//   녹은 국소장은 액체 밴드로 흐르고(step4), 식어 과포화되면 다시 석출한다(가역, #crystallize). 결정론(rng 미사용).
+export const MELT_HEAT = [0, 120, 100, 0, 110, 130, 0, 100, 120, 0, 110, 100]; // 종별 녹는점(heat) — 비가연성 종만 유의미(가연성 슬롯은 미사용)
+export const MELT_RATE = 25;   // 매 상전이 틱 국소장으로 녹여 보내는 내구도 — 용해 속도
+
+// 종 → 녹는점(heat 임계). 가연성은 Infinity(녹기 전에 탄다 = 규칙 A). 비가연성만 규칙 B(용해). (feature-0013 step2)
+export function meltHeat(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  if (isFlammable(species)) return Infinity;
+  return MELT_HEAT[((species % n) + n) % n] ?? Infinity;
+}
+
+// --- feature-0013 step3 파괴(규칙 C) — 물리력(방출·강탈 damage)이 파괴강도를 넘으면 결정이 파편으로 부서진다 ---
+// 열(연소·용해)이 온도 임계라면 파괴는 **단일 판정 물리력** 임계다(누적 아님, 순간 충격). 강탈/방출의 damage 를
+//   그 물리력 자극으로 정합한다(feature-0008·0009). 부서진 결정은 내구도를 **파편 결정들 + 국소장(먼지)** 로
+//   나눈다(보존). 결정론(rng 미사용) — 파편 위치는 결정론적 방사 배치.
+export const BREAK_STRENGTH = [200, 100, 300, 150, 120, 400, 180, 90, 250, 160, 110, 350]; // 종별 파괴강도(물리력 임계) — 낮을수록 잘 깨진다
+export const SHATTER_DEBRIS_COUNT = 2;   // 부서질 때 나오는 파편 결정 수
+export const SHATTER_TO_FIELD_PCT = 30;  // 파괴 시 먼지로 국소장에 흩는 비율(%) — 나머지는 파편 결정으로
+export const SHATTER_SCATTER_PX = 60;    // 파편이 튀어 앉는 거리(px) — 결정론적 방사 배치
+
+// 종 → 파괴강도(물리력 임계). 종을 CRYSTAL_SPECIES_COUNT 로 감싸 항상 유효 범위. (feature-0013 step3)
+export function breakStrength(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  return BREAK_STRENGTH[((species % n) + n) % n] ?? 200;
 }

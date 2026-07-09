@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from './game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey } from '../shared/constants.js';
+import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = {
@@ -116,6 +116,19 @@ setInterval(() => {
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대
     game.ledger.transfer(POOL.SOURCE, materialKey(cx + 120, cy + 40, cz), 1_500, 'seed');
     game.spawnRawFood(cx + 160, cy - 60, cz, preyNo % 12, 2_500);              // 날것 밥 보충 — 식사 봇이 계속 요리·섭취(feature-0011)
+  }
+  // feature-0013 연소 무대 — 이따금 서식지 근처 가연성 결정에 불씨를 놓는다(SOURCE→결정 열, 발화점 초과).
+  //   불이 붙어 이웃 가연성 결정으로 번지다 전소한다(라이브에서 눈으로 보는 상태전이). 전부 원장 이체 → 보존.
+  if (warmTick % 150 === 0) {
+    for (const [cx, cy, cz] of dens) {
+      let best = null, bestD = Infinity;
+      for (const c of game.crystals.values()) {
+        if (c.burning || !isFlammable(c.species) || game.ledger.balance(c.id) <= 0) continue;
+        const d = dist3(cx, cy, cz, c.x, c.y, c.z);
+        if (d <= 420 && d < bestD) { best = c; bestD = d; }
+      }
+      if (best) game.ledger.transfer(POOL.SOURCE, `${POOL.HEAT}${best.seq}`, ignitionHeat(best.species) + 200, 'heat');
+    }
   }
 }, 1000 / TICK_RATE);
 

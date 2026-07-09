@@ -35,6 +35,9 @@ import {
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
+  COMBUST_INTERVAL_TICKS, BURN_RATE, BURN_EMIT_RADIUS, BURN_TO_SINK_PCT, BURN_TO_NEIGHBOR_PCT, HEAT_COOL_DIVISOR,
+  isFlammable, ignitionHeat, MELT_RATE, meltHeat,
+  breakStrength, SHATTER_DEBRIS_COUNT, SHATTER_TO_FIELD_PCT, SHATTER_SCATTER_PX,
   DESIRE, CREATURE_PURSUE_INTERVAL_TICKS, CREATURE_STRIDE, CREATURE_SEEK_RADIUS, CREATURE_LEASH_STOP,
   DESIRE_BASE_PRIORITY, DESIRE_EMOTION_MAX, desireWeight,
   COOK_COST, COOK_BURN_PCT, cookedSpecies,
@@ -215,9 +218,12 @@ export class GameServer {
     const seq = ++this.crystalSeq;
     const cryId = `${POOL.CRYSTAL}${seq}`;
     this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
+    // feature-0013: 결정마다 열(온도) 풀 H:<seq> 를 함께 연다(초기 0). 온도 = 이 풀의 잔고(흡수한 열 에너지 → 보존).
+    this.ledger.createPool(`${POOL.HEAT}${seq}`, 0, Number.MAX_SAFE_INTEGER, null);
     // crafted=제조 산물 표식(feature-0010 step2) · tier=제조 단계(feature-0011 step2: 0=재료·1=중간물·2=완성물).
     //   기본 crafted=false·tier=0. 제조로 조합될 때만 crafted=true 로 바뀌고 tier 가 한 단계 오른다.
-    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false, tier: 0 });
+    //   burning=연소 상태(feature-0013). 가연성 결정이 발화점을 넘으면 true → 스스로 태우며 이웃을 데운다.
+    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false, tier: 0, burning: false });
     return cryId;
   }
 
@@ -376,6 +382,11 @@ export class GameServer {
     if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#react();
     }
+    // feature-0013 연소(상태전이 규칙 A) — 열을 받은 가연성 결정이 발화점을 넘으면 점화되어 스스로 타며 이웃을
+    //   데운다(불의 번짐). 반응 뒤에 돌린다(결정이 자리 잡은 뒤 자극에 반응). 전부 ledger.transfer → 보존.
+    if (this.tickCount % COMBUST_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#combust();
+    }
     // feature-0010·0011 제어·욕구 절차 — 제어되는 생명체가 제 욕구의 **절차**를 한 단계 수행한다:
     //   찾아가고(이동→국소장 소산)·요리하고(날것 변형=열+연기)·먹고(채집)·타격한다(발산). 욕구마다 절차와
     //   방출 형태가 다르다(shared/desires.js 레지스트리 = 개방). 각 단계 = 에너지 방출. 야생(NONE·주인 없음)은
@@ -523,11 +534,106 @@ export class GameServer {
     this.#removeCrystal(B.id); // 소진된 B 소멸(잔고 0)
   }
 
-  // 결정 하나 제거 — 레지스트리·거주 인덱스·원장 풀에서 모두 지운다(잔고 0 전제).
+  // 결정 하나 제거 — 레지스트리·거주 인덱스·원장 풀에서 모두 지운다(결정 잔고 0 전제).
+  //   feature-0013: 열(H:) 풀에 남은 열은 그 자리 국소장으로 흘려보내고(보존 — 열은 사라지지 않는다) 풀을 지운다.
   #removeCrystal(id) {
+    const c = this.crystals.get(id);
+    if (c) {
+      const heatId = `${POOL.HEAT}${c.seq}`;
+      const h = this.ledger.balance(heatId);
+      if (h > 0) this.#tx(heatId, materialKey(c.x, c.y, c.z), h, CAUSE.COMBUST, { x: c.x, y: c.y }); // 남은 열 → 국소장
+      this.ledger.removePool(heatId);
+    }
     this.crystals.delete(id);
     for (const [k, v] of this.voxelResident) if (v === id) this.voxelResident.delete(k);
     this.ledger.removePool(id);
+  }
+
+  // 파괴(상태전이 규칙 C) — feature-0013 step3. 물리력이 결정의 파괴강도를 넘으면 고체가 부서진다: 내구도를
+  //   먼지(국소장)와 **파편 결정들**로 나눈다(원본 소멸). 열(연소·용해)이 온도 임계라면 이건 물리력 임계다.
+  //   결정론: 파편은 결정론적 방사 배치(rng 미사용) + 순수 클램프. 전부 ledger.transfer → 보존.
+  #shatterCrystal(c) {
+    const D = this.ledger.balance(c.id);
+    if (D <= 0) { this.#removeCrystal(c.id); return; }
+    const toField = Math.floor(D * SHATTER_TO_FIELD_PCT / 100);
+    if (toField > 0) this.#tx(c.id, materialKey(c.x, c.y, c.z), toField, CAUSE.SHATTER, { x: c.x, y: c.y }); // 먼지 → 국소장
+    const per = Math.floor(this.ledger.balance(c.id) / SHATTER_DEBRIS_COUNT);
+    for (let i = 0; i < SHATTER_DEBRIS_COUNT && per > 0; i++) {
+      const ang = (i / SHATTER_DEBRIS_COUNT) * Math.PI * 2;
+      const dx = Math.round(Math.cos(ang) * SHATTER_SCATTER_PX);
+      const dy = Math.round(Math.sin(ang) * SHATTER_SCATTER_PX);
+      const debris = this.#spawnCrystal(c.x + dx, c.y + dy, c.z, c.species, c.raw); // 파편 = 같은 종의 작은 조각
+      this.#tx(c.id, debris, per, CAUSE.SHATTER, { x: c.x, y: c.y });
+    }
+    const rest = this.ledger.balance(c.id); // 나눗셈 잔여 → 국소장
+    if (rest > 0) this.#tx(c.id, materialKey(c.x, c.y, c.z), rest, CAUSE.SHATTER, { x: c.x, y: c.y });
+    this.#removeCrystal(c.id); // 원본 소멸(잔고 0)
+  }
+
+  // 물리력 충격을 반경 안 결정에 가한다 — feature-0013 step3. 파괴강도 ≤ 힘인 결정은 파편으로 부서진다(AoE).
+  //   방출(#discharge)·강탈(#strike)의 damage 를 이 자극으로 정합한다. 스냅샷을 떠 새 파편은 이 패스에서 다시 안 맞는다.
+  #impactCrystals(x, y, z, radius, force) {
+    for (const c of [...this.crystals.values()]) {
+      if (this.ledger.balance(c.id) <= 0) continue;
+      if (dist3(x, y, z, c.x, c.y, c.z) > radius) continue;
+      if (force >= breakStrength(c.species)) this.#shatterCrystal(c);
+    }
+  }
+
+  // 연소(상태전이 규칙 A) — feature-0013 step1. "가연성 물질이 열을 받아 발화점을 넘으면 점화되고, 스스로
+  //   내구도(잔고)를 태워 이웃 결정을 데우며 번진다." 온도 = 결정 열(H:) 풀 잔고. 전부 ledger.transfer → 보존.
+  //   결정론: seq 오름차순 + 순수 클램프(rng 미사용). 한 자극/규칙만 정의하면 불의 번짐은 창발한다.
+  #combust() {
+    const heatOf = (c) => this.ledger.balance(`${POOL.HEAT}${c.seq}`);
+    // ① 점화 판정 — 가연성 & 온도 ≥ 발화점 → burning. (비가연성은 ignitionHeat=Infinity 라 절대 안 붙는다 = 태그 필터)
+    for (const c of this.crystals.values()) {
+      if (!c.burning && isFlammable(c.species) && heatOf(c) >= ignitionHeat(c.species)) c.burning = true;
+    }
+    // ② 연소 실행 — 각 burning 결정이 내구도를 태워 열로: 심우주(복사 손실)+이웃 결정 열(전파)+국소장(연기).
+    for (const A of [...this.crystals.values()].sort((a, b) => a.seq - b.seq)) {
+      if (!A.burning || !this.crystals.has(A.id)) continue;
+      const dur = this.ledger.balance(A.id);
+      if (dur <= 0) { this.#removeCrystal(A.id); continue; }
+      const burn = Math.min(BURN_RATE, dur);
+      const toSink = Math.floor(burn * BURN_TO_SINK_PCT / 100);
+      let toNeigh = Math.floor(burn * BURN_TO_NEIGHBOR_PCT / 100);
+      // 반경 안 이웃 결정(자신 제외, 잔고>0) — 열은 다 데운다: 가연성은 점화되어 번지고 비가연성은 녹는다(규칙 B).
+      const nbrs = [...this.crystals.values()].filter(V =>
+        V.id !== A.id && this.ledger.balance(V.id) > 0
+        && dist3(A.x, A.y, A.z, V.x, V.y, V.z) <= BURN_EMIT_RADIUS).sort((a, b) => a.seq - b.seq);
+      if (nbrs.length && toNeigh > 0) {
+        const share = Math.floor(toNeigh / nbrs.length);
+        let spread = 0;
+        for (const V of nbrs) if (share > 0) spread += this.#tx(A.id, `${POOL.HEAT}${V.seq}`, share, CAUSE.HEAT, { x: V.x, y: V.y });
+        toNeigh = spread; // 실제 옮긴 만큼만 이웃 몫으로 친다(나머지는 연기로)
+      } else {
+        toNeigh = 0; // 이웃 없으면 전파분도 연기(국소장)로
+      }
+      if (toSink > 0) this.#tx(A.id, POOL.SINK, toSink, CAUSE.COMBUST, { x: A.x, y: A.y });      // 복사 손실(열)
+      const toField = Math.max(0, burn - toSink - toNeigh);                                      // 나머지 = 연기 → 국소장
+      if (toField > 0) this.#tx(A.id, materialKey(A.x, A.y, A.z), toField, CAUSE.COMBUST, { x: A.x, y: A.y });
+      if (this.ledger.balance(A.id) <= 0) this.#removeCrystal(A.id);                             // 전소 → 소멸(잔해 없음)
+    }
+    // 규칙 B (상전이/용해) — feature-0013 step2. 비가연성 결정이 녹는점을 넘으면 고체 질서가 풀려 내구도를
+    //   국소장으로 녹여 흘려보낸다(결정 → 국소장 = 용해, feature-0005 step5 흡수). 녹은 국소장은 액체 밴드로
+    //   흐르고(step4), 식어 과포화되면 다시 석출한다(가역). 가연성은 규칙 A(연소)로 갈린다(태그 분기).
+    for (const A of [...this.crystals.values()].sort((a, b) => a.seq - b.seq)) {
+      if (!this.crystals.has(A.id) || isFlammable(A.species)) continue;
+      if (heatOf(A) < meltHeat(A.species)) continue;
+      const dur = this.ledger.balance(A.id);
+      if (dur <= 0) { this.#removeCrystal(A.id); continue; }
+      const melt = Math.min(MELT_RATE, dur);
+      this.#tx(A.id, materialKey(A.x, A.y, A.z), melt, CAUSE.MELT, { x: A.x, y: A.y }); // 결정 → 국소장(용해)
+      if (this.ledger.balance(A.id) <= 0) this.#removeCrystal(A.id);
+    }
+    // ③ 냉각(가역·자기제한) — burning 아닌 결정의 열은 매틱 조금씩 국소장으로 소산한다. 자극이 냉각보다
+    //    빨라야 발화점에 닿는다 = 잠깐 데워지다 마는 것은 붙지 않는다("점화는 지속적 열원을 요구한다").
+    for (const c of this.crystals.values()) {
+      if (c.burning) continue;
+      const heatId = `${POOL.HEAT}${c.seq}`;
+      const h = this.ledger.balance(heatId);
+      if (h > 0) this.#tx(heatId, materialKey(c.x, c.y, c.z), Math.min(h, Math.max(1, Math.floor(h / HEAT_COOL_DIVISOR))), CAUSE.COMBUST, { x: c.x, y: c.y });
+    }
   }
 
   // 발산·전투 = 포식 — feature-0008. forage(국소장)·harvest(결정)가 수동적 저장고를 긁는 것이라면, 강탈은
@@ -566,6 +672,8 @@ export class GameServer {
     const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0; // ③ 강탈
     const scatter = damage - got;                                                       // 못 붙잡은 몫 = 세계로
     if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
+    // feature-0013 규칙 C — 강탈의 물리력도 근처 결정을 부순다.
+    this.#impactCrystals(A.x, A.y, A.z, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER * A.size);
     return got;
   }
 
@@ -601,6 +709,8 @@ export class GameServer {
       this.#dissipate(target, damage);
       // ④ 완전 연소 — 예비 아래로 떨어졌으면 그 자리서 전소(남은 전부 열+연기로, 잔해 결정 없음 = #decompose 안 씀).
       if (this.ledger.balance(target.id) < CREATURE_DEATH_THRESHOLD * target.size) this.#incinerate(target);
+      // feature-0013 규칙 C — 방출의 물리력이 근처 결정도 때린다(AoE). 파괴강도 ≤ 힘이면 파편으로 부순다.
+      this.#impactCrystals(A.x, A.y, A.z, DISCHARGE_RADIUS, DISCHARGE_POWER * A.size);
     }
   }
 
@@ -905,7 +1015,13 @@ export class GameServer {
     const crystalCells = broadcastField
       ? [...this.crystals.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier]); // raw=날것·crafted=제조 산물·tier=제조 단계(feature-0011 step2)
+          if (b > 0) {
+            // feature-0013: 열(온도) 상태 — hot=발화점 대비 가열 비율(0~1, 달아오름), burning=연소 중.
+            const ign = ignitionHeat(c.species);
+            const thr = Number.isFinite(ign) ? ign : meltHeat(c.species); // 발화점(가연성) 또는 녹는점(비가연성) — 둘 다 달아오름으로 보인다
+            const hot = Number.isFinite(thr) ? Math.min(1, this.ledger.balance(`${POOL.HEAT}${c.seq}`) / thr) : 0;
+            acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier, c.burning ? 1 : 0, Math.round(hot * 100) / 100]); // raw=날것·crafted=산물·tier=단계 · burning·hot=연소/가열(feature-0013)
+          }
           return acc;
         }, [])
       : null;

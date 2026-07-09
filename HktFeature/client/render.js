@@ -186,18 +186,18 @@ export class Render {
     for (const c of state.crystals.values()) {
       if (c.balance <= 0) continue;
       const d = this.#toCam(cam, c.x, c.y, c.z)[2];
-      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, crafted: c.crafted, tier: c.tier ?? 0, d });
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, crafted: c.crafted, tier: c.tier ?? 0, burning: c.burning, hot: c.hot ?? 0, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw, m.crafted, m.tier);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw, m.crafted, m.tier, m.burning, m.hot);
   }
 
-  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw, crafted, tier = 0) {
+  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw, crafted, tier = 0, burning = false, hot = 0) {
     const { ctx } = this;
     const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
-    const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
+    const hue = burning ? 16 : (species * 360 / 12) % 360;   // feature-0013: 연소=적열(주황), 아니면 종 색
     // 날것(raw)은 채도를 죽이고 점선 외곽으로 "아직 못 먹는 재료"로 구분한다(feature-0011). 요리되면 선명한 결정으로.
-    const sat = raw ? 20 : 85;
+    const sat = burning ? 95 : (raw ? 20 : 85);   // feature-0013: 연소=고채도
     this.#stick(cam, cx, cy, cz, `hsla(${hue},${raw ? 15 : 80}%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
     const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
     const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
@@ -218,6 +218,16 @@ export class Render {
       ctx.stroke();
     }
     ctx.setLineDash([]);
+    // feature-0013: 달아오름(hot)·연소(burning) 글로우 — 뜨거울수록 주황 halo, 연소 중이면 밝은 적열로 타오른다.
+    const fire = burning ? 1 : Math.min(1, hot || 0);
+    if (fire > 0.02) {
+      const ctr = this.#pt(cam, cx, cy, cz);
+      if (ctr) {
+        ctx.strokeStyle = `hsla(${burning ? 14 : 32}, 100%, ${burning ? 60 : 70}%, ${0.2 + 0.55 * fire})`;
+        ctx.lineWidth = 2 + 3 * fire;
+        ctx.beginPath(); ctx.arc(ctr.sx, ctr.sy, r * (0.75 + 0.7 * fire), 0, 7); ctx.stroke();
+      }
+    }
     // 제조 산물은 밝은 겹고리로 감싼다("가공된 결정"). 단계(tier)만큼 고리를 더 그린다 — 완성물(tier2)은 두 겹.
     if (crafted) {
       const c4 = P[4];
