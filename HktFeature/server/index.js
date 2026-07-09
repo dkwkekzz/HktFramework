@@ -75,6 +75,10 @@ wss.on('connection', (socket) => {
       const px = SPAWN_POS.x + Math.round(Math.cos(a) * 90);
       const py = SPAWN_POS.y + Math.round(Math.sin(a) * 90);
       game.possessCreature(playerId, px, py, SPAWN_POS.z);
+      // 스폰 자리는 원래 텅 빈 곳(먹을 국소장·결정 없음) → 생명체가 갈구할 게 없어 ~12초 만에 아사했다.
+      //   접속하면 그 자리에 **서식지 웅덩이**를 쥐어준다(SOURCE→국소장, 보존): 갈구 + 석출·채집이 즉시 돌아
+      //   생명체가 살아 성장한다. 이후 유지는 아래 틱 루프가 소유 생명체의 현재 자리를 재가열해 이어간다.
+      game.ledger.transfer(POOL.SOURCE, materialKey(px, py, SPAWN_POS.z), 6_000, 'seed');
       return;
     }
     if (playerId !== null) game.onMessage(playerId, msg);
@@ -89,7 +93,24 @@ wss.on('connection', (socket) => {
 let warmTick = 0, preyNo = 0;
 setInterval(() => {
   game.tick();
-  if (++warmTick % 50 === 0) {
+  warmTick++;
+  // 재소유 — 소유 생명체가 죽었으면(아사·전소·피식) 그 자리에 새 생명체를 쥐어준다. "한 사람 = 한 생명체"가
+  //   끊기지 않게(뷰어의 "내 생명체 (없음)" 상태를 곧바로 회복). 플레이어 현재 위치에 스폰 + 서식지 웅덩이 시드.
+  const owned = new Set();
+  for (const cre of game.creatures.values()) if (cre.owner) owned.add(cre.owner);
+  for (const player of game.players.values()) {
+    if (owned.has(player.id)) continue;
+    game.possessCreature(player.id, player.x, player.y, player.z);
+    game.ledger.transfer(POOL.SOURCE, materialKey(player.x, player.y, player.z), 6_000, 'seed');
+  }
+  // 소유 생명체(플레이어가 쥔 것) 재가열 — 어디에 있든 그 자리 국소장을 조금씩 채워 갈구가 마르지 않게 한다.
+  //   "한 사람 = 한 생명체"가 활동 중에는 굶어 사라지지 않도록 보장(SOURCE→국소장, 보존 유지). 야생(owner=null)은
+  //   대상이 아니다 — 기존 생태(자기유지·아사)는 그대로 돈다. 갈구(5×size)>대사(3×size)라 순유입이 성장을 부른다.
+  if (warmTick % 20 === 0) {
+    for (const cre of game.creatures.values())
+      if (cre.owner) game.ledger.transfer(POOL.SOURCE, materialKey(cre.x, cre.y, cre.z), 800, 'seed');
+  }
+  if (warmTick % 50 === 0) {
     for (const [cx, cy, cz] of dens) game.ledger.transfer(POOL.SOURCE, materialKey(cx, cy, cz), 9_000, 'seed');
     const [cx, cy, cz] = dens[preyNo % dens.length]; preyNo++;                 // 한 서식지 곁에 먹이 하나
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대

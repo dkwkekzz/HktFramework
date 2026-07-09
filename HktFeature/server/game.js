@@ -540,7 +540,7 @@ export class GameServer {
     const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
-      if (A.desire !== DESIRE.NONE) continue;                  // 욕구를 가진 개체는 절차(사냥)로 친다 — 자율 본능은 야생만
+      if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 포식은 **야생(owner=null)만** — 욕구는 절차(사냥)로 치고, 주인이 쥔 대기 개체는 자율 공격하지 않는다(플레이어가 사냥을 걸어야 친다)
       // 발산할 예비가 없으면 공격하지 않는다(예비 가드는 #strike 안) — 사거리 안 나보다 작은 가장 가까운 먹이
       let prey = null, bestD = Infinity;
       for (const V of this.creatures.values()) {
@@ -577,7 +577,7 @@ export class GameServer {
     const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
-      if (A.desire !== DESIRE.NONE) continue;                  // 방출도 야생 본능만 — 욕구를 가진 개체는 절차로 행동
+      if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 방출도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 근처 강자에게 자율 방출하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
       const cost = DISCHARGE_COST * A.size;
       // 발산할 예비가 없으면(비용+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
       if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
@@ -951,8 +951,6 @@ export class GameServer {
         for (const key of p.regions) regions[key] = this.ledger.regionSum(key);
         p.conn.send(encode(MSG.CHECKSUM, {
           tick: this.tickCount, total: this.ledger.totalSum(), regions,
-          src: this.ledger.balance(POOL.SOURCE), sink: this.ledger.balance(POOL.SINK),
-          mat: this.#materialTotal(), cry: this.#crystalTotal(), cre: this.#creatureTotal(),
         }));
       }
     }

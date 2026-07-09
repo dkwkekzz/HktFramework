@@ -45,7 +45,9 @@ export class Render {
     addEventListener('mousemove', (e) => {
       if (!drag) return;
       this.yaw -= (e.clientX - drag.x) * 0.006;
-      this.pitch = Math.max(0.05, Math.min(1.45, this.pitch + (e.clientY - drag.y) * 0.005));
+      // pitch: 아래로 내려다보기(+)뿐 아니라 위로 올려다보기(−)도 허용 — 세계는 수직(WORLD_HEIGHT)이라
+      //   위를 보고 위로 이동할 수 있어야 한다. 정확히 ±π/2(수직)면 right 축이 붕괴하므로 그 안쪽으로 클램프.
+      this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch + (e.clientY - drag.y) * 0.005));
       drag = { x: e.clientX, y: e.clientY };
     });
     canvas.addEventListener('wheel', (e) => {
@@ -492,7 +494,7 @@ export class Render {
       ty += 14;
     }
 
-    // 우하: 조작
+    // 우하
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
