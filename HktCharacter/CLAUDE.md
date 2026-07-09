@@ -12,7 +12,10 @@
 
 1. **Skeleton IR** — `joints[{name, parent, offset}]` + 프레임별 회전 → world FK.
    소스(built-in / Mixamo FBX / 임의 리그)를 몰라도 동일 경로로 흐른다. FK는 three Object3D 계층이 담당.
-2. **Flesh grammar** — `radiusForName(name)`. 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
+2. **Flesh grammar** — 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
+   규칙·수치는 `src/proportions.js` 의 **비율 프로파일**(데이터)로 승격 — 이름 규칙(첫 매치 승리)
+   + 스켈레톤 치수 + 볼륨 헬퍼(extras: 가슴·둔부·종아리·손바닥) + 그룹 배율(UI 슬라이더)로 구성.
+   프리셋: `standard`(기존 값 보존) · `reference`(첨부 캐릭터 시트 기준 6등신 여성 체형, 기본값).
    Mixamo 이름(`mixamorig:LeftForeArm`)은 접두어만 떼고 매칭. 미지의 뼈는 기본값 → 임의 리그도 안 깨진다.
 3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
    (`public/assets/anim/*.fbx` — 걷기·뛰기·대기·점프·공격·삼바), 그리고 FBX 드롭(실제 Mixamo 클립).
@@ -25,14 +28,18 @@
 
 ## 파일 맵
 
-- `index.html` — DOM(HUD/패널/드롭존/로코모션 버튼) + CSS
+- `index.html` — DOM(HUD/패널/드롭존/로코모션 버튼/비율 패널) + CSS
 - `public/assets/anim/*.fbx` — 동봉 로코모션 샘플 (Mixamo, HktSplatLife 와 동일 세트)
+- `src/proportions.js` — **비율 프로파일 데이터** (`PROFILES.standard/reference`, `GROUPS`, `matchRule`)
+  비율 변경은 이 파일의 수치만 만진다 — 이름 규칙 / skeleton 치수 / extras / 권장 smin / 휴식 포즈
 - `src/main.js` — 전체 로직. 섹션 주석으로 (1)IR (2)grammar (3)source 구분
   - `frag` : 레이마칭 프래그먼트 셰이더 (round-cone SDF의 smooth-union)
-  - `buildMixamoRig()` : Mixamo 표준 humanoid 계층 (T-pose)
-  - `radiusForName()` : flesh grammar
-  - `extractBones()` / `extractExternal()` : 관절 → taper 캡슐 세그먼트
+  - `buildMixamoRig(sk)` : Mixamo 표준 humanoid 계층 (T-pose) — 치수는 프로파일 skeleton 절
+  - `radiusForName()` : flesh grammar 조회 (프로파일 규칙 × 그룹 배율)
+  - `extractBones()` / `extractExternal()` : 관절 → taper 캡슐 세그먼트 (+`appendExtras()` 볼륨 헬퍼)
+  - `setPreset()` : 프리셋 전환 (built-in 리그 재생성; 외부 FBX 는 두께/헬퍼만 적용)
   - `loadFBXBuffer()` / `loadSample()` / `playExtClip()` : FBX 파싱 + 샘플 fetch + 클립 전환
+  - `window.__hkt` : 콘솔 튜닝/자동 검증용 핸들 (st, groupMul, setPreset, PROFILES)
 
 ## 실행
 
@@ -48,7 +55,8 @@ npm run dev      # http://localhost:5173
 ## 현재 상태 / 다음 작업
 
 **동작함**: built-in Mixamo 리그 위에서 walk/idle/wave, 손가락 토글, 스타일 슬라이더(smin/통통함),
-동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭.
+동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭,
+**비율 프로파일**(standard/reference 프리셋 + 머리/가슴/허리/엉덩이/팔/다리 그룹 슬라이더 + 볼륨 헬퍼).
 
 **다음 (우선순위 순)**:
 1. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.

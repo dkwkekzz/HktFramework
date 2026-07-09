@@ -12,8 +12,9 @@
 // ===========================================================================
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { PROFILES, GROUPS, matchRule } from './proportions.js';
 
-const MAXB = 60;
+const MAXB = 96;
 const app = document.getElementById('app');
 
 const renderer = new THREE.WebGLRenderer({ antialias: false });
@@ -110,63 +111,51 @@ skelScene.add(boneLines); skelScene.add(joints3);
 
 // ===========================================================================
 //  (2) Flesh grammar : 이름 → 반지름.  이게 "스타일"의 정의.
+//  실제 규칙/수치는 proportions.js 의 프로파일이 보유 — 여기는 조회 + 그룹 배율만.
 //  실제 Mixamo 이름("mixamorig:LeftForeArm")도 접두어만 떼면 그대로 매칭.
 // ===========================================================================
 function simpleName(n) { return n.replace(/^mixamorig:?/i, ''); }
+let profile = PROFILES.reference;
+const groupMul = Object.fromEntries(GROUPS.map(([key]) => [key, 1.0])); // UI 그룹 배율
 function radiusForName(name) {
-  const n = simpleName(name), has = s => n.indexOf(s) >= 0;
-  if (n === 'Hips') return 0.135;
-  if (has('Spine2')) return 0.15;
-  if (has('Spine1')) return 0.14;
-  if (has('Spine'))  return 0.13;
-  if (has('Neck'))   return 0.055;
-  if (has('HeadTop') || has('_End')) return 0.065;
-  if (has('Head'))   return 0.12;
-  if (has('Shoulder')) return 0.055;
-  if (has('ForeArm')) return 0.05;
-  if (has('Arm'))    return 0.062;
-  if (has('Hand'))   return 0.05;
-  if (has('UpLeg'))  return 0.10;
-  if (has('Leg'))    return 0.078;
-  if (has('ToeBase') || has('Toe')) return 0.035;
-  if (has('Foot'))   return 0.052;
-  if (has('Thumb') || has('Index') || has('Middle') || has('Ring') || has('Pinky') || has('Finger')) return 0.014;
-  return 0.05; // 미지의 뼈 → 기본값 (임의 리그도 깨지지 않음)
+  const rule = matchRule(profile, simpleName(name));
+  if (!rule) return profile.fallback;
+  return rule.r * (groupMul[rule.group] ?? 1.0);
 }
 function isFinger(name) { return /Thumb|Index|Middle|Ring|Pinky|Finger/.test(simpleName(name)); }
 
 // ===========================================================================
 //  (1) Skeleton IR : Mixamo 표준 humanoid 계층 (T-pose, 단위 ~m)
+//  치수는 전부 프로파일 skeleton 절에서 온다 — 비율 변경 시 코드 수정 불필요.
 // ===========================================================================
-function buildMixamoRig() {
+function buildMixamoRig(sk) {
   const J = []; const idx = {};
   const add = (name, parent, ox, oy, oz) => {
     idx[name] = J.length;
     J.push({ name, parent: parent == null ? -1 : idx[parent], offset: [ox, oy, oz] });
   };
-  add('mixamorig:Hips', null, 0, 0.98, 0);
-  add('mixamorig:Spine', 'mixamorig:Hips', 0, 0.11, 0);
-  add('mixamorig:Spine1', 'mixamorig:Spine', 0, 0.12, 0);
-  add('mixamorig:Spine2', 'mixamorig:Spine1', 0, 0.12, 0);
-  add('mixamorig:Neck', 'mixamorig:Spine2', 0, 0.12, 0.01);
-  add('mixamorig:Head', 'mixamorig:Neck', 0, 0.07, 0.01);
-  add('mixamorig:HeadTop_End', 'mixamorig:Head', 0, 0.15, 0.02);
+  add('mixamorig:Hips', null, 0, sk.hipsY, 0);
+  add('mixamorig:Spine', 'mixamorig:Hips', 0, sk.spineLens[0], 0);
+  add('mixamorig:Spine1', 'mixamorig:Spine', 0, sk.spineLens[1], 0);
+  add('mixamorig:Spine2', 'mixamorig:Spine1', 0, sk.spineLens[2], 0);
+  add('mixamorig:Neck', 'mixamorig:Spine2', 0, sk.neckLen, sk.neckZ);
+  add('mixamorig:Head', 'mixamorig:Neck', 0, sk.headLen, sk.headZ);
+  add('mixamorig:HeadTop_End', 'mixamorig:Head', 0, sk.headTopLen, sk.headTopZ);
   for (const [S, x] of [['Left', 1], ['Right', -1]]) {
-    add(`mixamorig:${S}Shoulder`, 'mixamorig:Spine2', x * 0.05, 0.09, 0);
-    add(`mixamorig:${S}Arm`, `mixamorig:${S}Shoulder`, x * 0.13, 0, 0);
-    add(`mixamorig:${S}ForeArm`, `mixamorig:${S}Arm`, x * 0.28, 0, 0);
-    add(`mixamorig:${S}Hand`, `mixamorig:${S}ForeArm`, x * 0.25, 0, 0);
-    const fingers = [['Thumb', 0.55, 0.03], ['Index', 0.14, 0.04], ['Middle', -0.02, 0.045], ['Ring', -0.16, 0.04], ['Pinky', -0.30, 0.032]];
-    for (const [fn, ang, len] of fingers) {
+    add(`mixamorig:${S}Shoulder`, 'mixamorig:Spine2', x * sk.shoulderX, sk.shoulderY, 0);
+    add(`mixamorig:${S}Arm`, `mixamorig:${S}Shoulder`, x * sk.armX, 0, 0);
+    add(`mixamorig:${S}ForeArm`, `mixamorig:${S}Arm`, x * sk.upperArmLen, 0, 0);
+    add(`mixamorig:${S}Hand`, `mixamorig:${S}ForeArm`, x * sk.foreArmLen, 0, 0);
+    for (const [fn, ang, len] of sk.fingers) {
       const zoff = Math.sin(ang) * 0.03;
       add(`mixamorig:${S}Hand${fn}1`, `mixamorig:${S}Hand`, x * (len * 0.5), 0, zoff * 3.0);
       add(`mixamorig:${S}Hand${fn}2`, `mixamorig:${S}Hand${fn}1`, x * len, 0, 0);
       add(`mixamorig:${S}Hand${fn}3`, `mixamorig:${S}Hand${fn}2`, x * len * 0.8, 0, 0);
     }
-    add(`mixamorig:${S}UpLeg`, 'mixamorig:Hips', x * 0.09, -0.06, 0);
-    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, 0, -0.42, 0);
-    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, 0, -0.42, 0);
-    add(`mixamorig:${S}ToeBase`, `mixamorig:${S}Foot`, 0, -0.07, 0.14);
+    add(`mixamorig:${S}UpLeg`, 'mixamorig:Hips', x * sk.upLegX, sk.upLegY, 0);
+    add(`mixamorig:${S}Leg`, `mixamorig:${S}UpLeg`, 0, -sk.thighLen, 0);
+    add(`mixamorig:${S}Foot`, `mixamorig:${S}Leg`, 0, -sk.shinLen, 0);
+    add(`mixamorig:${S}ToeBase`, `mixamorig:${S}Foot`, 0, -sk.footDrop, sk.toeZ);
   }
   return J;
 }
@@ -186,7 +175,7 @@ function instantiateRig(defs) {
   const hi = defs.findIndex(d => d.parent < 0);
   bindHipY = hi >= 0 ? defs[hi].offset[1] : 0;
 }
-instantiateRig(buildMixamoRig());
+instantiateRig(buildMixamoRig(profile.skeleton));
 
 // ===========================================================================
 //  (3-a) built-in 클립 : Mixamo 이름으로 회전 부여
@@ -194,7 +183,7 @@ instantiateRig(buildMixamoRig());
 const _e = new THREE.Euler();
 function applyPose(clip, t, speed) {
   const ph = t * speed * 4.0;
-  const armDown = 1.30;
+  const armDown = profile.pose?.armDown ?? 1.30;
   for (let i = 0; i < jointObjs.length; i++) {
     const n = simpleName(jointName[i]); let rx = 0, ry = 0, rz = 0;
     const R = n.startsWith('Right');
@@ -228,7 +217,32 @@ function applyPose(clip, t, speed) {
 }
 
 // ---- 세그먼트 추출 : 부모→자식 = taper 캡슐 -------------------------------
-const _wp = new THREE.Vector3(), _wpp = new THREE.Vector3();
+const _wp = new THREE.Vector3(), _wpp = new THREE.Vector3(), _wq = new THREE.Quaternion();
+
+// 볼륨 헬퍼(extras) — 프로파일이 정의한 관절-로컬 세그먼트를 살에 추가한다.
+// resolveJoint(simpleName) → { pos, quat } (렌더 공간). 관절이 없으면 조용히 건너뜀
+// → extras 가 없는 임의 리그도 깨지지 않는다.
+function appendExtras(segs, fat, resolveJoint) {
+  for (const e of profile.extras) {
+    const mul = (groupMul[e.group] ?? 1.0) * fat;
+    const targets = e.mirrorJoints ? [['Left' + e.joint, 1], ['Right' + e.joint, -1]] : [[e.joint, 1]];
+    for (const [jname, jx] of targets) {
+      const jt = resolveJoint(jname);
+      if (!jt) continue;
+      const flips = e.mirrorX ? [1, -1] : [jx];
+      for (const fx of flips) {
+        const a = new THREE.Vector3(e.a[0] * fx, e.a[1], e.a[2]).applyQuaternion(jt.quat).add(jt.pos);
+        const b = new THREE.Vector3(e.b[0] * fx, e.b[1], e.b[2]).applyQuaternion(jt.quat).add(jt.pos);
+        segs.push({ a, b, ra: e.ra * mul, rb: e.rb * mul });
+      }
+    }
+  }
+}
+function builtinJoint(name) {
+  const i = jointName.findIndex(jn => simpleName(jn) === name);
+  if (i < 0) return null;
+  return { pos: jointObjs[i].getWorldPosition(new THREE.Vector3()), quat: jointObjs[i].getWorldQuaternion(new THREE.Quaternion()) };
+}
 function extractBones(showFingers, fat) {
   rigRoot.updateMatrixWorld(true);
   const segs = [];
@@ -242,6 +256,7 @@ function extractBones(showFingers, fat) {
       ra: radiusForName(jointName[p]) * fat, rb: radiusForName(jointName[i]) * fat,
     });
   }
+  appendExtras(segs, fat, builtinJoint);
   return segs;
 }
 function uploadBones(segs) {
@@ -352,6 +367,13 @@ function returnToBuiltin() {
   refreshExtClips();
   setStatus('내장 스켈레톤 (built-in FK) — 절차적 클립.');
 }
+function externalJoint(name) {
+  const b = extBones.find(bb => simpleName(bb.name) === name);
+  if (!b) return null;
+  const pos = b.getWorldPosition(new THREE.Vector3()).sub(extCenter).multiplyScalar(extScale);
+  pos.y += 0.98;
+  return { pos, quat: b.getWorldQuaternion(_wq) };
+}
 function extractExternal(showFingers, fat) {
   if (extMixer) extMixer.update((st.speed || 1) * (1 / 60));
   extRoot.updateMatrixWorld(true);
@@ -365,6 +387,7 @@ function extractExternal(showFingers, fat) {
     if (a.distanceToSquared(c) < 1e-8) continue;
     segs.push({ a, b: c, ra: radiusForName(b.parent.name) * fat, rb: radiusForName(b.name) * fat });
   }
+  appendExtras(segs, fat, externalJoint);
   return segs;
 }
 const drop = document.getElementById('drop');
@@ -383,7 +406,8 @@ function readFile(f) {
 // ===========================================================================
 //  카메라 / 입력 / 루프
 // ===========================================================================
-const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: 0.12, fat: 1.0, fingers: false, bone: false };
+const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: profile.defaults?.k ?? 0.12, fat: 1.0, fingers: false, bone: false };
+uniforms.uK.value = st.k;
 const target = new THREE.Vector3(0, 1.0, 0);
 function updateCam() {
   const ce = Math.cos(st.el), se = Math.sin(st.el);
@@ -417,6 +441,45 @@ $('clip').addEventListener('change', e => { st.clip = e.target.value; mode = (st
 $('spd').addEventListener('input', e => { st.speed = +e.target.value; $('spdVal').textContent = (+e.target.value).toFixed(1); });
 $('k').addEventListener('input', e => { st.k = +e.target.value; uniforms.uK.value = st.k; $('kVal').textContent = st.k.toFixed(2); });
 $('fat').addEventListener('input', e => { st.fat = +e.target.value; $('fatVal').textContent = st.fat.toFixed(2); });
+
+// ---- 비율 패널 : 프리셋 전환 + 그룹 배율 슬라이더 --------------------------
+// 프리셋 전환은 built-in 리그를 프로파일 치수로 재생성한다 (외부 FBX 는 자체
+// 뼈 길이 유지 — 두께 규칙/볼륨 헬퍼만 새 프로파일을 따른다).
+function setPreset(id) {
+  if (!PROFILES[id]) return;
+  profile = PROFILES[id];
+  instantiateRig(buildMixamoRig(profile.skeleton));
+  if (profile.defaults?.k != null) {
+    st.k = profile.defaults.k; uniforms.uK.value = st.k;
+    $('k').value = st.k; $('kVal').textContent = st.k.toFixed(2);
+  }
+  $('preset').value = id;
+}
+const presetSel = $('preset');
+for (const [id, p] of Object.entries(PROFILES)) {
+  const o = document.createElement('option'); o.value = id; o.textContent = p.name;
+  presetSel.appendChild(o);
+}
+presetSel.value = Object.entries(PROFILES).find(([, p]) => p === profile)[0];
+presetSel.addEventListener('change', e => setPreset(e.target.value));
+
+const gbox = $('propGroups');
+for (const [key, label] of GROUPS) {
+  const row = document.createElement('div'); row.className = 'row';
+  row.innerHTML = `<label>${label} <span id="pg_${key}_v">1.00</span></label>
+    <input id="pg_${key}" type="range" min="0.5" max="1.6" step="0.01" value="1.0">`;
+  gbox.appendChild(row);
+  row.querySelector('input').addEventListener('input', e => {
+    groupMul[key] = +e.target.value;
+    row.querySelector('span').textContent = (+e.target.value).toFixed(2);
+  });
+}
+
+// 시작 프로파일의 권장 smin 을 슬라이더에 반영.
+$('k').value = st.k; $('kVal').textContent = st.k.toFixed(2);
+
+// 디버그/튜닝 핸들 — 콘솔에서 프로파일 수치를 실시간으로 만질 수 있다.
+window.__hkt = { st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam };
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });
 $('btnBuiltin').addEventListener('click', returnToBuiltin);
