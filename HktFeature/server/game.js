@@ -31,6 +31,8 @@ import {
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
   CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
+  CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
+  CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -284,6 +286,12 @@ export class GameServer {
     if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#react();
     }
+    // feature-0008 발산·전투(포식) — 큰 생명체가 사거리 안 더 작은 생명체를 공격해 그 질서를 무너뜨리고
+    //   풀려난 에너지를 손실적으로 회수한다(강탈). 대사 앞에 돌린다 — 이번 틱에 뺏긴 먹이는 곧이어 대사
+    //   순환에서 예비 아래로 떨어지면 죽어 분해된다(전투사 → 결정, 생태 루프). 순수 클램프(결정론 불변).
+    if (this.tickCount % CREATURE_ATTACK_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#combat();
+    }
     // feature-0006 생명체 대사 — 각 생명체가 스스로 국소장을 갈구해 질서를 보충하고(field→생명체),
     //   살아있음의 비용을 심우주로 방출하며(생명체→SINK), 그래도 최소 예비 아래로 떨어지면 죽는다(분해).
     //   확산·석출 뒤에 돌린다 — 세계의 에너지가 흩어져 자리 잡은 뒤 그 자리에서 갈구한다.
@@ -417,6 +425,41 @@ export class GameServer {
     this.crystals.delete(id);
     for (const [k, v] of this.voxelResident) if (v === id) this.voxelResident.delete(k);
     this.ledger.removePool(id);
+  }
+
+  // 발산·전투 = 포식 — feature-0008. forage(국소장)·harvest(결정)가 수동적 저장고를 긁는 것이라면, 강탈은
+  //   능동적으로 질서를 유지하는 다른 생명체에서 뜯어내는 세 번째 free energy 수입이다. 상대가 저항하므로
+  //   (1) 먼저 일을 들여 그 질서를 무너뜨려야 하고(발산 비용 → 열/SINK), (2) 붕괴로 풀려난 에너지도 전부는
+  //   못 붙잡는다(효율<1, 나머지는 국소장으로 흩어짐) — 그래서 얻는 것 < 뺏는 것(2법칙·생태학 ~10% 법칙).
+  //   포식 규칙: 각 생명체는 사거리 안에서 **자기보다 작은(size<)** 가장 가까운 먹이 하나를 친다(강자→약자).
+  //   결정론: seq 오름차순으로 훑고 순수 클램프(rng 미사용) — 확산·성장 결정론 불변. 전부 ledger.transfer → 보존.
+  #combat() {
+    const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
+    for (const A of list) {
+      if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
+      const cost = CREATURE_ATTACK_COST * A.size;
+      // 발산할 예비가 없으면(비용+최소 예비 미만) 공격하지 않는다 — 굶주린 개체는 사냥할 여력이 없다.
+      if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
+      // 사거리 안, 나보다 작은(포식 대상) 잔고 있는 가장 가까운 먹이
+      let prey = null, bestD = Infinity;
+      for (const V of this.creatures.values()) {
+        if (V.id === A.id || V.size >= A.size) continue;        // 포식 = 더 작은 것만(강자→약자)
+        if (this.ledger.balance(V.id) <= 0) continue;
+        const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
+        if (d <= CREATURE_ATTACK_RADIUS && d < bestD) { prey = V; bestD = d; }
+      }
+      if (!prey) continue;
+      // ① 발산 비용 — 상대 질서를 깨는 일. 되돌아오지 않는 열로 심우주에 지불(엔트로피 화살).
+      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
+      // ② 상대 질서 붕괴 — damage 만큼 먹이의 유지된 에너지가 풀려난다(먹이 잔고로 클램프).
+      const damage = Math.min(CREATURE_ATTACK_POWER * A.size, this.ledger.balance(prey.id));
+      if (damage <= 0) continue;
+      // ③ 손실적 회수(강탈) — 풀려난 damage 중 CAPTURE_PCT 만 A 로(용량 클램프), 못 붙잡은 몫은 국소장으로 흩어진다.
+      const capture = Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100);
+      const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0;
+      const scatter = damage - got; // 회수 못 한 전부(효율 손실 + 용량 초과분) = 세계로 방출
+      if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
+    }
   }
 
   // 생명체 대사 — feature-0006. 각 생명체가 한 대사 틱에 스스로 도는 항상성 순환:
