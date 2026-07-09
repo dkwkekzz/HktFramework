@@ -147,12 +147,12 @@ export class GameServer {
       get() {
         let best = DESIRE.NONE, bestW = -Infinity;
         for (const [name, d] of cre.desires) { // 동률은 삽입(주입) 순서 유지 → 결정론
-          const w = desireWeight(d.priority, d.emotion);
+          const w = desireWeight(d.priority, d.emotion, d.feeling);
           if (w > bestW) { bestW = w; best = name; }
         }
         return best;
       },
-      set(v) { cre.desires.clear(); if (v && v !== DESIRE.NONE) cre.desires.set(v, { priority: DESIRE_BASE_PRIORITY, emotion: 0 }); },
+      set(v) { cre.desires.clear(); if (v && v !== DESIRE.NONE) cre.desires.set(v, { priority: DESIRE_BASE_PRIORITY, emotion: 0, feeling: 0 }); },
     });
     this.creatures.set(creId, cre);
     this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
@@ -186,7 +186,7 @@ export class GameServer {
     if (!DESIRE_PROCEDURES[name]) return; // 미등록 욕구는 무시(개방 레지스트리 기반)
     for (const cre of this.creatures.values()) if (cre.owner === playerId) {
       const prev = cre.desires.get(name);
-      cre.desires.set(name, { priority, emotion: prev ? prev.emotion : 0 }); // dedup — 같은 이름은 덮어씀(우선순위 갱신, 감정 보존)
+      cre.desires.set(name, { priority, emotion: prev ? prev.emotion : 0, feeling: prev ? prev.feeling : 0 }); // dedup — 우선순위 갱신, 감정·자율감정 보존
     }
   }
 
@@ -198,7 +198,7 @@ export class GameServer {
     const e = Math.max(0, Math.min(DESIRE_EMOTION_MAX, emotion | 0));
     for (const cre of this.creatures.values()) if (cre.owner === playerId) {
       const prev = cre.desires.get(name);
-      cre.desires.set(name, { priority: prev ? prev.priority : DESIRE_BASE_PRIORITY, emotion: e });
+      cre.desires.set(name, { priority: prev ? prev.priority : DESIRE_BASE_PRIORITY, emotion: e, feeling: prev ? prev.feeling : 0 });
     }
   }
 
@@ -625,6 +625,7 @@ export class GameServer {
   //   얹기만 하면 이 엔진이 그대로 실행한다(개방성). 각 단계의 행동은 에너지를 방출/이동한다(전부 ledger.transfer).
   //   결정론: seq 오름차순 순회 + 순수 클램프(rng 미사용) → 확산·성장·전투 결정론 불변.
   #performDesire() {
+    this.#appraise(); // feature-0012 step2 — 먼저 상황(차이)이 자율 감정(feeling)을 갱신 → 우선순위 재정렬
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
       const ctx = this.#desireCtx(cre);
@@ -643,22 +644,40 @@ export class GameServer {
     }
   }
 
-  // 욕구 스택을 유효 우선순위(priority+emotion) 내림차순으로 정렬한 이름 목록 (feature-0012). 동률은 주입(삽입)
-  //   순서를 유지한다(결정론). 스택이 비면 대기(NONE) 하나 — 소유 생명체는 주인 곁을 따르고(수동 추종), 야생은 정지.
+  // 욕구 스택을 유효 우선순위(priority+emotion+feeling) 내림차순으로 정렬한 이름 목록 (feature-0012). 동률은 주입
+  //   (삽입) 순서를 유지한다(결정론). 스택이 비면 대기(NONE) 하나 — 소유 생명체는 주인 곁을 따르고, 야생은 정지.
   #rankedDesires(cre) {
     if (cre.desires.size === 0) return [DESIRE.NONE];
     return [...cre.desires.entries()]
-      .map(([name, d], i) => ({ name, w: desireWeight(d.priority, d.emotion), i }))
+      .map(([name, d], i) => ({ name, w: desireWeight(d.priority, d.emotion, d.feeling), i }))
       .sort((a, b) => b.w - a.w || a.i - b.i)
       .map(x => x.name);
   }
 
-  // 방송용 욕구 스택 — [[name, priority, emotion], ...] 유효 우선순위 내림차순 (feature-0012). 뷰어가 중첩·승자·감정을 그린다.
+  // 자율 감정 평가 (feature-0012 step2) — "차이는 신호". 각 생명체의 각 욕구에 대해, 그 욕구 절차가 appraise(ctx)
+  //   로 지금 상황(차이)이 얼마나 그 욕구를 중요하게 느끼는지(feeling)를 스스로 계산해 갱신한다. 굶주릴수록 식사의
+  //   feeling 이 치솟고, 배부르면 0 으로 감쇠(포만)한다 → 우선순위가 상황에 따라 스스로 재정렬된다(외부 주입 없이).
+  //   appraise 없는 욕구(예: 사냥)의 중요도는 외생(priority+emotion)만으로 정해진다. 순수 계산(rng 미사용) → 결정론.
+  #appraise() {
+    for (const cre of this.creatures.values()) {
+      if (cre.desires.size === 0) continue;
+      let ctx = null;
+      for (const [name, d] of cre.desires) {
+        const proc = DESIRE_PROCEDURES[name];
+        if (!proc || typeof proc.appraise !== 'function') { d.feeling = 0; continue; }
+        if (!ctx) ctx = this.#desireCtx(cre);
+        d.feeling = Math.max(0, Math.min(DESIRE_EMOTION_MAX, proc.appraise(ctx) | 0));
+      }
+    }
+  }
+
+  // 방송용 욕구 스택 — [[name, priority, emotion, feeling], ...] 유효 우선순위 내림차순 (feature-0012). 뷰어가 중첩·
+  //   승자·감정(외생+자율)을 그린다. feeling=상황이 스스로 만든 감정(굶주림 등, step2).
   #desireStack(cre) {
     return [...cre.desires.entries()]
-      .map(([name, d], i) => ({ name, d, w: desireWeight(d.priority, d.emotion), i }))
+      .map(([name, d], i) => ({ name, d, w: desireWeight(d.priority, d.emotion, d.feeling), i }))
       .sort((a, b) => b.w - a.w || a.i - b.i)
-      .map(x => [x.name, x.d.priority, x.d.emotion]);
+      .map(x => [x.name, x.d.priority, x.d.emotion, x.d.feeling ?? 0]);
   }
 
   // 절차 단계에 넘기는 ctx — 지각·행동 API. 단계는 이것만 쓰고 게임 내부는 모른다(개방성의 경계). (feature-0011)
@@ -672,6 +691,8 @@ export class GameServer {
       ownerPos: () => { if (!cre.owner) return null; const p = self.players.get(cre.owner); return p ? { x: p.x, y: p.y, z: p.z } : null; },
       inReach: (t, r) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z) <= r,
       edible: (c) => !c.raw,
+      capacity: () => { const pool = self.ledger.get(cre.id); return pool ? pool.max : CREATURE_MAX_ENERGY * cre.size; }, // 자기 용량(feature-0012 appraise)
+      balance: () => self.ledger.balance(cre.id),                                                                        // 자기 잔고(feature-0012 appraise)
       moveToward: (t, stop) => self.#stepToward(cre, t, stop),
       eat: (c) => self.#eatCrystal(cre, c),
       cook: (c) => self.#cookCrystal(cre, c),

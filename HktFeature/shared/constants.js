@@ -184,10 +184,16 @@ export const CREATURE_LEASH_STOP = 48;           // 소유 생명체가 주인 �
 //   무의미하다(idempotent·dedup — "같은 욕구를 또 주입할 필요는 없다"): 중첩되지 않고 우선순위만 갱신된다.
 export const DESIRE_BASE_PRIORITY = 1;   // 주입되는 욕구의 기본 우선순위(감정이 얹히기 전의 중요도 기준)
 export const DESIRE_EMOTION_MAX = 100;   // 감정 증폭 상한(정수, 과증폭 방지) — 감정은 우선순위에 더해진다
-// 유효 우선순위 = 기본 우선순위 + (클램프된) 감정. 정수·결정론(순수 함수).
-export function desireWeight(priority, emotion) {
-  return priority + Math.max(0, Math.min(DESIRE_EMOTION_MAX, emotion | 0));
+// feature-0012 step2 — 감정은 두 갈래로 우선순위를 키운다:
+//   · emotion(외생) = 밖에서 실어주는 감정(플레이어/봇/API 의 emote·INJECT).
+//   · feeling(자율) = **상황(차이)이 스스로 만드는 감정** — "차이는 신호". 굶주림·위협 같은 차이가 클수록 오르고,
+//     차이가 사라지면(포만) 0 으로 감쇠해 다음 욕구로 넘어간다. 욕구 절차가 appraise(ctx) 로 스스로 계산한다(개방).
+// 유효 우선순위 = 기본 우선순위 + 외생 감정 + 자율 감정(둘 다 [0,MAX] 클램프). 정수·결정론(순수 함수).
+export function desireWeight(priority, emotion, feeling = 0) {
+  const clamp = (v) => Math.max(0, Math.min(DESIRE_EMOTION_MAX, v | 0));
+  return priority + clamp(emotion) + clamp(feeling);
 }
+export const DESIRE_COMFORT_FRACTION = 0.5; // 잔고가 용량의 이 비율 이상이면 '편안' → 굶주림 감정 0(포만 → 감쇠 → 다음 욕구)
 
 // --- 요리(cook) (feature-0011) — 욕구를 상황에 맞게 절차적으로 수행하는 한 단계 ---
 // 밥(결정)이 날것(raw)이면 그대로 못 먹는다 → 먼저 **요리**(변형)해야 먹을 수 있다. 요리는 질서를 바꾸는

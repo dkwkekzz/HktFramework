@@ -160,8 +160,9 @@ test('방송 — CREATURE 스냅샷이 승자 욕망 + 중첩 스택(우선순�
   assert.equal(desire, DESIRE.EAT, '승자 욕망(감정 실린 식사)이 실린다');
   assert.equal(owner, s.player.id, '제어자가 실린다');
   assert.equal(desires.length, 2, '중첩 스택 두 욕구가 실린다');
-  assert.deepEqual(desires[0], [DESIRE.EAT, 1, 5], '스택은 유효 우선순위 내림차순 — 감정 실린 식사가 맨 위');
-  assert.equal(desireWeight(desires[0][1], desires[0][2]), 6, '식사 유효 우선순위 = 1+5');
+  assert.deepEqual(desires[0].slice(0, 3), [DESIRE.EAT, 1, 5], '스택은 유효 우선순위 내림차순 — 감정 실린 식사가 맨 위');
+  assert.equal(desires[0][3], 0, '편안(잘 먹은)하면 자율 감정(feeling)은 0');
+  assert.equal(desireWeight(desires[0][1], desires[0][2], desires[0][3]), 6, '식사 유효 우선순위 = 1+5+0');
 });
 
 test('결정론 — 같은 배치/주입열이면 우선순위 수행이 비트 단위로 동일하다', () => {

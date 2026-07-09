@@ -15,11 +15,12 @@
 // ctx 계약 (game.js #desireCtx 가 구현):
 //   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP (도달 사거리)
 //   지각:  nearestCrystal({edibleOnly}?) · nearestPrey() · ownerPos() · inReach(target, radius) · edible(crystal)
+//          capacity() · balance() — 자기 상태(용량·잔고). appraise(ctx) 가 굶주림 같은 '차이'를 읽는다(feature-0012).
 //   행동:  moveToward(target, stop) · eat(crystal) · cook(crystal) · strike(prey) · dissipate(amount, cause)
 //          (모든 행동은 에너지를 이동/방출한다 = ledger.transfer)
 // ============================================================================
 
-import { DESIRE } from './constants.js';
+import { DESIRE, DESIRE_EMOTION_MAX, DESIRE_COMFORT_FRACTION } from './constants.js';
 
 // 욕구 이름 → { label, release, steps:[{name, applicable(ctx), act(ctx)}] }
 export const DESIRE_PROCEDURES = {};
@@ -81,9 +82,23 @@ const leashOwner = {
   act: (x) => { const o = x.ownerPos(); if (o) x.moveToward(o, x.LEASH_STOP); },
 };
 
-// --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사) -------------------
+// --- 자율 감정(appraise) — 상황(차이)이 스스로 만드는 중요도 (feature-0012 step2) ------------
+//   "차이는 신호". 욕구 절차는 appraise(ctx) 로 지금 이 상황이 그 욕구를 얼마나 중요하게 느끼는지(feeling)를
+//   스스로 계산한다. 오직 ctx 만 쓰므로(개방 경계) 어떤 욕구든 자기 감정을 정의할 수 있다. 엔진은 이름을 모른다.
+
+// 굶주림 감정 — 잔고가 편안 임계(용량의 절반) 아래로 떨어질수록(=차이가 클수록) 오른다. 편안하면 0(포만 →
+//   감정 감쇠 → 다음 욕구로). 식사·채집이 공유한다: 굶주리면 먹는 욕구의 중요도가 스스로 치솟는다.
+function hungerFeeling(x) {
+  const cap = x.capacity(), bal = x.balance();
+  const comfort = DESIRE_COMFORT_FRACTION * cap;
+  if (bal >= comfort || comfort <= 0) return 0;
+  return Math.round(DESIRE_EMOTION_MAX * (comfort - bal) / comfort); // 차이(굶주림)에 비례 (0..MAX)
+}
+
+// --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사 + feature-0012 자율 감정) ----------
 //   release = 그 욕구가 주로 방출하는 형태(라벨·문서용). "욕구에 따라 방출 형태가 다르다".
+//   appraise = 상황이 스스로 만드는 감정(feeling). 없으면 그 욕구의 중요도는 외생(priority+emotion)만으로 정해진다.
 registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', steps: [leashOwner] });
-registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach] });
-registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach] });
-registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] });
+registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
+registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
+registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다

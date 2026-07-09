@@ -324,11 +324,13 @@ export class Render {
       const stack = (cre.desires && cre.desires.length) ? cre.desires
         : (desire && desire !== 'none' ? [[desire, 1, 0]] : []);
       for (let i = 0; i < stack.length; i++) {
-        const [name, , emotion = 0] = stack[i];
+        const [name, , emotion = 0, feeling = 0] = stack[i];
         const top = i === 0;
         const base = name === 'hunt' ? '#e6785a' : name === 'eat' ? '#f0b45a' : name === 'forage' ? '#78dc96' : '#9fb4c8';
         ctx.fillStyle = top ? (mine ? '#ffd76e' : base) : `${base}88`; // 승자는 선명, 나머지는 반투명
-        const heart = emotion > 0 ? ' ' + '♥'.repeat(Math.min(3, Math.ceil(emotion / 20))) : '';
+        // 중요도(감정) = 외생 emotion + 자율 feeling(굶주림 등 상황이 스스로 만든 감정, feature-0012 step2). ♥ 개수로.
+        const importance = emotion + feeling;
+        const heart = importance > 0 ? ' ' + '♥'.repeat(Math.min(3, Math.ceil(importance / 30))) : '';
         ctx.fillText(`${top ? '▸' : '·'} ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, p.sy - r - 22 - i * 12);
       }
       ctx.textAlign = 'left';
