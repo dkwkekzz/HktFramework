@@ -340,7 +340,16 @@
 		if (!bones.length) object3d.traverse((o) => { if (o.isSkinnedMesh) bones = o.skeleton.bones; });
 		this.bones = bones;
 		// 스케일 정규화(Mixamo 100배) + 중심 재배치 + 발 높이 — hikito-flesh 와 동일 정식
-		const box = new THREE.Box3().setFromObject(object3d);
+		let box = new THREE.Box3().setFromObject(object3d);
+		// 애니메이션-only FBX(스킨 메시 없음)는 위 박스가 비어(뼈 = 지오메트리 없음) size.y=0 →
+		// scale 폭주로 캐릭터가 화면 밖으로 날아간다. 뼈 world 위치로 바운드를 다시 잡는다
+		// (rig-agnostic: 메시 유무와 무관하게 동작 — Mixamo "without skin" 클립도 정규화 정상).
+		if (box.isEmpty()) {
+			object3d.updateMatrixWorld(true);
+			box = new THREE.Box3();
+			const wp = new THREE.Vector3();
+			for (const b of bones) { b.getWorldPosition(wp); box.expandByPoint(wp); }
+		}
 		const size = new THREE.Vector3();
 		box.getSize(size);
 		this.scale = 1.7 / Math.max(size.y, 1e-3);

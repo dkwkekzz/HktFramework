@@ -12,8 +12,8 @@ HktSplatGenesis 에서 갈라져 나온 **생명(캐릭터=동적)** 단독 프�
 
 Chrome/Edge 113+ (WebGPU) 필요. 좌드래그 회전 · 우/Shift드래그 이동 · 휠 줌. 프리셋 버튼으로
 불의 정령·나무·슬라임·물·골렘·히키토를 배양한다(히키토는 built-in FK 뼈대 위에 살이 자란다).
-**외부 FBX**(Mixamo 등)를 드롭하거나 「샘플 FBX (삼바)」 버튼으로 로드하면 히키토 살이 그 클립을
-따라 움직인다 — 「내장 스켈레톤」으로 언제든 복귀.
+**외부 FBX**(Mixamo 등)를 드롭하거나 로코모션 샘플 버튼(걷기·뛰기·대기·점프·공격·삼바)으로
+로드하면 히키토 살이 그 클립을 따라 움직인다 — 「내장 스켈레톤」으로 언제든 복귀.
 
 ## 구조
 
@@ -26,7 +26,7 @@ Chrome/Edge 113+ (WebGPU) 필요. 좌드래그 회전 · 우/Shift드래그 이�
 | `js/heightfield.js` | 시뮬 바닥(외부 지형 입력) — 단독 데모에선 평면 |
 | `js/life-app.js` | 부트/루프 드라이버 (무대·조정층 없음) + FBX 드롭/샘플 UI |
 | `vendor/` | three r147 UMD + FBXLoader + fflate — **FBX 파싱/FK 입력 전용** |
-| `assets/anim/samba.fbx` | 동봉 샘플 FBX (three.js r147 예제, Mixamo 삼바 댄스) |
+| `assets/anim/*.fbx` | 동봉 로코모션 샘플 (Mixamo): 걷기·뛰기·대기·점프·공격·삼바 |
 
 **외부 FBX 리그**: `ExternalSkeleton`(rig-agnostic 이름 문법)이 Mixamo FBX 를 파싱해 뼈대를 구동한다.
 three(r147)는 FBX 파싱/FK 입력만 담당 — 렌더·시뮬은 여전히 자체 WebGPU(절대 원칙 불변). built-in

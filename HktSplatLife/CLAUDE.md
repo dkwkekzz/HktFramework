@@ -38,8 +38,10 @@
 - **WebGPU 전용** — 무대(Spark)·렌더 조정층(director) 코드 없음.
 - **외부 FBX 리그 지원** — Mixamo FBX 를 드롭/샘플 로드하면 살(히키토)의 뼈대를 그 클립이
   구동한다(built-in 스켈레톤은 기본값·폴백). `vendor/`(three r147 UMD + FBXLoader + fflate)는
-  **FBX 파싱/FK 입력 전용** — 렌더·시뮬은 여전히 자체 WebGPU(절대 원칙 불변). 동봉 샘플:
-  `assets/anim/samba.fbx`(three.js r147 예제, Mixamo). 검증: `test/fbx-shot.js`.
+  **FBX 파싱/FK 입력 전용** — 렌더·시뮬은 여전히 자체 WebGPU(절대 원칙 불변). 동봉 로코모션
+  샘플: `assets/anim/{walk,run,idle,jump,attack,samba}.fbx`(Mixamo). 검증: `test/fbx-shot.js`.
+  주의: 애니메이션-only FBX(스킨 메시 없음)는 `ExternalSkeleton` 이 뼈 world 위치로 바운드를
+  잡아 정규화한다 — `Box3.setFromObject` 만 쓰면 size.y=0 → scale 폭주로 화면 밖으로 날아간다.
 - 무-빌드 classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/
   `HktGenesisSkeleton` 등), 빌드 스텝 없음, 주석 한국어.
 - 튜닝 노브는 하드코딩 금지 — 게놈 슬라이더(`GENE_DEFS`)로 노출 (UE CVar 관례의 웹 대응).

@@ -123,13 +123,24 @@
 			applyPreset(lastPreset); refreshClips();
 			setStatus('내장 스켈레톤 (built-in FK).');
 		});
-		document.getElementById('fbxSample').addEventListener('click', async () => {
-			setStatus('샘플 FBX 로드 중…');
+		// 동봉 로코모션 샘플 (Mixamo, assets/anim/). 라벨=한글, 파일=영문.
+		const FBX_SAMPLES = [
+			['걷기', 'walk'], ['뛰기', 'run'], ['대기', 'idle'],
+			['점프', 'jump'], ['공격', 'attack'], ['삼바', 'samba'],
+		];
+		async function loadSample(file, label) {
+			setStatus(`샘플 로드 중… (${label})`);
 			try {
-				const buf = await (await fetch('assets/anim/samba.fbx')).arrayBuffer();
-				loadFBXBuffer(buf, 'samba.fbx');
-			} catch (e) { setStatus('샘플 로드 실패: ' + e.message); }
-		});
+				const buf = await (await fetch(`assets/anim/${file}.fbx`)).arrayBuffer();
+				loadFBXBuffer(buf, `${file}.fbx`);
+			} catch (e) { setStatus(`샘플 로드 실패(${label}): ` + e.message); }
+		}
+		const sbox = document.getElementById('fbxSamples');
+		for (const [label, file] of FBX_SAMPLES) {
+			const b = document.createElement('button'); b.textContent = label;
+			b.addEventListener('click', () => loadSample(file, label));
+			sbox.appendChild(b);
+		}
 
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;

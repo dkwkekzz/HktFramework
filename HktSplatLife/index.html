@@ -42,10 +42,8 @@
 	<!-- 외부 FBX 리그: 살(히키토)의 뼈대를 Mixamo FBX 클립으로 구동한다.
 	     three(r147) 는 FBX 파싱/FK 입력만 담당 — 렌더·시뮬은 여전히 자체 WebGPU. -->
 	<div id="fbx">
-		<div class="row">
-			<button id="fbxSample">샘플 FBX (삼바)</button>
-			<button id="fbxBuiltin">내장 스켈레톤</button>
-		</div>
+		<div id="fbxSamples" class="row"></div>
+		<div class="row"><button id="fbxBuiltin">내장 스켈레톤</button></div>
 		<div id="drop">FBX 파일을 드롭 (Mixamo → Download → FBX)</div>
 		<input type="file" id="fbxFile" accept=".fbx" style="display: none">
 		<div id="clips"></div>
