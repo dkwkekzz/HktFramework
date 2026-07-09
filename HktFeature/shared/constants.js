@@ -118,6 +118,44 @@ export const CREATURE_GROWTH_THRESHOLD = 300;        // 성장 문턱 — 흑자
 export const CREATURE_HARVEST_RADIUS = 300;    // 이 반경 안의 결정을 채집한다(px) — 정적 질서가 풀리는 근접 거리
 export const CREATURE_HARVEST_RATE = 40;       // 매 대사 틱 결정에서 흡수하는 최대량(size 비례) — 확산 갈구(5)보다 훨씬 크다(농축=증폭)
 
+// feature-0007 step2 — 종별 효과: 아이템(결정)의 종(species)에 따라 채집이 다르게 작용한다.
+//   "아이템은 나의 에너지에 영향을 줄 수 있는 형태" — 같은 잔고의 결정이라도 종마다 흡수 배율(증폭 세기)이 다르다.
+//   순수 클램프·결정론(rng 미사용) — 배율은 종에서 결정론적으로 유도한다(색과 같은 씨앗). 종별 색 옥타가
+//   곧 "어떤 아이템인지"의 표식이 되고, 고효율 종 곁의 생명체는 같은 결정을 더 크게 들이켜 빨리 성장한다.
+export const CREATURE_HARVEST_YIELD = [3, 1, 2, 1, 2, 3, 1, 2, 1, 3, 2, 1]; // 종별 흡수 배율(길이=CRYSTAL_SPECIES_COUNT)
+
+// 결정 종 → 채집 흡수 배율. 종을 CRYSTAL_SPECIES_COUNT 로 감싸 항상 유효 범위. (feature-0007 step2)
+export function crystalYield(species) {
+  const n = CRYSTAL_SPECIES_COUNT;
+  return CREATURE_HARVEST_YIELD[((species % n) + n) % n] ?? 1;
+}
+
+// --- 발산·전투 = 포식(predation) (feature-0008) — 저항하는 저엔트로피 섬에서 뜯어내는 흡수 ---
+// forage(국소장)·harvest(결정)는 수동적 저장고에서 긁는다. 생명체는 능동적으로 질서를 유지하므로,
+// 그 에너지를 뺏으려면 먼저 그 질서를 무너뜨려야 하고 무질서를 만드는 일에는 비용이 든다(발산). 그래서
+// "채집"이 아니라 "전투"로 보인다 — 대상이 저항하기 때문일 뿐, 물리적으로는 세 번째 free energy 수입이다.
+//   회계(전부 ledger.transfer → 보존): ① 발산 비용 A→SINK(질서 깨는 일 = 열) ② 상대 질서 붕괴 damage
+//   ③ 손실적 회수 — damage 중 CAPTURE_PCT 만 A 로(강탈), 나머지는 국소장으로 흩어진다(못 붙잡은 몫).
+//   효율<1 이라 A 가 얻는 것 < victim 이 잃는 것 = 열역학적으로 정직(2법칙). 생태학의 영양 전달 ~10% 법칙의
+//   결 — 포식으로 무한히 커질 수 없다(먹이사슬이 짧아지는 창발적 상한). 결정론(rng 미사용, 순수 클램프).
+export const CREATURE_ATTACK_INTERVAL_TICKS = 2;  // 발산(전투) 판정 주기 — 이따금 터지는 근접전(대사보다 느슨)
+export const CREATURE_ATTACK_RADIUS = 200;        // 근접 사거리(px) — 채집(300)·반응(400)보다 가깝다(밀착 포식)
+export const CREATURE_ATTACK_POWER = 40;          // 한 번의 발산이 무너뜨리는 상대 질서(×attacker size)
+export const CREATURE_ATTACK_COST = 6;            // 발산 비용 = 질서를 깨는 일(×attacker size) → SINK(열, 되돌아오지 않음)
+export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡는 비율(효율<1) — 나머지는 국소장으로 흩어진다
+
+// --- 발산·파괴 = 방출형 (feature-0009) — 회수 없는 원거리 파괴 ---
+// 강탈(feature-0008)이 표적 에너지를 커플링해 일부 포획(수입)하는 것이라면, 방출은 표적의 질서를 *파괴만* 한다 —
+// 붕괴 에너지가 캐스터가 아니라 세계(심우주 열 + 국소장 연기)로 흩어진다. 캐스터는 순수 지출(먹지 않음). 그래서
+// "내가 얻는가"가 곧 검증 명제 — 강탈은 내가 크고, 방출은 내가 줄 뿐이다. 표적은 **먹을 수 없는 상대**(size ≥
+// 자신) — 강탈(먹이=size<)과 겹치지 않게 갈랐다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다
+// (포식의 한계를 뚫는 값비싼 반격). 세게 맞은 표적은 완전 연소(잔해 결정조차 없이 전소). 결정론(rng 미사용).
+export const DISCHARGE_INTERVAL_TICKS = 4;   // 방출 판정 주기 — 폭발적이라 강탈(2)보다 뜸하다
+export const DISCHARGE_RADIUS = 500;         // 원거리 사거리(px) — 근접 강탈(200)보다 길다(투사체)
+export const DISCHARGE_POWER = 70;           // 한 발이 파괴하는 표적 질서(×caster size) — 순간 파괴는 강탈보다 크다
+export const DISCHARGE_COST = 20;            // 발산 비용(×caster size) → SINK. 강탈(6)보다 비싸다(회수 없는 순수 지출)
+export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 태우는 비율(열) — 나머지는 국소장(연기)
+
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
   if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도
@@ -149,6 +187,9 @@ export const CAUSE = {
   FORAGE: 'forage',     // 국소장 → 생명체 (갈구 — 세계의 흩어진 에너지를 흡수해 내부 질서를 보충, feature-0006)
   METABOLIZE: 'metabolize', // 생명체 → 심우주 (물질대사 — 살아있음의 엔트로피 세금, 되돌아오지 않는 손실, feature-0006)
   HARVEST: 'harvest',   // 결정 → 생명체 (채집 — 근접 결정의 농축 에너지를 흡수, 정적 질서를 푼다, feature-0007)
+  ATTACK: 'attack',     // 생명체 → 생명체 / 생명체 → 국소장 (강탈=포식: 붕괴 에너지의 손실적 회수·흩어짐, feature-0008)
+  BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008·0009 공용)
+  DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

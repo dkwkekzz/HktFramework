@@ -30,7 +30,10 @@ import {
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
-  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE,
+  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
+  CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
+  CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
+  DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -284,6 +287,18 @@ export class GameServer {
     if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#react();
     }
+    // feature-0008 발산·전투(포식) — 큰 생명체가 사거리 안 더 작은 생명체를 공격해 그 질서를 무너뜨리고
+    //   풀려난 에너지를 손실적으로 회수한다(강탈). 대사 앞에 돌린다 — 이번 틱에 뺏긴 먹이는 곧이어 대사
+    //   순환에서 예비 아래로 떨어지면 죽어 분해된다(전투사 → 결정, 생태 루프). 순수 클램프(결정론 불변).
+    if (this.tickCount % CREATURE_ATTACK_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#combat();
+    }
+    // feature-0009 발산·파괴(방출) — 사거리 안 크기 무관 표적에 발산해 그 질서를 파괴한다(회수 없음 = 캐스터로
+    //   안 돌아옴, 표적 에너지는 심우주 열·국소장 연기로 흩어짐). 전투(강탈) 뒤에 돌린다 — 먹지 못한 상대를
+    //   원거리에서 태워 없애는 다른 원리. 세게 맞으면 완전 연소(잔해 없이 전소). 순수 클램프(결정론 불변).
+    if (this.tickCount % DISCHARGE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#discharge();
+    }
     // feature-0006 생명체 대사 — 각 생명체가 스스로 국소장을 갈구해 질서를 보충하고(field→생명체),
     //   살아있음의 비용을 심우주로 방출하며(생명체→SINK), 그래도 최소 예비 아래로 떨어지면 죽는다(분해).
     //   확산·석출 뒤에 돌린다 — 세계의 에너지가 흩어져 자리 잡은 뒤 그 자리에서 갈구한다.
@@ -419,6 +434,93 @@ export class GameServer {
     this.ledger.removePool(id);
   }
 
+  // 발산·전투 = 포식 — feature-0008. forage(국소장)·harvest(결정)가 수동적 저장고를 긁는 것이라면, 강탈은
+  //   능동적으로 질서를 유지하는 다른 생명체에서 뜯어내는 세 번째 free energy 수입이다. 상대가 저항하므로
+  //   (1) 먼저 일을 들여 그 질서를 무너뜨려야 하고(발산 비용 → 열/SINK), (2) 붕괴로 풀려난 에너지도 전부는
+  //   못 붙잡는다(효율<1, 나머지는 국소장으로 흩어짐) — 그래서 얻는 것 < 뺏는 것(2법칙·생태학 ~10% 법칙).
+  //   포식 규칙: 각 생명체는 사거리 안에서 **자기보다 작은(size<)** 가장 가까운 먹이 하나를 친다(강자→약자).
+  //   결정론: seq 오름차순으로 훑고 순수 클램프(rng 미사용) — 확산·성장 결정론 불변. 전부 ledger.transfer → 보존.
+  #combat() {
+    const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
+    for (const A of list) {
+      if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
+      const cost = CREATURE_ATTACK_COST * A.size;
+      // 발산할 예비가 없으면(비용+최소 예비 미만) 공격하지 않는다 — 굶주린 개체는 사냥할 여력이 없다.
+      if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
+      // 사거리 안, 나보다 작은(포식 대상) 잔고 있는 가장 가까운 먹이
+      let prey = null, bestD = Infinity;
+      for (const V of this.creatures.values()) {
+        if (V.id === A.id || V.size >= A.size) continue;        // 포식 = 더 작은 것만(강자→약자)
+        if (this.ledger.balance(V.id) <= 0) continue;
+        const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
+        if (d <= CREATURE_ATTACK_RADIUS && d < bestD) { prey = V; bestD = d; }
+      }
+      if (!prey) continue;
+      // ① 발산 비용 — 상대 질서를 깨는 일. 되돌아오지 않는 열로 심우주에 지불(엔트로피 화살).
+      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
+      // ② 상대 질서 붕괴 — damage 만큼 먹이의 유지된 에너지가 풀려난다(먹이 잔고로 클램프).
+      const damage = Math.min(CREATURE_ATTACK_POWER * A.size, this.ledger.balance(prey.id));
+      if (damage <= 0) continue;
+      // ③ 손실적 회수(강탈) — 풀려난 damage 중 CAPTURE_PCT 만 A 로(용량 클램프), 못 붙잡은 몫은 국소장으로 흩어진다.
+      const capture = Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100);
+      const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0;
+      const scatter = damage - got; // 회수 못 한 전부(효율 손실 + 용량 초과분) = 세계로 방출
+      if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
+    }
+  }
+
+  // 발산·파괴 = 방출 — feature-0009. 강탈(포식)이 표적 에너지를 커플링해 일부 포획하는 것이라면, 방출은
+  //   표적의 질서를 *파괴만* 한다 — 붕괴 에너지가 캐스터가 아니라 세계(심우주 열 + 국소장 연기)로 흩어진다.
+  //   그래서 캐스터는 순수 지출(먹지 않음). 표적 규칙: 사거리(길다) 안 **먹을 수 없는 상대**(size ≥ 자신) —
+  //   강탈(먹이=size<)과 겹치지 않게 갈랐다. 못 먹는 강자·동급이 방출 대상. 결정론: seq 오름차순 + 순수 클램프.
+  #discharge() {
+    const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
+    for (const A of list) {
+      if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
+      const cost = DISCHARGE_COST * A.size;
+      // 발산할 예비가 없으면(비용+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
+      if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
+      // 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나 — 못 먹으니 태운다.
+      //   강탈(강자→약자, size<)과 방출(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
+      //   있으면 강탈해 먹고, 못 먹으면 방출로 부순다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다.
+      let target = null, bestD = Infinity;
+      for (const V of this.creatures.values()) {
+        if (V.id === A.id || V.size < A.size) continue; // 더 작은 것(=먹이)은 강탈 몫 — 방출 대상 아님
+        if (this.ledger.balance(V.id) <= 0) continue;
+        const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
+        if (d <= DISCHARGE_RADIUS && d < bestD) { target = V; bestD = d; }
+      }
+      if (!target) continue;
+      // ① 발산 비용 — 투사체를 만드는 폭발적 소모. 되돌아오지 않는 열로 심우주에 지불.
+      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
+      // ② 파괴 damage — 표적 질서가 무너진다(표적 잔고로 클램프).
+      const damage = Math.min(DISCHARGE_POWER * A.size, this.ledger.balance(target.id));
+      if (damage <= 0) continue;
+      // ③ 회수 없는 분산 — 붕괴 에너지를 심우주(열)+국소장(연기)로 흩는다. 어느 것도 캐스터로 안 간다(강탈과의 대비).
+      this.#dissipate(target, damage);
+      // ④ 완전 연소 — 예비 아래로 떨어졌으면 그 자리서 전소(남은 전부 열+연기로, 잔해 결정 없음 = #decompose 안 씀).
+      if (this.ledger.balance(target.id) < CREATURE_DEATH_THRESHOLD * target.size) this.#incinerate(target);
+    }
+  }
+
+  // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0009. BURN_PCT 는 심우주(열)로 태우고, 나머지는 그 자리
+  //   국소장(연기)으로. 캐스터로는 한 푼도 가지 않는다 — 이것이 파괴(방출)와 포획(강탈)을 가르는 지점이다.
+  #dissipate(V, amount) {
+    const burn = Math.floor(amount * DISCHARGE_BURN_PCT / 100);
+    if (burn > 0) this.#tx(V.id, POOL.SINK, burn, CAUSE.DISCHARGE, { x: V.x, y: V.y });        // 열 → 심우주
+    const smoke = amount - burn;
+    if (smoke > 0) this.#tx(V.id, materialKey(V.x, V.y, V.z), smoke, CAUSE.DISCHARGE, { x: V.x, y: V.y }); // 연기 → 국소장
+  }
+
+  // 완전 연소 — feature-0009. 방출로 예비가 무너진 표적을 그 자리서 전소시킨다: 남은 에너지까지 열+연기로 흩고
+  //   레지스트리·원장에서 제거한다. 잔해 결정을 남기지 않는다(#decompose 와 다른 죽음 — 굶주림/포식=결정, 전소=무).
+  #incinerate(V) {
+    const rest = this.ledger.balance(V.id);
+    if (rest > 0) this.#dissipate(V, rest); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
+    this.ledger.removePool(V.id);
+    this.creatures.delete(V.id);
+  }
+
   // 생명체 대사 — feature-0006. 각 생명체가 한 대사 틱에 스스로 도는 항상성 순환:
   //   ① 갈구(forage): 그 자리 국소장에서 최대 FORAGE_RATE 를 흡수한다(field→생명체, 용량·잔고로 클램프).
   //      세계에 에너지가 있으면 채워지고, 없으면 못 채운다 — "세계로부터 에너지를 갈구한다".
@@ -445,6 +547,8 @@ export class GameServer {
   //   정적·면역(feature-0005)이지만 생명이 가까이 오면 그 정적 질서가 풀린다 — feature-0005 step5(상호작용)를
   //   생명 쪽에서 구현한 것. 흡수량은 size 비례·용량으로 클램프(배부르면 못 먹는다). 다 먹힌 결정은 소멸한다.
   //   확산 갈구(옅은 에너지)와 달리 결정은 뭉친 에너지라 크게 들이켠다 = 증폭. tx 에 at 을 실어 근처 시야에 방송.
+  //   feature-0007 step2 — 종별 효과: 흡수 배율이 결정 종(species)에 따라 다르다(crystalYield). 같은 잔고라도
+  //   고효율 종은 더 크게 들이켜(빠른 성장), 저효율 종은 천천히 — "아이템이 나의 에너지에 영향을 준다".
   #harvestNearbyCrystal(cre) {
     let best = null, bestD = Infinity;
     for (const c of this.crystals.values()) {
@@ -453,7 +557,8 @@ export class GameServer {
       if (d <= CREATURE_HARVEST_RADIUS && d < bestD) { best = c; bestD = d; }
     }
     if (!best) return;
-    const got = this.#tx(best.id, cre.id, CREATURE_HARVEST_RATE * cre.size, CAUSE.HARVEST, { x: cre.x, y: cre.y });
+    const want = CREATURE_HARVEST_RATE * cre.size * crystalYield(best.species); // 종별 흡수 배율 = 아이템 효과
+    const got = this.#tx(best.id, cre.id, want, CAUSE.HARVEST, { x: cre.x, y: cre.y });
     if (got > 0 && this.ledger.balance(best.id) === 0) this.#removeCrystal(best.id); // 다 먹힌 결정은 소멸
   }
 
