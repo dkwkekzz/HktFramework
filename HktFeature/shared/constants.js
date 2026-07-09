@@ -215,6 +215,10 @@ export const CRAFT_BURN_PCT = 60;     // 제조 방출 중 심우주(열)로 가
 export const CRAFT_REACH = 300;       // 재료(조합 지점)에 이 거리 안이면 조합한다(px, 채집과 같은 근접)
 export const CRAFT_PAIR_RADIUS = 220; // 두 재료가 이 거리 안이면 '조합 가능한 쌍'(px) — 붙어 있어야 합친다
 export function craftedSpecies(a, b) { return (a + b * 2 + 3) % CRYSTAL_SPECIES_COUNT; } // 산물 종(재료와 다르다, 결정론)
+// feature-0011 step2 — **다단계 제조**: 제조는 한 번으로 끝나지 않는다. 결정에 tier(단계)를 두어 같은 단계 둘을
+//   합쳐 한 단계 올린다: 재료(tier0) → 중간물(tier1) → 완성물(tier2). 절차(shared/desires.js)에 단계를 더 얹어
+//   (완성 먼저·중간 나중) 상황에 맞게 다단계로 수행한다 — feature-0011 의 "절차 깊이 확장". tier==MAX 는 완성(더 못 만듦).
+export const CRAFT_MAX_TIER = 2;      // 제조 최고 단계 — 0=재료 · 1=중간물 · 2=완성물(터미널)
 
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {

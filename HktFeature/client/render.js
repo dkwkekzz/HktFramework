@@ -184,13 +184,13 @@ export class Render {
     for (const c of state.crystals.values()) {
       if (c.balance <= 0) continue;
       const d = this.#toCam(cam, c.x, c.y, c.z)[2];
-      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, crafted: c.crafted, d });
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, crafted: c.crafted, tier: c.tier ?? 0, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw, m.crafted);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw, m.crafted, m.tier);
   }
 
-  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw, crafted) {
+  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw, crafted, tier = 0) {
     const { ctx } = this;
     const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
     const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
@@ -216,19 +216,19 @@ export class Render {
       ctx.stroke();
     }
     ctx.setLineDash([]);
-    // 제조 산물은 밝은 겹고리로 한 번 더 감싼다("가공된 결정" — 원석·날것과 구분).
+    // 제조 산물은 밝은 겹고리로 감싼다("가공된 결정"). 단계(tier)만큼 고리를 더 그린다 — 완성물(tier2)은 두 겹.
     if (crafted) {
       const c4 = P[4];
       ctx.strokeStyle = `hsla(${hue}, 95%, 88%, 0.9)`; ctx.lineWidth = 1;
-      ctx.beginPath(); ctx.arc(c4.sx, c4.sy, r * 0.5, 0, 7); ctx.stroke();
+      for (let k = 1; k <= tier; k++) { ctx.beginPath(); ctx.arc(c4.sx, c4.sy, r * (0.4 + 0.18 * k), 0, 7); ctx.stroke(); }
     }
-    // 잔고 라벨 (결정 위) — 날것이면 "날것", 제조 산물이면 "✦제조" 표식
+    // 잔고 라벨 (결정 위) — 날것=재료, 제조 산물은 단계별로 ✦중간(tier1)·✦✦완성(tier2) 표식(feature-0011 step2 다단계)
     const top = P[4];
     if (top) {
       ctx.fillStyle = `hsl(${hue}, ${raw ? 25 : 90}%, 88%)`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
-      const tag = crafted ? '✦제조 ' : raw ? '⋯날것 ' : '◆ ';
+      const tag = crafted ? (tier >= 2 ? '✦✦완성 ' : '✦중간 ') : raw ? '⋯재료 ' : '◆ ';
       ctx.fillText(`${tag}${bal.toLocaleString()}`, top.sx, top.sy - 6);
       ctx.textAlign = 'left';
     }

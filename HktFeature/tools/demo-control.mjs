@@ -77,6 +77,13 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     //   다가가 하나의 **산물**(✦제조, 선명·굵은 외곽)로 조합한다. 재료는 수동 반응에 면역이라 흩어지지 않는다.
     game.spawnRawFood(FOOD.x - 60, FOOD.y, FOOD.z, 2, 4500); // 재료 A (raw 유지)
     game.spawnRawFood(FOOD.x + 60, FOOD.y, FOOD.z, 7, 4500); // 재료 B (raw 유지, A 와 붙어 있음 = 조합 쌍)
+  } else if (scene === 'craftchain') {
+    // 다단계 제조 씬(feature-0011 step2) — 붙어 놓인 **재료 넷**. 제조 욕구가 재료 둘씩 합쳐 **중간물 둘**을,
+    //   다시 그 둘을 합쳐 **완성물 하나**로 만든다(tier 0→1→2). 재료·산물 모두 수동 반응에 면역(안정 유지).
+    game.spawnRawFood(FOOD.x - 75, FOOD.y - 75, FOOD.z, 2, 3000);
+    game.spawnRawFood(FOOD.x + 75, FOOD.y - 75, FOOD.z, 5, 3000);
+    game.spawnRawFood(FOOD.x - 75, FOOD.y + 75, FOOD.z, 3, 3000);
+    game.spawnRawFood(FOOD.x + 75, FOOD.y + 75, FOOD.z, 8, 3000);
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -113,9 +120,9 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           return;
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
-        if (scene === 'craft') {
-          // 제조 욕구 하나 — 두 재료로 다가가 조합한다(찾기→조합). 조합의 일은 열+연기로 방출.
-          rear(cre, 1500); // 넉넉한 예비(제조 비용 지불)
+        if (scene === 'craft' || scene === 'craftchain') {
+          // 제조 욕구 하나 — 재료로 다가가 조합한다(찾기→조합, 다단계면 완성까지). 조합의 일은 열+연기로 방출.
+          rear(cre, 1800); // 넉넉한 예비(여러 번의 제조 비용 지불)
           game.setDesire(playerId, DESIRE.CRAFT);
           return;
         }

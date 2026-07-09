@@ -38,7 +38,7 @@ import {
   DESIRE, CREATURE_PURSUE_INTERVAL_TICKS, CREATURE_STRIDE, CREATURE_SEEK_RADIUS, CREATURE_LEASH_STOP,
   DESIRE_BASE_PRIORITY, DESIRE_EMOTION_MAX, desireWeight,
   COOK_COST, COOK_BURN_PCT, cookedSpecies,
-  CRAFT_COST, CRAFT_BURN_PCT, CRAFT_REACH, CRAFT_PAIR_RADIUS, craftedSpecies,
+  CRAFT_COST, CRAFT_BURN_PCT, CRAFT_REACH, CRAFT_PAIR_RADIUS, CRAFT_MAX_TIER, craftedSpecies,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -215,8 +215,9 @@ export class GameServer {
     const seq = ++this.crystalSeq;
     const cryId = `${POOL.CRYSTAL}${seq}`;
     this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
-    // crafted=제조 산물 표식(feature-0010 step2) — 기본 false. 제조로 조합된 결정만 true(재료로 재선택 안 됨·뷰어 구분).
-    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false });
+    // crafted=제조 산물 표식(feature-0010 step2) · tier=제조 단계(feature-0011 step2: 0=재료·1=중간물·2=완성물).
+    //   기본 crafted=false·tier=0. 제조로 조합될 때만 crafted=true 로 바뀌고 tier 가 한 단계 오른다.
+    this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false, tier: 0 });
     return cryId;
   }
 
@@ -490,7 +491,7 @@ export class GameServer {
   //   (한 틱에 각 결정 최대 1회 = 점진적). 같은 종 → 융합(반응열 없음), 다른 종 → 화합(반응열 방출).
   #react() {
     const crys = [...this.crystals.values()]
-      .filter(c => this.ledger.balance(c.id) > 0 && !c.raw) // 재료(raw, 미가공)는 반응에 면역 — 제조(feature-0010 step2)까지 안정 유지
+      .filter(c => this.ledger.balance(c.id) > 0 && !c.raw && !c.crafted) // 제조 결정(재료 raw·중간물/완성물 crafted)은 반응 면역 — 다단계 제조까지 안정(feature-0010·0011 step2)
       .sort((a, b) => a.seq - b.seq);
     const reacted = new Set();
     for (const A of crys) {
@@ -691,8 +692,8 @@ export class GameServer {
       cre,
       nearestCrystal: (opts) => self.#nearestCrystalFor(cre, opts),
       nearestPrey: () => self.#nearestPrey(cre),
-      craftPair: () => self.#craftPairFor(cre),                 // feature-0010 step2 — 조합 가능한 재료 쌍
-      craft: (a, b) => self.#craft(cre, a, b),                  // feature-0010 step2 — 두 재료를 산물로 조합(방출)
+      craftPair: (tier) => self.#craftPairFor(cre, tier),       // feature-0010·0011 step2 — 조합 가능한 (같은 단계) 쌍
+      craft: (a, b) => self.#craft(cre, a, b),                  // feature-0010·0011 step2 — 두 결정을 다음 단계 산물로 조합(방출)
       ownerPos: () => { if (!cre.owner) return null; const p = self.players.get(cre.owner); return p ? { x: p.x, y: p.y, z: p.z } : null; },
       inReach: (t, r) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z) <= r,
       edible: (c) => !c.raw,
@@ -744,27 +745,29 @@ export class GameServer {
     return paid;
   }
 
-  // 조합 가능한 재료 쌍 — feature-0010 step2. 감지 반경(SEEK) 안, 서로 CRAFT_PAIR_RADIUS 안에 **붙어 있는** 두
-  //   **재료(raw, 미가공)** 결정(아직 산물이 아님=crafted 아님). 재료는 수동 반응(#react)에 면역이라(inert) 쌍이
-  //   안정적으로 유지된다 — 생명체가 와서 조합할 때까지 흩어지지 않는다. 생명체에서 가까운 순으로 훑어 첫 쌍을
-  //   고른다(결정론: 거리→seq 정렬). 산물(crafted)은 재료로 다시 쓰지 않아 무한 재조합을 막는다.
-  #craftPairFor(cre) {
+  // 조합 가능한 재료 쌍 — feature-0010 step2 · **다단계** feature-0011 step2. 감지 반경(SEEK) 안, 서로
+  //   CRAFT_PAIR_RADIUS 안에 **붙어 있는** 두 **같은 단계(tier)** 의 제조 결정(재료 raw 또는 중간물 crafted, 단
+  //   tier<MAX). tier 를 주면 그 단계의 쌍만 찾는다(완성 먼저·중간 나중을 절차가 고른다). 제조 결정은 수동
+  //   반응(#react)에 면역이라 쌍이 안정 유지된다. 생명체에서 가까운 순(결정론: 거리→seq). 완성물(tier==MAX)은 제외.
+  #craftPairFor(cre, tier = null) {
     const mats = [...this.crystals.values()]
-      .filter(c => this.ledger.balance(c.id) > 0 && c.raw && !c.crafted && dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z) <= CREATURE_SEEK_RADIUS)
+      .filter(c => this.ledger.balance(c.id) > 0 && (c.raw || c.crafted) && c.tier < CRAFT_MAX_TIER && dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z) <= CREATURE_SEEK_RADIUS)
       .sort((a, b) => (dist3(cre.x, cre.y, cre.z, a.x, a.y, a.z) - dist3(cre.x, cre.y, cre.z, b.x, b.y, b.z)) || (a.seq - b.seq));
     for (const a of mats) {
+      if (tier !== null && a.tier !== tier) continue;
       for (const b of mats) {
-        if (b.id === a.id) continue;
+        if (b.id === a.id || b.tier !== a.tier) continue;                     // 같은 단계끼리만 조합
         if (dist3(a.x, a.y, a.z, b.x, b.y, b.z) <= CRAFT_PAIR_RADIUS) return { a, b };
       }
     }
     return null;
   }
 
-  // 제조(조합) — feature-0010 step2. 가까운 두 재료 결정을 하나의 **산물**로 합친다. **만드는 일**은 에너지를
-  //   방출한다: CRAFT_COST×size 를 열(심우주, BURN_PCT)+연기(국소장)로 흩는다(순수 지출, 회수 없음 = 요리·방출과
-  //   같은 결). b 를 a 로 전량 합치고(조합), a 를 산물로 변형한다: 종=craftedSpecies(재료와 다름), crafted=true(표식),
-  //   raw=false(사용 가능). 예비 없으면 못 만든다(굶주리면 제조 불가). 전부 ledger.transfer → 보존, rng 미사용 → 결정론.
+  // 제조(조합) — feature-0010 step2 · **다단계** feature-0011 step2. 같은 단계 두 결정을 하나의 **다음 단계 산물**로
+  //   합친다(재료+재료→중간물, 중간물+중간물→완성물). **만드는 일**은 에너지를 방출한다: CRAFT_COST×size 를
+  //   열(심우주, BURN_PCT)+연기(국소장)로 흩는다(순수 지출, 회수 없음 = 요리·방출과 같은 결). b 를 a 로 전량 합치고
+  //   (조합), a 를 산물로 변형한다: **tier 한 단계↑**, 종=craftedSpecies(재료와 다름), crafted=true(표식), raw=false.
+  //   예비 없으면 못 만든다(굶주리면 제조 불가). 전부 ledger.transfer → 보존, rng 미사용 → 결정론.
   #craft(cre, a, b) {
     if (this.ledger.balance(cre.id) <= CREATURE_DEATH_THRESHOLD * cre.size) return 0; // 굶주리면 제조 불가
     const cost = CRAFT_COST * cre.size;
@@ -773,6 +776,7 @@ export class GameServer {
                + this.#tx(cre.id, materialKey(cre.x, cre.y, cre.z), cost - burn, CAUSE.CRAFT, { x: cre.x, y: cre.y }); // 연기 → 국소장
     const balB = this.ledger.balance(b.id);
     if (balB > 0) this.#tx(b.id, a.id, balB, CAUSE.CRAFT, { x: a.x, y: a.y }); // 재료 b → 산물 a (조합, 보존)
+    a.tier = a.tier + 1;                                                       // 다음 단계로(같은 tier 끼리 합쳤으니 +1)
     a.species = craftedSpecies(a.species, b.species);
     a.crafted = true; a.raw = false;                                          // 산물 = 재료와 다른 종·사용 가능
     this.#removeCrystal(b.id);                                                // 소진된 재료 소멸(잔고 0)
@@ -901,7 +905,7 @@ export class GameServer {
     const crystalCells = broadcastField
       ? [...this.crystals.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0]); // raw=날것(feature-0011)·crafted=제조 산물(feature-0010 step2)
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier]); // raw=날것·crafted=제조 산물·tier=제조 단계(feature-0011 step2)
           return acc;
         }, [])
       : null;

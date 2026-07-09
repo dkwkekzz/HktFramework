@@ -121,8 +121,8 @@ export class ClientState {
   //   방송에 없는(=사라진) 결정은 미러에서 지운다 — 반응·채집으로 소멸한 결정이 유령으로 남지 않게(후속 step 대비).
   #onCrystal(msg) {
     const seen = new Set();
-    for (const [seq, x, y, z, balance, species, raw, crafted] of msg.cells) {
-      this.crystals.set(seq, { x, y, z, balance, species, raw: !!raw, crafted: !!crafted }); // raw=날것(feature-0011)·crafted=제조 산물(feature-0010 step2)
+    for (const [seq, x, y, z, balance, species, raw, crafted, tier] of msg.cells) {
+      this.crystals.set(seq, { x, y, z, balance, species, raw: !!raw, crafted: !!crafted, tier: tier ?? 0 }); // raw=날것·crafted=산물·tier=제조 단계(feature-0011 step2)
       seen.add(seq);
     }
     for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
