@@ -9,9 +9,9 @@
 
 import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출' };
-// 욕망 라벨/색 (feature-0010) — 뷰어가 각 생명체 위에 그 동기를 적는다.
-const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출', cook: '요리' };
+// 욕구 라벨/색 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 적는다.
+const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
@@ -184,25 +184,28 @@ export class Render {
     for (const c of state.crystals.values()) {
       if (c.balance <= 0) continue;
       const d = this.#toCam(cam, c.x, c.y, c.z)[2];
-      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, d });
+      if (d > 1) marks.push({ x: c.x, y: c.y, z: c.z, t: c.balance / max, bal: c.balance, species: c.species, raw: c.raw, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species);
+    for (const m of marks) this.#crystalOcta(cam, m.x, m.y, m.z, m.t, m.bal, m.species, m.raw);
   }
 
-  #crystalOcta(cam, cx, cy, cz, t, bal, species) {
+  #crystalOcta(cam, cx, cy, cz, t, bal, species, raw) {
     const { ctx } = this;
     const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
     const hue = (species * 360 / 12) % 360;        // 종마다 다른 색상(생성 다양성)
-    this.#stick(cam, cx, cy, cz, `hsla(${hue},80%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
+    // 날것(raw)은 채도를 죽이고 점선 외곽으로 "아직 못 먹는 재료"로 구분한다(feature-0011). 요리되면 선명한 결정으로.
+    const sat = raw ? 20 : 85;
+    this.#stick(cam, cx, cy, cz, `hsla(${hue},${raw ? 15 : 80}%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
     const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
     const P = V.map(v => this.#pt(cam, v[0], v[1], v[2]));
     if (P.some(p => !p)) return;
     // 8 삼각면 (위쪽 4 + 아래쪽 4). 밝은 반투명 + 선명한 외곽선 → 고체 결정감.
     const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
-    ctx.fillStyle = `hsla(${hue}, 85%, ${58 + t * 20}%, ${0.34 + 0.4 * t})`;
-    ctx.strokeStyle = `hsla(${hue}, 95%, 82%, ${0.6 + 0.35 * t})`;
+    ctx.fillStyle = `hsla(${hue}, ${sat}%, ${58 + t * 20}%, ${(raw ? 0.18 : 0.34) + 0.4 * t})`;
+    ctx.strokeStyle = `hsla(${hue}, ${raw ? 30 : 95}%, 82%, ${0.6 + 0.35 * t})`;
     ctx.lineWidth = 1.5;
+    if (raw) ctx.setLineDash([4, 3]); // 날것 = 점선(미완성 느낌)
     for (const f of faces) {
       ctx.beginPath();
       ctx.moveTo(P[f[0]].sx, P[f[0]].sy);
@@ -212,13 +215,14 @@ export class Render {
       ctx.fill();
       ctx.stroke();
     }
-    // 잔고 라벨 (결정 위)
+    ctx.setLineDash([]);
+    // 잔고 라벨 (결정 위) — 날것이면 "날것" 표식
     const top = P[4];
     if (top) {
-      ctx.fillStyle = `hsl(${hue}, 90%, 88%)`;
+      ctx.fillStyle = `hsl(${hue}, ${raw ? 25 : 90}%, 88%)`;
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
-      ctx.fillText(`◆ ${bal.toLocaleString()}`, top.sx, top.sy - 6);
+      ctx.fillText(`${raw ? '⋯날것 ' : '◆ '}${bal.toLocaleString()}`, top.sx, top.sy - 6);
       ctx.textAlign = 'left';
     }
   }
@@ -245,12 +249,13 @@ export class Render {
   // 욕망 표적선 (feature-0010) — 욕망이 있는 생명체에서 그 표적(채집=결정·사냥=더 작은 생명체)까지 옅은 선.
   //   "이 생명체가 저것을 원해 저리로 간다"가 한눈에 보인다. 표적은 미러에서 유도(표시 전용, 서버 규칙 미러).
   #desireLink(cam, cre) {
-    if (cre.desire !== 'forage' && cre.desire !== 'hunt') return;
+    if (cre.desire !== 'forage' && cre.desire !== 'hunt' && cre.desire !== 'eat') return;
     const t = this.#desireTargetPos(cre);
     if (!t) return;
     const { ctx } = this;
     const mine = cre.owner && cre.owner === this.state.playerId;
-    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${mine ? 0.7 : 0.3})` : `rgba(120,220,150,${mine ? 0.7 : 0.3})`;
+    const a = mine ? 0.7 : 0.3;
+    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${a})` : cre.desire === 'eat' ? `rgba(240,180,90,${a})` : `rgba(120,220,150,${a})`;
     ctx.lineWidth = mine ? 2 : 1;
     ctx.setLineDash([4, 4]);
     this.#seg(cam, cre.x, cre.y, cre.z, t.x, t.y, t.z);
@@ -261,9 +266,10 @@ export class Render {
   //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (feature-0010)
   #desireTargetPos(cre) {
     let best = null, bestD = CREATURE_SEEK_RADIUS;
-    if (cre.desire === 'forage') {
+    if (cre.desire === 'forage' || cre.desire === 'eat') {
+      // 채집=먹을 수 있는 결정만 / 식사=날것이든 요리해 먹으니 아무 결정이나 (feature-0011)
       for (const c of this.state.crystals.values()) {
-        if (c.balance <= 0) continue;
+        if (c.balance <= 0 || (cre.desire === 'forage' && c.raw)) continue;
         const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
         if (d <= bestD) { best = c; bestD = d; }
       }
@@ -425,7 +431,7 @@ export class Render {
     if (mine) ctx.fillText(`❋ 내 생명체 ${'❋'.repeat(mine.size ?? 1)} E${mine.balance}`, 20, 88);
     else ctx.fillText(`❋ 내 생명체 (없음)`, 20, 88);
     ctx.fillStyle = '#8fd9a8';
-    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 0대기)`, 20, 104);
+    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 3식사 0대기)`, 20, 104);
 
     // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·생명체·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
@@ -473,7 +479,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD/방향키 이동 · R/F 상하 · 드래그 회전 · 휠 줌 · 1채집 2사냥 0대기', w - 14, this.h - 12);
+    ctx.fillText('WASD/방향키 이동 · R/F 상하 · 드래그 회전 · 휠 줌 · 1채집 2사냥 3식사 0대기', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }

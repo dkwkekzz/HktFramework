@@ -16,6 +16,7 @@
       transition: background .12s, border-color .12s; }
     #desirebar button:hover { background: #1a2334; }
     #desirebar button.active[data-desire="forage"] { background: #17492f; border-color: #78dc96; color: #b6f5cc; }
+    #desirebar button.active[data-desire="eat"]    { background: #4a3616; border-color: #f0b45a; color: #f7dcae; }
     #desirebar button.active[data-desire="hunt"]   { background: #4a2018; border-color: #e6785a; color: #f6c3b2; }
     #desirebar button.active[data-desire="none"]   { background: #3a3116; border-color: #ffd76e; color: #ffe9b0; }
     #desirebar kbd { color: #5f7285; font-size: 11px; }
@@ -27,6 +28,7 @@
     <span class="lbl">내 생명체 욕망 →</span>
     <button data-desire="forage">🌿 채집 <kbd>1</kbd></button>
     <button data-desire="hunt">⚔ 사냥 <kbd>2</kbd></button>
+    <button data-desire="eat">🍚 식사 <kbd>3</kbd></button>
     <button data-desire="none">✋ 대기 <kbd>0</kbd></button>
   </div>
   <canvas id="game" width="960" height="640"></canvas>

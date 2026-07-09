@@ -166,13 +166,22 @@ export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 �
 //   세우고 제조(craft) 등 새 표적은 후속 step 에서 얹는다. 순수 클램프(rng 미사용) → 확산·성장 결정론 불변.
 export const DESIRE = {
   NONE: 'none',       // 대기 — 자율 추적 없음. 소유 생명체는 주인 곁을 따른다(수동 이동=방향키의 목적지)
-  FORAGE: 'forage',   // 채집 — 가장 가까운 결정을 향한다(도달 시 흡수, feature-0007)
-  HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향한다(도달 시 포식, feature-0008)
+  FORAGE: 'forage',   // 채집 — 먹을 수 있는 결정만 향해 먹는다(날것은 못 다룬다, feature-0007)
+  HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향해 타격(포식, feature-0008)
+  EAT: 'eat',         // 식사 — 결정(밥)을 향하되 날것이면 먼저 요리(변형)한 뒤 먹는다(절차적, feature-0011)
 };
-export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 추적(이동) 판정 주기(틱) — 매 틱(부드러운 이동)
+export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
 export const CREATURE_SEEK_RADIUS = 900;         // 욕망의 표적을 감지하는 반경(px) — 무한 시야가 아니라 국소적 인지
 export const CREATURE_LEASH_STOP = 48;           // 소유 생명체가 주인 곁 이 거리 안이면 멈춘다(수동 추종의 도달 반경)
+
+// --- 요리(cook) (feature-0011) — 욕구를 상황에 맞게 절차적으로 수행하는 한 단계 ---
+// 밥(결정)이 날것(raw)이면 그대로 못 먹는다 → 먼저 **요리**(변형)해야 먹을 수 있다. 요리는 질서를 바꾸는
+//   일이라 **에너지를 방출한다**(열→심우주 + 연기→국소장). 이는 "욕구를 상황에 따라 절차적으로 수행하며,
+//   그 수행은 에너지를 필요로 하고 방출된다"의 구체 사례다. 욕구마다 방출 형태가 다르다(이동·요리·발산…).
+export const COOK_COST = 12;        // 한 번의 요리가 방출하는 일(×size) — 이동 소산보다 크고 발산 비용보다 작다
+export const COOK_BURN_PCT = 70;    // 요리 방출 중 심우주(열)로 가는 비율 — 나머지는 국소장(연기·냄새)
+export function cookedSpecies(species) { return (species + 1) % CRYSTAL_SPECIES_COUNT; } // 요리 = 종 변형(먹을 수 있게 + 색이 바뀐다)
 
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
@@ -208,6 +217,7 @@ export const CAUSE = {
   ATTACK: 'attack',     // 생명체 → 생명체 / 생명체 → 국소장 (강탈=포식: 붕괴 에너지의 손실적 회수·흩어짐, feature-0008)
   BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008·0009 공용)
   DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
+  COOK: 'cook',         // 생명체 → 심우주 / 생명체 → 국소장 (요리 = 날것을 먹을 수 있게 변형하는 일, 방출: 열+연기, feature-0011)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

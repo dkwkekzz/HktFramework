@@ -55,6 +55,7 @@ for (let k = 0; k < CLUSTERS; k++) {
   const pred = game.spawnCreature(cx, cy, cz);                                 // 자리 잡은 포식자(size2 선점)
   pred.size = 2; game.ledger.get(pred.id).max = 2_000;                         // 먹이(size1)보다 커야 강탈 성립
   game.ledger.transfer(POOL.SOURCE, materialKey(cx, cy, cz), 24_000, 'seed');  // 풍요 웅덩이 → 결정 석출 → 채집 → 성장(size↑)
+  game.spawnRawFood(cx + 160, cy - 60, cz, k % 12, 3_000);                     // 곁에 날것 밥(재료) — 식사 욕구가 요리해 먹는다(feature-0011)
   dens.push([cx, cy, cz]);
 }
 
@@ -93,6 +94,7 @@ setInterval(() => {
     const [cx, cy, cz] = dens[preyNo % dens.length]; preyNo++;                 // 한 서식지 곁에 먹이 하나
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대
     game.ledger.transfer(POOL.SOURCE, materialKey(cx + 120, cy + 40, cz), 1_500, 'seed');
+    game.spawnRawFood(cx + 160, cy - 60, cz, preyNo % 12, 2_500);              // 날것 밥 보충 — 식사 봇이 계속 요리·섭취(feature-0011)
   }
 }, 1000 / TICK_RATE);
 

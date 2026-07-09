@@ -1,9 +1,10 @@
 // ============================================================================
-// 시각 검증 (feature-0010) — 헤드리스 크로미움으로 제어 명제를 스크린샷으로 굳힌다.
+// 시각 검증 (feature-0010·0011) — 헤드리스 크로미움으로 욕구 절차를 스크린샷으로 굳힌다.
 //
-// 제어 데모 서버(tools/demo-control.mjs)를 띄우고, 실제 브라우저 뷰어(client/)를 열어
-// 세 시점을 캡처한다: ① 출발(생명체 서쪽, 결정 동쪽) ② 이동 중(표적선 따라 접근)
-// ③ 도달·채집(결정 잔고 감소 + tx 피드 [채집]). "욕망→이동→에너지"가 눈으로 확인된다.
+// 식사(EAT) 데모 서버(tools/demo-control.mjs)를 띄우고, 실제 브라우저 뷰어(client/)를 열어
+// 절차의 세 시점을 캡처한다: ① 출발(생명체와 날것 밥) ② 요리(다가가 날것을 변형 = tx [요리])
+// ③ 식사(요리한 밥을 먹어 잔고 상승 = tx [채집]). "욕구를 상황에 맞게 절차적으로 수행하며
+// 에너지를 방출한다"가 눈으로 확인된다(찾기→요리→먹기).
 //
 // 사용: npm run shot   (산출: tools/shots/control-*.png)
 // 필요: playwright-core(devDependency) + 사전 설치된 크로미움(클라우드 환경). 결과는 언제든 재현.
@@ -44,9 +45,9 @@ await canvas.hover();
 await page.mouse.wheel(0, 260); // 줌아웃 — 출발점·결정 양끝이 프레임에 든다
 
 const shots = [
-  { t: 700, name: 'control-1-start', note: '출발 — 내 생명체(금색 고리)와 채집 표적(결정)' },
-  { t: 1500, name: 'control-2-move', note: '이동 중 — 표적선 따라 결정으로 접근(이동=국소장 소산)' },
-  { t: 4000, name: 'control-3-harvest', note: '도달·채집 — 결정 흡수로 잔고 상승, tx [채집]' },
+  { t: 700, name: 'control-1-start', note: '출발 — 내 생명체(금색 고리)와 날것 밥(⋯점선). 욕구 ▸식사' },
+  { t: 2100, name: 'control-2-cook', note: '요리 — 밥에 다가가 날것을 변형(tx [요리] 생명체→심우주·국소장), 밥이 선명해짐' },
+  { t: 4200, name: 'control-3-eat', note: '식사 — 요리한 밥을 먹어 잔고 상승(tx [채집] 밥→생명체)' },
 ];
 let prev = 0;
 for (const s of shots) {
@@ -63,7 +64,7 @@ for (const s of shots) {
   });
   const d = info.cre && info.cry ? Math.round(Math.hypot(info.cre.x - info.cry.x, info.cre.y - info.cry.y, info.cre.z - info.cry.z)) : -1;
   console.log(`📸 ${s.name}.png — ${s.note}`);
-  console.log(`   생명체=(${info.cre?.x},${info.cre?.y}) 잔고 ${info.cre?.balance} · 결정 잔고 ${info.cry?.balance} · →결정 ${d}px · 총합 ${info.total?.toLocaleString()} · 심우주 ${info.sink?.toLocaleString()}`);
+  console.log(`   생명체=(${info.cre?.x},${info.cre?.y}) 잔고 ${info.cre?.balance} · 밥 잔고 ${info.cry?.balance} raw=${info.cry?.raw} · →밥 ${d}px · 총합 ${info.total?.toLocaleString()} · 심우주 ${info.sink?.toLocaleString()}`);
 }
 
 await browser.close();

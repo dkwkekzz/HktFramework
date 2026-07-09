@@ -18,19 +18,20 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from '../server/game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, POOL, DESIRE, materialKey } from '../shared/constants.js';
+import { TICK_RATE, DESIRE } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
 
-// 결정 자리와 생명체 시작 자리 — 월드 중심(카메라 표적)을 사이에 두고 대칭. 기본 카메라의 화면 가로축을
-//   따라 놓여 이동이 화면 가운데를 가로지르며 또렷이 보인다(≈707px 이동, 감지 반경 900 안). 결정은 복셀
-//   중심에 석출되므로 (750,1250)=복셀(1_2_2) 중심에 맞춰 둔다.
-const CRYSTAL = { x: 750, y: 1250, z: 625 };
+// 밥 자리와 생명체 시작 자리 — 월드 중심(카메라 표적)을 사이에 두고 대칭. 기본 카메라의 화면 가로축을
+//   따라 놓여 이동이 화면 가운데를 가로지르며 또렷이 보인다(≈707px 이동, 감지 반경 900 안).
+const FOOD = { x: 750, y: 1250, z: 625 };
 const CREATURE_START = { x: 1250, y: 750, z: 625 };
 
-// 데모 서버를 띄운다 — 깨끗한 무대(결정 하나 + 접속 시 제어 생명체 하나, 채집 욕망 자동).
-export function startDemoServer({ port = 8080 } = {}) {
+// 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
+//   scene 'eat'(기본, feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
+//   scene 'forage'(feature-0010): 먹을 수 있는 결정 하나 → 다가가 바로 먹는다.
+export function startDemoServer({ port = 8080, scene = 'eat' } = {}) {
   const httpServer = http.createServer(async (req, res) => {
     const pathname = req.url.split('?')[0];
     if (pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
@@ -45,18 +46,10 @@ export function startDemoServer({ port = 8080 } = {}) {
   });
 
   const game = new GameServer();
-  // 결정 하나를 석출시킨다 — 적게 시딩 + 짧게(3틱) 돌려 이웃 복셀이 과포화되지 않게(단일 결정). 그 뒤
-  //   ① 국소장을 얼리고(남은 필드를 비워 추가 석출·갈구원 제거 = 생명체는 오직 결정만 표적) ② 표적 복셀에서
-  //   벗어난 결정은 잔고를 비워(SINK) 유령을 없앤 뒤 ③ 표적 결정만 살찌운다(데모 내내 다 먹히지 않게).
-  game.ledger.transfer(POOL.SOURCE, materialKey(CRYSTAL.x, CRYSTAL.y, CRYSTAL.z), 4000, 'seed');
-  for (let i = 0; i < 3; i++) game.tick();
-  for (const id of game.materialKeys) { const b = game.ledger.balance(id); if (b > 0) game.ledger.transfer(id, POOL.SINK, b, 'freeze'); }
-  for (const c of game.crystals.values()) {
-    const near = Math.hypot(c.x - CRYSTAL.x, c.y - CRYSTAL.y, c.z - CRYSTAL.z) < 300;
-    const b = game.ledger.balance(c.id);
-    if (near) game.ledger.transfer(POOL.SOURCE, c.id, 6000, 'seed');        // 표적 결정 — 살찌운다
-    else if (b > 0) game.ledger.transfer(c.id, POOL.SINK, b, 'freeze');     // 곁가지 결정 — 비운다(표적 유일)
-  }
+  // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
+  const rawFood = scene === 'eat';
+  game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
+  if (!rawFood) for (const c of game.crystals.values()) c.raw = false; // 채집 씬 = 먹을 수 있는 결정
 
   const wss = new WebSocketServer({ server: httpServer });
   wss.on('connection', (socket) => {
@@ -68,7 +61,7 @@ export function startDemoServer({ port = 8080 } = {}) {
         const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
         playerId = player.id;
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
-        cre.desire = DESIRE.FORAGE; // 채집 욕망 자동 — 결정으로 이동해 흡수한다(제어 명제)
+        cre.desire = rawFood ? DESIRE.EAT : DESIRE.FORAGE; // 욕구 자동 — 밥으로 이동해 (요리하고) 먹는다
         return;
       }
       if (playerId !== null) game.onMessage(playerId, msg);

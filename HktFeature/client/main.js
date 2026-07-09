@@ -30,7 +30,7 @@ function setDesire(d) {
   for (const b of buttons) b.classList.toggle('active', b.dataset.desire === d); // 선택된 욕망 강조
 }
 for (const b of buttons) b.addEventListener('click', () => setDesire(b.dataset.desire));
-const DESIRE_KEY = { Digit1: 'forage', Digit2: 'hunt', Digit0: 'none', Backquote: 'none' };
+const DESIRE_KEY = { Digit1: 'forage', Digit2: 'hunt', Digit3: 'eat', Digit0: 'none', Backquote: 'none' };
 addEventListener('keydown', (e) => { const d = DESIRE_KEY[e.code]; if (d !== undefined) setDesire(d); });
 setDesire('none'); // 기본 = 대기(수동 이동), 버튼 초기 강조
 
