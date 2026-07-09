@@ -7,9 +7,11 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, POOL, fieldPhase } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
 const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출' };
+// 욕망 라벨/색 (feature-0010) — 뷰어가 각 생명체 위에 그 동기를 적는다.
+const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기' };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
@@ -235,13 +237,52 @@ export class Render {
       if (d > 1) marks.push({ ...c, d });
     }
     marks.sort((a, b) => b.d - a.d);
-    for (const m of marks) this.#creatureOrb(cam, m.x, m.y, m.z, m.balance, m.size ?? 1, m.d);
+    // 욕망 표적선 먼저(마커 아래 깔리게) — 각 제어 생명체가 무엇을 향하는지 보인다(제어=욕망→이동의 시각화).
+    for (const m of marks) this.#desireLink(cam, m);
+    for (const m of marks) this.#creatureOrb(cam, m, m.d);
   }
 
-  #creatureOrb(cam, cx, cy, cz, bal, size, depth) {
+  // 욕망 표적선 (feature-0010) — 욕망이 있는 생명체에서 그 표적(채집=결정·사냥=더 작은 생명체)까지 옅은 선.
+  //   "이 생명체가 저것을 원해 저리로 간다"가 한눈에 보인다. 표적은 미러에서 유도(표시 전용, 서버 규칙 미러).
+  #desireLink(cam, cre) {
+    if (cre.desire !== 'forage' && cre.desire !== 'hunt') return;
+    const t = this.#desireTargetPos(cre);
+    if (!t) return;
     const { ctx } = this;
+    const mine = cre.owner && cre.owner === this.state.playerId;
+    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${mine ? 0.7 : 0.3})` : `rgba(120,220,150,${mine ? 0.7 : 0.3})`;
+    ctx.lineWidth = mine ? 2 : 1;
+    ctx.setLineDash([4, 4]);
+    this.#seg(cam, cre.x, cre.y, cre.z, t.x, t.y, t.z);
+    ctx.setLineDash([]);
+  }
+
+  // 욕망 표적 위치 유도 — 서버 #desireTarget 의 미러(표시 전용). 채집=감지 반경 안 가장 가까운 결정,
+  //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (feature-0010)
+  #desireTargetPos(cre) {
+    let best = null, bestD = CREATURE_SEEK_RADIUS;
+    if (cre.desire === 'forage') {
+      for (const c of this.state.crystals.values()) {
+        if (c.balance <= 0) continue;
+        const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
+        if (d <= bestD) { best = c; bestD = d; }
+      }
+    } else if (cre.desire === 'hunt') {
+      for (const v of this.state.creatures.values()) {
+        if (v === cre || (v.size ?? 1) >= (cre.size ?? 1) || v.balance <= 0) continue;
+        const d = dist3(cre.x, cre.y, cre.z, v.x, v.y, v.z);
+        if (d <= bestD) { best = v; bestD = d; }
+      }
+    }
+    return best;
+  }
+
+  #creatureOrb(cam, cre, depth) {
+    const { ctx } = this;
+    const { x: cx, y: cy, z: cz, balance: bal, size = 1, desire = 'none' } = cre;
     const p = this.#pt(cam, cx, cy, cz);
     if (!p) return;
+    const mine = cre.owner && cre.owner === this.state.playerId;     // 내가 제어하는 생명체
     const cap = CREATURE_MAX_ENERGY * size;                          // 용량은 스탯(size)에 비례
     const vit = Math.max(0, Math.min(1, bal / cap));                 // 활력 = 잔고/용량
     const starving = bal < CREATURE_DEATH_THRESHOLD * size * 3;      // 임계 근처면 굶주림 경고색(예비도 size 비례)
@@ -259,6 +300,11 @@ export class Render {
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.fill();
     ctx.strokeStyle = `hsla(${hue},95%,85%,0.9)`; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.stroke();
+    // 내가 제어하는 생명체 — 금색 고리로 강조(내 아바타를 한눈에 찾는다)
+    if (mine) {
+      ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, r + 5, 0, 7); ctx.stroke();
+    }
     // 에너지(질서) 막대 + 스탯·잔고 라벨
     this.#bar(p.sx, p.sy - r - 6, 34 * scale, vit, `hsl(${hue},80%,70%)`);
     if (scale > 0.4) {
@@ -266,6 +312,11 @@ export class Render {
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${'❋'.repeat(size)} ${bal}`, p.sx, p.sy - r - 10); // 스탯 = ❋ 개수
+      // 욕망 라벨 — 이 생명체의 동기(채집·사냥·대기). 내 것이면 금색으로.
+      if (desire && desire !== 'none') {
+        ctx.fillStyle = mine ? '#ffd76e' : (desire === 'hunt' ? '#e6785a' : '#78dc96');
+        ctx.fillText(`▸ ${DESIRE_LABEL[desire] ?? desire}`, p.sx, p.sy - r - 22);
+      }
       ctx.textAlign = 'left';
     }
   }
@@ -363,6 +414,19 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
+    // 좌상 아래: 제어(feature-0010) — 내가 제어하는 생명체 + 현재 욕망. 욕망이 이동을 부르고, 이동은 에너지로 지불된다.
+    let mine = null;
+    for (const c of state.creatures.values()) if (c.owner && c.owner === state.playerId) { mine = c; break; }
+    const desire = mine?.desire ?? state.myDesire ?? 'none';
+    ctx.fillStyle = 'rgba(10,14,20,0.8)';
+    ctx.fillRect(10, 72, 270, 40);
+    ctx.font = '12px monospace';
+    ctx.fillStyle = '#ffd76e';
+    if (mine) ctx.fillText(`❋ 내 생명체 ${'❋'.repeat(mine.size ?? 1)} E${mine.balance}`, 20, 88);
+    else ctx.fillText(`❋ 내 생명체 (없음)`, 20, 88);
+    ctx.fillStyle = '#8fd9a8';
+    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 0대기)`, 20, 104);
+
     // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·생명체·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';
     ctx.fillRect(w - 265, 10, 255, 172);
@@ -409,7 +473,7 @@ export class Render {
     ctx.textAlign = 'right';
     ctx.fillStyle = '#5f7285';
     ctx.font = '11px sans-serif';
-    ctx.fillText('WASD 이동 · R/F 상하 · 드래그 회전 · 휠 줌', w - 14, this.h - 12);
+    ctx.fillText('WASD/방향키 이동 · R/F 상하 · 드래그 회전 · 휠 줌 · 1채집 2사냥 0대기', w - 14, this.h - 12);
     ctx.textAlign = 'left';
   }
 }

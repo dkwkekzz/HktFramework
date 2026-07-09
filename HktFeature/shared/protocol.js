@@ -14,6 +14,7 @@ export const MSG = {
   HELLO: 'hello',        // { name }
   BEACON: 'beacon',      // { x, y, z }  (정수 양자화 3D 좌표)
   RESYNC: 'resync',      // { regions: [key] } — 체크섬 불일치 지역의 스냅샷 요청
+  DESIRE: 'desire',      // { desire } — 내가 제어하는 생명체에 욕망을 부여(채집·사냥·대기, feature-0010)
 
   // 서버 → 클라
   WELCOME: 'welcome',    // { playerId, name, seed, tick, total, src, x, y, z }
@@ -23,7 +24,7 @@ export const MSG = {
   POS: 'pos',            // { moves: [[id, x, y, z]] } — 관심영역 내 좌표 비콘 릴레이 (권위 아님, 표시용)
   FIELD: 'field',        // { cells: [[cx, cy, cz, balance]] } — 국소장 복셀 그리드 스냅샷 (feature-0004 step2, 표시용·읽기전용)
   CRYSTAL: 'crystal',    // { cells: [[id, x, y, z, balance, species]] } — 개별 결정 스냅샷 (feature-0005, 표시용·읽기전용. FIELD 와 같은 성격)
-  CREATURE: 'creature',  // { cells: [[seq, x, y, z, balance, size]] } — 생명체 스냅샷 (feature-0006, size=스탯. 표시용·읽기전용. CRYSTAL 과 같은 성격)
+  CREATURE: 'creature',  // { cells: [[seq, x, y, z, balance, size, desire, owner]] } — 생명체 스냅샷 (feature-0006 size=스탯, feature-0010 desire=욕망·owner=제어자. 표시용·읽기전용)
   ENTER: 'enter',        // { entities: [{ id, kind, name, x, y, z, balance, max }] } — 시야 진입
   LEAVE: 'leave',        // { ids: [] } — 시야 이탈 (미러에서 잊기)
   TELEPORT: 'teleport',  // { x, y, z } — 비콘 예산 위반 시 위치 정정

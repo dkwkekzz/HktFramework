@@ -22,9 +22,14 @@ const STEP = (MAX_SPEED * 0.8) * (BEACON_INTERVAL_MS / 1000); // 예산 안의 �
 const BOT_NAMES = ['도토리', '이끼', '반딧불', '조약돌', '민들레', '소나기', '노을', '달팽이',
                    '억새', '개울', '서리', '메아리', '들불', '안개', '까치', '숲지기'];
 
+// 봇마다 욕망을 돌려 부여한다(feature-0010) — 접속 시 서버가 쥐어준 생명체에 채집·사냥·대기를 건다.
+//   채집 봇은 결정로, 사냥 봇은 더 작은 생명체로 이동해 획득하고, 대기 봇은 배회하는 제 마커를 따라온다.
+const BOT_DESIRES = ['forage', 'hunt', 'none'];
+
 class Bot {
-  constructor(name) {
+  constructor(name, desire = 'forage') {
     this.name = name;
+    this.desire = desire;
     this.retries = 0;
     this.#connect();
   }
@@ -40,7 +45,11 @@ class Bot {
     this.state.onResync = (regions) => this.send(MSG.RESYNC, { regions }); // 체크섬 불일치 → 스냅샷 요청(자가치유)
 
     this.ws = new WebSocket(URL);
-    this.ws.onopen = () => { this.retries = 0; this.send(MSG.HELLO, { name: this.name }); };
+    this.ws.onopen = () => {
+      this.retries = 0;
+      this.send(MSG.HELLO, { name: this.name });     // 서버가 HELLO 처리 시 내 생명체를 스폰(possess)
+      this.send(MSG.DESIRE, { desire: this.desire }); // 그 생명체에 욕망을 건다 — 욕망→이동→획득
+    };
     this.ws.onmessage = (ev) => {
       this.bytesInWindow += typeof ev.data === 'string' ? ev.data.length : ev.data.byteLength;
       const m = decode(ev.data); if (m) this.state.handle(m);
@@ -85,7 +94,8 @@ class Bot {
 const bots = [];
 for (let i = 0; i < COUNT; i++) {
   const name = `${BOT_NAMES[i % BOT_NAMES.length]}${i >= BOT_NAMES.length ? i : ''}`;
-  setTimeout(() => bots.push(new Bot(name)), i * 150); // 접속 폭주 완화
+  const desire = BOT_DESIRES[i % BOT_DESIRES.length]; // 채집·사냥·대기를 고루 섞는다
+  setTimeout(() => bots.push(new Bot(name, desire)), i * 150); // 접속 폭주 완화
 }
 
 // --- 5초마다 시뮬레이션 요약 (봇 0 의 미러가 관측한 세계) ---

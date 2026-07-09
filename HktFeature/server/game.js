@@ -34,6 +34,7 @@ import {
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
+  DESIRE, CREATURE_PURSUE_INTERVAL_TICKS, CREATURE_STRIDE, CREATURE_SEEK_RADIUS, CREATURE_LEASH_STOP,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -132,10 +133,29 @@ export class GameServer {
     const seq = ++this.creatureSeq;
     const creId = `${POOL.CREATURE}${seq}`;
     this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0 }; // size=스탯(feature-0006 step2), growth=흑/적자 누적점
+    // owner=제어자(플레이어 id, null=야생), desire=욕망(feature-0010), moveDebt=이동 비용 누적(잔여 거리).
+    // 창세/생태 생명체는 owner=null·desire=NONE → 추적하지 않는다(정지성 = 기존 feature 불변).
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desire: DESIRE.NONE, moveDebt: 0 };
     this.creatures.set(creId, cre);
     this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
     return cre;
+  }
+
+  // 제어 결선 (feature-0010) — 한 플레이어가 하나의 생명체를 제어한다. 생명체를 스폰해 owner 를 걸면
+  //   그 생명체는 주인의 욕망(desire)에 따라 움직이고, 욕망이 없으면 주인 곁을 따른다(수동 이동). 라이브
+  //   진입점(index.js)에서 접속 시 부른다 — 테스트가 쓰는 GameServer 구성자·addPlayer 는 건드리지 않는다.
+  possessCreature(playerId, x, y, z) {
+    const cre = this.spawnCreature(x, y, z);
+    cre.owner = playerId;
+    cre.desire = DESIRE.NONE;
+    return cre;
+  }
+
+  // 욕망 부여 (feature-0010) — 내가 제어하는 생명체(들)의 desire 를 바꾼다. 유효하지 않은 값은 대기로.
+  setDesire(playerId, desire) {
+    const d = (desire === DESIRE.FORAGE || desire === DESIRE.HUNT) ? desire : DESIRE.NONE;
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desire = d;
+    return d;
   }
 
   // 개별 결정 하나를 연다 (feature-0005 step2) — 위치·종을 가진 discrete 객체. 잔고는 이후 이체로 채운다.
@@ -190,6 +210,9 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
+    // 제어자가 떠나면 그가 몰던 생명체는 야생으로 돌아간다(feature-0010) — 에너지는 그대로(보존),
+    //   다만 주인이 없어 추적을 멈춘다(owner·desire 해제 → 정지). 소멸이 아니라 통제만 놓는다.
+    for (const cre of this.creatures.values()) if (cre.owner === id) { cre.owner = null; cre.desire = DESIRE.NONE; }
     this.#decompose(id, p.x, p.y, p.z); // 이탈 = 응집 소멸 → 결정(잔해)+국소장(거름)으로 분해
     this.ledger.removePool(id);
     this.players.delete(id);
@@ -217,6 +240,7 @@ export class GameServer {
     switch (msg.t) {
       case MSG.BEACON: this.#onBeacon(p, msg); break;
       case MSG.RESYNC: this.#onResync(p, msg); break;
+      case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // feature-0010 — 내 생명체에 욕망 부여
     }
   }
 
@@ -286,6 +310,12 @@ export class GameServer {
     //   쌓인 결정을 소비해 개수를 묶으며(무한 누적 방지), 종 분포를 계속 뒤섞는다(창발).
     if (this.tickCount % CRYSTAL_REACT_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#react();
+    }
+    // feature-0010 제어·욕망 — 제어되는 생명체가 제 욕망의 표적(결정=채집·먹이=사냥)으로 이동한다.
+    //   이동은 활동 에너지를 그 자리 국소장으로 흩는 소산(생명체→국소장, MOVE)이라 "수단은 에너지로
+    //   지불된다". 획득(채집·포식) 앞에 돌린다 — 이번 틱에 사거리로 들어서면 곧이어 전투·대사에서 흡수한다.
+    if (this.tickCount % CREATURE_PURSUE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#pursueDesire();
     }
     // feature-0008 발산·전투(포식) — 큰 생명체가 사거리 안 더 작은 생명체를 공격해 그 질서를 무너뜨리고
     //   풀려난 에너지를 손실적으로 회수한다(강탈). 대사 앞에 돌린다 — 이번 틱에 뺏긴 먹이는 곧이어 대사
@@ -521,6 +551,74 @@ export class GameServer {
     this.creatures.delete(V.id);
   }
 
+  // 욕망 추적 = 이동 — feature-0010. 제어되는 각 생명체가 제 욕망의 표적으로 한 걸음(최대 STRIDE) 나아간다.
+  //   욕망이 표적(에너지원)을 정하고, 이동이 그 표적으로 데려간다 — "이동은 욕망을 이루기 위한 수단". 그 수단은
+  //   공짜가 아니다: 나아간 거리만큼 활동 에너지가 그 자리 국소장으로 흩어진다(생명체→국소장, MOVE = 플레이어
+  //   이동 소산과 같은 회계). 그래서 먼 표적일수록 이동 비용이 커지고, 수입(채집·포식)이 이를 넘어야 값어치가 있다.
+  //   표적 사거리 안이면 멈춘다(도달 — 획득은 combat·metabolize 가). 예비가 없으면 못 쫓는다(굶주린 개체는 이동
+  //   여력 없음). 결정론: seq 오름차순 순회 + 순수 클램프(rng 미사용). 전부 ledger.transfer → 보존 자동.
+  #pursueDesire() {
+    for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
+      const target = this.#desireTarget(cre);
+      if (!target) continue;                                           // 욕망 없음·표적 없음 → 제자리
+      const d = dist3(cre.x, cre.y, cre.z, target.x, target.y, target.z);
+      if (d <= target.stop) continue;                                  // 이미 도달(사거리 안) — 획득은 다른 페이즈
+      if (this.ledger.balance(cre.id) <= CREATURE_DEATH_THRESHOLD * cre.size) continue; // 예비 없으면 못 쫓는다
+      const step = Math.min(CREATURE_STRIDE, d - target.stop);         // 사거리에 걸치도록 넘지 않게
+      cre.x = Math.round(cre.x + (target.x - cre.x) / d * step);
+      cre.y = Math.round(cre.y + (target.y - cre.y) / d * step);
+      cre.z = Math.round(cre.z + (target.z - cre.z) / d * step);
+      // 이동 비용 = 나아간 거리 / 50 (잔여 거리 누적, 플레이어 moveCost 와 동일) → 도착 복셀 국소장으로 소산.
+      const { cost, debt } = moveCost(cre.moveDebt, step);
+      cre.moveDebt = debt;
+      if (cost > 0) this.#tx(cre.id, materialKey(cre.x, cre.y, cre.z), cost, CAUSE.MOVE, { x: cre.x, y: cre.y });
+    }
+  }
+
+  // 욕망 → 표적 좌표(+도달 사거리). 확장 지점: 새 욕망(제조 등)은 여기에 새 표적 규칙을 얹는다. (feature-0010)
+  #desireTarget(cre) {
+    if (cre.desire === DESIRE.FORAGE) {                                // 채집 — 가장 가까운 결정(feature-0007)
+      const c = this.#nearestCrystal(cre);
+      return c ? { x: c.x, y: c.y, z: c.z, stop: CREATURE_HARVEST_RADIUS } : null;
+    }
+    if (cre.desire === DESIRE.HUNT) {                                  // 사냥 — 가장 가까운 더 작은 먹이(feature-0008)
+      const v = this.#nearestPrey(cre);
+      return v ? { x: v.x, y: v.y, z: v.z, stop: CREATURE_ATTACK_RADIUS } : null;
+    }
+    return this.#leashTarget(cre);                                     // 대기 — 주인 곁 추종(수동 이동), 주인 없으면 정지
+  }
+
+  // 수동 추종 — 욕망이 없는 소유 생명체는 주인(플레이어)의 위치로 향한다. 주인이 방향키로 움직이면 생명체가
+  //   따라온다("방향키로 카메라 방향 이동" 이 곧 내 생명체의 이동). 주인이 없으면(야생) 정지. (feature-0010)
+  #leashTarget(cre) {
+    if (!cre.owner) return null;
+    const p = this.players.get(cre.owner);
+    return p ? { x: p.x, y: p.y, z: p.z, stop: CREATURE_LEASH_STOP } : null;
+  }
+
+  // 감지 반경(SEEK) 안에서 잔고 있는 가장 가까운 결정 — 채집 욕망의 표적. (feature-0010)
+  #nearestCrystal(cre) {
+    let best = null, bestD = CREATURE_SEEK_RADIUS;
+    for (const c of this.crystals.values()) {
+      if (this.ledger.balance(c.id) <= 0) continue;
+      const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
+      if (d <= bestD) { best = c; bestD = d; }
+    }
+    return best;
+  }
+
+  // 감지 반경(SEEK) 안에서 잔고 있는 가장 가까운 **더 작은** 생명체 — 사냥 욕망의 표적(포식=강자→약자). (feature-0010)
+  #nearestPrey(cre) {
+    let best = null, bestD = CREATURE_SEEK_RADIUS;
+    for (const v of this.creatures.values()) {
+      if (v.id === cre.id || v.size >= cre.size) continue;
+      if (this.ledger.balance(v.id) <= 0) continue;
+      const d = dist3(cre.x, cre.y, cre.z, v.x, v.y, v.z);
+      if (d <= bestD) { best = v; bestD = d; }
+    }
+    return best;
+  }
+
   // 생명체 대사 — feature-0006. 각 생명체가 한 대사 틱에 스스로 도는 항상성 순환:
   //   ① 갈구(forage): 그 자리 국소장에서 최대 FORAGE_RATE 를 흡수한다(field→생명체, 용량·잔고로 클램프).
   //      세계에 에너지가 있으면 채워지고, 없으면 못 채운다 — "세계로부터 에너지를 갈구한다".
@@ -625,11 +723,12 @@ export class GameServer {
           return acc;
         }, [])
       : null;
-    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size] (feature-0006). CRYSTAL 과 같은 읽기 전용 표시값.
+    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size, desire, owner] (feature-0006·0010).
+    //   desire=욕망(뷰어가 라벨·표적선), owner=제어자(뷰어가 내 생명체 강조). CRYSTAL 과 같은 읽기 전용 표시값.
     const creatureCells = broadcastField
       ? [...this.creatures.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size]);
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner]);
           return acc;
         }, [])
       : null;

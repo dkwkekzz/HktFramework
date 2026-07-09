@@ -156,6 +156,24 @@ export const DISCHARGE_POWER = 70;           // 한 발이 파괴하는 표적 �
 export const DISCHARGE_COST = 20;            // 발산 비용(×caster size) → SINK. 강탈(6)보다 비싸다(회수 없는 순수 지출)
 export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 태우는 비율(열) — 나머지는 국소장(연기)
 
+// --- 제어·욕망 (feature-0010) — 플레이어/봇이 하나의 생명체를 제어한다 ---
+// 제어의 핵심은 "욕망(desire)"이다: 생명체에 부여하는 동기 — 무엇을 향해 에너지를 얻으러 갈지.
+//   욕망은 표적(에너지원)을 정하고, 생명체는 그 표적으로 **이동**한다. 이동은 활동 에너지를 그 자리
+//   국소장으로 흩는 소산(생명체→국소장, feature-0004 의 MOVE 와 같은 원리)이다 — 즉 "이동은 욕망을
+//   이루기 위한 수단이고, 그 수단은 에너지로 지불된다". 표적에 도달하면 기존 획득 규칙(채집 0007·사냥
+//   0008)이 수입을 만든다. 그래서 한 욕망은 **수입 > 이동 비용**일 때만 값어치가 있다 — 제어의 전
+//   과정이 에너지 흐름으로 닫힌다(feature-0001~0009 정합). 욕망은 확장의 근간이다: 채집·사냥을 먼저
+//   세우고 제조(craft) 등 새 표적은 후속 step 에서 얹는다. 순수 클램프(rng 미사용) → 확산·성장 결정론 불변.
+export const DESIRE = {
+  NONE: 'none',       // 대기 — 자율 추적 없음. 소유 생명체는 주인 곁을 따른다(수동 이동=방향키의 목적지)
+  FORAGE: 'forage',   // 채집 — 가장 가까운 결정을 향한다(도달 시 흡수, feature-0007)
+  HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향한다(도달 시 포식, feature-0008)
+};
+export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 추적(이동) 판정 주기(틱) — 매 틱(부드러운 이동)
+export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
+export const CREATURE_SEEK_RADIUS = 900;         // 욕망의 표적을 감지하는 반경(px) — 무한 시야가 아니라 국소적 인지
+export const CREATURE_LEASH_STOP = 48;           // 소유 생명체가 주인 곁 이 거리 안이면 멈춘다(수동 추종의 도달 반경)
+
 // 국소장 복셀의 상태(고체는 그 자리 결정 유무로 별도 판정) — 서버·클라 공용(뷰어 라벨 정합).
 export function fieldPhase(balance) {
   if (balance >= CRYSTAL_SATURATION) return 'dense'; // 과포화 — 석출(고체)로 향하는 고밀도

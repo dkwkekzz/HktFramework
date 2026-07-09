@@ -66,7 +66,14 @@ wss.on('connection', (socket) => {
     const msg = decode(raw.toString());
     if (!msg) return;
     if (msg.t === MSG.HELLO && playerId === null) {
-      playerId = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name).id;
+      const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
+      playerId = player.id;
+      // feature-0010 제어 — 접속하면 스폰 곁에 자기 생명체 하나를 쥐어준다(한 사람=한 생명체). 겹치지 않게
+      //   생성 순번으로 둘레에 흩는다. 기본 욕망은 대기(수동) — 방향키로 곁에 데려가거나 1·2 로 채집·사냥을 건다.
+      const a = game.creatureSeq * 2.399963; // 황금각 근사 — 둘레 고른 분포(결정론)
+      const px = SPAWN_POS.x + Math.round(Math.cos(a) * 90);
+      const py = SPAWN_POS.y + Math.round(Math.sin(a) * 90);
+      game.possessCreature(playerId, px, py, SPAWN_POS.z);
       return;
     }
     if (playerId !== null) game.onMessage(playerId, msg);
