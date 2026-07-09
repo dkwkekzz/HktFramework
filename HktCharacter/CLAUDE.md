@@ -48,8 +48,12 @@
 - `src/proportions.js` — **비율 프로파일 데이터** (`PROFILES.standard/reference`, `GROUPS`, `matchRule`)
   비율 변경은 이 파일의 수치만 만진다 — 이름 규칙 / skeleton 치수(다리 전후 배치 `upLegZ/kneeZ/ankleZ`
   포함) / subBones(두개골·뒤통수·턱) / extras / 권장 smin / 휴식 포즈(`armFwd/foreArmFwd` 전방 스윙 포함)
-- `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이) + `fixtures/reference-sheet.jpeg`
-  (기준 캐릭터 시트). 산출물은 `eval/out/`(gitignore). 비율을 만졌으면 `npm run eval` 로 회귀 확인.
+- `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이) + `lib.mjs`(공용 계측 로직)
+  + `optimize.mjs`(**프로파일 자동 최적화** — dense 라인 손실을 목적함수로 좌표 하강,
+  `node eval/optimize.mjs [--baseline|--sweeps N]`, 결과는 `eval/out/optimize-best.json` →
+  proportions.js 에 손으로 반영) + `fixtures/reference-sheet.jpeg`(기준 캐릭터 시트).
+  산출물은 `eval/out/`(gitignore). 비율을 만졌으면 `npm run eval` 로 회귀 확인.
+  ⚠ optimize 실행 중 src/ 를 편집하지 말 것 — vite HMR 리로드로 상주 페이지 상태가 날아간다.
 - `src/main.js` — 전체 로직. 섹션 주석으로 (1)IR (2)grammar (3)source 구분
   - `frag` : 레이마칭 프래그먼트 셰이더 (round-cone SDF의 smooth-union)
   - `buildMixamoRig(sk)` : Mixamo 표준 humanoid 계층 (T-pose) — 치수는 프로파일 skeleton 절
