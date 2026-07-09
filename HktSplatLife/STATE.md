@@ -43,7 +43,8 @@
 
 - ✅ 스플랫 = 세포: 렌더 속성(공분산·색·불투명도)은 시뮬 상태 + 유전자에서 셰이더가 유도한다.
 - ✅ GPU 상주 파이프라인: sim → key(뷰 깊이) → bitonic sort(far→near) → 인스턴스드 쿼드 래스터.
-- ✅ N=2^16 스플랫, premultiplied-over 블렌딩, WebGPU 클립 규약(z∈[0,1]) 오빗 카메라.
+- ✅ N=2^17(128k) 스플랫, premultiplied-over 블렌딩, WebGPU 클립 규약(z∈[0,1]) 오빗 카메라.
+  (밀도 = 볼륨감: 발광 개체[불·물]는 over 누적이 곧 두께라 64k→128k 로 Genesis 기본 밀도와 정합.)
 - ✅ WebGPU 단독 경로 (`life-app.js`): 무대·director 없이 배경까지 스스로 그린다(alphaMode opaque).
 
 ## 명제 — 시뮬 규칙 (자율 → 뼈대)
@@ -75,8 +76,14 @@
 
 - ✅ built-in 휴머노이드 FK IR (~53 관절, T-pose), 이름 기반 살 문법(`radiusForName`).
 - ✅ 뼈대 오버레이 디버그 시각화 (뼈 라인 + 관절 점).
-- 📌 외부 리그(FBX) 반입: 원본 HktSplatGenesis 의 `ExternalSkeleton` 만 존재 — 단독판 **미포함**.
-  (three r147 FBX 파서 의존. 이 프로젝트에 들일지 여부는 미결.)
+- ✅ **외부 리그(FBX) 반입**: `ExternalSkeleton`(rig-agnostic 이름 문법) + `vendor/three` r147 FBX 파서.
+  `life-app.js` UI(로코모션 샘플 버튼/드롭/복귀 + 클립 선택)로 Mixamo FBX 를 주입하면 살이 그
+  클립을 따라간다. built-in 은 기본·폴백. 동봉 샘플 `assets/anim/`: 걷기·뛰기·대기(zombie 57뼈)·
+  점프·공격(guard 41뼈)·삼바(119뼈). 검증: `test/fbx-shot.js` (생명 픽셀 27k~38k · GPU 오류 0 ·
+  프레임 간 포즈 변화 확인).
+  - 함정: **애니메이션-only FBX(스킨 메시 없음)** 는 `Box3.setFromObject` 가 빈 박스를 줘(뼈=지오메트리
+    없음) size.y=0 → scale 1700 폭주로 세그먼트가 ~35만 단위 밖으로 날아간다. `ExternalSkeleton`
+    이 박스가 비면 뼈 world 위치로 바운드를 재계산해 정규화한다(메시 있는 samba 는 회귀 0).
 
 ## 검증
 
