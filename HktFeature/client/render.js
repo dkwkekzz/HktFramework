@@ -318,10 +318,18 @@ export class Render {
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${'❋'.repeat(size)} ${bal}`, p.sx, p.sy - r - 10); // 스탯 = ❋ 개수
-      // 욕망 라벨 — 이 생명체의 동기(채집·사냥·대기). 내 것이면 금색으로.
-      if (desire && desire !== 'none') {
-        ctx.fillStyle = mine ? '#ffd76e' : (desire === 'hunt' ? '#e6785a' : '#78dc96');
-        ctx.fillText(`▸ ${DESIRE_LABEL[desire] ?? desire}`, p.sx, p.sy - r - 22);
+      // 욕구 스택 라벨 (feature-0012) — 중첩된 욕구를 **우선순위 순으로 쌓아** 그린다. 승자(맨 위·최우선, ▸)는
+      //   밝게(내 것이면 금색), 나머지(·)는 흐리게 — "욕구는 중첩되고 우선순위가 다르다"가 한눈에. 감정(중요도
+      //   증폭)은 ♥ 개수로 표시한다("감정은 중요도다"). 스택이 비었으면 단일 desire(하위 호환)만 그린다.
+      const stack = (cre.desires && cre.desires.length) ? cre.desires
+        : (desire && desire !== 'none' ? [[desire, 1, 0]] : []);
+      for (let i = 0; i < stack.length; i++) {
+        const [name, , emotion = 0] = stack[i];
+        const top = i === 0;
+        const base = name === 'hunt' ? '#e6785a' : name === 'eat' ? '#f0b45a' : name === 'forage' ? '#78dc96' : '#9fb4c8';
+        ctx.fillStyle = top ? (mine ? '#ffd76e' : base) : `${base}88`; // 승자는 선명, 나머지는 반투명
+        const heart = emotion > 0 ? ' ' + '♥'.repeat(Math.min(3, Math.ceil(emotion / 20))) : '';
+        ctx.fillText(`${top ? '▸' : '·'} ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, p.sy - r - 22 - i * 12);
       }
       ctx.textAlign = 'left';
     }

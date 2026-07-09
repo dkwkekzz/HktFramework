@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from '../server/game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, DESIRE } from '../shared/constants.js';
+import { TICK_RATE, DESIRE, POOL, CAUSE, CREATURE_MAX_ENERGY } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -27,11 +27,15 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 //   따라 놓여 이동이 화면 가운데를 가로지르며 또렷이 보인다(≈707px 이동, 감지 반경 900 안).
 const FOOD = { x: 750, y: 1250, z: 625 };
 const CREATURE_START = { x: 1250, y: 750, z: 625 };
+// 우선순위 씬(feature-0012)의 먹이 자리 — 밥(FOOD)의 반대편(생명체 기준). 두 표적이 갈라져 "어느 욕구로 가나"가 보인다.
+const PREY = { x: 1750, y: 250, z: 625 };
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
-//   scene 'eat'(기본, feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
+//   scene 'eat'(feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
 //   scene 'forage'(feature-0010): 먹을 수 있는 결정 하나 → 다가가 바로 먹는다.
-export function startDemoServer({ port = 8080, scene = 'eat' } = {}) {
+//   scene 'priority'(기본, feature-0012): 밥(왼쪽)·먹이(오른쪽)를 두고 **식사·사냥을 동시에 품되(중첩)**,
+//     감정이 식사에 실려 우선순위가 높아 → 밥 쪽으로 간다("중첩된 욕구 중 감정이 실린 쪽으로 행동한다").
+export function startDemoServer({ port = 8080, scene = 'priority' } = {}) {
   const httpServer = http.createServer(async (req, res) => {
     const pathname = req.url.split('?')[0];
     if (pathname === '/favicon.ico') { res.writeHead(204); return res.end(); }
@@ -46,10 +50,18 @@ export function startDemoServer({ port = 8080, scene = 'eat' } = {}) {
   });
 
   const game = new GameServer();
-  // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
   const rawFood = scene === 'eat';
-  game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
-  if (!rawFood) for (const c of game.crystals.values()) c.raw = false; // 채집 씬 = 먹을 수 있는 결정
+  if (scene === 'priority') {
+    // 우선순위 씬 — 왼쪽 밥(먹을 수 있는 결정) + 오른쪽 먹이(더 작은 야생 생명체). 두 표적이 갈라져 있어
+    //   "생명체가 어느 욕구를 따라 어디로 가나"가 한눈에 보인다.
+    const cry = game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 3, 9000); cry.raw = false; // 밥 = 먹을 수 있게
+    const prey = game.spawnCreature(PREY.x, PREY.y, PREY.z);                          // 먹이(size 1)
+    game.ledger.transfer(POOL.SOURCE, prey.id, 900, CAUSE.SPAWN);
+  } else {
+    // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
+    game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
+    if (!rawFood) for (const c of game.crystals.values()) c.raw = false; // 채집 씬 = 먹을 수 있는 결정
+  }
 
   const wss = new WebSocketServer({ server: httpServer });
   wss.on('connection', (socket) => {
@@ -61,7 +73,17 @@ export function startDemoServer({ port = 8080, scene = 'eat' } = {}) {
         const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
         playerId = player.id;
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
-        cre.desire = rawFood ? DESIRE.EAT : DESIRE.FORAGE; // 욕구 자동 — 밥으로 이동해 (요리하고) 먹는다
+        if (scene === 'priority') {
+          // 사냥 가능한 큰 몸(size 2)으로 세우고, **식사·사냥을 동시에 품는다(중첩)**. 감정을 식사에 실어
+          //   우선순위를 키우면(식사=1+40 > 사냥=1) 밥 쪽으로 간다 — "중첩된 욕구 중 감정이 실린 쪽이 이긴다".
+          cre.size = 2; const pool = game.ledger.get(cre.id); if (pool) pool.max = CREATURE_MAX_ENERGY * 2;
+          game.ledger.transfer(POOL.SOURCE, cre.id, 1500, CAUSE.SPAWN);
+          game.injectDesire(playerId, DESIRE.EAT, 1);
+          game.injectDesire(playerId, DESIRE.HUNT, 1);
+          game.emote(playerId, DESIRE.EAT, 40); // 감정 증폭 → 식사가 사냥을 이긴다(밥으로 이동)
+        } else {
+          cre.desire = rawFood ? DESIRE.EAT : DESIRE.FORAGE; // 욕구 자동 — 밥으로 이동해 (요리하고) 먹는다
+        }
         return;
       }
       if (playerId !== null) game.onMessage(playerId, msg);
@@ -78,6 +100,6 @@ export function startDemoServer({ port = 8080, scene = 'eat' } = {}) {
 if (process.argv[1] && process.argv[1].endsWith('demo-control.mjs')) {
   const port = process.env.PORT ?? 8080;
   startDemoServer({ port }).httpServer.listen(port, () => {
-    console.log(`[HktFeature] 제어 데모 — http://localhost:${port} (접속하면 내 생명체가 결정을 채집하러 간다)`);
+    console.log(`[HktFeature] 우선순위 데모 — http://localhost:${port} (접속하면 내 생명체가 식사·사냥을 품되 감정 실린 식사로 밥을 먹으러 간다)`);
   });
 }

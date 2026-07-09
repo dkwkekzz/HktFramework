@@ -1,12 +1,12 @@
 // ============================================================================
-// 시각 검증 (feature-0010·0011) — 헤드리스 크로미움으로 욕구 절차를 스크린샷으로 굳힌다.
+// 시각 검증 (feature-0012) — 헤드리스 크로미움으로 욕구 우선순위를 스크린샷으로 굳힌다.
 //
-// 식사(EAT) 데모 서버(tools/demo-control.mjs)를 띄우고, 실제 브라우저 뷰어(client/)를 열어
-// 절차의 세 시점을 캡처한다: ① 출발(생명체와 날것 밥) ② 요리(다가가 날것을 변형 = tx [요리])
-// ③ 식사(요리한 밥을 먹어 잔고 상승 = tx [채집]). "욕구를 상황에 맞게 절차적으로 수행하며
-// 에너지를 방출한다"가 눈으로 확인된다(찾기→요리→먹기).
+// 우선순위 데모 서버(tools/demo-control.mjs, scene 'priority')를 띄우고 실제 브라우저 뷰어(client/)를
+// 열어 세 시점을 캡처한다: 생명체가 **식사·사냥을 동시에 품되(중첩 배지 ▸식사♥ · ·사냥)**, 감정이 실린
+// **식사** 쪽(왼쪽 밥)으로 표적선을 그리며 이동해 밥을 먹는다. 오른쪽 먹이(사냥 표적)는 두고 간다 —
+// "욕구는 중첩되고 우선순위가 다르며, 감정이 그 우선순위를 정한다"가 눈으로 확인된다.
 //
-// 사용: npm run shot   (산출: tools/shots/control-*.png)
+// 사용: npm run shot   (산출: tools/shots/priority-*.png)
 // 필요: playwright-core(devDependency) + 사전 설치된 크로미움(클라우드 환경). 결과는 언제든 재현.
 // ============================================================================
 
@@ -31,7 +31,7 @@ function chromePath() {
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const server = startDemoServer({ port: PORT });
+const server = startDemoServer({ port: PORT, scene: 'priority' });
 await new Promise((r) => server.httpServer.listen(PORT, r));
 
 const browser = await chromium.launch({ executablePath: chromePath() });
@@ -45,9 +45,9 @@ await canvas.hover();
 await page.mouse.wheel(0, 260); // 줌아웃 — 출발점·결정 양끝이 프레임에 든다
 
 const shots = [
-  { t: 700, name: 'control-1-start', note: '출발 — 내 생명체(금색 고리)와 날것 밥(⋯점선). 욕구 ▸식사' },
-  { t: 2100, name: 'control-2-cook', note: '요리 — 밥에 다가가 날것을 변형(tx [요리] 생명체→심우주·국소장), 밥이 선명해짐' },
-  { t: 4200, name: 'control-3-eat', note: '식사 — 요리한 밥을 먹어 잔고 상승(tx [채집] 밥→생명체)' },
+  { t: 700, name: 'priority-1-stacked', note: '중첩 — 내 생명체가 식사·사냥을 동시에 품는다(배지 ▸식사♥ · ·사냥). 감정이 식사에 실려 승자' },
+  { t: 2400, name: 'priority-2-pursue', note: '우선순위 수행 — 감정 실린 식사 쪽(왼쪽 밥)으로 표적선을 그리며 이동(사냥 먹이는 두고 간다)' },
+  { t: 4200, name: 'priority-3-eat', note: '이룸 — 밥에 닿아 먹어 잔고 상승(tx [채집] 밥→생명체). 우선순위가 행동을 정했다' },
 ];
 let prev = 0;
 for (const s of shots) {

@@ -14,7 +14,8 @@ export const MSG = {
   HELLO: 'hello',        // { name }
   BEACON: 'beacon',      // { x, y, z }  (정수 양자화 3D 좌표)
   RESYNC: 'resync',      // { regions: [key] } — 체크섬 불일치 지역의 스냅샷 요청
-  DESIRE: 'desire',      // { desire } — 내가 제어하는 생명체에 욕망을 부여(채집·사냥·대기, feature-0010)
+  DESIRE: 'desire',      // { desire } — 내가 제어하는 생명체에 욕망을 부여(채집·사냥·대기, feature-0010. 스택 교체)
+  INJECT: 'inject',      // { desire, priority?, emotion? } — 욕구를 스택에 주입(중첩)한다(feature-0012). 감정으로 우선순위 증폭. 같은 욕구는 dedup(우선순위만 갱신)
 
   // 서버 → 클라
   WELCOME: 'welcome',    // { playerId, name, seed, tick, total, src, x, y, z }
@@ -24,7 +25,7 @@ export const MSG = {
   POS: 'pos',            // { moves: [[id, x, y, z]] } — 관심영역 내 좌표 비콘 릴레이 (권위 아님, 표시용)
   FIELD: 'field',        // { cells: [[cx, cy, cz, balance]] } — 국소장 복셀 그리드 스냅샷 (feature-0004 step2, 표시용·읽기전용)
   CRYSTAL: 'crystal',    // { cells: [[id, x, y, z, balance, species, raw]] } — 개별 결정 스냅샷 (feature-0005 · raw=날것 feature-0011. 표시용·읽기전용)
-  CREATURE: 'creature',  // { cells: [[seq, x, y, z, balance, size, desire, owner]] } — 생명체 스냅샷 (feature-0006 size=스탯, feature-0010 desire=욕망·owner=제어자. 표시용·읽기전용)
+  CREATURE: 'creature',  // { cells: [[seq, x, y, z, balance, size, desire, owner, desires]] } — 생명체 스냅샷 (feature-0006 size=스탯, feature-0010 desire=승자 욕망·owner=제어자, feature-0012 desires=중첩 스택 [[name,priority,emotion]]. 표시용·읽기전용)
   ENTER: 'enter',        // { entities: [{ id, kind, name, x, y, z, balance, max }] } — 시야 진입
   LEAVE: 'leave',        // { ids: [] } — 시야 이탈 (미러에서 잊기)
   TELEPORT: 'teleport',  // { x, y, z } — 비콘 예산 위반 시 위치 정정
