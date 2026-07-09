@@ -52,11 +52,21 @@ for (let k = 0; k < CLUSTERS; k++) {
   const cx = SPAWN_POS.x + Math.round(Math.cos(a) * 320); // 군집 간 554px(>방출 500) → 독립된 드라마
   const cy = SPAWN_POS.y + Math.round(Math.sin(a) * 320);
   const cz = Math.round(WORLD_HEIGHT * 0.5);
-  const pred = game.spawnCreature(cx, cy, cz);                                 // 자리 잡은 포식자(size2 선점)
+  const pred = game.spawnCreature(cx, cy, cz);                                 // 자리 잡은 포식자(size2 선점, melee=bite=흡수)
   pred.size = 2; game.ledger.get(pred.id).max = 2_000;                         // 먹이(size1)보다 커야 강탈 성립
   game.ledger.transfer(POOL.SOURCE, materialKey(cx, cy, cz), 24_000, 'seed');  // 풍요 웅덩이 → 결정 석출 → 채집 → 성장(size↑)
   dens.push([cx, cy, cz]);
 }
+
+// feature-0010 — 참격(파괴 근접) 무대. 전사(melee=slash)를 포식자 군집에서 >500px(방출 사거리 밖) 떨어진 별도
+//   자리에 둔다: 서로 파이어볼로 태우지 않게(같은 size2 둘이 방출 사거리 안이면 상호 전소) 격리하고, 곁에 이따금
+//   허수아비(size1)를 풀어 전사가 칼로 벤다. 뷰어 tx 피드에서 [참격] 생명체→심우주·국소장 만 흐르고 생명체(전사)로
+//   되돌아오는 엣지가 하나도 없다 — 포식자 군집의 [강탈] 생명체→생명체(먹는다)와 나란히 놓여 "종착이 위상을
+//   정한다"(칼=파괴, 물어뜯기=흡수)가 한눈에 갈린다. 결정론·보존은 창세 그대로.
+const ARENA = { x: 1100, y: 1800, z: Math.round(WORLD_HEIGHT * 0.5) }; // 관전 시야(구역 2_3) 안 · 모든 포식자와 >500px
+const warrior = game.spawnCreature(ARENA.x, ARENA.y, ARENA.z, { melee: 'slash' });
+warrior.size = 2; game.ledger.get(warrior.id).max = 2_000;
+game.ledger.transfer(POOL.SOURCE, warrior.id, 1_800, 'seed');
 
 const wss = new WebSocketServer({ server: httpServer });
 
@@ -86,6 +96,12 @@ setInterval(() => {
     const [cx, cy, cz] = dens[preyNo % dens.length]; preyNo++;                 // 한 서식지 곁에 먹이 하나
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대
     game.ledger.transfer(POOL.SOURCE, materialKey(cx + 120, cy + 40, cz), 1_500, 'seed');
+    // feature-0010 — 참격 무대 유지: 전사 예비 보충 + 곁에 허수아비(size1) 하나 → 전사가 벤다(참격).
+    if (game.creatures.has(warrior.id)) {
+      game.ledger.transfer(POOL.SOURCE, warrior.id, 700, 'seed');
+      game.spawnCreature(ARENA.x + 120, ARENA.y, ARENA.z);                     // 참격 사거리(200) 안 허수아비
+      game.ledger.transfer(POOL.SOURCE, materialKey(ARENA.x + 120, ARENA.y, ARENA.z), 800, 'seed');
+    }
   }
 }, 1000 / TICK_RATE);
 

@@ -190,6 +190,22 @@ export const CAUSE = {
   ATTACK: 'attack',     // 생명체 → 생명체 / 생명체 → 국소장 (강탈=포식: 붕괴 에너지의 손실적 회수·흩어짐, feature-0008)
   BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008·0009 공용)
   DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
+  STRIKE: 'strike',     // 생명체 → 심우주 / 생명체 → 국소장 (참격=근접 파괴: 칼로 벤다 — 회수 없음, 방출과 같은 위상·근접, feature-0010)
+};
+
+// --- 발산 능력 서술자 = "종착"의 단일 출처 (feature-0010) — 흡수(수입)냐 파괴(지출)냐 ---
+// 사용자 통찰의 결론: 파이어볼과 칼로 내려치기는 *같은 파괴 위상*(회수 0)이고, 채집·강탈(포식)은 *같은 흡수 위상*
+//   (붕괴 에너지 일부가 나에게)이다. 즉 무기·크기가 아니라 **에너지가 어디로 가느냐(종착)**가 흐름을 정한다.
+//   · 흡수(absorb) : 붕괴 에너지 중 capturePct 가 나(캐스터)에게 온다(먹기 = 갈구·채집·강탈의 한 가족). 나머지는 국소장으로 흩어짐(효율<1).
+//   · 파괴(destroy): 붕괴 에너지가 전부 세계로 — burnPct 는 심우주(열), 나머지 국소장(연기). 캐스터로는 한 푼도 안 온다(때리기 = 참격·파이어볼).
+// 발산 비용(cost)은 두 위상 공통(질서를 깨는/투사하는 일 → 심우주 열). target 규칙과 residue(죽음 잔해)만 능력마다 다르다.
+//   target: 'smaller'(더 작은 것=먹이) · 'notSmaller'(먹을 수 없는 상대=동급·강자) · 'any'(사거리 안 아무나 — 칼은 크기를 안 가린다).
+//   residue: 'natural'(예비 붕괴 시 대사 순환에서 죽어 결정+국소장으로 분해=시체) · 'incinerate'(그 자리서 전소, 잔해 결정 없음).
+// 기존 강탈(feature-0008)=bite, 방출(feature-0009)=fireball 을 서술자 두 행으로 재현(회귀 불변). 참격(slash)은 파괴 근접 신규 능력.
+export const ABILITY = {
+  bite:     { family: 'absorb',  cause: 'attack',    interval: 2, range: 200, cost: 6,  power: 40, capturePct: 40, target: 'smaller',    residue: 'natural' },    // 강탈=포식(흡수 근접): 더 작은 먹이를 물어뜯어 먹는다
+  slash:    { family: 'destroy', cause: 'strike',    interval: 2, range: 200, cost: 6,  power: 40, burnPct: 60,    target: 'any',        residue: 'natural' },    // 참격(파괴 근접): 칼로 벤다 — 회수 0, 시체(결정)를 남긴다
+  fireball: { family: 'destroy', cause: 'discharge', interval: 4, range: 500, cost: 20, power: 70, burnPct: 60,    target: 'notSmaller', residue: 'incinerate' }, // 방출=파이어볼(파괴 원거리): 태워 없앤다 — 회수 0, 완전 연소(잔해 없음)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

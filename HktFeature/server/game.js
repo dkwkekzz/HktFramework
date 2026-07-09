@@ -34,6 +34,7 @@ import {
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
+  ABILITY,
   MAX_SPEED, BEACON_TOLERANCE, BEACON_SLACK_PX, moveCost, materialKey, entropicOutProb,
   CHECKSUM_INTERVAL_TICKS, FIELD_INTERVAL_TICKS, regionKey, regionNeighbors,
 } from '../shared/constants.js';
@@ -128,11 +129,13 @@ export class GameServer {
   // 생명체 하나를 스폰한다 (feature-0006) — 위치를 가진 discrete 저엔트로피 섬. SOURCE 에서 저엔트로피를
   //   주입받아(feature-0003: 유일한 원점) 태어난다. 이후 스스로 대사·갈구로 질서를 유지한다.
   //   확산·복사 순회 밖(materialKeys/crystals 와 별개)이라 오직 #metabolizeCreatures 만이 잔고를 움직인다.
-  spawnCreature(x, y, z) {
+  spawnCreature(x, y, z, { melee = 'bite' } = {}) {
     const seq = ++this.creatureSeq;
     const creId = `${POOL.CREATURE}${seq}`;
     this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0 }; // size=스탯(feature-0006 step2), growth=흑/적자 누적점
+    // melee=근접 발산 능력(feature-0010): 'bite'(흡수=포식, 먹는다) | 'slash'(파괴=참격, 부순다). 원거리 방출(fireball)은 공통.
+    //   기본은 'bite' — 기존 생명체(feature-0006~0009)의 강탈 행동을 그대로 유지(회귀 불변). '전사'만 'slash'.
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, melee }; // size=스탯(feature-0006 step2), growth=흑/적자 누적점
     this.creatures.set(creId, cre);
     this.ledger.transfer(POOL.SOURCE, creId, CREATURE_SPAWN_GRANT, CAUSE.SPAWN); // 저엔트로피 주입(무음 내부 이체)
     return cre;
@@ -291,7 +294,8 @@ export class GameServer {
     //   풀려난 에너지를 손실적으로 회수한다(강탈). 대사 앞에 돌린다 — 이번 틱에 뺏긴 먹이는 곧이어 대사
     //   순환에서 예비 아래로 떨어지면 죽어 분해된다(전투사 → 결정, 생태 루프). 순수 클램프(결정론 불변).
     if (this.tickCount % CREATURE_ATTACK_INTERVAL_TICKS === 0 && this.tickCount > 0) {
-      this.#combat();
+      this.#combat();  // 강탈=포식(흡수 근접)
+      this.#strike();  // 참격(파괴 근접) — feature-0010: 칼도 파이어볼처럼 회수 0(종착=세계)
     }
     // feature-0009 발산·파괴(방출) — 사거리 안 크기 무관 표적에 발산해 그 질서를 파괴한다(회수 없음 = 캐스터로
     //   안 돌아옴, 표적 에너지는 심우주 열·국소장 연기로 흩어짐). 전투(강탈) 뒤에 돌린다 — 먹지 못한 상대를
@@ -440,83 +444,83 @@ export class GameServer {
   //   못 붙잡는다(효율<1, 나머지는 국소장으로 흩어짐) — 그래서 얻는 것 < 뺏는 것(2법칙·생태학 ~10% 법칙).
   //   포식 규칙: 각 생명체는 사거리 안에서 **자기보다 작은(size<)** 가장 가까운 먹이 하나를 친다(강자→약자).
   //   결정론: seq 오름차순으로 훑고 순수 클램프(rng 미사용) — 확산·성장 결정론 불변. 전부 ledger.transfer → 보존.
-  #combat() {
-    const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
-    for (const A of list) {
-      if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
-      const cost = CREATURE_ATTACK_COST * A.size;
-      // 발산할 예비가 없으면(비용+최소 예비 미만) 공격하지 않는다 — 굶주린 개체는 사냥할 여력이 없다.
-      if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
-      // 사거리 안, 나보다 작은(포식 대상) 잔고 있는 가장 가까운 먹이
-      let prey = null, bestD = Infinity;
-      for (const V of this.creatures.values()) {
-        if (V.id === A.id || V.size >= A.size) continue;        // 포식 = 더 작은 것만(강자→약자)
-        if (this.ledger.balance(V.id) <= 0) continue;
-        const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
-        if (d <= CREATURE_ATTACK_RADIUS && d < bestD) { prey = V; bestD = d; }
-      }
-      if (!prey) continue;
-      // ① 발산 비용 — 상대 질서를 깨는 일. 되돌아오지 않는 열로 심우주에 지불(엔트로피 화살).
-      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
-      // ② 상대 질서 붕괴 — damage 만큼 먹이의 유지된 에너지가 풀려난다(먹이 잔고로 클램프).
-      const damage = Math.min(CREATURE_ATTACK_POWER * A.size, this.ledger.balance(prey.id));
-      if (damage <= 0) continue;
-      // ③ 손실적 회수(강탈) — 풀려난 damage 중 CAPTURE_PCT 만 A 로(용량 클램프), 못 붙잡은 몫은 국소장으로 흩어진다.
-      const capture = Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100);
-      const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0;
-      const scatter = damage - got; // 회수 못 한 전부(효율 손실 + 용량 초과분) = 세계로 방출
-      if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
-    }
-  }
+  #combat() { this.#emitPass('bite'); }        // 강탈=포식(흡수 근접) — melee==='bite' 개체만
+  #strike() { this.#emitPass('slash'); }       // 참격(파괴 근접) — melee==='slash' 개체만 (feature-0010)
+  #discharge() { this.#emitPass('fireball'); } // 방출=파이어볼(파괴 원거리) — 모두
 
-  // 발산·파괴 = 방출 — feature-0009. 강탈(포식)이 표적 에너지를 커플링해 일부 포획하는 것이라면, 방출은
-  //   표적의 질서를 *파괴만* 한다 — 붕괴 에너지가 캐스터가 아니라 세계(심우주 열 + 국소장 연기)로 흩어진다.
-  //   그래서 캐스터는 순수 지출(먹지 않음). 표적 규칙: 사거리(길다) 안 **먹을 수 없는 상대**(size ≥ 자신) —
-  //   강탈(먹이=size<)과 겹치지 않게 갈랐다. 못 먹는 강자·동급이 방출 대상. 결정론: seq 오름차순 + 순수 클램프.
-  #discharge() {
+  // 발산 한 바퀴 — feature-0010. 능력 서술자(ABILITY[key])가 "종착"을 정한다: 흡수(→나)냐 파괴(→세계)냐.
+  //   세 발산(강탈·참격·방출)이 이 한 패스로 통합된다 — 다른 것은 서술자(사거리·비용·위력·종착·표적·잔해)뿐이다.
+  //   결정론: seq 오름차순 + 순수 클램프(rng 미사용) → 확산·성장 결정론 불변. 전부 ledger.transfer → 보존.
+  #emitPass(key) {
+    const ab = ABILITY[key];
     const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
     for (const A of list) {
-      if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
-      const cost = DISCHARGE_COST * A.size;
-      // 발산할 예비가 없으면(비용+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
+      if (!this.creatures.has(A.id)) continue;               // 이번 패스 중 정리/전소됐을 수도(방어)
+      if ((key === 'bite' || key === 'slash') && A.melee !== key) continue; // 근접 능력은 그 능력을 가진 개체만
+      const cost = ab.cost * A.size;
+      // 발산할 예비가 없으면(비용+최소 예비 미만) 쏘지 않는다 — 굶주린 개체는 발산할 여력이 없다(예비 가드).
       if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
-      // 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나 — 못 먹으니 태운다.
-      //   강탈(강자→약자, size<)과 방출(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
-      //   있으면 강탈해 먹고, 못 먹으면 방출로 부순다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다.
-      let target = null, bestD = Infinity;
-      for (const V of this.creatures.values()) {
-        if (V.id === A.id || V.size < A.size) continue; // 더 작은 것(=먹이)은 강탈 몫 — 방출 대상 아님
-        if (this.ledger.balance(V.id) <= 0) continue;
-        const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
-        if (d <= DISCHARGE_RADIUS && d < bestD) { target = V; bestD = d; }
-      }
+      const target = this.#pickTarget(A, ab);
       if (!target) continue;
-      // ① 발산 비용 — 투사체를 만드는 폭발적 소모. 되돌아오지 않는 열로 심우주에 지불.
-      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
-      // ② 파괴 damage — 표적 질서가 무너진다(표적 잔고로 클램프).
-      const damage = Math.min(DISCHARGE_POWER * A.size, this.ledger.balance(target.id));
-      if (damage <= 0) continue;
-      // ③ 회수 없는 분산 — 붕괴 에너지를 심우주(열)+국소장(연기)로 흩는다. 어느 것도 캐스터로 안 간다(강탈과의 대비).
-      this.#dissipate(target, damage);
-      // ④ 완전 연소 — 예비 아래로 떨어졌으면 그 자리서 전소(남은 전부 열+연기로, 잔해 결정 없음 = #decompose 안 씀).
-      if (this.ledger.balance(target.id) < CREATURE_DEATH_THRESHOLD * target.size) this.#incinerate(target);
+      this.#resolveEmit(A, target, ab, cost);
     }
   }
 
-  // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0009. BURN_PCT 는 심우주(열)로 태우고, 나머지는 그 자리
-  //   국소장(연기)으로. 캐스터로는 한 푼도 가지 않는다 — 이것이 파괴(방출)와 포획(강탈)을 가르는 지점이다.
-  #dissipate(V, amount) {
-    const burn = Math.floor(amount * DISCHARGE_BURN_PCT / 100);
-    if (burn > 0) this.#tx(V.id, POOL.SINK, burn, CAUSE.DISCHARGE, { x: V.x, y: V.y });        // 열 → 심우주
+  // 표적 선택 — 서술자의 target 규칙으로 사거리 안 가장 가까운 대상 하나. (feature-0010)
+  //   'smaller'    = 더 작은 것(먹이, 강탈): 강자→약자.  'notSmaller' = 먹을 수 없는 상대(동급·강자, 방출).
+  //   'any'        = 크기 무관(참격): 칼은 크기를 가리지 않는다 — 사거리 안 아무나 벤다.
+  #pickTarget(A, ab) {
+    let best = null, bestD = Infinity;
+    for (const V of this.creatures.values()) {
+      if (V.id === A.id || this.ledger.balance(V.id) <= 0) continue;
+      if (ab.target === 'smaller' && V.size >= A.size) continue;    // 먹이는 더 작은 것만
+      if (ab.target === 'notSmaller' && V.size < A.size) continue;  // 먹을 수 없는 상대만(먹이는 강탈 몫)
+      const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
+      if (d <= ab.range && d < bestD) { best = V; bestD = d; }
+    }
+    return best;
+  }
+
+  // 발산 회계 — feature-0010. 어떤 능력이든 골격은 같고 **종착 하나만** 다르다(흡수=나 / 파괴=세계).
+  //   ① 발산 비용 A→심우주(열, 공통)  ② 표적 질서 붕괴 damage  ③ 종착(family)  ④ 죽음 잔해(residue).
+  #resolveEmit(A, target, ab, cost) {
+    // ① 발산 비용 — 질서를 깨는/투사하는 일. 되돌아오지 않는 열로 심우주에 지불(엔트로피 화살). 두 위상 공통.
+    this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
+    // ② 표적 질서 붕괴 — damage 만큼 유지된 에너지가 풀려난다(표적 잔고로 클램프).
+    const damage = Math.min(ab.power * A.size, this.ledger.balance(target.id));
+    if (damage <= 0) return;
+    if (ab.family === 'absorb') {
+      // ③a 흡수(수입) — 풀려난 damage 중 capturePct 만 나에게(용량 클램프 = 얻는 것 < 뺏는 것, 효율<1),
+      //    못 붙잡은 나머지는 국소장으로 흩어진다. **표적→나 엣지가 존재한다**(먹는다) — 파괴와의 결정적 대비.
+      const capture = Math.floor(damage * ab.capturePct / 100);
+      const got = capture > 0 ? this.#tx(target.id, A.id, capture, ab.cause, { x: target.x, y: target.y }) : 0;
+      const scatter = damage - got;
+      if (scatter > 0) this.#tx(target.id, materialKey(target.x, target.y, target.z), scatter, ab.cause, { x: target.x, y: target.y });
+    } else {
+      // ③b 파괴(지출) — 회수 없음. burnPct 는 심우주(열), 나머지 국소장(연기). **어느 것도 나에게 오지 않는다**(부순다).
+      this.#dissipate(target, damage, ab.cause, ab.burnPct);
+    }
+    // ④ 죽음 잔해 — 'incinerate'(파이어볼): 예비 붕괴 시 그 자리서 전소(잔해 결정 없음). 'natural'(강탈·참격):
+    //    이 패스에선 죽이지 않는다 — 곧 대사 순환에서 예비 아래로 떨어지면 죽어 #decompose(결정+국소장=시체)로 분해된다.
+    if (ab.residue === 'incinerate' && this.ledger.balance(target.id) < CREATURE_DEATH_THRESHOLD * target.size) {
+      this.#incinerate(target, ab.cause);
+    }
+  }
+
+  // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0009·0010. burnPct 는 심우주(열)로 태우고, 나머지는 그 자리
+  //   국소장(연기)으로. 캐스터로는 한 푼도 가지 않는다 — 이것이 파괴(참격·방출)와 포획(강탈)을 가르는 지점이다.
+  #dissipate(V, amount, cause = CAUSE.DISCHARGE, burnPct = DISCHARGE_BURN_PCT) {
+    const burn = Math.floor(amount * burnPct / 100);
+    if (burn > 0) this.#tx(V.id, POOL.SINK, burn, cause, { x: V.x, y: V.y });        // 열 → 심우주
     const smoke = amount - burn;
-    if (smoke > 0) this.#tx(V.id, materialKey(V.x, V.y, V.z), smoke, CAUSE.DISCHARGE, { x: V.x, y: V.y }); // 연기 → 국소장
+    if (smoke > 0) this.#tx(V.id, materialKey(V.x, V.y, V.z), smoke, cause, { x: V.x, y: V.y }); // 연기 → 국소장
   }
 
   // 완전 연소 — feature-0009. 방출로 예비가 무너진 표적을 그 자리서 전소시킨다: 남은 에너지까지 열+연기로 흩고
-  //   레지스트리·원장에서 제거한다. 잔해 결정을 남기지 않는다(#decompose 와 다른 죽음 — 굶주림/포식=결정, 전소=무).
-  #incinerate(V) {
+  //   레지스트리·원장에서 제거한다. 잔해 결정을 남기지 않는다(#decompose 와 다른 죽음 — 굶주림/포식/참격=결정, 전소=무).
+  #incinerate(V, cause = CAUSE.DISCHARGE) {
     const rest = this.ledger.balance(V.id);
-    if (rest > 0) this.#dissipate(V, rest); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
+    if (rest > 0) this.#dissipate(V, rest, cause, DISCHARGE_BURN_PCT); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
     this.ledger.removePool(V.id);
     this.creatures.delete(V.id);
   }
