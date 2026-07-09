@@ -9,15 +9,25 @@
 	'use strict';
 	const { PRESETS, materialize } = HktGenesisGenes;
 
-	// L6 뼈대: built-in FK(관절 53개) — 히키토 살(fleshK)의 유일한 형태 입력. three 불필요.
+	// L6 뼈대: built-in FK(관절 53개) — 히키토 살(fleshK)의 형태 입력. 외부 FBX 로드 시엔
+	// 그 리그가 뼈대를 대신 구동한다(아래 extSkel) — three 는 FBX 파싱/FK 입력 전용.
 	const skeleton = new HktGenesisSkeleton.Skeleton();
 	const skel = { clip: 'walk', speed: 1.0, fat: 1.0, bones: true, genome: HktGenesisGenome.IDENTITY };
 
 	let genes = null, sceneEntities = null, reseed = null, simTime = 0;
 	let lastPreset = '히키토';
-	const N = 65536; // 2^16 — 정렬·슬라이스 제약 충족
+	// 외부 FBX 리그(Mixamo 등) — 있으면 살(히키토)의 뼈대를 이 클립이 구동한다(없으면 built-in FK).
+	// three(r147) 는 FBX 파싱/FK 입력만 — 렌더·시뮬은 여전히 자체 WebGPU (절대 원칙 유지).
+	let extSkel = null, useExternal = false;
+	const N = 131072; // 2^17 — 정렬(2의 거듭제곱)·슬라이스(256 배수) 충족. Genesis 기본 밀도(128k)와 일치 —
+	                  // 불·물 등 발광 개체는 premultiplied-over 누적 밀도가 곧 볼륨감이라 64k 는 성기게 보인다.
 
-	function bindBones() { return skeleton.pose('idle', 0, 1, 1, skel.genome); }
+	// 살 시드용 바인드 포즈 — 외부 FBX 활성 시 그 리그의 현재 포즈(dt=0, 믹서 미진행)로 시드한다.
+	function bindBones() {
+		return (useExternal && extSkel)
+			? extSkel.pose(0, 1, 1, skel.genome)
+			: skeleton.pose('idle', 0, 1, 1, skel.genome);
+	}
 	function applyPreset(name) {
 		lastPreset = name;
 		const p = PRESETS[name];
@@ -71,6 +81,56 @@
 		}
 		document.getElementById('bones').addEventListener('change', (e) => { skel.bones = e.target.checked; });
 
+		// ── 외부 FBX 리그: 드롭/샘플/복귀 + 클립 선택 ──────────────────────────
+		const setStatus = (html) => { document.getElementById('skelStatus').innerHTML = html; };
+		function refreshClips() {
+			const box = document.getElementById('clips'); box.innerHTML = '';
+			if (!useExternal || !extSkel) return;
+			for (const name of extSkel.clipNames()) {
+				const b = document.createElement('button'); b.textContent = name || '(무명 클립)';
+				b.addEventListener('click', () => { extSkel.play(name, 0.25); setStatus(`클립 재생: <b>${name}</b>`); });
+				box.appendChild(b);
+			}
+		}
+		function loadFBXBuffer(buf, name) {
+			try {
+				extSkel = HktGenesisSkeleton.parseFBX(buf);
+				useExternal = true;
+				applyPreset(lastPreset); // 소스 전환 → 세그먼트 순서 변경 → 뼈 친화(rest.w) 재시드 필수
+				refreshClips();
+				setStatus(`FBX 로드: <b>${name}</b> · 뼈 ${extSkel.bones.length}개` +
+					(extSkel.clipName ? ` · 클립 “${extSkel.clipName}”` : ' · 클립 없음(바인드 포즈)') +
+					(lastPreset !== '히키토' ? ' — <b>히키토</b> 프리셋을 골라야 살이 뼈를 따라간다.' : ''));
+			} catch (e) { setStatus('FBX 파싱 실패: ' + e.message); }
+		}
+		function readFBXFile(f) {
+			if (!f) return;
+			const r = new FileReader();
+			r.onload = () => loadFBXBuffer(r.result, f.name);
+			r.readAsArrayBuffer(f);
+		}
+		const drop = document.getElementById('drop');
+		const fbxFile = document.getElementById('fbxFile');
+		if (typeof THREE === 'undefined' || !THREE.FBXLoader) setStatus('vendor/three.min.js 미로드 — FBX 비활성.');
+		else setStatus('FBX 로더 준비됨 — 샘플 또는 Mixamo FBX 를 드롭하세요.');
+		['dragover', 'dragenter'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.add('hot'); }));
+		['dragleave', 'drop'].forEach((ev) => drop.addEventListener(ev, (e) => { e.preventDefault(); drop.classList.remove('hot'); }));
+		drop.addEventListener('drop', (e) => { if (e.dataTransfer.files[0]) readFBXFile(e.dataTransfer.files[0]); });
+		drop.addEventListener('click', () => fbxFile.click());
+		fbxFile.addEventListener('change', (e) => readFBXFile(e.target.files[0]));
+		document.getElementById('fbxBuiltin').addEventListener('click', () => {
+			useExternal = false; extSkel = null;
+			applyPreset(lastPreset); refreshClips();
+			setStatus('내장 스켈레톤 (built-in FK).');
+		});
+		document.getElementById('fbxSample').addEventListener('click', async () => {
+			setStatus('샘플 FBX 로드 중…');
+			try {
+				const buf = await (await fetch('assets/anim/samba.fbx')).arrayBuffer();
+				loadFBXBuffer(buf, 'samba.fbx');
+			} catch (e) { setStatus('샘플 로드 실패: ' + e.message); }
+		});
+
 		const fpsEl = document.getElementById('fps');
 		let last = performance.now(), fpsAvg = 0;
 		function tick(now) {
@@ -82,7 +142,11 @@
 			const focalY = 0.5 * canvas.height / Math.tan(camera.fov / 2);
 			// 살(fleshK) 개체가 있을 때만 뼈대 FK — 세그먼트가 살 규칙의 유일한 형태 입력
 			let bones = null;
-			if (sceneEntities.some((g) => g.fleshK > 0)) bones = skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome);
+			if (sceneEntities.some((g) => g.fleshK > 0)) {
+				bones = (useExternal && extSkel)
+					? extSkel.pose(dt, skel.speed, skel.fat, skel.genome)         // 외부 FBX: 증분 시간(dt)으로 믹서 진행
+					: skeleton.pose(skel.clip, simTime, skel.speed, skel.fat, skel.genome); // 내장: 절대 시간
+			}
 			engine.frame({
 				dt, time: simTime, genes, entities: sceneEntities, paused: false, pull: [0, 0, 0, 0],
 				bones, showBones: skel.bones,

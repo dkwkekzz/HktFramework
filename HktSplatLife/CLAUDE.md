@@ -35,8 +35,11 @@
 
 ### 컨벤션
 
-- **WebGPU 전용** — 무대(Spark)·렌더 조정층(director) 코드 없음. FBX 외부 리그는 이 단독
-  프로젝트에 미포함(built-in 스켈레톤만). 필요 시 원본 HktSplatGenesis 참조.
+- **WebGPU 전용** — 무대(Spark)·렌더 조정층(director) 코드 없음.
+- **외부 FBX 리그 지원** — Mixamo FBX 를 드롭/샘플 로드하면 살(히키토)의 뼈대를 그 클립이
+  구동한다(built-in 스켈레톤은 기본값·폴백). `vendor/`(three r147 UMD + FBXLoader + fflate)는
+  **FBX 파싱/FK 입력 전용** — 렌더·시뮬은 여전히 자체 WebGPU(절대 원칙 불변). 동봉 샘플:
+  `assets/anim/samba.fbx`(three.js r147 예제, Mixamo). 검증: `test/fbx-shot.js`.
 - 무-빌드 classic `<script>` 전역 네임스페이스(`HktGenesisEngine`/`HktGenesisWGSL`/`HktMat`/
   `HktGenesisSkeleton` 등), 빌드 스텝 없음, 주석 한국어.
 - 튜닝 노브는 하드코딩 금지 — 게놈 슬라이더(`GENE_DEFS`)로 노출 (UE CVar 관례의 웹 대응).

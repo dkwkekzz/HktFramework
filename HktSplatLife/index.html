@@ -18,6 +18,16 @@
 	label { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; }
 	#fps { position: absolute; right: 12px; top: 12px; z-index: 2; opacity: 0.7; font-variant-numeric: tabular-nums; }
 	#msg { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; z-index: 3; background: #06070f; padding: 24px; text-align: center; }
+	#fbx { margin-top: 10px; }
+	#fbx .row { display: flex; flex-wrap: wrap; gap: 4px; }
+	#fbx button { background: #1a2030; color: #cdd3e0; border: 1px solid #2b3550; border-radius: 5px; padding: 5px 9px; cursor: pointer; }
+	#fbx button:hover { background: #26304a; }
+	#drop { margin-top: 6px; border: 1.5px dashed #3d466f; border-radius: 9px; padding: 10px; text-align: center; color: #8b93b5; cursor: pointer; font-size: 12px; }
+	#drop.hot { border-color: #ff9d6e; background: rgba(255, 157, 110, .08); color: #dfe4ff; }
+	#skelStatus { margin-top: 6px; font-size: 11px; line-height: 1.5; color: #9aa3c7; }
+	#skelStatus b { color: #8be9a8; }
+	#clips { display: flex; flex-wrap: wrap; gap: 4px; margin-top: 6px; }
+	#clips button { background: #241d33; border-color: #4a3b66; }
 </style>
 </head>
 <body>
@@ -29,9 +39,25 @@
 	<div id="presets"></div>
 	<div id="genomes"></div>
 	<label><input type="checkbox" id="bones" checked> 뼈대 오버레이 (히키토)</label>
+	<!-- 외부 FBX 리그: 살(히키토)의 뼈대를 Mixamo FBX 클립으로 구동한다.
+	     three(r147) 는 FBX 파싱/FK 입력만 담당 — 렌더·시뮬은 여전히 자체 WebGPU. -->
+	<div id="fbx">
+		<div class="row">
+			<button id="fbxSample">샘플 FBX (삼바)</button>
+			<button id="fbxBuiltin">내장 스켈레톤</button>
+		</div>
+		<div id="drop">FBX 파일을 드롭 (Mixamo → Download → FBX)</div>
+		<input type="file" id="fbxFile" accept=".fbx" style="display: none">
+		<div id="clips"></div>
+		<div id="skelStatus"></div>
+	</div>
 </div>
 <div id="fps"></div>
 <div id="msg"></div>
+<!-- vendor: FBX 드롭 전용 (three r147 는 뼈대 FK 입력만 — 렌더/시뮬은 자체 WebGPU) -->
+<script src="vendor/three.min.js"></script>
+<script src="vendor/fflate.min.js"></script>
+<script src="vendor/FBXLoader.js"></script>
 <script src="js/math.js"></script>
 <script src="js/heightfield.js"></script>
 <script src="js/genome.js"></script>
