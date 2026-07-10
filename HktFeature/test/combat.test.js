@@ -17,6 +17,7 @@ import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, materialKey, dist3,
   CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER, CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
+  CREATURE_DEFENSE, CREATURE_RESONANCE, crystalYield,
 } from '../shared/constants.js';
 
 function setup() {
@@ -42,7 +43,21 @@ function setup() {
     }
     return c;
   };
-  return { game, bal, total, runTicks, alive, attackTxs, makeCreature, matTotal: () => sumPrefix(POOL.MATERIAL), cryTotal: () => sumPrefix(POOL.CRYSTAL) };
+  // 결정(무기) 하나를 그 자리에 떨군다 — 플레이어 죽음의 분해(단단한 잔해→결정, feature-0005/0006)를 이용,
+  //   종(species)·잔고를 알려진 값으로 고정한다(무기 강탈 증폭 검증용). raw=false 라 무기로 쓸 수 있다.
+  const dropCrystal = (x, y, z, species, fill) => {
+    const pv = game.addPlayer({ send() {} }, 'wv');
+    const pl = game.players.get(pv.id); pl.x = x; pl.y = y; pl.z = z;
+    game.removePlayer(pv.id);
+    let c = null;
+    for (const k of game.crystals.values()) if (k.x === x && k.y === y && k.z === z && bal(k.id) > 0) c = k;
+    c.species = species; c.raw = false;
+    const cur = bal(c.id);
+    if (fill > cur) game.ledger.transfer(POOL.SOURCE, c.id, fill - cur, 'seed');
+    else if (fill < cur) game.ledger.transfer(c.id, POOL.SINK, cur - fill, 'seed');
+    return c;
+  };
+  return { game, bal, total, runTicks, alive, attackTxs, makeCreature, dropCrystal, matTotal: () => sumPrefix(POOL.MATERIAL), cryTotal: () => sumPrefix(POOL.CRYSTAL) };
 }
 
 test('강탈(포식) — 사거리 안 큰 개체가 작은 개체의 에너지를 뜯는다 (victim↓·attacker↑, 보존)', () => {
@@ -79,6 +94,66 @@ test('손실적 — 포식자가 얻는 것은 먹이가 잃는 것보다 적다
   assert.equal(capture, Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100), '강탈량 = damage×효율(나머지는 세계로)');
   assert.ok(s.bal(POOL.SINK) > sink0, '발산 비용이 심우주로 나갔다(엔트로피 화살)');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+});
+
+test('방어력 — 방어 센(큰) 먹이일수록 뚫는 값(발산 비용)이 크고 순이득이 작다 (공격력 vs 방어력)', () => {
+  // 같은 포식자(size 3)가 방어력 다른 두 먹이를 친다: 약한 방어(size 1) vs 센 방어(size 2, 둘 다 size< 3=먹이).
+  //   방어력 = CREATURE_DEFENSE × 먹이 size → 뚫는 값(발산 비용=SINK)이 방어에 비례해 커지고, 붙잡는 이득은
+  //   공격자 size 로 같으니 순이득(capture−burst)이 센 방어일수록 준다. "살아서 지키는 힘"이 코드로 검증된다.
+  const strike = (preySize) => {
+    const s = setup();
+    const A = s.makeCreature(500, 500, 500, 3, 2500);            // 포식자(size 3) — 굶지 않게 넉넉히
+    s.makeCreature(600, 500, 500, preySize, 700);               // 먹이 — 사거리(200) 안, 둘 다 A 보다 작다
+    s.runTicks(3);                                              // 한 번의 발산(tickCount 2)만 발화
+    const txs = s.attackTxs();
+    const burst = txs.filter(o => o.cause === 'burst').reduce((a, o) => a + o.amount, 0);        // 뚫는 값 → SINK
+    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id).reduce((a, o) => a + o.amount, 0);
+    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+    return { burst, capture, net: capture - burst };
+  };
+  const weak = strike(1), tough = strike(2);
+
+  // 뚫는 값은 상대 방어력(크기)에 비례해 커진다 — 정확히 CREATURE_DEFENSE 만큼(size 2−1=1 차이).
+  assert.ok(tough.burst > weak.burst, `방어 센 먹이가 뚫는 값이 크다 (${weak.burst} < ${tough.burst})`);
+  assert.equal(tough.burst - weak.burst, CREATURE_DEFENSE, '뚫는 값 차이 = 방어력 계수(크기 1 차이)');
+  // 붙잡는 이득은 공격자 size 로 같으니 순이득은 방어 센 먹이일수록 작다 — 그래도 둘 다 양(포식 유지).
+  assert.equal(weak.capture, tough.capture, '붙잡는 이득은 공격력(공격자 size)으로 정해져 먹이 방어와 무관');
+  assert.ok(weak.net > tough.net, `방어 센 먹이는 순이득이 작다 (${tough.net} < ${weak.net})`);
+  assert.ok(tough.net > 0, '방어 센 먹이여도 순이득은 양 — 포식은 여전히 값어치 있다');
+});
+
+test('공명 — 소유한 무기 아이템과 공명하면 포획 효율↑, 아이템은 소모되지 않는다 (feature-0015)', () => {
+  // 공명 = 소화가 아니다. 소유(feature-0014)한 아이템을 소모하지 않고, 그 종(species)이 강탈 포획 효율을 높인다
+  //   — 흩어질 몫을 더 붙잡는다(표적에서 옴). 종 yield 높은 아이템일수록 공명↑. 여러 개 지니면 합산.
+  const plunder = (species) => {
+    const s = setup();
+    const A = s.makeCreature(500, 500, 500, 2, 900);       // 포식자(size 2)
+    const V = s.makeCreature(600, 500, 500, 1, 500);       // 먹이(size 1) — 사거리 안
+    let item = null, held0 = 0;
+    if (species !== null) {
+      item = s.dropCrystal(200, 200, 200, species, 5000);  // 멀리 떨군 뒤 소유시킨다(세계 상호작용과 무관)
+      held0 = s.bal(item.id);
+      assert.ok(s.game.acquireItem(A, item), '아이템을 소유(획득)했다');
+    }
+    const v0 = s.bal(V.id);
+    s.runTicks(3);                                         // 한 번의 강탈(tickCount 2)
+    const txs = s.attackTxs();
+    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id).reduce((a, o) => a + o.amount, 0);       // 먹이→A(포획)
+    const damage = v0 - s.bal(V.id);                       // 먹이가 잃은 전부(대사 없음=먹이 owner null 이지만 갈구/대사 있음 → tx 로 재기)
+    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '공명에도 보존 불변');
+    return { capture, item, held0, itemBal: item ? s.bal(item.id) : 0 };
+  };
+
+  const bare = plunder(null);                              // 공명 없음(기준)
+  const lowR = plunder(1);                                 // 저효율 아이템(yield 1)
+  const hiR = plunder(0);                                  // 고효율 아이템(yield 3)
+
+  // 공명이 있으면 같은 damage 에서 포획을 더 붙잡는다(효율↑) — 종 yield 높을수록 크다.
+  assert.ok(lowR.capture > bare.capture, `공명이 포획 효율을 높인다 (${bare.capture} < ${lowR.capture})`);
+  assert.ok(hiR.capture > lowR.capture, `고효율 아이템이 더 크게 공명한다 (${lowR.capture} < ${hiR.capture})`);
+  // 아이템은 소모되지 않는다(소화 아님) — 강탈 뒤에도 잔고 그대로.
+  assert.equal(lowR.itemBal, lowR.held0, '공명은 아이템을 소모하지 않는다(잔고 그대로)');
+  assert.equal(hiR.itemBal, hiR.held0, '고효율 아이템도 소모되지 않는다');
 });
 
 test('포식 창발 — 작은 개체는 큰 개체를 치지 못한다 (강자→약자 일방)', () => {

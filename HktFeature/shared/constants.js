@@ -141,8 +141,25 @@ export function crystalYield(species) {
 export const CREATURE_ATTACK_INTERVAL_TICKS = 2;  // 발산(전투) 판정 주기 — 이따금 터지는 근접전(대사보다 느슨)
 export const CREATURE_ATTACK_RADIUS = 200;        // 근접 사거리(px) — 채집(300)·반응(400)보다 가깝다(밀착 포식)
 export const CREATURE_ATTACK_POWER = 40;          // 한 번의 발산이 무너뜨리는 상대 질서(×attacker size)
-export const CREATURE_ATTACK_COST = 6;            // 발산 비용 = 질서를 깨는 일(×attacker size) → SINK(열, 되돌아오지 않음)
+export const CREATURE_ATTACK_COST = 6;            // 발산 기본 비용 = 발산하는 일(×attacker size) → SINK(열, 되돌아오지 않음)
 export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡는 비율(효율<1) — 나머지는 국소장으로 흩어진다
+// 방어력(feature-0008 step2) — "살아있다 = 제 질서를 끊임없이 붙잡는다"는 힘 그 자체. 죽으면(결정) 방어력 0
+//   → 채집(무비용)과 정합. 방어력 = CREATURE_DEFENSE × victim size(크기 비례). 뚫는 값(발산 비용)에 상대
+//   방어력만큼 더 든다 → 방어 센(큰) 먹이일수록 SINK 로 더 많이 나가고 순이득이 준다(공격력 vs 방어력).
+export const CREATURE_DEFENSE = 10;               // 방어력 계수 — 상대 방어를 뚫는 값(×victim size) → SINK(열). 순이득이 항상 양이도록(포식 유지) 붙잡는 이득보다 작게
+
+// --- 획득(소유) (feature-0014) — 소화가 아니라 소유. 아이템을 먹어 없애지 않고 지녀 함께 다닌다 ---
+// 채집(feature-0007)은 결정을 흡수해 소멸시킨다(소화). 획득은 다르다 — 아이템(결정)을 소화하지 않고 **소유**한다:
+//   결정은 잔고 그대로 생명체에 귀속되어(에너지 이동 없음 = 보존 자명) 세계 상호작용(채집·반응·용해·파괴) 밖으로
+//   빠지고 주인을 따라다닌다. 소유는 이후 **공명**(feature-0015)으로 힘·스킬을 발휘하는 전제다.
+export const CREATURE_ACQUIRE_RADIUS = 200;       // 획득(줍기) 사거리(px) — 근접해야 지닌다
+export const CREATURE_CARRY_MAX = 3;              // 동시 소유 슬롯 수 — 무한 소유 방지(자원 압력)
+
+// --- 공명 (feature-0015) — 소유한 아이템/생명체와 공명해 힘·스킬을 발휘한다(소모 없음) ---
+// 소유(feature-0014)한 아이템은 소화되지 않았지만, 그 아이템과 **공명**하면 생명체가 힘을 낸다. 공명은 아이템의
+//   에너지를 소모하지 않는다(소화 아님) — 종(species)/속성이 능력을 바꿀 뿐이다. 첫 발현: 무기 아이템 공명이 강탈
+//   포획 효율을 높인다(흩어질 몫을 더 붙잡음, 표적에서 옴 — 아이템 무소모). 공명은 아이템뿐 아니라 생명체와도 일어난다(후속).
+export const CREATURE_RESONANCE = 8;              // 무기 공명 1개당 포획 효율 가산(%p, ×종 yield) — 아이템은 소모 안 됨
 
 // --- 발산·파괴 = 방출형 (feature-0009) — 회수 없는 원거리 파괴 ---
 // 강탈(feature-0008)이 표적 에너지를 커플링해 일부 포획(수입)하는 것이라면, 방출은 표적의 질서를 *파괴만* 한다 —

@@ -1,6 +1,6 @@
 # feature-0009 — 발산: 생명체가 에너지를 발산해 파이어볼(투사체)을 쏜다
 
-> 상태: 🟡 진행 중 (step 1~4 검증됨) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
+> 상태: 🟢 검증됨 (step 1~4) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
 > 배경: [feature-0008](feature-0008-emit-predation.md)(강탈=포식)에서 분리된 트랙. 발산에는 두 원리가 있다 — **포획(수입)** 은 0008, **파괴(지출)** 는 이 feature.
 > 정합: 발산이 만든 파이어볼이 *터지는* 것(폭발)은 **물질의 사건**이라 별개다 → [feature-0013](feature-0013-material-property-stimulus.md) 규칙 D(폭발).
 
