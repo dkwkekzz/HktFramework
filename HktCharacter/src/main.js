@@ -13,6 +13,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { PROFILES, GROUPS, matchRule } from './proportions.js';
+import { buildFleshMesh } from './fleshmesh.js';
 
 const MAXB = 256; // loft 원판 사슬 포함 상한 (5 vec4 배열 × 256 = 1280 ≤ 프래그먼트 유니폼 4096)
 const app = document.getElementById('app');
@@ -148,6 +149,10 @@ jointGeo.setAttribute('position', new THREE.BufferAttribute(jointPos, 3));
 const joints3 = new THREE.Points(jointGeo, new THREE.PointsMaterial({ color: 0xffffff, size: 6, sizeAttenuation: false, depthTest: false }));
 boneLines.visible = joints3.visible = false;
 skelScene.add(boneLines); skelScene.add(joints3);
+
+// ---- 정점 메시 살 층 (fleshmesh.js — "찍고 → 조정" 매체) --------------------
+const meshScene = new THREE.Scene();
+let flesh = null; // { mesh, update, setStage, stats }
 
 // ===========================================================================
 //  (2) Flesh grammar : 이름 → 반지름.  이게 "스타일"의 정의.
@@ -439,6 +444,37 @@ function extractBones(showFingers, fat) {
   appendExtras(segs, fat, n => virt[n] ?? builtinJoint(n));
   return segs;
 }
+// ---- 정점 메시 빌드/갱신 -----------------------------------------------------
+// 빌드는 바인드(A-)포즈에서 1회: 현재 SDF 세그먼트(시트 피팅 loft+extras)를
+// "조정의 진실 원천"으로 삼아 링 정점을 표면 투영한다. 이후 프레임은 뼈 변환만.
+function builtinBone(childSimple) {
+  const i = jointName.findIndex(jn => simpleName(jn) === childSimple);
+  if (i < 0 || jointDefs[i].parent < 0) return null;
+  return {
+    a: jointObjs[jointDefs[i].parent].getWorldPosition(new THREE.Vector3()),
+    b: jointObjs[i].getWorldPosition(new THREE.Vector3()),
+    quat: jointObjs[i].getWorldQuaternion(new THREE.Quaternion()),
+  };
+}
+function buildFlesh() {
+  if (flesh) { meshScene.remove(flesh.mesh); flesh.mesh.geometry.dispose(); flesh.mesh.material.dispose(); }
+  applyPose('apose', 0, 1); // 정적 A-포즈 = eval 계측 포즈 — 빌드 결정론
+  rigRoot.updateMatrixWorld(true);
+  flesh = buildFleshMesh({
+    segs: extractBones(false, st.fat), getBone: builtinBone,
+    profile, radiusForName, globalK: st.k,
+  });
+  meshScene.add(flesh.mesh);
+}
+// 메시 모드 토글 — 켜질 때 없으면(또는 프로파일이 바뀌었으면) 즉시 빌드.
+// ⚠ 통통함/그룹 배율/smin 슬라이더는 빌드 시점 값으로 굳는다 — 다시 켜면 반영.
+function setFleshMode(on) {
+  st.mesh = !!on;
+  if (st.mesh && !flesh) buildFlesh();
+  const b = document.getElementById('btnMesh');
+  if (b) b.classList.toggle('on', st.mesh);
+}
+
 function uploadBones(segs) {
   // [평범한 캡슐 | detail 합집합 | 컷] 순서로 정렬 — 셰이더가 구간별 경로를 탄다
   const isDetail = s => s.cut || s.k != null || s.f != null || s.f2 != null;
@@ -611,10 +647,11 @@ function readFile(f) {
 // ===========================================================================
 //  카메라 / 입력 / 루프
 // ===========================================================================
-const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: profile.defaults?.k ?? 0.12, fat: 1.0, fingers: false, bone: false, pause: false };
+const st = { az: 0.5, el: 0.06, dist: 4.0, clip: 'walk', speed: 1.0, k: profile.defaults?.k ?? 0.12, fat: 1.0, fingers: false, bone: false, pause: false, mesh: false };
 // ?paused=1 — 계측 도구용: 첫 프레임부터 렌더를 쉰다 (소프트웨어 GL 은 프레임이 수 초 —
 // 페이지 로드 직후의 무거운 프레임들이 evaluate/fit 호출을 굶긴다)
-if (new URLSearchParams(location.search).has('paused')) st.pause = true;
+const urlParams = new URLSearchParams(location.search);
+if (urlParams.has('paused')) st.pause = true;
 uniforms.uK.value = st.k;
 const target = new THREE.Vector3(0, 1.0, 0);
 function updateCam() {
@@ -662,6 +699,7 @@ function setPreset(id) {
     $('k').value = st.k; $('kVal').textContent = st.k.toFixed(2);
   }
   $('preset').value = id;
+  if (st.mesh) buildFlesh(); // 정점 메시는 프로파일에서 굽는다 — 프리셋 전환 시 재빌드
 }
 const presetSel = $('preset');
 for (const [id, p] of Object.entries(PROFILES)) {
@@ -721,9 +759,12 @@ function setSegFilter(re) { segExcl = re ? new RegExp(re) : null; }
 window.__hkt = {
   st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam,
   screenToWorld, joints: jointsDump, setSegFilter, target,
+  setFleshMode, setMeshStage: s => flesh?.setStage(s), get fleshStats() { return flesh?.stats; },
 };
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });
+$('btnMesh').addEventListener('click', () => setFleshMode(!st.mesh));
+if (urlParams.has('mesh')) setFleshMode(true); // ?mesh=1 — 로드 즉시 정점 메시 모드
 $('btnBuiltin').addEventListener('click', returnToBuiltin);
 
 // 동봉 로코모션 샘플 버튼 — 클릭 시 해당 FBX 를 fetch 해 살이 그 클립을 따라간다.
@@ -740,9 +781,17 @@ function loop() {
   // (소프트웨어 GL 에선 프레임이 수 초 — 시트 분석/좌표 변환은 렌더가 필요 없다)
   if (st.pause) { requestAnimationFrame(loop); return; }
   const t = clock.getElapsedTime();
+  // 정점 메시 모드 — built-in 리그 한정 (외부 FBX 는 SDF 경로 유지, v1 한계)
+  const meshOn = st.mesh && !(mode === 'external' && extRoot);
   let segs;
   if (mode === 'external' && extRoot) {
     segs = extractExternal(st.fingers, st.fat);
+  } else if (meshOn) {
+    if (!flesh) buildFlesh();
+    applyPose(st.clip === 'external' ? 'idle' : st.clip, t, st.speed);
+    rigRoot.updateMatrixWorld(true);
+    flesh.update(builtinBone);
+    segs = []; // 레이마칭 살은 끈다 — 쿼드는 하늘/바닥만 그린다
   } else {
     applyPose(st.clip === 'external' ? 'idle' : st.clip, t, st.speed);
     segs = extractBones(st.fingers, st.fat);
@@ -751,6 +800,7 @@ function loop() {
   uploadBones(segs); updateCam();
   renderer.clear();
   renderer.render(quadScene, quadCam);
+  if (meshOn && flesh) renderer.render(meshScene, cam);
   if (st.bone) renderer.render(skelScene, cam);
   requestAnimationFrame(loop);
 }

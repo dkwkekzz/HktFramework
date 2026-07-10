@@ -22,6 +22,15 @@ npm run dev
 
 > 참고: 이 프로토타입은 `three` 를 npm 패키지로 `import` 하는 ES Module 구조라 `file://` 더블클릭으로는 열리지 않는다. dev 서버(Vite)가 ①정상 origin 제공(ES Module CORS) ②bare import(`'three'`) 경로 해석 두 가지를 담당하므로 서버 실행이 필요하다. `run.bat` 은 이 과정을 원클릭으로 감싼 것.
 
+## 정점 메시 모드
+
+우측 패널 **정점 메시** 버튼(또는 `?mesh=1`)으로 살 매체를 레이마칭 SDF 에서 **정점 메시**로
+전환한다 — 뼈 체인을 따라 단면 링 버텍스를 대충 찍고, 시트 피팅된 살 필드 표면으로 투영해
+조정한 뒤 스무딩한 매체(자세한 설계는 [VERTEX-PLAN.md](VERTEX-PLAN.md)). SDF 스택의 음영
+아티팩트(밴드·웰드 lump)가 구성상 사라지고, FK 애니메이션은 그대로 따라온다.
+계측은 `HKT_EVAL_MESH=1 npm run eval`, 스크린샷은 `node eval/shot.mjs --mesh 1`.
+현재 built-in 리그 한정 (외부 FBX 는 SDF 폴백).
+
 ## 로코모션 (동봉 FBX)
 
 우측 패널 **로코모션** 섹션의 버튼(걷기·뛰기·대기·점프·공격·삼바)을 누르면 동봉된 Mixamo

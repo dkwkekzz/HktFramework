@@ -44,6 +44,11 @@ try {
     h.setPreset('reference');
     h.st.clip = 'apose'; h.st.speed = 0;
   });
+  // --mesh 1 — 정점 메시 살 층으로 촬영 · --stage rough — "찍기만 한" 단계 시각화
+  if (arg('mesh')) await page.evaluate(stage => {
+    window.__hkt.setFleshMode(true);
+    if (stage) window.__hkt.setMeshStage(stage);
+  }, arg('stage', ''));
   for (const s of shots) {
     await page.evaluate(s => {
       const h = window.__hkt;
