@@ -120,6 +120,8 @@ try {
     h.st.clip = 'apose'; h.st.speed = 0; h.st.dist = 3.4; h.st.el = 0.0; h.st.az = 0.0;
     h.st.pause = true; // 뷰 캡처 직전에만 프레임을 렌더 (소프트웨어 GL 비용 절약)
   });
+  // HKT_EVAL_MESH=1 — 정점 메시 살 층으로 계측 (빌드는 동기 — 반환 시 완료)
+  if (process.env.HKT_EVAL_MESH) await page.evaluate(() => window.__hkt.setFleshMode(true));
 
   const refB64 = readFileSync(FIXTURE).toString('base64');
   // HKT_EVAL_VIEWS=front,side — 뷰 분할 실행 (호출당 시간 제한이 있는 CI 용).
