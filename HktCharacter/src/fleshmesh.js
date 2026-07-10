@@ -128,8 +128,11 @@ const CHAIN_DEFS = [
   // 몸통이 다리를 보면 골반 링/가랑이 캡 레이가 허벅지 표면을 몸통 토폴로지에 찍어
   // 힙·가랑이·둔부 플랩이 된다(교훈) — 허벅지 폭 실루엣은 다리 체인이 들고 있으므로
   // 몸통 필드에서 다리 전체 제외 (골반 loft·둔부 extras 는 몸통 몫으로 유지).
+  // yieldField: 이 필드 "내부"로 들어간 몸통 정점은 잠수(project 의 yield) — 겹침
+  // 지역의 가시 표면을 다리 셸 한 장으로 통일한다 (둔부-허벅지 "분리"선 해소).
   { bones: ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End'], around: 32, mirror: false, inset: 0, fitKey: 'torso',
-    field: () => id => !/Arm|Hand|Leg|Foot|Toe/.test(id) },
+    field: () => id => !/Arm|Hand|Leg|Foot|Toe/.test(id),
+    yieldField: () => id => /Leg|Foot|Toe/.test(id) },
   // 다리도 자기 살만 본다 — 골반·둔부까지 보면 허벅지 상단 레이가 그 표면을 찍어
   // "반바지" 스캘럽이 된다. 힙 실루엣(크레스트·둔부)은 몸통 체인 몫 (골반 loft 가
   // 시트 폭을 행별로 이미 보유), 다리는 순수 허벅지~발목 loft — 매끈함이 보장된다.
@@ -153,6 +156,14 @@ const CHAIN_DEFS = [
 ];
 const UNIFORM_TS = [0, 0.25, 0.5, 0.75, 1]; // loft 없는 뼈(팔 등)의 균등 링
 const CAP_PHIS = [Math.PI / 8, Math.PI / 4, Math.PI * 3 / 8]; // 돔 캡 링의 극각
+// 몸통 yield — 몸통 정점이 다리 살 "내부"로 들어간 깊이(m)당 잠수 가중.
+// 겹침 지역의 가시 표면 주인은 다리 셸(합집합 투영) 하나가 되고, 몸통 셸은
+// 웰드 곡선(다리 필드=0)에서 가파르게 다리 셸 아래로 다이브한다 — 두 셸이
+// 넓은 대역에서 근접 평행하게 교차하면 앞뒤가 픽셀 단위로 뒤집혀 톱니가 된다
+// (outset 램프 시도의 교훈). 교차를 측도 0 곡선으로 몰아넣는 게 핵심.
+// DEPTH 를 좁게(가파른 다이브) — 교차 모호 대역폭 ∝ 이산화 노이즈/기울기.
+// 완만하면(8mm) 웰드 곡선을 따라 반점이 흩뿌려진다.
+const YIELD_DEPTH = 0.005, YIELD_MAX = 0.005;
 
 // 링 평면 직교 프레임 — 축과 나란하지 않은 기준축을 골라 (u,v,axis) 정규 직교.
 // u×v=axis 이 되도록 잡는다 (권선 방향 → 바깥 법선 보장의 근거).
@@ -236,15 +247,36 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
         let r = s == null ? ring.rGuess : s;
         if (r > ring.rGuess * 2.2) r = ring.rGuess;
         // 힙 이음 블렌드: 합집합 표면(자기 살 ∪ 골반·둔부) 반경으로 램프 보간.
-        // 안쪽(내측) 레이가 골반 내부를 관통해 반대편으로 탈출하면 2.2 클램프가
-        // 다리 전용 반경으로 되돌린다 — 그 대역은 몸통 셸 안에 묻혀 있어 안 보인다.
-        if (!cap && ring.hipW > 0 && ring.subsetHip) {
-          const sh = projectRay(ring.subsetHip, globalK, ring.c.x, ring.c.y, ring.c.z, dir.x, dir.y, dir.z, sMax);
-          let rh = sh == null ? r : sh;
-          if (rh > ring.rGuess * 2.2) rh = r;
-          r += (rh - r) * ring.hipW;
+        // 캡(다리 시작 돔)도 합집합으로 — 자기 살만 보면 돔이 안으로 말려 접힘선.
+        // 클램프(내측 레이가 골반을 관통해 반대편 탈출)나 미탈출 레이는 블렌드도
+        // outset 도 없이 다리 전용 반경 + inset — 몸통 셸 안에 묻혀 안 보인다.
+        let off = -def.inset; // inset: 몸통과 겹치는 팔다리 면의 z-fighting 완화
+        const hipSubset = cap ? ring.subsetCapHip : ring.subsetHip;
+        if (ring.hipW > 0 && hipSubset) {
+          const sh = projectRay(hipSubset, globalK, ring.c.x, ring.c.y, ring.c.z, dir.x, dir.y, dir.z, sMax);
+          if (sh != null && sh <= ring.rGuess * 2.2) {
+            r += (sh - r) * ring.hipW;
+            // 다리 yield(몸통 yield 의 거울): 합집합 표면 중 자기 살 "밖"(둔부·골반
+            // 이식부)은 추가 잠수 — 그 지역의 가시 주인은 몸통 셸이다. 이식부를
+            // -inset(1.5mm)에만 두면 이산화 오차(~1mm 코드 새김)로 몸통을 뚫고
+            // 나와 힙 크레스트에 톱니가 흩뿌려진다 (교훈). 자기 허벅지 표면
+            // (dOwn≈0)은 -inset 유지 → 가시 표면이 웰드 곡선(둔부 주름)에서
+            // 정확히 한 번 몸통→다리로 교대한다.
+            const rr = r + off;
+            const dOwn = fieldAt(ring.subset, ring.c.x + dir.x * rr, ring.c.y + dir.y * rr, ring.c.z + dir.z * rr, globalK);
+            off -= Math.max(0, Math.min(1, dOwn / YIELD_DEPTH)) * YIELD_MAX;
+          }
         }
-        return Math.max(r - def.inset, 0.002); // inset: 몸통과 겹치는 팔다리 면의 z-fighting 완화
+        // 몸통 yield: 다리 살 내부에 든 정점은 웰드 곡선에서부터 가파르게 잠수 —
+        // 겹침 지역(둔부 하반·허벅지 상단·가랑이 캡 플랩)의 가시 표면을 다리 셸
+        // 한 장에 넘긴다. 잠수 후 몸통(−4mm)과 다리(−1.5mm)의 여유 2.5mm 는
+        // Taubin 스무딩의 상대 이동(~1mm)보다 크다 — 재교차(스펙클) 방지 조건.
+        if (ring.subsetYield) {
+          const rr = r + off;
+          const dl = fieldAt(ring.subsetYield, ring.c.x + dir.x * rr, ring.c.y + dir.y * rr, ring.c.z + dir.z * rr, globalK);
+          off -= Math.max(0, Math.min(1, -dl / YIELD_DEPTH)) * YIELD_MAX;
+        }
+        return Math.max(r + off, 0.002);
       };
       const dirAt = (ring, j) => {
         const th = j / N * Math.PI * 2;
@@ -259,6 +291,7 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
         const d = ring.c.distanceTo(rings[0].c);
         ring.hipW = Math.max(0, Math.min(1, (zero - d) / (zero - plateau)));
       }
+      const visibleYield = def.yieldField ? ordered.filter(s => def.yieldField(prefix)(s.id)) : null;
       // 구 껍질 침수(flood) 차단: 링 평면을 축 방향으로 완전히 벗어난 loft 세그먼트는
       // 그 링에는 "구 오버행"으로만 기여한다 — 반지름이 간격보다 크면 이웃 대역을
       // 침수시킨다 (턱 디스크의 구가 목구멍을 메우고, 목 envelope 의 구가 위로 번지던
@@ -281,7 +314,13 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
         ring.subset = near.filter(noFlood);
         ring.subsetCap = near; // 캡 전용 — 돔 구 포함 전체
         ring.subsetHip = ring.hipW > 0 && visibleHip ? nearOf(visibleHip).filter(noFlood) : null;
+        // 캡용 합집합 (flood 필터 없음 — 돔은 구가 그린다): 다리 시작 캡이 자기 살만
+        // 보면 돔이 안으로 말려 허벅지 꼭대기에 접힘선(둔부와의 "분리"선)이 남는다
+        ring.subsetCapHip = ring.hipW > 0 && visibleHip ? nearOf(visibleHip) : null;
         ring.hipW = ring.hipW ?? 0;
+        // yield 필드 (점 평가용 — flood 필터 불필요): 몸통 골반 대역 정점의 다리 내부 판정
+        const ny = visibleYield ? nearOf(visibleYield) : null;
+        ring.subsetYield = ny?.length ? ny : null;
       }
       const emitRing = (ring, dirFn, cap) => {
         const row = [];
