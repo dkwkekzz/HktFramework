@@ -104,7 +104,12 @@ void main(){
   vec3 ro=uCamPos; vec3 rd=normalize(ff.xyz-nf.xyz);
   float t=0.0;bool hit=false;
   for(int i=0;i<100;i++){vec3 p=ro+rd*t;float d=map(p);
-    if(d<0.0008*t+0.0004){hit=true;break;} t+=d; if(t>26.0)break;}
+    if(d<0.0008*t+0.0004){
+      // 히트 정련 — 납작화(w<1) 세그먼트는 필드가 w 배 축소돼 임계값이 월드로 1/w 배
+      // 부풀어 보인다 (팬케이크 골반 +2cm 스커트 교훈). 몇 스텝 더 조여 실표면에 붙인다.
+      for(int j=0;j<10;j++){d=map(ro+rd*t);if(d<0.00012*t+0.00006)break;t+=d;}
+      hit=true;break;
+    } t+=d; if(t>26.0)break;}
   vec3 col;
   if(hit){
     vec3 p=ro+rd*t;vec3 n=calcN(p);float dif=clamp(dot(n,L),0.0,1.0);
@@ -310,8 +315,16 @@ function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
   const zdir = new THREE.Vector3(0, 0, 1).applyQuaternion(quat).normalize();
   const xdir = new THREE.Vector3(1, 0, 0).applyQuaternion(quat).normalize();
   const D = spec.disks;
-  const k = spec.k ?? 0.008; // 같은 뼈 안 원판끼리는 좁게 — 한 표면처럼. smin 사슬은
-  // 이웃 세그먼트 등거리 지점(원판 평면)마다 표면을 k/4 부풀린다 — k 를 줄여 리플 최소화.
+  // 스택 내부 k: 이웃 cone 세그먼트의 기울기 불연속(면 각짐)이 준-툰 셰이딩에서 가로
+  // 밴드로 증폭된다 — k 가 이음새를 둥글린다 (0.004 로 줄이면 다리가 골판지가 되는 교훈).
+  // 대가는 원판 평면마다 k/4(4mm) 균일 부풀음 — 스무스한 사슬에선 리플이 아니라 전체
+  // 두께 +4mm 로 읽히고, 재피팅(compose SHRINK)이 데이터에서 도로 빼서 수렴한다.
+  const k = spec.k ?? 0.016;
+  // k0/k1: 스택 첫/끝 세그먼트의 관절 경계 blend — 이웃 살(골반↔허벅지 등)과의
+  // 웰드 주름을 넓게 편다 (스택 내부 k 와 분리 — LOFT-PLAN §4 "관절 경계만 blend").
+  // ⚠ 축 방향 납작화(팬케이크)는 시도 후 폐기 — 필드가 f2 배 줄어 히트 임계값이 월드로
+  // 1/f2 배 부풀고, 비등방 스케일이 법선의 축 성분을 1/f2 배 왜곡해 가로 밴딩이 생긴다.
+  // 빠른 테이퍼(가랑이·힙 플레어)는 데이터 쪽(fit-loft 의 돔 가드·rEmit 클램프)에서 푼다.
   for (let i = 0; i + 1 < D.length; i++) {
     const d0 = D[i], d1 = D[i + 1];
     const zc0 = (d0.zf + d0.zb) / 2, zc1 = (d1.zf + d1.zb) / 2;
@@ -328,7 +341,8 @@ function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
     segs.push({
       a: A, b: B,
       ra: (zFlat ? d0.rx : rz0) * mul, rb: (zFlat ? d1.rx : rz1) * mul,
-      k, f, n: zFlat ? zdir : xdir, id,
+      k: i === 0 ? (spec.k0 ?? k) : i + 2 === D.length ? (spec.k1 ?? k) : k,
+      f, n: zFlat ? zdir : xdir, id,
     });
   }
 }
@@ -706,7 +720,7 @@ function setSegFilter(re) { segExcl = re ? new RegExp(re) : null; }
 // 디버그/튜닝 핸들 — 콘솔에서 프로파일 수치를 실시간으로 만질 수 있다.
 window.__hkt = {
   st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam,
-  screenToWorld, joints: jointsDump, setSegFilter,
+  screenToWorld, joints: jointsDump, setSegFilter, target,
 };
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });

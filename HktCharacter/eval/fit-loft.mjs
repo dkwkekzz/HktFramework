@@ -4,12 +4,13 @@
 //  시트 3뷰의 dense 경계를 뼈 로컬 원판(t, rx, zf, zb[, xo])로 변환한다.
 //  피팅은 오프라인 1회 — 결과는 proportions.js 의 loft 절로 붙여넣는다(진실=데이터).
 //
-//  실행 (하위 단계 분할 — 호출당 시간 제한이 있는 CI 를 위해. 순서대로):
+//  실행 (하위 단계 분할 — 호출당 시간 제한이 있는 CI 를 위해. 계측 전부 → 빌드 순서):
 //    node eval/fit-loft.mjs --stage front-torso   → eval/out/fit-view-front-torso.json
 //    node eval/fit-loft.mjs --stage side-torso    → eval/out/fit-view-side-torso.json
-//    node eval/fit-loft.mjs --stage build-torso   → eval/out/fit-torso.json (브라우저 불필요)
 //    node eval/fit-loft.mjs --stage front-legs    → eval/out/fit-view-front-legs.json (+runs)
 //    node eval/fit-loft.mjs --stage side-legs     → eval/out/fit-view-side-legs.json
+//    node eval/fit-loft.mjs --stage back-legs     → eval/out/fit-view-back-legs.json (+runs)
+//    node eval/fit-loft.mjs --stage build-torso   → eval/out/fit-torso.json (브라우저 불필요)
 //    node eval/fit-loft.mjs --stage build-legs    → eval/out/fit-legs.json (브라우저 불필요)
 //    node eval/fit-loft.mjs --stage apply         → 병합 주입 → 3방향 dense 손실
 //                                                   + eval/out/loft-fit.json (붙여넣기용)
@@ -19,7 +20,13 @@
 //   · 시트를 믿는 행 = "그 행의 전체 실루엣 경계가 해당 부위"인 행 —
 //     전체 렌더와 부위-만 렌더(setSegFilter)의 경계가 일치(≤2px)하는지로 판정.
 //     아니면(팔이 몸통을 가리는 밴드 등) 부위-만 렌더의 현재 실루엣을 유지한다.
+//     단, 렌더가 시트보다 뚱뚱한 행은 시트로 수축(compose SHRINK) — 돔 재흡수 랫칫 차단.
+//   · 정면 시트의 허리~골반 대역은 팔·손 획이 몸 윤곽을 가린다(envelope=팔) —
+//     후면 뷰(팔이 몸에서 떨어져 간격 존재)의 윤곽 추적(traceContour)으로 대체한다.
+//     이게 없으면 그 대역은 영원히 self-copy — 시트를 한 번도 보지 못한다 (교훈).
 //   · 다리 정면은 행의 잉크 구간(runs)으로 좌/우 분리, 측면 깊이는 두 다리 공유.
+//   · 골반 하단: round-cone 타원구는 축 방향으로 max(rx,rz) 만큼 뻗는다 — 가랑이 아래로
+//     새는 돔은 원판별 "rEmit ≤ y-crotchY" 클램프로 자른다 (가랑이 V 는 허벅지가 그린다).
 //   · 접힌 extras(목덜미·아랫배·골반옆·종아리)는 부위-만 렌더에 포함시켜 loft 가
 //     흡수하고, 유지 extras(가슴·승모근·둔부·뒤꿈치·손바닥)는 제외해 이중계상 방지.
 // ===========================================================================
@@ -76,11 +83,21 @@ function lerpAt(series, f) { // { f, v }[] (f 오름차순)
   const a = series[i - 1], b = series[i];
   return a.v + (b.v - a.v) * ((f - a.f) / (b.f - a.f));
 }
-// 계측 행 {f, sheet, part, vis} → 합성 값 시리즈 {f, v}.
-// 시트를 믿는 조건: 그 행에서 부위가 실루엣 경계(vis) + 시트-렌더 차 ≤ GUARD.
-// (시트의 팔뚝·손·코 획이 렌더와 다른 위치에 있으면 가시성 검사가 뚫린다 — 가드가 잡는다)
+// 계측 행 {f, sheet, part, vis} → 합성 값 시리즈 {f, v}. dir: 바깥 방향 부호(hi=+1, lo=-1).
+// 시트를 믿는 조건: 그 행에서 부위가 실루엣 경계(vis)여야 하고,
+//  · 수축(렌더가 시트보다 뚱뚱)은 SHRINK 까지 허용 — round-cone 타원구 돔이 데이터보다
+//    부풀어 렌더되고, 그 돔을 다음 피팅이 데이터로 재흡수하는 랫칫을 여기서 끊는다.
+//  · 성장(시트가 렌더보다 밖)은 GUARD 이내만 — 시트의 팔뚝·손·코 획이 렌더의 다른 부위와
+//    우연히 겹치면 가시성 검사가 뚫리므로, 큰 성장은 foreign 획으로 보고 무시한다.
 const GUARD = 0.015;
-const compose = rows => rows.map(r => ({ f: r.f, v: r.vis && Math.abs(r.sheet - r.part) <= GUARD ? r.sheet : r.part }));
+const SHRINK = 0.03;
+const compose = (rows, dir) => rows.map(r => {
+  if (!r.vis) return { f: r.f, v: r.part };
+  const shrink = (r.part - r.sheet) * dir; // + = 렌더가 시트보다 밖 (살 빼야 함)
+  const v = shrink >= 0 ? (shrink <= SHRINK ? r.sheet : r.part - dir * SHRINK)
+    : (-shrink <= GUARD ? r.sheet : r.part);
+  return { f: r.f, v };
+});
 // 두상용 비대칭 합성: "줄이기(살 빼기)는 시트대로 자유, 늘리기는 +GUARD 까지".
 // 시트 머리엔 머리카락이 붙어 있다 — 살을 머리카락 폭으로 늘리면 갓머리가 되지만,
 // 얼굴이 렌더보다 갸름한 건 그대로 믿어야 한다 (dir=+1: hi 경계, dir=-1: lo 경계).
@@ -97,6 +114,49 @@ const movAvg3 = arr => arr.map((v, i) => {
   const w = [arr[i - 1], v, arr[i + 1]].filter(x => x != null);
   return w.reduce((s, x) => s + x, 0) / w.length;
 });
+// median(3) — 한 행짜리 스파이크(팔·손 획이 가드를 뚫은 행) 제거. 이동 평균은 스파이크를
+// 이웃으로 번지게 하므로 반드시 median 을 먼저 — 잔물결이 음영(법선)에 그대로 뜬다 (교훈).
+const medFilt3 = arr => arr.map((v, i) => {
+  const w = [arr[i - 1], v, arr[i + 1]].filter(x => x != null).sort((a, b) => a - b);
+  return w[w.length >> 1];
+});
+const smoothSeries = arr => movAvg3(medFilt3(arr));
+// 시트 윤곽 추적 — 깨끗한 앵커 행(fStart, 최외곽 획=몸 윤곽인 행)에서 시작해 행별로
+// 이전 위치에 가장 가까운 획 가장자리를 따라간다. 팔·손이 envelope 을 오염시키는 대역에서
+// "몸" 윤곽을 준다 (선화 윤곽은 행 간 연속 — 8mm 초과 점프는 오염 행으로 보고 건너뜀).
+// dir=+1: +x 쪽 윤곽, -1: -x 쪽. 반환: {f, v}[] (f 오름차순, lerpAt 호환).
+function traceContour(V, fStart, fEnd, dir) {
+  const s2w = px => V.axisWorld + (px - V.cxSheet) * V.mPerPx * V.sgn;
+  const stepF = Math.sign(fEnd - fStart) / V.sheetH;
+  const out = [];
+  let prev = null;
+  for (let f = fStart; (fEnd - f) * Math.sign(stepF) > 0; f += stepF) {
+    const y = Math.round(V.sheetTop + f * V.sheetH);
+    const row = V.runs.find(r => r.y === y);
+    if (!row || !row.runs.length) continue;
+    const rw = row.runs.map(([s, e]) => [s2w(s), s2w(e)].sort((a, b) => a - b))
+      .filter(([s, e]) => (dir > 0 ? e : -s) > 0.02) // 몸 중심 반대쪽 획 제외
+      .sort((a, b) => a[0] - b[0]);
+    if (!rw.length) continue;
+    // 획의 "윤곽 위치": 안쪽 가장자리 + 획 굵기(≤5mm) — 손목 획이 윤곽에 합류해 한 덩어리가
+    // 된 행(폭 2cm+)에서 바깥 가장자리를 쓰면 손 폭이 몸에 얹힌다
+    const pos = ([s, e]) => (dir > 0 ? Math.min(e, s + 0.005) : Math.max(s, e - 0.005));
+    let x;
+    if (prev == null) {
+      // 앵커: 최외곽 획 — 단 몸 윤곽일 수 없는 중앙 근처 획(안쪽 윤곽선)이면 보류
+      x = pos(dir > 0 ? rw[rw.length - 1] : rw[0]);
+      if (Math.abs(x) < 0.09) continue;
+    } else {
+      const cands = rw.filter(([s, e]) => Math.min(Math.abs(s - prev), Math.abs(e - prev)) <= 0.012);
+      if (!cands.length) continue; // 점프 — 윤곽 끊김/오염 행 (원판은 보간)
+      // 안쪽 후보 우선 — 팔·손 획은 항상 몸 윤곽보다 바깥에 있다
+      x = pos(dir > 0 ? cands[0] : cands[cands.length - 1]);
+    }
+    prev = x;
+    out.push({ f: +f.toFixed(4), v: x });
+  }
+  return out.sort((a, b) => a.f - b.f);
+}
 const r4 = v => +v.toFixed(4);
 const readJ = f => JSON.parse(readFileSync(join(OUT, f), 'utf8'));
 const writeJ = (f, o) => writeFileSync(join(OUT, f), JSON.stringify(o, null, 1));
@@ -231,8 +291,10 @@ async function measureView(page, view, az, exclRe, plane, coord, wantRuns) {
 // ===========================================================================
 function buildTorso() {
   const F = readJ('fit-view-front-torso.json'), S = readJ('fit-view-side-torso.json');
+  let hipHalfAt = () => null; // back-legs 계측이 있으면 허리~골반 대역 폭을 후면 추적으로
+  try { hipHalfAt = hipHalfFn(readJ('fit-view-back-legs.json')); } catch { /* 계측 전 — self-copy 폴백 */ }
   const joints = F.joints;
-  const Flo = compose(F.lo), Fhi = compose(F.hi), Slo = compose(S.lo), Shi = compose(S.hi);
+  const Flo = compose(F.lo, -1), Fhi = compose(F.hi, +1), Slo = compose(S.lo, -1), Shi = compose(S.hi, +1);
   const FloH = composeShrink(F.lo, -1), FhiH = composeShrink(F.hi, +1);
   const SloH = composeShrink(S.lo, -1), ShiH = composeShrink(S.hi, +1);
   const fit = {};
@@ -248,12 +310,17 @@ function buildTorso() {
       const xl = lerpAt(st.head ? FloH : Flo, fF), xr = lerpAt(st.head ? FhiH : Fhi, fF);
       const zb = lerpAt(st.head ? SloH : Slo, fS), zf = lerpAt(st.head ? ShiH : Shi, fS);
       if (xl == null || zb == null) continue;
-      const rx = Math.max((xr - xl) / 2, 0.008); // xo 는 중심 스택에선 0 (좌우 대칭 강제)
+      let rx = Math.max((xr - xl) / 2, 0.008); // xo 는 중심 스택에선 0 (좌우 대칭 강제)
+      // 허리~골반 대역(f>0.37)의 정면 envelope 은 팔·손 획 — 후면 윤곽 추적이 진실
+      if ((st.key === 'Spine' || st.key === 'Spine1') && fF > 0.37) {
+        const th = hipHalfAt(fF);
+        if (th != null) rx = Math.max(th, 0.008);
+      }
       disks.push({ t: r4(t), rx, zf: zf - ax[2], zb: zb - ax[2] });
     }
     if (disks.length < 2) { console.error(`⚠ ${st.key}: 유효 원판 ${disks.length}개 — 건너뜀`); continue; }
     for (const kk of ['rx', 'zf', 'zb']) {
-      const sm = movAvg3(disks.map(d => d[kk]));
+      const sm = smoothSeries(disks.map(d => d[kk]));
       disks.forEach((d, i) => { d[kk] = r4(sm[i]); });
     }
     // 두정 돔: round-cone 은 원판이 아니라 "구의 볼록 껍질" — 원판은 축 방향으로도
@@ -278,31 +345,55 @@ function buildTorso() {
     }
     fit[st.key] = st.kFold ? { group: st.group, k: st.kFold, disks } : { group: st.group, disks };
   }
-  // 골반 하단: 가랑이 바로 아래 쐐기 테이퍼 2장 (구형 캡이 가랑이를 메우지 않게 —
-  // 마지막 원판에서 3.5cm/7cm 아래, 허벅지 사이에 숨는 크기로 수렴)
+  // 골반 하단 돔 클램프 — round-cone 타원구는 축 방향으로 rEmit=max(rx,rz) 만큼 뻗는다.
+  // 넓은 골반 원판의 돔이 가랑이 아래 허벅지 사이로 새어 "기저귀 살"이 되고, 다음 피팅이
+  // 그 돔을 재흡수하는 랫칫의 진원이었다 (이전 wedge 테이퍼는 돔 안에 파묻혀 무효 — 삭제.
+  // 축 납작화(팬케이크)도 시도 후 폐기 — src/main.js emitLoft 주석 참조).
+  // 원판마다 rEmit ≤ (y - crotchY) 로 스케일: 가랑이 아래로 살이 못 내려간다. 클램프로
+  // 좁아진 골반 하부의 가로 실루엣은 허벅지 스택(+돔)이 대신 그린다 — 가랑이 V 포함.
   if (fit.Spine) {
-    const d0 = fit.Spine.disks[0]; // t 오름차순 — [0] = 최하단
-    const boneLen = Math.abs(joints.Spine.pos[1] - joints.Hips.pos[1]) + 1e-4;
-    const dtW = 0.035 / boneLen;
-    fit.Spine.disks.unshift(
-      { t: r4(d0.t - 2 * dtW), rx: r4(d0.rx * 0.15), zf: r4(d0.zf * 0.3), zb: r4(d0.zb * 0.3) },
-      { t: r4(d0.t - dtW), rx: r4(d0.rx * 0.5), zf: r4(d0.zf * 0.65), zb: r4(d0.zb * 0.65) },
-    );
-    // 시트 모순 보정 (LOFT-PLAN §9): 후면 그림의 힙 최광부(f≈0.52)가 정면 그림보다
-    // ~1cm 넓다 — 정면 상한(+0.06H)과 후면 하한(-0.06H)의 교집합으로 힙 크레스트만 +5mm.
-    for (const d of fit.Spine.disks) {
+    const crotchY = joints.LeftUpLeg.pos[1] - 0.075;
+    const D = fit.Spine.disks; // t 오름차순 — [0] = 최하단
+    for (const d of D) {
       const y = axisAt(joints, 'Spine', d.t)[1];
-      if (y > 0.77 && y < 0.82) d.rx = r4(d.rx + 0.005);
+      const rAllow = Math.max(y - crotchY, 0.012);
+      const rEmit = Math.max(d.rx, (d.zf - d.zb) / 2);
+      if (rEmit <= rAllow) continue;
+      const sc = rAllow / rEmit;
+      const zc = (d.zf + d.zb) / 2, rz = (d.zf - d.zb) / 2 * sc;
+      d.rx = r4(Math.max(d.rx * sc, 0.01));
+      d.zf = r4(zc + rz); d.zb = r4(zc - rz);
     }
+    while (D.length > 2 && D[0].rx <= 0.012) D.shift(); // 무의미해진 최하단 nub 정리
   }
   writeJ('fit-torso.json', fit);
   console.log(`fit-torso.json — 스택 ${Object.keys(fit).length}개, 원판 ${Object.values(fit).reduce((s, v) => s + v.disks.length, 0)}장`);
 }
 
+// 허리~골반 대역 몸 halfwidth — 후면 뷰 윤곽 추적 (정면은 팔·손이 envelope 을 가린다).
+// 후면 그림 힙이 정면보다 ~1cm 넓은 시트 모순은 -5mm 로 보정 (LOFT-PLAN §9 교집합).
+function hipHalfFn(B) {
+  const trR = traceContour(B, 0.62, 0.35, +1), trL = traceContour(B, 0.62, 0.35, -1);
+  return f => {
+    const r = lerpAt(trR, f), l = lerpAt(trL, f);
+    if (r == null || l == null || r < 0.03 || -l < 0.03) return null; // 한쪽만 있으면 불신
+    // 좌/우 중 "좁은 쪽" — 팔·손 획 오염은 항상 바깥쪽(몸 윤곽보다 밖)이므로 min 이 안전
+    return Math.min(r, -l) - 0.005;
+  };
+}
 function buildLegs() {
   const F = readJ('fit-view-front-legs.json'), S = readJ('fit-view-side-legs.json');
+  const B = readJ('fit-view-back-legs.json');
   const joints = F.joints;
-  const Flo = compose(F.lo), Fhi = compose(F.hi), Slo = compose(S.lo), Shi = compose(S.hi);
+  // 측면 시트의 손·팔 획이 허벅지 앞 경계를 가리는 대역 — 시트 팔 포즈가 렌더와 달라
+  // 환원 불가(LOFT-PLAN §9). 시트를 따르면 zf 가 행마다 파여 허벅지 표면 물결이 된다(교훈)
+  // → 이 대역은 가시성 검사를 강제로 끄고 part(현재 렌더)를 유지한다.
+  const handBand = rows => rows.map(r => (r.f > 0.40 && r.f < 0.57 ? { ...r, vis: false } : r));
+  const Flo = compose(F.lo, -1), Fhi = compose(F.hi, +1);
+  const Slo = compose(handBand(S.lo), -1), Shi = compose(handBand(S.hi), +1);
+  const hipHalfAt = hipHalfFn(B);
+  const crotchY = joints.LeftUpLeg.pos[1] - 0.075; // 가랑이 — 시트 다리 분기점의 해부학 근사
+  const crotchF = (F.crownY - crotchY) / (F.crownY - F.toeY);
   const sheetToWorld = px => F.axisWorld + (px - F.cxSheet) * F.mPerPx * F.sgn;
   // 다리 외곽은 이미 가시성+가드를 거친 F.lo/F.hi (두 다리 envelope) 를 쓰고,
   // runs 는 "안쪽 윤곽 분리"에만 쓴다 — envelope 밖 획(팔·손)은 무시된다.
@@ -340,26 +431,52 @@ function buildLegs() {
       const zb = lerpAt(Slo, fS), zf = lerpAt(Shi, fS); // 측면 깊이는 두 다리 공유
       if (wl == null || zb == null) continue;
       const lr = legRowAt(fF, wl, wr);
-      if (!lr) continue;
-      const rx = Math.max((lr.outer - lr.inner) / 2, 0.008);
-      const xo = (lr.outer + lr.inner) / 2 - ax[0];
+      // 가랑이 위 대역: 바깥 경계는 후면 윤곽 추적(팔 오염 없음), 안쪽은 중앙(다리 붙음)
+      let outer, inner;
+      if (fF < crotchF) {
+        outer = hipHalfAt(fF);
+        inner = lr ? lr.inner : (wl + wr) / 2;
+      } else if (lr) { outer = lr.outer; inner = lr.inner; }
+      if (outer == null || inner == null) continue;
+      const rx = Math.max((outer - inner) / 2, 0.008);
+      const xo = (outer + inner) / 2 - ax[0];
       disks.push({ t: r4(t), rx, zf: zf - ax[2], zb: zb - ax[2], xo });
     }
     if (disks.length < 2) { console.error(`⚠ ${st.key}: 유효 원판 ${disks.length}개 — 건너뜀`); continue; }
+    // 다리는 한 번 더 이동 평균 — 시트 행 노이즈가 원판 반경 요동으로 남으면 허벅지·정강이
+    // 표면에 가로 물결(음영)로 뜬다. 무릎·종아리 곡률은 5원판 이상에 걸쳐 있어 살아남는다.
     for (const kk of ['rx', 'zf', 'zb', 'xo']) {
-      const sm = movAvg3(disks.map(d => d[kk]));
+      const sm = movAvg3(smoothSeries(disks.map(d => d[kk])));
       disks.forEach((d, i) => { d[kk] = r4(sm[i]); });
     }
-    fit[st.key] = { group: st.group, disks };
-  }
-  // 시트 모순 보정 (LOFT-PLAN §9): 후면 그림의 힙 최광부(f≈0.52)가 정면 그림보다 ~1cm
-  // 넓다 — 그 행의 실루엣 경계는 허벅지 상단. 정면 상한과 후면 하한의 교집합으로 +1cm.
-  if (fit.Leg) {
-    for (const d of fit.Leg.disks) {
-      const y = axisAt(joints, 'LeftLeg', d.t)[1];
-      if (y > 0.75 && y < 0.83) { d.rx = r4(d.rx + 0.006); d.xo = r4(d.xo + 0.004); }
+    // 허벅지 상단 돔 가드: round-cone 은 "구의 볼록 껍질" — 첫 원판의 구가 위(골반 쪽)로
+    // 반지름만큼 뻗어, 힙 크레스트 위 실루엣을 시트보다 부풀린다 (새들백. 두정 crown 컷과
+    // 같은 원리, 방향만 반대). 돔 실루엣이 정면 envelope 을 넘는 동안 상단 원판을 버린다 —
+    // 그 높이의 실루엣은 골반 loft 가 이미 그린다.
+    if (st.key === 'Leg') {
+      const envAt = f => (f < crotchF ? hipHalfAt(f) : lerpAt(Fhi, f));
+      while (disks.length > 2) {
+        const d0 = disks[0];
+        const ax = axisAt(joints, st.child, d0.t);
+        const r = Math.max(d0.rx, (d0.zf - d0.zb) / 2);
+        const cx = ax[0] + d0.xo;
+        let over = 0;
+        for (let dy = 0.005; dy <= r; dy += 0.005) {
+          const fF = (F.crownY - (ax[1] + dy)) / (F.crownY - F.toeY);
+          const hi = envAt(fF);
+          if (hi == null) continue;
+          const sil = cx + d0.rx * Math.sqrt(Math.max(1 - (dy / r) * (dy / r), 0));
+          over = Math.max(over, sil - hi);
+        }
+        if (over <= 0.005) break;
+        disks.shift();
+      }
     }
+    // k0: 스택 첫 세그먼트(고관절 쪽)의 관절 경계 blend — 골반 살과의 웰드 주름을 편다
+    fit[st.key] = st.key === 'Leg' ? { group: st.group, k0: 0.04, disks } : { group: st.group, disks };
   }
+  // (기존 힙 크레스트 +6mm 시트 모순 보정은 삭제 — 크레스트 폭이 이제 후면 윤곽 추적에서
+  //  직접 나오고, 정면/후면 1cm 모순은 hipHalfFn 의 -5mm 가 일괄 보정한다.)
   fit.UpLeg = { group: 'legs', disks: [] }; // UpLeg 캡슐 억제 (골반+허벅지 loft 가 대체)
   writeJ('fit-legs.json', fit);
   console.log(`fit-legs.json — 스택 ${Object.keys(fit).length}개`);
@@ -374,6 +491,8 @@ const run = {
   'build-torso': async () => buildTorso(),
   'front-legs':  () => withPage(async p => writeJ('fit-view-front-legs.json', await measureView(p, 'front', 0, EXCL_LEGS_ONLY, 'z', 0, true))),
   'side-legs':   () => withPage(async p => writeJ('fit-view-side-legs.json', await measureView(p, 'side', Math.PI / 2, EXCL_LEGS_ONLY, 'x', 2))),
+  // 후면 뷰 — 허리~골반 대역의 몸 윤곽 추적용 (정면은 팔·손 획이 envelope 을 가린다)
+  'back-legs':   () => withPage(async p => writeJ('fit-view-back-legs.json', await measureView(p, 'back', Math.PI, EXCL_LEGS_ONLY, 'z', 0, true))),
   'build-legs':  async () => buildLegs(),
   'apply': () => withPage(async page => {
     const loft = { ...readJ('fit-torso.json'), ...readJ('fit-legs.json') };
@@ -402,8 +521,10 @@ const run = {
     console.log(`평균: ${(total / 3).toFixed(5)}  (loft-fit.json — proportions.js 에 반영)`);
   }),
   all: async () => {
-    await run['front-torso'](); await run['side-torso'](); await run['build-torso']();
-    await run['front-legs'](); await run['side-legs'](); await run['build-legs']();
+    // 계측을 전부 먼저 — build-torso 도 back-legs 의 후면 윤곽 추적을 소비한다
+    await run['front-torso'](); await run['side-torso']();
+    await run['front-legs'](); await run['side-legs'](); await run['back-legs']();
+    await run['build-torso'](); await run['build-legs']();
     await run.apply();
   },
 };
