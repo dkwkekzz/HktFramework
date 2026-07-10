@@ -31,7 +31,7 @@ import {
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
-  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
+  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield, CREATURE_WEAPON_BONUS,
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT, CREATURE_DEFENSE,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
@@ -687,9 +687,30 @@ export class GameServer {
     const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0; // ③ 강탈
     const scatter = damage - got;                                                       // 못 붙잡은 몫 = 세계로
     if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
+    // feature-0008 step3 — 무기 강탈 증폭(포획 계열): 곁(사거리 안)의 결정을 무기로 써 그 농축 에너지를 타격에
+    //   실으면 강탈 획득이 는다. 종 yield 높은 무기일수록↑(feature-0007 재사용). 무기는 닳아 다 쓰면 소멸.
+    this.#augmentStrike(A);
     // feature-0013 규칙 C — 강탈의 물리력도 근처 결정을 부순다.
     this.#impactCrystals(A.x, A.y, A.z, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER * A.size);
     return got;
+  }
+
+  // 무기 강탈 증폭 — feature-0008 step3. 강탈 성공 직후, 사거리 안 가장 가까운 결정(무기)에서 그 농축 에너지를
+  //   타격에 실어 포식자 획득을 키운다(포획 계열): assist = min(WEAPON_BONUS×A.size×종 yield, 무기 잔고). W→A(ATTACK,
+  //   "무기를 실어 더 뜯음")로 회계 → 보존 자명. 무기는 그 일에 닳아 잔고 0 이면 소멸. 날것(raw)은 무기로 못 쓴다
+  //   (본능이 못 다루는 재료 — 채집과 같은 게이트). 결정론: 최근접(동률은 seq) 순수 선택 + 클램프, rng 미사용.
+  #augmentStrike(A) {
+    let weapon = null, bestD = Infinity;
+    for (const c of this.crystals.values()) {
+      if (c.raw || this.ledger.balance(c.id) <= 0) continue;
+      const d = dist3(A.x, A.y, A.z, c.x, c.y, c.z);
+      if (d <= CREATURE_ATTACK_RADIUS && (d < bestD || (d === bestD && (!weapon || c.seq < weapon.seq)))) { weapon = c; bestD = d; }
+    }
+    if (!weapon) return 0;
+    const want = CREATURE_WEAPON_BONUS * A.size * crystalYield(weapon.species);
+    const assist = this.#tx(weapon.id, A.id, want, CAUSE.ATTACK, { x: A.x, y: A.y }); // 무기 농축 에너지를 타격에 실음(강탈 획득↑)
+    if (assist > 0 && this.ledger.balance(weapon.id) === 0) this.#removeCrystal(weapon.id); // 다 쓴 무기 소멸
+    return assist;
   }
 
   // 발산 = 생명체가 파이어볼(투사체)을 쏜다 — feature-0009. **생명의 행위**다: 내부 에너지를 폭발적으로 밀어내

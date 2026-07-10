@@ -147,6 +147,10 @@ export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡
 //   → 채집(무비용)과 정합. 방어력 = CREATURE_DEFENSE × victim size(크기 비례). 뚫는 값(발산 비용)에 상대
 //   방어력만큼 더 든다 → 방어 센(큰) 먹이일수록 SINK 로 더 많이 나가고 순이득이 준다(공격력 vs 방어력).
 export const CREATURE_DEFENSE = 10;               // 방어력 계수 — 상대 방어를 뚫는 값(×victim size) → SINK(열). 순이득이 항상 양이도록(포식 유지) 붙잡는 이득보다 작게
+// 무기 강탈 증폭(feature-0008 step3) — 아이템(결정)은 에너지의 결정체(feature-0007). 곁의 결정을 **무기**로 써
+//   그 농축 에너지를 타격에 실으면 강탈 획득이 는다(포획 계열). 무기 결정 종(species) yield 높을수록 증폭↑
+//   (feature-0007 종별 효과 재사용). 무기는 그 일에 닳아 다 쓰면 소멸. 회계: W→A(ATTACK) 한 이체 → 보존 자명.
+export const CREATURE_WEAPON_BONUS = 8;           // 무기 증폭 계수 — 강탈 성공 시 곁 결정에서 A 로 실리는 추가 획득(×attacker size×종 yield), 무기 잔고로 클램프
 
 // --- 발산·파괴 = 방출형 (feature-0009) — 회수 없는 원거리 파괴 ---
 // 강탈(feature-0008)이 표적 에너지를 커플링해 일부 포획(수입)하는 것이라면, 방출은 표적의 질서를 *파괴만* 한다 —

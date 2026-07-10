@@ -17,7 +17,7 @@ import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, materialKey, dist3,
   CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER, CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
-  CREATURE_DEFENSE,
+  CREATURE_DEFENSE, CREATURE_WEAPON_BONUS, crystalYield,
 } from '../shared/constants.js';
 
 function setup() {
@@ -43,7 +43,21 @@ function setup() {
     }
     return c;
   };
-  return { game, bal, total, runTicks, alive, attackTxs, makeCreature, matTotal: () => sumPrefix(POOL.MATERIAL), cryTotal: () => sumPrefix(POOL.CRYSTAL) };
+  // 결정(무기) 하나를 그 자리에 떨군다 — 플레이어 죽음의 분해(단단한 잔해→결정, feature-0005/0006)를 이용,
+  //   종(species)·잔고를 알려진 값으로 고정한다(무기 강탈 증폭 검증용). raw=false 라 무기로 쓸 수 있다.
+  const dropCrystal = (x, y, z, species, fill) => {
+    const pv = game.addPlayer({ send() {} }, 'wv');
+    const pl = game.players.get(pv.id); pl.x = x; pl.y = y; pl.z = z;
+    game.removePlayer(pv.id);
+    let c = null;
+    for (const k of game.crystals.values()) if (k.x === x && k.y === y && k.z === z && bal(k.id) > 0) c = k;
+    c.species = species; c.raw = false;
+    const cur = bal(c.id);
+    if (fill > cur) game.ledger.transfer(POOL.SOURCE, c.id, fill - cur, 'seed');
+    else if (fill < cur) game.ledger.transfer(c.id, POOL.SINK, cur - fill, 'seed');
+    return c;
+  };
+  return { game, bal, total, runTicks, alive, attackTxs, makeCreature, dropCrystal, matTotal: () => sumPrefix(POOL.MATERIAL), cryTotal: () => sumPrefix(POOL.CRYSTAL) };
 }
 
 test('강탈(포식) — 사거리 안 큰 개체가 작은 개체의 에너지를 뜯는다 (victim↓·attacker↑, 보존)', () => {
@@ -106,6 +120,40 @@ test('방어력 — 방어 센(큰) 먹이일수록 뚫는 값(발산 비용)이
   assert.equal(weak.capture, tough.capture, '붙잡는 이득은 공격력(공격자 size)으로 정해져 먹이 방어와 무관');
   assert.ok(weak.net > tough.net, `방어 센 먹이는 순이득이 작다 (${tough.net} < ${weak.net})`);
   assert.ok(tough.net > 0, '방어 센 먹이여도 순이득은 양 — 포식은 여전히 값어치 있다');
+});
+
+test('무기 강탈 증폭 — 곁의 결정(무기)을 실어 강탈 획득이 는다, 무기는 닳는다 (종 yield 높을수록↑)', () => {
+  // 아이템(결정)은 에너지의 결정체(feature-0007). 강탈 시 사거리 안 결정을 무기로 써 그 농축 에너지를 타격에
+  //   실으면 포식자 획득이 는다(포획 계열). 무기→A(cause 'attack')로 흘러 채집('harvest')과 섞이지 않는다.
+  const plunder = (weaponSpecies) => {
+    const s = setup();
+    const A = s.makeCreature(500, 500, 500, 2, 900);       // 포식자(size 2)
+    s.makeCreature(600, 500, 500, 1, 500);                 // 먹이(size 1) — 사거리 안
+    let weapon = null;
+    if (weaponSpecies !== null) weapon = s.dropCrystal(550, 500, 500, weaponSpecies, 5000); // 무기 결정 — A 곁(사거리 안), 넉넉히
+    s.runTicks(3);                                         // 한 번의 강탈(tickCount 2)
+    const txs = s.attackTxs();
+    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id && o.from.startsWith('C:')).reduce((a, o) => a + o.amount, 0); // 먹이→A(포획)
+    const assist = txs.filter(o => o.cause === 'attack' && o.to === A.id && o.from.startsWith('I:')).reduce((a, o) => a + o.amount, 0);  // 무기→A(증폭)
+    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '무기 증폭에도 보존 불변');
+    return { capture, assist, plunder: capture + assist, weapon, bal: s.bal };
+  };
+
+  const bare = plunder(null);                              // 무기 없음(기준)
+  const lowW = plunder(1);                                 // 저효율 무기(yield 1)
+  const hiW = plunder(0);                                  // 고효율 무기(yield 3)
+
+  // 강탈 성공 시 무기 결정에서 A 로 추가 획득이 실린다(무기→A 이체 = 정확히 WEAPON_BONUS×size×yield).
+  assert.equal(bare.assist, 0, '무기 없으면 증폭 없음(먹이 포획만)');
+  assert.equal(lowW.assist, CREATURE_WEAPON_BONUS * 2 * crystalYield(1), '저효율 무기 증폭 = BONUS×size×yield');
+  assert.equal(hiW.assist, CREATURE_WEAPON_BONUS * 2 * crystalYield(0), '고효율 무기 증폭 = BONUS×size×yield');
+  // 무기가 있으면 강탈 획득(plunder)이 늘고, 종 yield 높은 무기일수록 더 크다(feature-0007 재사용).
+  assert.ok(lowW.plunder > bare.plunder, `무기가 강탈 획득을 키운다 (${bare.plunder} < ${lowW.plunder})`);
+  assert.ok(hiW.assist > lowW.assist, `고효율 무기가 더 크게 증폭한다 (${lowW.assist} < ${hiW.assist})`);
+  // 포획(먹이→A)은 무기와 무관하게 동일 — 증폭은 오직 무기에서 온다(개념 분리).
+  assert.equal(bare.capture, lowW.capture, '포획(먹이→A)은 무기 유무와 무관');
+  // 무기는 그 일에 닳는다 — 무기→A 이체(assist>0)가 곧 무기가 실어보낸 몫이다(잔고↓).
+  assert.ok(lowW.assist > 0 && lowW.bal(lowW.weapon.id) < 5000, '무기 결정이 강탈에 실려 닳았다');
 });
 
 test('포식 창발 — 작은 개체는 큰 개체를 치지 못한다 (강자→약자 일방)', () => {
