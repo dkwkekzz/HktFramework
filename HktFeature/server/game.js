@@ -1257,34 +1257,52 @@ export class GameServer {
     const fieldCells = broadcastField
       ? this.materialCells.map(([cx, cy, cz, id]) => [cx, cy, cz, this.ledger.balance(id)])
       : null;
-    // 결정 스냅샷 — 개별 결정 [id, x, y, z, balance, species] (잔고>0). FIELD 와 같은 읽기 전용 표시값.
-    const crystalCells = broadcastField
-      ? [...this.crystals.values()].reduce((acc, c) => {
-          const b = this.ledger.balance(c.id);
-          if (b > 0) {
-            // feature-0013: 열(온도) 상태 — hot=발화점 대비 가열 비율(0~1, 달아오름), burning=연소 중.
-            const ign = ignitionHeat(c.species);
-            const thr = Number.isFinite(ign) ? ign : meltHeat(c.species); // 발화점(가연성) 또는 녹는점(비가연성) — 둘 다 달아오름으로 보인다
-            const hot = Number.isFinite(thr) ? Math.min(1, this.ledger.balance(`${POOL.HEAT}${c.seq}`) / thr) : 0;
-            acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier, c.burning ? 1 : 0, Math.round(hot * 100) / 100]); // raw=날것·crafted=산물·tier=단계 · burning·hot=연소/가열(feature-0013)
-          }
-          return acc;
-        }, [])
-      : null;
-    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size, desire, owner, desires] (feature-0006·0010·0012).
-    //   desire=승자 욕망(뷰어가 라벨·표적선), owner=제어자(강조), desires=중첩 스택(뷰어가 우선순위·감정 배지). CRYSTAL 과 같은 읽기 전용 표시값.
-    const creatureCells = broadcastField
-      ? [...this.creatures.values()].reduce((acc, c) => {
-          const b = this.ledger.balance(c.id);
-          if (b > 0) {
-            const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
-            acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]); // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
-          }
-          return acc;
-        }, [])
-      : null;
+    // --- relevancy: 결정·생명체 스냅샷은 지역별로 나눠 담아, 각 플레이어에게 제 시야(3x3 지역)만 실어보낸다. ---
+    //   (feature-0016) 프레임드랍의 뿌리 — 결정·생명체는 시뮬이 굴러가며 무한히 늘어나는데, 예전엔 이 전량을 전
+    //   플레이어에게 방송했다(전역). 그래서 클라 렌더가 온 세계의 엔티티를 매 프레임 훑어 부하가 인구·결정 수에
+    //   비례해 커졌다. 이제 지역 버킷으로 나눠 담고 아래 루프가 플레이어의 구독 지역만 골라 보낸다 — **클라는 보이는
+    //   것만 처리한다**. 시야 밖은 서버에서 원장(에너지 보존)으로만 계속 굴러가고, 다시 시야에 들면 그 지역 스냅샷이
+    //   재동기화한다(체크섬 RESYNC 와 같은 결). FIELD(4x4x4=64 고정)는 세계 확산 readout 이라 전역 유지.
+    let crystalByRegion = null; // regionKey -> cell[] (잔고>0 결정)
+    let creatureBySeq = null;   // seq -> cell (잔고>0 생명체 셀 색인 — 지역 버킷은 seq 만 담아 중복 방지)
+    let creatureByRegion = null; // regionKey -> seq[]
+    let creatureByOwner = null; // ownerId -> cell[] (소유 개체는 시야 밖이어도 항상 실어야 하므로 주인별 색인)
+    if (broadcastField) {
+      crystalByRegion = new Map();
+      for (const c of this.crystals.values()) {
+        const b = this.ledger.balance(c.id);
+        if (b <= 0) continue;
+        // feature-0013: 열(온도) 상태 — hot=발화점 대비 가열 비율(0~1, 달아오름), burning=연소 중.
+        const ign = ignitionHeat(c.species);
+        const thr = Number.isFinite(ign) ? ign : meltHeat(c.species); // 발화점(가연성) 또는 녹는점(비가연성) — 둘 다 달아오름으로 보인다
+        const hot = Number.isFinite(thr) ? Math.min(1, this.ledger.balance(`${POOL.HEAT}${c.seq}`) / thr) : 0;
+        const cell = [c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier, c.burning ? 1 : 0, Math.round(hot * 100) / 100]; // raw=날것·crafted=산물·tier=단계 · burning·hot=연소/가열(feature-0013)
+        const rk = regionKey(c.x, c.y);
+        let bucket = crystalByRegion.get(rk);
+        if (!bucket) crystalByRegion.set(rk, bucket = []);
+        bucket.push(cell);
+      }
+      // 생명체 스냅샷 셀 — [seq, x, y, z, balance, size, desire, owner, desires, items, cmd] (feature-0006·0010·0012).
+      //   desire=승자 욕망(뷰어가 라벨·표적선), owner=제어자(강조), desires=중첩 스택(뷰어가 우선순위·감정 배지).
+      creatureBySeq = new Map();
+      creatureByRegion = new Map();
+      creatureByOwner = new Map();
+      for (const c of this.creatures.values()) {
+        const b = this.ledger.balance(c.id);
+        if (b <= 0) continue;
+        const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
+        const cell = [c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]; // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
+        const rk = regionKey(c.x, c.y);
+        creatureBySeq.set(c.seq, cell);
+        let bucket = creatureByRegion.get(rk);
+        if (!bucket) creatureByRegion.set(rk, bucket = []);
+        bucket.push(c.seq);
+        if (c.owner) { let ob = creatureByOwner.get(c.owner); if (!ob) creatureByOwner.set(c.owner, ob = []); ob.push(cell); }
+      }
+    }
     // 파이어볼 스냅샷 — feature-0009. FIELD 주기가 아니라 **매 틱** 방송해 날아가는 걸 부드럽게 보인다(투사체는 빠르다).
     //   비행 중일 때만 실어 보내고(없으면 생략), 착탄 후엔 방송이 끊겨 뷰어가 짧은 TTL 로 지운다. 표시용·읽기전용.
+    //   결정·생명체와 같이 지역 relevancy 로 거른다(아래 루프) — 제 시야를 지나는 투사체만 보인다.
     const fireballCells = this.fireballs.length
       ? this.fireballs.map(fb => [fb.seq, fb.x, fb.y, fb.z, this.ledger.balance(fb.id), fb.size])
       : null;
@@ -1313,9 +1331,26 @@ export class GameServer {
       if (moves.length) p.conn.send(encode(MSG.POS, { moves }));
 
       if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
-      if (crystalCells) p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
-      if (creatureCells) p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
-      if (fireballCells) p.conn.send(encode(MSG.FIREBALL, { cells: fireballCells })); // 비행 중 파이어볼(매 틱)
+      if (broadcastField) {
+        // 결정 — 내 구독 지역의 것만 (빈 배열도 보낸다: 지역을 벗어나면 클라가 시야 밖 결정을 지우게).
+        const crystalCells = [];
+        for (const rk of p.regions) { const bucket = crystalByRegion.get(rk); if (bucket) for (const cell of bucket) crystalCells.push(cell); }
+        p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
+        // 생명체 — 내 구독 지역의 것 + 내가 소유한 생명체(시야 밖이어도 카메라·제어가 놓치지 않게 항상).
+        const seen = new Set();
+        const creatureCells = [];
+        for (const rk of p.regions) {
+          const bucket = creatureByRegion.get(rk);
+          if (bucket) for (const seq of bucket) if (!seen.has(seq)) { seen.add(seq); creatureCells.push(creatureBySeq.get(seq)); }
+        }
+        const owned = creatureByOwner.get(p.id);
+        if (owned) for (const cell of owned) if (!seen.has(cell[0])) { seen.add(cell[0]); creatureCells.push(cell); }
+        p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
+      }
+      if (fireballCells) { // 비행 중 파이어볼(매 틱) — 내 시야를 지나는 것만
+        const mine = fireballCells.filter(fc => p.regions.has(regionKey(fc[1], fc[2])));
+        if (mine.length) p.conn.send(encode(MSG.FIREBALL, { cells: mine }));
+      }
 
       if (checksumDue) {
         const regions = {};
