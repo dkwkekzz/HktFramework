@@ -36,6 +36,7 @@ import {
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
   DISCHARGE_BLAST_RADIUS, DISCHARGE_HEAT, FIREBALL_SPEED, FIREBALL_MAX_LIFETIME,
+  CRYSTAL_DETONATE_THRESHOLD, CRYSTAL_DETONATE_MAG_CAP,
   COMBUST_INTERVAL_TICKS, BURN_RATE, BURN_EMIT_RADIUS, BURN_TO_SINK_PCT, BURN_TO_NEIGHBOR_PCT, HEAT_COOL_DIVISOR,
   isFlammable, ignitionHeat, MELT_RATE, meltHeat,
   breakStrength, SHATTER_DEBRIS_COUNT, SHATTER_TO_FIELD_PCT, SHATTER_SCATTER_PX,
@@ -391,6 +392,9 @@ export class GameServer {
     //   데운다(불의 번짐). 반응 뒤에 돌린다(결정이 자리 잡은 뒤 자극에 반응). 전부 ledger.transfer → 보존.
     if (this.tickCount % COMBUST_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#combust();
+      // feature-0013 규칙 D(자폭) — 임계 에너지 밀도를 넘어 불안정해진 자연 결정이 스스로 터진다(생명 무관, 폭탄·과충전 결정).
+      //   연소(A) 뒤에 돌린다(열·반응이 자리 잡은 뒤 밀도 판정). 폭발의 주인이 물질임을 증명 — 아무도 안 건드려도 터진다.
+      this.#detonateCrystals();
     }
     // feature-0010·0011 제어·욕구 절차 — 제어되는 생명체가 제 욕구의 **절차**를 한 단계 수행한다:
     //   찾아가고(이동→국소장 소산)·요리하고(날것 변형=열+연기)·먹고(채집)·타격한다(발산). 욕구마다 절차와
@@ -580,8 +584,9 @@ export class GameServer {
 
   // 물리력 충격을 반경 안 결정에 가한다 — feature-0013 step3. 파괴강도 ≤ 힘인 결정은 파편으로 부서진다(AoE).
   //   방출(#discharge)·강탈(#strike)의 damage 를 이 자극으로 정합한다. 스냅샷을 떠 새 파편은 이 패스에서 다시 안 맞는다.
-  #impactCrystals(x, y, z, radius, force) {
+  #impactCrystals(x, y, z, radius, force, exclude = null) {
     for (const c of [...this.crystals.values()]) {
+      if (c.id === exclude) continue; // 자폭 결정 자신은 제 압력에 안 부서진다(이미 터지는 중)
       if (this.ledger.balance(c.id) <= 0) continue;
       if (dist3(x, y, z, c.x, c.y, c.z) > radius) continue;
       if (force >= breakStrength(c.species)) this.#shatterCrystal(c);
@@ -745,7 +750,9 @@ export class GameServer {
       const d = dist3(fb.x, fb.y, fb.z, fb.tx, fb.ty, fb.tz);
       if (d <= FIREBALL_SPEED || fb.age >= FIREBALL_MAX_LIFETIME) {
         fb.x = fb.tx; fb.y = fb.ty; fb.z = fb.tz; // 착탄 — 표적 자리로 스냅
-        this.#detonate(fb);                        // 그 자리서 터진다(물질의 사건)
+        // 파이어볼 폭발: 발사자 제외(caster), 먹을 수 없는 상대만(aoeFloor=size) — 강탈/발산 분업 유지. 규모=캐스터 size.
+        this.#detonate({ id: fb.id, x: fb.x, y: fb.y, z: fb.z, mag: fb.size, caster: fb.caster, aoeFloor: fb.size });
+        this.ledger.removePool(fb.id);             // 파이어볼 소멸(payload 전부 방출됨)
       } else {
         const s = FIREBALL_SPEED / d;              // 표적 쪽으로 한 걸음(정수 좌표)
         fb.x = Math.round(fb.x + (fb.tx - fb.x) * s);
@@ -757,43 +764,61 @@ export class GameServer {
     this.fireballs = remain;
   }
 
-  // 폭발 한 발 — feature-0013 규칙 D. 착탄한 파이어볼 하나가 터진다(#flyFireballs 가 호출). 착탄점 둘레로 두 채널을 침착.
-  #detonate(fb) {
-    {
-      const R = DISCHARGE_BLAST_RADIUS;
-      const falloff = (d) => Math.max(0, (R - d) / R); // 1(중심)…0(가장자리) — 가까울수록 세게
-      // (1) 생명 AoE — 반경 내 먹을 수 없는 상대(size≥ 캐스터)를 거리 감쇠 damage 로 태운다(폭발이 여럿을 휩쓴다).
-      for (const V of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
-        if (V.id === fb.caster || V.size < fb.size || !this.creatures.has(V.id)) continue; // 발사자는 제 폭발에 안 맞는다(멀리 쏘았다)
-        const d = dist3(fb.x, fb.y, fb.z, V.x, V.y, V.z);
-        if (d > R) continue;
-        const damage = Math.min(Math.floor(DISCHARGE_POWER * fb.size * falloff(d)), this.ledger.balance(V.id));
-        if (damage <= 0) continue;
-        this.#dissipate(V, damage, CAUSE.DETONATE); // 표적 질서가 폭발파에 흩어짐 — 심우주(열)+국소장(연기), 생명체로 안 감
-        if (this.ledger.balance(V.id) < CREATURE_DEATH_THRESHOLD * V.size) this.#incinerate(V); // 완전 연소(잔해 없음)
-      }
-      // (2) 열복사 채널 — 파이어볼 payload 를 반경 내 결정 열(H:)에 실어보낸다(가까운 결정부터, payload 소진 시 멈춤).
-      const heated = [...this.crystals.values()]
-        .map(c => ({ c, d: dist3(fb.x, fb.y, fb.z, c.x, c.y, c.z) }))
-        .filter(o => o.d <= R && this.ledger.balance(o.c.id) > 0)
-        .sort((a, b) => a.d - b.d || a.c.seq - b.c.seq); // 가까운(감쇠 큰) 결정부터
-      for (const { c, d } of heated) {
-        const want = Math.floor(DISCHARGE_HEAT * fb.size * falloff(d));
-        const avail = this.ledger.balance(fb.id);
-        if (want <= 0 || avail <= 0) { if (avail <= 0) break; continue; }
-        this.#tx(fb.id, `${POOL.HEAT}${c.seq}`, Math.min(want, avail), CAUSE.HEAT, { x: c.x, y: c.y });
-      }
-      // (3) 압력 채널 — 물리력이 파괴강도를 넘는 취성 결정을 부순다(파편). 열(연소·용해)과 독립된 별개 자극(규칙 C).
-      this.#impactCrystals(fb.x, fb.y, fb.z, R, DISCHARGE_POWER * fb.size);
-      // (4) 잔여 payload 분산 — 남은 폭약을 심우주(열)+국소장(연기)로 흩는다(회수 없음). 파이어볼은 여기서 소멸.
-      const rest = this.ledger.balance(fb.id);
-      if (rest > 0) {
-        const burn = Math.floor(rest * DISCHARGE_BURN_PCT / 100);
-        if (burn > 0) this.#tx(fb.id, POOL.SINK, burn, CAUSE.DETONATE, { x: fb.x, y: fb.y });
-        const smoke = this.ledger.balance(fb.id);
-        if (smoke > 0) this.#tx(fb.id, materialKey(fb.x, fb.y, fb.z), smoke, CAUSE.DETONATE, { x: fb.x, y: fb.y });
-      }
-      this.ledger.removePool(fb.id); // 파이어볼 소멸(payload 전부 방출)
+  // 폭발 한 발 — feature-0013 규칙 D. **범용 폭발원** src 를 받는다(파이어볼이든 과충전 결정이든 폭탄이든) —
+  //   폭발은 물질의 사건이라 근원 종류를 가리지 않는다. src = { id(에너지 풀), x, y, z, mag(규모), caster(제외할
+  //   발사자·없으면 null), aoeFloor(이 size 미만 생명은 안 맞음·0이면 전부), selfCrystal(자폭 결정 자신·이웃 순회 제외) }.
+  //   착탄점 둘레로 두 채널(열복사+압력)+생명 AoE 를 침착하고 src.id 의 payload 를 세계로 흩는다. 풀 제거는 호출자 몫.
+  #detonate(src) {
+    const { id, x, y, z, mag, caster = null, aoeFloor = 0, selfCrystal = null } = src;
+    const R = DISCHARGE_BLAST_RADIUS;
+    const falloff = (d) => Math.max(0, (R - d) / R); // 1(중심)…0(가장자리) — 가까울수록 세게
+    // (1) 생명 AoE — 반경 내 대상 생명을 거리 감쇠 damage 로 태운다(폭발이 여럿을 휩쓴다). aoeFloor 미만은 제외(파이어볼=발산
+    //     분업으로 size≥ 만 / 물질 자폭=blind 라 전부). caster 는 제 폭발에 안 맞는다(파이어볼만 해당, 물질 자폭은 caster=null).
+    for (const V of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
+      if (V.id === caster || V.size < aoeFloor || !this.creatures.has(V.id)) continue;
+      const d = dist3(x, y, z, V.x, V.y, V.z);
+      if (d > R) continue;
+      const damage = Math.min(Math.floor(DISCHARGE_POWER * mag * falloff(d)), this.ledger.balance(V.id));
+      if (damage <= 0) continue;
+      this.#dissipate(V, damage, CAUSE.DETONATE); // 표적 질서가 폭발파에 흩어짐 — 심우주(열)+국소장(연기), 생명체로 안 감
+      if (this.ledger.balance(V.id) < CREATURE_DEATH_THRESHOLD * V.size) this.#incinerate(V); // 완전 연소(잔해 없음)
+    }
+    // (2) 열복사 채널 — payload 를 반경 내 결정 열(H:)에 실어보낸다(가까운 결정부터, payload 소진 시 멈춤). 자폭 결정 자신은 제외.
+    const heated = [...this.crystals.values()]
+      .filter(c => c.id !== selfCrystal)
+      .map(c => ({ c, d: dist3(x, y, z, c.x, c.y, c.z) }))
+      .filter(o => o.d <= R && this.ledger.balance(o.c.id) > 0)
+      .sort((a, b) => a.d - b.d || a.c.seq - b.c.seq); // 가까운(감쇠 큰) 결정부터
+    for (const { c, d } of heated) {
+      const want = Math.floor(DISCHARGE_HEAT * mag * falloff(d));
+      const avail = this.ledger.balance(id);
+      if (want <= 0 || avail <= 0) { if (avail <= 0) break; continue; }
+      this.#tx(id, `${POOL.HEAT}${c.seq}`, Math.min(want, avail), CAUSE.HEAT, { x: c.x, y: c.y });
+    }
+    // (3) 압력 채널 — 물리력이 파괴강도를 넘는 취성 결정을 부순다(파편). 열(연소·용해)과 독립된 별개 자극(규칙 C). 자신 제외.
+    this.#impactCrystals(x, y, z, R, DISCHARGE_POWER * mag, selfCrystal);
+    // (4) 잔여 payload 분산 — 남은 폭약을 심우주(열)+국소장(연기)로 흩는다(회수 없음). 풀 제거는 호출자.
+    const rest = this.ledger.balance(id);
+    if (rest > 0) {
+      const burn = Math.floor(rest * DISCHARGE_BURN_PCT / 100);
+      if (burn > 0) this.#tx(id, POOL.SINK, burn, CAUSE.DETONATE, { x, y });
+      const smoke = this.ledger.balance(id);
+      if (smoke > 0) this.#tx(id, materialKey(x, y, z), smoke, CAUSE.DETONATE, { x, y });
+    }
+  }
+
+  // 과충전 결정 자폭 — feature-0013 규칙 D(생명 무관). 물질이 임계 에너지 밀도(`CRYSTAL_DETONATE_THRESHOLD`)를 넘으면
+  //   불안정해져 **스스로 터진다** — 아무 생명도 안 건드려도. 폭발의 주인이 물질임을 증명(파이어볼=생명이 쏜 폭탄과 대비).
+  //   자연 결정(석출·죽음)만 대상(재료 raw·산물 crafted 은 안정=면역, #react 와 같은 정합). blind AoE(aoeFloor=0)라 반경
+  //   내 모든 생명을 친다. 자신은 이웃 순회에서 제외(selfCrystal). 결정론: seq 오름차순. 전소 후 #removeCrystal 로 소멸.
+  #detonateCrystals() {
+    for (const c of [...this.crystals.values()].sort((a, b) => a.seq - b.seq)) {
+      if (!this.crystals.has(c.id) || c.raw || c.crafted) continue; // 안정 물질(재료·산물)은 자폭 면역
+      const bal = this.ledger.balance(c.id);
+      if (bal < CRYSTAL_DETONATE_THRESHOLD) continue;
+      const mag = Math.min(CRYSTAL_DETONATE_MAG_CAP, 1 + Math.floor(bal / CRYSTAL_DETONATE_THRESHOLD)); // 클수록 크게 터진다
+      this.#detonate({ id: c.id, x: c.x, y: c.y, z: c.z, mag, caster: null, aoeFloor: 0, selfCrystal: c.id });
+      this.#removeCrystal(c.id); // 자폭 — 원본 소멸(payload 전부 방출됨, 남은 열은 국소장으로)
     }
   }
 

@@ -45,6 +45,12 @@ const BLAST = {
   caster: { x: 800,  y: 1250, z: 625 }, // 야생 캐스터(자율 발산)
   target: { x: 1250, y: 1250, z: 625 }, // 먹을 수 없는 표적(size≥, 사거리 안) — 소유라 반격·이동 안 함, 넉넉히 채워 계속 표적이 된다
 };
+// 자폭 씬(feature-0013 규칙 D) — **생명 없이** 물질이 터진다. 관전자 곁(반경 안)에 이따금 **과충전 결정**(임계 초과)이
+//   나타나 스스로 폭발하며, blind AoE 로 곁의 생명을 친다. "폭발의 주인은 물질"이 눈으로 보인다(캐스터 없음).
+const DETONATE = {
+  watcher: { x: 1050, y: 1250, z: 625 }, // 관전 대상 생명체(소유, 계속 채워 폭발을 여러 번 견딘다)
+  bomb:    { x: 1150, y: 1250, z: 625 }, // 과충전 결정이 나타나는 자리(생명 반경 안 → blind AoE 로 얻어맞는다)
+};
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
 //   scene 'eat'(feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
@@ -100,6 +106,11 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const target = game.spawnCreature(BLAST.target.x, BLAST.target.y, BLAST.target.z);
     target.size = 2; target.owner = 'P:demo'; game.ledger.get(target.id).max = CREATURE_MAX_ENERGY * 40;
     game.ledger.transfer(POOL.SOURCE, target.id, CREATURE_MAX_ENERGY * 40, CAUSE.SPAWN);
+  } else if (scene === 'detonate') {
+    // 자폭 씬 — 지켜볼 생명체 하나(소유·넉넉). 과충전 결정은 아래 틱 루프가 주기적으로 만든다(생명 없이 터진다).
+    const watcher = game.spawnCreature(DETONATE.watcher.x, DETONATE.watcher.y, DETONATE.watcher.z);
+    watcher.size = 2; watcher.owner = 'P:demo'; game.ledger.get(watcher.id).max = CREATURE_MAX_ENERGY * 60;
+    game.ledger.transfer(POOL.SOURCE, watcher.id, CREATURE_MAX_ENERGY * 60, CAUSE.SPAWN);
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -115,7 +126,7 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
       if (msg.t === MSG.HELLO && playerId === null) {
         const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
         playerId = player.id;
-        if (scene === 'blast') return; // 관전자 — NPC 캐스터의 발산·비행·폭발을 지켜보기만 한다(possess 없음)
+        if (scene === 'blast' || scene === 'detonate') return; // 관전자 — NPC 의 발산·비행·폭발/자폭을 지켜보기만 한다(possess 없음)
         // size 2 로 세우고 잔고를 목표치로 맞추는 헬퍼(보존 — SOURCE 와 주고받는다).
         const rear = (c, targetBal) => {
           c.size = 2; const pl = game.ledger.get(c.id); if (pl) pl.max = CREATURE_MAX_ENERGY * 2;
@@ -161,14 +172,20 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     socket.on('error', () => {});
   });
 
+  let demoTick = 0;
   const timer = setInterval(() => {
-    if (scene === 'blast') { // 데모 지속용 — 캐스터·표적을 절반 아래로 마르면 다시 채운다(SOURCE→생명체, 보존). 폭발이 끊기지 않는다.
+    if (scene === 'blast' || scene === 'detonate') { // 데모 지속용 — 생명체를 절반 아래로 마르면 다시 채운다(SOURCE→생명체, 보존).
       for (const c of game.creatures.values()) {
         const pl = game.ledger.get(c.id); if (!pl) continue;
         const cur = game.ledger.balance(c.id);
         if (cur < pl.max / 2) game.ledger.transfer(POOL.SOURCE, c.id, pl.max - cur, CAUSE.SPAWN);
       }
     }
+    if (scene === 'detonate' && demoTick % 12 === 0) { // 주기적으로 과충전 결정을 만든다 → 다음 틱 자폭(생명 없이 터진다)
+      const cry = game.spawnRawFood(DETONATE.bomb.x, DETONATE.bomb.y, DETONATE.bomb.z, 6, 15000);
+      cry.raw = false; // 자연 결정 = 자폭 대상
+    }
+    demoTick++;
     game.tick();
   }, 1000 / TICK_RATE);
   return { httpServer, game, close: () => { clearInterval(timer); wss.close(); httpServer.close(); } };
