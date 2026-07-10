@@ -57,10 +57,12 @@
    ⚠ 투영 3원칙 (교훈 — src/fleshmesh.js): ① 첫 탈출 표면 (마지막 음수까지 가면 몸통이 팔을
    감싼다) + 8mm 틈 관통(둔부 주름 톱니 방지) ② 체인별 필드 필터 — 몸통은 팔·손·**다리**를,
    다리는 자기 살만 본다 (어기면 가슴 선반/힙 "반바지" 플랩) ③ 2.2×rGuess 관통 클램프.
-   **fit-mesh 정점 잔차 피팅**: `eval/fit-mesh.mjs` 가 시트 측면 프로파일 잔차(df/db)를 재서
-   `src/meshfit.js` 에 굽고, 빌드가 투영 직후 링에 보간 적용 (compose 수렴 · 기울기 5mm/행
-   제한 — 어기면 정면 가로 "선반" 밴드). 메시 모드는 built-in 리그 한정(외부 FBX 는 SDF 폴백),
-   슬라이더(통통함 등)는 재토글 때 반영 — 남은 일은 VERTEX-PLAN §4.
+   **fit-mesh 정점 잔차 피팅**: `eval/fit-mesh.mjs` 가 시트 잔차를 재서 `src/meshfit.js` 에
+   굽고, 빌드가 투영 직후 링에 보간 적용 — torso: 측면 df/db + 머리 폭 dx(f≤0.14) / leg:
+   측면 df/db + 정면 로브 dxo/dxi. compose 수렴 · 기울기 5mm/행 제한(어기면 정면 가로
+   "선반" 밴드) · **렌더 측 계측은 반드시 픽셀** — 기하 extents 로 재면 스킨 검출의 어두운 면
+   편차(~1cm)가 잔차로 둔갑한다 (교훈, VERTEX-PLAN §0). 메시 모드는 built-in 리그 한정
+   (외부 FBX 는 SDF 폴백), 슬라이더(통통함 등)는 재토글 때 반영 — 남은 일은 VERTEX-PLAN §4.
 3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
    (`public/assets/anim/*.fbx` — 걷기·뛰기·대기·점프·공격·삼바), 그리고 FBX 드롭(실제 Mixamo 클립).
    다중 클립 FBX 는 이름별 클립 전환(크로스페이드) 지원.
@@ -134,8 +136,9 @@ npm run dev      # http://localhost:5173
 가슴판 융합·둔부 bolted-on lump·어깨 스파이크·팔꿈치 웰드 lump 해소 — 후면 윤곽 추적 피팅
 + 관절 경계 k0/k1 + 스택 내부 k 0.016 + extras 재정합. eval 폭 MAE front 0.0099→0.0076,
 back max 0.028→0.019), **정점 메시 살 층**(2026-07 VERTEX-PLAN 1차: 찍고→투영 조정→스무딩
-+ fit-mesh 측면 잔차 피팅, 메시 모드 eval 3뷰 3지표 PASS — 폭 MAE front 0.0083/side 0.0118/
-back 0.0084 · side 머리경계 0.043→0.028, 걷기 굽힘 ✓).
++ fit-mesh 잔차 피팅(torso df/db/dx + leg df/db/dxo/dxi), 메시 모드 eval 3뷰 3지표 PASS —
+폭 MAE front 0.0078/side 0.0109/back 0.0080, 전 뷰 SDF 경로 우위 · side 머리경계
+0.043→0.022, 걷기 굽힘 ✓).
 
 **다음 (우선순위 순)**:
 1. **정점 메시 층 심화** (VERTEX-PLAN §4): 정점 단계 시트 잔차 피팅(fit-mesh — 4반경 비대칭

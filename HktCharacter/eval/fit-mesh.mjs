@@ -1,18 +1,26 @@
 // ===========================================================================
-//  HktCharacter · fit-mesh — 정점 메시의 시트 잔차를 측정해 보정 데이터 생성
+//  HktCharacter · fit-mesh — 정점 메시의 시트 잔차를 측정해 보정 데이터 생성 (v3)
 //
-//  시트 측면 뷰와 정점 메시 렌더 측면 뷰의 행별 앞/뒤 경계를 비교해, 몸통 체인의
-//  측면 프로파일 보정량(df/db, m)을 `src/meshfit.js` 에 굽는다. 투영(=SDF 어휘)
-//  이 못 담는 시트 곡선(가슴 라인·등 곡률·두상 측면)을 정점 단계에서 직접 스냅.
+//  시트와 정점 메시 렌더의 행별 경계를 비교해 보정량(m)을 `src/meshfit.js` 에
+//  굽는다. ⚠ 렌더 측 계측은 반드시 **픽셀**(eval 과 같은 스킨 검출) — 메시 기하
+//  extents 를 직접 쓰면 어두운 면(등쪽 림라이트)의 검출 편차(~1cm)가 잔차로
+//  둔갑한다 (교훈 — 기하 기반 v2 는 전 지표를 후퇴시켰다). 시트·렌더를 같은
+//  방식으로 재면 검출 편향이 차분에서 상쇄된다.
 //
-//  실행:  node eval/fit-mesh.mjs          (측정 → 기존 보정과 합성 → 파일 갱신)
-//  검증:  HKT_EVAL_MESH=1 npm run eval    (측면 지표 개선 확인)
+//  보정 커버리지 (시트의 팔·손 가림 대역 규칙 — fit-loft 와 같은 이유):
+//    · torso df/db : 측면 앞(f≤0.40 — handBand 위)/뒤(f≤0.62) 프로파일
+//    · torso dx    : 정면 머리 폭 (f≤0.14 — 어깨 전이 행 아래로 내려가면
+//                    목 링을 어깨 폭으로 오인해 붕괴한다)
+//    · leg df/db   : 측면 다리 프로파일 (f 0.60~0.96 — 손 대역 아래)
+//    · leg dxo/dxi : 정면 다리 바깥/안쪽 경계 — 시트·렌더 양쪽 행 잉크/스킨
+//                    구간(runs)으로 로브 분리, 양 다리 평균. Left(+x) 기준 부호.
 //
-//  대역 규칙 (fit-loft 과 같은 이유 — 시트의 팔·손 획이 몸 윤곽을 가린다):
-//    · 앞(+z) 보정: f ≤ 0.40 (그 아래는 손이 허벅지 앞을 가림 — handBand)
-//    · 뒤(−z) 보정: f ≤ 0.62 (등~둔부 — 후면 라인은 팔에 안 가린다)
-//  보정은 ±2cm 클램프 + 이동평균 3 스무딩. 재실행하면 잔차가 기존 보정에
-//  합성(compose)되어 수렴한다.
+//  실행:  node eval/fit-mesh.mjs   (측정 → 기존 보정과 합성 → 파일 갱신)
+//  초기화: src/meshfit.js 의 rows 를 [] 로 되돌린 뒤 2회 실행 (compose 수렴)
+//  검증:  HKT_EVAL_MESH=1 npm run eval
+//
+//  보정은 ±2cm 클램프 + 이동평균 2회 + 행간 5mm 기울기 제한 — 행마다 급변하면
+//  정면 렌더에 가로 "선반" 밴드가 생긴다 (교훈).
 // ===========================================================================
 import { chromium } from 'playwright-core';
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -25,25 +33,76 @@ const FIXTURE = join(ROOT, 'eval', 'fixtures', 'reference-sheet.jpeg');
 const OUTFILE = join(ROOT, 'src', 'meshfit.js');
 const PORT = process.env.HKT_EVAL_PORT ?? 5187;
 
-const F_STEP = 0.02, F_MIN = 0.03;
-const DF_MAX_F = 0.40;  // 앞 보정 상한 f (handBand 시작)
-const DB_MAX_F = 0.62;  // 뒤 보정 상한 f (몸통 체인 하한 근방)
-const CLAMP = 0.02;     // 보정량 상한 (m)
+const F_STEP = 0.02, CLAMP = 0.02, MAXG = 0.005;
+const TORSO_F = [0.03, 0.62], DF_MAX_F = 0.40, HEAD_DX_F = 0.14;
+const LEG_F = [0.60, 0.96];
 
-// 기존 보정 로드 (compose 용) — 파일의 JSON 리터럴 추출
+// ---- 파일 IO / 시리즈 유틸 ---------------------------------------------------
 function loadExisting() {
   try {
     const m = readFileSync(OUTFILE, 'utf8').match(/export const MESH_FIT = ([\s\S]*?);\s*$/);
-    return JSON.parse(m[1]);
-  } catch { return { torso: { rows: [] } }; }
+    const o = JSON.parse(m[1]);
+    return { torso: o.torso ?? { rows: [] }, leg: o.leg ?? { rows: [] } };
+  } catch { return { torso: { rows: [] }, leg: { rows: [] } }; }
 }
-const interpRows = (rows, y) => {
-  if (!rows.length || y >= rows[0].y || y <= rows[rows.length - 1].y) return { df: 0, db: 0 };
+const interpRow = (rows, y, keys) => {
+  const z = Object.fromEntries(keys.map(k => [k, 0]));
+  if (!rows.length || y >= rows[0].y || y <= rows[rows.length - 1].y) return z;
   let i = 0; while (i + 1 < rows.length && rows[i + 1].y > y) i++;
   const a = rows[i], b = rows[i + 1], t = (a.y - y) / Math.max(a.y - b.y, 1e-6);
-  return { df: a.df + (b.df - a.df) * t, db: a.db + (b.db - a.db) * t };
+  for (const k of keys) z[k] = (a[k] ?? 0) + ((b[k] ?? 0) - (a[k] ?? 0)) * t;
+  return z;
 };
+// 스무딩(이동평균 2회) + 행간 기울기 제한 + 클램프 — 키별 독립
+function refine(rows, keys) {
+  let sm = rows;
+  for (let p = 0; p < 2; p++) {
+    sm = sm.map((r, i) => {
+      const nb = [sm[i - 1], r, sm[i + 1]].filter(Boolean);
+      const o = { ...r };
+      for (const k of keys) o[k] = nb.reduce((s, v) => s + v[k], 0) / nb.length;
+      return o;
+    });
+  }
+  for (const k of keys) {
+    for (let i = 1; i < sm.length; i++) sm[i][k] = Math.max(sm[i - 1][k] - MAXG, Math.min(sm[i - 1][k] + MAXG, sm[i][k]));
+    for (let i = sm.length - 2; i >= 0; i--) sm[i][k] = Math.max(sm[i + 1][k] - MAXG, Math.min(sm[i + 1][k] + MAXG, sm[i][k]));
+    for (const r of sm) r[k] = +Math.max(-CLAMP, Math.min(CLAMP, r[k])).toFixed(4);
+  }
+  return sm;
+}
 
+// ---- 행 구간(runs) 분석 — 시트(선화 stroke)·렌더(스킨) 공용, 다리 로브 분리용 --
+const analyzeRuns = (page, b64, mime, crop, mode) => page.evaluate(async ({ b64, mime, crop, mode }) => {
+  const img = new Image();
+  await new Promise(res => { img.onload = res; img.src = `data:${mime};base64,` + b64; });
+  const c = document.createElement('canvas'); c.width = img.width; c.height = img.height;
+  const g = c.getContext('2d'); g.drawImage(img, 0, 0);
+  const { x0, x1, y0, y1 } = crop ?? { x0: 0, x1: img.width, y0: 0, y1: img.height };
+  const d = g.getImageData(0, 0, c.width, c.height).data;
+  const hit = (x, y) => {
+    const i = (y * c.width + x) * 4;
+    if (mode === 'stroke') return (d[i] + d[i + 1] + d[i + 2]) / 3 < 185;
+    return d[i] > 130 && d[i] > d[i + 2] * 1.35;
+  };
+  const rows = [];
+  for (let y = y0; y < y1; y++) {
+    const runs = []; let s = -1;
+    for (let x = x0; x <= x1; x++) {
+      const on = x < x1 && hit(x, y);
+      if (on && s < 0) s = x;
+      else if (!on && s >= 0) {
+        if (runs.length && s - runs[runs.length - 1][1] <= 3) runs[runs.length - 1][1] = x - 1;
+        else runs.push([s, x - 1]);
+        s = -1;
+      }
+    }
+    rows.push({ y, runs });
+  }
+  return rows;
+}, { b64, mime, crop, mode });
+
+// ---- 본체 ---------------------------------------------------------------------
 const server = await ensureServer(ROOT, PORT);
 const browser = await chromium.launch({ executablePath: findChromium() });
 try {
@@ -56,103 +115,172 @@ try {
     const h = window.__hkt;
     h.setPreset('reference');
     h.st.clip = 'apose'; h.st.speed = 0; h.st.dist = 3.4; h.st.el = 0.0;
-    h.setFleshMode(true);
     h.st.pause = true;
+    h.setFleshMode(true);
   });
-
-  // ---- 시트 측면 프로파일 ----------------------------------------------------
   const refB64 = readFileSync(FIXTURE).toString('base64');
-  const refP = denseProfile(await analyze(page, refB64, 'image/jpeg', CROPS.side, 'stroke'));
-  // 시트 측면은 왼쪽을 본다 → 이미지 왼쪽(L) = 앞(가슴), 오른쪽(R) = 뒤(등)
-  const refRowAt = f => {
+  const toWorld = (pts, plane) => page.evaluate(({ pts, plane }) => pts.map(([x, y]) => window.__hkt.screenToWorld(x, y, plane)), { pts, plane });
+  const rowAt = (p, f) => {
     let best = null, bd = 1e9;
-    for (const r of refP.rows) { if (r.L == null) continue; const d = Math.abs(r.f - f); if (d < bd) { bd = d; best = r; } }
+    for (const r of p.rows) { if (r.L == null) continue; const d = Math.abs(r.f - f); if (d < bd) { bd = d; best = r; } }
     return bd <= 0.01 ? best : null;
   };
-
-  // ---- 렌더 측면 프레임 → 행 경계 --------------------------------------------
-  await page.evaluate(() => new Promise(res => {
-    const h = window.__hkt; h.st.az = Math.PI / 2; h.st.pause = false;
-    requestAnimationFrame(() => requestAnimationFrame(() => { h.st.pause = true; res(); }));
-  }));
-  const canvas = await page.$('#app canvas');
-  const renB64 = (await canvas.screenshot()).toString('base64');
-  const renP = denseProfile(await analyze(page, renB64, 'image/png', null, 'skin'));
-  const renRowAt = f => {
-    let best = null, bd = 1e9;
-    for (const r of renP.rows) { if (r.L == null) continue; const d = Math.abs(r.f - f); if (d < bd) { bd = d; best = r; } }
-    return bd <= 0.01 ? best : null;
+  const sheetCx = p => {
+    const rel = p.rows.filter(r => r.reliable && r.f > 0.1 && r.f < 0.9 && r.L != null);
+    return rel.reduce((s, r) => s + (r.L + r.R) / 2, 0) / rel.length;
+  };
+  // 뷰 캡처: az 반영 프레임 1장 → 렌더 dense + (선택) runs + 픽셀 축·앵커 월드 변환
+  const capture = async (az, plane, coord, wantRuns) => {
+    await page.evaluate(az => new Promise(res => {
+      const h = window.__hkt; h.st.az = az; h.st.pause = false;
+      requestAnimationFrame(() => requestAnimationFrame(() => { h.st.pause = true; res(); }));
+    }), az);
+    const canvas = await page.$('#app canvas');
+    const b64 = (await canvas.screenshot()).toString('base64');
+    const p = denseProfile(await analyze(page, b64, 'image/png', null, 'skin'));
+    const v = { p, ypx: f => p.top + f * (p.bot - p.top) };
+    if (wantRuns) v.runs = await analyzeRuns(page, b64, 'image/png', null, 'skin');
+    return v;
   };
 
-  // ---- 픽셀 → 월드 (측면 az=π/2 → x=0 평면) ----------------------------------
-  const toWorld = pts => page.evaluate(pts => pts.map(([x, y]) => window.__hkt.screenToWorld(x, y, 'x')), pts);
-  // 렌더 이미지의 어느 쪽이 +z(정면)인지 판정
-  const midRen = renRowAt(0.3);
-  const [wl, wr] = await toWorld([[midRen.L, renP.top + 0.3 * (renP.bot - renP.top)], [midRen.R, renP.top + 0.3 * (renP.bot - renP.top)]]);
-  const leftIsFront = wl[2] > wr[2]; // world z 비교
-  // 신장 스케일: 시트 정규화 반폭(px/H) → 미터
-  const [wTop, wBot] = await toWorld([[380, renP.top], [380, renP.bot]]);
-  const H_WORLD = wTop[1] - wBot[1];
-  console.log(`렌더 방향: 이미지 ${leftIsFront ? '왼쪽' : '오른쪽'}=앞(+z) · 신장 ${H_WORLD.toFixed(3)}m`);
-
-  // ---- 몸 축 (신뢰 행 공통 집합 — evaluate 와 같은 정식) ----------------------
-  const relF = refP.rows.filter(r => r.reliable && r.f > 0.1 && r.f < 0.9).map(r => r.f);
+  // ---- 측면: torso df/db + leg df/db ------------------------------------------
+  // (시트 측면은 왼쪽을 본다 → 이미지 L=앞, R=뒤. 렌더 방향은 월드 z 로 판정.)
+  const refSide = denseProfile(await analyze(page, refB64, 'image/jpeg', CROPS.side, 'stroke'));
+  const cxSide = sheetCx(refSide);
+  const REN_S = await capture(Math.PI / 2, 'x', 2);
+  const midR = rowAt(REN_S.p, 0.3);
+  const [wl0, wr0, wTop, wBot] = await toWorld([
+    [midR.L, REN_S.ypx(0.3)], [midR.R, REN_S.ypx(0.3)], [380, REN_S.p.top], [380, REN_S.p.bot]], 'x');
+  const leftIsFront = wl0[2] > wr0[2];
+  const crownY = wTop[1], toeY = wBot[1], H_WORLD = crownY - toeY;
+  const mPerPxS = H_WORLD / refSide.H;
+  const yOf = f => crownY - f * H_WORLD;
+  console.log(`신장 ${H_WORLD.toFixed(3)}m · 렌더 측면: 이미지 ${leftIsFront ? '왼쪽' : '오른쪽'}=앞`);
+  // 렌더 픽셀 축 (시트 신뢰 행과 같은 f 집합 — 검출 편향까지 포함된 실루엣 중심)
+  const relFSide = refSide.rows.filter(r => r.reliable && r.f > 0.1 && r.f < 0.9).map(r => r.f);
   const near = (f, set) => set.some(g => Math.abs(g - f) <= 0.01);
-  const refAxisPx = (() => {
-    const cs = refP.rows.filter(r => r.L != null && near(r.f, relF)).map(r => (r.L + r.R) / 2);
-    return cs.reduce((s, v) => s + v, 0) / cs.length;
-  })();
-  const renAxisRows = renP.rows.filter(r => r.L != null && near(r.f, relF));
-  const renAxisPts = await toWorld(renAxisRows.map(r => [(r.L + r.R) / 2, renP.top + r.f * (renP.bot - renP.top)]));
-  const renAxisZ = renAxisPts.reduce((s, p) => s + p[2], 0) / renAxisPts.length;
+  const axRowsS = REN_S.p.rows.filter(r => r.L != null && near(r.f, relFSide));
+  const axPtsS = await toWorld(axRowsS.map(r => [(r.L + r.R) / 2, REN_S.ypx(r.f)]), 'x');
+  const renAxisZ = axPtsS.reduce((s, p) => s + p[2], 0) / axPtsS.length;
+  // 측면 행 잔차 — torso/leg 대역 공용. ⚠ screenToWorld 는 "현재 카메라"를 쓴다 —
+  // 정면 캡처로 az 를 바꾸기 전, 측면 캡처 직후 여기서 전부 선계산한다 (교훈:
+  // 뷰 전환 후 변환하면 잔차가 미터 단위 쓰레기가 된다).
+  const sideRes = new Map();
+  {
+    const fs = [];
+    for (let f = TORSO_F[0]; f <= TORSO_F[1] + 1e-9; f += F_STEP) fs.push(+f.toFixed(3));
+    for (let f = LEG_F[0]; f <= LEG_F[1] + 1e-9; f += F_STEP) fs.push(+f.toFixed(3));
+    for (const f of fs) {
+      const rr = rowAt(refSide, f), nr = rowAt(REN_S.p, f);
+      if (!rr?.reliable || !nr) continue;
+      const [wL, wR] = await toWorld([[nr.L, REN_S.ypx(nr.f)], [nr.R, REN_S.ypx(nr.f)]], 'x');
+      const renF = (leftIsFront ? wL[2] : wR[2]) - renAxisZ;
+      const renB = renAxisZ - (leftIsFront ? wR[2] : wL[2]);
+      sideRes.set(f, {
+        df: (cxSide - rr.L) * mPerPxS - renF,
+        db: (rr.R - cxSide) * mPerPxS - renB,
+      });
+    }
+  }
+  const sideResidual = f => sideRes.get(+f.toFixed(3)) ?? null;
 
-  // ---- 행별 잔차 측정 ---------------------------------------------------------
-  const raw = [];
-  for (let f = F_MIN; f <= DB_MAX_F; f += F_STEP) {
-    const rr = refRowAt(f), nr = renRowAt(f);
-    if (!rr || !nr || !rr.reliable) continue;
-    const ypx = renP.top + nr.f * (renP.bot - renP.top);
-    const [wL, wR] = await toWorld([[nr.L, ypx], [nr.R, ypx]]);
-    const renFront = (leftIsFront ? wL[2] : wR[2]) - renAxisZ;   // m
-    const renBack = renAxisZ - (leftIsFront ? wR[2] : wL[2]);    // m (양수)
-    const refFront = (refAxisPx - rr.L) / refP.H * H_WORLD;      // 시트: 왼쪽=앞
-    const refBack = (rr.R - refAxisPx) / refP.H * H_WORLD;
-    const clamp = v => Math.max(-CLAMP, Math.min(CLAMP, v));
-    raw.push({
-      f: +f.toFixed(3), y: wL[1],
-      df: f <= DF_MAX_F ? clamp(refFront - renFront) : 0,
-      db: clamp(refBack - renBack),
-    });
-  }
-  // 스무딩: 이동평균 2회(≈삼각 창 5) + 행간 기울기 제한 — 보정이 행마다 급변하면
-  // 정면 렌더에 가로 "선반" 밴드가 생긴다 (가슴 밑·턱 대역 교훈).
-  const MAXG = 0.005; // 이웃 행(Δf=0.02)당 허용 변화량 (m)
-  let sm = raw;
-  for (let pass = 0; pass < 2; pass++) {
-    sm = sm.map((r, i) => {
-      const nb = [sm[i - 1], r, sm[i + 1]].filter(Boolean);
-      const avg = k => nb.reduce((s, v) => s + v[k], 0) / nb.length;
-      return { ...r, df: avg('df'), db: avg('db') };
-    });
-  }
-  for (const k of ['df', 'db']) {
-    for (let i = 1; i < sm.length; i++) sm[i][k] = Math.max(sm[i - 1][k] - MAXG, Math.min(sm[i - 1][k] + MAXG, sm[i][k]));
-    for (let i = sm.length - 2; i >= 0; i--) sm[i][k] = Math.max(sm[i + 1][k] - MAXG, Math.min(sm[i + 1][k] + MAXG, sm[i][k]));
-  }
-  sm = sm.map(r => ({ ...r, df: +r.df.toFixed(4), db: +r.db.toFixed(4) }));
+  // ---- 정면: torso 머리 dx + leg dxo/dxi ---------------------------------------
+  const refFront = denseProfile(await analyze(page, refB64, 'image/jpeg', CROPS.front, 'stroke'));
+  const refRunsF = await analyzeRuns(page, refB64, 'image/jpeg', CROPS.front, 'stroke');
+  const cxFront = sheetCx(refFront);
+  const mPerPxF = H_WORLD / refFront.H;
+  const REN_F = await capture(0, 'z', 0, true);
+  const axRowsF = REN_F.p.rows.filter(r => {
+    const f = r.f; return r.L != null && f > 0.1 && f < 0.9;
+  });
+  const axPtsF = await toWorld(axRowsF.map(r => [(r.L + r.R) / 2, REN_F.ypx(r.f)]), 'z');
+  const renAxisX = axPtsF.reduce((s, p) => s + p[0], 0) / axPtsF.length;
+  // 시트 다리 로브: envelope(dense) + 잉크 구간 → { outerDist, innerDist } (양 다리 평균)
+  const sheetLobesAt = f => {
+    const dr = rowAt(refFront, f);
+    const row = refRunsF.find(r => r.y === Math.round(refFront.top + f * refFront.H));
+    if (!dr?.reliable || !row) return null;
+    const s2w = px => (px - cxFront) * mPerPxF;
+    const rw = row.runs.map(([s, e]) => [s2w(s), s2w(e)].sort((a, b) => a - b));
+    const sides = [];
+    for (const sg of [+1, -1]) {
+      const outer = sg > 0 ? s2w(dr.R) : -s2w(dr.L);
+      const straddle = rw.find(([s, e]) => s <= 0 && e >= 0);
+      const own = rw.filter(([s, e]) => (sg > 0 ? s : -e) > 0.005).sort((a, b) => sg * (a[0] - b[0]));
+      let inner;
+      if (straddle) inner = 0;
+      else if (own.length >= 2) inner = sg > 0 ? own[0][1] : -own[0][0];
+      else return null;
+      if (outer <= inner + 0.01) return null;
+      sides.push({ outer, inner: Math.max(inner, 0) });
+    }
+    return { outer: (sides[0].outer + sides[1].outer) / 2, inner: (sides[0].inner + sides[1].inner) / 2 };
+  };
+  // 렌더 다리 로브: 스킨 구간 — 다리 대역은 구간 1(붙음)~2개(로브)
+  const renLobesAt = async f => {
+    const row = REN_F.runs.find(r => r.y === Math.round(REN_F.ypx(f)));
+    if (!row || !row.runs.length || row.runs.length > 2) return null;
+    const pts = row.runs.flatMap(([s, e]) => [[s, row.y], [e, row.y]]);
+    const w = (await toWorld(pts, 'z')).map(p => p[0] - renAxisX);
+    if (row.runs.length === 1) {
+      const [a, b] = [Math.min(w[0], w[1]), Math.max(w[0], w[1])];
+      return { outer: (b - a) / 2 + Math.abs((a + b) / 2), inner: 0 }; // 붙은 두 다리 → inner 0
+    }
+    const iv = [[w[0], w[1]].sort((a, b) => a - b), [w[2], w[3]].sort((a, b) => a - b)];
+    const plus = iv.find(([s]) => s > -0.02), minus = iv.find(([, e]) => e < 0.02);
+    if (!plus || !minus) return null;
+    return { outer: (plus[1] + -minus[0]) / 2, inner: (Math.max(plus[0], 0) + Math.max(-minus[1], 0)) / 2 };
+  };
 
-  // ---- 기존 보정과 합성 → 파일 갱신 (--reset: 기존 보정 무시하고 새로 시작) -----
-  const old = process.argv.includes('--reset') ? { torso: { rows: [] } } : loadExisting();
-  const rows = sm.map(r => {
-    const o = interpRows(old.torso?.rows ?? [], r.y);
-    return { y: +r.y.toFixed(4), df: +(r.df + o.df).toFixed(4), db: +(r.db + o.db).toFixed(4) };
-  }).sort((a, b) => b.y - a.y); // y 내림차순 (fleshmesh interp 계약)
+  // ---- torso 잔차 -------------------------------------------------------------
+  const torsoRaw = [];
+  for (let f = TORSO_F[0]; f <= TORSO_F[1] + 1e-9; f += F_STEP) {
+    const row = { y: +yOf(f).toFixed(4), df: 0, db: 0, dx: 0 };
+    const sr = sideResidual(f);
+    if (sr) { if (f <= DF_MAX_F) row.df = sr.df; row.db = sr.db; }
+    if (f <= HEAD_DX_F) { // 머리 폭 — 대칭 절반 (민머리 소체라 머리카락 오염 없음)
+      const rr = rowAt(refFront, f), nr = rowAt(REN_F.p, f);
+      if (rr?.reliable && nr) {
+        const [wL, wR] = await toWorld([[nr.L, REN_F.ypx(nr.f)], [nr.R, REN_F.ypx(nr.f)]], 'z');
+        row.dx = ((rr.R - rr.L) / 2) * mPerPxF - Math.abs(wR[0] - wL[0]) / 2;
+      }
+    }
+    torsoRaw.push(row);
+  }
+
+  // ---- leg 잔차 (양 다리 평균 — Left(+x) 기준 부호) -----------------------------
+  const legRaw = [];
+  for (let f = LEG_F[0]; f <= LEG_F[1] + 1e-9; f += F_STEP) {
+    const row = { y: +yOf(f).toFixed(4), df: 0, db: 0, dxo: 0, dxi: 0 };
+    const sr = sideResidual(f);
+    if (sr) { row.df = sr.df; row.db = sr.db; }
+    const sl = sheetLobesAt(f), rl = await renLobesAt(f);
+    if (sl && rl) {
+      row.dxo = sl.outer - rl.outer;
+      row.dxi = sl.inner - rl.inner;
+    }
+    legRaw.push(row);
+  }
+
+  // ---- 스무딩·클램프 → 기존 보정과 합성 → 파일 갱신 ----------------------------
+  const old = loadExisting();
+  const finish = (raw, keys, oldRows) => refine(raw, keys).map(r => {
+    const o = interpRow(oldRows, r.y, keys);
+    const out = { y: r.y };
+    for (const k of keys) out[k] = +(r[k] + o[k]).toFixed(4);
+    return out;
+  }).sort((a, b) => b.y - a.y);
+  const data = {
+    torso: { rows: finish(torsoRaw, ['df', 'db', 'dx'], old.torso.rows) },
+    leg: { rows: finish(legRaw, ['df', 'db', 'dxo', 'dxi'], old.leg.rows) },
+  };
   const header = readFileSync(OUTFILE, 'utf8').match(/^([\s\S]*?)export const MESH_FIT/)[1];
-  writeFileSync(OUTFILE, header + 'export const MESH_FIT = ' + JSON.stringify({ torso: { rows } }) + ';\n');
+  writeFileSync(OUTFILE, header + 'export const MESH_FIT = ' + JSON.stringify(data) + ';\n');
 
-  const mae = k => sm.reduce((s, r) => s + Math.abs(r[k]), 0) / Math.max(sm.length, 1);
-  console.log(`측정 행 ${sm.length}개 · 이번 잔차 |df| 평균 ${(mae('df') * 1000).toFixed(1)}mm · |db| 평균 ${(mae('db') * 1000).toFixed(1)}mm`);
-  console.log(`갱신: ${OUTFILE} (rows ${rows.length}) — HKT_EVAL_MESH=1 npm run eval 로 검증할 것`);
+  const mae = (raw, k) => (raw.reduce((s, r) => s + Math.abs(r[k]), 0) / Math.max(raw.length, 1) * 1000).toFixed(1);
+  console.log(`torso ${torsoRaw.length}행 — 잔차 |df| ${mae(torsoRaw, 'df')} |db| ${mae(torsoRaw, 'db')} |dx| ${mae(torsoRaw, 'dx')} mm`);
+  console.log(`leg   ${legRaw.length}행 — 잔차 |df| ${mae(legRaw, 'df')} |db| ${mae(legRaw, 'db')} |dxo| ${mae(legRaw, 'dxo')} |dxi| ${mae(legRaw, 'dxi')} mm`);
+  console.log(`갱신: ${OUTFILE} — HKT_EVAL_MESH=1 npm run eval 로 검증할 것`);
 } finally {
   await browser.close();
   server.proc?.kill();

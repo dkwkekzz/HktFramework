@@ -133,7 +133,7 @@ const CHAIN_DEFS = [
   // 다리도 자기 살만 본다 — 골반·둔부까지 보면 허벅지 상단 레이가 그 표면을 찍어
   // "반바지" 스캘럽이 된다. 힙 실루엣(크레스트·둔부)은 몸통 체인 몫 (골반 loft 가
   // 시트 폭을 행별로 이미 보유), 다리는 순수 허벅지~발목 loft — 매끈함이 보장된다.
-  { bones: ['Leg', 'Foot'], around: 22, mirror: true, inset: 0.0015,
+  { bones: ['Leg', 'Foot'], around: 22, mirror: true, inset: 0.0015, fitKey: 'leg',
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
   { bones: ['ToeBase'], around: 12, mirror: true, inset: 0.0015,
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
@@ -165,6 +165,7 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
   const indices = [];
   const groups = [];      // { child, vids } — 프레임마다 뼈 하나 resolve 후 일괄 변환
   const neighbors = [];   // Taubin 스무딩용 인접 리스트
+  const chainStats = [];  // fit-mesh 계측용: 체인별 링 vid 그리드
   let built = 0;
 
   const pushVert = (p, rough) => {
@@ -265,36 +266,48 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       for (const phi of CAP_PHIS) capRing(last, eE, phi);
       const poleEnd = emitPole(last, eE);
 
-      // ---- 2.5) 시트 잔차 보정 (fit-mesh 데이터 — 측면 프로파일 df/db) -------
-      // 투영 결과 위에 시트 대비 잔차를 정점 단계에서 직접 얹는다: 링의 +z/−z
-      // 반쪽을 경계 이동량만큼 비례 스케일 (경계 정점이 정확히 이동, 중심은 고정).
+      // ---- 2.5) 시트 잔차 보정 (fit-mesh 데이터) ------------------------------
+      // 투영 결과 위에 시트 대비 잔차를 정점 단계에서 직접 얹는다: 링의 반쪽을
+      // 경계 이동량만큼 비례 스케일 (경계 정점이 정확히 이동, 중심은 고정).
+      //   df/db: 앞(+z)/뒤(−z) 경계 확장량 · dx: 좌우 대칭 폭 확장량(몸통)
+      //   dxo/dxi: 바깥/안쪽 경계 확장량(다리 — 미러 체인, Left(+x) 기준 부호)
       const fitRows = MESH_FIT[def.fitKey]?.rows;
       if (fitRows?.length) {
+        const K = ['df', 'db', 'dx', 'dxo', 'dxi'];
         const interp = y => {
-          if (y >= fitRows[0].y) return null; // rows 는 y 내림차순 정렬
-          if (y <= fitRows[fitRows.length - 1].y) return null;
+          if (y >= fitRows[0].y || y <= fitRows[fitRows.length - 1].y) return null; // y 내림차순
           let i = 0; while (i + 1 < fitRows.length && fitRows[i + 1].y > y) i++;
           const a = fitRows[i], b = fitRows[i + 1];
           const t = (a.y - y) / Math.max(a.y - b.y, 1e-6);
-          return { df: a.df + (b.df - a.df) * t, db: a.db + (b.db - a.db) * t };
+          const o = {}; for (const k of K) o[k] = (a[k] ?? 0) + ((b[k] ?? 0) - (a[k] ?? 0)) * t;
+          return o;
         };
-        for (let r = 0; r < rows.length; r++) {
-          const row = rows[r];
-          // 이 행의 링 중심 y = 정점 평균 (캡 링 포함 — 범위 밖은 interp 가 거른다)
-          let cy = 0, cz = 0;
-          for (const vid of row) { cy += positions[vid * 3 + 1]; cz += positions[vid * 3 + 2]; }
-          cy /= row.length; cz /= row.length;
+        const sideSign = def.mirror && prefix === 'Right' ? -1 : 1;
+        for (const row of rows) {
+          let cy = 0, cx = 0, cz = 0;
+          for (const vid of row) { cy += positions[vid * 3 + 1]; cx += positions[vid * 3]; cz += positions[vid * 3 + 2]; }
+          cy /= row.length; cx /= row.length; cz /= row.length;
           const d = interp(cy);
           if (!d) continue;
-          let maxP = 0, maxN = 0;
+          let zP = 0, zN = 0, xP = 0, xN = 0;
           for (const vid of row) {
-            const oz = positions[vid * 3 + 2] - cz;
-            if (oz > maxP) maxP = oz; if (-oz > maxN) maxN = -oz;
+            const oz = positions[vid * 3 + 2] - cz, ox = positions[vid * 3] - cx;
+            if (oz > zP) zP = oz; if (-oz > zN) zN = -oz;
+            if (ox > xP) xP = ox; if (-ox > xN) xN = -ox;
           }
           for (const vid of row) {
-            const oz = positions[vid * 3 + 2] - cz;
-            if (oz > 0.004 && maxP > 1e-6) positions[vid * 3 + 2] += d.df * (oz / maxP);
-            else if (oz < -0.004 && maxN > 1e-6) positions[vid * 3 + 2] -= d.db * (-oz / maxN);
+            const oz = positions[vid * 3 + 2] - cz, ox = positions[vid * 3] - cx;
+            if (oz > 0.004 && zP > 1e-6) positions[vid * 3 + 2] += d.df * (oz / zP);
+            else if (oz < -0.004 && zN > 1e-6) positions[vid * 3 + 2] -= d.db * (-oz / zN);
+            if (d.dx) { // 좌우 대칭 폭 (몸통)
+              if (ox > 0.004 && xP > 1e-6) positions[vid * 3] += d.dx * (ox / xP);
+              else if (ox < -0.004 && xN > 1e-6) positions[vid * 3] -= d.dx * (-ox / xN);
+            } else if (d.dxo || d.dxi) { // 바깥/안쪽 경계 (다리 — Left 기준, Right 는 미러)
+              const u = ox * sideSign; // u>0 = 바깥쪽 반
+              const uP = sideSign > 0 ? xP : xN, uN = sideSign > 0 ? xN : xP;
+              if (u > 0.004 && uP > 1e-6) positions[vid * 3] += sideSign * d.dxo * (u / uP);
+              else if (u < -0.004 && uN > 1e-6) positions[vid * 3] += sideSign * d.dxi * (-u / uN);
+            }
           }
         }
       }
@@ -324,6 +337,7 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       }
       neighbors[poleStart].push(...rows[0]);
       neighbors[poleEnd].push(...rows[R - 1]);
+      chainStats.push({ fit: def.fitKey ?? null, side: prefix, rows });
       built++;
     }
   }
@@ -420,5 +434,25 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
     geo.computeVertexNormals();
   };
   const setStage = stage => { local = stage === 'rough' ? localRough : localFit; };
-  return { mesh, update, setStage, stats: { verts: nv, tris: indices.length / 3, chains: built } };
+  // ---- fit-mesh 계측용 통계: 바인드(최종 조정+스무딩 후) 링 extents ------------
+  // 렌더 픽셀 계측 대신 실물 기하를 직접 읽는다 — 팔이 몸통을 가리는 뷰 의존성이 없다.
+  let crownY = -1e9, toeY = 1e9;
+  for (let i = 0; i < nv; i++) { const y = positions[i * 3 + 1]; if (y > crownY) crownY = y; if (y < toeY) toeY = y; }
+  const ringExtents = [];
+  for (const cs of chainStats) {
+    for (const row of cs.rows) {
+      let y = 0, xMin = 1e9, xMax = -1e9, zMin = 1e9, zMax = -1e9;
+      for (const vid of row) {
+        y += positions[vid * 3 + 1];
+        const x = positions[vid * 3], z = positions[vid * 3 + 2];
+        if (x < xMin) xMin = x; if (x > xMax) xMax = x;
+        if (z < zMin) zMin = z; if (z > zMax) zMax = z;
+      }
+      ringExtents.push({ fit: cs.fit, side: cs.side, y: y / row.length, xMin, xMax, zMin, zMax });
+    }
+  }
+  return {
+    mesh, update, setStage,
+    stats: { verts: nv, tris: indices.length / 3, chains: built, crownY, toeY, rings: ringExtents },
+  };
 }
