@@ -27,6 +27,8 @@ export class ClientState {
     this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
     this.crystals = new Map();  // seq -> { x, y, z, balance, species, raw, crafted } (개별 결정 스냅샷 — 읽기 전용, feature-0005·0011·0010 step2 crafted=제조 산물)
     this.creatures = new Map();  // seq -> { x, y, z, balance, size, desire, owner, desires } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006·0010·0012 desires=중첩 스택)
+    this.fireballs = new Map();  // seq -> { x, y, z, balance, size } (파이어볼 비행체 스냅샷 — 읽기 전용, feature-0009. 착탄하면 방송이 끊겨 짧은 TTL 로 지운다)
+    this.fireballsAt = 0;        // 마지막 파이어볼 방송 시각(ms) — 이후 방송이 없으면(착탄) 렌더가 TTL 로 비운다
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
     this.onTeleport = null;     // ({x,y,z}) => void
@@ -42,6 +44,7 @@ export class ClientState {
       case 'field': return this.#onField(msg);
       case 'crystal': return this.#onCrystal(msg);
       case 'creature': return this.#onCreature(msg);
+      case 'fireball': return this.#onFireball(msg);
       case 'checksum': return this.#onChecksum(msg);
       case 'snapshot': return this.#onSnapshot(msg);
       case 'teleport': return this.onTeleport?.(msg);
@@ -137,6 +140,19 @@ export class ClientState {
       seen.add(seq);
     }
     for (const key of this.creatures.keys()) if (!seen.has(key)) this.creatures.delete(key);
+  }
+
+  // 파이어볼 스냅샷 — feature-0009. 비행 중일 때만 매 틱 실려온다. 통째로 교체하고(현재 나는 것만), 방송이 끊기면
+  //   (착탄=폭발) 렌더가 TTL(#pruneFireballs)로 지운다. 렌더는 이 위치를 밝은 투사체로 그린다(권위 아님, 표시용).
+  #onFireball(msg) {
+    this.fireballs.clear();
+    for (const [seq, x, y, z, balance, size] of msg.cells) this.fireballs.set(seq, { x, y, z, balance, size: size ?? 1 });
+    this.fireballsAt = Date.now();
+  }
+
+  // 착탄 후 방송이 끊긴 파이어볼을 지운다 — 렌더 루프가 매 프레임 부른다(마지막 방송 후 TTL 지나면 비운다).
+  pruneFireballs(ttlMs = 220) {
+    if (this.fireballs.size && Date.now() - this.fireballsAt > ttlMs) this.fireballs.clear();
   }
 
   #onChecksum(msg) {

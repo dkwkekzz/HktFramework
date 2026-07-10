@@ -95,10 +95,9 @@ test('원거리 — 근접 강탈 사거리 밖의 표적에도 파이어볼을 
   assert.ok(mid > CREATURE_ATTACK_RADIUS && mid < DISCHARGE_RADIUS);
   s.makeCreature(1000, 1000, 500, 2, 4000);
   const T = s.makeCreature(1000, 1000 + mid, 500, 2, 3000, { owned: true });
-  const t0 = s.bal(T.id);
-  s.runTicks(5);
+  s.runTicks(8); // 파이어볼이 원거리 표적까지 몇 틱 날아가 착탄·폭발(feature-0009 비행)
   assert.ok(s.emitTxs().length > 0, `강탈 사거리 밖(${mid}px)에도 발산했다`);
-  assert.ok(s.bal(T.id) < t0 || !s.game.creatures.has(T.id), '착탄점 폭발로 표적이 질서를 잃었다');
+  assert.ok(s.detonateTxs().some(o => o.from === T.id), '날아간 파이어볼이 착탄해 원거리 표적을 폭발로 태웠다');
 
   // 발산 사거리 밖은 겨누지 못한다(대조)
   const s2 = setup();
@@ -106,6 +105,27 @@ test('원거리 — 근접 강탈 사거리 밖의 표적에도 파이어볼을 
   s2.makeCreature(1000, 1000 + DISCHARGE_RADIUS + 300, 500, 2, 3000, { owned: true });
   s2.runTicks(5);
   assert.equal(s2.emitTxs().length, 0, '발산 사거리 밖이면 쏘지 않음');
+});
+
+test('비행 — 파이어볼은 즉발이 아니라 캐스터 자리에서 표적으로 날아가 착탄 시 터진다 (눈에 보이는 투사체)', () => {
+  const s = setup();
+  const A = s.makeCreature(1000, 1000, 500, 2, 4000);
+  const T = s.makeCreature(1000, 1450, 500, 2, 3000, { owned: true }); // 원거리(450px) — 여러 틱 비행
+  // tick 하나씩: 파이어볼이 생겨 캐스터 자리에서 표적 쪽으로 나아가는 궤적을 관측한다.
+  const trail = [];
+  for (let i = 0; i < 8; i++) {
+    s.game.tick();
+    if (s.game.fireballs.length) { const fb = s.game.fireballs[0]; trail.push([fb.x, fb.y]); }
+  }
+  assert.ok(trail.length >= 2, '파이어볼이 여러 틱에 걸쳐 존재했다(즉발이 아니라 비행)');
+  // 표적까지 남은 거리가 틱마다 줄어든다 = 표적 쪽으로 날아간다.
+  const distTo = ([x, y]) => Math.hypot(1000 - x, 1450 - y);
+  for (let i = 1; i < trail.length; i++) assert.ok(distTo(trail[i]) < distTo(trail[i - 1]), '틱마다 표적에 가까워진다(비행)');
+  assert.ok(trail[0][1] < 1450 && trail[0][1] > 1000, '첫 위치는 캐스터(1000)와 표적(1450) 사이 — 캐스터 자리에서 출발했다');
+  // 착탄 후: 파이어볼은 사라지고(터졌다), 표적이 폭발로 질서를 잃는다.
+  assert.equal(s.game.fireballs.length, 0, '착탄 후 파이어볼은 사라진다(터졌다)');
+  assert.ok(s.detonateTxs().some(o => o.from === T.id), '착탄점에서 터져 표적을 폭발로 태웠다');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '비행·폭발에도 보존 불변(비행 중 payload 는 B: 풀에)');
 });
 
 test('약자가 강자를 겨눈다 — 발산은 먹을 수 없는 상대(size ≥)를 친다 (포식의 강자→약자 일방을 뚫는다)', () => {

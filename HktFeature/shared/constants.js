@@ -162,6 +162,10 @@ export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 �
 //   AoE 는 별도 기능이 아니라 폭발파가 구면으로 퍼지는 본질 — 반경 내 먹을 수 없는 상대(size≥)를 거리 감쇠로 함께 태운다.
 export const DISCHARGE_BLAST_RADIUS = 180;   // 폭발 반경(px) — 착탄점 둘레의 AoE splash(조준 사거리 500보다 좁다: 폭발은 국소, 조준은 원거리)
 export const DISCHARGE_HEAT = 60;            // 열복사 채널: 폭발 반경 결정에 침착하는 열(×caster size, ×거리감쇠) — 발화점(80~100) 도달로 연쇄 발화
+// 파이어볼 비행 — feature-0009 step4. 발산이 만든 투사체는 즉발이 아니라 캐스터 자리에서 표적 자리로 **날아간다**(눈에 보이는 투사체).
+//   착탄(표적 도달 ≤ 한 걸음) 하면 그 자리서 터진다(폭발=feature-0013 규칙 D). 비행 중엔 payload 를 B: 풀에 담아 이동만 한다(보존).
+export const FIREBALL_SPEED = 200;           // 매 틱 표적 쪽으로 나아가는 거리(px) — 근접(≤이 값)은 같은 틱 착탄(사실상 즉발), 원거리는 몇 틱 날아간다
+export const FIREBALL_MAX_LIFETIME = 20;      // 최대 비행 틱 — 표적이 사라져도 이 안엔 반드시 터진다(궤도 미아 방지)
 
 // --- 제어·욕망 (feature-0010) — 플레이어/봇이 하나의 생명체를 제어한다 ---
 // 제어의 핵심은 "욕망(desire)"이다: 생명체에 부여하는 동기 — 무엇을 향해 에너지를 얻으러 갈지.

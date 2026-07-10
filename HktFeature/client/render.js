@@ -129,6 +129,10 @@ export class Render {
     // 생명체 마커 — 스스로 대사로 질서를 유지하는 살아있는 저엔트로피 섬 (feature-0006)
     this.#creatureMarkers(cam);
 
+    // 파이어볼 마커 — 발산이 쏜 투사체가 표적으로 날아가는 걸 밝은 불덩이로 그린다 (feature-0009)
+    this.state.pruneFireballs?.();
+    this.#fireballMarkers(cam);
+
     // 엔티티(다른 플레이어) — 자신 포함, 깊이순(먼 것 먼저)
     const draws = [];
     for (const e of state.entities.values()) {
@@ -243,6 +247,31 @@ export class Render {
       const tag = crafted ? (tier >= 2 ? '✦✦완성 ' : '✦중간 ') : raw ? '⋯재료 ' : '◆ ';
       ctx.fillText(`${tag}${bal.toLocaleString()}`, top.sx, top.sy - 6);
       ctx.textAlign = 'left';
+    }
+  }
+
+  // 파이어볼 마커 — feature-0009. 발산이 쏜 투사체를 밝은 불덩이(백열 코어 + 주황 halo + 꼬리)로 그린다.
+  //   생명체(따뜻한 구체)·결정(옥타)과 달리 *날아가는* 것이라 강렬한 발광으로 눈에 띈다. 착탄하면 사라지고 폭발한다(0013 규칙 D).
+  #fireballMarkers(cam) {
+    const { state, ctx } = this;
+    if (!state.fireballs || state.fireballs.size === 0) return;
+    const marks = [];
+    for (const fb of state.fireballs.values()) {
+      const p = this.#pt(cam, fb.x, fb.y, fb.z);
+      if (p) marks.push({ p, size: fb.size || 1, d: this.#toCam(cam, fb.x, fb.y, fb.z)[2] });
+    }
+    marks.sort((a, b) => b.d - a.d); // 먼 것부터(painter's)
+    for (const m of marks) {
+      const scale = this.focal / m.d;                     // 원근 축소(생명체 마커와 같은 방식)
+      const r = Math.max(3, (7 + 4 * m.size) * scale);    // size 에 따라 커지는 불덩이
+      const g = ctx.createRadialGradient(m.p.sx, m.p.sy, 0, m.p.sx, m.p.sy, r * 2.4);
+      g.addColorStop(0, 'rgba(255,250,230,0.98)'); // 백열 코어
+      g.addColorStop(0.35, 'rgba(255,150,40,0.85)'); // 주황
+      g.addColorStop(1, 'rgba(255,80,0,0)');          // 사라지는 halo
+      ctx.fillStyle = g;
+      ctx.beginPath(); ctx.arc(m.p.sx, m.p.sy, r * 2.4, 0, 7); ctx.fill();
+      ctx.fillStyle = 'rgba(255,255,245,0.95)';
+      ctx.beginPath(); ctx.arc(m.p.sx, m.p.sy, r * 0.5, 0, 7); ctx.fill(); // 밝은 심
     }
   }
 

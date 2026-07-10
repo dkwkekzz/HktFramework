@@ -7,7 +7,8 @@
     "start": "node server/index.js",
     "test": "node --test",
     "demo": "node tools/demo-control.mjs",
-    "shot": "node tools/shot.mjs"
+    "shot": "node tools/shot.mjs",
+    "shot:blast": "node tools/shot-blast.mjs"
   },
   "dependencies": {
     "ws": "^8.21.0"

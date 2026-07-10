@@ -35,7 +35,7 @@ import {
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
-  DISCHARGE_BLAST_RADIUS, DISCHARGE_HEAT,
+  DISCHARGE_BLAST_RADIUS, DISCHARGE_HEAT, FIREBALL_SPEED, FIREBALL_MAX_LIFETIME,
   COMBUST_INTERVAL_TICKS, BURN_RATE, BURN_EMIT_RADIUS, BURN_TO_SINK_PCT, BURN_TO_NEIGHBOR_PCT, HEAT_COOL_DIVISOR,
   isFlammable, ignitionHeat, MELT_RATE, meltHeat,
   breakStrength, SHATTER_DEBRIS_COUNT, SHATTER_TO_FIELD_PCT, SHATTER_SCATTER_PX,
@@ -410,10 +410,10 @@ export class GameServer {
     if (this.tickCount % DISCHARGE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#discharge();
     }
-    // feature-0013 규칙 D 폭발 — 파이어볼(및 후속: 시한 폭탄·과충전 결정)이 터진다(물질의 사건, 생명 무관). 발산
-    //   바로 뒤에 돌려 이번 틱 생성된 파이어볼을 즉발시킨다(후속: 이동·시한). 폭발파가 반경에 열복사+압력 두 자극을
-    //   침착해 결정을 연소·용해·파괴(규칙 A·B·C)하고 생명에 damage 를 준다. 회수 없음·결정론·보존 불변.
-    this.#detonate();
+    // feature-0009 파이어볼 비행 + feature-0013 규칙 D 폭발 — 발산이 쏜 투사체가 매 틱 표적으로 날아가고(비행),
+    //   착탄하면 그 자리서 터진다(폭발=물질의 사건). 매 틱 돌려 비행을 이어간다(근접 표적은 같은 틱 착탄=즉발).
+    //   폭발파가 반경에 열복사+압력 두 자극을 침착해 결정을 연소·용해·파괴(규칙 A·B·C)하고 생명에 damage 를 준다.
+    this.#flyFireballs();
     // feature-0006 생명체 대사 — 각 생명체가 스스로 국소장을 갈구해 질서를 보충하고(field→생명체),
     //   살아있음의 비용을 심우주로 방출하며(생명체→SINK), 그래도 최소 예비 아래로 떨어지면 죽는다(분해).
     //   확산·석출 뒤에 돌린다 — 세계의 에너지가 흩어져 자리 잡은 뒤 그 자리에서 갈구한다.
@@ -717,8 +717,9 @@ export class GameServer {
       const fid = `${POOL.FIREBALL}${seq}`;
       this.ledger.createPool(fid, 0, Number.MAX_SAFE_INTEGER, null);
       this.#tx(A.id, fid, charge, CAUSE.EMIT, { x: aim.x, y: aim.y }); // 생명체 → 파이어볼(투사체 생성)
-      // caster = 발사자 id — 폭발이 제 발사자를 삼키지 않도록(멀리 쏘았다). 폭발 자체는 생명 무관이나, 이 한 가지만 근원을 안다.
-      this.fireballs.push({ id: fid, seq, x: aim.x, y: aim.y, z: aim.z, size: A.size, caster: A.id });
+      // 파이어볼은 **캐스터 자리에서** 태어나 표적 자리(tx,ty,tz)로 날아간다(#flyFireballs). caster = 발사자 id —
+      //   폭발이 제 발사자를 삼키지 않도록(멀리 쏘았다). 폭발 자체는 생명 무관이나, 이 한 가지만 근원을 안다.
+      this.fireballs.push({ id: fid, seq, x: A.x, y: A.y, z: A.z, tx: aim.x, ty: aim.y, tz: aim.z, size: A.size, caster: A.id, age: 0 });
     }
   }
 
@@ -732,8 +733,33 @@ export class GameServer {
   //     · 생명 damage — 반경 내 먹을 수 없는 상대(size≥, AoE)를 거리 감쇠로 태운다(표적 제 질서가 흩어짐).
   //   폭발은 착탄점에서 일어나며 캐스터를 참조하지 않는다(발산과 분리). 파이어볼은 터지며 소멸(payload 전부 방출).
   //   회수 없음 — 어떤 흐름도 생명체로 안 간다. 전부 ledger.transfer(보존). 결정론: seq/거리 정렬 + 순수 클램프.
-  #detonate() {
+
+  // 파이어볼 비행 — feature-0009 step4. 발산이 만든 투사체(비생명)가 캐스터 자리에서 표적 자리로 **날아간다**(눈에 보이는
+  //   투사체). 매 틱 표적 쪽으로 한 걸음(FIREBALL_SPEED). 착탄(남은 거리 ≤ 한 걸음)하거나 수명(FIREBALL_MAX_LIFETIME)이
+  //   다하면 그 자리서 터진다(#detonate=물질의 사건, feature-0013 규칙 D). 비행 중엔 payload 를 B: 풀에 담고 이동만
+  //   한다(에너지 흐름 없음 = 보존 자명). 순수 산술(rng 미사용) → 결정론 불변. 근접(≤한 걸음) 표적은 같은 틱 착탄(사실상 즉발).
+  #flyFireballs() {
+    const remain = [];
     for (const fb of this.fireballs) {
+      fb.age++;
+      const d = dist3(fb.x, fb.y, fb.z, fb.tx, fb.ty, fb.tz);
+      if (d <= FIREBALL_SPEED || fb.age >= FIREBALL_MAX_LIFETIME) {
+        fb.x = fb.tx; fb.y = fb.ty; fb.z = fb.tz; // 착탄 — 표적 자리로 스냅
+        this.#detonate(fb);                        // 그 자리서 터진다(물질의 사건)
+      } else {
+        const s = FIREBALL_SPEED / d;              // 표적 쪽으로 한 걸음(정수 좌표)
+        fb.x = Math.round(fb.x + (fb.tx - fb.x) * s);
+        fb.y = Math.round(fb.y + (fb.ty - fb.y) * s);
+        fb.z = Math.round(fb.z + (fb.tz - fb.z) * s);
+        remain.push(fb);                           // 아직 비행 중 — 다음 틱에 계속
+      }
+    }
+    this.fireballs = remain;
+  }
+
+  // 폭발 한 발 — feature-0013 규칙 D. 착탄한 파이어볼 하나가 터진다(#flyFireballs 가 호출). 착탄점 둘레로 두 채널을 침착.
+  #detonate(fb) {
+    {
       const R = DISCHARGE_BLAST_RADIUS;
       const falloff = (d) => Math.max(0, (R - d) / R); // 1(중심)…0(가장자리) — 가까울수록 세게
       // (1) 생명 AoE — 반경 내 먹을 수 없는 상대(size≥ 캐스터)를 거리 감쇠 damage 로 태운다(폭발이 여럿을 휩쓴다).
@@ -767,9 +793,8 @@ export class GameServer {
         const smoke = this.ledger.balance(fb.id);
         if (smoke > 0) this.#tx(fb.id, materialKey(fb.x, fb.y, fb.z), smoke, CAUSE.DETONATE, { x: fb.x, y: fb.y });
       }
-      this.ledger.removePool(fb.id);
+      this.ledger.removePool(fb.id); // 파이어볼 소멸(payload 전부 방출)
     }
-    this.fireballs = [];
   }
 
   // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0013. BURN_PCT 는 심우주(열)로 태우고, 나머지는 그 자리
@@ -1092,6 +1117,11 @@ export class GameServer {
           return acc;
         }, [])
       : null;
+    // 파이어볼 스냅샷 — feature-0009. FIELD 주기가 아니라 **매 틱** 방송해 날아가는 걸 부드럽게 보인다(투사체는 빠르다).
+    //   비행 중일 때만 실어 보내고(없으면 생략), 착탄 후엔 방송이 끊겨 뷰어가 짧은 TTL 로 지운다. 표시용·읽기전용.
+    const fireballCells = this.fireballs.length
+      ? this.fireballs.map(fb => [fb.seq, fb.x, fb.y, fb.z, this.ledger.balance(fb.id), fb.size])
+      : null;
     for (const p of this.players.values()) {
       // 시야 diff → ENTER / LEAVE (원장 미러의 관측 경계)
       const vis = this.#visibleFor(p);
@@ -1119,6 +1149,7 @@ export class GameServer {
       if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
       if (crystalCells) p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
       if (creatureCells) p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
+      if (fireballCells) p.conn.send(encode(MSG.FIREBALL, { cells: fireballCells })); // 비행 중 파이어볼(매 틱)
 
       if (checksumDue) {
         const regions = {};

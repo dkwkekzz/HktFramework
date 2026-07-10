@@ -43,7 +43,7 @@ test('파괴강도 게이트 — 물리력이 파괴강도를 넘는 결정만 �
   const fragile = s.spawnCry(1100, 1490, FR, 3000);  // 착탄점(표적) 옆(100), 잘 깨짐 — 폭발은 캐스터가 아니라 착탄점에서 터진다(feature-0009 step2)
   const tough = s.spawnCry(900, 1490, TO, 3000);     // 착탄점 옆(100), 단단
   const fid = fragile.id, tid = tough.id;
-  s.runTicks(5); // 첫 방출은 tickCount==4 일 때(5번째 tick 호출)
+  s.runTicks(8); // 발산(tick4) → 파이어볼이 착탄점(490px)까지 몇 틱 날아가 터진다(feature-0009 비행)
   assert.equal(s.game.crystals.has(fid), false, '약한 결정은 부서져 사라졌다');
   assert.equal(s.game.crystals.has(tid), true, '단단한 결정은 힘을 견뎌 남았다');
   assert.ok(s.shatteredGetter() > 0, '파괴(SHATTER) 이체가 일어났다');
@@ -56,7 +56,7 @@ test('파편 분해 — 부서진 결정은 파편 결정들 + 국소장(먼지)
   const fragile = s.spawnCry(1100, 1490, FR, 3000); // 착탄점(표적) 옆 — 폭발이 그 자리에서 터진다
   const fid = fragile.id;
   const cryBefore = s.game.crystals.size;
-  s.runTicks(5);
+  s.runTicks(8); // 파이어볼 비행 후 착탄·폭발(feature-0009)
   assert.equal(s.game.crystals.has(fid), false, '원본 소멸');
   // 같은 종(FR) 파편이 원래 자리 근처에 생겼다
   const debris = [...s.game.crystals.values()].filter(c => c.species === FR && s.bal(c.id) > 0);
