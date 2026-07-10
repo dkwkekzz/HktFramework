@@ -14,6 +14,8 @@ run.bat            # Windows
 ./run.sh [봇수]    # macOS / Linux (관전: http://localhost:8080/?name=관전자)
 ```
 
+**폰으로 관전** (데스크탑·배치파일 없이): 서버만 클라우드에 한 번 올리면 폰 브라우저에서 URL 로 언제든 본다 — 리포 루트 [`render.yaml`](../render.yaml) 로 Render 에 몇 클릭 배포. 봇 없이도 세계가 스스로 굴러 관전거리가 계속 벌어진다. 상세·대안(터널/같은 Wi-Fi): [DEPLOY.md](DEPLOY.md).
+
 개별 실행:
 
 ```bash
