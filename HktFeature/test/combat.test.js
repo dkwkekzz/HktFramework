@@ -17,7 +17,7 @@ import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, materialKey, dist3,
   CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER, CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
-  CREATURE_DEFENSE, CREATURE_WEAPON_BONUS, crystalYield,
+  CREATURE_DEFENSE, CREATURE_RESONANCE, crystalYield,
 } from '../shared/constants.js';
 
 function setup() {
@@ -122,38 +122,38 @@ test('방어력 — 방어 센(큰) 먹이일수록 뚫는 값(발산 비용)이
   assert.ok(tough.net > 0, '방어 센 먹이여도 순이득은 양 — 포식은 여전히 값어치 있다');
 });
 
-test('무기 강탈 증폭 — 곁의 결정(무기)을 실어 강탈 획득이 는다, 무기는 닳는다 (종 yield 높을수록↑)', () => {
-  // 아이템(결정)은 에너지의 결정체(feature-0007). 강탈 시 사거리 안 결정을 무기로 써 그 농축 에너지를 타격에
-  //   실으면 포식자 획득이 는다(포획 계열). 무기→A(cause 'attack')로 흘러 채집('harvest')과 섞이지 않는다.
-  const plunder = (weaponSpecies) => {
+test('공명 — 소유한 무기 아이템과 공명하면 포획 효율↑, 아이템은 소모되지 않는다 (feature-0015)', () => {
+  // 공명 = 소화가 아니다. 소유(feature-0014)한 아이템을 소모하지 않고, 그 종(species)이 강탈 포획 효율을 높인다
+  //   — 흩어질 몫을 더 붙잡는다(표적에서 옴). 종 yield 높은 아이템일수록 공명↑. 여러 개 지니면 합산.
+  const plunder = (species) => {
     const s = setup();
     const A = s.makeCreature(500, 500, 500, 2, 900);       // 포식자(size 2)
-    s.makeCreature(600, 500, 500, 1, 500);                 // 먹이(size 1) — 사거리 안
-    let weapon = null;
-    if (weaponSpecies !== null) weapon = s.dropCrystal(550, 500, 500, weaponSpecies, 5000); // 무기 결정 — A 곁(사거리 안), 넉넉히
+    const V = s.makeCreature(600, 500, 500, 1, 500);       // 먹이(size 1) — 사거리 안
+    let item = null, held0 = 0;
+    if (species !== null) {
+      item = s.dropCrystal(200, 200, 200, species, 5000);  // 멀리 떨군 뒤 소유시킨다(세계 상호작용과 무관)
+      held0 = s.bal(item.id);
+      assert.ok(s.game.acquireItem(A, item), '아이템을 소유(획득)했다');
+    }
+    const v0 = s.bal(V.id);
     s.runTicks(3);                                         // 한 번의 강탈(tickCount 2)
     const txs = s.attackTxs();
-    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id && o.from.startsWith('C:')).reduce((a, o) => a + o.amount, 0); // 먹이→A(포획)
-    const assist = txs.filter(o => o.cause === 'attack' && o.to === A.id && o.from.startsWith('I:')).reduce((a, o) => a + o.amount, 0);  // 무기→A(증폭)
-    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '무기 증폭에도 보존 불변');
-    return { capture, assist, plunder: capture + assist, weapon, bal: s.bal };
+    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id).reduce((a, o) => a + o.amount, 0);       // 먹이→A(포획)
+    const damage = v0 - s.bal(V.id);                       // 먹이가 잃은 전부(대사 없음=먹이 owner null 이지만 갈구/대사 있음 → tx 로 재기)
+    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '공명에도 보존 불변');
+    return { capture, item, held0, itemBal: item ? s.bal(item.id) : 0 };
   };
 
-  const bare = plunder(null);                              // 무기 없음(기준)
-  const lowW = plunder(1);                                 // 저효율 무기(yield 1)
-  const hiW = plunder(0);                                  // 고효율 무기(yield 3)
+  const bare = plunder(null);                              // 공명 없음(기준)
+  const lowR = plunder(1);                                 // 저효율 아이템(yield 1)
+  const hiR = plunder(0);                                  // 고효율 아이템(yield 3)
 
-  // 강탈 성공 시 무기 결정에서 A 로 추가 획득이 실린다(무기→A 이체 = 정확히 WEAPON_BONUS×size×yield).
-  assert.equal(bare.assist, 0, '무기 없으면 증폭 없음(먹이 포획만)');
-  assert.equal(lowW.assist, CREATURE_WEAPON_BONUS * 2 * crystalYield(1), '저효율 무기 증폭 = BONUS×size×yield');
-  assert.equal(hiW.assist, CREATURE_WEAPON_BONUS * 2 * crystalYield(0), '고효율 무기 증폭 = BONUS×size×yield');
-  // 무기가 있으면 강탈 획득(plunder)이 늘고, 종 yield 높은 무기일수록 더 크다(feature-0007 재사용).
-  assert.ok(lowW.plunder > bare.plunder, `무기가 강탈 획득을 키운다 (${bare.plunder} < ${lowW.plunder})`);
-  assert.ok(hiW.assist > lowW.assist, `고효율 무기가 더 크게 증폭한다 (${lowW.assist} < ${hiW.assist})`);
-  // 포획(먹이→A)은 무기와 무관하게 동일 — 증폭은 오직 무기에서 온다(개념 분리).
-  assert.equal(bare.capture, lowW.capture, '포획(먹이→A)은 무기 유무와 무관');
-  // 무기는 그 일에 닳는다 — 무기→A 이체(assist>0)가 곧 무기가 실어보낸 몫이다(잔고↓).
-  assert.ok(lowW.assist > 0 && lowW.bal(lowW.weapon.id) < 5000, '무기 결정이 강탈에 실려 닳았다');
+  // 공명이 있으면 같은 damage 에서 포획을 더 붙잡는다(효율↑) — 종 yield 높을수록 크다.
+  assert.ok(lowR.capture > bare.capture, `공명이 포획 효율을 높인다 (${bare.capture} < ${lowR.capture})`);
+  assert.ok(hiR.capture > lowR.capture, `고효율 아이템이 더 크게 공명한다 (${lowR.capture} < ${hiR.capture})`);
+  // 아이템은 소모되지 않는다(소화 아님) — 강탈 뒤에도 잔고 그대로.
+  assert.equal(lowR.itemBal, lowR.held0, '공명은 아이템을 소모하지 않는다(잔고 그대로)');
+  assert.equal(hiR.itemBal, hiR.held0, '고효율 아이템도 소모되지 않는다');
 });
 
 test('포식 창발 — 작은 개체는 큰 개체를 치지 못한다 (강자→약자 일방)', () => {

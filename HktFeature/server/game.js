@@ -31,7 +31,8 @@ import {
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
   CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
-  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield, CREATURE_WEAPON_BONUS,
+  CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
+  CREATURE_ACQUIRE_RADIUS, CREATURE_CARRY_MAX, CREATURE_RESONANCE,
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
   CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT, CREATURE_DEFENSE,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
@@ -71,6 +72,9 @@ export class GameServer {
     this.materialNeighbors = new Map(); // 국소장 id -> 이웃 국소장 id 목록 (엔트로픽 확산 인접)
     // 결정은 개별 discrete 객체다 (feature-0005 step2) — 확산·복사 순회 밖(=면역).
     this.crystals = new Map();     // cryId -> { id, seq, x, y, z, species } (잔고는 원장 풀에)
+    // 소유(획득, feature-0014) — 소화되지 않고 주인에게 귀속된 아이템. this.crystals 밖으로 빼내 세계 상호작용
+    //   (채집·반응·용해·파괴)에서 자동 제외되고, 원장 풀은 그대로 남아 보존에 계속 잡힌다(에너지 이동 없음).
+    this.heldItems = new Map();    // cryId -> { id, seq, x, y, z, species, heldBy } (소유 중, 잔고는 원장 풀에 그대로)
     this.voxelResident = new Map();// voxelKey -> cryId — 과포화 석출이 키우는 그 복셀의 "거주" 결정
     this.crystalSeq = 0;
     // 생명체(feature-0006) — 능동적 저엔트로피 섬. 개별 discrete 객체이며 매 대사 틱마다 갈구·소모·생사판정을
@@ -149,7 +153,7 @@ export class GameServer {
     // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(feature-0012 중첩), moveDebt=이동 비용 누적(잔여 거리).
     //   feature-0012: 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
     //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0 };
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [] }; // items=소유 아이템 id(feature-0014)
     // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
     //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
     Object.defineProperty(cre, 'desire', {
@@ -677,40 +681,60 @@ export class GameServer {
   //   나머지는 국소장으로 흩어진다(효율<1 = 얻는 것 < 뺏는 것). 예비 없으면 못 친다. 전부 ledger.transfer → 보존.
   //   방어력(step2): 뚫는 값(발산 비용)에 상대 방어력(=CREATURE_DEFENSE×prey.size, 살아서 지키는 힘=크기 비례)이
   //   더해진다 → 방어 센(큰) 먹이일수록 SINK 로 더 나가고 순이득이 준다(공격력 vs 방어력). 죽으면 결정=방어력 0.
+  //   공명(feature-0015): 소유한 무기 아이템과의 공명이 붙잡는 효율(포획)을 높인다 — 아이템은 소모되지 않는다(소화 아님).
   #strike(A, prey) {
     const cost = CREATURE_ATTACK_COST * A.size + CREATURE_DEFENSE * prey.size; // 기본 발산 + 상대 방어 뚫는 값
     if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) return 0; // 굶주리면 사냥할 여력 없음(방어 센 먹이는 더 부담)
     this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });                   // ① 발산 비용 → 열
     const damage = Math.min(CREATURE_ATTACK_POWER * A.size, this.ledger.balance(prey.id));
     if (damage <= 0) return 0;                                                          // ② 붕괴
-    const capture = Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100);
+    // ③ 손실적 회수 — 기본 효율 CAPTURE_PCT. 공명(feature-0015)이 있으면 그만큼 효율↑(흩어질 몫을 더 붙잡는다). 아이템 무소모.
+    const pct = Math.min(100, CREATURE_ATTACK_CAPTURE_PCT + this.#weaponResonance(A));
+    const capture = Math.floor(damage * pct / 100);
     const got = capture > 0 ? this.#tx(prey.id, A.id, capture, CAUSE.ATTACK, { x: prey.x, y: prey.y }) : 0; // ③ 강탈
     const scatter = damage - got;                                                       // 못 붙잡은 몫 = 세계로
     if (scatter > 0) this.#tx(prey.id, materialKey(prey.x, prey.y, prey.z), scatter, CAUSE.ATTACK, { x: prey.x, y: prey.y });
-    // feature-0008 step3 — 무기 강탈 증폭(포획 계열): 곁(사거리 안)의 결정을 무기로 써 그 농축 에너지를 타격에
-    //   실으면 강탈 획득이 는다. 종 yield 높은 무기일수록↑(feature-0007 재사용). 무기는 닳아 다 쓰면 소멸.
-    this.#augmentStrike(A);
     // feature-0013 규칙 C — 강탈의 물리력도 근처 결정을 부순다.
     this.#impactCrystals(A.x, A.y, A.z, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER * A.size);
     return got;
   }
 
-  // 무기 강탈 증폭 — feature-0008 step3. 강탈 성공 직후, 사거리 안 가장 가까운 결정(무기)에서 그 농축 에너지를
-  //   타격에 실어 포식자 획득을 키운다(포획 계열): assist = min(WEAPON_BONUS×A.size×종 yield, 무기 잔고). W→A(ATTACK,
-  //   "무기를 실어 더 뜯음")로 회계 → 보존 자명. 무기는 그 일에 닳아 잔고 0 이면 소멸. 날것(raw)은 무기로 못 쓴다
-  //   (본능이 못 다루는 재료 — 채집과 같은 게이트). 결정론: 최근접(동률은 seq) 순수 선택 + 클램프, rng 미사용.
-  #augmentStrike(A) {
-    let weapon = null, bestD = Infinity;
-    for (const c of this.crystals.values()) {
-      if (c.raw || this.ledger.balance(c.id) <= 0) continue;
-      const d = dist3(A.x, A.y, A.z, c.x, c.y, c.z);
-      if (d <= CREATURE_ATTACK_RADIUS && (d < bestD || (d === bestD && (!weapon || c.seq < weapon.seq)))) { weapon = c; bestD = d; }
+  // 획득(소유) — feature-0014. 아이템(결정)을 **소화하지 않고 소유**한다: 결정을 this.crystals(세계) 에서 빼
+  //   heldItems 로 옮겨 채집·반응·용해·파괴 밖으로 두고 주인 슬롯에 담는다. **에너지 이동 없음**(잔고 그대로 원장에
+  //   남아 보존에 계속 잡힘) = 소화가 아니다. 슬롯이 차 있거나 이미 소유면 실패. 소유물은 매 틱 주인 자리를 따라다닌다.
+  acquireItem(cre, crystal) {
+    if (!crystal || cre.items.length >= CREATURE_CARRY_MAX || cre.items.includes(crystal.id)) return false;
+    if (!this.crystals.has(crystal.id) || this.ledger.balance(crystal.id) <= 0) return false;
+    this.crystals.delete(crystal.id);                                   // 세계 상호작용에서 빠진다(채집·반응·용해·파괴 순회 밖)
+    crystal.heldBy = cre.id; crystal.x = cre.x; crystal.y = cre.y; crystal.z = cre.z;
+    this.heldItems.set(crystal.id, crystal);
+    cre.items.push(crystal.id);
+    return true;
+  }
+
+  // 소유물 해제 — 주인이 죽으면(굶주림·포식·전소) 지녔던 아이템을 그 자리 세계로 되돌린다(잔고 그대로 → 다른 생명이
+  //   다시 채집·획득 가능, 보존 자명). 소유는 잠시 세계에서 빼둔 것일 뿐이므로 되돌리는 게 정직하다.
+  #releaseItems(cre) {
+    for (const id of cre.items) {
+      const it = this.heldItems.get(id);
+      if (!it) continue;
+      this.heldItems.delete(id);
+      it.heldBy = null; it.x = cre.x; it.y = cre.y; it.z = cre.z;
+      if (this.ledger.balance(id) > 0) this.crystals.set(id, it);       // 잔고 남아 있으면 세계 결정으로 복귀
+      else this.ledger.removePool(id);
     }
-    if (!weapon) return 0;
-    const want = CREATURE_WEAPON_BONUS * A.size * crystalYield(weapon.species);
-    const assist = this.#tx(weapon.id, A.id, want, CAUSE.ATTACK, { x: A.x, y: A.y }); // 무기 농축 에너지를 타격에 실음(강탈 획득↑)
-    if (assist > 0 && this.ledger.balance(weapon.id) === 0) this.#removeCrystal(weapon.id); // 다 쓴 무기 소멸
-    return assist;
+    cre.items = [];
+  }
+
+  // 무기 공명 — feature-0015. 소유(feature-0014)한 아이템과의 **공명**이 강탈 포획 효율을 높인다(%p 가산). 아이템의
+  //   에너지는 **소모되지 않는다**(소화 아님) — 종(species) yield 가 공명 세기를 정할 뿐. 여러 개 지니면 합산.
+  #weaponResonance(cre) {
+    let pct = 0;
+    for (const id of cre.items) {
+      const it = this.heldItems.get(id);
+      if (it) pct += CREATURE_RESONANCE * crystalYield(it.species);
+    }
+    return pct;
   }
 
   // 발산 = 생명체가 파이어볼(투사체)을 쏜다 — feature-0009. **생명의 행위**다: 내부 에너지를 폭발적으로 밀어내
@@ -857,6 +881,7 @@ export class GameServer {
   // 완전 연소 — feature-0013. 폭발로 예비가 무너진 표적을 그 자리서 전소시킨다: 남은 에너지까지 열+연기로 흩고
   //   레지스트리·원장에서 제거한다. 잔해 결정을 남기지 않는다(#decompose 와 다른 죽음 — 굶주림/포식=결정, 전소=무).
   #incinerate(V) {
+    this.#releaseItems(V); // 소유물은 주인과 함께 타지 않고 그 자리 세계로 되돌린다(feature-0014)
     const rest = this.ledger.balance(V.id);
     if (rest > 0) this.#dissipate(V, rest, CAUSE.DETONATE); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
     this.ledger.removePool(V.id);
@@ -946,6 +971,8 @@ export class GameServer {
       moveAway: (t) => self.#stepAway(cre, t),                  // feature-0012 step3 — 위협에서 멀어진다(회피, 이동=국소장 소산)
       eat: (c) => self.#eatCrystal(cre, c),
       cook: (c) => self.#cookCrystal(cre, c),
+      acquire: (c) => self.acquireItem(cre, c),                 // feature-0014 — 소화 없이 소유(줍기)
+      ACQUIRE_REACH: CREATURE_ACQUIRE_RADIUS,
       strike: (p) => self.#strike(cre, p),
       dissipate: (amount, cause) => self.#tx(cre.id, POOL.SINK, amount, cause, { x: cre.x, y: cre.y }), // 개방용 일반 방출 primitive
     };
@@ -1092,6 +1119,7 @@ export class GameServer {
   #metabolizeCreatures() {
     for (const cre of [...this.creatures.values()]) {
       const matId = materialKey(cre.x, cre.y, cre.z);
+      if (cre.items.length) for (const id of cre.items) { const it = this.heldItems.get(id); if (it) { it.x = cre.x; it.y = cre.y; it.z = cre.z; } } // 소유물은 주인을 따라다닌다(feature-0014)
       if (cre.desire === DESIRE.NONE) this.#harvestNearbyCrystal(cre);       // ⓪ 채집 본능(feature-0007) — 야생/대기만. 욕구를 가진 개체는 절차로 먹는다
       this.ledger.transfer(matId, cre.id, CREATURE_FORAGE_RATE * cre.size, CAUSE.FORAGE); // ① 갈구(size 비례) — 모든 생명체의 생명유지
       const bal = this.ledger.balance(cre.id);
@@ -1138,6 +1166,7 @@ export class GameServer {
   // 생명체 죽음 — 질서 유지에 실패한(굶주린) 생명체가 붕괴한다. 남은 에너지는 결정(잔해)+국소장(거름)으로
   //   분해되고(feature-0005 죽음 경로 공유 — 근처 플레이어 시야에 방송), 레지스트리·원장 풀에서 지운다.
   #killCreature(cre) {
+    this.#releaseItems(cre); // 소유물은 소화된 게 아니므로 그 자리 세계로 되돌린다(feature-0014)
     this.#decompose(cre.id, cre.x, cre.y, cre.z);
     this.ledger.removePool(cre.id);
     this.creatures.delete(cre.id);
@@ -1192,7 +1221,7 @@ export class GameServer {
     const creatureCells = broadcastField
       ? [...this.creatures.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c)]); // feature-0012: desires=중첩 스택
+          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length]); // feature-0012: desires=중첩 스택 · feature-0014: items=소유 아이템 수
           return acc;
         }, [])
       : null;
