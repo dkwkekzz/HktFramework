@@ -492,7 +492,12 @@ function builtinBone(childSimple) {
   return {
     a: jointObjs[jointDefs[i].parent].getWorldPosition(new THREE.Vector3()),
     b: jointObjs[i].getWorldPosition(new THREE.Vector3()),
-    quat: jointObjs[i].getWorldQuaternion(new THREE.Quaternion()),
+    // ⚠ 뼈(부모→자식 세그먼트)의 프레임은 "부모" 관절의 월드 회전 — 자식 관절
+    // 회전에는 그 관절 자신의 굽힘(무릎 flex 등)이 포함돼, 자식 quat 을 쓰면
+    // 허벅지 살이 고관절을 축으로 무릎 굽힘만큼 더 돌아 무릎에서 튜브가 찢어진다
+    // (걷기 최대 보폭 "잘린 다리" 교훈 — A-포즈는 굽힘 0이라 베이크·업데이트가
+    // 같은 규약이면 무엇을 쓰든 일치해 eval 로는 안 잡힌다).
+    quat: jointObjs[jointDefs[i].parent].getWorldQuaternion(new THREE.Quaternion()),
   };
 }
 function buildFlesh() {
@@ -608,7 +613,8 @@ function loadFBXBuffer(buf, label) {
     document.getElementById('clip').value = 'external';
     refreshExtClips();
     const nClip = Object.keys(extClips).length;
-    setStatus(`<b>${label} 로드</b> — 뼈 ${bones.length}개 · 클립 ${nClip}개 재생 중.`);
+    setStatus(`<b>${label} 로드</b> — 뼈 ${bones.length}개 · 클립 ${nClip}개 재생 중.`
+      + (st.mesh ? ' <i>(정점 메시는 내장 클립 전용 — 외부 클립은 SDF 로 표시, VERTEX-PLAN §4)</i>' : ''));
   } catch (e) {
     setStatus('FBX 파싱 실패: ' + e.message);
   }
