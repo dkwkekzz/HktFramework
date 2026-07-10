@@ -38,6 +38,24 @@ const APPRAISE = {
   hungry: { x: 850,  y: 1250, z: 625 }, // 굶주린 개체 시작(왼쪽 밥으로 간다)
   full:   { x: 1150, y: 1250, z: 625 }, // 포만한 개체 시작(오른쪽 먹이로 간다)
 };
+// 폭발 씬(feature-0009) — 야생 캐스터가 사거리(500) 안 '먹을 수 없는' 표적(size≥)에게 파이어볼을 쏜다. 투사체가
+//   캐스터 자리에서 표적으로 **날아가**(비행) 착탄해 **터진다**(폭발=0013 규칙 D). 화면 가로축(y=1250)을 따라 450px
+//   벌려 놓아 불덩이가 화면을 가로지르는 게 또렷이 보인다. 관전자는 이 발산·비행·폭발을 지켜보기만 한다(possess 없음).
+const BLAST = {
+  caster: { x: 800,  y: 1250, z: 625 }, // 야생 캐스터(자율 발산)
+  target: { x: 1250, y: 1250, z: 625 }, // 먹을 수 없는 표적(size≥, 사거리 안) — 소유라 반격·이동 안 함, 넉넉히 채워 계속 표적이 된다
+};
+// 자폭 씬(feature-0013 규칙 D) — **생명 없이** 물질이 터진다. 관전자 곁(반경 안)에 이따금 **과충전 결정**(임계 초과)이
+//   나타나 스스로 폭발하며, blind AoE 로 곁의 생명을 친다. "폭발의 주인은 물질"이 눈으로 보인다(캐스터 없음).
+const DETONATE = {
+  watcher: { x: 1050, y: 1250, z: 625 }, // 관전 대상 생명체(소유, 계속 채워 폭발을 여러 번 견딘다)
+  bomb:    { x: 1150, y: 1250, z: 625 }, // 과충전 결정이 나타나는 자리(생명 반경 안 → blind AoE 로 얻어맞는다)
+};
+// 위협·회피 씬(feature-0012 step3) — 큰 포식자(위협)를 곁에 두면 내 생명체가 회피 감정을 스스로 만들어 **도망친다**.
+//   위협이 가까울수록 회피가 이기고, 멀어지면(감지 반경 밖) 감정이 감쇠해 멈춘다. 감정이 상황에서 자율 생성됨을 본다.
+const THREAT = {
+  predator: { x: 1250, y: 950, z: 625 }, // 큰 포식자(size4) — 내 생명체 시작(1250,750) 근처(200px), 제자리 위협
+};
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
 //   scene 'eat'(feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
@@ -84,6 +102,25 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     game.spawnRawFood(FOOD.x + 75, FOOD.y - 75, FOOD.z, 5, 3000);
     game.spawnRawFood(FOOD.x - 75, FOOD.y + 75, FOOD.z, 3, 3000);
     game.spawnRawFood(FOOD.x + 75, FOOD.y + 75, FOOD.z, 8, 3000);
+  } else if (scene === 'blast') {
+    // 폭발 씬 — 야생 캐스터(자율 발산) + 먹을 수 없는 표적(size≥, 소유라 반격·이동 안 함). 캐스터가 파이어볼을
+    //   쏘면 표적으로 날아가 착탄·폭발한다. 관전자는 지켜보기만(possess 없음). 잔고는 아래 틱 루프가 계속 채워 폭발이 끊기지 않게.
+    const caster = game.spawnCreature(BLAST.caster.x, BLAST.caster.y, BLAST.caster.z);
+    caster.size = 2; game.ledger.get(caster.id).max = CREATURE_MAX_ENERGY * 2;
+    game.ledger.transfer(POOL.SOURCE, caster.id, CREATURE_MAX_ENERGY * 2, CAUSE.SPAWN);
+    const target = game.spawnCreature(BLAST.target.x, BLAST.target.y, BLAST.target.z);
+    target.size = 2; target.owner = 'P:demo'; game.ledger.get(target.id).max = CREATURE_MAX_ENERGY * 40;
+    game.ledger.transfer(POOL.SOURCE, target.id, CREATURE_MAX_ENERGY * 40, CAUSE.SPAWN);
+  } else if (scene === 'detonate') {
+    // 자폭 씬 — 지켜볼 생명체 하나(소유·넉넉). 과충전 결정은 아래 틱 루프가 주기적으로 만든다(생명 없이 터진다).
+    const watcher = game.spawnCreature(DETONATE.watcher.x, DETONATE.watcher.y, DETONATE.watcher.z);
+    watcher.size = 2; watcher.owner = 'P:demo'; game.ledger.get(watcher.id).max = CREATURE_MAX_ENERGY * 60;
+    game.ledger.transfer(POOL.SOURCE, watcher.id, CREATURE_MAX_ENERGY * 60, CAUSE.SPAWN);
+  } else if (scene === 'threat') {
+    // 위협 씬 — 큰 포식자(size4) 제자리 위협. 소유로 둬 자율 추적/전투 안 함(생명체가 도망치는 것만 또렷이 보인다).
+    const pred = game.spawnCreature(THREAT.predator.x, THREAT.predator.y, THREAT.predator.z);
+    pred.size = 4; pred.owner = 'P:demo'; game.ledger.get(pred.id).max = CREATURE_MAX_ENERGY * 4;
+    game.ledger.transfer(POOL.SOURCE, pred.id, 3000, CAUSE.SPAWN);
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -99,6 +136,7 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
       if (msg.t === MSG.HELLO && playerId === null) {
         const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
         playerId = player.id;
+        if (scene === 'blast' || scene === 'detonate') return; // 관전자 — NPC 의 발산·비행·폭발/자폭을 지켜보기만 한다(possess 없음)
         // size 2 로 세우고 잔고를 목표치로 맞추는 헬퍼(보존 — SOURCE 와 주고받는다).
         const rear = (c, targetBal) => {
           c.size = 2; const pl = game.ledger.get(c.id); if (pl) pl.max = CREATURE_MAX_ENERGY * 2;
@@ -120,6 +158,12 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           return;
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
+        if (scene === 'threat') {
+          // 위협·회피 — 곁의 큰 포식자에서 도망친다(회피 감정 자율 상승). 넉넉히 채워(굶주림 0) 회피 감정만 작용.
+          rear(cre, 1800);
+          game.injectDesire(playerId, DESIRE.FLEE, 1);
+          return;
+        }
         if (scene === 'craft' || scene === 'craftchain') {
           // 제조 욕구 하나 — 재료로 다가가 조합한다(찾기→조합, 다단계면 완성까지). 조합의 일은 열+연기로 방출.
           rear(cre, 1800); // 넉넉한 예비(여러 번의 제조 비용 지불)
@@ -144,7 +188,22 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     socket.on('error', () => {});
   });
 
-  const timer = setInterval(() => game.tick(), 1000 / TICK_RATE);
+  let demoTick = 0;
+  const timer = setInterval(() => {
+    if (scene === 'blast' || scene === 'detonate') { // 데모 지속용 — 생명체를 절반 아래로 마르면 다시 채운다(SOURCE→생명체, 보존).
+      for (const c of game.creatures.values()) {
+        const pl = game.ledger.get(c.id); if (!pl) continue;
+        const cur = game.ledger.balance(c.id);
+        if (cur < pl.max / 2) game.ledger.transfer(POOL.SOURCE, c.id, pl.max - cur, CAUSE.SPAWN);
+      }
+    }
+    if (scene === 'detonate' && demoTick % 12 === 0) { // 주기적으로 과충전 결정을 만든다 → 다음 틱 자폭(생명 없이 터진다)
+      const cry = game.spawnRawFood(DETONATE.bomb.x, DETONATE.bomb.y, DETONATE.bomb.z, 6, 15000);
+      cry.raw = false; // 자연 결정 = 자폭 대상
+    }
+    demoTick++;
+    game.tick();
+  }, 1000 / TICK_RATE);
   return { httpServer, game, close: () => { clearInterval(timer); wss.close(); httpServer.close(); } };
 }
 

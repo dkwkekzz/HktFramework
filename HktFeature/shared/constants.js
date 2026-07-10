@@ -151,10 +151,26 @@ export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡
 // 자신) — 강탈(먹이=size<)과 겹치지 않게 갈랐다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다
 // (포식의 한계를 뚫는 값비싼 반격). 세게 맞은 표적은 완전 연소(잔해 결정조차 없이 전소). 결정론(rng 미사용).
 export const DISCHARGE_INTERVAL_TICKS = 4;   // 방출 판정 주기 — 폭발적이라 강탈(2)보다 뜸하다
-export const DISCHARGE_RADIUS = 500;         // 원거리 사거리(px) — 근접 강탈(200)보다 길다(투사체)
+export const DISCHARGE_RADIUS = 500;         // 원거리 조준 사거리(px) — 근접 강탈(200)보다 길다(투사체). 착탄 지점을 정한다
 export const DISCHARGE_POWER = 70;           // 한 발이 파괴하는 표적 질서(×caster size) — 순간 파괴는 강탈보다 크다
 export const DISCHARGE_COST = 20;            // 발산 비용(×caster size) → SINK. 강탈(6)보다 비싸다(회수 없는 순수 지출)
 export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 태우는 비율(열) — 나머지는 국소장(연기)
+// feature-0009 step2 — 폭발은 연소가 아니라 **급격한 에너지 방출**이다. 방출된 에너지는 착탄점 둘레로 퍼지는
+//   폭발파가 되어 두 채널로 흩어진다: (a) 열복사(thermal) — 반경 내 결정 열(H:)에 열을 실어보내 규칙엔진이 태그로
+//   가른다(가연성=연소·불 번짐·연쇄 발화 / 비가연성=용해), (b) 압력(mechanical) — 물리력이 파괴강도를 넘는 취성
+//   결정을 부순다(파편). 불속성은 폭발 '전부'가 아니라 열 채널 하나의 증폭원(sympathetic detonation)일 뿐이다.
+//   AoE 는 별도 기능이 아니라 폭발파가 구면으로 퍼지는 본질 — 반경 내 먹을 수 없는 상대(size≥)를 거리 감쇠로 함께 태운다.
+export const DISCHARGE_BLAST_RADIUS = 180;   // 폭발 반경(px) — 착탄점 둘레의 AoE splash(조준 사거리 500보다 좁다: 폭발은 국소, 조준은 원거리)
+export const DISCHARGE_HEAT = 60;            // 열복사 채널: 폭발 반경 결정에 침착하는 열(×caster size, ×거리감쇠) — 발화점(80~100) 도달로 연쇄 발화
+// 파이어볼 비행 — feature-0009 step4. 발산이 만든 투사체는 즉발이 아니라 캐스터 자리에서 표적 자리로 **날아간다**(눈에 보이는 투사체).
+//   착탄(표적 도달 ≤ 한 걸음) 하면 그 자리서 터진다(폭발=feature-0013 규칙 D). 비행 중엔 payload 를 B: 풀에 담아 이동만 한다(보존).
+export const FIREBALL_SPEED = 200;           // 매 틱 표적 쪽으로 나아가는 거리(px) — 근접(≤이 값)은 같은 틱 착탄(사실상 즉발), 원거리는 몇 틱 날아간다
+export const FIREBALL_MAX_LIFETIME = 20;      // 최대 비행 틱 — 표적이 사라져도 이 안엔 반드시 터진다(궤도 미아 방지)
+// 과충전 결정 자폭 — feature-0013 규칙 D(생명 무관). 물질은 임계 에너지 밀도를 넘으면 불안정해져 **스스로 터진다**
+//   (폭탄·과충전 결정). 파이어볼(생명체가 쏜 것)만 터지는 게 아니라, 아무도 안 건드려도 에너지가 임계를 넘으면 터진다
+//   — 폭발의 주인이 물질임을 증명. 자연 결정(석출·죽음)만 대상(재료 raw·산물 crafted 은 안정=면역, 반응과 동일 정합).
+export const CRYSTAL_DETONATE_THRESHOLD = 12000; // 이 잔고(에너지 밀도)를 넘은 자연 결정은 불안정 → 자폭(임계 초과 상태전이)
+export const CRYSTAL_DETONATE_MAG_CAP = 6;        // 자폭 폭발 규모 상한 — 잔고가 클수록 크게 터지되(mag=1+floor(bal/임계)) 이 값으로 묶는다
 
 // --- 제어·욕망 (feature-0010) — 플레이어/봇이 하나의 생명체를 제어한다 ---
 // 제어의 핵심은 "욕망(desire)"이다: 생명체에 부여하는 동기 — 무엇을 향해 에너지를 얻으러 갈지.
@@ -170,6 +186,7 @@ export const DESIRE = {
   HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향해 타격(포식, feature-0008)
   EAT: 'eat',         // 식사 — 결정(밥)을 향하되 날것이면 먼저 요리(변형)한 뒤 먹는다(절차적, feature-0011)
   CRAFT: 'craft',     // 제조 — 가까이 놓인 두 재료 결정(조합 지점)으로 가 하나의 산물로 조합한다(feature-0010 step2)
+  FLEE: 'flee',       // 회피 — 더 큰 포식자(위협)에게서 멀어진다(feature-0012 step3 자율 감정원: 위협)
 };
 export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
@@ -237,6 +254,7 @@ export const POOL = {
   CRYSTAL: 'I:',   // 결정 접두 — I:<voxel> 가 그 복셀에 석출된 정적 저엔트로피 형태(확산·복사 면역, feature-0005)
   CREATURE: 'C:',  // 생명체 접두 — C:<seq> 가 능동적 저엔트로피 섬(대사로 질서 유지, 갈구로 보충 — feature-0006)
   HEAT: 'H:',      // 결정 열(온도) 접두 — H:<seq> 가 그 결정이 흡수한 열 에너지(온도 = 원장 추적 → 보존, feature-0013)
+  FIREBALL: 'B:',  // 파이어볼(투사체) 접두 — B:<seq> 가 생명체가 발산해 만든 농축 에너지 덩어리(비생명·전이·불안정). 폭발로 터진다(발산=0009 생성 / 폭발=0013 규칙 D)
 };
 
 // --- 이체 원인 태그 ---
@@ -253,8 +271,10 @@ export const CAUSE = {
   METABOLIZE: 'metabolize', // 생명체 → 심우주 (물질대사 — 살아있음의 엔트로피 세금, 되돌아오지 않는 손실, feature-0006)
   HARVEST: 'harvest',   // 결정 → 생명체 (채집 — 근접 결정의 농축 에너지를 흡수, 정적 질서를 푼다, feature-0007)
   ATTACK: 'attack',     // 생명체 → 생명체 / 생명체 → 국소장 (강탈=포식: 붕괴 에너지의 손실적 회수·흩어짐, feature-0008)
-  BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008·0009 공용)
-  DISCHARGE: 'discharge',// 생명체 → 심우주 / 생명체 → 국소장 (방출=파괴: 표적 질서를 열·연기로 흩음, 회수 없음, feature-0009)
+  BURST: 'burst',       // 생명체 → 심우주 (발산 비용 = 상대 질서를 깨는 일, 열로 손실, feature-0008 강탈)
+  EMIT: 'emit',         // 생명체 → 파이어볼(B:) (발산 = 생명체가 제 에너지를 투사체에 실어 쏜다, 순수 지출·회수 없음, feature-0009)
+  DETONATE: 'detonate', // 파이어볼 → 심우주/국소장 · 표적 → 심우주/국소장 (폭발 = 투사체·표적 질서를 열·연기·압력파로 흩음, 생명 무관, feature-0013 규칙 D)
+  DISCHARGE: 'discharge',// (레거시) 방출 — 폭발(DETONATE)로 대체됨. 하위 호환 라벨만 유지
   COOK: 'cook',         // 생명체 → 심우주 / 생명체 → 국소장 (요리 = 날것을 먹을 수 있게 변형하는 일, 방출: 열+연기, feature-0011)
   CRAFT: 'craft',       // 생명체 → 심우주 / 생명체 → 국소장 / 결정 → 결정 (제조: 두 재료를 산물로 조합, 만드는 일=열+연기 방출, feature-0010 step2)
   HEAT: 'heat',         // 열원/연소체 → 결정 열(H:) (자극 = 열 이체, 온도를 올린다, feature-0013)

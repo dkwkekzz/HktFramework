@@ -40,10 +40,10 @@ test('파괴강도 게이트 — 물리력이 파괴강도를 넘는 결정만 �
   const force = DISCHARGE_POWER * 2; // 방출 힘(caster size2)
   assert.ok(force >= breakStrength(FR), '설정 확인: 힘 ≥ 약한 종 파괴강도');
   assert.ok(force < breakStrength(TO), '설정 확인: 힘 < 단단한 종 파괴강도');
-  const fragile = s.spawnCry(850, 1000, FR, 3000);   // caster 옆(150), 잘 깨짐
-  const tough = s.spawnCry(1150, 1000, TO, 3000);     // caster 옆(150), 단단
+  const fragile = s.spawnCry(1100, 1490, FR, 3000);  // 착탄점(표적) 옆(100), 잘 깨짐 — 폭발은 캐스터가 아니라 착탄점에서 터진다(feature-0009 step2)
+  const tough = s.spawnCry(900, 1490, TO, 3000);     // 착탄점 옆(100), 단단
   const fid = fragile.id, tid = tough.id;
-  s.runTicks(5); // 첫 방출은 tickCount==4 일 때(5번째 tick 호출)
+  s.runTicks(8); // 발산(tick4) → 파이어볼이 착탄점(490px)까지 몇 틱 날아가 터진다(feature-0009 비행)
   assert.equal(s.game.crystals.has(fid), false, '약한 결정은 부서져 사라졌다');
   assert.equal(s.game.crystals.has(tid), true, '단단한 결정은 힘을 견뎌 남았다');
   assert.ok(s.shatteredGetter() > 0, '파괴(SHATTER) 이체가 일어났다');
@@ -53,10 +53,10 @@ test('파괴강도 게이트 — 물리력이 파괴강도를 넘는 결정만 �
 test('파편 분해 — 부서진 결정은 파편 결정들 + 국소장(먼지)으로 나뉜다 (보존)', () => {
   const s = setup();
   const FR = fragileSpecies();
-  const fragile = s.spawnCry(850, 1000, FR, 3000);
+  const fragile = s.spawnCry(1100, 1490, FR, 3000); // 착탄점(표적) 옆 — 폭발이 그 자리에서 터진다
   const fid = fragile.id;
   const cryBefore = s.game.crystals.size;
-  s.runTicks(5);
+  s.runTicks(8); // 파이어볼 비행 후 착탄·폭발(feature-0009)
   assert.equal(s.game.crystals.has(fid), false, '원본 소멸');
   // 같은 종(FR) 파편이 원래 자리 근처에 생겼다
   const debris = [...s.game.crystals.values()].filter(c => c.species === FR && s.bal(c.id) > 0);
@@ -68,7 +68,7 @@ test('파편 분해 — 부서진 결정은 파편 결정들 + 국소장(먼지)
 test('단단한 결정만 — 힘이 모자라면 아무것도 안 부서진다', () => {
   const s = setup();
   const TO = toughSpecies();
-  const tough = s.spawnCry(1150, 1000, TO, 3000);
+  const tough = s.spawnCry(1100, 1490, TO, 3000); // 착탄점 옆 — 힘은 닿되(임계 미달) 안 부서진다
   const tid = tough.id;
   s.runTicks(8); // 방출 두 번
   assert.equal(s.game.crystals.has(tid), true, '단단한 결정은 여러 번 맞아도 안 부서진다');
@@ -80,8 +80,8 @@ test('결정론 — 같은 시드/이벤트열이면 파괴 결과가 비트 단
   const run = () => {
     const s = setup();
     const FR = fragileSpecies();
-    s.spawnCry(850, 1000, FR, 3000);
-    s.spawnCry(900, 950, FR, 2500);
+    s.spawnCry(1100, 1490, FR, 3000); // 착탄점 둘레(폭발 반경 안)
+    s.spawnCry(950, 1450, FR, 2500);
     s.runTicks(6);
     return [...s.game.crystals.values()].filter(c => s.bal(c.id) > 0)
       .map(c => [c.x, c.y, c.species, s.bal(c.id)]).sort((a, b) => a[0] - b[0] || a[1] - b[1] || a[3] - b[3]);

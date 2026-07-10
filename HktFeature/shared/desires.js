@@ -77,6 +77,14 @@ const strikePrey = {
   act: (x) => { const p = x.nearestPrey(); if (p) x.strike(p); },
 };
 
+// 회피(FLEE): 더 큰 포식자(위협)에게서 **멀어진다**(feature-0012 step3). 위협이 감지 반경 안에 있으면 반대로 도망친다.
+//   위협이 멀어지면(반경 밖) threatFeeling→0 이라 이 욕구가 저절로 진다(상황이 행동을 거둔다).
+const fleeThreat = {
+  name: 'flee',
+  applicable: (x) => !!x.nearestThreat(),
+  act: (x) => { const t = x.nearestThreat(); if (t) x.moveAway(t); },
+};
+
 // 제조(CRAFT): 가까이 놓인 두 재료(raw, 미가공) 결정(조합 지점)으로 다가가 → 하나의 산물로 조합한다(feature-0010 step2).
 //   산물을 만드는 일은 에너지를 방출한다(열+연기, 순수 지출). 재료 쌍이 없으면 수행 불가(다음 우선순위로 내려간다).
 //   feature-0011 의 개방 레지스트리에 **새 욕구를 실제로 얹는 첫 사례** — 엔진은 이 욕구를 모르고 ctx 만으로 실행한다.
@@ -118,11 +126,20 @@ function hungerFeeling(x) {
   return Math.round(DESIRE_EMOTION_MAX * (comfort - bal) / comfort); // 차이(굶주림)에 비례 (0..MAX)
 }
 
+// 위협 감정 (feature-0012 step3) — 더 큰 포식자가 **가까이** 있을수록 회피의 중요도가 스스로 치솟는다. 위협이
+//   가까우면 다른 어떤 욕구보다 도망이 이기고, 멀어지면 0 으로 감쇠해 하던 일로 돌아간다(상황이 감정을 만든다).
+function threatFeeling(x) {
+  const t = x.nearestThreat();
+  if (!t) return 0;
+  return Math.round(DESIRE_EMOTION_MAX * Math.max(0, (x.SEEK - x.distanceTo(t)) / x.SEEK)); // 가까울수록 ↑ (0..MAX)
+}
+
 // --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사 + feature-0012 자율 감정) ----------
 //   release = 그 욕구가 주로 방출하는 형태(라벨·문서용). "욕구에 따라 방출 형태가 다르다".
 //   appraise = 상황이 스스로 만드는 감정(feeling). 없으면 그 욕구의 중요도는 외생(priority+emotion)만으로 정해진다.
 registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', steps: [leashOwner] });
 registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
 registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
-registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다
+registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다 (기회 감정은 후속: HUNT 기저 동기 재조정 필요)
 registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // feature-0010 step2(단일)·0011 step2(다단계)
+registerDesire(DESIRE.FLEE,   { label: '회피', release: '이동→국소장',   steps: [fleeThreat], appraise: threatFeeling }); // feature-0012 step3 — 위협(더 큰 포식자)이 회피 감정을 스스로 만든다(가까울수록 도망이 이긴다)

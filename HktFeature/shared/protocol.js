@@ -26,6 +26,7 @@ export const MSG = {
   FIELD: 'field',        // { cells: [[cx, cy, cz, balance]] } — 국소장 복셀 그리드 스냅샷 (feature-0004 step2, 표시용·읽기전용)
   CRYSTAL: 'crystal',    // { cells: [[id, x, y, z, balance, species, raw, crafted, tier]] } — 개별 결정 스냅샷 (feature-0005 · raw=날것 f0011 · crafted=산물 f0010 s2 · tier=제조 단계 f0011 s2. 표시용·읽기전용)
   CREATURE: 'creature',  // { cells: [[seq, x, y, z, balance, size, desire, owner, desires]] } — 생명체 스냅샷 (feature-0006 size=스탯, feature-0010 desire=승자 욕망·owner=제어자, feature-0012 desires=중첩 스택 [[name,priority,emotion]]. 표시용·읽기전용)
+  FIREBALL: 'fireball',  // { cells: [[seq, x, y, z, balance, size]] } — 파이어볼(투사체) 스냅샷 (feature-0009 발산이 쏜 비행체, 매 틱 방송해 날아가는 걸 보인다. 착탄 시 사라지고 폭발=0013 규칙 D. 표시용·읽기전용)
   ENTER: 'enter',        // { entities: [{ id, kind, name, x, y, z, balance, max }] } — 시야 진입
   LEAVE: 'leave',        // { ids: [] } — 시야 이탈 (미러에서 잊기)
   TELEPORT: 'teleport',  // { x, y, z } — 비콘 예산 위반 시 위치 정정

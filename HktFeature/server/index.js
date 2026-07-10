@@ -10,7 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from './game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat } from '../shared/constants.js';
+import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = {
@@ -129,6 +129,20 @@ setInterval(() => {
       }
       if (best) game.ledger.transfer(POOL.SOURCE, `${POOL.HEAT}${best.seq}`, ignitionHeat(best.species) + 200, 'heat');
     }
+  }
+  // feature-0013 규칙 D(자폭) 무대 — 이따금 서식지 근처 자연 결정 하나를 임계 이상으로 **과충전**한다(SOURCE→결정 잔고).
+  //   에너지가 물질에 과하게 쌓이면 불안정해져 스스로 터진다(폭탄·과충전 결정) — 생명 없이도 폭발이 일어남을 라이브로
+  //   보인다. 결정화는 자기제한적이라 자연히는 임계에 못 닿으므로, 태양이 이따금 한 결정을 벼랑 너머로 민다. 보존 유지.
+  if (warmTick % 220 === 0) {
+    let best = null, bestD = Infinity;
+    for (const [cx, cy, cz] of dens) {
+      for (const c of game.crystals.values()) {
+        if (c.raw || c.crafted || game.ledger.balance(c.id) <= 0) continue; // 자연 결정만(안정 물질 제외)
+        const d = dist3(cx, cy, cz, c.x, c.y, c.z);
+        if (d <= 300 && d < bestD) { best = c; bestD = d; }
+      }
+    }
+    if (best) game.ledger.transfer(POOL.SOURCE, best.id, CRYSTAL_DETONATE_THRESHOLD + 2_000, 'seed'); // 과충전 → 다음 틱 자폭
   }
 }, 1000 / TICK_RATE);
 
