@@ -38,6 +38,13 @@ const C_MAE_MAX = 0.015;  // [중심선] 행 centroid 오프셋 평균 오차 �
 const C_ERR_MAX = 0.045;  // [중심선] 단일 최대 오차 한도
 const HEAD_F_MAX = 0.20;  // [머리 경계] 이 높이(정수리 기준)까지를 머리 구간으로 본다
 const HEAD_ERR_MAX = 0.05;// [머리 경계] 좌/우 경계 각각의 단일 최대 오차 한도 — 뒤통수/턱선 회귀
+// [목 폭] 목 대역은 이웃 어깨 행 대비 폭 급감으로 reliableSet 의 dropout 규칙에 걸려
+// 일반 지표가 영원히 안 본다 — 목이 사라져도 PASS 하는 회귀 구멍(교훈). 전용 검사로 막는다.
+// 정면/후면만 (측면 목은 턱·뒤통수와 겹쳐 행 폭이 목이 아니다). f 0.18+ 는 어깨 전이라 제외.
+// ⚠ 판정 게이트는 정점 메시 모드(HKT_EVAL_MESH)에서만 — SDF 경로는 목·승모근 웹이 어깨
+// 경사선을 만드는 알려진 타협(레거시)이라 보고만 한다.
+const NECK_F = [0.145, 0.175];
+const NECK_ERR_MAX = 0.04; // 목 폭 단일 최대 오차 한도
 
 // f 위치의 행 측정값(픽셀) — 폭/중심/경계. 몸 축(cx)은 여기서 정하지 않는다:
 // 시트의 획 끊긴 행이 중심을 오염시키므로, 비교 단계에서 "신뢰 행" 기준으로
@@ -120,6 +127,8 @@ try {
     h.st.clip = 'apose'; h.st.speed = 0; h.st.dist = 3.4; h.st.el = 0.0; h.st.az = 0.0;
     h.st.pause = true; // 뷰 캡처 직전에만 프레임을 렌더 (소프트웨어 GL 비용 절약)
   });
+  // HKT_EVAL_MESH=1 — 정점 메시 살 층으로 계측 (빌드는 동기 — 반환 시 완료)
+  if (process.env.HKT_EVAL_MESH) await page.evaluate(() => window.__hkt.setFleshMode(true));
 
   const refB64 = readFileSync(FIXTURE).toString('base64');
   // HKT_EVAL_VIEWS=front,side — 뷰 분할 실행 (호출당 시간 제한이 있는 CI 용).
@@ -150,9 +159,13 @@ try {
     let sum = 0, n = 0, worst = 0;          // 폭
     let cSum = 0, cWorst = 0;               // 중심선 오프셋
     let hWorst = 0, hN = 0;                 // 머리 좌/우 경계
+    let nWorst = 0, nN = 0;                 // 목 폭 (dropout 무시 — 전용 대역)
     for (const f of FRACS) {
       const a = refP.prof[f], b = renP.prof[f];
       if (a == null || b == null) continue;
+      if (view !== 'side' && f >= NECK_F[0] && f <= NECK_F[1]) {
+        nWorst = Math.max(nWorst, Math.abs(b - a)); nN++;
+      }
       const isRel = reliable.has(f);
       // 축 기준 정규화 좌표 (신장 대비): lb=좌측 경계 거리, rb=우측 경계 거리
       const lb = p => (p.cx - p.Lpx[f]) / p.H, rb = p => (p.Rpx[f] - p.cx) / p.H;
@@ -175,10 +188,12 @@ try {
     const passW = mae <= MAE_MAX && worst <= ERR_MAX;
     const passC = cMae <= C_MAE_MAX && cWorst <= C_ERR_MAX;
     const passH = hWorst <= HEAD_ERR_MAX;
-    const pass = passW && passC && passH;
+    // 목 게이트는 메시 모드 전용 (SDF 는 알려진 한계 — 보고만)
+    const passN = !process.env.HKT_EVAL_MESH || nN === 0 || nWorst <= NECK_ERR_MAX;
+    const pass = passW && passC && passH && passN;
     if (!pass) failed = true;
-    report[view] = { mae, worst, cMae, cWorst, headWorst: hWorst, headRows: hN, reliableRows: n, pass, passW, passC, passH, rows };
-    console.log(`${pass ? 'PASS' : 'FAIL'}  ${view.padEnd(5)}  폭 MAE=${mae}/max=${worst} ${passW ? '✓' : '✗'}  중심 MAE=${cMae}/max=${cWorst} ${passC ? '✓' : '✗'}  머리경계 max=${hWorst} ${passH ? '✓' : '✗'}  신뢰행 ${n}개`);
+    report[view] = { mae, worst, cMae, cWorst, headWorst: hWorst, headRows: hN, neckWorst: +nWorst.toFixed(3), neckRows: nN, reliableRows: n, pass, passW, passC, passH, passN, rows };
+    console.log(`${pass ? 'PASS' : 'FAIL'}  ${view.padEnd(5)}  폭 MAE=${mae}/max=${worst} ${passW ? '✓' : '✗'}  중심 MAE=${cMae}/max=${cWorst} ${passC ? '✓' : '✗'}  머리경계 max=${hWorst} ${passH ? '✓' : '✗'}  목 max=${nWorst.toFixed(3)} ${passN ? '✓' : '✗'}  신뢰행 ${n}개`);
 
     writeFileSync(join(OUT, `overlay-${view}.png`),
       Buffer.from(await overlay(page, refB64, renB64, refP, renP), 'base64'));
