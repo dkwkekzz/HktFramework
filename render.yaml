@@ -1,0 +1,14 @@
+# Render Blueprint — HktFeature 원장 서버를 클라우드에 올려 폰에서 관전한다.
+#   데스크탑·배치파일 없이, GitHub 연동 후 몇 번의 클릭으로 공개 URL 이 생긴다.
+#   서버 하나만 있으면 된다: 틱 루프가 세계(포식·먹이·불·자폭)를 스스로 굴리므로
+#   봇 없이도 관전거리가 계속 벌어진다. 클라이언트는 location.host 로 붙어 코드 수정 불필요.
+#   상세: HktFeature/DEPLOY.md
+services:
+  - type: web
+    name: hktfeature-viewer
+    runtime: node
+    plan: free            # 무료 티어(비활성 시 슬립 → 첫 접속에 수십 초 웨이크). 관전 용도로 충분.
+    rootDir: HktFeature   # 모노레포 하위 트랙만 배포
+    buildCommand: npm install
+    startCommand: node server/index.js
+    # PORT 는 Render 가 주입 → server/index.js 가 process.env.PORT 를 사용(0.0.0.0 바인딩).
