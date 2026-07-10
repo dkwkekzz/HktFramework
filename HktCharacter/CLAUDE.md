@@ -1,126 +1,56 @@
 # CLAUDE.md — HktCharacter
 
-> Skeleton → Flesh: **rig-agnostic SDF flesh 렌더러** 프로토타입. (이전 이름 `hikito-flesh`)
-> 캐릭터 asset pipeline의 실현 가능성 검증용. AI-only 자산 제작 철학의 일부.
+> **리셋 v2 (2026-07)**: SDF flesh 접근(스켈레톤→SDF 살 생성)은 제대로 된 캐릭터 품질에
+> 도달하지 못해 폐기. 전체 코드는 `legacy/` 에 보관. 지금은 **미니멀 FBX 뷰어**에서 재출발.
 
-## 한 줄 요약
+## 목표
 
-뼈대를 먼저 정의하고, 살을 **뼈대의 순수 함수(SDF)** 로 자라게 한다.
-→ 모델링·리깅·스키닝 3단계가 하나로 붕괴. 뼈대를 움직이면 살은 자동으로 따라온다.
+오픈월드 mmorpg에서 사용할 창발할 수 있고 ai only 제작 파이프라인으로 애니메이션 가능한 3d 모델을 제작한다.
 
-## 아키텍처 (3층)
+## v1(SDF flesh)에서 배운 것 / 버린 이유
 
-1. **Skeleton IR** — `joints[{name, parent, offset}]` + 프레임별 회전 → world FK.
-   소스(built-in / Mixamo FBX / 임의 리그)를 몰라도 동일 경로로 흐른다. FK는 three Object3D 계층이 담당.
-2. **Flesh grammar** — 이름으로 반지름을 매긴다. **이게 "일관된 스타일"의 정의.**
-   규칙·수치는 `src/proportions.js` 의 **비율 프로파일**(데이터)로 승격 — 이름 규칙(첫 매치 승리)
-   + 스켈레톤 치수 + 볼륨 헬퍼(extras: 가슴·승모근·둔부·뒤꿈치·손바닥) + 그룹 배율(UI 슬라이더)로 구성.
-   **원판 로프트(disk-loft) 층 — 주 살 매체 (LOFT-PLAN 구현됨)**: 몸통·목·두상·다리는 캡슐
-   대신 프로파일 `loft` 절의 원판 스택이 살을 만든다. 스택 = 뼈(자식 관절 simple name,
-   Left/Right 접두어 자동 미러) → `{ group, k?, disks:[{t, rx, zf, zb, xo?}] }`.
-   t 는 뼈 축 위치(0=부모, 1=자식, 범위 밖=연장 — 골반은 Spine 의 t<0), rx/zf/zb 는 좌우
-   반경·앞/뒤 경계(관절 로컬), xo 는 단면 중심 좌우 오프셋(다리). 이웃 원판 쌍 → round-cone
-   세그먼트 1개, 타원 단면은 긴 반경을 캡슐 반지름으로 삼고 짧은 축을 flatten(f<1 유지 —
-   방향 스왑으로 f>1 회피). 시트의 곡선 프로파일(허리 S커브·종아리 볼록·두개골 곡률)이
-   최적화의 결과가 아니라 **구성상 보장**된다. loft 가 없는 뼈(팔·손가락·임의 리그)는 기존
-   캡슐 경로 — rig-agnostic 계약 유지. `disks:[]` = 그 뼈 살 생략(UpLeg — 골반·허벅지 loft 가
-   대체). 원판 데이터는 `eval/fit-loft.mjs` 가 시트에서 자동 피팅 — 수치를 손으로 만지지 말 것.
-   ⚠ **round-cone 은 원판이 아니라 "구의 볼록 껍질"** — 반지름이 축 간격보다 급히 줄면 큰
-   원판의 구가 축 방향으로 반지름만큼 튀어나온다 (두정이 +6cm 솟아 f 정렬 전체가 오염됐던
-   교훈). 두정은 "구 돔 꼭대기 == crown" 이 되는 원판에서 스택을 자른다 (fit 이 처리).
-   ⚠ 스택 내부 k 기본 0.016 — 이웃 cone 세그먼트의 기울기 불연속(면 각짐)이 준-툰 셰이딩
-   에서 가로 밴드로 증폭되는 걸 둥글린다 (0.004 로 줄이면 다리가 골판지가 된다 — 교훈.
-   k/4 균일 부풀음은 재피팅의 compose SHRINK 가 데이터에서 도로 빼 수렴). 목만 k 0.05
-   (승모근·어깨와의 웹이 시트의 어깨 경사선). 스택 첫/끝 세그먼트는 `k0`/`k1` 로 관절
-   경계 blend 를 분리 — 허벅지 k0 0.04 가 골반과의 웰드 주름을 편다.
-   ⚠ 정면 시트의 허리~골반 대역은 팔·손 획이 몸 윤곽을 가린다(envelope=팔) — fit-loft 는
-   후면 뷰 윤곽 추적(traceContour, 좌/우 min)으로 그 대역의 폭을 얻는다. 이게 없으면 그
-   대역은 영원히 self-copy 다 (교훈). 골반 하단은 가랑이 rEmit 클램프(기저귀 살 방지),
-   허벅지 상단은 돔 가드(새들백 방지)가 fit 에서 자른다. 축 납작화(팬케이크)는 시도 후
-   폐기 — 히트 임계 인플레이션 + 법선 왜곡 (emitLoft 주석).
-   **Detail 층**(캡슐 경로용): rules/extras 는 선택적으로 `k`, `flatten`·`flatten2`(2축 납작화,
-   f<0 은 one-sided), `op:'cut'` 을 가진다. 셰이더는 평범한 캡슐(저비용)과 detail 세그먼트를
-   구간 분리 순회(`uDetailStart`/`uCutStart`) — loft 세그먼트는 전부 detail 경로.
-   (두상 subBones 세분화는 loft 로 대체·제거됨 — appendSubBones 엔진 자체는 남아 있다.)
-   프리셋: `standard`(기존 값 보존, loft 없음 = 캡슐 경로 회귀 기준) · `reference`(첨부 캐릭터
-   시트 기준 6등신 여성 체형, 기본값, loft 사용).
-   Mixamo 이름(`mixamorig:LeftForeArm`)은 접두어만 떼고 매칭. 미지의 뼈는 기본값 → 임의 리그도 안 깨진다.
-   ⚠ 외부 리그는 자체 뼈 길이를 쓰므로 loft 는 t 비례 근사 — HeadTop 뼈가 긴 리그는 두상이 늘어난다.
-   HeadTop_End 관절이 없는 리그는 두개골 스택이 안 붙는다 (Head 캡슐 폴백 — 알려진 한계).
-   **정점 메시 층 (VERTEX-PLAN 구현됨 — "찍고→조정" 매체)**: SDF 스택의 음영 한계(콘 이음
-   밴드·smin 웰드 lump·구 껍질 돌출)를 우회하는 **실제 정점 메시** 살. 뼈 체인을 따라 단면
-   링을 대충 찍고 → 바인드 포즈에서 살 필드(시트 피팅 loft+extras SDF) 표면으로 방사 투영해
-   조정 → Taubin 스무딩. 런타임 정점 = (뼈, 관절 로컬 오프셋) → FK 상속, 관절 경계 6cm 링은
-   이웃 뼈와 이중 바인딩(무릎 찢어짐 방지). UI `정점 메시` 토글 / `?mesh=1` /
-   `HKT_EVAL_MESH=1 npm run eval` / `shot.mjs --mesh 1 [--stage rough]`. SDF 는 빌드 시
-   투영 원천으로 강등 — 렌더는 메시 + smooth normal (음영 매끄러움이 구성상 보장).
-   ⚠ 투영 4원칙 (교훈 — src/fleshmesh.js): ① 첫 탈출 표면 (마지막 음수까지 가면 몸통이 팔을
-   감싼다) + 8mm 틈 관통(둔부 주름 톱니 방지) ② 체인별 필드 필터 — 몸통은 팔·손·**다리**를,
-   다리는 자기 살만 본다 (어기면 가슴 선반/힙 "반바지" 플랩) ③ 2.2×rGuess 관통 클램프
-   ④ **구 껍질 침수 차단** — 링 평면을 축 방향 ±12mm 밖에서 벗어난 loft 세그먼트 제외
-   (턱 디스크 구가 목구멍을 메워 "목이 없던" 원인 — 캡 링은 예외, 돔은 구가 그린다.
-   걷어낸 어깨 몫은 승모근 extras 능선 연장이 보전).
-   **fit-mesh 정점 잔차 피팅**: `eval/fit-mesh.mjs` 가 시트 잔차를 재서 `src/meshfit.js` 에
-   굽고, 빌드가 투영 직후 링에 보간 적용 — torso: 측면 df/db + 머리 폭 dx(f≤0.14) / leg:
-   측면 df/db + 정면 로브 dxo/dxi. compose 수렴 · 기울기 5mm/행 제한(어기면 정면 가로
-   "선반" 밴드) · **렌더 측 계측은 반드시 픽셀** — 기하 extents 로 재면 스킨 검출의 어두운 면
-   편차(~1cm)가 잔차로 둔갑한다 (교훈, VERTEX-PLAN §0). 메시 모드는 built-in 리그 한정
-   (외부 FBX 는 SDF 폴백), 슬라이더(통통함 등)는 재토글 때 반영 — 남은 일은 VERTEX-PLAN §4.
-3. **Source** — built-in Mixamo 표준 리그 + 절차적 클립(walk/idle/wave), 동봉 로코모션 FBX 샘플
-   (`public/assets/anim/*.fbx` — 걷기·뛰기·대기·점프·공격·삼바), 그리고 FBX 드롭(실제 Mixamo 클립).
-   다중 클립 FBX 는 이름별 클립 전환(크로스페이드) 지원.
+- 뼈에서 살을 절차 생성(SDF loft + 정점 메시 투영)하는 접근은 실루엣 지표는 통과해도
+  음영·이음새 품질이 캐릭터로 쓸 수준에 못 미쳤다 (fit 파이프라인 유지비도 과대).
+- v1 뷰어의 두 가지 착시(이번 리셋의 직접 계기):
+  - **"메시가 안 보인다"** — FBX 를 로드해도 뼈만 추출하고 스킨 메시를 씬에 추가하지 않았다.
+  - **"본 길이가 어색하다/손가락이 길다"** — 본 표시가 실제 스켈레톤이 아니라 SDF 세그먼트
+    (가상 뼈·볼륨 헬퍼 포함)를 선으로 그린 것이었다.
+- v2 는 이 두 가지를 정면으로 고친다: 메시는 FBX 그대로, 본은 `THREE.SkeletonHelper`.
 
-### harness 매핑
-- **Planner** = 뼈대 그래프 = genome
-- **Generator** = 살 grammar (`radiusForName` + round-cone SDF + `smin`)
-- **Evaluator** = `eval/evaluate.mjs` (`npm run eval`) — 레퍼런스 시트 대비 3방향 자동 계측·판정
-  + 오버레이 PNG 생성. 지표 4종: ① 폭(행별 실루엣 폭, MAE ≤ 0.025H·최대 ≤ 0.06H)
-  ② 중심선(행 centroid − 몸 축, MAE ≤ 0.015H·최대 ≤ 0.045H — 자세/굽은 등 회귀)
-  ③ 머리 경계(상단 f ≤ 0.20 행의 좌/우 경계 각각, 최대 ≤ 0.05H — 뒤통수·턱선 회귀)
-  ④ 목 폭(f 0.145~0.175 정면/후면, 최대 ≤ 0.04H — 목 행은 dropout 규칙에 걸려 일반
-  지표가 못 보는 회귀 구멍. 게이트는 정점 메시 모드 전용, SDF 는 보고만).
-  몸 축은 "신뢰 행"(시트 획이 뚜렷한 행) 기준으로 양 이미지에 동일 집합 적용 — 획 끊긴 행이
-  축을 오염시키면 전 행에 유령 편향이 생긴다 (교훈). 자기충돌/관절 볼륨 지표는 미구현.
+## 구조 (전부 `src/main.js` 하나, ~330줄)
+
+1. **씬** — three.js + OrbitControls, 헤미/디렉셔널 라이트, 그리드.
+2. **로드** (`loadFBXBuffer`) — FBX 파싱 후:
+   - 메시 있음 → 캐릭터 교체. 정규화(키 1.7m·발바닥 y=0·원점), `frustumCulled=false`
+     (스킨 메시가 애니메이션으로 원래 바운드를 벗어나면 사라지는 고전 버그 방지),
+     SkeletonHelper 생성, 내장 클립 등록·재생.
+   - 메시 없음(애니메이션-only) → 캐릭터 있으면 클립 리타깃 추가, 없으면 스켈레톤만 표시.
+3. **리타깃** (`retargetClip`) — 트랙 노드명을 `simpleName` 으로 정규화해 현재 캐릭터 뼈에
+   매핑. **position 트랙은 Hips 만 유지** (회전만 옮기면 리그 간 뼈 길이가 달라도 안 늘어난다).
+   `simpleName`: `"mixamorig:LeftHand"` / `"mixamorigLeftHand"`(FBXLoader 가 콜론을 벗기는
+   내보내기 존재) / 무접두어 → 모두 `lefthand`.
+4. **UI** — 샘플 버튼 / 클립 버튼(크로스페이드) / 속도 / 메시·본·회색 재질·와이어·SDF 살 토글.
+   `window.__hkt` 콘솔 핸들.
+5. **SDF 살** (`src/mcflesh.js`, 실험) — 뼈마다 캡슐 세그먼트, Wyvill 밀도
+   `(1-d²/R²)³` (R=BLEND(2.5)×반지름, 부모→자식 반지름 테이퍼)를 필드에 가산 →
+   `THREE.MarchingCubes`(res 64, isolation ≈0.593 = 캡슐 반지름 지점)로 매 프레임
+   폴리곤화. 세그먼트 bbox 안 복셀만 채워 실시간(~7ms). 리그 2벌 FBX 는 simpleName
+   중복 세그먼트를 스킵. 손가락 생략, `end$` 리프 본은 0.02 로 가늘게(머리 필통 방지).
+   반지름 테이블은 `RADII`(simpleName 정규식 매칭).
+   **알려진 한계**: 고정 격자 재샘플링이라 움직임에 표면이 미세하게 떨림(시간적
+   앨리어싱) — res·BLEND 로 완화만 가능. 애니메이션-only FBX 의 내장 리그는 비율이
+   실제 캐릭터와 다름(예: walk 리그 손바닥→중지1 20.9cm, samba 3.4cm) — with-skin
+   캐릭터에 리타깃해서 봐야 정상 비율.
 
 ## 파일 맵
 
-- `index.html` — DOM(HUD/패널/드롭존/로코모션 버튼/비율 패널) + CSS
-- `public/assets/anim/*.fbx` — 동봉 로코모션 샘플 (Mixamo, HktSplatLife 와 동일 세트)
-- `src/proportions.js` — **비율 프로파일 데이터** (`PROFILES.standard/reference`, `GROUPS`, `matchRule`)
-  비율 변경은 이 파일의 수치만 만진다 — 이름 규칙 / skeleton 치수(다리 전후 배치 `upLegZ/kneeZ/ankleZ`
-  포함) / **loft 원판 스택**(몸통·목·두상·다리 — fit-loft 재피팅으로 갱신, 손 수정 금지) /
-  extras / 권장 smin / 휴식 포즈(`armFwd/foreArmFwd` 전방 스윙 포함)
-- `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이 — `HKT_EVAL_VP=WxH` 축소
-  뷰포트, `HKT_EVAL_VIEWS=front,side` 뷰 분할 실행 지원) + `lib.mjs`(공용 계측 로직)
-  + `fit-loft.mjs`(**시트 → loft 원판 피팅** — `--stage all` 또는 front-torso/side-torso/
-  front-legs/side-legs/back-legs(후면 윤곽 추적용)/build-torso/build-legs/apply 하위 단계 분할.
-  계측 전부 → 빌드 순서. 결과는 `apply-fit.mjs` 로 proportions.js 의 loft 절에 기계 반영)
-  + `apply-fit.mjs`(fit-torso/legs.json → proportions.js loft 절 갱신 — 수작업 붙여넣기 금지)
-  + `shot.mjs`(**눈 검증 스크린샷 CLI** — `--az/--el/--dist/--ty` 임의 카메라, `--shots` JSON
-  배열로 여러 장. Evaluator 는 실루엣만 보므로 음영 아티팩트는 이걸로 눈 검증)
-  + `smoke-run.mjs`(standard 프리셋·손가락·걷기 클립 스모크 — 페이지 오류 감지)
-  + `variants.mjs`(**본 스케일 변형 체형 눈 검증** — 다리/팔/몸통/머리/어깨 조합 8종을
-  A-포즈+걷기 위상(st.poseT 고정)으로 촬영 + 링 폭 연속성/NaN sanity. eval 게이트는
-  레퍼런스 시트 전용이라 변형에는 이 도구가 검증 수단)
-  + `optimize.mjs`(**프로파일 자동 최적화** — dense 라인 손실 좌표 하강. loft 전환 후 파라미터는
-  잔여 캡슐(팔·어깨)·extras·골격·포즈만, `node eval/optimize.mjs [--baseline|--sweeps N]`)
-  + `fixtures/reference-sheet.jpeg`(기준 캐릭터 시트 — 민머리 소체 3뷰).
-  산출물은 `eval/out/`(gitignore). 비율을 만졌으면 `npm run eval` 로 회귀 확인.
-  계측 도구는 `?paused=1` + `st.pause` 로 필요한 프레임만 렌더 (소프트웨어 GL 대응).
-  ⚠ optimize 실행 중 src/ 를 편집하지 말 것 — vite HMR 리로드로 상주 페이지 상태가 날아간다.
-- `src/fleshmesh.js` — **정점 메시 살 층** (VERTEX-PLAN): SDF JS 포트 + 방사 투영 + 체인/캡
-  토폴로지 + Taubin 스무딩 + 이중 바인딩 런타임. 빌드는 바인드 포즈 1회, 프레임은 뼈 변환만.
-- `src/meshfit.js` — fit-mesh 가 생성하는 시트 잔차 보정 데이터 (손 수정 금지 —
-  `node eval/fit-mesh.mjs` 재실행으로 갱신, 초기화는 rows 를 [] 로 되돌린 뒤 2회 실행)
-- `src/main.js` — 전체 로직. 섹션 주석으로 (1)IR (2)grammar (3)source 구분
-  - `frag` : 레이마칭 프래그먼트 셰이더 (round-cone SDF의 smooth-union)
-  - `buildMixamoRig(sk)` : Mixamo 표준 humanoid 계층 (T-pose) — 치수는 프로파일 skeleton 절
-  - `radiusForName()` : flesh grammar 조회 (프로파일 규칙 × 그룹 배율)
-  - `extractBones()` / `extractExternal()` : 관절 → taper 캡슐 세그먼트
-    (+`appendSubBones()` 가상 하위 뼈 사슬, +`appendExtras()` 볼륨 헬퍼 — extras 는 가상 뼈에도 붙는다)
-  - `setPreset()` : 프리셋 전환 (built-in 리그 재생성; 외부 FBX 는 두께/헬퍼만 적용)
-  - `loadFBXBuffer()` / `loadSample()` / `playExtClip()` : FBX 파싱 + 샘플 fetch + 클립 전환
-  - `window.__hkt` : 콘솔 튜닝/자동 검증용 핸들 (st, groupMul, setPreset, PROFILES)
+- `index.html` — HUD/패널/드롭존 + CSS
+- `src/main.js` — 뷰어 전부
+- `src/mcflesh.js` — SDF 살(MarchingCubes) 실험 모듈
+- `public/assets/anim/*.fbx` — 동봉 Mixamo 샘플. **주의: samba.fbx 는 메시 포함**(뼈 119
+  = 리그 2벌·클립 2), 나머지(walk/run/idle/jump/attack)는 애니메이션 전용(메시 없음).
+- `legacy/` — v1 전체 (src/eval/index.html/LOFT-PLAN/VERTEX-PLAN/README). 참고용, import 금지.
+  (루트의 `eval/` 잔재는 샌드박스 권한 문제로 못 지운 복사본 — 지워도 된다.)
 
 ## 실행
 
@@ -129,73 +59,22 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-우측 패널 **로코모션** 버튼으로 동봉 FBX 샘플을 바로 재생하거나, Mixamo FBX 를 드롭존에 놓으면
-실제 클립이 재생된다. (스케일 정규화 포함 — Mixamo 100배 스케일 자동 처리, 애니메이션-only FBX 는
-뼈 world 위치로 바운드 재계산.)
+with-skin 캐릭터 FBX 를 드롭 → 로코모션 샘플 버튼으로 클립을 입혀 재생.
 
-## 현재 상태 / 다음 작업
+## 검증 (2026-07-11, Node 스모크)
 
-**동작함**: built-in Mixamo 리그 위에서 walk/idle/wave, 손가락 토글, 스타일 슬라이더(smin/통통함),
-동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭,
-**비율 프로파일**(standard/reference 프리셋 + 머리/가슴/허리/엉덩이/팔/다리 그룹 슬라이더 + 볼륨 헬퍼),
-**원판 로프트 살 층**(몸통·목·두상·다리 — 시트 자동 피팅, 두상 블렌드 융기 소멸, eval 3뷰
-3지표 PASS), **flatten 2축/one-sided**, **자세 정렬**(요추 아치·다리 전후 배치·팔 전방 스윙),
-**음영 품질 1차 정리**(2026-07: 힙 새들백 크리스·골반 "기저귀 살" 랫칫·다리 골판지 밴드·
-가슴판 융합·둔부 bolted-on lump·어깨 스파이크·팔꿈치 웰드 lump 해소 — 후면 윤곽 추적 피팅
-+ 관절 경계 k0/k1 + 스택 내부 k 0.016 + extras 재정합. eval 폭 MAE front 0.0099→0.0076,
-back max 0.028→0.019), **정점 메시 살 층**(2026-07 VERTEX-PLAN 1차: 찍고→투영 조정→스무딩
-+ fit-mesh 잔차 피팅(torso df/db/dx + leg df/db/dxo/dxi) + **목 라인**(구 껍질 침수 차단
-+ 승모근 능선 연장 + 목 폭 지표), 메시 모드 eval 3뷰 4지표 PASS — 폭 MAE front 0.0077/
-side 0.0101/back 0.0076, 전 뷰 SDF 경로 우위 · 목 폭 max 0.021 (SDF 0.084 — 목 부재가
-수치로 남는 레거시 한계), 걷기 굽힘 ✓), **큰 흐름(실루엣 저주파) 정리**(2026-07:
-① fit-mesh 잔차를 곡률 벌점 스무딩 + 합성 후 재정련으로 저주파 한정 — 이동평균만으로는
-중간 파장(10~30cm) 물결이 남고 compose 반복이 기울기 제한을 무력화해 측면 배·둔부가
-울렁거렸다(교훈) ② 허벅지 상단 링(+시작 캡)을 골반·둔부 포함 smin 합집합 표면으로 투영(플래토+
-램프 가중 — 절반 가중은 표면이 중간에 떠 단차가 반만 남는다) — 팬티라인/밑둔부 W 플랩
-단차가 접선 이음으로 해소 ③ 힙 이음 대역 다리 링 df/db 는 몸통 잔차로 lerp — 한쪽 셸만
-보정하면 보정이 절반만 듣고 compose 가 계속 깎는 랫칫(밑둔부 db −1.7cm V자 교훈)
-④ **대칭 yield 소유권**: 몸통 정점은 다리 살 내부에서, 다리 정점은 자기 살 밖(둔부 이식부)
-에서 가파르게 잠수 — 가시 표면이 웰드 곡선(둔부 주름)에서 정확히 한 번 교대해 둔부-허벅지가
-인체처럼 한 덩어리로 이어진다. ⚠ 두 셸을 근접 평행(±1.5mm)하게 겹치거나 outset 램프로
-소유권을 넘기면 이산화 오차(~1mm 코드 새김)로 교차가 픽셀 단위로 뒤집혀 톱니가 흩뿌려진다
-(교훈) — 교차는 반드시 급경사 다이브 + 측도 0 곡선으로. ⚠ 웰드 경계는 바인드 포즈에 굽는다 —
-다리 스윙 시 경계가 살짝 드러나는 건 §4 스티칭이 남은 몫),
-**본 스케일 커스터마이징**(2026-07: `boneScale` 5축 — 다리/팔/몸통/머리/어깨. 큰 형태는
-grammar·loft 가 유지하고 뼈 길이만 배율 (`scaledSkeleton`) — loft 는 t 정규화라 길이 방향으로
-따라 늘고 두께(절대 m)는 그룹 배율 슬라이더와 직교. 머리만 예외로 반경 결합(`effGroupMul`) —
-길이만 늘면 "길쭉한 머리"가 된다(교훈). 다리 스케일은 hipsY 보정으로 발이 땅에 붙는다.
-스케일 불변 장치: fit-mesh 잔차는 발끝~고관절~두정 랜드마크 y 리맵(`makeFitYRemap`),
-hipBlend 는 허벅지 길이 비례, 힙 이식 링은 골반 뼈와 이중 바인딩(w2 0.5·hipW) — 없으면
-다리 스윙 때 이식 경계가 선반으로 드러난다. UI 슬라이더(change 시 재빌드) +
-`__hkt.setBoneScales`. 검증은 `eval/variants.mjs` 8종 — A-포즈·걷기 전 변형 안정),
-**뼈 프레임 규약 수정**(2026-07: `builtinBone` 의 quat 은 **부모 관절**의 월드 회전 —
-자식 관절 quat 에는 그 관절 자신의 굽힘이 포함돼, 무릎 0.9rad 굽힘이 허벅지 살 전체를
-고관절 축으로 추가 회전시켜 무릎에서 튜브가 찢어졌다("잘린 다리"). ⚠ A-포즈는 굽힘 0이라
-베이크·업데이트가 같은 규약이면 무엇을 쓰든 일치 — eval/A-포즈 검증으로는 못 잡는 부류.
-굽힘 포즈 눈 검증은 반드시 `st.poseT` 위상 고정으로(벽시계 걷기 검증은 소프트웨어 GL 에서
-speed=0 A-포즈를 찍는 함정 — 이전 "걷기 굽힘 ✓" 가 그렇게 뚫렸다). 남은 애니메이션 한계:
-크로치 캡 노출·이식 경계 잔여 크리스(§4 스티칭/부피 보존 몫), 외부 FBX 클립은 정점 메시
-미지원(SDF 폴백 — 로드 시 상태줄 안내)).
+- `vite build` 통과. 동봉 FBX 파싱: walk(뼈 57·클립 1·트랙 45 전량 매핑),
+  samba(뼈 119·메시 2·클립 2). 교차 리타깃 walk→samba 45/45 매핑.
+- MC 살(res 64·테이퍼): walk 스켈레톤(애니메이션 0.5s 진행) → 삼각형 3,620개
+  · update 7.4ms · NaN 없음 (Node 폴리곤화 — 셰이더 없이 지오메트리만).
+- 렌더 눈 검증은 브라우저에서 수동 (샌드박스에 headless 브라우저 없음).
 
-**다음 (우선순위 순)**:
-1. **정점 메시 층 심화** (VERTEX-PLAN §4): 정점 단계 시트 잔차 피팅(fit-mesh — 4반경 비대칭
-   단면 공짜), 팔↔몸통/다리↔골반 스티칭(교차 셸 → 단일 토폴로지), 외부 FBX 리그 지원,
-   UE5 내보내기(스킨 웨이트가 이미 정점에 있다 — 구조화 토폴로지로 로드맵 "메시화" 도달).
-   ⚠ 교훈: Evaluator 는 실루엣만 본다 — 반드시 `eval/shot.mjs` 렌더 눈 검증 병행.
-2. **loft 잔차 다듬기**(SDF 경로 — 투영 원천 품질이 정점 층 품질): 팔 loft 전환 여부,
-   one-sided 비대칭 단면(4반경) 원판 확장, 측면 가슴 라인 미세 정합. 측면 f 0.40~0.57 은
-   시트 팔 포즈 모순으로 불신 밴드(fit-loft handBand) 고정.
-3. **Detail 층 심화**(캡슐 경로): 프리미티브 추가(토러스·쐐기), 손가락 마디·발 아치/발가락
-   세분화(현 발은 발목→발끝 테이퍼 캡슐 수준), cut 적용처 발굴, 가슴 볼륨 경계 음영 정리.
-4. **Evaluator 확장**: 실루엣 회귀는 구현됨(eval/). 남은 것 — 자기충돌 부피, 관절 볼륨 보존,
-   loft 미세조정 파라미터(스택별 반경 배율)의 optimize 노출.
-5. **부피 보존**: 관절 압축 시 살 부풂(bulge) 근사 (정점 층은 dual-quaternion 검토).
-6. **성능**: SDF 경로는 loft 로 세그먼트 ~120개(전부 detail 경로) — 소프트웨어 GL 에선
-   프레임이 수 초라 계측 도구는 `?paused=1`/`st.pause` 로 대응함. 정점 메시 모드는
-   래스터라이즈라 이 문제가 없다 (eval 가속 겸용).
+## 다음 후보 (사용자와 논의 후)
 
-## 설계 결정 (되돌리지 말 것)
+- 캐릭터 커스터마이징(뼈 스케일 등)을 실제 스킨 메시 위에서 재시도
+- 클립 블렌딩/전환 개선, UE5 연동 방향 정리
 
-- 살은 **뼈대의 함수**여야 한다. 별도 메시를 손으로 바인딩하지 않는다.
-- grammar는 **이름 기반**으로 유지 — 특정 리그에 하드코딩하지 않는다.
-- 스타일 = grammar 공유. 개체가 달라도 grammar가 같으면 스타일이 같다.
+## 설계 결정
+
+- **메시는 FBX 원본을 그대로** — 절차 생성으로 돌아가려면 근거부터.
+- 리타깃은 이름 기반 + 회전 전용(Hips position 예외) 유지.

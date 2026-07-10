@@ -1,111 +1,82 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-<title>HktCharacter · Skeleton → Flesh</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>HktCharacter — FBX Viewer</title>
 <style>
-  :root{
-    --bg:#141019; --panel:rgba(28,22,38,0.74); --line:rgba(255,255,255,0.09);
-    --ink:#efe9f5; --ink-dim:#a99fc0; --accent:#ff9d6e; --accent-2:#8fd6ff; --ok:#7dd1a0;
-  }
-  *{box-sizing:border-box;}
-  html,body{margin:0;height:100%;background:var(--bg);color:var(--ink);
-    font-family:"Pretendard","Inter",system-ui,-apple-system,sans-serif;overflow:hidden;}
-  #app{position:fixed;inset:0;} canvas{display:block;width:100%;height:100%;}
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #14161a; }
+  #app { position: absolute; inset: 0; }
+  canvas { display: block; }
 
-  .hud{position:fixed;top:18px;left:20px;pointer-events:none;user-select:none;max-width:46ch;}
-  .hud .kicker{font-size:11px;letter-spacing:0.22em;text-transform:uppercase;color:var(--ink-dim);font-weight:600;}
-  .hud .title{font-size:19px;font-weight:700;margin-top:4px;letter-spacing:-0.01em;}
-  .hud .title b{color:var(--accent);}
-  .hud .sub{font-size:12.5px;color:var(--ink-dim);margin-top:3px;line-height:1.5;}
-
-  .panel{position:fixed;right:18px;top:18px;width:256px;background:var(--panel);
-    backdrop-filter:blur(14px);-webkit-backdrop-filter:blur(14px);border:1px solid var(--line);
-    border-radius:16px;padding:16px;box-shadow:0 20px 50px rgba(0,0,0,0.45);}
-  .panel h2{font-size:11px;letter-spacing:0.16em;text-transform:uppercase;color:var(--ink-dim);
-    margin:0 0 11px;font-weight:600;}
-  .panel h2:not(:first-child){margin-top:16px;padding-top:14px;border-top:1px solid var(--line);}
-  .row{margin:0 0 12px;}
-  .row label{display:flex;justify-content:space-between;font-size:12.5px;margin-bottom:6px;}
-  .row label span{color:var(--accent-2);font-variant-numeric:tabular-nums;}
-  input[type=range]{width:100%;-webkit-appearance:none;height:3px;border-radius:3px;background:rgba(255,255,255,0.16);outline:none;}
-  input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:15px;height:15px;border-radius:50%;background:var(--accent);cursor:pointer;border:2px solid #241b30;}
-  select{width:100%;font:inherit;font-size:12.5px;color:var(--ink);background:rgba(255,255,255,0.06);
-    border:1px solid var(--line);border-radius:9px;padding:8px 9px;outline:none;}
-  .btns{display:grid;grid-template-columns:1fr 1fr;gap:8px;}
-  .btns-wrap{grid-template-columns:repeat(3,1fr);}
-  .btns-wrap:empty{display:none;}
-  #extClips button{background:rgba(143,214,255,0.10);border-color:rgba(143,214,255,0.35);}
-  button{font:inherit;font-size:12px;font-weight:600;color:var(--ink);cursor:pointer;
-    background:rgba(255,255,255,0.06);border:1px solid var(--line);border-radius:10px;padding:9px 8px;transition:.15s;}
-  button:hover{background:rgba(255,255,255,0.11);}
-  button.on{background:rgba(255,157,110,0.16);border-color:rgba(255,157,110,0.5);color:#ffd0b6;}
-  .drop{margin-top:10px;border:1.5px dashed var(--line);border-radius:11px;padding:12px;text-align:center;
-    font-size:12px;color:var(--ink-dim);cursor:pointer;transition:.15s;line-height:1.5;}
-  .drop.hot{border-color:var(--accent);background:rgba(255,157,110,0.08);color:var(--ink);}
-  .status{margin-top:8px;font-size:11px;line-height:1.5;color:var(--ink-dim);}
-  .status b{color:var(--ok);}
-  .foot{position:fixed;left:20px;bottom:16px;font-size:11.5px;color:var(--ink-dim);pointer-events:none;line-height:1.6;}
-  .foot b{color:var(--ink);}
-  @media (max-width:680px){
-    .panel{right:10px;left:10px;top:auto;bottom:10px;width:auto;max-height:58vh;overflow:auto;}
-    .hud{left:14px;top:12px;max-width:26ch;} .foot{display:none;}
+  .hud {
+    position: absolute; top: 12px; left: 14px; color: #dfe3ea;
+    font: 13px/1.5 system-ui, 'Segoe UI', sans-serif; pointer-events: none;
+    text-shadow: 0 1px 2px rgba(0,0,0,.6);
   }
+  .hud b { font-size: 15px; }
+  #status { color: #9fb4d0; max-width: 46ch; }
+
+  .panel {
+    position: absolute; top: 12px; right: 12px; width: 220px;
+    background: rgba(22,26,32,.88); border: 1px solid #2c333d; border-radius: 10px;
+    padding: 12px; color: #cfd6df; font: 12px/1.5 system-ui, 'Segoe UI', sans-serif;
+    backdrop-filter: blur(4px);
+  }
+  .panel h3 { font-size: 11px; letter-spacing: .08em; color: #8b95a3;
+    text-transform: uppercase; margin: 10px 0 6px; }
+  .panel h3:first-child { margin-top: 0; }
+  .panel button {
+    background: #232a33; color: #cfd6df; border: 1px solid #37404c;
+    border-radius: 6px; padding: 4px 9px; margin: 2px 3px 2px 0;
+    font-size: 12px; cursor: pointer;
+  }
+  .panel button:hover { background: #2d3641; }
+  .panel button.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
+  .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .row label { flex: 0 0 auto; color: #8b95a3; }
+  .row input[type=range] { flex: 1; }
+
+  #drop {
+    position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
+    padding: 10px 22px; border: 1.5px dashed #46505d; border-radius: 10px;
+    color: #8b95a3; font: 13px system-ui, sans-serif; cursor: pointer;
+    background: rgba(22,26,32,.7); transition: all .15s;
+  }
+  #drop.hot { border-color: #3b82f6; color: #cfe0ff; background: rgba(35,50,80,.8); }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
 <div class="hud">
-  <div class="kicker">HktCharacter · skeleton → flesh</div>
-  <div class="title">Mixamo 리그 위에서 <b>살이 자란다</b></div>
-  <div class="sub">뼈대는 IR로 추상화 — 이름으로 반지름을 매기는 grammar 하나면 어떤 리그든 같은 스타일로 살이 붙는다. 동봉 로코모션 샘플(걷기·뛰기·대기·점프·공격·삼바)을 바로 재생하거나 Mixamo FBX를 드롭한다.</div>
+  <b>HktCharacter</b> — FBX 뷰어<br />
+  <span id="status">초기화 중…</span>
 </div>
 
 <div class="panel">
-  <h2>모션</h2>
-  <div class="row"><select id="clip">
-    <option value="walk">걷기 (built-in)</option>
-    <option value="idle">대기 (built-in)</option>
-    <option value="wave">손 흔들기 (built-in)</option>
-    <option value="external" id="extOpt" disabled>불러온 Mixamo 클립</option>
-  </select></div>
+  <h3>로코모션 샘플 (애니메이션)</h3>
+  <div id="samples"></div>
+  <h3>클립</h3>
+  <div id="clips"><span style="color:#5c6673">캐릭터/클립 없음</span></div>
+  <h3>재생</h3>
   <div class="row">
-    <label>속도 <span id="spdVal">1.0</span></label>
-    <input id="spd" type="range" min="0" max="2.4" step="0.02" value="1.0">
+    <label>속도</label>
+    <input id="spd" type="range" min="0" max="2" step="0.05" value="1" />
+    <span id="spdVal">1.0</span>
   </div>
-
-  <h2>살 grammar</h2>
-  <div class="row">
-    <label>뭉툭함 (smin) <span id="kVal">0.12</span></label>
-    <input id="k" type="range" min="0.05" max="0.9" step="0.01" value="0.12">
+  <h3>표시</h3>
+  <div>
+    <button id="btnMesh" class="on">메시</button>
+    <button id="btnBone">본</button>
+    <button id="btnGray">회색 재질</button>
+    <button id="btnWire">와이어</button>
+    <button id="btnSdf" title="스켈레톤 캡슐 SDF를 MarchingCubes 로 폴리곤화">SDF 살</button>
   </div>
-  <div class="row">
-    <label>통통함 <span id="fatVal">1.00</span></label>
-    <input id="fat" type="range" min="0.6" max="1.7" step="0.01" value="1.0">
-  </div>
-  <div class="btns">
-    <button id="btnBone">뼈대 보기</button>
-    <button id="btnFinger">손가락</button>
-    <button id="btnMesh" title="살을 레이마칭 대신 정점 메시로 — 뼈대에 링을 찍고 시트 형상으로 조정한 매체">정점 메시</button>
-  </div>
-
-  <h2>비율 프로파일</h2>
-  <div class="row"><select id="preset"></select></div>
-  <div id="propGroups"></div>
-
-  <h2>로코모션 (동봉 FBX)</h2>
-  <div id="fbxSamples" class="btns btns-wrap"></div>
-  <div id="extClips" class="btns btns-wrap" style="margin-top:8px;"></div>
-  <button id="btnBuiltin" style="margin-top:8px;width:100%;">내장 스켈레톤으로 복귀</button>
-
-  <h2>Mixamo 불러오기</h2>
-  <div id="drop" class="drop">FBX 파일을 여기에 드롭<br>(Mixamo → Download → FBX)</div>
-  <div id="status" class="status"></div>
 </div>
 
-<div class="foot">드래그 <b>회전</b> · 휠 <b>줌</b><br>뼈대=genome · 살=grammar · 모션=Mixamo</div>
+<div id="drop">Mixamo FBX 드롭 (with-skin 캐릭터 / 애니메이션) — 클릭하면 파일 선택</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>
