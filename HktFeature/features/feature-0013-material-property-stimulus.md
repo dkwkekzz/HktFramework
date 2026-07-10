@@ -114,9 +114,11 @@
 ## 검증 (항상 가능)
 
 ```bash
-npm test        # test/fire.test.js (자극·점화·연쇄·전소·보존·결정론) + 기존 회귀 전부
-npm run shot    # 시각 — 뜨거운 결정이 달아오르고 이웃으로 불이 번져 전소
-./run.sh 6      # 라이브 — 열원 근처 가연성 결정에서 불이 붙어 번진다
+npm test           # 규칙 A fire.test.js(점화·연쇄·전소) · B melt.test.js(용해) · C shatter.test.js(파괴)
+                   #  · D blast.test.js(파이어볼 폭발 다채널) · D+ detonate.test.js(생명 없이 자폭) + 기존 회귀 전부
+npm run shot       # 시각(A·B) — 뜨거운 결정이 달아오르고 이웃으로 불이 번져 전소·용해
+npm run shot:detonate # 시각(D+) — 과충전 결정이 생명 없이 자폭(tx [폭발] 결정→심우주/국소장, 캐스터 없음)
+./run.sh 6         # 라이브 — 열원 근처 가연성 결정에서 불이 붙어 번지고, 물리력이 결정을 부수며, 이따금 과충전 결정이 터진다
 ```
 
 ## 상세 문서 인덱스
