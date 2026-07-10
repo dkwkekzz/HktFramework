@@ -218,8 +218,8 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       // ---- 2) 조정: 각 링 정점을 살 필드 표면으로 방사 투영 -------------------
       const N = def.around;
       const rows = [];     // rows[r][j] = vid
-      const project = (ring, dir, sMax) => {
-        const s = projectRay(ring.subset, globalK, ring.c.x, ring.c.y, ring.c.z, dir.x, dir.y, dir.z, sMax);
+      const project = (ring, dir, sMax, cap) => {
+        const s = projectRay(cap ? ring.subsetCap : ring.subset, globalK, ring.c.x, ring.c.y, ring.c.z, dir.x, dir.y, dir.z, sMax);
         // 다른 부위 관통 방지: 대략 반경의 2.2배를 넘는 탈출은 "몸통 반대편" 같은
         // 남의 표면이다 (팔 링의 안쪽 레이가 가슴을 뚫고 나가던 교훈) — rough 로 후퇴
         let r = s == null ? ring.rGuess : s;
@@ -232,16 +232,31 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       };
       const fieldOk = def.field(prefix);
       const visible = ordered.filter(s => fieldOk(s.id));
+      // 구 껍질 침수(flood) 차단: 링 평면을 축 방향으로 완전히 벗어난 loft 세그먼트는
+      // 그 링에는 "구 오버행"으로만 기여한다 — 반지름이 간격보다 크면 이웃 대역을
+      // 침수시킨다 (턱 디스크의 구가 목구멍을 메우고, 목 envelope 의 구가 위로 번지던
+      // 교훈 — 데이터에 있던 슬림 목이 이것 때문에 안 보였다). 매끈한 스택에선 이
+      // 제외가 무해하다 (가까운 세그먼트가 같은 표면을 이미 정의 — 구는 내부).
+      // 캡 링은 예외 — 돔(두정·가랑이)은 끝 디스크의 구가 그린다.
+      const FLOOD_MARG = 0.012;
       for (const ring of rings) {
         const sMax = ring.rGuess * 2.5 + 0.12;
         ring.sMax = sMax;
-        ring.subset = visible.filter(s => distToSegAxis(ring.c.x, ring.c.y, ring.c.z, s) <= sMax + s.rmax + (s.k ?? globalK) + 0.05);
+        const near = visible.filter(s => distToSegAxis(ring.c.x, ring.c.y, ring.c.z, s) <= sMax + s.rmax + (s.k ?? globalK) + 0.05);
+        const da = s => (s.ax - ring.c.x) * ring.n.x + (s.ay - ring.c.y) * ring.n.y + (s.az - ring.c.z) * ring.n.z;
+        const db_ = s => da(s) + s.bax * ring.n.x + s.bay * ring.n.y + s.baz * ring.n.z;
+        ring.subset = near.filter(s => {
+          if (!s.id.startsWith('loft:')) return true;
+          const a = da(s), b = db_(s);
+          return !(Math.min(a, b) > FLOOD_MARG || Math.max(a, b) < -FLOOD_MARG);
+        });
+        ring.subsetCap = near; // 캡 전용 — 돔 구 포함 전체
       }
-      const emitRing = (ring, dirFn) => {
+      const emitRing = (ring, dirFn, cap) => {
         const row = [];
         for (let j = 0; j < N; j++) {
           const dir = dirFn(j);
-          const r = project(ring, dir, ring.sMax);
+          const r = project(ring, dir, ring.sMax, cap);
           row.push(pushVert(
             ring.c.clone().addScaledVector(dir, r),
             ring.c.clone().addScaledVector(dir, ring.rGuess)));
@@ -251,11 +266,11 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       };
       // 시작 캡(돔): 극 → 극각 큰 순으로 링을 깔아 튜브 진행 방향과 정렬
       const capRing = (ring, e, phi) => emitRing(ring, j =>
-        dirAt(ring, j).multiplyScalar(Math.cos(phi)).addScaledVector(e, Math.sin(phi)));
+        dirAt(ring, j).multiplyScalar(Math.cos(phi)).addScaledVector(e, Math.sin(phi)), true);
       const first = rings[0], last = rings[rings.length - 1];
       const eS = first.n.clone().negate(), eE = last.n.clone();
       const emitPole = (ring, e) => {
-        const r = project(ring, e, ring.sMax);
+        const r = project(ring, e, ring.sMax, true);
         const vid = pushVert(ring.c.clone().addScaledVector(e, r), ring.c.clone().addScaledVector(e, ring.rGuess));
         groups.push({ child: ring.child, child2: ring.child2, w2: ring.w2, vids: [vid] });
         return vid;

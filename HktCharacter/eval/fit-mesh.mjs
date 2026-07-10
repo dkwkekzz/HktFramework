@@ -34,7 +34,9 @@ const OUTFILE = join(ROOT, 'src', 'meshfit.js');
 const PORT = process.env.HKT_EVAL_PORT ?? 5187;
 
 const F_STEP = 0.02, CLAMP = 0.02, MAXG = 0.005;
-const TORSO_F = [0.03, 0.62], DF_MAX_F = 0.40, HEAD_DX_F = 0.14;
+// 머리 폭 dx 는 목 대역(f≤0.18)까지 — flood 차단 후 목 링이 실제 목이 되어 시트 목 폭과
+// 비교가 성립한다 (침수 시절엔 어깨 웹 링이라 f 0.14 에서 잘랐다). 어깨 전이(f 0.19+)는 금지.
+const TORSO_F = [0.03, 0.62], DF_MAX_F = 0.40, HEAD_DX_F = 0.18;
 const LEG_F = [0.60, 0.96];
 
 // ---- 파일 IO / 시리즈 유틸 ---------------------------------------------------
