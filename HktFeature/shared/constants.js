@@ -141,8 +141,12 @@ export function crystalYield(species) {
 export const CREATURE_ATTACK_INTERVAL_TICKS = 2;  // 발산(전투) 판정 주기 — 이따금 터지는 근접전(대사보다 느슨)
 export const CREATURE_ATTACK_RADIUS = 200;        // 근접 사거리(px) — 채집(300)·반응(400)보다 가깝다(밀착 포식)
 export const CREATURE_ATTACK_POWER = 40;          // 한 번의 발산이 무너뜨리는 상대 질서(×attacker size)
-export const CREATURE_ATTACK_COST = 6;            // 발산 비용 = 질서를 깨는 일(×attacker size) → SINK(열, 되돌아오지 않음)
+export const CREATURE_ATTACK_COST = 6;            // 발산 기본 비용 = 발산하는 일(×attacker size) → SINK(열, 되돌아오지 않음)
 export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡는 비율(효율<1) — 나머지는 국소장으로 흩어진다
+// 방어력(feature-0008 step2) — "살아있다 = 제 질서를 끊임없이 붙잡는다"는 힘 그 자체. 죽으면(결정) 방어력 0
+//   → 채집(무비용)과 정합. 방어력 = CREATURE_DEFENSE × victim size(크기 비례). 뚫는 값(발산 비용)에 상대
+//   방어력만큼 더 든다 → 방어 센(큰) 먹이일수록 SINK 로 더 많이 나가고 순이득이 준다(공격력 vs 방어력).
+export const CREATURE_DEFENSE = 10;               // 방어력 계수 — 상대 방어를 뚫는 값(×victim size) → SINK(열). 순이득이 항상 양이도록(포식 유지) 붙잡는 이득보다 작게
 
 // --- 발산·파괴 = 방출형 (feature-0009) — 회수 없는 원거리 파괴 ---
 // 강탈(feature-0008)이 표적 에너지를 커플링해 일부 포획(수입)하는 것이라면, 방출은 표적의 질서를 *파괴만* 한다 —

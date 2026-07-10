@@ -17,6 +17,7 @@ import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, materialKey, dist3,
   CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER, CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
+  CREATURE_DEFENSE,
 } from '../shared/constants.js';
 
 function setup() {
@@ -79,6 +80,32 @@ test('손실적 — 포식자가 얻는 것은 먹이가 잃는 것보다 적다
   assert.equal(capture, Math.floor(damage * CREATURE_ATTACK_CAPTURE_PCT / 100), '강탈량 = damage×효율(나머지는 세계로)');
   assert.ok(s.bal(POOL.SINK) > sink0, '발산 비용이 심우주로 나갔다(엔트로피 화살)');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+});
+
+test('방어력 — 방어 센(큰) 먹이일수록 뚫는 값(발산 비용)이 크고 순이득이 작다 (공격력 vs 방어력)', () => {
+  // 같은 포식자(size 3)가 방어력 다른 두 먹이를 친다: 약한 방어(size 1) vs 센 방어(size 2, 둘 다 size< 3=먹이).
+  //   방어력 = CREATURE_DEFENSE × 먹이 size → 뚫는 값(발산 비용=SINK)이 방어에 비례해 커지고, 붙잡는 이득은
+  //   공격자 size 로 같으니 순이득(capture−burst)이 센 방어일수록 준다. "살아서 지키는 힘"이 코드로 검증된다.
+  const strike = (preySize) => {
+    const s = setup();
+    const A = s.makeCreature(500, 500, 500, 3, 2500);            // 포식자(size 3) — 굶지 않게 넉넉히
+    s.makeCreature(600, 500, 500, preySize, 700);               // 먹이 — 사거리(200) 안, 둘 다 A 보다 작다
+    s.runTicks(3);                                              // 한 번의 발산(tickCount 2)만 발화
+    const txs = s.attackTxs();
+    const burst = txs.filter(o => o.cause === 'burst').reduce((a, o) => a + o.amount, 0);        // 뚫는 값 → SINK
+    const capture = txs.filter(o => o.cause === 'attack' && o.to === A.id).reduce((a, o) => a + o.amount, 0);
+    assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+    return { burst, capture, net: capture - burst };
+  };
+  const weak = strike(1), tough = strike(2);
+
+  // 뚫는 값은 상대 방어력(크기)에 비례해 커진다 — 정확히 CREATURE_DEFENSE 만큼(size 2−1=1 차이).
+  assert.ok(tough.burst > weak.burst, `방어 센 먹이가 뚫는 값이 크다 (${weak.burst} < ${tough.burst})`);
+  assert.equal(tough.burst - weak.burst, CREATURE_DEFENSE, '뚫는 값 차이 = 방어력 계수(크기 1 차이)');
+  // 붙잡는 이득은 공격자 size 로 같으니 순이득은 방어 센 먹이일수록 작다 — 그래도 둘 다 양(포식 유지).
+  assert.equal(weak.capture, tough.capture, '붙잡는 이득은 공격력(공격자 size)으로 정해져 먹이 방어와 무관');
+  assert.ok(weak.net > tough.net, `방어 센 먹이는 순이득이 작다 (${tough.net} < ${weak.net})`);
+  assert.ok(tough.net > 0, '방어 센 먹이여도 순이득은 양 — 포식은 여전히 값어치 있다');
 });
 
 test('포식 창발 — 작은 개체는 큰 개체를 치지 못한다 (강자→약자 일방)', () => {

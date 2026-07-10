@@ -33,7 +33,7 @@ import {
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
   CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
   CREATURE_ATTACK_INTERVAL_TICKS, CREATURE_ATTACK_RADIUS, CREATURE_ATTACK_POWER,
-  CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT,
+  CREATURE_ATTACK_COST, CREATURE_ATTACK_CAPTURE_PCT, CREATURE_DEFENSE,
   DISCHARGE_INTERVAL_TICKS, DISCHARGE_RADIUS, DISCHARGE_POWER, DISCHARGE_COST, DISCHARGE_BURN_PCT,
   DISCHARGE_BLAST_RADIUS, DISCHARGE_HEAT, FIREBALL_SPEED, FIREBALL_MAX_LIFETIME,
   CRYSTAL_DETONATE_THRESHOLD, CRYSTAL_DETONATE_MAG_CAP,
@@ -675,9 +675,11 @@ export class GameServer {
   // 타격(강탈) — feature-0008 의 세 갈래 회계를 한 곳으로 뽑았다(자율 #combat + 절차 hunt 공용). 저항하는 먹이
   //   에서 뜯어내는 손실적 수입: ① 발산 비용 A→SINK(질서 깨는 열) ② 붕괴 damage ③ 회수 CAPTURE_PCT 만 A 로,
   //   나머지는 국소장으로 흩어진다(효율<1 = 얻는 것 < 뺏는 것). 예비 없으면 못 친다. 전부 ledger.transfer → 보존.
+  //   방어력(step2): 뚫는 값(발산 비용)에 상대 방어력(=CREATURE_DEFENSE×prey.size, 살아서 지키는 힘=크기 비례)이
+  //   더해진다 → 방어 센(큰) 먹이일수록 SINK 로 더 나가고 순이득이 준다(공격력 vs 방어력). 죽으면 결정=방어력 0.
   #strike(A, prey) {
-    const cost = CREATURE_ATTACK_COST * A.size;
-    if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) return 0; // 굶주리면 사냥할 여력 없음
+    const cost = CREATURE_ATTACK_COST * A.size + CREATURE_DEFENSE * prey.size; // 기본 발산 + 상대 방어 뚫는 값
+    if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) return 0; // 굶주리면 사냥할 여력 없음(방어 센 먹이는 더 부담)
     this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });                   // ① 발산 비용 → 열
     const damage = Math.min(CREATURE_ATTACK_POWER * A.size, this.ledger.balance(prey.id));
     if (damage <= 0) return 0;                                                          // ② 붕괴
