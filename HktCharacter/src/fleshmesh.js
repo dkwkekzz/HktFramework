@@ -15,6 +15,7 @@
 //  음영이 구성상 매끄럽다. SDF 는 빌드 시 "조정의 진실 원천"으로만 쓰인다.
 // ===========================================================================
 import * as THREE from 'three';
+import { MESH_FIT } from './meshfit.js';
 
 // ---- SDF 필드 — main.js frag 의 map()/sdSeg() JS 포트 (빌드 시 투영 전용) ----
 function smin(a, b, k) {
@@ -124,13 +125,19 @@ function projectRay(subset, gk, cx, cy, cz, dx, dy, dz, sMax) {
 // 관통해 팔을 감싸거나(가슴 선반), 팔 레이가 가슴에 들러붙는 교차 오염을 막는다.
 const otherSide = side => (side === 'Left' ? 'Right' : 'Left');
 const CHAIN_DEFS = [
-  { bones: ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End'], around: 24, mirror: false, inset: 0,
-    field: () => id => !/Arm|Hand/.test(id) },
-  { bones: ['Leg', 'Foot'], around: 18, mirror: true, inset: 0.0015,
-    field: side => id => !/Arm|Hand/.test(id) && !id.includes(otherSide(side)) },
+  // 몸통이 다리를 보면 골반 링/가랑이 캡 레이가 허벅지 표면을 몸통 토폴로지에 찍어
+  // 힙·가랑이·둔부 플랩이 된다(교훈) — 허벅지 폭 실루엣은 다리 체인이 들고 있으므로
+  // 몸통 필드에서 다리 전체 제외 (골반 loft·둔부 extras 는 몸통 몫으로 유지).
+  { bones: ['Spine', 'Spine1', 'Spine2', 'Neck', 'Head', 'HeadTop_End'], around: 32, mirror: false, inset: 0, fitKey: 'torso',
+    field: () => id => !/Arm|Hand|Leg|Foot|Toe/.test(id) },
+  // 다리도 자기 살만 본다 — 골반·둔부까지 보면 허벅지 상단 레이가 그 표면을 찍어
+  // "반바지" 스캘럽이 된다. 힙 실루엣(크레스트·둔부)은 몸통 체인 몫 (골반 loft 가
+  // 시트 폭을 행별로 이미 보유), 다리는 순수 허벅지~발목 loft — 매끈함이 보장된다.
+  { bones: ['Leg', 'Foot'], around: 22, mirror: true, inset: 0.0015,
+    field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
   { bones: ['ToeBase'], around: 12, mirror: true, inset: 0.0015,
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
-  { bones: ['Arm', 'ForeArm', 'Hand'], around: 12, mirror: true, inset: 0.0015,
+  { bones: ['Arm', 'ForeArm', 'Hand'], around: 14, mirror: true, inset: 0.0015,
     field: side => id => /Arm|Hand|Shoulder/.test(id) && !id.includes(otherSide(side)) },
 ];
 const UNIFORM_TS = [0, 0.25, 0.5, 0.75, 1]; // loft 없는 뼈(팔 등)의 균등 링
@@ -258,6 +265,40 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       for (const phi of CAP_PHIS) capRing(last, eE, phi);
       const poleEnd = emitPole(last, eE);
 
+      // ---- 2.5) 시트 잔차 보정 (fit-mesh 데이터 — 측면 프로파일 df/db) -------
+      // 투영 결과 위에 시트 대비 잔차를 정점 단계에서 직접 얹는다: 링의 +z/−z
+      // 반쪽을 경계 이동량만큼 비례 스케일 (경계 정점이 정확히 이동, 중심은 고정).
+      const fitRows = MESH_FIT[def.fitKey]?.rows;
+      if (fitRows?.length) {
+        const interp = y => {
+          if (y >= fitRows[0].y) return null; // rows 는 y 내림차순 정렬
+          if (y <= fitRows[fitRows.length - 1].y) return null;
+          let i = 0; while (i + 1 < fitRows.length && fitRows[i + 1].y > y) i++;
+          const a = fitRows[i], b = fitRows[i + 1];
+          const t = (a.y - y) / Math.max(a.y - b.y, 1e-6);
+          return { df: a.df + (b.df - a.df) * t, db: a.db + (b.db - a.db) * t };
+        };
+        for (let r = 0; r < rows.length; r++) {
+          const row = rows[r];
+          // 이 행의 링 중심 y = 정점 평균 (캡 링 포함 — 범위 밖은 interp 가 거른다)
+          let cy = 0, cz = 0;
+          for (const vid of row) { cy += positions[vid * 3 + 1]; cz += positions[vid * 3 + 2]; }
+          cy /= row.length; cz /= row.length;
+          const d = interp(cy);
+          if (!d) continue;
+          let maxP = 0, maxN = 0;
+          for (const vid of row) {
+            const oz = positions[vid * 3 + 2] - cz;
+            if (oz > maxP) maxP = oz; if (-oz > maxN) maxN = -oz;
+          }
+          for (const vid of row) {
+            const oz = positions[vid * 3 + 2] - cz;
+            if (oz > 0.004 && maxP > 1e-6) positions[vid * 3 + 2] += d.df * (oz / maxP);
+            else if (oz < -0.004 && maxN > 1e-6) positions[vid * 3 + 2] -= d.db * (-oz / maxN);
+          }
+        }
+      }
+
       // ---- 토폴로지: 이웃 링 쿼드 스트립 + 극 팬 (권선 = 바깥 법선) ----------
       const R = rows.length;
       for (let r = 0; r + 1 < R; r++) {
@@ -304,7 +345,7 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       }
       for (let i = 0; i < nv * 3; i++) positions[i] = tmp[i];
     };
-    for (let it = 0; it < 8; it++) { pass(0.5); pass(-0.53); }
+    for (let it = 0; it < 10; it++) { pass(0.5); pass(-0.53); }
   }
 
   // ---- 정점을 뼈-로컬로 저장: p = a + quat · local — FK 상속의 전부.
