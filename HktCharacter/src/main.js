@@ -315,8 +315,11 @@ function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
   const zdir = new THREE.Vector3(0, 0, 1).applyQuaternion(quat).normalize();
   const xdir = new THREE.Vector3(1, 0, 0).applyQuaternion(quat).normalize();
   const D = spec.disks;
-  const k = spec.k ?? 0.008; // 같은 뼈 안 원판끼리는 좁게 — 한 표면처럼. smin 사슬은
-  // 이웃 세그먼트 등거리 지점(원판 평면)마다 표면을 k/4 부풀린다 — k 를 줄여 리플 최소화.
+  // 스택 내부 k: 이웃 cone 세그먼트의 기울기 불연속(면 각짐)이 준-툰 셰이딩에서 가로
+  // 밴드로 증폭된다 — k 가 이음새를 둥글린다 (0.004 로 줄이면 다리가 골판지가 되는 교훈).
+  // 대가는 원판 평면마다 k/4(4mm) 균일 부풀음 — 스무스한 사슬에선 리플이 아니라 전체
+  // 두께 +4mm 로 읽히고, 재피팅(compose SHRINK)이 데이터에서 도로 빼서 수렴한다.
+  const k = spec.k ?? 0.016;
   // k0/k1: 스택 첫/끝 세그먼트의 관절 경계 blend — 이웃 살(골반↔허벅지 등)과의
   // 웰드 주름을 넓게 편다 (스택 내부 k 와 분리 — LOFT-PLAN §4 "관절 경계만 blend").
   // ⚠ 축 방향 납작화(팬케이크)는 시도 후 폐기 — 필드가 f2 배 줄어 히트 임계값이 월드로

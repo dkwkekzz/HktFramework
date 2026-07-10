@@ -28,8 +28,16 @@
    ⚠ **round-cone 은 원판이 아니라 "구의 볼록 껍질"** — 반지름이 축 간격보다 급히 줄면 큰
    원판의 구가 축 방향으로 반지름만큼 튀어나온다 (두정이 +6cm 솟아 f 정렬 전체가 오염됐던
    교훈). 두정은 "구 돔 꼭대기 == crown" 이 되는 원판에서 스택을 자른다 (fit 이 처리).
-   ⚠ smin 사슬은 이웃 세그먼트 등거리 지점(원판 평면)마다 표면을 k/4 부풀린다 — 스택 내부
-   k 는 0.008 기본, 목만 k 0.05 (승모근·어깨와의 웹이 시트의 어깨 경사선을 만든다).
+   ⚠ 스택 내부 k 기본 0.016 — 이웃 cone 세그먼트의 기울기 불연속(면 각짐)이 준-툰 셰이딩
+   에서 가로 밴드로 증폭되는 걸 둥글린다 (0.004 로 줄이면 다리가 골판지가 된다 — 교훈.
+   k/4 균일 부풀음은 재피팅의 compose SHRINK 가 데이터에서 도로 빼 수렴). 목만 k 0.05
+   (승모근·어깨와의 웹이 시트의 어깨 경사선). 스택 첫/끝 세그먼트는 `k0`/`k1` 로 관절
+   경계 blend 를 분리 — 허벅지 k0 0.04 가 골반과의 웰드 주름을 편다.
+   ⚠ 정면 시트의 허리~골반 대역은 팔·손 획이 몸 윤곽을 가린다(envelope=팔) — fit-loft 는
+   후면 뷰 윤곽 추적(traceContour, 좌/우 min)으로 그 대역의 폭을 얻는다. 이게 없으면 그
+   대역은 영원히 self-copy 다 (교훈). 골반 하단은 가랑이 rEmit 클램프(기저귀 살 방지),
+   허벅지 상단은 돔 가드(새들백 방지)가 fit 에서 자른다. 축 납작화(팬케이크)는 시도 후
+   폐기 — 히트 임계 인플레이션 + 법선 왜곡 (emitLoft 주석).
    **Detail 층**(캡슐 경로용): rules/extras 는 선택적으로 `k`, `flatten`·`flatten2`(2축 납작화,
    f<0 은 one-sided), `op:'cut'` 을 가진다. 셰이더는 평범한 캡슐(저비용)과 detail 세그먼트를
    구간 분리 순회(`uDetailStart`/`uCutStart`) — loft 세그먼트는 전부 detail 경로.
@@ -64,8 +72,12 @@
 - `eval/` — **Evaluator**: `evaluate.mjs`(실루엣 계측·판정·오버레이 — `HKT_EVAL_VP=WxH` 축소
   뷰포트, `HKT_EVAL_VIEWS=front,side` 뷰 분할 실행 지원) + `lib.mjs`(공용 계측 로직)
   + `fit-loft.mjs`(**시트 → loft 원판 피팅** — `--stage all` 또는 front-torso/side-torso/
-  build-torso/front-legs/side-legs/build-legs/apply 하위 단계 분할. 결과 `eval/out/loft-fit.json`
-  → proportions.js 의 loft 절로 반영)
+  front-legs/side-legs/back-legs(후면 윤곽 추적용)/build-torso/build-legs/apply 하위 단계 분할.
+  계측 전부 → 빌드 순서. 결과는 `apply-fit.mjs` 로 proportions.js 의 loft 절에 기계 반영)
+  + `apply-fit.mjs`(fit-torso/legs.json → proportions.js loft 절 갱신 — 수작업 붙여넣기 금지)
+  + `shot.mjs`(**눈 검증 스크린샷 CLI** — `--az/--el/--dist/--ty` 임의 카메라, `--shots` JSON
+  배열로 여러 장. Evaluator 는 실루엣만 보므로 음영 아티팩트는 이걸로 눈 검증)
+  + `smoke-run.mjs`(standard 프리셋·손가락·걷기 클립 스모크 — 페이지 오류 감지)
   + `optimize.mjs`(**프로파일 자동 최적화** — dense 라인 손실 좌표 하강. loft 전환 후 파라미터는
   잔여 캡슐(팔·어깨)·extras·골격·포즈만, `node eval/optimize.mjs [--baseline|--sweeps N]`)
   + `fixtures/reference-sheet.jpeg`(기준 캐릭터 시트 — 민머리 소체 3뷰).
@@ -99,17 +111,19 @@ npm run dev      # http://localhost:5173
 동봉 로코모션 FBX 샘플(걷기·뛰기·대기·점프·공격·삼바) 원클릭 재생, 다중 클립 크로스페이드 전환, 실제 FBX 드롭,
 **비율 프로파일**(standard/reference 프리셋 + 머리/가슴/허리/엉덩이/팔/다리 그룹 슬라이더 + 볼륨 헬퍼),
 **원판 로프트 살 층**(몸통·목·두상·다리 — 시트 자동 피팅, 두상 블렌드 융기 소멸, eval 3뷰
-3지표 PASS · dense 손실 0.0091 = 캡슐+최적화 기준과 동급을 피팅만으로 달성), **flatten 2축/one-sided**,
-**자세 정렬**(요추 아치·다리 전후 배치·팔 전방 스윙 — eval 중심선 지표 3방향 PASS).
+3지표 PASS), **flatten 2축/one-sided**, **자세 정렬**(요추 아치·다리 전후 배치·팔 전방 스윙),
+**음영 품질 1차 정리**(2026-07: 힙 새들백 크리스·골반 "기저귀 살" 랫칫·다리 골판지 밴드·
+가슴판 융합·둔부 bolted-on lump·어깨 스파이크·팔꿈치 웰드 lump 해소 — 후면 윤곽 추적 피팅
++ 관절 경계 k0/k1 + 스택 내부 k 0.016 + extras 재정합. eval 폭 MAE front 0.0099→0.0076,
+back max 0.028→0.019).
 
 **다음 (우선순위 순)**:
-1. **loft 잔차 다듬기**: dense 손실 0.0091 의 남은 지배 항은 매체가 아니라 **데이터 모순** —
-   시트의 팔 포즈가 렌더와 달라 측면 f≈0.39 대역이 −0.1H(환원 불가), 정면/후면 그림의 힙
-   최광부가 ~1cm 불일치(fit-loft 가 교집합 보정). 남은 것: 팔 loft 전환 여부 판단,
-   가슴 extras 를 측면 시트 라인에 재정합, one-sided 비대칭 단면(4반경) 원판 확장.
-   ⚠ 교훈: Evaluator 는 실루엣만 본다 — 반드시 렌더 눈 검증 병행. ← "스타일"의 2차 정의.
-2. **Detail 층 심화**(캡슐 경로): 프리미티브 추가(토러스·쐐기), 손가락 마디·발 아치 세분화,
-   cut 적용처 발굴, 가슴 볼륨 경계 음영·one-sided 킹크 정리(실루엣엔 안 잡힘 — 눈 검증 항목).
+1. **loft 잔차 다듬기**: 남은 지배 항은 **데이터 모순** — 시트의 팔 포즈가 렌더와 달라 측면
+   f 0.40~0.57 대역은 시트 불신 밴드(fit-loft handBand)로 고정. 남은 것: 팔 loft 전환 여부,
+   one-sided 비대칭 단면(4반경) 원판 확장, 측면 가슴 라인 미세 정합.
+   ⚠ 교훈: Evaluator 는 실루엣만 본다 — 반드시 `eval/shot.mjs` 렌더 눈 검증 병행.
+2. **Detail 층 심화**(캡슐 경로): 프리미티브 추가(토러스·쐐기), 손가락 마디·발 아치/발가락
+   세분화(현 발은 발목→발끝 테이퍼 캡슐 수준), cut 적용처 발굴, 가슴 볼륨 경계 음영 정리.
 3. **UE5 다리 — 메시화**: 바인드 포즈에서 SDF 필드를 marching cubes / dual contouring으로 메시화.
    각 표면 정점의 스킨 웨이트는 "그 정점에 어느 뼈 SDF가 얼마나 기여했나"에서 자동 도출 → 스키닝 공짜.
 4. **Evaluator 확장**: 실루엣 회귀는 구현됨(eval/). 남은 것 — 자기충돌 부피, 관절 볼륨 보존,

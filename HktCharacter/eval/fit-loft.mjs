@@ -385,7 +385,12 @@ function buildLegs() {
   const F = readJ('fit-view-front-legs.json'), S = readJ('fit-view-side-legs.json');
   const B = readJ('fit-view-back-legs.json');
   const joints = F.joints;
-  const Flo = compose(F.lo, -1), Fhi = compose(F.hi, +1), Slo = compose(S.lo, -1), Shi = compose(S.hi, +1);
+  // 측면 시트의 손·팔 획이 허벅지 앞 경계를 가리는 대역 — 시트 팔 포즈가 렌더와 달라
+  // 환원 불가(LOFT-PLAN §9). 시트를 따르면 zf 가 행마다 파여 허벅지 표면 물결이 된다(교훈)
+  // → 이 대역은 가시성 검사를 강제로 끄고 part(현재 렌더)를 유지한다.
+  const handBand = rows => rows.map(r => (r.f > 0.40 && r.f < 0.57 ? { ...r, vis: false } : r));
+  const Flo = compose(F.lo, -1), Fhi = compose(F.hi, +1);
+  const Slo = compose(handBand(S.lo), -1), Shi = compose(handBand(S.hi), +1);
   const hipHalfAt = hipHalfFn(B);
   const crotchY = joints.LeftUpLeg.pos[1] - 0.075; // 가랑이 — 시트 다리 분기점의 해부학 근사
   const crotchF = (F.crownY - crotchY) / (F.crownY - F.toeY);
@@ -438,8 +443,10 @@ function buildLegs() {
       disks.push({ t: r4(t), rx, zf: zf - ax[2], zb: zb - ax[2], xo });
     }
     if (disks.length < 2) { console.error(`⚠ ${st.key}: 유효 원판 ${disks.length}개 — 건너뜀`); continue; }
+    // 다리는 한 번 더 이동 평균 — 시트 행 노이즈가 원판 반경 요동으로 남으면 허벅지·정강이
+    // 표면에 가로 물결(음영)로 뜬다. 무릎·종아리 곡률은 5원판 이상에 걸쳐 있어 살아남는다.
     for (const kk of ['rx', 'zf', 'zb', 'xo']) {
-      const sm = smoothSeries(disks.map(d => d[kk]));
+      const sm = movAvg3(smoothSeries(disks.map(d => d[kk])));
       disks.forEach((d, i) => { d[kk] = r4(sm[i]); });
     }
     // 허벅지 상단 돔 가드: round-cone 은 "구의 볼록 껍질" — 첫 원판의 구가 위(골반 쪽)로
