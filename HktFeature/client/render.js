@@ -9,7 +9,7 @@
 
 import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
-const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', discharge: '방출', cook: '요리', craft: '제조' };
+const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', emit: '발산', detonate: '폭발', discharge: '방출', cook: '요리', craft: '제조', heat: '가열', combust: '연소', melt: '용해', shatter: '파괴' };
 // 욕구 라벨/색 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 적는다.
 const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조' };
 

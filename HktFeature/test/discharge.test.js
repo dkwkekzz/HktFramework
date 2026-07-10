@@ -1,12 +1,14 @@
 // ============================================================================
-// feature-0009 step1 — 발산·파괴 = 방출형: 표적의 질서를 세계로 흩어버린다
+// feature-0009 — 발산: 생명체가 에너지를 발산해 파이어볼(투사체)을 쏜다 (생명의 행위)
 //
-// 직관(물리): 강탈(feature-0008)이 표적 에너지를 커플링해 일부 포획(수입)하는 것이라면, 방출은 표적의
-//   질서를 *파괴만* 한다 — 붕괴 에너지가 캐스터가 아니라 세계(심우주 열 + 국소장 연기)로 흩어진다. 그래서:
-//     · 회수 없음 — 표적이 잃은 것은 그 어떤 tx 로도 캐스터에게 가지 않는다(강탈=내가 큼 / 방출=내가 줌).
-//     · 크기 무관 — 약자도 강자를 태운다(포식의 한계를 뚫는 값비싼 반격).
-//     · 완전 연소 — 세게 맞아 예비가 무너진 표적은 잔해 결정조차 없이 전소해 사라진다.
-// 강제: 발산·파괴 전부 ledger.transfer(보존·정수). "사라진다"는 엔티티 소멸일 뿐 — 총합 = 10⁹ 불변.
+// 직관(물리): 발산은 **생명의 행위**다 — 내부 에너지를 폭발적으로 밀어내 비생명 농축 에너지 덩어리
+//   (파이어볼)를 만들어 표적 자리로 보낸다. 여기서 생명체의 관여는 끝난다. 그 덩어리가 *터지는* 것
+//   (폭발)은 물질의 사건이라 별개다(feature-0013 규칙 D = detonate). 강탈(feature-0008)이 표적 에너지를
+//   커플링해 일부 포획(수입)하는 것이라면, 발산은 순수 지출(먹지 않음·회수 없음)이다.
+//     · 회수 없음 — 발산·폭발의 어떤 흐름도 캐스터로 돌아가지 않는다(강탈=내가 큼 / 발산=내가 줌).
+//     · 조준 = 먹을 수 없는 상대(size ≥ 자신) — 강탈(먹이=size<)과 크기로 겹치지 않게 갈랐다(못 먹으니 폭탄).
+//     · 원거리 — 근접 강탈보다 긴 사거리에서 표적을 겨눈다(투사체).
+// 강제: 발산 전부 ledger.transfer(보존·정수). 생명체 → 파이어볼(B:) → (폭발) 세계. 총합 = 10⁹ 불변.
 // ============================================================================
 
 import { test } from 'node:test';
@@ -15,7 +17,7 @@ import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
 import {
   POOL, WORLD_SOURCE_INITIAL, dist3,
-  CREATURE_ATTACK_RADIUS, DISCHARGE_RADIUS, DISCHARGE_BURN_PCT,
+  CREATURE_ATTACK_RADIUS, DISCHARGE_RADIUS,
 } from '../shared/constants.js';
 
 function setup() {
@@ -27,117 +29,113 @@ function setup() {
   const bal = (id) => game.ledger.balance(id);
   const total = () => game.ledger.totalSum();
   const runTicks = (n) => { for (let i = 0; i < n; i++) game.tick(); };
-  const alive = (c) => game.creatures.has(c.id) && bal(c.id) > 0;
-  const sumPrefix = (prefix) => { let s = 0; for (const [id, p] of game.ledger.pools) if (id.startsWith(prefix)) s += p.balance; return s; };
   const ops = () => msgs.filter(m => m.t === MSG.OPS).flatMap(m => m.ops);
-  const dischargeTxs = () => ops().filter(o => o.cause === 'discharge');
-  const burstTxs = () => ops().filter(o => o.cause === 'burst');
-  // 생명체를 원하는 스탯·잔고로 세팅(백박스).
-  const makeCreature = (x, y, z, size, fill) => {
+  const txOf = (cause) => ops().filter(o => o.cause === cause);
+  // 생명체를 원하는 스탯·잔고로 세팅(백박스). owned=주인 부여(자율 발산/전투 안 함, 반격 없는 표적).
+  const makeCreature = (x, y, z, size, fill, opts = {}) => {
     const c = game.spawnCreature(x, y, z);
-    if (size > 1) { c.size = size; game.ledger.get(c.id).max = 1000 * size; }
+    if (size > 1) { c.size = size; game.ledger.get(c.id).max = 2000 * size; }
     const cur = bal(c.id);
     if (fill > cur) game.ledger.transfer(POOL.SOURCE, c.id, fill - cur, 'seed');
     else if (fill < cur) game.ledger.transfer(c.id, POOL.SINK, cur - fill, 'seed');
+    if (opts.owned) c.owner = 'P:ghost';
     return c;
   };
-  return { game, bal, total, runTicks, alive, makeCreature, dischargeTxs, burstTxs, cryTotal: () => sumPrefix(POOL.CRYSTAL) };
+  return {
+    game, bal, total, runTicks, ops, makeCreature,
+    emitTxs: () => txOf('emit'), burstTxs: () => txOf('burst'), detonateTxs: () => txOf('detonate'),
+  };
 }
 
-test('회수 없음 — 방출로 흩어진 에너지는 절대 생명체(캐스터)로 가지 않는다 (강탈과의 결정적 대비)', () => {
+test('발산 = 생명체가 파이어볼(투사체)을 만들어 쏜다 — 생명체 → 파이어볼(B:) 이체', () => {
   const s = setup();
-  // 동급(size 1) 두 개체 — 강탈(size< )은 안 일어나고 방출만 일어나 회수 여부를 순수 관측.
-  const A = s.makeCreature(500, 500, 500, 1, 700);
-  const B = s.makeCreature(700, 500, 500, 1, 700);
-  s.runTicks(5); // 방출 판정은 tickCount 4 에서 첫 발화(INTERVAL=4)
+  const A = s.makeCreature(1000, 1000, 500, 2, 4000);            // 캐스터(야생)
+  const T = s.makeCreature(1000, 1200, 500, 2, 3000, { owned: true }); // 먹을 수 없는 표적(size≥, 반격 없음)
+  s.runTicks(5); // 첫 발산은 tickCount==4
 
-  const txs = s.dischargeTxs();
-  assert.ok(txs.length > 0, '방출(파괴) tx 가 방송된다');
-  // 파괴 흐름의 종착은 심우주(SINK)·국소장(M:)뿐 — 생명체(C:)로 가는 discharge tx 는 하나도 없다.
-  const toCreature = txs.filter(o => o.to.startsWith(POOL.CREATURE));
-  assert.equal(toCreature.length, 0, '방출은 회수가 없다 — 표적 에너지가 캐스터로 흐르지 않는다');
-  assert.ok(txs.every(o => o.to === POOL.SINK || o.to.startsWith(POOL.MATERIAL)), '종착은 심우주(열)·국소장(연기)뿐');
-  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '방출에도 보존 불변(사라진 건 없다 — 세계로 흩어졌을 뿐)');
+  const emit = s.emitTxs();
+  assert.ok(emit.length > 0, '발산 tx 가 방송된다');
+  assert.ok(emit.every(o => o.from === A.id && o.to.startsWith(POOL.FIREBALL)), '발산 = 생명체 → 파이어볼(B:) — 투사체에 에너지를 싣는다');
+  assert.ok(s.burstTxs().some(o => o.from === A.id && o.to === POOL.SINK), '발사 비용은 심우주로 지불(만들어 쏘는 일 = 열 손실)');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '발산에도 보존 불변');
 });
 
-test('파괴 = 분산 — 표적은 줄고, 붕괴 에너지는 심우주(열)+국소장(연기)로, 캐스터는 순손실', () => {
+test('회수 없음 — 발산·폭발의 어떤 흐름도 캐스터(생명체)로 돌아가지 않는다 (강탈과의 결정적 대비)', () => {
   const s = setup();
-  const A = s.makeCreature(500, 500, 500, 1, 900); // 캐스터(넉넉)
-  const B = s.makeCreature(700, 500, 500, 1, 90);  // 표적(발산 예비 없음 → 반격 못 함): cost(20)+예비(60)=80 초과분만 발사 가능
-  const sink0 = s.bal(POOL.SINK);
+  const A = s.makeCreature(1000, 1000, 500, 2, 4000);
+  const T = s.makeCreature(1000, 1200, 500, 2, 3000, { owned: true });
   s.runTicks(5);
 
-  // 표적이 잃은 것을 tx 로 읽는다(대사와 분리): 열(→SINK) + 연기(→국소장).
-  const txs = s.dischargeTxs().filter(o => o.from === B.id);
-  const burn = txs.filter(o => o.to === POOL.SINK).reduce((a, o) => a + o.amount, 0);
-  const smoke = txs.filter(o => o.to.startsWith(POOL.MATERIAL)).reduce((a, o) => a + o.amount, 0);
-  assert.ok(burn > 0 && smoke > 0, '붕괴 에너지가 열(심우주)과 연기(국소장) 둘로 흩어졌다');
-  assert.equal(burn, Math.floor((burn + smoke) * DISCHARGE_BURN_PCT / 100), '태운 비율 = BURN_PCT(나머지는 연기)');
-  assert.ok(s.burstTxs().some(o => o.from === A.id && o.to === POOL.SINK), '캐스터는 발산 비용을 심우주로 지불(순손실)');
-  assert.ok(s.bal(POOL.SINK) > sink0, '심우주가 늘었다(파괴는 세계를 데운다 = 엔트로피 주입)');
+  // 발산(emit)·폭발(detonate)·발사(burst) 어떤 tx 도 종착이 캐스터가 아니다 — 순수 지출(먹지 않음).
+  const flows = [...s.emitTxs(), ...s.detonateTxs(), ...s.burstTxs()];
+  assert.ok(flows.length > 0, '발산·폭발 흐름이 실제로 발생했다');
+  assert.equal(flows.filter(o => o.to === A.id).length, 0, '캐스터로 돌아오는 흐름이 없다 — 발산은 순수 지출');
+  // 발산은 파이어볼(B:)·심우주·국소장으로만 나간다(생명체로 회수 없음).
+  assert.ok(s.emitTxs().every(o => o.to.startsWith(POOL.FIREBALL)), '발산 종착은 파이어볼뿐');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
 });
 
-test('원거리 — 근접 강탈 사거리 밖의 표적도 방출로 타격한다 (투사체)', () => {
+test('조준 = 먹을 수 없는 상대(size ≥) — 더 작은 먹이(size<)에는 발산하지 않는다 (강탈과 분업)', () => {
   const s = setup();
-  const mid = Math.round((CREATURE_ATTACK_RADIUS + DISCHARGE_RADIUS) / 2); // 강탈 사거리 밖, 방출 사거리 안
-  assert.ok(mid > CREATURE_ATTACK_RADIUS && mid < DISCHARGE_RADIUS);
-  // 관전자 지역 커버리지(스폰 1000,1000 둘레) 안에 배치해야 tx 가 방송된다.
-  const A = s.makeCreature(900, 1000, 500, 1, 900);
-  const B = s.makeCreature(900 + mid, 1000, 500, 1, 90);
-  const b0 = s.bal(B.id);
+  const A = s.makeCreature(1000, 1000, 500, 2, 4000);
+  const prey = s.makeCreature(1000, 1150, 500, 1, 3000, { owned: true }); // 더 작음 = 먹이(강탈 몫)
   s.runTicks(5);
-  assert.ok(s.bal(B.id) < b0 || !s.game.creatures.has(B.id), `강탈 사거리 밖(${mid}px)이라도 방출로 타격했다`);
-  assert.ok(s.dischargeTxs().some(o => o.from === B.id), '표적이 방출로 에너지를 잃었다');
+  assert.equal(s.emitTxs().length, 0, '더 작은 상대만 있으면 발산하지 않는다(먹이는 강탈 몫)');
 
-  // 방출 사거리 밖은 안 맞는다(대조)
   const s2 = setup();
-  s2.makeCreature(900, 1000, 500, 1, 900);
-  s2.makeCreature(900 + DISCHARGE_RADIUS + 300, 1000, 500, 1, 900);
+  s2.makeCreature(1000, 1000, 500, 2, 4000);
+  s2.makeCreature(1000, 1150, 500, 3, 3000, { owned: true }); // 더 큼 = 먹을 수 없음 → 발산 대상
   s2.runTicks(5);
-  assert.equal(s2.dischargeTxs().length, 0, '방출 사거리 밖이면 발사 없음');
+  assert.ok(s2.emitTxs().length > 0, '먹을 수 없는 상대(size≥)에는 발산한다');
 });
 
-test('약자가 강자를 태운다 — 방출은 먹을 수 없는 상대(size ≥)를 친다 (포식의 강자→약자 일방을 뚫는다)', () => {
+test('원거리 — 근접 강탈 사거리 밖의 표적에도 파이어볼을 쏜다 (투사체)', () => {
   const s = setup();
-  const small = s.makeCreature(500, 500, 500, 1, 900); // 약자 캐스터
-  const big = s.makeCreature(650, 500, 500, 3, 2500);  // 강자 표적(사거리 안)
+  const mid = Math.round((CREATURE_ATTACK_RADIUS + DISCHARGE_RADIUS) / 2); // 강탈 밖, 발산 안
+  assert.ok(mid > CREATURE_ATTACK_RADIUS && mid < DISCHARGE_RADIUS);
+  s.makeCreature(1000, 1000, 500, 2, 4000);
+  const T = s.makeCreature(1000, 1000 + mid, 500, 2, 3000, { owned: true });
+  const t0 = s.bal(T.id);
   s.runTicks(5);
-  // 약자(small)가 발산 비용을 냈고, 강자(big)가 방출로 에너지를 잃었다 = 약자가 강자를 태웠다.
-  assert.ok(s.burstTxs().some(o => o.from === small.id), '약자가 발산 비용을 냈다(발사)');
-  assert.ok(s.dischargeTxs().some(o => o.from === big.id && (o.to === POOL.SINK || o.to.startsWith(POOL.MATERIAL))), '강자가 방출로 질서를 잃었다(약자의 반격)');
+  assert.ok(s.emitTxs().length > 0, `강탈 사거리 밖(${mid}px)에도 발산했다`);
+  assert.ok(s.bal(T.id) < t0 || !s.game.creatures.has(T.id), '착탄점 폭발로 표적이 질서를 잃었다');
+
+  // 발산 사거리 밖은 겨누지 못한다(대조)
+  const s2 = setup();
+  s2.makeCreature(1000, 1000, 500, 2, 4000);
+  s2.makeCreature(1000, 1000 + DISCHARGE_RADIUS + 300, 500, 2, 3000, { owned: true });
+  s2.runTicks(5);
+  assert.equal(s2.emitTxs().length, 0, '발산 사거리 밖이면 쏘지 않음');
+});
+
+test('약자가 강자를 겨눈다 — 발산은 먹을 수 없는 상대(size ≥)를 친다 (포식의 강자→약자 일방을 뚫는다)', () => {
+  const s = setup();
+  const small = s.makeCreature(1000, 1000, 500, 1, 2000);            // 약자 캐스터
+  const big = s.makeCreature(1000, 1150, 500, 3, 3000, { owned: true }); // 강자 표적(사거리 안)
+  s.runTicks(5);
+  assert.ok(s.emitTxs().some(o => o.from === small.id), '약자가 파이어볼을 쐈다(발산)');
+  assert.ok(s.detonateTxs().some(o => o.from === big.id), '강자가 폭발로 질서를 잃었다(약자의 반격)');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
 });
 
-test('완전 연소 — 예비가 무너진 표적은 잔해 결정 없이 전소해 사라진다', () => {
-  const s = setup();
-  const A = s.makeCreature(500, 500, 500, 2, 1800); // 강한 캐스터(damage=70×2=140)
-  const B = s.makeCreature(650, 500, 500, 2, 150);  // 동급 표적(size≥ 이라야 방출 대상) — 예비(120) 위지만 한 발에 붕괴
-  const cry0 = s.cryTotal();
-  s.runTicks(5);
-  assert.ok(!s.game.creatures.has(B.id), '표적이 전소해 사라졌다(엔티티 소멸)');
-  assert.equal(s.cryTotal(), cry0, '완전 연소 — 잔해 결정을 남기지 않는다(전부 열+연기로)');
-  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '전소에도 보존 불변 — 에너지는 세계로 흩어졌을 뿐 소멸 안 함');
-});
-
-test('결정론 — 같은 배치/이벤트열이면 방출 결과가 비트 단위로 동일하다', () => {
+test('결정론 — 같은 배치/이벤트열이면 발산 결과가 비트 단위로 동일하다', () => {
   const run = () => {
     const s = setup();
-    s.makeCreature(1000, 1000, 500, 2, 1500);
-    s.makeCreature(1150, 1000, 500, 1, 400);
-    s.makeCreature(1000, 1150, 500, 1, 400);
+    s.makeCreature(1000, 1000, 500, 2, 3000);
+    s.makeCreature(1150, 1000, 500, 2, 2000);
+    s.makeCreature(1000, 1150, 500, 2, 2000);
     s.runTicks(40);
     return [...s.game.creatures.values()].sort((a, b) => a.seq - b.seq).map(c => [c.seq, c.size, s.bal(c.id)]);
   };
-  assert.deepEqual(run(), run(), '동일 조건 → 비트 단위 동일 방출 궤적');
+  assert.deepEqual(run(), run(), '동일 조건 → 비트 단위 동일 발산 궤적');
 });
 
-test('보존 폭풍 — 다수 난전(발산·방출·완전 연소)에도 전 풀 합계 = 10⁹', () => {
+test('보존 폭풍 — 다수 난전(발산·폭발·완전 연소)에도 전 풀 합계 = 10⁹', () => {
   const s = setup();
   for (let i = 0; i < 12; i++) {
     const size = 1 + (i % 3);
-    s.makeCreature(800 + (i % 4) * 110, 900 + Math.floor(i / 4) * 110, 500, size, 200 + size * 300);
+    s.makeCreature(800 + (i % 4) * 110, 900 + Math.floor(i / 4) * 110, 500, size, 400 + size * 400);
   }
   s.runTicks(300);
-  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '발산·방출·완전 연소가 뒤섞여도 총합 불변(사라진 건 엔티티일 뿐)');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '발산·폭발·완전 연소가 뒤섞여도 총합 불변(파이어볼은 터지며 소멸)');
 });

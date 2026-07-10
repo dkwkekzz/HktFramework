@@ -76,6 +76,10 @@ export class GameServer {
     // 스스로 돌린다(확산·복사 순회 밖). 잔고는 원장 풀에, 상태는 CREATURE 스냅샷으로 방송(읽기 전용).
     this.creatures = new Map();    // creId -> { id, seq, x, y, z }
     this.creatureSeq = 0;
+    // 파이어볼(투사체) — 생명체가 발산해 만든 비생명 농축 에너지 덩어리(feature-0009). 폭발(feature-0013 규칙 D)로
+    //   터질 때까지만 존재한다(현재는 같은 틱 즉발). 잔고는 원장 풀 B:<seq> 에. 발산(생성)과 폭발(소멸)을 분리하는 경계 엔티티.
+    this.fireballs = [];           // [{ id, seq, x, y, z, size }]
+    this.fireballSeq = 0;
     this.#genesis();
   }
 
@@ -401,12 +405,15 @@ export class GameServer {
     if (this.tickCount % CREATURE_ATTACK_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#combat();
     }
-    // feature-0009 발산·파괴(방출) — 사거리 안 크기 무관 표적에 발산해 그 질서를 파괴한다(회수 없음 = 캐스터로
-    //   안 돌아옴, 표적 에너지는 심우주 열·국소장 연기로 흩어짐). 전투(강탈) 뒤에 돌린다 — 먹지 못한 상대를
-    //   원거리에서 태워 없애는 다른 원리. 세게 맞으면 완전 연소(잔해 없이 전소). 순수 클램프(결정론 불변).
+    // feature-0009 발산 — 생명체가 사거리 안 먹을 수 없는 상대(size≥)에게 파이어볼(투사체)을 만들어 쏜다(생명의
+    //   행위·순수 지출). 전투(강탈) 뒤에 돌린다 — 먹지 못한 상대에게 폭탄을 던지는 다른 원리. 순수 클램프(결정론 불변).
     if (this.tickCount % DISCHARGE_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#discharge();
     }
+    // feature-0013 규칙 D 폭발 — 파이어볼(및 후속: 시한 폭탄·과충전 결정)이 터진다(물질의 사건, 생명 무관). 발산
+    //   바로 뒤에 돌려 이번 틱 생성된 파이어볼을 즉발시킨다(후속: 이동·시한). 폭발파가 반경에 열복사+압력 두 자극을
+    //   침착해 결정을 연소·용해·파괴(규칙 A·B·C)하고 생명에 damage 를 준다. 회수 없음·결정론·보존 불변.
+    this.#detonate();
     // feature-0006 생명체 대사 — 각 생명체가 스스로 국소장을 갈구해 질서를 보충하고(field→생명체),
     //   살아있음의 비용을 심우주로 방출하며(생명체→SINK), 그래도 최소 예비 아래로 떨어지면 죽는다(분해).
     //   확산·석출 뒤에 돌린다 — 세계의 에너지가 흩어져 자리 잡은 뒤 그 자리에서 갈구한다.
@@ -678,88 +685,107 @@ export class GameServer {
     return got;
   }
 
-  // 발산·파괴 = 방출 — feature-0009. 강탈(포식)이 표적 에너지를 커플링해 일부 포획하는 것이라면, 방출은
-  //   표적의 질서를 *파괴만* 한다 — 붕괴 에너지가 캐스터가 아니라 세계(심우주 열 + 국소장 연기)로 흩어진다.
-  //   그래서 캐스터는 순수 지출(먹지 않음). 표적 규칙: 사거리(길다) 안 **먹을 수 없는 상대**(size ≥ 자신) —
-  //   강탈(먹이=size<)과 겹치지 않게 갈랐다. 못 먹는 강자·동급이 방출 대상. 결정론: seq 오름차순 + 순수 클램프.
-  //   step2: 조준한 표적 자리에서 투사체가 **터진다** — 착탄점 둘레로 폭발파(#blast)가 퍼진다(단일 타격 → AoE).
+  // 발산 = 생명체가 파이어볼(투사체)을 쏜다 — feature-0009. **생명의 행위**다: 내부 에너지를 폭발적으로 밀어내
+  //   비생명 농축 에너지 덩어리(파이어볼 B:)를 만들어 표적 자리로 보낸다. 여기서 생명체의 관여는 끝난다 —
+  //   그 덩어리가 *터지는* 것(폭발)은 물질의 사건이라 별개(feature-0013 규칙 D=#detonate). 강탈(포식)이 표적
+  //   에너지를 커플링해 일부 포획(수입)하는 것이라면, 발산은 순수 지출(먹지 않음·회수 없음)이다. 표적 규칙: 사거리
+  //   안 **먹을 수 없는 상대**(size ≥ 자신) — 강탈(먹이=size<)과 겹치지 않게 갈랐다(못 먹으니 폭탄을 던진다).
+  //   결정론: seq 오름차순 + 순수 클램프(rng 미사용).
   #discharge() {
     const list = [...this.creatures.values()].sort((a, b) => a.seq - b.seq); // 결정론 순서
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
-      if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 방출도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 근처 강자에게 자율 방출하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
-      const cost = DISCHARGE_COST * A.size;
-      // 발산할 예비가 없으면(비용+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
-      if (this.ledger.balance(A.id) < cost + CREATURE_DEATH_THRESHOLD * A.size) continue;
-      // 조준 — 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나. 투사체가 그 자리에서 터진다.
-      //   강탈(강자→약자, size<)과 방출(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
-      //   있으면 강탈해 먹고, 못 먹으면 방출로 부순다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다.
+      if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 발산도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 자율 발산하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
+      const launch = DISCHARGE_COST * A.size;                  // 발사 비용(만들어 쏘는 일 = 열로 손실)
+      const charge = DISCHARGE_POWER * A.size;                 // 파이어볼에 싣는 폭약(터질 때 세계로 흩어진다)
+      // 발산할 예비가 없으면(발사+폭약+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
+      if (this.ledger.balance(A.id) < launch + charge + CREATURE_DEATH_THRESHOLD * A.size) continue;
+      // 조준 — 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나. 파이어볼이 그 자리로 간다.
+      //   강탈(강자→약자, size<)과 발산(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
+      //   있으면 강탈해 먹고, 못 먹으면 폭탄을 던진다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 발산이다.
       let aim = null, bestD = Infinity;
       for (const V of this.creatures.values()) {
-        if (V.id === A.id || V.size < A.size) continue; // 더 작은 것(=먹이)은 강탈 몫 — 방출 대상 아님
+        if (V.id === A.id || V.size < A.size) continue; // 더 작은 것(=먹이)은 강탈 몫 — 발산 대상 아님
         if (this.ledger.balance(V.id) <= 0) continue;
         const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
         if (d <= DISCHARGE_RADIUS && d < bestD) { aim = V; bestD = d; }
       }
       if (!aim) continue;
-      // ① 발산 비용 — 투사체를 만드는 폭발적 소모. 되돌아오지 않는 열로 심우주에 지불.
-      this.#tx(A.id, POOL.SINK, cost, CAUSE.BURST, { x: A.x, y: A.y });
-      // ② 폭발파 — 착탄점(aim) 둘레로 두 채널(열복사+압력)을 침착한다(AoE·거리 감쇠).
-      this.#blast(A, aim.x, aim.y, aim.z);
+      // ① 발사 비용 → 심우주(열 손실). ② 파이어볼 장전 — 생명체가 제 에너지를 투사체에 싣는다(발산). 생명 관여 끝.
+      this.#tx(A.id, POOL.SINK, launch, CAUSE.BURST, { x: A.x, y: A.y });
+      const seq = ++this.fireballSeq;
+      const fid = `${POOL.FIREBALL}${seq}`;
+      this.ledger.createPool(fid, 0, Number.MAX_SAFE_INTEGER, null);
+      this.#tx(A.id, fid, charge, CAUSE.EMIT, { x: aim.x, y: aim.y }); // 생명체 → 파이어볼(투사체 생성)
+      // caster = 발사자 id — 폭발이 제 발사자를 삼키지 않도록(멀리 쏘았다). 폭발 자체는 생명 무관이나, 이 한 가지만 근원을 안다.
+      this.fireballs.push({ id: fid, seq, x: aim.x, y: aim.y, z: aim.z, size: A.size, caster: A.id });
     }
   }
 
-  // 폭발파 침착 — feature-0009 step2. 폭발은 연소가 아니라 급격한 에너지 방출이다. 착탄점 둘레로 퍼지는
-  //   폭발파가 두 채널을 **동시에** 쏜다(AoE 는 별도 기능이 아니라 구면 전파의 본질):
-  //     · 열복사(thermal) — 반경 내 결정 열(H:)에 열을 실어보낸다(A→H:C). 다음 틱 규칙엔진(#combust)이 태그로
-  //         가른다: 가연성=연소(불 번짐·연쇄 발화=증폭)·비가연성=용해. 불속성은 '열 채널 하나'의 증폭원일 뿐.
-  //     · 압력(mechanical) — 물리력이 파괴강도를 넘는 취성 결정을 부순다(#impactCrystals→파편). 열과 독립.
-  //     · 생명 damage — 반경 내 먹을 수 없는 상대(size≥, AoE)를 거리 감쇠로 함께 태운다(회수 없음·완전 연소 유지).
-  //   에너지는 전부 ledger.transfer(보존). 어떤 흐름도 캐스터로 돌아가지 않는다(파괴의 정체성). 결정론: seq/거리 정렬 + 순수 클램프.
-  #blast(A, cx, cy, cz) {
-    const R = DISCHARGE_BLAST_RADIUS;
-    const falloff = (d) => Math.max(0, (R - d) / R); // 1(중심)…0(가장자리) — 가까울수록 세게
-    // (1) 생명 AoE — 반경 내 먹을 수 없는 상대(size≥)를 거리 감쇠 damage 로 태운다(단일 표적이 아니라 폭발이 여럿을 휩쓴다).
-    for (const V of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
-      if (V.id === A.id || V.size < A.size || !this.creatures.has(V.id)) continue;
-      const d = dist3(cx, cy, cz, V.x, V.y, V.z);
-      if (d > R) continue;
-      const damage = Math.min(Math.floor(DISCHARGE_POWER * A.size * falloff(d)), this.ledger.balance(V.id));
-      if (damage <= 0) continue;
-      this.#dissipate(V, damage); // 회수 없는 분산 — 심우주(열)+국소장(연기), 캐스터로 안 감
-      if (this.ledger.balance(V.id) < CREATURE_DEATH_THRESHOLD * V.size) this.#incinerate(V); // 완전 연소(잔해 없음)
+  // 폭발(상태전이 규칙 D) — feature-0013. **물질의 사건**이다(생명 무관): 농축 에너지 덩어리(파이어볼·후속: 폭탄·
+  //   과충전 결정)가 저장 질서를 순간에 방출한다. 연소(A)가 에너지 물질의 *느린* 발열 분해라면, 폭발은 *격렬한*
+  //   극단 — 같은 규칙엔진 계열이되 방출이 **압력파로 반경에 전파**하는 점이 새롭다. 폭발파는 반경 내에 두 자극을
+  //   침착하고(feature-0009 step2 의 다채널을 여기로 이관), 각 물질은 제 속성대로 반응한다:
+  //     · 열복사(thermal) — 반경 내 결정 열(H:)에 열을 실어보낸다(파이어볼 payload→H:C). 다음 틱 #combust 가
+  //         태그로 가른다: 가연성=연소(불 번짐·연쇄 발화=증폭)·비가연성=용해. 불속성은 열 채널 하나의 증폭원.
+  //     · 압력(mechanical) — 물리력이 파괴강도를 넘는 취성 결정을 부순다(#impactCrystals→파편, 규칙 C). 열과 독립.
+  //     · 생명 damage — 반경 내 먹을 수 없는 상대(size≥, AoE)를 거리 감쇠로 태운다(표적 제 질서가 흩어짐).
+  //   폭발은 착탄점에서 일어나며 캐스터를 참조하지 않는다(발산과 분리). 파이어볼은 터지며 소멸(payload 전부 방출).
+  //   회수 없음 — 어떤 흐름도 생명체로 안 간다. 전부 ledger.transfer(보존). 결정론: seq/거리 정렬 + 순수 클램프.
+  #detonate() {
+    for (const fb of this.fireballs) {
+      const R = DISCHARGE_BLAST_RADIUS;
+      const falloff = (d) => Math.max(0, (R - d) / R); // 1(중심)…0(가장자리) — 가까울수록 세게
+      // (1) 생명 AoE — 반경 내 먹을 수 없는 상대(size≥ 캐스터)를 거리 감쇠 damage 로 태운다(폭발이 여럿을 휩쓴다).
+      for (const V of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
+        if (V.id === fb.caster || V.size < fb.size || !this.creatures.has(V.id)) continue; // 발사자는 제 폭발에 안 맞는다(멀리 쏘았다)
+        const d = dist3(fb.x, fb.y, fb.z, V.x, V.y, V.z);
+        if (d > R) continue;
+        const damage = Math.min(Math.floor(DISCHARGE_POWER * fb.size * falloff(d)), this.ledger.balance(V.id));
+        if (damage <= 0) continue;
+        this.#dissipate(V, damage, CAUSE.DETONATE); // 표적 질서가 폭발파에 흩어짐 — 심우주(열)+국소장(연기), 생명체로 안 감
+        if (this.ledger.balance(V.id) < CREATURE_DEATH_THRESHOLD * V.size) this.#incinerate(V); // 완전 연소(잔해 없음)
+      }
+      // (2) 열복사 채널 — 파이어볼 payload 를 반경 내 결정 열(H:)에 실어보낸다(가까운 결정부터, payload 소진 시 멈춤).
+      const heated = [...this.crystals.values()]
+        .map(c => ({ c, d: dist3(fb.x, fb.y, fb.z, c.x, c.y, c.z) }))
+        .filter(o => o.d <= R && this.ledger.balance(o.c.id) > 0)
+        .sort((a, b) => a.d - b.d || a.c.seq - b.c.seq); // 가까운(감쇠 큰) 결정부터
+      for (const { c, d } of heated) {
+        const want = Math.floor(DISCHARGE_HEAT * fb.size * falloff(d));
+        const avail = this.ledger.balance(fb.id);
+        if (want <= 0 || avail <= 0) { if (avail <= 0) break; continue; }
+        this.#tx(fb.id, `${POOL.HEAT}${c.seq}`, Math.min(want, avail), CAUSE.HEAT, { x: c.x, y: c.y });
+      }
+      // (3) 압력 채널 — 물리력이 파괴강도를 넘는 취성 결정을 부순다(파편). 열(연소·용해)과 독립된 별개 자극(규칙 C).
+      this.#impactCrystals(fb.x, fb.y, fb.z, R, DISCHARGE_POWER * fb.size);
+      // (4) 잔여 payload 분산 — 남은 폭약을 심우주(열)+국소장(연기)로 흩는다(회수 없음). 파이어볼은 여기서 소멸.
+      const rest = this.ledger.balance(fb.id);
+      if (rest > 0) {
+        const burn = Math.floor(rest * DISCHARGE_BURN_PCT / 100);
+        if (burn > 0) this.#tx(fb.id, POOL.SINK, burn, CAUSE.DETONATE, { x: fb.x, y: fb.y });
+        const smoke = this.ledger.balance(fb.id);
+        if (smoke > 0) this.#tx(fb.id, materialKey(fb.x, fb.y, fb.z), smoke, CAUSE.DETONATE, { x: fb.x, y: fb.y });
+      }
+      this.ledger.removePool(fb.id);
     }
-    // (2) 열복사 채널 — 반경 내 결정 열(H:)에 열을 실어보낸다(캐스터 지불, 예비는 남긴다). 규칙엔진이 다음 틱에
-    //     태그로 가른다: 가연성=연소(불 번짐)·비가연성=용해. 캐스터가 예비까지 마르면 멈춘다(순수 지출).
-    const heated = [...this.crystals.values()]
-      .map(c => ({ c, d: dist3(cx, cy, cz, c.x, c.y, c.z) }))
-      .filter(o => o.d <= R && this.ledger.balance(o.c.id) > 0)
-      .sort((a, b) => a.d - b.d || a.c.seq - b.c.seq); // 가까운(감쇠 큰) 결정부터
-    for (const { c, d } of heated) {
-      const want = Math.floor(DISCHARGE_HEAT * A.size * falloff(d));
-      if (want <= 0) continue;
-      const room = this.ledger.balance(A.id) - CREATURE_DEATH_THRESHOLD * A.size; // 예비는 남긴다
-      if (room <= 0) break;
-      this.#tx(A.id, `${POOL.HEAT}${c.seq}`, Math.min(want, room), CAUSE.HEAT, { x: c.x, y: c.y });
-    }
-    // (3) 압력 채널 — 물리력이 파괴강도를 넘는 취성 결정을 부순다(파편). 열(연소·용해)과 독립된 별개 자극(feature-0013 규칙 C).
-    this.#impactCrystals(cx, cy, cz, R, DISCHARGE_POWER * A.size);
+    this.fireballs = [];
   }
 
-  // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0009. BURN_PCT 는 심우주(열)로 태우고, 나머지는 그 자리
-  //   국소장(연기)으로. 캐스터로는 한 푼도 가지 않는다 — 이것이 파괴(방출)와 포획(강탈)을 가르는 지점이다.
-  #dissipate(V, amount) {
+  // 붕괴 에너지를 세계로 흩는다(회수 없음) — feature-0013. BURN_PCT 는 심우주(열)로 태우고, 나머지는 그 자리
+  //   국소장(연기)으로. 생명체로는 한 푼도 가지 않는다 — 이것이 폭발(파괴)과 포획(강탈)을 가르는 지점이다.
+  #dissipate(V, amount, cause = CAUSE.DETONATE) {
     const burn = Math.floor(amount * DISCHARGE_BURN_PCT / 100);
-    if (burn > 0) this.#tx(V.id, POOL.SINK, burn, CAUSE.DISCHARGE, { x: V.x, y: V.y });        // 열 → 심우주
+    if (burn > 0) this.#tx(V.id, POOL.SINK, burn, cause, { x: V.x, y: V.y });        // 열 → 심우주
     const smoke = amount - burn;
-    if (smoke > 0) this.#tx(V.id, materialKey(V.x, V.y, V.z), smoke, CAUSE.DISCHARGE, { x: V.x, y: V.y }); // 연기 → 국소장
+    if (smoke > 0) this.#tx(V.id, materialKey(V.x, V.y, V.z), smoke, cause, { x: V.x, y: V.y }); // 연기 → 국소장
   }
 
-  // 완전 연소 — feature-0009. 방출로 예비가 무너진 표적을 그 자리서 전소시킨다: 남은 에너지까지 열+연기로 흩고
+  // 완전 연소 — feature-0013. 폭발로 예비가 무너진 표적을 그 자리서 전소시킨다: 남은 에너지까지 열+연기로 흩고
   //   레지스트리·원장에서 제거한다. 잔해 결정을 남기지 않는다(#decompose 와 다른 죽음 — 굶주림/포식=결정, 전소=무).
   #incinerate(V) {
     const rest = this.ledger.balance(V.id);
-    if (rest > 0) this.#dissipate(V, rest); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
+    if (rest > 0) this.#dissipate(V, rest, CAUSE.DETONATE); // 남은 전부를 열+연기로 — 흔적 없이 사라진다
     this.ledger.removePool(V.id);
     this.creatures.delete(V.id);
   }
