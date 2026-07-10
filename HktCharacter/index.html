@@ -35,8 +35,16 @@
   .panel button:hover { background: #2d3641; }
   .panel button.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
   .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-  .row label { flex: 0 0 auto; color: #8b95a3; }
+  .row label { flex: 0 0 auto; color: #8b95a3; min-width: 52px; }
   .row input[type=range] { flex: 1; }
+  .row .val { flex: 0 0 auto; color: #6f7a88; width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
+  .who { font-size: 11px; letter-spacing: 0; text-transform: none; color: #3b82f6; }
+  .panel button.char { display: inline-flex; flex-direction: column; align-items: center;
+    width: 92px; padding: 8px 4px; }
+  .panel button.char .cap { font-size: 11px; color: #8b95a3; margin-top: 2px; }
+  .panel button.char.on .cap { color: #cfe0ff; }
+  #btnPropReset { width: 100%; margin-top: 6px; }
+  .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 
   #drop {
     position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
@@ -51,15 +59,18 @@
 <div id="app"></div>
 
 <div class="hud">
-  <b>HktCharacter</b> — FBX 뷰어<br />
+  <b>HktCharacter</b> — 캐릭터 선택 · 애니메이션 · 본 비율<br />
   <span id="status">초기화 중…</span>
 </div>
 
 <div class="panel">
-  <h3>로코모션 샘플 (애니메이션)</h3>
-  <div id="samples"></div>
-  <h3>클립</h3>
-  <div id="clips"><span style="color:#5c6673">캐릭터/클립 없음</span></div>
+  <h3>캐릭터 (클릭해 선택)</h3>
+  <div id="chars"></div>
+  <h3>애니메이션 <span id="animWho" class="who"></span></h3>
+  <div id="anims"></div>
+  <h3>본 비율 <span id="propWho" class="who"></span></h3>
+  <div id="props"></div>
+  <button id="btnPropReset">비율 초기화</button>
   <h3>재생</h3>
   <div class="row">
     <label>속도</label>
@@ -76,7 +87,7 @@
   </div>
 </div>
 
-<div id="drop">Mixamo FBX 드롭 (with-skin 캐릭터 / 애니메이션) — 클릭하면 파일 선택</div>
+<div id="drop">FBX 드롭 — with-skin 이면 <b>선택된</b> 슬롯 캐릭터 교체 · 애니메이션이면 리타깃 (클릭=파일 선택)</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>
