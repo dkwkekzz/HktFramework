@@ -151,10 +151,17 @@ export const CREATURE_ATTACK_CAPTURE_PCT = 40;    // 붕괴 에너지 중 붙잡
 // 자신) — 강탈(먹이=size<)과 겹치지 않게 갈랐다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 방출이다
 // (포식의 한계를 뚫는 값비싼 반격). 세게 맞은 표적은 완전 연소(잔해 결정조차 없이 전소). 결정론(rng 미사용).
 export const DISCHARGE_INTERVAL_TICKS = 4;   // 방출 판정 주기 — 폭발적이라 강탈(2)보다 뜸하다
-export const DISCHARGE_RADIUS = 500;         // 원거리 사거리(px) — 근접 강탈(200)보다 길다(투사체)
+export const DISCHARGE_RADIUS = 500;         // 원거리 조준 사거리(px) — 근접 강탈(200)보다 길다(투사체). 착탄 지점을 정한다
 export const DISCHARGE_POWER = 70;           // 한 발이 파괴하는 표적 질서(×caster size) — 순간 파괴는 강탈보다 크다
 export const DISCHARGE_COST = 20;            // 발산 비용(×caster size) → SINK. 강탈(6)보다 비싸다(회수 없는 순수 지출)
 export const DISCHARGE_BURN_PCT = 60;        // 파괴 damage 중 심우주로 태우는 비율(열) — 나머지는 국소장(연기)
+// feature-0009 step2 — 폭발은 연소가 아니라 **급격한 에너지 방출**이다. 방출된 에너지는 착탄점 둘레로 퍼지는
+//   폭발파가 되어 두 채널로 흩어진다: (a) 열복사(thermal) — 반경 내 결정 열(H:)에 열을 실어보내 규칙엔진이 태그로
+//   가른다(가연성=연소·불 번짐·연쇄 발화 / 비가연성=용해), (b) 압력(mechanical) — 물리력이 파괴강도를 넘는 취성
+//   결정을 부순다(파편). 불속성은 폭발 '전부'가 아니라 열 채널 하나의 증폭원(sympathetic detonation)일 뿐이다.
+//   AoE 는 별도 기능이 아니라 폭발파가 구면으로 퍼지는 본질 — 반경 내 먹을 수 없는 상대(size≥)를 거리 감쇠로 함께 태운다.
+export const DISCHARGE_BLAST_RADIUS = 180;   // 폭발 반경(px) — 착탄점 둘레의 AoE splash(조준 사거리 500보다 좁다: 폭발은 국소, 조준은 원거리)
+export const DISCHARGE_HEAT = 60;            // 열복사 채널: 폭발 반경 결정에 침착하는 열(×caster size, ×거리감쇠) — 발화점(80~100) 도달로 연쇄 발화
 
 // --- 제어·욕망 (feature-0010) — 플레이어/봇이 하나의 생명체를 제어한다 ---
 // 제어의 핵심은 "욕망(desire)"이다: 생명체에 부여하는 동기 — 무엇을 향해 에너지를 얻으러 갈지.
