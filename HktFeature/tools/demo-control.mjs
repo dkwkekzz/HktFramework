@@ -51,6 +51,11 @@ const DETONATE = {
   watcher: { x: 1050, y: 1250, z: 625 }, // 관전 대상 생명체(소유, 계속 채워 폭발을 여러 번 견딘다)
   bomb:    { x: 1150, y: 1250, z: 625 }, // 과충전 결정이 나타나는 자리(생명 반경 안 → blind AoE 로 얻어맞는다)
 };
+// 위협·회피 씬(feature-0012 step3) — 큰 포식자(위협)를 곁에 두면 내 생명체가 회피 감정을 스스로 만들어 **도망친다**.
+//   위협이 가까울수록 회피가 이기고, 멀어지면(감지 반경 밖) 감정이 감쇠해 멈춘다. 감정이 상황에서 자율 생성됨을 본다.
+const THREAT = {
+  predator: { x: 1250, y: 950, z: 625 }, // 큰 포식자(size4) — 내 생명체 시작(1250,750) 근처(200px), 제자리 위협
+};
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
 //   scene 'eat'(feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
@@ -111,6 +116,11 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const watcher = game.spawnCreature(DETONATE.watcher.x, DETONATE.watcher.y, DETONATE.watcher.z);
     watcher.size = 2; watcher.owner = 'P:demo'; game.ledger.get(watcher.id).max = CREATURE_MAX_ENERGY * 60;
     game.ledger.transfer(POOL.SOURCE, watcher.id, CREATURE_MAX_ENERGY * 60, CAUSE.SPAWN);
+  } else if (scene === 'threat') {
+    // 위협 씬 — 큰 포식자(size4) 제자리 위협. 소유로 둬 자율 추적/전투 안 함(생명체가 도망치는 것만 또렷이 보인다).
+    const pred = game.spawnCreature(THREAT.predator.x, THREAT.predator.y, THREAT.predator.z);
+    pred.size = 4; pred.owner = 'P:demo'; game.ledger.get(pred.id).max = CREATURE_MAX_ENERGY * 4;
+    game.ledger.transfer(POOL.SOURCE, pred.id, 3000, CAUSE.SPAWN);
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -148,6 +158,12 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           return;
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
+        if (scene === 'threat') {
+          // 위협·회피 — 곁의 큰 포식자에서 도망친다(회피 감정 자율 상승). 넉넉히 채워(굶주림 0) 회피 감정만 작용.
+          rear(cre, 1800);
+          game.injectDesire(playerId, DESIRE.FLEE, 1);
+          return;
+        }
         if (scene === 'craft' || scene === 'craftchain') {
           // 제조 욕구 하나 — 재료로 다가가 조합한다(찾기→조합, 다단계면 완성까지). 조합의 일은 열+연기로 방출.
           rear(cre, 1800); // 넉넉한 예비(여러 번의 제조 비용 지불)

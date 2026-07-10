@@ -906,10 +906,12 @@ export class GameServer {
     const self = this;
     return {
       EAT_REACH: CREATURE_HARVEST_RADIUS, STRIKE_REACH: CREATURE_ATTACK_RADIUS, LEASH_STOP: CREATURE_LEASH_STOP,
-      CRAFT_REACH: CRAFT_REACH,
+      CRAFT_REACH: CRAFT_REACH, SEEK: CREATURE_SEEK_RADIUS,
       cre,
       nearestCrystal: (opts) => self.#nearestCrystalFor(cre, opts),
       nearestPrey: () => self.#nearestPrey(cre),
+      nearestThreat: () => self.#nearestThreat(cre),            // feature-0012 step3 — 나보다 큰 포식자(위협) 감지(appraise·회피용)
+      distanceTo: (t) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z), // 표적까지 거리(appraise 가 '차이=근접'을 읽는다)
       craftPair: (tier) => self.#craftPairFor(cre, tier),       // feature-0010·0011 step2 — 조합 가능한 (같은 단계) 쌍
       craft: (a, b) => self.#craft(cre, a, b),                  // feature-0010·0011 step2 — 두 결정을 다음 단계 산물로 조합(방출)
       ownerPos: () => { if (!cre.owner) return null; const p = self.players.get(cre.owner); return p ? { x: p.x, y: p.y, z: p.z } : null; },
@@ -918,6 +920,7 @@ export class GameServer {
       capacity: () => { const pool = self.ledger.get(cre.id); return pool ? pool.max : CREATURE_MAX_ENERGY * cre.size; }, // 자기 용량(feature-0012 appraise)
       balance: () => self.ledger.balance(cre.id),                                                                        // 자기 잔고(feature-0012 appraise)
       moveToward: (t, stop) => self.#stepToward(cre, t, stop),
+      moveAway: (t) => self.#stepAway(cre, t),                  // feature-0012 step3 — 위협에서 멀어진다(회피, 이동=국소장 소산)
       eat: (c) => self.#eatCrystal(cre, c),
       cook: (c) => self.#cookCrystal(cre, c),
       strike: (p) => self.#strike(cre, p),
@@ -1023,6 +1026,34 @@ export class GameServer {
       if (d <= bestD) { best = v; bestD = d; }
     }
     return best;
+  }
+
+  // 가장 가까운 위협 — feature-0012 step3. 나보다 **큰**(size>) 포식자를 감지 반경 안에서 찾는다(nearestPrey 의 대칭:
+  //   먹이=더 작음 / 위협=더 큼). appraise(위협 감정)·회피(FLEE)가 이 지각을 쓴다. 엔진은 어떤 욕구가 쓰는지 모른다(개방).
+  #nearestThreat(cre) {
+    let best = null, bestD = CREATURE_SEEK_RADIUS;
+    for (const v of this.creatures.values()) {
+      if (v.id === cre.id || v.size <= cre.size) continue;      // 위협 = 나보다 큰 것(강자→약자 포식의 그 강자)
+      if (this.ledger.balance(v.id) <= 0) continue;
+      const d = dist3(cre.x, cre.y, cre.z, v.x, v.y, v.z);
+      if (d <= bestD) { best = v; bestD = d; }
+    }
+    return best;
+  }
+
+  // 한 걸음 회피(방출) — feature-0012 step3. 표적(위협)의 **반대 방향**으로 최대 STRIDE 나아간다. 이동은 그 자리
+  //   국소장으로 소산(생명체→국소장, MOVE = 추적과 동일 회계) — 회피도 에너지를 지불한다. 예비 없으면 못 도망친다.
+  #stepAway(cre, target) {
+    if (this.ledger.balance(cre.id) <= CREATURE_DEATH_THRESHOLD * cre.size) return false; // 굶주리면 못 도망친다
+    const d = dist3(cre.x, cre.y, cre.z, target.x, target.y, target.z) || 1;
+    const step = CREATURE_STRIDE;
+    cre.x = Math.max(0, Math.min(WORLD_SIZE, Math.round(cre.x - (target.x - cre.x) / d * step)));
+    cre.y = Math.max(0, Math.min(WORLD_SIZE, Math.round(cre.y - (target.y - cre.y) / d * step)));
+    cre.z = Math.max(0, Math.min(WORLD_HEIGHT, Math.round(cre.z - (target.z - cre.z) / d * step)));
+    const { cost, debt } = moveCost(cre.moveDebt, step);
+    cre.moveDebt = debt;
+    if (cost > 0) this.#tx(cre.id, materialKey(cre.x, cre.y, cre.z), cost, CAUSE.MOVE, { x: cre.x, y: cre.y });
+    return true;
   }
 
   // 생명체 대사 — feature-0006. 각 생명체가 한 대사 틱에 스스로 도는 항상성 순환:

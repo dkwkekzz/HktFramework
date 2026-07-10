@@ -9,7 +9,8 @@
     "demo": "node tools/demo-control.mjs",
     "shot": "node tools/shot.mjs",
     "shot:blast": "node tools/shot-blast.mjs",
-    "shot:detonate": "node tools/shot-detonate.mjs"
+    "shot:detonate": "node tools/shot-detonate.mjs",
+    "shot:threat": "node tools/shot-threat.mjs"
   },
   "dependencies": {
     "ws": "^8.21.0"

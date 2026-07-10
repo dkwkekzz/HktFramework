@@ -186,6 +186,7 @@ export const DESIRE = {
   HUNT: 'hunt',       // 사냥 — 가장 가까운 더 작은 생명체를 향해 타격(포식, feature-0008)
   EAT: 'eat',         // 식사 — 결정(밥)을 향하되 날것이면 먼저 요리(변형)한 뒤 먹는다(절차적, feature-0011)
   CRAFT: 'craft',     // 제조 — 가까이 놓인 두 재료 결정(조합 지점)으로 가 하나의 산물로 조합한다(feature-0010 step2)
+  FLEE: 'flee',       // 회피 — 더 큰 포식자(위협)에게서 멀어진다(feature-0012 step3 자율 감정원: 위협)
 };
 export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
