@@ -162,10 +162,14 @@ let flesh = null; // { mesh, update, setStage, stats }
 function simpleName(n) { return n.replace(/^mixamorig:?/i, ''); }
 let profile = PROFILES.reference;
 const groupMul = Object.fromEntries(GROUPS.map(([key]) => [key, 1.0])); // UI 그룹 배율
+// 그룹 유효 배율 — 머리는 본 스케일("머리 크기")이 반경에도 결합된다: 뼈 길이만
+// 늘면 "길쭉한 머리"가 된다 (변형 검토 교훈) — 균일 스케일이 직관적인 축.
+// 나머지 그룹의 두께는 UI 그룹 배율 슬라이더 몫 (직교 유지).
+function effGroupMul(group) { return (groupMul[group] ?? 1.0) * (group === 'head' ? boneScale.head : 1.0); }
 function radiusForName(name) {
   const rule = matchRule(profile, simpleName(name));
   if (!rule) return profile.fallback;
-  return rule.r * (groupMul[rule.group] ?? 1.0);
+  return rule.r * effGroupMul(rule.group);
 }
 function isFinger(name) { return /Thumb|Index|Middle|Ring|Pinky|Finger/.test(simpleName(name)); }
 
@@ -173,6 +177,41 @@ function isFinger(name) { return /Thumb|Index|Middle|Ring|Pinky|Finger/.test(sim
 //  (1) Skeleton IR : Mixamo 표준 humanoid 계층 (T-pose, 단위 ~m)
 //  치수는 전부 프로파일 skeleton 절에서 온다 — 비율 변경 시 코드 수정 불필요.
 // ===========================================================================
+// ---- 본 스케일 커스터마이징: 큰 형태(grammar·loft)는 유지, 뼈 길이만 배율 ----
+// 살은 뼈대의 함수 — 뼈를 늘리면 loft(t 정규화)가 길이 방향으로 따라 늘고 두께
+// (절대 m)는 유지된다. 두께 변형은 기존 그룹 배율 슬라이더 몫 (직교 축).
+// 다리 스케일은 골반 높이를 함께 이동해 발이 항상 땅에 닿는다.
+const boneScale = { legs: 1, arms: 1, torso: 1, head: 1, shoulders: 1 };
+function scaledSkeleton(sk) {
+  const b = boneScale;
+  return {
+    ...sk,
+    hipsY: sk.hipsY + (b.legs - 1) * (sk.thighLen + sk.shinLen),
+    thighLen: sk.thighLen * b.legs, shinLen: sk.shinLen * b.legs,
+    upperArmLen: sk.upperArmLen * b.arms, foreArmLen: sk.foreArmLen * b.arms,
+    spineLens: sk.spineLens.map(l => l * b.torso),
+    neckLen: sk.neckLen * b.torso,
+    headLen: sk.headLen * b.head, headTopLen: sk.headTopLen * b.head,
+    shoulderX: sk.shoulderX * b.shoulders, armX: sk.armX * b.shoulders,
+  };
+}
+// fit-mesh 잔차(MESH_FIT)는 레퍼런스 골격의 절대 y(m) 격자 — 골격이 변하면 보정이
+// 엉뚱한 높이에 내려앉는다. 발끝~고관절~두정 랜드마크 구간별 선형 리맵으로
+// "현재 골격 y → 레퍼런스 골격 y" 를 만들어 buildFleshMesh 에 넘긴다.
+function skLandmarks(sk) {
+  return {
+    hip: sk.hipsY + sk.upLegY,
+    crown: sk.hipsY + sk.spineLens[0] + sk.spineLens[1] + sk.spineLens[2] + sk.neckLen + sk.headLen + sk.headTopLen,
+  };
+}
+function makeFitYRemap() {
+  const ref = skLandmarks(profile.skeleton), cur = skLandmarks(scaledSkeleton(profile.skeleton));
+  if (Math.abs(ref.hip - cur.hip) < 1e-6 && Math.abs(ref.crown - cur.crown) < 1e-6) return null;
+  return y => y <= cur.hip
+    ? y * (ref.hip / cur.hip)
+    : ref.hip + (y - cur.hip) * ((ref.crown - ref.hip) / (cur.crown - cur.hip));
+}
+
 function buildMixamoRig(sk) {
   const J = []; const idx = {};
   const add = (name, parent, ox, oy, oz) => {
@@ -226,7 +265,7 @@ function instantiateRig(defs) {
   const hi = defs.findIndex(d => d.parent < 0);
   bindHipY = hi >= 0 ? defs[hi].offset[1] : 0;
 }
-instantiateRig(buildMixamoRig(profile.skeleton));
+instantiateRig(buildMixamoRig(scaledSkeleton(profile.skeleton)));
 
 // ===========================================================================
 //  (3-a) built-in 클립 : Mixamo 이름으로 회전 부여
@@ -315,7 +354,7 @@ function loftStackFor(name) {
   return null;
 }
 function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
-  const mul = (groupMul[spec.group] ?? 1.0) * fat;
+  const mul = effGroupMul(spec.group) * fat;
   const axis = b.clone().sub(a);
   const zdir = new THREE.Vector3(0, 0, 1).applyQuaternion(quat).normalize();
   const xdir = new THREE.Vector3(1, 0, 0).applyQuaternion(quat).normalize();
@@ -358,7 +397,7 @@ function emitLoft(segs, spec, fx, a, b, quat, fat, id) {
 function appendExtras(segs, fat, resolveJoint) {
   for (let ei = 0; ei < profile.extras.length; ei++) {
     const e = profile.extras[ei];
-    const mul = (groupMul[e.group] ?? 1.0) * fat;
+    const mul = effGroupMul(e.group) * fat;
     const targets = e.mirrorJoints ? [['Left' + e.joint, 1], ['Right' + e.joint, -1]] : [[e.joint, 1]];
     for (const [jname, jx] of targets) {
       const jt = resolveJoint(jname);
@@ -462,7 +501,7 @@ function buildFlesh() {
   rigRoot.updateMatrixWorld(true);
   flesh = buildFleshMesh({
     segs: extractBones(false, st.fat), getBone: builtinBone,
-    profile, radiusForName, globalK: st.k,
+    profile, radiusForName, globalK: st.k, fitYRemap: makeFitYRemap(),
   });
   meshScene.add(flesh.mesh);
 }
@@ -693,7 +732,7 @@ $('fat').addEventListener('input', e => { st.fat = +e.target.value; $('fatVal').
 function setPreset(id) {
   if (!PROFILES[id]) return;
   profile = PROFILES[id];
-  instantiateRig(buildMixamoRig(profile.skeleton));
+  instantiateRig(buildMixamoRig(scaledSkeleton(profile.skeleton)));
   if (profile.defaults?.k != null) {
     st.k = profile.defaults.k; uniforms.uK.value = st.k;
     $('k').value = st.k; $('kVal').textContent = st.k.toFixed(2);
@@ -719,6 +758,27 @@ for (const [key, label] of GROUPS) {
     groupMul[key] = +e.target.value;
     row.querySelector('span').textContent = (+e.target.value).toFixed(2);
   });
+}
+
+// ---- 본 스케일 슬라이더 — 리그 재생성이 필요해 change(놓는 시점)에만 재빌드 ----
+function rebuildRig() {
+  instantiateRig(buildMixamoRig(scaledSkeleton(profile.skeleton)));
+  if (st.mesh) buildFlesh();
+}
+const BONE_AXES = [['legs', '다리 길이'], ['arms', '팔 길이'], ['torso', '몸통 길이'], ['head', '머리 크기'], ['shoulders', '어깨 폭']];
+{
+  const head = document.createElement('div'); head.className = 'row';
+  head.innerHTML = '<label>본 스케일 (길이)</label>';
+  gbox.appendChild(head);
+  for (const [key, label] of BONE_AXES) {
+    const row = document.createElement('div'); row.className = 'row';
+    row.innerHTML = `<label>${label} <span id="bs_${key}_v">1.00</span></label>
+      <input id="bs_${key}" type="range" min="0.6" max="1.5" step="0.01" value="1.0">`;
+    gbox.appendChild(row);
+    const input = row.querySelector('input');
+    input.addEventListener('input', e => { row.querySelector('span').textContent = (+e.target.value).toFixed(2); });
+    input.addEventListener('change', e => { boneScale[key] = +e.target.value; rebuildRig(); });
+  }
 }
 
 // 시작 프로파일의 권장 smin 을 슬라이더에 반영.
@@ -760,6 +820,8 @@ window.__hkt = {
   st, groupMul, setPreset, PROFILES, get profile() { return profile; }, uniforms, updateCam,
   screenToWorld, joints: jointsDump, setSegFilter, target,
   setFleshMode, setMeshStage: s => flesh?.setStage(s), get fleshStats() { return flesh?.stats; },
+  // 본 스케일 커스터마이징 — 계측/콘솔용 일괄 설정 (리그+메시 재빌드 포함)
+  boneScale, setBoneScales: o => { Object.assign(boneScale, o); rebuildRig(); },
 };
 $('btnFinger').addEventListener('click', e => { st.fingers = !st.fingers; e.target.classList.toggle('on', st.fingers); });
 $('btnBone').addEventListener('click', e => { st.bone = !st.bone; boneLines.visible = joints3.visible = st.bone; e.target.classList.toggle('on', st.bone); });
@@ -780,7 +842,9 @@ function loop() {
   // st.pause: 계측 도구용 — 레이마칭을 쉬어 페이지 evaluate 지연을 없앤다
   // (소프트웨어 GL 에선 프레임이 수 초 — 시트 분석/좌표 변환은 렌더가 필요 없다)
   if (st.pause) { requestAnimationFrame(loop); return; }
-  const t = clock.getElapsedTime();
+  // st.poseT: 계측용 포즈 시각 고정 — 소프트웨어 GL 은 프레임이 수 초라 벽시계로는
+  // 걷기 위상(ph = t·speed·4)을 결정론적으로 잡을 수 없다
+  const t = st.poseT ?? clock.getElapsedTime();
   // 정점 메시 모드 — built-in 리그 한정 (외부 FBX 는 SDF 경로 유지, v1 한계)
   const meshOn = st.mesh && !(mode === 'external' && extRoot);
   let segs;

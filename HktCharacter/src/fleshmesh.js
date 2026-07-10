@@ -148,7 +148,8 @@ const CHAIN_DEFS = [
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)),
     hipField: side => id => /^loft:Spine$|^extra:\d+:Hips$/.test(id)
       || (/Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side))),
-    hipBlend: [0.18, 0.28] },
+    hipBlend: [0.49, 0.76], // 첫 뼈(허벅지) 길이 비례 — 본 스케일 커스터마이징 불변
+    hipParent: 'Spine' },   // 힙 대역 이중 바인딩 대상(골반 뼈 = Hips→Spine)
   { bones: ['ToeBase'], around: 12, mirror: true, inset: 0.0015,
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
   { bones: ['Arm', 'ForeArm', 'Hand'], around: 14, mirror: true, inset: 0.0015,
@@ -180,7 +181,7 @@ function ringFrame(axis) {
 //  (loft+extras 포함), getBone(childSimpleName) → { a: 부모 관절 월드 위치,
 //  quat: 자식 관절 월드 회전 } | null.
 // ===========================================================================
-export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK }) {
+export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK, fitYRemap = null }) {
   const ordered = prepSegs(segs);
   const positions = [];   // 바인드 월드 (fit — 투영+스무딩 결과)
   const roughPos = [];    // 바인드 월드 (rough — 찍기만 한 상태, 단계 시각화용)
@@ -286,10 +287,21 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       const visible = ordered.filter(s => fieldOk(s.id));
       const visibleHip = def.hipField ? ordered.filter(s => def.hipField(prefix)(s.id)) : null;
       // 힙 이음 가중: 체인 시작(고관절)에서 plateau 거리까지 1, zero 거리에서 0
+      // hipBlend 는 첫 뼈(허벅지) 길이 비례 — 절대 m 로 두면 다리 본 스케일 시
+      // 플래토가 둔부 아래(또는 무릎)로 어긋난다
+      const L1 = BU[0].b.distanceTo(BU[0].a);
       if (visibleHip) for (const ring of rings) {
-        const [plateau, zero] = def.hipBlend;
+        const plateau = def.hipBlend[0] * L1, zero = def.hipBlend[1] * L1;
         const d = ring.c.distanceTo(rings[0].c);
         ring.hipW = Math.max(0, Math.min(1, (zero - d) / (zero - plateau)));
+        // 힙 대역 링은 골반 뼈(hipParent)와 이중 바인딩 — 이식된 둔부·골반 살이
+        // 허벅지 본에 강체 부착되면 다리 스윙 때 이식 경계가 "선반"으로 드러난다
+        // (본 스케일 걷기 검토 교훈). 무릎과 같은 블렌드 스키닝으로 절반쯤 골반을
+        // 따라가게 해 경계 노출을 완화한다.
+        if (def.hipParent && ring.hipW > 0 && getBone(def.hipParent)) {
+          const w2h = 0.5 * ring.hipW;
+          if (w2h > ring.w2) { ring.w2 = w2h; ring.child2 = def.hipParent; }
+        }
       }
       const visibleYield = def.yieldField ? ordered.filter(s => def.yieldField(prefix)(s.id)) : null;
       // 구 껍질 침수(flood) 차단: 링 평면을 축 방향으로 완전히 벗어난 loft 세그먼트는
@@ -374,7 +386,7 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
         // 랫칫이 된다 (밑둔부 db −1.7cm V자 교훈).
         const hipRows = def.hipBlend ? MESH_FIT.torso?.rows : null;
         const hipWofY = y => {
-          const [plateau, zero] = def.hipBlend;
+          const plateau = def.hipBlend[0] * L1, zero = def.hipBlend[1] * L1;
           return Math.max(0, Math.min(1, (zero - (rings[0].c.y - y)) / (zero - plateau)));
         };
         const sideSign = def.mirror && prefix === 'Right' ? -1 : 1;
@@ -382,9 +394,11 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
           let cy = 0, cx = 0, cz = 0;
           for (const vid of row) { cy += positions[vid * 3 + 1]; cx += positions[vid * 3]; cz += positions[vid * 3 + 2]; }
           cy /= row.length; cx /= row.length; cz /= row.length;
-          let d = interp(cy);
+          // 잔차 격자는 레퍼런스 골격의 y — 본 스케일 시 랜드마크 리맵으로 조회
+          const cyF = fitYRemap ? fitYRemap(cy) : cy;
+          let d = interp(cyF);
           if (hipRows) {
-            const w = hipWofY(cy), dT = w > 0 ? interpOn(hipRows, cy) : null;
+            const w = hipWofY(cy), dT = w > 0 ? interpOn(hipRows, cyF) : null;
             if (dT) {
               d = d ?? { df: 0, db: 0, dx: 0, dxo: 0, dxi: 0 };
               d.df += w * (dT.df - d.df); d.db += w * (dT.db - d.db);
