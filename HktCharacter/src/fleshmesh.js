@@ -133,8 +133,19 @@ const CHAIN_DEFS = [
   // 다리도 자기 살만 본다 — 골반·둔부까지 보면 허벅지 상단 레이가 그 표면을 찍어
   // "반바지" 스캘럽이 된다. 힙 실루엣(크레스트·둔부)은 몸통 체인 몫 (골반 loft 가
   // 시트 폭을 행별로 이미 보유), 다리는 순수 허벅지~발목 loft — 매끈함이 보장된다.
+  // 단, 힙 이음 대역(hipBlend)만은 예외 — 순수 다리 튜브가 골반 셸을 비스듬히
+  // 뚫고 나오면 교차선이 "팬티라인"/밑둔부 W 플랩 단차로 보인다 (교훈: 이음새는
+  // 두 셸이 "접선"으로 만나야 크리스가 자연스러운 둔부 주름이 된다). 허벅지 상단은
+  // 골반·둔부를 포함한 "smin 합집합 표면"으로 투영 — 겹침 대역에서 두 셸이 일치하고
+  // 밑둔부 주름은 합집합 필드의 smin 웰드가 접선으로 그린다. 가중은 플래토+램프:
+  // 골반·둔부와 실제로 겹치는 d<plateau 는 1 (절반 가중은 표면이 중간에 떠서 단차가
+  // 반만 남는다 — 계측 교훈), 그 아래는 0 으로 램프. 합집합이 자연히 다리 표면으로
+  // 수렴하는 높이라 램프는 안전판일 뿐 — 전 링 boolean "반바지" 스캘럽은 안 돌아온다.
   { bones: ['Leg', 'Foot'], around: 22, mirror: true, inset: 0.0015, fitKey: 'leg',
-    field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
+    field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)),
+    hipField: side => id => /^loft:Spine$|^extra:\d+:Hips$/.test(id)
+      || (/Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side))),
+    hipBlend: [0.18, 0.28] },
   { bones: ['ToeBase'], around: 12, mirror: true, inset: 0.0015,
     field: side => id => /Leg|Foot|Toe/.test(id) && !id.includes(otherSide(side)) },
   { bones: ['Arm', 'ForeArm', 'Hand'], around: 14, mirror: true, inset: 0.0015,
@@ -224,6 +235,15 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
         // 남의 표면이다 (팔 링의 안쪽 레이가 가슴을 뚫고 나가던 교훈) — rough 로 후퇴
         let r = s == null ? ring.rGuess : s;
         if (r > ring.rGuess * 2.2) r = ring.rGuess;
+        // 힙 이음 블렌드: 합집합 표면(자기 살 ∪ 골반·둔부) 반경으로 램프 보간.
+        // 안쪽(내측) 레이가 골반 내부를 관통해 반대편으로 탈출하면 2.2 클램프가
+        // 다리 전용 반경으로 되돌린다 — 그 대역은 몸통 셸 안에 묻혀 있어 안 보인다.
+        if (!cap && ring.hipW > 0 && ring.subsetHip) {
+          const sh = projectRay(ring.subsetHip, globalK, ring.c.x, ring.c.y, ring.c.z, dir.x, dir.y, dir.z, sMax);
+          let rh = sh == null ? r : sh;
+          if (rh > ring.rGuess * 2.2) rh = r;
+          r += (rh - r) * ring.hipW;
+        }
         return Math.max(r - def.inset, 0.002); // inset: 몸통과 겹치는 팔다리 면의 z-fighting 완화
       };
       const dirAt = (ring, j) => {
@@ -232,6 +252,13 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       };
       const fieldOk = def.field(prefix);
       const visible = ordered.filter(s => fieldOk(s.id));
+      const visibleHip = def.hipField ? ordered.filter(s => def.hipField(prefix)(s.id)) : null;
+      // 힙 이음 가중: 체인 시작(고관절)에서 plateau 거리까지 1, zero 거리에서 0
+      if (visibleHip) for (const ring of rings) {
+        const [plateau, zero] = def.hipBlend;
+        const d = ring.c.distanceTo(rings[0].c);
+        ring.hipW = Math.max(0, Math.min(1, (zero - d) / (zero - plateau)));
+      }
       // 구 껍질 침수(flood) 차단: 링 평면을 축 방향으로 완전히 벗어난 loft 세그먼트는
       // 그 링에는 "구 오버행"으로만 기여한다 — 반지름이 간격보다 크면 이웃 대역을
       // 침수시킨다 (턱 디스크의 구가 목구멍을 메우고, 목 envelope 의 구가 위로 번지던
@@ -242,15 +269,19 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       for (const ring of rings) {
         const sMax = ring.rGuess * 2.5 + 0.12;
         ring.sMax = sMax;
-        const near = visible.filter(s => distToSegAxis(ring.c.x, ring.c.y, ring.c.z, s) <= sMax + s.rmax + (s.k ?? globalK) + 0.05);
         const da = s => (s.ax - ring.c.x) * ring.n.x + (s.ay - ring.c.y) * ring.n.y + (s.az - ring.c.z) * ring.n.z;
         const db_ = s => da(s) + s.bax * ring.n.x + s.bay * ring.n.y + s.baz * ring.n.z;
-        ring.subset = near.filter(s => {
+        const noFlood = s => {
           if (!s.id.startsWith('loft:')) return true;
           const a = da(s), b = db_(s);
           return !(Math.min(a, b) > FLOOD_MARG || Math.max(a, b) < -FLOOD_MARG);
-        });
+        };
+        const nearOf = arr => arr.filter(s => distToSegAxis(ring.c.x, ring.c.y, ring.c.z, s) <= sMax + s.rmax + (s.k ?? globalK) + 0.05);
+        const near = nearOf(visible);
+        ring.subset = near.filter(noFlood);
         ring.subsetCap = near; // 캡 전용 — 돔 구 포함 전체
+        ring.subsetHip = ring.hipW > 0 && visibleHip ? nearOf(visibleHip).filter(noFlood) : null;
+        ring.hipW = ring.hipW ?? 0;
       }
       const emitRing = (ring, dirFn, cap) => {
         const row = [];
@@ -289,20 +320,37 @@ export function buildFleshMesh({ segs, getBone, profile, radiusForName, globalK 
       const fitRows = MESH_FIT[def.fitKey]?.rows;
       if (fitRows?.length) {
         const K = ['df', 'db', 'dx', 'dxo', 'dxi'];
-        const interp = y => {
-          if (y >= fitRows[0].y || y <= fitRows[fitRows.length - 1].y) return null; // y 내림차순
-          let i = 0; while (i + 1 < fitRows.length && fitRows[i + 1].y > y) i++;
-          const a = fitRows[i], b = fitRows[i + 1];
+        const interpOn = (rowsArr, y) => {
+          if (!rowsArr?.length || y >= rowsArr[0].y || y <= rowsArr[rowsArr.length - 1].y) return null; // y 내림차순
+          let i = 0; while (i + 1 < rowsArr.length && rowsArr[i + 1].y > y) i++;
+          const a = rowsArr[i], b = rowsArr[i + 1];
           const t = (a.y - y) / Math.max(a.y - b.y, 1e-6);
           const o = {}; for (const k of K) o[k] = (a[k] ?? 0) + ((b[k] ?? 0) - (a[k] ?? 0)) * t;
           return o;
+        };
+        const interp = y => interpOn(fitRows, y);
+        // 힙 이음 대역의 다리 링: 이 높이의 다리 표면은 합집합 = 몸통 셸과 같은
+        // 표면이다 — df/db 를 몸통 잔차로 lerp(hipW). 몸통 셸만 보정하고 다리
+        // 플레어를 낡은 표면에 두면 보정이 절반만 듣고 compose 가 계속 깎는
+        // 랫칫이 된다 (밑둔부 db −1.7cm V자 교훈).
+        const hipRows = def.hipBlend ? MESH_FIT.torso?.rows : null;
+        const hipWofY = y => {
+          const [plateau, zero] = def.hipBlend;
+          return Math.max(0, Math.min(1, (zero - (rings[0].c.y - y)) / (zero - plateau)));
         };
         const sideSign = def.mirror && prefix === 'Right' ? -1 : 1;
         for (const row of rows) {
           let cy = 0, cx = 0, cz = 0;
           for (const vid of row) { cy += positions[vid * 3 + 1]; cx += positions[vid * 3]; cz += positions[vid * 3 + 2]; }
           cy /= row.length; cx /= row.length; cz /= row.length;
-          const d = interp(cy);
+          let d = interp(cy);
+          if (hipRows) {
+            const w = hipWofY(cy), dT = w > 0 ? interpOn(hipRows, cy) : null;
+            if (dT) {
+              d = d ?? { df: 0, db: 0, dx: 0, dxo: 0, dxi: 0 };
+              d.df += w * (dT.df - d.df); d.db += w * (dT.db - d.db);
+            }
+          }
           if (!d) continue;
           let zP = 0, zN = 0, xP = 0, xN = 0;
           for (const vid of row) {

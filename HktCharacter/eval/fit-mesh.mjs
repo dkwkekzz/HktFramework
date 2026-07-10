@@ -55,18 +55,48 @@ const interpRow = (rows, y, keys) => {
   for (const k of keys) z[k] = (a[k] ?? 0) + ((b[k] ?? 0) - (a[k] ?? 0)) * t;
   return z;
 };
-// 스무딩(이동평균 2회) + 행간 기울기 제한 + 클램프 — 키별 독립
-function refine(rows, keys) {
-  let sm = rows;
-  for (let p = 0; p < 2; p++) {
-    sm = sm.map((r, i) => {
-      const nb = [sm[i - 1], r, sm[i + 1]].filter(Boolean);
-      const o = { ...r };
-      for (const k of keys) o[k] = nb.reduce((s, v) => s + v[k], 0) / nb.length;
-      return o;
-    });
+// 곡률 벌점 스무딩 — min Σ(x−r)² + λ Σ(Δ²x)² 의 정확해 (밀집 가우스 소거, n≈30).
+// 이동평균(창 3)은 파장 2~3행만 죽인다 — 중간 파장(4~10행 ≈ 13~33cm) 물결이 남아
+// 실루엣 "큰 흐름"이 울렁거렸다 (측면 배·둔부 lump 교훈). 곡률 벌점은 저주파
+// 체형(허리 S커브 등)은 통과시키고 그 물결 대역을 감쇠한다. λ=3 ≈ 파장 8행부터 반감.
+function curvSmooth(r, lambda) {
+  const n = r.length;
+  if (n < 3) return r.slice();
+  const A = Array.from({ length: n }, () => new Float64Array(n));
+  for (let i = 0; i < n; i++) A[i][i] = 1;
+  for (let j = 1; j + 1 < n; j++) {
+    const st = [[j - 1, 1], [j, -2], [j + 1, 1]];
+    for (const [ca, sa] of st) for (const [cb, sb] of st) A[ca][cb] += lambda * sa * sb;
   }
+  const b = Float64Array.from(r);
+  for (let c = 0; c < n; c++) { // 부분 피벗 소거
+    let p = c;
+    for (let i = c + 1; i < n; i++) if (Math.abs(A[i][c]) > Math.abs(A[p][c])) p = i;
+    [A[c], A[p]] = [A[p], A[c]]; [b[c], b[p]] = [b[p], b[c]];
+    for (let i = c + 1; i < n; i++) {
+      const m = A[i][c] / A[c][c];
+      if (!m) continue;
+      for (let k = c; k < n; k++) A[i][k] -= m * A[c][k];
+      b[i] -= m * b[c];
+    }
+  }
+  const x = new Float64Array(n);
+  for (let i = n - 1; i >= 0; i--) {
+    let s = b[i];
+    for (let k = i + 1; k < n; k++) s -= A[i][k] * x[k];
+    x[i] = s / A[i][i];
+  }
+  return Array.from(x);
+}
+// 스무딩(곡률 벌점) + 행간 기울기 제한 + 클램프 — 키별 독립.
+// ⚠ 합성(compose) 결과에도 반드시 다시 적용할 것 — 측정 단계에서만 스무딩하면
+// 실행마다 잔여 고주파가 도로 측정·합산돼 기울기 제한(5mm/행)이 합에서 깨진다
+// (합성 데이터가 10mm/행 계단 + 파장 10행 물결로 수렴했던 교훈).
+function refine(rows, keys, lambda = 3) {
+  const sm = rows.map(r => ({ ...r }));
   for (const k of keys) {
+    const xs = curvSmooth(sm.map(r => r[k]), lambda);
+    for (let i = 0; i < sm.length; i++) sm[i][k] = xs[i];
     for (let i = 1; i < sm.length; i++) sm[i][k] = Math.max(sm[i - 1][k] - MAXG, Math.min(sm[i - 1][k] + MAXG, sm[i][k]));
     for (let i = sm.length - 2; i >= 0; i--) sm[i][k] = Math.max(sm[i + 1][k] - MAXG, Math.min(sm[i + 1][k] + MAXG, sm[i][k]));
     for (const r of sm) r[k] = +Math.max(-CLAMP, Math.min(CLAMP, r[k])).toFixed(4);
@@ -264,18 +294,38 @@ try {
     legRaw.push(row);
   }
 
-  // ---- 스무딩·클램프 → 기존 보정과 합성 → 파일 갱신 ----------------------------
+  // ---- 스무딩·클램프 → 기존 보정과 합성 → 합성 결과 재정련 → 파일 갱신 ----------
+  // 합성 후 refine 재적용이 핵심: 최종 데이터가 실행 횟수와 무관하게 곡률·기울기
+  // 불변식을 만족한다 (측정 전용 스무딩은 compose 반복이 무력화 — 위 refine 주석).
   const old = loadExisting();
-  const finish = (raw, keys, oldRows) => refine(raw, keys).map(r => {
-    const o = interpRow(oldRows, r.y, keys);
-    const out = { y: r.y };
-    for (const k of keys) out[k] = +(r[k] + o[k]).toFixed(4);
-    return out;
-  }).sort((a, b) => b.y - a.y);
+  const finish = (raw, keys, oldRows) => refine(
+    refine(raw, keys).map(r => {
+      const o = interpRow(oldRows, r.y, keys);
+      const out = { y: r.y };
+      for (const k of keys) out[k] = +(r[k] + o[k]).toFixed(4);
+      return out;
+    }), keys).sort((a, b) => b.y - a.y);
   const data = {
     torso: { rows: finish(torsoRaw, ['df', 'db', 'dx'], old.torso.rows) },
     leg: { rows: finish(legRaw, ['df', 'db', 'dxo', 'dxi'], old.leg.rows) },
   };
+  // ---- 몸통↔다리 이음 연속성 (df/db) -------------------------------------------
+  // 두 체인은 허벅지 상단 높이에서 겹친다 — 같은 높이의 df/db 가 시리즈마다 다르면
+  // 겹친 두 셸 사이에 단차(밑둔부 "선반")가 생긴다. 겹침 중심 yJ 에서 공통값으로
+  // 수렴하도록 양쪽을 램프 블렌드 (±JW 대역, 대역 밖 원본 유지).
+  {
+    const JW = 0.10, KEYS = ['df', 'db'];
+    const tRows = data.torso.rows, lRows = data.leg.rows;
+    const yJ = (tRows[tRows.length - 1].y + lRows[0].y) / 2;
+    const vT = interpRow(tRows, yJ, KEYS), vL = interpRow(lRows, yJ, KEYS);
+    for (const [rows, own] of [[tRows, vT], [lRows, vL]]) {
+      for (const r of rows) {
+        const w = Math.max(0, 1 - Math.abs(r.y - yJ) / JW);
+        if (!w) continue;
+        for (const k of KEYS) r[k] = +(r[k] + w * ((vT[k] + vL[k]) / 2 - own[k])).toFixed(4);
+      }
+    }
+  }
   const header = readFileSync(OUTFILE, 'utf8').match(/^([\s\S]*?)export const MESH_FIT/)[1];
   writeFileSync(OUTFILE, header + 'export const MESH_FIT = ' + JSON.stringify(data) + ';\n');
 
