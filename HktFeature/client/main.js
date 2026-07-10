@@ -34,6 +34,11 @@ const DESIRE_KEY = { Digit1: 'forage', Digit2: 'hunt', Digit3: 'eat', Digit4: 'c
 addEventListener('keydown', (e) => { const d = DESIRE_KEY[e.code]; if (d !== undefined) setDesire(d); });
 setDesire('none'); // 기본 = 대기(수동 이동), 버튼 초기 강조
 
+// 클릭/터치 지목 (feature-0010 step4) — 뷰어에서 표적(결정·생명체)을 클릭하면 그 특정 대상으로 가서 상호작용한다.
+//   render 가 화면투영으로 대상을 골라(#pickAt) 이 콜백을 부르고, 서버가 표적 종류로 욕구를 추론한다(결정=식사·작은
+//   생명체=사냥). 빈 곳 클릭 = 지정 해제(대기 → 방향키 수동 이동). "표적이 곧 의도"라 버튼 없이 직접 지목한다.
+render.onSelectTarget = (sel) => { net.send(MSG.TARGET, sel); if (sel?.kind === 'none') state.myDesire = 'none'; };
+
 // 버튼 강조를 서버 진실(내 생명체의 실제 desire)에 맞춘다 — 매 프레임 동기화(관측되면 그 값, 아니면 내 선택).
 function reflectDesireButtons() {
   let actual = state.myDesire;
@@ -51,6 +56,11 @@ function frame(now) {
   const dt = Math.min(0.1, (now - last) / 1000);
   last = now;
   sim.update(dt, now);
+  // 제어 중(욕구/지정 표적 수행)엔 플레이어 점(조향 목적지)을 내 생명체에 붙인다 — 수행을 마치고 대기로
+  //   돌아와도 생명체가 스폰(점)으로 되돌아가지 않고 **그 자리에 서서** WASD 를 그 위치부터 받게 한다(feature-0010 step4).
+  let mine = null;
+  for (const c of state.creatures.values()) if (c.owner && c.owner === state.playerId) { mine = c; break; }
+  if (mine && mine.desire && mine.desire !== 'none') { sim.x = mine.x; sim.y = mine.y; sim.z = mine.z; }
   render.draw();
   reflectDesireButtons();
   requestAnimationFrame(frame);

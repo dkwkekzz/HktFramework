@@ -8,8 +8,10 @@
            display: flex; flex-direction: column; align-items: center; }
     h1 { font-size: 15px; font-weight: 600; margin: 12px 0 8px; color: #9db2c4; }
     canvas { border: 1px solid #1c2330; border-radius: 4px; }
-    /* 제어 UI (feature-0010) — 내 생명체에 욕망을 부여하는 실제 버튼(단축키 1·2·0 과 동일 동작) */
-    #desirebar { display: flex; gap: 8px; align-items: center; margin: 8px 0 4px; font-size: 13px; }
+    /* 제어 UI (feature-0010) — 표적 클릭 지목(step4) + 욕망 버튼(단축키 1·2·0 과 동일 동작) */
+    #desirehint { margin: 10px 0 2px; font-size: 12px; color: #9db2c4; max-width: 900px; text-align: center; line-height: 1.5; }
+    #desirehint b { color: #ffd76e; }
+    #desirebar { display: flex; gap: 8px; align-items: center; margin: 4px 0 4px; font-size: 13px; }
     #desirebar .lbl { color: #7a8aa0; margin-right: 2px; }
     #desirebar button { cursor: pointer; border: 1px solid #2a3648; border-radius: 6px;
       background: #121826; color: #cdd8e6; padding: 6px 14px; font-size: 13px; font-family: inherit;
@@ -25,8 +27,9 @@
 </head>
 <body>
   <h1>HktFeature — 규칙을 정의하고 시뮬레이션한다 (관측 뷰어)</h1>
+  <div id="desirehint">👆 <b>표적을 클릭/터치</b>하면 내 생명체가 그리로 가서 상호작용한다(결정=먹기 · 작은 생명체=사냥). 빈 곳 클릭 = 대기(방향키 수동 이동). 아래 버튼은 자동(가장 가까운 표적) 수행.</div>
   <div id="desirebar">
-    <span class="lbl">내 생명체 욕망 →</span>
+    <span class="lbl">또는 욕망 →</span>
     <button data-desire="forage">🌿 채집 <kbd>1</kbd></button>
     <button data-desire="hunt">⚔ 사냥 <kbd>2</kbd></button>
     <button data-desire="eat">🍚 식사 <kbd>3</kbd></button>

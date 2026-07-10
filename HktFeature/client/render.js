@@ -7,11 +7,15 @@
 // 노드·아이템·전투 등 게임플레이 시각화는 feature 로 얹는다.
 // ============================================================================
 
-import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, POOL, dist3, fieldPhase } from '../shared/constants.js';
+import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, CREATURE_HARVEST_RADIUS, CREATURE_ATTACK_RADIUS, CRAFT_REACH, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
 const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', emit: '발산', detonate: '폭발', discharge: '방출', cook: '요리', craft: '제조', heat: '가열', combust: '연소', melt: '용해', shatter: '파괴' };
-// 욕구 라벨/색 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 적는다.
-const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조' };
+// 욕구 라벨/색/아이콘 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 또렷이 적는다.
+const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조', flee: '회피' };
+const DESIRE_ICON  = { forage: '🌿', hunt: '⚔', none: '✋', eat: '🍚', craft: '🔨', flee: '🏃' };
+// 욕구별 대표색 — 표적선·오라·아이콘·버튼이 공유해 "어느 욕구인지"가 색으로도 한눈에 갈린다.
+const DESIRE_COLOR = { forage: '#78dc96', hunt: '#e6785a', eat: '#f0b45a', craft: '#b496eb', flee: '#7fc7ff', none: '#9fb4c8' };
+const DESIRE_RGB   = { forage: [120,220,150], hunt: [230,120,90], eat: [240,180,90], craft: [180,150,235], flee: [127,199,255], none: [159,180,200] };
 
 function poolLabel(state, id) {
   if (id === state.playerId) return '나';
@@ -25,12 +29,15 @@ function poolLabel(state, id) {
 
 export class Render {
   constructor(canvas, state, sim, net) {
+    this.canvas = canvas;
     this.ctx = canvas.getContext('2d');
     this.w = canvas.width;
     this.h = canvas.height;
     this.state = state;
     this.sim = sim;
     this.net = net;
+    this.lastCam = null;                 // 마지막 프레임 카메라(클릭 피킹의 화면투영에 쓴다)
+    this.onSelectTarget = null;          // (sel) => void — 클릭 지정 표적을 서버로(main.js 결선, feature-0010 step4)
 
     // orbit 카메라 (z-up). yaw=방위각, pitch=올려본 각, dist=거리.
     this.yaw = -Math.PI * 0.75;
@@ -38,30 +45,79 @@ export class Render {
     this.dist = 620;
     this.focal = this.h * 0.9;
 
-    // 입력: 드래그 회전 · 휠 줌
-    let drag = null;
-    canvas.addEventListener('mousedown', (e) => { drag = { x: e.clientX, y: e.clientY }; });
-    addEventListener('mouseup', () => { drag = null; });
-    addEventListener('mousemove', (e) => {
+    // 입력: 드래그 회전 · 휠 줌 · **클릭/터치=표적 지목**(feature-0010 step4).
+    //   드래그(회전)와 클릭(지목)을 이동거리로 가른다: 누른 뒤 6px 미만 움직이면 클릭=피킹, 그 이상이면 회전.
+    let drag = null, moved = 0, downXY = null;
+    const onDown = (x, y) => { drag = { x, y }; downXY = { x, y }; moved = 0; };
+    const onMove = (x, y) => {
       if (!drag) return;
-      this.yaw -= (e.clientX - drag.x) * 0.006;
+      moved += Math.abs(x - drag.x) + Math.abs(y - drag.y);
+      this.yaw -= (x - drag.x) * 0.006;
       // pitch: 아래로 내려다보기(+)뿐 아니라 위로 올려다보기(−)도 허용 — 세계는 수직(WORLD_HEIGHT)이라
       //   위를 보고 위로 이동할 수 있어야 한다. 정확히 ±π/2(수직)면 right 축이 붕괴하므로 그 안쪽으로 클램프.
-      this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch + (e.clientY - drag.y) * 0.005));
-      drag = { x: e.clientX, y: e.clientY };
-    });
+      this.pitch = Math.max(-1.45, Math.min(1.45, this.pitch + (y - drag.y) * 0.005));
+      drag = { x, y };
+    };
+    const onUp = (x, y) => {
+      if (downXY && moved < 6) this.#pickAt(x, y); // 거의 안 움직였으면 클릭 = 표적 지목
+      drag = null; downXY = null;
+    };
+    canvas.addEventListener('mousedown', (e) => onDown(e.clientX, e.clientY));
+    addEventListener('mousemove', (e) => onMove(e.clientX, e.clientY));
+    addEventListener('mouseup', (e) => onUp(e.clientX, e.clientY));
+    // 터치 — 한 손가락 탭=지목, 드래그=회전(마우스와 동일 처리).
+    canvas.addEventListener('touchstart', (e) => { const t = e.touches[0]; if (t) onDown(t.clientX, t.clientY); }, { passive: true });
+    canvas.addEventListener('touchmove', (e) => { const t = e.touches[0]; if (t) onMove(t.clientX, t.clientY); }, { passive: true });
+    canvas.addEventListener('touchend', (e) => { const t = e.changedTouches[0]; if (t) onUp(t.clientX, t.clientY); });
     canvas.addEventListener('wheel', (e) => {
       this.dist = Math.max(150, Math.min(1600, this.dist * (1 + Math.sign(e.deltaY) * 0.12)));
       e.preventDefault();
     }, { passive: false });
   }
 
-  // --- 카메라 기저 (target=플레이어) ---
+  // 클릭/터치 피킹 (feature-0010 step4) — 화면 좌표에 가장 가까운 결정·생명체를 골라 표적으로 지목한다(서버로 TARGET).
+  //   각 대상의 월드 중심을 화면에 투영(#pt)해 클릭점과의 픽셀 거리로 고른다(가까운 것). 임계 밖이면 **빈 곳** = 지정 해제.
+  //   생명체를 결정보다 우선(작은 먹이 클릭이 뒤 결정에 가리지 않게). 캔버스 CSS 스케일을 고려해 좌표를 보정한다.
+  #pickAt(clientX, clientY) {
+    const cam = this.lastCam; if (!cam || !this.onSelectTarget) return;
+    const rect = this.canvas.getBoundingClientRect();
+    const mx = (clientX - rect.left) * (this.w / rect.width);
+    const my = (clientY - rect.top) * (this.h / rect.height);
+    const THRESH = 46; // 픽셀 임계(터치 여유)
+    let best = null, bestD = THRESH;
+    for (const c of this.state.creatures.values()) { // 생명체 우선
+      if (c.balance <= 0) continue;
+      const p = this.#pt(cam, c.x, c.y, c.z); if (!p) continue;
+      const d = Math.hypot(p.sx - mx, p.sy - my);
+      if (d < bestD) { bestD = d; best = { kind: 'creature', seq: c.seq }; }
+    }
+    for (const [seq, c] of this.state.crystals) { // 결정은 맵 키가 seq(객체엔 seq 필드 없음)
+      if (c.balance <= 0) continue;
+      const p = this.#pt(cam, c.x, c.y, c.z); if (!p) continue;
+      const d = Math.hypot(p.sx - mx, p.sy - my);
+      if (d < bestD) { bestD = d; best = { kind: 'crystal', seq }; }
+    }
+    this.onSelectTarget(best ?? { kind: 'none' }); // 빈 곳 클릭 = 지정 해제(대기)
+  }
+
+  // 내가 제어하는 생명체 (feature-0010) — 소유 생명체를 한 번에 찾는다. 카메라·강조·HUD 가 공유한다.
+  //   "한 사람 = 한 생명체": 시점의 주인공은 이 생명체다(플레이어 점이 아니라).
+  #myCreature() {
+    if (!this.state.playerId) return null;
+    for (const c of this.state.creatures.values())
+      if (c.owner && c.owner === this.state.playerId && c.balance > 0) return c;
+    return null;
+  }
+
+  // --- 카메라 기저 (target = 내 생명체, 없으면 플레이어 점) ---
+  //   아바타 통합(feature-0010 step3): 카메라가 내 생명체를 따라간다 → 욕구를 누르면 그 생명체가 화면
+  //   가운데서 표적으로 움직이는 게 또렷이 보인다("내가 저걸 몬다"). 소유 생명체가 없으면(관전 데모 등) 점을 본다.
   #camera() {
     const { sim } = this;
+    const mine = this.#myCreature();
     const cp = Math.cos(this.pitch), sp = Math.sin(this.pitch);
     const fwd = [cp * Math.cos(this.yaw), cp * Math.sin(this.yaw), -sp];
-    const target = [sim.x, sim.y, sim.z + 20];
+    const target = mine ? [mine.x, mine.y, mine.z + 20] : [sim.x, sim.y, sim.z + 20];
     const pos = [target[0] - fwd[0] * this.dist, target[1] - fwd[1] * this.dist, target[2] - fwd[2] * this.dist];
     const rx = fwd[1], ry = -fwd[0], rz = 0;
     const rl = Math.hypot(rx, ry, rz) || 1;
@@ -107,7 +163,9 @@ export class Render {
 
   draw() {
     const { ctx, w, h, state } = this;
+    this.t = (typeof performance !== 'undefined' ? performance.now() : Date.now()) / 1000; // 애니메이션 위상(펄스·마칭앤츠)
     const cam = this.#camera();
+    this.lastCam = cam; // 클릭 피킹이 쓰는 화면투영 기저
 
     ctx.fillStyle = '#0a0d13';
     ctx.fillRect(0, 0, w, h);
@@ -302,17 +360,36 @@ export class Render {
     if (!t) return;
     const { ctx } = this;
     const mine = cre.owner && cre.owner === this.state.playerId;
-    const a = mine ? 0.7 : 0.3;
-    ctx.strokeStyle = cre.desire === 'hunt' ? `rgba(230,120,90,${a})` : cre.desire === 'eat' ? `rgba(240,180,90,${a})` : cre.desire === 'craft' ? `rgba(180,150,235,${a})` : `rgba(120,220,150,${a})`;
-    ctx.lineWidth = mine ? 2 : 1;
-    ctx.setLineDash([4, 4]);
+    const [r, g, b] = DESIRE_RGB[cre.desire] ?? DESIRE_RGB.none;
+    const a = mine ? 0.95 : 0.28;
+    ctx.strokeStyle = `rgba(${r},${g},${b},${a})`;
+    ctx.lineWidth = mine ? 3 : 1;
+    // 내 생명체의 표적선 = **마칭앤츠**(흐르는 점선)로 "저리로 가고 있다"는 방향·움직임을 강조한다.
+    ctx.setLineDash(mine ? [10, 8] : [4, 4]);
+    if (mine && ctx.lineDashOffset !== undefined) ctx.lineDashOffset = -((this.t ?? 0) * 42) % 18;
     this.#seg(cam, cre.x, cre.y, cre.z, t.x, t.y, t.z);
     ctx.setLineDash([]);
+    if (ctx.lineDashOffset !== undefined) ctx.lineDashOffset = 0;
+    // 표적에 화살촉·조준 고리 — 내 생명체가 무엇을 노리는지 콕 집는다(약동하는 고리).
+    if (mine) {
+      const tp = this.#pt(cam, t.x, t.y, t.z);
+      if (tp) {
+        const pulse = 10 + 4 * Math.sin((this.t ?? 0) * 5);
+        ctx.strokeStyle = `rgba(${r},${g},${b},0.9)`; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(tp.sx, tp.sy, pulse, 0, 7); ctx.stroke();
+      }
+    }
   }
 
   // 욕망 표적 위치 유도 — 서버 #desireTarget 의 미러(표시 전용). 채집=감지 반경 안 가장 가까운 결정,
   //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (feature-0010)
   #desireTargetPos(cre) {
+    // 지정 표적(클릭)이 있으면 그 대상 위치를 우선 반환 — 표적선·조준 고리가 지목한 것을 콕 집는다(feature-0010 step4).
+    if (cre.cmd) {
+      const [kindCode, seq] = cre.cmd;
+      const t = kindCode === 2 ? this.state.creatures.get(seq) : this.state.crystals.get(seq);
+      if (t && t.balance > 0) return { x: t.x, y: t.y, z: t.z };
+    }
     let best = null, bestD = CREATURE_SEEK_RADIUS;
     if (cre.desire === 'forage' || cre.desire === 'eat' || cre.desire === 'craft') {
       // 채집=먹을 수 있는 결정만 / 식사=아무 결정이나 / 제조=재료(raw, 아직 산물 아닌 결정) (feature-0011·0010 step2)
@@ -329,6 +406,16 @@ export class Render {
       }
     }
     return best;
+  }
+
+  // 지금 **행동 중**인가 — 표적이 그 욕구의 사거리 안이면(다가감이 끝나 채집/타격/조합 단계) true. 오라를
+  //   번뜩이게 해 "이동 중"과 "행동 중"을 눈으로 가른다(서버 절차의 approach→act 전환을 미러로 유도, 표시 전용).
+  #desireActing(cre) {
+    if (cre.desire === 'none') return false;
+    const t = this.#desireTargetPos(cre);
+    if (!t) return false;
+    const reach = cre.desire === 'hunt' ? CREATURE_ATTACK_RADIUS : cre.desire === 'craft' ? CRAFT_REACH : CREATURE_HARVEST_RADIUS;
+    return dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z) <= reach;
   }
 
   #creatureOrb(cam, cre, depth) {
@@ -354,10 +441,18 @@ export class Render {
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.fill();
     ctx.strokeStyle = `hsla(${hue},95%,85%,0.9)`; ctx.lineWidth = 1.5;
     ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.stroke();
-    // 내가 제어하는 생명체 — 금색 고리로 강조(내 아바타를 한눈에 찾는다)
+    // 내가 제어하는 생명체 — 금색 고리(내 아바타) + **욕구 오라**(지금 무엇을 원하는지 색·맥동으로)
     if (mine) {
       ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
       ctx.beginPath(); ctx.arc(p.sx, p.sy, r + 5, 0, 7); ctx.stroke();
+      // 욕구 오라 — 승자 욕구의 색으로 바깥을 감싸는 맥동 고리. 대기(none)면 은은한 금색. 표적 사거리 안이면(=행동
+      //   중) 더 밝게 번뜩여 "지금 채집/타격/조합하고 있다"는 순간을 강조한다(#desireActive).
+      const dc = DESIRE_RGB[desire] ?? DESIRE_RGB.none;
+      const acting = this.#desireActing(cre);
+      const pulse = (acting ? 0.6 : 0.35) + (acting ? 0.35 : 0.18) * (0.5 + 0.5 * Math.sin((this.t ?? 0) * (acting ? 9 : 3)));
+      ctx.strokeStyle = `rgba(${dc[0]},${dc[1]},${dc[2]},${pulse})`;
+      ctx.lineWidth = acting ? 5 : 3;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, r + 12 + (acting ? 3 * Math.sin((this.t ?? 0) * 9) : 0), 0, 7); ctx.stroke();
     }
     // 에너지(질서) 막대 + 스탯·잔고 라벨
     this.#bar(p.sx, p.sy - r - 6, 34 * scale, vit, `hsl(${hue},80%,70%)`);
@@ -371,15 +466,25 @@ export class Render {
       //   증폭)은 ♥ 개수로 표시한다("감정은 중요도다"). 스택이 비었으면 단일 desire(하위 호환)만 그린다.
       const stack = (cre.desires && cre.desires.length) ? cre.desires
         : (desire && desire !== 'none' ? [[desire, 1, 0]] : []);
+      // 승자(맨 위)는 아이콘+이름을 **크고 선명하게**(내 것이면 더 크게) 그려 "지금 이 욕구를 수행 중"을 못 박는다.
+      let yLabel = p.sy - r - 22;
       for (let i = 0; i < stack.length; i++) {
         const [name, , emotion = 0, feeling = 0] = stack[i];
         const top = i === 0;
-        const base = name === 'hunt' ? '#e6785a' : name === 'eat' ? '#f0b45a' : name === 'forage' ? '#78dc96' : name === 'craft' ? '#b496eb' : '#9fb4c8';
-        ctx.fillStyle = top ? (mine ? '#ffd76e' : base) : `${base}88`; // 승자는 선명, 나머지는 반투명
-        // 중요도(감정) = 외생 emotion + 자율 feeling(굶주림 등 상황이 스스로 만든 감정, feature-0012 step2). ♥ 개수로.
+        const base = DESIRE_COLOR[name] ?? DESIRE_COLOR.none;
         const importance = emotion + feeling;
         const heart = importance > 0 ? ' ' + '♥'.repeat(Math.min(3, Math.ceil(importance / 30))) : '';
-        ctx.fillText(`${top ? '▸' : '·'} ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, p.sy - r - 22 - i * 12);
+        if (top) {
+          ctx.font = `bold ${mine ? 14 : 11}px monospace`;
+          ctx.fillStyle = mine ? '#ffe9b0' : base;
+          ctx.fillText(`${DESIRE_ICON[name] ?? '▸'} ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, yLabel);
+          ctx.font = '10px monospace';
+          yLabel -= mine ? 17 : 13;
+        } else {
+          ctx.fillStyle = `${base}88`; // 하위 욕구는 반투명
+          ctx.fillText(`· ${DESIRE_LABEL[name] ?? name}${heart}`, p.sx, yLabel);
+          yLabel -= 12;
+        }
       }
       ctx.textAlign = 'left';
     }
@@ -435,10 +540,23 @@ export class Render {
 
   #drawSelf(cam) {
     const { ctx, sim } = this;
-    this.#stick(cam, sim.x, sim.y, sim.z, 'rgba(255,215,110,0.5)');
     const p = this.#pt(cam, sim.x, sim.y, sim.z);
     if (!p) return;
     const scale = this.focal / this.#toCam(cam, sim.x, sim.y, sim.z)[2];
+    // 아바타 통합(feature-0010 step3): 내가 생명체를 몰면 플레이어 점은 **조향 레티클**이다 — 방향키가 미는
+    //   목적지(생명체가 뒤따른다)일 뿐이라 은은한 십자 표식으로만 그린다(주인공=생명체, 금색 고리는 생명체에만).
+    if (this.#myCreature()) {
+      const r = Math.max(3, 7 * scale);
+      ctx.strokeStyle = 'rgba(255,215,110,0.5)'; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.arc(p.sx, p.sy, r, 0, 7); ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(p.sx - r * 1.7, p.sy); ctx.lineTo(p.sx + r * 1.7, p.sy);
+      ctx.moveTo(p.sx, p.sy - r * 1.7); ctx.lineTo(p.sx, p.sy + r * 1.7);
+      ctx.stroke();
+      return;
+    }
+    // 소유 생명체가 없을 때(관전 데모 등)만 예전 아바타 점을 그린다.
+    this.#stick(cam, sim.x, sim.y, sim.z, 'rgba(255,215,110,0.5)');
     ctx.fillStyle = '#f0f4f8';
     ctx.beginPath(); ctx.arc(p.sx, p.sy, Math.max(4, 11 * scale), 0, 7); ctx.fill();
     ctx.strokeStyle = '#ffd76e'; ctx.lineWidth = 2;
@@ -478,18 +596,30 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 좌상 아래: 제어(feature-0010) — 내가 제어하는 생명체 + 현재 욕망. 욕망이 이동을 부르고, 이동은 에너지로 지불된다.
-    let mine = null;
-    for (const c of state.creatures.values()) if (c.owner && c.owner === state.playerId) { mine = c; break; }
+    // 좌상 아래: 제어(feature-0010) 콜아웃 — 내 생명체 + **지금 무엇을 하는가**. 욕망이 이동을 부르고, 이동은
+    //   에너지로 지불된다. 상태(이동 중 / 행동 중 / 표적 없음)를 한 줄로 못 박아 "눌렀더니 이게 벌어진다"를 명확히.
+    const mine = this.#myCreature();
     const desire = mine?.desire ?? state.myDesire ?? 'none';
-    ctx.fillStyle = 'rgba(10,14,20,0.8)';
-    ctx.fillRect(10, 72, 270, 40);
+    const [dr, dg, db] = DESIRE_RGB[desire] ?? DESIRE_RGB.none;
+    const dcol = `rgb(${dr},${dg},${db})`;
+    ctx.fillStyle = 'rgba(10,14,20,0.82)';
+    ctx.fillRect(10, 72, 300, 58);
+    ctx.fillStyle = dcol; ctx.fillRect(10, 72, 4, 58); // 욕구 색 띠
     ctx.font = '12px monospace';
     ctx.fillStyle = '#ffd76e';
-    if (mine) ctx.fillText(`❋ 내 생명체 ${'❋'.repeat(mine.size ?? 1)} E${mine.balance}`, 20, 88);
-    else ctx.fillText(`❋ 내 생명체 (없음)`, 20, 88);
-    ctx.fillStyle = '#8fd9a8';
-    ctx.fillText(`욕망 ▸ ${DESIRE_LABEL[desire] ?? desire}   (1채집 2사냥 3식사 4제조 0대기)`, 20, 104);
+    if (mine) ctx.fillText(`❋ 내 생명체 ${'❋'.repeat(mine.size ?? 1)}  E${mine.balance}`, 22, 90);
+    else ctx.fillText(`❋ 내 생명체 (재소환 중…)`, 22, 90);
+    // 무엇을 하는가 — 아이콘+욕구 + 상태. 표적 없으면 그 이유를 알려준다(모호함 제거).
+    let status = '';
+    if (mine && desire !== 'none') {
+      const tgt = this.#desireTargetPos(mine);
+      status = !tgt ? '— 주변에 표적 없음' : this.#desireActing(mine) ? '— 도달·수행 중 ✦' : '— 표적으로 이동 중 →';
+    } else if (mine) status = '— 대기(방향키로 데려간다)';
+    ctx.font = 'bold 13px monospace';
+    ctx.fillStyle = dcol;
+    ctx.fillText(`${DESIRE_ICON[desire] ?? ''} ${DESIRE_LABEL[desire] ?? desire} ${status}`, 22, 108);
+    ctx.font = '10px monospace'; ctx.fillStyle = '#7a8aa0';
+    ctx.fillText(`1채집 2사냥 3식사 4제조 0대기`, 22, 124);
 
     // 우상: 보존 불변식 + 에너지 등급(태양·국소장·결정·생명체·심우주) 전시 + 네트워크 계측
     ctx.fillStyle = 'rgba(10,14,20,0.8)';

@@ -153,7 +153,7 @@ export class GameServer {
     // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(feature-0012 중첩), moveDebt=이동 비용 누적(잔여 거리).
     //   feature-0012: 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
     //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [] }; // items=소유 아이템 id(feature-0014)
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(feature-0010 step4, 없으면 null=가장 가까운 표적 자동)
     // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
     //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
     Object.defineProperty(cre, 'desire', {
@@ -187,8 +187,35 @@ export class GameServer {
   //   절차가 있는 것)만** 받는다 — 새 욕구를 registerDesire 로 얹으면 인텐트도 자동으로 그 욕구를 받아들인다(개방).
   setDesire(playerId, desire) {
     const d = DESIRE_PROCEDURES[desire] ? desire : DESIRE.NONE;
-    for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desire = d;
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) { cre.desire = d; cre.commandedTarget = null; } // 버튼 욕구 = 지정 해제(자동 최근접)
     return d;
+  }
+
+  // 클릭 지정 표적 (feature-0010 step4) — 플레이어가 화면에서 표적을 클릭/터치하면 그 **특정** 대상으로 가서
+  //   상호작용한다. 표적 종류로 욕구를 추론한다: **결정 = 식사**(EAT — 날것이면 요리해 먹고, 익은 것이면 바로) ·
+  //   **더 작은 생명체 = 사냥**(HUNT). 자동으로 가장 가까운 표적을 고르던 desire 와 달리, 여기선 지목한 대상 하나를
+  //   고정해 쫓는다(commandedTarget). 표적이 소진·소멸하면 대기로 복귀한다(#performDesire 정리 → 한 번 수행하고 멈춤).
+  //   kind='none' = 지정 해제(대기 → 방향키 수동 이동). 유효하지 않은 지목(없는 결정·더 크거나 같은 생명체)은 무시.
+  //   순수 상태 변경(에너지 무관) — 보존·결정론 불변. 지정은 표적 seq 로 결정론적이다.
+  setTarget(playerId, msg) {
+    const kind = msg?.kind, seq = (msg?.seq | 0);
+    for (const cre of this.creatures.values()) {
+      if (cre.owner !== playerId) continue;
+      if (kind === 'crystal') {
+        const c = this.crystals.get(`${POOL.CRYSTAL}${seq}`);
+        if (!c || this.ledger.balance(c.id) <= 0) continue;      // 없는/빈 결정 = 무시
+        cre.commandedTarget = { kind, seq };
+        cre.desire = DESIRE.EAT;                                   // 결정 = 먹는다(날것이면 요리→먹기)
+      } else if (kind === 'creature') {
+        const v = this.creatures.get(`${POOL.CREATURE}${seq}`);
+        if (!v || v.id === cre.id || v.size >= cre.size || this.ledger.balance(v.id) <= 0) continue; // 더 작은 것만 사냥
+        cre.commandedTarget = { kind, seq };
+        cre.desire = DESIRE.HUNT;
+      } else {                                                     // 'none'/미상 = 지정 해제(대기)
+        cre.commandedTarget = null;
+        cre.desire = DESIRE.NONE;
+      }
+    }
   }
 
   // 욕구 주입 (feature-0012) — 내가 제어하는 생명체(들)의 욕구 **스택에 하나를 얹는다**(중첩). 기존 setDesire(스택
@@ -245,6 +272,14 @@ export class GameServer {
     return this.crystals.get(cryId);
   }
 
+  // 먹을 수 있는(익힌) 결정 하나를 만든다 — 채집·식사의 표적. spawnRawFood 의 대칭(raw=false).
+  //   라이브 진입점이 제어 아레나를 시드할 때 쓴다(feature-0010 step3: 욕구마다 눈에 보이는 표적 보장). SOURCE→결정 = 보존.
+  spawnFood(x, y, z, species = 0, amount = 0) {
+    const cryId = this.#spawnCrystal(x, y, z, species, false);
+    if (amount > 0) this.ledger.transfer(POOL.SOURCE, cryId, amount, CAUSE.SPAWN);
+    return this.crystals.get(cryId);
+  }
+
   // --- 원장 커밋 + tx 기록 (모든 에너지 변화는 이 함수를 지난다) ---
   #tx(from, to, want, cause, at = null) {
     const amount = this.ledger.transfer(from, to, want, cause);
@@ -289,7 +324,7 @@ export class GameServer {
     if (!p) return;
     // 제어자가 떠나면 그가 몰던 생명체는 야생으로 돌아간다(feature-0010) — 에너지는 그대로(보존),
     //   다만 주인이 없어 추적을 멈춘다(owner·desire 해제 → 정지). 소멸이 아니라 통제만 놓는다.
-    for (const cre of this.creatures.values()) if (cre.owner === id) { cre.owner = null; cre.desire = DESIRE.NONE; }
+    for (const cre of this.creatures.values()) if (cre.owner === id) { cre.owner = null; cre.desire = DESIRE.NONE; cre.commandedTarget = null; }
     this.#decompose(id, p.x, p.y, p.z); // 이탈 = 응집 소멸 → 결정(잔해)+국소장(거름)으로 분해
     this.ledger.removePool(id);
     this.players.delete(id);
@@ -318,6 +353,7 @@ export class GameServer {
       case MSG.BEACON: this.#onBeacon(p, msg); break;
       case MSG.RESYNC: this.#onResync(p, msg); break;
       case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // feature-0010 — 내 생명체에 욕망 부여(스택 교체)
+      case MSG.TARGET: this.setTarget(p.id, msg); break;        // feature-0010 step4 — 클릭 지정 표적(표적→욕구 추론)
       case MSG.INJECT: // feature-0012 — 욕구를 스택에 주입(중첩) + 감정으로 우선순위 증폭
         this.injectDesire(p.id, msg.desire, Number.isFinite(msg.priority) ? (msg.priority | 0) : DESIRE_BASE_PRIORITY);
         if (Number.isFinite(msg.emotion)) this.emote(p.id, msg.desire, msg.emotion);
@@ -895,6 +931,15 @@ export class GameServer {
   //   결정론: seq 오름차순 순회 + 순수 클램프(rng 미사용) → 확산·성장·전투 결정론 불변.
   #performDesire() {
     this.#appraise(); // feature-0012 step2 — 먼저 상황(차이)이 자율 감정(feeling)을 갱신 → 우선순위 재정렬
+    // feature-0010 step4 — 지정 표적(클릭)이 소진·소멸했으면 해제하고 대기로 복귀한다(클릭 → 한 가지 수행 → 멈춤).
+    for (const cre of this.creatures.values()) {
+      const cmd = cre.commandedTarget;
+      if (!cmd) continue;
+      let alive;
+      if (cmd.kind === 'crystal') { const c = this.crystals.get(`${POOL.CRYSTAL}${cmd.seq}`); alive = !!c && this.ledger.balance(c.id) > 0; }
+      else { const v = this.creatures.get(`${POOL.CREATURE}${cmd.seq}`); alive = !!v && v.size < cre.size && this.ledger.balance(v.id) > 0; }
+      if (!alive) { cre.commandedTarget = null; if (cre.owner) cre.desire = DESIRE.NONE; } // 수행 완료 → 대기(수동 이동 재개)
+    }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
       const ctx = this.#desireCtx(cre);
@@ -1056,6 +1101,11 @@ export class GameServer {
 
   // 감지 반경(SEEK) 안 잔고 있는 가장 가까운 결정 — 욕구 절차의 표적. edibleOnly 면 날것(raw)은 건너뛴다. (feature-0010·0011)
   #nearestCrystalFor(cre, opts = {}) {
+    // 지정 표적(클릭)이 있으면 그 결정을 우선 — 자동 최근접 대신 지목한 대상으로 간다(feature-0010 step4, SEEK 무시).
+    if (cre.commandedTarget?.kind === 'crystal') {
+      const c = this.crystals.get(`${POOL.CRYSTAL}${cre.commandedTarget.seq}`);
+      if (c && this.ledger.balance(c.id) > 0 && (!opts.edibleOnly || !c.raw)) return c;
+    }
     let best = null, bestD = CREATURE_SEEK_RADIUS;
     for (const c of this.crystals.values()) {
       if (this.ledger.balance(c.id) <= 0) continue;
@@ -1068,6 +1118,11 @@ export class GameServer {
 
   // 감지 반경(SEEK) 안에서 잔고 있는 가장 가까운 **더 작은** 생명체 — 사냥 욕망의 표적(포식=강자→약자). (feature-0010)
   #nearestPrey(cre) {
+    // 지정 표적(클릭)이 있으면 그 생명체를 우선 — 지목한 먹이로 간다(feature-0010 step4, SEEK 무시, 더 작을 때만).
+    if (cre.commandedTarget?.kind === 'creature') {
+      const v = this.creatures.get(`${POOL.CREATURE}${cre.commandedTarget.seq}`);
+      if (v && v.id !== cre.id && v.size < cre.size && this.ledger.balance(v.id) > 0) return v;
+    }
     let best = null, bestD = CREATURE_SEEK_RADIUS;
     for (const v of this.creatures.values()) {
       if (v.id === cre.id || v.size >= cre.size) continue;
@@ -1221,7 +1276,10 @@ export class GameServer {
     const creatureCells = broadcastField
       ? [...this.creatures.values()].reduce((acc, c) => {
           const b = this.ledger.balance(c.id);
-          if (b > 0) acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length]); // feature-0012: desires=중첩 스택 · feature-0014: items=소유 아이템 수
+          if (b > 0) {
+            const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
+            acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]); // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
+          }
           return acc;
         }, [])
       : null;

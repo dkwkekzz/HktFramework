@@ -158,6 +158,21 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           return;
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
+        if (scene === 'control') {
+          // 제어 씬(feature-0010 step3) — 카메라가 **내 생명체**를 태우고(아바타 통합), 둘레에 욕구별 표적을 둔다.
+          //   오른쪽=먹을 결정(채집), 왼쪽=재료 쌍(제조), 아래=작은 먹이(사냥). 기본 욕구=채집 → 생명체가 굵은
+          //   표적선(마칭앤츠)을 그리며 결정으로 걸어가 오라를 번뜩이며 먹는다. "누르면 저게 벌어진다"가 또렷하다.
+          rear(cre, 1800);
+          const { x, y, z } = CREATURE_START;
+          game.spawnFood(x + 450, y - 80, z, 4, 2_600);
+          game.spawnFood(x + 380, y + 150, z, 9, 2_400);
+          game.spawnRawFood(x - 450, y + 70, z, 2, 3_000);
+          game.spawnRawFood(x - 450, y - 70, z, 7, 3_000);
+          const prey = game.spawnCreature(x + 40, y + 470, z);
+          game.ledger.transfer(POOL.SOURCE, prey.id, 800, CAUSE.SPAWN);
+          game.setDesire(playerId, DESIRE.FORAGE);
+          return;
+        }
         if (scene === 'threat') {
           // 위협·회피 — 곁의 큰 포식자에서 도망친다(회피 감정 자율 상승). 넉넉히 채워(굶주림 0) 회피 감정만 작용.
           rear(cre, 1800);

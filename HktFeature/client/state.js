@@ -135,8 +135,8 @@ export class ClientState {
   //   방송에 없는(=죽은) 생명체는 미러에서 지운다 — 아사·소멸한 생명체가 유령으로 남지 않게(CRYSTAL 과 같은 처리).
   #onCreature(msg) {
     const seen = new Set();
-    for (const [seq, x, y, z, balance, size, desire, owner, desires] of msg.cells) {
-      this.creatures.set(seq, { x, y, z, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [] });
+    for (const [seq, x, y, z, balance, size, desire, owner, desires, items, cmd] of msg.cells) {
+      this.creatures.set(seq, { seq, x, y, z, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null }); // cmd=지정 표적 [kindCode,seq] 또는 null (feature-0010 step4)
       seen.add(seq);
     }
     for (const key of this.creatures.keys()) if (!seen.has(key)) this.creatures.delete(key);

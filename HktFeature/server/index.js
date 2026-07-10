@@ -10,7 +10,25 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from './game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD } from '../shared/constants.js';
+import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD, CREATURE_MAX_ENERGY } from '../shared/constants.js';
+
+// feature-0010 step3 — 제어 아레나 시드. 접속 시 내 생명체를 사냥 가능한 몸(size 2)으로 세우고, 둘레에 **욕구별
+//   표적**을 둔다: 오른쪽=먹을 결정 둘(채집·식사), 왼쪽=붙은 재료 쌍(제조), 아래=작은 먹이(사냥). 표적은 자동
+//   채집 반경(300) **밖**(~450px)·감지 반경(900) **안**이라 "누르기 전엔 그대로, 누르면 걸어가 수행"이 또렷하다.
+//   전부 SOURCE 와 주고받아 보존. 접속 1회만 시드한다(재소환 때는 아래 서식지 재가열로 유지).
+function seedControlArena(game, cre, x, y, z) {
+  cre.size = 2;                                        // 사냥(포식=강자→약자) 가능한 큰 몸 — 눈에 띈다
+  const pool = game.ledger.get(cre.id);
+  if (pool) pool.max = CREATURE_MAX_ENERGY * 2;
+  const cur = game.ledger.balance(cre.id);
+  if (cur < 1_600) game.ledger.transfer(POOL.SOURCE, cre.id, 1_600 - cur, 'seed'); // 굶주림 0(회피·굶주림 감정 배제)
+  game.spawnFood(x + 450, y - 80, z, 4, 2_600);       // 채집·식사 표적 A(먹을 수 있는 결정)
+  game.spawnFood(x + 380, y + 150, z, 9, 2_400);      // 채집·식사 표적 B(다른 종=다른 색)
+  game.spawnRawFood(x - 450, y + 70, z, 2, 3_000);    // 제조 재료 쌍 — 서로 140px(CRAFT_PAIR_RADIUS 안), raw=반응 면역
+  game.spawnRawFood(x - 450, y - 70, z, 7, 3_000);
+  const prey = game.spawnCreature(x + 40, y + 470, z);// 사냥 표적 — 작은 먹이(size1)
+  game.ledger.transfer(POOL.SOURCE, prey.id, 800, 'seed'); // 넉넉히 채워 잠시 살아있다(다가가 타격 가능)
+}
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = {
@@ -74,11 +92,15 @@ wss.on('connection', (socket) => {
       const a = game.creatureSeq * 2.399963; // 황금각 근사 — 둘레 고른 분포(결정론)
       const px = SPAWN_POS.x + Math.round(Math.cos(a) * 90);
       const py = SPAWN_POS.y + Math.round(Math.sin(a) * 90);
-      game.possessCreature(playerId, px, py, SPAWN_POS.z);
+      const mine = game.possessCreature(playerId, px, py, SPAWN_POS.z);
       // 스폰 자리는 원래 텅 빈 곳(먹을 국소장·결정 없음) → 생명체가 갈구할 게 없어 ~12초 만에 아사했다.
       //   접속하면 그 자리에 **서식지 웅덩이**를 쥐어준다(SOURCE→국소장, 보존): 갈구 + 석출·채집이 즉시 돌아
       //   생명체가 살아 성장한다. 이후 유지는 아래 틱 루프가 소유 생명체의 현재 자리를 재가열해 이어간다.
       game.ledger.transfer(POOL.SOURCE, materialKey(px, py, SPAWN_POS.z), 6_000, 'seed');
+      // feature-0010 step3 — **표적 보장 아레나**. 욕구를 눌렀을 때 눈에 보이는 표적이 늘 있도록 내 생명체 둘레에
+      //   먹을 결정(채집·식사)·재료 쌍(제조)·작은 먹이(사냥)를 시드한다(모두 SOURCE→…, 보존). 자동 채집 반경(300)
+      //   **밖**(~450px)에 둬 누르기 전엔 안 먹히고, 감지 반경(900) 안이라 누르면 걸어가 수행한다. 접속 1회만.
+      seedControlArena(game, mine, px, py, SPAWN_POS.z);
       return;
     }
     if (playerId !== null) game.onMessage(playerId, msg);
