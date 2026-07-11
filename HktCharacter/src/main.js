@@ -16,6 +16,7 @@
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
+import { retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { McFlesh } from './mcflesh.js';
 
 // ---------------------------------------------------------------------------
@@ -98,8 +99,8 @@ const defaultProps = () => Object.fromEntries(PROP_GROUPS.map(g => [g.id, 1]));
 //  슬롯 정의 — 화면에 항상 두 캐릭터. 각 슬롯은 ch(캐릭터 상태)를 가진다.
 // ---------------------------------------------------------------------------
 const SLOTS = {
-  male:   { label: '남자', file: 'assets/anim/samba.fbx',       x: -0.62, ch: null },
-  female: { label: '여자', file: 'assets/character/female.fbx', x:  0.62, ch: null },
+  male:   { label: '남자', file: 'assets/character/X Bot.fbx', x: -0.62, ch: null },
+  female: { label: '여자', file: 'assets/character/Y Bot.fbx', x:  0.62, ch: null },
 };
 let selected = 'male';
 const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, sdf: false };
@@ -154,17 +155,40 @@ function makeCh(slotId, parsed) {
     m.castShadow = m.receiveShadow = false;
     m.userData.origMaterial = m.material;
   }
+  // 본체(prime) = 정점 최다 스킨 메시. X/Y Bot 은 보조 메시(Joints 액센트)가 별도
+  // 스켈레톤·이름 중복이라, 보조 메시는 숨기고 그 뼈 이름을 바꿔 루트 믹서가 본체 뼈에만
+  // 바인딩되게 한다(재바인드는 스키닝을 붕괴시키므로 안 함).
+  const skinnedAll = meshes.filter(m => m.isSkinnedMesh);
+  skinnedAll.sort((a, b) =>
+    (b.geometry.attributes.position?.count || 0) - (a.geometry.attributes.position?.count || 0));
+  const primeMesh = skinnedAll[0] || null;
+  const primeBoneSet = new Set(primeMesh ? primeMesh.skeleton.bones : []);
+  for (let i = 1; i < skinnedAll.length; i++) {
+    for (const b of skinnedAll[i].skeleton.bones) if (!primeBoneSet.has(b)) b.name += '__dup';
+    skinnedAll[i].removeFromParent(); // 보조 메시는 그래프에서 제거(숨김만으론 잔여가 뜸)
+  }
+  // 크기·접지·본 비율·애니메이션은 씬 그래프에 실제 배치된 뼈(루트 아래, 스케일 반영)로.
+  // 믹서는 루트(obj)에 두고 트랙은 뼈 이름으로 이 그래프 뼈를 구동한다.
+  const animBones = bones.filter(b => !b.name.endsWith('__dup'));
   const boneMap = new Map();
-  for (const b of bones) if (!boneMap.has(simpleName(b.name))) boneMap.set(simpleName(b.name), b);
+  for (const b of animBones) if (!boneMap.has(simpleName(b.name))) boneMap.set(simpleName(b.name), b);
 
+  const shownMeshes = meshes.filter(m => !m.isSkinnedMesh || m === primeMesh);
   const ch = {
-    root: obj, meshes, bones, boneMap, hasMesh: meshes.length > 0, slotX: slot.x,
-    mixer: new THREE.AnimationMixer(obj), clips: {}, actions: {}, active: '',
-    helper: bones.length ? new THREE.SkeletonHelper(obj) : null,
-    baseScale: 1, props: defaultProps(),
+    root: obj, meshes: shownMeshes, bones: animBones, boneMap, hasMesh: !!primeMesh, slotX: slot.x,
+    mixer: new THREE.AnimationMixer(obj), actions: {}, clips: {}, active: '',
+    helper: animBones.length ? new THREE.SkeletonHelper(obj) : null,
+    baseScale: 1, props: defaultProps(), primeMesh,
   };
   computeBaseScale(ch);
   applyProps(ch); // root scale + 발 접지
+  // 렌더에 쓰이는 **본체 스켈레톤의 모든 뼈**(그래프에 없는 orphan 포함)의 바인드 로컬
+  // 포즈를 저장해 둔다 — retargetClip bake 는 뼈를 오염시키고, 클립에 트랙이 없는 뼈(손가락
+  // 등)나 그래프에 없는 뼈는 믹서가 안 건드려 bake 잔여가 남는다 → 그 뼈에 스키닝된 정점이
+  // 고정 위치로 떨어져 조각으로 뜬다. bake 후 바인드로 복원해 제자리에 붙인다.
+  ch.bindPose = new Map();
+  const bindSrc = primeMesh ? primeMesh.skeleton.bones : animBones;
+  for (const b of bindSrc) ch.bindPose.set(b, { p: b.position.clone(), q: b.quaternion.clone() });
   if (ch.helper) {
     ch.helper.material.depthTest = false; // 메시 너머로도 본이 보이게
     ch.helper.visible = ui.bone;
@@ -218,37 +242,71 @@ const ANIMS = [
   ['걷기', 'walk'], ['뛰기', 'run'], ['대기', 'idle'],
   ['점프', 'jump'], ['공격', 'attack'], ['삼바', 'samba'],
 ];
-const rawClipCache = {}; // file → THREE.AnimationClip (리타깃 전 원본)
+// 애니메이션 리타깃은 THREE.SkeletonUtils.retargetClip(월드 공간 리타깃)에 맡긴다.
+// 이유: Mixamo X/Y Bot 의 raw mixamorig 리그는 뼈 rest 축이 비-단위(non-identity)라,
+// 단위 rest 로 익스포트된 클립(bare 이름 Hips/LeftArm)을 로컬 quaternion 으로 그대로
+// 얹으면 팔이 T-포즈로 남는다(관찰). retargetClip 은 source 를 클립으로 포즈시킨 뒤
+// 각 프레임의 월드 포즈를 target bind 기준 로컬로 다시 구워 rest 차이를 흡수한다.
+//
+// source(애니메이션 FBX)는 스킨 메시가 없으므로, 뼈로 임시 SkinnedMesh 를 만들어 준다.
+function buildSource(obj, clip) {
+  const sBones = []; obj.traverse(o => { if (o.isBone) sBones.push(o); });
+  if (!sBones.length) return null;
+  const sRoot = sBones.find(b => !b.parent?.isBone) || sBones[0];
+  const srcMesh = new THREE.SkinnedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
+  srcMesh.add(sRoot);
+  srcMesh.bind(new THREE.Skeleton(sBones));
+  srcMesh.updateMatrixWorld(true);
+  const byS = new Map();
+  for (const b of sBones) if (!byS.has(simpleName(b.name))) byS.set(simpleName(b.name), b.name);
+  return { srcMesh, clip, byS, hipName: byS.get('hips') || sBones[0].name };
+}
 
-async function loadRawClip(file) {
-  if (rawClipCache[file]) return rawClipCache[file];
+const sourceCache = {}; // file → { srcMesh, clip, byS, hipName }
+async function loadSource(file) {
+  if (sourceCache[file]) return sourceCache[file];
   const buf = await (await fetch(`assets/anim/${file}.fbx`)).arrayBuffer();
   const { obj } = parseFBX(buf);
   const clip = (obj.animations || []).find(a => a.duration > 0.01);
-  if (clip) rawClipCache[file] = clip;
-  return clip || null;
+  if (!clip) return null;
+  const src = buildSource(obj, clip);
+  if (src) sourceCache[file] = src;
+  return src;
 }
 
-// 트랙 노드명을 대상 캐릭터의 실제 뼈 이름으로 재작성 (이름 매칭 리타깃).
-// position 은 Hips 만 유지 — 리그 간 뼈 길이가 달라도 회전만 옮겨 안 늘어난다.
-// scale 트랙은 버린다 — 본 비율은 우리가 별도로 소유하는 채널.
-function retargetClip(clip, ch) {
-  const byName = ch.boneMap;
-  const tracks = [];
-  for (const t of clip.tracks) {
-    const dot = t.name.lastIndexOf('.');
-    const node = t.name.slice(0, dot), prop = t.name.slice(dot + 1);
-    const key = simpleName(node);
-    const bone = byName.get(key);
-    if (!bone) continue;
-    if (prop === 'position' && key !== 'hips') continue;
-    if (prop === 'scale') continue;
-    const nt = t.clone();
-    nt.name = `${bone.name}.${prop}`;
-    tracks.push(nt);
+// source 클립을 대상 캐릭터(prime 스켈레톤)에 월드 공간 리타깃해 새 클립을 굽는다.
+// names: 대상 뼈 이름 → source 뼈 이름 (simpleName 매칭). scale 은 트랙에 없다.
+function bakeClip(ch, src, label) {
+  const target = ch.primeMesh;
+  if (!target || !src) return null;
+  const names = {};
+  for (const tb of target.skeleton.bones) {
+    const sn = src.byS.get(simpleName(tb.name));
+    if (sn) names[tb.name] = sn;
   }
-  if (!tracks.length) return null;
-  return new THREE.AnimationClip(clip.name, clip.duration, tracks);
+  // preservePosition:false — 이걸 켜면(기본값) 일부 Mixamo 리그(관찰: Y Bot)에서
+  // 리타깃이 뼈를 바인드(T-포즈)로 되돌려 팔이 안 내려온다. 회전만 필요하므로 끈다.
+  const baked = retargetClip(target, src.srcMesh, src.clip, { fps: 30, names, hip: src.hipName, preservePosition: false });
+  if (!baked) return null;
+  // retargetClip 은 `.bones[뼈].prop`(스켈레톤 상대) 트랙을 굽는다. 이걸 `뼈.prop`(뼈 이름)
+  // 트랙으로 바꿔 **루트 믹서**가 씬 그래프의 실제 뼈를 이름으로 구동하게 한다 — 그래야
+  // 렌더·스케일과 정합한다(스켈레톤 상대 경로로 별도 믹서를 돌리면 스케일이 어긋나 붕괴).
+  // Hips 위치 트랙은 버린다 — 클립마다 절대 높이가 달라 전환 시 뜨/가라앉음. 회전만 쓰면
+  // Hips 는 바인드 높이 고정 → 접지 일관(제자리 애니메이션), 미세 보정은 groundToPose.
+  baked.tracks = baked.tracks
+    .filter(t => !/\.position$/.test(t.name))
+    .map(t => { t.name = t.name.replace(/^\.bones\[(.+?)\]\./, '$1.'); return t; });
+  baked.name = label;
+  // retargetClip 은 baking 중 뼈 position/scale 을 오염시킨 채 마지막 프레임에 남긴다.
+  // 우리 클립은 회전만 재생하므로 뼈 position 을 저장해 둔 바인드로 복원한다(scale 은
+  // groundToPose 의 applyProps 가 비율대로 복구). 안 하면 스켈레톤이 흩어져 메시가 붕괴.
+  // (skeleton.pose() 는 일부 리그[Y Bot]에서 복원이 안 됨 → 직접 복원.)
+  // 스켈레톤 전체를 바인드로 리셋(믹서가 안 건드리는·그래프에 없는 뼈까지 — 이걸 안 하면
+  // 그 뼈에 스키닝된 정점이 고정 위치에 떨어져 떠 있는 조각으로 남는다), 이어서 그래프 뼈는
+  // 저장한 바인드로 정밀 복원.
+  target.skeleton.pose();
+  if (ch.bindPose) for (const [b, bp] of ch.bindPose) { b.position.copy(bp.p); b.quaternion.copy(bp.q); }
+  return baked;
 }
 
 function playClip(ch, name, fade = 0.25) {
@@ -268,23 +326,36 @@ async function playAnim(label, file, slotId = selected, fade = 0.25) {
   const ch = SLOTS[slotId]?.ch;
   if (!ch) return;
   if (!ch.clips[label]) {
-    const raw = await loadRawClip(file);
-    if (!raw) { setStatus(`${label}: 클립 로드 실패`); return; }
-    const rc = retargetClip(raw, ch);
-    if (!rc) { setStatus(`${label}: 리타깃할 뼈를 못 찾음`); return; }
-    rc.name = label;
-    ch.clips[label] = rc;
+    const src = await loadSource(file);
+    if (!src) { setStatus(`${label}: 클립 로드 실패`); return; }
+    let baked;
+    try { baked = bakeClip(ch, src, label); }
+    catch (e) { setStatus(`${label}: 리타깃 실패 — ${e.message}`); return; }
+    if (!baked) { setStatus(`${label}: 리타깃 대상 없음`); return; }
+    ch.clips[label] = baked;
   }
   playClip(ch, label, fade);
+  groundToPose(ch); // 클립마다 다리 포즈가 달라 미세하게 뜨/가라앉음 → 프레임0 기준 재접지
   refreshAnimButtons();
 }
 
 // ---------------------------------------------------------------------------
 //  기본 캐릭터 두 명 로드 → 둘 다 "대기"로 세워둔다
 // ---------------------------------------------------------------------------
+// 현재 클립의 프레임0 포즈로 발을 바닥에 정확히 접지 (로드 직후 1회).
+// 리타깃에서 Hips 를 바인드 기준으로 상대화하므로 남는 오차는 무릎 굽힘 정도뿐.
+function groundToPose(ch) {
+  if (!ch) return;
+  ch.mixer.update(0); // 프레임0 포즈(회전)를 뼈에 적용
+  // retargetClip 의 bake 는 bone.matrix.decompose 로 뼈에 잔여 scale 을 남긴다. 우리 클립은
+  // 회전만 담아 scale 을 되돌리지 못하므로 메시가 붕괴한다 → applyProps 로 본 scale(비율)과
+  // root scale 을 복구하고 접지까지 한 번에 처리한다.
+  applyProps(ch);
+}
+
 async function loadSlotBase(slotId) {
   const slot = SLOTS[slotId];
-  const buf = await (await fetch(slot.file)).arrayBuffer();
+  const buf = await (await fetch(encodeURI(slot.file))).arrayBuffer();
   const parsed = parseFBX(buf);
   if (!parsed.meshes.length) throw new Error(`${slot.label}: 메시 없는 FBX`);
   disposeCh(slotId);
@@ -300,9 +371,11 @@ async function bootstrap() {
     setStatus('캐릭터 로드 실패: ' + e.message);
     return;
   }
-  // 둘 다 대기 자세로
+  // 둘 다 대기 자세로 세우고 발을 바닥에 접지
   await playAnim('대기', 'idle', 'male', 0);
   await playAnim('대기', 'idle', 'female', 0);
+  groundToPose(SLOTS.male.ch);
+  groundToPose(SLOTS.female.ch);
   select('male');
   refreshCharButtons();
   setStatus('준비됨 — 캐릭터를 클릭해 선택하고, 애니메이션을 눌러보세요. 본 비율도 조절할 수 있습니다.');
@@ -454,25 +527,26 @@ function loadDroppedFBX(buf, label) {
     // FBX 를 드롭하면 그대로 "연결"된다)
     disposeCh(selected);
     makeCh(selected, parsed);
+    // 표준 대기 클립을 얹어 세운다 (교체된 캐릭터의 리그에 리타깃).
     playAnim('대기', 'idle', selected, 0).finally(() => {
-      // 대기 클립이 없으면 FBX 내장 클립이라도
-      const ch = selCh();
-      if (ch && !ch.active && obj.animations?.length) {
-        const rc = retargetClip(obj.animations[0], ch);
-        if (rc) { rc.name = label; ch.clips[label] = rc; playClip(ch, label, 0); refreshAnimButtons(); }
-      }
+      groundToPose(selCh()); // 교체 직후 발 접지
       refreshCharButtons(); refreshPropSliders();
     });
     setStatus(`<b>${SLOTS[selected].label}</b> 슬롯 교체 — ${label} (메시 ${meshes.length} · 뼈 ${bones.length}).`);
   } else if (bones.length && obj.animations?.length) {
-    // 애니메이션-only → 선택된 캐릭터에 리타깃
+    // 애니메이션-only → 선택된 캐릭터에 리타깃 (드롭한 FBX 의 뼈로 source 구성)
     const ch = selCh();
     if (!ch) { setStatus('먼저 캐릭터를 선택하세요.'); return; }
-    const rc = retargetClip(obj.animations[0], ch);
-    if (!rc) { setStatus(`${label}: 맞는 뼈가 없어 리타깃 실패.`); return; }
+    const clip = obj.animations.find(a => a.duration > 0.01) || obj.animations[0];
+    const src = buildSource(obj, clip);
     let key = label, i = 2; while (ch.clips[key]) key = `${label} ${i++}`;
-    rc.name = key; ch.clips[key] = rc;
+    let baked;
+    try { baked = bakeClip(ch, src, key); }
+    catch (e) { setStatus(`${label}: 리타깃 실패 — ${e.message}`); return; }
+    if (!baked) { setStatus(`${label}: 맞는 뼈가 없어 리타깃 실패.`); return; }
+    ch.clips[key] = baked;
     playClip(ch, key, 0.25);
+    groundToPose(ch);
     refreshAnimButtons();
     setStatus(`<b>${label}</b> — ${SLOTS[selected].label} 에 리타깃 재생.`);
   } else {
