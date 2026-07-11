@@ -1,0 +1,20 @@
+{
+  "name": "hktcreature",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "HktCreature — 코드로 지은 Mixamo 표준 스켈레톤 위에 절차 살(SkinnedMesh)을 길러, Mixamo 애니메이션을 그대로 구동하는 창발형 3D 크리처 파이프라인.",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "verify": "node test/rig-verify.mjs"
+  },
+  "dependencies": {
+    "three": "^0.161.0"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.61.1",
+    "vite": "^5.2.0"
+  }
+}
