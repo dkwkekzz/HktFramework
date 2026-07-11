@@ -76,6 +76,19 @@ const strikePrey = {
   applicable: (x) => { const p = x.nearestPrey(); return !!p && x.inReach(p, x.STRIKE_REACH); },
   act: (x) => { const p = x.nearestPrey(); if (p) x.strike(p); },
 };
+// 사냥(HUNT) — 발산 갈래: **먹을 수 없는 강적**(size≥, 강탈 불가)이면 파이어볼(feature-0009)을 던진다. 조준 사거리
+//   안이면 발사하고, 밖이면 발사 사거리까지 다가간다. "먹으면 강탈, 못 먹으면 폭탄"의 크기 분업을 한 사냥 절차 안에서
+//   상황에 맞게 고른다(feature-0011 명제 — 상황에 맞게 절차적으로 수행).
+const launchFoe = {
+  name: 'launch',
+  applicable: (x) => { const f = x.nearestFoe(); return !!f && x.inReach(f, x.DISCHARGE_REACH); },
+  act: (x) => { const f = x.nearestFoe(); if (f) x.launch(f); },
+};
+const approachFoe = {
+  name: 'approach',
+  applicable: (x) => { const f = x.nearestFoe(); return !!f && !x.inReach(f, x.DISCHARGE_REACH); },
+  act: (x) => { const f = x.nearestFoe(); if (f) x.moveToward(f, x.DISCHARGE_REACH); },
+};
 
 // 회피(FLEE): 더 큰 포식자(위협)에게서 **멀어진다**(feature-0012 step3). 위협이 감지 반경 안에 있으면 반대로 도망친다.
 //   위협이 멀어지면(반경 밖) threatFeeling→0 이라 이 욕구가 저절로 진다(상황이 행동을 거둔다).
@@ -140,6 +153,10 @@ function threatFeeling(x) {
 registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', steps: [leashOwner] });
 registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
 registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
-registerDesire(DESIRE.HUNT,   { label: '사냥', release: '발산→심우주',   steps: [approachPrey, strikePrey] }); // 사냥의 중요도는 외생(우선순위)만 — 포만하면 이쪽이 이긴다 (기회 감정은 후속: HUNT 기저 동기 재조정 필요)
+// 사냥(HUNT) — **완결형 절차**(feature-0011 명제: 욕구를 끝까지 절차적으로 수행). 상황에 맞는 무기로 대상을 처치하고
+//   전리품까지 획득한다: ① 먹이(size<)가 근접이면 물리 강탈(strike, feature-0008 = 에너지 수입) ② 못 먹는 강적(size≥)이
+//   사거리면 파이어볼(launch, feature-0009) ③④ 아니면 각자에게 다가간다 ⑤⑥ 처치 후 그 자리 시체 결정(전리품)을 채집한다
+//   (feature-0005 죽음의 결정화 → feature-0007 채집, 채집 단계는 FORAGE 것 재사용). "죽여서 그 재료를 먹는다"가 한 욕구로 닫힌다.
+registerDesire(DESIRE.HUNT,   { label: '사냥', release: '강탈+발산→전리품', steps: [strikePrey, launchFoe, approachPrey, approachFoe, approachEdibleCrystal, eatEdibleInReach] });
 registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // feature-0010 step2(단일)·0011 step2(다단계)
 registerDesire(DESIRE.FLEE,   { label: '회피', release: '이동→국소장',   steps: [fleeThreat], appraise: threatFeeling }); // feature-0012 step3 — 위협(더 큰 포식자)이 회피 감정을 스스로 만든다(가까울수록 도망이 이긴다)

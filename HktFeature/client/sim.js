@@ -60,5 +60,29 @@ export class Sim {
         e.z += (e.tz - e.z) * k;
       }
     }
+    // 생명체·파이어볼 표시 보간 — 스냅샷은 목표(tx,ty,tz)+구간 등속(segSpeed)으로만 받고, 표시
+    //   좌표(x,y,z)는 그 등속으로 목표를 쫓는다. segSpeed = 스냅샷 간 이동 거리 / 스냅샷 간격이라
+    //   서버의 실제 속도가 얼마든(계속 걷기·먹으며 한 걸음·정지) 화면에선 연속 이동으로 펼쳐진다 —
+    //   "빨리 가서 기다리는" 계단이 없다. 카메라가 내 생명체를 타므로(feature-0010 step3) 화면 전체가
+    //   같이 부드러워진다. 순수 표시 계층(권위·원장 무관).
+    for (const c of this.state.creatures.values()) this.#chase(c, dt);
+    for (const f of this.state.fireballs.values()) this.#chase(f, dt);
+    // 국소장 표시 보간 — FIELD 스냅샷(0.5s 계단)을 표시값이 부드럽게 따라간다(볼류메트릭 글로우 맥동 제거).
+    for (const [key, target] of this.state.fieldTarget) {
+      const cur = this.state.field.get(key) ?? target;
+      this.state.field.set(key, Math.abs(target - cur) < 1 ? target : cur + (target - cur) * Math.min(1, dt * 4));
+    }
+  }
+
+  // 표시 좌표(x,y,z)를 목표(tx,ty,tz)로 구간 등속(segSpeed) 이동. 최소한 남은 거리/0.5s 로는 가서
+  //   (max) 지연이 누적되지 않는다. 목표 도달 후엔 다음 스냅샷까지 정지(서버가 실제로 멈춘 것).
+  #chase(e, dt) {
+    if (e.tx === undefined) return;
+    const dx = e.tx - e.x, dy = e.ty - e.y, dz = e.tz - e.z;
+    const d = Math.hypot(dx, dy, dz);
+    if (d < 0.01) return;
+    const step = Math.max(e.segSpeed ?? 0, d * 2) * dt;
+    if (d <= step) { e.x = e.tx; e.y = e.ty; e.z = e.tz; return; }
+    e.x += (dx / d) * step; e.y += (dy / d) * step; e.z += (dz / d) * step;
   }
 }

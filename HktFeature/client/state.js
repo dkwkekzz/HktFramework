@@ -9,7 +9,11 @@
 // ============================================================================
 
 import { EnergyLedger } from '../shared/ledger.js';
-import { POOL, PLAYER_MAX_ENERGY, regionKey } from '../shared/constants.js';
+import { POOL, PLAYER_MAX_ENERGY, regionKey, TICK_RATE, FIELD_INTERVAL_TICKS } from '../shared/constants.js';
+
+// 스냅샷 주기(초) — 표시 보간의 등속 기준. 한 스냅샷 간 이동을 정확히 다음 스냅샷 도착까지 펼쳐 그린다.
+const SNAP_SEC = FIELD_INTERVAL_TICKS / TICK_RATE; // 생명체·결정 스냅샷 (0.5s)
+const FB_SNAP_SEC = 1 / TICK_RATE;                 // 파이어볼 (매 틱)
 
 export class ClientState {
   constructor() {
@@ -24,10 +28,11 @@ export class ClientState {
     this.worldMaterial = 0;     // 국소장 총량 — 흩어진 중등급 에너지 (feature-0004)
     this.worldCrystal = 0;      // 결정 총량 — 국소장에서 석출돼 동결된 정적 에너지 (feature-0005)
     this.worldCreature = 0;     // 생명체 총량 — 대사로 질서를 유지하는 살아있는 에너지 (feature-0006)
-    this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 (3D 그리드 스냅샷, 확산 시각화 — 읽기 전용)
+    this.field = new Map();     // "cx_cy_cz" -> 국소장 복셀 잔고 **표시값** (Sim 이 매 프레임 fieldTarget 으로 보간 — 렌더는 이걸 읽는다)
+    this.fieldTarget = new Map();// "cx_cy_cz" -> 국소장 복셀 잔고 스냅샷 목표 (0.5s 주기 수신 원본)
     this.crystals = new Map();  // seq -> { x, y, z, balance, species, raw, crafted } (개별 결정 스냅샷 — 읽기 전용, feature-0005·0011·0010 step2 crafted=제조 산물)
-    this.creatures = new Map();  // seq -> { x, y, z, balance, size, desire, owner, desires } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006·0010·0012 desires=중첩 스택)
-    this.fireballs = new Map();  // seq -> { x, y, z, balance, size } (파이어볼 비행체 스냅샷 — 읽기 전용, feature-0009. 착탄하면 방송이 끊겨 짧은 TTL 로 지운다)
+    this.creatures = new Map();  // seq -> { x, y, z, tx, ty, tz, balance, size, desire, owner, desires } (생명체 스냅샷, 마커 — 읽기 전용, feature-0006·0010·0012 desires=중첩 스택. tx,ty,tz=최신 스냅샷 목표, x,y,z=표시 좌표(Sim 이 매 프레임 보간))
+    this.fireballs = new Map();  // seq -> { x, y, z, tx, ty, tz, balance, size } (파이어볼 비행체 스냅샷 — 읽기 전용, feature-0009. 착탄하면 방송이 끊겨 짧은 TTL 로 지운다)
     this.fireballsAt = 0;        // 마지막 파이어볼 방송 시각(ms) — 이후 방송이 없으면(착탄) 렌더가 TTL 로 비운다
     this.checksumStatus = 'WAIT';
     this.onResync = null;       // (regionKeys) => void
@@ -117,7 +122,11 @@ export class ClientState {
 
   // 국소장 3D 복셀 스냅샷 — 렌더가 볼류메트릭 글로우로 읽는다(권위 아님, 표시용).
   #onField(msg) {
-    for (const [cx, cy, cz, balance] of msg.cells) this.field.set(`${cx}_${cy}_${cz}`, balance);
+    for (const [cx, cy, cz, balance] of msg.cells) {
+      const key = `${cx}_${cy}_${cz}`;
+      this.fieldTarget.set(key, balance);
+      if (!this.field.has(key)) this.field.set(key, balance); // 첫 수신은 즉시 표시(이후엔 Sim 이 보간)
+    }
   }
 
   // 개별 결정 스냅샷 — 잔고>0 인 결정만 실려온다. 렌더가 종별 색 마커로 읽는다(권위 아님, 표시용).
@@ -133,20 +142,38 @@ export class ClientState {
 
   // 생명체 스냅샷 — 잔고>0 인 생명체만 실려온다. 렌더가 살아있는 마커로 읽는다(권위 아님, 표시용).
   //   방송에 없는(=죽은) 생명체는 미러에서 지운다 — 아사·소멸한 생명체가 유령으로 남지 않게(CRYSTAL 과 같은 처리).
+  //   **표시 보간**: 스냅샷은 FIELD 주기(0.5초)로만 오므로 그대로 그리면 0.5초 계단으로 뚝뚝 끊긴다(카메라가
+  //   내 생명체를 타므로 화면 전체가 순간이동). 스냅샷 좌표는 목표(tx,ty,tz)로만 받고, 표시 좌표(x,y,z)는
+  //   Sim.update 가 매 프레임 등속으로 쫓는다 — 플레이어 점(POS 비콘)과 동일한 방식(권위 아님, 순수 표시 계층).
   #onCreature(msg) {
     const seen = new Set();
     for (const [seq, x, y, z, balance, size, desire, owner, desires, items, cmd] of msg.cells) {
-      this.creatures.set(seq, { seq, x, y, z, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null }); // cmd=지정 표적 [kindCode,seq] 또는 null (feature-0010 step4)
+      const prev = this.creatures.get(seq);
+      if (prev && Math.hypot(x - prev.x, y - prev.y, z - prev.z) < 200) {
+        // 기존 개체 — 표시 좌표는 두고 목표만 갱신. 이번 구간 등속(segSpeed) = 이동 거리 / 스냅샷 간격:
+        //   다음 스냅샷이 올 때 정확히 도착하는 속도라, 실제 서버 속도가 얼마든(걷기·먹으며 한 걸음) 그대로
+        //   화면에서 연속 이동으로 펼쳐진다(빨리 가서 기다리는 계단 없음). 200px 이상 점프는 순간이동이라 스냅(else).
+        const segSpeed = Math.hypot(x - prev.x, y - prev.y, z - prev.z) / SNAP_SEC;
+        Object.assign(prev, { tx: x, ty: y, tz: z, segSpeed, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null });
+      } else {
+        this.creatures.set(seq, { seq, x, y, z, tx: x, ty: y, tz: z, segSpeed: 0, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null }); // cmd=지정 표적 [kindCode,seq] 또는 null (feature-0010 step4)
+      }
       seen.add(seq);
     }
     for (const key of this.creatures.keys()) if (!seen.has(key)) this.creatures.delete(key);
   }
 
-  // 파이어볼 스냅샷 — feature-0009. 비행 중일 때만 매 틱 실려온다. 통째로 교체하고(현재 나는 것만), 방송이 끊기면
-  //   (착탄=폭발) 렌더가 TTL(#pruneFireballs)로 지운다. 렌더는 이 위치를 밝은 투사체로 그린다(권위 아님, 표시용).
+  // 파이어볼 스냅샷 — feature-0009. 비행 중일 때만 매 틱 실려온다. 방송에 없는(=착탄한) 것은 지우고, 방송이 아예
+  //   끊기면 렌더가 TTL(#pruneFireballs)로 비운다. 좌표는 목표(tx,ty,tz)로 받아 Sim 이 보간(10Hz 틱 계단 완화).
   #onFireball(msg) {
-    this.fireballs.clear();
-    for (const [seq, x, y, z, balance, size] of msg.cells) this.fireballs.set(seq, { x, y, z, balance, size: size ?? 1 });
+    const seen = new Set();
+    for (const [seq, x, y, z, balance, size] of msg.cells) {
+      const prev = this.fireballs.get(seq);
+      if (prev) Object.assign(prev, { tx: x, ty: y, tz: z, segSpeed: Math.hypot(x - prev.x, y - prev.y, z - prev.z) / FB_SNAP_SEC, balance, size: size ?? 1 }); // 표시 좌표 유지 → 등속 보간
+      else this.fireballs.set(seq, { x, y, z, tx: x, ty: y, tz: z, segSpeed: 0, balance, size: size ?? 1 });
+      seen.add(seq);
+    }
+    for (const key of this.fireballs.keys()) if (!seen.has(key)) this.fireballs.delete(key);
     this.fireballsAt = Date.now();
   }
 

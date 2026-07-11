@@ -337,8 +337,15 @@ export function fieldLayer(z) {
 }
 
 // 좌표가 속한 국소장 복셀 id — M:<cx>_<cy>_<cz>. (feature-0004)
+//   수평 컬럼은 반드시 **생성된 격자 범위(0..cols-1)** 로 클램프한다: 이동/텔레포트 클램프가 좌표를
+//   [0, WORLD_SIZE] 로 두어 정확히 가장자리(예: x=WORLD_SIZE)에 서면 floor(x/REGION_SIZE)=cols 가 나와
+//   존재하지 않는 복셀을 가리켰다 → 그 자리 소산(죽음·폭발 연기)이 no-op 로 새고(에너지 미이동), 특히
+//   파이어볼 폭발은 잔여 payload 가 못 빠져 removePool 이 던져 서버 tick 이 죽었다. fieldLayer 는 이미 클램프됨.
 export function materialKey(x, y, z) {
-  return `${POOL.MATERIAL}${regionKey(x, y)}_${fieldLayer(z)}`;
+  const cols = Math.ceil(WORLD_SIZE / REGION_SIZE);
+  const cx = Math.max(0, Math.min(cols - 1, Math.floor(x / REGION_SIZE)));
+  const cy = Math.max(0, Math.min(cols - 1, Math.floor(y / REGION_SIZE)));
+  return `${POOL.MATERIAL}${cx}_${cy}_${fieldLayer(z)}`;
 }
 
 // 결정 종 유도 — 결정론 rng(형성 문맥) 으로 종을 뽑는다. 종은 색·후속 반응 규칙의 씨앗. (feature-0005 step2)

@@ -16,8 +16,8 @@ import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import { MSG } from '../shared/protocol.js';
 import {
-  POOL, WORLD_SOURCE_INITIAL, dist3,
-  CREATURE_ATTACK_RADIUS, DISCHARGE_RADIUS,
+  POOL, WORLD_SOURCE_INITIAL, dist3, materialKey,
+  CREATURE_ATTACK_RADIUS, DISCHARGE_RADIUS, WORLD_SIZE, WORLD_HEIGHT,
 } from '../shared/constants.js';
 
 function setup() {
@@ -148,6 +148,22 @@ test('결정론 — 같은 배치/이벤트열이면 발산 결과가 비트 단
     return [...s.game.creatures.values()].sort((a, b) => a.seq - b.seq).map(c => [c.seq, c.size, s.bal(c.id)]);
   };
   assert.deepEqual(run(), run(), '동일 조건 → 비트 단위 동일 발산 궤적');
+});
+
+test('월드 가장자리 폭발 — 착탄점이 정확히 세계 끝(좌표=WORLD_SIZE)이어도 크래시 없이 보존된다', () => {
+  // 회귀: 이동/텔레포트 클램프는 좌표를 [0, WORLD_SIZE] 로 두어 정확히 가장자리(x/y=WORLD_SIZE)에 설 수 있는데,
+  //   materialKey 가 격자 밖 복셀(존재하지 않음)을 가리켜 폭발 잔여 payload 가 못 빠지고 removePool 이 던져
+  //   서버 tick 이 죽었다. 이제 materialKey 가 컬럼을 격자 범위로 클램프하므로 가장자리 폭발도 안전하다.
+  //   (관측은 relevancy 로 걸러지므로 방송 tx 대신 게임 내부 상태로 검증한다 — 발산 발생 = fireballSeq 증가.)
+  assert.ok(materialKey(WORLD_SIZE, WORLD_SIZE, WORLD_HEIGHT), '가장자리 복셀 키가 만들어진다');
+  const s = setup();
+  const weak = s.makeCreature(WORLD_SIZE, WORLD_SIZE - 10, 500, 1, 2000);         // 약자 캐스터(가장자리)
+  const big = s.makeCreature(WORLD_SIZE, WORLD_SIZE, 500, 3, 3000, { owned: true }); // 강자 표적 — 착탄점=정확히 세계 끝
+  const bigStart = s.bal(big.id);
+  assert.doesNotThrow(() => s.runTicks(20), '가장자리 착탄·폭발이 서버 tick 을 죽이지 않는다');
+  assert.ok(s.game.fireballSeq > 0, '약자가 가장자리 강자에게 파이어볼을 쐈다(발산 발생)');
+  assert.ok(bigStart - s.bal(big.id) > 60, '착탄 폭발이 가장자리 강자의 질서를 흩었다(대사만으론 설명 안 되는 손실)');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '가장자리 폭발에도 보존 불변(payload 가 새지 않는다)');
 });
 
 test('보존 폭풍 — 다수 난전(발산·폭발·완전 연소)에도 전 풀 합계 = 10⁹', () => {

@@ -87,7 +87,8 @@ class Bot {
     if (want !== this.desire) { this.desire = want; this.send(MSG.DESIRE, { desire: want }); }
 
     // ② 마커 이동 — 제 생명체 곁에 머문다(관측·relevancy 유지 = 계속 지켜보며 결정한다). 못 보면 스폰으로 복귀.
-    const goal = mine ? { x: mine.x, y: mine.y, z: mine.z } : SPAWN_POS;
+    //   봇은 헤드리스(표시 보간 루프 없음) → 표시 좌표(x)가 아니라 최신 스냅샷 목표(tx)를 읽는다.
+    const goal = mine ? { x: mine.tx ?? mine.x, y: mine.ty ?? mine.y, z: mine.tz ?? mine.z } : SPAWN_POS;
     const d = dist3(this.x, this.y, this.z, goal.x, goal.y, goal.z);
     if (d > STEP) {
       const step = Math.min(STEP, d);

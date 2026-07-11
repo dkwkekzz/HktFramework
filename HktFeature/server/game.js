@@ -213,7 +213,7 @@ export class GameServer {
         cre.desire = DESIRE.EAT;                                   // 결정 = 먹는다(날것이면 요리→먹기)
       } else if (kind === 'creature') {
         const v = this.creatures.get(`${POOL.CREATURE}${seq}`);
-        if (!v || v.id === cre.id || v.size >= cre.size || this.ledger.balance(v.id) <= 0) continue; // 더 작은 것만 사냥
+        if (!v || v.id === cre.id || this.ledger.balance(v.id) <= 0) continue; // 자신·없는 것만 제외 — 크기 무관: 먹이(size<)=강탈·강적(size≥)=발산, HUNT 절차가 상황에 맞는 무기를 고른다
         cre.commandedTarget = { kind, seq };
         cre.desire = DESIRE.HUNT;
       } else {                                                     // 'none'/미상 = 지정 해제(대기)
@@ -343,12 +343,15 @@ export class GameServer {
   #decompose(fromId, x, y, z) {
     const energy = this.ledger.balance(fromId);
     const cryAmt = Math.floor(energy * DEATH_CRYSTAL_FRACTION);
+    let corpseSeq = null;
     if (cryAmt > 0) {
       const cryId = this.#spawnCrystal(x, y, z, pickSpecies(this.crystalRng));
+      corpseSeq = this.crystals.get(cryId).seq;                    // 시체 결정 seq(사냥 전리품 승계용, feature-0011)
       this.#tx(fromId, cryId, cryAmt, CAUSE.CRYSTALLIZE, { x, y }); // 죽음의 결정화
     }
     const rest = this.ledger.balance(fromId); // 남은 무른 조직 전부
     if (rest > 0) this.#tx(fromId, materialKey(x, y, z), rest, CAUSE.DEATH, { x, y });
+    return corpseSeq;
   }
 
   onMessage(playerId, msg) {
@@ -837,10 +840,6 @@ export class GameServer {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 발산도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 자율 발산하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
       if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 발산 정지)
-      const launch = DISCHARGE_COST * A.size;                  // 발사 비용(만들어 쏘는 일 = 열로 손실)
-      const charge = DISCHARGE_POWER * A.size;                 // 파이어볼에 싣는 폭약(터질 때 세계로 흩어진다)
-      // 발산할 예비가 없으면(발사+폭약+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
-      if (this.ledger.balance(A.id) < launch + charge + CREATURE_DEATH_THRESHOLD * A.size) continue;
       // 조준 — 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나. 파이어볼이 그 자리로 간다.
       //   강탈(강자→약자, size<)과 발산(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
       //   있으면 강탈해 먹고, 못 먹으면 폭탄을 던진다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 발산이다.
@@ -851,17 +850,27 @@ export class GameServer {
         const d = dist3(A.x, A.y, A.z, V.x, V.y, V.z);
         if (d <= DISCHARGE_RADIUS && d < bestD) { aim = V; bestD = d; }
       }
-      if (!aim) continue;
-      // ① 발사 비용 → 심우주(열 손실). ② 파이어볼 장전 — 생명체가 제 에너지를 투사체에 싣는다(발산). 생명 관여 끝.
-      this.#tx(A.id, POOL.SINK, launch, CAUSE.BURST, { x: A.x, y: A.y });
-      const seq = ++this.fireballSeq;
-      const fid = `${POOL.FIREBALL}${seq}`;
-      this.ledger.createPool(fid, 0, Number.MAX_SAFE_INTEGER, null);
-      this.#tx(A.id, fid, charge, CAUSE.EMIT, { x: aim.x, y: aim.y }); // 생명체 → 파이어볼(투사체 생성)
-      // 파이어볼은 **캐스터 자리에서** 태어나 표적 자리(tx,ty,tz)로 날아간다(#flyFireballs). caster = 발사자 id —
-      //   폭발이 제 발사자를 삼키지 않도록(멀리 쏘았다). 폭발 자체는 생명 무관이나, 이 한 가지만 근원을 안다.
-      this.fireballs.push({ id: fid, seq, x: A.x, y: A.y, z: A.z, tx: aim.x, ty: aim.y, tz: aim.z, size: A.size, caster: A.id, age: 0 });
+      if (aim) this.#launchFireball(A, aim);
     }
+  }
+
+  // 파이어볼 발사 — feature-0009. **야생 자율 발산(#discharge)과 플레이어 사냥 절차(feature-0011 launch 단계)가
+  //   공용**한다: 캐스터 A 가 표적 자리(aim)로 파이어볼을 쏜다. ① 발사 비용 → 심우주(열 손실). ② 파이어볼 풀
+  //   장전 — 생명체가 제 에너지를 투사체에 싣는다(생명체 → B:, 발산). ③ 투사체가 캐스터 자리에서 태어나 표적
+  //   자리로 날아간다(#flyFireballs). 예비 부족(발사+폭약+최소 예비 미만)이면 못 쏜다(회수 없는 순수 지출).
+  //   전부 ledger.transfer → 보존·정수·결정론 불변(자율·절차 어느 쪽이 불러도 회계 동일).
+  #launchFireball(A, aim) {
+    const launch = DISCHARGE_COST * A.size;                  // 발사 비용(만들어 쏘는 일 = 열로 손실)
+    const charge = DISCHARGE_POWER * A.size;                 // 파이어볼에 싣는 폭약(터질 때 세계로 흩어진다)
+    if (this.ledger.balance(A.id) < launch + charge + CREATURE_DEATH_THRESHOLD * A.size) return false;
+    this.#tx(A.id, POOL.SINK, launch, CAUSE.BURST, { x: A.x, y: A.y });
+    const seq = ++this.fireballSeq;
+    const fid = `${POOL.FIREBALL}${seq}`;
+    this.ledger.createPool(fid, 0, Number.MAX_SAFE_INTEGER, null);
+    this.#tx(A.id, fid, charge, CAUSE.EMIT, { x: aim.x, y: aim.y }); // 생명체 → 파이어볼(투사체 생성)
+    // caster = 발사자 id — 폭발이 제 발사자를 삼키지 않도록. 폭발 자체는 생명 무관이나 이 한 가지만 근원을 안다.
+    this.fireballs.push({ id: fid, seq, x: A.x, y: A.y, z: A.z, tx: aim.x, ty: aim.y, tz: aim.z, size: A.size, caster: A.id, age: 0 });
+    return true;
   }
 
   // 폭발(상태전이 규칙 D) — feature-0013. **물질의 사건**이다(생명 무관): 농축 에너지 덩어리(파이어볼·후속: 폭탄·
@@ -990,7 +999,7 @@ export class GameServer {
       if (!cmd) continue;
       let alive;
       if (cmd.kind === 'crystal') { const c = this.crystals.get(`${POOL.CRYSTAL}${cmd.seq}`); alive = !!c && this.ledger.balance(c.id) > 0; }
-      else { const v = this.creatures.get(`${POOL.CREATURE}${cmd.seq}`); alive = !!v && v.size < cre.size && this.ledger.balance(v.id) > 0; }
+      else { const v = this.creatures.get(`${POOL.CREATURE}${cmd.seq}`); alive = !!v && this.ledger.balance(v.id) > 0; } // 크기 무관 — 먹이(강탈)·강적(발산) 둘 다 유효 표적(HUNT 절차가 무기를 고른다)
       if (!alive) { cre.commandedTarget = null; if (cre.owner) cre.desire = DESIRE.NONE; } // 수행 완료 → 대기(수동 이동 재개)
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
@@ -1053,10 +1062,12 @@ export class GameServer {
     const self = this;
     return {
       EAT_REACH: CREATURE_HARVEST_RADIUS, STRIKE_REACH: CREATURE_ATTACK_RADIUS, LEASH_STOP: CREATURE_LEASH_STOP,
+      DISCHARGE_REACH: DISCHARGE_RADIUS, // 파이어볼 조준 사거리(feature-0009) — 사냥 절차의 발산 단계가 쓴다
       CRAFT_REACH: CRAFT_REACH, SEEK: CREATURE_SEEK_RADIUS,
       cre,
       nearestCrystal: (opts) => self.#nearestCrystalFor(cre, opts),
       nearestPrey: () => self.#nearestPrey(cre),
+      nearestFoe: () => self.#nearestFoe(cre),                  // feature-0009+0011 — 먹을 수 없는 상대(size≥) = 파이어볼 표적
       nearestThreat: () => self.#nearestThreat(cre),            // feature-0012 step3 — 나보다 큰 포식자(위협) 감지(appraise·회피용)
       distanceTo: (t) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z), // 표적까지 거리(appraise 가 '차이=근접'을 읽는다)
       craftPair: (tier) => self.#craftPairFor(cre, tier),       // feature-0010·0011 step2 — 조합 가능한 (같은 단계) 쌍
@@ -1072,7 +1083,8 @@ export class GameServer {
       cook: (c) => self.#cookCrystal(cre, c),
       acquire: (c) => self.acquireItem(cre, c),                 // feature-0014 — 소화 없이 소유(줍기)
       ACQUIRE_REACH: CREATURE_ACQUIRE_RADIUS,
-      strike: (p) => self.#strike(cre, p),
+      strike: (p) => self.#strike(cre, p),                     // feature-0008 물리 강탈(먹이=size<) — 근접 공격
+      launch: (foe) => self.#launchFireball(cre, foe),         // feature-0009 발산(파이어볼) — 못 먹는 강적(size≥) 원거리 공격
       dissipate: (amount, cause) => self.#tx(cre.id, POOL.SINK, amount, cause, { x: cre.x, y: cre.y }), // 개방용 일반 방출 primitive
     };
   }
@@ -1187,6 +1199,24 @@ export class GameServer {
     return best;
   }
 
+  // 가장 가까운 **강적**(먹을 수 없는 상대, size≥) — 사냥 절차(feature-0011)의 발산(파이어볼) 표적. nearestPrey
+  //   (먹이=size<)의 대칭이되 **동급 포함**(size≥): 못 먹으니 폭탄을 던진다(feature-0009 발산 조준과 동일 기준).
+  //   지정 표적(클릭)이 그런 상대면 우선. 위협(nearestThreat, size>)과 달리 동급도 포함해 대등한 상대도 처리한다.
+  #nearestFoe(cre) {
+    if (cre.commandedTarget?.kind === 'creature') {
+      const v = this.creatures.get(`${POOL.CREATURE}${cre.commandedTarget.seq}`);
+      if (v && v.id !== cre.id && v.size >= cre.size && this.ledger.balance(v.id) > 0) return v;
+    }
+    let best = null, bestD = CREATURE_SEEK_RADIUS;
+    for (const v of this.creatures.values()) {
+      if (v.id === cre.id || v.size < cre.size) continue;      // 강적 = 나보다 크거나 같은 것(못 먹는 상대)
+      if (this.ledger.balance(v.id) <= 0) continue;
+      const d = dist3(cre.x, cre.y, cre.z, v.x, v.y, v.z);
+      if (d <= bestD) { best = v; bestD = d; }
+    }
+    return best;
+  }
+
   // 가장 가까운 위협 — feature-0012 step3. 나보다 **큰**(size>) 포식자를 감지 반경 안에서 찾는다(nearestPrey 의 대칭:
   //   먹이=더 작음 / 위협=더 큼). appraise(위협 감정)·회피(FLEE)가 이 지각을 쓴다. 엔진은 어떤 욕구가 쓰는지 모른다(개방).
   #nearestThreat(cre) {
@@ -1277,9 +1307,16 @@ export class GameServer {
   //   분해되고(feature-0005 죽음 경로 공유 — 근처 플레이어 시야에 방송), 레지스트리·원장 풀에서 지운다.
   #killCreature(cre) {
     this.#releaseItems(cre); // 소유물은 소화된 게 아니므로 그 자리 세계로 되돌린다(feature-0014)
-    this.#decompose(cre.id, cre.x, cre.y, cre.z);
+    const corpseSeq = this.#decompose(cre.id, cre.x, cre.y, cre.z);
     this.ledger.removePool(cre.id);
     this.creatures.delete(cre.id);
+    // feature-0011 사냥 완결 — 이 개체를 지정 표적으로 사냥하던 자는 그 자리 **시체 결정으로 표적을 승계**한다:
+    //   같은 HUNT 욕구가 전리품 채집(feature-0007)까지 이어진다("죽여서 그 재료를 먹는다"가 한 절차로 닫힘).
+    if (corpseSeq != null) {
+      for (const h of this.creatures.values())
+        if (h.commandedTarget?.kind === 'creature' && h.commandedTarget.seq === cre.seq)
+          h.commandedTarget = { kind: 'crystal', seq: corpseSeq };
+    }
   }
 
   // --- 시야에 들어와야 하는 엔티티 집합 (지역 구독 기준) ---
