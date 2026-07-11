@@ -50,8 +50,12 @@ import {
 } from '../shared/constants.js';
 
 export class GameServer {
-  constructor({ now = () => Date.now() } = {}) {
+  constructor({ now = () => Date.now(), gateByObservation = false } = {}) {
     this.now = now;
+    // feature-0017 — 관측 게이트. true 면 관측 없는 지역의 결정은 에너지로 환원되고 야생 생명체는 동면한다(라이브 기본).
+    //   false(기본)면 전 세계를 관측 여부와 무관하게 시뮬레이션한다 — 규칙 자체를 검증하는 테스트가 쓰는 모드(규칙은
+    //   관측에 독립). 관측 정책은 feature-0017 전용 테스트가 이 플래그를 켜서 따로 검증한다.
+    this.gateByObservation = gateByObservation;
     this.ledger = new EnergyLedger();
     // 엔트로픽 확산의 "동전" — 결정론 PRNG. 서버 전용(클라는 결과 tx만 받는다)이라
     // 미러 정합과 무관하고, 같은 이벤트열이면 같은 흐름을 재현한다(테스트 재현성의 근거).
@@ -61,6 +65,7 @@ export class GameServer {
 
     // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
     this.players = new Map();      // id -> player
+    this.activeRegions = new Set(); // 관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합 (feature-0017). 매 틱 갱신 — 관측 없는 지역은 시뮬 정지·결정 탈구체화(에너지로만)
     this.pendingOps = [];          // 이번 틱 확정 tx (인과 순서 유지)
     this.pendingMoves = new Map(); // playerId -> [x, y, z] (좌표 비콘 릴레이)
     this.nextPlayerNo = 1;
@@ -409,6 +414,12 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
+    // feature-0017 관측 시 구체화 — 이번 틱의 관측 지역(어떤 플레이어든 구독 중)을 먼저 확정한다. 관측 없는
+    //   지역은 (a) 결정을 에너지로 환원(탈구체화)하고 (b) 아래 시뮬(석출·생명체 행위)을 건너뛴다. 세계는 그 지역에서
+    //   **국소장 에너지로만** 계속 흐르고(확산·복사는 전역 유지), 다시 관측되면 석출로 재구체화된다. 국소장 확산 앞에
+    //   두어 환원된 에너지가 곧바로 확산에 참여하게 한다(경계 자연스러움).
+    this.#refreshActiveRegions();
+    this.#dematerializeUnobserved();
     // feature-0004 엔트로픽 장 갱신 — 국소장의 에너지가 (a) 이웃 복셀로 높은 확률로 흩어지고
     //   (b) 일부가 심우주로 복사돼 영영 사라진다. 둘 다 region=null 풀 간 무음 이체(방송·체크섬
     //   무관)라 서버 내부에서만 돈다. 소산은 태양으로 되돌아가지 않고 SINK 는 단조 증가한다(엔트로피의 화살).
@@ -532,9 +543,49 @@ export class GameServer {
   //   장을 포화까지 끌어내리면 초과가 0 이 되어 멈춘다(현실의 침전 평형). 결정론(rng 미사용) —
   //   "저엔트로피 요동(국소에 에너지가 쌓인 드문 사건) 자체가 희귀도"다. 결정은 확산·복사 순회
   //   대상이 아니므로(materialKeys 밖) 한 번 동결되면 가만두는 한 잔고가 불변이다(정적성).
+  // ==========================================================================
+  // feature-0017 — 관측 시 구체화 (materialize on observation)
+  //   관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합. 관측 없는 지역에선 결정(정적 섬)이 에너지로 환원되고
+  //   생명체(능동 섬)는 동면한다. 세계는 그 지역에서도 국소장 에너지로만 계속 흐른다(확산·복사는 전역). 다시
+  //   관측되면 석출이 재구체화한다. 정적 섬은 대체 가능(fungible)이라 환원↔석출로 다뤄도 정합적이고, 능동 섬은
+  //   정체성(스탯·욕구·소유)을 지녀 환원하지 않고 **동면**만 한다(후속 정교화는 backlog). 전이는 모두 원장 이체
+  //   또는 무동작 → 보존 자명. 관측 패턴이 같으면 결과도 같다(결정론은 관측 조건부).
+  // ==========================================================================
+  #refreshActiveRegions() {
+    const s = new Set();
+    for (const p of this.players.values()) for (const rk of p.regions) s.add(rk);
+    this.activeRegions = s;
+  }
+
+  #regionActive(x, y) { return !this.gateByObservation || this.activeRegions.has(regionKey(x, y)); }
+
+  // 동면 판정 — 야생(주인 없음) 생명체가 관측 없는 지역에 있으면 동면(시뮬 정지). 소유 생명체는 늘 주인 곁(관측
+  //   안)이라 동면하지 않는다(플레이어의 아바타는 항상 산다). 동면은 정체성을 지우지 않는다 — 잔고·스탯 그대로 멈춤.
+  #dormant(cre) { return !cre.owner && !this.#regionActive(cre.x, cre.y); }
+
+  // 관측 없는 지역의 결정을 에너지로 환원(탈구체화) — 결정 잔고와 열(H:)을 그 자리 국소장으로 되돌리고 풀을 지운다.
+  //   소유물(heldItems)은 this.crystals 밖이라 대상 아님(주인을 따라 늘 관측 안). 보존: 결정→국소장 이체(무음·region=null).
+  #dematerializeUnobserved() {
+    if (!this.gateByObservation || this.crystals.size === 0) return;
+    for (const c of [...this.crystals.values()]) {
+      if (this.#regionActive(c.x, c.y)) continue;
+      const matId = materialKey(c.x, c.y, c.z);
+      const bal = this.ledger.balance(c.id);
+      if (bal > 0) this.ledger.transfer(c.id, matId, bal, CAUSE.DEMATERIALIZE);
+      const heatId = `${POOL.HEAT}${c.seq}`;
+      const heat = this.ledger.balance(heatId);
+      if (heat > 0) this.ledger.transfer(heatId, matId, heat, CAUSE.DEMATERIALIZE); // 열도 국소장으로(세계에 남김·보존)
+      if (this.voxelResident.get(matId) === c.id) this.voxelResident.delete(matId); // 재관측 시 새 핵으로 다시 자라게
+      this.ledger.removePool(c.id);
+      this.ledger.removePool(heatId);
+      this.crystals.delete(c.id);
+    }
+  }
+
   #crystallize() {
     const LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
     for (const [cx, cy, cz, matId] of this.materialCells) {
+      if (this.gateByObservation && !this.activeRegions.has(`${cx}_${cy}`)) continue; // feature-0017: 관측 없는 지역은 석출 안 함 — 에너지로만 남아 확산한다(관측 시 재구체화)
       const bal = this.ledger.balance(matId);
       if (bal <= CRYSTAL_SATURATION) continue; // 과포화가 아니면 석출 없음
       // 그 복셀의 "거주 결정"을 얻거나(없으면 hotspot 중심에 새로 핵생성) 키운다 — 개별 결정으로 자란다.
@@ -700,6 +751,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 포식은 **야생(owner=null)만** — 욕구는 절차(사냥)로 치고, 주인이 쥔 대기 개체는 자율 공격하지 않는다(플레이어가 사냥을 걸어야 친다)
+      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 포식 정지)
       // 발산할 예비가 없으면 공격하지 않는다(예비 가드는 #strike 안) — 사거리 안 나보다 작은 가장 가까운 먹이
       let prey = null, bestD = Infinity;
       for (const V of this.creatures.values()) {
@@ -784,6 +836,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 발산도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 자율 발산하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
+      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 발산 정지)
       const launch = DISCHARGE_COST * A.size;                  // 발사 비용(만들어 쏘는 일 = 열로 손실)
       const charge = DISCHARGE_POWER * A.size;                 // 파이어볼에 싣는 폭약(터질 때 세계로 흩어진다)
       // 발산할 예비가 없으면(발사+폭약+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
@@ -942,6 +995,7 @@ export class GameServer {
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
+      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
       const ctx = this.#desireCtx(cre);
       // feature-0012: 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
       //   단계를 실행한다. 최우선 욕구가 상황상 수행 불가(표적 없음 등)면 다음 우선순위로 내려간다 → "상황에 따라
@@ -1173,6 +1227,7 @@ export class GameServer {
   //   성장점을 쌓아 성장하고(size↑), 굶주리면 진척이 깎인다 — 큰 몸은 세계가 못 받치면 몰락한다(#growCreature).
   #metabolizeCreatures() {
     for (const cre of [...this.creatures.values()]) {
+      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면 — 갈구·대사·성장·아사 정지(잔고 그대로 멈춤)
       const matId = materialKey(cre.x, cre.y, cre.z);
       if (cre.items.length) for (const id of cre.items) { const it = this.heldItems.get(id); if (it) { it.x = cre.x; it.y = cre.y; it.z = cre.z; } } // 소유물은 주인을 따라다닌다(feature-0014)
       if (cre.desire === DESIRE.NONE) this.#harvestNearbyCrystal(cre);       // ⓪ 채집 본능(feature-0007) — 야생/대기만. 욕구를 가진 개체는 절차로 먹는다

@@ -54,7 +54,10 @@ const httpServer = http.createServer(async (req, res) => {
   }
 });
 
-const game = new GameServer();
+// feature-0017 — 라이브는 관측 게이트 ON: 관측 없는 지역의 결정은 에너지로 환원(탈구체화)되고 야생 생명체는 동면한다.
+//   부하가 세계 크기가 아니라 관측 규모에 상한을 갖는다. 다시 관측되면 석출로 재구체화. (규칙 검증 테스트는 이 게이트를
+//   끈 채 전 세계를 시뮬 — 규칙은 관측에 독립. 게이트 자체는 relevancy/materialize 테스트가 켜서 검증한다.)
+const game = new GameServer({ gateByObservation: true });
 
 // feature-0006~0009 — 생명체의 전 주기(자기유지·채집·포식·방출)를 뷰어에서 보이게 세계를 구성한다.
 //   스폰 둘레 세 곳에 "군집"을 둔다. 각 군집 = 풍요 웅덩이 위 **성장형 1기**(포식자 후보) + 곁(근접)의
