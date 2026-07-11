@@ -4,8 +4,12 @@
 > 도달하지 못해 폐기. 전체 코드는 `legacy/` 에 보관. 지금은 **미니멀 FBX 뷰어**에서 재출발.
 >
 > **v3 (2026-07)**: 뷰어를 **캐릭터 선택 + 애니메이션 + 본 비율** 도구로 확장. 기본 화면에
-> 남(X-Bot)·여(Eve) 두 캐릭터를 나란히 세우고, 클릭/버튼으로 선택한 캐릭터에만 애니메이션을
-> 리타깃 재생한다. 두 리그의 뼈 이름은 `simpleName` 으로 정규화돼 같은 클립이 양쪽에 붙는다.
+> 남·여 두 캐릭터를 나란히 세우고, 클릭/버튼으로 선택한 캐릭터에만 애니메이션을 리타깃 재생한다.
+>
+> **v3.1 (2026-07)**: 베이스를 Mixamo **X Bot(남)·Y Bot(여)** 로 교체. raw mixamorig 리그는 뼈
+> rest 축이 비-단위라 클립을 로컬 quaternion 으로 직접 얹으면 팔이 T-포즈로 남아 →
+> `SkeletonUtils.retargetClip`(월드 공간 리타깃)으로 전환(옵션 `preservePosition:false`). 캐릭터
+> 카드의 **📁 교체** 버튼(또는 슬롯 선택 후 FBX 드롭)으로 모델을 쉽게 갈아끼운다.
 
 ## 목표
 
@@ -24,19 +28,22 @@
 ## 구조 (전부 `src/main.js` 하나)
 
 1. **씬** — three.js + OrbitControls, 헤미/디렉셔널 라이트, 그리드, 선택 표시 링.
-2. **슬롯** (`SLOTS` = male/female) — 화면에 항상 두 캐릭터. 각 슬롯은 `ch`(캐릭터 상태:
-   root·meshes·bones·boneMap·mixer·clips·actions·helper·baseScale·props)를 가지고 좌우
-   (`x=±0.62`)로 배치된다. `bootstrap()` 가 두 베이스(samba.fbx=남, female.fbx=여)를 로드해
-   둘 다 **대기**로 세운다.
-3. **로드/정규화** — `makeCh` 가 메시를 씬에 올리고(`frustumCulled=false` — 스킨 메시가
-   애니메이션으로 바운드를 벗어나 사라지는 고전 버그 방지), `computeBaseScale`(키 1.7m 기준)
-   + `applyProps`(본 스케일 → root 스케일 → 발 접지). 접지·정규화는 **스킨 CPU boundingBox 가
-   아니라 뼈 월드 위치 bbox**(`boneBox`)로 — 본 스케일/애니메이션을 반영한다.
-4. **리타깃** (`retargetClip(clip, ch)`) — 트랙 노드명을 `simpleName` 으로 정규화해 대상
-   캐릭터 뼈에 매핑. **position 은 Hips 만, scale 트랙은 버린다**(회전만 옮겨 뼈 길이가 달라도
-   안 늘어나고, scale 채널은 본 비율 편집이 소유). `simpleName`: `"mixamorig:LeftHand"` /
-   `"mixamorigLeftHand"`(콜론 벗긴 내보내기) / `"LeftHand"`(무접두어 리그, 예: Eve) → 모두
-   `lefthand`. 원본 클립은 파일당 1회 파싱해 `rawClipCache`, 슬롯별로 리타깃/액션.
+2. **슬롯** (`SLOTS` = male/female) — 화면에 항상 두 캐릭터. `file` 경로를 바꾸거나 카드의
+   📁 교체 버튼으로 모델 교체. 각 슬롯 `ch`(root·meshes·bones·boneMap·mixer·clips·actions·
+   helper·baseScale·props·bindPose·primeMesh)를 좌우(`x=±0.62`)에 배치. `bootstrap()` 가 두
+   베이스(X Bot=남, Y Bot=여)를 로드해 둘 다 **대기**로 세운다.
+3. **로드/정규화** — `makeCh`: 스킨 메시가 2벌(Surface 본체+Joints 액센트, 별도 스켈레톤·이름
+   중복)이면 보조 메시는 그래프에서 제거하고 그 뼈는 `__dup` 로 개명(루트 믹서가 본체 뼈에만
+   바인딩되게). `computeBaseScale`(키 1.7m)+`applyProps`(본 스케일→root 스케일→발 접지). 접지·
+   정규화는 스킨 CPU boundingBox 가 아니라 **뼈 월드 bbox**(`boneBox`)로.
+4. **리타깃** (`bakeClip` → `SkeletonUtils.retargetClip`, 월드 공간) — raw mixamorig 리그의 뼈
+   rest 축이 비-단위라 로컬 quaternion 직접 적용은 T-포즈로 실패 → 소스를 클립으로 포즈시켜
+   월드 포즈를 target bind 기준 로컬로 다시 굽는다(`preservePosition:false` — Y Bot 도 정상화).
+   굽은 `.bones[뼈]` 트랙을 `뼈.quaternion` 으로 재작성해 루트 믹서가 그래프 뼈를 이름으로
+   구동(렌더·스케일 정합). **Hips 위치 트랙은 버려 제자리 재생**(클립마다 절대 높이가 달라
+   전환 시 공중부양 방지). bake 가 뼈 position/scale 을 오염시키므로 `bindPose`(makeCh 에 저장)
+   로 복원 + `groundToPose→applyProps` 로 scale·접지 복구. `simpleName` 은 `"mixamorig:LeftHand"`
+   / `"mixamorigLeftHand"` / `"LeftHand"` → 모두 `lefthand`. 소스는 파일당 1회 `sourceCache`.
 5. **선택** — 캐릭터 버튼 + 3D 클릭(레이캐스트, 드래그는 제외). 선택된 슬롯에만 애니메이션
    버튼/본 비율 슬라이더가 작동하고 링이 발밑으로 이동.
 6. **본 비율** (`PROP_GROUPS`) — 키(root)·머리·몸통·어깨너비·팔·다리·손을 `simpleName` 정규식에
@@ -62,11 +69,10 @@
 - `src/main.js` — 뷰어 전부 (슬롯·선택·리타깃·본 비율)
 - `src/mcflesh.js` — SDF 살(MarchingCubes) 실험 모듈. `update(bones, simpleName, offsetX)` —
   볼륨은 원점 중심이라 선택 캐릭터의 슬롯 x 를 빼서 정렬.
-- `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플. **주의: samba.fbx 는 메시 포함**
-  (Mixamo "Alpha"/X-Bot = 남자 베이스, 뼈 119·메시 2), 나머지(walk/run/idle/jump/attack)는
-  애니메이션 전용(메시 없음).
-- `public/assets/character/female.fbx` — **여자 베이스** = Mixamo "Eve"(J.Gonzales) with-skin
-  (메시 1·뼈 65, 무접두어 리그 → `simpleName` 으로 남자 리그와 동일 매칭). Mixamo 무료 라이선스.
+- `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플(walk/run/idle/jump/attack: 메시
+  없는 애니메이션 전용, samba: 메시 포함). 리타깃 소스로만 쓴다(베이스 캐릭터는 아래 character/).
+- `public/assets/character/X Bot.fbx`·`Y Bot.fbx` — **남·여 베이스** = Mixamo X Bot·Y Bot
+  with-skin. 각 2벌 스킨 메시(Surface+Joints). Mixamo 무료 라이선스.
 - `legacy/` — v1 전체 (src/eval/index.html/LOFT-PLAN/VERTEX-PLAN/README). 참고용, import 금지.
   (루트의 `eval/` 잔재는 샌드박스 권한 문제로 못 지운 복사본 — 지워도 된다.)
 
@@ -78,17 +84,23 @@ npm run dev      # http://localhost:5173
 ```
 
 기본 화면에 남/여 두 캐릭터가 뜬다. 캐릭터를 클릭(또는 남자/여자 버튼)해 선택 → 애니메이션
-버튼으로 그 캐릭터만 재생. 본 비율 슬라이더로 뼈 스케일 조절. 여성 캐릭터를 교체하려면 여자
-슬롯을 선택하고 Mixamo with-skin FBX 를 드롭.
+버튼으로 그 캐릭터만 재생. 본 비율 슬라이더로 뼈 스케일 조절. **모델 교체**: 캐릭터 카드의
+📁 교체 버튼(또는 슬롯 선택 후 with-skin FBX 드롭), 혹은 `SLOTS[*].file` 경로 교체.
 
 ## 검증 (2026-07-11, headless Chromium)
 
-- 두 베이스 로드: 남(samba.fbx, 메시 2·뼈 119·`mixamorig` 접두어) + 여(female.fbx=Eve,
-  메시 1·뼈 65·무접두어) 동시 렌더, 콘솔 에러 0.
-- 선택+리타깃: 여자 선택 → 삼바(X-Bot 리그 클립)가 Eve 리그에 매핑돼 춤, 남자는 대기 유지
-  (독립 재생). 남자 선택 → 걷기.
-- 본 비율: 슬라이더(머리 1.6·팔 1.3·다리 1.3) → 뼈 scale 반영 + 발 접지 유지, 초기화 복원.
-- 스크린샷 4종 눈 검증 완료.
+- 두 베이스(X Bot·Y Bot) 동시 렌더, 발 접지, 콘솔 에러 0.
+- 선택+리타깃: 여자 선택→삼바(팔·다리 움직임 확인), 남자 선택→걷기/뛰기. 독립 재생.
+- 본 비율: 슬라이더(머리·팔·다리) → 뼈 scale 반영 + 발 접지 유지.
+- 📁 교체 버튼 2개 · 애니메이션 전환 시 공중부양 없음.
+
+## 알려진 한계
+
+- **Y Bot(여자)의 손가락 정점 조각**: Y Bot FBX 는 스킨 메시 2벌의 스켈레톤이 **계층에서 서로
+  겹친(interleaved)** 특이 구조라(각 뼈의 부모가 같은 이름의 트윈), 손가락 뼈 체인의 조상에
+  애니메이션 안 되는 트윈이 끼어 손 부근 정점 일부가 T-포즈 위치에 남는다. 몸통·팔·다리는
+  정상 애니메이션. **X Bot(남자)는 두 스켈레톤이 깨끗이 분리돼 완전 정상.** → 깨끗이 재익스포트한
+  Y Bot(또는 다른 with-skin FBX)을 📁 교체로 넣으면 해결.
 
 ## 다음 후보 (사용자와 논의 후)
 

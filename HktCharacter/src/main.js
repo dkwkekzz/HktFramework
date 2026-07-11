@@ -435,13 +435,28 @@ function refreshCharButtons() {
   const box = $('chars'); box.innerHTML = '';
   for (const id in SLOTS) {
     const slot = SLOTS[id];
+    const wrap = document.createElement('div'); wrap.className = 'charwrap';
     const b = document.createElement('button');
     b.className = 'char' + (id === selected ? ' on' : '');
     const anim = slot.ch?.active || '—';
     b.innerHTML = `${slot.label}<span class="cap">${slot.ch ? anim : '로드 안 됨'}</span>`;
     b.addEventListener('click', () => select(id));
-    box.appendChild(b);
+    // 슬롯별 모델 교체 — 클릭하면 그 슬롯을 선택하고 FBX 파일 선택창을 연다.
+    const rep = document.createElement('button');
+    rep.className = 'rep'; rep.textContent = '📁 교체'; rep.title = `${slot.label} 모델을 FBX 로 교체`;
+    rep.addEventListener('click', e => { e.stopPropagation(); openReplace(id); });
+    wrap.append(b, rep);
+    box.appendChild(wrap);
   }
+}
+
+// 지정 슬롯의 모델을 FBX 로 교체 — 슬롯을 선택한 뒤 파일 선택창을 연다(드롭과 같은 경로).
+function openReplace(id) {
+  select(id);
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.fbx';
+  inp.onchange = e => readFile(e.target.files[0]);
+  inp.click();
 }
 
 function refreshAnimButtons() {
