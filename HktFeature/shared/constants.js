@@ -298,6 +298,7 @@ export const CAUSE = {
   COMBUST: 'combust',   // 결정(내구도) → 심우주 / 국소장 (연소 = 내구도를 태워 열·연기로 방출 + 냉각 소산, feature-0013)
   MELT: 'melt',         // 결정(내구도) → 국소장 (상전이=용해: 녹는점 넘은 비가연성 결정이 고체→액체로 녹아 흘러든다, feature-0013 step2)
   SHATTER: 'shatter',   // 결정(내구도) → 파편 결정들 + 국소장 (파괴=물리력이 파괴강도를 넘어 부숨, feature-0013 step3)
+  DEMATERIALIZE: 'dematerialize', // 결정(+열) → 국소장 (관측 없는 지역의 결정이 에너지로 환원 = 구체화의 역, feature-0017. 다시 관측되면 석출로 재구체화)
 };
 
 // 3D 거리 — 위치·속도·사거리는 전부 3D. (Math.hypot 은 3인자 지원)

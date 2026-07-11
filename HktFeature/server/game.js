@@ -50,8 +50,12 @@ import {
 } from '../shared/constants.js';
 
 export class GameServer {
-  constructor({ now = () => Date.now() } = {}) {
+  constructor({ now = () => Date.now(), gateByObservation = false } = {}) {
     this.now = now;
+    // feature-0017 — 관측 게이트. true 면 관측 없는 지역의 결정은 에너지로 환원되고 야생 생명체는 동면한다(라이브 기본).
+    //   false(기본)면 전 세계를 관측 여부와 무관하게 시뮬레이션한다 — 규칙 자체를 검증하는 테스트가 쓰는 모드(규칙은
+    //   관측에 독립). 관측 정책은 feature-0017 전용 테스트가 이 플래그를 켜서 따로 검증한다.
+    this.gateByObservation = gateByObservation;
     this.ledger = new EnergyLedger();
     // 엔트로픽 확산의 "동전" — 결정론 PRNG. 서버 전용(클라는 결과 tx만 받는다)이라
     // 미러 정합과 무관하고, 같은 이벤트열이면 같은 흐름을 재현한다(테스트 재현성의 근거).
@@ -61,6 +65,7 @@ export class GameServer {
 
     // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
     this.players = new Map();      // id -> player
+    this.activeRegions = new Set(); // 관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합 (feature-0017). 매 틱 갱신 — 관측 없는 지역은 시뮬 정지·결정 탈구체화(에너지로만)
     this.pendingOps = [];          // 이번 틱 확정 tx (인과 순서 유지)
     this.pendingMoves = new Map(); // playerId -> [x, y, z] (좌표 비콘 릴레이)
     this.nextPlayerNo = 1;
@@ -409,6 +414,12 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
+    // feature-0017 관측 시 구체화 — 이번 틱의 관측 지역(어떤 플레이어든 구독 중)을 먼저 확정한다. 관측 없는
+    //   지역은 (a) 결정을 에너지로 환원(탈구체화)하고 (b) 아래 시뮬(석출·생명체 행위)을 건너뛴다. 세계는 그 지역에서
+    //   **국소장 에너지로만** 계속 흐르고(확산·복사는 전역 유지), 다시 관측되면 석출로 재구체화된다. 국소장 확산 앞에
+    //   두어 환원된 에너지가 곧바로 확산에 참여하게 한다(경계 자연스러움).
+    this.#refreshActiveRegions();
+    this.#dematerializeUnobserved();
     // feature-0004 엔트로픽 장 갱신 — 국소장의 에너지가 (a) 이웃 복셀로 높은 확률로 흩어지고
     //   (b) 일부가 심우주로 복사돼 영영 사라진다. 둘 다 region=null 풀 간 무음 이체(방송·체크섬
     //   무관)라 서버 내부에서만 돈다. 소산은 태양으로 되돌아가지 않고 SINK 는 단조 증가한다(엔트로피의 화살).
@@ -532,9 +543,49 @@ export class GameServer {
   //   장을 포화까지 끌어내리면 초과가 0 이 되어 멈춘다(현실의 침전 평형). 결정론(rng 미사용) —
   //   "저엔트로피 요동(국소에 에너지가 쌓인 드문 사건) 자체가 희귀도"다. 결정은 확산·복사 순회
   //   대상이 아니므로(materialKeys 밖) 한 번 동결되면 가만두는 한 잔고가 불변이다(정적성).
+  // ==========================================================================
+  // feature-0017 — 관측 시 구체화 (materialize on observation)
+  //   관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합. 관측 없는 지역에선 결정(정적 섬)이 에너지로 환원되고
+  //   생명체(능동 섬)는 동면한다. 세계는 그 지역에서도 국소장 에너지로만 계속 흐른다(확산·복사는 전역). 다시
+  //   관측되면 석출이 재구체화한다. 정적 섬은 대체 가능(fungible)이라 환원↔석출로 다뤄도 정합적이고, 능동 섬은
+  //   정체성(스탯·욕구·소유)을 지녀 환원하지 않고 **동면**만 한다(후속 정교화는 backlog). 전이는 모두 원장 이체
+  //   또는 무동작 → 보존 자명. 관측 패턴이 같으면 결과도 같다(결정론은 관측 조건부).
+  // ==========================================================================
+  #refreshActiveRegions() {
+    const s = new Set();
+    for (const p of this.players.values()) for (const rk of p.regions) s.add(rk);
+    this.activeRegions = s;
+  }
+
+  #regionActive(x, y) { return !this.gateByObservation || this.activeRegions.has(regionKey(x, y)); }
+
+  // 동면 판정 — 야생(주인 없음) 생명체가 관측 없는 지역에 있으면 동면(시뮬 정지). 소유 생명체는 늘 주인 곁(관측
+  //   안)이라 동면하지 않는다(플레이어의 아바타는 항상 산다). 동면은 정체성을 지우지 않는다 — 잔고·스탯 그대로 멈춤.
+  #dormant(cre) { return !cre.owner && !this.#regionActive(cre.x, cre.y); }
+
+  // 관측 없는 지역의 결정을 에너지로 환원(탈구체화) — 결정 잔고와 열(H:)을 그 자리 국소장으로 되돌리고 풀을 지운다.
+  //   소유물(heldItems)은 this.crystals 밖이라 대상 아님(주인을 따라 늘 관측 안). 보존: 결정→국소장 이체(무음·region=null).
+  #dematerializeUnobserved() {
+    if (!this.gateByObservation || this.crystals.size === 0) return;
+    for (const c of [...this.crystals.values()]) {
+      if (this.#regionActive(c.x, c.y)) continue;
+      const matId = materialKey(c.x, c.y, c.z);
+      const bal = this.ledger.balance(c.id);
+      if (bal > 0) this.ledger.transfer(c.id, matId, bal, CAUSE.DEMATERIALIZE);
+      const heatId = `${POOL.HEAT}${c.seq}`;
+      const heat = this.ledger.balance(heatId);
+      if (heat > 0) this.ledger.transfer(heatId, matId, heat, CAUSE.DEMATERIALIZE); // 열도 국소장으로(세계에 남김·보존)
+      if (this.voxelResident.get(matId) === c.id) this.voxelResident.delete(matId); // 재관측 시 새 핵으로 다시 자라게
+      this.ledger.removePool(c.id);
+      this.ledger.removePool(heatId);
+      this.crystals.delete(c.id);
+    }
+  }
+
   #crystallize() {
     const LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
     for (const [cx, cy, cz, matId] of this.materialCells) {
+      if (this.gateByObservation && !this.activeRegions.has(`${cx}_${cy}`)) continue; // feature-0017: 관측 없는 지역은 석출 안 함 — 에너지로만 남아 확산한다(관측 시 재구체화)
       const bal = this.ledger.balance(matId);
       if (bal <= CRYSTAL_SATURATION) continue; // 과포화가 아니면 석출 없음
       // 그 복셀의 "거주 결정"을 얻거나(없으면 hotspot 중심에 새로 핵생성) 키운다 — 개별 결정으로 자란다.
@@ -700,6 +751,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 포식은 **야생(owner=null)만** — 욕구는 절차(사냥)로 치고, 주인이 쥔 대기 개체는 자율 공격하지 않는다(플레이어가 사냥을 걸어야 친다)
+      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 포식 정지)
       // 발산할 예비가 없으면 공격하지 않는다(예비 가드는 #strike 안) — 사거리 안 나보다 작은 가장 가까운 먹이
       let prey = null, bestD = Infinity;
       for (const V of this.creatures.values()) {
@@ -784,6 +836,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 발산도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 자율 발산하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
+      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 발산 정지)
       const launch = DISCHARGE_COST * A.size;                  // 발사 비용(만들어 쏘는 일 = 열로 손실)
       const charge = DISCHARGE_POWER * A.size;                 // 파이어볼에 싣는 폭약(터질 때 세계로 흩어진다)
       // 발산할 예비가 없으면(발사+폭약+최소 예비 미만) 쏘지 않는다 — 회수 없는 순수 지출이라 남발하면 제 에너지가 마른다.
@@ -942,6 +995,7 @@ export class GameServer {
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
+      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
       const ctx = this.#desireCtx(cre);
       // feature-0012: 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
       //   단계를 실행한다. 최우선 욕구가 상황상 수행 불가(표적 없음 등)면 다음 우선순위로 내려간다 → "상황에 따라
@@ -1173,6 +1227,7 @@ export class GameServer {
   //   성장점을 쌓아 성장하고(size↑), 굶주리면 진척이 깎인다 — 큰 몸은 세계가 못 받치면 몰락한다(#growCreature).
   #metabolizeCreatures() {
     for (const cre of [...this.creatures.values()]) {
+      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면 — 갈구·대사·성장·아사 정지(잔고 그대로 멈춤)
       const matId = materialKey(cre.x, cre.y, cre.z);
       if (cre.items.length) for (const id of cre.items) { const it = this.heldItems.get(id); if (it) { it.x = cre.x; it.y = cre.y; it.z = cre.z; } } // 소유물은 주인을 따라다닌다(feature-0014)
       if (cre.desire === DESIRE.NONE) this.#harvestNearbyCrystal(cre);       // ⓪ 채집 본능(feature-0007) — 야생/대기만. 욕구를 가진 개체는 절차로 먹는다
@@ -1257,34 +1312,52 @@ export class GameServer {
     const fieldCells = broadcastField
       ? this.materialCells.map(([cx, cy, cz, id]) => [cx, cy, cz, this.ledger.balance(id)])
       : null;
-    // 결정 스냅샷 — 개별 결정 [id, x, y, z, balance, species] (잔고>0). FIELD 와 같은 읽기 전용 표시값.
-    const crystalCells = broadcastField
-      ? [...this.crystals.values()].reduce((acc, c) => {
-          const b = this.ledger.balance(c.id);
-          if (b > 0) {
-            // feature-0013: 열(온도) 상태 — hot=발화점 대비 가열 비율(0~1, 달아오름), burning=연소 중.
-            const ign = ignitionHeat(c.species);
-            const thr = Number.isFinite(ign) ? ign : meltHeat(c.species); // 발화점(가연성) 또는 녹는점(비가연성) — 둘 다 달아오름으로 보인다
-            const hot = Number.isFinite(thr) ? Math.min(1, this.ledger.balance(`${POOL.HEAT}${c.seq}`) / thr) : 0;
-            acc.push([c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier, c.burning ? 1 : 0, Math.round(hot * 100) / 100]); // raw=날것·crafted=산물·tier=단계 · burning·hot=연소/가열(feature-0013)
-          }
-          return acc;
-        }, [])
-      : null;
-    // 생명체 스냅샷 — 살아있는 생명체 [seq, x, y, z, balance, size, desire, owner, desires] (feature-0006·0010·0012).
-    //   desire=승자 욕망(뷰어가 라벨·표적선), owner=제어자(강조), desires=중첩 스택(뷰어가 우선순위·감정 배지). CRYSTAL 과 같은 읽기 전용 표시값.
-    const creatureCells = broadcastField
-      ? [...this.creatures.values()].reduce((acc, c) => {
-          const b = this.ledger.balance(c.id);
-          if (b > 0) {
-            const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
-            acc.push([c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]); // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
-          }
-          return acc;
-        }, [])
-      : null;
+    // --- relevancy: 결정·생명체 스냅샷은 지역별로 나눠 담아, 각 플레이어에게 제 시야(3x3 지역)만 실어보낸다. ---
+    //   (feature-0016) 프레임드랍의 뿌리 — 결정·생명체는 시뮬이 굴러가며 무한히 늘어나는데, 예전엔 이 전량을 전
+    //   플레이어에게 방송했다(전역). 그래서 클라 렌더가 온 세계의 엔티티를 매 프레임 훑어 부하가 인구·결정 수에
+    //   비례해 커졌다. 이제 지역 버킷으로 나눠 담고 아래 루프가 플레이어의 구독 지역만 골라 보낸다 — **클라는 보이는
+    //   것만 처리한다**. 시야 밖은 서버에서 원장(에너지 보존)으로만 계속 굴러가고, 다시 시야에 들면 그 지역 스냅샷이
+    //   재동기화한다(체크섬 RESYNC 와 같은 결). FIELD(4x4x4=64 고정)는 세계 확산 readout 이라 전역 유지.
+    let crystalByRegion = null; // regionKey -> cell[] (잔고>0 결정)
+    let creatureBySeq = null;   // seq -> cell (잔고>0 생명체 셀 색인 — 지역 버킷은 seq 만 담아 중복 방지)
+    let creatureByRegion = null; // regionKey -> seq[]
+    let creatureByOwner = null; // ownerId -> cell[] (소유 개체는 시야 밖이어도 항상 실어야 하므로 주인별 색인)
+    if (broadcastField) {
+      crystalByRegion = new Map();
+      for (const c of this.crystals.values()) {
+        const b = this.ledger.balance(c.id);
+        if (b <= 0) continue;
+        // feature-0013: 열(온도) 상태 — hot=발화점 대비 가열 비율(0~1, 달아오름), burning=연소 중.
+        const ign = ignitionHeat(c.species);
+        const thr = Number.isFinite(ign) ? ign : meltHeat(c.species); // 발화점(가연성) 또는 녹는점(비가연성) — 둘 다 달아오름으로 보인다
+        const hot = Number.isFinite(thr) ? Math.min(1, this.ledger.balance(`${POOL.HEAT}${c.seq}`) / thr) : 0;
+        const cell = [c.seq, c.x, c.y, c.z, b, c.species, c.raw ? 1 : 0, c.crafted ? 1 : 0, c.tier, c.burning ? 1 : 0, Math.round(hot * 100) / 100]; // raw=날것·crafted=산물·tier=단계 · burning·hot=연소/가열(feature-0013)
+        const rk = regionKey(c.x, c.y);
+        let bucket = crystalByRegion.get(rk);
+        if (!bucket) crystalByRegion.set(rk, bucket = []);
+        bucket.push(cell);
+      }
+      // 생명체 스냅샷 셀 — [seq, x, y, z, balance, size, desire, owner, desires, items, cmd] (feature-0006·0010·0012).
+      //   desire=승자 욕망(뷰어가 라벨·표적선), owner=제어자(강조), desires=중첩 스택(뷰어가 우선순위·감정 배지).
+      creatureBySeq = new Map();
+      creatureByRegion = new Map();
+      creatureByOwner = new Map();
+      for (const c of this.creatures.values()) {
+        const b = this.ledger.balance(c.id);
+        if (b <= 0) continue;
+        const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
+        const cell = [c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]; // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
+        const rk = regionKey(c.x, c.y);
+        creatureBySeq.set(c.seq, cell);
+        let bucket = creatureByRegion.get(rk);
+        if (!bucket) creatureByRegion.set(rk, bucket = []);
+        bucket.push(c.seq);
+        if (c.owner) { let ob = creatureByOwner.get(c.owner); if (!ob) creatureByOwner.set(c.owner, ob = []); ob.push(cell); }
+      }
+    }
     // 파이어볼 스냅샷 — feature-0009. FIELD 주기가 아니라 **매 틱** 방송해 날아가는 걸 부드럽게 보인다(투사체는 빠르다).
     //   비행 중일 때만 실어 보내고(없으면 생략), 착탄 후엔 방송이 끊겨 뷰어가 짧은 TTL 로 지운다. 표시용·읽기전용.
+    //   결정·생명체와 같이 지역 relevancy 로 거른다(아래 루프) — 제 시야를 지나는 투사체만 보인다.
     const fireballCells = this.fireballs.length
       ? this.fireballs.map(fb => [fb.seq, fb.x, fb.y, fb.z, this.ledger.balance(fb.id), fb.size])
       : null;
@@ -1313,9 +1386,26 @@ export class GameServer {
       if (moves.length) p.conn.send(encode(MSG.POS, { moves }));
 
       if (fieldCells) p.conn.send(encode(MSG.FIELD, { cells: fieldCells }));
-      if (crystalCells) p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
-      if (creatureCells) p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
-      if (fireballCells) p.conn.send(encode(MSG.FIREBALL, { cells: fireballCells })); // 비행 중 파이어볼(매 틱)
+      if (broadcastField) {
+        // 결정 — 내 구독 지역의 것만 (빈 배열도 보낸다: 지역을 벗어나면 클라가 시야 밖 결정을 지우게).
+        const crystalCells = [];
+        for (const rk of p.regions) { const bucket = crystalByRegion.get(rk); if (bucket) for (const cell of bucket) crystalCells.push(cell); }
+        p.conn.send(encode(MSG.CRYSTAL, { cells: crystalCells }));
+        // 생명체 — 내 구독 지역의 것 + 내가 소유한 생명체(시야 밖이어도 카메라·제어가 놓치지 않게 항상).
+        const seen = new Set();
+        const creatureCells = [];
+        for (const rk of p.regions) {
+          const bucket = creatureByRegion.get(rk);
+          if (bucket) for (const seq of bucket) if (!seen.has(seq)) { seen.add(seq); creatureCells.push(creatureBySeq.get(seq)); }
+        }
+        const owned = creatureByOwner.get(p.id);
+        if (owned) for (const cell of owned) if (!seen.has(cell[0])) { seen.add(cell[0]); creatureCells.push(cell); }
+        p.conn.send(encode(MSG.CREATURE, { cells: creatureCells }));
+      }
+      if (fireballCells) { // 비행 중 파이어볼(매 틱) — 내 시야를 지나는 것만
+        const mine = fireballCells.filter(fc => p.regions.has(regionKey(fc[1], fc[2])));
+        if (mine.length) p.conn.send(encode(MSG.FIREBALL, { cells: mine }));
+      }
 
       if (checksumDue) {
         const regions = {};
