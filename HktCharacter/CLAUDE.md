@@ -10,6 +10,19 @@
 > rest 축이 비-단위라 클립을 로컬 quaternion 으로 직접 얹으면 팔이 T-포즈로 남아 →
 > `SkeletonUtils.retargetClip`(월드 공간 리타깃)으로 전환(옵션 `preservePosition:false`). 캐릭터
 > 카드의 **📁 교체** 버튼(또는 슬롯 선택 후 FBX 드롭)으로 모델을 쉽게 갈아끼운다.
+>
+> **v3.2 (2026-07-11)**: 뷰어 붕괴 수리. `SkeletonUtils.retargetClip` **폐기** — bake 중 타깃
+> 뼈 상태를 오염시켜(skeleton.pose+decompose 잔여) 본이 흩어지고, Y Bot 처럼 계층 등뼈가
+> 트윈(Joints) 쪽인 리그에선 바인드 포즈가 그대로 구워져 T-포즈로 멈췄다. → **순수 월드 공간
+> 리타깃 자체 구현**(`bakeClip`: 타깃 뼈를 읽지도 쓰지도 않는 순수 계산) + 구동 뼈를 메시
+> 소속이 아니라 **계층 순서(DFS-첫 뼈 = 등뼈)** 로 선정. 보조(Joints) 메시도 이제 제거하지
+> 않고 함께 애니메이션된다.
+>
+> **v4 (2026-07-11)**: 화면에 캐릭터 **한 명**만. 모델 버튼(남자 X Bot/여자 Y Bot/📁 임의
+> FBX)으로 그 자리를 갈아끼운다. "재생하면 중심이 틀어지고 떠 있다" 버그 수정 — 원인은
+> 접지(groundToPose→replant)가 **crossfade 중인 혼합 포즈**를 측정해 root x/y/z 를 옮긴 것.
+> → 접지 y 는 클립별로 재생 전 **사전 측정**(measureClipRootY: 임시 믹서로 N 프레임 샘플링,
+> 상태 원상복구), root x/z 는 로드 시 1회만 정렬하고 재생 중 불변.
 
 ## 목표
 
@@ -28,29 +41,40 @@
 ## 구조 (전부 `src/main.js` 하나)
 
 1. **씬** — three.js + OrbitControls, 헤미/디렉셔널 라이트, 그리드, 선택 표시 링.
-2. **슬롯** (`SLOTS` = male/female) — 화면에 항상 두 캐릭터. `file` 경로를 바꾸거나 카드의
-   📁 교체 버튼으로 모델 교체. 각 슬롯 `ch`(root·meshes·bones·boneMap·mixer·clips·actions·
-   helper·baseScale·props·bindPose·primeMesh)를 좌우(`x=±0.62`)에 배치. `bootstrap()` 가 두
-   베이스(X Bot=남, Y Bot=여)를 로드해 둘 다 **대기**로 세운다.
-3. **로드/정규화** — `makeCh`: 스킨 메시가 2벌(Surface 본체+Joints 액센트, 별도 스켈레톤·이름
-   중복)이면 보조 메시는 그래프에서 제거하고 그 뼈는 `__dup` 로 개명(루트 믹서가 본체 뼈에만
-   바인딩되게). `computeBaseScale`(키 1.7m)+`applyProps`(본 스케일→root 스케일→발 접지). 접지·
-   정규화는 스킨 CPU boundingBox 가 아니라 **뼈 월드 bbox**(`boneBox`)로.
-4. **리타깃** (`bakeClip` → `SkeletonUtils.retargetClip`, 월드 공간) — raw mixamorig 리그의 뼈
-   rest 축이 비-단위라 로컬 quaternion 직접 적용은 T-포즈로 실패 → 소스를 클립으로 포즈시켜
-   월드 포즈를 target bind 기준 로컬로 다시 굽는다(`preservePosition:false` — Y Bot 도 정상화).
-   굽은 `.bones[뼈]` 트랙을 `뼈.quaternion` 으로 재작성해 루트 믹서가 그래프 뼈를 이름으로
-   구동(렌더·스케일 정합). **Hips 위치 트랙은 버려 제자리 재생**(클립마다 절대 높이가 달라
-   전환 시 공중부양 방지). bake 가 뼈 position/scale 을 오염시키므로 `bindPose`(makeCh 에 저장)
-   로 복원 + `groundToPose→applyProps` 로 scale·접지 복구. `simpleName` 은 `"mixamorig:LeftHand"`
-   / `"mixamorigLeftHand"` / `"LeftHand"` → 모두 `lefthand`. 소스는 파일당 1회 `sourceCache`.
-5. **선택** — 캐릭터 버튼 + 3D 클릭(레이캐스트, 드래그는 제외). 선택된 슬롯에만 애니메이션
-   버튼/본 비율 슬라이더가 작동하고 링이 발밑으로 이동.
+2. **슬롯** (`SLOTS.main` 하나, x=0) — 화면에 캐릭터 한 명. `MODELS`(X Bot=남 / Y Bot=여)
+   버튼 또는 📁 교체(임의 with-skin FBX)로 `switchModel` 이 그 자리를 갈아끼운다. 슬롯의
+   `ch`(root·meshes·bones(구동 뼈)·boneMap·allBones·mixer·clips·actions·helper·baseScale·
+   props·bindLocalQ·bindWorldQ·staticParentQ·primeMesh). `bootstrap()` 는 X Bot 을 로드해
+   **대기**로 세운다.
+3. **로드/정규화** — `makeCh`: Mixamo with-skin FBX 는 스킨 메시 2벌(Surface+Joints)의
+   스켈레톤이 같은 이름 트윈으로 **교차(interleaved)** 배치되고, 어느 쪽이 계층 등뼈인지는
+   파일마다 다르다(X Bot=Surface 쪽, Y Bot=Joints 쪽). 그래서 구동 뼈는 메시 소속이 아니라
+   **DFS 선순회에서 simpleName 별 첫 뼈(= 항상 조상 쪽 등뼈)** 로 고르고, 같은 이름의 나머지
+   뼈는 `__dupN` 으로 개명해 믹서 이름 충돌만 없앤다. 트윈 자식은 바인드 로컬을 유지한 채
+   부모를 따라가므로 **두 메시 모두 제거 없이** 애니메이션된다. `computeBaseScale`(키 1.7m)
+   +`applyProps`(본 스케일→root 스케일→발 접지). 접지·정규화는 스킨 CPU boundingBox 가
+   아니라 **뼈 월드 bbox**(`boneBox`)로. 로드 직후 바인드(로컬 q·월드 q)를 캐시한다.
+4. **리타깃** (`bakeClip`, 순수 월드 공간 자체 구현 — `SkeletonUtils.retargetClip` 폐기) —
+   원리: 타깃 월드 회전 = `srcWorld(t) × corr`, `corr = srcBindWorld⁻¹ × tgtBindWorld`.
+   소스만 전용 믹서로 프레임 샘플링하고, 프레임마다 실제 부모의 월드 회전(비매칭 뼈는
+   바인드 로컬 유지로 전파) 기준 로컬로 변환해 `뼈.quaternion` 트랙을 만든다 — **타깃 뼈는
+   읽지도 쓰지도 않아** 상태 오염(본 흩어짐)이 원천적으로 없다. rest 축이 비-단위인 raw
+   mixamorig 리그도 corr 이 흡수. 위치 트랙은 **hips 수직(y)만** — 소스 hips 월드 y 변위를
+   키 비율(`hScale = tgtHipsBindY/srcHipsBindY`)로 스케일해 hips.position 트랙으로. 회전만
+   옮기면 앉는 동작(공격 등)에서 엉덩이가 못 내려가 무릎만 굽고 발이 떴다(v4 버그). hips
+   x/z 는 바인드 고정 → 제자리 재생 유지. `simpleName` 은 `"mixamorig:LeftHand"` /
+   `"mixamorigLeftHand"` / `"LeftHand"` → 모두 `lefthand`. 소스는 파일당 1회 `sourceCache`.
+5. **접지** — root **x/z 는 로드 시 1회만** 정렬(바인드 bbox 중심), 재생 중 불변. **y 는
+   클립별 사전 측정**(`measureClipRootY`: 임시 믹서로 클립을 12+1 프레임 샘플링해 뼈 bbox
+   최저점이 y=0 에 닿는 root.y 를 계산, 측정 후 상태 원상복구 → 화면 불변). `playClip` 이
+   시작 시 그 값을 적용하고 `mixer.update(0)` 로 포즈를 즉시 얹는다(1프레임 T-포즈 방지).
+   재생 중 포즈를 재측정해 root 를 옮기는 코드는 **금지** — crossfade 혼합 포즈를 측정하면
+   클립·모델·타이밍마다 다르게 뜨거나 중심이 틀어진다(v3.2 버그의 원인). 본 비율 변경 시
+   `applyProps` 가 클립별 접지 캐시(`__rootY`)를 무효화하고 현재 포즈 기준으로만 y 재접지.
 6. **본 비율** (`PROP_GROUPS`) — 키(root)·머리·몸통·어깨너비·팔·다리·손을 `simpleName` 정규식에
    걸리는 뼈 `scale` 로 조절. 값 변경 시 `applyProps` → `replant`(발 접지 유지). 슬라이더는
    **선택 캐릭터별** 상태(`ch.props`)를 반영.
-7. **드롭존** — with-skin FBX 는 **선택된 슬롯**을 교체(여자 슬롯 선택 후 Mixamo 여성 FBX 드롭
-   = 그대로 "연결"), 애니메이션-only 는 선택 캐릭터에 리타깃.
+7. **드롭존** — with-skin FBX 는 캐릭터 교체, 애니메이션-only 는 현재 캐릭터에 리타깃 재생.
 8. **UI** — 캐릭터/애니메이션/본 비율/속도/표시(메시·본·회색·와이어·SDF 살) + `window.__hkt` 핸들.
 5. **SDF 살** (`src/mcflesh.js`, 실험) — 뼈마다 캡슐 세그먼트, Wyvill 밀도
    `(1-d²/R²)³` (R=BLEND(2.5)×반지름, 부모→자식 반지름 테이퍼)를 필드에 가산 →
@@ -83,24 +107,26 @@ npm install
 npm run dev      # http://localhost:5173
 ```
 
-기본 화면에 남/여 두 캐릭터가 뜬다. 캐릭터를 클릭(또는 남자/여자 버튼)해 선택 → 애니메이션
-버튼으로 그 캐릭터만 재생. 본 비율 슬라이더로 뼈 스케일 조절. **모델 교체**: 캐릭터 카드의
-📁 교체 버튼(또는 슬롯 선택 후 with-skin FBX 드롭), 혹은 `SLOTS[*].file` 경로 교체.
+기본 화면에 캐릭터 한 명이 뜬다. 모델 버튼(남자/여자)이나 📁 교체(임의 with-skin FBX)로
+그 자리를 갈아끼우고, 애니메이션 버튼으로 재생. 본 비율 슬라이더로 뼈 스케일 조절.
 
-## 검증 (2026-07-11, headless Chromium)
+## 검증 (2026-07-11 v4.1 hips-y 리타깃, Node — 실물 main.js 코어를 DOM 스텁으로 구동)
 
-- 두 베이스(X Bot·Y Bot) 동시 렌더, 발 접지, 콘솔 에러 0.
-- 선택+리타깃: 여자 선택→삼바(팔·다리 움직임 확인), 남자 선택→걷기/뛰기. 독립 재생.
-- 본 비율: 슬라이더(머리·팔·다리) → 뼈 scale 반영 + 발 접지 유지.
-- 📁 교체 버튼 2개 · 애니메이션 전환 시 공중부양 없음.
+- 부트스트랩: X Bot 한 명 + 대기 즉시 적용(1프레임 T-포즈 없음), 접지 min.y=0, 중심 x=0.
+- 6클립 × 양 모델, 크로스페이드 정착 후 뼈 bbox 최저점 min.y 의 [최저, 최고] 실측
+  (root x/z 드리프트 = 0.0000 전부):
+  대기 [0, 0], 공격 [0, 0.03] — **발이 뜨지 않음**, 걷기 [0, 0.05], 삼바 [-0.01, 0.02],
+  뛰기 [0, 0.16] (공중 phase), 점프 [0, 1.09] (실제 도약 — hips-y 덕에 점프가 진짜 뜬다).
+- 모델 전환: X Bot→Y Bot `switchModel` 후 즉시 대기 포즈·접지·중심 정상.
+- 본 비율: 재생 중 다리 1.3 → 접지 min.y=0 유지.
+- (브라우저 육안 확인은 `npm run dev` 후 사용자 확인 필요 — 샌드박스는 headless Chromium
+  다운로드가 차단돼 Node 검증으로 대체.)
 
 ## 알려진 한계
 
-- **Y Bot(여자)의 손가락 정점 조각**: Y Bot FBX 는 스킨 메시 2벌의 스켈레톤이 **계층에서 서로
-  겹친(interleaved)** 특이 구조라(각 뼈의 부모가 같은 이름의 트윈), 손가락 뼈 체인의 조상에
-  애니메이션 안 되는 트윈이 끼어 손 부근 정점 일부가 T-포즈 위치에 남는다. 몸통·팔·다리는
-  정상 애니메이션. **X Bot(남자)는 두 스켈레톤이 깨끗이 분리돼 완전 정상.** → 깨끗이 재익스포트한
-  Y Bot(또는 다른 with-skin FBX)을 📁 교체로 넣으면 해결.
+- (v3.2 에서 해소) ~~Y Bot 손가락 정점 조각 / T-포즈 멈춤~~ — 교차 트윈 리그 문제는 구동 뼈를
+  계층 등뼈(DFS-첫 뼈)로 선정하면서 해결. 새 with-skin FBX 가 또 다른 특이 구조라면 `bakeClip`
+  의 비매칭 뼈 전파 로직부터 볼 것.
 
 ## 다음 후보 (사용자와 논의 후)
 
@@ -111,7 +137,9 @@ npm run dev      # http://localhost:5173
 ## 설계 결정
 
 - **메시는 FBX 원본을 그대로** — 절차 생성으로 돌아가려면 근거부터.
-- 리타깃은 이름 기반 + 회전 전용(Hips position 예외) 유지. scale 트랙은 버려 본 비율 편집이
-  뼈 `scale` 채널을 단독 소유한다.
+- 리타깃은 이름 기반, 트랙은 **회전 + hips 수직(y) 위치만** — 본 비율 편집이 뼈 `scale`
+  채널을, 접지가 root `position` 을 단독 소유한다. hips y 를 빼면 앉는 동작에서 발이 뜨고
+  점프가 안 뜬다. 리타깃 bake 는 타깃 상태를 건드리지 않는 순수 계산이어야 한다(외부
+  유틸의 상태 오염이 v3.1 붕괴의 원인). 접지는 재생 전 사전 측정만, 재생 중 재측정 금지.
 - 접지·정규화는 스킨 CPU boundingBox(rest 고정)가 아니라 **뼈 월드 bbox** 기준 — 본 비율을
   바꿔도 발이 바닥에 붙는다.

@@ -1,22 +1,21 @@
 // ============================================================================
 //  HktCharacter — 캐릭터 선택 + 애니메이션 + 본 비율 뷰어 (v3)
 //
-//  v2("삼바를 눌러야 메시가 나온다") 대비 바뀐 것:
-//    1. 기본 화면에 남/여 두 캐릭터를 나란히 배치하고 즉시 렌더한다.
-//       - 남자 = Mixamo "Alpha"(X-Bot, samba.fbx 의 스킨 메시)
-//       - 여자 = Mixamo "Eve"(female.fbx, with-skin) — Mixamo 에서 받아 연결
-//    2. 캐릭터를 클릭(또는 버튼)해 "선택"하면, 이후 고른 애니메이션을 그
-//       선택된 캐릭터만 수행한다. 두 리그의 뼈 이름은 simpleName 으로 정규화돼
-//       같은 클립이 양쪽에 리타깃된다.
-//    3. 본 비율 슬라이더 — 키/머리/몸통/어깨/팔/다리/손을 뼈 스케일로 조절.
-//       클립은 회전(+Hips 위치)만 옮기므로 scale 채널은 우리가 소유한다.
+//  v4: 화면에는 캐릭터 **한 명**만 세운다.
+//    1. 모델 버튼(남자 X Bot / 여자 Y Bot / 📁 임의 FBX)으로 그 자리를 갈아끼운다.
+//    2. 애니메이션 버튼 → 현재 캐릭터에 리타깃 재생. 리타깃은 순수 월드 공간 자체
+//       구현(bakeClip), 구동 뼈는 메시 소속이 아니라 계층 등뼈(DFS-첫 뼈).
+//    3. 접지: 클립별 접지 y 를 재생 시작 전에 **미리 측정**(measureClipRootY)해 root.y
+//       를 고정 — 재생 중(특히 crossfade 중) 포즈를 재측정하지 않는다(중심 틀어짐 방지).
+//    4. 본 비율 슬라이더 — 키/머리/몸통/어깨/팔/다리/손을 뼈 스케일로 조절.
+//       클립은 회전 + hips y-위치 트랙만 가지므로 scale 채널과 root position 은
+//       우리가 소유한다.
 //
 //  핵심 유지: 메시는 FBX 원본 그대로, 본 표시는 THREE.SkeletonHelper.
 // ============================================================================
 import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { retargetClip } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { McFlesh } from './mcflesh.js';
 
 // ---------------------------------------------------------------------------
@@ -98,11 +97,15 @@ const defaultProps = () => Object.fromEntries(PROP_GROUPS.map(g => [g.id, 1]));
 // ---------------------------------------------------------------------------
 //  슬롯 정의 — 화면에 항상 두 캐릭터. 각 슬롯은 ch(캐릭터 상태)를 가진다.
 // ---------------------------------------------------------------------------
+const MODELS = [
+  { label: '남자 (X Bot)', file: 'assets/character/X Bot.fbx' },
+  { label: '여자 (Y Bot)', file: 'assets/character/Y Bot.fbx' },
+];
+// v4: 화면에는 캐릭터 **한 명**만. 모델 버튼(남자/여자/📁 교체)으로 그 자리를 갈아끼운다.
 const SLOTS = {
-  male:   { label: '남자', file: 'assets/character/X Bot.fbx', x: -0.62, ch: null },
-  female: { label: '여자', file: 'assets/character/Y Bot.fbx', x:  0.62, ch: null },
+  main: { label: MODELS[0].label, file: MODELS[0].file, x: 0, ch: null },
 };
-let selected = 'male';
+let selected = 'main';
 const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, sdf: false };
 
 const selCh = () => SLOTS[selected]?.ch || null;
@@ -155,40 +158,50 @@ function makeCh(slotId, parsed) {
     m.castShadow = m.receiveShadow = false;
     m.userData.origMaterial = m.material;
   }
-  // 본체(prime) = 정점 최다 스킨 메시. X/Y Bot 은 보조 메시(Joints 액센트)가 별도
-  // 스켈레톤·이름 중복이라, 보조 메시는 숨기고 그 뼈 이름을 바꿔 루트 믹서가 본체 뼈에만
-  // 바인딩되게 한다(재바인드는 스키닝을 붕괴시키므로 안 함).
+  // 구동 뼈 선정 — Mixamo with-skin FBX 는 스킨 메시 2벌(Surface+Joints)의 스켈레톤이
+  // 같은 이름의 트윈으로 **교차(interleaved)** 배치된다. 어느 쪽이 계층의 등뼈(backbone)
+  // 인지는 파일마다 다르다(X Bot=Surface 쪽, Y Bot=Joints 쪽). 그래서 메시 소속이 아니라
+  // **계층 순서**로 고른다: DFS 선순회에서 simpleName 별 첫 뼈(항상 조상 쪽) = 구동 대상.
+  // 트윈 자식들은 바인드 로컬을 유지한 채 부모를 따라 움직이므로 두 메시 다 애니메이션된다.
+  // (같은 이름의 나머지 뼈는 유일하게 개명해 믹서 이름 바인딩 충돌을 없앤다.)
+  const boneMap = new Map(); const drivers = [];
+  let dupSeq = 0;
+  for (const b of bones) { // parseFBX 의 traverse = DFS 선순회 (부모 먼저)
+    const sn = simpleName(b.name);
+    if (!boneMap.has(sn)) { boneMap.set(sn, b); drivers.push(b); }
+    else b.name = `${b.name}__dup${dupSeq++}`;
+  }
   const skinnedAll = meshes.filter(m => m.isSkinnedMesh);
   skinnedAll.sort((a, b) =>
     (b.geometry.attributes.position?.count || 0) - (a.geometry.attributes.position?.count || 0));
   const primeMesh = skinnedAll[0] || null;
-  const primeBoneSet = new Set(primeMesh ? primeMesh.skeleton.bones : []);
-  for (let i = 1; i < skinnedAll.length; i++) {
-    for (const b of skinnedAll[i].skeleton.bones) if (!primeBoneSet.has(b)) b.name += '__dup';
-    skinnedAll[i].removeFromParent(); // 보조 메시는 그래프에서 제거(숨김만으론 잔여가 뜸)
-  }
   // 크기·접지·본 비율·애니메이션은 씬 그래프에 실제 배치된 뼈(루트 아래, 스케일 반영)로.
   // 믹서는 루트(obj)에 두고 트랙은 뼈 이름으로 이 그래프 뼈를 구동한다.
-  const animBones = bones.filter(b => !b.name.endsWith('__dup'));
-  const boneMap = new Map();
-  for (const b of animBones) if (!boneMap.has(simpleName(b.name))) boneMap.set(simpleName(b.name), b);
-
-  const shownMeshes = meshes.filter(m => !m.isSkinnedMesh || m === primeMesh);
   const ch = {
-    root: obj, meshes: shownMeshes, bones: animBones, boneMap, hasMesh: !!primeMesh, slotX: slot.x,
+    root: obj, meshes, bones: drivers, boneMap, allBones: bones, hasMesh: !!primeMesh, slotX: slot.x,
     mixer: new THREE.AnimationMixer(obj), actions: {}, clips: {}, active: '',
-    helper: animBones.length ? new THREE.SkeletonHelper(obj) : null,
+    helper: drivers.length ? new THREE.SkeletonHelper(obj) : null,
     baseScale: 1, props: defaultProps(), primeMesh,
   };
   computeBaseScale(ch);
   applyProps(ch); // root scale + 발 접지
-  // 렌더에 쓰이는 **본체 스켈레톤의 모든 뼈**(그래프에 없는 orphan 포함)의 바인드 로컬
-  // 포즈를 저장해 둔다 — retargetClip bake 는 뼈를 오염시키고, 클립에 트랙이 없는 뼈(손가락
-  // 등)나 그래프에 없는 뼈는 믹서가 안 건드려 bake 잔여가 남는다 → 그 뼈에 스키닝된 정점이
-  // 고정 위치로 떨어져 조각으로 뜬다. bake 후 바인드로 복원해 제자리에 붙인다.
-  ch.bindPose = new Map();
-  const bindSrc = primeMesh ? primeMesh.skeleton.bones : animBones;
-  for (const b of bindSrc) ch.bindPose.set(b, { p: b.position.clone(), q: b.quaternion.clone() });
+  // 바인드 캐시 — 리타깃(bakeClip)은 뼈 상태를 전혀 건드리지 않는 순수 계산이라,
+  // 필요한 바인드(로컬 q / 월드 q)를 로드 직후 한 번 캐시해 둔다.
+  ch.bindLocalQ = new Map();
+  ch.bindLocalP = new Map();
+  for (const b of bones) {
+    ch.bindLocalQ.set(b, b.quaternion.clone());
+    ch.bindLocalP.set(b, b.position.clone());
+  }
+  obj.updateMatrixWorld(true);
+  const q = new THREE.Quaternion();
+  ch.bindWorldQ = new Map();
+  for (const b of bones) ch.bindWorldQ.set(b, b.getWorldQuaternion(q).clone());
+  ch.staticParentQ = new Map(); // 뼈가 아닌 부모(정적 노드)의 월드 회전
+  for (const b of bones) {
+    const p = b.parent;
+    if (p && !p.isBone && !ch.staticParentQ.has(p)) ch.staticParentQ.set(p, p.getWorldQuaternion(q).clone());
+  }
   if (ch.helper) {
     ch.helper.material.depthTest = false; // 메시 너머로도 본이 보이게
     ch.helper.visible = ui.bone;
@@ -220,17 +233,24 @@ function applyProps(ch) {
     for (const b of ch.bones) if (g.re.test(simpleName(b.name))) b.scale.setScalar(m);
   }
   ch.root.scale.setScalar(ch.baseScale * (ch.props.height ?? 1));
+  // 비율이 바뀌면 클립별 접지 y 캐시(__rootY)는 무효 — 다음 재생 시 재측정
+  for (const k in ch.clips) delete ch.clips[k].__rootY;
   replant(ch);
 }
 
-// 발바닥 y=0, 슬롯 x 로 중심 이동 (뼈 bbox 기준 — 스케일 반영).
+// 발바닥 y=0 접지 (뼈 bbox 기준 — 스케일 반영). x/z 중심 정렬은 **바인드(클립 없음)일 때만**
+// — 재생 중 포즈 bbox 로 x/z 를 다시 맞추면 클립·프레임마다 중심이 튄다("중심 틀어짐" 원인).
 function replant(ch) {
-  ch.root.position.set(0, 0, 0);
+  const anchored = !!ch.active; // 클립 재생 중이면 x/z 는 건드리지 않는다
+  ch.root.position.y = 0;
+  if (!anchored) ch.root.position.set(0, 0, 0);
   ch.root.updateMatrixWorld(true);
   const box = boneBox(ch);
-  const c = new THREE.Vector3(); box.getCenter(c);
-  ch.root.position.x = ch.slotX - c.x;
-  ch.root.position.z = -c.z;
+  if (!anchored) {
+    const c = new THREE.Vector3(); box.getCenter(c);
+    ch.root.position.x = ch.slotX - c.x;
+    ch.root.position.z = -c.z;
+  }
   ch.root.position.y = -box.min.y;
   ch.root.updateMatrixWorld(true);
 }
@@ -242,27 +262,31 @@ const ANIMS = [
   ['걷기', 'walk'], ['뛰기', 'run'], ['대기', 'idle'],
   ['점프', 'jump'], ['공격', 'attack'], ['삼바', 'samba'],
 ];
-// 애니메이션 리타깃은 THREE.SkeletonUtils.retargetClip(월드 공간 리타깃)에 맡긴다.
-// 이유: Mixamo X/Y Bot 의 raw mixamorig 리그는 뼈 rest 축이 비-단위(non-identity)라,
-// 단위 rest 로 익스포트된 클립(bare 이름 Hips/LeftArm)을 로컬 quaternion 으로 그대로
-// 얹으면 팔이 T-포즈로 남는다(관찰). retargetClip 은 source 를 클립으로 포즈시킨 뒤
-// 각 프레임의 월드 포즈를 target bind 기준 로컬로 다시 구워 rest 차이를 흡수한다.
+// 리타깃은 **순수 월드 공간 계산**으로 직접 굽는다 (SkeletonUtils.retargetClip 폐기 —
+// 그것은 bake 중 target 뼈 상태를 오염시키고(skeleton.pose+decompose 잔여 → 본 흩어짐),
+// Y Bot 처럼 등뼈가 트윈 쪽인 리그에선 바인드 포즈가 그대로 구워져 T-포즈로 멈췄다).
+// 원리: 원하는 타깃 월드 회전 = srcWorld(t) × corr, corr = srcBindWorld⁻¹ × tgtBindWorld.
+// 이를 프레임마다 실제 부모의 월드 회전(트윈 등 비매칭 뼈는 바인드 로컬 유지로 전파)
+// 기준 로컬로 변환해 쿼터니언 트랙으로 만든다. 타깃 뼈는 읽지도 쓰지도 않는다.
 //
-// source(애니메이션 FBX)는 스킨 메시가 없으므로, 뼈로 임시 SkinnedMesh 를 만들어 준다.
+// source(애니메이션 FBX)는 뼈 계층 + 바인드 월드 회전만 있으면 된다.
 function buildSource(obj, clip) {
   const sBones = []; obj.traverse(o => { if (o.isBone) sBones.push(o); });
-  if (!sBones.length) return null;
-  const sRoot = sBones.find(b => !b.parent?.isBone) || sBones[0];
-  const srcMesh = new THREE.SkinnedMesh(new THREE.BufferGeometry(), new THREE.MeshBasicMaterial());
-  srcMesh.add(sRoot);
-  srcMesh.bind(new THREE.Skeleton(sBones));
-  srcMesh.updateMatrixWorld(true);
-  const byS = new Map();
-  for (const b of sBones) if (!byS.has(simpleName(b.name))) byS.set(simpleName(b.name), b.name);
-  return { srcMesh, clip, byS, hipName: byS.get('hips') || sBones[0].name };
+  if (!sBones.length || !clip) return null;
+  obj.updateMatrixWorld(true);
+  const bySName = new Map(); const bindWorldQ = new Map();
+  const q = new THREE.Quaternion();
+  for (const b of sBones) {
+    const sn = simpleName(b.name);
+    if (!bySName.has(sn)) { bySName.set(sn, b); bindWorldQ.set(sn, b.getWorldQuaternion(q).clone()); }
+  }
+  // Hips 수직 이동 리타깃용 — 소스 바인드에서 hips 의 월드 높이 (스케일 비율 계산 기준)
+  const hipsB = bySName.get('hips');
+  const hipsBindY = hipsB ? hipsB.getWorldPosition(new THREE.Vector3()).y : 0;
+  return { obj, clip, bySName, bindWorldQ, hipsBindY };
 }
 
-const sourceCache = {}; // file → { srcMesh, clip, byS, hipName }
+const sourceCache = {}; // file → { obj, clip, bySName, bindWorldQ }
 async function loadSource(file) {
   if (sourceCache[file]) return sourceCache[file];
   const buf = await (await fetch(`assets/anim/${file}.fbx`)).arrayBuffer();
@@ -274,44 +298,114 @@ async function loadSource(file) {
   return src;
 }
 
-// source 클립을 대상 캐릭터(prime 스켈레톤)에 월드 공간 리타깃해 새 클립을 굽는다.
-// names: 대상 뼈 이름 → source 뼈 이름 (simpleName 매칭). scale 은 트랙에 없다.
-function bakeClip(ch, src, label) {
-  const target = ch.primeMesh;
-  if (!target || !src) return null;
-  const names = {};
-  for (const tb of target.skeleton.bones) {
-    const sn = src.byS.get(simpleName(tb.name));
-    if (sn) names[tb.name] = sn;
+// source 클립을 구동 뼈(boneMap)에 월드 공간 리타깃해 새 클립을 굽는다.
+// 위치 트랙은 hips **y(수직)만** — 앉는 동작이 실제로 앉아지게(회전만 옮기면 발이 뜬다).
+// hips x/z 는 바인드 고정 → 제자리 재생, 최종 접지는 measureClipRootY(사전 측정).
+function bakeClip(ch, src, label, fps = 30) {
+  if (!src) return null;
+  const dur = src.clip.duration;
+  const frames = Math.max(2, Math.round(dur * fps) + 1);
+  const matched = new Map(); // 구동 뼈 → { sBone, corr }
+  for (const [sn, b] of ch.boneMap) {
+    const sBone = src.bySName.get(sn);
+    if (!sBone) continue;
+    matched.set(b, { sBone, corr: src.bindWorldQ.get(sn).clone().invert().multiply(ch.bindWorldQ.get(b)) });
   }
-  // preservePosition:false — 이걸 켜면(기본값) 일부 Mixamo 리그(관찰: Y Bot)에서
-  // 리타깃이 뼈를 바인드(T-포즈)로 되돌려 팔이 안 내려온다. 회전만 필요하므로 끈다.
-  const baked = retargetClip(target, src.srcMesh, src.clip, { fps: 30, names, hip: src.hipName, preservePosition: false });
-  if (!baked) return null;
-  // retargetClip 은 `.bones[뼈].prop`(스켈레톤 상대) 트랙을 굽는다. 이걸 `뼈.prop`(뼈 이름)
-  // 트랙으로 바꿔 **루트 믹서**가 씬 그래프의 실제 뼈를 이름으로 구동하게 한다 — 그래야
-  // 렌더·스케일과 정합한다(스켈레톤 상대 경로로 별도 믹서를 돌리면 스케일이 어긋나 붕괴).
-  // Hips 위치 트랙은 버린다 — 클립마다 절대 높이가 달라 전환 시 뜨/가라앉음. 회전만 쓰면
-  // Hips 는 바인드 높이 고정 → 접지 일관(제자리 애니메이션), 미세 보정은 groundToPose.
-  baked.tracks = baked.tracks
-    .filter(t => !/\.position$/.test(t.name))
-    .map(t => { t.name = t.name.replace(/^\.bones\[(.+?)\]\./, '$1.'); return t; });
-  baked.name = label;
-  // retargetClip 은 baking 중 뼈 position/scale 을 오염시킨 채 마지막 프레임에 남긴다.
-  // 우리 클립은 회전만 재생하므로 뼈 position 을 저장해 둔 바인드로 복원한다(scale 은
-  // groundToPose 의 applyProps 가 비율대로 복구). 안 하면 스켈레톤이 흩어져 메시가 붕괴.
-  // (skeleton.pose() 는 일부 리그[Y Bot]에서 복원이 안 됨 → 직접 복원.)
-  // 스켈레톤 전체를 바인드로 리셋(믹서가 안 건드리는·그래프에 없는 뼈까지 — 이걸 안 하면
-  // 그 뼈에 스키닝된 정점이 고정 위치에 떨어져 떠 있는 조각으로 남는다), 이어서 그래프 뼈는
-  // 저장한 바인드로 정밀 복원.
-  target.skeleton.pose();
-  if (ch.bindPose) for (const [b, bp] of ch.bindPose) { b.position.copy(bp.p); b.quaternion.copy(bp.q); }
-  return baked;
+  if (!matched.size) return null;
+  // Hips **수직(y) 이동** 리타깃 준비 — 회전만 옮기면 앉는 동작(공격 등)에서 엉덩이가
+  // 못 내려가 무릎만 굽고 발이 뜬다. 소스 hips 의 월드 y 변위를 키 비율로 스케일해
+  // hips.position 트랙(y만, x/z 는 바인드 고정 = 제자리 재생 유지)으로 만든다.
+  // hips 의 부모는 정적 노드(씬 루트 계열)라 부모 월드 행렬을 bake 시작 시 1회 캐시.
+  const hips = ch.boneMap.get('hips');
+  const hm = hips && matched.get(hips);
+  let hp = null;
+  if (hm && src.hipsBindY > 1e-6) {
+    ch.root.updateMatrixWorld(true);
+    const pm = hips.parent.matrixWorld.clone();
+    const bindWorld = ch.bindLocalP.get(hips).clone().applyMatrix4(pm);
+    hp = {
+      sBone: hm.sBone,
+      pmInv: pm.invert(), // 이후 pm 은 역행렬
+      bindWorld,
+      hScale: bindWorld.y / src.hipsBindY, // 타깃/소스 hips 높이 비율 (단위 차 흡수)
+      values: new Float32Array(frames * 3),
+    };
+  }
+  // source 를 전용 믹서로 프레임마다 포즈시켜 월드 회전을 샘플링 (target 은 불변).
+  const mixer = new THREE.AnimationMixer(src.obj);
+  mixer.clipAction(src.clip).play();
+  const times = new Float32Array(frames);
+  const values = new Map([...matched.keys()].map(b => [b, new Float32Array(frames * 4)]));
+  const worldQ = new Map(ch.allBones.map(b => [b, new THREE.Quaternion()]));
+  const sw = new THREE.Quaternion(), wq = new THREE.Quaternion(), inv = new THREE.Quaternion();
+  const idQ = new THREE.Quaternion();
+  const sv = new THREE.Vector3(), tv = new THREE.Vector3();
+  for (let f = 0; f < frames; f++) {
+    const t = Math.min(dur, f / fps);
+    times[f] = t;
+    mixer.setTime(t);
+    src.obj.updateMatrixWorld(true);
+    if (hp) {
+      const dy = (hp.sBone.getWorldPosition(sv).y - src.hipsBindY) * hp.hScale;
+      tv.copy(hp.bindWorld);
+      tv.y += dy;
+      tv.applyMatrix4(hp.pmInv); // 부모 로컬로 변환
+      hp.values.set([tv.x, tv.y, tv.z], f * 3);
+    }
+    for (const b of ch.allBones) { // DFS 선순회 → 부모 worldQ 가 항상 먼저 계산됨
+      const pw = b.parent?.isBone ? worldQ.get(b.parent)
+        : (ch.staticParentQ.get(b.parent) || idQ);
+      const out = worldQ.get(b);
+      const m = matched.get(b);
+      if (m) {
+        m.sBone.getWorldQuaternion(sw);
+        wq.copy(sw).multiply(m.corr);                 // 원하는 타깃 월드 회전
+        const lq = inv.copy(pw).invert().multiply(wq); // 실제 부모 기준 로컬로
+        values.get(b).set([lq.x, lq.y, lq.z, lq.w], f * 4);
+        out.copy(wq);
+      } else {
+        // 비매칭 뼈(트윈·손가락 끝 등)는 바인드 로컬 유지 — 부모를 따라 움직인다
+        out.copy(pw).multiply(ch.bindLocalQ.get(b));
+      }
+    }
+  }
+  const tracks = [];
+  for (const [b] of matched)
+    tracks.push(new THREE.QuaternionKeyframeTrack(`${b.name}.quaternion`, times, values.get(b)));
+  if (hp) tracks.push(new THREE.VectorKeyframeTrack(`${hips.name}.position`, times, hp.values));
+  return new THREE.AnimationClip(label, dur, tracks);
+}
+
+// 클립별 접지 root.y 를 **미리 측정**한다: 임시 믹서로 클립을 N 프레임 샘플링해 뼈 bbox
+// 최저 y 를 찾고, 그 프레임이 바닥에 닿는 root.y 를 돌려준다. 측정 후 뼈 회전을 원상
+// 복구하므로 화면 상태는 불변(렌더 사이 동기 실행). — 이전 groundToPose 는 재생 중인
+// **혼합(crossfade) 포즈**를 측정해 root 를 옮겼기 때문에 클립·모델·타이밍마다 다르게
+// 뜨거나(공중부양) 중심이 틀어졌다.
+function measureClipRootY(ch, clip, samples = 12) {
+  const saved = ch.allBones.map(b => [b, b.quaternion.clone(), b.position.clone()]);
+  const savedY = ch.root.position.y;
+  ch.root.position.y = 0;
+  const mixer = new THREE.AnimationMixer(ch.root);
+  mixer.clipAction(clip).play();
+  let minY = Infinity;
+  for (let i = 0; i <= samples; i++) {
+    mixer.setTime(clip.duration * i / samples);
+    ch.root.updateMatrixWorld(true);
+    minY = Math.min(minY, boneBox(ch).min.y);
+  }
+  mixer.stopAllAction();
+  mixer.uncacheRoot(ch.root);
+  for (const [b, q, p] of saved) { b.quaternion.copy(q); b.position.copy(p); }
+  ch.root.position.y = savedY;
+  ch.root.updateMatrixWorld(true);
+  return -minY; // 클립 전체에서 가장 낮은 지점이 y=0 에 닿는 root.y
 }
 
 function playClip(ch, name, fade = 0.25) {
   if (!ch || !ch.clips[name] || ch.active === name) return;
-  if (!ch.actions[name]) ch.actions[name] = ch.mixer.clipAction(ch.clips[name]);
+  const clip = ch.clips[name];
+  if (clip.__rootY === undefined) clip.__rootY = measureClipRootY(ch, clip);
+  if (!ch.actions[name]) ch.actions[name] = ch.mixer.clipAction(clip);
   const next = ch.actions[name];
   const prev = ch.active && ch.actions[ch.active];
   next.enabled = true;
@@ -319,6 +413,8 @@ function playClip(ch, name, fade = 0.25) {
   if (prev && fade > 0) { next.reset(); prev.crossFadeTo(next, fade, false); }
   else if (prev) prev.stop();
   ch.active = name;
+  ch.root.position.y = clip.__rootY; // 접지는 사전 측정값으로 — 재생 중 재측정 금지
+  ch.mixer.update(0); // 포즈 즉시 적용 — 다음 렌더까지 1프레임 T-포즈(바인드) 노출 방지
 }
 
 // 선택된(또는 지정) 슬롯에 애니메이션을 얹어 재생.
@@ -334,25 +430,13 @@ async function playAnim(label, file, slotId = selected, fade = 0.25) {
     if (!baked) { setStatus(`${label}: 리타깃 대상 없음`); return; }
     ch.clips[label] = baked;
   }
-  playClip(ch, label, fade);
-  groundToPose(ch); // 클립마다 다리 포즈가 달라 미세하게 뜨/가라앉음 → 프레임0 기준 재접지
+  playClip(ch, label, fade); // 접지는 playClip 안에서 클립별 사전 측정값으로 처리
   refreshAnimButtons();
 }
 
 // ---------------------------------------------------------------------------
-//  기본 캐릭터 두 명 로드 → 둘 다 "대기"로 세워둔다
+//  기본 캐릭터 로드 / 모델 전환
 // ---------------------------------------------------------------------------
-// 현재 클립의 프레임0 포즈로 발을 바닥에 정확히 접지 (로드 직후 1회).
-// 리타깃에서 Hips 를 바인드 기준으로 상대화하므로 남는 오차는 무릎 굽힘 정도뿐.
-function groundToPose(ch) {
-  if (!ch) return;
-  ch.mixer.update(0); // 프레임0 포즈(회전)를 뼈에 적용
-  // retargetClip 의 bake 는 bone.matrix.decompose 로 뼈에 잔여 scale 을 남긴다. 우리 클립은
-  // 회전만 담아 scale 을 되돌리지 못하므로 메시가 붕괴한다 → applyProps 로 본 scale(비율)과
-  // root scale 을 복구하고 접지까지 한 번에 처리한다.
-  applyProps(ch);
-}
-
 async function loadSlotBase(slotId) {
   const slot = SLOTS[slotId];
   const buf = await (await fetch(encodeURI(slot.file))).arrayBuffer();
@@ -362,23 +446,40 @@ async function loadSlotBase(slotId) {
   makeCh(slotId, parsed);
 }
 
-async function bootstrap() {
-  setStatus('캐릭터 로드 중… (남자·여자)');
+// 모델 버튼(남자/여자)으로 화면의 캐릭터를 갈아끼운다. 클립 캐시는 캐릭터별이므로
+// 새 캐릭터에는 대기부터 다시 리타깃해 세운다.
+let switching = false;
+async function switchModel(m) {
+  const slot = SLOTS.main;
+  if (switching || (slot.file === m.file && slot.ch)) return;
+  switching = true;
+  setStatus(`${m.label} 로드 중…`);
   try {
-    await loadSlotBase('male');
-    await loadSlotBase('female');
+    slot.file = m.file; slot.label = m.label;
+    await loadSlotBase('main');
+    await playAnim('대기', 'idle', 'main', 0);
+    select('main');
+    setStatus(`${m.label} 준비됨.`);
+  } catch (e) {
+    setStatus('로드 실패: ' + e.message);
+  }
+  switching = false;
+  refreshCharButtons();
+  refreshPropSliders();
+}
+
+async function bootstrap() {
+  setStatus('캐릭터 로드 중…');
+  try {
+    await loadSlotBase('main');
   } catch (e) {
     setStatus('캐릭터 로드 실패: ' + e.message);
     return;
   }
-  // 둘 다 대기 자세로 세우고 발을 바닥에 접지
-  await playAnim('대기', 'idle', 'male', 0);
-  await playAnim('대기', 'idle', 'female', 0);
-  groundToPose(SLOTS.male.ch);
-  groundToPose(SLOTS.female.ch);
-  select('male');
+  await playAnim('대기', 'idle', 'main', 0);
+  select('main');
   refreshCharButtons();
-  setStatus('준비됨 — 캐릭터를 클릭해 선택하고, 애니메이션을 눌러보세요. 본 비율도 조절할 수 있습니다.');
+  setStatus('준비됨 — 모델 버튼으로 캐릭터를 바꾸고, 애니메이션을 눌러보세요.');
 }
 
 // ---------------------------------------------------------------------------
@@ -403,56 +504,33 @@ function updateRing() {
   ring.position.x = ch.slotX;
 }
 
-const raycaster = new THREE.Raycaster();
-const ndc = new THREE.Vector2();
-let downXY = null;
-renderer.domElement.addEventListener('pointerdown', e => { downXY = [e.clientX, e.clientY]; });
-renderer.domElement.addEventListener('pointerup', e => {
-  if (!downXY) return;
-  const moved = Math.hypot(e.clientX - downXY[0], e.clientY - downXY[1]);
-  downXY = null;
-  if (moved > 5) return; // 드래그(궤도 회전)는 선택으로 치지 않음
-  const r = renderer.domElement.getBoundingClientRect();
-  ndc.x = ((e.clientX - r.left) / r.width) * 2 - 1;
-  ndc.y = -((e.clientY - r.top) / r.height) * 2 + 1;
-  raycaster.setFromCamera(ndc, cam);
-  let best = null, bestDist = Infinity;
-  for (const id in SLOTS) {
-    const ch = SLOTS[id].ch;
-    if (!ch) continue;
-    const hits = raycaster.intersectObjects(ch.meshes, true);
-    if (hits.length && hits[0].distance < bestDist) { bestDist = hits[0].distance; best = id; }
-  }
-  if (best) select(best);
-});
-
 // ---------------------------------------------------------------------------
-//  UI — 캐릭터 버튼 / 애니메이션 버튼 / 본 비율 슬라이더
+//  UI — 모델 선택 버튼 / 애니메이션 버튼 / 본 비율 슬라이더
 // ---------------------------------------------------------------------------
 const $ = id => document.getElementById(id);
 
+// 캐릭터는 한 명 — 버튼은 "그 자리에 어떤 모델을 세울지" 선택.
 function refreshCharButtons() {
   const box = $('chars'); box.innerHTML = '';
-  for (const id in SLOTS) {
-    const slot = SLOTS[id];
-    const wrap = document.createElement('div'); wrap.className = 'charwrap';
+  const slot = SLOTS.main;
+  for (const m of MODELS) {
+    const on = slot.file === m.file;
     const b = document.createElement('button');
-    b.className = 'char' + (id === selected ? ' on' : '');
-    const anim = slot.ch?.active || '—';
-    b.innerHTML = `${slot.label}<span class="cap">${slot.ch ? anim : '로드 안 됨'}</span>`;
-    b.addEventListener('click', () => select(id));
-    // 슬롯별 모델 교체 — 클릭하면 그 슬롯을 선택하고 FBX 파일 선택창을 연다.
-    const rep = document.createElement('button');
-    rep.className = 'rep'; rep.textContent = '📁 교체'; rep.title = `${slot.label} 모델을 FBX 로 교체`;
-    rep.addEventListener('click', e => { e.stopPropagation(); openReplace(id); });
-    wrap.append(b, rep);
-    box.appendChild(wrap);
+    b.className = 'char' + (on ? ' on' : '');
+    const cap = on ? (slot.ch?.active || '로드 중…') : ' ';
+    b.innerHTML = `${m.label}<span class="cap">${cap}</span>`;
+    b.addEventListener('click', () => switchModel(m));
+    box.appendChild(b);
   }
+  const rep = document.createElement('button');
+  rep.className = 'rep'; rep.textContent = '📁 다른 FBX 로 교체';
+  rep.title = '임의의 with-skin FBX 로 교체 (드롭도 가능)';
+  rep.addEventListener('click', () => openReplace());
+  box.appendChild(rep);
 }
 
-// 지정 슬롯의 모델을 FBX 로 교체 — 슬롯을 선택한 뒤 파일 선택창을 연다(드롭과 같은 경로).
-function openReplace(id) {
-  select(id);
+// 임의 FBX 로 교체 — 파일 선택창(드롭과 같은 경로).
+function openReplace() {
   const inp = document.createElement('input');
   inp.type = 'file'; inp.accept = '.fbx';
   inp.onchange = e => readFile(e.target.files[0]);
@@ -538,20 +616,21 @@ function loadDroppedFBX(buf, label) {
   const { meshes, bones, obj } = parsed;
 
   if (meshes.length) {
-    // with-skin → 선택된 슬롯의 캐릭터를 교체 (여자 슬롯 선택 후 Mixamo 여성
-    // FBX 를 드롭하면 그대로 "연결"된다)
-    disposeCh(selected);
-    makeCh(selected, parsed);
-    // 표준 대기 클립을 얹어 세운다 (교체된 캐릭터의 리그에 리타깃).
-    playAnim('대기', 'idle', selected, 0).finally(() => {
-      groundToPose(selCh()); // 교체 직후 발 접지
+    // with-skin → 화면의 캐릭터를 이 모델로 교체
+    SLOTS.main.file = `__custom__:${label}`; // 기본 모델 버튼 하이라이트 해제
+    SLOTS.main.label = label;
+    disposeCh('main');
+    makeCh('main', parsed);
+    // 표준 대기 클립을 얹어 세운다 (교체된 캐릭터의 리그에 리타깃, 접지는 playClip 이 처리).
+    playAnim('대기', 'idle', 'main', 0).finally(() => {
+      select('main');
       refreshCharButtons(); refreshPropSliders();
     });
-    setStatus(`<b>${SLOTS[selected].label}</b> 슬롯 교체 — ${label} (메시 ${meshes.length} · 뼈 ${bones.length}).`);
+    setStatus(`캐릭터 교체 — <b>${label}</b> (메시 ${meshes.length} · 뼈 ${bones.length}).`);
   } else if (bones.length && obj.animations?.length) {
-    // 애니메이션-only → 선택된 캐릭터에 리타깃 (드롭한 FBX 의 뼈로 source 구성)
+    // 애니메이션-only → 캐릭터에 리타깃 (드롭한 FBX 의 뼈로 source 구성)
     const ch = selCh();
-    if (!ch) { setStatus('먼저 캐릭터를 선택하세요.'); return; }
+    if (!ch) { setStatus('캐릭터가 아직 로드되지 않았습니다.'); return; }
     const clip = obj.animations.find(a => a.duration > 0.01) || obj.animations[0];
     const src = buildSource(obj, clip);
     let key = label, i = 2; while (ch.clips[key]) key = `${label} ${i++}`;
@@ -561,9 +640,8 @@ function loadDroppedFBX(buf, label) {
     if (!baked) { setStatus(`${label}: 맞는 뼈가 없어 리타깃 실패.`); return; }
     ch.clips[key] = baked;
     playClip(ch, key, 0.25);
-    groundToPose(ch);
     refreshAnimButtons();
-    setStatus(`<b>${label}</b> — ${SLOTS[selected].label} 에 리타깃 재생.`);
+    setStatus(`<b>${key}</b> — 리타깃 재생.`);
   } else {
     setStatus(`<b>${label}</b> — 스켈레톤/메시를 찾지 못했습니다.`);
   }
@@ -633,8 +711,8 @@ bootstrap();
 
 // 콘솔/자동 검증용 핸들
 window.__hkt = {
-  scene, cam, renderer, ui, SLOTS,
+  scene, cam, renderer, ui, SLOTS, MODELS,
   get selected() { return selected; },
   get sel() { return selCh(); },
-  select, playAnim, loadDroppedFBX,
+  select, playAnim, loadDroppedFBX, switchModel,
 };
