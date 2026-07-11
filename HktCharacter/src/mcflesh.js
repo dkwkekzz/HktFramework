@@ -47,8 +47,9 @@ export class McFlesh {
   setVisible(on) { this.mc.visible = !!on; }
   get visible() { return this.mc.visible; }
 
-  // bones: THREE.Bone[] (월드 변환 최신 상태), simpleName: 이름 정규화 함수
-  update(bones, simpleName) {
+  // bones: THREE.Bone[] (월드 변환 최신 상태), simpleName: 이름 정규화 함수,
+  // offsetX: 선택 캐릭터의 슬롯 x — 볼륨은 원점 중심이라 뼈 월드 x 에서 빼 정렬한다.
+  update(bones, simpleName, offsetX = 0) {
     const mc = this.mc, size = mc.size, half = mc.halfsize, field = mc.field;
     mc.reset();
     const gs = half / HALF; // 월드 m → 그리드 단위 배율
@@ -62,8 +63,8 @@ export class McFlesh {
       if (!rb) continue;
       const ra = radiusFor(simpleName(b.parent.name)) || rb; // 테이퍼: 부모→자신 반지름 보간
       // 월드 → 그리드 공간 (그리드 원점 = 볼륨 구석, 셀 크기 1)
-      const a = b.parent.getWorldPosition(this._wa);
-      const c = b.getWorldPosition(this._wb);
+      const a = b.parent.getWorldPosition(this._wa); a.x -= offsetX;
+      const c = b.getWorldPosition(this._wb); c.x -= offsetX;
       const ax = (a.x / HALF + 1) * half, ay = ((a.y - CENTER_Y) / HALF + 1) * half, az = (a.z / HALF + 1) * half;
       const bx = (c.x / HALF + 1) * half, by = ((c.y - CENTER_Y) / HALF + 1) * half, bz = (c.z / HALF + 1) * half;
       const Ra = ra * BLEND * gs, Rb = rb * BLEND * gs;
