@@ -63,7 +63,10 @@ scene.add(ring);
 
 function resize() {
   const w = app.clientWidth, h = app.clientHeight;
-  renderer.setSize(w, h, false);
+  // updateStyle=true(기본) — 캔버스 CSS 크기를 뷰포트에 맞춘다. false 로 두면 HiDPI
+  // (devicePixelRatio 2, 예: 레티나)에서 드로잉 버퍼(w·pr × h·pr)가 CSS 크기 미설정으로
+  // 그대로 표시돼 캔버스가 뷰포트를 넘치고, 중앙 정렬된 모델이 화면 우하단으로 밀린다.
+  renderer.setSize(w, h);
   cam.aspect = w / h;
   cam.updateProjectionMatrix();
 }
