@@ -53,7 +53,7 @@ test('사냥 = 작은 먹이를 물리 강탈로 처치하고 그 자리 시체 
     return r;
   };
   s.click(prey.seq);                                 // 클릭 지정 = HUNT
-  assert.equal(me.desire, DESIRE.HUNT, '먹이를 지목하면 사냥 욕구가 선다');
+  assert.equal(me.commandedStrategy, DESIRE.HUNT, '먹이를 지목하면 사냥 명령이 선다(자율 우회)');
   s.runTicks(120);
 
   assert.equal(s.game.creatures.has(preyId), false, '먹이를 처치했다(강탈로 예비가 무너져 죽음)');
@@ -67,7 +67,7 @@ test('사냥 = 먹을 수 없는 강적(size≥)에게는 파이어볼을 쏜다
   const me = s.mine(1000, 1000, 2, 1800);            // 아바타(size2)
   const foe = s.other(1000, 1200, 3, 2500);          // 더 큰 강적(size3) = 못 먹음 → 폭탄
   s.click(foe.seq);
-  assert.equal(me.desire, DESIRE.HUNT, '강적을 지목해도 사냥 욕구가 선다(크기 무관)');
+  assert.equal(me.commandedStrategy, DESIRE.HUNT, '강적을 지목해도 사냥 명령이 선다(크기 무관)');
   s.runTicks(30);
   assert.ok(s.game.fireballSeq > 0, '강적에게 파이어볼을 발사했다(발산)');
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '발산·비행·폭발에도 보존 불변');
