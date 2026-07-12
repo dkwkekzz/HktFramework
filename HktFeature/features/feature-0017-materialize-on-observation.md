@@ -1,6 +1,7 @@
 # feature-0017 — 관측 시 구체화 (materialize on observation)
 
-> 상태: 🟢 검증됨 (step 1) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
+> 상태: 🟢 **완결 — [feature-0016](feature-0016-view-relevancy.md)(관측 relevancy) step 2 로 통합** (검증됨) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
+> 마무리: 이 feature 는 0016 과 **같은 명제**("부하는 세계 크기가 아니라 관측 규모에 상한")의 서버 절반이라 0016 step 2 로 통합했다 — 이 문서는 구현·검증의 **이력 기록**(상세 참조 문서)으로 보존한다. 후속(동면 시뮬 정교화)은 feature-0016 step 3 후보로 이관.
 > 배경: feature-0016 은 **클라**가 보이는 것만 받게 했다(방송 relevancy). 그런데 서버는 여전히 온 세계를 전량
 > 구체화해 시뮬했다 — 서버 부하는 세계 크기에 비례한 채였다. 이 feature 는 그 뒷절반이다: **관측 없는 세계는
 > 서버에서도 에너지로만 흐르고, 관측될 때 비로소 구체화된다.**
