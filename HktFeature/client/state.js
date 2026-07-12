@@ -134,7 +134,7 @@ export class ClientState {
   #onCrystal(msg) {
     const seen = new Set();
     for (const [seq, x, y, z, balance, species, raw, crafted, tier, burning, hot] of msg.cells) {
-      this.crystals.set(seq, { x, y, z, balance, species, raw: !!raw, crafted: !!crafted, tier: tier ?? 0, burning: !!burning, hot: hot ?? 0 }); // feature-0013 burning=연소·hot=가열비율 // raw=날것·crafted=산물·tier=제조 단계(feature-0011 step2)
+      this.crystals.set(seq, { x, y, z, balance, species, raw: !!raw, crafted: !!crafted, tier: tier ?? 0, burning: !!burning, hot: hot ?? 0 }); // feature-0013 burning=연소·hot=가열비율 // raw=날것·crafted=산물·tier=제조 단계(구 feature-0011(현 0018) step2)
       seen.add(seq);
     }
     for (const key of this.crystals.keys()) if (!seen.has(key)) this.crystals.delete(key);
@@ -156,7 +156,7 @@ export class ClientState {
         const segSpeed = Math.hypot(x - prev.x, y - prev.y, z - prev.z) / SNAP_SEC;
         Object.assign(prev, { tx: x, ty: y, tz: z, segSpeed, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null });
       } else {
-        this.creatures.set(seq, { seq, x, y, z, tx: x, ty: y, tz: z, segSpeed: 0, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null }); // cmd=지정 표적 [kindCode,seq] 또는 null (feature-0010 step4)
+        this.creatures.set(seq, { seq, x, y, z, tx: x, ty: y, tz: z, segSpeed: 0, balance, size: size ?? 1, desire: desire ?? 'none', owner: owner ?? null, desires: desires ?? [], cmd: cmd || null }); // cmd=지정 표적 [kindCode,seq] 또는 null (구 feature-0010(현 0018) step4)
       }
       seen.add(seq);
     }

@@ -52,9 +52,9 @@ import {
 export class GameServer {
   constructor({ now = () => Date.now(), gateByObservation = false } = {}) {
     this.now = now;
-    // feature-0017 — 관측 게이트. true 면 관측 없는 지역의 결정은 에너지로 환원되고 야생 생명체는 동면한다(라이브 기본).
+    // 구 feature-0017(현 0016 step2) — 관측 게이트. true 면 관측 없는 지역의 결정은 에너지로 환원되고 야생 생명체는 동면한다(라이브 기본).
     //   false(기본)면 전 세계를 관측 여부와 무관하게 시뮬레이션한다 — 규칙 자체를 검증하는 테스트가 쓰는 모드(규칙은
-    //   관측에 독립). 관측 정책은 feature-0017 전용 테스트가 이 플래그를 켜서 따로 검증한다.
+    //   관측에 독립). 관측 정책은 구 feature-0017(현 0016 step2) 전용 테스트가 이 플래그를 켜서 따로 검증한다.
     this.gateByObservation = gateByObservation;
     this.ledger = new EnergyLedger();
     // 엔트로픽 확산의 "동전" — 결정론 PRNG. 서버 전용(클라는 결과 tx만 받는다)이라
@@ -65,7 +65,7 @@ export class GameServer {
 
     // 접속·틱 관련 휘발 상태 (플레이어는 재시작 시 재접속으로만 복귀)
     this.players = new Map();      // id -> player
-    this.activeRegions = new Set(); // 관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합 (feature-0017). 매 틱 갱신 — 관측 없는 지역은 시뮬 정지·결정 탈구체화(에너지로만)
+    this.activeRegions = new Set(); // 관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합 (구 feature-0017(현 0016 step2)). 매 틱 갱신 — 관측 없는 지역은 시뮬 정지·결정 탈구체화(에너지로만)
     this.pendingOps = [];          // 이번 틱 확정 tx (인과 순서 유지)
     this.pendingMoves = new Map(); // playerId -> [x, y, z] (좌표 비콘 릴레이)
     this.nextPlayerNo = 1;
@@ -155,10 +155,10 @@ export class GameServer {
     const seq = ++this.creatureSeq;
     const creId = `${POOL.CREATURE}${seq}`;
     this.ledger.createPool(creId, 0, CREATURE_MAX_ENERGY, null);
-    // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(feature-0012 중첩), moveDebt=이동 비용 누적(잔여 거리).
-    //   feature-0012: 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
+    // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(구 feature-0012(현 0018) 중첩), moveDebt=이동 비용 누적(잔여 거리).
+    //   구 feature-0012(현 0018): 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
     //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(feature-0010 step4, 없으면 null=가장 가까운 표적 자동)
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(구 feature-0010(현 0018) step4, 없으면 null=가장 가까운 표적 자동)
     // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
     //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
     Object.defineProperty(cre, 'desire', {
@@ -178,7 +178,7 @@ export class GameServer {
     return cre;
   }
 
-  // 제어 결선 (feature-0010) — 한 플레이어가 하나의 생명체를 제어한다. 생명체를 스폰해 owner 를 걸면
+  // 제어 결선 (구 feature-0010(현 0018)) — 한 플레이어가 하나의 생명체를 제어한다. 생명체를 스폰해 owner 를 걸면
   //   그 생명체는 주인의 욕망(desire)에 따라 움직이고, 욕망이 없으면 주인 곁을 따른다(수동 이동). 라이브
   //   진입점(index.js)에서 접속 시 부른다 — 테스트가 쓰는 GameServer 구성자·addPlayer 는 건드리지 않는다.
   possessCreature(playerId, x, y, z) {
@@ -188,7 +188,7 @@ export class GameServer {
     return cre;
   }
 
-  // 욕망 부여 (feature-0010·0011) — 내가 제어하는 생명체(들)의 desire 를 바꾼다. **등록된 욕구(레지스트리에
+  // 욕망 부여 (구 feature-0010(현 0018)·0011) — 내가 제어하는 생명체(들)의 desire 를 바꾼다. **등록된 욕구(레지스트리에
   //   절차가 있는 것)만** 받는다 — 새 욕구를 registerDesire 로 얹으면 인텐트도 자동으로 그 욕구를 받아들인다(개방).
   setDesire(playerId, desire) {
     const d = DESIRE_PROCEDURES[desire] ? desire : DESIRE.NONE;
@@ -196,7 +196,7 @@ export class GameServer {
     return d;
   }
 
-  // 클릭 지정 표적 (feature-0010 step4) — 플레이어가 화면에서 표적을 클릭/터치하면 그 **특정** 대상으로 가서
+  // 클릭 지정 표적 (구 feature-0010(현 0018) step4) — 플레이어가 화면에서 표적을 클릭/터치하면 그 **특정** 대상으로 가서
   //   상호작용한다. 표적 종류로 욕구를 추론한다: **결정 = 식사**(EAT — 날것이면 요리해 먹고, 익은 것이면 바로) ·
   //   **더 작은 생명체 = 사냥**(HUNT). 자동으로 가장 가까운 표적을 고르던 desire 와 달리, 여기선 지목한 대상 하나를
   //   고정해 쫓는다(commandedTarget). 표적이 소진·소멸하면 대기로 복귀한다(#performDesire 정리 → 한 번 수행하고 멈춤).
@@ -223,7 +223,7 @@ export class GameServer {
     }
   }
 
-  // 욕구 주입 (feature-0012) — 내가 제어하는 생명체(들)의 욕구 **스택에 하나를 얹는다**(중첩). 기존 setDesire(스택
+  // 욕구 주입 (구 feature-0012(현 0018)) — 내가 제어하는 생명체(들)의 욕구 **스택에 하나를 얹는다**(중첩). 기존 setDesire(스택
   //   교체)와 달리 다른 욕구를 지우지 않는다 — 여러 욕구가 동시에 쌓인다. 같은 욕구를 또 주입해도 중첩되지 않고
   //   우선순위만 갱신된다(idempotent·dedup, 감정은 보존) — "같은 욕구를 또 주입할 필요는 없다". 등록된 욕구만
   //   받는다(개방). NONE 주입 = 스택 비우기(대기로 복귀). priority=우선순위(중요도, 감정 얹기 전 기준).
@@ -236,7 +236,7 @@ export class GameServer {
     }
   }
 
-  // 감정 증폭 (feature-0012) — 욕구의 **중요도(우선순위)를 감정으로 키운다**("감정은 중요도다"). 유효 우선순위 =
+  // 감정 증폭 (구 feature-0012(현 0018)) — 욕구의 **중요도(우선순위)를 감정으로 키운다**("감정은 중요도다"). 유효 우선순위 =
   //   priority + emotion 이므로, 감정을 실으면 낮은 기본 우선순위의 욕구도 다른 욕구를 이겨 **행동이 바뀐다**.
   //   아직 스택에 없던 욕구면 기본 우선순위로 만들어 얹는다(감정이 곧 그 욕구를 부른다). 감정은 [0,MAX] 정수로 클램프.
   emote(playerId, name, emotion) {
@@ -248,28 +248,28 @@ export class GameServer {
     }
   }
 
-  // 욕구 거둠 (feature-0012) — 상황이 해소된 욕구를 스택에서 뺀다. 그다음 우선순위의 욕구가 행동을 잇는다.
+  // 욕구 거둠 (구 feature-0012(현 0018)) — 상황이 해소된 욕구를 스택에서 뺀다. 그다음 우선순위의 욕구가 행동을 잇는다.
   withdrawDesire(playerId, name) {
     for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desires.delete(name);
   }
 
   // 개별 결정 하나를 연다 (feature-0005 step2) — 위치·종을 가진 discrete 객체. 잔고는 이후 이체로 채운다.
   //   확산·복사 순회(materialKeys) 밖이라 태생적으로 면역(정적)이다. region=null → 읽기 전용 스냅샷 방송.
-  //   feature-0011: raw=날것 여부. 기본은 false(먹을 수 있음) — 석출·죽음의 결정은 모두 먹을 수 있다(기존 불변).
+  //   구 feature-0011(현 0018): raw=날것 여부. 기본은 false(먹을 수 있음) — 석출·죽음의 결정은 모두 먹을 수 있다(기존 불변).
   #spawnCrystal(x, y, z, species, raw = false) {
     const seq = ++this.crystalSeq;
     const cryId = `${POOL.CRYSTAL}${seq}`;
     this.ledger.createPool(cryId, 0, Number.MAX_SAFE_INTEGER, null);
     // feature-0013: 결정마다 열(온도) 풀 H:<seq> 를 함께 연다(초기 0). 온도 = 이 풀의 잔고(흡수한 열 에너지 → 보존).
     this.ledger.createPool(`${POOL.HEAT}${seq}`, 0, Number.MAX_SAFE_INTEGER, null);
-    // crafted=제조 산물 표식(feature-0010 step2) · tier=제조 단계(feature-0011 step2: 0=재료·1=중간물·2=완성물).
+    // crafted=제조 산물 표식(구 feature-0010(현 0018) step2) · tier=제조 단계(구 feature-0011(현 0018) step2: 0=재료·1=중간물·2=완성물).
     //   기본 crafted=false·tier=0. 제조로 조합될 때만 crafted=true 로 바뀌고 tier 가 한 단계 오른다.
     //   burning=연소 상태(feature-0013). 가연성 결정이 발화점을 넘으면 true → 스스로 태우며 이웃을 데운다.
     this.crystals.set(cryId, { id: cryId, seq, x, y, z, species, raw, crafted: false, tier: 0, burning: false });
     return cryId;
   }
 
-  // 날것(raw) 결정 하나를 만든다 (feature-0011) — 바로 못 먹는 '재료(밥)'. 요리(cook)로 변형해야 먹을 수 있다.
+  // 날것(raw) 결정 하나를 만든다 (구 feature-0011(현 0018)) — 바로 못 먹는 '재료(밥)'. 요리(cook)로 변형해야 먹을 수 있다.
   //   식사(EAT) 절차를 재현할 때 테스트·라이브 진입점이 쓴다. SOURCE→결정 인출도 원장 이체(보존).
   spawnRawFood(x, y, z, species = 0, amount = 0) {
     const cryId = this.#spawnCrystal(x, y, z, species, true);
@@ -278,7 +278,7 @@ export class GameServer {
   }
 
   // 먹을 수 있는(익힌) 결정 하나를 만든다 — 채집·식사의 표적. spawnRawFood 의 대칭(raw=false).
-  //   라이브 진입점이 제어 아레나를 시드할 때 쓴다(feature-0010 step3: 욕구마다 눈에 보이는 표적 보장). SOURCE→결정 = 보존.
+  //   라이브 진입점이 제어 아레나를 시드할 때 쓴다(구 feature-0010(현 0018) step3: 욕구마다 눈에 보이는 표적 보장). SOURCE→결정 = 보존.
   spawnFood(x, y, z, species = 0, amount = 0) {
     const cryId = this.#spawnCrystal(x, y, z, species, false);
     if (amount > 0) this.ledger.transfer(POOL.SOURCE, cryId, amount, CAUSE.SPAWN);
@@ -327,7 +327,7 @@ export class GameServer {
   removePlayer(id) {
     const p = this.players.get(id);
     if (!p) return;
-    // 제어자가 떠나면 그가 몰던 생명체는 야생으로 돌아간다(feature-0010) — 에너지는 그대로(보존),
+    // 제어자가 떠나면 그가 몰던 생명체는 야생으로 돌아간다(구 feature-0010(현 0018)) — 에너지는 그대로(보존),
     //   다만 주인이 없어 추적을 멈춘다(owner·desire 해제 → 정지). 소멸이 아니라 통제만 놓는다.
     for (const cre of this.creatures.values()) if (cre.owner === id) { cre.owner = null; cre.desire = DESIRE.NONE; cre.commandedTarget = null; }
     this.#decompose(id, p.x, p.y, p.z); // 이탈 = 응집 소멸 → 결정(잔해)+국소장(거름)으로 분해
@@ -346,7 +346,7 @@ export class GameServer {
     let corpseSeq = null;
     if (cryAmt > 0) {
       const cryId = this.#spawnCrystal(x, y, z, pickSpecies(this.crystalRng));
-      corpseSeq = this.crystals.get(cryId).seq;                    // 시체 결정 seq(사냥 전리품 승계용, feature-0011)
+      corpseSeq = this.crystals.get(cryId).seq;                    // 시체 결정 seq(사냥 전리품 승계용, 구 feature-0011(현 0018))
       this.#tx(fromId, cryId, cryAmt, CAUSE.CRYSTALLIZE, { x, y }); // 죽음의 결정화
     }
     const rest = this.ledger.balance(fromId); // 남은 무른 조직 전부
@@ -360,9 +360,9 @@ export class GameServer {
     switch (msg.t) {
       case MSG.BEACON: this.#onBeacon(p, msg); break;
       case MSG.RESYNC: this.#onResync(p, msg); break;
-      case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // feature-0010 — 내 생명체에 욕망 부여(스택 교체)
-      case MSG.TARGET: this.setTarget(p.id, msg); break;        // feature-0010 step4 — 클릭 지정 표적(표적→욕구 추론)
-      case MSG.INJECT: // feature-0012 — 욕구를 스택에 주입(중첩) + 감정으로 우선순위 증폭
+      case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // 구 feature-0010(현 0018) — 내 생명체에 욕망 부여(스택 교체)
+      case MSG.TARGET: this.setTarget(p.id, msg); break;        // 구 feature-0010(현 0018) step4 — 클릭 지정 표적(표적→욕구 추론)
+      case MSG.INJECT: // 구 feature-0012(현 0018) — 욕구를 스택에 주입(중첩) + 감정으로 우선순위 증폭
         this.injectDesire(p.id, msg.desire, Number.isFinite(msg.priority) ? (msg.priority | 0) : DESIRE_BASE_PRIORITY);
         if (Number.isFinite(msg.emotion)) this.emote(p.id, msg.desire, msg.emotion);
         break;
@@ -417,7 +417,7 @@ export class GameServer {
   // ==========================================================================
 
   tick() {
-    // feature-0017 관측 시 구체화 — 이번 틱의 관측 지역(어떤 플레이어든 구독 중)을 먼저 확정한다. 관측 없는
+    // 구 feature-0017(현 0016 step2) 관측 시 구체화 — 이번 틱의 관측 지역(어떤 플레이어든 구독 중)을 먼저 확정한다. 관측 없는
     //   지역은 (a) 결정을 에너지로 환원(탈구체화)하고 (b) 아래 시뮬(석출·생명체 행위)을 건너뛴다. 세계는 그 지역에서
     //   **국소장 에너지로만** 계속 흐르고(확산·복사는 전역 유지), 다시 관측되면 석출로 재구체화된다. 국소장 확산 앞에
     //   두어 환원된 에너지가 곧바로 확산에 참여하게 한다(경계 자연스러움).
@@ -450,7 +450,7 @@ export class GameServer {
       //   연소(A) 뒤에 돌린다(열·반응이 자리 잡은 뒤 밀도 판정). 폭발의 주인이 물질임을 증명 — 아무도 안 건드려도 터진다.
       this.#detonateCrystals();
     }
-    // feature-0010·0011 제어·욕구 절차 — 제어되는 생명체가 제 욕구의 **절차**를 한 단계 수행한다:
+    // 구 feature-0010(현 0018)·0011 제어·욕구 절차 — 제어되는 생명체가 제 욕구의 **절차**를 한 단계 수행한다:
     //   찾아가고(이동→국소장 소산)·요리하고(날것 변형=열+연기)·먹고(채집)·타격한다(발산). 욕구마다 절차와
     //   방출 형태가 다르다(shared/desires.js 레지스트리 = 개방). 각 단계 = 에너지 방출. 야생(NONE·주인 없음)은
     //   자율 본능(아래 combat·harvest)으로 돌고, 욕구를 가진 개체는 오직 이 절차로 행동한다(중복 없음).
@@ -547,7 +547,7 @@ export class GameServer {
   //   "저엔트로피 요동(국소에 에너지가 쌓인 드문 사건) 자체가 희귀도"다. 결정은 확산·복사 순회
   //   대상이 아니므로(materialKeys 밖) 한 번 동결되면 가만두는 한 잔고가 불변이다(정적성).
   // ==========================================================================
-  // feature-0017 — 관측 시 구체화 (materialize on observation)
+  // 구 feature-0017(현 0016 step2) — 관측 시 구체화 (materialize on observation)
   //   관측 지역 = 어떤 플레이어든 구독 중인 지역 합집합. 관측 없는 지역에선 결정(정적 섬)이 에너지로 환원되고
   //   생명체(능동 섬)는 동면한다. 세계는 그 지역에서도 국소장 에너지로만 계속 흐른다(확산·복사는 전역). 다시
   //   관측되면 석출이 재구체화한다. 정적 섬은 대체 가능(fungible)이라 환원↔석출로 다뤄도 정합적이고, 능동 섬은
@@ -588,7 +588,7 @@ export class GameServer {
   #crystallize() {
     const LS = WORLD_HEIGHT / FIELD_Z_LAYERS;
     for (const [cx, cy, cz, matId] of this.materialCells) {
-      if (this.gateByObservation && !this.activeRegions.has(`${cx}_${cy}`)) continue; // feature-0017: 관측 없는 지역은 석출 안 함 — 에너지로만 남아 확산한다(관측 시 재구체화)
+      if (this.gateByObservation && !this.activeRegions.has(`${cx}_${cy}`)) continue; // 구 feature-0017(현 0016 step2): 관측 없는 지역은 석출 안 함 — 에너지로만 남아 확산한다(관측 시 재구체화)
       const bal = this.ledger.balance(matId);
       if (bal <= CRYSTAL_SATURATION) continue; // 과포화가 아니면 석출 없음
       // 그 복셀의 "거주 결정"을 얻거나(없으면 hotspot 중심에 새로 핵생성) 키운다 — 개별 결정으로 자란다.
@@ -608,7 +608,7 @@ export class GameServer {
   //   (한 틱에 각 결정 최대 1회 = 점진적). 같은 종 → 융합(반응열 없음), 다른 종 → 화합(반응열 방출).
   #react() {
     const crys = [...this.crystals.values()]
-      .filter(c => this.ledger.balance(c.id) > 0 && !c.raw && !c.crafted) // 제조 결정(재료 raw·중간물/완성물 crafted)은 반응 면역 — 다단계 제조까지 안정(feature-0010·0011 step2)
+      .filter(c => this.ledger.balance(c.id) > 0 && !c.raw && !c.crafted) // 제조 결정(재료 raw·중간물/완성물 crafted)은 반응 면역 — 다단계 제조까지 안정(구 feature-0010(현 0018)·0011 step2)
       .sort((a, b) => a.seq - b.seq);
     const reacted = new Set();
     for (const A of crys) {
@@ -754,7 +754,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 정리됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 포식은 **야생(owner=null)만** — 욕구는 절차(사냥)로 치고, 주인이 쥔 대기 개체는 자율 공격하지 않는다(플레이어가 사냥을 걸어야 친다)
-      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 포식 정지)
+      if (this.#dormant(A)) continue;                          // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면(자율 포식 정지)
       // 발산할 예비가 없으면 공격하지 않는다(예비 가드는 #strike 안) — 사거리 안 나보다 작은 가장 가까운 먹이
       let prey = null, bestD = Infinity;
       for (const V of this.creatures.values()) {
@@ -839,7 +839,7 @@ export class GameServer {
     for (const A of list) {
       if (!this.creatures.has(A.id)) continue;                 // 이번 패스 중 전소됐을 수도(방어)
       if (A.desire !== DESIRE.NONE || A.owner) continue;       // 자율 발산도 **야생(owner=null)만** — 주인이 쥔 대기 개체는 자율 발산하지 않는다(제 에너지가 마르지 않게 · 플레이어 통제 모델)
-      if (this.#dormant(A)) continue;                          // feature-0017: 관측 없는 지역의 야생은 동면(자율 발산 정지)
+      if (this.#dormant(A)) continue;                          // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면(자율 발산 정지)
       // 조준 — 사거리 안, **강탈로 먹을 수 없는 상대**(size ≥ 자신)의 가장 가까운 하나. 파이어볼이 그 자리로 간다.
       //   강탈(강자→약자, size<)과 발산(약자·동급→상대, size≥)이 크기로 깔끔히 갈린다(겹침 없음): 먹을 수
       //   있으면 강탈해 먹고, 못 먹으면 폭탄을 던진다. 그래서 약자·동급이 강자를 어쩌는 유일한 수단이 발산이다.
@@ -854,7 +854,7 @@ export class GameServer {
     }
   }
 
-  // 파이어볼 발사 — feature-0009. **야생 자율 발산(#discharge)과 플레이어 사냥 절차(feature-0011 launch 단계)가
+  // 파이어볼 발사 — feature-0009. **야생 자율 발산(#discharge)과 플레이어 사냥 절차(구 feature-0011(현 0018) launch 단계)가
   //   공용**한다: 캐스터 A 가 표적 자리(aim)로 파이어볼을 쏜다. ① 발사 비용 → 심우주(열 손실). ② 파이어볼 풀
   //   장전 — 생명체가 제 에너지를 투사체에 싣는다(생명체 → B:, 발산). ③ 투사체가 캐스터 자리에서 태어나 표적
   //   자리로 날아간다(#flyFireballs). 예비 부족(발사+폭약+최소 예비 미만)이면 못 쏜다(회수 없는 순수 지출).
@@ -986,14 +986,14 @@ export class GameServer {
     this.creatures.delete(V.id);
   }
 
-  // 욕구 절차 실행 — feature-0011. 제어되는 각 생명체가 제 욕구의 **절차**(shared/desires.js)를 한 단계 수행한다.
+  // 욕구 절차 실행 — 구 feature-0011(현 0018). 제어되는 각 생명체가 제 욕구의 **절차**(shared/desires.js)를 한 단계 수행한다.
   //   엔진은 절차의 단계를 순서대로 훑어 **첫 번째로 적용 가능한 단계**를 실행한다 — 상황에 따라 찾아가고·요리하고·
   //   먹고·타격한다. 단계는 오직 ctx(아래 #desireCtx)만 쓰므로 엔진은 욕구 종류를 모른다 — 새 욕구를 레지스트리에
   //   얹기만 하면 이 엔진이 그대로 실행한다(개방성). 각 단계의 행동은 에너지를 방출/이동한다(전부 ledger.transfer).
   //   결정론: seq 오름차순 순회 + 순수 클램프(rng 미사용) → 확산·성장·전투 결정론 불변.
   #performDesire() {
-    this.#appraise(); // feature-0012 step2 — 먼저 상황(차이)이 자율 감정(feeling)을 갱신 → 우선순위 재정렬
-    // feature-0010 step4 — 지정 표적(클릭)이 소진·소멸했으면 해제하고 대기로 복귀한다(클릭 → 한 가지 수행 → 멈춤).
+    this.#appraise(); // 구 feature-0012(현 0018) step2 — 먼저 상황(차이)이 자율 감정(feeling)을 갱신 → 우선순위 재정렬
+    // 구 feature-0010(현 0018) step4 — 지정 표적(클릭)이 소진·소멸했으면 해제하고 대기로 복귀한다(클릭 → 한 가지 수행 → 멈춤).
     for (const cre of this.creatures.values()) {
       const cmd = cre.commandedTarget;
       if (!cmd) continue;
@@ -1004,9 +1004,9 @@ export class GameServer {
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
-      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
+      if (this.#dormant(cre)) continue; // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
       const ctx = this.#desireCtx(cre);
-      // feature-0012: 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
+      // 구 feature-0012(현 0018): 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
       //   단계를 실행한다. 최우선 욕구가 상황상 수행 불가(표적 없음 등)면 다음 우선순위로 내려간다 → "상황에 따라
       //   행동이 달라진다". 감정으로 우선순위를 키우면 이 순서가 바뀌어 행동이 바뀐다(감정=중요도).
       for (const name of this.#rankedDesires(cre)) {
@@ -1014,14 +1014,14 @@ export class GameServer {
         if (!proc) continue;
         let acted = false;
         for (const step of proc.steps) {
-          if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 욕구의 첫 적용 단계(우선순위 절차, feature-0011)
+          if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 욕구의 첫 적용 단계(우선순위 절차, 구 feature-0011(현 0018))
         }
         if (acted) break; // 가장 높은 우선순위의 수행 가능한 욕구가 이번 틱을 차지한다
       }
     }
   }
 
-  // 욕구 스택을 유효 우선순위(priority+emotion+feeling) 내림차순으로 정렬한 이름 목록 (feature-0012). 동률은 주입
+  // 욕구 스택을 유효 우선순위(priority+emotion+feeling) 내림차순으로 정렬한 이름 목록 (구 feature-0012(현 0018)). 동률은 주입
   //   (삽입) 순서를 유지한다(결정론). 스택이 비면 대기(NONE) 하나 — 소유 생명체는 주인 곁을 따르고, 야생은 정지.
   #rankedDesires(cre) {
     if (cre.desires.size === 0) return [DESIRE.NONE];
@@ -1031,7 +1031,7 @@ export class GameServer {
       .map(x => x.name);
   }
 
-  // 자율 감정 평가 (feature-0012 step2) — "차이는 신호". 각 생명체의 각 욕구에 대해, 그 욕구 절차가 appraise(ctx)
+  // 자율 감정 평가 (구 feature-0012(현 0018) step2) — "차이는 신호". 각 생명체의 각 욕구에 대해, 그 욕구 절차가 appraise(ctx)
   //   로 지금 상황(차이)이 얼마나 그 욕구를 중요하게 느끼는지(feeling)를 스스로 계산해 갱신한다. 굶주릴수록 식사의
   //   feeling 이 치솟고, 배부르면 0 으로 감쇠(포만)한다 → 우선순위가 상황에 따라 스스로 재정렬된다(외부 주입 없이).
   //   appraise 없는 욕구(예: 사냥)의 중요도는 외생(priority+emotion)만으로 정해진다. 순수 계산(rng 미사용) → 결정론.
@@ -1048,7 +1048,7 @@ export class GameServer {
     }
   }
 
-  // 방송용 욕구 스택 — [[name, priority, emotion, feeling], ...] 유효 우선순위 내림차순 (feature-0012). 뷰어가 중첩·
+  // 방송용 욕구 스택 — [[name, priority, emotion, feeling], ...] 유효 우선순위 내림차순 (구 feature-0012(현 0018)). 뷰어가 중첩·
   //   승자·감정(외생+자율)을 그린다. feeling=상황이 스스로 만든 감정(굶주림 등, step2).
   #desireStack(cre) {
     return [...cre.desires.entries()]
@@ -1057,7 +1057,7 @@ export class GameServer {
       .map(x => [x.name, x.d.priority, x.d.emotion, x.d.feeling ?? 0]);
   }
 
-  // 절차 단계에 넘기는 ctx — 지각·행동 API. 단계는 이것만 쓰고 게임 내부는 모른다(개방성의 경계). (feature-0011)
+  // 절차 단계에 넘기는 ctx — 지각·행동 API. 단계는 이것만 쓰고 게임 내부는 모른다(개방성의 경계). (구 feature-0011(현 0018))
   #desireCtx(cre) {
     const self = this;
     return {
@@ -1068,17 +1068,17 @@ export class GameServer {
       nearestCrystal: (opts) => self.#nearestCrystalFor(cre, opts),
       nearestPrey: () => self.#nearestPrey(cre),
       nearestFoe: () => self.#nearestFoe(cre),                  // feature-0009+0011 — 먹을 수 없는 상대(size≥) = 파이어볼 표적
-      nearestThreat: () => self.#nearestThreat(cre),            // feature-0012 step3 — 나보다 큰 포식자(위협) 감지(appraise·회피용)
+      nearestThreat: () => self.#nearestThreat(cre),            // 구 feature-0012(현 0018) step3 — 나보다 큰 포식자(위협) 감지(appraise·회피용)
       distanceTo: (t) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z), // 표적까지 거리(appraise 가 '차이=근접'을 읽는다)
-      craftPair: (tier) => self.#craftPairFor(cre, tier),       // feature-0010·0011 step2 — 조합 가능한 (같은 단계) 쌍
-      craft: (a, b) => self.#craft(cre, a, b),                  // feature-0010·0011 step2 — 두 결정을 다음 단계 산물로 조합(방출)
+      craftPair: (tier) => self.#craftPairFor(cre, tier),       // 구 feature-0010(현 0018)·0011 step2 — 조합 가능한 (같은 단계) 쌍
+      craft: (a, b) => self.#craft(cre, a, b),                  // 구 feature-0010(현 0018)·0011 step2 — 두 결정을 다음 단계 산물로 조합(방출)
       ownerPos: () => { if (!cre.owner) return null; const p = self.players.get(cre.owner); return p ? { x: p.x, y: p.y, z: p.z } : null; },
       inReach: (t, r) => dist3(cre.x, cre.y, cre.z, t.x, t.y, t.z) <= r,
       edible: (c) => !c.raw,
-      capacity: () => { const pool = self.ledger.get(cre.id); return pool ? pool.max : CREATURE_MAX_ENERGY * cre.size; }, // 자기 용량(feature-0012 appraise)
-      balance: () => self.ledger.balance(cre.id),                                                                        // 자기 잔고(feature-0012 appraise)
+      capacity: () => { const pool = self.ledger.get(cre.id); return pool ? pool.max : CREATURE_MAX_ENERGY * cre.size; }, // 자기 용량(구 feature-0012(현 0018) appraise)
+      balance: () => self.ledger.balance(cre.id),                                                                        // 자기 잔고(구 feature-0012(현 0018) appraise)
       moveToward: (t, stop) => self.#stepToward(cre, t, stop),
-      moveAway: (t) => self.#stepAway(cre, t),                  // feature-0012 step3 — 위협에서 멀어진다(회피, 이동=국소장 소산)
+      moveAway: (t) => self.#stepAway(cre, t),                  // 구 feature-0012(현 0018) step3 — 위협에서 멀어진다(회피, 이동=국소장 소산)
       eat: (c) => self.#eatCrystal(cre, c),
       cook: (c) => self.#cookCrystal(cre, c),
       acquire: (c) => self.acquireItem(cre, c),                 // feature-0014 — 소화 없이 소유(줍기)
@@ -1089,7 +1089,7 @@ export class GameServer {
     };
   }
 
-  // 한 걸음 이동(방출) — feature-0010. 표적으로 최대 STRIDE 나아가고, 나아간 거리/50 을 그 자리 국소장으로
+  // 한 걸음 이동(방출) — 구 feature-0010(현 0018). 표적으로 최대 STRIDE 나아가고, 나아간 거리/50 을 그 자리 국소장으로
   //   소산한다(생명체→국소장, MOVE = 플레이어 이동과 동일 회계). 사거리 안이면 안 움직이고, 예비 없으면 못 쫓는다.
   #stepToward(cre, target, stop) {
     const d = dist3(cre.x, cre.y, cre.z, target.x, target.y, target.z);
@@ -1113,7 +1113,7 @@ export class GameServer {
     return got;
   }
 
-  // 요리(변형) — feature-0011. 날것 결정을 먹을 수 있게 바꾼다. 그 일은 에너지를 방출한다: COOK_COST×size 를
+  // 요리(변형) — 구 feature-0011(현 0018). 날것 결정을 먹을 수 있게 바꾼다. 그 일은 에너지를 방출한다: COOK_COST×size 를
   //   심우주(열, BURN_PCT)+국소장(연기)로 흩는다 — 순수 지출(회수 없음). 예비 없으면 못 한다(굶주리면 요리 불가).
   //   결정은 raw=false 로 바뀌고 종이 변형된다(cookedSpecies) — 이제 먹을 수 있다. 다음 틱 eat 단계가 먹는다.
   #cookCrystal(cre, c) {
@@ -1127,7 +1127,7 @@ export class GameServer {
     return paid;
   }
 
-  // 조합 가능한 재료 쌍 — feature-0010 step2 · **다단계** feature-0011 step2. 감지 반경(SEEK) 안, 서로
+  // 조합 가능한 재료 쌍 — 구 feature-0010(현 0018) step2 · **다단계** 구 feature-0011(현 0018) step2. 감지 반경(SEEK) 안, 서로
   //   CRAFT_PAIR_RADIUS 안에 **붙어 있는** 두 **같은 단계(tier)** 의 제조 결정(재료 raw 또는 중간물 crafted, 단
   //   tier<MAX). tier 를 주면 그 단계의 쌍만 찾는다(완성 먼저·중간 나중을 절차가 고른다). 제조 결정은 수동
   //   반응(#react)에 면역이라 쌍이 안정 유지된다. 생명체에서 가까운 순(결정론: 거리→seq). 완성물(tier==MAX)은 제외.
@@ -1145,7 +1145,7 @@ export class GameServer {
     return null;
   }
 
-  // 제조(조합) — feature-0010 step2 · **다단계** feature-0011 step2. 같은 단계 두 결정을 하나의 **다음 단계 산물**로
+  // 제조(조합) — 구 feature-0010(현 0018) step2 · **다단계** 구 feature-0011(현 0018) step2. 같은 단계 두 결정을 하나의 **다음 단계 산물**로
   //   합친다(재료+재료→중간물, 중간물+중간물→완성물). **만드는 일**은 에너지를 방출한다: CRAFT_COST×size 를
   //   열(심우주, BURN_PCT)+연기(국소장)로 흩는다(순수 지출, 회수 없음 = 요리·방출과 같은 결). b 를 a 로 전량 합치고
   //   (조합), a 를 산물로 변형한다: **tier 한 단계↑**, 종=craftedSpecies(재료와 다름), crafted=true(표식), raw=false.
@@ -1165,9 +1165,9 @@ export class GameServer {
     return paid;
   }
 
-  // 감지 반경(SEEK) 안 잔고 있는 가장 가까운 결정 — 욕구 절차의 표적. edibleOnly 면 날것(raw)은 건너뛴다. (feature-0010·0011)
+  // 감지 반경(SEEK) 안 잔고 있는 가장 가까운 결정 — 욕구 절차의 표적. edibleOnly 면 날것(raw)은 건너뛴다. (구 feature-0010(현 0018)·0011)
   #nearestCrystalFor(cre, opts = {}) {
-    // 지정 표적(클릭)이 있으면 그 결정을 우선 — 자동 최근접 대신 지목한 대상으로 간다(feature-0010 step4, SEEK 무시).
+    // 지정 표적(클릭)이 있으면 그 결정을 우선 — 자동 최근접 대신 지목한 대상으로 간다(구 feature-0010(현 0018) step4, SEEK 무시).
     if (cre.commandedTarget?.kind === 'crystal') {
       const c = this.crystals.get(`${POOL.CRYSTAL}${cre.commandedTarget.seq}`);
       if (c && this.ledger.balance(c.id) > 0 && (!opts.edibleOnly || !c.raw)) return c;
@@ -1182,9 +1182,9 @@ export class GameServer {
     return best;
   }
 
-  // 감지 반경(SEEK) 안에서 잔고 있는 가장 가까운 **더 작은** 생명체 — 사냥 욕망의 표적(포식=강자→약자). (feature-0010)
+  // 감지 반경(SEEK) 안에서 잔고 있는 가장 가까운 **더 작은** 생명체 — 사냥 욕망의 표적(포식=강자→약자). (구 feature-0010(현 0018))
   #nearestPrey(cre) {
-    // 지정 표적(클릭)이 있으면 그 생명체를 우선 — 지목한 먹이로 간다(feature-0010 step4, SEEK 무시, 더 작을 때만).
+    // 지정 표적(클릭)이 있으면 그 생명체를 우선 — 지목한 먹이로 간다(구 feature-0010(현 0018) step4, SEEK 무시, 더 작을 때만).
     if (cre.commandedTarget?.kind === 'creature') {
       const v = this.creatures.get(`${POOL.CREATURE}${cre.commandedTarget.seq}`);
       if (v && v.id !== cre.id && v.size < cre.size && this.ledger.balance(v.id) > 0) return v;
@@ -1199,7 +1199,7 @@ export class GameServer {
     return best;
   }
 
-  // 가장 가까운 **강적**(먹을 수 없는 상대, size≥) — 사냥 절차(feature-0011)의 발산(파이어볼) 표적. nearestPrey
+  // 가장 가까운 **강적**(먹을 수 없는 상대, size≥) — 사냥 절차(구 feature-0011(현 0018))의 발산(파이어볼) 표적. nearestPrey
   //   (먹이=size<)의 대칭이되 **동급 포함**(size≥): 못 먹으니 폭탄을 던진다(feature-0009 발산 조준과 동일 기준).
   //   지정 표적(클릭)이 그런 상대면 우선. 위협(nearestThreat, size>)과 달리 동급도 포함해 대등한 상대도 처리한다.
   #nearestFoe(cre) {
@@ -1217,7 +1217,7 @@ export class GameServer {
     return best;
   }
 
-  // 가장 가까운 위협 — feature-0012 step3. 나보다 **큰**(size>) 포식자를 감지 반경 안에서 찾는다(nearestPrey 의 대칭:
+  // 가장 가까운 위협 — 구 feature-0012(현 0018) step3. 나보다 **큰**(size>) 포식자를 감지 반경 안에서 찾는다(nearestPrey 의 대칭:
   //   먹이=더 작음 / 위협=더 큼). appraise(위협 감정)·회피(FLEE)가 이 지각을 쓴다. 엔진은 어떤 욕구가 쓰는지 모른다(개방).
   #nearestThreat(cre) {
     let best = null, bestD = CREATURE_SEEK_RADIUS;
@@ -1230,7 +1230,7 @@ export class GameServer {
     return best;
   }
 
-  // 한 걸음 회피(방출) — feature-0012 step3. 표적(위협)의 **반대 방향**으로 최대 STRIDE 나아간다. 이동은 그 자리
+  // 한 걸음 회피(방출) — 구 feature-0012(현 0018) step3. 표적(위협)의 **반대 방향**으로 최대 STRIDE 나아간다. 이동은 그 자리
   //   국소장으로 소산(생명체→국소장, MOVE = 추적과 동일 회계) — 회피도 에너지를 지불한다. 예비 없으면 못 도망친다.
   #stepAway(cre, target) {
     if (this.ledger.balance(cre.id) <= CREATURE_DEATH_THRESHOLD * cre.size) return false; // 굶주리면 못 도망친다
@@ -1257,7 +1257,7 @@ export class GameServer {
   //   성장점을 쌓아 성장하고(size↑), 굶주리면 진척이 깎인다 — 큰 몸은 세계가 못 받치면 몰락한다(#growCreature).
   #metabolizeCreatures() {
     for (const cre of [...this.creatures.values()]) {
-      if (this.#dormant(cre)) continue; // feature-0017: 관측 없는 지역의 야생은 동면 — 갈구·대사·성장·아사 정지(잔고 그대로 멈춤)
+      if (this.#dormant(cre)) continue; // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면 — 갈구·대사·성장·아사 정지(잔고 그대로 멈춤)
       const matId = materialKey(cre.x, cre.y, cre.z);
       if (cre.items.length) for (const id of cre.items) { const it = this.heldItems.get(id); if (it) { it.x = cre.x; it.y = cre.y; it.z = cre.z; } } // 소유물은 주인을 따라다닌다(feature-0014)
       if (cre.desire === DESIRE.NONE) this.#harvestNearbyCrystal(cre);       // ⓪ 채집 본능(feature-0007) — 야생/대기만. 욕구를 가진 개체는 절차로 먹는다
@@ -1278,7 +1278,7 @@ export class GameServer {
   #harvestNearbyCrystal(cre) {
     let best = null, bestD = Infinity;
     for (const c of this.crystals.values()) {
-      if (this.ledger.balance(c.id) <= 0 || c.raw) continue; // 날것(raw)은 본능으로 못 먹는다 — 요리(식사 절차)가 필요(feature-0011)
+      if (this.ledger.balance(c.id) <= 0 || c.raw) continue; // 날것(raw)은 본능으로 못 먹는다 — 요리(식사 절차)가 필요(구 feature-0011(현 0018))
       const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
       if (d <= CREATURE_HARVEST_RADIUS && d < bestD) { best = c; bestD = d; }
     }
@@ -1310,7 +1310,7 @@ export class GameServer {
     const corpseSeq = this.#decompose(cre.id, cre.x, cre.y, cre.z);
     this.ledger.removePool(cre.id);
     this.creatures.delete(cre.id);
-    // feature-0011 사냥 완결 — 이 개체를 지정 표적으로 사냥하던 자는 그 자리 **시체 결정으로 표적을 승계**한다:
+    // 구 feature-0011(현 0018) 사냥 완결 — 이 개체를 지정 표적으로 사냥하던 자는 그 자리 **시체 결정으로 표적을 승계**한다:
     //   같은 HUNT 욕구가 전리품 채집(feature-0007)까지 이어진다("죽여서 그 재료를 먹는다"가 한 절차로 닫힘).
     if (corpseSeq != null) {
       for (const h of this.creatures.values())
@@ -1382,8 +1382,8 @@ export class GameServer {
       for (const c of this.creatures.values()) {
         const b = this.ledger.balance(c.id);
         if (b <= 0) continue;
-        const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // feature-0010 step4: 지정 표적(1=결정·2=생명체)
-        const cell = [c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]; // feature-0012: desires=중첩 스택 · feature-0014: items · step4: cmd
+        const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // 구 feature-0010(현 0018) step4: 지정 표적(1=결정·2=생명체)
+        const cell = [c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]; // 구 feature-0012(현 0018): desires=중첩 스택 · feature-0014: items · step4: cmd
         const rk = regionKey(c.x, c.y);
         creatureBySeq.set(c.seq, cell);
         let bucket = creatureByRegion.get(rk);

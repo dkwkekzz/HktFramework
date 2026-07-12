@@ -1,5 +1,5 @@
 // ============================================================================
-// 욕구 절차(procedure) 레지스트리 — feature-0011.
+// 욕구 절차(procedure) 레지스트리 — 구 feature-0011(현 0018).
 //
 // 명제: 생명체는 **욕구에 따라 적절한 방식으로 에너지를 방출**한다. 욕구가 무엇이냐에 따라 방출 형태가
 //   다르고(이동=국소장 소산 · 요리=열+연기 · 발산=심우주 …), 그 방출에는 **구체적 정책**이 있다 — 정책이 곧
@@ -15,9 +15,9 @@
 // ctx 계약 (game.js #desireCtx 가 구현):
 //   상수:  EAT_REACH · STRIKE_REACH · LEASH_STOP · CRAFT_REACH (도달 사거리)
 //   지각:  nearestCrystal({edibleOnly}?) · nearestPrey() · ownerPos() · inReach(target, radius) · edible(crystal)
-//          craftPair(tier?) — 조합 가능한 (같은 단계) 쌍 {a,b}. tier 주면 그 단계만 (feature-0010·0011 step2 다단계 제조)
-//          capacity() · balance() — 자기 상태(용량·잔고). appraise(ctx) 가 굶주림 같은 '차이'를 읽는다(feature-0012).
-//   행동:  … · craft(a, b) — 두 재료를 산물로 조합(만드는 일=방출, feature-0010 step2)
+//          craftPair(tier?) — 조합 가능한 (같은 단계) 쌍 {a,b}. tier 주면 그 단계만 (구 feature-0010(현 0018)·0011 step2 다단계 제조)
+//          capacity() · balance() — 자기 상태(용량·잔고). appraise(ctx) 가 굶주림 같은 '차이'를 읽는다(구 feature-0012(현 0018)).
+//   행동:  … · craft(a, b) — 두 재료를 산물로 조합(만드는 일=방출, 구 feature-0010(현 0018) step2)
 //   행동:  moveToward(target, stop) · eat(crystal) · cook(crystal) · strike(prey) · dissipate(amount, cause)
 //          (모든 행동은 에너지를 이동/방출한다 = ledger.transfer)
 // ============================================================================
@@ -78,7 +78,7 @@ const strikePrey = {
 };
 // 사냥(HUNT) — 발산 갈래: **먹을 수 없는 강적**(size≥, 강탈 불가)이면 파이어볼(feature-0009)을 던진다. 조준 사거리
 //   안이면 발사하고, 밖이면 발사 사거리까지 다가간다. "먹으면 강탈, 못 먹으면 폭탄"의 크기 분업을 한 사냥 절차 안에서
-//   상황에 맞게 고른다(feature-0011 명제 — 상황에 맞게 절차적으로 수행).
+//   상황에 맞게 고른다(구 feature-0011(현 0018) 명제 — 상황에 맞게 절차적으로 수행).
 const launchFoe = {
   name: 'launch',
   applicable: (x) => { const f = x.nearestFoe(); return !!f && x.inReach(f, x.DISCHARGE_REACH); },
@@ -90,7 +90,7 @@ const approachFoe = {
   act: (x) => { const f = x.nearestFoe(); if (f) x.moveToward(f, x.DISCHARGE_REACH); },
 };
 
-// 회피(FLEE): 더 큰 포식자(위협)에게서 **멀어진다**(feature-0012 step3). 위협이 감지 반경 안에 있으면 반대로 도망친다.
+// 회피(FLEE): 더 큰 포식자(위협)에게서 **멀어진다**(구 feature-0012(현 0018) step3). 위협이 감지 반경 안에 있으면 반대로 도망친다.
 //   위협이 멀어지면(반경 밖) threatFeeling→0 이라 이 욕구가 저절로 진다(상황이 행동을 거둔다).
 const fleeThreat = {
   name: 'flee',
@@ -98,10 +98,10 @@ const fleeThreat = {
   act: (x) => { const t = x.nearestThreat(); if (t) x.moveAway(t); },
 };
 
-// 제조(CRAFT): 가까이 놓인 두 재료(raw, 미가공) 결정(조합 지점)으로 다가가 → 하나의 산물로 조합한다(feature-0010 step2).
+// 제조(CRAFT): 가까이 놓인 두 재료(raw, 미가공) 결정(조합 지점)으로 다가가 → 하나의 산물로 조합한다(구 feature-0010(현 0018) step2).
 //   산물을 만드는 일은 에너지를 방출한다(열+연기, 순수 지출). 재료 쌍이 없으면 수행 불가(다음 우선순위로 내려간다).
-//   feature-0011 의 개방 레지스트리에 **새 욕구를 실제로 얹는 첫 사례** — 엔진은 이 욕구를 모르고 ctx 만으로 실행한다.
-//   **다단계(feature-0011 step2)**: 절차에 단계를 더 얹어 재료(tier0)→중간물(tier1)→완성물(tier2)로 깊어진다 —
+//   구 feature-0011(현 0018) 의 개방 레지스트리에 **새 욕구를 실제로 얹는 첫 사례** — 엔진은 이 욕구를 모르고 ctx 만으로 실행한다.
+//   **다단계(구 feature-0011(현 0018) step2)**: 절차에 단계를 더 얹어 재료(tier0)→중간물(tier1)→완성물(tier2)로 깊어진다 —
 //   완성(중간물 두 개) 단계를 먼저, 중간(재료 두 개) 단계를 나중에 둬(첫 적용 단계 규칙) 상황에 맞게 다단계로 수행한다.
 const approachCraftSite = {
   name: 'approach',
@@ -126,7 +126,7 @@ const leashOwner = {
   act: (x) => { const o = x.ownerPos(); if (o) x.moveToward(o, x.LEASH_STOP); },
 };
 
-// --- 자율 감정(appraise) — 상황(차이)이 스스로 만드는 중요도 (feature-0012 step2) ------------
+// --- 자율 감정(appraise) — 상황(차이)이 스스로 만드는 중요도 (구 feature-0012(현 0018) step2) ------------
 //   "차이는 신호". 욕구 절차는 appraise(ctx) 로 지금 이 상황이 그 욕구를 얼마나 중요하게 느끼는지(feeling)를
 //   스스로 계산한다. 오직 ctx 만 쓰므로(개방 경계) 어떤 욕구든 자기 감정을 정의할 수 있다. 엔진은 이름을 모른다.
 
@@ -139,7 +139,7 @@ function hungerFeeling(x) {
   return Math.round(DESIRE_EMOTION_MAX * (comfort - bal) / comfort); // 차이(굶주림)에 비례 (0..MAX)
 }
 
-// 위협 감정 (feature-0012 step3) — 더 큰 포식자가 **가까이** 있을수록 회피의 중요도가 스스로 치솟는다. 위협이
+// 위협 감정 (구 feature-0012(현 0018) step3) — 더 큰 포식자가 **가까이** 있을수록 회피의 중요도가 스스로 치솟는다. 위협이
 //   가까우면 다른 어떤 욕구보다 도망이 이기고, 멀어지면 0 으로 감쇠해 하던 일로 돌아간다(상황이 감정을 만든다).
 function threatFeeling(x) {
   const t = x.nearestThreat();
@@ -147,16 +147,16 @@ function threatFeeling(x) {
   return Math.round(DESIRE_EMOTION_MAX * Math.max(0, (x.SEEK - x.distanceTo(t)) / x.SEEK)); // 가까울수록 ↑ (0..MAX)
 }
 
-// --- 기본 욕구 등록 (feature-0010 이관 + feature-0011 식사 + feature-0012 자율 감정) ----------
+// --- 기본 욕구 등록 (구 feature-0010(현 0018) 이관 + 구 feature-0011(현 0018) 식사 + 구 feature-0012(현 0018) 자율 감정) ----------
 //   release = 그 욕구가 주로 방출하는 형태(라벨·문서용). "욕구에 따라 방출 형태가 다르다".
 //   appraise = 상황이 스스로 만드는 감정(feeling). 없으면 그 욕구의 중요도는 외생(priority+emotion)만으로 정해진다.
 registerDesire(DESIRE.NONE,   { label: '대기', release: '이동→국소장', steps: [leashOwner] });
 registerDesire(DESIRE.FORAGE, { label: '채집', release: '이동→국소장', steps: [approachEdibleCrystal, eatEdibleInReach], appraise: hungerFeeling });
 registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  steps: [approachAnyCrystal, cookRawInReach, eatAnyInReach], appraise: hungerFeeling });
-// 사냥(HUNT) — **완결형 절차**(feature-0011 명제: 욕구를 끝까지 절차적으로 수행). 상황에 맞는 무기로 대상을 처치하고
+// 사냥(HUNT) — **완결형 절차**(구 feature-0011(현 0018) 명제: 욕구를 끝까지 절차적으로 수행). 상황에 맞는 무기로 대상을 처치하고
 //   전리품까지 획득한다: ① 먹이(size<)가 근접이면 물리 강탈(strike, feature-0008 = 에너지 수입) ② 못 먹는 강적(size≥)이
 //   사거리면 파이어볼(launch, feature-0009) ③④ 아니면 각자에게 다가간다 ⑤⑥ 처치 후 그 자리 시체 결정(전리품)을 채집한다
 //   (feature-0005 죽음의 결정화 → feature-0007 채집, 채집 단계는 FORAGE 것 재사용). "죽여서 그 재료를 먹는다"가 한 욕구로 닫힌다.
 registerDesire(DESIRE.HUNT,   { label: '사냥', release: '강탈+발산→전리품', steps: [strikePrey, launchFoe, approachPrey, approachFoe, approachEdibleCrystal, eatEdibleInReach] });
-registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // feature-0010 step2(단일)·0011 step2(다단계)
-registerDesire(DESIRE.FLEE,   { label: '회피', release: '이동→국소장',   steps: [fleeThreat], appraise: threatFeeling }); // feature-0012 step3 — 위협(더 큰 포식자)이 회피 감정을 스스로 만든다(가까울수록 도망이 이긴다)
+registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // 구 feature-0010(현 0018) step2(단일)·0011 step2(다단계)
+registerDesire(DESIRE.FLEE,   { label: '회피', release: '이동→국소장',   steps: [fleeThreat], appraise: threatFeeling }); // 구 feature-0012(현 0018) step3 — 위협(더 큰 포식자)이 회피 감정을 스스로 만든다(가까울수록 도망이 이긴다)

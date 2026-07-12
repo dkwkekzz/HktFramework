@@ -10,7 +10,7 @@
 import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERGY, CREATURE_MAX_ENERGY, CREATURE_DEATH_THRESHOLD, CREATURE_SEEK_RADIUS, CREATURE_HARVEST_RADIUS, CREATURE_ATTACK_RADIUS, CRAFT_REACH, POOL, dist3, fieldPhase } from '../shared/constants.js';
 
 const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', emit: '발산', detonate: '폭발', discharge: '방출', cook: '요리', craft: '제조', heat: '가열', combust: '연소', melt: '용해', shatter: '파괴' };
-// 욕구 라벨/색/아이콘 (feature-0010·0011) — 뷰어가 각 생명체 위에 그 동기를 또렷이 적는다.
+// 욕구 라벨/색/아이콘 (구 feature-0010(현 0018)·0011) — 뷰어가 각 생명체 위에 그 동기를 또렷이 적는다.
 const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조', flee: '회피' };
 const DESIRE_ICON  = { forage: '🌿', hunt: '⚔', none: '✋', eat: '🍚', craft: '🔨', flee: '🏃' };
 // 욕구별 대표색 — 표적선·오라·아이콘·버튼이 공유해 "어느 욕구인지"가 색으로도 한눈에 갈린다.
@@ -37,7 +37,7 @@ export class Render {
     this.sim = sim;
     this.net = net;
     this.lastCam = null;                 // 마지막 프레임 카메라(클릭 피킹의 화면투영에 쓴다)
-    this.onSelectTarget = null;          // (sel) => void — 클릭 지정 표적을 서버로(main.js 결선, feature-0010 step4)
+    this.onSelectTarget = null;          // (sel) => void — 클릭 지정 표적을 서버로(main.js 결선, 구 feature-0010(현 0018) step4)
 
     // orbit 카메라 (z-up). yaw=방위각, pitch=올려본 각, dist=거리.
     this.yaw = -Math.PI * 0.75;
@@ -45,7 +45,7 @@ export class Render {
     this.dist = 620;
     this.focal = this.h * 0.9;
 
-    // 입력: 드래그 회전 · 휠 줌 · **클릭/터치=표적 지목**(feature-0010 step4).
+    // 입력: 드래그 회전 · 휠 줌 · **클릭/터치=표적 지목**(구 feature-0010(현 0018) step4).
     //   드래그(회전)와 클릭(지목)을 이동거리로 가른다: 누른 뒤 6px 미만 움직이면 클릭=피킹, 그 이상이면 회전.
     let drag = null, moved = 0, downXY = null;
     const onDown = (x, y) => { drag = { x, y }; downXY = { x, y }; moved = 0; };
@@ -75,7 +75,7 @@ export class Render {
     }, { passive: false });
   }
 
-  // 클릭/터치 피킹 (feature-0010 step4) — 화면 좌표에 가장 가까운 결정·생명체를 골라 표적으로 지목한다(서버로 TARGET).
+  // 클릭/터치 피킹 (구 feature-0010(현 0018) step4) — 화면 좌표에 가장 가까운 결정·생명체를 골라 표적으로 지목한다(서버로 TARGET).
   //   각 대상의 월드 중심을 화면에 투영(#pt)해 클릭점과의 픽셀 거리로 고른다(가까운 것). 임계 밖이면 **빈 곳** = 지정 해제.
   //   생명체를 결정보다 우선(작은 먹이 클릭이 뒤 결정에 가리지 않게). 캔버스 CSS 스케일을 고려해 좌표를 보정한다.
   #pickAt(clientX, clientY) {
@@ -100,7 +100,7 @@ export class Render {
     this.onSelectTarget(best ?? { kind: 'none' }); // 빈 곳 클릭 = 지정 해제(대기)
   }
 
-  // 내가 제어하는 생명체 (feature-0010) — 소유 생명체를 한 번에 찾는다. 카메라·강조·HUD 가 공유한다.
+  // 내가 제어하는 생명체 (구 feature-0010(현 0018)) — 소유 생명체를 한 번에 찾는다. 카메라·강조·HUD 가 공유한다.
   //   "한 사람 = 한 생명체": 시점의 주인공은 이 생명체다(플레이어 점이 아니라).
   #myCreature() {
     if (!this.state.playerId) return null;
@@ -110,7 +110,7 @@ export class Render {
   }
 
   // --- 카메라 기저 (target = 내 생명체, 없으면 플레이어 점) ---
-  //   아바타 통합(feature-0010 step3): 카메라가 내 생명체를 따라간다 → 욕구를 누르면 그 생명체가 화면
+  //   아바타 통합(구 feature-0010(현 0018) step3): 카메라가 내 생명체를 따라간다 → 욕구를 누르면 그 생명체가 화면
   //   가운데서 표적으로 움직이는 게 또렷이 보인다("내가 저걸 몬다"). 소유 생명체가 없으면(관전 데모 등) 점을 본다.
   #camera() {
     const { sim } = this;
@@ -258,7 +258,7 @@ export class Render {
     const { ctx } = this;
     const r = 24 + 90 * Math.min(1, t);           // 응집량에 따라 커지는 결정
     const hue = burning ? 16 : (species * 360 / 12) % 360;   // feature-0013: 연소=적열(주황), 아니면 종 색
-    // 날것(raw)은 채도를 죽이고 점선 외곽으로 "아직 못 먹는 재료"로 구분한다(feature-0011). 요리되면 선명한 결정으로.
+    // 날것(raw)은 채도를 죽이고 점선 외곽으로 "아직 못 먹는 재료"로 구분한다(구 feature-0011(현 0018)). 요리되면 선명한 결정으로.
     const sat = burning ? 95 : (raw ? 20 : 85);   // feature-0013: 연소=고채도
     this.#stick(cam, cx, cy, cz, `hsla(${hue},${raw ? 15 : 80}%,70%,0.35)`); // 지면까지 수선 — 고도·위치 가독성
     const V = [[cx + r, cy, cz], [cx - r, cy, cz], [cx, cy + r, cz], [cx, cy - r, cz], [cx, cy, cz + r], [cx, cy, cz - r]];
@@ -268,7 +268,7 @@ export class Render {
     const faces = [[4, 0, 2], [4, 2, 1], [4, 1, 3], [4, 3, 0], [5, 2, 0], [5, 1, 2], [5, 3, 1], [5, 0, 3]];
     ctx.fillStyle = `hsla(${hue}, ${sat}%, ${58 + t * 20}%, ${(raw ? 0.18 : 0.34) + 0.4 * t})`;
     ctx.strokeStyle = `hsla(${hue}, ${raw ? 30 : 95}%, 82%, ${0.6 + 0.35 * t})`;
-    ctx.lineWidth = crafted ? 2.4 : 1.5;             // 제조 산물(feature-0010 step2)은 굵은 외곽으로 "만들어진 것" 강조
+    ctx.lineWidth = crafted ? 2.4 : 1.5;             // 제조 산물(구 feature-0010(현 0018) step2)은 굵은 외곽으로 "만들어진 것" 강조
     if (raw) ctx.setLineDash([4, 3]); // 날것 = 점선(미완성 느낌)
     for (const f of faces) {
       ctx.beginPath();
@@ -296,7 +296,7 @@ export class Render {
       ctx.strokeStyle = `hsla(${hue}, 95%, 88%, 0.9)`; ctx.lineWidth = 1;
       for (let k = 1; k <= tier; k++) { ctx.beginPath(); ctx.arc(c4.sx, c4.sy, r * (0.4 + 0.18 * k), 0, 7); ctx.stroke(); }
     }
-    // 잔고 라벨 (결정 위) — 날것=재료, 제조 산물은 단계별로 ✦중간(tier1)·✦✦완성(tier2) 표식(feature-0011 step2 다단계)
+    // 잔고 라벨 (결정 위) — 날것=재료, 제조 산물은 단계별로 ✦중간(tier1)·✦✦완성(tier2) 표식(구 feature-0011(현 0018) step2 다단계)
     const top = P[4];
     if (top) {
       ctx.fillStyle = `hsl(${hue}, ${raw ? 25 : 90}%, 88%)`;
@@ -352,7 +352,7 @@ export class Render {
     for (const m of marks) this.#creatureOrb(cam, m, m.d);
   }
 
-  // 욕망 표적선 (feature-0010) — 욕망이 있는 생명체에서 그 표적(채집=결정·사냥=더 작은 생명체)까지 옅은 선.
+  // 욕망 표적선 (구 feature-0010(현 0018)) — 욕망이 있는 생명체에서 그 표적(채집=결정·사냥=더 작은 생명체)까지 옅은 선.
   //   "이 생명체가 저것을 원해 저리로 간다"가 한눈에 보인다. 표적은 미러에서 유도(표시 전용, 서버 규칙 미러).
   #desireLink(cam, cre) {
     if (cre.desire !== 'forage' && cre.desire !== 'hunt' && cre.desire !== 'eat' && cre.desire !== 'craft') return;
@@ -382,9 +382,9 @@ export class Render {
   }
 
   // 욕망 표적 위치 유도 — 서버 #desireTarget 의 미러(표시 전용). 채집=감지 반경 안 가장 가까운 결정,
-  //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (feature-0010)
+  //   사냥=감지 반경 안 가장 가까운 더 작은 생명체. (구 feature-0010(현 0018))
   #desireTargetPos(cre) {
-    // 지정 표적(클릭)이 있으면 그 대상 위치를 우선 반환 — 표적선·조준 고리가 지목한 것을 콕 집는다(feature-0010 step4).
+    // 지정 표적(클릭)이 있으면 그 대상 위치를 우선 반환 — 표적선·조준 고리가 지목한 것을 콕 집는다(구 feature-0010(현 0018) step4).
     if (cre.cmd) {
       const [kindCode, seq] = cre.cmd;
       const t = kindCode === 2 ? this.state.creatures.get(seq) : this.state.crystals.get(seq);
@@ -392,7 +392,7 @@ export class Render {
     }
     let best = null, bestD = CREATURE_SEEK_RADIUS;
     if (cre.desire === 'forage' || cre.desire === 'eat' || cre.desire === 'craft') {
-      // 채집=먹을 수 있는 결정만 / 식사=아무 결정이나 / 제조=재료(raw, 아직 산물 아닌 결정) (feature-0011·0010 step2)
+      // 채집=먹을 수 있는 결정만 / 식사=아무 결정이나 / 제조=재료(raw, 아직 산물 아닌 결정) (구 feature-0011(현 0018)·0010 step2)
       for (const c of this.state.crystals.values()) {
         if (c.balance <= 0 || (cre.desire === 'forage' && c.raw) || (cre.desire === 'craft' && (!c.raw || c.crafted))) continue;
         const d = dist3(cre.x, cre.y, cre.z, c.x, c.y, c.z);
@@ -461,7 +461,7 @@ export class Render {
       ctx.font = '10px monospace';
       ctx.textAlign = 'center';
       ctx.fillText(`${'❋'.repeat(size)} ${bal}`, p.sx, p.sy - r - 10); // 스탯 = ❋ 개수
-      // 욕구 스택 라벨 (feature-0012) — 중첩된 욕구를 **우선순위 순으로 쌓아** 그린다. 승자(맨 위·최우선, ▸)는
+      // 욕구 스택 라벨 (구 feature-0012(현 0018)) — 중첩된 욕구를 **우선순위 순으로 쌓아** 그린다. 승자(맨 위·최우선, ▸)는
       //   밝게(내 것이면 금색), 나머지(·)는 흐리게 — "욕구는 중첩되고 우선순위가 다르다"가 한눈에. 감정(중요도
       //   증폭)은 ♥ 개수로 표시한다("감정은 중요도다"). 스택이 비었으면 단일 desire(하위 호환)만 그린다.
       const stack = (cre.desires && cre.desires.length) ? cre.desires
@@ -543,7 +543,7 @@ export class Render {
     const p = this.#pt(cam, sim.x, sim.y, sim.z);
     if (!p) return;
     const scale = this.focal / this.#toCam(cam, sim.x, sim.y, sim.z)[2];
-    // 아바타 통합(feature-0010 step3): 내가 생명체를 몰면 플레이어 점은 **조향 레티클**이다 — 방향키가 미는
+    // 아바타 통합(구 feature-0010(현 0018) step3): 내가 생명체를 몰면 플레이어 점은 **조향 레티클**이다 — 방향키가 미는
     //   목적지(생명체가 뒤따른다)일 뿐이라 은은한 십자 표식으로만 그린다(주인공=생명체, 금색 고리는 생명체에만).
     if (this.#myCreature()) {
       const r = Math.max(3, 7 * scale);
@@ -596,7 +596,7 @@ export class Render {
     ctx.fillStyle = energy > 200 ? '#6fd08c' : '#d97b6f';
     ctx.fillRect(20, 40, 250 * energy / PLAYER_MAX_ENERGY, 10);
 
-    // 좌상 아래: 제어(feature-0010) 콜아웃 — 내 생명체 + **지금 무엇을 하는가**. 욕망이 이동을 부르고, 이동은
+    // 좌상 아래: 제어(구 feature-0010(현 0018)) 콜아웃 — 내 생명체 + **지금 무엇을 하는가**. 욕망이 이동을 부르고, 이동은
     //   에너지로 지불된다. 상태(이동 중 / 행동 중 / 표적 없음)를 한 줄로 못 박아 "눌렀더니 이게 벌어진다"를 명확히.
     const mine = this.#myCreature();
     const desire = mine?.desire ?? state.myDesire ?? 'none';
