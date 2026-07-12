@@ -22,9 +22,10 @@
 //          (모든 행동은 에너지를 이동/방출한다 = ledger.transfer)
 // ============================================================================
 
-import { DESIRE, DESIRE_EMOTION_MAX, DESIRE_COMFORT_FRACTION } from './constants.js';
+import { DESIRE, MOTIVE, DESIRE_EMOTION_MAX, DESIRE_COMFORT_FRACTION } from './constants.js';
 
-// 욕구 이름 → { label, release, steps:[{name, applicable(ctx), act(ctx)}] }
+// 전략(strategy) 이름 → { label, release, steps:[{name, applicable(ctx), act(ctx)}] }
+//   (구 이름 "욕구 절차" — feature-0018 재분류로 이 레지스트리는 **전략(수단)** 이 되고, 그 위에 동기(MOTIVES)를 얹는다)
 export const DESIRE_PROCEDURES = {};
 
 // 개방 등록 — 새 욕구/절차를 얹는다(엔진 수정 없음). 같은 이름은 덮어쓴다.
@@ -160,3 +161,54 @@ registerDesire(DESIRE.EAT,    { label: '식사', release: '요리=열+연기',  
 registerDesire(DESIRE.HUNT,   { label: '사냥', release: '강탈+발산→전리품', steps: [strikePrey, launchFoe, approachPrey, approachFoe, approachEdibleCrystal, eatEdibleInReach] });
 registerDesire(DESIRE.CRAFT,  { label: '제조', release: '조합=열+연기',  steps: [approachCraftSite, buildFinished, buildIntermediate] }); // 구 feature-0010(현 0018) step2(단일)·0011 step2(다단계)
 registerDesire(DESIRE.FLEE,   { label: '회피', release: '이동→국소장',   steps: [fleeThreat], appraise: threatFeeling }); // 구 feature-0012(현 0018) step3 — 위협(더 큰 포식자)이 회피 감정을 스스로 만든다(가까울수록 도망이 이긴다)
+
+// ============================================================================
+// 동기(motive) 레지스트리 — feature-0018 step 1(재분류).
+//
+// 명제: **욕구(동기)는 줄이려는 상태 차이(결핍)이고, 전략은 그 차이를 줄이는 수단이다.**
+//   리트머스: ctx 로 그 차이를 잴 수(appraise) 있으면 동기, 없으면 전략. 그래서 채집·식사·사냥은 전략이고,
+//   그 셋이 함께 줄이는 차이(허기)가 동기다. 동기 하나 = { label, appraise(차이 측정), strategies(그 차이를 줄이는
+//   수단 목록) }. 엔진(game.js #performDesire)이 2단으로 고른다:
+//     ① 어떤 동기가 급한가(appraise=feeling 최대) → ② 그 동기의 전략 중 지금 가장 값어치 있는(value 최대) 수단.
+//   전략(DESIRE_PROCEDURES)·절차·ctx·방출 회계는 **무변경** — 동기는 그 위에 얹는 순수 선택 계층이다(에너지 흐름을 만들지 않음).
+//
+// **동기의 잠듦**: 차이가 없으면(appraise=0) 그 동기의 전략은 전부 잠든다("결핍 없으면 동기 없음") — 배부르면
+//   채집·식사·사냥이 함께 멎는다. 이것이 전략(감정 무관하게 늘 수행)과 동기의 결정적 차이다.
+// **개방**: registerMotive 로 새 동기를 얹으면 엔진 무수정 실행(전략 개방 registerDesire 와 같은 결).
+// ============================================================================
+
+// 동기 이름 → { label, appraise(ctx), strategies:[{name, value(ctx)}] }
+export const MOTIVES = {};
+
+// 개방 등록 — 새 동기를 얹는다(엔진 수정 없음). 같은 이름은 덮어쓴다.
+export function registerMotive(name, motive) {
+  MOTIVES[name] = motive;
+  return motive;
+}
+
+// 전략의 지금 값어치(기대 = 수입 − 비용) — 한 동기가 여러 전략 중 하나를 고르는 잣대. 이동 비용은 표적까지
+//   거리에 비례하므로 값어치는 대략 **−거리**(가까운 기회일수록 높다). 표적이 없으면 null = 지금 이 전략은 불가.
+//   그래서 **같은 허기라도 밥이 가까우면 채집, 먹이가 가까우면 사냥**으로 갈린다 — "기회는 감정이 아니라 전략 선택".
+//   순수 계산(rng 미사용) → 결정론. distanceTo 는 ctx 지각(개방 경계) — 엔진은 이 함수의 의미를 모른다.
+const forageValue = (x) => { const c = x.nearestCrystal({ edibleOnly: true }); return c ? -Math.round(x.distanceTo(c)) : null; };
+const eatValue    = (x) => { const c = x.nearestCrystal();                    return c ? -Math.round(x.distanceTo(c)) - 1 : null; }; // 같은 결정이 익었으면 채집(요리 무비용)이 근소 우위(−1)
+const huntValue   = (x) => { const p = x.nearestPrey() || x.nearestFoe();     return p ? -Math.round(x.distanceTo(p)) : null; };
+const fleeValue   = (x) => { const t = x.nearestThreat();                     return t ? -Math.round(x.distanceTo(t)) : null; };
+
+// 허기(hunger) — 결핍(잔고 < 편안 임계). 수입을 원한다. 전략 셋은 같은 결핍을 다른 경로로 채우는 형제다:
+//   채집(익은 밥) · 식사(날것도 요리해 먹음) · 사냥(강탈+전리품). appraise=hungerFeeling(전략과 공유하던 그 차이).
+registerMotive(MOTIVE.HUNGER, {
+  label: '허기', appraise: hungerFeeling,
+  strategies: [
+    { name: DESIRE.FORAGE, value: forageValue },
+    { name: DESIRE.EAT,    value: eatValue },
+    { name: DESIRE.HUNT,   value: huntValue },
+  ],
+});
+// 안전(safety) — 손실 회피(위협 근접 = 예상 강제 지출). 유출을 막고 싶다. 전략: 회피. appraise=threatFeeling.
+registerMotive(MOTIVE.SAFETY, {
+  label: '안전', appraise: threatFeeling,
+  strategies: [
+    { name: DESIRE.FLEE, value: fleeValue },
+  ],
+});

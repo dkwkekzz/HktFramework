@@ -205,6 +205,16 @@ export const DESIRE = {
   CRAFT: 'craft',     // 제조 — 가까이 놓인 두 재료 결정(조합 지점)으로 가 하나의 산물로 조합한다(구 feature-0010(현 0018) step2)
   FLEE: 'flee',       // 회피 — 더 큰 포식자(위협)에게서 멀어진다(구 feature-0012(현 0018) step3 자율 감정원: 위협)
 };
+
+// --- 동기(motive) (feature-0018 step 1 재분류) — 욕구=줄이려는 상태 차이(결핍), 전략=그 차이를 줄이는 수단 ---
+// 위 DESIRE 는 이제 **전략(수단)** 이름이다. 그 위에 얹는 **동기(motive)** 는 "무엇이 부족한가"이며, 리트머스로
+//   갈린다: ctx 로 그 차이를 잴 수(appraise) 있으면 동기, 없으면 전략. 물리적으로 실재하는 양은 에너지뿐이라
+//   동기도 에너지 흐름에 대한 태도로 환원한다 — 허기(결핍→수입)·안전(손실 회피→유출 차단). 잉여(질서)는 step2.
+//   각 동기의 전략 목록·appraise 는 shared/desires.js(MOTIVES). 여기선 이름만 고정(방송·테스트 정합).
+export const MOTIVE = {
+  HUNGER: 'hunger',   // 허기 — 잔고가 편안 임계 아래(결핍). 전략: 채집·식사·사냥(같은 결핍을 다른 경로로 채운다)
+  SAFETY: 'safety',   // 안전 — 위협(더 큰 포식자) 근접 = 예상 강제 지출. 전략: 회피
+};
 export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)
 export const CREATURE_SEEK_RADIUS = 900;         // 욕망의 표적을 감지하는 반경(px) — 무한 시야가 아니라 국소적 인지

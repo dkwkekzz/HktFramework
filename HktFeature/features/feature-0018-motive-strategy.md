@@ -1,6 +1,6 @@
 # feature-0018 — 욕구 시스템: 동기(줄이려는 차이) → 전략(수단) → 절차(단계), 그리고 명령(행위자)
 
-> 상태: 🟡 진행 중 — **결선·전략·동기 층 검증됨**(구 feature-0010 step1~4 · 0011 step1~2 · 0012 step1~3 을 이 문서로 통합) · **재분류(동기 레지스트리·2단 선택) 미착수** · 작업 방식: [CLAUDE.md](../CLAUDE.md)
+> 상태: 🟡 진행 중 — **결선·전략·동기 층 검증됨**(구 feature-0010 step1~4 · 0011 step1~2 · 0012 step1~3 을 이 문서로 통합) · **재분류 step 1 검증됨**(동기 레지스트리 + 2단 선택 + 사냥 재분류) · **step 2~3 미착수** · 작업 방식: [CLAUDE.md](../CLAUDE.md)
 > 통합: 욕구·제어에 관한 문서는 이것 하나다. 구 feature-0010(제어)·0011(절차)·0012(우선순위)는 이 문서에 살아있는 내용을 합치고 **삭제**했다(step 로그·튜닝 이력은 git 히스토리에 완전 보존, 번호 0010~0012 는 은퇴). 검증의 실체는 지금도 도는 테스트들(`control/eat/craft/craftchain/priority/appraise/threat.test.js`)이다.
 
 ## 명제
@@ -60,7 +60,7 @@
 - **실행**: 유효 우선순위 내림차순으로 훑어 **지금 수행 가능한 첫 욕구**를 고른다 — 최우선이 불가하면 다음으로 내려간다(상황 의존 fallback).
 - 검증: `priority.test.js` 10종(중첩·증폭·dedup·fallback) · `appraise.test.js` 6종(자율 감정·포만 감쇠) · `threat.test.js` 5종(위협→회피) + `npm run shot`·`shot:threat`.
 
-### ④ 재분류 — 동기/전략 2단 선택 (미착수 🟡 ← 이 feature 의 남은 일)
+### ④ 재분류 — 동기/전략 2단 선택 (step 1 검증됨 ✅ · step 2~3 미착수 🟡)
 
 **최종 목적 (측정 가능)**:
 
@@ -93,7 +93,7 @@
 
 | step | 목표 | 핵심 | 검증 |
 |---|---|---|---|
-| **1** | **동기 층 + 2단 선택 + 사냥 재분류(기회 해소)** | `MOTIVES`(허기=채집·식사·사냥 / 안전=회피) · `#performDesire` 2단 순회 · 전략 순서=값어치 · 굶주림+가까운 먹이→자율 사냥(emote 없이) · `desire` 하위 호환 | 굶주리면 상황 따라 채집/사냥이 갈리고 배부르면 둘 다 잠듦 + 기존 회귀 + 시각 |
+| **1** ✅ | **동기 층 + 2단 선택 + 사냥 재분류(기회 해소)** | `MOTIVES`(허기=채집·식사·사냥 / 안전=회피) · `#performMotive` 2단 순회 · 전략 순서=값어치(value=−거리) · 굶주림+가까운 먹이→자율 사냥(emote 없이) · `desire` 하위 호환 · 동기는 차이 0(포만)이면 잠듦 | `motive.test.js` 9종(리트머스·기회 해소·상황 분기·포만 잠듦·회피·하위 호환·개방·결정론·보존) + `npm run shot:motive` 3컷 + 기존 회귀 184종 |
 | **2** | **잉여 동기(질서)** | `surplusFeeling` 신설 · 질서 동기(전략=제조) 등록 · 배부르면 제조·굶주리면 허기로 역전 | 외부 주입 없는 자율 제조 + 우선순위 역전 + 시각 |
 | **3** | **명령 층 정리 + 개방 재증명** | `commandedStrategy`(버튼=자율 우회) · `commandedTarget` 정합 · 런타임 `registerMotive` 등록(엔진 무수정) 증명 | 명령>자율·소진 시 자율 복귀 + 런타임 등록 테스트 |
 | 후속 | 종별 레시피·도구 (구 0011 backlog) | 특정 종 조합만 특정 산물·도구 조건 분기 — 반응 테이블은 feature-0013 step5 와 공유(레시피=플레이어 유발, 반응=자극 유발) | 새 전략 단계로 얹기 |
@@ -105,25 +105,28 @@
 
 | step | 한 일 | 검증 |
 |---|---|---|
-| — | (재분류 미착수 — 재정의·분류 수립 + 구 0010·0011·0012 통합·삭제) | 세 층의 기존 검증은 상시 재현: 아래 "검증" |
+| — | (재정의·분류 수립 + 구 0010·0011·0012 통합·삭제) | 세 층의 기존 검증은 상시 재현: 아래 "검증" |
+| **1** | **동기 층 + 2단 선택 + 사냥 재분류.** `shared/desires.js` 에 `MOTIVES`·`registerMotive` + 전략 `value(ctx)=−거리`(기대 값어치) 를 얹고 허기(채집·식사·사냥)·안전(회피) 동기 등록. `shared/constants.js` 에 `MOTIVE`(hunger·safety). 엔진(`game.js`): `#performDesire` 를 2단으로 — 스택 항목이 **동기**면 차이 0(포만)이면 잠들고, 있으면 `#performMotive`(전략을 value 내림차순으로 훑어 첫 적용 단계 수행) / 항목이 **전략**(legacy)이면 종전대로. `injectDesire`/`emote`/`#appraise` 가 동기 이름도 받게 확장(하위 호환 — 전략 이름 주입은 무변경). 방송 cell 의 desire = **수행 중 전략**(`activeStrategy`) 로 갈라 보내 뷰어가 동기 배지(hunger)+전략 라벨(사냥)을 그린다. **핵심 증명**: HUNT 주입 없이 굶주린 개체가 가까운 먹이를 스스로 강탈("사냥=허기의 전략"), 밥이 더 가까우면 채집으로 갈리고, 배부르면 둘 다 잠든다. | `motive.test.js` 9종 + `npm run shot:motive` 3컷(사냥→강탈→편안해지자 잠듦) + 기존 회귀 184종 상시 재현 |
 | 수리 | **라이브 플레이 가능성 3건(2026-07-09, 결선 층).** ① **내 생명체가 곧 사라짐** — 스폰 자리에 먹을 국소장·결정이 사거리 밖이라 ~12초 아사 → 접속 시 서식지 웅덩이(SOURCE→국소장) 시드 + 틱 루프가 소유 생명체 현재 복셀을 주기 재가열 + 죽어도(아사·전소·피식) 곧바로 **재소유**해 "내 생명체 없음" 회복. ② **주인이 쥔 대기(NONE) 생명체가 자율 방출·포식으로 자멸** — 자율 전투·발산 게이트가 `desire!==NONE`만 봐 소유 개체가 야생 취급됨 → `|| A.owner` 추가로 **야생(owner=null)만** 자율 전투(플레이어는 사냥을 걸어야 친다). ③ **카메라가 위를 못 봄** — pitch 하한 0.05 → −1.45 로 열어 올려다보기 허용. | 600초 감사(없음 0틱·size 5 성장·보존 10⁹ 유지) + `npm test` 회귀 |
 
 ## 검증 (항상 가능)
 
 ```bash
-npm test             # 세 층의 회귀 — control/craft(결선)·eat/craftchain/hunt(전략)·priority/appraise/threat(동기) + 기존 전부
+npm test             # 네 층의 회귀 — control/craft(결선)·eat/craftchain/hunt(전략)·priority/appraise/threat(동기)·motive(재분류) + 기존 전부(193종)
 npm run shot:control # 결선 시각 검증 — 채집 이동→도달·수행→사냥 전환 3컷
 npm run shot         # 동기 시각 검증 — 같은 스택 두 생명체가 굶주림/포만으로 갈라지는 3컷
 npm run shot:threat  # 위협→회피 — 큰 포식자에게서 도망치는 PNG
+npm run shot:motive  # 재분류 시각 검증(step1) — 허기만 준 개체가 가까운 먹이를 스스로 사냥→강탈→편안해지자 잠듦 3컷
 ./run.sh 6           # 라이브 — 봇들이 스스로 명령을 골라 이동·채집·사냥·요리·제조. tx 피드에 [이동]·[채집]·[강탈]·[요리]·[제조]
-# (착수 후) motive.test.js — 동기·전략 2단 선택, 자율 사냥=기회, 잉여 제조, 명령 우선, 리트머스
+# motive.test.js(step1) — 동기·전략 2단 선택, 자율 사냥=기회, 상황 분기, 포만 잠듦, 리트머스, 개방. (step2~3) 잉여 제조·명령 우선
 ```
 
 브라우저(관전자)에서: 카메라가 내 생명체(금색 고리)를 태운다. **표적을 클릭/터치**하면 굵은 마칭앤츠 표적선을 그리며 그 대상으로 가 상호작용하고(결정=먹기·작은 생명체=사냥), 다 쓰면 대기로 복귀. 빈 곳 클릭=대기(방향키 수동). 상단 **욕구 버튼**(🌿⚔🍚🔨✋, `1·2·3·4·0`)은 가장 가까운 표적으로 자동 수행. HUD 콜아웃이 "지금 무엇을 하는가"를 한 줄로 알려준다.
 
 ## 상세 문서 인덱스 (코드)
 
-- 전략 레지스트리·절차·ctx·감정: [../shared/desires.js](../shared/desires.js) — DESIRE_PROCEDURES·registerDesire·hungerFeeling·threatFeeling. (착수 후) MOTIVES·registerMotive·surplusFeeling.
-- 엔진: [../server/game.js](../server/game.js) — `#performDesire`(착수 후 2단)·`#pursueDesire`류 이동/도달·`injectDesire`/`emote`/`withdrawDesire`·`#appraise`·`setTarget`(`commandedTarget`)·possess/해제.
-- 상수: [../shared/constants.js](../shared/constants.js) — DESIRE·`desireWeight`·`DESIRE_COMFORT_FRACTION`·CRAFT_*·STRIDE 류.
+- 전략·동기 레지스트리·절차·ctx·감정: [../shared/desires.js](../shared/desires.js) — DESIRE_PROCEDURES·registerDesire·hungerFeeling·threatFeeling · **MOTIVES·registerMotive·전략 value(step1)**. (step2) surplusFeeling.
+- 엔진: [../server/game.js](../server/game.js) — `#performDesire`(**2단, step1**)·`#performMotive`(동기의 전략 value 선택)·이동/도달·`injectDesire`/`emote`/`withdrawDesire`(동기 이름도 수용)·`#appraise`·`setTarget`(`commandedTarget`)·possess/해제. 방송 cell desire=`activeStrategy`(수행 중 전략).
+- 상수: [../shared/constants.js](../shared/constants.js) — DESIRE(전략)·**MOTIVE(동기, step1)**·`desireWeight`·`DESIRE_COMFORT_FRACTION`·CRAFT_*·STRIDE 류.
+- 시각 검증(step1): [../tools/demo-control.mjs](../tools/demo-control.mjs) scene 'motive' · [../tools/shot-motive.mjs](../tools/shot-motive.mjs) → `tools/shots/motive-*.png`.
 - 결선(클라): [../client/render.js](../client/render.js)(카메라 태우기·표적선·오라·HUD·`#pickAt` 피킹) · [../client/main.js](../client/main.js)(TARGET 결선) · [../server/index.js](../server/index.js)(possess·표적 보장 아레나) · [../tools/bots.js](../tools/bots.js)(`chooseDesire` 봇 브레인).

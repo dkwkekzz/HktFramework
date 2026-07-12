@@ -17,7 +17,7 @@
 
 import { EnergyLedger } from '../shared/ledger.js';
 import { MSG, encode } from '../shared/protocol.js';
-import { DESIRE_PROCEDURES } from '../shared/desires.js';
+import { DESIRE_PROCEDURES, MOTIVES } from '../shared/desires.js';
 import { mulberry32 } from '../shared/rng.js';
 import {
   POOL, CAUSE, WORLD_SEED, WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, SPAWN_POS, WORLD_SOURCE_INITIAL, dist3,
@@ -158,7 +158,7 @@ export class GameServer {
     // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(구 feature-0012(현 0018) 중첩), moveDebt=이동 비용 누적(잔여 거리).
     //   구 feature-0012(현 0018): 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
     //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(구 feature-0010(현 0018) step4, 없으면 null=가장 가까운 표적 자동)
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null, activeStrategy: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(구 feature-0010(현 0018) step4) · activeStrategy=이번 틱 수행 중 전략(feature-0018 step1 방송용, 없으면 null)
     // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
     //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
     Object.defineProperty(cre, 'desire', {
@@ -229,7 +229,7 @@ export class GameServer {
   //   받는다(개방). NONE 주입 = 스택 비우기(대기로 복귀). priority=우선순위(중요도, 감정 얹기 전 기준).
   injectDesire(playerId, name, priority = DESIRE_BASE_PRIORITY) {
     if (name === DESIRE.NONE) { for (const cre of this.creatures.values()) if (cre.owner === playerId) cre.desires.clear(); return; }
-    if (!DESIRE_PROCEDURES[name]) return; // 미등록 욕구는 무시(개방 레지스트리 기반)
+    if (!DESIRE_PROCEDURES[name] && !MOTIVES[name]) return; // 미등록 이름은 무시(개방 레지스트리 — 전략·동기 둘 다 받는다, feature-0018)
     for (const cre of this.creatures.values()) if (cre.owner === playerId) {
       const prev = cre.desires.get(name);
       cre.desires.set(name, { priority, emotion: prev ? prev.emotion : 0, feeling: prev ? prev.feeling : 0 }); // dedup — 우선순위 갱신, 감정·자율감정 보존
@@ -240,7 +240,7 @@ export class GameServer {
   //   priority + emotion 이므로, 감정을 실으면 낮은 기본 우선순위의 욕구도 다른 욕구를 이겨 **행동이 바뀐다**.
   //   아직 스택에 없던 욕구면 기본 우선순위로 만들어 얹는다(감정이 곧 그 욕구를 부른다). 감정은 [0,MAX] 정수로 클램프.
   emote(playerId, name, emotion) {
-    if (name === DESIRE.NONE || !DESIRE_PROCEDURES[name]) return;
+    if (name === DESIRE.NONE || (!DESIRE_PROCEDURES[name] && !MOTIVES[name])) return; // 전략·동기 둘 다 감정을 실을 수 있다(feature-0018)
     const e = Math.max(0, Math.min(DESIRE_EMOTION_MAX, emotion | 0));
     for (const cre of this.creatures.values()) if (cre.owner === playerId) {
       const prev = cre.desires.get(name);
@@ -1004,21 +1004,48 @@ export class GameServer {
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
+      cre.activeStrategy = null; // 이번 틱 수행 중 전략(방송용) 초기화 — 아무것도 못 하면 null(대기)
       if (this.#dormant(cre)) continue; // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
       const ctx = this.#desireCtx(cre);
-      // 구 feature-0012(현 0018): 중첩된 욕구를 **유효 우선순위 내림차순**으로 훑어, **지금 수행 가능한 첫 욕구**의 첫 적용
-      //   단계를 실행한다. 최우선 욕구가 상황상 수행 불가(표적 없음 등)면 다음 우선순위로 내려간다 → "상황에 따라
-      //   행동이 달라진다". 감정으로 우선순위를 키우면 이 순서가 바뀌어 행동이 바뀐다(감정=중요도).
+      // 유효 우선순위(priority+emotion+feeling) 내림차순으로 스택을 훑어, **지금 수행 가능한 첫 항목**을 수행한다.
+      //   항목이 **동기(motive)** 면 2단 선택(feature-0018): 차이가 없으면(feeling 0) 잠들고, 있으면 그 동기의 전략 중
+      //   가장 값어치 있는 것을 고른다. 항목이 **전략(legacy)** 이면 그 절차의 첫 적용 단계를 바로 수행한다(구 0011·0012 하위 호환).
+      //   최상위가 상황상 불가면 다음 우선순위로 내려간다 → "상황에 따라 행동이 달라진다".
       for (const name of this.#rankedDesires(cre)) {
-        const proc = DESIRE_PROCEDURES[name];
-        if (!proc) continue;
-        let acted = false;
-        for (const step of proc.steps) {
-          if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 욕구의 첫 적용 단계(우선순위 절차, 구 feature-0011(현 0018))
+        if (MOTIVES[name]) { // ── 동기: 2단 선택 ──
+          const entry = cre.desires.get(name);
+          if (entry && entry.feeling <= 0) continue; // 차이 없음 = 동기 잠듦(배부르면 허기 전략 전부 멎음)
+          if (this.#performMotive(cre, MOTIVES[name], ctx)) break;
+        } else {           // ── 전략(legacy): 절차 직행 ──
+          const proc = DESIRE_PROCEDURES[name];
+          if (!proc) continue;
+          let acted = false;
+          for (const step of proc.steps) {
+            if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 전략의 첫 적용 단계(우선순위 절차, 구 feature-0011(현 0018))
+          }
+          if (acted) { cre.activeStrategy = name; break; } // 가장 높은 우선순위의 수행 가능한 항목이 이번 틱을 차지한다
         }
-        if (acted) break; // 가장 높은 우선순위의 수행 가능한 욕구가 이번 틱을 차지한다
       }
     }
+  }
+
+  // 동기의 전략 2단 선택 (feature-0018 step 1) — 승자 동기의 전략들을 **지금 값어치(value=수입−비용≈−거리)**
+  //   내림차순으로 훑어, 첫 적용 단계가 실행되는 전략을 수행하고 activeStrategy 에 남긴다(방송·계측용). value=null
+  //   (표적 없음)인 전략은 건너뛴다. 그래서 같은 허기라도 상황(어느 표적이 가까운가)에 따라 채집/식사/사냥이
+  //   갈린다 — emote·priority 주입 없이("기회=감정이 아니라 전략 선택"). 순수 계산(rng 미사용) → 결정론.
+  #performMotive(cre, motive, ctx) {
+    const ranked = motive.strategies
+      .map((s, i) => ({ s, v: typeof s.value === 'function' ? s.value(ctx) : 0, i }))
+      .filter(e => e.v !== null && e.v !== undefined)  // 표적 없는(불가) 전략 제외
+      .sort((a, b) => b.v - a.v || a.i - b.i);          // 값어치 큰(가까운 기회) 순, 동률은 정의 순서(결정론)
+    for (const { s } of ranked) {
+      const proc = DESIRE_PROCEDURES[s.name];
+      if (!proc) continue;
+      for (const step of proc.steps) {
+        if (step.applicable(ctx)) { step.act(ctx); cre.activeStrategy = s.name; return true; }
+      }
+    }
+    return false;
   }
 
   // 욕구 스택을 유효 우선순위(priority+emotion+feeling) 내림차순으로 정렬한 이름 목록 (구 feature-0012(현 0018)). 동률은 주입
@@ -1040,10 +1067,10 @@ export class GameServer {
       if (cre.desires.size === 0) continue;
       let ctx = null;
       for (const [name, d] of cre.desires) {
-        const proc = DESIRE_PROCEDURES[name];
-        if (!proc || typeof proc.appraise !== 'function') { d.feeling = 0; continue; }
+        const src = MOTIVES[name] || DESIRE_PROCEDURES[name]; // 동기·전략 어느 쪽이든 appraise 를 가진 것으로 자율 감정 계산(feature-0018)
+        if (!src || typeof src.appraise !== 'function') { d.feeling = 0; continue; }
         if (!ctx) ctx = this.#desireCtx(cre);
-        d.feeling = Math.max(0, Math.min(DESIRE_EMOTION_MAX, proc.appraise(ctx) | 0));
+        d.feeling = Math.max(0, Math.min(DESIRE_EMOTION_MAX, src.appraise(ctx) | 0));
       }
     }
   }
@@ -1383,7 +1410,10 @@ export class GameServer {
         const b = this.ledger.balance(c.id);
         if (b <= 0) continue;
         const cmd = c.commandedTarget ? [c.commandedTarget.kind === 'creature' ? 2 : 1, c.commandedTarget.seq] : 0; // 구 feature-0010(현 0018) step4: 지정 표적(1=결정·2=생명체)
-        const cell = [c.seq, c.x, c.y, c.z, b, c.size, c.desire, c.owner, this.#desireStack(c), c.items.length, cmd]; // 구 feature-0012(현 0018): desires=중첩 스택 · feature-0014: items · step4: cmd
+        // 방송 desire = **수행 중 전략**(뷰어가 표적선·라벨). 동기가 이겼으면 activeStrategy(고른 전략)을, 전략(legacy)이
+        //   이겼으면 c.desire 를 그대로 — 동기 이름(hunger/safety)은 뷰어가 모르므로 전략으로 갈라 보낸다(feature-0018 step1).
+        const shown = c.activeStrategy ?? (MOTIVES[c.desire] ? 'none' : c.desire);
+        const cell = [c.seq, c.x, c.y, c.z, b, c.size, shown, c.owner, this.#desireStack(c), c.items.length, cmd]; // desires=동기·전략 중첩 스택 · items(0014) · cmd(step4) · desire=수행 중 전략
         const rk = regionKey(c.x, c.y);
         creatureBySeq.set(c.seq, cell);
         let bucket = creatureByRegion.get(rk);

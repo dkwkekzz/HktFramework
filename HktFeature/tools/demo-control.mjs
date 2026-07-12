@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from '../server/game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, DESIRE, POOL, CAUSE, CREATURE_MAX_ENERGY } from '../shared/constants.js';
+import { TICK_RATE, DESIRE, MOTIVE, POOL, CAUSE, CREATURE_MAX_ENERGY } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -55,6 +55,15 @@ const DETONATE = {
 //   위협이 가까울수록 회피가 이기고, 멀어지면(감지 반경 밖) 감정이 감쇠해 멈춘다. 감정이 상황에서 자율 생성됨을 본다.
 const THREAT = {
   predator: { x: 1250, y: 950, z: 625 }, // 큰 포식자(size4) — 내 생명체 시작(1250,750) 근처(200px), 제자리 위협
+};
+// 동기 씬(feature-0018 step1) — **동기(허기)만** 주고 전략(채집/사냥)은 주지 않는다. 굶주린 한 생명체 곁에 밥과 먹이를
+//   둘 다 두되 **먹이를 더 가까이** 놓는다: 같은 허기라도 값어치(수입−비용≈−거리)가 큰 가까운 기회를 골라 → 스스로
+//   **사냥 전략**을 택해 강탈한다("사냥은 욕구가 아니라 허기의 전략 · 기회는 감정이 아니라 전략 선택"). 밥이 더 가까웠다면
+//   같은 허기가 채집을 골랐을 것(단위 테스트가 대칭·포만 잠듦까지 증명). 모두 관측 창(스폰 중심 둘레) 안에 둬 렌더 안정.
+const MOTIVE_SCENE = {
+  start: { x: 1000, y: 1000, z: 625 }, // 굶주린 생명체 시작(스폰 중심)
+  prey:  { x: 1000, y: 1300, z: 625 }, // 먹이(size1, 가까이 거리 300) → 사냥 전략의 표적(더 값어치)
+  food:  { x: 620,  y: 1000, z: 625 }, // 밥(먹을 수 있는 결정, 멀리 거리 380) → 채집 전략의 표적(덜 값어치라 이번엔 안 고른다)
 };
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
@@ -121,6 +130,12 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const pred = game.spawnCreature(THREAT.predator.x, THREAT.predator.y, THREAT.predator.z);
     pred.size = 4; pred.owner = 'P:demo'; game.ledger.get(pred.id).max = CREATURE_MAX_ENERGY * 4;
     game.ledger.transfer(POOL.SOURCE, pred.id, 3000, CAUSE.SPAWN);
+  } else if (scene === 'motive') {
+    // 동기 씬(feature-0018 step1) — 밥(멀리)·먹이(가까이, 소유 더미라 반격·이동 없음). 생명체는 접속 시 possess.
+    game.spawnFood(MOTIVE_SCENE.food.x, MOTIVE_SCENE.food.y, MOTIVE_SCENE.food.z, 3, 9000); // 먹을 수 있는 밥(채집 표적)
+    const prey = game.spawnCreature(MOTIVE_SCENE.prey.x, MOTIVE_SCENE.prey.y, MOTIVE_SCENE.prey.z); // size1 = 먹이(강탈 대상)
+    prey.owner = 'P:demo'; game.ledger.get(prey.id).max = CREATURE_MAX_ENERGY * 8;
+    game.ledger.transfer(POOL.SOURCE, prey.id, CREATURE_MAX_ENERGY * 8, CAUSE.SPAWN); // 넉넉히 채워 계속 표적이 된다
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -144,6 +159,15 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           if (cur > targetBal) game.ledger.transfer(c.id, POOL.SOURCE, cur - targetBal, CAUSE.METABOLIZE);
           else if (cur < targetBal) game.ledger.transfer(POOL.SOURCE, c.id, targetBal - cur, CAUSE.SPAWN);
         };
+        if (scene === 'motive') {
+          // 동기 씬(feature-0018 step1) — 굶주린 생명체 하나에 **동기(허기)만** 준다(전략 채집/사냥은 주입하지 않는다).
+          //   곁에 밥(멀리)·먹이(가까이)가 있으면, 같은 허기가 값어치 큰 가까운 기회(먹이)를 골라 **스스로 사냥한다**
+          //   — HUNT 를 주입하지 않았는데도. "사냥은 욕구가 아니라 허기를 채우는 전략"이 눈으로 확인된다.
+          const cre = game.possessCreature(playerId, MOTIVE_SCENE.start.x, MOTIVE_SCENE.start.y, MOTIVE_SCENE.start.z);
+          rear(cre, 500); // 굶주림(편안 임계 1000 아래) — 헤드룸이 넉넉해 강탈로 편안해질 때까지 계속 사냥한다(예비는 아사선 120 위)
+          game.injectDesire(playerId, MOTIVE.HUNGER, 1); // 동기 허기 하나만 — 전략은 상황이 고른다
+          return;
+        }
         if (scene === 'appraise') {
           // 자율 감정 씬(step2) — **감정을 밖에서 싣지 않는다**. 두 생명체에 **같은 스택**(식사1·사냥2, 평소엔
           //   사냥 우선)을 주되 상황만 다르게 둔다: 하나는 굶주림·하나는 포만. 굶주린 쪽은 굶주림(차이)이 식사
