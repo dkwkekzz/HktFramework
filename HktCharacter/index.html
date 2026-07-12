@@ -39,12 +39,14 @@
   .row input[type=range] { flex: 1; }
   .row .val { flex: 0 0 auto; color: #6f7a88; width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
   .who { font-size: 11px; letter-spacing: 0; text-transform: none; color: #3b82f6; }
-  .panel button.char { display: inline-flex; flex-direction: column; align-items: center;
-    width: 92px; padding: 8px 4px; }
-  .panel button.char .cap { font-size: 11px; color: #8b95a3; margin-top: 2px; }
-  .panel button.char.on .cap { color: #cfe0ff; }
-  .panel button.rep { width: 100%; margin: 4px 0 0; padding: 3px 4px; font-size: 11px; color: #8b95a3; }
-  .panel button.rep:hover { color: #cfe0ff; }
+  #charNow { font-size: 12px; color: #cfe0ff; margin-bottom: 6px;
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #charNow .k { color: #8b95a3; }
+  .panel select {
+    width: 100%; background: #232a33; color: #cfd6df; border: 1px solid #37404c;
+    border-radius: 6px; padding: 5px 8px; margin-top: 2px; font-size: 12px; cursor: pointer;
+  }
+  .panel select:hover { background: #2d3641; }
   #btnPropReset { width: 100%; margin-top: 6px; }
   .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 
@@ -66,8 +68,9 @@
 </div>
 
 <div class="panel">
-  <h3>캐릭터 (모델 선택)</h3>
-  <div id="chars"></div>
+  <h3>캐릭터</h3>
+  <div id="charNow"><span class="k">현재:</span> —</div>
+  <select id="charSelect"></select>
   <h3>애니메이션 <span id="animWho" class="who"></span></h3>
   <div id="anims"></div>
   <h3>본 비율 <span id="propWho" class="who"></span></h3>

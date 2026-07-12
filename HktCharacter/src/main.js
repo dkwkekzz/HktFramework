@@ -2,7 +2,8 @@
 //  HktCharacter — 캐릭터 선택 + 애니메이션 + 본 비율 뷰어 (v3)
 //
 //  v4: 화면에는 캐릭터 **한 명**만 세운다.
-//    1. 모델 버튼(남자 X Bot / 여자 Y Bot / 📁 임의 FBX)으로 그 자리를 갈아끼운다.
+//    1. 드롭다운(저장소 모델 + 📁 FBX 임포트)으로 그 자리를 갈아끼운다. 현재 로드된
+//       모델 이름은 패널 상단(#charNow)에 표시한다.
 //    2. 애니메이션 버튼 → 현재 캐릭터에 리타깃 재생. 리타깃은 순수 월드 공간 자체
 //       구현(bakeClip), 구동 뼈는 메시 소속이 아니라 계층 등뼈(DFS-첫 뼈).
 //    3. 접지: 클립별 접지 y 를 재생 시작 전에 **미리 측정**(measureClipRootY)해 root.y
@@ -62,7 +63,10 @@ scene.add(ring);
 
 function resize() {
   const w = app.clientWidth, h = app.clientHeight;
-  renderer.setSize(w, h, false);
+  // updateStyle=true(기본) — 캔버스 CSS 크기를 뷰포트에 맞춘다. false 로 두면 HiDPI
+  // (devicePixelRatio 2, 예: 레티나)에서 드로잉 버퍼(w·pr × h·pr)가 CSS 크기 미설정으로
+  // 그대로 표시돼 캔버스가 뷰포트를 넘치고, 중앙 정렬된 모델이 화면 우하단으로 밀린다.
+  renderer.setSize(w, h);
   cam.aspect = w / h;
   cam.updateProjectionMatrix();
 }
@@ -97,11 +101,13 @@ const defaultProps = () => Object.fromEntries(PROP_GROUPS.map(g => [g.id, 1]));
 // ---------------------------------------------------------------------------
 //  슬롯 정의 — 화면에 항상 두 캐릭터. 각 슬롯은 ch(캐릭터 상태)를 가진다.
 // ---------------------------------------------------------------------------
+// 저장소(public/assets/character/)에 있는 모델 목록 = 드롭다운 "저장소 모델" 항목.
+// 새 캐릭터 FBX 를 추가하면 여기 한 줄만 늘리면 된다.
 const MODELS = [
-  { label: '남자 (X Bot)', file: 'assets/character/X Bot.fbx' },
-  { label: '여자 (Y Bot)', file: 'assets/character/Y Bot.fbx' },
+  { label: 'X Bot', file: 'assets/character/X Bot.fbx' },
+  { label: 'Y Bot', file: 'assets/character/Y Bot.fbx' },
 ];
-// v4: 화면에는 캐릭터 **한 명**만. 모델 버튼(남자/여자/📁 교체)으로 그 자리를 갈아끼운다.
+// v4: 화면에는 캐릭터 **한 명**만. 드롭다운(저장소 모델/📁 임포트)으로 그 자리를 갈아끼운다.
 const SLOTS = {
   main: { label: MODELS[0].label, file: MODELS[0].file, x: 0, ch: null },
 };
@@ -457,7 +463,7 @@ async function loadSlotBase(slotId) {
   makeCh(slotId, parsed);
 }
 
-// 모델 버튼(남자/여자)으로 화면의 캐릭터를 갈아끼운다. 클립 캐시는 캐릭터별이므로
+// 드롭다운(저장소 모델)으로 화면의 캐릭터를 갈아끼운다. 클립 캐시는 캐릭터별이므로
 // 새 캐릭터에는 대기부터 다시 리타깃해 세운다.
 let switching = false;
 async function switchModel(m) {
@@ -475,7 +481,7 @@ async function switchModel(m) {
     setStatus('로드 실패: ' + e.message);
   }
   switching = false;
-  refreshCharButtons();
+  refreshCharSelect();
   refreshPropSliders();
 }
 
@@ -489,8 +495,8 @@ async function bootstrap() {
   }
   await playAnim('대기', 'idle', 'main', 0);
   select('main');
-  refreshCharButtons();
-  setStatus('준비됨 — 모델 버튼으로 캐릭터를 바꾸고, 애니메이션을 눌러보세요.');
+  refreshCharSelect();
+  setStatus('준비됨 — 드롭다운으로 캐릭터를 바꾸고, 애니메이션을 눌러보세요.');
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +506,7 @@ function select(id) {
   if (!SLOTS[id]) return;
   selected = id;
   updateRing();
-  refreshCharButtons();
+  refreshCharSelect();
   refreshAnimButtons();
   refreshPropSliders();
   mcFlesh.setVisible(ui.sdf && !!selCh());
@@ -520,25 +526,47 @@ function updateRing() {
 // ---------------------------------------------------------------------------
 const $ = id => document.getElementById(id);
 
-// 캐릭터는 한 명 — 버튼은 "그 자리에 어떤 모델을 세울지" 선택.
-function refreshCharButtons() {
-  const box = $('chars'); box.innerHTML = '';
+// 캐릭터는 한 명 — 드롭다운으로 "그 자리에 어떤 모델을 세울지" 선택하고, 현재 로드된
+// 모델 이름 + 재생 중 애니메이션을 상단(#charNow)에 표시한다.
+const CUSTOM_PREFIX = '__custom__:';
+function refreshCharSelect() {
   const slot = SLOTS.main;
-  for (const m of MODELS) {
-    const on = slot.file === m.file;
-    const b = document.createElement('button');
-    b.className = 'char' + (on ? ' on' : '');
-    const cap = on ? (slot.ch?.active || '로드 중…') : ' ';
-    b.innerHTML = `${m.label}<span class="cap">${cap}</span>`;
-    b.addEventListener('click', () => switchModel(m));
-    box.appendChild(b);
+  const isCustom = slot.file.startsWith(CUSTOM_PREFIX);
+
+  // 현재 로드 표시
+  const anim = slot.ch ? (slot.ch.active || '로드 중') : '로드 중';
+  $('charNow').innerHTML =
+    `<span class="k">현재:</span> ${slot.label} <span class="k">· ${anim}</span>`;
+
+  // 드롭다운 = 저장소 모델 + (임포트된 커스텀) + 임포트 트리거
+  const sel = $('charSelect'); sel.innerHTML = '';
+  const grp = document.createElement('optgroup'); grp.label = '저장소 모델';
+  MODELS.forEach((m, i) => {
+    const o = document.createElement('option');
+    o.value = 'model:' + i; o.textContent = m.label;
+    if (!isCustom && slot.file === m.file) o.selected = true;
+    grp.appendChild(o);
+  });
+  sel.appendChild(grp);
+  if (isCustom) {
+    const o = document.createElement('option');
+    o.value = 'custom'; o.selected = true;
+    o.textContent = `${slot.label} (임포트됨)`;
+    sel.appendChild(o);
   }
-  const rep = document.createElement('button');
-  rep.className = 'rep'; rep.textContent = '📁 다른 FBX 로 교체';
-  rep.title = '임의의 with-skin FBX 로 교체 (드롭도 가능)';
-  rep.addEventListener('click', () => openReplace());
-  box.appendChild(rep);
+  const imp = document.createElement('option');
+  imp.value = 'import'; imp.textContent = '📁 FBX 임포트…';
+  sel.appendChild(imp);
 }
+
+// 드롭다운 변경 → 저장소 모델 전환 / 임포트 파일창. (선택값은 refreshCharSelect 가 되돌린다)
+function onCharSelectChange() {
+  const v = $('charSelect').value;
+  if (v === 'import') { openReplace(); refreshCharSelect(); return; }
+  if (v === 'custom') return;
+  if (v.startsWith('model:')) switchModel(MODELS[+v.slice(6)]);
+}
+$('charSelect').addEventListener('change', onCharSelectChange);
 
 // 임의 FBX 로 교체 — 파일 선택창(드롭과 같은 경로).
 function openReplace() {
@@ -558,7 +586,7 @@ function refreshAnimButtons() {
     b.addEventListener('click', () => playAnim(label, file));
     box.appendChild(b);
   }
-  refreshCharButtons(); // 캐릭터 버튼의 현재 애니메이션 캡션 갱신
+  refreshCharSelect(); // 상단 현재-모델 표시의 애니메이션 캡션 갱신
 }
 
 function refreshPropSliders() {
@@ -628,14 +656,14 @@ function loadDroppedFBX(buf, label) {
 
   if (meshes.length) {
     // with-skin → 화면의 캐릭터를 이 모델로 교체
-    SLOTS.main.file = `__custom__:${label}`; // 기본 모델 버튼 하이라이트 해제
+    SLOTS.main.file = CUSTOM_PREFIX + label; // 저장소 모델 선택 해제(커스텀 표시)
     SLOTS.main.label = label;
     disposeCh('main');
     makeCh('main', parsed);
     // 표준 대기 클립을 얹어 세운다 (교체된 캐릭터의 리그에 리타깃, 접지는 playClip 이 처리).
     playAnim('대기', 'idle', 'main', 0).finally(() => {
       select('main');
-      refreshCharButtons(); refreshPropSliders();
+      refreshCharSelect(); refreshPropSliders();
     });
     setStatus(`캐릭터 교체 — <b>${label}</b> (메시 ${meshes.length} · 뼈 ${bones.length}).`);
   } else if (bones.length && obj.animations?.length) {
