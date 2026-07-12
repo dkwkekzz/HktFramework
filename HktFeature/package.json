@@ -9,6 +9,8 @@
     "demo": "node tools/demo-control.mjs",
     "shot": "node tools/shot.mjs",
     "shot:control": "node tools/shot-control.mjs",
+    "shot:motive": "node tools/shot-motive.mjs",
+    "shot:order": "node tools/shot-order.mjs",
     "shot:blast": "node tools/shot-blast.mjs",
     "shot:detonate": "node tools/shot-detonate.mjs",
     "shot:threat": "node tools/shot-threat.mjs"

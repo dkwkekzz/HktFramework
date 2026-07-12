@@ -18,7 +18,7 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from '../server/game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, DESIRE, POOL, CAUSE, CREATURE_MAX_ENERGY } from '../shared/constants.js';
+import { TICK_RATE, DESIRE, MOTIVE, POOL, CAUSE, CREATURE_MAX_ENERGY } from '../shared/constants.js';
 
 const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8', '.css': 'text/css; charset=utf-8' };
@@ -55,6 +55,41 @@ const DETONATE = {
 //   위협이 가까울수록 회피가 이기고, 멀어지면(감지 반경 밖) 감정이 감쇠해 멈춘다. 감정이 상황에서 자율 생성됨을 본다.
 const THREAT = {
   predator: { x: 1250, y: 950, z: 625 }, // 큰 포식자(size4) — 내 생명체 시작(1250,750) 근처(200px), 제자리 위협
+};
+// 동기 씬(feature-0018 step1) — **동기(허기)만** 주고 전략(채집/사냥)은 주지 않는다. 굶주린 한 생명체 곁에 밥과 먹이를
+//   둘 다 두되 **먹이를 더 가까이** 놓는다: 같은 허기라도 값어치(수입−비용≈−거리)가 큰 가까운 기회를 골라 → 스스로
+//   **사냥 전략**을 택해 강탈한다("사냥은 욕구가 아니라 허기의 전략 · 기회는 감정이 아니라 전략 선택"). 밥이 더 가까웠다면
+//   같은 허기가 채집을 골랐을 것(단위 테스트가 대칭·포만 잠듦까지 증명). 모두 관측 창(스폰 중심 둘레) 안에 둬 렌더 안정.
+const MOTIVE_SCENE = {
+  start: { x: 1000, y: 1000, z: 625 }, // 굶주린 생명체 시작(스폰 중심)
+  prey:  { x: 1000, y: 1300, z: 625 }, // 먹이(size1, 가까이 거리 300) → 사냥 전략의 표적(더 값어치)
+  food:  { x: 620,  y: 1000, z: 625 }, // 밥(먹을 수 있는 결정, 멀리 거리 380) → 채집 전략의 표적(덜 값어치라 이번엔 안 고른다)
+};
+// 질서 씬(feature-0018 step2) — **배부른** 생명체 곁에 재료 쌍을 두면 외부 주입(CRAFT) 없이 **질서 동기**가 깨어
+//   스스로 제조한다(잉여를 산물로 산다). 굶주리면 잉여 0 으로 잠들고 허기가 깨어 밥으로 간다(역전). 관측 창 안.
+//   재료 쌍 여러 개를 사거리(300) 살짝 **안**(거리 ~250)에 두어 곧바로 조합이 시작되고 여러 쌍을 이어 만든다.
+const ORDER_SCENE = {
+  start: { x: 1000, y: 1000, z: 625 }, // 배부른 생명체 시작
+  base:  { x: 1000, y: 1250, z: 625 }, // 재료 쌍 무리의 중심(사거리 안 = 곧바로 조합)
+};
+// 재료 쌍 무리를 base 둘레에 흩어 놓는다(각 쌍은 CRAFT_PAIR_RADIUS 안, 쌍끼리는 떨어뜨려 순차 조합).
+function seedCraftPairs(game, base, pairs = 4) {
+  for (let i = 0; i < pairs; i++) {
+    const bx = base.x + (i - (pairs - 1) / 2) * 90;
+    game.spawnRawFood(bx - 35, base.y, base.z, 2, 3200);
+    game.spawnRawFood(bx + 35, base.y, base.z, 7, 3200);
+  }
+}
+// 플레이 씬(feature-0018 전 층 통합) — **플레이어가 직접 확인**하는 무대. 접속하면 세 동기(허기·안전·질서)를 가진
+//   생명체를 쥐고, 둘레에 밥·먹이·재료 쌍이 있다. 굶주리면 스스로 채집/사냥, 배부르면 스스로 제조 — 상태에 따라
+//   자율로 산다. 상단 버튼(1채집·2사냥·3식사·4제조·0대기)이나 표적 클릭으로 **명령**하면 자율을 우회하고, 소진되면
+//   자율로 복귀한다. 아래 warm 루프가 표적을 계속 채워 무대가 마르지 않는다. (모두 관측 창 안 = 렌더 안정.)
+const PLAY_SCENE = {
+  start:  { x: 1000, y: 1000, z: 625 }, // 내 생명체(세 동기)
+  food:   { x: 680,  y: 1000, z: 625 }, // 밥(채집·식사)
+  prey:   { x: 1000, y: 1320, z: 625 }, // 먹이(사냥, size1)
+  matA:   { x: 1320, y: 940,  z: 625 }, // 재료 A(제조)
+  matB:   { x: 1320, y: 1020, z: 625 }, // 재료 B(제조, A 와 붙어 쌍)
 };
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
@@ -121,6 +156,23 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const pred = game.spawnCreature(THREAT.predator.x, THREAT.predator.y, THREAT.predator.z);
     pred.size = 4; pred.owner = 'P:demo'; game.ledger.get(pred.id).max = CREATURE_MAX_ENERGY * 4;
     game.ledger.transfer(POOL.SOURCE, pred.id, 3000, CAUSE.SPAWN);
+  } else if (scene === 'motive') {
+    // 동기 씬(feature-0018 step1) — 밥(멀리)·먹이(가까이, 소유 더미라 반격·이동 없음). 생명체는 접속 시 possess.
+    game.spawnFood(MOTIVE_SCENE.food.x, MOTIVE_SCENE.food.y, MOTIVE_SCENE.food.z, 3, 9000); // 먹을 수 있는 밥(채집 표적)
+    const prey = game.spawnCreature(MOTIVE_SCENE.prey.x, MOTIVE_SCENE.prey.y, MOTIVE_SCENE.prey.z); // size1 = 먹이(강탈 대상)
+    prey.owner = 'P:demo'; game.ledger.get(prey.id).max = CREATURE_MAX_ENERGY * 8;
+    game.ledger.transfer(POOL.SOURCE, prey.id, CREATURE_MAX_ENERGY * 8, CAUSE.SPAWN); // 넉넉히 채워 계속 표적이 된다
+  } else if (scene === 'order') {
+    // 질서 씬(feature-0018 step2) — 사거리 밖 재료 쌍 무리. 배부른 생명체가 질서 동기로 다가가 스스로 조합한다.
+    seedCraftPairs(game, ORDER_SCENE.base);
+  } else if (scene === 'play') {
+    // 플레이 씬(통합) — 밥·먹이·재료 쌍. 생명체는 접속 시 possess(세 동기). 표적은 아래 warm 루프가 계속 채운다.
+    game.spawnFood(PLAY_SCENE.food.x, PLAY_SCENE.food.y, PLAY_SCENE.food.z, 3, 9000);
+    const prey = game.spawnCreature(PLAY_SCENE.prey.x, PLAY_SCENE.prey.y, PLAY_SCENE.prey.z);
+    prey.owner = 'P:demo'; game.ledger.get(prey.id).max = CREATURE_MAX_ENERGY * 8;
+    game.ledger.transfer(POOL.SOURCE, prey.id, CREATURE_MAX_ENERGY * 8, CAUSE.SPAWN);
+    game.spawnRawFood(PLAY_SCENE.matA.x, PLAY_SCENE.matA.y, PLAY_SCENE.matA.z, 2, 3500);
+    game.spawnRawFood(PLAY_SCENE.matB.x, PLAY_SCENE.matB.y, PLAY_SCENE.matB.z, 7, 3500);
   } else {
     // 밥 하나를 그 자리에 둔다 — 식사면 날것(요리 필요), 채집이면 먹을 수 있는 결정. 국소장 없이 밥만이 표적.
     game.spawnRawFood(FOOD.x, FOOD.y, FOOD.z, 0, 9000);          // 날것 밥(raw). 채집 씬은 아래에서 요리 상태로 바꾼다.
@@ -144,6 +196,34 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
           if (cur > targetBal) game.ledger.transfer(c.id, POOL.SOURCE, cur - targetBal, CAUSE.METABOLIZE);
           else if (cur < targetBal) game.ledger.transfer(POOL.SOURCE, c.id, targetBal - cur, CAUSE.SPAWN);
         };
+        if (scene === 'motive') {
+          // 동기 씬(feature-0018 step1) — 굶주린 생명체 하나에 **동기(허기)만** 준다(전략 채집/사냥은 주입하지 않는다).
+          //   곁에 밥(멀리)·먹이(가까이)가 있으면, 같은 허기가 값어치 큰 가까운 기회(먹이)를 골라 **스스로 사냥한다**
+          //   — HUNT 를 주입하지 않았는데도. "사냥은 욕구가 아니라 허기를 채우는 전략"이 눈으로 확인된다.
+          const cre = game.possessCreature(playerId, MOTIVE_SCENE.start.x, MOTIVE_SCENE.start.y, MOTIVE_SCENE.start.z);
+          rear(cre, 500); // 굶주림(편안 임계 1000 아래) — 헤드룸이 넉넉해 강탈로 편안해질 때까지 계속 사냥한다(예비는 아사선 120 위)
+          game.injectDesire(playerId, MOTIVE.HUNGER, 1); // 동기 허기 하나만 — 전략은 상황이 고른다
+          return;
+        }
+        if (scene === 'order') {
+          // 질서 씬(feature-0018 step2) — 배부른 생명체에 **질서 동기만** 준다(CRAFT 전략은 주입하지 않는다).
+          //   곁의 재료 쌍을 잉여로 스스로 조합한다. 굶주려지면(제조 비용으로) 잉여 0 → 질서 잠들고 허기가 깨어야 하나
+          //   여기선 밥이 없어 그냥 멈춘다(순수 질서 관찰). 역전은 'play' 씬에서 밥과 함께 본다.
+          const cre = game.possessCreature(playerId, ORDER_SCENE.start.x, ORDER_SCENE.start.y, ORDER_SCENE.start.z);
+          rear(cre, 1900); // 포만(잉여 > 0) → 질서가 깨어 제조
+          game.injectDesire(playerId, MOTIVE.ORDER, 1);
+          return;
+        }
+        if (scene === 'play') {
+          // 플레이 씬(통합) — 세 동기(허기·안전·질서)를 준다. 상태에 따라 자율로 산다: 굶주리면 채집/사냥, 배부르면
+          //   제조. 위협이 오면 회피(warm 루프가 이따금 큰 포식자를 풀 수도). 버튼/클릭으로 명령하면 자율을 우회한다.
+          const cre = game.possessCreature(playerId, PLAY_SCENE.start.x, PLAY_SCENE.start.y, PLAY_SCENE.start.z);
+          rear(cre, 700); // 조금 굶주림 → 먼저 채집/사냥으로 채우고, 배부르면 제조로 넘어가는 순환이 보인다
+          game.injectDesire(playerId, MOTIVE.HUNGER, 1);
+          game.injectDesire(playerId, MOTIVE.SAFETY, 1);
+          game.injectDesire(playerId, MOTIVE.ORDER, 1);
+          return;
+        }
         if (scene === 'appraise') {
           // 자율 감정 씬(step2) — **감정을 밖에서 싣지 않는다**. 두 생명체에 **같은 스택**(식사1·사냥2, 평소엔
           //   사냥 우선)을 주되 상황만 다르게 둔다: 하나는 굶주림·하나는 포만. 굶주린 쪽은 굶주림(차이)이 식사
@@ -216,16 +296,44 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
       const cry = game.spawnRawFood(DETONATE.bomb.x, DETONATE.bomb.y, DETONATE.bomb.z, 6, 15000);
       cry.raw = false; // 자연 결정 = 자폭 대상
     }
+    if (scene === 'play') {
+      // 플레이 무대 유지 — 표적이 마르지 않게 이따금 채운다(모두 SOURCE→…, 보존). 먹이 더미는 절반 이하면 재충전,
+      //   밥/재료 쌍은 없으면 새로 놓는다. 그래서 플레이어가 오래 봐도 채집·사냥·제조가 끊기지 않는다.
+      if (demoTick % 30 === 0) {
+        for (const c of game.creatures.values()) { // 먹이 더미(소유 P:demo) 재충전
+          if (c.owner !== 'P:demo') continue;
+          const pl = game.ledger.get(c.id); const cur = game.ledger.balance(c.id);
+          if (pl && cur < pl.max / 2) game.ledger.transfer(POOL.SOURCE, c.id, pl.max - cur, CAUSE.SPAWN);
+        }
+        const crys = [...game.crystals.values()];
+        const hasFood = crys.some(c => !c.raw && !c.crafted && game.ledger.balance(c.id) > 0);
+        if (!hasFood) game.spawnFood(PLAY_SCENE.food.x, PLAY_SCENE.food.y, PLAY_SCENE.food.z, 3, 9000);
+        const raws = crys.filter(c => c.raw && game.ledger.balance(c.id) > 0);
+        if (raws.length < 2) { // 재료 쌍 보충(제조가 소진했으면 새 쌍)
+          game.spawnRawFood(PLAY_SCENE.matA.x, PLAY_SCENE.matA.y, PLAY_SCENE.matA.z, 2, 3500);
+          game.spawnRawFood(PLAY_SCENE.matB.x, PLAY_SCENE.matB.y, PLAY_SCENE.matB.z, 7, 3500);
+        }
+      }
+    }
     demoTick++;
     game.tick();
   }, 1000 / TICK_RATE);
   return { httpServer, game, close: () => { clearInterval(timer); wss.close(); httpServer.close(); } };
 }
 
-// 직접 실행 시: 사람이 브라우저로 확인하는 라이브 데모.
+// 직접 실행 시: 사람이 브라우저로 확인하는 라이브 데모. 씬은 SCENE 환경변수로 고른다(기본 play).
+//   예) SCENE=play npm run demo  ·  SCENE=motive npm run demo  ·  SCENE=order npm run demo
 if (process.argv[1] && process.argv[1].endsWith('demo-control.mjs')) {
   const port = process.env.PORT ?? 8080;
-  startDemoServer({ port }).httpServer.listen(port, () => {
-    console.log(`[HktFeature] 자율 감정 데모 — http://localhost:${port} (접속하면 굶주린 생명체가 스스로 식사 감정을 키워 밥으로 가고, 배부르면 사냥으로 넘어간다)`);
+  const scene = process.env.SCENE ?? 'play';
+  const hint = {
+    play:   '세 동기(허기·안전·질서)를 가진 생명체를 쥔다. 굶주리면 스스로 채집/사냥, 배부르면 제조. 버튼(1·2·3·4·0)·클릭으로 명령하면 자율을 우회한다',
+    motive: '굶주린 생명체가 HUNT 주입 없이 가까운 먹이를 스스로 사냥한다(사냥=허기의 전략)',
+    order:  '배부른 생명체가 CRAFT 주입 없이 곁의 재료를 스스로 제조한다(질서=잉여의 전략)',
+    appraise: '굶주린 개체는 밥으로, 배부른 개체는 사냥으로 — 같은 스택, 다른 상황',
+  }[scene] ?? '';
+  startDemoServer({ port, scene }).httpServer.listen(port, () => {
+    console.log(`[HktFeature] '${scene}' 데모 — http://localhost:${port}/?name=조종자`);
+    if (hint) console.log(`  ↳ ${hint}`);
   });
 }

@@ -20,19 +20,20 @@ sim.getYaw = () => render.yaw; // 카메라 상대 이동 — 이동 축을 현�
 
 state.onResync = (regions) => net.send(MSG.RESYNC, { regions });
 
-// 제어 (구 feature-0010(현 0018)) — 내가 제어하는 생명체에 욕망을 부여한다. 채집·사냥·대기(수동 이동).
-//   욕망은 생명체를 표적(에너지원)으로 이동시키고, 대기면 방향키(카메라 방향 이동)로 곁에 데려간다.
-//   부여 수단이 둘: 화면 버튼(#desirebar)과 단축키(1·2·0). 둘 다 같은 setDesire 를 부른다.
+// 제어 (구 feature-0010(현 0018)·feature-0018 step3) — 내가 제어하는 생명체에 **전략을 명령**한다(채집·사냥·식사·제조·대기).
+//   명령은 자율 동기(허기·안전·질서)를 **우회**한다(명령>자율): 버튼을 누르면 그 전략을 수행하고, 표적이 소진되면
+//   스스로 자율 동기로 복귀한다. 대기(none)는 명령을 거둬 자율로 돌려보낸다(동기 없으면 주인 추종=방향키 수동 이동).
+//   부여 수단이 둘: 화면 버튼(#desirebar)과 단축키(1·2·3·4·0). 둘 다 같은 command 를 부른다(MSG.COMMAND).
 const buttons = [...document.querySelectorAll('#desirebar button')];
-function setDesire(d) {
+function command(d) {
   state.myDesire = d;
-  net.send(MSG.DESIRE, { desire: d });
-  for (const b of buttons) b.classList.toggle('active', b.dataset.desire === d); // 선택된 욕망 강조
+  net.send(MSG.COMMAND, { strategy: d });
+  for (const b of buttons) b.classList.toggle('active', b.dataset.desire === d); // 선택된 명령 강조
 }
-for (const b of buttons) b.addEventListener('click', () => setDesire(b.dataset.desire));
+for (const b of buttons) b.addEventListener('click', () => command(b.dataset.desire));
 const DESIRE_KEY = { Digit1: 'forage', Digit2: 'hunt', Digit3: 'eat', Digit4: 'craft', Digit0: 'none', Backquote: 'none' };
-addEventListener('keydown', (e) => { const d = DESIRE_KEY[e.code]; if (d !== undefined) setDesire(d); });
-setDesire('none'); // 기본 = 대기(수동 이동), 버튼 초기 강조
+addEventListener('keydown', (e) => { const d = DESIRE_KEY[e.code]; if (d !== undefined) command(d); });
+command('none'); // 기본 = 명령 없음(자율 동기가 있으면 자율, 없으면 대기=수동 이동)
 
 // 클릭/터치 지목 (구 feature-0010(현 0018) step4) — 뷰어에서 표적(결정·생명체)을 클릭하면 그 특정 대상으로 가서 상호작용한다.
 //   render 가 화면투영으로 대상을 골라(#pickAt) 이 콜백을 부르고, 서버가 표적 종류로 욕구를 추론한다(결정=식사·작은

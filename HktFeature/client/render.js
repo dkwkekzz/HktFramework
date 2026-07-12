@@ -11,8 +11,9 @@ import { WORLD_SIZE, WORLD_HEIGHT, REGION_SIZE, FIELD_Z_LAYERS, PLAYER_MAX_ENERG
 
 const CAUSE_LABEL = { spawn: '스폰', move: '이동', death: '소멸', diffuse: '확산', radiate: '복사', crystallize: '결정화', react: '반응', forage: '갈구', metabolize: '대사', harvest: '채집', attack: '강탈', burst: '발산', emit: '발산', detonate: '폭발', discharge: '방출', cook: '요리', craft: '제조', heat: '가열', combust: '연소', melt: '용해', shatter: '파괴' };
 // 욕구 라벨/색/아이콘 (구 feature-0010(현 0018)·0011) — 뷰어가 각 생명체 위에 그 동기를 또렷이 적는다.
-const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조', flee: '회피' };
-const DESIRE_ICON  = { forage: '🌿', hunt: '⚔', none: '✋', eat: '🍚', craft: '🔨', flee: '🏃' };
+// 전략(수단) 라벨 + 동기(motive) 라벨(feature-0018) — 배지는 동기 이름(hunger·safety·order)도 받으므로 함께 둔다.
+const DESIRE_LABEL = { forage: '채집', hunt: '사냥', none: '대기', eat: '식사', craft: '제조', flee: '회피', hunger: '허기', safety: '안전', order: '질서' };
+const DESIRE_ICON  = { forage: '🌿', hunt: '⚔', none: '✋', eat: '🍚', craft: '🔨', flee: '🏃', hunger: '🍖', safety: '🛡', order: '⚙' };
 // 욕구별 대표색 — 표적선·오라·아이콘·버튼이 공유해 "어느 욕구인지"가 색으로도 한눈에 갈린다.
 const DESIRE_COLOR = { forage: '#78dc96', hunt: '#e6785a', eat: '#f0b45a', craft: '#b496eb', flee: '#7fc7ff', none: '#9fb4c8' };
 const DESIRE_RGB   = { forage: [120,220,150], hunt: [230,120,90], eat: [240,180,90], craft: [180,150,235], flee: [127,199,255], none: [159,180,200] };
