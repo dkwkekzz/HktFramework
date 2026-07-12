@@ -21,7 +21,8 @@ export class ClientState {
     this.myName = '';
     this.ledger = new EnergyLedger();
     this.entities = new Map();  // id -> { id, kind, x, y, z, tx, ty, tz, name, max } (표시용)
-    this.txFeed = [];           // 최근 tx 표시용
+    this.txFeed = [];           // 최근 tx 표시용 (텍스트 로그, 8개 캡)
+    this.effectTx = [];         // 이번 프레임 커밋된 tx — ViewModel 이 드레인해 이펙트 서술자로 파생(불변 원칙 ③). txFeed 캡과 별개
     this.worldTotal = 0;        // 서버가 선언한 전 풀 합계 — 보존 불변식의 전시
     this.worldSrc = 0;          // SOURCE(태양) 잔고 — 저엔트로피 원천 (feature-0004)
     this.worldSink = 0;         // SINK(심우주) 잔고 — 복사로 새어나간 손실, 단조 증가
@@ -111,6 +112,18 @@ export class ClientState {
     }
     this.ledger.applyTx(tx);
     this.txFeed.push(tx);
+    // 이펙트 파생용 원천 — 커밋된 tx 를 프레임 버퍼에 쌓는다(ViewModel 이 매 프레임 드레인). 안 드레인돼도
+    //   무한 성장 않게 캡(렌더가 도는 한 매 프레임 비워진다). 표현이 아니라 **권위 사건 스트림**이 원천이다.
+    this.effectTx.push(tx);
+    if (this.effectTx.length > 512) this.effectTx.splice(0, this.effectTx.length - 512);
+  }
+
+  // 이번 프레임 커밋된 tx 를 넘겨주고 버퍼를 비운다 — ViewModel 이 이펙트 서술자로 파생한다(불변 원칙 ③).
+  drainEffectTx() {
+    if (this.effectTx.length === 0) return [];
+    const out = this.effectTx;
+    this.effectTx = [];
+    return out;
   }
 
   #onPos(msg) {
