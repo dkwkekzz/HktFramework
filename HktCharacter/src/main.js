@@ -8,7 +8,7 @@
 //    3. 접지: 클립별 접지 y 를 재생 시작 전에 **미리 측정**(measureClipRootY)해 root.y
 //       를 고정 — 재생 중(특히 crossfade 중) 포즈를 재측정하지 않는다(중심 틀어짐 방지).
 //    4. 본 비율 슬라이더 — 키/머리/몸통/어깨/팔/다리/손을 뼈 스케일로 조절.
-//       클립은 회전 + hips y-위치 트랙만 가지므로 scale 채널과 root position 은
+//       클립은 회전 + hips 위치(변위) 트랙만 가지므로 scale 채널과 root position 은
 //       우리가 소유한다.
 //
 //  핵심 유지: 메시는 FBX 원본 그대로, 본 표시는 THREE.SkeletonHelper.
@@ -280,10 +280,10 @@ function buildSource(obj, clip) {
     const sn = simpleName(b.name);
     if (!bySName.has(sn)) { bySName.set(sn, b); bindWorldQ.set(sn, b.getWorldQuaternion(q).clone()); }
   }
-  // Hips 수직 이동 리타깃용 — 소스 바인드에서 hips 의 월드 높이 (스케일 비율 계산 기준)
+  // Hips 이동 리타깃용 — 소스 바인드에서 hips 의 월드 위치 (변위 기준점 + 키 비율 계산)
   const hipsB = bySName.get('hips');
-  const hipsBindY = hipsB ? hipsB.getWorldPosition(new THREE.Vector3()).y : 0;
-  return { obj, clip, bySName, bindWorldQ, hipsBindY };
+  const hipsBindP = hipsB ? hipsB.getWorldPosition(new THREE.Vector3()).clone() : null;
+  return { obj, clip, bySName, bindWorldQ, hipsBindP };
 }
 
 const sourceCache = {}; // file → { obj, clip, bySName, bindWorldQ }
@@ -299,8 +299,10 @@ async function loadSource(file) {
 }
 
 // source 클립을 구동 뼈(boneMap)에 월드 공간 리타깃해 새 클립을 굽는다.
-// 위치 트랙은 hips **y(수직)만** — 앉는 동작이 실제로 앉아지게(회전만 옮기면 발이 뜬다).
-// hips x/z 는 바인드 고정 → 제자리 재생, 최종 접지는 measureClipRootY(사전 측정).
+// 위치 트랙은 hips **x/y/z 변위 전체** — y 만 옮기면 앉는 동작에서 발이 뜨고(v4 버그),
+// x/z(체중 이동·런지·스텝)를 버리면 골반이 못 움직인 만큼 발이 반대로 미끄러져 중심이
+// 흔들려 보인다(v4.2 버그 — Mixamo 웹 대비 불안정의 원인). 제자리 재생은 x/z 의 선형
+// 순이동(detrend) 제거로 유지, 최종 접지는 measureClipRootY(사전 측정).
 function bakeClip(ch, src, label, fps = 30) {
   if (!src) return null;
   const dur = src.clip.duration;
@@ -312,14 +314,15 @@ function bakeClip(ch, src, label, fps = 30) {
     matched.set(b, { sBone, corr: src.bindWorldQ.get(sn).clone().invert().multiply(ch.bindWorldQ.get(b)) });
   }
   if (!matched.size) return null;
-  // Hips **수직(y) 이동** 리타깃 준비 — 회전만 옮기면 앉는 동작(공격 등)에서 엉덩이가
-  // 못 내려가 무릎만 굽고 발이 뜬다. 소스 hips 의 월드 y 변위를 키 비율로 스케일해
-  // hips.position 트랙(y만, x/z 는 바인드 고정 = 제자리 재생 유지)으로 만든다.
+  // Hips **이동(x/y/z) 변위 전체** 리타깃 준비 — 소스 hips 의 월드 변위를 키 비율
+  // (hScale)로 스케일해 hips.position 트랙으로 만든다. 이동형(순이동≠0) 클립이 와도
+  // 제자리 재생이 유지되게 x/z 는 클립 전체의 선형 순이동 성분만 제거(detrend)한다 —
+  // 동봉 Mixamo 클립은 전부 제자리(순이동=0)라 체중 이동 흔들림이 온전히 남는다.
   // hips 의 부모는 정적 노드(씬 루트 계열)라 부모 월드 행렬을 bake 시작 시 1회 캐시.
   const hips = ch.boneMap.get('hips');
   const hm = hips && matched.get(hips);
   let hp = null;
-  if (hm && src.hipsBindY > 1e-6) {
+  if (hm && src.hipsBindP && src.hipsBindP.y > 1e-6) {
     ch.root.updateMatrixWorld(true);
     const pm = hips.parent.matrixWorld.clone();
     const bindWorld = ch.bindLocalP.get(hips).clone().applyMatrix4(pm);
@@ -327,8 +330,9 @@ function bakeClip(ch, src, label, fps = 30) {
       sBone: hm.sBone,
       pmInv: pm.invert(), // 이후 pm 은 역행렬
       bindWorld,
-      hScale: bindWorld.y / src.hipsBindY, // 타깃/소스 hips 높이 비율 (단위 차 흡수)
+      hScale: bindWorld.y / src.hipsBindP.y, // 타깃/소스 hips 높이 비율 (단위 차 흡수)
       values: new Float32Array(frames * 3),
+      net: new THREE.Vector3(), // 클립 전체 순이동 (x/z detrend 용)
     };
   }
   // source 를 전용 믹서로 프레임마다 포즈시켜 월드 회전을 샘플링 (target 은 불변).
@@ -340,15 +344,22 @@ function bakeClip(ch, src, label, fps = 30) {
   const sw = new THREE.Quaternion(), wq = new THREE.Quaternion(), inv = new THREE.Quaternion();
   const idQ = new THREE.Quaternion();
   const sv = new THREE.Vector3(), tv = new THREE.Vector3();
+  if (hp) { // 클립 순이동 측정 (마지막-첫 프레임) — x/z detrend 기준
+    mixer.setTime(0); src.obj.updateMatrixWorld(true);
+    hp.net.copy(hp.sBone.getWorldPosition(sv));
+    mixer.setTime(dur); src.obj.updateMatrixWorld(true);
+    hp.net.subVectors(hp.sBone.getWorldPosition(sv), hp.net);
+  }
   for (let f = 0; f < frames; f++) {
     const t = Math.min(dur, f / fps);
     times[f] = t;
     mixer.setTime(t);
     src.obj.updateMatrixWorld(true);
     if (hp) {
-      const dy = (hp.sBone.getWorldPosition(sv).y - src.hipsBindY) * hp.hScale;
-      tv.copy(hp.bindWorld);
-      tv.y += dy;
+      hp.sBone.getWorldPosition(sv).sub(src.hipsBindP); // 소스 바인드 기준 월드 변위
+      const k = dur > 1e-6 ? t / dur : 0;
+      sv.x -= hp.net.x * k; sv.z -= hp.net.z * k; // 순이동 제거 → 제자리 유지 (y 는 그대로)
+      tv.copy(hp.bindWorld).addScaledVector(sv, hp.hScale);
       tv.applyMatrix4(hp.pmInv); // 부모 로컬로 변환
       hp.values.set([tv.x, tv.y, tv.z], f * 3);
     }
