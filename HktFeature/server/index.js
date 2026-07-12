@@ -12,7 +12,7 @@ import { GameServer } from './game.js';
 import { decode, MSG } from '../shared/protocol.js';
 import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD, CREATURE_MAX_ENERGY } from '../shared/constants.js';
 
-// feature-0010 step3 — 제어 아레나 시드. 접속 시 내 생명체를 사냥 가능한 몸(size 2)으로 세우고, 둘레에 **욕구별
+// 구 feature-0010(현 0018) step3 — 제어 아레나 시드. 접속 시 내 생명체를 사냥 가능한 몸(size 2)으로 세우고, 둘레에 **욕구별
 //   표적**을 둔다: 오른쪽=먹을 결정 둘(채집·식사), 왼쪽=붙은 재료 쌍(제조), 아래=작은 먹이(사냥). 표적은 자동
 //   채집 반경(300) **밖**(~450px)·감지 반경(900) **안**이라 "누르기 전엔 그대로, 누르면 걸어가 수행"이 또렷하다.
 //   전부 SOURCE 와 주고받아 보존. 접속 1회만 시드한다(재소환 때는 아래 서식지 재가열로 유지).
@@ -54,7 +54,7 @@ const httpServer = http.createServer(async (req, res) => {
   }
 });
 
-// feature-0017 — 라이브는 관측 게이트 ON: 관측 없는 지역의 결정은 에너지로 환원(탈구체화)되고 야생 생명체는 동면한다.
+// 구 feature-0017(현 0016 step2) — 라이브는 관측 게이트 ON: 관측 없는 지역의 결정은 에너지로 환원(탈구체화)되고 야생 생명체는 동면한다.
 //   부하가 세계 크기가 아니라 관측 규모에 상한을 갖는다. 다시 관측되면 석출로 재구체화. (규칙 검증 테스트는 이 게이트를
 //   끈 채 전 세계를 시뮬 — 규칙은 관측에 독립. 게이트 자체는 relevancy/materialize 테스트가 켜서 검증한다.)
 const game = new GameServer({ gateByObservation: true });
@@ -76,7 +76,7 @@ for (let k = 0; k < CLUSTERS; k++) {
   const pred = game.spawnCreature(cx, cy, cz);                                 // 자리 잡은 포식자(size2 선점)
   pred.size = 2; game.ledger.get(pred.id).max = 2_000;                         // 먹이(size1)보다 커야 강탈 성립
   game.ledger.transfer(POOL.SOURCE, materialKey(cx, cy, cz), 24_000, 'seed');  // 풍요 웅덩이 → 결정 석출 → 채집 → 성장(size↑)
-  game.spawnRawFood(cx + 160, cy - 60, cz, k % 12, 3_000);                     // 곁에 날것 밥(재료) — 식사 욕구가 요리해 먹는다(feature-0011)
+  game.spawnRawFood(cx + 160, cy - 60, cz, k % 12, 3_000);                     // 곁에 날것 밥(재료) — 식사 욕구가 요리해 먹는다(구 feature-0011(현 0018))
   dens.push([cx, cy, cz]);
 }
 
@@ -90,7 +90,7 @@ wss.on('connection', (socket) => {
     if (msg.t === MSG.HELLO && playerId === null) {
       const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
       playerId = player.id;
-      // feature-0010 제어 — 접속하면 스폰 곁에 자기 생명체 하나를 쥐어준다(한 사람=한 생명체). 겹치지 않게
+      // 구 feature-0010(현 0018) 제어 — 접속하면 스폰 곁에 자기 생명체 하나를 쥐어준다(한 사람=한 생명체). 겹치지 않게
       //   생성 순번으로 둘레에 흩는다. 기본 욕망은 대기(수동) — 방향키로 곁에 데려가거나 1·2 로 채집·사냥을 건다.
       const a = game.creatureSeq * 2.399963; // 황금각 근사 — 둘레 고른 분포(결정론)
       const px = SPAWN_POS.x + Math.round(Math.cos(a) * 90);
@@ -100,7 +100,7 @@ wss.on('connection', (socket) => {
       //   접속하면 그 자리에 **서식지 웅덩이**를 쥐어준다(SOURCE→국소장, 보존): 갈구 + 석출·채집이 즉시 돌아
       //   생명체가 살아 성장한다. 이후 유지는 아래 틱 루프가 소유 생명체의 현재 자리를 재가열해 이어간다.
       game.ledger.transfer(POOL.SOURCE, materialKey(px, py, SPAWN_POS.z), 6_000, 'seed');
-      // feature-0010 step3 — **표적 보장 아레나**. 욕구를 눌렀을 때 눈에 보이는 표적이 늘 있도록 내 생명체 둘레에
+      // 구 feature-0010(현 0018) step3 — **표적 보장 아레나**. 욕구를 눌렀을 때 눈에 보이는 표적이 늘 있도록 내 생명체 둘레에
       //   먹을 결정(채집·식사)·재료 쌍(제조)·작은 먹이(사냥)를 시드한다(모두 SOURCE→…, 보존). 자동 채집 반경(300)
       //   **밖**(~450px)에 둬 누르기 전엔 안 먹히고, 감지 반경(900) 안이라 누르면 걸어가 수행한다. 접속 1회만.
       seedControlArena(game, mine, px, py, SPAWN_POS.z);
@@ -140,7 +140,7 @@ setInterval(() => {
     const [cx, cy, cz] = dens[preyNo % dens.length]; preyNo++;                 // 한 서식지 곁에 먹이 하나
     game.spawnCreature(cx + 120, cy + 40, cz);                                 // 강탈 200·방출 500 안 → 포식/방출 무대
     game.ledger.transfer(POOL.SOURCE, materialKey(cx + 120, cy + 40, cz), 1_500, 'seed');
-    game.spawnRawFood(cx + 160, cy - 60, cz, preyNo % 12, 2_500);              // 날것 밥 보충 — 식사 봇이 계속 요리·섭취(feature-0011)
+    game.spawnRawFood(cx + 160, cy - 60, cz, preyNo % 12, 2_500);              // 날것 밥 보충 — 식사 봇이 계속 요리·섭취(구 feature-0011(현 0018))
   }
   // feature-0013 연소 무대 — 이따금 서식지 근처 가연성 결정에 불씨를 놓는다(SOURCE→결정 열, 발화점 초과).
   //   불이 붙어 이웃 가연성 결정으로 번지다 전소한다(라이브에서 눈으로 보는 상태전이). 전부 원장 이체 → 보존.

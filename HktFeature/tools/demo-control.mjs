@@ -1,5 +1,5 @@
 // ============================================================================
-// 제어 데모 서버 (feature-0010) — 시각 검증용 깨끗한 무대.
+// 제어 데모 서버 (구 feature-0010(현 0018)) — 시각 검증용 깨끗한 무대.
 //
 // 라이브 index.js 는 서식지·봇으로 붐빈다. 이 데모는 제어 명제 하나만 또렷이 보인다:
 //   접속하면 자기 생명체(금색 고리) 하나를 쥐고, **채집 욕망**이 자동으로 걸린다 →
@@ -27,9 +27,9 @@ const MIME = { '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; cha
 //   따라 놓여 이동이 화면 가운데를 가로지르며 또렷이 보인다(≈707px 이동, 감지 반경 900 안).
 const FOOD = { x: 750, y: 1250, z: 625 };
 const CREATURE_START = { x: 1250, y: 750, z: 625 };
-// 우선순위 씬(feature-0012 step1)의 먹이 자리 — 밥(FOOD)의 반대편. 두 표적이 갈라져 "어느 욕구로 가나"가 보인다.
+// 우선순위 씬(구 feature-0012(현 0018) step1)의 먹이 자리 — 밥(FOOD)의 반대편. 두 표적이 갈라져 "어느 욕구로 가나"가 보인다.
 const PREY = { x: 1500, y: 700, z: 625 };
-// 자율감정 씬(feature-0012 step2) — 화면 가로축(y=1250)에 밥(왼쪽)·먹이(오른쪽)를 벌려 놓고, 그 사이에 **같은
+// 자율감정 씬(구 feature-0012(현 0018) step2) — 화면 가로축(y=1250)에 밥(왼쪽)·먹이(오른쪽)를 벌려 놓고, 그 사이에 **같은
 //   스택을 품은 두 생명체**를 둔다: 굶주린 개체(왼쪽)와 포만한 개체(오른쪽). 상황(차이)만 다를 뿐 스택은 같은데
 //   굶주린 쪽은 식사로 밥을 향하고 포만한 쪽은 사냥으로 먹이를 향한다 — "차이가 감정을 만들어 행동을 가른다"가 한눈에.
 const APPRAISE = {
@@ -51,18 +51,18 @@ const DETONATE = {
   watcher: { x: 1050, y: 1250, z: 625 }, // 관전 대상 생명체(소유, 계속 채워 폭발을 여러 번 견딘다)
   bomb:    { x: 1150, y: 1250, z: 625 }, // 과충전 결정이 나타나는 자리(생명 반경 안 → blind AoE 로 얻어맞는다)
 };
-// 위협·회피 씬(feature-0012 step3) — 큰 포식자(위협)를 곁에 두면 내 생명체가 회피 감정을 스스로 만들어 **도망친다**.
+// 위협·회피 씬(구 feature-0012(현 0018) step3) — 큰 포식자(위협)를 곁에 두면 내 생명체가 회피 감정을 스스로 만들어 **도망친다**.
 //   위협이 가까울수록 회피가 이기고, 멀어지면(감지 반경 밖) 감정이 감쇠해 멈춘다. 감정이 상황에서 자율 생성됨을 본다.
 const THREAT = {
   predator: { x: 1250, y: 950, z: 625 }, // 큰 포식자(size4) — 내 생명체 시작(1250,750) 근처(200px), 제자리 위협
 };
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
-//   scene 'eat'(feature-0011): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
-//   scene 'forage'(feature-0010): 먹을 수 있는 결정 하나 → 다가가 바로 먹는다.
-//   scene 'priority'(feature-0012 step1): 밥(왼쪽)·먹이(오른쪽)를 두고 **식사·사냥을 동시에 품되(중첩)**,
+//   scene 'eat'(구 feature-0011(현 0018)): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
+//   scene 'forage'(구 feature-0010(현 0018)): 먹을 수 있는 결정 하나 → 다가가 바로 먹는다.
+//   scene 'priority'(구 feature-0012(현 0018) step1): 밥(왼쪽)·먹이(오른쪽)를 두고 **식사·사냥을 동시에 품되(중첩)**,
 //     감정이 식사에 실려 우선순위가 높아 → 밥 쪽으로 간다("중첩된 욕구 중 감정이 실린 쪽으로 행동한다").
-//   scene 'appraise'(기본, feature-0012 step2): 같은 무대에 **감정을 밖에서 싣지 않고** 굶주리게 시작한다 →
+//   scene 'appraise'(기본, 구 feature-0012(현 0018) step2): 같은 무대에 **감정을 밖에서 싣지 않고** 굶주리게 시작한다 →
 //     굶주림(차이)이 식사의 감정을 **스스로** 만들어 밥으로 가고, 배부르면 감쇠해 사냥으로 넘어간다.
 export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
   const httpServer = http.createServer(async (req, res) => {
@@ -91,12 +91,12 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     const prey = game.spawnCreature(PREY.x, PREY.y, PREY.z);
     game.ledger.transfer(POOL.SOURCE, prey.id, 900, CAUSE.SPAWN);
   } else if (scene === 'craft') {
-    // 제조 씬(feature-0010 step2) — 붙어 놓인 두 재료(raw, 미가공 = 회색 점선 옥타). 제조 욕구를 가진 생명체가
+    // 제조 씬(구 feature-0010(현 0018) step2) — 붙어 놓인 두 재료(raw, 미가공 = 회색 점선 옥타). 제조 욕구를 가진 생명체가
     //   다가가 하나의 **산물**(✦제조, 선명·굵은 외곽)로 조합한다. 재료는 수동 반응에 면역이라 흩어지지 않는다.
     game.spawnRawFood(FOOD.x - 60, FOOD.y, FOOD.z, 2, 4500); // 재료 A (raw 유지)
     game.spawnRawFood(FOOD.x + 60, FOOD.y, FOOD.z, 7, 4500); // 재료 B (raw 유지, A 와 붙어 있음 = 조합 쌍)
   } else if (scene === 'craftchain') {
-    // 다단계 제조 씬(feature-0011 step2) — 붙어 놓인 **재료 넷**. 제조 욕구가 재료 둘씩 합쳐 **중간물 둘**을,
+    // 다단계 제조 씬(구 feature-0011(현 0018) step2) — 붙어 놓인 **재료 넷**. 제조 욕구가 재료 둘씩 합쳐 **중간물 둘**을,
     //   다시 그 둘을 합쳐 **완성물 하나**로 만든다(tier 0→1→2). 재료·산물 모두 수동 반응에 면역(안정 유지).
     game.spawnRawFood(FOOD.x - 75, FOOD.y - 75, FOOD.z, 2, 3000);
     game.spawnRawFood(FOOD.x + 75, FOOD.y - 75, FOOD.z, 5, 3000);
@@ -159,7 +159,7 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
         }
         const cre = game.possessCreature(playerId, CREATURE_START.x, CREATURE_START.y, CREATURE_START.z);
         if (scene === 'control') {
-          // 제어 씬(feature-0010 step3) — 카메라가 **내 생명체**를 태우고(아바타 통합), 둘레에 욕구별 표적을 둔다.
+          // 제어 씬(구 feature-0010(현 0018) step3) — 카메라가 **내 생명체**를 태우고(아바타 통합), 둘레에 욕구별 표적을 둔다.
           //   오른쪽=먹을 결정(채집), 왼쪽=재료 쌍(제조), 아래=작은 먹이(사냥). 기본 욕구=채집 → 생명체가 굵은
           //   표적선(마칭앤츠)을 그리며 결정으로 걸어가 오라를 번뜩이며 먹는다. "누르면 저게 벌어진다"가 또렷하다.
           rear(cre, 1800);

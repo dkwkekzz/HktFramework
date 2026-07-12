@@ -1,7 +1,7 @@
 // ============================================================================
-// feature-0010 step2 — 제조(craft): 재료 결정을 조합해 새 산물을 만드는 새 욕구
+// 구 feature-0010(현 0018) step2 — 제조(craft): 재료 결정을 조합해 새 산물을 만드는 새 욕구
 //
-// 직관: feature-0010 step1 은 채집·사냥 욕구를 세웠고, "욕망은 확장의 근간"이라 했다. feature-0011 은 욕구를
+// 직관: 구 feature-0010(현 0018) step1 은 채집·사냥 욕구를 세웠고, "욕망은 확장의 근간"이라 했다. 구 feature-0011(현 0018) 은 욕구를
 //   절차 레지스트리(registerDesire)로 일반화했다. 이 step 은 그 위에 **새 욕구(제조)**를 실제로 얹어 근간을
 //   증명한다: 제조 욕구를 가진 생명체가 가까이 놓인 두 재료 결정(조합 지점)으로 이동해 하나의 **산물**로 조합한다.
 //   조합은 만드는 일이라 에너지를 방출하고(열+연기, 순수 지출), 산물은 재료와 다른 종(craftedSpecies)에 crafted 표식.
@@ -37,7 +37,7 @@ function bigCreature(game, playerId, x, y, z, size = 2, energy = 1200) {
 }
 
 test('레지스트리 — 새 욕구 "제조"가 절차로 등록돼 있고 인텐트로 부여된다', () => {
-  assert.ok(DESIRE_PROCEDURES[DESIRE.CRAFT], '제조 절차가 등록돼 있다(feature-0011 개방 레지스트리에 얹음)');
+  assert.ok(DESIRE_PROCEDURES[DESIRE.CRAFT], '제조 절차가 등록돼 있다(구 feature-0011(현 0018) 개방 레지스트리에 얹음)');
   assert.ok(DESIRE_PROCEDURES[DESIRE.CRAFT].steps.length >= 2, '제조는 단계(다가가기·조합)가 있다');
   const s = setup();
   const cre = bigCreature(s.game, s.player.id, 1000, 1000, 500);
@@ -92,7 +92,7 @@ test('산물은 재료로 재선택되지 않는다 — 산물 하나만 남으�
   assert.equal([...s.game.crystals.values()][0].species, sp, '산물 종이 그대로다(재조합 없음)');
 });
 
-test('제조 욕구도 우선순위 스택에 든다(feature-0012 정합) — 우선순위가 행동을 정한다', () => {
+test('제조 욕구도 우선순위 스택에 든다(구 feature-0012(현 0018) 정합) — 우선순위가 행동을 정한다', () => {
   // 제조가 사냥보다 우선이면, 곁에 먹이가 있어도 제조를 한다(재료 조합).
   const s = setup();
   const cre = bigCreature(s.game, s.player.id, 1000, 1000, 500);

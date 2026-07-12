@@ -63,7 +63,7 @@ export class Sim {
     // 생명체·파이어볼 표시 보간 — 스냅샷은 목표(tx,ty,tz)+구간 등속(segSpeed)으로만 받고, 표시
     //   좌표(x,y,z)는 그 등속으로 목표를 쫓는다. segSpeed = 스냅샷 간 이동 거리 / 스냅샷 간격이라
     //   서버의 실제 속도가 얼마든(계속 걷기·먹으며 한 걸음·정지) 화면에선 연속 이동으로 펼쳐진다 —
-    //   "빨리 가서 기다리는" 계단이 없다. 카메라가 내 생명체를 타므로(feature-0010 step3) 화면 전체가
+    //   "빨리 가서 기다리는" 계단이 없다. 카메라가 내 생명체를 타므로(구 feature-0010(현 0018) step3) 화면 전체가
     //   같이 부드러워진다. 순수 표시 계층(권위·원장 무관).
     for (const c of this.state.creatures.values()) this.#chase(c, dt);
     for (const f of this.state.fireballs.values()) this.#chase(f, dt);
