@@ -14,7 +14,9 @@ const CLIPS = { 대기: 'idle.fbx', 걷기: 'walk.fbx', 뛰기: 'run.fbx' };
 
 // ── 무대 ──────────────────────────────────────────────────
 const app = document.getElementById('app');
-const renderer = new THREE.WebGLRenderer({ antialias: true });
+// ?capture=1 일 때만 drawing buffer 보존 → shot.mjs 의 readPixels 검증이 유효.
+const CAPTURE = new URLSearchParams(location.search).has('capture');
+const renderer = new THREE.WebGLRenderer({ antialias: true, preserveDrawingBuffer: CAPTURE });
 renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
 renderer.setSize(app.clientWidth, app.clientHeight);
 app.appendChild(renderer.domElement);
@@ -94,6 +96,7 @@ async function playClip(name) {
   // 크로스페이드
   for (const [n, a] of actions) if (n !== name) a.fadeOut(0.25);
   action.reset().setEffectiveTimeScale(state.speed).fadeIn(0.25).play();
+  updateHud();
 }
 
 // ── 렌더 루프 ─────────────────────────────────────────────

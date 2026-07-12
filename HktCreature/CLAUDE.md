@@ -49,8 +49,15 @@ UE 빌드·타 플러그인과 무관(독립 웹 프로토타입). 이 문서는
 ## 작업 방식
 1. 세션 시작 시 [STATE.md](STATE.md) 로 현재 명제·상태 확인.
 2. 한 번에 하나의 명제만. 구현/논의 후 STATE.md 갱신.
-3. 검증: `npm run verify`(Node, 브라우저 없이 코어 구동) — 리그 생성·살 바인딩·Mixamo
-   트랙 매칭·실제 포즈 구동을 판정. 육안은 `npm run dev` 또는 `node test/shot.mjs`(스크린샷).
+3. **검증은 반드시 캡처로 — 모든 세션 공통 게이트.** 변경을 닫기 전 `npm run check` 를 통과시킨다:
+   - `npm run verify` — Node 로 코어 구동(리그 생성·살 바인딩·Mixamo 트랙 매칭·실제 포즈 구동).
+   - `npm run build` — 번들 무결성.
+   - `npm run shot` — **실제 브라우저 렌더 후 픽셀 자동 판정 + 스크린샷 저장**. 크리처가
+     화면에 실제로 그려졌는지(배경 아닌 면적 임계)·클립별로 포즈가 변형되는지(대기≠걷기
+     서명)·페이지 에러 0 을 검사하고, 실패 시 exit 1. 산출물 `test/out/*.png`.
+   → **"데이터만 통과, 화면은 비었다"** 회귀를 픽셀로 막는다. 결과를 사용자에게 보고할 땐
+   `test/out/*.png` 를 **첨부**해 육안 확인까지 남긴다. (샌드박스는 pre-installed Chromium
+   사용 — `test/shot.mjs` 가 버전 무관하게 경로를 해석.)
 
 ## 파일 맵
 - `index.html` — 무대 HUD/패널(애니메이션·게놈·살·표시·드롭존) + CSS
@@ -59,15 +66,16 @@ UE 빌드·타 플러그인과 무관(독립 웹 프로토타입). 이 문서는
 - `src/flesh.js` — `growFlesh(rig, flesh)` 뼈 세그먼트 캡슐 → 절차 SkinnedMesh
 - `src/main.js` — 무대 전부(씬·리빌드·클립 재생·UI·`window.__hkt`)
 - `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션(idle/walk/run, 애니메이션 전용). Mixamo 무료 라이선스.
-- `test/rig-verify.mjs` — Node 검증 하네스(`npm run verify`)
-- `test/shot.mjs` — 실제 Chromium 스크린샷(육안 검증), `test/out/` 에 저장
+- `test/rig-verify.mjs` — Node 검증 하네스(`npm run verify`) — 데이터 레벨
+- `test/shot.mjs` — 픽셀 검증 게이트(`npm run shot`) — 실제 Chromium 렌더 + 자동 판정 + `test/out/` 스크린샷
 - `test/extract-template.mjs` — rig-template.js 재생성기(리그 소스 교체 시에만)
 
 ## 실행
 ```bash
 npm install
 npm run dev       # http://localhost:5173 — 무대에 크리처 한 명
-npm run verify    # Node 코어 검증 (브라우저 불필요)
+npm run check     # 게이트: verify(데이터) + build + shot(픽셀/스크린샷). 변경 닫기 전 필수.
+npm run shot      # 픽셀 검증만 — test/out/*.png 생성(육안 첨부용)
 ```
 
 ## 다음 후보 (사용자와 논의 후)

@@ -16,8 +16,12 @@
 ```bash
 npm install
 npm run dev       # http://localhost:5173
-npm run verify    # 브라우저 없이 코어 검증 (Node)
+npm run check     # 검증 게이트: verify(데이터) + build + shot(픽셀/스크린샷)
+npm run shot      # 실제 브라우저 렌더 + 자동 판정 → test/out/*.png
 ```
+
+> 이 트랙의 규칙: **모든 변경은 `npm run check` 로 캡처까지 검증**하고, 결과 보고 시
+> `test/out/*.png` 를 첨부한다. "데이터만 통과, 화면은 비었다" 회귀를 픽셀로 막는다.
 
 무대에 크리처 한 명이 뜬다. 애니메이션 버튼으로 Mixamo 클립 재생, 게놈/살 슬라이더로
 체형을 바꾸면 리그+살이 즉시 재생성된다. Mixamo 애니메이션 FBX 를 드롭하면 그대로 재생.

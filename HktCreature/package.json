@@ -8,7 +8,9 @@
     "dev": "vite",
     "build": "vite build",
     "preview": "vite preview",
-    "verify": "node test/rig-verify.mjs"
+    "verify": "node test/rig-verify.mjs",
+    "shot": "node test/shot.mjs",
+    "check": "npm run verify && npm run build && npm run shot"
   },
   "dependencies": {
     "three": "^0.161.0"
