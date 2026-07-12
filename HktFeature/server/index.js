@@ -10,7 +10,17 @@ import { fileURLToPath } from 'node:url';
 import { WebSocketServer } from 'ws';
 import { GameServer } from './game.js';
 import { decode, MSG } from '../shared/protocol.js';
-import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD, CREATURE_MAX_ENERGY } from '../shared/constants.js';
+import { TICK_RATE, SPAWN_POS, WORLD_HEIGHT, POOL, MOTIVE, materialKey, dist3, isFlammable, ignitionHeat, CRYSTAL_DETONATE_THRESHOLD, CREATURE_MAX_ENERGY } from '../shared/constants.js';
+
+// feature-0018 — 소유(플레이어) 생명체에 **세 자율 동기**(허기·안전·질서)를 얹는다. 그러면 아무 명령이 없어도
+//   상태에 따라 스스로 산다: 굶주리면 채집/사냥(허기), 위협이 오면 회피(안전), 배부르면 제조(질서). 플레이어의
+//   버튼(MSG.COMMAND)·표적 클릭(MSG.TARGET)은 이 자율을 **우회**하는 명령이고, 소진되면 자율로 복귀한다.
+//   동기는 스택(injectDesire)에 얹히고 명령(commandedStrategy/Target)은 스택을 안 건드리므로 명령해도 자율이 보존된다.
+function giveMotives(game, playerId) {
+  game.injectDesire(playerId, MOTIVE.HUNGER, 1);
+  game.injectDesire(playerId, MOTIVE.SAFETY, 1);
+  game.injectDesire(playerId, MOTIVE.ORDER, 1);
+}
 
 // 구 feature-0010(현 0018) step3 — 제어 아레나 시드. 접속 시 내 생명체를 사냥 가능한 몸(size 2)으로 세우고, 둘레에 **욕구별
 //   표적**을 둔다: 오른쪽=먹을 결정 둘(채집·식사), 왼쪽=붙은 재료 쌍(제조), 아래=작은 먹이(사냥). 표적은 자동
@@ -21,7 +31,7 @@ function seedControlArena(game, cre, x, y, z) {
   const pool = game.ledger.get(cre.id);
   if (pool) pool.max = CREATURE_MAX_ENERGY * 2;
   const cur = game.ledger.balance(cre.id);
-  if (cur < 1_600) game.ledger.transfer(POOL.SOURCE, cre.id, 1_600 - cur, 'seed'); // 굶주림 0(회피·굶주림 감정 배제)
+  if (cur < 700) game.ledger.transfer(POOL.SOURCE, cre.id, 700 - cur, 'seed'); // 살짝 굶주려 시작(편안 임계 1000 아래) → 허기 동기가 깨어 먼저 채집/사냥, 배부르면 제조(feature-0018)
   game.spawnFood(x + 450, y - 80, z, 4, 2_600);       // 채집·식사 표적 A(먹을 수 있는 결정)
   game.spawnFood(x + 380, y + 150, z, 9, 2_400);      // 채집·식사 표적 B(다른 종=다른 색)
   game.spawnRawFood(x - 450, y + 70, z, 2, 3_000);    // 제조 재료 쌍 — 서로 140px(CRAFT_PAIR_RADIUS 안), raw=반응 면역
@@ -104,6 +114,7 @@ wss.on('connection', (socket) => {
       //   먹을 결정(채집·식사)·재료 쌍(제조)·작은 먹이(사냥)를 시드한다(모두 SOURCE→…, 보존). 자동 채집 반경(300)
       //   **밖**(~450px)에 둬 누르기 전엔 안 먹히고, 감지 반경(900) 안이라 누르면 걸어가 수행한다. 접속 1회만.
       seedControlArena(game, mine, px, py, SPAWN_POS.z);
+      giveMotives(game, playerId); // feature-0018 — 세 자율 동기를 얹는다(굶주리면 채집/사냥·위협이면 회피·배부르면 제조). 버튼/클릭은 이를 우회하는 명령.
       return;
     }
     if (playerId !== null) game.onMessage(playerId, msg);
@@ -126,6 +137,7 @@ setInterval(() => {
   for (const player of game.players.values()) {
     if (owned.has(player.id)) continue;
     game.possessCreature(player.id, player.x, player.y, player.z);
+    giveMotives(game, player.id); // 재소유한 생명체도 자율 동기를 갖는다(feature-0018)
     game.ledger.transfer(POOL.SOURCE, materialKey(player.x, player.y, player.z), 6_000, 'seed');
   }
   // 소유 생명체(플레이어가 쥔 것) 재가열 — 어디에 있든 그 자리 국소장을 조금씩 채워 갈구가 마르지 않게 한다.

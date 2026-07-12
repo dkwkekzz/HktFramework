@@ -207,12 +207,12 @@ export class GameServer {
     return s;
   }
 
-  // 클릭 지정 표적 (구 feature-0010(현 0018) step4) — 플레이어가 화면에서 표적을 클릭/터치하면 그 **특정** 대상으로 가서
-  //   상호작용한다. 표적 종류로 욕구를 추론한다: **결정 = 식사**(EAT — 날것이면 요리해 먹고, 익은 것이면 바로) ·
-  //   **더 작은 생명체 = 사냥**(HUNT). 자동으로 가장 가까운 표적을 고르던 desire 와 달리, 여기선 지목한 대상 하나를
-  //   고정해 쫓는다(commandedTarget). 표적이 소진·소멸하면 대기로 복귀한다(#performDesire 정리 → 한 번 수행하고 멈춤).
-  //   kind='none' = 지정 해제(대기 → 방향키 수동 이동). 유효하지 않은 지목(없는 결정·더 크거나 같은 생명체)은 무시.
-  //   순수 상태 변경(에너지 무관) — 보존·결정론 불변. 지정은 표적 seq 로 결정론적이다.
+  // 클릭 지정 표적 (구 feature-0010(현 0018) step4 · feature-0018 step3 명령 층으로 편입) — 플레이어가 화면에서 표적을
+  //   클릭/터치하면 그 **특정** 대상으로 가서 상호작용한다. 표적 종류로 전략을 추론한다: **결정 = 식사**(EAT — 날것이면
+  //   요리해 먹고 익은 것이면 바로) · **생명체 = 사냥**(HUNT). 버튼 명령(commandStrategy)과 같은 **명령 층**이다:
+  //   자율 동기(motive 스택)를 **건드리지 않고** `commandedStrategy`+`commandedTarget` 오버라이드만 세운다 → 명령이 자율을
+  //   이긴다(명령>자율). 표적이 소진·소멸하면 #performDesire 가 둘을 해제해 **자율 동기로 복귀**한다("클릭→한 가지 수행→자율").
+  //   kind='none' = 지정 해제(자율 복귀). 유효하지 않은 지목(없는 결정·자기 자신)은 무시. 순수 상태 변경 — 보존·결정론 불변.
   setTarget(playerId, msg) {
     const kind = msg?.kind, seq = (msg?.seq | 0);
     for (const cre of this.creatures.values()) {
@@ -221,15 +221,15 @@ export class GameServer {
         const c = this.crystals.get(`${POOL.CRYSTAL}${seq}`);
         if (!c || this.ledger.balance(c.id) <= 0) continue;      // 없는/빈 결정 = 무시
         cre.commandedTarget = { kind, seq };
-        cre.desire = DESIRE.EAT;                                   // 결정 = 먹는다(날것이면 요리→먹기)
+        cre.commandedStrategy = DESIRE.EAT;                        // 결정 = 먹는다(날것이면 요리→먹기) — 자율 우회
       } else if (kind === 'creature') {
         const v = this.creatures.get(`${POOL.CREATURE}${seq}`);
         if (!v || v.id === cre.id || this.ledger.balance(v.id) <= 0) continue; // 자신·없는 것만 제외 — 크기 무관: 먹이(size<)=강탈·강적(size≥)=발산, HUNT 절차가 상황에 맞는 무기를 고른다
         cre.commandedTarget = { kind, seq };
-        cre.desire = DESIRE.HUNT;
-      } else {                                                     // 'none'/미상 = 지정 해제(대기)
+        cre.commandedStrategy = DESIRE.HUNT;                       // 자율 우회
+      } else {                                                     // 'none'/미상 = 지정 해제(자율 복귀)
         cre.commandedTarget = null;
-        cre.desire = DESIRE.NONE;
+        cre.commandedStrategy = null;
       }
     }
   }
@@ -1012,7 +1012,7 @@ export class GameServer {
       let alive;
       if (cmd.kind === 'crystal') { const c = this.crystals.get(`${POOL.CRYSTAL}${cmd.seq}`); alive = !!c && this.ledger.balance(c.id) > 0; }
       else { const v = this.creatures.get(`${POOL.CREATURE}${cmd.seq}`); alive = !!v && this.ledger.balance(v.id) > 0; } // 크기 무관 — 먹이(강탈)·강적(발산) 둘 다 유효 표적(HUNT 절차가 무기를 고른다)
-      if (!alive) { cre.commandedTarget = null; if (cre.owner) cre.desire = DESIRE.NONE; } // 수행 완료 → 대기(수동 이동 재개)
+      if (!alive) { cre.commandedTarget = null; cre.commandedStrategy = null; } // 수행 완료(표적 소진) → 명령 해제 → 자율 동기 복귀(feature-0018 step3)
     }
     for (const cre of [...this.creatures.values()].sort((a, b) => a.seq - b.seq)) {
       if (!this.creatures.has(cre.id)) continue;
