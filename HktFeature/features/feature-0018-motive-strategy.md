@@ -86,6 +86,6 @@ npm run demo    # 데모 — 동기 배지(▸허기♥♥)와 수행 전략 라
 
 ## 상세 문서 인덱스
 
-- 선행 논의: feature-0010(욕망=제어의 핵심) · feature-0011(절차·개방) · feature-0012(중첩·우선순위·감정, "차이는 신호") — 이 feature 는 셋의 어휘를 유지하며 층만 가른다.
+- **선행 feature 정합(수정 완료)**: 이 재정의는 0010·0011·0012 와 용어가 충돌하므로 셋의 문서 머리에 **재층위 주석**을 달아 정합했다 — 0010 의 "욕망 부여(버튼·클릭)"=**명령**, 0011 의 "욕구=단계 목록"=**전략=단계 목록**, 0012 의 스택·우선순위·감정=**동기 층**에 적용. 셋의 검증된 메커니즘·step 로그·에너지 회계는 층 분리와 무관하게 그대로 유효하다(문서 재작성이 아니라 층위 재해석 — 0008 철회·0009 이관 기록과 같은 관례).
 - 흡수하는 잔여: feature-0012 step3 의 "기회 감정(HUNT 기저 동기 재조정 필요)" → 본 feature step 1 이 "기회=전략 선택"으로 해소.
 - (착수 후) 동기 레지스트리: `../shared/desires.js`(MOTIVES·registerMotive·surplusFeeling) · 2단 선택: `../server/game.js`(#performDesire) · 명령: `../server/game.js`(commandedStrategy·commandedTarget).
