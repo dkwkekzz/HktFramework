@@ -35,24 +35,40 @@ function findChrome() {
 // 캔버스 픽셀에서 (배경 아닌 면적 비율, 상단-중앙 창 서명) 계산.
 //  cover: 크리처+그리드가 화면을 덮은 비율,
 //  sig:   창(캐릭터가 서는 화면 상단-중앙) 의 밝기 합 — 포즈가 바뀌면 값이 달라진다.
+const GRID = 24;   // 크리처 창을 24×24 셀로 다운샘플 → 셀별 밝기로 포즈 변화 감지
 async function sample(page) {
-  return page.evaluate((bg) => {
+  return page.evaluate((args) => {
+    const { bg, GRID } = args;
     const c = document.querySelector('#app canvas');
     const g = c.getContext('webgl2') || c.getContext('webgl');
     const w = c.width, h = c.height;
     const px = new Uint8Array(w * h * 4);
     g.readPixels(0, 0, w, h, g.RGBA, g.UNSIGNED_BYTE, px);
-    let n = 0, sig = 0;
+    // 크리처가 서는 창(가로 35~78%, 세로 12~80%).
+    const x0 = w * 0.35, x1 = w * 0.78, y0 = h * 0.12, y1 = h * 0.80;
+    const grid = new Float64Array(GRID * GRID), cnt = new Float64Array(GRID * GRID);
+    let n = 0;
     for (let y = 0; y < h; y++) {
       for (let x = 0; x < w; x++) {
         const i = (y * w + x) * 4;
         if (Math.abs(px[i] - bg.r) + Math.abs(px[i + 1] - bg.g) + Math.abs(px[i + 2] - bg.b) > 24) n++;
-        // 크리처가 서는 창의 밝기 합 — 포즈가 바뀌면 달라진다.
-        if (x > w * 0.35 && x < w * 0.75 && y > h * 0.15 && y < h * 0.75) sig += px[i] + px[i + 1] + px[i + 2];
+        if (x >= x0 && x < x1 && y >= y0 && y < y1) {
+          const gx = Math.floor((x - x0) / (x1 - x0) * GRID);
+          const gy = Math.floor((y - y0) / (y1 - y0) * GRID);
+          const k = gy * GRID + gx;
+          grid[k] += px[i] + px[i + 1] + px[i + 2]; cnt[k]++;
+        }
       }
     }
-    return { cover: n / (w * h), sig };
-  }, BG);
+    for (let k = 0; k < grid.length; k++) grid[k] = cnt[k] ? grid[k] / cnt[k] : 0;
+    return { cover: n / (w * h), grid: Array.from(grid) };
+  }, { bg: BG, GRID });
+}
+
+// 두 포즈의 셀 그리드가 얼마나 다른가(셀별 밝기 절대차 평균) — 전역 합과 달리 상쇄 없음.
+function gridDelta(a, b) {
+  let s = 0; for (let k = 0; k < a.length; k++) s += Math.abs(a[k] - b[k]);
+  return s / a.length;
 }
 
 // dev 서버(vite)로 소스를 직접 서빙 → 스테일 dist 로 인한 오검증 방지.
@@ -70,12 +86,13 @@ try {
   });
   // preserveDrawingBuffer 없이도 readPixels 가 유효하도록, 캡처 직전 렌더를 강제한다.
   await page.goto(`http://localhost:${PORT}/?capture=1`, { waitUntil: 'load' });
-  await page.waitForFunction(() => window.__hkt && window.__hkt.creature, null, { timeout: 30000 });
+  // 베이스 FBX 로드(약 1.7MB) + 살 생성까지 대기.
+  await page.waitForFunction(() => window.__hkt && window.__hkt.ch && window.__hkt.ch.flesh, null, { timeout: 60000 });
   await page.evaluate(() => { window.__hkt.state.pause = true; });
 
   const shot = async (clip, name, advance) => {
-    await page.evaluate(async (c) => { await window.__hkt.playClip(c); }, clip);
-    await page.evaluate((dt) => window.__hkt.creature.mixer.update(dt), advance);
+    await page.evaluate(async (c) => { await window.__hkt.playAnim(c, 0); }, clip);
+    await page.evaluate((dt) => window.__hkt.ch.mixer.update(dt), advance);
     await page.evaluate(() => new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r))));
     const s = await sample(page);
     await page.screenshot({ path: join(OUT, name) });
@@ -86,9 +103,9 @@ try {
   const idle = await shot('대기', 'idle.png', 0.4);
   const walk = await shot('걷기', 'walk.png', 0.5);
   await shot('뛰기', 'run.png', 0.4);
-  // 창의 서명이 대기≠걷기 → 살이 실제로 Mixamo 포즈를 따라 변형함(그리드만 보이는 게 아님).
-  ok(Math.abs(idle.sig - walk.sig) > idle.sig * 0.01,
-    `포즈가 클립에 따라 변형 (대기↔걷기 서명 Δ=${Math.abs(idle.sig - walk.sig).toLocaleString()})`);
+  // 셀 그리드가 대기≠걷기 → 살이 실제로 Mixamo 포즈를 따라 변형함(그리드만 보이는 게 아님).
+  const dPose = gridDelta(idle.grid, walk.grid);
+  ok(dPose > 3, `포즈가 클립에 따라 변형 (대기↔걷기 셀차 평균 ${dPose.toFixed(1)})`);
   // 본 오버레이
   await page.evaluate(() => document.getElementById('t-bones').click());
   await shot('걷기', 'walk-bones.png', 0.5);

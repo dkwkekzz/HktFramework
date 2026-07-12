@@ -20,7 +20,7 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 - [HktSplatGenesis/CLAUDE.md](HktSplatGenesis/CLAUDE.md) — 절차적/창발 3DGS 실험장 (무대=Spark 환경 + 생명=WebGPU 캐릭터 2층 합성; UE 빌드·타 플러그인과 무관).
 - [HktSplatLife/CLAUDE.md](HktSplatLife/CLAUDE.md) — HktSplatGenesis 의 **생명(캐릭터=동적)** 자립 분리판 (WebGPU 전용, 무대 없음).
 - [HktSplatEnv/CLAUDE.md](HktSplatEnv/CLAUDE.md) — HktSplatGenesis 의 **환경(정적=무대)** 자립 분리판 (Spark WebGL2 전용, 생명 없음).
-- [HktCreature/CLAUDE.md](HktCreature/CLAUDE.md) — 오픈월드 MMORPG 용 창발형 3D 크리처를 AI-only 파이프라인으로 만드는 웹 트랙 (스켈레톤은 코드로 짓고 절차 살을 얹어 Mixamo 애니메이션을 그대로 구동; three.js/Vite, UE 빌드·타 플러그인과 무관).
+- [HktCreature/CLAUDE.md](HktCreature/CLAUDE.md) — 오픈월드 MMORPG 용 창발형 3D 크리처를 AI-only 파이프라인으로 만드는 웹 트랙 (기본 Mixamo 스켈레톤을 로드해 절차 살을 얹고 Mixamo 애니메이션을 리타깃 구동; three.js/Vite, UE 빌드·타 플러그인과 무관).
 
 ## Coding Conventions
 
