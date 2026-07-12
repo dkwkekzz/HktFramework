@@ -214,6 +214,7 @@ export const DESIRE = {
 export const MOTIVE = {
   HUNGER: 'hunger',   // 허기 — 잔고가 편안 임계 아래(결핍). 전략: 채집·식사·사냥(같은 결핍을 다른 경로로 채운다)
   SAFETY: 'safety',   // 안전 — 위협(더 큰 포식자) 근접 = 예상 강제 지출. 전략: 회피
+  ORDER:  'order',    // 질서 — 잔고가 편안 임계 위(잉여). 전략: 제조(잉여를 질서=산물로 산다). 굶주리면 잉여 0 → 잠들고 허기로 역전(feature-0018 step2)
 };
 export const CREATURE_PURSUE_INTERVAL_TICKS = 1; // 욕망 절차 실행 주기(틱) — 매 틱(부드러운 이동·행동)
 export const CREATURE_STRIDE = 24;               // 한 추적 틱에 나아가는 최대 거리(px) — 240px/s @ 10Hz(플레이어 속도감)

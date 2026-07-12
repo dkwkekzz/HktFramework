@@ -15,6 +15,7 @@ export const MSG = {
   BEACON: 'beacon',      // { x, y, z }  (정수 양자화 3D 좌표)
   RESYNC: 'resync',      // { regions: [key] } — 체크섬 불일치 지역의 스냅샷 요청
   DESIRE: 'desire',      // { desire } — 내가 제어하는 생명체에 욕망을 부여(채집·사냥·대기, 구 feature-0010(현 0018). 스택 교체)
+  COMMAND: 'command',    // { strategy } — 전략 버튼 명령(feature-0018 step3). 자율 동기(motive 스택)를 우회해 특정 전략을 지시한다(명령>자율). 표적 소진 시 자율 복귀. strategy=none/미상=명령 해제(자율 재개)
   INJECT: 'inject',      // { desire, priority?, emotion? } — 욕구를 스택에 주입(중첩)한다(구 feature-0012(현 0018)). 감정으로 우선순위 증폭. 같은 욕구는 dedup(우선순위만 갱신)
   TARGET: 'target',      // { kind:'crystal'|'creature'|'none', seq } — 클릭/터치로 **지정한 표적**(구 feature-0010(현 0018) step4). 서버가 표적 종류로 욕구를 추론(결정=식사·더 작은 생명체=사냥)해 그 특정 표적으로 가서 상호작용. kind='none'=해제(대기→수동이동)
 

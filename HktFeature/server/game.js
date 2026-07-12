@@ -158,7 +158,7 @@ export class GameServer {
     // owner=제어자(플레이어 id, null=야생), desires=욕구 스택(구 feature-0012(현 0018) 중첩), moveDebt=이동 비용 누적(잔여 거리).
     //   구 feature-0012(현 0018): 욕구는 하나가 아니라 여럿 중첩된다 → name→{priority,emotion} 맵으로 품는다(같은 욕구는 dedup).
     //   창세/생태 생명체는 owner=null·빈 스택(=대기) → 추적하지 않는다(정지성 = 기존 feature 불변).
-    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null, activeStrategy: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(구 feature-0010(현 0018) step4) · activeStrategy=이번 틱 수행 중 전략(feature-0018 step1 방송용, 없으면 null)
+    const cre = { id: creId, seq, x, y, z, size: 1, growth: 0, owner: null, desires: new Map(), moveDebt: 0, items: [], commandedTarget: null, commandedStrategy: null, activeStrategy: null }; // items=소유 아이템 id(feature-0014) · commandedTarget=클릭 지정 표적 {kind,seq}(구 feature-0010(현 0018) step4) · commandedStrategy=버튼 명령 전략(feature-0018 step3, 자율 동기 우회·소진 시 해제) · activeStrategy=이번 틱 수행 중 전략(feature-0018 step1 방송용)
     // desire = 스택의 **승자(유효 우선순위 최대)** 를 읽는 접근자 — feature-0006~0011 코드/테스트/방송이 그대로 쓴다(하위 호환).
     //   setter 는 스택을 그 욕구 하나로 교체(단일 욕구 부여 = 기존 setDesire·직접 대입 의미 보존). 빈 스택 → NONE.
     Object.defineProperty(cre, 'desire', {
@@ -194,6 +194,17 @@ export class GameServer {
     const d = DESIRE_PROCEDURES[desire] ? desire : DESIRE.NONE;
     for (const cre of this.creatures.values()) if (cre.owner === playerId) { cre.desire = d; cre.commandedTarget = null; } // 버튼 욕구 = 지정 해제(자동 최근접)
     return d;
+  }
+
+  // 전략 명령 (feature-0018 step3) — 플레이어가 **전략 버튼**으로 자율 동기를 우회해 특정 전략을 지시한다. `desires`
+  //   스택(자율 동기)은 **건드리지 않고** 최상위 오버라이드(`commandedStrategy`)만 세운다 → 명령이 동기를 이긴다(명령>자율).
+  //   명령한 전략이 **소진**(표적 없음 등으로 수행 불가)되면 엔진이 이 필드를 해제해 **자율 동기로 복귀**한다(#performDesire).
+  //   대기(NONE)/미등록 = 명령 해제(오버라이드 제거 → 곧바로 자율 동기 재개; 동기가 없으면 주인 추종=수동 이동). 버튼=지정 표적 해제.
+  //   순수 상태 변경(에너지 무관) — 보존·결정론 불변.
+  commandStrategy(playerId, strategy) {
+    const s = DESIRE_PROCEDURES[strategy] && strategy !== DESIRE.NONE ? strategy : null; // NONE·미등록 = 해제(자율 복귀)
+    for (const cre of this.creatures.values()) if (cre.owner === playerId) { cre.commandedStrategy = s; cre.commandedTarget = null; }
+    return s;
   }
 
   // 클릭 지정 표적 (구 feature-0010(현 0018) step4) — 플레이어가 화면에서 표적을 클릭/터치하면 그 **특정** 대상으로 가서
@@ -361,6 +372,7 @@ export class GameServer {
       case MSG.BEACON: this.#onBeacon(p, msg); break;
       case MSG.RESYNC: this.#onResync(p, msg); break;
       case MSG.DESIRE: this.setDesire(p.id, msg.desire); break; // 구 feature-0010(현 0018) — 내 생명체에 욕망 부여(스택 교체)
+      case MSG.COMMAND: this.commandStrategy(p.id, msg.strategy); break; // feature-0018 step3 — 전략 버튼 명령(자율 동기 우회·소진 시 복귀)
       case MSG.TARGET: this.setTarget(p.id, msg); break;        // 구 feature-0010(현 0018) step4 — 클릭 지정 표적(표적→욕구 추론)
       case MSG.INJECT: // 구 feature-0012(현 0018) — 욕구를 스택에 주입(중첩) + 감정으로 우선순위 증폭
         this.injectDesire(p.id, msg.desire, Number.isFinite(msg.priority) ? (msg.priority | 0) : DESIRE_BASE_PRIORITY);
@@ -1007,26 +1019,37 @@ export class GameServer {
       cre.activeStrategy = null; // 이번 틱 수행 중 전략(방송용) 초기화 — 아무것도 못 하면 null(대기)
       if (this.#dormant(cre)) continue; // 구 feature-0017(현 0016 step2): 관측 없는 지역의 야생은 동면(욕구 절차 정지) — 소유 개체는 늘 관측 안이라 해당 없음
       const ctx = this.#desireCtx(cre);
-      // 유효 우선순위(priority+emotion+feeling) 내림차순으로 스택을 훑어, **지금 수행 가능한 첫 항목**을 수행한다.
-      //   항목이 **동기(motive)** 면 2단 선택(feature-0018): 차이가 없으면(feeling 0) 잠들고, 있으면 그 동기의 전략 중
-      //   가장 값어치 있는 것을 고른다. 항목이 **전략(legacy)** 이면 그 절차의 첫 적용 단계를 바로 수행한다(구 0011·0012 하위 호환).
-      //   최상위가 상황상 불가면 다음 우선순위로 내려간다 → "상황에 따라 행동이 달라진다".
+      // ── 명령 층(feature-0018 step3, 최상위): 전략 버튼(commandedStrategy)은 자율 동기를 **우회**한다(명령>자율).
+      //    명령한 전략이 수행되면 이번 틱은 그것으로 끝. 표적이 없어 **소진**되면 필드를 해제해 자율 동기로 복귀한다.
+      if (cre.commandedStrategy) {
+        if (this.#runStrategy(cre, cre.commandedStrategy, ctx)) continue; // 명령 수행 — 자율 우회
+        cre.commandedStrategy = null; // 소진(수행 불가) → 명령 해제 → 아래 자율 동기로 복귀
+      }
+      // ── 자율 층: 유효 우선순위(priority+emotion+feeling) 내림차순으로 스택을 훑어, **지금 수행 가능한 첫 항목**을 수행한다.
+      //    항목이 **동기(motive)** 면 2단 선택(feature-0018 step1): 차이가 없으면(feeling 0) 잠들고, 있으면 그 동기의 전략 중
+      //    가장 값어치 있는 것을 고른다. 항목이 **전략(legacy)** 이면 그 절차의 첫 적용 단계를 바로 수행한다(구 0011·0012 하위 호환).
+      //    최상위가 상황상 불가면 다음 우선순위로 내려간다 → "상황에 따라 행동이 달라진다".
       for (const name of this.#rankedDesires(cre)) {
         if (MOTIVES[name]) { // ── 동기: 2단 선택 ──
           const entry = cre.desires.get(name);
           if (entry && entry.feeling <= 0) continue; // 차이 없음 = 동기 잠듦(배부르면 허기 전략 전부 멎음)
           if (this.#performMotive(cre, MOTIVES[name], ctx)) break;
         } else {           // ── 전략(legacy): 절차 직행 ──
-          const proc = DESIRE_PROCEDURES[name];
-          if (!proc) continue;
-          let acted = false;
-          for (const step of proc.steps) {
-            if (step.applicable(ctx)) { step.act(ctx); acted = true; break; } // 그 전략의 첫 적용 단계(우선순위 절차, 구 feature-0011(현 0018))
-          }
-          if (acted) { cre.activeStrategy = name; break; } // 가장 높은 우선순위의 수행 가능한 항목이 이번 틱을 차지한다
+          if (this.#runStrategy(cre, name, ctx)) break; // 가장 높은 우선순위의 수행 가능한 항목이 이번 틱을 차지한다
         }
       }
     }
+  }
+
+  // 전략 하나의 첫 적용 단계를 수행한다 (feature-0018) — 명령 층·자율 legacy 전략이 공유하는 실행 primitive.
+  //   절차의 단계를 순서대로 훑어 첫 번째로 적용 가능한 단계를 실행하고 activeStrategy 에 남긴다(방송·계측). 수행하면 true.
+  #runStrategy(cre, name, ctx) {
+    const proc = DESIRE_PROCEDURES[name];
+    if (!proc) return false;
+    for (const step of proc.steps) {
+      if (step.applicable(ctx)) { step.act(ctx); cre.activeStrategy = name; return true; }
+    }
+    return false;
   }
 
   // 동기의 전략 2단 선택 (feature-0018 step 1) — 승자 동기의 전략들을 **지금 값어치(value=수입−비용≈−거리)**
@@ -1039,11 +1062,7 @@ export class GameServer {
       .filter(e => e.v !== null && e.v !== undefined)  // 표적 없는(불가) 전략 제외
       .sort((a, b) => b.v - a.v || a.i - b.i);          // 값어치 큰(가까운 기회) 순, 동률은 정의 순서(결정론)
     for (const { s } of ranked) {
-      const proc = DESIRE_PROCEDURES[s.name];
-      if (!proc) continue;
-      for (const step of proc.steps) {
-        if (step.applicable(ctx)) { step.act(ctx); cre.activeStrategy = s.name; return true; }
-      }
+      if (this.#runStrategy(cre, s.name, ctx)) return true; // 첫 적용 단계가 실행되는 전략을 수행
     }
     return false;
   }

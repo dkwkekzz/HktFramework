@@ -50,6 +50,20 @@ function setBalance(game, id, target) {
   if (target > cur) game.ledger.transfer(POOL.SOURCE, id, target - cur, 'seed');
   else if (target < cur) game.ledger.transfer(id, POOL.SOURCE, cur - target, 'drain');
 }
+// 붙어 놓인 두 재료(raw, tier0) — 제조 조합 쌍(feature-0018 step2 질서). 서로 CRAFT_PAIR_RADIUS(220) 안.
+//   조합은 한 번에 끝나므로(둘→하나) 여러 쌍을 겹쳐 두면 여러 틱 이어서 제조한다(추적 관찰용).
+function craftPairsAt(game, x, y, z, pairs = 3) {
+  for (let i = 0; i < pairs; i++) {
+    game.spawnRawFood(x - 40, y + i * 30, z, 2, 3000);
+    game.spawnRawFood(x + 40, y + i * 30, z, 7, 3000);
+  }
+}
+// n 틱 돌며 각 틱의 수행 전략을 모은다(전략이 순간적일 수 있어 스냅이 아니라 흔적으로 검증).
+function traceStrategies(runTicks, cre, n) {
+  const seen = [];
+  for (let i = 0; i < n; i++) { runTicks(1); seen.push(cre.activeStrategy); }
+  return seen;
+}
 test('리트머스 — 모든 동기는 appraise 를 갖고 전략 목록을 가리킨다(동기/전략 분리)', () => {
   const names = Object.keys(MOTIVES);
   assert.ok(names.includes(MOTIVE.HUNGER) && names.includes(MOTIVE.SAFETY), '허기·안전 동기가 등록되어 있다');
@@ -194,4 +208,111 @@ test('보존 폭풍 — 굶주림·포만이 뒤섞여 동기가 계속 자고 �
   }
   s.runTicks(300);
   assert.equal(s.total(), WORLD_SOURCE_INITIAL, '동기가 계속 자고 깨며 채집/사냥이 갈려도 총합 불변');
+});
+
+// ── step 2 — 잉여 동기(질서): 배부르면 스스로 제조, 굶주리면 허기로 역전 ──────────────────────────
+
+test('질서 동기 = 잉여 제조 — 배부른 개체가 곁의 재료 쌍을 외부 주입 없이 스스로 조합한다', () => {
+  const s = setup();
+  const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+  craftPairsAt(s.game, 1000, 1080, 500); // 재료 쌍들(사거리 안)
+  s.game.injectDesire(s.player.id, MOTIVE.ORDER, 1); // **질서 동기만** — CRAFT 전략은 주입하지 않는다
+  setBalance(s.game, me.id, 1900);                    // 포만(잉여 > 0)
+
+  let craftTx = 0;
+  const orig = s.game.ledger.transfer.bind(s.game.ledger);
+  s.game.ledger.transfer = (f, t, a, c) => { const r = orig(f, t, a, c); if (c === CAUSE.CRAFT && f === me.id) craftTx += r; return r; };
+
+  const seen = traceStrategies(s.runTicks, me, 8);
+  assert.ok(me.desires.get(MOTIVE.ORDER).feeling > 0, '포만 → 잉여 감정(질서)이 스스로 오른다');
+  assert.ok(craftTx > 0, '배부른 개체가 스스로 제조한다(질서 동기가 제조 전략을 골랐다 — CRAFT 주입 없이)');
+  assert.ok(seen.includes(DESIRE.CRAFT), '수행 중 전략에 제조가 나타난다');
+  assert.ok(!seen.includes(DESIRE.FORAGE) && !seen.includes(DESIRE.HUNT), '배부르니 허기 전략은 나오지 않는다(질서만)');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+});
+
+test('허기↔질서 역전 — 같은 스택이라도 배부르면 제조(질서)·굶주리면 채집(허기)으로 뒤집힌다', () => {
+  const build = (bal) => {
+    const s = setup();
+    const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+    edibleCrystal(s.game, 1000, 1120, 500);   // 밥(허기 전략 표적)
+    craftPairsAt(s.game, 900, 1000, 500);      // 재료 쌍들(질서 전략 표적)
+    s.game.injectDesire(s.player.id, MOTIVE.HUNGER, 1); // 두 동기 공통 스택
+    s.game.injectDesire(s.player.id, MOTIVE.ORDER, 1);
+    setBalance(s.game, me.id, bal);
+    return traceStrategies(s.runTicks, me, 5).filter(Boolean);
+  };
+  const full = build(1900), hungry = build(300);
+  assert.ok(full.includes(DESIRE.CRAFT) && !full.includes(DESIRE.FORAGE), '배부르면 질서가 깨어 제조한다(허기는 잉여라 잠듦)');
+  assert.ok(hungry.includes(DESIRE.FORAGE) && !hungry.includes(DESIRE.CRAFT), '굶주리면 허기가 깨어 채집한다(질서는 잉여 0 이라 잠듦) — 역전');
+});
+
+// ── step 3 — 명령 층: 전략 버튼은 자율 동기를 이기고, 소진되면 자율로 복귀한다 ─────────────────────
+
+test('명령 > 자율 — 전략 버튼(commandStrategy)이 자율 동기의 선택을 우회한다', () => {
+  const s = setup();
+  const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+  edibleCrystal(s.game, 1000, 1120, 500);            // 밥 가까이 → 자율 허기라면 채집했을 것
+  const prey = preyCreature(s.game, 1000, 1180, 500, 800); // 먹이(조금 더 멀리)
+  s.game.injectDesire(s.player.id, MOTIVE.HUNGER, 1);  // 자율: 가까운 밥을 채집하려 함
+  setBalance(s.game, me.id, 300);
+
+  let attackToMe = 0;
+  const orig = s.game.ledger.transfer.bind(s.game.ledger);
+  s.game.ledger.transfer = (f, t, a, c) => { const r = orig(f, t, a, c); if (c === CAUSE.ATTACK && t === me.id) attackToMe += r; return r; };
+
+  s.game.commandStrategy(s.player.id, DESIRE.HUNT); // **명령: 사냥** — 자율(채집)을 우회
+  s.runTicks(8);
+  assert.equal(me.commandedStrategy, DESIRE.HUNT, '명령이 걸려 있다');
+  assert.equal(me.activeStrategy, DESIRE.HUNT, '자율이 채집을 고를 상황인데 명령대로 사냥한다(명령>자율)');
+  assert.ok(attackToMe > 0, '명령한 사냥으로 먹이를 강탈했다');
+  assert.equal(s.total(), WORLD_SOURCE_INITIAL, '보존 불변');
+});
+
+test('소진 시 자율 복귀 — 명령한 전략이 표적 없어 수행 불가면 해제되고 자율 동기가 잇는다', () => {
+  const s = setup();
+  const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+  edibleCrystal(s.game, 1000, 1120, 500);   // 밥(자율 허기의 표적) — 제조 재료는 없다
+  s.game.injectDesire(s.player.id, MOTIVE.HUNGER, 1);
+  setBalance(s.game, me.id, 300);
+
+  let harvestToMe = 0;
+  const orig = s.game.ledger.transfer.bind(s.game.ledger);
+  s.game.ledger.transfer = (f, t, a, c) => { const r = orig(f, t, a, c); if (c === CAUSE.HARVEST && t === me.id) harvestToMe += r; return r; };
+
+  s.game.commandStrategy(s.player.id, DESIRE.CRAFT); // 명령: 제조 — 그러나 재료 쌍이 없다(소진)
+  s.runTicks(5);
+  assert.equal(me.commandedStrategy, null, '수행 불가(재료 없음) → 명령이 해제된다');
+  assert.ok(harvestToMe > 0, '명령 해제 후 자율 허기가 밥을 채집한다(자율 복귀)');
+});
+
+test('명령 해제(대기/none) — 명령을 거두면 자율 동기가 곧바로 재개된다', () => {
+  const s = setup();
+  const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+  edibleCrystal(s.game, 1000, 1120, 500);
+  s.game.injectDesire(s.player.id, MOTIVE.HUNGER, 1);
+  setBalance(s.game, me.id, 300);
+  s.game.commandStrategy(s.player.id, DESIRE.FLEE); // 명령(회피 — 위협 없어 소진될 것)
+  s.game.commandStrategy(s.player.id, DESIRE.NONE); // 대기 = 명령 해제
+  assert.equal(me.commandedStrategy, null, 'none 명령은 오버라이드를 해제한다');
+  s.runTicks(4);
+  assert.equal(me.activeStrategy, DESIRE.FORAGE, '명령을 거두면 자율 허기가 채집을 재개한다');
+});
+
+test('개방 재증명 — 런타임 등록 동기를 명령이 우회하고, 소진되면 그 동기로 복귀한다(엔진 무수정)', () => {
+  const s = setup();
+  let idled = false;
+  registerDesire('sunbathe', { // 새 전략(항상 수행 가능·행동 없음)
+    label: '일광', release: '없음', steps: [{ name: 'bask', applicable: () => true, act: () => { idled = true; } }],
+  });
+  registerMotive('leisure', { label: '여가', appraise: () => 20, strategies: [{ name: 'sunbathe', value: () => 0 }] });
+  const me = hunter(s.game, s.player.id, 1000, 1000, 500, 2);
+  edibleCrystal(s.game, 1000, 1120, 500);
+  s.game.injectDesire(s.player.id, 'leisure', 1); // 자율: 여가(일광)
+  setBalance(s.game, me.id, 1500);
+  s.game.commandStrategy(s.player.id, DESIRE.CRAFT); // 명령: 제조 — 재료 없어 소진될 것
+  s.runTicks(3);
+  assert.equal(me.commandedStrategy, null, '명령이 소진돼 해제된다');
+  assert.equal(me.activeStrategy, 'sunbathe', '런타임 등록 동기(여가)로 복귀해 그 전략을 수행한다(game.js 무수정)');
+  assert.ok(idled, '엔진이 런타임 동기의 전략을 수행했다');
 });
