@@ -35,7 +35,10 @@
         `mcflesh.js` 를 `fillField`(순수)·`buildSegs` 로 재구성, `update(ch, simpleName)` 로 변경,
         살 UI 섹션·`__hkt` 확장. `tools/flesh-verify.mjs` #1·#2 PASS(등반지름 폭차 0cm,
         인접쌍 ≤복셀, arm=1.3 정확). **육안 확인 필요**(`npm run dev`).
-      - [ ] **F2** 프로파일 곡선·flatten·cut + 기본 인간형 DNA.
+      - [x] **F2** 프로파일 곡선(PCHIP)·flatten(타원 단면)·cut(구 감산) + 기본 인간형 DNA
+        (§5.4 표). 필드 수학은 F1 에 선반영, F2 는 `defaultDna` 를 곡선 인간형으로 교체.
+        verify #3~6 PASS(제어점 통과·오버슈트 0, leg t=0.35 폭 6.10cm≈6.20, flatten u/v비 0.598≈0.6,
+        cut 중심 감소·원거리 불변). **육안 확인 필요**.
       - [ ] **F3** bake & 자동 스키닝. [ ] **F4** 프리셋·보간·변이.
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도 흡수.
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)

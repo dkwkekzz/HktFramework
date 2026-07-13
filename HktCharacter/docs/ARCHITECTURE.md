@@ -43,16 +43,22 @@
    **선택 캐릭터별** 상태(`ch.props`)를 반영.
 7. **드롭존** — with-skin FBX 는 캐릭터 교체, 애니메이션-only 는 현재 캐릭터에 리타깃 재생.
 8. **UI** — 캐릭터/애니메이션/본 비율/속도/표시(메시·본·회색·와이어·SDF 살) + `window.__hkt` 핸들.
-9. **SDF 살** (`src/mcflesh.js`, 실험) — 뼈마다 캡슐 세그먼트, Wyvill 밀도
-   `(1-d²/R²)³` (R=BLEND(2.5)×반지름, 부모→자식 반지름 테이퍼)를 필드에 가산 →
-   `THREE.MarchingCubes`(res 64, isolation ≈0.593 = 캡슐 반지름 지점)로 매 프레임
-   폴리곤화. 세그먼트 bbox 안 복셀만 채워 실시간(~7ms). 리그 2벌 FBX 는 simpleName
-   중복 세그먼트를 스킵. 손가락 생략, `end$` 리프 본은 0.02 로 가늘게(머리 필통 방지).
-   반지름 테이블은 `RADII`(simpleName 정규식 매칭).
+9. **SDF 살** (`src/mcflesh.js` + `src/fleshdna.js`, 실험 → v5 트랙) — 뼈마다 세그먼트
+   하나, Wyvill 밀도 `(1-d²/R²)³` (R=BLEND(2.5)×살반지름)를 필드에 가산 →
+   `THREE.MarchingCubes`(res 64, isolation ≈0.593 = 살반지름 지점)로 매 프레임 폴리곤화.
+   세그먼트 bbox 안 복셀만 채워 실시간(~7ms). 리그 2벌 FBX 는 simpleName 중복 스킵.
+   반지름·형태는 하드코딩이 아니라 **살 DNA**(`fleshdna.js`, 직렬화 가능 JSON)가 소유한다:
+   세그먼트별 **프로파일 곡선**(제어점 → PCHIP → 33지점 LUT, 부모0→자식1 축의 반지름),
+   **flatten**(타원 단면, 바인드 월드 dir 을 현재 포즈로 회전 추적해 축 직교화한 u 방향을 f배),
+   **cut**(세그먼트 로컬 프레임 오프셋 구 감산), **blend**(폭 배율), **groups**(UI 두께 배율).
+   필드 채우기 `fillField` 는 순수 함수(실시간·bake·Node 검증 공유), `buildSegs` 가 뼈 월드→
+   그리드 공간 변환·flatten u·cut 중심을 프레임당 1회 계산. 관절 융기(가산 고유)는 관절 쪽 끝
+   제어점 r 하향으로 데이터 상쇄. 채널 분리 불변: 길이는 뼈 scale, 두께·형태는 살 DNA
+   (DNA 는 뼈 상태를 읽기만).
    **알려진 한계**: 고정 격자 재샘플링이라 움직임에 표면이 미세하게 떨림(시간적
-   앨리어싱) — res·BLEND 로 완화만 가능. 애니메이션-only FBX 의 내장 리그는 비율이
-   실제 캐릭터와 다름(예: walk 리그 손바닥→중지1 20.9cm, samba 3.4cm) — with-skin
-   캐릭터에 리타깃해서 봐야 정상 비율.
+   앨리어싱) — F3 bake(레스트 1회 폴리곤화 + 자동 스키닝)로 소멸 예정. 애니메이션-only FBX
+   의 내장 리그는 비율이 실제 캐릭터와 다름 — with-skin 캐릭터에 리타깃해서 봐야 정상 비율.
+   설계 전체 → [FLESH-PLAN.md](FLESH-PLAN.md).
 
 ## 파일 맵
 

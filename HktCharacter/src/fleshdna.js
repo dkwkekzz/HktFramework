@@ -14,28 +14,37 @@ const LUT_N = 33;                 // 프로파일 LUT 샘플 수 (32구간) — 
 const FALLBACK_PROFILE = [[0, 0.04]]; // 매칭 실패 세그먼트 기본 반지름 (현 radiusFor 기본값)
 
 // ---------------------------------------------------------------------------
-//  F1 기본 인간형 DNA — 전부 상수 1점 프로파일(현 RADII 값 그대로).
-//  이 단계에서는 화면 결과가 v4.2 와 동일해야 한다(회귀 기준). F2 에서 곡선
-//  프로파일·flatten·cut 을 얹은 실제 인간형 테이블로 교체한다.
+//  기본 인간형 DNA (§5.4) — 곡선 프로파일 + flatten(타원 단면) + blend(폭 배율).
+//  매칭 순서 = 표 순서(위에서부터 첫 매칭): forearm 이 arm 보다, upleg 이 leg 보다 먼저.
+//  관절 융기(메타볼 가산 고유) 는 관절 쪽 끝 제어점 r 을 한 단계 낮춰 데이터로 상쇄.
+//  수치는 규범이 아니라 육안 튜닝 출발점.
 // ---------------------------------------------------------------------------
 function baseSegments() {
   return [
     { match: 'thumb|index|middle|ring|pinky', profile: [[0, 0]] }, // 손가락 생략
     { match: 'end$',    profile: [[0, 0.02]] },                    // 리프 본 가늘게
-    { match: 'head',    profile: [[0, 0.085]], group: 'head' },
-    { match: 'neck',    profile: [[0, 0.045]], group: 'head' },
-    { match: 'hips',    profile: [[0, 0.105]], group: 'torso' },
-    { match: 'spine2',  profile: [[0, 0.105]], group: 'torso' },
-    { match: 'spine1',  profile: [[0, 0.095]], group: 'torso' },
-    { match: 'spine',   profile: [[0, 0.09]],  group: 'torso' },
-    { match: 'shoulder', profile: [[0, 0.05]], group: 'arm' },
-    { match: 'forearm', profile: [[0, 0.04]],  group: 'arm' },
-    { match: 'arm',     profile: [[0, 0.048]], group: 'arm' },
-    { match: 'hand',    profile: [[0, 0.035]], group: 'hand' },
-    { match: 'upleg',   profile: [[0, 0.075]], group: 'leg' },
-    { match: 'leg',     profile: [[0, 0.055]], group: 'leg' },
-    { match: 'foot',    profile: [[0, 0.04]],  group: 'foot' },
-    { match: 'toe',     profile: [[0, 0.03]],  group: 'foot' },
+    { match: 'head',    profile: [[0, 0.055], [0.35, 0.09], [0.8, 0.088], [1, 0.06]],
+                        flatten: { dir: [0, 0, 1], f: 0.9 }, group: 'head' }, // 턱→두개골→정수리
+    { match: 'neck',    profile: [[0, 0.05], [1, 0.042]], blend: 1.4, group: 'head' }, // 승모근 fold
+    { match: 'hips',    profile: [[0, 0.105], [1, 0.10]],
+                        flatten: { dir: [0, 0, 1], f: 0.85 }, group: 'torso' }, // 골반 앞뒤 납작
+    { match: 'spine2',  profile: [[0, 0.095], [0.6, 0.105], [1, 0.09]],
+                        flatten: { dir: [0, 0, 1], f: 0.75 }, group: 'torso' }, // 흉곽 — 가장 납작
+    { match: 'spine1',  profile: [[0, 0.08], [0.5, 0.075], [1, 0.09]],
+                        flatten: { dir: [0, 0, 1], f: 0.8 }, group: 'torso' },  // 허리 S커브 잘록
+    { match: 'spine',   profile: [[0, 0.095], [1, 0.085]],
+                        flatten: { dir: [0, 0, 1], f: 0.8 }, group: 'torso' },  // 하복부
+    { match: 'shoulder', profile: [[0, 0.045], [1, 0.05]], blend: 1.2, group: 'arm' }, // 어깨 웹
+    { match: 'forearm', profile: [[0, 0.045], [0.3, 0.048], [1, 0.03]], group: 'arm' }, // 전완→손목 수렴
+    { match: 'arm',     profile: [[0, 0.042], [0.4, 0.05], [1, 0.042]], group: 'arm' },  // 상완 이두 볼록
+    { match: 'hand',    profile: [[0, 0.03], [0.5, 0.038], [1, 0.025]],
+                        flatten: { dir: [0, 0, 1], f: 0.55 }, group: 'hand' }, // 손바닥 패들
+    { match: 'upleg',   profile: [[0, 0.085], [0.4, 0.075], [1, 0.055]], group: 'leg' }, // 허벅지 테이퍼
+    { match: 'leg',     profile: [[0, 0.055], [0.35, 0.062], [1, 0.035]], group: 'leg' }, // 종아리 볼록→발목
+    { match: 'foot',    profile: [[0, 0.035], [1, 0.03]],
+                        flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' }, // 발등 상하 납작
+    { match: 'toe',     profile: [[0, 0.028], [1, 0.02]],
+                        flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' },
   ];
 }
 
@@ -57,7 +66,7 @@ export function defaultDna() {
 // ---------------------------------------------------------------------------
 
 // 제어점 [[t,r],…] (t 오름차순 가정) → t∈[0,1] 을 33지점 균등 샘플한 Float32Array.
-function samplePchip(points) {
+export function samplePchip(points) {
   const lut = new Float32Array(LUT_N);
   const n = points.length;
   if (n === 0) return lut;
