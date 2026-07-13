@@ -7,7 +7,8 @@
 //   상한을 갖는다. 관측 게이트는 라이브 기본(gateByObservation:true) — 규칙 검증 테스트는 이 게이트를 끈
 //   채 전 세계를 시뮬한다(규칙은 관측에 독립).
 // 강제: (1) 관측 밖 결정은 에너지로 환원(보존) (2) 관측 밖 국소장은 석출 안 함, 관측하면 구체화
-//   (3) 관측 밖 야생 생명체는 동면(아사 없음) (4) 소유 생명체는 관측 밖이어도 시뮬(동면 아님)
+//   (3) 관측 밖 야생 생명체는 동면 — 개체 단위 매 틱 시뮬은 정지하되, 에너지는 feature-0020 저해상도
+//   갱신(군집 대사)으로 느리게 흐른다 (4) 소유 생명체는 관측 밖이어도 시뮬(동면 아님)
 //   (5) 관측 지역 결정은 유지(대조) (6) 탈구체화·재구체화를 거쳐도 총합 불변.
 // ============================================================================
 
@@ -16,6 +17,7 @@ import assert from 'node:assert/strict';
 import { GameServer } from '../server/game.js';
 import {
   POOL, CRYSTAL_INTERVAL_TICKS, CREATURE_SPAWN_GRANT,
+  CREATURE_BASAL_COST, DORMANT_LOWRES_INTERVAL_TICKS,
   regionKey, regionNeighbors, materialKey,
 } from '../shared/constants.js';
 
@@ -55,14 +57,17 @@ test('구체화 — 관측 밖 국소장은 석출 안 하고, 관측하면 그�
   assert.ok(s.crystalsInRegion('0_0').length > 0, '관측하면 국소장이 결정으로 석출된다(구체화)');
 });
 
-test('동면 — 관측 없는 야생 생명체는 아사하지 않는다(잔고 그대로 정지)', () => {
+test('동면 — 개체 단위 매 틱 시뮬은 정지하되, 저해상도 갱신으로 시간은 흐른다(feature-0020)', () => {
   const s = setup();
   const wild = s.game.spawnCreature(200, 300, 500); // 지역 0_0 (관측 밖), 갈구할 국소장 없음
   const b0 = s.bal(wild.id);
   assert.equal(b0, CREATURE_SPAWN_GRANT);
-  s.runTicks(50); // 관측이면 진작 아사할 시간
-  assert.ok(s.game.creatures.has(wild.id), '관측 없는 야생은 동면 — 아사하지 않는다');
-  assert.equal(s.bal(wild.id), b0, '동면 중엔 잔고가 그대로(갈구·대사·성장 정지)');
+  s.runTicks(DORMANT_LOWRES_INTERVAL_TICKS); // 저해상도 패스 직전까지 (관측이면 매 틱 대사로 진작 잔고가 줄었다)
+  assert.equal(s.bal(wild.id), b0, '패스 사이엔 잔고 동결 — 개체 단위 갈구·대사·성장·욕구 정지(동면)');
+  s.runTicks(1); // 저해상도 패스 1회 — 군집 대사(feature-0020 step 2)
+  assert.ok(s.game.creatures.has(wild.id), '예비가 넉넉하면 산다(즉사 아님)');
+  assert.equal(s.bal(wild.id), b0 - CREATURE_BASAL_COST * DORMANT_LOWRES_INTERVAL_TICKS,
+    '군집 대사만큼 잔고가 줄었다(시간 등가) — 관측 밖에도 시간이 흐른다');
 });
 
 test('소유 생명체는 관측 밖이어도 동면하지 않는다 — 아바타는 늘 산다', () => {

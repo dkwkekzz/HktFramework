@@ -29,7 +29,7 @@ import {
   LIQUID_CONDENSE, LIQUID_CAPACITY, LIQUID_SETTLE_MAX, LIQUID_RADIATE_DIVISOR, LIQUID_COHESION,
   FIELD_Z_LAYERS,
   CREATURE_MAX_ENERGY, CREATURE_SPAWN_GRANT, CREATURE_BASAL_COST, CREATURE_FORAGE_RATE,
-  CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS,
+  CREATURE_DEATH_THRESHOLD, CREATURE_METABOLISM_INTERVAL_TICKS, DORMANT_LOWRES_INTERVAL_TICKS,
   CREATURE_SIZE_MAX, CREATURE_GROWTH_FULL_FRACTION, CREATURE_GROWTH_HUNGRY_FRACTION, CREATURE_GROWTH_THRESHOLD,
   CREATURE_HARVEST_RADIUS, CREATURE_HARVEST_RATE, crystalYield,
   CREATURE_ACQUIRE_RADIUS, CREATURE_CARRY_MAX, CREATURE_RESONANCE,
@@ -490,6 +490,12 @@ export class GameServer {
     if (this.tickCount % CREATURE_METABOLISM_INTERVAL_TICKS === 0 && this.tickCount > 0) {
       this.#metabolizeCreatures();
     }
+    // feature-0020 — 동면 군집 저해상도 갱신: 관측 밖 야생 군집의 대사 순환(갈구·생사·대사)을 군집 단위로
+    //   한 번에 굴린다(시간 등가 배수 K=interval). 활성 대사와 같은 국면(확산이 자리 잡은 뒤)에 둔다.
+    //   게이트 OFF 면 동면이 없어 무동작 — 규칙 검증 테스트는 전 세계 시뮬 그대로(0016 과 같은 결).
+    if (this.gateByObservation && this.tickCount % DORMANT_LOWRES_INTERVAL_TICKS === 0 && this.tickCount > 0) {
+      this.#lowresDormant();
+    }
     this.#flush();
     this.pendingOps = [];
     this.pendingMoves.clear();
@@ -598,6 +604,45 @@ export class GameServer {
     }
     for (const cl of clusters.values()) cl.creatures.sort((a, b) => a.seq - b.seq);
     return clusters;
+  }
+
+  // feature-0020 step 2 — 동면 군집 저해상도 갱신: 관측 밖 세계에도 시간이 흐른다. 개체별 매 틱 시뮬 대신
+  //   DORMANT_LOWRES_INTERVAL_TICKS 마다 군집(거시) 단위로 대사 순환을 한 번에 굴린다 — 활성 대사
+  //   (#metabolizeCreatures)와 같은 문법(갈구→생사→대사), 시간 등가 배수 K=interval(D-1: 관측이 물리 상수를
+  //   바꾸지 않는다). 욕구·전투·이동·성장(D-3)은 미시 정보(표적·거리·이력)에 의존하는 개체의 사건이라 계속
+  //   정지 — 저해상도로 흐르는 것은 에너지(잔고)뿐, 정체성(위치·size·desires·소유)은 동결 유지(불변 원칙 ②).
+  //   ① 군집 갈구 — 같은 복셀에 선 개체들의 수요(FORAGE_RATE×size×K 합)를 국소장 공급과 **한 번에** 대조하고
+  //     size 비례로 배분한다(D-5). 공급=수요면 몫이 정확히 개체 수요와 같고(정수), 부족하면 모두가 제 비율로
+  //     굶는다 — 내림 잔여(≤개체 수−1 양자)는 국소장에 남아 확산한다. 거시가 예측하고(총량) 배분이 해석한다(개체 몫).
+  //   ② 생사판정 — 갈구 후에도 예비(DEATH_THRESHOLD×size) 아래면 죽음(D-2: 동면 중에도 죽는다). 죽음은 기존
+  //     #killCreature 경로 재사용(분해=결정+국소장 — 규칙을 복제하지 않는다). "관측 없는 질서는 흩어진다"(0016)와 정합.
+  //   ③ 군집 대사 — BASAL×size×K 를 SINK 로. 전부 ledger.transfer(클램프) → 보존 자명. rng 미사용·seq 순 → 결정론.
+  #lowresDormant() {
+    const K = DORMANT_LOWRES_INTERVAL_TICKS;
+    for (const cl of this.dormantClusters().values()) {
+      // ① 군집 갈구 — 복셀 단위 수요/공급 대조 후 size 비례 배분
+      const byVoxel = new Map(); // matId -> 그 복셀에 선 동면 개체들(seq 순 유지)
+      for (const cre of cl.creatures) {
+        const matId = materialKey(cre.x, cre.y, cre.z);
+        let v = byVoxel.get(matId);
+        if (!v) byVoxel.set(matId, v = []);
+        v.push(cre);
+      }
+      for (const [matId, cres] of byVoxel) {
+        const sizeSum = cres.reduce((t, c) => t + c.size, 0);
+        const supply = Math.min(CREATURE_FORAGE_RATE * sizeSum * K, this.ledger.balance(matId));
+        if (supply <= 0) continue;
+        for (const cre of cres) {
+          const share = Math.min(Math.floor(supply * cre.size / sizeSum), CREATURE_FORAGE_RATE * cre.size * K);
+          this.ledger.transfer(matId, cre.id, share, CAUSE.FORAGE); // 용량 초과분은 클램프 → 국소장에 남는다
+        }
+      }
+      // ② 생사판정 + ③ 군집 대사 (seq 순 — 결정론)
+      for (const cre of cl.creatures) {
+        if (this.ledger.balance(cre.id) < CREATURE_DEATH_THRESHOLD * cre.size) { this.#killCreature(cre); continue; }
+        this.ledger.transfer(cre.id, POOL.SINK, CREATURE_BASAL_COST * cre.size * K, CAUSE.METABOLIZE);
+      }
+    }
   }
 
   // 관측 없는 지역의 결정을 에너지로 환원(탈구체화) — 결정 잔고와 열(H:)을 그 자리 국소장으로 되돌리고 풀을 지운다.
