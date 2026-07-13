@@ -91,6 +91,17 @@ const PLAY_SCENE = {
   matA:   { x: 1320, y: 940,  z: 625 }, // 재료 A(제조)
   matB:   { x: 1320, y: 1020, z: 625 }, // 재료 B(제조, A 와 붙어 쌍)
 };
+// 동면 씬(feature-0020) — **관측 밖에도 시간이 흐른다**. 같은 잔고(900)로 시작한 두 야생 생명체:
+//   '머문 자'는 시야 안에서 매 틱 대사로 마르고(−3/틱), '다녀온 자'는 시야 밖(0_0)에서 동면하며 군집
+//   저해상도 대사(−96/32틱)로 마른다. returnTick 뒤 귀환하면 **두 잔고 막대가 거의 같다** — 관측이 물리
+//   상수를 바꾸지 않았다(시간 등가 D-1). 구 0016 의 완전 정지였다면 다녀온 자만 900 그대로였을 것.
+//   국소장 없음 = 순수 대사만 비교. 둘 사이 600px(> 발산 사거리 500)라 서로 쏘지 않는다.
+const DORMANT_SCENE = {
+  stay: { x: 700,  y: 1000, z: 625 }, // 머문 자(시야 안, 관전자 곁)
+  away: { x: 200,  y: 200,  z: 625 }, // 다녀온 자(시야 밖 0_0 — 동면)
+  back: { x: 1300, y: 1000, z: 625 }, // 귀환 자리(머문 자와 나란히 — 막대 비교)
+  returnTick: 130,                    // 저해상도 패스 4회(32×4=128)를 지나 귀환(관전 시작 기준)
+};
 
 // 데모 서버를 띄운다 — 깨끗한 무대. 접속하면 제어 생명체 하나(금색 고리)를 쥐고, 욕구가 자동으로 걸린다.
 //   scene 'eat'(구 feature-0011(현 0018)): 날것 밥 하나 → 다가가 요리(변형)한 뒤 먹는다(찾기→요리→먹기, 절차적).
@@ -113,7 +124,9 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
     } catch { res.writeHead(404); res.end('not found'); }
   });
 
-  const game = new GameServer();
+  // 동면 씬만 관측 게이트 ON(라이브와 동일) — 시야 밖 동면·저해상도 갱신이 실제로 돈다. 다른 씬은 전 세계 시뮬.
+  const game = new GameServer(scene === 'dormant' ? { gateByObservation: true } : {});
+  let dormantAway = null, dormantReturnAt = null; // 동면 씬 — 다녀온 자와 귀환 예정 틱(관전 시작 시 확정)
   const rawFood = scene === 'eat';
   if (scene === 'appraise') {
     // 자율감정 씬 — 밥(왼쪽·넉넉)·먹이(오른쪽). 생명체 둘은 접속 시 possess 한다(아래).
@@ -165,6 +178,13 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
   } else if (scene === 'order') {
     // 질서 씬(feature-0018 step2) — 사거리 밖 재료 쌍 무리. 배부른 생명체가 질서 동기로 다가가 스스로 조합한다.
     seedCraftPairs(game, ORDER_SCENE.base);
+  } else if (scene === 'dormant') {
+    // 동면 씬(feature-0020) — 같은 잔고(900)의 두 야생 생명체. 머문 자는 시야 안(활성), 다녀온 자는 시야 밖(동면).
+    const stay = game.spawnCreature(DORMANT_SCENE.stay.x, DORMANT_SCENE.stay.y, DORMANT_SCENE.stay.z);
+    game.ledger.transfer(POOL.SOURCE, stay.id, 500, CAUSE.SPAWN); // 스폰 400 + 500 = 900
+    const away = game.spawnCreature(DORMANT_SCENE.away.x, DORMANT_SCENE.away.y, DORMANT_SCENE.away.z);
+    game.ledger.transfer(POOL.SOURCE, away.id, 500, CAUSE.SPAWN);
+    dormantAway = away;
   } else if (scene === 'play') {
     // 플레이 씬(통합) — 밥·먹이·재료 쌍. 생명체는 접속 시 possess(세 동기). 표적은 아래 warm 루프가 계속 채운다.
     game.spawnFood(PLAY_SCENE.food.x, PLAY_SCENE.food.y, PLAY_SCENE.food.z, 3, 9000);
@@ -188,6 +208,10 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
       if (msg.t === MSG.HELLO && playerId === null) {
         const player = game.addPlayer({ send: (s) => socket.readyState === 1 && socket.send(s) }, msg.name);
         playerId = player.id;
+        if (scene === 'dormant') { // 관전자 — 관전이 시작돼야 시야가 생기고(머문 자=활성·다녀온 자=동면) 귀환 시계가 돈다
+          if (dormantReturnAt === null) dormantReturnAt = demoTick + DORMANT_SCENE.returnTick;
+          return;
+        }
         if (scene === 'blast' || scene === 'detonate') return; // 관전자 — NPC 의 발산·비행·폭발/자폭을 지켜보기만 한다(possess 없음)
         // size 2 로 세우고 잔고를 목표치로 맞추는 헬퍼(보존 — SOURCE 와 주고받는다).
         const rear = (c, targetBal) => {
@@ -285,6 +309,10 @@ export function startDemoServer({ port = 8080, scene = 'appraise' } = {}) {
 
   let demoTick = 0;
   const timer = setInterval(() => {
+    if (scene === 'dormant' && dormantReturnAt !== null && demoTick === dormantReturnAt && dormantAway) {
+      // 귀환(무대 연출 — 물리 아님): 다녀온 자를 관전자 시야로 옮긴다. 재관측 = 동면 해제, 다음 스냅샷부터 보인다.
+      dormantAway.x = DORMANT_SCENE.back.x; dormantAway.y = DORMANT_SCENE.back.y; dormantAway.z = DORMANT_SCENE.back.z;
+    }
     if (scene === 'blast' || scene === 'detonate') { // 데모 지속용 — 생명체를 절반 아래로 마르면 다시 채운다(SOURCE→생명체, 보존).
       for (const c of game.creatures.values()) {
         const pl = game.ledger.get(c.id); if (!pl) continue;
