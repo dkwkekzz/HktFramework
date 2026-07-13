@@ -115,6 +115,89 @@ function computeU(dir, bindWorldQ, worldQ, axx, axy, axz) {
   return { x: ux / len, y: uy / len, z: uz / len };
 }
 
+// ---------------------------------------------------------------------------
+//  buildSegments — 캐릭터의 뼈·DNA 를 임의 해상도(size) 그리드 공간의 캡슐/구
+//  목록으로 변환. 실시간(size=RES)·bake(size=160)·Node 검증이 공유한다.
+//  각 seg/sphere 에 소속 뼈(bone) 를 실어 bake 스키닝이 기여도→가중치를 귀속.
+// ---------------------------------------------------------------------------
+const _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _bq = new THREE.Quaternion();
+export function buildSegments(ch, simpleName, size) {
+  const half = size / 2;
+  const gs = half / HALF;             // 월드 m → 그리드 단위 배율
+  const offsetX = ch.slotX || 0;
+  const compiled = ch.dnaCompiled || (ch.dnaCompiled = compileDna(ch.dna));
+  const segs = [], spheres = [];
+  const seen = new Set();             // 리그 2벌 FBX 중복 세그먼트 방지
+  for (const b of ch.bones) {
+    if (!b.parent?.isBone) continue;
+    const key = simpleName(b.name);
+    if (seen.has(key)) continue;
+    seen.add(key);
+    const r = compiled.resolve(key);
+    if (!r) continue;                 // r=0 세그먼트(손가락 등) 생략
+    const a = b.parent.getWorldPosition(_wa);
+    const c = b.getWorldPosition(_wb);
+    const ax = toGridX(a.x, half, offsetX), ay = toGridY(a.y, half), az = toGridZ(a.z, half);
+    const bx = toGridX(c.x, half, offsetX), by = toGridY(c.y, half), bz = toGridZ(c.z, half);
+    const fr = BLEND * r.blend * gs;
+    const rmaxGrid = r.rMax * fr;
+    // 세그먼트 축 단위벡터 (그리드)
+    let axx = bx - ax, axy = by - ay, axz = bz - az;
+    const alen = Math.hypot(axx, axy, axz) || 1; axx /= alen; axy /= alen; axz /= alen;
+    // flatten u (필요 시)
+    let flatten = null, uvec = null;
+    if (r.flatten) {
+      const worldQ = b.getWorldQuaternion(_bq);
+      uvec = computeU(r.flatten.dir, ch.bindWorldQ?.get(b), worldQ, axx, axy, axz);
+      if (uvec) flatten = { ux: uvec.x, uy: uvec.y, uz: uvec.z, invf2: 1 / (r.flatten.f * r.flatten.f) };
+    }
+    segs.push({ ax, ay, az, bx, by, bz, lut: r.lut, fr, rmaxGrid, flatten, bone: b });
+    // 구 (bump/cut) — 세그먼트 로컬 프레임에서 offset 배치
+    if (r.spheres.length) {
+      const su = uvec || computeU(null, null, null, axx, axy, axz); // dir 없으면 월드 +z 투영
+      if (su) {
+        const vx = axy * su.z - axz * su.y, vy = axz * su.x - axx * su.z, vz = axx * su.y - axy * su.x;
+        for (const sp of r.spheres) {
+          const lx = ax + (bx - ax) * sp.t, ly = ay + (by - ay) * sp.t, lz = az + (bz - az) * sp.t;
+          const o0 = sp.offset[0] * gs, o1 = sp.offset[1] * gs, o2 = sp.offset[2] * gs;
+          spheres.push({
+            cx: lx + o0 * su.x + o1 * vx + o2 * axx,
+            cy: ly + o0 * su.y + o1 * vy + o2 * axy,
+            cz: lz + o0 * su.z + o1 * vz + o2 * axz,
+            rGrid: BLEND * sp.r * gs, strength: sp.strength, bone: b,
+          });
+        }
+      }
+    }
+  }
+  return { segs, spheres };
+}
+
+// 한 점(그리드 공간)에서의 세그먼트 Wyvill 기여도 — fillField 와 **동일 수식**.
+// bake 스키닝 가중치가 이 함수를 재사용해 필드와 정합한다(§6.1-6).
+const NLUT = LUT_N - 1;
+export function segFieldAt(seg, x, y, z) {
+  const { ax, ay, az, bx, by, bz, lut, fr, flatten } = seg;
+  const dx = bx - ax, dy = by - ay, dz = bz - az, len2 = dx * dx + dy * dy + dz * dz;
+  const px = x - ax, py = y - ay, pz = z - az;
+  let t = len2 > 1e-10 ? (px * dx + py * dy + pz * dz) / len2 : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+  const qx = px - t * dx, qy = py - t * dy, qz = pz - t * dz, d2 = qx * qx + qy * qy + qz * qz;
+  const spos = t * NLUT; let li = spos | 0; if (li >= NLUT) li = NLUT - 1;
+  const rM = lut[li] + (lut[li + 1] - lut[li]) * (spos - li);
+  const R2 = (rM * fr) * (rM * fr);
+  let de2 = d2;
+  if (flatten) { const sdot = qx * flatten.ux + qy * flatten.uy + qz * flatten.uz; de2 = sdot * sdot * flatten.invf2 + (d2 - sdot * sdot); }
+  if (de2 >= R2) return 0;
+  const g = 1 - de2 / R2; return g * g * g;
+}
+
+export function sphereFieldAt(sp, x, y, z) {
+  const px = x - sp.cx, py = y - sp.cy, pz = z - sp.cz, d2 = px * px + py * py + pz * pz;
+  const R2 = sp.rGrid * sp.rGrid;
+  if (d2 >= R2) return 0;
+  const g = 1 - d2 / R2; return sp.strength * g * g * g;
+}
+
 export class McFlesh {
   constructor(scene) {
     this.material = new THREE.MeshStandardMaterial({ color: 0xb8c0cc, roughness: 0.6 });
@@ -125,9 +208,6 @@ export class McFlesh {
     this.mc.frustumCulled = false;
     this.mc.visible = false;
     scene.add(this.mc);
-    this._wa = new THREE.Vector3();
-    this._wb = new THREE.Vector3();
-    this._q = new THREE.Quaternion();
   }
 
   setVisible(on) { this.mc.visible = !!on; }
@@ -136,56 +216,10 @@ export class McFlesh {
   // ch: 캐릭터 상태. ch.bones(구동 뼈, 월드 최신), ch.dnaCompiled(compileDna 결과),
   //     ch.bindWorldQ(flatten 회전 추적), ch.slotX(볼륨 정렬 오프셋) 를 읽는다.
   update(ch, simpleName) {
-    const mc = this.mc, size = mc.size, half = mc.halfsize, field = mc.field;
+    const mc = this.mc;
     mc.reset();
-    const gs = half / HALF;             // 월드 m → 그리드 단위 배율
-    const offsetX = ch.slotX || 0;
-    const compiled = ch.dnaCompiled || (ch.dnaCompiled = compileDna(ch.dna));
-    const segs = [], spheres = [];
-    const seen = new Set();             // 리그 2벌 FBX 중복 세그먼트 방지
-    for (const b of ch.bones) {
-      if (!b.parent?.isBone) continue;
-      const key = simpleName(b.name);
-      if (seen.has(key)) continue;
-      seen.add(key);
-      const r = compiled.resolve(key);
-      if (!r) continue;                 // r=0 세그먼트(손가락 등) 생략
-      const a = b.parent.getWorldPosition(this._wa);
-      const c = b.getWorldPosition(this._wb);
-      const ax = toGridX(a.x, half, offsetX), ay = toGridY(a.y, half), az = toGridZ(a.z, half);
-      const bx = toGridX(c.x, half, offsetX), by = toGridY(c.y, half), bz = toGridZ(c.z, half);
-      const fr = BLEND * r.blend * gs;
-      const rmaxGrid = r.rMax * fr;
-      // 세그먼트 축 단위벡터 (그리드)
-      let axx = bx - ax, axy = by - ay, axz = bz - az;
-      const alen = Math.hypot(axx, axy, axz) || 1; axx /= alen; axy /= alen; axz /= alen;
-      // flatten u (필요 시)
-      let flatten = null, uvec = null;
-      if (r.flatten) {
-        const worldQ = b.getWorldQuaternion(this._q);
-        uvec = computeU(r.flatten.dir, ch.bindWorldQ?.get(b), worldQ, axx, axy, axz);
-        if (uvec) flatten = { ux: uvec.x, uy: uvec.y, uz: uvec.z, invf2: 1 / (r.flatten.f * r.flatten.f) };
-      }
-      segs.push({ ax, ay, az, bx, by, bz, lut: r.lut, fr, rmaxGrid, flatten });
-      // 구 (bump/cut) — 세그먼트 로컬 프레임에서 offset 배치
-      if (r.spheres.length) {
-        let su = uvec || computeU(null, null, null, axx, axy, axz); // dir 없으면 월드 +z 투영
-        if (su) {
-          const vx = axy * su.z - axz * su.y, vy = axz * su.x - axx * su.z, vz = axx * su.y - axy * su.x;
-          for (const sp of r.spheres) {
-            const lx = ax + (bx - ax) * sp.t, ly = ay + (by - ay) * sp.t, lz = az + (bz - az) * sp.t;
-            const o0 = sp.offset[0] * gs, o1 = sp.offset[1] * gs, o2 = sp.offset[2] * gs;
-            spheres.push({
-              cx: lx + o0 * su.x + o1 * vx + o2 * axx,
-              cy: ly + o0 * su.y + o1 * vy + o2 * axy,
-              cz: lz + o0 * su.z + o1 * vz + o2 * axz,
-              rGrid: BLEND * sp.r * gs, strength: sp.strength,
-            });
-          }
-        }
-      }
-    }
-    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs, spheres);
+    const { segs, spheres } = buildSegments(ch, simpleName, mc.size);
+    fillField(mc.field, { size: mc.size, yd: mc.yd, zd: mc.zd }, segs, spheres);
     mc.update(); // 마칭 큐브 → BufferGeometry 갱신
   }
 }

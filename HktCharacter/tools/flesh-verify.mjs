@@ -6,8 +6,38 @@
 //  실행:  node tools/flesh-verify.mjs   (실패 시 exit 1)
 //  docs/FLESH-PLAN.md §10.1 표의 검사 번호와 대응한다.
 // ============================================================================
+import * as THREE from 'three';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
+import { readFileSync } from 'fs';
 import { fillField, BLEND, HALF, RES, ISO } from '../src/mcflesh.js';
 import { compileDna, defaultDna, bakeLut, LUT_N } from '../src/fleshdna.js';
+import { bakeFleshMesh } from '../src/fleshbake.js';
+
+// 실물 FBX 골격을 로드해 최소 ch 를 구성(makeCh 핵심만 재현) — #7·#8 은 실제
+// 골격 치수로 판정(§1.1: 임의 치수 발명 금지, X Bot·Y Bot 양쪽 회귀쌍).
+const simpleName = n => n.split(':').pop().replace(/^mixamorig\d*/i, '').toLowerCase();
+function loadCh(file) {
+  const buf = readFileSync(file);
+  const obj = new FBXLoader().parse(buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength), '');
+  const bones = []; obj.traverse(o => { if (o.isBone) bones.push(o); });
+  const boneMap = new Map(); const drivers = []; let dup = 0;
+  for (const b of bones) { const sn = simpleName(b.name); if (!boneMap.has(sn)) { boneMap.set(sn, b); drivers.push(b); } else b.name = `${b.name}__dup${dup++}`; }
+  const p = new THREE.Vector3(), q = new THREE.Quaternion();
+  // 키 1.7m 정규화 + 발 접지 (computeBaseScale·replant 의 핵심만)
+  obj.scale.setScalar(1); obj.position.set(0, 0, 0); obj.updateMatrixWorld(true);
+  const box = new THREE.Box3(); for (const b of drivers) box.expandByPoint(b.getWorldPosition(p));
+  const size = new THREE.Vector3(); box.getSize(size);
+  obj.scale.setScalar(1.7 / Math.max(size.y, 1e-3)); obj.updateMatrixWorld(true);
+  const box2 = new THREE.Box3(); for (const b of drivers) box2.expandByPoint(b.getWorldPosition(p));
+  const c = new THREE.Vector3(); box2.getCenter(c);
+  obj.position.set(-c.x, -box2.min.y, -c.z); obj.updateMatrixWorld(true);
+  const bindLocalQ = new Map(), bindLocalP = new Map(), bindWorldQ = new Map();
+  for (const b of bones) { bindLocalQ.set(b, b.quaternion.clone()); bindLocalP.set(b, b.position.clone()); }
+  for (const b of bones) bindWorldQ.set(b, b.getWorldQuaternion(q).clone());
+  const ch = { root: obj, bones: drivers, allBones: bones, boneMap, bindLocalQ, bindLocalP, bindWorldQ, slotX: 0, dna: defaultDna() };
+  ch.dnaCompiled = compileDna(ch.dna);
+  return ch;
+}
 
 const half = RES / 2;
 const gs = half / HALF;                 // 월드 m → 그리드
@@ -193,6 +223,85 @@ console.log('\n[F2] 형태 어휘 — 프로파일 곡선 · flatten · bump/cut
   const sp = compileDna(dna).resolve('spine2').spheres;
   const mirrorOk = sp.length === 2 && sp[0].offset[1] === -sp[1].offset[1] && sp[0].offset[0] === sp[1].offset[0];
   check(6, mirrorOk, `mirror 쌍 대칭 (offset[1]: ${sp[0]?.offset[1]} ↔ ${sp[1]?.offset[1]})`);
+}
+
+console.log('\n[F3] bake & 자동 스키닝 (실물 골격: X Bot · Y Bot)\n');
+
+for (const file of ['public/assets/character/X Bot.fbx', 'public/assets/character/Y Bot.fbx']) {
+  const name = file.match(/([XY] Bot)/)[1];
+  let ch, baked;
+  try { ch = loadCh(file); baked = bakeFleshMesh(ch, simpleName, { res: 128 }); }
+  catch (e) { fail(7, `${name}: bake 실패 — ${e.message}`); continue; }
+  const geo = baked.mesh.geometry, s = baked.stats;
+  const posAttr = geo.attributes.position, wAttr = geo.attributes.skinWeight, iAttr = geo.attributes.skinIndex;
+  const vN = posAttr.count;
+
+  // #7a — 용접 후 중복 정점 0 (0.5mm 격자 재해시 == 고유 정점 수)
+  const keys = new Set();
+  for (let v = 0; v < vN; v++) keys.add(Math.round(posAttr.getX(v) * 2000) + '_' + Math.round(posAttr.getY(v) * 2000) + '_' + Math.round(posAttr.getZ(v) * 2000));
+  const dupFree = keys.size >= vN * 0.999;
+  check(7, dupFree && s.rawVerts > vN, `${name}: 용접 중복 0 (raw ${s.rawVerts}→ uniq ${vN}, 재해시 ${keys.size})`);
+
+  // #7b — skinWeight 행 합 ≈ 1 (±1e-3)
+  let maxErr = 0; for (let v = 0; v < vN; v++) { const sum = wAttr.getX(v) + wAttr.getY(v) + wAttr.getZ(v) + wAttr.getW(v); maxErr = Math.max(maxErr, Math.abs(sum - 1)); }
+  check(7, maxErr <= 1e-3, `${name}: skinWeight 행 합 1±1e-3 (최대오차 ${maxErr.toExponential(1)})`);
+
+  // #7c — Taubin 후 bbox 변화 ≤ 1%
+  check(7, s.bboxGrow <= 0.01, `${name}: Taubin bbox 변화 ${(s.bboxGrow * 100).toFixed(2)}% ≤ 1%`);
+
+  // #8 — 전완 90° 회전 CPU 스키닝: 전완 귀속 정점 강체 추종 (오차 ≤ 1mm)
+  const skel = baked.mesh.skeleton;
+  const foreBone = ch.boneMap.get('leftforearm') || ch.boneMap.get('rightforearm');
+  const foreIdx = skel.bones.indexOf(foreBone);
+  if (!foreBone || foreIdx < 0) { fail(8, `${name}: 전완 뼈 없음`); continue; }
+  // 전완 순수 지배(가중치≈1) 정점 수집 — 강체 추종은 blend 없는 정점으로 판정
+  // (0.99 정점은 관절 blend 라 LBS≠강체 가 정상; §6.1-6 이중 바인딩과 구분).
+  const foreVerts = [];
+  for (let v = 0; v < vN && foreVerts.length < 40; v++) {
+    for (let j = 0; j < 4; j++) if (iAttr.getComponent(v, j) === foreIdx && wAttr.getComponent(v, j) > 0.999) {
+      foreVerts.push([posAttr.getX(v), posAttr.getY(v), posAttr.getZ(v), v]); break;
+    }
+  }
+  if (!foreVerts.length) { fail(8, `${name}: 전완 지배 정점 없음`); continue; }
+  // bind 강체 행렬 M_i = boneMatrix_i · boneInverse_i (회전 전 = identity 근사)
+  const bindMat = new THREE.Matrix4().multiplyMatrices(foreBone.matrixWorld, skel.boneInverses[foreIdx]);
+  const vb = new THREE.Vector3(), vpre = new THREE.Vector3();
+  let preErr = 0;
+  for (const [x, y, z] of foreVerts) { vpre.set(x, y, z).applyMatrix4(bindMat); preErr = Math.max(preErr, vpre.distanceTo(vb.set(x, y, z))); }
+  // 전완 90° 회전 → 강체 추종 검산
+  foreBone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), Math.PI / 2));
+  ch.root.updateMatrixWorld(true);
+  const M = new THREE.Matrix4().multiplyMatrices(foreBone.matrixWorld, skel.boneInverses[foreIdx]);
+  // 전 정점: LBS(4-영향) 스키닝 == 전완 강체 변환(가중치≈1) 이어야 함
+  const Ms = skel.bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, skel.boneInverses[i]));
+  const acc = new THREE.Matrix4(), tmp = new THREE.Vector3(), rigid = new THREE.Vector3(), lbs = new THREE.Vector3();
+  let maxFollow = 0, moved = 0;
+  for (const [x, y, z, v] of foreVerts) {
+    rigid.set(x, y, z).applyMatrix4(M);
+    // LBS: Σ w_i M_i p
+    lbs.set(0, 0, 0);
+    for (let j = 0; j < 4; j++) { const w = wAttr.getComponent(v, j); if (w <= 0) continue; tmp.set(x, y, z).applyMatrix4(Ms[iAttr.getComponent(v, j)]); lbs.addScaledVector(tmp, w); }
+    maxFollow = Math.max(maxFollow, lbs.distanceTo(rigid));
+    moved = Math.max(moved, rigid.distanceTo(vb.set(x, y, z)));
+  }
+  check(8, preErr <= 0.001, `${name}: 회전 전 skinned==bind (오차 ${(preErr * 1000).toFixed(3)}mm)`);
+  check(8, maxFollow <= 0.001 && moved > 0.05, `${name}: 전완 90° 후 강체 추종 (LBS-강체 ${(maxFollow * 1000).toFixed(3)}mm, 이동 ${(moved * 100).toFixed(1)}cm)`);
+
+  if (name === 'X Bot') { // 정면(x-y) 실루엣 캡처 — 구운 메시가 사람으로 읽히는지 한눈에
+    // 회전 원복 후 캡처
+    foreBone.quaternion.multiply(new THREE.Quaternion().setFromAxisAngle(new THREE.Vector3(1, 0, 0), -Math.PI / 2));
+    ch.root.updateMatrixWorld(true);
+    const W = 40, H = 30, grid = Array.from({ length: H }, () => new Array(W).fill(' '));
+    let mnx = 1e9, mxx = -1e9, mny = 1e9, mxy = -1e9;
+    for (let v = 0; v < vN; v++) { const x = posAttr.getX(v), y = posAttr.getY(v); if (x < mnx) mnx = x; if (x > mxx) mxx = x; if (y < mny) mny = y; if (y > mxy) mxy = y; }
+    for (let v = 0; v < vN; v++) {
+      const gx = Math.round((posAttr.getX(v) - mnx) / (mxx - mnx) * (W - 1));
+      const gy = Math.round((mxy - posAttr.getY(v)) / (mxy - mny) * (H - 1));
+      grid[gy][gx] = '#';
+    }
+    console.log('    ── X Bot baked 정면 실루엣 (x→ 가로 / y↕) ──');
+    for (const row of grid) console.log('    ' + row.join('').replace(/\s+$/, ''));
+  }
 }
 
 console.log(`\n${failures ? '\x1b[31m' : '\x1b[32m'}${failures ? failures + ' FAIL' : 'ALL PASS'}\x1b[0m\n`);

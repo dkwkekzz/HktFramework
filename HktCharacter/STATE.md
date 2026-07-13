@@ -38,7 +38,11 @@
       - [x] **F2** 형태 어휘 — defaultDna 를 §5.4 곡선(PCHIP) 테이블로 교체.
         flatten(타원 단면)·blend(세그먼트 폭)·bump/cut(구 가산/감산) 필드 수학 가동.
         verify #3(PCHIP 오버슈트 0)·#4(종아리 t=0.35 폭)·#5(flatten u/v 비)·#6(bump/cut).
-      - [ ] **F3** bake & 자동 스키닝 · [ ] **F4** 프리셋·보간·변이
+      - [x] **F3** bake & 자동 스키닝 — `src/fleshbake.js`(바인드 포즈 res 160 폴리곤화
+        → 0.5mm 용접 → Taubin 스무딩 → 필드 기여도 자동 스키닝 → SkinnedMesh). SDF 살
+        버튼 3-상태(off/live/baked), DNA·본 비율 변경 시 400ms 디바운스 재굽기. verify
+        #7(용접 중복 0·skinWeight 합 1·트림 실루엣 수축 ≤1%)·#8(전완 90° 강체 추종 ≤1mm).
+      - [ ] **F4** 프리셋·보간·변이·입출력
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도
       이 트랙이 흡수한다.
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)
@@ -51,6 +55,7 @@
 ## 알려진 한계
 
 - 리타깃 발/머리 오차는 전체 키 비율(hScale) 하나로만 스케일해서 남음(위 다음 작업 참조).
-- SDF 살(`src/mcflesh.js`)은 실험 모듈 — 고정 격자 재샘플링 시간적 앨리어싱, 애니메이션-only
-  리그는 비율 상이. 상세 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- SDF 살(v5 트랙) — `live` 모드는 고정 격자 재샘플링 시간적 앨리어싱이 남는다(튜닝용).
+  `baked` 모드(F3)가 이를 해소한다(정적 스킨드 메시). 애니메이션-only 리그는 비율 상이 —
+  with-skin 캐릭터에 리타깃해서 볼 것. 상세 → [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md).
 - 루트 `eval/` 잔재는 샌드박스 권한 문제로 못 지운 복사본 — 지워도 된다.

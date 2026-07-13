@@ -19,6 +19,7 @@ import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
 import { defaultDna, compileDna } from './fleshdna.js';
+import { bakeFleshMesh } from './fleshbake.js';
 
 // ---------------------------------------------------------------------------
 //  씬 / 렌더러
@@ -123,7 +124,8 @@ const SLOTS = {
   main: { label: MODELS[0].label, file: MODELS[0].file, x: 0, ch: null },
 };
 let selected = 'main';
-const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, sdf: false };
+// flesh: 'off'(끔) | 'live'(실시간 MC) | 'baked'(구운 스킨드 메시)
+const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, flesh: 'off' };
 
 const selCh = () => SLOTS[selected]?.ch || null;
 const eachCh = fn => { for (const id in SLOTS) if (SLOTS[id].ch) fn(SLOTS[id].ch, id); };
@@ -160,6 +162,7 @@ function disposeCh(slotId) {
   if (!ch) return;
   scene.remove(ch.root);
   if (ch.helper) scene.remove(ch.helper);
+  if (ch.fleshBaked) { scene.remove(ch.fleshBaked); ch.fleshBaked.geometry.dispose(); ch.fleshBaked.material.dispose?.(); ch.fleshBaked = null; }
   ch.root.traverse(o => {
     if (o.geometry) o.geometry.dispose();
     for (const m of [].concat(o.material || [])) m.dispose?.();
@@ -255,6 +258,7 @@ function applyProps(ch) {
   // 비율이 바뀌면 클립별 접지 y 캐시(__rootY)는 무효 — 다음 재생 시 재측정
   for (const k in ch.clips) delete ch.clips[k].__rootY;
   replant(ch);
+  ch.fleshDirty = true; // 본 비율(길이) 변경도 구운 살 위치를 바꾸므로 재굽기 필요
 }
 
 // 발바닥 y=0 접지 (뼈 bbox 기준 — 스케일 반영). x/z 중심 정렬은 **바인드(클립 없음)일 때만**
@@ -522,10 +526,9 @@ function select(id) {
   refreshCharSelect();
   refreshAnimButtons();
   refreshPropSliders();
-  mcFlesh.setVisible(ui.sdf && !!selCh());
   document.getElementById('animWho').textContent = SLOTS[id].label;
   document.getElementById('propWho').textContent = SLOTS[id].label;
-  refreshFleshSliders();
+  applyFleshMode();
 }
 
 function updateRing() {
@@ -621,6 +624,7 @@ function refreshPropSliders() {
       c.props[g.id] = +inp.value;
       applyProps(c);
       updateRing();
+      scheduleRebake(c); // 본 비율(길이) 변경 → baked 살 재굽기
     });
     row.append(lab, inp, val);
     box.appendChild(row);
@@ -633,6 +637,7 @@ $('btnPropReset').addEventListener('click', () => {
   applyProps(ch);
   updateRing();
   refreshPropSliders();
+  scheduleRebake(ch);
 });
 
 // 살 두께 슬라이더 — DNA groups 를 실시간 조절. 길이(본 비율)와 독립.
@@ -642,7 +647,7 @@ function refreshFleshSliders() {
   box.innerHTML = '';
   const ch = selCh();
   $('fleshWho').textContent = ch ? SLOTS[selected].label : '';
-  const enabled = !!ch && ui.sdf;
+  const enabled = !!ch && ui.flesh !== 'off';
   for (const g of FLESH_GROUPS) {
     const row = document.createElement('div'); row.className = 'row';
     const lab = document.createElement('label'); lab.textContent = g.label;
@@ -657,6 +662,7 @@ function refreshFleshSliders() {
       const c = selCh(); if (!c) return;
       c.dna.groups[g.id] = +inp.value;
       c.dnaCompiled.invalidate(); // groups 배율은 resolve 캐시에 반영 — 무효화 후 재평가
+      scheduleRebake(c);          // baked 모드면 400ms 디바운스 재굽기
     });
     row.append(lab, inp, val);
     box.appendChild(row);
@@ -668,6 +674,7 @@ $('btnFleshReset').addEventListener('click', () => {
   for (const g of FLESH_GROUPS) ch.dna.groups[g.id] = 1;
   ch.dnaCompiled.invalidate();
   refreshFleshSliders();
+  scheduleRebake(ch);
 });
 
 // 애니메이션 버튼 채우기 (초기)
@@ -763,14 +770,60 @@ $('btnWire').addEventListener('click', e => {
   ui.wire = !ui.wire; e.target.classList.toggle('on', ui.wire);
   grayMat.wireframe = ui.wire; applyMaterialMode();
 });
-// SDF 살 — 선택된 캐릭터의 스켈레톤을 MarchingCubes 로 실시간 폴리곤화
+// SDF 살 — off → live(실시간 MC) → baked(구운 스킨드 메시) 3-상태 순환.
 const mcFlesh = new McFlesh(scene);
+const FLESH_MODES = ['off', 'live', 'baked'];
+const FLESH_LABEL = { off: 'off', live: 'live', baked: 'baked' };
 $('btnSdf').addEventListener('click', e => {
-  ui.sdf = !ui.sdf; e.target.classList.toggle('on', ui.sdf);
-  mcFlesh.setVisible(ui.sdf && !!selCh());
-  if (ui.sdf && !selCh()) setStatus('SDF 살: 먼저 캐릭터를 선택하세요.');
-  refreshFleshSliders(); // 살 슬라이더 활성/비활성 갱신
+  ui.flesh = FLESH_MODES[(FLESH_MODES.indexOf(ui.flesh) + 1) % 3];
+  e.target.textContent = 'SDF 살 · ' + FLESH_LABEL[ui.flesh];
+  e.target.classList.toggle('on', ui.flesh !== 'off');
+  if (ui.flesh !== 'off' && !selCh()) setStatus('SDF 살: 먼저 캐릭터를 선택하세요.');
+  applyFleshMode();
 });
+
+// 표시 모드 적용: live=실시간 MC, baked=구운 메시(+MC 숨김). 선택 캐릭터만 표시.
+function applyFleshMode() {
+  const ch = selCh();
+  const live = ui.flesh === 'live' && !!ch;
+  const baked = ui.flesh === 'baked' && !!ch;
+  mcFlesh.setVisible(live);
+  eachCh(c => { if (c.fleshBaked) c.fleshBaked.visible = (c === ch) && baked; });
+  if (baked && ch) ensureBaked(ch);
+  refreshFleshSliders();
+}
+
+// baked 모드 진입/재굽기 필요 시 굽는다. bake 는 동기 수백 ms — 상태줄 예고 후
+// 다음 프레임에 실행해 "살 굽는 중…" 이 먼저 그려지게 한다.
+let rebakeTimer = null;
+function ensureBaked(ch) {
+  if (ch.fleshBaked && !ch.fleshDirty) return;
+  bakeNow(ch);
+}
+function bakeNow(ch) {
+  clearTimeout(rebakeTimer); rebakeTimer = null;
+  setStatus('살 굽는 중…');
+  requestAnimationFrame(() => {
+    let res;
+    try { res = bakeFleshMesh(ch, simpleName); }
+    catch (err) { setStatus('살 굽기 실패: ' + err.message); return; }
+    if (ch.fleshBaked) { scene.remove(ch.fleshBaked); ch.fleshBaked.geometry.dispose(); }
+    ch.fleshBaked = res.mesh;
+    ch.fleshBaked.visible = ui.flesh === 'baked' && selCh() === ch;
+    scene.add(ch.fleshBaked);
+    ch.fleshDirty = false;
+    const s = res.stats;
+    setStatus(`살 baked — 정점 ${s.vCount} · 삼각형 ${s.tris} · bbox 변화 ${(s.bboxGrow * 100).toFixed(1)}%`
+      + (s.overflow ? ' <b style="color:#f66">⚠️ 폴리곤 한도 초과(절단)</b>' : ''));
+  });
+}
+// DNA·본 비율 변경 시 재굽기 예약(baked+선택 캐릭터 한정, 400ms 디바운스)
+function scheduleRebake(ch) {
+  ch.fleshDirty = true;
+  if (ui.flesh !== 'baked' || selCh() !== ch) return;
+  clearTimeout(rebakeTimer);
+  rebakeTimer = setTimeout(() => bakeNow(ch), 400);
+}
 $('spd').addEventListener('input', e => {
   ui.speed = +e.target.value;
   $('spdVal').textContent = ui.speed.toFixed(1);
@@ -784,13 +837,14 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.1);
   eachCh(ch => ch.mixer.update(dt * ui.speed));
   const sel = selCh();
-  if (ui.sdf && sel) {
+  if (ui.flesh === 'live' && sel) {
     sel.root.updateMatrixWorld(true);
     mcFlesh.setVisible(true);
     // SDF 는 볼륨 중심(원점) 기준이라, 선택 캐릭터를 잠시 원점으로 본 것처럼
-    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다.
+    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다(buildSegments 내부 처리).
     mcFlesh.update(sel, simpleName);
   } else mcFlesh.setVisible(false);
+  // baked 메시는 스켈레톤 바인딩으로 애니메이션을 자동 추종 — 프레임당 계산 0.
   controls.update();
   renderer.render(scene, cam);
   requestAnimationFrame(loop);
@@ -809,11 +863,12 @@ window.__hkt = {
   get dna() { return selCh()?.dna || null; },
   setDnaGroup(k, v) {
     const ch = selCh(); if (!ch) return;
-    ch.dna.groups[k] = v; ch.dnaCompiled.invalidate(); refreshFleshSliders();
+    ch.dna.groups[k] = v; ch.dnaCompiled.invalidate(); refreshFleshSliders(); scheduleRebake(ch);
   },
   setDna(json) {
     const ch = selCh(); if (!ch) return;
     ch.dna = typeof json === 'string' ? JSON.parse(json) : json;
-    ch.dnaCompiled = compileDna(ch.dna); refreshFleshSliders();
+    ch.dnaCompiled = compileDna(ch.dna); refreshFleshSliders(); scheduleRebake(ch);
   },
+  bake() { const ch = selCh(); return ch ? bakeFleshMesh(ch, simpleName) : null; }, // 콘솔 검증용
 };
