@@ -24,6 +24,11 @@ const DESIRE_RGB   = { forage: [120,220,150], hunt: [230,120,90], eat: [240,180,
 // 고정 라벨 없는 종류(파이어볼·열·플레이어)는 원 id 로 떨어진다(구 poolLabel else 분기와 동일).
 const KIND_LABEL = { self: '나', source: '태양', sink: '심우주', material: '국소장', crystal: '결정', creature: '생명체' };
 
+// 에너지 흐름 이펙트 애니메이션 (feature-0019 step2·3) — 순간 tx 사건(발산·폭발·연소·용해·파괴·열의 흐름)을
+//   잠깐 사는 VFX 로 굳힌다. **여기 수명이 있는 타입만 렌더러가 그린다** — 잦은 흐름(transfer=채집·강탈·갈구)은
+//   데이터로만 두고 그리지 않는다(클러터 방지). 지금은 대충, 이후 같은 서술자로 풍성하게.
+const FX_LIFE = { explosion: 0.6, emission: 0.28, combustion: 0.5, melt: 0.5, shatter: 0.45, flow: 0.45 };
+
 function txLabel(ep) { return KIND_LABEL[ep.kind] ?? ep.name ?? ep.id; }
 
 export class Render {
@@ -34,6 +39,7 @@ export class Render {
     this.h = canvas.height;
     this.scene = null;                   // 마지막 프레임 Scene(클릭 피킹의 히트테스트에 쓴다)
     this.lastCam = null;                 // 마지막 프레임 카메라(클릭 피킹의 화면투영에 쓴다)
+    this.fx = [];                        // 살아있는 이펙트 인스턴스(발산·폭발…) — 순간 tx 사건을 수명 동안 애니메이션(표현 상태, 세계 무관)
     this.onSelectTarget = null;          // (sel) => void — 클릭 지정 표적을 서버로(main.js 결선)
 
     // orbit 카메라 (z-up). yaw=방위각, pitch=올려본 각, dist=거리.
@@ -186,7 +192,121 @@ export class Render {
       this.#drawEntity(cam, d.player, d.cam[2]);
     }
 
+    // 에너지 흐름 이펙트 — 순간 tx 사건(발산·폭발·연소·용해·파괴·열의 흐름)을 잠깐 사는 VFX 로(feature-0019 step2·3).
+    //   세계 위에 겹치는 오버레이라 개체 다음·HUD 앞에 그린다. Scene 은 사건을 주고, 애니메이션은 렌더러 몫.
+    this.#ingestEffects(scene);
+    this.#drawEffects(cam);
+
     this.#hud(scene);
+  }
+
+  // 이번 프레임 Scene.effects 를 살아있는 인스턴스로 받아들인다. 각 tx 사건은 한 프레임의 Scene 에만 실리므로
+  //   매번 새로 태어난다(중복 없음). 수명 지난 것은 버리고, 폭주 방지 캡을 둔다.
+  #ingestEffects(scene) {
+    const t = scene.t;
+    for (const e of scene.effects) {
+      if (!FX_LIFE[e.type]) continue; // 렌더러가 그리는 타입만(transfer 등 잦은 흐름은 데이터로만)
+      this.fx.push({ type: e.type, pos: e.pos, from: e.from, to: e.to, magnitude: e.magnitude, born: t });
+    }
+    this.fx = this.fx.filter(f => t - f.born < FX_LIFE[f.type]);
+    if (this.fx.length > 400) this.fx.splice(0, this.fx.length - 400);
+  }
+
+  // 살아있는 이펙트를 수명 진행도(p=0..1)에 따라 그린다. 타입별로 팽창·페이드하는 화면공간 VFX(파이어볼 글로우와 같은 방식).
+  #drawEffects(cam) {
+    const t = this.t;
+    for (const f of this.fx) {
+      const p = Math.max(0, Math.min(1, (t - f.born) / FX_LIFE[f.type]));
+      if (f.type === 'flow') { this.#fxFlow(cam, f, p); continue; } // 흐름은 from→to 이동점이라 별도
+      const cc = this.#toCam(cam, f.pos.x, f.pos.y, f.pos.z);
+      if (cc[2] <= 1) continue;
+      const sp = this.#project(cc); if (!sp) continue;
+      const scale = this.focal / cc[2];
+      switch (f.type) {
+        case 'explosion':  this.#fxExplosion(sp, scale, p, f.magnitude); break;
+        case 'emission':   this.#fxEmission(sp, scale, p, f.magnitude); break;
+        case 'combustion': this.#fxPuff(sp, scale, p, f.magnitude, [255, 120, 30]); break;
+        case 'melt':       this.#fxPuff(sp, scale, p, f.magnitude, [90, 180, 255]); break;
+        case 'shatter':    this.#fxShatter(sp, scale, p, f.magnitude); break;
+      }
+    }
+  }
+
+  // 폭발 — 팽창하는 충격파 링 + 안쪽 백열 플래시(feature-0013 규칙 D). 세기(magnitude)가 클수록 큰 폭발.
+  #fxExplosion(sp, scale, p, mag) {
+    const { ctx } = this;
+    const R = (40 + 240 * mag) * scale;
+    const r = Math.max(2, R * (0.12 + 0.88 * p)); // 팽창
+    const a = 1 - p;                              // 페이드
+    const g = ctx.createRadialGradient(sp.sx, sp.sy, 0, sp.sx, sp.sy, r);
+    g.addColorStop(0, `rgba(255,250,220,${0.9 * a})`);
+    g.addColorStop(0.4, `rgba(255,160,40,${0.6 * a})`);
+    g.addColorStop(1, 'rgba(255,80,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sp.sx, sp.sy, r, 0, 7); ctx.fill();
+    ctx.strokeStyle = `rgba(255,${140 + Math.round(80 * (1 - p))},60,${0.6 * a})`;
+    ctx.lineWidth = 2 + 6 * (1 - p);
+    ctx.beginPath(); ctx.arc(sp.sx, sp.sy, r, 0, 7); ctx.stroke();
+  }
+
+  // 발산 muzzle — 파이어볼이 태어나는 순간의 짧고 밝은 섬광(feature-0009). 빠르게 사라진다.
+  #fxEmission(sp, scale, p, mag) {
+    const { ctx } = this;
+    const r = Math.max(2, (8 + 22 * mag) * scale * (0.6 + 0.5 * p));
+    const a = 1 - p;
+    const g = ctx.createRadialGradient(sp.sx, sp.sy, 0, sp.sx, sp.sy, r);
+    g.addColorStop(0, `rgba(255,255,240,${0.95 * a})`);
+    g.addColorStop(0.5, `rgba(255,190,70,${0.7 * a})`);
+    g.addColorStop(1, 'rgba(255,120,0,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sp.sx, sp.sy, r, 0, 7); ctx.fill();
+  }
+
+  // 연소·용해 — 색만 다른 떠오르는 연기 퍼프(연소=주황, 용해=물빛). 물질 상태전이의 방출을 대충 표현.
+  #fxPuff(sp, scale, p, mag, [r, g, b]) {
+    const { ctx } = this;
+    const rad = Math.max(2, (10 + 34 * mag) * scale * (0.4 + 0.9 * p));
+    const a = (1 - p) * 0.7;
+    const y = sp.sy - 34 * scale * p; // 살짝 떠오름
+    const grad = ctx.createRadialGradient(sp.sx, y, 0, sp.sx, y, rad);
+    grad.addColorStop(0, `rgba(${r},${g},${b},${a})`);
+    grad.addColorStop(1, `rgba(${r},${g},${b},0)`);
+    ctx.fillStyle = grad;
+    ctx.beginPath(); ctx.arc(sp.sx, y, rad, 0, 7); ctx.fill();
+  }
+
+  // 파괴 — 사방으로 튀는 파편 스파크(feature-0013 규칙 C).
+  #fxShatter(sp, scale, p, mag) {
+    const { ctx } = this;
+    const a = 1 - p, n = 8;
+    const len = (14 + 44 * mag) * scale * (0.3 + p);
+    ctx.strokeStyle = `rgba(205,214,224,${0.85 * a})`;
+    ctx.lineWidth = 1.5;
+    for (let i = 0; i < n; i++) {
+      const ang = (i / n) * Math.PI * 2 + p; // 살짝 회전
+      ctx.beginPath();
+      ctx.moveTo(sp.sx + Math.cos(ang) * len * 0.3, sp.sy + Math.sin(ang) * len * 0.3);
+      ctx.lineTo(sp.sx + Math.cos(ang) * len, sp.sy + Math.sin(ang) * len);
+      ctx.stroke();
+    }
+  }
+
+  // 열의 흐름 — from→to 로 옮겨가는 뜨거운 점(자극·반응열). from/to 가 없으면 자리서 은은한 글로우.
+  #fxFlow(cam, f, p) {
+    const { ctx } = this;
+    const a = (1 - p) * 0.55;
+    let x = f.pos.x, y = f.pos.y, z = f.pos.z;
+    if (f.from && f.to) {
+      x = f.from.x + (f.to.x - f.from.x) * p;
+      y = f.from.y + (f.to.y - f.from.y) * p;
+      z = f.from.z + (f.to.z - f.from.z) * p;
+    }
+    const sp = this.#pt(cam, x, y, z); if (!sp) return;
+    const g = ctx.createRadialGradient(sp.sx, sp.sy, 0, sp.sx, sp.sy, 8);
+    g.addColorStop(0, `rgba(255,180,80,${a})`);
+    g.addColorStop(1, 'rgba(255,120,40,0)');
+    ctx.fillStyle = g;
+    ctx.beginPath(); ctx.arc(sp.sx, sp.sy, 8, 0, 7); ctx.fill();
   }
 
   // 국소장 3D 볼류메트릭 — 각 복셀을 상태별 색으로(먼 것부터). 기체·액체·고밀도(열).

@@ -1,6 +1,6 @@
 # feature-0019 — 렌더 분리: 세계 속성 → ViewModel → 렌더(속성 그대로)
 
-> 상태: 🟢 검증됨 (step 1) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
+> 상태: 🟢 검증됨 (step 1~3) · 작업 방식: [CLAUDE.md](../CLAUDE.md)
 > 배경: 렌더 영역을 이후 완전히 다른 모듈로 교체할 수 있게 완전 분리해야 한다. 또 에너지 흐름 표현
 > (열의 폭발·파이어볼·열의 흐름·에너지 발산)은 지금 대충이어도 이후 다채롭고 풍성하게 그릴 **기반**이 있어야 한다.
 > 이 feature 는 그 파이프라인을 세우고, 법칙을 [CLAUDE.md](../CLAUDE.md) 불변 원칙 ③ 로 못 박는다.
@@ -37,8 +37,9 @@
   `shatter`·`flow`(열·반응·복사)·`transfer`(채집·강탈).
 - **공간 해석**: pool id 접두(`C:`/`I:`/`B:`/`H:`/`M:`)로 종류, seq 로 개체 → 스냅샷 맵에서 pos.
   착탄으로 스냅샷에서 빠진 파이어볼 등은 ViewModel 이 유지하는 **pool→lastPos 캐시**로 마지막 위치를 잡는다.
-- **지금은 대충, 이후 풍성하게**: step 1 은 이펙트를 **데이터로 채우고 테스트로만 검증**한다(현 시각 동일 유지
-  → shot 회귀 통과). 리치 공간 VFX(폭발 섬광·발산 muzzle·열 파티클)는 후속 step 이 같은 서술자를 소비해 얹는다.
+- **지금은 대충, 이후 풍성하게**: step 1 은 이펙트를 데이터로만 세웠고(테스트 검증), **step 2·3 이 렌더러가 그 서술자를
+  소비**해 공간 VFX(폭발 충격파·발산 muzzle·연소/용해 퍼프·파괴 스파크·열의 흐름 점)로 그린다 — 대충. 이후 파티클·라이팅
+  같은 리치 렌더는 **같은 `effects` 서술자를 다르게 그리기만** 하면 된다(Scene 계약 불변, 렌더러 교체가 seam).
 
 ## 최종 목적 (측정 가능)
 
@@ -69,19 +70,21 @@ Scene = {
 | step | 목표 | 검증 |
 |---|---|---|
 | **1** ✅ | Scene 계약 + `viewmodel.js` 신설, 세계 규칙 해석·재유도 전량 이관, 렌더러는 Scene 만 소비. **시각 동일**. 이펙트 채널은 데이터로 채우고 테스트로 검증(렌더 미적용). | `npm test`(+`viewmodel.test.js`) · `npm run shot`·`shot:blast` 픽셀 동일 |
-| 2 | 폭발(0013 규칙 D) 공간 VFX — `effects` 의 `explosion` 서술자를 착탄점 섬광/충격파로 대충 렌더 | shot:detonate 새 기준 |
-| 3 | 발산 muzzle·열의 흐름(flow) 파티클 — 같은 채널 소비 | shot:blast 갱신 |
+| **2** ✅ | 폭발(0013 규칙 D) 공간 VFX — `effects` 의 `explosion` 서술자를 착탄점 팽창 충격파 + 백열 플래시로 렌더 | shot:detonate — 폭발 후 공간이 붉은 열로 참 |
+| **3** ✅ | 발산 muzzle·연소/용해 퍼프·파괴 스파크·열의 흐름 점 — 같은 채널 소비(렌더러가 그리는 타입만 수명 부여) | shot:blast — 발산·폭발 VFX |
 
 ## step 로그
 
 | step | 한 일 | 검증 |
 |---|---|---|
 | 1 | **렌더 분리 파이프라인.** `client/viewmodel.js`(`ViewModel.build(t)→Scene`) 신설 — render.js 의 세계→시각 파생 전량 + `#desireTargetPos`/`#desireActing` 이관 + pool→pos 해석 + OPS tx→`effects` 파생 + pool→lastPos 캐시. `render.js` 는 `draw(scene)` 로 축소 — 카메라·투영·드로잉·표현 매핑(색·아이콘·라벨)만 남고 원시 상태 접근·규칙 재유도 제거, 클릭 피킹은 Scene 개체 히트테스트. `state.js` 에 이펙트 tx 버퍼(`effectTx`·`drainEffectTx`) 추가(txFeed 캡과 별개). `main.js` 가 `scene=viewmodel.build(t); render.draw(scene)` 로 결선. 드로잉 식은 픽셀 동일 유지. | `npm test` **204/204**(+`viewmodel.test.js` 5종: Scene 정규화 속성·표적/acting 선계산·이펙트 파생(발산=emission·폭발=explosion·pos 해석)·lastPos 캐시·tx 피드 종류/방향). **시각(PNG)**: `npm run shot`(craftchain — 생명체 오라·마칭앤츠 표적선·제조 결정·HUD·tx 라벨 동일)·`npm run shot:blast`(파이어볼 비행·`[발산]`/`[폭발]` tx 라벨이 `B:` 원 id 로 동일) — 리팩터 전과 픽셀 동일. |
+| 2·3 | **이펙트 채널 소비 — 에너지 흐름 VFX.** `render.js` 가 `scene.effects` 를 받아 살아있는 인스턴스(`this.fx`, 표현 상태·세계 무관)로 애니메이션한다: **폭발**(팽창 충격파 링+백열 플래시)·**발산**(muzzle 섬광)·**연소/용해**(주황/물빛 퍼프)·**파괴**(파편 스파크)·**열의 흐름**(from→to 이동하는 뜨거운 점). 수명(`FX_LIFE`) 있는 타입만 그린다 — 잦은 흐름(transfer=채집·강탈·갈구)은 데이터로만 두고 미draw(클러터 방지). ViewModel 에서 ambient `radiate` 제거(상시 배경 흐름이라 이펙트 아님). 이펙트 없는 프레임은 픽셀 동일. `main.js` 가 관측 훅(`window.__hkt`)에 `render` 노출(살아있는 이펙트 폴링 검증용). **지금은 대충, 이후 같은 서술자로 풍성하게**(파티클·라이팅 교체는 렌더러 몫). | `npm test` **204/204** 유지. **시각 상시 재현**: `npm run shot:effects` — blast 씬(실 캐스터)이 쏜 **실제 발산·폭발** tx 를, 렌더러의 살아있는 이펙트 목록(`render.fx`)을 폴링해 그 순간 캡처한다(`effects-1-emission.png` muzzle 섬광 · `effects-2-explosion.png` 착탄 충격파). tx 피드의 `[발산] 생명체→B:` · `[폭발] B:→심우주/국소장` 이 함께 찍혀 "권위 사건 → VFX"가 눈으로 확인된다. + `npm run shot:detonate`(자폭 후 붉은 열 국소장). |
 
 ## 검증 (항상 가능)
 
 ```bash
-npm test            # test/viewmodel.test.js — Scene 정규화 속성·표적/acting 선계산·이펙트 파생·lastPos 캐시·tx 피드
-npm run shot        # 시각(craftchain) — 분리 후에도 화면 동일(생명체·결정·오라·표적선·HUD·tx 피드)
-npm run shot:blast  # 시각(발산·폭발) — 파이어볼 비행 + tx 피드 발산/폭발 라벨 동일
+npm test             # test/viewmodel.test.js — Scene 정규화 속성·표적/acting 선계산·이펙트 파생·lastPos 캐시·tx 피드
+npm run shot         # 시각(craftchain) — 분리 후에도 화면 동일(생명체·결정·오라·표적선·HUD·tx 피드)
+npm run shot:effects # 시각(이펙트 채널) — 실제 발산 muzzle 섬광 + 폭발 충격파를 그 순간 캡처(render.fx 폴링)
+npm run shot:blast   # 시각(발산·폭발) — 파이어볼 비행 + tx 피드 발산/폭발 라벨 동일
 ```

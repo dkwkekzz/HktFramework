@@ -18,7 +18,7 @@ const sim = new Sim(net, state);
 const viewmodel = new ViewModel(state, sim, net);
 const render = new Render(canvas);
 // 관측/디버그 훅 — 읽기 전용 뷰어의 미러 원장·좌표를 콘솔에서 들여다보게 노출(권위 아님, 표시용).
-if (typeof window !== 'undefined') window.__hkt = { state, sim, net, viewmodel };
+if (typeof window !== 'undefined') window.__hkt = { state, sim, net, viewmodel, render };
 sim.getYaw = () => render.yaw; // 카메라 상대 이동 — 이동 축을 현재 카메라 방향에 맞춘다
 
 state.onResync = (regions) => net.send(MSG.RESYNC, { regions });
