@@ -7,7 +7,10 @@
 //  판정 가능한 폭·합 지표를 찍고 PASS/FAIL 로 요약한다.
 // ============================================================================
 import * as THREE from 'three';
-import { defaultDna, compileDna, samplePchip } from '../src/fleshdna.js';
+import {
+  defaultDna, compileDna, samplePchip,
+  PRESETS, presetDna, lerpDna, mutateDna, serializeDna, parseDna,
+} from '../src/fleshdna.js';
 import { fillField, BLEND, HALF } from '../src/mcflesh.js';
 import { bakeFleshMesh } from '../src/fleshbake.js';
 
@@ -336,6 +339,58 @@ H('#8  F3: 전완 90° 회전 — 전완 귀속 정점 강체 추종');
   ok('전완 귀속 정점 존재', sel.length >= 20, `${sel.length}개`);
   ok('회전이 정점을 이동시킴(비자명)', moved > 0.05, `이동 ${(moved * 100).toFixed(1)}cm`);
   ok('강체 추종 — 쌍거리 편차 ≤1mm', maxDev <= 0.001, `최대 ${(maxDev * 1000).toFixed(3)}mm`);
+}
+
+// ---------------------------------------------------------------------------
+//  #9 (F4) — 프리셋 컴파일 · 직렬화 왕복 · lerp 끝점 · mutate 재현·클램프
+// ---------------------------------------------------------------------------
+H('#9  F4: 프리셋 · 직렬화 · lerp · mutate');
+{
+  // 모든 프리셋이 오류 없이 컴파일되고 최소 한 세그먼트를 만든다
+  let allOk = true, detail = '';
+  for (const p of PRESETS) {
+    const c = compileDna(presetDna(p.name));
+    const r = c.resolve('spine1');
+    if (!r || r.rMax <= 0) { allOk = false; detail = `${p.name} spine1 무효`; }
+  }
+  ok('프리셋 4종 컴파일', allOk && PRESETS.length === 4, detail || `${PRESETS.length}종`);
+
+  // 직렬화 왕복 — parse(serialize(dna)) 이 동일 구조
+  const d = presetDna('bulk');
+  const round = parseDna(serializeDna(d));
+  ok('직렬화 왕복 동일', JSON.stringify(round) === JSON.stringify(d));
+
+  // parseDna 검증 — 잘못된 version 거부
+  let rejected = false;
+  try { parseDna({ version: 2, segments: [], groups: {} }); } catch { rejected = true; }
+  ok('parseDna 잘못된 version 거부', rejected);
+
+  // lerp 끝점 — t=0 → a, t=1 → b (groups 기준)
+  const a = presetDna('humanlike'), b = presetDna('slim');
+  const l0 = lerpDna(a, b, 0), l1 = lerpDna(a, b, 1), lm = lerpDna(a, b, 0.5);
+  const g0 = Math.abs(l0.groups.arm - a.groups.arm) < 1e-9;
+  const g1 = Math.abs(l1.groups.arm - b.groups.arm) < 1e-9;
+  const gm = Math.abs(lm.groups.arm - (a.groups.arm + b.groups.arm) / 2) < 1e-9;
+  ok('lerp 끝점·중점 (groups)', g0 && g1 && gm,
+    `t0=${l0.groups.arm.toFixed(3)} t1=${l1.groups.arm.toFixed(3)} t.5=${lm.groups.arm.toFixed(3)}`);
+
+  // mutate 재현성 — 같은 seed 는 같은 결과
+  const m1 = mutateDna(a, 42, 0.12), m2 = mutateDna(a, 42, 0.12), m3 = mutateDna(a, 43, 0.12);
+  ok('mutate 재현(같은 seed)', JSON.stringify(m1) === JSON.stringify(m2));
+  ok('mutate 다양성(다른 seed)', JSON.stringify(m1) !== JSON.stringify(m3));
+
+  // mutate 클램프 — profile r 이 [0.5,1.8]×원본 안, 손가락(r=0)은 불변
+  let clampOk = true;
+  const big = mutateDna(a, 7, 5.0); // 큰 진폭이어도 클램프
+  for (let si = 0; si < a.segments.length; si++) {
+    const orig = a.segments[si].profile, mut = big.segments[si].profile;
+    for (let pi = 0; pi < orig.length; pi++) {
+      const o = orig[pi][1], m = mut[pi][1];
+      if (o <= 0) { if (m !== 0) clampOk = false; }
+      else if (m < 0.5 * o - 1e-9 || m > 1.8 * o + 1e-9) clampOk = false;
+    }
+  }
+  ok('mutate 클램프 [0.5,1.8]×·r0 불변', clampOk);
 }
 
 // ---------------------------------------------------------------------------

@@ -60,6 +60,47 @@ export function defaultDna() {
 }
 
 // ---------------------------------------------------------------------------
+//  프리셋 (F4) — 개성 있는 체형 출발점. 전부 defaultDna 파생 깊은 복사.
+// ---------------------------------------------------------------------------
+function slimDna() {
+  const d = defaultDna(); d.name = 'slim';
+  for (const k in d.groups) d.groups[k] = 0.85;      // 전 그룹 가늘게
+  const s1 = d.segments.find(s => s.match === 'spine1');
+  s1.profile = [[0, 0.078], [0.5, 0.064], [1, 0.088]]; // 허리 잘록 강화
+  return d;
+}
+function bulkDna() {
+  const d = defaultDna(); d.name = 'bulk';
+  d.groups.torso = 1.25; d.groups.arm = 1.25;         // 몸통·팔 벌크업
+  const sh = d.segments.find(s => s.match === 'shoulder'); sh.blend = 1.5; // 어깨 fold↑
+  return d;
+}
+function robotDna() {
+  const d = defaultDna(); d.name = 'robot';
+  // 전부 상수 profile = F1 회귀형(구 RADII 자식값). flatten 제거로 원기둥 실루엣.
+  const R = {
+    head: 0.085, neck: 0.045, hips: 0.105, spine2: 0.105, spine1: 0.095, spine: 0.09,
+    shoulder: 0.05, forearm: 0.04, arm: 0.048, hand: 0.035, upleg: 0.075, leg: 0.055, foot: 0.04, toe: 0.03,
+  };
+  for (const s of d.segments) {
+    if (R[s.match] != null) { s.profile = [[0, R[s.match]]]; s.flatten = null; s.blend = 1; }
+  }
+  return d;
+}
+
+/** 이름 → 프리셋 DNA 깊은 복사. */
+export const PRESETS = [
+  { name: 'humanlike', make: defaultDna },
+  { name: 'slim', make: slimDna },
+  { name: 'bulk', make: bulkDna },
+  { name: 'robot', make: robotDna },
+];
+export function presetDna(name) {
+  const p = PRESETS.find(p => p.name === name);
+  return p ? p.make() : defaultDna();
+}
+
+// ---------------------------------------------------------------------------
 //  PCHIP (Fritsch–Carlson) — 단조 큐빅 Hermite 보간.
 //  제어점을 정확히 통과(C¹ 연속) + 오버슈트 없음(반지름이 음수/융기로 튀지 않음).
 //  Catmull-Rom 은 급변 구간에서 볼록 껍질 돌출을 만들 수 있어 배제한다.

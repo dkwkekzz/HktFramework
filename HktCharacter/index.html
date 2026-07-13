@@ -76,7 +76,21 @@
   <h3>본 비율 <span id="propWho" class="who"></span></h3>
   <div id="props"></div>
   <button id="btnPropReset">비율 초기화</button>
-  <h3>살 두께 <span id="fleshWho" class="who"></span></h3>
+  <h3>살 DNA <span id="fleshWho" class="who"></span></h3>
+  <div class="row"><label>프리셋</label><select id="fleshPreset"></select></div>
+  <div class="row"><label>→ 대상</label><select id="fleshPresetB"></select></div>
+  <div class="row">
+    <label>혼합</label>
+    <input id="fleshMorph" type="range" min="0" max="1" step="0.01" value="0" />
+    <span id="fleshMorphVal" class="val">0.00</span>
+  </div>
+  <div id="fleshDnaBtns">
+    <button id="btnFleshMutate" title="시드 변이로 개체 생성">변이</button>
+    <button id="btnFleshExport" title="DNA JSON 내보내기">내보내기</button>
+    <button id="btnFleshImport" title="DNA JSON 가져오기">가져오기</button>
+  </div>
+  <div id="fleshSeed" class="k" style="font-size:11px;color:#6f7a88;margin:2px 0;">seed —</div>
+  <h3>살 두께</h3>
   <div id="fleshSliders"></div>
   <button id="btnFleshReset">살 두께 초기화</button>
   <h3>재생</h3>
@@ -95,7 +109,7 @@
   </div>
 </div>
 
-<div id="drop">FBX 드롭 — with-skin 이면 캐릭터 교체 · 애니메이션이면 리타깃 재생 (클릭=파일 선택)</div>
+<div id="drop">FBX 드롭 — with-skin=캐릭터 교체 · 애니메이션=리타깃 · .dna.json=살 DNA 적용 (클릭=파일 선택)</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>
