@@ -46,6 +46,12 @@
       - [x] **F4** 프리셋(humanlike/slim/bulk/robot)·A→B 모핑(lerpDna)·변이(mutateDna seed)·
         JSON 입출력(내보내기/가져오기, `.dna.json` 드롭). verify #9 PASS(프리셋 컴파일·직렬화
         왕복·lerp 끝점·mutate 재현/클램프). **육안 확인 필요**.
+      - [x] **F6** 가산 오프셋 프리미티브(blob) — 뼈 없는 볼륨(가슴·엉덩이). 스키마 확장
+        `dna.blobs[]`(match·t·offset·r[ellipsoid]·strength·mirror), fillField/buildSegs/bake
+        스키닝 통합, `female` 프리셋(blob 가슴·엉덩이 + 좁은 어깨·잘록 허리). verify #10 PASS
+        (돌출·mirror 대칭). **근거**: FLESH-PLAN §0 은 "시트 정밀 재현"을 비목표로 뒀으나,
+        사용자 요청으로 *읽히는 인간형*을 참조에 근접시키기 위해 어휘를 확장(사용자 결정).
+        얼굴·손가락은 여전히 범위 밖(§9). 시각화에 female 정면·측면 캡처 추가.
       - [ ] **F5**(선택) 살아있는 살 — 근육 팽창·호흡(live 한정). [ ] UE5 GLTF 내보내기(별도 Phase).
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도 흡수.
       검증 = **수치 + 캡처** 둘 다(`npm run verify`): flesh-verify 25 PASS + flesh-visualize 가

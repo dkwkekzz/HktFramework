@@ -57,6 +57,9 @@ export function defaultDna() {
     name: 'humanlike',
     segments: baseSegments(),
     cuts: [],
+    // 가산 오프셋 프리미티브(타원체) — 뼈 없는 볼륨(가슴·엉덩이·근육 덩이). cut 의 반대 짝.
+    // { match, t, offset:[u,v,축](m), r:숫자|[ru,rv,ra](m), strength, mirror }
+    blobs: [],
     groups: { head: 1, torso: 1, arm: 1, hand: 1, leg: 1, foot: 1 },
   };
 }
@@ -90,9 +93,26 @@ function robotDna() {
   return d;
 }
 
+// 여성형 — blob(가슴·엉덩이) + 좁은 어깨·잘록한 허리로 참조 시트에 근접.
+function femaleDna() {
+  const d = defaultDna(); d.name = 'female';
+  d.groups.arm = 0.9;                                  // 팔 가늘게
+  d.segments.find(s => s.match === 'spine1').profile = [[0, 0.078], [0.5, 0.06], [1, 0.086]]; // 허리 잘록
+  d.segments.find(s => s.match === 'shoulder').blend = 1.0; // 어깨 웹 좁게
+  d.segments.find(s => s.match === 'hips').profile = [[0, 0.11], [1, 0.105]];  // 골반 넓게
+  d.blobs = [
+    // 가슴 — spine2(흉곽) 앞으로 충분히 내밀어 flatten 표면 밖으로 돌출, 좌우 대칭
+    { match: 'spine2', t: 0.5, offset: [0.09, 0.042, 0.0], r: [0.055, 0.05, 0.055], strength: 1.15, mirror: true },
+    // 엉덩이 — 좌우 upleg 상단 뒤쪽(각 다리 하나씩, mirror 불필요)
+    { match: 'upleg', t: 0.1, offset: [-0.075, 0.02, 0.02], r: [0.07, 0.06, 0.07], strength: 1.05 },
+  ];
+  return d;
+}
+
 /** 이름 → 프리셋 DNA 깊은 복사. */
 export const PRESETS = [
   { name: 'humanlike', make: defaultDna },
+  { name: 'female', make: femaleDna },
   { name: 'slim', make: slimDna },
   { name: 'bulk', make: bulkDna },
   { name: 'robot', make: robotDna },
@@ -167,7 +187,7 @@ export function samplePchip(points) {
  *   또는 null (r=0 세그먼트, 예: 손가락). LUT 는 profile×groups 를 미터 단위로 담는다.
  */
 export function compileDna(dna) {
-  let segs = null, cutSpecs = null, cache = null;
+  let segs = null, cutSpecs = null, blobSpecs = null, cache = null;
 
   function build() {
     segs = dna.segments.map(s => ({
@@ -184,6 +204,10 @@ export function compileDna(dna) {
       r: c.r ?? 0.05,
       strength: c.strength ?? 0.6,
     }));
+    blobSpecs = (dna.blobs || []).map(b => {
+      const r = Array.isArray(b.r) ? b.r : [b.r ?? 0.05, b.r ?? 0.05, b.r ?? 0.05];
+      return { re: new RegExp(b.match, 'i'), t: b.t ?? 0.5, offset: b.offset || [0, 0, 0], r, strength: b.strength ?? 1, mirror: !!b.mirror };
+    });
     cache = new Map();
   }
   build();
@@ -201,12 +225,13 @@ export function compileDna(dna) {
     for (let i = 0; i < lut.length; i++) { lut[i] *= gMul; if (lut[i] > rMax) rMax = lut[i]; }
     if (rMax <= 1e-6) { cache.set(key, null); return null; } // r=0 → 살 생략
     const cuts = cutSpecs.filter(c => c.re.test(key));
+    const blobs = blobSpecs.filter(b => b.re.test(key));
     const out = {
       lut, rMax,
       flatten: spec ? spec.flatten : null,
       blend: spec ? spec.blend : 1,
       group: spec ? spec.group : null,
-      cuts,
+      cuts, blobs,
     };
     cache.set(key, out);
     return out;
@@ -327,5 +352,6 @@ export function parseDna(json) {
   }
   if (!dna.groups || typeof dna.groups !== 'object') dna.groups = {};
   if (!Array.isArray(dna.cuts)) dna.cuts = [];
+  if (!Array.isArray(dna.blobs)) dna.blobs = [];
   return dna;
 }

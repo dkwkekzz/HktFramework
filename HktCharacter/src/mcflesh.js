@@ -31,9 +31,10 @@ const LUT_MAX = 32; // LUT 마지막 인덱스 (길이 33)
 //    · 그리드 반지름 R = lut보간값 × rscale.  rMax = 세그먼트 최대 그리드 반지름(bbox용).
 //    · flatten.finv2m1 = 1/f² − 1 (u 방향 유효거리 확대량).
 //  cuts: [{ cx,cy,cz, Rc, strength }] — 그리드 공간 구 감산.
+//  blobs: [{ cx,cy,cz, u/v/w 단위벡터, iRu2,iRv2,iRa2, Rmax, strength }] — 가산 타원체.
 //  dims: { size, yd, zd }  field: Float32Array
 // ---------------------------------------------------------------------------
-export function fillField(field, dims, segs, cuts) {
+export function fillField(field, dims, segs, cuts, blobs = []) {
   const { size, yd, zd } = dims;
 
   for (const seg of segs) {
@@ -65,6 +66,29 @@ export function fillField(field, dims, segs, cuts) {
           if (d2 >= R2) continue;
           const g = 1 - d2 / R2;
           field[idx] += g * g * g; // Wyvill — 겹치면 자동 smooth blend
+        }
+      }
+    }
+  }
+
+  // 가산 타원체(blob) — 뼈 없는 볼륨. (u,v,â) 프레임에서 축별 반경으로 정규화.
+  for (const b of blobs) {
+    const { cx, cy, cz, ux, uy, uz, vx, vy, vz, wx, wy, wz, iRu2, iRv2, iRa2, Rmax, strength } = b;
+    const x0 = Math.max(1, Math.floor(cx - Rmax)), x1 = Math.min(size - 2, Math.ceil(cx + Rmax));
+    const y0 = Math.max(1, Math.floor(cy - Rmax)), y1 = Math.min(size - 2, Math.ceil(cy + Rmax));
+    const z0 = Math.max(1, Math.floor(cz - Rmax)), z1 = Math.min(size - 2, Math.ceil(cz + Rmax));
+    for (let z = z0; z <= z1; z++) {
+      for (let y = y0; y <= y1; y++) {
+        let idx = z * zd + y * yd + x0;
+        for (let x = x0; x <= x1; x++, idx++) {
+          const dx = x - cx, dy = y - cy, dz = z - cz;
+          const du = dx * ux + dy * uy + dz * uz;
+          const dv = dx * vx + dy * vy + dz * vz;
+          const da = dx * wx + dy * wy + dz * wz;
+          const s = du * du * iRu2 + dv * dv * iRv2 + da * da * iRa2;
+          if (s >= 1) continue;
+          const g = 1 - s;
+          field[idx] += strength * g * g * g;
         }
       }
     }
@@ -113,6 +137,18 @@ export function segContribAt(seg, x, y, z) {
   return g * g * g;
 }
 
+// blob 이 그리드 점에 더하는 기여도 (밖이면 0) — bake 스키닝 가중치용.
+export function blobContribAt(b, x, y, z) {
+  const dx = x - b.cx, dy = y - b.cy, dz = z - b.cz;
+  const du = dx * b.ux + dy * b.uy + dz * b.uz;
+  const dv = dx * b.vx + dy * b.vy + dz * b.vz;
+  const da = dx * b.wx + dy * b.wy + dz * b.wz;
+  const s = du * du * b.iRu2 + dv * dv * b.iRv2 + da * da * b.iRa2;
+  if (s >= 1) return 0;
+  const g = 1 - s;
+  return b.strength * g * g * g;
+}
+
 // 세그먼트 축까지의 거리² (그리드) — 스키닝 fallback 최근접 판정용.
 export function segAxisDist2(seg, x, y, z) {
   const { ax, ay, az, bx, by, bz } = seg;
@@ -141,7 +177,7 @@ const _v = new THREE.Vector3();
 
 export function buildSegs(ch, simpleName, gs, half, breathMul = null) {
   const compiled = ch.dnaCompiled;
-  const segs = [], cuts = [];
+  const segs = [], cuts = [], blobs = [];
   const offsetX = ch.slotX || 0;
   const seen = new Set(); // 리그 2벌 FBX 중복 세그먼트 방지
   const toGridX = wx => ((wx - offsetX) / HALF + 1) * half;
@@ -192,8 +228,8 @@ export function buildSegs(ch, simpleName, gs, half, breathMul = null) {
 
     segs.push({ ax, ay, az, bx, by, bz, lut: spec.lut, rscale, rMax: spec.rMax * rscale, flatten, bone: b });
 
-    // cut — 세그먼트 로컬 프레임(â, u, v)에서 오프셋 이동한 구를 감산
-    if (spec.cuts.length) {
+    // cut(감산 구)·blob(가산 타원체) — 세그먼트 로컬 프레임(â, u, v) 공용.
+    if (spec.cuts.length || spec.blobs.length) {
       // u: flatten u 재사용, 없으면 월드 +z 를 축 직교 투영(퇴화 시 +x)
       if (!uSet) {
         _u.set(0, 0, 1);
@@ -202,22 +238,31 @@ export function buildSegs(ch, simpleName, gs, half, breathMul = null) {
         _u.normalize();
       }
       _v.crossVectors(_ax, _u); // â × u
+      const center = (t, o0, o1, o2) => [
+        ax + (bx - ax) * t + _u.x * o0 + _v.x * o1 + _ax.x * o2,
+        ay + (by - ay) * t + _u.y * o0 + _v.y * o1 + _ax.y * o2,
+        az + (bz - az) * t + _u.z * o0 + _v.z * o1 + _ax.z * o2,
+      ];
       for (const cut of spec.cuts) {
-        const t = cut.t;
-        // 컷 중심(그리드) = lerp(a,b,t) + (offset·u + offset·v + offset·â)×gs
-        const bcx = ax + (bx - ax) * t, bcy = ay + (by - ay) * t, bcz = az + (bz - az) * t;
-        const o0 = cut.offset[0] * gs, o1 = cut.offset[1] * gs, o2 = cut.offset[2] * gs;
-        cuts.push({
-          cx: bcx + _u.x * o0 + _v.x * o1 + _ax.x * o2,
-          cy: bcy + _u.y * o0 + _v.y * o1 + _ax.y * o2,
-          cz: bcz + _u.z * o0 + _v.z * o1 + _ax.z * o2,
-          Rc: BLEND * cut.r * gs,
-          strength: cut.strength,
-        });
+        const [cx, cy, cz] = center(cut.t, cut.offset[0] * gs, cut.offset[1] * gs, cut.offset[2] * gs);
+        cuts.push({ cx, cy, cz, Rc: BLEND * cut.r * gs, strength: cut.strength });
+      }
+      for (const blob of spec.blobs) {
+        // mirror: v(좌우) 오프셋 부호 반전한 사본 하나 더 (가슴 등 대칭 볼륨)
+        for (const sg of (blob.mirror ? [1, -1] : [1])) {
+          const [cx, cy, cz] = center(blob.t, blob.offset[0] * gs, blob.offset[1] * sg * gs, blob.offset[2] * gs);
+          const Ru = BLEND * blob.r[0] * gs, Rv = BLEND * blob.r[1] * gs, Ra = BLEND * blob.r[2] * gs;
+          blobs.push({
+            cx, cy, cz,
+            ux: _u.x, uy: _u.y, uz: _u.z, vx: _v.x, vy: _v.y, vz: _v.z, wx: _ax.x, wy: _ax.y, wz: _ax.z,
+            iRu2: 1 / (Ru * Ru), iRv2: 1 / (Rv * Rv), iRa2: 1 / (Ra * Ra),
+            Rmax: Math.max(Ru, Rv, Ra), strength: blob.strength, bone: b,
+          });
+        }
       }
     }
   }
-  return { segs, cuts };
+  return { segs, cuts, blobs };
 }
 
 export class McFlesh {
@@ -240,8 +285,8 @@ export class McFlesh {
     const mc = this.mc, size = mc.size, half = mc.halfsize, field = mc.field;
     mc.reset();
     const gs = half / HALF; // 월드 m → 그리드 단위 배율
-    const { segs, cuts } = buildSegs(ch, simpleName, gs, half, breathMul);
-    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs, cuts);
+    const { segs, cuts, blobs } = buildSegs(ch, simpleName, gs, half, breathMul);
+    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs, cuts, blobs);
     mc.update(); // 마칭 큐브 → BufferGeometry 갱신
   }
 }

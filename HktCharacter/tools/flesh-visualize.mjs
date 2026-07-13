@@ -88,7 +88,7 @@ function humanoid() {
 //  DNA → 살 필드(res³) → 정사영 실루엣 RGB 버퍼(패널 하나).
 //  view: 'front'(z 투영) | 'side'(x 투영). 각 픽셀 = 그 시선축에 iso 넘는 복셀 존재?
 // ---------------------------------------------------------------------------
-const RES = 150;
+const RES = 200;
 const half = RES / 2, gs = half / HALF;
 function silhouette(dna, view, color) {
   const ch = humanoid();
@@ -124,10 +124,10 @@ function silhouette(dna, view, color) {
 function buildSilhouetteSVG() {
   const panels = [
     { label: 'humanlike · 정면', uri: silhouette(defaultDna(), 'front', [140, 200, 255]) },
-    { label: 'humanlike · 측면(flatten)', uri: silhouette(defaultDna(), 'side', [140, 200, 255]) },
-    { label: 'robot(상수)', uri: silhouette(presetDna('robot'), 'front', [150, 160, 170]) },
-    { label: 'slim(허리 잘록)', uri: silhouette(presetDna('slim'), 'front', [160, 230, 180]) },
-    { label: 'bulk(몸통·팔↑)', uri: silhouette(presetDna('bulk'), 'front', [255, 190, 140]) },
+    { label: 'female · 정면(blob 가슴·엉덩이)', uri: silhouette(presetDna('female'), 'front', [255, 180, 200]) },
+    { label: 'female · 측면(가슴 볼륨)', uri: silhouette(presetDna('female'), 'side', [255, 180, 200]) },
+    { label: 'slim · 정면', uri: silhouette(presetDna('slim'), 'front', [160, 230, 180]) },
+    { label: 'bulk · 정면', uri: silhouette(presetDna('bulk'), 'front', [255, 190, 140]) },
   ];
   const pw = 150, ph = 150, gap = 14, padT = 46, padB = 30, padX = 14;
   const W = padX * 2 + panels.length * pw + (panels.length - 1) * gap;
@@ -185,8 +185,8 @@ function buildProfilesSVG() {
 function buildCombinedPNG() {
   const panels = [
     silRGB(defaultDna(), 'front', [140, 200, 255]),
-    silRGB(defaultDna(), 'side', [140, 200, 255]),
-    silRGB(presetDna('robot'), 'front', [150, 160, 170]),
+    silRGB(presetDna('female'), 'front', [255, 180, 200]),
+    silRGB(presetDna('female'), 'side', [255, 180, 200]),
     silRGB(presetDna('slim'), 'front', [160, 230, 180]),
     silRGB(presetDna('bulk'), 'front', [255, 190, 140]),
   ];
@@ -221,7 +221,29 @@ function silRGB(dna, view, color) {
   return rgb;
 }
 
+// 콘텐츠 bbox 로 크롭 후 정수배 확대(nearest) — 작은 특징(가슴·엉덩이)을 크게 본다.
+function cropScale(rgb, scale) {
+  let minx = RES, miny = RES, maxx = 0, maxy = 0;
+  for (let y = 0; y < RES; y++) for (let x = 0; x < RES; x++) { const o = (y * RES + x) * 3; if (rgb[o] > 30 || rgb[o + 1] > 30 || rgb[o + 2] > 30) { if (x < minx) minx = x; if (x > maxx) maxx = x; if (y < miny) miny = y; if (y > maxy) maxy = y; } }
+  const pad = 4; minx = Math.max(0, minx - pad); miny = Math.max(0, miny - pad); maxx = Math.min(RES - 1, maxx + pad); maxy = Math.min(RES - 1, maxy + pad);
+  const cw = maxx - minx + 1, chh = maxy - miny + 1;
+  return { w: cw * scale, h: chh * scale, get: (x, y) => { const sx = minx + ((x / scale) | 0), sy = miny + ((y / scale) | 0); return (sy * RES + sx) * 3; }, rgb };
+}
+// female 정면·측면 — 크롭·2배 확대 2패널 (blob 볼륨 확인용).
+function buildFemalePNG() {
+  const scale = 2;
+  const A = cropScale(silRGB(presetDna('female'), 'front', [255, 180, 200]), scale);
+  const B = cropScale(silRGB(presetDna('female'), 'side', [255, 180, 200]), scale);
+  const gap = 12, H = Math.max(A.h, B.h), W = A.w + gap + B.w;
+  const out = Buffer.alloc(W * H * 3);
+  for (let i = 0; i < out.length; i += 3) { out[i] = 20; out[i + 1] = 22; out[i + 2] = 27; }
+  const blit = (P, x0) => { for (let y = 0; y < P.h; y++) for (let x = 0; x < P.w; x++) { const s = P.get(x, y), d = (y * W + x0 + x) * 3; out[d] = P.rgb[s]; out[d + 1] = P.rgb[s + 1]; out[d + 2] = P.rgb[s + 2]; } };
+  blit(A, 0); blit(B, A.w + gap);
+  return encodePNG(W, H, out);
+}
+
 writeFileSync(new URL('../docs/flesh-silhouette.svg', import.meta.url), buildSilhouetteSVG());
 writeFileSync(new URL('../docs/flesh-profiles.svg', import.meta.url), buildProfilesSVG());
 writeFileSync(new URL('../docs/flesh-silhouette.png', import.meta.url), buildCombinedPNG());
-console.log('wrote docs/flesh-silhouette.svg · docs/flesh-profiles.svg · docs/flesh-silhouette.png');
+writeFileSync(new URL('../docs/flesh-female.png', import.meta.url), buildFemalePNG());
+console.log('wrote docs/flesh-silhouette.svg · docs/flesh-profiles.svg · docs/flesh-silhouette.png · docs/flesh-female.png');

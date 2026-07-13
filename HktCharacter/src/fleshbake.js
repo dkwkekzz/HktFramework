@@ -10,7 +10,7 @@
 import * as THREE from 'three';
 import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
 import {
-  buildSegs, fillField, segContribAt, segAxisDist2,
+  buildSegs, fillField, segContribAt, segAxisDist2, blobContribAt,
   HALF, CENTER_Y, ISO,
 } from './mcflesh.js';
 
@@ -51,13 +51,13 @@ function bakeCore(ch, simpleName, res, material) {
   const half = res / 2;
   const gs = half / HALF;
   const offsetX = ch.slotX || 0;
-  const { segs, cuts } = buildSegs(ch, simpleName, gs, half);
+  const { segs, cuts, blobs } = buildSegs(ch, simpleName, gs, half);
   if (!segs.length) throw new Error('살 세그먼트 없음 (DNA 전부 r=0?)');
 
   // 2~3. 고해상 필드 → 폴리곤화 (임시 MarchingCubes, bake 후 해제)
   const dummyMat = new THREE.MeshBasicMaterial();
   const mc = new MarchingCubes(res, dummyMat, false, false, MAX_POLY);
-  fillField(mc.field, { size: res, yd: mc.yd, zd: mc.zd }, segs, cuts);
+  fillField(mc.field, { size: res, yd: mc.yd, zd: mc.zd }, segs, cuts, blobs);
   mc.isolation = ISO;
   mc.update();
   const vcount = mc.count; // 정점 수 (3 = 삼각형)
@@ -114,6 +114,10 @@ function bakeCore(ch, simpleName, res, material) {
     for (const seg of segs) {
       const w = segContribAt(seg, gx, gy, gz);
       if (w > 1e-6) top.push([boneIndex.get(seg.bone) ?? 0, w]);
+    }
+    for (const blob of blobs) { // blob 정점은 앵커 뼈에 귀속
+      const w = blobContribAt(blob, gx, gy, gz);
+      if (w > 1e-6) top.push([boneIndex.get(blob.bone) ?? 0, w]);
     }
     if (!top.length) {
       // 기여 0 (이론상 없음, cut 근처 방어) — 최근접 세그먼트 가중치 1

@@ -11,7 +11,7 @@ import {
   defaultDna, compileDna, samplePchip,
   PRESETS, presetDna, lerpDna, mutateDna, serializeDna, parseDna,
 } from '../src/fleshdna.js';
-import { fillField, BLEND, HALF } from '../src/mcflesh.js';
+import { fillField, buildSegs, BLEND, HALF, CENTER_Y } from '../src/mcflesh.js';
 import { bakeFleshMesh } from '../src/fleshbake.js';
 
 let pass = 0, fail = 0;
@@ -353,7 +353,8 @@ H('#9  F4: 프리셋 · 직렬화 · lerp · mutate');
     const r = c.resolve('spine1');
     if (!r || r.rMax <= 0) { allOk = false; detail = `${p.name} spine1 무효`; }
   }
-  ok('프리셋 4종 컴파일', allOk && PRESETS.length === 4, detail || `${PRESETS.length}종`);
+  ok('프리셋 전종 컴파일', allOk && PRESETS.length >= 4, detail || `${PRESETS.length}종`);
+  ok('female 프리셋 blob 보유', presetDna('female').blobs.length >= 2, `${presetDna('female').blobs.length}개`);
 
   // 직렬화 왕복 — parse(serialize(dna)) 이 동일 구조
   const d = presetDna('bulk');
@@ -391,6 +392,44 @@ H('#9  F4: 프리셋 · 직렬화 · lerp · mutate');
     }
   }
   ok('mutate 클램프 [0.5,1.8]×·r0 불변', clampOk);
+}
+
+// ---------------------------------------------------------------------------
+//  #10 (F6) — 가산 blob: 표면을 밖으로 밀어냄 · mirror 좌우 대칭 2개
+// ---------------------------------------------------------------------------
+H('#10  F6: 가산 blob — 돌출 · mirror 대칭');
+{
+  // spine1→spine2→neck 리그 + spine2 앞으로 대칭 blob
+  const root = new THREE.Object3D();
+  const b1 = new THREE.Bone(); b1.name = 'spine1'; b1.position.set(0, 1.14, 0);
+  const b2 = new THREE.Bone(); b2.name = 'spine2'; b2.position.set(0, 0.16, 0);
+  const b3 = new THREE.Bone(); b3.name = 'neck'; b3.position.set(0, 0.16, 0);
+  root.add(b1); b1.add(b2); b2.add(b3); root.updateMatrixWorld(true);
+  const bones = [b1, b2, b3];
+  const dna = defaultDna();
+  dna.blobs = [{ match: 'spine2', t: 0.5, offset: [0.09, 0.045, 0], r: [0.05, 0.045, 0.05], strength: 1.15, mirror: true }];
+  const ch = { root, bones, allBones: bones, slotX: 0, dna, dnaCompiled: compileDna(dna), bindWorldQ: new Map() };
+  const qq = new THREE.Quaternion(); for (const b of bones) ch.bindWorldQ.set(b, b.getWorldQuaternion(qq).clone());
+  const simple = n => n.toLowerCase();
+  const { segs, cuts, blobs } = buildSegs(ch, simple, gs, RES / 2);
+  ok('mirror → blob 2개', blobs.length === 2, `${blobs.length}개`);
+
+  // buildSegs 는 CENTER_Y 오프셋을 쓰므로, 인덱스도 동일 규약으로 (gidx 는 미포함).
+  const gidxC = (wx, wy, wz) => Math.round((wz / HALF + 1) * (RES / 2)) * RES * RES
+    + Math.round(((wy - CENTER_Y) / HALF + 1) * (RES / 2)) * RES
+    + Math.round((wx / HALF + 1) * (RES / 2));
+  const fieldNo = new Float32Array(RES ** 3);
+  fillField(fieldNo, dims, segs, cuts, []);        // blob 없이
+  const fieldYes = new Float32Array(RES ** 3);
+  fillField(fieldYes, dims, segs, cuts, blobs);    // blob 포함
+  // 가슴 높이(y≈1.22) 앞쪽 z=0.13m 지점: blob 이 표면을 밀어 필드 증가
+  const chestY = gidxC(0, 1.22, 0.13);
+  ok('blob 이 표면 앞으로 돌출', fieldYes[chestY] > fieldNo[chestY] + 0.3,
+    `무blob ${fieldNo[chestY].toFixed(2)} → blob ${fieldYes[chestY].toFixed(2)}`);
+  // 좌우 대칭: +x 와 −x 동일
+  const L = gidxC(0.045, 1.22, 0.10), Rr = gidxC(-0.045, 1.22, 0.10);
+  ok('mirror 좌우 대칭', Math.abs(fieldYes[L] - fieldYes[Rr]) < 1e-3,
+    `L ${fieldYes[L].toFixed(3)} vs R ${fieldYes[Rr].toFixed(3)}`);
 }
 
 // ---------------------------------------------------------------------------
