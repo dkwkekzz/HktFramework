@@ -114,6 +114,141 @@ export function defaultDna() {
 }
 
 // ---------------------------------------------------------------------------
+//  프리셋 (F4) — 개성 있는 체형의 출발점. 이름으로 깊은 복사본을 돌려준다.
+// ---------------------------------------------------------------------------
+export const PRESET_NAMES = ['humanlike', 'stylized-f', 'slim', 'bulk', 'robot'];
+
+function withSeg(dna, match, patch) {
+  const s = dna.segments.find(x => x.match === match);
+  if (s) Object.assign(s, patch);
+  return dna;
+}
+
+export function presetDna(name) {
+  const d = defaultDna();
+  d.name = name;
+  switch (name) {
+    case 'humanlike': return d;
+    case 'stylized-f': // §5.7 스타일라이즈드 여성 체형 (잘록 허리·넓은 골반·가슴/둔부 bump)
+      withSeg(d, 'spine2', { profile: [[0, 0.09], [0.6, 0.1], [1, 0.088]], flatten: { dir: [0, 0, 1], f: 0.68 } });
+      withSeg(d, 'spine1', { profile: [[0, 0.075], [0.5, 0.058], [1, 0.082]], flatten: { dir: [0, 0, 1], f: 0.7 } });
+      withSeg(d, 'spine', { profile: [[0, 0.1], [1, 0.08]], flatten: { dir: [0, 0, 1], f: 0.75 } });
+      withSeg(d, 'upleg', { profile: [[0, 0.09], [0.35, 0.078], [1, 0.05]] });
+      withSeg(d, 'leg', { profile: [[0, 0.052], [0.3, 0.062], [1, 0.03]] });
+      withSeg(d, 'forearm', { profile: [[0, 0.043], [0.3, 0.046], [1, 0.028]] });
+      withSeg(d, 'neck', { profile: [[0, 0.045], [1, 0.036]], blend: 1.4 });
+      withSeg(d, 'head', { profile: [[0, 0.048], [0.4, 0.092], [0.75, 0.09], [1, 0.055]], flatten: { dir: [0, 0, 1], f: 0.9 } });
+      d.bumps = [
+        { match: 'spine2', t: 0.55, offset: [0.055, 0.045, 0], r: 0.045, strength: 0.9, mirror: true }, // 가슴
+        { match: 'upleg', t: 0.1, offset: [-0.055, 0, 0], r: 0.055, strength: 0.9 },                     // 둔부
+        { match: 'leg', t: 0.3, offset: [-0.018, 0, 0], r: 0.028, strength: 0.5 },                        // 종아리 뒤
+      ];
+      return d;
+    case 'slim': // 전 그룹 0.85 + 허리 잘록 강화
+      for (const k in d.groups) d.groups[k] = 0.85;
+      withSeg(d, 'spine1', { profile: [[0, 0.075], [0.5, 0.056], [1, 0.082]], flatten: { dir: [0, 0, 1], f: 0.78 } });
+      return d;
+    case 'bulk': // torso/arm 1.25 + 어깨 blend↑
+      d.groups.torso = 1.25; d.groups.arm = 1.25;
+      withSeg(d, 'shoulder', { profile: [[0, 0.05], [1, 0.058]], blend: 1.4 });
+      return d;
+    case 'robot': // 전부 상수 profile (F1 회귀형) — 로봇 원기둥
+      for (const s of d.segments) {
+        const rs = s.profile.map(p => p[1]);
+        s.profile = [[0, Math.max(...rs)]];
+        delete s.flatten;
+      }
+      return d;
+    default: return d;
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  lerp / mutate / serialize (F4)
+// ---------------------------------------------------------------------------
+const lnum = (x, y, t) => x + (y - x) * t;
+const clamp = (v, lo, hi) => v < lo ? lo : v > hi ? hi : v;
+
+// 두 DNA 의 숫자 리프 선형 보간. 세그먼트는 match 문자열로 짝짓기 — 불일치 항목은
+// t<0.5 면 a, 아니면 b 것 유지. 체형 모핑 데모 겸 창발 재료(§7).
+export function lerpDna(a, b, t) {
+  const pick = t < 0.5 ? a : b;
+  const out = { version: 1, name: `${a.name}~${b.name}`, segments: [], bumps: [], cuts: [], groups: {} };
+  const gk = new Set([...Object.keys(a.groups || {}), ...Object.keys(b.groups || {})]);
+  for (const k of gk) out.groups[k] = lnum(a.groups?.[k] ?? 1, b.groups?.[k] ?? 1, t);
+  const bByMatch = new Map((b.segments || []).map(s => [s.match, s]));
+  const aMatches = new Set((a.segments || []).map(s => s.match));
+  for (const sa of (a.segments || [])) {
+    const sb = bByMatch.get(sa.match);
+    if (sb) out.segments.push(lerpSeg(sa, sb, t));
+    else if (t < 0.5) out.segments.push(JSON.parse(JSON.stringify(sa)));
+  }
+  for (const sb of (b.segments || [])) if (!aMatches.has(sb.match) && t >= 0.5) out.segments.push(JSON.parse(JSON.stringify(sb)));
+  out.bumps = JSON.parse(JSON.stringify(pick.bumps || [])); // bump/cut 은 match+t 짝짓기 애매 → pick 쪽 유지
+  out.cuts = JSON.parse(JSON.stringify(pick.cuts || []));
+  return out;
+}
+
+function lerpSeg(sa, sb, t) {
+  const out = { match: sa.match };
+  out.profile = sa.profile.length === sb.profile.length
+    ? sa.profile.map((p, i) => [lnum(p[0], sb.profile[i][0], t), lnum(p[1], sb.profile[i][1], t)])
+    : JSON.parse(JSON.stringify((t < 0.5 ? sa : sb).profile));
+  if (sa.flatten && sb.flatten) out.flatten = { dir: sa.flatten.dir.map((d, i) => lnum(d, sb.flatten.dir[i], t)), f: lnum(sa.flatten.f, sb.flatten.f, t) };
+  else { const f = (t < 0.5 ? sa : sb).flatten; if (f) out.flatten = JSON.parse(JSON.stringify(f)); }
+  if (sa.blend != null || sb.blend != null) out.blend = lnum(sa.blend ?? 1, sb.blend ?? 1, t);
+  const g = (t < 0.5 ? sa : sb).group; if (g) out.group = g;
+  return out;
+}
+
+// 시드 PRNG(mulberry32) + Box-Muller 가우시안으로 profile r·flatten f 변이.
+// r 은 [0.5, 1.8]×원본 클램프. 같은 (dna, seed) → 같은 결과(재현 가능).
+function mulberry32(a) {
+  return function () {
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function gauss(rng) {
+  let u = 0, v = 0; while (u === 0) u = rng(); while (v === 0) v = rng();
+  return Math.sqrt(-2 * Math.log(u)) * Math.cos(2 * Math.PI * v);
+}
+
+export function mutateDna(dna, seed, amount = 0.12) {
+  const rng = mulberry32(seed >>> 0);
+  const out = JSON.parse(JSON.stringify(dna));
+  out.name = `${dna.name}*${seed}`;
+  for (const s of out.segments) {
+    for (const p of s.profile) {
+      if (p[1] <= 0) continue; // r=0(손가락) 유지
+      const orig = p[1];
+      p[1] = clamp(orig * (1 + gauss(rng) * amount), 0.5 * orig, 1.8 * orig);
+    }
+    if (s.flatten) s.flatten.f = clamp(s.flatten.f * (1 + gauss(rng) * amount), 0.3, 1);
+  }
+  return out;
+}
+
+export function serializeDna(dna) { return JSON.stringify(dna, null, 2); }
+
+// JSON 입력 → DNA. version/스키마 검증. 실패 시 throw.
+export function parseDna(json) {
+  const d = typeof json === 'string' ? JSON.parse(json) : json;
+  if (d.version !== 1) throw new Error(`지원하지 않는 DNA version: ${d.version}`);
+  if (!Array.isArray(d.segments) || !d.segments.length) throw new Error('segments 배열이 비었거나 없음');
+  for (const s of d.segments) {
+    if (typeof s.match !== 'string') throw new Error('세그먼트 match 문자열 아님');
+    if (!Array.isArray(s.profile) || !s.profile.length) throw new Error(`세그먼트 ${s.match} profile 오류`);
+  }
+  if (!d.groups) d.groups = { head: 1, torso: 1, arm: 1, hand: 1, leg: 1, foot: 1 };
+  if (!d.bumps) d.bumps = [];
+  if (!d.cuts) d.cuts = [];
+  return d;
+}
+
+// ---------------------------------------------------------------------------
 //  compileDna — 정규식 컴파일 + simpleName→세그먼트 스펙 메모이즈 평가기
 //
 //  resolve(simpleKey) → { lut, rMax, flatten, blend, group, spheres } | null(r=0).

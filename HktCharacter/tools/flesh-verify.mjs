@@ -10,7 +10,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { readFileSync } from 'fs';
 import { fillField, BLEND, HALF, RES, ISO } from '../src/mcflesh.js';
-import { compileDna, defaultDna, bakeLut, LUT_N } from '../src/fleshdna.js';
+import { compileDna, defaultDna, bakeLut, LUT_N, presetDna, PRESET_NAMES, lerpDna, mutateDna, serializeDna, parseDna } from '../src/fleshdna.js';
 import { bakeFleshMesh } from '../src/fleshbake.js';
 
 // 실물 FBX 골격을 로드해 최소 ch 를 구성(makeCh 핵심만 재현) — #7·#8 은 실제
@@ -302,6 +302,76 @@ for (const file of ['public/assets/character/X Bot.fbx', 'public/assets/characte
     console.log('    ── X Bot baked 정면 실루엣 (x→ 가로 / y↕) ──');
     for (const row of grid) console.log('    ' + row.join('').replace(/\s+$/, ''));
   }
+}
+
+console.log('\n[F4] 프리셋 · 보간 · 변이 · 입출력\n');
+
+// 프리셋 전부 컴파일·직렬화 라운드트립 성립
+{
+  let ok = true, detail = '';
+  for (const n of PRESET_NAMES) {
+    try { const d = presetDna(n); compileDna(d); const rt = parseDna(serializeDna(d)); compileDna(rt); }
+    catch (e) { ok = false; detail = `${n}: ${e.message}`; }
+  }
+  check('F4', ok, `프리셋 ${PRESET_NAMES.length}종 컴파일+직렬화 라운드트립` + (detail ? ` (${detail})` : ''));
+}
+
+// lerp: t=0 == a, t=1 == b, 중간은 경계 안 (spine1 t=0 r)
+{
+  const a = presetDna('humanlike'), b = presetDna('slim');
+  const ra = k => compileDna(k).resolve('leftupleg').lut[0];
+  const r0 = ra(lerpDna(a, b, 0)), r1 = ra(lerpDna(a, b, 1)), rh = ra(lerpDna(a, b, 0.5));
+  const aVal = ra(a), bVal = ra(b);
+  const bounded = rh >= Math.min(aVal, bVal) - 1e-6 && rh <= Math.max(aVal, bVal) + 1e-6;
+  check('F4', Math.abs(r0 - aVal) < 1e-6 && Math.abs(r1 - bVal) < 1e-6 && bounded,
+    `lerp t=0→a, t=1→b, 중간 경계 안 (a ${aVal.toFixed(3)} · 0.5 ${rh.toFixed(3)} · b ${bVal.toFixed(3)})`);
+}
+
+// mutate: 결정론(같은 seed 같은 결과) + r 클램프 [0.5,1.8]×원본
+{
+  const base = presetDna('humanlike');
+  const m1 = serializeDna(mutateDna(base, 42, 0.12)), m2 = serializeDna(mutateDna(base, 42, 0.12));
+  const m3 = serializeDna(mutateDna(base, 43, 0.12));
+  let clampOk = true;
+  const mut = mutateDna(base, 7, 0.9); // 큰 amount 로 클램프 강제
+  for (const s of mut.segments) {
+    const bs = base.segments.find(x => x.match === s.match);
+    for (let i = 0; i < s.profile.length; i++) {
+      const orig = bs.profile[i][1]; if (orig <= 0) continue;
+      if (s.profile[i][1] < 0.5 * orig - 1e-9 || s.profile[i][1] > 1.8 * orig + 1e-9) clampOk = false;
+    }
+  }
+  check('F4', m1 === m2 && m1 !== m3, '변이 결정론 (같은 seed 동일, 다른 seed 상이)');
+  check('F4', clampOk, 'r 변이 [0.5, 1.8]×원본 클램프');
+}
+
+// parseDna 검증: 잘못된 version 거부
+{
+  let rejected = false;
+  try { parseDna(JSON.stringify({ version: 2, segments: [] })); } catch { rejected = true; }
+  check('F4', rejected, 'parseDna 가 잘못된 version/스키마 거부');
+}
+
+// stylized-f 프리셋을 실물 골격에 bake — bump(가슴·둔부) 가 측면 실루엣에 나타나는지
+{
+  try {
+    const ch = loadCh('public/assets/character/Y Bot.fbx');
+    ch.dna = presetDna('stylized-f'); ch.dnaCompiled = compileDna(ch.dna);
+    const baked = bakeFleshMesh(ch, simpleName, { res: 128 });
+    check('F4', baked.stats.vCount > 1000, `stylized-f bake 성립 (정점 ${baked.stats.vCount} · 삼각형 ${baked.stats.tris})`);
+    // 측면(z-y) 실루엣 — z(전후)로 가슴·둔부 bump 가 축 밖 볼륨으로 읽힘
+    const pa = baked.mesh.geometry.attributes.position, vn = pa.count;
+    const W = 26, H = 30, grid = Array.from({ length: H }, () => new Array(W).fill(' '));
+    let mnz = 1e9, mxz = -1e9, mny = 1e9, mxy = -1e9;
+    for (let v = 0; v < vn; v++) { const z = pa.getZ(v), y = pa.getY(v); if (z < mnz) mnz = z; if (z > mxz) mxz = z; if (y < mny) mny = y; if (y > mxy) mxy = y; }
+    for (let v = 0; v < vn; v++) {
+      const gx = Math.round((pa.getZ(v) - mnz) / (mxz - mnz) * (W - 1));
+      const gy = Math.round((mxy - pa.getY(v)) / (mxy - mny) * (H - 1));
+      grid[gy][gx] = '#';
+    }
+    console.log('    ── stylized-f baked 측면 실루엣 (z=전후→ / y↕) ──');
+    for (const row of grid) console.log('    ' + row.join('').replace(/\s+$/, ''));
+  } catch (e) { fail('F4', `stylized-f bake 실패 — ${e.message}`); }
 }
 
 console.log(`\n${failures ? '\x1b[31m' : '\x1b[32m'}${failures ? failures + ' FAIL' : 'ALL PASS'}\x1b[0m\n`);

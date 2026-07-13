@@ -42,7 +42,12 @@
         → 0.5mm 용접 → Taubin 스무딩 → 필드 기여도 자동 스키닝 → SkinnedMesh). SDF 살
         버튼 3-상태(off/live/baked), DNA·본 비율 변경 시 400ms 디바운스 재굽기. verify
         #7(용접 중복 0·skinWeight 합 1·트림 실루엣 수축 ≤1%)·#8(전완 90° 강체 추종 ≤1mm).
-      - [ ] **F4** 프리셋·보간·변이·입출력
+      - [x] **F4** 프리셋·보간·변이·입출력 — `fleshdna.js` 에 PRESETS(humanlike·
+        stylized-f·slim·bulk·robot)·lerpDna·mutateDna(mulberry32+가우시안)·serialize/
+        parseDna. UI: 프리셋 드롭다운·A→B 모핑 슬라이더·변이 버튼(seed)·DNA 내보내기,
+        `.dna.json` 드롭 가져오기(FBX 분기 공존). verify F4(라운드트립·lerp·변이 결정론/
+        클램프·parse 거부) + stylized-f bake 측면 실루엣 캡처.
+      **v5 트랙 F1~F4 완료.** UE5 경로(baked → GLTF)·F5(살아있는 살) 는 이후 자유.
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도
       이 트랙이 흡수한다.
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)

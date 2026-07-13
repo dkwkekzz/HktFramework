@@ -18,7 +18,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
-import { defaultDna, compileDna } from './fleshdna.js';
+import { defaultDna, compileDna, presetDna, PRESET_NAMES, lerpDna, mutateDna, serializeDna, parseDna } from './fleshdna.js';
 import { bakeFleshMesh } from './fleshbake.js';
 
 // ---------------------------------------------------------------------------
@@ -677,6 +677,51 @@ $('btnFleshReset').addEventListener('click', () => {
   scheduleRebake(ch);
 });
 
+// 선택 캐릭터에 새 DNA 적용 (프리셋·모핑·변이·가져오기 공통 경로)
+function applyDnaToCh(dna) {
+  const ch = selCh(); if (!ch) return;
+  ch.dna = dna; ch.dnaCompiled = compileDna(ch.dna);
+  refreshFleshSliders(); scheduleRebake(ch);
+}
+
+// F4 — 프리셋·모핑·변이·입출력. 프리셋 드롭다운은 정적 목록이라 1회 채운다.
+function fillPresetSelect(sel, defaultName) {
+  sel.innerHTML = '';
+  for (const n of PRESET_NAMES) { const o = document.createElement('option'); o.value = o.textContent = n; if (n === defaultName) o.selected = true; sel.appendChild(o); }
+}
+fillPresetSelect($('fleshPreset'), 'humanlike');
+fillPresetSelect($('morphA'), 'humanlike');
+fillPresetSelect($('morphB'), 'stylized-f');
+
+$('fleshPreset').addEventListener('change', e => {
+  applyDnaToCh(presetDna(e.target.value));
+  $('morphT').value = 0; $('morphVal').textContent = '0.0';
+  setStatus(`프리셋 적용: ${e.target.value}`);
+});
+const applyMorph = () => {
+  const t = +$('morphT').value; $('morphVal').textContent = t.toFixed(2);
+  applyDnaToCh(lerpDna(presetDna($('morphA').value), presetDna($('morphB').value), t));
+};
+$('morphT').addEventListener('input', applyMorph);
+$('morphA').addEventListener('change', applyMorph);
+$('morphB').addEventListener('change', applyMorph);
+
+$('btnMutate').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.mutSeed = (ch.mutSeed || 0) + 1;
+  applyDnaToCh(mutateDna(ch.dna, ch.mutSeed, 0.12));
+  $('mutSeed').textContent = `seed ${ch.mutSeed}`;
+});
+
+$('btnDnaExport').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  const blob = new Blob([serializeDna(ch.dna)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = `${SLOTS.main.label}.dna.json`;
+  a.click(); URL.revokeObjectURL(a.href);
+  setStatus(`DNA 내보내기: ${a.download}`);
+});
+
 // 애니메이션 버튼 채우기 (초기)
 refreshAnimButtons();
 refreshPropSliders();
@@ -699,10 +744,23 @@ drop.addEventListener('click', () => {
 });
 function readFile(f) {
   if (!f) return;
+  if (/\.dna\.json$/i.test(f.name) || /\.json$/i.test(f.name)) { readDnaFile(f); return; }
   setStatus('읽는 중… ' + f.name);
   const r = new FileReader();
   r.onload = () => loadDroppedFBX(r.result, f.name.replace(/\.fbx$/i, ''));
   r.readAsArrayBuffer(f);
+}
+
+// .dna.json 드롭/선택 → 현재 캐릭터에 살 DNA 적용 (FBX 분기와 공존)
+function readDnaFile(f) {
+  const ch = selCh();
+  if (!ch) { setStatus('DNA: 먼저 캐릭터를 선택하세요.'); return; }
+  const r = new FileReader();
+  r.onload = () => {
+    try { applyDnaToCh(parseDna(r.result)); setStatus(`DNA 적용: <b>${f.name}</b>`); }
+    catch (e) { setStatus('DNA 파싱 실패: ' + e.message); }
+  };
+  r.readAsText(f);
 }
 
 function loadDroppedFBX(buf, label) {
