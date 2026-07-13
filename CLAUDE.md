@@ -32,3 +32,4 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 - **로그 카테고리**: `LogTemp` 사용 지양 — 각 모듈 전용 카테고리(`LogHktCore`, `LogHktPresentation`, `LogHktVoxelCore`, …)를 적극 사용. 신규 모듈은 `*Log.h` 에 `DECLARE_LOG_CATEGORY_EXTERN` + 모듈 cpp 에 `DEFINE_LOG_CATEGORY` 패턴을 따른다. 단일 파일 한정이면 `DEFINE_LOG_CATEGORY_STATIC` 허용.
 - **하드코딩 지양 / CVar 적극 사용**: 매직 넘버·임계값·토글 플래그는 가급적 `FAutoConsoleVariableRef` 또는 `TAutoConsoleVariable` 로 노출하여 런타임 튜닝/디버깅을 가능케 한다 (`hkt.<Module>.<Knob>` 네이밍). 결정론에 영향을 주는 값(시뮬레이션 상수)은 예외 — `HktSimulationLimits` 등 헤더 상수로 고정.
 - **Story 작업 시**: V2 마이그레이션 정합 필수 — [Docs/PR-3-Phase2-Plan.md](Docs/PR-3-Phase2-Plan.md) · [HktGameplay/Content/Stories/SCHEMA.md](HktGameplay/Content/Stories/SCHEMA.md) 선행 숙지.
+- **HktFeature 렌더**: `세계 속성 → ViewModel → 렌더(속성 그대로)` 파이프라인 준수 — 렌더러는 순수·교체 가능한 Scene 소비자다(세부: [HktFeature/CLAUDE.md](HktFeature/CLAUDE.md) 불변 원칙 ③).

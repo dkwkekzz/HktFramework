@@ -6,6 +6,7 @@
 import { Net } from './net.js';
 import { ClientState } from './state.js';
 import { Sim } from './sim.js';
+import { ViewModel } from './viewmodel.js';
 import { Render } from './render.js';
 import { MSG } from '../shared/protocol.js';
 
@@ -13,9 +14,11 @@ const canvas = document.getElementById('game');
 const net = new Net();
 const state = new ClientState();
 const sim = new Sim(net, state);
-const render = new Render(canvas, state, sim, net);
+// 불변 원칙 ③: 세계 속성 → ViewModel(Scene) → 렌더(속성 그대로). 렌더러는 Scene 만 소비한다.
+const viewmodel = new ViewModel(state, sim, net);
+const render = new Render(canvas);
 // 관측/디버그 훅 — 읽기 전용 뷰어의 미러 원장·좌표를 콘솔에서 들여다보게 노출(권위 아님, 표시용).
-if (typeof window !== 'undefined') window.__hkt = { state, sim, net };
+if (typeof window !== 'undefined') window.__hkt = { state, sim, net, viewmodel };
 sim.getYaw = () => render.yaw; // 카메라 상대 이동 — 이동 축을 현재 카메라 방향에 맞춘다
 
 state.onResync = (regions) => net.send(MSG.RESYNC, { regions });
@@ -62,7 +65,8 @@ function frame(now) {
   let mine = null;
   for (const c of state.creatures.values()) if (c.owner && c.owner === state.playerId) { mine = c; break; }
   if (mine && mine.desire && mine.desire !== 'none') { sim.x = mine.x; sim.y = mine.y; sim.z = mine.z; }
-  render.draw();
+  const scene = viewmodel.build(now / 1000); // 세계 속성 → Scene(순수 데이터). t = 애니메이션 위상(초)
+  render.draw(scene);
   reflectDesireButtons();
   requestAnimationFrame(frame);
 }
