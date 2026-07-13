@@ -45,6 +45,34 @@
 이 불변이 STATE.md "본 비율 개선" 항목(그룹 균등 scale 이 두께까지 키우는 문제)의 답이기도
 하다: 길이는 뼈, 두께는 살.
 
+### 1.1 스켈레톤 전제 — 골격은 로드하는 것이지 만드는 것이 아니다 (MUST)
+
+과거 구현 시도에서 세션이 자체 골격을 절차 생성해 작업하는 사고가 있었다. 아래는 협상
+불가 규칙이다:
+
+- **유일한 골격 소스**: `public/assets/character/X Bot.fbx` · `Y Bot.fbx`(기본은
+  `bootstrap()` 이 세우는 X Bot) 또는 사용자가 임포트한 with-skin FBX 를 `makeCh` 가
+  로드해 만든 **`ch.bones`(구동 뼈)·`ch.allBones`** 뿐이다. 살 시스템의 모든 코드는 이
+  뼈들을 **읽기만** 한다.
+- **금지**: `new THREE.Bone()` 등 자체 골격 생성, 뼈 계층 변경(추가·삭제·재부모), 뼈
+  이름 변경, 바인드 포즈 재정의, "테스트용 임시 리그"를 뷰어/런타임 코드에 심는 것.
+  뼈가 마음에 안 들면 골격을 고치는 게 아니라 **DNA(살 데이터)를 고친다**.
+- **이미 풀린 문제를 다시 풀지 말 것**: Mixamo with-skin FBX 의 트윈 리그(Surface+Joints
+  교차 배치), 구동 뼈 선정(DFS-첫 뼈), 이름 정규화는 전부 `makeCh`·`simpleName` 이 처리
+  완료 상태다 ([ARCHITECTURE.md](ARCHITECTURE.md) §3). 살 코드는 그 결과만 소비한다.
+- **이름 기준**: 세그먼트 `match` 정규식은 Mixamo 표준 계층의 `simpleName` 결과를
+  기준으로 작성한다 — `hips → spine → spine1 → spine2 → neck → head(+end)`,
+  `(left|right)shoulder → arm → forearm → hand(+손가락)`,
+  `(left|right)upleg → leg → foot → toe(+end)`. 접두어(`mixamorig:` 유무)는 `simpleName`
+  이 흡수하므로 정규식에 넣지 않는다.
+- **유일한 예외**: Node 검증(§10.1 #1·#4)의 "합성 2-뼈 리그"는 필드 수학의 단위검증
+  픽스처로만 허용 — `tools/` 밖(뷰어·`src/`)으로 나오면 안 된다. 실루엣·스키닝 등
+  골격 형상이 결과에 개입하는 검증(#7·#8)은 실제 FBX 골격 치수를 덤프한 픽스처를 쓴다
+  (임의 치수 발명 금지).
+- **완료 판정도 실물 골격으로**: 어느 Phase 든 X Bot·Y Bot **양쪽**에서 동작해야 완료다
+  (둘은 등뼈가 다른 트윈 쪽이라 좋은 회귀쌍이다). 임포트 FBX 는 best-effort — 매칭 안
+  되는 뼈는 fallback 반지름으로 두꺼워지지 않게 r=0 처리 여부를 상태줄에 보고한다.
+
 ---
 
 ## 2. 전체 로드맵

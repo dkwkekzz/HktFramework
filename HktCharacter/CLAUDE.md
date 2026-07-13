@@ -21,6 +21,9 @@
   (crossfade 혼합 포즈를 측정하면 중심이 틀어진다).
 - **접지·정규화 기준은 뼈 월드 bbox** — 스킨 CPU boundingBox(rest 고정) 아님. 본 비율을
   바꿔도 발이 바닥에 붙는다.
+- **골격은 로드하는 것이지 만드는 것이 아니다** — 유일한 골격 소스는 Mixamo 베이스
+  FBX(X Bot·Y Bot, 또는 임포트 with-skin FBX)를 `makeCh` 가 로드한 뼈들. 자체 골격
+  절차 생성·계층 변경·뼈 개명 금지 (상세 규칙 → [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md) §1.1).
 
 ## 작업 방식
 
