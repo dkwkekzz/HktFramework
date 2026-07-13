@@ -121,39 +121,82 @@ function computeU(dir, bindWorldQ, worldQ, axx, axy, axz) {
 //  각 seg/sphere 에 소속 뼈(bone) 를 실어 bake 스키닝이 기여도→가중치를 귀속.
 // ---------------------------------------------------------------------------
 const _wa = new THREE.Vector3(), _wb = new THREE.Vector3(), _bq = new THREE.Quaternion();
+
+// 부모마다 "정합 자식"(부모 방향과 가장 나란한 자식) 1개만 캡슐로 삼는다. 곁가지
+// (Spine2→Shoulder, Hips→UpLeg)는 캡슐에서 빠지고 자기 자신의 세그먼트로 그려진다.
+function primaryChildSet(bones) {
+  const byParent = new Map();
+  const wp = new THREE.Vector3(), wc = new THREE.Vector3(), wg = new THREE.Vector3();
+  for (const b of bones) { const par = b.parent; if (!par?.isBone) continue; if (!byParent.has(par)) byParent.set(par, []); byParent.get(par).push(b); }
+  const set = new Set();
+  for (const [par, kids] of byParent) {
+    if (kids.length === 1) { set.add(kids[0]); continue; }
+    // 부모 방향 = (부모 - 조부모), 조부모 없으면 월드 +y
+    par.getWorldPosition(wp);
+    let dx = 0, dy = 1, dz = 0;
+    if (par.parent?.isBone) { par.parent.getWorldPosition(wg); dx = wp.x - wg.x; dy = wp.y - wg.y; dz = wp.z - wg.z; const l = Math.hypot(dx, dy, dz) || 1; dx /= l; dy /= l; dz /= l; }
+    let best = kids[0], bestDot = -Infinity;
+    for (const k of kids) {
+      k.getWorldPosition(wc);
+      let cx = wc.x - wp.x, cy = wc.y - wp.y, cz = wc.z - wp.z; const l = Math.hypot(cx, cy, cz) || 1; cx /= l; cy /= l; cz /= l;
+      const dot = cx * dx + cy * dy + cz * dz;
+      if (dot > bestDot) { bestDot = dot; best = k; }
+    }
+    set.add(best);
+  }
+  return set;
+}
+
 export function buildSegments(ch, simpleName, size) {
   const half = size / 2;
   const gs = half / HALF;             // 월드 m → 그리드 단위 배율
   const offsetX = ch.slotX || 0;
   const compiled = ch.dnaCompiled || (ch.dnaCompiled = compileDna(ch.dna));
   const segs = [], spheres = [];
-  const seen = new Set();             // 리그 2벌 FBX 중복 세그먼트 방지
+  const sphereKeys = new Set();       // bump/cut 은 키당 1회만 배치(분기 뼈 중복 방지)
+  // 캡슐 = 부모 뼈 → 자식 뼈. **프로파일·스키닝은 부모 뼈로** 귀속한다 — Mixamo 는 뼈의
+  // 살이 그 뼈에서 자식 쪽으로 뻗으므로(예: Arm→ForeArm 구간 = 상완, Head→HeadTop = 두개골),
+  // 부모 키로 조회해야 해부학 라벨·애니메이션 바인딩이 맞는다.
+  const primary = ch._primaryChild || (ch._primaryChild = primaryChildSet(ch.bones));
   for (const b of ch.bones) {
-    if (!b.parent?.isBone) continue;
-    const key = simpleName(b.name);
-    if (seen.has(key)) continue;
-    seen.add(key);
+    const par = b.parent;
+    if (!par?.isBone) continue;
+    if (!primary.has(b)) continue;   // 분기 뼈는 정합(straightest) 자식으로만 캡슐 — 곁가지
+                                     // (어깨·고관절)는 자기 세그먼트로 렌더돼 슬래브 벌크 방지
+    const key = simpleName(par.name);
     const r = compiled.resolve(key);
     if (!r) continue;                 // r=0 세그먼트(손가락 등) 생략
-    const a = b.parent.getWorldPosition(_wa);
+    const a = par.getWorldPosition(_wa);
     const c = b.getWorldPosition(_wb);
-    const ax = toGridX(a.x, half, offsetX), ay = toGridY(a.y, half), az = toGridZ(a.z, half);
-    const bx = toGridX(c.x, half, offsetX), by = toGridY(c.y, half), bz = toGridZ(c.z, half);
+    let ax = toGridX(a.x, half, offsetX), ay = toGridY(a.y, half), az = toGridZ(a.z, half);
+    let bx = toGridX(c.x, half, offsetX), by = toGridY(c.y, half), bz = toGridZ(c.z, half);
     const fr = BLEND * r.blend * gs;
     const rmaxGrid = r.rMax * fr;
     // 세그먼트 축 단위벡터 (그리드)
     let axx = bx - ax, axy = by - ay, axz = bz - az;
     const alen = Math.hypot(axx, axy, axz) || 1; axx /= alen; axy /= alen; axz /= alen;
-    // flatten u (필요 시)
+    // offset: 캡슐을 뼈에서 스킨 중심선으로 이동 (Mixamo 뼈는 몸 중심이 아니라 등/관절에
+    // 치우쳐 있어, 이동 없이는 살이 뼈 기준 대칭으로 부풀어 벌크해진다). u,v 프레임에서 배치.
+    if (r.offset) {
+      const su = computeU(null, null, null, axx, axy, axz); // 월드 +z 투영 = u
+      if (su) {
+        const vx = axy * su.z - axz * su.y, vy = axz * su.x - axx * su.z, vz = axx * su.y - axy * su.x;
+        const o0 = r.offset[0] * gs, o1 = r.offset[1] * gs, o2 = r.offset[2] * gs;
+        const dx = o0 * su.x + o1 * vx + o2 * axx, dy = o0 * su.y + o1 * vy + o2 * axy, dz = o0 * su.z + o1 * vz + o2 * axz;
+        ax += dx; ay += dy; az += dz; bx += dx; by += dy; bz += dz;
+      }
+    }
+    // flatten u (필요 시) — 회전 추적은 살이 귀속된 부모 뼈 기준
     let flatten = null, uvec = null;
     if (r.flatten) {
-      const worldQ = b.getWorldQuaternion(_bq);
-      uvec = computeU(r.flatten.dir, ch.bindWorldQ?.get(b), worldQ, axx, axy, axz);
+      const worldQ = par.getWorldQuaternion(_bq);
+      uvec = computeU(r.flatten.dir, ch.bindWorldQ?.get(par), worldQ, axx, axy, axz);
       if (uvec) flatten = { ux: uvec.x, uy: uvec.y, uz: uvec.z, invf2: 1 / (r.flatten.f * r.flatten.f) };
     }
-    segs.push({ ax, ay, az, bx, by, bz, lut: r.lut, fr, rmaxGrid, flatten, bone: b });
-    // 구 (bump/cut) — 세그먼트 로컬 프레임에서 offset 배치
-    if (r.spheres.length) {
+    segs.push({ ax, ay, az, bx, by, bz, lut: r.lut, fr, rmaxGrid, flatten, bone: par });
+    // 구 (bump/cut) — 키당 1회만(분기 뼈에서 중복 배치 방지)
+    if (r.spheres.length && !sphereKeys.has(key)) {
+      sphereKeys.add(key);
       const su = uvec || computeU(null, null, null, axx, axy, axz); // dir 없으면 월드 +z 투영
       if (su) {
         const vx = axy * su.z - axz * su.y, vy = axz * su.x - axx * su.z, vz = axx * su.y - axy * su.x;
@@ -164,7 +207,7 @@ export function buildSegments(ch, simpleName, size) {
             cx: lx + o0 * su.x + o1 * vx + o2 * axx,
             cy: ly + o0 * su.y + o1 * vy + o2 * axy,
             cz: lz + o0 * su.z + o1 * vz + o2 * axz,
-            rGrid: BLEND * sp.r * gs, strength: sp.strength, bone: b,
+            rGrid: BLEND * sp.r * gs, strength: sp.strength, bone: par,
           });
         }
       }

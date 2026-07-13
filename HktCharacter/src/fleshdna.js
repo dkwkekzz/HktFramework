@@ -12,6 +12,8 @@
 //  LUT 선형 보간만 하게 한다.
 // ============================================================================
 
+import { ybotDna } from './ybotDna.js'; // 자동 생성 (tools/flesh-fit.mjs) — Y Bot 메시 역산
+
 export const LUT_N = 33;           // profile 사전 샘플 지점 수 (t=0..1, 32 구간)
 const FALLBACK_R = 0.04;           // match 실패 시 기본 반지름 (현 radiusFor 기본값)
 
@@ -118,7 +120,7 @@ export function defaultDna() {
 // ---------------------------------------------------------------------------
 //  프리셋 (F4) — 개성 있는 체형의 출발점. 이름으로 깊은 복사본을 돌려준다.
 // ---------------------------------------------------------------------------
-export const PRESET_NAMES = ['humanlike', 'stylized-f', 'slim', 'bulk', 'robot'];
+export const PRESET_NAMES = ['y-bot', 'humanlike', 'stylized-f', 'slim', 'bulk', 'robot'];
 
 function withSeg(dna, match, patch) {
   const s = dna.segments.find(x => x.match === match);
@@ -130,6 +132,7 @@ export function presetDna(name) {
   const d = defaultDna();
   d.name = name;
   switch (name) {
+    case 'y-bot': return JSON.parse(JSON.stringify(ybotDna)); // Y Bot 메시에서 역산한 형태
     case 'humanlike': return d;
     case 'stylized-f': // §5.7 스타일라이즈드 여성 체형 (잘록 허리·넓은 골반·가슴/둔부 bump)
       withSeg(d, 'spine2', { profile: [[0, 0.082], [0.55, 0.092], [1, 0.08]], flatten: { dir: [0, 0, 1], f: 0.66 } });   // 흉곽 좁고 납작
@@ -270,6 +273,7 @@ export function compileDna(dna) {
     flatten: s.flatten ? { dir: s.flatten.dir.slice(), f: s.flatten.f } : null,
     blend: s.blend ?? 1,
     group: s.group || null,
+    offset: s.offset ? s.offset.slice() : null, // [u,v,축] m — 캡슐을 뼈에서 스킨 중심선으로 이동
     baseLut: bakeLut(s.profile),   // groups 미적용 원본 (배율은 resolve 에서)
   }));
 
@@ -300,7 +304,7 @@ export function compileDna(dna) {
     const segSpheres = spheres
       .filter(sp => sp.re.test(key))
       .map(sp => ({ t: sp.t, offset: sp.offset, r: sp.r, strength: sp.strength }));
-    const out = { lut, rMax, flatten: spec ? spec.flatten : null, blend: spec ? spec.blend : 1, group, spheres: segSpheres };
+    const out = { lut, rMax, flatten: spec ? spec.flatten : null, blend: spec ? spec.blend : 1, group, offset: spec ? spec.offset : null, spheres: segSpheres };
     cache.set(key, out);
     return out;
   }

@@ -19,8 +19,11 @@ const MODEL = process.argv[4] || 'Y Bot'; // 여성 베이스 (참조 시트가 
 const CHROME = '/opt/pw-browsers/chromium-1194/chrome-linux/chrome';
 const CT = { '.html': 'text/html', '.js': 'text/javascript', '.css': 'text/css', '.json': 'application/json', '.fbx': 'application/octet-stream', '.png': 'image/png', '.jpeg': 'image/jpeg' };
 
-// §5.7 스타일라이즈드 여성 — 길이/골격 채널(본 비율). 살(DNA)과 분리된 값.
-const PROPS = { shoulder: 0.82, head: 0.86, leg: 1.14, torso: 1.0, arm: 0.96 };
+// 본 비율(길이/골격) — 프리셋별. y-bot 은 실제 모델 비율을 따르므로 손대지 않음(전부 1).
+const PROP_SET = {
+  'stylized-f': { shoulder: 0.82, head: 0.86, leg: 1.14, torso: 1.0, arm: 0.96 },
+};
+const PROPS = PROP_SET[process.argv[3]] || {};
 
 // dist 정적 서버 (공백 파일명 대응: decodeURIComponent)
 const server = createServer(async (req, res) => {
