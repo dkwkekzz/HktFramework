@@ -48,7 +48,9 @@
         왕복·lerp 끝점·mutate 재현/클램프). **육안 확인 필요**.
       - [ ] **F5**(선택) 살아있는 살 — 근육 팽창·호흡(live 한정). [ ] UE5 GLTF 내보내기(별도 Phase).
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도 흡수.
-      Node 검증 25 PASS(`node tools/flesh-verify.mjs`). **전 Phase 브라우저 육안 확인은 사용자 몫.**
+      검증 = **수치 + 캡처** 둘 다(`npm run verify`): flesh-verify 25 PASS + flesh-visualize 가
+      `docs/flesh-silhouette.svg|png`(프리셋 실루엣 정면·측면 비교, 측면이 flatten 을 보여줌)·
+      `docs/flesh-profiles.svg`(PCHIP 곡선) 렌더. **브라우저 육안 확인은 여전히 사용자 몫**(`npm run dev`).
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)
       스케일 / 좌우 대칭 편집 / 프리셋 저장 검토. (두께 분리는 FLESH-PLAN F1 이 담당)
 - [ ] **로스터 확장** — 캐릭터 3인 이상, 클립 블렌딩/전환 개선.
