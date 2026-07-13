@@ -29,9 +29,8 @@ const EFFECT_TYPE = {
   combust: 'combustion',  // 연소 (feature-0013 규칙 A)
   melt: 'melt',           // 용해 (규칙 B)
   shatter: 'shatter',     // 파괴 (규칙 C)
-  heat: 'flow',           // 열의 흐름(자극)
+  heat: 'flow',           // 열의 흐름(자극 — 열원→결정)
   react: 'flow',          // 결정 반응(반응열)
-  radiate: 'flow',        // 심우주 복사
   harvest: 'transfer',    // 채집 흐름
   attack: 'transfer',     // 강탈 흐름
   forage: 'transfer',     // 갈구 흐름
