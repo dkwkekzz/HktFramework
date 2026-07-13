@@ -578,6 +578,28 @@ export class GameServer {
   //   안)이라 동면하지 않는다(플레이어의 아바타는 항상 산다). 동면은 정체성을 지우지 않는다 — 잔고·스탯 그대로 멈춤.
   #dormant(cre) { return !cre.owner && !this.#regionActive(cre.x, cre.y); }
 
+  // feature-0020 step 1 — 동면 군집 통계(거시 변수, 읽기 전용). 관측 밖에서 동면 중인 야생 생명체를 지역별
+  //   군집으로 집계한다: n=개체 수 · e=잔고 합 · s=size 합 · creatures=개체 목록(seq 오름차순 = 결정론).
+  //   개체별 궤적은 관측 밖에서 "무관한 세부"고, 살아남는 관련 변수가 이 세 개다(재규격화 — feature-0020 문서).
+  //   이 메서드는 세계를 바꾸지 않는다 — step 2 의 군집 갈구·대사(저해상도 갱신)가 이 거시 변수 위에서 흐른다.
+  //   게이트 OFF 면 동면 자체가 없으므로 빈 Map(규칙 검증 테스트는 전 세계 시뮬 그대로 — 0016 과 같은 결).
+  dormantClusters() {
+    const clusters = new Map(); // regionKey -> { n, e, s, creatures }
+    if (!this.gateByObservation) return clusters;
+    for (const cre of this.creatures.values()) {
+      if (!this.#dormant(cre)) continue;
+      const rk = regionKey(cre.x, cre.y);
+      let cl = clusters.get(rk);
+      if (!cl) clusters.set(rk, cl = { n: 0, e: 0, s: 0, creatures: [] });
+      cl.n += 1;
+      cl.e += this.ledger.balance(cre.id);
+      cl.s += cre.size;
+      cl.creatures.push(cre);
+    }
+    for (const cl of clusters.values()) cl.creatures.sort((a, b) => a.seq - b.seq);
+    return clusters;
+  }
+
   // 관측 없는 지역의 결정을 에너지로 환원(탈구체화) — 결정 잔고와 열(H:)을 그 자리 국소장으로 되돌리고 풀을 지운다.
   //   소유물(heldItems)은 this.crystals 밖이라 대상 아님(주인을 따라 늘 관측 안). 보존: 결정→국소장 이체(무음·region=null).
   #dematerializeUnobserved() {
