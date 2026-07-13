@@ -92,6 +92,39 @@ export function fillField(field, dims, segs, cuts) {
   }
 }
 
+// 한 세그먼트가 그리드 점 (x,y,z) 에 더하는 Wyvill 기여도 g³ (밖이면 0).
+// fillField 내부 루프와 **동일한 수식** — bake 스키닝 가중치가 필드와 일치하도록 공유한다.
+// (핫루프 성능 때문에 fillField 는 인라인, 이 함수는 정점당 1회 호출용.)
+export function segContribAt(seg, x, y, z) {
+  const { ax, ay, az, bx, by, bz, lut, rscale, flatten } = seg;
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const len2 = dx * dx + dy * dy + dz * dz;
+  const px = x - ax, py = y - ay, pz = z - az;
+  let t = len2 > 1e-10 ? (px * dx + py * dy + pz * dz) / len2 : 0;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  const qx = px - t * dx, qy = py - t * dy, qz = pz - t * dz;
+  let d2 = qx * qx + qy * qy + qz * qz;
+  if (flatten) { const s = qx * flatten.ux + qy * flatten.uy + qz * flatten.uz; d2 += s * s * flatten.finv2m1; }
+  const sc = t * LUT_MAX; let i = sc | 0; if (i > LUT_MAX - 1) i = LUT_MAX - 1;
+  const r = lut[i] + (lut[i + 1] - lut[i]) * (sc - i);
+  const R = r * rscale, R2 = R * R;
+  if (d2 >= R2) return 0;
+  const g = 1 - d2 / R2;
+  return g * g * g;
+}
+
+// 세그먼트 축까지의 거리² (그리드) — 스키닝 fallback 최근접 판정용.
+export function segAxisDist2(seg, x, y, z) {
+  const { ax, ay, az, bx, by, bz } = seg;
+  const dx = bx - ax, dy = by - ay, dz = bz - az;
+  const len2 = dx * dx + dy * dy + dz * dz;
+  const px = x - ax, py = y - ay, pz = z - az;
+  let t = len2 > 1e-10 ? (px * dx + py * dy + pz * dz) / len2 : 0;
+  t = t < 0 ? 0 : (t > 1 ? 1 : t);
+  const qx = px - t * dx, qy = py - t * dy, qz = pz - t * dz;
+  return qx * qx + qy * qy + qz * qz;
+}
+
 // ---------------------------------------------------------------------------
 //  buildSegs — ch(뼈 월드 최신) + 컴파일된 DNA → 그리드 공간 segs·cuts.
 //  실시간(McFlesh.update)과 bake(fleshbake) 가 공유한다. gs = 월드m→그리드 배율.
@@ -157,7 +190,7 @@ export function buildSegs(ch, simpleName, gs, half, breathMul = null) {
       }
     }
 
-    segs.push({ ax, ay, az, bx, by, bz, lut: spec.lut, rscale, rMax: spec.rMax * rscale, flatten });
+    segs.push({ ax, ay, az, bx, by, bz, lut: spec.lut, rscale, rMax: spec.rMax * rscale, flatten, bone: b });
 
     // cut — 세그먼트 로컬 프레임(â, u, v)에서 오프셋 이동한 구를 감산
     if (spec.cuts.length) {

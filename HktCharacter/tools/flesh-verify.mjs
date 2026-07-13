@@ -6,8 +6,10 @@
 //  샌드박스는 headless Chromium 이 막혀 있어 육안 대신 수치 검증을 남긴다.
 //  판정 가능한 폭·합 지표를 찍고 PASS/FAIL 로 요약한다.
 // ============================================================================
+import * as THREE from 'three';
 import { defaultDna, compileDna, samplePchip } from '../src/fleshdna.js';
 import { fillField, BLEND, HALF } from '../src/mcflesh.js';
+import { bakeFleshMesh } from '../src/fleshbake.js';
 
 let pass = 0, fail = 0;
 const ok = (name, cond, detail = '') => {
@@ -229,6 +231,111 @@ H('#6  F2: cut 구 감산 — 중심 감소 · 원거리 불변');
   const farSame = Math.abs(withCut[iFar] - base[iFar]) < 1e-6;
   ok('컷 중심 필드 감소', dropped, `${base[iC].toFixed(3)}→${withCut[iC].toFixed(3)}`);
   ok('원거리 불변', farSame, `Δ=${Math.abs(withCut[iFar] - base[iFar]).toExponential(1)}`);
+}
+
+// ---------------------------------------------------------------------------
+//  F3 공용 — 합성 팔 리그(spine1→arm→forearm→hand→handend) 를 만들어 bake.
+//  three 코어(Bone/Skeleton/MarchingCubes)는 WebGL 없이 순수 계산이라 Node 가능.
+// ---------------------------------------------------------------------------
+function buildArmCh() {
+  const root = new THREE.Object3D();
+  const simple = n => n.toLowerCase();
+  const mk = (name, x) => { const b = new THREE.Bone(); b.name = name; b.position.set(x, 0, 0); return b; };
+  const spine1 = new THREE.Bone(); spine1.name = 'spine1'; spine1.position.set(0, 1.4, 0);
+  const arm = mk('arm', 0.12), forearm = mk('forearm', 0.28), hand = mk('hand', 0.25), handend = mk('handend', 0.09);
+  root.add(spine1); spine1.add(arm); arm.add(forearm); forearm.add(hand); hand.add(handend);
+  root.updateMatrixWorld(true);
+  const bones = [spine1, arm, forearm, hand, handend];
+  const ch = {
+    root, bones, allBones: bones, slotX: 0,
+    dna: defaultDna(), dnaCompiled: null,
+    bindLocalQ: new Map(), bindLocalP: new Map(), bindWorldQ: new Map(),
+  };
+  ch.dnaCompiled = compileDna(ch.dna);
+  const q = new THREE.Quaternion();
+  for (const b of bones) {
+    ch.bindLocalQ.set(b, b.quaternion.clone());
+    ch.bindLocalP.set(b, b.position.clone());
+    ch.bindWorldQ.set(b, b.getWorldQuaternion(q).clone());
+  }
+  return { ch, simple, bones, forearm };
+}
+
+// ---------------------------------------------------------------------------
+//  #7 (F3) — 용접 후 중복 정점 0 · skinWeight 행 합 1±1e-3 · Taubin bbox 변화 ≤1%
+// ---------------------------------------------------------------------------
+H('#7  F3: bake — 용접·skinWeight 합·Taubin bbox');
+{
+  const { ch, simple } = buildArmCh();
+  const { mesh, stats } = bakeFleshMesh(ch, simple, { res: 128 });
+  const pos = mesh.geometry.getAttribute('position');
+  // 중복 정점 0 — 최종 유니크 정점끼리 0.5mm 격자 키가 겹치지 않아야 함
+  const keys = new Set();
+  let dup = 0;
+  for (let i = 0; i < pos.count; i++) {
+    const k = `${Math.round(pos.getX(i) * 2000)},${Math.round(pos.getY(i) * 2000)},${Math.round(pos.getZ(i) * 2000)}`;
+    if (keys.has(k)) dup++; else keys.add(k);
+  }
+  ok('용접 후 중복 정점 0', dup === 0, `유니크 ${pos.count} · 용접 ${stats.welded} · 중복잔여 ${dup}`);
+  // skinWeight 행 합 ≈1
+  const sw = mesh.geometry.getAttribute('skinWeight');
+  let maxErr = 0;
+  for (let i = 0; i < sw.count; i++) {
+    const s = sw.getX(i) + sw.getY(i) + sw.getZ(i) + sw.getW(i);
+    maxErr = Math.max(maxErr, Math.abs(s - 1));
+  }
+  ok('skinWeight 행 합 1±1e-3', maxErr <= 1e-3, `최대 편차 ${maxErr.toExponential(2)}`);
+  // Taubin bbox 변화 ≤1%
+  ok('Taubin bbox 변화 ≤1%', stats.bboxDrift <= 0.01, `${(stats.bboxDrift * 100).toFixed(3)}%`);
+  ok('폴리곤 한도 미초과', !stats.overflow, `삼각형 ${stats.triangles | 0}`);
+}
+
+// ---------------------------------------------------------------------------
+//  #8 (F3) — 전완 90° 회전 CPU 스키닝: 전완 귀속 정점이 강체 추종 (거리 보존)
+// ---------------------------------------------------------------------------
+H('#8  F3: 전완 90° 회전 — 전완 귀속 정점 강체 추종');
+{
+  const { ch, simple, bones, forearm } = buildArmCh();
+  const { mesh } = bakeFleshMesh(ch, simple, { res: 128 });
+  const geo = mesh.geometry;
+  const pos = geo.getAttribute('position'), si = geo.getAttribute('skinIndex'), sw = geo.getAttribute('skinWeight');
+  const skel = mesh.skeleton;
+  const fIdx = bones.indexOf(forearm);
+  // 전완 지배(weight>0.95) 정점 수집 — 원본 월드 위치
+  const sel = [];
+  for (let i = 0; i < pos.count; i++) {
+    let w = 0;
+    for (const [ix, wt] of [[si.getX(i), sw.getX(i)], [si.getY(i), sw.getY(i)], [si.getZ(i), sw.getZ(i)], [si.getW(i), sw.getW(i)]])
+      if (ix === fIdx) w += wt;
+    if (w > 0.999) sel.push([pos.getX(i), pos.getY(i), pos.getZ(i), i]); // 순수 전완 정점
+  }
+  // 전완 90° 회전(+z축) 후 스켈레톤 갱신
+  forearm.quaternion.setFromAxisAngle(new THREE.Vector3(0, 0, 1), Math.PI / 2);
+  ch.root.updateMatrixWorld(true);
+  skel.update();
+  // CPU 스키닝: boneMatrices[i] = bone.matrixWorld × boneInverse[i]. bindMatrix=identity.
+  const T = bones.map((b, i) => new THREE.Matrix4().multiplyMatrices(b.matrixWorld, skel.boneInverses[i]));
+  const skinned = sel.map(([x, y, z, i]) => {
+    const out = new THREE.Vector3();
+    for (const [ix, wt] of [[si.getX(i), sw.getX(i)], [si.getY(i), sw.getY(i)], [si.getZ(i), sw.getZ(i)], [si.getW(i), sw.getW(i)]]) {
+      if (wt === 0) continue;
+      out.add(new THREE.Vector3(x, y, z).applyMatrix4(T[ix]).multiplyScalar(wt));
+    }
+    return out;
+  });
+  // 강체성: 원본 쌍거리 == 스킨 후 쌍거리 (회전·평행이동은 거리 보존). 첫 정점 기준.
+  let maxDev = 0;
+  const o0 = new THREE.Vector3(...sel[0].slice(0, 3)), s0 = skinned[0];
+  for (let k = 1; k < sel.length; k++) {
+    const od = o0.distanceTo(new THREE.Vector3(...sel[k].slice(0, 3)));
+    const sd = s0.distanceTo(skinned[k]);
+    maxDev = Math.max(maxDev, Math.abs(od - sd));
+  }
+  // 회전이 실제로 정점을 움직였는지(비-자명성) 확인
+  const moved = o0.distanceTo(s0);
+  ok('전완 귀속 정점 존재', sel.length >= 20, `${sel.length}개`);
+  ok('회전이 정점을 이동시킴(비자명)', moved > 0.05, `이동 ${(moved * 100).toFixed(1)}cm`);
+  ok('강체 추종 — 쌍거리 편차 ≤1mm', maxDev <= 0.001, `최대 ${(maxDev * 1000).toFixed(3)}mm`);
 }
 
 // ---------------------------------------------------------------------------

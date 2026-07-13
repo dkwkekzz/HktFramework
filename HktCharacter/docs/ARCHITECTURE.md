@@ -43,7 +43,7 @@
    **선택 캐릭터별** 상태(`ch.props`)를 반영.
 7. **드롭존** — with-skin FBX 는 캐릭터 교체, 애니메이션-only 는 현재 캐릭터에 리타깃 재생.
 8. **UI** — 캐릭터/애니메이션/본 비율/속도/표시(메시·본·회색·와이어·SDF 살) + `window.__hkt` 핸들.
-9. **SDF 살** (`src/mcflesh.js` + `src/fleshdna.js`, 실험 → v5 트랙) — 뼈마다 세그먼트
+9. **SDF 살** (`src/mcflesh.js` + `src/fleshdna.js` + `src/fleshbake.js`, v5 트랙) — 뼈마다 세그먼트
    하나, Wyvill 밀도 `(1-d²/R²)³` (R=BLEND(2.5)×살반지름)를 필드에 가산 →
    `THREE.MarchingCubes`(res 64, isolation ≈0.593 = 살반지름 지점)로 매 프레임 폴리곤화.
    세그먼트 bbox 안 복셀만 채워 실시간(~7ms). 리그 2벌 FBX 는 simpleName 중복 스킵.
@@ -55,17 +55,23 @@
    그리드 공간 변환·flatten u·cut 중심을 프레임당 1회 계산. 관절 융기(가산 고유)는 관절 쪽 끝
    제어점 r 하향으로 데이터 상쇄. 채널 분리 불변: 길이는 뼈 scale, 두께·형태는 살 DNA
    (DNA 는 뼈 상태를 읽기만).
-   **알려진 한계**: 고정 격자 재샘플링이라 움직임에 표면이 미세하게 떨림(시간적
-   앨리어싱) — F3 bake(레스트 1회 폴리곤화 + 자동 스키닝)로 소멸 예정. 애니메이션-only FBX
-   의 내장 리그는 비율이 실제 캐릭터와 다름 — with-skin 캐릭터에 리타깃해서 봐야 정상 비율.
-   설계 전체 → [FLESH-PLAN.md](FLESH-PLAN.md).
+   표시 3-상태 `ui.flesh`: **off** / **live**(실시간 MC, 튜닝용) / **baked**(구운 스킨드 메시).
+   **bake**(`fleshbake.js`): 레스트 포즈에서 res 160 으로 1회 폴리곤화 → 0.5mm 정점 용접 →
+   Taubin 스무딩(λ0.5/μ−0.53×10, 순 Laplacian 수축 금지) → **필드와 동일 수식**(segContribAt)
+   으로 캡슐 기여도 상위 4개 스키닝 가중치 → `THREE.SkinnedMesh`. 재생 중 필드 계산 0,
+   시간적 앨리어싱 0. 관절 이중 바인딩은 필드 겹침에서 자동으로 나온다. DNA·본 비율 변경은
+   400ms 디바운스로 재굽기(live 는 즉시). 애니메이션-only FBX 의 내장 리그는 비율이 실제
+   캐릭터와 다름 — with-skin 캐릭터에 리타깃해서 봐야 정상 비율. 설계 전체 → [FLESH-PLAN.md](FLESH-PLAN.md).
 
 ## 파일 맵
 
 - `index.html` — HUD/패널(캐릭터·애니메이션·본 비율·표시)/드롭존 + CSS
 - `src/main.js` — 뷰어 전부 (슬롯·선택·리타깃·본 비율)
-- `src/mcflesh.js` — SDF 살(MarchingCubes) 실험 모듈. `update(bones, simpleName, offsetX)` —
-  볼륨은 원점 중심이라 선택 캐릭터의 슬롯 x 를 빼서 정렬.
+- `src/mcflesh.js` — SDF 살 실시간 폴리곤화. `fillField`(순수)·`buildSegs`·`segContribAt`
+  export, `McFlesh.update(ch, simpleName)`. 볼륨은 원점 중심(슬롯 x 오프셋 보정).
+- `src/fleshdna.js` — 살 DNA 스키마·PCHIP·`compileDna`(LUT)·lerp/mutate/serialize (three 비의존).
+- `src/fleshbake.js` — 레스트 포즈 bake → 용접·Taubin·자동 스키닝 → `THREE.SkinnedMesh`.
+- `tools/flesh-verify.mjs` — 살 Node 검증(§10.1 #1~#8). `node tools/flesh-verify.mjs`.
 - `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플(walk/run/idle/jump/attack: 메시
   없는 애니메이션 전용, samba: 메시 포함). 리타깃 소스로만 쓴다(베이스 캐릭터는 아래 character/).
 - `public/assets/character/X Bot.fbx`·`Y Bot.fbx` — **남·여 베이스** = Mixamo X Bot·Y Bot
