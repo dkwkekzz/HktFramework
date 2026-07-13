@@ -87,8 +87,10 @@ function humanlikeDna() {
     // 위에서부터 첫 매칭 (forearm 이 arm 보다, upleg 이 leg 보다, spine2/1 이 spine 보다 먼저)
     segments: [
       { match: 'thumb|index|middle|ring|pinky', profile: [[0, 0]] },      // 손가락 생략
-      { match: 'end$', profile: [[0, 0.02]] },                            // 리프 가늘게
-      { match: 'head', profile: [[0, 0.055], [0.35, 0.09], [0.8, 0.088], [1, 0.06]], flatten: { dir: [0, 0, 1], f: 0.9 }, group: 'head' }, // 턱→두개골→정수리
+      // head→HeadTop_End 세그먼트(≈18.5cm)가 **두개골** 본체다(neck→head 는 턱·상부 목).
+      { match: 'headtop|head.*end', profile: [[0, 0.058], [0.45, 0.092], [0.8, 0.088], [1, 0.05]], flatten: { dir: [0, 0, 1], f: 0.92 }, group: 'head' }, // 두개골(둥근)
+      { match: 'end$', profile: [[0, 0.02]] },                            // 리프 가늘게(손끝·발끝)
+      { match: 'head', profile: [[0, 0.05], [1, 0.058]], flatten: { dir: [0, 0, 1], f: 0.95 }, group: 'head' }, // 턱·상부 목 → 두개골 연결
       { match: 'neck', profile: [[0, 0.05], [1, 0.042]], blend: 1.4, group: 'head' },                                                     // 목—승모근 fold
       { match: 'spine2', profile: [[0, 0.095], [0.6, 0.105], [1, 0.09]], flatten: { dir: [0, 0, 1], f: 0.75 }, group: 'torso' },          // 흉곽 — 가장 납작
       { match: 'spine1', profile: [[0, 0.08], [0.5, 0.075], [1, 0.09]], flatten: { dir: [0, 0, 1], f: 0.8 }, group: 'torso' },            // 허리 S커브 잘록
@@ -99,8 +101,8 @@ function humanlikeDna() {
       { match: 'hand', profile: [[0, 0.03], [0.5, 0.038], [1, 0.025]], flatten: { dir: [0, 0, 1], f: 0.55 }, group: 'hand' },             // 손바닥 패들
       { match: 'upleg', profile: [[0, 0.085], [0.4, 0.075], [1, 0.055]], group: 'leg' },                                                  // 허벅지 테이퍼
       { match: 'leg', profile: [[0, 0.055], [0.35, 0.062], [1, 0.035]], group: 'leg' },                                                   // 종아리 볼록→발목
-      { match: 'foot', profile: [[0, 0.035], [1, 0.03]], flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' },                            // 발등 납작(상하)
-      { match: 'toe', profile: [[0, 0.028], [1, 0.02]], flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' },                             // 발끝
+      { match: 'foot', profile: [[0, 0.045], [0.55, 0.05], [1, 0.042]], flatten: { dir: [0, 1, 0], f: 0.5 }, group: 'foot' },             // 발 — 납작하고 통통(첨탑 방지)
+      { match: 'toe', profile: [[0, 0.038], [1, 0.03]], flatten: { dir: [0, 1, 0], f: 0.5 }, group: 'foot' },                            // 발끝(둥글게)
     ],
     bumps: [],
     cuts: [],
@@ -130,18 +132,20 @@ export function presetDna(name) {
   switch (name) {
     case 'humanlike': return d;
     case 'stylized-f': // §5.7 스타일라이즈드 여성 체형 (잘록 허리·넓은 골반·가슴/둔부 bump)
-      withSeg(d, 'spine2', { profile: [[0, 0.09], [0.6, 0.1], [1, 0.088]], flatten: { dir: [0, 0, 1], f: 0.68 } });
-      withSeg(d, 'spine1', { profile: [[0, 0.075], [0.5, 0.058], [1, 0.082]], flatten: { dir: [0, 0, 1], f: 0.7 } });
-      withSeg(d, 'spine', { profile: [[0, 0.1], [1, 0.08]], flatten: { dir: [0, 0, 1], f: 0.75 } });
-      withSeg(d, 'upleg', { profile: [[0, 0.09], [0.35, 0.078], [1, 0.05]] });
-      withSeg(d, 'leg', { profile: [[0, 0.052], [0.3, 0.062], [1, 0.03]] });
-      withSeg(d, 'forearm', { profile: [[0, 0.043], [0.3, 0.046], [1, 0.028]] });
-      withSeg(d, 'neck', { profile: [[0, 0.045], [1, 0.036]], blend: 1.4 });
-      withSeg(d, 'head', { profile: [[0, 0.048], [0.4, 0.092], [0.75, 0.09], [1, 0.055]], flatten: { dir: [0, 0, 1], f: 0.9 } });
+      withSeg(d, 'spine2', { profile: [[0, 0.082], [0.55, 0.092], [1, 0.08]], flatten: { dir: [0, 0, 1], f: 0.66 } });   // 흉곽 좁고 납작
+      withSeg(d, 'spine1', { profile: [[0, 0.07], [0.5, 0.052], [1, 0.078]], flatten: { dir: [0, 0, 1], f: 0.72 } });    // 잘록 허리
+      withSeg(d, 'spine', { profile: [[0, 0.098], [1, 0.078]], flatten: { dir: [0, 0, 1], f: 0.78 } });                  // 골반→하복부
+      withSeg(d, 'shoulder', { profile: [[0, 0.04], [1, 0.044]], blend: 1.15 });                                         // 좁은 어깨
+      withSeg(d, 'arm', { profile: [[0, 0.038], [0.4, 0.045], [1, 0.038]] });                                            // 가는 상완
+      withSeg(d, 'forearm', { profile: [[0, 0.04], [0.3, 0.043], [1, 0.026]] });                                         // 가는 전완·손목
+      withSeg(d, 'upleg', { profile: [[0, 0.092], [0.35, 0.08], [1, 0.05]] });                                           // 허벅지 굵고 무릎 가늘게
+      withSeg(d, 'leg', { profile: [[0, 0.05], [0.3, 0.06], [1, 0.028]] });                                              // 종아리 볼록·발목 가늘게
+      withSeg(d, 'neck', { profile: [[0, 0.043], [1, 0.035]], blend: 1.35 });                                            // 가늘고 긴 목
+      withSeg(d, 'headtop|head.*end', { profile: [[0, 0.054], [0.45, 0.085], [0.8, 0.083], [1, 0.048]], flatten: { dir: [0, 0, 1], f: 0.9 } }); // 갸름한 두개골
       d.bumps = [
-        { match: 'spine2', t: 0.55, offset: [0.055, 0.045, 0], r: 0.045, strength: 0.9, mirror: true }, // 가슴
-        { match: 'upleg', t: 0.1, offset: [-0.055, 0, 0], r: 0.055, strength: 0.9 },                     // 둔부
-        { match: 'leg', t: 0.3, offset: [-0.018, 0, 0], r: 0.028, strength: 0.5 },                        // 종아리 뒤
+        { match: 'spine2', t: 0.5, offset: [0.05, 0.035, 0], r: 0.05, strength: 1.0, mirror: true },  // 가슴 (전방+좌우)
+        { match: 'upleg', t: 0.12, offset: [-0.05, 0, 0.01], r: 0.058, strength: 1.0 },               // 둔부 (후방)
+        { match: 'leg', t: 0.32, offset: [-0.02, 0, 0], r: 0.03, strength: 0.5 },                       // 종아리 뒤
       ];
       return d;
     case 'slim': // 전 그룹 0.85 + 허리 잘록 강화

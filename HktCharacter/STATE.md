@@ -22,11 +22,13 @@
 - **v4** 접지를 클립별 사전 측정으로 전환 — 재생 중 중심 틀어짐·부유 버그 수정.
 - **v3.2** 교차 트윈 리그(X/Y Bot) T-포즈 멈춤 수정 — 구동 뼈를 DFS-첫 뼈로 선정, 자체 `bakeClip`.
 
-## 검증 현황 (v4.2, Node)
+## 검증 현황
 
+- **살(v5)**: `npm run verify`(Node §10.1 #1~#8 + F4 ALL PASS) + `npm run capture`(headless
+  Chromium 실제 렌더 → `docs/flesh-stylized-f.png` 5각도 몽타주). 시각 검증은 우리가 직접
+  수행한다 — 육안을 사용자에게 요청하지 않는다(CLAUDE.md 작업 방식 참조).
 - hips 수평 최대 오차: 공격 0.005 · 삼바 0.002 · 걷기 0.002m (실물 main.js 를 DOM/WebGL 스텁 구동).
 - 접지 min.y·드리프트·hips 흔들림 범위 실측치 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#검증) 참조.
-- ⚠️ **브라우저 육안 확인은 사용자 몫** — 샌드박스 headless Chromium 차단.
 
 ## 다음 작업 (사용자와 논의 후)
 

@@ -30,8 +30,13 @@
 - 코드 주석·문서는 **한국어**.
 - 한 작업이 끝나면 [STATE.md](STATE.md) 를 갱신한다 — 상세는 별도 문서, STATE 에는 핵심만.
 - **검증은 캡처해 직관적으로 보고한다** — 수치 나열로 끝내지 말고, 스크린샷·오버레이·비교
-  이미지 등 한눈에 판정 가능한 형태로 결과를 남긴다. 샌드박스는 headless Chromium 이 막혀
-  Node 검증으로 대체하되, 육안 확인이 필요한 변경은 `npm run dev` 확인을 사용자에게 요청한다.
+  이미지 등 한눈에 판정 가능한 형태로 결과를 남긴다.
+- **시각 검증은 우리가 직접 수행한다 (MUST)** — 이 샌드박스는 headless Chromium 이 **막혀
+  있지 않다**: SwiftShader(ANGLE/Vulkan)로 WebGL2 가 돈다. 렌더 결과가 걸린 변경은
+  Playwright 로 실제 렌더해 캡처·판정한다(`npm run capture` → `tools/flesh-capture.mjs`,
+  살은 `docs/flesh-stylized-f.png`). 순수 계산은 Node 검증(`npm run verify`). **육안 확인을
+  사용자에게 떠넘기지 않는다** — "`npm run dev` 로 눈으로 확인해 달라"는 요청은 금지.
+  (과거 "headless 차단" 기술은 오판이었다. 2026-07-13 확인.)
 
 ## 실행
 

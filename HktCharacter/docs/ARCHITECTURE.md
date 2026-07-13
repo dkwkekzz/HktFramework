@@ -68,7 +68,8 @@
 - `src/fleshdna.js` — 살 DNA 스키마 + 순수 함수(PCHIP·compileDna·lerp/mutate/serialize). three 비의존.
 - `src/mcflesh.js` — SDF 살 실시간(MarchingCubes). `fillField`(순수)·`buildSegments`·`McFlesh.update(ch, simpleName)`.
 - `src/fleshbake.js` — bake 파이프라인(고해상 필드 → 용접 → Taubin → 자동 스키닝 → SkinnedMesh).
-- `tools/flesh-verify.mjs` — 살 Node 검증(FLESH-PLAN §10.1 #1~#8). `node tools/flesh-verify.mjs`.
+- `tools/flesh-verify.mjs` — 살 Node 검증(FLESH-PLAN §10.1 #1~#8 + F4). `npm run verify`.
+- `tools/flesh-capture.mjs` — headless 브라우저 실제 렌더 캡처(baked 살 5각도 몽타주). `npm run capture` → `docs/flesh-stylized-f.png`.
 - `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플(walk/run/idle/jump/attack: 메시
   없는 애니메이션 전용, samba: 메시 포함). 리타깃 소스로만 쓴다(베이스 캐릭터는 아래 character/).
 - `public/assets/character/X Bot.fbx`·`Y Bot.fbx` — **남·여 베이스** = Mixamo X Bot·Y Bot
@@ -90,5 +91,6 @@
   대기 [0, 0], 공격 [0, 0.03], 걷기 [0, 0.05], 삼바 [-0.01, 0.02], 뛰기 [0, 0.17],
   점프 [0, 1.09]. hips 흔들림 범위(=체중 이동 전달): 삼바 x 0.86m(소스 ±42cm×hScale 와
   일치), 공격 z 0.49m(전진 런지), 대기 ~0.
-- (브라우저 육안 확인은 `npm run dev` 후 사용자 확인 필요 — 샌드박스는 headless Chromium
-  다운로드가 차단돼 Node 검증으로 대체.)
+- **시각 검증은 우리가 직접 수행한다** — headless Chromium(SwiftShader)로 WebGL2 가 돌아간다.
+  순수 계산은 `npm run verify`(Node), 렌더 결과는 `npm run capture`(Playwright 실제 렌더 →
+  `docs/flesh-stylized-f.png`). 육안을 사용자에게 요청하지 않는다.

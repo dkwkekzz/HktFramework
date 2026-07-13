@@ -858,20 +858,24 @@ function ensureBaked(ch) {
   if (ch.fleshBaked && !ch.fleshDirty) return;
   bakeNow(ch);
 }
+// 동기 bake+설치 — 자동 캡처(tools/flesh-capture.mjs)와 rAF 래퍼가 공유.
+function installBake(ch) {
+  const res = bakeFleshMesh(ch, simpleName);
+  if (ch.fleshBaked) { scene.remove(ch.fleshBaked); ch.fleshBaked.geometry.dispose(); }
+  ch.fleshBaked = res.mesh;
+  ch.fleshBaked.visible = ui.flesh === 'baked' && selCh() === ch;
+  scene.add(ch.fleshBaked);
+  ch.fleshDirty = false;
+  return res.stats;
+}
 function bakeNow(ch) {
   clearTimeout(rebakeTimer); rebakeTimer = null;
   setStatus('살 굽는 중…');
   requestAnimationFrame(() => {
-    let res;
-    try { res = bakeFleshMesh(ch, simpleName); }
+    let s;
+    try { s = installBake(ch); }
     catch (err) { setStatus('살 굽기 실패: ' + err.message); return; }
-    if (ch.fleshBaked) { scene.remove(ch.fleshBaked); ch.fleshBaked.geometry.dispose(); }
-    ch.fleshBaked = res.mesh;
-    ch.fleshBaked.visible = ui.flesh === 'baked' && selCh() === ch;
-    scene.add(ch.fleshBaked);
-    ch.fleshDirty = false;
-    const s = res.stats;
-    setStatus(`살 baked — 정점 ${s.vCount} · 삼각형 ${s.tris} · bbox 변화 ${(s.bboxGrow * 100).toFixed(1)}%`
+    setStatus(`살 baked — 정점 ${s.vCount} · 삼각형 ${s.tris} · 실루엣 변화 ${(s.bboxGrow * 100).toFixed(1)}%`
       + (s.overflow ? ' <b style="color:#f66">⚠️ 폴리곤 한도 초과(절단)</b>' : ''));
   });
 }
@@ -929,4 +933,26 @@ window.__hkt = {
     ch.dnaCompiled = compileDna(ch.dna); refreshFleshSliders(); scheduleRebake(ch);
   },
   bake() { const ch = selCh(); return ch ? bakeFleshMesh(ch, simpleName) : null; }, // 콘솔 검증용
+  // ── 자동 캡처(tools/flesh-capture.mjs)용 훅 — headless 브라우저 시각 검증을 우리가 수행 ──
+  ready() { const ch = selCh(); return !!(ch && ch.bones && ch.bones.length); },
+  setFleshMode(m) { ui.flesh = m; $('btnSdf').textContent = 'SDF 살 · ' + m; $('btnSdf').classList.toggle('on', m !== 'off'); applyFleshMode(); },
+  setPreset(name) { applyDnaToCh(presetDna(name)); },
+  setProp(id, v) { const ch = selCh(); if (!ch) return; ch.props[id] = v; applyProps(ch); updateRing(); },
+  bakeNow() { const ch = selCh(); return ch ? installBake(ch) : null; }, // 동기 즉시 굽기
+  showMesh(on) { ui.mesh = !!on; $('btnMesh').classList.toggle('on', ui.mesh); applyMaterialMode(); },
+  // 캡처용 카메라 앵글 (참조 시트 배치: front·3q·side·3qback·back)
+  camView(name, dist = 3.0, y = 0.9) {
+    const P = { front: [0, y, dist], '3q': [dist * 0.72, y + 0.05, dist * 0.72], side: [dist, y, 0.001], '3qback': [-dist * 0.72, y + 0.05, -dist * 0.72], back: [0, y, -dist] };
+    const p = P[name] || P.front;
+    cam.position.set(p[0], p[1], p[2]); controls.target.set(0, y, 0); controls.update();
+  },
+  // 깨끗한 실루엣 캡처: 그리드·바닥·링·본·FBX 메시 숨김, 밝은 배경.
+  captureMode(on) {
+    grid.visible = ground.visible = ring.visible = !on;
+    eachCh(c => { if (c.helper) c.helper.visible = on ? false : ui.bone; });
+    if (on) this.showMesh(false);
+    scene.background = new THREE.Color(on ? 0xe9ecf0 : 0x14161a);
+    scene.fog = on ? null : new THREE.Fog(0x14161a, 9, 34);
+    for (const el of ['.panel', '.hud', '#drop']) { const n = document.querySelector(el); if (n) n.style.display = on ? 'none' : ''; }
+  },
 };
