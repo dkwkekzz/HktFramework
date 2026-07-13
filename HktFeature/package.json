@@ -14,7 +14,8 @@
     "shot:blast": "node tools/shot-blast.mjs",
     "shot:detonate": "node tools/shot-detonate.mjs",
     "shot:threat": "node tools/shot-threat.mjs",
-    "shot:effects": "node tools/shot-effects.mjs"
+    "shot:effects": "node tools/shot-effects.mjs",
+    "shot:dormant": "node tools/shot-dormant.mjs"
   },
   "dependencies": {
     "ws": "^8.21.0"

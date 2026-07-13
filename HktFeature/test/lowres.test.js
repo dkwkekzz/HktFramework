@@ -142,6 +142,55 @@ test('정체성 연속 — 저해상도로 흐르는 것은 잔고뿐, 위치·s
   assert.equal(after.desires.size, 0, '욕구도 동결(개체의 사건은 정지)');
 });
 
+// --- step 3 — 거시 예측의 닮음 (게이트 OFF 개체 시뮬 vs ON 저해상도) ---
+//   같은 세계·같은 유입을 두 방식으로 굴려 거시 변수(E·생사)를 비교한다. 측정으로 확정한 상한(2026-07):
+//   (a) 잔고 궤적은 한 패스 양자(BASAL×K=96) 안에서 활성 시뮬을 따라간다 — 4패스 지평
+//   (b) 아사 시점은 2패스(2K 틱) 안에서 일치한다
+//   알려진 한계(문서 "정직한 경계선"): 소량 지속 유입(트리클) 지역은 패스 간격 동안 확산이 경쟁해
+//   저해상도가 계통적으로 덜 갈구한다 — 장기(8패스+) 이탈. 개선 후보는 feature 문서 step 로드맵 참조.
+
+function buildPair() {
+  // 같은 구성의 두 세계 — A: 게이트 OFF(전 개체 활성), B: 게이트 ON(관측 밖 저해상도)
+  return [false, true].map((gate) => {
+    const game = new GameServer({ now: () => 1_000_000, gateByObservation: gate });
+    game.addPlayer({ send() {} }, '관측자'); // 스폰 시야 1_1..3_3 — (200,y) 지역은 관측 밖
+    const fed = game.spawnCreature(200, 200, 500);     // 트리클 유입 지역(0_0)
+    const hungry = game.spawnCreature(200, 1200, 500); // 유입 없는 지역(0_2)
+    return { game, fed, hungry };
+  });
+}
+
+test('닮음 — 저해상도 잔고 궤적은 활성 시뮬을 한 패스 양자 안에서 따라간다', () => {
+  const [off, on] = buildPair();
+  const quantum = CREATURE_BASAL_COST * K; // 한 패스의 대사 양자 = 시간 해상도의 오차 상한
+  for (let t = 0; t <= K * 4; t++) {
+    for (const w of [off, on]) {
+      if (t > 0 && t % 8 === 0) w.game.ledger.transfer(POOL.SOURCE, materialKey(200, 200, 500), 25, 'seed'); // 동일 트리클 유입
+      w.game.tick();
+    }
+    if (t % K === K - 1) { // 패스 경계 표본
+      for (const key of ['fed', 'hungry']) {
+        const eOff = off.game.ledger.balance(off[key].id), eOn = on.game.ledger.balance(on[key].id);
+        assert.ok(Math.abs(eOn - eOff) <= quantum,
+          `t=${t} ${key}: |ON ${eOn} − OFF ${eOff}| ≤ ${quantum} — 거시가 미시를 예측한다`);
+      }
+    }
+  }
+  assert.equal(off.game.ledger.totalSum(), on.game.ledger.totalSum(), '두 세계 모두 보존(총합 동일)');
+});
+
+test('닮음 — 아사 시점이 2패스 안에서 일치한다(생사 결말 동일)', () => {
+  const [off, on] = buildPair();
+  let tOff = null, tOn = null;
+  for (let t = 0; t <= K * 8 && (tOff === null || tOn === null); t++) {
+    off.game.tick(); on.game.tick(); // 유입 없음 — hungry 는 언젠가 아사
+    if (tOff === null && !off.game.creatures.has(off.hungry.id)) tOff = t;
+    if (tOn === null && !on.game.creatures.has(on.hungry.id)) tOn = t;
+  }
+  assert.ok(tOff !== null && tOn !== null, '두 세계 모두에서 굶주린 개체는 죽는다(결말 동일)');
+  assert.ok(Math.abs(tOn - tOff) <= 2 * K, `아사 시점 OFF=${tOff} ON=${tOn} — 차이 ≤ 2K(시간 해상도 양자화)`);
+});
+
 test('보존 — 저해상도 갱신·아사·확산이 뒤섞여도 총합 불변', () => {
   const s = setup();
   s.game.ledger.transfer(POOL.SOURCE, materialKey(200, 200, 500), 10_000, 'seed'); // 관측 밖 풍요
