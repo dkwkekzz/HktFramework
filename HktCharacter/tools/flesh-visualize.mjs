@@ -7,13 +7,14 @@
 //  말고 스크린샷·오버레이·비교 이미지로 남긴다. 샌드박스 headless Chromium 이
 //  막혀도 Node 로 대체하되 **형태는 시각**이어야 한다."
 //
-//  브라우저 없이 순수 함수(buildSegs/fillField)만으로 합성 인간형 스켈레톤을 세우고
-//  살 필드를 채운 뒤, 정사영 실루엣(정면·측면)과 프로파일 곡선을 SVG(+임베드 PNG)로
-//  굽는다. 결과: docs/flesh-silhouette.svg · docs/flesh-profiles.svg
+//  브라우저 없이, **실제 X Bot FBX 스켈레톤**(앱과 동일 정규화)에 순수 함수
+//  (buildSegs/fillField)로 살 필드를 채운 뒤, 정사영 실루엣(정면·측면)과 프로파일
+//  곡선을 SVG(+임베드 PNG)로 굽는다. 결과: docs/flesh-silhouette.svg · docs/flesh-profiles.svg
 // ============================================================================
 import zlib from 'node:zlib';
-import { writeFileSync } from 'node:fs';
+import { writeFileSync, readFileSync } from 'node:fs';
 import * as THREE from 'three';
+import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { defaultDna, compileDna, presetDna, samplePchip } from '../src/fleshdna.js';
 import { buildSegs, fillField, HALF, CENTER_Y, ISO } from '../src/mcflesh.js';
 
@@ -39,48 +40,34 @@ function encodePNG(w, h, rgb) {
 const pngDataUri = (w, h, rgb) => 'data:image/png;base64,' + encodePNG(w, h, rgb).toString('base64');
 
 // ---------------------------------------------------------------------------
-//  합성 인간형 T-포즈 스켈레톤 (키 ~1.7m, 정면 +z). 이름은 simpleName 그대로.
+//  **실제 X Bot / Y Bot FBX** 스켈레톤을 로드해 앱과 동일하게 정규화한다.
+//  (합성 리그가 아니라 진짜 뼈 위에서 살 DNA 를 렌더 — 앱 결과의 충실한 프리뷰.)
+//  simpleName 규약·본 월드 bbox 정규화(키 1.7m)·발 접지·x 중심 정렬은 main.js 를 따른다.
 // ---------------------------------------------------------------------------
-function humanoid() {
-  // 자연스러운 A-포즈(팔 내림) + 실제 비율. T-포즈 막대인간을 피해 DNA 를 공정히 본다.
-  const P = {
-    hips: [0, 0.95, 0], spine: [0, 1.04, 0], spine1: [0, 1.14, 0], spine2: [0, 1.30, 0],
-    neck: [0, 1.46, 0], head: [0, 1.54, 0], headtop_end: [0, 1.70, 0],
-  };
-  const side = (s, sx) => {
-    // 팔은 어깨→아래 바깥 ~30° (A-포즈)
-    P[`${s}shoulder`] = [0.045 * sx, 1.44, 0]; P[`${s}arm`] = [0.16 * sx, 1.40, 0.01];
-    P[`${s}forearm`] = [0.30 * sx, 1.13, 0.02]; P[`${s}hand`] = [0.40 * sx, 0.92, 0.03]; P[`${s}handend`] = [0.43 * sx, 0.85, 0.03];
-    P[`${s}upleg`] = [0.10 * sx, 0.90, 0]; P[`${s}leg`] = [0.11 * sx, 0.50, 0.01];
-    P[`${s}foot`] = [0.11 * sx, 0.08, -0.02]; P[`${s}toe`] = [0.11 * sx, 0.025, 0.11]; P[`${s}toeend`] = [0.11 * sx, 0.02, 0.16];
-  };
-  side('left', 1); side('right', -1);
-  const parent = {
-    spine: 'hips', spine1: 'spine', spine2: 'spine1', neck: 'spine2', head: 'neck', headtop_end: 'head',
-  };
-  for (const s of ['left', 'right']) {
-    parent[`${s}shoulder`] = 'spine2'; parent[`${s}arm`] = `${s}shoulder`; parent[`${s}forearm`] = `${s}arm`;
-    parent[`${s}hand`] = `${s}forearm`; parent[`${s}handend`] = `${s}hand`;
-    parent[`${s}upleg`] = 'hips'; parent[`${s}leg`] = `${s}upleg`; parent[`${s}foot`] = `${s}leg`;
-    parent[`${s}toe`] = `${s}foot`; parent[`${s}toeend`] = `${s}toe`;
+const simpleName = n => n.split(':').pop().replace(/^mixamorig\d*/i, '').toLowerCase();
+const _fbxCache = {};
+function loadFBXCh(file, dna) {
+  if (!_fbxCache[file]) {
+    const buf = readFileSync(new URL(`../public/assets/character/${file}`, import.meta.url));
+    _fbxCache[file] = buf.buffer.slice(buf.byteOffset, buf.byteOffset + buf.byteLength);
   }
-  const root = new THREE.Object3D();
-  const bones = {};
-  // 부모 먼저 생성되도록 위상 정렬 순회
-  const order = ['hips', 'spine', 'spine1', 'spine2', 'neck', 'head', 'headtop_end'];
-  for (const s of ['left', 'right']) order.push(`${s}shoulder`, `${s}arm`, `${s}forearm`, `${s}hand`, `${s}handend`, `${s}upleg`, `${s}leg`, `${s}foot`, `${s}toe`, `${s}toeend`);
-  for (const name of order) {
-    const b = new THREE.Bone(); b.name = name;
-    const par = parent[name] ? bones[parent[name]] : root;
-    const pw = parent[name] ? P[parent[name]] : [0, 0, 0];
-    b.position.set(P[name][0] - pw[0], P[name][1] - pw[1], P[name][2] - pw[2]);
-    par.add(b); bones[name] = b;
-  }
-  root.updateMatrixWorld(true);
-  const list = order.map(n => bones[n]);
-  const ch = { root, bones: list, allBones: list, slotX: 0, dna: null, dnaCompiled: null, bindWorldQ: new Map() };
+  const obj = new FBXLoader().parse(_fbxCache[file], '');
+  const allBones = []; obj.traverse(o => { if (o.isBone) allBones.push(o); });
+  // 구동 뼈 = simpleName 별 DFS-첫 뼈(항상 조상 등뼈) — main.js makeCh 규약.
+  const seen = new Map(); const drivers = [];
+  for (const b of allBones) { const sn = simpleName(b.name); if (!seen.has(sn)) { seen.set(sn, b); drivers.push(b); } }
+  // 뼈 월드 bbox 로 키 1.7m 정규화(스킨 아님) → 발 접지 → x/z 중심 (main.js 와 동일).
+  obj.scale.setScalar(1); obj.position.set(0, 0, 0); obj.updateMatrixWorld(true);
+  const p = new THREE.Vector3();
+  const box = new THREE.Box3(); for (const b of drivers) box.expandByPoint(b.getWorldPosition(p));
+  const size = new THREE.Vector3(); box.getSize(size);
+  obj.scale.setScalar(1.7 / Math.max(size.y, 1e-3)); obj.updateMatrixWorld(true);
+  const box2 = new THREE.Box3(); for (const b of drivers) box2.expandByPoint(b.getWorldPosition(p));
+  const c = new THREE.Vector3(); box2.getCenter(c);
+  obj.position.set(-c.x, -box2.min.y, -c.z); obj.updateMatrixWorld(true);
+  const ch = { root: obj, bones: drivers, allBones: drivers, slotX: 0, dna, dnaCompiled: compileDna(dna), bindWorldQ: new Map() };
   const q = new THREE.Quaternion();
-  for (const b of list) ch.bindWorldQ.set(b, b.getWorldQuaternion(q).clone());
+  for (const b of drivers) ch.bindWorldQ.set(b, b.getWorldQuaternion(q).clone());
   return ch;
 }
 
@@ -90,12 +77,12 @@ function humanoid() {
 // ---------------------------------------------------------------------------
 const RES = 200;
 const half = RES / 2, gs = half / HALF;
+const BASE_FBX = 'X Bot.fbx';
 function silhouette(dna, view, color) {
-  const ch = humanoid();
-  ch.dna = dna; ch.dnaCompiled = compileDna(dna);
-  const { segs, cuts } = buildSegs(ch, n => n.toLowerCase(), gs, half);
+  const ch = loadFBXCh(BASE_FBX, dna);
+  const { segs, cuts, blobs } = buildSegs(ch, simpleName, gs, half);
   const field = new Float32Array(RES ** 3);
-  fillField(field, { size: RES, yd: RES, zd: RES * RES }, segs, cuts);
+  fillField(field, { size: RES, yd: RES, zd: RES * RES }, segs, cuts, blobs);
   // 세로는 항상 y. 가로는 front→x, side→z. 깊이는 나머지 축.
   const W = RES, H = RES;
   const rgb = Buffer.alloc(W * H * 3);
@@ -134,7 +121,7 @@ function buildSilhouetteSVG() {
   const H = padT + ph + padB;
   let s = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" font-family="system-ui,sans-serif">`;
   s += `<rect width="${W}" height="${H}" fill="#14161a"/>`;
-  s += `<text x="${padX}" y="26" fill="#dfe3ea" font-size="16" font-weight="700">살 DNA 실루엣 검증 — 합성 인간형 T-포즈, Node 렌더 (res ${RES})</text>`;
+  s += `<text x="${padX}" y="26" fill="#dfe3ea" font-size="16" font-weight="700">살 DNA 실루엣 검증 — 실제 X Bot FBX 스켈레톤(T-포즈), Node 렌더 (res ${RES})</text>`;
   panels.forEach((p, i) => {
     const x = padX + i * (pw + gap);
     s += `<image x="${x}" y="${padT}" width="${pw}" height="${ph}" href="${p.uri}" style="image-rendering:pixelated"/>`;
@@ -204,10 +191,10 @@ function buildCombinedPNG() {
 }
 // 실루엣을 RGB 버퍼로 직접 (PNG 우회) — 위 silhouette 과 동일 로직, 합성용.
 function silRGB(dna, view, color) {
-  const ch = humanoid(); ch.dna = dna; ch.dnaCompiled = compileDna(dna);
-  const { segs, cuts } = buildSegs(ch, n => n.toLowerCase(), gs, half);
+  const ch = loadFBXCh(BASE_FBX, dna);
+  const { segs, cuts, blobs } = buildSegs(ch, simpleName, gs, half);
   const field = new Float32Array(RES ** 3);
-  fillField(field, { size: RES, yd: RES, zd: RES * RES }, segs, cuts);
+  fillField(field, { size: RES, yd: RES, zd: RES * RES }, segs, cuts, blobs);
   const rgb = Buffer.alloc(RES * RES * 3);
   const [fr, fg, fb] = color;
   for (let iy = 0; iy < RES; iy++) { const gy = RES - 1 - iy; for (let ix = 0; ix < RES; ix++) {

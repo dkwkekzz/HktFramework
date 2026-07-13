@@ -74,7 +74,8 @@
 - `src/fleshdna.js` — 살 DNA 스키마·PCHIP·`compileDna`(LUT)·lerp/mutate/serialize (three 비의존).
 - `src/fleshbake.js` — 레스트 포즈 bake → 용접·Taubin·자동 스키닝 → `THREE.SkinnedMesh`.
 - `tools/flesh-verify.mjs` — 살 Node **수치** 검증(§10.1 #1~#9). `npm run flesh:check`.
-- `tools/flesh-visualize.mjs` — 살 Node **이미지** 검증(실루엣·프로파일 곡선 SVG/PNG). `npm run flesh:viz`.
+- `tools/flesh-visualize.mjs` — 살 Node **이미지** 검증. **실제 X Bot FBX 스켈레톤**을 로드해
+  (앱과 동일 정규화) 살 실루엣·프로파일 곡선 SVG/PNG 렌더. `npm run flesh:viz`.
   → `npm run verify` 가 둘 다 실행(수치 + 캡처). 캡처는 `docs/flesh-silhouette.*`·`docs/flesh-profiles.svg`.
 - `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플(walk/run/idle/jump/attack: 메시
   없는 애니메이션 전용, samba: 메시 포함). 리타깃 소스로만 쓴다(베이스 캐릭터는 아래 character/).
