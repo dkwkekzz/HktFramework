@@ -22,10 +22,12 @@ const FALLBACK_PROFILE = [[0, 0.04]]; // 매칭 실패 세그먼트 기본 반�
 function baseSegments() {
   return [
     { match: 'thumb|index|middle|ring|pinky', profile: [[0, 0]] }, // 손가락 생략
-    { match: 'end$',    profile: [[0, 0.02]] },                    // 리프 본 가늘게
-    { match: 'head',    profile: [[0, 0.055], [0.35, 0.09], [0.8, 0.088], [1, 0.06]],
-                        flatten: { dir: [0, 0, 1], f: 0.9 }, group: 'head' }, // 턱→두개골→정수리
-    { match: 'neck',    profile: [[0, 0.05], [1, 0.042]], blend: 1.4, group: 'head' }, // 승모근 fold
+    // 두개골 = head→HeadTop_End 세그먼트. end$ 보다 먼저 매칭해야 정수리가 채워진다.
+    { match: 'headtop|head.*end', profile: [[0, 0.052], [0.32, 0.094], [0.72, 0.092], [1, 0.05]],
+                        flatten: { dir: [0, 0, 1], f: 0.86 }, group: 'head' }, // 턱→두개골 팽창→정수리 수렴
+    { match: 'end$',    profile: [[0, 0.02]] },                    // 그 외 리프 본 가늘게
+    { match: 'head',    profile: [[0, 0.044], [1, 0.055]], group: 'head' }, // 목상단→턱 base
+    { match: 'neck',    profile: [[0, 0.05], [1, 0.045]], blend: 1.4, group: 'head' }, // 승모근 fold
     { match: 'hips',    profile: [[0, 0.105], [1, 0.10]],
                         flatten: { dir: [0, 0, 1], f: 0.85 }, group: 'torso' }, // 골반 앞뒤 납작
     { match: 'spine2',  profile: [[0, 0.095], [0.6, 0.105], [1, 0.09]],

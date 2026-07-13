@@ -42,19 +42,21 @@ const pngDataUri = (w, h, rgb) => 'data:image/png;base64,' + encodePNG(w, h, rgb
 //  합성 인간형 T-포즈 스켈레톤 (키 ~1.7m, 정면 +z). 이름은 simpleName 그대로.
 // ---------------------------------------------------------------------------
 function humanoid() {
+  // 자연스러운 A-포즈(팔 내림) + 실제 비율. T-포즈 막대인간을 피해 DNA 를 공정히 본다.
   const P = {
-    hips: [0, 0.98, 0], spine: [0, 1.06, 0], spine1: [0, 1.15, 0], spine2: [0, 1.30, 0],
-    neck: [0, 1.45, 0], head: [0, 1.55, 0], headend: [0, 1.71, 0],
+    hips: [0, 0.95, 0], spine: [0, 1.04, 0], spine1: [0, 1.14, 0], spine2: [0, 1.30, 0],
+    neck: [0, 1.46, 0], head: [0, 1.54, 0], headtop_end: [0, 1.70, 0],
   };
   const side = (s, sx) => {
-    P[`${s}shoulder`] = [0.04 * sx, 1.42, 0]; P[`${s}arm`] = [0.17 * sx, 1.44, 0];
-    P[`${s}forearm`] = [0.44 * sx, 1.44, 0]; P[`${s}hand`] = [0.66 * sx, 1.44, 0]; P[`${s}handend`] = [0.76 * sx, 1.44, 0];
-    P[`${s}upleg`] = [0.10 * sx, 0.92, 0]; P[`${s}leg`] = [0.11 * sx, 0.52, 0];
-    P[`${s}foot`] = [0.11 * sx, 0.09, -0.02]; P[`${s}toe`] = [0.11 * sx, 0.03, 0.12]; P[`${s}toeend`] = [0.11 * sx, 0.02, 0.17];
+    // 팔은 어깨→아래 바깥 ~30° (A-포즈)
+    P[`${s}shoulder`] = [0.045 * sx, 1.44, 0]; P[`${s}arm`] = [0.16 * sx, 1.40, 0.01];
+    P[`${s}forearm`] = [0.30 * sx, 1.13, 0.02]; P[`${s}hand`] = [0.40 * sx, 0.92, 0.03]; P[`${s}handend`] = [0.43 * sx, 0.85, 0.03];
+    P[`${s}upleg`] = [0.10 * sx, 0.90, 0]; P[`${s}leg`] = [0.11 * sx, 0.50, 0.01];
+    P[`${s}foot`] = [0.11 * sx, 0.08, -0.02]; P[`${s}toe`] = [0.11 * sx, 0.025, 0.11]; P[`${s}toeend`] = [0.11 * sx, 0.02, 0.16];
   };
   side('left', 1); side('right', -1);
   const parent = {
-    spine: 'hips', spine1: 'spine', spine2: 'spine1', neck: 'spine2', head: 'neck', headend: 'head',
+    spine: 'hips', spine1: 'spine', spine2: 'spine1', neck: 'spine2', head: 'neck', headtop_end: 'head',
   };
   for (const s of ['left', 'right']) {
     parent[`${s}shoulder`] = 'spine2'; parent[`${s}arm`] = `${s}shoulder`; parent[`${s}forearm`] = `${s}arm`;
@@ -65,7 +67,7 @@ function humanoid() {
   const root = new THREE.Object3D();
   const bones = {};
   // 부모 먼저 생성되도록 위상 정렬 순회
-  const order = ['hips', 'spine', 'spine1', 'spine2', 'neck', 'head', 'headend'];
+  const order = ['hips', 'spine', 'spine1', 'spine2', 'neck', 'head', 'headtop_end'];
   for (const s of ['left', 'right']) order.push(`${s}shoulder`, `${s}arm`, `${s}forearm`, `${s}hand`, `${s}handend`, `${s}upleg`, `${s}leg`, `${s}foot`, `${s}toe`, `${s}toeend`);
   for (const name of order) {
     const b = new THREE.Bone(); b.name = name;
