@@ -31,9 +31,13 @@
 ## 다음 작업 (사용자와 논의 후)
 
 - [ ] **SDF 살 스타일링 (v5 트랙)** — 설계 완료: [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md).
-      살 DNA 채널(F1) → 프로파일 곡선·flatten·cut(F2) → bake & 자동 스키닝(F3) →
-      프리셋·보간·변이(F4). 두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율
-      개선"의 두께 문제도 이 트랙이 흡수한다.
+      - [x] **F1** 살 DNA 채널 + 두께 슬라이더 — `src/fleshdna.js` 신규(스키마·PCHIP·compile),
+        `mcflesh.js` 를 `fillField`(순수)·`buildSegs` 로 재구성, `update(ch, simpleName)` 로 변경,
+        살 UI 섹션·`__hkt` 확장. `tools/flesh-verify.mjs` #1·#2 PASS(등반지름 폭차 0cm,
+        인접쌍 ≤복셀, arm=1.3 정확). **육안 확인 필요**(`npm run dev`).
+      - [ ] **F2** 프로파일 곡선·flatten·cut + 기본 인간형 DNA.
+      - [ ] **F3** bake & 자동 스키닝. [ ] **F4** 프리셋·보간·변이.
+      두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도 흡수.
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)
       스케일 / 좌우 대칭 편집 / 프리셋 저장 검토. (두께 분리는 FLESH-PLAN F1 이 담당)
 - [ ] **로스터 확장** — 캐릭터 3인 이상, 클립 블렌딩/전환 개선.

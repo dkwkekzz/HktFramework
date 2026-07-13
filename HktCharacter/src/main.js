@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
+import { defaultDna, compileDna } from './fleshdna.js';
 
 // ---------------------------------------------------------------------------
 //  씬 / 렌더러
@@ -97,6 +98,16 @@ const PROP_GROUPS = [
   { id: 'hand',     label: '손',       re: /hand$/,       min: 0.6, max: 1.6 },
 ];
 const defaultProps = () => Object.fromEntries(PROP_GROUPS.map(g => [g.id, 1]));
+
+// ---------------------------------------------------------------------------
+//  살 두께 그룹 — 살 DNA 의 groups 키를 UI 슬라이더로 노출. 뼈 scale(길이)과
+//  독립한 **살 채널**(두께). 값 1 = DNA 원본.
+// ---------------------------------------------------------------------------
+const FLESH_GROUPS = [
+  { id: 'head',  label: '머리' }, { id: 'torso', label: '몸통' },
+  { id: 'arm',   label: '팔' },   { id: 'hand',  label: '손' },
+  { id: 'leg',   label: '다리' }, { id: 'foot',  label: '발' },
+];
 
 // ---------------------------------------------------------------------------
 //  슬롯 정의 — 화면에 항상 두 캐릭터. 각 슬롯은 ch(캐릭터 상태)를 가진다.
@@ -188,7 +199,9 @@ function makeCh(slotId, parsed) {
     mixer: new THREE.AnimationMixer(obj), actions: {}, clips: {}, active: '',
     helper: drivers.length ? new THREE.SkeletonHelper(obj) : null,
     baseScale: 1, props: defaultProps(), primeMesh,
+    dna: defaultDna(), dnaCompiled: null, // 살 채널 — 캐릭터별 상태(props 와 같은 수명)
   };
+  ch.dnaCompiled = compileDna(ch.dna);
   computeBaseScale(ch);
   applyProps(ch); // root scale + 발 접지
   // 바인드 캐시 — 리타깃(bakeClip)은 뼈 상태를 전혀 건드리지 않는 순수 계산이라,
@@ -509,9 +522,11 @@ function select(id) {
   refreshCharSelect();
   refreshAnimButtons();
   refreshPropSliders();
+  refreshFleshSliders();
   mcFlesh.setVisible(ui.sdf && !!selCh());
   document.getElementById('animWho').textContent = SLOTS[id].label;
   document.getElementById('propWho').textContent = SLOTS[id].label;
+  document.getElementById('fleshWho').textContent = SLOTS[id].label;
 }
 
 function updateRing() {
@@ -621,9 +636,46 @@ $('btnPropReset').addEventListener('click', () => {
   refreshPropSliders();
 });
 
+// 살 두께 슬라이더 — DNA 의 groups 배율을 실시간 조절. props 슬라이더와 같은 마크업.
+// SDF 살이 꺼져 있으면 비활성(disabled) — 켜는 법을 사용자가 발견하게 한다.
+function refreshFleshSliders() {
+  const box = $('fleshSliders'); box.innerHTML = '';
+  const ch = selCh();
+  const active = !!ch && ui.sdf;
+  for (const g of FLESH_GROUPS) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = g.label;
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = 0.6; inp.max = 1.6; inp.step = 0.01;
+    inp.value = ch ? (ch.dna.groups[g.id] ?? 1) : 1;
+    inp.disabled = !active;
+    const val = document.createElement('span'); val.className = 'val';
+    val.textContent = (+inp.value).toFixed(2);
+    inp.addEventListener('input', () => {
+      val.textContent = (+inp.value).toFixed(2);
+      const c = selCh(); if (!c) return;
+      c.dna.groups[g.id] = +inp.value;
+      c.dnaCompiled.invalidate(); // groups 변경 → LUT 캐시 무효화
+      markFleshDirty(c);          // baked 모드 재굽기 트리거(F3)
+    });
+    row.append(lab, inp, val);
+    box.appendChild(row);
+  }
+  $('btnFleshReset').disabled = !active;
+}
+
+$('btnFleshReset').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  for (const g of FLESH_GROUPS) ch.dna.groups[g.id] = 1;
+  ch.dnaCompiled.invalidate();
+  markFleshDirty(ch);
+  refreshFleshSliders();
+});
+
 // 애니메이션 버튼 채우기 (초기)
 refreshAnimButtons();
 refreshPropSliders();
+refreshFleshSliders();
 
 // ---------------------------------------------------------------------------
 //  드롭존 — with-skin 이면 선택 슬롯 교체, 애니메이션이면 선택 슬롯에 리타깃
@@ -715,10 +767,13 @@ $('btnWire').addEventListener('click', e => {
 });
 // SDF 살 — 선택된 캐릭터의 스켈레톤을 MarchingCubes 로 실시간 폴리곤화
 const mcFlesh = new McFlesh(scene);
+// DNA·본 비율 변경 시 baked 메시 재굽기 표시(F3 에서 재굽기 실행). F1 은 표시만.
+function markFleshDirty(ch) { if (ch) ch.fleshDirty = true; }
 $('btnSdf').addEventListener('click', e => {
   ui.sdf = !ui.sdf; e.target.classList.toggle('on', ui.sdf);
   mcFlesh.setVisible(ui.sdf && !!selCh());
   if (ui.sdf && !selCh()) setStatus('SDF 살: 먼저 캐릭터를 선택하세요.');
+  refreshFleshSliders(); // 켜짐/꺼짐에 따라 살 슬라이더 활성 토글
 });
 $('spd').addEventListener('input', e => {
   ui.speed = +e.target.value;
@@ -736,9 +791,8 @@ function loop() {
   if (ui.sdf && sel) {
     sel.root.updateMatrixWorld(true);
     mcFlesh.setVisible(true);
-    // SDF 는 볼륨 중심(원점) 기준이라, 선택 캐릭터를 잠시 원점으로 본 것처럼
-    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다.
-    mcFlesh.update(sel.bones, simpleName, sel.slotX);
+    // SDF 는 볼륨 중심(원점) 기준. update 내부에서 뼈 월드·DNA·슬롯 x 를 읽는다.
+    mcFlesh.update(sel, simpleName);
   } else mcFlesh.setVisible(false);
   controls.update();
   renderer.render(scene, cam);
@@ -754,4 +808,17 @@ window.__hkt = {
   get selected() { return selected; },
   get sel() { return selCh(); },
   select, playAnim, loadDroppedFBX, switchModel,
+  // 살 DNA (Node/콘솔 검증용)
+  get dna() { return selCh()?.dna || null; },
+  setDnaGroup(k, v) {
+    const ch = selCh(); if (!ch) return;
+    ch.dna.groups[k] = v; ch.dnaCompiled.invalidate();
+    markFleshDirty(ch); refreshFleshSliders();
+  },
+  setDna(json) {
+    const ch = selCh(); if (!ch) return;
+    ch.dna = typeof json === 'string' ? JSON.parse(json) : json;
+    ch.dnaCompiled = compileDna(ch.dna);
+    markFleshDirty(ch); refreshFleshSliders();
+  },
 };
