@@ -18,6 +18,11 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
+import { FleshWarp } from './fleshwarp.js';
+import {
+  defaultDna, compileDna, presetDna, lerpDna, mutateDna,
+  serializeDna, parseDna, PRESETS, GROUP_KEYS, GROUP_LABELS,
+} from './fleshdna.js';
 
 // ---------------------------------------------------------------------------
 //  씬 / 렌더러
@@ -112,7 +117,8 @@ const SLOTS = {
   main: { label: MODELS[0].label, file: MODELS[0].file, x: 0, ch: null },
 };
 let selected = 'main';
-const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, sdf: false };
+// flesh 표시 모드: 'off' | 'warp'(원본 메시 워프, 1차 경로) | 'live'(SDF MarchingCubes 폴백)
+const ui = { speed: 1, bone: false, mesh: true, gray: false, wire: false, flesh: 'off', fleshAlpha: 1 };
 
 const selCh = () => SLOTS[selected]?.ch || null;
 const eachCh = fn => { for (const id in SLOTS) if (SLOTS[id].ch) fn(SLOTS[id].ch, id); };
@@ -188,7 +194,10 @@ function makeCh(slotId, parsed) {
     mixer: new THREE.AnimationMixer(obj), actions: {}, clips: {}, active: '',
     helper: drivers.length ? new THREE.SkeletonHelper(obj) : null,
     baseScale: 1, props: defaultProps(), primeMesh,
+    // 살 DNA — 캐릭터별 상태 (props 와 같은 수명). 두께=살, 길이=뼈 (살 채널 분리).
+    dna: defaultDna(), warp: null,
   };
+  ch.dnaCompiled = compileDna(ch.dna);
   computeBaseScale(ch);
   applyProps(ch); // root scale + 발 접지
   // 바인드 캐시 — 리타깃(bakeClip)은 뼈 상태를 전혀 건드리지 않는 순수 계산이라,
@@ -509,9 +518,11 @@ function select(id) {
   refreshCharSelect();
   refreshAnimButtons();
   refreshPropSliders();
-  mcFlesh.setVisible(ui.sdf && !!selCh());
+  applyFleshMode(); // 선택 캐릭터에 현재 살 모드 재적용
+  refreshFleshUI();
   document.getElementById('animWho').textContent = SLOTS[id].label;
   document.getElementById('propWho').textContent = SLOTS[id].label;
+  document.getElementById('fleshWho').textContent = SLOTS[id].label;
 }
 
 function updateRing() {
@@ -624,6 +635,7 @@ $('btnPropReset').addEventListener('click', () => {
 // 애니메이션 버튼 채우기 (초기)
 refreshAnimButtons();
 refreshPropSliders();
+refreshFleshUI();
 
 // ---------------------------------------------------------------------------
 //  드롭존 — with-skin 이면 선택 슬롯 교체, 애니메이션이면 선택 슬롯에 리타깃
@@ -642,6 +654,12 @@ drop.addEventListener('click', () => {
 });
 function readFile(f) {
   if (!f) return;
+  if (/\.json$/i.test(f.name)) { // .dna.json → 살 DNA 로 처리 (FBX 분기와 공존)
+    const rj = new FileReader();
+    rj.onload = () => loadDnaJson(rj.result, f.name);
+    rj.readAsText(f);
+    return;
+  }
   setStatus('읽는 중… ' + f.name);
   const r = new FileReader();
   r.onload = () => loadDroppedFBX(r.result, f.name.replace(/\.fbx$/i, ''));
@@ -713,13 +731,188 @@ $('btnWire').addEventListener('click', e => {
   ui.wire = !ui.wire; e.target.classList.toggle('on', ui.wire);
   grayMat.wireframe = ui.wire; applyMaterialMode();
 });
-// SDF 살 — 선택된 캐릭터의 스켈레톤을 MarchingCubes 로 실시간 폴리곤화
+// SDF 살 — 선택된 캐릭터의 스켈레톤을 MarchingCubes 로 실시간 폴리곤화 (live 폴백)
 const mcFlesh = new McFlesh(scene);
-$('btnSdf').addEventListener('click', e => {
-  ui.sdf = !ui.sdf; e.target.classList.toggle('on', ui.sdf);
-  mcFlesh.setVisible(ui.sdf && !!selCh());
-  if (ui.sdf && !selCh()) setStatus('SDF 살: 먼저 캐릭터를 선택하세요.');
+
+// ---------------------------------------------------------------------------
+//  살 (flesh) — DNA 채널 + 원본 메시 워프(1차) / SDF live(폴백)
+//  두께=살 DNA, 길이=뼈 scale 로 채널 분리. 워프는 바인드 포즈 1회 귀속 후 DNA·α 변경 시
+//  재적용. 표시 모드 off/warp/live 를 #btnFlesh 가 순환.
+// ---------------------------------------------------------------------------
+let mutateSeed = 1;
+
+// 바인드 포즈로 잠시 복원해 정점 귀속을 계산한다 (measureClipRootY 패턴 — 화면 불변).
+function ensureWarp(ch) {
+  if (ch.warp) return ch.warp;
+  const saved = ch.allBones.map(b => [b, b.quaternion.clone(), b.position.clone()]);
+  const savedRootY = ch.root.position.y;
+  for (const b of ch.allBones) {
+    b.quaternion.copy(ch.bindLocalQ.get(b));
+    b.position.copy(ch.bindLocalP.get(b));
+  }
+  ch.root.updateMatrixWorld(true);
+  ch.warp = new FleshWarp(ch, simpleName);
+  for (const [b, q, p] of saved) { b.quaternion.copy(q); b.position.copy(p); }
+  ch.root.position.y = savedRootY;
+  ch.root.updateMatrixWorld(true);
+  return ch.warp;
+}
+
+// 현재 살 모드를 선택 캐릭터에 적용 (모델 전환·선택 시 재호출).
+function applyFleshMode() {
+  const ch = selCh();
+  if (!ch) { mcFlesh.setVisible(false); return; }
+  if (ui.flesh === 'warp') {
+    try { ensureWarp(ch).apply(ui.fleshAlpha); }
+    catch (e) { setStatus('워프 실패: ' + e.message); }
+    mcFlesh.setVisible(false);
+  } else {
+    if (ch.warp) ch.warp.restore();   // off·live 모드는 원본 지오메트리로
+    // live 는 loop 가 mcFlesh 를 켠다
+  }
+}
+
+let warpDebounce = 0;
+// DNA·α 가 바뀌었을 때 warp 모드면 재적용 (100ms 디바운스 — 슬라이더 연속 입력).
+function reapplyWarp() {
+  const ch = selCh();
+  if (ui.flesh !== 'warp' || !ch) return;
+  clearTimeout(warpDebounce);
+  warpDebounce = setTimeout(() => { try { ensureWarp(ch).apply(ui.fleshAlpha); } catch (e) { setStatus('워프 실패: ' + e.message); } }, 100);
+}
+
+function setFleshMode(mode) {
+  ui.flesh = mode;
+  const btn = $('btnFlesh');
+  btn.textContent = '살 · ' + mode;
+  btn.classList.toggle('on', mode !== 'off');
+  if (mode !== 'off' && !selCh()) setStatus('살: 먼저 캐릭터를 선택하세요.');
+  applyFleshMode();
+  refreshFleshUI();
+}
+$('btnFlesh').addEventListener('click', () => {
+  setFleshMode(ui.flesh === 'off' ? 'warp' : (ui.flesh === 'warp' ? 'live' : 'off'));
 });
+
+// 살 섹션 UI 재구성 — 캐릭터명·그룹 두께 슬라이더·α·프리셋. DNA 값에서 슬라이더를 되읽는다.
+function refreshFleshUI() {
+  const ch = selCh();
+  const on = ui.flesh !== 'off';
+  // 그룹 두께 슬라이더
+  const box = $('fleshSliders'); box.innerHTML = '';
+  for (const k of GROUP_KEYS) {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = GROUP_LABELS[k];
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = 0.6; inp.max = 1.6; inp.step = 0.01;
+    inp.value = ch ? (ch.dna.groups[k] ?? 1) : 1;
+    inp.disabled = !ch || !on;
+    const val = document.createElement('span'); val.className = 'val';
+    val.textContent = (+inp.value).toFixed(2);
+    inp.addEventListener('input', () => {
+      val.textContent = (+inp.value).toFixed(2);
+      const c = selCh(); if (!c) return;
+      c.dna.groups[k] = +inp.value;
+      c.dnaCompiled.invalidate();
+      reapplyWarp();
+    });
+    row.append(lab, inp, val);
+    box.appendChild(row);
+  }
+  // α (살 강도) 슬라이더
+  const aInp = $('fleshAlpha'), aVal = $('fleshAlphaVal');
+  aInp.value = ui.fleshAlpha; aVal.textContent = ui.fleshAlpha.toFixed(2);
+  aInp.disabled = !ch || !on;
+  // 프리셋 드롭다운
+  const sel = $('fleshPreset');
+  if (!sel.dataset.filled) {
+    for (const p of PRESETS) { const o = document.createElement('option'); o.value = p.name; o.textContent = p.name; sel.appendChild(o); }
+    sel.dataset.filled = '1';
+  }
+  sel.disabled = !ch || !on;
+  // 모프 슬라이더·변이·입출력 활성화
+  for (const id of ['fleshMorph', 'btnFleshMutate', 'btnFleshExport', 'btnFleshImport', 'btnFleshReset'])
+    { const el = $(id); if (el) el.disabled = !ch || !on; }
+  $('fleshSeed').textContent = ch ? String(mutateSeed) : '—';
+}
+
+$('fleshAlpha').addEventListener('input', e => {
+  ui.fleshAlpha = +e.target.value;
+  $('fleshAlphaVal').textContent = ui.fleshAlpha.toFixed(2);
+  reapplyWarp();
+});
+
+// DNA 커밋 — dna 교체 후 컴파일·슬라이더 되읽기·워프 재적용.
+function commitDna(ch, dna) {
+  ch.dna = dna;
+  ch.dnaCompiled = compileDna(dna);
+  refreshFleshUI();
+  reapplyWarp();
+}
+
+$('fleshPreset').addEventListener('change', e => {
+  const ch = selCh(); if (!ch) return;
+  ch.dnaPresetName = e.target.value;
+  $('fleshMorph').value = 1; $('fleshMorphVal').textContent = '1.00';
+  commitDna(ch, presetDna(e.target.value));
+});
+
+// 모프 슬라이더 — humanlike(t=0) → 선택 프리셋(t=1) 보간 (체형 모핑 데모).
+$('fleshMorph').addEventListener('input', e => {
+  const ch = selCh(); if (!ch) return;
+  const t = +e.target.value;
+  $('fleshMorphVal').textContent = t.toFixed(2);
+  const target = presetDna(ch.dnaPresetName || 'humanlike');
+  commitDna(ch, lerpDna(defaultDna(), target, t));
+});
+
+$('btnFleshMutate').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  mutateSeed++;
+  commitDna(ch, mutateDna(ch.dna, mutateSeed, 0.12));
+  $('fleshSeed').textContent = String(mutateSeed);
+});
+
+$('btnFleshReset').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.dnaPresetName = 'humanlike';
+  $('fleshMorph').value = 1; $('fleshMorphVal').textContent = '1.00';
+  $('fleshPreset').value = 'humanlike';
+  commitDna(ch, defaultDna());
+});
+
+$('btnFleshExport').addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  const blob = new Blob([serializeDna(ch.dna)], { type: 'application/json' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = `${(ch.dna.name || 'flesh')}.dna.json`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+});
+
+$('btnFleshImport').addEventListener('click', () => {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = '.json,.dna.json';
+  inp.onchange = e => {
+    const f = e.target.files[0]; if (!f) return;
+    const r = new FileReader();
+    r.onload = () => loadDnaJson(r.result, f.name);
+    r.readAsText(f);
+  };
+  inp.click();
+});
+
+function loadDnaJson(text, name) {
+  const ch = selCh(); if (!ch) { setStatus('DNA: 먼저 캐릭터를 선택하세요.'); return; }
+  let dna;
+  try { dna = parseDna(text); }
+  catch (e) { setStatus(`DNA 파싱 실패 (${name}): ${e.message}`); return; }
+  commitDna(ch, dna);
+  if (ui.flesh === 'off') setFleshMode('warp');
+  setStatus(`DNA 적용 — <b>${dna.name || name}</b>.`);
+}
+
 $('spd').addEventListener('input', e => {
   ui.speed = +e.target.value;
   $('spdVal').textContent = ui.speed.toFixed(1);
@@ -733,12 +926,11 @@ function loop() {
   const dt = Math.min(clock.getDelta(), 0.1);
   eachCh(ch => ch.mixer.update(dt * ui.speed));
   const sel = selCh();
-  if (ui.sdf && sel) {
+  if (ui.flesh === 'live' && sel) {
     sel.root.updateMatrixWorld(true);
     mcFlesh.setVisible(true);
-    // SDF 는 볼륨 중심(원점) 기준이라, 선택 캐릭터를 잠시 원점으로 본 것처럼
-    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다.
-    mcFlesh.update(sel.bones, simpleName, sel.slotX);
+    // SDF 볼륨은 원점 중심이라, mcflesh 가 뼈 월드에서 슬롯 x 를 빼 정렬한다.
+    mcFlesh.update(sel, simpleName);
   } else mcFlesh.setVisible(false);
   controls.update();
   renderer.render(scene, cam);
@@ -754,4 +946,14 @@ window.__hkt = {
   get selected() { return selected; },
   get sel() { return selCh(); },
   select, playAnim, loadDroppedFBX, switchModel,
+  // 살 (Node/콘솔 검증용)
+  get dna() { return selCh()?.dna; },
+  setFleshMode,
+  setDnaGroup(k, v) {
+    const c = selCh(); if (!c) return;
+    c.dna.groups[k] = v; c.dnaCompiled.invalidate();
+    reapplyWarp(); refreshFleshUI();
+  },
+  setDna(json) { loadDnaJson(typeof json === 'string' ? json : JSON.stringify(json), 'console'); },
+  ensureWarp: () => { const c = selCh(); return c ? ensureWarp(c) : null; },
 };
