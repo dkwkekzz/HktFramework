@@ -1,8 +1,12 @@
 # FLESH-PLAN — SDF 살 스타일링 설계 (v5 트랙)
 
-> 상태: **설계만 완료, 구현 전** (2026-07-12). 이 문서 하나만 보고 어느 세션이든 동일하게
-> 구현을 시작할 수 있어야 한다. 선행 맥락: [ARCHITECTURE.md](ARCHITECTURE.md) §9 (SDF 살 실험),
-> `legacy/LOFT-PLAN.md` · `legacy/VERTEX-PLAN.md` (v1 교훈 — **코드 import 금지, 사상만 참조**).
+> 상태: **F1~F4 구현 완료 + stylized-f 튜닝** (2026-07-13, 설계 2026-07-12).
+> `src/fleshdna.js`·`mcflesh.js`·`fleshbake.js`·`main.js`·`index.html`·`tools/flesh-verify.mjs`·
+> `tools/flesh-capture.mjs` 참조. 검증: `npm run verify`(Node §10.1 #1~#8 + F4 ALL PASS) +
+> `npm run capture`(headless 실제 렌더 → `docs/flesh-stylized-f.png` 5각도 몽타주 — 시각
+> 검증은 **우리가 직접**, 육안을 사용자에게 요청하지 않는다). 남은 것: F5(살아있는 살)·UE5 경로.
+> 선행 맥락: [ARCHITECTURE.md](ARCHITECTURE.md) §9, `legacy/LOFT-PLAN.md`·`legacy/VERTEX-PLAN.md`
+> (v1 교훈 — **코드 import 금지, 사상만 참조**).
 
 ---
 
@@ -247,8 +251,10 @@ Hermite 기저. `compileDna` 가 33-지점 LUT 로 굽는다 — 핫루프 비�
 
 ### 5.4 기본 인간형 DNA (초기값 — 육안 튜닝 출발점)
 
-현 RADII 를 기준으로 한 시작값. **수치는 규범이 아니라 출발점** — 구현 후 `npm run dev`
-육안 + §11 폭 측정으로 다듬고, 최종값이 코드의 `defaultDna()` 가 된다.
+현 RADII 를 기준으로 한 시작값. **수치는 규범이 아니라 출발점** — 구현 후 `npm run capture`
+캡처 판정 + §11 폭 측정으로 우리가 직접 다듬고, 최종값이 코드의 `defaultDna()` 가 된다.
+(실제 튜닝 경위: 두개골은 `head→HeadTop_End` 세그먼트가 본체라는 걸 캡처로 확인해 그쪽에
+프로파일을 얹었다 — `neck→head` 는 턱·상부 목. 발끝·정수리 `end$` 첨탑도 캡처로 잡아 완화.)
 
 | match | profile `[t,r]` | flatten | blend | group | 의도 |
 |---|---|---|---|---|---|
@@ -314,9 +320,10 @@ F2 어휘가 실제 목표 체형을 커버하는지의 리트머스. 기준: �
 교훈 형식으로 남기는 결론: **캡슐+프로파일은 축대칭이라 "축 위" 볼륨만 그린다** — 이
 체형의 정체성(가슴·둔부·종아리 뒤)은 전부 축 바깥에 있고, bump 가 그 간극을 메운다
 (legacy "볼륨 헬퍼"가 필수였던 것과 같은 이유). 시트 정밀 재현은 여전히 비목표 —
-위 값으로 육안 튜닝해 "읽히면" 합격이고, 최종값이 `stylized-f` 프리셋이 된다.
-튜닝은 live 모드(RES 64, 복셀 3.6cm — 허리 저점 같은 1~2cm 차이는 뭉개져 보인다)로
-거칠게 잡고, **판정은 baked(res 160, 1.4cm)로** 한다.
+위 값으로 튜닝해 "읽히면" 합격이고, 최종값이 `stylized-f` 프리셋이 된다(§5.7 값은 출발점 —
+실제 튜닝 후 `presetDna('stylized-f')` 가 규범). **판정은 baked 캡처(`npm run capture`,
+`docs/flesh-stylized-f.png`)로 우리가 직접** 한다 — 참조 시트(정면/3q/측면/후면)와
+나란히 놓고 갸름한 두상·좁은 어깨·잘록 허리·넓은 골반·가슴/둔부 bump·긴 다리가 읽히면 합격.
 
 ---
 
@@ -427,8 +434,10 @@ modulation: {
 
 ## 10. 검증 계획
 
-CLAUDE.md 작업 방식 준수: 수치 + **한눈에 판정 가능한 캡처**. 샌드박스는 headless Chromium
-불가 → Node 검증 + 사용자 육안(`npm run dev`) 이원화.
+CLAUDE.md 작업 방식 준수: 수치 + **한눈에 판정 가능한 캡처**. 시각 검증은 **우리가 직접**
+수행한다 — headless Chromium(SwiftShader/ANGLE)로 WebGL2 가 돌아가므로 Playwright 로 실제
+렌더해 캡처한다. 순수 계산은 Node(`npm run verify`), 렌더 결과는 캡처(`npm run capture`)
+이원화. 육안을 사용자에게 요청하지 않는다.
 
 ### 10.1 Node 검증 — `tools/flesh-verify.mjs` (신규)
 
@@ -446,12 +455,16 @@ CLAUDE.md 작업 방식 준수: 수치 + **한눈에 판정 가능한 캡처**. 
 | 7 | F3 | 용접 후 중복 정점 0 · skinWeight 행 합 1±1e-3 · Taubin 후 bbox 변화 ≤1% | 수치 |
 | 8 | F3 | 전완 90° 회전 CPU 스키닝 검산 — 전완 귀속 정점 강체 추종 | 오차 ≤ 1mm |
 
-### 10.2 사용자 육안 체크리스트 (Phase 완료 시 `npm run dev` 요청)
+### 10.2 캡처 체크리스트 (`npm run capture` 로 우리가 렌더·판정 — 사용자에게 요청 금지)
+
+`tools/flesh-capture.mjs` 가 dist 를 헤드리스로 띄워 baked 살을 5각도로 찍어 몽타주 PNG 로
+낸다(`docs/flesh-stylized-f.png`). 커밋된 이미지를 열어 아래를 우리가 직접 판정한다.
 
 - F1: 기본 화면이 이전과 동일 / 살 슬라이더로 팔·다리 두께만 변함 / 본 비율과 독립.
-- F2: T-포즈·걷기에서 허리 잘록·종아리 볼록·흉곽 납작이 읽히는지, 삼바(몸통 회전)에서
-  납작한 방향이 몸과 같이 도는지, 관절 융기 과다 여부.
-- F3: live↔baked 나란히 — baked 에서 표면 떨림 소멸, 6클립 관절 연속, 재굽기 디바운스 체감.
+- F2: T-포즈에서 허리 잘록·종아리 볼록·흉곽 납작이 읽히는지, 관절 융기 과다 여부.
+- F3: baked 표면 매끄러움, 관절 연속, 실루엣이 DNA 약속과 일치.
+- stylized-f: 갸름한 두상·좁은 어깨·잘록 허리·넓은 골반·가슴/둔부 bump·긴 다리가
+  참조 시트처럼 읽히는지(§5.7). 현재 결과 → `docs/flesh-stylized-f.png`.
 - F4: 프리셋 전환·보간 슬라이더·변이 연타 — 개체 다양성이 "캐릭터"로 읽히는가.
 
 ---
@@ -465,7 +478,8 @@ CLAUDE.md 작업 방식 준수: 수치 + **한눈에 판정 가능한 캡처**. 
 | `src/fleshbake.js` | **신규** (F3) — bake 파이프라인 |
 | `src/main.js` | `ch.dna` 수명, 살 UI 섹션, `ui.flesh` 3-상태, 재굽기 트리거, `__hkt` 확장 |
 | `index.html` | 살 섹션 DOM (props 마크업 복제) |
-| `tools/flesh-verify.mjs` | **신규** — §10.1 |
+| `tools/flesh-verify.mjs` | **신규** — §10.1 Node 검증 (`npm run verify`) |
+| `tools/flesh-capture.mjs` | **신규** — headless 실제 렌더 캡처 (`npm run capture` → `docs/flesh-stylized-f.png`) |
 | `docs/ARCHITECTURE.md` · `STATE.md` | Phase 마다 갱신 (§9 실험 딱지 제거는 F3 완료 시) |
 
 ---

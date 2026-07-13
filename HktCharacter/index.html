@@ -47,7 +47,9 @@
     border-radius: 6px; padding: 5px 8px; margin-top: 2px; font-size: 12px; cursor: pointer;
   }
   .panel select:hover { background: #2d3641; }
-  #btnPropReset { width: 100%; margin-top: 6px; }
+  .row select { flex: 1; width: auto; min-width: 0; margin-top: 0; }
+  #mutSeed { margin-left: 6px; }
+  #btnPropReset, #btnFleshReset { width: 100%; margin-top: 6px; }
   .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 
   #drop {
@@ -76,6 +78,13 @@
   <h3>본 비율 <span id="propWho" class="who"></span></h3>
   <div id="props"></div>
   <button id="btnPropReset">비율 초기화</button>
+  <h3>살 두께 <span id="fleshWho" class="who"></span></h3>
+  <div id="fleshSliders"></div>
+  <button id="btnFleshReset">살 초기화</button>
+  <div class="row"><label>프리셋</label><select id="fleshPreset"></select></div>
+  <div class="row"><label>A→B</label><select id="morphA"></select><select id="morphB"></select></div>
+  <div class="row"><label>모핑</label><input id="morphT" type="range" min="0" max="1" step="0.01" value="0" /><span id="morphVal" class="val">0.0</span></div>
+  <div><button id="btnMutate">변이</button><button id="btnDnaExport">DNA 내보내기</button><span id="mutSeed" class="k"></span></div>
   <h3>재생</h3>
   <div class="row">
     <label>속도</label>

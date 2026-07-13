@@ -22,18 +22,36 @@
 - **v4** 접지를 클립별 사전 측정으로 전환 — 재생 중 중심 틀어짐·부유 버그 수정.
 - **v3.2** 교차 트윈 리그(X/Y Bot) T-포즈 멈춤 수정 — 구동 뼈를 DFS-첫 뼈로 선정, 자체 `bakeClip`.
 
-## 검증 현황 (v4.2, Node)
+## 검증 현황
 
+- **살(v5)**: `npm run verify`(Node §10.1 #1~#8 + F4 ALL PASS) + `npm run capture`(headless
+  Chromium 실제 렌더 → `docs/flesh-stylized-f.png` 5각도 몽타주). 시각 검증은 우리가 직접
+  수행한다 — 육안을 사용자에게 요청하지 않는다(CLAUDE.md 작업 방식 참조).
 - hips 수평 최대 오차: 공격 0.005 · 삼바 0.002 · 걷기 0.002m (실물 main.js 를 DOM/WebGL 스텁 구동).
 - 접지 min.y·드리프트·hips 흔들림 범위 실측치 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#검증) 참조.
-- ⚠️ **브라우저 육안 확인은 사용자 몫** — 샌드박스 headless Chromium 차단.
 
 ## 다음 작업 (사용자와 논의 후)
 
-- [ ] **SDF 살 스타일링 (v5 트랙)** — 설계 완료: [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md).
-      살 DNA 채널(F1) → 프로파일 곡선·flatten·cut(F2) → bake & 자동 스키닝(F3) →
-      프리셋·보간·변이(F4). 두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율
-      개선"의 두께 문제도 이 트랙이 흡수한다.
+- [~] **SDF 살 스타일링 (v5 트랙)** — 설계: [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md).
+      - [x] **F1** 살 DNA 채널 + 두께 슬라이더 — `src/fleshdna.js`(스키마·PCHIP·compileDna)
+        신규, `mcflesh.js` `RADII` 삭제·`fillField` 순수 함수 추출·`update(ch, simpleName)`,
+        `main.js` `ch.dna` 수명·살 두께 UI 섹션·`__hkt` 확장, `tools/flesh-verify.mjs` #1·#2.
+        F1 기본 DNA 는 상수 profile(현 RADII 값) — 필드가 v4.2 와 float32 오차 내 동일.
+      - [x] **F2** 형태 어휘 — defaultDna 를 §5.4 곡선(PCHIP) 테이블로 교체.
+        flatten(타원 단면)·blend(세그먼트 폭)·bump/cut(구 가산/감산) 필드 수학 가동.
+        verify #3(PCHIP 오버슈트 0)·#4(종아리 t=0.35 폭)·#5(flatten u/v 비)·#6(bump/cut).
+      - [x] **F3** bake & 자동 스키닝 — `src/fleshbake.js`(바인드 포즈 res 160 폴리곤화
+        → 0.5mm 용접 → Taubin 스무딩 → 필드 기여도 자동 스키닝 → SkinnedMesh). SDF 살
+        버튼 3-상태(off/live/baked), DNA·본 비율 변경 시 400ms 디바운스 재굽기. verify
+        #7(용접 중복 0·skinWeight 합 1·트림 실루엣 수축 ≤1%)·#8(전완 90° 강체 추종 ≤1mm).
+      - [x] **F4** 프리셋·보간·변이·입출력 — `fleshdna.js` 에 PRESETS(humanlike·
+        stylized-f·slim·bulk·robot)·lerpDna·mutateDna(mulberry32+가우시안)·serialize/
+        parseDna. UI: 프리셋 드롭다운·A→B 모핑 슬라이더·변이 버튼(seed)·DNA 내보내기,
+        `.dna.json` 드롭 가져오기(FBX 분기 공존). verify F4(라운드트립·lerp·변이 결정론/
+        클램프·parse 거부) + stylized-f bake 측면 실루엣 캡처.
+      **v5 트랙 F1~F4 완료.** UE5 경로(baked → GLTF)·F5(살아있는 살) 는 이후 자유.
+      두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도
+      이 트랙이 흡수한다.
 - [ ] **본 비율 개선** — 현재 그룹 균등 scale 은 팔·다리 두께도 같이 커짐. 축 방향(길이만)
       스케일 / 좌우 대칭 편집 / 프리셋 저장 검토. (두께 분리는 FLESH-PLAN F1 이 담당)
 - [ ] **로스터 확장** — 캐릭터 3인 이상, 클립 블렌딩/전환 개선.
@@ -44,6 +62,7 @@
 ## 알려진 한계
 
 - 리타깃 발/머리 오차는 전체 키 비율(hScale) 하나로만 스케일해서 남음(위 다음 작업 참조).
-- SDF 살(`src/mcflesh.js`)은 실험 모듈 — 고정 격자 재샘플링 시간적 앨리어싱, 애니메이션-only
-  리그는 비율 상이. 상세 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+- SDF 살(v5 트랙) — `live` 모드는 고정 격자 재샘플링 시간적 앨리어싱이 남는다(튜닝용).
+  `baked` 모드(F3)가 이를 해소한다(정적 스킨드 메시). 애니메이션-only 리그는 비율 상이 —
+  with-skin 캐릭터에 리타깃해서 볼 것. 상세 → [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md).
 - 루트 `eval/` 잔재는 샌드박스 권한 문제로 못 지운 복사본 — 지워도 된다.
