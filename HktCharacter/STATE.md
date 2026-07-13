@@ -35,7 +35,9 @@
         신규, `mcflesh.js` `RADII` 삭제·`fillField` 순수 함수 추출·`update(ch, simpleName)`,
         `main.js` `ch.dna` 수명·살 두께 UI 섹션·`__hkt` 확장, `tools/flesh-verify.mjs` #1·#2.
         F1 기본 DNA 는 상수 profile(현 RADII 값) — 필드가 v4.2 와 float32 오차 내 동일.
-      - [ ] **F2** 프로파일 곡선·flatten·bump/cut (defaultDna 를 §5.4 곡선 테이블로)
+      - [x] **F2** 형태 어휘 — defaultDna 를 §5.4 곡선(PCHIP) 테이블로 교체.
+        flatten(타원 단면)·blend(세그먼트 폭)·bump/cut(구 가산/감산) 필드 수학 가동.
+        verify #3(PCHIP 오버슈트 0)·#4(종아리 t=0.35 폭)·#5(flatten u/v 비)·#6(bump/cut).
       - [ ] **F3** bake & 자동 스키닝 · [ ] **F4** 프리셋·보간·변이
       두께는 살 DNA, 길이는 뼈 scale 로 채널 분리 — 아래 "본 비율 개선"의 두께 문제도
       이 트랙이 흡수한다.

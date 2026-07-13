@@ -72,34 +72,35 @@ export function bakeLut(profile) {
 const FALLBACK_LUT = bakeLut([[0, FALLBACK_R]]);
 
 // ---------------------------------------------------------------------------
-//  기본 인간형 DNA
+//  기본 인간형 DNA (§5.4 형태 어휘)
 //
-//  ⚠️ F1 단계: profile 은 전부 상수 1점(현 RADII 값 그대로) — 화면 결과가 v4.2 와
-//  같아야 한다(회귀 기준). 곡선·flatten·blend·bump/cut 은 F2 에서 채운다.
-//  hips 행은 없다: 세그먼트는 부모→자식이고 hips 의 부모는 정적 노드라 hips 를
-//  자식으로 하는 세그먼트가 존재하지 않는다 (§5.4).
+//  profile 곡선(PCHIP)·flatten(타원 단면)·blend(세그먼트 블렌드 폭)으로 직선
+//  테이퍼 로봇 실루엣을 사람 실루엣으로 끌어올린다. 관절 융기(메타볼 가산 고유)는
+//  관절 쪽 끝 제어점 r 을 낮춰 데이터로 상쇄(팔꿈치·무릎). flatten dir 은 바인드
+//  월드 기준 단위벡터(전방 +z, 좌우 x, 상하 y). hips 행은 없다(§5.4 — 부모가 정적
+//  노드라 hips 를 자식으로 하는 세그먼트가 없음; 골반 볼륨은 spine·upleg 의 t=0).
 // ---------------------------------------------------------------------------
 function humanlikeDna() {
   return {
     version: 1,
     name: 'humanlike',
-    // 위에서부터 첫 매칭 (RADII 규약: forearm 이 arm 보다, upleg 이 leg 보다 먼저)
+    // 위에서부터 첫 매칭 (forearm 이 arm 보다, upleg 이 leg 보다, spine2/1 이 spine 보다 먼저)
     segments: [
-      { match: 'thumb|index|middle|ring|pinky', profile: [[0, 0]] }, // 손가락 생략
-      { match: 'end$', profile: [[0, 0.02]] },                       // 리프 가늘게
-      { match: 'head', profile: [[0, 0.085]], group: 'head' },
-      { match: 'neck', profile: [[0, 0.045]], group: 'head' },
-      { match: 'spine2', profile: [[0, 0.105]], group: 'torso' },
-      { match: 'spine1', profile: [[0, 0.095]], group: 'torso' },
-      { match: 'spine', profile: [[0, 0.09]], group: 'torso' },
-      { match: 'shoulder', profile: [[0, 0.05]], group: 'arm' },
-      { match: 'forearm', profile: [[0, 0.04]], group: 'arm' },
-      { match: 'arm', profile: [[0, 0.048]], group: 'arm' },
-      { match: 'hand', profile: [[0, 0.035]], group: 'hand' },
-      { match: 'upleg', profile: [[0, 0.075]], group: 'leg' },
-      { match: 'leg', profile: [[0, 0.055]], group: 'leg' },
-      { match: 'foot', profile: [[0, 0.04]], group: 'foot' },
-      { match: 'toe', profile: [[0, 0.03]], group: 'foot' },
+      { match: 'thumb|index|middle|ring|pinky', profile: [[0, 0]] },      // 손가락 생략
+      { match: 'end$', profile: [[0, 0.02]] },                            // 리프 가늘게
+      { match: 'head', profile: [[0, 0.055], [0.35, 0.09], [0.8, 0.088], [1, 0.06]], flatten: { dir: [0, 0, 1], f: 0.9 }, group: 'head' }, // 턱→두개골→정수리
+      { match: 'neck', profile: [[0, 0.05], [1, 0.042]], blend: 1.4, group: 'head' },                                                     // 목—승모근 fold
+      { match: 'spine2', profile: [[0, 0.095], [0.6, 0.105], [1, 0.09]], flatten: { dir: [0, 0, 1], f: 0.75 }, group: 'torso' },          // 흉곽 — 가장 납작
+      { match: 'spine1', profile: [[0, 0.08], [0.5, 0.075], [1, 0.09]], flatten: { dir: [0, 0, 1], f: 0.8 }, group: 'torso' },            // 허리 S커브 잘록
+      { match: 'spine', profile: [[0, 0.105], [1, 0.085]], flatten: { dir: [0, 0, 1], f: 0.8 }, group: 'torso' },                         // 골반 중심→하복부
+      { match: 'shoulder', profile: [[0, 0.045], [1, 0.05]], blend: 1.2, group: 'arm' },                                                  // 어깨 웹
+      { match: 'forearm', profile: [[0, 0.045], [0.3, 0.048], [1, 0.03]], group: 'arm' },                                                 // 전완 볼록→손목
+      { match: 'arm', profile: [[0, 0.042], [0.4, 0.05], [1, 0.042]], group: 'arm' },                                                     // 상완 이두
+      { match: 'hand', profile: [[0, 0.03], [0.5, 0.038], [1, 0.025]], flatten: { dir: [0, 0, 1], f: 0.55 }, group: 'hand' },             // 손바닥 패들
+      { match: 'upleg', profile: [[0, 0.085], [0.4, 0.075], [1, 0.055]], group: 'leg' },                                                  // 허벅지 테이퍼
+      { match: 'leg', profile: [[0, 0.055], [0.35, 0.062], [1, 0.035]], group: 'leg' },                                                   // 종아리 볼록→발목
+      { match: 'foot', profile: [[0, 0.035], [1, 0.03]], flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' },                            // 발등 납작(상하)
+      { match: 'toe', profile: [[0, 0.028], [1, 0.02]], flatten: { dir: [0, 1, 0], f: 0.6 }, group: 'foot' },                             // 발끝
     ],
     bumps: [],
     cuts: [],
