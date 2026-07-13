@@ -1,8 +1,10 @@
 # FLESH-PLAN — SDF 살 스타일링 설계 (v5 트랙)
 
-> 상태: **설계만 완료, 구현 전** (2026-07-12). 이 문서 하나만 보고 어느 세션이든 동일하게
-> 구현을 시작할 수 있어야 한다. 선행 맥락: [ARCHITECTURE.md](ARCHITECTURE.md) §9 (SDF 살 실험),
-> `legacy/LOFT-PLAN.md` · `legacy/VERTEX-PLAN.md` (v1 교훈 — **코드 import 금지, 사상만 참조**).
+> 상태: **1차 경로 구현 완료** (2026-07-13) — F1·W1·W2·F4 + Node 검증(`npm run verify` 24/24)
+> + 실루엣 캡처(`npm run shot`). SDF 폴백(F2·F3·F5)은 뼈-only 리그가 필요해질 때 착수.
+> 구현물: `src/fleshdna.js`·`src/fleshwarp.js`·`src/mcflesh.js`(개조)·`tools/flesh-verify.mjs`.
+> 선행 맥락: [ARCHITECTURE.md](ARCHITECTURE.md) §9·§10, `legacy/LOFT-PLAN.md` ·
+> `legacy/VERTEX-PLAN.md` (v1 교훈 — **코드 import 금지, 사상만 참조**).
 
 ---
 

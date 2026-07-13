@@ -42,24 +42,35 @@
    걸리는 뼈 `scale` 로 조절. 값 변경 시 `applyProps` → `replant`(발 접지 유지). 슬라이더는
    **선택 캐릭터별** 상태(`ch.props`)를 반영.
 7. **드롭존** — with-skin FBX 는 캐릭터 교체, 애니메이션-only 는 현재 캐릭터에 리타깃 재생.
-8. **UI** — 캐릭터/애니메이션/본 비율/속도/표시(메시·본·회색·와이어·SDF 살) + `window.__hkt` 핸들.
-9. **SDF 살** (`src/mcflesh.js`, 실험) — 뼈마다 캡슐 세그먼트, Wyvill 밀도
-   `(1-d²/R²)³` (R=BLEND(2.5)×반지름, 부모→자식 반지름 테이퍼)를 필드에 가산 →
-   `THREE.MarchingCubes`(res 64, isolation ≈0.593 = 캡슐 반지름 지점)로 매 프레임
-   폴리곤화. 세그먼트 bbox 안 복셀만 채워 실시간(~7ms). 리그 2벌 FBX 는 simpleName
-   중복 세그먼트를 스킵. 손가락 생략, `end$` 리프 본은 0.02 로 가늘게(머리 필통 방지).
-   반지름 테이블은 `RADII`(simpleName 정규식 매칭).
-   **알려진 한계**: 고정 격자 재샘플링이라 움직임에 표면이 미세하게 떨림(시간적
-   앨리어싱) — res·BLEND 로 완화만 가능. 애니메이션-only FBX 의 내장 리그는 비율이
-   실제 캐릭터와 다름(예: walk 리그 손바닥→중지1 20.9cm, samba 3.4cm) — with-skin
-   캐릭터에 리타깃해서 봐야 정상 비율.
+8. **UI** — 캐릭터/애니메이션/본 비율/속도/표시(메시·본·회색·와이어) + **살** 섹션 +
+   `window.__hkt` 핸들.
+9. **살 (flesh, v5)** — 두께=살 DNA, 길이=뼈 scale 채널 분리. 상세 설계 → [FLESH-PLAN.md](FLESH-PLAN.md).
+   - **DNA** (`src/fleshdna.js`, three 비의존) — 살 형태를 JSON 으로 파라미터화. 세그먼트
+     규칙은 **부모 뼈** simpleName 매칭(§3.1), 프로파일 `[t,r]` 을 PCHIP(오버슈트 0)로
+     33-LUT 로 굽는다. `compileDna().resolve(부모키,자식키)` → LUT·flatten·blend·spheres.
+     `defaultDna`(humanlike)·PRESETS(slim·bulk·stylized-f·robot)·lerp/mutate/serialize.
+   - **워프** (`src/fleshwarp.js`, **1차 경로**) — 원본 스킨 메시 정점을 DNA 대로 실루엣
+     변형. **바인드 포즈에서 three 스키닝은 position 속성 공간에서 항등**이라, 로컬 공간
+     비율 워프 `g=1+α(R/R_ref−1)` 를 position 에 구우면 이후 GPU 스키닝이 그대로
+     애니메이션(프레임 비용 0, 앨리어싱 0). 정점 귀속(스킨 영향 뼈→부모 세그먼트,
+     `__dupN` 제거)·이방성 g_u/g_v(flatten)·bump/cut 변위장. DNA=기본·α=1 은 원본과 완전
+     일치(항등). 얼굴·손가락(r=0 귀속)·UV·재질 불변.
+   - **SDF live** (`src/mcflesh.js`, 폴백/프리뷰) — 뼈마다 캡슐, Wyvill 밀도
+     `(1-d²/R²)³` (R=BLEND(2.5)×blend×반지름)를 `fillField`(순수 함수, 워프·검증 공유)로
+     필드에 가산 → `THREE.MarchingCubes`(res 64, iso≈0.593)로 매 프레임 폴리곤화. 반지름은
+     이제 DNA LUT(부모 키). **알려진 한계**: 고정 격자 재샘플링 시간적 앨리어싱 — 워프
+     경로엔 없음. 뼈-only 리그(크리처·애니메이션-only FBX)용.
 
 ## 파일 맵
 
 - `index.html` — HUD/패널(캐릭터·애니메이션·본 비율·표시)/드롭존 + CSS
 - `src/main.js` — 뷰어 전부 (슬롯·선택·리타깃·본 비율)
-- `src/mcflesh.js` — SDF 살(MarchingCubes) 실험 모듈. `update(bones, simpleName, offsetX)` —
-  볼륨은 원점 중심이라 선택 캐릭터의 슬롯 x 를 빼서 정렬.
+- `src/fleshdna.js` — 살 DNA 스키마·PCHIP·compile/lerp/mutate/serialize·PRESETS (three 비의존).
+- `src/fleshwarp.js` — 원본 메시 워프(1차) — 정점 귀속·비율 워프·bump/cut 변위장.
+- `src/mcflesh.js` — SDF 살(MarchingCubes) 폴백. `fillField`(순수 함수 export) +
+  `update(ch, simpleName)` — 볼륨 원점 중심이라 슬롯 x 를 빼 정렬. 반지름은 DNA LUT(부모 키).
+- `tools/flesh-verify.mjs` — 살 Node 검증(`npm run verify`), `tools/flesh-shot.mjs` — 실루엣
+  캡처(`npm run shot`, 실제 FBX 지오메트리로).
 - `public/assets/anim/*.fbx` — 동봉 Mixamo 애니메이션 샘플(walk/run/idle/jump/attack: 메시
   없는 애니메이션 전용, samba: 메시 포함). 리타깃 소스로만 쓴다(베이스 캐릭터는 아래 character/).
 - `public/assets/character/X Bot.fbx`·`Y Bot.fbx` — **남·여 베이스** = Mixamo X Bot·Y Bot

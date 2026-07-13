@@ -76,6 +76,34 @@
   <h3>본 비율 <span id="propWho" class="who"></span></h3>
   <div id="props"></div>
   <button id="btnPropReset">비율 초기화</button>
+  <h3>살 <span id="fleshWho" class="who"></span></h3>
+  <div class="row">
+    <button id="btnFlesh" title="원본 메시 워프(1차) / SDF live(폴백) 순환">살 · off</button>
+  </div>
+  <div id="fleshSliders"></div>
+  <div class="row">
+    <label>살 강도 α</label>
+    <input id="fleshAlpha" type="range" min="0" max="1.5" step="0.01" value="1" disabled />
+    <span id="fleshAlphaVal" class="val">1.00</span>
+  </div>
+  <div class="row">
+    <label>프리셋</label>
+    <select id="fleshPreset"></select>
+  </div>
+  <div class="row">
+    <label>모프</label>
+    <input id="fleshMorph" type="range" min="0" max="1" step="0.01" value="1" disabled />
+    <span id="fleshMorphVal" class="val">1.00</span>
+  </div>
+  <div class="row" style="justify-content:space-between">
+    <button id="btnFleshMutate" disabled>변이</button>
+    <span class="k" style="color:#6f7a88">seed <span id="fleshSeed">—</span></span>
+    <button id="btnFleshReset" disabled>초기화</button>
+  </div>
+  <div class="row">
+    <button id="btnFleshExport" disabled>DNA 내보내기</button>
+    <button id="btnFleshImport" disabled>가져오기</button>
+  </div>
   <h3>재생</h3>
   <div class="row">
     <label>속도</label>
@@ -88,7 +116,6 @@
     <button id="btnBone">본</button>
     <button id="btnGray">회색 재질</button>
     <button id="btnWire">와이어</button>
-    <button id="btnSdf" title="스켈레톤 캡슐 SDF를 MarchingCubes 로 폴리곤화">SDF 살</button>
   </div>
 </div>
 
