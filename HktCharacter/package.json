@@ -7,7 +7,10 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "flesh:check": "node tools/flesh-verify.mjs",
+    "flesh:viz": "node tools/flesh-visualize.mjs",
+    "verify": "node tools/flesh-verify.mjs && node tools/flesh-visualize.mjs"
   },
   "dependencies": {
     "three": "^0.161.0"
