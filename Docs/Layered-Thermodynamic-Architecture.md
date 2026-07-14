@@ -7,6 +7,9 @@
 >
 > 이 문서는 *방향*이지 계약이 아니다. 각 레이어의 현재 위치·작업 절차의 권위는 그 레이어를 구현하는
 > 트랙의 `SPINE.md`·`STATE.md` 다(§10 참조 지도). 이 문서는 **레이어 경계와 그 사이의 계약**만 못박는다.
+>
+> **한 상황이 스택을 어떻게 지나는가**(레이어별 입력·출력을 숫자로): 워크드 예제
+> [Layered-Thermodynamic-Worked-Example.md](Layered-Thermodynamic-Worked-Example.md) — 파이어볼→슬라임.
 
 ---
 
