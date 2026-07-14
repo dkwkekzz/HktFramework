@@ -8,8 +8,9 @@
 > 이 문서는 *방향*이지 계약이 아니다. 각 레이어의 현재 위치·작업 절차의 권위는 그 레이어를 구현하는
 > 트랙의 `SPINE.md`·`STATE.md` 다(§10 참조 지도). 이 문서는 **레이어 경계와 그 사이의 계약**만 못박는다.
 >
-> **한 상황이 스택을 어떻게 지나는가**(레이어별 입력·출력을 숫자로): 워크드 예제
-> [Layered-Thermodynamic-Worked-Example.md](Layered-Thermodynamic-Worked-Example.md) — 파이어볼→슬라임.
+> **한 상황이 스택을 어떻게 지나는가**(레이어별 입력·출력을 숫자로): 워크드 예제 —
+> [EXAMPLE-fireball-slime.md](EXAMPLE-fireball-slime.md)(관측 사건: 파이어볼→슬라임) ·
+> [EXAMPLE-unobserved-region.md](EXAMPLE-unobserved-region.md)(비관측 지역: 슬라임 1만이 거시 통계로).
 
 ---
 
@@ -315,7 +316,7 @@
 | L2·L3 물질·흐름 | [HGO/flux/SPINE.md](../HGO/flux/SPINE.md) · [HWR/CLAUDE.md](../HWR/CLAUDE.md) · [HWS/CLAUDE.md](../HWS/CLAUDE.md) · [microcosm/CLAUDE.md](../microcosm/CLAUDE.md) |
 | L4 구조·형태 | [microcosm/CLAUDE.md](../microcosm/CLAUDE.md) · [HktSplatEnv/CLAUDE.md](../HktSplatEnv/CLAUDE.md) |
 | L5 생명 | [HktCreature/CLAUDE.md](../HktCreature/CLAUDE.md) · [HktSplatLife/CLAUDE.md](../HktSplatLife/CLAUDE.md) |
-| L6 행동 | [HktCharacter/CLAUDE.md](../HktCharacter/CLAUDE.md) · [goal-system-design.md](goal-system-design.md) |
-| L7 경제 | [HktLedgerWeb/CLAUDE.md](../HktLedgerWeb/CLAUDE.md) · [Design-EntropicFlow.md](Design-EntropicFlow.md) · [HktFeature/CLAUDE.md](../HktFeature/CLAUDE.md) |
+| L6 행동 | [HktCharacter/CLAUDE.md](../HktCharacter/CLAUDE.md) · [goal-system-design.md](../Docs/goal-system-design.md) |
+| L7 경제 | [HktLedgerWeb/CLAUDE.md](../HktLedgerWeb/CLAUDE.md) · [Design-EntropicFlow.md](../Docs/Design-EntropicFlow.md) · [HktFeature/CLAUDE.md](../HktFeature/CLAUDE.md) |
 | L8 세계 | [HktGameplay/CLAUDE.md](../HktGameplay/CLAUDE.md) |
 | 전체 라우터 | [/CLAUDE.md](../CLAUDE.md) |

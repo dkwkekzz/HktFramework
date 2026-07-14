@@ -1,6 +1,6 @@
 # 워크드 예제 — 파이어볼→슬라임: 레이어별 입력·출력 흐름
 
-> 이 문서의 역할: [Layered-Thermodynamic-Architecture.md](Layered-Thermodynamic-Architecture.md)가 세운
+> 이 문서의 역할: [Layered-Thermodynamic-Architecture.md](SPINE.md)가 세운
 > 레이어 스택(L0~L8)을 **하나의 구체적 상황**으로 관통시킨다 — *플레이어가 파이어볼을 던져 슬라임을
 > 죽인다.* 각 레이어의 **입력·처리·출력**을 숫자로 못박아, "레이어가 어떻게 실제 계산이 되는가"를
 > 추상 없이 보인다.
@@ -204,7 +204,7 @@ L6 의도 ─► L7 서버 회계 ─► L3 흐름 배분 ─► L5 생명 문�
 
 ## 7. 참조
 
-- 레이어 스택 정의·계약: [Layered-Thermodynamic-Architecture.md](Layered-Thermodynamic-Architecture.md)
-- 런타임 권위 모델(서버=회계사·이체 문법): [../HktLedgerWeb/CLAUDE.md](../HktLedgerWeb/CLAUDE.md) · [Design-EntropicFlow.md](Design-EntropicFlow.md)
+- 레이어 스택 정의·계약: [Layered-Thermodynamic-Architecture.md](SPINE.md)
+- 런타임 권위 모델(서버=회계사·이체 문법): [../HktLedgerWeb/CLAUDE.md](../HktLedgerWeb/CLAUDE.md) · [Design-EntropicFlow.md](../Docs/Design-EntropicFlow.md)
 - L0/L1 유도 랩(원자·결합 시뮬): [../HGO/SPINE.md](../HGO/SPINE.md) · [../HGO/atom/STATE.md](../HGO/atom/STATE.md)
 - 형태 생성기(L4): [../microcosm/CLAUDE.md](../microcosm/CLAUDE.md)
