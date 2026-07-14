@@ -11,6 +11,9 @@
 > **한 상황이 스택을 어떻게 지나는가**(레이어별 입력·출력을 숫자로): 워크드 예제 —
 > [EXAMPLE-fireball-slime.md](EXAMPLE-fireball-slime.md)(관측 사건: 파이어볼→슬라임) ·
 > [EXAMPLE-unobserved-region.md](EXAMPLE-unobserved-region.md)(비관측 지역: 슬라임 1만이 거시 통계로).
+>
+> **세계를 실제로 어떻게 계산·저장·복제·검증하나**(런타임·권위·LOD): [RUNTIME.md](RUNTIME.md).
+> **각 레이어를 어떻게 구현하나**(자료구조·연산 I/O): [layers/README.md](layers/README.md).
 
 ---
 

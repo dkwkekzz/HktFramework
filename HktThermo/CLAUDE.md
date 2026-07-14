@@ -18,6 +18,7 @@
 |---|---|---|
 | [CLAUDE.md](CLAUDE.md) (이 문서) | 목표 · 참조 위치 (거의 불변) | 드묾 |
 | [SPINE.md](SPINE.md) | **레이어 스택 척추** — 두 법칙·5불변 계약·L0~L8 정의·측정 seam·에너지 수직 통로 | 드묾 |
+| [RUNTIME.md](RUNTIME.md) | **런타임·권위·LOD 아키텍처** — 세계를 어떻게 계산·저장·복제·검증하나 (서버=회계사·시드 재생성·relevancy·LOD 티어) | 드묾 |
 | [EXAMPLE-fireball-slime.md](EXAMPLE-fireball-slime.md) | 워크드 예제 ① — 한 상황(파이어볼→슬라임)이 스택을 지나는 레이어별 입력·출력 (관측) | 예제 추가 시 |
 | [EXAMPLE-unobserved-region.md](EXAMPLE-unobserved-region.md) | 워크드 예제 ② — 비관측 지역(슬라임 1만)이 개체 틱 없이 거시 통계·사건 수로 도는 흐름 | 예제 추가 시 |
 | [layers/README.md](layers/README.md) | **레이어별 구현 명세(L0~L8)** — 각 레이어의 자료구조·연산(입력·과정·출력·불변)·인터페이스·오프라인/런타임 분할·검증 | 레이어 정련 시 |
