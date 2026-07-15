@@ -48,6 +48,11 @@
   }
   .panel select:hover { background: #2d3641; }
   #btnPropReset { width: 100%; margin-top: 6px; }
+  .stats { font-size: 11px; color: #cfe0ff; margin: 2px 0 6px; line-height: 1.6; }
+  .stats .k { color: #8b95a3; }
+  .code { width: 100%; margin-top: 6px; background: #1b2129; color: #7f8ea3;
+    border: 1px solid #2c333d; border-radius: 6px; padding: 4px 6px;
+    font: 10px/1.4 ui-monospace, monospace; letter-spacing: .02em; }
   .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
 
   #drop {
@@ -76,6 +81,15 @@
   <h3>본 비율 <span id="propWho" class="who"></span></h3>
   <div id="props"></div>
   <button id="btnPropReset">비율 초기화</button>
+  <h3>살 게놈 <span id="fleshWho" class="who"></span></h3>
+  <div id="fleshStats" class="stats"><span class="k">—</span></div>
+  <div id="fleshSliders"></div>
+  <div style="margin-top:6px">
+    <button id="btnFleshRandom" title="임의 수열도 항상 유효한 몸 — 폐쇄성">🎲 랜덤 개체</button>
+    <button id="btnFleshMutate" title="층별 돌연변이율로 변이">변이</button>
+    <button id="btnFleshReset">기본</button>
+  </div>
+  <input id="fleshCode" class="code" spellcheck="false" title="DNA 코드(바이트 수열) — 붙여넣어 개체 복원" />
   <h3>재생</h3>
   <div class="row">
     <label>속도</label>

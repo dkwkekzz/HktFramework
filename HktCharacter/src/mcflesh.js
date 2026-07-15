@@ -2,33 +2,62 @@
 //  mcflesh.js — 스켈레톤 → 캡슐 SDF → THREE.MarchingCubes 실시간 폴리곤화
 //
 //  뼈(parent→child)마다 캡슐 세그먼트 하나. 각 캡슐이 Wyvill 밀도
-//  f(d) = (1 - d²/R²)³ (d<R, R = 2×반지름) 를 필드에 "더하면" 겹치는 곳이
-//  자연히 부드럽게 붙는다(메타볼). isolation 0.42 ≈ d=반지름 지점이 표면.
-//  매 프레임: reset → 세그먼트별 bbox 안 복셀만 채움 → update() 가 마칭 큐브로
-//  삼각형 생성. v1 레이마칭과 달리 "진짜 메시"라 일반 라이팅/재질을 탄다.
+//  f(d) = (1 - d²/R²)³ (d<R) 를 필드에 "더하면" 겹치는 곳이 자연히 부드럽게
+//  붙는다(메타볼). isolation ≈ d=반지름 지점이 표면.
+//
+//  ── 살 게놈 연동 (genome-encoding-principles 이식) ──
+//  세그먼트 반지름은 더 이상 하드코딩 RADII 가 아니라 **살 게놈**을 전개한 결과다
+//  (src/fleshdna.js). 뼈 이름 → 프로파일 LUT(부위별 두께·형태 유전자 변조) 를 읽어
+//  축 위치 t 의 반지름을 LUT 보간으로 얻는다. 위상(뼈)은 게놈 밖 고정, 살(반지름)만
+//  게놈이 소유한다 — 채널 분리(CLAUDE.md · FLESH-PLAN §1). 필드 채우기(fillField)는
+//  순수 함수로 분리해 Node 검증과 공유한다.
+//  주: 이 실시간 SDF 경로는 원형 단면만 채운다(flatten 은 애니메이션 회전 추적이
+//  필요 → warp/bake 경로 담당). 게놈의 flatten 유전자는 스탯·특징·워프가 소비한다.
 // ============================================================================
 import * as THREE from 'three';
 import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
+import { compileFlesh, defaultGenome } from './fleshdna.js';
 
-const RES = 64;          // 필드 해상도 — 복셀 2.2/64 ≈ 3.6cm (떨림 완화)
+const RES = 64;          // 필드 해상도 — 복셀 2.3/64 ≈ 3.6cm (떨림 완화)
 const HALF = 1.15;       // 볼륨 반경(m) — 키 1.7m 캐릭터 + 팔 벌림 여유
 const CENTER_Y = 0.9;    // 볼륨 중심 높이
 const BLEND = 2.5;       // 블렌드 반경 = BLEND×살 반지름 — 클수록 필드가 완만 = 덜 떨림
 const ISO = (1 - 1 / (BLEND * BLEND)) ** 3; // d=반지름 지점이 표면이 되는 값 (≈0.593)
 
-// 뼈 이름(simpleName) → 살 반지름(m). 위에서부터 첫 매칭.
-const RADII = [
-  [/thumb|index|middle|ring|pinky/, 0],      // 손가락: 이 해상도에선 생략
-  [/end$/, 0.02],                            // 리프 본(정수리·발끝 등): 끝을 가늘게
-  [/head/, 0.085], [/neck/, 0.045],
-  [/hips/, 0.105], [/spine2/, 0.105], [/spine1/, 0.095], [/spine/, 0.09],
-  [/shoulder/, 0.05], [/forearm/, 0.04], [/arm/, 0.048], [/hand/, 0.035],
-  [/upleg/, 0.075], [/leg/, 0.055], [/foot/, 0.04], [/toe/, 0.03],
-];
-const radiusFor = name => {
-  for (const [re, r] of RADII) if (re.test(name)) return r;
-  return 0.04;
-};
+// ── 순수 필드 채우기 (단일 진실 원천 — 실시간·bake·Node 검증 공유) ──────────
+//  segs: [{ ax,ay,az, bx,by,bz, lut(Float32Array len N), rMaxG, len2 }] — 전부 그리드 공간.
+//    rMaxG = LUT 최대 반지름 × BLEND × blend × gs (bbox 순회용, 보수적).
+//  dims: { size, yd, zd }  field: Float32Array (호출자가 reset)
+export function fillField(field, dims, segs) {
+  const { size, yd, zd } = dims;
+  for (const s of segs) {
+    const { ax, ay, az, bx, by, bz, lut, rMaxG, len2 } = s;
+    const dx = bx - ax, dy = by - ay, dz = bz - az;
+    const N1 = lut.length - 1;
+    const x0 = Math.max(1, Math.floor(Math.min(ax, bx) - rMaxG)), x1 = Math.min(size - 2, Math.ceil(Math.max(ax, bx) + rMaxG));
+    const y0 = Math.max(1, Math.floor(Math.min(ay, by) - rMaxG)), y1 = Math.min(size - 2, Math.ceil(Math.max(ay, by) + rMaxG));
+    const z0 = Math.max(1, Math.floor(Math.min(az, bz) - rMaxG)), z1 = Math.min(size - 2, Math.ceil(Math.max(az, bz) + rMaxG));
+    for (let z = z0; z <= z1; z++) {
+      for (let y = y0; y <= y1; y++) {
+        let idx = z * zd + y * yd + x0;
+        for (let x = x0; x <= x1; x++, idx++) {
+          // 점→선분 거리² + t 위치의 LUT 보간 반지름
+          const px = x - ax, py = y - ay, pz = z - az;
+          let t = len2 > 1e-10 ? (px * dx + py * dy + pz * dz) / len2 : 0;
+          t = t < 0 ? 0 : (t > 1 ? 1 : t);
+          const qx = px - t * dx, qy = py - t * dy, qz = pz - t * dz;
+          const d2 = qx * qx + qy * qy + qz * qz;
+          // LUT 선형 보간 → 살 반지름 × 필드 배율 (s.rScale 은 미리 곱해 lut 에 반영)
+          const fs = t * N1, fi = fs | 0, R = (lut[fi] + (lut[fi + 1 > N1 ? N1 : fi + 1] - lut[fi]) * (fs - fi));
+          const R2 = R * R;
+          if (d2 >= R2 || R2 <= 0) continue;
+          const g = 1 - d2 / R2;
+          field[idx] += g * g * g; // Wyvill — 겹치면 자동 smooth blend
+        }
+      }
+    }
+  }
+}
 
 export class McFlesh {
   constructor(scene) {
@@ -42,57 +71,46 @@ export class McFlesh {
     scene.add(this.mc);
     this._wa = new THREE.Vector3();
     this._wb = new THREE.Vector3();
+    this._fallback = compileFlesh(defaultGenome()); // ch.fleshPheno 없을 때 대비
   }
 
   setVisible(on) { this.mc.visible = !!on; }
   get visible() { return this.mc.visible; }
 
-  // bones: THREE.Bone[] (월드 변환 최신 상태), simpleName: 이름 정규화 함수,
-  // offsetX: 선택 캐릭터의 슬롯 x — 볼륨은 원점 중심이라 뼈 월드 x 에서 빼 정렬한다.
-  update(bones, simpleName, offsetX = 0) {
+  // ch: 캐릭터 상태 { bones, slotX, fleshPheno }, simpleName: 이름 정규화 함수.
+  // fleshPheno = compileFlesh(ch.fleshGenome) — 뼈 이름→세그먼트 LUT 평가기.
+  update(ch, simpleName) {
+    const bones = ch.bones, offsetX = ch.slotX || 0;
+    const pheno = ch.fleshPheno || this._fallback;
     const mc = this.mc, size = mc.size, half = mc.halfsize, field = mc.field;
     mc.reset();
-    const gs = half / HALF; // 월드 m → 그리드 단위 배율
-    const seen = new Set(); // 리그 2벌 FBX(예: samba) 중복 세그먼트 방지
+    const gs = half / HALF;              // 월드 m → 그리드 단위 배율
+    const fieldScale = BLEND * gs;       // 살 반지름 → 필드 반경 배율 (blend 별도 곱)
+    const seen = new Set();              // 리그 2벌 FBX 중복 세그먼트 방지
+    const segs = [];
     for (const b of bones) {
       if (!b.parent?.isBone) continue;
       const key = simpleName(b.name);
       if (seen.has(key)) continue;
       seen.add(key);
-      const rb = radiusFor(key);
-      if (!rb) continue;
-      const ra = radiusFor(simpleName(b.parent.name)) || rb; // 테이퍼: 부모→자신 반지름 보간
+      const seg = pheno.resolve(key);
+      if (!seg) continue;               // r=0(손가락 등) → 살 생략
       // 월드 → 그리드 공간 (그리드 원점 = 볼륨 구석, 셀 크기 1)
       const a = b.parent.getWorldPosition(this._wa); a.x -= offsetX;
       const c = b.getWorldPosition(this._wb); c.x -= offsetX;
       const ax = (a.x / HALF + 1) * half, ay = ((a.y - CENTER_Y) / HALF + 1) * half, az = (a.z / HALF + 1) * half;
       const bx = (c.x / HALF + 1) * half, by = ((c.y - CENTER_Y) / HALF + 1) * half, bz = (c.z / HALF + 1) * half;
-      const Ra = ra * BLEND * gs, Rb = rb * BLEND * gs;
-      const Rmax = Math.max(Ra, Rb);
+      // LUT 를 필드 반경 단위로 스케일한 사본 (fillField 는 곱셈 없이 소비)
+      const bf = fieldScale * seg.blend;
+      const lut = new Float32Array(seg.lut.length);
+      for (let i = 0; i < lut.length; i++) lut[i] = seg.lut[i] * bf;
       const dx = bx - ax, dy = by - ay, dz = bz - az;
-      const len2 = dx * dx + dy * dy + dz * dz;
-      // 세그먼트 bbox + Rmax 만 순회 (전체 필드 대비 수백 배 절약)
-      const x0 = Math.max(1, Math.floor(Math.min(ax, bx) - Rmax)), x1 = Math.min(size - 2, Math.ceil(Math.max(ax, bx) + Rmax));
-      const y0 = Math.max(1, Math.floor(Math.min(ay, by) - Rmax)), y1 = Math.min(size - 2, Math.ceil(Math.max(ay, by) + Rmax));
-      const z0 = Math.max(1, Math.floor(Math.min(az, bz) - Rmax)), z1 = Math.min(size - 2, Math.ceil(Math.max(az, bz) + Rmax));
-      for (let z = z0; z <= z1; z++) {
-        for (let y = y0; y <= y1; y++) {
-          let idx = z * mc.zd + y * mc.yd + x0;
-          for (let x = x0; x <= x1; x++, idx++) {
-            // 점→선분 거리² + t 위치의 보간 반지름
-            const px = x - ax, py = y - ay, pz = z - az;
-            let t = len2 > 1e-10 ? (px * dx + py * dy + pz * dz) / len2 : 0;
-            t = t < 0 ? 0 : (t > 1 ? 1 : t);
-            const qx = px - t * dx, qy = py - t * dy, qz = pz - t * dz;
-            const d2 = qx * qx + qy * qy + qz * qz;
-            const R = Ra + (Rb - Ra) * t, R2 = R * R;
-            if (d2 >= R2) continue;
-            const g = 1 - d2 / R2;
-            field[idx] += g * g * g; // Wyvill — 겹치면 자동 smooth blend
-          }
-        }
-      }
+      segs.push({ ax, ay, az, bx, by, bz, lut, rMaxG: seg.rMax * bf, len2: dx * dx + dy * dy + dz * dz });
     }
+    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs);
+    // 표면색은 게놈 L4 (표면 층) 에서 — 다른 층에 영향 없음
+    const col = pheno.color;
+    this.material.color.setRGB(col.r, col.g, col.b);
     mc.update(); // 마칭 큐브 → BufferGeometry 갱신
   }
 }
