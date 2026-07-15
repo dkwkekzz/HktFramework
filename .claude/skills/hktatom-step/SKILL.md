@@ -9,7 +9,7 @@ description: HktAtom 세부 단계 한 바퀴(읽기→현상 구현→검증·�
 
 ## 1. 읽기 — 허용 목록만
 
-**필독 3종**: `HktAtom/CLAUDE.md` · `HktAtom/KERNEL.md` · `HktAtom/STATE.md` (전체). 이번 세부 단계는 STATE §2 NEXT 가 정한다 — 단계 지도(KERNEL §5) 순서가 우선.
+**필독**: `HktAtom/CLAUDE.md` · `HktAtom/KERNEL.md` · `HktAtom/STATE.md` (전체) + **작업 대상 단계의 설계도** `stages/S*/DESIGN.md` (있으면 — 그 단계 구현의 권위). 이번 세부 단계는 STATE §2 NEXT 가 정한다 — 단계 지도(KERNEL §5)·단계 DESIGN §9 순서가 우선. 구현이 설계와 어긋나는 발견을 내면 DESIGN 을 고치고 step 문서에 이유를 남긴다.
 
 **읽기 금지**(STATE 가 명시 지시할 때만 예외): 옛 `steps/step-NNNN.md`(STATE 가 현재의 SSOT) · **타 트랙(HGO·HWS 등)의 코드·문서 — 참고하지 않는다. 필요한 설계는 전부 KERNEL 에 있다.**
 
