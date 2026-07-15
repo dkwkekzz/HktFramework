@@ -34,6 +34,14 @@
 >
 > 대안 경로: P1(성능 seam — 큰 주소 BigInt 승격) 을 먼저 열어도 된다. 단 P2 가 게임성(생명의 성장)에 더 가깝다.
 
+## 렌더 (직교 트랙, P6-min 열림)
+
+궤적을 세 시점으로 3D 시각화한다 — 코어와 직교(`npm test` 는 렌더와 무관하게 통과).
+- `render/viewmodel.mjs`(순수 Scene 파생) → `render/app.mjs`(three.js, Scene만 소비, 불변 ④).
+- `npm run shot` = 헤드리스 Chromium 으로 field/terrain/worm PNG 를 결정론적으로 굳힌다(`tools/shots/`).
+- 실행 전 `npm install`(three) 1회 필요. node_modules·scene.json 은 커밋하지 않음(.gitignore).
+
 ## 시리즈 인덱스
 
 - [steps/step-0001-seed.md](steps/step-0001-seed.md) — P0 씨앗: Ω·결정·결합·성장·궤적 최소 실물 + 검증 4기둥.
+- [steps/step-0002-render3d.md](steps/step-0002-render3d.md) — 3D 시각화 3시점(field/terrain/worm) + 헤드리스 캡처.

@@ -17,7 +17,25 @@ node tools/demo.mjs 7 400 8 # seed=7, 400틱, 초기 8존재 (인자 조절 가�
 ```
 
 `npm run demo` 는 방사형·유기적 밀도 지도를 그리고 결정론 재현(같은 seed 두 번 → 같은 지문)을 확인해 준다.
-의존성 없음(순수 Node). 클라우드 환경에서 그대로 재현된다.
+코어는 의존성 없음(순수 Node). 클라우드 환경에서 그대로 재현된다.
+
+## 3D 시각화 (three.js, `render/`)
+
+```bash
+npm install                 # three.js 1회 설치 (코어 테스트에는 불필요)
+npm run shot                # 헤드리스 Chromium 으로 field/terrain/worm 3장을 tools/shots/ 에 굳힘
+npm run serve               # http://localhost:8123/render/?view=field|terrain|worm 에서 직접 관찰
+```
+
+궤적 → **ViewModel** → **Scene** → three.js 렌더(불변 원칙 ④: 렌더는 Scene 만 소비, 세계 규칙 재유도 금지).
+
+| 시점 | 무엇을 보여주나 |
+|---|---|
+| **field** | 존재를 act 채널 색으로, 높이=에너지(성장), 몸=ω(n), 얇은 선=계보 궤적 |
+| **terrain** | 정수 산술 지형 — 높이=Ω(n), 색=μ(n) (세계가 결정을 읽는 소인수 구조 자체) |
+| **worm** | (x, t, y) 시공 궤적 — 시간이 위로 흐르는 계보들 |
+
+캡처 결과 3장은 `tools/shots/hktzeta-{field,terrain,worm}.png` 에 커밋되어 있다.
 
 ## 어떻게 도는가 (한 눈에)
 

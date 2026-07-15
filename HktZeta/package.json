@@ -5,6 +5,12 @@
   "type": "module",
   "scripts": {
     "test": "node --test",
-    "demo": "node tools/demo.mjs"
+    "demo": "node tools/demo.mjs",
+    "scene": "node tools/build-scene.mjs",
+    "serve": "node tools/serve.mjs",
+    "shot": "node tools/shot.mjs"
+  },
+  "dependencies": {
+    "three": "^0.180.0"
   }
 }

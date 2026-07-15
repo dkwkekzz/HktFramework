@@ -41,8 +41,11 @@
 ## 실행 · 검증
 
 ```
-npm test        # 결정론·불변식 자동 회귀 (상시 재현)
+npm test        # 결정론·불변식 자동 회귀 (상시 재현, 의존성 없음)
 npm run demo    # 궤적을 ASCII 밀도 지도로 굳혀 눈으로 확인 (node tools/demo.mjs [seed] [ticks] [count])
+npm install     # 3D 렌더용 three.js 1회 설치 (코어 테스트에는 불필요)
+npm run shot    # 헤드리스 Chromium 으로 field/terrain/worm 3D 3장 캡처 → tools/shots/
+npm run serve   # 브라우저로 직접 관찰 http://localhost:8123/render/?view=field|terrain|worm
 ```
 
 ## 문서 지도
