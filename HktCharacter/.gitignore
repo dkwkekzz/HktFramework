@@ -3,3 +3,4 @@ dist
 .DS_Store
 eval/out
 tools/flesh-audit.svg
+tools/*.png
