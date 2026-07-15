@@ -18,6 +18,10 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
+import {
+  GENE_SPEC, defaultGenome, randomGenome, compileFlesh, mutateGenome,
+  deriveStats, serializeGenome, parseGenome, mulberry32,
+} from './fleshdna.js';
 
 // ---------------------------------------------------------------------------
 //  씬 / 렌더러
@@ -188,7 +192,12 @@ function makeCh(slotId, parsed) {
     mixer: new THREE.AnimationMixer(obj), actions: {}, clips: {}, active: '',
     helper: drivers.length ? new THREE.SkeletonHelper(obj) : null,
     baseScale: 1, props: defaultProps(), primeMesh,
+    // 살 게놈 — 캐릭터별 상태(props 와 같은 수명). 위상(뼈)은 게놈 밖 고정, 살만 소유.
+    fleshGenome: defaultGenome(), fleshSeed: 1,
+    // 산발 머리(구 가산) 설정 — 기본 꺼짐. 정수리 둥근 뭉치.
+    hair: { on: false, count: 20, r: 0.03, len: 0.55, spread: 1.5, strength: 1.0, seed: 1 },
   };
+  ch.fleshPheno = compileFlesh(ch.fleshGenome); // 뼈 이름→세그먼트 LUT 평가기
   computeBaseScale(ch);
   applyProps(ch); // root scale + 발 접지
   // 바인드 캐시 — 리타깃(bakeClip)은 뼈 상태를 전혀 건드리지 않는 순수 계산이라,
@@ -509,6 +518,7 @@ function select(id) {
   refreshCharSelect();
   refreshAnimButtons();
   refreshPropSliders();
+  refreshFleshUI();
   mcFlesh.setVisible(ui.sdf && !!selCh());
   document.getElementById('animWho').textContent = SLOTS[id].label;
   document.getElementById('propWho').textContent = SLOTS[id].label;
@@ -607,6 +617,7 @@ function refreshPropSliders() {
       c.props[g.id] = +inp.value;
       applyProps(c);
       updateRing();
+      refreshFleshStats(); // 뼈 길이 변화 → 형태→기능 스탯 재계산(§6)
     });
     row.append(lab, inp, val);
     box.appendChild(row);
@@ -621,9 +632,140 @@ $('btnPropReset').addEventListener('click', () => {
   refreshPropSliders();
 });
 
+// ---------------------------------------------------------------------------
+//  살 게놈 UI — 게놈(정규화 유전자 벡터)을 슬라이더로 노출. 슬라이더=지역성 시연
+//  (작은 변화→작은 형태 변화), 🎲=폐쇄성 시연(임의 수열도 항상 유효한 몸), 스탯
+//  readout=형태→기능(§6, 스탯은 게놈이 아니라 표현형에서 읽어낸다).
+// ---------------------------------------------------------------------------
+const GENE_LABEL = {
+  'global.bulk': '전체 벌크', 'head.thick': '머리 두께', 'head.shape': '머리 형태',
+  'torso.thick': '몸통 두께', 'torso.shape': '허리 잘록', 'torso.flatten': '몸통 납작',
+  'arm.thick': '팔 두께', 'arm.shape': '이두 볼록', 'hand.thick': '손 두께',
+  'leg.thick': '다리 두께', 'leg.shape': '종아리 볼록', 'foot.thick': '발 두께',
+  'surface.hue': '피부 색상', 'surface.tone': '피부 명도',
+};
+
+// 주어진 스켈레톤에서 부위별 실측 길이(m) — 형태→기능이 실제 뼈를 읽게 한다(§6).
+function measureLengths(ch) {
+  const acc = {}; const pa = new THREE.Vector3(), pb = new THREE.Vector3();
+  const seen = new Set();
+  for (const b of ch.bones) {
+    if (!b.parent?.isBone) continue;
+    const pKey = simpleName(b.parent.name), cKey = simpleName(b.name);
+    const key = pKey + '>' + cKey;
+    if (seen.has(key)) continue; seen.add(key);
+    const seg = ch.fleshPheno.resolve(pKey, cKey); if (!seg) continue;
+    acc[seg.group] = (acc[seg.group] || 0) + b.parent.getWorldPosition(pa).distanceTo(b.getWorldPosition(pb));
+  }
+  return acc;
+}
+
+function refreshFleshStats() {
+  const el = $('fleshStats'); if (!el) return;
+  const ch = selCh();
+  if (!ch) { el.innerHTML = '<span class="k">캐릭터 없음</span>'; return; }
+  const s = deriveStats(ch.fleshPheno, measureLengths(ch));
+  el.innerHTML =
+    `<span class="k">체력</span> ${s.health} · <span class="k">속도</span> ${s.speed}` +
+    ` · <span class="k">위력</span> ${s.power}<br>` +
+    `<span class="k">부피</span> ${(s.volume * 1000).toFixed(1)}L · <span class="k">사거리</span> ${s.reach}m`;
+}
+
+function refreshFleshSliders() {
+  const box = $('fleshSliders'); if (!box) return;
+  box.innerHTML = '';
+  const ch = selCh();
+  GENE_SPEC.forEach((g, i) => {
+    const row = document.createElement('div'); row.className = 'row';
+    const lab = document.createElement('label'); lab.textContent = GENE_LABEL[g.key] || g.key;
+    const inp = document.createElement('input');
+    inp.type = 'range'; inp.min = 0; inp.max = 1; inp.step = 0.01;
+    inp.value = ch ? ch.fleshGenome[i] : g.def;
+    inp.disabled = !ch;
+    const val = document.createElement('span'); val.className = 'val';
+    const showVal = () => { val.textContent = (g.lo + (+inp.value) * (g.hi - g.lo)).toFixed(2); };
+    showVal();
+    inp.addEventListener('input', () => {
+      const c = selCh(); if (!c) return;
+      c.fleshGenome[i] = +inp.value;
+      c.fleshPheno = compileFlesh(c.fleshGenome); // 재전개 (지역성: 작은 변화만 반영)
+      showVal(); refreshFleshStats();
+    });
+    row.append(lab, inp, val);
+    box.appendChild(row);
+  });
+  refreshFleshStats();
+}
+
+// 살 게놈 UI 전체 갱신 (슬라이더 + 스탯 + DNA 코드) — 캐릭터 전환 시 호출
+function refreshFleshUI() {
+  const ch = selCh();
+  const who = $('fleshWho'); if (who) who.textContent = ch ? SLOTS[selected].label : '';
+  refreshFleshSliders();
+  const code = $('fleshCode');
+  if (code) code.value = ch ? serializeGenome(ch.fleshGenome) : '';
+  const hb = $('btnHair'); if (hb) hb.classList.toggle('on', !!ch?.hair?.on);
+}
+
+$('btnFleshRandom')?.addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.fleshSeed = (ch.fleshSeed + 1) >>> 0;
+  ch.fleshGenome = randomGenome(mulberry32(ch.fleshSeed)); // 임의 수열 → 항상 유효 (폐쇄성)
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  refreshFleshUI();
+  mcFlesh.setVisible(ui.sdf && !!ch);
+});
+$('btnFleshMutate')?.addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.fleshSeed = (ch.fleshSeed + 1) >>> 0;
+  ch.fleshGenome = mutateGenome(ch.fleshGenome, ch.fleshSeed, 1); // 층별 변이율
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  refreshFleshUI();
+});
+$('btnFleshReset')?.addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.fleshGenome = defaultGenome();
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  ch.hair.on = false;
+  applyProps(ch);
+  refreshFleshUI(); refreshPropSliders();
+});
+
+// 🧸 귀여운(치비) — 큰 머리·짧고 통통한 팔다리(본 비율) + 둥근 살(게놈) + 산발 머리.
+function makeCute(ch) {
+  // 본 비율: 큰 머리, 좁은 어깨, 짧은 팔·다리 (동글동글 치비 실루엣)
+  Object.assign(ch.props, { head: 1.6, torso: 1.1, shoulder: 0.8, arm: 0.85, leg: 0.82, hand: 1.25, height: 0.95 });
+  applyProps(ch);
+  // 게놈: 두툼하고 볼록하게(shape↑), 몸통은 덜 납작·덜 잘록(둥근 배)
+  //         [머두, 머형, 몸두, 허잘, 몸납, 팔두, 이두, 손두, 다두, 종볼, 발두, 색상, 명도]
+  ch.fleshGenome = [0.85, 0.75, 0.75, 0.30, 0.30, 0.72, 0.62, 0.78, 0.80, 0.60, 0.75, 0.45, 0.78];
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  ch.hair = { on: true, count: 28, r: 0.038, len: 0.5, spread: 1.05, strength: 1.0, seed: ch.fleshSeed };
+}
+$('btnFleshCute')?.addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  makeCute(ch);
+  refreshFleshUI(); refreshPropSliders();
+  mcFlesh.setVisible(ui.sdf && !!ch);
+  if (!ui.sdf) setStatus('🧸 귀여운 개체 준비됨 — "SDF 살"을 켜서 보세요.');
+});
+// 산발 머리 토글
+$('btnHair')?.addEventListener('click', e => {
+  const ch = selCh(); if (!ch) return;
+  ch.hair.on = !ch.hair.on;
+  e.target.classList.toggle('on', ch.hair.on);
+});
+$('fleshCode')?.addEventListener('change', () => {
+  const ch = selCh(); if (!ch) return;
+  ch.fleshGenome = parseGenome($('fleshCode').value); // DNA 코드 붙여넣기 → 개체 복원
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  refreshFleshUI();
+});
+
 // 애니메이션 버튼 채우기 (초기)
 refreshAnimButtons();
 refreshPropSliders();
+refreshFleshUI();
 
 // ---------------------------------------------------------------------------
 //  드롭존 — with-skin 이면 선택 슬롯 교체, 애니메이션이면 선택 슬롯에 리타깃
@@ -737,8 +879,8 @@ function loop() {
     sel.root.updateMatrixWorld(true);
     mcFlesh.setVisible(true);
     // SDF 는 볼륨 중심(원점) 기준이라, 선택 캐릭터를 잠시 원점으로 본 것처럼
-    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다.
-    mcFlesh.update(sel.bones, simpleName, sel.slotX);
+    // 뼈 월드에서 슬롯 x 오프셋을 빼 준다. 반지름·색은 sel.fleshPheno(게놈 전개)에서.
+    mcFlesh.update(sel, simpleName);
   } else mcFlesh.setVisible(false);
   controls.update();
   renderer.render(scene, cam);
@@ -754,4 +896,13 @@ window.__hkt = {
   get selected() { return selected; },
   get sel() { return selCh(); },
   select, playAnim, loadDroppedFBX, switchModel,
+  // 살 게놈 콘솔/검증 API — 게놈은 (수열, 전개 규칙) 쌍임을 그대로 노출.
+  get genome() { return selCh()?.fleshGenome?.slice(); },
+  get dna() { const c = selCh(); return c ? serializeGenome(c.fleshGenome) : null; },
+  get stats() { const c = selCh(); return c ? deriveStats(c.fleshPheno, measureLengths(c)) : null; },
+  setGenome(arr) { const c = selCh(); if (!c) return; c.fleshGenome = arr.slice(0, GENE_SPEC.length); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
+  setDna(hex) { const c = selCh(); if (!c) return; c.fleshGenome = parseGenome(hex); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
+  randomFlesh(seed = 1) { const c = selCh(); if (!c) return; c.fleshGenome = randomGenome(mulberry32(seed)); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
+  cute() { const c = selCh(); if (!c) return; makeCute(c); refreshFleshUI(); refreshPropSliders(); },
+  setHair(cfg) { const c = selCh(); if (!c) return; Object.assign(c.hair, cfg); refreshFleshUI(); },
 };
