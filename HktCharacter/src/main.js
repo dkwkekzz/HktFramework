@@ -194,6 +194,8 @@ function makeCh(slotId, parsed) {
     baseScale: 1, props: defaultProps(), primeMesh,
     // 살 게놈 — 캐릭터별 상태(props 와 같은 수명). 위상(뼈)은 게놈 밖 고정, 살만 소유.
     fleshGenome: defaultGenome(), fleshSeed: 1,
+    // 산발 머리(구 가산) 설정 — 기본 꺼짐. 정수리 둥근 뭉치.
+    hair: { on: false, count: 20, r: 0.03, len: 0.55, spread: 1.5, strength: 1.0, seed: 1 },
   };
   ch.fleshPheno = compileFlesh(ch.fleshGenome); // 뼈 이름→세그먼트 LUT 평가기
   computeBaseScale(ch);
@@ -702,6 +704,7 @@ function refreshFleshUI() {
   refreshFleshSliders();
   const code = $('fleshCode');
   if (code) code.value = ch ? serializeGenome(ch.fleshGenome) : '';
+  const hb = $('btnHair'); if (hb) hb.classList.toggle('on', !!ch?.hair?.on);
 }
 
 $('btnFleshRandom')?.addEventListener('click', () => {
@@ -723,7 +726,34 @@ $('btnFleshReset')?.addEventListener('click', () => {
   const ch = selCh(); if (!ch) return;
   ch.fleshGenome = defaultGenome();
   ch.fleshPheno = compileFlesh(ch.fleshGenome);
-  refreshFleshUI();
+  ch.hair.on = false;
+  applyProps(ch);
+  refreshFleshUI(); refreshPropSliders();
+});
+
+// 🧸 귀여운(치비) — 큰 머리·짧고 통통한 팔다리(본 비율) + 둥근 살(게놈) + 산발 머리.
+function makeCute(ch) {
+  // 본 비율: 큰 머리, 좁은 어깨, 짧은 팔·다리 (동글동글 치비 실루엣)
+  Object.assign(ch.props, { head: 1.6, torso: 1.1, shoulder: 0.8, arm: 0.85, leg: 0.82, hand: 1.25, height: 0.95 });
+  applyProps(ch);
+  // 게놈: 두툼하고 볼록하게(shape↑), 몸통은 덜 납작·덜 잘록(둥근 배)
+  //         [머두, 머형, 몸두, 허잘, 몸납, 팔두, 이두, 손두, 다두, 종볼, 발두, 색상, 명도]
+  ch.fleshGenome = [0.85, 0.75, 0.75, 0.30, 0.30, 0.72, 0.62, 0.78, 0.80, 0.60, 0.75, 0.45, 0.78];
+  ch.fleshPheno = compileFlesh(ch.fleshGenome);
+  ch.hair = { on: true, count: 28, r: 0.038, len: 0.5, spread: 1.05, strength: 1.0, seed: ch.fleshSeed };
+}
+$('btnFleshCute')?.addEventListener('click', () => {
+  const ch = selCh(); if (!ch) return;
+  makeCute(ch);
+  refreshFleshUI(); refreshPropSliders();
+  mcFlesh.setVisible(ui.sdf && !!ch);
+  if (!ui.sdf) setStatus('🧸 귀여운 개체 준비됨 — "SDF 살"을 켜서 보세요.');
+});
+// 산발 머리 토글
+$('btnHair')?.addEventListener('click', e => {
+  const ch = selCh(); if (!ch) return;
+  ch.hair.on = !ch.hair.on;
+  e.target.classList.toggle('on', ch.hair.on);
 });
 $('fleshCode')?.addEventListener('change', () => {
   const ch = selCh(); if (!ch) return;
@@ -873,4 +903,6 @@ window.__hkt = {
   setGenome(arr) { const c = selCh(); if (!c) return; c.fleshGenome = arr.slice(0, GENE_SPEC.length); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
   setDna(hex) { const c = selCh(); if (!c) return; c.fleshGenome = parseGenome(hex); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
   randomFlesh(seed = 1) { const c = selCh(); if (!c) return; c.fleshGenome = randomGenome(mulberry32(seed)); c.fleshPheno = compileFlesh(c.fleshGenome); refreshFleshUI(); },
+  cute() { const c = selCh(); if (!c) return; makeCute(c); refreshFleshUI(); refreshPropSliders(); },
+  setHair(cfg) { const c = selCh(); if (!c) return; Object.assign(c.hair, cfg); refreshFleshUI(); },
 };

@@ -16,7 +16,7 @@
 // ============================================================================
 import * as THREE from 'three';
 import { MarchingCubes } from 'three/examples/jsm/objects/MarchingCubes.js';
-import { compileFlesh, defaultGenome } from './fleshdna.js';
+import { compileFlesh, defaultGenome, mulberry32 } from './fleshdna.js';
 
 const RES = 64;          // 필드 해상도 — 복셀 2.3/64 ≈ 3.6cm (떨림 완화)
 const HALF = 1.15;       // 볼륨 반경(m) — 키 1.7m 캐릭터 + 팔 벌림 여유
@@ -28,8 +28,23 @@ const ISO = (1 - 1 / (BLEND * BLEND)) ** 3; // d=반지름 지점이 표면이 �
 //  segs: [{ ax,ay,az, bx,by,bz, lut(Float32Array len N), rMaxG, len2 }] — 전부 그리드 공간.
 //    rMaxG = LUT 최대 반지름 × BLEND × blend × gs (bbox 순회용, 보수적).
 //  dims: { size, yd, zd }  field: Float32Array (호출자가 reset)
-export function fillField(field, dims, segs) {
+export function fillField(field, dims, segs, spheres = []) {
   const { size, yd, zd } = dims;
+  // 구 가산 (bump/hair, §5.3) — 축 바깥 둥근 볼륨. cx..R 은 그리드 공간.
+  for (const sp of spheres) {
+    const { cx, cy, cz, R, strength } = sp; const R2 = R * R;
+    const x0 = Math.max(1, Math.floor(cx - R)), x1 = Math.min(size - 2, Math.ceil(cx + R));
+    const y0 = Math.max(1, Math.floor(cy - R)), y1 = Math.min(size - 2, Math.ceil(cy + R));
+    const z0 = Math.max(1, Math.floor(cz - R)), z1 = Math.min(size - 2, Math.ceil(cz + R));
+    for (let z = z0; z <= z1; z++) for (let y = y0; y <= y1; y++) {
+      let idx = z * zd + y * yd + x0;
+      for (let x = x0; x <= x1; x++, idx++) {
+        const dx = x - cx, dy = y - cy, dz = z - cz, d2 = dx * dx + dy * dy + dz * dz;
+        if (d2 >= R2) continue;
+        const g = 1 - d2 / R2; field[idx] += strength * g * g * g;
+      }
+    }
+  }
   for (const s of segs) {
     const { ax, ay, az, bx, by, bz, lut, rMaxG, len2 } = s;
     const dx = bx - ax, dy = by - ay, dz = bz - az;
@@ -108,10 +123,49 @@ export class McFlesh {
       const dx = bx - ax, dy = by - ay, dz = bz - az;
       segs.push({ ax, ay, az, bx, by, bz, lut, rMaxG: seg.rMax * bf, len2: dx * dx + dy * dy + dz * dz });
     }
-    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs);
+    // 산발 머리 — 정수리에 흩어진 둥근 뭉치 (구 가산). ch.hair.on 일 때만.
+    const spheres = [];
+    if (ch.hair?.on) this._buildHair(bones, simpleName, offsetX, ch.hair, half, gs, spheres);
+    fillField(field, { size, yd: mc.yd, zd: mc.zd }, segs, spheres);
     // 표면색은 게놈 L4 (표면 층) 에서 — 다른 층에 영향 없음
     const col = pheno.color;
     this.material.color.setRGB(col.r, col.g, col.b);
     mc.update(); // 마칭 큐브 → BufferGeometry 갱신
+  }
+
+  // 머리 정수리 주변 상반구에 둥근 뭉치를 흩뿌린다(산발). 시드 결정론적 — 개체마다 고정.
+  // 머리 뼈(head)→정수리(headtop) 벡터로 위 방향을 잡고, 그 둘레에 극좌표 지터로 배치.
+  _buildHair(bones, simpleName, offsetX, hair, half, gs, out) {
+    let headBone = null;
+    for (const b of bones) if (simpleName(b.name) === 'head') { headBone = b; break; }
+    if (!headBone) return;
+    let crownBone = null;
+    for (const b of bones) if (b.parent === headBone) { crownBone = b; break; }
+    const hp = headBone.getWorldPosition(this._wa).clone();
+    const cp = crownBone ? crownBone.getWorldPosition(this._wb).clone() : hp.clone().add(new THREE.Vector3(0, 0.12, 0));
+    const up = cp.clone().sub(hp); const headLen = up.length() || 0.12; up.normalize();
+    // up 에 직교하는 기저
+    const t = Math.abs(up.y) < 0.9 ? new THREE.Vector3(0, 1, 0) : new THREE.Vector3(1, 0, 0);
+    const side = new THREE.Vector3().crossVectors(up, t).normalize();
+    const fwd = new THREE.Vector3().crossVectors(up, side).normalize();
+    const rng = mulberry32((hair.seed || 1) >>> 0);
+    const dir = new THREE.Vector3(), c = new THREE.Vector3();
+    const rBlend = gs * 2.5; // BLEND 와 동일 — 표면 반경 ≈ r
+    for (let i = 0; i < (hair.count || 16); i++) {
+      const az = rng() * Math.PI * 2;
+      const polar = Math.acos(1 - rng() * (hair.spread ?? 1.3)); // up 에서 벌어지는 각
+      dir.copy(up).multiplyScalar(Math.cos(polar))
+        .addScaledVector(side, Math.sin(polar) * Math.cos(az))
+        .addScaledVector(fwd, Math.sin(polar) * Math.sin(az));
+      const len = headLen * (hair.len ?? 0.45) * (0.35 + 0.55 * rng()); // 정수리에서의 거리(가깝게)
+      c.copy(cp).addScaledVector(dir, len);
+      const r = (hair.r ?? 0.036) * (0.72 + 0.6 * rng());
+      out.push({
+        cx: ((c.x - offsetX) / HALF + 1) * half,
+        cy: ((c.y - CENTER_Y) / HALF + 1) * half,
+        cz: (c.z / HALF + 1) * half,
+        R: r * rBlend, strength: hair.strength ?? 1.0,
+      });
+    }
   }
 }
