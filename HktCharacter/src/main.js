@@ -18,6 +18,7 @@ import * as THREE from 'three';
 import { FBXLoader } from 'three/examples/jsm/loaders/FBXLoader.js';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { McFlesh } from './mcflesh.js';
+import { EnvScatter } from './scatter.js';
 
 // ---------------------------------------------------------------------------
 //  씬 / 렌더러
@@ -51,6 +52,11 @@ const ground = new THREE.Mesh(
 );
 ground.position.y = -0.005;
 scene.add(ground);
+
+// 환경 스캐터 — 잔디·바위·수정·나무를 RMT(GUE/지니브르) 준위 반발 배치로 세운다.
+// 기본 'rmt'. '무작위' 모드는 같은 개수를 일반 난수로 배치 — 뭉침 비교용.
+const envScatter = new EnvScatter(scene);
+envScatter.rebuild();
 
 // 선택 표시 링 — 선택된 캐릭터 발밑에 놓인다
 const ring = new THREE.Mesh(
@@ -720,6 +726,23 @@ $('btnSdf').addEventListener('click', e => {
   mcFlesh.setVisible(ui.sdf && !!selCh());
   if (ui.sdf && !selCh()) setStatus('SDF 살: 먼저 캐릭터를 선택하세요.');
 });
+// 환경 스캐터 모드 — RMT(준위 반발) ↔ 무작위(뭉침 비교) ↔ 끄기, 재배치=새 시드
+function setEnvMode(mode) {
+  envScatter.mode = mode;
+  envScatter.rebuild();
+  for (const [id, m] of [['btnEnvRmt', 'rmt'], ['btnEnvRand', 'uniform'], ['btnEnvOff', 'off']])
+    $(id).classList.toggle('on', mode === m);
+  if (mode !== 'off') setStatus(mode === 'rmt'
+    ? '환경: RMT 배치 — 제타 영점(GUE)의 준위 반발. 뭉침 없이 유기적으로 흩어진다.'
+    : '환경: 일반 난수 배치 — 뭉침(clumping)과 공백이 생기는 것을 비교해 보세요.');
+}
+$('btnEnvRmt').addEventListener('click', () => setEnvMode('rmt'));
+$('btnEnvRand').addEventListener('click', () => setEnvMode('uniform'));
+$('btnEnvOff').addEventListener('click', () => setEnvMode('off'));
+$('btnEnvSeed').addEventListener('click', () => {
+  envScatter.seed = (envScatter.seed + 1) >>> 0;
+  envScatter.rebuild();
+});
 $('spd').addEventListener('input', e => {
   ui.speed = +e.target.value;
   $('spdVal').textContent = ui.speed.toFixed(1);
@@ -750,7 +773,7 @@ bootstrap();
 
 // 콘솔/자동 검증용 핸들
 window.__hkt = {
-  scene, cam, renderer, ui, SLOTS, MODELS,
+  scene, cam, renderer, ui, SLOTS, MODELS, envScatter,
   get selected() { return selected; },
   get sel() { return selCh(); },
   select, playAnim, loadDroppedFBX, switchModel,

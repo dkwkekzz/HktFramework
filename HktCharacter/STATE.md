@@ -2,8 +2,8 @@
 
 > 이 문서만 보면 현재 상태와 다음 할 일이 명확해야 한다. 상세는 [docs/](docs/) 링크로.
 
-**현재 버전: v4.2 (2026-07-12)** — 미니멀 FBX 뷰어. 캐릭터 한 명 + 리타깃 애니메이션 + 본 비율 편집.
-동작 안정 단계. 상세 경위 → [docs/HISTORY.md](docs/HISTORY.md), 구조 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
+**현재 버전: v4.3 (2026-07-15)** — 미니멀 FBX 뷰어. 캐릭터 한 명 + 리타깃 애니메이션 + 본 비율 편집
++ RMT 환경 스캐터. 상세 경위 → [docs/HISTORY.md](docs/HISTORY.md), 구조 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
 
 ## 지금 되는 것
 
@@ -12,9 +12,15 @@
 - 6개 Mixamo 클립(대기·공격·걷기·삼바·뛰기·점프) 자체 구현 월드 공간 리타깃 재생.
 - 본 비율 슬라이더(키·머리·몸통·어깨·팔·다리·손), 발 접지 유지.
 - 애니메이션-only FBX 드롭 → 현재 캐릭터에 리타깃.
+- **RMT 환경 스캐터** — 잔디·바위·수정·나무를 제타 영점(GUE/지니브르) 준위 반발 배치로.
+  UI "환경" 섹션에서 RMT ↔ 무작위(뭉침 비교) ↔ 끄기 · 재배치. → [docs/RMT-SCATTER.md](docs/RMT-SCATTER.md)
 
 ## 최근 변경 (핵심만)
 
+- **v4.3** RMT 환경 스캐터 — 무작위 행렬 이론의 준위 반발을 PCG 배치 노이즈로:
+  1D 크기 변주는 GUE 삼중대각 고유값 간격(Wigner surmise), 2D 배치는 지니브르
+  로그-가스 MCMC (거시 균일 + 미시 반발). 시드 결정론, three 무의존 수학 코어
+  (`src/rmt.js` · `src/scatterLayout.js`) + InstancedMesh 렌더(`src/scatter.js`).
 - **UI** 캐릭터 선택을 남/여 버튼 → **드롭다운(저장소 모델 + FBX 임포트)** + 현재 로드 모델
   표시로 교체. 저장소 모델은 `MODELS` 배열 한 줄로 확장.
 - **v4.2** hips 변위(x/y/z) 전체 리타깃 — 체중 이동·런지 전달로 중심 흔들림 제거. 제자리
@@ -22,11 +28,15 @@
 - **v4** 접지를 클립별 사전 측정으로 전환 — 재생 중 중심 틀어짐·부유 버그 수정.
 - **v3.2** 교차 트윈 리그(X/Y Bot) T-포즈 멈춤 수정 — 구동 뼈를 DFS-첫 뼈로 선정, 자체 `bakeClip`.
 
-## 검증 현황 (v4.2, Node)
+## 검증 현황 (v4.3)
 
 - hips 수평 최대 오차: 공격 0.005 · 삼바 0.002 · 걷기 0.002m (실물 main.js 를 DOM/WebGL 스텁 구동).
 - 접지 min.y·드리프트·hips 흔들림 범위 실측치 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#검증) 참조.
-- ⚠️ **브라우저 육안 확인은 사용자 몫** — 샌드박스 headless Chromium 차단.
+- RMT 스캐터: `npm run verify:rmt` — GUE 간격 vs Wigner surmise L1=0.046 ·
+  P(s<0.25)=2.0%(푸아송이면 22.1%) · 2D 최소 NN 7.0× · 결정론. SVG/PNG 캡처 `verify/out/`
+  (`verify:rmt:shot` 은 headless Chromium 실제 씬 4컷 — 원격 환경에서 동작 확인).
+- ⚠️ **브라우저 육안 확인은 사용자 몫** — 로컬 샌드박스는 headless Chromium 차단
+  (원격 검증 환경에는 Chromium 있음 — 위 shot 스크립트 사용).
 
 ## 다음 작업 (사용자와 논의 후)
 
