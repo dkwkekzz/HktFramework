@@ -649,9 +649,10 @@ function measureLengths(ch) {
   const seen = new Set();
   for (const b of ch.bones) {
     if (!b.parent?.isBone) continue;
-    const key = simpleName(b.name);
+    const pKey = simpleName(b.parent.name), cKey = simpleName(b.name);
+    const key = pKey + '>' + cKey;
     if (seen.has(key)) continue; seen.add(key);
-    const seg = ch.fleshPheno.resolve(key); if (!seg) continue;
+    const seg = ch.fleshPheno.resolve(pKey, cKey); if (!seg) continue;
     acc[seg.group] = (acc[seg.group] || 0) + b.parent.getWorldPosition(pa).distanceTo(b.getWorldPosition(pb));
   }
   return acc;

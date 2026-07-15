@@ -90,10 +90,11 @@ export class McFlesh {
     const segs = [];
     for (const b of bones) {
       if (!b.parent?.isBone) continue;
-      const key = simpleName(b.name);
+      const pKey = simpleName(b.parent.name), cKey = simpleName(b.name);
+      const key = pKey + '>' + cKey;    // 부모>자식 쌍으로 중복 스킵 (§3.1)
       if (seen.has(key)) continue;
       seen.add(key);
-      const seg = pheno.resolve(key);
+      const seg = pheno.resolve(pKey, cKey); // 부모 키 매칭 — 부모 스팬이 곧 해부학 부위
       if (!seg) continue;               // r=0(손가락 등) → 살 생략
       // 월드 → 그리드 공간 (그리드 원점 = 볼륨 구석, 셀 크기 1)
       const a = b.parent.getWorldPosition(this._wa); a.x -= offsetX;

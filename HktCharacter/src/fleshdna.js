@@ -103,26 +103,31 @@ export const GROUP_BOUNDARIES = (() => {
 //  세그먼트 축 위치 t∈[0,1] 에서의 살 반지름(m). r 은 대략 현 mcflesh RADII 를 기준으로
 //  잡은 인간형 출발점 — 기본 게놈(모든 두께=1·형태 중립)이면 낯익은 실루엣이 나온다.
 //  flatten.dir = 바인드 월드 기준 단위벡터(전방 +z), f = 그 방향 반경 배율(≤1 납작).
-const T = ([re, group, ctrl, flatten = null, blend = 1]) => ({
-  re, key: re.source, group, ctrl, flatten, blend,
+//  매칭은 **부모 뼈 이름**(p) 기준 — 세그먼트 부모→자식 구간이 덮는 해부학 부위는 부모의
+//  스팬이기 때문(§3.1). 예: 부모 `head` 세그먼트(머리→정수리)가 두개골을 그린다. 다자식
+//  부모(spine2·hips)는 자식 판별자 c 로 구분한다. 첫 매칭 승 — forearm 을 arm 보다,
+//  upleg 을 leg 보다 먼저.  p: 부모 정규식, c: 자식 정규식(선택), group·ctrl·flatten·blend.
+const T = (p, group, ctrl, flatten = null, blend = 1, c = null) => ({
+  p, c, group, ctrl, flatten, blend, key: c ? `${p.source}>${c.source}` : p.source,
 });
 const TEMPLATE = [
-  T([/thumb|index|middle|ring|pinky/, 'hand', [[0, 0], [1, 0]]]),              // 손가락 생략
-  T([/end$/, 'foot', [[0, 0.02], [1, 0.018]]]),                               // 리프 본
-  T([/head/, 'head', [[0, 0.08], [0.45, 0.095], [1, 0.05]], { dir: [0, 0, 1], f: 0.95 }]),
-  T([/neck/, 'head', [[0, 0.05], [1, 0.045]], null, 1.4]),
-  T([/hips/, 'torso', [[0, 0.105], [1, 0.10]], { dir: [0, 0, 1], f: 0.85 }]),
-  T([/spine2/, 'torso', [[0, 0.09], [0.5, 0.105], [1, 0.10]], { dir: [0, 0, 1], f: 0.72 }]),
-  T([/spine1/, 'torso', [[0, 0.10], [0.5, 0.086], [1, 0.095]], { dir: [0, 0, 1], f: 0.75 }]), // 허리 S커브
-  T([/spine/, 'torso', [[0, 0.095], [1, 0.09]], { dir: [0, 0, 1], f: 0.80 }]),
-  T([/shoulder/, 'arm', [[0, 0.05], [1, 0.05]]]),
-  T([/forearm/, 'arm', [[0, 0.042], [0.3, 0.046], [1, 0.03]]]),               // 전완 볼록→손목
-  T([/arm/, 'arm', [[0, 0.048], [0.45, 0.053], [1, 0.042]]]),                 // 위팔 이두
-  T([/hand/, 'hand', [[0, 0.032], [0.5, 0.036], [1, 0.026]], { dir: [0, 0, 1], f: 0.55 }]),
-  T([/upleg/, 'leg', [[0, 0.09], [0.35, 0.08], [1, 0.055]]]),                 // 허벅지 테이퍼
-  T([/leg/, 'leg', [[0, 0.055], [0.35, 0.063], [1, 0.035]]]),                 // 종아리 볼록→발목
-  T([/foot/, 'foot', [[0, 0.04], [1, 0.032]], { dir: [0, 1, 0], f: 0.6 }]),
-  T([/toe/, 'foot', [[0, 0.03], [1, 0.02]], { dir: [0, 1, 0], f: 0.6 }]),
+  T(/thumb|index|middle|ring|pinky/, 'hand', [[0, 0], [1, 0]]),                        // 손가락 생략(부모=손가락뼈)
+  T(/head/, 'head', [[0, 0.078], [0.4, 0.1], [1, 0.07]], { dir: [0, 0, 1], f: 0.9 }), // 두개골 (머리→정수리, 정수리 둥근 캡)
+  T(/neck/, 'head', [[0, 0.05], [1, 0.045]], null, 1.4),                               // 목 (목→머리)
+  T(/spine2/, 'torso', [[0, 0.09], [0.5, 0.105], [1, 0.095]], { dir: [0, 0, 1], f: 0.72 }, 1, /neck/),   // 흉곽
+  T(/spine2/, 'arm', [[0, 0.05], [1, 0.045]], null, 1, /shoulder/),                    // 쇄골 웹
+  T(/spine1/, 'torso', [[0, 0.10], [0.5, 0.086], [1, 0.095]], { dir: [0, 0, 1], f: 0.75 }), // 허리 S커브
+  T(/spine/, 'torso', [[0, 0.095], [1, 0.09]], { dir: [0, 0, 1], f: 0.80 }),           // 하복부
+  T(/hips/, 'torso', [[0, 0.105], [1, 0.10]], { dir: [0, 0, 1], f: 0.85 }, 1, /spine/), // 골반→몸통
+  T(/hips/, 'torso', [[0, 0.095], [1, 0.088]], null, 1, /upleg/),                      // 골반 폭→고관절
+  T(/shoulder/, 'arm', [[0, 0.05], [1, 0.052]]),                                       // 삼각근 (어깨→위팔)
+  T(/forearm/, 'arm', [[0, 0.042], [0.3, 0.046], [1, 0.03]]),                          // 전완 (팔꿈치→손목)
+  T(/arm/, 'arm', [[0, 0.048], [0.45, 0.053], [1, 0.042]]),                            // 위팔 이두 (어깨→팔꿈치)
+  T(/hand/, 'hand', [[0, 0.032], [0.5, 0.036], [1, 0.026]], { dir: [0, 0, 1], f: 0.55 }), // 손바닥 (손→손가락)
+  T(/upleg/, 'leg', [[0, 0.09], [0.35, 0.08], [1, 0.055]]),                            // 허벅지 (고관절→무릎)
+  T(/leg/, 'leg', [[0, 0.055], [0.35, 0.063], [1, 0.035]]),                            // 종아리 (무릎→발목)
+  T(/foot/, 'foot', [[0, 0.04], [1, 0.032]], { dir: [0, 1, 0], f: 0.6 }),              // 발등 (발목→발끝)
+  T(/toe/, 'foot', [[0, 0.03], [1, 0.02]], { dir: [0, 1, 0], f: 0.6 }),                // 발가락 (발끝→끝)
 ];
 // 세그먼트 부위별 대표 길이(m, 키 1.7 기준) — 형태→기능(§6) 부피 적분용 참조 치수.
 // 실뷰어는 실제 뼈 길이를 재서 넘길 수 있으나(형태=기능), 검증/기본은 이 명목값을 쓴다.
@@ -211,15 +216,21 @@ export function compileFlesh(genome) {
       const mult = seg.group === 'torso' ? 0.75 + genes['torso.flatten'] * 0.5 : 1;
       flatten = { dir: seg.flatten.dir, f: clamp(seg.flatten.f * mult, 0.45, 1.0) };
     }
-    return { re: seg.re, key: seg.key, group: seg.group, lut, rMax, flatten, blend: seg.blend };
+    return { p: seg.p, c: seg.c, key: seg.key, group: seg.group, lut, rMax, flatten, blend: seg.blend };
   });
   const color = decodeColor(genes);
-  const bySimple = new Map(); // 이름 매칭 메모이즈 (핫루프)
-  const resolve = name => {
-    if (bySimple.has(name)) return bySimple.get(name);
+  const cache = new Map(); // (부모>자식) 매칭 메모이즈 (핫루프)
+  // 부모 뼈 이름 pName, 자식 뼈 이름 cName → 세그먼트 스펙 (§3.1 부모 키 + 자식 판별자)
+  const resolve = (pName, cName = '') => {
+    const k = pName + '>' + cName;
+    if (cache.has(k)) return cache.get(k);
     let hit = null;
-    for (const s of segments) if (s.re.test(name)) { hit = s.rMax > 1e-5 ? s : null; break; }
-    bySimple.set(name, hit);
+    for (const s of segments) {
+      if (!s.p.test(pName)) continue;
+      if (s.c && !s.c.test(cName)) continue;
+      hit = s.rMax > 1e-5 ? s : null; break;
+    }
+    cache.set(k, hit);
     return hit;
   };
   return { segments, color, genes, resolve };

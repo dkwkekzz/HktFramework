@@ -29,9 +29,11 @@
 
 ## 검증 현황
 
-- **살 게놈 4법칙** (`node tools/flesh-verify.mjs`, 결정론적): 폐쇄성 1.0 · 지역성 ρ 0.717 ·
-  조합성 1.50 · 다양성 6.76 · 형태→기능(체력↑속도↓) · 채널분리 → **전 항목 합격**.
-  카드 `tools/flesh-audit.svg`. `npx vite build` 통과.
+- **살 게놈 4법칙** (`node tools/flesh-verify.mjs`, 결정론적): 폐쇄성 1.0 ·
+  형태→기능(체력↑속도↓) · 채널분리 = **견고 합격**. 지역성 ρ 0.68 · 다양성 6.08 =
+  **경계선 아래**, 조합성 1.46 = **문서 원문 지표(단일지점)로는 1.08 미달**(대조군을
+  uniform 으로 바꿔야 1.46). 부모 키 해부학 정정이 이 지표들과 상충 → 정확성 택함.
+  상세·정직한 한계: [docs/GENOME.md](docs/GENOME.md). 카드 `tools/flesh-audit.svg`. build 통과.
 - hips 수평 최대 오차(v4.2): 공격 0.005 · 삼바 0.002 · 걷기 0.002m (실물 main.js 스텁 구동).
 - 접지 min.y·드리프트·hips 흔들림 범위 실측치 → [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md#검증) 참조.
 - ⚠️ **브라우저 육안 확인은 사용자 몫** — 샌드박스 headless Chromium 차단 (살 게놈 UI/실루엣).
