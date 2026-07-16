@@ -118,14 +118,16 @@
       p: V.clone(p),
       F: V.zero(),           // 힘 누산 (velocity Verlet) — ①은 0
       disp: V.zero(),        // 누적 변위 (주기 랩과 무관한 참 변위) — MSD 관측용
-      occ: null,             // ③에서 채움
+      level: 0,              // ④ 내부 준위 인덱스 (0=바닥·1=들뜸) — 2준위 근사
+      ver: 0,               // 준위 변경 버전 (사건 큐 lazy 무효화)
+      occ: null,             // ③ 부껍질 벡터 (⑤+ 세부 이온화에서 사용)
       mu: null,              // ⑧에서 채움
     };
   }
 
   function makeWorld(opts) {
     const o = opts || {};
-    return {
+    const w = {
       t: 0,
       dt: o.dt != null ? o.dt : 0.01,
       box: o.box || { L: V.make(20, 20, 20), bc: 'periodic' },
@@ -137,6 +139,15 @@
       soft: o.soft != null ? o.soft : 0.1,  // softening s (d→0 발산 방지, 노브)
       virial: 0,                      // ② 비리얼 (압력 측정) — pairForces 가 갱신
       minDsigma: Infinity,            // ② 최근접 비율 min d/σ — 겹침 감시
+      rng: o.rng || Math.random,      // ④ 전이 샘플용 난수원
+      catalog: o.catalog || null,     // ④ 전이 카탈로그 (행 배열) — 없으면 이산층 꺼짐
+      specLevels: o.specLevels || null, // ④ 종별 {dE, g0, g1} — U_int·hazard 가 사용
+      rc: o.rc != null ? o.rc : 1.5,  // ④ 접촉 반경 (노브)
+      nu_col: o.nu_col != null ? o.nu_col : 1.0,   // ④ 충돌 전이 시도율 노브
+      nu_abs: o.nu_abs != null ? o.nu_abs : 1.0,   // ④ 흡수율 노브
+      tau_rad: o.tau_rad != null ? o.tau_rad : Infinity, // ④ 복사 수명 (∞=방출 없음)
+      radiativeOpen: o.radiativeOpen || false,     // ④ 방출 광자가 즉시 탈출(냉각) vs 빈 저장(공동)
+      nPhotons: 0,                    // ④ 광자 빈 (단일 종 = 스칼라 개수)
       atoms: [],
       electrons: [],   // ⑤ 전
       photons: [],     // ⑫ 전
@@ -146,6 +157,8 @@
       ledger: makeLedger(),
       computeForces: o.computeForces || zeroForces,  // ①은 F=0
     };
+    w.atomById = (id) => { for (const a of w.atoms) if (a.id === id) return a; return null; };
+    return w;
   }
 
   // ①의 힘: 없음. atom.F=0, U_elec=0. (②가 쿨롱+척력으로 교체)
@@ -200,14 +213,156 @@
     world.minDsigma = minRatio;
   }
 
-  // ── 장부 갱신: 활성 원자의 병진 운동에너지를 K_tr 로. 나머지 통은 각 모듈이 채운다 ──
+  // ── 장부 갱신: K_tr(병진)·U_int(들뜸). E_photon·E_escape 는 전이가 증분 회계 ──
   function recomputeLedger(world) {
-    let K = 0;
+    let K = 0, Uint = 0;
     for (const a of world.atoms) {
-      const m = world.mass[a.sp];
-      K += V.lenSq(a.p) / (2 * m);
+      K += V.lenSq(a.p) / (2 * world.mass[a.sp]);
+      if (a.level > 0 && world.specLevels) Uint += world.specLevels[a.sp].dE;
     }
     world.ledger.K_tr = K;
+    world.ledger.U_int = Uint;
+  }
+
+  // 총 에너지 (사건 단위 회계 검사용 — K·U 재계산 + 전 통)
+  function totalEnergy(world) { recomputeLedger(world); return ledgerTotal(world); }
+
+  // ── ④ 이산층: 전이 실행기 ──
+
+  // 준위 변경 (버전 증가 → 예약된 방출 사건 lazy 무효화)
+  function setLevel(a, lvl) { if (a.level !== lvl) { a.level = lvl; a.ver++; } }
+
+  // 상대 운동에너지 ↔ 내부 에너지 교환 (COM 운동량 불변 → P 보존). dInt>0 = KE→내부(흡열)
+  function collisionalTransfer(world, i, j, dInt) {
+    const a = world.atoms[i], b = world.atoms[j];
+    const mi = world.mass[a.sp], mj = world.mass[b.sp], Mt = mi + mj, mu = mi * mj / Mt;
+    let vx = a.p.x / mi - b.p.x / mj, vy = a.p.y / mi - b.p.y / mj, vz = a.p.z / mi - b.p.z / mj;
+    const v2 = vx * vx + vy * vy + vz * vz, KE = 0.5 * mu * v2;
+    const KEn = KE - dInt;
+    if (KEn < 0 || KE <= 0) return false;            // 에너지 부족 → 전이 불가
+    const s = Math.sqrt(KEn / KE);
+    const vcx = (a.p.x + b.p.x) / Mt, vcy = (a.p.y + b.p.y) / Mt, vcz = (a.p.z + b.p.z) / Mt;
+    vx *= s; vy *= s; vz *= s;
+    a.p.x = mi * (vcx + (mj / Mt) * vx); a.p.y = mi * (vcy + (mj / Mt) * vy); a.p.z = mi * (vcz + (mj / Mt) * vz);
+    b.p.x = mj * (vcx - (mi / Mt) * vx); b.p.y = mj * (vcy - (mi / Mt) * vy); b.p.z = mj * (vcz - (mi / Mt) * vz);
+    return true;
+  }
+
+  // 상대 운동에너지 ½μ|v_rel|²
+  function relKE(world, i, j) {
+    const a = world.atoms[i], b = world.atoms[j];
+    const mi = world.mass[a.sp], mj = world.mass[b.sp], mu = mi * mj / (mi + mj);
+    const vx = a.p.x / mi - b.p.x / mj, vy = a.p.y / mi - b.p.y / mj, vz = a.p.z / mi - b.p.z / mj;
+    return 0.5 * mu * (vx * vx + vy * vy + vz * vz);
+  }
+
+  // Larsen–Borgnakke 충돌 내부 교환 — 세부 균형 정확판 (볼츠만이 창발한다, author 0).
+  //   충돌 총에너지 E_c = 상대KE + 표적 내부에너지. 후보 준위 k(ε_k≤E_c)를 g_k 가중으로 뽑는다.
+  //   (2D 상대 병진 상태밀도 ∝ E_t⁰ 이므로 가중치는 g_k 뿐 — e^{−ΔE/T} 는 어디에도 안 적는다).
+  //   뽑힌 뒤 상대 KE = E_c − ε_k 로 재조정 (COM 불변 → P 보존). 들뜸·완화는 이 한 규칙의 두 결과.
+  function lbRedistribute(world, i, j) {
+    const rng = world.rng;
+    const tgt = rng() < 0.5 ? i : j;
+    const a = world.atoms[tgt], L = world.specLevels[a.sp];
+    const KE = relKE(world, i, j);
+    const eOld = a.level ? L.dE : 0;
+    const Ec = KE + eOld;
+    let nl = 0;
+    if (L.dE <= Ec) nl = (rng() < L.g1 / (L.g0 + L.g1)) ? 1 : 0;   // 에너지 충분 → g 가중 선택
+    const dInt = (nl ? L.dE : 0) - eOld;                          // KE 에서 뺄 양(양수=흡열)
+    if (dInt !== 0 && !collisionalTransfer(world, i, j, dInt)) return false;
+    const was = a.level; setLevel(a, nl);
+    if (nl === 1 && was === 0) scheduleEmission(world, a);
+    return dInt !== 0 || nl !== was;
+  }
+
+  // 접촉쌍 (반경 r_c 내) — ④부터 이산 채널이 사용
+  function contactPairs(world) {
+    const out = [], A = world.atoms, rc2 = world.rc * world.rc;
+    const L = world.box.L, per = world.box.bc === 'periodic';
+    for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+      let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y, dz = A[i].r.z - A[j].r.z;
+      if (per) { dx = minImage(dx, L.x); dy = minImage(dy, L.y); dz = world.frozenZ ? 0 : minImage(dz, L.z); }
+      else if (world.frozenZ) dz = 0;
+      if (dx * dx + dy * dy + dz * dz <= rc2) out.push([i, j]);
+    }
+    return out;
+  }
+
+  const expSample = (rng, tau) => -tau * Math.log(1 - rng());
+
+  // 방출 사건 예약 (수명 채널 — ①의 큐 뼈대 실사용). τ=∞ 면 예약 안 함.
+  function scheduleEmission(world, a) {
+    if (!isFinite(world.tau_rad)) return;
+    queuePush(world.queue, { t_fire: world.t + expSample(world.rng, world.tau_rad), rowId: 'R-EMI', part: a.id, ver: a.ver });
+  }
+
+  // 전이 apply 를 사건 단위 장부 검사로 감싼다 (전후 E·P 차 ≤ 1e-9)
+  function checkedApply(world, fn) {
+    const E0 = totalEnergy(world), P0 = momentumRaw(world);
+    const changed = fn();
+    if (changed && world._auditP !== false) {
+      const E1 = totalEnergy(world), P1 = momentumRaw(world);
+      if (Math.abs(E1 - E0) > 1e-9) throw new Error(`전이 E 위반: ${E1 - E0}`);
+      if (world._auditP && (Math.abs(P1.x - P0.x) > 1e-9 || Math.abs(P1.y - P0.y) > 1e-9)) throw new Error('전이 P 위반');
+    }
+    return changed;
+  }
+  function momentumRaw(world) { const P = V.zero(); for (const a of world.atoms) V.addInto(P, a.p); return P; }
+
+  // 접촉 채널 실행: 접촉쌍마다 카탈로그 행 샘플 (p=1−e^{−k·dt}), 첫 성공 후 그 쌍 종료.
+  //   두 시계 중 접촉 시계 (DESIGN §4.2). 방출은 수명 시계(큐), 흡수는 빈 밀도(runAbsorption).
+  function runTransitions(world) {
+    if (!world.catalog) return;
+    const dt = world.dt, rng = world.rng;
+    const pairs = contactPairs(world);
+    for (const pr of pairs) {
+      for (const row of world.catalog) {
+        if (row.kind !== 'contact') continue;
+        const ctx = row.match(world, pr[0], pr[1]);
+        if (!ctx) continue;
+        const k = row.hazard(world, ctx);
+        if (k > 0 && rng() < 1 - Math.exp(-k * dt)) {
+          const done = checkedApply(world, () => row.apply(world, ctx));
+          if (done) break;   // 한 쌍 한 tick 한 전이
+        }
+      }
+    }
+    runAbsorption(world);       // R-ABS — 접촉*(광자 빈 밀도). 빈이 비면 no-op
+  }
+
+  // R-ABS 흡수: 바닥 원자가 광자 빈에서 흡수 (E_photon → U_int). 빈 근사 → 운동량 없음(정직 한계).
+  function runAbsorption(world) {
+    if (world.nPhotons <= 0 || !world.specLevels) return;
+    const dt = world.dt, rng = world.rng;
+    const vol = world.frozenZ ? world.box.L.x * world.box.L.y : world.box.L.x * world.box.L.y * world.box.L.z;
+    for (const a of world.atoms) {
+      if (world.nPhotons <= 0) break;
+      if (a.level !== 0) continue;
+      const k = world.nu_abs * (world.nPhotons / vol);
+      if (k > 0 && rng() < 1 - Math.exp(-k * dt)) {
+        checkedApply(world, () => {
+          const L = world.specLevels[a.sp];
+          world.nPhotons--; world.ledger.E_photon -= L.dE;
+          setLevel(a, 1); scheduleEmission(world, a);
+          return true;
+        });
+      }
+    }
+  }
+
+  // 수명 채널: 큐에서 발화한 방출 사건 처리 (lazy 무효화 검사)
+  function fireEvent(world, ev) {
+    if (ev.rowId !== 'R-EMI') return;
+    const a = world.atomById && world.atomById(ev.part);
+    if (!a || a.level !== 1 || a.ver !== ev.ver) return;   // 무효화 (완화됨·재예약됨)
+    checkedApply(world, () => {
+      const L = world.specLevels[a.sp];
+      setLevel(a, 0);
+      if (world.radiativeOpen) world.ledger.E_escape += L.dE;   // 열린 복사 → 탈출
+      else { world.nPhotons++; world.ledger.E_photon += L.dE; if (world.spectrumAdd) world.spectrumAdd(L.dE); }
+      return true;
+    });
   }
 
   // ── 경계 처리 ──
@@ -267,20 +422,19 @@
     world.computeForces(world);            // 새 위치에서 F
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
 
-    sampleContacts(world);      // ④ 사용 · ①은 no-op
+    runTransitions(world);      // ④ 접촉 전이 샘플 + 흡수 · ①②③은 catalog 없음 → no-op
     recomputeLedger(world);
 
     if (world.frozenZ) assertFrozenZ(world);
     world.t += dt;
   }
 
-  // ①에선 큐가 비어 있고 소진 루프만 존재 (④가 실사용)
+  // 사건 큐 소진: 발화 시각이 지난 사건을 처리 (④ 방출) · ①②③은 빈 큐
   function drainQueue(world) {
     while (world.queue.heap.length > 0 && world.queue.heap[0].t_fire <= world.t) {
-      queuePop(world.queue);  // ①은 발생 사건 0 — 자리만
+      fireEvent(world, queuePop(world.queue));
     }
   }
-  function sampleContacts(_world) { /* ④ 접촉 전이 샘플 — ①은 no-op */ }
 
   // z 동결 검증: 힘의 z 성분이 수치 오염을 만들면 즉시 검출 (design §01)
   function assertFrozenZ(world) {
@@ -303,7 +457,8 @@
     makeQueue, queuePush, queuePop,
     LEDGER_BINS, makeLedger, ledgerTotal,
     makeAtom, makeWorld, zeroForces, pairForces, minImage,
-    recomputeLedger, applyBoundary, step, run,
+    recomputeLedger, totalEnergy, applyBoundary, step, run,
+    setLevel, collisionalTransfer, relKE, lbRedistribute, contactPairs, scheduleEmission, runTransitions,
   };
 
   if (isNode) module.exports = api;

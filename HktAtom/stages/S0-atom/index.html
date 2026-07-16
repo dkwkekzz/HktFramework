@@ -32,8 +32,8 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①②③ 무대 · 힘·충돌 · 준위·예산</h1>
-    <p class="sub">입자가 충돌·산란하고(쿨롱+척력), 전자 준위가 주기율표를 만든다. "보기" 로 시뮬 ⇄ 준위③ 전환.</p>
+    <h1>S0-atom · ①②③④ 무대·힘·준위·전이</h1>
+    <p class="sub">충돌·산란(쿨롱+척력) · 준위→주기율표 · 들뜸/방출/흡수로 볼츠만·냉각·공동 창발. "보기"=시뮬⇄준위③. 노란 글로우=들뜸.</p>
 
     <div class="row">
       <label>보기</label>
@@ -43,6 +43,9 @@
     <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
+        <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
+        <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
+        <option value="s04-cavity">s04-cavity (공동 평형)</option>
         <option value="s02-gas-collide">s02-gas-collide (충돌·산란)</option>
         <option value="s02-charge-pair">s02-charge-pair (쿨롱 ±)</option>
         <option value="s01-ideal-gas">s01-ideal-gas (주기·z동결)</option>
@@ -67,6 +70,10 @@
       <div><label>P(비리얼)</label> <span id="press" class="big">0</span></div>
       <div style="margin-left:14px"><label>min d/σ</label> <span id="mind" class="big">–</span></div>
     </div>
+    <div class="row" id="occrow" style="display:none">
+      <div><label>들뜸 n₁/n₀</label> <span id="occr" class="metric" style="font-size:14px;color:#ffde5a">0</span></div>
+      <div style="margin-left:12px"><label>볼츠만 (g₁/g₀)e^(−ΔE/T)</label> <span id="occb" class="big">0</span></div>
+    </div>
 
     <table id="ledger"></table>
     <p class="note" id="verifynote">
@@ -77,6 +84,7 @@
   </div>
 
 <script src="engine.js"></script>
+<script src="catalog.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="levels.js"></script>
@@ -124,12 +132,23 @@
     for (const a of world.atoms) {
       const x = a.r.x * sx, y = cv.height - a.r.y * sy;
       const spd = E.V.len(a.p);
+      // ④ 들뜬 원자 글로우 (level>0) — 노란 후광
+      if (a.level > 0) {
+        const gr = ctx.createRadialGradient(x, y, 0, x, y, rpx * 3);
+        gr.addColorStop(0, 'rgba(255,220,90,0.75)'); gr.addColorStop(1, 'rgba(255,220,90,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rpx * 3, 0, Math.PI * 2); ctx.fill();
+      }
       ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
       const g = Math.min(255, 90 + spd * 60) | 0;
-      ctx.fillStyle = `rgb(${80},${g},${180})`; ctx.fill();
+      ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`; ctx.fill();
       // 전하 배지 (± 색 링) — 중성이면 없음
       if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
       else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+    }
+    // 광자 빈 표시 (공동)
+    if (world.nPhotons > 0) {
+      ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
+      ctx.fillText(`광자 ${world.nPhotons}`, 8, 16);
     }
 
     if (world.escaped.length) {
@@ -145,6 +164,13 @@
     el('natoms').textContent = world.atoms.length;
     el('press').textContent = M.pressure(world).toFixed(4);
     el('mind').textContent = isFinite(world.minDsigma) ? world.minDsigma.toFixed(3) : '–';
+    // ④ 점유: 측정 n1/n0 vs 볼츠만 예측 (겹치면 창발 확인)
+    if (world.specLevels) {
+      const o = M.occupancy(world);
+      el('occrow').style.display = '';
+      el('occr').textContent = o.ratio.toFixed(3);
+      el('occb').textContent = o.predRatio != null ? o.predRatio.toFixed(3) : '–';
+    } else { el('occrow').style.display = 'none'; }
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {

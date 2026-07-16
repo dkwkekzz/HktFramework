@@ -216,6 +216,62 @@
       log.push({ ok: allV, name: '③가상원소확정', msg: vg.join(' ') + ' (V1/V0/V2/V4)' });
     }
 
+    // 7. ④ 전이 엔진 (볼츠만·냉각·공동 + 에너지 출처·회계). ①②③의 하네스·EPS_E·준위를 소비.
+    {
+      // 열욕: 점유가 볼츠만으로 창발 (author 0 — e^{−ΔE/T} 어디에도 안 적음). ~10% 편향 정직.
+      const R = 4;
+      let rr = [], pp = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s04-thermal-bath', { seed: 810 + s, N: 60, T0: 2.2, L: 12 });
+        E.run(w, 4500);
+        const o = M.occupancy(w); rr.push(o.ratio); pp.push(o.predRatio);
+      }
+      const meanR = rr.reduce((a, b) => a + b, 0) / R, meanP = pp.reduce((a, b) => a + b, 0) / R;
+      const ratio = meanR / meanP;
+      log.push({ ok: ratio > 0.8 && ratio < 1.25, name: '④볼츠만창발',
+        msg: `n1/n0 ${fmt(meanR)} vs 볼츠만 ${fmt(meanP)} → 비율 ${fmt(ratio)} ∈[0.8,1.25] (LB 재분배·~10% 편향)` });
+
+      // 열욕 장부: 전이 사건 회계 정확(checkedApply 가 예외 던짐 — 여기 오면 통과) + Verlet ≤ EPS_E + P 보존
+      {
+        const w = S.build('s04-thermal-bath', { seed: 850, N: 60, T0: 2.2, L: 12 });
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let maxRelE = 0, maxdP = 0;
+        for (let k = 0; k < 3000; k++) { E.step(w); const t = M.ledgerTable(w); maxRelE = Math.max(maxRelE, Math.abs(t.total - E0) / Math.abs(E0)); maxdP = Math.max(maxdP, pDiff(M.momentum(w), P0)); }
+        log.push({ ok: maxRelE <= E.EPS_E, name: '④장부·전이통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E (사건 회계는 checkedApply 가 상시 강제)` });
+        log.push({ ok: maxdP <= 1e-9, name: '④P보존(충돌+힘)', msg: `max|ΔP| ${fmt(maxdP)} ≤ 1e-9` });
+      }
+
+      // 에너지 부족 → 전이 불가: 아주 차가운 열욕은 들뜸이 지수 억제
+      {
+        const w = S.build('s04-thermal-bath', { seed: 870, N: 60, T0: 0.4, L: 12 });
+        E.run(w, 3000);
+        const o = M.occupancy(w);
+        log.push({ ok: o.frac < 0.15, name: '④에너지부족억제', msg: `저온 T=${fmt(o.T)} → 들뜸 frac ${fmt(o.frac)} < 0.15 (지수 억제)` });
+      }
+
+      // 복사 냉각: 방출 광자 탈출 → T 단조 하강 + 총 E(E_escape 포함) 보존
+      {
+        const w = S.build('s04-radiative-cooling', { seed: 5, N: 60, L: 15 });
+        const T0 = M.occupancy(w).T, E0 = M.ledgerTable(w).total;
+        E.run(w, 2500);
+        const T1 = M.occupancy(w).T, lg = M.ledgerTable(w);
+        log.push({ ok: T1 < T0 * 0.8 && lg.E_escape > 0, name: '④복사냉각', msg: `T ${fmt(T0)}→${fmt(T1)} · E_escape ${fmt(lg.E_escape)}` });
+        log.push({ ok: Math.abs(lg.total - E0) / Math.abs(E0) <= E.EPS_E, name: '④냉각E보존(탈출포함)', msg: `rel ${fmt(Math.abs(lg.total - E0) / Math.abs(E0))} ≤ EPS_E` });
+      }
+
+      // 공동: 닫힌 상자 — 광자 빈 저장·재흡수 → 정상 상태 + 총 E 보존
+      {
+        const w = S.build('s04-cavity', { seed: 6, N: 80, L: 13 });
+        const E0 = M.ledgerTable(w).total;
+        E.run(w, 2500);
+        const ph = [];
+        for (let b = 0; b < 4; b++) { E.run(w, 250); ph.push(w.nPhotons); }
+        const meanPh = ph.reduce((a, b) => a + b, 0) / ph.length;
+        log.push({ ok: meanPh > 0, name: '④공동정상상태', msg: `광자 빈 ${ph.join(',')} (물질↔복사 정상)` });
+        log.push({ ok: Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0) <= E.EPS_E, name: '④공동E보존', msg: `rel ${fmt(Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0))} ≤ EPS_E` });
+      }
+    }
+
     return log;
   }
 
@@ -226,7 +282,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

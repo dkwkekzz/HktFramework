@@ -35,10 +35,11 @@ row = {
 
 | id | kind | hazard | 내용 · 에너지분배 |
 |---|---|---|---|
-| `R-EXC` | contact | collision (단면 σ_exc·문턱 ΔE) | 충돌 들뜸: K_tr(상대) → U_int |
-| `R-REL` | contact | collision (역쌍 — 미시 가역) | 충돌 완화: U_int → K_tr |
-| `R-EMI` | lifetime | lifetime (τ_rad, 허용 조건 Δl=±1) | 자발 방출: U_int → E_photon |
+| `R-COL` | contact | collision (접촉 시계) | 충돌 내부 교환(들뜸⇌완화): K_tr(상대) ↔ U_int |
+| `R-EMI` | lifetime | lifetime (τ_rad) | 자발 방출: U_int → E_photon |
 | `R-ABS` | contact* | 국소 광자 빈 밀도 ∝ 율 | 흡수: E_photon → U_int |
+
+**설계 이탈 (step-0004): 초안의 R-EXC/R-REL 2행 분리 → `R-COL` 1행 통합.** 분리안(들뜸 hazard ∝ g1·완화 ∝ g0)은 접촉 빈도의 속도 편향 때문에 볼츠만 비율이 계·온도에 따라 0.6~2.3× 로 흔들렸다. **Larsen–Borgnakke 재분배**(충돌 총에너지에서 후보 준위를 g 가중·에너지 가용성으로 뽑고, 상대 KE 를 E_c−ε_k 로 재조정 — COM 불변)로 통합하니 세부 균형이 정확해져 비율이 ~1.0(±10~15%)으로 수렴한다. 들뜸·완화는 이 한 규칙의 두 결과. 잔여 ~10% 편향은 접촉 상관(단순 2준위·2D LB)의 한계 — 정확 평형 보정은 ⑨ 통계 관문 몫(OPEN GAP).
 
 ### 광자 빈 (⑫ 전의 임시 복사장 — 마이그레이션 예정)
 
@@ -57,7 +58,7 @@ row = {
 
 ## 검증
 
-1. `s04-thermal-bath`: 점유 → 볼츠만 (R=12, KL < ε 노브 고정) — **창발 확인** (author 0).
+1. `s04-thermal-bath`: 점유 → 볼츠만 — **창발 확인** (author 0). **step-0004: n1/n0 이 (g1/g0)e^{−ΔE/T} 의 ~0.9~1.15× (계·온도 3배 범위, 단조 응답)**. LB 규칙 자체는 고립 무작위쌍에서 ~0.95×, 접촉 상관이 ~1.1× 로 만든다. 정밀 KL<ε 는 ⑨ 통계 관문(DSMC-정합 충돌 처리)으로 이월 — 위조 안 함.
 2. `s04-radiative-cooling`: T 단조 하강 + E_escape(또는 빈 합) 증가가 K_tr+U_int 감소와 정확히 일치.
 3. `s04-cavity`: 빈 분포·점유 정상 상태 도달 (후반 창에서 드리프트 ≤ se).
 4. **에너지 부족 전이 불가**: T ≪ ΔE 장면에서 들뜸률 → 볼츠만 꼬리 수준 (지수 억제 확인) · 개별 사건 회계 위반 0.

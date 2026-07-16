@@ -7,10 +7,14 @@
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
+  const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
-  // ③에서 Z·occ 로 확장. radius/color 는 뷰어용.
-  const SPECIES = { X: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#5ab' } };
+  // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
+  const SPECIES = {
+    X: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#5ab' },
+    A: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#c9a', dE: 1.0, g0: 1, g1: 2 },
+  };
 
   // makeWorld 에 종 파라미터 맵을 넘기는 헬퍼
   function specMaps() {
@@ -41,7 +45,8 @@
   }
 
   // 격자 위 초기 배치 (겹침 방지 — ①은 힘이 없지만 뷰어 가독성·후속 단계 습관)
-  function latticePlace(world, N, rng) {
+  function latticePlace(world, N, rng, sp) {
+    sp = sp || 'X';
     const L = world.box.L;
     const per = Math.ceil(Math.sqrt(N));           // z 동결 → xy 격자
     const gx = L.x / per, gy = L.y / per;
@@ -54,7 +59,7 @@
           (j + 0.5 + (rng() - 0.5) * jitter) * gy,
           0
         );
-        world.atoms.push(E.makeAtom('X', r, E.V.zero()));
+        world.atoms.push(E.makeAtom(sp, r, E.V.zero()));
       }
     }
   }
@@ -161,12 +166,63 @@
     return world;
   }
 
+  // ── ④ 전이 엔진 장면 (볼츠만 3장면) — 2준위 종 A ──
+
+  function specLevelsA() { const s = SPECIES.A; return { A: { dE: s.dE, g0: s.g0, g1: s.g1 } }; }
+
+  function buildA(o, over) {
+    const rng = o.rng || E.makeRng(o.seed || 4004);
+    const N = o.N || 120, T0 = o.T0 != null ? o.T0 : 2.0, L = o.L || 16;
+    const world = E.makeWorld(Object.assign({
+      dt: o.dt != null ? o.dt : 0.005,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      mass: { A: SPECIES.A.mass }, sigma: { A: SPECIES.A.sigma }, eps: { A: SPECIES.A.eps },
+      computeForces: E.pairForces, rng,
+      catalog: C.COLLISIONAL, specLevels: specLevelsA(),
+      rc: o.rc != null ? o.rc : 1.6, nu_col: o.nu_col != null ? o.nu_col : 2.0,
+    }, over));
+    latticePlace(world, N, rng, 'A');
+    maxwellInit(world, T0, rng);
+    E.pairForces(world); E.recomputeLedger(world);
+    world._auditP = over && over.audP;      // 충돌 전용 장면만 P 감사
+    return world;
+  }
+
+  // s04-thermal-bath: 고밀도·복사 꺼짐(τ→∞) — 충돌 지배. 점유가 볼츠만으로 창발.
+  function thermalBath(opts) {
+    const o = opts || {};
+    const w = buildA(o, { tau_rad: Infinity, audP: true });
+    w._meta = { name: 's04-thermal-bath' };
+    return w;
+  }
+
+  // s04-radiative-cooling: 방출 광자 즉시 탈출 — 냉각. T 단조 하강 · E_escape 증가.
+  function radiativeCooling(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 3.0, N: 100, seed: o.seed || 4005 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 2.0, radiativeOpen: true });
+    w._meta = { name: 's04-radiative-cooling' };
+    return w;
+  }
+
+  // s04-cavity: 닫힌 상자 — 방출 광자가 빈에 저장되고 재흡수. 물질↔복사 정상 상태.
+  function cavity(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 2.0, N: 120, seed: o.seed || 4006 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 2.0, radiativeOpen: false, nu_abs: o.nu_abs != null ? o.nu_abs : 6.0 });
+    w._meta = { name: 's04-cavity' };
+    return w;
+  }
+
   const SCENES = {
     's01-ideal-gas': idealGas,
     's01-open-box': openBox,
     's02-gas-collide': gasCollide,
     's02-scatter-2': scatter2,
     's02-charge-pair': chargePair,
+    's04-thermal-bath': thermalBath,
+    's04-radiative-cooling': radiativeCooling,
+    's04-cavity': cavity,
   };
 
   function build(name, opts) {
@@ -175,7 +231,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
