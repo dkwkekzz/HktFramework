@@ -13,6 +13,7 @@
   const S = isNode ? require('./scenes.js') : window.HktS0Scenes;
   const M = isNode ? require('./measure.js') : window.HktS0Measure;
   const L = isNode ? require('./levels.js') : window.HktS0Levels;
+  const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -343,6 +344,20 @@
       }
     }
 
+    // 10. ⑦ 내부 모드 — 열용량 계단 (양자 모드 순차 언프리즈). self-contained modes.js.
+    {
+      const Eat = (T0) => { const w = Mo.makeGas({ N: 160, T0, seed: 7 }); Mo.run(w, 6000); return { T: Mo.temperature(w), E: Mo.energy(w) / w.mols.length, uv: Mo.uVib(w), ur: Mo.uRot(w) }; };
+      const cvB = (a, b) => { const p = Eat(a), q = Eat(b); return { cv: (q.E - p.E) / (q.T - p.T), lo: p, hi: q }; };
+      const low = cvB(0.0008, 0.0016), mid = cvB(0.15, 0.6), high = cvB(30, 60);
+      // 목표 1 → 3/2 → 5/2. 내부 모드 LB 가 ~10~20% 뜨겁게 편향(④와 같은 계열·⑨ 통계 관문 이월).
+      log.push({ ok: low.cv > 0.9 && low.cv < 1.15, name: '⑦계단·병진(C≈1)', msg: `C_v ${fmt(low.cv)} ≈ 1 (T≪B_rot — 회전·진동 동결)` });
+      log.push({ ok: mid.cv > 1.35 && mid.cv < 1.9, name: '⑦계단·+회전(C≈3/2)', msg: `C_v ${fmt(mid.cv)} ≈ 3/2 (회전 활성·진동 동결)` });
+      log.push({ ok: high.cv > 2.2 && high.cv < 3.05, name: '⑦계단·+진동(C≈5/2)', msg: `C_v ${fmt(high.cv)} ≈ 5/2 (진동까지 활성 · LB 편향 상단)` });
+      log.push({ ok: low.cv < mid.cv && mid.cv < high.cv, name: '⑦계단·순차증가', msg: `C_v ${fmt(low.cv)} < ${fmt(mid.cv)} < ${fmt(high.cv)} (자유도 순차 언프리즈)` });
+      // 동결: 저온에서 모드 점유 ≈ 0
+      log.push({ ok: low.hi.uv === 0 && low.hi.ur < 0.01 * 160, name: '⑦저온동결', msg: `저온 U_vib=${fmt(low.hi.uv)} U_rot=${fmt(low.hi.ur)} ≈ 0` });
+    }
+
     return log;
   }
 
@@ -353,7 +368,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

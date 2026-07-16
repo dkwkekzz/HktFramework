@@ -32,12 +32,13 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①–⑥ 원자·힘·준위·전이·이온·공유결합</h1>
-    <p class="sub">준위→주기율표·볼츠만/냉각·이온 격자(NaCl)·공유결합 분자(H₂). 실선=결합·점선=복합체·노란 글로우=들뜸·빨강+/파랑− 이온.</p>
+    <h1>S0-atom · ①–⑦ 원자→분자→열용량</h1>
+    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합(H₂)·열용량 계단. "보기": 시뮬⇄준위③·열용량⑦. 실선=결합·노란=들뜸·빨강+/파랑−.</p>
 
     <div class="row">
       <label>보기</label>
       <button id="mode">시뮬 ⇄ 준위③</button>
+      <button id="modecv">열용량⑦</button>
       <span id="modelabel" class="note" style="margin:0">시뮬</span>
     </div>
     <div class="row" id="scenerow">
@@ -101,6 +102,7 @@
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="levels.js"></script>
+<script src="modes.js"></script>
 <script>
 (function () {
   const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
@@ -306,9 +308,46 @@
     });
   }
 
+  // ⑦ 열용량 계단 뷰 — C_v(T) 곡선 (양자 모드 순차 언프리즈). 최초 진입 시 1회 계산·캐시.
+  const Mo = window.HktS0Modes;
+  let cvData = null;
+  function computeCv() {
+    const T0s = [0.001, 0.003, 0.008, 0.02, 0.05, 0.12, 0.3, 0.7, 1.5, 3, 6, 12, 25, 50, 100];
+    const pts = [];
+    for (const T0 of T0s) { const w = Mo.makeGas({ N: 120, T0, seed: 7 }); Mo.run(w, 4000); pts.push({ T: Mo.temperature(w), E: Mo.energy(w) / w.mols.length }); }
+    pts.sort((a, b) => a.T - b.T);
+    const cv = [];
+    for (let i = 1; i < pts.length; i++) cv.push({ T: Math.sqrt(pts[i].T * pts[i - 1].T), Cv: (pts[i].E - pts[i - 1].E) / (pts[i].T - pts[i - 1].T) });
+    return cv;
+  }
+  function drawCv() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!cvData) { ctx.fillStyle = '#8b949e'; ctx.font = '13px monospace'; ctx.fillText('C_v(T) 계산 중… (양자 모드 평형)', 30, cv.height / 2); return; }
+    const m = 48, W = cv.width - 2 * m, H = cv.height - 2 * m;
+    const lx = (T) => m + (Math.log10(T) + 3) / 5 * W;        // T: 1e-3 ~ 1e2 (로그)
+    const ly = (C) => cv.height - m - (C - 0.5) / 2.5 * H;      // C_v: 0.5 ~ 3
+    // 목표 평탄선 1 · 3/2 · 5/2
+    ctx.font = '10px monospace';
+    for (const [C, lab] of [[1, '병진 2 (C=1)'], [1.5, '+회전 (3/2)'], [2.5, '+진동 (5/2)']]) {
+      ctx.strokeStyle = '#2b3444'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(m, ly(C)); ctx.lineTo(cv.width - m, ly(C)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#5a6472'; ctx.fillText(lab, cv.width - m - 110, ly(C) - 4);
+    }
+    // 축
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, m); ctx.lineTo(m, cv.height - m); ctx.lineTo(cv.width - m, cv.height - m); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('C_v / 분자  vs  온도 T (로그)', m, m - 14);
+    for (const e of [-3, -2, -1, 0, 1, 2]) { const x = lx(Math.pow(10, e)); ctx.fillStyle = '#5a6472'; ctx.fillText('1e' + e, x - 8, cv.height - m + 14); }
+    // 곡선
+    ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.beginPath();
+    cvData.forEach((p, i) => { const x = lx(p.T), y = ly(Math.max(0.5, Math.min(3, p.Cv))); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = '#58a6ff'; for (const p of cvData) { const x = lx(p.T), y = ly(Math.max(0.5, Math.min(3, p.Cv))); ctx.beginPath(); ctx.arc(x, y, 3, 0, 6.283); ctx.fill(); }
+  }
+
   function frame() {
     if (mode === 'sim') { if (playing) for (let i = 0; i < speed; i++) E.step(world); draw(); panel(); }
-    else { drawLevels(); }
+    else if (mode === 'levels') drawLevels();
+    else if (mode === 'cv') { drawCv(); if (!cvData) { cvData = computeCv(); } }
     requestAnimationFrame(frame);
   }
 
@@ -317,6 +356,11 @@
     mode = mode === 'sim' ? 'levels' : 'sim';
     el('modelabel').textContent = mode === 'sim' ? '시뮬' : '준위③ (순수 함수)';
     el('scenerow').style.display = mode === 'sim' ? '' : 'none';
+  };
+  el('modecv').onclick = () => {
+    mode = 'cv';
+    el('modelabel').textContent = '열용량⑦ (양자 모드)';
+    el('scenerow').style.display = 'none';
   };
   el('reset').onclick = build;
   el('scene').onchange = build;
