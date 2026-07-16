@@ -413,6 +413,72 @@
       }
     }
 
+    // 12. ⑨ 통계 관문 — 평형은 창발한다 (엔트로피 증가·화학 평형·T_국소). 새 물리 0·측정과 검증만.
+    {
+      const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+
+      // (1) 엔트로피 앙상블 증가: 저엔트로피 구석 → 자유 팽창 → 위상공간 S 증가 (제2법칙 창발).
+      //     단조 아님(개별 런 요동 허용) — R런 평균이 증가하면 통과 (DESIGN §4.1 앙상블 계약).
+      const R = 12;
+      const s0 = [], s1 = []; let nonMono = 0;
+      for (let i = 0; i < R; i++) {
+        const w = S.build('s09-entropy-corner', { seed: 500 + i, N: 100, L: 20, T0: 1.0 });
+        const a = M.entropy(w, 6, 4); E.run(w, 2000); const mid = M.entropy(w, 6, 4); E.run(w, 4000); const b = M.entropy(w, 6, 4);
+        s0.push(a); s1.push(b);
+        if (!(mid >= a - 1e-9 && b >= mid - 1e-9)) nonMono++;   // 개별 런 비단조 카운트
+      }
+      const mS0 = mean(s0), mS1 = mean(s1);
+      const seS = Math.sqrt(s1.reduce((x, y) => x + (y - mS1) * (y - mS1), 0) / (R - 1)) / Math.sqrt(R);
+      log.push({ ok: mS1 > mS0 + 3 * seS, name: '⑨엔트로피증가',
+        msg: `앙상블 ⟨S⟩ ${fmt(mS0)} → ${fmt(mS1)} (증가·3se ±${fmt(3 * seS)}) · 개별 비단조 ${nonMono}/${R} (요동 존재)` });
+
+      // (2) 셀 2배 스캔: coarse-graining 노브를 바꿔도 증가 경향 유지 (셀 의존성 정직).
+      {
+        let ok = true; const msg = [];
+        for (const nc of [4, 8]) {
+          const e = [], l = [];
+          for (let i = 0; i < 6; i++) { const w = S.build('s09-entropy-corner', { seed: 600 + i, N: 100, L: 20 }); e.push(M.entropy(w, nc, 4)); E.run(w, 6000); l.push(M.entropy(w, nc, 4)); }
+          const up = mean(l) > mean(e); ok = ok && up; msg.push(`nCell=${nc}: ${fmt(mean(e))}→${fmt(mean(l))}`);
+        }
+        log.push({ ok, name: '⑨셀2배경향유지', msg: msg.join(' · ') + ' (둘 다 증가)' });
+      }
+
+      // (3) K_eq 부피 의존 (르샤틀리에): 같은 T, 부피 2배 → 해리도 증가 (병진 상태 수 창발·author 0).
+      {
+        const dissoc = (L, seed) => { const w = S.build('s06-v1-dimer', { seed, N: 80, T0: 1.5, L }); E.run(w, 9000); const ds = []; for (let b = 0; b < 6; b++) { E.run(w, 300); ds.push(M.equilibrium(w).dissoc); } return mean(ds); };
+        const dV = mean([0, 1, 2].map((s) => dissoc(18, 30 + s))), d2V = mean([0, 1, 2].map((s) => dissoc(18 * Math.SQRT2, 30 + s)));
+        log.push({ ok: d2V > dV * 1.3, name: '⑨르샤틀리에(부피)', msg: `해리분율 V ${fmt(dV)} → 2V ${fmt(d2V)} (부피↑→해리↑·상태 수 의존·비율 공식 0)` });
+      }
+
+      // (4) van't Hoff: ln K vs 1/T 기울기 ≈ D (+병진 엔트로피 보정). 캐논ical(고정 T) 관계라 항온조 필요.
+      //     발견: ⑥ 복사 결합이 방출 냉각으로 T 를 자체 조절 → T0 스캔 안 먹음. 명시적 항온조로 T 고정(측정 전용).
+      {
+        const thermostat = (w, T) => { const Tc = M.temperature(w); if (Tc > 0) { const s = Math.sqrt(T / Tc); for (const a of w.atoms) { a.p.x *= s; a.p.y *= s; } } };
+        const lnKat = (T, seed) => {
+          const w = S.build('s06-v1-dimer', { seed, N: 80, T0: T, L: 18 });
+          for (let k = 0; k < 8000; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); }
+          const kc = [];
+          for (let b = 0; b < 8; b++) { for (let k = 0; k < 300; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); } const q = M.equilibrium(w); if (isFinite(q.Kc)) kc.push(q.Kc); }
+          return Math.log(mean(kc));
+        };
+        const Ts = [0.5, 0.8, 1.15, 1.5];
+        const pts = Ts.map((T) => ({ invT: 1 / T, lnK: mean([0, 1].map((s) => lnKat(T, 40 + s))) }));
+        const sx = mean(pts.map((p) => p.invT)), sy = mean(pts.map((p) => p.lnK));
+        let num = 0, den = 0; for (const p of pts) { num += (p.invT - sx) * (p.lnK - sy); den += (p.invT - sx) * (p.invT - sx); }
+        const slope = num / den;
+        log.push({ ok: slope > 1.4 && slope < 3.0, name: '⑨vantHoff기울기', msg: `d(lnK)/d(1/T) = ${fmt(slope)} ≈ D=2.0 (+병진 엔트로피 보정) ∈[1.4,3.0]` });
+      }
+
+      // (5) T_국소 평형 정합: 평형 장면에서 ⟨T_국소⟩ ≈ 전역 T (아레니우스 국소 T 근사의 타당 범위).
+      {
+        const w = S.build('s02-gas-collide', { seed: 7, N: 100, T0: 1.5, L: 14 });
+        E.run(w, 3000);
+        const lt = M.localTemp(w, 6);
+        const rel = Math.abs(lt.mean - lt.globalT) / Math.max(1e-9, lt.globalT);
+        log.push({ ok: rel < 0.1, name: '⑨T국소평형정합', msg: `⟨T_국소⟩ ${fmt(lt.mean)} vs 전역 ${fmt(lt.globalT)} (std ${fmt(lt.std)}·상대 ${fmt(rel)}<0.1)` });
+      }
+    }
+
     return log;
   }
 
@@ -423,7 +489,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

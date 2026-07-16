@@ -327,7 +327,58 @@
   function quadMethane(opts) { const o = opts || {}; const n = o.n || 10; const w = buildCovalent(Object.assign({ T0: 0.3 }, o), { C4: n, H1: 4 * n }); w._meta = { name: 's06-quad' }; return w; }
   function noStab(opts) { const o = opts || {}; const w = buildCovalent(Object.assign({ nu_rad: 0, nu_stab: 0 }, o), { H1: o.N || 64 }); w._meta = { name: 's06-no-stab' }; return w; }
 
+  // ── ⑨ 통계 관문 장면 (새 물리 0 — 초기 조건만) ──
+
+  // s09-entropy-corner: N 원자를 좌하단 구석(frac×frac)에 몰아넣고 힘 0(이상기체) 자유 팽창.
+  //   위상공간 엔트로피가 앙상블 평균으로 증가 (열역학 제2법칙 창발). 저엔트로피 → 고엔트로피.
+  function entropyCorner(opts) {
+    const o = opts || {};
+    const rng = o.rng || E.makeRng(o.seed || 909);
+    const N = o.N || 100, T0 = o.T0 != null ? o.T0 : 1.0, L = o.L || 20;
+    const frac = o.corner != null ? o.corner : 0.4;
+    const sm = specMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.01,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: o.frozenZ !== false,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps,   // 힘 0 (computeForces 미지정 = zeroForces)
+    });
+    for (let i = 0; i < N; i++) world.atoms.push(E.makeAtom('X', E.V.make(rng() * L * frac, rng() * L * frac, 0), E.V.zero()));
+    maxwellInit(world, T0, rng);
+    E.recomputeLedger(world);
+    world._meta = { name: 's09-entropy-corner', N };
+    return world;
+  }
+
+  // s09-gradient: 좌 절반 뜨겁게·우 절반 차갑게 → 충돌 확산으로 온도 프로파일 이완 (비평형).
+  //   T_국소 프로파일이 시간에 따라 평탄해진다 — 아레니우스 hazard 의 국소 T 추종 관찰용.
+  function tempGradient(opts) {
+    const o = opts || {};
+    const rng = o.rng || E.makeRng(o.seed || 910);
+    const N = o.N || 120, L = o.L || 16;
+    const Thot = o.Thot != null ? o.Thot : 3.0, Tcold = o.Tcold != null ? o.Tcold : 0.4;
+    const sm = specMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.004,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps, computeForces: E.pairForces,
+    });
+    latticePlace(world, N, rng);
+    const P = E.V.zero();
+    for (const a of world.atoms) {
+      const T = a.r.x < L / 2 ? Thot : Tcold, s = Math.sqrt(world.mass[a.sp] * T);
+      a.p.x = s * E.gaussian(rng); a.p.y = s * E.gaussian(rng);
+      E.V.addInto(P, a.p);
+    }
+    const n = world.atoms.length;
+    for (const a of world.atoms) { a.p.x -= P.x / n; a.p.y -= P.y / n; }
+    E.pairForces(world); E.recomputeLedger(world);
+    world._meta = { name: 's09-gradient', Thot, Tcold };
+    return world;
+  }
+
   const SCENES = {
+    's09-entropy-corner': entropyCorner,
+    's09-gradient': tempGradient,
     's01-ideal-gas': idealGas,
     's01-open-box': openBox,
     's02-gas-collide': gasCollide,
@@ -350,7 +401,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

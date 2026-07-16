@@ -113,7 +113,71 @@
     return t;
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules };
+  // ⑨ coarse-grained 위상공간 엔트로피: 공간 셀(nCell²·frozenZ) × 속도 빈(nV²) 히스토그램 →
+  //   S = −Σ pᵢ ln pᵢ. 자유 팽창(구석→전체)에서 앙상블 평균이 증가 (열역학 제2법칙 창발).
+  //   nCell 은 coarse-graining 노브 — 2배 스캔에도 증가 경향이 유지되어야 정직 (셀 의존성).
+  function entropy(world, nCell, nV) {
+    nCell = nCell || 6; nV = nV || 4;
+    const L = world.box.L, three = !world.frozenZ;
+    const vmax = 3 * Math.sqrt(temperature(world) + 1e-9);   // 속도 빈 범위 (±3σ_v)
+    const H = new Map(); let N = 0;
+    const bin = (x, lo, span, n) => Math.max(0, Math.min(n - 1, Math.floor((x - lo) / span * n)));
+    for (const a of world.atoms) {
+      const cx = bin(a.r.x, 0, L.x, nCell), cy = bin(a.r.y, 0, L.y, nCell);
+      const cz = three ? bin(a.r.z, 0, L.z, nCell) : 0;
+      const m = world.mass[a.sp], vx = a.p.x / m, vy = a.p.y / m;
+      const bx = bin(vx, -vmax, 2 * vmax, nV), by = bin(vy, -vmax, 2 * vmax, nV);
+      const key = cx + ',' + cy + ',' + cz + ',' + bx + ',' + by;
+      H.set(key, (H.get(key) || 0) + 1); N++;
+    }
+    let S = 0; for (const c of H.values()) { const p = c / N; S -= p * Math.log(p); }
+    return S;
+  }
+
+  // ⑨ 화학 평형 상수: 결합 그래프의 연결 성분 크기별 개수 → 단분자·이량체 → K_c.
+  //   K_c = [이량체]/[단분자]² = n_di·V / n_mono²  (V=넓이/부피). 상태 수 의존(부피·온도)이
+  //   비율 공식 author 0 로 미시상태 샘플링에서 창발 (커널 체크 4). dissoc = 단분자 원자 분율.
+  function equilibrium(world) {
+    const idx = new Map(); world.atoms.forEach((a, i) => idx.set(a.id, i));
+    const par = world.atoms.map((_, i) => i);
+    const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+    for (const bd of world.bonds || []) { const ia = idx.get(bd.i), ib = idx.get(bd.j); if (ia != null && ib != null) par[find(ia)] = find(ib); }
+    const size = new Map();
+    for (let i = 0; i < world.atoms.length; i++) { const r = find(i); size.set(r, (size.get(r) || 0) + 1); }
+    let nMono = 0, nDi = 0;
+    for (const s of size.values()) { if (s === 1) nMono++; else if (s === 2) nDi++; }
+    const L = world.box.L, V = world.frozenZ ? L.x * L.y : L.x * L.y * L.z;
+    const Kc = nMono > 0 ? nDi * V / (nMono * nMono) : Infinity;
+    const nAtoms = world.atoms.length;
+    return { nMono, nDi, Kc, dissoc: nAtoms ? nMono / nAtoms : 0 };
+  }
+
+  // ⑨ T_국소: 각 원자의 이웃 k체 병진 KE 평균으로 국소 온도 추정 → 분포 통계.
+  //   평형 장면: ⟨T_국소⟩ 가 전역 T 중심 (편차 통계). 아레니우스 hazard 의 T_국소 근사 점검.
+  function localTemp(world, k) {
+    k = k || 6;
+    const A = world.atoms, n = A.length, L = world.box.L, per = world.box.bc === 'periodic';
+    if (n === 0) return { mean: 0, std: 0, globalT: 0 };
+    const dof = world.frozenZ ? 2 : 3;
+    const Ts = [];
+    for (let i = 0; i < n; i++) {
+      const ds = [];
+      for (let j = 0; j < n; j++) { if (j === i) continue;
+        let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y, dz = A[i].r.z - A[j].r.z;
+        if (per) { dx = E.minImage(dx, L.x); dy = E.minImage(dy, L.y); dz = world.frozenZ ? 0 : E.minImage(dz, L.z); }
+        ds.push({ d2: dx * dx + dy * dy + dz * dz, j });
+      }
+      ds.sort((a, b) => a.d2 - b.d2);
+      let KE = E.V.lenSq(A[i].p) / (2 * world.mass[A[i].sp]), cnt = 1;
+      for (let m = 0; m < Math.min(k, ds.length); m++) { const aj = A[ds[m].j]; KE += E.V.lenSq(aj.p) / (2 * world.mass[aj.sp]); cnt++; }
+      Ts.push((2 * KE / cnt) / dof);
+    }
+    const mean = Ts.reduce((a, b) => a + b, 0) / n;
+    const std = Math.sqrt(Ts.reduce((a, b) => a + (b - mean) * (b - mean), 0) / n);
+    return { mean, std, globalT: temperature(world) };
+  }
+
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules, entropy, equilibrium, localTemp };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();
