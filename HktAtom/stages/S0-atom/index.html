@@ -32,10 +32,15 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①② 무대·장부 · 힘·충돌</h1>
-    <p class="sub">입자가 움직이고 충돌·산란한다 — 쿨롱+척력, 닫힌 장부(Verlet 표류 ≤ EPS_E)</p>
+    <h1>S0-atom · ①②③ 무대 · 힘·충돌 · 준위·예산</h1>
+    <p class="sub">입자가 충돌·산란하고(쿨롱+척력), 전자 준위가 주기율표를 만든다. "보기" 로 시뮬 ⇄ 준위③ 전환.</p>
 
     <div class="row">
+      <label>보기</label>
+      <button id="mode">시뮬 ⇄ 준위③</button>
+      <span id="modelabel" class="note" style="margin:0">시뮬</span>
+    </div>
+    <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
         <option value="s02-gas-collide">s02-gas-collide (충돌·산란)</option>
@@ -74,6 +79,7 @@
 <script src="engine.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
+<script src="levels.js"></script>
 <script>
 (function () {
   const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
@@ -158,12 +164,65 @@
     el('ledger').innerHTML = rows;
   }
 
+  // ── ③ 준위·예산 뷰 — 주기 이온화 E 차트 + 가상 원소 준위 카드 ──
+  const Lv = window.HktS0Levels;
+  const SYM = ['', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca'];
+  const ALKALI = { 3: 1, 11: 1, 19: 1 }, NOBLE = { 2: 1, 10: 1, 18: 1 };
+  function drawLevels() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    // 상단: Z vs 이온화 E 막대 (주기 지그재그)
+    const Zmax = 20, m = 34, chartH = 250, base = m + chartH;
+    let ieMax = 0; for (let z = 1; z <= Zmax; z++) ieMax = Math.max(ieMax, Lv.ionizationE(z));
+    const bw = (cv.width - 2 * m) / Zmax;
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('이온화 E (무차원) — 족 색: 알칼리▮ 희유기체▮', m, m - 12);
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, base); ctx.lineTo(cv.width - m, base); ctx.stroke();
+    for (let z = 1; z <= Zmax; z++) {
+      const ie = Lv.ionizationE(z);
+      const h = (ie / ieMax) * (chartH - 10);
+      const x = m + (z - 1) * bw;
+      ctx.fillStyle = ALKALI[z] ? '#4a8cf0' : NOBLE[z] ? '#f0934a' : '#3fa66a';
+      ctx.fillRect(x + 1, base - h, bw - 2, h);
+      ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace';
+      ctx.fillText(SYM[z], x + 1, base + 11);
+    }
+    // 하단: 가상 원소 4종 준위 카드
+    const cy0 = base + 34, cardW = (cv.width - 2 * m) / 4, ids = ['V1', 'V0', 'V2', 'V4'];
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('가상 원소 준위·예산 (author)', m, cy0 - 10);
+    ids.forEach((id, i) => {
+      const v = Lv.VIRTUAL[id], x = m + i * cardW, y = cy0, w = cardW - 8, hgt = 150;
+      ctx.strokeStyle = '#30363d'; ctx.strokeRect(x, y, w, hgt);
+      ctx.fillStyle = v.color; ctx.beginPath(); ctx.arc(x + 16, y + 18, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e6edf3'; ctx.font = 'bold 12px monospace';
+      ctx.fillText(`${id}  B=${v.B}`, x + 28, y + 22);
+      ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace';
+      ctx.fillText(`~${v.like}  m=${v.m}`, x + 6, y + 38);
+      // 준위선 (eps 위치 — 아래가 깊은 바닥)
+      const eAll = v.levels.map((l) => l.eps), emin = Math.min.apply(null, eAll), emax = Math.max.apply(null, eAll);
+      const span = (emax - emin) || 1, top = y + 52, bot = y + hgt - 14;
+      v.levels.forEach((l, k) => {
+        const ly = bot - ((l.eps - emin) / span) * (bot - top);
+        ctx.strokeStyle = k === 0 ? '#58a6ff' : '#8b949e'; ctx.lineWidth = k === 0 ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(x + 10, ly); ctx.lineTo(x + w - 30, ly); ctx.stroke();
+        ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText(`${l.name} g${l.g}`, x + w - 28, ly + 3);
+      });
+    });
+  }
+
   function frame() {
-    if (playing) for (let i = 0; i < speed; i++) E.step(world);
-    draw(); panel();
+    if (mode === 'sim') { if (playing) for (let i = 0; i < speed; i++) E.step(world); draw(); panel(); }
+    else { drawLevels(); }
     requestAnimationFrame(frame);
   }
 
+  let mode = 'sim';
+  el('mode').onclick = () => {
+    mode = mode === 'sim' ? 'levels' : 'sim';
+    el('modelabel').textContent = mode === 'sim' ? '시뮬' : '준위③ (순수 함수)';
+    el('scenerow').style.display = mode === 'sim' ? '' : 'none';
+  };
   el('reset').onclick = build;
   el('scene').onchange = build;
   el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
