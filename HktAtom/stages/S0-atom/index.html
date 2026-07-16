@@ -113,6 +113,34 @@
   const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
   const TRAIL_MAX = 18;
 
+  // 결합선 렌더: ⑤ 이온(반대 전하 근접쌍 = 이온결합 격자) · ⑥ world.bonds(공유결합·차수 굵기)
+  function drawBonds(sx, sy, L) {
+    const seg = (a, b, color, w) => {
+      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+      if (Math.abs(x1 - x0) > cv.width / 2 || Math.abs(y1 - y0) > cv.height / 2) return;  // 주기 랩 건너뜀
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+    };
+    // ⑥ 공유결합 (있으면) — 차수에 따라 굵기
+    for (const bd of world.bonds || []) {
+      const a = world.atomById(bd.i), b = world.atomById(bd.j);
+      if (a && b) seg(a, b, 'rgba(200,220,255,0.8)', 1 + 2 * (bd.order || 1));
+    }
+    // ⑤ 이온결합: 반대 전하 이온의 근접쌍을 잇는다 (격자 구조 가시화)
+    if (world.specIon) {
+      const A = world.atoms, per = world.box.bc === 'periodic', thr = 1.7 * 1.7;
+      for (let i = 0; i < A.length; i++) {
+        if (A[i].q === 0) continue;
+        for (let j = i + 1; j < A.length; j++) {
+          if (A[j].q === 0 || A[i].q * A[j].q >= 0) continue;   // 반대 전하만
+          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
+          if (per) { dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); }
+          if (dx * dx + dy * dy <= thr) seg(A[i], A[j], 'rgba(150,210,180,0.45)', 1.4);
+        }
+      }
+    }
+  }
+
   function draw() {
     const L = world.box.L;
     const sx = cv.width / L.x, sy = cv.height / L.y;
@@ -120,6 +148,8 @@
     ctx.clearRect(0, 0, cv.width, cv.height);
     ctx.strokeStyle = '#1b2230'; ctx.strokeRect(0, 0, cv.width, cv.height);
     const sp = S.SPECIES.X, rpx = Math.max(2.5, sp.radius * sx);
+
+    drawBonds(sx, sy, L);
 
     // 궤적 트레일 누적 + 그리기 (주기 랩 점프는 끊어 그린다)
     for (const a of world.atoms) {
