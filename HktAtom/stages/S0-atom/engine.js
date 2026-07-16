@@ -167,6 +167,15 @@
       m_e: o.m_e != null ? o.m_e : 0.01,   // ⑤ 전자 질량 (노브 — 실제 1/1836 은 dt 강성, 정직 근사)
       sigma_e: o.sigma_e != null ? o.sigma_e : 0.2,  // ⑤ 전자 σ (≈0 — softening 이 발산 방지)
       eps_e: o.eps_e != null ? o.eps_e : 0.05,       // ⑤ 전자 척력 세기
+      budget: o.budget || null,       // ⑥ 종별 결합차수 예산 B (③ 유도·가상 author) — 원자가 포화
+      Dbond: o.Dbond != null ? o.Dbond : 2.0,   // ⑥ 결합 우물 깊이 노브 (E_bond=−D·b)
+      d0: o.d0 != null ? o.d0 : 1.1,  // ⑥ 결합 평형 거리 노브
+      kbond: o.kbond != null ? o.kbond : 25.0,  // ⑥ 결합 스프링 강성 노브
+      nu_cplx: o.nu_cplx,             // ⑥ 복합체 형성율 (undefined → 카탈로그가 nu_col 사용)
+      nu_rad: o.nu_rad,               // ⑥ 복사 안정화율 (0 이면 복사 안정화 끔)
+      nu_stab: o.nu_stab,             // ⑥ 삼체 안정화율 (0 이면 삼체 끔)
+      nu_diss: o.nu_diss,             // ⑥ 해리율 노브
+      complexes: [],                  // ⑥ 임시 복합체 (안정화 전 — 에너지 변화 0인 자격 마커)
       atoms: [],
       electrons: [],   // ⑤ 전
       photons: [],     // ⑫ 전
@@ -232,6 +241,22 @@
         if (!ai.isElectron && !aj.isElectron) { const r = d / sig; if (r < minRatio) minRatio = r; }
       }
     }
+    // ⑥ 결합 스프링: 각 결합에 ½k(d−d0)² 우물(−D·b) — 등방 스프링(형상은 ⑭)
+    if (world.bonds && world.bonds.length) {
+      let Ub = 0;
+      for (const bd of world.bonds) {
+        const a = world.atomById(bd.i), b2 = world.atomById(bd.j);
+        if (!a || !b2) continue;
+        let dx = a.r.x - b2.r.x, dy = a.r.y - b2.r.y, dz = a.r.z - b2.r.z;
+        if (periodic) { dx = minImage(dx, L.x); dy = minImage(dy, L.y); dz = frozenZ ? 0 : minImage(dz, L.z); }
+        const d = Math.sqrt(dx * dx + dy * dy + dz * dz) || 1e-9;
+        const fs = -bd.k * (d - bd.rest), fOverD = fs / d;
+        a.F.x += fOverD * dx; a.F.y += fOverD * dy; a.F.z += fOverD * dz;
+        b2.F.x -= fOverD * dx; b2.F.y -= fOverD * dy; b2.F.z -= fOverD * dz;
+        Ub += 0.5 * bd.k * (d - bd.rest) * (d - bd.rest) - world.Dbond * bd.order;   // 진동 + 우물
+      }
+      world.ledger.U_bond = Ub;
+    } else world.ledger.U_bond = 0;
     if (frozenZ) for (const b of B) b.F.z = 0;                // z 동결: 힘의 z 누수 차단
     world.ledger.U_elec = U;
     world.virial = virial;
@@ -321,6 +346,37 @@
     return true;
   }
 
+  // ── ⑥ 공유결합 유틸 ──
+  function bondCount(world, id) { let s = 0; for (const b of world.bonds) if (b.i === id || b.j === id) s += b.order; return s; }
+  function hasBond(world, i, j) { for (const b of world.bonds) if ((b.i === i && b.j === j) || (b.i === j && b.j === i)) return true; return false; }
+  function budgetB(world, sp) { return world.budget && world.budget[sp] != null ? world.budget[sp] : 0; }
+
+  // 결합 형성 (안정화 완료) — 우물 −D 를 광자로 배출(복사 안정화) → 계에 결합 남음·에너지 보존.
+  //   2체 직접 결합 금지는 호출부(복합체 + 안정화 경로)가 강제한다.
+  function formBond(world, i, j) {
+    const a = world.atomById(i), b = world.atomById(j);
+    if (!a || !b) return false;
+    const E0 = energyFull(world);
+    world.bonds.push({ i, j, order: 1, rest: world.d0, k: world.kbond });
+    const dE = energyFull(world) - E0;             // ≈ −D + ½k(d−d0)²  (음수 = 방출)
+    world.ledger.E_photon += -dE;                  // 우물 에너지 → 복사 (P 는 빈 근사라 미보존)
+    return true;
+  }
+
+  // 해리 (R-DISS) — 결합 제거. 우물 +D 를 상대 KE 에서 흡수(부족하면 불가·아레니우스가 게이트).
+  function dissolveBond(world, bd) {
+    const i = bd.i, j = bd.j, idx = world.bonds.indexOf(bd);
+    if (idx < 0) return false;
+    const E0 = energyFull(world);
+    world.bonds.splice(idx, 1);
+    const dE = energyFull(world) - E0;             // ≈ +D (흡열)
+    const ai = world.atoms.indexOf(world.atomById(i)), aj = world.atoms.indexOf(world.atomById(j));
+    if (ai < 0 || aj < 0 || !collisionalTransfer(world, ai, aj, dE)) {  // KE 부족 → 되돌림
+      world.bonds.push(bd); energyFull(world); return false;
+    }
+    return true;
+  }
+
   // 접촉쌍 (반경 r_c 내) — ④부터 이산 채널이 사용
   function contactPairs(world) {
     const out = [], A = world.atoms, rc2 = world.rc * world.rc;
@@ -374,6 +430,48 @@
       }
     }
     runAbsorption(world);       // R-ABS — 접촉*(광자 빈 밀도). 빈이 비면 no-op
+    runBonding(world);          // ⑥ 복합체 안정화·해리. budget 없으면 no-op
+  }
+
+  // ⑥ 복합체 → 안정 결합(복사|삼체) · 결합 → 해리(아레니우스). 2체 직접 결합은 구조로 금지.
+  function inContact(world, a, b) {
+    if (!a || !b) return false;
+    let dx = a.r.x - b.r.x, dy = a.r.y - b.r.y, dz = a.r.z - b.r.z;
+    const L = world.box.L;
+    if (world.box.bc === 'periodic') { dx = minImage(dx, L.x); dy = minImage(dy, L.y); dz = world.frozenZ ? 0 : minImage(dz, L.z); }
+    const rc = world.rc;
+    return dx * dx + dy * dy + dz * dz <= rc * rc;
+  }
+  function localT(world, a, b) {          // 간이 T_국소 = 두 원자 병진 KE 평균 (2D 에서 ⟨KE⟩≈T)
+    return (V.lenSq(a.p) / (2 * world.mass[a.sp]) + V.lenSq(b.p) / (2 * world.mass[b.sp])) / 2;
+  }
+  function runBonding(world) {
+    if (!world.budget) return;
+    const dt = world.dt, rng = world.rng;
+    // 복합체 처리
+    const keep = [];
+    for (const cx of world.complexes) {
+      const a = world.atomById(cx.i), b = world.atomById(cx.j);
+      if (!a || !b || hasBond(world, cx.i, cx.j) || !inContact(world, a, b)) continue;   // 결합됨/떨어짐 → 해체
+      if (bondCount(world, cx.i) >= budgetB(world, a.sp) || bondCount(world, cx.j) >= budgetB(world, b.sp)) continue;
+      // R-STAB-3B: 제3체 접촉 시 삼체 안정화
+      let third = null;
+      for (const m of world.atoms) if (m.id !== cx.i && m.id !== cx.j && (inContact(world, a, m) || inContact(world, b, m))) { third = m; break; }
+      const kstab = world.nu_stab != null ? world.nu_stab : 1.0, krad = world.nu_rad != null ? world.nu_rad : 0.4;
+      if (third && rng() < 1 - Math.exp(-kstab * dt)) { checkedApply(world, () => formBond(world, cx.i, cx.j)); continue; }
+      if (rng() < 1 - Math.exp(-krad * dt)) { checkedApply(world, () => formBond(world, cx.i, cx.j)); continue; }
+      keep.push(cx);
+    }
+    world.complexes = keep;
+    // R-DISS: 아레니우스 해리
+    const nu = world.nu_diss != null ? world.nu_diss : 2.0;
+    for (const bd of world.bonds.slice()) {
+      const a = world.atomById(bd.i), b = world.atomById(bd.j);
+      if (!a || !b) continue;
+      const Ea = world.Dbond * bd.order, T = localT(world, a, b);
+      const k = nu * Math.exp(-Ea / Math.max(1e-6, T));
+      if (rng() < 1 - Math.exp(-k * dt)) checkedApply(world, () => dissolveBond(world, bd));
+    }
   }
 
   // R-ABS 흡수: 바닥 원자가 광자 빈에서 흡수 (E_photon → U_int). 빈 근사 → 운동량 없음(정직 한계).
@@ -512,6 +610,7 @@
     makeAtom, makeElectron, setNe, makeWorld, zeroForces, pairForces, minImage,
     recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
     setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
+    bondCount, hasBond, budgetB, formBond, dissolveBond, runBonding,
   };
 
   if (isNode) module.exports = api;

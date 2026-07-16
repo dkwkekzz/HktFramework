@@ -310,6 +310,39 @@
       }
     }
 
+    // 9. ⑥ 공유결합 (분자 형성·안정화 경로·원자가 포화·해리). ④⑤의 실행기·회계 재사용.
+    {
+      const dominant = (h) => Object.keys(h).sort((a, b) => h[b] - h[a])[0];
+
+      // 이량체 창발: H1(B=1) → H1₂ 우세 + 원자가 포화(과결합 0) + 장부 닫힘
+      {
+        const w = S.build('s06-v1-dimer', { seed: 2, N: 64, T0: 0.35 });
+        const E0 = M.ledgerTable(w).total; let maxRelE = 0;
+        for (let k = 0; k < 9000; k++) { E.step(w); if (k % 30 === 0) maxRelE = Math.max(maxRelE, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); }
+        const m = M.molecules(w), dom = dominant(m.hist);
+        log.push({ ok: dom === 'H12', name: '⑥이량체창발', msg: `우세 조성 = ${dom} (${m.hist['H12'] || 0}개 H₁₂ — author 0) · ${JSON.stringify(m.hist)}` });
+        log.push({ ok: m.maxOver <= 1e-9, name: '⑥원자가포화', msg: `과결합 max ${fmt(m.maxOver)} ≤ 0 (H₃ 덩어리 0 — B=1 포화)` });
+        log.push({ ok: maxRelE <= E.EPS_E, name: '⑥장부·결합통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E (형성·해리 회계)` });
+      }
+
+      // 안정화 필수: 안정화 행 끄면 안정 결합 급감 (2체 직접 결합 금지 — 복합체만 명멸)
+      {
+        const w = S.build('s06-no-stab', { seed: 2, N: 64, T0: 0.35 });
+        for (let k = 0; k < 7000; k++) E.step(w);
+        log.push({ ok: w.bonds.length === 0, name: '⑥안정화필수', msg: `안정화 off → 결합 ${w.bonds.length} (복합체 ${w.complexes.length} 명멸만 — 2체 직접 금지)` });
+      }
+
+      // 해리: 형성 후 가열 → 결합 감소 (아레니우스)
+      {
+        const w = S.build('s06-v1-dimer', { seed: 5, N: 64, T0: 0.3 });
+        for (let k = 0; k < 7000; k++) E.step(w);
+        const cold = w.bonds.length;
+        for (const a of w.atoms) { a.p.x *= 4; a.p.y *= 4; }
+        for (let k = 0; k < 6000; k++) E.step(w);
+        log.push({ ok: w.bonds.length < cold, name: '⑥해리(가열)', msg: `결합 ${cold} → ${w.bonds.length} (가열 시 감소 — 아레니우스)` });
+      }
+    }
+
     return log;
   }
 
@@ -320,7 +353,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

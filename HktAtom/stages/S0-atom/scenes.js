@@ -17,6 +17,10 @@
     // ⑤ 이온결합용 가상 원소 — Kat(저 IE·양이온형)·An(고 EA·음이온형). NaCl 유사.
     Kat: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#e0803a', role: 'cation', ion: { states: { 0: 0.8, 1: 0 }, minNe: 0, maxNe: 1 } },
     An: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#3a7ae0', role: 'anion', ion: { states: { 1: 0, 2: -0.6 }, minNe: 1, maxNe: 2 } },
+    // ⑥ 공유결합용 가상 원소 — 결합차수 예산 B (원자가). H1=1가·O2=2가·C4=4가.
+    H1: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.42, color: '#dfe6ee', B: 1 },
+    O2: { mass: 4.0, sigma: 1.15, eps: 1.0, radius: 0.55, color: '#e0574a', B: 2 },
+    C4: { mass: 3.0, sigma: 1.1, eps: 1.0, radius: 0.52, color: '#556070', B: 4 },
   };
 
   // ⑤ 종별 이온화 명세 맵 (engine.specIon 형식)
@@ -282,6 +286,47 @@
     return world;
   }
 
+  // ── ⑥ 공유결합 장면 ──
+
+  // 여러 종을 개수대로 섞어 배치 (예산 결합용)
+  function buildCovalent(o, counts) {
+    const rng = o.rng || E.makeRng(o.seed || 6006);
+    const specs = Object.keys(counts);
+    const N = specs.reduce((s, k) => s + counts[k], 0);
+    const L = o.L || Math.ceil(Math.sqrt(N)) * 1.8;
+    const mass = {}, sigma = {}, eps = {}, budget = {};
+    for (const k of ['H1', 'O2', 'C4']) { mass[k] = SPECIES[k].mass; sigma[k] = SPECIES[k].sigma; eps[k] = SPECIES[k].eps; budget[k] = SPECIES[k].B; }
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.004,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      mass: mass, sigma: sigma, eps: eps, budget: budget,
+      computeForces: E.pairForces, rng, catalog: C.COVALENT,
+      rc: o.rc != null ? o.rc : 1.5,
+      Dbond: o.Dbond != null ? o.Dbond : 2.0, d0: o.d0 != null ? o.d0 : 1.1, kbond: o.kbond != null ? o.kbond : 25,
+      nu_cplx: o.nu_cplx != null ? o.nu_cplx : 5, nu_rad: o.nu_rad != null ? o.nu_rad : 0.5,
+      nu_stab: o.nu_stab != null ? o.nu_stab : 1.5, nu_diss: o.nu_diss != null ? o.nu_diss : 2,
+    });
+    // 무작위 배치 (종을 섞어)
+    const bag = [];
+    for (const k of specs) for (let n = 0; n < counts[k]; n++) bag.push(k);
+    for (let i = bag.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = bag[i]; bag[i] = bag[j]; bag[j] = t; }
+    const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
+    for (let idx = 0; idx < bag.length; idx++) {
+      const ix = idx % per, iy = (idx / per) | 0;
+      const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
+      world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+    }
+    maxwellInit(world, o.T0 != null ? o.T0 : 0.35, rng);
+    E.pairForces(world); E.recomputeLedger(world);
+    world._auditP = false;   // 복사 안정화(광자 빈)가 P 미보존 — ④와 동일 (정직)
+    return world;
+  }
+
+  function v1Dimer(opts) { const o = opts || {}; const w = buildCovalent(o, { H1: o.N || 64 }); w._meta = { name: 's06-v1-dimer' }; return w; }
+  function mixedWater(opts) { const o = opts || {}; const n = o.n || 16; const w = buildCovalent(Object.assign({ T0: 0.3 }, o), { H1: 2 * n, O2: n }); w._meta = { name: 's06-mixed' }; return w; }
+  function quadMethane(opts) { const o = opts || {}; const n = o.n || 10; const w = buildCovalent(Object.assign({ T0: 0.3 }, o), { C4: n, H1: 4 * n }); w._meta = { name: 's06-quad' }; return w; }
+  function noStab(opts) { const o = opts || {}; const w = buildCovalent(Object.assign({ nu_rad: 0, nu_stab: 0 }, o), { H1: o.N || 64 }); w._meta = { name: 's06-no-stab' }; return w; }
+
   const SCENES = {
     's01-ideal-gas': idealGas,
     's01-open-box': openBox,
@@ -293,6 +338,10 @@
     's04-cavity': cavity,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
+    's06-v1-dimer': v1Dimer,
+    's06-mixed': mixedWater,
+    's06-quad': quadMethane,
+    's06-no-stab': noStab,
   };
 
   function build(name, opts) {
@@ -301,7 +350,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
