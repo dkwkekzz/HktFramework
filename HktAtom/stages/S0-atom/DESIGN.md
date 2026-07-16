@@ -152,7 +152,7 @@ MaterialModel { stateVariables · freeEnergyModel/EOS · transportCoefficients �
 
 ### 9.3 Part III — 핵 (확장팩 — 엔진의 완결 조건이 아니다)
 
-MMORPG 기반(상전이·유체·파괴·생태)에 당장 필요 없다 — 게이트 G-핵(상위 단계가 자생 에너지원 요구 시)만 유지. ㉓ 핵종·동위원소(D₂O 진동 분리 앵커) · ㉔ 붕괴 채널(α/β±/EC/γ/n·Q값·중성미자=E_escape) · ㉕ 분열(k_eff=1 경계) · ㉖ 융합(Gamow — a: D–D/D–T / b: pp·별은 S2 연계).
+게이트 G-핵의 개방 조건 둘 ([../../CONTRACT.md](../../CONTRACT.md) §6 과 동기): ① 상위 단계가 자생 에너지원(별)을 요구할 때 ② **게임플레이가 핵 사건(폭발·낙진)을 요구할 때 — 이 경우 붕괴(㉔)·분열(㉕) 먼저, 융합은 별 단계와 함께.** 가상 핵종 사용(실수치 정합 불요). ㉓ 핵종·동위원소(D₂O 진동 분리 앵커) · ㉔ 붕괴 채널(α/β±/EC/γ/n·Q값·중성미자=E_escape) · ㉕ 분열(k_eff=1 경계 — 폭발 왕복 시나리오는 CONTRACT §5) · ㉖ 융합(Gamow — a: D–D/D–T / b: pp·별은 S2 연계).
 
 ### 9.4 완결 체크
 
