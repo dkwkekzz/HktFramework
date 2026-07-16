@@ -112,11 +112,13 @@ MaterialModel { stateVariables · freeEnergyModel/EOS · transportCoefficients �
 
 ## 8. 파일 구성
 
-`DESIGN.md` · `engine.js`(연속층+전이 실행기+큐+장부) · `catalog.js`(전이 행 — hazard·에너지분배 포함) · `levels.js`(부껍질·예산 순수 함수) · `measure.js` · `scenes.js` · `verify.js` · `index.html` · `output.json`.
+`DESIGN.md` · `design/`(세부 단계별 상세 설계도 — [design/README.md](design/README.md)) · `engine.js`(연속층+전이 실행기+큐+장부) · `catalog.js`(전이 행 — hazard·에너지분배 포함) · `levels.js`(부껍질·예산 순수 함수) · `measure.js` · `scenes.js` · `verify.js` · `index.html` · `output.json`.
 
 ## 9. 세부 단계 로드맵
 
 > **MVP 가 Part I 의 관문이다**: 작은 3D 밀폐 상자에서 `원자 → 분자 형성 → 응집 → 가열 → 상변화 조짐 → 화학반응 → 냉각` 이 **하나의 장부**로 이어지고, coarse-grain 후 재해동이 왕복하는 것 — 가상 원소 3~4종으로. 실원소·현실 앵커 정합은 ⑩에서 합류. 순서의 권위는 STATE §2.
+>
+> **세부 단계별 상세 설계도는 [design/](design/README.md)** — 아래 표가 로드맵 SSOT(무엇을·어떤 순서로·닫는 기준), design/ 파일이 구현 명세(자료구조·행·장면·측정·검증·시각화·경계)다. 구현이 상세 설계와 어긋나면 design/ 문서를 고치고 step 문서에 이유를 남긴다.
 
 ### 9.1 Part I — 공통 원리와 MVP (가상 원소)
 
