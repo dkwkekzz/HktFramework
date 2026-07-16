@@ -30,6 +30,7 @@
 |---|---|---|---|
 | **큰 목표** | `CLAUDE.md` (이 문서) | 궁극 목표 · 차별점 · 참조 위치 | 거의 불변 |
 | **커널·설계** | [KERNEL.md](KERNEL.md) | 커널 정의 · 규모 사다리 · 검증 5기둥 · 로드맵 | 거의 불변 |
+| **승격 계약** | [CONTRACT.md](CONTRACT.md) | 단계 간·런타임 인터페이스 — MaterialModel 스키마 · 관측량 계약 · 재해석 조건 | 단계 닫힐 때마다 (살아있는 스펙) |
 | **현재 상태** | [STATE.md](STATE.md) | 지금 어디까지 · 다음 가설 · 열린 격차 · 인덱스 | step마다 |
 | **상세 기록** | `steps/step-NNNN.md` | 한 step = 한 조각. 발견·한계 전문 | step마다 추가 |
 | **실행 방법** | `.claude/skills/hktatom-step/SKILL.md` | step 루프를 토큰·시간 효율로 실행 | 거의 불변 |
