@@ -1,0 +1,310 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>S0-atom · ① 무대·장부</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+         background: #0d1117; color: #c9d1d9; display: flex; }
+  #stage { flex: 0 0 auto; }
+  canvas { background: #05070c; display: block; border-right: 1px solid #222; }
+  #panel { padding: 14px 18px; min-width: 320px; }
+  h1 { font-size: 14px; margin: 0 0 4px; color: #e6edf3; }
+  .sub { color: #6e7681; margin: 0 0 12px; }
+  .row { margin: 6px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label { color: #8b949e; }
+  button, select { background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+                   border-radius: 5px; padding: 4px 10px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { border-color: #58a6ff; }
+  input[type=range] { accent-color: #58a6ff; }
+  table { border-collapse: collapse; margin-top: 10px; width: 100%; }
+  td { padding: 2px 8px; border-bottom: 1px solid #161b22; }
+  td.k { color: #8b949e; } td.v { text-align: right; font-variant-numeric: tabular-nums; }
+  .zero { color: #4d5560; }
+  .big { color: #e6edf3; font-size: 13px; }
+  .resid.ok { color: #3fb950; } .resid.bad { color: #f85149; }
+  .metric { font-size: 20px; color: #58a6ff; font-variant-numeric: tabular-nums; }
+  .note { color: #6e7681; margin-top: 14px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
+  <div id="panel">
+    <h1>S0-atom · ①–⑤ 무대·힘·준위·전이·이온결합</h1>
+    <p class="sub">충돌·준위→주기율표·볼츠만/냉각/공동·전자 이전→이온 격자(NaCl). "보기"=시뮬⇄준위③. 노란 글로우=들뜸·빨강+/파랑− 이온.</p>
+
+    <div class="row">
+      <label>보기</label>
+      <button id="mode">시뮬 ⇄ 준위③</button>
+      <span id="modelabel" class="note" style="margin:0">시뮬</span>
+    </div>
+    <div class="row" id="scenerow">
+      <label>장면</label>
+      <select id="scene">
+        <option value="s05-lattice">s05-lattice (이온 격자)</option>
+        <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
+        <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
+        <option value="s04-cavity">s04-cavity (공동 평형)</option>
+        <option value="s02-gas-collide">s02-gas-collide (충돌·산란)</option>
+        <option value="s02-charge-pair">s02-charge-pair (쿨롱 ±)</option>
+        <option value="s01-ideal-gas">s01-ideal-gas (주기·z동결)</option>
+        <option value="s01-open-box">s01-open-box (열린 경계)</option>
+      </select>
+      <button id="reset">리셋</button>
+    </div>
+    <div class="row">
+      <button id="play">⏸ 일시정지</button>
+      <label>배속</label>
+      <input id="speed" type="range" min="1" max="20" value="4" />
+      <span id="speedv">4×</span>
+      <span class="note" style="margin:0">배속은 tick 수만 바꾼다 (물리 불변)</span>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div><label>t</label> <span id="t" class="metric" style="font-size:14px">0</span></div>
+      <div style="margin-left:14px"><label>T</label> <span id="temp" class="metric">0</span></div>
+      <div style="margin-left:14px"><label>N</label> <span id="natoms" class="big">0</span></div>
+    </div>
+    <div class="row">
+      <div><label>P(비리얼)</label> <span id="press" class="big">0</span></div>
+      <div style="margin-left:14px"><label>min d/σ</label> <span id="mind" class="big">–</span></div>
+    </div>
+    <div class="row" id="occrow" style="display:none">
+      <div><label>들뜸 n₁/n₀</label> <span id="occr" class="metric" style="font-size:14px;color:#ffde5a">0</span></div>
+      <div style="margin-left:12px"><label>볼츠만 (g₁/g₀)e^(−ΔE/T)</label> <span id="occb" class="big">0</span></div>
+    </div>
+    <div class="row" id="ionrow" style="display:none">
+      <div><label>이온</label> <span id="ionc" class="big"><span style="color:#f0674a">+0</span> <span style="color:#4a8cf0">−0</span> 중성0</span></div>
+      <div style="margin-left:12px"><label>교대질서</label> <span id="iono" class="metric" style="font-size:14px;color:#3fb950">0</span></div>
+    </div>
+
+    <table id="ledger"></table>
+    <p class="note" id="verifynote">
+      장부 총합은 시간 상수여야 한다 — 힘 0(①)이면 정확, 힘 있으면(②) Verlet 표류 상대 ≤ EPS_E.<br>
+      min d/σ 는 최근접 거리 비율(겹침 감시, >0.7). P 는 비리얼 압력.<br>
+      검증 전체는 <code>node verify.js</code> — ① 회계·경계·⟨T⟩ + ② E표류·겹침·θ(b) 산란·쿨롱쌍 (24 검사).
+    </p>
+  </div>
+
+<script src="engine.js"></script>
+<script src="catalog.js"></script>
+<script src="scenes.js"></script>
+<script src="measure.js"></script>
+<script src="levels.js"></script>
+<script>
+(function () {
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const el = (id) => document.getElementById(id);
+
+  let world, playing = true, speed = 4, total0 = 0;
+
+  function build() {
+    const name = el('scene').value;
+    // 각 장면 빌더의 기본 파라미터(N·T0·dt·박스)를 그대로 쓰고 seed 만 무작위화
+    world = S.build(name, { seed: (Math.random() * 1e9) | 0 });
+    total0 = M.ledgerTable(world).total;
+    trails.clear();
+  }
+
+  const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
+  const TRAIL_MAX = 18;
+
+  // 결합선 렌더: ⑤ 이온(반대 전하 근접쌍 = 이온결합 격자) · ⑥ world.bonds(공유결합·차수 굵기)
+  function drawBonds(sx, sy, L) {
+    const seg = (a, b, color, w) => {
+      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+      if (Math.abs(x1 - x0) > cv.width / 2 || Math.abs(y1 - y0) > cv.height / 2) return;  // 주기 랩 건너뜀
+      ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
+    };
+    // ⑥ 공유결합 (있으면) — 차수에 따라 굵기
+    for (const bd of world.bonds || []) {
+      const a = world.atomById(bd.i), b = world.atomById(bd.j);
+      if (a && b) seg(a, b, 'rgba(200,220,255,0.8)', 1 + 2 * (bd.order || 1));
+    }
+    // ⑤ 이온결합: 반대 전하 이온의 근접쌍을 잇는다 (격자 구조 가시화)
+    if (world.specIon) {
+      const A = world.atoms, per = world.box.bc === 'periodic', thr = 1.7 * 1.7;
+      for (let i = 0; i < A.length; i++) {
+        if (A[i].q === 0) continue;
+        for (let j = i + 1; j < A.length; j++) {
+          if (A[j].q === 0 || A[i].q * A[j].q >= 0) continue;   // 반대 전하만
+          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
+          if (per) { dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); }
+          if (dx * dx + dy * dy <= thr) seg(A[i], A[j], 'rgba(150,210,180,0.45)', 1.4);
+        }
+      }
+    }
+  }
+
+  function draw() {
+    const L = world.box.L;
+    const sx = cv.width / L.x, sy = cv.height / L.y;
+    // 상자가 매우 크면(산란 장면) 관심 영역으로 확대: 원자 경계 상자에 맞춰 스케일
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = '#1b2230'; ctx.strokeRect(0, 0, cv.width, cv.height);
+    const sp = S.SPECIES.X, rpx = Math.max(2.5, sp.radius * sx);
+
+    drawBonds(sx, sy, L);
+
+    // 궤적 트레일 누적 + 그리기 (주기 랩 점프는 끊어 그린다)
+    for (const a of world.atoms) {
+      const x = a.r.x * sx, y = cv.height - a.r.y * sy;
+      let tr = trails.get(a.id); if (!tr) { tr = []; trails.set(a.id, tr); }
+      tr.push([x, y]); if (tr.length > TRAIL_MAX) tr.shift();
+      ctx.beginPath();
+      for (let i = 1; i < tr.length; i++) {
+        const [x0, y0] = tr[i - 1], [x1, y1] = tr[i];
+        if (Math.abs(x1 - x0) > cv.width / 3 || Math.abs(y1 - y0) > cv.height / 3) { ctx.moveTo(x1, y1); continue; }
+        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      }
+      ctx.strokeStyle = 'rgba(120,170,220,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
+    for (const a of world.atoms) {
+      const x = a.r.x * sx, y = cv.height - a.r.y * sy;
+      const spd = E.V.len(a.p);
+      // ④ 들뜬 원자 글로우 (level>0) — 노란 후광
+      if (a.level > 0) {
+        const gr = ctx.createRadialGradient(x, y, 0, x, y, rpx * 3);
+        gr.addColorStop(0, 'rgba(255,220,90,0.75)'); gr.addColorStop(1, 'rgba(255,220,90,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(x, y, rpx * 3, 0, Math.PI * 2); ctx.fill();
+      }
+      ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
+      const g = Math.min(255, 90 + spd * 60) | 0;
+      ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`; ctx.fill();
+      // 전하 배지 (± 색 링) — 중성이면 없음
+      if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+      else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+    }
+    // 자유전자 (⑤) — 작은 파란 점
+    for (const e of world.electrons) {
+      ctx.beginPath(); ctx.arc(e.r.x * sx, cv.height - e.r.y * sy, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#7fbaff'; ctx.fill();
+    }
+    // 광자 빈 표시 (공동)
+    if (world.nPhotons > 0) {
+      ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
+      ctx.fillText(`광자 ${world.nPhotons}`, 8, 16);
+    }
+
+    if (world.escaped.length) {
+      ctx.fillStyle = '#f8514977'; ctx.font = '11px monospace';
+      ctx.fillText(`탈출 ${world.escaped.length}`, 8, cv.height - 8);
+    }
+  }
+
+  const ORDER = ['K_tr', 'U_elec', 'U_int', 'U_bond', 'U_vib', 'U_rot', 'U_pol', 'E_photon', 'E_nuclear', 'E_escape'];
+  function panel() {
+    el('t').textContent = world.t.toFixed(2);
+    el('temp').textContent = M.temperature(world).toFixed(4);
+    el('natoms').textContent = world.atoms.length;
+    el('press').textContent = M.pressure(world).toFixed(4);
+    el('mind').textContent = isFinite(world.minDsigma) ? world.minDsigma.toFixed(3) : '–';
+    // ④ 점유: 측정 n1/n0 vs 볼츠만 예측 (겹치면 창발 확인)
+    if (world.specLevels) {
+      const o = M.occupancy(world);
+      el('occrow').style.display = '';
+      el('occr').textContent = o.ratio.toFixed(3);
+      el('occb').textContent = o.predRatio != null ? o.predRatio.toFixed(3) : '–';
+    } else { el('occrow').style.display = 'none'; }
+    // ⑤ 이온 상태
+    if (world.specIon) {
+      const s = M.ionState(world);
+      el('ionrow').style.display = '';
+      el('ionc').innerHTML = `<span style="color:#f0674a">+${s.plus}</span> <span style="color:#4a8cf0">−${s.minus}</span> 중성${s.neutral}`;
+      el('iono').textContent = s.order.toFixed(3);
+    } else { el('ionrow').style.display = 'none'; }
+    const tab = M.ledgerTable(world);
+    let rows = '';
+    for (const k of ORDER) {
+      const v = tab[k];
+      const cls = Math.abs(v) < 1e-12 ? 'zero' : '';
+      rows += `<tr><td class="k ${cls}">${k}</td><td class="v ${cls}">${v.toFixed(6)}</td></tr>`;
+    }
+    const resid = Math.abs(tab.total - total0);
+    const rel = resid / Math.max(1e-12, Math.abs(total0));
+    // 힘 0(①) 이면 정확(≤1e-9), 힘 있으면(②) Verlet 표류 상대 ≤ EPS_E 를 기준으로 판정
+    const hasForce = tab.U_elec !== 0;
+    const rc = hasForce ? (rel <= E.EPS_E ? 'ok' : 'bad') : (resid <= 1e-9 ? 'ok' : 'bad');
+    const label = hasForce ? `상대잔차 (≤EPS_E ${E.EPS_E})` : '잔차 |Σ−Σ₀|';
+    const val = hasForce ? rel.toExponential(2) : resid.toExponential(2);
+    rows += `<tr><td class="k big">Σ total</td><td class="v big">${tab.total.toFixed(6)}</td></tr>`;
+    rows += `<tr><td class="k">${label}</td><td class="v resid ${rc}">${val}</td></tr>`;
+    el('ledger').innerHTML = rows;
+  }
+
+  // ── ③ 준위·예산 뷰 — 주기 이온화 E 차트 + 가상 원소 준위 카드 ──
+  const Lv = window.HktS0Levels;
+  const SYM = ['', 'H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca'];
+  const ALKALI = { 3: 1, 11: 1, 19: 1 }, NOBLE = { 2: 1, 10: 1, 18: 1 };
+  function drawLevels() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    // 상단: Z vs 이온화 E 막대 (주기 지그재그)
+    const Zmax = 20, m = 34, chartH = 250, base = m + chartH;
+    let ieMax = 0; for (let z = 1; z <= Zmax; z++) ieMax = Math.max(ieMax, Lv.ionizationE(z));
+    const bw = (cv.width - 2 * m) / Zmax;
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('이온화 E (무차원) — 족 색: 알칼리▮ 희유기체▮', m, m - 12);
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, base); ctx.lineTo(cv.width - m, base); ctx.stroke();
+    for (let z = 1; z <= Zmax; z++) {
+      const ie = Lv.ionizationE(z);
+      const h = (ie / ieMax) * (chartH - 10);
+      const x = m + (z - 1) * bw;
+      ctx.fillStyle = ALKALI[z] ? '#4a8cf0' : NOBLE[z] ? '#f0934a' : '#3fa66a';
+      ctx.fillRect(x + 1, base - h, bw - 2, h);
+      ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace';
+      ctx.fillText(SYM[z], x + 1, base + 11);
+    }
+    // 하단: 가상 원소 4종 준위 카드
+    const cy0 = base + 34, cardW = (cv.width - 2 * m) / 4, ids = ['V1', 'V0', 'V2', 'V4'];
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('가상 원소 준위·예산 (author)', m, cy0 - 10);
+    ids.forEach((id, i) => {
+      const v = Lv.VIRTUAL[id], x = m + i * cardW, y = cy0, w = cardW - 8, hgt = 150;
+      ctx.strokeStyle = '#30363d'; ctx.strokeRect(x, y, w, hgt);
+      ctx.fillStyle = v.color; ctx.beginPath(); ctx.arc(x + 16, y + 18, 7, 0, Math.PI * 2); ctx.fill();
+      ctx.fillStyle = '#e6edf3'; ctx.font = 'bold 12px monospace';
+      ctx.fillText(`${id}  B=${v.B}`, x + 28, y + 22);
+      ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace';
+      ctx.fillText(`~${v.like}  m=${v.m}`, x + 6, y + 38);
+      // 준위선 (eps 위치 — 아래가 깊은 바닥)
+      const eAll = v.levels.map((l) => l.eps), emin = Math.min.apply(null, eAll), emax = Math.max.apply(null, eAll);
+      const span = (emax - emin) || 1, top = y + 52, bot = y + hgt - 14;
+      v.levels.forEach((l, k) => {
+        const ly = bot - ((l.eps - emin) / span) * (bot - top);
+        ctx.strokeStyle = k === 0 ? '#58a6ff' : '#8b949e'; ctx.lineWidth = k === 0 ? 2 : 1;
+        ctx.beginPath(); ctx.moveTo(x + 10, ly); ctx.lineTo(x + w - 30, ly); ctx.stroke();
+        ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText(`${l.name} g${l.g}`, x + w - 28, ly + 3);
+      });
+    });
+  }
+
+  function frame() {
+    if (mode === 'sim') { if (playing) for (let i = 0; i < speed; i++) E.step(world); draw(); panel(); }
+    else { drawLevels(); }
+    requestAnimationFrame(frame);
+  }
+
+  let mode = 'sim';
+  el('mode').onclick = () => {
+    mode = mode === 'sim' ? 'levels' : 'sim';
+    el('modelabel').textContent = mode === 'sim' ? '시뮬' : '준위③ (순수 함수)';
+    el('scenerow').style.display = mode === 'sim' ? '' : 'none';
+  };
+  el('reset').onclick = build;
+  el('scene').onchange = build;
+  el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
+  el('speed').oninput = (e) => { speed = +e.target.value; el('speedv').textContent = speed + '×'; };
+
+  build();
+  frame();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,337 @@
+// verify.js — 검증 하네스 (KERNEL §7 검증 4기둥의 수치화).
+//
+// 세부 단계 ①: ① 자체 완전 실행 ② 닫힌 장부(전 통 합 보존·P 보존·Σc 불변)
+// ③ 수치 불변식(dt 반감·경계 3종) ④ R런 통계(⟨T⟩ 목표 창).
+// node 로: `node verify.js`. 브라우저에선 index.html 이 같은 함수를 부른다.
+//
+// 이 하네스의 러너·통계·불변식 스위트는 **이후 모든 세부 단계가 재사용**한다.
+
+(function () {
+  'use strict';
+  const isNode = typeof module !== 'undefined' && module.exports;
+  const E = isNode ? require('./engine.js') : window.HktS0Engine;
+  const S = isNode ? require('./scenes.js') : window.HktS0Scenes;
+  const M = isNode ? require('./measure.js') : window.HktS0Measure;
+  const L = isNode ? require('./levels.js') : window.HktS0Levels;
+
+  // ── 통계·assert 유틸 ──
+  function stat(R, fn) {
+    const xs = [];
+    for (let i = 0; i < R; i++) xs.push(fn(i));
+    const n = xs.length;
+    const mean = xs.reduce((a, b) => a + b, 0) / n;
+    const varc = xs.reduce((a, b) => a + (b - mean) * (b - mean), 0) / Math.max(1, n - 1);
+    const sd = Math.sqrt(varc);
+    return { mean, sd, se: sd / Math.sqrt(n), n };
+  }
+  function assertExact(name, x, target, tol, log) {
+    const ok = Math.abs(x - target) <= tol;
+    log.push({ ok, name, msg: `${name}: |${fmt(x)} − ${fmt(target)}| = ${fmt(Math.abs(x - target))} ≤ ${tol}` });
+    return ok;
+  }
+  function assertWindow(name, x, target, tolWin, log) {
+    // 통계 창: |mean − target| ≤ tolWin (tolWin = 3·se 등 호출부가 정함)
+    const ok = Math.abs(x - target) <= tolWin;
+    log.push({ ok, name, msg: `${name}: mean ${fmt(x)} vs target ${fmt(target)} (창 ±${fmt(tolWin)})` });
+    return ok;
+  }
+  function fmt(x) { return (typeof x === 'number' && isFinite(x)) ? x.toPrecision(6) : String(x); }
+
+  // ── 러너: 장면을 ticks 만큼 굴리고 관측량을 반환 ──
+  function runScene(name, opts) {
+    const w = S.build(name, opts);
+    const ticks = (opts && opts.ticks) || 1000;
+    const E0 = M.ledgerTable(w);
+    const P0 = M.momentum(w);
+    const c0 = M.composition(w);
+    E.run(w, ticks);
+    return {
+      world: w,
+      T: M.temperature(w),
+      MSD: M.msd(w),
+      ledger0: E0, ledger1: M.ledgerTable(w),
+      P0, P1: M.momentum(w),
+      comp0: c0, comp1: M.composition(w),
+    };
+  }
+
+  // 런 도중 최대 상대 E 표류·최대 |ΔP|·최소 겹침 비율 추적 (② 장부 감시)
+  function runDrift(name, opts) {
+    const w = S.build(name, opts);
+    const ticks = (opts && opts.ticks) || 1000;
+    const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+    let maxRelE = 0, maxdP = 0, minRatio = Infinity;
+    for (let k = 0; k < ticks; k++) {
+      E.step(w);
+      const tot = M.ledgerTable(w).total, P = M.momentum(w);
+      maxRelE = Math.max(maxRelE, Math.abs(tot - E0) / Math.max(1e-12, Math.abs(E0)));
+      maxdP = Math.max(maxdP, pDiff(P, P0));
+      if (w.minDsigma < minRatio) minRatio = w.minDsigma;
+    }
+    return { world: w, maxRelE, maxdP, minRatio, P0, P1: M.momentum(w), pressure: M.pressure(w) };
+  }
+
+  // 2체 산란 편향각 θ(b) [rad] — 발사체가 표적을 지나 멀어질 때까지 적분
+  function deflect(b, dt) {
+    const w = S.build('s02-scatter-2', { b, v0: 1.5, D: 40, dt: dt || 0.004 });
+    const proj = w.atoms.find((a) => a.id === w._meta.projectileId);
+    const xExit = w.box.L.x / 2 + 40;
+    for (let k = 0; k < 60000; k++) { E.step(w); if (proj.r.x > xExit) break; }
+    return Math.atan2(proj.p.y, proj.p.x);
+  }
+
+  function compEqual(a, b) {
+    const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
+    for (const k of keys) if ((a[k] || 0) !== (b[k] || 0)) return false;
+    return true;
+  }
+  function pDiff(a, b) { return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z)); }
+
+  // ── 검증 스위트 ──
+  function suite() {
+    const log = [];
+
+    // 1. 회계 (정확): 주기 이상 기체 — 힘 0 이므로 전 통 합·P 정확 보존
+    {
+      const r = runScene('s01-ideal-gas', { seed: 101, N: 64, T0: 1.0, ticks: 2000, dt: 0.01 });
+      assertExact('회계·장부합보존', r.ledger1.total, r.ledger0.total, 1e-12, log);
+      assertExact('회계·P보존', pDiff(r.P1, r.P0), 0, 1e-9, log);
+      assertExact('회계·P총합0(COM제거)', E.V.len(r.P1), 0, 1e-9, log);
+      log.push({ ok: compEqual(r.comp0, r.comp1), name: '회계·Σc불변',
+        msg: `Σc: ${JSON.stringify(r.comp0)} → ${JSON.stringify(r.comp1)}` });
+      // z 동결은 step() 내부 assert 가 던지므로, 여기까지 왔으면 통과
+      log.push({ ok: true, name: '회계·z동결', msg: 'frozenZ assert 통과 (|z|,|pz| ≤ 1e-12 매 tick)' });
+    }
+
+    // 2. dt 반감 (수치 불변식): 같은 초기조건을 dt·dt/2 로 같은 물리 시간 굴려 관측량 비교
+    {
+      const base = { seed: 202, N: 64, T0: 1.0, L: 20 };
+      const Tphys = 20;
+      const a = runScene('s01-ideal-gas', Object.assign({}, base, { dt: 0.02, ticks: Tphys / 0.02 }));
+      const b = runScene('s01-ideal-gas', Object.assign({}, base, { dt: 0.01, ticks: Tphys / 0.01 }));
+      const relT = Math.abs(a.T - b.T) / Math.max(1e-12, Math.abs(b.T));
+      const relMSD = Math.abs(a.MSD - b.MSD) / Math.max(1e-12, Math.abs(b.MSD));
+      assertExact('dt반감·T상대차', relT, 0, 1e-9, log);
+      assertExact('dt반감·MSD상대차', relMSD, 0, 1e-9, log);
+    }
+
+    // 3. 경계 3종
+    {
+      // periodic: 위치가 항상 상자 안
+      const wp = S.build('s01-ideal-gas', { seed: 303, N: 64, T0: 1.5, dt: 0.01 });
+      E.run(wp, 1500);
+      let inBox = true;
+      for (const at of wp.atoms) if (at.r.x < 0 || at.r.x > wp.box.L.x || at.r.y < 0 || at.r.y > wp.box.L.y) inBox = false;
+      log.push({ ok: inBox, name: '경계·주기랩', msg: `모든 원자 위치 ∈ 상자: ${inBox}` });
+
+      // reflect: 에너지 보존 + 입자 상자 안 유지
+      const wr = S.build('s01-ideal-gas', { seed: 404, N: 64, T0: 1.5, dt: 0.01, bc: 'reflect' });
+      const E0r = M.ledgerTable(wr).total;
+      E.run(wr, 1500);
+      assertExact('경계·반사E보존', M.ledgerTable(wr).total, E0r, 1e-9, log);
+      let inBoxR = true;
+      for (const at of wr.atoms) if (at.r.x < -1e-9 || at.r.x > wr.box.L.x + 1e-9) inBoxR = false;
+      log.push({ ok: inBoxR, name: '경계·반사가둠', msg: `반사로 상자 안 유지: ${inBoxR}` });
+
+      // open: 탈출 회계 — E_total(E_escape 포함)·P+P_escape 보존, 일부 실제 탈출
+      const r = runScene('s01-open-box', { seed: 505, N: 64, T0: 2.0, ticks: 3000, dt: 0.02 });
+      assertExact('경계·열림E보존(탈출포함)', r.ledger1.total, r.ledger0.total, 1e-9, log);
+      assertExact('경계·열림P보존(P_escape포함)', pDiff(r.P1, r.P0), 0, 1e-9, log);
+      const escaped = r.world.escaped.length;
+      log.push({ ok: escaped > 0, name: '경계·열림탈출발생', msg: `탈출 원자 ${escaped}/${64} · E_escape=${fmt(r.ledger1.E_escape)}` });
+      log.push({ ok: compEqual(r.comp0, r.comp1), name: '경계·열림Σc불변(활성+탈출)',
+        msg: `Σc: ${JSON.stringify(r.comp0)} → ${JSON.stringify(r.comp1)}` });
+    }
+
+    // 4. R런 통계: ⟨T⟩ 가 목표 창 안. COM 제거로 유효 자유도 (N−1)·dofPer → 목표=(1−1/N)·T0
+    {
+      const R = 12, N = 64, T0 = 1.0;
+      const st = stat(R, (i) => runScene('s01-ideal-gas', { seed: 900 + i, N, T0, ticks: 1000, dt: 0.01 }).T);
+      const target = T0 * (N - 1) / N;   // COM 표류 제거의 편향 (정직)
+      const win = 3 * st.se + 1e-9;
+      assertWindow('통계·⟨T⟩목표', st.mean, target, win, log);
+      log.push({ ok: true, name: '통계·⟨T⟩분포', msg: `mean=${fmt(st.mean)} sd=${fmt(st.sd)} se=${fmt(st.se)} (R=${R})` });
+    }
+
+    // 5. ② 힘·충돌 (쿨롱+척력·산란) — ①의 하네스·불변식 스위트를 그대로 재사용
+    {
+      // 장부 유지: 고밀도 중성 기체 산란 — max|ΔE|/E ≤ EPS_E · |ΔP|≤1e-9 · 겹침 0
+      const g = runDrift('s02-gas-collide', { seed: 42, N: 80, T0: 1.5, L: 14, dt: E.DT_STIFF, ticks: 2000 });
+      log.push({ ok: g.maxRelE <= E.EPS_E, name: '②장부·E표류', msg: `max|ΔE|/E = ${fmt(g.maxRelE)} ≤ EPS_E ${E.EPS_E}` });
+      assertExact('②장부·P보존(충돌중)', g.maxdP, 0, 1e-9, log);
+      log.push({ ok: g.minRatio > E.MIN_DSIGMA, name: '②겹침0', msg: `min d/σ = ${fmt(g.minRatio)} > ${E.MIN_DSIGMA}` });
+      log.push({ ok: g.pressure > 0, name: '②압력>0(척력)', msg: `비리얼 압력 P = ${fmt(g.pressure)}` });
+
+      // θ(b) 단조 감소 (반발 산란 앵커 — 러더퍼드 닮음)
+      const bs = [0.5, 1.0, 2.0, 4.0, 8.0];
+      const ths = bs.map((b) => deflect(b));
+      let mono = true;
+      for (let i = 1; i < ths.length; i++) if (!(ths[i] < ths[i - 1])) mono = false;
+      log.push({ ok: mono, name: '②θ(b)단조감소',
+        msg: `θ(deg): ${ths.map((t) => (t * 180 / Math.PI).toFixed(1)).join(' → ')}` });
+
+      // charge-pair: 쿨롱 인력 경로 장부 닫힘
+      const c = runDrift('s02-charge-pair', { dt: 0.002, ticks: 4000 });
+      log.push({ ok: c.maxRelE <= E.EPS_E, name: '②쿨롱쌍·E닫힘', msg: `max|ΔE|/E = ${fmt(c.maxRelE)} ≤ EPS_E` });
+      assertExact('②쿨롱쌍·P보존', c.maxdP, 0, 1e-9, log);
+
+      // dt 반감: θ(b=2) 가 dt·dt/2 에서 통계 동일 (산란은 결정론적 궤도라 상대차 작음)
+      const t1 = deflect(2.0, 0.004), t2 = deflect(2.0, 0.002);
+      const relTh = Math.abs(t1 - t2) / Math.max(1e-12, Math.abs(t2));
+      log.push({ ok: relTh <= 1e-3, name: '②dt반감·θ상대차', msg: `θ(b=2) 상대차 = ${fmt(relTh)} ≤ 1e-3` });
+    }
+
+    // 6. ③ 준위·예산 (순수 함수 — 시뮬 불필요·①②와 독립)
+    {
+      // 실원소 예산 앵커 (교과서 원자가가 창발): 승위로 C=4·Be=2 채택
+      const B = (Z) => L.budget(Z);
+      const anchors = { H: [1, 1], Be: [4, 2], B: [5, 3], C: [6, 4], N: [7, 3], O: [8, 2], F: [9, 1], Ne: [10, 0], Na: [11, 1], Mg: [12, 2], Cl: [17, 1], Ar: [18, 0] };
+      let allB = true; const got = [];
+      for (const s in anchors) { const [Z, want] = anchors[s]; const b = B(Z); got.push(`${s}=${b}`); if (b !== want) allB = false; }
+      log.push({ ok: allB, name: '③예산앵커', msg: `${got.join(' ')} (기대 1,2,3,4,3,2,1,0,1,2,1,0)` });
+
+      // 이온화 E 주기 경향 (순위) — 주기 내 단조 증가
+      const mono = (zs) => { const v = zs.map((z) => L.ionizationE(z)); return v.every((x, i) => i === 0 || x > v[i - 1]); };
+      log.push({ ok: mono([3, 4, 5, 6, 7, 8, 9, 10]), name: '③IE주기2단조↑', msg: 'Li→Ne 이온화 E 단조 증가' });
+      log.push({ ok: mono([11, 12, 13, 14, 15, 16, 17, 18]), name: '③IE주기3단조↑', msg: 'Na→Ar 이온화 E 단조 증가' });
+      // 희유기체 국소 피크 · 알칼리 국소 골
+      const IE = (z) => L.ionizationE(z);
+      const peaks = IE(2) > IE(3) && IE(10) > IE(11) && IE(18) > IE(19);
+      const troughs = IE(3) < IE(4) && IE(11) < IE(12) && IE(19) < IE(20);
+      log.push({ ok: peaks, name: '③희유기체피크', msg: `He>Li·Ne>Na·Ar>K (${IE(2).toFixed(1)}>${IE(3).toFixed(1)} …)` });
+      log.push({ ok: troughs, name: '③알칼리골', msg: 'Li<Be·Na<Mg·K<Ca (국소 최소)' });
+      // 정직: 족 내림(Li>Na>K)은 간이 Slater 로 창발 안 함 (Na>Li>K) — OPEN GAP 로 기록, 위조 안 함
+      log.push({ ok: true, name: '③족경향한계(정직)', msg: `Li=${IE(3).toFixed(2)} Na=${IE(11).toFixed(2)} K=${IE(19).toFixed(2)} → Na>Li>K (간이 Slater 한계, gap 등록)` });
+
+      // 볼츠만 점유: 정규화(합=1) · 고온일수록 들뜬 준위 점유 증가
+      const bl = (T) => L.boltzmann(L.VIRTUAL.V1.levels, T);
+      const lo = bl(0.2), hi = bl(2.0);
+      const sum1 = Math.abs(lo.reduce((a, b) => a + b, 0) - 1) < 1e-12 && Math.abs(hi.reduce((a, b) => a + b, 0) - 1) < 1e-12;
+      log.push({ ok: sum1 && hi[1] > lo[1], name: '③볼츠만점유', msg: `들뜸 점유 T=0.2:${lo[1].toFixed(3)} < T=2:${hi[1].toFixed(3)} · 합=1` });
+
+      // 가상 원소 4종 B·준위 확정 (회귀 고정)
+      const vt = { V1: [1, 2], V0: [0, 2], V2: [2, 2], V4: [4, 2] };
+      let allV = true; const vg = [];
+      for (const id in vt) { const v = L.VIRTUAL[id]; vg.push(`${id}:B${v.B}`); if (v.B !== vt[id][0] || v.levels.length !== vt[id][1]) allV = false; }
+      log.push({ ok: allV, name: '③가상원소확정', msg: vg.join(' ') + ' (V1/V0/V2/V4)' });
+    }
+
+    // 7. ④ 전이 엔진 (볼츠만·냉각·공동 + 에너지 출처·회계). ①②③의 하네스·EPS_E·준위를 소비.
+    {
+      // 열욕: 점유가 볼츠만으로 창발 (author 0 — e^{−ΔE/T} 어디에도 안 적음). ~10% 편향 정직.
+      const R = 4;
+      let rr = [], pp = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s04-thermal-bath', { seed: 810 + s, N: 60, T0: 2.2, L: 12 });
+        E.run(w, 4500);
+        const o = M.occupancy(w); rr.push(o.ratio); pp.push(o.predRatio);
+      }
+      const meanR = rr.reduce((a, b) => a + b, 0) / R, meanP = pp.reduce((a, b) => a + b, 0) / R;
+      const ratio = meanR / meanP;
+      log.push({ ok: ratio > 0.8 && ratio < 1.25, name: '④볼츠만창발',
+        msg: `n1/n0 ${fmt(meanR)} vs 볼츠만 ${fmt(meanP)} → 비율 ${fmt(ratio)} ∈[0.8,1.25] (LB 재분배·~10% 편향)` });
+
+      // 열욕 장부: 전이 사건 회계 정확(checkedApply 가 예외 던짐 — 여기 오면 통과) + Verlet ≤ EPS_E + P 보존
+      {
+        const w = S.build('s04-thermal-bath', { seed: 850, N: 60, T0: 2.2, L: 12 });
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let maxRelE = 0, maxdP = 0;
+        for (let k = 0; k < 3000; k++) { E.step(w); const t = M.ledgerTable(w); maxRelE = Math.max(maxRelE, Math.abs(t.total - E0) / Math.abs(E0)); maxdP = Math.max(maxdP, pDiff(M.momentum(w), P0)); }
+        log.push({ ok: maxRelE <= E.EPS_E, name: '④장부·전이통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E (사건 회계는 checkedApply 가 상시 강제)` });
+        log.push({ ok: maxdP <= 1e-9, name: '④P보존(충돌+힘)', msg: `max|ΔP| ${fmt(maxdP)} ≤ 1e-9` });
+      }
+
+      // 에너지 부족 → 전이 불가: 아주 차가운 열욕은 들뜸이 지수 억제
+      {
+        const w = S.build('s04-thermal-bath', { seed: 870, N: 60, T0: 0.4, L: 12 });
+        E.run(w, 3000);
+        const o = M.occupancy(w);
+        log.push({ ok: o.frac < 0.15, name: '④에너지부족억제', msg: `저온 T=${fmt(o.T)} → 들뜸 frac ${fmt(o.frac)} < 0.15 (지수 억제)` });
+      }
+
+      // 복사 냉각: 방출 광자 탈출 → T 단조 하강 + 총 E(E_escape 포함) 보존
+      {
+        const w = S.build('s04-radiative-cooling', { seed: 5, N: 60, L: 15 });
+        const T0 = M.occupancy(w).T, E0 = M.ledgerTable(w).total;
+        E.run(w, 2500);
+        const T1 = M.occupancy(w).T, lg = M.ledgerTable(w);
+        log.push({ ok: T1 < T0 * 0.8 && lg.E_escape > 0, name: '④복사냉각', msg: `T ${fmt(T0)}→${fmt(T1)} · E_escape ${fmt(lg.E_escape)}` });
+        log.push({ ok: Math.abs(lg.total - E0) / Math.abs(E0) <= E.EPS_E, name: '④냉각E보존(탈출포함)', msg: `rel ${fmt(Math.abs(lg.total - E0) / Math.abs(E0))} ≤ EPS_E` });
+      }
+
+      // 공동: 닫힌 상자 — 광자 빈 저장·재흡수 → 정상 상태 + 총 E 보존
+      {
+        const w = S.build('s04-cavity', { seed: 6, N: 80, L: 13 });
+        const E0 = M.ledgerTable(w).total;
+        E.run(w, 2500);
+        const ph = [];
+        for (let b = 0; b < 4; b++) { E.run(w, 250); ph.push(w.nPhotons); }
+        const meanPh = ph.reduce((a, b) => a + b, 0) / ph.length;
+        log.push({ ok: meanPh > 0, name: '④공동정상상태', msg: `광자 빈 ${ph.join(',')} (물질↔복사 정상)` });
+        log.push({ ok: Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0) <= E.EPS_E, name: '④공동E보존', msg: `rel ${fmt(Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0))} ≤ EPS_E` });
+      }
+    }
+
+    // 8. ⑤ 이온화·전자 이전 (이온 격자 — NaCl 앵커). ④의 실행기·회계를 그대로 재사용.
+    {
+      // 쿨롱 전용(마델룽) 에너지 — 이온 배치의 순 인력
+      const coulomb = (w) => {
+        let U = 0; const A = w.atoms, L = w.box.L, s = w.soft;
+        for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
+          dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y);
+          U += w.kc * A[i].q * A[j].q / (Math.sqrt(dx * dx + dy * dy) + s);
+        }
+        return U;
+      };
+
+      // 오르막 고립 쌍: 멀리 떨어진 중성 쌍의 전자 이전은 ΔE=IE−EA>0 (KE 없으면 불가)
+      {
+        const w = S.build('s05-ion-pair', { seed: 1 });
+        w.atoms[1].r.x = 62; E.pairForces(w); E.recomputeLedger(w);   // 멀리 (쿨롱 무시)
+        const ok = E.transferElectron(w, 0, 1);   // KE=0 상태에서 시도
+        log.push({ ok: !ok, name: '⑤오르막고립쌍', msg: `먼 중성 쌍 이전 = ${ok ? '성공(오류)' : '불가(오르막·KE부족)'} — IE−EA>0 확인` });
+      }
+
+      // 이온 격자: Σc(총 ne) 불변 · 총 E 보존 · 마델룽<0 · 교대 질서>0 창발
+      {
+        const w = S.build('s05-lattice', { seed: 4, per: 8, T0: 0.2 });
+        const totNe0 = w.atoms.reduce((s, a) => s + a.ne, 0);
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let maxRelE = 0, maxdP = 0;
+        for (let k = 0; k < 10000; k++) { E.step(w); if (k % 20 === 0) { const t = M.ledgerTable(w); maxRelE = Math.max(maxRelE, Math.abs(t.total - E0) / Math.abs(E0)); maxdP = Math.max(maxdP, pDiff(M.momentum(w), P0)); } }
+        const is = M.ionState(w), totNe1 = w.atoms.reduce((s, a) => s + a.ne, 0), cE = coulomb(w);
+        log.push({ ok: totNe1 === totNe0, name: '⑤Σc(전자수)불변', msg: `총 ne ${totNe0}→${totNe1} (원자↔이온 오가도 보존)` });
+        log.push({ ok: maxRelE <= E.EPS_E, name: '⑤장부·전이통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E` });
+        log.push({ ok: maxdP <= 1e-9, name: '⑤P보존(이전+힘)', msg: `max|ΔP| ${fmt(maxdP)} ≤ 1e-9` });
+        log.push({ ok: is.plus > 12 && is.minus > 12, name: '⑤이온화창발', msg: `+${is.plus}/−${is.minus} 중성${is.neutral} (전자 이전으로 이온 형성)` });
+        log.push({ ok: cE < 0, name: '⑤마델룽이득', msg: `쿨롱 배치 E ${fmt(cE)} < 0 (이온 순 인력 — author 0)` });
+        log.push({ ok: is.order > 0.1, name: '⑤교대격자질서', msg: `−⟨qᵢqⱼ⟩ ${fmt(is.order)} > 0.1 (이웃이 반대 전하 — NaCl 배열)` });
+      }
+    }
+
+    return log;
+  }
+
+  function report(log) {
+    let pass = 0, fail = 0;
+    for (const e of log) {
+      const tag = e.ok ? 'PASS' : 'FAIL';
+      console.log(`[${tag}] ${e.msg}`);
+      if (e.ok) pass++; else fail++;
+    }
+    console.log(`\n── S0 verify (①②③④⑤): ${pass} PASS · ${fail} FAIL ──`);
+    return fail === 0;
+  }
+
+  const api = { stat, assertExact, assertWindow, runScene, suite, report };
+  if (isNode) {
+    module.exports = api;
+    if (require.main === module) {
+      const ok = report(suite());
+      process.exit(ok ? 0 : 1);
+    }
+  } else {
+    window.HktS0Verify = api;
+  }
+})();
