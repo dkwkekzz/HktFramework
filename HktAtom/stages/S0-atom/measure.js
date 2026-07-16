@@ -70,6 +70,23 @@
     return { n0, n1, frac: n1 / Math.max(1, n0 + n1), ratio: n1 / Math.max(1e-9, n0), T, predRatio, nPhotons: world.nPhotons };
   }
 
+  // ⑤ 전하 상태: +/−/중성 개수 · 이온화 분율 · 이온 교대 질서 파라미터.
+  //   질서 = −⟨qᵢqⱼ⟩ (접촉쌍) — 양수 = 이웃이 반대 전하(교대 격자·이온 응집).
+  function ionState(world) {
+    let plus = 0, minus = 0, neutral = 0;
+    for (const a of world.atoms) { if (a.q > 0) plus++; else if (a.q < 0) minus++; else neutral++; }
+    // 접촉쌍 전하 상관
+    const L = world.box.L, per = world.box.bc === 'periodic', rc2 = (world.rc || 1.6) * (world.rc || 1.6);
+    let sum = 0, cnt = 0, A = world.atoms;
+    for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+      let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y, dz = A[i].r.z - A[j].r.z;
+      if (per) { dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); if (!world.frozenZ) dz -= L.z * Math.round(dz / L.z); else dz = 0; }
+      if (dx * dx + dy * dy + dz * dz <= rc2) { sum += A[i].q * A[j].q; cnt++; }
+    }
+    const n = world.atoms.length;
+    return { plus, minus, neutral, frac: (plus + minus) / Math.max(1, n), order: cnt ? -sum / cnt : 0, nElectrons: world.electrons.length };
+  }
+
   // 장부 통 표 + 총합. 총합 = Σ(전 통) 이 시간 상수여야 한다.
   function ledgerTable(world) {
     const t = {};
@@ -78,7 +95,7 @@
     return t;
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy };
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();

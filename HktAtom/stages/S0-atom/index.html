@@ -32,8 +32,8 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①②③④ 무대·힘·준위·전이</h1>
-    <p class="sub">충돌·산란(쿨롱+척력) · 준위→주기율표 · 들뜸/방출/흡수로 볼츠만·냉각·공동 창발. "보기"=시뮬⇄준위③. 노란 글로우=들뜸.</p>
+    <h1>S0-atom · ①–⑤ 무대·힘·준위·전이·이온결합</h1>
+    <p class="sub">충돌·준위→주기율표·볼츠만/냉각/공동·전자 이전→이온 격자(NaCl). "보기"=시뮬⇄준위③. 노란 글로우=들뜸·빨강+/파랑− 이온.</p>
 
     <div class="row">
       <label>보기</label>
@@ -43,6 +43,8 @@
     <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
+        <option value="s05-lattice">s05-lattice (이온 격자)</option>
+        <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
         <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
         <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
         <option value="s04-cavity">s04-cavity (공동 평형)</option>
@@ -73,6 +75,10 @@
     <div class="row" id="occrow" style="display:none">
       <div><label>들뜸 n₁/n₀</label> <span id="occr" class="metric" style="font-size:14px;color:#ffde5a">0</span></div>
       <div style="margin-left:12px"><label>볼츠만 (g₁/g₀)e^(−ΔE/T)</label> <span id="occb" class="big">0</span></div>
+    </div>
+    <div class="row" id="ionrow" style="display:none">
+      <div><label>이온</label> <span id="ionc" class="big"><span style="color:#f0674a">+0</span> <span style="color:#4a8cf0">−0</span> 중성0</span></div>
+      <div style="margin-left:12px"><label>교대질서</label> <span id="iono" class="metric" style="font-size:14px;color:#3fb950">0</span></div>
     </div>
 
     <table id="ledger"></table>
@@ -145,6 +151,11 @@
       if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
       else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
     }
+    // 자유전자 (⑤) — 작은 파란 점
+    for (const e of world.electrons) {
+      ctx.beginPath(); ctx.arc(e.r.x * sx, cv.height - e.r.y * sy, 2.2, 0, Math.PI * 2);
+      ctx.fillStyle = '#7fbaff'; ctx.fill();
+    }
     // 광자 빈 표시 (공동)
     if (world.nPhotons > 0) {
       ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
@@ -171,6 +182,13 @@
       el('occr').textContent = o.ratio.toFixed(3);
       el('occb').textContent = o.predRatio != null ? o.predRatio.toFixed(3) : '–';
     } else { el('occrow').style.display = 'none'; }
+    // ⑤ 이온 상태
+    if (world.specIon) {
+      const s = M.ionState(world);
+      el('ionrow').style.display = '';
+      el('ionc').innerHTML = `<span style="color:#f0674a">+${s.plus}</span> <span style="color:#4a8cf0">−${s.minus}</span> 중성${s.neutral}`;
+      el('iono').textContent = s.order.toFixed(3);
+    } else { el('ionrow').style.display = 'none'; }
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {

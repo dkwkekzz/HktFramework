@@ -113,16 +113,31 @@
     return {
       id: _nextId++,
       sp,                    // 종 id (질량·σ·ε 테이블 키) — ①은 질량만 의미
-      q: q || 0,             // 전하 (②~④ 중성 q=0 — 테스트 전하 장면만 ≠0 · ⑤에서 실전)
+      q: q || 0,             // 전하 = Z − ne (⑤부터 ne 로 유도) · ②~④ 테스트 전하만 직접
+      Z: 0,                  // 핵전하 (⑤ 이온화 회계 — 중성이면 ne=Z)
+      ne: 0,                 // 속박 전자 수 (⑤) — 변하면 q·uIon 갱신
+      uIon: 0,               // 이온화 배치 저장 에너지 (⑤) — U_int 에 합산
       r: V.clone(r),
       p: V.clone(p),
       F: V.zero(),           // 힘 누산 (velocity Verlet) — ①은 0
       disp: V.zero(),        // 누적 변위 (주기 랩과 무관한 참 변위) — MSD 관측용
       level: 0,              // ④ 내부 준위 인덱스 (0=바닥·1=들뜸) — 2준위 근사
       ver: 0,               // 준위 변경 버전 (사건 큐 lazy 무효화)
-      occ: null,             // ③ 부껍질 벡터 (⑤+ 세부 이온화에서 사용)
+      occ: null,             // ③ 부껍질 벡터 (세부 이온화에서 사용)
       mu: null,              // ⑧에서 채움
     };
+  }
+
+  // 자유전자 입자 (⑤ — 연속상태 E≥0). σ≈0 → 쿨롱 softening 이 발산 방지.
+  function makeElectron(r, p) {
+    return { id: _nextId++, isElectron: true, q: -1, r: V.clone(r), p: V.clone(p), F: V.zero() };
+  }
+
+  // 전자 수 변경 → 전하·저장 에너지 갱신 (⑤). states: {ne: 저장에너지}
+  function setNe(world, a, ne) {
+    a.ne = ne; a.q = a.Z - ne;
+    const st = world.specIon && world.specIon[a.sp];
+    if (st) a.uIon = st.states[ne] != null ? st.states[ne] : 0;
   }
 
   function makeWorld(opts) {
@@ -148,6 +163,10 @@
       tau_rad: o.tau_rad != null ? o.tau_rad : Infinity, // ④ 복사 수명 (∞=방출 없음)
       radiativeOpen: o.radiativeOpen || false,     // ④ 방출 광자가 즉시 탈출(냉각) vs 빈 저장(공동)
       nPhotons: 0,                    // ④ 광자 빈 (단일 종 = 스칼라 개수)
+      specIon: o.specIon || null,     // ⑤ 종별 이온화 명세 {role, states:{ne:E}, minNe, maxNe}
+      m_e: o.m_e != null ? o.m_e : 0.01,   // ⑤ 전자 질량 (노브 — 실제 1/1836 은 dt 강성, 정직 근사)
+      sigma_e: o.sigma_e != null ? o.sigma_e : 0.2,  // ⑤ 전자 σ (≈0 — softening 이 발산 방지)
+      eps_e: o.eps_e != null ? o.eps_e : 0.05,       // ⑤ 전자 척력 세기
       atoms: [],
       electrons: [],   // ⑤ 전
       photons: [],     // ⑫ 전
@@ -175,15 +194,23 @@
   //    F(i←j) = [ k_c·qᵢqⱼ/(d+s)² + 12·ε_rep·σᵢⱼ¹²/d¹³ ]·d̂   (반대칭 → P 보존은 구조가 보장)
   //    부수 측정: 비리얼(압력)·최근접 비율 min d/σᵢⱼ 를 world 에 남긴다.
   function pairForces(world) {
-    const atoms = world.atoms, n = atoms.length;
     const L = world.box.L, periodic = world.box.bc === 'periodic';
     const kc = world.kc, s = world.soft, frozenZ = world.frozenZ;
-    for (const a of atoms) { a.F.x = 0; a.F.y = 0; a.F.z = 0; }
+    // 대전체 = 원자 + 자유전자(⑤). 전자는 q=−1·작은 σ/ε (softening 이 발산 방지).
+    const se = world.sigma_e != null ? world.sigma_e : 0.2, ee = world.eps_e != null ? world.eps_e : 0.05;
+    const B = world._bodies || (world._bodies = []);
+    B.length = 0;
+    for (const a of world.atoms) B.push(a);
+    for (const e of world.electrons) B.push(e);
+    const n = B.length;
+    const sigOf = (b) => b.isElectron ? se : world.sigma[b.sp];
+    const epsOf = (b) => b.isElectron ? ee : world.eps[b.sp];
+    for (const b of B) { b.F.x = 0; b.F.y = 0; b.F.z = 0; }
     let U = 0, virial = 0, minRatio = Infinity;
     for (let i = 0; i < n; i++) {
-      const ai = atoms[i], sgi = world.sigma[ai.sp], epi = world.eps[ai.sp];
+      const ai = B[i], sgi = sigOf(ai), epi = epsOf(ai);
       for (let j = i + 1; j < n; j++) {
-        const aj = atoms[j];
+        const aj = B[j];
         let dx = ai.r.x - aj.r.x, dy = ai.r.y - aj.r.y, dz = ai.r.z - aj.r.z;
         if (periodic) {
           dx = minImage(dx, L.x); dy = minImage(dy, L.y);
@@ -191,35 +218,36 @@
         }
         const d2 = dx * dx + dy * dy + dz * dz;
         const d = Math.sqrt(d2);
-        const sig = (sgi + world.sigma[aj.sp]) / 2;          // Lorentz
-        const eps = Math.sqrt(epi * world.eps[aj.sp]);        // Berthelot
+        const sig = (sgi + sigOf(aj)) / 2;                    // Lorentz
+        const eps = Math.sqrt(epi * epsOf(aj));               // Berthelot
         const q = ai.q * aj.q;
         const invS = 1 / (d + s);
         const sr12 = Math.pow(sig / d, 12);
         U += kc * q * invS + eps * sr12;                      // 쌍 퍼텐셜 → U_elec
-        // 힘 크기 |F| (양수 = 척력): 쿨롱 항 + 척력 벽 항
         const fmag = kc * q * invS * invS + 12 * eps * sr12 / d;
         const fOverD = fmag / d;
         ai.F.x += fOverD * dx; ai.F.y += fOverD * dy; ai.F.z += fOverD * dz;
         aj.F.x -= fOverD * dx; aj.F.y -= fOverD * dy; aj.F.z -= fOverD * dz;
-        virial += fmag * d;                                   // r·F = fOverD·d² = fmag·d
-        const ratio = d / sig;
-        if (ratio < minRatio) minRatio = ratio;
+        virial += fmag * d;
+        if (!ai.isElectron && !aj.isElectron) { const r = d / sig; if (r < minRatio) minRatio = r; }
       }
     }
-    if (frozenZ) for (const a of atoms) a.F.z = 0;            // z 동결: 힘의 z 누수 차단
+    if (frozenZ) for (const b of B) b.F.z = 0;                // z 동결: 힘의 z 누수 차단
     world.ledger.U_elec = U;
     world.virial = virial;
     world.minDsigma = minRatio;
   }
 
-  // ── 장부 갱신: K_tr(병진)·U_int(들뜸). E_photon·E_escape 는 전이가 증분 회계 ──
+  // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장). E_photon·E_escape 는 전이가 증분 ──
   function recomputeLedger(world) {
     let K = 0, Uint = 0;
     for (const a of world.atoms) {
       K += V.lenSq(a.p) / (2 * world.mass[a.sp]);
       if (a.level > 0 && world.specLevels) Uint += world.specLevels[a.sp].dE;
+      Uint += a.uIon;                                    // ⑤ 이온화 저장 에너지
     }
+    const me = world.m_e != null ? world.m_e : 0.01;
+    for (const e of world.electrons) K += V.lenSq(e.p) / (2 * me);
     world.ledger.K_tr = K;
     world.ledger.U_int = Uint;
   }
@@ -276,6 +304,23 @@
     return dInt !== 0 || nl !== was;
   }
 
+  // 총 에너지 (전하 변화 반영 — 힘 재계산 포함). ⑤ 전자 이전의 쿨롱 점프 회계용.
+  function energyFull(world) { world.computeForces(world); recomputeLedger(world); return ledgerTotal(world); }
+
+  // ⑤ 전자 이전 (R-XFER): from → to 로 전자 1개. 원자부(IE−EA)+쿨롱 점프의 총 ΔE 를
+  //   상대 KE 에서 회수(오르막이면 부족 시 불가·역행 동일 형식). 격자에선 마델룽으로 내리막이 된다.
+  function transferElectron(world, fromIdx, toIdx) {
+    const A = world.atoms[fromIdx], B = world.atoms[toIdx];
+    const E0 = energyFull(world);
+    const neA = A.ne, neB = B.ne;
+    setNe(world, A, A.ne - 1); setNe(world, B, B.ne + 1);
+    const dE = energyFull(world) - E0;            // 원자부 + 쿨롱 점프
+    if (!collisionalTransfer(world, fromIdx, toIdx, dE)) {   // KE 부족(오르막) → 되돌림
+      setNe(world, A, neA); setNe(world, B, neB); energyFull(world); return false;
+    }
+    return true;
+  }
+
   // 접촉쌍 (반경 r_c 내) — ④부터 이산 채널이 사용
   function contactPairs(world) {
     const out = [], A = world.atoms, rc2 = world.rc * world.rc;
@@ -308,7 +353,7 @@
     }
     return changed;
   }
-  function momentumRaw(world) { const P = V.zero(); for (const a of world.atoms) V.addInto(P, a.p); return P; }
+  function momentumRaw(world) { const P = V.zero(); for (const a of world.atoms) V.addInto(P, a.p); for (const e of world.electrons) V.addInto(P, e.p); return P; }
 
   // 접촉 채널 실행: 접촉쌍마다 카탈로그 행 샘플 (p=1−e^{−k·dt}), 첫 성공 후 그 쌍 종료.
   //   두 시계 중 접촉 시계 (DESIGN §4.2). 방출은 수명 시계(큐), 흡수는 빈 밀도(runAbsorption).
@@ -365,31 +410,32 @@
     });
   }
 
-  // ── 경계 처리 ──
+  // ── 경계 처리 (원자 + 자유전자) ──
   function applyBoundary(world) {
-    const L = world.box.L, bc = world.box.bc;
+    const L = world.box.L, bc = world.box.bc, me = world.m_e != null ? world.m_e : 0.01;
     if (bc === 'periodic') {
-      for (const a of world.atoms) {
-        a.r.x = wrap(a.r.x, L.x); a.r.y = wrap(a.r.y, L.y);
-        if (!world.frozenZ) a.r.z = wrap(a.r.z, L.z);
-      }
+      for (const a of world.atoms) { a.r.x = wrap(a.r.x, L.x); a.r.y = wrap(a.r.y, L.y); if (!world.frozenZ) a.r.z = wrap(a.r.z, L.z); }
+      for (const e of world.electrons) { e.r.x = wrap(e.r.x, L.x); e.r.y = wrap(e.r.y, L.y); if (!world.frozenZ) e.r.z = wrap(e.r.z, L.z); }
     } else if (bc === 'reflect') {
-      for (const a of world.atoms) {
-        reflect1(a, 'x', L.x); reflect1(a, 'y', L.y);
-        if (!world.frozenZ) reflect1(a, 'z', L.z);
-      }
+      for (const a of world.atoms) { reflect1(a, 'x', L.x); reflect1(a, 'y', L.y); if (!world.frozenZ) reflect1(a, 'z', L.z); }
+      for (const e of world.electrons) { reflect1(e, 'x', L.x); reflect1(e, 'y', L.y); if (!world.frozenZ) reflect1(e, 'z', L.z); }
     } else if (bc === 'open') {
       const keep = [];
       for (const a of world.atoms) {
         if (outside(a.r, L, world.frozenZ)) {
-          // 탈출 회계: 운동에너지 → E_escape · 운동량 → P_escape · 원자는 escaped 로
-          const m = world.mass[a.sp];
-          world.ledger.E_escape += V.lenSq(a.p) / (2 * m);
-          V.addInto(world.ledger.P_escape, a.p);
-          world.escaped.push(a);
+          world.ledger.E_escape += V.lenSq(a.p) / (2 * world.mass[a.sp]);
+          V.addInto(world.ledger.P_escape, a.p); world.escaped.push(a);
         } else keep.push(a);
       }
       world.atoms = keep;
+      const keepE = [];
+      for (const e of world.electrons) {
+        if (outside(e.r, L, world.frozenZ)) {
+          world.ledger.E_escape += V.lenSq(e.p) / (2 * me);
+          V.addInto(world.ledger.P_escape, e.p);
+        } else keepE.push(e);
+      }
+      world.electrons = keepE;
     }
   }
   function wrap(x, L) { x = x % L; return x < 0 ? x + L : x; }
@@ -410,17 +456,21 @@
     const dt = world.dt;
 
     // velocity Verlet: p += F dt/2 ; r += (p/m) dt ; F 재계산 ; p += F dt/2
+    const me = world.m_e != null ? world.m_e : 0.01;
     world.computeForces(world);            // 첫 F (①은 0)
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
+    for (const e of world.electrons) V.addScaledInto(e.p, e.F, dt / 2);
     for (const a of world.atoms) {
       const m = world.mass[a.sp];
       const vx = a.p.x / m, vy = a.p.y / m, vz = a.p.z / m;
       a.r.x += vx * dt; a.r.y += vy * dt; a.r.z += vz * dt;
       a.disp.x += vx * dt; a.disp.y += vy * dt; a.disp.z += vz * dt;
     }
+    for (const e of world.electrons) { e.r.x += e.p.x / me * dt; e.r.y += e.p.y / me * dt; e.r.z += e.p.z / me * dt; }
     applyBoundary(world);
     world.computeForces(world);            // 새 위치에서 F
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
+    for (const e of world.electrons) V.addScaledInto(e.p, e.F, dt / 2);
 
     runTransitions(world);      // ④ 접촉 전이 샘플 + 흡수 · ①②③은 catalog 없음 → no-op
     recomputeLedger(world);
@@ -443,6 +493,9 @@
         throw new Error(`frozenZ 위반: atom#${a.id} z=${a.r.z} pz=${a.p.z}`);
       }
     }
+    for (const e of world.electrons) {
+      if (Math.abs(e.r.z) > 1e-12 || Math.abs(e.p.z) > 1e-12) throw new Error(`frozenZ 위반: e#${e.id}`);
+    }
   }
 
   // 여러 tick 실행
@@ -456,9 +509,9 @@
     V, makeRng, gaussian,
     makeQueue, queuePush, queuePop,
     LEDGER_BINS, makeLedger, ledgerTotal,
-    makeAtom, makeWorld, zeroForces, pairForces, minImage,
-    recomputeLedger, totalEnergy, applyBoundary, step, run,
-    setLevel, collisionalTransfer, relKE, lbRedistribute, contactPairs, scheduleEmission, runTransitions,
+    makeAtom, makeElectron, setNe, makeWorld, zeroForces, pairForces, minImage,
+    recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
+    setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
   };
 
   if (isNode) module.exports = api;

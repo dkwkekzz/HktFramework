@@ -272,6 +272,44 @@
       }
     }
 
+    // 8. ⑤ 이온화·전자 이전 (이온 격자 — NaCl 앵커). ④의 실행기·회계를 그대로 재사용.
+    {
+      // 쿨롱 전용(마델룽) 에너지 — 이온 배치의 순 인력
+      const coulomb = (w) => {
+        let U = 0; const A = w.atoms, L = w.box.L, s = w.soft;
+        for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) {
+          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
+          dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y);
+          U += w.kc * A[i].q * A[j].q / (Math.sqrt(dx * dx + dy * dy) + s);
+        }
+        return U;
+      };
+
+      // 오르막 고립 쌍: 멀리 떨어진 중성 쌍의 전자 이전은 ΔE=IE−EA>0 (KE 없으면 불가)
+      {
+        const w = S.build('s05-ion-pair', { seed: 1 });
+        w.atoms[1].r.x = 62; E.pairForces(w); E.recomputeLedger(w);   // 멀리 (쿨롱 무시)
+        const ok = E.transferElectron(w, 0, 1);   // KE=0 상태에서 시도
+        log.push({ ok: !ok, name: '⑤오르막고립쌍', msg: `먼 중성 쌍 이전 = ${ok ? '성공(오류)' : '불가(오르막·KE부족)'} — IE−EA>0 확인` });
+      }
+
+      // 이온 격자: Σc(총 ne) 불변 · 총 E 보존 · 마델룽<0 · 교대 질서>0 창발
+      {
+        const w = S.build('s05-lattice', { seed: 4, per: 8, T0: 0.2 });
+        const totNe0 = w.atoms.reduce((s, a) => s + a.ne, 0);
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let maxRelE = 0, maxdP = 0;
+        for (let k = 0; k < 10000; k++) { E.step(w); if (k % 20 === 0) { const t = M.ledgerTable(w); maxRelE = Math.max(maxRelE, Math.abs(t.total - E0) / Math.abs(E0)); maxdP = Math.max(maxdP, pDiff(M.momentum(w), P0)); } }
+        const is = M.ionState(w), totNe1 = w.atoms.reduce((s, a) => s + a.ne, 0), cE = coulomb(w);
+        log.push({ ok: totNe1 === totNe0, name: '⑤Σc(전자수)불변', msg: `총 ne ${totNe0}→${totNe1} (원자↔이온 오가도 보존)` });
+        log.push({ ok: maxRelE <= E.EPS_E, name: '⑤장부·전이통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E` });
+        log.push({ ok: maxdP <= 1e-9, name: '⑤P보존(이전+힘)', msg: `max|ΔP| ${fmt(maxdP)} ≤ 1e-9` });
+        log.push({ ok: is.plus > 12 && is.minus > 12, name: '⑤이온화창발', msg: `+${is.plus}/−${is.minus} 중성${is.neutral} (전자 이전으로 이온 형성)` });
+        log.push({ ok: cE < 0, name: '⑤마델룽이득', msg: `쿨롱 배치 E ${fmt(cE)} < 0 (이온 순 인력 — author 0)` });
+        log.push({ ok: is.order > 0.1, name: '⑤교대격자질서', msg: `−⟨qᵢqⱼ⟩ ${fmt(is.order)} > 0.1 (이웃이 반대 전하 — NaCl 배열)` });
+      }
+    }
+
     return log;
   }
 
@@ -282,7 +320,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

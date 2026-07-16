@@ -14,7 +14,18 @@
   const SPECIES = {
     X: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#5ab' },
     A: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#c9a', dE: 1.0, g0: 1, g1: 2 },
+    // ⑤ 이온결합용 가상 원소 — Kat(저 IE·양이온형)·An(고 EA·음이온형). NaCl 유사.
+    Kat: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#e0803a', role: 'cation', ion: { states: { 0: 0.8, 1: 0 }, minNe: 0, maxNe: 1 } },
+    An: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#3a7ae0', role: 'anion', ion: { states: { 1: 0, 2: -0.6 }, minNe: 1, maxNe: 2 } },
   };
+
+  // ⑤ 종별 이온화 명세 맵 (engine.specIon 형식)
+  function specIonMap() {
+    return {
+      Kat: Object.assign({ role: 'cation' }, SPECIES.Kat.ion),
+      An: Object.assign({ role: 'anion' }, SPECIES.An.ion),
+    };
+  }
 
   // makeWorld 에 종 파라미터 맵을 넘기는 헬퍼
   function specMaps() {
@@ -214,6 +225,63 @@
     return w;
   }
 
+  // ── ⑤ 이온화·이온결합 장면 ──
+
+  function ionSpecMaps() {
+    const mass = {}, sigma = {}, eps = {};
+    for (const k of ['Kat', 'An']) { mass[k] = SPECIES[k].mass; sigma[k] = SPECIES[k].sigma; eps[k] = SPECIES[k].eps; }
+    return { mass, sigma, eps };
+  }
+  function placeNeutral(world, sp, r, rng) {
+    const a = E.makeAtom(sp, r, E.V.zero());
+    a.Z = 1; E.setNe(world, a, 1);   // 중성: ne=1, q=0
+    world.atoms.push(a); return a;
+  }
+
+  // s05-lattice: Kat/An 반반 수프 저T — 전자 이전 → 이온 → 쿨롱 격자(교대 배열) 창발.
+  function ionLattice(opts) {
+    const o = opts || {};
+    const rng = o.rng || E.makeRng(o.seed || 5005);
+    const per = o.per || 8, N = per * per, L = o.L || (per * 1.4), T0 = o.T0 != null ? o.T0 : 0.2;
+    const sm = ionSpecMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.003,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps, computeForces: E.pairForces, rng,
+      catalog: C.IONIC, specIon: specIonMap(),
+      rc: o.rc != null ? o.rc : 1.6, nu_col: o.nu_col != null ? o.nu_col : 5.0,
+    });
+    const gx = L / per, gy = L / per;
+    let k = 0;
+    for (let i = 0; i < per; i++) for (let j = 0; j < per; j++, k++) {
+      const sp = ((i + j) % 2 === 0) ? 'Kat' : 'An';   // 체커보드 씨앗(느슨) — 재배열은 동역학
+      const r = E.V.make((i + 0.5 + (rng() - 0.5) * 0.3) * gx, (j + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
+      placeNeutral(world, sp, r, rng);
+    }
+    maxwellInit(world, T0, rng);
+    E.pairForces(world); E.recomputeLedger(world);
+    world._auditP = true; world._meta = { name: 's05-lattice', N };
+    return world;
+  }
+
+  // s05-ion-pair: Kat–An 2체를 멀리 떨어뜨림 — 전자 이전이 오르막(ΔE=IE−EA>0)인지 확인.
+  function ionPair(opts) {
+    const o = opts || {};
+    const sm = ionSpecMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.003,
+      box: { L: E.V.make(80, 80, 80), bc: 'periodic' }, frozenZ: true,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps, computeForces: E.pairForces,
+      rng: o.rng || E.makeRng(o.seed || 5006),
+      catalog: C.IONIC, specIon: specIonMap(), rc: o.rc != null ? o.rc : 1.6, nu_col: 4.0,
+    });
+    placeNeutral(world, 'Kat', E.V.make(40, 40, 0));
+    placeNeutral(world, 'An', E.V.make(41.0, 40, 0));   // 접촉 거리
+    E.pairForces(world); E.recomputeLedger(world);
+    world._auditP = true; world._meta = { name: 's05-ion-pair' };
+    return world;
+  }
+
   const SCENES = {
     's01-ideal-gas': idealGas,
     's01-open-box': openBox,
@@ -223,6 +291,8 @@
     's04-thermal-bath': thermalBath,
     's04-radiative-cooling': radiativeCooling,
     's04-cavity': cavity,
+    's05-lattice': ionLattice,
+    's05-ion-pair': ionPair,
   };
 
   function build(name, opts) {
@@ -231,7 +301,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

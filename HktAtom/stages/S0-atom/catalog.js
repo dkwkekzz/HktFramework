@@ -32,9 +32,33 @@
     budget: { from: ['K_tr'], to: ['U_int'] }, reverse: 'R-COL',  // 자기역쌍 (LB 는 미시 가역)
   };
 
-  const COLLISIONAL = [R_COL];
+  // R-XFER: 전자 이전 (이온결합의 씨앗). 양이온형↔음이온형 접촉 시 전자 1개 이동.
+  //   원자부 ΔE=IE−EA 는 오르막이지만 쿨롱(②)이 붙으면 접촉·격자에서 내리막(마델룽)이 된다.
+  //   에너지 회계·오르막 게이트·역행은 engine.transferElectron 이 처리 (author 0 — 마델룽 창발).
+  const R_XFER = {
+    id: 'R-XFER', name: '전자 이전(이온결합)', kind: 'contact',
+    match(world, i, j) {
+      const si = world.specIon && world.specIon[world.atoms[i].sp];
+      const sj = world.specIon && world.specIon[world.atoms[j].sp];
+      if (!si || !sj) return null;
+      let kat, an;                                    // 양이온형(전자 줌)·음이온형(전자 받음)
+      if (si.role === 'cation' && sj.role === 'anion') { kat = i; an = j; }
+      else if (sj.role === 'cation' && si.role === 'anion') { kat = j; an = i; }
+      else return null;
+      const K = world.atoms[kat], A = world.atoms[an], sk = world.specIon[K.sp], sa = world.specIon[A.sp];
+      if (K.ne > sk.minNe && A.ne < sa.maxNe) return { from: kat, to: an };   // 정방향
+      if (A.ne > sa.minNe && K.ne < sk.maxNe) return { from: an, to: kat };   // 역방향
+      return null;
+    },
+    hazard(world) { return world.nu_xfer != null ? world.nu_xfer : world.nu_col; },
+    apply(world, ctx) { return E.transferElectron(world, ctx.from, ctx.to); },
+    budget: { from: ['K_tr'], to: ['U_int', 'U_elec'] }, reverse: 'R-XFER',
+  };
 
-  const api = { R_COL, COLLISIONAL };
+  const COLLISIONAL = [R_COL];
+  const IONIC = [R_XFER];
+
+  const api = { R_COL, R_XFER, COLLISIONAL, IONIC };
   if (isNode) module.exports = api;
   else window.HktS0Catalog = api;
 })();
