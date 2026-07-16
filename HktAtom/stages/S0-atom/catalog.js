@@ -55,10 +55,30 @@
     budget: { from: ['K_tr'], to: ['U_int', 'U_elec'] }, reverse: 'R-XFER',
   };
 
+  // R-CPLX: 접근 → 임시 복합체(에너지 변화 0인 자격 마커). 예산 여유 양쪽·미결합·미복합체.
+  //   2체 직접 결합 금지: R-CPLX 만으로는 bond 안 생김 — 안정화(복사|삼체, engine.runBonding)가 승격.
+  const R_CPLX = {
+    id: 'R-CPLX', name: '복합체 형성', kind: 'contact',
+    match(world, i, j) {
+      if (!world.budget) return null;
+      const a = world.atoms[i], b = world.atoms[j];
+      if (E.budgetB(world, a.sp) === 0 || E.budgetB(world, b.sp) === 0) return null;   // V0 등 결합 0
+      if (E.bondCount(world, a.id) >= E.budgetB(world, a.sp)) return null;             // 예산 포화 → 과결합 금지
+      if (E.bondCount(world, b.id) >= E.budgetB(world, b.sp)) return null;
+      if (E.hasBond(world, a.id, b.id)) return null;
+      for (const cx of world.complexes) if ((cx.i === a.id && cx.j === b.id) || (cx.i === b.id && cx.j === a.id)) return null;
+      return { i: a.id, j: b.id };
+    },
+    hazard(world) { return world.nu_cplx != null ? world.nu_cplx : world.nu_col; },
+    apply(world, ctx) { world.complexes.push({ i: ctx.i, j: ctx.j }); return true; },   // 에너지 변화 0
+    budget: { from: [], to: [] }, reverse: 'R-CPLX-DECAY',
+  };
+
   const COLLISIONAL = [R_COL];
   const IONIC = [R_XFER];
+  const COVALENT = [R_CPLX];   // 안정화(R-STAB-RAD/3B)·해리(R-DISS)는 engine.runBonding
 
-  const api = { R_COL, R_XFER, COLLISIONAL, IONIC };
+  const api = { R_COL, R_XFER, R_CPLX, COLLISIONAL, IONIC, COVALENT };
   if (isNode) module.exports = api;
   else window.HktS0Catalog = api;
 })();

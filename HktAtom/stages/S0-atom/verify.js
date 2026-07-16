@@ -13,6 +13,7 @@
   const S = isNode ? require('./scenes.js') : window.HktS0Scenes;
   const M = isNode ? require('./measure.js') : window.HktS0Measure;
   const L = isNode ? require('./levels.js') : window.HktS0Levels;
+  const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -310,6 +311,53 @@
       }
     }
 
+    // 9. ⑥ 공유결합 (분자 형성·안정화 경로·원자가 포화·해리). ④⑤의 실행기·회계 재사용.
+    {
+      const dominant = (h) => Object.keys(h).sort((a, b) => h[b] - h[a])[0];
+
+      // 이량체 창발: H1(B=1) → H1₂ 우세 + 원자가 포화(과결합 0) + 장부 닫힘
+      {
+        const w = S.build('s06-v1-dimer', { seed: 2, N: 64, T0: 0.35 });
+        const E0 = M.ledgerTable(w).total; let maxRelE = 0;
+        for (let k = 0; k < 9000; k++) { E.step(w); if (k % 30 === 0) maxRelE = Math.max(maxRelE, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); }
+        const m = M.molecules(w), dom = dominant(m.hist);
+        log.push({ ok: dom === 'H12', name: '⑥이량체창발', msg: `우세 조성 = ${dom} (${m.hist['H12'] || 0}개 H₁₂ — author 0) · ${JSON.stringify(m.hist)}` });
+        log.push({ ok: m.maxOver <= 1e-9, name: '⑥원자가포화', msg: `과결합 max ${fmt(m.maxOver)} ≤ 0 (H₃ 덩어리 0 — B=1 포화)` });
+        log.push({ ok: maxRelE <= E.EPS_E, name: '⑥장부·결합통과E', msg: `max|ΔE|/E ${fmt(maxRelE)} ≤ EPS_E (형성·해리 회계)` });
+      }
+
+      // 안정화 필수: 안정화 행 끄면 안정 결합 급감 (2체 직접 결합 금지 — 복합체만 명멸)
+      {
+        const w = S.build('s06-no-stab', { seed: 2, N: 64, T0: 0.35 });
+        for (let k = 0; k < 7000; k++) E.step(w);
+        log.push({ ok: w.bonds.length === 0, name: '⑥안정화필수', msg: `안정화 off → 결합 ${w.bonds.length} (복합체 ${w.complexes.length} 명멸만 — 2체 직접 금지)` });
+      }
+
+      // 해리: 형성 후 가열 → 결합 감소 (아레니우스)
+      {
+        const w = S.build('s06-v1-dimer', { seed: 5, N: 64, T0: 0.3 });
+        for (let k = 0; k < 7000; k++) E.step(w);
+        const cold = w.bonds.length;
+        for (const a of w.atoms) { a.p.x *= 4; a.p.y *= 4; }
+        for (let k = 0; k < 6000; k++) E.step(w);
+        log.push({ ok: w.bonds.length < cold, name: '⑥해리(가열)', msg: `결합 ${cold} → ${w.bonds.length} (가열 시 감소 — 아레니우스)` });
+      }
+    }
+
+    // 10. ⑦ 내부 모드 — 열용량 계단 (양자 모드 순차 언프리즈). self-contained modes.js.
+    {
+      const Eat = (T0) => { const w = Mo.makeGas({ N: 160, T0, seed: 7 }); Mo.run(w, 6000); return { T: Mo.temperature(w), E: Mo.energy(w) / w.mols.length, uv: Mo.uVib(w), ur: Mo.uRot(w) }; };
+      const cvB = (a, b) => { const p = Eat(a), q = Eat(b); return { cv: (q.E - p.E) / (q.T - p.T), lo: p, hi: q }; };
+      const low = cvB(0.0008, 0.0016), mid = cvB(0.15, 0.6), high = cvB(30, 60);
+      // 목표 1 → 3/2 → 5/2. 내부 모드 LB 가 ~10~20% 뜨겁게 편향(④와 같은 계열·⑨ 통계 관문 이월).
+      log.push({ ok: low.cv > 0.9 && low.cv < 1.15, name: '⑦계단·병진(C≈1)', msg: `C_v ${fmt(low.cv)} ≈ 1 (T≪B_rot — 회전·진동 동결)` });
+      log.push({ ok: mid.cv > 1.35 && mid.cv < 1.9, name: '⑦계단·+회전(C≈3/2)', msg: `C_v ${fmt(mid.cv)} ≈ 3/2 (회전 활성·진동 동결)` });
+      log.push({ ok: high.cv > 2.2 && high.cv < 3.05, name: '⑦계단·+진동(C≈5/2)', msg: `C_v ${fmt(high.cv)} ≈ 5/2 (진동까지 활성 · LB 편향 상단)` });
+      log.push({ ok: low.cv < mid.cv && mid.cv < high.cv, name: '⑦계단·순차증가', msg: `C_v ${fmt(low.cv)} < ${fmt(mid.cv)} < ${fmt(high.cv)} (자유도 순차 언프리즈)` });
+      // 동결: 저온에서 모드 점유 ≈ 0
+      log.push({ ok: low.hi.uv === 0 && low.hi.ur < 0.01 * 160, name: '⑦저온동결', msg: `저온 U_vib=${fmt(low.hi.uv)} U_rot=${fmt(low.hi.ur)} ≈ 0` });
+    }
+
     return log;
   }
 
@@ -320,7 +368,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

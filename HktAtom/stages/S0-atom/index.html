@@ -32,17 +32,21 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①–⑤ 무대·힘·준위·전이·이온결합</h1>
-    <p class="sub">충돌·준위→주기율표·볼츠만/냉각/공동·전자 이전→이온 격자(NaCl). "보기"=시뮬⇄준위③. 노란 글로우=들뜸·빨강+/파랑− 이온.</p>
+    <h1>S0-atom · ①–⑦ 원자→분자→열용량</h1>
+    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합(H₂)·열용량 계단. "보기": 시뮬⇄준위③·열용량⑦. <b>공유결합=선(차수만큼)</b>·<b>이온=전하 부호(선 없음)</b>·점선=복합체·노란=들뜸.</p>
 
     <div class="row">
       <label>보기</label>
       <button id="mode">시뮬 ⇄ 준위③</button>
+      <button id="modecv">열용량⑦</button>
       <span id="modelabel" class="note" style="margin:0">시뮬</span>
     </div>
     <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
+        <option value="s06-v1-dimer">s06-v1-dimer (H₂ 분자)</option>
+        <option value="s06-quad">s06-quad (C 허브 결합)</option>
+        <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
         <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
@@ -80,6 +84,10 @@
       <div><label>이온</label> <span id="ionc" class="big"><span style="color:#f0674a">+0</span> <span style="color:#4a8cf0">−0</span> 중성0</span></div>
       <div style="margin-left:12px"><label>교대질서</label> <span id="iono" class="metric" style="font-size:14px;color:#3fb950">0</span></div>
     </div>
+    <div class="row" id="molrow" style="display:none">
+      <div><label>결합</label> <span id="molb" class="big">0</span> <label style="margin-left:6px">복합체</label> <span id="molx" class="big" style="color:#e0b060">0</span></div>
+      <div style="margin-left:12px"><label>우세 분자</label> <span id="mold" class="metric" style="font-size:14px;color:#bcd">–</span></div>
+    </div>
 
     <table id="ledger"></table>
     <p class="note" id="verifynote">
@@ -94,6 +102,7 @@
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="levels.js"></script>
+<script src="modes.js"></script>
 <script>
 (function () {
   const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
@@ -113,32 +122,39 @@
   const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
   const TRAIL_MAX = 18;
 
-  // 결합선 렌더: ⑤ 이온(반대 전하 근접쌍 = 이온결합 격자) · ⑥ world.bonds(공유결합·차수 굵기)
+  // 결합 렌더 — 화학 표기 규칙 준수:
+  //   ⑤ 이온결합: 전자를 주고받아 분리된 이온 → **선으로 잇지 않는다**(공유 아님).
+  //              배치(교대 격자)와 전하 배지([ ]⁺/⁻)로만 나타낸다.
+  //   ⑥ 공유결합: 공유 전자쌍 → 선. 차수대로 단일(−)·이중(=)·삼중(≡) 평행선.
+  //   임시 복합체: 아직 결합 아님 → 점선.
   function drawBonds(sx, sy, L) {
-    const seg = (a, b, color, w) => {
-      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+    const lineXY = (x0, y0, x1, y1, color, w) => {
       if (Math.abs(x1 - x0) > cv.width / 2 || Math.abs(y1 - y0) > cv.height / 2) return;  // 주기 랩 건너뜀
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
     };
-    // ⑥ 공유결합 (있으면) — 차수에 따라 굵기
+    // 복합체 (임시·아직 결합 아님) — 점선
+    if ((world.complexes || []).length) {
+      ctx.setLineDash([3, 3]);
+      for (const cx of world.complexes) {
+        const a = world.atomById(cx.i), b = world.atomById(cx.j);
+        if (a && b) lineXY(a.r.x * sx, cv.height - a.r.y * sy, b.r.x * sx, cv.height - b.r.y * sy, 'rgba(255,210,120,0.5)', 1);
+      }
+      ctx.setLineDash([]);
+    }
+    // 공유결합 — 차수대로 평행선 (단일 1줄·이중 2줄·삼중 3줄)
     for (const bd of world.bonds || []) {
       const a = world.atomById(bd.i), b = world.atomById(bd.j);
-      if (a && b) seg(a, b, 'rgba(200,220,255,0.8)', 1 + 2 * (bd.order || 1));
-    }
-    // ⑤ 이온결합: 반대 전하 이온의 근접쌍을 잇는다 (격자 구조 가시화)
-    if (world.specIon) {
-      const A = world.atoms, per = world.box.bc === 'periodic', thr = 1.7 * 1.7;
-      for (let i = 0; i < A.length; i++) {
-        if (A[i].q === 0) continue;
-        for (let j = i + 1; j < A.length; j++) {
-          if (A[j].q === 0 || A[i].q * A[j].q >= 0) continue;   // 반대 전하만
-          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
-          if (per) { dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); }
-          if (dx * dx + dy * dy <= thr) seg(A[i], A[j], 'rgba(150,210,180,0.45)', 1.4);
-        }
+      if (!a || !b) continue;
+      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
+      const order = Math.max(1, Math.round(bd.order || 1)), gap = 3.2;
+      for (let k = 0; k < order; k++) {
+        const off = (k - (order - 1) / 2) * gap;
+        lineXY(x0 + px * off, y0 + py * off, x1 + px * off, y1 + py * off, 'rgba(215,230,255,0.92)', 1.6);
       }
     }
+    // ⑤ 이온결합: 선 없음 — 배치+전하 배지로만 (아래 draw() 의 배지가 담당)
   }
 
   function draw() {
@@ -177,9 +193,17 @@
       ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
       const g = Math.min(255, 90 + spd * 60) | 0;
       ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`; ctx.fill();
-      // 전하 배지 (± 색 링) — 중성이면 없음
-      if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
-      else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+      // 이온 배지 — 분리된 이온: 색 링 + 전하 부호(선 없음이 이온결합의 핵심 표기)
+      if (a.q !== 0) {
+        const pos = a.q > 0;
+        ctx.strokeStyle = pos ? '#f0674a' : '#4a8cf0'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = pos ? '#f0674a' : '#7fbaff';
+        ctx.font = 'bold ' + Math.round(rpx * 0.9) + 'px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(pos ? '+' : '−', x + rpx + 5, y - rpx - 2);   // 우측 상단 전하
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      }
     }
     // 자유전자 (⑤) — 작은 파란 점
     for (const e of world.electrons) {
@@ -219,6 +243,14 @@
       el('ionc').innerHTML = `<span style="color:#f0674a">+${s.plus}</span> <span style="color:#4a8cf0">−${s.minus}</span> 중성${s.neutral}`;
       el('iono').textContent = s.order.toFixed(3);
     } else { el('ionrow').style.display = 'none'; }
+    // ⑥ 분자
+    if (world.budget) {
+      const m = M.molecules(world);
+      el('molrow').style.display = '';
+      el('molb').textContent = m.nBonds; el('molx').textContent = m.nComplex;
+      const dom = Object.keys(m.hist).sort((a, b) => m.hist[b] - m.hist[a])[0];
+      el('mold').textContent = dom ? `${dom}×${m.hist[dom]}` : '–';
+    } else { el('molrow').style.display = 'none'; }
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {
@@ -285,9 +317,46 @@
     });
   }
 
+  // ⑦ 열용량 계단 뷰 — C_v(T) 곡선 (양자 모드 순차 언프리즈). 최초 진입 시 1회 계산·캐시.
+  const Mo = window.HktS0Modes;
+  let cvData = null;
+  function computeCv() {
+    const T0s = [0.001, 0.003, 0.008, 0.02, 0.05, 0.12, 0.3, 0.7, 1.5, 3, 6, 12, 25, 50, 100];
+    const pts = [];
+    for (const T0 of T0s) { const w = Mo.makeGas({ N: 120, T0, seed: 7 }); Mo.run(w, 4000); pts.push({ T: Mo.temperature(w), E: Mo.energy(w) / w.mols.length }); }
+    pts.sort((a, b) => a.T - b.T);
+    const cv = [];
+    for (let i = 1; i < pts.length; i++) cv.push({ T: Math.sqrt(pts[i].T * pts[i - 1].T), Cv: (pts[i].E - pts[i - 1].E) / (pts[i].T - pts[i - 1].T) });
+    return cv;
+  }
+  function drawCv() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!cvData) { ctx.fillStyle = '#8b949e'; ctx.font = '13px monospace'; ctx.fillText('C_v(T) 계산 중… (양자 모드 평형)', 30, cv.height / 2); return; }
+    const m = 48, W = cv.width - 2 * m, H = cv.height - 2 * m;
+    const lx = (T) => m + (Math.log10(T) + 3) / 5 * W;        // T: 1e-3 ~ 1e2 (로그)
+    const ly = (C) => cv.height - m - (C - 0.5) / 2.5 * H;      // C_v: 0.5 ~ 3
+    // 목표 평탄선 1 · 3/2 · 5/2
+    ctx.font = '10px monospace';
+    for (const [C, lab] of [[1, '병진 2 (C=1)'], [1.5, '+회전 (3/2)'], [2.5, '+진동 (5/2)']]) {
+      ctx.strokeStyle = '#2b3444'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(m, ly(C)); ctx.lineTo(cv.width - m, ly(C)); ctx.stroke(); ctx.setLineDash([]);
+      ctx.fillStyle = '#5a6472'; ctx.fillText(lab, cv.width - m - 110, ly(C) - 4);
+    }
+    // 축
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, m); ctx.lineTo(m, cv.height - m); ctx.lineTo(cv.width - m, cv.height - m); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('C_v / 분자  vs  온도 T (로그)', m, m - 14);
+    for (const e of [-3, -2, -1, 0, 1, 2]) { const x = lx(Math.pow(10, e)); ctx.fillStyle = '#5a6472'; ctx.fillText('1e' + e, x - 8, cv.height - m + 14); }
+    // 곡선
+    ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.beginPath();
+    cvData.forEach((p, i) => { const x = lx(p.T), y = ly(Math.max(0.5, Math.min(3, p.Cv))); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = '#58a6ff'; for (const p of cvData) { const x = lx(p.T), y = ly(Math.max(0.5, Math.min(3, p.Cv))); ctx.beginPath(); ctx.arc(x, y, 3, 0, 6.283); ctx.fill(); }
+  }
+
   function frame() {
     if (mode === 'sim') { if (playing) for (let i = 0; i < speed; i++) E.step(world); draw(); panel(); }
-    else { drawLevels(); }
+    else if (mode === 'levels') drawLevels();
+    else if (mode === 'cv') { drawCv(); if (!cvData) { cvData = computeCv(); } }
     requestAnimationFrame(frame);
   }
 
@@ -296,6 +365,11 @@
     mode = mode === 'sim' ? 'levels' : 'sim';
     el('modelabel').textContent = mode === 'sim' ? '시뮬' : '준위③ (순수 함수)';
     el('scenerow').style.display = mode === 'sim' ? '' : 'none';
+  };
+  el('modecv').onclick = () => {
+    mode = 'cv';
+    el('modelabel').textContent = '열용량⑦ (양자 모드)';
+    el('scenerow').style.display = 'none';
   };
   el('reset').onclick = build;
   el('scene').onchange = build;

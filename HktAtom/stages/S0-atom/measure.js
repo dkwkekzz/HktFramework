@@ -87,6 +87,24 @@
     return { plus, minus, neutral, frac: (plus + minus) / Math.max(1, n), order: cnt ? -sum / cnt : 0, nElectrons: world.electrons.length };
   }
 
+  // ⑥ 분자: 결합 그래프의 연결 성분 → 조성 시그니처 히스토그램 · 과결합 · 결합/복합체 수.
+  function molecules(world) {
+    const idx = new Map(); world.atoms.forEach((a, i) => idx.set(a.id, i));
+    const par = world.atoms.map((_, i) => i);
+    const find = (x) => { while (par[x] !== x) { par[x] = par[par[x]]; x = par[x]; } return x; };
+    for (const bd of world.bonds || []) { const ia = idx.get(bd.i), ib = idx.get(bd.j); if (ia != null && ib != null) par[find(ia)] = find(ib); }
+    const comp = new Map();
+    world.atoms.forEach((a, i) => { const r = find(i); if (!comp.has(r)) comp.set(r, {}); const c = comp.get(r); c[a.sp] = (c[a.sp] || 0) + 1; });
+    const hist = {};
+    for (const c of comp.values()) { const sig = Object.keys(c).sort().map((k) => k + c[k]).join(''); hist[sig] = (hist[sig] || 0) + 1; }
+    let maxOver = 0;
+    for (const a of world.atoms) {
+      let bc = 0; for (const b of world.bonds || []) if (b.i === a.id || b.j === a.id) bc += b.order;
+      maxOver = Math.max(maxOver, bc - (world.budget ? (world.budget[a.sp] || 0) : 0));
+    }
+    return { hist, maxOver, nBonds: (world.bonds || []).length, nComplex: (world.complexes || []).length };
+  }
+
   // 장부 통 표 + 총합. 총합 = Σ(전 통) 이 시간 상수여야 한다.
   function ledgerTable(world) {
     const t = {};
@@ -95,7 +113,7 @@
     return t;
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState };
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();
