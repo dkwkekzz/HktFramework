@@ -14,6 +14,7 @@
   const M = isNode ? require('./measure.js') : window.HktS0Measure;
   const L = isNode ? require('./levels.js') : window.HktS0Levels;
   const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
+  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -358,6 +359,60 @@
       log.push({ ok: low.hi.uv === 0 && low.hi.ur < 0.01 * 160, name: '⑦저온동결', msg: `저온 U_vib=${fmt(low.hi.uv)} U_rot=${fmt(low.hi.ur)} ≈ 0` });
     }
 
+    // 11. ⑧ 분극·응집 (중성 입자가 뭉친다). self-contained polarization.js — 기반 ②(pairForces)만 재사용.
+    {
+      const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+
+      // 응집 창발: 저온 냉각 → 클러스터·배위수·음의 응집에너지 급증 (고온 기체 ↔ 저온 응집).
+      //   미시정준(닫힌계)이라 응축 잠열이 계를 T_c 근방으로 자체 가열 → 액적+증기 공존.
+      //   최대 성분 비율(액적 크기)·평균 배위수·U_pol/N(응집에너지)가 함께 오른다.
+      const cond = (T0, seed, az) => {
+        const w = Po.nobleCondense({ T0, seed, alphaZero: az }); Po.run(w, 7000);
+        const c = Po.clusters(w, 1.3);
+        return { coord: c.meanCoord, frac: c.largestFrac, upol: w.ledger.U_pol / w.atoms.length };
+      };
+      const R = 3;
+      const hot = [], cold = [], az = [];
+      for (let s = 0; s < R; s++) { hot.push(cond(3.0, 80 + s, false)); cold.push(cond(0.02, 80 + s, false)); az.push(cond(0.02, 80 + s, true)); }
+      const hC = mean(hot.map((x) => x.coord)), cC = mean(cold.map((x) => x.coord));
+      const hF = mean(hot.map((x) => x.frac)), cF = mean(cold.map((x) => x.frac));
+      const zC = mean(az.map((x) => x.coord)), zU = mean(az.map((x) => x.upol)), cU = mean(cold.map((x) => x.upol));
+      log.push({ ok: cF > 0.5 && cF > hF && cC > hC * 1.2, name: '⑧응집창발',
+        msg: `저온 최대성분 ${fmt(cF)}>0.5·>고온 ${fmt(hF)} · 배위 ${fmt(hC)}→${fmt(cC)} (냉각→액적)` });
+      log.push({ ok: cU < -0.5, name: '⑧응집에너지', msg: `저온 U_pol/N ${fmt(cU)} < 0 (원자가 분산 우물에 묶임)` });
+
+      // 근원 검증: α=0 → 유도·분산 두 채널이 함께 죽는다 → U_pol 정확 0 · 응집 소멸.
+      log.push({ ok: Math.abs(zU) < 1e-12 && zC < 0.4, name: '⑧근원검증(α=0)',
+        msg: `α=0 → U_pol/N ${fmt(zU)}=0 · 배위 ${fmt(zC)} ≪ 응집 ${fmt(cC)} (근원=α, 위조 0)` });
+
+      // 장부 닫힘: U_pol 통 (분극·분산 보존력) · P 보존 (반대칭 중심력).
+      {
+        const w = Po.nobleCondense({ T0: 0.3, seed: 9 });
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w); let mr = 0, mp = 0;
+        for (let k = 0; k < 7000; k++) { E.step(w); if (k % 20 === 0) { mr = Math.max(mr, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); mp = Math.max(mp, pDiff(M.momentum(w), P0)); } }
+        log.push({ ok: mr <= E.EPS_E, name: '⑧장부·U_pol닫힘', msg: `max|ΔE|/E ${fmt(mr)} ≤ EPS_E ${E.EPS_E} (분극 보존력)` });
+        assertExact('⑧P보존', mp, 0, 1e-9, log);
+      }
+
+      // ion-induced: 전하–유도쌍극자가 C6 없이 단독으로 이온 주변 중성 밀도를 올린다.
+      //   이 장면은 분산(C6) off → 계의 유일한 인력이 이온→중성뿐. 전하 on/off 차이 = 분극 경로.
+      {
+        const near = (off, seed) => { const w = Po.ionInduced({ seed, chargeOff: off }); Po.run(w, 7000); return Po.nearIonCount(w, 2.5); };
+        const on = [], of = [];
+        for (let s = 0; s < R; s++) { on.push(near(false, 90 + s)); of.push(near(true, 90 + s)); }
+        const mOn = mean(on), mOf = mean(of);
+        log.push({ ok: mOn > mOf * 1.3, name: '⑧이온유도밀도',
+          msg: `이온 근방(R=2.5) 전하ON ${fmt(mOn)} > OFF ${fmt(mOf)}×1.3 (분산 off·분극 경로 단독)` });
+      }
+
+      // dt 반감 + 근사 차수 무관: 응집 배위수 통계가 dt·dt/2 에서 근사 동일 (수치 차수가 물리 안 바꿈).
+      {
+        const cd = (dt, seed) => { const w = Po.nobleCondense({ T0: 0.05, seed, dt }); Po.run(w, Math.round(10.5 / dt)); return Po.clusters(w, 1.3).meanCoord; };
+        const a = mean([0, 1].map((s) => cd(0.0015, 85 + s))), b = mean([0, 1].map((s) => cd(0.00075, 85 + s)));
+        log.push({ ok: Math.abs(a - b) / b < 0.2, name: '⑧dt반감통계', msg: `배위수 ${fmt(a)} vs dt/2 ${fmt(b)} 상대차 ${fmt(Math.abs(a - b) / Math.max(1e-9, b))} < 0.2` });
+      }
+    }
+
     return log;
   }
 
@@ -368,7 +423,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 
