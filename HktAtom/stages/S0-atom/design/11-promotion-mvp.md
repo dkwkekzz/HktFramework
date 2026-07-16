@@ -1,6 +1,6 @@
 # ⑪ 승격 배관 ⇧ — 상세 설계 (MVP 완결)
 
-> 앵커: 상자 시나리오 한 장부 + coarse↔재해동 왕복 · 전제: Part I 전부 · DESIGN §6(⑪ 임시 스키마)·§9.1-⑪
+> 앵커: 상자 시나리오 한 장부 + coarse↔재해동 왕복 · 전제: Part I 전부 · DESIGN §6(⑪ 임시 스키마)·§9.1-⑪ · ⇧/⇩ 의무: [CONTRACT.md](../../../CONTRACT.md) §3
 
 ## 목적
 
@@ -8,16 +8,19 @@
 
 ## 더하는 것
 
-### 임시 출력 스키마 (output.json v0)
+### 임시 출력 스키마 (output.json v0 — CONTRACT §2 의 부분집합)
 
 ```json
-{ "schema": "s0-output-v0",
+{ "schema": "s0-output-v0", "version": "0.x",
   "species": [ { "id", "composition": {"V1":2}, "m", "E_bind",
                  "u_curve": [[T,u]], "cv_curve": [[T,cv]] } ],
   "pairPotential": { "V1_2|V1_2": [[r, V]] },
+  "observables": [ { "name": "조성|T|P(비리얼)|배위수", "epsilon": 0, "protocol": "" } ],
   "validRange": { "T": [lo,hi], "rho": [lo,hi] },
-  "provenance": { "scenes": [], "runs": R, "date": "" } }
+  "provenance": { "stage": "S0", "scenes": [], "runs": R, "date": "" } }
 ```
+
+- CONTRACT §2 가 ⑪ 에 요구하는 최소: species + 쌍 퍼텐셜 + **observables ≥ 1** — 왕복 검증(아래)의 관측량 목록이 곧 이 필드다. 본 스키마 정렬은 ㉒ 몫.
 
 ### V′ 측정법 — 평균 힘 퍼텐셜 (PMF)
 
