@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>S0-atom · ① 무대·장부</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+         background: #0d1117; color: #c9d1d9; display: flex; }
+  #stage { flex: 0 0 auto; }
+  canvas { background: #05070c; display: block; border-right: 1px solid #222; }
+  #panel { padding: 14px 18px; min-width: 320px; }
+  h1 { font-size: 14px; margin: 0 0 4px; color: #e6edf3; }
+  .sub { color: #6e7681; margin: 0 0 12px; }
+  .row { margin: 6px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label { color: #8b949e; }
+  button, select { background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+                   border-radius: 5px; padding: 4px 10px; font: inherit; cursor: pointer; }
+  button:hover, select:hover { border-color: #58a6ff; }
+  input[type=range] { accent-color: #58a6ff; }
+  table { border-collapse: collapse; margin-top: 10px; width: 100%; }
+  td { padding: 2px 8px; border-bottom: 1px solid #161b22; }
+  td.k { color: #8b949e; } td.v { text-align: right; font-variant-numeric: tabular-nums; }
+  .zero { color: #4d5560; }
+  .big { color: #e6edf3; font-size: 13px; }
+  .resid.ok { color: #3fb950; } .resid.bad { color: #f85149; }
+  .metric { font-size: 20px; color: #58a6ff; font-variant-numeric: tabular-nums; }
+  .note { color: #6e7681; margin-top: 14px; font-size: 12px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
+  <div id="panel">
+    <h1>S0-atom · ① 무대·장부</h1>
+    <p class="sub">입자가 있고 움직인다 — 통 분리 장부·수치 불변식의 뼈대</p>
+
+    <div class="row">
+      <label>장면</label>
+      <select id="scene">
+        <option value="s01-ideal-gas">s01-ideal-gas (주기·z동결)</option>
+        <option value="s01-open-box">s01-open-box (열린 경계)</option>
+      </select>
+      <button id="reset">리셋</button>
+    </div>
+    <div class="row">
+      <button id="play">⏸ 일시정지</button>
+      <label>배속</label>
+      <input id="speed" type="range" min="1" max="20" value="4" />
+      <span id="speedv">4×</span>
+      <span class="note" style="margin:0">배속은 tick 수만 바꾼다 (물리 불변)</span>
+    </div>
+
+    <div class="row" style="margin-top:12px">
+      <div><label>t</label> <span id="t" class="metric" style="font-size:14px">0</span></div>
+      <div style="margin-left:18px"><label>T</label> <span id="temp" class="metric">0</span></div>
+      <div style="margin-left:18px"><label>N</label> <span id="natoms" class="big">0</span></div>
+    </div>
+
+    <table id="ledger"></table>
+    <p class="note" id="verifynote">
+      장부 총합은 시간 상수여야 한다 (힘 0 → 정확). 잔차 = |총합 − 초기 총합|.<br>
+      검증 전체는 <code>node verify.js</code> — 회계·dt반감·경계 3종·⟨T⟩ 통계.
+    </p>
+  </div>
+
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script src="measure.js"></script>
+<script>
+(function () {
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const el = (id) => document.getElementById(id);
+
+  let world, playing = true, speed = 4, total0 = 0;
+
+  function build() {
+    const name = el('scene').value;
+    world = S.build(name, { seed: (Math.random() * 1e9) | 0, N: 64, T0: name === 's01-open-box' ? 2.0 : 1.0, dt: 0.01 });
+    total0 = M.ledgerTable(world).total;
+  }
+
+  function draw() {
+    const L = world.box.L;
+    const sx = cv.width / L.x, sy = cv.height / L.y;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    // 상자 테두리
+    ctx.strokeStyle = '#1b2230'; ctx.strokeRect(0, 0, cv.width, cv.height);
+    const sp = S.SPECIES.X;
+    for (const a of world.atoms) {
+      const x = a.r.x * sx, y = cv.height - a.r.y * sy;
+      const spd = E.V.len(a.p);
+      ctx.beginPath();
+      ctx.arc(x, y, sp.radius * sx, 0, Math.PI * 2);
+      // 속도에 따라 색 밝기 (운동에너지 직관)
+      const g = Math.min(255, 90 + spd * 90) | 0;
+      ctx.fillStyle = `rgb(${80},${g},${180})`;
+      ctx.fill();
+    }
+    // 탈출 원자 흔적 (열린 경계)
+    if (world.escaped.length) {
+      ctx.fillStyle = '#f8514933'; ctx.font = '11px monospace';
+      ctx.fillText(`탈출 ${world.escaped.length}`, 8, cv.height - 8);
+    }
+  }
+
+  const ORDER = ['K_tr', 'U_elec', 'U_int', 'U_bond', 'U_vib', 'U_rot', 'U_pol', 'E_photon', 'E_nuclear', 'E_escape'];
+  function panel() {
+    el('t').textContent = world.t.toFixed(2);
+    el('temp').textContent = M.temperature(world).toFixed(4);
+    el('natoms').textContent = world.atoms.length;
+    const tab = M.ledgerTable(world);
+    let rows = '';
+    for (const k of ORDER) {
+      const v = tab[k];
+      const cls = Math.abs(v) < 1e-12 ? 'zero' : '';
+      rows += `<tr><td class="k ${cls}">${k}</td><td class="v ${cls}">${v.toFixed(6)}</td></tr>`;
+    }
+    const resid = Math.abs(tab.total - total0);
+    const rc = resid <= 1e-9 ? 'ok' : 'bad';
+    rows += `<tr><td class="k big">Σ total</td><td class="v big">${tab.total.toFixed(6)}</td></tr>`;
+    rows += `<tr><td class="k">잔차 |Σ−Σ₀|</td><td class="v resid ${rc}">${resid.toExponential(2)}</td></tr>`;
+    el('ledger').innerHTML = rows;
+  }
+
+  function frame() {
+    if (playing) for (let i = 0; i < speed; i++) E.step(world);
+    draw(); panel();
+    requestAnimationFrame(frame);
+  }
+
+  el('reset').onclick = build;
+  el('scene').onchange = build;
+  el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
+  el('speed').oninput = (e) => { speed = +e.target.value; el('speedv').textContent = speed + '×'; };
+
+  build();
+  frame();
+})();
+</script>
+</body>
+</html>
