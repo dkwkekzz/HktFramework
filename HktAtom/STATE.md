@@ -4,6 +4,7 @@
 
 ## §1 NOW — 지금 어디까지
 
+- **S0-② 힘·충돌 구현 완료 (step-0002)**: 연속층의 실제 내용 — **쿨롱 + 단거리 척력**(`pairForces`, 전 쌍 O(N²)+최소 이미지·컷오프 없음·Lorentz–Berthelot·softening 0.1) — 을 채우고 `U_elec` 통 활성. 충돌·산란 중에도 장부 닫힘. **Verlet 표류 허용치 수치 고정**: `EPS_E=5e-4`(상대)·`DT_STIFF=0.004`·`MIN_DSIGMA=0.7` (engine.js export — 이후 전 단계 재사용). 확장: `atom.q`·world `sigma/eps/kc/soft`·`measure.pressure`(비리얼)·`minDsigma`. 장면 3종(gas-collide·scatter-2·charge-pair). `node verify.js` = **24 PASS**(① 16 회귀 + ② 8): max|ΔE|/E=1.9e-4≤EPS_E·|ΔP|=4e-14·min d/σ=0.84>0.7·**θ(b) 단조 101°→6°(러더퍼드 닮음)**·쿨롱쌍 닫힘·dt반감 θ 상대차 1.4e-7. 뷰어: 궤적 트레일·전하 배지(±)·P·min d/σ 패널·상대잔차 판정. **설계 이탈 1건**(scatter-2 ±→동전하 +1/+1, design 갱신). 커널 체크 5항 통과.
 - **S0-① 무대·장부 구현 완료 (step-0001) — 첫 코드**: `stages/S0-atom/{engine,scenes,measure,verify}.js` + `index.html`. S0 단계의 **뼈대**(자료형·통 분리 장부 10통·tick 파이프라인·검증 하네스)를 세웠다 — 이후 ②~㉖ 은 이 위에서 *바뀌지 않고 채워지기만* 한다. `Vec3`(3성분 고정)·`atom{id,sp,r,p,F,disp,occ,mu}`·`world{...,escaped,queue,ledger,computeForces}`. **velocity Verlet**(①은 F=0)·**경계 3종**(periodic·reflect·open 탈출 회계)·**z 동결**(장면 속성, 매 tick assert)·**사건 큐**(이진 힙+ver lazy 무효화 자료구조만). **검증 하네스**(`runScene`·`stat`·`assertExact/Window`·불변식 스위트)는 이후 전 단계 재사용. `node verify.js` = **16 PASS·0 FAIL**: 장부합 정확 보존(≤1e-12)·P 보존·Σc 불변·dt 반감 통계 불변·경계 3종·R=12 ⟨T⟩ 목표 창(0.996 vs 0.984=(1−1/N)T₀, COM 제거 편향 정직 반영). 뷰어: 64원자 운동 + 장부 10통 표(K_tr만 값·잔차 0.00e+0 초록) 눈 확인. 커널 체크 5항 통과.
 - **계획 확정 (step-0000, 프로젝트 탄생 + 2회 정련)**: 커널(형태 1벌 — I 국소 교환·M 측정·⇧ 출력 산출)·단계 지도(S0 원자→S1 분자→S2 물질→S3 존재, 각 단계의 입력/출력/세부 단계 표)·검증 4기둥을 KERNEL 에 확정. 코드 0줄.
 - **구조 결정 (최종 정련)**: ① 단계 = 규모 한 칸 = 커널 인스턴스 = **완전 독립 모듈**(`stages/S*/` — 타 단계 코드·외부 패키지·빌드 의존 0) ② 단계 연결은 **데이터만**(output.json → input.json) ③ 출력은 **시각화 의무**(단계 자신의 뷰어) ④ 세부 단계 = 현실 앵커 현상 1개 ⑤ **결정론 폐기** — 검증은 반복 런의 통계, 보존만 회계로 정확히 ⑥ 타 트랙(HGO) 구현 참고 안 함.
@@ -17,11 +18,11 @@
 - **세부 단계별 상세 설계도 완성 (①~㉖ 전개)**: [stages/S0-atom/design/](stages/S0-atom/design/README.md) — 단계당 1문서(핵 ㉓~㉖은 확장팩 합본), 공통 규약(검증 수치화·노브·행 규약·게이트·회귀 규율)은 README. 각 문서 = 목적·자료구조/함수/카탈로그 행·장면·측정·검증·시각화·경계. 주요 세부 결정: ① 장부 통 정의표·사건 큐 lazy 무효화 ② Verlet 표류 허용치 EPS_E 를 ②가 수치 고정 ③ 가상 원소 4종 제안(V1/V0/V2/V4)·B 승위 알고리즘 ④ 광자 빈 근사(⑫가 입자로 교체하는 마이그레이션 명시)·에너지 출처 강제 공통 코드 ⑥ 예산 분배=연결 성분 내 국소 최소화 ⑦ 진동/회전 양자화(계단의 근원)·z 동결 자유도 회계표 ⑧ C6 를 런던 공식으로 α·IE 에 묶음(α=0 검증이 C6 관통) ⑭ lone 쌍=과감쇠 최소화 변수·공통 k_ang·λ_lp 2상수 ⑮ χ·η 는 ③ 유도(Mulliken — author 0) ⑯ 창발 우선 측정→부족 시 R-HB 정직 보정 ㉑ 관측량 계약 5종 목록 초안 ㉒ interactionModel 에 방향·밀도 보정항. 코드 0줄.
 - **design/ ↔ CONTRACT v0 정합 반영**: ① README 권위 사슬에 CONTRACT 추가 + G-핵 2조건 동기 ② ㉒ 스키마를 CONTRACT §2 로 정렬(equationOfState·observables·refinementConditions{trigger,resolution,region,budget}·발효 조건, interactionModel 은 가법 확장 명기) ③ ⑪ 임시 스키마에 observables ≥1 (CONTRACT 요구) ④ **㉓~㉖ 핵 확장**: 게이트 2조건(②면 ㉓최소분→㉔→㉕ 순), 중성자 입자·산란 감속 창발·포획·에너지 밴드 단면, 파편→㉔ 붕괴 큐 자동(지연 중성자·붕괴열·낙진 감쇠 창발 — author 0), k_eff 측정 2법(세대비·시간 지수), **㉕ 산출 = NuclideTable(단면·수율·수지 — CONTRACT §5 중간 해상도 중성자 수송의 파라미터)**, Δm·c² 질량 결손 회계, 미니 왕복 검증(간이 수송 vs 전해상도) ⑤ ㉑ 을 해상도 사다리의 단계 내부 리허설로 연결. 코드 0줄.
 
-## §2 NEXT — 다음 한 조각 (step-0002 = S0-② 힘·충돌)
+## §2 NEXT — 다음 한 조각 (step-0003 = S0-③ 준위·예산)
 
-**다음 구현 = step-0002 = S0-② 힘·충돌** (앵커: 산란 · [design/02-forces.md](stages/S0-atom/design/02-forces.md)): `world.computeForces` 를 `zeroForces` → **쿨롱 + 단거리 척력**(전 쌍 계산 — 컷오프는 병목 측정 후)으로 교체하고 `U_elec` 통을 채운다. 닫는 기준: 충돌·산란해도 장부 닫힘(E 잔차 = Verlet 표류 허용치를 **②가 수치 고정** — `EPS_E`)·겹침 0. ①의 하네스·불변식 스위트를 그대로 재사용, ①의 장면 verify 는 누적 회귀로 계속 통과해야 한다.
+**다음 구현 = step-0003 = S0-③ 준위·예산** (앵커: 주기율표 순수 함수 + 가상 원소 확정 · [design/03-levels-budget.md](stages/S0-atom/design/03-levels-budget.md)): `levels.js` 신설 — Z → 부껍질 점유(Aufbau+파울리) → 준위 에너지(간이 Slater) → 이온화 E·전자친화도 → **연속 결합차수 예산 B**. **순수 함수라 ①②와 독립·시뮬 불필요** — 단위 테스트로 닫는다. 닫는 기준: 실원소 예산 assert(H=1·C≈4 승위·N≈3·O≈2·비활성 0·Na=1·Cl=1)·이온화 E 주기 경향(순위)·가상 원소 4종(V1/V0/V2/V4) B·준위 확정·뷰어에 Z vs 이온화 E 차트. `species` 인터페이스를 scenes 의 SPECIES 와 통합(엔진은 실/가상 구별 안 함).
 
-**승격 계약은 이미 v0 존재** ([CONTRACT.md](CONTRACT.md) — 네 축 중 인터페이스 축): MaterialModel 스키마·관측량 계약(|ΔO|<ε_O)·재해석 조건·유효 범위·오차 한계. 필드 채움은 ⑧/⑪(출력 산출 ⇧)·㉒(MaterialModel)·S1 진입이 한다 — 구현이 계약을 소비/충족한다.
+**승격 계약은 이미 v0 존재** ([CONTRACT.md](CONTRACT.md) — 네 축 중 인터페이스 축): MaterialModel 스키마·관측량 계약(|ΔO|<ε_O)·재해석 조건·유효 범위·오차 한계. 필드 채움은 ⑧/⑪(출력 산출 ⇧)·㉒(MaterialModel)·S1 진입이 한다.
 
 ## §3 OPEN GAPS — 열린 격차
 
@@ -43,3 +44,4 @@
 
 - step-0000: 프로젝트 탄생 — 커널 척추·단계 지도(S0~S3)·검증 확정 (정련 2회: 현실 앵커 → 단계 모듈화·결정론 폐기) + S0 상세 설계도(DESIGN.md). 코드 0줄.
 - step-0001: S0-① 무대·장부 — 첫 코드. engine/scenes/measure/verify.js + index.html. Vec3·통 분리 장부 10통·velocity Verlet(F=0)·경계 3종·z동결·사건 큐 뼈대·검증 하네스. node verify.js 16 PASS. 뷰어 눈 확인(운동+잔차 0).
+- step-0002: S0-② 힘·충돌 — 쿨롱+척력 pairForces(전 쌍+최소 이미지)·U_elec 활성·EPS_E/DT_STIFF/MIN_DSIGMA 고정·비리얼 압력·전하 q·장면 3종. node verify.js 24 PASS(θ(b) 러더퍼드 단조·min d/σ>0.7). 설계 이탈 1(scatter-2 동전하). 뷰어: 트레일·전하 배지.

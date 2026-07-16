@@ -8,8 +8,16 @@
   const isNode = typeof module !== 'undefined' && module.exports;
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
 
-  // 종 레지스트리 — ①은 가상 원소 1종(질량만 의미). ③에서 Z·occ 로 확장.
-  const SPECIES = { X: { mass: 1.0, radius: 0.5, color: '#5ab' } };
+  // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
+  // ③에서 Z·occ 로 확장. radius/color 는 뷰어용.
+  const SPECIES = { X: { mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.5, color: '#5ab' } };
+
+  // makeWorld 에 종 파라미터 맵을 넘기는 헬퍼
+  function specMaps() {
+    const mass = {}, sigma = {}, eps = {};
+    for (const k in SPECIES) { mass[k] = SPECIES[k].mass; sigma[k] = SPECIES[k].sigma; eps[k] = SPECIES[k].eps; }
+    return { mass, sigma, eps };
+  }
 
   // 맥스웰 분포 초기 운동량: 각 활성 성분 p_k ~ Normal(0, √(m·T₀)).
   // 이후 총 운동량(무게중심 표류)을 정확히 0 으로 뺀다 — 장부 P 검사를 깨끗하게.
@@ -58,11 +66,12 @@
     const N = o.N || 64;
     const T0 = o.T0 != null ? o.T0 : 1.0;
     const L = o.L || 20;
+    const sm = specMaps();
     const world = E.makeWorld({
       dt: o.dt != null ? o.dt : 0.01,
       box: { L: E.V.make(L, L, L), bc: o.bc || 'periodic' },
       frozenZ: o.frozenZ !== false,
-      mass: { X: SPECIES.X.mass },
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps,
       // ①은 힘 0 (기본 zeroForces) — computeForces 미지정
     });
     latticePlace(world, N, rng);
@@ -78,9 +87,86 @@
     return idealGas(Object.assign({ bc: 'open', T0: 2.0, seed: o.seed || 777, N: o.N || 64 }, o, { bc: 'open' }));
   }
 
+  // ── ② 힘·충돌 장면 ──
+
+  // s02-gas-collide: 중성 N체 고밀도 기체 — 척력 산란 반복. 겹침·장부 감시 + EPS_E 대표 장면.
+  //   중성 q=0 → 척력만 실효 (쿨롱 경로는 charge 장면에서). dt 는 척력 벽 강성이 정한다.
+  function gasCollide(opts) {
+    const o = opts || {};
+    const rng = o.rng || E.makeRng(o.seed || 2002);
+    const N = o.N || 80;
+    const T0 = o.T0 != null ? o.T0 : 1.5;
+    const L = o.L || 14;
+    const sm = specMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.004,
+      box: { L: E.V.make(L, L, L), bc: o.bc || 'periodic' },
+      frozenZ: o.frozenZ !== false,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps,
+      computeForces: E.pairForces,
+    });
+    latticePlace(world, N, rng);       // 격자 시작 → 겹침 없이 출발
+    maxwellInit(world, T0, rng);
+    E.pairForces(world); E.recomputeLedger(world);
+    world._meta = { name: 's02-gas-collide', T0, N };
+    return world;
+  }
+
+  // s02-scatter-2: 2체 산란. 무거운 표적(≈고정) + 동전하(+1/+1) 발사체, 충돌 파라미터 b.
+  //   설계도의 "±1 쌍" → 동전하 +1/+1 로 채택(반발 러더퍼드): θ(b) 단조 감소가 깨끗하고
+  //   쿨롱 힘 경로까지 한 장면에서 검증된다(±는 s02-charge-pair 가 인력 경로로 담당).
+  function scatter2(opts) {
+    const o = opts || {};
+    const b = o.b != null ? o.b : 1.0;      // 충돌 파라미터
+    const v0 = o.v0 != null ? o.v0 : 1.5;   // 입사 속도
+    const D = o.D != null ? o.D : 40;       // 시작 거리 (상호작용 밖)
+    const sm = specMaps();
+    sm.mass = Object.assign({}, sm.mass, { T: 1e6 });   // 표적 종 T: 초중량 ≈ 고정
+    sm.sigma = Object.assign({}, sm.sigma, { T: SPECIES.X.sigma });
+    sm.eps = Object.assign({}, sm.eps, { T: SPECIES.X.eps });
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.004,
+      box: { L: E.V.make(1000, 1000, 1000), bc: 'open' },  // 큰 열린 상자 — 벽 상호작용 0
+      frozenZ: true,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps,
+      computeForces: E.pairForces,
+    });
+    // 표적: 원점 근방, 정지, +1. 발사체: (−D, b) 에서 +x 로 v0, +1.
+    world.atoms.push(E.makeAtom('T', E.V.make(500, 500, 0), E.V.zero(), +1));
+    world.atoms.push(E.makeAtom('X', E.V.make(500 - D, 500 + b, 0), E.V.make(v0, 0, 0), +1));
+    E.pairForces(world); E.recomputeLedger(world);
+    world._meta = { name: 's02-scatter-2', b, v0, projectileId: world.atoms[1].id };
+    return world;
+  }
+
+  // s02-charge-pair: +1/−1 쌍 — 쿨롱 인력 경로 검증 (궤도/산란). 장부 닫힘 확인.
+  function chargePair(opts) {
+    const o = opts || {};
+    const sm = specMaps();
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.002,
+      box: { L: E.V.make(60, 60, 60), bc: 'periodic' },
+      frozenZ: true,
+      mass: sm.mass, sigma: sm.sigma, eps: sm.eps,
+      computeForces: E.pairForces,
+    });
+    // 두 반대 전하를 서로 스쳐 지나가게 배치 (인력 편향)
+    world.atoms.push(E.makeAtom('X', E.V.make(24, 30, 0), E.V.make(1.0, 0, 0), +1));
+    world.atoms.push(E.makeAtom('X', E.V.make(36, 33, 0), E.V.make(-1.0, 0, 0), -1));
+    // 무게중심 표류 제거
+    const P = E.V.zero(); for (const a of world.atoms) E.V.addInto(P, a.p);
+    for (const a of world.atoms) { a.p.x -= P.x / 2; a.p.y -= P.y / 2; }
+    E.pairForces(world); E.recomputeLedger(world);
+    world._meta = { name: 's02-charge-pair' };
+    return world;
+  }
+
   const SCENES = {
     's01-ideal-gas': idealGas,
     's01-open-box': openBox,
+    's02-gas-collide': gasCollide,
+    's02-scatter-2': scatter2,
+    's02-charge-pair': chargePair,
   };
 
   function build(name, opts) {
@@ -89,7 +175,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

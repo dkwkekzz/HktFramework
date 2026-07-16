@@ -54,6 +54,31 @@
     };
   }
 
+  // 런 도중 최대 상대 E 표류·최대 |ΔP|·최소 겹침 비율 추적 (② 장부 감시)
+  function runDrift(name, opts) {
+    const w = S.build(name, opts);
+    const ticks = (opts && opts.ticks) || 1000;
+    const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+    let maxRelE = 0, maxdP = 0, minRatio = Infinity;
+    for (let k = 0; k < ticks; k++) {
+      E.step(w);
+      const tot = M.ledgerTable(w).total, P = M.momentum(w);
+      maxRelE = Math.max(maxRelE, Math.abs(tot - E0) / Math.max(1e-12, Math.abs(E0)));
+      maxdP = Math.max(maxdP, pDiff(P, P0));
+      if (w.minDsigma < minRatio) minRatio = w.minDsigma;
+    }
+    return { world: w, maxRelE, maxdP, minRatio, P0, P1: M.momentum(w), pressure: M.pressure(w) };
+  }
+
+  // 2체 산란 편향각 θ(b) [rad] — 발사체가 표적을 지나 멀어질 때까지 적분
+  function deflect(b, dt) {
+    const w = S.build('s02-scatter-2', { b, v0: 1.5, D: 40, dt: dt || 0.004 });
+    const proj = w.atoms.find((a) => a.id === w._meta.projectileId);
+    const xExit = w.box.L.x / 2 + 40;
+    for (let k = 0; k < 60000; k++) { E.step(w); if (proj.r.x > xExit) break; }
+    return Math.atan2(proj.p.y, proj.p.x);
+  }
+
   function compEqual(a, b) {
     const keys = new Set([...Object.keys(a), ...Object.keys(b)]);
     for (const k of keys) if ((a[k] || 0) !== (b[k] || 0)) return false;
@@ -127,6 +152,34 @@
       log.push({ ok: true, name: '통계·⟨T⟩분포', msg: `mean=${fmt(st.mean)} sd=${fmt(st.sd)} se=${fmt(st.se)} (R=${R})` });
     }
 
+    // 5. ② 힘·충돌 (쿨롱+척력·산란) — ①의 하네스·불변식 스위트를 그대로 재사용
+    {
+      // 장부 유지: 고밀도 중성 기체 산란 — max|ΔE|/E ≤ EPS_E · |ΔP|≤1e-9 · 겹침 0
+      const g = runDrift('s02-gas-collide', { seed: 42, N: 80, T0: 1.5, L: 14, dt: E.DT_STIFF, ticks: 2000 });
+      log.push({ ok: g.maxRelE <= E.EPS_E, name: '②장부·E표류', msg: `max|ΔE|/E = ${fmt(g.maxRelE)} ≤ EPS_E ${E.EPS_E}` });
+      assertExact('②장부·P보존(충돌중)', g.maxdP, 0, 1e-9, log);
+      log.push({ ok: g.minRatio > E.MIN_DSIGMA, name: '②겹침0', msg: `min d/σ = ${fmt(g.minRatio)} > ${E.MIN_DSIGMA}` });
+      log.push({ ok: g.pressure > 0, name: '②압력>0(척력)', msg: `비리얼 압력 P = ${fmt(g.pressure)}` });
+
+      // θ(b) 단조 감소 (반발 산란 앵커 — 러더퍼드 닮음)
+      const bs = [0.5, 1.0, 2.0, 4.0, 8.0];
+      const ths = bs.map((b) => deflect(b));
+      let mono = true;
+      for (let i = 1; i < ths.length; i++) if (!(ths[i] < ths[i - 1])) mono = false;
+      log.push({ ok: mono, name: '②θ(b)단조감소',
+        msg: `θ(deg): ${ths.map((t) => (t * 180 / Math.PI).toFixed(1)).join(' → ')}` });
+
+      // charge-pair: 쿨롱 인력 경로 장부 닫힘
+      const c = runDrift('s02-charge-pair', { dt: 0.002, ticks: 4000 });
+      log.push({ ok: c.maxRelE <= E.EPS_E, name: '②쿨롱쌍·E닫힘', msg: `max|ΔE|/E = ${fmt(c.maxRelE)} ≤ EPS_E` });
+      assertExact('②쿨롱쌍·P보존', c.maxdP, 0, 1e-9, log);
+
+      // dt 반감: θ(b=2) 가 dt·dt/2 에서 통계 동일 (산란은 결정론적 궤도라 상대차 작음)
+      const t1 = deflect(2.0, 0.004), t2 = deflect(2.0, 0.002);
+      const relTh = Math.abs(t1 - t2) / Math.max(1e-12, Math.abs(t2));
+      log.push({ ok: relTh <= 1e-3, name: '②dt반감·θ상대차', msg: `θ(b=2) 상대차 = ${fmt(relTh)} ≤ 1e-3` });
+    }
+
     return log;
   }
 
@@ -137,7 +190,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0-① verify: ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

@@ -43,6 +43,20 @@
     return c;
   }
 
+  // 압력 (비리얼): P·V = N·T + ⟨Σ r·F⟩/dim. dim·V 는 frozenZ 반영 (동결 시 2D 넓이).
+  function pressure(world) {
+    const n = world.atoms.length;
+    if (n === 0) return 0;
+    const dim = world.frozenZ ? 2 : 3;
+    const L = world.box.L;
+    const vol = world.frozenZ ? (L.x * L.y) : (L.x * L.y * L.z);
+    const T = temperature(world);
+    return (n * T + world.virial / dim) / vol;
+  }
+
+  // 최근접 비율 min d/σᵢⱼ (겹침 감시) — pairForces 가 world 에 남긴 값
+  function minDsigma(world) { return world.minDsigma; }
+
   // 장부 통 표 + 총합. 총합 = Σ(전 통) 이 시간 상수여야 한다.
   function ledgerTable(world) {
     const t = {};
@@ -51,7 +65,7 @@
     return t;
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable };
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();

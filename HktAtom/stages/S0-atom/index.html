@@ -32,12 +32,14 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ① 무대·장부</h1>
-    <p class="sub">입자가 있고 움직인다 — 통 분리 장부·수치 불변식의 뼈대</p>
+    <h1>S0-atom · ①② 무대·장부 · 힘·충돌</h1>
+    <p class="sub">입자가 움직이고 충돌·산란한다 — 쿨롱+척력, 닫힌 장부(Verlet 표류 ≤ EPS_E)</p>
 
     <div class="row">
       <label>장면</label>
       <select id="scene">
+        <option value="s02-gas-collide">s02-gas-collide (충돌·산란)</option>
+        <option value="s02-charge-pair">s02-charge-pair (쿨롱 ±)</option>
         <option value="s01-ideal-gas">s01-ideal-gas (주기·z동결)</option>
         <option value="s01-open-box">s01-open-box (열린 경계)</option>
       </select>
@@ -53,14 +55,19 @@
 
     <div class="row" style="margin-top:12px">
       <div><label>t</label> <span id="t" class="metric" style="font-size:14px">0</span></div>
-      <div style="margin-left:18px"><label>T</label> <span id="temp" class="metric">0</span></div>
-      <div style="margin-left:18px"><label>N</label> <span id="natoms" class="big">0</span></div>
+      <div style="margin-left:14px"><label>T</label> <span id="temp" class="metric">0</span></div>
+      <div style="margin-left:14px"><label>N</label> <span id="natoms" class="big">0</span></div>
+    </div>
+    <div class="row">
+      <div><label>P(비리얼)</label> <span id="press" class="big">0</span></div>
+      <div style="margin-left:14px"><label>min d/σ</label> <span id="mind" class="big">–</span></div>
     </div>
 
     <table id="ledger"></table>
     <p class="note" id="verifynote">
-      장부 총합은 시간 상수여야 한다 (힘 0 → 정확). 잔차 = |총합 − 초기 총합|.<br>
-      검증 전체는 <code>node verify.js</code> — 회계·dt반감·경계 3종·⟨T⟩ 통계.
+      장부 총합은 시간 상수여야 한다 — 힘 0(①)이면 정확, 힘 있으면(②) Verlet 표류 상대 ≤ EPS_E.<br>
+      min d/σ 는 최근접 거리 비율(겹침 감시, >0.7). P 는 비리얼 압력.<br>
+      검증 전체는 <code>node verify.js</code> — ① 회계·경계·⟨T⟩ + ② E표류·겹침·θ(b) 산란·쿨롱쌍 (24 검사).
     </p>
   </div>
 
@@ -77,30 +84,50 @@
 
   function build() {
     const name = el('scene').value;
-    world = S.build(name, { seed: (Math.random() * 1e9) | 0, N: 64, T0: name === 's01-open-box' ? 2.0 : 1.0, dt: 0.01 });
+    // 각 장면 빌더의 기본 파라미터(N·T0·dt·박스)를 그대로 쓰고 seed 만 무작위화
+    world = S.build(name, { seed: (Math.random() * 1e9) | 0 });
     total0 = M.ledgerTable(world).total;
+    trails.clear();
   }
+
+  const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
+  const TRAIL_MAX = 18;
 
   function draw() {
     const L = world.box.L;
     const sx = cv.width / L.x, sy = cv.height / L.y;
+    // 상자가 매우 크면(산란 장면) 관심 영역으로 확대: 원자 경계 상자에 맞춰 스케일
     ctx.clearRect(0, 0, cv.width, cv.height);
-    // 상자 테두리
     ctx.strokeStyle = '#1b2230'; ctx.strokeRect(0, 0, cv.width, cv.height);
-    const sp = S.SPECIES.X;
+    const sp = S.SPECIES.X, rpx = Math.max(2.5, sp.radius * sx);
+
+    // 궤적 트레일 누적 + 그리기 (주기 랩 점프는 끊어 그린다)
+    for (const a of world.atoms) {
+      const x = a.r.x * sx, y = cv.height - a.r.y * sy;
+      let tr = trails.get(a.id); if (!tr) { tr = []; trails.set(a.id, tr); }
+      tr.push([x, y]); if (tr.length > TRAIL_MAX) tr.shift();
+      ctx.beginPath();
+      for (let i = 1; i < tr.length; i++) {
+        const [x0, y0] = tr[i - 1], [x1, y1] = tr[i];
+        if (Math.abs(x1 - x0) > cv.width / 3 || Math.abs(y1 - y0) > cv.height / 3) { ctx.moveTo(x1, y1); continue; }
+        ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
+      }
+      ctx.strokeStyle = 'rgba(120,170,220,0.35)'; ctx.lineWidth = 1; ctx.stroke();
+    }
+
     for (const a of world.atoms) {
       const x = a.r.x * sx, y = cv.height - a.r.y * sy;
       const spd = E.V.len(a.p);
-      ctx.beginPath();
-      ctx.arc(x, y, sp.radius * sx, 0, Math.PI * 2);
-      // 속도에 따라 색 밝기 (운동에너지 직관)
-      const g = Math.min(255, 90 + spd * 90) | 0;
-      ctx.fillStyle = `rgb(${80},${g},${180})`;
-      ctx.fill();
+      ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
+      const g = Math.min(255, 90 + spd * 60) | 0;
+      ctx.fillStyle = `rgb(${80},${g},${180})`; ctx.fill();
+      // 전하 배지 (± 색 링) — 중성이면 없음
+      if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+      else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
     }
-    // 탈출 원자 흔적 (열린 경계)
+
     if (world.escaped.length) {
-      ctx.fillStyle = '#f8514933'; ctx.font = '11px monospace';
+      ctx.fillStyle = '#f8514977'; ctx.font = '11px monospace';
       ctx.fillText(`탈출 ${world.escaped.length}`, 8, cv.height - 8);
     }
   }
@@ -110,6 +137,8 @@
     el('t').textContent = world.t.toFixed(2);
     el('temp').textContent = M.temperature(world).toFixed(4);
     el('natoms').textContent = world.atoms.length;
+    el('press').textContent = M.pressure(world).toFixed(4);
+    el('mind').textContent = isFinite(world.minDsigma) ? world.minDsigma.toFixed(3) : '–';
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {
@@ -118,9 +147,14 @@
       rows += `<tr><td class="k ${cls}">${k}</td><td class="v ${cls}">${v.toFixed(6)}</td></tr>`;
     }
     const resid = Math.abs(tab.total - total0);
-    const rc = resid <= 1e-9 ? 'ok' : 'bad';
+    const rel = resid / Math.max(1e-12, Math.abs(total0));
+    // 힘 0(①) 이면 정확(≤1e-9), 힘 있으면(②) Verlet 표류 상대 ≤ EPS_E 를 기준으로 판정
+    const hasForce = tab.U_elec !== 0;
+    const rc = hasForce ? (rel <= E.EPS_E ? 'ok' : 'bad') : (resid <= 1e-9 ? 'ok' : 'bad');
+    const label = hasForce ? `상대잔차 (≤EPS_E ${E.EPS_E})` : '잔차 |Σ−Σ₀|';
+    const val = hasForce ? rel.toExponential(2) : resid.toExponential(2);
     rows += `<tr><td class="k big">Σ total</td><td class="v big">${tab.total.toFixed(6)}</td></tr>`;
-    rows += `<tr><td class="k">잔차 |Σ−Σ₀|</td><td class="v resid ${rc}">${resid.toExponential(2)}</td></tr>`;
+    rows += `<tr><td class="k">${label}</td><td class="v resid ${rc}">${val}</td></tr>`;
     el('ledger').innerHTML = rows;
   }
 
