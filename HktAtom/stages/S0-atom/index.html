@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑦ 원자→분자→열용량</h1>
-    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합(H₂)·열용량 계단. "보기": 시뮬⇄준위③·열용량⑦. 실선=결합·노란=들뜸·빨강+/파랑−.</p>
+    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합(H₂)·열용량 계단. "보기": 시뮬⇄준위③·열용량⑦. <b>공유결합=선(차수만큼)</b>·<b>이온=전하 부호(선 없음)</b>·점선=복합체·노란=들뜸.</p>
 
     <div class="row">
       <label>보기</label>
@@ -122,38 +122,39 @@
   const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
   const TRAIL_MAX = 18;
 
-  // 결합선 렌더: ⑤ 이온(반대 전하 근접쌍 = 이온결합 격자) · ⑥ world.bonds(공유결합·차수 굵기)
+  // 결합 렌더 — 화학 표기 규칙 준수:
+  //   ⑤ 이온결합: 전자를 주고받아 분리된 이온 → **선으로 잇지 않는다**(공유 아님).
+  //              배치(교대 격자)와 전하 배지([ ]⁺/⁻)로만 나타낸다.
+  //   ⑥ 공유결합: 공유 전자쌍 → 선. 차수대로 단일(−)·이중(=)·삼중(≡) 평행선.
+  //   임시 복합체: 아직 결합 아님 → 점선.
   function drawBonds(sx, sy, L) {
-    const seg = (a, b, color, w) => {
-      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+    const lineXY = (x0, y0, x1, y1, color, w) => {
       if (Math.abs(x1 - x0) > cv.width / 2 || Math.abs(y1 - y0) > cv.height / 2) return;  // 주기 랩 건너뜀
       ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x1, y1);
       ctx.strokeStyle = color; ctx.lineWidth = w; ctx.stroke();
     };
-    // ⑥ 복합체 (임시) — 점선
+    // 복합체 (임시·아직 결합 아님) — 점선
     if ((world.complexes || []).length) {
       ctx.setLineDash([3, 3]);
-      for (const cx of world.complexes) { const a = world.atomById(cx.i), b = world.atomById(cx.j); if (a && b) seg(a, b, 'rgba(255,210,120,0.5)', 1); }
+      for (const cx of world.complexes) {
+        const a = world.atomById(cx.i), b = world.atomById(cx.j);
+        if (a && b) lineXY(a.r.x * sx, cv.height - a.r.y * sy, b.r.x * sx, cv.height - b.r.y * sy, 'rgba(255,210,120,0.5)', 1);
+      }
       ctx.setLineDash([]);
     }
-    // ⑥ 공유결합 실선 — 차수에 따라 굵기
+    // 공유결합 — 차수대로 평행선 (단일 1줄·이중 2줄·삼중 3줄)
     for (const bd of world.bonds || []) {
       const a = world.atomById(bd.i), b = world.atomById(bd.j);
-      if (a && b) seg(a, b, 'rgba(210,228,255,0.9)', 1.5 + 2.5 * (bd.order || 1));
-    }
-    // ⑤ 이온결합: 반대 전하 이온의 근접쌍을 잇는다 (격자 구조 가시화)
-    if (world.specIon) {
-      const A = world.atoms, per = world.box.bc === 'periodic', thr = 1.7 * 1.7;
-      for (let i = 0; i < A.length; i++) {
-        if (A[i].q === 0) continue;
-        for (let j = i + 1; j < A.length; j++) {
-          if (A[j].q === 0 || A[i].q * A[j].q >= 0) continue;   // 반대 전하만
-          let dx = A[i].r.x - A[j].r.x, dy = A[i].r.y - A[j].r.y;
-          if (per) { dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); }
-          if (dx * dx + dy * dy <= thr) seg(A[i], A[j], 'rgba(150,210,180,0.45)', 1.4);
-        }
+      if (!a || !b) continue;
+      const x0 = a.r.x * sx, y0 = cv.height - a.r.y * sy, x1 = b.r.x * sx, y1 = cv.height - b.r.y * sy;
+      const dx = x1 - x0, dy = y1 - y0, len = Math.hypot(dx, dy) || 1, px = -dy / len, py = dx / len;
+      const order = Math.max(1, Math.round(bd.order || 1)), gap = 3.2;
+      for (let k = 0; k < order; k++) {
+        const off = (k - (order - 1) / 2) * gap;
+        lineXY(x0 + px * off, y0 + py * off, x1 + px * off, y1 + py * off, 'rgba(215,230,255,0.92)', 1.6);
       }
     }
+    // ⑤ 이온결합: 선 없음 — 배치+전하 배지로만 (아래 draw() 의 배지가 담당)
   }
 
   function draw() {
@@ -192,9 +193,17 @@
       ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
       const g = Math.min(255, 90 + spd * 60) | 0;
       ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`; ctx.fill();
-      // 전하 배지 (± 색 링) — 중성이면 없음
-      if (a.q > 0) { ctx.strokeStyle = '#f0674a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
-      else if (a.q < 0) { ctx.strokeStyle = '#4a8cf0'; ctx.lineWidth = 2; ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke(); }
+      // 이온 배지 — 분리된 이온: 색 링 + 전하 부호(선 없음이 이온결합의 핵심 표기)
+      if (a.q !== 0) {
+        const pos = a.q > 0;
+        ctx.strokeStyle = pos ? '#f0674a' : '#4a8cf0'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(x, y, rpx + 2.5, 0, Math.PI * 2); ctx.stroke();
+        ctx.fillStyle = pos ? '#f0674a' : '#7fbaff';
+        ctx.font = 'bold ' + Math.round(rpx * 0.9) + 'px monospace';
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(pos ? '+' : '−', x + rpx + 5, y - rpx - 2);   // 우측 상단 전하
+        ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
+      }
     }
     // 자유전자 (⑤) — 작은 파란 점
     for (const e of world.electrons) {
