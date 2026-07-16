@@ -175,6 +175,7 @@
       nu_rad: o.nu_rad,               // ⑥ 복사 안정화율 (0 이면 복사 안정화 끔)
       nu_stab: o.nu_stab,             // ⑥ 삼체 안정화율 (0 이면 삼체 끔)
       nu_diss: o.nu_diss,             // ⑥ 해리율 노브
+      thermostat: o.thermostat || null,  // {targetT, tau} — 냉각/가열 (열은 E_escape 회계)
       complexes: [],                  // ⑥ 임시 복합체 (안정화 전 — 에너지 변화 0인 자격 마커)
       atoms: [],
       electrons: [],   // ⑤ 전
@@ -572,9 +573,27 @@
 
     runTransitions(world);      // ④ 접촉 전이 샘플 + 흡수 · ①②③은 catalog 없음 → no-op
     recomputeLedger(world);
+    applyThermostat(world);     // 선택적 냉각/가열 (열을 E_escape 로 회계 — 밀폐계 아님)
 
     if (world.frozenZ) assertFrozenZ(world);
     world.t += dt;
+  }
+
+  // 온도조절기: 목표 T 로 속도를 Berendsen 식 완만 조정. 제거/주입 열은 E_escape 로 회계
+  //   (반응열을 빼내야 이온 격자가 결정으로 굳는다 — 밀폐계 자기가열의 해소).
+  function applyThermostat(world) {
+    const th = world.thermostat;
+    if (!th) return;
+    const n = world.atoms.length; if (!n) return;
+    const dofPer = world.frozenZ ? 2 : 3;
+    const T = 2 * world.ledger.K_tr / (n * dofPer);
+    if (T <= 1e-12) return;
+    const lam = Math.sqrt(Math.max(0, 1 + (world.dt / th.tau) * (th.targetT / T - 1)));
+    const K0 = world.ledger.K_tr;
+    for (const a of world.atoms) { a.p.x *= lam; a.p.y *= lam; if (!world.frozenZ) a.p.z *= lam; }
+    for (const e of world.electrons) { e.p.x *= lam; e.p.y *= lam; if (!world.frozenZ) e.p.z *= lam; }
+    recomputeLedger(world);
+    world.ledger.E_escape += (K0 - world.ledger.K_tr);   // 뺀 열 → 탈출(냉각) · 넣은 열은 음수
   }
 
   // 사건 큐 소진: 발화 시각이 지난 사건을 처리 (④ 방출) · ①②③은 빈 큐

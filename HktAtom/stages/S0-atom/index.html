@@ -47,7 +47,8 @@
         <option value="s06-v1-dimer">s06-v1-dimer (H₂ 분자)</option>
         <option value="s06-quad">s06-quad (C 허브 결합)</option>
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
-        <option value="s05-lattice">s05-lattice (이온 격자)</option>
+        <option value="s05-crystal">s05-crystal (냉각→결정)</option>
+        <option value="s05-lattice">s05-lattice (이온 액체·미냉각)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
         <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
         <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
@@ -62,7 +63,7 @@
     <div class="row">
       <button id="play">⏸ 일시정지</button>
       <label>배속</label>
-      <input id="speed" type="range" min="1" max="20" value="4" />
+      <input id="speed" type="range" min="1" max="60" value="4" />
       <span id="speedv">4×</span>
       <span class="note" style="margin:0">배속은 tick 수만 바꾼다 (물리 불변)</span>
     </div>
@@ -375,6 +376,8 @@
   el('scene').onchange = build;
   el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
   el('speed').oninput = (e) => { speed = +e.target.value; el('speedv').textContent = speed + '×'; };
+
+  window.__advance = (n) => { for (let i = 0; i < n; i++) if (mode === 'sim') E.step(world); };  // 캡처·디버그용 빨리감기
 
   build();
   frame();

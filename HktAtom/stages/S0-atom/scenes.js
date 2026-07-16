@@ -268,6 +268,16 @@
     return world;
   }
 
+  // s05-crystal: 냉각(온도조절기)으로 반응열을 빼내 이온 격자를 결정으로 굳힌다.
+  //   밀폐계는 발열로 자기가열돼 액체로 남는다 — 열을 E_escape 로 제거해야 +−+− 결정화.
+  function ionCrystal(opts) {
+    const o = opts || {};
+    const w = ionLattice(Object.assign({ per: 8, L: 8 * 1.25, T0: 0.3, seed: o.seed || 5007 }, o));
+    w.thermostat = { targetT: o.targetT != null ? o.targetT : 0.015, tau: o.tau != null ? o.tau : 1.2 };
+    w._meta = { name: 's05-crystal' };
+    return w;
+  }
+
   // s05-ion-pair: Kat–An 2체를 멀리 떨어뜨림 — 전자 이전이 오르막(ΔE=IE−EA>0)인지 확인.
   function ionPair(opts) {
     const o = opts || {};
@@ -337,6 +347,7 @@
     's04-radiative-cooling': radiativeCooling,
     's04-cavity': cavity,
     's05-lattice': ionLattice,
+    's05-crystal': ionCrystal,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
     's06-mixed': mixedWater,
@@ -350,7 +361,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, maxwellInit };
+  const api = { SPECIES, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionCrystal, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
