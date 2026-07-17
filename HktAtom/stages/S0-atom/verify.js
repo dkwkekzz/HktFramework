@@ -1049,6 +1049,18 @@
       const outPrhoUp = outEos.grid.T.every((_, ti) => monoUp(outEos.P[ti]));
       let outUTup = true; for (let ri = 0; ri < outEos.grid.rho.length; ri++) { const col = outEos.U.map((row) => row[ri]); if (!monoUp(col)) outUTup = false; }
       log.push({ ok: outPrhoUp && outUTup, name: '㉒발효표경향', msg: `㉒·발효 output.json 표: P(ρ)↑ ${outPrhoUp} · U(T)↑ ${outUTup} (author 0 — 측정 경향이 표에 담김)` });
+
+      // ── ㉒-b 수송: 확산 D(T,ρ) = MSD 기울기 (아인슈타인). D 는 ρ 와 함께↓(혼잡)·T 와 함께↑(활성) ──
+      const monoDown = (a) => a.every((v, i) => i === 0 || v < a[i - 1]);
+      const dif = Mat.measureDiffusion({ Tgrid: [0.30, 0.60], rhoGrid: [0.15, 0.30], R: 2, n: 10, eqTicks: 2000, winTicks: 3000, every: 200 });
+      const dRhoDown = dif.grid.T.every((_, ti) => monoDown(dif.D[ti]));   // 고정 T: ρ↑ → D↓
+      let dTup = true; for (let ri = 0; ri < dif.grid.rho.length; ri++) { const col = dif.D.map((row) => row[ri]); if (!monoUp(col)) dTup = false; }  // 고정 ρ: T↑ → D↑
+      log.push({ ok: dRhoDown, name: '㉒-b D(ρ)↓', msg: `㉒-b·확산 D 가 ρ 와 함께 단조↓ (전 T·혼잡 감속): [${dif.D.map((r) => '[' + r.map((x) => x.toFixed(3)) + ']').join(' ')}]` });
+      log.push({ ok: dTup, name: '㉒-b D(T)↑', msg: `㉒-b·확산 D 가 T 와 함께 단조↑ (전 ρ·열활성)` });
+      // (계약) 발효 output.json 의 transportCoefficients 유효 + 발효 표도 같은 경향.
+      const tc = OUT.transportCoefficients;
+      const outDrhoDown = tc && tc.diffusion.grid.T.every((_, ti) => monoDown(tc.diffusion.D[ti]));
+      log.push({ ok: !!(tc && tc.diffusion && OUT.errorBounds.D && outDrhoDown), name: '㉒-b계약', msg: `㉒-b·발효 transportCoefficients.diffusion 유효 · errorBounds.D 존재 · D(ρ)↓ ${outDrhoDown} (측정 경향 담김·author 0)` });
     }
 
     return log;

@@ -355,6 +355,11 @@
       "name": "EOS",
       "epsilon": 0.3,
       "protocol": "P(T,ρ)·U(T,ρ) 표 — NVT 굴림 측정·R런 표준오차 이내"
+    },
+    {
+      "name": "D(수송)",
+      "epsilon": 0.4,
+      "protocol": "D(T,ρ)=MSD 기울기/2dim — 아인슈타인 관계·R런 표준오차 이내"
     }
   ],
   "validRange": {
@@ -381,11 +386,12 @@
     "stage": "S0",
     "scenes": [
       "s11-mvp-box",
-      "s10-water-soup(eos-grid)"
+      "s10-water-soup(eos-grid)",
+      "s10-water-soup(diffusion-grid)"
     ],
     "runs": 1,
     "date": "2026-07-17",
-    "note": "S0 출력 v0.2 — ⑪ MVP 배관 위에 ㉒-a 측정 EOS 표 가법. S1 상태축[T,ρ] 기반."
+    "note": "S0 출력 v0.2 — ⑪ MVP + ㉒-a EOS + ㉒-b 확산 D(가법). S1 상태축[T,ρ] 기반."
   },
   "stateVariables": [
     {
@@ -533,6 +539,61 @@
         }
       ],
       "note": "C_v=∂U/∂T 유한차분 (양수=열역학 안정)"
+    },
+    "D": {
+      "grid": [
+        [
+          0.08773,
+          0.00971,
+          0.02105
+        ],
+        [
+          0.02259,
+          0.02641,
+          0.00936
+        ],
+        [
+          0.06878,
+          0.0264,
+          0.04761
+        ]
+      ],
+      "protocol": "R런 반복 간 표준오차 (MSD 기울기)"
+    }
+  },
+  "transportCoefficients": {
+    "diffusion": {
+      "form": "table",
+      "grid": {
+        "T": [
+          0.3,
+          0.5,
+          0.7
+        ],
+        "rho": [
+          0.12,
+          0.2,
+          0.3
+        ]
+      },
+      "D": [
+        [
+          0.51325,
+          0.27185,
+          0.16921
+        ],
+        [
+          0.73271,
+          0.43168,
+          0.23648
+        ],
+        [
+          0.86274,
+          0.5111,
+          0.29806
+        ]
+      ],
+      "note": "MSD 기울기 (아인슈타인 D=slope/2dim·반응성 소프·R=3)"
     }
   }
 }

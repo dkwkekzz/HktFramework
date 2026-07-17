@@ -108,6 +108,45 @@
     return { form: 'table', grid: { T: Tgrid.slice(), rho: rhoGrid.slice() }, P, U, Perr, Uerr, Tmeas, n: opts.n || 16, N: 3 * (opts.n || 16), R };
   }
 
+  // ── ㉒-b 수송: 확산 계수 D(T,ρ) = MSD 기울기 (아인슈타인 관계) ──
+  //   평형 후 disp 를 리셋하고, MSD(t)=⟨|Δr|²⟩ 의 시간 기울기를 최소제곱 적합 → D = slope/(2·dim).
+  //   반응성 소프라 clus 진동(유계)은 절편에 흡수·성장분(확산)만 기울기. 무대의 MSD 도구 재사용.
+  function diffusionPoint(T, rho, opts) {
+    opts = opts || {};
+    const n = opts.n || 16, N = 3 * n, L = Math.sqrt(N / rho);
+    const w = S.waterSoup({ n, L, T0: T, seed: opts.seed || 2002 });
+    equilibrate(w, T, opts.eqTicks || 4000);
+    for (const a of w.atoms) { a.disp.x = 0; a.disp.y = 0; a.disp.z = 0; }   // 확산 창 시작 = disp 0
+    const dim = w.frozenZ ? 2 : 3, dt = w.dt;
+    const ts = [], msds = [], win = opts.winTicks || 4000, every = opts.every || 200;
+    for (let k = 1; k <= win; k++) {
+      E.step(w);
+      if (k % (opts.thermoEvery || 20) === 0) thermostat(w, T);
+      if (k % every === 0) { ts.push(k * dt); msds.push(M.msd(w)); }
+    }
+    // 최소제곱 기울기 (원점 강제 안 함 — 절편이 진동/초기 흡수). slope = Σ(t−t̄)(m−m̄)/Σ(t−t̄)².
+    const nT = ts.length, tb = mean(ts), mb = mean(msds);
+    let num = 0, den = 0; for (let i = 0; i < nT; i++) { num += (ts[i] - tb) * (msds[i] - mb); den += (ts[i] - tb) * (ts[i] - tb); }
+    const slope = den > 0 ? num / den : 0;
+    return { T, rho, D: Math.max(0, slope / (2 * dim)), slope, ts, msds };
+  }
+
+  function measureDiffusion(opts) {
+    opts = opts || {};
+    const Tgrid = opts.Tgrid || [0.30, 0.50, 0.70], rhoGrid = opts.rhoGrid || [0.12, 0.20, 0.30], R = opts.R || 3;
+    const D = [], Derr = [];
+    for (let ti = 0; ti < Tgrid.length; ti++) {
+      D.push([]); Derr.push([]);
+      for (let ri = 0; ri < rhoGrid.length; ri++) {
+        const Dr = [];
+        for (let rep = 0; rep < R; rep++) Dr.push(diffusionPoint(Tgrid[ti], rhoGrid[ri], Object.assign({}, opts, { seed: 2002 + rep * 41 + ti * 5 + ri * 3 })).D);
+        D[ti].push(+mean(Dr).toFixed(5)); Derr[ti].push(+stderr(Dr).toFixed(5));
+        if (opts.log) opts.log(`D T=${Tgrid[ti]} ρ=${rhoGrid[ri]}: ${mean(Dr).toFixed(4)} (R=${R})`);
+      }
+    }
+    return { grid: { T: Tgrid.slice(), rho: rhoGrid.slice() }, D, Derr, R, n: opts.n || 16 };
+  }
+
   // ── 자기일관: 등적 열용량 C_v(ρ) = ∂U/∂T (T 격자 유한차분). 양수·유한이어야 (열역학 안정) ──
   //   ⑦ 은 분자당 C_v 계단(1→3/2→5/2)을 냈다 — 여기 반응 혼합물 C_v 는 그 위에 반응 기여가 얹혀
   //   더 크다(가열이 결합을 끊어 U↑ 추가) — 부호·유한만 assert, 값은 기록 (반응 열용량).
@@ -144,6 +183,12 @@
       P: eos.P, U: eos.U,
       note: 'NVT 그리드 굴림 측정 (반응성 중성 수프 N=' + eos.N + '·R=' + eos.R + '). P=비리얼(비결합쌍)·U=물질 에너지. 분산 응집 virial 접힘은 ㉒-b.',
     };
+    // 수송계수 (㉒-b·측정) — 확산 D(T,ρ). 존재 시만 가법 (CONTRACT §7 no-op).
+    if (opts.diffusion) {
+      out.transportCoefficients = {
+        diffusion: { form: 'table', grid: opts.diffusion.grid, D: opts.diffusion.D, note: 'MSD 기울기 (아인슈타인 D=slope/2dim·반응성 소프·R=' + opts.diffusion.R + ')' },
+      };
+    }
     // 자기일관 지표
     const cv = cvColumns(eos);
     // 오차 한계 (S1 오차 전파용)
@@ -152,10 +197,14 @@
       U: { grid: eos.Uerr, protocol: 'R런 반복 간 표준오차' },
       cv: { columns: cv, note: 'C_v=∂U/∂T 유한차분 (양수=열역학 안정)' },
     };
+    if (opts.diffusion) out.errorBounds.D = { grid: opts.diffusion.Derr, protocol: 'R런 반복 간 표준오차 (MSD 기울기)' };
     // 관측량 계약에 EOS 추가 (선언 목록)
     out.observables = (base.observables || []).slice();
     if (!out.observables.some((o) => o.name === 'EOS')) {
       out.observables.push({ name: 'EOS', epsilon: 0.3, protocol: 'P(T,ρ)·U(T,ρ) 표 — NVT 굴림 측정·R런 표준오차 이내' });
+    }
+    if (opts.diffusion && !out.observables.some((o) => o.name === 'D(수송)')) {
+      out.observables.push({ name: 'D(수송)', epsilon: 0.4, protocol: 'D(T,ρ)=MSD 기울기/2dim — 아인슈타인 관계·R런 표준오차 이내' });
     }
     // validRange: 상단은 원본 유지 (CONTRACT §7 가법·S1 이 이미 소비 — 좁히지 않는다).
     //   EOS 의 유효 범위는 그리드 자체가 문서화 → equationOfState.validRange 로 별도 기록.
@@ -181,6 +230,15 @@
       let finite = true; for (const row of (eos.P || []).concat(eos.U || [])) for (const v of row) if (!isFinite(v)) finite = false;
       req(finite, 'EOS 표 전 항 유한');
     }
+    // 수송계수 (존재 시만·가법 no-op): D 표 차원 = T×ρ · 유한 · 양수.
+    const tc = out.transportCoefficients;
+    if (tc && tc.diffusion) {
+      const g = tc.diffusion.grid, nT = g.T.length, nR = g.rho.length, D = tc.diffusion.D;
+      req(Array.isArray(D) && D.length === nT && D.every((row) => row.length === nR), 'D 표 차원 = T×ρ');
+      let dok = true; for (const row of D) for (const v of row) if (!isFinite(v) || v < 0) dok = false;
+      req(dok, 'D 표 전 항 유한·비음');
+      req(out.errorBounds && out.errorBounds.D, 'errorBounds D (수송 발효 조건)');
+    }
     req(out.errorBounds && out.errorBounds.P && out.errorBounds.U, 'errorBounds P·U (발효 조건 CONTRACT §3)');
     req(out.stateVariables && out.stateVariables.length >= 2, 'stateVariables [T,ρ]');
     req(out.observables && out.observables.some((o) => o.name === 'EOS'), 'observables EOS 선언');
@@ -202,7 +260,7 @@
     return lines.join('\n');
   }
 
-  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
+  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, diffusionPoint, measureDiffusion, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
   if (isNode) module.exports = api;
   else window.HktS0Material = api;
 })();
