@@ -74,21 +74,25 @@
     }
   }
 
-  // 격자 위 초기 배치 (겹침 방지 — ①은 힘이 없지만 뷰어 가독성·후속 단계 습관)
+  // 격자 위 초기 배치 (겹침 방지 — ①은 힘이 없지만 뷰어 가독성·후속 단계 습관).
+  //   차원은 장면 속성(①): frozenZ → xy 정사각 격자·해동 → xyz 큐빅 격자 (⑬ — 엔진 변경 0).
   function latticePlace(world, N, rng, sp) {
     sp = sp || 'X';
-    const L = world.box.L;
-    const per = Math.ceil(Math.sqrt(N));           // z 동결 → xy 격자
-    const gx = L.x / per, gy = L.y / per;
-    let k = 0;
-    for (let i = 0; i < per && k < N; i++) {
-      for (let j = 0; j < per && k < N; j++, k++) {
-        const jitter = 0.15;
-        const r = E.V.make(
-          (i + 0.5 + (rng() - 0.5) * jitter) * gx,
-          (j + 0.5 + (rng() - 0.5) * jitter) * gy,
-          0
-        );
+    const L = world.box.L, jitter = 0.15;
+    if (world.frozenZ) {
+      const per = Math.ceil(Math.sqrt(N));         // z 동결 → xy 격자
+      const gx = L.x / per, gy = L.y / per;
+      let k = 0;
+      for (let i = 0; i < per && k < N; i++) for (let j = 0; j < per && k < N; j++, k++) {
+        const r = E.V.make((i + 0.5 + (rng() - 0.5) * jitter) * gx, (j + 0.5 + (rng() - 0.5) * jitter) * gy, 0);
+        world.atoms.push(E.makeAtom(sp, r, E.V.zero()));
+      }
+    } else {
+      const per = Math.ceil(Math.cbrt(N));         // ⑬ 해동 → xyz 큐빅 격자
+      const gx = L.x / per, gy = L.y / per, gz = L.z / per;
+      let k = 0;
+      for (let i = 0; i < per && k < N; i++) for (let j = 0; j < per && k < N; j++) for (let m = 0; m < per && k < N; m++, k++) {
+        const r = E.V.make((i + 0.5 + (rng() - 0.5) * jitter) * gx, (j + 0.5 + (rng() - 0.5) * jitter) * gy, (m + 0.5 + (rng() - 0.5) * jitter) * gz);
         world.atoms.push(E.makeAtom(sp, r, E.V.zero()));
       }
     }
@@ -293,6 +297,29 @@
     return w;
   }
 
+  // ── ⑬ z 해동 (3D 전환) — `frozenZ:false` 만으로 3D 가 켜짐(차원=장면 속성·①·엔진 변경 0) ──
+
+  // s13-gas-3d: 3D 이상 기체 (힘 0·자유 비행). 등분배 ⟨p_z²⟩=⟨p_x²⟩·탄도 MSD 의 3D 판.
+  function gas3d(opts) {
+    const o = opts || {};
+    const w = idealGas(Object.assign({ N: 64, T0: 1.0, L: 12, seed: o.seed || 1301 }, o, { frozenZ: false }));
+    w._meta = { name: 's13-gas-3d' }; return w;
+  }
+
+  // s13-collide-3d: 3D 척력 산란. 충돌이 z 로 에너지를 퍼뜨려 등분배·겹침 0 유지(3D).
+  function collide3d(opts) {
+    const o = opts || {};
+    const w = gasCollide(Object.assign({ N: 80, T0: 1.5, L: 11, seed: o.seed || 1302 }, o, { frozenZ: false }));
+    w._meta = { name: 's13-collide-3d', T0: o.T0 != null ? o.T0 : 1.5, N: o.N || 80 }; w._auditP = true; return w;
+  }
+
+  // s13-bond-3d: 3D 공유결합 — C4 허브 + 4 H1 → CH₄ 위상(각도는 ⑭·여기선 3D 무대만).
+  function bond3d(opts) {
+    const o = opts || {}; const n = o.n || 8;
+    const w = buildCovalent(Object.assign({ T0: 0.3, seed: o.seed || 1303 }, o, { frozenZ: false }), { C4: n, H1: 4 * n });
+    w._meta = { name: 's13-bond-3d', n }; return w;
+  }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -362,7 +389,7 @@
     for (const k of ['H1', 'O2', 'C4']) { mass[k] = SPECIES[k].mass; sigma[k] = SPECIES[k].sigma; eps[k] = SPECIES[k].eps; budget[k] = SPECIES[k].B; }
     const world = E.makeWorld({
       dt: o.dt != null ? o.dt : 0.004,
-      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: o.frozenZ !== false,   // ⑬ 해동 가능
       mass: mass, sigma: sigma, eps: eps, budget: budget,
       computeForces: E.pairForces, rng, catalog: C.COVALENT,
       rc: o.rc != null ? o.rc : 1.5,
@@ -370,15 +397,24 @@
       nu_cplx: o.nu_cplx != null ? o.nu_cplx : 5, nu_rad: o.nu_rad != null ? o.nu_rad : 0.5,
       nu_stab: o.nu_stab != null ? o.nu_stab : 1.5, nu_diss: o.nu_diss != null ? o.nu_diss : 2,
     });
-    // 무작위 배치 (종을 섞어)
+    // 무작위 배치 (종을 섞어) — 차원은 장면 속성(①): 동결 xy 격자·해동 xyz 큐빅.
     const bag = [];
     for (const k of specs) for (let n = 0; n < counts[k]; n++) bag.push(k);
     for (let i = bag.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = bag[i]; bag[i] = bag[j]; bag[j] = t; }
-    const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
-    for (let idx = 0; idx < bag.length; idx++) {
-      const ix = idx % per, iy = (idx / per) | 0;
-      const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
-      world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+    if (world.frozenZ) {
+      const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
+      for (let idx = 0; idx < bag.length; idx++) {
+        const ix = idx % per, iy = (idx / per) | 0;
+        const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
+        world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+      }
+    } else {
+      const per = Math.ceil(Math.cbrt(N)), g = L / per;
+      for (let idx = 0; idx < bag.length; idx++) {
+        const ix = idx % per, iy = ((idx / per) | 0) % per, iz = (idx / (per * per)) | 0;
+        const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * g, (iy + 0.5 + (rng() - 0.5) * 0.3) * g, (iz + 0.5 + (rng() - 0.5) * 0.3) * g);
+        world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+      }
     }
     maxwellInit(world, o.T0 != null ? o.T0 : 0.35, rng);
     E.pairForces(world); E.recomputeLedger(world);
@@ -590,6 +626,9 @@
     's12-open-cooling': openCooling,
     's12-cavity': cavityField,
     's12-stim': stimField,
+    's13-gas-3d': gas3d,
+    's13-collide-3d': collide3d,
+    's13-bond-3d': bond3d,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -604,7 +643,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

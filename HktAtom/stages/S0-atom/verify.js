@@ -603,6 +603,54 @@
       }
     }
 
+    // 13. ⑬ z 해동 (3D 전환) — frozenZ:false 만으로 3D. **엔진 변경 0**(scenes/measure/index.html 만).
+    //     차원이 코드가 아니라 장면 속성이라는 ①의 청구서. 평면 회귀는 ①–⑫ 88 이 그대로 증명.
+    {
+      const sortKeys = (o) => JSON.stringify(Object.keys(o).sort().map((k) => k + o[k]));
+      // (0) z 동결 증거: 기존 frozenZ 장면은 ⟨p_z²⟩ 가 정확히 0 (z 자유도 봉인) — 해동과 대조.
+      {
+        const w = S.build('s02-gas-collide', { seed: 3, N: 40, L: 12 }); E.run(w, 400);
+        const mv = M.momentumVariance(w);
+        log.push({ ok: mv.z === 0 && mv.x > 0, name: '⑬z동결증거', msg: `frozenZ: ⟨p_z²⟩ ${fmt(mv.z)}=0 vs ⟨p_x²⟩ ${fmt(mv.x)}>0 (z 봉인)` });
+      }
+
+      // (1) z 해동 등분배 창발: z 를 차갑게(⟨p_z²⟩=0) 출발 → 3D 충돌이 z 로 에너지 퍼뜨려 등분배.
+      //     iso=⟨p_z²⟩/⟨p_xy²⟩ 가 0 → ~1 로 수렴 (R런). 차원=코드 아님·장면 속성의 실증.
+      {
+        const R = 4; let iso0 = [], iso1 = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build('s13-collide-3d', { seed: 40 + s });
+          for (const a of w.atoms) a.p.z = 0; E.recomputeLedger(w);   // z 차갑게 출발 (인위 비등방)
+          iso0.push(M.momentumVariance(w).iso);
+          E.run(w, 2500);
+          iso1.push(M.momentumVariance(w).iso);
+        }
+        const m0 = iso0.reduce((a, b) => a + b, 0) / R, m1 = iso1.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: m0 < 0.05 && m1 > 0.8 && m1 < 1.2, name: '⑬z해동등분배', msg: `iso ⟨p_z²⟩/⟨p_xy²⟩ ${fmt(m0)}→${fmt(m1)} ∈[0.8,1.2] (z 차갑게 출발→충돌이 등분배·창발)` });
+      }
+
+      // (2) 3D 장부·겹침: 3D 충돌 장면 총 E 보존 ≤ EPS_E + 겹침 0 (min d/σ > MIN_DSIGMA) + Σc 불변.
+      {
+        const w = S.build('s13-collide-3d', { seed: 7 });
+        const E0 = M.ledgerTable(w).total, c0 = sortKeys(M.composition(w));
+        let maxRel = 0, minDs = Infinity;
+        for (let k = 0; k < 2000; k++) { E.step(w); const t = M.ledgerTable(w); maxRel = Math.max(maxRel, Math.abs(t.total - E0) / Math.abs(E0)); minDs = Math.min(minDs, w.minDsigma); }
+        const cOk = sortKeys(M.composition(w)) === c0;
+        log.push({ ok: maxRel <= E.EPS_E && cOk, name: '⑬3D장부닫힘', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E · Σc ${cOk ? '불변' : '깨짐'}` });
+        log.push({ ok: minDs > E.MIN_DSIGMA, name: '⑬3D겹침0', msg: `min d/σ ${fmt(minDs)} > ${E.MIN_DSIGMA} (3D 척력 벽 유지)` });
+      }
+
+      // (3) 3D 결합 위상: C4 허브가 3D 에서 여러 H1 과 결합 (다배위) · 원자가 포화(maxOver 0·과결합 없음).
+      //     완전 CH₄ 우세는 화학 어닐링(⑩ 유형)·각도는 ⑭ — 여기선 3D 무대에서 ⑥ 공유 기계가 도는지만.
+      {
+        const w = S.build('s13-bond-3d', { seed: 11, n: 8 }); E.run(w, 4000);
+        const mol = M.molecules(w);
+        let maxCoord = 0;
+        for (const a of w.atoms) if (a.sp === 'C4') { let bc = 0; for (const b of w.bonds) if (b.i === a.id || b.j === a.id) bc += b.order; maxCoord = Math.max(maxCoord, bc); }
+        log.push({ ok: mol.nBonds > 0 && mol.maxOver === 0 && maxCoord >= 2, name: '⑬3D결합위상', msg: `3D 결합 ${mol.nBonds}개·C 최대배위 ${maxCoord}(≥2)·과결합 ${mol.maxOver}=0 (원자가 포화·3D 허브)` });
+      }
+    }
+
     return log;
   }
 
@@ -613,7 +661,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪⑫): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

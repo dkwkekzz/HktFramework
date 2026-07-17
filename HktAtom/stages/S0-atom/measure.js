@@ -198,7 +198,17 @@
     return h;
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules, entropy, equilibrium, localTemp, photonStats, photonSpectrum };
+  // ⑬ 축별 운동량 분산 ⟨p_k²⟩ — 등분배(3D z 해동) 확인: x·y·z 가 같아야 z 가 완전한 자유도.
+  //   frozenZ 면 z=0(동결 증거). 해동+충돌이면 셋이 수렴(등분배 창발). iso = z/평균(xy) 비율.
+  function momentumVariance(world) {
+    let sx = 0, sy = 0, sz = 0; const n = world.atoms.length;
+    for (const a of world.atoms) { sx += a.p.x * a.p.x; sy += a.p.y * a.p.y; sz += a.p.z * a.p.z; }
+    if (!n) return { x: 0, y: 0, z: 0, iso: 0 };
+    const x = sx / n, y = sy / n, z = sz / n;
+    return { x, y, z, iso: z / Math.max(1e-12, (x + y) / 2) };
+  }
+
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules, entropy, equilibrium, localTemp, photonStats, photonSpectrum, momentumVariance };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();
