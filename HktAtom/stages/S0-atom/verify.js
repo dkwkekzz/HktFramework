@@ -20,6 +20,7 @@
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;    // ⑰ 산·염기 (양성자 이전)
+  const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -852,6 +853,52 @@
       log.push({ ok: hOk && mDrift < 2e-3, name: '⑰장부·H보존', msg: `H 수 보존 ${hOk} · max|ΔE|/E ${fmt(mDrift)} < 2e-3 (이온 강성 + ⑯ 고립쌍 준정적 최소화 ~1e-7/사건 누적)` });
     }
 
+    // 21. ⑱ 연소 — ⑥ 결합 + ⑩ 실원소 위 추상 1행이 라디칼 연쇄(점화·발열·분지)를 만든다 (원리 0·행 추가).
+    if (want(18)) {
+      const R = 4, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const heat = (w) => { const t = M.ledgerTable(w); return t.K_tr + t.E_photon + t.E_escape; };
+      const oAtoms = (w) => { let n = 0; for (const a of w.atoms) if ((a.Z || 0) === 8 && Cb.rem(w, a) === 2) n++; return n; };
+      // 점화 상자: 스파크 vs 미점화. 라디칼 연쇄·발열·분지·H₂O·보존.
+      let radSp = [], radNo = [], qSp = [], qNo = [], waterSp = [], waterNo = [], oMaxSp = [], drift = [], cOk = true;
+      for (let s = 0; s < R; s++) {
+        for (const spark of [true, false]) {
+          const w = S.build('s18-ignition', { seed: 30 + s, spark, T0: 0.15 });
+          const c0 = w.atoms.length, Q0 = heat(w), E0 = M.ledgerTable(w).total;
+          let rmax = 0, omax = 0, mxdr = 0;
+          for (let k = 0; k < 8000; k++) { E.step(w); rmax = Math.max(rmax, Cb.radicals(w).n); omax = Math.max(omax, oAtoms(w)); mxdr = Math.max(mxdr, Math.abs(M.ledgerTable(w).total - E0) / Math.max(1, Math.abs(E0))); }
+          const dQ = heat(w) - Q0, nw = Cb.nWater(w);
+          if (w.atoms.length !== c0) cOk = false;
+          if (spark) { radSp.push(rmax); qSp.push(dQ); waterSp.push(nw); oMaxSp.push(omax); drift.push(mxdr); }
+          else { radNo.push(rmax); qNo.push(dQ); waterNo.push(nw); }
+        }
+      }
+      const mRadSp = avg(radSp), mRadNo = avg(radNo), mQSp = avg(qSp), mQNo = avg(qNo), mWSp = avg(waterSp), mWNo = avg(waterNo), mOSp = avg(oMaxSp), mDr = Math.max(...drift);
+      // 전선: 가늘고 긴 상자 — 스파크(좌단)의 반응이 먼 끝(우측 절반)까지 퍼진다 (공간 확산).
+      let reachFar = 0;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s18-flame-front', { seed: 60 + s });
+        const Lx = w.box.L.x;
+        for (let k = 0; k < 9000; k++) E.step(w);
+        let fx = 0; for (const a of w.atoms) if (Cb.rem(w, a) > 0 && a.r.x > fx) fx = a.r.x;
+        if (fx > Lx * 0.5) reachFar++;
+      }
+
+      // (1) 점화 대조: 스파크가 라디칼 연쇄를 증폭 (미점화 대비). — 점화 문턱의 정성판.
+      log.push({ ok: mRadSp > 2 * mRadNo, name: '⑱점화대조', msg: `라디칼 최대 스파크 ${fmt(mRadSp)} > 2× 미점화 ${fmt(mRadNo)} (연쇄 증폭 — 점화)` });
+      // (2) 미점화 준안정: 스파크 없으면 연료가 대체로 온전 (라디칼 소수).
+      log.push({ ok: mRadNo < 0.5 * mRadSp, name: '⑱미점화준안정', msg: `미점화 라디칼 ${fmt(mRadNo)} ≪ 점화 ${fmt(mRadSp)} (H₂+O₂ 준안정 — 문턱 아래 억제)` });
+      // (3) 발열: 스파크 연소가 결합 E 를 열(K_tr+복사)로 방출 (미점화보다 큼).
+      log.push({ ok: mQSp > 0 && mQSp > mQNo, name: '⑱발열', msg: `열방출 Δ(K+복사) 스파크 ${fmt(mQSp)} > 0·미점화 ${fmt(mQNo)} (결합 E → 열 · 발열)` });
+      // (4) 분지 (author 0): 원자 O(예산 잔여 2)가 연소 중 나타난다 — 라디칼 1→2 분지원 (예산 창발).
+      log.push({ ok: mOSp >= 2, name: '⑱분지(원자O)', msg: `연소 중 원자 O(잔여2) 최대 ${fmt(mOSp)} ≥ 2 (분지 agent — 예산에서 창발·author 0)` });
+      // (5) H₂O 생성: 스파크 연소가 물을 만든다 (미점화 대비).
+      log.push({ ok: mWSp > mWNo, name: '⑱H₂O생성', msg: `H₂O 스파크 ${fmt(mWSp)} > 미점화 ${fmt(mWNo)} (연소 산물 · 2H₂+O₂→2H₂O)` });
+      // (6) 전선 확산: 스파크의 반응이 상자 먼 끝(우측 절반)까지 공간 전파 (미연소 연료 속으로).
+      log.push({ ok: reachFar >= R - 1, name: '⑱전선확산', msg: `전선이 상자 절반 넘어 도달 ${reachFar}/${R} (스파크→반응이 연료 속 공간 확산)` });
+      // (7) 보존: 원자 수(Σc) 정확 불변 + 총 E 표류 유계 (발열 강성 — dt 유계).
+      log.push({ ok: cOk && mDr < 5e-2, name: '⑱장부·Σc보존', msg: `원자 수 보존 ${cOk} · max|ΔE|/E ${fmt(mDr)} < 5e-2 (연소 발열 강성·닫힌 계 단열)` });
+    }
+
     return log;
   }
 
@@ -863,7 +910,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

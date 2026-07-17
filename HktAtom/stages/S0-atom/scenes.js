@@ -13,6 +13,7 @@
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;  // ⑮ 부분 전하 (QEq)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;         // ⑯ 수소 결합 (R-HB)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;   // ⑰ 산·염기 (양성자 이전)
+  const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -519,6 +520,64 @@
     w.computeForces(w); E.recomputeLedger(w);
   }
 
+  // ── ⑱ 연소 (라디칼 연쇄·불) — ⑥ 결합 + ⑩ 실원소 위에 추상 1행. H₂+O₂ → H₂O + 열 ──
+  //   O=O 이중결합 대체(⑩ 단일결합만 gap): O-O 를 이중결합 세기(실 498/463·2.15)로 → O₂ 준안정·O 라디칼 아님.
+  const DPAIR_COMB = Object.assign({}, DPAIR_REAL, { 'O-O': DREF * 498 / 463 });
+  // 넉넉한 격자 배치 (분자 간 gap ≥ σ → 초기 겹침·스퓨리어스 열 0). O₂=이중(order2)·H₂=단일(order1).
+  function buildCombustion(o, dims) {
+    o = o || {};
+    const rng = o.rng || E.makeRng(o.seed || 1801);
+    const nH2 = dims.nH2, nO2 = dims.nO2, per = dims.per, g = o.g != null ? o.g : 2.7;
+    const rows = Math.ceil((nH2 + nO2) / per), Lx = per * g, Ly = rows * g;
+    const mass = {}, sigma = {}, eps = {}, budget = {};
+    for (const k of ['H', 'O']) { mass[k] = REAL[k].mass; sigma[k] = REAL[k].sigma; eps[k] = REAL[k].eps; budget[k] = Lv.budget(REAL[k].Z); }
+    const w = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.003, box: { L: E.V.make(Lx, Ly, Ly), bc: 'periodic' }, frozenZ: true,
+      mass, sigma, eps, budget, computeForces: E.pairForces, rng, catalog: [Cb.R_ABSTRACT].concat(C.COVALENT),
+      rc: o.rc != null ? o.rc : 1.6, Dbond: DREF, d0: 1.1, kbond: 25,
+      nu_cplx: o.nu_cplx != null ? o.nu_cplx : 6, nu_rad: o.nu_rad != null ? o.nu_rad : 0.4,
+      nu_stab: o.nu_stab != null ? o.nu_stab : 5, nu_diss: o.nu_diss != null ? o.nu_diss : 0.04,
+      nu_abst: o.nu_abst != null ? o.nu_abst : 8,
+    });
+    w.Dpair = DPAIR_COMB;
+    // 2 H₂ : 1 O₂ (화학량론). 배향 무작위 (겹침 완화).
+    let m = 0;
+    for (let i = 0; i < nH2 + nO2; i++, m++) {
+      const ix = m % per, iy = (m / per) | 0, cx = (ix + 0.5) * g, cy = (iy + 0.5) * g;
+      const sp = (i % 3 === 2) ? 'O' : 'H', ord = sp === 'O' ? 2 : 1, Dtot = E.pairD(w, sp, sp);
+      const th = rng() * Math.PI, dxr = 0.55 * Math.cos(th), dyr = 0.55 * Math.sin(th);
+      const a = E.makeAtom(sp, E.V.make(cx - dxr, cy - dyr, 0), E.V.zero()); a.Z = REAL[sp].Z;
+      const b = E.makeAtom(sp, E.V.make(cx + dxr, cy + dyr, 0), E.V.zero()); b.Z = REAL[sp].Z;
+      w.atoms.push(a, b); w.bonds.push({ i: a.id, j: b.id, order: ord, rest: 1.1, k: 25, D: Dtot / ord });
+    }
+    maxwellInit(w, o.T0 != null ? o.T0 : 0.15, rng);
+    E.pairForces(w); E.recomputeLedger(w); w._auditP = false;
+    return w;
+  }
+  // 스파크 (준비·측정 아님): x∈[x0,x1) 분자 강제 해리(라디칼 씨앗) + 국소 가열 → 점화.
+  function sparkZone(w, x0, x1, heat) {
+    heat = heat != null ? heat : 1.5;
+    for (const b of w.bonds.slice()) { const a = w.atomById(b.i); if (a && a.r.x >= x0 && a.r.x < x1) { const i = w.bonds.indexOf(b); if (i >= 0) w.bonds.splice(i, 1); } }
+    for (const a of w.atoms) { if (a.r.x >= x0 && a.r.x < x1) { a.p.x += (w.rng() - 0.5) * heat; a.p.y += (w.rng() - 0.5) * heat; } }
+    w.computeForces(w); E.recomputeLedger(w);
+  }
+  // s18-ignition: 균일 H₂+O₂ 상자 — 스파크(opts.spark) 로 점화 vs 미점화(준안정) 대조.
+  function ignition(o) {
+    o = o || {};
+    const w = buildCombustion(o, { nH2: o.nH2 || 14, nO2: o.nO2 || 7, per: o.per || 5 });
+    if (o.spark !== false) sparkZone(w, 0, o.g != null ? o.g : 2.7, o.heat != null ? o.heat : 1.5);
+    w._meta = { name: 's18-ignition', comb: 1, sparked: o.spark !== false };
+    return w;
+  }
+  // s18-flame-front: 가늘고 긴 상자 — 좌단 스파크 → 반응 전선이 미연소 연료 속으로 전파.
+  function flameFront(o) {
+    o = o || {};
+    const w = buildCombustion(Object.assign({ g: 2.7, T0: o.T0 != null ? o.T0 : 0.12 }, o), { nH2: o.nH2 || 26, nO2: o.nO2 || 13, per: o.per || 18 });
+    sparkZone(w, 0, o.spx != null ? o.spx : 4, o.heat != null ? o.heat : 1.6);
+    w._meta = { name: 's18-flame-front', comb: 1, sparked: true };
+    return w;
+  }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -840,6 +899,8 @@
     's17-autoionize': autoionize,
     's17-relay': relay,
     's17-acid-mix': acidMix,
+    's18-ignition': ignition,
+    's18-flame-front': flameFront,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -854,7 +915,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ignition, flameFront, buildCombustion, sparkZone, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
