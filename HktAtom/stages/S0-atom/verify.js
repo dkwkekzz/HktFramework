@@ -1019,7 +1019,7 @@
       const monoUp = (a) => a.every((v, i) => i === 0 || v > a[i - 1]);
       // (계약) 발효된 output.json 이 v0 하위호환 + EOS 블록 유효 (CONTRACT §7 가법·§3 발효 조건).
       const vm = Mat.validateMaterial(OUT), v0 = Pr.validateOutput(OUT);
-      log.push({ ok: vm.ok && v0.ok && OUT.schema === 's0-output-v0' && OUT.version === '0.2', name: '㉒계약',
+      log.push({ ok: vm.ok && v0.ok && OUT.schema === 's0-output-v0' && /^0\.[23]$/.test(OUT.version), name: '㉒계약',
         msg: `㉒·출력 계약: material ${vm.ok} · v0 하위호환 ${v0.ok} (S1 소비 불변) · schema ${OUT.schema} v${OUT.version} · EOS ${OUT.equationOfState.grid.T.length}×${OUT.equationOfState.grid.rho.length} 표 ${vm.errs.concat(v0.errs).join('·')}` });
 
       // 신선 측정 소그리드 (개발 반복 빠르게 — 경향 assert 는 통계라 소규모로 충분).
@@ -1069,6 +1069,17 @@
       // (계약) 발효 reactionNetwork 유효 (아레니우스 Ea>0·k 표) — validateMaterial 에 포함되나 명시.
       const rnO = OUT.reactionNetwork && OUT.reactionNetwork[0];
       log.push({ ok: !!(rnO && rnO.rateLaw.Ea > 0 && rnO.kTable && monoUp(rnO.kTable.k)), name: '㉒-c계약', msg: `㉒-c·발효 reactionNetwork 유효 · Ea ${rnO ? fmt(rnO.rateLaw.Ea) : 'x'} > 0 · k(T)↑ · R² ${rnO ? fmt(rnO.kTable.r2) : 'x'} (매질 유효 장벽·author 0)` });
+
+      // ── ㉒-d 물 앵커 (㉒ 닫는 기준): 유효 상호작용의 방향 h(θ)·밀도 g(ρ) 의존이 등방 대비 유의 ──
+      const monoDeep = (a) => a.every((v, i) => i === 0 || v < a[i - 1]);   // 단조 깊어짐(더 음수)
+      const im = Mat.measureInteractionModel({ R: 2, count: 20, eqTicks: 3000, Ls: [11, 8], seed: 707 });
+      // (방향) 정렬(c→1) 유효 H-결합 E 가 미정렬 대비 크게 깊다 — ⑯ 방향 선택성이 유효 상호작용에 담김.
+      log.push({ ok: im.directional.selectivity > 3 && im.directional.aligned < im.directional.misaligned, name: '㉒-d 방향', msg: `㉒-d·방향 선택성 |정렬/미정렬| ${fmt(im.directional.selectivity)} > 3 (정렬 ${fmt(im.directional.aligned)} ≪ 미정렬 ${fmt(im.directional.misaligned)} · 등방 대비 유의·⑯)` });
+      // (밀도) 응집/분자가 밀도와 함께 단조 깊어짐 — 협동 효과(등방 쌍 근사가 잃는 것).
+      log.push({ ok: monoDeep(im.density.cohesionPerMol) && im.density.cohesionPerMol[im.density.cohesionPerMol.length - 1] < 2 * im.density.cohesionPerMol[0], name: '㉒-d 밀도', msg: `㉒-d·응집/분자 밀도 의존 [${im.density.cohesionPerMol.map((x) => x.toFixed(2))}] 단조 심화 (저→고밀도 협동·배위 [${im.density.coordPerMol.map((x) => x.toFixed(1))}])` });
+      // (계약·㉒ 닫힘) 발효 interactionModel 유효 + 버전 0.3 (㉒ 완결 milestone).
+      const imO = OUT.interactionModel;
+      log.push({ ok: !!(imO && imO.directional.selectivity > 3 && imO.density.cohesionPerMol && OUT.version === '0.3'), name: '㉒-d계약·㉒닫힘', msg: `㉒-d·발효 interactionModel 유효 · 방향 선택성 ${imO ? fmt(imO.directional.selectivity) : 'x'} > 3 · 밀도 프로파일 · v${OUT.version} (㉒ MaterialModel 완결 — S0 진짜 출력)` });
     }
 
     return log;

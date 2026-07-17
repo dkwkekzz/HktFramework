@@ -18,6 +18,7 @@
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
   const S = isNode ? require('./scenes.js') : window.HktS0Scenes;
   const M = isNode ? require('./measure.js') : window.HktS0Measure;
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;   // ⑯ 방향성 H-결합 (㉒-d)
 
   // 물질 에너지 = 개체 안에 든 에너지만 (병진+퍼텐셜+내부). 떠난 에너지(복사·탈출·핵)는 제외
   //   — S1 개체의 u′ 로 접히는 것은 물질 에너지뿐 (promote.matterEnergy 동형·회계 정직).
@@ -196,6 +197,75 @@
     return { channel: 'R-DISS(결합 해리)', grid: { T: Tgrid.slice(), rho }, k: ks, kerr, arrhenius: { A: lnA != null ? +Math.exp(lnA).toFixed(5) : null, Ea: Ea != null ? +Ea.toFixed(4) : null, r2: r2 != null ? +r2.toFixed(4) : null }, R };
   }
 
+  // ── ㉒-d 물 앵커: 유효 상호작용의 방향 h(θ)·밀도 g(ρ) 의존 (㉒ 닫는 기준) ──
+  //   ⑪ MVP 쌍 테이블(pairPotential)은 등방·밀도 독립이라 물의 요점(방향성 H-결합·협동)을 잃는다.
+  //   물 클러스터(⑯ 부분 전하+방향 R-HB·forcesHB)를 굴려 유효 상호작용이 *방향과 밀도에 의존*함을 측정.
+
+  // 2D frozenZ 항온조 (내부용·waterCluster 는 frozenZ)
+  function thermostatCluster(w, T) {
+    E.recomputeLedger(w); const n = w.atoms.length; if (!n) return;
+    const dof = w.frozenZ ? 2 : 3, Tc = 2 * w.ledger.K_tr / (dof * n);
+    if (Tc <= 1e-9) return; const s = Math.sqrt(T / Tc);
+    for (const a of w.atoms) { a.p.x *= s; a.p.y *= s; if (!w.frozenZ) a.p.z *= s; }
+  }
+  function eqCluster(w, T, ticks) { for (let k = 0; k < ticks; k++) { E.step(w); if (k % 20 === 0) thermostatCluster(w, T); } }
+
+  // 방향 프로파일 h(c): 분자간 H···O 쌍을 정합 코사인 c=û_DH·û_HA 로 빈 → 빈별 평균 유효 H-결합
+  //   에너지. 정렬(c→1)일수록 깊고 미정렬(c→0)은 ~0 — 방향 선택성이 유효 상호작용에 담김.
+  function directionalProfile(opts) {
+    opts = opts || {};
+    const nBins = opts.nBins || 5, R = opts.R || 3, count = opts.count || 24;
+    const L = opts.L || 8.5, T = opts.T != null ? opts.T : 0.03;
+    const sumE = new Array(nBins).fill(0), cnt = new Array(nBins).fill(0);
+    const Dhb = 1.0, Rhb = HB.R_HB, nAng = HB.N_ANG;
+    for (let rep = 0; rep < R; rep++) {
+      const w = S.waterCluster({ count, L, T0: T, eqSteps: 0, seed: (opts.seed || 4004) + rep * 31 });
+      eqCluster(w, T, opts.eqTicks || 4000);
+      for (const p of HB.pairs(w)) {
+        if (p.c <= 0) continue;
+        const bi = Math.min(nBins - 1, Math.floor(p.c * nBins));
+        const wsw = 0.5 * (1 + Math.cos(Math.PI * p.d / Rhb));
+        sumE[bi] += -Dhb * wsw * Math.pow(p.c, nAng); cnt[bi]++;
+      }
+    }
+    const cBins = [], hE = [];
+    for (let i = 0; i < nBins; i++) { cBins.push(+((i + 0.5) / nBins).toFixed(2)); hE.push(cnt[i] ? +(sumE[i] / cnt[i]).toFixed(4) : 0); }
+    // 등방 기준 = 전 쌍 평균 (방향 무시). 선택성 = |정렬 빈| / |미정렬(하위 절반) 평균| — 방향 유의성.
+    const totE = sumE.reduce((a, b) => a + b, 0), totN = cnt.reduce((a, b) => a + b, 0);
+    const isoAvg = totN ? +(totE / totN).toFixed(4) : 0;
+    const aligned = hE[nBins - 1];
+    const half = Math.floor(nBins / 2);
+    let mSum = 0, mCnt = 0; for (let i = 0; i < half; i++) { if (cnt[i]) { mSum += hE[i] * cnt[i]; mCnt += cnt[i]; } }
+    const misaligned = mCnt ? mSum / mCnt : 0;
+    const selectivity = misaligned !== 0 ? +Math.abs(aligned / misaligned).toFixed(2) : (aligned !== 0 ? 999 : 0);
+    return { cBins, hE, cnt, isoAvg, aligned, misaligned: +misaligned.toFixed(4), selectivity };
+  }
+
+  // 밀도 프로파일 g(ρ): 밀도별(상자 L) 분자당 H-결합 배위·응집 에너지 → 고밀도일수록 협동 심화(더 깊음).
+  function densityProfile(opts) {
+    opts = opts || {};
+    const Ls = opts.Ls || [11, 8.5, 7], R = opts.R || 3, count = opts.count || 24, T = opts.T != null ? opts.T : 0.03;
+    const rho = [], coordPerMol = [], cohesionPerMol = [];
+    for (const L of Ls) {
+      const cs = [], ch = [];
+      for (let rep = 0; rep < R; rep++) {
+        const w = S.waterCluster({ count, L, T0: T, eqSteps: 0, seed: (opts.seed || 5005) + rep * 29 });
+        eqCluster(w, T, opts.eqTicks || 4000);
+        const st = HB.stats(w);
+        cs.push(st.perMol); ch.push(st.perMol * st.meanEhb);   // 응집/분자 = 배위 × 평균 H-결합 E
+      }
+      rho.push(+(count / (L * L)).toFixed(4)); coordPerMol.push(+mean(cs).toFixed(3)); cohesionPerMol.push(+mean(ch).toFixed(4));
+    }
+    return { rho, coordPerMol, cohesionPerMol };
+  }
+
+  function measureInteractionModel(opts) {
+    opts = opts || {};
+    const dir = directionalProfile(opts);
+    const den = densityProfile(opts);
+    return { directional: dir, density: den };
+  }
+
   // ── 자기일관: 등적 열용량 C_v(ρ) = ∂U/∂T (T 격자 유한차분). 양수·유한이어야 (열역학 안정) ──
   //   ⑦ 은 분자당 C_v 계단(1→3/2→5/2)을 냈다 — 여기 반응 혼합물 C_v 는 그 위에 반응 기여가 얹혀
   //   더 크다(가열이 결합을 끊어 U↑ 추가) — 부호·유한만 assert, 값은 기록 (반응 열용량).
@@ -238,6 +308,16 @@
         diffusion: { form: 'table', grid: opts.diffusion.grid, D: opts.diffusion.D, note: 'MSD 기울기 (아인슈타인 D=slope/2dim·반응성 소프·R=' + opts.diffusion.R + ')' },
       };
     }
+    // interactionModel (㉒-d·측정·물 앵커) — 유효 상호작용의 방향 h(θ)·밀도 g(ρ) 의존.
+    //   ⑪ pairPotential(등방·밀도 독립)이 잃는 물의 요점. 존재 시만 가법.
+    if (opts.interaction) {
+      const im = opts.interaction;
+      out.interactionModel = {
+        pairPMF: 'pairPotential(등방 기저 — 상단 필드)',
+        directional: { form: 'table', c_bins: im.directional.cBins, h_E: im.directional.hE, selectivity: im.directional.selectivity, note: '분자간 H···O 쌍의 정합코사인 c 빈별 평균 유효 H-결합 E — 정렬(c→1)일수록 깊음(⑯ 방향 선택성)' },
+        density: { form: 'table', rho: im.density.rho, coordPerMol: im.density.coordPerMol, cohesionPerMol: im.density.cohesionPerMol, note: '밀도별 분자당 H-결합 배위·응집 에너지 — 고밀도일수록 협동 심화(등방 쌍 근사가 잃는 것)' },
+      };
+    }
     // 반응망 (㉒-c·측정) — 결합 해리 k(T)→아레니우스. 존재 시만 가법.
     if (opts.reaction) {
       const rn = opts.reaction;
@@ -267,6 +347,9 @@
     }
     if (opts.reaction && !out.observables.some((o) => o.name === 'k(반응)')) {
       out.observables.push({ name: 'k(반응)', epsilon: 0.4, protocol: 'k_diss(T)=해리 사건/노출량 — 아레니우스 ln k vs 1/T 적합(R²·Ea>0)' });
+    }
+    if (opts.interaction && !out.observables.some((o) => o.name === 'interactionModel(방향·밀도)')) {
+      out.observables.push({ name: 'interactionModel(방향·밀도)', epsilon: 0.5, protocol: '유효 H-결합 E 의 정합코사인 c 의존(선택성) + 밀도별 응집/분자 — 등방 대비 유의' });
     }
     // validRange: 상단은 원본 유지 (CONTRACT §7 가법·S1 이 이미 소비 — 좁히지 않는다).
     //   EOS 의 유효 범위는 그리드 자체가 문서화 → equationOfState.validRange 로 별도 기록.
@@ -307,6 +390,12 @@
       req(rn.rateLaw && rn.rateLaw.hazard === 'arrhenius' && rn.rateLaw.Ea > 0 && rn.rateLaw.A > 0, '반응망 아레니우스 Ea>0·A>0 (해리=열활성)');
       req(rn.kTable && Array.isArray(rn.kTable.k) && rn.kTable.k.every((v) => isFinite(v) && v >= 0), 'k 표 유한·비음');
     }
+    // interactionModel (존재 시만·가법·물 앵커): 방향 선택성 유의 + 밀도 의존 존재.
+    const im = out.interactionModel;
+    if (im) {
+      req(im.directional && Array.isArray(im.directional.h_E) && im.directional.selectivity > 2, 'interactionModel 방향 선택성 > 2 (등방 대비 유의·⑯)');
+      req(im.density && Array.isArray(im.density.cohesionPerMol) && im.density.cohesionPerMol.length >= 2, 'interactionModel 밀도 프로파일 ≥ 2 점');
+    }
     req(out.errorBounds && out.errorBounds.P && out.errorBounds.U, 'errorBounds P·U (발효 조건 CONTRACT §3)');
     req(out.stateVariables && out.stateVariables.length >= 2, 'stateVariables [T,ρ]');
     req(out.observables && out.observables.some((o) => o.name === 'EOS'), 'observables EOS 선언');
@@ -328,7 +417,7 @@
     return lines.join('\n');
   }
 
-  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, diffusionPoint, measureDiffusion, reactionRatePoint, measureReactionNetwork, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
+  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, diffusionPoint, measureDiffusion, reactionRatePoint, measureReactionNetwork, directionalProfile, densityProfile, measureInteractionModel, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
   if (isNode) module.exports = api;
   else window.HktS0Material = api;
 })();

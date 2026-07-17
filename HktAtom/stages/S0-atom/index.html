@@ -760,8 +760,14 @@
     <div><canvas id="eos-arr" width="230" height="200"></canvas><div id="eos-arr-txt" style="font-family:monospace;font-size:11px;color:#8b949e;"></div></div>
   </div>
   <p style="font-size:11px;color:#6e7681;margin:2px 0 0;">㉒-b 수송: <b>D(T,ρ)</b> = MSD 기울기(아인슈타인) — ρ↑ 감소(혼잡)·T↑ 증가(열활성). ㉒-c 반응망: <b>k(T)</b> = 결합 해리 사건률 → 아레니우스 <b>ln k vs 1/T 직선</b>(Ea&gt;0 열활성 장벽). 전부 S1 이 굴릴 법칙.</p>
+  <h3 style="font-size:13px;margin:14px 0 4px;">㉒-d 물 앵커 — 유효 상호작용의 방향·밀도 의존 <span style="color:#8b949e;font-weight:normal;font-size:11px;">(㉒ 닫는 기준 — 등방 쌍 테이블이 잃는 물의 요점)</span></h3>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div><canvas id="eos-dir" width="300" height="200"></canvas></div>
+    <div><canvas id="eos-den" width="300" height="200"></canvas></div>
+    <div id="eos-im-txt" style="font-family:monospace;font-size:11px;color:#8b949e;white-space:pre;max-width:240px;"></div>
+  </div>
 </section>
-<script id="eos-data" type="application/json">{"grid":{"T":[0.3,0.5,0.7],"rho":[0.12,0.2,0.3]},"P":[[0.13627,0.23124,0.43878],[0.14913,0.30428,0.53183],[0.17677,0.35982,0.63875]],"U":[[-13.77986,-13.16652,-15.46969],[-0.10305,-3.38748,-1.34626],[10.19248,8.59639,9.53907]],"Perr":[[0.00328,0.00649,0.00758],[0.00582,0.00297,0.00496],[0.00575,0.00548,0.00819]],"Uerr":[[0.12493,1.13938,0.95483],[1.28157,1.51817,2.07525],[0.58772,0.38363,0.50884]],"D":[[0.51325,0.27185,0.16921],[0.73271,0.43168,0.23648],[0.86274,0.5111,0.29806]],"Derr":[[0.08773,0.00971,0.02105],[0.02259,0.02641,0.00936],[0.06878,0.0264,0.04761]],"cv":[{"rho":0.12,"cv":[68.384,51.4777]},{"rho":0.2,"cv":[48.8952,59.9194]},{"rho":0.3,"cv":[70.6171,54.4267]}],"rxn":{"kT":[0.55,0.7,0.85,1,1.15],"k":[0.0281,0.05179,0.08157,0.09665,0.13757],"Ea":1.624,"A":0.5337,"r2":0.9923}}</script>
+<script id="eos-data" type="application/json">{"grid":{"T":[0.3,0.5,0.7],"rho":[0.12,0.2,0.3]},"P":[[0.13627,0.23124,0.43878],[0.14913,0.30428,0.53183],[0.17677,0.35982,0.63875]],"U":[[-13.77986,-13.16652,-15.46969],[-0.10305,-3.38748,-1.34626],[10.19248,8.59639,9.53907]],"Perr":[[0.00328,0.00649,0.00758],[0.00582,0.00297,0.00496],[0.00575,0.00548,0.00819]],"Uerr":[[0.12493,1.13938,0.95483],[1.28157,1.51817,2.07525],[0.58772,0.38363,0.50884]],"D":[[0.51325,0.27185,0.16921],[0.73271,0.43168,0.23648],[0.86274,0.5111,0.29806]],"Derr":[[0.08773,0.00971,0.02105],[0.02259,0.02641,0.00936],[0.06878,0.0264,0.04761]],"cv":[{"rho":0.12,"cv":[68.384,51.4777]},{"rho":0.2,"cv":[48.8952,59.9194]},{"rho":0.3,"cv":[70.6171,54.4267]}],"rxn":{"kT":[0.55,0.7,0.85,1,1.15],"k":[0.0281,0.05179,0.08157,0.09665,0.13757],"Ea":1.624,"A":0.5337,"r2":0.9923},"im":{"c":[0.1,0.3,0.5,0.7,0.9],"hE":[-0.0003,-0.0019,-0.0126,-0.0545,-0.3401],"sel":351.83,"rho":[0.1983,0.3322,0.4898],"coh":[-0.0515,-1.0496,-1.9575],"coord":[0.889,3.528,5.639]}}</script>
 <script>
 (function () {
   const eos = JSON.parse(document.getElementById('eos-data').textContent);
@@ -809,6 +815,40 @@
     ctx.fillStyle = '#58a6ff'; for (let i = 0; i < xs.length; i++) { ctx.beginPath(); ctx.arc(px(xs[i]), py(ys[i]), 3, 0, 6.283); ctx.fill(); }
     ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.fillText('1/T→', 195, 178); ctx.fillText('ln k', 4, 26);
     document.getElementById('eos-arr-txt').textContent = 'Ea=' + R.Ea.toFixed(2) + ' (>0 열활성)  A=' + R.A.toFixed(2) + '\nR²=' + R.r2.toFixed(3) + ' (직선 적합)';
+  }
+
+  // ㉒-d 방향 h(c) 막대: 정합코사인 c 빈별 유효 H-결합 E — 정렬(c→1)일수록 깊음(방향 선택성).
+  if (eos.im) {
+    const IM = eos.im;
+    (function () {
+      const cv = document.getElementById('eos-dir'), ctx = cv.getContext('2d');
+      const deep = Math.min(...IM.hE), bw = 240 / IM.c.length;
+      ctx.clearRect(0, 0, cv.width, cv.height); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui';
+      ctx.fillText('방향 h(c): 유효 H-결합 E vs 정합', 8, 14);
+      for (let i = 0; i < IM.c.length; i++) {
+        const h = Math.abs(IM.hE[i] / deep) * 150, x = 30 + i * bw, y = 175 - h;
+        ctx.fillStyle = `rgb(${40 + 200 * (i / (IM.c.length - 1))},${140 - 60 * (i / (IM.c.length - 1))},${180 - 150 * (i / (IM.c.length - 1))})`;
+        ctx.fillRect(x, y, bw - 6, h); ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText('c' + IM.c[i], x, 188); ctx.fillText(IM.hE[i].toFixed(2), x, y - 3);
+      }
+    })();
+    // ㉒-d 밀도 g(ρ): 응집/분자 vs 밀도 — 고밀도일수록 깊음(협동).
+    (function () {
+      const cv = document.getElementById('eos-den'), ctx = cv.getContext('2d');
+      const deep = Math.min(...IM.coh), bw = 240 / IM.rho.length;
+      ctx.clearRect(0, 0, cv.width, cv.height); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui';
+      ctx.fillText('밀도 g(ρ): 응집/분자 vs 밀도', 8, 14);
+      for (let i = 0; i < IM.rho.length; i++) {
+        const h = Math.abs(IM.coh[i] / deep) * 150, x = 40 + i * bw, y = 175 - h;
+        ctx.fillStyle = '#58a6ff'; ctx.fillRect(x, y, bw - 10, h);
+        ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText('ρ' + IM.rho[i].toFixed(2), x, 188); ctx.fillText(IM.coh[i].toFixed(2), x, y - 3);
+      }
+    })();
+    document.getElementById('eos-im-txt').textContent =
+      '방향 선택성\n|정렬/미정렬| = ' + IM.sel.toFixed(0) + '\n(등방 대비 유의·⑯)\n\n밀도 배위/분자\n' +
+      IM.rho.map((r, i) => 'ρ' + r.toFixed(2) + ': ' + IM.coord[i].toFixed(1) + ' H-결합').join('\n') +
+      '\n\n등방 쌍 테이블이\n잃는 물의 요점을\n측정으로 담음\n→ ㉒ 완결.';
   }
 })();
 </script>

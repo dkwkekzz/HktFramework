@@ -1,6 +1,6 @@
 {
   "schema": "s0-output-v0",
-  "version": "0.2",
+  "version": "0.3",
   "species": [
     {
       "id": "H2O2",
@@ -365,6 +365,11 @@
       "name": "k(반응)",
       "epsilon": 0.4,
       "protocol": "k_diss(T)=해리 사건/노출량 — 아레니우스 ln k vs 1/T 적합(R²·Ea>0)"
+    },
+    {
+      "name": "interactionModel(방향·밀도)",
+      "epsilon": 0.5,
+      "protocol": "유효 H-결합 E 의 정합코사인 c 의존(선택성) + 밀도별 응집/분자 — 등방 대비 유의"
     }
   ],
   "validRange": {
@@ -393,11 +398,12 @@
       "s11-mvp-box",
       "s10-water-soup(eos-grid)",
       "s10-water-soup(diffusion-grid)",
-      "s10-water-soup(reaction-k)"
+      "s10-water-soup(reaction-k)",
+      "s16-water-cluster(interaction-model)"
     ],
     "runs": 1,
     "date": "2026-07-17",
-    "note": "S0 출력 v0.2 — ⑪ MVP + ㉒-a EOS + ㉒-b 확산 + ㉒-c 반응망 k(T)(가법). S1 상태축[T,ρ] 기반."
+    "note": "S0 출력 v0.3 — ⑪ MVP + ㉒ MaterialModel(EOS·확산·반응망·방향/밀도 interactionModel). ㉒ 닫힘·S1 상태축[T,ρ] 기반."
   },
   "stateVariables": [
     {
@@ -639,5 +645,46 @@
       },
       "note": "해리 사건 카운트 측정(author 0). Ea 는 매질 유효 장벽 — 카탈로그 결합 우물 D 와의 차가 매질 효과."
     }
-  ]
+  ],
+  "interactionModel": {
+    "pairPMF": "pairPotential(등방 기저 — 상단 필드)",
+    "directional": {
+      "form": "table",
+      "c_bins": [
+        0.1,
+        0.3,
+        0.5,
+        0.7,
+        0.9
+      ],
+      "h_E": [
+        -0.0003,
+        -0.0019,
+        -0.0126,
+        -0.0545,
+        -0.3401
+      ],
+      "selectivity": 351.83,
+      "note": "분자간 H···O 쌍의 정합코사인 c 빈별 평균 유효 H-결합 E — 정렬(c→1)일수록 깊음(⑯ 방향 선택성)"
+    },
+    "density": {
+      "form": "table",
+      "rho": [
+        0.1983,
+        0.3322,
+        0.4898
+      ],
+      "coordPerMol": [
+        0.889,
+        3.528,
+        5.639
+      ],
+      "cohesionPerMol": [
+        -0.0515,
+        -1.0496,
+        -1.9575
+      ],
+      "note": "밀도별 분자당 H-결합 배위·응집 에너지 — 고밀도일수록 협동 심화(등방 쌍 근사가 잃는 것)"
+    }
+  }
 }
