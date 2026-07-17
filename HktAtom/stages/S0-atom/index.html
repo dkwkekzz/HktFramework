@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
-    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표.</p>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR)</b>. <b>s15 = ⑮ 극성(부분 전하·QEq)</b>. <b>s16 = ⑯ 수소 결합: 극성 물의 방향성 약결합 네트워크(R-HB)·물+Ne 선택성</b>. CPK·공유결합=선·부분전하=링·쌍극자=노랑·<b>수소결합=청록 점선</b>.</p>
 
     <div class="row">
       <label>보기</label>
@@ -58,6 +58,21 @@
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s16-water-cluster">s16-water-cluster (수소 결합 네트워크)</option>
+        <option value="s16-mixed">s16-mixed (물+Ne 선택성)</option>
+        <option value="s15-h2o">s15-h2o (극성·부분 전하)</option>
+        <option value="s15-beh2">s15-beh2 (극성 결합·무극성 분자)</option>
+        <option value="s15-o2">s15-o2 (동핵 무극성)</option>
+        <option value="s15-field">s15-field (외부장 배향)</option>
+        <option value="s14-methane">s14-methane (CH₄ 정사면체)</option>
+        <option value="s14-water">s14-water (H₂O 굽음)</option>
+        <option value="s14-linear">s14-linear (BeH₂ 직선)</option>
+        <option value="s13-collide-3d">s13-collide-3d (3D 산란·회전)</option>
+        <option value="s13-gas-3d">s13-gas-3d (3D 기체)</option>
+        <option value="s13-bond-3d">s13-bond-3d (3D CH₄ 위상)</option>
+        <option value="s12-stim">s12-stim (유도 방출·빔)</option>
+        <option value="s12-open-cooling">s12-open-cooling (복사 냉각·입자)</option>
+        <option value="s12-cavity">s12-cavity (공동·광자 입자)</option>
         <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
         <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
         <option value="s04-cavity">s04-cavity (공동 평형)</option>
@@ -119,6 +134,9 @@
 <script src="engine.js"></script>
 <script src="catalog.js"></script>
 <script src="levels.js"></script>
+<script src="geometry.js"></script>
+<script src="polarity.js"></script>
+<script src="hbond.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="modes.js"></script>
@@ -126,7 +144,7 @@
 <script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry, Pol = window.HktS0Polarity, HB = window.HktS0HBond;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -143,6 +161,114 @@
 
   const trails = new Map();       // atom.id → 최근 화면 좌표 배열 (궤적 잔상)
   const TRAIL_MAX = 18;
+
+  // ── ⑬ 3D 카메라·투영 (외부 라이브러리 0 — 자체 행렬). 투영은 상태의 해석이지 본질 아님(KERNEL §2.1). ──
+  const cam = { yaw: 0.6, pitch: 0.45, drag: false, lx: 0, ly: 0 };
+  cv.addEventListener('mousedown', (e) => { if (world && !world.frozenZ) { cam.drag = true; cam.lx = e.offsetX; cam.ly = e.offsetY; } });
+  window.addEventListener('mouseup', () => { cam.drag = false; });
+  cv.addEventListener('mousemove', (e) => {
+    if (!cam.drag) return;
+    cam.yaw += (e.offsetX - cam.lx) * 0.01; cam.pitch += (e.offsetY - cam.ly) * 0.01;
+    cam.pitch = Math.max(-1.5, Math.min(1.5, cam.pitch)); cam.lx = e.offsetX; cam.ly = e.offsetY;
+  });
+  // 3D 점 → 화면 (상자 중심 기준 회전 yaw·pitch + 단순 원근). depth 로 정렬·명도.
+  function project3D(r, L) {
+    let x = r.x - L.x / 2, y = r.y - L.y / 2, z = r.z - L.z / 2;
+    const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
+    let x1 = x * cy + z * sy, z1 = -x * sy + z * cy;             // yaw (세로축)
+    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
+    let y2 = y * cp - z1 * sp, z2 = y * sp + z1 * cp;            // pitch (가로축)
+    const span = Math.max(L.x, L.y, L.z), f = span * 1.7;
+    const persp = f / (f + z2), sc = Math.min(cv.width, cv.height) / (span * 1.35);
+    return { x: cv.width / 2 + x1 * sc * persp, y: cv.height / 2 - y2 * sc * persp, depth: z2, persp };
+  }
+  const spColor = (a) => (S.REAL && S.REAL[a.sp]) ? S.REAL[a.sp].color : (S.SPECIES[a.sp] ? S.SPECIES[a.sp].color : '#5ab');
+  const spRad = (a) => (S.REAL && S.REAL[a.sp]) ? S.REAL[a.sp].radius : (S.SPECIES[a.sp] ? S.SPECIES[a.sp].radius : 0.5);
+
+  // 3D 렌더: 상자 와이어 + 결합(투영선) + 원자(depth 정렬·원근 반경·명도). frozenZ 면 draw()(2D).
+  function draw3D() {
+    const L = world.box.L;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.strokeStyle = '#1b2230'; ctx.strokeRect(0, 0, cv.width, cv.height);
+    // 상자 12 모서리 와이어프레임
+    const cs = [[0,0,0],[1,0,0],[1,1,0],[0,1,0],[0,0,1],[1,0,1],[1,1,1],[0,1,1]].map(v => project3D(E.V.make(v[0]*L.x, v[1]*L.y, v[2]*L.z), L));
+    const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    ctx.strokeStyle = 'rgba(90,120,160,0.25)'; ctx.lineWidth = 1;
+    for (const [a,b] of edges) { ctx.beginPath(); ctx.moveTo(cs[a].x, cs[a].y); ctx.lineTo(cs[b].x, cs[b].y); ctx.stroke(); }
+    // 결합 (투영선·주기 랩 점프 건너뜀)
+    ctx.lineWidth = 2.2; ctx.strokeStyle = 'rgba(215,230,255,0.9)';
+    for (const bd of world.bonds || []) {
+      const a = world.atomById(bd.i), b = world.atomById(bd.j); if (!a || !b) continue;
+      const pa = project3D(a.r, L), pb = project3D(b.r, L);
+      if (Math.hypot(pa.x - pb.x, pa.y - pb.y) > Math.min(cv.width, cv.height) * 0.5) continue;
+      ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    }
+    // 원자 depth 정렬 (뒤→앞)
+    const items = world.atoms.map(a => ({ a, pr: project3D(a.r, L) })).sort((u, v) => v.pr.depth - u.pr.depth);
+    for (const { a, pr } of items) {
+      const rpx = Math.max(2, spRad(a) * 26 * pr.persp);
+      const dim = Math.max(0.4, Math.min(1, pr.persp * pr.persp));   // 뒤는 어둡게 (깊이 단서)
+      if (a.level > 0) {   // ④ 들뜸 글로우
+        const gr = ctx.createRadialGradient(pr.x, pr.y, 0, pr.x, pr.y, rpx * 3);
+        gr.addColorStop(0, 'rgba(255,220,90,0.6)'); gr.addColorStop(1, 'rgba(255,220,90,0)');
+        ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx * 3, 0, 6.283); ctx.fill();
+      }
+      ctx.globalAlpha = dim;
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx, 0, 6.283); ctx.fillStyle = spColor(a); ctx.fill();
+      ctx.globalAlpha = 1;
+    }
+    // ⑭ 고립쌍 유령 화살표 (질량 없는 방향 — 결합각을 압박하는 도메인). 반투명 청록 파선.
+    let hasLone = false;
+    for (const a of world.atoms) {
+      if (!a.lones || a.lones.length === 0) continue;
+      hasLone = true;
+      const pa = project3D(a.r, L), Lb = world.box.L;
+      for (const lp of a.lones) {
+        const tip = project3D(E.V.make(a.r.x + lp.x * 1.0, a.r.y + lp.y * 1.0, a.r.z + lp.z * 1.0), Lb);
+        ctx.strokeStyle = 'rgba(90,220,210,0.55)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(tip.x, tip.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(120,240,230,0.5)'; ctx.beginPath(); ctx.arc(tip.x, tip.y, 2, 0, 6.283); ctx.fill();
+      }
+    }
+    // ⑯ 수소 결합 = 가는 청록 점선 (공유 실선과 구분). H···A.
+    let nHB = 0;
+    if (world._meta && world._meta.hb && HB) {
+      const hb = HB.detect(world); nHB = hb.length;
+      ctx.setLineDash([2, 4]); ctx.lineWidth = 1.2; ctx.strokeStyle = 'rgba(120,220,255,0.6)';
+      for (const h of hb) {
+        const H = world.atomById(h.H), A = world.atomById(h.A); if (!H || !A) continue;
+        const pH = project3D(H.r, L), pA = project3D(A.r, L);
+        if (Math.hypot(pH.x - pA.x, pH.y - pA.y) > Math.min(cv.width, cv.height) * 0.4) continue;
+        ctx.beginPath(); ctx.moveTo(pH.x, pH.y); ctx.lineTo(pA.x, pA.y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
+    }
+    // ⑮ 부분 전하 배지 (색·크기 = dq: 빨강 +·파랑 −) + 분자 쌍극자 화살표 (노랑).
+    let hasCharge = false;
+    if (world._meta && world._meta.polar && Pol) {
+      for (const a of world.atoms) {
+        const q = a.q || 0; if (Math.abs(q) < 1e-3) continue; hasCharge = true;
+        const p = project3D(a.r, L), rr = 3 + Math.min(9, Math.abs(q) * 22) * p.persp;
+        ctx.strokeStyle = q > 0 ? 'rgba(240,90,70,0.9)' : 'rgba(90,150,240,0.9)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 6.283); ctx.stroke();
+      }
+      // 분자 쌍극자 화살표: 각 성분 COM 에서 μ 방향
+      for (const comp of Pol.components(world)) {
+        const at = comp.map((i) => world.atoms[i]); let cx = 0, cy = 0, cz = 0, Mt = 0;
+        for (const a of at) { const m = world.mass[a.sp]; cx += a.r.x * m; cy += a.r.y * m; cz += a.r.z * m; Mt += m; }
+        cx /= Mt; cy /= Mt; cz /= Mt;
+        let mx = 0, my = 0, mz = 0; for (const a of at) { const q = a.q || 0; mx += q * (a.r.x - cx); my += q * (a.r.y - cy); mz += q * (a.r.z - cz); }
+        const mn = Math.hypot(mx, my, mz); if (mn < 0.02) continue;
+        const p0 = project3D(E.V.make(cx, cy, cz), L), p1 = project3D(E.V.make(cx + mx / mn * 1.4, cy + my / mn * 1.4, cz + mz / mn * 1.4), L);
+        ctx.strokeStyle = '#ffde5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+        ctx.fillStyle = '#ffde5a'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 2.5, 0, 6.283); ctx.fill();
+      }
+    }
+    // 광자 (있으면)
+    for (const ph of world.photons || []) { const p = project3D(ph.r, L); ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * p.persp, 0, 6.283); ctx.fill(); }
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록=고립쌍' : '') + (hasCharge ? ' · 링=부분전하±·노랑=쌍극자' : '') + (nHB ? ' · 청록 점선=수소결합 ' + nHB : '') + ' (투영은 해석)', 8, cv.height - 8);
+  }
 
   // 결합 렌더 — 화학 표기 규칙 준수:
   //   ⑤ 이온결합: 전자를 주고받아 분리된 이온 → **선으로 잇지 않는다**(공유 아님).
@@ -258,8 +384,19 @@
       ctx.beginPath(); ctx.arc(e.r.x * sx, cv.height - e.r.y * sy, 2.2, 0, Math.PI * 2);
       ctx.fillStyle = '#7fbaff'; ctx.fill();
     }
-    // 광자 빈 표시 (공동)
-    if (world.nPhotons > 0) {
+    // ⑫ 광자 입자 (field 모드) — 이동 점 + 방향 꼬리. 색은 에너지(단색이라 노랑 고정).
+    if (world.photons && world.photons.length) {
+      ctx.lineWidth = 1;
+      for (const ph of world.photons) {
+        const x = ph.r.x * sx, y = cv.height - ph.r.y * sy;
+        const tx = x - ph.dir.x * 6, ty = y + ph.dir.y * 6;   // 진행 반대쪽 꼬리
+        ctx.strokeStyle = 'rgba(255,238,120,0.55)'; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(x, y); ctx.stroke();
+        ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+      const st = M.photonStats(world);
+      ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
+      ctx.fillText(`광자 ${st.n} · 축정렬 ${(st.alignedFrac * 100 | 0)}%`, 8, 16);
+    } else if (world.nPhotons > 0) {   // ④ 빈 근사 (s04-cavity)
       ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
       ctx.fillText(`광자 ${world.nPhotons}`, 8, 16);
     }
@@ -500,7 +637,7 @@
   }
 
   function frame() {
-    if (mode === 'sim') { if (playing) { world._speed = speed; for (let i = 0; i < speed; i++) E.step(world); if (world._meta && world._meta.cool) S.coolStep(world); if (world._meta && world._meta.acts) S.scenarioStep(world); } draw(); panel(); }
+    if (mode === 'sim') { if (playing) { world._speed = speed; for (let i = 0; i < speed; i++) E.step(world); if (world._meta && world._meta.cool) S.coolStep(world); if (world._meta && world._meta.acts) S.scenarioStep(world); } if (world.frozenZ) { draw(); } else { draw3D(); } panel(); }
     else if (mode === 'levels') drawLevels();
     else if (mode === 'cv') { drawCv(); if (!cvData) { cvData = computeCv(); } }
     else if (mode === 'pol') { drawPol(); if (!polData) { polData = computePol(); } }

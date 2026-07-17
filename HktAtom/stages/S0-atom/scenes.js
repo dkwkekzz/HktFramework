@@ -9,6 +9,9 @@
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;   // ⑩ 실원소 B/IE (③ 순수 함수)
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry; // ⑭ 각도 반발 (VSEPR)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;  // ⑮ 부분 전하 (QEq)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;         // ⑯ 수소 결합 (R-HB)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -74,21 +77,25 @@
     }
   }
 
-  // 격자 위 초기 배치 (겹침 방지 — ①은 힘이 없지만 뷰어 가독성·후속 단계 습관)
+  // 격자 위 초기 배치 (겹침 방지 — ①은 힘이 없지만 뷰어 가독성·후속 단계 습관).
+  //   차원은 장면 속성(①): frozenZ → xy 정사각 격자·해동 → xyz 큐빅 격자 (⑬ — 엔진 변경 0).
   function latticePlace(world, N, rng, sp) {
     sp = sp || 'X';
-    const L = world.box.L;
-    const per = Math.ceil(Math.sqrt(N));           // z 동결 → xy 격자
-    const gx = L.x / per, gy = L.y / per;
-    let k = 0;
-    for (let i = 0; i < per && k < N; i++) {
-      for (let j = 0; j < per && k < N; j++, k++) {
-        const jitter = 0.15;
-        const r = E.V.make(
-          (i + 0.5 + (rng() - 0.5) * jitter) * gx,
-          (j + 0.5 + (rng() - 0.5) * jitter) * gy,
-          0
-        );
+    const L = world.box.L, jitter = 0.15;
+    if (world.frozenZ) {
+      const per = Math.ceil(Math.sqrt(N));         // z 동결 → xy 격자
+      const gx = L.x / per, gy = L.y / per;
+      let k = 0;
+      for (let i = 0; i < per && k < N; i++) for (let j = 0; j < per && k < N; j++, k++) {
+        const r = E.V.make((i + 0.5 + (rng() - 0.5) * jitter) * gx, (j + 0.5 + (rng() - 0.5) * jitter) * gy, 0);
+        world.atoms.push(E.makeAtom(sp, r, E.V.zero()));
+      }
+    } else {
+      const per = Math.ceil(Math.cbrt(N));         // ⑬ 해동 → xyz 큐빅 격자
+      const gx = L.x / per, gy = L.y / per, gz = L.z / per;
+      let k = 0;
+      for (let i = 0; i < per && k < N; i++) for (let j = 0; j < per && k < N; j++) for (let m = 0; m < per && k < N; m++, k++) {
+        const r = E.V.make((i + 0.5 + (rng() - 0.5) * jitter) * gx, (j + 0.5 + (rng() - 0.5) * jitter) * gy, (m + 0.5 + (rng() - 0.5) * jitter) * gz);
         world.atoms.push(E.makeAtom(sp, r, E.V.zero()));
       }
     }
@@ -244,6 +251,190 @@
     return w;
   }
 
+  // ── ⑫ 복사장 장면 (photon 입자) — ④의 빈 근사를 방향·공간 가진 입자로 교체. 2준위 종 A 재사용 ──
+
+  // s12-open-cooling: field 모드 + 광자 open 경계 → 방출 광자가 상자를 나가며 냉각 (④ 냉각 회귀·입자판).
+  function openCooling(opts) {
+    const o = opts || {};
+    // dt=DT_STIFF(0.004): 고T(3.0) 냉각은 병진이 빨라 Verlet 표류가 dt=0.005 에선 EPS_E 를 넘긴다
+    //   (EPS_E 는 dt=0.004 기준 교정값 — ②). 냉각 자체는 그대로 재현(T 3.0→~1.3).
+    const w = buildA(Object.assign({ T0: 3.0, N: 100, dt: E.DT_STIFF, seed: o.seed || 1205 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 2.0, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 15.0, photonBC: 'open' });
+    w._meta = { name: 's12-open-cooling' };
+    return w;
+  }
+
+  // s12-cavity: field 모드 + 광자 reflect 경계 → 광자가 상자에 갇혀 재흡수(정상 상태) (④ 공동 회귀·입자판).
+  function cavityField(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 2.0, N: 120, seed: o.seed || 1206 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 1.2, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 12.0, photonBC: 'reflect',
+        nu_abs: o.nu_abs != null ? o.nu_abs : 2.5 });
+    w._meta = { name: 's12-cavity' };
+    return w;
+  }
+
+  // s12-stim: 밀도 반전(들뜸 다수) + 씨앗 광자 +x 주입 → 유도 방출로 방향성 증폭(빔).
+  //   nu_stim=0(대조)이면 자발 방출만 → 등방(축 정렬 이방성 없음). 흡수·충돌 꺼 반전 유지.
+  function stimField(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 0.5, N: 80, L: o.L || 16, seed: o.seed || 1207 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 8.0, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 15.0, photonBC: 'reflect',
+        nu_abs: o.nu_abs != null ? o.nu_abs : 0.0,          // 흡수 끔 — 증폭만 관찰
+        nu_stim: o.stim != null ? o.stim : 6.0, nu_col: 0.0 });  // 충돌 끔 — 준위 반전 유지
+    // 밀도 반전: 원자 대부분 들뜸(level 1) + 자발 방출 예약(대조군의 등방 방출원)
+    const frac = o.invFrac != null ? o.invFrac : 0.85;
+    for (const a of w.atoms) if (w.rng() < frac) { E.setLevel(a, 1); E.scheduleEmission(w, a); }
+    // 씨앗 광자 +x 주입 (한 방향)
+    const nSeed = o.seed_n != null ? o.seed_n : 8, dE = SPECIES.A.dE;
+    for (let i = 0; i < nSeed; i++) {
+      const r = E.V.make(1 + w.rng() * 2, w.rng() * w.box.L.y, 0);
+      w.photons.push(E.makePhoton(dE, r, E.V.make(1, 0, 0), 0));
+      w.ledger.E_photon += dE;
+    }
+    E.recomputeLedger(w);
+    w._meta = { name: 's12-stim' };
+    return w;
+  }
+
+  // ── ⑬ z 해동 (3D 전환) — `frozenZ:false` 만으로 3D 가 켜짐(차원=장면 속성·①·엔진 변경 0) ──
+
+  // s13-gas-3d: 3D 이상 기체 (힘 0·자유 비행). 등분배 ⟨p_z²⟩=⟨p_x²⟩·탄도 MSD 의 3D 판.
+  function gas3d(opts) {
+    const o = opts || {};
+    const w = idealGas(Object.assign({ N: 64, T0: 1.0, L: 12, seed: o.seed || 1301 }, o, { frozenZ: false }));
+    w._meta = { name: 's13-gas-3d' }; return w;
+  }
+
+  // s13-collide-3d: 3D 척력 산란. 충돌이 z 로 에너지를 퍼뜨려 등분배·겹침 0 유지(3D).
+  function collide3d(opts) {
+    const o = opts || {};
+    const w = gasCollide(Object.assign({ N: 80, T0: 1.5, L: 11, seed: o.seed || 1302 }, o, { frozenZ: false }));
+    w._meta = { name: 's13-collide-3d', T0: o.T0 != null ? o.T0 : 1.5, N: o.N || 80 }; w._auditP = true; return w;
+  }
+
+  // s13-bond-3d: 3D 공유결합 — C4 허브 + 4 H1 → CH₄ 위상(각도는 ⑭·여기선 3D 무대만).
+  function bond3d(opts) {
+    const o = opts || {}; const n = o.n || 8;
+    const w = buildCovalent(Object.assign({ T0: 0.3, seed: o.seed || 1303 }, o, { frozenZ: false }), { C4: n, H1: 4 * n });
+    w._meta = { name: 's13-bond-3d', n }; return w;
+  }
+
+  // ── ⑭ 형상 (VSEPR·결합각) — 미리 결합된 독립 분자 배치, 공통 각도 반발이 형상을 만든다 ──
+  //   외각 전자(valence)는 ③ fillZ 유도(author 0). 결합은 고정(catalog 없음) — 형상만 관찰. 3D(⑬) 필수.
+  const GEO_SPEC = {
+    H1: { Z: 1, mass: 1.0, sigma: 0.9, eps: 1.0, color: '#e6edf3', radius: 0.34 },
+    O2: { Z: 8, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#e0403a', radius: 0.5 },
+    C4: { Z: 6, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#556070', radius: 0.5 },
+    Be2:{ Z: 4, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#c9a6f0', radius: 0.46 },
+    Ne: { Z: 10, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#9ec7f0', radius: 0.4 },   // ⑯ 무극성 대조
+  };
+  // 외각 전자 수 = ③ fillZ(Z) 의 최고 주양자수 껍질 점유 합 (author 0 — 유도값).
+  function valenceElectrons(Z) {
+    const occ = Lv.fillZ(Z); let maxN = 0;
+    for (const sh in occ) maxN = Math.max(maxN, +sh[0]);
+    let v = 0; for (const sh in occ) if (+sh[0] === maxN) v += occ[sh];
+    return v;
+  }
+
+  // 무작위 균일 회전 행렬 (4 가우시안 → 단위 쿼터니언 → R). 분자를 무작위 배향(⑮ 장 응답의 등방 시작).
+  function randRot(rng) {
+    let a = E.gaussian(rng), b = E.gaussian(rng), c = E.gaussian(rng), d = E.gaussian(rng);
+    const n = Math.hypot(a, b, c, d) || 1; a /= n; b /= n; c /= n; d /= n;
+    return [
+      [1 - 2 * (c * c + d * d), 2 * (b * c - a * d), 2 * (b * d + a * c)],
+      [2 * (b * c + a * d), 1 - 2 * (b * b + d * d), 2 * (c * d - a * b)],
+      [2 * (b * d - a * c), 2 * (c * d + a * b), 1 - 2 * (b * b + c * c)],
+    ];
+  }
+  function placeMolecule(world, center, ligand, nLig, cx, cy, cz, rng, d0) {
+    const c = E.makeAtom(center, E.V.make(cx, cy, cz), E.V.zero()); c.Z = GEO_SPEC[center].Z; c.qBase = 0; world.atoms.push(c);
+    // 피보나치 구면 배치 + 작은 무작위 회전 지터 — 겹침 없이 시작(비최적 각) → 각도 반발이 형상으로 이완.
+    const gold = 2.399963229728653, jit = 0.4, R = world._randOrient ? randRot(rng) : null;
+    for (let k = 0; k < nLig; k++) {
+      const y = nLig === 1 ? 1 : 1 - 2 * (k + 0.5) / nLig;
+      const r = Math.sqrt(Math.max(0, 1 - y * y)), phi = k * gold + (rng() - 0.5) * jit;
+      let dx = r * Math.cos(phi), dy = y, dz = r * Math.sin(phi);
+      if (world.frozenZ) { dx = Math.cos(phi + y); dy = Math.sin(phi + y); dz = 0; const n = Math.hypot(dx, dy); dx /= n; dy /= n; }
+      if (R) { const nx = R[0][0] * dx + R[0][1] * dy + R[0][2] * dz, ny = R[1][0] * dx + R[1][1] * dy + R[1][2] * dz, nz = R[2][0] * dx + R[2][1] * dy + R[2][2] * dz; dx = nx; dy = ny; dz = nz; }
+      const lg = E.makeAtom(ligand, E.V.make(cx + dx * d0, cy + dy * d0, cz + dz * d0), E.V.zero()); lg.Z = GEO_SPEC[ligand].Z; lg.qBase = 0; world.atoms.push(lg);
+      world.bonds.push({ i: c.id, j: lg.id, order: 1, rest: d0, k: world.kbond, D: world.Dbond });
+    }
+  }
+
+  function buildShape(o, mol) {
+    const rng = o.rng || E.makeRng(o.seed || 1401);
+    const count = o.count || 12, d0 = 1.15, T0 = o.T0 != null ? o.T0 : 0.006, L = o.L || 18;
+    const mass = {}, sigma = {}, eps = {}, valence = {};
+    for (const k in GEO_SPEC) { mass[k] = GEO_SPEC[k].mass; sigma[k] = GEO_SPEC[k].sigma; eps[k] = GEO_SPEC[k].eps; valence[k] = valenceElectrons(GEO_SPEC[k].Z); }
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.0025,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: false,   // ⑬ 3D 무대
+      mass, sigma, eps,
+      computeForces: Geo.forcesWithAngles, rng, catalog: null,          // 결합 고정(해리 없음) — 형상만
+      Dbond: o.Dbond != null ? o.Dbond : 4.0, kbond: o.kbond != null ? o.kbond : 30, d0,
+    });
+    world.valence = valence;   // makeWorld 는 미지 필드를 버림 → ⑭ 외각 전자 맵을 직접 부착(고립쌍 수 유도)
+    if (o.kang != null) world._kang = o.kang; if (o.lam != null) world._lam = o.lam; if (o.c0 != null) world._c0 = o.c0;   // 튜닝 override
+    if (o.polar) {   // ⑮ 부분 전하: QEq(전하 균등화) → pairForces(부분 전하 쿨롱) → 각도(⑭ 형상) 합성
+      world._geoAngular = Geo.angularForces; world.computeForces = Pol.forcesPolar;
+      if (o.field) world.Efield = o.field;
+      if (o.randOrient) world._randOrient = true;   // ⑮ 장 응답: 무작위 배향 시작(장 없으면 등방 유지)
+      if (o.hb) { world._polForces = Pol.forcesPolar; world.computeForces = HB.forcesHB; if (o.Dhb != null) world.Dhb = o.Dhb; }  // ⑯ R-HB 합성
+    }
+    const per = Math.ceil(Math.cbrt(count)), g = L / per;
+    let m = 0;
+    for (let i = 0; i < per && m < count; i++) for (let j = 0; j < per && m < count; j++) for (let kk = 0; kk < per && m < count; kk++, m++)
+      placeMolecule(world, mol.center, mol.ligand, mol.nLig, (i + 0.5) * g, (j + 0.5) * g, (kk + 0.5) * g, rng, d0);
+    Geo.initGeometry(world);
+    // 형상 이완 (초기 조건 준비 — maxwellInit 과 동형): 과감쇠 하강으로 분자를 각도 최소에 안착시킨다.
+    //   초기 배치의 굽힘 에너지를 빼야(감쇠는 여기서만) 측정 런이 최소 근방 열진동을 본다. 측정 런은 보존.
+    const eq = o.eqSteps != null ? o.eqSteps : 9000, damp = o.damp != null ? o.damp : 0.96;
+    for (let k = 0; k < eq; k++) { E.step(world); for (const a of world.atoms) { a.p.x *= damp; a.p.y *= damp; a.p.z *= damp; } }
+    maxwellInit(world, T0, rng);
+    world.computeForces(world); E.recomputeLedger(world);   // polar 면 Pol.forcesPolar(전하 갱신+U_pol)·아니면 forcesWithAngles
+    world._auditP = false;
+    return world;
+  }
+  // s14-methane: CH₄ 정사면체(C 4결합·0고립) · s14-water: H₂O 굽음(O 2결합·2고립) · s14-linear: BeH₂ 직선(Be 2결합·0고립)
+  function shapeMethane(o) { o = o || {}; const w = buildShape(o, { center: 'C4', ligand: 'H1', nLig: 4 }); w._meta = { name: 's14-methane', geo: 1 }; return w; }
+  function shapeWater(o) { o = o || {}; const w = buildShape(o, { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-water', geo: 1 }; return w; }
+  function shapeLinear(o) { o = o || {}; const w = buildShape(o, { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-linear', geo: 1 }; return w; }
+
+  // ── ⑮ 극성 (부분 전하·QEq) — ⑭ 형상 위에 전기음성도 균등화. 극성 = 전하×형상 창발 ──
+  //   O₂ 무극성(동핵) · BeH₂ 무극성 분자(극성 결합 상쇄·CO₂ 대역·⑩ 이중결합 격차) · H₂O 극성(굽음+χ_O>χ_H).
+  function polO2(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'O2', ligand: 'O2', nLig: 1 }); w._meta = { name: 's15-o2', geo: 1, polar: 1 }; return w; }
+  function polBeH2(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-beh2', geo: 1, polar: 1 }; return w; }
+  function polH2O(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-h2o', geo: 1, polar: 1 }; return w; }
+  // s15-field: 균일 외부장 속 H₂O — dq·배향의 장 응답 (유전 응답 정성).
+  // ── ⑯ 수소 결합 (R-HB) — ⑮ 극성 물 + 방향성 약결합 → 물 네트워크 창발 ──
+  //   s16-water-cluster: 저T 밀집 물 네트워크 · s16-temp-scan: T0 파라미터로 해체 스캔 · s16-mixed: 물+Ne 선택성.
+  function waterCluster(o) {
+    o = o || {};
+    const w = buildShape(Object.assign({ polar: true, hb: true, count: o.count || 24, L: o.L || 8.5, T0: o.T0 != null ? o.T0 : 0.02, eqSteps: o.eqSteps != null ? o.eqSteps : 5000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 });
+    w._meta = { name: 's16-water-cluster', geo: 1, polar: 1, hb: 1 };
+    return w;
+  }
+  // s16-mixed: 물 클러스터 + Ne 원자 산포 (무극성 대조 — Ne 는 H-결합 0·선택성). Ne 는 겹침 완화 후 안착.
+  function waterMixed(o) {
+    o = o || {};
+    const nNe = o.nNe || 8, w = waterCluster(Object.assign({ count: o.count || 20, L: o.L || 8.5 }, o));
+    const rng = w.rng, L = w.box.L;
+    for (let k = 0; k < nNe; k++) {
+      const ne = E.makeAtom('Ne', E.V.make(rng() * L.x, rng() * L.y, rng() * L.z), E.V.zero()); ne.Z = 10; ne.qBase = 0; w.atoms.push(ne);
+    }
+    // Ne 겹침 완화: 짧은 과감쇠 하강(척력 벽이 Ne 를 빈틈으로 밀어냄) → 폭발 회피.
+    for (let k = 0; k < 1500; k++) { E.step(w); for (const a of w.atoms) { a.p.x *= 0.7; a.p.y *= 0.7; a.p.z *= 0.7; } }
+    maxwellInit(w, o.T0 != null ? o.T0 : 0.02, rng);
+    w.computeForces(w); E.recomputeLedger(w); w._meta = { name: 's16-mixed', geo: 1, polar: 1, hb: 1 };
+    return w;
+  }
+
+  function polField(o) { o = o || {}; const ex = o.Ex != null ? o.Ex : 0.6; const w = buildShape(Object.assign({ polar: true, randOrient: true, field: ex > 0 ? E.V.make(ex, 0, 0) : null, count: o.count || 12, T0: o.T0 != null ? o.T0 : 0.03, eqSteps: o.eqSteps != null ? o.eqSteps : 4000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-field', geo: 1, polar: 1, field: 1 }; return w; }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -313,7 +504,7 @@
     for (const k of ['H1', 'O2', 'C4']) { mass[k] = SPECIES[k].mass; sigma[k] = SPECIES[k].sigma; eps[k] = SPECIES[k].eps; budget[k] = SPECIES[k].B; }
     const world = E.makeWorld({
       dt: o.dt != null ? o.dt : 0.004,
-      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: o.frozenZ !== false,   // ⑬ 해동 가능
       mass: mass, sigma: sigma, eps: eps, budget: budget,
       computeForces: E.pairForces, rng, catalog: C.COVALENT,
       rc: o.rc != null ? o.rc : 1.5,
@@ -321,15 +512,24 @@
       nu_cplx: o.nu_cplx != null ? o.nu_cplx : 5, nu_rad: o.nu_rad != null ? o.nu_rad : 0.5,
       nu_stab: o.nu_stab != null ? o.nu_stab : 1.5, nu_diss: o.nu_diss != null ? o.nu_diss : 2,
     });
-    // 무작위 배치 (종을 섞어)
+    // 무작위 배치 (종을 섞어) — 차원은 장면 속성(①): 동결 xy 격자·해동 xyz 큐빅.
     const bag = [];
     for (const k of specs) for (let n = 0; n < counts[k]; n++) bag.push(k);
     for (let i = bag.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = bag[i]; bag[i] = bag[j]; bag[j] = t; }
-    const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
-    for (let idx = 0; idx < bag.length; idx++) {
-      const ix = idx % per, iy = (idx / per) | 0;
-      const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
-      world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+    if (world.frozenZ) {
+      const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
+      for (let idx = 0; idx < bag.length; idx++) {
+        const ix = idx % per, iy = (idx / per) | 0;
+        const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0);
+        world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+      }
+    } else {
+      const per = Math.ceil(Math.cbrt(N)), g = L / per;
+      for (let idx = 0; idx < bag.length; idx++) {
+        const ix = idx % per, iy = ((idx / per) | 0) % per, iz = (idx / (per * per)) | 0;
+        const r = E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * g, (iy + 0.5 + (rng() - 0.5) * 0.3) * g, (iz + 0.5 + (rng() - 0.5) * 0.3) * g);
+        world.atoms.push(E.makeAtom(bag[idx], r, E.V.zero()));
+      }
     }
     maxwellInit(world, o.T0 != null ? o.T0 : 0.35, rng);
     E.pairForces(world); E.recomputeLedger(world);
@@ -538,6 +738,21 @@
     's04-thermal-bath': thermalBath,
     's04-radiative-cooling': radiativeCooling,
     's04-cavity': cavity,
+    's12-open-cooling': openCooling,
+    's12-cavity': cavityField,
+    's12-stim': stimField,
+    's13-gas-3d': gas3d,
+    's13-collide-3d': collide3d,
+    's13-bond-3d': bond3d,
+    's14-methane': shapeMethane,
+    's14-water': shapeWater,
+    's14-linear': shapeLinear,
+    's15-o2': polO2,
+    's15-beh2': polBeH2,
+    's15-h2o': polH2O,
+    's15-field': polField,
+    's16-water-cluster': waterCluster,
+    's16-mixed': waterMixed,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -552,7 +767,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

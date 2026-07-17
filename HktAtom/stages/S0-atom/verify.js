@@ -16,6 +16,9 @@
   const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
   const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -575,6 +578,222 @@
       }
     }
 
+    // 15. ⑫ 복사장 — ④ 빈 근사를 photon 입자로 교체. 냉각/공동 회귀 + 유도 방출 방향성 + 장부 Σphoton.E 정합.
+    if (want(12)) {
+      // (1) 회귀: open 경계 냉각 — 방출 광자가 상자를 나가며 T 단조 하강 + 총 E(E_escape 포함) 보존.
+      {
+        const w = S.build('s12-open-cooling', { seed: 5, N: 60, L: 15 });
+        const T0 = M.temperature(w), E0 = M.ledgerTable(w).total;
+        let maxRel = 0; for (let k = 0; k < 1500; k++) { E.step(w); const t = M.ledgerTable(w); maxRel = Math.max(maxRel, Math.abs(t.total - E0) / Math.abs(E0)); }
+        const T1 = M.temperature(w), lg = M.ledgerTable(w);
+        log.push({ ok: T1 < T0 * 0.8 && lg.E_escape > 0, name: '⑫복사냉각(입자)', msg: `T ${fmt(T0)}→${fmt(T1)} · E_escape ${fmt(lg.E_escape)} (광자 탈출)` });
+        log.push({ ok: maxRel <= E.EPS_E, name: '⑫냉각E보존(탈출포함)', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E` });
+      }
+
+      // (2) 회귀: 닫힌 공동(reflect) — 광자가 갇혀 재흡수 → 정상 상태(항상 >0) + 총 E 보존.
+      {
+        const w = S.build('s12-cavity', { seed: 6, N: 100, L: 13 });
+        const E0 = M.ledgerTable(w).total;
+        E.run(w, 1500);
+        const ph = []; for (let b = 0; b < 5; b++) { E.run(w, 250); ph.push(M.photonStats(w).n); }
+        const minPh = Math.min(...ph);
+        log.push({ ok: minPh > 0, name: '⑫공동정상상태(입자)', msg: `광자 수 ${ph.join(',')} (min ${minPh}>0 — 물질↔복사 정상)` });
+        log.push({ ok: Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0) <= E.EPS_E, name: '⑫공동E보존', msg: `rel ${fmt(Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0))} ≤ EPS_E` });
+        // 스펙트럼: 2준위 종이라 단색(dE 빈 집중) — 정직 한계(연속 스펙트럼·플랑크 꼬리는 다준위 몫).
+        const sp = M.photonSpectrum(w, 8, 3.0), occ = sp.filter((c) => c > 0).length;
+        log.push({ ok: occ <= 1, name: '⑫스펙트럼단색(2준위한계)', msg: `점유 빈 ${occ}개 [${sp.join(',')}] — 2준위→단색(연속 스펙트럼은 다준위·㉒ 몫·정직 한계)` });
+      }
+
+      // (3) 장부 계약: bond 없는 field 장면에서 E_photon 통 == Σphoton.E 정확 (입자↔통 정합·매 tick).
+      {
+        const w = S.build('s12-cavity', { seed: 9, N: 80, L: 13 });
+        let maxGap = 0; for (let k = 0; k < 1200; k++) { E.step(w); const ps = M.photonStats(w); maxGap = Math.max(maxGap, Math.abs(ps.sumE - ps.EphotonBin)); }
+        log.push({ ok: maxGap < 1e-9, name: '⑫장부Σphoton.E정합', msg: `max|Σphoton.E − E_photon통| ${fmt(maxGap)} < 1e-9 (입자가 통을 정확히 표상)` });
+      }
+
+      // (4) 유도 방출: 밀도 반전 + 씨앗 +x 광자 → 축 정렬 광자 수 증폭. 대조(nu_stim=0)는 자발만 → 등방.
+      {
+        const R = 4;
+        let stimA = [], ctrlA = [];
+        for (let s = 0; s < R; s++) {
+          const ws = S.build('s12-stim', { seed: 20 + s, stim: 6 }); E.run(ws, 900); stimA.push(M.photonStats(ws).aligned);
+          const wc = S.build('s12-stim', { seed: 20 + s, stim: 0 }); E.run(wc, 900); ctrlA.push(M.photonStats(wc).aligned);
+        }
+        const mS = stimA.reduce((a, b) => a + b, 0) / R, mC = ctrlA.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: mS > 1.8 * mC, name: '⑫유도방출증폭', msg: `축 정렬 광자 유도 ${fmt(mS)} vs 자발 대조 ${fmt(mC)} → ${fmt(mS / Math.max(1e-9, mC))}× (씨앗 방향 결맞음 복제)` });
+      }
+    }
+
+    // 16. ⑬ z 해동 (3D 전환) — frozenZ:false 만으로 3D. **엔진 변경 0**(scenes/measure/index.html 만).
+    //     차원이 코드가 아니라 장면 속성이라는 ①의 청구서. 평면 회귀는 ①–⑫ 88 이 그대로 증명.
+    if (want(13)) {
+      const sortKeys = (o) => JSON.stringify(Object.keys(o).sort().map((k) => k + o[k]));
+      // (0) z 동결 증거: 기존 frozenZ 장면은 ⟨p_z²⟩ 가 정확히 0 (z 자유도 봉인) — 해동과 대조.
+      {
+        const w = S.build('s02-gas-collide', { seed: 3, N: 40, L: 12 }); E.run(w, 400);
+        const mv = M.momentumVariance(w);
+        log.push({ ok: mv.z === 0 && mv.x > 0, name: '⑬z동결증거', msg: `frozenZ: ⟨p_z²⟩ ${fmt(mv.z)}=0 vs ⟨p_x²⟩ ${fmt(mv.x)}>0 (z 봉인)` });
+      }
+
+      // (1) z 해동 등분배 창발: z 를 차갑게(⟨p_z²⟩=0) 출발 → 3D 충돌이 z 로 에너지 퍼뜨려 등분배.
+      //     iso=⟨p_z²⟩/⟨p_xy²⟩ 가 0 → ~1 로 수렴 (R런). 차원=코드 아님·장면 속성의 실증.
+      {
+        const R = 4; let iso0 = [], iso1 = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build('s13-collide-3d', { seed: 40 + s });
+          for (const a of w.atoms) a.p.z = 0; E.recomputeLedger(w);   // z 차갑게 출발 (인위 비등방)
+          iso0.push(M.momentumVariance(w).iso);
+          E.run(w, 2500);
+          iso1.push(M.momentumVariance(w).iso);
+        }
+        const m0 = iso0.reduce((a, b) => a + b, 0) / R, m1 = iso1.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: m0 < 0.05 && m1 > 0.8 && m1 < 1.2, name: '⑬z해동등분배', msg: `iso ⟨p_z²⟩/⟨p_xy²⟩ ${fmt(m0)}→${fmt(m1)} ∈[0.8,1.2] (z 차갑게 출발→충돌이 등분배·창발)` });
+      }
+
+      // (2) 3D 장부·겹침: 3D 충돌 장면 총 E 보존 ≤ EPS_E + 겹침 0 (min d/σ > MIN_DSIGMA) + Σc 불변.
+      {
+        const w = S.build('s13-collide-3d', { seed: 7 });
+        const E0 = M.ledgerTable(w).total, c0 = sortKeys(M.composition(w));
+        let maxRel = 0, minDs = Infinity;
+        for (let k = 0; k < 2000; k++) { E.step(w); const t = M.ledgerTable(w); maxRel = Math.max(maxRel, Math.abs(t.total - E0) / Math.abs(E0)); minDs = Math.min(minDs, w.minDsigma); }
+        const cOk = sortKeys(M.composition(w)) === c0;
+        log.push({ ok: maxRel <= E.EPS_E && cOk, name: '⑬3D장부닫힘', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E · Σc ${cOk ? '불변' : '깨짐'}` });
+        log.push({ ok: minDs > E.MIN_DSIGMA, name: '⑬3D겹침0', msg: `min d/σ ${fmt(minDs)} > ${E.MIN_DSIGMA} (3D 척력 벽 유지)` });
+      }
+
+      // (3) 3D 결합 위상: C4 허브가 3D 에서 여러 H1 과 결합 (다배위) · 원자가 포화(maxOver 0·과결합 없음).
+      //     완전 CH₄ 우세는 화학 어닐링(⑩ 유형)·각도는 ⑭ — 여기선 3D 무대에서 ⑥ 공유 기계가 도는지만.
+      {
+        const w = S.build('s13-bond-3d', { seed: 11, n: 8 }); E.run(w, 4000);
+        const mol = M.molecules(w);
+        let maxCoord = 0;
+        for (const a of w.atoms) if (a.sp === 'C4') { let bc = 0; for (const b of w.bonds) if (b.i === a.id || b.j === a.id) bc += b.order; maxCoord = Math.max(maxCoord, bc); }
+        log.push({ ok: mol.nBonds > 0 && mol.maxOver === 0 && maxCoord >= 2, name: '⑬3D결합위상', msg: `3D 결합 ${mol.nBonds}개·C 최대배위 ${maxCoord}(≥2)·과결합 ${mol.maxOver}=0 (원자가 포화·3D 허브)` });
+      }
+    }
+
+    // 17. ⑭ 형상 (VSEPR·결합각) — 공통 각도 반발 하나로 정사면체·굽음·직선이 동시 창발. 목표각 author 0.
+    if (want(14)) {
+      // 중심 원자 결합각 평균 (여러 분자·짧은 저온 런의 통계 — 이완된 형상 최소 근방).
+      const meanAngle = (name, cen, over) => {
+        const w = S.build(name, Object.assign({ seed: 3, count: 12 }, over));
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let mx = 0, mdP = 0; const acc = [];
+        for (let k = 0; k < 1200; k++) {
+          E.step(w); const t = M.ledgerTable(w).total; mx = Math.max(mx, Math.abs(t - E0) / Math.abs(E0));
+          const P = M.momentum(w); mdP = Math.max(mdP, Math.hypot(P.x - P0.x, P.y - P0.y, P.z - P0.z));
+          const st = Geo.angleStats(w); if (st.bondAngles[cen]) acc.push(...st.bondAngles[cen]);
+        }
+        const m = acc.reduce((a, b) => a + b, 0) / acc.length;
+        return { ang: m, relE: mx, dP: mdP };
+      };
+
+      // (1) 3단 앵커 — 하나의 k_ang·λ_lp 로 동시에 (분자별 파라미터 분기 0: geometry.js 상수 단일·if(molecule) 0).
+      const me = meanAngle('s14-methane', 'C4'), wa = meanAngle('s14-water', 'O2'), li = meanAngle('s14-linear', 'Be2');
+      log.push({ ok: me.ang > 104 && me.ang < 115, name: '⑭CH₄정사면체', msg: `H–C–H ${fmt(me.ang)}° ∈(104,115) — 4결합 0고립 → 정사면체(109.5°)` });
+      log.push({ ok: wa.ang > 95 && wa.ang < 115, name: '⑭H₂O굽음', msg: `H–O–H ${fmt(wa.ang)}° ∈(95,115) — 2결합 2고립 → 굽음(<109.5·고립쌍 압박)` });
+      log.push({ ok: li.ang > 170 && li.ang < 180, name: '⑭BeH₂직선', msg: `H–Be–H ${fmt(li.ang)}° ∈(170,180) — 2결합 0고립 → 직선` });
+      log.push({ ok: wa.ang < me.ang && me.ang < li.ang, name: '⑭형상서열창발', msg: `굽음 ${fmt(wa.ang)} < 정사면체 ${fmt(me.ang)} < 직선 ${fmt(li.ang)} (한 규칙·목표각 author 0)` });
+
+      // (2) λ_lp=1 대조: 고립쌍 배율 제거 → 물의 4도메인 균등화 → 각이 정사면체(109.5)로 열림 (압박의 근원).
+      {
+        const w1 = meanAngle('s14-water', 'O2', { lam: 1.0 });
+        log.push({ ok: w1.ang > wa.ang + 4, name: '⑭고립쌍압박근원', msg: `λ_lp=1 대조 ${fmt(w1.ang)}° > λ_lp=1.5 ${fmt(wa.ang)}° (고립쌍 배율이 압박의 근원 — 제거 시 109.5° 로 열림)` });
+      }
+
+      // (3) 장부: V_ang 포함 총 E 보존 + 각도 힘의 반대칭 짝 → P 정확 보존.
+      log.push({ ok: me.relE <= E.EPS_E && wa.relE <= E.EPS_E && li.relE <= E.EPS_E, name: '⑭장부·V_ang닫힘', msg: `max|ΔE|/E CH₄ ${fmt(me.relE)}·H₂O ${fmt(wa.relE)}·BeH₂ ${fmt(li.relE)} ≤ EPS_E` });
+      log.push({ ok: me.dP < 1e-9 && li.dP < 1e-9, name: '⑭P보존(각도힘반대칭)', msg: `max|ΔP| CH₄ ${fmt(me.dP)}·BeH₂ ${fmt(li.dP)} < 1e-9 (F_center=−ΣF_nb)` });
+
+      // (4) L 각운동량 보존 스팟 체크 (고립쌍 없는 분자 — 각도 힘이 회전 불변 퍼텐셜의 정확 그래디언트).
+      {
+        const w = S.build('s14-methane', { seed: 2, count: 1, L: 60, eqSteps: 2000 });
+        for (const a of w.atoms) { a.p.x += 0.05; a.p.z += 0.03; }
+        const Lv = (ww) => { let x = 0, y = 0, z = 0; for (const a of ww.atoms) { x += a.r.y * a.p.z - a.r.z * a.p.y; y += a.r.z * a.p.x - a.r.x * a.p.z; z += a.r.x * a.p.y - a.r.y * a.p.x; } return { x, y, z }; };
+        const L0 = Lv(w); let mdL = 0;
+        for (let k = 0; k < 2000; k++) { E.step(w); const l = Lv(w); mdL = Math.max(mdL, Math.hypot(l.x - L0.x, l.y - L0.y, l.z - L0.z)); }
+        log.push({ ok: mdL < 1e-9, name: '⑭L보존(회전불변)', msg: `CH₄ max|ΔL| ${fmt(mdL)} < 1e-9 (고립쌍 없는 분자 — 각도 힘 정확 보존·기계 정밀도)` });
+      }
+    }
+
+    // 18. ⑮ 극성 (부분 전하·QEq) — 전기음성도 균등화로 전하 재분배·극성=전하×형상 창발. χ·η ③ 유도(author 0).
+    if (want(15)) {
+      // 분자 평균 |μ_mol|·max|q|·장부 (여러 분자·짧은 저온 런).
+      const polStat = (name, over) => {
+        const R = 4; let mu = [], mq = [], relE = [], sq = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build(name, Object.assign({ seed: 40 + s, count: 12 }, over));
+          const E0 = M.ledgerTable(w).total; let mx = 0;
+          for (let k = 0; k < 1000; k++) { E.step(w); const t = M.ledgerTable(w).total; mx = Math.max(mx, Math.abs(t - E0) / Math.abs(E0)); }
+          const dp = Pol.dipoles(w);
+          mu.push(dp.reduce((a, b) => a + b.muMol, 0) / dp.length);
+          mq.push(dp.reduce((a, b) => a + b.maxAbsQ, 0) / dp.length);
+          sq.push(Math.max(...dp.map((d) => Math.abs(d.sumQ))));
+          relE.push(mx);
+        }
+        const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+        return { mu: avg(mu), mq: avg(mq), relE: Math.max(...relE), sq: Math.max(...sq) };
+      };
+      const o2 = polStat('s15-o2'), be = polStat('s15-beh2'), h2o = polStat('s15-h2o');
+
+      // (1) 3단 기준 — 한 QEq 규칙에서 동시에. O₂ 무극성(동핵)·BeH₂ 극성 결합/무극성 분자(상쇄)·H₂O 극성.
+      log.push({ ok: o2.mq < 0.02 && o2.mu < 0.02, name: '⑮O₂무극성(동핵)', msg: `max|q| ${fmt(o2.mq)}·|μ_mol| ${fmt(o2.mu)} ≈ 0 (동핵 대칭 → dq 0)` });
+      log.push({ ok: be.mq > 0.02 && be.mu < 0.05, name: '⑮BeH₂결합극성·분자무극성', msg: `결합 max|q| ${fmt(be.mq)}>0 이나 |μ_mol| ${fmt(be.mu)}≈0 (직선 상쇄 — CO₂ 대역·⑩ 이중결합 격차)` });
+      log.push({ ok: h2o.mu > 0.08, name: '⑮H₂O극성', msg: `|μ_mol| ${fmt(h2o.mu)}>0 (굽음 + χ_O>χ_H → 순 쌍극자)` });
+      log.push({ ok: h2o.mu > be.mu && be.mu <= o2.mu + 0.02, name: '⑮극성서열창발', msg: `|μ_mol| H₂O ${fmt(h2o.mu)} > BeH₂ ${fmt(be.mu)} ≳ O₂ ${fmt(o2.mu)} (전하×형상)` });
+
+      // (2) χ·η ③ 유도 (Mulliken·손 튜닝 0): 전기음성도 서열 χ_O>χ_H>χ_Be 가 극성 부호를 정한다.
+      const cO = Pol.params(8).chi, cH = Pol.params(1).chi, cBe = Pol.params(4).chi;
+      log.push({ ok: cO > cH && cH > cBe, name: '⑮χ서열③유도', msg: `χ_O ${fmt(cO)} > χ_H ${fmt(cH)} > χ_Be ${fmt(cBe)} (③ IE·EA 유도·author 0 → H₂O 의 O⁻·BeH₂ 의 H⁻)` });
+
+      // (3) 장 응답: 무작위 배향 시작 → 균일 외부장이 극성 분자를 배향 (⟨cosθ⟩ 상승) · 무장 대조는 등방.
+      {
+        const R = 5; let on = [], off = [];
+        for (let s = 0; s < R; s++) {
+          const wf = S.build('s15-field', { seed: 30 + s, count: 16, Ex: 0.8 }); E.run(wf, 2000); on.push(Pol.orientationOrder(wf));
+          const wc = S.build('s15-field', { seed: 30 + s, count: 16, Ex: 0 }); E.run(wc, 2000); wc.Efield = E.V.make(1, 0, 0); off.push(Pol.orientationOrder(wc));
+        }
+        const mOn = on.reduce((a, b) => a + b, 0) / R, mOff = off.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: mOn > 0.4 && Math.abs(mOff) < 0.25, name: '⑮장응답배향', msg: `⟨cosθ⟩ 장있음 ${fmt(mOn)} vs 등방 대조 ${fmt(mOff)} (극성 분자 유전 배향)` });
+      }
+
+      // (4) 장부: dq 갱신 사건 회계 (QEq 준정적 → E 보존) + 분자별 총 전하 보존 Σq=Q.
+      log.push({ ok: o2.relE <= E.EPS_E && be.relE <= E.EPS_E && h2o.relE <= E.EPS_E, name: '⑮장부·QEq닫힘', msg: `max|ΔE|/E O₂ ${fmt(o2.relE)}·BeH₂ ${fmt(be.relE)}·H₂O ${fmt(h2o.relE)} ≤ EPS_E` });
+      log.push({ ok: o2.sq < 1e-9, name: '⑮전하보존(Σq=Q)', msg: `분자별 |Σq| ${fmt(o2.sq)} < 1e-9 (QEq 제약 Σq=Q 정확)` });
+    }
+
+    // 19. ⑯ 수소 결합 — ⑮ 전하+⑭ 형상이면 방향성 약결합 창발(1차 측정)·점전하는 약해 R-HB 보정(2차·명시 노브).
+    if (want(16)) {
+      const R = 4; const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      let cold = [], warm = [], theta = [], drat = [], ehb = [], relE = [], neHB = [], mixW = [];
+      for (let s = 0; s < R; s++) {
+        const wc = S.build('s16-water-cluster', { seed: 10 + s, T0: 0.02 });
+        const E0 = M.ledgerTable(wc).total; let mx = 0;
+        for (let k = 0; k < 1500; k++) { E.step(wc); mx = Math.max(mx, Math.abs(M.ledgerTable(wc).total - E0) / Math.abs(E0)); }
+        const st = HB.stats(wc);
+        cold.push(st.perMol); theta.push(st.meanAngle); drat.push(st.meanD / 1.15); ehb.push(Math.abs(st.meanEhb) / wc.Dbond); relE.push(mx);
+        const ww = S.build('s16-water-cluster', { seed: 10 + s, T0: 0.15 }); E.run(ww, 1500); warm.push(HB.stats(ww).perMol);
+        const wm = S.build('s16-mixed', { seed: 10 + s, T0: 0.02 }); E.run(wm, 1000); const sm = HB.stats(wm);
+        neHB.push(sm.hb.filter((h) => wm.atomById(h.A).Z === 10 || wm.atomById(h.H).Z === 10).length); mixW.push(sm.n);
+      }
+      const mCold = avg(cold), mWarm = avg(warm), mTheta = avg(theta), mD = avg(drat), mE = avg(ehb), mNe = avg(neHB), mMix = avg(mixW);
+
+      // (1) 방향 선택성: D–H···A 각이 고각 집중 (직선 H-결합 선호 — 등방이면 ~90~120°).
+      log.push({ ok: mTheta > 145, name: '⑯방향선택성', msg: `⟨θ(D–H···A)⟩ ${fmt(mTheta)}° > 145° (고각 집중·직선 선호 — 등방 대비 비등방)` });
+      // (2) Ne 선택성: 무극성 Ne 는 H-결합 0·물은 유지 (H/O 만 참여).
+      log.push({ ok: mNe < 0.5 && mMix > 5, name: '⑯Ne선택성', msg: `Ne H-결합 ${fmt(mNe)}≈0·물 H-결합 ${fmt(mMix)}>0 (무극성 대조 — 선택성)` });
+      // (3) E 범위: E_hb/D_OH ∈ (0.03,0.3) — 약결합 위계 (공유보다 약함). 점전하만은 ~0.002 로 부족 → R-HB 채택.
+      log.push({ ok: mE > 0.03 && mE < 0.3, name: '⑯E_hb약결합위계', msg: `E_hb/D_OH ${fmt(mE)} ∈(0.03,0.3) (R-HB 보정 — 점전하만은 ~0.002 로 부족·2차 채택)` });
+      // (4) 거리 위계: H···A 피크가 공유 d0 의 1.3~2.2배.
+      log.push({ ok: mD > 1.3 && mD < 2.2, name: '⑯거리위계', msg: `⟨d(H···A)⟩/d0 ${fmt(mD)} ∈(1.3,2.2) (공유보다 멀고 접촉보다 가까움)` });
+      // (5) 온도 응답: 가열 → 분자당 H-결합 수 단조 감소 (네트워크 해체).
+      log.push({ ok: mCold > mWarm, name: '⑯온도응답', msg: `배위 저T ${fmt(mCold)} > 고T ${fmt(mWarm)} (가열→네트워크 해체·단조 감소)` });
+      // (6) 배위 경향: 저T 에서 분자당 3~4 쪽 (물 네트워크 정성 — 얼음 격자 정량은 S1).
+      log.push({ ok: mCold > 2.5 && mCold < 4.5, name: '⑯물네트워크배위', msg: `저T 분자당 H-결합 ${fmt(mCold)} ∈(2.5,4.5) (물 네트워크 — 정사면체 얼음 정량은 S1)` });
+      // (7) 장부: R-HB 에너지(U_hb) → U_bond 하위 항목·총 E 보존.
+      log.push({ ok: Math.max(...relE) <= E.EPS_E, name: '⑯장부·R-HB닫힘', msg: `max|ΔE|/E ${fmt(Math.max(...relE))} ≤ EPS_E (U_hb → U_bond 귀속·보존)` });
+    }
+
     return log;
   }
 
@@ -586,7 +805,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
