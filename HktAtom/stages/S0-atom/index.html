@@ -744,5 +744,52 @@
   frame();
 })();
 </script>
+
+<!-- ㉒-a MaterialModel: 측정된 상태방정식 EOS 히트맵 (자체 완결·메인 sim 과 독립·output.json 스냅샷) -->
+<section id="eos-sec" style="max-width:1100px;margin:18px auto;padding:0 12px;font-family:system-ui,sans-serif;color:#c9d1d9;">
+  <h2 style="font-size:15px;border-top:1px solid #30363d;padding-top:14px;">㉒-a 측정된 상태방정식 EOS <span style="color:#8b949e;font-weight:normal;font-size:12px;">— S0 의 진짜 출력 ⇧ (author 0)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 10px;">
+    물 수프를 <b>T×ρ 그리드에서 NVT 로 굴려</b> 압력 P(비리얼)·내부에너지 U(물질)를 측정한 표. 실세계 앵커가 아니라 S0 시뮬 측정값이다.
+    S1 이 굴릴 상태축 <b>[T, ρ]</b> 의 기반. 색이 진할수록 값이 큼 — <b>P 는 ρ·T 와 함께 증가</b>(밀도압·이상기체), <b>U 는 T 와 함께 증가</b>(C_v=∂U/∂T&gt;0·열역학 안정). 셀=측정값±표준오차.
+  </p>
+  <div style="display:flex;gap:24px;flex-wrap:wrap;">
+    <div><canvas id="eos-P" width="320" height="300"></canvas></div>
+    <div><canvas id="eos-U" width="320" height="300"></canvas></div>
+    <div id="eos-cv" style="font-family:monospace;font-size:12px;color:#8b949e;white-space:pre;"></div>
+  </div>
+</section>
+<script id="eos-data" type="application/json">{"grid":{"T":[0.3,0.5,0.7],"rho":[0.12,0.2,0.3]},"P":[[0.13627,0.23124,0.43878],[0.14913,0.30428,0.53183],[0.17677,0.35982,0.63875]],"U":[[-13.77986,-13.16652,-15.46969],[-0.10305,-3.38748,-1.34626],[10.19248,8.59639,9.53907]],"Perr":[[0.00328,0.00649,0.00758],[0.00582,0.00297,0.00496],[0.00575,0.00548,0.00819]],"Uerr":[[0.12493,1.13938,0.95483],[1.28157,1.51817,2.07525],[0.58772,0.38363,0.50884]],"cv":[{"rho":0.12,"cv":[68.384,51.4777]},{"rho":0.2,"cv":[48.8952,59.9194]},{"rho":0.3,"cv":[70.6171,54.4267]}]}</script>
+<script>
+(function () {
+  const eos = JSON.parse(document.getElementById('eos-data').textContent);
+  // 히트맵: 행=T(위가 높은 T)·열=ρ. 값 → 청록(저)~주황(고) 램프. 셀에 값±err.
+  function heat(canvasId, field, errField, label) {
+    const cv = document.getElementById(canvasId), ctx = cv.getContext('2d');
+    const G = eos[field], ER = eos[errField], Ts = eos.grid.T, rhos = eos.grid.rho;
+    let lo = Infinity, hi = -Infinity;
+    for (const row of G) for (const v of row) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const nT = Ts.length, nR = rhos.length, x0 = 48, y0 = 34, cw = (cv.width - x0 - 8) / nR, ch = (cv.height - y0 - 26) / nT;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '13px system-ui'; ctx.fillText(label, x0, 20);
+    for (let ti = 0; ti < nT; ti++) for (let ri = 0; ri < nR; ri++) {
+      const v = G[ti][ri], f = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+      const R = Math.round(40 + 200 * f), Gc = Math.round(160 - 60 * f), B = Math.round(180 - 150 * f);
+      const px = x0 + ri * cw, py = y0 + (nT - 1 - ti) * ch;   // 위=고T
+      ctx.fillStyle = `rgb(${R},${Gc},${B})`; ctx.fillRect(px, py, cw - 2, ch - 2);
+      ctx.fillStyle = f > 0.55 ? '#0d1117' : '#e6edf3'; ctx.font = '11px monospace';
+      ctx.fillText(v.toFixed(2), px + 5, py + ch / 2 - 1);
+      ctx.font = '9px monospace'; ctx.fillText('±' + ER[ti][ri].toFixed(2), px + 5, py + ch / 2 + 11);
+    }
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace';
+    for (let ri = 0; ri < nR; ri++) ctx.fillText('ρ' + rhos[ri], x0 + ri * cw + 4, cv.height - 12);
+    for (let ti = 0; ti < nT; ti++) ctx.fillText('T' + Ts[ti], 6, y0 + (nT - 1 - ti) * ch + ch / 2);
+  }
+  heat('eos-P', 'P', 'Perr', 'P(T,ρ) — 압력 (비리얼)');
+  heat('eos-U', 'U', 'Uerr', 'U(T,ρ) — 물질 내부에너지');
+  document.getElementById('eos-cv').textContent =
+    '자기일관\nC_v = ∂U/∂T (>0)\n' + eos.cv.map(c => 'ρ' + c.rho + ': ' + c.cv.map(x => x.toFixed(1)).join(', ')).join('\n') +
+    '\n\n⑦ 위에 반응 열용량이\n얹혀 값이 크다\n(가열이 결합을 끊어\nU↑ 추가).';
+})();
+</script>
 </body>
 </html>

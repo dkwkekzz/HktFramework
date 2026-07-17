@@ -4,48 +4,50 @@
 
 ## §1 NOW — 지금 어디까지
 
-- **S1-① 분자 단계 무대 (step-0021) — 사다리 2번째 칸 열림·3D**: **`stages/S1-molecule/` 신설**(자체 완전·S0 import 0·grep 확인·접점 `input.json`=S0 output.json 데이터뿐). **커널 재귀** entity={c,r,p,u} 그대로: c=원자종 조성 다발(S0 Σc)·u=접힌 E_bind(음수)+내부 온도 T_int(**온도의 탄생**·S0 미시 운동 접힘). ①은 S0-① 동형 힘 0(자유 비행). engine/scenes/measure/verify+index.html 자체 재구현(통 4통·Verlet). `node verify.js`=**13 PASS**(4기둥): 계약(스키마·분자 20 로드·**Σc=input.macro.atomCount {O:16,H:32}**)·장부(ΔE 0·ΔP 0·Σc 불변)·무대 탄도적 MSD(2t)/MSD(t)=4·u(U_int=ΣE_bind −52.68)·경계(open 탈출 20/20 보존). 로드: H2O1×7·H2×5·H1O1×4 등 20 분자. 발견: 유한 N T 요동→정확 T0 재척도·①은 pairPotential 로드만(②응집이 켬)·분자=점입자·input.json 정본+뷰어 인라인.
+> **경로 정정 (step-0022)**: S1-①(step-0021)을 먼저 열었으나 그것이 소비하는 output.json 은 ⑪ MVP v0(물질 충실도 아님)였다 — S0 의 *진짜* 출력 ㉒ MaterialModel 미완인 채 사다리를 오른 것. 되돌아와 ㉒ 를 착수했다(전제 ⑬~⑯ 충족). **S1-②(응집)는 ㉒ 로 output 이 실물화된 뒤 재개.**
+
+- **S0-㉒-a MaterialModel ⇧ 측정 EOS (step-0022)**: **`material.js` 신설**(엔진 diff 0·engine/scenes/measure 재사용). 물 수프를 **T×ρ 그리드 NVT 굴림**→ P(비리얼)·U(물질) 측정 표(author 0). 그리드 3×3(T{0.30,0.50,0.70}·ρ{0.12,0.20,0.30})·R=3. **output.json v0.1→v0.2 가법**(CONTRACT §7·스키마 태그 유지·S1 v0 소비 불변): +stateVariables[T,ρ,조성]·+equationOfState(표)·+errorBounds(P·U·C_v)·observables+=EOS. `node verify.js --only 22`=**6 PASS**: 계약(material+promote 하위호환)·회계(Σc 30→30)·현상(P(ρ)↑·P(T)↑·**C_v=∂U/∂T>0** 전 ρ)·author0(발효 표 경향). **압력 정합**: waterSoup(pairForces·virial 힘모델 정확 일치)로 측정 — polForces 분산 virial 은 world.virial 밖이라 EOS 무대 부적합→분산 응집 EOS 접힘 ㉒-b. 뷰어: index.html 하단 EOS 히트맵 2종(P·U)+C_v.
+- **S1-① 분자 단계 무대 (step-0021·요약)**: `stages/S1-molecule/` 신설(자체 완전·S0 import 0·접점 input.json 데이터뿐). 커널 재귀 entity={c,r,p,u}: c=조성 다발·u=접힌 E_bind+T_int(온도의 탄생). ①은 힘 0 자유 비행(S0-① 동형). node verify.js=13 PASS(계약 Σc={O:16,H:32}·장부 ΔE/ΔP 0·탄도 MSD비 4·경계 회계). 발견: 유한 N T 재척도·pairPotential 로드만(②응집이 켬)·분자=점입자. **㉒ 로 input 실물화 대기 중.** 세부 stages/S1-molecule/steps/step-0021.md.
 - **S0-⑱⑲⑳ (요약 — 전문 §5·step 문서·3D·엔진 diff 0·힘 유계)**: ⑳ 이온화 기체(ionized.js·두 전이 평형 곡선 author 0·R-ION+R-REC3 속박 전자만 포획·IE=③ 유도·142 PASS·x(V1) 단조↑ S자·IE 서열·사하 밀도·발견 속박 게이트=S자 심장·캐논ical 측정) · ⑲ 금속(metal.js·비국소 전자 풀·금속 결합=이온-이온 유효 우물 Dmetal·비포화 응집 배위 10.67≫B=4·전도·차폐·136) · ⑱ 라디칼·연소(combustion.js·추상 R+X–Y→R–X+Y·라디칼=예산 잔여·분지 예산 창발·점화·발열·전선·130). 발견은 §3.
 - **S0-⑭~⑰ (요약 — 전문 §5·step 문서)**: ⑰ 산·염기(acidbase.js·R-PROT 양성자 릴레이·K_w≪1·Grotthuss·123 PASS) · ⑯ 수소 결합(hbond.js·2차 R-HB 방향성 인력·155°·116) · ⑮ 극성(polarity.js·QEq 전기음성도 균등화·χ=(IE+EA)/2 ③·H₂O μ 0.157·109) · ⑭ 형상(geometry.js·VSEPR 공통 각도 반발 하나·CH₄ 109.5·H₂O 101·BeH₂ 175·101). 넷 다 엔진 diff 0·author 0·발견은 §3·step 문서.
 - **S0-④~⑬ (요약 — 전문 §5·step 문서)**: ⑬ z 해동(3D·엔진 변경 0·93 PASS) · ⑫ 복사장(photon 입자·88) · ⑪ 승격 MVP(promote.js⇧⇩·output.json v0·Part I 닫힘·81) · ⑩ 수프 관문(실원소·2H:1O→H₂O 우세·쌍별 D·74) · ⑨ 통계 관문(엔트로피↑·van't Hoff·새 물리 0·69) · ⑧ 분극·응집(polarization.js·C6·64) · ⑦ 내부 모드(modes.js·C_v 계단·57) · ⑥ 공유결합(runBonding·H₂·원자가 포화·52) · ⑤ 이온화(R-XFER·NaCl·47) · ④ 전이 엔진(카탈로그·두 시계·볼츠만·40).
 - **S0-①②③ 뼈대 (요약 §5)**: ① 무대·장부(engine/scenes/measure/verify+index.html·통 10통·Verlet·16) ② 힘(pairForces 쿨롱+척력·EPS_E=5e-4·비리얼·24) ③ 준위(levels.js 순수 함수·주기율표 창발·32). 이후 전 단계가 이 뼈대·불변식 재사용.
 - **계획 국면 (step-0000)**: 네 축 확정(CLAUDE·KERNEL·CONTRACT v0·DESIGN+design/①~㉖). 결정: 3D·z동결·결정론 폐기(앙상블)·통 분리 장부·전이 카탈로그·두 시계·연속 예산·가상 원소·핵 게이트.
 
-## §2 NEXT — 다음 한 조각 (step-0022 = S1-② 응집·액적)
+## §2 NEXT — 다음 한 조각 (step-0023 = S0-㉒-b 수송·응집 EOS)
 
-**S1-① 무대 열림 — 분자를 개체로 실체화·입력 소비(Σc 정합)·자유 비행·장부 닫힘·3D.** 사다리 두 번째 칸(S1 분자 단계) 개시. 다음:
-- **다음 구현 = step-0022 = S1-② 응집 (액적·물방울)** ([KERNEL §5 S1 표] · 닫는 기준: 인력 꼬리 → 뭉침 창발): `input.pairPotential`(S0 가 측정해 넘긴 O|O·H|H·O|H 유효 퍼텐셜의 인력 꼬리)을 `computeForces` 로 켜서 분자 응집(액적)을 창발시킨다. S0 arc ①무대→②힘 과 동형 — **손 튜닝 0**(힘은 하위 단계 측정 산출물·KERNEL §6-5). 배위수↑·클러스터 측정.
-- **미룬 것 = S0-㉑ 성능·동적 병합**: 프로파일 결과 S0 규모(N≤수백)에선 O(N²) 벽 미도래 — 병합의 진짜 payoff(거시 도달)는 S1+ 규모 몫. 사다리 전진(S1) 우선 후 규모 벽이 실제로 오면 착수([design/21-merge.md](stages/S0-atom/design/21-merge.md)·게이트 G-성능·병목 실측 필요).
+**㉒ 는 다-step 아크다** — step-0022 는 EOS(P·U 표)만 채웠다. ㉒ 의 공식 닫는 기준(design/22: **물 V′ 의 방향·밀도 의존이 모델에 담김**)은 아직. 남은 ㉒ 조각(순서는 다음 step 이 확정):
+- **㉒-b 수송·응집 EOS** (유력 다음): ① 확산 D(T,ρ)=MSD 기울기 측정(무대 이미 MSD 있음) ② **분산 응집을 EOS 압력에 담기** — 현 EOS 는 waterSoup(척력+반응)라 액-기 loop 없음. 부피 스케일 유한차분 압력(전 채널 virial·코어 diff 0) 또는 코어 virial 확장으로 polForces 응집을 압력에 넣어 반데르발스 loop 창발. (§3 격차 1)
+- **㉒-c 반응망 k(T)**: 활성 카탈로그 행별 k(T) 측정(⑱ 방식)→아레니우스 {A,Ea}. 측정값과 카탈로그 author 값의 차 = 매질 효과(기록).
+- **㉒-d 방향/밀도 interactionModel (물 앵커·㉒ 닫힘)**: pairPMF 를 각도 빈(⑯ H-결합 정합각)×밀도 빈으로 확장 측정 → 방향 보정 h(θ)·밀도 보정 g(ρ). 등방 대비 유의차가 닫는 기준.
+- **㉒ 닫힌 뒤 = S1-② 응집 재개**: output.json 이 실물 MaterialModel 이 되면 S1 이 EOS·pairPotential 를 소비해 액적 창발(step-0021 §발견 2).
+- **미룬 것 = S0-㉑ 성능·동적 병합**: S0 규모(N≤수백) O(N²) 벽 미도래 — payoff(거시)는 S1+ 몫. 규모 벽 실측 시 착수([design/21-merge.md](stages/S0-atom/design/21-merge.md)·게이트 G-성능).
 
-**승격 계약 v0 존재** ([CONTRACT.md](CONTRACT.md) — 인터페이스 축): MaterialModel 스키마·관측량 계약(|ΔO|<ε_O)·재해석 조건·유효 범위·오차 한계. 필드 채움은 ⑧/⑪(출력 산출 ⇧)·㉒(MaterialModel)·S1 진입 몫.
+**승격 계약 발효 진행** ([CONTRACT.md](CONTRACT.md)): output v0.2 = ⑪ MVP 배관 + ㉒-a EOS 표(가법). 관측량 계약에 EOS(ε=0.3) 선언. 방향/밀도·수송·반응망 필드는 ㉒-b~d 몫.
 
 ## §3 OPEN GAPS — 열린 격차
 
+- **㉒ EOS 는 척력+반응만·분산 응집 미포함** (step-0022): waterSoup(pairForces)로 측정해 world.virial 이 힘모델과 정확 일치하나, polForces 의 분산/유도 virial 은 world.virial 밖이라 EOS 무대서 뺐다 → EOS 에 반데르발스 인력 loop(액-기) 없음. 담으려면 ㉒-b 에서 부피 스케일 유한차분 압력(전 채널 virial·코어 diff 0) 또는 코어 virial 확장. 결합 virial 도 제외(⑪ 관례·강체 근사). 반응성 EOS 라 조성이 T 응답(고온 결합 해리→U 급증·반응 열용량)=⑨ van't Hoff 동형·정상.
+- **㉒ 는 다-step 아크·EOS 만 닫힘** (step-0022): ㉒ 공식 닫는 기준(물 V′ 방향·밀도 의존)은 ㉒-d 몫. 수송 D/η/κ·반응망 k(T)·상전이·interactionModel 미착수 — §2 NEXT 순서.
 - **입출력 JSON 스키마 초안만** (출력 산출 세부 단계가 확정): DESIGN §6.2 초안 있음 — 실측정하며 확정.
-- **응집이 액적+증기 공존에 머묾** (step-0008): 미시정준이라 응축 잠열이 계를 T_c 근방으로 자체 가열 → 완전 응축 아님. 완전 상 분리·상 라벨은 S1(열 배출·규모). SCF 상호분극은 쌍별 근사로 대체.
+- **응집이 액적+증기 공존에 머묾** (step-0008): 미시정준 응축 잠열 자체 가열→완전 응축 아님. 상 분리·라벨은 S1. SCF 상호분극→쌍별 근사.
 - **V₀ 상수의 튜닝 여지** (S0-④~⑧): 수식형은 DESIGN §3 로 확정 — 상수(R·차폐·D·k_b·ν·접촉 Eₐ 등)는 노브로 두고 앵커 재현이 조정한다 (수식 변경은 DESIGN 개정 사건).
-- **T_국소 정의의 비평형 한계** (step-0009 부분 확인): 평형 장면에서 ⟨T_국소⟩≈전역 T 정합 확인(rel 0.005). 비평형(온도 구배 s09-gradient)은 관찰·기록만 — 구배 속 아레니우스 반응률의 공간 프로파일 정량 assert 는 미착수(향후 반응-확산 정련).
-- **van't Hoff 는 캐논ical 측정 필요** (step-0009): ⑥ 복사 결합이 방출 냉각으로 평형 T 를 협대역 자체 고정 → 미시정준 T0 스캔 무효. 명시적 항온조로 T 고정해 창발 확인(기울기 1.89≈D). 닫힌 3체 안정화면 미시정준 가능 — formBond 개정 사건이라 보류(복사 안정화로 충분).
+- **T_국소 비평형 한계·van't Hoff 캐논ical** (step-0009): 평형서 ⟨T_국소⟩≈전역 T(rel 0.005)·비평형 구배는 기록만. van't Hoff 는 항온조로 T 고정해 창발(기울기 1.89≈D·미시정준 스캔 무효). 세부 step-0009.md.
 - **규모 정합의 "닮음" 지표 미정** (S1-④ 전 결정): 온도·밀도·구조 수 히스토그램 거리 등 — 관문 세부 단계가 assert 로 확정.
 - **강등 ⇩ 통계 복원 규약 미정** (S1-④): u′ 일관 미시 배치 샘플링.
 - **현실 앵커의 허용 오차 미정** (각 관문): "닮음"의 수치 임계 — 각 세부 단계가 assert 로 확정하며 정한다.
 - **족 내림 이온화 경향 미창발** (step-0003): 간이 Slater 는 Li>Na>K 못 냄(3s 침투 과소평가)·위조 안 함. 상위(⑮ χ) 착수 전 재검·그 전엔 주기 경향으로 충분.
-- **이핵 분자 시그니처** (step-0006→0010): 등방 우물이라 ⑥ H₂O 우세 안 함 → ⑩ 쌍별 D(436:463:146)로 해결(O–H 최강). 형상(⑭)·극성(⑮)은 별도.
-- **단일 결합만 (O=O 이중결합 부재)** (step-0010 → step-0018 우회): bond.order 로 O=O 표현 못 함 → ⑱ 은 O₂ order2·D=이중(2.15)로 장면 보정. 일반 π 결합 후속.
+- **이핵 시그니처·단일 결합만** (step-0006/0010/0018): 등방 우물→⑩ 쌍별 D(436:463:146·O–H 최강). O=O 이중결합은 ⑱ 에서 order2·D=2.15 장면 보정·일반 π 결합 후속.
 - **어닐링 항온조는 측정/준비 도구** (step-0010): 냉각이 뺀 열을 E_escape 로 회계 → 장부 닫힘(④ 복사 냉각 동형).
-- **재해동 T 는 재표본이라 이동** (step-0011): coarse→rethaw 는 Σc·E·P·조성 정확 보존·미시 재샘플로 T ~1.3배. 조성 ε=0·T 창[0.6,1.6].
-- **⑪ MVP 는 배관 증명·물질 충실도 아님**: output.json v0 는 최소(PMF 단원자 중성쌍 근사). 실 S1 입력(EOS·수송·반응망)은 ㉒ MaterialModel.
-- **점전하만은 H-결합 부족 → R-HB 명시** (step-0016): E_hb/D_OH≈2.5e-3(목표의 ~1/10) → 방향 가중 R-HB 노브(D_hb=1.0·숨김 0). 얼음·밀도역전(4°C)은 S1.
-- **자동이온화 동결·사건 보존 ~1e-7 → protSolv 명시** (step-0017): ΔE_autoion≈+9·유전 차폐 없어 냉수 자발 이온화 불가 → 순 전하당 −protSolv·Q² 용매화(⑯ D_hb 동형·값 2.0). 주입→재결합·T응답 실증·정량 K_w(T) S1. R-PROT 접촉 1행·장벽 비대칭 에너지 가드 창발. ⑯ 고립쌍 준정적 최소화로 사건 1e-9 불가·감사 끔·보존은 Σformal=0·H 수·O 배위≤3·표류<2e-3. 강산 약함·pH·완충 S1/㉒.
-- **연소는 열폭발·O=O 이중결합 대체** (step-0018): ⑩ 단일결합 gap 으로 O₂=order2·D=이중(2.15)로 보정(준안정·분지 흡열·문턱). 닫힌 단열→전역 빠른 점화(열폭발)·s18-flame-front 는 공간 확산만(3D 4/4). 느린 전선·k(T)·τ_ign·완전 연소(전환 ~40%)는 유한 열배출(S1). 겹침 0(gap≥σ) 필수·사건 감사 끔(⑥)·보존 Σc 정확·표류<5e-2.
-- **S1 무대는 힘 0·분자=점입자·㉑ 규모 벽 미도래** (step-0021): ①은 pairPotential 로드만·힘 0(②응집이 켬). 분자는 강체 점(u.T_int 저장만·내부 동역학 없음 — ⑦의 S1 판·상전이 잠열 후속). 유한 N(20) T 요동→정확 T0 재척도(dof 3N−3). input.json 정본·index.html 인라인(file:// fetch 불가). 프로파일: S0 규모(N≤수백) O(N²) 힘 병목 아님(metal/plasma 2N체만 뚜렷·절대 N 작음)→㉑ 병합 payoff(거시)는 S1+ 몫·규모 벽 실측 시 착수. 세부 step-0021.md.
-- **이온화 곡선은 속박 게이트 + 캐논ical 측정에 의존** (step-0020): R-REC3 가 이온 근방 전자를 무조건 포획하면 뜨거운 전자도 재결합해 x(T) 가 중간값에 눌러앉아 S자 안 나옴 → 국소 속박(½μ|v_e−v_A|²+U_coul<0) 게이트로 고온 재결합을 떨어뜨려야 곡선이 오름(author 0·에너지 출처 원칙 역방향). 이온화 흡열이라 미시정준 스캔 무효 → thermostat(⑨·⑩ 동형·E_escape 회계) T 고정 측정. P 는 전자 포함(momentumTotal) 필수. 집단 플라스마(디바이·진동·자기장·2온도·재결합 선스펙트럼) design 경계 예약(㉖ 무대·선스펙트럼 ㉒).
-- **고전 금속 플라스마 응집 불가 → 유효 우물 author** (step-0019): 고전 점전자는 양자 운동압 부재로 응집 못 함 → 이온-이온 인력 우물 Dmetal(전자 풀 차폐의 Thomas-Fermi 고전 대체)로 비포화 조밀 쌓임(배위 10~12≫B=4). 명시 전자=이동 캐리어(keCouple 0.7). 전 상호작용 유계(엔진 diff 0). R-DELOC·융점/밴드/자성 범위 밖. ⑱⑲ 3D 정합(⑬ 이후). 세부 step-0019.md.
-- **QEq 하드니스·CO₂ 대체** (step-0015): η=(IE−EA)/2 는 ③ EA>IE 로 음수→비볼록 → η=k_c/s+IE 프록시(양수·author 0). CO₂ 직선은 BeH₂ 로 대체. 분자간 전하 이동·유전율 없음.
-- **형상 한계** (step-0014): `1/(1−cosθ)` 소프트 최소라 형상은 과감쇠 이완 최소 배치로 측정(BeH₂ 175°). 고립쌍 준정적 최소화는 P·E 정확·L 잔차 ~1e-4. CO₂ 직선은 BeH₂ 로 대체.
+- **재해동 T 재표본 이동·⑪ MVP 는 배관 증명** (step-0011): coarse→rethaw Σc·E·P·조성 정확 보존·미시 재샘플로 T~1.3배(창[0.6,1.6]). output.json 은 최소 — 실 S1 입력(EOS 등)은 ㉒(EOS 는 step-0022 부분 발효).
+- **점전하만은 H-결합 부족→R-HB 명시** (step-0016): 방향 가중 R-HB 노브(D_hb=1.0). 얼음·밀도역전(4°C)은 S1. 세부 step-0016.md.
+- **자동이온화 동결→protSolv·연소 열폭발·산염기** (step-0017·0018): 냉수 자발 이온화 불가(ΔE≈+9·차폐 없음)→순 전하당 −protSolv·Q² 용매화(값 2.0). 연소는 O₂=order2 대체·닫힌 단열→열폭발·전환~40%·느린 전선/k(T)/완전연소는 S1. 정량 K_w(T)·pH·완충 S1/㉒. 세부 step-0017/0018.md.
+- **S1 무대 힘 0·분자=점입자·㉑ 규모 벽 미도래** (step-0021): pairPotential 로드만(②가 켬)·분자 강체 점(내부 동역학 없음). O(N²) 병목 미도래(N 작음)→㉑ payoff S1+ 몫. 세부 stages/S1-molecule/steps/step-0021.md.
+- **이온화 곡선=속박 게이트+캐논ical 측정·금속=유효 우물 author** (step-0020·0019): 국소 속박(½μ|Δv|²+U_coul<0) 게이트라야 고온 재결합 떨어져 S자 창발(author 0). 이온화 흡열→thermostat T 고정 측정. 금속=고전 점전자 응집 불가→이온-이온 우물 Dmetal(TF 차폐 고전 대체·배위 10~12). 집단 플라스마·밴드·자성 범위 밖. 세부 step-0019/0020.md.
+- **QEq 하드니스·CO₂ 대체** (step-0015): η=k_c/s+IE 프록시(양수·author 0). CO₂→BeH₂ 대체. 세부 step-0015.md.
+- **형상 한계** (step-0014): 소프트 최소라 과감쇠 이완 최소 배치로 측정(BeH₂ 175°·L 잔차~1e-4). 세부 step-0014.md.
 - **⑦ 3D C_v 재검 이월** (step-0013): `modes.js` 2D 하드코딩 → 3D C_v 재작성 필요(별도 이월·⑦ 2D 회귀 불변).
-- **2준위 → 단색 스펙트럼 · field/bin 공존** (step-0012): ⑫ 광자 입자는 냉각·공동·유도 방출 재현하나 2준위라 광자 E=dE → 스펙트럼 단색(연속·플랑크 꼬리는 다준위/진동-복사 결합 몫·㉒). 복사압·산란·편광 범위 밖. `E_photon` 통이 bond 복사 sink(⑥⑩⑪)로도 쓰여 `radiationMode='field'` additive(⑩ fallback 동형·field 장면 E_photon==Σphoton.E).
-- **볼츠만 점유 ~10% 편향** (step-0004): LB 재분배가 접촉 상관으로 (g1/g0)e^{−ΔE/T} 의 ~0.9~1.15×·위조 안 함. 정밀 KL<ε 는 DSMC-정합 충돌 처리로 이월·그 전엔 비율 ∈[0.8,1.25]+단조로 충분.
+- **2준위→단색 스펙트럼·볼츠만 ~10% 편향** (step-0012·0004): ⑫ 2준위라 스펙트럼 단색(다준위·플랑크 꼬리 ㉒). 복사압/산란/편광 밖. ④ LB 점유 (g1/g0)e^{−ΔE/T}의 0.9~1.15×(비율∈[0.8,1.25]+단조로 충분·정밀 KL 은 DSMC 이월). 세부 step-0004/0012.md.
 
 ## §4 DURABLE — 여러 step 이 반복 참조할 불변
 
@@ -55,6 +57,8 @@
 - 시각화 없이 닫지 않는다.
 
 ## §5 INDEX — step 인덱스 (literal 1줄/step append)
+
+- step-0022: S0-㉒-a MaterialModel ⇧ 측정 EOS. material.js 신설(엔진 diff 0·engine/scenes/measure 재사용). 물 수프 T×ρ 그리드 NVT 굴림→P(비리얼)·U(물질) 표 측정(author 0·3×3·R=3). output.json v0.1→v0.2 가법(스키마 태그 유지·S1 v0 소비 불변): +stateVariables[T,ρ,조성]·+equationOfState 표·+errorBounds(P·U·C_v). node verify.js --only 22 = 6 PASS: 계약(material+promote 하위호환)·회계(Σc 30→30)·P(ρ)↑·P(T)↑·C_v=∂U/∂T>0 전 ρ·author0(발효 표 경향). 뷰어 index.html 하단 EOS 히트맵. 발견: 분산 응집 EOS virial 접힘 ㉒-b(waterSoup virial 정합 위해 뺌)·㉒ 다-step 아크·S1-② 는 ㉒ 닫힌 뒤. 경로 정정=S1 먼저 열었다 되돌아옴. 세부 step-0022.md.
 
 - step-0000: 프로젝트 탄생 — 커널 척추·단계 지도(S0~S3)·검증 확정 (정련 2회: 현실 앵커 → 단계 모듈화·결정론 폐기) + S0 상세 설계도(DESIGN.md). 코드 0줄.
 - step-0001: S0-① 무대·장부 — 첫 코드. engine/scenes/measure/verify.js + index.html. Vec3·통 분리 장부 10통·velocity Verlet(F=0)·경계 3종·z동결·사건 큐 뼈대·검증 하네스. node verify.js 16 PASS. 뷰어 눈 확인(운동+잔차 0).

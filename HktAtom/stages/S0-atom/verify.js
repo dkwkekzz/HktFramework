@@ -23,6 +23,8 @@
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
   const Me = isNode ? require('./metal.js') : window.HktS0Metal;          // ⑲ 금속 (비국소 전자 풀)
   const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;      // ⑳ 이온화 기체 (플라스마)
+  const Mat = isNode ? require('./material.js') : window.HktS0Material;   // ㉒ MaterialModel (측정 EOS)
+  const OUT = isNode ? require('./output.json') : window.HktS0Output;     // 발효된 출력 (v0.2)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -1011,6 +1013,44 @@
       log.push({ ok: mDr < 5e-3 && mdP < 1e-9, name: '⑳장부·P보존', msg: `max|ΔE|/E ${fmt(mDr)} < 5e-3 · max|ΔP| ${fmt(mdP)} ≤ 1e-9 (유계 힘 · 전이 P 정확) · 전하 상관(기록) ${fmt(corr / R)}` });
     }
 
+    // ── 22. ㉒-a MaterialModel ⇧ — 측정된 상태방정식 EOS P(T,ρ)·U(T,ρ) ──
+    //    현상: 압력·내부에너지가 (T,ρ) 의 함수로 *측정에서* 나온다 (author 0). S1 상태축 기반.
+    if (want(22)) {
+      const monoUp = (a) => a.every((v, i) => i === 0 || v > a[i - 1]);
+      // (계약) 발효된 output.json 이 v0 하위호환 + EOS 블록 유효 (CONTRACT §7 가법·§3 발효 조건).
+      const vm = Mat.validateMaterial(OUT), v0 = Pr.validateOutput(OUT);
+      log.push({ ok: vm.ok && v0.ok && OUT.schema === 's0-output-v0' && OUT.version === '0.2', name: '㉒계약',
+        msg: `㉒·출력 계약: material ${vm.ok} · v0 하위호환 ${v0.ok} (S1 소비 불변) · schema ${OUT.schema} v${OUT.version} · EOS ${OUT.equationOfState.grid.T.length}×${OUT.equationOfState.grid.rho.length} 표 ${vm.errs.concat(v0.errs).join('·')}` });
+
+      // 신선 측정 소그리드 (개발 반복 빠르게 — 경향 assert 는 통계라 소규모로 충분).
+      const eos = Mat.measureEOS({ Tgrid: [0.30, 0.60], rhoGrid: [0.15, 0.30], R: 2, n: 10, eqTicks: 2000, sampleTicks: 1500, stride: 150 });
+
+      // (회계) EOS 측정은 반응성이지만 원자 수(Σc)는 이동만 — 한 점 굴림 전후 원자 수 불변.
+      {
+        const w = S.waterSoup({ n: 10, L: Math.sqrt(30 / 0.2), T0: 0.5, seed: 909 });
+        const n0 = w.atoms.length; Mat.equilibrate(w, 0.5, 1500);
+        log.push({ ok: w.atoms.length === n0, name: '㉒회계·Σc', msg: `㉒·EOS 굴림 원자 수 불변 ${n0} → ${w.atoms.length} (반응은 결합 이동·원자 보존)` });
+      }
+
+      // (현상 1) P 가 ρ 와 함께 단조 증가 (고정 T) — 척력/이상기체 압력.
+      const pRhoUp = eos.grid.T.every((_, ti) => monoUp(eos.P[ti]));
+      log.push({ ok: pRhoUp, name: '㉒P(ρ)↑', msg: `㉒·P 가 ρ 와 함께 단조↑ (전 T): [${eos.P.map((r) => '[' + r.map((x) => x.toFixed(3)) + ']').join(' ')}] (밀도압)` });
+
+      // (현상 2) P 가 T 와 함께 단조 증가 (고정 ρ) — 이상기체 P∝T.
+      let pTup = true; for (let ri = 0; ri < eos.grid.rho.length; ri++) { const col = eos.P.map((row) => row[ri]); if (!monoUp(col)) pTup = false; }
+      log.push({ ok: pTup, name: '㉒P(T)↑', msg: `㉒·P 가 T 와 함께 단조↑ (전 ρ·이상기체 P∝T)` });
+
+      // (현상 3 = 자기일관) C_v = ∂U/∂T > 0 (전 ρ) — 가열 시 U 증가 (열역학 안정·⑦ 반응 확장).
+      const cv = Mat.cvColumns(eos), cvPos = cv.every((c) => c.cv.every((x) => x > 0));
+      log.push({ ok: cvPos, name: '㉒C_v>0', msg: `㉒·자기일관 C_v=∂U/∂T > 0 전 ρ: ${cv.map((c) => 'ρ' + c.rho + '=' + c.cv.map((x) => x.toFixed(1))).join(' · ')} (⑦ 위에 반응 열용량 — 부호·유한만 assert)` });
+
+      // (author 0) 발효된 표도 같은 경향 — 값은 측정이라 정확 재현 요구 안 함 (분포·KERNEL §7).
+      const outEos = OUT.equationOfState;
+      const outPrhoUp = outEos.grid.T.every((_, ti) => monoUp(outEos.P[ti]));
+      let outUTup = true; for (let ri = 0; ri < outEos.grid.rho.length; ri++) { const col = outEos.U.map((row) => row[ri]); if (!monoUp(col)) outUTup = false; }
+      log.push({ ok: outPrhoUp && outUTup, name: '㉒발효표경향', msg: `㉒·발효 output.json 표: P(ρ)↑ ${outPrhoUp} · U(T)↑ ${outUTup} (author 0 — 측정 경향이 표에 담김)` });
+    }
+
     return log;
   }
 
@@ -1022,7 +1062,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
