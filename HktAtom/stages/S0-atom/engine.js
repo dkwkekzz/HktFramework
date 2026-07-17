@@ -231,7 +231,9 @@
         const eps = Math.sqrt(epi * epsOf(aj));               // Berthelot
         const q = ai.q * aj.q;
         const invS = 1 / (d + s);
-        const sr12 = Math.pow(sig / d, 12);
+        // (σ/d)¹² 곱셈 전개 — Math.pow 는 ~20× 느려 전체 verify 의 지배 비용이었다 (값 동일)
+        const sr = sig / d, sr2 = sr * sr, sr4 = sr2 * sr2;
+        const sr12 = sr4 * sr4 * sr4;
         U += kc * q * invS + eps * sr12;                      // 쌍 퍼텐셜 → U_elec
         const fmag = kc * q * invS * invS + 12 * eps * sr12 / d;
         const fOverD = fmag / d;

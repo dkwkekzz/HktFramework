@@ -90,6 +90,18 @@
   }
   function pDiff(a, b) { return Math.max(Math.abs(a.x - b.x), Math.abs(a.y - b.y), Math.abs(a.z - b.z)); }
 
+  // ── step 섹션 필터 ──
+  //    node verify.js --only 8,10  → ⑧⑩ 섹션만 실행 (개발 중 빠른 반복용).
+  //    인자 없으면 전량 회귀 (step 닫기 전 필수). 브라우저에선 항상 전량.
+  const ONLY = (() => {
+    if (typeof process === 'undefined' || !process.argv) return null;
+    const i = process.argv.indexOf('--only');
+    const v = i >= 0 ? process.argv[i + 1] : (process.argv.find((x) => x.startsWith('--only=')) || '').slice(7);
+    if (!v) return null;
+    return new Set(v.split(',').map((s) => s.trim()).filter(Boolean));
+  })();
+  const want = (step) => !ONLY || ONLY.has(String(step));
+
   // ── 검증 스위트 ──
   function suite() {
     const log = [];
@@ -101,7 +113,7 @@
     }
 
     // 1. 회계 (정확): 주기 이상 기체 — 힘 0 이므로 전 통 합·P 정확 보존
-    {
+    if (want(1)) {
       const r = runScene('s01-ideal-gas', { seed: 101, N: 64, T0: 1.0, ticks: 2000, dt: 0.01 });
       assertExact('회계·장부합보존', r.ledger1.total, r.ledger0.total, 1e-12, log);
       assertExact('회계·P보존', pDiff(r.P1, r.P0), 0, 1e-9, log);
@@ -113,7 +125,7 @@
     }
 
     // 2. dt 반감 (수치 불변식): 같은 초기조건을 dt·dt/2 로 같은 물리 시간 굴려 관측량 비교
-    {
+    if (want(1)) {
       const base = { seed: 202, N: 64, T0: 1.0, L: 20 };
       const Tphys = 20;
       const a = runScene('s01-ideal-gas', Object.assign({}, base, { dt: 0.02, ticks: Tphys / 0.02 }));
@@ -125,7 +137,7 @@
     }
 
     // 3. 경계 3종
-    {
+    if (want(1)) {
       // periodic: 위치가 항상 상자 안
       const wp = S.build('s01-ideal-gas', { seed: 303, N: 64, T0: 1.5, dt: 0.01 });
       E.run(wp, 1500);
@@ -153,7 +165,7 @@
     }
 
     // 4. R런 통계: ⟨T⟩ 가 목표 창 안. COM 제거로 유효 자유도 (N−1)·dofPer → 목표=(1−1/N)·T0
-    {
+    if (want(1)) {
       const R = 12, N = 64, T0 = 1.0;
       const st = stat(R, (i) => runScene('s01-ideal-gas', { seed: 900 + i, N, T0, ticks: 1000, dt: 0.01 }).T);
       const target = T0 * (N - 1) / N;   // COM 표류 제거의 편향 (정직)
@@ -163,7 +175,7 @@
     }
 
     // 5. ② 힘·충돌 (쿨롱+척력·산란) — ①의 하네스·불변식 스위트를 그대로 재사용
-    {
+    if (want(2)) {
       // 장부 유지: 고밀도 중성 기체 산란 — max|ΔE|/E ≤ EPS_E · |ΔP|≤1e-9 · 겹침 0
       const g = runDrift('s02-gas-collide', { seed: 42, N: 80, T0: 1.5, L: 14, dt: E.DT_STIFF, ticks: 2000 });
       log.push({ ok: g.maxRelE <= E.EPS_E, name: '②장부·E표류', msg: `max|ΔE|/E = ${fmt(g.maxRelE)} ≤ EPS_E ${E.EPS_E}` });
@@ -191,7 +203,7 @@
     }
 
     // 6. ③ 준위·예산 (순수 함수 — 시뮬 불필요·①②와 독립)
-    {
+    if (want(3)) {
       // 실원소 예산 앵커 (교과서 원자가가 창발): 승위로 C=4·Be=2 채택
       const B = (Z) => L.budget(Z);
       const anchors = { H: [1, 1], Be: [4, 2], B: [5, 3], C: [6, 4], N: [7, 3], O: [8, 2], F: [9, 1], Ne: [10, 0], Na: [11, 1], Mg: [12, 2], Cl: [17, 1], Ar: [18, 0] };
@@ -226,7 +238,7 @@
     }
 
     // 7. ④ 전이 엔진 (볼츠만·냉각·공동 + 에너지 출처·회계). ①②③의 하네스·EPS_E·준위를 소비.
-    {
+    if (want(4)) {
       // 열욕: 점유가 볼츠만으로 창발 (author 0 — e^{−ΔE/T} 어디에도 안 적음). ~10% 편향 정직.
       const R = 4;
       let rr = [], pp = [];
@@ -282,7 +294,7 @@
     }
 
     // 8. ⑤ 이온화·전자 이전 (이온 격자 — NaCl 앵커). ④의 실행기·회계를 그대로 재사용.
-    {
+    if (want(5)) {
       // 쿨롱 전용(마델룽) 에너지 — 이온 배치의 순 인력
       const coulomb = (w) => {
         let U = 0; const A = w.atoms, L = w.box.L, s = w.soft;
@@ -320,7 +332,7 @@
     }
 
     // 9. ⑥ 공유결합 (분자 형성·안정화 경로·원자가 포화·해리). ④⑤의 실행기·회계 재사용.
-    {
+    if (want(6)) {
       const dominant = (h) => Object.keys(h).sort((a, b) => h[b] - h[a])[0];
 
       // 이량체 창발: H1(B=1) → H1₂ 우세 + 원자가 포화(과결합 0) + 장부 닫힘
@@ -353,7 +365,7 @@
     }
 
     // 10. ⑦ 내부 모드 — 열용량 계단 (양자 모드 순차 언프리즈). self-contained modes.js.
-    {
+    if (want(7)) {
       const Eat = (T0) => { const w = Mo.makeGas({ N: 160, T0, seed: 7 }); Mo.run(w, 6000); return { T: Mo.temperature(w), E: Mo.energy(w) / w.mols.length, uv: Mo.uVib(w), ur: Mo.uRot(w) }; };
       const cvB = (a, b) => { const p = Eat(a), q = Eat(b); return { cv: (q.E - p.E) / (q.T - p.T), lo: p, hi: q }; };
       const low = cvB(0.0008, 0.0016), mid = cvB(0.15, 0.6), high = cvB(30, 60);
@@ -367,7 +379,7 @@
     }
 
     // 11. ⑧ 분극·응집 (중성 입자가 뭉친다). self-contained polarization.js — 기반 ②(pairForces)만 재사용.
-    {
+    if (want(8)) {
       const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 
       // 응집 창발: 저온 냉각 → 클러스터·배위수·음의 응집에너지 급증 (고온 기체 ↔ 저온 응집).
@@ -421,7 +433,7 @@
     }
 
     // 12. ⑨ 통계 관문 — 평형은 창발한다 (엔트로피 증가·화학 평형·T_국소). 새 물리 0·측정과 검증만.
-    {
+    if (want(9)) {
       const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
 
       // (1) 엔트로피 앙상블 증가: 저엔트로피 구석 → 자유 팽창 → 위상공간 S 증가 (제2법칙 창발).
@@ -487,7 +499,7 @@
     }
 
     // 13. ⑩ 수프 관문 — 실원소 합류·화학량론 (2H:1O → H₂O 우세). 쌍별 D(H–H:O–H:O–O=436:463:146) author.
-    {
+    if (want(10)) {
       const multi = (hist) => { const P = {}; for (const k in hist) { const c = (k.match(/\d+/g) || []).reduce((s, d) => s + +d, 0); if (c > 1) P[k] = hist[k]; } return P; };
       const poolTop = (worlds) => { const P = {}; for (const w of worlds) { const h = multi(M.molecules(w).hist); for (const k in h) P[k] = (P[k] || 0) + h[k]; } const r = Object.entries(P).sort((a, b) => b[1] - a[1]); return { top: r[0] || ['-', 0], all: r, h2o: P['H2O1'] || 0 }; };
       const R = 6, n = 14;
@@ -520,7 +532,7 @@
     }
 
     // 14. ⑪ 승격 배관 MVP — 상자 시나리오 한 장부 + coarse↔재해동 왕복 + output.json (CONTRACT §3).
-    {
+    if (want(11)) {
       const sortKeys = (o) => { const r = {}; for (const k of Object.keys(o).sort()) r[k] = o[k]; return JSON.stringify(r); };
 
       // (1) 한 장부: 밀폐 상자 5막(형성→응집→가열→반응→냉각) 전체에서 총합 잔차 ≤ EPS_E · Σc 불변.
@@ -574,7 +586,8 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪): ${pass} PASS · ${fail} FAIL ──`);
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪ 전량';
+    console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 
