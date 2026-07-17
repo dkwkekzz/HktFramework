@@ -22,6 +22,7 @@
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;    // ⑰ 산·염기 (양성자 이전)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
   const Me = isNode ? require('./metal.js') : window.HktS0Metal;          // ⑲ 금속 (비국소 전자 풀)
+  const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;      // ⑳ 이온화 기체 (플라스마)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -954,6 +955,62 @@
       log.push({ ok: cok && mDrift < 5e-3, name: '⑲장부·Σc·Σe보존', msg: `원자+전자 수 보존 ${cok} · max|ΔE|/E ${fmt(mDrift)} < 5e-3 (유계 힘·고전 안정)` });
     }
 
+    // 23. ⑳ 이온화 기체 — 이온화 곡선 x(T): 충돌 이온화 ⇌ 3체 재결합의 평형. IE 서열·사하 밀도 의존.
+    if (want(20)) {
+      const R = 2, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const L1 = 8, L2 = 8 * Math.cbrt(2);            // 밀도 2배 차 (같은 N·부피 2배)
+      // 평형 이온화 분율 — ⑨ 계약: 캐논ical 측정이라 항온조로 T 고정 (미시정준 스캔은 이온화 흡열이 T 를 끌어내려 무효).
+      const xEq = (opt, T, eq, meas) => {
+        const w = S.build('s20-saha-scan', Object.assign({ T0: T }, opt));
+        for (let k = 0; k < eq; k++) { E.step(w); if (k % 20 === 0) Iz.thermostat(w, T); }
+        let s = 0, n = 0;
+        for (let k = 0; k < meas; k++) { E.step(w); if (k % 20 === 0) { Iz.thermostat(w, T); s += Iz.ionization(w).x; n++; } }
+        return s / n;
+      };
+      const TS = [0.15, 0.4, 0.8, 1.4];
+      const curve = (sp) => TS.map((T) => avg([...Array(R)].map((_, s) => xEq({ sp, L: L1, seed: 10 + s }, T, 20000, 8000))));
+      const xV1 = curve('V1'), xV0 = curve('V0');     // V1: IE=1.0 · V0: IE=2.0 (③ 유도)
+      const monoUp = (a) => a.every((v, i) => i === 0 || v > a[i - 1]);
+      // 급증 구간(S자): 최대 상승 구간이 고온 포화 구간보다 훨씬 가파르다.
+      const segs = xV1.map((v, i) => (i === 0 ? 0 : v - xV1[i - 1])).slice(1);
+      const steep = Math.max(...segs), last = segs[segs.length - 1];
+      // 사하 밀도 의존 (T=1.2·충분 평형): 저밀도일수록 이온화 유리 — 재결합이 다체(∝n·n_e)라서.
+      const dHi = avg([...Array(3)].map((_, s) => xEq({ sp: 'V1', L: L1, seed: 20 + s }, 1.2, 30000, 10000)));
+      const dLo = avg([...Array(3)].map((_, s) => xEq({ sp: 'V1', L: L2, seed: 20 + s }, 1.2, 45000, 15000)));
+      // 닫힌 계 장부 (항온조 없음): Σ전하 0(이온 수 == 전자 수)·E 표류·P 보존. 사건별 감사는 checkedApply(_auditP).
+      let cOk = true, qOk = true, mDr = 0, mdP = 0, corr = 0;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s20-saha-scan', { sp: 'V1', L: L1, seed: 30 + s, T0: 1.4 });
+        // P 는 **전자 포함** 총합으로 본다 (M.momentum 은 원자만 — 이온화가 운동량을 전자로 옮긴다).
+        const nAt = w.atoms.length, E0 = M.ledgerTable(w).total, P0 = Iz.momentumTotal(w);
+        for (let k = 0; k < 6000; k++) {
+          E.step(w);
+          if (k % 25 === 0) {
+            mDr = Math.max(mDr, Math.abs(M.ledgerTable(w).total - E0) / Math.max(1, Math.abs(E0)));
+            mdP = Math.max(mdP, pDiff(Iz.momentumTotal(w), P0));
+            let q = 0; for (const a of w.atoms) q += a.q; if (q - w.electrons.length !== 0) qOk = false;
+          }
+        }
+        if (w.atoms.length !== nAt) cOk = false;
+        corr += Iz.chargeCorrelation(w, 1.5);
+      }
+
+      // (1) 이온화 곡선: x(T) 단조 증가 + 급증 구간(S자) — 곡선은 author 0, 두 전이의 평형에서 창발.
+      log.push({ ok: monoUp(xV1) && xV1[0] < 0.35 && xV1[xV1.length - 1] > 0.7 && steep > 2 * last, name: '⑳이온화곡선',
+        msg: `x(V1) T=[0.15,0.4,0.8,1.4] → [${xV1.map((v) => v.toFixed(3))}] 단조↑ · 급증 구간 Δ${fmt(steep)} > 2× 포화 Δ${fmt(last)} (S자)` });
+      // (2) IE 서열 (③ 유도): IE 큰 종(V0=2.0)이 같은 T 에서 덜 이온화 — 급증 온도가 높다.
+      log.push({ ok: monoUp(xV0) && TS.every((_, i) => xV0[i] < xV1[i]), name: '⑳IE서열',
+        msg: `x(V0,IE=2.0) [${xV0.map((v) => v.toFixed(3))}] < x(V1,IE=1.0) 전 T · 둘 다 단조↑ (급증 온도 ∝ IE)` });
+      // (3) 저온 억제: IE≫T 면 이온화 0 (문턱 창발 — hazard 에 e^{−IE/T} 는 어디에도 안 적는다).
+      log.push({ ok: xV0[0] < 0.02, name: '⑳저온억제', msg: `x(V0, T=0.15) ${fmt(xV0[0])} ≈ 0 (IE=2.0 ≫ T · 상대 KE 가드가 곧 문턱)` });
+      // (4) 사하 밀도 의존: 같은 T 에서 밀도 1/2 → 이온화 증가 (재결합이 다체 ∝n·n_e · ⑨ 상태 수 계약의 연장).
+      log.push({ ok: dLo > dHi + 0.05, name: '⑳사하밀도의존', msg: `T=1.2: x(n) ${fmt(dHi)} → x(n/2) ${fmt(dLo)} (저밀도일수록 이온화 유리 — 재결합 다체)` });
+      // (5) 전하·Σc 보존: 원자 수 불변 · Σq(이온) − 전자 수 = 0 정확 (이온화·재결합은 이동만).
+      log.push({ ok: cOk && qOk, name: '⑳Σc·전하보존', msg: `원자 수 보존 ${cOk} · Σq_이온 − n_전자 = 0 정확 ${qOk} (전자는 생성이 아니라 속박→자유 이동)` });
+      // (6) 닫힌 계 장부: 항온조 없이 E 표류 유계 · P 보존 (사건별 1e-9 감사는 checkedApply·_auditP=true).
+      log.push({ ok: mDr < 5e-3 && mdP < 1e-9, name: '⑳장부·P보존', msg: `max|ΔE|/E ${fmt(mDr)} < 5e-3 · max|ΔP| ${fmt(mdP)} ≤ 1e-9 (유계 힘 · 전이 P 정확) · 전하 상관(기록) ${fmt(corr / R)}` });
+    }
+
     return log;
   }
 
@@ -965,7 +1022,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

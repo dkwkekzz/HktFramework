@@ -15,6 +15,7 @@
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;   // ⑰ 산·염기 (양성자 이전)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
   const Me = isNode ? require('./metal.js') : window.HktS0Metal;         // ⑲ 금속 (비국소 전자 풀)
+  const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;     // ⑳ 이온화 기체 (플라스마)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -645,6 +646,56 @@
     return w;
   }
 
+  // ── ⑳ 이온화 기체 (플라스마) — 중성 기체 + 충돌 이온화 ⇌ 3체 재결합. 이온화 곡선 x(T) 측정 ──
+  //   IE 는 ③ 준위에서 유도(author 0): IE(sp) = −ε(바닥). V1=1.0 · V0=2.0 → IE 서열 앵커.
+  //   질량은 두 종 동일(mA) — 오직 IE 만 다른 대조군 (급증 온도 서열의 통제 변인).
+  //   힘은 유계(⑲ 동형·ionized.forcesPlasma) · 3D(⑬ 정합) · 항온조는 ⑨ 캐논ical 측정 도구.
+  const PLASMA = { mA: 4.0, kc: 1.0, soft: 0.4, krep: 12, m_e: 0.5, rcAA: 1.0, rcEI: 0.5, rcEE: 0.6,
+    dt: 0.002, dEsc: 1.5, rcRec: 1.5, nu_ion: 12, nu_rec: 40, rc: 1.3, N: 32, L: 8 };
+  function plasmaSpecIon(sp) {
+    const IE = -Lv.VIRTUAL[sp].levels[0].eps;                  // ③ 유도 — 바닥 준위를 떼는 비용
+    const m = {}; m[sp] = { states: { 1: 0, 0: IE }, minNe: 0, maxNe: 1 };
+    return m;
+  }
+  function buildPlasma(o) {
+    o = o || {};
+    const sp = o.sp || 'V1', rng = o.rng || E.makeRng(o.seed || 2020);
+    const P = Object.assign({}, PLASMA, o), N = P.N, L = P.L;
+    const mass = {}, sigma = {}, eps = {};
+    mass[sp] = P.mA; sigma[sp] = 1.0; eps[sp] = 1.0;
+    const w = E.makeWorld({
+      dt: P.dt, box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: false,   // ⑬ 3D
+      mass: mass, sigma: sigma, eps: eps, computeForces: Iz.forcesPlasma, rng,
+      catalog: Iz.PLASMA, specIon: plasmaSpecIon(sp), kc: P.kc, soft: P.soft, m_e: P.m_e, rc: P.rc,
+    });
+    w.krep = P.krep; w.rcAA = P.rcAA; w.rcEI = P.rcEI; w.rcEE = P.rcEE;
+    w.dEsc = P.dEsc; w.rcRec = P.rcRec; w.nu_ion = P.nu_ion; w.nu_rec = P.nu_rec;
+    for (let i = 0; i < N; i++) {
+      const a = E.makeAtom(sp, E.V.make(rng() * L, rng() * L, rng() * L), E.V.zero());
+      a.Z = 1; E.setNe(w, a, 1);                                // 중성 시작 (ne=1·q=0)
+      w.atoms.push(a);
+    }
+    maxwellInit(w, o.T0 != null ? o.T0 : 0.3, rng);
+    w.computeForces(w); E.recomputeLedger(w);
+    w._auditP = true;    // R-ION·R-REC3 는 P 정확 보존 (전자 p=0 생성 · 포획 시 A.p += e.p)
+    return w;
+  }
+  // s20-saha-scan: 이온화 곡선·밀도 스캔의 단위 상자 (T·L·종은 opts — 스캔은 verify/뷰어가 구동).
+  function sahaScan(o) {
+    o = o || {}; const w = buildPlasma(o);
+    w._meta = { name: 's20-saha-scan', plasma: 1, sp: o.sp || 'V1', Ttar: o.T0 != null ? o.T0 : 0.3 };
+    return w;
+  }
+  // s20-recomb-glow: 고온 이온화 → 급랭 — 재결합이 진행되며 이온·자유전자가 사라진다(재결합열 방출).
+  function recombGlow(o) {
+    o = o || {};
+    const w = buildPlasma(Object.assign({ T0: 1.6, seed: o.seed || 2021 }, o));
+    const ticks = o.hot != null ? o.hot : 6000;
+    for (let k = 0; k < ticks; k++) { E.step(w); if (k % 20 === 0) Iz.thermostat(w, 1.6); }   // 고온 평형(이온화)
+    w._meta = { name: 's20-recomb-glow', plasma: 1, quench: 1, sp: o.sp || 'V1', Ttar: 0.15 };
+    return w;   // 뷰어/검증이 저온 항온조로 급랭 → 재결합 관찰
+  }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -972,6 +1023,8 @@
     's19-conduction': metalConduction,
     's19-screening': metalScreening,
     's19-covalent-contrast': covalentContrast,
+    's20-saha-scan': sahaScan,
+    's20-recomb-glow': recombGlow,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -986,7 +1039,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ignition, flameFront, buildCombustion, sparkZone, naCluster, metalConduction, metalScreening, covalentContrast, buildMetal, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ignition, flameFront, buildCombustion, sparkZone, naCluster, metalConduction, metalScreening, covalentContrast, buildMetal, sahaScan, recombGlow, buildPlasma, plasmaSpecIon, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

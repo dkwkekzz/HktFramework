@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>HktAtom S1 — 분자 단계</title>
+<style>
+  body { margin: 0; background: #0d1117; color: #c9d1d9; font-family: system-ui, sans-serif; }
+  #wrap { max-width: 980px; margin: 0 auto; padding: 16px; }
+  h1 { font-size: 18px; margin: 4px 0; }
+  .sub { font-size: 12px; color: #8b949e; line-height: 1.5; }
+  #cv { background: #010409; border: 1px solid #21262d; border-radius: 6px; display: block; margin: 10px 0; cursor: grab; }
+  .row { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 6px 0; font-size: 13px; }
+  button, select { background: #21262d; color: #c9d1d9; border: 1px solid #30363d; border-radius: 5px; padding: 5px 10px; font-size: 13px; cursor: pointer; }
+  #panel { font-family: monospace; font-size: 12px; color: #8b949e; white-space: pre; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div id="wrap">
+  <h1>HktAtom S1 — 분자 단계 (① 무대)</h1>
+  <p class="sub">S0 output.json(=input.json)을 로드해 <b>분자를 개체로 실체화</b>. 커널 재귀: entity={c,r,p,u} 그대로 — c=원자종 조성 다발, u=접힌 결합 에너지+내부 온도(온도의 탄생). ①은 힘 0(자유 비행) — 장부(Σc·P·E) 정확히 닫힘. 분자 간 유효 인력(input.pairPotential 꼬리)은 ②(응집)이 켠다. 색=원자 조성(O 빨강·H 흰색 비율), 크기=질량. 드래그로 3D 회전.</p>
+  <div class="row">
+    <button id="play">⏸ 일시정지</button>
+    <label>속도 <select id="speed"><option>1</option><option selected>2</option><option>4</option><option>8</option></select></label>
+    <button id="reset">↺ 리셋</button>
+    <span id="stat" class="sub"></span>
+  </div>
+  <canvas id="cv" width="940" height="520"></canvas>
+  <div id="panel"></div>
+</div>
+
+<script id="s1-input" type="application/json">{"schema":"s0-output-v0","version":"0.1","species":[{"id":"H2O2","composition":{"O":2,"H":2},"m":10,"E_bind":-4.6307,"count":1},{"id":"H2O1","composition":{"O":1,"H":2},"m":6,"E_bind":-4,"count":7},{"id":"H2","composition":{"H":2},"m":2,"E_bind":-1.8834,"count":5},{"id":"H1O2","composition":{"O":2,"H":1},"m":9,"E_bind":-2.6307,"count":1},{"id":"O1","composition":{"O":1},"m":4,"E_bind":0,"count":1},{"id":"H1O1","composition":{"O":1,"H":1},"m":5,"E_bind":-2,"count":4},{"id":"H1","composition":{"H":1},"m":1,"E_bind":0,"count":1}],"pairPotential":{"O|O":[[0.9,29.23197],[1.05,3.63741],[1.2,0.29372],[1.35,-0.13396],[1.5,-0.13966],[1.65,-0.09806],[1.8,-0.06421],[1.95,-0.0418],[2.1,-0.02758],[2.25,-0.01854],[2.4,-0.01272],[2.55,-0.0089],[2.7,-0.00634],[2.85,-0.0046],[3,-0.00339],[3.15,-0.00253],[3.3,-0.00192],[3.45,-0.00147],[3.6,-0.00114],[3.75,-0.00089],[3.9,-0.00071]],"H|H":[[0.9,3.22395],[1.05,0.37695],[1.2,0.01644],[1.35,-0.02384],[1.5,-0.02053],[1.65,-0.0138],[1.8,-0.00888],[1.95,-0.00573],[2.1,-0.00377],[2.25,-0.00252],[2.4,-0.00173],[2.55,-0.00121],[2.7,-0.00086],[2.85,-0.00062],[3,-0.00046],[3.15,-0.00034],[3.3,-0.00026],[3.45,-0.0002],[3.6,-0.00015],[3.75,-0.00012],[3.9,-0.0001]],"O|H":[[0.9,10.47831],[1.05,1.38756],[1.2,0.16043],[1.35,-0.01668],[1.5,-0.03233],[1.65,-0.02483],[1.8,-0.01679],[1.95,-0.0111],[2.1,-0.00738],[2.25,-0.00499],[2.4,-0.00343],[2.55,-0.0024],[2.7,-0.00172],[2.85,-0.00125],[3,-0.00092],[3.15,-0.00069],[3.3,-0.00052],[3.45,-0.0004],[3.6,-0.00031],[3.75,-0.00024],[3.9,-0.00019]]},"observables":[{"name":"조성","epsilon":0},{"name":"T(운동)","epsilon":0.6},{"name":"P(비리얼)","epsilon":0.5},{"name":"배위수","epsilon":0.5}],"validRange":{"T":[0,0.8316851672053602],"rho":[0,0.33895911305698745]},"macro":{"V":141.61,"E_total":-28.0562,"T":0.2772,"P":0.62803,"atomCount":{"O":16,"H":32}},"provenance":{"stage":"S0","scenes":["s11-mvp-box"],"runs":1,"note":"S0 출력 v0 — S1 입력으로 소비"}}</script>
+
+<script src="engine.js"></script>
+<script src="scenes.js"></script>
+<script src="measure.js"></script>
+<script>
+  // input.json 정본의 뷰잉 스냅샷 (file:// fetch 불가 → 인라인). 데이터는 input.json 과 동일.
+  window.HktS1Input = JSON.parse(document.getElementById('s1-input').textContent);
+  const E = window.HktS1Engine, S = window.HktS1Scenes, M = window.HktS1Measure;
+  const cv = document.getElementById('cv'), ctx = cv.getContext('2d');
+  let world, playing = true, speed = 2, rotX = -0.5, rotY = 0.6;
+
+  function build() { world = S.stage(window.HktS1Input, { seed: (Math.random() * 1e9) | 0 }); }
+  build();
+
+  // 3D 투영 (S0 뷰어 동형 — 자체 구현). 회전 → 원근.
+  function project(r, L) {
+    const cx = L / 2, cy = L / 2, cz = L / 2;
+    let x = r.x - cx, y = r.y - cy, z = r.z - cz;
+    let x1 = x * Math.cos(rotY) - z * Math.sin(rotY), z1 = x * Math.sin(rotY) + z * Math.cos(rotY);
+    let y2 = y * Math.cos(rotX) - z1 * Math.sin(rotX), z2 = y * Math.sin(rotX) + z1 * Math.cos(rotX);
+    const scale = Math.min(cv.width, cv.height) / (L * 1.7);
+    const persp = 1 / (1 + (z2 / L) * 0.5);
+    return { x: cv.width / 2 + x1 * scale * persp, y: cv.height / 2 + y2 * scale * persp, persp, z: z2 };
+  }
+  // 분자 색: O 빨강·H 흰색을 조성비로 혼합. 크기: 질량^(1/3).
+  function molColor(m) {
+    const nO = m.c.O || 0, nH = m.c.H || 0, tot = nO + nH || 1;
+    const fo = nO / tot;
+    const r = Math.round(224 * fo + 235 * (1 - fo)), g = Math.round(87 * fo + 240 * (1 - fo)), b = Math.round(74 * fo + 245 * (1 - fo));
+    return `rgb(${r},${g},${b})`;
+  }
+
+  function draw() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    const L = world.box.L.x;
+    // 상자 와이어(옅게)
+    ctx.strokeStyle = '#1c2330'; ctx.lineWidth = 1;
+    const corners = [[0,0,0],[L,0,0],[L,L,0],[0,L,0],[0,0,L],[L,0,L],[L,L,L],[0,L,L]].map((c) => project({x:c[0],y:c[1],z:c[2]}, L));
+    const edges = [[0,1],[1,2],[2,3],[3,0],[4,5],[5,6],[6,7],[7,4],[0,4],[1,5],[2,6],[3,7]];
+    for (const [a,b] of edges) { ctx.beginPath(); ctx.moveTo(corners[a].x, corners[a].y); ctx.lineTo(corners[b].x, corners[b].y); ctx.stroke(); }
+    // 분자 (z 정렬 — 뒤부터)
+    const ms = world.mols.map((m) => ({ m, p: project(m.r, L) })).sort((a, b) => a.p.z - b.p.z);
+    for (const { m, p } of ms) {
+      const rad = Math.max(3, Math.cbrt(m.m) * 4 * p.persp);
+      const gr = ctx.createRadialGradient(p.x - rad * 0.3, p.y - rad * 0.3, rad * 0.1, p.x, p.y, rad);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(0.25, molColor(m)); gr.addColorStop(1, 'rgba(0,0,0,0.35)');
+      ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(p.x, p.y, rad, 0, 6.283); ctx.fill();
+    }
+    ctx.fillStyle = '#6e7681'; ctx.font = '11px monospace';
+    ctx.fillText('3D · 드래그 회전 · 빨강=O 비율·흰색=H · 크기=질량 (투영은 해석)', 8, cv.height - 8);
+  }
+
+  function panel() {
+    const t = M.ledgerTable(world), T = M.temperature(world), P = M.momentum(world), hist = M.speciesHist(world), c = M.composition(world);
+    document.getElementById('panel').textContent =
+      `t=${world.t.toFixed(1)}  N분자=${world.mols.length}  T=${T.toFixed(3)}  P압력=${M.pressure(world).toFixed(4)}\n` +
+      `장부: K_tr=${t.K_tr.toFixed(3)}  U_int=${t.U_int.toFixed(3)}  U_inter=${t.U_inter.toFixed(3)}  total=${t.total.toFixed(4)} (불변)\n` +
+      `Σc=${JSON.stringify(c)}  |P|=${E.V.len(P).toExponential(2)}\n` +
+      `분자종: ${Object.entries(hist).map(([k,v]) => k+'×'+v).join('  ')}`;
+    document.getElementById('stat').textContent = `${world.mols.length} 분자 (S0 → S1 로드)`;
+  }
+
+  function frame() {
+    if (playing) for (let i = 0; i < speed; i++) E.step(world);
+    draw(); panel();
+    requestAnimationFrame(frame);
+  }
+  document.getElementById('play').onclick = (e) => { playing = !playing; e.target.textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
+  document.getElementById('speed').onchange = (e) => speed = +e.target.value;
+  document.getElementById('reset').onclick = () => build();
+  let drag = false, lx = 0, ly = 0;
+  cv.onmousedown = (e) => { drag = true; lx = e.clientX; ly = e.clientY; cv.style.cursor = 'grabbing'; };
+  window.onmouseup = () => { drag = false; cv.style.cursor = 'grab'; };
+  window.onmousemove = (e) => { if (!drag) return; rotY += (e.clientX - lx) * 0.01; rotX += (e.clientY - ly) * 0.01; lx = e.clientX; ly = e.clientY; };
+  frame();
+</script>
+</body>
+</html>
