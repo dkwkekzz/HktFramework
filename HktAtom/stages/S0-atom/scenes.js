@@ -14,6 +14,7 @@
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;         // ⑯ 수소 결합 (R-HB)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;   // ⑰ 산·염기 (양성자 이전)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
+  const Me = isNode ? require('./metal.js') : window.HktS0Metal;         // ⑲ 금속 (비국소 전자 풀)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -527,12 +528,11 @@
   function buildCombustion(o, dims) {
     o = o || {};
     const rng = o.rng || E.makeRng(o.seed || 1801);
-    const nH2 = dims.nH2, nO2 = dims.nO2, per = dims.per, g = o.g != null ? o.g : 2.7;
-    const rows = Math.ceil((nH2 + nO2) / per), Lx = per * g, Ly = rows * g;
+    const nx = dims.nx, ny = dims.ny, nz = dims.nz, g = o.g != null ? o.g : 2.7;   // ⑬ 3D 격자
     const mass = {}, sigma = {}, eps = {}, budget = {};
     for (const k of ['H', 'O']) { mass[k] = REAL[k].mass; sigma[k] = REAL[k].sigma; eps[k] = REAL[k].eps; budget[k] = Lv.budget(REAL[k].Z); }
     const w = E.makeWorld({
-      dt: o.dt != null ? o.dt : 0.003, box: { L: E.V.make(Lx, Ly, Ly), bc: 'periodic' }, frozenZ: true,
+      dt: o.dt != null ? o.dt : 0.003, box: { L: E.V.make(nx * g, ny * g, nz * g), bc: 'periodic' }, frozenZ: false,   // ⑬ 3D
       mass, sigma, eps, budget, computeForces: E.pairForces, rng, catalog: [Cb.R_ABSTRACT].concat(C.COVALENT),
       rc: o.rc != null ? o.rc : 1.6, Dbond: DREF, d0: 1.1, kbond: 25,
       nu_cplx: o.nu_cplx != null ? o.nu_cplx : 6, nu_rad: o.nu_rad != null ? o.nu_rad : 0.4,
@@ -540,14 +540,14 @@
       nu_abst: o.nu_abst != null ? o.nu_abst : 8,
     });
     w.Dpair = DPAIR_COMB;
-    // 2 H₂ : 1 O₂ (화학량론). 배향 무작위 (겹침 완화).
+    // 2 H₂ : 1 O₂ (화학량론). 3D 격자·배향 무작위(3D 단위 방향·겹침 완화).
     let m = 0;
-    for (let i = 0; i < nH2 + nO2; i++, m++) {
-      const ix = m % per, iy = (m / per) | 0, cx = (ix + 0.5) * g, cy = (iy + 0.5) * g;
-      const sp = (i % 3 === 2) ? 'O' : 'H', ord = sp === 'O' ? 2 : 1, Dtot = E.pairD(w, sp, sp);
-      const th = rng() * Math.PI, dxr = 0.55 * Math.cos(th), dyr = 0.55 * Math.sin(th);
-      const a = E.makeAtom(sp, E.V.make(cx - dxr, cy - dyr, 0), E.V.zero()); a.Z = REAL[sp].Z;
-      const b = E.makeAtom(sp, E.V.make(cx + dxr, cy + dyr, 0), E.V.zero()); b.Z = REAL[sp].Z;
+    for (let ix = 0; ix < nx; ix++) for (let iy = 0; iy < ny; iy++) for (let iz = 0; iz < nz; iz++, m++) {
+      const cx = (ix + 0.5) * g, cy = (iy + 0.5) * g, cz = (iz + 0.5) * g;
+      const sp = (m % 3 === 2) ? 'O' : 'H', ord = sp === 'O' ? 2 : 1, Dtot = E.pairD(w, sp, sp);
+      const dir = E.randDir(rng, false), dxr = dir.x * 0.55, dyr = dir.y * 0.55, dzr = dir.z * 0.55;
+      const a = E.makeAtom(sp, E.V.make(cx - dxr, cy - dyr, cz - dzr), E.V.zero()); a.Z = REAL[sp].Z;
+      const b = E.makeAtom(sp, E.V.make(cx + dxr, cy + dyr, cz + dzr), E.V.zero()); b.Z = REAL[sp].Z;
       w.atoms.push(a, b); w.bonds.push({ i: a.id, j: b.id, order: ord, rest: 1.1, k: 25, D: Dtot / ord });
     }
     maxwellInit(w, o.T0 != null ? o.T0 : 0.15, rng);
@@ -558,23 +558,90 @@
   function sparkZone(w, x0, x1, heat) {
     heat = heat != null ? heat : 1.5;
     for (const b of w.bonds.slice()) { const a = w.atomById(b.i); if (a && a.r.x >= x0 && a.r.x < x1) { const i = w.bonds.indexOf(b); if (i >= 0) w.bonds.splice(i, 1); } }
-    for (const a of w.atoms) { if (a.r.x >= x0 && a.r.x < x1) { a.p.x += (w.rng() - 0.5) * heat; a.p.y += (w.rng() - 0.5) * heat; } }
+    for (const a of w.atoms) { if (a.r.x >= x0 && a.r.x < x1) { a.p.x += (w.rng() - 0.5) * heat; a.p.y += (w.rng() - 0.5) * heat; a.p.z += (w.rng() - 0.5) * heat; } }
     w.computeForces(w); E.recomputeLedger(w);
   }
-  // s18-ignition: 균일 H₂+O₂ 상자 — 스파크(opts.spark) 로 점화 vs 미점화(준안정) 대조.
+  // s18-ignition: 균일 H₂+O₂ 3D 상자 — 스파크(opts.spark) 로 점화 vs 미점화(준안정) 대조.
   function ignition(o) {
     o = o || {};
-    const w = buildCombustion(o, { nH2: o.nH2 || 14, nO2: o.nO2 || 7, per: o.per || 5 });
+    const n = o.n || 3, w = buildCombustion(o, { nx: o.nx || n, ny: o.ny || n, nz: o.nz || n });
     if (o.spark !== false) sparkZone(w, 0, o.g != null ? o.g : 2.7, o.heat != null ? o.heat : 1.5);
     w._meta = { name: 's18-ignition', comb: 1, sparked: o.spark !== false };
     return w;
   }
-  // s18-flame-front: 가늘고 긴 상자 — 좌단 스파크 → 반응 전선이 미연소 연료 속으로 전파.
+  // s18-flame-front: 가늘고 긴 3D 상자 (x 로 길게) — 좌단 스파크 → 반응 전선이 미연소 연료 속으로 전파.
   function flameFront(o) {
     o = o || {};
-    const w = buildCombustion(Object.assign({ g: 2.7, T0: o.T0 != null ? o.T0 : 0.12 }, o), { nH2: o.nH2 || 26, nO2: o.nO2 || 13, per: o.per || 18 });
+    const w = buildCombustion(Object.assign({ g: 2.7, T0: o.T0 != null ? o.T0 : 0.12 }, o), { nx: o.nx || 12, ny: o.ny || 2, nz: o.nz || 2 });
     sparkZone(w, 0, o.spx != null ? o.spx : 4, o.heat != null ? o.heat : 1.6);
     w._meta = { name: 's18-flame-front', comb: 1, sparked: true };
+    return w;
+  }
+
+  // ── ⑲ 금속 (비국소 전자 풀) — 양이온 격자 + 자유전자 풀. 비포화 응집·전도·차폐 ──
+  //   금속 결합은 유효 모델(design §9.2-⑲): 이온-이온 비방향성 인력 우물(Dmetal·전자 풀 차폐 대체) →
+  //   비포화 조밀 쌓임(배위 ≫ B). 전자 풀은 명시 자유전자(전도·차폐 담당). 전부 유계 힘(고전 안정).
+  // 3D: rcEI(전자-이온 소프트코어)=0.9 로 전자를 이온에서 떨어뜨려(간극 자리) 격자 과압축 방지 →
+  //   배위 ~10(FCC 근방)·안정. keCouple=0.3: 전자는 가벼운 이동 캐리어(전도·차폐), 응집은 이온 글루.
+  const METAL = { mM: 8.0, Dmetal: 3.0, rcII: 0.95, rcCoh: 1.8, kc: 1.0, soft: 0.4, krep: 12, m_e: 1.0, rcEI: 0.9, rcEE: 0.8, keCouple: 0.7, dt: 0.003 };
+  // ⑬ 3D: frozenZ:false 큐빅 격자. 3D 조밀 쌓임(FCC/HCP) → 배위 ~12(2D 6 한계 극복·design 앵커 8~12).
+  function buildMetal(o, withElectrons) {
+    o = o || {};
+    const rng = o.rng || E.makeRng(o.seed || 1901);
+    const per = o.per || 4, d0 = o.d0 != null ? o.d0 : 1.45, L = o.L || (per * d0 + 8);
+    const P = Object.assign({}, METAL, o);
+    const w = E.makeWorld({
+      dt: P.dt, box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: false,   // ⑬ 3D
+      mass: { M: P.mM }, sigma: { M: 1.0 }, eps: { M: 1.0 }, computeForces: Me.forcesMetal, rng,
+      kc: P.kc, soft: P.soft, m_e: P.m_e, krep: P.krep, rcII: P.rcII, rcEI: P.rcEI, rcEE: P.rcEE,
+    });
+    w.Dmetal = P.Dmetal; w.rcCoh = P.rcCoh; w.keCouple = P.keCouple;
+    const c = L / 2, off = (per - 1) * d0 / 2, jit = () => (rng() - 0.5) * 0.1;
+    for (let i = 0; i < per; i++) for (let j = 0; j < per; j++) for (let k = 0; k < per; k++) {
+      const r = E.V.make(c - off + i * d0 + jit(), c - off + j * d0 + jit(), c - off + k * d0 + jit());
+      const a = E.makeAtom('M', r, E.V.zero()); a.Z = 1; a.ne = 0; a.q = 1; w.atoms.push(a);
+      if (withElectrons !== false) { const e = E.makeElectron(E.V.make(r.x + (rng() - 0.5) * 0.5, r.y + (rng() - 0.5) * 0.4, r.z + (rng() - 0.5) * 0.4), E.V.zero()); w.electrons.push(e); }
+    }
+    const T0 = o.T0 != null ? o.T0 : 0.02;
+    const kickE = () => { for (const e of w.electrons) { const s = Math.sqrt(w.m_e * T0); e.p.x = s * E.gaussian(rng); e.p.y = s * E.gaussian(rng); e.p.z = s * E.gaussian(rng); } };
+    maxwellInit(w, T0, rng); kickE();
+    // 냉각(과감쇠) — 클러스터가 응집 최소로 안착 (측정 준비·⑭ 이완과 동형).
+    const eq = o.eqSteps != null ? o.eqSteps : 7000, damp = o.damp != null ? o.damp : 0.99;
+    for (let kk = 0; kk < eq; kk++) { E.step(w); if (kk % 10 === 0) { for (const a of w.atoms) { a.p.x *= damp; a.p.y *= damp; a.p.z *= damp; } for (const e of w.electrons) { e.p.x *= damp; e.p.y *= damp; e.p.z *= damp; } } }
+    maxwellInit(w, T0, rng); kickE();
+    // COM 표류 제거 (전자 kick 이 알짜 운동량 추가 → 클러스터가 상자를 떠돌지 않게). 이온+전자 총 P=0.
+    let Px = 0, Py = 0, Pz = 0, Mt = 0; for (const a of w.atoms) { Px += a.p.x; Py += a.p.y; Pz += a.p.z; Mt += w.mass[a.sp]; } for (const e of w.electrons) { Px += e.p.x; Py += e.p.y; Pz += e.p.z; Mt += w.m_e; }
+    for (const a of w.atoms) { const f = w.mass[a.sp] / Mt; a.p.x -= Px * f; a.p.y -= Py * f; a.p.z -= Pz * f; } for (const e of w.electrons) { const f = w.m_e / Mt; e.p.x -= Px * f; e.p.y -= Py * f; e.p.z -= Pz * f; }
+    w.computeForces(w); E.recomputeLedger(w); w._auditP = false;
+    return w;
+  }
+  // s19-na-cluster: 금속 클러스터 (비포화 조밀 쌓임 — 배위 측정).
+  function naCluster(o) { o = o || {}; const w = buildMetal(o, true); w._meta = { name: 's19-na-cluster', metal: 1 }; return w; }
+  // s19-conduction: 균일 외부장 → 풀 전자 드리프트 (이온 ≪). world.Efield 를 켜고 끈다.
+  function metalConduction(o) { o = o || {}; const w = buildMetal(Object.assign({ per: o.per || 6 }, o), true); w.Efield = o.Efield != null ? o.Efield : 0.5; w._meta = { name: 's19-conduction', metal: 1, field: 1 }; return w; }
+  // s19-screening: 금속 클러스터 중앙에 +테스트 전하 고정 → 풀 전자가 몰려 장을 감쇠(스크리닝 클라우드).
+  function metalScreening(o) {
+    o = o || {};
+    const w = buildMetal(Object.assign({ per: o.per || 4 }, o), true);
+    // +2 테스트 전하 (고정·준정적 — 무거운 별도 종 'XT'). **내부 이온**(배위 최대) 위치에 배치 —
+    //   냉각 후 클러스터가 주기 경계를 걸쳐 무게중심이 빈 곳에 떨어지는 문제 회피 (내부 이온은 항상 클러스터 안).
+    const L0 = w.box.L; let bi = 0, bc = -1;
+    for (let i = 0; i < w.atoms.length; i++) { let c = 0; for (let j = 0; j < w.atoms.length; j++) { if (i === j) continue; let dx = w.atoms[i].r.x - w.atoms[j].r.x, dy = w.atoms[i].r.y - w.atoms[j].r.y, dz = w.atoms[i].r.z - w.atoms[j].r.z; dx -= L0.x * Math.round(dx / L0.x); dy -= L0.y * Math.round(dy / L0.y); dz -= L0.z * Math.round(dz / L0.z); if (dx * dx + dy * dy + dz * dz < 2 * 2) c++; } if (c > bc) { bc = c; bi = i; } }
+    const cx = w.atoms[bi].r.x, cy = w.atoms[bi].r.y, cz = w.atoms[bi].r.z;
+    w.atoms.splice(bi, 1);   // 내부 이온 1개를 +2 테스트 전하로 치환 (겹침 회피·격자 자리)
+    w.mass = Object.assign({}, w.mass, { XT: 1e7 }); w.sigma = Object.assign({}, w.sigma, { XT: 1.0 }); w.eps = Object.assign({}, w.eps, { XT: 1.0 });
+    const t = E.makeAtom('XT', E.V.make(cx, cy, cz), E.V.zero()); t.Z = 2; t.ne = 0; t.q = 2; t._test = true;
+    w.atoms.push(t); w._testId = t.id;
+    // 전자 재배치(차폐 클라우드) — 과감쇠로 전자가 +전하 주변 최소 배치에 안착(열분산 회피)·테스트 전하 고정.
+    for (let k = 0; k < 2000; k++) { E.step(w); const tt = w.atomById(t.id); tt.r.x = cx; tt.r.y = cy; tt.r.z = cz; tt.p.x = 0; tt.p.y = 0; tt.p.z = 0; if (k % 4 === 0) { for (const e of w.electrons) { e.p.x *= 0.98; e.p.y *= 0.98; e.p.z *= 0.98; } for (const a of w.atoms) { a.p.x *= 0.99; a.p.y *= 0.99; a.p.z *= 0.99; } } }
+    w.computeForces(w); E.recomputeLedger(w); w._meta = { name: 's19-screening', metal: 1, testId: t.id };
+    return w;
+  }
+  // s19-covalent-contrast: 같은 조건 공유(V4·예산 4) 대조 — 방향성 포화(배위 = B). 금속 비포화와 대비.
+  function covalentContrast(o) {
+    o = o || {}; const n = o.n || 18;
+    const w = buildCovalent(Object.assign({ frozenZ: false, T0: o.T0 != null ? o.T0 : 0.25, seed: o.seed || 1902 }, o), { C4: n });   // ⑬ 3D
+    w._meta = { name: 's19-covalent-contrast', metal: 0, covalent: 1 };
     return w;
   }
 
@@ -901,6 +968,10 @@
     's17-acid-mix': acidMix,
     's18-ignition': ignition,
     's18-flame-front': flameFront,
+    's19-na-cluster': naCluster,
+    's19-conduction': metalConduction,
+    's19-screening': metalScreening,
+    's19-covalent-contrast': covalentContrast,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -915,7 +986,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ignition, flameFront, buildCombustion, sparkZone, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ignition, flameFront, buildCombustion, sparkZone, naCluster, metalConduction, metalScreening, covalentContrast, buildMetal, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

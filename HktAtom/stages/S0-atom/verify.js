@@ -21,6 +21,7 @@
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;    // ⑰ 산·염기 (양성자 이전)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
+  const Me = isNode ? require('./metal.js') : window.HktS0Metal;          // ⑲ 금속 (비국소 전자 풀)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -899,6 +900,60 @@
       log.push({ ok: cOk && mDr < 5e-2, name: '⑱장부·Σc보존', msg: `원자 수 보존 ${cOk} · max|ΔE|/E ${fmt(mDr)} < 5e-2 (연소 발열 강성·닫힌 계 단열)` });
     }
 
+    // 22. ⑲ 금속 — 비국소 전자 풀: 비포화 응집(배위 ≫ B)·전도·구속. 공유(포화) 대조.
+    if (want(19)) {
+      const R = 3, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const L2 = (v) => E.V.lenSq(v);
+      // 최근접 거리·기하 배위 리스트 (3D — ⑬ 해동. min-image 3D)
+      const d2mi = (w, a, b) => { const L = w.box.L; let dx = a.r.x - b.r.x, dy = a.r.y - b.r.y, dz = a.r.z - b.r.z; dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); dz = w.frozenZ ? 0 : dz - L.z * Math.round(dz / L.z); return dx * dx + dy * dy + dz * dz; };
+      const nnDist = (w) => { const A = w.atoms; let m = 1e9; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) m = Math.min(m, Math.sqrt(d2mi(w, A[i], A[j]))); return m; };
+      const coordList = (w, rc) => { const A = w.atoms, cs = [], rc2 = rc * rc; for (let i = 0; i < A.length; i++) { let c = 0; for (let j = 0; j < A.length; j++) { if (i === j) continue; if (d2mi(w, A[i], A[j]) < rc2) c++; } cs.push(c); } return cs; };
+      // (a) 금속 클러스터(3D·64원자): 내부 배위(상위 8 평균 ~FCC 12)·전자 구속·보존.
+      let metCoord = [], metUnb = [], metDrift = [], cok = true;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s19-na-cluster', { seed: 40 + s, per: 4, eqSteps: 7000 });
+        const nAt = w.atoms.length, nEl = w.electrons.length, E0 = M.ledgerTable(w).total;
+        let mx = 0; for (let k = 0; k < 1500; k++) { E.step(w); mx = Math.max(mx, Math.abs(M.ledgerTable(w).total - E0) / Math.max(1, Math.abs(E0))); }
+        const cs = coordList(w, nnDist(w) * 1.35).sort((x, y) => y - x);
+        metCoord.push(avg(cs.slice(0, 8))); metUnb.push(Me.unbound(w)); metDrift.push(mx);
+        if (w.atoms.length !== nAt || w.electrons.length !== nEl) cok = false;
+      }
+      const mCoord = avg(metCoord), mUnb = avg(metUnb), mDrift = Math.max(...metDrift);
+      // (b) 공유 대조 (V4): 결합 배위 ≤ B=4 (포화·과결합 0).
+      let covCoord = [], covOver = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s19-covalent-contrast', { seed: 50 + s, n: 27 }); E.run(w, 2000);
+        let bc = 0; for (const a of w.atoms) { let c = 0; for (const b of w.bonds) if (b.i === a.id || b.j === a.id) c += b.order; bc += c; }
+        covCoord.push(bc / w.atoms.length); covOver.push(M.molecules(w).maxOver);
+      }
+      const mCov = avg(covCoord), mOver = Math.max(...covOver);
+      // (c) 전도: 장 on/off → 전자 드리프트 vs 이온.
+      const driftOf = (field) => {
+        const w = S.build('s19-conduction', { seed: 60, per: 4, Efield: field, eqSteps: 4000 });
+        const L = w.box.L, pe = w.electrons.map((e) => e.r.x), pa = w.atoms.map((a) => a.r.x); let ed = 0, ad = 0;
+        for (let k = 0; k < 2500; k++) { E.step(w); for (let i = 0; i < w.electrons.length; i++) { let d = w.electrons[i].r.x - pe[i]; d -= L.x * Math.round(d / L.x); ed += d; pe[i] = w.electrons[i].r.x; } for (let i = 0; i < w.atoms.length; i++) { let d = w.atoms[i].r.x - pa[i]; d -= L.x * Math.round(d / L.x); ad += d; pa[i] = w.atoms[i].r.x; } }
+        return { ed: ed / w.electrons.length, ad: ad / w.atoms.length };
+      };
+      const d0 = driftOf(0), d1 = driftOf(0.5);
+      // (d) 차폐: +테스트 전하 주변 전자 밀도 > 먼 곳 (스크리닝 클라우드).
+      let scr = [];
+      for (let s = 0; s < R; s++) { const w = S.build('s19-screening', { seed: 70 + s, per: 4 }); scr.push(Me.screeningRatio(w, w._testId, 2.0)); }
+      const mScr = avg(scr);
+
+      // (1) 비포화 응집: 금속 내부 배위 ≥ 8 (3D FCC 근방 ~10~12 ≫ 공유 B=4 · 비방향성 조밀 쌓임).
+      log.push({ ok: mCoord >= 8, name: '⑲비포화응집', msg: `금속 내부 배위 ${fmt(mCoord)} ≥ 8 (3D FCC 근방 ≫ 공유 B=4 · 비방향성 비포화)` });
+      // (2) 공유 포화 대조: V4 결합 배위 ≤ B=4·과결합 0 (방향성 포화 — 금속 비포화와 대비).
+      log.push({ ok: mCov <= 4.01 && mOver <= 0, name: '⑲공유포화대조', msg: `공유 결합 배위 ${fmt(mCov)} ≤ B=4·과결합 ${fmt(mOver)}=0 (방향성 포화)` });
+      // (3) 전도: 장 인가 → 전자 드리프트 ≫ 이온 · 장 없으면 소멸.
+      log.push({ ok: Math.abs(d1.ed) > 5 * Math.abs(d1.ad) && Math.abs(d1.ed) > 10 * Math.abs(d0.ed), name: '⑲전도', msg: `장on 전자 드리프트 ${fmt(d1.ed)} ≫ 이온 ${fmt(d1.ad)}·장off ${fmt(d0.ed)}≈0 (풀 전자 = 이동 캐리어)` });
+      // (4) 전자 구속: 풀 전자 총에너지 E<0 (클러스터 평균장 구속·탈출 0).
+      log.push({ ok: mUnb < 0.5, name: '⑲전자구속', msg: `구속 위반(E>0) 전자 ${fmt(mUnb)} ≈ 0 (풀 전자가 클러스터에 구속 — E<0)` });
+      // (5) 차폐: +테스트 전하 주변 풀 전자 밀도 > 먼 곳 (전자가 몰려 장 감쇠 — 스크리닝).
+      log.push({ ok: mScr > 1.3, name: '⑲차폐', msg: `+전하 근방 전자 밀도/먼곳 ${fmt(mScr)} > 1.3 (풀 전자 재배치 → 장 감쇠)` });
+      // (6) 보존: 원자(Σc)+전자(Σe) 수 정확 불변 · 장부 표류 유계 (장 없는 클러스터).
+      log.push({ ok: cok && mDrift < 5e-3, name: '⑲장부·Σc·Σe보존', msg: `원자+전자 수 보존 ${cok} · max|ΔE|/E ${fmt(mDrift)} < 5e-3 (유계 힘·고전 안정)` });
+    }
+
     return log;
   }
 
@@ -910,7 +965,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
