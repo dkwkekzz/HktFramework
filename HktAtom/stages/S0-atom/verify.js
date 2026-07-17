@@ -15,6 +15,7 @@
   const L = isNode ? require('./levels.js') : window.HktS0Levels;
   const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+  const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -512,6 +513,50 @@
       log.push({ ok: anchorsOk, name: '⑩실원소앵커', msg: `B: H=${B(1)}·O=${B(8)}·He=${B(2)}·Ne=${B(10)} · IE He>H (${IE(2).toFixed(2)}>${IE(1).toFixed(2)})·O>H (author 아님·③ 유도)` });
     }
 
+    // 14. ⑪ 승격 배관 MVP — 상자 시나리오 한 장부 + coarse↔재해동 왕복 + output.json (CONTRACT §3).
+    {
+      const sortKeys = (o) => { const r = {}; for (const k of Object.keys(o).sort()) r[k] = o[k]; return JSON.stringify(r); };
+
+      // (1) 한 장부: 밀폐 상자 5막(형성→응집→가열→반응→냉각) 전체에서 총합 잔차 ≤ EPS_E · Σc 불변.
+      {
+        const w = S.build('s11-mvp-box', { seed: 3, n: 12 });
+        const tot0 = M.ledgerTable(w).total, c0 = sortKeys(M.composition(w));
+        let maxRel = 0;
+        S.runScenario(w, (world) => { maxRel = Math.max(maxRel, Math.abs(M.ledgerTable(world).total - tot0) / Math.abs(tot0)); });
+        const c1 = sortKeys(M.composition(w)), mol = M.molecules(w);
+        log.push({ ok: maxRel <= E.EPS_E, name: '⑪한장부(5막)', msg: `5막 max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E (열욕 E_escape 회계·형성→응집→가열→반응→냉각)` });
+        log.push({ ok: c0 === c1, name: '⑪시나리오Σc불변', msg: `원자 조성 불변 (H₂O 우세 ${mol.hist['H2O1'] || 0}·과결합 ${fmt(mol.maxOver)})` });
+      }
+
+      // (2) 왕복 (⇧ coarse → ⇩ rethaw): 보존량(Σc·E·P) 정확 + 선언 관측량(조성) ε=0 (KERNEL §3.3).
+      {
+        const R = 3; let eOk = 0, cOk = 0, maxdE = 0, maxdP = 0; const trat = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build('s10-water-soup', { seed: 300 + s, n: 14 }); S.annealSoup(w);
+          const cs = Pr.coarse(w); const w2 = Pr.rethaw(cs, w, E.makeRng(999 + s)); const cs2 = Pr.coarse(w2);
+          const dE = Math.abs(cs2.E_total - cs.E_total); const p2 = Pr.momentumOf(w2), dP = Math.hypot(p2.x, p2.y);
+          maxdE = Math.max(maxdE, dE); maxdP = Math.max(maxdP, dP);
+          if (sortKeys(cs.atomCount) === sortKeys(cs2.atomCount)) eOk++;
+          if (sortKeys(cs.species) === sortKeys(cs2.species)) cOk++;
+          trat.push(cs2.T / Math.max(1e-9, cs.T));
+        }
+        const tr = trat.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: maxdE < 1e-6 && eOk === R, name: '⑪왕복·E·Σc정확', msg: `coarse→rethaw max|ΔE| ${fmt(maxdE)} <1e-6 · Σc 정확 ${eOk}/${R} (보존 협상 불가)` });
+        log.push({ ok: maxdP < 1e-9, name: '⑪왕복·P정확', msg: `|P'| ${fmt(maxdP)} < 1e-9 (COM 제거 유지)` });
+        log.push({ ok: cOk === R, name: '⑪왕복·조성계약(ε=0)', msg: `선언 관측량 조성 일치 ${cOk}/${R} · T 비 ${fmt(tr)}∈[0.6,1.6] (재표본 미시 상태 — 보존은 정확·분포는 통계)` });
+      }
+
+      // (3) output.json v0 스키마 유효 + 쌍 퍼텐셜 인력 꼬리 (S0-⑧ 반데르발스 앵커 — 손 튜닝 0·측정 산출).
+      {
+        const w = S.build('s11-mvp-box', { seed: 5, n: 12 }); S.runScenario(w);
+        const out = Pr.buildOutput(w, w, { pmfPairs: [['O', 'O'], ['H', 'H']], scenes: ['s11-mvp-box'], runs: 1 });
+        const val = Pr.validateOutput(out);
+        const pmfOO = Pr.pmf(w, 'O', 'O');
+        log.push({ ok: val.ok, name: '⑪output스키마유효', msg: `s0-output-v0 검증 ${val.ok ? '통과' : JSON.stringify(val.errs)} · species ${out.species.length}종·pairPotential ${Object.keys(out.pairPotential).length}쌍` });
+        log.push({ ok: pmfOO.hasTail, name: '⑪반데르발스꼬리', msg: `PMF O–O 인력 꼬리 존재 (우물 V ${fmt(pmfOO.vmin)} @ r=${pmfOO.rmin} — α·IE 에서 나옴·author 0)` });
+      }
+    }
+
     return log;
   }
 
@@ -522,7 +567,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

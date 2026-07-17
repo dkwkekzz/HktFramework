@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>S0-atom · ①–⑩ 원자→분자→물</title>
+<title>S0-atom · ①–⑪ 원자→분자→승격</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -32,8 +32,8 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①–⑩ 원자→분자→물</h1>
-    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합·열용량·분극 응집·통계 평형·<b>실원소 물 창발</b>. "보기": 시뮬⇄준위③·열용량⑦·응집⑧·엔트로피⑨. <b>실원소=CPK(H 흰·O 빨강)</b>·<b>물=냉각 어닐링</b>·공유결합=선·이온=전하·클러스터=색·μ=노란 화살표.</p>
+    <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표.</p>
 
     <div class="row">
       <label>보기</label>
@@ -46,6 +46,7 @@
     <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
+        <option value="s11-mvp-box">s11-mvp-box (5막 시나리오·승격)</option>
         <option value="s10-water-soup">s10-water-soup (물 창발·CPK)</option>
         <option value="s09-entropy-corner">s09-entropy-corner (자유 팽창)</option>
         <option value="s09-gradient">s09-gradient (온도 구배 이완)</option>
@@ -73,6 +74,11 @@
       <input id="speed" type="range" min="1" max="20" value="4" />
       <span id="speedv">4×</span>
       <span class="note" style="margin:0">배속은 tick 수만 바꾼다 (물리 불변)</span>
+    </div>
+    <div class="row" id="scenariorow" style="display:none">
+      <label>막</label> <span id="actname" class="metric" style="font-size:14px;color:#e0b060">–</span>
+      <button id="promote" style="margin-left:10px">⇧ output.json 다운로드</button>
+      <button id="roundtrip">⇩ 재해동 왕복</button>
     </div>
 
     <div class="row" style="margin-top:12px">
@@ -117,9 +123,10 @@
 <script src="measure.js"></script>
 <script src="modes.js"></script>
 <script src="polarization.js"></script>
+<script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -300,6 +307,12 @@
       el('polc').textContent = c.meanCoord.toFixed(2);
       el('polu').textContent = (world.ledger.U_pol / Math.max(1, world.atoms.length)).toFixed(3);
     } else { el('polrow').style.display = 'none'; }
+    // ⑪ 시나리오 막 표시
+    if (world._meta && world._meta.acts) {
+      el('scenariorow').style.display = '';
+      const ai = world._actIdx, acts = world._meta.acts;
+      el('actname').textContent = ai < 0 ? '대기' : ai >= acts.length ? '완료' : `${ai + 1}/${acts.length} ${acts[ai].name} (T→${acts[ai].T})`;
+    } else { el('scenariorow').style.display = 'none'; }
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {
@@ -487,7 +500,7 @@
   }
 
   function frame() {
-    if (mode === 'sim') { if (playing) { for (let i = 0; i < speed; i++) E.step(world); if (world._meta && world._meta.cool) S.coolStep(world); } draw(); panel(); }
+    if (mode === 'sim') { if (playing) { world._speed = speed; for (let i = 0; i < speed; i++) E.step(world); if (world._meta && world._meta.cool) S.coolStep(world); if (world._meta && world._meta.acts) S.scenarioStep(world); } draw(); panel(); }
     else if (mode === 'levels') drawLevels();
     else if (mode === 'cv') { drawCv(); if (!cvData) { cvData = computeCv(); } }
     else if (mode === 'pol') { drawPol(); if (!polData) { polData = computePol(); } }
@@ -518,6 +531,24 @@
   };
   el('reset').onclick = build;
   el('scene').onchange = build;
+  // ⑪ 승격 ⇧: 현재 세계를 output.json 으로 산출·다운로드
+  el('promote').onclick = () => {
+    const out = Pr.buildOutput(world, world, { pmfPairs: [['O', 'O'], ['H', 'H'], ['O', 'H']], scenes: [world._meta.name], runs: 1 });
+    const val = Pr.validateOutput(out);
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'output.json'; a.click();
+    alert('output.json 산출 (스키마 ' + (val.ok ? '유효' : '무효: ' + val.errs.join(',')) + '). species ' + out.species.length + '종.');
+  };
+  // ⑪ 재해동 ⇩: coarse→rethaw 왕복, 보존 정확 확인 후 재해동 세계로 교체
+  el('roundtrip').onclick = () => {
+    const cs = Pr.coarse(world);
+    const w2 = Pr.rethaw(cs, world, E.makeRng((Math.random() * 1e9) | 0));
+    const cs2 = Pr.coarse(w2);
+    const dE = Math.abs(cs2.E_total - cs.E_total);
+    const scOk = JSON.stringify(Object.keys(cs.atomCount).sort().map(k => k + cs.atomCount[k])) === JSON.stringify(Object.keys(cs2.atomCount).sort().map(k => k + cs2.atomCount[k]));
+    world = w2; world._meta = Object.assign({}, world._meta, { name: 's11-rethaw' }); total0 = M.ledgerTable(world).total; trails.clear();
+    alert('⇩ 재해동 왕복: Σc ' + (scOk ? '정확' : '깨짐') + ' · |ΔE| ' + dE.toExponential(2) + ' · 조성 보존. 화면=재해동 세계.');
+  };
   el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
   el('speed').oninput = (e) => { speed = +e.target.value; el('speedv').textContent = speed + '×'; };
 

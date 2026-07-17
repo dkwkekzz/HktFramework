@@ -26,11 +26,12 @@
 
   // ⑩ 실원소 종 — CPK 색. B(원자가)는 ③ levels.budget(Z) 유도값(author 아님). σ·mass 는 앵커 노브
   //   (무차원 닮음: 절대값 아닌 원소 간 비율). mass 는 dt 강성 회피로 실비(1:16)보다 압축(1:4).
+  //   alpha(분극률)는 ⑧ 분산 C6 용 — 실 원자 분극률 비율(H 0.67·He 0.20·O 0.80·Ne 0.40 Å³) 앵커.
   const REAL = {
-    H:  { Z: 1,  mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.32, color: '#eef2f5' },
-    O:  { Z: 8,  mass: 4.0, sigma: 1.2, eps: 1.0, radius: 0.48, color: '#e0403a' },
-    He: { Z: 2,  mass: 4.0, sigma: 1.0, eps: 1.0, radius: 0.30, color: '#b9f2e6' },
-    Ne: { Z: 10, mass: 8.0, sigma: 1.1, eps: 1.0, radius: 0.38, color: '#9ec7f0' },
+    H:  { Z: 1,  mass: 1.0, sigma: 1.0, eps: 1.0, radius: 0.32, color: '#eef2f5', alpha: 0.67 },
+    O:  { Z: 8,  mass: 4.0, sigma: 1.2, eps: 1.0, radius: 0.48, color: '#e0403a', alpha: 0.80 },
+    He: { Z: 2,  mass: 4.0, sigma: 1.0, eps: 1.0, radius: 0.30, color: '#b9f2e6', alpha: 0.20 },
+    Ne: { Z: 10, mass: 8.0, sigma: 1.1, eps: 1.0, radius: 0.38, color: '#9ec7f0', alpha: 0.40 },
   };
   // ⑩ 쌍별 결합 우물 D — 실 결합 에너지 비율 H–H:O–H:O–O = 436:463:146 kJ/mol 에 앵커 (D_OH=2.0 기준).
   //   O–H 가 최강·O–O 최약 → O 가 H 를 2개 잡아 H₂O 창발(등방 우물의 ⑥ gap 해결). 손 튜닝 아님(실비율).
@@ -411,6 +412,70 @@
   // s10-water-soup: H 2N + O N 수프. 빌드 후 annealSoup 로 굴리면 H₂O 우세 창발.
   function waterSoup(opts) { const o = opts || {}; const n = o.n || 16; const w = buildSoup(o, { H: 2 * n, O: n }); w._meta = { name: 's10-water-soup', n, cool: ANNEAL_SCHED }; return w; }
 
+  // ── ⑪ 승격 배관 MVP 장면 ──
+
+  // s11-mvp-box: 밀폐 상자. 결합(⑥⑩)+응집(⑧)을 함께 — polForces(분산 인력)+catalog(결합)+Dpair.
+  //   5막 대본(runScenario)을 열욕 스케줄로 굴린다: 형성→응집→가열→반응→냉각 (하나의 장부).
+  function mvpBox(opts) {
+    const o = opts || {};
+    const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+    const n = o.n || 12;                          // H 2n + O n
+    const counts = { H: 2 * n, O: n };
+    const rng = o.rng || E.makeRng(o.seed || 1111);
+    const N = counts.H + counts.O, L = o.L || Math.ceil(Math.sqrt(N)) * 1.7;
+    const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {};
+    for (const k of ['H', 'O', 'He', 'Ne']) { mass[k] = REAL[k].mass; sigma[k] = REAL[k].sigma; eps[k] = REAL[k].eps; budget[k] = Lv.budget(REAL[k].Z); alpha[k] = REAL[k].alpha; IE[k] = Lv.ionizationE(REAL[k].Z); }
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.004,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: true,
+      mass, sigma, eps, budget, computeForces: Po.polForces, rng, catalog: C.COVALENT,
+      rc: o.rc != null ? o.rc : 1.5,
+      Dbond: DREF, d0: o.d0 != null ? o.d0 : 1.1, kbond: o.kbond != null ? o.kbond : 25,
+      nu_cplx: 5, nu_rad: 0.5, nu_stab: 1.5, nu_diss: 2,
+    });
+    world.Dpair = DPAIR_REAL; world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
+    const bag = []; for (const k in counts) for (let i = 0; i < counts[k]; i++) bag.push(k);
+    for (let i = bag.length - 1; i > 0; i--) { const j = (rng() * (i + 1)) | 0; const t = bag[i]; bag[i] = bag[j]; bag[j] = t; }
+    const per = Math.ceil(Math.sqrt(N)), gx = L / per, gy = L / per;
+    for (let idx = 0; idx < bag.length; idx++) { const ix = idx % per, iy = (idx / per) | 0; world.atoms.push(E.makeAtom(bag[idx], E.V.make((ix + 0.5 + (rng() - 0.5) * 0.3) * gx, (iy + 0.5 + (rng() - 0.5) * 0.3) * gy, 0), E.V.zero())); }
+    maxwellInit(world, o.T0 != null ? o.T0 : 1.3, rng);
+    world.computeForces(world); E.recomputeLedger(world);
+    world._auditP = false;
+    // 5막 대본 (열욕 목표 T · ticks). 물리 조작 0 — 열욕 스케줄만.
+    world._meta = { name: 's11-mvp-box', n, acts: o.acts || [
+      { name: '형성', T: 0.55, ticks: 3500 }, { name: '응집', T: 0.32, ticks: 3500 },
+      { name: '가열·조짐', T: 1.30, ticks: 3000 }, { name: '반응', T: 0.90, ticks: 3000 },
+      { name: '냉각', T: 0.30, ticks: 3500 } ] };
+    world._actIdx = -1; world._actLeft = 0;
+    return world;
+  }
+
+  // 5막 시나리오 드라이버 — 각 막의 목표 T 로 열욕(thermoReservoir·E_escape 회계) 유지. 한 장부.
+  //   record(world, tag) 콜백에 막·관측량 궤적을 남긴다 (뷰어·검증 공용).
+  function runScenario(world, record) {
+    const acts = world._meta.acts;
+    for (let ai = 0; ai < acts.length; ai++) {
+      const act = acts[ai];
+      for (let k = 0; k < act.ticks; k++) {
+        E.step(world);
+        if (k % 20 === 0) thermoReservoir(world, act.T);
+        if (record && k % 200 === 0) record(world, ai, act);
+      }
+      if (record) record(world, ai, act);
+    }
+    return world;
+  }
+
+  // 뷰어용 1프레임 진행: 현재 막의 목표 T 로 열욕. 막 경계 자동 전환.
+  function scenarioStep(world) {
+    const acts = world._meta && world._meta.acts; if (!acts) return;
+    if (world._actIdx < 0) { world._actIdx = 0; world._actLeft = acts[0].ticks; }
+    if (world._actIdx >= acts.length) return;   // 완료
+    thermoReservoir(world, acts[world._actIdx].T);
+    world._actLeft -= (world._speed || 1);
+    if (world._actLeft <= 0) { world._actIdx++; if (world._actIdx < acts.length) world._actLeft = acts[world._actIdx].ticks; }
+  }
+
   // ── ⑨ 통계 관문 장면 (새 물리 0 — 초기 조건만) ──
 
   // s09-entropy-corner: N 원자를 좌하단 구석(frac×frac)에 몰아넣고 힘 0(이상기체) 자유 팽창.
@@ -461,6 +526,7 @@
   }
 
   const SCENES = {
+    's11-mvp-box': mvpBox,
     's10-water-soup': waterSoup,
     's09-entropy-corner': entropyCorner,
     's09-gradient': tempGradient,
@@ -486,7 +552,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
