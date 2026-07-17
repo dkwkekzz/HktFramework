@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
-    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR): CH₄ 정사면체·H₂O 굽음·BeH₂ 직선 — 한 각도 반발에서 창발</b>. CPK·공유결합=선·광자=노란 점·<b>고립쌍=청록 파선</b>.</p>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR)</b>. <b>s15 = ⑮ 극성(부분 전하·QEq): O₂ 무극성·BeH₂ 결합극성/분자무극성·H₂O 극성·외부장 배향</b>. CPK·공유결합=선·고립쌍=청록·<b>부분전하=빨강/파랑 링·분자 쌍극자=노랑 화살표</b>.</p>
 
     <div class="row">
       <label>보기</label>
@@ -58,6 +58,10 @@
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s15-h2o">s15-h2o (극성·부분 전하)</option>
+        <option value="s15-beh2">s15-beh2 (극성 결합·무극성 분자)</option>
+        <option value="s15-o2">s15-o2 (동핵 무극성)</option>
+        <option value="s15-field">s15-field (외부장 배향)</option>
         <option value="s14-methane">s14-methane (CH₄ 정사면체)</option>
         <option value="s14-water">s14-water (H₂O 굽음)</option>
         <option value="s14-linear">s14-linear (BeH₂ 직선)</option>
@@ -129,6 +133,7 @@
 <script src="catalog.js"></script>
 <script src="levels.js"></script>
 <script src="geometry.js"></script>
+<script src="polarity.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="modes.js"></script>
@@ -136,7 +141,7 @@
 <script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry, Pol = window.HktS0Polarity;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -222,10 +227,31 @@
         ctx.fillStyle = 'rgba(120,240,230,0.5)'; ctx.beginPath(); ctx.arc(tip.x, tip.y, 2, 0, 6.283); ctx.fill();
       }
     }
+    // ⑮ 부분 전하 배지 (색·크기 = dq: 빨강 +·파랑 −) + 분자 쌍극자 화살표 (노랑).
+    let hasCharge = false;
+    if (world._meta && world._meta.polar && Pol) {
+      for (const a of world.atoms) {
+        const q = a.q || 0; if (Math.abs(q) < 1e-3) continue; hasCharge = true;
+        const p = project3D(a.r, L), rr = 3 + Math.min(9, Math.abs(q) * 22) * p.persp;
+        ctx.strokeStyle = q > 0 ? 'rgba(240,90,70,0.9)' : 'rgba(90,150,240,0.9)'; ctx.lineWidth = 2;
+        ctx.beginPath(); ctx.arc(p.x, p.y, rr, 0, 6.283); ctx.stroke();
+      }
+      // 분자 쌍극자 화살표: 각 성분 COM 에서 μ 방향
+      for (const comp of Pol.components(world)) {
+        const at = comp.map((i) => world.atoms[i]); let cx = 0, cy = 0, cz = 0, Mt = 0;
+        for (const a of at) { const m = world.mass[a.sp]; cx += a.r.x * m; cy += a.r.y * m; cz += a.r.z * m; Mt += m; }
+        cx /= Mt; cy /= Mt; cz /= Mt;
+        let mx = 0, my = 0, mz = 0; for (const a of at) { const q = a.q || 0; mx += q * (a.r.x - cx); my += q * (a.r.y - cy); mz += q * (a.r.z - cz); }
+        const mn = Math.hypot(mx, my, mz); if (mn < 0.02) continue;
+        const p0 = project3D(E.V.make(cx, cy, cz), L), p1 = project3D(E.V.make(cx + mx / mn * 1.4, cy + my / mn * 1.4, cz + mz / mn * 1.4), L);
+        ctx.strokeStyle = '#ffde5a'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(p0.x, p0.y); ctx.lineTo(p1.x, p1.y); ctx.stroke();
+        ctx.fillStyle = '#ffde5a'; ctx.beginPath(); ctx.arc(p1.x, p1.y, 2.5, 0, 6.283); ctx.fill();
+      }
+    }
     // 광자 (있으면)
     for (const ph of world.photons || []) { const p = project3D(ph.r, L); ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * p.persp, 0, 6.283); ctx.fill(); }
     ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
-    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록 파선=고립쌍(각 압박)' : '') + ' (투영은 해석 — KERNEL §2.1)', 8, cv.height - 8);
+    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록=고립쌍' : '') + (hasCharge ? ' · 빨강/파랑 링=부분전하 ±·노랑=분자 쌍극자' : '') + ' (투영은 해석)', 8, cv.height - 8);
   }
 
   // 결합 렌더 — 화학 표기 규칙 준수:

@@ -17,6 +17,7 @@
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
   const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -714,6 +715,52 @@
       }
     }
 
+    // 18. ⑮ 극성 (부분 전하·QEq) — 전기음성도 균등화로 전하 재분배·극성=전하×형상 창발. χ·η ③ 유도(author 0).
+    if (want(15)) {
+      // 분자 평균 |μ_mol|·max|q|·장부 (여러 분자·짧은 저온 런).
+      const polStat = (name, over) => {
+        const R = 4; let mu = [], mq = [], relE = [], sq = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build(name, Object.assign({ seed: 40 + s, count: 12 }, over));
+          const E0 = M.ledgerTable(w).total; let mx = 0;
+          for (let k = 0; k < 1000; k++) { E.step(w); const t = M.ledgerTable(w).total; mx = Math.max(mx, Math.abs(t - E0) / Math.abs(E0)); }
+          const dp = Pol.dipoles(w);
+          mu.push(dp.reduce((a, b) => a + b.muMol, 0) / dp.length);
+          mq.push(dp.reduce((a, b) => a + b.maxAbsQ, 0) / dp.length);
+          sq.push(Math.max(...dp.map((d) => Math.abs(d.sumQ))));
+          relE.push(mx);
+        }
+        const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+        return { mu: avg(mu), mq: avg(mq), relE: Math.max(...relE), sq: Math.max(...sq) };
+      };
+      const o2 = polStat('s15-o2'), be = polStat('s15-beh2'), h2o = polStat('s15-h2o');
+
+      // (1) 3단 기준 — 한 QEq 규칙에서 동시에. O₂ 무극성(동핵)·BeH₂ 극성 결합/무극성 분자(상쇄)·H₂O 극성.
+      log.push({ ok: o2.mq < 0.02 && o2.mu < 0.02, name: '⑮O₂무극성(동핵)', msg: `max|q| ${fmt(o2.mq)}·|μ_mol| ${fmt(o2.mu)} ≈ 0 (동핵 대칭 → dq 0)` });
+      log.push({ ok: be.mq > 0.02 && be.mu < 0.05, name: '⑮BeH₂결합극성·분자무극성', msg: `결합 max|q| ${fmt(be.mq)}>0 이나 |μ_mol| ${fmt(be.mu)}≈0 (직선 상쇄 — CO₂ 대역·⑩ 이중결합 격차)` });
+      log.push({ ok: h2o.mu > 0.08, name: '⑮H₂O극성', msg: `|μ_mol| ${fmt(h2o.mu)}>0 (굽음 + χ_O>χ_H → 순 쌍극자)` });
+      log.push({ ok: h2o.mu > be.mu && be.mu <= o2.mu + 0.02, name: '⑮극성서열창발', msg: `|μ_mol| H₂O ${fmt(h2o.mu)} > BeH₂ ${fmt(be.mu)} ≳ O₂ ${fmt(o2.mu)} (전하×형상)` });
+
+      // (2) χ·η ③ 유도 (Mulliken·손 튜닝 0): 전기음성도 서열 χ_O>χ_H>χ_Be 가 극성 부호를 정한다.
+      const cO = Pol.params(8).chi, cH = Pol.params(1).chi, cBe = Pol.params(4).chi;
+      log.push({ ok: cO > cH && cH > cBe, name: '⑮χ서열③유도', msg: `χ_O ${fmt(cO)} > χ_H ${fmt(cH)} > χ_Be ${fmt(cBe)} (③ IE·EA 유도·author 0 → H₂O 의 O⁻·BeH₂ 의 H⁻)` });
+
+      // (3) 장 응답: 무작위 배향 시작 → 균일 외부장이 극성 분자를 배향 (⟨cosθ⟩ 상승) · 무장 대조는 등방.
+      {
+        const R = 5; let on = [], off = [];
+        for (let s = 0; s < R; s++) {
+          const wf = S.build('s15-field', { seed: 30 + s, count: 16, Ex: 0.8 }); E.run(wf, 2000); on.push(Pol.orientationOrder(wf));
+          const wc = S.build('s15-field', { seed: 30 + s, count: 16, Ex: 0 }); E.run(wc, 2000); wc.Efield = E.V.make(1, 0, 0); off.push(Pol.orientationOrder(wc));
+        }
+        const mOn = on.reduce((a, b) => a + b, 0) / R, mOff = off.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: mOn > 0.4 && Math.abs(mOff) < 0.25, name: '⑮장응답배향', msg: `⟨cosθ⟩ 장있음 ${fmt(mOn)} vs 등방 대조 ${fmt(mOff)} (극성 분자 유전 배향)` });
+      }
+
+      // (4) 장부: dq 갱신 사건 회계 (QEq 준정적 → E 보존) + 분자별 총 전하 보존 Σq=Q.
+      log.push({ ok: o2.relE <= E.EPS_E && be.relE <= E.EPS_E && h2o.relE <= E.EPS_E, name: '⑮장부·QEq닫힘', msg: `max|ΔE|/E O₂ ${fmt(o2.relE)}·BeH₂ ${fmt(be.relE)}·H₂O ${fmt(h2o.relE)} ≤ EPS_E` });
+      log.push({ ok: o2.sq < 1e-9, name: '⑮전하보존(Σq=Q)', msg: `분자별 |Σq| ${fmt(o2.sq)} < 1e-9 (QEq 제약 Σq=Q 정확)` });
+    }
+
     return log;
   }
 
@@ -725,7 +772,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

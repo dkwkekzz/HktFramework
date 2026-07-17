@@ -10,6 +10,7 @@
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;   // ⑩ 실원소 B/IE (③ 순수 함수)
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry; // ⑭ 각도 반발 (VSEPR)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;  // ⑮ 부분 전하 (QEq)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -337,16 +338,27 @@
     return v;
   }
 
+  // 무작위 균일 회전 행렬 (4 가우시안 → 단위 쿼터니언 → R). 분자를 무작위 배향(⑮ 장 응답의 등방 시작).
+  function randRot(rng) {
+    let a = E.gaussian(rng), b = E.gaussian(rng), c = E.gaussian(rng), d = E.gaussian(rng);
+    const n = Math.hypot(a, b, c, d) || 1; a /= n; b /= n; c /= n; d /= n;
+    return [
+      [1 - 2 * (c * c + d * d), 2 * (b * c - a * d), 2 * (b * d + a * c)],
+      [2 * (b * c + a * d), 1 - 2 * (b * b + d * d), 2 * (c * d - a * b)],
+      [2 * (b * d - a * c), 2 * (c * d + a * b), 1 - 2 * (b * b + c * c)],
+    ];
+  }
   function placeMolecule(world, center, ligand, nLig, cx, cy, cz, rng, d0) {
-    const c = E.makeAtom(center, E.V.make(cx, cy, cz), E.V.zero()); world.atoms.push(c);
+    const c = E.makeAtom(center, E.V.make(cx, cy, cz), E.V.zero()); c.Z = GEO_SPEC[center].Z; c.qBase = 0; world.atoms.push(c);
     // 피보나치 구면 배치 + 작은 무작위 회전 지터 — 겹침 없이 시작(비최적 각) → 각도 반발이 형상으로 이완.
-    const gold = 2.399963229728653, jit = 0.4;
+    const gold = 2.399963229728653, jit = 0.4, R = world._randOrient ? randRot(rng) : null;
     for (let k = 0; k < nLig; k++) {
       const y = nLig === 1 ? 1 : 1 - 2 * (k + 0.5) / nLig;
       const r = Math.sqrt(Math.max(0, 1 - y * y)), phi = k * gold + (rng() - 0.5) * jit;
       let dx = r * Math.cos(phi), dy = y, dz = r * Math.sin(phi);
       if (world.frozenZ) { dx = Math.cos(phi + y); dy = Math.sin(phi + y); dz = 0; const n = Math.hypot(dx, dy); dx /= n; dy /= n; }
-      const lg = E.makeAtom(ligand, E.V.make(cx + dx * d0, cy + dy * d0, cz + dz * d0), E.V.zero()); world.atoms.push(lg);
+      if (R) { const nx = R[0][0] * dx + R[0][1] * dy + R[0][2] * dz, ny = R[1][0] * dx + R[1][1] * dy + R[1][2] * dz, nz = R[2][0] * dx + R[2][1] * dy + R[2][2] * dz; dx = nx; dy = ny; dz = nz; }
+      const lg = E.makeAtom(ligand, E.V.make(cx + dx * d0, cy + dy * d0, cz + dz * d0), E.V.zero()); lg.Z = GEO_SPEC[ligand].Z; lg.qBase = 0; world.atoms.push(lg);
       world.bonds.push({ i: c.id, j: lg.id, order: 1, rest: d0, k: world.kbond, D: world.Dbond });
     }
   }
@@ -365,6 +377,11 @@
     });
     world.valence = valence;   // makeWorld 는 미지 필드를 버림 → ⑭ 외각 전자 맵을 직접 부착(고립쌍 수 유도)
     if (o.kang != null) world._kang = o.kang; if (o.lam != null) world._lam = o.lam; if (o.c0 != null) world._c0 = o.c0;   // 튜닝 override
+    if (o.polar) {   // ⑮ 부분 전하: QEq(전하 균등화) → pairForces(부분 전하 쿨롱) → 각도(⑭ 형상) 합성
+      world._geoAngular = Geo.angularForces; world.computeForces = Pol.forcesPolar;
+      if (o.field) world.Efield = o.field;
+      if (o.randOrient) world._randOrient = true;   // ⑮ 장 응답: 무작위 배향 시작(장 없으면 등방 유지)
+    }
     const per = Math.ceil(Math.cbrt(count)), g = L / per;
     let m = 0;
     for (let i = 0; i < per && m < count; i++) for (let j = 0; j < per && m < count; j++) for (let kk = 0; kk < per && m < count; kk++, m++)
@@ -375,7 +392,7 @@
     const eq = o.eqSteps != null ? o.eqSteps : 9000, damp = o.damp != null ? o.damp : 0.96;
     for (let k = 0; k < eq; k++) { E.step(world); for (const a of world.atoms) { a.p.x *= damp; a.p.y *= damp; a.p.z *= damp; } }
     maxwellInit(world, T0, rng);
-    Geo.forcesWithAngles(world); E.recomputeLedger(world);
+    world.computeForces(world); E.recomputeLedger(world);   // polar 면 Pol.forcesPolar(전하 갱신+U_pol)·아니면 forcesWithAngles
     world._auditP = false;
     return world;
   }
@@ -383,6 +400,14 @@
   function shapeMethane(o) { o = o || {}; const w = buildShape(o, { center: 'C4', ligand: 'H1', nLig: 4 }); w._meta = { name: 's14-methane', geo: 1 }; return w; }
   function shapeWater(o) { o = o || {}; const w = buildShape(o, { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-water', geo: 1 }; return w; }
   function shapeLinear(o) { o = o || {}; const w = buildShape(o, { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-linear', geo: 1 }; return w; }
+
+  // ── ⑮ 극성 (부분 전하·QEq) — ⑭ 형상 위에 전기음성도 균등화. 극성 = 전하×형상 창발 ──
+  //   O₂ 무극성(동핵) · BeH₂ 무극성 분자(극성 결합 상쇄·CO₂ 대역·⑩ 이중결합 격차) · H₂O 극성(굽음+χ_O>χ_H).
+  function polO2(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'O2', ligand: 'O2', nLig: 1 }); w._meta = { name: 's15-o2', geo: 1, polar: 1 }; return w; }
+  function polBeH2(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-beh2', geo: 1, polar: 1 }; return w; }
+  function polH2O(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-h2o', geo: 1, polar: 1 }; return w; }
+  // s15-field: 균일 외부장 속 H₂O — dq·배향의 장 응답 (유전 응답 정성).
+  function polField(o) { o = o || {}; const ex = o.Ex != null ? o.Ex : 0.6; const w = buildShape(Object.assign({ polar: true, randOrient: true, field: ex > 0 ? E.V.make(ex, 0, 0) : null, count: o.count || 12, T0: o.T0 != null ? o.T0 : 0.03, eqSteps: o.eqSteps != null ? o.eqSteps : 4000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-field', geo: 1, polar: 1, field: 1 }; return w; }
 
   // ── ⑤ 이온화·이온결합 장면 ──
 
@@ -696,6 +721,10 @@
     's14-methane': shapeMethane,
     's14-water': shapeWater,
     's14-linear': shapeLinear,
+    's15-o2': polO2,
+    's15-beh2': polBeH2,
+    's15-h2o': polH2O,
+    's15-field': polField,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -710,7 +739,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
