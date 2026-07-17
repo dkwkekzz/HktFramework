@@ -479,6 +479,39 @@
       }
     }
 
+    // 13. ⑩ 수프 관문 — 실원소 합류·화학량론 (2H:1O → H₂O 우세). 쌍별 D(H–H:O–H:O–O=436:463:146) author.
+    {
+      const multi = (hist) => { const P = {}; for (const k in hist) { const c = (k.match(/\d+/g) || []).reduce((s, d) => s + +d, 0); if (c > 1) P[k] = hist[k]; } return P; };
+      const poolTop = (worlds) => { const P = {}; for (const w of worlds) { const h = multi(M.molecules(w).hist); for (const k in h) P[k] = (P[k] || 0) + h[k]; } const r = Object.entries(P).sort((a, b) => b[1] - a[1]); return { top: r[0] || ['-', 0], all: r, h2o: P['H2O1'] || 0 }; };
+      const R = 6, n = 14;
+
+      // 어닐링: 고T 평형 탐색 → 냉각 스케줄 → 열역학 산물 H₂O 우세 (냉각 열은 E_escape 로 회계 → 장부 닫힘).
+      const annealed = []; let over = 0, maxRel = 0;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s10-water-soup', { seed: 200 + s, n });
+        const E0 = M.ledgerTable(w).total; S.annealSoup(w);
+        maxRel = Math.max(maxRel, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0));
+        over = Math.max(over, M.molecules(w).maxOver); annealed.push(w);
+      }
+      const pa = poolTop(annealed);
+      log.push({ ok: pa.top[0] === 'H2O1', name: '⑩화학량론(H₂O우세)',
+        msg: `어닐 pooled 최다분자 = ${pa.top[0]}:${pa.top[1]} (${pa.all.slice(0, 4).map(([k, v]) => k + ':' + v).join(' ')}) — 라벨 분기 0` });
+      log.push({ ok: over <= 1e-9, name: '⑩원자가포화', msg: `과결합 max ${fmt(over)} ≤ 0 (O 예산 2·H₃O 공유 과결합 0)` });
+      log.push({ ok: maxRel <= E.EPS_E, name: '⑩장부·냉각닫힘', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E (냉각 열 → E_escape 회계)` });
+
+      // 어닐링 이득 (활성화 장벽): 어닐 H₂O > 크래시 냉각 H₂O — 열역학 최소 도달엔 장벽 통과 필요 (준안정 실증).
+      const crashed = [];
+      for (let s = 0; s < R; s++) { const w = S.build('s10-water-soup', { seed: 200 + s, n, T0: 0.3 }); E.run(w, 24000); crashed.push(w); }
+      const pc = poolTop(crashed);
+      log.push({ ok: pa.h2o > pc.h2o * 1.2, name: '⑩어닐링이득(활성화장벽)',
+        msg: `H₂O 어닐 ${pa.h2o} > 크래시 ${pc.h2o}×1.2 (H–H≈O–H 근접 → 크래시는 H₂ 갇힘·어닐링이 H₂O 로)` });
+
+      // 실원소 앵커: ③ levels 유도 예산·IE 순위 (He>H·O>H). 가상 원소(V 계열) 회귀는 전체 스위트가 보장.
+      const B = (Z) => L.budget(Z), IE = (Z) => L.ionizationE(Z);
+      const anchorsOk = B(1) === 1 && B(8) === 2 && B(2) === 0 && B(10) === 0 && IE(2) > IE(1) && IE(8) > IE(1);
+      log.push({ ok: anchorsOk, name: '⑩실원소앵커', msg: `B: H=${B(1)}·O=${B(8)}·He=${B(2)}·Ne=${B(10)} · IE He>H (${IE(2).toFixed(2)}>${IE(1).toFixed(2)})·O>H (author 아님·③ 유도)` });
+    }
+
     return log;
   }
 
@@ -489,7 +522,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 
