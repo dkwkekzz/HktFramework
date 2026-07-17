@@ -93,6 +93,12 @@
   // ── 검증 스위트 ──
   function suite() {
     const log = [];
+    // 체크별 소요 시간 계측 (node 전용): 연속 push 사이 경과 ms — 느린 체크 식별용
+    if (typeof process !== 'undefined') {
+      const _push = log.push.bind(log);
+      let _t = Date.now();
+      log.push = (e) => { const now = Date.now(); e.ms = now - _t; _t = now; return _push(e); };
+    }
 
     // 1. 회계 (정확): 주기 이상 기체 — 힘 0 이므로 전 통 합·P 정확 보존
     {
@@ -564,7 +570,8 @@
     let pass = 0, fail = 0;
     for (const e of log) {
       const tag = e.ok ? 'PASS' : 'FAIL';
-      console.log(`[${tag}] ${e.msg}`);
+      const t = e.ms != null ? ` (${(e.ms / 1000).toFixed(1)}s)` : '';
+      console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
     console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪): ${pass} PASS · ${fail} FAIL ──`);
