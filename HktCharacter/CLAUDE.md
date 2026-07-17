@@ -50,5 +50,6 @@ npm run dev      # http://localhost:5173
 | [STATE.md](STATE.md) | **현재 상태 + 다음 작업** (이 문서만 보면 현황 파악) |
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | 구조·리타깃/접지 원리·파일 맵 (상세) |
 | [docs/FLESH-PLAN.md](docs/FLESH-PLAN.md) | SDF 살 스타일링 설계 (v5 트랙, 구현 전) |
+| [docs/RMT-SCATTER.md](docs/RMT-SCATTER.md) | 제타 영점(RMT) 준위 반발 환경 스캐터 — 이론·구현·검증 |
 | [docs/HISTORY.md](docs/HISTORY.md) | 리셋·버전 히스토리 (v2 → v4.2) |
 | `legacy/` | v1 (SDF flesh) 전체 보관. 참고용, import 금지. |

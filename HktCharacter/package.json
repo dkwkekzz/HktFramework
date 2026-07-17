@@ -7,7 +7,9 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "verify:rmt": "node verify/rmt-verify.mjs",
+    "verify:rmt:shot": "node verify/rmt-shot.mjs"
   },
   "dependencies": {
     "three": "^0.161.0"
