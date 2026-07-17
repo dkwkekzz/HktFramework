@@ -147,6 +147,55 @@
     return { grid: { T: Tgrid.slice(), rho: rhoGrid.slice() }, D, Derr, R, n: opts.n || 16 };
   }
 
+  // ── ㉒-c 반응망: 결합 해리 속도상수 k_diss(T) → 아레니우스 {A, Ea} ──
+  //   결합 집합을 스냅샷 비교(atom-id 쌍 키)해 사라진 결합=해리 사건을 센다. 엔진 훅 없이 측정.
+  //   k_diss = 사건수 / (직전 결합수 · Δt) — 국소 세부균형의 역방향(형성은 별도). ⑥ 해리(가열)의 정량판.
+  function bondKeys(world) { const s = new Set(); for (const b of world.bonds || []) { const i = Math.min(b.i, b.j), j = Math.max(b.i, b.j); s.add(i + '-' + j); } return s; }
+
+  function reactionRatePoint(T, rho, opts) {
+    opts = opts || {};
+    const n = opts.n || 16, N = 3 * n, L = Math.sqrt(N / rho);
+    const w = S.waterSoup({ n, L, T0: T, seed: opts.seed || 3003 });
+    equilibrate(w, T, opts.eqTicks || 3000);
+    const stride = opts.stride || 40, win = opts.winTicks || 6000, dt = w.dt;
+    let prev = bondKeys(w), diss = 0, bondTimeInt = 0;   // Σ(결합수·Δt) = 노출량
+    for (let k = 1; k <= win; k++) {
+      E.step(w);
+      if (k % (opts.thermoEvery || 20) === 0) thermostat(w, T);
+      if (k % stride === 0) {
+        const cur = bondKeys(w); let gone = 0; for (const key of prev) if (!cur.has(key)) gone++;
+        diss += gone; bondTimeInt += prev.size * stride * dt; prev = cur;
+      }
+    }
+    const k_diss = bondTimeInt > 0 ? diss / bondTimeInt : 0;
+    return { T, rho, k: k_diss, events: diss, exposure: +bondTimeInt.toFixed(2) };
+  }
+
+  // 아레니우스 적합: ln k = ln A − Ea/T. (1/T, ln k) 최소제곱 → slope=−Ea·intercept=ln A.
+  //   해리는 열활성이라 k 가 T 와 함께↑ → ln k vs 1/T 음의 기울기 → Ea>0.
+  function measureReactionNetwork(opts) {
+    opts = opts || {};
+    const Tgrid = opts.Tgrid || [0.55, 0.70, 0.85, 1.00], rho = opts.rho != null ? opts.rho : 0.20, R = opts.R || 3;
+    const ks = [], kerr = [];
+    for (let ti = 0; ti < Tgrid.length; ti++) {
+      const kr = [];
+      for (let rep = 0; rep < R; rep++) kr.push(reactionRatePoint(Tgrid[ti], rho, Object.assign({}, opts, { seed: 3003 + rep * 53 + ti * 7 })).k);
+      ks.push(+mean(kr).toFixed(5)); kerr.push(+stderr(kr).toFixed(5));
+      if (opts.log) opts.log(`k_diss T=${Tgrid[ti]} ρ=${rho}: ${mean(kr).toFixed(4)} (R=${R})`);
+    }
+    // 아레니우스 적합 (양의 k 만)
+    const xs = [], ys = [];
+    for (let i = 0; i < Tgrid.length; i++) if (ks[i] > 1e-9) { xs.push(1 / Tgrid[i]); ys.push(Math.log(ks[i])); }
+    let Ea = null, lnA = null, r2 = null;
+    if (xs.length >= 2) {
+      const xb = mean(xs), yb = mean(ys); let num = 0, den = 0; for (let i = 0; i < xs.length; i++) { num += (xs[i] - xb) * (ys[i] - yb); den += (xs[i] - xb) * (xs[i] - xb); }
+      const slope = den > 0 ? num / den : 0; Ea = -slope; lnA = yb - slope * xb;
+      let ssRes = 0, ssTot = 0; for (let i = 0; i < xs.length; i++) { const pred = lnA + slope * xs[i]; ssRes += (ys[i] - pred) * (ys[i] - pred); ssTot += (ys[i] - yb) * (ys[i] - yb); }
+      r2 = ssTot > 0 ? 1 - ssRes / ssTot : 1;
+    }
+    return { channel: 'R-DISS(결합 해리)', grid: { T: Tgrid.slice(), rho }, k: ks, kerr, arrhenius: { A: lnA != null ? +Math.exp(lnA).toFixed(5) : null, Ea: Ea != null ? +Ea.toFixed(4) : null, r2: r2 != null ? +r2.toFixed(4) : null }, R };
+  }
+
   // ── 자기일관: 등적 열용량 C_v(ρ) = ∂U/∂T (T 격자 유한차분). 양수·유한이어야 (열역학 안정) ──
   //   ⑦ 은 분자당 C_v 계단(1→3/2→5/2)을 냈다 — 여기 반응 혼합물 C_v 는 그 위에 반응 기여가 얹혀
   //   더 크다(가열이 결합을 끊어 U↑ 추가) — 부호·유한만 assert, 값은 기록 (반응 열용량).
@@ -189,6 +238,16 @@
         diffusion: { form: 'table', grid: opts.diffusion.grid, D: opts.diffusion.D, note: 'MSD 기울기 (아인슈타인 D=slope/2dim·반응성 소프·R=' + opts.diffusion.R + ')' },
       };
     }
+    // 반응망 (㉒-c·측정) — 결합 해리 k(T)→아레니우스. 존재 시만 가법.
+    if (opts.reaction) {
+      const rn = opts.reaction;
+      out.reactionNetwork = [{
+        reactants: ['bond'], products: ['fragments'], channel: rn.channel,
+        rateLaw: { hazard: 'arrhenius', A: rn.arrhenius.A, Ea: rn.arrhenius.Ea, form: 'k(T)=A·exp(−Ea/T)' },
+        kTable: { grid: rn.grid, k: rn.k, r2: rn.arrhenius.r2 },
+        note: '해리 사건 카운트 측정(author 0). Ea 는 매질 유효 장벽 — 카탈로그 결합 우물 D 와의 차가 매질 효과.',
+      }];
+    }
     // 자기일관 지표
     const cv = cvColumns(eos);
     // 오차 한계 (S1 오차 전파용)
@@ -205,6 +264,9 @@
     }
     if (opts.diffusion && !out.observables.some((o) => o.name === 'D(수송)')) {
       out.observables.push({ name: 'D(수송)', epsilon: 0.4, protocol: 'D(T,ρ)=MSD 기울기/2dim — 아인슈타인 관계·R런 표준오차 이내' });
+    }
+    if (opts.reaction && !out.observables.some((o) => o.name === 'k(반응)')) {
+      out.observables.push({ name: 'k(반응)', epsilon: 0.4, protocol: 'k_diss(T)=해리 사건/노출량 — 아레니우스 ln k vs 1/T 적합(R²·Ea>0)' });
     }
     // validRange: 상단은 원본 유지 (CONTRACT §7 가법·S1 이 이미 소비 — 좁히지 않는다).
     //   EOS 의 유효 범위는 그리드 자체가 문서화 → equationOfState.validRange 로 별도 기록.
@@ -239,6 +301,12 @@
       req(dok, 'D 표 전 항 유한·비음');
       req(out.errorBounds && out.errorBounds.D, 'errorBounds D (수송 발효 조건)');
     }
+    // 반응망 (존재 시만·가법): 아레니우스 Ea>0 (열활성)·A>0·k 표 유한.
+    if (out.reactionNetwork && out.reactionNetwork.length) {
+      const rn = out.reactionNetwork[0];
+      req(rn.rateLaw && rn.rateLaw.hazard === 'arrhenius' && rn.rateLaw.Ea > 0 && rn.rateLaw.A > 0, '반응망 아레니우스 Ea>0·A>0 (해리=열활성)');
+      req(rn.kTable && Array.isArray(rn.kTable.k) && rn.kTable.k.every((v) => isFinite(v) && v >= 0), 'k 표 유한·비음');
+    }
     req(out.errorBounds && out.errorBounds.P && out.errorBounds.U, 'errorBounds P·U (발효 조건 CONTRACT §3)');
     req(out.stateVariables && out.stateVariables.length >= 2, 'stateVariables [T,ρ]');
     req(out.observables && out.observables.some((o) => o.name === 'EOS'), 'observables EOS 선언');
@@ -260,7 +328,7 @@
     return lines.join('\n');
   }
 
-  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, diffusionPoint, measureDiffusion, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
+  const api = { matterEnergy, thermostat, equilibrate, sample, eosPoint, measureEOS, diffusionPoint, measureDiffusion, reactionRatePoint, measureReactionNetwork, cvColumns, buildMaterialModel, validateMaterial, asciiHeatmap, mean, stderr };
   if (isNode) module.exports = api;
   else window.HktS0Material = api;
 })();

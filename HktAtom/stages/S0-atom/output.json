@@ -360,6 +360,11 @@
       "name": "D(수송)",
       "epsilon": 0.4,
       "protocol": "D(T,ρ)=MSD 기울기/2dim — 아인슈타인 관계·R런 표준오차 이내"
+    },
+    {
+      "name": "k(반응)",
+      "epsilon": 0.4,
+      "protocol": "k_diss(T)=해리 사건/노출량 — 아레니우스 ln k vs 1/T 적합(R²·Ea>0)"
     }
   ],
   "validRange": {
@@ -387,11 +392,12 @@
     "scenes": [
       "s11-mvp-box",
       "s10-water-soup(eos-grid)",
-      "s10-water-soup(diffusion-grid)"
+      "s10-water-soup(diffusion-grid)",
+      "s10-water-soup(reaction-k)"
     ],
     "runs": 1,
     "date": "2026-07-17",
-    "note": "S0 출력 v0.2 — ⑪ MVP + ㉒-a EOS + ㉒-b 확산 D(가법). S1 상태축[T,ρ] 기반."
+    "note": "S0 출력 v0.2 — ⑪ MVP + ㉒-a EOS + ㉒-b 확산 + ㉒-c 반응망 k(T)(가법). S1 상태축[T,ρ] 기반."
   },
   "stateVariables": [
     {
@@ -595,5 +601,43 @@
       ],
       "note": "MSD 기울기 (아인슈타인 D=slope/2dim·반응성 소프·R=3)"
     }
-  }
+  },
+  "reactionNetwork": [
+    {
+      "reactants": [
+        "bond"
+      ],
+      "products": [
+        "fragments"
+      ],
+      "channel": "R-DISS(결합 해리)",
+      "rateLaw": {
+        "hazard": "arrhenius",
+        "A": 0.5337,
+        "Ea": 1.624,
+        "form": "k(T)=A·exp(−Ea/T)"
+      },
+      "kTable": {
+        "grid": {
+          "T": [
+            0.55,
+            0.7,
+            0.85,
+            1,
+            1.15
+          ],
+          "rho": 0.2
+        },
+        "k": [
+          0.0281,
+          0.05179,
+          0.08157,
+          0.09665,
+          0.13757
+        ],
+        "r2": 0.9923
+      },
+      "note": "해리 사건 카운트 측정(author 0). Ea 는 매질 유효 장벽 — 카탈로그 결합 우물 D 와의 차가 매질 효과."
+    }
+  ]
 }

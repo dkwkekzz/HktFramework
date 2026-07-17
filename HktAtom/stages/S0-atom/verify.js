@@ -1061,6 +1061,14 @@
       const tc = OUT.transportCoefficients;
       const outDrhoDown = tc && tc.diffusion.grid.T.every((_, ti) => monoDown(tc.diffusion.D[ti]));
       log.push({ ok: !!(tc && tc.diffusion && OUT.errorBounds.D && outDrhoDown), name: '㉒-b계약', msg: `㉒-b·발효 transportCoefficients.diffusion 유효 · errorBounds.D 존재 · D(ρ)↓ ${outDrhoDown} (측정 경향 담김·author 0)` });
+
+      // ── ㉒-c 반응망: 결합 해리 k(T) → 아레니우스. k 는 T 와 함께↑(열활성)·Ea>0·ln k vs 1/T 직선 ──
+      const rxn = Mat.measureReactionNetwork({ Tgrid: [0.55, 0.75, 0.95, 1.15], rho: 0.20, R: 2, n: 12, eqTicks: 2500, winTicks: 5000 });
+      log.push({ ok: monoUp(rxn.k), name: '㉒-c k(T)↑', msg: `㉒-c·해리 k 가 T 와 함께 단조↑ (열활성): [${rxn.k.map((x) => x.toFixed(4))}] (author 0 — 사건 카운트)` });
+      log.push({ ok: rxn.arrhenius.Ea > 0 && rxn.arrhenius.r2 > 0.8, name: '㉒-c 아레니우스', msg: `㉒-c·아레니우스 적합 Ea ${fmt(rxn.arrhenius.Ea)} > 0 (열활성 장벽) · R² ${fmt(rxn.arrhenius.r2)} > 0.8 (ln k vs 1/T 직선) · A ${fmt(rxn.arrhenius.A)}` });
+      // (계약) 발효 reactionNetwork 유효 (아레니우스 Ea>0·k 표) — validateMaterial 에 포함되나 명시.
+      const rnO = OUT.reactionNetwork && OUT.reactionNetwork[0];
+      log.push({ ok: !!(rnO && rnO.rateLaw.Ea > 0 && rnO.kTable && monoUp(rnO.kTable.k)), name: '㉒-c계약', msg: `㉒-c·발효 reactionNetwork 유효 · Ea ${rnO ? fmt(rnO.rateLaw.Ea) : 'x'} > 0 · k(T)↑ · R² ${rnO ? fmt(rnO.kTable.r2) : 'x'} (매질 유효 장벽·author 0)` });
     }
 
     return log;
