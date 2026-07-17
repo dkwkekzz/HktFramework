@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
-    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자): 냉각·공동·유도 방출 빔</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표·<b>광자=노란 점+꼬리</b>.</p>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR): CH₄ 정사면체·H₂O 굽음·BeH₂ 직선 — 한 각도 반발에서 창발</b>. CPK·공유결합=선·광자=노란 점·<b>고립쌍=청록 파선</b>.</p>
 
     <div class="row">
       <label>보기</label>
@@ -58,6 +58,9 @@
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s14-methane">s14-methane (CH₄ 정사면체)</option>
+        <option value="s14-water">s14-water (H₂O 굽음)</option>
+        <option value="s14-linear">s14-linear (BeH₂ 직선)</option>
         <option value="s13-collide-3d">s13-collide-3d (3D 산란·회전)</option>
         <option value="s13-gas-3d">s13-gas-3d (3D 기체)</option>
         <option value="s13-bond-3d">s13-bond-3d (3D CH₄ 위상)</option>
@@ -125,6 +128,7 @@
 <script src="engine.js"></script>
 <script src="catalog.js"></script>
 <script src="levels.js"></script>
+<script src="geometry.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="modes.js"></script>
@@ -132,7 +136,7 @@
 <script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -205,10 +209,23 @@
       ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx, 0, 6.283); ctx.fillStyle = spColor(a); ctx.fill();
       ctx.globalAlpha = 1;
     }
+    // ⑭ 고립쌍 유령 화살표 (질량 없는 방향 — 결합각을 압박하는 도메인). 반투명 청록 파선.
+    let hasLone = false;
+    for (const a of world.atoms) {
+      if (!a.lones || a.lones.length === 0) continue;
+      hasLone = true;
+      const pa = project3D(a.r, L), Lb = world.box.L;
+      for (const lp of a.lones) {
+        const tip = project3D(E.V.make(a.r.x + lp.x * 1.0, a.r.y + lp.y * 1.0, a.r.z + lp.z * 1.0), Lb);
+        ctx.strokeStyle = 'rgba(90,220,210,0.55)'; ctx.setLineDash([3, 3]); ctx.lineWidth = 1.5;
+        ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(tip.x, tip.y); ctx.stroke(); ctx.setLineDash([]);
+        ctx.fillStyle = 'rgba(120,240,230,0.5)'; ctx.beginPath(); ctx.arc(tip.x, tip.y, 2, 0, 6.283); ctx.fill();
+      }
+    }
     // 광자 (있으면)
     for (const ph of world.photons || []) { const p = project3D(ph.r, L); ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * p.persp, 0, 6.283); ctx.fill(); }
     ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
-    ctx.fillText('3D · 드래그로 회전 (투영은 해석 — KERNEL §2.1)', 8, cv.height - 8);
+    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록 파선=고립쌍(각 압박)' : '') + ' (투영은 해석 — KERNEL §2.1)', 8, cv.height - 8);
   }
 
   // 결합 렌더 — 화학 표기 규칙 준수:

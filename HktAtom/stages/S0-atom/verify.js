@@ -16,6 +16,7 @@
   const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
   const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -651,6 +652,50 @@
       }
     }
 
+    // 14. ⑭ 형상 (VSEPR·결합각) — 공통 각도 반발 하나로 정사면체·굽음·직선이 동시 창발. 목표각 author 0.
+    {
+      // 중심 원자 결합각 평균 (여러 분자·짧은 저온 런의 통계 — 이완된 형상 최소 근방).
+      const meanAngle = (name, cen, over) => {
+        const w = S.build(name, Object.assign({ seed: 3, count: 12 }, over));
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w);
+        let mx = 0, mdP = 0; const acc = [];
+        for (let k = 0; k < 1200; k++) {
+          E.step(w); const t = M.ledgerTable(w).total; mx = Math.max(mx, Math.abs(t - E0) / Math.abs(E0));
+          const P = M.momentum(w); mdP = Math.max(mdP, Math.hypot(P.x - P0.x, P.y - P0.y, P.z - P0.z));
+          const st = Geo.angleStats(w); if (st.bondAngles[cen]) acc.push(...st.bondAngles[cen]);
+        }
+        const m = acc.reduce((a, b) => a + b, 0) / acc.length;
+        return { ang: m, relE: mx, dP: mdP };
+      };
+
+      // (1) 3단 앵커 — 하나의 k_ang·λ_lp 로 동시에 (분자별 파라미터 분기 0: geometry.js 상수 단일·if(molecule) 0).
+      const me = meanAngle('s14-methane', 'C4'), wa = meanAngle('s14-water', 'O2'), li = meanAngle('s14-linear', 'Be2');
+      log.push({ ok: me.ang > 104 && me.ang < 115, name: '⑭CH₄정사면체', msg: `H–C–H ${fmt(me.ang)}° ∈(104,115) — 4결합 0고립 → 정사면체(109.5°)` });
+      log.push({ ok: wa.ang > 95 && wa.ang < 115, name: '⑭H₂O굽음', msg: `H–O–H ${fmt(wa.ang)}° ∈(95,115) — 2결합 2고립 → 굽음(<109.5·고립쌍 압박)` });
+      log.push({ ok: li.ang > 170 && li.ang < 180, name: '⑭BeH₂직선', msg: `H–Be–H ${fmt(li.ang)}° ∈(170,180) — 2결합 0고립 → 직선` });
+      log.push({ ok: wa.ang < me.ang && me.ang < li.ang, name: '⑭형상서열창발', msg: `굽음 ${fmt(wa.ang)} < 정사면체 ${fmt(me.ang)} < 직선 ${fmt(li.ang)} (한 규칙·목표각 author 0)` });
+
+      // (2) λ_lp=1 대조: 고립쌍 배율 제거 → 물의 4도메인 균등화 → 각이 정사면체(109.5)로 열림 (압박의 근원).
+      {
+        const w1 = meanAngle('s14-water', 'O2', { lam: 1.0 });
+        log.push({ ok: w1.ang > wa.ang + 4, name: '⑭고립쌍압박근원', msg: `λ_lp=1 대조 ${fmt(w1.ang)}° > λ_lp=1.5 ${fmt(wa.ang)}° (고립쌍 배율이 압박의 근원 — 제거 시 109.5° 로 열림)` });
+      }
+
+      // (3) 장부: V_ang 포함 총 E 보존 + 각도 힘의 반대칭 짝 → P 정확 보존.
+      log.push({ ok: me.relE <= E.EPS_E && wa.relE <= E.EPS_E && li.relE <= E.EPS_E, name: '⑭장부·V_ang닫힘', msg: `max|ΔE|/E CH₄ ${fmt(me.relE)}·H₂O ${fmt(wa.relE)}·BeH₂ ${fmt(li.relE)} ≤ EPS_E` });
+      log.push({ ok: me.dP < 1e-9 && li.dP < 1e-9, name: '⑭P보존(각도힘반대칭)', msg: `max|ΔP| CH₄ ${fmt(me.dP)}·BeH₂ ${fmt(li.dP)} < 1e-9 (F_center=−ΣF_nb)` });
+
+      // (4) L 각운동량 보존 스팟 체크 (고립쌍 없는 분자 — 각도 힘이 회전 불변 퍼텐셜의 정확 그래디언트).
+      {
+        const w = S.build('s14-methane', { seed: 2, count: 1, L: 60, eqSteps: 2000 });
+        for (const a of w.atoms) { a.p.x += 0.05; a.p.z += 0.03; }
+        const Lv = (ww) => { let x = 0, y = 0, z = 0; for (const a of ww.atoms) { x += a.r.y * a.p.z - a.r.z * a.p.y; y += a.r.z * a.p.x - a.r.x * a.p.z; z += a.r.x * a.p.y - a.r.y * a.p.x; } return { x, y, z }; };
+        const L0 = Lv(w); let mdL = 0;
+        for (let k = 0; k < 2000; k++) { E.step(w); const l = Lv(w); mdL = Math.max(mdL, Math.hypot(l.x - L0.x, l.y - L0.y, l.z - L0.z)); }
+        log.push({ ok: mdL < 1e-9, name: '⑭L보존(회전불변)', msg: `CH₄ max|ΔL| ${fmt(mdL)} < 1e-9 (고립쌍 없는 분자 — 각도 힘 정확 보존·기계 정밀도)` });
+      }
+    }
+
     return log;
   }
 
@@ -661,7 +706,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

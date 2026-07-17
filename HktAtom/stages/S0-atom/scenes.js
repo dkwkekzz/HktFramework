@@ -9,6 +9,7 @@
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;   // ⑩ 실원소 B/IE (③ 순수 함수)
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry; // ⑭ 각도 반발 (VSEPR)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -320,6 +321,69 @@
     w._meta = { name: 's13-bond-3d', n }; return w;
   }
 
+  // ── ⑭ 형상 (VSEPR·결합각) — 미리 결합된 독립 분자 배치, 공통 각도 반발이 형상을 만든다 ──
+  //   외각 전자(valence)는 ③ fillZ 유도(author 0). 결합은 고정(catalog 없음) — 형상만 관찰. 3D(⑬) 필수.
+  const GEO_SPEC = {
+    H1: { Z: 1, mass: 1.0, sigma: 0.9, eps: 1.0, color: '#e6edf3', radius: 0.34 },
+    O2: { Z: 8, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#e0403a', radius: 0.5 },
+    C4: { Z: 6, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#556070', radius: 0.5 },
+    Be2:{ Z: 4, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#c9a6f0', radius: 0.46 },
+  };
+  // 외각 전자 수 = ③ fillZ(Z) 의 최고 주양자수 껍질 점유 합 (author 0 — 유도값).
+  function valenceElectrons(Z) {
+    const occ = Lv.fillZ(Z); let maxN = 0;
+    for (const sh in occ) maxN = Math.max(maxN, +sh[0]);
+    let v = 0; for (const sh in occ) if (+sh[0] === maxN) v += occ[sh];
+    return v;
+  }
+
+  function placeMolecule(world, center, ligand, nLig, cx, cy, cz, rng, d0) {
+    const c = E.makeAtom(center, E.V.make(cx, cy, cz), E.V.zero()); world.atoms.push(c);
+    // 피보나치 구면 배치 + 작은 무작위 회전 지터 — 겹침 없이 시작(비최적 각) → 각도 반발이 형상으로 이완.
+    const gold = 2.399963229728653, jit = 0.4;
+    for (let k = 0; k < nLig; k++) {
+      const y = nLig === 1 ? 1 : 1 - 2 * (k + 0.5) / nLig;
+      const r = Math.sqrt(Math.max(0, 1 - y * y)), phi = k * gold + (rng() - 0.5) * jit;
+      let dx = r * Math.cos(phi), dy = y, dz = r * Math.sin(phi);
+      if (world.frozenZ) { dx = Math.cos(phi + y); dy = Math.sin(phi + y); dz = 0; const n = Math.hypot(dx, dy); dx /= n; dy /= n; }
+      const lg = E.makeAtom(ligand, E.V.make(cx + dx * d0, cy + dy * d0, cz + dz * d0), E.V.zero()); world.atoms.push(lg);
+      world.bonds.push({ i: c.id, j: lg.id, order: 1, rest: d0, k: world.kbond, D: world.Dbond });
+    }
+  }
+
+  function buildShape(o, mol) {
+    const rng = o.rng || E.makeRng(o.seed || 1401);
+    const count = o.count || 12, d0 = 1.15, T0 = o.T0 != null ? o.T0 : 0.006, L = o.L || 18;
+    const mass = {}, sigma = {}, eps = {}, valence = {};
+    for (const k in GEO_SPEC) { mass[k] = GEO_SPEC[k].mass; sigma[k] = GEO_SPEC[k].sigma; eps[k] = GEO_SPEC[k].eps; valence[k] = valenceElectrons(GEO_SPEC[k].Z); }
+    const world = E.makeWorld({
+      dt: o.dt != null ? o.dt : 0.0025,
+      box: { L: E.V.make(L, L, L), bc: 'periodic' }, frozenZ: false,   // ⑬ 3D 무대
+      mass, sigma, eps,
+      computeForces: Geo.forcesWithAngles, rng, catalog: null,          // 결합 고정(해리 없음) — 형상만
+      Dbond: o.Dbond != null ? o.Dbond : 4.0, kbond: o.kbond != null ? o.kbond : 30, d0,
+    });
+    world.valence = valence;   // makeWorld 는 미지 필드를 버림 → ⑭ 외각 전자 맵을 직접 부착(고립쌍 수 유도)
+    if (o.kang != null) world._kang = o.kang; if (o.lam != null) world._lam = o.lam; if (o.c0 != null) world._c0 = o.c0;   // 튜닝 override
+    const per = Math.ceil(Math.cbrt(count)), g = L / per;
+    let m = 0;
+    for (let i = 0; i < per && m < count; i++) for (let j = 0; j < per && m < count; j++) for (let kk = 0; kk < per && m < count; kk++, m++)
+      placeMolecule(world, mol.center, mol.ligand, mol.nLig, (i + 0.5) * g, (j + 0.5) * g, (kk + 0.5) * g, rng, d0);
+    Geo.initGeometry(world);
+    // 형상 이완 (초기 조건 준비 — maxwellInit 과 동형): 과감쇠 하강으로 분자를 각도 최소에 안착시킨다.
+    //   초기 배치의 굽힘 에너지를 빼야(감쇠는 여기서만) 측정 런이 최소 근방 열진동을 본다. 측정 런은 보존.
+    const eq = o.eqSteps != null ? o.eqSteps : 9000, damp = o.damp != null ? o.damp : 0.96;
+    for (let k = 0; k < eq; k++) { E.step(world); for (const a of world.atoms) { a.p.x *= damp; a.p.y *= damp; a.p.z *= damp; } }
+    maxwellInit(world, T0, rng);
+    Geo.forcesWithAngles(world); E.recomputeLedger(world);
+    world._auditP = false;
+    return world;
+  }
+  // s14-methane: CH₄ 정사면체(C 4결합·0고립) · s14-water: H₂O 굽음(O 2결합·2고립) · s14-linear: BeH₂ 직선(Be 2결합·0고립)
+  function shapeMethane(o) { o = o || {}; const w = buildShape(o, { center: 'C4', ligand: 'H1', nLig: 4 }); w._meta = { name: 's14-methane', geo: 1 }; return w; }
+  function shapeWater(o) { o = o || {}; const w = buildShape(o, { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-water', geo: 1 }; return w; }
+  function shapeLinear(o) { o = o || {}; const w = buildShape(o, { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's14-linear', geo: 1 }; return w; }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -629,6 +693,9 @@
     's13-gas-3d': gas3d,
     's13-collide-3d': collide3d,
     's13-bond-3d': bond3d,
+    's14-methane': shapeMethane,
+    's14-water': shapeWater,
+    's14-linear': shapeLinear,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -643,7 +710,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
