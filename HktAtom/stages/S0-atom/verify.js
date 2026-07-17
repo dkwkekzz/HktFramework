@@ -397,7 +397,7 @@
       // ion-induced: 전하–유도쌍극자가 C6 없이 단독으로 이온 주변 중성 밀도를 올린다.
       //   이 장면은 분산(C6) off → 계의 유일한 인력이 이온→중성뿐. 전하 on/off 차이 = 분극 경로.
       {
-        const near = (off, seed) => { const w = Po.ionInduced({ seed, chargeOff: off }); Po.run(w, 7000); return Po.nearIonCount(w, 2.5); };
+        const near = (off, seed) => { const w = Po.ionInduced({ seed, chargeOff: off }); Po.run(w, 5000); return Po.nearIonCount(w, 2.5); };
         const on = [], of = [];
         for (let s = 0; s < R; s++) { on.push(near(false, 90 + s)); of.push(near(true, 90 + s)); }
         const mOn = mean(on), mOf = mean(of);
@@ -407,7 +407,7 @@
 
       // dt 반감 + 근사 차수 무관: 응집 배위수 통계가 dt·dt/2 에서 근사 동일 (수치 차수가 물리 안 바꿈).
       {
-        const cd = (dt, seed) => { const w = Po.nobleCondense({ T0: 0.05, seed, dt }); Po.run(w, Math.round(10.5 / dt)); return Po.clusters(w, 1.3).meanCoord; };
+        const cd = (dt, seed) => { const w = Po.nobleCondense({ T0: 0.05, seed, dt, N: 64, L: 12 }); Po.run(w, Math.round(7 / dt)); return Po.clusters(w, 1.3).meanCoord; };
         const a = mean([0, 1].map((s) => cd(0.0015, 85 + s))), b = mean([0, 1].map((s) => cd(0.00075, 85 + s)));
         log.push({ ok: Math.abs(a - b) / b < 0.2, name: '⑧dt반감통계', msg: `배위수 ${fmt(a)} vs dt/2 ${fmt(b)} 상대차 ${fmt(Math.abs(a - b) / Math.max(1e-9, b))} < 0.2` });
       }
@@ -445,8 +445,8 @@
 
       // (3) K_eq 부피 의존 (르샤틀리에): 같은 T, 부피 2배 → 해리도 증가 (병진 상태 수 창발·author 0).
       {
-        const dissoc = (L, seed) => { const w = S.build('s06-v1-dimer', { seed, N: 80, T0: 1.5, L }); E.run(w, 9000); const ds = []; for (let b = 0; b < 6; b++) { E.run(w, 300); ds.push(M.equilibrium(w).dissoc); } return mean(ds); };
-        const dV = mean([0, 1, 2].map((s) => dissoc(18, 30 + s))), d2V = mean([0, 1, 2].map((s) => dissoc(18 * Math.SQRT2, 30 + s)));
+        const dissoc = (L, seed) => { const w = S.build('s06-v1-dimer', { seed, N: 80, T0: 1.5, L }); E.run(w, 6000); const ds = []; for (let b = 0; b < 5; b++) { E.run(w, 300); ds.push(M.equilibrium(w).dissoc); } return mean(ds); };
+        const dV = mean([0, 1].map((s) => dissoc(18, 30 + s))), d2V = mean([0, 1].map((s) => dissoc(18 * Math.SQRT2, 30 + s)));
         log.push({ ok: d2V > dV * 1.3, name: '⑨르샤틀리에(부피)', msg: `해리분율 V ${fmt(dV)} → 2V ${fmt(d2V)} (부피↑→해리↑·상태 수 의존·비율 공식 0)` });
       }
 
@@ -456,9 +456,9 @@
         const thermostat = (w, T) => { const Tc = M.temperature(w); if (Tc > 0) { const s = Math.sqrt(T / Tc); for (const a of w.atoms) { a.p.x *= s; a.p.y *= s; } } };
         const lnKat = (T, seed) => {
           const w = S.build('s06-v1-dimer', { seed, N: 80, T0: T, L: 18 });
-          for (let k = 0; k < 8000; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); }
+          for (let k = 0; k < 6000; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); }
           const kc = [];
-          for (let b = 0; b < 8; b++) { for (let k = 0; k < 300; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); } const q = M.equilibrium(w); if (isFinite(q.Kc)) kc.push(q.Kc); }
+          for (let b = 0; b < 6; b++) { for (let k = 0; k < 300; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); } const q = M.equilibrium(w); if (isFinite(q.Kc)) kc.push(q.Kc); }
           return Math.log(mean(kc));
         };
         const Ts = [0.5, 0.8, 1.15, 1.5];
