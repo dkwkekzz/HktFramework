@@ -19,6 +19,9 @@
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
+  const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;    // ⑰ 산·염기 (양성자 이전)
+  const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
+  const Me = isNode ? require('./metal.js') : window.HktS0Metal;          // ⑲ 금속 (비국소 전자 풀)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -794,6 +797,163 @@
       log.push({ ok: Math.max(...relE) <= E.EPS_E, name: '⑯장부·R-HB닫힘', msg: `max|ΔE|/E ${fmt(Math.max(...relE))} ≤ EPS_E (U_hb → U_bond 귀속·보존)` });
     }
 
+    // 20. ⑰ 산·염기 — ⑯ 물 네트워크 위 양성자 이전(H⁺ 가 H-결합 링크를 갈아탄다). 이온·릴레이·산 창발.
+    if (want(17)) {
+      const R = 4, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const SB = { count: 16, L: 7.6, eqSteps: 2500 };   // verify 용 소형·고속 빌드
+      const totalFormal = (w) => w.atoms.reduce((s, a) => s + AB.formal(w, a), 0);
+      const totalH = (w) => w.atoms.filter((a) => (a.Z || 0) === 1).length;
+      // (a) 자동 이온화 평형: 이온쌍 주입 → 재결합(중성 우세·K_w≪1) · 온도 응답(흡열) · 장부·전하·예산.
+      let iniC = [], finC = [], tailLo = [], tailHi = [], drift = [], maxO = [], chg = 0, hOk = true;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s17-autoionize', Object.assign({ seed: 50 + s, T0: 0.05, preIons: 4 }, SB));
+        const h0 = totalH(w); iniC.push(AB.ions(w).nCat);
+        const E0 = M.ledgerTable(w).total; let mx = 0, ts = 0, tn = 0;
+        for (let k = 0; k < 2000; k++) { E.step(w); mx = Math.max(mx, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); if (k >= 1200) { ts += AB.ions(w).nCat; tn++; } }
+        const info = AB.ions(w); finC.push(info.nCat); drift.push(mx); maxO.push(info.maxCoordO);
+        chg = Math.max(chg, Math.abs(totalFormal(w))); if (totalH(w) !== h0) hOk = false;
+        // 온도 응답 (같은 seed 저T vs 고T 꼬리 평균 — 흡열이라 고T 잔여 이온이 많다·긴 꼬리로 노이즈 완화)
+        const wl = S.build('s17-autoionize', Object.assign({ seed: 90 + s, T0: 0.02, preIons: 5 }, SB));
+        const wh = S.build('s17-autoionize', Object.assign({ seed: 90 + s, T0: 0.13, preIons: 5 }, SB));
+        let sl = 0, sh = 0, nl = 0; for (let k = 0; k < 2600; k++) { E.step(wl); E.step(wh); if (k >= 1000) { sl += AB.ions(wl).nCat; sh += AB.ions(wh).nCat; nl++; } }
+        tailLo.push(sl / nl); tailHi.push(sh / nl);
+      }
+      const mIni = avg(iniC), mFin = avg(finC), mLo = avg(tailLo), mHi = avg(tailHi), mDrift = Math.max(...drift), mMaxO = Math.max(...maxO);
+      // (b) 릴레이 (Grotthuss): 여분 양성자 1개 — 전하 누적 MSD ≫ 분자(O) MSD (전하가 분자보다 빨리 이동).
+      let ratios = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s17-relay', Object.assign({ seed: 70 + s, T0: 0.03 }, SB));
+        w.atoms.forEach((a) => { a.disp.x = 0; a.disp.y = 0; a.disp.z = 0; });
+        const tr = AB.makeTracker(w);
+        for (let k = 0; k < 2500; k++) { E.step(w); AB.trackStep(w, tr); }
+        let om = 0, on = 0; for (const a of w.atoms) if ((a.Z || 0) === 8) { om += E.V.lenSq(a.disp); on++; }
+        ratios.push(tr.path2 / Math.max(1e-6, om / on));
+      }
+      const mRatio = avg(ratios);
+      // (c) 산 첨가 → [H₃O⁺] 증가 (강산 HX 이온화 · 공통 이온 방향).
+      let acidC = [], pureC = [];
+      for (let s = 0; s < R; s++) {
+        const wa = S.build('s17-acid-mix', Object.assign({ seed: 80 + s, T0: 0.03, nAcid: 5 }, SB)); E.run(wa, 2000); acidC.push(AB.ions(wa).nCat);
+        const wp = S.build('s17-autoionize', Object.assign({ seed: 80 + s, T0: 0.03, preIons: 0 }, SB)); E.run(wp, 2000); pureC.push(AB.ions(wp).nCat);
+      }
+      const mAcid = avg(acidC), mPure = avg(pureC);
+
+      // (1) 재결합·중성 우세: 주입 이온쌍이 재결합해 크게 감소 (K_w ≪ 1 — 중성 물 우세).
+      log.push({ ok: mFin < 0.5 * mIni, name: '⑰재결합·중성우세', msg: `양이온 주입 ${fmt(mIni)} → 최종 ${fmt(mFin)} (< ½ 주입 · 재결합 우세 · K_w≪1)` });
+      // (2) 온도 응답 (흡열·르샤틀리에): 고T 잔여 이온 > 저T (가열이 이온쪽을 favor).
+      log.push({ ok: mHi > mLo, name: '⑰온도응답(흡열)', msg: `꼬리 평균 이온 고T ${fmt(mHi)} > 저T ${fmt(mLo)} (자동이온화 흡열 — 가열→K_w 증가)` });
+      // (3) 릴레이 (Grotthuss): 전하 MSD ≫ 분자 MSD (양성자가 분자보다 빨리 이동).
+      log.push({ ok: mRatio > 10, name: '⑰릴레이Grotthuss', msg: `전하 누적MSD/분자MSD ${fmt(mRatio)} ≫ 1 (D_H>D_mol — 전하가 O 보다 빨리 이동·릴레이)` });
+      // (4) 산 → [H₃O⁺] 증가: 강산 HX 이온화로 양이온 증가 (순수 물 대비).
+      log.push({ ok: mAcid > mPure + 0.5, name: '⑰산→H₃O⁺증가', msg: `양이온 산첨가 ${fmt(mAcid)} > 순수 ${fmt(mPure)} (HX 이온화 → [H₃O⁺] 증가)` });
+      // (5) 예산 (배위 결합): O 배위 ≤ 3 (H₃O⁺ 까지·H₄O²⁺ 없음 — 연속 예산 검증).
+      log.push({ ok: mMaxO <= 3, name: '⑰배위예산(≤3)', msg: `최대 O 배위 ${fmt(mMaxO)} ≤ 3 (H₃O⁺ 까지·H₄O²⁺ 없음 — 배위 결합)` });
+      // (6) 전하 보존: Σ 형식전하 = 0 정확 (양성자 이전은 전하를 옮길 뿐 만들지 않는다).
+      log.push({ ok: chg < 1e-9, name: '⑰전하보존(Σformal=0)', msg: `|Σ 형식전하| ${fmt(chg)} < 1e-9 (D −1·A +1 → 합 0 · 정확)` });
+      // (7) 장부·H 보존: 총 H 수 불변 + 런 표류 (이온 쿨롱 + ⑯ 고립쌍 준정적 최소화 ~1e-7/사건 누적).
+      log.push({ ok: hOk && mDrift < 2e-3, name: '⑰장부·H보존', msg: `H 수 보존 ${hOk} · max|ΔE|/E ${fmt(mDrift)} < 2e-3 (이온 강성 + ⑯ 고립쌍 준정적 최소화 ~1e-7/사건 누적)` });
+    }
+
+    // 21. ⑱ 연소 — ⑥ 결합 + ⑩ 실원소 위 추상 1행이 라디칼 연쇄(점화·발열·분지)를 만든다 (원리 0·행 추가).
+    if (want(18)) {
+      const R = 4, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const heat = (w) => { const t = M.ledgerTable(w); return t.K_tr + t.E_photon + t.E_escape; };
+      const oAtoms = (w) => { let n = 0; for (const a of w.atoms) if ((a.Z || 0) === 8 && Cb.rem(w, a) === 2) n++; return n; };
+      // 점화 상자: 스파크 vs 미점화. 라디칼 연쇄·발열·분지·H₂O·보존.
+      let radSp = [], radNo = [], qSp = [], qNo = [], waterSp = [], waterNo = [], oMaxSp = [], drift = [], cOk = true;
+      for (let s = 0; s < R; s++) {
+        for (const spark of [true, false]) {
+          const w = S.build('s18-ignition', { seed: 30 + s, spark, T0: 0.15 });
+          const c0 = w.atoms.length, Q0 = heat(w), E0 = M.ledgerTable(w).total;
+          let rmax = 0, omax = 0, mxdr = 0;
+          for (let k = 0; k < 8000; k++) { E.step(w); rmax = Math.max(rmax, Cb.radicals(w).n); omax = Math.max(omax, oAtoms(w)); mxdr = Math.max(mxdr, Math.abs(M.ledgerTable(w).total - E0) / Math.max(1, Math.abs(E0))); }
+          const dQ = heat(w) - Q0, nw = Cb.nWater(w);
+          if (w.atoms.length !== c0) cOk = false;
+          if (spark) { radSp.push(rmax); qSp.push(dQ); waterSp.push(nw); oMaxSp.push(omax); drift.push(mxdr); }
+          else { radNo.push(rmax); qNo.push(dQ); waterNo.push(nw); }
+        }
+      }
+      const mRadSp = avg(radSp), mRadNo = avg(radNo), mQSp = avg(qSp), mQNo = avg(qNo), mWSp = avg(waterSp), mWNo = avg(waterNo), mOSp = avg(oMaxSp), mDr = Math.max(...drift);
+      // 전선: 가늘고 긴 상자 — 스파크(좌단)의 반응이 먼 끝(우측 절반)까지 퍼진다 (공간 확산).
+      let reachFar = 0;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s18-flame-front', { seed: 60 + s });
+        const Lx = w.box.L.x;
+        for (let k = 0; k < 9000; k++) E.step(w);
+        let fx = 0; for (const a of w.atoms) if (Cb.rem(w, a) > 0 && a.r.x > fx) fx = a.r.x;
+        if (fx > Lx * 0.5) reachFar++;
+      }
+
+      // (1) 점화 대조: 스파크가 라디칼 연쇄를 증폭 (미점화 대비). — 점화 문턱의 정성판.
+      log.push({ ok: mRadSp > 2 * mRadNo, name: '⑱점화대조', msg: `라디칼 최대 스파크 ${fmt(mRadSp)} > 2× 미점화 ${fmt(mRadNo)} (연쇄 증폭 — 점화)` });
+      // (2) 미점화 준안정: 스파크 없으면 연료가 대체로 온전 (라디칼 소수).
+      log.push({ ok: mRadNo < 0.5 * mRadSp, name: '⑱미점화준안정', msg: `미점화 라디칼 ${fmt(mRadNo)} ≪ 점화 ${fmt(mRadSp)} (H₂+O₂ 준안정 — 문턱 아래 억제)` });
+      // (3) 발열: 스파크 연소가 결합 E 를 열(K_tr+복사)로 방출 (미점화보다 큼).
+      log.push({ ok: mQSp > 0 && mQSp > mQNo, name: '⑱발열', msg: `열방출 Δ(K+복사) 스파크 ${fmt(mQSp)} > 0·미점화 ${fmt(mQNo)} (결합 E → 열 · 발열)` });
+      // (4) 분지 (author 0): 원자 O(예산 잔여 2)가 연소 중 나타난다 — 라디칼 1→2 분지원 (예산 창발).
+      log.push({ ok: mOSp >= 2, name: '⑱분지(원자O)', msg: `연소 중 원자 O(잔여2) 최대 ${fmt(mOSp)} ≥ 2 (분지 agent — 예산에서 창발·author 0)` });
+      // (5) H₂O 생성: 스파크 연소가 물을 만든다 (미점화 대비).
+      log.push({ ok: mWSp > mWNo, name: '⑱H₂O생성', msg: `H₂O 스파크 ${fmt(mWSp)} > 미점화 ${fmt(mWNo)} (연소 산물 · 2H₂+O₂→2H₂O)` });
+      // (6) 전선 확산: 스파크의 반응이 상자 먼 끝(우측 절반)까지 공간 전파 (미연소 연료 속으로).
+      log.push({ ok: reachFar >= R - 1, name: '⑱전선확산', msg: `전선이 상자 절반 넘어 도달 ${reachFar}/${R} (스파크→반응이 연료 속 공간 확산)` });
+      // (7) 보존: 원자 수(Σc) 정확 불변 + 총 E 표류 유계 (발열 강성 — dt 유계).
+      log.push({ ok: cOk && mDr < 5e-2, name: '⑱장부·Σc보존', msg: `원자 수 보존 ${cOk} · max|ΔE|/E ${fmt(mDr)} < 5e-2 (연소 발열 강성·닫힌 계 단열)` });
+    }
+
+    // 22. ⑲ 금속 — 비국소 전자 풀: 비포화 응집(배위 ≫ B)·전도·구속. 공유(포화) 대조.
+    if (want(19)) {
+      const R = 3, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const L2 = (v) => E.V.lenSq(v);
+      // 최근접 거리·기하 배위 리스트 (3D — ⑬ 해동. min-image 3D)
+      const d2mi = (w, a, b) => { const L = w.box.L; let dx = a.r.x - b.r.x, dy = a.r.y - b.r.y, dz = a.r.z - b.r.z; dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); dz = w.frozenZ ? 0 : dz - L.z * Math.round(dz / L.z); return dx * dx + dy * dy + dz * dz; };
+      const nnDist = (w) => { const A = w.atoms; let m = 1e9; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) m = Math.min(m, Math.sqrt(d2mi(w, A[i], A[j]))); return m; };
+      const coordList = (w, rc) => { const A = w.atoms, cs = [], rc2 = rc * rc; for (let i = 0; i < A.length; i++) { let c = 0; for (let j = 0; j < A.length; j++) { if (i === j) continue; if (d2mi(w, A[i], A[j]) < rc2) c++; } cs.push(c); } return cs; };
+      // (a) 금속 클러스터(3D·64원자): 내부 배위(상위 8 평균 ~FCC 12)·전자 구속·보존.
+      let metCoord = [], metUnb = [], metDrift = [], cok = true;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s19-na-cluster', { seed: 40 + s, per: 4, eqSteps: 7000 });
+        const nAt = w.atoms.length, nEl = w.electrons.length, E0 = M.ledgerTable(w).total;
+        let mx = 0; for (let k = 0; k < 1500; k++) { E.step(w); mx = Math.max(mx, Math.abs(M.ledgerTable(w).total - E0) / Math.max(1, Math.abs(E0))); }
+        const cs = coordList(w, nnDist(w) * 1.35).sort((x, y) => y - x);
+        metCoord.push(avg(cs.slice(0, 8))); metUnb.push(Me.unbound(w)); metDrift.push(mx);
+        if (w.atoms.length !== nAt || w.electrons.length !== nEl) cok = false;
+      }
+      const mCoord = avg(metCoord), mUnb = avg(metUnb), mDrift = Math.max(...metDrift);
+      // (b) 공유 대조 (V4): 결합 배위 ≤ B=4 (포화·과결합 0).
+      let covCoord = [], covOver = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s19-covalent-contrast', { seed: 50 + s, n: 27 }); E.run(w, 2000);
+        let bc = 0; for (const a of w.atoms) { let c = 0; for (const b of w.bonds) if (b.i === a.id || b.j === a.id) c += b.order; bc += c; }
+        covCoord.push(bc / w.atoms.length); covOver.push(M.molecules(w).maxOver);
+      }
+      const mCov = avg(covCoord), mOver = Math.max(...covOver);
+      // (c) 전도: 장 on/off → 전자 드리프트 vs 이온.
+      const driftOf = (field) => {
+        const w = S.build('s19-conduction', { seed: 60, per: 4, Efield: field, eqSteps: 4000 });
+        const L = w.box.L, pe = w.electrons.map((e) => e.r.x), pa = w.atoms.map((a) => a.r.x); let ed = 0, ad = 0;
+        for (let k = 0; k < 2500; k++) { E.step(w); for (let i = 0; i < w.electrons.length; i++) { let d = w.electrons[i].r.x - pe[i]; d -= L.x * Math.round(d / L.x); ed += d; pe[i] = w.electrons[i].r.x; } for (let i = 0; i < w.atoms.length; i++) { let d = w.atoms[i].r.x - pa[i]; d -= L.x * Math.round(d / L.x); ad += d; pa[i] = w.atoms[i].r.x; } }
+        return { ed: ed / w.electrons.length, ad: ad / w.atoms.length };
+      };
+      const d0 = driftOf(0), d1 = driftOf(0.5);
+      // (d) 차폐: +테스트 전하 주변 전자 밀도 > 먼 곳 (스크리닝 클라우드).
+      let scr = [];
+      for (let s = 0; s < R; s++) { const w = S.build('s19-screening', { seed: 70 + s, per: 4 }); scr.push(Me.screeningRatio(w, w._testId, 2.0)); }
+      const mScr = avg(scr);
+
+      // (1) 비포화 응집: 금속 내부 배위 ≥ 8 (3D FCC 근방 ~10~12 ≫ 공유 B=4 · 비방향성 조밀 쌓임).
+      log.push({ ok: mCoord >= 8, name: '⑲비포화응집', msg: `금속 내부 배위 ${fmt(mCoord)} ≥ 8 (3D FCC 근방 ≫ 공유 B=4 · 비방향성 비포화)` });
+      // (2) 공유 포화 대조: V4 결합 배위 ≤ B=4·과결합 0 (방향성 포화 — 금속 비포화와 대비).
+      log.push({ ok: mCov <= 4.01 && mOver <= 0, name: '⑲공유포화대조', msg: `공유 결합 배위 ${fmt(mCov)} ≤ B=4·과결합 ${fmt(mOver)}=0 (방향성 포화)` });
+      // (3) 전도: 장 인가 → 전자 드리프트 ≫ 이온 · 장 없으면 소멸.
+      log.push({ ok: Math.abs(d1.ed) > 5 * Math.abs(d1.ad) && Math.abs(d1.ed) > 10 * Math.abs(d0.ed), name: '⑲전도', msg: `장on 전자 드리프트 ${fmt(d1.ed)} ≫ 이온 ${fmt(d1.ad)}·장off ${fmt(d0.ed)}≈0 (풀 전자 = 이동 캐리어)` });
+      // (4) 전자 구속: 풀 전자 총에너지 E<0 (클러스터 평균장 구속·탈출 0).
+      log.push({ ok: mUnb < 0.5, name: '⑲전자구속', msg: `구속 위반(E>0) 전자 ${fmt(mUnb)} ≈ 0 (풀 전자가 클러스터에 구속 — E<0)` });
+      // (5) 차폐: +테스트 전하 주변 풀 전자 밀도 > 먼 곳 (전자가 몰려 장 감쇠 — 스크리닝).
+      log.push({ ok: mScr > 1.3, name: '⑲차폐', msg: `+전하 근방 전자 밀도/먼곳 ${fmt(mScr)} > 1.3 (풀 전자 재배치 → 장 감쇠)` });
+      // (6) 보존: 원자(Σc)+전자(Σe) 수 정확 불변 · 장부 표류 유계 (장 없는 클러스터).
+      log.push({ ok: cok && mDrift < 5e-3, name: '⑲장부·Σc·Σe보존', msg: `원자+전자 수 보존 ${cok} · max|ΔE|/E ${fmt(mDrift)} < 5e-3 (유계 힘·고전 안정)` });
+    }
+
     return log;
   }
 
@@ -805,7 +965,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
