@@ -63,3 +63,10 @@ rethaw(coarse) → world′:
 ## 경계
 
 MaterialModel(EOS·수송·반응망)은 ㉒ — 여기선 배관만. 실원소 정합 심화 없음. S1 소비 테스트는 S1-① 몫 (스키마 검증기까지가 S0 책임).
+
+## 구현 정련 (step-0011 — 실물 코드가 이 설계를 이렇게 고쳤다)
+
+1. **coarse E = 물질 에너지** (E_photon·E_escape·E_nuclear 제외). 전 통 합을 쓰면 떠난 복사·열을 되돌리려다 왕복이 폭발. 물질에 든 에너지만 승격 대상(S1 개체 u′).
+2. **rethaw = 격자 배치 → pushApart(위치 겹침 제거·힘 무관) → 감쇠 완화 → 맥스웰(T) → E 정확 보정(KE 스케일·P=0)**. 밀도 고정이라 무작위 배치는 겹침 폭발 → pushApart+완화가 필수. E 는 보정으로 정확, T 는 재표본이라 ~1.3배 이동(관측량 계약: 조성 ε=0·T 창).
+3. **s11-mvp-box 는 polForces 로 결합(⑥⑩)+분산(⑧) 통합**. 5막 열욕은 thermoReservoir(E_escape 회계)로 한 장부 유지. 왕복 검증은 즉시 비교(coarse→rethaw 정확)로 — "재개 후 비교"는 T 이동 때문에 창으로.
+4. **PMF 는 단원자 중성쌍 근사**(분자 내부 자유도 미포함) — 인력 꼬리 존재 확인엔 충분. u_curve·cv_curve 는 스키마 옵션(미채움·⑦ 별도 검증). output.json v0 검증기 = `validateOutput`(필드·observables≥1·인력 꼬리).

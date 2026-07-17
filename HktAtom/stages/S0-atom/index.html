@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1" />
-<title>S0-atom · ① 무대·장부</title>
+<title>S0-atom · ①–⑪ 원자→분자→승격</title>
 <style>
   :root { color-scheme: dark; }
   body { margin: 0; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
@@ -32,18 +32,27 @@
 <body>
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
-    <h1>S0-atom · ①–⑦ 원자→분자→열용량</h1>
-    <p class="sub">준위→주기율표·볼츠만·이온 격자·공유결합(H₂)·열용량 계단. "보기": 시뮬⇄준위③·열용량⑦. <b>공유결합=선(차수만큼)</b>·<b>이온=전하 부호(선 없음)</b>·점선=복합체·노란=들뜸.</p>
+    <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표.</p>
 
     <div class="row">
       <label>보기</label>
       <button id="mode">시뮬 ⇄ 준위③</button>
       <button id="modecv">열용량⑦</button>
+      <button id="modepol">응집⑧</button>
+      <button id="modeent">엔트로피⑨</button>
       <span id="modelabel" class="note" style="margin:0">시뮬</span>
     </div>
     <div class="row" id="scenerow">
       <label>장면</label>
       <select id="scene">
+        <option value="s11-mvp-box">s11-mvp-box (5막 시나리오·승격)</option>
+        <option value="s10-water-soup">s10-water-soup (물 창발·CPK)</option>
+        <option value="s09-entropy-corner">s09-entropy-corner (자유 팽창)</option>
+        <option value="s09-gradient">s09-gradient (온도 구배 이완)</option>
+        <option value="s08-noble-condense">s08-noble-condense (중성 응집)</option>
+        <option value="s08-alpha-zero">s08-alpha-zero (α=0 소멸)</option>
+        <option value="s08-ion-induced">s08-ion-induced (이온 유도)</option>
         <option value="s06-v1-dimer">s06-v1-dimer (H₂ 분자)</option>
         <option value="s06-quad">s06-quad (C 허브 결합)</option>
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
@@ -65,6 +74,11 @@
       <input id="speed" type="range" min="1" max="20" value="4" />
       <span id="speedv">4×</span>
       <span class="note" style="margin:0">배속은 tick 수만 바꾼다 (물리 불변)</span>
+    </div>
+    <div class="row" id="scenariorow" style="display:none">
+      <label>막</label> <span id="actname" class="metric" style="font-size:14px;color:#e0b060">–</span>
+      <button id="promote" style="margin-left:10px">⇧ output.json 다운로드</button>
+      <button id="roundtrip">⇩ 재해동 왕복</button>
     </div>
 
     <div class="row" style="margin-top:12px">
@@ -88,6 +102,11 @@
       <div><label>결합</label> <span id="molb" class="big">0</span> <label style="margin-left:6px">복합체</label> <span id="molx" class="big" style="color:#e0b060">0</span></div>
       <div style="margin-left:12px"><label>우세 분자</label> <span id="mold" class="metric" style="font-size:14px;color:#bcd">–</span></div>
     </div>
+    <div class="row" id="polrow" style="display:none">
+      <div><label>최대 성분</label> <span id="polf" class="metric" style="font-size:14px;color:#3fb950">0</span></div>
+      <div style="margin-left:12px"><label>배위수</label> <span id="polc" class="big">0</span></div>
+      <div style="margin-left:12px"><label>U_pol/N</label> <span id="polu" class="big" style="color:#7fd0c4">0</span></div>
+    </div>
 
     <table id="ledger"></table>
     <p class="note" id="verifynote">
@@ -99,13 +118,15 @@
 
 <script src="engine.js"></script>
 <script src="catalog.js"></script>
+<script src="levels.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
-<script src="levels.js"></script>
 <script src="modes.js"></script>
+<script src="polarization.js"></script>
+<script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -114,7 +135,8 @@
   function build() {
     const name = el('scene').value;
     // 각 장면 빌더의 기본 파라미터(N·T0·dt·박스)를 그대로 쓰고 seed 만 무작위화
-    world = S.build(name, { seed: (Math.random() * 1e9) | 0 });
+    const builder = name.indexOf('s08') === 0 ? Po : S;   // ⑧ 장면은 polarization.js
+    world = builder.build(name, { seed: (Math.random() * 1e9) | 0 });
     total0 = M.ledgerTable(world).total;
     trails.clear();
   }
@@ -181,7 +203,15 @@
       ctx.strokeStyle = 'rgba(120,170,220,0.35)'; ctx.lineWidth = 1; ctx.stroke();
     }
 
-    for (const a of world.atoms) {
+    // ⑧ 분극·응집: 클러스터 라벨(색) + μ 화살표 준비 (world.alpha 있으면 ⑧ 세계)
+    let clab = null, csize = null;
+    if (world.alpha) {
+      const cl = Po.clusters(world, 1.3); clab = cl.label;
+      csize = {}; for (const v of clab) csize[v] = (csize[v] || 0) + 1;
+    }
+    const CLPAL = ['#f0674a', '#f0b23a', '#3fb950', '#58a6ff', '#c47af0', '#4ad0d0', '#e06aa0', '#9acd32'];
+
+    world.atoms.forEach((a, ai) => {
       const x = a.r.x * sx, y = cv.height - a.r.y * sy;
       const spd = E.V.len(a.p);
       // ④ 들뜬 원자 글로우 (level>0) — 노란 후광
@@ -192,7 +222,25 @@
       }
       ctx.beginPath(); ctx.arc(x, y, rpx, 0, Math.PI * 2);
       const g = Math.min(255, 90 + spd * 60) | 0;
-      ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`; ctx.fill();
+      if (S.REAL && S.REAL[a.sp]) {
+        ctx.fillStyle = S.REAL[a.sp].color;   // ⑩ 실원소 CPK (H 흰·O 빨강)
+      } else if (clab) {
+        // 응집 덩어리(크기≥2)는 클러스터 색, 자유 단분자는 흐린 회색
+        const cid = clab[ai], sz = csize[cid];
+        ctx.fillStyle = a.q !== 0 ? '#e0803a' : (sz >= 2 ? CLPAL[cid % CLPAL.length] : '#39424f');
+      } else {
+        ctx.fillStyle = a.level > 0 ? '#ffde5a' : `rgb(${80},${g},${180})`;
+      }
+      ctx.fill();
+      // ⑧ μ 화살표 (유도 쌍극자) — 길이 ∝ |μ| (이온 근방 중성만 유의미)
+      if (a.mu) {
+        const ml = Math.hypot(a.mu.x, a.mu.y);
+        if (ml > 1e-3) {
+          const sc = Math.min(rpx * 4, ml * sx * 6), ux = a.mu.x / ml, uy = -a.mu.y / ml;
+          ctx.strokeStyle = '#ffde5a'; ctx.lineWidth = 1.4;
+          ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + ux * sc, y + uy * sc); ctx.stroke();
+        }
+      }
       // 이온 배지 — 분리된 이온: 색 링 + 전하 부호(선 없음이 이온결합의 핵심 표기)
       if (a.q !== 0) {
         const pos = a.q > 0;
@@ -204,7 +252,7 @@
         ctx.fillText(pos ? '+' : '−', x + rpx + 5, y - rpx - 2);   // 우측 상단 전하
         ctx.textAlign = 'start'; ctx.textBaseline = 'alphabetic';
       }
-    }
+    });
     // 자유전자 (⑤) — 작은 파란 점
     for (const e of world.electrons) {
       ctx.beginPath(); ctx.arc(e.r.x * sx, cv.height - e.r.y * sy, 2.2, 0, Math.PI * 2);
@@ -251,6 +299,20 @@
       const dom = Object.keys(m.hist).sort((a, b) => m.hist[b] - m.hist[a])[0];
       el('mold').textContent = dom ? `${dom}×${m.hist[dom]}` : '–';
     } else { el('molrow').style.display = 'none'; }
+    // ⑧ 분극·응집
+    if (world.alpha) {
+      const c = Po.clusters(world, 1.3);
+      el('polrow').style.display = '';
+      el('polf').textContent = c.largestFrac.toFixed(2);
+      el('polc').textContent = c.meanCoord.toFixed(2);
+      el('polu').textContent = (world.ledger.U_pol / Math.max(1, world.atoms.length)).toFixed(3);
+    } else { el('polrow').style.display = 'none'; }
+    // ⑪ 시나리오 막 표시
+    if (world._meta && world._meta.acts) {
+      el('scenariorow').style.display = '';
+      const ai = world._actIdx, acts = world._meta.acts;
+      el('actname').textContent = ai < 0 ? '대기' : ai >= acts.length ? '완료' : `${ai + 1}/${acts.length} ${acts[ai].name} (T→${acts[ai].T})`;
+    } else { el('scenariorow').style.display = 'none'; }
     const tab = M.ledgerTable(world);
     let rows = '';
     for (const k of ORDER) {
@@ -353,10 +415,96 @@
     ctx.fillStyle = '#58a6ff'; for (const p of cvData) { const x = lx(p.T), y = ly(Math.max(0.5, Math.min(3, p.Cv))); ctx.beginPath(); ctx.arc(x, y, 3, 0, 6.283); ctx.fill(); }
   }
 
+  // ⑧ 응집 스캔 뷰 — 최대 성분 비율 vs T (α 켬/끔). 냉각하면 응집(frac↑), α=0 이면 소멸.
+  let polData = null;
+  function computePol() {
+    const T0s = [3.0, 1.5, 0.8, 0.4, 0.15, 0.05, 0.02];
+    const on = [], off = [];
+    for (const T0 of T0s) {   // 뷰어용 경량(N=64·4000틱) — verify 는 N=100·7000틱
+      const wa = Po.nobleCondense({ N: 64, L: 12, T0, seed: 7 }); Po.run(wa, 4000);
+      on.push({ T: Po.temperature(wa), frac: Po.clusters(wa, 1.3).largestFrac });
+      const wz = Po.nobleCondense({ N: 64, L: 12, T0, seed: 7, alphaZero: true }); Po.run(wz, 4000);
+      off.push({ T: Po.temperature(wz), frac: Po.clusters(wz, 1.3).largestFrac });
+    }
+    on.sort((a, b) => a.T - b.T); off.sort((a, b) => a.T - b.T);
+    return { on, off };
+  }
+  function drawPol() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!polData) { ctx.fillStyle = '#8b949e'; ctx.font = '13px monospace'; ctx.fillText('응집 스캔 계산 중… (T 별 냉각 평형)', 30, cv.height / 2); return; }
+    const m = 52, W = cv.width - 2 * m, H = cv.height - 2 * m;
+    const Tmax = 3.2;
+    const lx = (T) => m + Math.min(1, T / Tmax) * W;
+    const ly = (f) => cv.height - m - f * H;
+    // 50% 교차선 (T_c 조짐)
+    ctx.strokeStyle = '#2b3444'; ctx.setLineDash([4, 4]); ctx.beginPath(); ctx.moveTo(m, ly(0.5)); ctx.lineTo(cv.width - m, ly(0.5)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#5a6472'; ctx.font = '10px monospace'; ctx.fillText('최대 성분 50% (T_c 조짐)', cv.width - m - 150, ly(0.5) - 4);
+    // 축
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, m); ctx.lineTo(m, cv.height - m); ctx.lineTo(cv.width - m, cv.height - m); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('최대 성분 비율  vs  온도 T', m, m - 14);
+    for (const t of [0, 0.5, 1, 1.5, 2, 2.5, 3]) { const x = lx(t); ctx.fillStyle = '#5a6472'; ctx.fillText(t.toFixed(1), x - 6, cv.height - m + 14); }
+    for (const f of [0, 0.25, 0.5, 0.75, 1]) { ctx.fillStyle = '#5a6472'; ctx.fillText(f.toFixed(2), m - 34, ly(f) + 3); }
+    const plot = (pts, color, label, yl) => {
+      ctx.strokeStyle = color; ctx.lineWidth = 2; ctx.beginPath();
+      pts.forEach((p, i) => { const x = lx(p.T), y = ly(p.frac); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+      ctx.stroke();
+      ctx.fillStyle = color; for (const p of pts) { ctx.beginPath(); ctx.arc(lx(p.T), ly(p.frac), 3, 0, 6.283); ctx.fill(); }
+      ctx.fillText(label, m + 12, yl);
+    };
+    plot(polData.on, '#3fb950', 'α 켬 (분극·분산 → 응집)', m + 14);
+    plot(polData.off, '#f85149', 'α=0 (인력 소멸 → 기체 유지)', m + 30);
+  }
+
+  // ⑨ 엔트로피 뷰 — 자유 팽창 위상공간 S(t) 앙상블 밴드 (저엔트로피 구석 → 증가·제2법칙).
+  let entData = null;
+  function computeEnt() {
+    const R = 12, times = [0, 300, 800, 1500, 2500, 4000, 6000];
+    const series = times.map(() => []);
+    for (let s = 0; s < R; s++) {
+      const wr = S.build('s09-entropy-corner', { seed: 500 + s, N: 100, L: 20, T0: 1.0 });
+      let prev = 0;
+      times.forEach((t, ti) => { if (t > prev) { E.run(wr, t - prev); prev = t; } series[ti].push(M.entropy(wr, 6, 4)); });
+    }
+    return times.map((t, i) => {
+      const xs = series[i], m = xs.reduce((a, b) => a + b, 0) / xs.length;
+      return { t, mean: m, min: Math.min.apply(null, xs), max: Math.max.apply(null, xs) };
+    });
+  }
+  function drawEnt() {
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    if (!entData) { ctx.fillStyle = '#8b949e'; ctx.font = '13px monospace'; ctx.fillText('엔트로피 궤적 계산 중… (R=12 앙상블 자유 팽창)', 30, cv.height / 2); return; }
+    const m = 52, W = cv.width - 2 * m, H = cv.height - 2 * m;
+    const tmax = entData[entData.length - 1].t;
+    let smin = Infinity, smax = -Infinity; for (const p of entData) { smin = Math.min(smin, p.min); smax = Math.max(smax, p.max); }
+    smin = Math.floor(smin * 2) / 2 - 0.2; smax = Math.ceil(smax * 2) / 2 + 0.2;
+    const lx = (t) => m + t / tmax * W, ly = (s) => cv.height - m - (s - smin) / (smax - smin) * H;
+    // 축
+    ctx.strokeStyle = '#1b2230'; ctx.beginPath(); ctx.moveTo(m, m); ctx.lineTo(m, cv.height - m); ctx.lineTo(cv.width - m, cv.height - m); ctx.stroke();
+    ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
+    ctx.fillText('위상공간 엔트로피 S  vs  시간 (tick)', m, m - 14);
+    for (let k = 0; k <= 4; k++) { const t = tmax * k / 4; ctx.fillStyle = '#5a6472'; ctx.fillText(t.toFixed(0), lx(t) - 10, cv.height - m + 14); }
+    for (let k = 0; k <= 4; k++) { const s = smin + (smax - smin) * k / 4; ctx.fillStyle = '#5a6472'; ctx.fillText(s.toFixed(1), m - 34, ly(s) + 3); }
+    // 요동 밴드 (min~max)
+    ctx.fillStyle = 'rgba(63,185,80,0.18)'; ctx.beginPath();
+    entData.forEach((p, i) => { const x = lx(p.t), y = ly(p.max); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    for (let i = entData.length - 1; i >= 0; i--) { const p = entData[i]; ctx.lineTo(lx(p.t), ly(p.min)); }
+    ctx.closePath(); ctx.fill();
+    // 평균선
+    ctx.strokeStyle = '#3fb950'; ctx.lineWidth = 2; ctx.beginPath();
+    entData.forEach((p, i) => { const x = lx(p.t), y = ly(p.mean); if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y); });
+    ctx.stroke();
+    ctx.fillStyle = '#3fb950'; for (const p of entData) { ctx.beginPath(); ctx.arc(lx(p.t), ly(p.mean), 3, 0, 6.283); ctx.fill(); }
+    ctx.fillStyle = '#8b949e'; ctx.fillText('⟨S⟩ 앙상블 평균 (초록) · 밴드 = 개별 런 min~max (요동)', m + 12, m + 14);
+    ctx.fillText('저엔트로피(구석) → 고엔트로피(고루) — 제2법칙 창발', m + 12, m + 30);
+  }
+
   function frame() {
-    if (mode === 'sim') { if (playing) for (let i = 0; i < speed; i++) E.step(world); draw(); panel(); }
+    if (mode === 'sim') { if (playing) { world._speed = speed; for (let i = 0; i < speed; i++) E.step(world); if (world._meta && world._meta.cool) S.coolStep(world); if (world._meta && world._meta.acts) S.scenarioStep(world); } draw(); panel(); }
     else if (mode === 'levels') drawLevels();
     else if (mode === 'cv') { drawCv(); if (!cvData) { cvData = computeCv(); } }
+    else if (mode === 'pol') { drawPol(); if (!polData) { polData = computePol(); } }
+    else if (mode === 'ent') { drawEnt(); if (!entData) { entData = computeEnt(); } }
     requestAnimationFrame(frame);
   }
 
@@ -371,8 +519,36 @@
     el('modelabel').textContent = '열용량⑦ (양자 모드)';
     el('scenerow').style.display = 'none';
   };
+  el('modepol').onclick = () => {
+    mode = 'pol';
+    el('modelabel').textContent = '응집⑧ (최대 성분 vs T)';
+    el('scenerow').style.display = 'none';
+  };
+  el('modeent').onclick = () => {
+    mode = 'ent';
+    el('modelabel').textContent = '엔트로피⑨ (S(t) 앙상블 밴드)';
+    el('scenerow').style.display = 'none';
+  };
   el('reset').onclick = build;
   el('scene').onchange = build;
+  // ⑪ 승격 ⇧: 현재 세계를 output.json 으로 산출·다운로드
+  el('promote').onclick = () => {
+    const out = Pr.buildOutput(world, world, { pmfPairs: [['O', 'O'], ['H', 'H'], ['O', 'H']], scenes: [world._meta.name], runs: 1 });
+    const val = Pr.validateOutput(out);
+    const blob = new Blob([JSON.stringify(out, null, 2)], { type: 'application/json' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'output.json'; a.click();
+    alert('output.json 산출 (스키마 ' + (val.ok ? '유효' : '무효: ' + val.errs.join(',')) + '). species ' + out.species.length + '종.');
+  };
+  // ⑪ 재해동 ⇩: coarse→rethaw 왕복, 보존 정확 확인 후 재해동 세계로 교체
+  el('roundtrip').onclick = () => {
+    const cs = Pr.coarse(world);
+    const w2 = Pr.rethaw(cs, world, E.makeRng((Math.random() * 1e9) | 0));
+    const cs2 = Pr.coarse(w2);
+    const dE = Math.abs(cs2.E_total - cs.E_total);
+    const scOk = JSON.stringify(Object.keys(cs.atomCount).sort().map(k => k + cs.atomCount[k])) === JSON.stringify(Object.keys(cs2.atomCount).sort().map(k => k + cs2.atomCount[k]));
+    world = w2; world._meta = Object.assign({}, world._meta, { name: 's11-rethaw' }); total0 = M.ledgerTable(world).total; trails.clear();
+    alert('⇩ 재해동 왕복: Σc ' + (scOk ? '정확' : '깨짐') + ' · |ΔE| ' + dE.toExponential(2) + ' · 조성 보존. 화면=재해동 세계.');
+  };
   el('play').onclick = () => { playing = !playing; el('play').textContent = playing ? '⏸ 일시정지' : '▶ 재생'; };
   el('speed').oninput = (e) => { speed = +e.target.value; el('speedv').textContent = speed + '×'; };
 

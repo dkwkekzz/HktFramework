@@ -37,6 +37,7 @@
 ```
 
 - **⑪ 임시 스키마 (MVP 배관)**: 위 스키마의 부분집합 — species(조성·질량·결합E·u′·열용량 곡선) + 쌍 퍼텐셜 테이블 + observables 최소 1개. 목적은 왕복 배관 증명.
+  - **발효됨 (step-0011)**: `s0-output-v0` 실현 — `promote.js` 의 `buildOutput`/`validateOutput`. species(조성·m·E_bind) + pairPotential(PMF·반데르발스 꼬리) + observables(조성 ε=0·T/P/배위수 창) + validRange + macro + provenance. **⇧/⇩ 왕복 보존 정확**(Σc·E·P 1e-15) · 관측량 조성 ε=0(§1-2 준수). u_curve·cv_curve 는 옵션(미채움·no-op). 실 S1 입력은 ㉒.
 - **㉒ 본 스키마**: 형상·극성·수소결합·분극(S0 ⑬~⑯) 이후 산출 — 쌍 테이블이 잃는 방향성·밀도 의존·협동 효과(물!)를 EOS·수송·반응망이 담는다.
 
 ## 3. 승격 ⇧ / 재해석 ⇩ 의 의무

@@ -253,7 +253,7 @@
         const fs = -bd.k * (d - bd.rest), fOverD = fs / d;
         a.F.x += fOverD * dx; a.F.y += fOverD * dy; a.F.z += fOverD * dz;
         b2.F.x -= fOverD * dx; b2.F.y -= fOverD * dy; b2.F.z -= fOverD * dz;
-        Ub += 0.5 * bd.k * (d - bd.rest) * (d - bd.rest) - world.Dbond * bd.order;   // 진동 + 우물
+        Ub += 0.5 * bd.k * (d - bd.rest) * (d - bd.rest) - bondD(world, bd) * bd.order;   // 진동 + 우물(⑩ 쌍별 D)
       }
       world.ledger.U_bond = Ub;
     } else world.ledger.U_bond = 0;
@@ -350,6 +350,13 @@
   function bondCount(world, id) { let s = 0; for (const b of world.bonds) if (b.i === id || b.j === id) s += b.order; return s; }
   function hasBond(world, i, j) { for (const b of world.bonds) if ((b.i === i && b.j === j) || (b.i === j && b.j === i)) return true; return false; }
   function budgetB(world, sp) { return world.budget && world.budget[sp] != null ? world.budget[sp] : 0; }
+  // ⑩ 쌍별 결합 우물 깊이: world.Dpair['spA-spB'](정렬 키)가 있으면 그것, 없으면 스칼라 world.Dbond.
+  //   실 결합 에너지 비율(예 H-H:O-H:O-O)을 author 하면 종류별 선호가 창발한다 (등방 우물의 ⑥ gap 해결).
+  function pairD(world, sp1, sp2) {
+    if (world.Dpair) { const k = sp1 <= sp2 ? sp1 + '-' + sp2 : sp2 + '-' + sp1; if (world.Dpair[k] != null) return world.Dpair[k]; }
+    return world.Dbond;
+  }
+  const bondD = (world, bd) => (bd.D != null ? bd.D : world.Dbond);
 
   // 결합 형성 (안정화 완료) — 우물 −D 를 광자로 배출(복사 안정화) → 계에 결합 남음·에너지 보존.
   //   2체 직접 결합 금지는 호출부(복합체 + 안정화 경로)가 강제한다.
@@ -357,8 +364,8 @@
     const a = world.atomById(i), b = world.atomById(j);
     if (!a || !b) return false;
     const E0 = energyFull(world);
-    world.bonds.push({ i, j, order: 1, rest: world.d0, k: world.kbond });
-    const dE = energyFull(world) - E0;             // ≈ −D + ½k(d−d0)²  (음수 = 방출)
+    world.bonds.push({ i, j, order: 1, rest: world.d0, k: world.kbond, D: pairD(world, a.sp, b.sp) });
+    const dE = energyFull(world) - E0;             // ≈ −D + ½k(d−d0)²  (음수 = 방출·쌍별 D)
     world.ledger.E_photon += -dE;                  // 우물 에너지 → 복사 (P 는 빈 근사라 미보존)
     return true;
   }
@@ -468,7 +475,7 @@
     for (const bd of world.bonds.slice()) {
       const a = world.atomById(bd.i), b = world.atomById(bd.j);
       if (!a || !b) continue;
-      const Ea = world.Dbond * bd.order, T = localT(world, a, b);
+      const Ea = bondD(world, bd) * bd.order, T = localT(world, a, b);   // ⑩ 쌍별 D → 종류별 해리율
       const k = nu * Math.exp(-Ea / Math.max(1e-6, T));
       if (rng() < 1 - Math.exp(-k * dt)) checkedApply(world, () => dissolveBond(world, bd));
     }
@@ -610,7 +617,7 @@
     makeAtom, makeElectron, setNe, makeWorld, zeroForces, pairForces, minImage,
     recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
     setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
-    bondCount, hasBond, budgetB, formBond, dissolveBond, runBonding,
+    bondCount, hasBond, budgetB, pairD, formBond, dissolveBond, runBonding,
   };
 
   if (isNode) module.exports = api;

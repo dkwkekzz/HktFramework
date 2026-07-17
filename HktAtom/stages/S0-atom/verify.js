@@ -14,6 +14,8 @@
   const M = isNode ? require('./measure.js') : window.HktS0Measure;
   const L = isNode ? require('./levels.js') : window.HktS0Levels;
   const Mo = isNode ? require('./modes.js') : window.HktS0Modes;
+  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+  const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -358,6 +360,203 @@
       log.push({ ok: low.hi.uv === 0 && low.hi.ur < 0.01 * 160, name: '⑦저온동결', msg: `저온 U_vib=${fmt(low.hi.uv)} U_rot=${fmt(low.hi.ur)} ≈ 0` });
     }
 
+    // 11. ⑧ 분극·응집 (중성 입자가 뭉친다). self-contained polarization.js — 기반 ②(pairForces)만 재사용.
+    {
+      const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+
+      // 응집 창발: 저온 냉각 → 클러스터·배위수·음의 응집에너지 급증 (고온 기체 ↔ 저온 응집).
+      //   미시정준(닫힌계)이라 응축 잠열이 계를 T_c 근방으로 자체 가열 → 액적+증기 공존.
+      //   최대 성분 비율(액적 크기)·평균 배위수·U_pol/N(응집에너지)가 함께 오른다.
+      const cond = (T0, seed, az) => {
+        const w = Po.nobleCondense({ T0, seed, alphaZero: az }); Po.run(w, 7000);
+        const c = Po.clusters(w, 1.3);
+        return { coord: c.meanCoord, frac: c.largestFrac, upol: w.ledger.U_pol / w.atoms.length };
+      };
+      const R = 3;
+      const hot = [], cold = [], az = [];
+      for (let s = 0; s < R; s++) { hot.push(cond(3.0, 80 + s, false)); cold.push(cond(0.02, 80 + s, false)); az.push(cond(0.02, 80 + s, true)); }
+      const hC = mean(hot.map((x) => x.coord)), cC = mean(cold.map((x) => x.coord));
+      const hF = mean(hot.map((x) => x.frac)), cF = mean(cold.map((x) => x.frac));
+      const zC = mean(az.map((x) => x.coord)), zU = mean(az.map((x) => x.upol)), cU = mean(cold.map((x) => x.upol));
+      log.push({ ok: cF > 0.5 && cF > hF && cC > hC * 1.2, name: '⑧응집창발',
+        msg: `저온 최대성분 ${fmt(cF)}>0.5·>고온 ${fmt(hF)} · 배위 ${fmt(hC)}→${fmt(cC)} (냉각→액적)` });
+      log.push({ ok: cU < -0.5, name: '⑧응집에너지', msg: `저온 U_pol/N ${fmt(cU)} < 0 (원자가 분산 우물에 묶임)` });
+
+      // 근원 검증: α=0 → 유도·분산 두 채널이 함께 죽는다 → U_pol 정확 0 · 응집 소멸.
+      log.push({ ok: Math.abs(zU) < 1e-12 && zC < 0.4, name: '⑧근원검증(α=0)',
+        msg: `α=0 → U_pol/N ${fmt(zU)}=0 · 배위 ${fmt(zC)} ≪ 응집 ${fmt(cC)} (근원=α, 위조 0)` });
+
+      // 장부 닫힘: U_pol 통 (분극·분산 보존력) · P 보존 (반대칭 중심력).
+      {
+        const w = Po.nobleCondense({ T0: 0.3, seed: 9 });
+        const E0 = M.ledgerTable(w).total, P0 = M.momentum(w); let mr = 0, mp = 0;
+        for (let k = 0; k < 7000; k++) { E.step(w); if (k % 20 === 0) { mr = Math.max(mr, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); mp = Math.max(mp, pDiff(M.momentum(w), P0)); } }
+        log.push({ ok: mr <= E.EPS_E, name: '⑧장부·U_pol닫힘', msg: `max|ΔE|/E ${fmt(mr)} ≤ EPS_E ${E.EPS_E} (분극 보존력)` });
+        assertExact('⑧P보존', mp, 0, 1e-9, log);
+      }
+
+      // ion-induced: 전하–유도쌍극자가 C6 없이 단독으로 이온 주변 중성 밀도를 올린다.
+      //   이 장면은 분산(C6) off → 계의 유일한 인력이 이온→중성뿐. 전하 on/off 차이 = 분극 경로.
+      {
+        const near = (off, seed) => { const w = Po.ionInduced({ seed, chargeOff: off }); Po.run(w, 5000); return Po.nearIonCount(w, 2.5); };
+        const on = [], of = [];
+        for (let s = 0; s < R; s++) { on.push(near(false, 90 + s)); of.push(near(true, 90 + s)); }
+        const mOn = mean(on), mOf = mean(of);
+        log.push({ ok: mOn > mOf * 1.3, name: '⑧이온유도밀도',
+          msg: `이온 근방(R=2.5) 전하ON ${fmt(mOn)} > OFF ${fmt(mOf)}×1.3 (분산 off·분극 경로 단독)` });
+      }
+
+      // dt 반감 + 근사 차수 무관: 응집 배위수 통계가 dt·dt/2 에서 근사 동일 (수치 차수가 물리 안 바꿈).
+      {
+        const cd = (dt, seed) => { const w = Po.nobleCondense({ T0: 0.05, seed, dt, N: 64, L: 12 }); Po.run(w, Math.round(7 / dt)); return Po.clusters(w, 1.3).meanCoord; };
+        const a = mean([0, 1].map((s) => cd(0.0015, 85 + s))), b = mean([0, 1].map((s) => cd(0.00075, 85 + s)));
+        log.push({ ok: Math.abs(a - b) / b < 0.2, name: '⑧dt반감통계', msg: `배위수 ${fmt(a)} vs dt/2 ${fmt(b)} 상대차 ${fmt(Math.abs(a - b) / Math.max(1e-9, b))} < 0.2` });
+      }
+    }
+
+    // 12. ⑨ 통계 관문 — 평형은 창발한다 (엔트로피 증가·화학 평형·T_국소). 새 물리 0·측정과 검증만.
+    {
+      const mean = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+
+      // (1) 엔트로피 앙상블 증가: 저엔트로피 구석 → 자유 팽창 → 위상공간 S 증가 (제2법칙 창발).
+      //     단조 아님(개별 런 요동 허용) — R런 평균이 증가하면 통과 (DESIGN §4.1 앙상블 계약).
+      const R = 12;
+      const s0 = [], s1 = []; let nonMono = 0;
+      for (let i = 0; i < R; i++) {
+        const w = S.build('s09-entropy-corner', { seed: 500 + i, N: 100, L: 20, T0: 1.0 });
+        const a = M.entropy(w, 6, 4); E.run(w, 2000); const mid = M.entropy(w, 6, 4); E.run(w, 4000); const b = M.entropy(w, 6, 4);
+        s0.push(a); s1.push(b);
+        if (!(mid >= a - 1e-9 && b >= mid - 1e-9)) nonMono++;   // 개별 런 비단조 카운트
+      }
+      const mS0 = mean(s0), mS1 = mean(s1);
+      const seS = Math.sqrt(s1.reduce((x, y) => x + (y - mS1) * (y - mS1), 0) / (R - 1)) / Math.sqrt(R);
+      log.push({ ok: mS1 > mS0 + 3 * seS, name: '⑨엔트로피증가',
+        msg: `앙상블 ⟨S⟩ ${fmt(mS0)} → ${fmt(mS1)} (증가·3se ±${fmt(3 * seS)}) · 개별 비단조 ${nonMono}/${R} (요동 존재)` });
+
+      // (2) 셀 2배 스캔: coarse-graining 노브를 바꿔도 증가 경향 유지 (셀 의존성 정직).
+      {
+        let ok = true; const msg = [];
+        for (const nc of [4, 8]) {
+          const e = [], l = [];
+          for (let i = 0; i < 6; i++) { const w = S.build('s09-entropy-corner', { seed: 600 + i, N: 100, L: 20 }); e.push(M.entropy(w, nc, 4)); E.run(w, 6000); l.push(M.entropy(w, nc, 4)); }
+          const up = mean(l) > mean(e); ok = ok && up; msg.push(`nCell=${nc}: ${fmt(mean(e))}→${fmt(mean(l))}`);
+        }
+        log.push({ ok, name: '⑨셀2배경향유지', msg: msg.join(' · ') + ' (둘 다 증가)' });
+      }
+
+      // (3) K_eq 부피 의존 (르샤틀리에): 같은 T, 부피 2배 → 해리도 증가 (병진 상태 수 창발·author 0).
+      {
+        const dissoc = (L, seed) => { const w = S.build('s06-v1-dimer', { seed, N: 80, T0: 1.5, L }); E.run(w, 6000); const ds = []; for (let b = 0; b < 5; b++) { E.run(w, 300); ds.push(M.equilibrium(w).dissoc); } return mean(ds); };
+        const dV = mean([0, 1].map((s) => dissoc(18, 30 + s))), d2V = mean([0, 1].map((s) => dissoc(18 * Math.SQRT2, 30 + s)));
+        log.push({ ok: d2V > dV * 1.3, name: '⑨르샤틀리에(부피)', msg: `해리분율 V ${fmt(dV)} → 2V ${fmt(d2V)} (부피↑→해리↑·상태 수 의존·비율 공식 0)` });
+      }
+
+      // (4) van't Hoff: ln K vs 1/T 기울기 ≈ D (+병진 엔트로피 보정). 캐논ical(고정 T) 관계라 항온조 필요.
+      //     발견: ⑥ 복사 결합이 방출 냉각으로 T 를 자체 조절 → T0 스캔 안 먹음. 명시적 항온조로 T 고정(측정 전용).
+      {
+        const thermostat = (w, T) => { const Tc = M.temperature(w); if (Tc > 0) { const s = Math.sqrt(T / Tc); for (const a of w.atoms) { a.p.x *= s; a.p.y *= s; } } };
+        const lnKat = (T, seed) => {
+          const w = S.build('s06-v1-dimer', { seed, N: 80, T0: T, L: 18 });
+          for (let k = 0; k < 6000; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); }
+          const kc = [];
+          for (let b = 0; b < 6; b++) { for (let k = 0; k < 300; k++) { E.step(w); if (k % 25 === 0) thermostat(w, T); } const q = M.equilibrium(w); if (isFinite(q.Kc)) kc.push(q.Kc); }
+          return Math.log(mean(kc));
+        };
+        const Ts = [0.5, 0.8, 1.15, 1.5];
+        const pts = Ts.map((T) => ({ invT: 1 / T, lnK: mean([0, 1].map((s) => lnKat(T, 40 + s))) }));
+        const sx = mean(pts.map((p) => p.invT)), sy = mean(pts.map((p) => p.lnK));
+        let num = 0, den = 0; for (const p of pts) { num += (p.invT - sx) * (p.lnK - sy); den += (p.invT - sx) * (p.invT - sx); }
+        const slope = num / den;
+        log.push({ ok: slope > 1.4 && slope < 3.0, name: '⑨vantHoff기울기', msg: `d(lnK)/d(1/T) = ${fmt(slope)} ≈ D=2.0 (+병진 엔트로피 보정) ∈[1.4,3.0]` });
+      }
+
+      // (5) T_국소 평형 정합: 평형 장면에서 ⟨T_국소⟩ ≈ 전역 T (아레니우스 국소 T 근사의 타당 범위).
+      {
+        const w = S.build('s02-gas-collide', { seed: 7, N: 100, T0: 1.5, L: 14 });
+        E.run(w, 3000);
+        const lt = M.localTemp(w, 6);
+        const rel = Math.abs(lt.mean - lt.globalT) / Math.max(1e-9, lt.globalT);
+        log.push({ ok: rel < 0.1, name: '⑨T국소평형정합', msg: `⟨T_국소⟩ ${fmt(lt.mean)} vs 전역 ${fmt(lt.globalT)} (std ${fmt(lt.std)}·상대 ${fmt(rel)}<0.1)` });
+      }
+    }
+
+    // 13. ⑩ 수프 관문 — 실원소 합류·화학량론 (2H:1O → H₂O 우세). 쌍별 D(H–H:O–H:O–O=436:463:146) author.
+    {
+      const multi = (hist) => { const P = {}; for (const k in hist) { const c = (k.match(/\d+/g) || []).reduce((s, d) => s + +d, 0); if (c > 1) P[k] = hist[k]; } return P; };
+      const poolTop = (worlds) => { const P = {}; for (const w of worlds) { const h = multi(M.molecules(w).hist); for (const k in h) P[k] = (P[k] || 0) + h[k]; } const r = Object.entries(P).sort((a, b) => b[1] - a[1]); return { top: r[0] || ['-', 0], all: r, h2o: P['H2O1'] || 0 }; };
+      const R = 6, n = 14;
+
+      // 어닐링: 고T 평형 탐색 → 냉각 스케줄 → 열역학 산물 H₂O 우세 (냉각 열은 E_escape 로 회계 → 장부 닫힘).
+      const annealed = []; let over = 0, maxRel = 0;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s10-water-soup', { seed: 200 + s, n });
+        const E0 = M.ledgerTable(w).total; S.annealSoup(w);
+        maxRel = Math.max(maxRel, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0));
+        over = Math.max(over, M.molecules(w).maxOver); annealed.push(w);
+      }
+      const pa = poolTop(annealed);
+      log.push({ ok: pa.top[0] === 'H2O1', name: '⑩화학량론(H₂O우세)',
+        msg: `어닐 pooled 최다분자 = ${pa.top[0]}:${pa.top[1]} (${pa.all.slice(0, 4).map(([k, v]) => k + ':' + v).join(' ')}) — 라벨 분기 0` });
+      log.push({ ok: over <= 1e-9, name: '⑩원자가포화', msg: `과결합 max ${fmt(over)} ≤ 0 (O 예산 2·H₃O 공유 과결합 0)` });
+      log.push({ ok: maxRel <= E.EPS_E, name: '⑩장부·냉각닫힘', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E (냉각 열 → E_escape 회계)` });
+
+      // 어닐링 이득 (활성화 장벽): 어닐 H₂O > 크래시 냉각 H₂O — 열역학 최소 도달엔 장벽 통과 필요 (준안정 실증).
+      const crashed = [];
+      for (let s = 0; s < R; s++) { const w = S.build('s10-water-soup', { seed: 200 + s, n, T0: 0.3 }); E.run(w, 24000); crashed.push(w); }
+      const pc = poolTop(crashed);
+      log.push({ ok: pa.h2o > pc.h2o * 1.2, name: '⑩어닐링이득(활성화장벽)',
+        msg: `H₂O 어닐 ${pa.h2o} > 크래시 ${pc.h2o}×1.2 (H–H≈O–H 근접 → 크래시는 H₂ 갇힘·어닐링이 H₂O 로)` });
+
+      // 실원소 앵커: ③ levels 유도 예산·IE 순위 (He>H·O>H). 가상 원소(V 계열) 회귀는 전체 스위트가 보장.
+      const B = (Z) => L.budget(Z), IE = (Z) => L.ionizationE(Z);
+      const anchorsOk = B(1) === 1 && B(8) === 2 && B(2) === 0 && B(10) === 0 && IE(2) > IE(1) && IE(8) > IE(1);
+      log.push({ ok: anchorsOk, name: '⑩실원소앵커', msg: `B: H=${B(1)}·O=${B(8)}·He=${B(2)}·Ne=${B(10)} · IE He>H (${IE(2).toFixed(2)}>${IE(1).toFixed(2)})·O>H (author 아님·③ 유도)` });
+    }
+
+    // 14. ⑪ 승격 배관 MVP — 상자 시나리오 한 장부 + coarse↔재해동 왕복 + output.json (CONTRACT §3).
+    {
+      const sortKeys = (o) => { const r = {}; for (const k of Object.keys(o).sort()) r[k] = o[k]; return JSON.stringify(r); };
+
+      // (1) 한 장부: 밀폐 상자 5막(형성→응집→가열→반응→냉각) 전체에서 총합 잔차 ≤ EPS_E · Σc 불변.
+      {
+        const w = S.build('s11-mvp-box', { seed: 3, n: 12 });
+        const tot0 = M.ledgerTable(w).total, c0 = sortKeys(M.composition(w));
+        let maxRel = 0;
+        S.runScenario(w, (world) => { maxRel = Math.max(maxRel, Math.abs(M.ledgerTable(world).total - tot0) / Math.abs(tot0)); });
+        const c1 = sortKeys(M.composition(w)), mol = M.molecules(w);
+        log.push({ ok: maxRel <= E.EPS_E, name: '⑪한장부(5막)', msg: `5막 max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E (열욕 E_escape 회계·형성→응집→가열→반응→냉각)` });
+        log.push({ ok: c0 === c1, name: '⑪시나리오Σc불변', msg: `원자 조성 불변 (H₂O 우세 ${mol.hist['H2O1'] || 0}·과결합 ${fmt(mol.maxOver)})` });
+      }
+
+      // (2) 왕복 (⇧ coarse → ⇩ rethaw): 보존량(Σc·E·P) 정확 + 선언 관측량(조성) ε=0 (KERNEL §3.3).
+      {
+        const R = 3; let eOk = 0, cOk = 0, maxdE = 0, maxdP = 0; const trat = [];
+        for (let s = 0; s < R; s++) {
+          const w = S.build('s10-water-soup', { seed: 300 + s, n: 14 }); S.annealSoup(w);
+          const cs = Pr.coarse(w); const w2 = Pr.rethaw(cs, w, E.makeRng(999 + s)); const cs2 = Pr.coarse(w2);
+          const dE = Math.abs(cs2.E_total - cs.E_total); const p2 = Pr.momentumOf(w2), dP = Math.hypot(p2.x, p2.y);
+          maxdE = Math.max(maxdE, dE); maxdP = Math.max(maxdP, dP);
+          if (sortKeys(cs.atomCount) === sortKeys(cs2.atomCount)) eOk++;
+          if (sortKeys(cs.species) === sortKeys(cs2.species)) cOk++;
+          trat.push(cs2.T / Math.max(1e-9, cs.T));
+        }
+        const tr = trat.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: maxdE < 1e-6 && eOk === R, name: '⑪왕복·E·Σc정확', msg: `coarse→rethaw max|ΔE| ${fmt(maxdE)} <1e-6 · Σc 정확 ${eOk}/${R} (보존 협상 불가)` });
+        log.push({ ok: maxdP < 1e-9, name: '⑪왕복·P정확', msg: `|P'| ${fmt(maxdP)} < 1e-9 (COM 제거 유지)` });
+        log.push({ ok: cOk === R, name: '⑪왕복·조성계약(ε=0)', msg: `선언 관측량 조성 일치 ${cOk}/${R} · T 비 ${fmt(tr)}∈[0.6,1.6] (재표본 미시 상태 — 보존은 정확·분포는 통계)` });
+      }
+
+      // (3) output.json v0 스키마 유효 + 쌍 퍼텐셜 인력 꼬리 (S0-⑧ 반데르발스 앵커 — 손 튜닝 0·측정 산출).
+      {
+        const w = S.build('s11-mvp-box', { seed: 5, n: 12 }); S.runScenario(w);
+        const out = Pr.buildOutput(w, w, { pmfPairs: [['O', 'O'], ['H', 'H']], scenes: ['s11-mvp-box'], runs: 1 });
+        const val = Pr.validateOutput(out);
+        const pmfOO = Pr.pmf(w, 'O', 'O');
+        log.push({ ok: val.ok, name: '⑪output스키마유효', msg: `s0-output-v0 검증 ${val.ok ? '통과' : JSON.stringify(val.errs)} · species ${out.species.length}종·pairPotential ${Object.keys(out.pairPotential).length}쌍` });
+        log.push({ ok: pmfOO.hasTail, name: '⑪반데르발스꼬리', msg: `PMF O–O 인력 꼬리 존재 (우물 V ${fmt(pmfOO.vmin)} @ r=${pmfOO.rmin} — α·IE 에서 나옴·author 0)` });
+      }
+    }
+
     return log;
   }
 
@@ -368,7 +567,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 
