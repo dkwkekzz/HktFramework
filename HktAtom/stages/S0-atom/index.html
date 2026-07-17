@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
-    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표.</p>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자): 냉각·공동·유도 방출 빔</b>. CPK(H 흰·O 빨강)·공유결합=선·클러스터=색·μ=화살표·<b>광자=노란 점+꼬리</b>.</p>
 
     <div class="row">
       <label>보기</label>
@@ -58,6 +58,9 @@
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s12-stim">s12-stim (유도 방출·빔)</option>
+        <option value="s12-open-cooling">s12-open-cooling (복사 냉각·입자)</option>
+        <option value="s12-cavity">s12-cavity (공동·광자 입자)</option>
         <option value="s04-thermal-bath">s04-thermal-bath (볼츠만)</option>
         <option value="s04-radiative-cooling">s04-radiative-cooling (냉각)</option>
         <option value="s04-cavity">s04-cavity (공동 평형)</option>
@@ -258,8 +261,19 @@
       ctx.beginPath(); ctx.arc(e.r.x * sx, cv.height - e.r.y * sy, 2.2, 0, Math.PI * 2);
       ctx.fillStyle = '#7fbaff'; ctx.fill();
     }
-    // 광자 빈 표시 (공동)
-    if (world.nPhotons > 0) {
+    // ⑫ 광자 입자 (field 모드) — 이동 점 + 방향 꼬리. 색은 에너지(단색이라 노랑 고정).
+    if (world.photons && world.photons.length) {
+      ctx.lineWidth = 1;
+      for (const ph of world.photons) {
+        const x = ph.r.x * sx, y = cv.height - ph.r.y * sy;
+        const tx = x - ph.dir.x * 6, ty = y + ph.dir.y * 6;   // 진행 반대쪽 꼬리
+        ctx.strokeStyle = 'rgba(255,238,120,0.55)'; ctx.beginPath(); ctx.moveTo(tx, ty); ctx.lineTo(x, y); ctx.stroke();
+        ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(x, y, 1.8, 0, Math.PI * 2); ctx.fill();
+      }
+      const st = M.photonStats(world);
+      ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
+      ctx.fillText(`광자 ${st.n} · 축정렬 ${(st.alignedFrac * 100 | 0)}%`, 8, 16);
+    } else if (world.nPhotons > 0) {   // ④ 빈 근사 (s04-cavity)
       ctx.fillStyle = '#ffde5a'; ctx.font = '11px monospace';
       ctx.fillText(`광자 ${world.nPhotons}`, 8, 16);
     }

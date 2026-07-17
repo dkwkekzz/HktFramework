@@ -133,6 +133,20 @@
     return { id: _nextId++, isElectron: true, q: -1, r: V.clone(r), p: V.clone(p), F: V.zero() };
   }
 
+  // ⑫ 광자 입자 — {E, r, dir(단위), t0}. 질량 0·운동량 회계 생략(|p|=E/c_ph 미소·복사압 범위 밖).
+  //   에너지는 E_photon 통이 회계(생성 +E · 흡수/탈출 −E) → Σphoton.E == E_photon 불변.
+  function makePhoton(E_, r, dir, t0) {
+    return { id: _nextId++, isPhoton: true, E: E_, r: V.clone(r), dir: V.clone(dir), t0: t0 || 0 };
+  }
+
+  // 등방 무작위 단위 방향 (frozenZ 면 xy 평면). 방출은 방향 정보 없음(자발) → 등방.
+  function randDir(rng, frozenZ) {
+    const a = 2 * Math.PI * rng();
+    if (frozenZ) return V.make(Math.cos(a), Math.sin(a), 0);
+    const z = 2 * rng() - 1, s = Math.sqrt(Math.max(0, 1 - z * z));
+    return V.make(s * Math.cos(a), s * Math.sin(a), z);
+  }
+
   // 전자 수 변경 → 전하·저장 에너지 갱신 (⑤). states: {ne: 저장에너지}
   function setNe(world, a, ne) {
     a.ne = ne; a.q = a.Z - ne;
@@ -162,7 +176,14 @@
       nu_abs: o.nu_abs != null ? o.nu_abs : 1.0,   // ④ 흡수율 노브
       tau_rad: o.tau_rad != null ? o.tau_rad : Infinity, // ④ 복사 수명 (∞=방출 없음)
       radiativeOpen: o.radiativeOpen || false,     // ④ 방출 광자가 즉시 탈출(냉각) vs 빈 저장(공동)
-      nPhotons: 0,                    // ④ 광자 빈 (단일 종 = 스칼라 개수)
+      nPhotons: 0,                    // ④ 광자 빈 (단일 종 = 스칼라 개수) — bin 모드
+      // ⑫ 복사장: 빈 근사 → photon 입자. radiationMode='field' 면 R-EMI/R-ABS 가 입자를 쓴다.
+      radiationMode: o.radiationMode || 'bin',     // ⑫ 'bin'(④ 스칼라)|'field'(광자 입자)
+      c_ph: o.c_ph != null ? o.c_ph : 15.0,        // ⑫ 광자 전파 속도 (≈10·v_th — 실 c 아님·위계만·무차원 닮음)
+      gammaLine: o.gammaLine != null ? o.gammaLine : 0.25,  // ⑫ 흡수 선폭 Γ (|E_ph−ΔE|<Γ 공명 게이트)
+      photonRc: o.photonRc,           // ⑫ 광자–원자 접촉 반경 (undefined → rc)
+      nu_stim: o.nu_stim,             // ⑫ 유도 방출율 (undefined → 0 = 자발 방출만)
+      photonBC: o.photonBC,           // ⑫ 광자 경계 (undefined → box.bc): open→탈출·reflect→반사·periodic→랩
       specIon: o.specIon || null,     // ⑤ 종별 이온화 명세 {role, states:{ne:E}, minNe, maxNe}
       m_e: o.m_e != null ? o.m_e : 0.01,   // ⑤ 전자 질량 (노브 — 실제 1/1836 은 dt 강성, 정직 근사)
       sigma_e: o.sigma_e != null ? o.sigma_e : 0.2,  // ⑤ 전자 σ (≈0 — softening 이 발산 방지)
@@ -436,7 +457,8 @@
         }
       }
     }
-    runAbsorption(world);       // R-ABS — 접촉*(광자 빈 밀도). 빈이 비면 no-op
+    if (world.radiationMode === 'field') runPhotonField(world);   // ⑫ 광자 입자: 흡수 + 유도 방출
+    else runAbsorption(world);  // ④ R-ABS — 광자 빈 밀도. 빈이 비면 no-op
     runBonding(world);          // ⑥ 복합체 안정화·해리. budget 없으면 no-op
   }
 
@@ -501,6 +523,82 @@
     }
   }
 
+  // ── ⑫ 복사장: 광자 입자 상호작용 (R-ABS 흡수 + R-STIM 유도 방출) ──
+  //   매 tick 광자마다 근방 원자 스캔(공명 게이트 |E_ph−dE|<Γ). 흡수는 광자 소멸+원자 들뜸,
+  //   유도 방출은 들뜬 원자 완화+같은 dir 새 광자(2광자 결맞음 고전 근사·씨앗 방향 증폭).
+  //   에너지: E_photon 통이 회계 — 흡수 −ph.E·방출 +dE (2준위라 ph.E=dE·checkedApply 가 강제).
+  function runPhotonField(world) {
+    if (!world.specLevels || world.photons.length === 0) return;
+    const dt = world.dt, rng = world.rng, L = world.box.L, per = world.box.bc === 'periodic';
+    const rc = world.photonRc != null ? world.photonRc : world.rc, rc2 = rc * rc, gam = world.gammaLine;
+    const kAbs = world.nu_abs, kStim = world.nu_stim != null ? world.nu_stim : 0;
+    const near = (ph, a) => {
+      let dx = ph.r.x - a.r.x, dy = ph.r.y - a.r.y, dz = ph.r.z - a.r.z;
+      if (per) { dx = minImage(dx, L.x); dy = minImage(dy, L.y); dz = world.frozenZ ? 0 : minImage(dz, L.z); }
+      return dx * dx + dy * dy + dz * dz <= rc2;
+    };
+    const src = world.photons, keep = [], born = [];   // 스냅샷 순회 — 새 광자는 born(같은 tick 재처리 금지)
+    for (const ph of src) {
+      const grd = [], exc = [];
+      for (const a of world.atoms) {
+        const Lv = world.specLevels[a.sp];
+        if (!Lv || Math.abs(ph.E - Lv.dE) >= gam) continue;   // 공명 게이트
+        if (near(ph, a)) (a.level === 0 ? grd : exc).push(a);
+      }
+      // 유도 방출 우선: 들뜬 원자 접촉 → 같은 방향 결맞음 복제 (씨앗 광자는 유지)
+      if (exc.length && kStim > 0 && rng() < 1 - Math.exp(-kStim * dt)) {
+        const a = exc[(rng() * exc.length) | 0];
+        checkedApply(world, () => {
+          const Lv = world.specLevels[a.sp];
+          setLevel(a, 0);
+          born.push(makePhoton(Lv.dE, a.r, ph.dir, world.t));
+          world.ledger.E_photon += Lv.dE;
+          if (world.spectrumAdd) world.spectrumAdd(Lv.dE);
+          return true;
+        });
+        keep.push(ph); continue;
+      }
+      // 흡수: 바닥 원자 하나가 광자를 먹고 들뜸 → 광자 소멸
+      if (grd.length && kAbs > 0 && rng() < 1 - Math.exp(-kAbs * dt)) {
+        const a = grd[(rng() * grd.length) | 0];
+        checkedApply(world, () => {
+          world.ledger.E_photon -= ph.E;
+          setLevel(a, 1); scheduleEmission(world, a);
+          return true;
+        });
+        continue;   // 흡수됨 → keep 안 함
+      }
+      keep.push(ph);
+    }
+    world.photons = keep.concat(born);
+  }
+
+  // ⑫ 광자 전파: 직진 r += dir·c_ph·dt · 경계(photonBC): open→탈출(E→E_escape)·reflect→반사·periodic→랩.
+  function propagatePhotons(world) {
+    if (!world.photons || world.photons.length === 0) return;
+    const c = world.c_ph, dt = world.dt, L = world.box.L, bc = world.photonBC || world.box.bc;
+    const keep = [];
+    for (const ph of world.photons) {
+      ph.r.x += ph.dir.x * c * dt; ph.r.y += ph.dir.y * c * dt;
+      if (!world.frozenZ) ph.r.z += ph.dir.z * c * dt;
+      if (bc === 'reflect') {
+        reflectPhoton(ph, 'x', L.x); reflectPhoton(ph, 'y', L.y); if (!world.frozenZ) reflectPhoton(ph, 'z', L.z);
+        keep.push(ph);
+      } else if (bc === 'open') {
+        if (outside(ph.r, L, world.frozenZ)) { world.ledger.E_photon -= ph.E; world.ledger.E_escape += ph.E; }
+        else keep.push(ph);
+      } else { // periodic
+        ph.r.x = wrap(ph.r.x, L.x); ph.r.y = wrap(ph.r.y, L.y); if (!world.frozenZ) ph.r.z = wrap(ph.r.z, L.z);
+        keep.push(ph);
+      }
+    }
+    world.photons = keep;
+  }
+  function reflectPhoton(ph, k, Lk) {
+    if (ph.r[k] < 0) { ph.r[k] = -ph.r[k]; ph.dir[k] = -ph.dir[k]; }
+    else if (ph.r[k] > Lk) { ph.r[k] = 2 * Lk - ph.r[k]; ph.dir[k] = -ph.dir[k]; }
+  }
+
   // 수명 채널: 큐에서 발화한 방출 사건 처리 (lazy 무효화 검사)
   function fireEvent(world, ev) {
     if (ev.rowId !== 'R-EMI') return;
@@ -509,7 +607,12 @@
     checkedApply(world, () => {
       const L = world.specLevels[a.sp];
       setLevel(a, 0);
-      if (world.radiativeOpen) world.ledger.E_escape += L.dE;   // 열린 복사 → 탈출
+      if (world.radiationMode === 'field') {
+        // ⑫ 자발 방출 = photon 입자 (등방 무작위 dir). E_photon 통이 회계 → Σphoton.E 정합.
+        world.photons.push(makePhoton(L.dE, a.r, randDir(world.rng, world.frozenZ), world.t));
+        world.ledger.E_photon += L.dE;
+        if (world.spectrumAdd) world.spectrumAdd(L.dE);
+      } else if (world.radiativeOpen) world.ledger.E_escape += L.dE;   // ④ 열린 복사 → 즉시 탈출
       else { world.nPhotons++; world.ledger.E_photon += L.dE; if (world.spectrumAdd) world.spectrumAdd(L.dE); }
       return true;
     });
@@ -573,6 +676,7 @@
     }
     for (const e of world.electrons) { e.r.x += e.p.x / me * dt; e.r.y += e.p.y / me * dt; e.r.z += e.p.z / me * dt; }
     applyBoundary(world);
+    propagatePhotons(world);               // ⑫ 광자 직진 전파 + 경계 (field 모드만 실효 · 없으면 no-op)
     world.computeForces(world);            // 새 위치에서 F
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
     for (const e of world.electrons) V.addScaledInto(e.p, e.F, dt / 2);
@@ -614,9 +718,10 @@
     V, makeRng, gaussian,
     makeQueue, queuePush, queuePop,
     LEDGER_BINS, makeLedger, ledgerTotal,
-    makeAtom, makeElectron, setNe, makeWorld, zeroForces, pairForces, minImage,
+    makeAtom, makeElectron, makePhoton, randDir, setNe, makeWorld, zeroForces, pairForces, minImage,
     recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
     setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
+    runPhotonField, propagatePhotons,
     bondCount, hasBond, budgetB, pairD, formBond, dissolveBond, runBonding,
   };
 

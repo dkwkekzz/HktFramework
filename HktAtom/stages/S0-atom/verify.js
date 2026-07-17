@@ -557,6 +557,52 @@
       }
     }
 
+    // 12. ⑫ 복사장 — ④ 빈 근사를 photon 입자로 교체. 냉각/공동 회귀 + 유도 방출 방향성 + 장부 Σphoton.E 정합.
+    {
+      // (1) 회귀: open 경계 냉각 — 방출 광자가 상자를 나가며 T 단조 하강 + 총 E(E_escape 포함) 보존.
+      {
+        const w = S.build('s12-open-cooling', { seed: 5, N: 60, L: 15 });
+        const T0 = M.temperature(w), E0 = M.ledgerTable(w).total;
+        let maxRel = 0; for (let k = 0; k < 1500; k++) { E.step(w); const t = M.ledgerTable(w); maxRel = Math.max(maxRel, Math.abs(t.total - E0) / Math.abs(E0)); }
+        const T1 = M.temperature(w), lg = M.ledgerTable(w);
+        log.push({ ok: T1 < T0 * 0.8 && lg.E_escape > 0, name: '⑫복사냉각(입자)', msg: `T ${fmt(T0)}→${fmt(T1)} · E_escape ${fmt(lg.E_escape)} (광자 탈출)` });
+        log.push({ ok: maxRel <= E.EPS_E, name: '⑫냉각E보존(탈출포함)', msg: `max|ΔE|/E ${fmt(maxRel)} ≤ EPS_E` });
+      }
+
+      // (2) 회귀: 닫힌 공동(reflect) — 광자가 갇혀 재흡수 → 정상 상태(항상 >0) + 총 E 보존.
+      {
+        const w = S.build('s12-cavity', { seed: 6, N: 100, L: 13 });
+        const E0 = M.ledgerTable(w).total;
+        E.run(w, 1500);
+        const ph = []; for (let b = 0; b < 5; b++) { E.run(w, 250); ph.push(M.photonStats(w).n); }
+        const minPh = Math.min(...ph);
+        log.push({ ok: minPh > 0, name: '⑫공동정상상태(입자)', msg: `광자 수 ${ph.join(',')} (min ${minPh}>0 — 물질↔복사 정상)` });
+        log.push({ ok: Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0) <= E.EPS_E, name: '⑫공동E보존', msg: `rel ${fmt(Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0))} ≤ EPS_E` });
+        // 스펙트럼: 2준위 종이라 단색(dE 빈 집중) — 정직 한계(연속 스펙트럼·플랑크 꼬리는 다준위 몫).
+        const sp = M.photonSpectrum(w, 8, 3.0), occ = sp.filter((c) => c > 0).length;
+        log.push({ ok: occ <= 1, name: '⑫스펙트럼단색(2준위한계)', msg: `점유 빈 ${occ}개 [${sp.join(',')}] — 2준위→단색(연속 스펙트럼은 다준위·㉒ 몫·정직 한계)` });
+      }
+
+      // (3) 장부 계약: bond 없는 field 장면에서 E_photon 통 == Σphoton.E 정확 (입자↔통 정합·매 tick).
+      {
+        const w = S.build('s12-cavity', { seed: 9, N: 80, L: 13 });
+        let maxGap = 0; for (let k = 0; k < 1200; k++) { E.step(w); const ps = M.photonStats(w); maxGap = Math.max(maxGap, Math.abs(ps.sumE - ps.EphotonBin)); }
+        log.push({ ok: maxGap < 1e-9, name: '⑫장부Σphoton.E정합', msg: `max|Σphoton.E − E_photon통| ${fmt(maxGap)} < 1e-9 (입자가 통을 정확히 표상)` });
+      }
+
+      // (4) 유도 방출: 밀도 반전 + 씨앗 +x 광자 → 축 정렬 광자 수 증폭. 대조(nu_stim=0)는 자발만 → 등방.
+      {
+        const R = 4;
+        let stimA = [], ctrlA = [];
+        for (let s = 0; s < R; s++) {
+          const ws = S.build('s12-stim', { seed: 20 + s, stim: 6 }); E.run(ws, 900); stimA.push(M.photonStats(ws).aligned);
+          const wc = S.build('s12-stim', { seed: 20 + s, stim: 0 }); E.run(wc, 900); ctrlA.push(M.photonStats(wc).aligned);
+        }
+        const mS = stimA.reduce((a, b) => a + b, 0) / R, mC = ctrlA.reduce((a, b) => a + b, 0) / R;
+        log.push({ ok: mS > 1.8 * mC, name: '⑫유도방출증폭', msg: `축 정렬 광자 유도 ${fmt(mS)} vs 자발 대조 ${fmt(mC)} → ${fmt(mS / Math.max(1e-9, mC))}× (씨앗 방향 결맞음 복제)` });
+      }
+    }
+
     return log;
   }
 
@@ -567,7 +613,7 @@
       console.log(`[${tag}] ${e.msg}`);
       if (e.ok) pass++; else fail++;
     }
-    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪): ${pass} PASS · ${fail} FAIL ──`);
+    console.log(`\n── S0 verify (①②③④⑤⑥⑦⑧⑨⑩⑪⑫): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
 

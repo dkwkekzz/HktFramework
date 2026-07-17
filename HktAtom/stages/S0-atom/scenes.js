@@ -244,6 +244,55 @@
     return w;
   }
 
+  // ── ⑫ 복사장 장면 (photon 입자) — ④의 빈 근사를 방향·공간 가진 입자로 교체. 2준위 종 A 재사용 ──
+
+  // s12-open-cooling: field 모드 + 광자 open 경계 → 방출 광자가 상자를 나가며 냉각 (④ 냉각 회귀·입자판).
+  function openCooling(opts) {
+    const o = opts || {};
+    // dt=DT_STIFF(0.004): 고T(3.0) 냉각은 병진이 빨라 Verlet 표류가 dt=0.005 에선 EPS_E 를 넘긴다
+    //   (EPS_E 는 dt=0.004 기준 교정값 — ②). 냉각 자체는 그대로 재현(T 3.0→~1.3).
+    const w = buildA(Object.assign({ T0: 3.0, N: 100, dt: E.DT_STIFF, seed: o.seed || 1205 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 2.0, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 15.0, photonBC: 'open' });
+    w._meta = { name: 's12-open-cooling' };
+    return w;
+  }
+
+  // s12-cavity: field 모드 + 광자 reflect 경계 → 광자가 상자에 갇혀 재흡수(정상 상태) (④ 공동 회귀·입자판).
+  function cavityField(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 2.0, N: 120, seed: o.seed || 1206 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 1.2, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 12.0, photonBC: 'reflect',
+        nu_abs: o.nu_abs != null ? o.nu_abs : 2.5 });
+    w._meta = { name: 's12-cavity' };
+    return w;
+  }
+
+  // s12-stim: 밀도 반전(들뜸 다수) + 씨앗 광자 +x 주입 → 유도 방출로 방향성 증폭(빔).
+  //   nu_stim=0(대조)이면 자발 방출만 → 등방(축 정렬 이방성 없음). 흡수·충돌 꺼 반전 유지.
+  function stimField(opts) {
+    const o = opts || {};
+    const w = buildA(Object.assign({ T0: 0.5, N: 80, L: o.L || 16, seed: o.seed || 1207 }, o),
+      { tau_rad: o.tau_rad != null ? o.tau_rad : 8.0, radiationMode: 'field',
+        c_ph: o.c_ph != null ? o.c_ph : 15.0, photonBC: 'reflect',
+        nu_abs: o.nu_abs != null ? o.nu_abs : 0.0,          // 흡수 끔 — 증폭만 관찰
+        nu_stim: o.stim != null ? o.stim : 6.0, nu_col: 0.0 });  // 충돌 끔 — 준위 반전 유지
+    // 밀도 반전: 원자 대부분 들뜸(level 1) + 자발 방출 예약(대조군의 등방 방출원)
+    const frac = o.invFrac != null ? o.invFrac : 0.85;
+    for (const a of w.atoms) if (w.rng() < frac) { E.setLevel(a, 1); E.scheduleEmission(w, a); }
+    // 씨앗 광자 +x 주입 (한 방향)
+    const nSeed = o.seed_n != null ? o.seed_n : 8, dE = SPECIES.A.dE;
+    for (let i = 0; i < nSeed; i++) {
+      const r = E.V.make(1 + w.rng() * 2, w.rng() * w.box.L.y, 0);
+      w.photons.push(E.makePhoton(dE, r, E.V.make(1, 0, 0), 0));
+      w.ledger.E_photon += dE;
+    }
+    E.recomputeLedger(w);
+    w._meta = { name: 's12-stim' };
+    return w;
+  }
+
   // ── ⑤ 이온화·이온결합 장면 ──
 
   function ionSpecMaps() {
@@ -538,6 +587,9 @@
     's04-thermal-bath': thermalBath,
     's04-radiative-cooling': radiativeCooling,
     's04-cavity': cavity,
+    's12-open-cooling': openCooling,
+    's12-cavity': cavityField,
+    's12-stim': stimField,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -552,7 +604,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

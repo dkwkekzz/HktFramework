@@ -177,7 +177,28 @@
     return { mean, std, globalT: temperature(world) };
   }
 
-  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules, entropy, equilibrium, localTemp };
+  // ⑫ 광자장 통계 — 입자를 측정 층에서 집계(창발 author 0). 개수·총E·축 정렬 이방성.
+  //   alignedFrac = |dir·axis|>0.85 분율 (씨앗 빔 형성 지표). EphotonBin 은 장부값 (Σphoton.E 정합 검증).
+  function photonStats(world, refAxis) {
+    const ph = world.photons || [];
+    const ax = refAxis || { x: 1, y: 0, z: 0 };
+    let sumE = 0, aligned = 0;
+    for (const p of ph) {
+      sumE += p.E;
+      if (Math.abs(p.dir.x * ax.x + p.dir.y * ax.y + p.dir.z * ax.z) > 0.85) aligned++;
+    }
+    return { n: ph.length, sumE, aligned, alignedFrac: ph.length ? aligned / ph.length : 0, EphotonBin: world.ledger.E_photon };
+  }
+
+  // ⑫ 광자 에너지 스펙트럼 — 입자를 에너지 빈으로 집계. 2준위 종이면 단색(dE 빈에 집중) — 정직 한계.
+  function photonSpectrum(world, nbins, emax) {
+    nbins = nbins || 8; emax = emax || 3.0;
+    const h = new Array(nbins).fill(0);
+    for (const p of world.photons || []) h[Math.min(nbins - 1, Math.max(0, Math.floor(p.E / emax * nbins)))]++;
+    return h;
+  }
+
+  const api = { temperature, msd, momentum, composition, ledgerTable, pressure, minDsigma, occupancy, ionState, molecules, entropy, equilibrium, localTemp, photonStats, photonSpectrum };
   if (isNode) module.exports = api;
   else window.HktS0Measure = api;
 })();
