@@ -18,6 +18,7 @@
   const Pr = isNode ? require('./promote.js') : window.HktS0Promote;
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -761,6 +762,38 @@
       log.push({ ok: o2.sq < 1e-9, name: '⑮전하보존(Σq=Q)', msg: `분자별 |Σq| ${fmt(o2.sq)} < 1e-9 (QEq 제약 Σq=Q 정확)` });
     }
 
+    // 19. ⑯ 수소 결합 — ⑮ 전하+⑭ 형상이면 방향성 약결합 창발(1차 측정)·점전하는 약해 R-HB 보정(2차·명시 노브).
+    if (want(16)) {
+      const R = 4; const avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      let cold = [], warm = [], theta = [], drat = [], ehb = [], relE = [], neHB = [], mixW = [];
+      for (let s = 0; s < R; s++) {
+        const wc = S.build('s16-water-cluster', { seed: 10 + s, T0: 0.02 });
+        const E0 = M.ledgerTable(wc).total; let mx = 0;
+        for (let k = 0; k < 1500; k++) { E.step(wc); mx = Math.max(mx, Math.abs(M.ledgerTable(wc).total - E0) / Math.abs(E0)); }
+        const st = HB.stats(wc);
+        cold.push(st.perMol); theta.push(st.meanAngle); drat.push(st.meanD / 1.15); ehb.push(Math.abs(st.meanEhb) / wc.Dbond); relE.push(mx);
+        const ww = S.build('s16-water-cluster', { seed: 10 + s, T0: 0.15 }); E.run(ww, 1500); warm.push(HB.stats(ww).perMol);
+        const wm = S.build('s16-mixed', { seed: 10 + s, T0: 0.02 }); E.run(wm, 1000); const sm = HB.stats(wm);
+        neHB.push(sm.hb.filter((h) => wm.atomById(h.A).Z === 10 || wm.atomById(h.H).Z === 10).length); mixW.push(sm.n);
+      }
+      const mCold = avg(cold), mWarm = avg(warm), mTheta = avg(theta), mD = avg(drat), mE = avg(ehb), mNe = avg(neHB), mMix = avg(mixW);
+
+      // (1) 방향 선택성: D–H···A 각이 고각 집중 (직선 H-결합 선호 — 등방이면 ~90~120°).
+      log.push({ ok: mTheta > 145, name: '⑯방향선택성', msg: `⟨θ(D–H···A)⟩ ${fmt(mTheta)}° > 145° (고각 집중·직선 선호 — 등방 대비 비등방)` });
+      // (2) Ne 선택성: 무극성 Ne 는 H-결합 0·물은 유지 (H/O 만 참여).
+      log.push({ ok: mNe < 0.5 && mMix > 5, name: '⑯Ne선택성', msg: `Ne H-결합 ${fmt(mNe)}≈0·물 H-결합 ${fmt(mMix)}>0 (무극성 대조 — 선택성)` });
+      // (3) E 범위: E_hb/D_OH ∈ (0.03,0.3) — 약결합 위계 (공유보다 약함). 점전하만은 ~0.002 로 부족 → R-HB 채택.
+      log.push({ ok: mE > 0.03 && mE < 0.3, name: '⑯E_hb약결합위계', msg: `E_hb/D_OH ${fmt(mE)} ∈(0.03,0.3) (R-HB 보정 — 점전하만은 ~0.002 로 부족·2차 채택)` });
+      // (4) 거리 위계: H···A 피크가 공유 d0 의 1.3~2.2배.
+      log.push({ ok: mD > 1.3 && mD < 2.2, name: '⑯거리위계', msg: `⟨d(H···A)⟩/d0 ${fmt(mD)} ∈(1.3,2.2) (공유보다 멀고 접촉보다 가까움)` });
+      // (5) 온도 응답: 가열 → 분자당 H-결합 수 단조 감소 (네트워크 해체).
+      log.push({ ok: mCold > mWarm, name: '⑯온도응답', msg: `배위 저T ${fmt(mCold)} > 고T ${fmt(mWarm)} (가열→네트워크 해체·단조 감소)` });
+      // (6) 배위 경향: 저T 에서 분자당 3~4 쪽 (물 네트워크 정성 — 얼음 격자 정량은 S1).
+      log.push({ ok: mCold > 2.5 && mCold < 4.5, name: '⑯물네트워크배위', msg: `저T 분자당 H-결합 ${fmt(mCold)} ∈(2.5,4.5) (물 네트워크 — 정사면체 얼음 정량은 S1)` });
+      // (7) 장부: R-HB 에너지(U_hb) → U_bond 하위 항목·총 E 보존.
+      log.push({ ok: Math.max(...relE) <= E.EPS_E, name: '⑯장부·R-HB닫힘', msg: `max|ΔE|/E ${fmt(Math.max(...relE))} ≤ EPS_E (U_hb → U_bond 귀속·보존)` });
+    }
+
     return log;
   }
 
@@ -772,7 +805,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

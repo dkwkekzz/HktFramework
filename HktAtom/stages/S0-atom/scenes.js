@@ -11,6 +11,7 @@
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;   // ⑩ 실원소 B/IE (③ 순수 함수)
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry; // ⑭ 각도 반발 (VSEPR)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;  // ⑮ 부분 전하 (QEq)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;         // ⑯ 수소 결합 (R-HB)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -329,6 +330,7 @@
     O2: { Z: 8, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#e0403a', radius: 0.5 },
     C4: { Z: 6, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#556070', radius: 0.5 },
     Be2:{ Z: 4, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#c9a6f0', radius: 0.46 },
+    Ne: { Z: 10, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#9ec7f0', radius: 0.4 },   // ⑯ 무극성 대조
   };
   // 외각 전자 수 = ③ fillZ(Z) 의 최고 주양자수 껍질 점유 합 (author 0 — 유도값).
   function valenceElectrons(Z) {
@@ -381,6 +383,7 @@
       world._geoAngular = Geo.angularForces; world.computeForces = Pol.forcesPolar;
       if (o.field) world.Efield = o.field;
       if (o.randOrient) world._randOrient = true;   // ⑮ 장 응답: 무작위 배향 시작(장 없으면 등방 유지)
+      if (o.hb) { world._polForces = Pol.forcesPolar; world.computeForces = HB.forcesHB; if (o.Dhb != null) world.Dhb = o.Dhb; }  // ⑯ R-HB 합성
     }
     const per = Math.ceil(Math.cbrt(count)), g = L / per;
     let m = 0;
@@ -407,6 +410,29 @@
   function polBeH2(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'Be2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-beh2', geo: 1, polar: 1 }; return w; }
   function polH2O(o) { o = o || {}; const w = buildShape(Object.assign({ polar: true }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-h2o', geo: 1, polar: 1 }; return w; }
   // s15-field: 균일 외부장 속 H₂O — dq·배향의 장 응답 (유전 응답 정성).
+  // ── ⑯ 수소 결합 (R-HB) — ⑮ 극성 물 + 방향성 약결합 → 물 네트워크 창발 ──
+  //   s16-water-cluster: 저T 밀집 물 네트워크 · s16-temp-scan: T0 파라미터로 해체 스캔 · s16-mixed: 물+Ne 선택성.
+  function waterCluster(o) {
+    o = o || {};
+    const w = buildShape(Object.assign({ polar: true, hb: true, count: o.count || 24, L: o.L || 8.5, T0: o.T0 != null ? o.T0 : 0.02, eqSteps: o.eqSteps != null ? o.eqSteps : 5000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 });
+    w._meta = { name: 's16-water-cluster', geo: 1, polar: 1, hb: 1 };
+    return w;
+  }
+  // s16-mixed: 물 클러스터 + Ne 원자 산포 (무극성 대조 — Ne 는 H-결합 0·선택성). Ne 는 겹침 완화 후 안착.
+  function waterMixed(o) {
+    o = o || {};
+    const nNe = o.nNe || 8, w = waterCluster(Object.assign({ count: o.count || 20, L: o.L || 8.5 }, o));
+    const rng = w.rng, L = w.box.L;
+    for (let k = 0; k < nNe; k++) {
+      const ne = E.makeAtom('Ne', E.V.make(rng() * L.x, rng() * L.y, rng() * L.z), E.V.zero()); ne.Z = 10; ne.qBase = 0; w.atoms.push(ne);
+    }
+    // Ne 겹침 완화: 짧은 과감쇠 하강(척력 벽이 Ne 를 빈틈으로 밀어냄) → 폭발 회피.
+    for (let k = 0; k < 1500; k++) { E.step(w); for (const a of w.atoms) { a.p.x *= 0.7; a.p.y *= 0.7; a.p.z *= 0.7; } }
+    maxwellInit(w, o.T0 != null ? o.T0 : 0.02, rng);
+    w.computeForces(w); E.recomputeLedger(w); w._meta = { name: 's16-mixed', geo: 1, polar: 1, hb: 1 };
+    return w;
+  }
+
   function polField(o) { o = o || {}; const ex = o.Ex != null ? o.Ex : 0.6; const w = buildShape(Object.assign({ polar: true, randOrient: true, field: ex > 0 ? E.V.make(ex, 0, 0) : null, count: o.count || 12, T0: o.T0 != null ? o.T0 : 0.03, eqSteps: o.eqSteps != null ? o.eqSteps : 4000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-field', geo: 1, polar: 1, field: 1 }; return w; }
 
   // ── ⑤ 이온화·이온결합 장면 ──
@@ -725,6 +751,8 @@
     's15-beh2': polBeH2,
     's15-h2o': polH2O,
     's15-field': polField,
+    's16-water-cluster': waterCluster,
+    's16-mixed': waterMixed,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -739,7 +767,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();
