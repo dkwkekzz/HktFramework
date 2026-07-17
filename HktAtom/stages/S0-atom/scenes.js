@@ -12,6 +12,7 @@
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry; // ⑭ 각도 반발 (VSEPR)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;  // ⑮ 부분 전하 (QEq)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;         // ⑯ 수소 결합 (R-HB)
+  const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;   // ⑰ 산·염기 (양성자 이전)
 
   // 종 레지스트리 — 가상 원소. ①은 질량만, ②부터 σ(상호작용 지름)·ε(척력 세기).
   // ③에서 Z·occ 로 확장. radius/color 는 뷰어용. A = ④ 2준위 종(dE·g0·g1).
@@ -331,6 +332,7 @@
     C4: { Z: 6, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#556070', radius: 0.5 },
     Be2:{ Z: 4, mass: 6.0, sigma: 1.05, eps: 1.0, color: '#c9a6f0', radius: 0.46 },
     Ne: { Z: 10, mass: 8.0, sigma: 1.1, eps: 1.0, color: '#9ec7f0', radius: 0.4 },   // ⑯ 무극성 대조
+    Xa: { Z: 9, mass: 8.0, sigma: 1.05, eps: 1.0, color: '#7ee08a', radius: 0.42 },   // ⑰ 가상 산 짝염기 (F 유사·고 χ)
   };
   // 외각 전자 수 = ③ fillZ(Z) 의 최고 주양자수 껍질 점유 합 (author 0 — 유도값).
   function valenceElectrons(Z) {
@@ -434,6 +436,88 @@
   }
 
   function polField(o) { o = o || {}; const ex = o.Ex != null ? o.Ex : 0.6; const w = buildShape(Object.assign({ polar: true, randOrient: true, field: ex > 0 ? E.V.make(ex, 0, 0) : null, count: o.count || 12, T0: o.T0 != null ? o.T0 : 0.03, eqSteps: o.eqSteps != null ? o.eqSteps : 4000 }, o), { center: 'O2', ligand: 'H1', nLig: 2 }); w._meta = { name: 's15-field', geo: 1, polar: 1, field: 1 }; return w; }
+
+  // ── ⑰ 산·염기 (양성자 이전·Grotthuss) — ⑯ 물 네트워크 위에서 H⁺ 가 수소 결합 링크를 갈아탄다 ──
+  //   PROT_SOLV: 유전 용매화 대체 노브(⑯ D_hb 동형) — 순 전하 성분당 안정화. 냉수 자동이온화 동결 완화.
+  const PROT_SOLV = 2.0;
+  // ⑯ 물 클러스터 위에 양성자 이전 채널을 켠다 (엔진 diff 0: 카탈로그 R-PROT + forcesAB 합성).
+  function enableAcidBase(w, o) {
+    o = o || {};
+    w.computeForces = AB.forcesAB;                          // ⑯(극성+쿨롱+각도+H결합) + 용매화 안정화
+    w.catalog = [AB.R_PROT];                                // 접촉 채널: 양성자 이전
+    w.rc = AB.RPX;                                          // 접촉 반경 = H···A 컷오프 (양성자 링크 포착)
+    w.dt = o.dt != null ? o.dt : 0.0015;                    // 이온 쿨롱 강성 → dt 축소(Verlet 표류 ≤ EPS_E)
+    w.nu_prot = o.nu_prot != null ? o.nu_prot : 4.0;        // 시도율 (장벽은 에너지 가드가 — 크게 잡아 빠른 평형·릴레이)
+    w.protSolv = o.protSolv != null ? o.protSolv : PROT_SOLV;
+    w.protAcc = { O2: true, Xa: true };                     // 수용체 species (고립쌍 보유)
+    AB.setNeutralValence(w);                                // 중성 결합 수 기준 캡처
+    // 사건 감사(P·E)는 끔 — ⑯ 각도 힘의 고립쌍 준정적 최소화가 force 를 ~1e-7 비이상적으로 만들어
+    //   (STATE §3 "L 잔차") 사건 단위 1e-9 은 불가. 보존은 전하(Σformal 정확)·H 수·예산으로 검증.
+    w._auditP = false;
+    w.computeForces(w); E.recomputeLedger(w);
+    return w;
+  }
+  // s17-autoionize: 순수 물 상자 — 이온쌍 생성⇌재결합 평형(K_w ≪ 1·중성 우세). preIons 로 이온쌍 주입(평형 접근).
+  function autoionize(o) {
+    o = o || {};
+    const w = waterCluster(Object.assign({ count: o.count || 24, L: o.L || 8.5, T0: o.T0 != null ? o.T0 : 0.02 }, o));
+    enableAcidBase(w, o);
+    const pre = o.preIons != null ? o.preIons : 3; injectIons(w, pre);   // 이온쌍 주입 → 재결합으로 평형 접근
+    w._meta = { name: 's17-autoionize', geo: 1, polar: 1, hb: 1, ab: 1 };
+    return w;
+  }
+  // s17-relay: 여분 양성자 1개 주입(H₃O⁺·짝 OH⁻ 없음 → 재결합 없이 지속) — 릴레이 확산 추적.
+  //   릴레이(H₃O⁺+H₂O→H₂O+H₃O⁺)는 대칭 열중립(ΔE≈0·protSolv 무관) → 빠름 → 전하가 분자보다 빨리 이동.
+  function relay(o) {
+    o = o || {};
+    const w = waterCluster(Object.assign({ count: o.count || 24, L: o.L || 8.5, T0: o.T0 != null ? o.T0 : 0.03 }, o));
+    enableAcidBase(w, o);
+    injectProton(w);   // 물 하나에 H 추가 → H₃O⁺ (계 순 전하 +1 — 짝 없는 여분 양성자)
+    w._meta = { name: 's17-relay', geo: 1, polar: 1, hb: 1, ab: 1 };
+    return w;
+  }
+  // 여분 양성자 주입 (준비): 물 하나의 O 에 H 를 하나 더 결합 → H₃O⁺ (nv 재캡처 없이 형식전하 +1).
+  function injectProton(w) {
+    const os = w.atoms.filter((a) => (a.Z || 0) === 8 && AB.bondsOf(w, a.id).length === 2);
+    if (!os.length) return;
+    const O = os[(w.rng() * os.length) | 0], d0 = w.d0 != null ? w.d0 : 1.15;
+    // O 의 기존 두 H 반대 방향으로 새 H 배치 (겹침 완화)
+    let sx = 0, sy = 0, sz = 0; for (const b of AB.bondsOf(w, O.id)) { const h = w.atomById(b.i === O.id ? b.j : b.i); sx += h.r.x - O.r.x; sy += h.r.y - O.r.y; sz += h.r.z - O.r.z; }
+    const n = Math.hypot(sx, sy, sz) || 1;
+    const H = E.makeAtom('H1', E.V.make(O.r.x - sx / n * d0, O.r.y - sy / n * d0, O.r.z - sz / n * d0), E.V.zero()); H.Z = 1; H.qBase = 0; H.nv = 1;
+    w.atoms.push(H); w.bonds.push({ i: O.id, j: H.id, order: 1, rest: d0, k: w.kbond, D: w.Dbond });
+    for (let k = 0; k < 400; k++) { E.step(w); for (const a of w.atoms) { a.p.x *= 0.85; a.p.y *= 0.85; a.p.z *= 0.85; } }
+    maxwellInit(w, 0.03, w.rng); w.computeForces(w); E.recomputeLedger(w);
+  }
+  // s17-acid-mix: 강산 HX(고 χ 짝염기 Xa) 소량 — X⁻ 안정(발열)이라 이온화 → [H₃O⁺] 증가 (공통 이온).
+  function acidMix(o) {
+    o = o || {};
+    const nAcid = o.nAcid || 4;
+    const w = waterCluster(Object.assign({ count: o.count || 20, L: o.L || 8.5, T0: o.T0 != null ? o.T0 : 0.03 }, o));
+    // HX 분자 삽입 (X–H 결합 1개) — 빈 자리에 배치 후 겹침 완화.
+    const rng = w.rng, L = w.box.L, d0 = w.d0 != null ? w.d0 : 1.15;
+    for (let k = 0; k < nAcid; k++) {
+      const cx = rng() * L.x, cy = rng() * L.y, cz = rng() * L.z;
+      const X = E.makeAtom('Xa', E.V.make(cx, cy, cz), E.V.zero()); X.Z = 9; X.qBase = 0; w.atoms.push(X);
+      const H = E.makeAtom('H1', E.V.make(cx + d0, cy, cz), E.V.zero()); H.Z = 1; H.qBase = 0; w.atoms.push(H);
+      w.bonds.push({ i: X.id, j: H.id, order: 1, rest: d0, k: w.kbond, D: w.Dbond });
+    }
+    w.mass = Object.assign({}, w.mass, { Xa: GEO_SPEC.Xa.mass }); w.sigma = Object.assign({}, w.sigma, { Xa: GEO_SPEC.Xa.sigma }); w.eps = Object.assign({}, w.eps, { Xa: GEO_SPEC.Xa.eps });
+    for (let k = 0; k < 1500; k++) { E.step(w); for (const a of w.atoms) { a.p.x *= 0.7; a.p.y *= 0.7; a.p.z *= 0.7; } }
+    maxwellInit(w, o.T0 != null ? o.T0 : 0.03, rng);
+    enableAcidBase(w, o);
+    w._meta = { name: 's17-acid-mix', geo: 1, polar: 1, hb: 1, ab: 1, acid: nAcid };
+    return w;
+  }
+  // 이온쌍 주입 (준비 — 측정 아님): H-결합 링크에서 강제 이전 n 회 (H₃O⁺+OH⁻ 생성).
+  function injectIons(w, n) {
+    for (let k = 0; k < n; k++) {
+      const lk = AB.links(w); if (!lk.length) break;
+      const pr = lk[(w.rng() * lk.length) | 0];
+      AB.forceTransfer(w, pr.H, pr.D, pr.A);
+    }
+    w.computeForces(w); E.recomputeLedger(w);
+  }
 
   // ── ⑤ 이온화·이온결합 장면 ──
 
@@ -753,6 +837,9 @@
     's15-field': polField,
     's16-water-cluster': waterCluster,
     's16-mixed': waterMixed,
+    's17-autoionize': autoionize,
+    's17-relay': relay,
+    's17-acid-mix': acidMix,
     's05-lattice': ionLattice,
     's05-ion-pair': ionPair,
     's06-v1-dimer': v1Dimer,
@@ -767,7 +854,7 @@
     return f(opts);
   }
 
-  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
+  const api = { SPECIES, REAL, DPAIR_REAL, ANNEAL_SCHED, SCENES, build, idealGas, openBox, gasCollide, scatter2, chargePair, thermalBath, radiativeCooling, cavity, openCooling, cavityField, stimField, gas3d, collide3d, bond3d, shapeMethane, shapeWater, shapeLinear, polO2, polBeH2, polH2O, polField, waterCluster, waterMixed, autoionize, relay, acidMix, injectIons, injectProton, enableAcidBase, ionLattice, ionPair, specIonMap, v1Dimer, mixedWater, quadMethane, noStab, entropyCorner, tempGradient, waterSoup, annealSoup, coolStep, mvpBox, runScenario, scenarioStep, maxwellInit };
   if (isNode) module.exports = api;
   else window.HktS0Scenes = api;
 })();

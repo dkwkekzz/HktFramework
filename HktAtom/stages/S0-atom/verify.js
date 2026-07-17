@@ -19,6 +19,7 @@
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;   // ⑭ 각도 반발 (VSEPR)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;   // ⑮ 부분 전하 (QEq)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;          // ⑯ 수소 결합 (R-HB)
+  const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;    // ⑰ 산·염기 (양성자 이전)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -794,6 +795,63 @@
       log.push({ ok: Math.max(...relE) <= E.EPS_E, name: '⑯장부·R-HB닫힘', msg: `max|ΔE|/E ${fmt(Math.max(...relE))} ≤ EPS_E (U_hb → U_bond 귀속·보존)` });
     }
 
+    // 20. ⑰ 산·염기 — ⑯ 물 네트워크 위 양성자 이전(H⁺ 가 H-결합 링크를 갈아탄다). 이온·릴레이·산 창발.
+    if (want(17)) {
+      const R = 4, avg = (a) => a.reduce((x, y) => x + y, 0) / a.length;
+      const SB = { count: 16, L: 7.6, eqSteps: 2500 };   // verify 용 소형·고속 빌드
+      const totalFormal = (w) => w.atoms.reduce((s, a) => s + AB.formal(w, a), 0);
+      const totalH = (w) => w.atoms.filter((a) => (a.Z || 0) === 1).length;
+      // (a) 자동 이온화 평형: 이온쌍 주입 → 재결합(중성 우세·K_w≪1) · 온도 응답(흡열) · 장부·전하·예산.
+      let iniC = [], finC = [], tailLo = [], tailHi = [], drift = [], maxO = [], chg = 0, hOk = true;
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s17-autoionize', Object.assign({ seed: 50 + s, T0: 0.05, preIons: 4 }, SB));
+        const h0 = totalH(w); iniC.push(AB.ions(w).nCat);
+        const E0 = M.ledgerTable(w).total; let mx = 0, ts = 0, tn = 0;
+        for (let k = 0; k < 2000; k++) { E.step(w); mx = Math.max(mx, Math.abs(M.ledgerTable(w).total - E0) / Math.abs(E0)); if (k >= 1200) { ts += AB.ions(w).nCat; tn++; } }
+        const info = AB.ions(w); finC.push(info.nCat); drift.push(mx); maxO.push(info.maxCoordO);
+        chg = Math.max(chg, Math.abs(totalFormal(w))); if (totalH(w) !== h0) hOk = false;
+        // 온도 응답 (같은 seed 저T vs 고T 꼬리 평균 — 흡열이라 고T 잔여 이온이 많다·긴 꼬리로 노이즈 완화)
+        const wl = S.build('s17-autoionize', Object.assign({ seed: 90 + s, T0: 0.02, preIons: 5 }, SB));
+        const wh = S.build('s17-autoionize', Object.assign({ seed: 90 + s, T0: 0.13, preIons: 5 }, SB));
+        let sl = 0, sh = 0, nl = 0; for (let k = 0; k < 2600; k++) { E.step(wl); E.step(wh); if (k >= 1000) { sl += AB.ions(wl).nCat; sh += AB.ions(wh).nCat; nl++; } }
+        tailLo.push(sl / nl); tailHi.push(sh / nl);
+      }
+      const mIni = avg(iniC), mFin = avg(finC), mLo = avg(tailLo), mHi = avg(tailHi), mDrift = Math.max(...drift), mMaxO = Math.max(...maxO);
+      // (b) 릴레이 (Grotthuss): 여분 양성자 1개 — 전하 누적 MSD ≫ 분자(O) MSD (전하가 분자보다 빨리 이동).
+      let ratios = [];
+      for (let s = 0; s < R; s++) {
+        const w = S.build('s17-relay', Object.assign({ seed: 70 + s, T0: 0.03 }, SB));
+        w.atoms.forEach((a) => { a.disp.x = 0; a.disp.y = 0; a.disp.z = 0; });
+        const tr = AB.makeTracker(w);
+        for (let k = 0; k < 2500; k++) { E.step(w); AB.trackStep(w, tr); }
+        let om = 0, on = 0; for (const a of w.atoms) if ((a.Z || 0) === 8) { om += E.V.lenSq(a.disp); on++; }
+        ratios.push(tr.path2 / Math.max(1e-6, om / on));
+      }
+      const mRatio = avg(ratios);
+      // (c) 산 첨가 → [H₃O⁺] 증가 (강산 HX 이온화 · 공통 이온 방향).
+      let acidC = [], pureC = [];
+      for (let s = 0; s < R; s++) {
+        const wa = S.build('s17-acid-mix', Object.assign({ seed: 80 + s, T0: 0.03, nAcid: 5 }, SB)); E.run(wa, 2000); acidC.push(AB.ions(wa).nCat);
+        const wp = S.build('s17-autoionize', Object.assign({ seed: 80 + s, T0: 0.03, preIons: 0 }, SB)); E.run(wp, 2000); pureC.push(AB.ions(wp).nCat);
+      }
+      const mAcid = avg(acidC), mPure = avg(pureC);
+
+      // (1) 재결합·중성 우세: 주입 이온쌍이 재결합해 크게 감소 (K_w ≪ 1 — 중성 물 우세).
+      log.push({ ok: mFin < 0.5 * mIni, name: '⑰재결합·중성우세', msg: `양이온 주입 ${fmt(mIni)} → 최종 ${fmt(mFin)} (< ½ 주입 · 재결합 우세 · K_w≪1)` });
+      // (2) 온도 응답 (흡열·르샤틀리에): 고T 잔여 이온 > 저T (가열이 이온쪽을 favor).
+      log.push({ ok: mHi > mLo, name: '⑰온도응답(흡열)', msg: `꼬리 평균 이온 고T ${fmt(mHi)} > 저T ${fmt(mLo)} (자동이온화 흡열 — 가열→K_w 증가)` });
+      // (3) 릴레이 (Grotthuss): 전하 MSD ≫ 분자 MSD (양성자가 분자보다 빨리 이동).
+      log.push({ ok: mRatio > 10, name: '⑰릴레이Grotthuss', msg: `전하 누적MSD/분자MSD ${fmt(mRatio)} ≫ 1 (D_H>D_mol — 전하가 O 보다 빨리 이동·릴레이)` });
+      // (4) 산 → [H₃O⁺] 증가: 강산 HX 이온화로 양이온 증가 (순수 물 대비).
+      log.push({ ok: mAcid > mPure + 0.5, name: '⑰산→H₃O⁺증가', msg: `양이온 산첨가 ${fmt(mAcid)} > 순수 ${fmt(mPure)} (HX 이온화 → [H₃O⁺] 증가)` });
+      // (5) 예산 (배위 결합): O 배위 ≤ 3 (H₃O⁺ 까지·H₄O²⁺ 없음 — 연속 예산 검증).
+      log.push({ ok: mMaxO <= 3, name: '⑰배위예산(≤3)', msg: `최대 O 배위 ${fmt(mMaxO)} ≤ 3 (H₃O⁺ 까지·H₄O²⁺ 없음 — 배위 결합)` });
+      // (6) 전하 보존: Σ 형식전하 = 0 정확 (양성자 이전은 전하를 옮길 뿐 만들지 않는다).
+      log.push({ ok: chg < 1e-9, name: '⑰전하보존(Σformal=0)', msg: `|Σ 형식전하| ${fmt(chg)} < 1e-9 (D −1·A +1 → 합 0 · 정확)` });
+      // (7) 장부·H 보존: 총 H 수 불변 + 런 표류 (이온 쿨롱 + ⑯ 고립쌍 준정적 최소화 ~1e-7/사건 누적).
+      log.push({ ok: hOk && mDrift < 2e-3, name: '⑰장부·H보존', msg: `H 수 보존 ${hOk} · max|ΔE|/E ${fmt(mDrift)} < 2e-3 (이온 강성 + ⑯ 고립쌍 준정적 최소화 ~1e-7/사건 누적)` });
+    }
+
     return log;
   }
 
@@ -805,7 +863,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

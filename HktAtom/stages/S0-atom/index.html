@@ -33,7 +33,7 @@
   <div id="stage"><canvas id="c" width="520" height="520"></canvas></div>
   <div id="panel">
     <h1>S0-atom · ①–⑪ 원자→분자→승격</h1>
-    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR)</b>. <b>s15 = ⑮ 극성(부분 전하·QEq)</b>. <b>s16 = ⑯ 수소 결합: 극성 물의 방향성 약결합 네트워크(R-HB)·물+Ne 선택성</b>. CPK·공유결합=선·부분전하=링·쌍극자=노랑·<b>수소결합=청록 점선</b>.</p>
+    <p class="sub">준위→주기율표·이온·공유결합·열용량·분극·평형·물 창발·<b>승격 MVP</b>. "보기": 준위③·열용량⑦·응집⑧·엔트로피⑨. <b>s11 = 5막 시나리오(형성→응집→가열→반응→냉각) 한 장부</b> + <b>⇧ output.json 산출·⇩ 재해동 왕복</b>. <b>s12 = ⑫ 복사장(광자 입자)</b>. <b>s13 = ⑬ 3D(드래그 회전)</b>. <b>s14 = ⑭ 형상(VSEPR)</b>. <b>s15 = ⑮ 극성(부분 전하·QEq)</b>. <b>s16 = ⑯ 수소 결합: 극성 물의 방향성 약결합 네트워크(R-HB)·물+Ne 선택성</b>. <b>s17 = ⑰ 산·염기: 양성자가 수소 결합을 갈아탄다(H₃O⁺·OH⁻ 창발·Grotthuss 릴레이·강산)</b>. CPK·공유결합=선·부분전하=링·쌍극자=노랑·<b>수소결합=청록 점선·이온=주황(H₃O⁺)/청록 굵은 링(OH⁻)</b>.</p>
 
     <div class="row">
       <label>보기</label>
@@ -58,6 +58,9 @@
         <option value="s06-no-stab">s06-no-stab (안정화 off)</option>
         <option value="s05-lattice">s05-lattice (이온 격자)</option>
         <option value="s05-ion-pair">s05-ion-pair (오르막 쌍)</option>
+        <option value="s17-relay">s17-relay (양성자 릴레이·Grotthuss)</option>
+        <option value="s17-autoionize">s17-autoionize (자동 이온화·재결합)</option>
+        <option value="s17-acid-mix">s17-acid-mix (강산 → H₃O⁺ 증가)</option>
         <option value="s16-water-cluster">s16-water-cluster (수소 결합 네트워크)</option>
         <option value="s16-mixed">s16-mixed (물+Ne 선택성)</option>
         <option value="s15-h2o">s15-h2o (극성·부분 전하)</option>
@@ -137,6 +140,7 @@
 <script src="geometry.js"></script>
 <script src="polarity.js"></script>
 <script src="hbond.js"></script>
+<script src="acidbase.js"></script>
 <script src="scenes.js"></script>
 <script src="measure.js"></script>
 <script src="modes.js"></script>
@@ -144,7 +148,7 @@
 <script src="promote.js"></script>
 <script>
 (function () {
-  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry, Pol = window.HktS0Polarity, HB = window.HktS0HBond;
+  const E = window.HktS0Engine, S = window.HktS0Scenes, M = window.HktS0Measure, Po = window.HktS0Pol, Pr = window.HktS0Promote, Geo = window.HktS0Geometry, Pol = window.HktS0Polarity, HB = window.HktS0HBond, AB = window.HktS0AcidBase;
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const el = (id) => document.getElementById(id);
 
@@ -243,6 +247,14 @@
       }
       ctx.setLineDash([]);
     }
+    // ⑰ 이온 하이라이트: H₃O⁺(형식전하 +1)=주황 굵은 링 · OH⁻(−1)=청록 굵은 링. (양성자 이전으로 창발)
+    let nCat = 0, nAn = 0;
+    if (world._meta && world._meta.ab && AB) {
+      const info = AB.ions(world);
+      const ring = (id, col) => { const a = world.atomById(id); if (!a) return; const p = project3D(a.r, L); ctx.strokeStyle = col; ctx.lineWidth = 3; ctx.beginPath(); ctx.arc(p.x, p.y, (spRad(a) * 26 * p.persp) + 5, 0, 6.283); ctx.stroke(); };
+      for (const c of info.cat) { ring(c.centerId, 'rgba(255,150,40,0.95)'); nCat++; }
+      for (const c of info.an) { ring(c.centerId, 'rgba(60,210,230,0.95)'); nAn++; }
+    }
     // ⑮ 부분 전하 배지 (색·크기 = dq: 빨강 +·파랑 −) + 분자 쌍극자 화살표 (노랑).
     let hasCharge = false;
     if (world._meta && world._meta.polar && Pol) {
@@ -267,7 +279,7 @@
     // 광자 (있으면)
     for (const ph of world.photons || []) { const p = project3D(ph.r, L); ctx.fillStyle = '#fff0a0'; ctx.beginPath(); ctx.arc(p.x, p.y, 1.8 * p.persp, 0, 6.283); ctx.fill(); }
     ctx.fillStyle = '#8b949e'; ctx.font = '11px monospace';
-    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록=고립쌍' : '') + (hasCharge ? ' · 링=부분전하±·노랑=쌍극자' : '') + (nHB ? ' · 청록 점선=수소결합 ' + nHB : '') + ' (투영은 해석)', 8, cv.height - 8);
+    ctx.fillText('3D · 드래그로 회전' + (hasLone ? ' · 청록=고립쌍' : '') + (hasCharge ? ' · 링=부분전하±·노랑=쌍극자' : '') + (nHB ? ' · 청록 점선=수소결합 ' + nHB : '') + ((nCat || nAn) ? ' · 주황=H₃O⁺ ' + nCat + '·청록링=OH⁻ ' + nAn : '') + ' (투영은 해석)', 8, cv.height - 8);
   }
 
   // 결합 렌더 — 화학 표기 규칙 준수:
