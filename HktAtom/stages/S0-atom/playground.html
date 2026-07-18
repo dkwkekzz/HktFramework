@@ -1,0 +1,330 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>S0-atom · 관찰자 샌드박스 (원소 소환 프로토타입)</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin: 0; font: 13px/1.5 ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+         background: #0d1117; color: #c9d1d9; display: flex; }
+  #stage { flex: 0 0 auto; }
+  canvas { background: #05070c; display: block; border-right: 1px solid #222; cursor: crosshair; }
+  #panel { padding: 12px 16px; width: 560px; }
+  h1 { font-size: 14px; margin: 0 0 4px; color: #e6edf3; }
+  .sub { color: #6e7681; margin: 0 0 10px; font-size: 12px; }
+  .row { margin: 6px 0; display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+  label { color: #8b949e; }
+  button { background: #21262d; color: #c9d1d9; border: 1px solid #30363d;
+           border-radius: 5px; padding: 3px 9px; font: inherit; cursor: pointer; }
+  button:hover { border-color: #58a6ff; }
+  input[type=range] { accent-color: #58a6ff; width: 90px; }
+  /* 주기율표 */
+  #pt { display: grid; grid-template-columns: repeat(18, 27px); gap: 2px; margin: 8px 0 4px; }
+  .cell { width: 27px; height: 25px; border-radius: 3px; border: 1px solid #2a3038;
+          font: 10px/23px inherit; text-align: center; cursor: pointer; color: #dfe6ee;
+          background: #161b22; user-select: none; }
+  .cell:hover { border-color: #58a6ff; }
+  .cell.sel { border: 2px solid #ffd75f; line-height: 21px; color: #fff; }
+  .cell.gap { visibility: hidden; }
+  #ptf { display: grid; grid-template-columns: repeat(18, 27px); gap: 2px; margin: 2px 0 8px; }
+  #info { background: #11151c; border: 1px solid #222833; border-radius: 6px; padding: 8px 12px; min-height: 56px; }
+  #info b { color: #ffd75f; font-size: 16px; }
+  .k { color: #8b949e; }
+  #feed { background: #0a0d12; border: 1px solid #1b212b; border-radius: 6px; margin-top: 8px;
+          padding: 6px 10px; height: 132px; overflow-y: auto; font-size: 12px; }
+  #feed .bond\+ { color: #3fb950; } #feed .bond\- { color: #e3b341; }
+  #feed .ion { color: #f0883e; } #feed .ion0 { color: #79c0ff; } #feed .sys { color: #6e7681; }
+  table.st { border-collapse: collapse; margin-top: 8px; }
+  table.st td { padding: 1px 10px 1px 0; }
+  td.v { color: #58a6ff; font-variant-numeric: tabular-nums; }
+  .resid.ok { color: #3fb950; } .resid.bad { color: #f85149; }
+  .note { color: #6e7681; margin-top: 10px; font-size: 11.5px; }
+  kbd { background: #21262d; border: 1px solid #30363d; border-radius: 3px; padding: 0 4px; font-size: 11px; }
+</style>
+</head>
+<body>
+  <div id="stage"><canvas id="c" width="600" height="600"></canvas></div>
+  <div id="panel">
+    <h1>관찰자 샌드박스 — 원소를 소환해 반응을 관찰한다</h1>
+    <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다.
+      물리는 S0 커널 그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·전자 이전=이온(⑤).
+      <kbd>WASD/←↑↓→</kbd> 이동 · <kbd>클릭</kbd>/<kbd>Space</kbd> 소환 · <kbd>E</kbd> 가열 · <kbd>Q</kbd> 냉각 · <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화</p>
+
+    <div id="pt"></div>
+    <div id="ptf"></div>
+    <div id="info">원소를 선택하세요.</div>
+
+    <div class="row">
+      <button id="pause">⏸ 일시정지</button>
+      <label>속도</label><input id="speed" type="range" min="1" max="10" value="3" />
+      <label>소환 T</label><input id="spT" type="range" min="0" max="150" value="30" />
+      <label>던지기</label><input id="throw" type="range" min="0" max="200" value="60" />
+      <button id="clear">🗑 초기화</button>
+    </div>
+    <div class="row">
+      <label>키트</label>
+      <button data-kit="water">물 재료 (16H+8O)</button>
+      <button data-kit="salt">소금 재료 (6Na+6Cl)</button>
+      <button data-kit="methane">메탄 재료 (2C+8H)</button>
+      <button data-kit="noble">비활성 대조 (10Ne)</button>
+      <button data-kit="fire">🔥 점화 (광역 가열)</button>
+    </div>
+
+    <table class="st">
+      <tr><td class="k">원자 수</td><td class="v" id="stN">0</td>
+          <td class="k">온도 ⟨T⟩</td><td class="v" id="stT">—</td>
+          <td class="k">결합</td><td class="v" id="stB">0</td></tr>
+      <tr><td class="k">주입 E</td><td class="v" id="stE">0</td>
+          <td class="k">회계 잔차</td><td class="v resid ok" id="stR">0</td>
+          <td class="k">분자</td><td class="v" id="stM">—</td></tr>
+    </table>
+
+    <div id="feed"><div class="sys">— 사건 피드 (결합·해리·이온화) —</div></div>
+
+    <p class="note">회계 잔차 = 세계 총 에너지 − 관찰자 주입 누계 — 소환·가열이 전부 장부에 기록되므로
+      0 근처(초록)여야 한다. 라벨은 결합 그래프 측정값(분자 author 0). 한계: 간이 Slater 라 고Z
+      원소의 IE·EA 는 "경향"만 정직 — 전이금속·란타넘족 반응성은 실세계 정합 주장 없음 (step-0029).</p>
+  </div>
+
+<script src="engine.js"></script>
+<script src="levels.js"></script>
+<script src="catalog.js"></script>
+<script src="polarization.js"></script>
+<script src="playground.js"></script>
+<script>
+(function () {
+  'use strict';
+  const E = window.HktS0Engine, Pg = window.HktS0Playground;
+  const cv = document.getElementById('c'), ctx = cv.getContext('2d');
+  const MAXN = 200;   // O(N²) 성능 가드
+
+  let world, snap, sel = 'H', paused = false;
+  // 관찰자 — 표현층 아바타 (물리 개체 아님·소환/펄스는 주입 장부로 회계)
+  const obs = { x: 13, y: 13, aimx: 13, aimy: 8 };
+  const keys = {};
+
+  function rebuild() {
+    world = Pg.buildPlayground({ L: 26 });
+    snap = Pg.snapshot(world);
+    feedMsg('sys', '세계 초기화 — 상자 26×26 · 벽 반사 · 관찰자 준비');
+  }
+
+  // ── 주기율표 팔레트 ──
+  function buildPT() {
+    const pt = document.getElementById('pt'), ptf = document.getElementById('ptf');
+    const grid = {}, gridf = {};
+    for (const s of Pg.BY_Z) {
+      const p = Pg.gridPos(s.Z);
+      (p.r <= 7 ? grid : gridf)[(p.r <= 7 ? p.r : p.r - 8) + '-' + p.c] = s;
+    }
+    for (let r = 1; r <= 7; r++) for (let c = 1; c <= 18; c++) {
+      const s = grid[r + '-' + c], d = document.createElement('div');
+      d.className = 'cell' + (s ? '' : ' gap');
+      if (s) {
+        d.textContent = s.sym; d.id = 'el-' + s.sym; d.title = 'Z=' + s.Z;
+        d.style.background = s.color + '30'; d.style.borderColor = s.color + '70';
+        d.onclick = () => select(s.sym);
+      }
+      pt.appendChild(d);
+    }
+    for (let r = 1; r <= 2; r++) for (let c = 1; c <= 18; c++) {
+      const s = gridf[r + '-' + c], d = document.createElement('div');
+      d.className = 'cell' + (s ? '' : ' gap');
+      if (s) {
+        d.textContent = s.sym; d.id = 'el-' + s.sym; d.title = 'Z=' + s.Z;
+        d.style.background = s.color + '30'; d.style.borderColor = s.color + '70';
+        d.onclick = () => select(s.sym);
+      }
+      ptf.appendChild(d);
+    }
+  }
+  function select(sym) {
+    const prev = document.querySelector('.cell.sel');
+    if (prev) prev.classList.remove('sel');
+    sel = sym;
+    const el = document.getElementById('el-' + sym);
+    if (el) el.classList.add('sel');
+    const s = Pg.TABLE[sym];
+    const role = s.noble ? '비활성 (결합 0)' : s.role === 'cation' ? '양이온형 (전자 줌)' : s.role === 'anion' ? '음이온형 (전자 받음)' : '공유형';
+    document.getElementById('info').innerHTML =
+      `<b>${s.sym}</b> <span class="k">Z=${s.Z} · ${s.period}주기 · 최외각 ${s.ve}e</span><br>` +
+      `<span class="k">원자가 B</span> ${s.B} · <span class="k">IE</span> ${s.IE.toFixed(2)} · ` +
+      `<span class="k">EA</span> ${s.EA.toFixed(2)} · <span class="k">χ</span> ${s.chi.toFixed(2)} · ` +
+      `<span class="k">역할</span> ${role} · <span class="k">동핵 D</span> ${Pg.dHomo(s).toFixed(2)}`;
+  }
+
+  // ── 입력 ──
+  addEventListener('keydown', (e) => {
+    if (e.target.tagName === 'INPUT') return;
+    keys[e.key.toLowerCase()] = true;
+    if (e.key === ' ') { e.preventDefault(); doSpawn(handPos()); }
+    if (e.key.toLowerCase() === 'e') doPulse(1.35, '가열');
+    if (e.key.toLowerCase() === 'q') doPulse(0.75, '냉각');
+    if (e.key.toLowerCase() === 'p') togglePause();
+    if (e.key.toLowerCase() === 'r') rebuild();
+  });
+  addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
+  cv.addEventListener('mousemove', (e) => {
+    const b = cv.getBoundingClientRect(), L = world.box.L;
+    obs.aimx = (e.clientX - b.left) / cv.width * L.x;
+    obs.aimy = (e.clientY - b.top) / cv.height * L.y;
+  });
+  cv.addEventListener('mousedown', (e) => {
+    const b = cv.getBoundingClientRect(), L = world.box.L;
+    doSpawn({ x: (e.clientX - b.left) / cv.width * L.x, y: (e.clientY - b.top) / cv.height * L.y });
+  });
+
+  function handPos() {
+    const dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, d = Math.hypot(dx, dy) || 1;
+    return { x: obs.x + dx / d * 1.4, y: obs.y + dy / d * 1.4 };
+  }
+  function doSpawn(at) {
+    if (world.atoms.length >= MAXN) { feedMsg('sys', `소환 거부 — 원자 ${MAXN}개 상한 (O(N²) 성능 가드)`); return; }
+    const T = +document.getElementById('spT').value / 100;
+    const thr = +document.getElementById('throw').value / 100;
+    const dx = at.x - obs.x, dy = at.y - obs.y, d = Math.hypot(dx, dy) || 1;
+    const m = Pg.TABLE[sel].mass;
+    const a = Pg.spawn(world, sel, at.x, at.y, { T, px: dx / d * thr * m * 0.5, py: dy / d * thr * m * 0.5 });
+    if (!a) feedMsg('sys', '소환 실패 — 주변이 가득 참');
+    else feedMsg('sys', `소환 ${sel} (${at.x.toFixed(1)}, ${at.y.toFixed(1)})`);
+  }
+  function doPulse(f, name) {
+    const h = handPos();
+    const n = Pg.heatPulse(world, h.x, h.y, 3.5, f);
+    feedMsg('sys', `${name} 펄스 ×${f} — 원자 ${n}개`);
+  }
+  function togglePause() {
+    paused = !paused;
+    document.getElementById('pause').textContent = paused ? '▶ 재개' : '⏸ 일시정지';
+  }
+  document.getElementById('pause').onclick = togglePause;
+  document.getElementById('clear').onclick = rebuild;
+
+  // ── 키트 (소환 매크로 — 관찰자 주변 원형 배치) ──
+  const KITS = {
+    water: { list: () => rep({ O: 8, H: 16 }), msg: '물 재료 — 냉각(Q)으로 어닐링하면 H₂O 우세' },
+    salt: { list: () => rep({ Na: 6, Cl: 6 }), msg: '소금 재료 — 접촉 시 전자 이전 → Na⁺Cl⁻ 격자' },
+    methane: { list: () => rep({ C: 2, H: 8 }), msg: '메탄 재료 — C 는 4가 허브' },
+    noble: { list: () => rep({ Ne: 10 }), msg: '비활성 대조 — 결합 0·분산 응집만' },
+  };
+  function rep(counts) { const out = []; for (const k in counts) for (let i = 0; i < counts[k]; i++) out.push(k); return out; }
+  document.querySelectorAll('[data-kit]').forEach((b) => {
+    b.onclick = () => {
+      const kit = b.dataset.kit;
+      if (kit === 'fire') { const h = handPos(); const n = Pg.heatPulse(world, h.x, h.y, 8, 1.8); feedMsg('sys', `🔥 점화 — 광역 가열 ×1.8 (${n}개)`); return; }
+      const K = KITS[kit], list = K.list(), T = +document.getElementById('spT').value / 100;
+      let ok = 0;
+      for (let i = 0; i < list.length; i++) {
+        if (world.atoms.length >= MAXN) break;
+        const a = 2 * Math.PI * i / list.length, R = 2.2 + 1.3 * Math.random();
+        if (Pg.spawn(world, list[i], obs.x + R * Math.cos(a), obs.y + R * Math.sin(a), { T })) ok++;
+      }
+      feedMsg('sys', `키트 소환 ${ok}개 — ${K.msg}`);
+    };
+  });
+
+  // ── 사건 피드 ──
+  const feed = document.getElementById('feed');
+  function feedMsg(kind, msg) {
+    const d = document.createElement('div');
+    d.className = kind; d.textContent = `t=${world ? world.t.toFixed(1) : 0} · ${msg}`;
+    feed.prepend(d);
+    while (feed.children.length > 40) feed.removeChild(feed.lastChild);
+  }
+
+  // ── 렌더 ──
+  function draw() {
+    const L = world.box.L, sx = cv.width / L.x, sy = cv.height / L.y;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    // 임시 복합체 (점선 회색)
+    ctx.setLineDash([3, 4]); ctx.strokeStyle = '#3a4250'; ctx.lineWidth = 1;
+    for (const cx of world.complexes) {
+      const a = world.atomById(cx.i), b = world.atomById(cx.j);
+      if (!a || !b) continue;
+      ctx.beginPath(); ctx.moveTo(a.r.x * sx, a.r.y * sy); ctx.lineTo(b.r.x * sx, b.r.y * sy); ctx.stroke();
+    }
+    ctx.setLineDash([]);
+    // 결합 (실선)
+    for (const bd of world.bonds) {
+      const a = world.atomById(bd.i), b = world.atomById(bd.j);
+      if (!a || !b) continue;
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1.5 * bd.order;
+      ctx.beginPath(); ctx.moveTo(a.r.x * sx, a.r.y * sy); ctx.lineTo(b.r.x * sx, b.r.y * sy); ctx.stroke();
+    }
+    // 원자
+    for (const a of world.atoms) {
+      const s = Pg.TABLE[a.sp];
+      ctx.beginPath(); ctx.arc(a.r.x * sx, a.r.y * sy, s.radius * sx, 0, 2 * Math.PI);
+      ctx.fillStyle = s.color; ctx.fill();
+      if (a.q !== 0) {   // 이온 링 — 주황(+)/청록(−)
+        ctx.beginPath(); ctx.arc(a.r.x * sx, a.r.y * sy, s.radius * sx + 3, 0, 2 * Math.PI);
+        ctx.strokeStyle = a.q > 0 ? '#f0883e' : '#39c5cf'; ctx.lineWidth = 2; ctx.stroke();
+      }
+    }
+    // 분자식 라벨 (측정 — 클러스터 무게중심)
+    ctx.font = '11px ui-monospace'; ctx.fillStyle = '#ffd75f'; ctx.textAlign = 'center';
+    for (const g of Pg.clusters(world)) ctx.fillText(Pg.formula(g.comp), g.cx * sx, g.cy * sy - 12);
+    // 관찰자 로버 — 노란 원 + 조준 방향 + 손 위치
+    const ox = obs.x * sx, oy = obs.y * sy;
+    const dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, d = Math.hypot(dx, dy) || 1;
+    ctx.beginPath(); ctx.arc(ox, oy, 9, 0, 2 * Math.PI);
+    ctx.fillStyle = '#1c2128'; ctx.fill();
+    ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 2; ctx.stroke();
+    ctx.beginPath(); ctx.arc(ox + dx / d * 4, oy + dy / d * 4, 2.5, 0, 2 * Math.PI);   // 눈
+    ctx.fillStyle = '#ffd75f'; ctx.fill();
+    const h = handPos();   // 손(소환·펄스 지점) 십자
+    ctx.strokeStyle = '#ffd75f66'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(h.x * sx - 5, h.y * sy); ctx.lineTo(h.x * sx + 5, h.y * sy);
+    ctx.moveTo(h.x * sx, h.y * sy - 5); ctx.lineTo(h.x * sx, h.y * sy + 5); ctx.stroke();
+    ctx.textAlign = 'start';
+  }
+
+  function updateHud() {
+    const n = world.atoms.length;
+    document.getElementById('stN').textContent = n;
+    document.getElementById('stT').textContent = n ? (world.ledger.K_tr / n).toFixed(3) : '—';
+    document.getElementById('stB').textContent = world.bonds.length;
+    document.getElementById('stE').textContent = world.pgIn.E.toFixed(2);
+    const res = Pg.residual(world), r = document.getElementById('stR');
+    r.textContent = res.toFixed(3);
+    r.className = 'v resid ' + (Math.abs(res) < 0.1 ? 'ok' : 'bad');
+    const hist = {};
+    for (const g of Pg.clusters(world)) { const f = Pg.formula(g.comp); hist[f] = (hist[f] || 0) + 1; }
+    const top = Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 3)
+      .map(([k, v]) => `${k}×${v}`).join(' ');
+    document.getElementById('stM').textContent = top || '—';
+  }
+
+  function moveObserver() {
+    const L = world.box.L, v = 0.14;
+    if (keys.w || keys.arrowup) obs.y -= v;
+    if (keys.s || keys.arrowdown) obs.y += v;
+    if (keys.a || keys.arrowleft) obs.x -= v;
+    if (keys.d || keys.arrowright) obs.x += v;
+    obs.x = Math.min(L.x - 0.5, Math.max(0.5, obs.x));
+    obs.y = Math.min(L.y - 0.5, Math.max(0.5, obs.y));
+  }
+
+  let frameCount = 0;
+  function frame() {
+    moveObserver();
+    if (!paused) {
+      const speed = +document.getElementById('speed').value;
+      for (let k = 0; k < speed; k++) E.step(world);
+      if (++frameCount % 5 === 0) {   // 사건 diff 는 5프레임마다 (비용 절약)
+        const r = Pg.diffEvents(world, snap);
+        snap = r.snap;
+        for (const ev of r.events) feedMsg(ev.kind, ev.msg);
+      }
+    }
+    draw(); updateHud();
+    requestAnimationFrame(frame);
+  }
+
+  buildPT(); rebuild(); select('H');
+  requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>

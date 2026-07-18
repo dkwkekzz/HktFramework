@@ -9,9 +9,11 @@
   const isNode = typeof module !== 'undefined' && module.exports;
 
   // Aufbau 순서 · 부껍질 축퇴도 g · 유효 주양자수 n* (Slater) · Rydberg 노브
-  const AUFBAU = ['1s', '2s', '2p', '3s', '3p', '4s', '3d', '4p', '5s', '4d', '5p'];
-  const GCAP = { s: 2, p: 6, d: 10 };
-  const NEFF = { 1: 1, 2: 2, 3: 3, 4: 3.7, 5: 4.0 };
+  // 6·7주기 연장(관찰자 샌드박스 — step-0029): 기존 순서의 뒤에만 추가 → Z≤54 결과 불변 (가법).
+  const AUFBAU = ['1s', '2s', '2p', '3s', '3p', '4s', '3d', '4p', '5s', '4d', '5p',
+    '6s', '4f', '5d', '6p', '7s', '5f', '6d', '7p'];
+  const GCAP = { s: 2, p: 6, d: 10, f: 14 };
+  const NEFF = { 1: 1, 2: 2, 3: 3, 4: 3.7, 5: 4.0, 6: 4.2, 7: 4.3 };
   const R = 1.0;          // 노브 (무차원 — 목표는 경향, 실수치 아님)
   const D_TYP = 0.5;      // 대표 결합 에너지 (승위 이득 계산 노브)
 
