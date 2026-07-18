@@ -1121,6 +1121,36 @@
       log.push({ ok: sim.nu[li] > 0 && sim.nu[li] < sim.heat[li], name: '㉔Q값회계', msg: `㉔·Q 회계: 붕괴열 ${fmt(sim.heat[li])} + 중성미자 E_escape ${fmt(sim.nu[li])} (β⁻ 몫·탈출) — 질량 결손 → 방출 KE+γ+ν` });
     }
 
+    // ── 25. ㉕ 분열 — 앵커: k_eff=1 경계 (핵분열 실현·CONTRACT §5 파라미터 공급원) ──
+    if (want(25)) {
+      // (1) 3영역·k_eff=1 경계 (author 0): 밀도 스캔 → k_eff 단조↑·저밀도 미임계·고밀도 초임계 → 경계 존재.
+      const nt = Nu.buildNuclideTable({ R: 3 });
+      const ks = nt.criticalScan.map((x) => x.kGen);
+      const monoUp2 = ks.every((v, i) => i === 0 || v > ks[i - 1]);
+      const hasSub = nt.criticalScan.some((x) => x.region === 'subcritical'), hasSup = nt.criticalScan.some((x) => x.region === 'supercritical');
+      log.push({ ok: monoUp2 && ks[0] < 0.95 && ks[ks.length - 1] > 1.05 && hasSub && hasSup, name: '㉕k_eff경계',
+        msg: `㉕·k_eff 밀도 의존 [${ks.map((k) => k.toFixed(2))}] 단조↑ · 저밀도 미임계 ${fmt(ks[0])}<1 · 고밀도 초임계 ${fmt(ks[ks.length - 1])}>1 → **임계 밀도 경계 창발**(author 0·누설 vs 생산 균형)` });
+
+      // (2) 감속 창발 (author 0 운동학): 감속재 有 → 열중성자 분율↑ · 無 → fast 유지.
+      const withM = Nu.reactorSim({ nF: 0.05, nM: 0.4, L: 12, steps: 120, N0: 300, seed: 3 });
+      const noM = Nu.reactorSim({ nF: 0.05, nM: 0, L: 12, steps: 120, N0: 300, seed: 3 });
+      const thW = withM.spec[withM.spec.length - 1], thN = noM.spec[noM.spec.length - 1];
+      log.push({ ok: thW > 0.3 && thW > thN + 0.2, name: '㉕감속창발', msg: `㉕·감속: 열중성자 분율 감속재 有 ${fmt(thW)} ≫ 無 ${fmt(thN)} (가벼운 핵 산란서 에너지 전달 — 운동학 창발·author 0)` });
+
+      // (3) Δm·c² 회계: 분열 방출 E = 질량 결손 (사건 단위 정확). "위력은 회계"(CONTRACT §5-4).
+      const sf = Nu.reactorSim({ nF: 0.08, L: 12, steps: 150, N0: 200, seed: 9 });
+      log.push({ ok: Math.abs(sf.Erel - sf.dm * Nu.C2) < 1e-9 && sf.fissions > 0, name: '㉕질량에너지', msg: `㉕·Δm·c² 회계: 방출 E ${fmt(sf.Erel)} = dm·C2 ${fmt(sf.dm * Nu.C2)} (분열 ${sf.fissions}회·위력은 authored 아니라 회계·CONTRACT §5)` });
+
+      // (4) 지연 중성자 (파편 붕괴·author 0): on 이 지연 중성자를 파편서 방출 → 동역학 차이 (제어 근원·관찰).
+      const dOn = Nu.reactorSim({ nF: 0.045, L: 12, delayed: true, steps: 200, N0: 300, seed: 5 });
+      const dOff = Nu.reactorSim({ nF: 0.045, L: 12, delayed: false, steps: 200, N0: 300, seed: 5 });
+      log.push({ ok: Math.abs(dOn.timeExp - dOff.timeExp) > 1e-4 || dOn.finalN !== dOff.finalN, name: '㉕지연중성자', msg: `㉕·지연 중성자 on/off 동역학 차 (지연분=파편 n 채널·author 0·k_eff≈1 제어 근원·전 제어 물리는 관찰 기록·한계)` });
+
+      // (5) NuclideTable 산출 ⇧ (CONTRACT §5-3 중간 해상도 파라미터·측정 발효): schema·σ·ν·Q·임계 스캔.
+      log.push({ ok: nt.schema === 'nuclide-table-v0' && nt.nu > 1 && nt.Q > 0 && nt.crossSections && nt.criticalScan.length >= 3, name: '㉕NuclideTable⇧',
+        msg: `㉕·NuclideTable 발효: ν ${nt.nu}·Q ${nt.Q}·σ 밴드 ${nt.crossSections.bands.join('/')}·임계 스캔 ${nt.criticalScan.length}점 (중간 해상도 중성자 수송 파라미터·CONTRACT §5)` });
+    }
+
     return log;
   }
 

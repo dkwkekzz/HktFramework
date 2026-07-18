@@ -13,6 +13,7 @@
   'use strict';
   const isNode = typeof module !== 'undefined' && module.exports;
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
+  const mean = (a) => a.length ? a.reduce((x, y) => x + y, 0) / a.length : 0;
 
   // ── 핵종 상태표 (가상·바닥 특권 데이터) ──
   //   질량 Σ 회계: m = Z·MP + N·MN − BE. MP≈MN≈1 (무차원)·BE 는 결합 에너지(양수=안정화).
@@ -158,7 +159,139 @@
     return { lambda: -slope, r2: ssTot > 0 ? 1 - ssRes / ssTot : 1 };
   }
 
-  const api = { NUCLIDES, DECAY, MP, MN, C2, bindingEnergy, nuclideMass, tagNuclide, bundle, bondVibFreq, isotopeShift, halfToLambda, decaySim, fitDecayConst };
+  // ══════════════════════════════════════════════════════════════════════════
+  // ㉕ 분열 — 앵커: k_eff=1 경계 (CONTRACT §5 스트레스 테스트의 파라미터 공급원)
+  //   중성자 입자(전자 형식 재사용·q=0·핵과만 단면)·단면 에너지 밴드·행 R-N-SCAT/CAP/FISSION.
+  //   자체 완결 중성자 수송 몬테카를로 (엔진 미접촉·평균자유행로 샘플링). 매질=균질 밀도.
+  // ══════════════════════════════════════════════════════════════════════════
+
+  // 분열 핵종 F (무거운 가상 핵종). σ 는 에너지 밴드 계단표 (fast/thermal·포획 1/v).
+  const FISSILE = {
+    Z: 94, N: 145, m: 239 - 1.9,        // 질량 결손 큼 (BE 큰 → 분열 방출의 근원)
+    Qfis: 4.0,                           // 분열당 방출 (무차원·질량 결손 유래·밸런스 노브)
+    nu: 2.5,                             // 분열당 평균 중성자 (정수 샘플)
+    // 단면 (무차원 유효값): thermal 에서 분열 강함 (열중성자로)
+    sigFisThermal: 6.0, sigFisFast: 0.4,
+    sigCapThermal: 1.0, sigCapFast: 0.2,
+    sigScat: 0.8,
+  };
+  // 감속재 M (가벼운 핵 — 산란으로 열중성자화). 질량 작을수록 에너지 전달 큼(author 0 운동학).
+  const MODERATOR = { A: 2.0, sigScat: 3.0, sigCap: 0.02 };   // A=질량수(중수소 유사)
+  const E_THERMAL = 0.3;                 // 열/속 경계 (무차원)·E_FISSION 생성 에너지
+  const E_FISSION_BORN = 2.0;            // 분열 중성자 생성 에너지 (fast)
+
+  const isThermal = (E) => E < E_THERMAL;
+  function sigFis(E) { return isThermal(E) ? FISSILE.sigFisThermal : FISSILE.sigFisFast; }
+  function sigCapF(E) { return (isThermal(E) ? FISSILE.sigCapThermal : FISSILE.sigCapFast) * Math.sqrt(E_THERMAL / Math.max(1e-6, E)); } // 1/v 강화 근사
+  const mnN = 1.0;                        // 중성자 질량 (무차원)
+  const vOf = (E) => Math.sqrt(2 * Math.max(1e-9, E) / mnN);
+
+  // 중성자 입자 (전자 형식 재사용 — 새 자료형 0): {r,p,E,gen,dir}
+  function makeNeutron(r, E, dir, gen) { return { r: { x: r.x, y: r.y, z: r.z }, E, gen: gen || 0, dir }; }
+
+  // 원자로 시뮬: 균질 매질(밀도 nF·nM)·상자 L(누설 경계)·초기 소스 중성자. 중성자 수송 몬테카를로.
+  //   반환: 시계열 중성자 수·세대 카운트·분열 수·방출 E(Δm·c²)·에너지 스펙트럼·지연 중성자.
+  function reactorSim(opts) {
+    opts = opts || {};
+    const rng = opts.rng || E.makeRng(opts.seed || 9009);
+    const L = opts.L || 12, nF = opts.nF != null ? opts.nF : 0.08, nM = opts.nM != null ? opts.nM : 0.25;
+    const dt = opts.dt || 0.05, steps = opts.steps || 400, rec = opts.rec || 5;
+    const delayed = opts.delayed !== false;      // 지연 중성자 (파편 붕괴) on/off
+    const three = opts.three !== false;
+    const randDir = () => { const a = 2 * Math.PI * rng(); if (!three) return { x: Math.cos(a), y: Math.sin(a), z: 0 }; const z = 2 * rng() - 1, s = Math.sqrt(Math.max(0, 1 - z * z)); return { x: s * Math.cos(a), y: s * Math.sin(a), z }; };
+    // 초기 소스 (fast·gen 0·중앙 근처)
+    let neutrons = [];
+    for (let i = 0; i < (opts.N0 || 200); i++) neutrons.push(makeNeutron({ x: L / 2 + (rng() - 0.5) * L * 0.3, y: L / 2 + (rng() - 0.5) * L * 0.3, z: three ? L / 2 + (rng() - 0.5) * L * 0.3 : 0 }, E_FISSION_BORN, randDir(), 0));
+    const ts = [], count = [], spec = [], genProd = {}, genLost = {};   // genProd[g]=g 낳은 g+1·genLost[g]=g 소멸(흡수+누설)
+    const lost = (g) => { genLost[g] = (genLost[g] || 0) + 1; };
+    let fissions = 0, Erel = 0, captures = 0, leaks = 0, delayedQueue = [];   // 지연 중성자 대기 (파편)
+    let dm = 0;                                            // 질량 결손 누적 (Δm — 방출 E 와 정합)
+    for (let s = 0; s <= steps; s++) {
+      // 지연 중성자 방출 (파편 붕괴 — 간이 지수)
+      if (delayed && delayedQueue.length) {
+        const keep = [];
+        for (const dnu of delayedQueue) { if (rng() < 1 - Math.exp(-0.02 * dt * 50)) neutrons.push(makeNeutron(dnu.r, E_FISSION_BORN * 0.5, randDir(), dnu.gen)); else keep.push(dnu); }
+        delayedQueue = keep;
+      }
+      const next = [];
+      for (const nu of neutrons) {
+        const v = vOf(nu.E);
+        // 이동
+        nu.r.x += nu.dir.x * v * dt; nu.r.y += nu.dir.y * v * dt; if (three) nu.r.z += nu.dir.z * v * dt;
+        // 누설 (열린 경계) — 세대별 소멸 회계 (k_eff 에 누설 포함)
+        if (nu.r.x < 0 || nu.r.x > L || nu.r.y < 0 || nu.r.y > L || (three && (nu.r.z < 0 || nu.r.z > L))) { leaks++; lost(nu.gen); continue; }
+        // 충돌 확률: Σ_total·v·dt (거시 단면)
+        const SigF = nF * (sigFis(nu.E) + sigCapF(nu.E) + FISSILE.sigScat);
+        const SigM = nM * (MODERATOR.sigScat + MODERATOR.sigCap);
+        const Sig = SigF + SigM, pColl = 1 - Math.exp(-Sig * v * dt);
+        if (rng() >= pColl) { next.push(nu); continue; }
+        // 충돌 채널 선택 (단면 비례)
+        const rC = rng() * Sig; let acc = 0;
+        acc += nF * sigFis(nu.E);
+        if (rC < acc) {                                   // R-FISSION
+          fissions++; Erel += FISSILE.Qfis; dm += FISSILE.Qfis / C2;
+          const nnu = Math.floor(FISSILE.nu) + (rng() < (FISSILE.nu % 1) ? 1 : 0);   // 정수 샘플 (평균 ν)
+          genProd[nu.gen] = (genProd[nu.gen] || 0) + nnu; lost(nu.gen);   // 흡수(분열)
+          const promptFrac = delayed ? 0.97 : 1.0;
+          for (let k = 0; k < nnu; k++) {
+            if (rng() < promptFrac) next.push(makeNeutron(nu.r, E_FISSION_BORN, randDir(), nu.gen + 1));
+            else delayedQueue.push({ r: { x: nu.r.x, y: nu.r.y, z: nu.r.z }, gen: nu.gen + 1 });   // 지연 (파편)
+          }
+          continue;                                       // 중성자 흡수됨
+        }
+        acc += nF * sigCapF(nu.E) + nM * MODERATOR.sigCap;
+        if (rC < acc) { captures++; lost(nu.gen); continue; }   // R-N-CAP (γ) — 흡수 소멸
+        // R-N-SCAT (탄성 산란 — 감속): 에너지 전달 = 운동학 (가벼운 표적일수록 큼·author 0)
+        const onMod = rng() < (nM * MODERATOR.sigScat) / (nM * MODERATOR.sigScat + nF * FISSILE.sigScat);
+        const A = onMod ? MODERATOR.A : (FISSILE.Z + FISSILE.N);
+        const alpha = ((A - 1) / (A + 1)) ** 2;
+        nu.E = nu.E * (alpha + (1 - alpha) * rng());       // 등방 CM 산란 후 E' ∈ [αE, E]
+        nu.dir = randDir(); next.push(nu);
+      }
+      neutrons = next;
+      if (s % rec === 0) { ts.push(+(s * dt).toFixed(2)); count.push(neutrons.length); let th = 0; for (const nu of neutrons) if (isThermal(nu.E)) th++; spec.push(neutrons.length ? +(th / neutrons.length).toFixed(3) : 0); }
+      if (neutrons.length === 0 && delayedQueue.length === 0) break;
+      if (neutrons.length > (opts.cap || 60000)) { /* 초임계 폭주 방지 캡 */ break; }
+    }
+    // k_eff (세대비): Σ genProd / Σ genLost (소멸=흡수+누설 — 누설 포함이라 밀도·크기 의존).
+    //   초기 과도(gen0) 제외 — 전 세대 평균. k>1 초임계·<1 미임계.
+    let prod = 0, lst = 0; for (const g in genLost) { if (+g >= (opts.gen0 || 1)) { prod += genProd[g] || 0; lst += genLost[g] || 0; } }
+    const kGen = lst > 0 ? prod / lst : 0;
+    // k_eff (시간 지수): count 지수 피팅 α → k≈exp(α·τ), 여기선 상대 성장률만 (부호=임계 영역)
+    const fit = fitDecayConst(ts, count);   // count=N0·e^{−λt} → λ<0 이면 성장(초임계)
+    const timeExp = -fit.lambda;            // >0 성장·<0 소멸
+    return { ts, count, spec, fissions, captures, leaks, Erel, dm, kGen: +kGen.toFixed(3), timeExp: +timeExp.toFixed(4), finalN: neutrons.length, delayedRemain: delayedQueue.length };
+  }
+
+  // 임계 영역 판정: kGen 과 시간지수 부호 교차. <1 소멸 / ≈1 정상 / >1 성장.
+  function criticalRegion(sim) {
+    if (sim.kGen > 1.05 || sim.timeExp > 0.02) return 'supercritical';
+    if (sim.kGen < 0.95 || sim.timeExp < -0.02) return 'subcritical';
+    return 'critical';
+  }
+
+  // NuclideTable 산출 ⇧ (중간 해상도=중성자 수송의 파라미터·CONTRACT §5-3·측정으로 발효)
+  function buildNuclideTable(opts) {
+    opts = opts || {};
+    // 밀도 스캔으로 임계 밀도 측정 (author 0 — 곡선에서 나옴). 크로스오버(k=1)를 담도록 저밀도 포함.
+    const scan = [];
+    for (const nF of (opts.scanNF || [0.008, 0.02, 0.04, 0.08, 0.15])) {
+      const sims = [];
+      for (let r = 0; r < (opts.R || 3); r++) sims.push(reactorSim({ nF, L: opts.L || 10, nM: opts.nM, steps: 250, N0: 400, seed: 9009 + r * 17 + Math.round(nF * 1000) }));
+      const k = mean(sims.map((s) => s.kGen)), te = mean(sims.map((s) => s.timeExp));
+      scan.push({ nF, kGen: +k.toFixed(3), timeExp: +te.toFixed(4), region: criticalRegion({ kGen: k, timeExp: te }) });
+    }
+    return {
+      schema: 'nuclide-table-v0', fissile: { Z: FISSILE.Z, N: FISSILE.N },
+      crossSections: { sigFisThermal: FISSILE.sigFisThermal, sigFisFast: FISSILE.sigFisFast, sigCapThermal: FISSILE.sigCapThermal, sigScat: FISSILE.sigScat, bands: ['fast', 'thermal'], note: '에너지 밴드 계단표·포획 1/v 근사' },
+      nu: FISSILE.nu, Q: FISSILE.Qfis, delayedFraction: 0.03,
+      moderator: MODERATOR, E_thermal: E_THERMAL,
+      criticalScan: scan,
+      note: '측정으로 발효 (author 0·밀도 스캔서 임계 곡선). 서버 중간 해상도(중성자 수송)의 파라미터 — CONTRACT §5.',
+    };
+  }
+
+  const api = { NUCLIDES, DECAY, FISSILE, MODERATOR, MP, MN, C2, E_THERMAL, bindingEnergy, nuclideMass, tagNuclide, bundle, bondVibFreq, isotopeShift, halfToLambda, decaySim, fitDecayConst, makeNeutron, reactorSim, criticalRegion, buildNuclideTable };
   if (isNode) module.exports = api;
   else window.HktS0Nuclear = api;
 })();

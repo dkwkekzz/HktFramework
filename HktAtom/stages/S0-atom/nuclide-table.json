@@ -1,0 +1,83 @@
+{
+  "schema": "nuclide-table-v0",
+  "fissile": {
+    "Z": 94,
+    "N": 145
+  },
+  "crossSections": {
+    "sigFisThermal": 6,
+    "sigFisFast": 0.4,
+    "sigCapThermal": 1,
+    "sigScat": 0.8,
+    "bands": [
+      "fast",
+      "thermal"
+    ],
+    "note": "에너지 밴드 계단표·포획 1/v 근사"
+  },
+  "nu": 2.5,
+  "Q": 4,
+  "delayedFraction": 0.03,
+  "moderator": {
+    "A": 2,
+    "sigScat": 3,
+    "sigCap": 0.02
+  },
+  "E_thermal": 0.3,
+  "criticalScan": [
+    {
+      "nF": 0.008,
+      "kGen": 0.524,
+      "timeExp": -0.0094,
+      "region": "subcritical"
+    },
+    {
+      "nF": 0.02,
+      "kGen": 0.869,
+      "timeExp": 0.0032,
+      "region": "subcritical"
+    },
+    {
+      "nF": 0.04,
+      "kGen": 1.165,
+      "timeExp": 0.0411,
+      "region": "supercritical"
+    },
+    {
+      "nF": 0.08,
+      "kGen": 1.369,
+      "timeExp": 0.0869,
+      "region": "supercritical"
+    },
+    {
+      "nF": 0.15,
+      "kGen": 1.531,
+      "timeExp": 0.1556,
+      "region": "supercritical"
+    }
+  ],
+  "note": "측정으로 발효 (author 0·밀도 스캔서 임계 곡선). 서버 중간 해상도(중성자 수송)의 파라미터 — CONTRACT §5.",
+  "validRange": {
+    "nF": [
+      0.008,
+      0.15
+    ],
+    "L": [
+      6,
+      16
+    ],
+    "E": [
+      0,
+      3
+    ]
+  },
+  "errorBounds": {
+    "kGen": "R=3 반복",
+    "note": "무차원·밸런스는 세계 배치(CONTRACT §5)"
+  },
+  "provenance": {
+    "stage": "S0",
+    "scene": "reactorSim(밀도 스캔)",
+    "note": "㉕ 분열 발효·가상 핵종·중간 해상도 중성자 수송 파라미터"
+  }
+}
