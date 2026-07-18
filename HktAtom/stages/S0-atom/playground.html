@@ -57,8 +57,8 @@
       <kbd>WASD/←↑↓→</kbd> 화면 기준 이동 · <kbd>X</kbd> <kbd>C</kbd> 던지는 방향 좌우 · <kbd>T</kbd> <kbd>G</kbd> 던지는 상하각 ·
       <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 · <kbd>Space</kbd>/<kbd>클릭</kbd> 화살표 방향 소환 · <kbd>F</kbd> 중성자 발사 ·
       <kbd>[</kbd> <kbd>]</kbd> 원소 순회 · <kbd>1~8</kbd> 빠른 선택 · <kbd>E</kbd> 가열 · <kbd>V</kbd> 냉각 ·
-      <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 · 3D <b>탑뷰 45°</b> — <kbd>드래그</kbd> 카메라 각도 변경·<kbd>휠</kbd> 줌
-      — <b>노란 화살표 = 던지는 방향</b> (이동/줌은 우측 슬라이더)</p>
+      <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 · 3D <b>탑뷰 45°</b> — <kbd>드래그</kbd>/카메라 슬라이더로 각도·시점 조절(<b>브라우저에 저장</b>)·<kbd>휠</kbd> 줌
+      — <b>노란 화살표 = 던지는 방향</b></p>
 
     <div id="pt"></div>
     <div id="ptf"></div>
@@ -73,6 +73,13 @@
       <label title="관찰자 이동 속도">이동</label><input id="moveSpd" type="range" min="20" max="300" value="120" />
       <label title="3D 카메라 거리 — 휠로도 조절">줌</label><input id="zoom" type="range" min="35" max="300" value="100" />
       <button id="clear">🗑 초기화</button>
+    </div>
+    <div class="row">
+      <label>📷 카메라</label>
+      <label title="내려보는 각도 (90°=바로 위에서)">각도</label><input id="camPitch" type="range" min="10" max="90" value="45" />
+      <label title="시점 수평 회전">시점</label><input id="camYaw" type="range" min="-180" max="180" value="34" />
+      <button id="camReset">↺ 45° 프리셋</button>
+      <span class="k" id="camReadout">—</span>
     </div>
     <div class="row">
       <button id="thermo">🌡 항온조 OFF</button>
@@ -160,7 +167,7 @@
       terrain = makeTerrain(L);
       obs.x = L.x / 2; obs.z = L.z / 2; obs.yaw = 0; obs.aimPitch = 0.2;
       obs.y = terrainH() + EYE;                               // 평평한 지형 위에 선다
-      cam.yaw = CAM_YAW0; cam.pitch = CAM_PITCH0; cam.dist = +document.getElementById('zoom').value / 100;
+      // 카메라(yaw·pitch·dist)는 사용자 설정/저장값을 유지 — 초기화로 덮어쓰지 않는다
     } else {
       terrain = null;
       obs.x = 13; obs.y = 13; obs.z = 0; obs.yaw = -Math.PI / 2;
@@ -208,11 +215,12 @@
   }
 
   // ── 3D 투영 (탑뷰 카메라 — 캐릭터를 따라다니되 방향은 월드 고정) ──
-  function rot(x, y, z) {                                    // 세계 → 카메라
+  function rot(x, y, z) {                                    // 세계 → 카메라 (pitch = 내려보는 각)
     const cy = Math.cos(cam.yaw), sy = Math.sin(cam.yaw);
     const x1 = x * cy + z * sy, z1 = -x * sy + z * cy;
     const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
-    return { x: x1, y: y * cp - z1 * sp, z: y * sp + z1 * cp };
+    // 내려볼수록 먼 지면이 화면 위로 가도록 (+z1*sp) — 이전 부호는 상하가 뒤집혀 있었다
+    return { x: x1, y: y * cp + z1 * sp, z: -y * sp + z1 * cp };
   }
   function project(r) {
     const L = world.box.L;
@@ -249,27 +257,54 @@
     const b = cv.getBoundingClientRect();
     drag = { x: e.clientX, y: e.clientY, moved: false };
   });
+  // ── 카메라 설정 (사용자 조절 + localStorage 저장/복원) ──
   const zoomEl = document.getElementById('zoom');
-  zoomEl.oninput = () => { cam.dist = +zoomEl.value / 100; };  // 슬라이더 → 줌
-  cv.addEventListener('wheel', (e) => {                        // 휠 → 줌 (슬라이더와 동기)
+  const camPitchEl = document.getElementById('camPitch'), camYawEl = document.getElementById('camYaw');
+  const DEG = 180 / Math.PI, RAD = Math.PI / 180;
+  const wrapDeg = (d) => ((d % 360) + 540) % 360 - 180;      // -180..180 로 정규화
+  function saveCam() {
+    try { localStorage.setItem('hkt.s0.cam', JSON.stringify({ yaw: cam.yaw, pitch: cam.pitch, dist: cam.dist })); } catch (e) {}
+  }
+  function loadCam() {
+    try {
+      const s = JSON.parse(localStorage.getItem('hkt.s0.cam') || 'null');
+      if (s && isFinite(s.yaw) && isFinite(s.pitch)) {
+        cam.yaw = s.yaw; cam.pitch = s.pitch;
+        if (isFinite(s.dist)) cam.dist = s.dist;
+      }
+    } catch (e) {}
+  }
+  function syncCamUI() {                                     // cam → 슬라이더·읽기값
+    const pd = Math.round(cam.pitch * DEG), yd = Math.round(wrapDeg(cam.yaw * DEG)), zp = Math.round(cam.dist * 100);
+    camPitchEl.value = pd; camYawEl.value = yd; zoomEl.value = zp;
+    document.getElementById('camReadout').textContent = `각도 ${pd}° · 시점 ${yd}° · 줌 ${zp}% (저장됨)`;
+  }
+  camPitchEl.oninput = () => { cam.pitch = Math.max(0.12, Math.min(1.55, +camPitchEl.value * RAD)); saveCam(); syncCamUI(); };
+  camYawEl.oninput = () => { cam.yaw = +camYawEl.value * RAD; saveCam(); syncCamUI(); };
+  zoomEl.oninput = () => { cam.dist = +zoomEl.value / 100; saveCam(); syncCamUI(); };
+  document.getElementById('camReset').onclick = () => {
+    cam.yaw = CAM_YAW0; cam.pitch = CAM_PITCH0; cam.dist = 1.0; saveCam(); syncCamUI();
+  };
+  cv.addEventListener('wheel', (e) => {                        // 휠 → 줌 (슬라이더·저장 동기)
     if (dim !== 3) return;
     e.preventDefault();
-    const d = Math.min(3, Math.max(0.35, cam.dist * (e.deltaY > 0 ? 1.1 : 0.9)));
-    cam.dist = d; zoomEl.value = Math.round(d * 100);
+    cam.dist = Math.min(3, Math.max(0.35, cam.dist * (e.deltaY > 0 ? 1.1 : 0.9)));
+    saveCam(); syncCamUI();
   }, { passive: false });
   cv.addEventListener('mousemove', (e) => {
     // 3D: 드래그로 카메라 각도 변경 — 좌우=시점 회전(yaw), 상하=내려보는 각(pitch·아래로 끌면 탑뷰).
     if (drag && dim === 3 && (drag.moved || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6)) {
       drag.moved = true;
       cam.yaw += (e.clientX - drag.x) * 0.008;
-      cam.pitch = Math.min(1.5, Math.max(0.12, cam.pitch + (e.clientY - drag.y) * 0.006));
+      cam.pitch = Math.min(1.55, Math.max(0.12, cam.pitch + (e.clientY - drag.y) * 0.006));
       drag.x = e.clientX; drag.y = e.clientY;
+      syncCamUI();
     }
   });
   addEventListener('mouseup', (e) => {
     if (!drag) return;
     const wasDrag = drag.moved; drag = null;
-    if (wasDrag) return;                                     // 회전 드래그 → 소환 아님
+    if (wasDrag) { saveCam(); return; }                      // 회전 드래그 → 저장 후 종료 (소환 아님)
     const b = cv.getBoundingClientRect();
     const mx = e.clientX - b.left, my = e.clientY - b.top;
     if (mx < 0 || my < 0 || mx > cv.width || my > cv.height) return;
@@ -654,7 +689,9 @@
     requestAnimationFrame(frame);
   }
 
+  loadCam();                       // 저장된 카메라 설정 복원 (없으면 45° 프리셋)
   buildPT(); rebuild(); select('H');
+  syncCamUI();                     // 슬라이더·읽기값을 현재 카메라에 맞춘다
   requestAnimationFrame(frame);
 })();
 </script>
