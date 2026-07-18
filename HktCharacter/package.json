@@ -1,19 +1,20 @@
 {
   "name": "hktcharacter",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "type": "module",
-  "description": "HktCharacter — 미니멀 FBX 뷰어 (리셋 v2): 스킨 메시 렌더 + 클립 리타깃 재생 + SkeletonHelper. 이전 SDF flesh 코드는 legacy/.",
+  "description": "HktCharacter — 뼈 → 근육 → 피부 파이프라인: X/Y Bot 스켈레톤을 로드해 해부학 근육 아틀라스를 부착하고, 음함수 필드에서 피부를 뽑아 스키닝으로 굽는다.",
   "scripts": {
     "dev": "vite",
     "build": "vite build",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "smoke": "node eval/smoke.mjs",
+    "render": "node eval/render.mjs"
   },
   "dependencies": {
     "three": "^0.161.0"
   },
   "devDependencies": {
-    "playwright-core": "^1.61.1",
     "vite": "^5.2.0"
   }
 }

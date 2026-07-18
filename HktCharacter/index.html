@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-<title>HktCharacter — FBX Viewer</title>
+<title>HktCharacter — 뼈·근육·피부 파이프라인</title>
 <style>
   * { margin: 0; padding: 0; box-sizing: border-box; }
   html, body { width: 100%; height: 100%; overflow: hidden; background: #14161a; }
@@ -19,13 +19,13 @@
   #status { color: #9fb4d0; max-width: 46ch; }
 
   .panel {
-    position: absolute; top: 12px; right: 12px; width: 220px;
+    position: absolute; top: 12px; right: 12px; width: 224px;
     background: rgba(22,26,32,.88); border: 1px solid #2c333d; border-radius: 10px;
     padding: 12px; color: #cfd6df; font: 12px/1.5 system-ui, 'Segoe UI', sans-serif;
-    backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px); max-height: calc(100vh - 24px); overflow-y: auto;
   }
   .panel h3 { font-size: 11px; letter-spacing: .08em; color: #8b95a3;
-    text-transform: uppercase; margin: 10px 0 6px; }
+    text-transform: uppercase; margin: 12px 0 6px; }
   .panel h3:first-child { margin-top: 0; }
   .panel button {
     background: #232a33; color: #cfd6df; border: 1px solid #37404c;
@@ -34,65 +34,52 @@
   }
   .panel button:hover { background: #2d3641; }
   .panel button.on { background: #3b82f6; border-color: #3b82f6; color: #fff; }
-  .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
-  .row label { flex: 0 0 auto; color: #8b95a3; min-width: 52px; }
-  .row input[type=range] { flex: 1; }
-  .row .val { flex: 0 0 auto; color: #6f7a88; width: 30px; text-align: right; font-variant-numeric: tabular-nums; }
-  .who { font-size: 11px; letter-spacing: 0; text-transform: none; color: #3b82f6; }
-  #charNow { font-size: 12px; color: #cfe0ff; margin-bottom: 6px;
-    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  #charNow .k { color: #8b95a3; }
   .panel select {
     width: 100%; background: #232a33; color: #cfd6df; border: 1px solid #37404c;
     border-radius: 6px; padding: 5px 8px; margin-top: 2px; font-size: 12px; cursor: pointer;
   }
-  .panel select:hover { background: #2d3641; }
-  #btnPropReset { width: 100%; margin-top: 6px; }
-  .panel { max-height: calc(100vh - 24px); overflow-y: auto; }
-
-  #drop {
-    position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%);
-    padding: 10px 22px; border: 1.5px dashed #46505d; border-radius: 10px;
-    color: #8b95a3; font: 13px system-ui, sans-serif; cursor: pointer;
-    background: rgba(22,26,32,.7); transition: all .15s;
-  }
-  #drop.hot { border-color: #3b82f6; color: #cfe0ff; background: rgba(35,50,80,.8); }
+  .row { display: flex; align-items: center; gap: 8px; margin: 4px 0; }
+  .row label { flex: 0 0 auto; color: #8b95a3; min-width: 52px; }
+  .row input[type=range] { flex: 1; }
+  .row .val { flex: 0 0 auto; color: #6f7a88; width: 30px; text-align: right; }
+  .steps { color: #7f8a99; font-size: 11px; line-height: 1.7; }
+  .steps b { color: #cfd6df; }
 </style>
 </head>
 <body>
 <div id="app"></div>
 
 <div class="hud">
-  <b>HktCharacter</b> — 캐릭터 선택 · 애니메이션 · 본 비율<br />
+  <b>HktCharacter</b> — 뼈 → 근육 → 피부<br />
   <span id="status">초기화 중…</span>
 </div>
 
 <div class="panel">
-  <h3>캐릭터</h3>
-  <div id="charNow"><span class="k">현재:</span> —</div>
-  <select id="charSelect"></select>
-  <h3>애니메이션 <span id="animWho" class="who"></span></h3>
+  <h3>모델 (골격 소스)</h3>
+  <select id="model"></select>
+
+  <h3>레이어</h3>
+  <div>
+    <button id="btnBone">① 뼈</button>
+    <button id="btnMuscle">② 근육</button>
+    <button id="btnSkin" class="on">③ 피부</button>
+  </div>
+  <div class="steps">
+    <b>①</b> X/Y Bot 스켈레톤 로드<br />
+    <b>②</b> 해부학 근육 아틀라스 부착<br />
+    <b>③</b> 근육 위 음함수 피부 → 스키닝 굽기
+  </div>
+
+  <h3>애니메이션</h3>
   <div id="anims"></div>
-  <h3>본 비율 <span id="propWho" class="who"></span></h3>
-  <div id="props"></div>
-  <button id="btnPropReset">비율 초기화</button>
-  <h3>재생</h3>
+
+  <h3>재생 속도</h3>
   <div class="row">
     <label>속도</label>
     <input id="spd" type="range" min="0" max="2" step="0.05" value="1" />
-    <span id="spdVal">1.0</span>
-  </div>
-  <h3>표시</h3>
-  <div>
-    <button id="btnMesh" class="on">메시</button>
-    <button id="btnBone">본</button>
-    <button id="btnGray">회색 재질</button>
-    <button id="btnWire">와이어</button>
-    <button id="btnSdf" title="스켈레톤 캡슐 SDF를 MarchingCubes 로 폴리곤화">SDF 살</button>
+    <span id="spdVal" class="val">1.0</span>
   </div>
 </div>
-
-<div id="drop">FBX 드롭 — with-skin 이면 캐릭터 교체 · 애니메이션이면 리타깃 재생 (클릭=파일 선택)</div>
 
 <script type="module" src="/src/main.js"></script>
 </body>
