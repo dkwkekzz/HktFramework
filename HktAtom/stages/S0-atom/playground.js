@@ -28,6 +28,7 @@
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // ⑯ 수소 결합 (방향성 약결합)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -479,6 +480,43 @@
     runNuclear(world);
   }
 
+  // ── ⑯ 수소 결합 모드 — 안정 물 네트워크(방향성 약결합). 새 물리 0: hbForces(⑯) 합성만 ──
+  //   물 분자는 온전히 유지(해리 끔·반응 끔)하고, 분자간 방향성 약결합(H-결합)이 창발하는지 관찰.
+  //   design/16: V_hb = −D_hb·w(d)·(û_DH·û_HA)ⁿ (점전하 아님·기하 방향성). E_hb/D_OH ∈ (0.03,0.3).
+  function enableHBond(world) {
+    world._polForces = Po.polForces;          // 기저 힘은 샌드박스 그대로(⑧ 쿨롱·척력·분산)
+    world.computeForces = HB.forcesHB;        // 그 위에 방향성 H-결합 인력 합성
+    world.hbAcc = { O: true };                // 수용체 종 (고립쌍 보유 — O)
+    world.Dhb = 0.9;                          // H-결합 세기 노브 (E_hb/D_OH 을 약결합 대역으로)
+    world.nu_diss = 0;                        // 공유 해리 끔 → 물 분자 온전 (네트워크만 관찰)
+    world.catalog = [];                       // 반응 끔 — H-결합 네트워크에 집중
+    world.thermoK = 0.15;                     // 저온 항온조 세기 (결합 에너지 방출 스파이크 억제)
+  }
+  // 물 분자 클러스터 직접 배치 — O + 2H 결합(정확 ~104.5° 기하). 관찰자 주입(회계 보정 포함).
+  //   freeSpot 로 분자간 간격을 확보(겹침=적분 폭발 방지)하되 O–H 는 정확 결합 길이로 둔다.
+  function buildWaterCluster(world, nMol, cx, cy, R) {
+    const d0 = world.d0 != null ? world.d0 : 1.15, Dho = dPair('H', 'O'), HOH = 1.824;   // ~104.5°
+    let made = 0;
+    for (let m = 0; m < nMol; m++) {
+      const ang = 2 * Math.PI * m / nMol + (m % 2) * 0.5, rr = R * (0.7 + 0.35 * world.rng());
+      const O = spawn(world, 'O', cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), { T: 0.02 });
+      if (!O) continue;
+      O.Z = 8;                                // 수용체 인식용 (hbond isAcc·acidbase 관례)
+      const base = world.rng() * 2 * Math.PI, hs = [];
+      for (let k = 0; k < 2; k++) {
+        const a2 = base + (k ? HOH : 0);
+        const H = spawn(world, 'H', O.r.x + d0 * Math.cos(a2), O.r.y + d0 * Math.sin(a2), { T: 0.02 });
+        if (H) hs.push(H);
+      }
+      const E0 = E.energyFull(world);
+      for (const H of hs) world.bonds.push({ i: O.id, j: H.id, order: 1, rest: d0, k: world.kbond, D: Dho });
+      world.pgIn.E += E.energyFull(world) - E0;
+      made++;
+    }
+    world.pgIn.E += residual(world);          // 배치 상태(결합·H결합 에너지) = 관찰자 주입 (회계 보정)
+    return made;
+  }
+
   // ── 회계 검사 — 세계 총량(장부 전 통 합 · U_grav 포함) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
   function compositionOK(world) {
@@ -576,6 +614,7 @@
     element, dHomo, dPair, gridPos, freeSpot,
     buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
     setGravity,
+    enableHBond, buildWaterCluster,
     fission, fuse, runFission, runNuclear, tick, field,
     snapshot, diffEvents, clusters, formula,
   };
