@@ -1227,6 +1227,46 @@
         msg: `PG·이온 창발: Na+Cl 접촉 → 전자 이전 발생 ${hit29}/5 런 (⑤ R-XFER 재사용·EA 클램프 ${Pg.EA_CAP})` });
     }
 
+    // 30. 샌드박스 확장 (step-0030) — 3D·항온조·핵분열 연쇄·복셀 장
+    if (want(30)) {
+      // (1) 3D 회계 + 항온조 수렴: dim=3 세계에서 소환·항온조가 회계를 닫고 목표 T 로 이완
+      const w30 = Pg.buildPlayground({ rng: E.makeRng(3030), L: 14, dim: 3 });
+      for (let i = 0; i < 9; i++) {
+        Pg.spawn(w30, 'O', 3 + (i % 3) * 4, 3 + ((i / 3) | 0) * 4, { T: 0.05, z: 4 });
+        Pg.spawn(w30, 'H', 3.5 + (i % 3) * 4, 3 + ((i / 3) | 0) * 4, { T: 0.05, z: 8 });
+      }
+      for (let k = 0; k < 3000; k++) { Pg.tick(w30); if (k % 10 === 0) Pg.thermostat(w30, 0.8, 0.08); }
+      const T30 = M.temperature(w30), zMove = w30.atoms.some((a) => Math.abs(a.p.z) > 1e-6);
+      log.push({ ok: Math.abs(Pg.residual(w30)) <= 0.05 && Pg.compositionOK(w30) && zMove && T30 > 0.5 && T30 < 1.1,
+        name: 'PG·3D항온조',
+        msg: `PG·3D+항온조: 잔차 ${Pg.residual(w30).toExponential(2)} ≤ 0.05 · Σc 정확 · z 운동 ${zMove} · T ${T30.toFixed(3)} → 목표 0.8 수렴 (냉시작 0.05·주입 회계)` });
+      // (2) 복셀 장 측정: 국소 가열이 장(국소 T)에 나타난다 — 가열 셀 근방 T > 원방 T
+      Pg.heatPulse(w30, 3, 3, 3, 2.2, 4);
+      const f30 = Pg.field(w30, 7);
+      let hotNear = 0, hotFar = 0, nNear = 0, nFar = 0;
+      for (const c of f30.cells) {
+        const d = Math.hypot(c.cx - 3, c.cy - 3, c.cz - 4);
+        if (d < 4) { hotNear += c.T * c.n; nNear += c.n; } else { hotFar += c.T * c.n; nFar += c.n; }
+      }
+      const okField = nNear > 0 && nFar > 0 && (hotNear / nNear) > (hotFar / nFar);
+      log.push({ ok: okField, name: 'PG·복셀장',
+        msg: `PG·복셀 장: 가열 지점 근방 ⟨T⟩ ${(nNear ? hotNear / nNear : 0).toFixed(3)} > 원방 ${(nFar ? hotFar / nFar : 0).toFixed(3)} (국소 T 측정이 장으로 보임)` });
+      // (3) 핵분열 연쇄: U×6 + 중성자 1발 → 분열 ≥2 (ν=2 연쇄)·전환 장부 Σc 정확·E 닫힘
+      const wf = Pg.buildPlayground({ rng: E.makeRng(7), L: 20 });
+      for (let i = 0; i < 6; i++) Pg.spawn(wf, 'U', 9 + (i % 3) * 1.8, 9 + ((i / 3) | 0) * 1.8, { T: 0.05 });
+      Pg.spawn(wf, 'n', 3, 9.8, { T: 0, px: 6 });
+      const Enuc0 = wf.ledger.E_nuclear;
+      for (let k = 0; k < 8000; k++) Pg.tick(wf);
+      const comp30 = wf.atoms.reduce((c, a) => { c[a.sp] = (c[a.sp] || 0) + 1; return c; }, {});
+      log.push({ ok: wf.pgFisCount >= 2 && (comp30.Ba || 0) >= 2 && (comp30.Kr || 0) >= 2 &&
+        Pg.compositionOK(wf) && Math.abs(Pg.residual(wf)) <= 0.1 && wf.ledger.E_nuclear < Enuc0,
+        name: 'PG·핵분열연쇄',
+        msg: `PG·핵분열 연쇄: 중성자 1발 → 분열 ${wf.pgFisCount}회 (ν=2 증식) · 파편 Ba ${comp30.Ba || 0}·Kr ${comp30.Kr || 0} · 전환 장부 Σc 정확 ${Pg.compositionOK(wf)} · 잔차 ${Pg.residual(wf).toExponential(2)} · E_nuclear ${Enuc0}→${wf.ledger.E_nuclear.toFixed(1)} (Δm·c² 회계 축약)` });
+      // (4) 연소 행 합류: 카탈로그에 R-ABSTRACT (⑱ 라디칼 추상 — 발열 → K_tr 가열)
+      log.push({ ok: wf.catalog.some((r) => r.id === 'R-ABSTRACT'), name: 'PG·연소행',
+        msg: `PG·연소 합류: catalog=[${wf.catalog.map((r) => r.id).join(',')}] — R-ABSTRACT(⑱) 포함 (발열 반응이 K_tr 로 — 열폭발 경로)` });
+    }
+
     return log;
   }
 

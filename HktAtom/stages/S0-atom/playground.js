@@ -1,9 +1,11 @@
-// playground.js — 관찰자 샌드박스 (게임 프로토타입 · step-0029 · 엔진 diff 0)
+// playground.js — 관찰자 샌드박스 (게임 프로토타입 · step-0029~0030 · 엔진 diff 0)
 //
 // 목적: 주기율표 거의 전 원소(Z=1~118)를 ③ levels 순수 함수에서 *유도*해 종 테이블을 만들고,
-// 관찰자(실험자 아바타)가 원소를 직접 소환해 상호작용(공유결합·이온 이전·분산 응집)을
-// 관찰하는 열린 세계를 세운다. 물리는 전부 기존 모듈 재사용: engine(②힘·⑥결합) +
-// catalog(R-CPLX·R-XFER) + polarization(⑧ 분산·유도) — 새 물리 author 0.
+// 관찰자(실험자 아바타)가 원소를 직접 소환해 상호작용(공유결합·이온 이전·분산 응집·연소·
+// 핵분열)을 관찰하는 열린 세계를 세운다. 물리는 전부 기존 모듈 재사용: engine(②힘·⑥결합) +
+// catalog(R-CPLX·R-XFER) + polarization(⑧ 분산·유도) + combustion(⑱ R-ABSTRACT) — 새 물리
+// author 0. step-0030 확장: 2D/3D(dim 옵션·⑬ z 해동), 항온조(열역학 실험), 중성자+핵분열
+// (㉕ 동형 인월드 판·연쇄), 복셀 장 측정(field — 국소 T 열지도).
 //
 // 장부 원칙: 소환·가열은 "외부 주입"이다 — pgIn(주입 장부)에 Σc·E 를 기록해
 // 세계 총량 − 주입 누계 ≈ 0 이 항상 성립한다 (관찰자는 회계 밖 존재가 아니라 회계된 원천).
@@ -22,6 +24,7 @@
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+  const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -122,10 +125,12 @@
     return { c: Z - 100, r: 7 };
   }
 
-  // ── 샌드박스 세계 — 전 원소 종 맵 + 공유(⑥)·이온(⑤)·분산(⑧) 통합 (mvpBox 동형) ──
+  // ── 샌드박스 세계 — 전 원소 종 맵 + 공유(⑥)·이온(⑤)·분산(⑧)·연소(⑱) 통합 (mvpBox 동형) ──
+  //   opts.dim: 2(기본·z 동결) | 3 (⑬ z 해동 — 같은 엔진·차원은 세계 속성)
   function buildPlayground(opts) {
     const o = opts || {};
     const L = o.L != null ? o.L : 26;
+    const dim3 = o.dim === 3;
     const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {}, specIon = {};
     const Dpair = {};
     for (const s of BY_Z) {
@@ -143,13 +148,17 @@
       const a = BY_Z[i].sym, b = BY_Z[j].sym;
       Dpair[a <= b ? a + '-' + b : b + '-' + a] = dPair(a, b);
     }
+    // 중성자 종 맵 (원소 아님 — 커널 개체·q=0·B=0·작은 σ)
+    mass.n = NEUTRON.mass; sigma.n = NEUTRON.sigma; eps.n = NEUTRON.eps;
+    budget.n = 0; alpha.n = 0; IE.n = 0;
     const world = E.makeWorld({
       dt: o.dt != null ? o.dt : 0.004,
       box: { L: E.V.make(L, L, L), bc: 'reflect' },   // 게임 상자: 벽 반사 (탈출 없음 → Σc 온전)
-      frozenZ: true,
+      frozenZ: !dim3,
       mass, sigma, eps, budget,
       computeForces: Po.polForces, rng: o.rng || Math.random,
-      catalog: C.COVALENT.concat(C.IONIC), specIon,
+      catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]),   // 공유+이온+연소(⑱ 라디칼 추상)
+      specIon,
       rc: o.rc != null ? o.rc : 1.5,
       nu_col: 1.0, nu_xfer: o.nu_xfer != null ? o.nu_xfer : 3.0,
       Dbond: DREF, d0: o.d0 != null ? o.d0 : 1.15, kbond: o.kbond != null ? o.kbond : 25,
@@ -160,69 +169,208 @@
     world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
-    world._meta = { name: 'pg-sandbox', L };
+    world.pgConv = {};        // 전환 장부: 분열 U+n→파편+νn (Σc 검사 = pgIn + pgConv)
+    world.pgEvents = [];      // 사건 문자열 큐 (뷰어가 소비)
+    world.flashes = [];       // 분열 섬광 (뷰어 연출)
+    world.pgFisCount = 0;
+    world._meta = { name: 'pg-sandbox', L, dim: dim3 ? 3 : 2 };
     return world;
   }
 
-  // 빈자리 탐색 — 요청 지점이 기존 원자와 겹치면(강성 척력 배치 → 적분 오차 폭발) 나선으로
-  //   물러나며 min d ≥ 0.95·σ_mix 인 가장 가까운 자리를 찾는다. 소환 UX 이자 수치 안정 장치.
-  function freeSpot(world, sym, x, y) {
-    const L = world.box.L, sg = world.sigma[sym];
-    const ok = (px, py) => {
+  // 빈자리 탐색 — 요청 지점이 기존 원자와 겹치면(강성 척력 배치 → 적분 오차 폭발) 물러나며
+  //   min d ≥ 0.95·σ_mix 인 가까운 자리를 찾는다. 소환 UX 이자 수치 안정 장치.
+  //   2D(frozenZ)=나선 링 · 3D=구면 무작위 방향 (차원은 세계 속성).
+  function freeSpot(world, sym, x, y, z) {
+    const L = world.box.L, sg = world.sigma[sym], fz = world.frozenZ;
+    z = fz ? 0 : (z != null ? z : L.z / 2);
+    const ok = (px, py, pz) => {
       for (const a of world.atoms) {
         const dmin = 0.95 * (sg + world.sigma[a.sp]) / 2;
-        const dx = px - a.r.x, dy = py - a.r.y;
-        if (dx * dx + dy * dy < dmin * dmin) return false;
+        const dx = px - a.r.x, dy = py - a.r.y, dz = fz ? 0 : pz - a.r.z;
+        if (dx * dx + dy * dy + dz * dz < dmin * dmin) return false;
       }
       return true;
     };
-    if (ok(x, y)) return { x, y };
+    const cl = (v, Lk) => clamp(v, 0.4, Lk - 0.4);
+    if (ok(x, y, z)) return { x, y, z };
+    const rng = world.rng;
     for (let ring = 1; ring <= 8; ring++) {
-      const R = ring * 0.55, n = 6 * ring;
+      const R = ring * 0.55, n = fz ? 6 * ring : 10 * ring;
       for (let k = 0; k < n; k++) {
-        const a = (2 * Math.PI * k) / n + ring * 0.5;
-        const px = clamp(x + R * Math.cos(a), 0.4, L.x - 0.4), py = clamp(y + R * Math.sin(a), 0.4, L.y - 0.4);
-        if (ok(px, py)) return { x: px, y: py };
+        let px, py, pz;
+        if (fz) {
+          const a = (2 * Math.PI * k) / n + ring * 0.5;
+          px = cl(x + R * Math.cos(a), L.x); py = cl(y + R * Math.sin(a), L.y); pz = 0;
+        } else {
+          const u = 2 * rng() - 1, ph = 2 * Math.PI * rng(), s = Math.sqrt(Math.max(0, 1 - u * u));
+          px = cl(x + R * s * Math.cos(ph), L.x); py = cl(y + R * s * Math.sin(ph), L.y); pz = cl(z + R * u, L.z);
+        }
+        if (ok(px, py, pz)) return { x: px, y: py, z: pz };
       }
     }
     return null;   // 빈자리 없음 — 소환 거부 (호출부가 알림)
   }
 
   // ── 소환 — 관찰자의 유일한 창조 행위. 주입 E = 세계 총 E 의 실측 증분 (정확 회계) ──
-  //   opts: {T 열적 지터 온도, px/py 던지기 운동량}
+  //   opts: {T 열적 지터 온도, px/py/pz 던지기 운동량, z 3D 소환 깊이}
+  //   핵연료(FISSILE)는 저장 핵에너지 Q 를 E_nuclear 통에 함께 주입 (분열이 꺼내 쓴다).
   function spawn(world, sym, x, y, opts) {
     const o = opts || {};
-    const s = TABLE[sym];
+    const s = sym === 'n' ? NEUTRON : TABLE[sym];
     if (!s) throw new Error('알 수 없는 원소: ' + sym);
     const L = world.box.L;
-    const spot = freeSpot(world, sym, clamp(x, 0.4, L.x - 0.4), clamp(y, 0.4, L.y - 0.4));
+    const spot = freeSpot(world, sym, clamp(x, 0.4, L.x - 0.4), clamp(y, 0.4, L.y - 0.4), o.z);
     if (!spot) return null;
     const E0 = E.energyFull(world);
-    const a = E.makeAtom(sym, E.V.make(spot.x, spot.y, 0), E.V.zero());
-    a.Z = s.ve; a.ne = s.ve; a.q = 0; a.uIon = 0;   // 중성 시작 (specIon states[ve]=0 과 일치)
+    const a = E.makeAtom(sym, E.V.make(spot.x, spot.y, spot.z), E.V.zero());
+    a.Z = s.ve || 0; a.ne = s.ve || 0; a.q = 0; a.uIon = 0;   // 중성 시작 (specIon states[ve]=0 과 일치)
+    if (sym === 'n') a.birth = world.t;                        // 중성자 수명 시계
     const T = o.T != null ? o.T : 0.3;
     const rng = world.rng, sd = Math.sqrt(s.mass * T);
     a.p.x = sd * E.gaussian(rng) + (o.px || 0);
     a.p.y = sd * E.gaussian(rng) + (o.py || 0);
+    if (!world.frozenZ) a.p.z = sd * E.gaussian(rng) + (o.pz || 0);
     world.atoms.push(a);
     const E1 = E.energyFull(world);
     world.pgIn.E += E1 - E0;
     world.pgIn.c[sym] = (world.pgIn.c[sym] || 0) + 1;
+    const fs = FISSILE[sym];
+    if (fs) { world.ledger.E_nuclear += fs.Q; world.pgIn.E += fs.Q; }   // 저장 핵에너지 주입 (회계)
     return a;
   }
 
   // ── 가열/냉각 펄스 — 반경 R 안 원자의 p 를 factor 배. 증감 E 는 주입 장부에 기록 ──
-  function heatPulse(world, x, y, R, factor) {
+  function heatPulse(world, x, y, R, factor, z) {
     const E0 = E.totalEnergy(world);
+    const fz = world.frozenZ;
+    z = fz ? 0 : (z != null ? z : world.box.L.z / 2);
     let n = 0;
     for (const a of world.atoms) {
-      const dx = a.r.x - x, dy = a.r.y - y;
-      if (dx * dx + dy * dy <= R * R) { a.p.x *= factor; a.p.y *= factor; n++; }
+      const dx = a.r.x - x, dy = a.r.y - y, dz = fz ? 0 : a.r.z - z;
+      if (dx * dx + dy * dy + dz * dz <= R * R) { a.p.x *= factor; a.p.y *= factor; if (!fz) a.p.z *= factor; n++; }
     }
     const E1 = E.totalEnergy(world);
     world.pgIn.E += E1 - E0;
     return n;
   }
+
+  // ── 항온조 — 목표 T 로 부분 이완 (세기 k·호출당 배율 [0.7,1.4] 클램프). 넣고 뺀 열은 주입
+  //   장부에 기록 (열역학 실험 도구 — 중성자는 제외: 빠른 중성자는 관찰 도구·문서화 한계).
+  function thermostat(world, Ttar, k) {
+    k = k != null ? k : 0.05;
+    const E0 = E.totalEnergy(world);
+    const dof = world.frozenZ ? 2 : 3;
+    let K = 0, n = 0;
+    for (const a of world.atoms) {
+      if (a.sp === 'n') continue;
+      K += E.V.lenSq(a.p) / (2 * world.mass[a.sp]); n++;
+    }
+    if (n === 0 || K <= 1e-12) return 0;
+    const Tc = 2 * K / (n * dof);
+    const s = clamp(Math.sqrt(1 + k * (Ttar / Tc - 1)), 0.7, 1.4);
+    for (const a of world.atoms) {
+      if (a.sp === 'n') continue;
+      a.p.x *= s; a.p.y *= s; if (!world.frozenZ) a.p.z *= s;
+    }
+    const E1 = E.totalEnergy(world);
+    world.pgIn.E += E1 - E0;
+    return Tc;
+  }
+
+  // ── 핵분열 (㉕ 동형의 인월드 판 — 가상·무차원) ──
+  //   중성자 = 커널 개체 (q=0·B=0·작은 σ → 물질을 얇게 통과·핵연료와만 반응 단면).
+  //   분열 행 형식은 카탈로그와 동형 {match·hazard·apply}·실행만 tick 후단 자체 실행기
+  //   (원자 소멸·생성이 엔진 접촉 페어 인덱스를 흔들지 않게 — runBonding 과 같은 지위).
+  //   에너지: 소환 시 U 마다 Q 를 E_nuclear 통에 저장 → 분열이 정확히 꺼내 KE 로 방출
+  //   (E_nuclear −= 실측 ΔE → 총량 불변·Δm·c² 회계의 축약). Σc 는 전환 장부 pgConv 가 기록.
+  const NEUTRON = { sym: 'n', ve: 0, mass: 1.0, sigma: 0.45, eps: 0.15, radius: 0.16, color: '#aeb8c4' };
+  const TAU_N = 80;      // 중성자 자유 수명 (시간 단위·지나면 소멸 — 회계는 E_escape·escaped)
+  const FISSILE = {      // 가상 핵연료 (author — ㉕ NuclideTable 정신: 파편 2 + ν 중성자 + Q)
+    U: { frags: ['Ba', 'Kr'], nu: 2, Q: 30, nuFis: 25 },
+  };
+
+  function fission(world, aN, aU) {
+    const spec = FISSILE[aU.sp];
+    if (!spec || world.ledger.E_nuclear < spec.Q * 0.5) return false;
+    const saveAtoms = world.atoms.slice(), saveBonds = world.bonds.slice();
+    const E0 = E.energyFull(world);
+    const pos = E.V.clone(aU.r);
+    const pTot = { x: aU.p.x + aN.p.x, y: aU.p.y + aN.p.y, z: aU.p.z + aN.p.z };
+    world.atoms = world.atoms.filter((a) => a !== aU && a !== aN);
+    world.bonds = world.bonds.filter((bd) => bd.i !== aU.id && bd.j !== aU.id);
+    const born = [];
+    const mk = (sym) => {
+      const spot = freeSpot(world, sym, pos.x, pos.y, pos.z);
+      if (!spot) return null;
+      const s = sym === 'n' ? NEUTRON : TABLE[sym];
+      const a = E.makeAtom(sym, E.V.make(spot.x, spot.y, spot.z), E.V.zero());
+      a.Z = s.ve || 0; a.ne = s.ve || 0;
+      if (sym === 'n') a.birth = world.t;
+      world.atoms.push(a); born.push(a); return a;
+    };
+    const fA = mk(spec.frags[0]), fB = mk(spec.frags[1]);
+    const ns = []; for (let k = 0; k < spec.nu; k++) ns.push(mk('n'));
+    if (!fA || !fB || ns.some((x) => !x)) {   // 자리 없음 → 되돌림 (분열 불발)
+      world.atoms = saveAtoms; world.bonds = saveBonds; E.energyFull(world); return false;
+    }
+    // 운동량: COM 운동 상속 (질량비 분배) + 방출쌍은 반대 방향 → P 정확 보존
+    const mTot = born.reduce((s, a) => s + world.mass[a.sp], 0);
+    for (const a of born) { const f = world.mass[a.sp] / mTot; a.p.x = pTot.x * f; a.p.y = pTot.y * f; a.p.z = pTot.z * f; }
+    const axis = { x: fB.r.x - fA.r.x, y: fB.r.y - fA.r.y, z: fB.r.z - fA.r.z };
+    const al = Math.hypot(axis.x, axis.y, axis.z) || 1;
+    axis.x /= al; axis.y /= al; axis.z /= al;
+    const mA = world.mass[fA.sp], mB = world.mass[fB.sp];
+    const pf = Math.sqrt(0.7 * spec.Q * 2 * mA * mB / (mA + mB));      // 파편쌍 KE = 0.7Q
+    fA.p.x -= axis.x * pf; fA.p.y -= axis.y * pf; fA.p.z -= axis.z * pf;
+    fB.p.x += axis.x * pf; fB.p.y += axis.y * pf; fB.p.z += axis.z * pf;
+    const perp = world.frozenZ ? { x: -axis.y, y: axis.x, z: 0 } : (() => {   // 수직축 (중성자쌍)
+      const u = Math.abs(axis.z) < 0.9 ? { x: 0, y: 0, z: 1 } : { x: 1, y: 0, z: 0 };
+      const c = { x: axis.y * u.z - axis.z * u.y, y: axis.z * u.x - axis.x * u.z, z: axis.x * u.y - axis.y * u.x };
+      const cl2 = Math.hypot(c.x, c.y, c.z) || 1; return { x: c.x / cl2, y: c.y / cl2, z: c.z / cl2 };
+    })();
+    const pnEach = Math.sqrt(0.3 * spec.Q * NEUTRON.mass);   // 각 중성자 KE=0.15Q·쌍 반대 → P 보존
+    ns[0].p.x += perp.x * pnEach; ns[0].p.y += perp.y * pnEach; ns[0].p.z += perp.z * pnEach;
+    ns[1].p.x -= perp.x * pnEach; ns[1].p.y -= perp.y * pnEach; ns[1].p.z -= perp.z * pnEach;
+    const E1 = E.energyFull(world);
+    world.ledger.E_nuclear -= (E1 - E0);   // 방출 KE + 배치 ΔU 를 저장 핵에너지가 지불 — 총량 불변
+    // 전환 장부: U + n → 파편 + ν n (Σc 검사는 pgIn + pgConv 합산)
+    const cv = world.pgConv;
+    cv[aU.sp] = (cv[aU.sp] || 0) - 1; cv.n = (cv.n || 0) - 1 + spec.nu;
+    cv[spec.frags[0]] = (cv[spec.frags[0]] || 0) + 1; cv[spec.frags[1]] = (cv[spec.frags[1]] || 0) + 1;
+    world.pgFisCount++;
+    world.flashes.push({ x: pos.x, y: pos.y, z: pos.z, t: world.t });
+    world.pgEvents.push(`☢ 핵분열! ${aU.sp} + n → ${spec.frags[0]} + ${spec.frags[1]} + ${spec.nu}n (+Q=${spec.Q})`);
+    return true;
+  }
+
+  // 분열 실행기 — tick 후단. 접촉 (n, 핵연료) 쌍을 hazard 로 샘플. 중성자 수명 소진도 처리.
+  function runFission(world) {
+    const dt = world.dt, rng = world.rng, rc2 = world.rc * world.rc, fz = world.frozenZ;
+    // 중성자 수명: τ 지나면 소멸 — escaped 로 회계 (Σc)·KE 는 E_escape 로 (E)
+    for (const a of world.atoms.slice()) {
+      if (a.sp !== 'n' || world.t - a.birth < TAU_N) continue;
+      world.atoms.splice(world.atoms.indexOf(a), 1);
+      world.ledger.E_escape += E.V.lenSq(a.p) / (2 * NEUTRON.mass);
+      E.V.addInto(world.ledger.P_escape, a.p);
+      world.escaped.push(a);
+      world.pgEvents.push('중성자 소멸 (수명 τ=' + TAU_N + ')');
+    }
+    // 분열 샘플 (사본 순회 — apply 가 배열을 바꾼다)
+    const atoms = world.atoms.slice();
+    for (const aN of atoms) {
+      if (aN.sp !== 'n' || world.atoms.indexOf(aN) < 0) continue;
+      for (const aU of atoms) {
+        if (!FISSILE[aU.sp] || world.atoms.indexOf(aU) < 0) continue;
+        const dx = aN.r.x - aU.r.x, dy = aN.r.y - aU.r.y, dz = fz ? 0 : aN.r.z - aU.r.z;
+        if (dx * dx + dy * dy + dz * dz > rc2) continue;
+        const k = FISSILE[aU.sp].nuFis;
+        if (rng() < 1 - Math.exp(-k * dt)) { if (fission(world, aN, aU)) break; }
+      }
+    }
+  }
+
+  // 편의 tick — 엔진 step + 분열 실행기 (뷰어·verify 공용)
+  function tick(world) { E.step(world); runFission(world); }
 
   // ── 회계 검사 — 세계 총량(장부 전 통 합) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
@@ -230,8 +378,9 @@
     const c = {};
     for (const a of world.atoms) c[a.sp] = (c[a.sp] || 0) + 1;
     for (const a of world.escaped) c[a.sp] = (c[a.sp] || 0) + 1;
-    const keys = new Set([...Object.keys(c), ...Object.keys(world.pgIn.c)]);
-    for (const k of keys) if ((c[k] || 0) !== (world.pgIn.c[k] || 0)) return false;
+    const cv = world.pgConv || {};
+    const keys = new Set([...Object.keys(c), ...Object.keys(world.pgIn.c), ...Object.keys(cv)]);
+    for (const k of keys) if ((c[k] || 0) !== (world.pgIn.c[k] || 0) + (cv[k] || 0)) return false;
     return true;
   }
 
@@ -269,17 +418,44 @@
     const groups = new Map();
     world.atoms.forEach((a, i) => {
       const r = find(i);
-      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, n: 0 });
+      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, cz: 0, n: 0 });
       const g = groups.get(r);
       g.comp[a.sp] = (g.comp[a.sp] || 0) + 1;
-      g.cx += a.r.x; g.cy += a.r.y; g.n++;
+      g.cx += a.r.x; g.cy += a.r.y; g.cz += a.r.z; g.n++;
     });
     const out = [];
     for (const g of groups.values()) {
       if (g.n < 2) continue;
-      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, n: g.n });
+      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, cz: g.cz / g.n, n: g.n });
     }
     return out;
+  }
+
+  // ── 복셀 장 측정 — 공간을 nc³(2D: nc²) 셀로 나눠 국소 상태(입자 수·T_국소)를 잰다.
+  //   T_국소 = 셀 내 병진 KE 평균 (2·ΣKE / (dof·n)) — 가열·폭발·냉각이 "장"으로 보인다. 측정 전용.
+  function field(world, nc) {
+    nc = nc || 13;
+    const L = world.box.L, fz = world.frozenZ, dof = fz ? 2 : 3;
+    const hx = L.x / nc, hy = L.y / nc, hz = fz ? 1 : L.z / nc;
+    const map = new Map();
+    for (const a of world.atoms) {
+      const ix = clamp(Math.floor(a.r.x / hx), 0, nc - 1);
+      const iy = clamp(Math.floor(a.r.y / hy), 0, nc - 1);
+      const iz = fz ? 0 : clamp(Math.floor(a.r.z / hz), 0, nc - 1);
+      const key = ix + nc * (iy + nc * iz);
+      let c = map.get(key);
+      if (!c) { c = { ix, iy, iz, n: 0, K: 0 }; map.set(key, c); }
+      c.n++; c.K += E.V.lenSq(a.p) / (2 * world.mass[a.sp]);
+    }
+    const cells = [];
+    for (const c of map.values()) {
+      cells.push({
+        ix: c.ix, iy: c.iy, iz: c.iz, n: c.n,
+        cx: (c.ix + 0.5) * hx, cy: (c.iy + 0.5) * hy, cz: fz ? 0 : (c.iz + 0.5) * hz,
+        T: 2 * c.K / (dof * c.n),
+      });
+    }
+    return { nc, hx, hy, hz, cells };
   }
 
   // 분자식 표기: {H:2,O:1} → 'H2O' (1 생략)
@@ -289,8 +465,10 @@
 
   const api = {
     SYM, TABLE, BY_Z, ANCHOR, D_ANCHOR, DREF, EA_CAP,
+    NEUTRON, FISSILE, TAU_N,
     element, dHomo, dPair, gridPos, freeSpot,
-    buildPlayground, spawn, heatPulse, residual, compositionOK,
+    buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
+    fission, runFission, tick, field,
     snapshot, diffEvents, clusters, formula,
   };
   if (isNode) module.exports = api;

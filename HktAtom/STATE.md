@@ -4,7 +4,7 @@
 
 ## §1 NOW — 지금 어디까지
 
-> **관찰자 샌드박스 — 전 원소 소환 프로토타입 (step-0029)**: 사용자 게임 프로토타입 요구 게이트. **새 물리 0** — levels 6·7주기 가법 연장(Z=1~118 ③ 유도·Z≤54 불변)+`playground.js/html` 신설(엔진 diff 0): 종 118·이온 역할 유도·폴링 식 이핵 D·②⑤⑥⑧⑩ 한 세계 합성·**주입 장부**(소환·가열=회계된 외부 원천 → 세계 총량−주입=0). verify --only 29 = 6 PASS·브라우저 스모크(H₂O/Na⁺Cl⁻ 창발 눈 확인).
+> **관찰자 샌드박스 (step-0029~0030 · 사용자 게임 프로토타입 게이트 · 새 물리 0)**: `playground.js/html`(엔진 diff 0). **0029**: levels 6·7주기 가법 연장(Z=1~118 ③ 유도·Z≤54 불변)·종 118·이온 역할 유도·폴링 식 이핵 D·②⑤⑥⑧⑩ 합성·**주입 장부**(소환·가열=회계된 외부 원천 → 세계 총량−주입≈0). **0030**: 2D/3D·항온조+T/P 스파크라인·연소 ⑱ 합류·**핵분열 인월드 판**(U+n→Ba+Kr+2n·E_nuclear 저장→실측 인출·pgConv·ν=2 연쇄)·**복셀 장**(국소 T 열지도). verify --only 29,30 = 10 PASS·브라우저 눈 확인.
 > **핵 게이트 완결 (step-0026~0028)**: 사용자 "핵분열" 요구 → CONTRACT §6-② 발동. ㉓ 핵종→㉔ 붕괴→**㉕ 분열(k_eff=1 경계)**. 가상 핵종·무차원. ㉖ 융합은 별 S2 연계 후속. **㉒ MaterialModel 완결 (step-0022~0025)**: 4 필드(EOS·확산·반응망·물앵커)·output v0.3 실물. **S1-② 응집 재개가 다음.**
 
 - **S0-㉓㉔㉕ 핵 트랙 — 핵분열 실현 (step-0026~0028·요약)**: **`nuclear.js` 신설**(엔진 diff 0). ㉓ c=(Z,N,e)·질량 Σ 회계(질량 결손=장부 실물)·동위원소 진동 앵커 ω_D/ω_H=0.7746(author 0). ㉔ 붕괴 채널(β⁻/α/γ/n)·지수 감쇠(R²=0.9999)·Bateman·붕괴열·지연 중성자. ㉕ 분열: 중성자 입자·단면 밴드·**k_eff=1 경계 창발**(밀도 스캔 단조↑·author 0)·감속 창발·Δm·c² 회계·NuclideTable⇧(`nuclide-table.json`). `verify --only 23,24,25`=**12 PASS**. 세부 step-0026~0028.md.
@@ -14,9 +14,9 @@
 - **S0-①~⑳ 뼈대·화학 (요약 — 전문 §5·step 문서·엔진 diff 0·author 0)**: ①무대·장부 ②힘 ③준위(주기율표) ④전이 엔진(볼츠만) ⑤이온화(NaCl) ⑥공유결합(H₂ 포화) ⑦내부 모드(C_v 계단) ⑧분극·응집(C6) ⑨통계(엔트로피↑) ⑩수프(2H:1O→H₂O) ⑪승격 MVP(Part I) ⑫복사장 ⑬z 해동(3D) ⑭형상(VSEPR) ⑮극성(QEq) ⑯수소결합(방향 R-HB) ⑰산염기(R-PROT) ⑱연소 ⑲금속 ⑳플라스마. 모듈: engine/scenes/measure/levels/modes/polarization/promote/geometry/polarity/hbond/acidbase/combustion/metal/ionized.js. 발견 §3.
 - **계획 국면 (step-0000)**: 네 축 확정(CLAUDE·KERNEL·CONTRACT·DESIGN+design/①~㉖). 결정: 3D·z동결·결정론 폐기·통 분리 장부·전이 카탈로그·두 시계·가상 원소·핵 게이트.
 
-## §2 NEXT — 다음 한 조각 (step-0030 = S1-② 응집·액적 재개)
+## §2 NEXT — 다음 한 조각 (step-0031 = S1-② 응집·액적 재개)
 
-**핵분열(㉕)·관찰자 샌드박스(step-0029) — 사용자 요구 충족. 사다리 전진으로 복귀.** :
+**핵분열(㉕)·관찰자 샌드박스(step-0029~0030) — 사용자 요구 충족. 사다리 전진으로 복귀.** :
 - **S1-② 응집 (액적·물방울)** (다음·stages/S1-molecule/): S1 무대(step-0021)가 로드만 하던 `input.pairPotential` 인력 꼬리를 `computeForces` 로 켜서 분자 응집(액적)을 창발. S0 arc ①→② 동형·손 튜닝 0. **S1 은 S0 output.json v0.3(㉒ 실물 MaterialModel)로 input 갱신 후 소비**(EOS·D·k·interactionModel 이용 가능). 배위수↑·클러스터 측정.
 - **핵 트랙 잔여 (게이트/후속)**: ㉖ 융합(Gamow·별 S2 연계)·개체 파편 추적(Σc 동적)·지연 중성자 정량 제어·폭발 왕복(서버+중간 해상도 몫·CONTRACT §5). ㉑ 성능(G-성능·규모 벽)·㉒-b2·η/κ·상전이 정련.
 
@@ -24,7 +24,7 @@
 
 ## §3 OPEN GAPS — 열린 격차
 
-- **샌드박스 고Z 경향만·부분 합성** (step-0029): 간이 Slater 고Z IE/EA 과대 → χ [0.3,5]·EA 0.6 클램프 방어(실세계 정합 주장 없음). 동핵 D=예산 프록시(H·O 만 실비 앵커). catalog=공유+이온만 — 금속⑲/플라스마⑳/수소결합⑯/산염기⑰/핵㉓~ 미합류(금속=공유 허브 근사). 관찰자=표현층(물리 개체 아님). 원자 200 상한(㉑ 몫). 세부 step-0029.md.
+- **샌드박스 고Z 경향만·부분 합성·핵 축약** (step-0029~0030): 간이 Slater 고Z IE/EA 과대 → χ/EA 클램프 방어(실세계 정합 주장 없음). 동핵 D=예산 프록시(H·O 만 실비 앵커). catalog=공유+이온+연소 — 금속⑲/플라스마⑳/수소결합⑯/산염기⑰ 미합류. 인월드 분열=단일 단면·즉발만(밴드·감속·지연·k_eff 는 ㉕ reactorSim)·파편 Ba/Kr 표기·붕괴㉔ 미연결·중성자 τ 소멸=처분 회계. 관찰자=표현층·3D 조준=중심 카메라면·복셀 장=온도만·원자 200 상한(㉑ 몫). 세부 step-0029/0030.md.
 - **㉒ 완결·잔여 격차** (step-0022~0025): EOS 는 척력+반응만(waterSoup virial 정확·분산 응집 loop 없음→㉒-b2 부피 유한차분 압력). η/κ 수송·상전이 정련 여지(S1 몫). 반응성 EOS 조성 T 응답=⑨ 동형·정상.
 - **핵 트랙 가상·내부 동결** (step-0026~): 핵종=상태표(바닥 특권)·핵 내부 동결. 실세계 정합 주장 없음(무차원·CONTRACT §5). ㉓ 앵커=결합 스프링 진동 측정(design/23 정정).
 - **입출력 JSON 스키마 초안만** (출력 산출 세부 단계가 확정): DESIGN §6.2 초안 있음 — 실측정하며 확정.
@@ -52,10 +52,11 @@
 
 ## §5 INDEX — step 인덱스 (literal 1줄/step append)
 
-- step-0029: 관찰자 샌드박스 — 전 원소 소환 프로토타입 (사용자 게이트·새 물리 0). levels 6·7주기 가법 연장(Z=1~118·Z≤54 불변)+playground.js/html(엔진 diff 0): 종 118 ③ 유도·이온 역할 유도·이핵 D=폴링 식(⑩ 앵커 보존)·②⑤⑥⑧⑩ 합성 세계·주입 장부 pgIn(소환·가열=실측 E 증분·세계 총량−주입≈0)·빈자리 탐색(겹침 소환=적분 폭탄 발견). 뷰어: 주기율표 팔레트+관찰자 로버+키트+사건 피드+잔차 배지. node verify.js = 175 PASS(+PG 6: 주입장부 잔차 −2.7e-2·H₂O 창발 4·이온 5/5). 세부 step-0029.md.
-- step-0028: S0-㉕ 분열 k_eff=1 경계(핵분열 실현). nuclear.js +중성자 입자(전자 형식·q=0·핵과만 단면)+단면 밴드(fast/thermal·1/v)+reactorSim(균질 매질 평균자유행로 몬테카를로·엔진 diff 0). 행 R-N-SCAT(감속=운동학 창발)/R-N-CAP/R-FISSION(F→파편2+ν≈2.5+Q). k_eff=생산/(흡수+누설) 밀도 스캔 [0.52→1.53] 단조↑ 미임계→초임계 **경계 창발**(누설 vs 생산·author 0)·감속(열중성자 0.607 vs 0)·Δm·c² 회계(방출=질량 결손 정확)·지연 중성자·NuclideTable⇧(nuclide-table.json). node verify.js = 169 PASS(+㉕ 5). 발견: 균질 매질(Σc 구조적)·지연 제어 관찰·가상 무차원·폭주 캡. 위력=회계·폭탄=조건(k_eff≥1). 뷰어 k경계+연쇄 폭주 100→3456. 세부 step-0028.md.
-- step-0027: S0-㉔ 붕괴 채널. nuclear.js +DECAY 상태표(halfLife·channels β⁻/α/γ/n·Q·daughter)+decaySim(개체군 지수 대기시간 몬테카를로·엔진 diff 0). 앵커 지수 감쇠 λ=0.227≈ln2/hl(R²=0.9999·수명 재현·author 0)·계열 FPa→FPb→FPc(딸 Bateman 봉우리)·붕괴열 누적·지연 중성자(3% n·k_eff 제어 근원)·Q값 회계(질량 결손→KE+γ+중성미자 E_escape). node verify.js = 164 PASS(+㉔ 4). 낙진 시간 감쇠=서버 붕괴 큐 창발(CONTRACT §5-6). 뷰어 붕괴 곡선 4종. 세부 step-0027.md.
-- step-0026: S0-㉓ 핵종·동위원소 (핵 게이트 G-핵 개방·사용자 핵분열 요구=CONTRACT §6-②). nuclear.js 신설(엔진 diff 0). c=(Z,e)→(Z,N,e)·N 화학 미접촉·질량 Σ 회계 m=Z·MP+N·MN−BE·C2(질량 결손=장부 실물). 가상 핵종 H1·D2·O16·N1. 앵커 동위원소 진동 ω_D/ω_H=0.7746≈√(μ_H/μ_D)(결합 스프링 ω=√(k/μ)·author 0). node verify.js = 160 PASS(①~⑳ 142+㉒ 15+㉓ 3). 발견: ⑦ ħω 고정→앵커는 결합 스프링서 측정(design/23 정정)·질량 결손 회계용·화학 질량 테이블 유지. 뷰어 두 진자(H–O·D–O). 세부 step-0026.md.
+- step-0030: 샌드박스 확장 — 3D·열역학·핵분열 연쇄·복셀 장 (사용자 게이트 2차·새 물리 0·엔진 diff 0). 2D/3D dim(⑬ 재사용)·항온조(전 열 주입 회계·T/P 스파크라인)·연소 ⑱ R-ABSTRACT 합류·핵분열 인월드 판(중성자 개체·U+n→Ba+Kr+2n·E_nuclear 저장→실측 ΔE 인출·pgConv 전환 장부·행 형식+tick 후단 실행기·ν=2 연쇄)·복셀 장 field(국소 T 열지도). node verify.js = 179 PASS(+4): 항온조 0.804/0.8·복셀 4.96≫0.68·연쇄 4회/1발. 발견: 개체 수 전이=형식 동형·실행 분리·저장 에너지 통 패턴. 세부 step-0030.md.
+- step-0029: 관찰자 샌드박스 — 전 원소 소환 프로토타입 (사용자 게이트·새 물리 0). levels 6·7주기 가법 연장(Z≤54 불변)+playground.js/html(엔진 diff 0): 종 118 ③ 유도·이온 역할 유도·이핵 D=폴링 식(⑩ 앵커 보존)·②⑤⑥⑧⑩ 합성·주입 장부 pgIn·빈자리 탐색(겹침 소환=적분 폭탄 발견). 뷰어: 주기율표 팔레트+관찰자 로버+키트+피드+잔차 배지. 175 PASS(+6). 세부 step-0029.md.
+- step-0028: S0-㉕ 분열 k_eff=1 경계(핵분열 실현). nuclear.js +중성자 입자+단면 밴드(fast/thermal·1/v)+reactorSim(몬테카를로·엔진 diff 0). R-N-SCAT/CAP/FISSION(F→파편2+ν≈2.5+Q). k_eff 밀도 스캔 [0.52→1.53] 단조↑ **경계 창발**(author 0)·감속(열중성자 0.607)·Δm·c² 회계·지연 중성자·NuclideTable⇧. 169 PASS(+5). 발견: 균질 매질·지연 제어·위력=회계·폭탄=조건(k_eff≥1). 세부 step-0028.md.
+- step-0027: S0-㉔ 붕괴 채널. nuclear.js +DECAY 상태표(β⁻/α/γ/n·Q·daughter)+decaySim(지수 대기시간·엔진 diff 0). 지수 감쇠 λ≈ln2/hl(R²=0.9999·author 0)·계열 Bateman·붕괴열·지연 중성자(3%)·Q값 회계. 164 PASS(+4). 낙진=서버 붕괴 큐 창발(CONTRACT §5-6). 세부 step-0027.md.
+- step-0026: S0-㉓ 핵종·동위원소 (핵 게이트 개방=CONTRACT §6-②). nuclear.js 신설(엔진 diff 0). c=(Z,N,e)·질량 Σ 회계 m=Z·MP+N·MN−BE·C2(질량 결손=장부 실물)·가상 핵종 4종·앵커 ω_D/ω_H=0.7746≈√(μ_H/μ_D)(author 0). 160 PASS(+3). 발견: ⑦ ħω 고정→앵커=결합 스프링 측정(design/23 정정). 세부 step-0026.md.
 - step-0025: S0-㉒-d 물 앵커 interactionModel (㉒ 닫힘). material.js +measureInteractionModel(waterCluster ⑯ 부분전하+방향 R-HB 굴림). 방향 h(c): 분자간 H···O 쌍을 정합코사인 c 빈→빈별 유효 H-결합 E(정렬 c→1 깊고 미정렬 ~0·선택성 352≫등방). 밀도 g(ρ): 밀도별 응집/분자(저→고 -0.05→-1.96 협동 심화). output.json v0.2→v0.3 +interactionModel(방향·밀도 표)·observables+=interactionModel(가법). node verify.js --only 22 = 15 PASS. **㉒ 닫는 기준(design/22 방향·밀도 의존) 충족 → ㉒(S0 진짜 출력) 완결·S0 비게이트 작업 완료.** 뷰어 방향/밀도 막대 추가. 세부 step-0025.md.
 - step-0024: S0-㉒-c 반응망 k(T). material.js +measureReactionNetwork(결합 집합 스냅샷 비교→해리 사건 카운트·k=사건/노출량·엔진 훅 0). ln k vs 1/T 최소제곱 → 아레니우스 {A,Ea,R²}. output.json +reactionNetwork(아레니우스)·observables+=k(반응)(가법). node verify.js --only 22 = 12 PASS(EOS 6 + 확산 3 + 반응 3): k(T)↑(열활성)·Ea=1.62>0·R²=0.99(직선). 뷰어 아레니우스 플롯 추가. Ea=매질 유효 장벽(카탈로그 결합 D 와 차=매질 효과·author 0). 세부 step-0024.md.
 - step-0023: S0-㉒-b 수송 확산 D(T,ρ). material.js +measureDiffusion(MSD 기울기·아인슈타인 D=slope/2dim·평형 후 disp 리셋). output.json +transportCoefficients.diffusion·+errorBounds.D·observables+=D(수송)(가법). node verify.js --only 22 = 9 PASS(EOS 6 + 확산 3): D(ρ)↓(혼잡)·D(T)↑(열활성)·발효 표 경향. 뷰어 D 히트맵 추가. 반응성 소프 clus 진동은 절편 흡수·성장분만 기울기. 세부 step-0023.md.
