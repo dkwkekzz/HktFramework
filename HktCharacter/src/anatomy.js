@@ -1,10 +1,11 @@
 // ============================================================================
 //  anatomy.js — 근육 아틀라스 (해부학 레퍼런스 기반 데이터)
 //
-//  파이프라인 2단계(근육)의 유일한 데이터 소스. 각 항목은 "이 근육이 어느 뼈에서
-//  시작(origin)해 어느 뼈에 붙는가(insertion)"를 Mixamo 뼈 이름으로 근사한다.
-//  실제 해부학의 기시/정지 뼈를 스켈레톤에서 가장 가까운 관절로 매핑했다 —
-//  주석의 (기시→정지)가 근거, from/to 가 그 근사다.
+//  파이프라인 2단계(근육)의 유일한 데이터 소스. 각 근육은 어느 뼈에서 시작(origin)
+//  해 어느 뼈에 붙는가(insertion)를 **부착 패치(AttachmentPatch)** 로 표현한다 —
+//  설계서 §7.1·§9.5. 부착은 월드 좌표가 아니라 "뼈 + 그 뼈 원점에서의 프레임
+//  오프셋"으로 저장하므로, 뼈 길이·비율이 달라져도 부착 관계가 깨지지 않는다.
+//  (WP-01: AttachmentPatch-lite 승격. 상세: docs/WORKPLAN.md)
 //
 //  레퍼런스:
 //   - Deltoid: 쇄골 외측·견봉·견갑극 → 상완골 삼각근조면 (Kenhub / AnatomyZone).
@@ -23,11 +24,16 @@
 //   - Gastrocnemius: 대퇴골 내·외측과 → 종골(아킬레스건) (하퇴 후면).
 //   - Tibialis anterior: 경골 외측 → 설상골·중족골 (정강이 전면).
 //
-//  좌표 프레임(muscles.js 가 계산): 벨리 축 A = normalize(to-from).
-//   off = { a, l }  — a: 전(+)/후(-) 오프셋(m), l: 측면 오프셋(m). 좌우는
-//   lat = cross(A, anterior) 가 팔·다리 방향(±)에 따라 자동으로 뒤집혀 대칭이 된다.
-//   along: 벨리 중심을 축을 따라 이동(-0.5~0.5, 0=중점). span: 벨리 반길이 비율(축길이×).
-//   r: 벨리 최대 반지름(m), taper: 양끝 반지름 비율, bulge: 수축 시 두꺼워지는 정도.
+//  데이터 모델 (MuscleSpec-lite, 설계서 §7.1·§7.2·§23):
+//   근육 = {
+//     origins:[AttachmentPatch], insertions:[AttachmentPatch],  // 부착(다두근은 2+)
+//     architecture,          // §8 근육 형태 원형 (현재 전부 Fusiform, WP-03 에서 다양화)
+//     along, span, r, taper, bulge,  // 벨리 형상 (r=최대 반지름, taper=양끝 비율)
+//   }
+//   AttachmentPatch = { bone, off:{a,l}, role }
+//     - bone: 부착 뼈(Mixamo simpleName). off: 그 뼈 원점에서 벨리 프레임 오프셋(m).
+//       a = 전(+)/후(-), l = 측면. 좌우는 프레임의 lat 이 자동 대칭(muscles.js).
+//     - role: 'origin' | 'insertion'. 부착 반지름은 patchRadius(def)=r×taper 로 파생.
 // ============================================================================
 
 // 전면(anterior) 월드 방향. Mixamo 리그가 +Z 를 바라본다는 가정 — 앞/뒤가
@@ -36,15 +42,25 @@ export const FACING = 1;
 
 // 정중선(centerline) 뼈 — 좌우 전개 시 접두어를 붙이지 않는다. 나머지(arm/leg 등)만
 // left/right 를 붙인다. 예: 대흉근은 흉골(spine2, 정중선)에서 시작해 상완골(arm, 좌우)에
-// 붙으므로 from='spine2'(그대로) · to='leftarm'/'rightarm'.
+// 붙으므로 origin.bone='spine2'(그대로) · insertion.bone='leftarm'/'rightarm'.
 const CENTERLINE = new Set(['hips', 'spine', 'spine1', 'spine2', 'neck', 'head']);
 const sided = (name, pre) => (CENTERLINE.has(name) ? name : pre + name);
 
-// 좌우 공용 템플릿을 L/R 두 항목으로 전개한다. lat 오프셋은 프레임이 자동 대칭.
+// 부착 패치 생성 헬퍼. off 는 벨리 프레임에서의 (전후 a, 측면 l) 오프셋(m).
+const O = (bone, a, l) => ({ bone, off: { a, l }, role: 'origin' });
+const I = (bone, a, l) => ({ bone, off: { a, l }, role: 'insertion' });
+
+// 부착 패치의 footprint 반지름(m) = 벨리 최대 반지름 × 양끝 taper 비율.
+// (벨리 양 끝이 실제로 그 반지름으로 좁아지므로 힘줄·부착 면적의 근사다.) 설계서 §7.1.
+export const patchRadius = def => +(def.r * def.taper).toFixed(4);
+
+// 좌우 공용 템플릿을 L/R 두 항목으로 전개한다. 각 패치 bone 을 side 접두어로 사이드화하고
+// (정중선 뼈는 그대로), lat 오프셋은 프레임이 자동 대칭한다.
 function pair(t) {
   const mk = (side, pre) => ({
     ...t, id: `${t.id}.${side}`, side,
-    from: sided(t.from, pre), to: sided(t.to, pre),
+    origins: t.origins.map(p => ({ ...p, bone: sided(p.bone, pre) })),
+    insertions: t.insertions.map(p => ({ ...p, bone: sided(p.bone, pre) })),
   });
   return [mk('L', 'left'), mk('R', 'right')];
 }
@@ -52,49 +68,65 @@ function pair(t) {
 // r/off 단위는 미터 (캐릭터 키 ≈ 1.7m 기준).
 const CENTER = [
   // 복직근 — 골반에서 흉곽 전면까지 몸통 앞면의 판.
-  { id: 'rectusAbdominis', kr: '복직근', side: 'C', from: 'hips', to: 'spine1',
-    off: { a: 0.10, l: 0 }, along: 0.05, span: 0.62, r: 0.085, taper: 0.55, bulge: 0.10 },
+  { id: 'rectusAbdominis', kr: '복직근', side: 'C', architecture: 'Fusiform',
+    origins: [O('hips', 0.10, 0)], insertions: [I('spine1', 0.10, 0)],
+    along: 0.05, span: 0.62, r: 0.085, taper: 0.55, bulge: 0.10 },
 ];
 
 const PAIRED = [
   // ---- 몸통 -------------------------------------------------------------
-  { id: 'pectoralis', kr: '대흉근', from: 'spine2', to: 'arm',
-    off: { a: 0.11, l: 0.02 }, along: 0.1, span: 0.7, r: 0.085, taper: 0.5, bulge: 0.18 },
-  { id: 'latissimus', kr: '광배근', from: 'spine', to: 'arm',
-    off: { a: -0.10, l: 0.05 }, along: 0.15, span: 0.75, r: 0.09, taper: 0.45, bulge: 0.12 },
-  { id: 'trapezius', kr: '승모근', from: 'neck', to: 'shoulder',
-    off: { a: -0.05, l: 0 }, along: 0, span: 0.9, r: 0.06, taper: 0.55, bulge: 0.10 },
-  { id: 'oblique', kr: '외복사근', from: 'hips', to: 'spine1',
-    off: { a: 0.03, l: 0.10 }, along: 0.05, span: 0.6, r: 0.06, taper: 0.6, bulge: 0.10 },
+  { id: 'pectoralis', kr: '대흉근', architecture: 'Fusiform',
+    origins: [O('spine2', 0.11, 0.02)], insertions: [I('arm', 0.11, 0.02)],
+    along: 0.1, span: 0.7, r: 0.085, taper: 0.5, bulge: 0.18 },
+  { id: 'latissimus', kr: '광배근', architecture: 'Fusiform',
+    origins: [O('spine', -0.10, 0.05)], insertions: [I('arm', -0.10, 0.05)],
+    along: 0.15, span: 0.75, r: 0.09, taper: 0.45, bulge: 0.12 },
+  { id: 'trapezius', kr: '승모근', architecture: 'Fusiform',
+    origins: [O('neck', -0.05, 0)], insertions: [I('shoulder', -0.05, 0)],
+    along: 0, span: 0.9, r: 0.06, taper: 0.55, bulge: 0.10 },
+  { id: 'oblique', kr: '외복사근', architecture: 'Fusiform',
+    origins: [O('hips', 0.03, 0.10)], insertions: [I('spine1', 0.03, 0.10)],
+    along: 0.05, span: 0.6, r: 0.06, taper: 0.6, bulge: 0.10 },
   // ---- 목 ---------------------------------------------------------------
-  { id: 'scm', kr: '흉쇄유돌근', from: 'head', to: 'spine2',
-    off: { a: 0.05, l: 0.03 }, along: 0.1, span: 0.7, r: 0.024, taper: 0.6, bulge: 0.08 },
+  { id: 'scm', kr: '흉쇄유돌근', architecture: 'Fusiform',
+    origins: [O('head', 0.05, 0.03)], insertions: [I('spine2', 0.05, 0.03)],
+    along: 0.1, span: 0.7, r: 0.024, taper: 0.6, bulge: 0.08 },
   // ---- 어깨 -------------------------------------------------------------
-  { id: 'deltoid', kr: '삼각근', from: 'arm', to: 'forearm',
-    off: { a: 0, l: 0.055 }, along: -0.28, span: 0.5, r: 0.06, taper: 0.5, bulge: 0.15 },
+  { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform',
+    origins: [O('arm', 0, 0.055)], insertions: [I('forearm', 0, 0.055)],
+    along: -0.28, span: 0.5, r: 0.06, taper: 0.5, bulge: 0.15 },
   // ---- 상완 -------------------------------------------------------------
-  { id: 'biceps', kr: '상완이두근', from: 'arm', to: 'forearm',
-    off: { a: 0.045, l: 0 }, along: 0.02, span: 0.62, r: 0.048, taper: 0.45, bulge: 0.32 },
-  { id: 'triceps', kr: '상완삼두근', from: 'arm', to: 'forearm',
-    off: { a: -0.045, l: 0 }, along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
+  { id: 'biceps', kr: '상완이두근', architecture: 'Fusiform',
+    origins: [O('arm', 0.045, 0)], insertions: [I('forearm', 0.045, 0)],
+    along: 0.02, span: 0.62, r: 0.048, taper: 0.45, bulge: 0.32 },
+  { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
+    origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
+    along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
   // ---- 전완 -------------------------------------------------------------
-  { id: 'forearm', kr: '전완근군', from: 'forearm', to: 'hand',
-    off: { a: 0.01, l: 0 }, along: -0.1, span: 0.7, r: 0.05, taper: 0.4, bulge: 0.15 },
+  { id: 'forearm', kr: '전완근군', architecture: 'Fusiform',
+    origins: [O('forearm', 0.01, 0)], insertions: [I('hand', 0.01, 0)],
+    along: -0.1, span: 0.7, r: 0.05, taper: 0.4, bulge: 0.15 },
   // ---- 둔부 -------------------------------------------------------------
-  { id: 'gluteus', kr: '대둔근', from: 'hips', to: 'upleg',
-    off: { a: -0.09, l: 0.05 }, along: 0.35, span: 0.55, r: 0.09, taper: 0.6, bulge: 0.12 },
+  { id: 'gluteus', kr: '대둔근', architecture: 'Fusiform',
+    origins: [O('hips', -0.09, 0.05)], insertions: [I('upleg', -0.09, 0.05)],
+    along: 0.35, span: 0.55, r: 0.09, taper: 0.6, bulge: 0.12 },
   // ---- 대퇴 -------------------------------------------------------------
-  { id: 'quadriceps', kr: '대퇴사두근', from: 'upleg', to: 'leg',
-    off: { a: 0.07, l: 0 }, along: 0.05, span: 0.72, r: 0.095, taper: 0.5, bulge: 0.22 },
-  { id: 'hamstrings', kr: '햄스트링', from: 'upleg', to: 'leg',
-    off: { a: -0.06, l: 0 }, along: 0.05, span: 0.72, r: 0.085, taper: 0.5, bulge: 0.16 },
-  { id: 'adductor', kr: '내전근군', from: 'hips', to: 'leg',
-    off: { a: 0.02, l: -0.07 }, along: 0.3, span: 0.55, r: 0.06, taper: 0.55, bulge: 0.12 },
+  { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform',
+    origins: [O('upleg', 0.07, 0)], insertions: [I('leg', 0.07, 0)],
+    along: 0.05, span: 0.72, r: 0.095, taper: 0.5, bulge: 0.22 },
+  { id: 'hamstrings', kr: '햄스트링', architecture: 'Fusiform',
+    origins: [O('upleg', -0.06, 0)], insertions: [I('leg', -0.06, 0)],
+    along: 0.05, span: 0.72, r: 0.085, taper: 0.5, bulge: 0.16 },
+  { id: 'adductor', kr: '내전근군', architecture: 'Fusiform',
+    origins: [O('hips', 0.02, -0.07)], insertions: [I('leg', 0.02, -0.07)],
+    along: 0.3, span: 0.55, r: 0.06, taper: 0.55, bulge: 0.12 },
   // ---- 하퇴 -------------------------------------------------------------
-  { id: 'gastrocnemius', kr: '비복근', from: 'leg', to: 'foot',
-    off: { a: -0.05, l: 0 }, along: -0.18, span: 0.55, r: 0.06, taper: 0.45, bulge: 0.28 },
-  { id: 'tibialis', kr: '전경골근', from: 'leg', to: 'foot',
-    off: { a: 0.045, l: 0.01 }, along: -0.1, span: 0.6, r: 0.035, taper: 0.5, bulge: 0.12 },
+  { id: 'gastrocnemius', kr: '비복근', architecture: 'Fusiform',
+    origins: [O('leg', -0.05, 0)], insertions: [I('foot', -0.05, 0)],
+    along: -0.18, span: 0.55, r: 0.06, taper: 0.45, bulge: 0.28 },
+  { id: 'tibialis', kr: '전경골근', architecture: 'Fusiform',
+    origins: [O('leg', 0.045, 0.01)], insertions: [I('foot', 0.045, 0.01)],
+    along: -0.1, span: 0.6, r: 0.035, taper: 0.5, bulge: 0.12 },
 ];
 
 export const MUSCLES = [...CENTER, ...PAIRED.flatMap(pair)];

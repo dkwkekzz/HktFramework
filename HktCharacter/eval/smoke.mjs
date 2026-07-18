@@ -39,6 +39,33 @@ for (const model of ['X Bot', 'Y Bot']) {
   ok(caps.length > muscles.items.length, `피부 캡슐 ${caps.length}개 (근육+뼈패딩)`);
   ok(caps.every(c => c.r > 0 && isFinite(c.a.x) && isFinite(c.b.y)), '캡슐 반지름>0·좌표 유한');
 
+  // WP-01 · 부착 패치 (§19.1 구조 검증 + §7.1 부착 불변) ---------------------
+  const att = muscles.getAttachments();
+  ok(att.length === muscles.items.length * 2, `부착점 ${att.length}개 (근육×2)`);
+  ok(att.every(a => a.r > 0 && isFinite(a.world.x) && isFinite(a.pivot.y)), '부착 반지름>0·좌표 유한');
+  const byId = new Map(); // 근육별 origin/insertion 개수
+  for (const a of att) { const e = byId.get(a.id) || { o: 0, i: 0 }; e[a.role === 'origin' ? 'o' : 'i']++; byId.set(a.id, e); }
+  ok([...byId.values()].every(e => e.o >= 1 && e.i >= 1), '모든 근육이 origin+insertion 보유(§19.1)');
+  ok(muscles.items.every(it => it.oBone !== it.iBone), 'origin≠insertion 뼈');
+  // §7.1: 팔(상완) 길이 ×1.3 → 부착점이 앵커 뼈와 1:1 이동(비율 변화에 부착 유지)
+  const arm = rig.boneMap.get('leftforearm');
+  if (arm) {
+    const bic0 = att.filter(a => a.id === 'biceps.L');
+    const o0 = bic0.find(a => a.role === 'origin'), i0 = bic0.find(a => a.role === 'insertion');
+    const fbP0 = arm.getWorldPosition(new THREE.Vector3());
+    const savedPos = arm.position.clone();
+    arm.position.multiplyScalar(1.3);           // 상완 길이를 로컬 축 그대로 30% 늘림
+    rig.obj.updateMatrixWorld(true);
+    const boneDelta = arm.getWorldPosition(new THREE.Vector3()).distanceTo(fbP0);
+    const bic1 = muscles.getAttachments().filter(a => a.id === 'biceps.L');
+    const o1 = bic1.find(a => a.role === 'origin'), i1 = bic1.find(a => a.role === 'insertion');
+    ok(o0 && i0 && Math.abs(i0.world.distanceTo(i1.world) - boneDelta) < 2e-3,
+      `부착 불변: insertion 이 앵커 뼈와 1:1 이동 (Δ뼈=${boneDelta.toFixed(3)})`);
+    ok(o0.world.distanceTo(o1.world) < 2e-3, '부착 불변: 반대쪽 origin 은 뼈 이동에 불변');
+    arm.position.copy(savedPos);                // rest 복원 (이후 피부 굽기가 rest 를 봄)
+    rig.obj.updateMatrixWorld(true);
+  }
+
   // ③ 피부 (굽기) ----------------------------------------------------------
   const t0 = Date.now();
   const { mesh, skeleton, stats } = bakeSkin(rig, caps);

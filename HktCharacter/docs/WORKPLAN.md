@@ -91,13 +91,18 @@ LOD 5단계, Chaos Flesh 참조 등을 전제한다. 이 트랙은 그중 **생�
 각 WP = 이 트랙 skill 워크플로의 **한 step**(읽기→구현→검증→갱신) 크기. 의존성 순.
 검증은 항상 `npm run smoke`(수치) + `npm run render`(실루엣 PNG)로 캡처해 직관 보고(불변: "검증은 캡처해 보고").
 
-### WP-01 · AttachmentPatch-lite — 부착을 뼈 로컬 패치로 승격
+### WP-01 · AttachmentPatch-lite — 부착을 뼈 로컬 패치로 승격 ✅
 - **목적**: 근육 부착을 관절 원점 스냅에서 **뼈 로컬 좌표 + 반지름 + 역할**로 올린다. 설계서 §7.1·§9.5.
 - **대상**: `anatomy.js`(스키마), `muscles.js`(`belly()` 가 로컬 패치를 월드로 해석).
 - **산출물**: `origins[]`/`insertions[]` 명시. `off{a,l}·along` → 뼈-로컬 부착 중심으로 변환(무손실 리팩터).
 - **검증**: smoke 에 "모든 근육이 유효 origin+insertion 보유(§19.1)" + "팔 길이 ×1.3 스케일 후 부착 중심 뼈-로컬 불변" 체크 추가. render 실루엣 회귀 없음.
 - **완료조건**: 기존 31개 근육 시각 회귀 0, 팔 길이 변형 테스트 통과.
 - **불변 정합**: 월드 좌표 저장 제거 → 비율 변형에 견고.
+- **완료 기록 (2026-07-18)**:
+  - `anatomy.js` — 각 근육을 `{ origins:[AttachmentPatch], insertions:[AttachmentPatch], architecture, along/span/r/taper/bulge }` 로 재작성. `AttachmentPatch = {bone, off:{a,l}, role}`. 헬퍼 `O`/`I`, `pair()` 가 패치 뼈를 사이드화, `patchRadius(def)=r×taper` 파생 export. `architecture:'Fusiform'` 전 근육 태깅(WP-03 선행).
+  - `muscles.js` — 공용 `frame()` 로 벨리 프레임 추출, `belly()` 가 origin/insertion off 를 각각 적용(동일 off → 기존과 수학적 동일). `build()` 가 패치를 뼈로 해석(부차 패치 결측 시 제외). 신규 `getAttachments()` — 부착점을 월드로 해석(§7.1: `|world−pivot|=hypot(a,l)` 뼈 로컬 불변), WP-02·검증이 소비.
+  - `eval/smoke.mjs` — 부착점 62개·origin+insertion 보유(§19.1)·origin≠insertion 뼈·**상완 ×1.3 시 insertion 이 앵커 뼈와 1:1 이동(Δ≈0.078m)·반대쪽 origin 불변** 체크 추가.
+  - **회귀 0 확인**: 피부 tris(19556/21022)·높이 1.80·스팬(1.56/1.72)·정점(9334/10038)·애니 변형(0.160/0.086) 전부 리팩터 전과 동일. 근육 에코르셰·피부 실루엣 육안 동일.
 
 ### WP-02 · WrapConstraint + Route Solver-lite — 뼈를 피하는 경로
 - **목적**: 직선 벨리축 → origin↔insertion 사이 **wrap(캡슐/구) 우회 중심 경로**. 뼈·관절 관통 제거. 설계서 §6·§7.5·§9.6.
@@ -186,8 +191,8 @@ WP-07 ── 전 WP 가로지름(게이트) ──
 
 | WP | 제목 | 상태 | Phase(설계서 §22) |
 |---|---|:--:|---|
-| WP-01 | AttachmentPatch-lite | ☐ 대기 | Phase 1 |
-| WP-02 | WrapConstraint + Route Solver | ☐ 대기 | Phase 1 |
+| WP-01 | AttachmentPatch-lite | ✅ 완료 (2026-07-18) | Phase 1 |
+| WP-02 | WrapConstraint + Route Solver | ◀ 다음 | Phase 1 |
 | WP-03 | Muscle Architecture 다양화 | ☐ 대기 | Phase 1 |
 | WP-04 | Joint Function & 기능 근육 | ☐ 대기 | Phase 1 |
 | WP-05 | 활성도(activation) 분리 | ☐ 대기 | Phase 1 |
@@ -209,9 +214,9 @@ WP-07 ── 전 WP 가로지름(게이트) ──
 
 ## 7. 다음 즉시 착수 WP
 
-**WP-01 (AttachmentPatch-lite)** 부터. 이유:
-1. 설계서 §7.1 이 "월드 저장은 비율 변형에 깨진다"고 못박은 **가장 근본적 결함**을 먼저 제거.
-2. WP-02(경로)·WP-04(기능)의 공통 선행 — 부착이 패치로 서면 경로/토크가 그 위에 선다.
-3. 시각 회귀 0 을 목표로 한 **무손실 리팩터** — 안전한 첫 발.
+**WP-01 완료** → 다음은 **WP-02 (WrapConstraint + Route Solver-lite)**. 이유:
+1. WP-01 이 부착을 명시 패치(`getAttachments()`)로 세웠으므로, 이제 그 origin↔insertion **사이 경로**를 뼈를 피해 세울 토대가 있다.
+2. 설계서 §20 의 정량 목표(뼈 관통 ≤0.1%)를 처음으로 게이트화 — 직선 벨리축이 극단 포즈에서 상완골을 관통하는 문제를 wrap(캡슐/구)로 해소.
+3. WP-03(아키텍처)·WP-08(기능 합성)이 그 위에 선다.
 
 착수 시 이 트랙의 step 워크플로(읽기→구현→검증→[STATE.md](../STATE.md)·본 상태표 갱신)를 따른다.
