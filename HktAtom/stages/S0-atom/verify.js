@@ -1301,6 +1301,99 @@
         msg: `PG·Na+물 발열: 전자 이전(EA_CAP ${Pg.EA_CAP}) → 이온화 + T 2배↑ ${hitNa}/5 런 [${Tlog.join(' ')}] — 발열이 KE 로 분출 (알칼리 격렬 반응 체감)` });
     }
 
+    // 32. 중력 (step-0032) — 엔진 법칙 g (규모 투명 외부 장): 장면 보편·자유낙하 회계·성층 창발·대조·3D
+    if (want(32)) {
+      // (0) 법칙은 장면 보편: playground 를 거치지 않는 순수 엔진 세계(makeWorld 옵션 g)에서도
+      //     중력이 적용되고 장부(U_grav 통 포함)가 닫힌다 — computeForces 기본값(zeroForces)에서도.
+      //     반사 벽은 ΔU_grav 상계 반사(reflect1) — 벽에 깔린 원자의 잦은 반사 드리프트를 ~6×
+      //     줄인다 (미보정 시 랜덤워크 실측 → 상계 도입). 잔여는 바운스당 O(dt·g·v) 시간 준위
+      //     잔차 (half-kick 의 p 와 drift 의 r 가 반 스텝 어긋남) → 허용 1e-3.
+      const we = E.makeWorld({ dt: 0.004, box: { L: E.V.make(20, 20, 20), bc: 'reflect' },
+        mass: { X: 3 }, sigma: { X: 1 }, eps: { X: 1 }, g: 0.05 });
+      we.atoms.push(E.makeAtom('X', E.V.make(10, 4, 0), E.V.zero()));
+      const Ee0 = E.totalEnergy(we);
+      let yMaxE = 4;
+      for (let k = 0; k < 9000; k++) { E.step(we); yMaxE = Math.max(yMaxE, we.atoms[0].r.y); }
+      const Ee1 = E.totalEnergy(we);
+      log.push({ ok: Math.abs(Ee1 - Ee0) <= 1e-3 && yMaxE > 15, name: 'PG·중력법칙',
+        msg: `PG·중력=엔진 법칙: 순수 makeWorld({g}) 장면에서 낙하 y 4→최저점 ${yMaxE.toFixed(1)} · 총 E 드리프트 ${Math.abs(Ee1 - Ee0).toExponential(1)} ≤ 1e-3 (ΔU_grav 상계 반사 — 어느 장면·어느 computeForces 든 저절로 적용)` });
+      // (1) 자유낙하 회계: 높은 곳 정지 Ne 하나 → 낙하 내내 KE = m·g·Δh (위치 E → 운동 E 정확 이동)
+      //     + residual(U_grav 포함) 이 머신 정밀도로 닫힌다. 상수 힘은 Verlet 이 정확 적분.
+      const wg = Pg.buildPlayground({ rng: E.makeRng(3232), L: 26 });
+      Pg.setGravity(wg, 0.06);
+      const aF = Pg.spawn(wg, 'Ne', 13, 3, { T: 0 });        // 2D: 아래=+y → y=3 은 높은 곳
+      const mNe = wg.mass.Ne, y0 = aF.r.y;
+      let devMax = 0, keGain = 0;
+      for (let k = 0; k < 8000 && aF.r.y < 25; k++) {
+        E.step(wg);
+        const ke = E.V.lenSq(aF.p) / (2 * mNe);
+        devMax = Math.max(devMax, Math.abs(ke - mNe * 0.06 * (aF.r.y - y0)));
+        keGain = Math.max(keGain, ke);
+      }
+      log.push({ ok: devMax <= 1e-9 && Math.abs(Pg.residual(wg)) <= 1e-9 && keGain > 5, name: 'PG·자유낙하',
+        msg: `PG·자유낙하 회계: KE−m·g·Δh 편차 최대 ${devMax.toExponential(1)} ≤ 1e-9 · 잔차 ${Pg.residual(wg).toExponential(1)} · 획득 KE ${keGain.toFixed(1)} (위치 E→운동 E 정확 이동·author 0)` });
+
+      // (2) 성층 창발 (통계·3런): H+He+Xe 를 같은 높이 분포로 소환 → g 켜고 항온조 T=1.7 →
+      //     종별 평균 높이가 질량 역순으로 갈라진다 (h̄_Xe < h̄_He < h̄_H — "가라앉아라" 분기 0).
+      //     T 는 기체 유지 온도: 저T 에선 H 가 가라앉은 Xe 무리에 분산 흡착되어 He 아래로
+      //     붙는다 (그것도 실물리 창발 — 기체 성층 검증엔 고T). setGravity 는 켜는 순간의 위치
+      //     E 를 주입 장부에 기록 → 잔차 닫힘 유지. 잔차 판정은 절대 ≤ 0.2 — 고T Verlet 드리프트
+      //     (step-0031 등록·에너지 비례·총 E 규모 ~35 의 0.6%). U_grav(음수)가 주입 KE 를 상쇄해
+      //     pgIn.E≈0 이 되므로 30-(3)식 상대 정규화는 여기선 무의미하다.
+      const SP32 = ['H', 'He', 'Xe'];
+      const runStrat = (seed, g) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 26 });
+        for (let i = 0; i < 8; i++)   // 3 종을 같은 y 밴드(6~16)에 인터리브 — 초기 높이 편향 0
+          for (let sIdx = 0; sIdx < 3; sIdx++)
+            Pg.spawn(w, SP32[sIdx], 2.5 + ((i * 3 + sIdx) % 6) * 4.2, 6 + (((i * 3 + sIdx) / 6) | 0) * 2.6, { T: 1.7 });
+        Pg.setGravity(w, g);
+        const acc = { H: 0, He: 0, Xe: 0 }; let nAcc = 0;
+        for (let k = 0; k < 14000; k++) {
+          E.step(w);
+          if (k % 5 === 0) Pg.thermostat(w, 1.7, 0.1);
+          if (k >= 9000 && k % 50 === 0) {
+            const s = {}, n = {};
+            for (const a of w.atoms) { s[a.sp] = (s[a.sp] || 0) + (26 - a.r.y); n[a.sp] = (n[a.sp] || 0) + 1; }
+            for (const sp of SP32) acc[sp] += s[sp] / n[sp];
+            nAcc++;
+          }
+        }
+        for (const s of SP32) acc[s] /= nAcc;
+        return { h: acc, res: Math.abs(Pg.residual(w)), cOK: Pg.compositionOK(w) };
+      };
+      let ordHit = 0, resOK = true; const hAgg = { H: 0, He: 0, Xe: 0 }, hLog = [];
+      for (let s = 0; s < 3; s++) {
+        const r = runStrat(500 + s, 0.06);
+        if (r.h.Xe < r.h.He && r.h.He < r.h.H) ordHit++;
+        if (r.res > 0.2 || !r.cOK) resOK = false;
+        for (const k of SP32) hAgg[k] += r.h[k] / 3;
+        hLog.push(`[Xe ${r.h.Xe.toFixed(1)}·He ${r.h.He.toFixed(1)}·H ${r.h.H.toFixed(1)}]`);
+      }
+      log.push({ ok: ordHit >= 2 && resOK && hAgg.H - hAgg.Xe >= 3, name: 'PG·성층창발',
+        msg: `PG·성층 창발: 평균 높이 질량 역순 (Xe<He<H) ${ordHit}/3 런 ${hLog.join(' ')} · 격차 h̄_H−h̄_Xe ${(hAgg.H - hAgg.Xe).toFixed(1)} ≥ 3 · 잔차 ≤ 0.2(고T 드리프트·step-0031)·Σc 정확 ${resOK} (F=m·g 하나에서 층 분리가 창발·측정)` });
+
+      // (3) g=0 대조 (3런 집계): 중력이 없으면 무거운 Xe 도 바닥에 깔리지 않는다 — 균일 분포
+      //     기대 h̄≈13 근방 (h̄_Xe ≥ 8). 성층 런의 h̄_Xe ≤ 3 과 대비 — 침강의 원인이 g 임을 고정.
+      const h0 = { H: 0, He: 0, Xe: 0 }; let res0 = 0;
+      for (let s = 0; s < 3; s++) {
+        const r = runStrat(700 + s, 0);
+        for (const k of SP32) h0[k] += r.h[k] / 3;
+        res0 = Math.max(res0, r.res);
+      }
+      log.push({ ok: h0.Xe >= 8 && hAgg.Xe <= 3 && res0 <= 0.2, name: 'PG·중력대조',
+        msg: `PG·g=0 대조: h̄_Xe ${h0.Xe.toFixed(1)} ≥ 8 (침강 없음·균일≈13) vs 중력 런 h̄_Xe ${hAgg.Xe.toFixed(1)} ≤ 3 (바닥) · [Xe ${h0.Xe.toFixed(1)}·He ${h0.He.toFixed(1)}·H ${h0.H.toFixed(1)}] · 잔차 ≤ 0.2 — 침강·성층은 g 가 만든 창발` });
+
+      // (4) 3D 방향·회계: 3D 는 아래=−y(지형 바닥) — 평균 y 하강 + 잔차 닫힘 (pgGDir 분기)
+      const w3 = Pg.buildPlayground({ rng: E.makeRng(3300), L: 16, dim: 3 });
+      for (let i = 0; i < 6; i++) Pg.spawn(w3, 'Ne', 3 + (i % 3) * 4, 10, { T: 0.3, z: 4 + ((i / 3) | 0) * 5 });
+      Pg.setGravity(w3, 0.06);
+      const y3a = w3.atoms.reduce((s, a) => s + a.r.y, 0) / w3.atoms.length;
+      for (let k = 0; k < 2500; k++) Pg.tick(w3);
+      const y3b = w3.atoms.reduce((s, a) => s + a.r.y, 0) / w3.atoms.length;
+      log.push({ ok: y3b < y3a - 3 && Math.abs(Pg.residual(w3)) <= 0.05 && Pg.compositionOK(w3), name: 'PG·3D중력',
+        msg: `PG·3D 중력: 평균 y ${y3a.toFixed(1)} → ${y3b.toFixed(1)} (지형 바닥 −y 로 침강) · 잔차 ${Pg.residual(w3).toExponential(1)} ≤ 0.05 · Σc 정확` });
+    }
+
     return log;
   }
 
@@ -1312,7 +1405,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29,30) 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32) 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

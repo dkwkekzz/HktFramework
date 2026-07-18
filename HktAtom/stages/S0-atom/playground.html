@@ -89,6 +89,12 @@
       <span class="k">— 넣고 뺀 열은 전부 주입 장부에 기록</span>
     </div>
     <div class="row">
+      <button id="grav">🌍 중력 OFF</button>
+      <label>세기 g</label><input id="gv" type="range" min="1" max="20" value="6" />
+      <span id="gvv" class="k">0.06</span>
+      <span class="k">(<kbd>G</kbd>) — F=m·g 하나만: 무거운 종은 가라앉고 가벼운 종은 뜬다 (성층 창발·켤 때의 위치 E 도 주입 장부 기록)</span>
+    </div>
+    <div class="row">
       <label>키트</label>
       <button data-kit="water">물 (16H+8O)</button>
       <button data-kit="salt">소금 (6Na+6Cl)</button>
@@ -97,6 +103,7 @@
       <button data-kit="noble">비활성 (10Ne)</button>
       <button data-kit="fuel">☢ 핵연료 (6U)</button>
       <button data-kit="hfuel">☀ 수소 연료 (14H)</button>
+      <button data-kit="strat">⚖ 성층 (8H+8He+8Xe)</button>
       <button data-kit="ngun">🔫 중성자 발사</button>
       <button data-kit="fire">🔥 점화 (광역 가열)</button>
     </div>
@@ -120,10 +127,12 @@
 
     <div id="feed"><div class="sys">— 사건 피드 (결합·해리·이온화·핵분열) —</div></div>
 
-    <p class="note">회계 잔차 = 세계 총 에너지 − 관찰자 주입 누계 — 소환·가열·항온조가 전부 장부에
-      기록되므로 0 근처(초록)여야 한다. 핵연료 U 는 소환 시 저장 핵에너지 Q 를 함께 주입하고,
-      분열이 그만큼을 파편·중성자 KE 로 꺼낸다(Δm·c² 회계의 축약·가상 무차원). 한계: 간이 Slater
-      라 고Z 원소는 "경향"만 정직 (step-0030).</p>
+    <p class="note">회계 잔차 = 세계 총 에너지(중력 위치 E 포함) − 관찰자 주입 누계 — 소환·가열·
+      항온조·중력 토글이 전부 장부에 기록되므로 0 근처(초록)여야 한다. 핵연료 U 는 소환 시 저장
+      핵에너지 Q 를 함께 주입하고, 분열이 그만큼을 파편·중성자 KE 로 꺼낸다(Δm·c² 회계의 축약·
+      가상 무차원). 중력은 질량 비례 하향력 F=m·g 하나만 켠다 — 무거운 종이 가라앉는 성층은
+      코드가 아니라 중력 vs 열운동 경쟁의 창발이다 (저T 에선 가벼운 종도 침전물에 흡착 — 그것도
+      창발·step-0032). 한계: 간이 Slater 라 고Z 원소는 "경향"만 정직 (step-0030).</p>
   </div>
 
 <script src="engine.js"></script>
@@ -140,7 +149,7 @@
   const cv = document.getElementById('c'), ctx = cv.getContext('2d');
   const MAXN = 200;   // O(N²) 성능 가드
 
-  let world, snap, sel = 'H', paused = false, dim = 2, thermoOn = false;
+  let world, snap, sel = 'H', paused = false, dim = 2, thermoOn = false, gravOn = false;
   // 탑뷰 카메라 — 캐릭터/조준과 독립(월드 고정 방향). 드래그로 각도 변경 가능. 기본 45°.
   // cam.yaw=수평 시점, cam.pitch=내려보는 각(0=수평·π/2≈위에서), cam.dist=거리(줌).
   const CAM_YAW0 = 0.6, CAM_PITCH0 = 0.79;   // 기본 프리셋 (탑뷰 45°)
@@ -154,13 +163,15 @@
   const histT = [], histP = [];
 
   // ── 지형 (3D 무대) — 평평한 바닥 평면. (x,z) 어디서나 같은 높이) ──
+  //    중력 ON 이면 지형을 물리 바닥(y=0)에 맞춘다 — 원자가 지형 아래로 꺼져 보이지 않게 (표현층).
   function makeTerrain(L) { return { base: L.y * 0.14 }; }
   function terrainH() {                                       // 지형 표면 높이 y (평면 → 상수)
-    return (terrain && dim === 3) ? terrain.base : 0;
+    return (terrain && dim === 3) ? (world && world.g ? 0 : terrain.base) : 0;
   }
 
   function rebuild() {
     world = Pg.buildPlayground({ L: 26, dim });
+    if (gravOn) applyGravity();                               // 중력 토글은 세계 재생성을 넘어 유지
     snap = Pg.snapshot(world);
     const L = world.box.L;
     if (dim === 3) {
@@ -250,6 +261,7 @@
     if (e.key.toLowerCase() === 'v') doPulse(0.75, '냉각');   // Q 는 상승 이동으로 이동
     if (e.key.toLowerCase() === 'p') togglePause();
     if (e.key.toLowerCase() === 'r') rebuild();
+    if (e.key.toLowerCase() === 'g') toggleGravity();
   });
   addEventListener('keyup', (e) => { keys[e.key.toLowerCase()] = false; });
   let drag = null;
@@ -380,6 +392,25 @@
   document.getElementById('thT').oninput = () => {
     document.getElementById('thTv').textContent = (+document.getElementById('thT').value / 100).toFixed(2);
   };
+  // ── 중력 — F=m·g 외부 장 (켜고 끄기·세기 변경 전부 setGravity 로 회계) ──
+  function applyGravity() {
+    Pg.setGravity(world, gravOn ? +document.getElementById('gv').value / 100 : 0);
+  }
+  function toggleGravity() {
+    gravOn = !gravOn;
+    const b = document.getElementById('grav');
+    b.textContent = gravOn ? '🌍 중력 ON' : '🌍 중력 OFF';
+    b.classList.toggle('on', gravOn);
+    applyGravity();
+    feedMsg('sys', gravOn
+      ? `🌍 중력 ON g=${(world.g).toFixed(2)} — 무거운 종이 가라앉기 시작 (위치 E 주입 회계)`
+      : '🌍 중력 OFF — 위치 E 를 장부에서 회수');
+  }
+  document.getElementById('grav').onclick = toggleGravity;
+  document.getElementById('gv').oninput = () => {
+    document.getElementById('gvv').textContent = (+document.getElementById('gv').value / 100).toFixed(2);
+    if (gravOn) applyGravity();
+  };
   let voxelOn = true;
   document.getElementById('voxel').onclick = () => {
     voxelOn = !voxelOn;
@@ -397,6 +428,7 @@
     noble: { list: () => rep({ Ne: 10 }), msg: '비활성 대조 — 결합 0·분산 응집만' },
     fuel: { list: () => rep({ U: 6 }), msg: '☢ 핵연료 — 중성자(F)를 쏘면 분열 연쇄·폭발' },
     hfuel: { list: () => rep({ H: 14 }), msg: '☀ 수소 연료 — 점화 연타/항온조 고T 로 초고온 → 융합 He+n' },
+    strat: { list: () => rep({ H: 8, He: 8, Xe: 8 }), msg: '⚖ 성층 재료 — 중력 ON + 항온조 T≈1.3: 무거운 Xe 가라앉고 H 는 뜬다 (층 창발)' },
   };
   function rep(counts) { const out = []; for (const k in counts) for (let i = 0; i < counts[k]; i++) out.push(k); return out; }
   document.querySelectorAll('[data-kit]').forEach((b) => {

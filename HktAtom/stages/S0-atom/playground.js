@@ -7,6 +7,9 @@
 // author 0. step-0030 확장: 2D/3D(dim 옵션·⑬ z 해동), 항온조(열역학 실험), 중성자+핵분열
 // (㉕ 동형 인월드 판·연쇄), 복셀 장 측정(field — 국소 T 열지도).
 //
+// step-0032 확장: 중력 — 엔진 법칙(world.g·U_grav 통)을 켜는 소비자. 법칙 자체는 engine.js
+// (규모 투명 — 어느 장면이든 세계 속성으로 켠다). 여기는 토글 회계(setGravity)와 방향만 담당.
+//
 // 장부 원칙: 소환·가열은 "외부 주입"이다 — pgIn(주입 장부)에 Σc·E 를 기록해
 // 세계 총량 − 주입 누계 ≈ 0 이 항상 성립한다 (관찰자는 회계 밖 존재가 아니라 회계된 원천).
 //
@@ -170,6 +173,7 @@
     world.Dpair = Dpair;
     world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
+    world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
     world.pgConv = {};        // 전환 장부: 분열 U+n→파편+νn (Σc 검사 = pgIn + pgConv)
     world.pgEvents = [];      // 사건 문자열 큐 (뷰어가 소비)
@@ -223,7 +227,7 @@
     const L = world.box.L;
     const spot = freeSpot(world, sym, clamp(x, 0.4, L.x - 0.4), clamp(y, 0.4, L.y - 0.4), o.z);
     if (!spot) return null;
-    const E0 = E.energyFull(world);
+    const E0 = E.energyFull(world);   // U_grav 통 포함 — 높은 곳 소환은 위치 E 만큼 비싸다
     const a = E.makeAtom(sym, E.V.make(spot.x, spot.y, spot.z), E.V.zero());
     a.Z = s.ve || 0; a.ne = s.ve || 0; a.q = 0; a.uIon = 0;   // 중성 시작 (specIon states[ve]=0 과 일치)
     if (sym === 'n') a.birth = world.t;                        // 중성자 수명 시계
@@ -288,6 +292,18 @@
     return Tc;
   }
 
+  // ── 중력 토글 — 법칙(F=m·g·ĝ·U_grav 장부 통)은 engine.js 의 세계 속성이다 (규모 투명 —
+  //   질량=Σc 유도량·차폐 없음이라 재측정 없이 전 규모 유효). 여기서는 관찰자의 켜고 끄기만:
+  //   장을 켜는 것도 회계된 행위 — 그 순간의 위치 E 증분(U_grav 통 변화)을 주입 장부에 기록.
+  //   P 는 벽 반사·행성 반작용의 축약으로 비보존 (_auditP=false 와 같은 지위 — S2 본구현에서
+  //   임펄스 회계). g 는 관찰자 노브 (무차원·실단위 주장 없음). 성층("무거운 건 가라앉는다")은
+  //   author 0 — 오르는 비용 m·g·h 와 열운동의 경쟁에서 창발한다 (verify 32 가 측정).
+  function setGravity(world, g) {
+    const U0 = E.totalEnergy(world);
+    world.g = g;
+    world.pgIn.E += E.totalEnergy(world) - U0;
+  }
+
   // ── 핵분열 (㉕ 동형의 인월드 판 — 가상·무차원) ──
   //   중성자 = 커널 개체 (q=0·B=0·작은 σ → 물질을 얇게 통과·핵연료와만 반응 단면).
   //   분열 행 형식은 카탈로그와 동형 {match·hazard·apply}·실행만 tick 후단 자체 실행기
@@ -308,7 +324,7 @@
     const spec = FISSILE[aU.sp];
     if (!spec || world.ledger.E_nuclear < spec.Q * 0.5) return false;
     const saveAtoms = world.atoms.slice(), saveBonds = world.bonds.slice();
-    const E0 = E.energyFull(world);
+    const E0 = E.energyFull(world);   // U_grav 통 포함 (파편 질량 ≠ 연료 질량 — 위치 E 도 회계)
     const pos = E.V.clone(aU.r);
     const pTot = { x: aU.p.x + aN.p.x, y: aU.p.y + aN.p.y, z: aU.p.z + aN.p.z };
     world.atoms = world.atoms.filter((a) => a !== aU && a !== aN);
@@ -463,7 +479,7 @@
     runNuclear(world);
   }
 
-  // ── 회계 검사 — 세계 총량(장부 전 통 합) − 주입 누계 = 0 이어야 한다 ──
+  // ── 회계 검사 — 세계 총량(장부 전 통 합 · U_grav 포함) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
   function compositionOK(world) {
     const c = {};
@@ -559,6 +575,7 @@
     NEUTRON, FISSILE, FUSION, TAU_N, VCAP,
     element, dHomo, dPair, gridPos, freeSpot,
     buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
+    setGravity,
     fission, fuse, runFission, runNuclear, tick, field,
     snapshot, diffEvents, clusters, formula,
   };
