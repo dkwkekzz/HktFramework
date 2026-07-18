@@ -141,6 +141,7 @@
 <script src="levels.js"></script>
 <script src="catalog.js"></script>
 <script src="polarization.js"></script>
+<script src="hbond.js"></script>
 <script src="combustion.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
@@ -489,6 +490,11 @@
       observe: '비활성 기체(Ne)가 냉각되며 분산력(⑧)만으로 이웃 밀도가 늘어 촘촘한 덩어리를 이룬다 — 결합선 없이 뭉침(고온이면 흩어짐).',
       build: (w) => scatter(w, { Ne: 56 }, 0.4, 0.42),
     },
+    hbond: {
+      icon: '🔗', label: '⑯ 수소결합(물 네트워크)', spawnT: 5, thermo: [true, 5],
+      observe: '온전한 물 분자들 사이에 방향성 약결합(H-결합·청록 점선)이 네트워크를 이룬다 — 각 ~160°, 공유결합(회색 실선)보다 훨씬 약하다.',
+      build: (w) => { Pg.enableHBond(w); return Pg.buildWaterCluster(w, 8, w.box.L.x / 2, w.box.L.y / 2, 3.2); },
+    },
     hotgas: {
       icon: '🌡', label: '⑳ 뜨거운 기체(이온화)', spawnT: 60, thermo: [true, 60],
       observe: '뜨거운 Na·Cl 충돌로 전자 이전 이온화가 빈발 — Na⁺(주황)·Cl⁻(청록) 전하 링이 계속 나타났다 명멸(격자로 못 정착·피드에 "이온화" 사건).',
@@ -631,6 +637,18 @@
       const pa = project(a.r), pb = project(b.r);
       ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1.5 * bd.order;
       ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    }
+    // ⑯ 수소 결합 (청록 점선) — hbAcc 모드(수소결합 프리셋)일 때만. 실결합과 구분.
+    if (window.HktS0HBond && world.hbAcc) {
+      const hbs = window.HktS0HBond.detect(world, { thetaHb: 120 });
+      ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(90,200,255,0.6)'; ctx.lineWidth = 1.2;
+      for (const h of hbs) {
+        const H = world.atomById(h.H), A = world.atomById(h.A);
+        if (!H || !A) continue;
+        const pH = project(H.r), pA = project(A.r);
+        ctx.beginPath(); ctx.moveTo(pH.x, pH.y); ctx.lineTo(pA.x, pA.y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
     }
     // 원자 (3D: depth 정렬·원근 크기·뒤 어둡게)
     const sc2 = cv.width / L.x;
@@ -799,7 +817,7 @@
     if (!paused) {
       const speed = +document.getElementById('speed').value;
       for (let k = 0; k < speed; k++) Pg.tick(world);
-      if (thermoOn) Pg.thermostat(world, +document.getElementById('thT').value / 100, 0.06);
+      if (thermoOn) Pg.thermostat(world, +document.getElementById('thT').value / 100, world.thermoK || 0.06);
       if (pending.length) {                                     // 프리셋 예약 트리거 (자동 점화·중성자 주입)
         for (const s of pending) if (world.t >= s.at) { s.fn(world); s.fired = true; }
         if (pending.some((s) => s.fired)) pending = pending.filter((s) => !s.fired);
