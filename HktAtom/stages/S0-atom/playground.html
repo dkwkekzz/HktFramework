@@ -338,8 +338,11 @@
     const thr = (+document.getElementById('throw').value / 100) * (speedMul || 1);
     const f = fwd(), at = handPos();
     const m = sym === 'n' ? Pg.NEUTRON.mass : Pg.TABLE[sym].mass;
+    // 던지기 속도(질량 무관) — 열속도(√(mT))보다 확실히 크게 해야 방향이 살아있다.
+    // 이전엔 vel=thr*0.5(~0.3)로 H 의 열속도(~0.55)에 묻혀 랜덤하게 날아갔다.
+    const vel = thr * 4;
     const a = Pg.spawn(world, sym, at.x, at.y, {
-      T, z: at.z, px: f.x * thr * m * 0.5, py: f.y * thr * m * 0.5, pz: f.z * thr * m * 0.5,
+      T, z: at.z, px: f.x * vel * m, py: f.y * vel * m, pz: f.z * vel * m,
     });
     if (!a) feedMsg('sys', '소환 실패 — 주변이 가득 참');
     else feedMsg('sys', `소환 ${sym} → forward (${at.x.toFixed(1)}, ${at.y.toFixed(1)}${dim === 3 ? ', ' + at.z.toFixed(1) : ''})`);
