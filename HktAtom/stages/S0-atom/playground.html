@@ -54,9 +54,10 @@
     <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
       그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
       <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
-      <kbd>WASD/←↑↓→</kbd> 이동 · <kbd>클릭</kbd>/<kbd>Space</kbd> 소환 · <kbd>F</kbd> 중성자 발사 ·
+      <kbd>WASD/←↑↓→</kbd> 이동(카메라 기준) · <kbd>Space</kbd>/<kbd>클릭</kbd> forward 소환 ·
+      <kbd>[</kbd> <kbd>]</kbd> 원소 순회 · <kbd>1~8</kbd> 빠른 선택 · <kbd>F</kbd> 중성자 발사(forward) ·
       <kbd>E</kbd> 가열 · <kbd>Q</kbd> 냉각 · <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 ·
-      3D 에서 <kbd>드래그</kbd> 회전</p>
+      3D 에서 <kbd>드래그</kbd> 카메라 회전(=forward 회전)</p>
 
     <div id="pt"></div>
     <div id="ptf"></div>
@@ -132,7 +133,8 @@
   let world, snap, sel = 'H', paused = false, dim = 2, thermoOn = false;
   const cam = { yaw: 0.6, pitch: 0.35 };
   // 관찰자 — 표현층 아바타 (물리 개체 아님·소환/펄스는 주입 장부로 회계)
-  const obs = { x: 13, y: 13, z: 13, aimx: 13, aimy: 8, aimz: 13 };
+  // heading: 2D 에서 캐릭터가 바라보는 방향각 (xy 평면). 3D 는 카메라 전방을 forward 로 쓴다.
+  const obs = { x: 13, y: 13, z: 13, heading: -Math.PI / 2 };
   const keys = {};
   const histT = [], histP = [];
 
@@ -203,20 +205,17 @@
     const persp = f / (f + v.z), sc = Math.min(cv.width, cv.height) / (span * 1.35);
     return { x: cv.width / 2 + v.x * sc * persp, y: cv.height / 2 - v.y * sc * persp, depth: v.z, persp };
   }
-  function screenToWorld(mx, my) {                            // 마우스 → 세계 (3D: 상자 중심 카메라면)
-    const L = world.box.L;
-    if (dim === 2) return { x: mx / cv.width * L.x, y: my / cv.height * L.y, z: 0 };
-    const span = Math.max(L.x, L.y, L.z), sc = Math.min(cv.width, cv.height) / (span * 1.35);
-    const v = invRot((mx - cv.width / 2) / sc, (cv.height / 2 - my) / sc, 0);
-    const cl = (t, Lk) => Math.min(Lk - 0.5, Math.max(0.5, t));
-    return { x: cl(v.x + L.x / 2, L.x), y: cl(v.y + L.y / 2, L.y), z: cl(v.z + L.z / 2, L.z) };
-  }
 
   // ── 입력 ──
+  // 숫자키 빠른 원소 선택 (키보드만으로 소환 조작 완결)
+  const QUICK = { '1': 'H', '2': 'C', '3': 'O', '4': 'N', '5': 'Na', '6': 'Cl', '7': 'Ne', '8': 'U' };
   addEventListener('keydown', (e) => {
     if (e.target.tagName === 'INPUT') return;
     keys[e.key.toLowerCase()] = true;
-    if (e.key === ' ') { e.preventDefault(); doSpawn(handPos()); }
+    if (e.key === ' ') { e.preventDefault(); doSpawn(); }        // forward 방향 소환
+    if (e.key === '[') { e.preventDefault(); cycleSel(-1); }     // 이전 원소
+    if (e.key === ']') { e.preventDefault(); cycleSel(1); }      // 다음 원소
+    if (QUICK[e.key] && Pg.TABLE[QUICK[e.key]]) select(QUICK[e.key]);
     if (e.key.toLowerCase() === 'f') fireNeutron();
     if (e.key.toLowerCase() === 'e') doPulse(1.35, '가열');
     if (e.key.toLowerCase() === 'q') doPulse(0.75, '냉각');
@@ -230,17 +229,13 @@
     drag = { x: e.clientX, y: e.clientY, moved: false };
   });
   cv.addEventListener('mousemove', (e) => {
-    const b = cv.getBoundingClientRect();
-    const mx = e.clientX - b.left, my = e.clientY - b.top;
+    // 3D: 드래그로 카메라 회전 (= 캐릭터 forward 회전). 소환 조준은 마우스가 아니라 forward 방향.
     if (drag && dim === 3 && (drag.moved || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6)) {
       drag.moved = true;
       cam.yaw += (e.clientX - drag.x) * 0.008;
       cam.pitch = Math.min(1.4, Math.max(-1.4, cam.pitch + (e.clientY - drag.y) * 0.008));
       drag.x = e.clientX; drag.y = e.clientY;
-      return;
     }
-    const w = screenToWorld(mx, my);
-    obs.aimx = w.x; obs.aimy = w.y; obs.aimz = w.z;
   });
   addEventListener('mouseup', (e) => {
     if (!drag) return;
@@ -249,37 +244,47 @@
     const b = cv.getBoundingClientRect();
     const mx = e.clientX - b.left, my = e.clientY - b.top;
     if (mx < 0 || my < 0 || mx > cv.width || my > cv.height) return;
-    doSpawn(screenToWorld(mx, my));
+    doSpawn();                                               // 클릭 = forward 방향 소환
   });
 
-  function handPos() {
-    const dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, dz = dim === 3 ? obs.aimz - obs.z : 0;
-    const d = Math.hypot(dx, dy, dz) || 1;
-    return { x: obs.x + dx / d * 1.4, y: obs.y + dy / d * 1.4, z: dim === 3 ? obs.z + dz / d * 1.4 : 0 };
+  // 캐릭터 forward (단위 벡터) — 2D: heading 각 · 3D: 카메라 전방(화면 안쪽) invRot(0,0,1)
+  function fwd() {
+    if (dim === 2) return { x: Math.cos(obs.heading), y: Math.sin(obs.heading), z: 0 };
+    const f = invRot(0, 0, 1), d = Math.hypot(f.x, f.y, f.z) || 1;
+    return { x: f.x / d, y: f.y / d, z: f.z / d };
   }
-  function doSpawn(at, symOverride, speedMul) {
+  // 손 위치 — 캐릭터 바로 앞 (forward 방향 1.4)
+  function handPos() {
+    const f = fwd();
+    return { x: obs.x + f.x * 1.4, y: obs.y + f.y * 1.4, z: dim === 3 ? obs.z + f.z * 1.4 : 0 };
+  }
+  // 키보드 원소 순회 (주기율표 Z 순서)
+  function cycleSel(dir) {
+    const arr = Pg.BY_Z;
+    let i = arr.findIndex((s) => s.sym === sel);
+    if (i < 0) i = 0;
+    i = (i + dir + arr.length) % arr.length;
+    select(arr[i].sym);
+  }
+  function doSpawn(symOverride, speedMul) {                  // forward 방향으로 던진다
     const sym = symOverride || sel;
     if (world.atoms.length >= MAXN) { feedMsg('sys', `소환 거부 — 원자 ${MAXN}개 상한 (O(N²) 성능 가드)`); return; }
     const T = +document.getElementById('spT').value / 100;
     const thr = (+document.getElementById('throw').value / 100) * (speedMul || 1);
-    const dx = at.x - obs.x, dy = at.y - obs.y, dz = dim === 3 ? (at.z != null ? at.z : obs.z) - obs.z : 0;
-    const d = Math.hypot(dx, dy, dz) || 1;
+    const f = fwd(), at = handPos();
     const m = sym === 'n' ? Pg.NEUTRON.mass : Pg.TABLE[sym].mass;
     const a = Pg.spawn(world, sym, at.x, at.y, {
-      T, z: at.z, px: dx / d * thr * m * 0.5, py: dy / d * thr * m * 0.5, pz: dz / d * thr * m * 0.5,
+      T, z: at.z, px: f.x * thr * m * 0.5, py: f.y * thr * m * 0.5, pz: f.z * thr * m * 0.5,
     });
     if (!a) feedMsg('sys', '소환 실패 — 주변이 가득 참');
-    else feedMsg('sys', `소환 ${sym} (${at.x.toFixed(1)}, ${at.y.toFixed(1)}${dim === 3 ? ', ' + at.z.toFixed(1) : ''})`);
+    else feedMsg('sys', `소환 ${sym} → forward (${at.x.toFixed(1)}, ${at.y.toFixed(1)}${dim === 3 ? ', ' + at.z.toFixed(1) : ''})`);
   }
-  function fireNeutron() {                                   // 중성자 총 — 조준 방향 고속 사출
+  function fireNeutron() {                                   // 중성자 총 — forward 방향 고속 사출
     if (world.atoms.length >= MAXN) return;
-    const h = handPos();
-    let dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, dz = dim === 3 ? obs.aimz - obs.z : 0;
-    if (Math.hypot(dx, dy, dz) < 0.3) { dx = 1; dy = 0; dz = 0; }   // 조준점=관찰자 → +x 폴백
-    const d = Math.hypot(dx, dy, dz) || 1;
+    const h = handPos(), f = fwd();
     const v = 7;                                             // 발사 속도 (관찰 도구)
     const a = Pg.spawn(world, 'n', h.x, h.y, { T: 0, z: dim === 3 ? h.z : undefined,
-      px: dx / d * v, py: dy / d * v, pz: dz / d * v });
+      px: f.x * v, py: f.y * v, pz: f.z * v });
     feedMsg(a ? 'fis' : 'sys', a ? '🔫 중성자 발사 — 핵연료에 맞으면 분열' : '발사 실패 — 자리 없음');
   }
   function doPulse(f, name) {
@@ -449,15 +454,24 @@
       const pr = project({ x: g.cx, y: g.cy, z: g.cz != null ? g.cz : 0 });
       ctx.fillText(Pg.formula(g.comp), pr.x, pr.y - 12);
     }
-    // 관찰자 로버 + 손 십자
+    // 관찰자 로버 + forward 화살표 + 손 십자 (조준=캐릭터 forward)
+    const f = fwd();
     const po = project(dim === 3 ? { x: obs.x, y: obs.y, z: obs.z } : { x: obs.x, y: obs.y, z: 0 });
-    const pa2 = project(dim === 3 ? { x: obs.aimx, y: obs.aimy, z: obs.aimz } : { x: obs.aimx, y: obs.aimy, z: 0 });
-    const ddx = pa2.x - po.x, ddy = pa2.y - po.y, dd = Math.hypot(ddx, ddy) || 1;
+    const aheadW = { x: obs.x + f.x * 3, y: obs.y + f.y * 3, z: dim === 3 ? obs.z + f.z * 3 : 0 };
+    const pa2 = project(dim === 3 ? aheadW : { x: aheadW.x, y: aheadW.y, z: 0 });
     ctx.beginPath(); ctx.arc(po.x, po.y, 9, 0, 2 * Math.PI);
     ctx.fillStyle = '#1c2128'; ctx.fill();
     ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 2; ctx.stroke();
-    ctx.beginPath(); ctx.arc(po.x + ddx / dd * 4, po.y + ddy / dd * 4, 2.5, 0, 2 * Math.PI);
-    ctx.fillStyle = '#ffd75f'; ctx.fill();
+    // forward 방향 화살표 (던지는 방향)
+    ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.moveTo(po.x, po.y); ctx.lineTo(pa2.x, pa2.y); ctx.stroke();
+    const ax = pa2.x - po.x, ay = pa2.y - po.y, al = Math.hypot(ax, ay) || 1, ux = ax / al, uy = ay / al;
+    ctx.beginPath();                                          // 화살촉
+    ctx.moveTo(pa2.x, pa2.y);
+    ctx.lineTo(pa2.x - ux * 6 - uy * 4, pa2.y - uy * 6 + ux * 4);
+    ctx.moveTo(pa2.x, pa2.y);
+    ctx.lineTo(pa2.x - ux * 6 + uy * 4, pa2.y - uy * 6 - ux * 4);
+    ctx.stroke();
     const h = handPos();
     const ph = project(dim === 3 ? h : { x: h.x, y: h.y, z: 0 });
     ctx.strokeStyle = '#ffd75f66'; ctx.lineWidth = 1;
@@ -507,15 +521,26 @@
 
   function moveObserver() {
     const L = world.box.L, v = 0.14;
-    let mx = 0, my = 0;
-    if (keys.w || keys.arrowup) my -= v;
-    if (keys.s || keys.arrowdown) my += v;
-    if (keys.a || keys.arrowleft) mx -= v;
-    if (keys.d || keys.arrowright) mx += v;
-    if (dim === 2) { obs.x += mx; obs.y += my; }
-    else {   // 3D: 카메라 평면 축으로 이동 (화면 기준 직관 유지)
-      const e1 = invRot(1, 0, 0), e2 = invRot(0, 1, 0);
-      obs.x += mx * e1.x - my * e2.x; obs.y += mx * e1.y - my * e2.y; obs.z += mx * e1.z - my * e2.z;
+    if (dim === 2) {
+      // 2D: 카메라 회전이 없으므로 방향키 = 세계 축. 이동 방향으로 heading(=forward) 갱신.
+      let mx = 0, my = 0;
+      if (keys.w || keys.arrowup) my -= v;
+      if (keys.s || keys.arrowdown) my += v;
+      if (keys.a || keys.arrowleft) mx -= v;
+      if (keys.d || keys.arrowright) mx += v;
+      obs.x += mx; obs.y += my;
+      if (mx || my) obs.heading = Math.atan2(my, mx);
+    } else {
+      // 3D: 방향키 = 카메라 회전 기준. 전/후진 = 카메라 전방, 좌/우 = 카메라 우측 (스트레이프).
+      let mFwd = 0, mStrafe = 0;
+      if (keys.w || keys.arrowup) mFwd += v;
+      if (keys.s || keys.arrowdown) mFwd -= v;
+      if (keys.d || keys.arrowright) mStrafe += v;
+      if (keys.a || keys.arrowleft) mStrafe -= v;
+      const f = fwd(), right = invRot(1, 0, 0);
+      obs.x += mFwd * f.x + mStrafe * right.x;
+      obs.y += mFwd * f.y + mStrafe * right.y;
+      obs.z += mFwd * f.z + mStrafe * right.z;
       obs.z = Math.min(L.z - 0.5, Math.max(0.5, obs.z));
     }
     obs.x = Math.min(L.x - 0.5, Math.max(0.5, obs.x));
