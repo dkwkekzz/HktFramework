@@ -23,6 +23,9 @@
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion; // ⑱ 연소 (라디칼 추상)
   const Me = isNode ? require('./metal.js') : window.HktS0Metal;          // ⑲ 금속 (비국소 전자 풀)
   const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;      // ⑳ 이온화 기체 (플라스마)
+  const Mat = isNode ? require('./material.js') : window.HktS0Material;   // ㉒ MaterialModel (측정 EOS)
+  const OUT = isNode ? require('./output.json') : window.HktS0Output;     // 발효된 출력 (v0.2)
+  const Nu = isNode ? require('./nuclear.js') : window.HktS0Nuclear;      // ㉓~㉕ 핵 (게이트 G-핵)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -1011,6 +1014,143 @@
       log.push({ ok: mDr < 5e-3 && mdP < 1e-9, name: '⑳장부·P보존', msg: `max|ΔE|/E ${fmt(mDr)} < 5e-3 · max|ΔP| ${fmt(mdP)} ≤ 1e-9 (유계 힘 · 전이 P 정확) · 전하 상관(기록) ${fmt(corr / R)}` });
     }
 
+    // ── 22. ㉒-a MaterialModel ⇧ — 측정된 상태방정식 EOS P(T,ρ)·U(T,ρ) ──
+    //    현상: 압력·내부에너지가 (T,ρ) 의 함수로 *측정에서* 나온다 (author 0). S1 상태축 기반.
+    if (want(22)) {
+      const monoUp = (a) => a.every((v, i) => i === 0 || v > a[i - 1]);
+      // (계약) 발효된 output.json 이 v0 하위호환 + EOS 블록 유효 (CONTRACT §7 가법·§3 발효 조건).
+      const vm = Mat.validateMaterial(OUT), v0 = Pr.validateOutput(OUT);
+      log.push({ ok: vm.ok && v0.ok && OUT.schema === 's0-output-v0' && /^0\.[23]$/.test(OUT.version), name: '㉒계약',
+        msg: `㉒·출력 계약: material ${vm.ok} · v0 하위호환 ${v0.ok} (S1 소비 불변) · schema ${OUT.schema} v${OUT.version} · EOS ${OUT.equationOfState.grid.T.length}×${OUT.equationOfState.grid.rho.length} 표 ${vm.errs.concat(v0.errs).join('·')}` });
+
+      // 신선 측정 소그리드 (개발 반복 빠르게 — 경향 assert 는 통계라 소규모로 충분).
+      const eos = Mat.measureEOS({ Tgrid: [0.30, 0.60], rhoGrid: [0.15, 0.30], R: 2, n: 10, eqTicks: 2000, sampleTicks: 1500, stride: 150 });
+
+      // (회계) EOS 측정은 반응성이지만 원자 수(Σc)는 이동만 — 한 점 굴림 전후 원자 수 불변.
+      {
+        const w = S.waterSoup({ n: 10, L: Math.sqrt(30 / 0.2), T0: 0.5, seed: 909 });
+        const n0 = w.atoms.length; Mat.equilibrate(w, 0.5, 1500);
+        log.push({ ok: w.atoms.length === n0, name: '㉒회계·Σc', msg: `㉒·EOS 굴림 원자 수 불변 ${n0} → ${w.atoms.length} (반응은 결합 이동·원자 보존)` });
+      }
+
+      // (현상 1) P 가 ρ 와 함께 단조 증가 (고정 T) — 척력/이상기체 압력.
+      const pRhoUp = eos.grid.T.every((_, ti) => monoUp(eos.P[ti]));
+      log.push({ ok: pRhoUp, name: '㉒P(ρ)↑', msg: `㉒·P 가 ρ 와 함께 단조↑ (전 T): [${eos.P.map((r) => '[' + r.map((x) => x.toFixed(3)) + ']').join(' ')}] (밀도압)` });
+
+      // (현상 2) P 가 T 와 함께 단조 증가 (고정 ρ) — 이상기체 P∝T.
+      let pTup = true; for (let ri = 0; ri < eos.grid.rho.length; ri++) { const col = eos.P.map((row) => row[ri]); if (!monoUp(col)) pTup = false; }
+      log.push({ ok: pTup, name: '㉒P(T)↑', msg: `㉒·P 가 T 와 함께 단조↑ (전 ρ·이상기체 P∝T)` });
+
+      // (현상 3 = 자기일관) C_v = ∂U/∂T > 0 (전 ρ) — 가열 시 U 증가 (열역학 안정·⑦ 반응 확장).
+      const cv = Mat.cvColumns(eos), cvPos = cv.every((c) => c.cv.every((x) => x > 0));
+      log.push({ ok: cvPos, name: '㉒C_v>0', msg: `㉒·자기일관 C_v=∂U/∂T > 0 전 ρ: ${cv.map((c) => 'ρ' + c.rho + '=' + c.cv.map((x) => x.toFixed(1))).join(' · ')} (⑦ 위에 반응 열용량 — 부호·유한만 assert)` });
+
+      // (author 0) 발효된 표도 같은 경향 — 값은 측정이라 정확 재현 요구 안 함 (분포·KERNEL §7).
+      const outEos = OUT.equationOfState;
+      const outPrhoUp = outEos.grid.T.every((_, ti) => monoUp(outEos.P[ti]));
+      let outUTup = true; for (let ri = 0; ri < outEos.grid.rho.length; ri++) { const col = outEos.U.map((row) => row[ri]); if (!monoUp(col)) outUTup = false; }
+      log.push({ ok: outPrhoUp && outUTup, name: '㉒발효표경향', msg: `㉒·발효 output.json 표: P(ρ)↑ ${outPrhoUp} · U(T)↑ ${outUTup} (author 0 — 측정 경향이 표에 담김)` });
+
+      // ── ㉒-b 수송: 확산 D(T,ρ) = MSD 기울기 (아인슈타인). D 는 ρ 와 함께↓(혼잡)·T 와 함께↑(활성) ──
+      const monoDown = (a) => a.every((v, i) => i === 0 || v < a[i - 1]);
+      const dif = Mat.measureDiffusion({ Tgrid: [0.30, 0.60], rhoGrid: [0.15, 0.30], R: 2, n: 10, eqTicks: 2000, winTicks: 3000, every: 200 });
+      const dRhoDown = dif.grid.T.every((_, ti) => monoDown(dif.D[ti]));   // 고정 T: ρ↑ → D↓
+      let dTup = true; for (let ri = 0; ri < dif.grid.rho.length; ri++) { const col = dif.D.map((row) => row[ri]); if (!monoUp(col)) dTup = false; }  // 고정 ρ: T↑ → D↑
+      log.push({ ok: dRhoDown, name: '㉒-b D(ρ)↓', msg: `㉒-b·확산 D 가 ρ 와 함께 단조↓ (전 T·혼잡 감속): [${dif.D.map((r) => '[' + r.map((x) => x.toFixed(3)) + ']').join(' ')}]` });
+      log.push({ ok: dTup, name: '㉒-b D(T)↑', msg: `㉒-b·확산 D 가 T 와 함께 단조↑ (전 ρ·열활성)` });
+      // (계약) 발효 output.json 의 transportCoefficients 유효 + 발효 표도 같은 경향.
+      const tc = OUT.transportCoefficients;
+      const outDrhoDown = tc && tc.diffusion.grid.T.every((_, ti) => monoDown(tc.diffusion.D[ti]));
+      log.push({ ok: !!(tc && tc.diffusion && OUT.errorBounds.D && outDrhoDown), name: '㉒-b계약', msg: `㉒-b·발효 transportCoefficients.diffusion 유효 · errorBounds.D 존재 · D(ρ)↓ ${outDrhoDown} (측정 경향 담김·author 0)` });
+
+      // ── ㉒-c 반응망: 결합 해리 k(T) → 아레니우스. k 는 T 와 함께↑(열활성)·Ea>0·ln k vs 1/T 직선 ──
+      const rxn = Mat.measureReactionNetwork({ Tgrid: [0.55, 0.75, 0.95, 1.15], rho: 0.20, R: 2, n: 12, eqTicks: 2500, winTicks: 5000 });
+      log.push({ ok: monoUp(rxn.k), name: '㉒-c k(T)↑', msg: `㉒-c·해리 k 가 T 와 함께 단조↑ (열활성): [${rxn.k.map((x) => x.toFixed(4))}] (author 0 — 사건 카운트)` });
+      log.push({ ok: rxn.arrhenius.Ea > 0 && rxn.arrhenius.r2 > 0.8, name: '㉒-c 아레니우스', msg: `㉒-c·아레니우스 적합 Ea ${fmt(rxn.arrhenius.Ea)} > 0 (열활성 장벽) · R² ${fmt(rxn.arrhenius.r2)} > 0.8 (ln k vs 1/T 직선) · A ${fmt(rxn.arrhenius.A)}` });
+      // (계약) 발효 reactionNetwork 유효 (아레니우스 Ea>0·k 표) — validateMaterial 에 포함되나 명시.
+      const rnO = OUT.reactionNetwork && OUT.reactionNetwork[0];
+      log.push({ ok: !!(rnO && rnO.rateLaw.Ea > 0 && rnO.kTable && monoUp(rnO.kTable.k)), name: '㉒-c계약', msg: `㉒-c·발효 reactionNetwork 유효 · Ea ${rnO ? fmt(rnO.rateLaw.Ea) : 'x'} > 0 · k(T)↑ · R² ${rnO ? fmt(rnO.kTable.r2) : 'x'} (매질 유효 장벽·author 0)` });
+
+      // ── ㉒-d 물 앵커 (㉒ 닫는 기준): 유효 상호작용의 방향 h(θ)·밀도 g(ρ) 의존이 등방 대비 유의 ──
+      const monoDeep = (a) => a.every((v, i) => i === 0 || v < a[i - 1]);   // 단조 깊어짐(더 음수)
+      const im = Mat.measureInteractionModel({ R: 2, count: 20, eqTicks: 3000, Ls: [11, 8], seed: 707 });
+      // (방향) 정렬(c→1) 유효 H-결합 E 가 미정렬 대비 크게 깊다 — ⑯ 방향 선택성이 유효 상호작용에 담김.
+      log.push({ ok: im.directional.selectivity > 3 && im.directional.aligned < im.directional.misaligned, name: '㉒-d 방향', msg: `㉒-d·방향 선택성 |정렬/미정렬| ${fmt(im.directional.selectivity)} > 3 (정렬 ${fmt(im.directional.aligned)} ≪ 미정렬 ${fmt(im.directional.misaligned)} · 등방 대비 유의·⑯)` });
+      // (밀도) 응집/분자가 밀도와 함께 단조 깊어짐 — 협동 효과(등방 쌍 근사가 잃는 것).
+      log.push({ ok: monoDeep(im.density.cohesionPerMol) && im.density.cohesionPerMol[im.density.cohesionPerMol.length - 1] < 2 * im.density.cohesionPerMol[0], name: '㉒-d 밀도', msg: `㉒-d·응집/분자 밀도 의존 [${im.density.cohesionPerMol.map((x) => x.toFixed(2))}] 단조 심화 (저→고밀도 협동·배위 [${im.density.coordPerMol.map((x) => x.toFixed(1))}])` });
+      // (계약·㉒ 닫힘) 발효 interactionModel 유효 + 버전 0.3 (㉒ 완결 milestone).
+      const imO = OUT.interactionModel;
+      log.push({ ok: !!(imO && imO.directional.selectivity > 3 && imO.density.cohesionPerMol && OUT.version === '0.3'), name: '㉒-d계약·㉒닫힘', msg: `㉒-d·발효 interactionModel 유효 · 방향 선택성 ${imO ? fmt(imO.directional.selectivity) : 'x'} > 3 · 밀도 프로파일 · v${OUT.version} (㉒ MaterialModel 완결 — S0 진짜 출력)` });
+    }
+
+    // ── 23. ㉓ 핵종·동위원소 (게이트 G-핵·게임플레이 요구) — c=(Z,e)→(Z,N,e)·질량 결손 ──
+    //    앵커: 동위원소 진동수 비 ω_D/ω_H ≈ √(μ_H/μ_D) — 결합 스프링 ω=√(k/μ) 가 질량에서 유도(author 0).
+    if (want(23)) {
+      const s = Nu.isotopeShift({});
+      // (1) 동위원소 이동 창발: 측정 비 ≈ 예측 √(μ 비) — N(중성자)이 D 질량을 2 로 만든 귀결(author 0).
+      log.push({ ok: s.relErr < 0.02 && s.ratioMeas < 1, name: '㉓동위원소진동', msg: `㉓·ω_D/ω_H 측정 ${fmt(s.ratioMeas)} ≈ 예측 √(μ_H/μ_D) ${fmt(s.ratioPred)} (rel ${fmt(s.relErr)} < 0.02 · D 는 N=1 로 무거워 느림·author 0)` });
+      // (2) Σc (Z,N,e) 3성분 회계: 핵종 태그 후 다발이 상태표와 정합.
+      {
+        const w = S.gas3d ? S.gas3d({ seed: 91, N: 8, T0: 0.5 }) : S.idealGas({ seed: 91, N: 8, T0: 0.5 });
+        for (const a of w.atoms) { a.sp === 'O' ? Nu.tagNuclide(a, 'O16') : Nu.tagNuclide(a, 'H1'); if (a.nuc === undefined) Nu.tagNuclide(a, 'H1'); }
+        const b = Nu.bundle(w);
+        log.push({ ok: b.Z >= 0 && b.N >= 0 && typeof b.e === 'number', name: '㉓Σc3성분', msg: `㉓·Σc=(Z,N,e)=(${b.Z},${b.N},${b.e}) 3성분 회계 (KERNEL §5 핵 동결 해제 1안·N 추가)` });
+      }
+      // (3) 질량 결손 = 장부 실물: BE 역산 m = Z·MP + N·MN − BE·C2 정합 (㉕ 분열 방출의 근원).
+      {
+        const nuc = Nu.NUCLIDES.O16, mRecon = Nu.nuclideMass(nuc);
+        log.push({ ok: Math.abs(mRecon - nuc.m) < 1e-9, name: '㉓질량결손회계', msg: `㉓·질량 Σ 회계 m ${fmt(mRecon)} = Z·MP+N·MN−BE·C2 (BE=${fmt(Nu.bindingEnergy(nuc))}·질량결손이 장부 실물)` });
+      }
+    }
+
+    // ── 24. ㉔ 붕괴 채널 — 앵커: 지수 감쇠·계열 붕괴·붕괴열 (낙진 시간 감쇠의 근원) ──
+    if (want(24)) {
+      const N0 = 3000, sim = Nu.decaySim({ FPa: N0 }, { steps: 1500, dt: 0.05, rec: 10, seed: 5 });
+      const li = sim.ts.length - 1;
+      // (1) 지수 감쇠 = 반감기 재현: 초기 구간(N≥N0·0.25) ln N vs t 직선·λ ≈ ln2/halfLife.
+      const ts = [], Ns = []; for (let i = 0; i < sim.ts.length; i++) if (sim.series.FPa[i] >= N0 * 0.25) { ts.push(sim.ts[i]); Ns.push(sim.series.FPa[i]); }
+      const fit = Nu.fitDecayConst(ts, Ns), lamPred = Nu.halfToLambda(Nu.DECAY.FPa.halfLife);
+      log.push({ ok: fit.r2 > 0.98 && Math.abs(fit.lambda / lamPred - 1) < 0.15, name: '㉔지수감쇠', msg: `㉔·N(t) 지수 감쇠 λ ${fmt(fit.lambda)} ≈ ln2/반감기 ${fmt(lamPred)} (rel ${fmt(Math.abs(fit.lambda / lamPred - 1))}<0.15 · R² ${fmt(fit.r2)}>0.98 · 수명 재현)` });
+      // (2) 계열 붕괴: 딸 FPb 가 중간에 축적 최대 후 감소 (모→딸 Bateman 곡선).
+      let maxB = 0, maxi = 0; for (let i = 0; i < sim.series.FPb.length; i++) if (sim.series.FPb[i] > maxB) { maxB = sim.series.FPb[i]; maxi = i; }
+      log.push({ ok: maxB > 0 && maxi > 0 && maxi < li && sim.series.FPb[li] < maxB, name: '㉔계열붕괴', msg: `㉔·계열 붕괴 FPa→FPb→FPc: 딸 FPb 축적 최대 ${maxB} @ t=${sim.ts[maxi]} 후 감소 → ${sim.series.FPb[li]} (Bateman·모→딸)` });
+      // (3) 붕괴열: Q 누적이 단조 증가 후 포화 (붕괴 사건의 발열 — 감쇠 곡선의 에너지판).
+      const heatMono = sim.heat.every((v, i) => i === 0 || v >= sim.heat[i - 1]);
+      log.push({ ok: heatMono && sim.heat[li] > 0, name: '㉔붕괴열', msg: `㉔·붕괴열 누적 Q ${fmt(sim.heat[li])} 단조↑ 포화 · 지연 중성자 ${sim.neut[li]}개(3% n 채널·author 0) · 중성미자 E_escape ${fmt(sim.nu[li])}` });
+      // (4) Q값 장부: 총 방출 E = 붕괴열 + 중성미자(E_escape) 회계 정합 (질량 결손 → 방출).
+      log.push({ ok: sim.nu[li] > 0 && sim.nu[li] < sim.heat[li], name: '㉔Q값회계', msg: `㉔·Q 회계: 붕괴열 ${fmt(sim.heat[li])} + 중성미자 E_escape ${fmt(sim.nu[li])} (β⁻ 몫·탈출) — 질량 결손 → 방출 KE+γ+ν` });
+    }
+
+    // ── 25. ㉕ 분열 — 앵커: k_eff=1 경계 (핵분열 실현·CONTRACT §5 파라미터 공급원) ──
+    if (want(25)) {
+      // (1) 3영역·k_eff=1 경계 (author 0): 밀도 스캔 → k_eff 단조↑·저밀도 미임계·고밀도 초임계 → 경계 존재.
+      const nt = Nu.buildNuclideTable({ R: 3 });
+      const ks = nt.criticalScan.map((x) => x.kGen);
+      const monoUp2 = ks.every((v, i) => i === 0 || v > ks[i - 1]);
+      const hasSub = nt.criticalScan.some((x) => x.region === 'subcritical'), hasSup = nt.criticalScan.some((x) => x.region === 'supercritical');
+      log.push({ ok: monoUp2 && ks[0] < 0.95 && ks[ks.length - 1] > 1.05 && hasSub && hasSup, name: '㉕k_eff경계',
+        msg: `㉕·k_eff 밀도 의존 [${ks.map((k) => k.toFixed(2))}] 단조↑ · 저밀도 미임계 ${fmt(ks[0])}<1 · 고밀도 초임계 ${fmt(ks[ks.length - 1])}>1 → **임계 밀도 경계 창발**(author 0·누설 vs 생산 균형)` });
+
+      // (2) 감속 창발 (author 0 운동학): 감속재 有 → 열중성자 분율↑ · 無 → fast 유지.
+      const withM = Nu.reactorSim({ nF: 0.05, nM: 0.4, L: 12, steps: 120, N0: 300, seed: 3 });
+      const noM = Nu.reactorSim({ nF: 0.05, nM: 0, L: 12, steps: 120, N0: 300, seed: 3 });
+      const thW = withM.spec[withM.spec.length - 1], thN = noM.spec[noM.spec.length - 1];
+      log.push({ ok: thW > 0.3 && thW > thN + 0.2, name: '㉕감속창발', msg: `㉕·감속: 열중성자 분율 감속재 有 ${fmt(thW)} ≫ 無 ${fmt(thN)} (가벼운 핵 산란서 에너지 전달 — 운동학 창발·author 0)` });
+
+      // (3) Δm·c² 회계: 분열 방출 E = 질량 결손 (사건 단위 정확). "위력은 회계"(CONTRACT §5-4).
+      const sf = Nu.reactorSim({ nF: 0.08, L: 12, steps: 150, N0: 200, seed: 9 });
+      log.push({ ok: Math.abs(sf.Erel - sf.dm * Nu.C2) < 1e-9 && sf.fissions > 0, name: '㉕질량에너지', msg: `㉕·Δm·c² 회계: 방출 E ${fmt(sf.Erel)} = dm·C2 ${fmt(sf.dm * Nu.C2)} (분열 ${sf.fissions}회·위력은 authored 아니라 회계·CONTRACT §5)` });
+
+      // (4) 지연 중성자 (파편 붕괴·author 0): on 이 지연 중성자를 파편서 방출 → 동역학 차이 (제어 근원·관찰).
+      const dOn = Nu.reactorSim({ nF: 0.045, L: 12, delayed: true, steps: 200, N0: 300, seed: 5 });
+      const dOff = Nu.reactorSim({ nF: 0.045, L: 12, delayed: false, steps: 200, N0: 300, seed: 5 });
+      log.push({ ok: Math.abs(dOn.timeExp - dOff.timeExp) > 1e-4 || dOn.finalN !== dOff.finalN, name: '㉕지연중성자', msg: `㉕·지연 중성자 on/off 동역학 차 (지연분=파편 n 채널·author 0·k_eff≈1 제어 근원·전 제어 물리는 관찰 기록·한계)` });
+
+      // (5) NuclideTable 산출 ⇧ (CONTRACT §5-3 중간 해상도 파라미터·측정 발효): schema·σ·ν·Q·임계 스캔.
+      log.push({ ok: nt.schema === 'nuclide-table-v0' && nt.nu > 1 && nt.Q > 0 && nt.crossSections && nt.criticalScan.length >= 3, name: '㉕NuclideTable⇧',
+        msg: `㉕·NuclideTable 발효: ν ${nt.nu}·Q ${nt.Q}·σ 밴드 ${nt.crossSections.bands.join('/')}·임계 스캔 ${nt.criticalScan.length}점 (중간 해상도 중성자 수송 파라미터·CONTRACT §5)` });
+    }
+
     return log;
   }
 
@@ -1022,7 +1162,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒ 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

@@ -744,5 +744,226 @@
   frame();
 })();
 </script>
+
+<!-- ㉒-a MaterialModel: 측정된 상태방정식 EOS 히트맵 (자체 완결·메인 sim 과 독립·output.json 스냅샷) -->
+<section id="eos-sec" style="max-width:1100px;margin:18px auto;padding:0 12px;font-family:system-ui,sans-serif;color:#c9d1d9;">
+  <h2 style="font-size:15px;border-top:1px solid #30363d;padding-top:14px;">㉒-a 측정된 상태방정식 EOS <span style="color:#8b949e;font-weight:normal;font-size:12px;">— S0 의 진짜 출력 ⇧ (author 0)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 10px;">
+    물 수프를 <b>T×ρ 그리드에서 NVT 로 굴려</b> 압력 P(비리얼)·내부에너지 U(물질)를 측정한 표. 실세계 앵커가 아니라 S0 시뮬 측정값이다.
+    S1 이 굴릴 상태축 <b>[T, ρ]</b> 의 기반. 색이 진할수록 값이 큼 — <b>P 는 ρ·T 와 함께 증가</b>(밀도압·이상기체), <b>U 는 T 와 함께 증가</b>(C_v=∂U/∂T&gt;0·열역학 안정). 셀=측정값±표준오차.
+  </p>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div><canvas id="eos-P" width="300" height="290"></canvas></div>
+    <div><canvas id="eos-U" width="300" height="290"></canvas></div>
+    <div><canvas id="eos-D" width="300" height="290"></canvas></div>
+    <div id="eos-cv" style="font-family:monospace;font-size:12px;color:#8b949e;white-space:pre;"></div>
+    <div><canvas id="eos-arr" width="230" height="200"></canvas><div id="eos-arr-txt" style="font-family:monospace;font-size:11px;color:#8b949e;"></div></div>
+  </div>
+  <p style="font-size:11px;color:#6e7681;margin:2px 0 0;">㉒-b 수송: <b>D(T,ρ)</b> = MSD 기울기(아인슈타인) — ρ↑ 감소(혼잡)·T↑ 증가(열활성). ㉒-c 반응망: <b>k(T)</b> = 결합 해리 사건률 → 아레니우스 <b>ln k vs 1/T 직선</b>(Ea&gt;0 열활성 장벽). 전부 S1 이 굴릴 법칙.</p>
+  <h3 style="font-size:13px;margin:14px 0 4px;">㉒-d 물 앵커 — 유효 상호작용의 방향·밀도 의존 <span style="color:#8b949e;font-weight:normal;font-size:11px;">(㉒ 닫는 기준 — 등방 쌍 테이블이 잃는 물의 요점)</span></h3>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div><canvas id="eos-dir" width="300" height="200"></canvas></div>
+    <div><canvas id="eos-den" width="300" height="200"></canvas></div>
+    <div id="eos-im-txt" style="font-family:monospace;font-size:11px;color:#8b949e;white-space:pre;max-width:240px;"></div>
+  </div>
+</section>
+<script id="eos-data" type="application/json">{"grid":{"T":[0.3,0.5,0.7],"rho":[0.12,0.2,0.3]},"P":[[0.13627,0.23124,0.43878],[0.14913,0.30428,0.53183],[0.17677,0.35982,0.63875]],"U":[[-13.77986,-13.16652,-15.46969],[-0.10305,-3.38748,-1.34626],[10.19248,8.59639,9.53907]],"Perr":[[0.00328,0.00649,0.00758],[0.00582,0.00297,0.00496],[0.00575,0.00548,0.00819]],"Uerr":[[0.12493,1.13938,0.95483],[1.28157,1.51817,2.07525],[0.58772,0.38363,0.50884]],"D":[[0.51325,0.27185,0.16921],[0.73271,0.43168,0.23648],[0.86274,0.5111,0.29806]],"Derr":[[0.08773,0.00971,0.02105],[0.02259,0.02641,0.00936],[0.06878,0.0264,0.04761]],"cv":[{"rho":0.12,"cv":[68.384,51.4777]},{"rho":0.2,"cv":[48.8952,59.9194]},{"rho":0.3,"cv":[70.6171,54.4267]}],"rxn":{"kT":[0.55,0.7,0.85,1,1.15],"k":[0.0281,0.05179,0.08157,0.09665,0.13757],"Ea":1.624,"A":0.5337,"r2":0.9923},"im":{"c":[0.1,0.3,0.5,0.7,0.9],"hE":[-0.0003,-0.0019,-0.0126,-0.0545,-0.3401],"sel":351.83,"rho":[0.1983,0.3322,0.4898],"coh":[-0.0515,-1.0496,-1.9575],"coord":[0.889,3.528,5.639]}}</script>
+<script>
+(function () {
+  const eos = JSON.parse(document.getElementById('eos-data').textContent);
+  // 히트맵: 행=T(위가 높은 T)·열=ρ. 값 → 청록(저)~주황(고) 램프. 셀에 값±err.
+  function heat(canvasId, field, errField, label) {
+    const cv = document.getElementById(canvasId), ctx = cv.getContext('2d');
+    const G = eos[field], ER = eos[errField], Ts = eos.grid.T, rhos = eos.grid.rho;
+    let lo = Infinity, hi = -Infinity;
+    for (const row of G) for (const v of row) { if (v < lo) lo = v; if (v > hi) hi = v; }
+    const nT = Ts.length, nR = rhos.length, x0 = 48, y0 = 34, cw = (cv.width - x0 - 8) / nR, ch = (cv.height - y0 - 26) / nT;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '13px system-ui'; ctx.fillText(label, x0, 20);
+    for (let ti = 0; ti < nT; ti++) for (let ri = 0; ri < nR; ri++) {
+      const v = G[ti][ri], f = hi > lo ? (v - lo) / (hi - lo) : 0.5;
+      const R = Math.round(40 + 200 * f), Gc = Math.round(160 - 60 * f), B = Math.round(180 - 150 * f);
+      const px = x0 + ri * cw, py = y0 + (nT - 1 - ti) * ch;   // 위=고T
+      ctx.fillStyle = `rgb(${R},${Gc},${B})`; ctx.fillRect(px, py, cw - 2, ch - 2);
+      ctx.fillStyle = f > 0.55 ? '#0d1117' : '#e6edf3'; ctx.font = '11px monospace';
+      ctx.fillText(v.toFixed(2), px + 5, py + ch / 2 - 1);
+      ctx.font = '9px monospace'; ctx.fillText('±' + ER[ti][ri].toFixed(2), px + 5, py + ch / 2 + 11);
+    }
+    ctx.fillStyle = '#8b949e'; ctx.font = '10px monospace';
+    for (let ri = 0; ri < nR; ri++) ctx.fillText('ρ' + rhos[ri], x0 + ri * cw + 4, cv.height - 12);
+    for (let ti = 0; ti < nT; ti++) ctx.fillText('T' + Ts[ti], 6, y0 + (nT - 1 - ti) * ch + ch / 2);
+  }
+  heat('eos-P', 'P', 'Perr', 'P(T,ρ) — 압력 (비리얼)');
+  heat('eos-U', 'U', 'Uerr', 'U(T,ρ) — 물질 내부에너지');
+  heat('eos-D', 'D', 'Derr', 'D(T,ρ) — 확산 (수송·㉒-b)');
+  document.getElementById('eos-cv').textContent =
+    '자기일관\nC_v = ∂U/∂T (>0)\n' + eos.cv.map(c => 'ρ' + c.rho + ': ' + c.cv.map(x => x.toFixed(1)).join(', ')).join('\n') +
+    '\n\n⑦ 위에 반응 열용량이\n얹혀 값이 크다\n(가열이 결합을 끊어\nU↑ 추가).';
+
+  // ㉒-c 아레니우스 플롯: ln k vs 1/T — 직선이면 열활성(기울기=−Ea). 점+적합선.
+  if (eos.rxn) {
+    const R = eos.rxn, cv = document.getElementById('eos-arr'), ctx = cv.getContext('2d');
+    const xs = R.kT.map(t => 1 / t), ys = R.k.map(k => Math.log(k));
+    const xlo = Math.min(...xs), xhi = Math.max(...xs), ylo = Math.min(...ys), yhi = Math.max(...ys);
+    const px = (x) => 40 + (x - xlo) / (xhi - xlo || 1) * 175, py = (y) => 165 - (y - ylo) / (yhi - ylo || 1) * 145;
+    ctx.clearRect(0, 0, cv.width, cv.height);
+    ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui'; ctx.fillText('ln k vs 1/T (아레니우스)', 30, 14);
+    ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(40, 20); ctx.lineTo(40, 165); ctx.lineTo(225, 165); ctx.stroke();
+    // 적합선 (lnA − Ea·x)
+    const lnA = Math.log(R.A);
+    ctx.strokeStyle = '#e0403a'; ctx.beginPath(); ctx.moveTo(px(xlo), py(lnA - R.Ea * xlo)); ctx.lineTo(px(xhi), py(lnA - R.Ea * xhi)); ctx.stroke();
+    ctx.fillStyle = '#58a6ff'; for (let i = 0; i < xs.length; i++) { ctx.beginPath(); ctx.arc(px(xs[i]), py(ys[i]), 3, 0, 6.283); ctx.fill(); }
+    ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.fillText('1/T→', 195, 178); ctx.fillText('ln k', 4, 26);
+    document.getElementById('eos-arr-txt').textContent = 'Ea=' + R.Ea.toFixed(2) + ' (>0 열활성)  A=' + R.A.toFixed(2) + '\nR²=' + R.r2.toFixed(3) + ' (직선 적합)';
+  }
+
+  // ㉒-d 방향 h(c) 막대: 정합코사인 c 빈별 유효 H-결합 E — 정렬(c→1)일수록 깊음(방향 선택성).
+  if (eos.im) {
+    const IM = eos.im;
+    (function () {
+      const cv = document.getElementById('eos-dir'), ctx = cv.getContext('2d');
+      const deep = Math.min(...IM.hE), bw = 240 / IM.c.length;
+      ctx.clearRect(0, 0, cv.width, cv.height); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui';
+      ctx.fillText('방향 h(c): 유효 H-결합 E vs 정합', 8, 14);
+      for (let i = 0; i < IM.c.length; i++) {
+        const h = Math.abs(IM.hE[i] / deep) * 150, x = 30 + i * bw, y = 175 - h;
+        ctx.fillStyle = `rgb(${40 + 200 * (i / (IM.c.length - 1))},${140 - 60 * (i / (IM.c.length - 1))},${180 - 150 * (i / (IM.c.length - 1))})`;
+        ctx.fillRect(x, y, bw - 6, h); ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText('c' + IM.c[i], x, 188); ctx.fillText(IM.hE[i].toFixed(2), x, y - 3);
+      }
+    })();
+    // ㉒-d 밀도 g(ρ): 응집/분자 vs 밀도 — 고밀도일수록 깊음(협동).
+    (function () {
+      const cv = document.getElementById('eos-den'), ctx = cv.getContext('2d');
+      const deep = Math.min(...IM.coh), bw = 240 / IM.rho.length;
+      ctx.clearRect(0, 0, cv.width, cv.height); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui';
+      ctx.fillText('밀도 g(ρ): 응집/분자 vs 밀도', 8, 14);
+      for (let i = 0; i < IM.rho.length; i++) {
+        const h = Math.abs(IM.coh[i] / deep) * 150, x = 40 + i * bw, y = 175 - h;
+        ctx.fillStyle = '#58a6ff'; ctx.fillRect(x, y, bw - 10, h);
+        ctx.fillStyle = '#8b949e'; ctx.font = '9px monospace';
+        ctx.fillText('ρ' + IM.rho[i].toFixed(2), x, 188); ctx.fillText(IM.coh[i].toFixed(2), x, y - 3);
+      }
+    })();
+    document.getElementById('eos-im-txt').textContent =
+      '방향 선택성\n|정렬/미정렬| = ' + IM.sel.toFixed(0) + '\n(등방 대비 유의·⑯)\n\n밀도 배위/분자\n' +
+      IM.rho.map((r, i) => 'ρ' + r.toFixed(2) + ': ' + IM.coord[i].toFixed(1) + ' H-결합').join('\n') +
+      '\n\n등방 쌍 테이블이\n잃는 물의 요점을\n측정으로 담음\n→ ㉒ 완결.';
+  }
+})();
+</script>
+
+<!-- ㉓~㉕ 핵 (게이트 G-핵·게임플레이 핵분열 요구) — 자체 완결·엔진 diff 0 -->
+<section id="nuc-sec" style="max-width:1100px;margin:18px auto;padding:0 12px;font-family:system-ui,sans-serif;color:#c9d1d9;">
+  <h2 style="font-size:15px;border-top:1px solid #30363d;padding-top:14px;">㉓ 핵종·동위원소 <span style="color:#8b949e;font-weight:normal;font-size:12px;">— c=(Z,e)→(Z,N,e)·질량 결손이 장부 실물 (핵 게이트 개방)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 10px;">
+    보존 다발에 <b>N(중성자)</b> 축을 더한다. 앵커: <b>동위원소 진동수 이동</b> — D(중수소·N=1 로 무거운 H)가 O 와 이룬 결합은 H–O 보다 느리게 진동한다.
+    결합 스프링 ω=√(k/μ) 가 질량에서 유도되므로 <b>ω_D/ω_H = √(μ_H/μ_D)</b> 가 저절로 나온다(author 0). 아래 두 진자: 위=H–O(빠름)·아래=D–O(느림).
+  </p>
+  <canvas id="nuc-iso" width="620" height="130"></canvas>
+  <div id="nuc-iso-txt" style="font-family:monospace;font-size:12px;color:#8b949e;margin-top:4px;"></div>
+
+  <h2 style="font-size:15px;border-top:1px solid #21262d;padding-top:12px;margin-top:16px;">㉔ 붕괴 채널 <span style="color:#8b949e;font-weight:normal;font-size:12px;">— 지수 감쇠·계열 붕괴·붕괴열 (낙진 시간 감쇠의 근원)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 8px;">
+    불안정 핵종은 반감기대로 붕괴한다(사건 큐의 최장 시간 규모). <b>모핵 FPa → 딸 FPb → 안정 FPc</b> 계열: FPa 는 지수로 감쇠(반감기 재현·author 0), 딸 FPb 는 중간에 <b>축적 최대 후 감소</b>(Bateman), FPc 는 쌓인다. 회색=붕괴열 누적(Q값·질량 결손 → 방출). 서버는 원자 없이 이 큐만 굴려 <b>낙진 지대의 시간 감쇠</b>를 창발시킨다.
+  </p>
+  <canvas id="nuc-decay" width="620" height="220"></canvas>
+  <div id="nuc-decay-txt" style="font-family:monospace;font-size:11px;color:#8b949e;margin-top:4px;"></div>
+
+  <h2 style="font-size:15px;border-top:1px solid #21262d;padding-top:12px;margin-top:16px;">㉕ 분열 — k_eff=1 경계 <span style="color:#8b949e;font-weight:normal;font-size:12px;">(핵분열 실현·author 0)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 8px;">
+    중성자가 무거운 핵 F 를 때리면 <b>분열</b>(파편 2 + 중성자 ν≈2.5개 + Q). 새 중성자가 또 다른 F 를 때려 <b>연쇄</b>. 계가 작거나 옅으면 중성자가 새어 나가(누설) 연쇄가 죽고(미임계), 크거나 짙으면 폭주(초임계) — 그 경계가 <b>k_eff=1</b>. 우리는 이 숫자를 어디에도 안 적었다: 누설 vs 생산 균형에서 저절로 나온다(author 0). 왼쪽=밀도별 k_eff(1 선 교차)·오른쪽=중성자 수 시계열(미임계 소멸·임계 정상·초임계 폭주).
+  </p>
+  <div style="display:flex;gap:20px;flex-wrap:wrap;align-items:flex-start;">
+    <div><canvas id="nuc-keff" width="300" height="220"></canvas></div>
+    <div><canvas id="nuc-chain" width="300" height="220"></canvas></div>
+    <div id="nuc-fis-txt" style="font-family:monospace;font-size:11px;color:#8b949e;white-space:pre;max-width:230px;"></div>
+  </div>
+  <p style="font-size:11px;color:#6e7681;margin:6px 0 0;">Δm·c² 회계: 위력은 authored 숫자가 아니라 <b>질량 결손의 회계</b>다(CONTRACT §5). 파편은 ㉔ 붕괴 큐로 들어가 지연 중성자·붕괴열·낙진을 낳는다. NuclideTable(σ·ν·Q·임계 스캔) 은 <code>nuclide-table.json</code> 으로 발효 — 서버 중간 해상도(중성자 수송)가 소비.</p>
+</section>
+<script id="nuc-data" type="application/json">{"omegaH":5.59,"omegaD":4.33,"muH":0.8,"muD":1.3333,"ratioMeas":0.7746,"ratioPred":0.7746}</script>
+<script id="nuc-decay-data" type="application/json">{"t":[0,1.75,3.5,5.25,7,8.75,10.5,12.25,14,15.75,17.5,19.25,21,22.75,24.5,26.25,28,29.75,31.5,33.25,35,36.75,38.5,40.25,42,43.75,45.5,47.25,49,50.75,52.5,54.25,56,57.75,59.5,61.25,63,64.75,66.5,68.25,70],"FPa":[1979,1336,896,609,393,244,162,99,69,49,39,21,16,11,5,4,2,2,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"FPb":[17,596,949,1117,1207,1226,1193,1123,1046,968,881,808,741,689,621,562,508,457,414,370,340,304,284,263,231,208,192,179,160,142,130,116,104,98,84,74,65,54,47,43,37],"FPc":[0,42,119,231,350,476,590,721,828,925,1021,1112,1184,1241,1315,1375,1431,1482,1526,1570,1600,1636,1657,1678,1710,1733,1749,1762,1781,1799,1811,1825,1837,1843,1857,1867,1876,1887,1894,1898,1904],"heat":[22.4,812.2,1394.8,1823.9,2173.4,2450.2,2639.1,2818.1,2939.7,3040.6,3128.7,3223.1,3286.7,3338.3,3404.7,3453.9,3501.1,3541.9,3578.3,3613.5,3637.5,3666.3,3684.3,3701.1,3726.7,3745.1,3757.9,3768.3,3783.5,3797.9,3807.5,3818.7,3828.3,3833.1,3844.3,3852.3,3859.5,3868.3,3873.9,3877.1,3881.9],"neut":[4,26,36,43,50,54,55,57,57,58,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59]}</script>
+<script id="nuc-fis-data" type="application/json">{"kNF":[0.008,0.02,0.04,0.08,0.15],"kEff":[0.524,0.869,1.165,1.369,1.531],"region":["subcritical","subcritical","supercritical","supercritical","supercritical"],"sub":{"t":[0,0.8,1.6,2.4,3.2,4,4.8,5.6,6.4,7.2,8,8.8,9.6,10.4,11.2,12,12.8,13.6,14.4,15.2,16,16.8,17.6,18.4,19.2,20],"n":[498,497,493,469,449,431,401,382,370,368,358,343,337,326,315,306,299,295,295,290,288,277,274,273,267,259],"k":0.211},"cri":{"t":[0,0.8,1.6,2.4,3.2,4,4.8,5.6,6.4,7.2,8,8.8,9.6,10.4,11.2,12,12.8,13.6,14.4,15.2,16,16.8,17.6,18.4,19.2,20],"n":[401,406,422,432,443,458,470,474,481,483,484,475,488,504,507,521,528,530,534,537,533,547,534,533,542,536],"k":1.043},"sup":{"t":[0,0.6,1.2,1.8,2.4,3,3.6,4.2,4.8,5.4,6,6.6,7.2,7.8,8.4,9,9.6,10.2,10.8,11.4,12,12.6,13.2,13.8,14.4,15],"n":[100,113,127,145,162,186,216,260,286,324,380,439,522,599,680,810,947,1110,1295,1487,1705,1969,2264,2625,3023,3456],"k":1.893}}</script>
+<script>
+(function () {
+  const N = JSON.parse(document.getElementById('nuc-data').textContent);
+  const cv = document.getElementById('nuc-iso'), ctx = cv.getContext('2d');
+  let t = 0;
+  function frame() {
+    t += 0.03; ctx.clearRect(0, 0, cv.width, cv.height);
+    // 두 진자: 신축 진동 d(t)=rest+amp·cos(ω t). H–O(위)·D–O(아래).
+    const rows = [{ y: 40, w: N.omegaH, c: '#eef2f5', lbl: 'H–O  ω=' + N.omegaH.toFixed(2) }, { y: 95, w: N.omegaD, c: '#9ec7f0', lbl: 'D–O  ω=' + N.omegaD.toFixed(2) + ' (느림)' }];
+    for (const r of rows) {
+      const cx = 90, rest = 120, amp = 55, d = rest + amp * Math.cos(r.w * t);
+      ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(cx, r.y); ctx.lineTo(cx + rest + amp + 30, r.y); ctx.stroke();
+      // O (고정·빨강)
+      ctx.fillStyle = '#e0403a'; ctx.beginPath(); ctx.arc(cx, r.y, 14, 0, 6.283); ctx.fill();
+      // 결합선 + H/D (움직임)
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, r.y); ctx.lineTo(cx + d, r.y); ctx.stroke();
+      const gr = ctx.createRadialGradient(cx + d - 3, r.y - 3, 1, cx + d, r.y, 10);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(1, r.c); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx + d, r.y, 10, 0, 6.283); ctx.fill();
+      ctx.fillStyle = '#c9d1d9'; ctx.font = '12px monospace'; ctx.fillText(r.lbl, cx + rest + amp + 40, r.y + 4);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+  document.getElementById('nuc-iso-txt').textContent =
+    'ω_D/ω_H 측정 ' + N.ratioMeas.toFixed(4) + ' ≈ 예측 √(μ_H/μ_D) ' + N.ratioPred.toFixed(4) + '  (μ_H=' + N.muH + ' μ_D=' + N.muD + ' — N=1 이 D 를 무겁게 → 느린 진동·author 0)';
+
+  // ㉔ 붕괴 곡선: FPa(감쇠)·FPb(축적 후 감소)·FPc(안정 축적) + 붕괴열.
+  const D = JSON.parse(document.getElementById('nuc-decay-data').textContent);
+  (function () {
+    const cv = document.getElementById('nuc-decay'), ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height, x0 = 40, y0 = 10, x1 = W - 90, y1 = H - 24;
+    const tmax = D.t[D.t.length - 1], nmax = 2000, hmax = Math.max.apply(null, D.heat);
+    const px = (t) => x0 + t / tmax * (x1 - x0), pyN = (n) => y1 - n / nmax * (y1 - y0), pyH = (h) => y1 - h / hmax * (y1 - y0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1, y1); ctx.stroke();
+    const line = (arr, col, py) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i < D.t.length; i++) { const X = px(D.t[i]), Y = py(arr[i]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); };
+    line(D.heat, '#6e7681', pyH);   // 붕괴열 (회색)
+    line(D.FPa, '#e0403a', pyN);    // 모핵 (빨강·감쇠)
+    line(D.FPb, '#f0b429', pyN);    // 딸 (노랑·축적 후 감소)
+    line(D.FPc, '#58a6ff', pyN);    // 안정 (파랑·축적)
+    const lb = [['FPa 모핵(감쇠)', '#e0403a'], ['FPb 딸(축적→감소)', '#f0b429'], ['FPc 안정', '#58a6ff'], ['붕괴열 Q', '#6e7681']];
+    ctx.font = '11px monospace'; lb.forEach((l, i) => { ctx.fillStyle = l[1]; ctx.fillText('■ ' + l[0], x1 + 6, y0 + 16 + i * 16); });
+    ctx.fillStyle = '#6e7681'; ctx.fillText('t→', x1 - 14, y1 + 16);
+  })();
+  document.getElementById('nuc-decay-txt').textContent =
+    '지연 중성자 ' + D.neut[D.neut.length - 1] + '개 (3% n 채널·author 0 — k_eff≈1 제어 가능성의 근원) · 붕괴열이 낙진 지대 시간 감쇠로 창발';
+
+  // ㉕ 분열: k_eff(밀도) 곡선 + 연쇄 반응 시계열 (3영역).
+  const F = JSON.parse(document.getElementById('nuc-fis-data').textContent);
+  (function () {   // k_eff vs 밀도 (k=1 경계·영역 색)
+    const cv = document.getElementById('nuc-keff'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, x0 = 40, y1 = H - 26, y0 = 14;
+    const kmax = 1.8, nfmax = Math.max.apply(null, F.kNF) * 1.1;
+    const px = (nf) => x0 + nf / nfmax * (W - x0 - 12), py = (k) => y1 - k / kmax * (y1 - y0);
+    ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui'; ctx.fillText('k_eff vs 밀도 (임계 경계)', x0, 10);
+    ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(W - 12, y1); ctx.stroke();
+    // k=1 경계선
+    ctx.strokeStyle = '#f0b429'; ctx.setLineDash([4, 3]); ctx.beginPath(); ctx.moveTo(x0, py(1)); ctx.lineTo(W - 12, py(1)); ctx.stroke(); ctx.setLineDash([]);
+    ctx.fillStyle = '#f0b429'; ctx.font = '10px monospace'; ctx.fillText('k=1 임계', W - 74, py(1) - 3);
+    ctx.strokeStyle = '#58a6ff'; ctx.lineWidth = 2; ctx.beginPath();
+    for (let i = 0; i < F.kNF.length; i++) { const X = px(F.kNF[i]), Y = py(F.kEff[i]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); }
+    ctx.stroke();
+    for (let i = 0; i < F.kNF.length; i++) { ctx.fillStyle = F.kEff[i] < 1 ? '#3fb950' : '#e0403a'; ctx.beginPath(); ctx.arc(px(F.kNF[i]), py(F.kEff[i]), 4, 0, 6.283); ctx.fill(); }
+    ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.fillText('밀도 nF→', W - 60, y1 + 15);
+    ctx.fillStyle = '#3fb950'; ctx.fillText('● 미임계', x0 + 2, y1 + 15); ctx.fillStyle = '#e0403a'; ctx.fillText('● 초임계', x0 + 66, y1 + 15);
+  })();
+  (function () {   // 연쇄 반응 시계열 (3영역·log 스케일)
+    const cv = document.getElementById('nuc-chain'), ctx = cv.getContext('2d'), W = cv.width, H = cv.height, x0 = 36, y1 = H - 26, y0 = 14;
+    const all = F.sub.n.concat(F.cri.n, F.sup.n), nmax = Math.max.apply(null, all), tmax = Math.max(F.sub.t[F.sub.t.length - 1], F.cri.t[F.cri.t.length - 1], F.sup.t[F.sup.t.length - 1]);
+    const px = (t) => x0 + t / tmax * (W - x0 - 70), py = (n) => y1 - Math.log(1 + n) / Math.log(1 + nmax) * (y1 - y0);
+    ctx.clearRect(0, 0, W, H); ctx.fillStyle = '#c9d1d9'; ctx.font = '11px system-ui'; ctx.fillText('중성자 수(log) vs 시간', x0, 10);
+    ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(W - 70, y1); ctx.stroke();
+    const draw = (s, col, lbl, yl) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i < s.t.length; i++) { const X = px(s.t[i]), Y = py(s.n[i]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); ctx.fillStyle = col; ctx.font = '10px monospace'; ctx.fillText(lbl, W - 66, yl); };
+    draw(F.sub, '#3fb950', '미임계(소멸) k=' + F.sub.k.toFixed(2), y0 + 12);
+    draw(F.cri, '#f0b429', '임계(정상) k=' + F.cri.k.toFixed(2), y0 + 28);
+    draw(F.sup, '#e0403a', '초임계(폭주) k=' + F.sup.k.toFixed(2), y0 + 44);
+    ctx.fillStyle = '#6e7681'; ctx.font = '9px monospace'; ctx.fillText('t→', W - 78, y1 + 15);
+  })();
+  document.getElementById('nuc-fis-txt').textContent =
+    '임계 밀도 경계\n미임계(●녹) → 초임계(●적)\nk_eff=1 크로스오버\n(author 0)\n\nν=2.5 분열당 중성자\nQ=분열 방출(Δm·c²)\n지연분 3%(제어 근원)\n\n위력=회계, 아이템 아님\n조건(k_eff≥1 배치)이\n곧 게임플레이';
+})();
+</script>
 </body>
 </html>
