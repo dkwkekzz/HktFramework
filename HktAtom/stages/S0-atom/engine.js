@@ -91,6 +91,7 @@
     'U_vib',      // 진동 — ⑦
     'U_rot',      // 회전 — ⑦
     'U_pol',      // 분극 −½Σα·E² — ⑧
+    'U_grav',     // 중력 위치 E = −Σ m·g·(ĝ·r) — step-0032 (g=0 이면 0·가법)
     'E_photon',   // 방출된 복사 (④ 빈 → ⑫ 광자 입자)
     'E_nuclear',  // 예약 — ㉓~
     'E_escape',   // 열린 경계로 나간 에너지
@@ -164,6 +165,11 @@
       mass: o.mass || { X: 1.0 },     // 종별 질량 테이블
       sigma: o.sigma || { X: 1.0 },   // 종별 상호작용 지름 (② 척력·Lorentz 혼합)
       eps: o.eps || { X: 1.0 },       // 종별 척력 세기 (② Berthelot 혼합)
+      // 중력 — 규모 투명 법칙 (step-0032): 질량 비례 외부 장 F = m·g·ĝ. 질량=Σc 유도량·차폐
+      // 없음이라 승격을 관통해 재측정 없이 전 규모 유효 — 세계 속성으로 어느 장면이든 켠다.
+      // 기본 0: 원자 규모에서 실중력은 쿨롱 대비 ~1e-36 (기존 앵커 장면들의 물리적 참값).
+      g: o.g != null ? o.g : 0,       // 세기 (무차원 노브 — 장면 규모에 맞춘다)
+      gDir: o.gDir || V.make(0, 1, 0),// "아래" 단위 방향 (2D 화면 아래=+y · 3D 장면은 −y 권장)
       kc: o.kc != null ? o.kc : 1.0,  // 쿨롱 상수 (노브)
       soft: o.soft != null ? o.soft : 0.1,  // softening s (d→0 발산 방지, 노브)
       virial: 0,                      // ② 비리얼 (압력 측정) — pairForces 가 갱신
@@ -286,7 +292,23 @@
     world.minDsigma = minRatio;
   }
 
-  // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장). E_photon·E_escape 는 전이가 증분 ──
+  // ── 중력 외부 장 — F = m·g·ĝ (모든 개체 질량 비례 · frozenZ 면 z 성분 차단) ──
+  function applyGravity(world) {
+    if (!world.g) return;
+    const g = world.g, gd = world.gDir, fz = world.frozenZ;
+    const me = world.m_e != null ? world.m_e : 0.01;
+    for (const a of world.atoms) {
+      const mg = g * world.mass[a.sp];
+      a.F.x += mg * gd.x; a.F.y += mg * gd.y; if (!fz) a.F.z += mg * gd.z;
+    }
+    for (const e of world.electrons) {
+      const mg = g * me;
+      e.F.x += mg * gd.x; e.F.y += mg * gd.y; if (!fz) e.F.z += mg * gd.z;
+    }
+  }
+
+  // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장)·U_grav(중력 위치 E).
+  //    E_photon·E_escape 는 전이가 증분 ──
   function recomputeLedger(world) {
     let K = 0, Uint = 0;
     for (const a of world.atoms) {
@@ -298,6 +320,15 @@
     for (const e of world.electrons) K += V.lenSq(e.p) / (2 * me);
     world.ledger.K_tr = K;
     world.ledger.U_int = Uint;
+    let Ug = 0;                                          // U = −m·g·(ĝ·r) → F = −∇U = m·g·ĝ
+    if (world.g) {
+      const g = world.g, gd = world.gDir, fz = world.frozenZ;
+      for (const a of world.atoms)
+        Ug -= g * world.mass[a.sp] * (gd.x * a.r.x + gd.y * a.r.y + (fz ? 0 : gd.z * a.r.z));
+      for (const e of world.electrons)
+        Ug -= g * me * (gd.x * e.r.x + gd.y * e.r.y + (fz ? 0 : gd.z * e.r.z));
+    }
+    world.ledger.U_grav = Ug;
   }
 
   // 총 에너지 (사건 단위 회계 검사용 — K·U 재계산 + 전 통)
@@ -627,8 +658,15 @@
       for (const a of world.atoms) { a.r.x = wrap(a.r.x, L.x); a.r.y = wrap(a.r.y, L.y); if (!world.frozenZ) a.r.z = wrap(a.r.z, L.z); }
       for (const e of world.electrons) { e.r.x = wrap(e.r.x, L.x); e.r.y = wrap(e.r.y, L.y); if (!world.frozenZ) e.r.z = wrap(e.r.z, L.z); }
     } else if (bc === 'reflect') {
-      for (const a of world.atoms) { reflect1(a, 'x', L.x); reflect1(a, 'y', L.y); if (!world.frozenZ) reflect1(a, 'z', L.z); }
-      for (const e of world.electrons) { reflect1(e, 'x', L.x); reflect1(e, 'y', L.y); if (!world.frozenZ) reflect1(e, 'z', L.z); }
+      for (const a of world.atoms) {
+        const m = world.mass[a.sp];
+        reflect1(world, a, m, 'x', L.x); reflect1(world, a, m, 'y', L.y);
+        if (!world.frozenZ) reflect1(world, a, m, 'z', L.z);
+      }
+      for (const e of world.electrons) {
+        reflect1(world, e, me, 'x', L.x); reflect1(world, e, me, 'y', L.y);
+        if (!world.frozenZ) reflect1(world, e, me, 'z', L.z);
+      }
     } else if (bc === 'open') {
       const keep = [];
       for (const a of world.atoms) {
@@ -649,9 +687,26 @@
     }
   }
   function wrap(x, L) { x = x % L; return x < 0 ? x + L : x; }
-  function reflect1(a, k, L) {
-    if (a.r[k] < 0) { a.r[k] = -a.r[k]; a.p[k] = -a.p[k]; }
-    else if (a.r[k] > L) { a.r[k] = 2 * L - a.r[k]; a.p[k] = -a.p[k]; }
+  // 반사 벽 — 위치 거울상 + 운동량 반전. 중력이 켜져 있으면 거울상 이동이 U_grav 를 바꾸므로
+  // 그 ΔU 를 반사 성분 운동량에서 정확히 상계한다 (에너지 정확 반사 — 없으면 바닥에 깔린
+  // 무거운 원자의 잦은 반사가 오버슛 오차를 랜덤워크로 누적·step-0032 실측). g=0 이면 기존 동일.
+  function reflect1(world, b, m, k, L) {
+    const r0 = b.r[k];
+    let rNew;
+    if (r0 < 0) rNew = -r0;
+    else if (r0 > L) rNew = 2 * L - r0;
+    else return;
+    b.p[k] = -b.p[k];
+    if (world.g) {
+      const gd = world.gDir[k] || 0;
+      if (gd) {
+        const dU = -m * world.g * gd * (rNew - r0);      // U = −m·g·(ĝ·r)
+        const pk2 = b.p[k] * b.p[k] - 2 * m * dU;
+        if (pk2 > 0) b.p[k] = (b.p[k] < 0 ? -1 : 1) * Math.sqrt(pk2);
+        // pk2 ≤ 0 (극저속·희귀): 보정 생략 — 오차는 그 1회의 dU 뿐
+      }
+    }
+    b.r[k] = rNew;
   }
   function outside(r, L, frozenZ) {
     if (r.x < 0 || r.x > L.x || r.y < 0 || r.y > L.y) return true;
@@ -668,6 +723,7 @@
     // velocity Verlet: p += F dt/2 ; r += (p/m) dt ; F 재계산 ; p += F dt/2
     const me = world.m_e != null ? world.m_e : 0.01;
     world.computeForces(world);            // 첫 F (①은 0)
+    applyGravity(world);                   // 외부 장 — 어느 computeForces 조합이든 법칙은 적용
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
     for (const e of world.electrons) V.addScaledInto(e.p, e.F, dt / 2);
     for (const a of world.atoms) {
@@ -680,6 +736,7 @@
     applyBoundary(world);
     propagatePhotons(world);               // ⑫ 광자 직진 전파 + 경계 (field 모드만 실효 · 없으면 no-op)
     world.computeForces(world);            // 새 위치에서 F
+    applyGravity(world);
     for (const a of world.atoms) V.addScaledInto(a.p, a.F, dt / 2);
     for (const e of world.electrons) V.addScaledInto(e.p, e.F, dt / 2);
 
