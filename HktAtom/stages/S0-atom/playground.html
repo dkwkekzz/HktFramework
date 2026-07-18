@@ -45,13 +45,19 @@
   kbd { background: #21262d; border: 1px solid #30363d; border-radius: 3px; padding: 0 4px; font-size: 11px; }
   .charts { display: flex; gap: 8px; margin-top: 8px; }
   .charts canvas { background: #0a0d12; border: 1px solid #1b212b; border-radius: 5px; }
+  /* 장면 프리셋 */
+  .presets { margin: 8px 0; padding: 8px 10px; background: #0c1119; border: 1px solid #23303f; border-radius: 7px; }
+  .ptitle { color: #8b949e; font-size: 11.5px; margin-bottom: 6px; }
+  .ptitle b { color: #ffd75f; }
+  #presetRow button.on { border-color: #ffb73c; color: #ffd75f; }
 </style>
 </head>
 <body>
   <div id="stage"><canvas id="c" class="main" width="600" height="600"></canvas></div>
   <div id="panel">
     <h1>관찰자 샌드박스 — 원소를 소환해 반응을 관찰한다</h1>
-    <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
+    <p class="sub"><b>🎬 장면 프리셋</b>(아래)을 누르면 각 scene 의 현상을 관찰할 입자·온도·환경이 자동 세팅된다.
+      직접 실험하려면 주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
       그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
       <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
       <kbd>WASD/←↑↓→</kbd> 화면 기준 이동 · <kbd>X</kbd> <kbd>C</kbd> 던지는 방향 좌우 · <kbd>T</kbd> <kbd>G</kbd> 던지는 상하각 ·
@@ -63,6 +69,11 @@
     <div id="pt"></div>
     <div id="ptf"></div>
     <div id="info">원소를 선택하세요.</div>
+
+    <div class="presets">
+      <div class="ptitle">🎬 장면 프리셋 — 클릭하면 그 현상을 관찰할 <b>입자·온도·환경</b>을 자동 세팅한다 (관찰 포인트는 정보창에)</div>
+      <div class="row" id="presetRow"></div>
+    </div>
 
     <div class="row">
       <button id="dim">🧊 3D 로 전환</button>
@@ -130,6 +141,7 @@
 <script src="levels.js"></script>
 <script src="catalog.js"></script>
 <script src="polarization.js"></script>
+<script src="hbond.js"></script>
 <script src="combustion.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
@@ -152,6 +164,7 @@
   const obs = { x: 13, y: 13, z: 13, yaw: -Math.PI / 2, aimPitch: 0 };
   const keys = {};
   const histT = [], histP = [];
+  let pending = [];                 // 프리셋 예약 트리거 큐 — {at:world.t, fn}
 
   // ── 지형 (3D 무대) — 평평한 바닥 평면. (x,z) 어디서나 같은 높이) ──
   function makeTerrain(L) { return { base: L.y * 0.14 }; }
@@ -172,7 +185,7 @@
       terrain = null;
       obs.x = 13; obs.y = 13; obs.z = 0; obs.yaw = -Math.PI / 2;
     }
-    histT.length = 0; histP.length = 0;
+    histT.length = 0; histP.length = 0; pending.length = 0;
     feedMsg('sys', `세계 초기화 — ${dim}D 상자 26${dim === 3 ? '³ · 지형 위 관찰자' : '²'} · 벽 반사 · 관찰자 준비`);
   }
 
@@ -416,6 +429,124 @@
     };
   });
 
+  // ── 장면 프리셋 — 각 scene 의 현상을 관찰할 입자·온도·환경을 한 번에 세팅한다 ──
+  //   물리는 전부 기존 커널 재사용(엔진 diff 0): ②힘·산란 · ⑤이온 이전 · ⑥⑩공유결합 · ⑧분산 응집
+  //   · ⑱연소(R-ABSTRACT) · ㉕분열 · ㉖융합. 프리셋은 "환경 세팅"일 뿐 새 물리가 아니다.
+  const spTEl = document.getElementById('spT'), thTEl = document.getElementById('thT');
+
+  function setThermo(on, thTval) {
+    thermoOn = on;
+    const b = document.getElementById('thermo');
+    b.textContent = on ? '🌡 항온조 ON' : '🌡 항온조 OFF';
+    b.classList.toggle('on', on);
+    if (thTval != null) { thTEl.value = thTval; document.getElementById('thTv').textContent = (thTval / 100).toFixed(2); }
+  }
+  // 상자 중앙 spread(0~1) 영역에 counts 종을 T 로 흩어 소환 (혼합 셔플·freeSpot 겹침 방지)
+  function scatter(world, counts, T, spread) {
+    const L = world.box.L, s = spread != null ? spread : 0.8;
+    const lo = L.x * (1 - s) / 2, span = L.x * s;
+    const list = [];
+    for (const k in counts) for (let i = 0; i < counts[k]; i++) list.push(k);
+    for (let i = list.length - 1; i > 0; i--) { const j = (Math.random() * (i + 1)) | 0; [list[i], list[j]] = [list[j], list[i]]; }
+    let ok = 0;
+    for (const sym of list) {
+      if (world.atoms.length >= MAXN) break;
+      const x = lo + Math.random() * span, y = lo + Math.random() * span;
+      const z = dim === 3 ? lo + Math.random() * span : undefined;
+      if (Pg.spawn(world, sym, x, y, { T, z })) ok++;
+    }
+    return ok;
+  }
+  // 중성자 주입 — (fx,fy)→(tx,ty) 방향 고속 (분열 유도용)
+  function injectNeutron(world, fx, fy, tx, ty, v) {
+    let dx = tx - fx, dy = ty - fy; const d = Math.hypot(dx, dy) || 1; dx /= d; dy /= d;
+    Pg.spawn(world, 'n', fx, fy, { T: 0, z: dim === 3 ? world.box.L.z / 2 : undefined, px: dx * v, py: dy * v, pz: 0 });
+  }
+
+  // 프리셋 카탈로그 — scene 순서. thermo:[on, 슬라이더값] · trigger: 예약 액션 배열
+  const PRESETS = {
+    gas: {
+      icon: '💨', label: '② 기체·산란', spawnT: 80, thermo: [false],
+      observe: '중성 기체(Ne)가 자유 비행하며 충돌·산란한다. 압력 P 스파크라인이 오른다.',
+      build: (w) => scatter(w, { Ne: 44 }, 0.8, 1.0),
+    },
+    ionic: {
+      icon: '🧂', label: '⑤ 이온 결합', spawnT: 25, thermo: [true, 15],
+      observe: '접촉 시 전자 이전 → Na⁺(주황 링)·Cl⁻(청록 링). 저온 어닐링으로 교대 격자 응집.',
+      build: (w) => scatter(w, { Na: 9, Cl: 9 }, 0.25, 0.55),
+    },
+    water: {
+      icon: '💧', label: '⑥⑩ 분자 생성', spawnT: 60, thermo: [true, 50],
+      observe: 'H·O 수프를 단계 냉각(어닐링) → 결합이 형성돼 H₂·OH·O₂·H₂O 분자가 창발(하단 "분자" 행). H₂O 우세는 극성 ⑮ 필요 — 여기선 창발까지 정직.',
+      build: (w) => scatter(w, { H: 32, O: 16 }, 0.6, 0.55),
+      trigger: [
+        { at: 0.8, fn: () => { setThermo(true, 35); feedMsg('sys', '🌡 어닐링 냉각 → 0.35'); } },
+        { at: 1.6, fn: () => { setThermo(true, 22); feedMsg('sys', '🌡 어닐링 냉각 → 0.22'); } },
+        { at: 2.4, fn: () => { setThermo(true, 13); feedMsg('sys', '🌡 어닐링 냉각 → 0.13 (정착)'); } },
+      ],
+    },
+    condense: {
+      icon: '❄️', label: '⑧ 분산 응집', spawnT: 40, thermo: [true, 2],
+      observe: '비활성 기체(Ne)가 냉각되며 분산력(⑧)만으로 이웃 밀도가 늘어 촘촘한 덩어리를 이룬다 — 결합선 없이 뭉침(고온이면 흩어짐).',
+      build: (w) => scatter(w, { Ne: 56 }, 0.4, 0.42),
+    },
+    hbond: {
+      icon: '🔗', label: '⑯ 수소결합(물 네트워크)', spawnT: 5, thermo: [true, 5],
+      observe: '온전한 물 분자들 사이에 방향성 약결합(H-결합·청록 점선)이 네트워크를 이룬다 — 각 ~160°, 공유결합(회색 실선)보다 훨씬 약하다.',
+      build: (w) => { Pg.enableHBond(w); return Pg.buildWaterCluster(w, 8, w.box.L.x / 2, w.box.L.y / 2, 3.2); },
+    },
+    hotgas: {
+      icon: '🌡', label: '⑳ 뜨거운 기체(이온화)', spawnT: 60, thermo: [true, 60],
+      observe: '뜨거운 Na·Cl 충돌로 전자 이전 이온화가 빈발 — Na⁺(주황)·Cl⁻(청록) 전하 링이 계속 나타났다 명멸(격자로 못 정착·피드에 "이온화" 사건).',
+      build: (w) => scatter(w, { Na: 10, Cl: 10 }, 0.6, 0.4),
+    },
+    fire: {
+      icon: '🔥', label: '⑱ 연소·불', spawnT: 30, thermo: [false],
+      observe: '연료(H·O)가 결합해 준안정. 자동 점화 후 발열이 열지도로 번진다 — 🔥·E 로 재점화 가능.',
+      build: (w) => scatter(w, { H: 26, O: 9 }, 0.3, 0.5),
+      trigger: [{ at: 4, fn: (w) => { Pg.heatPulse(w, w.box.L.x / 2, w.box.L.y / 2, 5, 3.0, dim === 3 ? w.box.L.z / 2 : undefined); feedMsg('fis', '🔥 자동 점화 — 중심 광역 가열'); } }],
+    },
+    fission: {
+      icon: '☢', label: '㉕ 핵분열', spawnT: 5, thermo: [false],
+      observe: '중성자가 U 에 명중 → 분열 섬광·파편(Ba+Kr)+중성자 방출, 연쇄로 번진다.',
+      build: (w) => scatter(w, { U: 6 }, 0.05, 0.22),
+      trigger: [{ at: 1.5, fn: (w) => { injectNeutron(w, 2, w.box.L.y / 2, w.box.L.x / 2, w.box.L.y / 2, 7); feedMsg('fis', '🔫 중성자 주입 → 분열 유도'); } }],
+    },
+    fusion: {
+      icon: '☀', label: '㉖ 핵융합', spawnT: 100, thermo: [true, 200],
+      observe: '초고온 H 를 자동 점화로 장벽 이상까지 가열 → H+H→He+n 융합 섬광, 중성자 고속 방출 (E 로 재점화하면 더 격렬).',
+      build: (w) => scatter(w, { H: 18 }, 1.0, 0.5),
+      trigger: [1.0, 2.0, 3.0, 4.0, 5.0, 6.0].map((at) => ({ at, fn: (w) => { Pg.heatPulse(w, w.box.L.x / 2, w.box.L.y / 2, 9, 3.5, dim === 3 ? w.box.L.z / 2 : undefined); feedMsg('fis', '☀ 자동 점화 — 융합 장벽 넘기기'); } })),
+    },
+  };
+
+  function applyPreset(key) {
+    const P = PRESETS[key];
+    if (!P) return;
+    rebuild();                                                 // 새 세계 (현재 차원)
+    if (dim === 2) { obs.x = 2; obs.y = 2; obs.yaw = Math.atan2(11, 11); }   // 관찰자를 구석으로 (시야 확보)
+    spTEl.value = P.spawnT;                                    // 수동 소환 T 도 프리셋에 맞춤
+    setThermo(P.thermo[0], P.thermo[1]);
+    const ok = P.build(world);
+    snap = Pg.snapshot(world);                                 // 사건 diff 기준선 리셋 (형성 사건이 보이도록)
+    pending.length = 0;
+    if (P.trigger) for (const t of P.trigger) pending.push({ at: world.t + t.at, fn: t.fn });
+    feedMsg('sys', `🎬 프리셋 「${P.label}」 — 입자 ${ok}개 · 소환T ${(P.spawnT / 100).toFixed(2)}${P.thermo[0] ? ` · 항온조 ${(P.thermo[1] / 100).toFixed(2)}` : ''}`);
+    document.getElementById('info').innerHTML =
+      `<b>${P.icon} ${P.label}</b><br><span class="k">${P.observe}</span>`;
+    document.querySelectorAll('#presetRow button').forEach((b) => b.classList.toggle('on', b.dataset.preset === key));
+  }
+  // 프리셋 버튼 생성 (scene 순서)
+  (function () {
+    const prow = document.getElementById('presetRow');
+    for (const key in PRESETS) {
+      const P = PRESETS[key], b = document.createElement('button');
+      b.dataset.preset = key; b.textContent = `${P.icon} ${P.label}`; b.title = P.observe;
+      b.onclick = () => applyPreset(key);
+      prow.appendChild(b);
+    }
+  })();
+
   // ── 사건 피드 ──
   const feed = document.getElementById('feed');
   function feedMsg(kind, msg) {
@@ -506,6 +637,18 @@
       const pa = project(a.r), pb = project(b.r);
       ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 1.5 * bd.order;
       ctx.beginPath(); ctx.moveTo(pa.x, pa.y); ctx.lineTo(pb.x, pb.y); ctx.stroke();
+    }
+    // ⑯ 수소 결합 (청록 점선) — hbAcc 모드(수소결합 프리셋)일 때만. 실결합과 구분.
+    if (window.HktS0HBond && world.hbAcc) {
+      const hbs = window.HktS0HBond.detect(world, { thetaHb: 120 });
+      ctx.setLineDash([2, 4]); ctx.strokeStyle = 'rgba(90,200,255,0.6)'; ctx.lineWidth = 1.2;
+      for (const h of hbs) {
+        const H = world.atomById(h.H), A = world.atomById(h.A);
+        if (!H || !A) continue;
+        const pH = project(H.r), pA = project(A.r);
+        ctx.beginPath(); ctx.moveTo(pH.x, pH.y); ctx.lineTo(pA.x, pA.y); ctx.stroke();
+      }
+      ctx.setLineDash([]);
     }
     // 원자 (3D: depth 정렬·원근 크기·뒤 어둡게)
     const sc2 = cv.width / L.x;
@@ -674,7 +817,11 @@
     if (!paused) {
       const speed = +document.getElementById('speed').value;
       for (let k = 0; k < speed; k++) Pg.tick(world);
-      if (thermoOn) Pg.thermostat(world, +document.getElementById('thT').value / 100, 0.06);
+      if (thermoOn) Pg.thermostat(world, +document.getElementById('thT').value / 100, world.thermoK || 0.06);
+      if (pending.length) {                                     // 프리셋 예약 트리거 (자동 점화·중성자 주입)
+        for (const s of pending) if (world.t >= s.at) { s.fn(world); s.fired = true; }
+        if (pending.some((s) => s.fired)) pending = pending.filter((s) => !s.fired);
+      }
       while (world.pgEvents.length) feedMsg('fis', world.pgEvents.shift());
       if (++frameCount % 5 === 0) {
         const r = Pg.diffEvents(world, snap);
