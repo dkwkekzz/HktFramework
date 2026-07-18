@@ -54,11 +54,11 @@
     <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
       그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
       <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
-      <kbd>WASD/←↑↓→</kbd> 수평 이동 · <kbd>X</kbd> <kbd>C</kbd> 좌우 회전 · <kbd>T</kbd> <kbd>G</kbd> 시선 상하각 ·
-      <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 · <kbd>Space</kbd>/<kbd>클릭</kbd> forward 소환 · <kbd>F</kbd> 중성자 발사 ·
+      <kbd>WASD/←↑↓→</kbd> 수평 이동 · <kbd>X</kbd> <kbd>C</kbd> 던지는 방향 좌우 · <kbd>T</kbd> <kbd>G</kbd> 던지는 상하각 ·
+      <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 · <kbd>Space</kbd>/<kbd>클릭</kbd> 화살표 방향 소환 · <kbd>F</kbd> 중성자 발사 ·
       <kbd>[</kbd> <kbd>]</kbd> 원소 순회 · <kbd>1~8</kbd> 빠른 선택 · <kbd>E</kbd> 가열 · <kbd>V</kbd> 냉각 ·
-      <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 · 3D 에서 <kbd>드래그</kbd> 카메라·<kbd>휠</kbd> 줌
-      (이동/줌 속도는 우측 슬라이더로 조절)</p>
+      <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 · 3D 에서 <kbd>드래그</kbd> 조준·<kbd>휠</kbd> 줌
+      — <b>노란 화살표 = 던지는 방향</b> (이동/줌은 우측 슬라이더)</p>
 
     <div id="pt"></div>
     <div id="ptf"></div>
@@ -134,13 +134,14 @@
   const MAXN = 200;   // O(N²) 성능 가드
 
   let world, snap, sel = 'H', paused = false, dim = 2, thermoOn = false;
-  // cam.pitch=상하 시선, cam.dist=카메라 거리(줌). 수평 회전(yaw)은 캐릭터 obs.yaw 를 따르는 3인칭 팔로 카메라.
-  const cam = { pitch: 0.35, dist: 1.0 };
-  const EYE = 0.9;            // 관찰자 눈높이 (지형 표면 위)
+  // cam.dist=카메라 거리(줌). cam.pitch=고정 프레이밍(조준과 독립 → 조준을 바꾸면 화살표가 화면에서 움직인다).
+  const cam = { pitch: 0.18, dist: 1.0 };
+  const CAM_PITCH = 0.18;    // 카메라 상하 프레이밍 (고정) — 살짝 내려봐 지면이 보이게
+  const EYE = 0.9;           // 관찰자 눈높이 (지형 표면 위)
   let terrain = null;        // 3D 지형 높이장 (rebuild 에서 생성)
   // 관찰자 — 표현층 아바타 (물리 개체 아님·소환/펄스는 주입 장부로 회계)
-  // yaw: 캐릭터가 바라보는 수평 방향각(= 던지는 방향의 수평 성분). 3D 는 지형 위를 걷는다.
-  const obs = { x: 13, y: 13, z: 13, yaw: -Math.PI / 2 };
+  // yaw=던지는 방향의 수평각, aimPitch=던지는 상하각. 이 둘이 곧 "던지는 방향"이며 화살표로 표시된다.
+  const obs = { x: 13, y: 13, z: 13, yaw: -Math.PI / 2, aimPitch: 0 };
   const keys = {};
   const histT = [], histP = [];
 
@@ -156,9 +157,9 @@
     const L = world.box.L;
     if (dim === 3) {
       terrain = makeTerrain(L);
-      obs.x = L.x / 2; obs.z = L.z / 2; obs.yaw = 0;
+      obs.x = L.x / 2; obs.z = L.z / 2; obs.yaw = 0; obs.aimPitch = 0;
       obs.y = terrainH() + EYE;                               // 평평한 지형 위에 선다
-      cam.pitch = 0.32; cam.dist = +document.getElementById('zoom').value / 100;
+      cam.pitch = CAM_PITCH; cam.dist = +document.getElementById('zoom').value / 100;
     } else {
       terrain = null;
       obs.x = 13; obs.y = 13; obs.z = 0; obs.yaw = -Math.PI / 2;
@@ -212,12 +213,6 @@
     const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
     return { x: x1, y: y * cp - z1 * sp, z: y * sp + z1 * cp };
   }
-  function invRot(x, y, z) {                                  // 카메라 → 세계
-    const cp = Math.cos(cam.pitch), sp = Math.sin(cam.pitch);
-    const y1 = y * cp + z * sp, z1 = -y * sp + z * cp;
-    const cy = Math.cos(obs.yaw), sy = Math.sin(obs.yaw);
-    return { x: x * cy - z1 * sy, y: y1, z: x * sy + z1 * cy };
-  }
   function project(r) {
     const L = world.box.L;
     if (dim === 2) return { x: r.x / L.x * cv.width, y: r.y / L.y * cv.height, persp: 1, depth: 0 };
@@ -262,11 +257,11 @@
     cam.dist = d; zoomEl.value = Math.round(d * 100);
   }, { passive: false });
   cv.addEventListener('mousemove', (e) => {
-    // 3D: 드래그로 카메라 회전 — 좌우=캐릭터 yaw(바라보는 방향), 상하=시선 pitch(던지는 상하각).
+    // 3D: 드래그로 던지는 방향 조준 — 좌우=수평 yaw, 상하=상하각 aimPitch (위로 끌면 위로 조준).
     if (drag && dim === 3 && (drag.moved || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6)) {
       drag.moved = true;
       obs.yaw += (e.clientX - drag.x) * 0.008;
-      cam.pitch = Math.min(1.4, Math.max(-1.4, cam.pitch + (e.clientY - drag.y) * 0.008));
+      obs.aimPitch = Math.min(1.2, Math.max(-0.9, obs.aimPitch - (e.clientY - drag.y) * 0.006));
       drag.x = e.clientX; drag.y = e.clientY;
     }
   });
@@ -280,11 +275,12 @@
     doSpawn();                                               // 클릭 = forward 방향 소환
   });
 
-  // 캐릭터 forward (단위 벡터) — 2D: yaw 각 · 3D: 카메라 시선(yaw+pitch) invRot(0,0,1)
+  // 던지는 방향(단위 벡터) — 2D: yaw · 3D: yaw(수평) + aimPitch(상하). 카메라 축과 독립 → 화살표로 보인다.
   function fwd() {
     if (dim === 2) return { x: Math.cos(obs.yaw), y: Math.sin(obs.yaw), z: 0 };
-    const f = invRot(0, 0, 1), d = Math.hypot(f.x, f.y, f.z) || 1;
-    return { x: f.x / d, y: f.y / d, z: f.z / d };
+    const cy = Math.cos(obs.yaw), sy = Math.sin(obs.yaw);
+    const cp = Math.cos(obs.aimPitch), sp = Math.sin(obs.aimPitch);
+    return { x: -sy * cp, y: sp, z: cy * cp };                // aimPitch=0 → 지면 전방, +→ 위로
   }
   // 손 위치 — 캐릭터 바로 앞 (forward 방향 1.4)
   function handPos() {
@@ -509,29 +505,46 @@
       const pr = project({ x: g.cx, y: g.cy, z: g.cz != null ? g.cz : 0 });
       ctx.fillText(Pg.formula(g.comp), pr.x, pr.y - 12);
     }
-    // 관찰자 로버 + forward 화살표 + 손 십자 (조준=캐릭터 forward)
-    const f = fwd();
-    const po = project(dim === 3 ? { x: obs.x, y: obs.y, z: obs.z } : { x: obs.x, y: obs.y, z: 0 });
-    const aheadW = { x: obs.x + f.x * 3, y: obs.y + f.y * 3, z: dim === 3 ? obs.z + f.z * 3 : 0 };
-    const pa2 = project(dim === 3 ? aheadW : { x: aheadW.x, y: aheadW.y, z: 0 });
+    // ── 관찰자 로버 + "던지는 방향" 화살표(조준 궤적) ──
+    const f = fwd(), is3 = dim === 3;
+    const P = (d) => project(is3
+      ? { x: obs.x + f.x * d, y: obs.y + f.y * d, z: obs.z + f.z * d }
+      : { x: obs.x + f.x * d, y: obs.y + f.y * d, z: 0 });
+    const po = P(0), AIMLEN = 6, N = 20, pts = [];
+    for (let i = 0; i <= N; i++) pts.push(P(0.5 + (AIMLEN - 0.5) * i / N));
+    // 조준 궤적 (점선) — 던진 원소가 날아갈 직선 경로
+    ctx.strokeStyle = 'rgba(255,183,60,0.5)'; ctx.lineWidth = 2; ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(pts[0].x, pts[0].y);
+    for (const p of pts) ctx.lineTo(p.x, p.y);
+    ctx.stroke(); ctx.setLineDash([]);
+    // 두꺼운 화살대
+    const tip = pts[N], back = pts[N - 2];
+    ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.beginPath(); ctx.moveTo(po.x, po.y); ctx.lineTo(tip.x, tip.y); ctx.stroke();
+    // 화살촉 (채움)
+    const ax = tip.x - back.x, ay = tip.y - back.y, al = Math.hypot(ax, ay) || 1, ux = ax / al, uy = ay / al, hs = 12;
+    ctx.fillStyle = '#ffd75f'; ctx.beginPath();
+    ctx.moveTo(tip.x, tip.y);
+    ctx.lineTo(tip.x - ux * hs - uy * hs * 0.55, tip.y - uy * hs + ux * hs * 0.55);
+    ctx.lineTo(tip.x - ux * hs + uy * hs * 0.55, tip.y - uy * hs - ux * hs * 0.55);
+    ctx.closePath(); ctx.fill();
+    // 조준 표적 링
+    ctx.strokeStyle = '#ffb73c'; ctx.lineWidth = 1.5;
+    ctx.beginPath(); ctx.arc(tip.x, tip.y, 5 * (tip.persp || 1), 0, 2 * Math.PI); ctx.stroke();
+    // 캐릭터 로버
     ctx.beginPath(); ctx.arc(po.x, po.y, 9, 0, 2 * Math.PI);
     ctx.fillStyle = '#1c2128'; ctx.fill();
     ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 2; ctx.stroke();
-    // forward 방향 화살표 (던지는 방향)
-    ctx.strokeStyle = '#ffd75f'; ctx.lineWidth = 2;
-    ctx.beginPath(); ctx.moveTo(po.x, po.y); ctx.lineTo(pa2.x, pa2.y); ctx.stroke();
-    const ax = pa2.x - po.x, ay = pa2.y - po.y, al = Math.hypot(ax, ay) || 1, ux = ax / al, uy = ay / al;
-    ctx.beginPath();                                          // 화살촉
-    ctx.moveTo(pa2.x, pa2.y);
-    ctx.lineTo(pa2.x - ux * 6 - uy * 4, pa2.y - uy * 6 + ux * 4);
-    ctx.moveTo(pa2.x, pa2.y);
-    ctx.lineTo(pa2.x - ux * 6 + uy * 4, pa2.y - uy * 6 - ux * 4);
-    ctx.stroke();
-    const h = handPos();
-    const ph = project(dim === 3 ? h : { x: h.x, y: h.y, z: 0 });
-    ctx.strokeStyle = '#ffd75f66'; ctx.lineWidth = 1;
+    // 소환 지점(손) 십자
+    const ph = project(is3 ? handPos() : { x: handPos().x, y: handPos().y, z: 0 });
+    ctx.strokeStyle = '#ffd75f88'; ctx.lineWidth = 1;
     ctx.beginPath(); ctx.moveTo(ph.x - 5, ph.y); ctx.lineTo(ph.x + 5, ph.y);
     ctx.moveTo(ph.x, ph.y - 5); ctx.lineTo(ph.x, ph.y + 5); ctx.stroke();
+    // 조준 상하각 라벨 (3D)
+    if (is3) {
+      ctx.fillStyle = '#ffb73c'; ctx.font = '10px ui-monospace'; ctx.textAlign = 'left';
+      ctx.fillText(`조준 ${(obs.aimPitch * 57.3).toFixed(0)}°`, po.x + 12, po.y - 11);
+    }
     ctx.textAlign = 'start';
   }
 
@@ -577,11 +590,11 @@
   function moveObserver() {
     const L = world.box.L, turn = 0.03, pitchRate = 0.03;
     const v = 0.14 * (+document.getElementById('moveSpd').value / 100);   // 이동 속도 (슬라이더)
-    if (keys.x) obs.yaw -= turn;                              // X: 좌회전 (각도 조절)
+    if (keys.x) obs.yaw -= turn;                              // X: 좌회전 (던지는 방향 수평)
     if (keys.c) obs.yaw += turn;                              // C: 우회전
-    if (dim === 3) {                                          // T/G: 시선 상하각 (던지는 각도)
-      if (keys.t) cam.pitch = Math.min(1.4, cam.pitch + pitchRate);
-      if (keys.g) cam.pitch = Math.max(-1.4, cam.pitch - pitchRate);
+    if (dim === 3) {                                          // T/G: 던지는 상하각
+      if (keys.t) obs.aimPitch = Math.min(1.2, obs.aimPitch + pitchRate);
+      if (keys.g) obs.aimPitch = Math.max(-0.9, obs.aimPitch - pitchRate);
     }
     if (dim === 2) {
       // 2D: 카메라 회전이 없으므로 방향키 = 세계 축. 이동 방향으로 yaw(=forward) 갱신.
