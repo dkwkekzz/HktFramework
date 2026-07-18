@@ -54,10 +54,11 @@
     <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
       그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
       <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
-      <kbd>WASD/←↑↓→</kbd> 지형 위 수평 이동 · <kbd>X</kbd> <kbd>C</kbd> 좌우 회전 · <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 ·
-      <kbd>Space</kbd>/<kbd>클릭</kbd> forward 소환 · <kbd>F</kbd> 중성자 발사 · <kbd>[</kbd> <kbd>]</kbd> 원소 순회 ·
-      <kbd>1~8</kbd> 빠른 선택 · <kbd>E</kbd> 가열 · <kbd>V</kbd> 냉각 · <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 ·
-      3D 에서 <kbd>드래그</kbd> 카메라(좌우=방향·상하=시선)</p>
+      <kbd>WASD/←↑↓→</kbd> 수평 이동 · <kbd>X</kbd> <kbd>C</kbd> 좌우 회전 · <kbd>T</kbd> <kbd>G</kbd> 시선 상하각 ·
+      <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 · <kbd>Space</kbd>/<kbd>클릭</kbd> forward 소환 · <kbd>F</kbd> 중성자 발사 ·
+      <kbd>[</kbd> <kbd>]</kbd> 원소 순회 · <kbd>1~8</kbd> 빠른 선택 · <kbd>E</kbd> 가열 · <kbd>V</kbd> 냉각 ·
+      <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 · 3D 에서 <kbd>드래그</kbd> 카메라·<kbd>휠</kbd> 줌
+      (이동/줌 속도는 우측 슬라이더로 조절)</p>
 
     <div id="pt"></div>
     <div id="ptf"></div>
@@ -69,6 +70,8 @@
       <label>속도</label><input id="speed" type="range" min="1" max="10" value="3" />
       <label>소환 T</label><input id="spT" type="range" min="0" max="150" value="30" />
       <label>던지기</label><input id="throw" type="range" min="0" max="200" value="60" />
+      <label title="관찰자 이동 속도">이동</label><input id="moveSpd" type="range" min="20" max="300" value="120" />
+      <label title="3D 카메라 거리 — 휠로도 조절">줌</label><input id="zoom" type="range" min="35" max="300" value="100" />
       <button id="clear">🗑 초기화</button>
     </div>
     <div class="row">
@@ -131,8 +134,8 @@
   const MAXN = 200;   // O(N²) 성능 가드
 
   let world, snap, sel = 'H', paused = false, dim = 2, thermoOn = false;
-  // cam.pitch 만 카메라(상하 시선). 수평 회전(yaw)은 캐릭터 obs.yaw 를 따르는 3인칭 팔로 카메라.
-  const cam = { pitch: 0.35 };
+  // cam.pitch=상하 시선, cam.dist=카메라 거리(줌). 수평 회전(yaw)은 캐릭터 obs.yaw 를 따르는 3인칭 팔로 카메라.
+  const cam = { pitch: 0.35, dist: 1.0 };
   const EYE = 0.9;            // 관찰자 눈높이 (지형 표면 위)
   let terrain = null;        // 3D 지형 높이장 (rebuild 에서 생성)
   // 관찰자 — 표현층 아바타 (물리 개체 아님·소환/펄스는 주입 장부로 회계)
@@ -141,21 +144,10 @@
   const keys = {};
   const histT = [], histP = [];
 
-  // ── 지형 (3D 무대) — 몇 개의 사인파 합으로 임의의 완만한 언덕 높이장 ──
-  function makeTerrain(L) {
-    const waves = [];
-    for (let k = 0; k < 4; k++) waves.push({
-      ax: 0.22 + Math.random() * 0.55, az: 0.22 + Math.random() * 0.55,
-      px: Math.random() * 6.283, pz: Math.random() * 6.283, amp: 2.2 / (k + 1),
-    });
-    return { waves, base: L.y * 0.14 };
-  }
-  function terrainH(x, z) {                                   // (x,z) 지점의 지형 표면 높이 y
-    if (!terrain || dim !== 3) return 0;
-    let y = terrain.base;
-    for (const w of terrain.waves) y += w.amp * Math.sin(w.ax * x + w.px) * Math.cos(w.az * z + w.pz);
-    const L = world.box.L;
-    return Math.min(L.y * 0.55, Math.max(0.4, y));
+  // ── 지형 (3D 무대) — 평평한 바닥 평면. (x,z) 어디서나 같은 높이) ──
+  function makeTerrain(L) { return { base: L.y * 0.14 }; }
+  function terrainH() {                                       // 지형 표면 높이 y (평면 → 상수)
+    return (terrain && dim === 3) ? terrain.base : 0;
   }
 
   function rebuild() {
@@ -165,8 +157,8 @@
     if (dim === 3) {
       terrain = makeTerrain(L);
       obs.x = L.x / 2; obs.z = L.z / 2; obs.yaw = 0;
-      obs.y = terrainH(obs.x, obs.z) + EYE;                   // 지형 위에 선다
-      cam.pitch = 0.32;
+      obs.y = terrainH() + EYE;                               // 평평한 지형 위에 선다
+      cam.pitch = 0.32; cam.dist = +document.getElementById('zoom').value / 100;
     } else {
       terrain = null;
       obs.x = 13; obs.y = 13; obs.z = 0; obs.yaw = -Math.PI / 2;
@@ -231,7 +223,7 @@
     if (dim === 2) return { x: r.x / L.x * cv.width, y: r.y / L.y * cv.height, persp: 1, depth: 0 };
     // 관찰자 기준(팔로 카메라): 세계를 관찰자 원점으로 옮기고 회전. 카메라는 뒤로 camDist.
     const v = rot(r.x - obs.x, r.y - obs.y, r.z - obs.z);
-    const span = Math.max(L.x, L.y, L.z), camDist = span * 0.85;
+    const span = Math.max(L.x, L.y, L.z), camDist = span * 0.8 * cam.dist;
     const zc = v.z + camDist, f = span * 1.7;
     const persp = Math.max(0.15, Math.min(3, f / (f + zc)));
     const sc = Math.min(cv.width, cv.height) / (span * 1.35);
@@ -261,6 +253,14 @@
     const b = cv.getBoundingClientRect();
     drag = { x: e.clientX, y: e.clientY, moved: false };
   });
+  const zoomEl = document.getElementById('zoom');
+  zoomEl.oninput = () => { cam.dist = +zoomEl.value / 100; };  // 슬라이더 → 줌
+  cv.addEventListener('wheel', (e) => {                        // 휠 → 줌 (슬라이더와 동기)
+    if (dim !== 3) return;
+    e.preventDefault();
+    const d = Math.min(3, Math.max(0.35, cam.dist * (e.deltaY > 0 ? 1.1 : 0.9)));
+    cam.dist = d; zoomEl.value = Math.round(d * 100);
+  }, { passive: false });
   cv.addEventListener('mousemove', (e) => {
     // 3D: 드래그로 카메라 회전 — 좌우=캐릭터 yaw(바라보는 방향), 상하=시선 pitch(던지는 상하각).
     if (drag && dim === 3 && (drag.moved || Math.hypot(e.clientX - drag.x, e.clientY - drag.y) > 6)) {
@@ -575,9 +575,14 @@
   }
 
   function moveObserver() {
-    const L = world.box.L, v = 0.14, turn = 0.03;
+    const L = world.box.L, turn = 0.03, pitchRate = 0.03;
+    const v = 0.14 * (+document.getElementById('moveSpd').value / 100);   // 이동 속도 (슬라이더)
     if (keys.x) obs.yaw -= turn;                              // X: 좌회전 (각도 조절)
     if (keys.c) obs.yaw += turn;                              // C: 우회전
+    if (dim === 3) {                                          // T/G: 시선 상하각 (던지는 각도)
+      if (keys.t) cam.pitch = Math.min(1.4, cam.pitch + pitchRate);
+      if (keys.g) cam.pitch = Math.max(-1.4, cam.pitch - pitchRate);
+    }
     if (dim === 2) {
       // 2D: 카메라 회전이 없으므로 방향키 = 세계 축. 이동 방향으로 yaw(=forward) 갱신.
       let mx = 0, my = 0;
