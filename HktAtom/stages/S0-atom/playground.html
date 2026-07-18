@@ -53,7 +53,7 @@
     <h1>관찰자 샌드박스 — 원소를 소환해 반응을 관찰한다</h1>
     <p class="sub">주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
       그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
-      <b>핵분열(㉕ 동형·U+n→Ba+Kr+2n+Q)</b>.
+      <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
       <kbd>WASD/←↑↓→</kbd> 이동 · <kbd>클릭</kbd>/<kbd>Space</kbd> 소환 · <kbd>F</kbd> 중성자 발사 ·
       <kbd>E</kbd> 가열 · <kbd>Q</kbd> 냉각 · <kbd>P</kbd> 일시정지 · <kbd>R</kbd> 초기화 ·
       3D 에서 <kbd>드래그</kbd> 회전</p>
@@ -81,9 +81,11 @@
       <label>키트</label>
       <button data-kit="water">물 (16H+8O)</button>
       <button data-kit="salt">소금 (6Na+6Cl)</button>
+      <button data-kit="nawater">💥 Na+물 (12H+6O+3Na)</button>
       <button data-kit="methane">메탄 (2C+8H)</button>
       <button data-kit="noble">비활성 (10Ne)</button>
       <button data-kit="fuel">☢ 핵연료 (6U)</button>
+      <button data-kit="hfuel">☀ 수소 연료 (14H)</button>
       <button data-kit="ngun">🔫 중성자 발사</button>
       <button data-kit="fire">🔥 점화 (광역 가열)</button>
     </div>
@@ -96,7 +98,7 @@
       <tr><td class="k">주입 E</td><td class="v" id="stE">0</td>
           <td class="k">잔차</td><td class="v resid ok" id="stR">0</td>
           <td class="k">핵에너지</td><td class="v" id="stNuc">0</td>
-          <td class="k">분열</td><td class="v" id="stF">0</td></tr>
+          <td class="k">분열·융합</td><td class="v" id="stF">0·0</td></tr>
       <tr><td class="k">분자</td><td class="v" id="stM" colspan="7">—</td></tr>
     </table>
 
@@ -272,7 +274,8 @@
   function fireNeutron() {                                   // 중성자 총 — 조준 방향 고속 사출
     if (world.atoms.length >= MAXN) return;
     const h = handPos();
-    const dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, dz = dim === 3 ? obs.aimz - obs.z : 0;
+    let dx = obs.aimx - obs.x, dy = obs.aimy - obs.y, dz = dim === 3 ? obs.aimz - obs.z : 0;
+    if (Math.hypot(dx, dy, dz) < 0.3) { dx = 1; dy = 0; dz = 0; }   // 조준점=관찰자 → +x 폴백
     const d = Math.hypot(dx, dy, dz) || 1;
     const v = 7;                                             // 발사 속도 (관찰 도구)
     const a = Pg.spawn(world, 'n', h.x, h.y, { T: 0, z: dim === 3 ? h.z : undefined,
@@ -315,16 +318,18 @@
   // ── 키트 (소환 매크로 — 관찰자 주변 배치) ──
   const KITS = {
     water: { list: () => rep({ O: 8, H: 16 }), msg: '물 재료 — 냉각/항온조 저T 로 어닐링하면 H₂O 우세' },
-    salt: { list: () => rep({ Na: 6, Cl: 6 }), msg: '소금 재료 — 접촉 시 전자 이전 → Na⁺Cl⁻' },
+    salt: { list: () => rep({ Na: 6, Cl: 6 }), msg: '소금 재료 — 접촉 시 전자 이전 → Na⁺Cl⁻ (발열 분출)' },
+    nawater: { list: () => rep({ O: 6, H: 12, Na: 3 }), msg: '💥 Na+물 — 전자 이전 발열 → 국소 폭주 (열지도 확인)' },
     methane: { list: () => rep({ C: 2, H: 8 }), msg: '메탄 재료 — C 는 4가 허브' },
     noble: { list: () => rep({ Ne: 10 }), msg: '비활성 대조 — 결합 0·분산 응집만' },
     fuel: { list: () => rep({ U: 6 }), msg: '☢ 핵연료 — 중성자(F)를 쏘면 분열 연쇄·폭발' },
+    hfuel: { list: () => rep({ H: 14 }), msg: '☀ 수소 연료 — 점화 연타/항온조 고T 로 초고온 → 융합 He+n' },
   };
   function rep(counts) { const out = []; for (const k in counts) for (let i = 0; i < counts[k]; i++) out.push(k); return out; }
   document.querySelectorAll('[data-kit]').forEach((b) => {
     b.onclick = () => {
       const kit = b.dataset.kit;
-      if (kit === 'fire') { const h = handPos(); const n = Pg.heatPulse(world, h.x, h.y, 8, 1.8, dim === 3 ? h.z : undefined); feedMsg('sys', `🔥 점화 — 광역 가열 ×1.8 (${n}개)`); return; }
+      if (kit === 'fire') { const h = handPos(); const n = Pg.heatPulse(world, h.x, h.y, 8, 2.5, dim === 3 ? h.z : undefined); feedMsg('sys', `🔥 점화 — 광역 가열 ×2.5 (${n}개)`); return; }
       if (kit === 'ngun') { fireNeutron(); return; }
       const K = KITS[kit], list = K.list(), T = +document.getElementById('spT').value / 100;
       let ok = 0;
@@ -488,10 +493,11 @@
     document.getElementById('stB').textContent = world.bonds.length;
     document.getElementById('stE').textContent = world.pgIn.E.toFixed(1);
     document.getElementById('stNuc').textContent = world.ledger.E_nuclear.toFixed(1);
-    document.getElementById('stF').textContent = world.pgFisCount;
+    document.getElementById('stF').textContent = world.pgFisCount + '·' + world.pgFusCount;
     const res = Pg.residual(world), r = document.getElementById('stR');
     r.textContent = res.toFixed(3);
-    r.className = 'v resid ' + (Math.abs(res) < 0.1 ? 'ok' : 'bad');
+    // 허용 잔차 = max(0.1, 0.3%·주입 E) — 핵반응 고 KE 는 서브스텝 적분 드리프트가 에너지 규모에 비례
+    r.className = 'v resid ' + (Math.abs(res) < Math.max(0.1, 3e-3 * Math.abs(world.pgIn.E)) ? 'ok' : 'bad');
     const hist = {};
     for (const g of Pg.clusters(world)) { const f = Pg.formula(g.comp); hist[f] = (hist[f] || 0) + 1; }
     const top = Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 4)

@@ -1258,13 +1258,47 @@
       const Enuc0 = wf.ledger.E_nuclear;
       for (let k = 0; k < 8000; k++) Pg.tick(wf);
       const comp30 = wf.atoms.reduce((c, a) => { c[a.sp] = (c[a.sp] || 0) + 1; return c; }, {});
+      const relRes = Math.abs(Pg.residual(wf)) / Math.max(1, Math.abs(wf.pgIn.E));
       log.push({ ok: wf.pgFisCount >= 2 && (comp30.Ba || 0) >= 2 && (comp30.Kr || 0) >= 2 &&
-        Pg.compositionOK(wf) && Math.abs(Pg.residual(wf)) <= 0.1 && wf.ledger.E_nuclear < Enuc0,
+        Pg.compositionOK(wf) && relRes <= 2e-3 && wf.ledger.E_nuclear < Enuc0,
         name: 'PG·핵분열연쇄',
-        msg: `PG·핵분열 연쇄: 중성자 1발 → 분열 ${wf.pgFisCount}회 (ν=2 증식) · 파편 Ba ${comp30.Ba || 0}·Kr ${comp30.Kr || 0} · 전환 장부 Σc 정확 ${Pg.compositionOK(wf)} · 잔차 ${Pg.residual(wf).toExponential(2)} · E_nuclear ${Enuc0}→${wf.ledger.E_nuclear.toFixed(1)} (Δm·c² 회계 축약)` });
+        msg: `PG·핵분열 연쇄: 중성자 1발 → 분열 ${wf.pgFisCount}회 (ν=2 증식) · 파편 Ba ${comp30.Ba || 0}·Kr ${comp30.Kr || 0} · 전환 장부 Σc 정확 ${Pg.compositionOK(wf)} · 상대 잔차 ${relRes.toExponential(1)} ≤ 2e-3 (고 KE 서브스텝 드리프트) · E_nuclear ${Enuc0}→${wf.ledger.E_nuclear.toFixed(1)} (Δm·c² 회계 축약)` });
       // (4) 연소 행 합류: 카탈로그에 R-ABSTRACT (⑱ 라디칼 추상 — 발열 → K_tr 가열)
       log.push({ ok: wf.catalog.some((r) => r.id === 'R-ABSTRACT'), name: 'PG·연소행',
         msg: `PG·연소 합류: catalog=[${wf.catalog.map((r) => r.id).join(',')}] — R-ABSTRACT(⑱) 포함 (발열 반응이 K_tr 로 — 열폭발 경로)` });
+    }
+
+    // 31. 반응 체감 게이트 (step-0031) — 핵융합·알칼리+물 발열·위력 스케일
+    if (want(31)) {
+      // (1) 핵융합: 맨 H 정면 충돌(상대 KE 12 ≥ 장벽 4.5) → He+n+Q. 중성자가 KE 대부분(질량 역비).
+      let hitF = 0, vAfter = 0;
+      for (let s = 0; s < 5; s++) {
+        const w = Pg.buildPlayground({ rng: E.makeRng(200 + s), L: 16 });
+        Pg.spawn(w, 'H', 4, 8, { T: 0, px: 3.5 });
+        Pg.spawn(w, 'H', 12, 8, { T: 0, px: -3.5 });
+        for (let k = 0; k < 3000 && w.pgFusCount === 0; k++) Pg.tick(w);
+        if (w.pgFusCount > 0 && Pg.compositionOK(w) && Math.abs(Pg.residual(w)) < 0.1) {
+          hitF++;
+          for (const a of w.atoms) vAfter = Math.max(vAfter, Math.sqrt(E.V.lenSq(a.p)) / w.mass[a.sp]);
+        }
+      }
+      log.push({ ok: hitF >= 4 && vAfter >= 4, name: 'PG·핵융합',
+        msg: `PG·핵융합: H+H 정면 충돌 → He+n 융합 ${hitF}/5 런 (장벽 게이트 ${Pg.FUSION.barrier}·Q=${Pg.FUSION.Q}) · 방출 최고 속도 ${vAfter.toFixed(1)} ≥ 4 (중성자 질량 역비 — 위력 체감·Σc 전환 장부 정확)` });
+      // (2) 알칼리+물 격렬 반응: Na 를 O+2H 냉각 클러스터에 → 전자 이전 발열로 T 급등 (EA_CAP 2.5)
+      let hitNa = 0; const Tlog = [];
+      for (let s = 0; s < 5; s++) {
+        const w = Pg.buildPlayground({ rng: E.makeRng(300 + s), L: 12 });
+        Pg.spawn(w, 'O', 6, 6, { T: 0.1 }); Pg.spawn(w, 'H', 6.9, 6, { T: 0.1 });
+        Pg.spawn(w, 'H', 6, 6.9, { T: 0.1 }); Pg.spawn(w, 'Na', 5.1, 6, { T: 0.1 });
+        const T0 = M.temperature(w);
+        let q = 0;
+        for (let k = 0; k < 4000; k++) { Pg.tick(w); for (const a of w.atoms) q = Math.max(q, Math.abs(a.q)); }
+        const T1 = M.temperature(w);
+        Tlog.push(`${T0.toFixed(2)}→${T1.toFixed(2)}`);
+        if (q > 0 && T1 > 2 * T0 && Math.abs(Pg.residual(w)) < 0.05) hitNa++;
+      }
+      log.push({ ok: hitNa >= 4, name: 'PG·Na물발열',
+        msg: `PG·Na+물 발열: 전자 이전(EA_CAP ${Pg.EA_CAP}) → 이온화 + T 2배↑ ${hitNa}/5 런 [${Tlog.join(' ')}] — 발열이 KE 로 분출 (알칼리 격렬 반응 체감)` });
     }
 
     return log;

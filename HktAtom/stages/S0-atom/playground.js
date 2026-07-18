@@ -52,7 +52,9 @@
   };
   const DREF = 2.0;   // ⑩ 기준 우물 (O–H)
   const D_ANCHOR = { 'H-O': DREF, 'H-H': DREF * 436 / 463, 'O-O': DREF * 146 / 463 };  // ⑩ 실비
-  const EA_CAP = 0.6;      // 간이 Slater EA 과대 보정 (⑤ 가상 앵커 EA_An=0.6 규모 정합 — author 노브)
+  // EA 클램프 — 간이 Slater EA 과대 보정. step-0031: 0.6→2.5 (⑤ 규모 정합보다 반응 체감 우선 —
+  //   알칼리+음이온형 전자 이전이 ~2 규모 발열 → KE 분출이 눈에 보인다. 게임 노브·격차 등록).
+  const EA_CAP = 2.5;
   const D_PAULING_K = 0.25; // 폴링 이온성 보정 계수 (author 노브)
 
   const clamp = (x, lo, hi) => Math.min(hi, Math.max(lo, x));
@@ -160,19 +162,19 @@
       catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]),   // 공유+이온+연소(⑱ 라디칼 추상)
       specIon,
       rc: o.rc != null ? o.rc : 1.5,
-      nu_col: 1.0, nu_xfer: o.nu_xfer != null ? o.nu_xfer : 3.0,
+      nu_col: 1.0, nu_xfer: o.nu_xfer != null ? o.nu_xfer : 6.0,
       Dbond: DREF, d0: o.d0 != null ? o.d0 : 1.15, kbond: o.kbond != null ? o.kbond : 25,
       nu_cplx: 5, nu_rad: 0.5, nu_stab: 1.5, nu_diss: 2,
     });
-    world.nu_xfer = o.nu_xfer != null ? o.nu_xfer : 3.0;
+    world.nu_xfer = o.nu_xfer != null ? o.nu_xfer : 6.0;
     world.Dpair = Dpair;
     world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
     world.pgConv = {};        // 전환 장부: 분열 U+n→파편+νn (Σc 검사 = pgIn + pgConv)
     world.pgEvents = [];      // 사건 문자열 큐 (뷰어가 소비)
-    world.flashes = [];       // 분열 섬광 (뷰어 연출)
-    world.pgFisCount = 0;
+    world.flashes = [];       // 핵반응 섬광 (뷰어 연출)
+    world.pgFisCount = 0; world.pgFusCount = 0;
     world._meta = { name: 'pg-sandbox', L, dim: dim3 ? 3 : 2 };
     return world;
   }
@@ -236,10 +238,14 @@
     world.pgIn.c[sym] = (world.pgIn.c[sym] || 0) + 1;
     const fs = FISSILE[sym];
     if (fs) { world.ledger.E_nuclear += fs.Q; world.pgIn.E += fs.Q; }   // 저장 핵에너지 주입 (회계)
+    if (sym === FUSION.a) { world.ledger.E_nuclear += FUSION.Q / 2; world.pgIn.E += FUSION.Q / 2; }   // 수소=융합 연료
     return a;
   }
 
   // ── 가열/냉각 펄스 — 반경 R 안 원자의 p 를 factor 배. 증감 E 는 주입 장부에 기록 ──
+  //   VCAP: 도구 주입 속도 상한 — 점화 연타로 속도가 기하 누적되면 서브스텝 상한(48)으로도
+  //   적분이 폭발한다(실측 T~1e25 — 발견). 관찰자 도구는 |v| ≤ VCAP 까지만 가열 (핵반응 방출
+  //   속도 8~10 은 그대로 — 물리 아닌 도구의 한계·회계는 실측 증분이라 여전히 정확).
   function heatPulse(world, x, y, R, factor, z) {
     const E0 = E.totalEnergy(world);
     const fz = world.frozenZ;
@@ -247,12 +253,17 @@
     let n = 0;
     for (const a of world.atoms) {
       const dx = a.r.x - x, dy = a.r.y - y, dz = fz ? 0 : a.r.z - z;
-      if (dx * dx + dy * dy + dz * dz <= R * R) { a.p.x *= factor; a.p.y *= factor; if (!fz) a.p.z *= factor; n++; }
+      if (dx * dx + dy * dy + dz * dz > R * R) continue;
+      a.p.x *= factor; a.p.y *= factor; if (!fz) a.p.z *= factor;
+      const m = world.mass[a.sp] || 1, v = Math.sqrt(E.V.lenSq(a.p)) / m;
+      if (v > VCAP) { const s = VCAP / v; a.p.x *= s; a.p.y *= s; a.p.z *= s; }
+      n++;
     }
     const E1 = E.totalEnergy(world);
     world.pgIn.E += E1 - E0;
     return n;
   }
+  const VCAP = 12;   // 도구 주입 속도 상한 (서브스텝 안정 한계 안쪽)
 
   // ── 항온조 — 목표 T 로 부분 이완 (세기 k·호출당 배율 [0.7,1.4] 클램프). 넣고 뺀 열은 주입
   //   장부에 기록 (열역학 실험 도구 — 중성자는 제외: 빠른 중성자는 관찰 도구·문서화 한계).
@@ -286,8 +297,12 @@
   const NEUTRON = { sym: 'n', ve: 0, mass: 1.0, sigma: 0.45, eps: 0.15, radius: 0.16, color: '#aeb8c4' };
   const TAU_N = 80;      // 중성자 자유 수명 (시간 단위·지나면 소멸 — 회계는 E_escape·escaped)
   const FISSILE = {      // 가상 핵연료 (author — ㉕ NuclideTable 정신: 파편 2 + ν 중성자 + Q)
-    U: { frags: ['Ba', 'Kr'], nu: 2, Q: 30, nuFis: 25 },
+    U: { frags: ['Ba', 'Kr'], nu: 2, Q: 150, nuFis: 25 },   // step-0031: Q 30→150 (열운동 ≫ 위력 체감)
   };
+  // 핵융합 (㉖ 예고편·가상 무차원): 맨 H 둘이 장벽 이상의 상대 KE 로 충돌 → He + n + Q.
+  //   실 D-T 처럼 중성자가 KE 대부분을 갖는다(질량 역비 분배) → 고속 중성자가 U 분열을 촉발하는
+  //   커플링 창발. H 소환 시 Q/2 씩 E_nuclear 에 저장(수소=융합 연료) — 분열과 같은 저장·인출 회계.
+  const FUSION = { a: 'H', b: 'H', barrier: 4.5, Q: 40, products: ['He', 'n'], nuFus: 15 };
 
   function fission(world, aN, aU) {
     const spec = FISSILE[aU.sp];
@@ -343,8 +358,49 @@
     return true;
   }
 
-  // 분열 실행기 — tick 후단. 접촉 (n, 핵연료) 쌍을 hazard 로 샘플. 중성자 수명 소진도 처리.
-  function runFission(world) {
+  // 핵융합 apply: 맨 H 둘 → He + n. 분열과 같은 패턴 (COM 상속 + 방출쌍 반대 → P 정확·
+  //   E_nuclear −= 실측 ΔE → 총량 불변). 중성자가 KE 대부분(질량 역비)을 갖는다.
+  function fuse(world, a1, a2) {
+    if (world.ledger.E_nuclear < FUSION.Q * 0.5) return false;
+    const saveAtoms = world.atoms.slice();
+    const E0 = E.energyFull(world);
+    const pos = { x: (a1.r.x + a2.r.x) / 2, y: (a1.r.y + a2.r.y) / 2, z: (a1.r.z + a2.r.z) / 2 };
+    const pTot = { x: a1.p.x + a2.p.x, y: a1.p.y + a2.p.y, z: a1.p.z + a2.p.z };
+    world.atoms = world.atoms.filter((a) => a !== a1 && a !== a2);
+    const born = [];
+    const mk = (sym) => {
+      const spot = freeSpot(world, sym, pos.x, pos.y, pos.z);
+      if (!spot) return null;
+      const s = sym === 'n' ? NEUTRON : TABLE[sym];
+      const a = E.makeAtom(sym, E.V.make(spot.x, spot.y, spot.z), E.V.zero());
+      a.Z = s.ve || 0; a.ne = s.ve || 0;
+      if (sym === 'n') a.birth = world.t;
+      world.atoms.push(a); born.push(a); return a;
+    };
+    const pA = mk(FUSION.products[0]), pB = mk(FUSION.products[1]);
+    if (!pA || !pB) { world.atoms = saveAtoms; E.energyFull(world); return false; }
+    const mTot = born.reduce((s, a) => s + world.mass[a.sp], 0);
+    for (const a of born) { const f = world.mass[a.sp] / mTot; a.p.x = pTot.x * f; a.p.y = pTot.y * f; a.p.z = pTot.z * f; }
+    const ax = { x: pB.r.x - pA.r.x, y: pB.r.y - pA.r.y, z: pB.r.z - pA.r.z };
+    const al = Math.hypot(ax.x, ax.y, ax.z) || 1;
+    const mA = world.mass[pA.sp], mB = world.mass[pB.sp];
+    const pf = Math.sqrt(FUSION.Q * 2 * mA * mB / (mA + mB));          // 쌍 KE = Q (질량 역비 분배)
+    pA.p.x -= ax.x / al * pf; pA.p.y -= ax.y / al * pf; pA.p.z -= ax.z / al * pf;
+    pB.p.x += ax.x / al * pf; pB.p.y += ax.y / al * pf; pB.p.z += ax.z / al * pf;
+    const E1 = E.energyFull(world);
+    world.ledger.E_nuclear -= (E1 - E0);
+    const cv = world.pgConv;
+    cv[FUSION.a] = (cv[FUSION.a] || 0) - 2;
+    cv[FUSION.products[0]] = (cv[FUSION.products[0]] || 0) + 1;
+    cv[FUSION.products[1]] = (cv[FUSION.products[1]] || 0) + 1;
+    world.pgFusCount++;
+    world.flashes.push({ x: pos.x, y: pos.y, z: pos.z, t: world.t });
+    world.pgEvents.push(`☀ 핵융합! H + H → He + n (+Q=${FUSION.Q}·중성자가 KE 대부분)`);
+    return true;
+  }
+
+  // 핵 실행기 — tick 후단. 분열(접촉 n+핵연료)·융합(맨 H 쌍·장벽 게이트)·중성자 수명 처리.
+  function runNuclear(world) {
     const dt = world.dt, rng = world.rng, rc2 = world.rc * world.rc, fz = world.frozenZ;
     // 중성자 수명: τ 지나면 소멸 — escaped 로 회계 (Σc)·KE 는 E_escape 로 (E)
     for (const a of world.atoms.slice()) {
@@ -367,10 +423,45 @@
         if (rng() < 1 - Math.exp(-k * dt)) { if (fission(world, aN, aU)) break; }
       }
     }
+    // 융합 샘플: 맨(비결합) H 쌍이 접촉 + 상대 KE ≥ 장벽 (쿨롱 장벽의 게이트 근사 — 터널링은 ㉖)
+    for (let i = 0; i < atoms.length; i++) {
+      const a1 = atoms[i];
+      if (a1.sp !== FUSION.a || world.atoms.indexOf(a1) < 0 || E.bondCount(world, a1.id) > 0) continue;
+      for (let j = i + 1; j < atoms.length; j++) {
+        const a2 = atoms[j];
+        if (a2.sp !== FUSION.b || world.atoms.indexOf(a2) < 0 || E.bondCount(world, a2.id) > 0) continue;
+        const dx = a1.r.x - a2.r.x, dy = a1.r.y - a2.r.y, dz = fz ? 0 : a1.r.z - a2.r.z;
+        if (dx * dx + dy * dy + dz * dz > rc2) continue;
+        const m = world.mass[FUSION.a], mu = m / 2;
+        const vx = (a1.p.x - a2.p.x) / m, vy = (a1.p.y - a2.p.y) / m, vz = (a1.p.z - a2.p.z) / m;
+        if (0.5 * mu * (vx * vx + vy * vy + vz * vz) < FUSION.barrier) continue;   // 장벽 미달
+        if (rng() < 1 - Math.exp(-FUSION.nuFus * dt)) { if (fuse(world, a1, a2)) break; }
+      }
+    }
   }
+  const runFission = runNuclear;   // 하위 호환 별칭
 
-  // 편의 tick — 엔진 step + 분열 실행기 (뷰어·verify 공용)
-  function tick(world) { E.step(world); runFission(world); }
+  // 편의 tick — 엔진 step + 핵 실행기 (뷰어·verify 공용).
+  //   적응 서브스텝: 핵반응 파편·중성자(고 KE)가 r⁻¹² 척력 벽을 한 tick 에 관통하면 적분이
+  //   폭발한다(실측 잔차 1e37 — 발견). 최고 속도 기준으로 dt 를 쪼개 같은 물리를 촘촘히 적분
+  //   (이동 ≤ 0.01/서브스텝·상한 40). hazard 는 world.dt 를 읽으므로 통계적으로 동등.
+  function tick(world) {
+    let v2max = 0;
+    for (const a of world.atoms) {
+      const m = world.mass[a.sp] || 1;
+      const v2 = E.V.lenSq(a.p) / (m * m);
+      if (v2 > v2max) v2max = v2;
+    }
+    const sub = Math.min(48, Math.max(1, Math.ceil(Math.sqrt(v2max) * world.dt / 0.006)));
+    if (sub === 1) E.step(world);
+    else {
+      const dt0 = world.dt;
+      world.dt = dt0 / sub;
+      for (let i = 0; i < sub; i++) E.step(world);
+      world.dt = dt0;
+    }
+    runNuclear(world);
+  }
 
   // ── 회계 검사 — 세계 총량(장부 전 통 합) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
@@ -465,10 +556,10 @@
 
   const api = {
     SYM, TABLE, BY_Z, ANCHOR, D_ANCHOR, DREF, EA_CAP,
-    NEUTRON, FISSILE, TAU_N,
+    NEUTRON, FISSILE, FUSION, TAU_N, VCAP,
     element, dHomo, dPair, gridPos, freeSpot,
     buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
-    fission, runFission, tick, field,
+    fission, fuse, runFission, runNuclear, tick, field,
     snapshot, diffEvents, clusters, formula,
   };
   if (isNode) module.exports = api;
