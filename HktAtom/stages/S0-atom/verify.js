@@ -26,6 +26,7 @@
   const Mat = isNode ? require('./material.js') : window.HktS0Material;   // ㉒ MaterialModel (측정 EOS)
   const OUT = isNode ? require('./output.json') : window.HktS0Output;     // 발효된 출력 (v0.2)
   const Nu = isNode ? require('./nuclear.js') : window.HktS0Nuclear;      // ㉓~㉕ 핵 (게이트 G-핵)
+  const Pg = isNode ? require('./playground.js') : window.HktS0Playground; // 관찰자 샌드박스 (step-0029)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -1151,6 +1152,155 @@
         msg: `㉕·NuclideTable 발효: ν ${nt.nu}·Q ${nt.Q}·σ 밴드 ${nt.crossSections.bands.join('/')}·임계 스캔 ${nt.criticalScan.length}점 (중간 해상도 중성자 수송 파라미터·CONTRACT §5)` });
     }
 
+    // 29. 관찰자 샌드박스 (step-0029) — 전 원소 테이블·주입 장부 회계·상호작용 스모크
+    if (want(29)) {
+      // (1) 전 원소 종 전수: Z=1~118 이 전부 ③ 유도로 유효한 종이 된다 (기호 유일·물성 유한)
+      const seen = new Set();
+      let allOk = true, badMsg = '';
+      for (const s of Pg.BY_Z) {
+        const ok = s.mass >= 1 && s.sigma > 0 && s.sigma <= 2 && isFinite(s.IE) && s.IE > 0 &&
+          s.B >= 0 && s.chi >= 0.3 && s.chi <= 5 && !seen.has(s.sym) && /^#[0-9A-F]{6}$/i.test(s.color);
+        seen.add(s.sym);
+        if (!ok && allOk) { allOk = false; badMsg = `첫 위반 Z=${s.Z} ${s.sym}`; }
+      }
+      log.push({ ok: allOk && Pg.BY_Z.length === 118, name: 'PG·전원소',
+        msg: `PG·전 원소 ${Pg.BY_Z.length}종 유도 (③ fillZ/budget/IE — author 는 표기·노브만) ${allOk ? '전수 유효' : badMsg}` });
+
+      // (2) 주기성: 족의 얼굴이 유도값에서 반복된다 — 알칼리(1e·양이온형)·비활성(B0·역할0)·할로젠(음이온형)
+      const alk = [3, 11, 19, 37, 55, 87].every((Z) => Pg.BY_Z[Z - 1].ve === 1 && Pg.BY_Z[Z - 1].role === 'cation');
+      const nob = [2, 10, 18, 36, 54, 86].every((Z) => Pg.BY_Z[Z - 1].B === 0 && Pg.BY_Z[Z - 1].role === null);
+      const hal = [9, 17, 35, 53].every((Z) => Pg.BY_Z[Z - 1].role === 'anion');
+      log.push({ ok: alk && nob && hal, name: 'PG·주기성',
+        msg: `PG·족 주기성: 알칼리 6종 ve=1·양이온형 ${alk} · 비활성 6종 B=0·역할없음 ${nob} · 할로젠 4종 음이온형 ${hal}` });
+
+      // (3) 결합 우물 D: ⑩ 실비 앵커 보존 + 폴링 식 전 쌍 유계·대칭
+      const dOk = Math.abs(Pg.dPair('H', 'O') - 2.0) < 1e-12 &&
+        Math.abs(Pg.dPair('H', 'H') - 2.0 * 436 / 463) < 1e-12 &&
+        Math.abs(Pg.dPair('O', 'O') - 2.0 * 146 / 463) < 1e-12;
+      let rangeOk = true, symOk = true;
+      for (let i = 0; i < 118; i += 7) for (let j = i; j < 118; j += 5) {
+        const a = Pg.BY_Z[i].sym, b = Pg.BY_Z[j].sym, d = Pg.dPair(a, b);
+        if (d < 0.3 - 1e-12 || d > 3.2 + 1e-12) rangeOk = false;
+        if (Math.abs(d - Pg.dPair(b, a)) > 1e-12) symOk = false;
+      }
+      log.push({ ok: dOk && rangeOk && symOk, name: 'PG·우물D',
+        msg: `PG·D 테이블: ⑩ 앵커(H-H/H-O/O-O) 보존 ${dOk} · 표본 쌍 범위 [0.3,3.2] ${rangeOk} · 대칭 ${symOk} (이핵=폴링 식·한계 정직)` });
+
+      // (4) 주입 장부 회계: 소환·냉각 펄스 전부 pgIn 에 기록 → 세계 총량 − 주입 = 0 (잔차 ≤ 0.05)
+      //     + Σc 정확 (소환 개수 = 세계 조성) + 과결합 0. 같은 런에서 공유 창발(H-O 결합·H₂O) 확인.
+      const rng29 = E.makeRng(2929);
+      const w29 = Pg.buildPlayground({ rng: rng29, L: 14 });
+      for (let i = 0; i < 8; i++) {
+        Pg.spawn(w29, 'O', 2 + (i % 4) * 3, 2 + ((i / 4) | 0) * 3, { T: 0.5 });
+        Pg.spawn(w29, 'H', 2.8 + (i % 4) * 3, 2 + ((i / 4) | 0) * 3, { T: 0.5 });
+        Pg.spawn(w29, 'H', 2 + (i % 4) * 3, 2.8 + ((i / 4) | 0) * 3, { T: 0.5 });
+      }
+      for (let k = 0; k < 6000; k++) {
+        E.step(w29);
+        if (k % 50 === 0 && k > 1500) Pg.heatPulse(w29, 7, 7, 20, 0.985);   // 어닐링 냉각 (회계됨)
+      }
+      const res29 = Pg.residual(w29), mol29 = M.molecules(w29);
+      let ho = 0;
+      for (const bd of w29.bonds) {
+        const a = w29.atomById(bd.i), b = w29.atomById(bd.j);
+        if (a && b && ((a.sp === 'H' && b.sp === 'O') || (a.sp === 'O' && b.sp === 'H'))) ho++;
+      }
+      log.push({ ok: Math.abs(res29) <= 0.05 && Pg.compositionOK(w29) && mol29.maxOver === 0, name: 'PG·주입장부',
+        msg: `PG·회계: 소환 24 + 냉각 펄스 → 잔차 ${res29.toExponential(2)} ≤ 0.05 · Σc 정확 ${Pg.compositionOK(w29)} · 과결합 0` });
+      log.push({ ok: ho >= 3 && (mol29.hist['H2O1'] || 0) >= 1, name: 'PG·공유창발',
+        msg: `PG·공유 창발: H–O 결합 ${ho}개 · H₂O ${mol29.hist['H2O1'] || 0}개 (분자 author 0 — 측정) hist=${JSON.stringify(mol29.hist)}` });
+
+      // (5) 이온 창발: Na+Cl 접촉 소환 → 전자 이전(R-XFER)으로 전하쌍 발생 (5런 중 ≥3·통계)
+      let hit29 = 0;
+      for (let s = 0; s < 5; s++) {
+        const w2 = Pg.buildPlayground({ rng: E.makeRng(100 + s), L: 10 });
+        Pg.spawn(w2, 'Na', 5, 5, { T: 0.1 });
+        Pg.spawn(w2, 'Cl', 6.0, 5, { T: 0.1 });
+        let q = 0;
+        for (let k = 0; k < 3000 && q === 0; k++) {
+          E.step(w2);
+          for (const a of w2.atoms) q = Math.max(q, Math.abs(a.q));
+        }
+        if (q > 0) hit29++;
+      }
+      log.push({ ok: hit29 >= 3, name: 'PG·이온창발',
+        msg: `PG·이온 창발: Na+Cl 접촉 → 전자 이전 발생 ${hit29}/5 런 (⑤ R-XFER 재사용·EA 클램프 ${Pg.EA_CAP})` });
+    }
+
+    // 30. 샌드박스 확장 (step-0030) — 3D·항온조·핵분열 연쇄·복셀 장
+    if (want(30)) {
+      // (1) 3D 회계 + 항온조 수렴: dim=3 세계에서 소환·항온조가 회계를 닫고 목표 T 로 이완
+      const w30 = Pg.buildPlayground({ rng: E.makeRng(3030), L: 14, dim: 3 });
+      for (let i = 0; i < 9; i++) {
+        Pg.spawn(w30, 'O', 3 + (i % 3) * 4, 3 + ((i / 3) | 0) * 4, { T: 0.05, z: 4 });
+        Pg.spawn(w30, 'H', 3.5 + (i % 3) * 4, 3 + ((i / 3) | 0) * 4, { T: 0.05, z: 8 });
+      }
+      for (let k = 0; k < 3000; k++) { Pg.tick(w30); if (k % 10 === 0) Pg.thermostat(w30, 0.8, 0.08); }
+      const T30 = M.temperature(w30), zMove = w30.atoms.some((a) => Math.abs(a.p.z) > 1e-6);
+      log.push({ ok: Math.abs(Pg.residual(w30)) <= 0.05 && Pg.compositionOK(w30) && zMove && T30 > 0.5 && T30 < 1.1,
+        name: 'PG·3D항온조',
+        msg: `PG·3D+항온조: 잔차 ${Pg.residual(w30).toExponential(2)} ≤ 0.05 · Σc 정확 · z 운동 ${zMove} · T ${T30.toFixed(3)} → 목표 0.8 수렴 (냉시작 0.05·주입 회계)` });
+      // (2) 복셀 장 측정: 국소 가열이 장(국소 T)에 나타난다 — 가열 셀 근방 T > 원방 T
+      Pg.heatPulse(w30, 3, 3, 3, 2.2, 4);
+      const f30 = Pg.field(w30, 7);
+      let hotNear = 0, hotFar = 0, nNear = 0, nFar = 0;
+      for (const c of f30.cells) {
+        const d = Math.hypot(c.cx - 3, c.cy - 3, c.cz - 4);
+        if (d < 4) { hotNear += c.T * c.n; nNear += c.n; } else { hotFar += c.T * c.n; nFar += c.n; }
+      }
+      const okField = nNear > 0 && nFar > 0 && (hotNear / nNear) > (hotFar / nFar);
+      log.push({ ok: okField, name: 'PG·복셀장',
+        msg: `PG·복셀 장: 가열 지점 근방 ⟨T⟩ ${(nNear ? hotNear / nNear : 0).toFixed(3)} > 원방 ${(nFar ? hotFar / nFar : 0).toFixed(3)} (국소 T 측정이 장으로 보임)` });
+      // (3) 핵분열 연쇄: U×6 + 중성자 1발 → 분열 ≥2 (ν=2 연쇄)·전환 장부 Σc 정확·E 닫힘
+      const wf = Pg.buildPlayground({ rng: E.makeRng(7), L: 20 });
+      for (let i = 0; i < 6; i++) Pg.spawn(wf, 'U', 9 + (i % 3) * 1.8, 9 + ((i / 3) | 0) * 1.8, { T: 0.05 });
+      Pg.spawn(wf, 'n', 3, 9.8, { T: 0, px: 6 });
+      const Enuc0 = wf.ledger.E_nuclear;
+      for (let k = 0; k < 8000; k++) Pg.tick(wf);
+      const comp30 = wf.atoms.reduce((c, a) => { c[a.sp] = (c[a.sp] || 0) + 1; return c; }, {});
+      const relRes = Math.abs(Pg.residual(wf)) / Math.max(1, Math.abs(wf.pgIn.E));
+      log.push({ ok: wf.pgFisCount >= 2 && (comp30.Ba || 0) >= 2 && (comp30.Kr || 0) >= 2 &&
+        Pg.compositionOK(wf) && relRes <= 2e-3 && wf.ledger.E_nuclear < Enuc0,
+        name: 'PG·핵분열연쇄',
+        msg: `PG·핵분열 연쇄: 중성자 1발 → 분열 ${wf.pgFisCount}회 (ν=2 증식) · 파편 Ba ${comp30.Ba || 0}·Kr ${comp30.Kr || 0} · 전환 장부 Σc 정확 ${Pg.compositionOK(wf)} · 상대 잔차 ${relRes.toExponential(1)} ≤ 2e-3 (고 KE 서브스텝 드리프트) · E_nuclear ${Enuc0}→${wf.ledger.E_nuclear.toFixed(1)} (Δm·c² 회계 축약)` });
+      // (4) 연소 행 합류: 카탈로그에 R-ABSTRACT (⑱ 라디칼 추상 — 발열 → K_tr 가열)
+      log.push({ ok: wf.catalog.some((r) => r.id === 'R-ABSTRACT'), name: 'PG·연소행',
+        msg: `PG·연소 합류: catalog=[${wf.catalog.map((r) => r.id).join(',')}] — R-ABSTRACT(⑱) 포함 (발열 반응이 K_tr 로 — 열폭발 경로)` });
+    }
+
+    // 31. 반응 체감 게이트 (step-0031) — 핵융합·알칼리+물 발열·위력 스케일
+    if (want(31)) {
+      // (1) 핵융합: 맨 H 정면 충돌(상대 KE 12 ≥ 장벽 4.5) → He+n+Q. 중성자가 KE 대부분(질량 역비).
+      let hitF = 0, vAfter = 0;
+      for (let s = 0; s < 5; s++) {
+        const w = Pg.buildPlayground({ rng: E.makeRng(200 + s), L: 16 });
+        Pg.spawn(w, 'H', 4, 8, { T: 0, px: 3.5 });
+        Pg.spawn(w, 'H', 12, 8, { T: 0, px: -3.5 });
+        for (let k = 0; k < 3000 && w.pgFusCount === 0; k++) Pg.tick(w);
+        if (w.pgFusCount > 0 && Pg.compositionOK(w) && Math.abs(Pg.residual(w)) < 0.1) {
+          hitF++;
+          for (const a of w.atoms) vAfter = Math.max(vAfter, Math.sqrt(E.V.lenSq(a.p)) / w.mass[a.sp]);
+        }
+      }
+      log.push({ ok: hitF >= 4 && vAfter >= 4, name: 'PG·핵융합',
+        msg: `PG·핵융합: H+H 정면 충돌 → He+n 융합 ${hitF}/5 런 (장벽 게이트 ${Pg.FUSION.barrier}·Q=${Pg.FUSION.Q}) · 방출 최고 속도 ${vAfter.toFixed(1)} ≥ 4 (중성자 질량 역비 — 위력 체감·Σc 전환 장부 정확)` });
+      // (2) 알칼리+물 격렬 반응: Na 를 O+2H 냉각 클러스터에 → 전자 이전 발열로 T 급등 (EA_CAP 2.5)
+      let hitNa = 0; const Tlog = [];
+      for (let s = 0; s < 5; s++) {
+        const w = Pg.buildPlayground({ rng: E.makeRng(300 + s), L: 12 });
+        Pg.spawn(w, 'O', 6, 6, { T: 0.1 }); Pg.spawn(w, 'H', 6.9, 6, { T: 0.1 });
+        Pg.spawn(w, 'H', 6, 6.9, { T: 0.1 }); Pg.spawn(w, 'Na', 5.1, 6, { T: 0.1 });
+        const T0 = M.temperature(w);
+        let q = 0;
+        for (let k = 0; k < 4000; k++) { Pg.tick(w); for (const a of w.atoms) q = Math.max(q, Math.abs(a.q)); }
+        const T1 = M.temperature(w);
+        Tlog.push(`${T0.toFixed(2)}→${T1.toFixed(2)}`);
+        if (q > 0 && T1 > 2 * T0 && Math.abs(Pg.residual(w)) < 0.05) hitNa++;
+      }
+      log.push({ ok: hitNa >= 4, name: 'PG·Na물발열',
+        msg: `PG·Na+물 발열: 전자 이전(EA_CAP ${Pg.EA_CAP}) → 이온화 + T 2배↑ ${hitNa}/5 런 [${Tlog.join(' ')}] — 발열이 KE 로 분출 (알칼리 격렬 반응 체감)` });
+    }
+
     return log;
   }
 
@@ -1162,7 +1312,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒ 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29,30) 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
