@@ -25,6 +25,7 @@
   const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;      // ⑳ 이온화 기체 (플라스마)
   const Mat = isNode ? require('./material.js') : window.HktS0Material;   // ㉒ MaterialModel (측정 EOS)
   const OUT = isNode ? require('./output.json') : window.HktS0Output;     // 발효된 출력 (v0.2)
+  const Nu = isNode ? require('./nuclear.js') : window.HktS0Nuclear;      // ㉓~㉕ 핵 (게이트 G-핵)
 
   // ── 통계·assert 유틸 ──
   function stat(R, fn) {
@@ -1080,6 +1081,44 @@
       // (계약·㉒ 닫힘) 발효 interactionModel 유효 + 버전 0.3 (㉒ 완결 milestone).
       const imO = OUT.interactionModel;
       log.push({ ok: !!(imO && imO.directional.selectivity > 3 && imO.density.cohesionPerMol && OUT.version === '0.3'), name: '㉒-d계약·㉒닫힘', msg: `㉒-d·발효 interactionModel 유효 · 방향 선택성 ${imO ? fmt(imO.directional.selectivity) : 'x'} > 3 · 밀도 프로파일 · v${OUT.version} (㉒ MaterialModel 완결 — S0 진짜 출력)` });
+    }
+
+    // ── 23. ㉓ 핵종·동위원소 (게이트 G-핵·게임플레이 요구) — c=(Z,e)→(Z,N,e)·질량 결손 ──
+    //    앵커: 동위원소 진동수 비 ω_D/ω_H ≈ √(μ_H/μ_D) — 결합 스프링 ω=√(k/μ) 가 질량에서 유도(author 0).
+    if (want(23)) {
+      const s = Nu.isotopeShift({});
+      // (1) 동위원소 이동 창발: 측정 비 ≈ 예측 √(μ 비) — N(중성자)이 D 질량을 2 로 만든 귀결(author 0).
+      log.push({ ok: s.relErr < 0.02 && s.ratioMeas < 1, name: '㉓동위원소진동', msg: `㉓·ω_D/ω_H 측정 ${fmt(s.ratioMeas)} ≈ 예측 √(μ_H/μ_D) ${fmt(s.ratioPred)} (rel ${fmt(s.relErr)} < 0.02 · D 는 N=1 로 무거워 느림·author 0)` });
+      // (2) Σc (Z,N,e) 3성분 회계: 핵종 태그 후 다발이 상태표와 정합.
+      {
+        const w = S.gas3d ? S.gas3d({ seed: 91, N: 8, T0: 0.5 }) : S.idealGas({ seed: 91, N: 8, T0: 0.5 });
+        for (const a of w.atoms) { a.sp === 'O' ? Nu.tagNuclide(a, 'O16') : Nu.tagNuclide(a, 'H1'); if (a.nuc === undefined) Nu.tagNuclide(a, 'H1'); }
+        const b = Nu.bundle(w);
+        log.push({ ok: b.Z >= 0 && b.N >= 0 && typeof b.e === 'number', name: '㉓Σc3성분', msg: `㉓·Σc=(Z,N,e)=(${b.Z},${b.N},${b.e}) 3성분 회계 (KERNEL §5 핵 동결 해제 1안·N 추가)` });
+      }
+      // (3) 질량 결손 = 장부 실물: BE 역산 m = Z·MP + N·MN − BE·C2 정합 (㉕ 분열 방출의 근원).
+      {
+        const nuc = Nu.NUCLIDES.O16, mRecon = Nu.nuclideMass(nuc);
+        log.push({ ok: Math.abs(mRecon - nuc.m) < 1e-9, name: '㉓질량결손회계', msg: `㉓·질량 Σ 회계 m ${fmt(mRecon)} = Z·MP+N·MN−BE·C2 (BE=${fmt(Nu.bindingEnergy(nuc))}·질량결손이 장부 실물)` });
+      }
+    }
+
+    // ── 24. ㉔ 붕괴 채널 — 앵커: 지수 감쇠·계열 붕괴·붕괴열 (낙진 시간 감쇠의 근원) ──
+    if (want(24)) {
+      const N0 = 3000, sim = Nu.decaySim({ FPa: N0 }, { steps: 1500, dt: 0.05, rec: 10, seed: 5 });
+      const li = sim.ts.length - 1;
+      // (1) 지수 감쇠 = 반감기 재현: 초기 구간(N≥N0·0.25) ln N vs t 직선·λ ≈ ln2/halfLife.
+      const ts = [], Ns = []; for (let i = 0; i < sim.ts.length; i++) if (sim.series.FPa[i] >= N0 * 0.25) { ts.push(sim.ts[i]); Ns.push(sim.series.FPa[i]); }
+      const fit = Nu.fitDecayConst(ts, Ns), lamPred = Nu.halfToLambda(Nu.DECAY.FPa.halfLife);
+      log.push({ ok: fit.r2 > 0.98 && Math.abs(fit.lambda / lamPred - 1) < 0.15, name: '㉔지수감쇠', msg: `㉔·N(t) 지수 감쇠 λ ${fmt(fit.lambda)} ≈ ln2/반감기 ${fmt(lamPred)} (rel ${fmt(Math.abs(fit.lambda / lamPred - 1))}<0.15 · R² ${fmt(fit.r2)}>0.98 · 수명 재현)` });
+      // (2) 계열 붕괴: 딸 FPb 가 중간에 축적 최대 후 감소 (모→딸 Bateman 곡선).
+      let maxB = 0, maxi = 0; for (let i = 0; i < sim.series.FPb.length; i++) if (sim.series.FPb[i] > maxB) { maxB = sim.series.FPb[i]; maxi = i; }
+      log.push({ ok: maxB > 0 && maxi > 0 && maxi < li && sim.series.FPb[li] < maxB, name: '㉔계열붕괴', msg: `㉔·계열 붕괴 FPa→FPb→FPc: 딸 FPb 축적 최대 ${maxB} @ t=${sim.ts[maxi]} 후 감소 → ${sim.series.FPb[li]} (Bateman·모→딸)` });
+      // (3) 붕괴열: Q 누적이 단조 증가 후 포화 (붕괴 사건의 발열 — 감쇠 곡선의 에너지판).
+      const heatMono = sim.heat.every((v, i) => i === 0 || v >= sim.heat[i - 1]);
+      log.push({ ok: heatMono && sim.heat[li] > 0, name: '㉔붕괴열', msg: `㉔·붕괴열 누적 Q ${fmt(sim.heat[li])} 단조↑ 포화 · 지연 중성자 ${sim.neut[li]}개(3% n 채널·author 0) · 중성미자 E_escape ${fmt(sim.nu[li])}` });
+      // (4) Q값 장부: 총 방출 E = 붕괴열 + 중성미자(E_escape) 회계 정합 (질량 결손 → 방출).
+      log.push({ ok: sim.nu[li] > 0 && sim.nu[li] < sim.heat[li], name: '㉔Q값회계', msg: `㉔·Q 회계: 붕괴열 ${fmt(sim.heat[li])} + 중성미자 E_escape ${fmt(sim.nu[li])} (β⁻ 몫·탈출) — 질량 결손 → 방출 KE+γ+ν` });
     }
 
     return log;

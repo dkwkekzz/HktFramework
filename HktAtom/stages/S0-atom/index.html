@@ -852,5 +852,73 @@
   }
 })();
 </script>
+
+<!-- ㉓~㉕ 핵 (게이트 G-핵·게임플레이 핵분열 요구) — 자체 완결·엔진 diff 0 -->
+<section id="nuc-sec" style="max-width:1100px;margin:18px auto;padding:0 12px;font-family:system-ui,sans-serif;color:#c9d1d9;">
+  <h2 style="font-size:15px;border-top:1px solid #30363d;padding-top:14px;">㉓ 핵종·동위원소 <span style="color:#8b949e;font-weight:normal;font-size:12px;">— c=(Z,e)→(Z,N,e)·질량 결손이 장부 실물 (핵 게이트 개방)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 10px;">
+    보존 다발에 <b>N(중성자)</b> 축을 더한다. 앵커: <b>동위원소 진동수 이동</b> — D(중수소·N=1 로 무거운 H)가 O 와 이룬 결합은 H–O 보다 느리게 진동한다.
+    결합 스프링 ω=√(k/μ) 가 질량에서 유도되므로 <b>ω_D/ω_H = √(μ_H/μ_D)</b> 가 저절로 나온다(author 0). 아래 두 진자: 위=H–O(빠름)·아래=D–O(느림).
+  </p>
+  <canvas id="nuc-iso" width="620" height="130"></canvas>
+  <div id="nuc-iso-txt" style="font-family:monospace;font-size:12px;color:#8b949e;margin-top:4px;"></div>
+
+  <h2 style="font-size:15px;border-top:1px solid #21262d;padding-top:12px;margin-top:16px;">㉔ 붕괴 채널 <span style="color:#8b949e;font-weight:normal;font-size:12px;">— 지수 감쇠·계열 붕괴·붕괴열 (낙진 시간 감쇠의 근원)</span></h2>
+  <p style="font-size:12px;color:#8b949e;line-height:1.6;margin:4px 0 8px;">
+    불안정 핵종은 반감기대로 붕괴한다(사건 큐의 최장 시간 규모). <b>모핵 FPa → 딸 FPb → 안정 FPc</b> 계열: FPa 는 지수로 감쇠(반감기 재현·author 0), 딸 FPb 는 중간에 <b>축적 최대 후 감소</b>(Bateman), FPc 는 쌓인다. 회색=붕괴열 누적(Q값·질량 결손 → 방출). 서버는 원자 없이 이 큐만 굴려 <b>낙진 지대의 시간 감쇠</b>를 창발시킨다.
+  </p>
+  <canvas id="nuc-decay" width="620" height="220"></canvas>
+  <div id="nuc-decay-txt" style="font-family:monospace;font-size:11px;color:#8b949e;margin-top:4px;"></div>
+</section>
+<script id="nuc-data" type="application/json">{"omegaH":5.59,"omegaD":4.33,"muH":0.8,"muD":1.3333,"ratioMeas":0.7746,"ratioPred":0.7746}</script>
+<script id="nuc-decay-data" type="application/json">{"t":[0,1.75,3.5,5.25,7,8.75,10.5,12.25,14,15.75,17.5,19.25,21,22.75,24.5,26.25,28,29.75,31.5,33.25,35,36.75,38.5,40.25,42,43.75,45.5,47.25,49,50.75,52.5,54.25,56,57.75,59.5,61.25,63,64.75,66.5,68.25,70],"FPa":[1979,1336,896,609,393,244,162,99,69,49,39,21,16,11,5,4,2,2,1,1,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0],"FPb":[17,596,949,1117,1207,1226,1193,1123,1046,968,881,808,741,689,621,562,508,457,414,370,340,304,284,263,231,208,192,179,160,142,130,116,104,98,84,74,65,54,47,43,37],"FPc":[0,42,119,231,350,476,590,721,828,925,1021,1112,1184,1241,1315,1375,1431,1482,1526,1570,1600,1636,1657,1678,1710,1733,1749,1762,1781,1799,1811,1825,1837,1843,1857,1867,1876,1887,1894,1898,1904],"heat":[22.4,812.2,1394.8,1823.9,2173.4,2450.2,2639.1,2818.1,2939.7,3040.6,3128.7,3223.1,3286.7,3338.3,3404.7,3453.9,3501.1,3541.9,3578.3,3613.5,3637.5,3666.3,3684.3,3701.1,3726.7,3745.1,3757.9,3768.3,3783.5,3797.9,3807.5,3818.7,3828.3,3833.1,3844.3,3852.3,3859.5,3868.3,3873.9,3877.1,3881.9],"neut":[4,26,36,43,50,54,55,57,57,58,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59,59]}</script>
+<script>
+(function () {
+  const N = JSON.parse(document.getElementById('nuc-data').textContent);
+  const cv = document.getElementById('nuc-iso'), ctx = cv.getContext('2d');
+  let t = 0;
+  function frame() {
+    t += 0.03; ctx.clearRect(0, 0, cv.width, cv.height);
+    // 두 진자: 신축 진동 d(t)=rest+amp·cos(ω t). H–O(위)·D–O(아래).
+    const rows = [{ y: 40, w: N.omegaH, c: '#eef2f5', lbl: 'H–O  ω=' + N.omegaH.toFixed(2) }, { y: 95, w: N.omegaD, c: '#9ec7f0', lbl: 'D–O  ω=' + N.omegaD.toFixed(2) + ' (느림)' }];
+    for (const r of rows) {
+      const cx = 90, rest = 120, amp = 55, d = rest + amp * Math.cos(r.w * t);
+      ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(cx, r.y); ctx.lineTo(cx + rest + amp + 30, r.y); ctx.stroke();
+      // O (고정·빨강)
+      ctx.fillStyle = '#e0403a'; ctx.beginPath(); ctx.arc(cx, r.y, 14, 0, 6.283); ctx.fill();
+      // 결합선 + H/D (움직임)
+      ctx.strokeStyle = '#8b949e'; ctx.lineWidth = 2; ctx.beginPath(); ctx.moveTo(cx, r.y); ctx.lineTo(cx + d, r.y); ctx.stroke();
+      const gr = ctx.createRadialGradient(cx + d - 3, r.y - 3, 1, cx + d, r.y, 10);
+      gr.addColorStop(0, '#fff'); gr.addColorStop(1, r.c); ctx.fillStyle = gr; ctx.beginPath(); ctx.arc(cx + d, r.y, 10, 0, 6.283); ctx.fill();
+      ctx.fillStyle = '#c9d1d9'; ctx.font = '12px monospace'; ctx.fillText(r.lbl, cx + rest + amp + 40, r.y + 4);
+    }
+    requestAnimationFrame(frame);
+  }
+  frame();
+  document.getElementById('nuc-iso-txt').textContent =
+    'ω_D/ω_H 측정 ' + N.ratioMeas.toFixed(4) + ' ≈ 예측 √(μ_H/μ_D) ' + N.ratioPred.toFixed(4) + '  (μ_H=' + N.muH + ' μ_D=' + N.muD + ' — N=1 이 D 를 무겁게 → 느린 진동·author 0)';
+
+  // ㉔ 붕괴 곡선: FPa(감쇠)·FPb(축적 후 감소)·FPc(안정 축적) + 붕괴열.
+  const D = JSON.parse(document.getElementById('nuc-decay-data').textContent);
+  (function () {
+    const cv = document.getElementById('nuc-decay'), ctx = cv.getContext('2d');
+    const W = cv.width, H = cv.height, x0 = 40, y0 = 10, x1 = W - 90, y1 = H - 24;
+    const tmax = D.t[D.t.length - 1], nmax = 2000, hmax = Math.max.apply(null, D.heat);
+    const px = (t) => x0 + t / tmax * (x1 - x0), pyN = (n) => y1 - n / nmax * (y1 - y0), pyH = (h) => y1 - h / hmax * (y1 - y0);
+    ctx.clearRect(0, 0, W, H);
+    ctx.strokeStyle = '#30363d'; ctx.beginPath(); ctx.moveTo(x0, y0); ctx.lineTo(x0, y1); ctx.lineTo(x1, y1); ctx.stroke();
+    const line = (arr, col, py) => { ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.beginPath(); for (let i = 0; i < D.t.length; i++) { const X = px(D.t[i]), Y = py(arr[i]); i ? ctx.lineTo(X, Y) : ctx.moveTo(X, Y); } ctx.stroke(); };
+    line(D.heat, '#6e7681', pyH);   // 붕괴열 (회색)
+    line(D.FPa, '#e0403a', pyN);    // 모핵 (빨강·감쇠)
+    line(D.FPb, '#f0b429', pyN);    // 딸 (노랑·축적 후 감소)
+    line(D.FPc, '#58a6ff', pyN);    // 안정 (파랑·축적)
+    const lb = [['FPa 모핵(감쇠)', '#e0403a'], ['FPb 딸(축적→감소)', '#f0b429'], ['FPc 안정', '#58a6ff'], ['붕괴열 Q', '#6e7681']];
+    ctx.font = '11px monospace'; lb.forEach((l, i) => { ctx.fillStyle = l[1]; ctx.fillText('■ ' + l[0], x1 + 6, y0 + 16 + i * 16); });
+    ctx.fillStyle = '#6e7681'; ctx.fillText('t→', x1 - 14, y1 + 16);
+  })();
+  document.getElementById('nuc-decay-txt').textContent =
+    '지연 중성자 ' + D.neut[D.neut.length - 1] + '개 (3% n 채널·author 0 — k_eff≈1 제어 가능성의 근원) · 붕괴열이 낙진 지대 시간 감쇠로 창발';
+})();
+</script>
 </body>
 </html>
