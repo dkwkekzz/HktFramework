@@ -12,6 +12,7 @@ import { deflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
+import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -155,6 +156,23 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   fore.rotation.copy(saved); rig.obj.updateMatrixWorld(true); muscles.update();
   console.log('관절통과 데모: eval/out/2-arm-neutral.png ↔ 2-arm-curl.png (이두 벌크 비교)');
 }
+
+// (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
+//  rig 은 아직 rest(replant) 상태이므로 구운 지오메트리 정점이 곧 월드 rest 좌표다.
+for (const name of ['마른', '근육질', '비만']) {
+  muscles.build(rig, BODY_PRESETS[name]);
+  rig.obj.updateMatrixWorld(true);
+  const bm = bakeSkin(rig, muscles.getCapsules()).mesh;
+  const bg = bm.geometry, bi = bg.index, bp = bg.attributes.position, bt = [];
+  const bv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (let i = 0; i < bi.count; i += 3) {
+    for (let k = 0; k < 3; k++) bv[k].fromBufferAttribute(bp, bi.getX(i + k));
+    bt.push({ p: [bv[0].clone(), bv[1].clone(), bv[2].clone()], c: [217, 168, 143] });
+  }
+  writePNG(`eval/out/4-body-${name}.png`, render(bt, 'front'), W, H);
+  console.log(`체형 ${name} → eval/out/4-body-${name}.png`);
+}
+muscles.build(rig); // 기본 체형으로 복구 (이후 애니메이션용)
 
 // (2)(3) 피부 — 걷기 포즈 정면/측면
 const src = parseClipFBX(toBuf('public/assets/anim/walk.fbx'));

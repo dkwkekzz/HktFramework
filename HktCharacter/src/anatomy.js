@@ -147,6 +147,15 @@ const PAIRED = [
 
 export const MUSCLES = [...CENTER, ...PAIRED.flatMap(pair)];
 
+// 체형 프리셋(설계서 §5.2·G2): 같은 골격에서 근육량(muscle=반지름 배율)·지방(fat=피부
+// 균일 두께 m)만 바꿔 다른 체형을 만든다. MuscleLayer.build(rig, profile) 로 주입.
+export const BODY_PRESETS = {
+  마른:   { muscle: 0.78, fat: 0.0 },
+  평균:   { muscle: 1.0, fat: 0.02 },
+  근육질: { muscle: 1.42, fat: 0.006 },
+  비만:   { muscle: 0.95, fat: 0.075 },
+};
+
 // 뼈 자체도 피부 필드에 기여한다(살이 얇은 정강이·손·발·머리를 채운다).
 // 각 항목: 뼈 세그먼트(bone → child) 를 감싸는 얇은 캡슐 반지름.
 export const BONE_PADDING = [

@@ -132,6 +132,16 @@ for (const model of ['X Bot', 'Y Bot']) {
   let muscleOk = true;
   try { muscles.update(); } catch { muscleOk = false; }
   ok(muscleOk, '포즈에서 근육 라이브 갱신 무예외');
+
+  // WP-06 체형 프리셋 (§5.2 G2): 같은 골격에서 비만이 마른보다 피부가 두껍다 -----
+  muscles.build(rig, { muscle: 0.8, fat: 0.0 });
+  const leanG = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+  leanG.computeBoundingBox(); const lz = new THREE.Vector3(); leanG.boundingBox.getSize(lz);
+  muscles.build(rig, { muscle: 1.0, fat: 0.07 });
+  const fatG = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+  fatG.computeBoundingBox(); const fz = new THREE.Vector3(); fatG.boundingBox.getSize(fz);
+  ok(fz.z > lz.z + 0.05, `체형: 비만 피부 전후 ${fz.z.toFixed(2)} > 마른 ${lz.z.toFixed(2)}m (G2)`);
+  muscles.build(rig); // 기본 체형 복구
 }
 
 console.log(`\n${fails === 0 ? '✅ 전체 통과' : `❌ ${fails}개 실패`}`);

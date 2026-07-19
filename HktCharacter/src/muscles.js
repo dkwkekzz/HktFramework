@@ -100,7 +100,7 @@ function belly(item, rest) {
   const half = 0.5 * len * def.span;
   // 수축비 = rest 길이 / 현재 길이. 관절을 넘는 근육은 굴곡 시 len 이 줄어 >1 → 굵어짐.
   const contraction = rest ? THREE.MathUtils.clamp(rest / len, 0.7, 1.4) : 1;
-  const radius = def.r * (1 + def.bulge * (contraction - 1));
+  const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1));
   return { center: _c, axis: _axis, half, radius };
 }
 
@@ -114,9 +114,12 @@ export class MuscleLayer {
     this.rig = null;
   }
 
-  build(rig) {
+  // profile: 체형(§5.2 경량판) { muscle: 근육량 배율(반지름), fat: 지방층 두께(m) }.
+  // 같은 골격에서 마른/평균/근육질/비만을 파라미터만으로 만든다(설계서 G2·§9.10).
+  build(rig, profile = null) {
     this.clear();
     this.rig = rig;
+    this.profile = { muscle: 1, fat: 0, ...(profile || {}) };
     for (const def of MUSCLES) {
       // 부착 패치를 뼈로 해석. 주(primary) origin/insertion 이 리그에 없으면 건너뜀.
       const oBone = rig.boneMap.get(def.origins[0].bone);
@@ -144,7 +147,7 @@ export class MuscleLayer {
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
       this.group.add(mesh);
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def) };
+      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle };
       // rest 길이 캐시 (수축 기준) — belly() 가 _from/_to 를 축 기저점으로 채운다
       belly(item, null);
       this.restLen.set(item, _from.distanceTo(_to));
@@ -203,6 +206,7 @@ export class MuscleLayer {
   // 각 항목 { a, b, r } — 월드 좌표 세그먼트 + 반지름. rest 포즈에서 1회 호출.
   getCapsules() {
     const caps = [];
+    const fat = this.profile.fat; // 지방층: 피부 캡슐을 균일하게 부풀림(§9.10 GlobalFat)
     for (const item of this.items) {
       const bb = belly(item, this.restLen.get(item));
       const radii = profileRadii(item.def);
@@ -217,7 +221,7 @@ export class MuscleLayer {
         const s0 = k / SKIN_CAPS, s1 = (k + 1) / SKIN_CAPS;
         const a = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s0 - 1));
         const b = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s1 - 1));
-        const r = bb.radius * eff * Math.max(sampleProfile(radii, (s0 + s1) / 2), 0.4);
+        const r = bb.radius * eff * Math.max(sampleProfile(radii, (s0 + s1) / 2), 0.4) + fat;
         caps.push({ a, b, r });
       }
     }
@@ -232,10 +236,10 @@ export class MuscleLayer {
       if (kids.length) {
         for (const k of kids) {
           k.getWorldPosition(wc);
-          caps.push({ a: wp.clone(), b: wc.clone(), r: pad.r });
+          caps.push({ a: wp.clone(), b: wc.clone(), r: pad.r + fat });
         }
       } else {
-        caps.push({ a: wp.clone(), b: wp.clone(), r: pad.r });
+        caps.push({ a: wp.clone(), b: wp.clone(), r: pad.r + fat });
       }
     }
     return caps;
