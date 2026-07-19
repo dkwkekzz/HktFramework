@@ -26,7 +26,20 @@ function sampleProfile(radii, s) {
   const i = Math.floor(x), f = x - i;
   return i >= n - 1 ? radii[n - 1] : radii[i] * (1 - f) + radii[i + 1] * f;
 }
-const profileRadii = def => def.profile || DEFAULT_FUSIFORM;
+// 아키텍처별 기본 형상(설계서 §8): w=측면 폭 배율, d=전후 깊이 배율(<1 이면 납작),
+// profile=기시→정지 반지름 배율. Fusiform=가는 방추, Fan=부채꼴(기시 넓고 납작),
+// Sheet=판(넓고 납작·고른 폭). 근육이 def.w/d/profile 로 개별 override 가능.
+const FAN_PROFILE = [1.0, 0.98, 0.9, 0.78, 0.6, 0.4, 0.16];   // 기시 넓음 → 정지 좁음
+const SHEET_PROFILE = [0.45, 0.8, 1.0, 1.0, 1.0, 0.8, 0.45];  // 넓고 고른 판
+const ARCH = {
+  Fusiform: { w: 1.0, d: 0.9, profile: DEFAULT_FUSIFORM },
+  Fan: { w: 1.6, d: 0.42, profile: FAN_PROFILE },
+  Sheet: { w: 1.4, d: 0.4, profile: SHEET_PROFILE },
+};
+const archOf = def => ARCH[def.architecture] || ARCH.Fusiform;
+const profileRadii = def => def.profile || archOf(def).profile;
+// 근육 단면 배율 {w,d} — 아키텍처 기본 + 근육별 override.
+const shapeOf = def => ({ w: def.w ?? archOf(def).w, d: def.d ?? archOf(def).d });
 
 // 프로필을 중심선(로컬 y∈[-1,1]) 위로 스웹한 방추형 lathe 지오메트리. 양끝은 얇은 팁으로
 // 닫아 힘줄처럼 가늘게 마무리한다. 단면은 원형(반지름=프로필). 근육마다 1회 생성.
@@ -131,7 +144,7 @@ export class MuscleLayer {
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
       this.group.add(mesh);
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh };
+      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def) };
       // rest 길이 캐시 (수축 기준) — belly() 가 _from/_to 를 축 기저점으로 채운다
       belly(item, null);
       this.restLen.set(item, _from.distanceTo(_to));
@@ -175,10 +188,13 @@ export class MuscleLayer {
 
   update() {
     for (const item of this.items) {
-      const b = belly(item, this.restLen.get(item));
-      _q.setFromUnitVectors(YQ, b.axis);        // 방추형 장축 y → 벨리 축
-      _s.set(b.radius, b.half, b.radius);        // 단면 반지름(x,z) · 반길이(y)
-      _m.compose(b.center, _q, _s);
+      const b = belly(item, this.restLen.get(item)); // _lat/_axis/_ant 프레임을 남긴다
+      const sh = item.shape;
+      // 롤 고정 기저: 로컬 x→lat(측면), y→axis(장축), z→ant(전후). 이래야 w(폭)·d(깊이)
+      // 비등방 스케일이 해부학 방향과 일치한다(넓적한 근육이 전후로 눌린다).
+      _m.makeBasis(_lat, b.axis, _ant);
+      _m.scale(_s.set(b.radius * sh.w, b.half, b.radius * sh.d));
+      _m.setPosition(b.center);
       item.mesh.matrix.copy(_m);
     }
   }
@@ -193,11 +209,15 @@ export class MuscleLayer {
       // 벨리를 축 방향으로 SKIN_CAPS 개 서브 캡슐로 나눠, 각 구간 반지름을 프로필로
       // 준다 — 피부가 근육의 방추형 테이퍼(가는 힘줄 끝)를 따라간다. 얇은 끝도 최소치는
       // 남겨 인접 근육/뼈와 피부 필드가 끊기지 않게 한다.
+      // 피부 필드는 원형 캡슐만 지원하므로, 납작한 근육(w≠d)은 면적 보존 유효 반지름
+      // (√(w·d))으로 근사한다 — 넓적한 판이 과도하게 둥글게 부풀지 않게. (진짜 납작한
+      // 피부 단면은 skin.js 의 타원 프리미티브가 필요 → 후속.)
+      const eff = Math.sqrt(item.shape.w * item.shape.d);
       for (let k = 0; k < SKIN_CAPS; k++) {
         const s0 = k / SKIN_CAPS, s1 = (k + 1) / SKIN_CAPS;
         const a = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s0 - 1));
         const b = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s1 - 1));
-        const r = bb.radius * Math.max(sampleProfile(radii, (s0 + s1) / 2), 0.4);
+        const r = bb.radius * eff * Math.max(sampleProfile(radii, (s0 + s1) / 2), 0.4);
         caps.push({ a, b, r });
       }
     }

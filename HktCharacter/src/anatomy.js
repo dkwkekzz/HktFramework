@@ -77,23 +77,24 @@ function pair(t) {
 // r/off 단위는 미터 (캐릭터 키 ≈ 1.7m 기준).
 const CENTER = [
   // 복직근 — 골반에서 흉곽 전면까지 몸통 앞면의 판.
-  { id: 'rectusAbdominis', kr: '복직근', side: 'C', architecture: 'Fusiform',
+  { id: 'rectusAbdominis', kr: '복직근', side: 'C', architecture: 'Sheet',
     origins: [O('hips', 0.10, 0)], insertions: [I('spine1', 0.10, 0)],
     along: 0.05, span: 0.62, r: 0.085, taper: 0.55, bulge: 0.10 },
 ];
 
 const PAIRED = [
-  // ---- 몸통 -------------------------------------------------------------
-  { id: 'pectoralis', kr: '대흉근', architecture: 'Fusiform',
+  // ---- 몸통 (넓적한 근육 = Fan/Sheet: 판·부채꼴로 납작하게) ----------------
+  //  대흉근: 흉골에서 부채꼴로 퍼져 상완골로 수렴 → Fan. 흉곽에 납작하게 눌린다.
+  { id: 'pectoralis', kr: '대흉근', architecture: 'Fan',
     origins: [O('spine2', 0.11, 0.02)], insertions: [I('arm', 0.11, 0.02)],
     along: 0.1, span: 0.7, r: 0.085, taper: 0.5, bulge: 0.18 },
-  { id: 'latissimus', kr: '광배근', architecture: 'Fusiform',
+  { id: 'latissimus', kr: '광배근', architecture: 'Fan',
     origins: [O('spine', -0.10, 0.05)], insertions: [I('arm', -0.10, 0.05)],
     along: 0.15, span: 0.75, r: 0.09, taper: 0.45, bulge: 0.12 },
-  { id: 'trapezius', kr: '승모근', architecture: 'Fusiform',
+  { id: 'trapezius', kr: '승모근', architecture: 'Fan',
     origins: [O('neck', -0.05, 0)], insertions: [I('shoulder', -0.05, 0)],
     along: 0, span: 0.9, r: 0.06, taper: 0.55, bulge: 0.10 },
-  { id: 'oblique', kr: '외복사근', architecture: 'Fusiform',
+  { id: 'oblique', kr: '외복사근', architecture: 'Sheet',
     origins: [O('hips', 0.03, 0.10)], insertions: [I('spine1', 0.03, 0.10)],
     along: 0.05, span: 0.6, r: 0.06, taper: 0.6, bulge: 0.10 },
   // ---- 목 ---------------------------------------------------------------
@@ -121,9 +122,10 @@ const PAIRED = [
     origins: [O('forearm', 0.01, 0)], insertions: [I('hand', 0.01, 0)],
     along: -0.1, span: 0.7, r: 0.05, taper: 0.4, bulge: 0.15 },
   // ---- 둔부 -------------------------------------------------------------
-  { id: 'gluteus', kr: '대둔근', architecture: 'Fusiform',
+  // 대둔근: 넓지만 두툼 → Fan 이되 depth(d) 를 높여 덜 납작하게.
+  { id: 'gluteus', kr: '대둔근', architecture: 'Fan', w: 1.35, d: 0.7,
     origins: [O('hips', -0.09, 0.05)], insertions: [I('upleg', -0.09, 0.05)],
-    along: 0.35, span: 0.55, r: 0.09, taper: 0.6, bulge: 0.12 },
+    along: 0.2, span: 0.6, r: 0.09, taper: 0.6, bulge: 0.12 },
   // ---- 대퇴 -------------------------------------------------------------
   { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform',
     origins: [O('upleg', 0.07, 0)], insertions: [I('leg', 0.07, 0)],
