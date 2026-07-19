@@ -1588,6 +1588,61 @@
         msg: `35·법칙 게이트: qeqParams 부재 → 부분 전하 0 (중성 분자 전 원자 q=0) — 파라미터 부재 = 참값` });
     }
 
+    // 36. ⑰ 산·염기 승격 (step-0036) — 양성자 이전(tick 후단 실행기)·용매화 solv 법칙(스택 rank 30).
+    //     ⑤⑮⑰ 3층 정합: H⁺ 이동 시 전자는 공여체에 (ne 재배치) → 정수층 qBase 가 H₃O⁺/OH⁻ 를
+    //     만들고 QEq 연속층이 재분배. 동적 격차 2종 실측 해소: 겹침 배치 폭탄(+1247) → protSpot ·
+    //     Q² 용매화의 다가 이온 과안정화(O²⁻ 발견) → 1가 게이트.
+    if (want(36)) {
+      const mkAB = (seed, o) => {
+        const w = Pg.buildPlayground(Object.assign({ rng: E.makeRng(seed), L: 22 }, o || {}));
+        Pg.enableHBond(w);                     // 관찰 환경 (해리·반응 끔 — R-PROT 는 tick 후단이라 산다)
+        Pg.buildWaterCluster(w, 10, 11, 11, 3.4);
+        return w;
+      };
+      const inject = (w) => {
+        const lks = AB.links(w);
+        if (!lks.length) return false;
+        const E0 = E.energyFull(w);
+        AB.forceTransfer(w, lks[0].H, lks[0].D, lks[0].A);
+        w.pgIn.E += E.energyFull(w) - E0;
+        return true;
+      };
+      const sumQ36 = (w) => w.atoms.reduce((s, a) => s + (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0)), 0);
+
+      // (1) 릴레이·보존: 이온쌍 주입 + 용매화 → 양성자가 결합을 갈아타며(이전 ≥ 3) 전하 정확 보존
+      let relOk = true, relMsg = [];
+      for (const seed of [1, 2, 3]) {
+        const w = mkAB(seed);
+        w.protSolv = 4.0;
+        inject(w);
+        for (let k = 0; k < 3500; k++) { Pg.tick(w); Pg.thermostat(w, 0.06, 0.1); }
+        const info = AB.ions(w), res = Pg.residual(w), tol = Math.max(0.3, 1.5e-3 * Math.abs(w.pgIn.E));
+        const ok = w.pgProtCount >= 3 && sumQ36(w) === 0 && Math.abs(res) <= tol &&
+          info.maxCoordO <= 3 && info.nCat === info.nAn;
+        if (!ok) relOk = false;
+        relMsg.push(`s${seed}:이전${w.pgProtCount}·±${info.nCat}/${info.nAn}·잔차${res.toFixed(2)}`);
+      }
+      log.push({ ok: relOk, name: '36·릴레이',
+        msg: `36·양성자 릴레이: [${relMsg.join(' ')}] — 이전 ≥ 3·Σq 정수 정확 0·양/음이온 수 균형·O 배위 ≤ 3(H₄O²⁺ 금지)·잔차 ≤ max(0.3, 0.15%)` });
+
+      // (2) 이온 정체 = 측정: 주입 직후 H₃O⁺(Q=+1 정확)·OH⁻(Q=−1 정확) — 1가 게이트 포함
+      const wI = mkAB(7);
+      wI.protSolv = 4.0;
+      inject(wI);
+      const infoI = AB.ions(wI);
+      const oneOk = infoI.nCat === 1 && infoI.nAn === 1 &&
+        Math.abs(infoI.cat[0].Q - 1) <= 1e-9 && Math.abs(infoI.an[0].Q + 1) <= 1e-9;
+      log.push({ ok: oneOk, name: '36·이온정체',
+        msg: `36·이온 정체(측정): 주입 → H₃O⁺ Q=+${infoI.cat.length ? infoI.cat[0].Q : '?'} · OH⁻ Q=${infoI.an.length ? infoI.an[0].Q : '?'} (정수층 Σ(Z−ne) — 라벨 author 0·1가 정확)` });
+
+      // (3) 게이트 = 참값: nu_prot=0 → 이전 0 · protSolv 부재 → solv 법칙 비활성
+      const wG6 = mkAB(31, { nu_prot: 0 });
+      inject(wG6);
+      for (let k = 0; k < 1500; k++) Pg.tick(wG6);
+      log.push({ ok: (wG6.pgProtCount || 0) === 0 && !wG6.protSolv, name: '36·게이트',
+        msg: `36·법칙 게이트: nu_prot=0 → 이전 ${wG6.pgProtCount || 0}회 (정확 0) · protSolv 기본 0 = 유전 차폐 없음이 참값` });
+    }
+
     return log;
   }
 

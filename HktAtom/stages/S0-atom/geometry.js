@@ -61,15 +61,40 @@
     return Math.max(0, Math.floor((val - used) / 2 + 1e-9));
   }
 
-  // 고립쌍 씨앗 — 결합 평균 반대 방향 + 지터 (완전 대칭 시 정체 방지)
+  // 고립쌍 씨앗 — 결합 평균 반대 방향 기준의 **결정론 부채꼴** (step-0036 정정: rng 지터 폐기).
+  //   이유: 씨앗이 무작위면 같은 위상·기하에서 이완이 다른 국소 최소 분지에 떨어질 수 있고,
+  //   불발 되돌림(양성자 이전·해리·연소 추상)이 원상 복원해도 V̂ 가 분지 차만큼 새는 일반형
+  //   누수가 된다 (실측 +5.25/사건 — step-0036 발견). 결정론 씨앗 = 위치·결합이 복원되면 씨앗도
+  //   동일 → 같은 분지 → 되돌림 정확. 부채꼴(±0.8rad)이 대칭 정체·collinear 스파이크도 함께 막는다.
   function seedLones(world, a, nl) {
     a.lones = [];
     if (nl === 0) return;
     const bs = bondNeighbors(world, a).map((bn) => bondDir(world, a, bn.nb));
     let sx = 0, sy = 0, sz = 0; for (const b of bs) { sx += b.x; sy += b.y; sz += b.z; }
-    const rng = world.rng || Math.random;
+    let bx = -sx, by = -sy, bz = world.frozenZ ? 0 : -sz;
+    const bn0 = Math.hypot(bx, by, bz);
+    if (bn0 < 1e-9) { bx = 1; by = 0; bz = 0; } else { bx /= bn0; by /= bn0; bz /= bn0; }
+    // 수직축 — 결합 기하에서 결정론 유도 (2D: 좌회전 90°·3D: 기준×첫결합, 퇴화 시 좌표축)
+    let px, py, pz;
+    if (world.frozenZ) { px = -by; py = bx; pz = 0; }
+    else {
+      const ref = bs.length ? bs[0] : { x: 0, y: 0, z: 1 };
+      px = by * ref.z - bz * ref.y; py = bz * ref.x - bx * ref.z; pz = bx * ref.y - by * ref.x;
+      let pn = Math.hypot(px, py, pz);
+      if (pn < 1e-9) {
+        const ax = Math.abs(bx) < 0.9 ? 1 : 0, az = 1 - ax;
+        px = by * az; py = bz * ax - bx * az; pz = -by * ax;
+        pn = Math.hypot(px, py, pz) || 1;
+      }
+      px /= pn; py /= pn; pz /= pn;
+    }
+    // 3D 면외 성분축 (b×p) — 부채가 평면 안장에 갇히지 않게 k 별 ±로 젖힌다 (결정론)
+    const ox = by * pz - bz * py, oy = bz * px - bx * pz, oz = bx * py - by * px;
     for (let k = 0; k < nl; k++) {
-      let dir = V.make(-sx + (rng() - 0.5), -sy + (rng() - 0.5), world.frozenZ ? 0 : -sz + (rng() - 0.5));
+      const t = nl === 1 ? 0 : (k / (nl - 1) - 0.5) * 1.6;   // 부채 ±0.8 rad
+      const c = Math.cos(t), s = Math.sin(t);
+      const w3 = world.frozenZ ? 0 : (k % 2 ? -0.3 : 0.3) * (nl > 1 ? 1 : 0);
+      let dir = V.make(bx * c + px * s + ox * w3, by * c + py * s + oy * w3, world.frozenZ ? 0 : bz * c + pz * s + oz * w3);
       const n = V.len(dir) || 1; dir.x /= n; dir.y /= n; dir.z /= n;
       a.lones.push(dir);
     }

@@ -31,6 +31,7 @@
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // 로드 = hb 법칙 등록 (스택)
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;      // 로드 = angle 법칙 등록 (스택)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;      // 로드 = qeq 법칙 등록 (스택)
+  const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;       // 로드 = solv 법칙 등록 (⑰)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -192,6 +193,13 @@
     for (const s of BY_Z) qeqParams[s.sym] = { chi: s.chi, IE: s.IE };
     qeqParams.n = { chi: 0, IE: 1 };   // 중성자: 전하 없음 (단원자라 어차피 건너뜀)
     world.qeqParams = qeqParams; world.qeqFromNe = true;
+    // ⑰ 산·염기 상시 탑재 (step-0036) — 양성자 이전(R-PROT·tick 후단 실행기)의 종 게이트.
+    //   protSolv(용매화 노브)는 기본 0 = 유전 차폐 없음이 이 모델의 참값 (자동 이온화는 동결·
+    //   릴레이·재결합은 산다) — 관찰 프리셋이 노브를 켠다 (⑰ 정직 노브·design/17).
+    world.protAcc = { O: true };       // 수용체 종 (고립쌍 보유)
+    world.protCoord = { O: 3 };        // O 배위 상한 (배위 결합 1 여유 = H₃O⁺ 까지·H₄O²⁺ 금지)
+    world.nu_prot = o.nu_prot != null ? o.nu_prot : 1.0;
+    world.pgProtCount = 0;             // 양성자 이전 누계 (뷰어·verify 계수)
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
@@ -497,6 +505,12 @@
       world.dt = dt0;
     }
     runNuclear(world);
+    // ⑰ 양성자 이전 (step-0036) — tick 후단 실행기 (runNuclear 와 같은 지위)
+    const np = AB.runProton(world);
+    if (np) {
+      world.pgProtCount = (world.pgProtCount || 0) + np;
+      world.pgEvents.push('⚡ 양성자 이전 (H⁺ 가 결합을 갈아탐 — 산·염기)');
+    }
   }
 
   // ── ⑯ 수소 결합 정관찰 모드 — 안정 물 네트워크 실험 환경 ──
@@ -581,15 +595,16 @@
     const groups = new Map();
     world.atoms.forEach((a, i) => {
       const r = find(i);
-      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, cz: 0, n: 0 });
+      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, cz: 0, n: 0, q: 0 });
       const g = groups.get(r);
       g.comp[a.sp] = (g.comp[a.sp] || 0) + 1;
+      g.q += (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0));   // 분자 순 전하 (정수층 — H₃O⁺ 라벨용)
       g.cx += a.r.x; g.cy += a.r.y; g.cz += a.r.z; g.n++;
     });
     const out = [];
     for (const g of groups.values()) {
       if (g.n < 2) continue;
-      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, cz: g.cz / g.n, n: g.n });
+      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, cz: g.cz / g.n, n: g.n, q: g.q });
     }
     return out;
   }
