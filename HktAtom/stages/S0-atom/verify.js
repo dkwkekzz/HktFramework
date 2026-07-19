@@ -1531,6 +1531,63 @@
         msg: `34·법칙 게이트: valence 부재 → 각도 기여 정확 0 (max|ΔF| ${dFN.toExponential(1)} ≤ 1e-12) — 파라미터 부재 = 참값` });
     }
 
+    // 35. ⑮ 극성(QEq) 법칙 승격 (step-0035) — stage 'pre'(전하 갱신·기반 앞) · 게이트 = qeqParams.
+    //     ⑤ 통일: 정수층 qBase = Z−ne (qeqFromNe·R-XFER 가 바꿈) 위에 연속층 재분배. 단원자 성분
+    //     건너뜀 = 맨 이온의 ⑤ 에너지학 정확 보존. QEq = 정확 최소화 → 포락선 정확 (보존적).
+    if (want(35)) {
+      const mkMol = (seed, syms, bonds) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 20 });
+        w.catalog = []; w.nu_diss = 0;
+        const d0 = w.d0, at = [];
+        for (let i = 0; i < syms.length; i++) {
+          const ang = 2 * Math.PI * i / syms.length;
+          at.push(Pg.spawn(w, syms[i], 10 + (i ? d0 * Math.cos(ang) : 0), 10 + (i ? d0 * Math.sin(ang) : 0), { T: 0.01 }));
+        }
+        for (const [i, j] of bonds) w.bonds.push({ i: at[i].id, j: at[j].id, order: 1, rest: d0, k: w.kbond, D: Pg.dPair(syms[i], syms[j]) });
+        E.energyFull(w); w.pgIn.E += Pg.residual(w);
+        return { w, at };
+      };
+      // (1) 극성 창발: H₂O — O δ⁻·H δ⁺·분자 총전하 정확 0·쌍극자 > 0. O₂ 동핵 대조 = 무극성.
+      const { w: wW, at: aW } = mkMol(3501, ['O', 'H', 'H'], [[0, 1], [0, 2]]);
+      const sumQ = aW[0].q + aW[1].q + aW[2].q;
+      const { w: wO, at: aO } = mkMol(3502, ['O', 'O'], [[0, 1]]);
+      log.push({ ok: aW[0].q < -0.15 && aW[1].q > 0.07 && aW[2].q > 0.07 && Math.abs(sumQ) <= 1e-9 && Math.abs(aO[0].q) <= 1e-6, name: '35·극성창발',
+        msg: `35·극성 창발: H₂O q_O ${aW[0].q.toFixed(3)} < -0.15 · q_H ${aW[1].q.toFixed(3)}/${aW[2].q.toFixed(3)} > 0.07 · Σq ${sumQ.toExponential(1)} ≤ 1e-9 vs O₂ 동핵 |q| ${Math.abs(aO[0].q).toExponential(1)} ≈ 0 (χ 차가 만드는 부분 전하 — author 0)` });
+
+      // (2) ⑤ 공존: Na+Cl 전자 이전이 그대로 — 맨 이온은 정수 전하 정확 (단원자 QEq 건너뜀)
+      let hit35 = 0, intOk = true;
+      for (let s = 0; s < 5; s++) {
+        const w2 = Pg.buildPlayground({ rng: E.makeRng(3510 + s), L: 10 });
+        const Na = Pg.spawn(w2, 'Na', 5, 5, { T: 0.1 });
+        const Cl = Pg.spawn(w2, 'Cl', 6.0, 5, { T: 0.1 });
+        for (let k = 0; k < 3000; k++) {
+          E.step(w2);
+          if (Math.abs(Na.q) > 0.5) {
+            hit35++;
+            if (Math.abs(Na.q - 1) > 1e-9 || Math.abs(Cl.q + 1) > 1e-9) intOk = false;
+            break;
+          }
+        }
+      }
+      log.push({ ok: hit35 >= 3 && intOk, name: '35·⑤공존',
+        msg: `35·⑤ 공존: Na+Cl 전자 이전 ${hit35}/5 런 · 이전 후 q = ±1 정확(오차 ≤ 1e-9) — 정수층(⑤)과 연속층(⑮)의 이원 회계` });
+
+      // (3) 회계: 물 분자 동역학 3000틱 — QEq 정확 최소화 → 잔차 극소
+      for (let k = 0; k < 3000; k++) { Pg.tick(wW); Pg.thermostat(wW, 0.02, 0.1); }
+      const resW = Pg.residual(wW);
+      log.push({ ok: Math.abs(resW) <= 0.01, name: '35·회계',
+        msg: `35·QEq 회계: H₂O 동역학 3000틱 잔차 ${resW.toExponential(1)} ≤ 0.01 (선형계 정확 최소화 → 포락선 정확·소산 없음) · q_O 유지 ${aW[0].q.toFixed(3)}` });
+
+      // (4) 게이트 = 참값: qeqParams 제거 → 전하 재분배 0 (q = 정수층 그대로)·F ≡ 이전 스택
+      const { w: wG5 } = mkMol(3504, ['O', 'H', 'H'], [[0, 1], [0, 2]]);
+      delete wG5.qeqParams;
+      for (const a of wG5.atoms) { a.q = (a.Z || 0) - a.ne; a.dq = 0; }   // 전하를 정수층으로 복귀
+      E.stackForces(wG5);
+      const qAll0 = wG5.atoms.every((a) => a.q === 0);
+      log.push({ ok: qAll0, name: '35·게이트',
+        msg: `35·법칙 게이트: qeqParams 부재 → 부분 전하 0 (중성 분자 전 원자 q=0) — 파라미터 부재 = 참값` });
+    }
+
     return log;
   }
 

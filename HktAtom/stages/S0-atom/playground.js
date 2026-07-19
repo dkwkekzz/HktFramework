@@ -30,6 +30,7 @@
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // 로드 = hb 법칙 등록 (스택)
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;      // 로드 = angle 법칙 등록 (스택)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;      // 로드 = qeq 법칙 등록 (스택)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -183,6 +184,14 @@
     //   생긴 원자에 전자쌍 도메인 공통 반발이 걸려 굽음·직선이 창발한다 (분자별 목표각 author 0).
     valence.n = 0;   // 중성자: 전자 없음 (도메인 0)
     world.valence = valence;
+    // ⑮ 극성(QEq) 법칙 상시 탑재 (step-0035) — 물리 입력 = 종별 {χ, IE} 테이블 (③ 유도).
+    //   분자(연결 성분)마다 전기음성도 균등화로 부분 전하가 재분배된다 — H₂O 의 O δ⁻·H δ⁺ 창발.
+    //   ⑤ 통일: qeqFromNe — 정수층 qBase = Z−ne (R-XFER 가 바꾼다) 위에 연속층이 재분배.
+    //   단원자 성분은 QEq 건너뜀 (맨 이온의 ⑤ 에너지학 정확 보존 — polarity.js 주석).
+    const qeqParams = {};
+    for (const s of BY_Z) qeqParams[s.sym] = { chi: s.chi, IE: s.IE };
+    qeqParams.n = { chi: 0, IE: 1 };   // 중성자: 전하 없음 (단원자라 어차피 건너뜀)
+    world.qeqParams = qeqParams; world.qeqFromNe = true;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
@@ -542,7 +551,8 @@
     const bonds = {};
     for (const bd of world.bonds) bonds[bd.i < bd.j ? bd.i + '-' + bd.j : bd.j + '-' + bd.i] = bd.order;
     const q = {};
-    for (const a of world.atoms) if (a.q !== 0) q[a.id] = a.q;
+    // 이온 사건 검출은 정수층만 (|q|>0.5) — ⑮ 부분 전하(연속층·분자 전원 |q|~0.2)는 사건이 아니다.
+    for (const a of world.atoms) if (Math.abs(a.q) > 0.5) q[a.id] = a.q;
     return { bonds, q };
   }
   function diffEvents(world, prev) {

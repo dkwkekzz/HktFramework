@@ -27,6 +27,9 @@
     const chi = (IE + EA) / 2;                 // 전기음성도 (전하 이동 구동)
     return (_cache[Z] = { chi, IE, EA });
   }
+  // step-0035: 종 파라미터를 세계 속성으로 열어둔다 — a.Z=실Z 관례(⑮⑰ 장면)가 기본,
+  //   세계가 qeqParams(종 기호 → {chi, IE})를 실으면 그것을 쓴다 (playground 는 a.Z=최외각 관례라 필수).
+  const paramOf = (world) => (world.qeqParams ? (a) => world.qeqParams[a.sp] || { chi: 0, IE: 1 } : (a) => params(a.Z || 0));
   // 하드니스 η_i = 온사이트 쿨롱 자기에너지(k_c/s·②) + 전자 하드니스(IE·③). author 0.
   //   교과서 η=(IE−EA)/2 는 ③ 간이 EA>IE 로 음수 → 대신 온사이트 쿨롱(전하 blob 자기반발)이 지배·안정화.
   //   J_ij(오프사이트·i≠j)는 pairForces 쿨롱과 동일 → 대각 η_i 만 새 에너지(U_pol).
@@ -69,12 +72,19 @@
   //   외부장 world.Efield (Vec3, undefined=0). Q_분자 = Σ 기존 정수 전하(중성이면 0).
   function equalize(world) {
     const kc = world.kc, s = world.soft, Ef = world.Efield;
+    const pf = paramOf(world);
     let Uself = 0;
     for (const comp of components(world)) {
       const n = comp.length;
       const at = comp.map((i) => world.atoms[i]);
-      const pr = at.map((a) => params(a.Z || 0));
-      const eta = at.map((a) => hardness(world, a.Z || 0));
+      // ⑤ 통일 (step-0035): 세계가 qeqFromNe 면 정수층 qBase 를 전자 수에서 유도 — 정수 전자
+      //   이전(R-XFER·setNe)이 ne 를 바꾸면 다음 평가에서 연속층이 그 위에 재분배된다.
+      if (world.qeqFromNe) for (const a of at) a.qBase = (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0));
+      // 단원자 성분은 재분배 불가 — 건너뛴다 (dq=0·자기 E 기여 0): 맨 이온(Na⁺ 등)의 ⑤ 에너지학
+      //   (uIon·쿨롱 점프)이 정확히 보존된다. QEq 자기 E 를 여기 얹으면 IE/EA 이중 계상 (step-0035).
+      if (n === 1) { at[0].dq = 0; at[0].q = at[0].qBase != null ? at[0].qBase : at[0].q; continue; }
+      const pr = at.map(pf);
+      const eta = at.map((a) => (world.qeqParams ? kc / s + (world.qeqParams[a.sp] ? world.qeqParams[a.sp].IE : 1) : hardness(world, a.Z || 0)));
       const Qtot = at.reduce((q, a) => q + (a.qBase != null ? a.qBase : 0), 0);   // 성분 총 전하 (중성 0)
       // (n+1)×(n+1): [η+J | −1 ; 1ᵀ | 0]
       const A = [], b = [];
@@ -91,7 +101,10 @@
       const crow = new Array(n + 1).fill(1); crow[n] = 0; A.push(crow); b.push(Qtot);
       const x = gaussSolve(A, b);
       for (let i = 0; i < n; i++) {
-        const q = x[i]; at[i].dq = q; at[i].q = (at[i].qBase != null ? at[i].qBase : 0) + q;
+        // 규약 (step-0035 정정): x 가 *전체* 전하 해다 (제약 Σx = Qtot) — q = x·dq = x − qBase.
+        //   이전의 q = qBase + x 는 qBase ≠ 0 이면 총 전하가 2Qtot 이 되는 잠재 버그 (legacy 전
+        //   사용처 qBase=0 이라 미발현 — 수치 불변).
+        const q = x[i]; at[i].q = q; at[i].dq = q - (at[i].qBase != null ? at[i].qBase : 0);
         Uself += pr[i].chi * q + 0.5 * eta[i] * q * q;   // 자기 에너지 (온사이트 η 는 J-항과 분리 → 중복 0)
       }
     }
@@ -147,6 +160,11 @@
     }
     return cnt ? sum / cnt : 0;
   }
+
+  // 법칙 등록 (step-0035) — stage 'pre': 힘이 아니라 *상태*(전하)를 갱신하므로 기반 pairForces 앞.
+  //   게이트 = 물리 입력(qeqParams 종 테이블) 존재. 부재 = 기여 0 이 참값. QEq 는 정확 최소화
+  //   (선형계 직접 해)라 포락선 정리가 정확 — 제약 Σq=Q 아래 전하 재분배 경로의 dE/dr 기여 0 (보존적).
+  E.registerLaw({ name: 'qeq', rank: 5, stage: 'pre', active: (w) => !!w.qeqParams, force: equalize });
 
   const api = { params, equalize, forcesPolar, dipoles, orientationOrder, components, gaussSolve };
   if (isNode) module.exports = api;

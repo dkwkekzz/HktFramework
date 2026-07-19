@@ -152,6 +152,7 @@
 <script src="polarization.js"></script>
 <script src="hbond.js"></script>
 <script src="geometry.js"></script>
+<script src="polarity.js"></script>
 <script src="combustion.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
@@ -699,9 +700,14 @@
       }
       ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx, 0, 2 * Math.PI);
       ctx.fillStyle = s.color; ctx.fill();
-      if (a.q !== 0) {
+      const aq = a.q || 0;
+      if (Math.abs(aq) > 0.5) {          // 정수 이온 (⑤ 전자 이전) — 굵은 링
         ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx + 3, 0, 2 * Math.PI);
-        ctx.strokeStyle = a.q > 0 ? '#f0883e' : '#39c5cf'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = aq > 0 ? '#f0883e' : '#39c5cf'; ctx.lineWidth = 2; ctx.stroke();
+      } else if (Math.abs(aq) > 0.08) {  // ⑮ 부분 전하 (QEq δ±) — 얇은 반투명 링
+        ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx + 2, 0, 2 * Math.PI);
+        ctx.strokeStyle = aq > 0 ? 'rgba(240,136,62,0.45)' : 'rgba(57,197,207,0.45)';
+        ctx.lineWidth = 1.2; ctx.stroke();
       }
       ctx.globalAlpha = 1;
     }

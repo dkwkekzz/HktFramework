@@ -320,10 +320,13 @@
     if (i >= 0) LAWS[i] = law; else LAWS.push(law);
     LAWS.sort((a, b) => a.rank - b.rank);
   }
+  //    stage 'pre' (step-0035): 힘이 아니라 *상태*를 갱신하는 법칙 (예: ⑮ QEq 전하 재분배) —
+  //    기반 pairForces 가 소비할 값(a.q)을 먼저 만들어야 하므로 기반보다 앞서 실행된다.
   function stackForces(world) {
+    world.ledger.U_pol = 0;                 // 법칙 소유 통 초기화 (활성 법칙이 누적한다)
+    for (const l of LAWS) if (l.stage === 'pre' && l.active(world)) l.force(world);
     pairForces(world);                      // 기반 ②⑥ (F 초기화 + U_elec·U_bond)
-    world.ledger.U_pol = 0;                 // 법칙 소유 통 초기화 (활성 법칙이 덮어쓴다)
-    for (const l of LAWS) if (l.active(world)) l.force(world);
+    for (const l of LAWS) if (l.stage !== 'pre' && l.active(world)) l.force(world);
   }
 
   // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장)·U_grav(중력 위치 E).

@@ -85,12 +85,13 @@
     }
     for (let i = 0; i < n; i++) { const aI = alpha[A[i].sp] || 0; A[i].mu.x = aI * Ex[i]; A[i].mu.y = aI * Ey[i]; A[i].mu.z = aI * Ez[i]; }
     if (fz) for (const a of A) a.F.z = 0;                  // z 동결: 누수 차단 (dz=0 이라 이미 0)
-    world.ledger.U_pol = Uind + Udisp;
+    world.ledger.U_pol += Uind + Udisp;          // 누적 (스택 계약 — ⑮ QEq 자기 에너지와 공존)
     world._Uind = Uind; world._Udisp = Udisp;
   }
   // 하위 호환 합성 (기존 ⑧ 장면들의 computeForces) — 수치 동일: pairForces + polContrib
   function polForces(world) {
     E.pairForces(world);                         // 기반 F 누산 + U_elec(척력·쿨롱) + min d/σ
+    world.ledger.U_pol = 0;                      // 단독 경로: 통 초기화 후 기여 (스택과 동일 수치)
     polContrib(world);
   }
   // 법칙 등록 — 게이트 = 물리 입력(α 테이블) 존재. 파라미터 없음 = 기여 0 이 참값 (g=0 동형).
