@@ -29,6 +29,7 @@
   const Po = isNode ? require('./polarization.js') : window.HktS0Pol;        // 로드 = pol 법칙 등록 (스택)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
   const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // 로드 = hb 법칙 등록 (스택)
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;      // 로드 = angle 법칙 등록 (스택)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -137,11 +138,12 @@
     const o = opts || {};
     const L = o.L != null ? o.L : 26;
     const dim3 = o.dim === 3;
-    const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {}, specIon = {};
+    const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {}, specIon = {}, valence = {};
     const Dpair = {};
     for (const s of BY_Z) {
       mass[s.sym] = s.mass; sigma[s.sym] = s.sigma; eps[s.sym] = s.eps;
       budget[s.sym] = s.B; alpha[s.sym] = s.alpha; IE[s.sym] = s.IE;
+      valence[s.sym] = s.ve;   // ⑭ 외각 전자 맵 — angle 법칙의 물리 입력 (고립쌍 수 유도)
       if (s.role === 'cation') {
         const st = {}; st[s.ve] = 0; st[s.ve - 1] = s.IE;
         specIon[s.sym] = { role: 'cation', states: st, minNe: s.ve - 1, maxNe: s.ve };
@@ -177,6 +179,10 @@
     //   playground 는 a.Z=최외각 관례라 Z=8 게이트 대신 종 기호 게이트를 쓴다 (hbond donGate/accGate).
     //   물 분자가 생기면 어느 프리셋에서든 H-결합 네트워크가 저절로 창발한다 — 모드 전환 0.
     world.Dhb = 0.9; world.hbAcc = { O: true };
+    // ⑭ 각도(형상) 법칙 상시 탑재 (step-0034) — 물리 입력 = 외각 전자 맵. 결합이 2개 이상
+    //   생긴 원자에 전자쌍 도메인 공통 반발이 걸려 굽음·직선이 창발한다 (분자별 목표각 author 0).
+    valence.n = 0;   // 중성자: 전자 없음 (도메인 0)
+    world.valence = valence;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E

@@ -27,6 +27,7 @@
   const LAMBDA_LP = 1.5; // 고립쌍 배율 λ_lp>1 (고립쌍이 결합보다 넓게 퍼짐 → 결합각 압박)
   const N_RELAX = 12;    // 고립쌍 경사하강 반복 (warm-start)
   const ETA = 0.25;      // 경사하강 학습률
+  const STEP_CAP = 0.15; // 경사하강 1회 최대 구면 이동 (강성 진동 방지 — step-0034)
   const kang = (w) => (w._kang != null ? w._kang : K_ANG);
   const lam = (w) => (w._lam != null ? w._lam : LAMBDA_LP);
   const c0 = (w) => (w._c0 != null ? w._c0 : C0);
@@ -60,23 +61,41 @@
     return Math.max(0, Math.floor((val - used) / 2 + 1e-9));
   }
 
-  // 초기화: 각 원자에 고립쌍 방향 배열(단위) 부여 — 결합 반대쪽 근사에서 출발(전이 최소).
-  function initGeometry(world) {
-    for (const a of world.atoms) {
-      const nl = loneCount(world, a);
-      a.lones = [];
-      if (nl === 0) continue;
-      const bs = bondNeighbors(world, a).map((bn) => bondDir(world, a, bn.nb));
-      // 결합 평균 반대 방향 씨앗 + 지터 (완전 대칭 시 정체 방지)
-      let sx = 0, sy = 0, sz = 0; for (const b of bs) { sx += b.x; sy += b.y; sz += b.z; }
-      const rng = world.rng || Math.random;
-      for (let k = 0; k < nl; k++) {
-        let dir = V.make(-sx + (rng() - 0.5), -sy + (rng() - 0.5), world.frozenZ ? 0 : -sz + (rng() - 0.5));
-        const n = V.len(dir) || 1; dir.x /= n; dir.y /= n; dir.z /= n;
-        a.lones.push(dir);
-      }
+  // 고립쌍 씨앗 — 결합 평균 반대 방향 + 지터 (완전 대칭 시 정체 방지)
+  function seedLones(world, a, nl) {
+    a.lones = [];
+    if (nl === 0) return;
+    const bs = bondNeighbors(world, a).map((bn) => bondDir(world, a, bn.nb));
+    let sx = 0, sy = 0, sz = 0; for (const b of bs) { sx += b.x; sy += b.y; sz += b.z; }
+    const rng = world.rng || Math.random;
+    for (let k = 0; k < nl; k++) {
+      let dir = V.make(-sx + (rng() - 0.5), -sy + (rng() - 0.5), world.frozenZ ? 0 : -sz + (rng() - 0.5));
+      const n = V.len(dir) || 1; dir.x /= n; dir.y /= n; dir.z /= n;
+      a.lones.push(dir);
     }
+  }
+
+  // 초기화: 각 원자에 고립쌍 방향 배열(단위) 부여 — 정적 결합 장면(⑭⑮)용 일괄 경로.
+  function initGeometry(world) {
+    for (const a of world.atoms) seedLones(world, a, loneCount(world, a));
     world._geoInit = true;
+  }
+
+  // step-0034: 동적 세계용 고립쌍 동기화 (법칙 스택 소비자) — 결합 수가 바뀐 원자만 재씨앗.
+  //   비결합 원자는 도메인 생략: 고립쌍만으로는 원자 힘이 0(방향 보조 변수뿐)이라 물리 불변,
+  //   자유 원자 재이완 비용과 V_ang 상수 오프셋만 던다. 결합이 생기는 순간 씨앗된다.
+  //   기존 ⑭⑮ 장면(전원 결합·정적)은 initGeometry 경로 그대로 — 회귀 0.
+  function syncLones(world) {
+    for (const a of world.atoms) {
+      const nl = bondNeighbors(world, a).length ? loneCount(world, a) : 0;
+      if (a.lones && a.lones.length === nl) continue;
+      seedLones(world, a, nl);
+      // 씨앗 직후 국소 수렴 이완 — 복수 고립쌍 씨앗이 거의 평행(collinear)하게 태어나면
+      //   V_ang 인위 스파이크(실측 +45)가 사건 회계를 오염시킨다(발견). 이완된 상태로 태어나면
+      //   스파이크 자체가 없고, 최소 V_ang 의 실제 증분만 사건(formBond 등)의 dE 에 잡힌다.
+      if (nl > 0) relaxAtom(world, a, 200, 1e-3);
+    }
+    world._geoInit = true;   // 일괄 초기화 불필요 (동기화가 대체)
   }
 
   // 원자의 전 도메인 방향+가중치 (bond: w=1·lone: w=λ_lp). bonds 는 현재 위치에서 매번 갱신.
@@ -87,28 +106,83 @@
     return doms;
   }
 
-  // 고립쌍 재이완: bonds 고정, 각 lone 을 V_ang 최소로 경사하강(구면 접선). 준정적 → 포락선 보존.
-  function relaxLones(world) {
+  // 고립쌍 재이완 (원자 하나): bonds 고정, 각 lone 을 V_ang 최소로 경사하강(구면 접선).
+  //   tol 지정 시 수렴 판정 (한 바퀴 최대 이동 < tol 이면 종료) — 법칙 스택 경로는 수렴 이완을
+  //   쓴다: 최소에 있어야 포락선 정리가 성립해 힘이 보존적이 된다 (12회 고정 이완의 지연 소산
+  //   −5 실측 → 수렴 이완으로 제거·step-0034).
+  // 원자 하나의 V_ang (도메인 쌍 합 — 수락/기각 판정용)
+  function atomV(world, doms) {
+    const KK = kang(world), CC = c0(world);
+    let Vt = 0;
+    for (let i = 0; i < doms.length; i++) for (let j = i + 1; j < doms.length; j++) {
+      const di = doms[i].dir, dj = doms[j].dir;
+      const cos = di.x * dj.x + di.y * dj.y + di.z * dj.z;
+      Vt += KK * doms[i].w * doms[j].w / (1 - cos + CC);
+    }
+    return Vt;
+  }
+
+  function relaxAtom(world, a, iters, tol) {
     const CC = c0(world), LL = lam(world);
+    const doms = domains(world, a);
+    // 단조 하강 보장 (수락/기각 + 감쇠) — 강성 협곡(1/s²·s→c0)에서 고정 보폭은 두 상태를
+    //   왕복하는 핑퐁 진동에 갇힌다(실측: 이완 종료 위상 따라 V 21.8↔12.3 널뜀 → 방출 회계가
+    //   +9/평가 오염·발견). 한 바퀴 후 V 가 오르면 되돌리고 보폭을 반감 — V 는 단조 감소.
+    let damp = 1, Vprev = atomV(world, doms);
+    for (let it = 0; it < iters; it++) {
+      let mv = 0;
+      const save = a.lones.map((lp) => ({ x: lp.x, y: lp.y, z: lp.z }));
+      for (const lp of a.lones) {
+        let gx = 0, gy = 0, gz = 0;
+        for (const dm of doms) {
+          if (dm.bond === null && dm.dir === lp) continue;              // 자기 자신 제외
+          const cos = lp.x * dm.dir.x + lp.y * dm.dir.y + lp.z * dm.dir.z;
+          const s = 1 - cos + CC, coef = (LL * dm.w) / (s * s);         // ∂V/∂cos = w_L w_j/s²
+          gx += coef * dm.dir.x; gy += coef * dm.dir.y; gz += coef * dm.dir.z;
+        }
+        const gl = gx * lp.x + gy * lp.y + gz * lp.z;                    // 접선 성분만 (구면 제약)
+        gx -= gl * lp.x; gy -= gl * lp.y; gz -= gl * lp.z;
+        const gmag = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1e-12;
+        const sc = Math.min(ETA, STEP_CAP / gmag) * damp;                // 보폭 상한 × 감쇠
+        const ox = lp.x, oy = lp.y, oz = lp.z;
+        lp.x -= sc * gx; lp.y -= sc * gy; if (!world.frozenZ) lp.z -= sc * gz; else lp.z = 0;
+        const n = V.len(lp) || 1; lp.x /= n; lp.y /= n; lp.z /= n;
+        mv = Math.max(mv, Math.abs(lp.x - ox), Math.abs(lp.y - oy), Math.abs(lp.z - oz));
+      }
+      const Vnow = atomV(world, doms);
+      if (Vnow > Vprev + 1e-12) {                                        // 올랐다 → 기각·보폭 반감
+        a.lones.forEach((lp, i) => { lp.x = save[i].x; lp.y = save[i].y; lp.z = save[i].z; });
+        damp *= 0.5;
+        if (damp < 1e-3) break;
+        continue;
+      }
+      Vprev = Vnow;
+      if (tol != null && mv < tol) break;
+    }
+  }
+
+  // 전 원자 재이완: 준정적 → 포락선 보존.
+  function relaxLones(world) {
     for (const a of world.atoms) {
       if (!a.lones || a.lones.length === 0) continue;
+      relaxAtom(world, a, N_RELAX);
+    }
+  }
+
+  // V_ang 만 계산 (힘 없음·현재 lones 그대로) — 이완 방출 회계용 (step-0034)
+  function angEnergy(world) {
+    const KK = kang(world), CC = c0(world);
+    let Vtot = 0;
+    for (const a of world.atoms) {
       const doms = domains(world, a);
-      for (let it = 0; it < N_RELAX; it++) {
-        for (const lp of a.lones) {
-          let gx = 0, gy = 0, gz = 0;
-          for (const dm of doms) {
-            if (dm.bond === null && dm.dir === lp) continue;              // 자기 자신 제외
-            const cos = lp.x * dm.dir.x + lp.y * dm.dir.y + lp.z * dm.dir.z;
-            const s = 1 - cos + CC, coef = (LL * dm.w) / (s * s);         // ∂V/∂cos = w_L w_j/s²
-            gx += coef * dm.dir.x; gy += coef * dm.dir.y; gz += coef * dm.dir.z;
-          }
-          const gl = gx * lp.x + gy * lp.y + gz * lp.z;                    // 접선 성분만 (구면 제약)
-          gx -= gl * lp.x; gy -= gl * lp.y; gz -= gl * lp.z;
-          lp.x -= ETA * gx; lp.y -= ETA * gy; if (!world.frozenZ) lp.z -= ETA * gz; else lp.z = 0;
-          const n = V.len(lp) || 1; lp.x /= n; lp.y /= n; lp.z /= n;
-        }
+      if (doms.length < 2) continue;
+      for (let i = 0; i < doms.length; i++) for (let j = i + 1; j < doms.length; j++) {
+        const di = doms[i].dir, dj = doms[j].dir;
+        const cos = di.x * dj.x + di.y * dj.y + di.z * dj.z;
+        Vtot += KK * doms[i].w * doms[j].w / (1 - cos + CC);
       }
     }
+    return Vtot;
   }
 
   // 각도 반발: V_ang 계산 + 결합 도메인의 접선 힘을 이웃·중심 원자에 (P·L 정확 보존). U_bond 에 가산.
@@ -116,6 +190,9 @@
   function angularForces(world) {
     if (!world._geoInit) initGeometry(world);
     relaxLones(world);
+    return angularCore(world);
+  }
+  function angularCore(world) {
     const KK = kang(world), CC = c0(world);
     let Vtot = 0;
     for (const a of world.atoms) {
@@ -153,8 +230,81 @@
     return Vtot;
   }
 
-  // computeForces 합성 헬퍼: pairForces(②⑥) + 각도(⑭). 장면이 이걸 computeForces 로 지정.
+  // computeForces 합성 헬퍼 (하위 호환 — ⑭⑮ 장면): pairForces(②⑥) + 각도(⑭).
   function forcesWithAngles(world) { E.pairForces(world); angularForces(world); }
+  // ── 위상별 이상 배치 기준선 (step-0034) — V̂ = V_atom − V_min(위상) 정규화 ──
+  //   반응 세계에서 V_ang 을 절대값으로 장부에 넣으면 첫 결합의 위상 전이(도메인 0→3)가
+  //   +V_min(≈10) 오르막이 되어 결합 우물(−D)을 압도한다(실측: 결합 플리커가 E_photon 통을
+  //   음수로 빨며 KE 펌프·T 10배 폭주 — 발견). 기준선 = 그 위상(결합수·고립쌍수·차원)의
+  //   *자유 이완 최소* V — 평형 형상에서 V̂ ≈ 0, 변형(각 압박)만 에너지로 남는다.
+  //   힘은 불변(원자 위치와 무관한 위상별 상수의 이동)·위상 전이는 사건 회계(formBond dE)가 잡는다.
+  function baseV(world, nb, nl) {
+    const key = nb + '-' + nl + '-' + (world.frozenZ ? 2 : 3);
+    const cache = world._angBase || (world._angBase = {});
+    if (cache[key] != null) return cache[key];
+    const n = nb + nl;
+    if (n < 2) return (cache[key] = 0);
+    const KK = kang(world), CC = c0(world), LL = lam(world);
+    const rng = world.rng || Math.random;
+    const dirs = [], ws = [];
+    for (let k = 0; k < n; k++) {
+      const d = V.make(rng() - 0.5, rng() - 0.5, world.frozenZ ? 0 : rng() - 0.5);
+      const l = V.len(d) || 1; d.x /= l; d.y /= l; d.z /= l;
+      dirs.push(d); ws.push(k < nb ? 1 : LL);
+    }
+    for (let it = 0; it < 400; it++) {         // 전 방향 자유 이완 (원자 좌표 무관 — 방향 다발만)
+      let mv = 0;
+      for (let i = 0; i < n; i++) {
+        const di = dirs[i];
+        let gx = 0, gy = 0, gz = 0;
+        for (let j = 0; j < n; j++) {
+          if (j === i) continue;
+          const dj = dirs[j];
+          const cos = di.x * dj.x + di.y * dj.y + di.z * dj.z;
+          const s = 1 - cos + CC, coef = (ws[i] * ws[j]) / (s * s);
+          gx += coef * dj.x; gy += coef * dj.y; gz += coef * dj.z;
+        }
+        const gl = gx * di.x + gy * di.y + gz * di.z;
+        gx -= gl * di.x; gy -= gl * di.y; gz -= gl * di.z;
+        const gmag = Math.sqrt(gx * gx + gy * gy + gz * gz) || 1e-12;
+        const sc = Math.min(ETA, STEP_CAP / gmag);                       // 스텝 상한 (relaxAtom 과 동일)
+        const ox = di.x, oy = di.y, oz = di.z;
+        di.x -= sc * gx; di.y -= sc * gy; if (!world.frozenZ) di.z -= sc * gz; else di.z = 0;
+        const l = V.len(di) || 1; di.x /= l; di.y /= l; di.z /= l;
+        mv = Math.max(mv, Math.abs(di.x - ox), Math.abs(di.y - oy), Math.abs(di.z - oz));
+      }
+      if (mv < 1e-4) break;
+    }
+    let Vb = 0;
+    for (let i = 0; i < n; i++) for (let j = i + 1; j < n; j++) {
+      const cos = dirs[i].x * dirs[j].x + dirs[i].y * dirs[j].y + dirs[i].z * dirs[j].z;
+      Vb += KK * ws[i] * ws[j] / (1 - cos + CC);
+    }
+    return (cache[key] = Vb);
+  }
+
+  // 법칙 등록 (step-0034) — 게이트 = 물리 입력(외각 전자 맵 valence) 존재. 부재 = 기여 0 이 참값.
+  //   rank 15: 기반 pair(⑧ pol 10) 뒤·H-결합(20) 앞 — 형상이 잡힌 위에 방향성 약결합.
+  //   수렴 이완: 고립쌍이 최소에 있어야 포락선 정리로 힘이 보존적 (고정 12회의 지연 소산 제거).
+  //   장부: U_bond += Σ(V_atom − 기준선) — 평형 ≈ 0·변형만 에너지 (위 baseV 주석 참조).
+  function angularLaw(world) {
+    syncLones(world);
+    // 이완 → 측정 순서가 전부다. V(이완 전)−V(이완 후) 를 "방출"로 계상하면 안 된다 — 그 차는
+    //   소산이 아니라 상태 지연 아티팩트다: 회전하는 분자에서 고립쌍이 평가 시점마다 스테일이라
+    //   +9/평가가 잡히지만, V*(이완 최소)는 회전 불변이라 이상적 준정적 극한에선 에너지 교환이
+    //   0 이다 (실측: 회전 이원자에서 가짜 방출 +55 발견 — 그래서 회계하지 않는다). 힘·장부는
+    //   전부 이완 *후* 상태에서 평가 — 포락선 정리로 보존적, 잔여 드리프트는 지연의 2차뿐.
+    for (const a of world.atoms) if (a.lones && a.lones.length) relaxAtom(world, a, 120, 1e-4);
+    const raw = angularCore(world);
+    let base = 0;
+    for (const a of world.atoms) {
+      const nb = bondNeighbors(world, a).length;
+      if (nb + (a.lones ? a.lones.length : 0) >= 2) base += baseV(world, nb, a.lones ? a.lones.length : 0);
+    }
+    world.ledger.U_bond -= base;               // angularCore 가 raw V 를 더했으니 기준선을 뺀다
+    return raw - base;
+  }
+  E.registerLaw({ name: 'angle', rank: 15, active: (w) => !!w.valence, force: angularLaw });
 
   // 측정: 결합각 분포 (중심 원자별 이웃쌍 각도) · 도메인 각 표준편차(사면체성).
   //   반환: {angles:[deg...], bondAngles:{sp:[deg]}, domStd:{sp:[deg]}}
@@ -185,7 +335,7 @@
     return { bondAngles, domStd };
   }
 
-  const api = { K_ANG, C0, LAMBDA_LP, initGeometry, angularForces, forcesWithAngles, relaxLones, angleStats, loneCount, bondNeighbors, bondDir, domains };
+  const api = { K_ANG, C0, LAMBDA_LP, initGeometry, syncLones, angEnergy, baseV, angularForces, angularLaw, forcesWithAngles, relaxLones, angleStats, loneCount, bondNeighbors, bondDir, domains };
   if (isNode) module.exports = api;
   else window.HktS0Geometry = api;
 })();
