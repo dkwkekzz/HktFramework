@@ -131,7 +131,7 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
 {
   rig.obj.updateMatrixWorld(true); muscles.update();
   const tris = [];
-  for (const item of muscles.items) geoToTris(muscles.geo, item.mesh.matrix, [190, 70, 64], tris);
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [190, 70, 64], tris);
   writePNG('eval/out/2-muscles-front.png', render(tris, 'front'), W, H);
   console.log(`근육 정면: ${tris.length} 삼각형 → eval/out/2-muscles-front.png`);
 }
@@ -144,7 +144,7 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   const color = it => it.def.id === 'biceps.L' ? [235, 90, 80] : [150, 62, 58];
   const collect = () => {
     rig.obj.updateMatrixWorld(true); muscles.update();
-    const tris = []; for (const it of armItems) geoToTris(muscles.geo, it.mesh.matrix, color(it), tris);
+    const tris = []; for (const it of armItems) geoToTris(it.mesh.geometry, it.mesh.matrix, color(it), tris);
     return tris;
   };
   const fore = rig.boneMap.get('leftforearm');
