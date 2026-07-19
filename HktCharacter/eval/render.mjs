@@ -12,6 +12,7 @@ import { deflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
+import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -129,12 +130,49 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
 
 // (1) 근육 레이어 — T-포즈 정면 (에코르셰)
 {
-  muscles.update();
+  rig.obj.updateMatrixWorld(true); muscles.update();
   const tris = [];
-  for (const item of muscles.items) geoToTris(muscles.geo, item.mesh.matrix, [190, 70, 64], tris);
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [190, 70, 64], tris);
   writePNG('eval/out/2-muscles-front.png', render(tris, 'front'), W, H);
   console.log(`근육 정면: ${tris.length} 삼각형 → eval/out/2-muscles-front.png`);
 }
+
+// (1b) 관절 통과 데모(WP-02) — 왼팔 근육을 중립 vs 팔꿈치 굴곡으로 확대 비교.
+//  이두근이 굴곡 시 짧아지고 굵어지는지(부피 보존) 육안 판정용. 이두=밝은 빨강 강조.
+{
+  const ARM = new Set(['biceps.L', 'triceps.L', 'forearm.L', 'deltoid.L']);
+  const armItems = muscles.items.filter(it => ARM.has(it.def.id));
+  const color = it => it.def.id === 'biceps.L' ? [235, 90, 80] : [150, 62, 58];
+  const collect = () => {
+    rig.obj.updateMatrixWorld(true); muscles.update();
+    const tris = []; for (const it of armItems) geoToTris(it.mesh.geometry, it.mesh.matrix, color(it), tris);
+    return tris;
+  };
+  const fore = rig.boneMap.get('leftforearm');
+  const saved = fore.rotation.clone();
+  writePNG('eval/out/2-arm-neutral.png', render(collect(), 'front'), W, H);
+  fore.rotation.x += THREE.MathUtils.degToRad(120); // 팔꿈치 굴곡
+  writePNG('eval/out/2-arm-curl.png', render(collect(), 'front'), W, H);
+  fore.rotation.copy(saved); rig.obj.updateMatrixWorld(true); muscles.update();
+  console.log('관절통과 데모: eval/out/2-arm-neutral.png ↔ 2-arm-curl.png (이두 벌크 비교)');
+}
+
+// (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
+//  rig 은 아직 rest(replant) 상태이므로 구운 지오메트리 정점이 곧 월드 rest 좌표다.
+for (const name of ['마른', '근육질', '비만']) {
+  muscles.build(rig, BODY_PRESETS[name]);
+  rig.obj.updateMatrixWorld(true);
+  const bm = bakeSkin(rig, muscles.getCapsules()).mesh;
+  const bg = bm.geometry, bi = bg.index, bp = bg.attributes.position, bt = [];
+  const bv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
+  for (let i = 0; i < bi.count; i += 3) {
+    for (let k = 0; k < 3; k++) bv[k].fromBufferAttribute(bp, bi.getX(i + k));
+    bt.push({ p: [bv[0].clone(), bv[1].clone(), bv[2].clone()], c: [217, 168, 143] });
+  }
+  writePNG(`eval/out/4-body-${name}.png`, render(bt, 'front'), W, H);
+  console.log(`체형 ${name} → eval/out/4-body-${name}.png`);
+}
+muscles.build(rig); // 기본 체형으로 복구 (이후 애니메이션용)
 
 // (2)(3) 피부 — 걷기 포즈 정면/측면
 const src = parseClipFBX(toBuf('public/assets/anim/walk.fbx'));

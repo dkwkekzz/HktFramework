@@ -15,6 +15,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
 import { loadSkeleton, replant, disposeRig, boneBox } from './skeleton.js';
 import { MuscleLayer } from './muscles.js';
+import { BODY_PRESETS } from './anatomy.js';
 import { bakeSkin } from './skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from './retarget.js';
 
@@ -79,6 +80,7 @@ const ANIMS = [
 
 const view = { bone: false, muscle: false, skin: true };
 let speed = 1;
+let body = '평균'; // 체형 프리셋(BODY_PRESETS 키)
 
 // 현재 캐릭터 상태
 const C = {
@@ -114,11 +116,11 @@ async function loadModel(file, label) {
   C.helper.material.depthTest = false;
   scene.add(C.helper);
 
-  // ② 근육
+  // ② 근육 (체형 프리셋 반영)
   setStatus(`${label}: ② 근육 부착 중…`);
   await frame();
   C.muscles = new MuscleLayer(scene);
-  C.muscles.build(rig);
+  C.muscles.build(rig, BODY_PRESETS[body]);
 
   // ③ 피부 (굽기)
   setStatus(`${label}: ③ 피부 굽는 중…`);
@@ -136,6 +138,24 @@ async function loadModel(file, label) {
 
 // 한 프레임 양보 (무거운 굽기 전 상태 텍스트가 렌더되게)
 const frame = () => new Promise(r => requestAnimationFrame(() => r()));
+
+// 체형만 바꿔 근육·피부를 재빌드 (뼈·애니메이션은 유지). 같은 골격에서 마른/근육질/비만.
+async function rebuildBody() {
+  if (!C.rig) return;
+  setStatus(`체형 «${body}»: 근육·피부 재빌드 중…`);
+  await frame();
+  if (C.skin) {
+    scene.remove(C.skin.mesh);
+    C.skin.mesh.geometry.dispose();
+    C.skin.mesh.material.dispose();
+  }
+  C.muscles.build(C.rig, BODY_PRESETS[body]);   // 근육량 반영
+  C.skin = bakeSkin(C.rig, C.muscles.getCapsules()); // 지방 반영해 다시 굽기
+  scene.add(C.skin.mesh);
+  applyView();
+  const p = BODY_PRESETS[body];
+  setStatus(`체형 «${body}» — 근육 ×${p.muscle} · 지방 ${(p.fat * 100).toFixed(1)}cm · 피부 ${C.skin.stats.tris.toFixed(0)}삼각형.`);
+}
 
 // ---------------------------------------------------------------------------
 //  애니메이션 — 리타깃 후 재생
@@ -212,6 +232,19 @@ function buildModelSelect() {
   });
 }
 
+function buildBodySelect() {
+  const sel = $('body'); sel.innerHTML = '';
+  for (const name of Object.keys(BODY_PRESETS)) {
+    const o = document.createElement('option');
+    o.value = name; o.textContent = name; o.selected = name === body;
+    sel.appendChild(o);
+  }
+  sel.addEventListener('change', () => {
+    body = sel.value;
+    rebuildBody().catch(e => setStatus('체형 재빌드 실패: ' + e.message));
+  });
+}
+
 $('btnBone').addEventListener('click', e => {
   view.bone = !view.bone; e.target.classList.toggle('on', view.bone); applyView();
 });
@@ -226,6 +259,7 @@ $('spd').addEventListener('input', e => {
 });
 
 buildModelSelect();
+buildBodySelect();
 refreshAnims();
 
 // ---------------------------------------------------------------------------
