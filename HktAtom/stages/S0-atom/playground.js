@@ -26,9 +26,9 @@
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
-  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;        // 로드 = pol 법칙 등록 (스택)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
-  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // ⑯ 수소 결합 (방향성 약결합)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // 로드 = hb 법칙 등록 (스택)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -162,7 +162,7 @@
       box: { L: E.V.make(L, L, L), bc: 'reflect' },   // 게임 상자: 벽 반사 (탈출 없음 → Σc 온전)
       frozenZ: !dim3,
       mass, sigma, eps, budget,
-      computeForces: Po.polForces, rng: o.rng || Math.random,
+      computeForces: E.stackForces, rng: o.rng || Math.random,   // 법칙 스택 — 배선 0 (step-0033)
       catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]),   // 공유+이온+연소(⑱ 라디칼 추상)
       specIon,
       rc: o.rc != null ? o.rc : 1.5,
@@ -172,7 +172,11 @@
     });
     world.nu_xfer = o.nu_xfer != null ? o.nu_xfer : 6.0;
     world.Dpair = Dpair;
-    world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
+    world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;   // → 스택의 pol 법칙(⑧)이 활성
+    // ⑯ H-결합 법칙도 상시 탑재 (step-0033) — 세계 속성만 싣는다: Dhb(세기)·hbAcc(수용체 종).
+    //   playground 는 a.Z=최외각 관례라 Z=8 게이트 대신 종 기호 게이트를 쓴다 (hbond donGate/accGate).
+    //   물 분자가 생기면 어느 프리셋에서든 H-결합 네트워크가 저절로 창발한다 — 모드 전환 0.
+    world.Dhb = 0.9; world.hbAcc = { O: true };
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
@@ -480,14 +484,11 @@
     runNuclear(world);
   }
 
-  // ── ⑯ 수소 결합 모드 — 안정 물 네트워크(방향성 약결합). 새 물리 0: hbForces(⑯) 합성만 ──
-  //   물 분자는 온전히 유지(해리 끔·반응 끔)하고, 분자간 방향성 약결합(H-결합)이 창발하는지 관찰.
+  // ── ⑯ 수소 결합 정관찰 모드 — 안정 물 네트워크 실험 환경 ──
+  //   step-0033: H-결합 *법칙*은 이제 스택 상시(Dhb·hbAcc 세계 속성) — 여기서는 힘을 갈아끼우지
+  //   않는다. 이 함수는 "네트워크만 조용히 관찰"할 실험 환경 노브만 조정한다 (관찰자 도구).
   //   design/16: V_hb = −D_hb·w(d)·(û_DH·û_HA)ⁿ (점전하 아님·기하 방향성). E_hb/D_OH ∈ (0.03,0.3).
   function enableHBond(world) {
-    world._polForces = Po.polForces;          // 기저 힘은 샌드박스 그대로(⑧ 쿨롱·척력·분산)
-    world.computeForces = HB.forcesHB;        // 그 위에 방향성 H-결합 인력 합성
-    world.hbAcc = { O: true };                // 수용체 종 (고립쌍 보유 — O)
-    world.Dhb = 0.9;                          // H-결합 세기 노브 (E_hb/D_OH 을 약결합 대역으로)
     world.nu_diss = 0;                        // 공유 해리 끔 → 물 분자 온전 (네트워크만 관찰)
     world.catalog = [];                       // 반응 끔 — H-결합 네트워크에 집중
     world.thermoK = 0.15;                     // 저온 항온조 세기 (결합 에너지 방출 스파이크 억제)
@@ -501,7 +502,8 @@
       const ang = 2 * Math.PI * m / nMol + (m % 2) * 0.5, rr = R * (0.7 + 0.35 * world.rng());
       const O = spawn(world, 'O', cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), { T: 0.02 });
       if (!O) continue;
-      O.Z = 8;                                // 수용체 인식용 (hbond isAcc·acidbase 관례)
+      // 수용체 인식은 세계 속성 hbAcc(종 기호 게이트)가 담당 — Z 덮어쓰기 불필요 (step-0033).
+      //   (이전의 O.Z=8 은 ⑤ 이온화 q=Z−ne 회계와 충돌할 수 있어 제거 — 반응 공존을 위해)
       const base = world.rng() * 2 * Math.PI, hs = [];
       for (let k = 0; k < 2; k++) {
         const a2 = base + (k ? HOH : 0);

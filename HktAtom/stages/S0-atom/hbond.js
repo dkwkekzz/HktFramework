@@ -21,6 +21,10 @@
 
   const isH = (a) => (a.Z || 0) === 1;      // 공여체의 H (수소)
   const isAcc = (a) => (a.Z || 0) === 8;    // 수용체 (산소 — 고립쌍 보유)
+  // step-0033: 종 게이트를 세계 속성으로 열어둔다 — Z 관례(⑮⑯⑰ 장면)가 기본, 세계가
+  //   hbDon/hbAcc(종 기호 맵)를 실으면 그것을 쓴다 (playground 는 Z=최외각 관례라 필수).
+  const donGate = (w) => (w.hbDon ? (a) => !!w.hbDon[a.sp] : isH);
+  const accGate = (w) => (w.hbAcc ? (a) => !!w.hbAcc[a.sp] : isAcc);
 
   // 최소 이미지 벡터
   function mi(world, ax, ay, az) {
@@ -49,12 +53,13 @@
   function pairs(world) {
     const lab = molLabels(world), L = world.box.L, per = world.box.bc === 'periodic';
     const mim = (v, Lx) => per ? v - Lx * Math.round(v / Lx) : v;
+    const isDon = donGate(world), isA = accGate(world);
     const out = [];
     for (const H of world.atoms) {
-      if (!isH(H)) continue;
+      if (!isDon(H)) continue;
       const D = donorOf(world, H); if (!D) continue;
       for (const A of world.atoms) {
-        if (!isAcc(A) || lab.get(A.id) === lab.get(H.id)) continue;
+        if (!isA(A) || lab.get(A.id) === lab.get(H.id)) continue;
         let ax = A.r.x - H.r.x, ay = A.r.y - H.r.y, az = A.r.z - H.r.z;
         ax = mim(ax, L.x); ay = mim(ay, L.y); az = world.frozenZ ? 0 : mim(az, L.z);
         const d = Math.sqrt(ax * ax + ay * ay + az * az);
@@ -102,11 +107,14 @@
     return Uhb;
   }
 
-  // computeForces 합성: 극성(전하·형상·쿨롱) → R-HB. 장면이 이걸 computeForces 로 지정.
+  // computeForces 합성 (하위 호환 — ⑯⑰ 장면): 극성(전하·형상·쿨롱) → R-HB.
   function forcesHB(world) {
     if (world._polForces) world._polForces(world); else E.pairForces(world);
     hbForces(world);
   }
+  // 법칙 등록 (step-0033) — 게이트 = 세기 노브 Dhb 존재. 없음 = 기여 0 이 참값.
+  //   기여는 U_bond 에 더하기(+=)라 기반 pairForces 와 자연 합성 (스택 계약 준수).
+  E.registerLaw({ name: 'hb', rank: 20, active: (w) => w.Dhb != null && w.Dhb !== 0, force: hbForces });
 
   // 검출 (측정 라벨·힘 아님): d(H···A)<r_hb ∧ θ(D–H···A)>θ_hb. 반환 통계.
   function detect(world, opts) {

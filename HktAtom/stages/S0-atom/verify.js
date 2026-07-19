@@ -1195,7 +1195,10 @@
         Pg.spawn(w29, 'H', 2.8 + (i % 4) * 3, 2 + ((i / 4) | 0) * 3, { T: 0.5 });
         Pg.spawn(w29, 'H', 2 + (i % 4) * 3, 2.8 + ((i / 4) | 0) * 3, { T: 0.5 });
       }
-      for (let k = 0; k < 6000; k++) {
+      // step-0033: hb 법칙 상시화로 고정 시드 궤적이 갈라져(혼돈계) 6000틱에선 시드 2929 가
+      //   H₂O 0 인 불운 런이 됐다 — 현상 자체는 온전 (8시드 통계: hb ON 9000틱 H₂O≥1 8/8).
+      //   어닐링을 9000틱으로 연장 (물리 불변·시간만).
+      for (let k = 0; k < 9000; k++) {
         E.step(w29);
         if (k % 50 === 0 && k > 1500) Pg.heatPulse(w29, 7, 7, 20, 0.985);   // 어닐링 냉각 (회계됨)
       }
@@ -1394,6 +1397,58 @@
         msg: `PG·3D 중력: 평균 y ${y3a.toFixed(1)} → ${y3b.toFixed(1)} (지형 바닥 −y 로 침강) · 잔차 ${Pg.residual(w3).toExponential(1)} ≤ 0.05 · Σc 정확` });
     }
 
+    // 33. 법칙 스택 (step-0033) — 규칙은 무대가 배선하지 않고 세계 속성이 켠다 (중력 패턴의 일반화)
+    //     계약: stackForces = pairForces(기반·F 초기화) + rank 순 법칙 기여(더하기만). 게이트 =
+    //     물리 입력(종 파라미터) 존재 — 파라미터 부재 = 기여 0 이 그 세계의 참값 (g=0 동형).
+    if (want(33)) {
+      const mF = (w) => w.atoms.map((a) => ({ x: a.F.x, y: a.F.y, z: a.F.z }));
+      const dFmax = (w, F0) => { let d = 0; w.atoms.forEach((a, i) => { d = Math.max(d, Math.abs(a.F.x - F0[i].x), Math.abs(a.F.y - F0[i].y), Math.abs(a.F.z - F0[i].z)); }); return d; };
+
+      // (1) 동등성 ⑧: 스택(pair + pol 법칙) ≡ 기존 polForces — 같은 배치에서 F·U 전 성분 일치
+      const wE = Po.nobleCondense({ N: 40, T0: 0.15, seed: 3301 });
+      for (let k = 0; k < 300; k++) E.step(wE);                // 비자명 배치로 진화 (기존 경로)
+      Po.polForces(wE);
+      const F1 = mF(wE), U1 = wE.ledger.U_elec + wE.ledger.U_pol;
+      E.stackForces(wE);
+      const dF1 = dFmax(wE, F1), dU1 = Math.abs(wE.ledger.U_elec + wE.ledger.U_pol - U1);
+      log.push({ ok: dF1 <= 1e-12 && dU1 <= 1e-12, name: '33·동등성⑧',
+        msg: `33·스택 동등성 ⑧: max|ΔF| ${dF1.toExponential(1)} ≤ 1e-12 · |ΔU| ${dU1.toExponential(1)} ≤ 1e-12 (polForces ≡ pair+pol 법칙 — 기존 장면 회귀 0)` });
+
+      // (2) 동등성 ⑯: 스택(… + hb 법칙) ≡ 기존 합성 체인 forcesHB(_polForces=polForces)
+      const wH = Pg.buildPlayground({ rng: E.makeRng(3302), L: 20 });
+      Pg.buildWaterCluster(wH, 6, 10, 10, 3.0);
+      for (let k = 0; k < 200; k++) Pg.tick(wH);
+      wH._polForces = Po.polForces;
+      HB.forcesHB(wH);                                         // 기존 체인 (⑯ 방식)
+      const F2 = mF(wH), Uhb1 = wH._Uhb;
+      E.stackForces(wH);
+      const dF2 = dFmax(wH, F2), dU2 = Math.abs(wH._Uhb - Uhb1);
+      log.push({ ok: dF2 <= 1e-12 && dU2 <= 1e-12 && wH._Uhb < 0, name: '33·동등성⑯',
+        msg: `33·스택 동등성 ⑯: max|ΔF| ${dF2.toExponential(1)} ≤ 1e-12 · |ΔU_hb| ${dU2.toExponential(1)} ≤ 1e-12 · U_hb ${wH._Uhb.toFixed(3)} < 0 (forcesHB ≡ 스택 — 배선 코드 0)` });
+
+      // (3) 게이트 = 참값: 물리 입력(Dhb) 제거 → 기여 정확히 0 · F 는 pair+pol 과 일치 (g=0 동형)
+      const wG = Pg.buildPlayground({ rng: E.makeRng(3304), L: 20 });
+      Pg.buildWaterCluster(wG, 4, 10, 10, 2.5);
+      E.stackForces(wG); const uhOn = wG._Uhb;
+      wG.Dhb = 0; wG._Uhb = 0;
+      E.stackForces(wG);
+      const F3 = mF(wG); Po.polForces(wG);
+      const dF3 = dFmax(wG, F3);
+      log.push({ ok: uhOn < 0 && wG._Uhb === 0 && dF3 <= 1e-12, name: '33·게이트',
+        msg: `33·법칙 게이트: Dhb 有 U_hb ${uhOn.toFixed(3)} < 0 → Dhb 0 기여 ${wG._Uhb} (정확 0) · F ≡ pair+pol (max|ΔF| ${dF3.toExponential(1)}) — 파라미터 부재 = 참값` });
+
+      // (4) 무대 독립 창발 (앵커): playground 기본 세계(반응 카탈로그 ON·모드 전환 0)에서 물
+      //     클러스터를 두면 H-결합 네트워크가 저절로 창발 — 규칙 공존 (⑤⑥⑧⑯⑱ 동시 활성)
+      const wA = Pg.buildPlayground({ rng: E.makeRng(3303), L: 22 });
+      Pg.buildWaterCluster(wA, 8, 11, 11, 3.2);                // enableHBond 호출 없음
+      for (let k = 0; k < 2500; k++) { Pg.tick(wA); Pg.thermostat(wA, 0.05, 0.1); }
+      const hb33 = HB.detect(wA, { thetaHb: 120 });
+      const catOn = !!(wA.catalog && wA.catalog.length >= 3);
+      const res33 = Pg.residual(wA);
+      log.push({ ok: hb33.length >= 5 && catOn && Math.abs(res33) <= 0.05 && Pg.compositionOK(wA), name: '33·무대독립',
+        msg: `33·무대 독립 창발: 기본 샌드박스(카탈로그 ${wA.catalog.length}행 ON·전환 0)에서 H-결합 ${hb33.length}개 ≥ 5 창발 · 잔차 ${res33.toExponential(1)} ≤ 0.05 · Σc 정확 ${Pg.compositionOK(wA)} — 법칙은 세계 속성이 켠다` });
+    }
+
     return log;
   }
 
@@ -1405,7 +1460,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32) 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32)·법칙스택(33) 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }

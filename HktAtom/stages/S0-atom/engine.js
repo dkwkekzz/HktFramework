@@ -307,6 +307,25 @@
     }
   }
 
+  // ── 법칙 스택 (step-0033) — 규칙은 무대가 배선하지 않고 세계 속성이 켠다 ──
+  //    중력(applyGravity — 세계 속성 g 가 게이트)의 일반화: 연속 힘 법칙을 엔진 스택에 등록하고,
+  //    각 법칙은 자신의 물리 입력(종 파라미터 테이블 — 예: alpha·Dhb)이 세계에 있을 때만 기여한다.
+  //    파라미터 부재 = 기여 0 이 그 세계의 물리적 참값 (g=0 과 같은 지위) — 기존 장면 불변.
+  //    computeForces 슬롯은 유지(하위 호환) — stackForces 를 꽂는 무대는 법칙 배선 코드 0.
+  //    계약: 기반 pairForces 가 F 초기화·U_elec·U_bond 를 담당하고, 법칙 기여는 F 에 더하기만
+  //    한다(초기화 금지·반대칭 → P 보존은 각 법칙이 보장). 실행 순서는 rank 오름차순 고정.
+  const LAWS = [];
+  function registerLaw(law) {   // {name, rank, active(world), force(world)} — 재등록은 교체
+    const i = LAWS.findIndex((l) => l.name === law.name);
+    if (i >= 0) LAWS[i] = law; else LAWS.push(law);
+    LAWS.sort((a, b) => a.rank - b.rank);
+  }
+  function stackForces(world) {
+    pairForces(world);                      // 기반 ②⑥ (F 초기화 + U_elec·U_bond)
+    world.ledger.U_pol = 0;                 // 법칙 소유 통 초기화 (활성 법칙이 덮어쓴다)
+    for (const l of LAWS) if (l.active(world)) l.force(world);
+  }
+
   // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장)·U_grav(중력 위치 E).
   //    E_photon·E_escape 는 전이가 증분 ──
   function recomputeLedger(world) {
@@ -778,6 +797,7 @@
     makeQueue, queuePush, queuePop,
     LEDGER_BINS, makeLedger, ledgerTotal,
     makeAtom, makeElectron, makePhoton, randDir, setNe, makeWorld, zeroForces, pairForces, minImage,
+    registerLaw, stackForces,
     recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
     setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
     runPhotonField, propagatePhotons,
