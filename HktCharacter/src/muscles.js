@@ -23,12 +23,22 @@ const ZQ = new THREE.Vector3(0, 0, 1);       // 스핀들 로컬 장축
 const _from = new THREE.Vector3(), _to = new THREE.Vector3(), _axis = new THREE.Vector3();
 const _ant = new THREE.Vector3(), _lat = new THREE.Vector3(), _c = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
+const _tmp = new THREE.Vector3();
 
-// 벨리 프레임(축·전면·측면)을 두 부착 뼈의 월드 위치에서 세운다. _from/_to 를 채우고
-// _axis/_ant/_lat 을 남긴다 — belly() 와 getAttachments() 가 공유.
-function frame(oBone, iBone) {
-  oBone.getWorldPosition(_from);
-  iBone.getWorldPosition(_to);
+// 부착 패치의 "축 기저점"(perp 오프셋 전) 을 월드로 해석한다.
+//  = 앵커 뼈 원점 + t·(자식 뼈 원점 − 앵커 원점). t=0 이면 관절 피벗 그대로.
+//  t>0 이면 원위 뼈를 따라 내려가 근육이 관절을 넘어간다(포즈 반응의 핵심).
+function attachBase(patch, out) {
+  patch.bone.getWorldPosition(out);
+  if (patch.t && patch.child) { patch.child.getWorldPosition(_tmp); out.lerp(_tmp, patch.t); }
+  return out;
+}
+
+// 벨리 프레임(축·전면·측면)을 origin/insertion 축 기저점에서 세운다. _from/_to 를
+// 채우고 _axis/_ant/_lat 을 남긴다 — belly() 와 getAttachments() 가 공유.
+function frame(oPatch, iPatch) {
+  attachBase(oPatch, _from);
+  attachBase(iPatch, _to);
   _axis.subVectors(_to, _from);
   const len = _axis.length() || 1e-4;
   _axis.multiplyScalar(1 / len);
@@ -41,16 +51,16 @@ function frame(oBone, iBone) {
 }
 
 function belly(item, rest) {
-  const { def, oBone, iBone } = item;
-  const len = frame(oBone, iBone);
+  const { def, oPatch, iPatch } = item;
+  const len = frame(oPatch, iPatch);
   // 부착 오프셋을 origin/insertion 각각 프레임에서 적용. 벨리 중심 = 부착 중점 + along.
-  // (두 오프셋이 같으면 기존 단일 off 결과와 정확히 일치 — WP-01 무손실.)
-  const o = def.origins[0].off, ins = def.insertions[0].off;
+  const o = oPatch.off, ins = iPatch.off;
   _c.copy(_from).add(_to).multiplyScalar(0.5)
     .addScaledVector(_ant, 0.5 * (o.a + ins.a))
     .addScaledVector(_lat, 0.5 * (o.l + ins.l))
     .addScaledVector(_axis, len * def.along);
   const half = 0.5 * len * def.span;
+  // 수축비 = rest 길이 / 현재 길이. 관절을 넘는 근육은 굴곡 시 len 이 줄어 >1 → 굵어짐.
   const contraction = rest ? THREE.MathUtils.clamp(rest / len, 0.7, 1.4) : 1;
   const radius = def.r * (1 + def.bulge * (contraction - 1));
   return { center: _c, axis: _axis, half, radius };
@@ -75,9 +85,18 @@ export class MuscleLayer {
       const oBone = rig.boneMap.get(def.origins[0].bone);
       const iBone = rig.boneMap.get(def.insertions[0].bone);
       if (!oBone || !iBone) continue;
+      // 패치를 뼈로 해석. child = 앵커 뼈의 첫 자식 뼈(원위 방향, t 오프셋 기준).
       const resolve = (list) => list
-        .map(p => ({ bone: rig.boneMap.get(p.bone), off: p.off, role: p.role }))
-        .filter(p => p.bone); // 리그에 없는 부차 패치는 제외
+        .map(p => {
+          const bone = rig.boneMap.get(p.bone);
+          if (!bone) return null;
+          // 원위 방향 자식 = 구동 뼈여야 한다. 트윈 중복 뼈(__dup, 같은 위치)는
+          // t 오프셋을 삼켜버리므로 제외 — simpleName 이 자기 자신으로 매핑되는 자식만.
+          const child = bone.children.find(
+            k => k.isBone && rig.boneMap.get(simpleName(k.name)) === k) || null;
+          return { bone, child, off: p.off, t: p.t || 0, role: p.role };
+        })
+        .filter(Boolean); // 리그에 없는 부차 패치는 제외
       const oPatches = resolve(def.origins);
       const iPatches = resolve(def.insertions);
       const mat = new THREE.MeshStandardMaterial({
@@ -88,8 +107,8 @@ export class MuscleLayer {
       mesh.matrixAutoUpdate = false;
       mesh.frustumCulled = false;
       this.group.add(mesh);
-      const item = { def, oBone, iBone, oPatches, iPatches, mesh };
-      // rest 길이 캐시 (수축 기준) — belly() 가 _from/_to 를 채운다
+      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh };
+      // rest 길이 캐시 (수축 기준) — belly() 가 _from/_to 를 축 기저점으로 채운다
       belly(item, null);
       this.restLen.set(item, _from.distanceTo(_to));
       this.items.push(item);
@@ -103,16 +122,17 @@ export class MuscleLayer {
   // WP-02(경로 솔버)·검증(§19.1)이 소비. rest·포즈 어느 시점에서도 호출 가능.
   getAttachments() {
     const out = [];
-    const wp = new THREE.Vector3();
+    const base = new THREE.Vector3(), pivot = new THREE.Vector3();
     for (const item of this.items) {
-      frame(item.oBone, item.iBone); // _ant/_lat 갱신 (벨리와 동일 프레임)
+      frame(item.oPatch, item.iPatch); // _ant/_lat 갱신 (벨리와 동일 프레임)
       const r = patchRadius(item.def);
       for (const p of [...item.oPatches, ...item.iPatches]) {
-        p.bone.getWorldPosition(wp);
-        const world = wp.clone().addScaledVector(_ant, p.off.a).addScaledVector(_lat, p.off.l);
+        attachBase(p, base);                       // 축 기저점(t 반영)
+        p.bone.getWorldPosition(pivot);            // 앵커 뼈 피벗
+        const world = base.clone().addScaledVector(_ant, p.off.a).addScaledVector(_lat, p.off.l);
         out.push({
           id: item.def.id, role: p.role, bone: simpleName(p.bone.name),
-          pivot: wp.clone(), world, r,
+          pivot: pivot.clone(), world, r,
         });
       }
     }

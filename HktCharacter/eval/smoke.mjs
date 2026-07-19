@@ -66,6 +66,24 @@ for (const model of ['X Bot', 'Y Bot']) {
     rig.obj.updateMatrixWorld(true);
   }
 
+  // WP-02 · 관절 통과 → 포즈 반응 (§19.3 기능 검증): 팔꿈치 굴곡 시 이두 단축·굵어짐 ---
+  const fore = rig.boneMap.get('leftforearm');
+  const bIdx = muscles.items.findIndex(it => it.def.id === 'biceps.L');
+  if (fore && bIdx >= 0) {
+    muscles.update();
+    const c0 = muscles.getCapsules()[bIdx];
+    const len0 = c0.a.distanceTo(c0.b), r0 = c0.r;
+    const savedRot = fore.rotation.clone();
+    fore.rotation.x += THREE.MathUtils.degToRad(120); // 팔꿈치 굴곡
+    rig.obj.updateMatrixWorld(true); muscles.update();
+    const c1 = muscles.getCapsules()[bIdx];
+    const len1 = c1.a.distanceTo(c1.b), r1 = c1.r;
+    ok(len1 < len0 * 0.9, `이두 굴곡 시 단축 ${len0.toFixed(3)}→${len1.toFixed(3)}m (§19.3)`);
+    ok(r1 > r0 * 1.05, `이두 굴곡 시 굵어짐(부피 보존) ${r0.toFixed(4)}→${r1.toFixed(4)}m`);
+    fore.rotation.copy(savedRot);               // rest 복원
+    rig.obj.updateMatrixWorld(true); muscles.update();
+  }
+
   // ③ 피부 (굽기) ----------------------------------------------------------
   const t0 = Date.now();
   const { mesh, skeleton, stats } = bakeSkin(rig, caps);

@@ -47,8 +47,11 @@ const CENTERLINE = new Set(['hips', 'spine', 'spine1', 'spine2', 'neck', 'head']
 const sided = (name, pre) => (CENTERLINE.has(name) ? name : pre + name);
 
 // 부착 패치 생성 헬퍼. off 는 벨리 프레임에서의 (전후 a, 측면 l) 오프셋(m).
-const O = (bone, a, l) => ({ bone, off: { a, l }, role: 'origin' });
-const I = (bone, a, l) => ({ bone, off: { a, l }, role: 'insertion' });
+//  t: 앵커 뼈 원점→그 뼈의 자식 뼈 방향(distal)으로의 위치(0=피벗, 0.3=뼈의 30% 지점).
+//  근육이 관절을 넘어가게 하는 핵심 — 정지부를 원위 뼈 아래로 내리면 관절 굴곡이
+//  실제로 근육을 짧게 만들어 부피 보존 bulge 가 발동한다(설계서 §10·Phase1 완료조건).
+const O = (bone, a, l, t = 0) => ({ bone, off: { a, l }, t, role: 'origin' });
+const I = (bone, a, l, t = 0) => ({ bone, off: { a, l }, t, role: 'insertion' });
 
 // 부착 패치의 footprint 반지름(m) = 벨리 최대 반지름 × 양끝 taper 비율.
 // (벨리 양 끝이 실제로 그 반지름으로 좁아지므로 힘줄·부착 면적의 근사다.) 설계서 §7.1.
@@ -95,10 +98,15 @@ const PAIRED = [
   { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform',
     origins: [O('arm', 0, 0.055)], insertions: [I('forearm', 0, 0.055)],
     along: -0.28, span: 0.5, r: 0.06, taper: 0.5, bulge: 0.15 },
-  // ---- 상완 -------------------------------------------------------------
+  // ---- 상완 (관절 통과: 정지부를 전완 아래로 내려 팔꿈치 굴곡에 반응) ----------
+  //  이두근: 어깨(견갑골 근사)→요골. 정지부 t=0.30 로 전완을 넘어가므로 팔을 굽히면
+  //  원점−정지 거리가 줄어 짧아지고 굵어진다. along 음수로 벨리 덩어리는 상완에 유지.
   { id: 'biceps', kr: '상완이두근', architecture: 'Fusiform',
-    origins: [O('arm', 0.045, 0)], insertions: [I('forearm', 0.045, 0)],
-    along: 0.02, span: 0.62, r: 0.048, taper: 0.45, bulge: 0.32 },
+    origins: [O('arm', 0.045, 0, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
+    along: -0.20, span: 0.58, r: 0.048, taper: 0.4, bulge: 0.32 },
+  //  삼두근: 후면. 이두의 길항근으로 굴곡 시 길어져야 하지만, 그건 정지부(주두)가
+  //  팔꿈치 회전축 뒤를 지나는 모멘트암이 있어야 나온다 → WP-04(JointInfluence)로 이월.
+  //  지금은 틀린 방향(단축)을 피해 t=0(중립, 기존과 동일)으로 둔다.
   { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
     origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
     along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },

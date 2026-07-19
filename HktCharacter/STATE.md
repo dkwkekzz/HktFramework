@@ -10,8 +10,9 @@
 
 - **① 뼈**: X Bot·Y Bot FBX 로드 → 구동 뼈 65개, 키 1.7m 정규화, 발 접지. 원본 스킨은 버림.
 - **② 근육**: 해부학 아틀라스 31개(표재근)를 명시적 **부착 패치**(`origins[]`/`insertions[]`,
-  뼈 로컬 오프셋)로 정의 → 방추형 벨리를 뼈 사이에 부착. 애니메이션 시 수축하면 부피
-  보존처럼 굵어짐(라이브 갱신). + 뼈 패딩 캡슐로 정강이·손·발·머리 채움.
+  뼈 로컬 오프셋 + 뼈-축 성분 `t`)로 정의 → 방추형 벨리를 뼈 사이에 부착. 이두근은 정지부가
+  **관절을 넘어가** 팔꿈치 굴곡 시 실제로 짧아지고 굵어짐(부피 보존, 라이브 갱신).
+  + 뼈 패딩 캡슐로 정강이·손·발·머리 채움.
 - **③ 피부**: 근육·뼈 캡슐의 음함수 필드 → MarchingCubes(64³)로 표면 추출 → 정점 용접·
   법선 재계산 → 뼈에 스키닝 바인딩 → `SkinnedMesh` 로 rest 포즈에서 **한 번 굽기**.
 - **애니메이션**: 6개 Mixamo 클립(대기·걷기·뛰기·점프·공격·삼바) 순수 월드 공간 리타깃 →
@@ -32,13 +33,19 @@
 이 트랙에서 빌드 가능한 **작업 패키지(WP) 8개**로 분해했다 → [docs/WORKPLAN.md](docs/WORKPLAN.md).
 현재 v5.0 은 설계서 12단계 중 **부착 패치·경로·관절 기능·조직 분할이 통째로 비어 있음**(갭 분석 §1).
 
-**✅ WP-01 (AttachmentPatch-lite) 완료 (2026-07-18)** — 부착을 관절 원점 스냅에서 **뼈 로컬 패치**로 승격.
-`anatomy.js` 를 `origins[]`/`insertions[]`(`AttachmentPatch={bone,off,role}`) + `architecture` 로 재작성,
-`muscles.js` 에 `getAttachments()` 추가. **무손실 확인**: 피부 tris·높이·스팬·정점·애니 변형 전부 리팩터 전과 동일.
-smoke 에 §19.1 구조 + §7.1 부착 불변(상완 ×1.3 → insertion 이 앵커 뼈와 1:1 이동, origin 불변) 게이트 추가.
+**✅ WP-01 (AttachmentPatch-lite) 완료** — 부착을 관절 원점 스냅에서 **뼈 로컬 패치**로 승격.
+`anatomy.js` 를 `origins[]`/`insertions[]`(`AttachmentPatch={bone,off,t,role}`) + `architecture` 로 재작성,
+`muscles.js` 에 `getAttachments()` 추가. 무손실. smoke 에 §19.1 구조 + §7.1 부착 불변 게이트 추가.
 
-**◀ 다음: WP-02 (WrapConstraint + Route Solver-lite)** — origin↔insertion 사이 뼈 회피 경로,
-뼈 관통비 ≤0.1% 게이트(설계서 §6·§20). 상세 → [docs/WORKPLAN.md](docs/WORKPLAN.md) §3.
+**✅ WP-02 (관절 통과 부착, Joint-Crossing) 완료 (2026-07-18)** — **측정으로 근본 결함 발견**:
+근육이 인접 관절 피벗 사이에 걸려(피벗 거리=강체 뼈 길이=상수) **bulge 가 절대 발동 안 함** —
+이두근이 팔꿈치 굴곡에 무반응이었다. 부착 패치에 뼈-축 성분 `t` 를 더해 정지부를 원위 뼈 아래로
+내려 근육이 **관절을 넘어가게** 했다. 이제 **팔꿈치 0→135° 굴곡 시 이두 len −37%·R +13%**(부피 보존
+bulge 발동). 트윈 뼈(`__dup`)가 자식으로 잡히던 버그 수정. render `2-arm-neutral↔curl.png` 로 눈검증,
+smoke §19.3 기능 게이트 추가. (삼두 길항 신장은 모멘트암 필요 → WP-04 이월. wrap/관통은 WP-02b 이월.)
+
+**◀ 다음: WP-03 (Muscle Architecture 다양화)** — 방추형 일변도 → 대흉근 부채꼴·복부 판형·이두
+두 갈래. **rest 실루엣에서 눈에 띄는 첫 변화**(설계서 §8). 상세 → [docs/WORKPLAN.md](docs/WORKPLAN.md) §3·§7.
 
 WP 시퀀스·의존성·검증 게이트는 [docs/WORKPLAN.md](docs/WORKPLAN.md) 상태표(§5) 참조. 아래는 흡수된 기존 항목:
 
