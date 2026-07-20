@@ -15,7 +15,7 @@ import { bakeSkin } from '../src/skin.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { analyzeJoints } from '../src/joints.js';
 import { solveInsertion } from '../src/attach.js';
-import { BODY_PRESETS } from '../src/anatomy.js';
+import { BODY_PRESETS, fatRegionMult } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
 const toBuf = p => { const b = readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); };
@@ -381,6 +381,23 @@ for (const model of ['X Bot', 'Y Bot']) {
   const fatG = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
   fatG.computeBoundingBox(); const fz = new THREE.Vector3(); fatG.boundingBox.getSize(fz);
   ok(fz.z > lz.z + 0.05, `체형: 비만 피부 전후 ${fz.z.toFixed(2)} > 마른 ${lz.z.toFixed(2)}m (G2)`);
+
+  // WP-06② · 부위별 지방(§9.10): 지방이 복부에 몰려 배 나옴 — 복부 z두께 증가가 크다.
+  ok(fatRegionMult('rectusAbdominis') > fatRegionMult('forearm') * 2, `WP-06②: 복부 지방 배율 > 팔뚝×2 (${fatRegionMult('rectusAbdominis')}>${fatRegionMult('forearm')})`);
+  {
+    const bandZ = (geo, ylo, yhi) => { // y밴드 내 정점의 z(전후) 최대−최소
+      const p = geo.attributes.position.array; let mn = Infinity, mx = -Infinity;
+      for (let i = 0; i < p.length; i += 3) { const y = p[i + 1]; if (y < ylo || y > yhi) continue; const z = p[i + 2]; if (z < mn) mn = z; if (z > mx) mx = z; }
+      return mx > mn ? mx - mn : 0;
+    };
+    muscles.build(rig, { muscle: 0.95, fat: 0 });
+    const leanG2 = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+    muscles.build(rig, BODY_PRESETS['비만']);
+    const fatG2 = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+    leanG2.computeBoundingBox(); const H = leanG2.boundingBox.max.y;
+    const leanAb = bandZ(leanG2, H * 0.52, H * 0.66), fatAb = bandZ(fatG2, H * 0.52, H * 0.66); // 복부 밴드
+    ok(fatAb > leanAb + 0.08, `WP-06②: 비만 복부 z두께 ${fatAb.toFixed(2)} > 마른 ${leanAb.toFixed(2)}+0.08 (배 나옴 §9.10)`);
+  }
   muscles.build(rig); // 기본 체형 복구
 }
 

@@ -168,6 +168,31 @@ export const BODY_PRESETS = {
   비만:   { muscle: 0.95, fat: 0.075, transfer: 0.3,  fascia: 6 },
 };
 
+// 부위별 지방 분포(설계서 §9.10): FatThickness = GlobalFat × RegionalDistribution. 지방은
+//  전신 균일이 아니다 — 복부·엉덩이에 몰리고 팔뚝·종아리·손발엔 얇다. 이 배율이 비만 체형의
+//  "배 나옴"을 만든다(균일 두께면 눈사람처럼 됨). GlobalFat(체형 fat)에 곱해진다.
+export const FAT_REGIONS = {
+  face: 0.3, neck: 0.5, chest: 0.85, abdomen: 1.9, back: 0.9,
+  upperArm: 0.6, forearm: 0.4, hip: 1.5, thigh: 1.0, calf: 0.5,
+  hand: 0.2, foot: 0.2, default: 0.8,
+};
+// 근육 id·뼈 이름(좌우 접두어 제거) → 부위. 근육 아틀라스 id 와 Mixamo simpleName 둘 다 매핑.
+const REGION = {
+  // 근육(소문자 base id)
+  rectusabdominis: 'abdomen', oblique: 'abdomen', pectoralis: 'chest', latissimus: 'back',
+  trapezius: 'back', gluteus: 'hip', quadriceps: 'thigh', hamstrings: 'thigh', adductor: 'thigh',
+  gastrocnemius: 'calf', tibialis: 'calf', biceps: 'upperArm', triceps: 'upperArm', deltoid: 'upperArm',
+  forearm: 'forearm', scm: 'neck',
+  // 뼈(simpleName)
+  hips: 'abdomen', spine: 'abdomen', spine1: 'chest', spine2: 'chest', neck: 'neck', head: 'face',
+  shoulder: 'upperArm', arm: 'upperArm', hand: 'hand', upleg: 'thigh', leg: 'calf', foot: 'foot',
+};
+// 근육 id 또는 뼈 simpleName → 그 부위의 지방 배율. 미매핑은 default.
+export function fatRegionMult(key) {
+  const base = key.replace(/^(left|right)/, '').replace(/\.[lr]$/i, '').toLowerCase();
+  return FAT_REGIONS[REGION[base] || 'default'] ?? FAT_REGIONS.default;
+}
+
 // 뼈 자체도 피부 필드에 기여한다(살이 얇은 정강이·손·발·머리를 채운다).
 // 각 항목: 뼈 세그먼트(bone → child) 를 감싸는 얇은 캡슐 반지름.
 export const BONE_PADDING = [

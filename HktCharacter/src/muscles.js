@@ -12,7 +12,7 @@
 // ============================================================================
 import * as THREE from 'three';
 import { simpleName } from './skeleton.js';
-import { MUSCLES, BONE_PADDING, FACING, patchRadius, DEFAULT_FUSIFORM } from './anatomy.js';
+import { MUSCLES, BONE_PADDING, FACING, patchRadius, DEFAULT_FUSIFORM, fatRegionMult } from './anatomy.js';
 
 const ANT = new THREE.Vector3(0, 0, FACING); // 전면 월드 방향
 const UPX = new THREE.Vector3(1, 0, 0);
@@ -315,9 +315,12 @@ export class MuscleLayer {
   // 각 항목 { a, b, r } — 월드 좌표 세그먼트 + 반지름. rest 포즈에서 1회 호출.
   getCapsules() {
     const caps = [];
-    const fat = this.profile.fat; // 지방층: 피부 캡슐을 균일하게 부풀림(§9.10 GlobalFat)
+    // 지방층(§9.10): FatThickness = GlobalFat(체형 fat) × RegionalDistribution(부위별 배율).
+    //  복부·엉덩이는 크게, 팔뚝·종아리는 얇게 → 비만이 눈사람이 아니라 배 나온 체형이 된다.
+    const gfat = this.profile.fat;
     for (const item of this.items) {
       const bb = belly(item, this.restLen.get(item));
+      const fat = gfat * fatRegionMult(item.def.id); // 이 근육 부위의 지방 두께
       const radii = profileRadii(item.def);
       // 벨리를 축 방향으로 SKIN_CAPS 개 서브 캡슐로 나눠, 각 구간 반지름을 프로필로
       // 준다 — 피부가 근육의 방추형 테이퍼(가는 힘줄 끝)를 따라간다. 얇은 끝도 최소치는
@@ -342,6 +345,7 @@ export class MuscleLayer {
       const sn = simpleName(bone.name);
       const pad = BONE_PADDING.find(p => p.re.test(sn));
       if (!pad) continue;
+      const fat = gfat * fatRegionMult(sn); // 이 뼈 부위의 지방 두께(부위별)
       bone.getWorldPosition(wp);
       const kids = bone.children.filter(k => k.isBone);
       if (kids.length) {
