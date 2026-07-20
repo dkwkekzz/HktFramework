@@ -84,6 +84,16 @@ for (const model of ['X Bot', 'Y Bot']) {
     rig.obj.updateMatrixWorld(true);
   }
 
+  // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
+  //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
+  {
+    const bel = muscles.getBellies(), by = new Map();
+    for (const b of bel) { const base = b.id.replace(/\.[LR]$/, ''); const e = by.get(base) || {}; e[b.id.endsWith('.L') ? 'L' : b.id.endsWith('.R') ? 'R' : 'C'] = b; by.set(base, e); }
+    let worst = 0;
+    for (const e of by.values()) if (e.L && e.R) { const m = e.L.center.clone(); m.x *= -1; worst = Math.max(worst, m.distanceTo(e.R.center)); }
+    ok(worst < 0.005, `근육 좌우 대칭: 짝 벨리 최대 오차 ${(worst * 1000).toFixed(2)}mm <5mm (§19.4)`);
+  }
+
   // WP-11 · Bone Landmark Detection (§9.2·§19.1): 랜드마크가 프록시 표면에 있고 좌우 대칭 -----
   {
     const lm = detectLandmarks(rig);
@@ -172,6 +182,24 @@ for (const model of ['X Bot', 'Y Bot']) {
       if (best > 0.08) escaped++; // 캡슐 표면에서 8cm 이상 뜬 정점 = escape (fascia webbing 허용 초과)
     }
     ok(escaped / total < 0.02, `skin escape ${(100 * escaped / total).toFixed(1)}% <2% (§19.2 조직 패킹)`);
+  }
+
+  // 좌우 대칭(§19.4·§20: 비의도적 비대칭 ≤1%): rest 피부 정점의 x-미러 최근접 평균거리/키.
+  {
+    const p = g.attributes.position.array, np = p.length / 3, cel = 0.03, bk = new Map();
+    const key = (x, y, z) => `${Math.round(x / cel)},${Math.round(y / cel)},${Math.round(z / cel)}`;
+    for (let i = 0; i < np; i++) { const k = key(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]); let b = bk.get(k); if (!b) bk.set(k, b = []); b.push(i); }
+    let sum = 0;
+    for (let i = 0; i < np; i++) {
+      const qx = -p[i * 3], qy = p[i * 3 + 1], qz = p[i * 3 + 2]; let best = Infinity;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        const arr = bk.get(key(qx + dx * cel, qy + dy * cel, qz + dz * cel)); if (!arr) continue;
+        for (const j of arr) { const d = Math.hypot(qx - p[j * 3], qy - p[j * 3 + 1], qz - p[j * 3 + 2]); if (d < best) best = d; }
+      }
+      if (best < Infinity) sum += best;
+    }
+    const meanA = sum / np, pct = meanA / sz.y * 100;
+    ok(pct < 1, `피부 좌우 대칭: 평균 비대칭 ${(meanA * 1000).toFixed(2)}mm (${pct.toFixed(3)}% <1%, §19.4)`);
   }
 
   // WP-10 · 피부 전달률(§11 SkinTransfer·§21.5): 전달률↑ → 피부가 근육을 바짝 감싸 분리가

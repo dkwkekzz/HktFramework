@@ -80,9 +80,34 @@ function laplacianSmooth(geo, iterations, lambda) {
   return geo;
 }
 
+// 좌우 대칭화(설계서 §19.4·§20 ≤1%): rest 포즈는 골격·근육이 x=0 대칭이지만 MarchingCubes
+//  삼각화가 동일 필드값에도 미러 셀에서 정점을 미세하게 다르게 만든다(위상 비대칭). 각 정점을
+//  자신의 x-미러(−x,y,z) 최근접 정점의 미러와 평균내 위치를 정확히 x=0 대칭으로 맞춘다(위상 불변).
+//  정중선(x≈0) 정점은 x→0 으로 스냅. 공간 해시로 O(n).
+function symmetrizeVertices(geo) {
+  const pos = geo.attributes.position, n = pos.count, a = pos.array;
+  const cell = 0.02, bucket = new Map();
+  const key = (x, y, z) => `${Math.round(x / cell)},${Math.round(y / cell)},${Math.round(z / cell)}`;
+  for (let i = 0; i < n; i++) { const k = key(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]); let b = bucket.get(k); if (!b) bucket.set(k, b = []); b.push(i); }
+  const out = new Float32Array(a.length);
+  for (let i = 0; i < n; i++) {
+    const x = a[i * 3], y = a[i * 3 + 1], z = a[i * 3 + 2];
+    let bj = -1, bd = Infinity; // 미러점(−x,y,z) 최근접 정점
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const arr = bucket.get(key(-x + dx * cell, y + dy * cell, z + dz * cell)); if (!arr) continue;
+      for (const j of arr) { const d = (a[j * 3] + x) ** 2 + (a[j * 3 + 1] - y) ** 2 + (a[j * 3 + 2] - z) ** 2; if (d < bd) { bd = d; bj = j; } }
+    }
+    if (bj >= 0) { out[i * 3] = 0.5 * (x - a[bj * 3]); out[i * 3 + 1] = 0.5 * (y + a[bj * 3 + 1]); out[i * 3 + 2] = 0.5 * (z + a[bj * 3 + 2]); }
+    else { out[i * 3] = x; out[i * 3 + 1] = y; out[i * 3 + 2] = z; }
+  }
+  a.set(out); pos.needsUpdate = true; geo.computeVertexNormals();
+  return geo;
+}
+
 // 근육·뼈 캡슐 → 피부 SkinnedMesh. rig 은 rest 포즈로 replant 되어 있어야 한다.
 //  opts.transfer: 피부 전달률(§11) — 근육 분리를 얼마나 피부에 드러낼지(0 매끄럼~1 또렷).
 //  opts.fascia:   Laplacian 스무딩 반복(§9.10) — 지방 체형일수록 크게(더 매끄럽게).
+//  opts.symmetric: 좌우 대칭화(기본 true) — rest 포즈 전제. 애니 포즈 굽기 시 false.
 export function bakeSkin(rig, capsules, opts = {}) {
   const FASCIA_K = fasciaKOf(opts.transfer); // 전달률 → smooth-max 날카로움(§11·WP-10)
   const fasciaIters = opts.fascia ?? DEFAULT_FASCIA;
@@ -146,6 +171,8 @@ export function bakeSkin(rig, capsules, opts = {}) {
   geo.computeVertexNormals();
   // Fascia 스무딩(§9.10) — 스키닝 전 rest 표면에서 1회. 골·계단 줄무늬 완화 → 사람 표면.
   geo = laplacianSmooth(geo, fasciaIters, SMOOTH_LAMBDA);
+  // 좌우 대칭화(§19.4) — 스무딩 뒤(스무딩은 비대칭 위상에서 미세 비대칭 재유입) 마지막에.
+  if (opts.symmetric !== false) geo = symmetrizeVertices(geo);
 
   // --- 4. 스키닝 가중치 — 정점을 가까운 뼈 세그먼트에 바인딩 -----------------
   const bones = rig.drivers;

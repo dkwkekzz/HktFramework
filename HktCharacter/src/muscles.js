@@ -74,7 +74,8 @@ function attachBase(patch, out) {
 
 // 벨리 프레임(축·전면·측면)을 origin/insertion 축 기저점에서 세운다. _from/_to 를
 // 채우고 _axis/_ant/_lat 을 남긴다 — belly() 와 getAttachments() 가 공유.
-function frame(oPatch, iPatch) {
+//  side: 근육의 좌우('L'/'R'/'C'). 측면 축 _lat 의 좌우 정합에 쓴다.
+function frame(oPatch, iPatch, side) {
   attachBase(oPatch, _from);
   attachBase(iPatch, _to);
   _axis.subVectors(_to, _from);
@@ -84,13 +85,18 @@ function frame(oPatch, iPatch) {
   _ant.copy(ANT).addScaledVector(_axis, -_axis.dot(ANT));
   if (_ant.lengthSq() < 1e-6) _ant.copy(UPX).addScaledVector(_axis, -_axis.dot(UPX));
   _ant.normalize();
-  _lat.crossVectors(_axis, _ant).normalize(); // 좌우 자동 대칭(축 방향이 뒤집힘)
+  _lat.crossVectors(_axis, _ant).normalize();
+  // 좌우 대칭 교정: 뼈가 완벽 대칭이면 cross(axis,ant) 는 우측에서 미러의 '음수'로 나온다
+  //  (lat_R = −M·lat_L, M=x-미러) → 측면 오프셋 l 이 좌우 반대로 적용돼 2l 만큼 어긋났다.
+  //  우측 lat 을 뒤집어 진짜 미러(lat_R = M·lat_L)로 만든다. side 로 판정(중심선 뼈 부착
+  //  근육도 side 는 L/R 이라 견고). 단방향 뼈→근육 유지.
+  if (side === 'R') _lat.negate();
   return len;
 }
 
 function belly(item, rest) {
   const { def, oPatch, iPatch } = item;
-  const len = frame(oPatch, iPatch);
+  const len = frame(oPatch, iPatch, def.side);
   // 부착 오프셋을 origin/insertion 각각 프레임에서 적용. 벨리 중심 = 부착 중점 + along.
   const o = oPatch.off, ins = iPatch.off;
   _c.copy(_from).add(_to).multiplyScalar(0.5)
@@ -164,7 +170,7 @@ export class MuscleLayer {
     const out = [];
     const base = new THREE.Vector3(), pivot = new THREE.Vector3();
     for (const item of this.items) {
-      frame(item.oPatch, item.iPatch); // _ant/_lat 갱신 (벨리와 동일 프레임)
+      frame(item.oPatch, item.iPatch, item.def.side); // _ant/_lat 갱신 (벨리와 동일 프레임)
       const r = patchRadius(item.def);
       for (const p of [...item.oPatches, ...item.iPatches]) {
         attachBase(p, base);                       // 축 기저점(t 반영)
