@@ -109,8 +109,8 @@ LOD 5단계, Chaos Flesh 참조 등을 전제한다. 이 트랙은 그중 **생�
 | 5 | WP-02b | §6·§7.5 | Route Solver + Wrap (뼈 회피 경로, 조건부) | ✅ 2026-07-20 |
 | 6 | WP-04 | §7.4·원칙④ | Joint Influence & 기능 근육 (길항 신장) | ✅ 2026-07-20 |
 | 7 | WP-05 | §10.3~10.6·G3 | 활성도 채널 (등척성 수축, 길이와 독립) | ✅ 2026-07-20 |
-| 8 | WP-13 | §9.9 | Fiber Field (근섬유 방향장 → 수축 방향) | ☐ ◀차례 |
-| 9 | WP-14 | §9.5·원칙⑤ | Attachment Solver (후보 탐색·점수화·생성형 부착) | ☐ |
+| 8 | WP-13 | §9.9 | Fiber Field (근섬유 방향장 → 수축 방향) | ✅ 2026-07-20 |
+| 9 | WP-14 | §9.5·원칙⑤ | Attachment Solver (후보 탐색·점수화·생성형 부착) | ☐ ◀차례 |
 | 10 | WP-06② | §9.10·§12 | 부위별 지방 분포 + Corrective Morph(자세 베이크) | ☐ |
 | 11 | WP-03b | §8·§7.3 | MultiHead 아키텍처 (이두·삼두 다두형) | ☐ |
 | 12 | WP-08 | §9.4B·Phase4 | 모드 B — 기능만으로 근육 합성 (비인간형 씨앗) | ☐ |
@@ -364,12 +364,21 @@ LOD 5단계, Chaos Flesh 참조 등을 전제한다. 이 트랙은 그중 **생�
     ball=자홍 점) 오버레이로 유형·축 육안 확인.
   - **남은 것**: 요구 토크 추정(F≈τ/r §9.4)·안정화 근육은 WP-04/모드 B. 근육의 관절 태깅은 WP-04.
 
-### WP-13 · Fiber Field — 근섬유 방향장 — §9.9
-- **목적**: 근육 내부 **섬유 방향**(Fusiform=중심축, Pennate=힘줄에 사선, Fan=수렴)을 생성해
-  수축 방향·부피 팽창 방향을 물리적으로 만든다. 현재 bulge 는 방향 없는 등방 스케일.
-- **대상**: `muscles.js`(fiber 방향 → bulge 이방성), `anatomy.js`(pennation 각).
-- **검증**: smoke 섬유 방향이 부착축과 정합, pennate 근육 사선 확인. render 결 시각화.
+### WP-13 · Fiber Field — 근섬유 방향장 — §9.9 ✅
+- **목적**: 근육 내부 **섬유 방향**(Fusiform=중심축, Pennate=축에서 사선)을 생성해 수축·부피
+  팽창 방향의 기준을 만든다. 깃근은 PCSA 가 커 더 부푼다.
+- **대상**: `muscles.js`(fiber 방향·pennation bulge), `anatomy.js`(pennation 각).
+- **검증**: smoke 섬유 단위·fusiform 축 정렬·pennate 깃각 기움. render 섬유 방향 오버레이.
 - **의존**: WP-03(형태), WP-09.
+- **완료 기록 (2026-07-20)**:
+  - `muscles.js` — `belly()` 가 섬유 방향 `fiber = axis·cos(p) + ant·sin(p)`(p=pennation) 계산.
+    깃근 bulge 부스트 `pennBulge = bulge·(1+0.8·sin p)`(§9.9 부피 팽창). `getFibers()` — 근육별
+    {center, dir, len, pennation} 방향장. `getBellies` 에 fiber·pennation 추가.
+  - `anatomy.js` — 삼각근(multipennate 22°)·대퇴사두근(15°)·비복근(18°)에 `pennation`.
+  - `eval/smoke.mjs` — 섬유 단위·fusiform 축 정렬(dot 1.000)·pennate 깃각 기움(dot 0.927=cos22°)·
+    깃각 메타 전달. `eval/render.mjs` — `1-fibers-front.png`(fusiform=청록·pennate=주황) 오버레이.
+  - **남은 것**: Fan 수렴 방향장·섬유 결 텍스처·피부 방향성 변형(§9.9 사용처)은 후속. 완전
+    이방성 bulge(섬유 수직 팽창)는 근육 메시 회전 필요 → 후속.
 
 ### WP-14 · Attachment Solver — 생성형 부착 (후보 탐색·점수화) — §9.5·원칙⑤
 - **목적**: 손수 지정한 `off{a,l,t}` 를 **후보 영역 생성 → 점수화(토크방향·모멘트암·면적·충돌
@@ -400,7 +409,7 @@ WP-01 ─▶ WP-11 ─▶ WP-12 ─┬─▶ WP-14 ─────────�
                             (wrap/경로) (길항)     (활성도)  (기능합성 모드B)
 WP-07 ── 전 WP 가로지름(정량 게이트: §19 구조·충돌·기능·시각) ──
 ```
-✅ WP-01·02·03·06①·**09·10·11·12·02b·04·05** (Phase1 완료) · **◀ 다음: WP-13(fiber)** · ☐ WP-14·06②·03b·08·07
+✅ WP-01·02·03·06①·**09·10·11·12·02b·04·05·13** · **◀ 다음: WP-14(부착솔버)** · ☐ WP-06②·03b·08·07
 
 ---
 
@@ -440,8 +449,8 @@ smoke 기본(뼈·키·접지·근육수·피부 삼각형·스키닝 합·bbox�
 | 5 | WP-02b | Route Solver + Wrap | §6·§7.5 | ✅ 완료 (2026-07-20) |
 | 6 | WP-04 | Joint Influence & 기능 근육 | §7.4·원칙④ | ✅ 완료 (2026-07-20) |
 | 7 | WP-05 | 활성도(activation) 분리 | §10.3 | ✅ 완료 (2026-07-20) |
-| 8 | WP-13 | Fiber Field | §9.9 | ☐ ◀ 착수 |
-| 9 | WP-14 | Attachment Solver (생성형) | §9.5 | ☐ |
+| 8 | WP-13 | Fiber Field | §9.9 | ✅ 완료 (2026-07-20) |
+| 9 | WP-14 | Attachment Solver (생성형) | §9.5 | ☐ ◀ 착수 |
 | 10 | WP-06② | 부위별 지방 + Corrective Morph | §9.10·§12 | ☐ |
 | 11 | WP-03b | MultiHead 아키텍처 | §8·§7.3 | ☐ |
 | 12 | WP-08 | 모드 B 기능 합성 | §9.4B | ☐ |

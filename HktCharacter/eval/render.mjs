@@ -214,6 +214,28 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   console.log('활성도: eval/out/1-activation-{rest,cocontract}.png (등척성 공동수축)');
 }
 
+// (1f) 근섬유 방향장(WP-13) — 근육별 섬유 방향을 점열 막대로. fusiform=청록(축 정렬)·
+//  pennate 깃근=주황(축에서 깃각만큼 기움). §9.9·§17.3 Fiber directions 뷰.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const fibers = muscles.getFibers();
+  const tris = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [56, 34, 34], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const fb of fibers) {
+    const col = fb.pennation > 0 ? [255, 150, 60] : [80, 220, 255];
+    const h = fb.len * 0.45;
+    for (let s = -3; s <= 3; s++) cube(fb.center.clone().addScaledVector(fb.dir, (s / 3) * h), 0.009, col);
+  }
+  writePNG('eval/out/1-fibers-front.png', render(tris, 'front'), W, H);
+  console.log('근섬유 방향: eval/out/1-fibers-front.png (fusiform=청록·pennate=주황)');
+}
+
 // (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
 //  rig 은 아직 rest(replant) 상태이므로 구운 지오메트리 정점이 곧 월드 rest 좌표다.
 for (const name of ['마른', '근육질', '비만']) {

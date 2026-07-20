@@ -103,8 +103,8 @@ const PAIRED = [
   { id: 'scm', kr: '흉쇄유돌근', architecture: 'Fusiform',
     origins: [O('head', 0.05, 0.03)], insertions: [I('spine2', 0.05, 0.03)],
     along: 0.1, span: 0.7, r: 0.024, taper: 0.6, bulge: 0.08 },
-  // ---- 어깨 -------------------------------------------------------------
-  { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform',
+  // ---- 어깨 (삼각근 = 다우상근 multipennate: 섬유가 축에서 크게 기움) ----------
+  { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform', pennation: 22,
     origins: [O('arm', 0, 0.055)], insertions: [I('forearm', 0, 0.055)],
     along: -0.28, span: 0.5, r: 0.06, taper: 0.5, bulge: 0.15 },
   // ---- 상완 (관절 통과: 정지부를 전완 아래로 내려 팔꿈치 굴곡에 반응) ----------
@@ -133,7 +133,8 @@ const PAIRED = [
     origins: [O('hips', -0.09, 0.05)], insertions: [I('upleg', -0.09, 0.05)],
     along: 0.2, span: 0.6, r: 0.09, taper: 0.6, bulge: 0.12 },
   // ---- 대퇴 -------------------------------------------------------------
-  { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform',
+  // 대퇴사두근(대퇴직근 = 양우상근 bipennate)·비복근도 깃근이라 pennation 부여.
+  { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform', pennation: 15,
     origins: [O('upleg', 0.07, 0)], insertions: [I('leg', 0.07, 0)],
     along: 0.05, span: 0.72, r: 0.095, taper: 0.5, bulge: 0.22 },
   { id: 'hamstrings', kr: '햄스트링', architecture: 'Fusiform',
@@ -143,7 +144,7 @@ const PAIRED = [
     origins: [O('hips', 0.02, -0.07)], insertions: [I('leg', 0.02, -0.07)],
     along: 0.3, span: 0.55, r: 0.06, taper: 0.55, bulge: 0.12 },
   // ---- 하퇴 -------------------------------------------------------------
-  { id: 'gastrocnemius', kr: '비복근', architecture: 'Fusiform',
+  { id: 'gastrocnemius', kr: '비복근', architecture: 'Fusiform', pennation: 18,
     origins: [O('leg', -0.05, 0)], insertions: [I('foot', -0.05, 0)],
     along: -0.18, span: 0.55, r: 0.06, taper: 0.45, bulge: 0.28 },
   { id: 'tibialis', kr: '전경골근', architecture: 'Fusiform',

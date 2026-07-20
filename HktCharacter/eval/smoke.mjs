@@ -133,6 +133,19 @@ for (const model of ['X Bot', 'Y Bot']) {
     ok(Math.abs(a1.len - a0.len) < 1e-4, `WP-05: 활성도가 길이 불변(길이와 독립 §10.3) len ${a0.len.toFixed(3)}=${a1.len.toFixed(3)}`);
   }
 
+  // WP-13 · Fiber Field (§9.9): 근섬유 방향장 — fusiform 은 축 정렬, pennate(깃근)는 깃각만큼 기움.
+  {
+    const fib = muscles.getFibers();
+    ok(fib.every(f => Math.abs(f.dir.length() - 1) < 1e-3), 'WP-13: 섬유 방향 단위벡터');
+    const byId = new Map(muscles.getBellies().map(b => [b.id, b]));
+    const fusi = fib.find(f => f.id === 'biceps.L');       // pennation 0 → 축 정렬
+    ok(Math.abs(fusi.dir.dot(byId.get('biceps.L').axis)) > 0.99, `WP-13: fusiform 섬유 축 정렬 dot=${fusi.dir.dot(byId.get('biceps.L').axis).toFixed(3)}`);
+    const penn = fib.find(f => f.id === 'deltoid.L');      // pennation 22° → 기움
+    const d = Math.abs(penn.dir.dot(byId.get('deltoid.L').axis));
+    ok(d > 0.9 && d < 0.97, `WP-13: pennate 섬유 깃각 기움 dot=${d.toFixed(3)} (≈cos22°=0.927)`);
+    ok(penn.pennation === 22, `WP-13: 깃각 메타 전달 ${penn.pennation}°`);
+  }
+
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
   //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
   {

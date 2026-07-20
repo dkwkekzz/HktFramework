@@ -59,8 +59,9 @@ function makeSpindleGeo(radii) {
 
 // 근육 벨리의 기하: from/to 뼈 위치에서 축·전면·측면 프레임을 세우고 벨리 중심·
 // 반길이·수축 배율을 낸다. 재사용 임시 벡터.
+const DEG2RAD = Math.PI / 180;
 const _from = new THREE.Vector3(), _to = new THREE.Vector3(), _axis = new THREE.Vector3();
-const _ant = new THREE.Vector3(), _lat = new THREE.Vector3(), _c = new THREE.Vector3();
+const _ant = new THREE.Vector3(), _lat = new THREE.Vector3(), _c = new THREE.Vector3(), _fib = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
 const _tmp = new THREE.Vector3();
 
@@ -179,8 +180,14 @@ function belly(item, rest) {
   // FinalBulge(§10.4) = 기하 bulge(λ, 길이 변화) + 활성 bulge(a) — 활성도는 길이 불변에도
   //  팽창시킨다(등척성 §10.6: 무거운 물체 고정·활시위 유지 등). 둘은 독립 채널.
   const activ = ACTIV_BULGE * (item.activation || 0);
-  const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1) + activ);
-  return { center: _c, axis: _axis, half, radius, pts, len };
+  // 근섬유 방향(§9.9): fusiform/parallel 은 축 방향, pennate 는 축에서 전면(_ant, 힘줄면 근사)
+  //  으로 pennation 각만큼 기운다. 수축·부피 팽창 방향의 기준.
+  const p = (def.pennation || 0) * DEG2RAD;
+  const fiber = _fib.copy(_axis).multiplyScalar(Math.cos(p)).addScaledVector(_ant, Math.sin(p)).normalize();
+  // 깃근은 섬유가 짧고 촘촘해 생리적 단면(PCSA)이 커, 같은 단축에도 더 부푼다(§9.9 부피 팽창).
+  const pennBulge = def.bulge * (1 + 0.8 * Math.sin(p));
+  const radius = def.r * (item.muscleScale || 1) * (1 + pennBulge * (contraction - 1) + activ);
+  return { center: _c, axis: _axis, half, radius, pts, len, fiber: fiber.clone() };
 }
 
 export class MuscleLayer {
@@ -277,7 +284,17 @@ export class MuscleLayer {
       return {
         id: item.def.id, len: 2 * b.half, radius: b.radius, center: b.center.clone(), axis: b.axis.clone(),
         pts: b.pts.map(p => p.clone()), wrapped: b.pts.length > 2, // wrap 우회 경로(§6) 여부·경로점
+        fiber: b.fiber.clone(), pennation: item.def.pennation || 0, // 근섬유 방향·깃각(§9.9)
       };
+    });
+  }
+
+  // 근섬유 방향장(§9.9): 근육별 { id, center, dir(단위 섬유 방향), len }. 수축·팽창 방향·결
+  //  텍스처·피부 방향성 변형의 소스. render 오버레이·검증이 소비. rest·포즈 어느 시점에서도.
+  getFibers() {
+    return this.items.map(item => {
+      const b = belly(item, this.restLen.get(item));
+      return { id: item.def.id, center: b.center.clone(), dir: b.fiber.clone(), len: 2 * b.half, pennation: item.def.pennation || 0 };
     });
   }
 
