@@ -1,0 +1,5 @@
+# 의존성 (npm install 로 재현 — lock 은 커밋해 결정론적 설치 보장)
+node_modules/
+
+# 산출물·임시
+*.log

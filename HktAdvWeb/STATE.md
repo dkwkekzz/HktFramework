@@ -6,30 +6,42 @@
 
 ## 현재 — 한눈에
 
-- **설계 + 실행 계획 + seed 데이터 존재, 코드 없음.**
-  - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 — 목적 계층(목적=상태 차이 →
-    속성 기반 재료 요구 → 기회).
-  - [Design-Visualization.md](Design-Visualization.md) v0.1 — 시각화: 하이브리드 렌더·속성 채널·
-    재료 시각 문법·AI 에셋 파이프라인. 타겟: 모바일+PC 웹.
-  - [Design-StepPlan.md](Design-StepPlan.md) v0.1 — **6 Phase 19 step 실행 계획**: A 세계 기질 →
-    B 그래프 코어(M2=최소 수직 절편) → C 발견 상태 → D 시각화 최소 → E 플래너·생성 → F 다중
-    행위자. 각 step 은 GoalNode 문법(목표/작업 세부/검증/done_when)으로 기술되어 있다.
-  - [data/objective-graph.yaml](data/objective-graph.yaml) — **seed 목적 그래프**: §4.4/§4.5
-    스키마 실물. 뿌리 7 + 위협 가지 전개, 0.1.1.2(약점 발견=가설 루프)·0.1.1.3(피해 수단=속성
-    제작) 말단까지 완전 전개, DAG 교차(권속의 심장), 무대 4(발견 2·미발견 2), 술어 DSL v0 명세
-    포함. Slice-1(절편) 정의됨. 아직 기계 검증 전 — step B1 이 인수한다.
-  - [data/property-lexicon.yaml](data/property-lexicon.yaml) — 속성 사전 seed (속성명의 정본).
+- **Phase A(세계 기질) 완료 — 세계 상태가 술어로 읽힌다(legible). M1 달성.**
+  `bash run.sh` = 설치 → `npm test`(36 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
+  런타임 의존은 `js-yaml` 1개. 자동 회귀와 데모(눈 검증)가 같은 코드 경로를 쓴다.
+- 설계·seed 데이터(기존):
+  - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 · [Design-Visualization.md](Design-Visualization.md) v0.1 ·
+    [Design-StepPlan.md](Design-StepPlan.md) v0.1 (6 Phase 19 step).
+  - [data/objective-graph.yaml](data/objective-graph.yaml) — seed 목적 그래프(술어 DSL v0 명세 포함,
+    Slice-1 정의). **A4 가 모든 done_when/demand 술어를 파싱·평가(스텁 포함)함을 회귀로 고정** —
+    구조 정합 인수(id 유일성·참조 무결·DAG)는 아직 미검증(step B1).
+  - [data/property-lexicon.yaml](data/property-lexicon.yaml) — 속성 사전(속성명의 정본).
+
+### Phase A 로 참이 된 명제 (`src/substrate/`)
+
+- **A1** `package.json`·`demo/server.js`(node:http)·`run.sh`·`demo/shot.js`(브라우저 없으면 스킵+경고).
+  서버 기동→`GET /`→200 및 `/api/demo` 스냅샷이 테스트로 상시 회귀.
+- **A2** `lexicon.js`·`substance.js` — 속성명은 사전이 정본, 미등재 속성 조회는 **예외**.
+  `World.scan` 은 아키타입이 달라도 속성만 맞으면 찾는다(다중 해법의 씨앗, 불변 원칙 ②).
+- **A3** `ledger.js` — 사유(cause) 필수 이체 + 보존 불변식 `audit()`(mint == Σ잔고 + burn).
+  무작위 이체 200회 후에도 성립. `mint/burn` 은 세계 경계 사유 전용.
+- **A4** `predicate.js` `evalPred(pred, ctx) → {value, trace}` — `all/any/not/has/state/epistemic/event`
+  + 비교 6종 + `const.<이름>` 해석. `epistemic`/`event` 는 belief/events 미주입 시 **스텁**
+  (인터페이스만 고정 — C1/A5 에서 실체화). trace 가 "숫자 없는 진행"의 먹이.
+- **A5** `events.js`(append-only) · `laws.js` — **상태 변경의 유일한 경로는 `apply`**(법칙 존재→
+  에너지 지불→상태전이→사건 기록, 원자적). 법칙 밖 전이 거부. 절편 동사 `채취`·`관찰` 등재
+  (나머지 15 동사는 표 비움). `채취` 순도=정밀도 함수, `event` 술어가 사건 로그를 실판정.
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
-- 검증 인프라(테스트·데모·스크린샷) 미구축 — step A1 에서 세운다.
 
 ## NEXT — 다음 할 일
 
-**step A1 — 검증 인프라 + 프로젝트 골격** ([Design-StepPlan.md](Design-StepPlan.md) §3 A1):
+**step B1 — 그래프 스키마 + seed 로더/정합 검사기** ([Design-StepPlan.md](Design-StepPlan.md) §4 B1):
 
-- `package.json`(ESM, node:test) + `demo/server.js`(node:http 정적 서버) + `run.sh` — 클린
-  클론에서 `bash run.sh` 한 번으로 설치→테스트→데모가 재현되는 골격.
-- 인프라 자체를 검증하는 테스트 1건(서버 기동→200 확인) — 자리표 테스트 금지.
-- done_when: 클린 클론에서 `bash run.sh` 가 오류 없이 테스트 통과 후 서버를 띄운다.
-- 이후 순서는 StepPlan §2 의 Phase DAG 를 따른다: A2(속성 물질+사전 로더) → A3(원장) →
-  A4(술어 DSL — seed 그래프의 done_when 이 전부 이 DSL 로 쓰여 있다) → A5(사건+법칙) →
-  B1(seed 그래프 기계 인수).
+- `src/graph/schema.js`(GoalNode/Stage 필드 규칙) + `src/graph/loader.js` — seed 그래프 로드 후
+  기계 검사: id 유일성 · `serves`/`stages`/`alternatives` 참조 무결 · `serves` DAG(사이클 검출)이
+  뿌리 `G-0` 에 닿음 · 모든 done_when/demand 술어가 A4 로 파싱(이미 성립) · demand·supplies 속성명이
+  사전에 존재 · 17 동사 목록 · 말단만 verb 보유 · 죽은 무대(supplies 미대응) 경고.
+- 고의 오염 픽스처(`test/fixtures/bad-*.yaml`)로 각 검사 항목의 거부를 증명.
+- done_when: `npm test` 안에서 seed 그래프 정합 검사가 상시 회귀로 돈다.
+- 재사용 자산: A4 `evalPred`(술어 파싱)·A2 `lexicon`(속성명 정본). 이후 B2(demand 판정) →
+  B3(done_when 파문) → B4(최소 수직 절편 = M2).
