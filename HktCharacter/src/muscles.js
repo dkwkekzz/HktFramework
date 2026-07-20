@@ -186,7 +186,8 @@ function belly(item, rest) {
   const fiber = _fib.copy(_axis).multiplyScalar(Math.cos(p)).addScaledVector(_ant, Math.sin(p)).normalize();
   // 깃근은 섬유가 짧고 촘촘해 생리적 단면(PCSA)이 커, 같은 단축에도 더 부푼다(§9.9 부피 팽창).
   const pennBulge = def.bulge * (1 + 0.8 * Math.sin(p));
-  const radius = def.r * (item.muscleScale || 1) * (1 + pennBulge * (contraction - 1) + activ);
+  // headScale: 다두근의 각 근두 볼륨 비율(§7.3 VolumeRatio). 단일근은 1.
+  const radius = def.r * (item.muscleScale || 1) * (item.headScale ?? 1) * (1 + pennBulge * (contraction - 1) + activ);
   return { center: _c, axis: _axis, half, radius, pts, len, fiber: fiber.clone() };
 }
 
@@ -225,14 +226,6 @@ export class MuscleLayer {
         .filter(Boolean); // 리그에 없는 부차 패치는 제외
       const oPatches = resolve(def.origins);
       const iPatches = resolve(def.insertions);
-      const mat = new THREE.MeshStandardMaterial({
-        color: def.side === 'C' ? 0xb23a3a : 0xbf4640,
-        roughness: 0.62, metalness: 0.0,
-      });
-      const mesh = new THREE.Mesh(makeSpindleGeo(profileRadii(def)), mat);
-      mesh.matrixAutoUpdate = false;
-      mesh.frustumCulled = false;
-      this.group.add(mesh);
       // wrap 관절 뼈 해석(§6·§7.5) — 없으면 null(직선 경로).
       const wrapBone = def.wrap ? rig.boneMap.get(def.wrap.joint) : null;
       // 기능 근육 관절 영향(§7.4·§10.1) — 관절 뼈 + 그 부모·구동 자식을 잡아 굴곡각을 잰다.
@@ -244,10 +237,21 @@ export class MuscleLayer {
         const child = jb && jb.children.find(k => k.isBone && rig.boneMap.get(simpleName(k.name)) === k);
         if (jb && parent && child) jointInf = { bone: jb, parent, child, gain: def.jointInf.gain, sign: def.jointInf.antagonist ? 1 : -1 };
       }
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf, activation: 0 };
-      // rest 길이 캐시 (수축 기준) — wrap 우회 경로의 rest 길이(직선이면 |from−to|)
-      this.restLen.set(item, computePath(item).len);
-      this.items.push(item);
+      // 다두근(§8·§7.3 MuscleBranch): 주 벨리 + def.heads(추가 근두). 각 근두는 원점 오프셋(da,dl)·
+      //  볼륨(vol)이 달라 원점 쪽에서 갈라지고 정지부를 공유해 수렴한다. 단두근은 heads 없음(1개).
+      const headSpecs = [{ id: def.id, da: 0, dl: 0, vol: def.headVol || 1 },
+        ...(def.heads || []).map(h => ({ id: `${def.id}.${h.id}`, da: h.da || 0, dl: h.dl || 0, vol: h.vol ?? 0.6 }))];
+      for (const hs of headSpecs) {
+        const hdef = hs.id === def.id ? def : { ...def, id: hs.id };
+        const hoP = (hs.da || hs.dl) ? oPatches.map((p, i) => i === 0 ? { ...p, off: { a: p.off.a + hs.da, l: p.off.l + hs.dl } } : p) : oPatches;
+        const mat = new THREE.MeshStandardMaterial({ color: def.side === 'C' ? 0xb23a3a : 0xbf4640, roughness: 0.62, metalness: 0.0 });
+        const mesh = new THREE.Mesh(makeSpindleGeo(profileRadii(def)), mat);
+        mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+        this.group.add(mesh);
+        const item = { def: hdef, oBone, iBone, oPatches: hoP, iPatches, oPatch: hoP[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf, activation: 0, headScale: hs.vol };
+        this.restLen.set(item, computePath(item).len); // wrap 우회 경로 rest 길이(직선이면 |from−to|)
+        this.items.push(item);
+      }
     }
     this.update();
   }

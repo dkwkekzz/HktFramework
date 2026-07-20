@@ -112,16 +112,20 @@ const PAIRED = [
   //  원점−정지 거리가 줄어 짧아지고 굵어진다. along 음수로 벨리 덩어리는 상완에 유지.
   //  이두근: 정지부가 전완을 넘어가고(t=0.30) 팔꿈치 **전방**을 wrap 으로 우회한다(§6·§7.5).
   //  굴곡 시 전방 경로가 짧아져 단축·굵어짐(부피 보존). wrap 이 깊은 굴곡에서 뼈 관통을 막는다.
+  //  다두근(§7.3): 이두 = 장두(주, 외측) + 단두(내측). 원점서 갈라져 요골 정지부로 수렴.
   { id: 'biceps', kr: '상완이두근', architecture: 'Fusiform',
-    origins: [O('arm', 0.045, 0, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
+    origins: [O('arm', 0.045, 0.018, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
     wrap: { joint: 'forearm', face: 'ant', clearance: 0.02 },
+    headVol: 0.72, heads: [{ id: 'short', da: -0.004, dl: -0.036, vol: 0.62 }],
     along: -0.20, span: 0.58, r: 0.048, taper: 0.4, bulge: 0.32 },
   //  삼두근: 이두의 **길항근**(§10.5). 팔꿈치 후방 wrap 으로 관통을 막고(§6), **기능 근육
   //  jointInf**(§7.4·§10.1)로 굴곡 시 신장한다 — 길이를 관절 굴곡각의 함수로 잇는다(momentArm).
+  //  삼두 = 장두(주) + 외측두 + 내측두(§7.3). 세 근두가 후면에 나란히, 주두 정지부로 수렴.
   { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
     origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
     wrap: { joint: 'forearm', face: 'post', clearance: 0.02 },
     jointInf: { joint: 'forearm', antagonist: true, gain: 0.12 },
+    headVol: 0.6, heads: [{ id: 'lateral', da: 0, dl: 0.035, vol: 0.55 }, { id: 'medial', da: -0.006, dl: -0.035, vol: 0.5 }],
     along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
   // ---- 전완 -------------------------------------------------------------
   { id: 'forearm', kr: '전완근군', architecture: 'Fusiform',

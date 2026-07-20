@@ -147,6 +147,19 @@ for (const model of ['X Bot', 'Y Bot']) {
     ok(penn.pennation === 22, `WP-13: 깃각 메타 전달 ${penn.pennation}°`);
   }
 
+  // WP-03b · MultiHead (§8·§7.3): 이두 2근두(장·단두)·삼두 3근두(장·외측·내측)가 별도 벨리로.
+  {
+    const ids = muscles.items.map(it => it.def.id);
+    const bic = ids.filter(id => id.startsWith('biceps.L')).length;
+    const tri = ids.filter(id => id.startsWith('triceps.L')).length;
+    ok(bic === 2, `WP-03b: 이두 2근두 (장·단두) [${bic}]`);
+    ok(tri === 3, `WP-03b: 삼두 3근두 (장·외측·내측) [${tri}]`);
+    // 근두가 원점서 갈라짐: 이두 두 근두의 center 가 떨어져 있음(정지부는 공유해 수렴)
+    const bel = muscles.getBellies();
+    const bLong = bel.find(b => b.id === 'biceps.L'), bShort = bel.find(b => b.id === 'biceps.L.short');
+    ok(bLong && bShort && bLong.center.distanceTo(bShort.center) > 0.01, `WP-03b: 이두 두 근두 분리 Δ=${(bLong && bShort ? bLong.center.distanceTo(bShort.center) * 1000 : 0).toFixed(0)}mm`);
+  }
+
   // WP-14 · Attachment Solver (§9.5·원칙⑤): 근육 **기능**(굴근/신근)만으로 해부학적으로 맞는
   //  부착 면을 후보 랜드마크에서 점수화해 도출. 굴근→전면(이두), 신근→후면(삼두)이어야 한다.
   {
