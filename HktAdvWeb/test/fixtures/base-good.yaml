@@ -1,0 +1,31 @@
+# 최소 유효 그래프 — B1 로더 테스트의 기준점. 각 bad 케이스는 이 클론을 오염시킨다.
+meta:
+  predicate_dsl: v0
+constants:
+  임계: 0.5
+goals:
+  - id: G-0
+    title: 뿌리
+    desired: 원하는 상태
+    current: 현재 상태
+    done_when: {state: {path: world.루트, op: ">=", value: 0}}
+    epistemic: 확인
+    serves: []
+  - id: G-0.1
+    title: 말단
+    desired: 원하는 상태
+    current: 현재 상태
+    done_when: {has: {kind: 물질, property: {name: 오염도, op: ">=", value: 0}, min_count: 1}}
+    epistemic: 추정
+    serves: [G-0]
+    verb: 채취
+    demand:
+      - {kind: 물질, property: {name: 오염도, op: ">=", value: 0}}
+    alternatives: [자유 서술 대체 경로]
+    stages: [S-1]
+stages:
+  - id: S-1
+    source: 원천
+    supplies:
+      - {property: 오염도, rule: 채취 방식에 따라}
+    discovered: true

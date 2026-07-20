@@ -1,0 +1,160 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>HktAdvWeb — Phase A 세계 기질</title>
+  <style>
+    :root { color-scheme: light dark; }
+    body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 1.5rem; max-width: 1000px; }
+    h1 { font-size: 1.3rem; } h2 { font-size: 1.05rem; margin-top: 2rem; border-bottom: 1px solid #8884; padding-bottom: .3rem; }
+    table { border-collapse: collapse; width: 100%; margin: .5rem 0; font-size: 13px; }
+    th, td { border: 1px solid #8884; padding: .3rem .5rem; text-align: left; vertical-align: top; }
+    th { background: #8882; }
+    code, pre { font-family: ui-monospace, monospace; }
+    pre { background: #8881; padding: .5rem; border-radius: 4px; overflow-x: auto; }
+    .ok { color: #1a7f37; font-weight: 600; } .no { color: #b3261e; font-weight: 600; }
+    .muted { opacity: .7; } .pill { display:inline-block; background:#8883; border-radius: 999px; padding: 0 .5rem; margin: 0 .15rem; font-size: 11px; }
+  </style>
+</head>
+<body>
+  <h1>HktAdvWeb — Phase A 세계 기질 <span class="muted">(세계가 술어로 읽힌다)</span></h1>
+  <p class="muted">이 페이지는 <code>/api/demo</code> 를 통해 Phase A 모듈(사전·물질·원장·술어·사건·법칙)을
+    실제로 굴린 스냅샷을 보여준다 — 자동 회귀와 같은 코드 경로.</p>
+  <div id="app">불러오는 중…</div>
+
+  <script type="module">
+    import { renderRadial } from './graph-radial.js';
+    import { renderConstellation } from './graph-constellation.js';
+    const el = (t, a = {}, ...kids) => {
+      const n = document.createElement(t);
+      for (const [k, v] of Object.entries(a)) k === 'class' ? (n.className = v) : n.setAttribute(k, v);
+      for (const kid of kids) n.append(kid?.nodeType ? kid : document.createTextNode(String(kid)));
+      return n;
+    };
+    const bool = (b) => el('span', { class: b ? 'ok' : 'no' }, b ? '충족' : '미충족');
+    const table = (headers, rows) => {
+      const t = el('table');
+      t.append(el('tr', {}, ...headers.map((h) => el('th', {}, h))));
+      for (const r of rows) t.append(el('tr', {}, ...r.map((c) => el('td', {}, c?.nodeType ? c : String(c)))));
+      return t;
+    };
+
+    const d = await (await fetch('/api/demo')).json();
+    const app = document.getElementById('app');
+    app.textContent = '';
+
+    // 속성 사전
+    app.append(el('h2', {}, `속성 사전 (${d.lexicon.length}종)`));
+    app.append(table(['name', '값형', '단위', '설명'],
+      d.lexicon.map((p) => [p.name, p['값형'], p['단위'] ?? '', el('span', { class: 'muted' }, p['설명'] ?? '')])));
+
+    // 세계 물질 + 봇 인벤토리
+    app.append(el('h2', {}, '세계 물질 / 채취 후 봇 인벤토리'));
+    app.append(el('p', { class: 'muted' }, '원천(조직조각-A)에서 정밀도 0.9(정밀) → 0.3(거침) 으로 두 번 채취.'));
+    const invRows = [...d.substances, ...d.inventory].map((s) => [
+      s.id, s.kind ?? '', (s.tags || []).map((t) => el('span', { class: 'pill' }, t)).reduce((f, x) => (f.append(x), f), el('span')),
+      el('code', {}, JSON.stringify(s.properties)),
+    ]);
+    app.append(table(['id', 'kind', 'tags', '속성'], invRows));
+
+    // 원장
+    app.append(el('h2', {}, '에너지 원장'));
+    const a = d.ledger.audit;
+    app.append(el('p', {}, '감사 불변식 (mint == Σ잔고 + burn): ', bool(a.ok),
+      el('span', { class: 'muted' }, ` mint=${a.minted} Σ잔고=${a.totalBalance} burn=${a.burned}`)));
+    app.append(table(['kind', 'from', 'to', 'amount', 'cause'],
+      d.ledger.journal.map((j) => [j.kind, j.from ?? '', j.to ?? '', j.amount, j.cause])));
+
+    // 사건 로그
+    app.append(el('h2', {}, `사건 로그 (${d.events.length}건 — 모두 에너지 수지와 함께)`));
+    app.append(table(['t', 'actor', 'verb', 'target', 'energy', 'delta'],
+      d.events.map((e) => [e.t, e.actor, e.verb, e.target ?? '', e.energy, el('code', {}, JSON.stringify(e.delta))])));
+
+    // 술어 콘솔
+    app.append(el('h2', {}, '술어 평가 콘솔 (evalPred → {value, trace})'));
+    for (const ex of d.predicates) {
+      app.append(el('p', {}, el('strong', {}, ex.label), ' → ', bool(ex.result.value)));
+      app.append(el('pre', {}, JSON.stringify(ex.result.trace, null, 2)));
+    }
+
+    // Phase B — 그래프 정합 인수
+    if (d.graph) {
+      const st = d.graph.stats;
+      app.append(el('h2', {}, 'Phase B — seed 목적 그래프 (정합 검사 통과)'));
+      app.append(table(['지표', '값'], [
+        ['노드 수', st.goals], ['무대 수', st.stages], ['행동 노드(verb)', st.actionNodes],
+        ['자식 없는 노드', st.leafNodes], ['뿌리', st.roots.join(',')],
+        ['발견 상태 분포', JSON.stringify(st.epistemicDist)],
+        ['발견된 무대', `${st.discoveredStages}/${st.stages}`],
+        ['Slice-1 커버리지', JSON.stringify(st.sliceCoverage)],
+        ['경고', st.warnings],
+      ]));
+    }
+
+    // Phase B — 최소 수직 절편 실행 (M2)
+    if (d.slice) {
+      app.append(el('h2', {}, '최소 수직 절편 Slice-1 실행 (M2) — 봇의 사슬 완주'));
+      const runView = (title, run) => {
+        app.append(el('p', {}, el('strong', {}, title), ' → ',
+          el('span', { class: run.result === 'success' ? 'ok' : 'no' }, run.result)));
+        app.append(el('pre', {}, run.log.join('\n')));
+      };
+      runView('성공 (소멸타이머 3): 시간 창 안에 채취', d.slice.success);
+      runView('실패 (소멸타이머 1): 이동 중 무대 소멸', d.slice.timeout);
+    }
+
+    // Phase C — 발견 상태 (믿음 필터 · 가설 반증/확인 · 상향 발견)
+    if (d.epistemic) {
+      app.append(el('h2', {}, 'Phase C — 발견 상태 (그래프 = 플레이어의 믿음)'));
+      app.append(el('p', { class: 'muted' }, '그래프는 세계의 진실이 아니라 봇이 이해한 만큼만 존재한다 (불변 원칙 ③).'));
+      app.append(el('pre', {}, d.epistemic.log.join('\n')));
+    }
+
+    // Phase E — 플래너·생성 (재해석 · 관문 · 규칙 분해)
+    if (d.planner) {
+      app.append(el('h2', {}, 'Phase E — 플래너·생성 (세계는 재해석한다, 생성 아님)'));
+      app.append(el('p', { class: 'muted' }, '세계는 재료를 스폰하지 않는다 — 이미 존재하는 것을 목적 관점에서 재해석한다 (불변 원칙 ④).'));
+      app.append(el('pre', {}, d.planner.log.join('\n')));
+    }
+
+    // Phase D — 시각화 (방사형 + 별자리). 렌더러는 Scene 서술자만 소비한다 (불변 원칙 ⑥).
+    if (d.scene) {
+      app.append(el('h2', {}, 'Phase D — 목적 그래프 시각화 (Scene 서술자 소비)'));
+      app.append(el('p', { class: 'muted' },
+        '확인=선명 · 추정=흐림/깜빡임 · 미발견=성운("?") · 반증=붕괴 잔상. 파문=완료가 계보를 타고 오르는 빛.'));
+      const grid = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap' });
+      const mkCanvas = (id, label) => {
+        const wrap = el('div', {});
+        wrap.append(el('div', { class: 'muted' }, label));
+        const c = document.createElement('canvas');
+        c.id = 'canvas-' + id; c.width = 360; c.height = 360;
+        c.style = 'border:1px solid #30363d;border-radius:6px;max-width:100%';
+        wrap.append(c); return c;
+      };
+      const rc = mkCanvas('radial', 'D2 방사형 (ui.goalGraph)');
+      const kc = mkCanvas('constellation', 'D3 별자리 + 파문 (effects)');
+      app.append(grid); grid.append(rc.parentNode, kc.parentNode);
+      renderRadial(rc, d.scene.radial.ui.goalGraph);
+      let phase = 0;
+      const loop = () => { phase = (phase + 0.008) % 1; renderConstellation(kc, d.scene.constellation, phase); requestAnimationFrame(loop); };
+      loop();
+    }
+
+    // Phase F — 봇 N기 관전 (살아있는 세계). 한 완료가 다른 봇의 새 목적을 낳는다.
+    if (d.multibot) {
+      app.append(el('h2', {}, 'Phase F — 봇 N기 관전 (살아있는 세계, M6)'));
+      app.append(el('p', { class: 'muted' }, '두 봇이 유한 공급을 두고 경쟁하고, 한 봇의 완료 aftermath 가 다른 봇의 새 목적이 된다 (§5 원칙 5).'));
+      app.append(el('pre', {}, d.multibot.log.join('\n')));
+      const sk = document.createElement('canvas');
+      sk.id = 'canvas-spectator'; sk.width = 360; sk.height = 360;
+      sk.style = 'border:1px solid #30363d;border-radius:6px;max-width:100%';
+      app.append(el('div', { class: 'muted' }, 'F2 관전 뷰 (봇 B 시점 + 완료 파문·신규 목적 발견)'));
+      app.append(sk);
+      let sp = 0;
+      const sloop = () => { sp = (sp + 0.008) % 1; renderConstellation(sk, d.multibot.scene, sp); requestAnimationFrame(sloop); };
+      sloop();
+    }
+</script>
+</body>
+</html>

@@ -1,0 +1,18 @@
+{
+  "name": "hkt-adv-web",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "목적 기반 오픈월드 MMORPG 웹 프로토타입 — 동적 목적 그래프",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "test": "node --test",
+    "demo": "node demo/server.js",
+    "shot": "node demo/shot.js"
+  },
+  "dependencies": {
+    "js-yaml": "^4.1.0"
+  }
+}
