@@ -13,6 +13,7 @@ import { loadSkeleton, replant, boneBox } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
+import { analyzeJoints } from '../src/joints.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -106,6 +107,23 @@ for (const model of ['X Bot', 'Y Bot']) {
       const mir = la.proximal.clone(); mir.x *= -1;
       ok(mir.distanceTo(ra.proximal) < 0.02, `랜드마크 좌우 대칭 (Δ=${mir.distanceTo(ra.proximal).toFixed(3)})`);
       ok(Math.sign(la.faces.lat.x || -1) === -Math.sign(ra.faces.lat.x || 1), 'lateral 면이 좌우 반대(정중선 바깥)');
+    }
+
+    // WP-12 · Joint Function Analysis (§9.3): 관절 유형·자유도·굴곡축 -----------------------
+    const jt = analyzeJoints(rig, lm);
+    ok(jt.size >= 8, `관절 기능 ${jt.size}개 (≥8: 팔꿈치·무릎·어깨·고관절 좌우 등)`);
+    const elbow = jt.get('leftforearm'), shoulder = jt.get('leftarm'), knee = jt.get('leftleg');
+    ok(elbow && elbow.type === 'hinge' && elbow.dof === 1, '팔꿈치 = hinge 1DOF');
+    ok(knee && knee.type === 'hinge' && knee.dof === 1, '무릎 = hinge 1DOF');
+    ok(shoulder && shoulder.type === 'ball' && shoulder.dof === 3, '어깨 = ball 3DOF');
+    ok(elbow && Math.abs(elbow.flexionAxis.length() - 1) < 1e-3, '굴곡축 단위벡터');
+    ok(elbow && elbow.range.max > elbow.range.min, '회전 범위 min<max');
+    // 좌우 팔꿈치 굴곡축이 x-미러(대칭)
+    const re = jt.get('rightforearm');
+    if (elbow && re) {
+      const mirAx = elbow.flexionAxis.clone(); mirAx.x *= -1;
+      ok(mirAx.distanceTo(re.flexionAxis) < 0.05 || mirAx.clone().negate().distanceTo(re.flexionAxis) < 0.05,
+        '좌우 팔꿈치 굴곡축 대칭');
     }
   }
 

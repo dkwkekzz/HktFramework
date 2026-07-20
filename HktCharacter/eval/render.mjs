@@ -13,6 +13,7 @@ import * as THREE from 'three';
 import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
+import { analyzeJoints } from '../src/joints.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
@@ -156,6 +157,25 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   for (const s of landmarkPoints(lm)) cube(s.p, 0.012, colOf(s.name));
   writePNG('eval/out/1-landmarks-front.png', render(tris, 'front'), W, H);
   console.log('랜드마크: eval/out/1-landmarks-front.png (면별 색 오버레이)');
+
+  // (1d) 관절 기능(WP-12) — hinge/ball 피벗(흰) + 굴곡축(hinge=청록 막대·ball=자홍 점). §9.3·§17.3.
+  const jt = analyzeJoints(rig, lm);
+  const tris2 = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [64, 40, 40], tris2);
+  const cube2 = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris2.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const j of jt.values()) {
+    cube2(j.pivot, 0.016, [240, 240, 240]);                        // 피벗 = 흰
+    if (j.type === 'hinge') {                                      // hinge 굴곡축 = 청록 막대
+      for (let s = -3; s <= 3; s++) cube2(j.pivot.clone().addScaledVector(j.flexionAxis, s * 0.018), 0.008, [60, 230, 220]);
+    } else cube2(j.pivot, 0.024, [230, 90, 220]);                  // ball = 자홍(큰 점)
+  }
+  writePNG('eval/out/1-joints-front.png', render(tris2, 'front'), W, H);
+  console.log('관절 기능: eval/out/1-joints-front.png (hinge 축=청록·ball=자홍)');
 }
 
 // (1b) 관절 통과 데모(WP-02) — 왼팔 근육을 중립 vs 팔꿈치 굴곡으로 확대 비교.
