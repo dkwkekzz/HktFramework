@@ -15,6 +15,7 @@
 // ============================================================================
 import * as THREE from 'three';
 import { momentSign } from './joints.js';
+import { simpleName } from './skeleton.js';
 
 const _r = new THREE.Vector3();
 
@@ -61,4 +62,41 @@ export function solveInsertion(spec, landmarks, joints) {
   const wantSign = spec.role === 'flexor' ? 1 : -1;
   const ranked = rankCandidates(insLm, joint, jointLm.faces.ant, wantSign);
   return { insertion: ranked[0], candidates: ranked };
+}
+
+// 근육 기시(origin) 부착 도출 — 근위 뼈 위, role 쪽 면(굴근=전면/신근=후면)이면서 관절서
+//  먼 점(벨리가 길게 뻗도록). 기시는 고정단이라 토크가 아니라 면·거리로 고른다(§9.5).
+export function solveOrigin(spec, landmarks, joints) {
+  const joint = joints.get(spec.joint);
+  const oLm = landmarks.get(spec.originBone);
+  if (!joint || !oLm) return null;
+  const wantFace = spec.role === 'flexor' ? 'ant' : 'post';
+  const cands = [];
+  for (const [name, point] of Object.entries(oLm.points)) {
+    if (name === 'proximal' || name === 'distal') continue;
+    const face = faceOf(name);
+    const faceScore = face === wantFace ? 1 : (face === 'ant' || face === 'post') ? -1 : 0;
+    const distFromJoint = point.distanceTo(joint.pivot); // 관절서 멀수록 벨리가 길다
+    cands.push({ name, face, point: point.clone(), score: faceScore * 2 + Math.min(distFromJoint / 0.2, 1) });
+  }
+  cands.sort((a, b) => b.score - a.score);
+  return { origin: cands[0], candidates: cands };
+}
+
+// ── 모드 B: 기능 합성 (설계서 §9.4B·G5) ────────────────────────────────────
+// 해부학 아틀라스 없이 **관절 기능만으로** 근육을 만든다. 경첩 관절마다 굴근(agonist)·신근
+//  (antagonist) 쌍을 생성하고, 각 근육의 기시·정지를 솔버로 도출한다. 판타지·비인간형 생물의
+//  씨앗 — 관절 기능 그래프(WP-12)만 있으면 부착이 나오므로 종족 템플릿이 필요 없다.
+export function synthesizeJointMuscles(jointSn, landmarks, joints) {
+  const joint = joints.get(jointSn);
+  if (!joint || joint.type !== 'hinge') return null; // 경첩(1DOF 굴곡/신전)만 — 굴근/신근 쌍
+  const proximalSn = simpleName(joint.parentBone.name); // 근위 뼈(기시 부착)
+  const out = [];
+  for (const role of ['flexor', 'extensor']) {          // 각 자유도에 길항 쌍(§9.3)
+    const ins = solveInsertion({ insertionBone: jointSn, joint: jointSn, role }, landmarks, joints);
+    const ori = solveOrigin({ originBone: proximalSn, joint: jointSn, role }, landmarks, joints);
+    if (!ins || !ori) return null;
+    out.push({ role, joint: jointSn, isAgonist: role === 'flexor', origin: ori.origin, insertion: ins.insertion });
+  }
+  return out;
 }

@@ -14,7 +14,7 @@ import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { analyzeJoints } from '../src/joints.js';
-import { solveInsertion } from '../src/attach.js';
+import { solveInsertion, synthesizeJointMuscles } from '../src/attach.js';
 import { BODY_PRESETS, fatRegionMult } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -173,6 +173,15 @@ for (const model of ['X Bot', 'Y Bot']) {
     ok(flex.insertion.torqueSign === 1 && ext.insertion.torqueSign === -1, `WP-14: 토크 부호 굴근+ / 신근− (§9.5)`);
     // 도출된 부착이 후보 최상위(점수 최대)인지 — 정렬 정합
     ok(flex.candidates[0].score >= flex.candidates[flex.candidates.length - 1].score, 'WP-14: 후보 점수 정렬');
+
+    // WP-08 · 모드 B 기능 합성 (§9.4B·G5): 아틀라스 없이 관절 기능만으로 굴근/신근 쌍을 합성.
+    //  경첩 관절 → 굴근(전면 기시·정지)·신근(후면) — 해부학 데이터 없이 부착이 기능에서 나온다.
+    const synth = synthesizeJointMuscles('leftforearm', lm, jt);
+    ok(!!synth && synth.length === 2, 'WP-08: 팔꿈치 굴근/신근 쌍 합성(아틀라스 없이)');
+    const sf = synth.find(m => m.role === 'flexor'), se = synth.find(m => m.role === 'extensor');
+    ok(sf.insertion.face === 'ant' && se.insertion.face === 'post', `WP-08: 합성 정지부 굴근=전면·신근=후면 [${sf.insertion.face}/${se.insertion.face}]`);
+    ok(sf.origin.face === 'ant' && se.origin.face === 'post', `WP-08: 합성 기시부 굴근=전면·신근=후면 [${sf.origin.face}/${se.origin.face}]`);
+    ok(sf.isAgonist && !se.isAgonist, 'WP-08: 굴근=주동근·신근=길항근(§9.3 길항 쌍)');
   }
 
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.

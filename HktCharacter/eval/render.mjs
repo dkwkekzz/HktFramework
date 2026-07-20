@@ -14,7 +14,7 @@ import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { analyzeJoints } from '../src/joints.js';
-import { solveInsertion } from '../src/attach.js';
+import { solveInsertion, synthesizeJointMuscles } from '../src/attach.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
@@ -258,6 +258,35 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   cube(ext.insertion.point, 0.02, [255, 150, 60]);    // 신근 도출(주황)
   writePNG('eval/out/1-attach-solver.png', render(tris, 'front'), W, H);
   console.log(`부착 솔버: eval/out/1-attach-solver.png (굴근→${flex.insertion.face} 초록·신근→${ext.insertion.face} 주황)`);
+}
+
+// (1h) 모드 B 기능 합성(WP-08) — 아틀라스 없이 팔꿈치 기능만으로 합성한 굴근(초록)·신근(주황)을
+//  기시→정지 점열로. 뼈(회색)만 있으면 근육이 나온다. §9.4B·G5 비인간형 씨앗.
+{
+  rig.obj.updateMatrixWorld(true);
+  const lm = detectLandmarks(rig); const jt = analyzeJoints(rig, lm);
+  const synth = synthesizeJointMuscles('leftforearm', lm, jt);
+  const tris = [];
+  // 팔 뼈 세그먼트를 얇은 막대로(맥락)
+  const wp = new THREE.Vector3(), wc = new THREE.Vector3();
+  for (const bn of ['leftarm', 'leftforearm', 'lefthand']) {
+    const b = rig.boneMap.get(bn); if (!b) continue; b.getWorldPosition(wp);
+    for (const k of b.children.filter(k => k.isBone)) { k.getWorldPosition(wc); }
+  }
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const m of synth) {
+    const col = m.role === 'flexor' ? [90, 235, 110] : [255, 150, 60];
+    const a = m.origin.point, b = m.insertion.point;
+    for (let s = 0; s <= 8; s++) cube(a.clone().lerp(b, s / 8), 0.008, col); // 기시→정지 근육 경로
+    cube(a, 0.016, col); cube(b, 0.016, col);
+  }
+  writePNG('eval/out/1-modeB-synth.png', render(tris, 'front'), W, H);
+  console.log('모드 B 합성: eval/out/1-modeB-synth.png (굴근 초록·신근 주황, 아틀라스 없이 기능에서)');
 }
 
 // (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
