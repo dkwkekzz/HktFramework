@@ -49,6 +49,8 @@
 | `STATE.md` | 현재 한눈에 + NEXT — 다음 세션이 이것만 보고 시작할 수 있어야 한다 |
 | `Design-ObjectiveHierarchy.md` | 설계 본체: 목적 계층 — 목적에서 무대까지 |
 | `Design-Visualization.md` | 시각화 설계: 하이브리드 렌더(스프라이트+선별 3D)·속성 채널·UI·AI 에셋 파이프라인 |
-| `Design-StepPlan.md` | 실행 계획: 6 Phase 19 step — 각 step 의 작업 세부·검증·done_when |
-| `data/objective-graph.yaml` | seed 목적 그래프 — GoalNode/Stage 스키마 실물 + 술어 DSL v0 명세 |
+| `Design-StepPlan.md` | 실행 계획(엔진): 6 Phase 19 step — 완주(M1~M6) |
+| `Design-WorldComposition.md` | 게임 콘텐츠 본체: 세부 목적 구성·지역별 요소 배치·콘텐츠 단계 C1~C7 |
+| `data/objective-graph.yaml` | 목적 그래프 — GoalNode/Stage 스키마 실물 + 술어 DSL v0 명세 |
+| `data/world-composition.yaml` | 지역·배치의 정본 — 인접·환경·재료 대역·주기·공급 예외 |
 | `data/property-lexicon.yaml` | 속성 사전 — demand·supplies 가 쓰는 속성명의 정본 |
