@@ -157,6 +157,7 @@
 <script src="acidbase.js"></script>
 <script src="ionized.js"></script>
 <script src="combustion.js"></script>
+<script src="metal.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
 <script>
@@ -559,6 +560,21 @@
       icon: '💡', label: '⑫ 복사·발광', spawnT: 30, thermo: [true, 250],
       observe: '가열된 수소 기체가 빛을 낸다 — 충돌로 전자가 들뜨고(들뜬 원자=노란 후광) 곧 자발 방출하며 노란 광자(점+짧은 꼬리)가 사방으로 날아가 상자 밖으로 탈출한다(복사 냉각). 항온조를 높일수록 밝고 낮추면 어두워진다(첫 들뜸 dE≫kT 면 어둡다). 원자 수 옆 +Nγ 가 날고 있는 광자 수.',
       build: (w) => { Pg.enableRadiation(w, { photonBC: 'open' }); return scatter(w, { H: 24 }, 0.3, 0.5); },
+    },
+    metal: {
+      icon: '🔩', label: '⑲ 금속 결합(전자 바다)', spawnT: 5, thermo: [false],
+      observe: '금속(Na)이 비포화 응집한다 — 방향성 없는 유효 우물이 이온(+주황 링)을 조밀하게 쌓아(배위 ~9 ≫ 원자가 1·공유의 포화와 대비) 격자를 만들고, 그 사이를 자유전자(청록 점=전자 바다)가 로밍한다. 힘 모델을 화학 스택에서 금속 모델로 갈아끼운 관찰(별도 regime — 고전 점전자 안정용 유계 힘). 냉각 후 자리 진동만 남는다.',
+      build: (w) => {
+        Pg.enableMetal(w);
+        // 컴팩트 클러스터 프레이밍: 2D 는 정사영(box→canvas·중앙은 패널 뒤) → 가시 좌측에 · 3D 는 팔로
+        //   카메라라 중앙 배치 후 관찰자를 클러스터에 둔다.
+        const cx = dim === 3 ? w.box.L.x / 2 : w.box.L.x * 0.32;
+        const cy = dim === 3 ? w.box.L.y / 2 : w.box.L.y * 0.44;
+        const cz = dim === 3 ? w.box.L.z / 2 : 0;
+        const n = Pg.buildMetalCluster(w, 'Na', dim === 3 ? 4 : 5, cx, cy, cz, 5000);
+        obs.x = cx; obs.y = cy; obs.z = cz;   // 3D 팔로 카메라 프레이밍 (2D 정사영은 obs 무시)
+        return n;
+      },
     },
     fire: {
       icon: '🔥', label: '⑱ 연소·불', spawnT: 30, thermo: [false],

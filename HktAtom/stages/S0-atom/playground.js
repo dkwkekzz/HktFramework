@@ -11,6 +11,10 @@
 //   (물리 파라미터·부재=참값)이나, 들뜸 원천 R-COL·광자 field 모드는 enableRadiation 관찰
 //   프리셋(💡)이 켠다 — 전자 들뜸은 화학 온도(dE≫kT)에서 무시할 수 있고 결합 동역학과의 적분
 //   결합이 취약(완화가 근-영 상대 KE 로 카타펄트)하므로 고에너지 발광 프리셋 전용 (enableHBond 지위).
+// - ⑲ 금속(비국소 전자 풀·step-0039): 금속 결합은 stack 에 얹는 힘이 아니라 **다른 힘 모델**
+//   (유계 쿨롱+이온-이온 유효 우물 Dmetal·metal.js) — 고전 점전자가 (σ/d)¹² 로 catapult 하는 걸
+//   원천 봉쇄한 별도 regime. enableMetal(🔩) 관찰 프리셋이 computeForces 를 갈아끼운다(화학 스택
+//   ↔ 금속 모델·enableHBond 지위). 앵커 = 비포화 응집(배위 ≫ B — 방향성 없는 조밀 쌓임)·전자 풀 개체.
 // - 세계 속성 법칙: 중력 g(step-0032)·차원 dim(⑬)·soft_e(전자 쌍 연화·⑳).
 // 도구: 항온조·가열 펄스·복셀 장(field)·2D/3D·관찰자 소환.
 //
@@ -24,7 +28,9 @@
 // - ⑳ 사건-적분 커플링 드리프트 ~1e-2/사건 (step-0037 격차) · ⑭ 준정적 드리프트 (PG·회계 상대화).
 // - ⑫ dE=clamp(0.75·IE,0.4,3.0) 는 첫 들뜸 *프록시*(수소형 n=1→2 Rydberg 분율 3/4·클램프는
 //   EA_CAP 지위 격차) — 알칼리 실비(~0.4·IE)의 종별 편차는 단일 프록시가 잃는다 (step-0038 격차).
-// - 미합류: ⑲ 금속 전자 풀 (개체 3/3·별도 설계).
+// - ⑲ 금속=고전 유효 우물 author(design §9.2·집단 플라스마·밴드·페르미 통계 범위 밖)·힘 모델 전환이라
+//   화학 스택과 공존 불가(프리셋 전용)·전도는 reflect 상자라 정성만(정량은 periodic·step-0039 격차).
+// - **전 현상 playground 합류 완료** (step-0029~0039): ⑤⑥⑧⑩⑬⑭⑮⑯⑰⑱⑲⑳⑫ + 중력·핵(㉕㉖).
 
 (function () {
   'use strict';
@@ -39,6 +45,7 @@
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;      // 로드 = qeq 법칙 등록 (스택)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;       // 로드 = solv 법칙 등록 (⑰)
   const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;         // ⑳ R-ION/R-REC3 행 (플라스마)
+  const Me = isNode ? require('./metal.js') : window.HktS0Metal;             // ⑲ 금속 (비국소 전자 풀·힘 모델)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -592,6 +599,46 @@
     world.photonBC = o.photonBC || 'open';                    // 광자 경계 (원자는 벽 반사 유지)
     world.pgRadOn = true;
   }
+
+  // ── ⑲ 금속(비국소 전자 풀) 관찰 프리셋 — 힘 모델을 갈아끼운다 (step-0039·별도 regime) ──
+  //   금속 결합은 스택에 얹는 힘이 아니다: 고전 점전자가 (σ/d)¹² 로 이온에 catapult 하므로,
+  //   metal.js 가 전 상호작용을 유계(부드러운 쿨롱+이온-이온 유효 우물 Dmetal — Thomas-Fermi 차폐
+  //   축약·design §9.2)로 제공한다. computeForces 를 통째로 교체 + 화학 카탈로그 끔 (enableHBond 지위).
+  //   dt 0.003 (유계 힘도 실원소 경량 이온은 dt 0.004 서 상대 드리프트 5e-3 초과 — scenes 준용).
+  const METAL_KN = { Dmetal: 3.0, rcII: 0.95, rcCoh: 1.8, kc: 1.0, soft: 0.4, krep: 12, m_e: 1.0, rcEI: 0.9, rcEE: 0.8, keCouple: 0.7 };
+  function enableMetal(world, opts) {
+    const o = opts || {};
+    world.computeForces = Me.forcesMetal;   // 스택 → 금속 힘 모델 (별도 regime)
+    world.catalog = [];                      // 화학 전이 끔 (금속 = 순수 연속 힘 관찰)
+    Object.assign(world, METAL_KN);
+    world.dt = o.dt != null ? o.dt : 0.003;
+    if (o.Efield != null) world.Efield = o.Efield;   // 전도 구동 (외부장·정성)
+    world.pgMetalOn = true;
+  }
+  // 금속 클러스터 직접 배치 — 이온(+1) 격자 + 전자 풀(이온당 1) → 과감쇠 냉각으로 안착.
+  //   비포화 응집(배위 ≫ B)은 방향성 없는 유효 우물의 창발 — author 0 (측정). 관찰자 주입 회계.
+  function buildMetalCluster(world, sym, per, cx, cy, cz, eqSteps) {
+    const rng = world.rng, d0 = 1.45, dim3 = !world.frozenZ;
+    const off = (per - 1) * d0 / 2, jit = () => (rng() - 0.5) * 0.1, zN = dim3 ? per : 1;
+    cz = cz != null ? cz : world.box.L.z / 2;
+    for (let i = 0; i < per; i++) for (let j = 0; j < per; j++) for (let k = 0; k < zN; k++) {
+      const r = E.V.make(cx - off + i * d0 + jit(), cy - off + j * d0 + jit(), dim3 ? (cz - off + k * d0 + jit()) : 0);
+      const a = E.makeAtom(sym, r, E.V.zero());
+      a.Z = 1; a.ne = 0; a.q = 1;   // 금속 양이온(+1) — 외각 전자 1개를 풀에 내준다
+      world.atoms.push(a);
+      world.electrons.push(E.makeElectron(E.V.make(
+        r.x + (rng() - 0.5) * 0.5, r.y + (rng() - 0.5) * 0.4, dim3 ? (r.z + (rng() - 0.5) * 0.4) : 0), E.V.zero()));
+    }
+    // 과감쇠 냉각 — 클러스터가 응집 최소로 안착 (⑭ 이완 동형·측정 준비)
+    const eq = eqSteps != null ? eqSteps : 7000;
+    for (let kk = 0; kk < eq; kk++) {
+      E.step(world);
+      if (kk % 10 === 0) { for (const a of world.atoms) { a.p.x *= 0.99; a.p.y *= 0.99; a.p.z *= 0.99; } for (const el of world.electrons) { el.p.x *= 0.99; el.p.y *= 0.99; el.p.z *= 0.99; } }
+    }
+    world.pgIn.E = E.totalEnergy(world);   // 배치·냉각 상태 = 관찰자 주입 (회계 기준선)
+    return world.atoms.length;
+  }
+
   // 물 분자 클러스터 직접 배치 — O + 2H 결합(정확 ~104.5° 기하). 관찰자 주입(회계 보정 포함).
   //   freeSpot 로 분자간 간격을 확보(겹침=적분 폭발 방지)하되 O–H 는 정확 결합 길이로 둔다.
   function buildWaterCluster(world, nMol, cx, cy, R) {
@@ -724,7 +771,7 @@
     element, dHomo, dPair, gridPos, freeSpot,
     buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK, chargeOK,
     setGravity,
-    enableHBond, enableRadiation, buildWaterCluster,
+    enableHBond, enableRadiation, enableMetal, buildMetalCluster, buildWaterCluster,
     fission, fuse, runFission, runNuclear, tick, field,
     snapshot, diffEvents, clusters, formula,
   };
