@@ -15,6 +15,10 @@ import { defaultLawTable } from '../src/substrate/laws.js';
 import { evalPred } from '../src/substrate/predicate.js';
 import { loadGraph } from '../src/graph/loader.js';
 import { runSlice, loadSliceFixture } from '../src/actors/bot.js';
+import { BeliefView } from '../src/epistemic/belief.js';
+import { evaluateHypothesis, applyVerdict } from '../src/epistemic/hypothesis.js';
+import { findUnbound, discoverNode } from '../src/epistemic/retrobind.js';
+import { Substance } from '../src/substrate/substance.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -75,6 +79,9 @@ export function buildDemo() {
   const sliceSuccess = runSlice(g, loadSliceFixture(), { 소멸타이머: 3 });
   const sliceTimeout = runSlice(g, loadSliceFixture(), { 소멸타이머: 1 });
 
+  // ── Phase C: 믿음 필터 · 가설 반증/확인 · 상향 발견 ──
+  const epistemic = buildEpistemicDemo(g, lexicon);
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -88,5 +95,45 @@ export function buildDemo() {
       success: { result: sliceSuccess.result, log: sliceSuccess.log, ripples: sliceSuccess.ripples, audit: sliceSuccess.audit },
       timeout: { result: sliceTimeout.result, log: sliceTimeout.log },
     },
+    epistemic,
   };
+}
+
+// Phase C 시연: 믿음 필터 + 가설 반증/확인 + 상향 발견을 한 번에 굴린다.
+function buildEpistemicDemo(g, lexicon) {
+  const constants = g.constants;
+  const log = [];
+
+  // C1 — 봇 시점 그래프 통계 (미발견은 "?")
+  const belief = BeliefView.fromGraph(g, 'bot');
+  const view = belief.visibleGraph();
+  const masked = view.filter((n) => n.masked).length;
+  log.push(`C1 믿음 필터: 전역 ${view.length} 노드 중 봇에게 보이는 것 ${view.length - masked}, 미발견("?") ${masked}`);
+
+  // C2 — 경합 가설: 진동(강) 확인 / 저온(약) 반증 → 가지 붕괴
+  const 진실 = { 진동: 0.9, 저온: 0.1 };
+  const experiments = [
+    { stimulus: '진동', response: 진실['진동'] },
+    { stimulus: '진동', response: 진실['진동'] },
+    { stimulus: '저온', response: 진실['저온'] },
+  ];
+  const h1 = evaluateHypothesis({ id: 'G-0.1.1.2.H1', stimulus: '진동', threshold: 0.5 }, experiments, constants);
+  const h2 = evaluateHypothesis({ id: 'G-0.1.1.2.H2', stimulus: '저온', threshold: 0.5 }, experiments, constants);
+  applyVerdict(belief, g, { id: 'G-0.1.1.2.H1' }, h1);
+  const collapseEvents = applyVerdict(belief, g, { id: 'G-0.1.1.2.H2' }, h2);
+  log.push(`C2 가설 검증: H1(공명진동) → ${h1.verdict}, H2(저온) → ${h2.verdict}`);
+  log.push(`   H2 붕괴 가지: ${collapseEvents[0]?.collapsed?.join(', ')}`);
+  const g2Done = evalPred(g.goalsById.get('G-0.1.1.2').done_when, { constants, lexicon, belief }).value;
+  log.push(`   → G-0.1.1.2(약점 발견) done_when: ${g2Done ? '충족' : '미충족'}`);
+
+  // C3 — 상향 발견(역결합)
+  const belief3 = BeliefView.fromGraph(g, 'bot');
+  for (const id of ['G-0.1.1.3.2', 'G-0.1.1.3.4', 'G-0.1.1.2.H1.1']) belief3.set(id, '미발견');
+  const actor = { id: 'bot', inventory: [new Substance({ id: '수정편', kind: '물질', properties: { 공명전달률: 0.8, 에너지손실률: 0.1 } }, lexicon)] };
+  const unbound = findUnbound(actor, g, belief3).map((s) => s.id);
+  const { events } = discoverNode(belief3, g, actor, 'G-0.1.1.3.2', { constants, lexicon, world: null, via: '탐색' });
+  const retro = events.find((e) => e.type === 'retro-bind');
+  log.push(`C3 상향 발견: 획득 시 용도 불명 [${unbound.join(',')}] → G-0.1.1.3.2 발견 시 역결합 ${retro ? retro.links.map((l) => l.property).join('+') : '없음'}`);
+
+  return { log, hypotheses: { h1, h2 } };
 }

@@ -6,11 +6,11 @@
 
 ## 현재 — 한눈에
 
-- **Phase A(세계 기질)·Phase B(목적 그래프 코어) 완료 — 설계의 최초 종단 기계 증명(M2) 달성.**
-  `bash run.sh` = 설치 → `npm test`(66 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
+- **Phase A(세계 기질)·B(목적 그래프 코어)·C(발견 상태) 완료 — M1·M2·M3 달성.**
+  `bash run.sh` = 설치 → `npm test`(80 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
   런타임 의존은 `js-yaml` 1개. 자동 회귀와 데모(눈 검증)가 같은 코드 경로를 쓴다.
   봇 1기가 `동기(G-0) → 세부 목적(G-0.1.1.2) → 말단(G-0.1.1.2.1) → 절차(S-0045 채취)` 사슬을
-  자동 완주하고, 파문·원장·사건 기록이 전부 정합한다.
+  자동 완주하고, 그래프는 이제 **세계의 진실이 아니라 액터의 믿음**이다(발견 상태·가설 반증·역결합).
 - 설계·seed 데이터(기존):
   - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 · [Design-Visualization.md](Design-Visualization.md) v0.1 ·
     [Design-StepPlan.md](Design-StepPlan.md) v0.1 (6 Phase 19 step).
@@ -52,18 +52,32 @@
 - **B4** `data/world-slice1.yaml` · `actors/bot.js` `runSlice` — 봇 v0(계획 없음, 반응만)가 사슬을
   자동 완주(M2). 시간 압박: 소멸타이머 > 이동 → 성공 / 짧으면 무대 소멸 → 실패. 완주 후 `audit()`
   + 사건 로그 감사 성립.
+
+### Phase C 로 참이 된 명제 (`src/epistemic/`)
+
+- **C1** `belief.js` `BeliefView` — 액터별 발견 상태(미발견/추정/확인/반증). 미발견 노드는 봇 시점
+  그래프에서 "?" 로만, 미발견 무대는 좌표 대신 탐색 영역 단계로만. 두 액터의 믿음이 독립.
+  **A4 `epistemic` 스텁 해제** — `ctx.belief` 주입 시 `BeliefView.query(spec)`(target/tag)로
+  실판정(`G-0.1.1.2` 의 done_when 이 이제 실판정). belief 미주입 시 여전히 스텁(하위 호환).
+- **C2** `hypothesis.js` — 가설(추정 지식 노드) 판정: 실험 반응 vs 예측 → 확인(재현 ≥ `재현_최소`)
+  / 반증. 반증 시 그 가설에만 매달린 하위 가지가 믿음에서 붕괴(모든 부모가 붕괴 집합일 때만 —
+  다른 살아있는 부모가 있으면 생존, DAG 의 이점). 경합 가설 H1 확인 / H2 반증·붕괴 → `G-0.1.1.2`
+  충족·파문. 법칙 표에 `실험`·`검증` 동사 추가. (M3)
+- **C3** `retrobind.js` — 획득 시 발견된 어떤 demand 와도 안 닿는 재료 = 용도 불명. 새 가지 발견 시
+  보유 재료를 그 demand 에 대조해 매칭되면 `retro-bind`(가지 발견 전이 + 재료·노드 연결).
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
 
 ## NEXT — 다음 할 일
 
-**step C1 — epistemic 4값 + 믿음 필터** ([Design-StepPlan.md](Design-StepPlan.md) §5 C1):
+**step D1 — Scene 서술자 + ViewModel** ([Design-StepPlan.md](Design-StepPlan.md) §6 D1):
 
-- `src/epistemic/belief.js` — 액터별 `BeliefView`: 전역 그래프(설계자 데이터)에서 그 액터가 발견한
-  부분만 보인다. seed 의 `epistemic` 필드는 절편 시작 시점의 초기 믿음으로 로드.
-- `BeliefView.query()` — 미발견 노드·무대는 결과에서 제외(자식 수만 "?"), 미발견 무대는 좌표 대신
-  탐색 영역 정확도 단계로만. 발견 이벤트(`discover`)가 상태를 전이(A5 `관찰` 산출과 연결).
-- **A4 `epistemic` 연산자 스텁 해제** — `done_when` 이 지식의 발견 상태를 물을 수 있게 된다
-  (`G-0.1.1.2` 의 done_when 이 이때 처음 실판정 가능). `predicate.js` 의 `evalEpistemic` 에
-  `ctx.belief` 주입 경로가 이미 뚫려 있다 — belief 구현만 붙이면 됨.
-- done_when: 같은 세계에서 두 액터가 서로 다른 그래프를 보는 것이 테스트로 고정된다.
-- 이후: C2(가설·반증 루프) → C3(상향 발견). 그다음 D(시각화) / E(플래너) / F(다중 행위자).
+- `src/scene/viewmodel.js` — `세계+BeliefView+이벤트 큐 → Scene 서술자`. 렌더러는 서술자만 읽는다
+  (불변 원칙 ⑥ 구조 강제). Scene 스키마: `{tick, entities[{id,archetype,pos,channels{}}], decals[],
+  effects[{kind,path?}], ui:{goalGraph:{nodes[],edges[]}, card, dial}}` — `goalGraph.nodes` 는
+  **BeliefView 파생**(발견 상태·조건 슬롯·파문 경로), 전역 그래프 직접 노출 금지.
+- 속성→채널 번역은 대응표 데이터(`data/`)로 최소 2채널(GLOW·JITTER).
+- **구조 강제 테스트**: `demo/` 렌더러가 `src/substrate`·`src/graph` 를 import 하지 못하게 —
+  의존 방향 스캔 테스트. + Scene 스냅샷 회귀(같은 세계 시퀀스 → 같은 서술자 열).
+- done_when: 렌더러가 서술자 외 어떤 세계 API 도 만질 수 없음이 기계 검사된다.
+- 이후: D2(방사형 목적 그래프 뷰) → D3(별자리 지도+파문). 그다음 E(플래너) / F(다중 행위자).
+  주의: 본격 월드 렌더(three.js)는 이 계획 밖 — D 는 목적 그래프 UI(Canvas 2D)까지.

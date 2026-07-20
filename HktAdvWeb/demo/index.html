@@ -101,6 +101,13 @@
       runView('성공 (소멸타이머 3): 시간 창 안에 채취', d.slice.success);
       runView('실패 (소멸타이머 1): 이동 중 무대 소멸', d.slice.timeout);
     }
+
+    // Phase C — 발견 상태 (믿음 필터 · 가설 반증/확인 · 상향 발견)
+    if (d.epistemic) {
+      app.append(el('h2', {}, 'Phase C — 발견 상태 (그래프 = 플레이어의 믿음)'));
+      app.append(el('p', { class: 'muted' }, '그래프는 세계의 진실이 아니라 봇이 이해한 만큼만 존재한다 (불변 원칙 ③).'));
+      app.append(el('pre', {}, d.epistemic.log.join('\n')));
+    }
 </script>
 </body>
 </html>

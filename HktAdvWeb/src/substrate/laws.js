@@ -147,10 +147,33 @@ export const 관찰Law = new Law({
   },
 });
 
+// 실험: 대상에 자극을 가하고 반응을 사건으로 기록한다. 정보 재료(주제)를 산출한다.
+//        (가설 검증 루프 C2 의 자극→반응 기록원. 대상 자체는 바꾸지 않는다.)
+export const 실험Law = new Law({
+  verb: '실험',
+  cond: null,
+  energyCost: 2,
+  effect: ({ params }) => {
+    const adds = [];
+    if (params['주제']) adds.push({ id: nextId('실험정보'), kind: '정보', properties: { 주제: params['주제'] } });
+    return { adds, targetDelta: {} };
+  },
+});
+
+// 검증: 실개체 등에서 재현을 확인한다 (사건 기록만 — done_when 은 event 횟수로 판정).
+export const 검증Law = new Law({
+  verb: '검증',
+  cond: null,
+  energyCost: 2,
+  effect: () => ({ adds: [], targetDelta: {} }),
+});
+
 // 절편 기본 법칙 표를 만든다.
 export function defaultLawTable(lexicon = null) {
   const t = new LawTable(lexicon);
   t.register(채취Law);
   t.register(관찰Law);
+  t.register(실험Law);
+  t.register(검증Law);
   return t;
 }

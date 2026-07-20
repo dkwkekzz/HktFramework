@@ -129,7 +129,8 @@ function evalHas(spec, ctx) {
   let epistemicStub = false;
   if (epistemic !== undefined) {
     if (ctx.belief) {
-      matched = matched.filter((s) => ctx.belief.stateOf(s.id) === epistemic);
+      // 재료가 자체 발견 상태를 지니면 그것을, 아니면 belief 노드 상태를 본다.
+      matched = matched.filter((s) => (s.epistemic ?? ctx.belief.stateOf(s.id)) === epistemic);
     } else {
       epistemicStub = true;
       matched = [];
