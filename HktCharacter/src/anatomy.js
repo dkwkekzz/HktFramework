@@ -70,6 +70,7 @@ function pair(t) {
     ...t, id: `${t.id}.${side}`, side,
     origins: t.origins.map(p => ({ ...p, bone: sided(p.bone, pre) })),
     insertions: t.insertions.map(p => ({ ...p, bone: sided(p.bone, pre) })),
+    wrap: t.wrap ? { ...t.wrap, joint: sided(t.wrap.joint, pre) } : undefined,
   });
   return [mk('L', 'left'), mk('R', 'right')];
 }
@@ -108,14 +109,18 @@ const PAIRED = [
   // ---- 상완 (관절 통과: 정지부를 전완 아래로 내려 팔꿈치 굴곡에 반응) ----------
   //  이두근: 어깨(견갑골 근사)→요골. 정지부 t=0.30 로 전완을 넘어가므로 팔을 굽히면
   //  원점−정지 거리가 줄어 짧아지고 굵어진다. along 음수로 벨리 덩어리는 상완에 유지.
+  //  이두근: 정지부가 전완을 넘어가고(t=0.30) 팔꿈치 **전방**을 wrap 으로 우회한다(§6·§7.5).
+  //  굴곡 시 전방 경로가 짧아져 단축·굵어짐(부피 보존). wrap 이 깊은 굴곡에서 뼈 관통을 막는다.
   { id: 'biceps', kr: '상완이두근', architecture: 'Fusiform',
     origins: [O('arm', 0.045, 0, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
+    wrap: { joint: 'forearm', face: 'ant', clearance: 0.02 },
     along: -0.20, span: 0.58, r: 0.048, taper: 0.4, bulge: 0.32 },
-  //  삼두근: 후면. 이두의 길항근으로 굴곡 시 길어져야 하지만, 그건 정지부(주두)가
-  //  팔꿈치 회전축 뒤를 지나는 모멘트암이 있어야 나온다 → WP-04(JointInfluence)로 이월.
-  //  지금은 틀린 방향(단축)을 피해 t=0(중립, 기존과 동일)으로 둔다.
+  //  삼두근: 이두의 길항근. 팔꿈치 **후방** wrap 으로 깊은 굴곡에서 뼈 관통을 막는다(§6).
+  //  길항 신장(굴곡 시 길어짐)은 관절각·모멘트암 기반이라 기능 근육(WP-04)에서 부여한다 —
+  //  기하 wrap-at-pivot 만으로는 안 나옴이 측정으로 드러나 t=0(중립) 유지.
   { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
     origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
+    wrap: { joint: 'forearm', face: 'post', clearance: 0.02 },
     along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
   // ---- 전완 -------------------------------------------------------------
   { id: 'forearm', kr: '전완근군', architecture: 'Fusiform',

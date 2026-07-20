@@ -84,6 +84,26 @@ for (const model of ['X Bot', 'Y Bot']) {
     rig.obj.updateMatrixWorld(true);
   }
 
+  // WP-02b · Route Solver + Wrap (§6·§19.3): 조건부 wrap 이 팔꿈치를 우회하되 이두 단축을
+  //  매끄럽게(불연속 없이) 유지하는가. wrap engage + 단조 단축 + 전이 점프 작음.
+  {
+    const fa = rig.boneMap.get('leftforearm');
+    if (fa) {
+      const saved = fa.rotation.clone(), lens = []; let engaged = false;
+      for (const deg of [0, 30, 60, 90, 120]) {
+        fa.rotation.copy(saved); fa.rotation.x += THREE.MathUtils.degToRad(deg); rig.obj.updateMatrixWorld(true);
+        const bb = muscles.getBellies().find(x => x.id === 'biceps.L');
+        lens.push(bb.len); if (bb.wrapped) engaged = true;
+      }
+      fa.rotation.copy(saved); rig.obj.updateMatrixWorld(true);
+      ok(engaged, 'WP-02b: 이두 wrap engage (팔꿈치 우회 §6)');
+      let mono = true, maxJump = 0;
+      for (let i = 1; i < lens.length; i++) { if (lens[i] > lens[i - 1] + 1e-4) mono = false; maxJump = Math.max(maxJump, Math.abs(lens[i] - lens[i - 1])); }
+      ok(mono, `WP-02b: 이두 굴곡 단조 단축 [${lens.map(l => l.toFixed(3)).join(', ')}]`);
+      ok(maxJump < 0.06, `WP-02b: wrap 전이 점프 ${(maxJump * 1000).toFixed(0)}mm <60mm (§19.3 연속성)`);
+    }
+  }
+
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
   //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
   {
