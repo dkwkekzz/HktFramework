@@ -111,6 +111,13 @@
       app.append(el('pre', {}, d.epistemic.log.join('\n')));
     }
 
+    // Phase E — 플래너·생성 (재해석 · 관문 · 규칙 분해)
+    if (d.planner) {
+      app.append(el('h2', {}, 'Phase E — 플래너·생성 (세계는 재해석한다, 생성 아님)'));
+      app.append(el('p', { class: 'muted' }, '세계는 재료를 스폰하지 않는다 — 이미 존재하는 것을 목적 관점에서 재해석한다 (불변 원칙 ④).'));
+      app.append(el('pre', {}, d.planner.log.join('\n')));
+    }
+
     // Phase D — 시각화 (방사형 + 별자리). 렌더러는 Scene 서술자만 소비한다 (불변 원칙 ⑥).
     if (d.scene) {
       app.append(el('h2', {}, 'Phase D — 목적 그래프 시각화 (Scene 서술자 소비)'));

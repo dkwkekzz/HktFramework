@@ -1,0 +1,33 @@
+# =====================================================================
+# 분해 템플릿 표 (step E3) — 장애물 유형 → 하위 목적 골격
+# ---------------------------------------------------------------------
+# seed 의 0.1.1.1~0.1.1.9 전개를 템플릿의 첫 사례 데이터로 역추출했다.
+# 플래너(decompose.js)가 세계의 장애물 유형에 맞는 템플릿을 골라 하위 목적을
+# 계산한다 — 같은 목적도 세계가 다르면 분해가 다르다 (§5 원칙 2).
+# =====================================================================
+templates:
+  # 대상이 육체형(물리 실체) → 파괴 수단 확보
+  - obstacle: 육체형
+    subgoal:
+      title: 신에게 피해를 줄 파괴 수단을 확보한다
+      verb: 결합
+      done_when: {has: {kind: 물질, property: {name: 공명출력, op: ">=", value: const.무기출력_최소}, min_count: 1}}
+      demand:
+        - {kind: 물질, property: {name: 공명출력, op: ">=", value: const.무기출력_최소}}
+
+  # 신앙 유지형(숭배로 힘을 얻음) → 숭배 구조 교란 수단 확보
+  - obstacle: 신앙형
+    subgoal:
+      title: 숭배 구조를 교란할 수단을 확보한다
+      verb: 채취
+      done_when: {has: {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}, min_count: 1}}
+      demand:
+        - {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}}
+
+  # 접근 불가 → 접근권 확보
+  - obstacle: 접근불가
+    subgoal:
+      title: 신의 거처 접근권을 확보한다
+      done_when: {has: {kind: 접근권, property: {name: 대상, op: "==", value: 신.거처}, min_count: 1}}
+      demand:
+        - {kind: 접근권, property: {name: 대상, op: "==", value: 신.거처}}

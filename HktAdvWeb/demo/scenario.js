@@ -21,6 +21,9 @@ import { findUnbound, discoverNode } from '../src/epistemic/retrobind.js';
 import { Substance } from '../src/substrate/substance.js';
 import { buildScene } from '../src/scene/viewmodel.js';
 import { ripple } from '../src/graph/ripple.js';
+import { scan } from '../src/planner/reinterpret.js';
+import { backlogAgainstWorld } from '../src/planner/constraints.js';
+import { decompose } from '../src/planner/decompose.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -87,6 +90,9 @@ export function buildDemo() {
   // ── Phase D: Scene 서술자 (방사형·별자리 뷰의 먹이) ──
   const scene = buildSceneDemo(g, lexicon);
 
+  // ── Phase E: 재해석 스캐너 · 생성 제약 관문 · 규칙 플래너 ──
+  const planner = buildPlannerDemo(g, lexicon);
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -102,7 +108,42 @@ export function buildDemo() {
     },
     epistemic,
     scene,
+    planner,
   };
+}
+
+// Phase E 시연: 재해석(스폰 금지) · 백로그 · 두 세계 분해 차이.
+function buildPlannerDemo(g, lexicon) {
+  const constants = g.constants;
+  const log = [];
+
+  // E1 — 재해석 스캐너 (스폰 금지: 세계에 있는 것만 후보)
+  const empty = new World(lexicon);
+  const demand = { kind: '물질', property: { name: '공명전달률', op: '>=', value: 'const.공명전달_최소' } };
+  log.push(`E1 재해석: 빈 세계에서 공명전달 재료 스캔 → 후보 ${scan(demand, empty, { constants, lexicon }).length}건 (스폰 금지, 불변 원칙 ④)`);
+  const world1 = new World(lexicon);
+  world1.add({ id: '수정맥', archetype: '수정질 광맥', kind: '물질', properties: { 공명전달률: 0.85, 에너지손실률: 0.1 } });
+  const cands = scan(demand, world1, { constants, lexicon });
+  log.push(`   요소(수정맥) 추가 후 스캔 → 후보 ${cands.length}건: ${cands.map((c) => c.fromElement).join(',')} (이미 존재하는 것을 재해석)`);
+
+  // E2 — 절편 세계 대비 백로그 (아직 무대 없는 노드)
+  const sliceWorld = new World(lexicon);
+  sliceWorld.add({ id: '조직조각-A', archetype: '조직조각', kind: '물질', tags: ['신.조직'], properties: { 신성잔향보존율: 0.8, 오염도: 0.1, 소멸타이머: 3 } });
+  const ctx = { constants, lexicon, state: { world: {}, stage: { 'S-0045': { 잔여시간: 3 } } } };
+  const { passed, backlog } = backlogAgainstWorld(g, sliceWorld, ctx);
+  log.push(`E2 관문: 절편 세계에서 통과 ${passed.length} · 백로그(무대 미실존) ${backlog.length} → ${backlog.slice(0, 4).map((b) => b.id).join(', ')} …`);
+
+  // E3 — 두 세계 분해 차이
+  const parent = g.goalsById.get('G-0.1.1');
+  const wA = new World(lexicon); wA.add({ id: '공명포', kind: '물질', properties: { 공명출력: 0.8 } });
+  const wB = new World(lexicon); wB.add({ id: '독초', kind: '물질', properties: { 생체촉매활성: 0.7 } });
+  const A = decompose(parent, wA, { constants, lexicon, obstacles: ['육체형'] });
+  const B = decompose(parent, wB, { constants, lexicon, obstacles: ['신앙형'] });
+  log.push(`E3 플래너: 같은 목적(${parent.title})을 두 세계에 분해 →`);
+  log.push(`   육체형 신: "${A.admitted[0]?.title}"`);
+  log.push(`   신앙형 신: "${B.admitted[0]?.title}"  (세계가 다르면 분해가 다르다, §5 원칙 2)`);
+
+  return { log };
 }
 
 // Phase D 시연: 발견 상태 4값을 담은 방사형용 Scene + 4 연출을 담은 별자리용 Scene.

@@ -6,12 +6,12 @@
 
 ## 현재 — 한눈에
 
-- **Phase A(세계 기질)·B(목적 그래프 코어)·C(발견 상태)·D(시각화 최소) 완료 — M1~M4 달성.**
-  `bash run.sh` = 설치 → `npm test`(87 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
+- **Phase A~E 완료 — M1~M5 달성** (A 세계 기질 · B 그래프 코어 · C 발견 상태 · D 시각화 · E 플래너).
+  `bash run.sh` = 설치 → `npm test`(104 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
   런타임 의존은 `js-yaml` 1개. 자동 회귀와 데모(눈 검증)가 같은 코드 경로를 쓴다.
   봇 1기가 `동기(G-0) → 세부 목적(G-0.1.1.2) → 말단(G-0.1.1.2.1) → 절차(S-0045 채취)` 사슬을
-  자동 완주하고, 그래프는 **액터의 믿음**이며(발견 상태·가설 반증·역결합), 이제 **방사형·별자리
-  뷰로 눈에 보인다**(렌더러는 Scene 서술자만 소비 — 불변 원칙 ⑥ 기계 강제).
+  자동 완주하고, 그래프는 **액터의 믿음**이며(발견 상태·가설 반증·역결합), **방사형·별자리 뷰로
+  보이고**(렌더러는 Scene 서술자만 소비), **세계가 목적에 재해석으로 응답한다**(스폰 금지 + 규칙 분해).
 - 설계·seed 데이터(기존):
   - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 · [Design-Visualization.md](Design-Visualization.md) v0.1 ·
     [Design-StepPlan.md](Design-StepPlan.md) v0.1 (6 Phase 19 step).
@@ -78,19 +78,32 @@
   소비 — 파문 경로는 ViewModel 이 계산(렌더러 재유도 금지). 권속의 심장 2갈래 동시 파문.
 - **불변 원칙 ⑥ 기계 강제**: 렌더러(`demo/graph-*.js`)가 `src/` 를 import 하지 않음을 스캔 테스트로
   고정. shot ①②는 브라우저 없으면 스킵+경고(등록만).
+
+### Phase E 로 참이 된 명제 (`src/planner/`)
+
+- **E1** `reinterpret.js` `scan(demand, world) → StageCandidate[]` — 이미 존재하는 세계 요소를 속성
+  매칭으로 Stage 후보(§4.5)로 감싼다. supplies ⊆ 요소의 실속성, obstacles 는 실속성에서 파생
+  (발명 금지). **스폰 금지**: 없는 것은 후보가 되지 않고, 스캔은 세계를 바꾸지 않음(읽기 전용).
+  후보는 미발견(발견은 C1 경로로만). 불변 원칙 ④ 회귀 고정.
+- **E2** `constraints.js` `checkBranch` — (a) demand 가 재료 10종으로 환원 (b) done_when 이 DSL 로
+  기계 판정 가능 (c) 응답 기회가 세계에 ≥ 1 실존(E1 스캔 재사용). B1 정적 검사의 동적 확장.
+  `backlogAgainstWorld` — 절편 세계 대비 (c) 실패 = "아직 무대 없는" 백로그(G-0.1.1.3.2/3.3 등).
+- **E3** `decompose.js` — 분해 템플릿 표(`data/decompose-templates.yaml`, 장애물 유형 → 하위 목적
+  골격)로 상위 목적+세계 → 하위 목적 계산. 후보는 E2 관문 통과 후에만 편입, `epistemic:추정`.
+  **두 세계 분해 차이**: 같은 목적을 육체형 신(→파괴 수단)/신앙형 신(→숭배 교란)에 다르게 분해.
+  LLM 접합면(입력·출력·관문·반려)은 `decompose.js` 주석에 고정 — 규칙이든 LLM 이든 접합면 동일.
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
 
 ## NEXT — 다음 할 일
 
-**step E1 — 재해석 스캐너** ([Design-StepPlan.md](Design-StepPlan.md) §7 E1):
+**step F1 — 봇 N기 + aftermath 연쇄** ([Design-StepPlan.md](Design-StepPlan.md) §8 F1):
 
-- `src/planner/reinterpret.js` — `scan(demand, world) → StageCandidate[]`: demand 가 주어지면 **이미
-  존재하는** 세계 요소(개체·장·환경 상태)를 속성 매칭으로 Stage 후보로 감싼다(§4.5 스키마).
-  supplies·obstacles 는 요소의 실제 속성·주변 상태에서 파생 — **발명하지 않는다**(불변 원칙 ④).
-- **스폰 금지 테스트**: 세계에 없는 속성 → 후보 0건, 요소 추가 후에만 등장. 스캔 전후 세계 상태
-  해시 불변(스캐너는 읽기 전용). 후보의 발견은 C1 경로(정보 재료)로만 — 스캔이 곧바로
-  BeliefView 에 꽂히지 않는다.
-- done_when: 불변 원칙 ④ 가 회귀 테스트로 고정된다 (M5 의 절반).
-- 재사용 자산: B2 `matchDemand`(속성 스캔)·C1 `BeliefView`. 이후 E2(생성 제약 검사기) →
-  E3(규칙 기반 플래너 v0). 그다음 F(다중 행위자).
-  주의: 본격 월드 렌더(three.js)·LLM 분해는 이 계획 밖.
+- `bot.js` 확장 — 봇별 독립 `BeliefView`(C1) + 활성 말단 선택에 원가(에너지·거리·위험) 휴리스틱.
+- `aftermath` 실행기 — 노드 완료 시 aftermath 항목을 세계 상태 변화로 적용(법칙 `apply` 경유 —
+  원장·사건 정합 유지), 변화가 E3 플래너를 깨워 신규 목적 후보 계산.
+- 시나리오: 봇 A 채취 완료 → aftermath(생태 변화·경쟁 세력 추적) → 봇 B 에 신규 위협 목적 등장.
+  경쟁: 두 봇이 같은 무대의 유한 공급을 두고 선착 소진.
+- 검증: 연쇄 시나리오 + N봇 M틱 후 원장 `audit()`·사건 감사·그래프 정합(불변식 일괄).
+- done_when: 한 완료가 다른 행위자의 새 목적을 낳는 연쇄가 재현된다.
+- 재사용 자산: C1 `BeliefView`·B4 `runSlice`·E3 `decompose`. 이후 F2(관전 데모 통합, M6)로 트랙 완주.
+  주의: 본격 월드 렌더(three.js)·LLM 분해·멀티플레이어 권위 모델은 이 계획 밖.
