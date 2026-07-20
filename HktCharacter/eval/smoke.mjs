@@ -107,6 +107,27 @@ for (const model of ['X Bot', 'Y Bot']) {
   ok(sz.z > 0.12 && sz.z < 0.5, `피부 두께(전후) ${sz.z.toFixed(2)}m`);
   console.log(`    (굽기 ${bakeMs}ms · 정점 ${stats.verts})`);
 
+  // WP-09 · 조직 패킹(§9.8·§19.2 skin escape): 피부가 캡슐 union 표면을 감싸는가.
+  //  가산 합이면 겹침부(몸통·관절)가 부풀어 정점이 멀리 뜬다(판때기). smooth-max union 은
+  //  표면을 공유하므로 escape 가 작다. 정점별 최근접 캡슐 표면거리(dist−r)가 임계 초과면 escape.
+  {
+    const segD = (px, py, pz, a, b) => {
+      const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+      const apx = px - a.x, apy = py - a.y, apz = pz - a.z;
+      const L = abx * abx + aby * aby + abz * abz;
+      let t = L > 1e-9 ? (apx * abx + apy * aby + apz * abz) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    };
+    const vp = g.attributes.position.array; let escaped = 0; const total = vp.length / 3;
+    for (let i = 0; i < vp.length; i += 3) {
+      let best = Infinity;
+      for (const c of caps) { const d = segD(vp[i], vp[i + 1], vp[i + 2], c.a, c.b) - c.r; if (d < best) best = d; }
+      if (best > 0.08) escaped++; // 캡슐 표면에서 8cm 이상 뜬 정점 = escape (fascia webbing 허용 초과)
+    }
+    ok(escaped / total < 0.02, `skin escape ${(100 * escaped / total).toFixed(1)}% <2% (§19.2 조직 패킹)`);
+  }
+
   // 애니메이션 ------------------------------------------------------------
   scene.add(rig.obj); scene.add(mesh);
   const src = parseClipFBX(toBuf('public/assets/anim/walk.fbx'));
