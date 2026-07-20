@@ -22,6 +22,7 @@ UE5.6 플러그인 프레임워크. 3개의 독립 플러그인으로 구성된�
 - [HktSplatEnv/CLAUDE.md](HktSplatEnv/CLAUDE.md) — HktSplatGenesis 의 **환경(정적=무대)** 자립 분리판 (Spark WebGL2 전용, 생명 없음).
 - [HktCreature/CLAUDE.md](HktCreature/CLAUDE.md) — 오픈월드 MMORPG 용 창발형 3D 크리처를 AI-only 파이프라인으로 만드는 웹 트랙 (기본 Mixamo 스켈레톤을 로드해 절차 살을 얹고 Mixamo 애니메이션을 리타깃 구동; three.js/Vite, UE 빌드·타 플러그인과 무관).
 - [HktAtom/CLAUDE.md](HktAtom/CLAUDE.md) — 원자부터 복잡계로 창발하는 규모의 사다리(원자→분자·물질→거시 존재)를 **하나의 커널**(보존 다발 + 국소 교환 + 안정 구조의 승격)로 굴리는 웹 트랙 — 단계(원자·분자·물질·존재)마다 자체 완전한 독립 모듈, 단계 연결은 데이터(입출력)만 (순수 JS+html, UE 빌드·타 플러그인과 무관).
+- [HktAdvWeb/CLAUDE.md](HktAdvWeb/CLAUDE.md) — 목적 기반 오픈월드 MMORPG 웹 프로토타입: 동적 목적 그래프(목적=상태 차이 → 속성 기반 재료 요구 → 기회=무대)가 세계를 굴린다 (독립 트랙, UE 빌드·타 플러그인·타 트랙과 무관).
 
 ## Coding Conventions
 
