@@ -7,7 +7,7 @@
 ## 현재 — 한눈에
 
 - **StepPlan 6 Phase 19 step 전부 완료 — M1~M6 달성.** (A 기질 · B 코어 · C 발견 · D 시각화 ·
-  E 플래너 · F 다중 행위자). `bash run.sh` = 설치 → `npm test`(112 케이스 전건 통과) → 데모 서버.
+  E 플래너 · F 다중 행위자). `bash run.sh` = 설치 → `npm test`(117 케이스 전건 통과) → 데모 서버.
   순수 JS(ESM, Node 20+), 런타임 의존은 `js-yaml` 1개. 자동 회귀와 데모(눈 검증)가 같은 코드 경로.
 - 살아있는 세계 관전이 원클릭으로 재현된다: 봇 N기가 각자 독립 믿음으로 목적 그래프를 굴리고,
   같은 무대의 유한 공급을 두고 경쟁하며, 한 봇의 완료 `aftermath` 가 세계를 바꿔 다른 봇의 새 목적을
@@ -15,13 +15,21 @@
   Scene 서술자만 소비), **세계는 목적에 재해석으로 응답한다**(스폰 금지 + 규칙 분해 + E2 관문).
 - 여섯 불변 원칙이 모두 회귀 테스트로 고정됨: ① done_when 경로 무관 · ② 속성 기반 다중 해법 ·
   ③ 그래프=믿음 · ④ 재해석(스폰 금지) · ⑤ 자동+눈 이중 검증 · ⑥ 렌더러 의존 방향(src import 0).
-- 설계·seed 데이터(기존):
+- **게임 콘텐츠 층이 섰다** — [Design-WorldComposition.md](Design-WorldComposition.md) v0.1:
+  세부 목적 구성(일곱 뿌리 전반 전개) + 지역·요소 설계·배치(R0~R6) + 만드는 순서(콘텐츠 단계
+  C1~C7). 배치 3원칙(㉠ demand 속성마다 공급 무대 ≥ 2 — 예외는 사유 명시 강제 · ㉡ 무대는
+  복수 목적에 봉사 · ㉢ 위험·거리·시간이 가격)이 `test/world-composition.test.js` 5건으로
+  기계 고정(전 무대 배치·인접 대칭·속성 대역·공급 행렬·주기 정합).
+- 설계·seed 데이터:
   - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 · [Design-Visualization.md](Design-Visualization.md) v0.1 ·
     [Design-StepPlan.md](Design-StepPlan.md) v0.1 (6 Phase 19 step).
-  - [data/objective-graph.yaml](data/objective-graph.yaml) — seed 목적 그래프. **B1 이 구조 정합
-    (id 유일성·참조 무결·serves DAG·뿌리 도달·술어 파싱·속성 사전·17 동사·죽은 무대)을 기계 인수** —
-    이제 "검증된 데이터". 39 노드·4 무대·경고 0.
-  - [data/property-lexicon.yaml](data/property-lexicon.yaml) — 속성 사전(속성명의 정본).
+  - [data/objective-graph.yaml](data/objective-graph.yaml) v0.2 — **61 노드·12 무대·경고 0**.
+    0.1.1.1 정체(월식 가설 H1)·0.1.1.2 약점(H1/H2 경합)·0.1.1.3 제작·0.1.1.4 접근·0.1.1.6 규합·
+    0.1.2 둥지·0.2 성장(장비·약물)·0.3 자원·0.4 적응까지 말단 전개. B1 로더가 상시 기계 인수.
+  - [data/world-composition.yaml](data/world-composition.yaml) — 지역·배치의 정본: 7 지역
+    (인접·이동 비용·환경), 재료 아키타입 속성 대역, 주기 5(순행·월식·한파·호송·무리분산),
+    supply_exceptions(사유 있는 공급 예외 2).
+  - [data/property-lexicon.yaml](data/property-lexicon.yaml) — 속성 사전(속성명의 정본, 내한성·독성 포함).
   - [data/world-slice1.yaml](data/world-slice1.yaml) — Slice-1 세계 픽스처(B4): 조직 조각 개체
     (소멸타이머)·봇 1기·시간 진행.
 
@@ -105,19 +113,20 @@
   (완료 파문 + aftermath 신규 목적)를 렌더. shot ③ 등록. `bash run.sh` 원클릭 관전(M6).
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
 
-## NEXT — 다음 할 일 (StepPlan 완주 — 다음 트랙 후보)
+## NEXT — 다음 할 일 (콘텐츠 단계 C1 부터 게임을 쌓는다)
 
-StepPlan 6 Phase 19 step 을 모두 닫았다. 다음 세션이 열 수 있는 후속 트랙(StepPlan §2 주의·§10
-미결정에서 예고된 것들 — 각각 새 step 열이 필요):
+**콘텐츠 단계 C1 — 첫 사냥터** ([Design-WorldComposition.md](Design-WorldComposition.md) §7 C1):
 
-1. **월드 렌더 트랙** — Design-Visualization §10 의 본격 하이브리드 렌더(three.js·속성 채널·AI
-   에셋). D1 의 Scene 서술자가 이 트랙과 공유하는 계약이다(이미 확정). 목적 그래프 UI(Canvas 2D)
-   너머 실제 무대/개체 3D 렌더.
-2. **LLM 플래너 트랙** — E3 의 규칙 분해를 LLM 분해로 교체. 접합면은 `decompose.js` 주석에 고정됨
-   (입력=목적+세계 요약 / 출력=가지 YAML / 관문=E2 / 반려 루프). 프롬프트 설계가 미결정.
-3. **멀티플레이어 권위 트랙** — F 는 단일 프로세스 봇까지. 서버 권위·동기화 모델이 미결정.
-4. **절편 확장** — Slice-1 을 넘어 0.1.1.3(피해 수단 제작)·0.2.3(약물) 가지까지 종단 실행,
-   미발견 무대(S-0201/S-0202) 발견 경로(C3 역결합)와 E2 백로그 소진.
+- R1 축소 픽스처(S-0045 + S-0103, 순행 주기 600/20, 소멸타이머)를 world-slice1 의 확장판으로
+  세우고, 틱 루프에 주기(cycles) 구동기를 탑재한다 — 순행이 무대를 재생성하는 첫 사례.
+- 여는 목적: 0.1.1.2.1(채취) · 0.1.1.2.2(관찰) · 0.3.1.1(에너지 수확) · 0.1.1.1.1(흉터 조사).
+- 검증: 봇이 순행 1주기 안에 표본+정보+수확 완주(성공)/창을 놓치면 실패 + `audit()`·사건 감사,
+  데모 관전에서 순행 창의 골든 타임이 보인다. 엔진은 손대지 않는 게 기본 — 콘텐츠 픽스처와
+  시나리오·주기 구동기만 새로 만든다.
+- 이후 순서는 C2(가설·심장 이중 파문) → C3(R2·R3 재료 세계) → … → C7(결전과 재편) —
+  Design-WorldComposition §7 이 단계마다 여는 목적·만드는 것·쓰는 엔진·검증을 정한다.
 
-권장: 눈에 보이는 성과가 가장 큰 **1(월드 렌더)** 또는 자기 확장성이 열리는 **4(절편 확장)**.
-재사용 자산: 전 Phase 의 `src/` 모듈 + `demo/` 렌더러 + 112 케이스 회귀.
+병행 가능한 후속 트랙(콘텐츠 단계와 직교 — StepPlan §10 미결정에서 예고):
+**월드 렌더**(Design-Visualization §10, Scene 서술자 계약은 확정) · **LLM 플래너**(접합면은
+`decompose.js` 주석에 고정) · **멀티플레이어 권위**(F 는 단일 프로세스까지).
+재사용 자산: 전 Phase 의 `src/` 모듈 + `demo/` 렌더러 + 117 케이스 회귀.
