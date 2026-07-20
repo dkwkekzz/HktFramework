@@ -14,6 +14,7 @@ import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { analyzeJoints } from '../src/joints.js';
+import { solveInsertion } from '../src/attach.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -144,6 +145,21 @@ for (const model of ['X Bot', 'Y Bot']) {
     const d = Math.abs(penn.dir.dot(byId.get('deltoid.L').axis));
     ok(d > 0.9 && d < 0.97, `WP-13: pennate 섬유 깃각 기움 dot=${d.toFixed(3)} (≈cos22°=0.927)`);
     ok(penn.pennation === 22, `WP-13: 깃각 메타 전달 ${penn.pennation}°`);
+  }
+
+  // WP-14 · Attachment Solver (§9.5·원칙⑤): 근육 **기능**(굴근/신근)만으로 해부학적으로 맞는
+  //  부착 면을 후보 랜드마크에서 점수화해 도출. 굴근→전면(이두), 신근→후면(삼두)이어야 한다.
+  {
+    const lm = detectLandmarks(rig);
+    const jt = analyzeJoints(rig, lm);
+    const flex = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'flexor' }, lm, jt);
+    const ext = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'extensor' }, lm, jt);
+    ok(!!flex && !!ext, 'WP-14: 솔버가 굴근·신근 부착 도출');
+    ok(flex.insertion.face === 'ant', `WP-14: 굴근 부착 = 전면(이두 정합) [${flex.insertion.face}]`);
+    ok(ext.insertion.face === 'post', `WP-14: 신근 부착 = 후면(삼두 정합) [${ext.insertion.face}]`);
+    ok(flex.insertion.torqueSign === 1 && ext.insertion.torqueSign === -1, `WP-14: 토크 부호 굴근+ / 신근− (§9.5)`);
+    // 도출된 부착이 후보 최상위(점수 최대)인지 — 정렬 정합
+    ok(flex.candidates[0].score >= flex.candidates[flex.candidates.length - 1].score, 'WP-14: 후보 점수 정렬');
   }
 
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.

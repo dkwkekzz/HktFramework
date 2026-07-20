@@ -14,6 +14,7 @@ import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { analyzeJoints } from '../src/joints.js';
+import { solveInsertion } from '../src/attach.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
@@ -234,6 +235,29 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   }
   writePNG('eval/out/1-fibers-front.png', render(tris, 'front'), W, H);
   console.log('근섬유 방향: eval/out/1-fibers-front.png (fusiform=청록·pennate=주황)');
+}
+
+// (1g) 부착 솔버(WP-14) — 전완 부착 후보 랜드마크(회색) + 기능으로 도출한 부착: 굴근=전면(초록)·
+//  신근=후면(주황). 손 지정 없이 랜드마크+관절 토크로 해부학적 면을 고른다. §9.5·원칙⑤.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const lm = detectLandmarks(rig); const jt = analyzeJoints(rig, lm);
+  const flex = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'flexor' }, lm, jt);
+  const ext = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'extensor' }, lm, jt);
+  const tris = [];
+  const ARM = new Set(['biceps.L', 'triceps.L', 'forearm.L', 'deltoid.L']);
+  for (const it of muscles.items) if (ARM.has(it.def.id)) geoToTris(it.mesh.geometry, it.mesh.matrix, [58, 36, 36], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const c of flex.candidates) cube(c.point, 0.009, [120, 120, 130]); // 후보(회색)
+  cube(flex.insertion.point, 0.02, [90, 235, 110]);   // 굴근 도출(초록)
+  cube(ext.insertion.point, 0.02, [255, 150, 60]);    // 신근 도출(주황)
+  writePNG('eval/out/1-attach-solver.png', render(tris, 'front'), W, H);
+  console.log(`부착 솔버: eval/out/1-attach-solver.png (굴근→${flex.insertion.face} 초록·신근→${ext.insertion.face} 주황)`);
 }
 
 // (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
