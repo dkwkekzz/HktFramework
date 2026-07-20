@@ -139,22 +139,42 @@ function pointAtArc(pts, f, out) {
   return out.copy(pts[pts.length - 1]);
 }
 
+// 관절 굴곡각(rad, 0=폄): 관절 뼈의 부모→관절 방향과 관절→자식 방향 사이 각. rest(T-포즈
+//  펴짐)에서 ~0, 굴곡할수록 커진다. 기능 근육(§10.1)의 길이를 관절각에 잇는 데 쓴다.
+const _jp = new THREE.Vector3(), _jc = new THREE.Vector3(), _jj = new THREE.Vector3();
+const _jv1 = new THREE.Vector3(), _jv2 = new THREE.Vector3();
+function jointFlexion(ji) {
+  ji.parent.getWorldPosition(_jp); ji.bone.getWorldPosition(_jj); ji.child.getWorldPosition(_jc);
+  _jv1.subVectors(_jj, _jp); _jv2.subVectors(_jc, _jj);
+  const l1 = _jv1.length(), l2 = _jv2.length();
+  if (l1 < 1e-5 || l2 < 1e-5) return 0;
+  return Math.acos(THREE.MathUtils.clamp(_jv1.dot(_jv2) / (l1 * l2), -1, 1));
+}
+
 function belly(item, rest) {
   const { def, oPatch, iPatch } = item;
   const info = computePath(item);   // frame() 세팅 + 경로 폴리라인
-  const len = info.len;
+  const geoLen = info.len;
   const o = oPatch.off, ins = iPatch.off;
   // 프레임 오프셋(전후·측면·along)을 경로 전체에 적용 → 오프셋된 벨리 폴리라인.
   _off.set(0, 0, 0)
     .addScaledVector(_ant, 0.5 * (o.a + ins.a))
     .addScaledVector(_lat, 0.5 * (o.l + ins.l))
-    .addScaledVector(_axis, len * def.along);
+    .addScaledVector(_axis, geoLen * def.along);
   const pts = info.pts.map(p => p.add(_off)); // 오프셋 적용(제자리)
   pointAtArc(pts, 0.5, _c);         // 벨리 중심 = 오프셋 경로 호 중앙
+  // 길이·수축: 기본은 기하 경로 길이(관절 넘는 근육은 굴곡 시 짧아져 굵어짐). jointInf(기능
+  //  근육 §7.4·§10.1)면 길이를 **관절 굴곡각의 함수**로 override — 길항근(삼두 sign=+1)은 굴곡
+  //  시 신장(얇아짐), 주동근(sign=−1)은 단축. 기하로 안 잡히는 관절각↔길이 관계를 gain 으로 잇는다.
+  let len = geoLen, contraction;
+  if (item.jointInf && rest) {
+    const scale = THREE.MathUtils.clamp(1 + item.jointInf.sign * item.jointInf.gain * jointFlexion(item.jointInf), 0.6, 1.6);
+    len = rest * scale;
+    contraction = 1 / scale;        // 늘면 얇아짐(부피 보존)
+  } else {
+    contraction = rest ? THREE.MathUtils.clamp(rest / geoLen, 0.7, 1.4) : 1;
+  }
   const half = 0.5 * len * def.span;
-  // 수축비 = rest 길이 / 현재 길이. 관절을 넘는 근육은 굴곡 시 len 이 줄어 >1 → 굵어짐.
-  //  wrap 후면 삼두는 굴곡 시 len 이 늘어 <1 → 신장(길항).
-  const contraction = rest ? THREE.MathUtils.clamp(rest / len, 0.7, 1.4) : 1;
   const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1));
   return { center: _c, axis: _axis, half, radius, pts, len };
 }
@@ -204,7 +224,16 @@ export class MuscleLayer {
       this.group.add(mesh);
       // wrap 관절 뼈 해석(§6·§7.5) — 없으면 null(직선 경로).
       const wrapBone = def.wrap ? rig.boneMap.get(def.wrap.joint) : null;
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone };
+      // 기능 근육 관절 영향(§7.4·§10.1) — 관절 뼈 + 그 부모·구동 자식을 잡아 굴곡각을 잰다.
+      //  sign: 길항근(antagonist)=+1(굴곡 시 신장), 주동근=−1(단축).
+      let jointInf = null;
+      if (def.jointInf) {
+        const jb = rig.boneMap.get(def.jointInf.joint);
+        const parent = jb && jb.parent && jb.parent.isBone ? jb.parent : null;
+        const child = jb && jb.children.find(k => k.isBone && rig.boneMap.get(simpleName(k.name)) === k);
+        if (jb && parent && child) jointInf = { bone: jb, parent, child, gain: def.jointInf.gain, sign: def.jointInf.antagonist ? 1 : -1 };
+      }
+      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf };
       // rest 길이 캐시 (수축 기준) — wrap 우회 경로의 rest 길이(직선이면 |from−to|)
       this.restLen.set(item, computePath(item).len);
       this.items.push(item);

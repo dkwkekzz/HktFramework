@@ -71,6 +71,7 @@ function pair(t) {
     origins: t.origins.map(p => ({ ...p, bone: sided(p.bone, pre) })),
     insertions: t.insertions.map(p => ({ ...p, bone: sided(p.bone, pre) })),
     wrap: t.wrap ? { ...t.wrap, joint: sided(t.wrap.joint, pre) } : undefined,
+    jointInf: t.jointInf ? { ...t.jointInf, joint: sided(t.jointInf.joint, pre) } : undefined,
   });
   return [mk('L', 'left'), mk('R', 'right')];
 }
@@ -115,12 +116,12 @@ const PAIRED = [
     origins: [O('arm', 0.045, 0, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
     wrap: { joint: 'forearm', face: 'ant', clearance: 0.02 },
     along: -0.20, span: 0.58, r: 0.048, taper: 0.4, bulge: 0.32 },
-  //  삼두근: 이두의 길항근. 팔꿈치 **후방** wrap 으로 깊은 굴곡에서 뼈 관통을 막는다(§6).
-  //  길항 신장(굴곡 시 길어짐)은 관절각·모멘트암 기반이라 기능 근육(WP-04)에서 부여한다 —
-  //  기하 wrap-at-pivot 만으로는 안 나옴이 측정으로 드러나 t=0(중립) 유지.
+  //  삼두근: 이두의 **길항근**(§10.5). 팔꿈치 후방 wrap 으로 관통을 막고(§6), **기능 근육
+  //  jointInf**(§7.4·§10.1)로 굴곡 시 신장한다 — 길이를 관절 굴곡각의 함수로 잇는다(momentArm).
   { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
     origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
     wrap: { joint: 'forearm', face: 'post', clearance: 0.02 },
+    jointInf: { joint: 'forearm', antagonist: true, gain: 0.12 },
     along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
   // ---- 전완 -------------------------------------------------------------
   { id: 'forearm', kr: '전완근군', architecture: 'Fusiform',

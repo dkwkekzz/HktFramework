@@ -104,6 +104,23 @@ for (const model of ['X Bot', 'Y Bot']) {
     }
   }
 
+  // WP-04 · Joint Influence & 기능 근육 (§7.4·§10.5): 삼두(길항근)가 팔꿈치 굴곡 시 신장·얇아짐,
+  //  이두(주동근)와 반대로 — 길항쌍(agonist↔antagonist). 길이를 관절 굴곡각의 함수로 잇는다.
+  {
+    const fa = rig.boneMap.get('leftforearm');
+    if (fa) {
+      const saved = fa.rotation.clone();
+      const at = d => { fa.rotation.copy(saved); fa.rotation.x += THREE.MathUtils.degToRad(d); rig.obj.updateMatrixWorld(true); return muscles.getBellies(); };
+      const g0 = at(0), g1 = at(120);
+      fa.rotation.copy(saved); rig.obj.updateMatrixWorld(true);
+      const t0 = g0.find(x => x.id === 'triceps.L'), t1 = g1.find(x => x.id === 'triceps.L');
+      const b0 = g0.find(x => x.id === 'biceps.L'), b1 = g1.find(x => x.id === 'biceps.L');
+      ok(t1.len > t0.len * 1.1, `WP-04: 삼두 굴곡 시 신장 ${t0.len.toFixed(3)}→${t1.len.toFixed(3)}m (§10.1 길항)`);
+      ok(t1.radius < t0.radius, `WP-04: 삼두 신장 시 얇아짐 ${t0.radius.toFixed(4)}→${t1.radius.toFixed(4)}m`);
+      ok(b1.len < b0.len && t1.len > t0.len, 'WP-04: 길항쌍 — 이두 단축 ↔ 삼두 신장(§10.5)');
+    }
+  }
+
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
   //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
   {
