@@ -24,6 +24,7 @@ import { ripple } from '../src/graph/ripple.js';
 import { scan } from '../src/planner/reinterpret.js';
 import { backlogAgainstWorld } from '../src/planner/constraints.js';
 import { decompose } from '../src/planner/decompose.js';
+import { runMultiSim, loadMultiFixture } from '../src/actors/multibot.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -93,6 +94,9 @@ export function buildDemo() {
   // ── Phase E: 재해석 스캐너 · 생성 제약 관문 · 규칙 플래너 ──
   const planner = buildPlannerDemo(g, lexicon);
 
+  // ── Phase F: 봇 N기 관전 + aftermath 연쇄 (살아있는 세계) ──
+  const multibot = buildMultiDemo(g, lexicon);
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -109,6 +113,25 @@ export function buildDemo() {
     epistemic,
     scene,
     planner,
+    multibot,
+  };
+}
+
+// Phase F 시연: 봇 2기 경쟁 + aftermath 연쇄 → 관전용 Scene(익명 완료 링).
+function buildMultiDemo(g, lexicon) {
+  const sim = runMultiSim(g, loadMultiFixture());
+  // 관전 Scene: 봇 B 시점(aftermath 로 새 목적을 얻은) 믿음 + 완료 파문/발견 연출.
+  const belief = BeliefView.fromGraph(g, 'bot-B');
+  if (sim.beliefs['bot-B']['G-0.1.4'] === '추정') belief.set('G-0.1.4', '추정');
+  const predCtx = { constants: g.constants, lexicon, belief, actor: { id: 'bot-B', inventory: [] }, state: { world: {}, stage: {} } };
+  const events = [...sim.ripples, { type: 'discover', id: 'G-0.1.4' }];
+  const scene = buildScene({ graph: g, belief, events, predCtx });
+  return {
+    log: sim.log,
+    results: sim.results,
+    newGoals: sim.newGoals,
+    audit: sim.audit,
+    scene,
   };
 }
 

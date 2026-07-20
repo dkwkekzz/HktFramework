@@ -140,6 +140,21 @@
       const loop = () => { phase = (phase + 0.008) % 1; renderConstellation(kc, d.scene.constellation, phase); requestAnimationFrame(loop); };
       loop();
     }
+
+    // Phase F — 봇 N기 관전 (살아있는 세계). 한 완료가 다른 봇의 새 목적을 낳는다.
+    if (d.multibot) {
+      app.append(el('h2', {}, 'Phase F — 봇 N기 관전 (살아있는 세계, M6)'));
+      app.append(el('p', { class: 'muted' }, '두 봇이 유한 공급을 두고 경쟁하고, 한 봇의 완료 aftermath 가 다른 봇의 새 목적이 된다 (§5 원칙 5).'));
+      app.append(el('pre', {}, d.multibot.log.join('\n')));
+      const sk = document.createElement('canvas');
+      sk.id = 'canvas-spectator'; sk.width = 360; sk.height = 360;
+      sk.style = 'border:1px solid #30363d;border-radius:6px;max-width:100%';
+      app.append(el('div', { class: 'muted' }, 'F2 관전 뷰 (봇 B 시점 + 완료 파문·신규 목적 발견)'));
+      app.append(sk);
+      let sp = 0;
+      const sloop = () => { sp = (sp + 0.008) % 1; renderConstellation(sk, d.multibot.scene, sp); requestAnimationFrame(sloop); };
+      sloop();
+    }
 </script>
 </body>
 </html>

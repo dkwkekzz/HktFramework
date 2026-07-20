@@ -8,6 +8,7 @@
 const SHOTS = [
   { id: 'radial', desc: 'D2 절편 그래프 방사형 뷰 — 발견 상태 4값(확인/추정/미발견/반증)' },
   { id: 'constellation', desc: 'D3 별자리 지도 — 2갈래 동시 파문 순간' },
+  { id: 'spectator', desc: 'F2 봇 2기 관전 화면 — 완료 파문 + aftermath 신규 목적' },
 ];
 
 async function main() {
