@@ -12,6 +12,7 @@ import { deflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
+import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
@@ -135,6 +136,26 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [190, 70, 64], tris);
   writePNG('eval/out/2-muscles-front.png', render(tris, 'front'), W, H);
   console.log(`근육 정면: ${tris.length} 삼각형 → eval/out/2-muscles-front.png`);
+}
+
+// (1c) 랜드마크(WP-11) — 뼈 표면 랜드마크 점을 근육 위에 오버레이(§9.2·§17.3 뷰).
+//  면별 색: 전=파랑·후=주황·외측=초록·내측=노랑·끝단=흰. 좌우 대칭·프록시 표면 위 육안 확인용.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const lm = detectLandmarks(rig);
+  const tris = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [64, 40, 40], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  const colOf = n => n.includes('Ant') ? [90, 200, 255] : n.includes('Post') ? [255, 120, 90]
+    : n.includes('Lat') ? [130, 255, 130] : n.includes('Med') ? [255, 230, 90] : [235, 235, 235];
+  for (const s of landmarkPoints(lm)) cube(s.p, 0.012, colOf(s.name));
+  writePNG('eval/out/1-landmarks-front.png', render(tris, 'front'), W, H);
+  console.log('랜드마크: eval/out/1-landmarks-front.png (면별 색 오버레이)');
 }
 
 // (1b) 관절 통과 데모(WP-02) — 왼팔 근육을 중립 vs 팔꿈치 굴곡으로 확대 비교.

@@ -30,7 +30,7 @@
   **부착 패치**(§19.1 구조·§7.1 뼈 로컬 불변), **이두 굴곡 단축·굵어짐**(§19.3), 피부 삼각형 ~22k·
   skinWeight 합≈1·bbox(높이 1.79), **skin escape 0.0%**(§19.2), **워터타이트**(전 체형 경계에지<90·§19.4),
   **전달률·fascia**(§11·§9.10), 애니 변형, **체형**(비만 전후 > 마른).
-- `npm run render` — `eval/out/` PNG: 근육 에코르셰(`2-muscles-front`), **팔 굴곡 비교**
+- `npm run render` — `eval/out/` PNG: **랜드마크 오버레이**(`1-landmarks-front`), 근육 에코르셰(`2-muscles-front`), **팔 굴곡 비교**
   (`2-arm-neutral`↔`2-arm-curl`), **체형 3종**(`4-body-{마른,근육질,비만}`), 피부(`3-skin-*`).
 - ⚠️ **브라우저 육안 확인은 사용자 몫** — 샌드박스 headless Chromium 차단(`npm run dev`).
 
@@ -43,13 +43,13 @@
 |:--:|---|---|:--:|
 | — | WP-01·02·03·06① | 부착·관절통과·근육형태·체형 | ✅ |
 | 1 | WP-09 | Tissue Packing — 가산 union→SDF 공간분할(원칙③) | ✅ (2026-07-20) |
-| **2** | **WP-10** | **Fascia 스무딩 + 피부 전달률(§9.10·§11)** | **✅ (2026-07-20)** |
-| 3 | WP-11 | Bone Landmark Detection | ☐ ◀ 다음 |
-| 4 | WP-12 | Joint Function Analysis | ☐ |
+| 2 | WP-10 | Fascia 스무딩 + 피부 전달률(§9.10·§11) | ✅ (2026-07-20) |
+| 3 | WP-11 | Bone Landmark Detection(§9.2) | ✅ (2026-07-20) |
+| **4** | **WP-12** | **Joint Function Analysis(§9.3)** | **☐ ◀ 다음** |
 | 5~ | WP-02b·04·05·13·14·06②·03b·08 | 경로·길항·활성도·fiber·부착솔버·심화 | ☐ |
 
-**◀ 다음: WP-11 (Bone Landmark Detection)** — 부착을 관절 원점이 아니라 뼈 표면 랜드마크
-(근위·원위단·면·능선)에 붙게 하는 생성형 척추의 토대(§9.2). 각 WP 완료 기록·검증 게이트는 WORKPLAN 참조.
+**◀ 다음: WP-12 (Joint Function Analysis)** — 각 관절의 자유도·회전축·범위를 스켈레톤에서
+추출(§9.3). 길항쌍·토크의 근거를 데이터가 아니라 기능에서. WP-04·WP-14·모드 B 의 전제. 상세는 WORKPLAN.
 
 ## 알려진 한계
 

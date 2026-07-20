@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { loadSkeleton, replant, boneBox } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
+import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
@@ -80,6 +81,32 @@ for (const model of ['X Bot', 'Y Bot']) {
     ok(b1.radius > b0.radius * 1.05, `이두 굴곡 시 굵어짐(부피 보존) ${b0.radius.toFixed(4)}→${b1.radius.toFixed(4)}m`);
     fore.rotation.copy(savedRot);               // rest 복원
     rig.obj.updateMatrixWorld(true);
+  }
+
+  // WP-11 · Bone Landmark Detection (§9.2·§19.1): 랜드마크가 프록시 표면에 있고 좌우 대칭 -----
+  {
+    const lm = detectLandmarks(rig);
+    ok(lm.size === rig.drivers.length, `랜드마크 세트 ${lm.size}개 (구동 뼈당 1)`);
+    const arm = lm.get('leftarm');
+    ok(!!arm && Math.abs(arm.axis.length() - 1) < 1e-3, '랜드마크 축 단위벡터');
+    // 표면 점(양 끝 × 4면)이 프록시 반지름만큼 끝에서 벗어났는가
+    let surfOk = true;
+    for (const s of landmarkPoints(lm)) {
+      if (s.name === 'proximal' || s.name === 'distal') continue;
+      const set = lm.get(s.sn);
+      const end = s.name.startsWith('proximal') ? set.proximal : set.distal;
+      if (Math.abs(s.p.distanceTo(end) - set.radius) > 1e-4) { surfOk = false; break; }
+    }
+    ok(surfOk, '표면 랜드마크가 프록시 반지름에 위치(§9.2)');
+    // 축이 proximal→distal 방향(비-리프)
+    ok(arm.distal.distanceTo(arm.proximal) > 0.05 && arm.axis.dot(arm.distal.clone().sub(arm.proximal)) > 0, '축이 원위 방향');
+    // 좌우 대칭: leftarm ↔ rightarm proximal 이 x-미러, lateral 면이 좌우 반대
+    const la = lm.get('leftarm'), ra = lm.get('rightarm');
+    if (la && ra) {
+      const mir = la.proximal.clone(); mir.x *= -1;
+      ok(mir.distanceTo(ra.proximal) < 0.02, `랜드마크 좌우 대칭 (Δ=${mir.distanceTo(ra.proximal).toFixed(3)})`);
+      ok(Math.sign(la.faces.lat.x || -1) === -Math.sign(ra.faces.lat.x || 1), 'lateral 면이 좌우 반대(정중선 바깥)');
+    }
   }
 
   // ③ 피부 (굽기) ----------------------------------------------------------
