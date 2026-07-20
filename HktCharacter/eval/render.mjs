@@ -12,6 +12,9 @@ import { deflateSync } from 'node:zlib';
 import * as THREE from 'three';
 import { loadSkeleton, replant } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
+import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
+import { analyzeJoints } from '../src/joints.js';
+import { solveInsertion, synthesizeJointMuscles } from '../src/attach.js';
 import { BODY_PRESETS } from '../src/anatomy.js';
 import { bakeSkin } from '../src/skin.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
@@ -137,6 +140,45 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   console.log(`근육 정면: ${tris.length} 삼각형 → eval/out/2-muscles-front.png`);
 }
 
+// (1c) 랜드마크(WP-11) — 뼈 표면 랜드마크 점을 근육 위에 오버레이(§9.2·§17.3 뷰).
+//  면별 색: 전=파랑·후=주황·외측=초록·내측=노랑·끝단=흰. 좌우 대칭·프록시 표면 위 육안 확인용.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const lm = detectLandmarks(rig);
+  const tris = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [64, 40, 40], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  const colOf = n => n.includes('Ant') ? [90, 200, 255] : n.includes('Post') ? [255, 120, 90]
+    : n.includes('Lat') ? [130, 255, 130] : n.includes('Med') ? [255, 230, 90] : [235, 235, 235];
+  for (const s of landmarkPoints(lm)) cube(s.p, 0.012, colOf(s.name));
+  writePNG('eval/out/1-landmarks-front.png', render(tris, 'front'), W, H);
+  console.log('랜드마크: eval/out/1-landmarks-front.png (면별 색 오버레이)');
+
+  // (1d) 관절 기능(WP-12) — hinge/ball 피벗(흰) + 굴곡축(hinge=청록 막대·ball=자홍 점). §9.3·§17.3.
+  const jt = analyzeJoints(rig, lm);
+  const tris2 = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [64, 40, 40], tris2);
+  const cube2 = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris2.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const j of jt.values()) {
+    cube2(j.pivot, 0.016, [240, 240, 240]);                        // 피벗 = 흰
+    if (j.type === 'hinge') {                                      // hinge 굴곡축 = 청록 막대
+      for (let s = -3; s <= 3; s++) cube2(j.pivot.clone().addScaledVector(j.flexionAxis, s * 0.018), 0.008, [60, 230, 220]);
+    } else cube2(j.pivot, 0.024, [230, 90, 220]);                  // ball = 자홍(큰 점)
+  }
+  writePNG('eval/out/1-joints-front.png', render(tris2, 'front'), W, H);
+  console.log('관절 기능: eval/out/1-joints-front.png (hinge 축=청록·ball=자홍)');
+}
+
 // (1b) 관절 통과 데모(WP-02) — 왼팔 근육을 중립 vs 팔꿈치 굴곡으로 확대 비교.
 //  이두근이 굴곡 시 짧아지고 굵어지는지(부피 보존) 육안 판정용. 이두=밝은 빨강 강조.
 {
@@ -157,12 +199,102 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   console.log('관절통과 데모: eval/out/2-arm-neutral.png ↔ 2-arm-curl.png (이두 벌크 비교)');
 }
 
+// (1e) 활성도(WP-05) — **중립 포즈 고정**에서 공동수축(굴근 이두 0.8 / 신근 삼두 0.3, §10.5)
+//  → 길이 불변에도 등척성 팽창(§10.6). 활성도 0 대비. 이두=밝은 빨강.
+{
+  const ARM = new Set(['biceps.L', 'triceps.L', 'forearm.L', 'deltoid.L']);
+  const armItems = muscles.items.filter(it => ARM.has(it.def.id));
+  const col = it => it.def.id === 'biceps.L' ? [235, 90, 80] : it.def.id === 'triceps.L' ? [150, 62, 58] : [128, 54, 52];
+  const draw = () => { rig.obj.updateMatrixWorld(true); muscles.update(); const tris = []; for (const it of armItems) geoToTris(it.mesh.geometry, it.mesh.matrix, col(it), tris); return tris; };
+  muscles.setActivation(0);
+  writePNG('eval/out/1-activation-rest.png', render(draw(), 'front'), W, H);
+  muscles.setActivation(0.8, id => id === 'biceps.L');
+  muscles.setActivation(0.3, id => id === 'triceps.L');
+  writePNG('eval/out/1-activation-cocontract.png', render(draw(), 'front'), W, H);
+  muscles.setActivation(0);
+  console.log('활성도: eval/out/1-activation-{rest,cocontract}.png (등척성 공동수축)');
+}
+
+// (1f) 근섬유 방향장(WP-13) — 근육별 섬유 방향을 점열 막대로. fusiform=청록(축 정렬)·
+//  pennate 깃근=주황(축에서 깃각만큼 기움). §9.9·§17.3 Fiber directions 뷰.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const fibers = muscles.getFibers();
+  const tris = [];
+  for (const item of muscles.items) geoToTris(item.mesh.geometry, item.mesh.matrix, [56, 34, 34], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const fb of fibers) {
+    const col = fb.pennation > 0 ? [255, 150, 60] : [80, 220, 255];
+    const h = fb.len * 0.45;
+    for (let s = -3; s <= 3; s++) cube(fb.center.clone().addScaledVector(fb.dir, (s / 3) * h), 0.009, col);
+  }
+  writePNG('eval/out/1-fibers-front.png', render(tris, 'front'), W, H);
+  console.log('근섬유 방향: eval/out/1-fibers-front.png (fusiform=청록·pennate=주황)');
+}
+
+// (1g) 부착 솔버(WP-14) — 전완 부착 후보 랜드마크(회색) + 기능으로 도출한 부착: 굴근=전면(초록)·
+//  신근=후면(주황). 손 지정 없이 랜드마크+관절 토크로 해부학적 면을 고른다. §9.5·원칙⑤.
+{
+  rig.obj.updateMatrixWorld(true); muscles.update();
+  const lm = detectLandmarks(rig); const jt = analyzeJoints(rig, lm);
+  const flex = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'flexor' }, lm, jt);
+  const ext = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'extensor' }, lm, jt);
+  const tris = [];
+  const ARM = new Set(['biceps.L', 'triceps.L', 'forearm.L', 'deltoid.L']);
+  for (const it of muscles.items) if (ARM.has(it.def.id)) geoToTris(it.mesh.geometry, it.mesh.matrix, [58, 36, 36], tris);
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const c of flex.candidates) cube(c.point, 0.009, [120, 120, 130]); // 후보(회색)
+  cube(flex.insertion.point, 0.02, [90, 235, 110]);   // 굴근 도출(초록)
+  cube(ext.insertion.point, 0.02, [255, 150, 60]);    // 신근 도출(주황)
+  writePNG('eval/out/1-attach-solver.png', render(tris, 'front'), W, H);
+  console.log(`부착 솔버: eval/out/1-attach-solver.png (굴근→${flex.insertion.face} 초록·신근→${ext.insertion.face} 주황)`);
+}
+
+// (1h) 모드 B 기능 합성(WP-08) — 아틀라스 없이 팔꿈치 기능만으로 합성한 굴근(초록)·신근(주황)을
+//  기시→정지 점열로. 뼈(회색)만 있으면 근육이 나온다. §9.4B·G5 비인간형 씨앗.
+{
+  rig.obj.updateMatrixWorld(true);
+  const lm = detectLandmarks(rig); const jt = analyzeJoints(rig, lm);
+  const synth = synthesizeJointMuscles('leftforearm', lm, jt);
+  const tris = [];
+  // 팔 뼈 세그먼트를 얇은 막대로(맥락)
+  const wp = new THREE.Vector3(), wc = new THREE.Vector3();
+  for (const bn of ['leftarm', 'leftforearm', 'lefthand']) {
+    const b = rig.boneMap.get(bn); if (!b) continue; b.getWorldPosition(wp);
+    for (const k of b.children.filter(k => k.isBone)) { k.getWorldPosition(wc); }
+  }
+  const cube = (c, r, col) => {
+    const o = [[-1, -1, -1], [1, -1, -1], [1, 1, -1], [-1, 1, -1], [-1, -1, 1], [1, -1, 1], [1, 1, 1], [-1, 1, 1]]
+      .map(a => new THREE.Vector3(c.x + a[0] * r, c.y + a[1] * r, c.z + a[2] * r));
+    const f = [[0, 1, 2], [0, 2, 3], [4, 6, 5], [4, 7, 6], [0, 4, 5], [0, 5, 1], [1, 5, 6], [1, 6, 2], [2, 6, 7], [2, 7, 3], [3, 7, 4], [3, 4, 0]];
+    for (const t of f) tris.push({ p: [o[t[0]].clone(), o[t[1]].clone(), o[t[2]].clone()], c: col });
+  };
+  for (const m of synth) {
+    const col = m.role === 'flexor' ? [90, 235, 110] : [255, 150, 60];
+    const a = m.origin.point, b = m.insertion.point;
+    for (let s = 0; s <= 8; s++) cube(a.clone().lerp(b, s / 8), 0.008, col); // 기시→정지 근육 경로
+    cube(a, 0.016, col); cube(b, 0.016, col);
+  }
+  writePNG('eval/out/1-modeB-synth.png', render(tris, 'front'), W, H);
+  console.log('모드 B 합성: eval/out/1-modeB-synth.png (굴근 초록·신근 주황, 아틀라스 없이 기능에서)');
+}
+
 // (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
 //  rig 은 아직 rest(replant) 상태이므로 구운 지오메트리 정점이 곧 월드 rest 좌표다.
 for (const name of ['마른', '근육질', '비만']) {
   muscles.build(rig, BODY_PRESETS[name]);
   rig.obj.updateMatrixWorld(true);
-  const bm = bakeSkin(rig, muscles.getCapsules()).mesh;
+  const bm = bakeSkin(rig, muscles.getCapsules(), muscles.profile).mesh;
   const bg = bm.geometry, bi = bg.index, bp = bg.attributes.position, bt = [];
   const bv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   for (let i = 0; i < bi.count; i += 3) {

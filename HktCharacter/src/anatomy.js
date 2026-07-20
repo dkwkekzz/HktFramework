@@ -70,6 +70,8 @@ function pair(t) {
     ...t, id: `${t.id}.${side}`, side,
     origins: t.origins.map(p => ({ ...p, bone: sided(p.bone, pre) })),
     insertions: t.insertions.map(p => ({ ...p, bone: sided(p.bone, pre) })),
+    wrap: t.wrap ? { ...t.wrap, joint: sided(t.wrap.joint, pre) } : undefined,
+    jointInf: t.jointInf ? { ...t.jointInf, joint: sided(t.jointInf.joint, pre) } : undefined,
   });
   return [mk('L', 'left'), mk('R', 'right')];
 }
@@ -101,21 +103,29 @@ const PAIRED = [
   { id: 'scm', kr: '흉쇄유돌근', architecture: 'Fusiform',
     origins: [O('head', 0.05, 0.03)], insertions: [I('spine2', 0.05, 0.03)],
     along: 0.1, span: 0.7, r: 0.024, taper: 0.6, bulge: 0.08 },
-  // ---- 어깨 -------------------------------------------------------------
-  { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform',
+  // ---- 어깨 (삼각근 = 다우상근 multipennate: 섬유가 축에서 크게 기움) ----------
+  { id: 'deltoid', kr: '삼각근', architecture: 'Fusiform', pennation: 22,
     origins: [O('arm', 0, 0.055)], insertions: [I('forearm', 0, 0.055)],
     along: -0.28, span: 0.5, r: 0.06, taper: 0.5, bulge: 0.15 },
   // ---- 상완 (관절 통과: 정지부를 전완 아래로 내려 팔꿈치 굴곡에 반응) ----------
   //  이두근: 어깨(견갑골 근사)→요골. 정지부 t=0.30 로 전완을 넘어가므로 팔을 굽히면
   //  원점−정지 거리가 줄어 짧아지고 굵어진다. along 음수로 벨리 덩어리는 상완에 유지.
+  //  이두근: 정지부가 전완을 넘어가고(t=0.30) 팔꿈치 **전방**을 wrap 으로 우회한다(§6·§7.5).
+  //  굴곡 시 전방 경로가 짧아져 단축·굵어짐(부피 보존). wrap 이 깊은 굴곡에서 뼈 관통을 막는다.
+  //  다두근(§7.3): 이두 = 장두(주, 외측) + 단두(내측). 원점서 갈라져 요골 정지부로 수렴.
   { id: 'biceps', kr: '상완이두근', architecture: 'Fusiform',
-    origins: [O('arm', 0.045, 0, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
+    origins: [O('arm', 0.045, 0.018, 0)], insertions: [I('forearm', 0.045, 0, 0.30)],
+    wrap: { joint: 'forearm', face: 'ant', clearance: 0.02 },
+    headVol: 0.72, heads: [{ id: 'short', da: -0.004, dl: -0.036, vol: 0.62 }],
     along: -0.20, span: 0.58, r: 0.048, taper: 0.4, bulge: 0.32 },
-  //  삼두근: 후면. 이두의 길항근으로 굴곡 시 길어져야 하지만, 그건 정지부(주두)가
-  //  팔꿈치 회전축 뒤를 지나는 모멘트암이 있어야 나온다 → WP-04(JointInfluence)로 이월.
-  //  지금은 틀린 방향(단축)을 피해 t=0(중립, 기존과 동일)으로 둔다.
+  //  삼두근: 이두의 **길항근**(§10.5). 팔꿈치 후방 wrap 으로 관통을 막고(§6), **기능 근육
+  //  jointInf**(§7.4·§10.1)로 굴곡 시 신장한다 — 길이를 관절 굴곡각의 함수로 잇는다(momentArm).
+  //  삼두 = 장두(주) + 외측두 + 내측두(§7.3). 세 근두가 후면에 나란히, 주두 정지부로 수렴.
   { id: 'triceps', kr: '상완삼두근', architecture: 'Fusiform',
     origins: [O('arm', -0.045, 0)], insertions: [I('forearm', -0.045, 0)],
+    wrap: { joint: 'forearm', face: 'post', clearance: 0.02 },
+    jointInf: { joint: 'forearm', antagonist: true, gain: 0.12 },
+    headVol: 0.6, heads: [{ id: 'lateral', da: 0, dl: 0.035, vol: 0.55 }, { id: 'medial', da: -0.006, dl: -0.035, vol: 0.5 }],
     along: 0.02, span: 0.65, r: 0.052, taper: 0.45, bulge: 0.22 },
   // ---- 전완 -------------------------------------------------------------
   { id: 'forearm', kr: '전완근군', architecture: 'Fusiform',
@@ -127,7 +137,8 @@ const PAIRED = [
     origins: [O('hips', -0.09, 0.05)], insertions: [I('upleg', -0.09, 0.05)],
     along: 0.2, span: 0.6, r: 0.09, taper: 0.6, bulge: 0.12 },
   // ---- 대퇴 -------------------------------------------------------------
-  { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform',
+  // 대퇴사두근(대퇴직근 = 양우상근 bipennate)·비복근도 깃근이라 pennation 부여.
+  { id: 'quadriceps', kr: '대퇴사두근', architecture: 'Fusiform', pennation: 15,
     origins: [O('upleg', 0.07, 0)], insertions: [I('leg', 0.07, 0)],
     along: 0.05, span: 0.72, r: 0.095, taper: 0.5, bulge: 0.22 },
   { id: 'hamstrings', kr: '햄스트링', architecture: 'Fusiform',
@@ -137,7 +148,7 @@ const PAIRED = [
     origins: [O('hips', 0.02, -0.07)], insertions: [I('leg', 0.02, -0.07)],
     along: 0.3, span: 0.55, r: 0.06, taper: 0.55, bulge: 0.12 },
   // ---- 하퇴 -------------------------------------------------------------
-  { id: 'gastrocnemius', kr: '비복근', architecture: 'Fusiform',
+  { id: 'gastrocnemius', kr: '비복근', architecture: 'Fusiform', pennation: 18,
     origins: [O('leg', -0.05, 0)], insertions: [I('foot', -0.05, 0)],
     along: -0.18, span: 0.55, r: 0.06, taper: 0.45, bulge: 0.28 },
   { id: 'tibialis', kr: '전경골근', architecture: 'Fusiform',
@@ -147,14 +158,44 @@ const PAIRED = [
 
 export const MUSCLES = [...CENTER, ...PAIRED.flatMap(pair)];
 
-// 체형 프리셋(설계서 §5.2·G2): 같은 골격에서 근육량(muscle=반지름 배율)·지방(fat=피부
-// 균일 두께 m)만 바꿔 다른 체형을 만든다. MuscleLayer.build(rig, profile) 로 주입.
+// 체형 프리셋(설계서 §5.2·G2): 같은 골격에서 아래 파라미터만 바꿔 다른 체형을 만든다.
+//  muscle:   근육 반지름 배율(근육량)
+//  fat:      피부 균일 두께 m(지방층, §9.10 GlobalFat)
+//  transfer: 피부 전달률 ∈[0,1](§11 MuscleSeparation) — 근육 분리를 피부에 얼마나 또렷이 드러낼지.
+//  fascia:   Laplacian 스무딩 반복(§9.10) — 지방·근막이 표면을 매끄럽게 하는 정도.
+//  근거(§21.5): 마른·근육질은 피하지방이 얇아 근육 분리가 또렷(transfer↑·fascia↓), 비만은
+//  지방·근막이 근육 골을 메워 매끄럽다(fat↑·fascia↑). MuscleLayer.build(rig, profile) 로 주입.
 export const BODY_PRESETS = {
-  마른:   { muscle: 0.78, fat: 0.0 },
-  평균:   { muscle: 1.0, fat: 0.02 },
-  근육질: { muscle: 1.42, fat: 0.006 },
-  비만:   { muscle: 0.95, fat: 0.075 },
+  마른:   { muscle: 0.78, fat: 0.0,   transfer: 0.85, fascia: 1 },
+  평균:   { muscle: 1.0,  fat: 0.02,  transfer: 0.5,  fascia: 2 },
+  근육질: { muscle: 1.42, fat: 0.006, transfer: 1.0,  fascia: 1 },
+  비만:   { muscle: 0.95, fat: 0.075, transfer: 0.3,  fascia: 6 },
 };
+
+// 부위별 지방 분포(설계서 §9.10): FatThickness = GlobalFat × RegionalDistribution. 지방은
+//  전신 균일이 아니다 — 복부·엉덩이에 몰리고 팔뚝·종아리·손발엔 얇다. 이 배율이 비만 체형의
+//  "배 나옴"을 만든다(균일 두께면 눈사람처럼 됨). GlobalFat(체형 fat)에 곱해진다.
+export const FAT_REGIONS = {
+  face: 0.3, neck: 0.5, chest: 0.85, abdomen: 1.9, back: 0.9,
+  upperArm: 0.6, forearm: 0.4, hip: 1.5, thigh: 1.0, calf: 0.5,
+  hand: 0.2, foot: 0.2, default: 0.8,
+};
+// 근육 id·뼈 이름(좌우 접두어 제거) → 부위. 근육 아틀라스 id 와 Mixamo simpleName 둘 다 매핑.
+const REGION = {
+  // 근육(소문자 base id)
+  rectusabdominis: 'abdomen', oblique: 'abdomen', pectoralis: 'chest', latissimus: 'back',
+  trapezius: 'back', gluteus: 'hip', quadriceps: 'thigh', hamstrings: 'thigh', adductor: 'thigh',
+  gastrocnemius: 'calf', tibialis: 'calf', biceps: 'upperArm', triceps: 'upperArm', deltoid: 'upperArm',
+  forearm: 'forearm', scm: 'neck',
+  // 뼈(simpleName)
+  hips: 'abdomen', spine: 'abdomen', spine1: 'chest', spine2: 'chest', neck: 'neck', head: 'face',
+  shoulder: 'upperArm', arm: 'upperArm', hand: 'hand', upleg: 'thigh', leg: 'calf', foot: 'foot',
+};
+// 근육 id 또는 뼈 simpleName → 그 부위의 지방 배율. 미매핑은 default.
+export function fatRegionMult(key) {
+  const base = key.replace(/^(left|right)/, '').replace(/\.[lr]$/i, '').toLowerCase();
+  return FAT_REGIONS[REGION[base] || 'default'] ?? FAT_REGIONS.default;
+}
 
 // 뼈 자체도 피부 필드에 기여한다(살이 얇은 정강이·손·발·머리를 채운다).
 // 각 항목: 뼈 세그먼트(bone → child) 를 감싸는 얇은 캡슐 반지름.

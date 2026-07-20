@@ -12,6 +12,10 @@ import * as THREE from 'three';
 import { loadSkeleton, replant, boneBox } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
+import { detectLandmarks, landmarkPoints } from '../src/landmarks.js';
+import { analyzeJoints } from '../src/joints.js';
+import { solveInsertion, synthesizeJointMuscles } from '../src/attach.js';
+import { BODY_PRESETS, fatRegionMult } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
 const toBuf = p => { const b = readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); };
@@ -81,6 +85,158 @@ for (const model of ['X Bot', 'Y Bot']) {
     rig.obj.updateMatrixWorld(true);
   }
 
+  // WP-02b · Route Solver + Wrap (§6·§19.3): 조건부 wrap 이 팔꿈치를 우회하되 이두 단축을
+  //  매끄럽게(불연속 없이) 유지하는가. wrap engage + 단조 단축 + 전이 점프 작음.
+  {
+    const fa = rig.boneMap.get('leftforearm');
+    if (fa) {
+      const saved = fa.rotation.clone(), lens = []; let engaged = false;
+      for (const deg of [0, 30, 60, 90, 120]) {
+        fa.rotation.copy(saved); fa.rotation.x += THREE.MathUtils.degToRad(deg); rig.obj.updateMatrixWorld(true);
+        const bb = muscles.getBellies().find(x => x.id === 'biceps.L');
+        lens.push(bb.len); if (bb.wrapped) engaged = true;
+      }
+      fa.rotation.copy(saved); rig.obj.updateMatrixWorld(true);
+      ok(engaged, 'WP-02b: 이두 wrap engage (팔꿈치 우회 §6)');
+      let mono = true, maxJump = 0;
+      for (let i = 1; i < lens.length; i++) { if (lens[i] > lens[i - 1] + 1e-4) mono = false; maxJump = Math.max(maxJump, Math.abs(lens[i] - lens[i - 1])); }
+      ok(mono, `WP-02b: 이두 굴곡 단조 단축 [${lens.map(l => l.toFixed(3)).join(', ')}]`);
+      ok(maxJump < 0.06, `WP-02b: wrap 전이 점프 ${(maxJump * 1000).toFixed(0)}mm <60mm (§19.3 연속성)`);
+    }
+  }
+
+  // WP-04 · Joint Influence & 기능 근육 (§7.4·§10.5): 삼두(길항근)가 팔꿈치 굴곡 시 신장·얇아짐,
+  //  이두(주동근)와 반대로 — 길항쌍(agonist↔antagonist). 길이를 관절 굴곡각의 함수로 잇는다.
+  {
+    const fa = rig.boneMap.get('leftforearm');
+    if (fa) {
+      const saved = fa.rotation.clone();
+      const at = d => { fa.rotation.copy(saved); fa.rotation.x += THREE.MathUtils.degToRad(d); rig.obj.updateMatrixWorld(true); return muscles.getBellies(); };
+      const g0 = at(0), g1 = at(120);
+      fa.rotation.copy(saved); rig.obj.updateMatrixWorld(true);
+      const t0 = g0.find(x => x.id === 'triceps.L'), t1 = g1.find(x => x.id === 'triceps.L');
+      const b0 = g0.find(x => x.id === 'biceps.L'), b1 = g1.find(x => x.id === 'biceps.L');
+      ok(t1.len > t0.len * 1.1, `WP-04: 삼두 굴곡 시 신장 ${t0.len.toFixed(3)}→${t1.len.toFixed(3)}m (§10.1 길항)`);
+      ok(t1.radius < t0.radius, `WP-04: 삼두 신장 시 얇아짐 ${t0.radius.toFixed(4)}→${t1.radius.toFixed(4)}m`);
+      ok(b1.len < b0.len && t1.len > t0.len, 'WP-04: 길항쌍 — 이두 단축 ↔ 삼두 신장(§10.5)');
+    }
+  }
+
+  // WP-05 · 활성도(§10.3·§10.6 등척성): 포즈 고정에도 활성도로 근육 팽창(길이와 독립). 길이는
+  //  안 변하고 반지름만 커져야 한다(등척성 수축). 길항 공동수축 지정(굴근만) 가능.
+  {
+    muscles.setActivation(0);
+    const a0 = muscles.getBellies().find(x => x.id === 'biceps.L');
+    muscles.setActivation(1, id => id === 'biceps.L');
+    const a1 = muscles.getBellies().find(x => x.id === 'biceps.L');
+    muscles.setActivation(0);
+    ok(a1.radius > a0.radius * 1.1, `WP-05: 활성도 등척성 팽창 r ${a0.radius.toFixed(4)}→${a1.radius.toFixed(4)} (§10.6)`);
+    ok(Math.abs(a1.len - a0.len) < 1e-4, `WP-05: 활성도가 길이 불변(길이와 독립 §10.3) len ${a0.len.toFixed(3)}=${a1.len.toFixed(3)}`);
+  }
+
+  // WP-13 · Fiber Field (§9.9): 근섬유 방향장 — fusiform 은 축 정렬, pennate(깃근)는 깃각만큼 기움.
+  {
+    const fib = muscles.getFibers();
+    ok(fib.every(f => Math.abs(f.dir.length() - 1) < 1e-3), 'WP-13: 섬유 방향 단위벡터');
+    const byId = new Map(muscles.getBellies().map(b => [b.id, b]));
+    const fusi = fib.find(f => f.id === 'biceps.L');       // pennation 0 → 축 정렬
+    ok(Math.abs(fusi.dir.dot(byId.get('biceps.L').axis)) > 0.99, `WP-13: fusiform 섬유 축 정렬 dot=${fusi.dir.dot(byId.get('biceps.L').axis).toFixed(3)}`);
+    const penn = fib.find(f => f.id === 'deltoid.L');      // pennation 22° → 기움
+    const d = Math.abs(penn.dir.dot(byId.get('deltoid.L').axis));
+    ok(d > 0.9 && d < 0.97, `WP-13: pennate 섬유 깃각 기움 dot=${d.toFixed(3)} (≈cos22°=0.927)`);
+    ok(penn.pennation === 22, `WP-13: 깃각 메타 전달 ${penn.pennation}°`);
+  }
+
+  // WP-03b · MultiHead (§8·§7.3): 이두 2근두(장·단두)·삼두 3근두(장·외측·내측)가 별도 벨리로.
+  {
+    const ids = muscles.items.map(it => it.def.id);
+    const bic = ids.filter(id => id.startsWith('biceps.L')).length;
+    const tri = ids.filter(id => id.startsWith('triceps.L')).length;
+    ok(bic === 2, `WP-03b: 이두 2근두 (장·단두) [${bic}]`);
+    ok(tri === 3, `WP-03b: 삼두 3근두 (장·외측·내측) [${tri}]`);
+    // 근두가 원점서 갈라짐: 이두 두 근두의 center 가 떨어져 있음(정지부는 공유해 수렴)
+    const bel = muscles.getBellies();
+    const bLong = bel.find(b => b.id === 'biceps.L'), bShort = bel.find(b => b.id === 'biceps.L.short');
+    ok(bLong && bShort && bLong.center.distanceTo(bShort.center) > 0.01, `WP-03b: 이두 두 근두 분리 Δ=${(bLong && bShort ? bLong.center.distanceTo(bShort.center) * 1000 : 0).toFixed(0)}mm`);
+  }
+
+  // WP-14 · Attachment Solver (§9.5·원칙⑤): 근육 **기능**(굴근/신근)만으로 해부학적으로 맞는
+  //  부착 면을 후보 랜드마크에서 점수화해 도출. 굴근→전면(이두), 신근→후면(삼두)이어야 한다.
+  {
+    const lm = detectLandmarks(rig);
+    const jt = analyzeJoints(rig, lm);
+    const flex = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'flexor' }, lm, jt);
+    const ext = solveInsertion({ insertionBone: 'leftforearm', joint: 'leftforearm', role: 'extensor' }, lm, jt);
+    ok(!!flex && !!ext, 'WP-14: 솔버가 굴근·신근 부착 도출');
+    ok(flex.insertion.face === 'ant', `WP-14: 굴근 부착 = 전면(이두 정합) [${flex.insertion.face}]`);
+    ok(ext.insertion.face === 'post', `WP-14: 신근 부착 = 후면(삼두 정합) [${ext.insertion.face}]`);
+    ok(flex.insertion.torqueSign === 1 && ext.insertion.torqueSign === -1, `WP-14: 토크 부호 굴근+ / 신근− (§9.5)`);
+    // 도출된 부착이 후보 최상위(점수 최대)인지 — 정렬 정합
+    ok(flex.candidates[0].score >= flex.candidates[flex.candidates.length - 1].score, 'WP-14: 후보 점수 정렬');
+
+    // WP-08 · 모드 B 기능 합성 (§9.4B·G5): 아틀라스 없이 관절 기능만으로 굴근/신근 쌍을 합성.
+    //  경첩 관절 → 굴근(전면 기시·정지)·신근(후면) — 해부학 데이터 없이 부착이 기능에서 나온다.
+    const synth = synthesizeJointMuscles('leftforearm', lm, jt);
+    ok(!!synth && synth.length === 2, 'WP-08: 팔꿈치 굴근/신근 쌍 합성(아틀라스 없이)');
+    const sf = synth.find(m => m.role === 'flexor'), se = synth.find(m => m.role === 'extensor');
+    ok(sf.insertion.face === 'ant' && se.insertion.face === 'post', `WP-08: 합성 정지부 굴근=전면·신근=후면 [${sf.insertion.face}/${se.insertion.face}]`);
+    ok(sf.origin.face === 'ant' && se.origin.face === 'post', `WP-08: 합성 기시부 굴근=전면·신근=후면 [${sf.origin.face}/${se.origin.face}]`);
+    ok(sf.isAgonist && !se.isAgonist, 'WP-08: 굴근=주동근·신근=길항근(§9.3 길항 쌍)');
+  }
+
+  // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
+  //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
+  {
+    const bel = muscles.getBellies(), by = new Map();
+    for (const b of bel) { const base = b.id.replace(/\.[LR]$/, ''); const e = by.get(base) || {}; e[b.id.endsWith('.L') ? 'L' : b.id.endsWith('.R') ? 'R' : 'C'] = b; by.set(base, e); }
+    let worst = 0;
+    for (const e of by.values()) if (e.L && e.R) { const m = e.L.center.clone(); m.x *= -1; worst = Math.max(worst, m.distanceTo(e.R.center)); }
+    ok(worst < 0.005, `근육 좌우 대칭: 짝 벨리 최대 오차 ${(worst * 1000).toFixed(2)}mm <5mm (§19.4)`);
+  }
+
+  // WP-11 · Bone Landmark Detection (§9.2·§19.1): 랜드마크가 프록시 표면에 있고 좌우 대칭 -----
+  {
+    const lm = detectLandmarks(rig);
+    ok(lm.size === rig.drivers.length, `랜드마크 세트 ${lm.size}개 (구동 뼈당 1)`);
+    const arm = lm.get('leftarm');
+    ok(!!arm && Math.abs(arm.axis.length() - 1) < 1e-3, '랜드마크 축 단위벡터');
+    // 표면 점(양 끝 × 4면)이 프록시 반지름만큼 끝에서 벗어났는가
+    let surfOk = true;
+    for (const s of landmarkPoints(lm)) {
+      if (s.name === 'proximal' || s.name === 'distal') continue;
+      const set = lm.get(s.sn);
+      const end = s.name.startsWith('proximal') ? set.proximal : set.distal;
+      if (Math.abs(s.p.distanceTo(end) - set.radius) > 1e-4) { surfOk = false; break; }
+    }
+    ok(surfOk, '표면 랜드마크가 프록시 반지름에 위치(§9.2)');
+    // 축이 proximal→distal 방향(비-리프)
+    ok(arm.distal.distanceTo(arm.proximal) > 0.05 && arm.axis.dot(arm.distal.clone().sub(arm.proximal)) > 0, '축이 원위 방향');
+    // 좌우 대칭: leftarm ↔ rightarm proximal 이 x-미러, lateral 면이 좌우 반대
+    const la = lm.get('leftarm'), ra = lm.get('rightarm');
+    if (la && ra) {
+      const mir = la.proximal.clone(); mir.x *= -1;
+      ok(mir.distanceTo(ra.proximal) < 0.02, `랜드마크 좌우 대칭 (Δ=${mir.distanceTo(ra.proximal).toFixed(3)})`);
+      ok(Math.sign(la.faces.lat.x || -1) === -Math.sign(ra.faces.lat.x || 1), 'lateral 면이 좌우 반대(정중선 바깥)');
+    }
+
+    // WP-12 · Joint Function Analysis (§9.3): 관절 유형·자유도·굴곡축 -----------------------
+    const jt = analyzeJoints(rig, lm);
+    ok(jt.size >= 8, `관절 기능 ${jt.size}개 (≥8: 팔꿈치·무릎·어깨·고관절 좌우 등)`);
+    const elbow = jt.get('leftforearm'), shoulder = jt.get('leftarm'), knee = jt.get('leftleg');
+    ok(elbow && elbow.type === 'hinge' && elbow.dof === 1, '팔꿈치 = hinge 1DOF');
+    ok(knee && knee.type === 'hinge' && knee.dof === 1, '무릎 = hinge 1DOF');
+    ok(shoulder && shoulder.type === 'ball' && shoulder.dof === 3, '어깨 = ball 3DOF');
+    ok(elbow && Math.abs(elbow.flexionAxis.length() - 1) < 1e-3, '굴곡축 단위벡터');
+    ok(elbow && elbow.range.max > elbow.range.min, '회전 범위 min<max');
+    // 좌우 팔꿈치 굴곡축이 x-미러(대칭)
+    const re = jt.get('rightforearm');
+    if (elbow && re) {
+      const mirAx = elbow.flexionAxis.clone(); mirAx.x *= -1;
+      ok(mirAx.distanceTo(re.flexionAxis) < 0.05 || mirAx.clone().negate().distanceTo(re.flexionAxis) < 0.05,
+        '좌우 팔꿈치 굴곡축 대칭');
+    }
+  }
+
   // ③ 피부 (굽기) ----------------------------------------------------------
   const t0 = Date.now();
   const { mesh, skeleton, stats } = bakeSkin(rig, caps);
@@ -106,6 +262,112 @@ for (const model of ['X Bot', 'Y Bot']) {
   ok(sz.x > 1.2 && sz.x < 1.95, `피부 폭(T-포즈 스팬) ${sz.x.toFixed(2)}m`);
   ok(sz.z > 0.12 && sz.z < 0.5, `피부 두께(전후) ${sz.z.toFixed(2)}m`);
   console.log(`    (굽기 ${bakeMs}ms · 정점 ${stats.verts})`);
+
+  // WP-09 · 조직 패킹(§9.8·§19.2 skin escape): 피부가 캡슐 union 표면을 감싸는가.
+  //  가산 합이면 겹침부(몸통·관절)가 부풀어 정점이 멀리 뜬다(판때기). smooth-max union 은
+  //  표면을 공유하므로 escape 가 작다. 정점별 최근접 캡슐 표면거리(dist−r)가 임계 초과면 escape.
+  {
+    const segD = (px, py, pz, a, b) => {
+      const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+      const apx = px - a.x, apy = py - a.y, apz = pz - a.z;
+      const L = abx * abx + aby * aby + abz * abz;
+      let t = L > 1e-9 ? (apx * abx + apy * aby + apz * abz) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    };
+    const vp = g.attributes.position.array; let escaped = 0; const total = vp.length / 3;
+    for (let i = 0; i < vp.length; i += 3) {
+      let best = Infinity;
+      for (const c of caps) { const d = segD(vp[i], vp[i + 1], vp[i + 2], c.a, c.b) - c.r; if (d < best) best = d; }
+      if (best > 0.08) escaped++; // 캡슐 표면에서 8cm 이상 뜬 정점 = escape (fascia webbing 허용 초과)
+    }
+    ok(escaped / total < 0.02, `skin escape ${(100 * escaped / total).toFixed(1)}% <2% (§19.2 조직 패킹)`);
+  }
+
+  // 좌우 대칭(§19.4·§20: 비의도적 비대칭 ≤1%): rest 피부 정점의 x-미러 최근접 평균거리/키.
+  {
+    const p = g.attributes.position.array, np = p.length / 3, cel = 0.03, bk = new Map();
+    const key = (x, y, z) => `${Math.round(x / cel)},${Math.round(y / cel)},${Math.round(z / cel)}`;
+    for (let i = 0; i < np; i++) { const k = key(p[i * 3], p[i * 3 + 1], p[i * 3 + 2]); let b = bk.get(k); if (!b) bk.set(k, b = []); b.push(i); }
+    let sum = 0;
+    for (let i = 0; i < np; i++) {
+      const qx = -p[i * 3], qy = p[i * 3 + 1], qz = p[i * 3 + 2]; let best = Infinity;
+      for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+        const arr = bk.get(key(qx + dx * cel, qy + dy * cel, qz + dz * cel)); if (!arr) continue;
+        for (const j of arr) { const d = Math.hypot(qx - p[j * 3], qy - p[j * 3 + 1], qz - p[j * 3 + 2]); if (d < best) best = d; }
+      }
+      if (best < Infinity) sum += best;
+    }
+    const meanA = sum / np, pct = meanA / sz.y * 100;
+    ok(pct < 1, `피부 좌우 대칭: 평균 비대칭 ${(meanA * 1000).toFixed(2)}mm (${pct.toFixed(3)}% <1%, §19.4)`);
+  }
+
+  // WP-10 · 피부 전달률(§11 SkinTransfer·§21.5): 전달률↑ → 피부가 근육을 바짝 감싸 분리가
+  //  또렷(근육질). 전달률↓ → smooth-max 가 근육 사이 골을 메워(fascia webbing) 피부가 근육에서
+  //  더 떠 매끄럽다(비만). 같은 캡슐에서 transfer 만 바꿔 "피부-근육 평균 이격"으로 검증.
+  {
+    const segD2 = (px, py, pz, a, b) => {
+      const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+      const apx = px - a.x, apy = py - a.y, apz = pz - a.z;
+      const L = abx * abx + aby * aby + abz * abz;
+      let t = L > 1e-9 ? (apx * abx + apy * aby + apz * abz) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    };
+    const meanClear = (geo, cs) => {
+      const vp = geo.attributes.position.array; let sum = 0; const n = vp.length / 3;
+      for (let i = 0; i < vp.length; i += 3) {
+        let best = Infinity;
+        for (const c of cs) { const d = segD2(vp[i], vp[i + 1], vp[i + 2], c.a, c.b) - c.r; if (d < best) best = d; }
+        sum += best;
+      }
+      return sum / n;
+    };
+    muscles.build(rig, { muscle: 1.3, fat: 0 });
+    const capsT = muscles.getCapsules();
+    const sharp = meanClear(bakeSkin(rig, capsT, { transfer: 1.0 }).mesh.geometry, capsT);
+    const smooth = meanClear(bakeSkin(rig, capsT, { transfer: 0.05 }).mesh.geometry, capsT);
+    ok(smooth > sharp, `전달률: 매끄럼이 근육서 더 뜸(분리 감춤) ${smooth.toFixed(4)} > 또렷 ${sharp.toFixed(4)}m (§11)`);
+    muscles.build(rig); // 기본 복구
+  }
+
+  // WP-10 · 워터타이트(§19.4) + fascia 스무딩(§9.10): 전 체형이 구멍 없이 구워지고(경계에지=한
+  //  삼각형만 쓰는 에지=구멍 척도), Laplacian 스무딩이 표면을 매끄럽게(면적↓) 하는가.
+  {
+    const boundaryEdges = (geo) => {
+      const idx = geo.index, cnt = new Map();
+      const key = (a, b) => a < b ? a * 1e7 + b : b * 1e7 + a;
+      for (let i = 0; i < idx.count; i += 3) {
+        const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
+        for (const [u, v] of [[a, b], [b, c], [c, a]]) { const k = key(u, v); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      }
+      let bnd = 0; for (const v of cnt.values()) if (v === 1) bnd++;
+      return bnd;
+    };
+    const surfArea = (geo) => {
+      const p = geo.attributes.position, idx = geo.index;
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+      let s = 0;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(p, idx.getX(i)); b.fromBufferAttribute(p, idx.getX(i + 1)); c.fromBufferAttribute(p, idx.getX(i + 2));
+        s += ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() * 0.5;
+      }
+      return s;
+    };
+    let worst = 0, worstName = '';
+    for (const name of ['마른', '평균', '근육질', '비만']) {
+      muscles.build(rig, BODY_PRESETS[name]);
+      const be = boundaryEdges(bakeSkin(rig, muscles.getCapsules(), BODY_PRESETS[name]).mesh.geometry);
+      if (be > worst) { worst = be; worstName = name; }
+    }
+    ok(worst < 90, `워터타이트: 최다 구멍 체형 «${worstName}» 경계에지 ${worst} <90 (§19.4)`);
+    muscles.build(rig, { muscle: 1.1, fat: 0 });
+    const capsF = muscles.getCapsules();
+    const rough = surfArea(bakeSkin(rig, capsF, { fascia: 0 }).mesh.geometry);
+    const smoothA = surfArea(bakeSkin(rig, capsF, { fascia: 6 }).mesh.geometry);
+    ok(smoothA < rough, `fascia 스무딩: 면적 ${smoothA.toFixed(2)} < 원본 ${rough.toFixed(2)}m² (§9.10)`);
+    muscles.build(rig); // 기본 복구
+  }
 
   // 애니메이션 ------------------------------------------------------------
   scene.add(rig.obj); scene.add(mesh);
@@ -141,6 +403,23 @@ for (const model of ['X Bot', 'Y Bot']) {
   const fatG = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
   fatG.computeBoundingBox(); const fz = new THREE.Vector3(); fatG.boundingBox.getSize(fz);
   ok(fz.z > lz.z + 0.05, `체형: 비만 피부 전후 ${fz.z.toFixed(2)} > 마른 ${lz.z.toFixed(2)}m (G2)`);
+
+  // WP-06② · 부위별 지방(§9.10): 지방이 복부에 몰려 배 나옴 — 복부 z두께 증가가 크다.
+  ok(fatRegionMult('rectusAbdominis') > fatRegionMult('forearm') * 2, `WP-06②: 복부 지방 배율 > 팔뚝×2 (${fatRegionMult('rectusAbdominis')}>${fatRegionMult('forearm')})`);
+  {
+    const bandZ = (geo, ylo, yhi) => { // y밴드 내 정점의 z(전후) 최대−최소
+      const p = geo.attributes.position.array; let mn = Infinity, mx = -Infinity;
+      for (let i = 0; i < p.length; i += 3) { const y = p[i + 1]; if (y < ylo || y > yhi) continue; const z = p[i + 2]; if (z < mn) mn = z; if (z > mx) mx = z; }
+      return mx > mn ? mx - mn : 0;
+    };
+    muscles.build(rig, { muscle: 0.95, fat: 0 });
+    const leanG2 = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+    muscles.build(rig, BODY_PRESETS['비만']);
+    const fatG2 = bakeSkin(rig, muscles.getCapsules()).mesh.geometry;
+    leanG2.computeBoundingBox(); const H = leanG2.boundingBox.max.y;
+    const leanAb = bandZ(leanG2, H * 0.52, H * 0.66), fatAb = bandZ(fatG2, H * 0.52, H * 0.66); // 복부 밴드
+    ok(fatAb > leanAb + 0.08, `WP-06②: 비만 복부 z두께 ${fatAb.toFixed(2)} > 마른 ${leanAb.toFixed(2)}+0.08 (배 나옴 §9.10)`);
+  }
   muscles.build(rig); // 기본 체형 복구
 }
 

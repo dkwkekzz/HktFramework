@@ -126,7 +126,7 @@ async function loadModel(file, label) {
   setStatus(`${label}: ③ 피부 굽는 중…`);
   await frame();
   const caps = C.muscles.getCapsules();
-  C.skin = bakeSkin(rig, caps);
+  C.skin = bakeSkin(rig, caps, C.muscles.profile); // 전달률·fascia 반영(§11·§9.10)
   scene.add(C.skin.mesh);
 
   C.mixer = new THREE.AnimationMixer(rig.obj);
@@ -150,7 +150,7 @@ async function rebuildBody() {
     C.skin.mesh.material.dispose();
   }
   C.muscles.build(C.rig, BODY_PRESETS[body]);   // 근육량 반영
-  C.skin = bakeSkin(C.rig, C.muscles.getCapsules()); // 지방 반영해 다시 굽기
+  C.skin = bakeSkin(C.rig, C.muscles.getCapsules(), C.muscles.profile); // 지방·전달률·fascia 반영해 다시 굽기
   scene.add(C.skin.mesh);
   applyView();
   const p = BODY_PRESETS[body];
@@ -256,6 +256,11 @@ $('btnSkin').addEventListener('click', e => {
 });
 $('spd').addEventListener('input', e => {
   speed = +e.target.value; $('spdVal').textContent = speed.toFixed(1);
+});
+// 활성도 슬라이더(§10.3·§10.6): 전 근육 등척성 팽창. 근육 레이어에서 육안 확인.
+$('activ').addEventListener('input', e => {
+  const a = +e.target.value; $('activVal').textContent = a.toFixed(1);
+  C.muscles?.setActivation(a);
 });
 
 buildModelSelect();

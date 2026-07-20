@@ -12,12 +12,13 @@
 // ============================================================================
 import * as THREE from 'three';
 import { simpleName } from './skeleton.js';
-import { MUSCLES, BONE_PADDING, FACING, patchRadius, DEFAULT_FUSIFORM } from './anatomy.js';
+import { MUSCLES, BONE_PADDING, FACING, patchRadius, DEFAULT_FUSIFORM, fatRegionMult } from './anatomy.js';
 
 const ANT = new THREE.Vector3(0, 0, FACING); // 전면 월드 방향
 const UPX = new THREE.Vector3(1, 0, 0);
 const YQ = new THREE.Vector3(0, 1, 0);       // 스핀들 로컬 장축(LatheGeometry 회전축)
 const SKIN_CAPS = 4;                          // 피부 필드용 근육당 서브 캡슐 수(프로필 따라 가늘어짐)
+const ACTIV_BULGE = 0.35;                     // 활성도 1 일 때 최대 등척성 팽창 배율(§10.4·§10.6)
 
 // 프로필(기시→정지 반지름 배율) 을 위치 s∈[0,1] 에서 선형 보간.
 function sampleProfile(radii, s) {
@@ -58,8 +59,9 @@ function makeSpindleGeo(radii) {
 
 // 근육 벨리의 기하: from/to 뼈 위치에서 축·전면·측면 프레임을 세우고 벨리 중심·
 // 반길이·수축 배율을 낸다. 재사용 임시 벡터.
+const DEG2RAD = Math.PI / 180;
 const _from = new THREE.Vector3(), _to = new THREE.Vector3(), _axis = new THREE.Vector3();
-const _ant = new THREE.Vector3(), _lat = new THREE.Vector3(), _c = new THREE.Vector3();
+const _ant = new THREE.Vector3(), _lat = new THREE.Vector3(), _c = new THREE.Vector3(), _fib = new THREE.Vector3();
 const _q = new THREE.Quaternion(), _s = new THREE.Vector3(), _m = new THREE.Matrix4();
 const _tmp = new THREE.Vector3();
 
@@ -74,7 +76,8 @@ function attachBase(patch, out) {
 
 // 벨리 프레임(축·전면·측면)을 origin/insertion 축 기저점에서 세운다. _from/_to 를
 // 채우고 _axis/_ant/_lat 을 남긴다 — belly() 와 getAttachments() 가 공유.
-function frame(oPatch, iPatch) {
+//  side: 근육의 좌우('L'/'R'/'C'). 측면 축 _lat 의 좌우 정합에 쓴다.
+function frame(oPatch, iPatch, side) {
   attachBase(oPatch, _from);
   attachBase(iPatch, _to);
   _axis.subVectors(_to, _from);
@@ -84,24 +87,108 @@ function frame(oPatch, iPatch) {
   _ant.copy(ANT).addScaledVector(_axis, -_axis.dot(ANT));
   if (_ant.lengthSq() < 1e-6) _ant.copy(UPX).addScaledVector(_axis, -_axis.dot(UPX));
   _ant.normalize();
-  _lat.crossVectors(_axis, _ant).normalize(); // 좌우 자동 대칭(축 방향이 뒤집힘)
+  _lat.crossVectors(_axis, _ant).normalize();
+  // 좌우 대칭 교정: 뼈가 완벽 대칭이면 cross(axis,ant) 는 우측에서 미러의 '음수'로 나온다
+  //  (lat_R = −M·lat_L, M=x-미러) → 측면 오프셋 l 이 좌우 반대로 적용돼 2l 만큼 어긋났다.
+  //  우측 lat 을 뒤집어 진짜 미러(lat_R = M·lat_L)로 만든다. side 로 판정(중심선 뼈 부착
+  //  근육도 side 는 L/R 이라 견고). 단방향 뼈→근육 유지.
+  if (side === 'R') _lat.negate();
   return len;
+}
+
+// 근육 중심 경로(설계서 §6 Route Solver): 기본은 from→to 직선. wrap 이 있으면 관절 표면을
+//  우회하는 via 점을 넣어 from→via→to 로 뼈를 피한다(§6·§7.5 — 관통 방지·길항 신장). frame()
+//  이 _from/_to/_ant/_lat/_axis 를 세팅하므로 호출 전제. 반환 { pts:[from,(via),to], len }.
+const _via = new THREE.Vector3(), _off = new THREE.Vector3(), _pa = new THREE.Vector3(), _pb = new THREE.Vector3();
+const _cp = new THREE.Vector3(), _ab = new THREE.Vector3(), _wn = new THREE.Vector3();
+// 세그먼트 a-b 에서 점 p 최근접점.
+function closestOnSeg(a, b, p, out) {
+  _ab.subVectors(b, a); const L = _ab.lengthSq();
+  let t = L > 1e-9 ? _ab.dot(_cp.subVectors(p, a)) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+  return out.copy(a).addScaledVector(_ab, t);
+}
+function computePath(item) {
+  const { def, oPatch, iPatch } = item;
+  frame(oPatch, iPatch, def.side);
+  const pts = [_from.clone(), _to.clone()];
+  if (def.wrap && item.wrapBone) {
+    // 조건부 wrap(§6): 직선 from→to 가 관절 wrap 구를 관통할 때만 표면으로 우회하는 via 를
+    //  넣는다. 안 하면 직선 유지(이두 chord 단축 보존). via 를 항상 관절 피벗에 두면 정지부가
+    //  그 피벗을 중심으로 회전해 경로 길이가 포즈 불변이 되는 함정을 피한다.
+    item.wrapBone.getWorldPosition(_via);                 // wrap 중심(관절)
+    const R = def.wrap.clearance + def.r * (item.muscleScale || 1);
+    closestOnSeg(_from, _to, _via, _cp);                  // 세그먼트의 관절 최근접점
+    if (_cp.distanceTo(_via) < R) {                       // 관통 → 표면으로 밀어낸 via
+      _wn.subVectors(_cp, _via);                          // 관절→최근접 방향(밀어낼 면)
+      if (_wn.lengthSq() < 1e-8) _wn.copy(_ant).multiplyScalar(def.wrap.face === 'post' ? -1 : 1);
+      _wn.normalize();
+      pts.splice(1, 0, _via.clone().addScaledVector(_wn, R));
+    }
+  }
+  let len = 0; for (let i = 0; i < pts.length - 1; i++) len += pts[i].distanceTo(pts[i + 1]);
+  return { pts, len };
+}
+// 폴리라인에서 호 길이 분율 f∈[0,1] 지점.
+function pointAtArc(pts, f, out) {
+  let total = 0; for (let i = 0; i < pts.length - 1; i++) total += pts[i].distanceTo(pts[i + 1]);
+  const target = THREE.MathUtils.clamp(f, 0, 1) * total;
+  let acc = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const seg = pts[i].distanceTo(pts[i + 1]);
+    if (acc + seg >= target) return out.copy(pts[i]).lerp(pts[i + 1], (target - acc) / (seg || 1));
+    acc += seg;
+  }
+  return out.copy(pts[pts.length - 1]);
+}
+
+// 관절 굴곡각(rad, 0=폄): 관절 뼈의 부모→관절 방향과 관절→자식 방향 사이 각. rest(T-포즈
+//  펴짐)에서 ~0, 굴곡할수록 커진다. 기능 근육(§10.1)의 길이를 관절각에 잇는 데 쓴다.
+const _jp = new THREE.Vector3(), _jc = new THREE.Vector3(), _jj = new THREE.Vector3();
+const _jv1 = new THREE.Vector3(), _jv2 = new THREE.Vector3();
+function jointFlexion(ji) {
+  ji.parent.getWorldPosition(_jp); ji.bone.getWorldPosition(_jj); ji.child.getWorldPosition(_jc);
+  _jv1.subVectors(_jj, _jp); _jv2.subVectors(_jc, _jj);
+  const l1 = _jv1.length(), l2 = _jv2.length();
+  if (l1 < 1e-5 || l2 < 1e-5) return 0;
+  return Math.acos(THREE.MathUtils.clamp(_jv1.dot(_jv2) / (l1 * l2), -1, 1));
 }
 
 function belly(item, rest) {
   const { def, oPatch, iPatch } = item;
-  const len = frame(oPatch, iPatch);
-  // 부착 오프셋을 origin/insertion 각각 프레임에서 적용. 벨리 중심 = 부착 중점 + along.
+  const info = computePath(item);   // frame() 세팅 + 경로 폴리라인
+  const geoLen = info.len;
   const o = oPatch.off, ins = iPatch.off;
-  _c.copy(_from).add(_to).multiplyScalar(0.5)
+  // 프레임 오프셋(전후·측면·along)을 경로 전체에 적용 → 오프셋된 벨리 폴리라인.
+  _off.set(0, 0, 0)
     .addScaledVector(_ant, 0.5 * (o.a + ins.a))
     .addScaledVector(_lat, 0.5 * (o.l + ins.l))
-    .addScaledVector(_axis, len * def.along);
+    .addScaledVector(_axis, geoLen * def.along);
+  const pts = info.pts.map(p => p.add(_off)); // 오프셋 적용(제자리)
+  pointAtArc(pts, 0.5, _c);         // 벨리 중심 = 오프셋 경로 호 중앙
+  // 길이·수축: 기본은 기하 경로 길이(관절 넘는 근육은 굴곡 시 짧아져 굵어짐). jointInf(기능
+  //  근육 §7.4·§10.1)면 길이를 **관절 굴곡각의 함수**로 override — 길항근(삼두 sign=+1)은 굴곡
+  //  시 신장(얇아짐), 주동근(sign=−1)은 단축. 기하로 안 잡히는 관절각↔길이 관계를 gain 으로 잇는다.
+  let len = geoLen, contraction;
+  if (item.jointInf && rest) {
+    const scale = THREE.MathUtils.clamp(1 + item.jointInf.sign * item.jointInf.gain * jointFlexion(item.jointInf), 0.6, 1.6);
+    len = rest * scale;
+    contraction = 1 / scale;        // 늘면 얇아짐(부피 보존)
+  } else {
+    contraction = rest ? THREE.MathUtils.clamp(rest / geoLen, 0.7, 1.4) : 1;
+  }
   const half = 0.5 * len * def.span;
-  // 수축비 = rest 길이 / 현재 길이. 관절을 넘는 근육은 굴곡 시 len 이 줄어 >1 → 굵어짐.
-  const contraction = rest ? THREE.MathUtils.clamp(rest / len, 0.7, 1.4) : 1;
-  const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1));
-  return { center: _c, axis: _axis, half, radius };
+  // FinalBulge(§10.4) = 기하 bulge(λ, 길이 변화) + 활성 bulge(a) — 활성도는 길이 불변에도
+  //  팽창시킨다(등척성 §10.6: 무거운 물체 고정·활시위 유지 등). 둘은 독립 채널.
+  const activ = ACTIV_BULGE * (item.activation || 0);
+  // 근섬유 방향(§9.9): fusiform/parallel 은 축 방향, pennate 는 축에서 전면(_ant, 힘줄면 근사)
+  //  으로 pennation 각만큼 기운다. 수축·부피 팽창 방향의 기준.
+  const p = (def.pennation || 0) * DEG2RAD;
+  const fiber = _fib.copy(_axis).multiplyScalar(Math.cos(p)).addScaledVector(_ant, Math.sin(p)).normalize();
+  // 깃근은 섬유가 짧고 촘촘해 생리적 단면(PCSA)이 커, 같은 단축에도 더 부푼다(§9.9 부피 팽창).
+  const pennBulge = def.bulge * (1 + 0.8 * Math.sin(p));
+  // headScale: 다두근의 각 근두 볼륨 비율(§7.3 VolumeRatio). 단일근은 1.
+  const radius = def.r * (item.muscleScale || 1) * (item.headScale ?? 1) * (1 + pennBulge * (contraction - 1) + activ);
+  return { center: _c, axis: _axis, half, radius, pts, len, fiber: fiber.clone() };
 }
 
 export class MuscleLayer {
@@ -119,7 +206,7 @@ export class MuscleLayer {
   build(rig, profile = null) {
     this.clear();
     this.rig = rig;
-    this.profile = { muscle: 1, fat: 0, ...(profile || {}) };
+    this.profile = { muscle: 1, fat: 0, transfer: 0.5, fascia: 2, ...(profile || {}) };
     for (const def of MUSCLES) {
       // 부착 패치를 뼈로 해석. 주(primary) origin/insertion 이 리그에 없으면 건너뜀.
       const oBone = rig.boneMap.get(def.origins[0].bone);
@@ -139,19 +226,32 @@ export class MuscleLayer {
         .filter(Boolean); // 리그에 없는 부차 패치는 제외
       const oPatches = resolve(def.origins);
       const iPatches = resolve(def.insertions);
-      const mat = new THREE.MeshStandardMaterial({
-        color: def.side === 'C' ? 0xb23a3a : 0xbf4640,
-        roughness: 0.62, metalness: 0.0,
-      });
-      const mesh = new THREE.Mesh(makeSpindleGeo(profileRadii(def)), mat);
-      mesh.matrixAutoUpdate = false;
-      mesh.frustumCulled = false;
-      this.group.add(mesh);
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle };
-      // rest 길이 캐시 (수축 기준) — belly() 가 _from/_to 를 축 기저점으로 채운다
-      belly(item, null);
-      this.restLen.set(item, _from.distanceTo(_to));
-      this.items.push(item);
+      // wrap 관절 뼈 해석(§6·§7.5) — 없으면 null(직선 경로).
+      const wrapBone = def.wrap ? rig.boneMap.get(def.wrap.joint) : null;
+      // 기능 근육 관절 영향(§7.4·§10.1) — 관절 뼈 + 그 부모·구동 자식을 잡아 굴곡각을 잰다.
+      //  sign: 길항근(antagonist)=+1(굴곡 시 신장), 주동근=−1(단축).
+      let jointInf = null;
+      if (def.jointInf) {
+        const jb = rig.boneMap.get(def.jointInf.joint);
+        const parent = jb && jb.parent && jb.parent.isBone ? jb.parent : null;
+        const child = jb && jb.children.find(k => k.isBone && rig.boneMap.get(simpleName(k.name)) === k);
+        if (jb && parent && child) jointInf = { bone: jb, parent, child, gain: def.jointInf.gain, sign: def.jointInf.antagonist ? 1 : -1 };
+      }
+      // 다두근(§8·§7.3 MuscleBranch): 주 벨리 + def.heads(추가 근두). 각 근두는 원점 오프셋(da,dl)·
+      //  볼륨(vol)이 달라 원점 쪽에서 갈라지고 정지부를 공유해 수렴한다. 단두근은 heads 없음(1개).
+      const headSpecs = [{ id: def.id, da: 0, dl: 0, vol: def.headVol || 1 },
+        ...(def.heads || []).map(h => ({ id: `${def.id}.${h.id}`, da: h.da || 0, dl: h.dl || 0, vol: h.vol ?? 0.6 }))];
+      for (const hs of headSpecs) {
+        const hdef = hs.id === def.id ? def : { ...def, id: hs.id };
+        const hoP = (hs.da || hs.dl) ? oPatches.map((p, i) => i === 0 ? { ...p, off: { a: p.off.a + hs.da, l: p.off.l + hs.dl } } : p) : oPatches;
+        const mat = new THREE.MeshStandardMaterial({ color: def.side === 'C' ? 0xb23a3a : 0xbf4640, roughness: 0.62, metalness: 0.0 });
+        const mesh = new THREE.Mesh(makeSpindleGeo(profileRadii(def)), mat);
+        mesh.matrixAutoUpdate = false; mesh.frustumCulled = false;
+        this.group.add(mesh);
+        const item = { def: hdef, oBone, iBone, oPatches: hoP, iPatches, oPatch: hoP[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf, activation: 0, headScale: hs.vol };
+        this.restLen.set(item, computePath(item).len); // wrap 우회 경로 rest 길이(직선이면 |from−to|)
+        this.items.push(item);
+      }
     }
     this.update();
   }
@@ -164,7 +264,7 @@ export class MuscleLayer {
     const out = [];
     const base = new THREE.Vector3(), pivot = new THREE.Vector3();
     for (const item of this.items) {
-      frame(item.oPatch, item.iPatch); // _ant/_lat 갱신 (벨리와 동일 프레임)
+      frame(item.oPatch, item.iPatch, item.def.side); // _ant/_lat 갱신 (벨리와 동일 프레임)
       const r = patchRadius(item.def);
       for (const p of [...item.oPatches, ...item.iPatches]) {
         attachBase(p, base);                       // 축 기저점(t 반영)
@@ -185,7 +285,20 @@ export class MuscleLayer {
   getBellies() {
     return this.items.map(item => {
       const b = belly(item, this.restLen.get(item));
-      return { id: item.def.id, len: 2 * b.half, radius: b.radius, center: b.center.clone(), axis: b.axis.clone() };
+      return {
+        id: item.def.id, len: 2 * b.half, radius: b.radius, center: b.center.clone(), axis: b.axis.clone(),
+        pts: b.pts.map(p => p.clone()), wrapped: b.pts.length > 2, // wrap 우회 경로(§6) 여부·경로점
+        fiber: b.fiber.clone(), pennation: item.def.pennation || 0, // 근섬유 방향·깃각(§9.9)
+      };
+    });
+  }
+
+  // 근섬유 방향장(§9.9): 근육별 { id, center, dir(단위 섬유 방향), len }. 수축·팽창 방향·결
+  //  텍스처·피부 방향성 변형의 소스. render 오버레이·검증이 소비. rest·포즈 어느 시점에서도.
+  getFibers() {
+    return this.items.map(item => {
+      const b = belly(item, this.restLen.get(item));
+      return { id: item.def.id, center: b.center.clone(), dir: b.fiber.clone(), len: 2 * b.half, pennation: item.def.pennation || 0 };
     });
   }
 
@@ -206,9 +319,12 @@ export class MuscleLayer {
   // 각 항목 { a, b, r } — 월드 좌표 세그먼트 + 반지름. rest 포즈에서 1회 호출.
   getCapsules() {
     const caps = [];
-    const fat = this.profile.fat; // 지방층: 피부 캡슐을 균일하게 부풀림(§9.10 GlobalFat)
+    // 지방층(§9.10): FatThickness = GlobalFat(체형 fat) × RegionalDistribution(부위별 배율).
+    //  복부·엉덩이는 크게, 팔뚝·종아리는 얇게 → 비만이 눈사람이 아니라 배 나온 체형이 된다.
+    const gfat = this.profile.fat;
     for (const item of this.items) {
       const bb = belly(item, this.restLen.get(item));
+      const fat = gfat * fatRegionMult(item.def.id); // 이 근육 부위의 지방 두께
       const radii = profileRadii(item.def);
       // 벨리를 축 방향으로 SKIN_CAPS 개 서브 캡슐로 나눠, 각 구간 반지름을 프로필로
       // 준다 — 피부가 근육의 방추형 테이퍼(가는 힘줄 끝)를 따라간다. 얇은 끝도 최소치는
@@ -217,12 +333,14 @@ export class MuscleLayer {
       // (√(w·d))으로 근사한다 — 넓적한 판이 과도하게 둥글게 부풀지 않게. (진짜 납작한
       // 피부 단면은 skin.js 의 타원 프리미티브가 필요 → 후속.)
       const eff = Math.sqrt(item.shape.w * item.shape.d);
+      // 벨리는 경로의 span 분율을 호 중앙에 차지. 서브 캡슐이 (wrap 우회) 폴리라인을 따른다.
+      const span = item.def.span, lo = 0.5 - 0.5 * span;
       for (let k = 0; k < SKIN_CAPS; k++) {
         const s0 = k / SKIN_CAPS, s1 = (k + 1) / SKIN_CAPS;
-        const a = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s0 - 1));
-        const b = bb.center.clone().addScaledVector(bb.axis, bb.half * (2 * s1 - 1));
+        pointAtArc(bb.pts, lo + s0 * span, _pa);
+        pointAtArc(bb.pts, lo + s1 * span, _pb);
         const r = bb.radius * eff * Math.max(sampleProfile(radii, (s0 + s1) / 2), 0.4) + fat;
-        caps.push({ a, b, r });
+        caps.push({ a: _pa.clone(), b: _pb.clone(), r });
       }
     }
     // 뼈 패딩 — 각 구동 뼈에서 자식 구동 뼈까지 얇은 캡슐
@@ -231,6 +349,7 @@ export class MuscleLayer {
       const sn = simpleName(bone.name);
       const pad = BONE_PADDING.find(p => p.re.test(sn));
       if (!pad) continue;
+      const fat = gfat * fatRegionMult(sn); // 이 뼈 부위의 지방 두께(부위별)
       bone.getWorldPosition(wp);
       const kids = bone.children.filter(k => k.isBone);
       if (kids.length) {
@@ -243,6 +362,14 @@ export class MuscleLayer {
       }
     }
     return caps;
+  }
+
+  // 활성도 설정(§10.3): a∈[0,1]. 길이 변화와 **독립적으로** 근육을 팽창시킨다(등척성 §10.6).
+  //  match(id)=true 인 근육군만 지정 가능(예: 굴근만) — 길항 공동수축(굴근 0.7/신근 0.2 §10.5).
+  setActivation(a, match = null) {
+    const v = THREE.MathUtils.clamp(a, 0, 1);
+    for (const it of this.items) if (!match || match(it.def.id)) it.activation = v;
+    this.update();
   }
 
   setVisible(v) { this.group.visible = v; }

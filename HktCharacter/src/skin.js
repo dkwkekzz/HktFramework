@@ -7,8 +7,12 @@
 //  만든다 — 이후 GPU 스키닝이 애니메이션을 처리한다(재생 중 재폴리곤화 없음 →
 //  시간적 앨리어싱 없음). 이것이 "구워서 사람처럼"의 실제 의미다.
 //
-//  필드: 콤팩트 서포트 Wyvill 커널의 합. 겹치는 캡슐들이 매끄럽게 union 되며
-//  살이 붙는다. isolation 등가면이 피부.
+//  필드: 콤팩트 서포트 Wyvill 커널을 **가산 합이 아니라 부드러운 max(smooth-max)**
+//  로 결합한다(WP-09 · 설계서 §9.8 조직 패킹 · 원칙③). 가산 합이면 근육이 겹치는
+//  몸통·관절부가 부피를 더해 부풀고 "떠 있는 판때기"가 생겼다 — 이는 "근육은 독립
+//  메시가 아니라 공간을 나눠 갖는 조직"이라는 원칙 위반이었다. smooth-max 는 겹치는
+//  근육이 부피를 더하지 않고 표면을 공유(union)하게 하며, 단일 캡슐 영역에서는 기존과
+//  수학적으로 동일하다(회귀 0). isolation 등가면이 피부.
 // ============================================================================
 import * as THREE from 'three';
 import { mergeVertices } from 'three/examples/jsm/utils/BufferGeometryUtils.js';
@@ -18,6 +22,18 @@ import { boneBox, simpleName } from './skeleton.js';
 const RES = 64;          // 필드 격자 해상도
 const KERNEL_SCALE = 1.5; // 커널 서포트 = 반지름 × 이 값
 const ISO = 0.35;         // 등가면 임계 — 낮을수록 피부가 부풀어 살이 붙는다
+// 피부 전달률(WP-10 · 설계서 §11 SkinTransferParameter·MuscleSeparation · §21.5 "해부 모형
+// 탈피"): smooth-max 의 날카로움 K 를 결정한다. K 클수록 hard max(근육 경계 또렷·분리 노출),
+// 작을수록 겹침부가 매끄럽게 녹는다(fascia webbing → 지방·근막으로 근육 분리 감춤). 체형이
+// 전달률 transfer∈[0,1] 로 조절(마른/근육질=또렷, 비만=매끄럼). 기본 0.5 → K=6(WP-09 동일).
+const DEFAULT_TRANSFER = 0.5;
+// 피부 전달률 → smooth-max 날카로움 K. **안전 범위 [8,12]** 로 제한한다: K 를 그 아래로 내리면
+// (특히 지방이 두꺼우면) smooth-max 가 과팽창해(log(Σ)/K 발산) 필드가 부풀고 MarchingCubes 에
+// 구멍·노이즈가 생긴다(측정: 비만 K5→구멍168, K9→50). 전달률은 근육 분리 노출(정의 선명도)만
+// 담당(§11 MuscleSeparation): K 클수록 hard-max 로 근육 골이 또렷, 작을수록 살짝 뭉갠다. 전 체형 워터타이트.
+const fasciaKOf = transfer => 8 + 4 * THREE.MathUtils.clamp(transfer ?? DEFAULT_TRANSFER, 0, 1);
+const DEFAULT_FASCIA = 2;      // 기본 Laplacian 스무딩 반복(§9.10 fascia) — 계단 줄무늬 완화
+const SMOOTH_LAMBDA = 0.5;     // Laplacian 이동 계수(0=고정, 1=완전 평균)
 const WELD_TOL = 3e-3;    // 정점 용접 허용오차(m)
 const MAX_INFLUENCES = 4; // 정점당 뼈 영향 수
 
@@ -32,8 +48,69 @@ function distSqToSeg(px, py, pz, a, b) {
   return dx * dx + dy * dy + dz * dz;
 }
 
+// Fascia 스무딩(설계서 §9.10): 근육 사이 골·MC 계단 줄무늬를 Laplacian 저역통과로 완화한다.
+//  각 정점을 이웃 평균 쪽으로 λ 만큼 당긴다. iterations 회. rest 굽기 단계에서만(1회) — 재생
+//  중 재폴리곤화 아님(불변 정합). 피부 표면의 연속성 제공(§9.10) + 지방 체형의 매끄러움.
+function laplacianSmooth(geo, iterations, lambda) {
+  if (!iterations) return geo;
+  const pos = geo.attributes.position, idx = geo.index, n = pos.count;
+  const nbr = Array.from({ length: n }, () => new Set());
+  for (let i = 0; i < idx.count; i += 3) {
+    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
+    nbr[a].add(b); nbr[a].add(c); nbr[b].add(a); nbr[b].add(c); nbr[c].add(a); nbr[c].add(b);
+  }
+  let src = new Float32Array(pos.array);
+  let dst = new Float32Array(src.length);
+  for (let it = 0; it < iterations; it++) {
+    for (let v = 0; v < n; v++) {
+      const ns = nbr[v];
+      if (!ns.size) { dst[v * 3] = src[v * 3]; dst[v * 3 + 1] = src[v * 3 + 1]; dst[v * 3 + 2] = src[v * 3 + 2]; continue; }
+      let ax = 0, ay = 0, az = 0;
+      for (const w of ns) { ax += src[w * 3]; ay += src[w * 3 + 1]; az += src[w * 3 + 2]; }
+      const inv = 1 / ns.size;
+      dst[v * 3] = src[v * 3] + lambda * (ax * inv - src[v * 3]);
+      dst[v * 3 + 1] = src[v * 3 + 1] + lambda * (ay * inv - src[v * 3 + 1]);
+      dst[v * 3 + 2] = src[v * 3 + 2] + lambda * (az * inv - src[v * 3 + 2]);
+    }
+    const t = src; src = dst; dst = t; // 더블버퍼 스왑 — src 가 항상 최신
+  }
+  pos.array.set(src);
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
+// 좌우 대칭화(설계서 §19.4·§20 ≤1%): rest 포즈는 골격·근육이 x=0 대칭이지만 MarchingCubes
+//  삼각화가 동일 필드값에도 미러 셀에서 정점을 미세하게 다르게 만든다(위상 비대칭). 각 정점을
+//  자신의 x-미러(−x,y,z) 최근접 정점의 미러와 평균내 위치를 정확히 x=0 대칭으로 맞춘다(위상 불변).
+//  정중선(x≈0) 정점은 x→0 으로 스냅. 공간 해시로 O(n).
+function symmetrizeVertices(geo) {
+  const pos = geo.attributes.position, n = pos.count, a = pos.array;
+  const cell = 0.02, bucket = new Map();
+  const key = (x, y, z) => `${Math.round(x / cell)},${Math.round(y / cell)},${Math.round(z / cell)}`;
+  for (let i = 0; i < n; i++) { const k = key(a[i * 3], a[i * 3 + 1], a[i * 3 + 2]); let b = bucket.get(k); if (!b) bucket.set(k, b = []); b.push(i); }
+  const out = new Float32Array(a.length);
+  for (let i = 0; i < n; i++) {
+    const x = a[i * 3], y = a[i * 3 + 1], z = a[i * 3 + 2];
+    let bj = -1, bd = Infinity; // 미러점(−x,y,z) 최근접 정점
+    for (let dx = -1; dx <= 1; dx++) for (let dy = -1; dy <= 1; dy++) for (let dz = -1; dz <= 1; dz++) {
+      const arr = bucket.get(key(-x + dx * cell, y + dy * cell, z + dz * cell)); if (!arr) continue;
+      for (const j of arr) { const d = (a[j * 3] + x) ** 2 + (a[j * 3 + 1] - y) ** 2 + (a[j * 3 + 2] - z) ** 2; if (d < bd) { bd = d; bj = j; } }
+    }
+    if (bj >= 0) { out[i * 3] = 0.5 * (x - a[bj * 3]); out[i * 3 + 1] = 0.5 * (y + a[bj * 3 + 1]); out[i * 3 + 2] = 0.5 * (z + a[bj * 3 + 2]); }
+    else { out[i * 3] = x; out[i * 3 + 1] = y; out[i * 3 + 2] = z; }
+  }
+  a.set(out); pos.needsUpdate = true; geo.computeVertexNormals();
+  return geo;
+}
+
 // 근육·뼈 캡슐 → 피부 SkinnedMesh. rig 은 rest 포즈로 replant 되어 있어야 한다.
-export function bakeSkin(rig, capsules) {
+//  opts.transfer: 피부 전달률(§11) — 근육 분리를 얼마나 피부에 드러낼지(0 매끄럼~1 또렷).
+//  opts.fascia:   Laplacian 스무딩 반복(§9.10) — 지방 체형일수록 크게(더 매끄럽게).
+//  opts.symmetric: 좌우 대칭화(기본 true) — rest 포즈 전제. 애니 포즈 굽기 시 false.
+export function bakeSkin(rig, capsules, opts = {}) {
+  const FASCIA_K = fasciaKOf(opts.transfer); // 전달률 → smooth-max 날카로움(§11·WP-10)
+  const fasciaIters = opts.fascia ?? DEFAULT_FASCIA;
   rig.obj.updateMatrixWorld(true);
 
   // --- 1. 필드 bbox (캡슐 전체 + 반지름 여유) --------------------------------
@@ -60,12 +137,19 @@ export function bakeSkin(rig, capsules) {
       const ny = (y - hs) / hs, wy = center.y + ny * half.y;
       for (let x = 0; x < RES; x++) {
         const nx = (x - hs) / hs, wx = center.x + nx * half.x;
-        let f = 0;
+        // 조직 패킹(§9.8·원칙③): 캡슐 밀도를 '더하지' 않고 스트리밍 LSE 로 smooth-max.
+        //  f = m + log(Σ exp(K·(tᵢ−m)))/K  ≥ max(tᵢ). 단일 캡슐이면 s=1 → f=m=t (기존과 동일).
+        //  겹침부에서만 max 를 살짝 넘어(fascia webbing) — 가산 합의 부풂(블롭)이 사라진다.
+        let m = 0, s = 0, any = false;
         for (let i = 0; i < capsules.length; i++) {
           const d2 = distSqToSeg(wx, wy, wz, capsules[i].a, capsules[i].b);
-          if (d2 < supp[i]) { const t = 1 - d2 / supp[i]; f += t * t * t; }
+          if (d2 >= supp[i]) continue;
+          const u = 1 - d2 / supp[i], t = u * u * u;
+          if (!any) { m = t; s = 1; any = true; }
+          else if (t > m) { s = s * Math.exp(FASCIA_K * (m - t)) + 1; m = t; }
+          else { s += Math.exp(FASCIA_K * (t - m)); }
         }
-        mc.setCell(x, y, z, f);
+        mc.setCell(x, y, z, any ? m + Math.log(s) / FASCIA_K : 0);
       }
     }
   }
@@ -85,6 +169,10 @@ export function bakeSkin(rig, capsules) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo = mergeVertices(geo, WELD_TOL);
   geo.computeVertexNormals();
+  // Fascia 스무딩(§9.10) — 스키닝 전 rest 표면에서 1회. 골·계단 줄무늬 완화 → 사람 표면.
+  geo = laplacianSmooth(geo, fasciaIters, SMOOTH_LAMBDA);
+  // 좌우 대칭화(§19.4) — 스무딩 뒤(스무딩은 비대칭 위상에서 미세 비대칭 재유입) 마지막에.
+  if (opts.symmetric !== false) geo = symmetrizeVertices(geo);
 
   // --- 4. 스키닝 가중치 — 정점을 가까운 뼈 세그먼트에 바인딩 -----------------
   const bones = rig.drivers;
