@@ -9,7 +9,7 @@ import { compare } from './compare.js';
 
 // 개체 하나. properties 는 {속성명 → 값}.
 export class Substance {
-  constructor({ id, archetype, kind = null, tags = [], properties = {} }, lexicon) {
+  constructor({ id, archetype, kind = null, tags = [], properties = {}, epistemic = null }, lexicon) {
     if (!id) throw new Error('Substance 에 id 가 없다');
     this.id = id;
     this.archetype = archetype ?? null;
@@ -18,6 +18,9 @@ export class Substance {
     // tags = 술어에서 묶어 부르는 이름 (신.조직·신.권속 …) — event 술어의 target_tag 원천.
     this.tags = [...tags];
     this.properties = { ...properties };
+    // epistemic = 재료 자체의 발견 상태 (지식 재료의 확인/추정 등). has 술어의
+    // epistemic 제약이 belief 노드 대신 재료의 이 값을 우선 본다 (predicate.js evalHas).
+    this.epistemic = epistemic ?? null;
     this.lexicon = lexicon ?? null;
     // 사전이 주어지면 생성 시점에 속성명을 검증한다 (오타 조기 차단).
     if (lexicon) {

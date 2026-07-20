@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>HktAdvWeb — Phase A 세계 기질</title>
+  <title>HktAdvWeb — 목적 그래프 + 콘텐츠 단계 C1~C7</title>
   <style>
     :root { color-scheme: light dark; }
     body { font: 14px/1.5 system-ui, sans-serif; margin: 0; padding: 1.5rem; max-width: 1000px; }
@@ -15,6 +15,9 @@
     pre { background: #8881; padding: .5rem; border-radius: 4px; overflow-x: auto; }
     .ok { color: #1a7f37; font-weight: 600; } .no { color: #b3261e; font-weight: 600; }
     .muted { opacity: .7; } .pill { display:inline-block; background:#8883; border-radius: 999px; padding: 0 .5rem; margin: 0 .15rem; font-size: 11px; }
+    details { border: 1px solid #8884; border-radius: 6px; margin: .4rem 0; padding: .3rem .6rem; }
+    details > summary { cursor: pointer; font-weight: 600; }
+    .stage-headline { font-size: 12px; margin: .2rem 0 .4rem; }
   </style>
 </head>
 <body>
@@ -43,6 +46,20 @@
     const d = await (await fetch('/api/demo')).json();
     const app = document.getElementById('app');
     app.textContent = '';
+
+    // 콘텐츠 단계 C1~C7 — 엔진 위에 올린 게임 그 자체 (헤드라인)
+    if (d.content) {
+      app.append(el('h2', {}, `콘텐츠 단계 C1~C7 — 게임 그 자체 ${d.content.allPass ? '✅ 전건 통과' : '⚠️'}`));
+      app.append(el('p', { class: 'muted' },
+        '엔진(Phase A~F)은 완성돼 있다. 각 단계는 세계 픽스처를 엔진 위에 올려 봇 시나리오로 검증한다 — 매 단계가 그 자체로 플레이 가능한 게임을 넓힌다.'));
+      for (const st of d.content.stages) {
+        const det = el('details', {});
+        det.append(el('summary', {}, `${st.id} — ${st.title} ${st.pass ? '✅' : '❌'}`));
+        det.append(el('div', { class: 'stage-headline' }, st.headline));
+        det.append(el('pre', {}, st.log.join('\n')));
+        app.append(det);
+      }
+    }
 
     // 속성 사전
     app.append(el('h2', {}, `속성 사전 (${d.lexicon.length}종)`));

@@ -25,6 +25,7 @@ import { scan } from '../src/planner/reinterpret.js';
 import { backlogAgainstWorld } from '../src/planner/constraints.js';
 import { decompose } from '../src/planner/decompose.js';
 import { runMultiSim, loadMultiFixture } from '../src/actors/multibot.js';
+import { buildContentDemo } from './content.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -97,6 +98,9 @@ export function buildDemo() {
   // ── Phase F: 봇 N기 관전 + aftermath 연쇄 (살아있는 세계) ──
   const multibot = buildMultiDemo(g, lexicon);
 
+  // ── 콘텐츠 단계 C1~C7: 엔진 위에 올린 게임 그 자체 ──
+  const content = buildContentDemo(g);
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -114,6 +118,7 @@ export function buildDemo() {
     scene,
     planner,
     multibot,
+    content,
   };
 }
 
