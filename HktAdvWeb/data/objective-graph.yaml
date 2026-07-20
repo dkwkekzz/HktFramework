@@ -1,0 +1,548 @@
+# =====================================================================
+# HktAdvWeb seed 목적 그래프
+# ---------------------------------------------------------------------
+# Design-ObjectiveHierarchy §4.4(GoalNode)/§4.5(Stage) 스키마의 실물 데이터.
+# 구성 원리·확장 규약은 Design-StepPlan §9. 기계 인수는 step B1(로더/정합 검사),
+# 실행은 step B4(최소 수직 절편 Slice-1).
+#
+# ── 술어 DSL v0 명세 (정본 — 평가기는 step A4) ──────────────────────
+#  조합:   {all: [<술어>...]} / {any: [<술어>...]} / {not: <술어>}
+#  보유형: {has: {kind, property: {name, op, value}, min_count?, epistemic?}}
+#          — 판정 대상 액터의 보유 재료(물질·에너지·정보·지식·능력·생명체)를
+#            "품목이 아니라 속성"으로 스캔한다 (불변 원칙 ②)
+#  상태형: {state: {path, op, value}}
+#          — 세계 상태 경로 비교. path 의 어휘는 world 픽스처(B4)가 정의한다
+#  발견:   {epistemic: {target?: <노드id>, tag?: <태그>, is, min_count?}}
+#          — 노드/지식의 발견 상태(미발견/추정/확인/반증)를 묻는다 (C1 에서 실체화)
+#  사건:   {event: {verb, target_tag?, min_count}}
+#          — 사건 기록 질의 (A5 에서 실체화)
+#  비교 op: ">=" "<=" "==" "!=" ">" "<"
+#  값 참조: "const.<이름>" → 아래 constants 절 / 그 외는 리터럴
+#
+# ── 필드 규약 ────────────────────────────────────────────────────────
+#  goals[].serves   : 이 노드가 봉사하는 상위 목적 id 목록 — DAG 의 정본 (자식→부모)
+#  goals[].verb     : 말단(자식 없는 노드)만 보유. 17 동사(§4.3) 중 하나
+#  goals[].epistemic: 절편 시작 시점의 초기 믿음 (C1 이후 액터별 BeliefView 로 이관)
+#  goals[].tags     : 지식·약점 등 술어에서 묶어 부르기 위한 태그
+#  stages[].discovered: 미발견 무대는 그래프에 "?" 로만 노출된다 (§4.5-4)
+#  스텁 노드         : 자식 미전개 노드. 스키마는 완전 — 확장 = 자식 추가일 뿐 (§9.3-5)
+# =====================================================================
+
+meta:
+  version: 0.1
+  schema: goal-graph/v0
+  predicate_dsl: v0
+  lexicon: property-lexicon.yaml
+  slices:
+    slice-1:
+      note: 최소 수직 절편(step B4) — 동기→세부 목적→말단→절차 사슬의 최초 기계 증명
+      goals: [G-0, G-0.1, G-0.1.1, G-0.1.1.2, G-0.1.1.2.1]
+      stages: [S-0045]
+
+# 수치 상수 — 초기값은 설계 파라미터이며 B4 절편 실행에서 튜닝한다 (StepPlan §2)
+constants:
+  신영향_임계: 0.2        # 신이 "더 이상 위협이 아니다"로 인정되는 영향력 상한
+  잔향보존_최소: 0.6      # 표본으로 쓸 수 있는 신성 잔향 보존율 하한
+  공명전달_최소: 0.7      # 무기급 재료의 공명 전달률 하한
+  실험출력_최소: 0.3      # 실험용 진동 수단의 출력 하한 (무기급보다 낮다)
+  에너지손실_최대: 0.3
+  에너지저장_최소: 0.5
+  신성내성_최소: 0.4
+  촉매활성_최소: 0.5
+  무기출력_최소: 0.7
+  재현_최소: 2            # 지식이 "확인"으로 굳는 데 필요한 재현 횟수 (§2.5)
+
+# =====================================================================
+# 목적 노드
+# =====================================================================
+goals:
+
+  # ── 뿌리 — 생존의 일곱 얼굴 (§3.1) — 설계자가 고정하는 문법, 전부 확인 ──
+  # 동기의 done_when 은 영구 플래그가 아니다: 세계가 변해 술어가 다시 거짓이
+  # 되면 노드는 재개방된다 (StepPlan B3 — 완료는 술어의 현재값).
+
+  - id: G-0
+    title: 생존해야 한다
+    desired: 나의 존속이 위협받지 않는 상태
+    current: 세계적 재앙을 포함한 다층의 위협 아래 있음
+    done_when: {state: {path: world.위협압력.전체, op: "<=", value: const.신영향_임계}}
+    epistemic: 확인
+    serves: []
+
+  - id: G-0.1
+    title: 생존을 방해하는 위협을 제거하거나 통제한다
+    desired: 위협 요인이 제거·통제된 상태
+    current: 최상위 위협(거대 신)이 활동 중
+    done_when: {state: {path: world.위협압력.적대, op: "<=", value: const.신영향_임계}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.2
+    title: 생존 능력을 성장시킨다
+    desired: 더 넓은 환경·강한 위협에서도 존속 가능한 능력
+    current: 기초 능력만 보유
+    done_when: {state: {path: world.자기.성장압력, op: "<=", value: const.신영향_임계}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.3
+    title: 생존에 필요한 자원을 안정적으로 확보한다
+    desired: 자원의 발생 원리를 이해하고 안정 수급 중인 상태
+    current: 임기응변 수급
+    done_when: {state: {path: world.자기.자원결핍, op: "<=", value: const.신영향_임계}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.4
+    title: 환경에 적응한다
+    desired: 주요 환경(독기·한랭·신성 방사)에 대한 내성 확보
+    current: 무방비
+    done_when: {state: {path: world.자기.환경취약, op: "<=", value: const.신영향_임계}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.5
+    title: 실패해도 회복할 수 있는 기반을 만든다
+    desired: 거점·비축·재기 수단이 존재하는 상태
+    current: 기반 없음
+    done_when: {state: {path: world.자기.회복기반, op: ">", value: 0}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.6
+    title: 다른 존재와의 관계로 생존 가능성을 높인다
+    desired: 신뢰·거래·동맹 관계가 존재하는 상태
+    current: 고립
+    done_when: {has: {kind: 관계, property: {name: 신뢰단계, op: ">=", value: 1}, min_count: 1}}
+    epistemic: 확인
+    serves: [G-0]
+
+  - id: G-0.7
+    title: 기존 육체와 존재 방식의 한계를 극복한다
+    desired: 육체·존재 방식이 한계 너머로 확장된 상태
+    current: 미확장
+    done_when: {state: {path: world.자기.존재확장, op: ">", value: 0}}
+    epistemic: 확인
+    serves: [G-0]
+
+  # ── 0.1 위협 가지의 폭 (§3.2) — 발견 상태 픽스처 겸용 (C1) ──
+
+  - id: G-0.1.1
+    title: 세계적 재앙을 발생시키는 존재(거대 신)를 제거한다
+    desired: 신이 더 이상 나의 생존을 위협하지 않는 상태
+    current: 신이 살아 있고, 공격 방법을 모르고, 접근할 수 없다
+    done_when:            # §2.2 의 술어 — 죽이든 봉인하든 굶기든 경로 불문
+      all:
+        - {state: {path: world.신.영향력, op: "<=", value: const.신영향_임계}}
+        - {state: {path: world.신.재앙발생가능, op: "==", value: false}}
+        - {state: {path: world.신.재구성가능, op: "==", value: false}}
+        - {state: {path: world.신.힘공급.숭배, op: "==", value: 차단}}
+    obstacles: [정체 미상, 약점 미상, 거처 접근 불가, 사후 결과 미상]
+    epistemic: 확인
+    serves: [G-0.1]
+
+  - id: G-0.1.2
+    title: 지역의 직접적 위협을 제거한다
+    desired: 활동 지역 내 마수 둥지가 무력화된 상태
+    current: 둥지의 위치만 소문으로 추정
+    done_when: {state: {path: world.지역.둥지활성, op: "==", value: false}}
+    epistemic: 추정
+    serves: [G-0.1]
+
+  - id: G-0.1.3
+    title: 질병·저주·오염의 확산을 막는다
+    desired: 오염 전선이 확장을 멈춘 상태
+    current: 존재 자체를 모른다
+    done_when: {state: {path: world.오염.확산속도, op: "<=", value: 0}}
+    epistemic: 미발견
+    serves: [G-0.1]
+
+  - id: G-0.1.4
+    title: 적대 세력을 약화시킨다
+    desired: 신에게 가는 희생물 수송이 끊긴 상태
+    current: 존재 자체를 모른다
+    done_when: {state: {path: world.세력.숭배단.수송량, op: "<=", value: 0}}
+    epistemic: 미발견
+    serves: [G-0.1]
+
+  - id: G-0.1.5
+    title: 제거할 수 없는 위협을 회피하거나 봉인한다
+    desired: 위협과의 접촉면이 통제된 상태
+    current: 회피 수단 없음
+    done_when: {state: {path: world.자기.위협노출, op: "<=", value: const.신영향_임계}}
+    epistemic: 추정
+    serves: [G-0.1]
+
+  - id: G-0.1.6
+    title: 위협이 발생하는 근본 원인을 변화시킨다
+    desired: 위협의 발생 조건 자체가 소거된 상태
+    current: 존재 자체를 모른다
+    done_when: {state: {path: world.위협압력.발생률, op: "<=", value: 0}}
+    epistemic: 미발견
+    serves: [G-0.1]
+
+  # ── 0.1.1 의 깊이 (§3.3) — 0.1.1.2 / 0.1.1.3 만 말단까지 전개, 나머지 스텁 ──
+
+  - id: G-0.1.1.1
+    title: 신의 정체와 행동 원리를 파악한다
+    desired: 신의 기원·주기·힘의 원천이 확인된 지식으로 존재
+    current: 목격담과 재앙의 흔적뿐
+    done_when: {epistemic: {tag: 신.정체, is: 확인, min_count: 1}}
+    epistemic: 추정
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.2
+    title: 신의 약점을 발견한다
+    desired: 재현 검증된 약점 지식을 보유한 상태
+    current: 약점 후보조차 없음 — 표본도 없음
+    done_when: {epistemic: {tag: 신.약점, is: 확인, min_count: 1}}   # 어느 가설이든 확인되면 충족
+    obstacles: [표본 미확보, 실험 수단 없음, 실개체 접근 위험]
+    epistemic: 확인
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.3
+    title: 신에게 피해를 줄 수단을 확보한다
+    desired: 확인된 약점을 공격하는 수단이 작동 가능한 상태
+    current: 원리·재료·구조 전부 없음
+    done_when: {has: {kind: 물질, property: {name: 공명출력, op: ">=", value: const.무기출력_최소}, min_count: 1}}
+    obstacles: [약점 미확인이면 원리를 정할 수 없음, 재료 미지, 결합 중 폭주]
+    epistemic: 추정
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.4
+    title: 신의 거처에 접근한다
+    desired: 거처까지의 경로·접근권·이동 수단 확보
+    current: 거처 위치 미상
+    done_when: {has: {kind: 접근권, property: {name: 대상, op: "==", value: 신.거처}, min_count: 1}}
+    epistemic: 미발견
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.5
+    title: 충돌에서 살아남을 준비를 한다
+    desired: 신성 방사·물리 충격 아래에서 생존 가능한 상태
+    current: 무방비
+    done_when: {state: {path: world.자기.신성노출한계, op: ">=", value: const.신성내성_최소}}
+    epistemic: 추정
+    serves: [G-0.1.1]     # 성장 가지(0.2)와 분해를 공유한다 — 전개 시 자식이 양쪽을 serves
+
+  - id: G-0.1.1.6
+    title: 결전을 수행할 세력을 규합한다
+    desired: 동행 가능한 세력·동료 관계 확보
+    current: 고립
+    done_when: {has: {kind: 관계, property: {name: 신뢰단계, op: ">=", value: 2}, min_count: 1}}
+    epistemic: 미발견
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.7
+    title: 제거를 실행한다
+    desired: done_when(G-0.1.1) 의 각 항을 실제로 전이시킨 상태
+    current: 선행 조건 전부 미충족
+    done_when: {state: {path: world.신.영향력, op: "<=", value: const.신영향_임계}}
+    epistemic: 미발견
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.8
+    title: 신이 남긴 결과를 처리한다
+    desired: 유출 신성 에너지·신의 육체가 통제된 상태
+    current: 미도래 (신 제거 후 발생)
+    done_when: {state: {path: world.신.유출에너지, op: "<=", value: const.신영향_임계}}
+    epistemic: 미발견
+    serves: [G-0.1.1]
+
+  - id: G-0.1.1.9
+    title: 신의 부활·재생을 막는다
+    desired: 숭배 구조·힘의 공급이 감시·차단되는 상태
+    current: 미도래
+    done_when: {state: {path: world.신.힘공급.숭배, op: "==", value: 차단}}
+    epistemic: 미발견
+    serves: [G-0.1.1]
+
+  # ── 0.1.1.2 약점 발견 — 가설·실험 루프의 집 (§2.5, step C2 자산) ──
+
+  - id: G-0.1.1.2.1
+    title: 신의 조직 표본을 확보한다                        # ★ Slice-1 말단
+    desired: 신성 잔향이 보존된 조직 표본을 보유한 상태
+    current: 잔향 없음 · 조직의 위치만 추정
+    done_when:
+      has: {kind: 물질, property: {name: 신성잔향보존율, op: ">=", value: const.잔향보존_최소}, min_count: 1}
+    demand:
+      - {kind: 물질, property: {name: 신성잔향보존율, op: ">=", value: const.잔향보존_최소},
+         note: 품목 불문 — 조직 조각이든 권속의 심장이든 속성만 충족하면 된다 (원칙 ②)}
+      - {kind: 환경 상태, when: {state: {path: stage.S-0045.잔여시간, op: ">", value: 0}},
+         note: 조직 소멸 전 시간 창 내 — 상태형 재료 "시간과 기회"}
+    obstacles: [강한 신성 방사(접촉 시 오염), 시간 경과 시 소멸, 수호 생명체, 경쟁 세력]
+    verb: 채취
+    serves: [G-0.1.1.2]
+    alternatives: [숭배자의 유물을 강탈한다, 권속을 사냥해 심장에서 추출한다(G-0.2.3.2.1)]
+    epistemic: 확인
+    evidence: 봉인 용기 내 잔향 측정치
+    aftermath: [채취 지점 주변 생태 변화, 적대 세력의 추적 시작]
+    stages: [S-0045]
+
+  - id: G-0.1.1.2.2
+    title: 표본의 구성과 에너지 순환을 관찰한다
+    desired: 신의 에너지 순환에 대한 관측 정보를 보유한 상태
+    current: 표본만 있고 성질은 미상
+    done_when:
+      has: {kind: 정보, property: {name: 주제, op: "==", value: 신.에너지순환}, min_count: 1}
+    demand:
+      - {kind: 물질, property: {name: 신성잔향보존율, op: ">=", value: const.잔향보존_최소},
+         note: 관찰 대상 표본}
+    verb: 관찰
+    serves: [G-0.1.1.2, G-0.1.1.3.1]   # 관측 정보가 공격 원리 결정에도 봉사 — DAG 교차
+    epistemic: 확인
+    evidence: 관측 기록(정보 재료)의 존재
+    aftermath: []
+
+  - id: G-0.1.1.2.H1
+    title: "가설: 신은 공명 진동에 취약하다"
+    desired: 이 가설이 재현 검증되어 확인 지식이 된 상태
+    current: 관찰에서 떠오른 추정일 뿐
+    done_when: {epistemic: {target: G-0.1.1.2.H1, is: 확인}}   # 지식 노드 자신의 상태 전이가 완료
+    tags: [신.약점]
+    obstacles: [진동 수단 없음, 반응 측정 기준 없음]
+    epistemic: 추정
+    serves: [G-0.1.1.2]
+
+  - id: G-0.1.1.2.H1.1
+    title: 진동 발생 수단을 만든다
+    desired: 실험용 진동 출력이 가능한 도구를 보유한 상태
+    current: 수단 없음
+    done_when:
+      has: {kind: 물질, property: {name: 공명출력, op: ">=", value: const.실험출력_최소}, min_count: 1}
+    demand:
+      - {kind: 물질, property: {name: 공명전달률, op: ">=", value: 0.5},
+         note: 실험용은 무기급(const.공명전달_최소)보다 낮은 문턱}
+      - {kind: 에너지, property: {name: 잔고, op: ">=", value: 10}, note: 결합 비용 — 원장 지불}
+    verb: 결합
+    serves: [G-0.1.1.2.H1]
+    epistemic: 추정
+    evidence: 도구의 진동 출력 측정치
+
+  - id: G-0.1.1.2.H1.2
+    title: 표본에 진동을 가해 반응을 측정한다
+    desired: 주파수별 반응 관측 정보를 보유한 상태
+    current: 미실험
+    done_when:
+      all:
+        - {event: {verb: 실험, target_tag: 신.조직, min_count: 1}}
+        - {has: {kind: 정보, property: {name: 주제, op: "==", value: 진동반응}, min_count: 1}}
+    demand:
+      - {kind: 물질, property: {name: 신성잔향보존율, op: ">=", value: const.잔향보존_최소}, note: 표본}
+      - {kind: 물질, property: {name: 공명출력, op: ">=", value: const.실험출력_최소}, note: 진동 수단}
+    verb: 실험
+    serves: [G-0.1.1.2.H1]
+    epistemic: 추정
+    evidence: 주파수-반응 기록
+
+  - id: G-0.1.1.2.H1.3
+    title: 실제 개체에게 재현되는지 검증한다
+    desired: 표본 반응이 실개체에서 재현됨이 확인된 상태
+    current: 미도래 — 표본 단계 실험이 먼저
+    done_when: {event: {verb: 검증, target_tag: 신.실개체, min_count: const.재현_최소}}
+    verb: 검증
+    serves: [G-0.1.1.2.H1]
+    epistemic: 미발견
+    evidence: 재현 기록 const.재현_최소 회
+
+  - id: G-0.1.1.2.H2
+    title: "가설: 신은 저온에 취약하다"                     # C2 반증 시나리오 자산
+    desired: 이 가설이 검증되어 확인 지식이 된 상태
+    current: 회피 지형(빙원 부재) 관찰에서 나온 경합 추정
+    done_when: {epistemic: {target: G-0.1.1.2.H2, is: 확인}}
+    tags: [신.약점]
+    epistemic: 추정
+    serves: [G-0.1.1.2]
+
+  - id: G-0.1.1.2.H2.1
+    title: 표본의 저온 반응을 측정한다
+    desired: 저온 노출 반응 관측 정보를 보유한 상태
+    current: 미실험
+    done_when:
+      all:
+        - {event: {verb: 실험, target_tag: 신.조직, min_count: 1}}
+        - {has: {kind: 정보, property: {name: 주제, op: "==", value: 저온반응}, min_count: 1}}
+    demand:
+      - {kind: 물질, property: {name: 신성잔향보존율, op: ">=", value: const.잔향보존_최소}, note: 표본}
+      - {kind: 환경 상태, when: {state: {path: world.환경.기온, op: "<", value: 0}},
+         note: 저온 환경을 맞이하거나 만들어야 한다}
+    verb: 실험
+    serves: [G-0.1.1.2.H2]
+    epistemic: 추정
+    evidence: 저온-반응 기록
+
+  # ── 0.1.1.3 피해 수단 — 속성 기반 제작의 집 (§4.2, 다중 해법 자산) ──
+
+  - id: G-0.1.1.3.1
+    title: 공격 원리를 비교해 확정한다
+    desired: 확인된 약점과 관측 정보에 근거한 공격 원리 지식 보유
+    current: 후보 원리들만 나열됨
+    done_when:
+      has: {kind: 지식, property: {name: 주제, op: "==", value: 공격원리}, epistemic: 확인, min_count: 1}
+    demand:
+      - {kind: 정보, property: {name: 주제, op: "==", value: 신.에너지순환}, note: G-0.1.1.2.2 의 산출}
+      - {kind: 지식, property: {name: 주제, op: "==", value: 신.약점}, note: 확인된 약점 지식}
+    verb: 비교
+    serves: [G-0.1.1.3]
+    epistemic: 추정
+
+  - id: G-0.1.1.3.2
+    title: 진동 전달 속성 재료를 확보한다                   # C3 상향 발견 시나리오 자산
+    desired: 무기급 공명 전달 재료를 보유한 상태
+    current: 후보 재료의 소재조차 미상
+    done_when:
+      all:
+        - {has: {kind: 물질, property: {name: 공명전달률, op: ">=", value: const.공명전달_최소}, min_count: 1}}
+        - {has: {kind: 물질, property: {name: 에너지손실률, op: "<=", value: const.에너지손실_최대}, min_count: 1}}
+    demand:
+      - {kind: 물질, property: {name: 공명전달률, op: ">=", value: const.공명전달_최소}}
+      - {kind: 물질, property: {name: 에너지손실률, op: "<=", value: const.에너지손실_최대}}
+    verb: 채취
+    serves: [G-0.1.1.3]
+    alternatives: [수정질 광물을 채굴한다(S-0201), 고대 공명 장치를 분해한다(S-0202),
+                   거대 생물의 뼈를 가공한다, 타 행위자와 거래한다]
+    epistemic: 추정
+    evidence: 재료의 공명 전달률 측정치
+    stages: [S-0201, S-0202]
+
+  - id: G-0.1.1.3.3
+    title: 에너지 저장·신성 내성 속성 재료를 확보한다
+    desired: 고밀도 저장 + 신성 내성 재료를 보유한 상태
+    current: 소재 미상 — 응답 무대 미발견 (E1 재해석 스캐너의 대상)
+    done_when:
+      all:
+        - {has: {kind: 물질, property: {name: 에너지저장밀도, op: ">=", value: const.에너지저장_최소}, min_count: 1}}
+        - {has: {kind: 물질, property: {name: 신성내성, op: ">=", value: const.신성내성_최소}, min_count: 1}}
+    demand:
+      - {kind: 물질, property: {name: 에너지저장밀도, op: ">=", value: const.에너지저장_최소}}
+      - {kind: 물질, property: {name: 신성내성, op: ">=", value: const.신성내성_최소}}
+    verb: 채취
+    serves: [G-0.1.1.3]
+    epistemic: 추정
+    stages: []            # 의도적 공백 — E2 제약(c) 백로그로 검출되어야 한다 (StepPlan §7 E2-3)
+
+  - id: G-0.1.1.3.4
+    title: 부품을 결합하고 안정화한다
+    desired: 결합체가 폭주 없이 무기급 출력을 내는 상태
+    current: 재료 미확보
+    done_when:
+      has: {kind: 물질, property: {name: 공명출력, op: ">=", value: const.무기출력_최소}, min_count: 1}
+    demand:
+      - {kind: 물질, property: {name: 공명전달률, op: ">=", value: const.공명전달_최소}}
+      - {kind: 물질, property: {name: 에너지저장밀도, op: ">=", value: const.에너지저장_최소}}
+      - {kind: 에너지, property: {name: 잔고, op: ">=", value: 50}, note: 결합·안정화 비용}
+    obstacles: [결합 중 에너지 폭주, 불순물로 인한 출력 저하]
+    verb: 결합
+    serves: [G-0.1.1.3]
+    epistemic: 미발견
+    evidence: 결합체의 출력·안정도 측정치
+
+  - id: G-0.1.1.3.5
+    title: 수단의 유효성을 시험한다
+    desired: 유사 대상 시험으로 유효성 정보가 확보된 상태
+    current: 미도래
+    done_when:
+      all:
+        - {event: {verb: 실험, target_tag: 신.권속, min_count: 1}}
+        - {has: {kind: 정보, property: {name: 주제, op: "==", value: 무기유효성}, min_count: 1}}
+    verb: 실험
+    serves: [G-0.1.1.3]
+    epistemic: 미발견
+
+  # ── 0.2 성장 가지 (부분 전개) — DAG 교차 전시: 권속의 심장 ──
+
+  - id: G-0.2.3
+    title: 신체 강화 약물을 만든다
+    desired: 신성 환경 생존을 돕는 약물이 작동하는 상태 (효과=신체의 변화, §3.3)
+    current: 제작법 미상
+    done_when:
+      has: {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}, min_count: 1}
+    epistemic: 추정
+    serves: [G-0.2, G-0.1.1.5]   # 성장이자 결전 생존 준비 — DAG 다중 부모
+    aftermath: [약물 부작용의 통제가 새 목적이 된다]     # §2.6 개인 수준 연쇄의 씨앗
+
+  - id: G-0.2.3.2
+    title: 약물의 생체 촉매를 확보한다
+    desired: 촉매 활성 속성 재료를 보유한 상태
+    current: 촉매 후보만 소문으로 추정
+    done_when:
+      has: {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}, min_count: 1}
+    demand:
+      - {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}}
+    epistemic: 추정
+    serves: [G-0.2.3]
+
+  - id: G-0.2.3.2.1
+    title: 권속을 사냥해 심장을 확보한다
+    # ★ DAG 교차의 전시장: 심장은 촉매활성(약물)과 잔향보존율(약점 표본)을 동시에
+    #   가진 물질 — 완료 시 0.2.3.2 와 0.1.1.2 두 계보로 동시 파문 (step B3/D3 자산)
+    desired: 권속의 심장(촉매이자 표본)을 보유한 상태
+    current: 서식지 위치만 확인, 미보유
+    done_when:
+      has: {kind: 물질, property: {name: 생체촉매활성, op: ">=", value: const.촉매활성_최소}, min_count: 1}
+    demand:
+      - {kind: 능력, property: {name: 계열, op: "==", value: 전투}, note: 무리를 제압할 수단}
+      - {kind: 시간과 기회, when: {state: {path: world.권속.무리분산, op: "==", value: true}},
+         note: 무리가 흩어지는 시간 창을 포착해야 한다}
+    obstacles: [무리 방어 행동, 신의 감시(사냥 감지 시 추적), 심장의 빠른 활성 소실]
+    verb: 채취
+    serves: [G-0.2.3.2, G-0.1.1.2]   # 약물 촉매이자 약점 조사의 표본 대체 경로
+    alternatives: [숭배자에게서 보존된 심장을 거래한다, 죽은 권속의 사체에서 저활성 심장을 수습한다]
+    epistemic: 확인
+    evidence: 심장의 촉매 활성·잔향 보존율 측정치
+    aftermath: [권속 무리의 경계 강화, 신의 주의를 끈다]
+    stages: [S-0102]
+
+# =====================================================================
+# 무대(기회) — 세계의 응답 (§4.5). 생성하지 않는다 — 재해석한다 (원칙 ④)
+# =====================================================================
+stages:
+
+  - id: S-0045                                             # ★ Slice-1 무대
+    source: 거대 신이 지나간 자리에 남은 조직 조각
+    supplies:
+      - {property: 신성잔향보존율, rule: 시간 경과 시 소멸(잔여시간 틱), purity: 채취 정밀도에 따라}
+      - {property: 오염도, rule: 채취가 거칠수록 상승, purity: 부산물 — 원치 않아도 얻는다}
+    obstacles: [신성 방사(접촉 오염), 수호 생명체, 경쟁 세력, 접촉 시 신체 변이 위험]
+    interactions: [흔적 추적, 오염 측정, 채취, 보존, 운반]
+    choices:
+      - 다량 신속 채취(오염 감수) ↔ 소량 정밀 채취
+      - 전체 운반 ↔ 현장 보존 처리 ↔ 생명체에 이식해 운반
+    outcomes: [고순도 잔향 표본, 오염된 잔향 표본, 신의 새 특성 발견(정보), 신체 변형, 추적당함]
+    discovered: true
+
+  - id: S-0102
+    source: 권속 무리의 서식지 — 심장이 촉매이자 표본이 되는 이중 공급원
+    supplies:
+      - {property: 생체촉매활성, rule: 살아있는 개체에서 적출 시 최고 — 사후 활성 급감, purity: 적출 속도에 따라}
+      - {property: 신성잔향보존율, rule: 심장에 잔향이 응축 — 표본 대체 경로, purity: 개체의 신 근접 이력에 따라}
+    obstacles: [무리 방어, 신의 감시, 서식지의 신성 방사 미약 오염]
+    interactions: [탐색, 관찰, 전투, 포획, 채취, 보존]
+    choices:
+      - 무리 전면 교전(다수 확보·추적 위험) ↔ 낙오 개체 사냥(안전·소량)
+      - 즉시 적출(고활성) ↔ 생포 후 운반(활성 저하·재사용 가능)
+    outcomes: [고활성 심장, 저활성 심장, 무리 행동 정보, 신의 감시에 노출]
+    discovered: true
+
+  - id: S-0201
+    source: 험지 협곡의 수정질 광맥 — 공명 전달 재료의 원천
+    supplies:
+      - {property: 공명전달률, rule: 광맥 심부일수록 고품질, purity: 채굴 진동이 크면 결정 균열로 저하}
+      - {property: 에너지손실률, rule: 심부 결정일수록 낮음, purity: 동일}
+    obstacles: [험지 접근(추락 위험), 채굴 진동에 반응하는 동굴 생물, 결정의 공명 폭주]
+    interactions: [탐색, 채취, 운반]
+    choices:
+      - 표층 신속 채굴(저품질·안전) ↔ 심부 정밀 채굴(고품질·위험)
+    outcomes: [무기급 수정, 균열 수정(실험급), 동굴 생태 정보]
+    discovered: false      # 미발견 — 그래프에는 "?" 로만 (C1), 발견 전 좌표 노출 금지
+
+  - id: S-0202
+    source: 고대 유적의 공명 장치 — 분해하면 공명 부품을 내주는 문명의 축적
+    supplies:
+      - {property: 공명전달률, rule: 분해 숙련에 따라 부품 보존율 결정, purity: 분해 정밀도에 따라}
+    obstacles: [유적의 문(접근권 필요), 장치 훼손 시 폭발, 유적 수호 기구]
+    interactions: [탐색, 관찰, 분해, 운반]
+    choices:
+      - 통째 반출 시도(고위험·고보존) ↔ 현장 분해(안전·부품 손실)
+    outcomes: [고대 공명 부품, 고대 문명 정보, 유적 붕괴]
+    discovered: false

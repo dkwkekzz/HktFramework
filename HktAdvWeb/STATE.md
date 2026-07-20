@@ -1,27 +1,35 @@
 # STATE — 현재 상태
 
 > **이 문서만 보고 다음 세션을 시작할 수 있어야 한다.** 규칙·불변 원칙은 [CLAUDE.md](CLAUDE.md),
-> 설계 본체는 [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md). 완료 이력은 git.
+> 설계 본체는 [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md),
+> 실행 계획은 [Design-StepPlan.md](Design-StepPlan.md). 완료 이력은 git.
 
 ## 현재 — 한눈에
 
-- **설계만 존재, 코드 없음.** 두 설계 문서가 서 있다:
+- **설계 + 실행 계획 + seed 데이터 존재, 코드 없음.**
   - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 — 목적 계층(목적=상태 차이 →
     속성 기반 재료 요구 → 기회).
-  - [Design-Visualization.md](Design-Visualization.md) v0.1 — 시각화: 3D 지면+고정 뷰 위 스프라이트
-    중심 하이브리드(Tier S/M/D/U), 속성=셰이더 채널 6종(에셋은 속성을 모른다), 재료 10종 시각
-    문법(단일 원본·주기 다이얼·글리프), UI(말단 카드·방사형 그래프·별자리 지도), AI 에셋
-    파이프라인(명세→생성→자동 QA→매니페스트), 모바일 우선 성능 예산. 타겟: 모바일+PC 웹.
+  - [Design-Visualization.md](Design-Visualization.md) v0.1 — 시각화: 하이브리드 렌더·속성 채널·
+    재료 시각 문법·AI 에셋 파이프라인. 타겟: 모바일+PC 웹.
+  - [Design-StepPlan.md](Design-StepPlan.md) v0.1 — **6 Phase 19 step 실행 계획**: A 세계 기질 →
+    B 그래프 코어(M2=최소 수직 절편) → C 발견 상태 → D 시각화 최소 → E 플래너·생성 → F 다중
+    행위자. 각 step 은 GoalNode 문법(목표/작업 세부/검증/done_when)으로 기술되어 있다.
+  - [data/objective-graph.yaml](data/objective-graph.yaml) — **seed 목적 그래프**: §4.4/§4.5
+    스키마 실물. 뿌리 7 + 위협 가지 전개, 0.1.1.2(약점 발견=가설 루프)·0.1.1.3(피해 수단=속성
+    제작) 말단까지 완전 전개, DAG 교차(권속의 심장), 무대 4(발견 2·미발견 2), 술어 DSL v0 명세
+    포함. Slice-1(절편) 정의됨. 아직 기계 검증 전 — step B1 이 인수한다.
+  - [data/property-lexicon.yaml](data/property-lexicon.yaml) — 속성 사전 seed (속성명의 정본).
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
-- 검증 인프라(테스트·데모·스크린샷) 미구축 — 첫 step 에서 세운다.
+- 검증 인프라(테스트·데모·스크린샷) 미구축 — step A1 에서 세운다.
 
 ## NEXT — 다음 할 일
 
-**세계 기질 최소 구현부터 논의·시작한다** (설계 §7 첫 항목):
+**step A1 — 검증 인프라 + 프로젝트 골격** ([Design-StepPlan.md](Design-StepPlan.md) §3 A1):
 
-- 속성 물질 + 에너지 원장 + 상태 술어 질의를 가장 작은 웹 형태로 세운다.
-- 왜 이것부터인가: 설계 전체가 "세계 상태가 술어로 읽힌다(legible)"는 전제 위에 서 있다 —
-  done_when 판정(불변 원칙 ①)도, 속성 demand 판정(②)도, 플래너(§5 원칙 2)도 이 기질 없이는
-  종이 위 설계다. 기질이 서면 곧바로 **최소 수직 절편**(GoalNode+기회 한 쌍, §7 둘째 항목)으로
-  말단 문법을 기계 판정으로 검증한다.
-- 검증부터: 첫 step 에서 자동 회귀(`npm test`)와 눈 검증(데모) 틀을 같이 세운다 (불변 원칙 ⑤).
+- `package.json`(ESM, node:test) + `demo/server.js`(node:http 정적 서버) + `run.sh` — 클린
+  클론에서 `bash run.sh` 한 번으로 설치→테스트→데모가 재현되는 골격.
+- 인프라 자체를 검증하는 테스트 1건(서버 기동→200 확인) — 자리표 테스트 금지.
+- done_when: 클린 클론에서 `bash run.sh` 가 오류 없이 테스트 통과 후 서버를 띄운다.
+- 이후 순서는 StepPlan §2 의 Phase DAG 를 따른다: A2(속성 물질+사전 로더) → A3(원장) →
+  A4(술어 DSL — seed 그래프의 done_when 이 전부 이 DSL 로 쓰여 있다) → A5(사건+법칙) →
+  B1(seed 그래프 기계 인수).
