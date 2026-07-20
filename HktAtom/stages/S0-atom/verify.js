@@ -1692,6 +1692,110 @@
         msg: `37·법칙 게이트: nu_ion=0 → x=0·전자 0 (정확) — 시도율 부재 = 참값·문턱은 어디까지나 에너지 가드` });
     }
 
+    // ── 38. ⑫ 복사장 합류 — playground 발광 (개체 추가형 2/3·step-0038) ──
+    //   가열된 기체가 빛을 낸다: 충돌 들뜸(R-COL·자유충돌) → 자발 방출(R-EMI 수명 시계) → 광자
+    //   입자(field 모드·방향·전파·경계). open 경계 = 복사 냉각(광자 탈출)·reflect = 공동(갇힘·재흡수).
+    //   specLevels(첫 들뜸 dE = clamp(0.75·IE,0.4,3.0)·③ IE 유도)는 base 상시(파라미터 존재)이나
+    //   들뜸 원천은 enableRadiation(💡)이 켠다 — 부재 = 참값 (결합 동역학 카타펄트 회피·§ 격차).
+    //   ⑳ 분리: nu_ion=0 (충돌 이온화 경로가 발광 통제를 오염하지 않게 — step-0037 과 같은 통제).
+    //   종 = H (첫 들뜸 dE=0.75 = 0.75·IE_H · 수소 방출 스펙트럼의 교과서 종 — 저온 열적 억제가
+    //   또렷하다: dE≫kT_cold → 어둡고, 가열하면 밝다). 알칼리(dE=0.4 클램프)는 저온에서도 흐릿하게
+    //   빛나 대비가 약하다 (프록시 격차·step 문서).
+    if (want(38)) {
+      const hRad = (seed, radOpts) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 18, nu_ion: 0 });
+        if (radOpts) Pg.enableRadiation(w, radOpts);
+        for (let i = 0; i < 24; i++) Pg.spawn(w, 'H', 2 + (i % 6) * 2.4, 2 + ((i / 6) | 0) * 2.4, { T: 0.3 });
+        return w;
+      };
+      const runGlow = (T, radOpts) => {
+        let esc = 0, peak = 0, worst = 0;
+        for (const seed of [41, 42, 43]) {
+          const w = hRad(seed, radOpts);
+          for (let k = 0; k < 4000; k++) { Pg.tick(w); Pg.thermostat(w, T, 0.1); peak = Math.max(peak, w.photons.length); }
+          esc += w.ledger.E_escape; worst = Math.max(worst, Math.abs(Pg.residual(w)));
+        }
+        return { esc: esc / 3, peak, worst };
+      };
+
+      // (1) 발광 = 가열 응답: 저온 vs 고온 — 방출 복사(E_escape) 상승 · 광자 입자 가시 · 장부 닫힘
+      const cold = runGlow(0.3, { photonBC: 'open' }), hotG = runGlow(3.0, { photonBC: 'open' });
+      log.push({ ok: hotG.esc > cold.esc * 2.5 && hotG.peak >= 2 && cold.worst <= 0.15 && hotG.worst <= 0.15, name: '38·발광',
+        msg: `38·발광 창발: 방출 복사 E_escape T0.3 ${cold.esc.toFixed(1)} → T3.0 ${hotG.esc.toFixed(1)} (가열→들뜸→광자 방출↑·×${(hotG.esc / Math.max(1e-6, cold.esc)).toFixed(1)}) · 광자 입자 동시 ${hotG.peak}개 가시 · |잔차| ≤ 0.15 (open=복사 냉각·닫힌 장부·author 0)` });
+
+      // (2) 복사 냉각(open) vs 공동(reflect): 광자 경계가 방출 복사의 운명을 가른다
+      const wOpen = hRad(51, { photonBC: 'open' }), wCav = hRad(51, { photonBC: 'reflect' });
+      for (let k = 0; k < 3000; k++) { Pg.tick(wOpen); Pg.thermostat(wOpen, 2.0, 0.1); Pg.tick(wCav); Pg.thermostat(wCav, 2.0, 0.1); }
+      const escOpen = wOpen.ledger.E_escape, escCav = wCav.ledger.E_escape, phCav = wCav.photons.length;
+      log.push({ ok: escOpen > 1 && escCav < 0.5 && phCav >= 3 && Math.abs(Pg.residual(wOpen)) <= 0.15 && Math.abs(Pg.residual(wCav)) <= 0.15, name: '38·냉각vs공동',
+        msg: `38·복사 냉각 vs 공동: open→E_escape ${escOpen.toFixed(1)} (광자 상자 탈출=냉각) vs reflect→E_escape ${escCav.toFixed(2)} (탈출 0) · 공동 갇힌 광자 ${phCav}개 (재흡수 평형) — 같은 방출, 경계가 운명을 가른다` });
+
+      // (3) 게이트 = 참값: 발광 미활성(원천 부재) → 광자 입자 0·탈출 0. nu_exc=0 도 동일 (시도율 부재).
+      const wOff = hRad(61, null);                 // enableRadiation 안 함 (base dormant)
+      const wZero = hRad(61, { photonBC: 'open', nu_exc: 0 });   // 켰으나 들뜸 시도율 0
+      for (let k = 0; k < 2500; k++) { Pg.tick(wOff); Pg.thermostat(wOff, 3.0, 0.1); Pg.tick(wZero); Pg.thermostat(wZero, 3.0, 0.1); }
+      const gateOk = wOff.photons.length === 0 && wOff.ledger.E_escape === 0 &&
+        wZero.photons.length === 0 && wZero.ledger.E_escape === 0;
+      log.push({ ok: gateOk, name: '38·게이트',
+        msg: `38·법칙 게이트: 발광 미활성 → 광자 ${wOff.photons.length}·탈출 ${wOff.ledger.E_escape} (정확 0) · nu_exc=0 → 광자 ${wZero.photons.length}·탈출 ${wZero.ledger.E_escape} (정확 0) — 원천/시도율 부재 = 참값 (specLevels 는 상시 탑재된 파라미터일 뿐)` });
+    }
+
+    // ── 39. ⑲ 금속 합류 — playground 비포화 응집·전자 풀 (개체 추가형 3/3·step-0039·합류 완결) ──
+    //   금속 결합은 스택에 얹는 힘이 아니라 다른 힘 모델(유계 쿨롱+이온-이온 유효 우물 Dmetal·metal.js)
+    //   — enableMetal 이 computeForces 를 통째로 교체(별도 regime·enableHBond 지위). 앵커: 방향성
+    //   없는 유효 우물에서 비포화 조밀 쌓임(배위 ≫ B)이 창발(author 0·측정)·전자 풀은 명시 개체.
+    if (want(39)) {
+      const d2mi = (w, a, b) => { const L = w.box.L; let dx = a.r.x - b.r.x, dy = a.r.y - b.r.y, dz = a.r.z - b.r.z; dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); dz = w.frozenZ ? 0 : dz - L.z * Math.round(dz / L.z); return dx * dx + dy * dy + dz * dz; };
+      const nnDist = (w) => { const A = w.atoms; let m = 1e9; for (let i = 0; i < A.length; i++) for (let j = i + 1; j < A.length; j++) m = Math.min(m, Math.sqrt(d2mi(w, A[i], A[j]))); return m; };
+      const coordTop = (w, rc, n) => { const A = w.atoms, cs = [], rc2 = rc * rc; for (let i = 0; i < A.length; i++) { let c = 0; for (let j = 0; j < A.length; j++) { if (i === j) continue; if (d2mi(w, A[i], A[j]) < rc2) c++; } cs.push(c); } cs.sort((x, y) => y - x); return cs.slice(0, n).reduce((x, y) => x + y, 0) / n; };
+      const metalW = (seed, per, eq, Efield) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 20, dim: 3 });
+        Pg.enableMetal(w, Efield != null ? { Efield } : {});
+        Pg.buildMetalCluster(w, 'Na', per, 10, 10, 10, eq);
+        return w;
+      };
+
+      // (1) 비포화 응집: 금속 내부 배위(상위8) ≥ 8 (3D FCC 근방 ≫ B=1·비방향성) · 전자 구속 · Σc·Σe 보존 · 유계 드리프트
+      let coordS = [], unbS = [], driftS = [], consOk = true;
+      for (const seed of [40, 41]) {
+        const w = metalW(seed, 4, 7000);
+        const nAt = w.atoms.length, nEl = w.electrons.length, E0 = E.totalEnergy(w);
+        let mx = 0; for (let k = 0; k < 1200; k++) { E.step(w); mx = Math.max(mx, Math.abs(E.totalEnergy(w) - E0) / Math.max(1, Math.abs(E0))); }
+        coordS.push(coordTop(w, nnDist(w) * 1.35, 8)); unbS.push(Me.unbound(w)); driftS.push(mx);
+        if (w.atoms.length !== nAt || w.electrons.length !== nEl) consOk = false;
+      }
+      const mCoord = coordS.reduce((a, b) => a + b, 0) / coordS.length, mUnb = Math.max(...unbS), mDrift = Math.max(...driftS);
+      log.push({ ok: mCoord >= 8 && mUnb < 0.5 && consOk && mDrift < 5e-3, name: '39·비포화응집',
+        msg: `39·비포화 응집: 금속 내부 배위 ${mCoord.toFixed(2)} ≥ 8 (3D FCC 근방 ≫ B=1·비방향성 조밀 쌓임·author 0) · 구속 위반 전자 ${mUnb} ≈ 0 (풀 전자 E<0) · Σc·Σe 보존 ${consOk} · 상대 드리프트 ${mDrift.toExponential(1)} < 5e-3 (유계 힘)` });
+
+      // (2) 비국소 전자 풀: 전자 이동성 ≫ 이온 (전자=바다·격자 사이를 로밍·이온=자리 진동). 전도의
+      //   미시 근거 — 전자가 자유롭게 흐른다. (전도 정량 자체는 외부장+periodic 상자 필요·reflect 격차)
+      const mobilityRatio = (seed) => {
+        const w = metalW(seed, 4, 5000);
+        const pe = w.electrons.map((e) => ({ x: e.r.x, y: e.r.y, z: e.r.z })), pa = w.atoms.map((a) => ({ x: a.r.x, y: a.r.y, z: a.r.z }));
+        const T = 0.05, rng = w.rng;   // 소폭 열운동 — 전자 로밍·이온 진동 관찰
+        for (const e of w.electrons) { const s = Math.sqrt(w.m_e * T); e.p.x = s * E.gaussian(rng); e.p.y = s * E.gaussian(rng); e.p.z = s * E.gaussian(rng); }
+        for (let k = 0; k < 2000; k++) E.step(w);
+        const L = w.box.L;
+        let ed = 0, ad = 0;
+        for (let i = 0; i < w.electrons.length; i++) { let dx = w.electrons[i].r.x - pe[i].x, dy = w.electrons[i].r.y - pe[i].y, dz = w.electrons[i].r.z - pe[i].z; dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); dz -= L.z * Math.round(dz / L.z); ed += Math.sqrt(dx * dx + dy * dy + dz * dz); }
+        for (let i = 0; i < w.atoms.length; i++) { let dx = w.atoms[i].r.x - pa[i].x, dy = w.atoms[i].r.y - pa[i].y, dz = w.atoms[i].r.z - pa[i].z; dx -= L.x * Math.round(dx / L.x); dy -= L.y * Math.round(dy / L.y); dz -= L.z * Math.round(dz / L.z); ad += Math.sqrt(dx * dx + dy * dy + dz * dz); }
+        return { eRMS: ed / w.electrons.length, aRMS: ad / w.atoms.length };
+      };
+      const mob = [60, 61].map(mobilityRatio);
+      const eR = mob.reduce((s, m) => s + m.eRMS, 0) / mob.length, aR = mob.reduce((s, m) => s + m.aRMS, 0) / mob.length;
+      log.push({ ok: eR > 3 * aR && eR > 0.2, name: '39·전자풀',
+        msg: `39·비국소 전자 풀: 전자 이동성 RMS ${eR.toFixed(2)} ≫ 이온 ${aR.toFixed(3)} (×${(eR / Math.max(1e-9, aR)).toFixed(1)}) — 전자가 격자 사이를 로밍(바다)·이온은 자리 진동 (전도의 미시 근거·정량 전도는 periodic 격차)` });
+
+      // (3) 게이트(대조): 금속 미활성 = 화학 스택 → Na 소환은 응집 안 함 (배위 ≪ 8) — 힘 모델 전환이 창발을 가른다
+      const wChem = Pg.buildPlayground({ rng: E.makeRng(40), L: 16, dim: 3 });   // enableMetal 안 함 (stackForces)
+      for (let i = 0; i < 27; i++) Pg.spawn(wChem, 'Na', 4 + (i % 3) * 3, 4 + (((i / 3) | 0) % 3) * 3, { T: 0.1, z: 4 + ((i / 9) | 0) * 3 });
+      for (let k = 0; k < 2000; k++) Pg.tick(wChem);
+      const chemCoord = coordTop(wChem, nnDist(wChem) * 1.35, 4);
+      log.push({ ok: chemCoord < mCoord - 3, name: '39·게이트',
+        msg: `39·법칙 게이트(대조): 금속 미활성(stackForces) Na 배위 ${chemCoord.toFixed(2)} ≪ 금속 ${mCoord.toFixed(2)} — computeForces 교체가 비포화 응집을 켠다 (같은 원소·힘 모델이 창발을 가른다·부재=화학 참값)` });
+    }
+
     return log;
   }
 
@@ -1703,7 +1807,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32)·법칙스택(33~37) 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32)·법칙스택(33~37)·복사합류(38)·금속합류(39) 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
