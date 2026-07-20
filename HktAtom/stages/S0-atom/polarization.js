@@ -36,10 +36,11 @@
 
   const C6of = (ieI, ieJ, aI, aJ) => 1.5 * (ieI * ieJ / ((ieI + ieJ) || 1)) * aI * aJ;
 
-  // ── ⑧ 힘: 기반 ②(쿨롱+척력) 위에 유도쌍극자·분산 인력을 더한다 (computeForces) ──
+  // ── ⑧ 힘: 기반 ②(쿨롱+척력) 위에 유도쌍극자·분산 인력을 더한다 ──
   //    모두 반대칭 중심력 → P 보존. U_pol 통 = 유도 + 분산 (측정용 분해는 world._Uind/_Udisp).
-  function polForces(world) {
-    E.pairForces(world);                         // 기반 F 누산 + U_elec(척력·쿨롱) + min d/σ
+  //    step-0033: 기여부(polContrib)를 분리해 엔진 법칙 스택에 등록 — 세계에 alpha 테이블이
+  //    있으면 어느 무대든 저절로 적용된다. polForces(기반+기여)는 기존 장면 하위 호환 그대로.
+  function polContrib(world) {
     const L = world.box.L, per = world.box.bc === 'periodic', fz = world.frozenZ;
     const kc = world.kc, s = world.soft;
     const aBuf = world.aDisp != null ? world.aDisp : 0.9, a6 = Math.pow(aBuf, 6);
@@ -84,9 +85,17 @@
     }
     for (let i = 0; i < n; i++) { const aI = alpha[A[i].sp] || 0; A[i].mu.x = aI * Ex[i]; A[i].mu.y = aI * Ey[i]; A[i].mu.z = aI * Ez[i]; }
     if (fz) for (const a of A) a.F.z = 0;                  // z 동결: 누수 차단 (dz=0 이라 이미 0)
-    world.ledger.U_pol = Uind + Udisp;
+    world.ledger.U_pol += Uind + Udisp;          // 누적 (스택 계약 — ⑮ QEq 자기 에너지와 공존)
     world._Uind = Uind; world._Udisp = Udisp;
   }
+  // 하위 호환 합성 (기존 ⑧ 장면들의 computeForces) — 수치 동일: pairForces + polContrib
+  function polForces(world) {
+    E.pairForces(world);                         // 기반 F 누산 + U_elec(척력·쿨롱) + min d/σ
+    world.ledger.U_pol = 0;                      // 단독 경로: 통 초기화 후 기여 (스택과 동일 수치)
+    polContrib(world);
+  }
+  // 법칙 등록 — 게이트 = 물리 입력(α 테이블) 존재. 파라미터 없음 = 기여 0 이 참값 (g=0 동형).
+  E.registerLaw({ name: 'pol', rank: 10, active: (w) => !!w.alpha, force: polContrib });
 
   // ── 측정 ──
 
@@ -228,7 +237,7 @@
   }
 
   const api = {
-    SP8, C6of, polForces, clusters, nearIonCount, temperature,
+    SP8, C6of, polForces, polContrib, clusters, nearIonCount, temperature,
     makeGas8, nobleCondense, alphaZero, ionInduced, condenseScan, run, build, SCENES,
   };
   if (isNode) module.exports = api;

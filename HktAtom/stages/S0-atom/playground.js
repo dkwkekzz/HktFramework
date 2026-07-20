@@ -1,24 +1,24 @@
-// playground.js — 관찰자 샌드박스 (게임 프로토타입 · step-0029~0030 · 엔진 diff 0)
+// playground.js — 관찰자 샌드박스 (게임 프로토타입 · step-0029~0037)
 //
 // 목적: 주기율표 거의 전 원소(Z=1~118)를 ③ levels 순수 함수에서 *유도*해 종 테이블을 만들고,
-// 관찰자(실험자 아바타)가 원소를 직접 소환해 상호작용(공유결합·이온 이전·분산 응집·연소·
-// 핵분열)을 관찰하는 열린 세계를 세운다. 물리는 전부 기존 모듈 재사용: engine(②힘·⑥결합) +
-// catalog(R-CPLX·R-XFER) + polarization(⑧ 분산·유도) + combustion(⑱ R-ABSTRACT) — 새 물리
-// author 0. step-0030 확장: 2D/3D(dim 옵션·⑬ z 해동), 항온조(열역학 실험), 중성자+핵분열
-// (㉕ 동형 인월드 판·연쇄), 복셀 장 측정(field — 국소 T 열지도).
-//
-// step-0032 확장: 중력 — 엔진 법칙(world.g·U_grav 통)을 켜는 소비자. 법칙 자체는 engine.js
-// (규모 투명 — 어느 장면이든 세계 속성으로 켠다). 여기는 토글 회계(setGravity)와 방향만 담당.
+// 관찰자(실험자 아바타)가 원소를 직접 소환해 전 현상을 관찰하는 열린 세계를 세운다. 새 물리
+// author 0 — 전부 기존 모듈의 무대 독립 소비:
+// - 연속 힘 = 엔진 **법칙 스택** (step-0033~36): 기반 pairForces + ⑮ qeq(pre)·⑧ pol·⑭ angle·
+//   ⑯ hb·⑰ solv — 이 파일은 세계 속성(qeqParams·alpha·valence·Dhb/hbAcc·protSolv 등)만 싣는다.
+// - 이산 전이 = 카탈로그 행: R-CPLX(⑥)·R-XFER(⑤)·R-ABSTRACT(⑱)·R-ION/R-REC3(⑳ 자유전자
+//   개체·step-0037) + tick 후단 실행기: runNuclear(㉕ 분열·㉖ 융합 인월드 판)·runProton(⑰).
+// - 세계 속성 법칙: 중력 g(step-0032)·차원 dim(⑬)·soft_e(전자 쌍 연화·⑳).
+// 도구: 항온조·가열 펄스·복셀 장(field)·2D/3D·관찰자 소환.
 //
 // 장부 원칙: 소환·가열은 "외부 주입"이다 — pgIn(주입 장부)에 Σc·E 를 기록해
 // 세계 총량 − 주입 누계 ≈ 0 이 항상 성립한다 (관찰자는 회계 밖 존재가 아니라 회계된 원천).
+// 전하: 정수층(ne·⑤⑰⑳ 소유·chargeOK Σq=n_e) + 연속층(⑮ QEq dq) 이원 회계.
 //
-// 한계 정직 (step-0029 문서에 격차 등록):
-// - 간이 Slater 는 고Z 에서 IE·EA 를 과대평가 → EA 는 EA_CAP 으로 클램프(⑤ 앵커 규모 정합),
-//   χ 는 [0.3,5] 클램프. 전이금속·란타넘족의 상호작용은 "경향"이지 실세계 정합 주장이 아니다.
-// - 동핵 결합 깊이 D_AA 는 예산 B 프록시 author (H·O 만 ⑩ 실비 앵커) — 이핵은 폴링 식
-//   D_AB=√(D_AA·D_BB)+K·Δχ² (실물리 형태 author·S0 바닥 특권).
-// - 금속의 비국소 전자 풀(⑲)·핵 트랙(㉓~)은 이 샌드박스 범위 밖.
+// 한계 정직 (step-0029~0037 문서에 격차 등록):
+// - 간이 Slater 는 고Z 에서 IE·EA 를 과대평가 → EA_CAP·χ [0.3,5] 클램프. 전이금속·란타넘족은
+//   "경향"이지 실세계 정합 주장이 아니다. 동핵 D 는 예산 프록시(H·O 만 ⑩ 실비 앵커)·이핵은 폴링 식.
+// - ⑳ 사건-적분 커플링 드리프트 ~1e-2/사건 (step-0037 격차) · ⑭ 준정적 드리프트 (PG·회계 상대화).
+// - 미합류: ⑫ 복사장(광자 — 다음 step·STATE §2)·⑲ 금속 전자 풀·④⑦(specLevels 종 데이터).
 
 (function () {
   'use strict';
@@ -26,9 +26,13 @@
   const E = isNode ? require('./engine.js') : window.HktS0Engine;
   const Lv = isNode ? require('./levels.js') : window.HktS0Levels;
   const C = isNode ? require('./catalog.js') : window.HktS0Catalog;
-  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;
+  const Po = isNode ? require('./polarization.js') : window.HktS0Pol;        // 로드 = pol 법칙 등록 (스택)
   const Cb = isNode ? require('./combustion.js') : window.HktS0Combustion;   // ⑱ 연소 (R-ABSTRACT 행)
-  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // ⑯ 수소 결합 (방향성 약결합)
+  const HB = isNode ? require('./hbond.js') : window.HktS0HBond;             // 로드 = hb 법칙 등록 (스택)
+  const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;      // 로드 = angle 법칙 등록 (스택)
+  const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;      // 로드 = qeq 법칙 등록 (스택)
+  const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;       // 로드 = solv 법칙 등록 (⑰)
+  const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;         // ⑳ R-ION/R-REC3 행 (플라스마)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -137,11 +141,12 @@
     const o = opts || {};
     const L = o.L != null ? o.L : 26;
     const dim3 = o.dim === 3;
-    const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {}, specIon = {};
+    const mass = {}, sigma = {}, eps = {}, budget = {}, alpha = {}, IE = {}, specIon = {}, valence = {};
     const Dpair = {};
     for (const s of BY_Z) {
       mass[s.sym] = s.mass; sigma[s.sym] = s.sigma; eps[s.sym] = s.eps;
       budget[s.sym] = s.B; alpha[s.sym] = s.alpha; IE[s.sym] = s.IE;
+      valence[s.sym] = s.ve;   // ⑭ 외각 전자 맵 — angle 법칙의 물리 입력 (고립쌍 수 유도)
       if (s.role === 'cation') {
         const st = {}; st[s.ve] = 0; st[s.ve - 1] = s.IE;
         specIon[s.sym] = { role: 'cation', states: st, minNe: s.ve - 1, maxNe: s.ve };
@@ -162,8 +167,11 @@
       box: { L: E.V.make(L, L, L), bc: 'reflect' },   // 게임 상자: 벽 반사 (탈출 없음 → Σc 온전)
       frozenZ: !dim3,
       mass, sigma, eps, budget,
-      computeForces: Po.polForces, rng: o.rng || Math.random,
-      catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]),   // 공유+이온+연소(⑱ 라디칼 추상)
+      computeForces: E.stackForces, rng: o.rng || Math.random,   // 법칙 스택 — 배선 0 (step-0033)
+      // 공유+이온+연소(⑱)+플라스마(⑳ R-ION 충돌 이온화·R-REC3 3체 재결합 — step-0037).
+      //   ⑳ 은 저온에선 에너지 가드(IE 문턱)가 저절로 잠근다 — 상시 탑재 = 참값.
+      catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]).concat(Iz.PLASMA),
+      m_e: 0.5,                                                  // 전자 질량 노브 (⑳ 준용 — dt 강성 회피·정직 근사)
       specIon,
       rc: o.rc != null ? o.rc : 1.5,
       nu_col: 1.0, nu_xfer: o.nu_xfer != null ? o.nu_xfer : 6.0,
@@ -172,7 +180,37 @@
     });
     world.nu_xfer = o.nu_xfer != null ? o.nu_xfer : 6.0;
     world.Dpair = Dpair;
-    world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;
+    world.alpha = alpha; world.ionizeE = IE; world.aDisp = 0.9;   // → 스택의 pol 법칙(⑧)이 활성
+    // ⑯ H-결합 법칙도 상시 탑재 (step-0033) — 세계 속성만 싣는다: Dhb(세기)·hbAcc(수용체 종).
+    //   playground 는 a.Z=최외각 관례라 Z=8 게이트 대신 종 기호 게이트를 쓴다 (hbond donGate/accGate).
+    //   물 분자가 생기면 어느 프리셋에서든 H-결합 네트워크가 저절로 창발한다 — 모드 전환 0.
+    world.Dhb = 0.9; world.hbAcc = { O: true };
+    // ⑭ 각도(형상) 법칙 상시 탑재 (step-0034) — 물리 입력 = 외각 전자 맵. 결합이 2개 이상
+    //   생긴 원자에 전자쌍 도메인 공통 반발이 걸려 굽음·직선이 창발한다 (분자별 목표각 author 0).
+    valence.n = 0;   // 중성자: 전자 없음 (도메인 0)
+    world.valence = valence;
+    // ⑮ 극성(QEq) 법칙 상시 탑재 (step-0035) — 물리 입력 = 종별 {χ, IE} 테이블 (③ 유도).
+    //   분자(연결 성분)마다 전기음성도 균등화로 부분 전하가 재분배된다 — H₂O 의 O δ⁻·H δ⁺ 창발.
+    //   ⑤ 통일: qeqFromNe — 정수층 qBase = Z−ne (R-XFER 가 바꾼다) 위에 연속층이 재분배.
+    //   단원자 성분은 QEq 건너뜀 (맨 이온의 ⑤ 에너지학 정확 보존 — polarity.js 주석).
+    const qeqParams = {};
+    for (const s of BY_Z) qeqParams[s.sym] = { chi: s.chi, IE: s.IE };
+    qeqParams.n = { chi: 0, IE: 1 };   // 중성자: 전하 없음 (단원자라 어차피 건너뜀)
+    world.qeqParams = qeqParams; world.qeqFromNe = true;
+    // ⑰ 산·염기 상시 탑재 (step-0036) — 양성자 이전(R-PROT·tick 후단 실행기)의 종 게이트.
+    //   protSolv(용매화 노브)는 기본 0 = 유전 차폐 없음이 이 모델의 참값 (자동 이온화는 동결·
+    //   릴레이·재결합은 산다) — 관찰 프리셋이 노브를 켠다 (⑰ 정직 노브·design/17).
+    world.protAcc = { O: true };       // 수용체 종 (고립쌍 보유)
+    world.protCoord = { O: 3 };        // O 배위 상한 (배위 결합 1 여유 = H₃O⁺ 까지·H₄O²⁺ 금지)
+    world.nu_prot = o.nu_prot != null ? o.nu_prot : 1.0;
+    world.pgProtCount = 0;             // 양성자 이전 누계 (뷰어·verify 계수)
+    // ⑳ 플라스마 노브 (step-0037) — R-ION/R-REC3 행의 물리 입력 (specIon 은 ⑤ 것 공유).
+    //   문턱은 hazard 가 아니라 에너지 가드 (IE + 쿨롱 점프를 상대 KE 에서만) — 노브는 시도율.
+    // 전자 = 순수 연화 쿨롱 개체 (⑳ 유계 정신): eps_e=0 → r⁻¹² 벽 없음 + soft_e 로 특이점 제거
+    //   → 퍼텐셜이 유한 깊이(−kc/soft_e)로 유계 — 점전자 catapult(실측 잔차 1e32) 원천 봉쇄.
+    world.dEsc = 1.5; world.rcRec = 1.5; world.soft_e = 0.45; world.eps_e = 0;
+    world.nu_ion = o.nu_ion != null ? o.nu_ion : 12;
+    world.nu_rec = o.nu_rec != null ? o.nu_rec : 40;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
@@ -276,11 +314,13 @@
     k = k != null ? k : 0.05;
     const E0 = E.totalEnergy(world);
     const dof = world.frozenZ ? 2 : 3;
+    const me = world.m_e != null ? world.m_e : 0.5;
     let K = 0, n = 0;
     for (const a of world.atoms) {
       if (a.sp === 'n') continue;
       K += E.V.lenSq(a.p) / (2 * world.mass[a.sp]); n++;
     }
+    for (const el of world.electrons) { K += E.V.lenSq(el.p) / (2 * me); n++; }   // ⑳ 자유전자 포함
     if (n === 0 || K <= 1e-12) return 0;
     const Tc = 2 * K / (n * dof);
     const s = clamp(Math.sqrt(1 + k * (Ttar / Tc - 1)), 0.7, 1.4);
@@ -288,6 +328,7 @@
       if (a.sp === 'n') continue;
       a.p.x *= s; a.p.y *= s; if (!world.frozenZ) a.p.z *= s;
     }
+    for (const el of world.electrons) { el.p.x *= s; el.p.y *= s; if (!world.frozenZ) el.p.z *= s; }
     const E1 = E.totalEnergy(world);
     world.pgIn.E += E1 - E0;
     return Tc;
@@ -469,6 +510,12 @@
       const v2 = E.V.lenSq(a.p) / (m * m);
       if (v2 > v2max) v2max = v2;
     }
+    // ⑳ 자유전자 (step-0037): 가볍고 빠르다 — 강성 스캔에 포함해야 서브스텝이 잡는다
+    const me = world.m_e != null ? world.m_e : 0.5;
+    for (const el of world.electrons) {
+      const v2 = E.V.lenSq(el.p) / (me * me);
+      if (v2 > v2max) v2max = v2;
+    }
     const sub = Math.min(48, Math.max(1, Math.ceil(Math.sqrt(v2max) * world.dt / 0.006)));
     if (sub === 1) E.step(world);
     else {
@@ -478,16 +525,19 @@
       world.dt = dt0;
     }
     runNuclear(world);
+    // ⑰ 양성자 이전 (step-0036) — tick 후단 실행기 (runNuclear 와 같은 지위)
+    const np = AB.runProton(world);
+    if (np) {
+      world.pgProtCount = (world.pgProtCount || 0) + np;
+      world.pgEvents.push('⚡ 양성자 이전 (H⁺ 가 결합을 갈아탐 — 산·염기)');
+    }
   }
 
-  // ── ⑯ 수소 결합 모드 — 안정 물 네트워크(방향성 약결합). 새 물리 0: hbForces(⑯) 합성만 ──
-  //   물 분자는 온전히 유지(해리 끔·반응 끔)하고, 분자간 방향성 약결합(H-결합)이 창발하는지 관찰.
+  // ── ⑯ 수소 결합 정관찰 모드 — 안정 물 네트워크 실험 환경 ──
+  //   step-0033: H-결합 *법칙*은 이제 스택 상시(Dhb·hbAcc 세계 속성) — 여기서는 힘을 갈아끼우지
+  //   않는다. 이 함수는 "네트워크만 조용히 관찰"할 실험 환경 노브만 조정한다 (관찰자 도구).
   //   design/16: V_hb = −D_hb·w(d)·(û_DH·û_HA)ⁿ (점전하 아님·기하 방향성). E_hb/D_OH ∈ (0.03,0.3).
   function enableHBond(world) {
-    world._polForces = Po.polForces;          // 기저 힘은 샌드박스 그대로(⑧ 쿨롱·척력·분산)
-    world.computeForces = HB.forcesHB;        // 그 위에 방향성 H-결합 인력 합성
-    world.hbAcc = { O: true };                // 수용체 종 (고립쌍 보유 — O)
-    world.Dhb = 0.9;                          // H-결합 세기 노브 (E_hb/D_OH 을 약결합 대역으로)
     world.nu_diss = 0;                        // 공유 해리 끔 → 물 분자 온전 (네트워크만 관찰)
     world.catalog = [];                       // 반응 끔 — H-결합 네트워크에 집중
     world.thermoK = 0.15;                     // 저온 항온조 세기 (결합 에너지 방출 스파이크 억제)
@@ -501,7 +551,8 @@
       const ang = 2 * Math.PI * m / nMol + (m % 2) * 0.5, rr = R * (0.7 + 0.35 * world.rng());
       const O = spawn(world, 'O', cx + rr * Math.cos(ang), cy + rr * Math.sin(ang), { T: 0.02 });
       if (!O) continue;
-      O.Z = 8;                                // 수용체 인식용 (hbond isAcc·acidbase 관례)
+      // 수용체 인식은 세계 속성 hbAcc(종 기호 게이트)가 담당 — Z 덮어쓰기 불필요 (step-0033).
+      //   (이전의 O.Z=8 은 ⑤ 이온화 q=Z−ne 회계와 충돌할 수 있어 제거 — 반응 공존을 위해)
       const base = world.rng() * 2 * Math.PI, hs = [];
       for (let k = 0; k < 2; k++) {
         const a2 = base + (k ? HOH : 0);
@@ -519,6 +570,13 @@
 
   // ── 회계 검사 — 세계 총량(장부 전 통 합 · U_grav 포함) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
+  // ⑳ 전하 회계 (step-0037): Σq(원자) = n_e(자유전자) — 이온화가 만든 양전하는 정확히 전자 수와
+  //   같아야 한다 (벽 반사 상자·전자 소멸 경로 없음 → 등식 정확).
+  function chargeOK(world) {
+    let q = 0;
+    for (const a of world.atoms) q += (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0));
+    return q === world.electrons.length;
+  }
   function compositionOK(world) {
     const c = {};
     for (const a of world.atoms) c[a.sp] = (c[a.sp] || 0) + 1;
@@ -534,7 +592,8 @@
     const bonds = {};
     for (const bd of world.bonds) bonds[bd.i < bd.j ? bd.i + '-' + bd.j : bd.j + '-' + bd.i] = bd.order;
     const q = {};
-    for (const a of world.atoms) if (a.q !== 0) q[a.id] = a.q;
+    // 이온 사건 검출은 정수층만 (|q|>0.5) — ⑮ 부분 전하(연속층·분자 전원 |q|~0.2)는 사건이 아니다.
+    for (const a of world.atoms) if (Math.abs(a.q) > 0.5) q[a.id] = a.q;
     return { bonds, q };
   }
   function diffEvents(world, prev) {
@@ -563,15 +622,16 @@
     const groups = new Map();
     world.atoms.forEach((a, i) => {
       const r = find(i);
-      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, cz: 0, n: 0 });
+      if (!groups.has(r)) groups.set(r, { comp: {}, cx: 0, cy: 0, cz: 0, n: 0, q: 0 });
       const g = groups.get(r);
       g.comp[a.sp] = (g.comp[a.sp] || 0) + 1;
+      g.q += (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0));   // 분자 순 전하 (정수층 — H₃O⁺ 라벨용)
       g.cx += a.r.x; g.cy += a.r.y; g.cz += a.r.z; g.n++;
     });
     const out = [];
     for (const g of groups.values()) {
       if (g.n < 2) continue;
-      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, cz: g.cz / g.n, n: g.n });
+      out.push({ comp: g.comp, cx: g.cx / g.n, cy: g.cy / g.n, cz: g.cz / g.n, n: g.n, q: g.q });
     }
     return out;
   }
@@ -612,7 +672,7 @@
     SYM, TABLE, BY_Z, ANCHOR, D_ANCHOR, DREF, EA_CAP,
     NEUTRON, FISSILE, FUSION, TAU_N, VCAP,
     element, dHomo, dPair, gridPos, freeSpot,
-    buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
+    buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK, chargeOK,
     setGravity,
     enableHBond, buildWaterCluster,
     fission, fuse, runFission, runNuclear, tick, field,

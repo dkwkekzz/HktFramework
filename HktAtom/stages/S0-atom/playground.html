@@ -58,7 +58,8 @@
     <h1>관찰자 샌드박스 — 원소를 소환해 반응을 관찰한다</h1>
     <p class="sub"><b>🎬 장면 프리셋</b>(아래)을 누르면 각 scene 의 현상을 관찰할 입자·온도·환경이 자동 세팅된다.
       직접 실험하려면 주기율표에서 원소를 고르고, 관찰자(노란 로버)를 움직여 소환한다. 물리는 S0 커널
-      그대로: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·<b>연소=라디칼 추상(⑱)</b>·
+      그대로 — 법칙 스택 상시: 쿨롱+척력·분산 응집(⑧)·공유결합(⑥⑩)·이온(⑤)·형상(⑭)·극성(⑮)·
+      수소결합(⑯)·산염기(⑰ 양성자 릴레이)·<b>연소=라디칼 추상(⑱)</b>·
       <b>핵분열(U+n→Ba+Kr+2n)</b>·<b>핵융합(맨 H 초고온 충돌→He+n)</b>.
       <kbd>WASD/←↑↓→</kbd> 화면 기준 이동 · <kbd>X</kbd> <kbd>C</kbd> 던지는 방향 좌우 · <kbd>T</kbd> <kbd>G</kbd> 던지는 상하각 ·
       <kbd>Q</kbd> 상승 <kbd>Z</kbd> 하강 · <kbd>Space</kbd>/<kbd>클릭</kbd> 화살표 방향 소환 · <kbd>F</kbd> 중성자 발사 ·
@@ -151,6 +152,10 @@
 <script src="catalog.js"></script>
 <script src="polarization.js"></script>
 <script src="hbond.js"></script>
+<script src="geometry.js"></script>
+<script src="polarity.js"></script>
+<script src="acidbase.js"></script>
+<script src="ionized.js"></script>
 <script src="combustion.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
@@ -509,7 +514,7 @@
     },
     water: {
       icon: '💧', label: '⑥⑩ 분자 생성', spawnT: 60, thermo: [true, 50],
-      observe: 'H·O 수프를 단계 냉각(어닐링) → 결합이 형성돼 H₂·OH·O₂·H₂O 분자가 창발(하단 "분자" 행). H₂O 우세는 극성 ⑮ 필요 — 여기선 창발까지 정직.',
+      observe: 'H·O 수프를 단계 냉각(어닐링) → 결합이 형성돼 H₂·OH·O₂·H₂O 분자가 창발(하단 "분자" 행). 생긴 H₂O 사이엔 H-결합(청록 점선)도 저절로 나타난다(법칙 상시·step-0033). H₂O 우세는 극성 ⑮ 필요 — 여기선 창발까지 정직.',
       build: (w) => scatter(w, { H: 32, O: 16 }, 0.6, 0.55),
       trigger: [
         { at: 0.8, fn: () => { setThermo(true, 35); feedMsg('sys', '🌡 어닐링 냉각 → 0.35'); } },
@@ -524,13 +529,31 @@
     },
     hbond: {
       icon: '🔗', label: '⑯ 수소결합(물 네트워크)', spawnT: 5, thermo: [true, 5],
-      observe: '온전한 물 분자들 사이에 방향성 약결합(H-결합·청록 점선)이 네트워크를 이룬다 — 각 ~160°, 공유결합(회색 실선)보다 훨씬 약하다.',
+      observe: '온전한 물 분자들 사이에 방향성 약결합(H-결합·청록 점선)이 네트워크를 이룬다 — 각 ~160°, 공유결합(회색 실선)보다 훨씬 약하다. H-결합 법칙은 어느 프리셋에서든 상시(세계 속성) — 이 프리셋은 해리·반응만 꺼서 조용히 관찰한다.',
       build: (w) => { Pg.enableHBond(w); return Pg.buildWaterCluster(w, 8, w.box.L.x / 2, w.box.L.y / 2, 3.2); },
     },
+    acid: {
+      icon: '🧪', label: '⑰ 산·염기(양성자 릴레이)', spawnT: 6, thermo: [true, 6],
+      observe: '물 클러스터에 H₃O⁺/OH⁻ 쌍을 주입(자동 트리거) — 양성자(H⁺)가 수소 결합 링크를 갈아타며(⚡ 피드) 전하가 분자보다 빨리 이동한다(Grotthuss). 라벨: H3O⁺ 주황·HO⁻ 청록. 용매화 노브가 이온쌍을 살린다 — 없으면 재결합 발열로 즉시 중성 복귀.',
+      build: (w) => { Pg.enableHBond(w); w.protSolv = 4.0; return Pg.buildWaterCluster(w, 10, w.box.L.x / 2, w.box.L.y / 2, 3.4); },
+      trigger: [{ at: 1.0, fn: (w) => {
+        const AB = window.HktS0AcidBase, lks = AB.links(w);
+        if (!lks.length) { feedMsg('sys', '주입 실패 — 이전 가능한 링크 없음'); return; }
+        const E0 = E.energyFull(w);
+        AB.forceTransfer(w, lks[0].H, lks[0].D, lks[0].A);
+        w.pgIn.E += E.energyFull(w) - E0;
+        feedMsg('ion', '🧪 H₃O⁺/OH⁻ 쌍 주입 — 릴레이 관찰 (주입 E 는 장부 기록)');
+      } }],
+    },
     hotgas: {
-      icon: '🌡', label: '⑳ 뜨거운 기체(이온화)', spawnT: 60, thermo: [true, 60],
+      icon: '🌡', label: '⑤ 뜨거운 이온 기체(전자 이전)', spawnT: 60, thermo: [true, 60],
       observe: '뜨거운 Na·Cl 충돌로 전자 이전 이온화가 빈발 — Na⁺(주황)·Cl⁻(청록) 전하 링이 계속 나타났다 명멸(격자로 못 정착·피드에 "이온화" 사건).',
       build: (w) => scatter(w, { Na: 10, Cl: 10 }, 0.6, 0.4),
+    },
+    plasma: {
+      icon: '☄', label: '⑳ 플라스마(이온화 기체)', spawnT: 30, thermo: [true, 200],
+      observe: 'Na 증기를 초고온으로 — 충돌 이온화(A+M→A⁺+e⁻+M·문턱=IE 에너지 가드)로 자유전자(청록 점)가 태어나고, 3체 재결합과 경쟁하며 이온화 분율이 오른다. 항온조를 낮추면 재결합이 이겨 전자가 사라진다(재결합열 방출). 원자 수 옆 +Ne⁻ 가 전자 수.',
+      build: (w) => scatter(w, { Na: 24 }, 0.3, 0.55),
     },
     fire: {
       icon: '🔥', label: '⑱ 연소·불', spawnT: 30, thermo: [false],
@@ -698,11 +721,25 @@
       }
       ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx, 0, 2 * Math.PI);
       ctx.fillStyle = s.color; ctx.fill();
-      if (a.q !== 0) {
+      const aq = a.q || 0;
+      if (Math.abs(aq) > 0.5) {          // 정수 이온 (⑤ 전자 이전) — 굵은 링
         ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx + 3, 0, 2 * Math.PI);
-        ctx.strokeStyle = a.q > 0 ? '#f0883e' : '#39c5cf'; ctx.lineWidth = 2; ctx.stroke();
+        ctx.strokeStyle = aq > 0 ? '#f0883e' : '#39c5cf'; ctx.lineWidth = 2; ctx.stroke();
+      } else if (Math.abs(aq) > 0.08) {  // ⑮ 부분 전하 (QEq δ±) — 얇은 반투명 링
+        ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx + 2, 0, 2 * Math.PI);
+        ctx.strokeStyle = aq > 0 ? 'rgba(240,136,62,0.45)' : 'rgba(57,197,207,0.45)';
+        ctx.lineWidth = 1.2; ctx.stroke();
       }
       ctx.globalAlpha = 1;
+    }
+    // ⑳ 자유전자 — 작은 청록 점 + 속도 꼬리 (step-0037)
+    for (const el of world.electrons) {
+      const pr = project(el.r);
+      ctx.strokeStyle = 'rgba(120,220,255,0.7)'; ctx.lineWidth = 1;
+      const tl = project({ x: el.r.x - el.p.x * 0.15, y: el.r.y - el.p.y * 0.15, z: el.r.z - el.p.z * 0.15 });
+      ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(pr.x, pr.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, Math.max(1.5, 2.5 * (pr.persp || 1)), 0, 2 * Math.PI);
+      ctx.fillStyle = '#7adcff'; ctx.fill();
     }
     // 분열 섬광 — 팽창 링 (뷰어 연출·물리 아님)
     world.flashes = world.flashes.filter((f) => world.t - f.t < 1.6);
@@ -713,11 +750,13 @@
       ctx.beginPath(); ctx.arc(pr.x, pr.y, 6 + age * 70 * (pr.persp || 1), 0, 2 * Math.PI); ctx.stroke();
       ctx.globalAlpha = 1;
     }
-    // 분자식 라벨 (측정)
-    ctx.font = '11px ui-monospace'; ctx.fillStyle = '#ffd75f'; ctx.textAlign = 'center';
+    // 분자식 라벨 (측정) — 순 전하(정수층) 위첨자: H₃O⁺·OH⁻ 가 라벨로 보인다 (⑰·step-0036)
+    ctx.font = '11px ui-monospace'; ctx.textAlign = 'center';
     for (const g of Pg.clusters(world)) {
       const pr = project({ x: g.cx, y: g.cy, z: g.cz != null ? g.cz : 0 });
-      ctx.fillText(Pg.formula(g.comp), pr.x, pr.y - 12);
+      const chg = g.q ? (Math.abs(g.q) > 1 ? Math.abs(g.q) : '') + (g.q > 0 ? '⁺' : '⁻') : '';
+      ctx.fillStyle = g.q > 0 ? '#ffab5f' : g.q < 0 ? '#6fd6ff' : '#ffd75f';
+      ctx.fillText(Pg.formula(g.comp) + chg, pr.x, pr.y - 12);
     }
     // ── 관찰자 로버 + "던지는 방향" 화살표(조준 궤적) ──
     const f = fwd(), is3 = dim === 3;
@@ -783,7 +822,7 @@
 
   function updateHud() {
     const n = world.atoms.length;
-    document.getElementById('stN').textContent = n;
+    document.getElementById('stN').textContent = n + (world.electrons.length ? '+' + world.electrons.length + 'e⁻' : '');
     document.getElementById('stT').textContent = n ? M.temperature(world).toFixed(3) : '—';
     document.getElementById('stP').textContent = n ? M.pressure(world).toFixed(3) : '—';
     document.getElementById('stB').textContent = world.bonds.length;
@@ -792,8 +831,9 @@
     document.getElementById('stF').textContent = world.pgFisCount + '·' + world.pgFusCount;
     const res = Pg.residual(world), r = document.getElementById('stR');
     r.textContent = res.toFixed(3);
-    // 허용 잔차 = max(0.1, 0.3%·주입 E) — 핵반응 고 KE 는 서브스텝 적분 드리프트가 에너지 규모에 비례
-    r.className = 'v resid ' + (Math.abs(res) < Math.max(0.1, 3e-3 * Math.abs(world.pgIn.E)) ? 'ok' : 'bad');
+    // 허용 잔차 = max(0.1, 0.3%·주입 E, 0.3·전자 수) — 핵반응 고 KE 서브스텝 드리프트 + ⑳ 플라스마
+    // 사건-적분 커플링 드리프트(~1e-2/이온화·재결합 사건·전자 수가 활동 프록시 — step-0037 격차)
+    r.className = 'v resid ' + (Math.abs(res) < Math.max(0.1, 3e-3 * Math.abs(world.pgIn.E), 0.3 * world.electrons.length) ? 'ok' : 'bad');
     const hist = {};
     for (const g of Pg.clusters(world)) { const f = Pg.formula(g.comp); hist[f] = (hist[f] || 0) + 1; }
     const top = Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 4)

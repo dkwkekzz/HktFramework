@@ -234,6 +234,10 @@
     const kc = world.kc, s = world.soft, frozenZ = world.frozenZ;
     // 대전체 = 원자 + 자유전자(⑤). 전자는 q=−1·작은 σ/ε (softening 이 발산 방지).
     const se = world.sigma_e != null ? world.sigma_e : 0.2, ee = world.eps_e != null ? world.eps_e : 0.05;
+    // ⑳ 전자 낀 쌍 전용 softening (step-0037·세계 속성 — 부재 = 기존 s 그대로): 점전자가 강성
+    //   soft(0.1) 쿨롱 특이점으로 낙하하며 r⁻¹² 벽에 catapult (실측 잔차 6e19) — ⑳ 장면이 유계
+    //   힘을 쓴 이유. 반응 세계는 전자 쌍만 부드럽게 (원자 물리 불변·s20 soft 0.4 준용).
+    const sE = world.soft_e != null ? world.soft_e : s;
     const B = world._bodies || (world._bodies = []);
     B.length = 0;
     for (const a of world.atoms) B.push(a);
@@ -257,7 +261,7 @@
         const sig = (sgi + sigOf(aj)) / 2;                    // Lorentz
         const eps = Math.sqrt(epi * epsOf(aj));               // Berthelot
         const q = ai.q * aj.q;
-        const invS = 1 / (d + s);
+        const invS = 1 / (d + ((ai.isElectron || aj.isElectron) ? sE : s));
         // (σ/d)¹² 곱셈 전개 — Math.pow 는 ~20× 느려 전체 verify 의 지배 비용이었다 (값 동일)
         const sr = sig / d, sr2 = sr * sr, sr4 = sr2 * sr2;
         const sr12 = sr4 * sr4 * sr4;
@@ -305,6 +309,28 @@
       const mg = g * me;
       e.F.x += mg * gd.x; e.F.y += mg * gd.y; if (!fz) e.F.z += mg * gd.z;
     }
+  }
+
+  // ── 법칙 스택 (step-0033) — 규칙은 무대가 배선하지 않고 세계 속성이 켠다 ──
+  //    중력(applyGravity — 세계 속성 g 가 게이트)의 일반화: 연속 힘 법칙을 엔진 스택에 등록하고,
+  //    각 법칙은 자신의 물리 입력(종 파라미터 테이블 — 예: alpha·Dhb)이 세계에 있을 때만 기여한다.
+  //    파라미터 부재 = 기여 0 이 그 세계의 물리적 참값 (g=0 과 같은 지위) — 기존 장면 불변.
+  //    computeForces 슬롯은 유지(하위 호환) — stackForces 를 꽂는 무대는 법칙 배선 코드 0.
+  //    계약: 기반 pairForces 가 F 초기화·U_elec·U_bond 를 담당하고, 법칙 기여는 F 에 더하기만
+  //    한다(초기화 금지·반대칭 → P 보존은 각 법칙이 보장). 실행 순서는 rank 오름차순 고정.
+  const LAWS = [];
+  function registerLaw(law) {   // {name, rank, active(world), force(world)} — 재등록은 교체
+    const i = LAWS.findIndex((l) => l.name === law.name);
+    if (i >= 0) LAWS[i] = law; else LAWS.push(law);
+    LAWS.sort((a, b) => a.rank - b.rank);
+  }
+  //    stage 'pre' (step-0035): 힘이 아니라 *상태*를 갱신하는 법칙 (예: ⑮ QEq 전하 재분배) —
+  //    기반 pairForces 가 소비할 값(a.q)을 먼저 만들어야 하므로 기반보다 앞서 실행된다.
+  function stackForces(world) {
+    world.ledger.U_pol = 0;                 // 법칙 소유 통 초기화 (활성 법칙이 누적한다)
+    for (const l of LAWS) if (l.stage === 'pre' && l.active(world)) l.force(world);
+    pairForces(world);                      // 기반 ②⑥ (F 초기화 + U_elec·U_bond)
+    for (const l of LAWS) if (l.stage !== 'pre' && l.active(world)) l.force(world);
   }
 
   // ── 장부 갱신: K_tr(원자+전자 병진)·U_int(들뜸+이온화 저장)·U_grav(중력 위치 E).
@@ -778,6 +804,7 @@
     makeQueue, queuePush, queuePop,
     LEDGER_BINS, makeLedger, ledgerTotal,
     makeAtom, makeElectron, makePhoton, randDir, setNe, makeWorld, zeroForces, pairForces, minImage,
+    registerLaw, stackForces,
     recomputeLedger, totalEnergy, energyFull, applyBoundary, step, run,
     setLevel, collisionalTransfer, relKE, lbRedistribute, transferElectron, contactPairs, scheduleEmission, runTransitions,
     runPhotonField, propagatePhotons,
