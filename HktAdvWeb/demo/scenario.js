@@ -13,6 +13,8 @@ import { Ledger } from '../src/substrate/ledger.js';
 import { EventLog } from '../src/substrate/events.js';
 import { defaultLawTable } from '../src/substrate/laws.js';
 import { evalPred } from '../src/substrate/predicate.js';
+import { loadGraph } from '../src/graph/loader.js';
+import { runSlice, loadSliceFixture } from '../src/actors/bot.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -68,6 +70,11 @@ export function buildDemo() {
     },
   ];
 
+  // ── Phase B: 그래프 정합 인수 + 최소 수직 절편 실행 ──
+  const g = loadGraph();
+  const sliceSuccess = runSlice(g, loadSliceFixture(), { 소멸타이머: 3 });
+  const sliceTimeout = runSlice(g, loadSliceFixture(), { 소멸타이머: 1 });
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -76,5 +83,10 @@ export function buildDemo() {
     ledger: ledger.snapshot(),
     events: events.all(),
     predicates: examples,
+    graph: { stats: g.stats, warnings: g.warnings },
+    slice: {
+      success: { result: sliceSuccess.result, log: sliceSuccess.log, ripples: sliceSuccess.ripples, audit: sliceSuccess.audit },
+      timeout: { result: sliceTimeout.result, log: sliceTimeout.log },
+    },
   };
 }

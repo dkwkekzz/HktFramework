@@ -63,6 +63,15 @@ export class World {
     return this.substances.get(id) ?? null;
   }
 
+  has(id) {
+    return this.substances.has(id);
+  }
+
+  // 세계에서 개체를 제거한다 (무대 소멸·소진 등).
+  remove(id) {
+    return this.substances.delete(id);
+  }
+
   byArchetype(archetype) {
     return [...this.substances.values()].filter((s) => s.archetype === archetype);
   }

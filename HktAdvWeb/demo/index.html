@@ -75,6 +75,32 @@
       app.append(el('p', {}, el('strong', {}, ex.label), ' → ', bool(ex.result.value)));
       app.append(el('pre', {}, JSON.stringify(ex.result.trace, null, 2)));
     }
-  </script>
+
+    // Phase B — 그래프 정합 인수
+    if (d.graph) {
+      const st = d.graph.stats;
+      app.append(el('h2', {}, 'Phase B — seed 목적 그래프 (정합 검사 통과)'));
+      app.append(table(['지표', '값'], [
+        ['노드 수', st.goals], ['무대 수', st.stages], ['행동 노드(verb)', st.actionNodes],
+        ['자식 없는 노드', st.leafNodes], ['뿌리', st.roots.join(',')],
+        ['발견 상태 분포', JSON.stringify(st.epistemicDist)],
+        ['발견된 무대', `${st.discoveredStages}/${st.stages}`],
+        ['Slice-1 커버리지', JSON.stringify(st.sliceCoverage)],
+        ['경고', st.warnings],
+      ]));
+    }
+
+    // Phase B — 최소 수직 절편 실행 (M2)
+    if (d.slice) {
+      app.append(el('h2', {}, '최소 수직 절편 Slice-1 실행 (M2) — 봇의 사슬 완주'));
+      const runView = (title, run) => {
+        app.append(el('p', {}, el('strong', {}, title), ' → ',
+          el('span', { class: run.result === 'success' ? 'ok' : 'no' }, run.result)));
+        app.append(el('pre', {}, run.log.join('\n')));
+      };
+      runView('성공 (소멸타이머 3): 시간 창 안에 채취', d.slice.success);
+      runView('실패 (소멸타이머 1): 이동 중 무대 소멸', d.slice.timeout);
+    }
+</script>
 </body>
 </html>

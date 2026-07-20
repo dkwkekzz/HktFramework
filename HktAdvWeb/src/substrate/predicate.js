@@ -20,6 +20,13 @@
 import { compare, OPS } from './compare.js';
 import { hasProp } from './substance.js';
 
+// 이 평가기가 이해하는 술어 DSL 버전. 그래프 meta.predicate_dsl 과 일치해야 한다
+// (불일치는 로더 B1 이 거부 — Design-StepPlan §9.3-4).
+export const PREDICATE_DSL_VERSION = 'v0';
+
+// 인식된 연산자 집합 (로더의 정적 파싱 검사·미지 연산자 거부에 재사용).
+export const PRED_OPERATORS = new Set(['all', 'any', 'not', 'has', 'state', 'epistemic', 'event']);
+
 // const.<이름> 또는 리터럴 해석.
 function resolveValue(v, ctx) {
   if (typeof v === 'string' && v.startsWith('const.')) {
