@@ -20,12 +20,17 @@
 - **S1-① 분자 단계 무대 (step-0021·요약)**: `stages/S1-molecule/` 신설(자체 완전·접점 input.json 데이터뿐). 커널 재귀 entity={c,r,p,u}: c=조성 다발·u=E_bind+T_int(온도의 탄생). ①은 힘 0 자유 비행. verify 13 PASS. pairPotential 로드만(②응집이 켬)·분자=점입자. **핵 트랙 뒤 ② 재개.** 세부 stages/S1-molecule/steps/step-0021.md.
 - **S0-①~⑳ 뼈대·화학 (요약 — 전문 §5·step 문서·author 0)**: ①무대·장부 ②힘 ③준위(주기율표) ④전이(볼츠만) ⑤이온화(NaCl) ⑥공유결합 ⑦내부 모드(C_v) ⑧분극·응집 ⑨통계 ⑩수프(H₂O) ⑪승격 MVP ⑫복사장 ⑬z 해동 ⑭형상 ⑮극성 ⑯수소결합 ⑰산염기 ⑱연소 ⑲금속 ⑳플라스마. 발견 §3.
 
-## §2 NEXT — 다음 한 조각 (사용자 게이트 연속: playground 전 현상 관찰 — 승격 백로그 우선·S1-② 는 그 뒤)
+## §2 NEXT — 다음 한 조각 (사용자 게이트 연속 진행 중: "playground 에서 모든 현상 관찰" — scene 호환 비목표)
 
-**샌드박스 게이트(0029~0032·핵분열+중력) — 사용자 요구 충족. 사다리 전진으로 복귀.** :
-- **S1-② 응집 (액적·물방울)** (다음·stages/S1-molecule/): S1 무대(step-0021)가 로드만 하던 `input.pairPotential` 인력 꼬리를 `computeForces` 로 켜서 분자 응집(액적)을 창발. S0 arc ①→② 동형·손 튜닝 0. **input 은 S0 output.json v0.3(㉒ 실물)로 갱신 후 소비**. 배위수↑·클러스터 측정.
-- **핵 트랙 잔여**: ㉖ 융합(Gamow·별 S2 연계)·파편 추적·지연 중성자 정량 제어·폭발 왕복(CONTRACT §5). ㉑ 성능·㉒-b2·η/κ·상전이 정련.
-- **playground 전 현상 잔여** (step-0033~37 후속·playground 기준 — 사용자 지시로 scene 호환 비목표): ⑫ 복사장(광자 개체 — 엔진 radiationMode 'field' 이미 세계 속성·specLevels 종 데이터 필요·④⑦ 도 같은 데이터) → ⑲ 금속(비국소 전자 풀 — 별도 설계). ⑨① 관찰 프리셋(뷰어만). Efield 노브(⑮ 배향). ⑳ 사건-적분 드리프트 정련. ⑰⑳ 은 step-0036~37 완료.
+**step-0038 = ⑫ 복사장 합류 (다음·개체 추가형 2/3 — 빛의 방출·흡수가 눈에 보이는 시각 성과)**:
+- 엔진은 이미 준비됨: `radiationMode:'field'`·광자 입자(`world.photons`·`makePhoton`)·`runPhotonField`·`c_ph`/`gammaLine`/`photonRc`/`nu_stim`/`photonBC` 전부 **세계 속성** — playground 는 속성만 실으면 된다 (⑳ 패턴 동형).
+- **관건 = specLevels 종 데이터**: R-EMI/R-ABS 는 `world.specLevels[sp] = {dE, g0, g1}` (2준위) 필요 — ④⑫ 는 가상종 A 로 돌았다. playground 는 ③ levels 유도로 실원소 첫 들뜸 에너지 프록시를 만들어 싣는 것이 정직한 경로 (dE 유도식은 step 에서 설계·클램프는 EA_CAP 지위로 격차 등록). ④ 볼츠만·⑦ C_v 관찰도 같은 데이터로 열린다.
+- 뷰어: 광자 렌더(노란 파선 점?)·프리셋 「💡 복사·발광」 (가열 → 들뜸 → 광자 방출이 날아가는 게 보임 · 급랭 재결합 발광은 ⑳ 과 연계).
+- 검증: 방출·흡수 평형(공동)·개방 냉각·P 회계(광자 운동량 — ⑫ 장면은 auditP?) — verify 38 신설 + 전량 회귀.
+
+**그 뒤 백로그 (순서 권장)**: ⑲ 금속(비국소 전자 풀 — 개체 3/3·별도 설계) → ⑨① 관찰 프리셋(물리 diff 0·뷰어만: 자유 팽창·온도 구배) → Efield 노브(⑮ 배향 실험) → ⑳ 사건-적분 드리프트 정련(사건 시점 힘 재동기화). 완료: ⑧⑭⑮⑯⑰(법칙 스택)·⑳(행+개체)·⑤⑥⑩⑬⑱㉕㉖+중력.
+
+**사용자 게이트 종료 후 사다리 복귀**: S1-② 응집(액적) — S1 무대(step-0021)의 `input.pairPotential` 인력 꼬리를 computeForces 로 켠다 (input 은 output.json v0.3 로 갱신 후 소비). 핵 트랙 잔여(㉖ Gamow·지연 중성자 정량·폭발 왕복)·㉑ 성능·㉒-b2 는 CONTRACT §5·STATE §3 참조.
 
 **산출물 2 트랙**: `output.json` v0.3(㉒ 화학 MaterialModel·S1 입력) + `nuclide-table.json`(㉕ 핵 파라미터·서버 중간 해상도 소비). 커널 가설 실증은 S1-④ 규모 정합 관문.
 
