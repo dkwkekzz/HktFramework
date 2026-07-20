@@ -48,3 +48,4 @@
 | `CLAUDE.md` | 목표·불변 원칙·방식 (이 문서 — 잘 안 변함) |
 | `STATE.md` | 현재 한눈에 + NEXT — 다음 세션이 이것만 보고 시작할 수 있어야 한다 |
 | `Design-ObjectiveHierarchy.md` | 설계 본체: 목적 계층 — 목적에서 무대까지 |
+| `Design-Visualization.md` | 시각화 설계: 하이브리드 렌더(스프라이트+선별 3D)·속성 채널·UI·AI 에셋 파이프라인 |
