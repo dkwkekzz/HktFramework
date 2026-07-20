@@ -147,13 +147,18 @@ const PAIRED = [
 
 export const MUSCLES = [...CENTER, ...PAIRED.flatMap(pair)];
 
-// 체형 프리셋(설계서 §5.2·G2): 같은 골격에서 근육량(muscle=반지름 배율)·지방(fat=피부
-// 균일 두께 m)만 바꿔 다른 체형을 만든다. MuscleLayer.build(rig, profile) 로 주입.
+// 체형 프리셋(설계서 §5.2·G2): 같은 골격에서 아래 파라미터만 바꿔 다른 체형을 만든다.
+//  muscle:   근육 반지름 배율(근육량)
+//  fat:      피부 균일 두께 m(지방층, §9.10 GlobalFat)
+//  transfer: 피부 전달률 ∈[0,1](§11 MuscleSeparation) — 근육 분리를 피부에 얼마나 또렷이 드러낼지.
+//  fascia:   Laplacian 스무딩 반복(§9.10) — 지방·근막이 표면을 매끄럽게 하는 정도.
+//  근거(§21.5): 마른·근육질은 피하지방이 얇아 근육 분리가 또렷(transfer↑·fascia↓), 비만은
+//  지방·근막이 근육 골을 메워 매끄럽다(fat↑·fascia↑). MuscleLayer.build(rig, profile) 로 주입.
 export const BODY_PRESETS = {
-  마른:   { muscle: 0.78, fat: 0.0 },
-  평균:   { muscle: 1.0, fat: 0.02 },
-  근육질: { muscle: 1.42, fat: 0.006 },
-  비만:   { muscle: 0.95, fat: 0.075 },
+  마른:   { muscle: 0.78, fat: 0.0,   transfer: 0.85, fascia: 1 },
+  평균:   { muscle: 1.0,  fat: 0.02,  transfer: 0.5,  fascia: 2 },
+  근육질: { muscle: 1.42, fat: 0.006, transfer: 1.0,  fascia: 1 },
+  비만:   { muscle: 0.95, fat: 0.075, transfer: 0.3,  fascia: 6 },
 };
 
 // 뼈 자체도 피부 필드에 기여한다(살이 얇은 정강이·손·발·머리를 채운다).

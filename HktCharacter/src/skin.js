@@ -22,10 +22,18 @@ import { boneBox, simpleName } from './skeleton.js';
 const RES = 64;          // 필드 격자 해상도
 const KERNEL_SCALE = 1.5; // 커널 서포트 = 반지름 × 이 값
 const ISO = 0.35;         // 등가면 임계 — 낮을수록 피부가 부풀어 살이 붙는다
-// 조직 패킹 블렌드(설계서 §9.8·§9.10 fascia): smooth-max 의 날카로움. 클수록 hard max
-// (근육 경계 또렷·분리 노출), 작을수록 겹침부가 매끄럽게 녹는다(fascia webbing). 부위별
-// 조절(피부 전달률 §11)은 WP-10 에서 이 상수를 파라미터화한다. 매직넘버 지양(CLAUDE.md).
-const FASCIA_K = 6;
+// 피부 전달률(WP-10 · 설계서 §11 SkinTransferParameter·MuscleSeparation · §21.5 "해부 모형
+// 탈피"): smooth-max 의 날카로움 K 를 결정한다. K 클수록 hard max(근육 경계 또렷·분리 노출),
+// 작을수록 겹침부가 매끄럽게 녹는다(fascia webbing → 지방·근막으로 근육 분리 감춤). 체형이
+// 전달률 transfer∈[0,1] 로 조절(마른/근육질=또렷, 비만=매끄럼). 기본 0.5 → K=6(WP-09 동일).
+const DEFAULT_TRANSFER = 0.5;
+// 피부 전달률 → smooth-max 날카로움 K. **안전 범위 [8,12]** 로 제한한다: K 를 그 아래로 내리면
+// (특히 지방이 두꺼우면) smooth-max 가 과팽창해(log(Σ)/K 발산) 필드가 부풀고 MarchingCubes 에
+// 구멍·노이즈가 생긴다(측정: 비만 K5→구멍168, K9→50). 전달률은 근육 분리 노출(정의 선명도)만
+// 담당(§11 MuscleSeparation): K 클수록 hard-max 로 근육 골이 또렷, 작을수록 살짝 뭉갠다. 전 체형 워터타이트.
+const fasciaKOf = transfer => 8 + 4 * THREE.MathUtils.clamp(transfer ?? DEFAULT_TRANSFER, 0, 1);
+const DEFAULT_FASCIA = 2;      // 기본 Laplacian 스무딩 반복(§9.10 fascia) — 계단 줄무늬 완화
+const SMOOTH_LAMBDA = 0.5;     // Laplacian 이동 계수(0=고정, 1=완전 평균)
 const WELD_TOL = 3e-3;    // 정점 용접 허용오차(m)
 const MAX_INFLUENCES = 4; // 정점당 뼈 영향 수
 
@@ -40,8 +48,44 @@ function distSqToSeg(px, py, pz, a, b) {
   return dx * dx + dy * dy + dz * dz;
 }
 
+// Fascia 스무딩(설계서 §9.10): 근육 사이 골·MC 계단 줄무늬를 Laplacian 저역통과로 완화한다.
+//  각 정점을 이웃 평균 쪽으로 λ 만큼 당긴다. iterations 회. rest 굽기 단계에서만(1회) — 재생
+//  중 재폴리곤화 아님(불변 정합). 피부 표면의 연속성 제공(§9.10) + 지방 체형의 매끄러움.
+function laplacianSmooth(geo, iterations, lambda) {
+  if (!iterations) return geo;
+  const pos = geo.attributes.position, idx = geo.index, n = pos.count;
+  const nbr = Array.from({ length: n }, () => new Set());
+  for (let i = 0; i < idx.count; i += 3) {
+    const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
+    nbr[a].add(b); nbr[a].add(c); nbr[b].add(a); nbr[b].add(c); nbr[c].add(a); nbr[c].add(b);
+  }
+  let src = new Float32Array(pos.array);
+  let dst = new Float32Array(src.length);
+  for (let it = 0; it < iterations; it++) {
+    for (let v = 0; v < n; v++) {
+      const ns = nbr[v];
+      if (!ns.size) { dst[v * 3] = src[v * 3]; dst[v * 3 + 1] = src[v * 3 + 1]; dst[v * 3 + 2] = src[v * 3 + 2]; continue; }
+      let ax = 0, ay = 0, az = 0;
+      for (const w of ns) { ax += src[w * 3]; ay += src[w * 3 + 1]; az += src[w * 3 + 2]; }
+      const inv = 1 / ns.size;
+      dst[v * 3] = src[v * 3] + lambda * (ax * inv - src[v * 3]);
+      dst[v * 3 + 1] = src[v * 3 + 1] + lambda * (ay * inv - src[v * 3 + 1]);
+      dst[v * 3 + 2] = src[v * 3 + 2] + lambda * (az * inv - src[v * 3 + 2]);
+    }
+    const t = src; src = dst; dst = t; // 더블버퍼 스왑 — src 가 항상 최신
+  }
+  pos.array.set(src);
+  pos.needsUpdate = true;
+  geo.computeVertexNormals();
+  return geo;
+}
+
 // 근육·뼈 캡슐 → 피부 SkinnedMesh. rig 은 rest 포즈로 replant 되어 있어야 한다.
-export function bakeSkin(rig, capsules) {
+//  opts.transfer: 피부 전달률(§11) — 근육 분리를 얼마나 피부에 드러낼지(0 매끄럼~1 또렷).
+//  opts.fascia:   Laplacian 스무딩 반복(§9.10) — 지방 체형일수록 크게(더 매끄럽게).
+export function bakeSkin(rig, capsules, opts = {}) {
+  const FASCIA_K = fasciaKOf(opts.transfer); // 전달률 → smooth-max 날카로움(§11·WP-10)
+  const fasciaIters = opts.fascia ?? DEFAULT_FASCIA;
   rig.obj.updateMatrixWorld(true);
 
   // --- 1. 필드 bbox (캡슐 전체 + 반지름 여유) --------------------------------
@@ -100,6 +144,8 @@ export function bakeSkin(rig, capsules) {
   geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
   geo = mergeVertices(geo, WELD_TOL);
   geo.computeVertexNormals();
+  // Fascia 스무딩(§9.10) — 스키닝 전 rest 표면에서 1회. 골·계단 줄무늬 완화 → 사람 표면.
+  geo = laplacianSmooth(geo, fasciaIters, SMOOTH_LAMBDA);
 
   // --- 4. 스키닝 가중치 — 정점을 가까운 뼈 세그먼트에 바인딩 -----------------
   const bones = rig.drivers;

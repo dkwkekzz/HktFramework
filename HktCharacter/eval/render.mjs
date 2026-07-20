@@ -162,7 +162,7 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
 for (const name of ['마른', '근육질', '비만']) {
   muscles.build(rig, BODY_PRESETS[name]);
   rig.obj.updateMatrixWorld(true);
-  const bm = bakeSkin(rig, muscles.getCapsules()).mesh;
+  const bm = bakeSkin(rig, muscles.getCapsules(), muscles.profile).mesh;
   const bg = bm.geometry, bi = bg.index, bp = bg.attributes.position, bt = [];
   const bv = [new THREE.Vector3(), new THREE.Vector3(), new THREE.Vector3()];
   for (let i = 0; i < bi.count; i += 3) {

@@ -12,6 +12,7 @@ import * as THREE from 'three';
 import { loadSkeleton, replant, boneBox } from '../src/skeleton.js';
 import { MuscleLayer } from '../src/muscles.js';
 import { bakeSkin } from '../src/skin.js';
+import { BODY_PRESETS } from '../src/anatomy.js';
 import { parseClipFBX, bakeClip, measureGroundY } from '../src/retarget.js';
 
 const toBuf = p => { const b = readFileSync(p); return b.buffer.slice(b.byteOffset, b.byteOffset + b.byteLength); };
@@ -126,6 +127,73 @@ for (const model of ['X Bot', 'Y Bot']) {
       if (best > 0.08) escaped++; // 캡슐 표면에서 8cm 이상 뜬 정점 = escape (fascia webbing 허용 초과)
     }
     ok(escaped / total < 0.02, `skin escape ${(100 * escaped / total).toFixed(1)}% <2% (§19.2 조직 패킹)`);
+  }
+
+  // WP-10 · 피부 전달률(§11 SkinTransfer·§21.5): 전달률↑ → 피부가 근육을 바짝 감싸 분리가
+  //  또렷(근육질). 전달률↓ → smooth-max 가 근육 사이 골을 메워(fascia webbing) 피부가 근육에서
+  //  더 떠 매끄럽다(비만). 같은 캡슐에서 transfer 만 바꿔 "피부-근육 평균 이격"으로 검증.
+  {
+    const segD2 = (px, py, pz, a, b) => {
+      const abx = b.x - a.x, aby = b.y - a.y, abz = b.z - a.z;
+      const apx = px - a.x, apy = py - a.y, apz = pz - a.z;
+      const L = abx * abx + aby * aby + abz * abz;
+      let t = L > 1e-9 ? (apx * abx + apy * aby + apz * abz) / L : 0; t = t < 0 ? 0 : t > 1 ? 1 : t;
+      const dx = apx - abx * t, dy = apy - aby * t, dz = apz - abz * t;
+      return Math.sqrt(dx * dx + dy * dy + dz * dz);
+    };
+    const meanClear = (geo, cs) => {
+      const vp = geo.attributes.position.array; let sum = 0; const n = vp.length / 3;
+      for (let i = 0; i < vp.length; i += 3) {
+        let best = Infinity;
+        for (const c of cs) { const d = segD2(vp[i], vp[i + 1], vp[i + 2], c.a, c.b) - c.r; if (d < best) best = d; }
+        sum += best;
+      }
+      return sum / n;
+    };
+    muscles.build(rig, { muscle: 1.3, fat: 0 });
+    const capsT = muscles.getCapsules();
+    const sharp = meanClear(bakeSkin(rig, capsT, { transfer: 1.0 }).mesh.geometry, capsT);
+    const smooth = meanClear(bakeSkin(rig, capsT, { transfer: 0.05 }).mesh.geometry, capsT);
+    ok(smooth > sharp, `전달률: 매끄럼이 근육서 더 뜸(분리 감춤) ${smooth.toFixed(4)} > 또렷 ${sharp.toFixed(4)}m (§11)`);
+    muscles.build(rig); // 기본 복구
+  }
+
+  // WP-10 · 워터타이트(§19.4) + fascia 스무딩(§9.10): 전 체형이 구멍 없이 구워지고(경계에지=한
+  //  삼각형만 쓰는 에지=구멍 척도), Laplacian 스무딩이 표면을 매끄럽게(면적↓) 하는가.
+  {
+    const boundaryEdges = (geo) => {
+      const idx = geo.index, cnt = new Map();
+      const key = (a, b) => a < b ? a * 1e7 + b : b * 1e7 + a;
+      for (let i = 0; i < idx.count; i += 3) {
+        const a = idx.getX(i), b = idx.getX(i + 1), c = idx.getX(i + 2);
+        for (const [u, v] of [[a, b], [b, c], [c, a]]) { const k = key(u, v); cnt.set(k, (cnt.get(k) || 0) + 1); }
+      }
+      let bnd = 0; for (const v of cnt.values()) if (v === 1) bnd++;
+      return bnd;
+    };
+    const surfArea = (geo) => {
+      const p = geo.attributes.position, idx = geo.index;
+      const a = new THREE.Vector3(), b = new THREE.Vector3(), c = new THREE.Vector3(), ab = new THREE.Vector3(), ac = new THREE.Vector3();
+      let s = 0;
+      for (let i = 0; i < idx.count; i += 3) {
+        a.fromBufferAttribute(p, idx.getX(i)); b.fromBufferAttribute(p, idx.getX(i + 1)); c.fromBufferAttribute(p, idx.getX(i + 2));
+        s += ab.subVectors(b, a).cross(ac.subVectors(c, a)).length() * 0.5;
+      }
+      return s;
+    };
+    let worst = 0, worstName = '';
+    for (const name of ['마른', '평균', '근육질', '비만']) {
+      muscles.build(rig, BODY_PRESETS[name]);
+      const be = boundaryEdges(bakeSkin(rig, muscles.getCapsules(), BODY_PRESETS[name]).mesh.geometry);
+      if (be > worst) { worst = be; worstName = name; }
+    }
+    ok(worst < 90, `워터타이트: 최다 구멍 체형 «${worstName}» 경계에지 ${worst} <90 (§19.4)`);
+    muscles.build(rig, { muscle: 1.1, fat: 0 });
+    const capsF = muscles.getCapsules();
+    const rough = surfArea(bakeSkin(rig, capsF, { fascia: 0 }).mesh.geometry);
+    const smoothA = surfArea(bakeSkin(rig, capsF, { fascia: 6 }).mesh.geometry);
+    ok(smoothA < rough, `fascia 스무딩: 면적 ${smoothA.toFixed(2)} < 원본 ${rough.toFixed(2)}m² (§9.10)`);
+    muscles.build(rig); // 기본 복구
   }
 
   // 애니메이션 ------------------------------------------------------------

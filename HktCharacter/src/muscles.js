@@ -119,7 +119,7 @@ export class MuscleLayer {
   build(rig, profile = null) {
     this.clear();
     this.rig = rig;
-    this.profile = { muscle: 1, fat: 0, ...(profile || {}) };
+    this.profile = { muscle: 1, fat: 0, transfer: 0.5, fascia: 2, ...(profile || {}) };
     for (const def of MUSCLES) {
       // 부착 패치를 뼈로 해석. 주(primary) origin/insertion 이 리그에 없으면 건너뜀.
       const oBone = rig.boneMap.get(def.origins[0].bone);
