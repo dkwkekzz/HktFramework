@@ -198,6 +198,22 @@ const { mesh } = bakeSkin(rig, caps); scene.add(mesh);
   console.log('관절통과 데모: eval/out/2-arm-neutral.png ↔ 2-arm-curl.png (이두 벌크 비교)');
 }
 
+// (1e) 활성도(WP-05) — **중립 포즈 고정**에서 공동수축(굴근 이두 0.8 / 신근 삼두 0.3, §10.5)
+//  → 길이 불변에도 등척성 팽창(§10.6). 활성도 0 대비. 이두=밝은 빨강.
+{
+  const ARM = new Set(['biceps.L', 'triceps.L', 'forearm.L', 'deltoid.L']);
+  const armItems = muscles.items.filter(it => ARM.has(it.def.id));
+  const col = it => it.def.id === 'biceps.L' ? [235, 90, 80] : it.def.id === 'triceps.L' ? [150, 62, 58] : [128, 54, 52];
+  const draw = () => { rig.obj.updateMatrixWorld(true); muscles.update(); const tris = []; for (const it of armItems) geoToTris(it.mesh.geometry, it.mesh.matrix, col(it), tris); return tris; };
+  muscles.setActivation(0);
+  writePNG('eval/out/1-activation-rest.png', render(draw(), 'front'), W, H);
+  muscles.setActivation(0.8, id => id === 'biceps.L');
+  muscles.setActivation(0.3, id => id === 'triceps.L');
+  writePNG('eval/out/1-activation-cocontract.png', render(draw(), 'front'), W, H);
+  muscles.setActivation(0);
+  console.log('활성도: eval/out/1-activation-{rest,cocontract}.png (등척성 공동수축)');
+}
+
 // (4) 체형 프리셋(WP-06) — 같은 골격, muscle/fat 파라미터만 바꾼 rest 피부 실루엣.
 //  rig 은 아직 rest(replant) 상태이므로 구운 지오메트리 정점이 곧 월드 rest 좌표다.
 for (const name of ['마른', '근육질', '비만']) {

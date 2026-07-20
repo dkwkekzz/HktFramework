@@ -18,6 +18,7 @@ const ANT = new THREE.Vector3(0, 0, FACING); // 전면 월드 방향
 const UPX = new THREE.Vector3(1, 0, 0);
 const YQ = new THREE.Vector3(0, 1, 0);       // 스핀들 로컬 장축(LatheGeometry 회전축)
 const SKIN_CAPS = 4;                          // 피부 필드용 근육당 서브 캡슐 수(프로필 따라 가늘어짐)
+const ACTIV_BULGE = 0.35;                     // 활성도 1 일 때 최대 등척성 팽창 배율(§10.4·§10.6)
 
 // 프로필(기시→정지 반지름 배율) 을 위치 s∈[0,1] 에서 선형 보간.
 function sampleProfile(radii, s) {
@@ -175,7 +176,10 @@ function belly(item, rest) {
     contraction = rest ? THREE.MathUtils.clamp(rest / geoLen, 0.7, 1.4) : 1;
   }
   const half = 0.5 * len * def.span;
-  const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1));
+  // FinalBulge(§10.4) = 기하 bulge(λ, 길이 변화) + 활성 bulge(a) — 활성도는 길이 불변에도
+  //  팽창시킨다(등척성 §10.6: 무거운 물체 고정·활시위 유지 등). 둘은 독립 채널.
+  const activ = ACTIV_BULGE * (item.activation || 0);
+  const radius = def.r * (item.muscleScale || 1) * (1 + def.bulge * (contraction - 1) + activ);
   return { center: _c, axis: _axis, half, radius, pts, len };
 }
 
@@ -233,7 +237,7 @@ export class MuscleLayer {
         const child = jb && jb.children.find(k => k.isBone && rig.boneMap.get(simpleName(k.name)) === k);
         if (jb && parent && child) jointInf = { bone: jb, parent, child, gain: def.jointInf.gain, sign: def.jointInf.antagonist ? 1 : -1 };
       }
-      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf };
+      const item = { def, oBone, iBone, oPatches, iPatches, oPatch: oPatches[0], iPatch: iPatches[0], mesh, shape: shapeOf(def), muscleScale: this.profile.muscle, wrapBone, jointInf, activation: 0 };
       // rest 길이 캐시 (수축 기준) — wrap 우회 경로의 rest 길이(직선이면 |from−to|)
       this.restLen.set(item, computePath(item).len);
       this.items.push(item);
@@ -333,6 +337,14 @@ export class MuscleLayer {
       }
     }
     return caps;
+  }
+
+  // 활성도 설정(§10.3): a∈[0,1]. 길이 변화와 **독립적으로** 근육을 팽창시킨다(등척성 §10.6).
+  //  match(id)=true 인 근육군만 지정 가능(예: 굴근만) — 길항 공동수축(굴근 0.7/신근 0.2 §10.5).
+  setActivation(a, match = null) {
+    const v = THREE.MathUtils.clamp(a, 0, 1);
+    for (const it of this.items) if (!match || match(it.def.id)) it.activation = v;
+    this.update();
   }
 
   setVisible(v) { this.group.visible = v; }

@@ -121,6 +121,18 @@ for (const model of ['X Bot', 'Y Bot']) {
     }
   }
 
+  // WP-05 · 활성도(§10.3·§10.6 등척성): 포즈 고정에도 활성도로 근육 팽창(길이와 독립). 길이는
+  //  안 변하고 반지름만 커져야 한다(등척성 수축). 길항 공동수축 지정(굴근만) 가능.
+  {
+    muscles.setActivation(0);
+    const a0 = muscles.getBellies().find(x => x.id === 'biceps.L');
+    muscles.setActivation(1, id => id === 'biceps.L');
+    const a1 = muscles.getBellies().find(x => x.id === 'biceps.L');
+    muscles.setActivation(0);
+    ok(a1.radius > a0.radius * 1.1, `WP-05: 활성도 등척성 팽창 r ${a0.radius.toFixed(4)}→${a1.radius.toFixed(4)} (§10.6)`);
+    ok(Math.abs(a1.len - a0.len) < 1e-4, `WP-05: 활성도가 길이 불변(길이와 독립 §10.3) len ${a0.len.toFixed(3)}=${a1.len.toFixed(3)}`);
+  }
+
   // 근육 좌우 대칭 (frame lat 정합, §19.4): 짝 근육 벨리 center 가 x-미러여야 한다.
   //  (cross(axis,ant) 가 우측에서 미러의 음수로 나와 l 오프셋이 2l 어긋나던 버그의 회귀 가드.)
   {

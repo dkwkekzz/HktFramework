@@ -257,6 +257,11 @@ $('btnSkin').addEventListener('click', e => {
 $('spd').addEventListener('input', e => {
   speed = +e.target.value; $('spdVal').textContent = speed.toFixed(1);
 });
+// 활성도 슬라이더(§10.3·§10.6): 전 근육 등척성 팽창. 근육 레이어에서 육안 확인.
+$('activ').addEventListener('input', e => {
+  const a = +e.target.value; $('activVal').textContent = a.toFixed(1);
+  C.muscles?.setActivation(a);
+});
 
 buildModelSelect();
 buildBodySelect();
