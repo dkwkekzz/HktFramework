@@ -555,6 +555,11 @@
       observe: 'Na 증기를 초고온으로 — 충돌 이온화(A+M→A⁺+e⁻+M·문턱=IE 에너지 가드)로 자유전자(청록 점)가 태어나고, 3체 재결합과 경쟁하며 이온화 분율이 오른다. 항온조를 낮추면 재결합이 이겨 전자가 사라진다(재결합열 방출). 원자 수 옆 +Ne⁻ 가 전자 수.',
       build: (w) => scatter(w, { Na: 24 }, 0.3, 0.55),
     },
+    radiate: {
+      icon: '💡', label: '⑫ 복사·발광', spawnT: 30, thermo: [true, 250],
+      observe: '가열된 수소 기체가 빛을 낸다 — 충돌로 전자가 들뜨고(들뜬 원자=노란 후광) 곧 자발 방출하며 노란 광자(점+짧은 꼬리)가 사방으로 날아가 상자 밖으로 탈출한다(복사 냉각). 항온조를 높일수록 밝고 낮추면 어두워진다(첫 들뜸 dE≫kT 면 어둡다). 원자 수 옆 +Nγ 가 날고 있는 광자 수.',
+      build: (w) => { Pg.enableRadiation(w, { photonBC: 'open' }); return scatter(w, { H: 24 }, 0.3, 0.5); },
+    },
     fire: {
       icon: '🔥', label: '⑱ 연소·불', spawnT: 30, thermo: [false],
       observe: '연료(H·O)가 결합해 준안정. 자동 점화 후 발열이 열지도로 번진다 — 🔥·E 로 재점화 가능.',
@@ -719,6 +724,10 @@
         const tail = project({ x: a.r.x - a.p.x * 0.08, y: a.r.y - a.p.y * 0.08, z: a.r.z - a.p.z * 0.08 });
         ctx.beginPath(); ctx.moveTo(tail.x, tail.y); ctx.lineTo(pr.x, pr.y); ctx.stroke();
       }
+      if (a.level > 0) {   // ⑫ 들뜬 원자 — 노란 후광 (곧 광자 방출·step-0038)
+        ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx + 4, 0, 2 * Math.PI);
+        ctx.fillStyle = 'rgba(255,232,90,0.35)'; ctx.fill();
+      }
       ctx.beginPath(); ctx.arc(pr.x, pr.y, rpx, 0, 2 * Math.PI);
       ctx.fillStyle = s.color; ctx.fill();
       const aq = a.q || 0;
@@ -740,6 +749,15 @@
       ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(pr.x, pr.y); ctx.stroke();
       ctx.beginPath(); ctx.arc(pr.x, pr.y, Math.max(1.5, 2.5 * (pr.persp || 1)), 0, 2 * Math.PI);
       ctx.fillStyle = '#7adcff'; ctx.fill();
+    }
+    // ⑫ 광자 — 노란 점 + 진행 방향 짧은 꼬리 (step-0038·field 모드 입자)
+    for (const ph of world.photons) {
+      const pr = project(ph.r);
+      const tl = project({ x: ph.r.x - ph.dir.x * 0.5, y: ph.r.y - ph.dir.y * 0.5, z: ph.r.z - ph.dir.z * 0.5 });
+      ctx.strokeStyle = 'rgba(255,228,80,0.85)'; ctx.lineWidth = 1.5;
+      ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(pr.x, pr.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, Math.max(1.5, 2.2 * (pr.persp || 1)), 0, 2 * Math.PI);
+      ctx.fillStyle = '#ffe850'; ctx.fill();
     }
     // 분열 섬광 — 팽창 링 (뷰어 연출·물리 아님)
     world.flashes = world.flashes.filter((f) => world.t - f.t < 1.6);
@@ -822,7 +840,7 @@
 
   function updateHud() {
     const n = world.atoms.length;
-    document.getElementById('stN').textContent = n + (world.electrons.length ? '+' + world.electrons.length + 'e⁻' : '');
+    document.getElementById('stN').textContent = n + (world.electrons.length ? '+' + world.electrons.length + 'e⁻' : '') + (world.photons.length ? '+' + world.photons.length + 'γ' : '');
     document.getElementById('stT').textContent = n ? M.temperature(world).toFixed(3) : '—';
     document.getElementById('stP').textContent = n ? M.pressure(world).toFixed(3) : '—';
     document.getElementById('stB').textContent = world.bonds.length;

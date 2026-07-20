@@ -1692,6 +1692,54 @@
         msg: `37·법칙 게이트: nu_ion=0 → x=0·전자 0 (정확) — 시도율 부재 = 참값·문턱은 어디까지나 에너지 가드` });
     }
 
+    // ── 38. ⑫ 복사장 합류 — playground 발광 (개체 추가형 2/3·step-0038) ──
+    //   가열된 기체가 빛을 낸다: 충돌 들뜸(R-COL·자유충돌) → 자발 방출(R-EMI 수명 시계) → 광자
+    //   입자(field 모드·방향·전파·경계). open 경계 = 복사 냉각(광자 탈출)·reflect = 공동(갇힘·재흡수).
+    //   specLevels(첫 들뜸 dE = clamp(0.75·IE,0.4,3.0)·③ IE 유도)는 base 상시(파라미터 존재)이나
+    //   들뜸 원천은 enableRadiation(💡)이 켠다 — 부재 = 참값 (결합 동역학 카타펄트 회피·§ 격차).
+    //   ⑳ 분리: nu_ion=0 (충돌 이온화 경로가 발광 통제를 오염하지 않게 — step-0037 과 같은 통제).
+    //   종 = H (첫 들뜸 dE=0.75 = 0.75·IE_H · 수소 방출 스펙트럼의 교과서 종 — 저온 열적 억제가
+    //   또렷하다: dE≫kT_cold → 어둡고, 가열하면 밝다). 알칼리(dE=0.4 클램프)는 저온에서도 흐릿하게
+    //   빛나 대비가 약하다 (프록시 격차·step 문서).
+    if (want(38)) {
+      const hRad = (seed, radOpts) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 18, nu_ion: 0 });
+        if (radOpts) Pg.enableRadiation(w, radOpts);
+        for (let i = 0; i < 24; i++) Pg.spawn(w, 'H', 2 + (i % 6) * 2.4, 2 + ((i / 6) | 0) * 2.4, { T: 0.3 });
+        return w;
+      };
+      const runGlow = (T, radOpts) => {
+        let esc = 0, peak = 0, worst = 0;
+        for (const seed of [41, 42, 43]) {
+          const w = hRad(seed, radOpts);
+          for (let k = 0; k < 4000; k++) { Pg.tick(w); Pg.thermostat(w, T, 0.1); peak = Math.max(peak, w.photons.length); }
+          esc += w.ledger.E_escape; worst = Math.max(worst, Math.abs(Pg.residual(w)));
+        }
+        return { esc: esc / 3, peak, worst };
+      };
+
+      // (1) 발광 = 가열 응답: 저온 vs 고온 — 방출 복사(E_escape) 상승 · 광자 입자 가시 · 장부 닫힘
+      const cold = runGlow(0.3, { photonBC: 'open' }), hotG = runGlow(3.0, { photonBC: 'open' });
+      log.push({ ok: hotG.esc > cold.esc * 2.5 && hotG.peak >= 2 && cold.worst <= 0.15 && hotG.worst <= 0.15, name: '38·발광',
+        msg: `38·발광 창발: 방출 복사 E_escape T0.3 ${cold.esc.toFixed(1)} → T3.0 ${hotG.esc.toFixed(1)} (가열→들뜸→광자 방출↑·×${(hotG.esc / Math.max(1e-6, cold.esc)).toFixed(1)}) · 광자 입자 동시 ${hotG.peak}개 가시 · |잔차| ≤ 0.15 (open=복사 냉각·닫힌 장부·author 0)` });
+
+      // (2) 복사 냉각(open) vs 공동(reflect): 광자 경계가 방출 복사의 운명을 가른다
+      const wOpen = hRad(51, { photonBC: 'open' }), wCav = hRad(51, { photonBC: 'reflect' });
+      for (let k = 0; k < 3000; k++) { Pg.tick(wOpen); Pg.thermostat(wOpen, 2.0, 0.1); Pg.tick(wCav); Pg.thermostat(wCav, 2.0, 0.1); }
+      const escOpen = wOpen.ledger.E_escape, escCav = wCav.ledger.E_escape, phCav = wCav.photons.length;
+      log.push({ ok: escOpen > 1 && escCav < 0.5 && phCav >= 3 && Math.abs(Pg.residual(wOpen)) <= 0.15 && Math.abs(Pg.residual(wCav)) <= 0.15, name: '38·냉각vs공동',
+        msg: `38·복사 냉각 vs 공동: open→E_escape ${escOpen.toFixed(1)} (광자 상자 탈출=냉각) vs reflect→E_escape ${escCav.toFixed(2)} (탈출 0) · 공동 갇힌 광자 ${phCav}개 (재흡수 평형) — 같은 방출, 경계가 운명을 가른다` });
+
+      // (3) 게이트 = 참값: 발광 미활성(원천 부재) → 광자 입자 0·탈출 0. nu_exc=0 도 동일 (시도율 부재).
+      const wOff = hRad(61, null);                 // enableRadiation 안 함 (base dormant)
+      const wZero = hRad(61, { photonBC: 'open', nu_exc: 0 });   // 켰으나 들뜸 시도율 0
+      for (let k = 0; k < 2500; k++) { Pg.tick(wOff); Pg.thermostat(wOff, 3.0, 0.1); Pg.tick(wZero); Pg.thermostat(wZero, 3.0, 0.1); }
+      const gateOk = wOff.photons.length === 0 && wOff.ledger.E_escape === 0 &&
+        wZero.photons.length === 0 && wZero.ledger.E_escape === 0;
+      log.push({ ok: gateOk, name: '38·게이트',
+        msg: `38·법칙 게이트: 발광 미활성 → 광자 ${wOff.photons.length}·탈출 ${wOff.ledger.E_escape} (정확 0) · nu_exc=0 → 광자 ${wZero.photons.length}·탈출 ${wZero.ledger.E_escape} (정확 0) — 원천/시도율 부재 = 참값 (specLevels 는 상시 탑재된 파라미터일 뿐)` });
+    }
+
     return log;
   }
 
@@ -1703,7 +1751,7 @@
       console.log(`[${tag}] ${e.msg}${t}`);
       if (e.ok) pass++; else fail++;
     }
-    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32)·법칙스택(33~37) 전량';
+    const scope = ONLY ? `--only ${[...ONLY].join(',')} — 부분 실행 (step 닫기 전 전량 회귀 필수)` : '①②③④⑤⑥⑦⑧⑨⑩⑪⑫⑬⑭⑮⑯⑰⑱⑲⑳㉒㉓㉔㉕·PG(29~32)·법칙스택(33~37)·복사합류(38) 전량';
     console.log(`\n── S0 verify (${scope}): ${pass} PASS · ${fail} FAIL ──`);
     return fail === 0;
   }
