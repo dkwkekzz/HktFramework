@@ -19,6 +19,8 @@ import { BeliefView } from '../src/epistemic/belief.js';
 import { evaluateHypothesis, applyVerdict } from '../src/epistemic/hypothesis.js';
 import { findUnbound, discoverNode } from '../src/epistemic/retrobind.js';
 import { Substance } from '../src/substrate/substance.js';
+import { buildScene } from '../src/scene/viewmodel.js';
+import { ripple } from '../src/graph/ripple.js';
 
 export function buildDemo() {
   const lexicon = loadLexicon();
@@ -82,6 +84,9 @@ export function buildDemo() {
   // ── Phase C: 믿음 필터 · 가설 반증/확인 · 상향 발견 ──
   const epistemic = buildEpistemicDemo(g, lexicon);
 
+  // ── Phase D: Scene 서술자 (방사형·별자리 뷰의 먹이) ──
+  const scene = buildSceneDemo(g, lexicon);
+
   return {
     lexicon: lexicon.names().map((n) => lexicon.get(n)),
     constants,
@@ -96,7 +101,26 @@ export function buildDemo() {
       timeout: { result: sliceTimeout.result, log: sliceTimeout.log },
     },
     epistemic,
+    scene,
   };
+}
+
+// Phase D 시연: 발견 상태 4값을 담은 방사형용 Scene + 4 연출을 담은 별자리용 Scene.
+function buildSceneDemo(g, lexicon) {
+  const belief = BeliefView.fromGraph(g, 'bot');
+  belief.set('G-0.1.1.2.H2', '반증'); // 확인/추정/미발견 은 seed 에 이미 있음 → 4값 확보
+  const predCtx = { constants: g.constants, lexicon, belief, actor: { id: 'bot', inventory: [] }, state: { world: {}, stage: {} } };
+  const radial = buildScene({ graph: g, belief, focus: 'G-0.1.1.2', predCtx });
+
+  // 네 연출: 절편 완료 파문 + 권속의 심장 2갈래 파문 + H2 붕괴 + C3 역결합
+  const events = [
+    ...ripple(g.goalsById.get('G-0.1.1.2.1'), g, predCtx),
+    ...ripple(g.goalsById.get('G-0.2.3.2.1'), g, predCtx),
+    { type: 'collapse', id: 'G-0.1.1.2.H2', collapsed: ['G-0.1.1.2.H2', 'G-0.1.1.2.H2.1'] },
+    { type: 'retro-bind', node: 'G-0.1.1.3.2', links: [{ material: '수정편', property: '공명전달률' }] },
+  ];
+  const constellation = buildScene({ graph: g, belief, events, predCtx });
+  return { radial, constellation };
 }
 
 // Phase C 시연: 믿음 필터 + 가설 반증/확인 + 상향 발견을 한 번에 굴린다.

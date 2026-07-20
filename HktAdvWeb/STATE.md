@@ -6,11 +6,12 @@
 
 ## 현재 — 한눈에
 
-- **Phase A(세계 기질)·B(목적 그래프 코어)·C(발견 상태) 완료 — M1·M2·M3 달성.**
-  `bash run.sh` = 설치 → `npm test`(80 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
+- **Phase A(세계 기질)·B(목적 그래프 코어)·C(발견 상태)·D(시각화 최소) 완료 — M1~M4 달성.**
+  `bash run.sh` = 설치 → `npm test`(87 케이스 전건 통과) → 데모 서버. 순수 JS(ESM, Node 20+),
   런타임 의존은 `js-yaml` 1개. 자동 회귀와 데모(눈 검증)가 같은 코드 경로를 쓴다.
   봇 1기가 `동기(G-0) → 세부 목적(G-0.1.1.2) → 말단(G-0.1.1.2.1) → 절차(S-0045 채취)` 사슬을
-  자동 완주하고, 그래프는 이제 **세계의 진실이 아니라 액터의 믿음**이다(발견 상태·가설 반증·역결합).
+  자동 완주하고, 그래프는 **액터의 믿음**이며(발견 상태·가설 반증·역결합), 이제 **방사형·별자리
+  뷰로 눈에 보인다**(렌더러는 Scene 서술자만 소비 — 불변 원칙 ⑥ 기계 강제).
 - 설계·seed 데이터(기존):
   - [Design-ObjectiveHierarchy.md](Design-ObjectiveHierarchy.md) v0.3 · [Design-Visualization.md](Design-Visualization.md) v0.1 ·
     [Design-StepPlan.md](Design-StepPlan.md) v0.1 (6 Phase 19 step).
@@ -65,19 +66,31 @@
   충족·파문. 법칙 표에 `실험`·`검증` 동사 추가. (M3)
 - **C3** `retrobind.js` — 획득 시 발견된 어떤 demand 와도 안 닿는 재료 = 용도 불명. 새 가지 발견 시
   보유 재료를 그 demand 에 대조해 매칭되면 `retro-bind`(가지 발견 전이 + 재료·노드 연결).
+
+### Phase D 로 참이 된 명제 (`src/scene/`, `demo/graph-*.js`)
+
+- **D1** `scene/viewmodel.js` `buildScene` — `세계+BeliefView+이벤트 → Scene 서술자`. `goalGraph.nodes`
+  는 BeliefView 파생(미발견은 "?", 전역 제목 비노출). 속성→채널 번역표 `data/channel-map.yaml`
+  (GLOW·JITTER). 조건 슬롯 = trace 서술 텍스트(퍼센트 금지). ViewModel 은 순수(스냅샷 회귀).
+- **D2** `demo/graph-radial.js` — 방사형 뷰(깊이 환). 발견 상태 4값 문법(확인=선명/추정=흐림·떨림/
+  미발견=성운"?"/반증=붕괴 X). 조건 슬롯 텍스트.
+- **D3** `demo/graph-constellation.js` — 별자리 + 파문 연출. `effects`(ripple 경로·collapse·retro-bind)
+  소비 — 파문 경로는 ViewModel 이 계산(렌더러 재유도 금지). 권속의 심장 2갈래 동시 파문.
+- **불변 원칙 ⑥ 기계 강제**: 렌더러(`demo/graph-*.js`)가 `src/` 를 import 하지 않음을 스캔 테스트로
+  고정. shot ①②는 브라우저 없으면 스킵+경고(등록만).
 - 타 트랙 참조 없음 — 이 폴더 안에서 완결.
 
 ## NEXT — 다음 할 일
 
-**step D1 — Scene 서술자 + ViewModel** ([Design-StepPlan.md](Design-StepPlan.md) §6 D1):
+**step E1 — 재해석 스캐너** ([Design-StepPlan.md](Design-StepPlan.md) §7 E1):
 
-- `src/scene/viewmodel.js` — `세계+BeliefView+이벤트 큐 → Scene 서술자`. 렌더러는 서술자만 읽는다
-  (불변 원칙 ⑥ 구조 강제). Scene 스키마: `{tick, entities[{id,archetype,pos,channels{}}], decals[],
-  effects[{kind,path?}], ui:{goalGraph:{nodes[],edges[]}, card, dial}}` — `goalGraph.nodes` 는
-  **BeliefView 파생**(발견 상태·조건 슬롯·파문 경로), 전역 그래프 직접 노출 금지.
-- 속성→채널 번역은 대응표 데이터(`data/`)로 최소 2채널(GLOW·JITTER).
-- **구조 강제 테스트**: `demo/` 렌더러가 `src/substrate`·`src/graph` 를 import 하지 못하게 —
-  의존 방향 스캔 테스트. + Scene 스냅샷 회귀(같은 세계 시퀀스 → 같은 서술자 열).
-- done_when: 렌더러가 서술자 외 어떤 세계 API 도 만질 수 없음이 기계 검사된다.
-- 이후: D2(방사형 목적 그래프 뷰) → D3(별자리 지도+파문). 그다음 E(플래너) / F(다중 행위자).
-  주의: 본격 월드 렌더(three.js)는 이 계획 밖 — D 는 목적 그래프 UI(Canvas 2D)까지.
+- `src/planner/reinterpret.js` — `scan(demand, world) → StageCandidate[]`: demand 가 주어지면 **이미
+  존재하는** 세계 요소(개체·장·환경 상태)를 속성 매칭으로 Stage 후보로 감싼다(§4.5 스키마).
+  supplies·obstacles 는 요소의 실제 속성·주변 상태에서 파생 — **발명하지 않는다**(불변 원칙 ④).
+- **스폰 금지 테스트**: 세계에 없는 속성 → 후보 0건, 요소 추가 후에만 등장. 스캔 전후 세계 상태
+  해시 불변(스캐너는 읽기 전용). 후보의 발견은 C1 경로(정보 재료)로만 — 스캔이 곧바로
+  BeliefView 에 꽂히지 않는다.
+- done_when: 불변 원칙 ④ 가 회귀 테스트로 고정된다 (M5 의 절반).
+- 재사용 자산: B2 `matchDemand`(속성 스캔)·C1 `BeliefView`. 이후 E2(생성 제약 검사기) →
+  E3(규칙 기반 플래너 v0). 그다음 F(다중 행위자).
+  주의: 본격 월드 렌더(three.js)·LLM 분해는 이 계획 밖.

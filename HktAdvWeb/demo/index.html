@@ -24,6 +24,8 @@
   <div id="app">불러오는 중…</div>
 
   <script type="module">
+    import { renderRadial } from './graph-radial.js';
+    import { renderConstellation } from './graph-constellation.js';
     const el = (t, a = {}, ...kids) => {
       const n = document.createElement(t);
       for (const [k, v] of Object.entries(a)) k === 'class' ? (n.className = v) : n.setAttribute(k, v);
@@ -107,6 +109,29 @@
       app.append(el('h2', {}, 'Phase C — 발견 상태 (그래프 = 플레이어의 믿음)'));
       app.append(el('p', { class: 'muted' }, '그래프는 세계의 진실이 아니라 봇이 이해한 만큼만 존재한다 (불변 원칙 ③).'));
       app.append(el('pre', {}, d.epistemic.log.join('\n')));
+    }
+
+    // Phase D — 시각화 (방사형 + 별자리). 렌더러는 Scene 서술자만 소비한다 (불변 원칙 ⑥).
+    if (d.scene) {
+      app.append(el('h2', {}, 'Phase D — 목적 그래프 시각화 (Scene 서술자 소비)'));
+      app.append(el('p', { class: 'muted' },
+        '확인=선명 · 추정=흐림/깜빡임 · 미발견=성운("?") · 반증=붕괴 잔상. 파문=완료가 계보를 타고 오르는 빛.'));
+      const grid = el('div', { style: 'display:flex;gap:1rem;flex-wrap:wrap' });
+      const mkCanvas = (id, label) => {
+        const wrap = el('div', {});
+        wrap.append(el('div', { class: 'muted' }, label));
+        const c = document.createElement('canvas');
+        c.id = 'canvas-' + id; c.width = 360; c.height = 360;
+        c.style = 'border:1px solid #30363d;border-radius:6px;max-width:100%';
+        wrap.append(c); return c;
+      };
+      const rc = mkCanvas('radial', 'D2 방사형 (ui.goalGraph)');
+      const kc = mkCanvas('constellation', 'D3 별자리 + 파문 (effects)');
+      app.append(grid); grid.append(rc.parentNode, kc.parentNode);
+      renderRadial(rc, d.scene.radial.ui.goalGraph);
+      let phase = 0;
+      const loop = () => { phase = (phase + 0.008) % 1; renderConstellation(kc, d.scene.constellation, phase); requestAnimationFrame(loop); };
+      loop();
     }
 </script>
 </body>
