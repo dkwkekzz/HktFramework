@@ -32,6 +32,7 @@
   const Geo = isNode ? require('./geometry.js') : window.HktS0Geometry;      // 로드 = angle 법칙 등록 (스택)
   const Pol = isNode ? require('./polarity.js') : window.HktS0Polarity;      // 로드 = qeq 법칙 등록 (스택)
   const AB = isNode ? require('./acidbase.js') : window.HktS0AcidBase;       // 로드 = solv 법칙 등록 (⑰)
+  const Iz = isNode ? require('./ionized.js') : window.HktS0Ionized;         // ⑳ R-ION/R-REC3 행 (플라스마)
 
   // ── 원소 기호 (Z=1~118) — 표기(표현층) ──
   const SYM = ('H He Li Be B C N O F Ne Na Mg Al Si P S Cl Ar K Ca Sc Ti V Cr Mn Fe Co Ni Cu Zn ' +
@@ -167,7 +168,10 @@
       frozenZ: !dim3,
       mass, sigma, eps, budget,
       computeForces: E.stackForces, rng: o.rng || Math.random,   // 법칙 스택 — 배선 0 (step-0033)
-      catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]),   // 공유+이온+연소(⑱ 라디칼 추상)
+      // 공유+이온+연소(⑱)+플라스마(⑳ R-ION 충돌 이온화·R-REC3 3체 재결합 — step-0037).
+      //   ⑳ 은 저온에선 에너지 가드(IE 문턱)가 저절로 잠근다 — 상시 탑재 = 참값.
+      catalog: C.COVALENT.concat(C.IONIC).concat([Cb.R_ABSTRACT]).concat(Iz.PLASMA),
+      m_e: 0.5,                                                  // 전자 질량 노브 (⑳ 준용 — dt 강성 회피·정직 근사)
       specIon,
       rc: o.rc != null ? o.rc : 1.5,
       nu_col: 1.0, nu_xfer: o.nu_xfer != null ? o.nu_xfer : 6.0,
@@ -200,6 +204,13 @@
     world.protCoord = { O: 3 };        // O 배위 상한 (배위 결합 1 여유 = H₃O⁺ 까지·H₄O²⁺ 금지)
     world.nu_prot = o.nu_prot != null ? o.nu_prot : 1.0;
     world.pgProtCount = 0;             // 양성자 이전 누계 (뷰어·verify 계수)
+    // ⑳ 플라스마 노브 (step-0037) — R-ION/R-REC3 행의 물리 입력 (specIon 은 ⑤ 것 공유).
+    //   문턱은 hazard 가 아니라 에너지 가드 (IE + 쿨롱 점프를 상대 KE 에서만) — 노브는 시도율.
+    // 전자 = 순수 연화 쿨롱 개체 (⑳ 유계 정신): eps_e=0 → r⁻¹² 벽 없음 + soft_e 로 특이점 제거
+    //   → 퍼텐셜이 유한 깊이(−kc/soft_e)로 유계 — 점전자 catapult(실측 잔차 1e32) 원천 봉쇄.
+    world.dEsc = 1.5; world.rcRec = 1.5; world.soft_e = 0.45; world.eps_e = 0;
+    world.nu_ion = o.nu_ion != null ? o.nu_ion : 12;
+    world.nu_rec = o.nu_rec != null ? o.nu_rec : 40;
     world._auditP = false;    // 복사 안정화(광자 빈)가 P 미보존 — ⑥⑩ 과 동일 (정직)
     world.gDir = E.V.make(0, dim3 ? -1 : 1, 0);   // "아래": 2D=+y(화면 아래)·3D=−y(지형 바닥)
     world.pgIn = { E: 0, c: {} };   // 주입 장부: 관찰자가 넣은 Σc·E
@@ -303,11 +314,13 @@
     k = k != null ? k : 0.05;
     const E0 = E.totalEnergy(world);
     const dof = world.frozenZ ? 2 : 3;
+    const me = world.m_e != null ? world.m_e : 0.5;
     let K = 0, n = 0;
     for (const a of world.atoms) {
       if (a.sp === 'n') continue;
       K += E.V.lenSq(a.p) / (2 * world.mass[a.sp]); n++;
     }
+    for (const el of world.electrons) { K += E.V.lenSq(el.p) / (2 * me); n++; }   // ⑳ 자유전자 포함
     if (n === 0 || K <= 1e-12) return 0;
     const Tc = 2 * K / (n * dof);
     const s = clamp(Math.sqrt(1 + k * (Ttar / Tc - 1)), 0.7, 1.4);
@@ -315,6 +328,7 @@
       if (a.sp === 'n') continue;
       a.p.x *= s; a.p.y *= s; if (!world.frozenZ) a.p.z *= s;
     }
+    for (const el of world.electrons) { el.p.x *= s; el.p.y *= s; if (!world.frozenZ) el.p.z *= s; }
     const E1 = E.totalEnergy(world);
     world.pgIn.E += E1 - E0;
     return Tc;
@@ -496,6 +510,12 @@
       const v2 = E.V.lenSq(a.p) / (m * m);
       if (v2 > v2max) v2max = v2;
     }
+    // ⑳ 자유전자 (step-0037): 가볍고 빠르다 — 강성 스캔에 포함해야 서브스텝이 잡는다
+    const me = world.m_e != null ? world.m_e : 0.5;
+    for (const el of world.electrons) {
+      const v2 = E.V.lenSq(el.p) / (me * me);
+      if (v2 > v2max) v2max = v2;
+    }
     const sub = Math.min(48, Math.max(1, Math.ceil(Math.sqrt(v2max) * world.dt / 0.006)));
     if (sub === 1) E.step(world);
     else {
@@ -550,6 +570,13 @@
 
   // ── 회계 검사 — 세계 총량(장부 전 통 합 · U_grav 포함) − 주입 누계 = 0 이어야 한다 ──
   function residual(world) { return E.totalEnergy(world) - world.pgIn.E; }
+  // ⑳ 전하 회계 (step-0037): Σq(원자) = n_e(자유전자) — 이온화가 만든 양전하는 정확히 전자 수와
+  //   같아야 한다 (벽 반사 상자·전자 소멸 경로 없음 → 등식 정확).
+  function chargeOK(world) {
+    let q = 0;
+    for (const a of world.atoms) q += (a.Z || 0) - (a.ne != null ? a.ne : (a.Z || 0));
+    return q === world.electrons.length;
+  }
   function compositionOK(world) {
     const c = {};
     for (const a of world.atoms) c[a.sp] = (c[a.sp] || 0) + 1;
@@ -645,7 +672,7 @@
     SYM, TABLE, BY_Z, ANCHOR, D_ANCHOR, DREF, EA_CAP,
     NEUTRON, FISSILE, FUSION, TAU_N, VCAP,
     element, dHomo, dPair, gridPos, freeSpot,
-    buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK,
+    buildPlayground, spawn, heatPulse, thermostat, residual, compositionOK, chargeOK,
     setGravity,
     enableHBond, buildWaterCluster,
     fission, fuse, runFission, runNuclear, tick, field,

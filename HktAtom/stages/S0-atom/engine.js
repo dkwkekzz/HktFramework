@@ -234,6 +234,10 @@
     const kc = world.kc, s = world.soft, frozenZ = world.frozenZ;
     // 대전체 = 원자 + 자유전자(⑤). 전자는 q=−1·작은 σ/ε (softening 이 발산 방지).
     const se = world.sigma_e != null ? world.sigma_e : 0.2, ee = world.eps_e != null ? world.eps_e : 0.05;
+    // ⑳ 전자 낀 쌍 전용 softening (step-0037·세계 속성 — 부재 = 기존 s 그대로): 점전자가 강성
+    //   soft(0.1) 쿨롱 특이점으로 낙하하며 r⁻¹² 벽에 catapult (실측 잔차 6e19) — ⑳ 장면이 유계
+    //   힘을 쓴 이유. 반응 세계는 전자 쌍만 부드럽게 (원자 물리 불변·s20 soft 0.4 준용).
+    const sE = world.soft_e != null ? world.soft_e : s;
     const B = world._bodies || (world._bodies = []);
     B.length = 0;
     for (const a of world.atoms) B.push(a);
@@ -257,7 +261,7 @@
         const sig = (sgi + sigOf(aj)) / 2;                    // Lorentz
         const eps = Math.sqrt(epi * epsOf(aj));               // Berthelot
         const q = ai.q * aj.q;
-        const invS = 1 / (d + s);
+        const invS = 1 / (d + ((ai.isElectron || aj.isElectron) ? sE : s));
         // (σ/d)¹² 곱셈 전개 — Math.pow 는 ~20× 느려 전체 verify 의 지배 비용이었다 (값 동일)
         const sr = sig / d, sr2 = sr * sr, sr4 = sr2 * sr2;
         const sr12 = sr4 * sr4 * sr4;

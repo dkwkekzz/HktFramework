@@ -1295,9 +1295,11 @@
       log.push({ ok: hitF >= 4 && vAfter >= 4, name: 'PG·핵융합',
         msg: `PG·핵융합: H+H 정면 충돌 → He+n 융합 ${hitF}/5 런 (장벽 게이트 ${Pg.FUSION.barrier}·Q=${Pg.FUSION.Q}) · 방출 최고 속도 ${vAfter.toFixed(1)} ≥ 4 (중성자 질량 역비 — 위력 체감·Σc 전환 장부 정확)` });
       // (2) 알칼리+물 격렬 반응: Na 를 O+2H 냉각 클러스터에 → 전자 이전 발열로 T 급등 (EA_CAP 2.5)
+      //     step-0037: ⑳ R-ION 상시 합류로 Na 가 충돌 이온화 경로로도 빠진다 — 이 검사의 목적은
+      //     ⑤ R-XFER 발열 경로의 통제 검증이므로 nu_ion=0 으로 분리 (기본 세계는 상시).
       let hitNa = 0; const Tlog = [];
       for (let s = 0; s < 5; s++) {
-        const w = Pg.buildPlayground({ rng: E.makeRng(300 + s), L: 12 });
+        const w = Pg.buildPlayground({ rng: E.makeRng(300 + s), L: 12, nu_ion: 0 });
         Pg.spawn(w, 'O', 6, 6, { T: 0.1 }); Pg.spawn(w, 'H', 6.9, 6, { T: 0.1 });
         Pg.spawn(w, 'H', 6, 6.9, { T: 0.1 }); Pg.spawn(w, 'Na', 5.1, 6, { T: 0.1 });
         const T0 = M.temperature(w);
@@ -1560,7 +1562,7 @@
       // (2) ⑤ 공존: Na+Cl 전자 이전이 그대로 — 맨 이온은 정수 전하 정확 (단원자 QEq 건너뜀)
       let hit35 = 0, intOk = true;
       for (let s = 0; s < 5; s++) {
-        const w2 = Pg.buildPlayground({ rng: E.makeRng(3510 + s), L: 10 });
+        const w2 = Pg.buildPlayground({ rng: E.makeRng(3510 + s), L: 10, nu_ion: 0 });   // ⑤ R-XFER 경로 통제 (⑳ 분리·step-0037)
         const Na = Pg.spawn(w2, 'Na', 5, 5, { T: 0.1 });
         const Cl = Pg.spawn(w2, 'Cl', 6.0, 5, { T: 0.1 });
         for (let k = 0; k < 3000; k++) {
@@ -1644,6 +1646,50 @@
       for (let k = 0; k < 1500; k++) Pg.tick(wG6);
       log.push({ ok: (wG6.pgProtCount || 0) === 0 && !wG6.protSolv, name: '36·게이트',
         msg: `36·법칙 게이트: nu_prot=0 → 이전 ${wG6.pgProtCount || 0}회 (정확 0) · protSolv 기본 0 = 유전 차폐 없음이 참값` });
+    }
+
+    // 37. ⑳ 플라스마 합류 (step-0037) — R-ION/R-REC3 행 + 자유전자 개체 (playground catalog 상시).
+    //     저온에선 IE 에너지 가드가 저절로 잠근다 (상시 = 참값). 전자 = 순수 연화 쿨롱(eps_e 0·
+    //     soft_e 0.45 — 유계 퍼텐셜·점전자 catapult 1e32 근절). 전하 회계 Σq(원자)=n_e 정확.
+    //     격차(정직): 사건-적분 커플링 드리프트 ~1e-2/사건 (사건 단위 회계는 정확·dt 무스케일 —
+    //     사건 시점 힘 불연속 × leapfrog 반킥 추정) — 고온 러너 잔차 허용 ≤ 6.
+    if (want(37)) {
+      const naGas = (seed) => {
+        const w = Pg.buildPlayground({ rng: E.makeRng(seed), L: 18 });
+        for (let i = 0; i < 24; i++) Pg.spawn(w, 'Na', 2 + (i % 6) * 2.4, 2 + ((i / 6) | 0) * 2.4, { T: 0.3 });
+        return w;
+      };
+      // (1) 이온화 곡선 정성: 저온 vs 고온 — x 상승 · 전하 정확 · 잔차 유계
+      const runT = (T) => {
+        let xsum = 0, chg = true, worst = 0;
+        for (const seed of [1, 2, 3]) {
+          const w = naGas(seed);
+          for (let k = 0; k < 4000; k++) { Pg.tick(w); Pg.thermostat(w, T, 0.1); }
+          xsum += Iz.ionization(w).x;
+          if (!Pg.chargeOK(w)) chg = false;
+          worst = Math.max(worst, Math.abs(Pg.residual(w)));
+        }
+        return { x: xsum / 3, chg, worst };
+      };
+      const cold = runT(0.5), hot = runT(3.0);
+      log.push({ ok: hot.x > cold.x + 0.1 && hot.x >= 0.6 && cold.chg && hot.chg && cold.worst <= 6 && hot.worst <= 6, name: '37·이온화곡선',
+        msg: `37·이온화 창발: ⟨x⟩ T0.5 ${cold.x.toFixed(2)} → T3.0 ${hot.x.toFixed(2)} (가열→이온화↑·문턱=IE 가드 author 0) · Σq(원자)=n_e 정확 ${cold.chg && hot.chg} · |잔차| ≤ 6 (사건-적분 드리프트 ~1e-2/사건·격차 등록)` });
+
+      // (2) 재결합: 고온 이온화 → 급랭 — x 하강 (역방향·재결합열 방출)
+      const wR = naGas(7);
+      for (let k = 0; k < 4000; k++) { Pg.tick(wR); Pg.thermostat(wR, 3.0, 0.1); }
+      const xHot = Iz.ionization(wR).x;
+      for (let k = 0; k < 5000; k++) { Pg.tick(wR); Pg.thermostat(wR, 0.3, 0.1); }
+      const xCold = Iz.ionization(wR).x;
+      log.push({ ok: xHot >= 0.5 && xCold < xHot - 0.2 && Pg.chargeOK(wR), name: '37·재결합',
+        msg: `37·재결합: x ${xHot.toFixed(2)} → 급랭 후 ${xCold.toFixed(2)} (3체 재결합이 이겨 전자 소멸·재결합열 방출) · 전하 정확` });
+
+      // (3) 게이트 = 참값: nu_ion=0 → 이온화·전자 정확 0 (저온 세계는 어차피 IE 가드가 잠근다)
+      const wG7 = Pg.buildPlayground({ rng: E.makeRng(9), L: 18, nu_ion: 0 });
+      for (let i = 0; i < 16; i++) Pg.spawn(wG7, 'Na', 2 + (i % 4) * 3, 2 + ((i / 4) | 0) * 3, { T: 0.3 });
+      for (let k = 0; k < 2500; k++) { Pg.tick(wG7); Pg.thermostat(wG7, 3.0, 0.1); }
+      log.push({ ok: Iz.ionization(wG7).x === 0 && wG7.electrons.length === 0, name: '37·게이트',
+        msg: `37·법칙 게이트: nu_ion=0 → x=0·전자 0 (정확) — 시도율 부재 = 참값·문턱은 어디까지나 에너지 가드` });
     }
 
     return log;

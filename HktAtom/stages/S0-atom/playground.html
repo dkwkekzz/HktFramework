@@ -155,6 +155,7 @@
 <script src="geometry.js"></script>
 <script src="polarity.js"></script>
 <script src="acidbase.js"></script>
+<script src="ionized.js"></script>
 <script src="combustion.js"></script>
 <script src="measure.js"></script>
 <script src="playground.js"></script>
@@ -545,9 +546,14 @@
       } }],
     },
     hotgas: {
-      icon: '🌡', label: '⑳ 뜨거운 기체(이온화)', spawnT: 60, thermo: [true, 60],
+      icon: '🌡', label: '⑤ 뜨거운 이온 기체(전자 이전)', spawnT: 60, thermo: [true, 60],
       observe: '뜨거운 Na·Cl 충돌로 전자 이전 이온화가 빈발 — Na⁺(주황)·Cl⁻(청록) 전하 링이 계속 나타났다 명멸(격자로 못 정착·피드에 "이온화" 사건).',
       build: (w) => scatter(w, { Na: 10, Cl: 10 }, 0.6, 0.4),
+    },
+    plasma: {
+      icon: '☄', label: '⑳ 플라스마(이온화 기체)', spawnT: 30, thermo: [true, 200],
+      observe: 'Na 증기를 초고온으로 — 충돌 이온화(A+M→A⁺+e⁻+M·문턱=IE 에너지 가드)로 자유전자(청록 점)가 태어나고, 3체 재결합과 경쟁하며 이온화 분율이 오른다. 항온조를 낮추면 재결합이 이겨 전자가 사라진다(재결합열 방출). 원자 수 옆 +Ne⁻ 가 전자 수.',
+      build: (w) => scatter(w, { Na: 24 }, 0.3, 0.55),
     },
     fire: {
       icon: '🔥', label: '⑱ 연소·불', spawnT: 30, thermo: [false],
@@ -726,6 +732,15 @@
       }
       ctx.globalAlpha = 1;
     }
+    // ⑳ 자유전자 — 작은 청록 점 + 속도 꼬리 (step-0037)
+    for (const el of world.electrons) {
+      const pr = project(el.r);
+      ctx.strokeStyle = 'rgba(120,220,255,0.7)'; ctx.lineWidth = 1;
+      const tl = project({ x: el.r.x - el.p.x * 0.15, y: el.r.y - el.p.y * 0.15, z: el.r.z - el.p.z * 0.15 });
+      ctx.beginPath(); ctx.moveTo(tl.x, tl.y); ctx.lineTo(pr.x, pr.y); ctx.stroke();
+      ctx.beginPath(); ctx.arc(pr.x, pr.y, Math.max(1.5, 2.5 * (pr.persp || 1)), 0, 2 * Math.PI);
+      ctx.fillStyle = '#7adcff'; ctx.fill();
+    }
     // 분열 섬광 — 팽창 링 (뷰어 연출·물리 아님)
     world.flashes = world.flashes.filter((f) => world.t - f.t < 1.6);
     for (const f of world.flashes) {
@@ -807,7 +822,7 @@
 
   function updateHud() {
     const n = world.atoms.length;
-    document.getElementById('stN').textContent = n;
+    document.getElementById('stN').textContent = n + (world.electrons.length ? '+' + world.electrons.length + 'e⁻' : '');
     document.getElementById('stT').textContent = n ? M.temperature(world).toFixed(3) : '—';
     document.getElementById('stP').textContent = n ? M.pressure(world).toFixed(3) : '—';
     document.getElementById('stB').textContent = world.bonds.length;
@@ -816,8 +831,9 @@
     document.getElementById('stF').textContent = world.pgFisCount + '·' + world.pgFusCount;
     const res = Pg.residual(world), r = document.getElementById('stR');
     r.textContent = res.toFixed(3);
-    // 허용 잔차 = max(0.1, 0.3%·주입 E) — 핵반응 고 KE 는 서브스텝 적분 드리프트가 에너지 규모에 비례
-    r.className = 'v resid ' + (Math.abs(res) < Math.max(0.1, 3e-3 * Math.abs(world.pgIn.E)) ? 'ok' : 'bad');
+    // 허용 잔차 = max(0.1, 0.3%·주입 E, 0.3·전자 수) — 핵반응 고 KE 서브스텝 드리프트 + ⑳ 플라스마
+    // 사건-적분 커플링 드리프트(~1e-2/이온화·재결합 사건·전자 수가 활동 프록시 — step-0037 격차)
+    r.className = 'v resid ' + (Math.abs(res) < Math.max(0.1, 3e-3 * Math.abs(world.pgIn.E), 0.3 * world.electrons.length) ? 'ok' : 'bad');
     const hist = {};
     for (const g of Pg.clusters(world)) { const f = Pg.formula(g.comp); hist[f] = (hist[f] || 0) + 1; }
     const top = Object.entries(hist).sort((a, b) => b[1] - a[1]).slice(0, 4)
