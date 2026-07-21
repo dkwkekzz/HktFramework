@@ -1,0 +1,582 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>HktAdvProtoA — 목적 트리 관찰·편집기</title>
+<style>
+  :root{
+    --bg:#0f1216; --panel:#161b22; --panel2:#1c2129; --line:#2a313c;
+    --text:#e6edf3; --muted:#8b98a8; --accent:#4da3ff; --danger:#ff6b6b;
+    --ok:#3fb950; --warn:#e3b341;
+    --link-conflict:#ff6b6b; --link-coop:#3fb950; --link-dep:#9b8cff;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%;margin:0}
+  body{
+    background:var(--bg); color:var(--text);
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI","Malgun Gothic","Apple SD Gothic Neo",sans-serif;
+    font-size:13px; display:flex; flex-direction:column; overflow:hidden;
+  }
+  header{
+    display:flex; align-items:center; gap:10px; padding:8px 14px;
+    background:var(--panel); border-bottom:1px solid var(--line); flex:0 0 auto; flex-wrap:wrap;
+  }
+  header h1{font-size:14px; margin:0; font-weight:700; letter-spacing:.2px}
+  header .sub{color:var(--muted); font-size:11px}
+  .spacer{flex:1}
+  button, .btn{
+    background:var(--panel2); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:5px 10px; cursor:pointer; font-size:12px;
+  }
+  button:hover{border-color:var(--accent)}
+  button.primary{background:var(--accent); color:#04223f; border-color:var(--accent); font-weight:600}
+  button.danger{color:var(--danger); border-color:#40282b}
+  button.danger:hover{background:#40282b}
+  button.on{background:var(--accent); color:#04223f; border-color:var(--accent)}
+  input[type=text], select, textarea{
+    background:var(--bg); color:var(--text); border:1px solid var(--line);
+    border-radius:6px; padding:5px 8px; font-size:12px; font-family:inherit; width:100%;
+  }
+  input:focus, select:focus, textarea:focus{outline:none; border-color:var(--accent)}
+  textarea{resize:vertical; min-height:34px; line-height:1.4}
+  .seg{display:flex; border:1px solid var(--line); border-radius:6px; overflow:hidden}
+  .seg button{border:0; border-radius:0; border-right:1px solid var(--line)}
+  .seg button:last-child{border-right:0}
+  main{flex:1; display:flex; min-height:0}
+  #viewWrap{flex:1; min-width:0; position:relative; display:flex; flex-direction:column}
+  #searchBar{padding:6px 10px; border-bottom:1px solid var(--line); background:var(--panel); display:flex; gap:8px; align-items:center}
+  #searchBar input{max-width:280px}
+  #legend{display:flex; gap:12px; flex-wrap:wrap; color:var(--muted); font-size:11px; align-items:center}
+  .lg{display:inline-flex; align-items:center; gap:4px}
+  .dot{width:10px;height:10px;border-radius:50%;display:inline-block}
+  .lg .lnk{width:16px;height:0;border-top:2px dashed}
+  /* Tree view */
+  #treeView{flex:1; overflow:auto; padding:8px 4px}
+  .tnode{user-select:none}
+  .trow{display:flex; align-items:center; gap:6px; padding:3px 6px; border-radius:6px; cursor:pointer; white-space:nowrap}
+  .trow:hover{background:var(--panel)}
+  .trow.sel{background:#193050; outline:1px solid var(--accent)}
+  .trow.match{background:#3a3410}
+  .twist{width:14px; text-align:center; color:var(--muted); cursor:pointer; flex:0 0 auto}
+  .twist.leaf{opacity:.25; cursor:default}
+  .tid{color:var(--muted); font-size:11px; font-variant-numeric:tabular-nums}
+  .ttitle{overflow:hidden; text-overflow:ellipsis}
+  .badge{font-size:10px; color:var(--muted); border:1px solid var(--line); border-radius:10px; padding:0 6px; margin-left:2px}
+  .kids{margin-left:16px; border-left:1px dashed var(--line); padding-left:2px}
+  /* Graph view */
+  #graphView{flex:1; overflow:hidden; position:relative; background:
+     radial-gradient(circle at 20% 10%, #12171d, var(--bg))}
+  #graphSvg{width:100%; height:100%; cursor:grab}
+  #graphSvg.grabbing{cursor:grabbing}
+  .gnode rect{stroke-width:1.4px; cursor:pointer}
+  .gnode text{font-size:11px; pointer-events:none}
+  .gnode.sel rect{stroke:#fff; stroke-width:2.4px}
+  .gnode.dim{opacity:.28}
+  .edge{fill:none; stroke:var(--line); stroke-width:1.4px}
+  .xlink{fill:none; stroke-width:1.6px; stroke-dasharray:5 4}
+  .xlink-label{font-size:9px; fill:var(--muted)}
+  .hint{position:absolute; bottom:8px; left:10px; color:var(--muted); font-size:11px; pointer-events:none}
+  /* Detail / edit panel */
+  #panel{flex:0 0 380px; width:380px; background:var(--panel); border-left:1px solid var(--line);
+    display:flex; flex-direction:column; min-height:0}
+  #panelHead{padding:10px 12px; border-bottom:1px solid var(--line); display:flex; gap:8px; align-items:center}
+  #panelHead .pid{color:var(--muted); font-size:11px}
+  #panelBody{flex:1; overflow:auto; padding:12px}
+  #panelBody.empty{display:flex; align-items:center; justify-content:center; color:var(--muted); text-align:center; padding:24px}
+  .field{margin-bottom:11px}
+  .field label{display:block; color:var(--muted); font-size:11px; margin-bottom:3px; font-weight:600}
+  .field .hintx{color:var(--muted); font-size:10px; font-weight:400}
+  .rel{border:1px solid var(--line); border-radius:6px; padding:6px 8px; margin-bottom:6px; font-size:12px}
+  .rel .rtype{font-weight:700; margin-right:6px}
+  .rel .rt-충돌{color:var(--link-conflict)} .rel .rt-협력{color:var(--link-coop)} .rel .rt-의존{color:var(--link-dep)}
+  .rel .rrm{float:right; color:var(--danger); cursor:pointer; border:0; background:none; padding:0 2px}
+  .addrel{display:flex; gap:6px; margin-top:6px}
+  .addrel select{flex:1}
+  .panelActions{display:flex; gap:8px; padding:10px 12px; border-top:1px solid var(--line); flex-wrap:wrap}
+  .toast{position:fixed; bottom:16px; left:50%; transform:translateX(-50%);
+    background:var(--panel2); border:1px solid var(--accent); color:var(--text);
+    padding:8px 14px; border-radius:8px; opacity:0; transition:opacity .2s; pointer-events:none; z-index:20}
+  .toast.show{opacity:1}
+  .banner{background:#40340f; color:#f0d68a; padding:6px 14px; font-size:12px; border-bottom:1px solid var(--warn)}
+  code{background:var(--bg); padding:1px 5px; border-radius:4px; border:1px solid var(--line)}
+</style>
+</head>
+<body>
+<header>
+  <h1>목적 트리</h1>
+  <span class="sub">HktAdvProtoA · 세계를 표현하는 근거</span>
+  <div class="seg" style="margin-left:8px">
+    <button id="btnTree" class="on">트리</button>
+    <button id="btnGraph">그래프</button>
+  </div>
+  <span class="spacer"></span>
+  <span class="sub" id="stat"></span>
+  <button id="btnAddRoot">+ 최상위 목적</button>
+  <button id="btnImport">가져오기</button>
+  <button id="btnExport" class="primary">내보내기(JSON)</button>
+  <button id="btnReset" class="danger" title="편집 내용을 버리고 파일 원본으로">원본 복원</button>
+  <input type="file" id="fileInput" accept="application/json" hidden>
+</header>
+
+<div id="autosaveBanner" class="banner" hidden>편집 중 — 변경 사항은 이 브라우저에 자동 저장됩니다. 파일로 남기려면 <b>내보내기(JSON)</b> 후 <code>data/objective-graph.json</code> 에 저장하세요.</div>
+
+<div id="searchBar">
+  <input type="text" id="search" placeholder="검색: id · 목적 문장 · 기호 · 주체">
+  <button id="btnExpandAll">모두 펼치기</button>
+  <button id="btnCollapseAll">모두 접기</button>
+  <span class="spacer"></span>
+  <div id="legend"></div>
+</div>
+
+<main>
+  <div id="viewWrap">
+    <div id="treeView"></div>
+    <div id="graphView" hidden>
+      <svg id="graphSvg"><g id="gRoot"></g></svg>
+      <div class="hint">드래그: 이동 · 휠: 확대/축소 · 노드 클릭: 선택 · 더블클릭: 초기화</div>
+    </div>
+  </div>
+
+  <aside id="panel">
+    <div id="panelHead"><b>노드</b><span class="pid" id="panelId"></span></div>
+    <div id="panelBody" class="empty">노드를 선택하면 표준 목적 노드 구조(§5)를 관찰·편집할 수 있습니다.</div>
+    <div class="panelActions" id="panelActions" hidden>
+      <button id="btnAddChild" class="primary">+ 하위 목적</button>
+      <button id="btnDupe">복제</button>
+      <span class="spacer"></span>
+      <button id="btnDelete" class="danger">삭제</button>
+    </div>
+  </aside>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+"use strict";
+
+// ── 표준 노드 필드 스펙 (Design-ObjectiveTree.md §5) ──────────────────
+const STR_FIELDS = [
+  ["title","목적 문장","주체가 만들고자 하는 상태"],
+  ["current","현재 상태","목적 생성 전의 상태"],
+  ["target","목표 상태","완료 시의 상태"],
+  ["survival","생존과의 관계","생존 가능성을 어떻게 바꾸는가"],
+  ["cause","발생 원인","어떤 결핍·위협·욕구·사건 때문인가"],
+  ["discovery","발견 방식","주체가 이 목적/방법을 알게 되는 과정"],
+  ["doneWhen","완료 조건","어떤 세계 상태가 되면 완료인가"],
+  ["onComplete","완료 결과","완료 후 변경되는 세계 상태"],
+  ["onFail","실패 결과","미해결·실패 시 변경되는 세계 상태"],
+];
+const LIST_FIELDS = [
+  ["methods","해결 방법","목표 상태를 만들 수 있는 방법 (한 줄에 하나)"],
+  ["altMethods","대체 해결 방법","같은 목표의 다른 방법"],
+  ["functions","필요 기능","해결 방법 실행에 필요한 기능"],
+  ["symbols","필요 기호","인물·생명체·장소·물질·장비·스킬·지식·현상"],
+  ["providers","재료 제공 단위","요소를 실제 세계에서 제공하는 대상"],
+  ["access","접근 조건","제공자에 도달·이용하기 위한 조건"],
+  ["obstacles","방해 요소","목적을 어렵게 만드는 다른 목적·존재"],
+  ["derived","파생 목적","완료·실패 이후 새로 생성되는 목적"],
+];
+const SUBJECT_COLORS = {}; // 채워짐
+const PALETTE = ["#4da3ff","#ff9f43","#3fb950","#e3b341","#ff6b6b","#9b8cff","#4ecdc4",
+                 "#f78fb3","#c9a26b","#7bd88f","#b7a0ff","#ff8c69"];
+
+let GRAPH = null;
+let byId = new Map();
+let childrenOf = new Map();
+let selectedId = null;
+let collapsed = new Set();
+let dirty = false;
+const LS_KEY = "hkt-adv-protoa-objective-tree";
+
+// ── 로딩 ──────────────────────────────────────────────────────────────
+async function load(){
+  const saved = localStorage.getItem(LS_KEY);
+  if(saved){
+    try{ setGraph(JSON.parse(saved)); dirty=true; showBanner(); toast("자동 저장된 편집본을 불러왔습니다"); return; }catch(e){}
+  }
+  try{
+    const res = await fetch("./data/objective-graph.json", {cache:"no-store"});
+    if(!res.ok) throw new Error(res.status);
+    setGraph(await res.json());
+  }catch(e){
+    document.getElementById("treeView").innerHTML =
+      '<div style="padding:20px;color:var(--muted);line-height:1.7">'+
+      '<b style="color:var(--warn)">데이터를 fetch 하지 못했습니다.</b><br>'+
+      '로컬 서버로 열거나(<code>python3 -m http.server</code>) 상단 <b>가져오기</b>로 '+
+      '<code>data/objective-graph.json</code> 를 직접 선택하세요.</div>';
+  }
+}
+
+function setGraph(g){
+  GRAPH = g;
+  if(!GRAPH.links) GRAPH.links = [];
+  reindex();
+  buildSubjectColors();
+  renderLegend();
+  render();
+}
+
+function reindex(){
+  byId = new Map(); childrenOf = new Map();
+  for(const n of GRAPH.nodes){ byId.set(n.id, n); childrenOf.set(n.id, []); }
+  for(const n of GRAPH.nodes){
+    if(n.parent){
+      if(!childrenOf.has(n.parent)) childrenOf.set(n.parent, []);
+      childrenOf.get(n.parent).push(n);
+    }
+  }
+  document.getElementById("stat").textContent =
+    GRAPH.nodes.length + " 노드 · " + GRAPH.links.length + " 관계";
+}
+
+function buildSubjectColors(){
+  const subs = (GRAPH.meta && GRAPH.meta.subjects) ? GRAPH.meta.subjects.slice() : [];
+  for(const n of GRAPH.nodes) if(n.subject && !subs.includes(n.subject)) subs.push(n.subject);
+  subs.forEach((s,i)=> SUBJECT_COLORS[s] = PALETTE[i % PALETTE.length]);
+}
+function colorOf(n){ return SUBJECT_COLORS[n.subject] || "#8b98a8"; }
+function roots(){ return GRAPH.nodes.filter(n=>!n.parent); }
+
+// ── 저장 상태 ─────────────────────────────────────────────────────────
+function markDirty(){ dirty=true; showBanner(); persist(); reindex(); }
+function persist(){ try{ localStorage.setItem(LS_KEY, JSON.stringify(GRAPH)); }catch(e){} }
+function showBanner(){ document.getElementById("autosaveBanner").hidden = !dirty; }
+
+// ── 트리 뷰 ───────────────────────────────────────────────────────────
+function render(){
+  if(currentView==="tree") renderTree(); else renderGraph();
+  renderPanel();
+}
+let searchTerm = "";
+function matches(n){
+  if(!searchTerm) return false;
+  const t = searchTerm.toLowerCase();
+  const hay = [n.id, n.title, n.subject, ...(n.symbols||[]), ...(n.providers||[])].join(" ").toLowerCase();
+  return hay.includes(t);
+}
+function renderTree(){
+  const root = document.getElementById("treeView");
+  root.innerHTML = "";
+  for(const r of roots()) root.appendChild(treeNode(r));
+}
+function treeNode(n){
+  const wrap = document.createElement("div"); wrap.className="tnode";
+  const kids = childrenOf.get(n.id) || [];
+  const isCol = collapsed.has(n.id);
+  const row = document.createElement("div");
+  row.className = "trow" + (n.id===selectedId?" sel":"") + (matches(n)?" match":"");
+  row.onclick = ()=> select(n.id);
+
+  const tw = document.createElement("span");
+  tw.className = "twist" + (kids.length?"":" leaf");
+  tw.textContent = kids.length ? (isCol?"▸":"▾") : "•";
+  if(kids.length) tw.onclick = (e)=>{ e.stopPropagation(); if(isCol) collapsed.delete(n.id); else collapsed.add(n.id); renderTree(); };
+  row.appendChild(tw);
+
+  const dot=document.createElement("span"); dot.className="dot"; dot.style.background=colorOf(n); row.appendChild(dot);
+  const id=document.createElement("span"); id.className="tid"; id.textContent=n.id; row.appendChild(id);
+  const ti=document.createElement("span"); ti.className="ttitle"; ti.textContent=n.title||"(제목 없음)"; row.appendChild(ti);
+  if(kids.length){ const b=document.createElement("span"); b.className="badge"; b.textContent=kids.length; row.appendChild(b); }
+  const xl = linksOf(n.id).length;
+  if(xl){ const b=document.createElement("span"); b.className="badge"; b.textContent="↔"+xl; b.title="주체 간 관계"; row.appendChild(b); }
+  wrap.appendChild(row);
+
+  if(kids.length && !isCol){
+    const kd=document.createElement("div"); kd.className="kids";
+    for(const c of kids) kd.appendChild(treeNode(c));
+    wrap.appendChild(kd);
+  }
+  return wrap;
+}
+
+// ── 그래프 뷰 (SVG tidy-tree) ─────────────────────────────────────────
+const COL_W = 210, ROW_H = 30, NODE_W = 180, NODE_H = 22, ROOT_GAP = 40;
+let view = {x:40, y:20, k:0.9};
+function layout(){
+  const pos = new Map(); let yCursor = 0;
+  function place(n, depth){
+    const kids = (childrenOf.get(n.id)||[]);
+    let y;
+    if(kids.length && !collapsed.has(n.id)){
+      const ys = kids.map(c=>place(c, depth+1));
+      y = (ys[0]+ys[ys.length-1])/2;
+    }else{
+      y = yCursor; yCursor += 1;
+    }
+    pos.set(n.id, {x: depth*COL_W, y: y*ROW_H, depth});
+    return y;
+  }
+  for(const r of roots()){ place(r, 0); yCursor += ROOT_GAP/ROW_H; }
+  return pos;
+}
+function renderGraph(){
+  const svg = document.getElementById("graphSvg");
+  const g = document.getElementById("gRoot");
+  const pos = layout();
+  const NS = "http://www.w3.org/2000/svg";
+  let h = "";
+  // 트리 간선
+  for(const n of GRAPH.nodes){
+    if(collapsed.has(n.parent)) continue;
+    if(!n.parent || !pos.has(n.id) || !pos.has(n.parent)) continue;
+    const p = pos.get(n.parent), c = pos.get(n.id);
+    const x1=p.x+NODE_W, y1=p.y+NODE_H/2, x2=c.x, y2=c.y+NODE_H/2, mx=(x1+x2)/2;
+    h += `<path class="edge" d="M${x1},${y1} C${mx},${y1} ${mx},${y2} ${x2},${y2}"/>`;
+  }
+  // 주체 간 관계 (dashed)
+  for(const l of GRAPH.links){
+    if(!pos.has(l.source)||!pos.has(l.target)) continue;
+    const a=pos.get(l.source), b=pos.get(l.target);
+    const x1=a.x+NODE_W/2, y1=a.y+NODE_H, x2=b.x+NODE_W/2, y2=b.y+NODE_H;
+    const my=Math.max(y1,y2)+40;
+    const col = l.type==="충돌"?"var(--link-conflict)":l.type==="협력"?"var(--link-coop)":"var(--link-dep)";
+    h += `<path class="xlink" stroke="${col}" d="M${x1},${y1} C${x1},${my} ${x2},${my} ${x2},${y2}"/>`;
+    h += `<text class="xlink-label" x="${(x1+x2)/2}" y="${my-2}" text-anchor="middle">${esc(l.type)}</text>`;
+  }
+  // 노드
+  for(const n of GRAPH.nodes){
+    if(!pos.has(n.id)) continue;
+    const p=pos.get(n.id); const col=colorOf(n);
+    const dim = searchTerm && !matches(n) ? " dim" : "";
+    const sel = n.id===selectedId ? " sel" : "";
+    const kids=(childrenOf.get(n.id)||[]).length;
+    const label = truncate((n.title||n.id), 24);
+    h += `<g class="gnode${sel}${dim}" data-id="${esc(n.id)}" transform="translate(${p.x},${p.y})">`+
+         `<rect width="${NODE_W}" height="${NODE_H}" rx="6" fill="#161b22" stroke="${col}"/>`+
+         `<rect width="4" height="${NODE_H}" rx="2" fill="${col}"/>`+
+         `<text x="9" y="15" fill="#e6edf3">${esc(label)}</text>`+
+         (kids?`<text x="${NODE_W-8}" y="15" text-anchor="end" fill="#8b98a8">${collapsed.has(n.id)?"▸"+kids:kids}</text>`:"")+
+         `</g>`;
+  }
+  g.innerHTML = h;
+  g.setAttribute("transform", `translate(${view.x},${view.y}) scale(${view.k})`);
+  g.querySelectorAll(".gnode").forEach(el=>{
+    el.addEventListener("click", (e)=>{ e.stopPropagation(); select(el.dataset.id); });
+    el.addEventListener("dblclick", (e)=>{ e.stopPropagation(); const id=el.dataset.id;
+      if(collapsed.has(id)) collapsed.delete(id); else collapsed.add(id); renderGraph(); });
+  });
+}
+function truncate(s,n){ s=String(s); return s.length>n ? s.slice(0,n-1)+"…" : s; }
+
+// pan/zoom
+(function(){
+  const svg=document.getElementById("graphSvg");
+  let dragging=false, sx=0, sy=0, ox=0, oy=0;
+  svg.addEventListener("mousedown",(e)=>{ if(e.target.closest(".gnode"))return;
+    dragging=true; svg.classList.add("grabbing"); sx=e.clientX; sy=e.clientY; ox=view.x; oy=view.y; });
+  window.addEventListener("mousemove",(e)=>{ if(!dragging)return;
+    view.x=ox+(e.clientX-sx); view.y=oy+(e.clientY-sy);
+    document.getElementById("gRoot").setAttribute("transform",`translate(${view.x},${view.y}) scale(${view.k})`); });
+  window.addEventListener("mouseup",()=>{ dragging=false; svg.classList.remove("grabbing"); });
+  svg.addEventListener("wheel",(e)=>{ e.preventDefault();
+    const r=svg.getBoundingClientRect(), mx=e.clientX-r.left, my=e.clientY-r.top;
+    const f=e.deltaY<0?1.1:1/1.1, nk=Math.min(2.5,Math.max(0.25,view.k*f));
+    view.x=mx-(mx-view.x)*(nk/view.k); view.y=my-(my-view.y)*(nk/view.k); view.k=nk;
+    document.getElementById("gRoot").setAttribute("transform",`translate(${view.x},${view.y}) scale(${view.k})`); },{passive:false});
+  svg.addEventListener("dblclick",(e)=>{ if(e.target.closest(".gnode"))return; view={x:40,y:20,k:0.9}; renderGraph(); });
+})();
+
+// ── 관계(links) 헬퍼 ─────────────────────────────────────────────────
+function linksOf(id){ return GRAPH.links.filter(l=>l.source===id||l.target===id); }
+function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c])); }
+
+// ── 상세/편집 패널 ────────────────────────────────────────────────────
+function select(id){ selectedId=id; render();
+  const el=document.querySelector('#treeView .trow.sel'); if(el) el.scrollIntoView({block:"nearest"});
+}
+function renderPanel(){
+  const body=document.getElementById("panelBody");
+  const acts=document.getElementById("panelActions");
+  const pid=document.getElementById("panelId");
+  const n = selectedId ? byId.get(selectedId) : null;
+  if(!n){ body.className="empty"; body.innerHTML="노드를 선택하면 표준 목적 노드 구조(§5)를 관찰·편집할 수 있습니다."; acts.hidden=true; pid.textContent=""; return; }
+  body.className=""; acts.hidden=false; pid.textContent = n.id;
+
+  let h = "";
+  // 주체
+  h += `<div class="field"><label>목적 주체</label>`+ subjectSelect(n) +`</div>`;
+  // 상위 목적
+  h += `<div class="field"><label>상위 목적 ID <span class="hintx">(파생 관계)</span></label>`+ parentSelect(n) +`</div>`;
+  // 문자열 필드
+  for(const [k,label,hint] of STR_FIELDS){
+    const isTitle = k==="title";
+    h += `<div class="field"><label>${label} <span class="hintx">${hint}</span></label>`+
+         `<textarea data-str="${k}" rows="${isTitle?2:2}">${esc(n[k]||"")}</textarea></div>`;
+  }
+  // 리스트 필드
+  for(const [k,label,hint] of LIST_FIELDS){
+    const val = (n[k]||[]).join("\n");
+    h += `<div class="field"><label>${label} <span class="hintx">${hint}</span></label>`+
+         `<textarea data-list="${k}" rows="${Math.max(2,(n[k]||[]).length)}">${esc(val)}</textarea></div>`;
+  }
+  // 관련 목적(주체 간 관계)
+  h += `<div class="field"><label>관련 목적 <span class="hintx">주체 간 협력·충돌·의존</span></label>`;
+  const rels = linksOf(n.id);
+  if(rels.length===0) h += `<div style="color:var(--muted);font-size:11px;margin-bottom:4px">관계 없음</div>`;
+  rels.forEach((l)=>{
+    const other = l.source===n.id ? l.target : l.source;
+    const dir = l.source===n.id ? "→" : "←";
+    const on = byId.get(other);
+    const gi = GRAPH.links.indexOf(l);
+    h += `<div class="rel"><button class="rrm" data-rm="${gi}">✕</button>`+
+         `<span class="rtype rt-${esc(l.type)}">${esc(l.type)}</span>`+
+         `${dir} <b>${esc(other)}</b> ${esc(on?on.title:"")}`+
+         (l.note?`<div style="color:var(--muted);font-size:11px;margin-top:3px">${esc(l.note)}</div>`:"")+
+         `</div>`;
+  });
+  h += `<div class="addrel">`+ relTargetSelect(n) +
+       `<select id="relType"><option>충돌</option><option>협력</option><option>의존</option></select>`+
+       `<button id="btnAddRel">+ 관계</button></div>`;
+  h += `<input type="text" id="relNote" placeholder="관계 설명(선택)" style="margin-top:6px">`;
+  h += `</div>`;
+
+  body.innerHTML = h;
+
+  // 바인딩
+  body.querySelector('[data-subject]').onchange = (e)=>{ n.subject=e.target.value; markDirty(); renderLegend(); render(); };
+  body.querySelector('[data-parent]').onchange = (e)=>{
+    const np = e.target.value||null;
+    if(np===n.id || isDescendant(np, n.id)){ toast("순환 관계는 만들 수 없습니다"); renderPanel(); return; }
+    n.parent = np; markDirty(); render();
+  };
+  body.querySelectorAll('[data-str]').forEach(t=> t.addEventListener("change", e=>{
+    n[t.dataset.str] = e.target.value; markDirty();
+    if(t.dataset.str==="title") render(); }));
+  body.querySelectorAll('[data-list]').forEach(t=> t.addEventListener("change", e=>{
+    const arr = e.target.value.split("\n").map(s=>s.trim()).filter(Boolean);
+    if(arr.length) n[t.dataset.list]=arr; else delete n[t.dataset.list]; markDirty(); }));
+  body.querySelectorAll('[data-rm]').forEach(b=> b.onclick=()=>{ GRAPH.links.splice(+b.dataset.rm,1); markDirty(); renderPanel(); render(); });
+  body.querySelector('#btnAddRel').onclick = ()=>{
+    const tgt=body.querySelector('#relTarget').value; if(!tgt){ toast("대상 노드를 선택하세요"); return; }
+    const type=body.querySelector('#relType').value; const note=body.querySelector('#relNote').value.trim();
+    GRAPH.links.push({source:n.id, target:tgt, type, note}); markDirty(); renderPanel(); render(); toast("관계 추가됨");
+  };
+}
+function subjectSelect(n){
+  const subs = Object.keys(SUBJECT_COLORS);
+  let o = subs.map(s=>`<option${s===n.subject?" selected":""}>${esc(s)}</option>`).join("");
+  return `<select data-subject>${o}</select>`;
+}
+function parentSelect(n){
+  let o = `<option value=""${!n.parent?" selected":""}>— 없음(최상위) —</option>`;
+  for(const m of GRAPH.nodes){
+    if(m.id===n.id) continue;
+    o += `<option value="${esc(m.id)}"${m.id===n.parent?" selected":""}>${esc(m.id)} · ${esc(truncate(m.title,26))}</option>`;
+  }
+  return `<select data-parent>${o}</select>`;
+}
+function relTargetSelect(n){
+  let o = `<option value="">대상 노드…</option>`;
+  for(const m of GRAPH.nodes){ if(m.id===n.id) continue;
+    o += `<option value="${esc(m.id)}">${esc(m.id)} · ${esc(truncate(m.title,22))}</option>`; }
+  return `<select id="relTarget">${o}</select>`;
+}
+function isDescendant(maybeChild, ancestorId){
+  // maybeChild 가 ancestorId 의 후손이면 true (순환 방지)
+  if(!maybeChild) return false;
+  let cur = byId.get(maybeChild);
+  const seen=new Set();
+  while(cur && cur.parent){
+    if(seen.has(cur.id)) return true; seen.add(cur.id);
+    if(cur.parent===ancestorId) return true;
+    cur = byId.get(cur.parent);
+  }
+  return false;
+}
+
+// ── 노드 추가/삭제/복제 ───────────────────────────────────────────────
+function newId(prefix){
+  let i=1, id; do{ id = prefix + i; i++; }while(byId.has(id));
+  return id;
+}
+function addNode(parent){
+  const par = parent ? byId.get(parent) : null;
+  const base = par ? (par.id.replace(/[^A-Za-z]/g,"")||"N") : "N";
+  const id = newId((par?base:"G")+"_");
+  const node = { id, parent: parent||null, subject: par?par.subject:"플레이어", title:"새 목적" };
+  GRAPH.nodes.push(node); markDirty(); reindex();
+  if(par) collapsed.delete(par.id);
+  select(id); toast("노드 추가됨");
+}
+function deleteNode(id){
+  const kids = childrenOf.get(id)||[];
+  const desc = collectDescendants(id);
+  const msg = desc.length ? `이 노드와 하위 ${desc.length}개 노드를 삭제합니다. 계속?` : "이 노드를 삭제합니다. 계속?";
+  if(!confirm(msg)) return;
+  const remove = new Set([id, ...desc]);
+  GRAPH.nodes = GRAPH.nodes.filter(n=>!remove.has(n.id));
+  GRAPH.links = GRAPH.links.filter(l=>!remove.has(l.source)&&!remove.has(l.target));
+  selectedId=null; markDirty(); render(); toast("삭제됨");
+}
+function collectDescendants(id){
+  const out=[]; const stack=[...(childrenOf.get(id)||[])];
+  while(stack.length){ const n=stack.pop(); out.push(n.id); for(const c of (childrenOf.get(n.id)||[])) stack.push(c); }
+  return out;
+}
+function dupeNode(id){
+  const n = byId.get(id); if(!n) return;
+  const base = (n.id.replace(/[0-9_]+$/,"")||"N")+"_";
+  const copy = JSON.parse(JSON.stringify(n)); copy.id = newId(base); copy.title=(n.title||"")+" (복제)";
+  GRAPH.nodes.push(copy); markDirty(); reindex(); select(copy.id); toast("복제됨");
+}
+
+// ── 뷰 전환 · 검색 · 툴바 ─────────────────────────────────────────────
+let currentView="tree";
+function setView(v){
+  currentView=v;
+  document.getElementById("btnTree").classList.toggle("on", v==="tree");
+  document.getElementById("btnGraph").classList.toggle("on", v==="graph");
+  document.getElementById("treeView").hidden = v!=="tree";
+  document.getElementById("graphView").hidden = v!=="graph";
+  render();
+}
+function renderLegend(){
+  const el=document.getElementById("legend");
+  let h = Object.entries(SUBJECT_COLORS).map(([s,c])=>
+    `<span class="lg"><span class="dot" style="background:${c}"></span>${esc(s)}</span>`).join("");
+  h += `<span class="lg"><span class="lnk" style="border-color:var(--link-conflict)"></span>충돌</span>`+
+       `<span class="lg"><span class="lnk" style="border-color:var(--link-coop)"></span>협력</span>`+
+       `<span class="lg"><span class="lnk" style="border-color:var(--link-dep)"></span>의존</span>`;
+  el.innerHTML=h;
+}
+function toast(msg){ const t=document.getElementById("toast"); t.textContent=msg; t.classList.add("show");
+  clearTimeout(t._t); t._t=setTimeout(()=>t.classList.remove("show"),1600); }
+
+function exportJSON(){
+  const clean = { meta:GRAPH.meta, nodes:GRAPH.nodes, links:GRAPH.links };
+  const blob = new Blob([JSON.stringify(clean,null,2)], {type:"application/json"});
+  const a=document.createElement("a"); a.href=URL.createObjectURL(blob);
+  a.download="objective-graph.json"; a.click(); URL.revokeObjectURL(a.href);
+  toast("objective-graph.json 내보냄");
+}
+function importJSON(file){
+  const r=new FileReader();
+  r.onload=()=>{ try{ setGraph(JSON.parse(r.result)); dirty=true; showBanner(); persist(); selectedId=null; render(); toast("가져오기 완료"); }
+    catch(e){ toast("JSON 파싱 실패: "+e.message); } };
+  r.readAsText(file);
+}
+
+// ── 이벤트 배선 ───────────────────────────────────────────────────────
+document.getElementById("btnTree").onclick=()=>setView("tree");
+document.getElementById("btnGraph").onclick=()=>setView("graph");
+document.getElementById("btnAddRoot").onclick=()=>addNode(null);
+document.getElementById("btnExport").onclick=exportJSON;
+document.getElementById("btnImport").onclick=()=>document.getElementById("fileInput").click();
+document.getElementById("fileInput").onchange=(e)=>{ if(e.target.files[0]) importJSON(e.target.files[0]); e.target.value=""; };
+document.getElementById("btnReset").onclick=()=>{ if(confirm("편집 내용을 버리고 파일 원본을 다시 불러옵니다. 계속?")){ localStorage.removeItem(LS_KEY); dirty=false; showBanner(); selectedId=null; load(); } };
+document.getElementById("btnAddChild").onclick=()=>{ if(selectedId) addNode(selectedId); };
+document.getElementById("btnDupe").onclick=()=>{ if(selectedId) dupeNode(selectedId); };
+document.getElementById("btnDelete").onclick=()=>{ if(selectedId) deleteNode(selectedId); };
+document.getElementById("btnExpandAll").onclick=()=>{ collapsed.clear(); render(); };
+document.getElementById("btnCollapseAll").onclick=()=>{ collapsed=new Set(GRAPH.nodes.filter(n=>(childrenOf.get(n.id)||[]).length).map(n=>n.id)); render(); };
+document.getElementById("search").addEventListener("input",(e)=>{ searchTerm=e.target.value.trim();
+  if(searchTerm){ // 검색 시 매치 조상 자동 펼침
+    collapsed.clear();
+  }
+  render(); });
+
+load();
+</script>
+</body>
+</html>

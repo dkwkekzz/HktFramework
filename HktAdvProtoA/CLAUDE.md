@@ -16,3 +16,5 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 |---|---|
 | [STATE.md](STATE.md) | 구현 현황, TODO |
 | [Design-ObjectiveTree.md](Design-ObjectiveTree.md) | 목적 트리 구축 설계도 — 세계를 표현하는 근거 |
+| [data/objective-graph.json](data/objective-graph.json) | 목적 트리 데이터 (설계 §5 노드 스키마의 실물) |
+| [objective-tree.html](objective-tree.html) | 목적 트리 브라우저 관찰·편집기 (의존성 없는 단일 파일) |
