@@ -3,3 +3,4 @@ node_modules/
 
 # 산출물·임시
 *.log
+shot-*.png

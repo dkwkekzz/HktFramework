@@ -7,40 +7,54 @@
 <style>
   :root { color-scheme: dark; }
   * { box-sizing: border-box; }
-  body { margin: 0; background: #0d1017; color: #cfd6e4; font: 14px/1.5 system-ui, sans-serif; }
+  html, body { height: 100%; }
+  body { margin: 0; background: #0d1017; color: #cfd6e4; font: 14px/1.5 system-ui, sans-serif; overflow: hidden; }
   header { display: flex; gap: 12px; align-items: center; padding: 8px 14px; background: #131826; border-bottom: 1px solid #232b3d; flex-wrap: wrap; }
   header h1 { font-size: 15px; margin: 0; color: #e8edf7; }
-  .chip { padding: 2px 9px; border-radius: 10px; background: #1b2233; border: 1px solid #2a3450; font-size: 12px; }
+  .chip { padding: 2px 9px; border-radius: 10px; background: #1b2233; border: 1px solid #2a3450; font-size: 12px; white-space: nowrap; }
   .chip.open { background: #14351f; border-color: #2e7d4f; color: #8fe3ae; }
-  main { display: grid; grid-template-columns: 300px 1fr 320px; gap: 10px; padding: 10px; max-width: 1280px; margin: 0 auto; }
-  .panel { background: #131826; border: 1px solid #232b3d; border-radius: 10px; padding: 10px 12px; }
-  .panel h2 { font-size: 12px; margin: 0 0 8px; color: #8ea0c0; letter-spacing: .06em; }
-  canvas { width: 100%; background: #0f1420; border-radius: 8px; }
-  .stage { border: 1px solid #26304a; border-radius: 8px; padding: 8px 10px; margin-bottom: 8px; background: #161d2e; }
-  .stage b { color: #e8edf7; }
+  main { display: grid; grid-template-columns: 232px 1fr 268px; gap: 8px; padding: 8px; height: calc(100vh - 42px); }
+  .col { display: flex; flex-direction: column; gap: 8px; min-height: 0; overflow-y: auto; }
+  .panel { background: #131826; border: 1px solid #232b3d; border-radius: 10px; padding: 9px 11px; }
+  .panel h2 { font-size: 11.5px; margin: 0 0 7px; color: #8ea0c0; letter-spacing: .06em; }
+  #map { width: 100%; background: #0f1420; border-radius: 8px; }
+
+  /* 존(게임 몸) — 캔버스 무대 */
+  .stagewrap { position: relative; min-height: 0; background: #0b0f18; border: 1px solid #232b3d; border-radius: 10px; overflow: hidden; }
+  #zone { display: block; width: 100%; height: 100%; cursor: crosshair; }
+  .hud { position: absolute; left: 12px; bottom: 12px; right: 12px; display: flex; gap: 14px; align-items: flex-end; pointer-events: none; }
+  .hpbox { pointer-events: none; }
+  .hpbar { width: 190px; height: 15px; background: #1b0f12; border: 1px solid #4a2530; border-radius: 8px; overflow: hidden; }
+  .hpbar > i { display: block; height: 100%; background: linear-gradient(90deg, #d24d5e, #ef8a72); transition: width .2s; }
+  .hplabel { font-size: 11px; color: #e6b7bd; margin-bottom: 2px; }
+  .hint { position: absolute; top: 10px; left: 12px; right: 12px; font-size: 12px; color: #8ea0c0; text-shadow: 0 1px 3px #000; pointer-events: none; }
+  .respawn { position: absolute; inset: 0; display: none; align-items: center; justify-content: center; flex-direction: column; background: #0b0f18cc; font-size: 18px; color: #ff9d9d; }
+
   .timers { font-size: 12px; color: #7f9cc4; margin: 2px 0 6px; }
-  button { background: #24406b; color: #dbe6ff; border: 1px solid #33538a; border-radius: 6px; padding: 4px 10px; margin: 2px 4px 2px 0; cursor: pointer; font-size: 12.5px; }
+  button { background: #24406b; color: #dbe6ff; border: 1px solid #33538a; border-radius: 6px; padding: 4px 9px; margin: 2px 4px 2px 0; cursor: pointer; font-size: 12px; }
   button:hover { background: #2d5088; }
   button:disabled { opacity: .35; cursor: default; }
   button.warn { background: #5b3320; border-color: #8a5433; }
+  .stage { border: 1px solid #26304a; border-radius: 8px; padding: 6px 9px; margin-bottom: 7px; background: #161d2e; }
+  .stage b { color: #e8edf7; font-size: 12.5px; }
   .goal { border: 1px solid #3b3564; background: #191830; border-radius: 8px; padding: 8px 10px; }
   .goal .title { color: #cfc7ff; font-weight: 600; }
   .cond { font-size: 12px; margin: 3px 0; }
   .cond.met { color: #8fe3ae; } .cond.unmet { color: #c8a15f; }
-  .inv { font-size: 12px; color: #a9b6cf; }
+  .inv { font-size: 12px; color: #a9b6cf; margin: 0; padding-left: 16px; }
   .inv li { margin: 2px 0; }
-  #feed { height: 170px; overflow-y: auto; font-size: 12px; }
+  #feed { height: 150px; overflow-y: auto; font-size: 12px; }
   #feed div { padding: 1px 0; border-bottom: 1px dotted #1d2537; }
   .f-ripple { color: #ffd479; } .f-cycle { color: #7fb7ff; } .f-gain { color: #8fe3ae; }
   .f-discover { color: #d7a2ff; } .f-world { color: #6d7a95; } .f-reopen { color: #ff9d9d; }
-  #joinWrap { position: fixed; inset: 0; background: #0d1017ee; display: flex; align-items: center; justify-content: center; }
-  #joinWrap .panel { width: 330px; text-align: center; }
+  .f-act { color: #bcd0f0; } .f-warn { color: #ff9d9d; }
   input { background: #0f1420; color: #e8edf7; border: 1px solid #2a3450; border-radius: 6px; padding: 6px 10px; width: 70%; }
-  #err { color: #ff9d9d; min-height: 18px; font-size: 12.5px; padding: 0 14px; }
   select { background: #0f1420; color: #cfd6e4; border: 1px solid #2a3450; border-radius: 6px; padding: 4px; width: 100%; }
   .others { font-size: 12px; color: #7f9cc4; }
-  footer { text-align: center; color: #4b5570; font-size: 11.5px; padding: 6px; }
-  @media (max-width: 980px) { main { grid-template-columns: 1fr; } }
+  #err { position: fixed; top: 46px; left: 50%; transform: translateX(-50%); color: #ffb4b4; background: #2a1418; border: 1px solid #6a2b31; border-radius: 8px; padding: 3px 12px; font-size: 12.5px; z-index: 20; display: none; }
+  #joinWrap { position: fixed; inset: 0; background: #0d1017ee; display: flex; align-items: center; justify-content: center; z-index: 30; }
+  #joinWrap .panel { width: 340px; text-align: center; }
+  @media (max-width: 900px) { body { overflow: auto; } main { grid-template-columns: 1fr; height: auto; } .stagewrap { height: 60vh; } .col { overflow: visible; } }
 </style>
 </head>
 <body>
@@ -49,38 +63,61 @@
   <span class="chip" id="tick">t0</span>
   <span id="cycles"></span>
   <span class="chip" id="energy">에너지 –</span>
+  <span class="chip" id="regionChip">–</span>
 </header>
 <div id="err"></div>
 <main>
-  <section class="panel">
-    <h2>세계 지도 — 지역을 눌러 이동</h2>
-    <canvas id="map" width="280" height="300"></canvas>
-    <div class="others" id="travel"></div>
-  </section>
-  <section class="panel">
-    <h2 id="regionTitle">지역</h2>
-    <div id="stages"></div>
-    <div class="others" id="others"></div>
-  </section>
-  <section class="panel">
-    <h2>활성 목적 — 카드가 세계를 다르게 보이게 한다</h2>
-    <div class="goal" id="goalCard"></div>
-    <h2 style="margin-top:10px">목적 전환</h2>
-    <select id="goalSel"></select>
-    <h2 style="margin-top:10px">소지품</h2>
-    <ul class="inv" id="inv"></ul>
-  </section>
+  <!-- 좌: 세계 지도(지역 이동) + 목적 -->
+  <div class="col">
+    <section class="panel">
+      <h2>세계 지도 — 지역을 눌러 이동</h2>
+      <canvas id="map" width="210" height="230"></canvas>
+      <div class="others" id="travel"></div>
+    </section>
+    <section class="panel">
+      <h2>활성 목적</h2>
+      <div class="goal" id="goalCard"></div>
+      <h2 style="margin-top:9px">목적 전환</h2>
+      <select id="goalSel"></select>
+    </section>
+  </div>
+
+  <!-- 중앙: 존(게임 몸) — 캔버스 -->
+  <div class="stagewrap">
+    <canvas id="zone"></canvas>
+    <div class="hint" id="hint">지면 클릭=이동 · 몹 클릭=사냥 · 노드 클릭=채집 · WASD=이동</div>
+    <div class="hud">
+      <div class="hpbox">
+        <div class="hplabel" id="hpLabel">HP</div>
+        <div class="hpbar"><i id="hpFill" style="width:100%"></i></div>
+      </div>
+    </div>
+    <div class="respawn" id="respawn"></div>
+  </div>
+
+  <!-- 우: 지역 정보 + 정밀 행동 + 소지품 + 피드 -->
+  <div class="col">
+    <section class="panel">
+      <h2 id="regionTitle">지역</h2>
+      <div class="others" id="others"></div>
+      <div id="stages"></div>
+    </section>
+    <section class="panel">
+      <h2>소지품</h2>
+      <ul class="inv" id="inv"></ul>
+    </section>
+    <section class="panel">
+      <h2>세계의 소리 — 파문·주기·타인</h2>
+      <div id="feed"></div>
+    </section>
+  </div>
 </main>
-<section class="panel" style="max-width:1260px;margin:0 auto 10px">
-  <h2>세계의 소리 — 파문·주기·타인</h2>
-  <div id="feed"></div>
-</section>
-<footer>서버가 권위 — 이 화면은 상태를 그릴 뿐이다. 같은 주소를 다른 탭/기기에서 열면 같은 세계에 함께 선다.</footer>
 
 <div id="joinWrap">
   <div class="panel">
     <h2>세계에 들어가기</h2>
-    <p style="font-size:12.5px;color:#8ea0c0">거대 신이 순행하는 세계. 목적을 세우고, 흔적을 읽고, 창을 포착하라.</p>
+    <p style="font-size:12.5px;color:#8ea0c0">거대 신이 순행하는 세계. 목적을 세우고, 흔적을 읽고,
+      돌아다니는 권속을 사냥하고, 노드에서 채집하라.</p>
     <input id="name" placeholder="이름 (예: 길잃은자)" maxlength="12">
     <div style="margin-top:10px"><button id="joinBtn">입장</button></div>
   </div>
