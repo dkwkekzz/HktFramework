@@ -59,6 +59,18 @@ export function runC3(graph) {
   const retro = rbEvents.find((e) => e.type === 'retro-bind');
   s.say(`역결합: 획득 시 용도 불명 [${unboundBefore.join(',')}] → G-0.2.3.2(촉매) 발견 순간 결합 ${retro ? retro.links.map((l) => l.property).join('+') : '없음'}`);
 
+  // ── 균류 배양 원리(0.3.1.2): 살아있는 균주로 실험 → 배양 지식 확인 (지식이 품질을 올린다) ──
+  s.give(fight, { id: '발광균주', kind: '생명체', tags: ['균주'], properties: { 생체촉매활성: 0.4 } });
+  s.apply(fight, '실험', null, { 주제: '균류배양', kind: '지식', stage: 'S-0302' });
+  const cultureDone = s.checkDone(s.goal('G-0.3.1.2'), fight).done;
+  s.say(`균류 배양 원리(0.3.1.2): 균주 실험 → 배양 지식 확인 → 완료=${cultureDone}`);
+
+  // ── 탈것(0.1.1.4.3): 운반 무리에서 고신성내성 개체를 선별 포획 (관찰이 안목) ──
+  s.place({ id: '운반생물-src', archetype: '운반생물', kind: '생명체', tags: ['무리'], properties: { 신성내성: 0.55 } });
+  s.apply(fight, '포획', s.world.get('운반생물-src'), { stage: 'S-0303' });
+  const mountDone = s.checkDone(s.goal('G-0.1.1.4.3'), fight).done;
+  s.say(`탈것 확보(0.1.1.4.3): 신성내성 개체 포획 → 완료=${mountDone}`);
+
   // ── E1 재해석 스캐너: 세계에 실존하는 무기급 재료 후보 (스폰 아님) ──
   const 무기급demand = s.goal(무기급).demand[0];
   const cands = scan(무기급demand, s.world, { constants: graph.constants, lexicon: s.lexicon }).map((c) => c.fromElement);
@@ -74,6 +86,8 @@ export function runC3(graph) {
     fight: { done: fightDone, path: '둥지 소탕→뼈(R3)', nestDone, 공명전달률: 뼈물.properties['공명전달률'] },
     multiPath: mineDone && fightDone,
     retrobind: { unbound: unboundBefore, links: retro?.links ?? [] },
+    culture: cultureDone,     // 0.3.1.2 균류 배양 원리
+    mount: mountDone,         // 0.1.1.4.3 탈것
     scan: cands,
     weaponBlocked: !weaponReady,
     log: s.log, events: s.events.all(), audit: s.audit(),

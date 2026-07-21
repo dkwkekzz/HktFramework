@@ -38,14 +38,14 @@ export function buildContentDemo(graph) {
     },
     {
       id: 'C3', title: '재료의 세계 (R2 + R3)',
-      headline: `무기급 재료 다중 해법: 채굴형=${c3.mine.done}·전투형=${c3.fight.done} · 역결합=${c3.retrobind.links.length > 0} · 무기 결합 아직 막힘=${c3.weaponBlocked}`,
-      pass: c3.multiPath && c3.retrobind.links.length > 0 && c3.weaponBlocked,
+      headline: `무기급 재료 다중 해법: 채굴형=${c3.mine.done}·전투형=${c3.fight.done} · 역결합=${c3.retrobind.links.length > 0} · 균류 배양=${c3.culture}·탈것=${c3.mount} · 무기 결합 아직 막힘=${c3.weaponBlocked}`,
+      pass: c3.multiPath && c3.retrobind.links.length > 0 && c3.culture && c3.mount && c3.weaponBlocked,
       log: c3.log,
     },
     {
       id: 'C4', title: '앎의 문 (R4)',
-      headline: `문전 차단=${c4.doorGate.noknowBlocked}·지식 봇 개방=${c4.doorGate.knowOpened} · E2 백로그 0.1.1.3.3 이탈=${c4.backlog.dropped} · 무기 사슬 완성 가능=${c4.weaponReady}`,
-      pass: c4.doorGate.noknowBlocked && c4.doorGate.knowOpened && c4.backlog.dropped,
+      headline: `문전 차단=${c4.doorGate.noknowBlocked}·지식 봇 개방=${c4.doorGate.knowOpened} · E2 백로그 0.1.1.3.3 이탈=${c4.backlog.dropped} · 월식 가설→정체 파악=${c4.identity.done} · 무기 사슬 완성 가능=${c4.weaponReady}`,
+      pass: c4.doorGate.noknowBlocked && c4.doorGate.knowOpened && c4.backlog.dropped && c4.identity.done,
       log: c4.log,
     },
     {
@@ -56,8 +56,8 @@ export function buildContentDemo(graph) {
     },
     {
       id: 'C6', title: '기다림의 세계 (R6)',
-      headline: `내한 장비/적응=${c6.equip.made}/${c6.equip.coldAdapt} · H2 반증=${c6.h2.verdict} · 반증 후 진행 잔존=${c6.retained.equip} · 한파 창 판정 유효`,
-      pass: c6.equip.made && c6.h2.verdict === '반증' && c6.retained.equip,
+      headline: `내한 장비/적응=${c6.equip.made}/${c6.equip.coldAdapt} · 독기 적응=${c6.equip.poisonAdapt} · H2 반증=${c6.h2.verdict} · 반증 후 진행 잔존=${c6.retained.equip} · 한파 창 판정 유효`,
+      pass: c6.equip.made && c6.equip.poisonAdapt && c6.h2.verdict === '반증' && c6.retained.equip,
       log: c6.log,
     },
     {

@@ -19,6 +19,7 @@
 // 각 법칙의 energyCost 다 — 엔진의 모델(demand=잔고 문턱, law=실비용)을 그대로 따른다.
 // =====================================================================
 import { Law, defaultLawTable } from '../substrate/laws.js';
+// 절편 기본 실험(정보 산출)을 확장한다: params.kind='지식' 이면 지식 재료를 낸다.
 
 function clamp01(x) { return Math.max(0, Math.min(1, x)); }
 
@@ -163,6 +164,22 @@ export const 포획Law = new Law({
   },
 });
 
+// ── 실험(콘텐츠) — 자극→반응을 사건으로 기록하고, 주제를 정보 또는 지식으로 낸다. ──
+//   기본은 정보(진동반응·저온반응 등). params.kind='지식' 이면 배양 원리처럼 확인 지식을 낸다.
+export const 실험ContentLaw = new Law({
+  verb: '실험', cond: null, energyCost: 2,
+  effect: ({ params }) => {
+    const adds = [];
+    if (params['주제']) {
+      const kind = params.kind ?? '정보';
+      const spec = { id: nextId('실험산출'), kind, properties: { 주제: params['주제'] } };
+      if (kind === '지식') spec.epistemic = params.epistemic ?? '확인';
+      adds.push(spec);
+    }
+    return { adds, targetDelta: {} };
+  },
+});
+
 // ── 탐색 — 세계를 뒤져 위치 정보를 얻는다 (둥지위치·거처위치). ──
 export const 탐색Law = new Law({
   verb: '탐색', cond: null, energyCost: 1,
@@ -178,6 +195,7 @@ export const 탐색Law = new Law({
 export function contentLawTable(lexicon = null) {
   const t = defaultLawTable(lexicon);
   t.register(채취ContentLaw);
+  t.register(실험ContentLaw);
   t.register(결합Law);
   t.register(비교Law);
   t.register(협상Law);

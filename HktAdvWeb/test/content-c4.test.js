@@ -25,6 +25,13 @@ test('문이 열리면 E2 백로그에서 0.1.1.3.3 이 빠진다 (공급 0→1)
   assert.equal(r.storeDone, true, '축전 결정 확보');
 });
 
+test('§7 여는 목적: 월식 가설 H1(0.1.1.1.H1) 확인이 정체 파악(0.1.1.1)을 완료시킨다', () => {
+  const r = runC4(graph);
+  assert.equal(r.identity.h12Done, true, '월식 창 직접 관측(0.1.1.1.H1.2) 완료');
+  assert.equal(r.identity.h1, '확인', '월식 가설 확인');
+  assert.equal(r.identity.done, true, '정체 파악(0.1.1.1) 완료');
+});
+
 test('앎의 문을 지나야 무기 사슬(0.1.1.3.4)이 완성 가능해진다', () => {
   const r = runC4(graph);
   assert.equal(r.weaponReady, true);

@@ -14,6 +14,7 @@ import { loadCycles } from './cycles.js';
 import { ContentSession } from './engine.js';
 import { RegionMap } from './regions.js';
 import { backlogAgainstWorld } from '../planner/constraints.js';
+import { evaluateHypothesis, applyVerdict } from '../epistemic/hypothesis.js';
 
 const 저장재료 = 'G-0.1.1.3.3'; // 에너지저장밀도≥0.5 ∧ 신성내성≥0.4 (유일 공급 S-0402)
 
@@ -68,6 +69,18 @@ export function runC4(graph) {
     s.say(`  문 안 축전 결정 채취 → 0.1.1.3.3 완료=${storeDone}. E2 백로그에서 0.1.1.3.3 이탈=${inBacklogBefore && !inBacklogAfter} (공급 0→1)`);
   }
 
+  // ── 월식 가설 H1(0.1.1.1.H1): 월식 창에 순행을 직접 관측 → 확인 → 정체 파악 완료 ──
+  const eclipseOpen = s.clock.isOpen('월식');
+  s.place({ id: '신실개체', archetype: '거대신', kind: '물질', tags: ['신.실개체'], properties: {} });
+  const h12 = s.goal('G-0.1.1.1.H1.2');
+  const h12Met = s.demandsMet(know, h12).met; // 시간과 기회: 월식 창
+  s.apply(know, '관찰', s.world.get('신실개체'), { 주제: '신.행동주기', stage: 'R0' });
+  const h12Done = s.checkDone(h12, know).done;
+  const h1 = evaluateHypothesis({ id: 'G-0.1.1.1.H1', stimulus: '월식', threshold: 0.5 }, [{ stimulus: '월식', response: 0.9 }, { stimulus: '월식', response: 0.9 }], graph.constants);
+  applyVerdict(know.belief, graph, { id: 'G-0.1.1.1.H1' }, h1);
+  const identityDone = s.checkDone(s.goal('G-0.1.1.1'), know).done;
+  s.say(`월식 가설 H1(0.1.1.1.H1): 창 관측(demand ${h12Met}, 창 open=${eclipseOpen}) → ${h1.verdict} → 정체 파악(0.1.1.1) 완료=${identityDone}`);
+
   // ── 무기 사슬 완성 가능성: 이제 공명전달+에너지저장 재료를 다 갖추면 결합 가능 ──
   s.give(know, { id: '무기급수정', kind: '물질', properties: { 공명전달률: 0.85, 에너지손실률: 0.1 } });
   const weaponReady = s.demandsMet(know, s.goal('G-0.1.1.3.4')).met;
@@ -76,6 +89,7 @@ export function runC4(graph) {
   return {
     doorGate: { noknowBlocked: !noknowMet, knowOpened: doorDone },
     해독Done,
+    identity: { h1: h1.verdict, h12Done, done: identityDone }, // 0.1.1.1.H1 월식 가설 → 정체 파악
     backlog: { before: inBacklogBefore, after: inBacklogAfter, dropped: inBacklogBefore && !inBacklogAfter },
     storeDone,
     weaponReady,

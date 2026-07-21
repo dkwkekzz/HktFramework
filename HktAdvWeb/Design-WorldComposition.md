@@ -5,7 +5,7 @@
 > **동반 데이터:** [data/objective-graph.yaml](data/objective-graph.yaml)(목적 구성의 실물, 61 노드·12 무대) ·
 > [data/world-composition.yaml](data/world-composition.yaml)(지역·배치의 실물, 7 지역·5 주기)
 > **상태:** v0.2 / 2026-07-20 — 콘텐츠 단계 **C1~C7 전부 구현·검증 완료**(`src/content/`,
-> `test/content-c*.test.js`). 데이터·엔진·콘텐츠 모두 `npm test` 로 기계 검증됨 (155 케이스).
+> `test/content-c*.test.js`). 데이터·엔진·콘텐츠 모두 `npm test` 로 기계 검증됨 (158 케이스).
 > 불변 원칙 ①~⑥은 [CLAUDE.md](CLAUDE.md).
 
 ---

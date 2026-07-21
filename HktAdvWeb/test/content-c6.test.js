@@ -12,6 +12,11 @@ test('장비 준비: 균류 단열재 정제 → 내한 장비 (0.2.2.1 = 0.4.1 
   assert.equal(r.equip.coldAdapt, true, '한랭 적응도 함께 (DAG 다중 부모)');
 });
 
+test('§7 여는 목적: 독기 적응(0.4.2)도 열려 R3 심부가 개방된다', () => {
+  const r = runC6(graph);
+  assert.equal(r.equip.poisonAdapt, true, '독기내성 축적 → 0.4.2 완료');
+});
+
 test('한파 창 안에서만 H2 저온 실험이 유효하다 (환경 창 판정)', () => {
   const r = runC6(graph);
   assert.equal(r.h2.expDoneInWindow, true, '한파 창 안 유효 저온에서 실험 완료');

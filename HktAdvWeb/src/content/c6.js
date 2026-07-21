@@ -33,6 +33,11 @@ export function runC6(graph) {
   const coldAdaptDone = s.checkDone(s.goal('G-0.4.1'), bot).done;
   s.say(`장비 준비: 균류 정제 → 단열재 → 내한 장비. 0.2.2.1=${equipDone}, 0.4.1(한랭 적응)=${coldAdaptDone}`);
 
+  // ── 독기 적응(0.4.2): 균류 독기에 반복 노출·해독으로 내성 축적 → R3 심부(둥지 심장부) 개방 ──
+  s.setState(bot, 'world.자기.독기내성', 0.5, { verb: '적응', target: 'R3' });
+  const poisonAdaptDone = s.checkDone(s.goal('G-0.4.2'), bot).done;
+  s.say(`독기 적응(0.4.2): 노출·해독으로 독기내성 축적 → 완료=${poisonAdaptDone} (R3 심부 개방)`);
+
   // ── 빙원 진입: 상시 저온 소모, 한파 창에만 유효 저온(-30) 도달 ──
   s.move(bot, 'R6');
   const 한파open = s.clock.isOpen('한파');
@@ -76,7 +81,7 @@ export function runC6(graph) {
   const overlaps = countOverlaps(cycles, 0, 300);
 
   return {
-    equip: { made: equipDone, coldAdapt: coldAdaptDone },
+    equip: { made: equipDone, coldAdapt: coldAdaptDone, poisonAdapt: poisonAdaptDone },
     h2: { verdict: h2.verdict, collapsed, expDoneInWindow: h2ExpDone, effectiveColdOutside: outsideValid },
     retained: { equip: equipStillDone, coldAdapt: coldStillDone },
     overlaps,

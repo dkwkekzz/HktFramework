@@ -27,6 +27,12 @@ test('용도 불명 균류가 촉매 demand 발견 순간 역결합된다 (retro
   assert.ok(r.retrobind.links.some((l) => l.property === '생체촉매활성'), '촉매 속성으로 역결합');
 });
 
+test('§7 여는 목적: 균류 배양 원리(0.3.1.2)와 탈것(0.1.1.4.3)도 함께 열린다', () => {
+  const r = runC3(graph);
+  assert.equal(r.culture, true, '균주 실험 → 배양 지식 확인');
+  assert.equal(r.mount, true, '신성내성 개체 포획 → 탈것 확보');
+});
+
 test('E1 재해석은 세계에 실존하는 것만 후보로 낸다 (스폰 금지)', () => {
   const r = runC3(graph);
   assert.ok(r.scan.length >= 1, '무기급 재료 후보가 세계에 실존');
