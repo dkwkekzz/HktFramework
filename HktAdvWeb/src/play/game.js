@@ -21,6 +21,7 @@ import { BeliefView } from '../epistemic/belief.js';
 import { traceToConditions } from '../scene/viewmodel.js';
 import { ContentSession } from '../content/engine.js';
 import { loadComposition } from '../content/regions.js';
+import { ZoneSim } from './zone.js';
 
 export function loadPlayFixture(file = dataPath('world-play.yaml')) {
   return yaml.load(readFileSync(file, 'utf8'));
@@ -55,6 +56,8 @@ export class PlayGame {
     this.bots = (fixture.bots ?? []).map((b) => ({
       ...this._newActor(b.id, b.id, b.energy ?? 40), 정밀도: b['정밀도'] ?? 0.7, cooldown: 3, isBot: true,
     }));
+    // 존 시뮬 — 좌표 위의 직접 조작(이동·사냥·채집). 규칙 권위는 여전히 법칙/술어.
+    this.zone = new ZoneSim(this);
   }
 
   _spec(src) {
@@ -139,6 +142,7 @@ export class PlayGame {
   _arrive(p) {
     p.region = p.traveling.to;
     p.traveling = null;
+    this.zone.onRegionChange(p);
     this.say(p, `${p.region} 도착`);
     // 도착 = 발견: 이 지역의 미발견 무대가 "?" 에서 실체로 (인식은 발품의 산물).
     for (const sid of this.session.regions.stagesOf(p.region)) {
@@ -149,6 +153,10 @@ export class PlayGame {
       }
     }
   }
+
+  // ── 존 명령 (이동·공격·채집 의도) + 존 스텝 (실시간 구동기의 촘촘한 박자) ──
+  cmd(id, c) { return this.zone.cmd(this.player(id), c); }
+  zoneStep(dt = 0.2) { this.zone.step(dt); }
 
   // ── 행동 — 상태 변경은 법칙 apply() 경유 (봇과 같은 경로) ──
   act(id, { verb, stage = null, target = null, params = {} } = {}) {
@@ -340,6 +348,7 @@ export class PlayGame {
         opensIn: clock.ticksUntilOpen(c.name), closesIn: clock.windowClosesIn(c.name),
       })),
       feed: [...p.feed.slice(-14), ...this.globalFeed.slice(-6)].sort((a, b) => a.t - b.t).slice(-16),
+      zone: this.zone.view(p),
       audit: this.session.audit().ok ?? true,
     };
   }

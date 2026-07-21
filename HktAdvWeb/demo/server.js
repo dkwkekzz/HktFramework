@@ -39,7 +39,14 @@ export function createDemoServer() {
   const ensureGame = () => {
     if (!game) {
       game = new PlayGame();
-      timer = setInterval(() => game.tick(), game.fixture.tick_ms ?? 1000);
+      // 촘촘한 박자(200ms)로 존(이동·전투·채집)을 밀고, 5박자마다 세계 틱(주기·소멸) 1.
+      const fineMs = 200;
+      const perTick = Math.max(1, Math.round((game.fixture.tick_ms ?? 1000) / fineMs));
+      let n = 0;
+      timer = setInterval(() => {
+        game.zoneStep(fineMs / 1000);
+        if (++n % perTick === 0) game.tick();
+      }, fineMs);
       timer.unref(); // 테스트/종료 시 프로세스를 붙들지 않는다
     }
     return game;
@@ -80,6 +87,10 @@ export function createDemoServer() {
           if (url.pathname === '/api/play/goal') {
             g.setActiveGoal(body.id, body.goal);
             return json(200, { ok: true, state: g.state(body.id) });
+          }
+          if (url.pathname === '/api/play/cmd') {
+            // 존 명령(이동·공격·채집 의도)은 상태를 되돌려주지 않는다 — 폴링이 곧 따라온다.
+            return json(200, g.cmd(body.id, body));
           }
           return json(404, { error: '없는 플레이 API' });
         } catch (e) {
