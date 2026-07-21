@@ -1,0 +1,43 @@
+# =====================================================================
+# 플레이어블 세계 픽스처 (P0) — 사람이 접속해 플레이하는 실시간 세계
+# ---------------------------------------------------------------------
+# world-composition.yaml 의 배치를 플레이 페이싱으로 올린다:
+# - cycles: 콘텐츠 정본(순행 600 등)의 축소판 — 1틱 ≈ tick_ms 실시간이므로
+#   사람이 한 세션(수 분) 안에 창(window)을 겪도록 줄인다. 서로 소 유지.
+# - sources: 무대(stage)별 채취·상호작용 대상 개체. regen = 해당 주기 창이
+#   열릴 때 재생성(리듬의 산물 — 스폰 아님). gate = 그 창에만 상호작용 가능.
+#   consume = 상호작용 성공 시 소진(선착 경쟁의 실체).
+# 수치는 전부 초기값 — 플레이 검증에서 튜닝한다.
+# =====================================================================
+
+tick_ms: 1000          # 실시간 1틱 길이 (서버 구동기)
+start: R1
+player_energy: 20      # 접속 시 초기 에너지 (유지비는 흉터 수확으로 충당 — C1 루프)
+
+cycles:
+  - {name: 순행, period: 90, window: 25, affects: [R1],
+     effect: S-0045/S-0103 재생성·신선도 회복}
+  - {name: 무리분산, period: 45, window: 15, affects: [R1],
+     effect: 권속 무리 흩어짐 — S-0102 사냥 창}
+  - {name: 호송, period: 70, window: 20, affects: [R5, R1],
+     effect: 수송대가 길 위에 — S-0501 습격 창}
+  - {name: 한파, period: 55, window: 18, affects: [R6],
+     effect: 기온 -30 — 저온 실험 창}
+  - {name: 월식, period: 150, window: 35, affects: [R0, R1],
+     effect: R0 길 개방·잔향 활성 상승}
+
+sources:
+  - {stage: S-0045, id: 조직조각-R1, archetype: 조직조각, kind: 물질, tags: [신.조직],
+     properties: {신성잔향보존율: 0.8, 오염도: 0.1, 소멸타이머: 20}, regen: 순행}
+  - {stage: S-0102, id: 권속-R1, archetype: 권속심장, kind: 물질, tags: [신.권속],
+     properties: {생체촉매활성: 0.7, 신성잔향보존율: 0.6}, gate: 무리분산, consume: true,
+     regen: 무리분산}
+  - {stage: S-0201, id: 수정-표층-R2, archetype: 수정질광석, kind: 물질, tags: [광물],
+     properties: {공명전달률: 0.62, 에너지손실률: 0.35}}
+  - {stage: S-0201, id: 수정-심부-R2, archetype: 수정질광석, kind: 물질, tags: [광물],
+     properties: {공명전달률: 0.85, 에너지손실률: 0.15}}
+  - {stage: S-0302, id: 균류-R3, archetype: 발광균류, kind: 물질, tags: [균류],
+     properties: {생체촉매활성: 0.5, 독성: 0.4}}
+
+bots:
+  - {id: bot-유랑자, energy: 40, 정밀도: 0.7}   # 사회적 존재감 — 타인의 파문(§6.4)
