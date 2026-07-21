@@ -20,4 +20,8 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [Design-WorldState.md](Design-WorldState.md) | 세계 상태 데이터화 **설계** — 목적 그래프를 근거로 상태 변수·판정 술어·전이 규칙의 3층 모델 정의 |
 | [data/objective-graph.json](data/objective-graph.json) | 목적 그래프 **유일한 원본 데이터** (타입 노드 G/S/E/R/L/K/T/F/H/X/EV + 타입 관계). 편집은 여기 한 곳 |
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
+| [data/world-state.json](data/world-state.json) | 세계 **상태의 유일한 원본** — vars/clocks/subjects/rules/actions/objectives 다섯 층. 그래프 id 를 앵커로 참조 |
+| [data/state-engine.mjs](data/state-engine.mjs) | 상태 엔진(공유) — 결정론적 틱 루프 ①~⑦. validate/simulate 가 함께 사용 |
+| [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — §12 검증 1~13 (`node data/validate-state.mjs`) |
+| [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — '강의 귀환' 사슬 재생 (`node data/simulate-state.mjs`) |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |

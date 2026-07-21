@@ -18,7 +18,13 @@
   - localStorage 자동 저장 + JSON 내보내기/가져오기 + 원본 복원. `세계 시드` 버튼으로 아벨리온 배경 표시.
   - 로컬 서버 권장: `python3 -m http.server` 후 `objective-tree.html` (file:// 은 `가져오기`로 JSON 직접 로드).
 
-**세계 상태 데이터화** 설계 v2 완료 (구현은 다음 단계).
+**세계 상태 데이터화** 설계 v2 + **구현 1단계 완료** (그래프 보강 → world-state → 검증 → 틱 시뮬).
+
+- 그래프 보강(§10) 완료 — `objective-graph.json` **163→170 노드 · 133→149 관계**. 추가 노드: `E_플레이어`(주체 앵커)·`L_제어탑`·`S_강흐름`·`R_식량`·`R_무광의쐐기`·`S_일식`·`G_수문회_제어탑파괴`(NPC 반격 목적). 별도 커밋. `validate-graph.mjs` 통과.
+- `data/world-state.json` — **상태의 유일한 원본**. 다섯 층: vars 34 · clocks 2 · subjects 3 · rules 8 · actions 7 · objectives 3. 축 문법 3종(단축·쌍축·파생), 값 4종(flag/level/count/ref), `basis` 필수. 사건 '강의 귀환' 6단계 완역 + 늑대 위협·주기 상태.
+- `data/state-engine.mjs` — 공유 엔진. 결정론적 틱 루프 ①시계 → ②파생 → ③전제 일괄평가(스냅샷) → ④효과 일괄적용(set 충돌 거부) → ⑤파생 → ⑥목적 판정 → ⑦NPC/입력 행동. duration=주체 점유.
+- `data/validate-state.mjs` — 검증 1~13 자동화. `node data/validate-state.mjs` 통과 (커버리지·EV 매핑·무입력 자율변화 실증 포함).
+- `data/simulate-state.mjs` — 무입력 시뮬레이터. `node data/simulate-state.mjs` 실행 시 플레이어 입력 0회로 '강의 귀환' 사슬 6/6 재생: 씨앗보존회(NPC)가 제어탑 복구 → 강 흐름 → 농업·식량 회복 → 수문회 약화 → 반격 목적 발견 → 수문회가 제어탑 재파괴. 늑대 공격은 **사냥 없이 생태 회복만으로** 완료 판정(상태 술어) — 트리 §16 검증 13·14 실증. `--ticks N`·`--quiet`·`--at t:ACT@주체` 옵션.
 
 - `Design-WorldState.md` — 목적 그래프(1번)를 근거로 세계 상태를 데이터로 표현하는 설계. v2 는 163노드·133관계 전수 조사로 보강.
   - **다섯 층 모델**: ① vars(상태 변수 — 노드 귀속·`basis` 필수) ② initial(스냅샷) ③ rules(법칙 — 자율 발화) ④ actions(행동 — 주체 선택 발화, 전제·비용·duration) ⑤ objectives(목적 생애주기 — discover/complete/fail 술어).
@@ -31,12 +37,13 @@
 
 ## TODO
 
-- [ ] 그래프 보강 — Design-WorldState.md §10 목록을 objective-graph.json 에 추가 (별도 커밋).
-- [ ] `data/world-state.json` 작성 — S/X 전체 + 사건 '강의 귀환' 완역(법칙·행동·목적·수문회 정책) (§13-3).
-- [ ] `data/validate-state.mjs` 작성 — 검증 13종 자동화 (§12).
-- [ ] 틱 시뮬레이터 — ①~⑦ 틱 루프, 무입력 실행으로 검증 13 실증, 사슬 재생 (§13-5).
-- [ ] objective-tree.html 상태 오버레이 — 노드 현재값 배지·법칙/행동 뷰.
+- [x] 그래프 보강 — Design-WorldState.md §10 목록을 objective-graph.json 에 추가 (별도 커밋).
+- [x] `data/world-state.json` 작성 — S/X 전체 + 사건 '강의 귀환' 완역(법칙·행동·목적·수문회 정책) (§13-3).
+- [x] `data/validate-state.mjs` 작성 — 검증 13종 자동화 (§12).
+- [x] 틱 시뮬레이터 — ①~⑦ 틱 루프, 무입력 실행으로 검증 13 실증, 사슬 재생 (§13-5).
+- [ ] world-state 확장 — 사건 5종 전부 + G1~G2 권역 완역(현재는 '강의 귀환'·늑대·주기 상태만). 커버리지(검증10)를 높인다.
+- [ ] objective-tree.html 상태 오버레이 — 노드 현재값 배지·법칙/행동 뷰·틱 진행 관찰.
 - [ ] §16 검증 규칙(요소는 최소 2개 목적에 연결 등) 자동 점검 — 고립 노드·단일 해결 방법 경고.
-- [ ] 대표 사건(EV)을 완료/실패 상태 전이 시뮬레이션으로 연결(§13, §3.3) — Design-WorldState.md §9-5 로 해소 예정.
+- [ ] 아르카론 처리 6방식(§6.2 G2.5.3) 행동·완료방식 분기 법칙 추가 — 무광의 쐐기·일식 전제 활용.
 - [ ] G3~G9 하위 목적의 말단(행동 가능 단위)까지 추가 전개.
 - [ ] 기호별 상세 기록(§8) 편집 시 표준 항목 템플릿 자동 채움.

@@ -1,0 +1,363 @@
+{
+  "meta": {
+    "version": "1.0",
+    "schema": "world-state/v2",
+    "source": "Design-WorldState.md",
+    "graph": "objective-graph.json",
+    "desc": "세계 상태의 유일한 원본. 그래프 노드 id 를 앵커로 다섯 층(vars/subjects/rules/actions/objectives)을 정의한다. initial 스냅샷은 vars 의 init 산출물이므로 별도로 두지 않는다.",
+    "kinds": {
+      "flag": "true/false — 존재·활성·발생·습득 여부",
+      "level": "0..N 정수 + 라벨 — 단계적 질의 축 (연속 실수 금지)",
+      "count": "0 이상 정수 — 개체수·수량·보유량",
+      "ref": "노드 id 또는 null — 소유·지배·위치·완료방식 대상"
+    },
+    "axisGrammar": {
+      "단축": "<노드id>.<축>            노드 하나의 상태",
+      "쌍축": "<노드id>.<축>.<노드id>   두 노드 사이의 상태 (owner+target)",
+      "파생축": "<노드id>.<축> (derived)  다른 변수들의 함수. 직접 쓰기 금지"
+    },
+    "ops": ["==", "!=", ">=", "<=", ">", "<"],
+    "effects": {
+      "set": "대입 — 같은 틱에 2개 이상 발화하면 검증기가 거부 (§5.3)",
+      "add": "증감 (count·level). level 은 라벨 범위로 클램프. 교환법칙 성립 → 합산"
+    },
+    "progressLabels": ["숨김", "발견", "진행", "완료", "실패"],
+    "tick": "① 시계 법칙(§5.4) → ② 파생축 재계산 → ③ 법칙 전제 일괄 평가(틱 시작 스냅샷) → ④ 발화 효과 일괄 적용 → ⑤ 파생축 재계산 → ⑥ 목적 판정(§7) → ⑦ NPC 행동 선택(§8)",
+    "notes": [
+      "모든 상태 변수는 그래프 노드에 귀속된다(owner·target 참조 무결성 = 검증 1).",
+      "상태 변화는 법칙(자율)과 행동(선택)의 발화로만 일어난다 — 외부 임의 쓰기 없음.",
+      "완료 판정은 행동 완수가 아니라 상태 술어다 — 어떤 수단이든 complete 술어가 참이면 완료.",
+      "결정론: 시간은 정수 틱, 난수 없음. once 발화 기록은 <id>.발화됨 내장 상태로 스냅샷에 포함된다."
+    ]
+  },
+
+  "vars": [
+    { "id": "S_영원한겨울.활성", "owner": "S_영원한겨울", "axis": "활성", "kind": "flag", "init": true,
+      "basis": "S 표준축(활성). 세계 시드: 아르카론의 별빛 흡수 결과 — 일부 지역 영구 결빙(§3 S)" },
+    { "id": "S_과잉별빛.활성", "owner": "S_과잉별빛", "axis": "활성", "kind": "flag", "init": true,
+      "basis": "S 표준축(활성). 그래프: E_아르카론 ─변화→ S_과잉별빛" },
+    { "id": "S_아르카론정체.발견됨", "owner": "S_아르카론정체", "axis": "발견됨", "kind": "flag", "init": false,
+      "basis": "지식성 상태 — '아르카론은 인공 생명체다'를 세계가 알게 되었는가(§3 S)" },
+    { "id": "S_강흐름.단계", "owner": "S_강흐름", "axis": "단계", "kind": "level",
+      "levels": ["고갈", "저수위", "회복", "범람"], "init": 0,
+      "basis": "사건 '강의 귀환' 사슬의 중심 변수(§5.5). 그래프: L_제어탑 ─변화→ S_강흐름" },
+    { "id": "S_일식.활성", "owner": "S_일식", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "주기 상태 — 시계 법칙 CLOCK_일식 이 구동(§5.4)" },
+    { "id": "S_일식.누적횟수", "owner": "S_일식", "axis": "누적횟수", "kind": "count", "init": 0,
+      "basis": "'세 번째 일식 중' 같은 시한 조건 판정용(§5.4). 그래프: T_그림자각인 ─필요→ S_일식" },
+
+    { "id": "X_검은태양병.강도", "owner": "X_검은태양병", "axis": "강도", "kind": "level",
+      "levels": ["없음", "약", "중", "강"], "init": 2,
+      "basis": "X 표준축(강도). 그래프: E_아르카론 ─변화→ X_검은태양병 — 세계 확산 강도" },
+    { "id": "X_별빛폭풍.활성", "owner": "X_별빛폭풍", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "주기 발생 위협(§5.4). 시계 법칙 CLOCK_별빛폭풍 이 구동" },
+
+    { "id": "E_회색등늑대.개체수", "owner": "E_회색등늑대", "axis": "개체수", "kind": "count", "init": 40,
+      "basis": "E 종 표준축(개체수). EV_늑대멸종 사슬·X_늑대공격 파생의 판정 축" },
+    { "id": "E_회색등늑대.서식", "owner": "E_회색등늑대", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 1,
+      "basis": "E 종 표준축(서식). 숲 고사로 위축(node detail '숲 고사로 초식동물이 줄어')" },
+    { "id": "L_재의숲.먹이", "owner": "L_재의숲", "axis": "먹이", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 0,
+      "basis": "L 고유축 — 재의 숲의 초식동물 먹이 자원. 그래프: E_카르마 ─변화→ X_늑대공격(숲 고사→먹이 감소)" },
+
+    { "id": "L_제어탑.발견", "owner": "L_제어탑", "axis": "발견", "kind": "flag", "init": true,
+      "basis": "L 표준축(발견). 그래프: K_관개시설기록 ─제공→ L_제어탑(위치)" },
+    { "id": "L_제어탑.가동", "owner": "L_제어탑", "axis": "가동", "kind": "flag", "init": false,
+      "basis": "L 시설 표준축(가동). EV_강의귀환 1단계 대상 — 복구=가동 전환" },
+    { "id": "E_카르마.서식", "owner": "E_카르마", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 3,
+      "basis": "E 종 표준축(서식). node detail '제어탑 파괴 후 물을 무제한 흡수' = 번성" },
+    { "id": "L_굶주린평원.생산", "owner": "L_굶주린평원", "axis": "생산", "kind": "level",
+      "levels": ["황폐", "저조", "보통", "풍부"], "init": 0,
+      "basis": "L 고유축 — 과거 곡창지대(node detail). 사슬 2단계 '농업 회복'의 판정 축" },
+    { "id": "R_식량.공급", "owner": "R_식량", "axis": "공급", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 1,
+      "basis": "R 재료 표준축(공급). 사슬 3~4단계 '식량 가격 하락'(가격=공급의 파생)" },
+    { "id": "F_청동수문회.세력", "owner": "F_청동수문회", "axis": "세력", "kind": "level",
+      "levels": ["소멸", "약화", "보통", "강성"], "init": 3,
+      "basis": "F 표준축(세력). node detail 약점 '강 완전 복구 시 권력 약화' — 사슬 4단계" },
+    { "id": "E_늪생명체.서식", "owner": "E_늪생명체", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). 그래프: E_카르마 ─충돌→ E_늪생명체. 사슬 7단계 '늪 서식지 감소'" },
+    { "id": "EV_강의귀환.단계", "owner": "EV_강의귀환", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). 사슬 진행도 — §5.5 규칙 열과 1:1" },
+
+    { "id": "G1.2.6.진행", "owner": "G1.2.6", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 목적 '굶주린 평원의 강을 복구한다'의 생애주기(§7)" },
+    { "id": "G1.2.6.완료방식", "owner": "G1.2.6", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 방식별 후속 분기를 읽는 법칙의 전제(§6.2)" },
+    { "id": "G2.1.진행", "owner": "G2.1", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 그래프: G1.2.6 ─파생→ G2.1 (완료가 발견을 올림)" },
+    { "id": "G2.1.완료방식", "owner": "G2.1", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 늑대 위협 해소 방식(사냥/계약) 기록" },
+    { "id": "G_수문회_제어탑파괴.진행", "owner": "G_수문회_제어탑파괴", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 반격 목적 — 사슬 5단계에서 발견(§5.5 R5·§8)" },
+    { "id": "G_수문회_제어탑파괴.완료방식", "owner": "G_수문회_제어탑파괴", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 습격/봉쇄 등 파괴 방식 기록" },
+
+    { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
+      "axis": "습득", "kind": "flag", "init": false,
+      "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
+    { "id": "E_플레이어.보유.R_재생섬유", "owner": "E_플레이어", "target": "R_재생섬유",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_재생섬유 — ACT_제어탑_복구 비용" },
+    { "id": "E_플레이어.보유.R_수분핵", "owner": "E_플레이어", "target": "R_수분핵",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_수분핵 — ACT_카르마_길들임 비용" },
+    { "id": "E_플레이어.감염.X_검은태양병", "owner": "E_플레이어", "target": "X_검은태양병",
+      "axis": "감염", "kind": "level", "levels": ["비감염", "초기", "중기", "후기"], "init": 0,
+      "basis": "쌍축 감염(개체별 진행). X_검은태양병 detail 진행 단계(§2.1)" },
+    { "id": "E_플레이어.계약.E_회색등늑대", "owner": "E_플레이어", "target": "E_회색등늑대",
+      "axis": "계약", "kind": "flag", "init": false,
+      "basis": "쌍축 계약. 그래프: G6.2 ─제공→ E_회색등늑대 — 계약이 X_늑대공격 파생을 끈다" },
+
+    { "id": "F_씨앗보존회.습득.K_관개시설기록", "owner": "F_씨앗보존회", "target": "K_관개시설기록",
+      "axis": "습득", "kind": "flag", "init": true,
+      "basis": "쌍축 습득. 씨앗보존회는 관개 기록 보유 세력 — NPC 강복구의 전제(§8)" },
+    { "id": "F_씨앗보존회.보유.R_재생섬유", "owner": "F_씨앗보존회", "target": "R_재생섬유",
+      "axis": "보유", "kind": "count", "init": 5,
+      "basis": "쌍축 보유. NPC 가 ACT_제어탑_복구 를 무입력으로 발화하기 위한 비용 재고(검증 14)" },
+
+    { "id": "X_늑대공격.활성", "owner": "X_늑대공격", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 10 },
+        { "var": "L_재의숲.먹이", "op": "<=", "value": 1 },
+        { "var": "E_플레이어.계약.E_회색등늑대", "op": "==", "value": false }
+      ] },
+      "basis": "파생 위협 — 늑대 상태·숲 상태·계약의 함수. 그래프: E_카르마/E_회색등늑대 ─변화→ X_늑대공격(§2.1)" },
+    { "id": "S_기후불안정.활성", "owner": "S_기후불안정", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "any": [
+        { "var": "S_영원한겨울.활성", "op": "==", "value": true },
+        { "var": "S_과잉별빛.활성", "op": "==", "value": true }
+      ] },
+      "basis": "파생 집계 — 하위 전역 상태들의 OR. 이중 관리 방지(§2.1 (b))" }
+  ],
+
+  "clocks": [
+    { "id": "CLOCK_일식", "basis": "§5.4 주기 상태. T_그림자각인('세 번째 일식 중')·아르카론 약점의 전제",
+      "period": 600, "duty": 20,
+      "then_on": [
+        { "var": "S_일식.활성", "op": "set", "value": true },
+        { "var": "S_일식.누적횟수", "op": "add", "value": 1 }
+      ],
+      "then_off": [ { "var": "S_일식.활성", "op": "set", "value": false } ] },
+    { "id": "CLOCK_별빛폭풍", "basis": "§5.4 주기 발생 위협. 뇌철 결정 안정 시한의 전제",
+      "period": 300, "duty": 30,
+      "then_on": [ { "var": "X_별빛폭풍.활성", "op": "set", "value": true } ],
+      "then_off": [ { "var": "X_별빛폭풍.활성", "op": "set", "value": false } ] }
+  ],
+
+  "subjects": [
+    { "node": "E_플레이어", "driver": "input" },
+    { "node": "F_씨앗보존회", "driver": "policy", "policy": ["G1.2.6"] },
+    { "node": "F_청동수문회", "driver": "policy", "policy": ["G_수문회_제어탑파괴"] }
+  ],
+
+  "rules": [
+    { "id": "RULE_강귀환_1", "basis": "EV_강의귀환 1단계 · 그래프: L_제어탑 ─변화→ S_강흐름",
+      "when": { "all": [
+        { "var": "L_제어탑.가동", "op": "==", "value": true },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [
+        { "var": "S_강흐름.단계", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 1 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_2", "basis": "EV_강의귀환 2단계 · 그래프: S_강흐름 ─변화→ L_굶주린평원",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [
+        { "var": "L_굶주린평원.생산", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 2 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_3", "basis": "EV_강의귀환 3단계 · 그래프: L_굶주린평원 ─제공→ R_식량",
+      "when": { "all": [
+        { "var": "L_굶주린평원.생산", "op": ">=", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [
+        { "var": "R_식량.공급", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 3 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_4", "basis": "EV_강의귀환 4단계 · 그래프: R_식량 ─방해→ F_청동수문회(권력 약화)",
+      "when": { "all": [
+        { "var": "R_식량.공급", "op": ">=", "value": 3 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "F_청동수문회.세력", "op": "add", "value": -2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_5", "basis": "EV_강의귀환 5단계 · 세력 목적의 발견(§5.5) — NPC 가 이어받는다",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": "<=", "value": 1 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 5 }
+      ], "once": true },
+
+    { "id": "RULE_늪서식지_감소", "basis": "EV_강의귀환 7단계 · 그래프: E_카르마 ─충돌→ E_늪생명체 (강 복구=고수위, 늪은 저수위 선호)",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "E_늪생명체.서식", "op": "add", "value": -1 }
+      ], "once": true },
+
+    { "id": "RULE_숲_회복", "basis": "그래프: S_강흐름 ─변화→ L_굶주린평원 파생 — 강 회복이 재의 숲 먹이를 되살린다",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "L_재의숲.먹이", "op": "add", "value": 1 }
+      ], "once": false },
+
+    { "id": "RULE_늑대_기근", "basis": "그래프: E_카르마 ─변화→ X_늑대공격 (숲 고사→먹이 고갈→늑대 아사). 무입력 자율 변화(검증 13)",
+      "when": { "all": [
+        { "var": "L_재의숲.먹이", "op": "<=", "value": 0 },
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": -1 }
+      ], "once": false }
+  ],
+
+  "actions": [
+    { "id": "ACT_제어탑_복구", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어", "F_씨앗보존회"],
+      "basis": "그래프: G1.2.6 ─필요→ K_관개시설기록·L_제어탑 · EV_강의귀환 1단계",
+      "when": { "all": [
+        { "var": "{actor}.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "L_제어탑.발견", "op": "==", "value": true },
+        { "var": "L_제어탑.가동", "op": "==", "value": false }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_재생섬유", "op": "add", "value": -3 } ],
+      "then": [
+        { "var": "L_제어탑.가동", "op": "set", "value": true },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_제어탑_복구" }
+      ], "duration": 5, "once": true },
+
+    { "id": "ACT_카르마_길들임", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "G1.2.6.3 해결 방법 '일부만 방출하도록 길들임' · 그래프: E_카르마 ─제공→ R_수분핵",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_수분핵", "op": ">=", "value": 2 },
+        { "var": "S_강흐름.단계", "op": "<", "value": 2 }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_수분핵", "op": "add", "value": -2 } ],
+      "then": [
+        { "var": "E_카르마.서식", "op": "add", "value": -1 },
+        { "var": "S_강흐름.단계", "op": "add", "value": 2 },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_카르마_길들임" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_붉은뿌리_제거", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "G1.2.6.3 해결 방법 '붉은 뿌리 제거' · node detail 문제 '단순 제거 시 대홍수 발생'",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_재생섬유", "op": ">=", "value": 1 },
+        { "var": "S_강흐름.단계", "op": "<", "value": 2 }
+      ] },
+      "then": [
+        { "var": "E_카르마.서식", "op": "set", "value": 0 },
+        { "var": "S_강흐름.단계", "op": "set", "value": 3 },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_붉은뿌리_제거" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_늑대_사냥", "objective": "G2.1",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 1단계 '대량 사냥' · 그래프: X_늑대공격 ─방해→ G1.5",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": -35 },
+        { "var": "G2.1.완료방식", "op": "set", "value": "ACT_늑대_사냥" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_늑대_계약", "objective": "G2.1",
+      "actor_type": ["E_플레이어"],
+      "basis": "그래프: G6.2 ─제공→ E_회색등늑대 — 계약으로 습격을 멈춘다(설계 §7: 설계에 없던 해결 경로도 상태 술어로 완료)",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_수분핵", "op": ">=", "value": 1 }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_수분핵", "op": "add", "value": -1 } ],
+      "then": [
+        { "var": "E_플레이어.계약.E_회색등늑대", "op": "set", "value": true },
+        { "var": "G2.1.완료방식", "op": "set", "value": "ACT_늑대_계약" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_수문회_제어탑파괴", "objective": "G_수문회_제어탑파괴",
+      "actor_type": ["F_청동수문회"],
+      "basis": "EV_강의귀환 6단계 · node detail 보유 '무장 운송대' — 제어탑 습격 파괴",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": ">=", "value": 1 },
+        { "var": "L_제어탑.가동", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "L_제어탑.가동", "op": "set", "value": false },
+        { "var": "S_강흐름.단계", "op": "add", "value": -2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 6 },
+        { "var": "G_수문회_제어탑파괴.완료방식", "op": "set", "value": "ACT_수문회_제어탑파괴" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_수문회_수문봉쇄", "objective": "G_수문회_제어탑파괴",
+      "actor_type": ["F_청동수문회"],
+      "basis": "node detail 보유 '수문 열쇠·수로 지도' — 관개 시설 재봉쇄로 강 흐름 차단",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": ">=", "value": 1 },
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "S_강흐름.단계", "op": "add", "value": -1 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 6 },
+        { "var": "G_수문회_제어탑파괴.완료방식", "op": "set", "value": "ACT_수문회_수문봉쇄" }
+      ], "duration": 2, "once": true }
+  ],
+
+  "objectives": [
+    { "id": "OBJ_G1.2.6", "goal": "G1.2.6",
+      "basis": "목적 '굶주린 평원의 강을 복구한다'. 완료=강이 회복 이상으로 흐른다(상태 술어)",
+      "discover": { "any": [
+        { "var": "E_플레이어.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "F_씨앗보존회.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 1 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "S_강흐름.단계", "op": ">=", "value": 2 },
+      "on_complete": [ { "var": "G2.1.진행", "op": "set", "value": 1 } ] },
+
+    { "id": "OBJ_G2.1", "goal": "G2.1",
+      "basis": "목적 '적대 생명체의 공격을 막는다'. 완료=늑대 공격이 멎었다 — 사냥/계약/생태 회복 어느 경로든 상태로 판정",
+      "discover": { "any": [
+        { "var": "G2.1.진행", "op": ">=", "value": 1 },
+        { "var": "X_늑대공격.활성", "op": "==", "value": true }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "X_늑대공격.활성", "op": "==", "value": false },
+      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_수문회_제어탑파괴", "goal": "G_수문회_제어탑파괴",
+      "basis": "NPC 반격 목적. 사슬 5단계에서 발견되어 §8 정책이 실행한다(검증 14)",
+      "discover": { "any": [
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 5 }
+      ] },
+      "activate": "auto",
+      "complete": { "all": [
+        { "var": "L_제어탑.가동", "op": "==", "value": false },
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 6 }
+      ] },
+      "on_complete": [ { "var": "F_청동수문회.세력", "op": "set", "value": 2 } ] }
+  ]
+}
