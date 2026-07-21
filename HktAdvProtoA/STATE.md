@@ -5,12 +5,12 @@
 **상흔계 아벨리온** 목적 그래프 구축 완료 (타입 노드 + 타입 관계 모델).
 
 - `Design-ObjectiveGraph.md` — 상흔계 아벨리온의 목적 그래프 정본 (세계 시드·표기 규칙·G0~G9 전개·교차 그래프·대표 사건). [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론)와 겹치는 부분은 이 문서가 우선.
-- `data/objective-graph.json` — 실물 데이터 (**158 노드 · 125 관계**).
+- `data/objective-graph.json` — **유일한 원본 데이터** (**158 노드 · 125 관계**). 목적 추가·수정은 여기 한 곳에서만 한다(HTML 편집기 또는 JSON 직접 편집).
   - 노드 타입: `G`목적 `S`상태 `E`생명체·인물·신 `R`재료·에너지·정보 `L`장소·지형·시설 `K`지식·기록·제작법 `T`스킬·기술·의식 `F`세력·문명 `H`과거 사건 `X`위협 `EV`사건.
   - 관계 타입: `필요` `제공` `방해` `충돌` `변화` `상호` `파생`.
   - 목적 분해 트리 G0→G1~G9 전체 + 명명된 세계 요소(아르카론·카르마·심연유리·뇌철 결정·검은 태양병·회귀 호흡·세리아·구름고래 등) + 대표 사건 5종(변화 사슬).
   - `meta.world` 에 세계 시드, `meta.nodeTypes`/`relationTypes`/`relationHelp` 로 스키마 자기 기술.
-- `data/build-graph.mjs` — 위 JSON 시드 생성기 (참조 무결성 검증 포함). `node data/build-graph.mjs` 로 재생성.
+- `data/validate-graph.mjs` — 검증 전용 (데이터 없음). JSON 을 읽어 id 중복·parent/link 참조·순환·타입만 확인. `node data/validate-graph.mjs`.
 - `objective-tree.html` — 타입 모델 대응 관찰·편집기 (의존성 없는 단일 파일).
   - 트리 뷰: 목적 분해 트리 + 세계 요소를 타입별 그룹으로. 타입 태그·검색·접기/펼치기.
   - 그래프 뷰: 목적 tidy-tree + 세계 요소 타입별 컬럼, 타입 관계를 색상 점선으로. `선택 노드 관계만 표시` 토글, 이동/확대.
