@@ -134,6 +134,7 @@
   <button id="btnExpandAll">모두 펼치기</button>
   <button id="btnCollapseAll">모두 접기</button>
   <label class="chk" id="selOnlyWrap"><input type="checkbox" id="selOnly" checked> 선택 노드 관계만 표시</label>
+  <label class="chk" id="stateWrap"><input type="checkbox" id="stateToggle" checked> 상태 오버레이</label>
   <span class="spacer"></span>
   <div id="legend"></div>
 </div>
@@ -182,9 +183,18 @@ let GRAPH=null, byId=new Map(), childrenOf=new Map();
 let selectedId=null, collapsed=new Set(), collapsedGroups=new Set(), dirty=false;
 let searchTerm="", currentView="tree";
 const LS_KEY="hkt-adv-protoa-objective-graph-v1";
+// ── 상태 오버레이(world-state.json, 읽기 전용) ─────────────────────────
+let STATE=null, SNAP={}, VARS_BY_OWNER=new Map(), stateOverlay=true;
 
 // ── 로딩 ──────────────────────────────────────────────────────────────
+async function loadState(){
+  try{
+    const r=await fetch("./data/world-state.json",{cache:"no-store"});
+    if(r.ok){ STATE=await r.json(); buildStateIndex(); }
+  }catch(e){ STATE=null; }
+}
 async function load(){
+  await loadState();
   const saved=localStorage.getItem(LS_KEY);
   if(saved){ try{ setGraph(JSON.parse(saved)); dirty=true; showBanner(); toast("자동 저장된 편집본을 불러왔습니다"); return; }catch(e){} }
   try{
@@ -267,6 +277,7 @@ function treeNode(n){
   const ti=document.createElement("span"); ti.className="ttitle"; ti.textContent=n.title||"(제목 없음)"; row.appendChild(ti);
   if(kids.length){ const b=document.createElement("span"); b.className="badge"; b.textContent=kids.length; row.appendChild(b); }
   const xl=linksOf(n.id).length; if(xl){ const b=document.createElement("span"); b.className="badge"; b.textContent="↔"+xl; b.title="관계"; row.appendChild(b); }
+  if(STATE&&stateOverlay){ const vb=nodeValueBadge(n.id); if(vb){ const b=document.createElement("span"); b.className="badge"; b.style.background="#14311f"; b.style.color="#7bd88f"; b.textContent=vb; b.title="현재값(초기 스냅샷)"; row.appendChild(b); } }
   wrap.appendChild(row);
   if(kids.length&&!isCol){ const kd=document.createElement("div"); kd.className="kids";
     for(const c of kids) kd.appendChild(treeNode(c)); wrap.appendChild(kd); }
@@ -361,6 +372,71 @@ function esc(s){ return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;",
 // ── 상세/편집 패널 ────────────────────────────────────────────────────
 function select(id){ selectedId=id; render();
   const el=document.querySelector('#treeView .trow.sel'); if(el) el.scrollIntoView({block:"nearest"}); }
+// ── 상태 오버레이 로직 (엔진 없이 초기 스냅샷·귀속 검색) ────────────────
+function buildStateIndex(){
+  SNAP={}; VARS_BY_OWNER=new Map();
+  if(!STATE) return;
+  for(const v of STATE.vars||[]){
+    if(!v.derived) SNAP[v.id]=v.init;
+    if(!VARS_BY_OWNER.has(v.owner)) VARS_BY_OWNER.set(v.owner,[]);
+    VARS_BY_OWNER.get(v.owner).push(v);
+  }
+}
+// var 현재값(초기 스냅샷)을 사람이 읽는 문자열로
+function fmtVar(v){
+  if(v.derived) return "(파생)";
+  const val=SNAP[v.id];
+  if(v.kind==="level"&&Array.isArray(v.levels)&&typeof val==="number") return `${v.levels[val]??val}(${val})`;
+  if(v.kind==="flag") return val?"true":"false";
+  if(val===null||val===undefined) return "—";
+  return String(val);
+}
+// 노드 id 가 규칙/행동/목적의 어딘가(술어·효과·basis·소유 var)에 등장하나
+function touches(obj,nodeId){
+  try{ return JSON.stringify(obj).includes(nodeId); }catch(e){ return false; }
+}
+function stateOf(kind){ return (STATE&&STATE[kind])||[]; }
+// 트리 행 배지 — 노드의 대표 var 현재값(1개면 값, 여러 개면 개수)
+function nodeValueBadge(nodeId){
+  const vs=VARS_BY_OWNER.get(nodeId); if(!vs||!vs.length) return "";
+  if(vs.length===1) return fmtVar(vs[0]);
+  return vs.length+"값";
+}
+function stateSectionHTML(n){
+  if(!STATE||!stateOverlay) return "";
+  const vs=VARS_BY_OWNER.get(n.id)||[];
+  const rules=stateOf("rules").filter(r=>touches(r,n.id));
+  const acts=stateOf("actions").filter(a=>touches(a,n.id));
+  const objs=stateOf("objectives").filter(o=>o.goal===n.id||touches(o,n.id));
+  const clocks=stateOf("clocks").filter(c=>touches(c,n.id));
+  if(!vs.length&&!rules.length&&!acts.length&&!objs.length&&!clocks.length) return "";
+  const hd=(t)=>`<div style="border-top:1px solid var(--line);margin:12px 0 6px;padding-top:8px;color:#7bd88f;font-size:11px;font-weight:700">${t}</div>`;
+  let h=hd("상태 (world-state · 초기 스냅샷, 읽기 전용)");
+  if(vs.length){
+    h+=`<div style="display:flex;flex-direction:column;gap:3px;margin-bottom:2px">`;
+    for(const v of vs){
+      const tgt=v.target?` <span style="color:var(--muted)">·${esc(v.target)}</span>`:"";
+      h+=`<div style="display:flex;gap:6px;align-items:baseline;font-size:11px">`+
+         `<code style="color:var(--accent)">${esc(v.axis||v.id)}</code>${tgt}`+
+         `<span style="margin-left:auto;color:#e3b341">${esc(fmtVar(v))}</span>`+
+         `<span style="color:var(--muted);font-size:10px">${esc(v.kind)}${v.derived?"·파생":""}</span></div>`;
+    }
+    h+=`</div>`;
+  }
+  const listBlock=(title,arr,fmt)=>{ if(!arr.length) return "";
+    return `<div style="margin-top:6px;color:var(--muted);font-size:10px;font-weight:700">${title} ${arr.length}</div>`+
+      arr.map(fmt).join(""); };
+  h+=listBlock("법칙",rules,r=>`<div style="font-size:11px;padding:2px 0"><code style="color:#9b8cff">${esc(r.id)}</code>`+
+     `${r.once?' <span style="color:var(--muted)">once</span>':''}${r.every?` <span style="color:var(--muted)">every ${r.every}</span>`:''}${r.monotonic?' <span style="color:var(--danger)">mono</span>':''}</div>`);
+  h+=listBlock("행동",acts,a=>`<div style="font-size:11px;padding:2px 0"><code style="color:#ff9f43">${esc(a.id)}</code>`+
+     `<span style="color:var(--muted)"> → ${esc(a.objective||"")}</span>${a.actor_type?` <span style="color:var(--muted)">[${esc(a.actor_type.join(","))}]</span>`:''}</div>`);
+  h+=listBlock("목적",objs,o=>`<div style="font-size:11px;padding:2px 0"><code style="color:var(--accent)">${esc(o.id)}</code>`+
+     `${o.goal===n.id?' <span style="color:#7bd88f">◆ 이 노드</span>':''}</div>`);
+  h+=listBlock("시계",clocks,c=>`<div style="font-size:11px;padding:2px 0"><code style="color:#4ecdc4">${esc(c.id)}</code>`+
+     `<span style="color:var(--muted)"> period ${c.period}·duty ${c.duty}</span></div>`);
+  return h;
+}
+
 function renderPanel(){
   const body=document.getElementById("panelBody"), acts=document.getElementById("panelActions");
   const pid=document.getElementById("panelId"), ptype=document.getElementById("panelType");
@@ -409,6 +485,9 @@ function renderPanel(){
      GRAPH.nodes.filter(m=>m.id!==n.id).map(m=>`<option value="${esc(m.id)}">${esc(m.type)} · ${esc(m.id)} · ${esc(truncate(m.title,18))}</option>`).join("")+
      `</select></div>`;
   h+=`<div class="addrow"><input type="text" id="relNote" placeholder="관계 설명(선택)"><button id="btnAddRel">+ 관계</button></div>`;
+
+  // 상태 오버레이 (읽기 전용)
+  h+=stateSectionHTML(n);
 
   body.innerHTML=h;
 
@@ -512,6 +591,7 @@ document.getElementById("btnDelete").onclick=()=>{ if(selectedId) deleteNode(sel
 document.getElementById("btnExpandAll").onclick=()=>{ collapsed.clear(); collapsedGroups.clear(); render(); };
 document.getElementById("btnCollapseAll").onclick=()=>{ collapsed=new Set(GRAPH.nodes.filter(n=>(childrenOf.get(n.id)||[]).length).map(n=>n.id)); render(); };
 document.getElementById("selOnly").onchange=()=>renderGraph();
+document.getElementById("stateToggle").onchange=(e)=>{ stateOverlay=e.target.checked; render(); };
 document.getElementById("search").addEventListener("input",(e)=>{ searchTerm=e.target.value.trim(); if(searchTerm){ collapsed.clear(); collapsedGroups.clear(); } render(); });
 document.getElementById("btnAbout").onclick=()=>{ document.getElementById("about").style.display="flex"; };
 document.getElementById("aboutClose").onclick=()=>{ document.getElementById("about").style.display="none"; };
