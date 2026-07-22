@@ -9,6 +9,8 @@
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
+**MMORPG 적용** — 설계 [Design-MMO.md](Design-MMO.md): 프로토(단일 플레이어·단일 프로세스)를 실제 MMORPG 로 잇는 설계 확정 — 보존 불변 5, World Director(거시)/Zone(미시) 2계층, 변수·목적 스코프 3종, once 행동의 기여 축적 변환(P8), NPC duration=경합 창, 검증 M1~M6, 로드맵 5단계(1~2단계는 프로토 안에서 검증).
+
 - `data/world-state.json` — 상태의 유일 원본. **vars 73 · rules 60 · actions 15 · objectives 7 · clocks 2**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
 - `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증. `node data/validate-state.mjs` (경고 0).
@@ -28,6 +30,8 @@
 
 ## TODO
 
+- [ ] MMO 1단계 — scope 필드 도입·플레이어 쌍축 player 승격·`{char}` 다중 캐릭터 시뮬·검증 M1·M2 ([Design-MMO.md](Design-MMO.md) §11).
+- [ ] MMO 2단계 — 세계 전환 once 행동의 기여 축적(P8) 변환('강의 귀환' 권역부터)·counter/pending 취소·검증 M3·M4.
 - [ ] G2.5.3 아르카론 처리 6방식(§6.2) 보스전 목적·행동 — 무광의 쐐기·일식 전제 활용(사건 5 방아쇠와 연결).
 - [ ] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적 잔여(사제단·수도원·교단 등).
 - [ ] §7 법칙검증 7·8(detail 서술 252항목·노드 전수 커버리지) 자동화.
