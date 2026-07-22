@@ -264,7 +264,14 @@
       "basis": "NPC 목적 생애주기 진행 축 — 충돌 반응(LAW-R03). DET: G_상인연합_혈청독점.목표 상태" },
     { "id": "G_사제단_혈청파괴.진행", "owner": "G_사제단_혈청파괴", "axis": "진행", "kind": "level",
       "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
-      "basis": "NPC 목적 생애주기 진행 축 — 충돌 반응(LAW-R04). DET: G_사제단_혈청파괴.목표 상태" }
+      "basis": "NPC 목적 생애주기 진행 축 — 충돌 반응(LAW-R04). DET: G_사제단_혈청파괴.목표 상태" },
+
+    { "id": "T_회귀호흡.공개", "owner": "T_회귀호흡", "axis": "공개", "kind": "level",
+      "levels": ["소실", "비전", "전승", "확산"], "init": 1,
+      "basis": "기술 공개도 — 수요 확산 ↔ 수도원 통제(LAW-R07). DET: T_회귀호흡.현재 갈등" },
+    { "id": "G_수도원_전승통제.진행", "owner": "G_수도원_전승통제", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "NPC 목적 생애주기 진행 축 — 회귀호흡 전승 갈등(§5·LAW-R07). DET: G_수도원_전승통제.목표 상태" }
   ],
 
   "clocks": [
@@ -292,7 +299,8 @@
     { "node": "F_유리잠수단", "driver": "policy", "policy": ["G_유리잠수단_채굴지속"] },
     { "node": "F_상인연합", "driver": "policy", "policy": ["G_해안세력_채굴금지", "G_상인연합_혈청독점"] },
     { "node": "F_치료단", "driver": "policy", "policy": ["G_치료단_혈청공개"] },
-    { "node": "F_일식사제단", "driver": "policy", "policy": ["G_사제단_혈청파괴"] }
+    { "node": "F_일식사제단", "driver": "policy", "policy": ["G_사제단_혈청파괴"] },
+    { "node": "F_숨결수도원", "driver": "policy", "policy": ["G_수도원_전승통제"] }
   ],
 
   "rules": [
@@ -779,7 +787,11 @@
         { "var": "G2.5.3.완료방식", "op": "==", "value": "ACT_아르카론_지배" },
         { "var": "X_검은태양병.강도", "op": "<", "value": 3 }
       ] },
-      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "every": 6 }
+      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "every": 6 },
+
+    { "id": "LAW_회귀호흡_확산", "basis": "생존술 수요로 회귀호흡이 저절로 퍼진다(수도원 통제의 반대 압력). DET: T_회귀호흡.현재 갈등",
+      "when": { "all": [ { "var": "T_회귀호흡.공개", "op": "<", "value": 3 } ] },
+      "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": 1 } ], "every": 12 }
   ],
 
   "actions": [
@@ -1096,7 +1108,17 @@
       "then": [
         { "var": "R_백야혈청.공개", "op": "add", "value": -1 },
         { "var": "E_백야초.군락", "op": "add", "value": -1 }
-      ], "duration": 5, "once": false }
+      ], "duration": 5, "once": false },
+
+    { "id": "ACT_전승_봉인", "objective": "G_수도원_전승통제", "actor_type": ["F_숨결수도원"],
+      "basis": "§5 수도원 정책 — 전승 기록을 봉인해 공개도를 낮춘다. 확산 압력(LAW_회귀호흡_확산)과 반대. DET: G_수도원_전승통제.해결 방법",
+      "when": { "all": [ { "var": "T_회귀호흡.공개", "op": ">", "value": 1 } ] },
+      "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": -1 } ], "duration": 4, "once": false },
+
+    { "id": "ACT_수행자_통제", "objective": "G_수도원_전승통제", "actor_type": ["F_숨결수도원"],
+      "basis": "§5 수도원 — 수행자 계보를 통제해 확산을 막는다(두 번째 해결 방법). DET: G_수도원_전승통제.해결 방법",
+      "when": { "all": [ { "var": "T_회귀호흡.공개", "op": ">", "value": 1 } ] },
+      "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": -1 } ], "duration": 6, "once": false }
   ],
 
   "objectives": [
@@ -1216,6 +1238,16 @@
       ] },
       "activate": "auto",
       "complete": { "var": "R_백야혈청.공개", "op": "<=", "value": 0 },
-      "on_complete": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ] }
+      "on_complete": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ] },
+
+    { "id": "OBJ_G_수도원_전승통제", "goal": "G_수도원_전승통제",
+      "basis": "NPC 목적 '전승 통제'(§5·LAW-R07). 회귀호흡이 전승 이상으로 퍼지면 발견. 완료=비전 이하로 통제(상태 술어). 확산 법칙과 tug",
+      "discover": { "any": [
+        { "var": "G_수도원_전승통제.진행", "op": ">=", "value": 1 },
+        { "var": "T_회귀호흡.공개", "op": ">=", "value": 2 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "T_회귀호흡.공개", "op": "<=", "value": 1 },
+      "on_complete": [ { "var": "T_회귀호흡.공개", "op": "set", "value": 1 } ] }
   ]
 }

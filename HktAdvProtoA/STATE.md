@@ -5,14 +5,15 @@
 
 ## 구현 현황 (핵심)
 
-**목적 그래프** — `data/objective-graph.json` (**187 노드 · 188 관계**, 유일 원본). 검증 `node data/validate-graph.mjs`. 관찰·편집기 `objective-tree.html`. 설계: [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론).
+**목적 그래프** — `data/objective-graph.json` (**188 노드 · 190 관계**, 유일 원본). 검증 `node data/validate-graph.mjs` (§16 감사: 고립·요소 저연결·단일해결 카운트, `--audit` 목록). 관찰·편집기 `objective-tree.html`(상태 오버레이·라이브 틱 시뮬). 설계: [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론).
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
-- `data/world-state.json` — 상태의 유일 원본. **vars 84 · rules 61 · actions 28 · objectives 11 · clocks 2 · subjects 7**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
+- `data/world-state.json` — 상태의 유일 원본. **vars 86 · rules 62 · actions 30 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
 - `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**). `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
-- `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **356항목 중 153 분류(43.0%)** — 사건 5종 + 아르카론 보스전 + NPC 목적 8개(백야혈청 3세력 충돌 포함) 시드. 미분류 203은 `data/coverage-backlog.json`(생성물)에 백로그로 출력.
+- `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **363항목 100% 분류(미분류 0)**: 번역 89·서사 83·보류 191. 보류가 곧 콘텐츠 백로그(사유 태그). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
+- `data/load-world.mjs` — 파일 로더(fs). 엔진을 순수하게 유지해 브라우저(objective-tree.html)가 canonical 엔진을 그대로 import.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터.
 
 ### 대표 사건 5종 — 전부 무입력 자율 재생 (WorldLaws §3 전수 완성)
@@ -38,8 +39,8 @@
 ## TODO
 
 - [x] G2.5.3 아르카론 처리 6방식(§6.2) 보스전 목적·행동 7종 — 무광의쐐기·일식(재생) 전제, 완료방식 분기(파괴/추방/의식분리→사건 5), `LAW_M_지배오염` 후속 법칙. (커버리지 91→99)
-- [ ] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적 잔여. **완료: 수문회·잠수단·상인연합(채굴금지·혈청독점)·치료단·사제단**(백야혈청 3세력 충돌). 잔여: 수도원·교단·대장간·유목민·보존회(종자보존)·수문회(수원유지)·카르마·늑대.
-- [x] §7 법칙검증 7·8(detail 항목·노드 전수 커버리지) 자동화 — 원장 `detail-coverage.json` + 검증기. 이후 A/B 확장 시 원장을 §9-7 로 채워 커버리지를 올린다(현재 27.2%, 백로그 244).
-- [x] objective-tree.html 상태 오버레이 — 노드 현재값 배지·패널 법칙/행동/목적 뷰·**라이브 틱 시뮬**(▶틱/+5/↺). state-engine.mjs 를 fs/순수 분리(`load-world.mjs`)해 브라우저가 canonical 엔진을 그대로 import — 검증기와 단일 소스.
-- [ ] §16 검증 규칙(요소는 최소 2개 목적에 연결 등) 자동 점검 — 고립 노드·단일 해결 방법 경고.
-- [ ] G3~G9 하위 목적의 말단(행동 가능 단위)까지 추가 전개.
+- [~] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적. **완료(7주체): 수문회·잠수단·상인연합(채굴금지·혈청독점)·치료단·사제단·수도원(전승통제)**. 잔여(콘텐츠 트랙, 도구가 추적): 교단·대장간·유목민·보존회(종자보존)·수문회(수원유지)·카르마·늑대.
+- [x] §7 법칙검증 7·8(detail·노드 전수 커버리지) 자동화 — 원장 `detail-coverage.json` + 검증기. **전 363항목 100% 분류 완주**(미분류 0). 보류 191 = 사유 태그 백로그.
+- [x] objective-tree.html 상태 오버레이 — 노드 현재값 배지·패널 법칙/행동/목적 뷰·**라이브 틱 시뮬**(▶틱/+5/↺). `load-world.mjs` 분리로 브라우저가 canonical 엔진 import(단일 소스).
+- [x] §16 검증 자동 점검(validate-graph) — 고립 노드·요소 저연결(<2목적)·말단 단일해결 감사. 현재 고립 4·저연결 67·단일해결 27(`--audit` 목록).
+- [ ] G3~G9 말단 목적 전개(콘텐츠 트랙) — 말단 46목적 objective·행동 미구현(§16 감사·커버리지 보류가 추적). 권역 단위로 §9 절차 적용.
