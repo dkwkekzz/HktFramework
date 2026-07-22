@@ -9,7 +9,7 @@
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
-**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md): world state·rule 이 적용되는 세계를 게임 환경으로 **표현**하는 것이 1차 목표. 표현=스냅샷의 순수 함수(불변 6·7, 엔진 무변경), 공간화는 표현 데이터 2장(`world-map.json` 배치 · `world-visual.json` 축→표현 사전), 법칙 가시화(연대기·발화 연출·basis 인스펙터), 플레이어=행동 발화 요청만. 검증 V1~V6(`validate-visual.mjs` 예정). 멀티플레이(서버 이동·스코프·기여 전환)는 4단계 예약.
+**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **1단계 '살아있는 지도' 완료**: `game/world.html`(단일 파일 클라, 엔진을 브라우저 실시간 틱 구동) + `data/world-map.json`(지역 16·RIVER) + `data/world-visual.json`(변수 73 전수 표현 사전·연대기 84·fx 34) + `data/validate-visual.mjs`(V1~V4·V6 통과). 대표 사건 5종이 지도 위에서 눈에 보이게 재생(디버그 방아쇠=`--force` 대응). 실행: 저장소 루트 `python3 -m http.server` → `/HktAdvProtoA/game/world.html`.
 
 - `data/world-state.json` — 상태의 유일 원본. **vars 73 · rules 60 · actions 15 · objectives 7 · clocks 2**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
@@ -30,8 +30,7 @@
 
 ## TODO
 
-- [ ] MMO 1단계 '살아있는 지도' — `data/world-map.json`(L 배치)·`data/world-visual.json`(표현 사전)·`game/world.html` 관찰자 모드 + `validate-visual.mjs`(V1~V4·V6) ([Design-MMO.md](Design-MMO.md) §9).
-- [ ] MMO 2단계 '지역 씬+아바타' — 탑다운 씬·절차 배치(고정 시드)·군집 밀도 표현·`ACT_이동`(`E_플레이어.위치` 축 추가).
+- [ ] MMO 2단계 '지역 씬+아바타' — 탑다운 씬·절차 배치(고정 시드)·군집 밀도 표현·`ACT_이동`(`E_플레이어.위치` 축 추가) ([Design-MMO.md](Design-MMO.md) §9).
 - [ ] MMO 3단계 '개입' — 행동 발화 UI·전제 미충족 안내·개인 HUD/저널·NPC 정책 행동 무대 연출 ('강의 귀환' 게임플레이화).
 - [ ] G2.5.3 아르카론 처리 6방식(§6.2) 보스전 목적·행동 — 무광의 쐐기·일식 전제 활용(사건 5 방아쇠와 연결).
 - [ ] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적 잔여(사제단·수도원·교단 등).
