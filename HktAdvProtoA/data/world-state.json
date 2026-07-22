@@ -254,7 +254,17 @@
     { "id": "E_아르카론.지배됨", "owner": "E_아르카론", "axis": "지배됨", "kind": "flag", "init": false,
       "basis": "지배 방식의 결과 — 심장 각인 장악(§6.2). 정신 오염 후속 법칙의 전제. DET: G2.5.3.해결 방법" },
     { "id": "E_아르카론.공생", "owner": "E_아르카론", "axis": "공생", "kind": "flag", "init": false,
-      "basis": "대체 에너지 공급 방식의 결과 — 잠식 없는 공존(§6.2). DET: G2.5.3.해결 방법" }
+      "basis": "대체 에너지 공급 방식의 결과 — 잠식 없는 공존(§6.2). DET: G2.5.3.해결 방법" },
+
+    { "id": "G_치료단_혈청공개.진행", "owner": "G_치료단_혈청공개", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "NPC 목적 생애주기 진행 축 — 백야혈청 3세력 충돌(§5·§2.3 LAW-R). DET: G_치료단_혈청공개.목표 상태" },
+    { "id": "G_상인연합_혈청독점.진행", "owner": "G_상인연합_혈청독점", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "NPC 목적 생애주기 진행 축 — 충돌 반응(LAW-R03). DET: G_상인연합_혈청독점.목표 상태" },
+    { "id": "G_사제단_혈청파괴.진행", "owner": "G_사제단_혈청파괴", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "NPC 목적 생애주기 진행 축 — 충돌 반응(LAW-R04). DET: G_사제단_혈청파괴.목표 상태" }
   ],
 
   "clocks": [
@@ -280,7 +290,9 @@
     { "node": "F_씨앗보존회", "driver": "policy", "policy": ["G1.2.6"] },
     { "node": "F_청동수문회", "driver": "policy", "policy": ["G_수문회_제어탑파괴"] },
     { "node": "F_유리잠수단", "driver": "policy", "policy": ["G_유리잠수단_채굴지속"] },
-    { "node": "F_상인연합", "driver": "policy", "policy": ["G_해안세력_채굴금지"] }
+    { "node": "F_상인연합", "driver": "policy", "policy": ["G_해안세력_채굴금지", "G_상인연합_혈청독점"] },
+    { "node": "F_치료단", "driver": "policy", "policy": ["G_치료단_혈청공개"] },
+    { "node": "F_일식사제단", "driver": "policy", "policy": ["G_사제단_혈청파괴"] }
   ],
 
   "rules": [
@@ -1042,7 +1054,49 @@
         { "var": "E_아르카론.잠식", "op": "set", "value": false },
         { "var": "E_아르카론.지배됨", "op": "set", "value": true },
         { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_아르카론_지배" }
-      ], "once": true }
+      ], "once": true },
+
+    { "id": "ACT_혈청_공개배포", "objective": "G_치료단_혈청공개", "actor_type": ["F_치료단"],
+      "basis": "§5 치료단 정책 — 혈청 공개도를 올린다(공개 방향). 충돌: 상인연합·사제단과 반대. DET: G_치료단_혈청공개.해결 방법",
+      "when": { "all": [ { "var": "R_백야혈청.공개", "op": "<", "value": 3 } ] },
+      "then": [ { "var": "R_백야혈청.공개", "op": "add", "value": 1 } ], "duration": 3, "once": false },
+
+    { "id": "ACT_혈청_봉쇄돌파", "objective": "G_치료단_혈청공개", "actor_type": ["F_치료단"],
+      "basis": "§5 치료단 — 독점 봉쇄를 뚫고 유통(두 번째 해결 방법). DET: G_치료단_혈청공개.해결 방법",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": "==", "value": 1 },
+        { "var": "X_검은태양병.강도", "op": ">=", "value": 2 }
+      ] },
+      "then": [ { "var": "R_백야혈청.공개", "op": "add", "value": 1 } ], "duration": 4, "once": false },
+
+    { "id": "ACT_혈청_매점봉쇄", "objective": "G_상인연합_혈청독점", "actor_type": ["F_상인연합"],
+      "basis": "§5 상인연합 정책 — 유통을 매점·봉쇄해 공개도를 낮춘다(독점 방향). 치료단과 같은 변수 반대로(충돌 실행). DET: G_상인연합_혈청독점.해결 방법",
+      "when": { "all": [ { "var": "R_백야혈청.공개", "op": ">", "value": 1 } ] },
+      "then": [ { "var": "R_백야혈청.공개", "op": "add", "value": -1 } ], "duration": 3, "once": false },
+
+    { "id": "ACT_원료_공급장악", "objective": "G_상인연합_혈청독점", "actor_type": ["F_상인연합"],
+      "basis": "§5 상인연합 — 원료 백야초 공급을 장악해 유통을 조인다(두 번째 해결 방법). DET: G_상인연합_혈청독점.해결 방법",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": ">", "value": 1 },
+        { "var": "E_백야초.군락", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "R_백야혈청.공개", "op": "add", "value": -1 } ], "duration": 4, "once": false },
+
+    { "id": "ACT_혈청_기록소각", "objective": "G_사제단_혈청파괴", "actor_type": ["F_일식사제단"],
+      "basis": "§5 사제단 정책 — 제조법 기록을 불태워 소실로 민다(파괴 방향). DET: G_사제단_혈청파괴.해결 방법",
+      "when": { "all": [ { "var": "R_백야혈청.공개", "op": ">", "value": 0 } ] },
+      "then": [ { "var": "R_백야혈청.공개", "op": "add", "value": -1 } ], "duration": 4, "once": false },
+
+    { "id": "ACT_백야초_소각", "objective": "G_사제단_혈청파괴", "actor_type": ["F_일식사제단"],
+      "basis": "§5 사제단 — 원료 백야초 군락을 소각(두 번째 해결 방법 — 공개도·군락 동시 타격). DET: G_사제단_혈청파괴.해결 방법",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": ">", "value": 0 },
+        { "var": "E_백야초.군락", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "R_백야혈청.공개", "op": "add", "value": -1 },
+        { "var": "E_백야초.군락", "op": "add", "value": -1 }
+      ], "duration": 5, "once": false }
   ],
 
   "objectives": [
@@ -1132,6 +1186,36 @@
       ] },
       "activate": "auto",
       "complete": { "var": "G2.5.3.완료방식", "op": "!=", "value": null },
-      "on_complete": [ { "var": "E_아르카론.잠식", "op": "set", "value": false } ] }
+      "on_complete": [ { "var": "E_아르카론.잠식", "op": "set", "value": false } ] },
+
+    { "id": "OBJ_G_치료단_혈청공개", "goal": "G_치료단_혈청공개",
+      "basis": "NPC 목적 '혈청 완전 공개'(§5). 병이 있으면 치료단이 공개를 밀어붙인다. 완료=공개도 최대(상태 술어). 상인연합·사제단과 같은 변수 반대로(§2.3 충돌 실행)",
+      "discover": { "any": [
+        { "var": "G_치료단_혈청공개.진행", "op": ">=", "value": 1 },
+        { "var": "X_검은태양병.강도", "op": ">=", "value": 1 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "R_백야혈청.공개", "op": ">=", "value": 3 },
+      "on_complete": [ { "var": "X_검은태양병.강도", "op": "add", "value": -1 } ] },
+
+    { "id": "OBJ_G_상인연합_혈청독점", "goal": "G_상인연합_혈청독점",
+      "basis": "NPC 대응 목적 '독점 회복'(§5·LAW-R03). 치료단이 공개도를 올리면 발견. 완료=독점 이하로 되돌림(상태 술어)",
+      "discover": { "any": [
+        { "var": "G_상인연합_혈청독점.진행", "op": ">=", "value": 1 },
+        { "var": "R_백야혈청.공개", "op": ">=", "value": 2 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "R_백야혈청.공개", "op": "<=", "value": 1 },
+      "on_complete": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ] },
+
+    { "id": "OBJ_G_사제단_혈청파괴", "goal": "G_사제단_혈청파괴",
+      "basis": "NPC 대응 목적 '혈청 소실'(§5·LAW-R04). 혈청이 유통되면 발견. 완료=소실(상태 술어). 독점 세력과도 충돌(존속 vs 소실)",
+      "discover": { "any": [
+        { "var": "G_사제단_혈청파괴.진행", "op": ">=", "value": 1 },
+        { "var": "R_백야혈청.공개", "op": ">=", "value": 2 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "R_백야혈청.공개", "op": "<=", "value": 0 },
+      "on_complete": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ] }
   ]
 }
