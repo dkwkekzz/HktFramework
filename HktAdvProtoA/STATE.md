@@ -11,10 +11,10 @@
 
 **MMORPG 웹 프로토타입** — 로드맵 1~4단계(지도→아바타→개입→멀티) 완료. 클라 `game/world.html`(로컬/원격 겸용) · 서버 `game/server.mjs` · 표현 데이터 `data/world-map.json`·`data/world-visual.json` · 검증 `node data/validate-visual.mjs`(V1~V7). 멀티 실행: `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`. 설계 [Design-MMO.md](Design-MMO.md) · 상세 [progress/mmo.md](progress/mmo.md).
 
-- `data/world-state.json` — 상태의 유일 원본. **vars 87 · rules 62 · actions 33 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
+- `data/world-state.json` — 상태의 유일 원본. **vars 92 · rules 63 · actions 35 · objectives 13 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
 - `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**). `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
-- `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **363항목 100% 분류(미분류 0)**: 번역 89·서사 83·보류 191. 보류가 곧 콘텐츠 백로그(사유 태그). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
+- `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **363항목 100% 분류(미분류 0)**: 번역 92·서사 85·보류 186. 보류가 곧 콘텐츠 백로그(사유 태그). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
 - `data/load-world.mjs` — 파일 로더(fs). 엔진을 순수하게 유지해 브라우저(objective-tree.html)가 canonical 엔진을 그대로 import.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터.
 
@@ -46,4 +46,4 @@
 - [x] §7 법칙검증 7·8(detail·노드 전수 커버리지) 자동화 — 원장 `detail-coverage.json` + 검증기. **전 363항목 100% 분류 완주**(미분류 0). 보류 191 = 사유 태그 백로그.
 - [x] objective-tree.html 상태 오버레이 — 노드 현재값 배지·패널 법칙/행동/목적 뷰·**라이브 틱 시뮬**(▶틱/+5/↺). `load-world.mjs` 분리로 브라우저가 canonical 엔진 import(단일 소스).
 - [x] §16 검증 자동 점검(validate-graph) — 고립 노드·요소 저연결(<2목적)·말단 단일해결 감사. 현재 고립 4·저연결 67·단일해결 27(`--audit` 목록).
-- [ ] G3~G9 말단 목적 전개(콘텐츠 트랙) — 말단 46목적 objective·행동 미구현(§16 감사·커버리지 보류가 추적). 권역 단위로 §9 절차 적용.
+- [~] G3~G9 말단 목적 전개(콘텐츠 트랙) — 말단 목적 objective·행동 미구현(§16 감사·커버리지 보류가 추적). 권역 단위로 §9 절차 적용. **닫힘: G2.3.1 검은 태양병 치료**(OBJ + 행동 2종[혈청 투여·요양 격리] → X_검은태양병.강도 0, 혈청 3세력 tug의 상위 생존 목적). 말단 목적 사슬 완결도 14→15/56. 잔여는 대부분 필요 요소부터 앵커해야(§16 저연결 67). 상세 [progress/world-laws.md](progress/world-laws.md).
