@@ -12,10 +12,21 @@ const argv = process.argv.slice(2);
 function opt(name, def) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : def; }
 const TICKS = Number(opt("--ticks", 40));
 const QUIET = argv.includes("--quiet");
+const NO_POLICY = argv.includes("--no-policy");
 
-const { state } = loadWorld();
+let { state } = loadWorld();
+if (NO_POLICY) state = { ...state, subjects: (state.subjects || []).filter((s) => s.driver !== "policy") };
 const varIdx = indexVars(state);
 const snap = buildInitial(state);
+
+// 초기 상태 강제: --force <var>=<value> (숫자/true/false/null). 검증6(WorldLaws §7) 시나리오용
+for (let i = 0; i < argv.length; i++) if (argv[i] === "--force") {
+  const [name, raw] = argv[i + 1].split("=");
+  let v = raw === "true" ? true : raw === "false" ? false : raw === "null" ? null : Number(raw);
+  if (typeof v === "number" && Number.isNaN(v)) v = raw;
+  if (!varIdx.has(name)) { console.error(`--force: 미선언 var ${name}`); process.exit(1); }
+  snap[name] = v;
+}
 recomputeDerived(snap, varIdx);
 const ctx = newCtx(state);
 
@@ -39,7 +50,8 @@ const TRACK = [
   "L_제어탑.가동", "S_강흐름.단계", "L_굶주린평원.생산", "R_식량.공급",
   "F_청동수문회.세력", "EV_강의귀환.단계", "E_늪생명체.서식",
   "L_재의숲.먹이", "E_회색등늑대.개체수", "X_늑대공격.활성",
-  "G1.2.6.진행", "G2.1.진행", "G_수문회_제어탑파괴.진행",
+  "E_초식동물.개체수", "L_재의숲.식생", "S_토양침식.활성", "EV_늑대멸종.단계",
+  "G1.2.6.진행", "G2.1.진행", "G_수문회_제어탑파괴.진행", "G_늑대복원.진행",
 ];
 
 console.log(`무입력 시뮬레이션 — ${TICKS}틱. 주체: ${state.subjects.map((s) => `${s.node}(${s.driver})`).join(", ")}`);
@@ -64,10 +76,13 @@ console.log("최종 상태:");
 for (const id of TRACK) console.log(`  ${id.padEnd(28)} = ${show(id)}`);
 
 const done = (id) => (snap[id + ".진행"] ?? 0) === 3;
+const progLabel = (id) => (varIdx.get(id + ".진행")?.levels || [])[snap[id + ".진행"] ?? 0] ?? snap[id + ".진행"];
 console.log("\n판정:");
-console.log(`  강의 귀환 사슬 도달 단계 = ${snap["EV_강의귀환.단계"]} / 6`);
-console.log(`  G1.2.6(강 복구) 완료 = ${done("G1.2.6")} (완료방식 ${snap["G1.2.6.완료방식"]})`);
-console.log(`  G2.1(늑대 공격 차단) 완료 = ${done("G2.1")} (완료방식 ${snap["G2.1.완료방식"] ?? "생태 회복=무행동"})`);
-console.log(`  G_수문회_제어탑파괴(NPC 반격) 완료 = ${done("G_수문회_제어탑파괴")} (방식 ${snap["G_수문회_제어탑파괴.완료방식"]})`);
+console.log(`  [사건 1] 강의 귀환 도달 단계 = ${snap["EV_강의귀환.단계"]} / 6`);
+console.log(`     G1.2.6(강 복구) 완료 = ${done("G1.2.6")} (완료방식 ${snap["G1.2.6.완료방식"]})`);
+console.log(`     G2.1(늑대 공격 차단) 완료 = ${done("G2.1")} (완료방식 ${snap["G2.1.완료방식"] ?? "생태 회복=무행동"})`);
+console.log(`     G_수문회_제어탑파괴(NPC 반격) 완료 = ${done("G_수문회_제어탑파괴")} (방식 ${snap["G_수문회_제어탑파괴.완료방식"]})`);
+console.log(`  [사건 2] 늑대 멸종 도달 단계 = ${snap["EV_늑대멸종.단계"]} / 6`);
+console.log(`     G_늑대복원(사건 종결이 발견) 상태 = ${progLabel("G_늑대복원")} (완료방식 ${snap["G_늑대복원.완료방식"] ?? "-"})`);
 if (ctx.errors.length) { console.error("\n엔진 오류:\n  " + ctx.errors.join("\n  ")); process.exit(1); }
 console.log("\n※ 플레이어 입력 0회. 위 변화는 전부 법칙·시계·NPC 정책의 발화 결과다 (트리 §16 검증 13·14).");

@@ -99,6 +99,25 @@
     { "id": "G_수문회_제어탑파괴.완료방식", "owner": "G_수문회_제어탑파괴", "axis": "완료방식", "kind": "ref", "init": null,
       "basis": "G 표준축(완료방식). 습격/봉쇄 등 파괴 방식 기록" },
 
+    { "id": "E_초식동물.개체수", "owner": "E_초식동물", "axis": "개체수", "kind": "count", "init": 5,
+      "basis": "E 종 표준축(개체수). REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력) — 사건 2 사슬" },
+    { "id": "E_초식동물.서식", "owner": "E_초식동물", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식)" },
+    { "id": "L_재의숲.식생", "owner": "L_재의숲", "axis": "식생", "kind": "level",
+      "levels": ["헐벗음", "성긴", "보통", "우거짐"], "init": 2,
+      "basis": "L 고유축 — 어린 숲 식생. REL: E_초식동물 ─방해→ L_재의숲 (과방목)" },
+    { "id": "S_토양침식.활성", "owner": "S_토양침식", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "var": "L_재의숲.식생", "op": "<=", "value": 0 },
+      "basis": "파생축 — 식생 소실의 함수. REL: L_재의숲 ─변화→ S_토양침식. 식생 회복 시 자동 해제(§6, S 해제 경로)" },
+    { "id": "EV_늑대멸종.단계", "owner": "EV_늑대멸종", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). 사슬 진행도 — WorldLaws §3 C2-1~6 과 1:1" },
+    { "id": "G_늑대복원.진행", "owner": "G_늑대복원", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). REL: EV_늑대멸종 ─파생→ G_늑대복원 (사건 종결이 발견시킴)" },
+    { "id": "G_늑대복원.완료방식", "owner": "G_늑대복원", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 재방사/솎기 등 복원 방식 기록" },
+
     { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
       "axis": "습득", "kind": "flag", "init": false,
       "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
@@ -230,7 +249,102 @@
       ] },
       "then": [
         { "var": "E_회색등늑대.개체수", "op": "add", "value": -1 }
-      ], "once": false }
+      ], "once": false },
+
+    { "id": "C2_1", "basis": "EV: EV_늑대멸종 단계 1 (WorldLaws C2-1) — 늑대 소수화로 마을 공격 소멸",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": "<=", "value": 5 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 1 } ], "once": true },
+
+    { "id": "A1_초식급증", "basis": "REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력 소멸 → 초식 급증). P3 생태",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": "<=", "value": 5 },
+        { "var": "E_초식동물.개체수", "op": "<", "value": 15 }
+      ] },
+      "then": [ { "var": "E_초식동물.개체수", "op": "add", "value": 1 } ], "every": 1 },
+
+    { "id": "C2_2", "basis": "EV: EV_늑대멸종 단계 2 (WorldLaws C2-2) — 초식동물 급증",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">=", "value": 15 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "A2_과방목", "basis": "REL: E_초식동물 ─방해→ L_재의숲 (과방목으로 어린 숲 식생 소실). P3 생태",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">=", "value": 15 },
+        { "var": "L_재의숲.식생", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_재의숲.식생", "op": "add", "value": -1 } ], "every": 1 },
+
+    { "id": "C2_3", "basis": "EV: EV_늑대멸종 단계 3 (WorldLaws C2-3) — 어린 숲 소멸",
+      "when": { "all": [
+        { "var": "L_재의숲.식생", "op": "<=", "value": 0 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 3 } ], "once": true },
+
+    { "id": "C2_4", "basis": "EV: EV_늑대멸종 단계 4 (WorldLaws C2-4) — 식생 소실로 S_토양침식(파생) 활성",
+      "when": { "all": [
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "EV_늑대멸종.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "A3_토사퇴적", "basis": "REL: S_토양침식 ─변화→ S_강흐름 (토사 퇴적·수로 막힘). P2 압력 — 사건 1 의 중심 변수와 교차(§6)",
+      "when": { "all": [
+        { "var": "S_토양침식.활성", "op": "==", "value": true },
+        { "var": "S_강흐름.단계", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "S_강흐름.단계", "op": "add", "value": -1 } ], "every": 2 },
+
+    { "id": "C2_5", "basis": "EV: EV_늑대멸종 단계 5 (WorldLaws C2-5) — 강 토사 퇴적·수로 막힘",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": "<=", "value": 0 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 5 } ], "once": true },
+
+    { "id": "C2_6", "basis": "EV: EV_늑대멸종 단계 6 (WorldLaws C2-6) — 사건이 새 목적(늑대 복원)을 발견시킨다",
+      "when": { "all": [
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "G_늑대복원.진행", "op": "set", "value": 1 },
+        { "var": "EV_늑대멸종.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "LAW_포식", "basis": "REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력 회복 시 초식 억제). A1 의 반대 방향 — 포식-피식 균형",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 10 },
+        { "var": "E_초식동물.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "E_초식동물.개체수", "op": "add", "value": -1 } ], "every": 2 },
+
+    { "id": "LAW_B_식생회복", "basis": "균형 LAW-B03 — 방목 압력이 사라지면(초식 감소) 어린 숲 식생 회복. A2 과방목의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": "<=", "value": 10 },
+        { "var": "L_재의숲.식생", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "L_재의숲.식생", "op": "add", "value": 1 } ], "every": 3 },
+
+    { "id": "LAW_B_늑대회복", "basis": "균형 LAW-B02 — 먹이 충분 시 늑대 개체군 회복. RULE_늑대_기근의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 },
+        { "var": "E_회색등늑대.개체수", "op": "<", "value": 40 },
+        { "var": "L_재의숲.먹이", "op": ">=", "value": 2 }
+      ] },
+      "then": [ { "var": "E_회색등늑대.개체수", "op": "add", "value": 1 } ], "every": 5 },
+
+    { "id": "LAW_B_늪회복", "basis": "균형 — 저수위 회복 시 늪 서식지 회복. RULE_늪서식지_감소의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": "<=", "value": 1 },
+        { "var": "E_늪생명체.서식", "op": "<", "value": 2 }
+      ] },
+      "then": [ { "var": "E_늪생명체.서식", "op": "add", "value": 1 } ], "every": 4 }
   ],
 
   "actions": [
@@ -323,6 +437,28 @@
         { "var": "S_강흐름.단계", "op": "add", "value": -1 },
         { "var": "EV_강의귀환.단계", "op": "set", "value": 6 },
         { "var": "G_수문회_제어탑파괴.완료방식", "op": "set", "value": "ACT_수문회_수문봉쇄" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_늑대_재방사", "objective": "G_늑대복원",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 detail '늑대 복원' · REL: G_늑대복원 ─제공→ E_회색등늑대 — 포획 늑대 재방사",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 1 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": 20 },
+        { "var": "G_늑대복원.완료방식", "op": "set", "value": "ACT_늑대_재방사" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_초식동물_솎기", "objective": "G_늑대복원",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 detail '대체 포식자 도입' 대안 · REL: G_늑대복원 ─방해→ E_초식동물 — 직접 개체 수 조절",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_초식동물.개체수", "op": "add", "value": -8 },
+        { "var": "G_늑대복원.완료방식", "op": "set", "value": "ACT_초식동물_솎기" }
       ], "duration": 2, "once": true }
   ],
 
@@ -358,6 +494,19 @@
         { "var": "L_제어탑.가동", "op": "==", "value": false },
         { "var": "EV_강의귀환.단계", "op": ">=", "value": 6 }
       ] },
-      "on_complete": [ { "var": "F_청동수문회.세력", "op": "set", "value": 2 } ] }
+      "on_complete": [ { "var": "F_청동수문회.세력", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_늑대복원", "goal": "G_늑대복원",
+      "basis": "목적 '사라진 포식자를 복원하거나 대체한다'. 사건 2 종결이 발견시킨다(§3.3). 완료=초식·식생 균형 회복(상태 술어)",
+      "discover": { "any": [
+        { "var": "G_늑대복원.진행", "op": ">=", "value": 1 },
+        { "var": "EV_늑대멸종.단계", "op": ">=", "value": 6 }
+      ] },
+      "activate": "auto",
+      "complete": { "all": [
+        { "var": "E_초식동물.개체수", "op": "<=", "value": 10 },
+        { "var": "L_재의숲.식생", "op": ">=", "value": 2 }
+      ] },
+      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] }
   ]
 }

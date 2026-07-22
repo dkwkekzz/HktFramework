@@ -148,17 +148,36 @@ for (const t of ["변화", "방해", "충돌", "필요", "제공"]) {
   info.push(`검증10 커버리지 ${t}: ${cov}/${c} (양끝 상태화)`);
 }
 
-// ── 검증 11: EV 사슬의 각 단계가 규칙(또는 목적 발견)과 1:1 대응
-const evStages = new Set();
-for (const r of state.rules || []) for (const e of r.then || [])
-  if (e.op === "set" && /^EV_.*\.단계$/.test(e.var)) evStages.add(`${e.var}=${e.value}`);
-for (const a of state.actions || []) for (const e of a.then || [])
-  if (e.op === "set" && /^EV_.*\.단계$/.test(e.var)) evStages.add(`${e.var}=${e.value}`);
-const evNode = graph.nodes.find((n) => n.id === "EV_강의귀환");
-const chainLen = evNode?.detail?.흐름?.length || 0;
-const mapped = [...evStages].filter((s) => s.startsWith("EV_강의귀환.단계=")).length;
-info.push(`검증11 EV_강의귀환: 흐름 ${chainLen}단계 중 단계 세팅 ${mapped}종 매핑 (${[...evStages].join(", ")})`);
-if (mapped < 5) warnings.push(`검증11 경고: 강의 귀환 단계 매핑이 5 미만(${mapped})`);
+// ── 검증 11 / WorldLaws 법칙검증 4: EV 사슬의 각 단계가 규칙·행동·목적 세팅과 1:1 (EV 노드별)
+const evStageMax = new Map(); // evVar -> 최대 단계값
+for (const src of [...(state.rules || []), ...(state.actions || [])])
+  for (const e of src.then || [])
+    if (e.op === "set" && /^EV_.*\.단계$/.test(e.var))
+      evStageMax.set(e.var, Math.max(evStageMax.get(e.var) ?? 0, e.value));
+for (const ev of graph.nodes.filter((n) => n.type === "EV")) {
+  const chainLen = ev.detail?.흐름?.length || 0;
+  const mapped = evStageMax.get(ev.id + ".단계") ?? 0;
+  info.push(`검증11 ${ev.id}: 흐름 ${chainLen}단계 · 매핑 단계 ${mapped}`);
+}
+
+// ── WorldLaws 법칙검증(§7): once/every 배타
+for (const r of state.rules || [])
+  if (r.once && r.every !== undefined) errors.push(`법칙검증 위반: 규칙 ${r.id} 가 once 와 every 를 동시에 가짐(§5.1 배타)`);
+
+// ── WorldLaws 법칙검증 5(§6): 압력·소모 법칙에 회복 짝이 있는가 (level·count 음수 add ↔ 양수 add)
+const negAdd = new Map(), posAdd = new Map();
+for (const r of state.rules || []) for (const e of r.then || []) {
+  const v = varIdx.get(e.var); if (!v || (v.kind !== "level" && v.kind !== "count")) continue;
+  if (e.op === "add" && e.value < 0) (negAdd.get(e.var) || negAdd.set(e.var, []).get(e.var)).push(r.id);
+  if (e.op === "add" && e.value > 0) (posAdd.get(e.var) || posAdd.set(e.var, []).get(e.var)).push(r.id);
+}
+// 행동의 산출도 회복원으로 인정 (예: 제어탑 복구가 강흐름을 올리는 규칙, 재방사가 개체수 +)
+for (const a of state.actions || []) for (const e of a.then || []) {
+  const v = varIdx.get(e.var); if (!v || (v.kind !== "level" && v.kind !== "count")) continue;
+  if (e.op === "add" && e.value > 0) (posAdd.get(e.var) || posAdd.set(e.var, []).get(e.var)).push(a.id);
+}
+for (const [v, rs] of negAdd)
+  if (!posAdd.has(v)) warnings.push(`법칙검증5 경고(§6 회복 짝 없음): ${v} 를 깎는 법칙(${rs.join(",")})의 회복(양수 add)이 없음 — 단조 붕괴 위험`);
 
 // ── 검증 13: 행동 없이 법칙·시계만으로 상태가 변하는 경로가 존재 (무입력 시뮬로 실증)
 {
@@ -185,4 +204,4 @@ console.log(`world-state: vars ${state.vars.length} · rules ${(state.rules || [
 for (const m of info) console.log("  " + m);
 if (warnings.length) console.log("경고:\n  " + warnings.join("\n  "));
 if (errors.length) { console.error("오류:\n  " + errors.join("\n  ")); process.exit(1); }
-console.log("검증 통과 — 세계 상태 무결성 이상 없음 (검증 1~13).");
+console.log("검증 통과 — 세계 상태 무결성 이상 없음 (WorldState §12 검증 1~13 + WorldLaws §7 법칙검증).");

@@ -23,6 +23,6 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
 | [data/world-state.json](data/world-state.json) | 세계 **상태의 유일한 원본** — vars/clocks/subjects/rules/actions/objectives 다섯 층. 그래프 id 를 앵커로 참조 |
 | [data/state-engine.mjs](data/state-engine.mjs) | 상태 엔진(공유) — 결정론적 틱 루프 ①~⑦. validate/simulate 가 함께 사용 |
-| [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — §12 검증 1~13 (`node data/validate-state.mjs`) |
-| [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — '강의 귀환' 사슬 재생 (`node data/simulate-state.mjs`) |
+| [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증 (`node data/validate-state.mjs`) |
+| [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — 사건 '강의 귀환'·'늑대 멸종' 사슬 재생 (`--force`·`--no-policy`·`--at`) |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |

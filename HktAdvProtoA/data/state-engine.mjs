@@ -117,15 +117,20 @@ export function tick(snap, state, ctx) {
   recomputeDerived(snap, varIdx);
 
   // ③ 전제 일괄 평가 — 틱 시작 스냅샷 기준(읽기/쓰기 분리)
+  //   발화 유형: once(1회) / every N(N틱 간격 재발화) / 지정 없음(전제 만족 시 매 틱)
   const snap0 = { ...snap };
   const ruleEffects = [];
   for (const r of state.rules || []) {
     if (r.once && snap0[r.id + ".발화됨"]) continue;
-    if (evalPred(r.when, snap0)) {
-      for (const e of r.then || []) ruleEffects.push(e);
-      if (r.once) snap[r.id + ".발화됨"] = true;
-      fired.rules.push(r.id);
+    if (!evalPred(r.when, snap0)) continue;
+    if (r.every) {
+      const last = ctx.everyLast[r.id];
+      if (last !== undefined && t - last < r.every) continue;
+      ctx.everyLast[r.id] = t;
     }
+    for (const e of r.then || []) ruleEffects.push(e);
+    if (r.once) snap[r.id + ".발화됨"] = true;
+    fired.rules.push(r.id);
   }
   // 만기 지연 효과(duration) 수거
   const due = ctx.pending.filter((p) => p.at === t);
@@ -211,7 +216,7 @@ function fireAction(actionId, actor, snap, state, ctx, t, fired, explicit = fals
 }
 
 export function newCtx(state) {
-  return { t: 0, varIdx: indexVars(state), pending: [], clock: {}, busy: {}, inputs: new Map(), errors: [], log: [] };
+  return { t: 0, varIdx: indexVars(state), pending: [], clock: {}, busy: {}, everyLast: {}, inputs: new Map(), errors: [], log: [] };
 }
 
 // 말단 G 판정 — 그래프에서 자식이 없는 G 노드
