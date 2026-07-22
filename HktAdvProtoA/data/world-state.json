@@ -1,0 +1,1006 @@
+{
+  "meta": {
+    "version": "1.0",
+    "schema": "world-state/v2",
+    "source": "Design-WorldState.md",
+    "graph": "objective-graph.json",
+    "desc": "세계 상태의 유일한 원본. 그래프 노드 id 를 앵커로 다섯 층(vars/subjects/rules/actions/objectives)을 정의한다. initial 스냅샷은 vars 의 init 산출물이므로 별도로 두지 않는다.",
+    "kinds": {
+      "flag": "true/false — 존재·활성·발생·습득 여부",
+      "level": "0..N 정수 + 라벨 — 단계적 질의 축 (연속 실수 금지)",
+      "count": "0 이상 정수 — 개체수·수량·보유량",
+      "ref": "노드 id 또는 null — 소유·지배·위치·완료방식 대상"
+    },
+    "axisGrammar": {
+      "단축": "<노드id>.<축>            노드 하나의 상태",
+      "쌍축": "<노드id>.<축>.<노드id>   두 노드 사이의 상태 (owner+target)",
+      "파생축": "<노드id>.<축> (derived)  다른 변수들의 함수. 직접 쓰기 금지"
+    },
+    "ops": ["==", "!=", ">=", "<=", ">", "<"],
+    "effects": {
+      "set": "대입 — 같은 틱에 2개 이상 발화하면 검증기가 거부 (§5.3)",
+      "add": "증감 (count·level). level 은 라벨 범위로 클램프. 교환법칙 성립 → 합산"
+    },
+    "progressLabels": ["숨김", "발견", "진행", "완료", "실패"],
+    "tick": "① 시계 법칙(§5.4) → ② 파생축 재계산 → ③ 법칙 전제 일괄 평가(틱 시작 스냅샷) → ④ 발화 효과 일괄 적용 → ⑤ 파생축 재계산 → ⑥ 목적 판정(§7) → ⑦ NPC 행동 선택(§8)",
+    "notes": [
+      "모든 상태 변수는 그래프 노드에 귀속된다(owner·target 참조 무결성 = 검증 1).",
+      "상태 변화는 법칙(자율)과 행동(선택)의 발화로만 일어난다 — 외부 임의 쓰기 없음.",
+      "완료 판정은 행동 완수가 아니라 상태 술어다 — 어떤 수단이든 complete 술어가 참이면 완료.",
+      "결정론: 시간은 정수 틱, 난수 없음. once 발화 기록은 <id>.발화됨 내장 상태로 스냅샷에 포함된다."
+    ]
+  },
+
+  "vars": [
+    { "id": "S_영원한겨울.활성", "owner": "S_영원한겨울", "axis": "활성", "kind": "flag", "init": true,
+      "basis": "S 표준축(활성). 세계 시드: 아르카론의 별빛 흡수 결과 — 일부 지역 영구 결빙(§3 S)" },
+    { "id": "S_과잉별빛.활성", "owner": "S_과잉별빛", "axis": "활성", "kind": "flag", "init": true,
+      "basis": "S 표준축(활성). 그래프: E_아르카론 ─변화→ S_과잉별빛" },
+    { "id": "S_아르카론정체.발견됨", "owner": "S_아르카론정체", "axis": "발견됨", "kind": "flag", "init": false,
+      "basis": "지식성 상태 — '아르카론은 인공 생명체다'를 세계가 알게 되었는가(§3 S)" },
+    { "id": "S_강흐름.단계", "owner": "S_강흐름", "axis": "단계", "kind": "level",
+      "levels": ["고갈", "저수위", "회복", "범람"], "init": 0,
+      "basis": "사건 '강의 귀환' 사슬의 중심 변수(§5.5). 그래프: L_제어탑 ─변화→ S_강흐름" },
+    { "id": "S_일식.활성", "owner": "S_일식", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "주기 상태 — 시계 법칙 CLOCK_일식 이 구동(§5.4)" },
+    { "id": "S_일식.누적횟수", "owner": "S_일식", "axis": "누적횟수", "kind": "count", "init": 0,
+      "basis": "'세 번째 일식 중' 같은 시한 조건 판정용(§5.4). 그래프: T_그림자각인 ─필요→ S_일식" },
+
+    { "id": "X_검은태양병.강도", "owner": "X_검은태양병", "axis": "강도", "kind": "level",
+      "levels": ["없음", "약", "중", "강"], "init": 2,
+      "basis": "X 표준축(강도). 그래프: E_아르카론 ─변화→ X_검은태양병 — 세계 확산 강도" },
+    { "id": "X_별빛폭풍.활성", "owner": "X_별빛폭풍", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "주기 발생 위협(§5.4). 시계 법칙 CLOCK_별빛폭풍 이 구동" },
+
+    { "id": "E_회색등늑대.개체수", "owner": "E_회색등늑대", "axis": "개체수", "kind": "count", "init": 40,
+      "basis": "E 종 표준축(개체수). EV_늑대멸종 사슬·X_늑대공격 파생의 판정 축" },
+    { "id": "E_회색등늑대.서식", "owner": "E_회색등늑대", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 1,
+      "basis": "E 종 표준축(서식). 숲 고사로 위축(node detail '숲 고사로 초식동물이 줄어')" },
+    { "id": "L_재의숲.먹이", "owner": "L_재의숲", "axis": "먹이", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 0,
+      "basis": "L 고유축 — 재의 숲의 초식동물 먹이 자원. 그래프: E_카르마 ─변화→ X_늑대공격(숲 고사→먹이 감소)" },
+
+    { "id": "L_제어탑.발견", "owner": "L_제어탑", "axis": "발견", "kind": "flag", "init": true,
+      "basis": "L 표준축(발견). 그래프: K_관개시설기록 ─제공→ L_제어탑(위치)" },
+    { "id": "L_제어탑.가동", "owner": "L_제어탑", "axis": "가동", "kind": "flag", "init": false,
+      "basis": "L 시설 표준축(가동). EV_강의귀환 1단계 대상 — 복구=가동 전환" },
+    { "id": "E_카르마.서식", "owner": "E_카르마", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 3,
+      "basis": "E 종 표준축(서식). node detail '제어탑 파괴 후 물을 무제한 흡수' = 번성" },
+    { "id": "L_굶주린평원.생산", "owner": "L_굶주린평원", "axis": "생산", "kind": "level",
+      "levels": ["황폐", "저조", "보통", "풍부"], "init": 0,
+      "basis": "L 고유축 — 과거 곡창지대(node detail). 사슬 2단계 '농업 회복'의 판정 축" },
+    { "id": "R_식량.공급", "owner": "R_식량", "axis": "공급", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 1,
+      "basis": "R 재료 표준축(공급). 사슬 3~4단계 '식량 가격 하락'(가격=공급의 파생)" },
+    { "id": "F_청동수문회.세력", "owner": "F_청동수문회", "axis": "세력", "kind": "level",
+      "levels": ["소멸", "약화", "보통", "강성"], "init": 3,
+      "basis": "F 표준축(세력). node detail 약점 '강 완전 복구 시 권력 약화' — 사슬 4단계" },
+    { "id": "E_늪생명체.서식", "owner": "E_늪생명체", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). 그래프: E_카르마 ─충돌→ E_늪생명체. 사슬 7단계 '늪 서식지 감소'" },
+    { "id": "EV_강의귀환.단계", "owner": "EV_강의귀환", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). 사슬 진행도 — §5.5 규칙 열과 1:1" },
+
+    { "id": "G1.2.6.진행", "owner": "G1.2.6", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 목적 '굶주린 평원의 강을 복구한다'의 생애주기(§7)" },
+    { "id": "G1.2.6.완료방식", "owner": "G1.2.6", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 방식별 후속 분기를 읽는 법칙의 전제(§6.2)" },
+    { "id": "G2.1.진행", "owner": "G2.1", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 그래프: G1.2.6 ─파생→ G2.1 (완료가 발견을 올림)" },
+    { "id": "G2.1.완료방식", "owner": "G2.1", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 늑대 위협 해소 방식(사냥/계약) 기록" },
+    { "id": "G_수문회_제어탑파괴.진행", "owner": "G_수문회_제어탑파괴", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 반격 목적 — 사슬 5단계에서 발견(§5.5 R5·§8)" },
+    { "id": "G_수문회_제어탑파괴.완료방식", "owner": "G_수문회_제어탑파괴", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 습격/봉쇄 등 파괴 방식 기록" },
+
+    { "id": "E_초식동물.개체수", "owner": "E_초식동물", "axis": "개체수", "kind": "count", "init": 5,
+      "basis": "E 종 표준축(개체수). REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력) — 사건 2 사슬" },
+    { "id": "E_초식동물.서식", "owner": "E_초식동물", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식)" },
+    { "id": "L_재의숲.식생", "owner": "L_재의숲", "axis": "식생", "kind": "level",
+      "levels": ["헐벗음", "성긴", "보통", "우거짐"], "init": 2,
+      "basis": "L 고유축 — 어린 숲 식생. REL: E_초식동물 ─방해→ L_재의숲 (과방목)" },
+    { "id": "S_토양침식.활성", "owner": "S_토양침식", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "var": "L_재의숲.식생", "op": "<=", "value": 0 },
+      "basis": "파생축 — 식생 소실의 함수. REL: L_재의숲 ─변화→ S_토양침식. 식생 회복 시 자동 해제(§6, S 해제 경로)" },
+    { "id": "EV_늑대멸종.단계", "owner": "EV_늑대멸종", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). 사슬 진행도 — WorldLaws §3 C2-1~6 과 1:1" },
+    { "id": "G_늑대복원.진행", "owner": "G_늑대복원", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). REL: EV_늑대멸종 ─파생→ G_늑대복원 (사건 종결이 발견시킴)" },
+    { "id": "G_늑대복원.완료방식", "owner": "G_늑대복원", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식). 재방사/솎기 등 복원 방식 기록" },
+
+    { "id": "G3.2.1.진행", "owner": "G3.2.1", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 무광의 쐐기 제작 목적 — 진행 시 심연유리 수요를 발생(사건 3 개시)" },
+    { "id": "R_심연유리.공급", "owner": "R_심연유리", "axis": "공급", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 2,
+      "basis": "R 재료 표준축(공급). REL: L_심해 ─제공→ R_심연유리 · F_유리잠수단 ─제공→ R_심연유리(채굴)" },
+    { "id": "R_심연유리.수요", "owner": "R_심연유리", "axis": "수요", "kind": "flag", "derived": true,
+      "formula": { "var": "G3.2.1.진행", "op": "==", "value": 2 },
+      "basis": "파생축(P5 경제) — 신살 무기 제작 진행 중일 때만 수요. 완료(3) 시 수요 소멸. REL: G3.2.1 ─필요→ R_심연유리" },
+    { "id": "R_심연유리.채굴금지", "owner": "R_심연유리", "axis": "채굴금지", "kind": "flag", "init": false,
+      "basis": "상인연합 금지령 상태. REL: G_해안세력_채굴금지 ─방해→ R_심연유리" },
+    { "id": "E_그림자산호.서식", "owner": "E_그림자산호", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). REL: R_심연유리 ─방해→ E_그림자산호(과채굴)" },
+    { "id": "E_유리벌레.서식", "owner": "E_유리벌레", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). REL: R_심연유리 ─방해→ E_유리벌레(과채굴)" },
+    { "id": "E_심해포식자.위치", "owner": "E_심해포식자", "axis": "위치", "kind": "ref", "init": "L_심해",
+      "basis": "E 표준축(위치, 이동 시). REL: E_그림자산호 ─상호→ E_심해포식자(산호 붕괴→해안 이동). 변형 카탈로그 #5" },
+    { "id": "L_침몰해안.안전", "owner": "L_침몰해안", "axis": "안전", "kind": "level",
+      "levels": ["위험", "불안", "보통", "안전"], "init": 3,
+      "basis": "L 고유축. REL: E_심해포식자 ─방해→ L_침몰해안(상륙·마을 공격)" },
+    { "id": "EV_심연유리호황.단계", "owner": "EV_심연유리호황", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). WorldLaws §3 C3-1~6 과 1:1" },
+    { "id": "G_유리잠수단_채굴지속.진행", "owner": "G_유리잠수단_채굴지속", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 채굴 목적 — 수요 활성 시 발견" },
+    { "id": "G_유리잠수단_채굴지속.완료방식", "owner": "G_유리잠수단_채굴지속", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식)" },
+    { "id": "G_해안세력_채굴금지.진행", "owner": "G_해안세력_채굴금지", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 대응 목적 — 해안 위험(사슬 6단계)에서 발견" },
+    { "id": "G_해안세력_채굴금지.완료방식", "owner": "G_해안세력_채굴금지", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식)" },
+    { "id": "F_유리잠수단.보유.R_심연유리", "owner": "F_유리잠수단", "target": "R_심연유리",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 채굴 산출 — 채굴 목적의 완료 판정 축" },
+    { "id": "F_유리잠수단.관계.F_상인연합", "owner": "F_유리잠수단", "target": "F_상인연합",
+      "axis": "관계", "kind": "level", "levels": ["적대", "경계", "중립", "신뢰"], "init": 2,
+      "basis": "쌍축 관계(F 충돌). REL: G_해안세력_채굴금지 ─충돌→ G_유리잠수단_채굴지속 — 전쟁=적대 전락" },
+
+    { "id": "E_아르카론.생존", "owner": "E_아르카론", "axis": "생존", "kind": "flag", "init": true,
+      "basis": "E 신 표준축(생존). 살아있는 동안 유지 법칙(LAW-U)이 전역 상태를 지탱. 사건 5 의 방아쇠" },
+    { "id": "E_아르카론.심장핵", "owner": "E_아르카론", "axis": "심장핵", "kind": "flag", "init": true,
+      "basis": "E 고유축(심장핵 가동). node detail 약점 '심장 내부 인간 제어 각인'. 파괴 시 생존 종료(G2.5.3 산출)" },
+    { "id": "L_북방빙원.결빙", "owner": "L_북방빙원", "axis": "결빙", "kind": "level",
+      "levels": ["해빙", "해동", "결빙", "영구동토"], "init": 3,
+      "basis": "L 고유축(§9 해상도 원칙 — 지역별 결빙). REL: S_별빛통로북방 ─변화→ S_영원한겨울 해빙" },
+    { "id": "S_별빛통로북방.활성", "owner": "S_별빛통로북방", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: E_아르카론 ─필요→ S_별빛통로북방 (사망 시 통로 회복)" },
+    { "id": "E_고대생명체.활성", "owner": "E_고대생명체", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "E 표준축(활성=각성 여부). REL: L_북방빙원 ─변화→ E_고대생명체. 변형 카탈로그 #18(숨김→활성)" },
+    { "id": "S_남부대홍수.활성", "owner": "S_남부대홍수", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: EV_아르카론의죽음 ─변화→ S_남부대홍수" },
+    { "id": "E_별빛종족.활성", "owner": "E_별빛종족", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "E 표준축(활성=탄생 여부). REL: S_과잉별빛 ─변화→ E_별빛종족. 변형 카탈로그 #18" },
+    { "id": "S_외부관측.활성", "owner": "S_외부관측", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: EV_아르카론의죽음 ─변화→ S_외부관측 (사건 종결)" },
+    { "id": "EV_아르카론의죽음.단계", "owner": "EV_아르카론의죽음", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). WorldLaws §3 C5-1~9 와 1:1" },
+
+    { "id": "R_백야혈청.공개", "owner": "R_백야혈청", "axis": "공개", "kind": "level",
+      "levels": ["소실", "독점", "제한", "공개"], "init": 1,
+      "basis": "K/R 공개 표준축. node detail '갈등: 치료단↔전쟁세력↔신앙↔상인연합'. 공개가 사건 4 개시" },
+    { "id": "E_백야초.군락", "owner": "E_백야초", "axis": "군락", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "무성"], "init": 3,
+      "basis": "E 고유축(군락). REL: E_백야초 ─제공→ R_백야혈청. 과채취=수요 급증(P5 연동)" },
+    { "id": "E_설원곤충.개체수", "owner": "E_설원곤충", "axis": "개체수", "kind": "count", "init": 30,
+      "basis": "E 종 표준축(개체수). REL: E_설원곤충 ─필요→ E_백야초 (냉각 수액 먹이)" },
+    { "id": "E_남하조류.위치", "owner": "E_남하조류", "axis": "위치", "kind": "ref", "init": "L_북방빙원",
+      "basis": "E 표준축(위치). REL: E_남하조류 ─필요→ E_설원곤충. 먹이 상실 시 남부 남하(카탈로그 #5)" },
+    { "id": "L_굶주린평원.해충", "owner": "L_굶주린평원", "axis": "해충", "kind": "level",
+      "levels": ["없음", "경미", "보통", "창궐"], "init": 0,
+      "basis": "L 고유축. REL: E_남하조류 ─방해→ L_굶주린평원 (남하 조류가 농작물 해충 증가)" },
+    { "id": "EV_백야혈청공개.단계", "owner": "EV_백야혈청공개", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). WorldLaws §3 C4-1~6 과 1:1" },
+    { "id": "G_인공백야초재배.진행", "owner": "G_인공백야초재배", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). REL: EV_백야혈청공개 ─파생→ G_인공백야초재배" },
+    { "id": "G_인공백야초재배.완료방식", "owner": "G_인공백야초재배", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식)" },
+
+    { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
+      "axis": "습득", "kind": "flag", "init": false,
+      "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
+    { "id": "E_플레이어.보유.R_재생섬유", "owner": "E_플레이어", "target": "R_재생섬유",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_재생섬유 — ACT_제어탑_복구 비용" },
+    { "id": "E_플레이어.보유.R_수분핵", "owner": "E_플레이어", "target": "R_수분핵",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_수분핵 — ACT_카르마_길들임 비용" },
+    { "id": "E_플레이어.감염.X_검은태양병", "owner": "E_플레이어", "target": "X_검은태양병",
+      "axis": "감염", "kind": "level", "levels": ["비감염", "초기", "중기", "후기"], "init": 0,
+      "basis": "쌍축 감염(개체별 진행). X_검은태양병 detail 진행 단계(§2.1)" },
+    { "id": "E_플레이어.계약.E_회색등늑대", "owner": "E_플레이어", "target": "E_회색등늑대",
+      "axis": "계약", "kind": "flag", "init": false,
+      "basis": "쌍축 계약. 그래프: G6.2 ─제공→ E_회색등늑대 — 계약이 X_늑대공격 파생을 끈다" },
+
+    { "id": "F_씨앗보존회.습득.K_관개시설기록", "owner": "F_씨앗보존회", "target": "K_관개시설기록",
+      "axis": "습득", "kind": "flag", "init": true,
+      "basis": "쌍축 습득. 씨앗보존회는 관개 기록 보유 세력 — NPC 강복구의 전제(§8)" },
+    { "id": "F_씨앗보존회.보유.R_재생섬유", "owner": "F_씨앗보존회", "target": "R_재생섬유",
+      "axis": "보유", "kind": "count", "init": 5,
+      "basis": "쌍축 보유. NPC 가 ACT_제어탑_복구 를 무입력으로 발화하기 위한 비용 재고(검증 14)" },
+
+    { "id": "X_늑대공격.활성", "owner": "X_늑대공격", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 10 },
+        { "var": "L_재의숲.먹이", "op": "<=", "value": 1 },
+        { "var": "E_플레이어.계약.E_회색등늑대", "op": "==", "value": false }
+      ] },
+      "basis": "파생 위협 — 늑대 상태·숲 상태·계약의 함수. 그래프: E_카르마/E_회색등늑대 ─변화→ X_늑대공격(§2.1)" },
+    { "id": "S_기후불안정.활성", "owner": "S_기후불안정", "axis": "활성", "kind": "flag", "derived": true,
+      "formula": { "any": [
+        { "var": "S_영원한겨울.활성", "op": "==", "value": true },
+        { "var": "S_과잉별빛.활성", "op": "==", "value": true }
+      ] },
+      "basis": "파생 집계 — 하위 전역 상태들의 OR. 이중 관리 방지(§2.1 (b))" }
+  ],
+
+  "clocks": [
+    { "id": "CLOCK_일식", "basis": "§5.4 주기 상태. T_그림자각인('세 번째 일식 중')·아르카론 약점의 전제",
+      "period": 600, "duty": 20,
+      "then_on": [
+        { "var": "S_일식.활성", "op": "set", "value": true },
+        { "var": "S_일식.누적횟수", "op": "add", "value": 1 }
+      ],
+      "then_off": [ { "var": "S_일식.활성", "op": "set", "value": false } ] },
+    { "id": "CLOCK_별빛폭풍", "basis": "§5.4 주기 발생 위협. 뇌철 결정 안정 시한의 전제",
+      "period": 300, "duty": 30,
+      "then_on": [ { "var": "X_별빛폭풍.활성", "op": "set", "value": true } ],
+      "then_off": [ { "var": "X_별빛폭풍.활성", "op": "set", "value": false } ] }
+  ],
+
+  "subjects": [
+    { "node": "E_플레이어", "driver": "input" },
+    { "node": "F_씨앗보존회", "driver": "policy", "policy": ["G1.2.6"] },
+    { "node": "F_청동수문회", "driver": "policy", "policy": ["G_수문회_제어탑파괴"] },
+    { "node": "F_유리잠수단", "driver": "policy", "policy": ["G_유리잠수단_채굴지속"] },
+    { "node": "F_상인연합", "driver": "policy", "policy": ["G_해안세력_채굴금지"] }
+  ],
+
+  "rules": [
+    { "id": "RULE_강귀환_1", "basis": "EV_강의귀환 1단계 · 그래프: L_제어탑 ─변화→ S_강흐름",
+      "when": { "all": [
+        { "var": "L_제어탑.가동", "op": "==", "value": true },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [
+        { "var": "S_강흐름.단계", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 1 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_2", "basis": "EV_강의귀환 2단계 · 그래프: S_강흐름 ─변화→ L_굶주린평원",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [
+        { "var": "L_굶주린평원.생산", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 2 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_3", "basis": "EV_강의귀환 3단계 · 그래프: L_굶주린평원 ─제공→ R_식량",
+      "when": { "all": [
+        { "var": "L_굶주린평원.생산", "op": ">=", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [
+        { "var": "R_식량.공급", "op": "add", "value": 2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 3 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_4", "basis": "EV_강의귀환 4단계 · 그래프: R_식량 ─방해→ F_청동수문회(권력 약화)",
+      "when": { "all": [
+        { "var": "R_식량.공급", "op": ">=", "value": 3 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "F_청동수문회.세력", "op": "add", "value": -2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "RULE_강귀환_5", "basis": "EV_강의귀환 5단계 · 세력 목적의 발견(§5.5) — NPC 가 이어받는다",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": "<=", "value": 1 },
+        { "var": "EV_강의귀환.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 5 }
+      ], "once": true },
+
+    { "id": "RULE_늪서식지_감소", "basis": "EV_강의귀환 7단계 · 그래프: E_카르마 ─충돌→ E_늪생명체 (강 복구=고수위, 늪은 저수위 선호)",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "E_늪생명체.서식", "op": "add", "value": -1 }
+      ], "once": true },
+
+    { "id": "RULE_숲_회복", "basis": "그래프: S_강흐름 ─변화→ L_굶주린평원 파생 — 강 회복이 재의 숲 먹이를 되살린다",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "L_재의숲.먹이", "op": "add", "value": 1 }
+      ], "once": false },
+
+    { "id": "RULE_늑대_기근", "basis": "그래프: E_카르마 ─변화→ X_늑대공격 (숲 고사→먹이 고갈→늑대 아사). 무입력 자율 변화(검증 13)",
+      "when": { "all": [
+        { "var": "L_재의숲.먹이", "op": "<=", "value": 0 },
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": -1 }
+      ], "once": false },
+
+    { "id": "C2_1", "basis": "EV: EV_늑대멸종 단계 1 (WorldLaws C2-1) — 늑대 소수화로 마을 공격 소멸",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": "<=", "value": 5 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 1 } ], "once": true },
+
+    { "id": "A1_초식급증", "basis": "REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력 소멸 → 초식 급증). P3 생태",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": "<=", "value": 5 },
+        { "var": "E_초식동물.개체수", "op": "<", "value": 15 }
+      ] },
+      "then": [ { "var": "E_초식동물.개체수", "op": "add", "value": 1 } ], "every": 1 },
+
+    { "id": "C2_2", "basis": "EV: EV_늑대멸종 단계 2 (WorldLaws C2-2) — 초식동물 급증",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">=", "value": 15 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "A2_과방목", "basis": "REL: E_초식동물 ─방해→ L_재의숲 (과방목으로 어린 숲 식생 소실). P3 생태",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">=", "value": 15 },
+        { "var": "L_재의숲.식생", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_재의숲.식생", "op": "add", "value": -1 } ], "every": 1 },
+
+    { "id": "C2_3", "basis": "EV: EV_늑대멸종 단계 3 (WorldLaws C2-3) — 어린 숲 소멸",
+      "when": { "all": [
+        { "var": "L_재의숲.식생", "op": "<=", "value": 0 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 3 } ], "once": true },
+
+    { "id": "C2_4", "basis": "EV: EV_늑대멸종 단계 4 (WorldLaws C2-4) — 식생 소실로 S_토양침식(파생) 활성",
+      "when": { "all": [
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "EV_늑대멸종.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "A3_토사퇴적", "basis": "REL: S_토양침식 ─변화→ S_강흐름 (토사 퇴적·수로 막힘). P2 압력 — 사건 1 의 중심 변수와 교차(§6)",
+      "when": { "all": [
+        { "var": "S_토양침식.활성", "op": "==", "value": true },
+        { "var": "S_강흐름.단계", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "S_강흐름.단계", "op": "add", "value": -1 } ], "every": 2 },
+
+    { "id": "C2_5", "basis": "EV: EV_늑대멸종 단계 5 (WorldLaws C2-5) — 강 토사 퇴적·수로 막힘",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": "<=", "value": 0 },
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [ { "var": "EV_늑대멸종.단계", "op": "set", "value": 5 } ], "once": true },
+
+    { "id": "C2_6", "basis": "EV: EV_늑대멸종 단계 6 (WorldLaws C2-6) — 사건이 새 목적(늑대 복원)을 발견시킨다",
+      "when": { "all": [
+        { "var": "EV_늑대멸종.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "G_늑대복원.진행", "op": "set", "value": 1 },
+        { "var": "EV_늑대멸종.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "LAW_포식", "basis": "REL: E_회색등늑대 ─방해→ E_초식동물 (포식 압력 회복 시 초식 억제). A1 의 반대 방향 — 포식-피식 균형",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 10 },
+        { "var": "E_초식동물.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "E_초식동물.개체수", "op": "add", "value": -1 } ], "every": 2 },
+
+    { "id": "LAW_B_식생회복", "basis": "균형 LAW-B03 — 방목 압력이 사라지면(초식 감소) 어린 숲 식생 회복. A2 과방목의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": "<=", "value": 10 },
+        { "var": "L_재의숲.식생", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "L_재의숲.식생", "op": "add", "value": 1 } ], "every": 3 },
+
+    { "id": "LAW_B_늑대회복", "basis": "균형 LAW-B02 — 먹이 충분 시 늑대 개체군 회복. RULE_늑대_기근의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 },
+        { "var": "E_회색등늑대.개체수", "op": "<", "value": 40 },
+        { "var": "L_재의숲.먹이", "op": ">=", "value": 2 }
+      ] },
+      "then": [ { "var": "E_회색등늑대.개체수", "op": "add", "value": 1 } ], "every": 5 },
+
+    { "id": "LAW_B_늪회복", "basis": "균형 — 저수위 회복 시 늪 서식지 회복. RULE_늪서식지_감소의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "S_강흐름.단계", "op": "<=", "value": 1 },
+        { "var": "E_늪생명체.서식", "op": "<", "value": 2 }
+      ] },
+      "then": [ { "var": "E_늪생명체.서식", "op": "add", "value": 1 } ], "every": 4 },
+
+    { "id": "C3_1", "basis": "EV: EV_심연유리호황 단계 1 (WorldLaws C3-1) — 신성 방어 수요 활성",
+      "when": { "all": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 1 } ], "once": true },
+
+    { "id": "C3_2", "basis": "EV: EV_심연유리호황 단계 2 (WorldLaws C3-2) — 잠수단 채굴로 공급 하락(P5 경제)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 1 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "LAW_E01", "basis": "REL: R_심연유리 ─방해→ E_그림자산호·E_유리벌레 (과채굴이 심해 생태 붕괴). P3 생태",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 1 }
+      ] },
+      "then": [
+        { "var": "E_그림자산호.서식", "op": "add", "value": -1 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": -1 }
+      ], "every": 3 },
+
+    { "id": "C3_3", "basis": "EV: EV_심연유리호황 단계 3 (WorldLaws C3-3) — 그림자 산호 붕괴",
+      "when": { "all": [
+        { "var": "E_그림자산호.서식", "op": "<=", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 3 } ], "once": true },
+
+    { "id": "LAW_E02", "basis": "REL: E_그림자산호 ─상호→ E_심해포식자 (산호 붕괴 → 포식자 해안 이동). 변형 카탈로그 #5 개체 이동",
+      "when": { "all": [
+        { "var": "E_그림자산호.서식", "op": "<=", "value": 0 }
+      ] },
+      "then": [ { "var": "E_심해포식자.위치", "op": "set", "value": "L_침몰해안" } ], "once": true },
+
+    { "id": "C3_4", "basis": "EV: EV_심연유리호황 단계 4 (WorldLaws C3-4) — 심해 포식자 상륙",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 4 } ], "once": true },
+
+    { "id": "LAW_E03", "basis": "REL: E_심해포식자 ─방해→ L_침몰해안 (해안 상륙·마을 공격). P2 압력",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "L_침몰해안.안전", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_침몰해안.안전", "op": "add", "value": -1 } ], "every": 3 },
+
+    { "id": "C3_5", "basis": "EV: EV_심연유리호황 단계 5 (WorldLaws C3-5) — 해안 도시 공격",
+      "when": { "all": [
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 5 } ], "once": true },
+
+    { "id": "C3_6", "basis": "EV: EV_심연유리호황 단계 6 (WorldLaws C3-6) — 채굴 금지 목적 발견 + 세력 전쟁(LAW-R08 충돌)",
+      "when": { "all": [
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "F_유리잠수단.관계.F_상인연합", "op": "set", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "LAW_B_산호회복", "basis": "균형 — 채굴 압력이 줄면(공급 회복) 산호·유리벌레 서식 회복. LAW_E01 의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": ">=", "value": 2 },
+        { "var": "E_그림자산호.서식", "op": "<", "value": 3 }
+      ] },
+      "then": [
+        { "var": "E_그림자산호.서식", "op": "add", "value": 1 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": 1 }
+      ], "every": 5 },
+
+    { "id": "LAW_B_유리재생", "basis": "균형 — 심해 광맥의 느린 재생. 채굴 소모의 회복 짝(§6, 트리 §7.3 생성 주기)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "R_심연유리.공급", "op": "add", "value": 1 } ], "every": 8 },
+
+    { "id": "LAW_U01", "basis": "P1 유지 법칙 — 아르카론 생존이 영원한 겨울을 지탱(하한 유지). REL: E_아르카론 ─변화→ S_영원한겨울. 해제는 사슬 5(생존==false)가 담당",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": true }
+      ] },
+      "then": [ { "var": "S_영원한겨울.활성", "op": "set", "value": true } ], "every": 5 },
+
+    { "id": "LAW_U02", "basis": "P1 유지 법칙 — 아르카론 생존이 과잉 별빛을 지탱. REL: E_아르카론 ─변화→ S_과잉별빛. 해제=폭발(사슬 5)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": true }
+      ] },
+      "then": [ { "var": "S_과잉별빛.활성", "op": "set", "value": true } ], "every": 5 },
+
+    { "id": "C5_1", "basis": "EV: EV_아르카론의죽음 단계 1 (WorldLaws C5-1) — 심장핵 파괴 → 아르카론 사망",
+      "when": { "all": [
+        { "var": "E_아르카론.심장핵", "op": "==", "value": false },
+        { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_아르카론.생존", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 1 }
+      ], "once": true },
+
+    { "id": "C5_2", "basis": "EV: EV_아르카론의죽음 단계 2 (WorldLaws C5-2) — 연결 단절, 검은 태양병 약화(기억 회복). LAW-U03 해제",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "X_검은태양병.강도", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": -1 } ], "every": 3, "monotonic": true },
+
+    { "id": "C5_2s", "basis": "EV: EV_아르카론의죽음 단계 2 확정",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "C5_3", "basis": "EV: EV_아르카론의죽음 단계 3 (WorldLaws C5-3) — 북방 별빛 통로 회복",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [
+        { "var": "S_별빛통로북방.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 3 }
+      ], "once": true },
+
+    { "id": "C5_4", "basis": "EV: EV_아르카론의죽음 단계 4 (WorldLaws C5-4) — 별빛 회복이 영원한 겨울을 해빙",
+      "when": { "all": [
+        { "var": "S_별빛통로북방.활성", "op": "==", "value": true },
+        { "var": "L_북방빙원.결빙", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_북방빙원.결빙", "op": "add", "value": -1 } ], "every": 2, "monotonic": true },
+
+    { "id": "C5_4s", "basis": "EV: EV_아르카론의죽음 단계 4 확정 — 해빙 완료로 영원한 겨울 해제(유지 법칙의 해제 쪽)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "L_북방빙원.결빙", "op": "<=", "value": 0 },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "S_영원한겨울.활성", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "C5_5", "basis": "EV: EV_아르카론의죽음 단계 5 (WorldLaws C5-5) — 빙하 아래 고대 생명체 각성(카탈로그 #18)",
+      "when": { "all": [
+        { "var": "L_북방빙원.결빙", "op": "<=", "value": 0 },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [
+        { "var": "E_고대생명체.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 5 }
+      ], "once": true },
+
+    { "id": "C5_6", "basis": "EV: EV_아르카론의죽음 단계 6 (WorldLaws C5-6) — 급격한 해빙수 → 남부 대홍수",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "S_남부대홍수.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "C5_7", "basis": "EV: EV_아르카론의죽음 단계 7 (WorldLaws C5-7) — 억눌린 과잉 별빛 방출(유지 법칙 해제=폭발)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 6 }
+      ] },
+      "then": [
+        { "var": "S_과잉별빛.활성", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 7 }
+      ], "once": true },
+
+    { "id": "C5_8", "basis": "EV: EV_아르카론의죽음 단계 8 (WorldLaws C5-8) — 새 별빛 종족 탄생(카탈로그 #18)",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 7 }
+      ] },
+      "then": [
+        { "var": "E_별빛종족.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 8 }
+      ], "once": true },
+
+    { "id": "C5_9", "basis": "EV: EV_아르카론의죽음 단계 9 (WorldLaws C5-9) — 세계 외부 관측자의 아벨리온 발견(새 시대)",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 8 }
+      ] },
+      "then": [
+        { "var": "S_외부관측.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 9 }
+      ], "once": true },
+
+    { "id": "LAW_U03", "basis": "P1 유지 법칙 — 아르카론 생존이 검은 태양병 강도 하한 1 을 유지. REL: E_아르카론 ─변화→ X_검은태양병. 해제=사망(C5_2)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "X_검은태양병.강도", "op": "<", "value": 1 }
+      ] },
+      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "every": 4 },
+
+    { "id": "C4_1", "basis": "EV: EV_백야혈청공개 단계 1 (WorldLaws C4-1) — 혈청 공개로 검은 태양병 치명률 하락",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": ">=", "value": 3 },
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [
+        { "var": "X_검은태양병.강도", "op": "add", "value": -1 },
+        { "var": "EV_백야혈청공개.단계", "op": "set", "value": 1 }
+      ], "once": true },
+
+    { "id": "A4_백야초채취", "basis": "P5 경제 — 혈청 공개로 수요 급증, 야생 백야초 남획. REL: E_백야초 ─제공→ R_백야혈청",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": ">=", "value": 3 },
+        { "var": "E_백야초.군락", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "E_백야초.군락", "op": "add", "value": -1 } ], "every": 2 },
+
+    { "id": "C4_2", "basis": "EV: EV_백야혈청공개 단계 2 (WorldLaws C4-2) — 백야초 군락 고갈",
+      "when": { "all": [
+        { "var": "E_백야초.군락", "op": "<=", "value": 0 },
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_백야혈청공개.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "A4_곤충감소", "basis": "P3 생태 — 백야초(냉각 수액) 고갈 → 설원 곤충 먹이 상실. REL: E_설원곤충 ─필요→ E_백야초",
+      "when": { "all": [
+        { "var": "E_백야초.군락", "op": "<=", "value": 0 },
+        { "var": "E_설원곤충.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "E_설원곤충.개체수", "op": "add", "value": -2 } ], "every": 2 },
+
+    { "id": "C4_3", "basis": "EV: EV_백야혈청공개 단계 3 (WorldLaws C4-3) — 냉각 수액 먹던 설원 곤충 감소",
+      "when": { "all": [
+        { "var": "E_설원곤충.개체수", "op": "<=", "value": 5 },
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [ { "var": "EV_백야혈청공개.단계", "op": "set", "value": 3 } ], "once": true },
+
+    { "id": "C4_4", "basis": "EV: EV_백야혈청공개 단계 4 (WorldLaws C4-4) — 곤충 먹던 새가 남부 농경권으로 남하(카탈로그 #5)",
+      "when": { "all": [
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "E_남하조류.위치", "op": "set", "value": "L_굶주린평원" },
+        { "var": "EV_백야혈청공개.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "A4_해충증가", "basis": "P2 압력 — 남하 조류가 농작물 해충을 늘린다. REL: E_남하조류 ─방해→ L_굶주린평원 (사건 1 평원과 교차)",
+      "when": { "all": [
+        { "var": "E_남하조류.위치", "op": "==", "value": "L_굶주린평원" },
+        { "var": "L_굶주린평원.해충", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "L_굶주린평원.해충", "op": "add", "value": 1 } ], "every": 2 },
+
+    { "id": "C4_5", "basis": "EV: EV_백야혈청공개 단계 5 (WorldLaws C4-5) — 농작물 해충 증가로 생산 압력",
+      "when": { "all": [
+        { "var": "L_굶주린평원.해충", "op": ">=", "value": 3 },
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [ { "var": "EV_백야혈청공개.단계", "op": "set", "value": 5 } ], "once": true },
+
+    { "id": "C4_6", "basis": "EV: EV_백야혈청공개 단계 6 (WorldLaws C4-6) — 사건이 인공 백야초 재배 목적을 발견시킨다",
+      "when": { "all": [
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "G_인공백야초재배.진행", "op": "set", "value": 1 },
+        { "var": "EV_백야혈청공개.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "LAW_해충_생산압력", "basis": "REL: E_남하조류 ─방해→ L_굶주린평원 (해충 창궐이 생산을 깎는다). 사건 4↔1 교차",
+      "when": { "all": [
+        { "var": "L_굶주린평원.해충", "op": ">=", "value": 2 },
+        { "var": "L_굶주린평원.생산", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_굶주린평원.생산", "op": "add", "value": -1 } ], "every": 4 },
+
+    { "id": "LAW_B_백야초재생", "basis": "균형 — 수요가 잦아들면(공개 하락 또는 재배) 야생 백야초 군락 회복. A4_백야초채취의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "R_백야혈청.공개", "op": "<", "value": 3 },
+        { "var": "E_백야초.군락", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "E_백야초.군락", "op": "add", "value": 1 } ], "every": 5 },
+
+    { "id": "LAW_B_곤충회복", "basis": "균형 — 백야초 회복 시 설원 곤충 개체 회복. A4_곤충감소의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_백야초.군락", "op": ">=", "value": 2 },
+        { "var": "E_설원곤충.개체수", "op": "<", "value": 30 }
+      ] },
+      "then": [ { "var": "E_설원곤충.개체수", "op": "add", "value": 1 } ], "every": 6 },
+
+    { "id": "LAW_B_해충감소", "basis": "균형 — 조류가 북방으로 돌아가면 농경지 해충 감소. A4_해충증가의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "E_남하조류.위치", "op": "!=", "value": "L_굶주린평원" },
+        { "var": "L_굶주린평원.해충", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_굶주린평원.해충", "op": "add", "value": -1 } ], "every": 5 },
+
+    { "id": "LAW_조류귀환", "basis": "REL: E_남하조류 ─필요→ E_설원곤충 (먹이 회복 시 북방 귀환). 남하(C4_4)의 역방향 — 사슬 종결 후 균형",
+      "when": { "all": [
+        { "var": "E_설원곤충.개체수", "op": ">=", "value": 15 },
+        { "var": "EV_백야혈청공개.단계", "op": "==", "value": 6 }
+      ] },
+      "then": [ { "var": "E_남하조류.위치", "op": "set", "value": "L_북방빙원" } ], "once": true }
+  ],
+
+  "actions": [
+    { "id": "ACT_제어탑_복구", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어", "F_씨앗보존회"],
+      "basis": "그래프: G1.2.6 ─필요→ K_관개시설기록·L_제어탑 · EV_강의귀환 1단계",
+      "when": { "all": [
+        { "var": "{actor}.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "L_제어탑.발견", "op": "==", "value": true },
+        { "var": "L_제어탑.가동", "op": "==", "value": false }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_재생섬유", "op": "add", "value": -3 } ],
+      "then": [
+        { "var": "L_제어탑.가동", "op": "set", "value": true },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_제어탑_복구" }
+      ], "duration": 5, "once": true },
+
+    { "id": "ACT_카르마_길들임", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "G1.2.6.3 해결 방법 '일부만 방출하도록 길들임' · 그래프: E_카르마 ─제공→ R_수분핵",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_수분핵", "op": ">=", "value": 2 },
+        { "var": "S_강흐름.단계", "op": "<", "value": 2 }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_수분핵", "op": "add", "value": -2 } ],
+      "then": [
+        { "var": "E_카르마.서식", "op": "add", "value": -1 },
+        { "var": "S_강흐름.단계", "op": "add", "value": 2 },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_카르마_길들임" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_붉은뿌리_제거", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "G1.2.6.3 해결 방법 '붉은 뿌리 제거' · node detail 문제 '단순 제거 시 대홍수 발생'",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_재생섬유", "op": ">=", "value": 1 },
+        { "var": "S_강흐름.단계", "op": "<", "value": 2 }
+      ] },
+      "then": [
+        { "var": "E_카르마.서식", "op": "set", "value": 0 },
+        { "var": "S_강흐름.단계", "op": "set", "value": 3 },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_붉은뿌리_제거" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_늑대_사냥", "objective": "G2.1",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 1단계 '대량 사냥' · 그래프: X_늑대공격 ─방해→ G1.5",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": -35 },
+        { "var": "G2.1.완료방식", "op": "set", "value": "ACT_늑대_사냥" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_늑대_계약", "objective": "G2.1",
+      "actor_type": ["E_플레이어"],
+      "basis": "그래프: G6.2 ─제공→ E_회색등늑대 — 계약으로 습격을 멈춘다(설계 §7: 설계에 없던 해결 경로도 상태 술어로 완료)",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_수분핵", "op": ">=", "value": 1 }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_수분핵", "op": "add", "value": -1 } ],
+      "then": [
+        { "var": "E_플레이어.계약.E_회색등늑대", "op": "set", "value": true },
+        { "var": "G2.1.완료방식", "op": "set", "value": "ACT_늑대_계약" }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_수문회_제어탑파괴", "objective": "G_수문회_제어탑파괴",
+      "actor_type": ["F_청동수문회"],
+      "basis": "EV_강의귀환 6단계 · node detail 보유 '무장 운송대' — 제어탑 습격 파괴",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": ">=", "value": 1 },
+        { "var": "L_제어탑.가동", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "L_제어탑.가동", "op": "set", "value": false },
+        { "var": "S_강흐름.단계", "op": "add", "value": -2 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 6 },
+        { "var": "G_수문회_제어탑파괴.완료방식", "op": "set", "value": "ACT_수문회_제어탑파괴" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_수문회_수문봉쇄", "objective": "G_수문회_제어탑파괴",
+      "actor_type": ["F_청동수문회"],
+      "basis": "node detail 보유 '수문 열쇠·수로 지도' — 관개 시설 재봉쇄로 강 흐름 차단",
+      "when": { "all": [
+        { "var": "F_청동수문회.세력", "op": ">=", "value": 1 },
+        { "var": "S_강흐름.단계", "op": ">=", "value": 2 }
+      ] },
+      "then": [
+        { "var": "S_강흐름.단계", "op": "add", "value": -1 },
+        { "var": "EV_강의귀환.단계", "op": "set", "value": 6 },
+        { "var": "G_수문회_제어탑파괴.완료방식", "op": "set", "value": "ACT_수문회_수문봉쇄" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_늑대_재방사", "objective": "G_늑대복원",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 detail '늑대 복원' · REL: G_늑대복원 ─제공→ E_회색등늑대 — 포획 늑대 재방사",
+      "when": { "all": [
+        { "var": "E_회색등늑대.개체수", "op": ">=", "value": 1 }
+      ] },
+      "then": [
+        { "var": "E_회색등늑대.개체수", "op": "add", "value": 20 },
+        { "var": "G_늑대복원.완료방식", "op": "set", "value": "ACT_늑대_재방사" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_초식동물_솎기", "objective": "G_늑대복원",
+      "actor_type": ["E_플레이어"],
+      "basis": "EV_늑대멸종 detail '대체 포식자 도입' 대안 · REL: G_늑대복원 ─방해→ E_초식동물 — 직접 개체 수 조절",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_초식동물.개체수", "op": "add", "value": -8 },
+        { "var": "G_늑대복원.완료방식", "op": "set", "value": "ACT_초식동물_솎기" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_심연유리채굴", "objective": "G_유리잠수단_채굴지속",
+      "actor_type": ["F_유리잠수단"],
+      "basis": "REL: F_유리잠수단 ─제공→ R_심연유리(채굴). P5 경제 — 수요 활성 시 반복 채굴, 공급 소모",
+      "when": { "all": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true },
+        { "var": "R_심연유리.공급", "op": ">", "value": 0 },
+        { "var": "R_심연유리.채굴금지", "op": "==", "value": false }
+      ] },
+      "then": [
+        { "var": "R_심연유리.공급", "op": "add", "value": -1 },
+        { "var": "F_유리잠수단.보유.R_심연유리", "op": "add", "value": 1 },
+        { "var": "G_유리잠수단_채굴지속.완료방식", "op": "set", "value": "ACT_심연유리채굴" }
+      ], "duration": 2, "once": false },
+
+    { "id": "ACT_심해_신광맥개척", "objective": "G_유리잠수단_채굴지속",
+      "actor_type": ["F_유리잠수단"],
+      "basis": "G_유리잠수단_채굴지속 detail '더 깊은 신광맥 개척' — 금지령에도 심층 채굴, 유리벌레 서식 교란",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 0 }
+      ] },
+      "then": [
+        { "var": "F_유리잠수단.보유.R_심연유리", "op": "add", "value": 2 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": -1 },
+        { "var": "G_유리잠수단_채굴지속.완료방식", "op": "set", "value": "ACT_심해_신광맥개척" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_채굴금지령", "objective": "G_해안세력_채굴금지",
+      "actor_type": ["F_상인연합"],
+      "basis": "G_해안세력_채굴금지 detail '채굴 금지령 선포' · REL: G_해안세력_채굴금지 ─방해→ R_심연유리",
+      "when": { "all": [
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 1 },
+        { "var": "R_심연유리.채굴금지", "op": "==", "value": false }
+      ] },
+      "then": [
+        { "var": "R_심연유리.채굴금지", "op": "set", "value": true },
+        { "var": "G_해안세력_채굴금지.완료방식", "op": "set", "value": "ACT_채굴금지령" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_해안_방어", "objective": "G_해안세력_채굴금지",
+      "actor_type": ["F_상인연합"],
+      "basis": "G_해안세력_채굴금지 detail '해안 방어 강화' — 상륙한 포식자로부터 해안 안전 회복(LAW_E03 회복 짝)",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "L_침몰해안.안전", "op": "<", "value": 2 }
+      ] },
+      "then": [
+        { "var": "L_침몰해안.안전", "op": "add", "value": 1 },
+        { "var": "G_해안세력_채굴금지.완료방식", "op": "set", "value": "ACT_해안_방어" }
+      ], "duration": 2, "once": false },
+
+    { "id": "ACT_백야초_인공재배", "objective": "G_인공백야초재배",
+      "actor_type": ["E_플레이어"],
+      "basis": "G_인공백야초재배 detail '인공 재배지' · REL: G_인공백야초재배 ─제공→ E_백야초",
+      "when": { "all": [
+        { "var": "E_백야초.군락", "op": "<", "value": 3 }
+      ] },
+      "then": [
+        { "var": "E_백야초.군락", "op": "add", "value": 2 },
+        { "var": "G_인공백야초재배.완료방식", "op": "set", "value": "ACT_백야초_인공재배" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_해충_방제", "objective": "G_인공백야초재배",
+      "actor_type": ["E_플레이어"],
+      "basis": "G_인공백야초재배 detail '농경지 해충 방제' — 남하 조류가 부른 해충 억제",
+      "when": { "all": [
+        { "var": "L_굶주린평원.해충", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "L_굶주린평원.해충", "op": "add", "value": -2 },
+        { "var": "G_인공백야초재배.완료방식", "op": "set", "value": "ACT_해충_방제" }
+      ], "duration": 2, "once": true }
+  ],
+
+  "objectives": [
+    { "id": "OBJ_G1.2.6", "goal": "G1.2.6",
+      "basis": "목적 '굶주린 평원의 강을 복구한다'. 완료=강이 회복 이상으로 흐른다(상태 술어)",
+      "discover": { "any": [
+        { "var": "E_플레이어.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "F_씨앗보존회.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 1 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "S_강흐름.단계", "op": ">=", "value": 2 },
+      "on_complete": [ { "var": "G2.1.진행", "op": "set", "value": 1 } ] },
+
+    { "id": "OBJ_G2.1", "goal": "G2.1",
+      "basis": "목적 '적대 생명체의 공격을 막는다'. 완료=늑대 공격이 멎었다 — 사냥/계약/생태 회복 어느 경로든 상태로 판정",
+      "discover": { "any": [
+        { "var": "G2.1.진행", "op": ">=", "value": 1 },
+        { "var": "X_늑대공격.활성", "op": "==", "value": true }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "X_늑대공격.활성", "op": "==", "value": false },
+      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_수문회_제어탑파괴", "goal": "G_수문회_제어탑파괴",
+      "basis": "NPC 반격 목적. 사슬 5단계에서 발견되어 §8 정책이 실행한다(검증 14)",
+      "discover": { "any": [
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 5 }
+      ] },
+      "activate": "auto",
+      "complete": { "all": [
+        { "var": "L_제어탑.가동", "op": "==", "value": false },
+        { "var": "EV_강의귀환.단계", "op": ">=", "value": 6 }
+      ] },
+      "on_complete": [ { "var": "F_청동수문회.세력", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_늑대복원", "goal": "G_늑대복원",
+      "basis": "목적 '사라진 포식자를 복원하거나 대체한다'. 사건 2 종결이 발견시킨다(§3.3). 완료=초식·식생 균형 회복(상태 술어)",
+      "discover": { "any": [
+        { "var": "G_늑대복원.진행", "op": ">=", "value": 1 },
+        { "var": "EV_늑대멸종.단계", "op": ">=", "value": 6 }
+      ] },
+      "activate": "auto",
+      "complete": { "all": [
+        { "var": "E_초식동물.개체수", "op": "<=", "value": 10 },
+        { "var": "L_재의숲.식생", "op": ">=", "value": 2 }
+      ] },
+      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_유리잠수단_채굴지속", "goal": "G_유리잠수단_채굴지속",
+      "basis": "NPC 채굴 목적(사건 3 엔진). 수요 활성 시 발견 → §8 정책이 반복 채굴. 완료=충분 비축(상태 술어)",
+      "discover": { "any": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "F_유리잠수단.보유.R_심연유리", "op": ">=", "value": 5 },
+      "on_complete": [ { "var": "G3.2.1.진행", "op": "set", "value": 3 } ] },
+
+    { "id": "OBJ_G_해안세력_채굴금지", "goal": "G_해안세력_채굴금지",
+      "basis": "NPC 대응 목적. 해안 위험/사슬 6단계에서 발견되어 §8 정책이 실행(충돌의 실행부). 완료=해안 안전 회복",
+      "discover": { "any": [
+        { "var": "EV_심연유리호황.단계", "op": ">=", "value": 6 },
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 1 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "L_침몰해안.안전", "op": ">=", "value": 2 },
+      "on_complete": [ { "var": "F_유리잠수단.관계.F_상인연합", "op": "set", "value": 1 } ] },
+
+    { "id": "OBJ_G_인공백야초재배", "goal": "G_인공백야초재배",
+      "basis": "목적 '백야초 인공 재배'. 사건 4 종결이 발견시킨다(§3.3). 완료=군락 회복 ∧ 해충 진정(상태 술어)",
+      "discover": { "any": [
+        { "var": "G_인공백야초재배.진행", "op": ">=", "value": 1 },
+        { "var": "L_굶주린평원.해충", "op": ">=", "value": 3 }
+      ] },
+      "activate": "auto",
+      "complete": { "all": [
+        { "var": "E_백야초.군락", "op": ">=", "value": 2 },
+        { "var": "L_굶주린평원.해충", "op": "<=", "value": 1 }
+      ] },
+      "on_complete": [ { "var": "R_백야혈청.공개", "op": "set", "value": 2 } ] }
+  ]
+}
