@@ -135,6 +135,12 @@
   <button id="btnCollapseAll">모두 접기</button>
   <label class="chk" id="selOnlyWrap"><input type="checkbox" id="selOnly" checked> 선택 노드 관계만 표시</label>
   <label class="chk" id="stateWrap"><input type="checkbox" id="stateToggle" checked> 상태 오버레이</label>
+  <span id="simControls" class="seg" style="display:none">
+    <button id="btnSimStep" title="한 틱 진행">▶ 틱</button>
+    <button id="btnSimStep5" title="5틱">+5</button>
+    <button id="btnSimReset" title="초기 스냅샷으로">↺</button>
+  </span>
+  <span id="simTick" style="color:var(--muted);font-size:11px;display:none">t=0</span>
   <span class="spacer"></span>
   <div id="legend"></div>
 </div>
@@ -183,8 +189,10 @@ let GRAPH=null, byId=new Map(), childrenOf=new Map();
 let selectedId=null, collapsed=new Set(), collapsedGroups=new Set(), dirty=false;
 let searchTerm="", currentView="tree";
 const LS_KEY="hkt-adv-protoa-objective-graph-v1";
-// ── 상태 오버레이(world-state.json, 읽기 전용) ─────────────────────────
+// ── 상태 오버레이(world-state.json) ───────────────────────────────────
 let STATE=null, SNAP={}, VARS_BY_OWNER=new Map(), stateOverlay=true;
+// ── 틱 시뮬(state-engine.mjs 동적 import — 순수 엔진, 검증기와 단일 소스) ─
+let ENGINE=null, SIMCTX=null, SIMTICK=0, SIMLAST=null;
 
 // ── 로딩 ──────────────────────────────────────────────────────────────
 async function loadState(){
@@ -193,8 +201,12 @@ async function loadState(){
     if(r.ok){ STATE=await r.json(); buildStateIndex(); }
   }catch(e){ STATE=null; }
 }
+async function loadEngine(){
+  try{ ENGINE=await import("./data/state-engine.mjs"); }catch(e){ ENGINE=null; }
+}
 async function load(){
   await loadState();
+  await loadEngine();
   const saved=localStorage.getItem(LS_KEY);
   if(saved){ try{ setGraph(JSON.parse(saved)); dirty=true; showBanner(); toast("자동 저장된 편집본을 불러왔습니다"); return; }catch(e){} }
   try{
@@ -221,6 +233,10 @@ function setGraph(g){
   document.getElementById("aboutTitle").textContent=w;
   document.getElementById("aboutText").textContent=(m.world&&m.world.seed)?m.world.seed:"세계 시드가 정의되지 않았습니다.";
   reindex(); renderLegend(); render();
+  if(simReady()){
+    document.getElementById("simControls").style.display="";
+    document.getElementById("simTick").style.display="";
+  }
 }
 function reindex(){
   byId=new Map(); childrenOf=new Map();
@@ -382,14 +398,39 @@ function buildStateIndex(){
     VARS_BY_OWNER.get(v.owner).push(v);
   }
 }
-// var 현재값(초기 스냅샷)을 사람이 읽는 문자열로
+// var 현재값(SNAP — 초기 스냅샷 또는 틱 진행 중)을 사람이 읽는 문자열로
 function fmtVar(v){
-  if(v.derived) return "(파생)";
   const val=SNAP[v.id];
+  if(v.derived && (val===undefined||val===null)) return "(파생)";
   if(v.kind==="level"&&Array.isArray(v.levels)&&typeof val==="number") return `${v.levels[val]??val}(${val})`;
   if(v.kind==="flag") return val?"true":"false";
   if(val===null||val===undefined) return "—";
   return String(val);
+}
+// ── 틱 시뮬 (엔진 재사용, 결정론) ──────────────────────────────────────
+function simReady(){ return !!(STATE&&ENGINE); }
+function simReset(){
+  if(!simReady()) return;
+  SNAP=ENGINE.buildInitial(STATE);
+  ENGINE.recomputeDerived(SNAP, ENGINE.indexVars(STATE));
+  SIMCTX=ENGINE.newCtx(STATE); SIMTICK=0; SIMLAST=null;
+  updateSimLabel(); render();
+}
+function simStep(nn){
+  if(!simReady()){ return; }
+  if(!SIMCTX) simReset();
+  for(let i=0;i<nn;i++){ SIMCTX.t=SIMTICK; SIMLAST=ENGINE.tick(SNAP, STATE, SIMCTX); SIMTICK++; }
+  updateSimLabel(); render();
+}
+function updateSimLabel(){
+  const el=document.getElementById("simTick"); if(!el) return;
+  let s="t="+SIMTICK;
+  if(SIMLAST){ const f=[]; if(SIMLAST.clocks&&SIMLAST.clocks.length)f.push("시계 "+SIMLAST.clocks.length);
+    if(SIMLAST.rules&&SIMLAST.rules.length)f.push("법칙 "+SIMLAST.rules.length);
+    if(SIMLAST.actions&&SIMLAST.actions.length)f.push("행동 "+SIMLAST.actions.length);
+    if(SIMLAST.objectives&&SIMLAST.objectives.length)f.push("목적 "+SIMLAST.objectives.length);
+    if(f.length) s+=" · "+f.join("·"); }
+  el.textContent=s;
 }
 // 노드 id 가 규칙/행동/목적의 어딘가(술어·효과·basis·소유 var)에 등장하나
 function touches(obj,nodeId){
@@ -592,6 +633,9 @@ document.getElementById("btnExpandAll").onclick=()=>{ collapsed.clear(); collaps
 document.getElementById("btnCollapseAll").onclick=()=>{ collapsed=new Set(GRAPH.nodes.filter(n=>(childrenOf.get(n.id)||[]).length).map(n=>n.id)); render(); };
 document.getElementById("selOnly").onchange=()=>renderGraph();
 document.getElementById("stateToggle").onchange=(e)=>{ stateOverlay=e.target.checked; render(); };
+document.getElementById("btnSimStep").onclick=()=>simStep(1);
+document.getElementById("btnSimStep5").onclick=()=>simStep(5);
+document.getElementById("btnSimReset").onclick=()=>simReset();
 document.getElementById("search").addEventListener("input",(e)=>{ searchTerm=e.target.value.trim(); if(searchTerm){ collapsed.clear(); collapsedGroups.clear(); } render(); });
 document.getElementById("btnAbout").onclick=()=>{ document.getElementById("about").style.display="flex"; };
 document.getElementById("aboutClose").onclick=()=>{ document.getElementById("about").style.display="none"; };

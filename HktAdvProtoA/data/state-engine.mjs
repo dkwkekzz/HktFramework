@@ -1,18 +1,8 @@
 // 세계 상태 엔진 — world-state.json 의 다섯 층을 읽어 결정론적 틱 루프를 돈다.
-// validate-state.mjs 와 simulate-state.mjs 가 공유한다. 규칙·데이터는 담지 않는다.
+// validate-state.mjs 와 simulate-state.mjs, objective-tree.html 이 공유한다. 규칙·데이터는 담지 않는다.
+// 순수 모듈(node:fs 비의존) — 파일 로딩은 load-world.mjs 로 분리(브라우저 import 가능).
 // 틱 순서(§5.3): ① 시계 → ② 파생 → ③ 전제 일괄 평가(스냅샷) → ④ 효과 일괄 적용
 //                → ⑤ 파생 → ⑥ 목적 판정 → ⑦ NPC/입력 행동
-import { readFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
-import { dirname, join } from "node:path";
-
-export const HERE = dirname(fileURLToPath(import.meta.url));
-
-export function loadWorld(dir = HERE) {
-  const graph = JSON.parse(readFileSync(join(dir, "objective-graph.json"), "utf8"));
-  const state = JSON.parse(readFileSync(join(dir, "world-state.json"), "utf8"));
-  return { graph, state };
-}
 
 export function indexVars(state) {
   const m = new Map();

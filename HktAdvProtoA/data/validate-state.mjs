@@ -2,9 +2,10 @@
 // + WorldLaws §7 법칙검증: 회복 짝(5)·EV 매핑(4)·detail 커버리지(7)·노드 커버리지(8).
 // 데이터는 담지 않는다. 실행: node data/validate-state.mjs [--strict-coverage]
 import {
-  loadWorld, indexVars, buildInitial, recomputeDerived, evalPred,
-  newCtx, tick, terminalGoals, subst, HERE,
+  indexVars, buildInitial, recomputeDerived, evalPred,
+  newCtx, tick, terminalGoals, subst,
 } from "./state-engine.mjs";
+import { loadWorld, HERE } from "./load-world.mjs";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 
