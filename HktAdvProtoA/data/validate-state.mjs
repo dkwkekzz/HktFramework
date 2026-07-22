@@ -164,20 +164,23 @@ for (const ev of graph.nodes.filter((n) => n.type === "EV")) {
 for (const r of state.rules || [])
   if (r.once && r.every !== undefined) errors.push(`법칙검증 위반: 규칙 ${r.id} 가 once 와 every 를 동시에 가짐(§5.1 배타)`);
 
-// ── WorldLaws 법칙검증 5(§6): 압력·소모 법칙에 회복 짝이 있는가 (level·count 음수 add ↔ 양수 add)
-const negAdd = new Map(), posAdd = new Map();
+// ── WorldLaws 법칙검증 5(§6): 압력·소모 법칙에 회복 짝이 있는가.
+//   회복원 = 어디서든(법칙·행동·목적 효과) 같은 var 를 되돌리는 양수 add 또는 복원 set.
+//   monotonic:true 로 표시된 규칙(사건 5 처럼 비가역 클라이맥스)은 회복 짝 요구에서 면제한다.
+const push = (m, k, id) => { if (!m.has(k)) m.set(k, []); m.get(k).push(id); };
+const negAdd = new Map(), recover = new Map();
 for (const r of state.rules || []) for (const e of r.then || []) {
   const v = varIdx.get(e.var); if (!v || (v.kind !== "level" && v.kind !== "count")) continue;
-  if (e.op === "add" && e.value < 0) (negAdd.get(e.var) || negAdd.set(e.var, []).get(e.var)).push(r.id);
-  if (e.op === "add" && e.value > 0) (posAdd.get(e.var) || posAdd.set(e.var, []).get(e.var)).push(r.id);
+  if (e.op === "add" && e.value < 0 && !r.monotonic) push(negAdd, e.var, r.id);
+  if ((e.op === "add" && e.value > 0) || e.op === "set") push(recover, e.var, r.id);
 }
-// 행동의 산출도 회복원으로 인정 (예: 제어탑 복구가 강흐름을 올리는 규칙, 재방사가 개체수 +)
-for (const a of state.actions || []) for (const e of a.then || []) {
-  const v = varIdx.get(e.var); if (!v || (v.kind !== "level" && v.kind !== "count")) continue;
-  if (e.op === "add" && e.value > 0) (posAdd.get(e.var) || posAdd.set(e.var, []).get(e.var)).push(a.id);
-}
+for (const src of [...(state.actions || []), ...(state.objectives || [])])
+  for (const e of [...(src.then || []), ...(src.on_complete || []), ...(src.on_fail || [])]) {
+    const v = varIdx.get(e.var); if (!v || (v.kind !== "level" && v.kind !== "count")) continue;
+    if ((e.op === "add" && e.value > 0) || e.op === "set") push(recover, e.var, src.id);
+  }
 for (const [v, rs] of negAdd)
-  if (!posAdd.has(v)) warnings.push(`법칙검증5 경고(§6 회복 짝 없음): ${v} 를 깎는 법칙(${rs.join(",")})의 회복(양수 add)이 없음 — 단조 붕괴 위험`);
+  if (!recover.has(v)) warnings.push(`법칙검증5 경고(§6 회복 짝 없음): ${v} 를 깎는 법칙(${rs.join(",")})의 회복(양수 add·복원 set)이 없음 — 단조 붕괴 위험. 의도된 비가역이면 규칙에 monotonic:true 표기`);
 
 // ── 검증 13: 행동 없이 법칙·시계만으로 상태가 변하는 경로가 존재 (무입력 시뮬로 실증)
 {

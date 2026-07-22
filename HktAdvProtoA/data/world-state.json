@@ -159,6 +159,26 @@
       "axis": "관계", "kind": "level", "levels": ["적대", "경계", "중립", "신뢰"], "init": 2,
       "basis": "쌍축 관계(F 충돌). REL: G_해안세력_채굴금지 ─충돌→ G_유리잠수단_채굴지속 — 전쟁=적대 전락" },
 
+    { "id": "E_아르카론.생존", "owner": "E_아르카론", "axis": "생존", "kind": "flag", "init": true,
+      "basis": "E 신 표준축(생존). 살아있는 동안 유지 법칙(LAW-U)이 전역 상태를 지탱. 사건 5 의 방아쇠" },
+    { "id": "E_아르카론.심장핵", "owner": "E_아르카론", "axis": "심장핵", "kind": "flag", "init": true,
+      "basis": "E 고유축(심장핵 가동). node detail 약점 '심장 내부 인간 제어 각인'. 파괴 시 생존 종료(G2.5.3 산출)" },
+    { "id": "L_북방빙원.결빙", "owner": "L_북방빙원", "axis": "결빙", "kind": "level",
+      "levels": ["해빙", "해동", "결빙", "영구동토"], "init": 3,
+      "basis": "L 고유축(§9 해상도 원칙 — 지역별 결빙). REL: S_별빛통로북방 ─변화→ S_영원한겨울 해빙" },
+    { "id": "S_별빛통로북방.활성", "owner": "S_별빛통로북방", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: E_아르카론 ─필요→ S_별빛통로북방 (사망 시 통로 회복)" },
+    { "id": "E_고대생명체.활성", "owner": "E_고대생명체", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "E 표준축(활성=각성 여부). REL: L_북방빙원 ─변화→ E_고대생명체. 변형 카탈로그 #18(숨김→활성)" },
+    { "id": "S_남부대홍수.활성", "owner": "S_남부대홍수", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: EV_아르카론의죽음 ─변화→ S_남부대홍수" },
+    { "id": "E_별빛종족.활성", "owner": "E_별빛종족", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "E 표준축(활성=탄생 여부). REL: S_과잉별빛 ─변화→ E_별빛종족. 변형 카탈로그 #18" },
+    { "id": "S_외부관측.활성", "owner": "S_외부관측", "axis": "활성", "kind": "flag", "init": false,
+      "basis": "S 표준축(활성). REL: EV_아르카론의죽음 ─변화→ S_외부관측 (사건 종결)" },
+    { "id": "EV_아르카론의죽음.단계", "owner": "EV_아르카론의죽음", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). WorldLaws §3 C5-1~9 와 1:1" },
+
     { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
       "axis": "습득", "kind": "flag", "init": false,
       "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
@@ -469,7 +489,119 @@
       "when": { "all": [
         { "var": "R_심연유리.공급", "op": "<", "value": 3 }
       ] },
-      "then": [ { "var": "R_심연유리.공급", "op": "add", "value": 1 } ], "every": 8 }
+      "then": [ { "var": "R_심연유리.공급", "op": "add", "value": 1 } ], "every": 8 },
+
+    { "id": "LAW_U01", "basis": "P1 유지 법칙 — 아르카론 생존이 영원한 겨울을 지탱(하한 유지). REL: E_아르카론 ─변화→ S_영원한겨울. 해제는 사슬 5(생존==false)가 담당",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": true }
+      ] },
+      "then": [ { "var": "S_영원한겨울.활성", "op": "set", "value": true } ], "every": 5 },
+
+    { "id": "LAW_U02", "basis": "P1 유지 법칙 — 아르카론 생존이 과잉 별빛을 지탱. REL: E_아르카론 ─변화→ S_과잉별빛. 해제=폭발(사슬 5)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": true }
+      ] },
+      "then": [ { "var": "S_과잉별빛.활성", "op": "set", "value": true } ], "every": 5 },
+
+    { "id": "C5_1", "basis": "EV: EV_아르카론의죽음 단계 1 (WorldLaws C5-1) — 심장핵 파괴 → 아르카론 사망",
+      "when": { "all": [
+        { "var": "E_아르카론.심장핵", "op": "==", "value": false },
+        { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [
+        { "var": "E_아르카론.생존", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 1 }
+      ], "once": true },
+
+    { "id": "C5_2", "basis": "EV: EV_아르카론의죽음 단계 2 (WorldLaws C5-2) — 연결 단절, 검은 태양병 약화(기억 회복). LAW-U03 해제",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "X_검은태양병.강도", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": -1 } ], "every": 3, "monotonic": true },
+
+    { "id": "C5_2s", "basis": "EV: EV_아르카론의죽음 단계 2 확정",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "C5_3", "basis": "EV: EV_아르카론의죽음 단계 3 (WorldLaws C5-3) — 북방 별빛 통로 회복",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [
+        { "var": "S_별빛통로북방.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 3 }
+      ], "once": true },
+
+    { "id": "C5_4", "basis": "EV: EV_아르카론의죽음 단계 4 (WorldLaws C5-4) — 별빛 회복이 영원한 겨울을 해빙",
+      "when": { "all": [
+        { "var": "S_별빛통로북방.활성", "op": "==", "value": true },
+        { "var": "L_북방빙원.결빙", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_북방빙원.결빙", "op": "add", "value": -1 } ], "every": 2, "monotonic": true },
+
+    { "id": "C5_4s", "basis": "EV: EV_아르카론의죽음 단계 4 확정 — 해빙 완료로 영원한 겨울 해제(유지 법칙의 해제 쪽)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "L_북방빙원.결빙", "op": "<=", "value": 0 },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [
+        { "var": "S_영원한겨울.활성", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 4 }
+      ], "once": true },
+
+    { "id": "C5_5", "basis": "EV: EV_아르카론의죽음 단계 5 (WorldLaws C5-5) — 빙하 아래 고대 생명체 각성(카탈로그 #18)",
+      "when": { "all": [
+        { "var": "L_북방빙원.결빙", "op": "<=", "value": 0 },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [
+        { "var": "E_고대생명체.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 5 }
+      ], "once": true },
+
+    { "id": "C5_6", "basis": "EV: EV_아르카론의죽음 단계 6 (WorldLaws C5-6) — 급격한 해빙수 → 남부 대홍수",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "S_남부대홍수.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "C5_7", "basis": "EV: EV_아르카론의죽음 단계 7 (WorldLaws C5-7) — 억눌린 과잉 별빛 방출(유지 법칙 해제=폭발)",
+      "when": { "all": [
+        { "var": "E_아르카론.생존", "op": "==", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 6 }
+      ] },
+      "then": [
+        { "var": "S_과잉별빛.활성", "op": "set", "value": false },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 7 }
+      ], "once": true },
+
+    { "id": "C5_8", "basis": "EV: EV_아르카론의죽음 단계 8 (WorldLaws C5-8) — 새 별빛 종족 탄생(카탈로그 #18)",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 7 }
+      ] },
+      "then": [
+        { "var": "E_별빛종족.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 8 }
+      ], "once": true },
+
+    { "id": "C5_9", "basis": "EV: EV_아르카론의죽음 단계 9 (WorldLaws C5-9) — 세계 외부 관측자의 아벨리온 발견(새 시대)",
+      "when": { "all": [
+        { "var": "EV_아르카론의죽음.단계", "op": "==", "value": 8 }
+      ] },
+      "then": [
+        { "var": "S_외부관측.활성", "op": "set", "value": true },
+        { "var": "EV_아르카론의죽음.단계", "op": "set", "value": 9 }
+      ], "once": true }
   ],
 
   "actions": [
