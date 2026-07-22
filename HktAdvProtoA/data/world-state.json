@@ -215,6 +215,9 @@
     { "id": "E_플레이어.계약.E_회색등늑대", "owner": "E_플레이어", "target": "E_회색등늑대",
       "axis": "계약", "kind": "flag", "init": false,
       "basis": "쌍축 계약. 그래프: G6.2 ─제공→ E_회색등늑대 — 계약이 X_늑대공격 파생을 끈다" },
+    { "id": "E_플레이어.위치", "owner": "E_플레이어",
+      "axis": "위치", "kind": "ref", "init": "L_지열도시",
+      "basis": "Design-MMO §3.3 — 아바타의 지역 단위 위치는 세계 변수다(지역 내 픽셀은 표현 로컬). 지역 씬 진입·현장 목격·'현장에 있어야 한다' 전제의 앵커. 초기 위치는 정주지 지열 도시" },
 
     { "id": "F_씨앗보존회.습득.K_관개시설기록", "owner": "F_씨앗보존회", "target": "K_관개시설기록",
       "axis": "습득", "kind": "flag", "init": true,
@@ -921,7 +924,17 @@
       "then": [
         { "var": "L_굶주린평원.해충", "op": "add", "value": -2 },
         { "var": "G_인공백야초재배.완료방식", "op": "set", "value": "ACT_해충_방제" }
-      ], "duration": 2, "once": true }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_이동",
+      "actor_type": ["E_플레이어"],
+      "basis": "Design-MMO §3.3 — 지역 간 이동 행동. 목적지는 {target} 파라미터(발화 요청에 실림, {actor} 와 같은 치환 메커니즘). 인접 제약은 표현층(world-map adjacent)의 출구 UI 가 담당. 목적 노드에 속하지 않는 수단 행동 — 접근 전제를 만드는 이동의 상태화(불변 2)",
+      "when": { "all": [
+        { "var": "{actor}.위치", "op": "!=", "value": "{target}" }
+      ] },
+      "then": [
+        { "var": "{actor}.위치", "op": "set", "value": "{target}" }
+      ], "duration": 2 }
   ],
 
   "objectives": [

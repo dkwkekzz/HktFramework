@@ -70,6 +70,7 @@
 <header>
   <h1>상흔계 아벨리온</h1>
   <span class="tick" id="tickview">t 0</span>
+  <button id="btnView">🚶 지역 입장</button>
   <button id="btnPlay" class="on">⏸ 일시정지</button>
   <button id="btnStep">1틱 ▸</button>
   <select id="speed">
@@ -164,14 +165,31 @@ for (const v of state.vars || []) if (v.derived) for (const s of predVars(v.form
 
 // ── 세계 구동 — 엔진은 그대로, 클라는 틱을 돌리고 스냅샷을 읽기만 한다 ────
 let snap, ctx, playing = true, timer = null, chron = [], fxq = [];
+// 아바타·지역 씬 (§3.3) — 지역 단위 위치는 세계 변수(E_플레이어.위치), 씬 내부 좌표는 표현 로컬
+const AV = "E_플레이어";
+const avLoc = () => snap[AV + ".위치"];
+let view = { mode: "world" };                  // "world" | "region"
+let avatar = { x: 0.5, y: 0.62 };              // 씬 로컬 0..1
+let pendingMove = null;                        // { target, from } — ACT_이동 duration 진행 중
+let toasts = [];                               // 현장 목격 알림 (지역 연대기)
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
-  chron = []; fxq = [];
+  chron = []; fxq = []; toasts = []; pendingMove = null;
+  avatar = { x: 0.5, y: 0.62 };
+  if (view.mode === "region") view.region = avLoc();
   renderChron(); renderEvents();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
+}
+// 이동 요청 — 유일한 세계 개입 경로: 행동 발화 요청 (불변 2·6)
+function requestMove(target) {
+  if (pendingMove || avLoc() === target) return;
+  const t = ctx.t + 1;
+  if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
+  ctx.inputs.get(t).push({ actionId: "ACT_이동", actor: AV, target });
+  pendingMove = { target, from: avLoc() };
 }
 
 const CLASS = { rule: "", objective: "obj", action: "act", clock: "clock" };
@@ -193,8 +211,11 @@ function pushChron(t, kind, id, text) {
     if (last !== undefined && t - last < 12) return;   // 상태는 매번 변하지만 서사는 12틱에 한 번
     lastLog.set(id, t);
   }
-  chron.unshift({ t, kind, id, text, region: regionOfId(id) });
+  const region = regionOfId(id);
+  chron.unshift({ t, kind, id, text, region });
   if (chron.length > 300) chron.length = 300;
+  // 현장 목격 — 지역 씬에 있는 동안 그 지역의 발화는 토스트로도 뜬다
+  if (view.mode === "region" && region === view.region) toasts.push({ text, at: performance.now() });
 }
 function translateFired(t, fired) {
   for (const c of fired.clocks) {
@@ -212,6 +233,7 @@ function translateFired(t, fired) {
     const act = (state.actions || []).find((x) => x.id === id);
     let text = visual.chronicle.actions?.[id];
     if (!text) continue;
+    if (id === "ACT_이동" && !landed) continue;   // 이동의 착수는 씬 배너가 보여준다 — 연대기 도배 방지
     text = text.replace("{actor}", nodeTitle.get(actor) || actor || "누군가");
     if ((act?.duration ?? 0) > 0 && !landed) text = "[착수] " + text.replace(/했다|켰다|섰다|았다|었다/, "하려 한다");
     pushChron(t, "action", id, text);
@@ -225,6 +247,20 @@ function translateFired(t, fired) {
 function step() {
   const fired = tick(snap, state, ctx);
   translateFired(ctx.t, fired);
+  // 이동 착지 감지 — 위치 '상태'가 실제로 바뀐 순간에만 씬이 전환된다 (표현은 상태를 따른다)
+  if (pendingMove && avLoc() === pendingMove.target) {
+    const from = regions.get(pendingMove.from), to = regions.get(pendingMove.target);
+    if (view.mode === "region" && from && to) {
+      // 떠나온 지역 방향의 가장자리로 입장
+      const dx = from.pos[0] - to.pos[0], dy = from.pos[1] - to.pos[1];
+      const m = Math.max(Math.abs(dx), Math.abs(dy)) || 1;
+      avatar = { x: 0.5 + (dx / m) * 0.36, y: 0.5 + (dy / m) * 0.36 };
+      view.region = pendingMove.target;
+    }
+    toasts.push({ text: `${nodeTitle.get(pendingMove.target)}에 도착했다.`, at: performance.now() });
+    pendingMove = null;
+  }
+  if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동"))) pendingMove = null;
   tickview.textContent = "t " + ctx.t;
   renderChron(); renderEvents();
   if (inspected) renderInspect(inspected);
@@ -244,7 +280,21 @@ const TERRAIN = {
 const ACTOR_GLYPH = {
   "E_카르마.서식": "🌱", "F_청동수문회.세력": "🚩", "E_심해포식자.위치": "🦈",
   "E_아르카론.생존": "☀", "E_아르카론.심장핵": "♦", "E_고대생명체.활성": "👁",
-  "E_별빛종족.활성": "✨", "E_남하조류.위치": "🐦",
+  "E_별빛종족.활성": "✨", "E_남하조류.위치": "🐦", "E_플레이어.위치": "🧍",
+};
+// 지역 씬 표현 상수 — 군집·소품 글리프 (표현층 전용, §3.2 이름 없는 군집은 앰비언트)
+const CRITTER_GLYPH = {
+  "E_회색등늑대.개체수": "🐺", "E_초식동물.개체수": "🦌", "E_늪생명체.서식": "🐸",
+  "R_식량.공급": "🧺", "R_심연유리.공급": "💎", "E_그림자산호.서식": "🌺",
+  "E_유리벌레.서식": "🐛", "E_백야초.군락": "🌿", "E_설원곤충.개체수": "🦗",
+  "L_굶주린평원.해충": "🦟",
+};
+const PROPS = {
+  forest: [["🌲", 12], ["🌳", 5]], plain: [["🌾", 16]], ice: [["🧊", 7], ["❄", 6]],
+  coast: [["🐚", 5], ["🌊", 4]], city: [["🏠", 8], ["🏮", 3]], ruin: [["🏛", 3], ["🪨", 5]],
+  volcano: [["🌋", 2], ["🪨", 6]], spring: [["💧", 6]], facility: [["🗼", 1], ["⚙", 3]],
+  cliff: [["⛰", 6], ["🌩", 2]], sea: [["🫧", 9], ["🌊", 5]], forge: [["🔥", 4], ["🔨", 2]],
+  cave: [["🪨", 8], ["🕯", 2]], rift: [["✦", 10], ["✨", 4]], sky: [["☁", 8]],
 };
 const MARKER_GLYPH = {
   "L_제어탑.가동": "⚙", "L_제어탑.발견": "◎", "R_심연유리.채굴금지": "⛔",
@@ -277,7 +327,9 @@ function seeded(str) {                 // 고정 시드 절차 배치 (§3.1)
   return () => { h = Math.imul(h ^ (h >>> 15), 2246822507); h = Math.imul(h ^ (h >>> 13), 3266489909); return ((h ^= h >>> 16) >>> 0) / 4294967296; };
 }
 function mix(c1, c2, k) {
-  const p = (c) => [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)];
+  const p = (c) => c[0] === "#"
+    ? [parseInt(c.slice(1, 3), 16), parseInt(c.slice(3, 5), 16), parseInt(c.slice(5, 7), 16)]
+    : c.match(/\d+/g).slice(0, 3).map(Number);
   const [a, b] = [p(c1), p(c2)];
   return `rgb(${a.map((x, i) => Math.round(x + (b[i] - x) * k)).join(",")})`;
 }
@@ -292,8 +344,149 @@ function resize() {
 addEventListener("resize", resize); resize();
 const px = ([x, y]) => [OX + x * S, OY + y * S];
 
+// ── 지역 씬 (§3.1 2단 공간 모델) — 탑다운, 고정 시드 절차 배치, 아바타는 표현 로컬 ──
+const keys = new Set();
+addEventListener("keydown", (e) => {
+  if (["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "w", "a", "s", "d"].includes(e.key)) {
+    keys.add(e.key); e.preventDefault();
+  }
+});
+addEventListener("keyup", (e) => keys.delete(e.key));
+let lastNow = 0, sceneEnts = [];
+const SM = 46;                                  // 씬 여백(px)
+const sx = (u) => SM + u * (W - SM * 2);
+const sy = (u) => SM + u * (H - SM * 2);
+function exitsOf(rid) {
+  const r = regions.get(rid);
+  return (r.adjacent || []).map((adj) => {
+    const a = regions.get(adj);
+    const dx = a.pos[0] - r.pos[0], dy = a.pos[1] - r.pos[1];
+    const m = Math.max(Math.abs(dx), Math.abs(dy)) || 1;
+    return { id: adj, x: 0.5 + (dx / m) * 0.44, y: 0.5 + (dy / m) * 0.44 };
+  });
+}
+function drawScene(now) {
+  const rid = view.region, r = regions.get(rid);
+  if (!r) { view.mode = "world"; return; }
+  const dt = Math.min(0.05, (now - lastNow) / 1000);
+  // 아바타 이동 (표현 로컬) — 이동 중(행동 duration)에는 잠근다
+  if (!pendingMove) {
+    let vx = 0, vy = 0;
+    if (keys.has("ArrowUp") || keys.has("w")) vy -= 1;
+    if (keys.has("ArrowDown") || keys.has("s")) vy += 1;
+    if (keys.has("ArrowLeft") || keys.has("a")) vx -= 1;
+    if (keys.has("ArrowRight") || keys.has("d")) vx += 1;
+    if (vx || vy) {
+      const m = Math.hypot(vx, vy);
+      avatar.x = Math.max(0.03, Math.min(0.97, avatar.x + (vx / m) * 0.3 * dt));
+      avatar.y = Math.max(0.03, Math.min(0.97, avatar.y + (vy / m) * 0.3 * dt));
+    }
+    for (const ex of exitsOf(rid))               // 출구 게이트 접촉 → 이동 행동 발화 요청
+      if (Math.hypot(avatar.x - ex.x, avatar.y - ex.y) < 0.055) requestMove(ex.id);
+  }
+  sceneEnts = [];
+  // 배경 — 지형 색 + 건강도
+  const tones = (byRegion.get(rid) || []).filter((e) => e.channel === "tone");
+  const health = tones.length ? tones.reduce((s, e) => s + (e.var === "S_토양침식.활성" ? 1 - ratioOf(e.var) : ratioOf(e.var)), 0) / tones.length : 0.8;
+  const base = mix("#3a3833", TERRAIN[r.terrain] || "#888", 0.2 + health * 0.45);
+  const grd = g.createLinearGradient(0, 0, 0, H);
+  grd.addColorStop(0, mix(base, "#0d1117", 0.55)); grd.addColorStop(1, mix(base, "#0d1117", 0.25));
+  g.fillStyle = grd; g.fillRect(0, 0, W, H);
+  // 소품 (고정 시드 절차 배치 §3.1)
+  const rnd = seeded("scene:" + rid);
+  for (const [glyph, n] of PROPS[r.terrain] || [])
+    for (let i = 0; i < n; i++) {
+      const x = sx(rnd()), y = sy(rnd()), size = 15 + rnd() * 13;
+      g.font = size + "px serif"; g.textAlign = "center"; g.globalAlpha = 0.5 + rnd() * 0.4;
+      g.fillText(glyph, x, y);
+    }
+  g.globalAlpha = 1;
+  // 군집 — 개체수·서식 값의 밀도, 배회는 보간 연출 (불변 7)
+  for (const e of (byRegion.get(rid) || []).filter((e) => e.channel === "density")) {
+    const v = varIdx.get(e.var), val = snap[e.var] ?? 0;
+    const n = Math.min(16, v.kind === "count" ? Math.ceil(val / 3) : val * 3);
+    const crnd = seeded("critter:" + rid + e.var);
+    for (let i = 0; i < n; i++) {
+      const bx = 0.12 + crnd() * 0.76, by = 0.12 + crnd() * 0.76, ph = crnd() * 7;
+      const x = sx(bx + Math.sin(now / 1700 + ph) * 0.02), y = sy(by + Math.cos(now / 2100 + ph) * 0.015);
+      g.font = "15px serif"; g.textAlign = "center";
+      g.fillText(CRITTER_GLYPH[e.var] || "·", x, y);
+      if (i < 4) sceneEnts.push({ x, y, var: e.var });
+    }
+  }
+  // 이름 있는 액터 — 개별 표식, 클릭 가능 (§3.2)
+  const arnd = seeded("actor:" + rid);
+  for (const e of (byRegion.get(rid) || []).filter((e) => e.channel === "actor")
+      .concat(refActors.filter((e) => snap[e.var] === rid))) {
+    if (e.var === AV + ".위치") continue;
+    const alive = varIdx.get(e.var).kind === "flag" ? snap[e.var] : ratioOf(e.var) > 0;
+    const x = sx(0.2 + arnd() * 0.6), y = sy(0.18 + arnd() * 0.35);
+    g.font = "26px serif"; g.textAlign = "center"; g.globalAlpha = alive ? 1 : 0.35;
+    g.fillText(alive ? (ACTOR_GLYPH[e.var] || "●") : "☠", x, y);
+    g.globalAlpha = 1;
+    g.font = "10px system-ui"; g.fillStyle = "#8494ab"; g.fillText(e.label, x, y + 13); g.fillStyle = "#d6dde8";
+    sceneEnts.push({ x, y, var: e.var });
+  }
+  // 표지판 (marker 채널)
+  let my = 64;
+  for (const e of (byRegion.get(rid) || []).filter((e) => e.channel === "marker")) {
+    const v = varIdx.get(e.var), val = snap[e.var];
+    const on = v.kind === "flag" ? !!val : v.kind === "level" ? (e.var.includes("관계") ? val === 0 : val >= 2) : !!val;
+    g.font = "12px system-ui"; g.textAlign = "left"; g.globalAlpha = on ? 1 : 0.35;
+    g.fillStyle = on ? "#e8d8a8" : "#8494ab";
+    g.fillText(`${MARKER_GLYPH[e.var] || "◆"} ${e.label}: ${levelLabel(e.var)}`, 14, my);
+    my += 16; g.globalAlpha = 1;
+  }
+  // 환경 오버레이 — 전역 상태의 씬 반영
+  if (snap["S_영원한겨울.활성"] && r.pos[1] < 30) { g.fillStyle = "rgba(190,220,245,.14)"; g.fillRect(0, 0, W, H); }
+  if (snap["S_남부대홍수.활성"] && r.pos[1] > 55) { g.fillStyle = "rgba(80,140,220,.18)"; g.fillRect(0, 0, W, H); }
+  if (snap["S_일식.활성"]) { g.fillStyle = "rgba(4,4,14,.45)"; g.fillRect(0, 0, W, H); }
+  if (snap["S_과잉별빛.활성"]) {
+    const srnd = seeded("sstars" + Math.floor(now / 700));
+    g.fillStyle = "rgba(180,150,255,.6)";
+    for (let i = 0; i < 12; i++) { g.globalAlpha = 0.3 + srnd() * 0.4; g.beginPath(); g.arc(srnd() * W, srnd() * H * 0.2, 1.2, 0, 7); g.fill(); }
+    g.globalAlpha = 1;
+  }
+  // 출구 게이트
+  for (const ex of exitsOf(rid)) {
+    const x = sx(ex.x), y = sy(ex.y);
+    g.strokeStyle = "#6fb3d8"; g.globalAlpha = 0.75; g.lineWidth = 1.5;
+    g.beginPath(); g.arc(x, y, 15, 0, 7); g.stroke(); g.globalAlpha = 1;
+    g.font = "10px system-ui"; g.textAlign = "center"; g.fillStyle = "#6fb3d8";
+    g.fillText(nodeTitle.get(ex.id) || ex.id, x, y + 27);
+    g.fillText("▸", x, y + 4);
+  }
+  // 아바타
+  {
+    const x = sx(avatar.x), y = sy(avatar.y);
+    g.font = "22px serif"; g.textAlign = "center"; g.fillStyle = "#d6dde8";
+    g.fillText("🧍", x, y);
+  }
+  // 이동 중 배너
+  if (pendingMove) {
+    g.fillStyle = "rgba(13,17,23,.72)"; g.fillRect(0, H / 2 - 24, W, 48);
+    g.font = "14px system-ui"; g.textAlign = "center"; g.fillStyle = "#d6dde8";
+    g.fillText(`${nodeTitle.get(pendingMove.target)} (으)로 이동 중…`, W / 2, H / 2 + 5);
+  }
+  // 지역 이름·현장 토스트
+  g.font = "600 15px system-ui"; g.textAlign = "center"; g.fillStyle = "#d8b46f";
+  g.fillText(nodeTitle.get(rid) || rid, W / 2, 28);
+  g.font = "11px system-ui"; g.fillStyle = "#8494ab";
+  g.fillText(map.meta.terrains[r.terrain] || r.terrain, W / 2, 44);
+  toasts = toasts.filter((t) => now - t.at < 6000);
+  toasts.slice(-3).forEach((t, i, arr) => {
+    const k = (now - t.at) / 6000;
+    g.globalAlpha = 1 - k;
+    g.font = "13px system-ui"; g.textAlign = "center"; g.fillStyle = "#e8d8a8";
+    g.fillText(t.text, W / 2, H - 34 - (arr.length - 1 - i) * 20);
+    g.globalAlpha = 1;
+  });
+}
+
 function draw(now) {
   g.clearRect(0, 0, W, H);
+  if (view.mode === "region") { drawScene(now); lastNow = now; requestAnimationFrame(draw); return; }
+  lastNow = now;
   // 바다·땅
   g.fillStyle = "#0e1a2b"; g.fillRect(0, 0, W, H);
   g.beginPath();
@@ -529,6 +722,13 @@ function showTab(name) {
 }
 cv.addEventListener("click", (ev) => {
   const rect = cv.getBoundingClientRect(), mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
+  if (view.mode === "region") {
+    // 씬 개체 클릭 → 그 축의 상태 카드 (§3.2 — 앰비언트 클릭은 종 노드의 상태가 열린다)
+    let best = null, bd = 26;
+    for (const e of sceneEnts) { const d = Math.hypot(mx - e.x, my - e.y); if (d < bd) { best = e; bd = d; } }
+    if (best) { renderInspect(view.region); openVars.add(best.var); renderInspect(view.region); showTab("inspect"); }
+    return;
+  }
   let best = null, bd = 1e9;
   for (const r of map.regions) {
     const [x, y] = px(r.pos), d = Math.hypot(mx - x, my - y);
@@ -536,6 +736,18 @@ cv.addEventListener("click", (ev) => {
   }
   if (best) { renderInspect(best); showTab("inspect"); }
 });
+// 뷰 전환 — 지역 입장은 아바타의 현재 위치(세계 변수)로만 들어간다
+const btnView = document.getElementById("btnView");
+btnView.onclick = () => {
+  if (view.mode === "world") {
+    view = { mode: "region", region: avLoc() };
+    avatar = { x: 0.5, y: 0.62 };
+    btnView.textContent = "🗺 대륙 지도";
+  } else {
+    view = { mode: "world" };
+    btnView.textContent = "🚶 지역 입장";
+  }
+};
 
 // ── 컨트롤 ─────────────────────────────────────────────────────────────
 const btnPlay = document.getElementById("btnPlay");
@@ -575,6 +787,12 @@ for (const [label, varName, value] of TRIGGERS) {
 
 boot();
 setTimer();
+
+// 자동화 눈 검증용 디버그 노출 (표현 로컬 상태만 — 세계 쓰기는 requestMove=행동 요청뿐)
+window.__dbg = {
+  get view() { return view; }, get avatar() { return avatar; }, set avatarPos(p) { avatar = p; },
+  get pendingMove() { return pendingMove; }, get loc() { return avLoc(); }, requestMove, exitsOf,
+};
 </script>
 </body>
 </html>
