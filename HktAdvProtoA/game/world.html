@@ -182,9 +182,14 @@ for (const a of state.actions || []) {
 for (const v of state.vars || []) if (v.derived) for (const s of predVars(v.formula, new Set())) touch(readers, s, v.id + " (파생)");
 
 // ── 세계 구동 — 엔진은 그대로, 클라는 틱을 돌리고 스냅샷을 읽기만 한다 ────
-let snap, ctx, playing = true, timer = null, chron = [], fxq = [];
+// 원격 모드(?online): 엔진이 서버로 이동하고 클라는 SSE diff 구독 + 행동 요청만.
+// 표현층은 스냅샷만 읽으므로(불변 6) 데이터 소스 교체 외 무변경 — Design-MMO §8 의 조건.
+const params = new URLSearchParams(location.search);
+const REMOTE = params.has("online");
+let snap, ctx, playing = true, timer = null, chron = [], fxq = [], remotePoses = {};
 // 아바타·지역 씬 (§3.3) — 지역 단위 위치는 세계 변수(E_플레이어.위치), 씬 내부 좌표는 표현 로컬
-const AV = "E_플레이어";
+let AV = "E_플레이어";                          // 원격 조인 시 "E_플레이어#이름" 으로 대체
+const chVar = (id) => id.replace("E_플레이어", AV);   // 사전의 플레이어 축을 내 캐릭터 키로
 const avLoc = () => snap[AV + ".위치"];
 let view = { mode: "world" };                  // "world" | "region"
 let avatar = { x: 0.5, y: 0.62 };              // 씬 로컬 0..1
@@ -201,12 +206,19 @@ function boot() {
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
 }
-// 이동 요청 — 유일한 세계 개입 경로: 행동 발화 요청 (불변 2·6)
+// 행동 발화 요청 — 유일한 세계 개입 경로 (불변 2·6). 로컬은 inputs 큐, 원격은 서버 API.
+function sendInput(payload) {
+  if (REMOTE) {
+    fetch("/api/act", { method: "POST", body: JSON.stringify({ char: AV, ...payload }) });
+  } else {
+    const t = ctx.t + 1;
+    if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
+    ctx.inputs.get(t).push({ actor: AV, ...payload });
+  }
+}
 function requestMove(target) {
   if (pendingMove || avLoc() === target) return;
-  const t = ctx.t + 1;
-  if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
-  ctx.inputs.get(t).push({ actionId: "ACT_이동", actor: AV, target });
+  sendInput({ actionId: "ACT_이동", target });
   pendingMove = { target, from: avLoc() };
 }
 // NPC 정책 토글 (디버그 — simulate --no-policy 대응). 켜짐이 정상 세계.
@@ -247,9 +259,10 @@ let currentSpot = null;
 const actionbar = document.getElementById("actionbar");
 function renderActionbar() {
   if (view.mode !== "region" || !currentSpot) { actionbar.style.display = "none"; return; }
+  const baseAV = AV.split("#")[0];               // 캐릭터의 그래프 노드 (actor_type 은 노드 기준)
   const acts = Object.entries(visual.actions || {}).filter(([id, e]) =>
     e.site === view.region && e.spot === currentSpot &&
-    ((state.actions.find((a) => a.id === id)?.actor_type) || []).includes(AV));
+    ((state.actions.find((a) => a.id === id)?.actor_type) || []).includes(baseAV));
   if (!acts.length) { actionbar.style.display = "none"; return; }
   const busy = actorBusy();
   let h = `<div class="spot">${esc(currentSpot)}</div>`;
@@ -272,9 +285,7 @@ function renderActionbar() {
 }
 function requestAct(id) {
   if (actorBusy()) return;
-  const t = ctx.t + 1;
-  if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
-  ctx.inputs.get(t).push({ actionId: id, actor: AV });
+  sendInput({ actionId: id });
   renderActionbar();
 }
 // NPC 정책 행동의 무대 — 엔진 pending(duration 진행 중)을 읽어 연출 (§5 경합 창의 목격판)
@@ -287,7 +298,7 @@ function npcStages() {
 function renderSceneHud() {
   const el = document.getElementById("scenehud");
   if (view.mode !== "region") { el.style.display = "none"; return; }
-  const rows = hudEntries.filter((e) => e.var.startsWith(AV + "."))
+  const rows = hudEntries.filter((e) => e.var.startsWith("E_플레이어."))
     .map((e) => `${esc(e.label)} <b>${esc(levelLabel(e.var))}</b>`);
   el.innerHTML = "🧍 " + rows.join(" · ");
   el.style.display = "block";
@@ -335,7 +346,8 @@ function translateFired(t, fired) {
     let text = visual.chronicle.actions?.[id];
     if (!text) continue;
     if (id === "ACT_이동" && !landed) continue;   // 이동의 착수는 씬 배너가 보여준다 — 연대기 도배 방지
-    text = text.replace("{actor}", nodeTitle.get(actor) || actor || "누군가");
+    const actorName = actor?.includes("#") ? actor.split("#")[1] : (nodeTitle.get(actor) || actor || "누군가");
+    text = text.replace("{actor}", actorName);
     if ((act?.duration ?? 0) > 0 && !landed) text = "[착수] " + text.replace(/했다|켰다|섰다|았다|었다/, "하려 한다");
     pushChron(t, "action", id, text);
   }
@@ -347,7 +359,11 @@ function translateFired(t, fired) {
 }
 function step() {
   const fired = tick(snap, activeState(), ctx);
-  translateFired(ctx.t, fired);
+  onTick(ctx.t, fired);
+}
+// 틱 후처리 — 로컬(step)과 원격(SSE tick)이 공유한다
+function onTick(t, fired) {
+  translateFired(t, fired);
   // 불발된 내 행동은 사유와 함께 현장 알림 (엔진 skipped 의 정직한 표면화)
   for (const s of fired.skipped) if (s.includes("@" + AV)) toasts.push({ text: "행동 불발 — " + s, at: performance.now() });
   // 이동 착지 감지 — 위치 '상태'가 실제로 바뀐 순간에만 씬이 전환된다 (표현은 상태를 따른다)
@@ -363,7 +379,7 @@ function step() {
     toasts.push({ text: `${nodeTitle.get(pendingMove.target)}에 도착했다.`, at: performance.now() });
     pendingMove = null;
   }
-  if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동"))) pendingMove = null;
+  if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동@" + AV))) pendingMove = null;
   tickview.textContent = "t " + ctx.t;
   renderChron(); renderEvents(); renderActionbar(); renderSceneHud();
   if (inspected) renderInspect(inspected);
@@ -413,14 +429,14 @@ const DENSITY_DOT = {
   "L_굶주린평원.해충": "#8a9a40",
 };
 function ratioOf(id) {                 // 값 → 0..1 건강/충만 비율
-  const v = varIdx.get(id), val = snap[id];
+  const v = varIdx.get(id), val = snap[chVar(id)];
   if (v?.kind === "level") return (val ?? 0) / Math.max(1, (v.levels?.length ?? 2) - 1);
   if (v?.kind === "flag") return val ? 1 : 0;
   if (v?.kind === "count") return Math.min(1, (val ?? 0) / 40);
   return 1;
 }
 function levelLabel(id) {
-  const v = varIdx.get(id), val = snap[id];
+  const v = varIdx.get(id), val = snap[chVar(id)];
   if (v?.kind === "level" && v.levels) return `${v.levels[val] ?? val}`;
   if (v?.kind === "flag") return val ? "예" : "아니오";
   if (v?.kind === "ref") return val ? (nodeTitle.get(val) || val) : "—";
@@ -531,8 +547,8 @@ function drawScene(now) {
   // 이름 있는 액터 — 개별 표식, 클릭 가능 (§3.2)
   const arnd = seeded("actor:" + rid);
   for (const e of (byRegion.get(rid) || []).filter((e) => e.channel === "actor")
-      .concat(refActors.filter((e) => snap[e.var] === rid))) {
-    if (e.var === AV + ".위치") continue;
+      .concat(refActors.filter((e) => snap[chVar(e.var)] === rid))) {
+    if (chVar(e.var) === AV + ".위치") continue;
     const alive = varIdx.get(e.var).kind === "flag" ? snap[e.var] : ratioOf(e.var) > 0;
     const x = sx(0.2 + arnd() * 0.6), y = sy(0.18 + arnd() * 0.35);
     g.font = "26px serif"; g.textAlign = "center"; g.globalAlpha = alive ? 1 : 0.35;
@@ -595,6 +611,14 @@ function drawScene(now) {
     g.fillText(nodeTitle.get(ex.id) || ex.id, x, y + 27);
     g.fillText("▸", x, y + 4);
   }
+  // 다른 모험가들 — 비권위 표현 채널(poses)의 릴레이 (§8 타 아바타)
+  if (REMOTE) for (const [c, p] of Object.entries(remotePoses)) {
+    if (c === AV || p.region !== rid) continue;
+    const x = sx(p.x), y = sy(p.y);
+    g.font = "20px serif"; g.textAlign = "center"; g.fillText("🧑", x, y);
+    g.font = "10px system-ui"; g.fillStyle = "#8494ab"; g.fillText(c.split("#")[1] || c, x, y + 13);
+    g.fillStyle = "#d6dde8";
+  }
   // 아바타
   {
     const x = sx(avatar.x), y = sy(avatar.y);
@@ -623,6 +647,7 @@ function drawScene(now) {
 }
 
 function draw(now) {
+  if (!snap) { requestAnimationFrame(draw); return; }   // 원격: init 수신 전
   g.clearRect(0, 0, W, H);
   if (view.mode === "region") { drawScene(now); lastNow = now; requestAnimationFrame(draw); return; }
   lastNow = now;
@@ -695,10 +720,21 @@ function draw(now) {
       g.fillText(MARKER_GLYPH[e.var] || "◆", mx, iy);
       g.globalAlpha = 1; mx += 14;
     }
-    // ref 액터 (위치를 따라다니는 존재)
-    for (const e of refActors) if (snap[e.var] === r.id) {
+    // ref 액터 (위치를 따라다니는 존재) — 플레이어 축은 내 캐릭터 키로 읽는다
+    for (const e of refActors) if (snap[chVar(e.var)] === r.id) {
       g.font = "15px serif"; g.textAlign = "center";
       g.fillText(ACTOR_GLYPH[e.var] || "◉", x - rad * 0.5, y + rad * 0.55);
+    }
+    // 다른 모험가들의 지역 위치 (world 스냅샷의 캐릭터 인스턴스 — 상태 그대로)
+    if (REMOTE) {
+      let off = 0;
+      for (const k in snap) {
+        const m = k.match(/^(E_플레이어#[^.]+)\.위치$/);
+        if (!m || m[1] === AV || snap[k] !== r.id) continue;
+        g.font = "13px serif"; g.textAlign = "center";
+        g.fillText("🧑", x - rad * 0.5 + 14 + off, y + rad * 0.55);
+        off += 14;
+      }
     }
     // 이름
     g.font = "11px system-ui"; g.textAlign = "center";
@@ -840,7 +876,7 @@ function renderInspect(rid) {
   if (inspected !== rid) openVars.clear();
   inspected = rid;
   const r = regions.get(rid);
-  const entries = (byRegion.get(rid) || []).concat(refActors.filter((e) => snap[e.var] === rid));
+  const entries = (byRegion.get(rid) || []).concat(refActors.filter((e) => snap[chVar(e.var)] === rid));
   let h = `<div class="card-title">${esc(nodeTitle.get(rid) || rid)}</div>
     <div class="card-sub">${esc(map.meta.terrains[r.terrain] || r.terrain)} · ${esc(r.basis)}</div>`;
   h += "<h3>상태</h3>";
@@ -938,8 +974,40 @@ for (const [label, varName, value] of TRIGGERS) {
   tbar.appendChild(b);
 }
 
-boot();
-setTimer();
+// ── 부트스트랩 — 로컬(브라우저 내 엔진) / 원격(?online: 서버 SSE 구독) ────
+if (REMOTE) {
+  // 서버 권위 — 로컬 시뮬 컨트롤은 의미가 없으므로 숨긴다
+  for (const id of ["btnPlay", "btnStep", "speed", "btnReset", "btnPolicy", "triggers"])
+    document.getElementById(id).style.display = "none";
+  const name = params.get("name") || "";
+  const j = await fetch("/api/join", { method: "POST", body: JSON.stringify({ name }) }).then((r) => r.json());
+  AV = j.char;
+  snap = {}; ctx = { t: j.t, busy: {}, pending: [], inputs: null };
+  document.title = "아벨리온 — " + AV.split("#")[1];
+  const es = new EventSource("/api/events");
+  es.addEventListener("init", (ev) => {
+    const d = JSON.parse(ev.data);
+    Object.assign(snap, d.snap);
+    ctx.t = d.t; ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
+    tickview.textContent = "t " + ctx.t;
+    renderChron(); renderEvents(); renderSceneHud();
+  });
+  es.addEventListener("tick", (ev) => {
+    const d = JSON.parse(ev.data);
+    for (const k in d.diff) snap[k] = d.diff[k];
+    ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
+    ctx.t = d.t;
+    onTick(d.t, d.fired);
+  });
+  // 지역 내 픽셀 좌표 — 비권위 표현 채널 (상태 아님, §8)
+  setInterval(() => {
+    if (view.mode === "region")
+      fetch("/api/pos", { method: "POST", body: JSON.stringify({ char: AV, region: avLoc(), x: avatar.x, y: avatar.y }) });
+  }, 500);
+} else {
+  boot();
+  setTimer();
+}
 
 // 자동화 눈 검증용 디버그 노출 (표현 로컬 상태만 — 세계 쓰기는 requestMove=행동 요청뿐)
 window.__dbg = {
@@ -947,7 +1015,7 @@ window.__dbg = {
   get pendingMove() { return pendingMove; }, get loc() { return avLoc(); }, requestMove, exitsOf,
   get spot() { return currentSpot; }, get busy() { return actorBusy(); }, get snap() { return snap; },
   gotoSpot(name) { const s = spotsOf(view.region)[name]; if (s) avatar = { x: s.x, y: s.y }; },
-  get stages() { return npcStages(); }, get tick() { return ctx.t; },
+  get stages() { return npcStages(); }, get tick() { return ctx.t; }, get poses() { return remotePoses; },
 };
 </script>
 </body>

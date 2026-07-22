@@ -9,7 +9,7 @@
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
-**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **1~3단계 완료** (살아있는 지도 → 지역 씬·아바타 → 개입): `game/world.html`(단일 파일 클라 — 대륙 지도·지역 씬·아바타 이동·**행동 발화 UI(전제 미충족 안내=퀘스트 안내)·NPC 정책 행동 무대 연출**·연대기·인스펙터·개인 HUD·디버그 방아쇠·정책 토글) + `data/world-map.json` + `data/world-visual.json`(변수·행동 무대 전수 사전) + `data/validate-visual.mjs`(V1~V4·V6·**V7** 통과). 상태층: `E_플레이어.위치`·`ACT_이동`({target})·`ACT_관개기록_해독`·`ACT_카르마_수확`. **'강의 귀환'을 플레이어 손으로 완주**(해독→수확→복구→수문회 반격 목격) 실증. 실행: 저장소 루트 `python3 -m http.server` → `/HktAdvProtoA/game/world.html`.
+**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **로드맵 1~4단계 전부 완료** (살아있는 지도 → 지역 씬·아바타 → 개입 → 멀티플레이): `game/world.html`(단일 파일 클라 — 대륙 지도·지역 씬·아바타·행동 발화 UI(전제 미충족 안내=퀘스트 안내)·NPC 무대 연출·연대기·인스펙터·HUD; **로컬/원격 겸용** — 표현 코드는 데이터 소스만 교체) + `game/server.mjs`(**월드 서버**, 의존성 0 — SSE diff 구독·행동 요청 API·poses 릴레이·서버 권위 검증) + 표현 데이터 2장 + `validate-visual.mjs`(V1~V7). 상태층: player 스코프 6축·`joinChar` 멀티 캐릭터·기여 축적 P8(`ACT_제어탑_복구기여`+임계 법칙 — 사슬 무변경)·검증 M1·M2. 실증: 솔로 완주(해독→수확→복구→수문회 반격) + **멀티**(alice·bob 공유 세계 동기·타 아바타·공유 자원 고갈·NPC 자율 기여로 가동). 실행: 솔로 `python3 -m http.server` → `/HktAdvProtoA/game/world.html` · 멀티 `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`.
 
 - `data/world-state.json` — 상태의 유일 원본. **vars 87 · rules 62 · actions 33 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
@@ -40,7 +40,7 @@
 
 ## TODO
 
-- [ ] MMO 4단계 '멀티플레이' — 엔진 서버 이동(WebSocket 스냅샷 diff 구독)·스코프(world/player)·once 행동의 기여 전환·counter(경합 창 대항)·타 아바타 표현 ([Design-MMO.md](Design-MMO.md) §8).
+- [ ] MMO 후속 — 잔여 once 플레이어 행동(늑대 계약 등)의 캐릭터별 재검토 · counter(경합 창 대항 행동 — 수문회 습격 격퇴) · 기여 전환 확대(보스전·해충 방제 등) · world 목적 discover 의 캐릭터별 평가.
 - [x] G2.5.3 아르카론 처리 6방식(§6.2) 보스전 목적·행동 7종 — 무광의쐐기·일식(재생) 전제, 완료방식 분기(파괴/추방/의식분리→사건 5), `LAW_M_지배오염` 후속 법칙. (커버리지 91→99)
 - [~] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적. **완료(7주체): 수문회·잠수단·상인연합(채굴금지·혈청독점)·치료단·사제단·수도원(전승통제)**. 잔여(콘텐츠 트랙, 도구가 추적): 교단·대장간·유목민·보존회(종자보존)·수문회(수원유지)·카르마·늑대.
 - [x] §7 법칙검증 7·8(detail·노드 전수 커버리지) 자동화 — 원장 `detail-coverage.json` + 검증기. **전 363항목 100% 분류 완주**(미분류 0). 보류 191 = 사유 태그 백로그.

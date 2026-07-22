@@ -43,5 +43,6 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/world-map.json](data/world-map.json) | 대륙 지도 — L 노드 공간 배치 + feature(RIVER). **표현 데이터** — 판정에 쓰지 않음 |
 | [data/world-visual.json](data/world-visual.json) | 표현 번역 사전 — 변수→채널(전수), 연대기 번역문, 발화 fx. **표현 데이터** |
 | [data/validate-visual.mjs](data/validate-visual.mjs) | 표현 정합 검증기 — Design-MMO §7 V1~V4·V6 (`node data/validate-visual.mjs`) |
-| [game/world.html](game/world.html) | **살아있는 지도** — 엔진을 브라우저에서 실시간 틱 구동하는 관찰자 모드 클라 (단일 파일). HTTP 서버로 열 것 |
+| [game/world.html](game/world.html) | **게임 클라이언트** (단일 파일) — 대륙 지도·지역 씬·아바타·행동 발화 UI·연대기·인스펙터. 로컬(브라우저 내 엔진)/원격(`?online`) 겸용 |
+| [game/server.mjs](game/server.mjs) | **월드 서버** (의존성 0) — 결정론 틱 상주, SSE 스냅샷 diff 구독·행동 요청 API·poses 릴레이 (`node HktAdvProtoA/game/server.mjs`) |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |
