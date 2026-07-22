@@ -10,9 +10,24 @@ export function indexVars(state) {
   return m;
 }
 
-// {actor} 치환 — 쌍축 전제·비용·효과를 주체 무관하게 한 번만 정의(§6.1)
-export function subst(name, actor) {
-  return actor ? String(name).replace("{actor}", actor) : String(name);
+// {actor}·{target} 치환 — 쌍축 전제·비용·효과를 주체·대상 무관하게 한 번만 정의(§6.1).
+// {target} 은 행동 발화 요청의 대상 파라미터(Design-MMO §3.3 이동 행동) — {actor} 와 같은 메커니즘.
+export function subst(name, actor, target) {
+  let s = String(name);
+  if (actor) s = s.replace("{actor}", actor);
+  if (target) s = s.replace("{target}", target);
+  return s;
+}
+
+// 멀티 캐릭터 조인 (Design-MMO §3.1) — player 스코프 변수의 캐릭터 인스턴스를 스냅샷에 생성.
+// 캐릭터 id 는 "E_플레이어#이름" — 그래프 노드는 E_플레이어 하나(불변 5), 인스턴스화는 상태층의 일.
+// actor 로 그대로 쓰이므로 {actor} 치환이 캐릭터별 쌍축 키를 만든다. 틱 의미론 무변경.
+export function joinChar(snap, state, charId) {
+  for (const v of state.vars || []) if (v.scope === "player") {
+    const key = v.id.replace("E_플레이어", charId);
+    if (!(key in snap)) snap[key] = v.init;
+  }
+  return charId;
 }
 
 // 초기 스냅샷 — vars 의 init 산출물 + once 발화 기록 내장 상태(§5.3)
@@ -37,15 +52,16 @@ function cmp(a, op, b) {
 }
 
 // 술어 평가 — all/any/not 조합 + 잎 {var, op, value}. value 에 {var:...} 허용(변수 간 비교)
-export function evalPred(pred, snap, actor) {
+export function evalPred(pred, snap, actor, target) {
   if (!pred) return true;
-  if (pred.all) return pred.all.every((p) => evalPred(p, snap, actor));
-  if (pred.any) return pred.any.some((p) => evalPred(p, snap, actor));
-  if (pred.not) return !evalPred(pred.not, snap, actor);
-  const name = subst(pred.var, actor);
+  if (pred.all) return pred.all.every((p) => evalPred(p, snap, actor, target));
+  if (pred.any) return pred.any.some((p) => evalPred(p, snap, actor, target));
+  if (pred.not) return !evalPred(pred.not, snap, actor, target);
+  const name = subst(pred.var, actor, target);
   const lhs = snap[name];
   let rhs = pred.value;
-  if (rhs && typeof rhs === "object" && rhs.var) rhs = snap[subst(rhs.var, actor)];
+  if (rhs && typeof rhs === "object" && rhs.var) rhs = snap[subst(rhs.var, actor, target)];
+  else if (typeof rhs === "string") rhs = subst(rhs, actor, target);
   return cmp(lhs, op(pred), rhs);
 }
 function op(p) { return p.op; }
@@ -155,7 +171,7 @@ export function tick(snap, state, ctx) {
 
   // ⑦ 행동 선택 — 입력 주체(외부) + 정책 주체(NPC)
   const inputs = ctx.inputs?.get(t) || [];
-  for (const inp of inputs) fireAction(inp.actionId, inp.actor, snap, state, ctx, t, fired, true);
+  for (const inp of inputs) fireAction(inp.actionId, inp.actor, snap, state, ctx, t, fired, true, inp.target);
   for (const s of state.subjects || []) {
     if (s.driver !== "policy") continue;
     if ((ctx.busy[s.node] ?? 0) > t) continue; // 진행 중인 행동(duration)이 주체를 점유
@@ -175,28 +191,38 @@ export function tick(snap, state, ctx) {
   return fired;
 }
 
-function affordable(a, snap, actor) {
+function affordable(a, snap, actor, target) {
   for (const c of a.cost || []) {
     if (c.op === "add" && c.value < 0) {
-      const name = subst(c.var, actor);
+      const name = subst(c.var, actor, target);
       if ((snap[name] ?? 0) + c.value < 0) return false;
     }
   }
   return true;
 }
 
-function fireAction(actionId, actor, snap, state, ctx, t, fired, explicit = false) {
+// 효과의 var 와 문자열 value 에 {actor}·{target} 치환 (ref 대입: 위치 = {target})
+function substEffect(e, actor, target) {
+  return { ...e, var: subst(e.var, actor, target), value: typeof e.value === "string" ? subst(e.value, actor, target) : e.value };
+}
+
+function fireAction(actionId, actor, snap, state, ctx, t, fired, explicit = false, target) {
   const a = (state.actions || []).find((x) => x.id === actionId);
   if (!a) { ctx.errors.push(`알 수 없는 행동: ${actionId}`); return; }
   if (a.once && snap[a.id + ".발화됨"]) { if (explicit) fired.skipped.push(`${actionId}@${actor}(이미 발화됨)`); return; }
-  if (!evalPred(a.when, snap, actor) || !affordable(a, snap, actor)) {
+  // {target} 을 쓰는 행동은 target 없이 발화 불가 — 리터럴 대입 방지
+  if (!target && JSON.stringify([a.when, a.cost, a.then]).includes("{target}")) {
+    if (explicit) fired.skipped.push(`${actionId}@${actor}(target 파라미터 누락)`);
+    return;
+  }
+  if (!evalPred(a.when, snap, actor, target) || !affordable(a, snap, actor, target)) {
     if (explicit) fired.skipped.push(`${actionId}@${actor}(전제·비용 미충족)`);
     return;
   }
   // 비용은 즉시 소모
-  applyDelta(snap, ctx.varIdx, (a.cost || []).map((e) => ({ ...e, var: subst(e.var, actor) })), ctx.errors, a.id + ".cost");
+  applyDelta(snap, ctx.varIdx, (a.cost || []).map((e) => substEffect(e, actor, target)), ctx.errors, a.id + ".cost");
   // 효과는 duration 뒤 적용 (0 이면 즉시 예약해 다음 틱 ④ 에서 처리)
-  const eff = (a.then || []).map((e) => ({ ...e, var: subst(e.var, actor) }));
+  const eff = (a.then || []).map((e) => substEffect(e, actor, target));
   const at = t + (a.duration ?? 0);
   if (at === t) applyDelta(snap, ctx.varIdx, eff, ctx.errors, a.id + ".then");
   else ctx.pending.push({ at, effects: eff, label: `${a.id}@${actor}` });

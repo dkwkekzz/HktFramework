@@ -6,7 +6,9 @@
 //   node data/simulate-state.mjs --ticks 60      틱 수 지정
 //   node data/simulate-state.mjs --quiet         변화 요약만
 //   node data/simulate-state.mjs --at 1:ACT_늑대_계약@E_플레이어   특정 틱에 플레이어 행동 주입
-import { buildInitial, recomputeDerived, newCtx, tick, indexVars } from "./state-engine.mjs";
+//   node data/simulate-state.mjs --at 1:ACT_이동@E_플레이어>L_재의숲   target 파라미터 행동 (@주체>대상)
+//   node data/simulate-state.mjs --join alice --at 1:ACT_카르마_수확@E_플레이어#alice   멀티 캐릭터 조인
+import { buildInitial, recomputeDerived, newCtx, tick, indexVars, joinChar } from "./state-engine.mjs";
 import { loadWorld } from "./load-world.mjs";
 
 const argv = process.argv.slice(2);
@@ -28,16 +30,19 @@ for (let i = 0; i < argv.length; i++) if (argv[i] === "--force") {
   if (!varIdx.has(name)) { console.error(`--force: 미선언 var ${name}`); process.exit(1); }
   snap[name] = v;
 }
+// 멀티 캐릭터 조인: --join <이름> (E_플레이어#이름 인스턴스 생성 — Design-MMO §3.1)
+for (let i = 0; i < argv.length; i++) if (argv[i] === "--join") joinChar(snap, state, "E_플레이어#" + argv[i + 1]);
 recomputeDerived(snap, varIdx);
 const ctx = newCtx(state);
 
-// 플레이어 행동 주입: --at <tick>:<actionId>@<actor>
+// 플레이어 행동 주입: --at <tick>:<actionId>@<actor>[><target>]
 for (let i = 0; i < argv.length; i++) if (argv[i] === "--at") {
   const [tickStr, rest] = argv[i + 1].split(":");
-  const [actionId, actor] = rest.split("@");
+  const [actionId, actorTarget] = rest.split("@");
+  const [actor, target] = (actorTarget || "").split(">");
   const t = Number(tickStr);
   if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
-  ctx.inputs.get(t).push({ actionId, actor: actor || "E_플레이어" });
+  ctx.inputs.get(t).push({ actionId, actor: actor || "E_플레이어", target });
 }
 
 // 라벨 붙은 값 출력기
@@ -48,6 +53,7 @@ function show(id) {
   return String(val);
 }
 const TRACK = [
+  "E_플레이어.위치",
   "L_제어탑.가동", "S_강흐름.단계", "L_굶주린평원.생산", "R_식량.공급",
   "F_청동수문회.세력", "EV_강의귀환.단계", "E_늪생명체.서식",
   "L_재의숲.먹이", "E_회색등늑대.개체수", "X_늑대공격.활성",
