@@ -118,6 +118,47 @@
     { "id": "G_늑대복원.완료방식", "owner": "G_늑대복원", "axis": "완료방식", "kind": "ref", "init": null,
       "basis": "G 표준축(완료방식). 재방사/솎기 등 복원 방식 기록" },
 
+    { "id": "G3.2.1.진행", "owner": "G3.2.1", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). 무광의 쐐기 제작 목적 — 진행 시 심연유리 수요를 발생(사건 3 개시)" },
+    { "id": "R_심연유리.공급", "owner": "R_심연유리", "axis": "공급", "kind": "level",
+      "levels": ["고갈", "희소", "보통", "풍부"], "init": 2,
+      "basis": "R 재료 표준축(공급). REL: L_심해 ─제공→ R_심연유리 · F_유리잠수단 ─제공→ R_심연유리(채굴)" },
+    { "id": "R_심연유리.수요", "owner": "R_심연유리", "axis": "수요", "kind": "flag", "derived": true,
+      "formula": { "var": "G3.2.1.진행", "op": "==", "value": 2 },
+      "basis": "파생축(P5 경제) — 신살 무기 제작 진행 중일 때만 수요. 완료(3) 시 수요 소멸. REL: G3.2.1 ─필요→ R_심연유리" },
+    { "id": "R_심연유리.채굴금지", "owner": "R_심연유리", "axis": "채굴금지", "kind": "flag", "init": false,
+      "basis": "상인연합 금지령 상태. REL: G_해안세력_채굴금지 ─방해→ R_심연유리" },
+    { "id": "E_그림자산호.서식", "owner": "E_그림자산호", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). REL: R_심연유리 ─방해→ E_그림자산호(과채굴)" },
+    { "id": "E_유리벌레.서식", "owner": "E_유리벌레", "axis": "서식", "kind": "level",
+      "levels": ["붕괴", "위축", "안정", "번성"], "init": 2,
+      "basis": "E 종 표준축(서식). REL: R_심연유리 ─방해→ E_유리벌레(과채굴)" },
+    { "id": "E_심해포식자.위치", "owner": "E_심해포식자", "axis": "위치", "kind": "ref", "init": "L_심해",
+      "basis": "E 표준축(위치, 이동 시). REL: E_그림자산호 ─상호→ E_심해포식자(산호 붕괴→해안 이동). 변형 카탈로그 #5" },
+    { "id": "L_침몰해안.안전", "owner": "L_침몰해안", "axis": "안전", "kind": "level",
+      "levels": ["위험", "불안", "보통", "안전"], "init": 3,
+      "basis": "L 고유축. REL: E_심해포식자 ─방해→ L_침몰해안(상륙·마을 공격)" },
+    { "id": "EV_심연유리호황.단계", "owner": "EV_심연유리호황", "axis": "단계", "kind": "count", "init": 0,
+      "basis": "EV 표준축(단계). WorldLaws §3 C3-1~6 과 1:1" },
+    { "id": "G_유리잠수단_채굴지속.진행", "owner": "G_유리잠수단_채굴지속", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 채굴 목적 — 수요 활성 시 발견" },
+    { "id": "G_유리잠수단_채굴지속.완료방식", "owner": "G_유리잠수단_채굴지속", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식)" },
+    { "id": "G_해안세력_채굴금지.진행", "owner": "G_해안세력_채굴금지", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 표준축(진행). NPC 대응 목적 — 해안 위험(사슬 6단계)에서 발견" },
+    { "id": "G_해안세력_채굴금지.완료방식", "owner": "G_해안세력_채굴금지", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "G 표준축(완료방식)" },
+    { "id": "F_유리잠수단.보유.R_심연유리", "owner": "F_유리잠수단", "target": "R_심연유리",
+      "axis": "보유", "kind": "count", "init": 0,
+      "basis": "쌍축 보유. 채굴 산출 — 채굴 목적의 완료 판정 축" },
+    { "id": "F_유리잠수단.관계.F_상인연합", "owner": "F_유리잠수단", "target": "F_상인연합",
+      "axis": "관계", "kind": "level", "levels": ["적대", "경계", "중립", "신뢰"], "init": 2,
+      "basis": "쌍축 관계(F 충돌). REL: G_해안세력_채굴금지 ─충돌→ G_유리잠수단_채굴지속 — 전쟁=적대 전락" },
+
     { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
       "axis": "습득", "kind": "flag", "init": false,
       "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
@@ -173,7 +214,9 @@
   "subjects": [
     { "node": "E_플레이어", "driver": "input" },
     { "node": "F_씨앗보존회", "driver": "policy", "policy": ["G1.2.6"] },
-    { "node": "F_청동수문회", "driver": "policy", "policy": ["G_수문회_제어탑파괴"] }
+    { "node": "F_청동수문회", "driver": "policy", "policy": ["G_수문회_제어탑파괴"] },
+    { "node": "F_유리잠수단", "driver": "policy", "policy": ["G_유리잠수단_채굴지속"] },
+    { "node": "F_상인연합", "driver": "policy", "policy": ["G_해안세력_채굴금지"] }
   ],
 
   "rules": [
@@ -344,7 +387,89 @@
         { "var": "S_강흐름.단계", "op": "<=", "value": 1 },
         { "var": "E_늪생명체.서식", "op": "<", "value": 2 }
       ] },
-      "then": [ { "var": "E_늪생명체.서식", "op": "add", "value": 1 } ], "every": 4 }
+      "then": [ { "var": "E_늪생명체.서식", "op": "add", "value": 1 } ], "every": 4 },
+
+    { "id": "C3_1", "basis": "EV: EV_심연유리호황 단계 1 (WorldLaws C3-1) — 신성 방어 수요 활성",
+      "when": { "all": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 0 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 1 } ], "once": true },
+
+    { "id": "C3_2", "basis": "EV: EV_심연유리호황 단계 2 (WorldLaws C3-2) — 잠수단 채굴로 공급 하락(P5 경제)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 1 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 1 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 2 } ], "once": true },
+
+    { "id": "LAW_E01", "basis": "REL: R_심연유리 ─방해→ E_그림자산호·E_유리벌레 (과채굴이 심해 생태 붕괴). P3 생태",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 1 }
+      ] },
+      "then": [
+        { "var": "E_그림자산호.서식", "op": "add", "value": -1 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": -1 }
+      ], "every": 3 },
+
+    { "id": "C3_3", "basis": "EV: EV_심연유리호황 단계 3 (WorldLaws C3-3) — 그림자 산호 붕괴",
+      "when": { "all": [
+        { "var": "E_그림자산호.서식", "op": "<=", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 2 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 3 } ], "once": true },
+
+    { "id": "LAW_E02", "basis": "REL: E_그림자산호 ─상호→ E_심해포식자 (산호 붕괴 → 포식자 해안 이동). 변형 카탈로그 #5 개체 이동",
+      "when": { "all": [
+        { "var": "E_그림자산호.서식", "op": "<=", "value": 0 }
+      ] },
+      "then": [ { "var": "E_심해포식자.위치", "op": "set", "value": "L_침몰해안" } ], "once": true },
+
+    { "id": "C3_4", "basis": "EV: EV_심연유리호황 단계 4 (WorldLaws C3-4) — 심해 포식자 상륙",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 3 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 4 } ], "once": true },
+
+    { "id": "LAW_E03", "basis": "REL: E_심해포식자 ─방해→ L_침몰해안 (해안 상륙·마을 공격). P2 압력",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "L_침몰해안.안전", "op": ">", "value": 0 }
+      ] },
+      "then": [ { "var": "L_침몰해안.안전", "op": "add", "value": -1 } ], "every": 3 },
+
+    { "id": "C3_5", "basis": "EV: EV_심연유리호황 단계 5 (WorldLaws C3-5) — 해안 도시 공격",
+      "when": { "all": [
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 4 }
+      ] },
+      "then": [ { "var": "EV_심연유리호황.단계", "op": "set", "value": 5 } ], "once": true },
+
+    { "id": "C3_6", "basis": "EV: EV_심연유리호황 단계 6 (WorldLaws C3-6) — 채굴 금지 목적 발견 + 세력 전쟁(LAW-R08 충돌)",
+      "when": { "all": [
+        { "var": "EV_심연유리호황.단계", "op": "==", "value": 5 }
+      ] },
+      "then": [
+        { "var": "F_유리잠수단.관계.F_상인연합", "op": "set", "value": 0 },
+        { "var": "EV_심연유리호황.단계", "op": "set", "value": 6 }
+      ], "once": true },
+
+    { "id": "LAW_B_산호회복", "basis": "균형 — 채굴 압력이 줄면(공급 회복) 산호·유리벌레 서식 회복. LAW_E01 의 회복 짝(§6)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": ">=", "value": 2 },
+        { "var": "E_그림자산호.서식", "op": "<", "value": 3 }
+      ] },
+      "then": [
+        { "var": "E_그림자산호.서식", "op": "add", "value": 1 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": 1 }
+      ], "every": 5 },
+
+    { "id": "LAW_B_유리재생", "basis": "균형 — 심해 광맥의 느린 재생. 채굴 소모의 회복 짝(§6, 트리 §7.3 생성 주기)",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "R_심연유리.공급", "op": "add", "value": 1 } ], "every": 8 }
   ],
 
   "actions": [
@@ -459,7 +584,57 @@
       "then": [
         { "var": "E_초식동물.개체수", "op": "add", "value": -8 },
         { "var": "G_늑대복원.완료방식", "op": "set", "value": "ACT_초식동물_솎기" }
-      ], "duration": 2, "once": true }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_심연유리채굴", "objective": "G_유리잠수단_채굴지속",
+      "actor_type": ["F_유리잠수단"],
+      "basis": "REL: F_유리잠수단 ─제공→ R_심연유리(채굴). P5 경제 — 수요 활성 시 반복 채굴, 공급 소모",
+      "when": { "all": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true },
+        { "var": "R_심연유리.공급", "op": ">", "value": 0 },
+        { "var": "R_심연유리.채굴금지", "op": "==", "value": false }
+      ] },
+      "then": [
+        { "var": "R_심연유리.공급", "op": "add", "value": -1 },
+        { "var": "F_유리잠수단.보유.R_심연유리", "op": "add", "value": 1 },
+        { "var": "G_유리잠수단_채굴지속.완료방식", "op": "set", "value": "ACT_심연유리채굴" }
+      ], "duration": 2, "once": false },
+
+    { "id": "ACT_심해_신광맥개척", "objective": "G_유리잠수단_채굴지속",
+      "actor_type": ["F_유리잠수단"],
+      "basis": "G_유리잠수단_채굴지속 detail '더 깊은 신광맥 개척' — 금지령에도 심층 채굴, 유리벌레 서식 교란",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": "<=", "value": 0 }
+      ] },
+      "then": [
+        { "var": "F_유리잠수단.보유.R_심연유리", "op": "add", "value": 2 },
+        { "var": "E_유리벌레.서식", "op": "add", "value": -1 },
+        { "var": "G_유리잠수단_채굴지속.완료방식", "op": "set", "value": "ACT_심해_신광맥개척" }
+      ], "duration": 3, "once": true },
+
+    { "id": "ACT_채굴금지령", "objective": "G_해안세력_채굴금지",
+      "actor_type": ["F_상인연합"],
+      "basis": "G_해안세력_채굴금지 detail '채굴 금지령 선포' · REL: G_해안세력_채굴금지 ─방해→ R_심연유리",
+      "when": { "all": [
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 1 },
+        { "var": "R_심연유리.채굴금지", "op": "==", "value": false }
+      ] },
+      "then": [
+        { "var": "R_심연유리.채굴금지", "op": "set", "value": true },
+        { "var": "G_해안세력_채굴금지.완료방식", "op": "set", "value": "ACT_채굴금지령" }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_해안_방어", "objective": "G_해안세력_채굴금지",
+      "actor_type": ["F_상인연합"],
+      "basis": "G_해안세력_채굴금지 detail '해안 방어 강화' — 상륙한 포식자로부터 해안 안전 회복(LAW_E03 회복 짝)",
+      "when": { "all": [
+        { "var": "E_심해포식자.위치", "op": "==", "value": "L_침몰해안" },
+        { "var": "L_침몰해안.안전", "op": "<", "value": 2 }
+      ] },
+      "then": [
+        { "var": "L_침몰해안.안전", "op": "add", "value": 1 },
+        { "var": "G_해안세력_채굴금지.완료방식", "op": "set", "value": "ACT_해안_방어" }
+      ], "duration": 2, "once": false }
   ],
 
   "objectives": [
@@ -507,6 +682,25 @@
         { "var": "E_초식동물.개체수", "op": "<=", "value": 10 },
         { "var": "L_재의숲.식생", "op": ">=", "value": 2 }
       ] },
-      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] }
+      "on_complete": [ { "var": "E_회색등늑대.서식", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G_유리잠수단_채굴지속", "goal": "G_유리잠수단_채굴지속",
+      "basis": "NPC 채굴 목적(사건 3 엔진). 수요 활성 시 발견 → §8 정책이 반복 채굴. 완료=충분 비축(상태 술어)",
+      "discover": { "any": [
+        { "var": "R_심연유리.수요", "op": "==", "value": true }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "F_유리잠수단.보유.R_심연유리", "op": ">=", "value": 5 },
+      "on_complete": [ { "var": "G3.2.1.진행", "op": "set", "value": 3 } ] },
+
+    { "id": "OBJ_G_해안세력_채굴금지", "goal": "G_해안세력_채굴금지",
+      "basis": "NPC 대응 목적. 해안 위험/사슬 6단계에서 발견되어 §8 정책이 실행(충돌의 실행부). 완료=해안 안전 회복",
+      "discover": { "any": [
+        { "var": "EV_심연유리호황.단계", "op": ">=", "value": 6 },
+        { "var": "L_침몰해안.안전", "op": "<=", "value": 1 }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "L_침몰해안.안전", "op": ">=", "value": 2 },
+      "on_complete": [ { "var": "F_유리잠수단.관계.F_상인연합", "op": "set", "value": 1 } ] }
   ]
 }
