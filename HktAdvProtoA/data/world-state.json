@@ -200,31 +200,40 @@
     { "id": "G_인공백야초재배.완료방식", "owner": "G_인공백야초재배", "axis": "완료방식", "kind": "ref", "init": null,
       "basis": "G 표준축(완료방식)" },
 
-    { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록",
+    { "id": "E_플레이어.습득.K_관개시설기록", "owner": "E_플레이어", "target": "K_관개시설기록", "scope": "player",
       "axis": "습득", "kind": "flag", "init": false,
       "basis": "쌍축 습득. 그래프: G1.2.6 ─필요→ K_관개시설기록 — ACT_제어탑_복구 전제" },
-    { "id": "E_플레이어.보유.R_재생섬유", "owner": "E_플레이어", "target": "R_재생섬유",
+    { "id": "E_플레이어.보유.R_재생섬유", "owner": "E_플레이어", "target": "R_재생섬유", "scope": "player",
       "axis": "보유", "kind": "count", "init": 0,
       "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_재생섬유 — ACT_제어탑_복구 비용" },
-    { "id": "E_플레이어.보유.R_수분핵", "owner": "E_플레이어", "target": "R_수분핵",
+    { "id": "E_플레이어.보유.R_수분핵", "owner": "E_플레이어", "target": "R_수분핵", "scope": "player",
       "axis": "보유", "kind": "count", "init": 0,
       "basis": "쌍축 보유. 그래프: E_카르마 ─제공→ R_수분핵 — ACT_카르마_길들임 비용" },
-    { "id": "E_플레이어.감염.X_검은태양병", "owner": "E_플레이어", "target": "X_검은태양병",
+    { "id": "E_플레이어.감염.X_검은태양병", "owner": "E_플레이어", "target": "X_검은태양병", "scope": "player",
       "axis": "감염", "kind": "level", "levels": ["비감염", "초기", "중기", "후기"], "init": 0,
       "basis": "쌍축 감염(개체별 진행). X_검은태양병 detail 진행 단계(§2.1)" },
-    { "id": "E_플레이어.계약.E_회색등늑대", "owner": "E_플레이어", "target": "E_회색등늑대",
+    { "id": "E_플레이어.계약.E_회색등늑대", "owner": "E_플레이어", "target": "E_회색등늑대", "scope": "player",
       "axis": "계약", "kind": "flag", "init": false,
       "basis": "쌍축 계약. 그래프: G6.2 ─제공→ E_회색등늑대 — 계약이 X_늑대공격 파생을 끈다" },
-    { "id": "E_플레이어.위치", "owner": "E_플레이어",
+    { "id": "E_플레이어.위치", "owner": "E_플레이어", "scope": "player",
       "axis": "위치", "kind": "ref", "init": "L_지열도시",
       "basis": "Design-MMO §3.3 — 아바타의 지역 단위 위치는 세계 변수다(지역 내 픽셀은 표현 로컬). 지역 씬 진입·현장 목격·'현장에 있어야 한다' 전제의 앵커. 초기 위치는 정주지 지열 도시" },
+    { "id": "L_제어탑.복구진척", "owner": "L_제어탑",
+      "axis": "복구진척", "kind": "count", "init": 0,
+      "basis": "Design-MMO §4.1 기여 축적(P8) — 세계 전환(가동)의 임계 축. 플레이어·보존회의 ACT_제어탑_복구기여 가 민다 (world 스코프 공유 진척)" },
+    { "id": "E_플레이어.기여.EV_강의귀환", "owner": "E_플레이어", "target": "EV_강의귀환", "scope": "player",
+      "axis": "기여", "kind": "count", "init": 0,
+      "basis": "Design-MMO §4.2 개인 인정 — world 사건에 대한 캐릭터별 기여 기록. 개인 보상 판정의 앵커" },
+    { "id": "F_씨앗보존회.기여.EV_강의귀환", "owner": "F_씨앗보존회", "target": "EV_강의귀환",
+      "axis": "기여", "kind": "count", "init": 0,
+      "basis": "Design-MMO §4.1 — NPC 도 같은 기여 축을 민다 (무입력 자율 재생 유지, 검증 14)" },
 
     { "id": "F_씨앗보존회.습득.K_관개시설기록", "owner": "F_씨앗보존회", "target": "K_관개시설기록",
       "axis": "습득", "kind": "flag", "init": true,
       "basis": "쌍축 습득. 씨앗보존회는 관개 기록 보유 세력 — NPC 강복구의 전제(§8)" },
     { "id": "F_씨앗보존회.보유.R_재생섬유", "owner": "F_씨앗보존회", "target": "R_재생섬유",
       "axis": "보유", "kind": "count", "init": 5,
-      "basis": "쌍축 보유. NPC 가 ACT_제어탑_복구 를 무입력으로 발화하기 위한 비용 재고(검증 14)" },
+      "basis": "쌍축 보유. NPC 가 ACT_제어탑_복구기여 를 무입력으로 발화하기 위한 비용 재고(검증 14)" },
 
     { "id": "X_늑대공격.활성", "owner": "X_늑대공격", "axis": "활성", "kind": "flag", "derived": true,
       "formula": { "all": [
@@ -307,6 +316,15 @@
   ],
 
   "rules": [
+    { "id": "RULE_제어탑_가동",
+      "basis": "Design-MMO §4.1 기여 임계 법칙(P8) — 복구진척이 임계에 닿으면 세계가 전환된다. 사슬(RULE_강귀환_1)은 가동만 보므로 무변경",
+      "when": { "all": [
+        { "var": "L_제어탑.복구진척", "op": ">=", "value": 3 },
+        { "var": "L_제어탑.가동", "op": "==", "value": false }
+      ] },
+      "then": [ { "var": "L_제어탑.가동", "op": "set", "value": true } ],
+      "once": true },
+
     { "id": "RULE_강귀환_1", "basis": "EV_강의귀환 1단계 · 그래프: L_제어탑 ─변화→ S_강흐름",
       "when": { "all": [
         { "var": "L_제어탑.가동", "op": "==", "value": true },
@@ -798,19 +816,20 @@
   ],
 
   "actions": [
-    { "id": "ACT_제어탑_복구", "objective": "G1.2.6",
+    { "id": "ACT_제어탑_복구기여", "objective": "G1.2.6",
       "actor_type": ["E_플레이어", "F_씨앗보존회"],
-      "basis": "그래프: G1.2.6 ─필요→ K_관개시설기록·L_제어탑 · EV_강의귀환 1단계",
+      "basis": "그래프: G1.2.6 ─필요→ K_관개시설기록·L_제어탑 · EV_강의귀환 1단계 · Design-MMO §4.1 기여 축적(P8) — 세계 전환의 주어를 개인의 once 행동에서 집단 기여의 임계 법칙(RULE_제어탑_가동)으로 옮긴다. 반복 발화 가능 — N 명이 같은 진척을 민다",
       "when": { "all": [
         { "var": "{actor}.습득.K_관개시설기록", "op": "==", "value": true },
         { "var": "L_제어탑.발견", "op": "==", "value": true },
         { "var": "L_제어탑.가동", "op": "==", "value": false }
       ] },
-      "cost": [ { "var": "{actor}.보유.R_재생섬유", "op": "add", "value": -3 } ],
+      "cost": [ { "var": "{actor}.보유.R_재생섬유", "op": "add", "value": -1 } ],
       "then": [
-        { "var": "L_제어탑.가동", "op": "set", "value": true },
-        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_제어탑_복구" }
-      ], "duration": 5, "once": true },
+        { "var": "L_제어탑.복구진척", "op": "add", "value": 1 },
+        { "var": "{actor}.기여.EV_강의귀환", "op": "add", "value": 1 },
+        { "var": "G1.2.6.완료방식", "op": "set", "value": "ACT_제어탑_복구기여" }
+      ], "duration": 2 },
 
     { "id": "ACT_카르마_길들임", "objective": "G1.2.6",
       "actor_type": ["E_플레이어"],
@@ -1132,7 +1151,7 @@
       ] },
       "then": [
         { "var": "{actor}.습득.K_관개시설기록", "op": "set", "value": true }
-      ], "duration": 1, "once": true },
+      ], "duration": 1 },
 
     { "id": "ACT_카르마_수확", "objective": "G1.2.6",
       "actor_type": ["E_플레이어"],

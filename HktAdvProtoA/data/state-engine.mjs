@@ -19,6 +19,17 @@ export function subst(name, actor, target) {
   return s;
 }
 
+// 멀티 캐릭터 조인 (Design-MMO §3.1) — player 스코프 변수의 캐릭터 인스턴스를 스냅샷에 생성.
+// 캐릭터 id 는 "E_플레이어#이름" — 그래프 노드는 E_플레이어 하나(불변 5), 인스턴스화는 상태층의 일.
+// actor 로 그대로 쓰이므로 {actor} 치환이 캐릭터별 쌍축 키를 만든다. 틱 의미론 무변경.
+export function joinChar(snap, state, charId) {
+  for (const v of state.vars || []) if (v.scope === "player") {
+    const key = v.id.replace("E_플레이어", charId);
+    if (!(key in snap)) snap[key] = v.init;
+  }
+  return charId;
+}
+
 // 초기 스냅샷 — vars 의 init 산출물 + once 발화 기록 내장 상태(§5.3)
 export function buildInitial(state) {
   const snap = {};

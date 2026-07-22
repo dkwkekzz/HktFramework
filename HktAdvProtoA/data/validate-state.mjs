@@ -188,6 +188,20 @@ for (const src of [...(state.actions || []), ...(state.objectives || [])])
 for (const [v, rs] of negAdd)
   if (!recover.has(v)) warnings.push(`법칙검증5 경고(§6 회복 짝 없음): ${v} 를 깎는 법칙(${rs.join(",")})의 회복(양수 add·복원 set)이 없음 — 단조 붕괴 위험. 의도된 비가역이면 규칙에 monotonic:true 표기`);
 
+// ── MMO 검증 M1·M2 (Design-MMO §12)
+// M1: E_플레이어 소유 변수는 전부 scope: player — 캐릭터별 인스턴스화 대상 누락 금지
+for (const v of state.vars) if (v.owner === "E_플레이어" && v.scope !== "player")
+  errors.push(`검증M1 위반: ${v.id} 는 E_플레이어 소유인데 scope: player 가 아니다`);
+// M2: world 목적(complete 가 world 축만 읽는 목적)의 complete/fail 이 player 변수를 참조하지 않는다
+const playerVars = new Set(state.vars.filter((v) => v.scope === "player").map((v) => v.id));
+for (const o of state.objectives || []) {
+  for (const key of ["complete", "fail"]) {
+    const refs = new Set(); collectRefs(o[key], refs);
+    for (const nm of refs) if (playerVars.has(nm))
+      errors.push(`검증M2 위반: ${o.id}.${key} 가 player 스코프 변수 ${nm} 를 읽는다 (world 목적은 world 축만)`);
+  }
+}
+
 // ── 검증 13: 행동 없이 법칙·시계만으로 상태가 변하는 경로가 존재 (무입력 시뮬로 실증)
 {
   const snap = buildInitial(state);

@@ -7,7 +7,8 @@
 //   node data/simulate-state.mjs --quiet         변화 요약만
 //   node data/simulate-state.mjs --at 1:ACT_늑대_계약@E_플레이어   특정 틱에 플레이어 행동 주입
 //   node data/simulate-state.mjs --at 1:ACT_이동@E_플레이어>L_재의숲   target 파라미터 행동 (@주체>대상)
-import { buildInitial, recomputeDerived, newCtx, tick, indexVars } from "./state-engine.mjs";
+//   node data/simulate-state.mjs --join alice --at 1:ACT_카르마_수확@E_플레이어#alice   멀티 캐릭터 조인
+import { buildInitial, recomputeDerived, newCtx, tick, indexVars, joinChar } from "./state-engine.mjs";
 import { loadWorld } from "./load-world.mjs";
 
 const argv = process.argv.slice(2);
@@ -29,6 +30,8 @@ for (let i = 0; i < argv.length; i++) if (argv[i] === "--force") {
   if (!varIdx.has(name)) { console.error(`--force: 미선언 var ${name}`); process.exit(1); }
   snap[name] = v;
 }
+// 멀티 캐릭터 조인: --join <이름> (E_플레이어#이름 인스턴스 생성 — Design-MMO §3.1)
+for (let i = 0; i < argv.length; i++) if (argv[i] === "--join") joinChar(snap, state, "E_플레이어#" + argv[i + 1]);
 recomputeDerived(snap, varIdx);
 const ctx = newCtx(state);
 
