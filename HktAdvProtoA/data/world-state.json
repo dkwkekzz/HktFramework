@@ -235,7 +235,26 @@
         { "var": "S_영원한겨울.활성", "op": "==", "value": true },
         { "var": "S_과잉별빛.활성", "op": "==", "value": true }
       ] },
-      "basis": "파생 집계 — 하위 전역 상태들의 OR. 이중 관리 방지(§2.1 (b))" }
+      "basis": "파생 집계 — 하위 전역 상태들의 OR. 이중 관리 방지(§2.1 (b))" },
+
+    { "id": "G2.5.3.진행", "owner": "G2.5.3", "axis": "진행", "kind": "level",
+      "levels": ["숨김", "발견", "진행", "완료", "실패"], "init": 0,
+      "basis": "G 생애주기 진행 축(§7). 아르카론 처리 6방식 보스전. DET: G2.5.3.완료 결과" },
+    { "id": "G2.5.3.완료방식", "owner": "G2.5.3", "axis": "완료방식", "kind": "ref", "init": null,
+      "basis": "완료방식 분기 축(§6.2) — 방식 행동이 자기 id 를 기록, 방식별 후속 법칙이 전제로 읽는다. DET: G2.5.3.해결 방법" },
+    { "id": "R_무광의쐐기.존재", "owner": "R_무광의쐐기", "axis": "존재", "kind": "flag", "init": false,
+      "basis": "제작물 존재 여부(§4 카탈로그 #10) — 미제작 시작, 제작 행동(G3.2.1)으로만 존재. DET: R_무광의쐐기.존재" },
+    { "id": "E_아르카론.잠식", "owner": "E_아르카론", "axis": "잠식", "kind": "flag", "init": true,
+      "basis": "아르카론이 세계를 잠식 중인가 — P1 유지 법칙(U01~03)의 게이트. 처리 방식이 해제. DET: E_아르카론.현재" },
+    { "id": "E_아르카론.재생", "owner": "E_아르카론", "axis": "재생", "kind": "level",
+      "levels": ["정지", "감소", "보통"], "init": 2,
+      "basis": "재생력 — 일식 중 감소(약점). CLOCK_일식 이 구동, 파괴 방식의 전제. DET: E_아르카론.약점" },
+    { "id": "E_아르카론.휴면", "owner": "E_아르카론", "axis": "휴면", "kind": "flag", "init": false,
+      "basis": "별빛 차단 휴면 방식의 결과 — 잠식은 멎되 위협은 잠복(§6.2). DET: G2.5.3.해결 방법" },
+    { "id": "E_아르카론.지배됨", "owner": "E_아르카론", "axis": "지배됨", "kind": "flag", "init": false,
+      "basis": "지배 방식의 결과 — 심장 각인 장악(§6.2). 정신 오염 후속 법칙의 전제. DET: G2.5.3.해결 방법" },
+    { "id": "E_아르카론.공생", "owner": "E_아르카론", "axis": "공생", "kind": "flag", "init": false,
+      "basis": "대체 에너지 공급 방식의 결과 — 잠식 없는 공존(§6.2). DET: G2.5.3.해결 방법" }
   ],
 
   "clocks": [
@@ -243,9 +262,13 @@
       "period": 600, "duty": 20,
       "then_on": [
         { "var": "S_일식.활성", "op": "set", "value": true },
-        { "var": "S_일식.누적횟수", "op": "add", "value": 1 }
+        { "var": "S_일식.누적횟수", "op": "add", "value": 1 },
+        { "var": "E_아르카론.재생", "op": "set", "value": 1 }
       ],
-      "then_off": [ { "var": "S_일식.활성", "op": "set", "value": false } ] },
+      "then_off": [
+        { "var": "S_일식.활성", "op": "set", "value": false },
+        { "var": "E_아르카론.재생", "op": "set", "value": 2 }
+      ] },
     { "id": "CLOCK_별빛폭풍", "basis": "§5.4 주기 발생 위협. 뇌철 결정 안정 시한의 전제",
       "period": 300, "duty": 30,
       "then_on": [ { "var": "X_별빛폭풍.활성", "op": "set", "value": true } ],
@@ -512,15 +535,17 @@
       ] },
       "then": [ { "var": "R_심연유리.공급", "op": "add", "value": 1 } ], "every": 8 },
 
-    { "id": "LAW_U01", "basis": "P1 유지 법칙 — 아르카론 생존이 영원한 겨울을 지탱(하한 유지). REL: E_아르카론 ─변화→ S_영원한겨울. 해제는 사슬 5(생존==false)가 담당",
+    { "id": "LAW_U01", "basis": "P1 유지 법칙 — 아르카론 생존·잠식이 영원한 겨울을 지탱(하한 유지). REL: E_아르카론 ─변화→ S_영원한겨울. 해제는 사슬 5(생존==false) 또는 처리 방식(잠식==false)",
       "when": { "all": [
-        { "var": "E_아르카론.생존", "op": "==", "value": true }
+        { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
       ] },
       "then": [ { "var": "S_영원한겨울.활성", "op": "set", "value": true } ], "every": 5 },
 
-    { "id": "LAW_U02", "basis": "P1 유지 법칙 — 아르카론 생존이 과잉 별빛을 지탱. REL: E_아르카론 ─변화→ S_과잉별빛. 해제=폭발(사슬 5)",
+    { "id": "LAW_U02", "basis": "P1 유지 법칙 — 아르카론 생존·잠식이 과잉 별빛을 지탱. REL: E_아르카론 ─변화→ S_과잉별빛. 해제=폭발(사슬 5) 또는 처리 방식(잠식==false)",
       "when": { "all": [
-        { "var": "E_아르카론.생존", "op": "==", "value": true }
+        { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
       ] },
       "then": [ { "var": "S_과잉별빛.활성", "op": "set", "value": true } ], "every": 5 },
 
@@ -627,6 +652,7 @@
     { "id": "LAW_U03", "basis": "P1 유지 법칙 — 아르카론 생존이 검은 태양병 강도 하한 1 을 유지. REL: E_아르카론 ─변화→ X_검은태양병. 해제=사망(C5_2)",
       "when": { "all": [
         { "var": "E_아르카론.생존", "op": "==", "value": true },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true },
         { "var": "X_검은태양병.강도", "op": "<", "value": 1 }
       ] },
       "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "every": 4 },
@@ -734,7 +760,14 @@
         { "var": "E_설원곤충.개체수", "op": ">=", "value": 15 },
         { "var": "EV_백야혈청공개.단계", "op": "==", "value": 6 }
       ] },
-      "then": [ { "var": "E_남하조류.위치", "op": "set", "value": "L_북방빙원" } ], "once": true }
+      "then": [ { "var": "E_남하조류.위치", "op": "set", "value": "L_북방빙원" } ], "once": true },
+
+    { "id": "LAW_M_지배오염", "basis": "§6.2 완료방식 분기 — 지배 방식은 아르카론 정신 오염이 지속돼 검은 태양병 강도가 오른다(완료방식 전제 후속 법칙). DET: G2.5.3.완료 결과",
+      "when": { "all": [
+        { "var": "G2.5.3.완료방식", "op": "==", "value": "ACT_아르카론_지배" },
+        { "var": "X_검은태양병.강도", "op": "<", "value": 3 }
+      ] },
+      "then": [ { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "every": 6 }
   ],
 
   "actions": [
@@ -921,7 +954,95 @@
       "then": [
         { "var": "L_굶주린평원.해충", "op": "add", "value": -2 },
         { "var": "G_인공백야초재배.완료방식", "op": "set", "value": "ACT_해충_방제" }
-      ], "duration": 2, "once": true }
+      ], "duration": 2, "once": true },
+
+    { "id": "ACT_아르카론_파괴", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ①파괴 — 무광의쐐기로 일식 중(재생 감소) 심장핵 파괴 → 사건 5 사슬. DET: G2.5.3.해결 방법 · R_무광의쐐기.용도",
+      "when": { "all": [
+        { "var": "R_무광의쐐기.존재", "op": "==", "value": true },
+        { "var": "E_아르카론.재생", "op": "<=", "value": 1 },
+        { "var": "E_아르카론.심장핵", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.심장핵", "op": "set", "value": false },
+        { "var": "R_무광의쐐기.존재", "op": "set", "value": false },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_아르카론_파괴" }
+      ], "once": true },
+
+    { "id": "ACT_별빛차단_휴면", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ②별빛 차단 휴면 — 심연유리 풍부로 별빛을 차단해 재움. 생존 유지·잠식 정지·위협 잠복. DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "R_심연유리.공급", "op": ">=", "value": 3 },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.잠식", "op": "set", "value": false },
+        { "var": "E_아르카론.휴면", "op": "set", "value": true },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_별빛차단_휴면" }
+      ], "once": true },
+
+    { "id": "ACT_인공태양_복구", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ③인공 태양 복구 — 정체 규명 + 심연유리로 인공 태양을 재건해 잠식을 대체. DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": true },
+        { "var": "R_심연유리.공급", "op": ">=", "value": 2 },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.잠식", "op": "set", "value": false },
+        { "var": "S_과잉별빛.활성", "op": "set", "value": false },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_인공태양_복구" }
+      ], "once": true },
+
+    { "id": "ACT_차원추방", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ④차원 추방 — 세 번째 일식 + 무광의쐐기로 아르카론을 세계 밖으로 추방(심장핵 소멸 → 사건 5). DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "S_일식.누적횟수", "op": ">=", "value": 3 },
+        { "var": "R_무광의쐐기.존재", "op": "==", "value": true },
+        { "var": "E_아르카론.심장핵", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.심장핵", "op": "set", "value": false },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_차원추방" }
+      ], "once": true },
+
+    { "id": "ACT_대체에너지_계약", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ⑤대체 에너지 공급 — 정체 규명 + 일식 관측으로 대체 에너지원을 확보해 공존(잠식 없는 공생). DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": true },
+        { "var": "S_일식.누적횟수", "op": ">=", "value": 1 },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.잠식", "op": "set", "value": false },
+        { "var": "E_아르카론.공생", "op": "set", "value": true },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_대체에너지_계약" }
+      ], "once": true },
+
+    { "id": "ACT_의식분리", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ⑥의식 분리 — 정체(최초 결합 의식 진실) + 무광의쐐기로 융합 인격을 분리해 코어를 무너뜨린다(평화적 제거 → 사건 5). DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": true },
+        { "var": "R_무광의쐐기.존재", "op": "==", "value": true },
+        { "var": "E_아르카론.심장핵", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.심장핵", "op": "set", "value": false },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_의식분리" }
+      ], "once": true },
+
+    { "id": "ACT_아르카론_지배", "objective": "G2.5.3", "actor_type": ["E_플레이어"],
+      "basis": "§6.2 처리 방식 ⑦지배 — 무광의쐐기 + 세 번째 일식으로 심장 각인을 장악한다. 잠식은 멎되 정신 오염이 지속(LAW_M_지배오염). DET: G2.5.3.해결 방법",
+      "when": { "all": [
+        { "var": "R_무광의쐐기.존재", "op": "==", "value": true },
+        { "var": "S_일식.누적횟수", "op": ">=", "value": 3 },
+        { "var": "E_아르카론.잠식", "op": "==", "value": true }
+      ] },
+      "then": [
+        { "var": "E_아르카론.잠식", "op": "set", "value": false },
+        { "var": "E_아르카론.지배됨", "op": "set", "value": true },
+        { "var": "G2.5.3.완료방식", "op": "set", "value": "ACT_아르카론_지배" }
+      ], "once": true }
   ],
 
   "objectives": [
@@ -1001,6 +1122,16 @@
         { "var": "E_백야초.군락", "op": ">=", "value": 2 },
         { "var": "L_굶주린평원.해충", "op": "<=", "value": 1 }
       ] },
-      "on_complete": [ { "var": "R_백야혈청.공개", "op": "set", "value": 2 } ] }
+      "on_complete": [ { "var": "R_백야혈청.공개", "op": "set", "value": 2 } ] },
+
+    { "id": "OBJ_G2.5.3", "goal": "G2.5.3",
+      "basis": "목적 '아르카론 영향 제거'(§6.2 보스전). 완료=한 처리 방식이 실행돼 완료방식이 기록됨 — 파괴·휴면·복구·추방·계약·의식분리·지배 어느 경로든 상태로 판정. 방식별 세계 변화는 완료방식 전제 후속 법칙(LAW_M_지배오염 등)",
+      "discover": { "any": [
+        { "var": "G2.5.3.진행", "op": ">=", "value": 1 },
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": true }
+      ] },
+      "activate": "auto",
+      "complete": { "var": "G2.5.3.완료방식", "op": "!=", "value": null },
+      "on_complete": [ { "var": "E_아르카론.잠식", "op": "set", "value": false } ] }
   ]
 }
