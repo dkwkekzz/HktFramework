@@ -30,7 +30,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [Design-ObjectiveTree.md](Design-ObjectiveTree.md) | 목적 트리 구축 **방법론** — 원칙·절차·검증 |
 | [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md) | **상흔계 아벨리온** 목적 그래프 정본 (세계 시드·타입 표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선 |
 | [Design-WorldState.md](Design-WorldState.md) | 세계 상태(속성) 데이터화 **설계** — 다섯 층 모델(변수·스냅샷·법칙·행동·목적), 축 문법, 틱 의미론 |
-| [Design-MMO.md](Design-MMO.md) | **MMORPG 적용 설계** — 보존 불변 5·2계층 아키텍처(World Director/Zone)·스코프 3종(world/player/faction)·기여 축적 패턴(P8)·경합 창·지속성·하향 번역 표·로드맵 5단계·검증 M1~M6 |
+| [Design-MMO.md](Design-MMO.md) | **MMORPG 웹 프로토타입 설계 (세계 표현 우선)** — 표현=상태의 순수 함수(불변 6·7), 2단 공간 모델(대륙 지도+지역 씬), 표현 번역 사전(world-visual)·world-map, 법칙 가시화(연대기·발화 연출·인스펙터), 행동 발화 UX, 검증 V1~V6, 로드맵 4단계(멀티는 4단계 예약) |
 | [Design-WorldLaws.md](Design-WorldLaws.md) | 세계 법칙 **설계** — 현상 세 서식지(관계·detail·사슬)의 전수 번역(패턴 7종·자율 법칙 42·사슬 5종 완역·NPC 정책·균형 법칙) + **노드→법칙 번역 절차·완료 체크리스트**(§9·§10, 새 세션은 이 절차로 작업) |
 | [data/objective-graph.json](data/objective-graph.json) | 목적 그래프 **유일한 원본 데이터** (타입 노드 G/S/E/R/L/K/T/F/H/X/EV + 타입 관계). 편집은 여기 한 곳 |
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
