@@ -9,9 +9,9 @@
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
-**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **1단계 '살아있는 지도' + 2단계 '지역 씬·아바타' 완료**: `game/world.html`(단일 파일 클라, 엔진을 브라우저 실시간 틱 구동 — 대륙 지도·지역 씬·아바타 이동·연대기·인스펙터·디버그 방아쇠) + `data/world-map.json`(지역 16·RIVER) + `data/world-visual.json`(변수 전수 표현 사전·연대기·fx) + `data/validate-visual.mjs`(V1~V4·V6 통과). 상태층에 `E_플레이어.위치`(ref)·`ACT_이동`({target} 파라미터 — 엔진 치환 확장, 틱 의미론 무변경). 걸어서 지역 순회·현장 목격(토스트) 실증. 실행: 저장소 루트 `python3 -m http.server` → `/HktAdvProtoA/game/world.html`.
+**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **1~3단계 완료** (살아있는 지도 → 지역 씬·아바타 → 개입): `game/world.html`(단일 파일 클라 — 대륙 지도·지역 씬·아바타 이동·**행동 발화 UI(전제 미충족 안내=퀘스트 안내)·NPC 정책 행동 무대 연출**·연대기·인스펙터·개인 HUD·디버그 방아쇠·정책 토글) + `data/world-map.json` + `data/world-visual.json`(변수·행동 무대 전수 사전) + `data/validate-visual.mjs`(V1~V4·V6·**V7** 통과). 상태층: `E_플레이어.위치`·`ACT_이동`({target})·`ACT_관개기록_해독`·`ACT_카르마_수확`. **'강의 귀환'을 플레이어 손으로 완주**(해독→수확→복구→수문회 반격 목격) 실증. 실행: 저장소 루트 `python3 -m http.server` → `/HktAdvProtoA/game/world.html`.
 
-- `data/world-state.json` — 상태의 유일 원본. **vars 87 · rules 62 · actions 31 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
+- `data/world-state.json` — 상태의 유일 원본. **vars 87 · rules 62 · actions 33 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
 - `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**). `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
 - `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **363항목 100% 분류(미분류 0)**: 번역 89·서사 83·보류 191. 보류가 곧 콘텐츠 백로그(사유 태그). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
@@ -40,7 +40,7 @@
 
 ## TODO
 
-- [ ] MMO 3단계 '개입' — 씬 상호작용 오브젝트→행동 발화 UI·전제 미충족 안내·개인 HUD/저널·NPC 정책 행동 무대 연출 ('강의 귀환' 게임플레이화) ([Design-MMO.md](Design-MMO.md) §9).
+- [ ] MMO 4단계 '멀티플레이' — 엔진 서버 이동(WebSocket 스냅샷 diff 구독)·스코프(world/player)·once 행동의 기여 전환·counter(경합 창 대항)·타 아바타 표현 ([Design-MMO.md](Design-MMO.md) §8).
 - [x] G2.5.3 아르카론 처리 6방식(§6.2) 보스전 목적·행동 7종 — 무광의쐐기·일식(재생) 전제, 완료방식 분기(파괴/추방/의식분리→사건 5), `LAW_M_지배오염` 후속 법칙. (커버리지 91→99)
 - [~] 그래프 NPC 목적 노드 보강 — WorldLaws §5 세력 목적. **완료(7주체): 수문회·잠수단·상인연합(채굴금지·혈청독점)·치료단·사제단·수도원(전승통제)**. 잔여(콘텐츠 트랙, 도구가 추적): 교단·대장간·유목민·보존회(종자보존)·수문회(수원유지)·카르마·늑대.
 - [x] §7 법칙검증 7·8(detail·노드 전수 커버리지) 자동화 — 원장 `detail-coverage.json` + 검증기. **전 363항목 100% 분류 완주**(미분류 0). 보류 191 = 사유 태그 백로그.

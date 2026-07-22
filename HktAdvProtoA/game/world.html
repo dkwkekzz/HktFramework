@@ -64,6 +64,21 @@
   .hint { color: var(--dim); font-size: 12px; }
   #fatal { position: absolute; inset: 0; display: none; place-items: center; background: var(--bg); z-index: 9; text-align: center; padding: 30px; }
   #fatal code { color: var(--gold); }
+  /* 행동 바 — 상호작용 오브젝트 근접 시 (§6 행동 발화 UI) */
+  #actionbar { position: absolute; left: 50%; bottom: 64px; transform: translateX(-50%);
+    background: rgba(22,29,39,.94); border: 1px solid var(--line); border-radius: 8px;
+    padding: 8px 12px; min-width: 300px; max-width: 460px; display: none; z-index: 5; }
+  #actionbar .spot { color: var(--gold); font-weight: 600; margin-bottom: 6px; }
+  .actrow { display: flex; align-items: flex-start; gap: 8px; padding: 4px 0; border-top: 1px dotted var(--line); }
+  .actrow button { white-space: nowrap; }
+  .actrow button:disabled { opacity: .45; cursor: default; }
+  .actrow .why { color: var(--dim); font-size: 11px; line-height: 1.4; }
+  .actrow .why.ok { color: #8fd8a8; }
+  .actrow .why b { color: var(--red); font-weight: 600; }
+  #scenehud { position: absolute; left: 12px; bottom: 12px; background: rgba(22,29,39,.85);
+    border: 1px solid var(--line); border-radius: 6px; padding: 6px 10px; font-size: 12px;
+    color: var(--dim); display: none; z-index: 4; }
+  #scenehud b { color: var(--fg); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -83,11 +98,14 @@
   <div class="trigger-bar" id="triggers">
     <span class="lbl">디버그 방아쇠(--force):</span>
   </div>
+  <button id="btnPolicy" class="on" title="NPC 정책 주체 on/off (simulate --no-policy 대응)">NPC 정책</button>
   <button id="btnReset" title="초기 스냅샷으로 재시작">⟲ 초기화</button>
 </header>
 <main>
   <div id="mapwrap">
     <canvas id="map"></canvas>
+    <div id="actionbar"></div>
+    <div id="scenehud"></div>
     <div id="fatal"><div>
       <p style="font-size:16px;margin-bottom:10px">데이터를 불러오지 못했습니다.</p>
       <p class="hint">이 페이지는 <code>data/*.json</code> 을 fetch 하므로 HTTP 서버로 열어야 합니다.<br>
@@ -109,7 +127,7 @@
 </main>
 
 <script type="module">
-import { buildInitial, recomputeDerived, newCtx, tick, indexVars, evalPred }
+import { buildInitial, recomputeDerived, newCtx, tick, indexVars, evalPred, subst }
   from "../data/state-engine.mjs";
 
 // ── 데이터 로드 — 표현층은 스냅샷과 표현 데이터만 읽는다 (불변 6) ─────────
@@ -191,6 +209,89 @@ function requestMove(target) {
   ctx.inputs.get(t).push({ actionId: "ACT_이동", actor: AV, target });
   pendingMove = { target, from: avLoc() };
 }
+// NPC 정책 토글 (디버그 — simulate --no-policy 대응). 켜짐이 정상 세계.
+let policyOn = true;
+const activeState = () => policyOn ? state : { ...state, subjects: (state.subjects || []).filter((s) => s.driver !== "policy") };
+
+// ── 행동 발화 UI (§6) — 전제 미충족 안내가 곧 퀘스트 안내 ─────────────────
+const actorBusy = () => (ctx.busy[AV] ?? 0) > ctx.t;
+function varLabel(name) { return ventries.find((e) => e.var === name)?.label || name; }
+const OPKO = { "==": "=", "!=": "≠", ">=": "≥", "<=": "≤", ">": ">", "<": "<" };
+function descLeaf(p, actor) {
+  const name = subst(p.var, actor);
+  const v = varIdx.get(name), label = varLabel(name);
+  if (v?.kind === "flag") return p.value === true ? label : label + " 아님";
+  let val = p.value;
+  if (val && typeof val === "object" && val.var) val = "«" + varLabel(subst(val.var, actor)) + "»";
+  else if (typeof val === "string") val = nodeTitle.get(val) || val;
+  else if (typeof val === "number" && v?.kind === "level" && v.levels) val = v.levels[val] ?? val;
+  return `${label} ${OPKO[p.op] || p.op} ${val}`;
+}
+function unmet(pred, actor) {
+  if (!pred) return [];
+  if (pred.all) return pred.all.flatMap((x) => unmet(x, actor));
+  if (pred.any) return pred.any.some((x) => unmet(x, actor).length === 0) ? []
+    : ["하나 필요: " + pred.any.map((x) => descLeaf(x, actor)).join(" 또는 ")];
+  if (pred.not) return evalPred(pred.not, snap, actor) ? ["아님: " + descLeaf(pred.not, actor)] : [];
+  return evalPred(pred, snap, actor) ? [] : [descLeaf(pred, actor)];
+}
+function costLack(a, actor) {
+  const out = [];
+  for (const c of a.cost || []) if (c.op === "add" && c.value < 0) {
+    const name = subst(c.var, actor), have = snap[name] ?? 0;
+    if (have + c.value < 0) out.push(`${varLabel(name)} ${-c.value} 필요 (보유 ${have})`);
+  }
+  return out;
+}
+let currentSpot = null;
+const actionbar = document.getElementById("actionbar");
+function renderActionbar() {
+  if (view.mode !== "region" || !currentSpot) { actionbar.style.display = "none"; return; }
+  const acts = Object.entries(visual.actions || {}).filter(([id, e]) =>
+    e.site === view.region && e.spot === currentSpot &&
+    ((state.actions.find((a) => a.id === id)?.actor_type) || []).includes(AV));
+  if (!acts.length) { actionbar.style.display = "none"; return; }
+  const busy = actorBusy();
+  let h = `<div class="spot">${esc(currentSpot)}</div>`;
+  for (const [id, e] of acts) {
+    const a = state.actions.find((x) => x.id === id);
+    const done = a.once && snap[id + ".발화됨"];
+    const reasons = [...unmet(a.when, AV), ...costLack(a, AV)];
+    const cost = (a.cost || []).filter((c) => c.op === "add" && c.value < 0)
+      .map((c) => `${varLabel(subst(c.var, AV))} ${-c.value}`).join(", ");
+    let btn, why;
+    if (done) { btn = `<button disabled>${esc(e.prompt)}</button>`; why = `<span class="why ok">이미 이루어졌다</span>`; }
+    else if (busy) { btn = `<button disabled>${esc(e.prompt)}</button>`; why = `<span class="why">진행 중인 행동이 끝나야 한다</span>`; }
+    else if (reasons.length) { btn = `<button disabled>${esc(e.prompt)}</button>`; why = `<span class="why">필요: <b>${reasons.map(esc).join("</b> · <b>")}</b></span>`; }
+    else { btn = `<button data-act="${esc(id)}">${esc(e.prompt)}</button>`; why = `<span class="why ok">${cost ? `비용: ${esc(cost)} · ` : ""}${a.duration ? `${a.duration}틱 소요` : "즉시"}</span>`; }
+    h += `<div class="actrow">${btn}${why}</div>`;
+  }
+  actionbar.innerHTML = h;
+  actionbar.style.display = "block";
+  actionbar.querySelectorAll("button[data-act]").forEach((b) => b.onclick = () => requestAct(b.dataset.act));
+}
+function requestAct(id) {
+  if (actorBusy()) return;
+  const t = ctx.t + 1;
+  if (!ctx.inputs.has(t)) ctx.inputs.set(t, []);
+  ctx.inputs.get(t).push({ actionId: id, actor: AV });
+  renderActionbar();
+}
+// NPC 정책 행동의 무대 — 엔진 pending(duration 진행 중)을 읽어 연출 (§5 경합 창의 목격판)
+function npcStages() {
+  return ctx.pending.map((p) => {
+    const [id, actor] = p.label.split("@");
+    return { id, actor, site: (visual.actions || {})[id]?.site, at: p.at };
+  }).filter((s) => s.actor && s.actor !== AV && s.site);
+}
+function renderSceneHud() {
+  const el = document.getElementById("scenehud");
+  if (view.mode !== "region") { el.style.display = "none"; return; }
+  const rows = hudEntries.filter((e) => e.var.startsWith(AV + "."))
+    .map((e) => `${esc(e.label)} <b>${esc(levelLabel(e.var))}</b>`);
+  el.innerHTML = "🧍 " + rows.join(" · ");
+  el.style.display = "block";
+}
 
 const CLASS = { rule: "", objective: "obj", action: "act", clock: "clock" };
 function regionOfId(id) {
@@ -245,8 +346,10 @@ function translateFired(t, fired) {
   }
 }
 function step() {
-  const fired = tick(snap, state, ctx);
+  const fired = tick(snap, activeState(), ctx);
   translateFired(ctx.t, fired);
+  // 불발된 내 행동은 사유와 함께 현장 알림 (엔진 skipped 의 정직한 표면화)
+  for (const s of fired.skipped) if (s.includes("@" + AV)) toasts.push({ text: "행동 불발 — " + s, at: performance.now() });
   // 이동 착지 감지 — 위치 '상태'가 실제로 바뀐 순간에만 씬이 전환된다 (표현은 상태를 따른다)
   if (pendingMove && avLoc() === pendingMove.target) {
     const from = regions.get(pendingMove.from), to = regions.get(pendingMove.target);
@@ -262,7 +365,7 @@ function step() {
   }
   if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동"))) pendingMove = null;
   tickview.textContent = "t " + ctx.t;
-  renderChron(); renderEvents();
+  renderChron(); renderEvents(); renderActionbar(); renderSceneHud();
   if (inspected) renderInspect(inspected);
 }
 function setTimer() {
@@ -358,6 +461,15 @@ let lastNow = 0, sceneEnts = [];
 const SM = 46;                                  // 씬 여백(px)
 const sx = (u) => SM + u * (W - SM * 2);
 const sy = (u) => SM + u * (H - SM * 2);
+function spotsOf(rid) {
+  const spots = {};
+  for (const [id, e] of Object.entries(visual.actions || {}))
+    if (e.site === rid && e.spot && !spots[e.spot]) {
+      const prnd = seeded("spot:" + rid + ":" + e.spot);
+      spots[e.spot] = { x: 0.2 + prnd() * 0.6, y: 0.25 + prnd() * 0.5, glyph: e.glyph };
+    }
+  return spots;
+}
 function exitsOf(rid) {
   const r = regions.get(rid);
   return (r.adjacent || []).map((adj) => {
@@ -448,6 +560,31 @@ function drawScene(now) {
     g.fillStyle = "rgba(180,150,255,.6)";
     for (let i = 0; i < 12; i++) { g.globalAlpha = 0.3 + srnd() * 0.4; g.beginPath(); g.arc(srnd() * W, srnd() * H * 0.2, 1.2, 0, 7); g.fill(); }
     g.globalAlpha = 1;
+  }
+  // 상호작용 오브젝트 (spot) — 행동의 무대. 근접 시 행동 바가 열린다 (§6)
+  const spots = spotsOf(rid);
+  let near = null;
+  for (const [name, s] of Object.entries(spots)) {
+    const x = sx(s.x), y = sy(s.y);
+    const isNear = Math.hypot(avatar.x - s.x, avatar.y - s.y) < 0.09;
+    if (isNear) near = name;
+    g.font = "24px serif"; g.textAlign = "center";
+    g.fillText(s.glyph, x, y);
+    if (isNear) { g.strokeStyle = "#e8d8a8"; g.globalAlpha = 0.8; g.beginPath(); g.arc(x, y - 8, 22, 0, 7); g.stroke(); g.globalAlpha = 1; }
+    g.font = "10px system-ui"; g.fillStyle = "#8494ab"; g.fillText(name, x, y + 15); g.fillStyle = "#d6dde8";
+  }
+  if (near !== currentSpot) { currentSpot = near; renderActionbar(); }
+  // NPC 정책 행동의 무대 연출 — pending duration 동안 습격대가 행군한다
+  for (const st of npcStages()) if (st.site === rid) {
+    const remain = st.at - ctx.t;
+    const k = ((now / 900) % 1);
+    const mx = sx(0.1 + k * 0.35), my = sy(0.3);
+    g.font = "20px serif"; g.textAlign = "center";
+    g.fillText("🗡", mx, my); g.fillText("🚩", mx - 26, my + 4);
+    g.fillStyle = "rgba(216,122,111,.92)"; g.fillRect(0, 52, W, 24);
+    g.fillStyle = "#0d1117"; g.font = "600 12px system-ui";
+    g.fillText(`⚔ ${nodeTitle.get(st.actor) || st.actor}의 움직임이 진행 중이다 — ${remain}틱 뒤 결판`, W / 2, 68);
+    g.fillStyle = "#d6dde8";
   }
   // 출구 게이트
   for (const ex of exitsOf(rid)) {
@@ -567,6 +704,13 @@ function draw(now) {
     g.font = "11px system-ui"; g.textAlign = "center";
     g.fillStyle = "#d6dde8"; g.globalAlpha = 0.9;
     g.fillText(nodeTitle.get(r.id) || r.id, x, y + rad + 12);
+    g.globalAlpha = 1;
+  }
+  // 진행 중인 NPC 정책 행동 — 무대 지역에 ⚔ 점멸 (지도에서도 보인다)
+  for (const st of npcStages()) if (regions.has(st.site)) {
+    const [x, y] = px(regions.get(st.site).pos);
+    g.globalAlpha = 0.5 + 0.5 * Math.sin(now / 220);
+    g.font = "16px serif"; g.textAlign = "center"; g.fillText("⚔", x, y - regions.get(st.site).size * S - 8);
     g.globalAlpha = 1;
   }
   drawOverlays(now);
@@ -749,6 +893,13 @@ btnView.onclick = () => {
     view = { mode: "world" };
     btnView.textContent = "🚶 지역 입장";
   }
+  currentSpot = null;
+  renderActionbar(); renderSceneHud();
+};
+const btnPolicy = document.getElementById("btnPolicy");
+btnPolicy.onclick = () => {
+  policyOn = !policyOn;
+  btnPolicy.classList.toggle("on", policyOn);
 };
 
 // ── 컨트롤 ─────────────────────────────────────────────────────────────
@@ -794,6 +945,9 @@ setTimer();
 window.__dbg = {
   get view() { return view; }, get avatar() { return avatar; }, set avatarPos(p) { avatar = p; },
   get pendingMove() { return pendingMove; }, get loc() { return avLoc(); }, requestMove, exitsOf,
+  get spot() { return currentSpot; }, get busy() { return actorBusy(); }, get snap() { return snap; },
+  gotoSpot(name) { const s = spotsOf(view.region)[name]; if (s) avatar = { x: s.x, y: s.y }; },
+  get stages() { return npcStages(); }, get tick() { return ctx.t; },
 };
 </script>
 </body>

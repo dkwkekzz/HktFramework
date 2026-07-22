@@ -1123,6 +1123,29 @@
       "when": { "all": [ { "var": "T_회귀호흡.공개", "op": ">", "value": 1 } ] },
       "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": -1 } ], "duration": 6, "once": false },
 
+    { "id": "ACT_관개기록_해독", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "WorldLaws §4 대표 완역 'ACT_관개기록해독' — 씨앗보존회가 보유한 관개 시설 기록을 전수받아 해독한다(습득 획득). REL: G1.2.6 ─필요→ K_관개시설기록",
+      "when": { "all": [
+        { "var": "F_씨앗보존회.습득.K_관개시설기록", "op": "==", "value": true },
+        { "var": "{actor}.습득.K_관개시설기록", "op": "==", "value": false }
+      ] },
+      "then": [
+        { "var": "{actor}.습득.K_관개시설기록", "op": "set", "value": true }
+      ], "duration": 1, "once": true },
+
+    { "id": "ACT_카르마_수확", "objective": "G1.2.6",
+      "actor_type": ["E_플레이어"],
+      "basis": "WorldLaws §4 대표 완역 'ACT_카르마수확' — 대수근에서 수분핵·재생섬유를 수확한다. 세계측 소모(서식 -1)가 P5 제공 규율. REL: E_카르마 ─제공→ R_재생섬유·R_수분핵",
+      "when": { "all": [
+        { "var": "E_카르마.서식", "op": ">=", "value": 1 }
+      ] },
+      "then": [
+        { "var": "{actor}.보유.R_재생섬유", "op": "add", "value": 1 },
+        { "var": "{actor}.보유.R_수분핵", "op": "add", "value": 1 },
+        { "var": "E_카르마.서식", "op": "add", "value": -1 }
+      ], "duration": 2 },
+
     { "id": "ACT_이동",
       "actor_type": ["E_플레이어"],
       "basis": "Design-MMO §3.3 — 지역 간 이동 행동. 목적지는 {target} 파라미터(발화 요청에 실림, {actor} 와 같은 치환 메커니즘). 인접 제약은 표현층(world-map adjacent)의 출구 UI 가 담당. 목적 노드에 속하지 않는 수단 행동 — 접근 전제를 만드는 이동의 상태화(불변 2)",

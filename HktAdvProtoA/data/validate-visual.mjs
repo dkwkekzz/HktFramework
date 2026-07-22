@@ -92,6 +92,23 @@ for (const [id, fx] of Object.entries(visual.fx || {})) {
     errors.push(`V4: fx ${id} region '${fx.region}' 이 지도에 없다`);
 }
 
+// ── V7 행동 무대 커버리지 — 플레이어 행동은 site+spot+prompt 필수 (Design-MMO §6)
+const actSites = visual.actions || {};
+for (const a of state.actions || []) {
+  if (a.id === "ACT_이동") continue;               // 이동은 출구 게이트가 UI
+  const entry = actSites[a.id];
+  const isPlayer = (a.actor_type || []).includes("E_플레이어");
+  if (isPlayer) {
+    if (!entry) { errors.push(`V7: 플레이어 행동 ${a.id} 의 무대(site/spot) 항목이 없다 — 발화 UI 에 나타날 수 없다`); continue; }
+    for (const f of ["site", "spot", "glyph", "prompt"]) if (!entry[f]) errors.push(`V7: ${a.id} 에 ${f} 가 없다`);
+  }
+  if (entry?.site && !regionIds.has(entry.site)) errors.push(`V7: ${a.id} site '${entry.site}' 가 지도에 없다`);
+}
+for (const id of Object.keys(actSites)) {
+  if (id === "meta") continue;
+  if (!(state.actions || []).some((a) => a.id === id)) errors.push(`V7: actions 무대 항목 ${id} 가 선언되지 않은 행동이다 (고아)`);
+}
+
 // ── V6 사슬 가시성 ───────────────────────────────────────────────────
 const evWriters = (state.rules || []).filter((r) => (r.then || []).some((e) => /^EV_.+\.단계$/.test(e.var)));
 for (const r of evWriters) if (!visual.fx?.[r.id]) errors.push(`V6: 사건 단계를 쓰는 법칙 ${r.id} 에 fx 가 없다 (보이지 않는 사건 단계 금지)`);
@@ -105,10 +122,12 @@ console.log(`지도: 지역 ${regionIds.size} (그래프 L ${graphL.size}) · fe
 console.log(`표현 커버리지: 변수 ${varIds.size} 중 표현 ${nCover} · 비표현(사유 명시) ${varIds.size - nCover}`);
 console.log(`연대기: 법칙 ${Object.keys(ch.rules || {}).length} · 행동 ${Object.keys(ch.actions || {}).length} · 목적 ${Object.keys(ch.objectives || {}).length} · 시계 ${Object.keys(ch.clocks || {}).length}`);
 console.log(`fx: ${Object.keys(visual.fx || {}).length} (EV 단계 법칙 ${evWriters.length} 전부 포함 여부는 V6)`);
+const nPlayerActs = (state.actions || []).filter((a) => a.id !== "ACT_이동" && (a.actor_type || []).includes("E_플레이어")).length;
+console.log(`행동 무대: ${Object.keys(visual.actions || {}).filter((k) => k !== "meta").length} 항목 (플레이어 행동 ${nPlayerActs} 전부 포함 여부는 V7)`);
 for (const w of warns) console.warn("경고 — " + w);
 if (errors.length) {
   console.error(`\n실패 ${errors.length}건:`);
   for (const e of errors) console.error("  " + e);
   process.exit(1);
 }
-console.log(`\n검증 통과 (V1·V2·V3·V4·V6) — 경고 ${warns.length}건`);
+console.log(`\n검증 통과 (V1·V2·V3·V4·V6·V7) — 경고 ${warns.length}건`);
