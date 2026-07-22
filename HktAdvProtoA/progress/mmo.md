@@ -2,6 +2,14 @@
 
 > 설계: [../Design-MMO.md](../Design-MMO.md). 최신 항목을 위에 쌓는다.
 
+## main 병합 (PR #598 흡수)
+
+병렬 트랙(단계 6·보스전·혈청 3세력·수도원)이 main 에 병합되어 흡수. 해소 요지:
+
+- **엔진 fs 분리 방식 통일** — 양쪽이 같은 문제를 따로 풀었다(이쪽 `process.getBuiltinModule` 지연 로드 vs main 의 `load-world.mjs` 모듈 분리). **main 방식 채택**: `state-engine.mjs` 는 fs 코드가 아예 없는 순수 모듈이 되고 `loadWorld` 는 `load-world.mjs` 로. 이 트랙의 `{target}` 치환 확장(subst/evalPred/fireAction·target 누락 가드)은 그대로 유지 — 1단계 기록의 "getBuiltinModule 지연 로드" 서술은 이 병합으로 대체됨.
+- **world-state.json** — main 의 행동 15종(보스전 7·혈청 6·수도원 2) 뒤에 `ACT_이동` 을 이어 붙임. `E_플레이어.위치` 는 자동 병합. vars 87 · rules 62 · actions 31 · objectives 12 · subjects 8.
+- **표현 사전 보강** — main 신규분 전수: 변수 13(보스전 축·`T_회귀호흡.공개` 등 — 아르카론 상태 5종은 별빛균열 actor, 무광의쐐기는 용광로 marker, NPC 목적·전승은 gauge), 법칙 연대기 2, 행동 연대기 15, 목적 연대기 5. 클라 글리프 추가(🌑🔆💤⛓🤝·🗡). `validate-visual` import 를 `load-world.mjs` 로 전환. V1~V4·V6 통과 유지.
+
 ## 2단계 — 지역 씬 + 아바타 완료
 
 Design-MMO §9 로드맵 2단계. 완료 기준 충족: **대륙 어디든 걸어서 순회하며 지역 연대기를 현장에서 목격한다** (Playwright 실증 — 지열 도시 입장 → 키보드로 걸어 북동 출구 → `ACT_이동` 발화 → duration 2틱 후 착지 → 재의 숲 씬 전환 → 사건 2 발화를 현장 토스트로 목격, 콘솔 에러 0).

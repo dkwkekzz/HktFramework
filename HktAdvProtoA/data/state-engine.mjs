@@ -1,18 +1,8 @@
 // 세계 상태 엔진 — world-state.json 의 다섯 층을 읽어 결정론적 틱 루프를 돈다.
-// validate-state.mjs 와 simulate-state.mjs 가 공유한다. 규칙·데이터는 담지 않는다.
+// validate-state.mjs 와 simulate-state.mjs, objective-tree.html 이 공유한다. 규칙·데이터는 담지 않는다.
+// 순수 모듈(node:fs 비의존) — 파일 로딩은 load-world.mjs 로 분리(브라우저 import 가능).
 // 틱 순서(§5.3): ① 시계 → ② 파생 → ③ 전제 일괄 평가(스냅샷) → ④ 효과 일괄 적용
 //                → ⑤ 파생 → ⑥ 목적 판정 → ⑦ NPC/입력 행동
-// loadWorld 는 Node 전용 IO — 정적 node: import 를 두지 않아 브라우저가 이 모듈을
-// 그대로 임포트할 수 있게 한다 (Design-MMO §2: 클라는 같은 엔진을 fetch 데이터로 구동).
-export function loadWorld(dir) {
-  const get = (m) => globalThis.process?.getBuiltinModule?.(m);
-  const fs = get("node:fs"), path = get("node:path"), url = get("node:url");
-  if (!fs) throw new Error("loadWorld 는 Node 전용이다 — 브라우저에서는 JSON 을 fetch 해 엔진 함수에 직접 넘긴다.");
-  const here = dir ?? path.dirname(url.fileURLToPath(import.meta.url));
-  const graph = JSON.parse(fs.readFileSync(path.join(here, "objective-graph.json"), "utf8"));
-  const state = JSON.parse(fs.readFileSync(path.join(here, "world-state.json"), "utf8"));
-  return { graph, state };
-}
 
 export function indexVars(state) {
   const m = new Map();

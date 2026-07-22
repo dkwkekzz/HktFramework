@@ -8,7 +8,7 @@
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { dirname, join } from "node:path";
-import { loadWorld } from "./state-engine.mjs";
+import { loadWorld } from "./load-world.mjs";
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const { graph, state } = loadWorld(HERE);

@@ -1,9 +1,15 @@
 // 세계 상태 검증기(§12) — world-state.json 을 objective-graph.json 에 대조해 13종을 점검한다.
-// 데이터는 담지 않는다. 실행: node data/validate-state.mjs
+// + WorldLaws §7 법칙검증: 회복 짝(5)·EV 매핑(4)·detail 커버리지(7)·노드 커버리지(8).
+// 데이터는 담지 않는다. 실행: node data/validate-state.mjs [--strict-coverage]
 import {
-  loadWorld, indexVars, buildInitial, recomputeDerived, evalPred,
+  indexVars, buildInitial, recomputeDerived, evalPred,
   newCtx, tick, terminalGoals, subst,
 } from "./state-engine.mjs";
+import { loadWorld, HERE } from "./load-world.mjs";
+import { readFileSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+
+const STRICT_COVERAGE = process.argv.includes("--strict-coverage");
 
 const { graph, state } = loadWorld();
 const nodeIds = new Set(graph.nodes.map((n) => n.id));
@@ -200,6 +206,87 @@ for (const [v, rs] of negAdd)
   if (changedBy) info.push(`검증13 통과: 무입력 20틱 내 자율 변화 확인 — ${changedBy}`);
   else errors.push(`검증13 위반: 무입력 20틱 동안 법칙·시계로 인한 상태 변화 없음`);
   if (JSON.stringify(snap) === before && !changedBy) {/* 이미 위에서 처리 */}
+}
+
+// ── WorldLaws 법칙검증 7·8(§7): detail 커버리지 + 노드 커버리지 (현상 세 서식지 §0 의 ②)
+//   유니버스 = 그래프 전 노드의 모든 detail 항목. EV '흐름' 은 검증11 매핑으로 자동 커버.
+//   나머지는 detail-coverage.json 원장이 §9-7 분류를 담당. 원장에 없으면 미분류(=침묵 누락=백로그).
+{
+  const TRANSLATED = new Set(["초기값", "법칙", "행동", "목적", "파생축", "사슬"]);
+  const CLASSES = new Set([...TRANSLATED, "서사", "보류"]);
+  let ledger = { entries: {} };
+  try { ledger = JSON.parse(readFileSync(join(HERE, "detail-coverage.json"), "utf8")); }
+  catch { warnings.push("법칙검증7 경고: data/detail-coverage.json 을 읽을 수 없음 — 전 항목 미분류로 집계"); }
+  const entries = ledger.entries || {};
+  // 벌크 분류 — 백로그를 컴팩트하게: narrative[](서사) · deferred{key:reason}(보류)
+  const narrative = new Set(ledger.narrative || []);
+  const deferred = ledger.deferred || {};
+  const bulkClass = (full) => narrative.has(full) ? "서사" : (deferred[full] ? "보류" : null);
+
+  // 원장 무결성 — 존재하지 않는 노드·detail 키를 가리키는 원장 항목 거부
+  const detailKeySet = new Set();
+  for (const n of graph.nodes)
+    for (const k of Object.keys(n.detail || {})) detailKeySet.add(`${n.id}.${k}`);
+  for (const [key, rec] of Object.entries(entries)) {
+    if (!detailKeySet.has(key)) errors.push(`법칙검증7 위반: 원장 항목 '${key}' 가 그래프 detail 에 없음(오탈자·삭제된 노드)`);
+    if (!CLASSES.has(rec.c)) errors.push(`법칙검증7 위반: 원장 항목 '${key}' 의 분류 '${rec.c}' 가 허용 분류 아님`);
+  }
+  for (const key of [...narrative, ...Object.keys(deferred)])
+    if (!detailKeySet.has(key)) errors.push(`법칙검증7 위반: 벌크 분류 항목 '${key}' 가 그래프 detail 에 없음`);
+
+  // 항목별 분류 집계 + 노드 롤업(검증8)
+  const tally = { 초기값: 0, 법칙: 0, 행동: 0, 목적: 0, 파생축: 0, 사슬: 0, 서사: 0, 보류: 0, 미분류: 0 };
+  const perTypeUnclassified = {};
+  const backlog = [];
+  let total = 0, nodesDone = 0, nodesPartial = 0, nodesUntouched = 0, nodesWithDetail = 0;
+  for (const n of graph.nodes) {
+    const keys = Object.keys(n.detail || {});
+    if (!keys.length) continue;
+    nodesWithDetail++;
+    let classified = 0;
+    for (const k of keys) {
+      total++;
+      const full = `${n.id}.${k}`;
+      let cls = null;
+      if (n.type === "EV" && k === "흐름") {
+        // EV 흐름 = 검증11 매핑(evStageMax>0)으로 자동 커버
+        cls = (evStageMax.get(n.id + ".단계") ?? 0) > 0 ? "사슬" : null;
+      } else if (entries[full]) {
+        cls = entries[full].c;         // 명시 분류 우선
+      } else {
+        cls = bulkClass(full);         // 벌크 서사/보류
+      }
+      if (cls) { tally[cls]++; classified++; }
+      else {
+        tally.미분류++;
+        perTypeUnclassified[n.type] = (perTypeUnclassified[n.type] || 0) + 1;
+        backlog.push(full);
+      }
+    }
+    if (classified === keys.length) nodesDone++;
+    else if (classified === 0) nodesUntouched++;
+    else nodesPartial++;
+  }
+
+  const classifiedCount = total - tally.미분류;
+  const translatedCount = [...TRANSLATED].reduce((s, c) => s + tally[c], 0);
+  const pct = (a, b) => b ? ((a / b) * 100).toFixed(1) + "%" : "-";
+  info.push(`법칙검증7 detail 커버리지: 전체 ${total} · 분류 ${classifiedCount}(${pct(classifiedCount, total)}) · 미분류 ${tally.미분류}`);
+  info.push(`  └ 번역 ${translatedCount}(초기값 ${tally.초기값}·법칙 ${tally.법칙}·행동 ${tally.행동}·목적 ${tally.목적}·파생축 ${tally.파생축}·사슬 ${tally.사슬}) · 서사 ${tally.서사} · 보류 ${tally.보류}`);
+  info.push(`법칙검증8 노드 커버리지: detail 보유 ${nodesWithDetail} · 완료 ${nodesDone} · 부분 ${nodesPartial} · 미착수 ${nodesUntouched}`);
+  const typeStr = Object.entries(perTypeUnclassified).sort((a, b) => b[1] - a[1]).map(([t, c]) => `${t} ${c}`).join(" · ");
+  if (tally.미분류) info.push(`  └ 미분류 타입 분포: ${typeStr}`);
+
+  // 백로그를 파일로 — 콘솔 절단 없이 후속 §9 절차의 작업 목록
+  const backlogPath = join(HERE, "coverage-backlog.json");
+  writeFileSync(backlogPath, JSON.stringify({
+    meta: { total, classified: classifiedCount, unclassified: tally.미분류, generated: "validate-state.mjs 법칙검증7" },
+    byType: perTypeUnclassified, items: backlog,
+  }, null, 2) + "\n");
+  info.push(`  └ 미분류 ${tally.미분류}항목 → data/coverage-backlog.json (§9 절차 작업 목록)`);
+
+  if (STRICT_COVERAGE && tally.미분류)
+    errors.push(`법칙검증7 위반(--strict-coverage): 미분류 detail ${tally.미분류}항목 — data/coverage-backlog.json 참조, §9-7 로 분류 필요`);
 }
 
 // ── 요약
