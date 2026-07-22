@@ -1,6 +1,7 @@
 # STATE.md
 
-> 이 문서는 **현재 핵심 상태와 TODO** 만 담는다. 완료된 작업의 상세(권역별 변경 내역·실증 방법·설계 요약)는 [Progress.md](Progress.md) 에 있다.
+> 이 문서는 **현재 핵심 상태와 TODO** 만 담는다. 완료 작업의 상세는 큰 단계별 진행 기록으로 분리한다:
+> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용).
 
 ## 구현 현황 (핵심)
 
