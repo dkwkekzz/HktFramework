@@ -1,7 +1,7 @@
 # STATE.md
 
 > 이 문서는 **현재 핵심 상태와 TODO** 만 담는다. 완료 작업의 상세는 큰 단계별 진행 기록으로 분리한다:
-> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용).
+> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용) · [progress/mmo.md](progress/mmo.md) MMORPG 웹 프로토타입.
 
 ## 구현 현황 (핵심)
 
@@ -9,7 +9,7 @@
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
 
-**MMORPG 웹 프로토타입** — 설계 [Design-MMO.md](Design-MMO.md) · 진행 상세 [progress/mmo.md](progress/mmo.md). **로드맵 1~4단계 전부 완료** (살아있는 지도 → 지역 씬·아바타 → 개입 → 멀티플레이): `game/world.html`(단일 파일 클라 — 대륙 지도·지역 씬·아바타·행동 발화 UI(전제 미충족 안내=퀘스트 안내)·NPC 무대 연출·연대기·인스펙터·HUD; **로컬/원격 겸용** — 표현 코드는 데이터 소스만 교체) + `game/server.mjs`(**월드 서버**, 의존성 0 — SSE diff 구독·행동 요청 API·poses 릴레이·서버 권위 검증) + 표현 데이터 2장 + `validate-visual.mjs`(V1~V7). 상태층: player 스코프 6축·`joinChar` 멀티 캐릭터·기여 축적 P8(`ACT_제어탑_복구기여`+임계 법칙 — 사슬 무변경)·검증 M1·M2. 실증: 솔로 완주(해독→수확→복구→수문회 반격) + **멀티**(alice·bob 공유 세계 동기·타 아바타·공유 자원 고갈·NPC 자율 기여로 가동). 실행: 솔로 `python3 -m http.server` → `/HktAdvProtoA/game/world.html` · 멀티 `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`.
+**MMORPG 웹 프로토타입** — 로드맵 1~4단계(지도→아바타→개입→멀티) 완료. 클라 `game/world.html`(로컬/원격 겸용) · 서버 `game/server.mjs` · 표현 데이터 `data/world-map.json`·`data/world-visual.json` · 검증 `node data/validate-visual.mjs`(V1~V7). 멀티 실행: `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`. 설계 [Design-MMO.md](Design-MMO.md) · 상세 [progress/mmo.md](progress/mmo.md).
 
 - `data/world-state.json` — 상태의 유일 원본. **vars 87 · rules 62 · actions 33 · objectives 12 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
