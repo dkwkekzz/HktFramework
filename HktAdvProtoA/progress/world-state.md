@@ -1,7 +1,7 @@
 # progress/world-state.md — 세계 상태 (형식) 완료 기록
 
 > 큰 단계 **② 세계 상태** = 상태를 데이터로 표현하는 **형식**(모델·엔진·검증·시뮬). 법칙의 *내용*은 [world-laws.md](world-laws.md). 최신 항목을 위에 쌓는다.
-> 현재 규모: `data/world-state.json` **vars 73 · rules 60 · actions 15 · objectives 7 · clocks 2** (상태의 유일 원본).
+> 현재 규모: `data/world-state.json` **vars 84 · rules 61 · actions 28 · objectives 11 · clocks 2 · subjects 7** (상태의 유일 원본).
 
 ## 엔진 — `data/state-engine.mjs` (공유)
 
@@ -15,6 +15,16 @@
 
 - WorldState §12 검증 1~13 (owner/target 존재·선언 var 참조·basis·S 노드 var·말단 G complete·on_complete 효과·행동 2개+·파생 쓰기 금지·set 충돌·관계 커버리지·EV 매핑·정책 정합·무입력 자율변화).
 - WorldLaws §7 법칙검증 — once/every 배타, **회복 짝**(§6: 음수 add ↔ 양수 add/복원 set, `monotonic:true` 면제), EV 노드별 사슬 매핑. `node data/validate-state.mjs` (경고 0).
+
+## detail 커버리지 검증 (§7 법칙검증 7·8) — `detail-coverage.json` 원장 + 검증기
+
+- **문제**: 현상은 관계(133)만이 아니라 노드 detail 서술에도 산다(WorldLaws §0 서식지 ②). 무엇이 미번역인지 기계로 셀 수단이 없었다 — "다 번역하라"가 열린 채였다.
+- **유니버스**: 그래프 전 노드 detail 전 항목 = **335개**(설계 252는 163노드 기준, 184노드로 커짐). 검증기가 자동 집계.
+- **분류 원장** `data/detail-coverage.json` — 항목(`<노드>.<키>`)마다 §9-7 분류: 번역(초기값·법칙·행동·목적·파생축·사슬)·서사(비현상)·보류. EV `흐름` 은 검증11 매핑으로 자동 커버. 원장 무결성(존재 않는 항목·오분류)도 검증.
+- **검증7**(detail 커버리지): 항목별 분류 집계 + 미분류를 `coverage-backlog.json`(생성물, gitignore) 로 출력 — 후속 §9 절차의 작업 목록.
+- **검증8**(노드 커버리지): 노드별 롤업(완료/부분/미착수).
+- **기본은 보고**(경고 0 유지). `--strict-coverage` 로 미분류를 오류화 → A/B 확장 권역의 완료 게이트로 쓴다.
+- **베이스라인**: 사건 5종 + 아르카론 보스전 + NPC 목적 8 시드로 **153/356 분류(43.0%)** — 번역 86·서사 50·보류 17. 노드 완료 48·미착수 130. 미분류 203(백로그): G 71·E 44·R 34·L 17·T 13·K 9·F 9·S 2·H 3·X 1. (D 보스전 91→99, B NPC 충돌 99→153 — 도구가 각 작업의 진척을 실측 추적.)
 
 ## 시뮬레이터 — `data/simulate-state.mjs`
 

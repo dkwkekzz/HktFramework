@@ -6,7 +6,8 @@
 //   node data/simulate-state.mjs --ticks 60      틱 수 지정
 //   node data/simulate-state.mjs --quiet         변화 요약만
 //   node data/simulate-state.mjs --at 1:ACT_늑대_계약@E_플레이어   특정 틱에 플레이어 행동 주입
-import { loadWorld, buildInitial, recomputeDerived, newCtx, tick, indexVars } from "./state-engine.mjs";
+import { buildInitial, recomputeDerived, newCtx, tick, indexVars } from "./state-engine.mjs";
+import { loadWorld } from "./load-world.mjs";
 
 const argv = process.argv.slice(2);
 function opt(name, def) { const i = argv.indexOf(name); return i >= 0 ? argv[i + 1] : def; }

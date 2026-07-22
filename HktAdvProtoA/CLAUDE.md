@@ -34,7 +34,9 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/objective-graph.json](data/objective-graph.json) | 목적 그래프 **유일한 원본 데이터** (타입 노드 G/S/E/R/L/K/T/F/H/X/EV + 타입 관계). 편집은 여기 한 곳 |
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
 | [data/world-state.json](data/world-state.json) | 세계 **상태의 유일한 원본** — vars/clocks/subjects/rules/actions/objectives 다섯 층. 그래프 id 를 앵커로 참조 |
-| [data/state-engine.mjs](data/state-engine.mjs) | 상태 엔진(공유) — 결정론적 틱 루프 ①~⑦. validate/simulate 가 함께 사용 |
-| [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증 (`node data/validate-state.mjs`) |
+| [data/state-engine.mjs](data/state-engine.mjs) | 상태 엔진(공유·**순수**) — 결정론적 틱 루프 ①~⑦. validate/simulate/objective-tree.html 이 함께 사용(브라우저 import 가능) |
+| [data/load-world.mjs](data/load-world.mjs) | 파일 로더(fs) — `loadWorld`·`HERE`. 엔진을 순수하게 유지하려 fs 접근을 분리 |
+| [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·detail 커버리지 7·노드 커버리지 8). `node data/validate-state.mjs` · `--strict-coverage` |
+| [data/detail-coverage.json](data/detail-coverage.json) | detail 항목 분류 원장(§9-7) — 그래프 전 노드 detail 을 {초기값·법칙·행동·목적·파생축·사슬·서사·보류} 로 분류. 검증기가 대조·미분류를 `coverage-backlog.json`(생성물) 로 출력 |
 | [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — 대표 사건 5종 사슬 재생 (`--force`·`--no-policy`·`--at`) |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |
