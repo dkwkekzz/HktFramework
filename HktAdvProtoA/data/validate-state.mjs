@@ -217,6 +217,10 @@ for (const [v, rs] of negAdd)
   try { ledger = JSON.parse(readFileSync(join(HERE, "detail-coverage.json"), "utf8")); }
   catch { warnings.push("법칙검증7 경고: data/detail-coverage.json 을 읽을 수 없음 — 전 항목 미분류로 집계"); }
   const entries = ledger.entries || {};
+  // 벌크 분류 — 백로그를 컴팩트하게: narrative[](서사) · deferred{key:reason}(보류)
+  const narrative = new Set(ledger.narrative || []);
+  const deferred = ledger.deferred || {};
+  const bulkClass = (full) => narrative.has(full) ? "서사" : (deferred[full] ? "보류" : null);
 
   // 원장 무결성 — 존재하지 않는 노드·detail 키를 가리키는 원장 항목 거부
   const detailKeySet = new Set();
@@ -226,6 +230,8 @@ for (const [v, rs] of negAdd)
     if (!detailKeySet.has(key)) errors.push(`법칙검증7 위반: 원장 항목 '${key}' 가 그래프 detail 에 없음(오탈자·삭제된 노드)`);
     if (!CLASSES.has(rec.c)) errors.push(`법칙검증7 위반: 원장 항목 '${key}' 의 분류 '${rec.c}' 가 허용 분류 아님`);
   }
+  for (const key of [...narrative, ...Object.keys(deferred)])
+    if (!detailKeySet.has(key)) errors.push(`법칙검증7 위반: 벌크 분류 항목 '${key}' 가 그래프 detail 에 없음`);
 
   // 항목별 분류 집계 + 노드 롤업(검증8)
   const tally = { 초기값: 0, 법칙: 0, 행동: 0, 목적: 0, 파생축: 0, 사슬: 0, 서사: 0, 보류: 0, 미분류: 0 };
@@ -245,7 +251,9 @@ for (const [v, rs] of negAdd)
         // EV 흐름 = 검증11 매핑(evStageMax>0)으로 자동 커버
         cls = (evStageMax.get(n.id + ".단계") ?? 0) > 0 ? "사슬" : null;
       } else if (entries[full]) {
-        cls = entries[full].c;
+        cls = entries[full].c;         // 명시 분류 우선
+      } else {
+        cls = bulkClass(full);         // 벌크 서사/보류
       }
       if (cls) { tally[cls]++; classified++; }
       else {
