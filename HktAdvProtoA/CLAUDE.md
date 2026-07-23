@@ -26,8 +26,8 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
-| [progress/](progress/) | **완료 작업 상세**, 큰 단계별: `graph.md`(구조 그래프)·`world-state.md`(세계 상태·형식)·`world-laws.md`(세계 법칙·내용). 최신 위로 누적 |
-| [Design-ObjectiveTree.md](Design-ObjectiveTree.md) | 목적 트리 구축 **방법론** — 원칙·절차·검증 |
+| [progress/](progress/) | **완료 작업 상세**, 큰 단계별: `graph.md`(구조 그래프)·`world-state.md`(세계 상태·형식)·`world-laws.md`(세계 법칙·내용)·`mmo.md`(MMO 프로토)·`motive.md`(동기층). 최신 위로 누적 |
+| [Design-ObjectiveTree.md](Design-ObjectiveTree.md) | 목적 트리 구축 **방법론** — 원칙·절차·검증 + **트리 복수화 원칙(§18)**: 정본=주체 트리들의 교차·주체 G0 스텁·요소=타 주체 ≥2 연결·법칙·역사 동급 생성기 (검증 16·17) |
 | [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md) | **상흔계 아벨리온** 목적 그래프 정본 (세계 시드·타입 표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선 |
 | [Design-WorldState.md](Design-WorldState.md) | 세계 상태(속성) 데이터화 **설계** — 다섯 층 모델(변수·스냅샷·법칙·행동·목적), 축 문법, 틱 의미론 |
 | [Design-MMO.md](Design-MMO.md) | **MMORPG 웹 프로토타입 설계 (세계 표현 우선)** — 표현=상태의 순수 함수(불변 6·7), 2단 공간 모델(대륙 지도+지역 씬), 표현 번역 사전(world-visual)·world-map, 법칙 가시화(연대기·발화 연출·인스펙터), 행동 발화 UX, 검증 V1~V6, 로드맵 4단계(멀티는 4단계 예약) |
