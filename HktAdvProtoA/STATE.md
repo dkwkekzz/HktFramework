@@ -5,6 +5,8 @@
 
 ## 구현 현황 (핵심)
 
+**주체 세계상태 배선(§18 검증 18)** — 존속 루트 주체 18 중 **14 배선**(플레이어 + 정책 세력 6 + Phase 1 생태·질병 7). 미배선 4 = Phase 2 세력(교단·대장간·유목민·보존회) 화이트리스트. 상세 [progress/world-state.md](progress/world-state.md).
+
 **목적 그래프** — `data/objective-graph.json` (**216 노드 · 233 관계**, 유일 원본). **§18 복수화: 18개 "존속해야 한다" 루트 트리**(플레이어 G0 + 17주체 — 세계 정본=주체 트리들의 교차). 검증 `node data/validate-graph.mjs` (§16 감사: 고립·요소 저연결·단일해결 카운트 + **§18 복수화 감사: 무트리 주체(검증16=0)·요소 단일주체(검증17)**, `--audit` 목록). 관찰·편집기 `objective-tree.html`(상태 오버레이·라이브 틱 시뮬). 설계: [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론).
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
@@ -13,7 +15,7 @@
 
 - `data/world-state.json` — 상태의 유일 원본. **vars 135 · rules 74 · actions 73 · objectives 20 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수. (동기층 M1~M6 완결: 결핍 삼축[허기·온기·상처] + 인지·묻기 + 탐욕[심연유리 경제] + 인정[관계.F_* 편들기·문 닫힘])
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
-- `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**) + **§18 검증 18**(그래프↔세계상태 층 교차 — 존속 루트 주체 18의 subjects 등록·존속 트리 objective·구동 법칙/정책/행동 대조). **현재 배선 7/18 · 미배선 11 = 명시 화이트리스트(Phase 1~3 진행 카운터, 배선 시 제거해야 초록 유지)**. `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
+- `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**) + **§18 검증 18**(그래프↔세계상태 층 교차 — 존속 루트 주체 18의 subjects 등록·존속 트리 objective·구동 법칙/정책/행동 대조). **현재 배선 14/18 · 미배선 4 = 명시 화이트리스트(Phase 2 세력 4, 배선 시 제거해야 초록 유지)**. `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
 - `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **525항목 100% 분류(미분류 0)**: 번역 102·서사 85·보류 338. 보류가 곧 콘텐츠 백로그(사유 태그) — 복수화 존속 루트 17 + G0 스텁 11 포함(세계상태 앵커 시 entries 승격). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
 - `data/load-world.mjs` — 파일 로더(fs). 엔진을 순수하게 유지해 브라우저(objective-tree.html)가 canonical 엔진을 그대로 import.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터.
@@ -45,7 +47,7 @@
 
 - [ ] **주체 세계상태 표현 전수 (Phase 0~3)** — 공정 정본 [Design-ObjectiveTree.md](Design-ObjectiveTree.md) **§19**(주체 추가 공정 다섯 층)·**검증 18**(그래프↔세계상태 층 교차 — 존속 루트 주체는 subjects 등록+존속 objective+구동 법칙 필수, 보류 우회 불가). 현재 존속 트리 18 중 세계상태 배선 **7**(플레이어+수문회·잠수단·상인연합·치료단·사제단·수도원) — **미배선 11**. WorldLaws §5 명단은 18주체로 갱신 완료(군집 4·질병 1 행 추가). 단계:
   - [x] **Phase 0** 검증 18 을 validate-state 에 구현 ✅(2026-07): 그래프 로드해 존속 루트 주체 18(플레이어 G0 + F 10·subjectKind 7)↔subjects/objectives/rules 3조건 대조(①등록 ②존속 트리 내 objective ③구동 법칙·정책·행동). 예외=코드 내 명시 `V18_WHITELIST` 11(Phase 1 생태·질병 7 + Phase 2 세력 4). 무결성 가드: 가짜 주체·이미 배선된 주체가 화이트리스트에 남으면 오류(스테일 회귀 차단). **시작 배선 7/18 · 미배선 11 = 진행 카운터**. 6검증+시뮬 3종 초록.
-  - **Phase 1** 생태·질병 7 승격(늑대·초식동물·백야초·설원곤충·남하조류·카르마·검은태양병) — 축·법칙 자산 이미 존재(늑대 법칙 5·검은태양병 법칙 5 등), 잔여=subjects 등록+존속 OBJ(완료=상태 술어)+설원곤충·남하조류 법칙 보강(현재 0). driver=law 허용(WorldLaws §5).
+  - [x] **Phase 1** 생태·질병 7 승격 ✅(2026-07): 늑대·초식동물·백야초·설원곤충·남하조류·카르마·검은태양병 을 subjects(driver=law) 등록 + 존속 OBJ 7(존속 leaf 에 부착, 완료=상태 술어: 개체수/서식/군락/위치/강도) + 존속 해결 행동 14(2/주체, actor=주체, §19 공정 2 해결 경로 선언 — 승격 시 §8 활성) + **카르마 구동 법칙 2**(LAW_카르마_흡수/수축, 제어탑 게이트 — 강 복구 시스템과 교차) + 표현 배선(world-visual: 진행 gauge 7·연대기 rule 2·action 14·objective 7). 실증: 무입력 40틱에 존속 OBJ 7 전부 완료(자율), 검은태양병=혈청 3세력 tug 로 강도 3 도달(교차). vars 135→142·rules 74→76·actions 73→87·objectives 20→27. 화이트리스트 11→4. 6검증+시뮬 3종+strict-coverage+브라우저 스모크(world.html·objective-tree.html) 초록.
   - **Phase 2** 세력 4 정책화 — 교단·대장간·유목민(자산 0, 혈청 3세력 패턴: 세력·관계 축+정책+행동+재료 앵커[거인혈 등])+보존회 정책 목적 2(용수개방·종자보존)+수문회 수원유지. 기존 변수를 반대로 당기게 설계해 tug 확보.
   - **Phase 3** 요소 다주체 재배선 — 검증17 단일주체 70·검증10 미상태화 관계(필요 58·제공 35·방해 25) 를 권역 단위 §9 절차로. 보류 태그는 이 Phase 백로그에만 허용.
   - 예상 총량 vars 135→~200 · rules 74→~120 · actions 73→~110 · objectives 20→~40. 각 Phase 게이트: 검증 6종+시뮬 3종+`--strict-coverage`+브라우저 스모크.
