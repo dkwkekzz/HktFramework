@@ -84,7 +84,10 @@ const audit = { isolated: [], underConnected: [], singleSolution: [], treelessSu
     const connected = linked.has(n.id) || n.parent || hasChild.has(n.id);
     if (!connected) audit.isolated.push(n.id);
     // 요소(E/R/L/K/T)는 최소 2개 목적에 연결 (트리 §14 근거 없는 요소 금지)
-    if (["E", "R", "L", "K", "T"].includes(n.type)) {
+    //   단, 주체 노드(F·subjectKind 마킹 E/X·플레이어)는 '요소'가 아니라 '주체'이므로 요소 감사에서 제외한다
+    //   (검증 17 은 요소가 ≥2 주체에 걸리는지를 묻는다 — 주체 자신은 대상이 아니다).
+    const isSubject = n.type === "F" || !!n.subjectKind || n.id === "E_플레이어";
+    if (!isSubject && ["E", "R", "L", "K", "T"].includes(n.type)) {
       const gc = (gLinksOf.get(n.id)?.size) || 0;
       if (gc < 2) audit.underConnected.push(`${n.id}(${gc}목적)`);
       // §18 복수화 검증 17 — 요소는 서로 다른 주체 ≥2 의 목적에 연결 (겹침이 갈등·교역·서사의 발생지)
