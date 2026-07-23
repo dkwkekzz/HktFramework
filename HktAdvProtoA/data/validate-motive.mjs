@@ -70,15 +70,16 @@ for (const goal of cogGoals) {
   if (acts.length < 2) errors.push(`M8① 위반: 인지-노출 말단 목적 ${goal} 의 해결 행동이 ${acts.length}개 (자율성 — 서로 다른 행동 ≥2 필요)`);
 }
 
-// ── M9 도달성 — 자율 세계(플레이어 방치)에서 모든 인지 전제가 실제로 도달 가능한가.
-//   "만날 수 있는 것만 노출"(§1.5 성립 조건)을 기계로 강제 — 각 인지 setter 의 when 이 N틱 내 참이 되면
-//   플레이어가 그 목적을 발견할 수 있음이 보장된다. 어느 것도 참이 안 되면 = 도달 불가능한 목적(오류).
-const N9 = 60;
+// ── M9 도달성 — '플레이하는' 플레이어(지역을 순회하는 탐사자)가 모든 인지 전제에 실제로 닿는가.
+//   "만날 수 있는 것만 노출"(§1.5 성립 조건)을 기계로 강제. 위치 무관 경험(허기·상처)은 방치로도 닿고,
+//   위치 게이트 경험(북방 한기 등)은 순회로 닿는다. 어느 것도 참이 안 되면 = 도달 불가능한 목적(오류).
+const N9 = 80;
 const reachTick = new Map();               // cogVarId -> 최초 도달 틱 (setter when 참)
 {
   const varIdx = indexVars(state);
   const snap = buildInitial(state); recomputeDerived(snap, varIdx);
   const ctx = newCtx(state);
+  const Ls = graph.nodes.filter((n) => n.type === "L").map((n) => n.id);   // 순회 대상 지역
   const check = () => {
     for (const v of cogVars) {
       if (reachTick.has(v.id)) continue;
@@ -88,7 +89,11 @@ const reachTick = new Map();               // cogVarId -> 최초 도달 틱 (set
     }
   };
   check();                                  // t0
-  for (let i = 0; i < N9 && reachTick.size < cogVars.length; i++) { tick(snap, state, ctx); check(); }
+  for (let i = 0; i < N9 && reachTick.size < cogVars.length; i++) {
+    snap["E_플레이어.위치"] = Ls[i % Ls.length];   // 탐사 모델 — 지역 순회(위치 게이트 경험 도달 가능화)
+    tick(snap, state, ctx);
+    check();
+  }
 }
 for (const v of cogVars) {
   if (!reachTick.has(v.id))
