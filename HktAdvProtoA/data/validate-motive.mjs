@@ -135,6 +135,15 @@ for (const r of emptyRegions)
   errors.push(`M4 위반: L 지역 ${r} 에 플레이어 행동도 발견 전 숨김도 없음 — 진단 4 빈 지역(동기 불변 10 장식만인 존재 금지)`);
 info.push(`M4 존재 정당화: L 지역 ${regionLs.length} — 플레이어 행동 ${playerSites.size} · 숨김 ${hiddenRegions.size} · 빈 지역 ${emptyRegions.length}`);
 
+// ── 검증 M6(진입, 부분) — 욕망(기회) 갈래마다 플레이어 진입 행동 ≥2 + 기회 번역문 (§5·검증 M6)
+const chanceGoals = cogGoals.filter((gg) => jrn[gg]?.kind === "기회");
+const entryCount = (gg) => (state.actions || []).filter((a) => a.objective === gg && (a.actor_type || []).includes("E_플레이어")).length;
+for (const gg of chanceGoals) {
+  if (entryCount(gg) < 2) errors.push(`M6 위반: 기회(욕망) 목적 ${gg} 의 플레이어 진입 행동이 ${entryCount(gg)}개 (§5 진입 ≥2)`);
+  if (!jrn[gg]?.motive) errors.push(`M6 위반: 기회 목적 ${gg} 에 기회 번역문(motive) 없음`);
+}
+info.push(`M6 욕망 진입: 기회 목적 ${chanceGoals.length} — ${chanceGoals.map((gg) => `${gg}(진입 ${entryCount(gg)})`).join(" · ")}`);
+
 // ── 필요/기회 균형 리포트
 const need = cogGoals.filter((g) => jrn[g]?.kind === "필요");
 const chance = cogGoals.filter((g) => jrn[g]?.kind === "기회");
