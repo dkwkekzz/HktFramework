@@ -59,6 +59,12 @@
   .varrow .detail b { color: var(--fg); font-weight: 600; }
   .subject-card { border: 1px solid var(--line); border-radius: 4px; padding: 6px 8px; margin-bottom: 8px; background: var(--panel2); }
   .subject-card .sname { color: var(--gold); margin-bottom: 3px; }
+  .jcard { border: 1px solid var(--line); border-left-width: 3px; border-radius: 4px; padding: 7px 9px; margin-bottom: 8px; background: var(--panel2); }
+  .jcard.need { border-left-color: var(--accent); } .jcard.chance { border-left-color: var(--gold); }
+  .jcard .jtitle { display: flex; justify-content: space-between; gap: 8px; color: var(--fg); font-weight: 600; }
+  .jcard .jtitle .st { font-weight: 400; color: var(--dim); } .jcard .jtitle .st.done { color: var(--gold); } .jcard .jtitle .st.run { color: var(--accent); }
+  .jcard .jmotive { color: var(--dim); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+  .jcard .jhow { color: var(--accent); font-size: 11px; margin-top: 4px; opacity: .8; }
   .kv { display: flex; justify-content: space-between; color: var(--dim); }
   .kv span:last-child { color: var(--fg); }
   .hint { color: var(--dim); font-size: 12px; }
@@ -116,11 +122,13 @@
   </div>
   <aside>
     <div class="tabs">
-      <button data-tab="chron" class="on">연대기</button>
+      <button data-tab="journal" class="on">저널</button>
+      <button data-tab="chron">연대기</button>
       <button data-tab="events">사건·목적</button>
       <button data-tab="inspect">인스펙터</button>
     </div>
-    <div class="tabbody" id="tab-chron"><p class="hint">세계가 굴러가면 발화가 여기 서사로 기록됩니다. 지도 위 지역을 클릭하면 인스펙터가 열립니다.</p></div>
+    <div class="tabbody" id="tab-journal"><p class="hint">겪거나 들어야 목적이 여기 뜹니다. 굶주려 보고, 사람들에게 물으면 '필요'와 '기회'가 이유와 함께 쌓입니다.</p></div>
+    <div class="tabbody" id="tab-chron" style="display:none"><p class="hint">세계가 굴러가면 발화가 여기 서사로 기록됩니다. 지도 위 지역을 클릭하면 인스펙터가 열립니다.</p></div>
     <div class="tabbody" id="tab-events" style="display:none"></div>
     <div class="tabbody" id="tab-inspect" style="display:none"><p class="hint">지도에서 지역을 클릭하세요.</p></div>
   </aside>
@@ -195,14 +203,15 @@ let view = { mode: "world" };                  // "world" | "region"
 let avatar = { x: 0.5, y: 0.62 };              // 씬 로컬 0..1
 let pendingMove = null;                        // { target, from } — ACT_이동 duration 진행 중
 let toasts = [];                               // 현장 목격 알림 (지역 연대기)
+let cogSeen = new Set();                        // 이미 저널에 뜬 인지(목적) — 배너 중복 방지 (§8)
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
-  chron = []; fxq = []; toasts = []; pendingMove = null;
+  chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
   avatar = { x: 0.5, y: 0.62 };
   if (view.mode === "region") view.region = avLoc();
-  renderChron(); renderEvents();
+  renderChron(); renderEvents(); renderJournal();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
 }
@@ -364,6 +373,15 @@ function step() {
 // 틱 후처리 — 로컬(step)과 원격(SSE tick)이 공유한다
 function onTick(t, fired) {
   translateFired(t, fired);
+  // 인지의 순간 연출 — 저널에 새 목적이 뜨는 순간을 배너로 (§8 목적의 탄생이 사건이 된다)
+  for (const goal of Object.keys(journalDict)) {
+    const key = chVar("E_플레이어.인지." + goal);
+    if (snap[key] && !cogSeen.has(key)) {
+      cogSeen.add(key);
+      const j = journalDict[goal];
+      toasts.push({ text: `📓 ${j.kind === "기회" ? "새 기회" : "새 목적"}: ${nodeTitle.get(goal) || goal}`, at: performance.now() });
+    }
+  }
   // 불발된 내 행동은 사유와 함께 현장 알림 (엔진 skipped 의 정직한 표면화)
   for (const s of fired.skipped) if (s.includes("@" + AV)) toasts.push({ text: "행동 불발 — " + s, at: performance.now() });
   // 이동 착지 감지 — 위치 '상태'가 실제로 바뀐 순간에만 씬이 전환된다 (표현은 상태를 따른다)
@@ -381,7 +399,7 @@ function onTick(t, fired) {
   }
   if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동@" + AV))) pendingMove = null;
   tickview.textContent = "t " + ctx.t;
-  renderChron(); renderEvents(); renderActionbar(); renderSceneHud();
+  renderChron(); renderEvents(); renderJournal(); renderActionbar(); renderSceneHud();
   if (inspected) renderInspect(inspected);
 }
 function setTimer() {
@@ -832,7 +850,33 @@ requestAnimationFrame(draw);
 
 // ── 사이드 패널 ────────────────────────────────────────────────────────
 const tickview = document.getElementById("tickview"), speed = document.getElementById("speed");
-const tabs = { chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), inspect: document.getElementById("tab-inspect") };
+const tabs = { journal: document.getElementById("tab-journal"), chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), inspect: document.getElementById("tab-inspect") };
+// 동기층 M2 저널 — 인지(E_플레이어.인지.*)가 true 인 목적만, 필요/기회 이원화·motive 와 함께 (Design-Motive §8)
+const journalDict = Object.fromEntries(Object.entries(visual.journal || {}).filter(([k]) => k !== "meta"));
+function renderJournal() {
+  const need = [], chance = [];
+  for (const [goal, j] of Object.entries(journalDict)) {
+    if (!snap[chVar("E_플레이어.인지." + goal)]) continue;   // 인지 게이트 — 겪거나 들어야 뜬다 (내 캐릭터 축)
+    (j.kind === "기회" ? chance : need).push([goal, j]);
+  }
+  const card = (goal, j) => {
+    let st = "";
+    if (j.progress) { const v = varIdx.get(j.progress), val = snap[j.progress] ?? 0, lbl = v?.levels?.[val] ?? val;
+      st = `<span class="st ${val === 3 ? "done" : val === 2 ? "run" : ""}">${esc(String(lbl))}</span>`; }
+    return `<div class="jcard ${j.kind === "기회" ? "chance" : "need"}">
+      <div class="jtitle"><span>${esc(nodeTitle.get(goal) || goal)}</span>${st}</div>
+      <div class="jmotive">${esc(j.motive || "")}</div>
+      ${j.how ? `<div class="jhow">↳ ${esc(j.how)}</div>` : ""}</div>`;
+  };
+  let h = "";
+  h += `<h3>필요 — 해야 한다 (${need.length})</h3>`;
+  h += need.length ? need.map(([g, j]) => card(g, j)).join("")
+    : `<p class="hint">아직 절박한 것이 없다. 방치하면 허기·위협이 밀려와 목적이 된다.</p>`;
+  h += `<h3>기회 — 할 수 있다 (${chance.length})</h3>`;
+  h += chance.length ? chance.map(([g, j]) => card(g, j)).join("")
+    : `<p class="hint">아직 들은 기회가 없다. 사람들에게 물으면 길이 열린다.</p>`;
+  tabs.journal.innerHTML = h;
+}
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {
   document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x === b));
   for (const [k, el] of Object.entries(tabs)) el.style.display = k === b.dataset.tab ? "" : "none";
@@ -993,7 +1037,7 @@ if (REMOTE) {
     Object.assign(snap, d.snap);
     ctx.t = d.t; ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
     tickview.textContent = "t " + ctx.t;
-    renderChron(); renderEvents(); renderSceneHud();
+    renderChron(); renderEvents(); renderJournal(); renderSceneHud();
   });
   es.addEventListener("tick", (ev) => {
     const d = JSON.parse(ev.data);
