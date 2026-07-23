@@ -181,11 +181,15 @@ const V18_WHITELIST = new Set([
   const subjectNodes = new Set(subjects.map((su) => su.node));
   const regByNode = new Map((state.subjects || []).map((su) => [su.node, su]));
   const objGoals = new Set((state.objectives || []).map((o) => o.goal));
-  // 구동 판정 재료: actor_type 로 행동을 수행하는 주체 · 법칙이 값을 쓰는 var 의 owner
+  // 구동 판정 재료: actor_type 로 행동을 수행하는 주체 · 법칙/행동/시계 효과가 값을 쓰는 var 의 owner
+  //   (③ "그 주체를 실제로 움직이는 법칙·정책·행동" — 자율 법칙이든, 시계든, 남이 그 주체에 가하는 행동이든 무엇이 그를 움직이면 됨)
   const actorNodes = new Set();
   for (const a of state.actions || []) for (const at of a.actor_type || []) actorNodes.add(at);
-  const lawWritesOwner = new Set();
-  for (const r of state.rules || []) for (const e of r.then || []) { const v = varIdx.get(e.var); if (v) lawWritesOwner.add(v.owner); }
+  const drivenByEffect = new Set();
+  const collectEffOwners = (effects) => { for (const e of effects || []) { const v = varIdx.get(e.var); if (v) drivenByEffect.add(v.owner); } };
+  for (const r of state.rules || []) collectEffOwners(r.then);
+  for (const a of state.actions || []) { collectEffOwners(a.then); collectEffOwners(a.cost); }
+  for (const c of state.clocks || []) { collectEffOwners(c.then_on); collectEffOwners(c.then_off); }
 
   let wired = 0; const pending = [];
   for (const su of subjects) {
@@ -195,7 +199,7 @@ const V18_WHITELIST = new Set([
     const moved = (reg && reg.driver === "input")
       || (reg && reg.driver === "policy" && (reg.policy || []).length)
       || actorNodes.has(su.node)
-      || lawWritesOwner.has(su.node);
+      || drivenByEffect.has(su.node);
     const miss = [];
     if (!reg) miss.push("①subjects 미등록");
     else if (!["input", "policy", "law"].includes(reg.driver)) miss.push(`①driver '${reg.driver}' 부적합`);
