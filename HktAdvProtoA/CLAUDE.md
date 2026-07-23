@@ -31,7 +31,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md) | **상흔계 아벨리온** 목적 그래프 정본 (세계 시드·타입 표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선 |
 | [Design-WorldState.md](Design-WorldState.md) | 세계 상태(속성) 데이터화 **설계** — 다섯 층 모델(변수·스냅샷·법칙·행동·목적), 축 문법, 틱 의미론 |
 | [Design-MMO.md](Design-MMO.md) | **MMORPG 웹 프로토타입 설계 (세계 표현 우선)** — 표현=상태의 순수 함수(불변 6·7), 2단 공간 모델(대륙 지도+지역 씬), 표현 번역 사전(world-visual)·world-map, 법칙 가시화(연대기·발화 연출·인스펙터), 행동 발화 UX, 검증 V1~V6, 로드맵 4단계(멀티는 4단계 예약) |
-| [Design-Motive.md](Design-Motive.md) | **동기층 설계** — 결핍(허기·온기·상처, 미는 힘)과 욕망(탐욕·인정·앎·힘·유산, 당기는 힘)이 정보·기회를 거쳐 세계 서사로 상승하는 동기 사슬. 문제 진단 5(§0)·동기 불변 8~12·인지 축·필요/기회 저널·묻기 행동·motive 사전·검증 M1~M7·로드맵 M1~M6 |
+| [Design-Motive.md](Design-Motive.md) | **동기층 설계** — 과학적 근거(§1: 항상성 추동·유인 현저성·SDT 세 조건, 매슬로 위계 폐기) 위에 결핍(허기·온기·상처, 미는 힘)과 욕망(탐욕·인정·앎·힘·유산, 당기는 힘— 병렬·상호증폭)이 정보·기회를 거쳐 세계 서사로 상승하는 동기 사슬. 문제 진단 5(§0)·동기 불변 8~13·인지 축·필요/기회 저널·묻기 행동·motive 사전·검증 M1~M8·로드맵 M1~M6 |
 | [Design-WorldLaws.md](Design-WorldLaws.md) | 세계 법칙 **설계** — 현상 세 서식지(관계·detail·사슬)의 전수 번역(패턴 7종·자율 법칙 42·사슬 5종 완역·NPC 정책·균형 법칙) + **노드→법칙 번역 절차·완료 체크리스트**(§9·§10, 새 세션은 이 절차로 작업) |
 | [data/objective-graph.json](data/objective-graph.json) | 목적 그래프 **유일한 원본 데이터** (타입 노드 G/S/E/R/L/K/T/F/H/X/EV + 타입 관계). 편집은 여기 한 곳 |
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
