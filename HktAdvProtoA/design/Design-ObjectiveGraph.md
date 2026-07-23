@@ -1,6 +1,6 @@
 # 목적 그래프 구축: 세계를 표현하는 근거가 된다
 
-> 이 문서는 [Design-ObjectiveTree.md](Design-ObjectiveTree.md) 의 방법론을 **상흔계 아벨리온**이라는 구체 세계에 적용해 실제 목적 그래프를 구축한 정본이다. 두 문서가 겹치는 부분은 **이 문서를 우선**한다. 실물 데이터는 [data/objective-graph.json](data/objective-graph.json), 관찰·편집기는 [objective-tree.html](objective-tree.html).
+> 이 문서는 [Design-ObjectiveTree.md](Design-ObjectiveTree.md) 의 방법론을 **상흔계 아벨리온**이라는 구체 세계에 적용해 실제 목적 그래프를 구축한 정본이다. 두 문서가 겹치는 부분은 **이 문서를 우선**한다. 실물 데이터는 [data/objective-graph.json](../data/objective-graph.json), 관찰·편집기는 [objective-tree.html](../objective-tree.html).
 
 ## 0. 세계 시드
 

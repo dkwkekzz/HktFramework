@@ -1,6 +1,6 @@
 # 진행 기록 — ④ MMORPG 웹 프로토타입 (세계 표현)
 
-> 설계: [../Design-MMO.md](../Design-MMO.md). 최신 항목을 위에 쌓는다.
+> 설계: [../Design-MMO.md](../design/Design-MMO.md). 최신 항목을 위에 쌓는다.
 
 ## 4단계 — 멀티플레이 완료
 

@@ -5,7 +5,7 @@
 
 ## 주체 세계상태 표현 전수 — Phase 0: 검증 18 구현 (2026-07)
 
-방법론 [Design-ObjectiveTree.md](../Design-ObjectiveTree.md) §18 검증 18·§19 공정 2 게이트. 그래프에 존재하는 **18개 존속 루트 트리**(검증 16 초록)가 세계 상태로 실제 *작동*하는지를 `validate-state.mjs` 가 층 교차로 강제한다 — "검증 16 은 트리의 존재를, 검증 18 은 트리의 작동을 묻는다".
+방법론 [Design-ObjectiveTree.md](../design/Design-ObjectiveTree.md) §18 검증 18·§19 공정 2 게이트. 그래프에 존재하는 **18개 존속 루트 트리**(검증 16 초록)가 세계 상태로 실제 *작동*하는지를 `validate-state.mjs` 가 층 교차로 강제한다 — "검증 16 은 트리의 존재를, 검증 18 은 트리의 작동을 묻는다".
 
 - **주체 판정** = 플레이어(G0, 루트=G0) + 그래프의 모든 `F`(10) + `subjectKind` 마킹 `E/X`(7) = **18**. 존속 루트 = 주체에서 `파생` 링크로 뻗은 parent 없는 G(validate-graph 검증 16 과 동일 판정, 두 검증기 일관).
 - **3조건 대조**: ① `subjects` 등록(driver ∈ {input, policy, law}) · ② 자기 존속 트리(루트의 parent 하향 subtree) 안에 objective ≥1(goal 이 subtree G) · ③ 구동 법칙·정책·행동 ≥1(driver=input/policy∨actor_type 포함 행동∨주체 소유 var 를 쓰는 rule).
@@ -108,7 +108,7 @@
 - 축 문법 3종: 단축 `노드.축` / 쌍축 `노드.축.노드`(계약·감염·보유·습득·관계) / 파생축(함수, 쓰기 금지). 값 4종 flag/level/count/ref. 모든 var `basis` 필수.
 - 설계 결함 차단 사례: `S_토양침식.활성`(사건 2)·`R_심연유리.수요`(사건 3)를 **파생축**으로 두어 set 충돌·회복 교착을 원천 차단.
 
-## 설계 문서 요약 — [Design-WorldState.md](../Design-WorldState.md) (형식)
+## 설계 문서 요약 — [Design-WorldState.md](../design/Design-WorldState.md) (형식)
 
 - **다섯 층 모델**: vars(노드 귀속·basis) · initial(스냅샷) · rules(자율) · actions(주체 선택, 전제·비용·duration) · objectives(discover/complete/fail).
 - **변형 전수 카탈로그 18종**(§4) — 모든 변형이 환원돼야 하는 표현. 런타임 노드 생성 금지(새 존재 = 숨김 노드 상태 전환).

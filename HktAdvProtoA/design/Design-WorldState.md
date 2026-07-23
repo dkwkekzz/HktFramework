@@ -1,6 +1,6 @@
 # 세계 상태 데이터화 설계
 
-> 이 문서는 [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론)와 [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(상흔계 아벨리온 정본), 그리고 실물 데이터 [data/objective-graph.json](data/objective-graph.json) — 즉 **1번(목적 그래프)** 을 근거로, 세계의 **상태**를 데이터로 표현하는 방법을 설계한다. 설계 단계 문서이며 실물 데이터(`data/world-state.json`)는 다음 단계에서 작성한다.
+> 이 문서는 [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론)와 [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(상흔계 아벨리온 정본), 그리고 실물 데이터 [data/objective-graph.json](../data/objective-graph.json) — 즉 **1번(목적 그래프)** 을 근거로, 세계의 **상태**를 데이터로 표현하는 방법을 설계한다. 설계 단계 문서이며 실물 데이터(`data/world-state.json`)는 다음 단계에서 작성한다.
 >
 > **v2** — 그래프 163노드·133관계를 전수 조사하여 보강: 쌍 축·파생 축(§2), 타입별 축 카탈로그(§3), 변형 전수 카탈로그(§4), 틱 의미론(§5), 행동 층(§6), 목적 층(§7), NPC 구동(§8), 해상도 원칙(§9), 그래프 보강 요구(§10).
 

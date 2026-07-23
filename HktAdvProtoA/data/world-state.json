@@ -2,7 +2,7 @@
   "meta": {
     "version": "1.0",
     "schema": "world-state/v2",
-    "source": "Design-WorldState.md",
+    "source": "design/Design-WorldState.md",
     "graph": "objective-graph.json",
     "desc": "세계 상태의 유일한 원본. 그래프 노드 id 를 앵커로 다섯 층(vars/subjects/rules/actions/objectives)을 정의한다. initial 스냅샷은 vars 의 init 산출물이므로 별도로 두지 않는다.",
     "kinds": {
