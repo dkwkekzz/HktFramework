@@ -13,7 +13,7 @@
 
 - `data/world-state.json` — 상태의 유일 원본. **vars 135 · rules 74 · actions 73 · objectives 20 · clocks 2 · subjects 8**. 다섯 층·축 문법 3종·값 4종·`basis` 필수. (동기층 M1~M6 완결: 결핍 삼축[허기·온기·상처] + 인지·묻기 + 탐욕[심연유리 경제] + 인정[관계.F_* 편들기·문 닫힘])
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원).
-- `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**). `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
+- `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·**detail 커버리지 7·노드 커버리지 8**) + **§18 검증 18**(그래프↔세계상태 층 교차 — 존속 루트 주체 18의 subjects 등록·존속 트리 objective·구동 법칙/정책/행동 대조). **현재 배선 7/18 · 미배선 11 = 명시 화이트리스트(Phase 1~3 진행 카운터, 배선 시 제거해야 초록 유지)**. `node data/validate-state.mjs` (경고 0) · `--strict-coverage` 로 미분류를 오류화.
 - `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **525항목 100% 분류(미분류 0)**: 번역 102·서사 85·보류 338. 보류가 곧 콘텐츠 백로그(사유 태그) — 복수화 존속 루트 17 + G0 스텁 11 포함(세계상태 앵커 시 entries 승격). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
 - `data/load-world.mjs` — 파일 로더(fs). 엔진을 순수하게 유지해 브라우저(objective-tree.html)가 canonical 엔진을 그대로 import.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터.
@@ -44,7 +44,7 @@
 ## TODO
 
 - [ ] **주체 세계상태 표현 전수 (Phase 0~3)** — 공정 정본 [Design-ObjectiveTree.md](Design-ObjectiveTree.md) **§19**(주체 추가 공정 다섯 층)·**검증 18**(그래프↔세계상태 층 교차 — 존속 루트 주체는 subjects 등록+존속 objective+구동 법칙 필수, 보류 우회 불가). 현재 존속 트리 18 중 세계상태 배선 **7**(플레이어+수문회·잠수단·상인연합·치료단·사제단·수도원) — **미배선 11**. WorldLaws §5 명단은 18주체로 갱신 완료(군집 4·질병 1 행 추가). 단계:
-  - **Phase 0** 검증 18 을 validate-state 에 구현(그래프 로드해 존속 루트↔subjects/objectives/rules 대조, 예외=화이트리스트) → 시작 시점 오류 11 = 진행률 카운터.
+  - [x] **Phase 0** 검증 18 을 validate-state 에 구현 ✅(2026-07): 그래프 로드해 존속 루트 주체 18(플레이어 G0 + F 10·subjectKind 7)↔subjects/objectives/rules 3조건 대조(①등록 ②존속 트리 내 objective ③구동 법칙·정책·행동). 예외=코드 내 명시 `V18_WHITELIST` 11(Phase 1 생태·질병 7 + Phase 2 세력 4). 무결성 가드: 가짜 주체·이미 배선된 주체가 화이트리스트에 남으면 오류(스테일 회귀 차단). **시작 배선 7/18 · 미배선 11 = 진행 카운터**. 6검증+시뮬 3종 초록.
   - **Phase 1** 생태·질병 7 승격(늑대·초식동물·백야초·설원곤충·남하조류·카르마·검은태양병) — 축·법칙 자산 이미 존재(늑대 법칙 5·검은태양병 법칙 5 등), 잔여=subjects 등록+존속 OBJ(완료=상태 술어)+설원곤충·남하조류 법칙 보강(현재 0). driver=law 허용(WorldLaws §5).
   - **Phase 2** 세력 4 정책화 — 교단·대장간·유목민(자산 0, 혈청 3세력 패턴: 세력·관계 축+정책+행동+재료 앵커[거인혈 등])+보존회 정책 목적 2(용수개방·종자보존)+수문회 수원유지. 기존 변수를 반대로 당기게 설계해 tug 확보.
   - **Phase 3** 요소 다주체 재배선 — 검증17 단일주체 70·검증10 미상태화 관계(필요 58·제공 35·방해 25) 를 권역 단위 §9 절차로. 보류 태그는 이 Phase 백로그에만 허용.

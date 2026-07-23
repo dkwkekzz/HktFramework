@@ -13,6 +13,7 @@ const STRICT_COVERAGE = process.argv.includes("--strict-coverage");
 
 const { graph, state } = loadWorld();
 const nodeIds = new Set(graph.nodes.map((n) => n.id));
+const byNode = new Map(graph.nodes.map((n) => [n.id, n]));
 const varIdx = indexVars(state);
 const varIds = new Set(varIdx.keys());
 const errors = [];
@@ -140,6 +141,80 @@ for (const s of state.subjects || []) {
     const acts = (state.actions || []).filter((a) => a.objective === g && (a.actor_type || []).includes(s.node));
     if (!acts.length) errors.push(`검증12 위반: ${s.node} 가 목적 ${g} 를 수행할 행동(actor_type 포함) 없음`);
   }
+}
+
+// ── 검증 18(§18): 존속 루트를 가진 모든 주체가 세계 상태에 표현되어 있는가 (그래프↔세계상태 층 교차)
+//   주체 = 플레이어(G0) + 그래프의 모든 F·subjectKind 마킹 E/X. 존속 루트 = 주체에서 파생된 parent 없는 G.
+//   ① subjects 등록(driver: input/policy/law) ② 자기 존속 트리 안 objective ≥1 ③ 구동 법칙·정책·행동 ≥1.
+//   검증 16 은 트리의 '존재'를, 검증 18 은 트리의 '작동'을 묻는다. 예외는 detail '보류' 태그가 아니라
+//   아래 명시적 화이트리스트로만 허용한다 — 화이트리스트 크기 = 주체 세계상태 표현 전수(Phase 1~3) 진행 카운터.
+//   주체를 배선하면 그 주체를 화이트리스트에서 제거해야 초록이 유지된다(스테일 방지).
+const V18_WHITELIST = new Set([
+  // Phase 1 생태·질병 7 (driver=law 허용)
+  "E_회색등늑대", "E_초식동물", "E_백야초", "E_설원곤충", "E_남하조류", "E_카르마", "X_검은태양병",
+  // Phase 2 세력 4 (정책화)
+  "F_거인부활교단", "F_무명대장간", "F_북방유목민", "F_씨앗보존회",
+]);
+{
+  // 존속 루트: 주체 → 파생 → parent 없는 G
+  const derivedRootOf = new Map();
+  for (const l of graph.links) {
+    if (l.type !== "파생") continue;
+    const t = byNode.get(l.target);
+    if (t && t.type === "G" && !t.parent) {
+      if (!derivedRootOf.has(l.source)) derivedRootOf.set(l.source, new Set());
+      derivedRootOf.get(l.source).add(l.target);
+    }
+  }
+  // 존속 트리 하위 G 집합 (parent 하향 순회)
+  const childrenOf = new Map();
+  for (const n of graph.nodes) if (n.parent) {
+    if (!childrenOf.has(n.parent)) childrenOf.set(n.parent, []);
+    childrenOf.get(n.parent).push(n.id);
+  }
+  const subtreeGoals = (roots) => {
+    const out = new Set(), st = [...roots];
+    while (st.length) { const c = st.pop(); if (out.has(c)) continue; out.add(c); for (const ch of childrenOf.get(c) || []) st.push(ch); }
+    return out;
+  };
+  // 주체 목록 = 플레이어(G0) + F·subjectKind
+  const subjects = [{ node: "E_플레이어", roots: new Set(["G0"]) }];
+  for (const n of graph.nodes) if (n.type === "F" || n.subjectKind) subjects.push({ node: n.id, roots: derivedRootOf.get(n.id) || new Set() });
+  const subjectNodes = new Set(subjects.map((su) => su.node));
+  const regByNode = new Map((state.subjects || []).map((su) => [su.node, su]));
+  const objGoals = new Set((state.objectives || []).map((o) => o.goal));
+  // 구동 판정 재료: actor_type 로 행동을 수행하는 주체 · 법칙이 값을 쓰는 var 의 owner
+  const actorNodes = new Set();
+  for (const a of state.actions || []) for (const at of a.actor_type || []) actorNodes.add(at);
+  const lawWritesOwner = new Set();
+  for (const r of state.rules || []) for (const e of r.then || []) { const v = varIdx.get(e.var); if (v) lawWritesOwner.add(v.owner); }
+
+  let wired = 0; const pending = [];
+  for (const su of subjects) {
+    const reg = regByNode.get(su.node);
+    const treeGoals = subtreeGoals(su.roots);
+    const hasObj = [...objGoals].some((g) => treeGoals.has(g));
+    const moved = (reg && reg.driver === "input")
+      || (reg && reg.driver === "policy" && (reg.policy || []).length)
+      || actorNodes.has(su.node)
+      || lawWritesOwner.has(su.node);
+    const miss = [];
+    if (!reg) miss.push("①subjects 미등록");
+    else if (!["input", "policy", "law"].includes(reg.driver)) miss.push(`①driver '${reg.driver}' 부적합`);
+    if (!hasObj) miss.push("②존속 트리 내 objective 없음");
+    if (!moved) miss.push("③구동 법칙·정책·행동 없음");
+    if (!miss.length) { wired++; continue; }
+    // 미배선 — 화이트리스트에 있으면 진행 백로그(경고), 없으면 오류
+    if (V18_WHITELIST.has(su.node)) pending.push(`${su.node}: ${miss.join(", ")}`);
+    else errors.push(`검증18 위반: 주체 ${su.node} 미배선 — ${miss.join(", ")} (화이트리스트에 없음 — §19 공정 2 로 배선)`);
+  }
+  // 화이트리스트 무결성 — 실존 주체만 · 이미 배선된 주체가 남으면 회귀(제거하라)
+  for (const w of V18_WHITELIST) {
+    if (!subjectNodes.has(w)) errors.push(`검증18 위반: 화이트리스트 '${w}' 가 존속 주체가 아님(오탈자·삭제된 주체)`);
+    else if (!pending.some((p) => p.startsWith(w + ":"))) errors.push(`검증18 위반: 화이트리스트 '${w}' 가 이미 배선됨 — 화이트리스트에서 제거하라(진행 반영)`);
+  }
+  info.push(`검증18 주체 세계상태 배선: ${wired}/${subjects.length} 배선 · 미배선(화이트리스트) ${pending.length}`);
+  for (const p of pending) info.push(`  └ 미배선 ${p}`);
 }
 
 // ── 검증 10: 그래프 관계 번역 커버리지 보고 (상태화된 양끝 기준)

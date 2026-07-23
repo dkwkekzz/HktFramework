@@ -3,6 +3,17 @@
 > 큰 단계 **② 세계 상태** = 상태를 데이터로 표현하는 **형식**(모델·엔진·검증·시뮬). 법칙의 *내용*은 [world-laws.md](world-laws.md). 최신 항목을 위에 쌓는다.
 > 현재 규모: `data/world-state.json` **vars 84 · rules 61 · actions 28 · objectives 11 · clocks 2 · subjects 7** (상태의 유일 원본).
 
+## 주체 세계상태 표현 전수 — Phase 0: 검증 18 구현 (2026-07)
+
+방법론 [Design-ObjectiveTree.md](../Design-ObjectiveTree.md) §18 검증 18·§19 공정 2 게이트. 그래프에 존재하는 **18개 존속 루트 트리**(검증 16 초록)가 세계 상태로 실제 *작동*하는지를 `validate-state.mjs` 가 층 교차로 강제한다 — "검증 16 은 트리의 존재를, 검증 18 은 트리의 작동을 묻는다".
+
+- **주체 판정** = 플레이어(G0, 루트=G0) + 그래프의 모든 `F`(10) + `subjectKind` 마킹 `E/X`(7) = **18**. 존속 루트 = 주체에서 `파생` 링크로 뻗은 parent 없는 G(validate-graph 검증 16 과 동일 판정, 두 검증기 일관).
+- **3조건 대조**: ① `subjects` 등록(driver ∈ {input, policy, law}) · ② 자기 존속 트리(루트의 parent 하향 subtree) 안에 objective ≥1(goal 이 subtree G) · ③ 구동 법칙·정책·행동 ≥1(driver=input/policy∨actor_type 포함 행동∨주체 소유 var 를 쓰는 rule).
+- **예외는 코드 내 명시 화이트리스트로만** — detail '보류' 태그는 요소·백로그용이지 주체 미배선 우회로가 아니다(§18 못박음). `V18_WHITELIST` = Phase 1 생태·질병 7(늑대·초식동물·백야초·설원곤충·남하조류·카르마·검은태양병) + Phase 2 세력 4(거인부활교단·무명대장간·북방유목민·씨앗보존회) = **11**.
+- **무결성 가드**(스테일 방지): 화이트리스트 항목이 (a) 실존 주체가 아니거나 (b) 이미 3조건을 다 만족(=배선 완료)하면 오류 → 주체를 배선하면 반드시 화이트리스트에서 빼야 초록이 유지된다. 이것이 "화이트리스트 크기 = 진행 카운터" 를 자기추적으로 만든다.
+- **시작 상태 배선 7/18**: 플레이어(input) + 정책 세력 6(수문회·유리잠수단·상인연합·치료단·사제단·수도원). 미배선 11 = 화이트리스트. `씨앗보존회` 는 subjects 등록·정책은 있으나 정책 목적 G1.2.6 이 자기 존속 트리(G_보존회_생존) 밖 → ② 불만족으로 미배선 판정(Phase 2 에서 존속 objective 배선 필요). `늑대·검은태양병` 은 이미 구동 법칙 보유(③ 만족) — 잔여는 ② 존속 objective.
+- 게이트 확인: validate-state(경고 0·exit 0)·`--strict-coverage`·validate-graph·validate-visual·validate-motive·simulate 3종 전부 초록. 가짜 주체 주입 시 무결성 가드 오류 실측.
+
 ## 엔진 — `data/state-engine.mjs` (공유)
 
 - 결정론 틱 루프 ①시계 → ②파생 재계산 → ③전제 일괄평가(틱 시작 스냅샷) → ④효과 일괄적용 → ⑤파생 재계산 → ⑥목적 판정 → ⑦NPC/입력 행동.
