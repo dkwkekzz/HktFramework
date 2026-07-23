@@ -61,6 +61,7 @@
   .subject-card .sname { color: var(--gold); margin-bottom: 3px; }
   .jcard { border: 1px solid var(--line); border-left-width: 3px; border-radius: 4px; padding: 7px 9px; margin-bottom: 8px; background: var(--panel2); }
   .jcard.need { border-left-color: var(--accent); } .jcard.chance { border-left-color: var(--gold); }
+  .jcard.lead { border-left-color: var(--dim); border-style: dashed; }
   .jcard .jtitle { display: flex; justify-content: space-between; gap: 8px; color: var(--fg); font-weight: 600; }
   .jcard .jtitle .st { font-weight: 400; color: var(--dim); } .jcard .jtitle .st.done { color: var(--gold); } .jcard .jtitle .st.run { color: var(--accent); }
   .jcard .jmotive { color: var(--dim); font-size: 12px; margin-top: 4px; line-height: 1.5; }
@@ -875,6 +876,19 @@ function renderJournal() {
   h += `<h3>기회 — 할 수 있다 (${chance.length})</h3>`;
   h += chance.length ? chance.map(([g, j]) => card(g, j)).join("")
     : `<p class="hint">아직 들은 기회가 없다. 사람들에게 물으면 길이 열린다.</p>`;
+  // 소문·실마리 — 지금 들을 수 있는 것 (전제 충족·미인지 묻기). 막힘을 '다음 한 걸음'으로 (§6 ④·§7)
+  const leads = [];
+  for (const a of state.actions) {
+    if (!a.id.startsWith("ACT_묻다_")) continue;
+    const e = (visual.actions || {})[a.id];
+    if (!e?.lead || snap[a.id + ".발화됨"]) continue;
+    if (!evalPred(a.when, snap, AV)) continue;           // 전제(겪음·봤음) 충족 ∧ 아직 안 물음
+    leads.push(`<div class="jcard lead"><div class="jmotive">${esc(e.lead)}</div>
+      <div class="jhow">→ ${esc(nodeTitle.get(e.site) || e.site)} · ${esc(e.spot)} 에서 물어볼 수 있다</div></div>`);
+  }
+  h += `<h3>소문 · 실마리 — 들을 수 있는 것 (${leads.length})</h3>`;
+  h += leads.length ? leads.join("")
+    : `<p class="hint">아직 들리는 소문이 없다. 겪을수록(굶주림·위협) 물어볼 실마리가 열린다.</p>`;
   tabs.journal.innerHTML = h;
 }
 document.querySelectorAll(".tabs button").forEach((b) => b.onclick = () => {

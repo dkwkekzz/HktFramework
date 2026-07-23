@@ -5,7 +5,7 @@
 //   불변 8  인지 발화의 경험 술어 — 모든 인지 set 법칙·행동은 비어있지 않은 when(겪었다·들었다·봤다) 전제를 갖는다.
 // 실행: node data/validate-motive.mjs
 import { loadWorld, HERE } from "./load-world.mjs";
-import { terminalGoals } from "./state-engine.mjs";
+import { terminalGoals, buildInitial, recomputeDerived, newCtx, tick, indexVars, evalPred } from "./state-engine.mjs";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
 
@@ -17,6 +17,7 @@ const errors = [], warnings = [], info = [];
 // 인지 축 = E_플레이어.인지.{goal}
 const cogVars = (state.vars || []).filter((v) => v.owner === "E_플레이어" && v.axis === "인지");
 const cogGoals = cogVars.map((v) => v.target);
+const askActs = (state.actions || []).filter((a) => a.id.startsWith("ACT_묻다_"));
 
 // ── 인지 set 경로 수집(법칙·행동) — true 로 set 하는 효과
 const setters = new Map();                 // cogVarId -> [srcId...]
@@ -69,13 +70,59 @@ for (const goal of cogGoals) {
   if (acts.length < 2) errors.push(`M8① 위반: 인지-노출 말단 목적 ${goal} 의 해결 행동이 ${acts.length}개 (자율성 — 서로 다른 행동 ≥2 필요)`);
 }
 
+// ── M9 도달성 — 자율 세계(플레이어 방치)에서 모든 인지 전제가 실제로 도달 가능한가.
+//   "만날 수 있는 것만 노출"(§1.5 성립 조건)을 기계로 강제 — 각 인지 setter 의 when 이 N틱 내 참이 되면
+//   플레이어가 그 목적을 발견할 수 있음이 보장된다. 어느 것도 참이 안 되면 = 도달 불가능한 목적(오류).
+const N9 = 60;
+const reachTick = new Map();               // cogVarId -> 최초 도달 틱 (setter when 참)
+{
+  const varIdx = indexVars(state);
+  const snap = buildInitial(state); recomputeDerived(snap, varIdx);
+  const ctx = newCtx(state);
+  const check = () => {
+    for (const v of cogVars) {
+      if (reachTick.has(v.id)) continue;
+      for (const srcId of setters.get(v.id) || []) {
+        if (evalPred(setterSrc.get(srcId).when, snap, "E_플레이어")) { reachTick.set(v.id, ctx.t); break; }
+      }
+    }
+  };
+  check();                                  // t0
+  for (let i = 0; i < N9 && reachTick.size < cogVars.length; i++) { tick(snap, state, ctx); check(); }
+}
+for (const v of cogVars) {
+  if (!reachTick.has(v.id))
+    errors.push(`M9 위반: 인지 ${v.target} 의 발견 전제가 자율 세계 ${N9}틱 내 참이 되지 않음 — 도달 불가능한 노출 목적(§1.5)`);
+}
+
+// ── M9 직관층 즉각 보상 — 직관 기점 행동은 즉각 체감 보상(허기↓ ∨ 보유↑)을 보증(보상 이중성 충족).
+const INTUITIVE = ["ACT_식사", "ACT_초식동물_사냥", "ACT_유리열매_채집"];
+const actById = new Map((state.actions || []).map((a) => [a.id, a]));
+for (const id of INTUITIVE) {
+  const a = actById.get(id);
+  if (!a) { errors.push(`M9 위반: 직관층 행동 ${id} 가 없음`); continue; }
+  const reward = (a.then || []).some((e) => {
+    const nm = e.var.replace("{actor}", "E_플레이어"); const vv = (state.vars || []).find((x) => x.id === nm);
+    if (!vv) return false;
+    const 보유증가 = vv.axis === "보유" && e.op === "add" && e.value > 0;
+    const 허기개선 = vv.axis === "허기" && e.op === "add" && e.value < 0;
+    return 보유증가 || 허기개선;
+  });
+  if (!reward) errors.push(`M9 위반: 직관층 행동 ${id} 에 즉각 체감 보상(허기↓·보유↑) 없음 — 충족 없는 루프(낚시) 금지`);
+}
+
+// ── 리드 커버리지 — 모든 묻기에 소문(lead) 실마리가 있어 상향 입구가 보이는가 (§6 ④ 정보 루프)
+const actVis = visual.actions || {};
+for (const a of askActs) if (!actVis[a.id]?.lead)
+  warnings.push(`리드 경고: 묻기 ${a.id} 에 lead(소문 실마리) 없음 — 저널 '소문' 섹션에 안 뜬다(막힘→묻기 입구 누락)`);
+
 // ── 필요/기회 균형 리포트
 const need = cogGoals.filter((g) => jrn[g]?.kind === "필요");
 const chance = cogGoals.filter((g) => jrn[g]?.kind === "기회");
 info.push(`인지-노출 목적 ${cogGoals.length} — 필요 ${need.length} · 기회 ${chance.length}`);
 info.push(`인지 set 경로: ${[...setters.entries()].map(([v, s]) => `${v.replace("E_플레이어.인지.", "")}←${s.join(",")}`).join(" · ")}`);
-const askActs = (state.actions || []).filter((a) => a.id.startsWith("ACT_묻다_"));
 info.push(`묻기 행동 ${askActs.length} · 경험 인지 법칙 ${(state.rules || []).filter((r) => r.id.startsWith("LAW_인지_")).length}`);
+info.push(`M9 도달성: 인지 ${cogVars.length}개 전부 자율 세계에서 도달 — ${[...reachTick.entries()].map(([v, t]) => `${v.replace("E_플레이어.인지.", "")}@t${t}`).join(" · ")}`);
 
 // ── 결과
 console.log(`동기층: 인지 축 ${cogVars.length} · 묻기 ${askActs.length} · journal 항목 ${Object.keys(jrn).length}`);
