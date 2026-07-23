@@ -249,6 +249,13 @@
     { "id": "E_플레이어.기여.EV_강의귀환", "owner": "E_플레이어", "target": "EV_강의귀환", "scope": "player",
       "axis": "기여", "kind": "count", "init": 0,
       "basis": "Design-MMO §4.2 개인 인정 — world 사건에 대한 캐릭터별 기여 기록. 개인 보상 판정의 앵커" },
+
+    { "id": "E_플레이어.허기", "owner": "E_플레이어", "scope": "player",
+      "axis": "허기", "kind": "level", "levels": ["배부름", "보통", "허기", "굶주림"], "init": 0,
+      "basis": "동기층 M1 결핍 삼축 ①(Design-Motive §4) — 항상성 허기 압력(§2.1 미는 힘). LAW_허기 가 시간에 따라 올리고 ACT_식사 가 낮춘다. 굶주림(≥2)은 사망이 아니라 중노동 행동의 when 전제 미충족으로 대가를 표현(엔진 무변경). 동기 불변 9(욕구는 상태다)·11(결핍은 압력으로)" },
+    { "id": "E_플레이어.보유.R_식량", "owner": "E_플레이어", "target": "R_식량", "scope": "player",
+      "axis": "보유", "kind": "count", "init": 2,
+      "basis": "동기층 M1(Design-Motive §4·§9) — 개인 식량 인벤토리. ACT_초식동물_사냥·ACT_유리열매_채집 이 채우고 ACT_식사 가 소비한다. R_식량 을 세계 변수(공급)에서 플레이어 소비재로 연결(진단 4 '식량이 있는데 허기가 없다'의 해소). 쌍축 보유 문법(E_플레이어.보유.*)" },
     { "id": "F_씨앗보존회.기여.EV_강의귀환", "owner": "F_씨앗보존회", "target": "EV_강의귀환",
       "axis": "기여", "kind": "count", "init": 0,
       "basis": "Design-MMO §4.1 — NPC 도 같은 기여 축을 민다 (무입력 자율 재생 유지, 검증 14)" },
@@ -872,7 +879,11 @@
 
     { "id": "LAW_회귀호흡_확산", "basis": "생존술 수요로 회귀호흡이 저절로 퍼진다(수도원 통제의 반대 압력). DET: T_회귀호흡.현재 갈등",
       "when": { "all": [ { "var": "T_회귀호흡.공개", "op": "<", "value": 3 } ] },
-      "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": 1 } ], "every": 12 }
+      "then": [ { "var": "T_회귀호흡.공개", "op": "add", "value": 1 } ], "every": 12 },
+
+    { "id": "LAW_허기", "basis": "동기층 M1(Design-Motive §4·§2.1 항상성 추동) — 세계가 플레이어에게 쓰는 최초의 법칙(진단 1 '생존 압력 부재'의 해소). 시간이 흐르면 허기가 오른다. 회복은 법칙이 아니라 ACT_식사(플레이어 선택) — 압력↔충족 비대칭이 결핍 루프의 본질. 동기 불변 11",
+      "when": { "all": [ { "var": "E_플레이어.허기", "op": "<", "value": 3 } ] },
+      "then": [ { "var": "E_플레이어.허기", "op": "add", "value": 1 } ], "every": 10 }
   ],
 
   "actions": [
@@ -1094,8 +1105,10 @@
       "then": [ { "var": "E_아르카론.약점단서", "op": "add", "value": 1 } ], "duration": 3, "once": false },
 
     { "id": "ACT_지열정_시추", "objective": "G5.2", "actor_type": ["E_플레이어"],
-      "basis": "G5.2 해결 ①(지열 — 강력) — 지열정을 시추해 에너지 기반을 놓는다. 발전 시설의 발판. DET: G5.2.에너지원",
-      "when": { "all": [ { "var": "L_지열도시.에너지", "op": "<", "value": 1 } ] },
+      "basis": "G5.2 해결 ①(지열 — 강력) — 지열정을 시추해 에너지 기반을 놓는다. 발전 시설의 발판. 굶주린 채로는 못 하는 중노동(동기층 M1 — 허기 ≤ 보통 전제, Design-Motive §4). DET: G5.2.에너지원",
+      "when": { "all": [
+        { "var": "L_지열도시.에너지", "op": "<", "value": 1 },
+        { "var": "{actor}.허기", "op": "<=", "value": 1 } ] },
       "then": [ { "var": "L_지열도시.에너지", "op": "set", "value": 1 } ], "duration": 2, "once": true },
 
     { "id": "ACT_발전시설_구축", "objective": "G5.2", "actor_type": ["E_플레이어"],
@@ -1113,9 +1126,10 @@
         { "var": "X_검은태양병.강도", "op": "add", "value": 1 } ], "duration": 2, "once": true },
 
     { "id": "ACT_변방_탐사", "objective": "G4.2", "actor_type": ["E_플레이어"],
-      "basis": "G4.2 해결 — 폭풍절벽 너머 변방을 탐사한다(개척의 발판). 별빛폭풍 중에는 불가(그래프 방해: X_별빛폭풍→G4.2). DET: G4.2.해결 방법",
+      "basis": "G4.2 해결 — 폭풍절벽 너머 변방을 탐사한다(개척의 발판). 별빛폭풍 중에는 불가(그래프 방해: X_별빛폭풍→G4.2). 굶주린 채로는 못 하는 중노동(동기층 M1 — 허기 ≤ 보통 전제, Design-Motive §4). DET: G4.2.해결 방법",
       "when": { "all": [
         { "var": "L_폭풍절벽.개척", "op": "<", "value": 1 },
+        { "var": "{actor}.허기", "op": "<=", "value": 1 },
         { "var": "X_별빛폭풍.활성", "op": "==", "value": false } ] },
       "then": [ { "var": "L_폭풍절벽.개척", "op": "set", "value": 1 } ], "duration": 2, "once": true },
 
@@ -1139,9 +1153,10 @@
       "then": [ { "var": "L_지열도시.거점", "op": "set", "value": 1 } ], "duration": 1, "once": true },
 
     { "id": "ACT_거점_요새화", "objective": "G1.5", "actor_type": ["E_플레이어"],
-      "basis": "G1.5 해결 ①(야간 공격 방어) — 야영지를 요새화해 견고 거점으로 만든다. 늑대 습격 중에는 불가(그래프 방해: X_늑대공격→G1.5). DET: G1.5.해결 방법",
+      "basis": "G1.5 해결 ①(야간 공격 방어) — 야영지를 요새화해 견고 거점으로 만든다. 늑대 습격 중에는 불가(그래프 방해: X_늑대공격→G1.5). 굶주린 채로는 못 하는 중노동(동기층 M1 — 허기 ≤ 보통 전제, Design-Motive §4 '대가는 전제로'). DET: G1.5.해결 방법",
       "when": { "all": [
         { "var": "L_지열도시.거점", "op": ">=", "value": 1 },
+        { "var": "{actor}.허기", "op": "<=", "value": 1 },
         { "var": "X_늑대공격.활성", "op": "==", "value": false } ] },
       "then": [ { "var": "L_지열도시.거점", "op": "set", "value": 2 } ], "duration": 3, "once": true },
 
@@ -1354,6 +1369,31 @@
         { "var": "{actor}.보유.R_수분핵", "op": "add", "value": 1 },
         { "var": "E_카르마.서식", "op": "add", "value": -1 }
       ], "duration": 2 },
+
+    { "id": "ACT_식사", "objective": "G1.1.1", "actor_type": ["E_플레이어"],
+      "basis": "동기층 M1 직관층(Design-Motive §4·§1.3) — 보유 식량을 먹어 허기를 낮춘다(충족: 루프를 닫는다). 즉각 체감 보상 = 허기 개선(동기 불변 14). G1.1.1 '즉시 먹을 수 있는 식량을 구한다'의 소비 루프",
+      "when": { "all": [
+        { "var": "{actor}.보유.R_식량", "op": ">=", "value": 1 },
+        { "var": "{actor}.허기", "op": ">=", "value": 1 }
+      ] },
+      "cost": [ { "var": "{actor}.보유.R_식량", "op": "add", "value": -1 } ],
+      "then": [ { "var": "{actor}.허기", "op": "add", "value": -1 } ], "duration": 1, "once": false },
+
+    { "id": "ACT_초식동물_사냥", "objective": "G1.1.1", "actor_type": ["E_플레이어"],
+      "basis": "동기층 M1 직관층(Design-Motive §1.4 보상 이중성의 대표례) — 재의 숲 초식동물을 사냥한다. 충족=식량 획득(보유 증가), 잉여=사냥한 짐승에서 나온 속털(겨울 대비 지렛대로 배선 — 동기 불변 12·14). 세계측 소모(개체수 -1)는 P5 제공 규율. G1.1.1 해결 '작은 생명체 사냥'",
+      "when": { "all": [
+        { "var": "E_초식동물.개체수", "op": ">", "value": 0 }
+      ] },
+      "then": [
+        { "var": "{actor}.보유.R_식량", "op": "add", "value": 1 },
+        { "var": "R_속털.보유", "op": "add", "value": 1 },
+        { "var": "E_초식동물.개체수", "op": "add", "value": -1 }
+      ], "duration": 1, "once": false },
+
+    { "id": "ACT_유리열매_채집", "objective": "G1.1.1", "actor_type": ["E_플레이어"],
+      "basis": "동기층 M1 직관층(Design-Motive §1.3) — 침몰 해안의 유리열매나무에서 투명한 열매(식량+담수)를 딴다. 충족=식량 획득(보유 증가). 사냥이 막힐 때(겨울·포식으로 짐승이 없다)의 대체 경로 = 자율성(동기 불변 13①). 빈 지역(침몰해안)에 플레이어 행동을 심어 진단 4 를 함께 해소. G1.1.1 해결 '야생 열매 채집'",
+      "when": { "all": [ { "var": "{actor}.위치", "op": "==", "value": "L_침몰해안" } ] },
+      "then": [ { "var": "{actor}.보유.R_식량", "op": "add", "value": 1 } ], "duration": 1, "once": false },
 
     { "id": "ACT_이동",
       "actor_type": ["E_플레이어"],
