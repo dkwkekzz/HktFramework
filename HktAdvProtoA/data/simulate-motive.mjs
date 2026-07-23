@@ -221,7 +221,39 @@ line(sold, "M5 시세 교역 — 공급에 따라 값이 갈리는 물물 교환
 line(banned, "M5 충돌 — 금지령 아래선 채굴이 막힌다(탐욕↔안전)");
 const m5Ok = oppSeen && mined >= 1 && sold && banned;
 
-const allOk = m1Ok && m3Ok && m5Ok;
-console.log(`\n${allOk ? "동기층 M1+M3+M5 실증 통과" : "일부 미충족 — 위 판정 확인"} — 미는 결핍(허기·온기·상처)과 당기는 욕망(시세)이 병렬로 플레이어를 세계에 건다.`);
+// ═══════════════════════════════════════════════════════════════════════
+// M6 인정 실증 (Design-Motive §5.2) — 관계는 열쇠: 한쪽을 도우면 반대쪽 문이 닫힌다.
+//   세력 모집(기회 인지) → 편들기(양면 선택) → 관계축 이동 → 적대 세력의 묻기·교역이 막힌다
+// ═══════════════════════════════════════════════════════════════════════
+console.log("\n" + "═".repeat(74));
+console.log("■ 검증 M6 — 인정: 세계가 나를 다르게 대한다(점수판 아님)");
+let r = fresh();
+for (let t = 1; t <= 3; t++) tick(r.s, state, r.c);
+const recruitCog = r.s[PLAYER + ".인지.G6.1"], smithCog = r.s[PLAYER + ".인지.G3.2.1"];
+console.log(`기회 인지: 인정(G6.1)=${recruitCog ? "떴다(세력이 일손 구함)" : "안 뜸"} · 힘(G3.2.1)=${smithCog ? "떴다(신살 무기)" : "안 뜸"}`);
+// 치료단 편들기 — 관계.상인연합·사제단 하락(양면 선택). NPC 정책을 끄고 편들기만으로 관계 이동을 본다.
+const mrel0 = 2;                                              // 상인연합 관계 초기값(중립)
+const stateNP = { ...state, subjects: (state.subjects || []).filter((s) => s.driver !== "policy") };
+r = fresh();                                                 // 깨끗한 재시작
+inj(r, 1, "ACT_편들기_치료단"); for (let i = 0; i < 3; i++) tick(r.s, stateNP, r.c);
+inj(r, r.c.t + 1, "ACT_편들기_치료단"); for (let i = 0; i < 3; i++) tick(r.s, stateNP, r.c);
+const heal = r.s[PLAYER + ".관계.F_치료단"], merch = r.s[PLAYER + ".관계.F_상인연합"], priest = r.s[PLAYER + ".관계.F_일식사제단"];
+const lrel = (id) => varIdx.get(id).levels[r.s[id]];
+console.log(`편들기(치료단) → 관계 치료단=${lrel(PLAYER + ".관계.F_치료단")} · 상인연합=${lrel(PLAYER + ".관계.F_상인연합")} · 사제단=${lrel(PLAYER + ".관계.F_일식사제단")}  (한쪽↑ 반대쪽↓)`);
+// 적대가 된 상인연합의 문(묻기)이 닫힌다
+r.s[PLAYER + ".허기"] = 2;                                    // 묻다_상인연합 의 허기 전제는 충족시켜 관계만 남긴다
+inj(r, r.c.t + 1, "ACT_묻다_상인연합_변방");
+const fr = tick(r.s, stateNP, r.c);
+const doorClosed = fr.skipped.some((s) => s.startsWith("ACT_묻다_상인연합"));
+console.log(`상인연합 문: 관계 ${lrel(PLAYER + ".관계.F_상인연합")}(중립 미만) → 묻기 ${doorClosed ? "막힘(문이 닫혔다)" : "열림"}  ★ 한쪽을 도운 값`);
+
+console.log("\n판정 (로드맵 M6 인정 · 검증 M6·M7·M8):");
+line(recruitCog && smithCog, "M6 기회 인지 — 인정·힘 갈래가 「기회」로 떴다(다섯 갈래 병렬)");
+line(merch < mrel0 && heal > 2, "M6 양면 선택 — 치료단을 도우니 상인연합·사제단 관계가 내렸다");
+line(doorClosed, "M6 관계=열쇠 — 적대가 된 세력의 문(묻기)이 닫혔다(세계가 나를 다르게 대한다)");
+const m6Ok = recruitCog && smithCog && merch < mrel0 && heal > 2 && doorClosed;
+
+const allOk = m1Ok && m3Ok && m5Ok && m6Ok;
+console.log(`\n${allOk ? "동기층 M1+M3+M5+M6 실증 통과" : "일부 미충족 — 위 판정 확인"} — 미는 결핍(허기·온기·상처)과 당기는 욕망(시세·인정·힘)이 병렬로 플레이어를 세계에 건다.`);
 if (ctx.errors.length || e.c.errors.length || z.c.errors.length) { console.error("엔진 오류 발생"); process.exit(1); }
 if (!allOk) process.exit(1);

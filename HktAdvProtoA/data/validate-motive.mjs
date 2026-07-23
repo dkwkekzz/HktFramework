@@ -18,6 +18,7 @@ const errors = [], warnings = [], info = [];
 const cogVars = (state.vars || []).filter((v) => v.owner === "E_플레이어" && v.axis === "인지");
 const cogGoals = cogVars.map((v) => v.target);
 const askActs = (state.actions || []).filter((a) => a.id.startsWith("ACT_묻다_"));
+const varById = indexVars(state);
 
 // ── 인지 set 경로 수집(법칙·행동) — true 로 set 하는 효과
 const setters = new Map();                 // cogVarId -> [srcId...]
@@ -143,6 +144,53 @@ for (const gg of chanceGoals) {
   if (!jrn[gg]?.motive) errors.push(`M6 위반: 기회 목적 ${gg} 에 기회 번역문(motive) 없음`);
 }
 info.push(`M6 욕망 진입: 기회 목적 ${chanceGoals.length} — ${chanceGoals.map((gg) => `${gg}(진입 ${entryCount(gg)})`).join(" · ")}`);
+
+// 술어에서 var 이름 수집(읽는 축) — {actor}→E_플레이어 정규화
+function collectVars(pred, out) {
+  if (!pred) return;
+  if (pred.all) return pred.all.forEach((p) => collectVars(p, out));
+  if (pred.any) return pred.any.forEach((p) => collectVars(p, out));
+  if (pred.not) return collectVars(pred.not, out);
+  if (pred.var) { out.add(pred.var.replace("{actor}", "E_플레이어")); if (pred.value?.var) out.add(pred.value.var.replace("{actor}", "E_플레이어")); }
+}
+// 세계가 '읽는' 축 = 모든 when/cost/formula/discover/complete 참조 var
+const readVars = new Set();
+for (const a of state.actions || []) { collectVars(a.when, readVars); for (const c of a.cost || []) readVars.add(c.var.replace("{actor}", "E_플레이어")); }
+for (const r of state.rules || []) collectVars(r.when, readVars);
+for (const o of state.objectives || []) { collectVars(o.discover, readVars); collectVars(o.complete, readVars); }
+for (const v of state.vars || []) if (v.derived) collectVars(v.formula, readVars);
+
+// ── 검증 M7 지렛대 상호잠금 (불변 12) — 욕망(기회) 행동의 보상 축은 다른 욕구의 전제·법칙이 읽는다.
+//   보상=then 의 양수 add·set (기여=유산 기록축은 표현이 읽으므로 면제). 아무도 안 읽는 보상=순수 점수(금지).
+let m7checked = 0;
+for (const gg of chanceGoals) {
+  for (const a of (state.actions || []).filter((x) => x.objective === gg && (x.actor_type || []).includes("E_플레이어"))) {
+    for (const e of a.then || []) {
+      const nm = e.var.replace("{actor}", "E_플레이어");
+      const isReward = (e.op === "add" && e.value > 0) || (e.op === "set" && e.value !== false);
+      if (!isReward) continue;
+      const v = varById.get(nm);
+      if (v?.axis === "기여") continue;                 // 유산 기록축 면제(§5.5 — 표현이 읽는다)
+      m7checked++;
+      if (!readVars.has(nm)) errors.push(`M7 위반: 기회 행동 ${a.id} 의 보상 ${nm} 를 읽는 전제·법칙이 없음 — 아무 욕구도 열지 않는 순수 점수(불변 12)`);
+    }
+  }
+}
+info.push(`M7 지렛대 상호잠금: 기회 보상 축 ${m7checked}개 전부 타 전제·법칙이 읽음(순수 점수 0)`);
+
+// ── 검증 M8② 완료 시 타 주체 반응(관계성, 불변 13③) — 노출 목적 완료가 세계 반응(법칙·NPC 행동 전제)을 읽히는가. 소프트 리포트.
+const ruleReads = new Set(); for (const r of state.rules || []) collectVars(r.when, ruleReads);
+const npcReads = new Set(); for (const a of state.actions || []) if (!(a.actor_type || []).includes("E_플레이어")) collectVars(a.when, npcReads);
+let m8reactive = 0; const m8quiet = [];
+for (const o of state.objectives || []) {
+  if (!cogGoals.includes(o.goal)) continue;              // 노출 목적만
+  // 반응 = 완료가 바꾸는 축(on_complete) ∨ 완료 판정 축(complete)을 법칙·NPC 가 읽는다(압력 해제·사슬 전진 포함)
+  const outs = (o.on_complete || []).map((e) => e.var.replace("{actor}", "E_플레이어"));
+  const cmp = new Set(); collectVars(o.complete, cmp);
+  const reacts = [...outs, ...cmp].some((nm) => ruleReads.has(nm) || npcReads.has(nm));
+  if (reacts) m8reactive++; else m8quiet.push(o.goal);
+}
+info.push(`M8② 완료 반응(관계성): 노출 목적 완료 중 세계 반응 유발 ${m8reactive}/${m8reactive + m8quiet.length}${m8quiet.length ? ` · 잔여(플레이어 후속만, 콘텐츠 백로그) [${m8quiet.join(",")}]` : ""}`);
 
 // ── 필요/기회 균형 리포트
 const need = cogGoals.filter((g) => jrn[g]?.kind === "필요");
