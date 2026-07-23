@@ -121,6 +121,20 @@ const actVis = visual.actions || {};
 for (const a of askActs) if (!actVis[a.id]?.lead)
   warnings.push(`리드 경고: 묻기 ${a.id} 에 lead(소문 실마리) 없음 — 저널 '소문' 섹션에 안 뜬다(막힘→묻기 입구 누락)`);
 
+// ── 검증 M4 존재 정당화 (동기 불변 10) — 모든 L 지역: 플레이어 행동 ≥1 ∨ 발견 전 숨김. 장식만인 빈 지역 금지.
+const regionLs = graph.nodes.filter((n) => n.type === "L").map((n) => n.id);
+const playerSites = new Set();
+for (const [id, e] of Object.entries(actVis)) {
+  if (id === "meta" || !e?.site) continue;
+  const a = actById.get(id);
+  if (a && (a.actor_type || []).includes("E_플레이어")) playerSites.add(e.site);
+}
+const hiddenRegions = new Set((state.vars || []).filter((v) => /\.발견$/.test(v.id) && v.init === false).map((v) => v.owner));
+const emptyRegions = regionLs.filter((r) => !playerSites.has(r) && !hiddenRegions.has(r));
+for (const r of emptyRegions)
+  errors.push(`M4 위반: L 지역 ${r} 에 플레이어 행동도 발견 전 숨김도 없음 — 진단 4 빈 지역(동기 불변 10 장식만인 존재 금지)`);
+info.push(`M4 존재 정당화: L 지역 ${regionLs.length} — 플레이어 행동 ${playerSites.size} · 숨김 ${hiddenRegions.size} · 빈 지역 ${emptyRegions.length}`);
+
 // ── 필요/기회 균형 리포트
 const need = cogGoals.filter((g) => jrn[g]?.kind === "필요");
 const chance = cogGoals.filter((g) => jrn[g]?.kind === "기회");

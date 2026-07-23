@@ -1172,6 +1172,20 @@
       "when": { "all": [ { "var": "R_심연유리.공급", "op": ">=", "value": 1 } ] },
       "then": [ { "var": "E_아르카론.약점단서", "op": "add", "value": 1 } ], "duration": 3, "once": false },
 
+    { "id": "ACT_의식장_조사", "objective": "G2.5.2", "actor_type": ["E_플레이어"],
+      "basis": "동기층 M4 존재 정당화(Design-Motive §9 — L_최초의식장 스팟 0 해소) — 잠수단에게 아르카론의 정체를 들은(인지) 자가 최초 의식장에서 결합 의식의 흔적을 조사한다. 정보→행동의 상향 사슬(묻기가 조사를 연다). DET: G2.5.2.약점",
+      "when": { "all": [
+        { "var": "E_플레이어.인지.G2.5.2", "op": "==", "value": true },
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": false } ] },
+      "then": [ { "var": "E_아르카론.약점단서", "op": "add", "value": 1 } ], "duration": 3, "once": false },
+
+    { "id": "ACT_심해_조사", "objective": "G2.5.2", "actor_type": ["E_플레이어"],
+      "basis": "동기층 M4 존재 정당화(§9 — L_심해 플레이어 행동 0 해소, 별배 잠금 예고) — 변방 개척(별배 복구=G4.2 ②경로)으로 심해까지 항행한 자가 심연유리 광맥에서 아르카론 반응을 조사한다. 개척 전에는 잠긴 예고(도달 불가 표시)로 존재 이유를 보인다. DET: G2.5.2.약점",
+      "when": { "all": [
+        { "var": "L_폭풍절벽.개척확립", "op": "==", "value": true },
+        { "var": "S_아르카론정체.발견됨", "op": "==", "value": false } ] },
+      "then": [ { "var": "E_아르카론.약점단서", "op": "add", "value": 1 } ], "duration": 3, "once": false },
+
     { "id": "ACT_지열정_시추", "objective": "G5.2", "actor_type": ["E_플레이어"],
       "basis": "G5.2 해결 ①(지열 — 강력) — 지열정을 시추해 에너지 기반을 놓는다. 발전 시설의 발판. 굶주린 채로는 못 하는 중노동(동기층 M1 — 허기 ≤ 보통 전제, Design-Motive §4). DET: G5.2.에너지원",
       "when": { "all": [
