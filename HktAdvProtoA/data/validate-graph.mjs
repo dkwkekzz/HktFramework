@@ -43,22 +43,40 @@ for (const l of g.links || []) {
 }
 
 // 4) §16 구조 감사 (트리 §14·§16 — 고립 금지·요소는 목적에 연결·해결 방법 다중성)
+//    + §18 복수화 검증 16·17 (주체 존속 루트·요소의 다중 주체 연결).
 //    기본은 요약 카운트만. `--audit` 로 대상 목록 전체 출력.
 const AUDIT = process.argv.includes("--audit");
-const audit = { isolated: [], underConnected: [], singleSolution: [] };
+const audit = { isolated: [], underConnected: [], singleSolution: [], treelessSubjects: [], singleSubject: [] };
 {
   const linked = new Set();
-  const gLinksOf = new Map(); // 노드 -> 연결된 G 노드 집합
+  const gLinksOf = new Map();     // 요소 노드 -> 연결된 G 노드 집합
+  const subjOfGoalsOf = new Map(); // 요소 노드 -> 연결된 G 들의 주체 집합 (검증 17)
+  const addSubj = (el, subj) => { if (!subj) return; if (!subjOfGoalsOf.has(el)) subjOfGoalsOf.set(el, new Set()); subjOfGoalsOf.get(el).add(subj); };
   for (const l of g.links || []) {
     linked.add(l.source); linked.add(l.target);
     const s = byId.get(l.source), t = byId.get(l.target);
     if (s && t) {
-      if (t.type === "G") { if (!gLinksOf.has(l.source)) gLinksOf.set(l.source, new Set()); gLinksOf.get(l.source).add(l.target); }
-      if (s.type === "G") { if (!gLinksOf.has(l.target)) gLinksOf.set(l.target, new Set()); gLinksOf.get(l.target).add(l.source); }
+      if (t.type === "G") { if (!gLinksOf.has(l.source)) gLinksOf.set(l.source, new Set()); gLinksOf.get(l.source).add(l.target); addSubj(l.source, t.subject); }
+      if (s.type === "G") { if (!gLinksOf.has(l.target)) gLinksOf.set(l.target, new Set()); gLinksOf.get(l.target).add(l.source); addSubj(l.target, s.subject); }
     }
   }
   const hasChild = new Set();
   for (const n of g.nodes || []) if (n.parent) hasChild.add(n.parent);
+
+  // §18 복수화 검증 16 — 주체(항상성 단위)는 자기 존속을 루트로 하는 목적을 ≥1 가진다.
+  //   주체 판정(복수화 6): 모든 F(세력) + subjectKind 마킹된 E/X(개체·군집·질병).
+  //   존속 루트 = 주체 노드에서 파생된 parent 없는 G.
+  const derivedRootOf = new Map();
+  for (const l of g.links || []) {
+    if (l.type !== "파생") continue;
+    const t = byId.get(l.target);
+    if (t && t.type === "G" && !t.parent) { if (!derivedRootOf.has(l.source)) derivedRootOf.set(l.source, new Set()); derivedRootOf.get(l.source).add(l.target); }
+  }
+  for (const n of g.nodes || []) {
+    if (n.type === "F" || n.subjectKind) {
+      if (!(derivedRootOf.get(n.id)?.size)) audit.treelessSubjects.push(`${n.id}(${n.subjectKind || n.type})`);
+    }
+  }
 
   for (const n of g.nodes || []) {
     // 고립 노드 — 관계·부모·자식 어디에도 안 걸린 노드 (H 역사·EV 사건은 면제)
@@ -69,6 +87,9 @@ const audit = { isolated: [], underConnected: [], singleSolution: [] };
     if (["E", "R", "L", "K", "T"].includes(n.type)) {
       const gc = (gLinksOf.get(n.id)?.size) || 0;
       if (gc < 2) audit.underConnected.push(`${n.id}(${gc}목적)`);
+      // §18 복수화 검증 17 — 요소는 서로 다른 주체 ≥2 의 목적에 연결 (겹침이 갈등·교역·서사의 발생지)
+      const sc = (subjOfGoalsOf.get(n.id)?.size) || 0;
+      if (sc < 2) audit.singleSubject.push(`${n.id}(${sc}주체)`);
     }
     // 말단 G 는 해결 방법 2개 이상 (트리 §17-13 해결 방법 다중성)
     if (n.type === "G" && !hasChild.has(n.id)) {
@@ -85,10 +106,13 @@ for (const n of g.nodes || []) byType[n.type] = (byType[n.type] || 0) + 1;
 console.log(`노드 ${(g.nodes || []).length} · 관계 ${(g.links || []).length}`);
 console.log("타입별:", JSON.stringify(byType));
 console.log(`§16 감사: 고립 노드 ${audit.isolated.length} · 요소 저연결(<2목적) ${audit.underConnected.length} · 말단 단일해결 ${audit.singleSolution.length}` + (AUDIT ? "" : "  (--audit 로 목록)"));
+console.log(`§18 복수화 감사: 무트리 주체(검증16) ${audit.treelessSubjects.length} · 요소 단일주체(검증17, <2주체) ${audit.singleSubject.length}` + (AUDIT ? "" : "  (--audit 로 목록)"));
 if (AUDIT) {
   if (audit.isolated.length) console.log("  고립:", audit.isolated.join(", "));
   if (audit.underConnected.length) console.log("  저연결:", audit.underConnected.join(", "));
   if (audit.singleSolution.length) console.log("  단일해결:", audit.singleSolution.join(", "));
+  if (audit.treelessSubjects.length) console.log("  무트리주체:", audit.treelessSubjects.join(", "));
+  if (audit.singleSubject.length) console.log("  단일주체:", audit.singleSubject.join(", "));
 }
 if (warnings.length) console.log("경고:\n  " + warnings.join("\n  "));
 if (errors.length) { console.error("오류:\n  " + errors.join("\n  ")); process.exit(1); }
