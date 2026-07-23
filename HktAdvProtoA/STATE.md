@@ -17,7 +17,8 @@
 - `data/detail-coverage.json` — detail 항목 분류 원장(§9-7). 전 노드 detail **525항목 100% 분류(미분류 0)**: 번역 102·서사 85·보류 338. 보류가 곧 콘텐츠 백로그(사유 태그) — 복수화 존속 루트 17 + G0 스텁 11 포함(세계상태 앵커 시 entries 승격). `--strict-coverage` 는 신규 노드 미분류 회귀 가드.
 - `data/load-world.mjs` — 파일 로더(fs). 엔진을 순수하게 유지해 브라우저(objective-tree.html)가 canonical 엔진을 그대로 import.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터.
-- `data/simulate-motive.mjs` — 동기층 M1 실증 봇(Design-Motive §11 M5·M9). 허기 루프 40틱 시나리오(방치→압력→막힘·충족→해소·소진→대안·보상 이중성) 5판정. `node data/simulate-motive.mjs`.
+- `data/simulate-motive.mjs` — 동기층 M1·M3 실증 봇(Design-Motive §11 M5·M9). 허기 루프(방치→압력→막힘·충족·보상 이중성) + M3 개인 스테이크(북방 노출→온기↓·상처↑→인지·충족·쓰러짐). `node data/simulate-motive.mjs`.
+- `data/simulate-walk.mjs` — **§10 재배선 완주 실증**(반응형 봇). 허기(직관)→상처(개인화)→상인연합 묻기→G4.2 '기회' 인지→폭풍 막힘→탐사→교두보 완주. "교두보를 왜?"가 내 경험에서 출발하는 한 줄기임을 실측(⑦판정). `node data/simulate-walk.mjs`.
 - `data/validate-motive.mjs` — 동기층 검증기(Design-Motive §11). M2 인지 도달·M3 motive 커버리지·M8① 노출목적 해결≥2·불변 8 경험 술어 + **M9 도달성**(지역 순회 탐사 프로브로 인지 9개 전부 도달 증명)·**M4 존재 정당화**(L 지역 16 전부 플레이어 행동∨숨김, 빈 지역 0)·직관층 즉각 보상·리드 커버리지. `node data/validate-motive.mjs`.
 
 ### 대표 사건 5종 — 전부 무입력 자율 재생 (WorldLaws §3 전수 완성)
