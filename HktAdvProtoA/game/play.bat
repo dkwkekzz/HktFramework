@@ -3,8 +3,8 @@ chcp 65001 >nul
 setlocal
 
 rem === HktAdvProtoA 원클릭 실행 ===
-rem 서버(game/server.mjs)를 새 창으로 띄우고, 준비되면 브라우저로 클라이언트를 연다.
-rem 어느 위치에서 더블클릭해도 되도록 배치파일 자기 폴더를 기준으로 동작한다.
+rem 서버(server.mjs)를 새 창으로 띄우고, 준비되면 브라우저로 클라이언트를 연다.
+rem 이 배치파일은 game 폴더 안에 위치한다 — 자기 폴더(=game)를 기준으로 동작한다.
 
 cd /d "%~dp0"
 
@@ -23,7 +23,7 @@ if errorlevel 1 (
 )
 
 rem 서버를 별도 창으로 기동 (창을 닫으면 서버 종료)
-start "HktAdvProtoA World Server" cmd /k "cd /d "%~dp0" && node game/server.mjs %PORT%"
+start "HktAdvProtoA World Server" cmd /k "cd /d "%~dp0" && node server.mjs %PORT%"
 
 rem 서버가 포트를 열 때까지 잠깐 대기 후 브라우저 오픈
 echo 서버 기동 대기 중...

@@ -7,11 +7,11 @@
 
 **주체 세계상태 배선(§18 검증 18)** — 존속 루트 주체 **24/24 전수 배선**(플레이어 + 정책 세력 10 + 생태·질병 7 + 이름 개체 6[아르카론·거인·세리아·오르반·구름고래·기억나방]). 화이트리스트 0 = 검증 18 초록. 요소 다주체 재배선은 구조적 바닥(검증17 단일주체 **3**·저연결 3 — 잔여는 미탄생 존재 등). 상세 [progress/world-state.md](progress/world-state.md)·[progress/graph.md](progress/graph.md).
 
-**목적 그래프** — `data/objective-graph.json` (**228 노드 · 345 관계**, 유일 원본). **§18 복수화: 24개 "존속해야 한다" 루트 트리**(플레이어 G0 + 23주체 — 세계 정본=주체 트리들의 교차). 검증 `node data/validate-graph.mjs`(§16 감사 + §18 복수화 감사 검증16/17, `--audit` 목록). 관찰·편집기 `objective-tree.html`(상태 오버레이·라이브 틱 시뮬). 설계: [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](Design-ObjectiveTree.md)(방법론).
+**목적 그래프** — `data/objective-graph.json` (**228 노드 · 345 관계**, 유일 원본). **§18 복수화: 24개 "존속해야 한다" 루트 트리**(플레이어 G0 + 23주체 — 세계 정본=주체 트리들의 교차). 검증 `node data/validate-graph.mjs`(§16 감사 + §18 복수화 감사 검증16/17, `--audit` 목록). 관찰·편집기 `objective-tree.html`(상태 오버레이·라이브 틱 시뮬). 설계: [Design-ObjectiveGraph.md](design/Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](design/Design-ObjectiveTree.md)(방법론).
 
-**세계 상태·법칙** — 설계 [Design-WorldState.md](Design-WorldState.md)(형식) · [Design-WorldLaws.md](Design-WorldLaws.md)(내용).
+**세계 상태·법칙** — 설계 [Design-WorldState.md](design/Design-WorldState.md)(형식) · [Design-WorldLaws.md](design/Design-WorldLaws.md)(내용).
 
-**MMORPG 웹 프로토타입** — 로드맵 1~4단계(지도→아바타→개입→멀티) 완료. 클라 `game/world.html`(로컬/원격 겸용) · 서버 `game/server.mjs` · 표현 데이터 `data/world-map.json`·`data/world-visual.json` · 검증 `node data/validate-visual.mjs`(V1~V7). 멀티 실행: `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`. 설계 [Design-MMO.md](Design-MMO.md) · 상세 [progress/mmo.md](progress/mmo.md).
+**MMORPG 웹 프로토타입** — 로드맵 1~4단계(지도→아바타→개입→멀티) 완료. 클라 `game/world.html`(로컬/원격 겸용) · 서버 `game/server.mjs` · 표현 데이터 `data/world-map.json`·`data/world-visual.json` · 검증 `node data/validate-visual.mjs`(V1~V7). 멀티 실행: `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`. 설계 [Design-MMO.md](design/Design-MMO.md) · 상세 [progress/mmo.md](progress/mmo.md).
 
 ### 핵심 파일
 

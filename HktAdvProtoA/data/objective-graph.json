@@ -2,7 +2,7 @@
   "meta": {
     "version": "1.0",
     "schema": "objective-graph/v1",
-    "source": "Design-ObjectiveGraph.md",
+    "source": "design/Design-ObjectiveGraph.md",
     "world": {
       "name": "상흔계 아벨리온",
       "seed": "고대 이벨 문명이 약해진 태양을 대신할 인공 태양을 만들려다 실패해, 세 별핵과 인간들의 정신이 융합된 인공 신격 아르카론이 탄생했다. 아르카론이 생명력과 별빛을 흡수하며 영원한 겨울·과잉 별빛·검은 태양병·기후 불안정이 나타났다. 플레이어는 기억을 잃은 채 나타나, 생존 문제를 풀수록 세계의 구조와 아르카론의 탄생에 접근한다."

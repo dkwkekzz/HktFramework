@@ -23,7 +23,7 @@
 
 ## 트리 복수화 — §18 (검증 16·17 + 18개 "존속해야 한다" 루트 트리)
 
-방법론 [Design-ObjectiveTree.md](../Design-ObjectiveTree.md) §18(**복수화 1: 세계 정본은 주체 트리들의 교차 — 모든 주요 주체는 "존속해야 한다"를 루트로 한 자기 트리를 가지고, 플레이어 트리는 그중 하나일 뿐**·전수 포섭[개체∨집단∨비주체, 자격=항상성])을 구조로 구현. 188→216 노드 · 190→233 관계.
+방법론 [Design-ObjectiveTree.md](../design/Design-ObjectiveTree.md) §18(**복수화 1: 세계 정본은 주체 트리들의 교차 — 모든 주요 주체는 "존속해야 한다"를 루트로 한 자기 트리를 가지고, 플레이어 트리는 그중 하나일 뿐**·전수 포섭[개체∨집단∨비주체, 자격=항상성])을 구조로 구현. 188→216 노드 · 190→233 관계.
 
 ### 핵심 교정 — 존속 루트 트리 (복수화 1)
 
@@ -84,5 +84,5 @@
 
 ## 설계 문서
 
-- [Design-ObjectiveGraph.md](../Design-ObjectiveGraph.md) — 상흔계 아벨리온 목적 그래프 **정본** (세계 시드·표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선.
-- [Design-ObjectiveTree.md](../Design-ObjectiveTree.md) — 목적 트리 구축 **방법론**.
+- [Design-ObjectiveGraph.md](../design/Design-ObjectiveGraph.md) — 상흔계 아벨리온 목적 그래프 **정본** (세계 시드·표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선.
+- [Design-ObjectiveTree.md](../design/Design-ObjectiveTree.md) — 목적 트리 구축 **방법론**.

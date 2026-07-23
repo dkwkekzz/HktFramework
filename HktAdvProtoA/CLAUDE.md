@@ -27,12 +27,12 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
 | [progress/](progress/) | **완료 작업 상세**, 큰 단계별: `graph.md`(구조 그래프)·`world-state.md`(세계 상태·형식)·`world-laws.md`(세계 법칙·내용)·`mmo.md`(MMO 프로토)·`motive.md`(동기층). 최신 위로 누적 |
-| [Design-ObjectiveTree.md](Design-ObjectiveTree.md) | 목적 트리 구축 **방법론** — 원칙·절차·검증 + **트리 복수화 원칙(§18)**: 정본=주체 트리들의 교차·주체 G0 스텁·요소=타 주체 ≥2 연결·법칙·역사 동급 생성기 (검증 16~**18** — 18=그래프↔세계상태 층 교차) + **주체 추가 공정(§19)**: 그래프→세계상태→동기층→표현→실증 다섯 층 한 트랙, 검증 18 초록까지가 한 커밋 |
-| [Design-ObjectiveGraph.md](Design-ObjectiveGraph.md) | **상흔계 아벨리온** 목적 그래프 정본 (세계 시드·타입 표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선 |
-| [Design-WorldState.md](Design-WorldState.md) | 세계 상태(속성) 데이터화 **설계** — 다섯 층 모델(변수·스냅샷·법칙·행동·목적), 축 문법, 틱 의미론 |
-| [Design-MMO.md](Design-MMO.md) | **MMORPG 웹 프로토타입 설계 (세계 표현 우선)** — 표현=상태의 순수 함수(불변 6·7), 2단 공간 모델(대륙 지도+지역 씬), 표현 번역 사전(world-visual)·world-map, 법칙 가시화(연대기·발화 연출·인스펙터), 행동 발화 UX, 검증 V1~V6, 로드맵 4단계(멀티는 4단계 예약) |
-| [Design-Motive.md](Design-Motive.md) | **동기층 설계** — 아키텍처(§1: 하향 설계·상향 플레이 두 화살표, 만남의 세 층위, 보상 이중성=충족+잉여)와 과학적 근거(§2: 항상성 추동·유인 현저성·SDT 세 조건, 매슬로 위계 폐기) 위에 결핍(허기·온기·상처, 미는 힘)과 욕망(탐욕·인정·앎·힘·유산, 당기는 힘 — 병렬·상호증폭)이 정보·기회를 거쳐 세계 서사로 상승하는 동기 사슬. 문제 진단 5(§0)·동기 불변 8~14·인지 축·필요/기회 저널·묻기 행동·motive 사전·검증 M1~M9·로드맵 M1~M6 |
-| [Design-WorldLaws.md](Design-WorldLaws.md) | 세계 법칙 **설계** — 현상 세 서식지(관계·detail·사슬)의 전수 번역(패턴 7종·자율 법칙 42·사슬 5종 완역·NPC 정책·균형 법칙) + **노드→법칙 번역 절차·완료 체크리스트**(§9·§10, 새 세션은 이 절차로 작업) |
+| [Design-ObjectiveTree.md](design/Design-ObjectiveTree.md) | 목적 트리 구축 **방법론** — 원칙·절차·검증 + **트리 복수화 원칙(§18)**: 정본=주체 트리들의 교차·주체 G0 스텁·요소=타 주체 ≥2 연결·법칙·역사 동급 생성기 (검증 16~**18** — 18=그래프↔세계상태 층 교차) + **주체 추가 공정(§19)**: 그래프→세계상태→동기층→표현→실증 다섯 층 한 트랙, 검증 18 초록까지가 한 커밋 |
+| [Design-ObjectiveGraph.md](design/Design-ObjectiveGraph.md) | **상흔계 아벨리온** 목적 그래프 정본 (세계 시드·타입 표기·G0~G9·교차 그래프·대표 사건). 겹치면 우선 |
+| [Design-WorldState.md](design/Design-WorldState.md) | 세계 상태(속성) 데이터화 **설계** — 다섯 층 모델(변수·스냅샷·법칙·행동·목적), 축 문법, 틱 의미론 |
+| [Design-MMO.md](design/Design-MMO.md) | **MMORPG 웹 프로토타입 설계 (세계 표현 우선)** — 표현=상태의 순수 함수(불변 6·7), 2단 공간 모델(대륙 지도+지역 씬), 표현 번역 사전(world-visual)·world-map, 법칙 가시화(연대기·발화 연출·인스펙터), 행동 발화 UX, 검증 V1~V6, 로드맵 4단계(멀티는 4단계 예약) |
+| [Design-Motive.md](design/Design-Motive.md) | **동기층 설계** — 아키텍처(§1: 하향 설계·상향 플레이 두 화살표, 만남의 세 층위, 보상 이중성=충족+잉여)와 과학적 근거(§2: 항상성 추동·유인 현저성·SDT 세 조건, 매슬로 위계 폐기) 위에 결핍(허기·온기·상처, 미는 힘)과 욕망(탐욕·인정·앎·힘·유산, 당기는 힘 — 병렬·상호증폭)이 정보·기회를 거쳐 세계 서사로 상승하는 동기 사슬. 문제 진단 5(§0)·동기 불변 8~14·인지 축·필요/기회 저널·묻기 행동·motive 사전·검증 M1~M9·로드맵 M1~M6 |
+| [Design-WorldLaws.md](design/Design-WorldLaws.md) | 세계 법칙 **설계** — 현상 세 서식지(관계·detail·사슬)의 전수 번역(패턴 7종·자율 법칙 42·사슬 5종 완역·NPC 정책·균형 법칙) + **노드→법칙 번역 절차·완료 체크리스트**(§9·§10, 새 세션은 이 절차로 작업) |
 | [data/objective-graph.json](data/objective-graph.json) | 목적 그래프 **유일한 원본 데이터** (타입 노드 G/S/E/R/L/K/T/F/H/X/EV + 타입 관계). 편집은 여기 한 곳 |
 | [data/validate-graph.mjs](data/validate-graph.mjs) | 위 JSON 검증기(데이터 없음, 참조 무결성 확인 — `node data/validate-graph.mjs`) |
 | [data/world-state.json](data/world-state.json) | 세계 **상태의 유일한 원본** — vars/clocks/subjects/rules/actions/objectives 다섯 층. 그래프 id 를 앵커로 참조 |
@@ -46,4 +46,5 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/validate-visual.mjs](data/validate-visual.mjs) | 표현 정합 검증기 — Design-MMO §7 V1~V4·V6 (`node data/validate-visual.mjs`) |
 | [game/world.html](game/world.html) | **게임 클라이언트** (단일 파일) — 대륙 지도·지역 씬·아바타·행동 발화 UI·연대기·인스펙터. 로컬(브라우저 내 엔진)/원격(`?online`) 겸용 |
 | [game/server.mjs](game/server.mjs) | **월드 서버** (의존성 0) — 결정론 틱 상주, SSE 스냅샷 diff 구독·행동 요청 API·poses 릴레이 (`node HktAdvProtoA/game/server.mjs`) |
+| [game/play.bat](game/play.bat) | 윈도우 원클릭 실행 배치파일 — 서버 기동 + 브라우저 오픈 |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |
