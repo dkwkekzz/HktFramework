@@ -6,6 +6,9 @@
 //   C3  해결 경로 ≥2 전수 — 노출 목적마다 실제 플레이어 해결 행동 ≥2(정합 5·§13 승격). 카탈로그
 //       간단한행동도 실재 행동 id ≥2.
 //   C4  참조 무결성 — 간단한행동 행동 id 실재 · 다음목적 은 실재 goal 이거나 '—'(종착).
+//   C5  보상 연출 매핑 (E2) — 노출 목적의 모든 실제 플레이어 해결 행동이 그 목적의 간단한행동에
+//       올라 있다. 클라이언트 즉시보상 연출(goalOfAction)은 이 목록으로 매핑되므로, 빠진 행동은
+//       발화해도 보상 사슬이 침묵한다 — 화면 도달 감사.
 // 실행: node data/validate-conversion.mjs
 import { loadWorld, HERE } from "./load-world.mjs";
 import { readFileSync } from "node:fs";
@@ -46,6 +49,10 @@ for (const g of exposed) {
   for (const id of acts) if (!actionIds.has(id)) errors.push(`C4 참조: ${g}.간단한행동 의 ${id} 가 실재 행동이 아니다`);
   const nx = e?.다음목적;
   if (nx && nx !== "—" && !goalIds.has(nx)) errors.push(`C4 참조: ${g}.다음목적 '${nx}' 가 실재 goal 이 아니다(종착이면 '—')`);
+  // ── C5 보상 연출 매핑 (E2 — 해결 행동 100% 즉시보상 연출)
+  const solvers = (state.actions || []).filter((a) => a.objective === g && (a.actor_type || []).includes("E_플레이어"));
+  for (const a of solvers) if (!acts.includes(a.id))
+    errors.push(`C5 연출 매핑: 해결 행동 ${a.id} 이 ${g}.간단한행동 에 없다 — 발화해도 즉시보상 연출이 침묵한다(E2)`);
 }
 
 // ── 집계
@@ -58,4 +65,4 @@ info.push(`다음목적 사슬 ${exposed.length - terminalNext.length} · 종착
 for (const m of info) console.log("  " + m);
 if (warnings.length) { console.log("\n경고:"); for (const w of warnings) console.log("  ⚠ " + w); }
 if (errors.length) { console.error("\n검증 실패:"); for (const e of errors) console.error("  ✗ " + e); process.exit(1); }
-console.log(`\n검증 통과 (D4 변환 커버리지 — 저널 모든 목적이 상황+복수 가능성으로 번역됨) — 경고 ${warnings.length}건`);
+console.log(`\n검증 통과 (D4 변환 커버리지 + E2 보상 연출 매핑 — 저널 모든 목적이 상황+복수 가능성으로 번역되고 모든 해결 행동에 즉시보상 연출이 매핑됨) — 경고 ${warnings.length}건`);

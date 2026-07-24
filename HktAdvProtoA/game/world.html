@@ -225,12 +225,13 @@ let toasts = [];                               // 현장 목격 알림 (지역 �
 let cogSeen = new Set();                        // 이미 저널에 뜬 인지(목적) — 배너 중복 방지 (§8)
 let nextGoalPulse = null;                      // E2 다음 욕망 강조 — { goal, until } 신호 비컨 하이라이트
 let rewardLast = new Map();                    // E2 즉시보상 토스트 스로틀 — 행동 id → performance.now
+let scenePulses = [];                          // E2 감각 보상 — 씬에서 아바타 주위 금빛 파문
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
   chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
-  nextGoalPulse = null; rewardLast = new Map();
+  nextGoalPulse = null; rewardLast = new Map(); scenePulses = [];
   avatar = { x: 0.5, y: 0.62 };
   enterRegion();                                // E1 기본 진입 — 첫 화면이 결핍 텍스트가 아니라 '보이는 세계'다 (§9)
   renderChron(); renderEvents(); renderJournal();
@@ -401,6 +402,37 @@ function step() {
 // 틱 후처리 — 로컬(step)과 원격(SSE tick)이 공유한다
 function onTick(t, fired) {
   translateFired(t, fired);
+  // E2 보상 사슬 (§5·§10) — ① 내 행동이 착지한 순간: 감각 펄스 + 즉시보상 문장
+  for (const aRaw of fired.actions) {
+    const landed = aRaw.endsWith("→효과");
+    const [id, actor] = aRaw.replace("→효과", "").split("@");
+    if (actor !== AV) continue;
+    const act = (state.actions || []).find((x) => x.id === id);
+    if (!act || ((act.duration ?? 0) > 0) !== landed) continue;   // duration 행동은 착지에만, 즉시 행동은 발화에
+    fxq.push({ region: avLoc(), kind: "flash", at: performance.now(), dur: 900 });   // 1층 감각 보상 (지도)
+    scenePulses.push({ at: performance.now(), dur: 900 });                            // 1층 감각 보상 (씬 — 아바타 금빛 파문)
+    const goal = goalOfAction.get(id), cv2 = goal && convObj[goal];
+    const now2 = performance.now();
+    if (cv2 && (now2 - (rewardLast.get(id) || -1e9)) > 15000) {   // 같은 행동 반복은 15초 스로틀
+      rewardLast.set(id, now2);
+      toasts.push({ text: `✨ ${cv2.즉시보상}`, at: now2 });
+    }
+  }
+  // E2 보상 사슬 — ② 목적 완료의 순간: 완료 문장(연대기) → 예상 밖 결과 → 다음 욕망이 순차로 열린다
+  // "보상을 받았다고 생각한 순간, 또 다른 가능성이 열린다" (§10)
+  for (const o of fired.objectives) {
+    const [oid, phase] = o.split(":");
+    if (phase !== "완료") continue;
+    const goal = oid.replace(/^OBJ_/, ""), cv2 = convObj[goal];
+    if (!cv2) continue;
+    const now2 = performance.now();
+    toasts.push({ text: `🔮 예상 밖 — ${cv2.예상밖결과}`, at: now2 + 1800 });
+    if (cv2.다음목적 && cv2.다음목적 !== "—") {
+      const next = convObj[cv2.다음목적];
+      toasts.push({ text: `👁 새로운 것이 보인다 — ${next ? next.욕망대상 : (nodeTitle.get(cv2.다음목적) || cv2.다음목적)}`, at: now2 + 3800 });
+      nextGoalPulse = { goal: cv2.다음목적, until: now2 + 16000 };   // 다음 욕망의 신호 비컨 강조
+    }
+  }
   // 인지의 순간 연출 — 저널에 새 목적이 뜨는 순간을 배너로 (§8 목적의 탄생이 사건이 된다)
   for (const goal of Object.keys(journalDict)) {
     const key = chVar("E_플레이어.인지." + goal);
@@ -700,6 +732,13 @@ function drawScene(now) {
   // 아바타
   {
     const x = sx(avatar.x), y = sy(avatar.y);
+    // E2 1층 감각 보상 — 행동이 착지한 순간 금빛 파문이 퍼진다 (§10 보상의 층)
+    scenePulses = scenePulses.filter((p) => now - p.at < p.dur);
+    for (const p of scenePulses) {
+      const k = (now - p.at) / p.dur;
+      g.strokeStyle = "#e8d8a8"; g.globalAlpha = 1 - k; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(x, y - 8, 10 + k * 34, 0, 7); g.stroke(); g.globalAlpha = 1;
+    }
     g.font = "22px serif"; g.textAlign = "center"; g.fillStyle = "#d6dde8";
     g.fillText("🧍", x, y);
   }
@@ -720,7 +759,8 @@ function drawScene(now) {
 // world 모드에선 "📓 새 목적" 토스트가 push 만 되고 렌더 안 됐다 — 진단 단절2 :383↔:661)
 function drawToasts(now) {
   toasts = toasts.filter((t) => now - t.at < 6000);
-  toasts.slice(-3).forEach((t, i, arr) => {
+  // E2 보상 사슬 — at 이 미래인 토스트는 예약 상태(순차 연출), 시간이 되면 나타난다
+  toasts.filter((t) => t.at <= now).slice(-3).forEach((t, i, arr) => {
     const k = (now - t.at) / 6000;
     g.globalAlpha = 1 - k;
     g.font = "13px system-ui"; g.textAlign = "center"; g.fillStyle = "#e8d8a8";
@@ -1186,6 +1226,8 @@ window.__dbg = {
   gotoSpot(name) { const s = spotsOf(view.region)[name]; if (s) avatar = { x: s.x, y: s.y }; },
   get stages() { return npcStages(); }, get tick() { return ctx.t; }, get poses() { return remotePoses; },
   get signals() { return sceneSignals; },       // E1 씬 신호 (자동 눈 검증용)
+  get toasts() { return toasts; },              // E2 보상 사슬 (자동 눈 검증용)
+  requestAct,                                   // E2 자동 검증 — 행동 발화 요청 (정상 경로와 동일)
 };
 </script>
 </body>
