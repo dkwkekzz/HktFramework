@@ -212,10 +212,23 @@ function boot() {
   ctx = newCtx(state);
   chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
   avatar = { x: 0.5, y: 0.62 };
-  if (view.mode === "region") view.region = avLoc();
+  landInRegion();                               // D4 진입 접합 — 지도가 아니라 내가 선 자리로 착지(단절 2)
   renderChron(); renderEvents(); renderJournal();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
+}
+// 기본 진입 = 내 아바타가 선 지역 씬(embodied). 위치가 아직 없거나(원격 init 전) 지도에 없으면 지도로.
+// §4 '내가 세계 안에 서 있다' — 삼축 HUD·행동 바·현장 토스트가 즉시 눈에 든다(진단 단절 2 해소).
+function landInRegion() {
+  const loc = avLoc();
+  view = (loc && regions.has(loc)) ? { mode: "region", region: loc } : { mode: "world" };
+  avatar = { x: 0.5, y: 0.62 };
+  currentSpot = null;
+  syncViewButton(); renderActionbar(); renderSceneHud();
+}
+function syncViewButton() {
+  const b = document.getElementById("btnView");
+  if (b) b.textContent = view.mode === "world" ? "🚶 지역 입장" : "🗺 대륙 지도";
 }
 // 행동 발화 요청 — 유일한 세계 개입 경로 (불변 2·6). 로컬은 inputs 큐, 원격은 서버 API.
 function sendInput(payload) {
@@ -659,6 +672,15 @@ function drawScene(now) {
   g.fillText(nodeTitle.get(rid) || rid, W / 2, 28);
   g.font = "11px system-ui"; g.fillStyle = "#8494ab";
   g.fillText(map.meta.terrains[r.terrain] || r.terrain, W / 2, 44);
+  // 이 지역의 욕망 신호 — 잠긴 문·미지·실루엣을 씬 안에 (§4 경험 전 노출, 정합 3)
+  for (const s of activeSignals()) if (s.region === rid) {
+    const pulse = 0.5 + 0.3 * Math.sin(now / 500);
+    g.globalAlpha = pulse; g.font = "30px serif"; g.textAlign = "center";
+    g.fillText(s.glyph, W * 0.5, H * 0.34);
+    g.globalAlpha = 0.9; g.font = "12px system-ui";
+    g.fillStyle = s.kind === "unknown" ? "#c9a9e8" : s.kind === "locked" ? "#d8b46f" : "#8fd0e8";
+    g.fillText(s.label, W * 0.5, H * 0.34 + 26); g.globalAlpha = 1;
+  }
   drawToasts(now);
 }
 // 현장 토스트 렌더 — region 씬과 world 지도가 공유(D1 배선 버그 복구: 예전엔 drawScene 안에만 있어
@@ -778,9 +800,25 @@ function draw(now) {
     g.globalAlpha = 1;
   }
   drawOverlays(now);
+  drawSignals(now);  // D1 욕망 신호층 — 원경 실루엣·잠긴 문·미지(가고 싶은 곳이 지도에 뜬다, §4)
   drawFx(now);
   drawToasts(now);   // world 모드에서도 현장 토스트·「새 목적」 배너를 렌더(D1 배선 복구)
   requestAnimationFrame(draw);
+}
+// 욕망 신호 — 상태 술어(when)가 참인 동안만 뜨는 '보이는 것'(§4·정합 2). 충족되면 사라진다.
+const signalDefs = (visual.signals?.list || []).filter((s) => regions.has(s.region));
+function activeSignals() { return signalDefs.filter((s) => evalPred(s.when, snap, AV)); }
+function drawSignals(now) {
+  const pulse = 0.55 + 0.25 * Math.sin(now / 600);
+  for (const s of activeSignals()) {
+    const r = regions.get(s.region), [x, y] = px(r.pos), yy = y - r.size * S - 20;
+    g.globalAlpha = pulse;
+    g.font = "16px serif"; g.textAlign = "center"; g.fillText(s.glyph, x, yy);
+    g.globalAlpha = 0.85;
+    g.font = "10px system-ui"; g.fillStyle = s.kind === "unknown" ? "#c9a9e8" : s.kind === "locked" ? "#d8b46f" : "#8fd0e8";
+    g.fillText(s.label, x, yy + 13);
+    g.globalAlpha = 1;
+  }
 }
 function drawOverlays(now) {
   // 전역 오버레이 — overlay 채널 변수의 함수
@@ -1056,11 +1094,13 @@ if (REMOTE) {
   snap = {}; ctx = { t: j.t, busy: {}, pending: [], inputs: null };
   document.title = "아벨리온 — " + AV.split("#")[1];
   const es = new EventSource("/api/events");
+  let landedOnce = false;
   es.addEventListener("init", (ev) => {
     const d = JSON.parse(ev.data);
     Object.assign(snap, d.snap);
     ctx.t = d.t; ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
     tickview.textContent = "t " + ctx.t;
+    if (!landedOnce) { landInRegion(); landedOnce = true; }   // 원격도 내 자리로 착지(첫 init 만)
     renderChron(); renderEvents(); renderJournal(); renderSceneHud();
   });
   es.addEventListener("tick", (ev) => {

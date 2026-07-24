@@ -116,8 +116,20 @@ for (const v of state.vars || [])
   if (/^EV_.+\.단계$/.test(v.id) && entryByVar.get(v.id)?.max == null)
     warns.push(`V6: 사건 게이지 ${v.id} 에 max 가 없다 (게이지 눈금 표시 불가)`);
 
+// ── V8 욕망 신호층 (§4·정합 2) — 신호는 상태의 렌더: region 실재·when 이 실재 변수를 읽는다 ──
+const KINDS = new Set(["silhouette", "locked", "unknown"]);
+for (const s of visual.signals?.list || []) {
+  if (!regionIds.has(s.region)) errors.push(`V8: 신호 ${s.id} 의 region '${s.region}' 가 지도에 없다`);
+  if (!KINDS.has(s.kind)) errors.push(`V8: 신호 ${s.id} 의 kind '${s.kind}' 가 silhouette|locked|unknown 아님`);
+  if (!s.glyph || !s.label) errors.push(`V8: 신호 ${s.id} 에 glyph/label 이 없다`);
+  const w = s.when;
+  if (!w || !w.var) errors.push(`V8: 신호 ${s.id} 에 상태 술어(when.var)가 없다 (표현=상태의 렌더, 정합 2)`);
+  else if (!varIds.has(w.var)) errors.push(`V8: 신호 ${s.id} 의 when.var '${w.var}' 가 선언되지 않은 변수다`);
+}
+
 // ── 결과 ─────────────────────────────────────────────────────────────
 const nCover = [...entryByVar.values()].filter((e) => e.channel !== "none").length;
+console.log(`욕망 신호: ${(visual.signals?.list || []).length} (원경 실루엣·잠긴 문·미지 — 상태 술어 렌더)`);
 console.log(`지도: 지역 ${regionIds.size} (그래프 L ${graphL.size}) · feature ${featureIds.size}`);
 console.log(`표현 커버리지: 변수 ${varIds.size} 중 표현 ${nCover} · 비표현(사유 명시) ${varIds.size - nCover}`);
 console.log(`연대기: 법칙 ${Object.keys(ch.rules || {}).length} · 행동 ${Object.keys(ch.actions || {}).length} · 목적 ${Object.keys(ch.objectives || {}).length} · 시계 ${Object.keys(ch.clocks || {}).length}`);
@@ -130,4 +142,4 @@ if (errors.length) {
   for (const e of errors) console.error("  " + e);
   process.exit(1);
 }
-console.log(`\n검증 통과 (V1·V2·V3·V4·V6·V7) — 경고 ${warns.length}건`);
+console.log(`\n검증 통과 (V1·V2·V3·V4·V6·V7·V8) — 경고 ${warns.length}건`);

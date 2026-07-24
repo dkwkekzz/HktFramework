@@ -555,6 +555,15 @@
     "ACT_수문회_제어탑파괴": { "region": "L_제어탑", "kind": "war" },
     "ACT_수문회_수문봉쇄": { "region": "RIVER", "kind": "shift" }
   },
+  "signals": {
+    "meta": "D1 욕망 신호층 (Design-Intuition §4·정합 2) — 발견/충족 전의 '보이는 것'. 표현=상태의 렌더(불변 6 유지): when(상태 술어)이 참인 동안만 뜨고, 충족되면 사라진다. 설명이 아니라 실루엣·잠긴 문·미지(정합 3 — 경험 전 노출 허용, 저널은 경험 후). kind=silhouette(원경 가고 싶은 곳)|locked(잠긴 구조물)|unknown(정체 모를 존재). region=지도 위치, glyph=표지, label=한 줄 유혹.",
+    "list": [
+      { "id": "SIG_변방광맥", "kind": "silhouette", "region": "L_폭풍절벽", "glyph": "⛰", "label": "손 안 닿은 사냥터·광맥", "when": { "var": "L_폭풍절벽.개척확립", "op": "==", "value": false } },
+      { "id": "SIG_잠긴물길", "kind": "locked", "region": "L_제어탑", "glyph": "🔒", "label": "잠긴 물길 — 부서진 제어탑", "when": { "var": "L_제어탑.가동", "op": "==", "value": false } },
+      { "id": "SIG_잠든화로", "kind": "locked", "region": "L_지열도시", "glyph": "🔥", "label": "잠든 화로 — 에너지가 모자라다", "when": { "var": "L_지열도시.에너지확립", "op": "==", "value": false } },
+      { "id": "SIG_정체모를존재", "kind": "unknown", "region": "L_적일분화구", "glyph": "❓", "label": "정체 모를 존재가 세계를 갉는다", "when": { "var": "S_아르카론정체.발견됨", "op": "==", "value": false } }
+    ]
+  },
   "journal": {
     "meta": "동기층 M2 저널 사전 (Design-Motive §8) — 플레이어 노출 목적의 '왜 지금 나에게'. key=goal id, cognition=E_플레이어.인지.{goal}(true 일 때만 저널에 뜬다), kind=필요(결핍 앵커)|기회(욕망 앵커), motive=1문장 동기, progress=진행 축(있으면 상태 표시). 세계 게이지(사건·목적 탭)와 분리 — 여기는 '내 할 일'.",
     "G1.1.1": { "kind": "필요", "motive": "배가 고프다 — 무언가 먹지 않으면 아무 일도 손에 잡히지 않는다.", "how": "굶주려 보고서 스스로 깨달았다" },
