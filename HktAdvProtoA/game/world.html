@@ -658,6 +658,11 @@ function drawScene(now) {
   g.fillText(nodeTitle.get(rid) || rid, W / 2, 28);
   g.font = "11px system-ui"; g.fillStyle = "#8494ab";
   g.fillText(map.meta.terrains[r.terrain] || r.terrain, W / 2, 44);
+  drawToasts(now);
+}
+// 현장 토스트 렌더 — region 씬과 world 지도가 공유(D1 배선 버그 복구: 예전엔 drawScene 안에만 있어
+// world 모드에선 "📓 새 목적" 토스트가 push 만 되고 렌더 안 됐다 — 진단 단절2 :383↔:661)
+function drawToasts(now) {
   toasts = toasts.filter((t) => now - t.at < 6000);
   toasts.slice(-3).forEach((t, i, arr) => {
     const k = (now - t.at) / 6000;
@@ -773,6 +778,7 @@ function draw(now) {
   }
   drawOverlays(now);
   drawFx(now);
+  drawToasts(now);   // world 모드에서도 현장 토스트·「새 목적」 배너를 렌더(D1 배선 복구)
   requestAnimationFrame(draw);
 }
 function drawOverlays(now) {
