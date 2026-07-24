@@ -1069,8 +1069,12 @@ function renderInspect(rid) {
   for (const e of entries) {
     const rd = readers.get(e.var) || [], wr = writers.get(e.var) || [];
     const v = varIdx.get(e.var);
+    // E3 재료=가능성(§7) — 재료 축이면 성질 계열(외형→결과의 방향)로 직관 예측을 돕는다
+    const matId = (e.var.match(/보유\.(R_[^.]+)$/) || e.var.match(/^(R_[^.]+)\.(?:보유|공급|군락)/) || [])[1];
+    const fam = matId && matcat.materials?.[matId] && matcat.families?.[matcat.materials[matId].family];
+    const famLine = fam ? `성질 계열: ${esc(matcat.materials[matId].family)} — ${esc(fam.외형)} → ${esc(fam.방향.join("·"))}<br>` : "";
     h += `<div class="varrow${openVars.has(e.var) ? " open" : ""}" data-var="${esc(e.var)}"><div class="head"><span>${esc(e.label)}</span><span class="val">${esc(levelLabel(e.var))}</span></div>
-      <div class="detail"><b>${esc(e.var)}</b>${v.derived ? " · 파생축" : ""}<br>근거: ${esc(v.basis || "—")}<br>
+      <div class="detail"><b>${esc(e.var)}</b>${v.derived ? " · 파생축" : ""}<br>${famLine}근거: ${esc(v.basis || "—")}<br>
       ${wr.length ? `쓰는 법칙·행동: ${esc(wr.join(", "))}<br>` : ""}${rd.length ? `읽는 법칙·행동: ${esc(rd.join(", "))}` : ""}</div></div>`;
   }
   if (!entries.length) h += `<p class="hint">이 지역에 앵커된 상태 변수가 없습니다.</p>`;

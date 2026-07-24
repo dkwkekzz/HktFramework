@@ -96,6 +96,8 @@ function forcePred(pred, snap) {
 
 info.push(`실험 행동 ${experiments.length}: ${experiments.map((a) => a.id).join(", ")}`);
 info.push(`분기(마커) 실험 ${branchingCount} · 마커 축 var ${markerVars.size}`);
+// ── E3 가능성 밀도 — 분기 실험 ≥3 (§11 목록의 밀도: 재료 생성·상태 이상·위험 보상 등 서로 다른 갈래)
+if (branchingCount < 3) errors.push(`분기 실험 밀도: 마커 분기 실험이 ${branchingCount}개 (E3 ≥3 필요 — 실험할수록 다른 사건이 나는 밀도)`);
 
 for (const m of info) console.log("  " + m);
 if (warnings.length) { console.log("\n경고:"); for (const w of warnings) console.log("  ⚠ " + w); }
