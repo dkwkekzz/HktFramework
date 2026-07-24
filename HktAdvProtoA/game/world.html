@@ -129,11 +129,13 @@
       <button data-tab="journal" class="on">저널</button>
       <button data-tab="chron">연대기</button>
       <button data-tab="events">사건·목적</button>
+      <button data-tab="codex">도감</button>
       <button data-tab="inspect">인스펙터</button>
     </div>
     <div class="tabbody" id="tab-journal"><p class="hint">겪거나 들어야 목적이 여기 뜹니다. 굶주려 보고, 사람들에게 물으면 '필요'와 '기회'가 이유와 함께 쌓입니다.</p></div>
     <div class="tabbody" id="tab-chron" style="display:none"><p class="hint">세계가 굴러가면 발화가 여기 서사로 기록됩니다. 지도 위 지역을 클릭하면 인스펙터가 열립니다.</p></div>
     <div class="tabbody" id="tab-events" style="display:none"></div>
+    <div class="tabbody" id="tab-codex" style="display:none"><p class="hint">겪은 것만 기록됩니다. 재료를 얻고, 조합을 시도할수록 세계의 성질이 여기 정리됩니다 — 진행 조건이 아니라 경험의 정리입니다.</p></div>
     <div class="tabbody" id="tab-inspect" style="display:none"><p class="hint">지도에서 지역을 클릭하세요.</p></div>
   </aside>
 </main>
@@ -226,15 +228,19 @@ let cogSeen = new Set();                        // 이미 저널에 뜬 인지(�
 let nextGoalPulse = null;                      // E2 다음 욕망 강조 — { goal, until } 신호 비컨 하이라이트
 let rewardLast = new Map();                    // E2 즉시보상 토스트 스로틀 — 행동 id → performance.now
 let scenePulses = [];                          // E2 감각 보상 — 씬에서 아바타 주위 금빛 파문
+// E4 도감(§12 설명 후행) — 표현 로컬 경험 기록: 목격한 발화·접촉한 재료. 진행 조건이 아니다(세계 쓰기 없음)
+let firedSeen = new Set();                     // 목격한 법칙·행동 id
+let matSeen = new Set();                       // 접촉한(보유·공급 관측) 재료 id
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
   chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
   nextGoalPulse = null; rewardLast = new Map(); scenePulses = [];
+  firedSeen = new Set(); matSeen = new Set();
   avatar = { x: 0.5, y: 0.62 };
   enterRegion();                                // E1 기본 진입 — 첫 화면이 결핍 텍스트가 아니라 '보이는 세계'다 (§9)
-  renderChron(); renderEvents(); renderJournal();
+  renderChron(); renderEvents(); renderJournal(); renderCodex();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
 }
@@ -394,6 +400,9 @@ function translateFired(t, fired) {
     const fx = visual.fx?.[id];
     if (fx) fxq.push({ ...fx, at: performance.now(), dur: fx.kind === "flash" || fx.kind === "war" ? 3000 : 2000 });
   }
+  // E4 도감 — 목격한 발화를 경험으로 기록 (겪은 뒤에야 지식이 된다, §12)
+  for (const id of fired.rules) firedSeen.add(id);
+  for (const a of fired.actions) firedSeen.add(a.replace("→효과", "").split("@")[0]);
 }
 function step() {
   const fired = tick(snap, activeState(), ctx);
@@ -458,8 +467,14 @@ function onTick(t, fired) {
     pendingMove = null;
   }
   if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동@" + AV))) pendingMove = null;
+  // E4 도감 — 재료 접촉 관측 (보유·공급이 0 을 넘는 순간 그 재료를 '만난' 것)
+  for (const id of Object.keys(matcat.materials || {})) {
+    if (matSeen.has(id)) continue;
+    if ((snap[chVar("E_플레이어.보유." + id)] ?? 0) > 0 || (snap[id + ".보유"] ?? 0) > 0
+      || (snap[id + ".공급"] ?? 0) > 0 || (snap[id + ".군락"] ?? 0) > 0) matSeen.add(id);
+  }
   tickview.textContent = "t " + ctx.t;
-  renderChron(); renderEvents(); renderJournal(); renderActionbar(); renderSceneHud();
+  renderChron(); renderEvents(); renderJournal(); renderActionbar(); renderSceneHud(); renderCodex();
   if (inspected) renderInspect(inspected);
 }
 function setTimer() {
@@ -969,7 +984,7 @@ requestAnimationFrame(draw);
 
 // ── 사이드 패널 ────────────────────────────────────────────────────────
 const tickview = document.getElementById("tickview"), speed = document.getElementById("speed");
-const tabs = { journal: document.getElementById("tab-journal"), chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), inspect: document.getElementById("tab-inspect") };
+const tabs = { journal: document.getElementById("tab-journal"), chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), codex: document.getElementById("tab-codex"), inspect: document.getElementById("tab-inspect") };
 // 동기층 M2 저널 — 인지(E_플레이어.인지.*)가 true 인 목적만, 필요/기회 이원화·motive 와 함께 (Design-Motive §8)
 const journalDict = Object.fromEntries(Object.entries(visual.journal || {}).filter(([k]) => k !== "meta"));
 function renderJournal() {
@@ -1055,6 +1070,51 @@ function renderEvents() {
   h += `<div class="kv"><span>아르카론의 정체</span><span>${snap["S_아르카론정체.발견됨"] ? "밝혀짐" : "미지"}</span></div>`;
   h += `<div class="kv"><span>일식 누적</span><span>${snap["S_일식.누적횟수"] ?? 0}회</span></div>`;
   tabs.events.innerHTML = h;
+}
+// E4 도감 (§12 설명 후행) — 경험한 것만 정리하는 지식 기록. 진행 조건이 아니다.
+// 게이트: 재료=접촉(matSeen) 또는 그 용도 배선(via)의 발화 목격 / 용도 문장=via 발화 목격(via 없으면 재료 접촉)
+function renderCodex() {
+  const mats = matcat.materials || {}, fams = matcat.families || {};
+  const matKnown = (id) => matSeen.has(id)
+    || ["즉시", "조합", "사건"].some((s) => mats[id].uses?.[s]?.via && firedSeen.has(mats[id].uses[s].via));
+  let h = "<h3>성질 계열 — 겪으며 안 결의 방향 (§7)</h3>";
+  const famSeen = new Set(Object.keys(mats).filter(matKnown).map((id) => mats[id].family));
+  for (const [f, e] of Object.entries(fams)) {
+    if (famSeen.has(f)) h += `<div class="kv"><span>${esc(f)} — ${esc(e.외형)}</span><span>${esc(e.방향.join("·"))}</span></div>`;
+  }
+  const famHid = Object.keys(fams).length - famSeen.size;
+  if (famHid) h += `<p class="hint">아직 겪지 못한 계열 ${famHid}</p>`;
+  h += "<h3>재료 — 만난 것들 (§8 가능성)</h3>";
+  let hidden = 0;
+  for (const [id, m] of Object.entries(mats)) {
+    if (!matKnown(id)) { hidden++; continue; }
+    const fam = fams[m.family];
+    let rows = "";
+    for (const s of ["즉시", "조합", "사건"]) {
+      const u = m.uses?.[s];
+      if (!u) continue;
+      const known = u.via ? firedSeen.has(u.via) : true;   // via 없는 용도는 재료를 만난 순간 감이 온다
+      rows += `<div class="kv"><span>${esc(s)}</span><span>${known ? esc(u.text) : "…아직 겪지 않았다"}</span></div>`;
+    }
+    h += `<div class="subject-card"><div class="sname">${esc(nodeTitle.get(id) || id)} <span style="color:var(--dim);font-weight:400">⟨${esc(m.family)} — ${esc(fam?.외형 || "")}⟩</span></div>${rows}</div>`;
+  }
+  if (hidden) h += `<p class="hint">아직 만나지 못한 재료 ${hidden}</p>`;
+  h += "<h3>겪은 조합·실험 (§11 실패도 사건이다)</h3>";
+  const exps = (state.actions || []).filter((a) => a.experiment && firedSeen.has(a.id));
+  if (!exps.length) h += `<p class="hint">아직 시도한 조합이 없다. 재료를 합치면 무슨 일이 생길지는 해 봐야 안다.</p>`;
+  for (const a of exps) {
+    let rows = `<div class="kv"><span>시도</span><span>${esc((visual.chronicle.actions?.[a.id] || a.id).replace("{actor}", "나"))}</span></div>`;
+    // 목격한 분기 결과 — 같은 마커를 읽는 법칙 중 발화를 본 것만 기록된다
+    const markers = (a.then || []).map((e) => e.var.replace("{actor}", "E_플레이어"));
+    for (const r of state.rules || []) {
+      if (!firedSeen.has(r.id)) continue;
+      const reads = JSON.stringify(r.when || {});
+      if (markers.some((mk) => reads.includes(`"${mk}"`)))
+        rows += `<div class="kv"><span>겪은 결과</span><span>${esc(visual.chronicle.rules?.[r.id] || r.id)}</span></div>`;
+    }
+    h += `<div class="subject-card"><div class="sname">${esc((visual.actions?.[a.id]?.prompt || a.id).split(" (")[0])}</div>${rows}</div>`;
+  }
+  tabs.codex.innerHTML = h;
 }
 let inspected = null;
 const openVars = new Set();            // 매 틱 재렌더에도 펼친 카드 유지
