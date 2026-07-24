@@ -10,7 +10,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 
 작업 진행 상황은 항상 [STATE.md](STATE.md) 에 기록하고, 새 작업을 시작하기 전에 먼저 읽는다.
 
-**작업 기준 (2026-07 확정)** — 이 트랙의 콘텐츠·표현 작업은 **[Design-Intuition.md](design/Design-Intuition.md) 를 1차 기준**으로 한다. 신규/개정 목적·콘텐츠는 §14 변환 8항 표를 먼저 채우고 시작하며(§21 작업 절차), 로드맵은 §20 D 시리즈(D0 세계 재장전 → D4 상황 제공)를 따른다. 다른 설계 문서와 어긋나면 Intuition 이 우선한다(상태 형식·엔진 불변은 WorldState 유지). [Design-Motive.md](design/Design-Motive.md) 는 상태층 배선·과학 근거 참조용이다(§6 사슬 기점·§8 저널 성격은 Intuition 기준으로 대체됨).
+**작업 기준 (2026-07 확정)** — 이 트랙의 콘텐츠·표현 작업은 **[Design-Intuition.md](design/Design-Intuition.md) 를 1차 기준**으로 한다. 신규/개정 목적·콘텐츠는 §14 변환 8항 표를 먼저 채우고 시작하며(§21 작업 절차), 로드맵은 §20 D 시리즈(데이터·감사) → E 시리즈(경험 반영 — 검증은 화면 도달을 잰다)를 따른다. **카탈로그에만 존재하는 변환은 미반영이다**(§21⑤). 다른 설계 문서와 어긋나면 Intuition 이 우선한다(상태 형식·엔진 불변은 WorldState 유지). [Design-Motive.md](design/Design-Motive.md) 는 상태층 배선·과학 근거 참조용이다(§6 사슬 기점·§8 저널 성격은 Intuition 기준으로 대체됨).
 
 **기록 분리 규칙** — STATE.md 는 비대해지지 않게 유지한다.
 
@@ -53,7 +53,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/world-map.json](data/world-map.json) | 대륙 지도 — L 노드 공간 배치 + feature(RIVER). **표현 데이터** — 판정에 쓰지 않음 |
 | [data/world-visual.json](data/world-visual.json) | 표현 번역 사전 — 변수→채널(전수), 연대기 번역문, 발화 fx. **표현 데이터** |
 | [data/validate-visual.mjs](data/validate-visual.mjs) | 표현 정합 검증기 — Design-MMO §7 V1~V4·V6 (`node data/validate-visual.mjs`) |
-| [game/world.html](game/world.html) | **게임 클라이언트** (단일 파일) — 대륙 지도·지역 씬·아바타·행동 발화 UI·연대기·인스펙터. 로컬(브라우저 내 엔진)/원격(`?online`) 겸용 |
+| [game/world.html](game/world.html) | **게임 클라이언트** (단일 파일) — 지역 씬 기본 진입(E1)·욕망 신호 렌더·보상 사슬 연출(E2)·도감(E4)·대륙 지도·아바타·행동 발화 UI·연대기·인스펙터. conversion·material 카탈로그를 화면의 원본으로 로드. 로컬(브라우저 내 엔진)/원격(`?online`) 겸용 |
 | [game/server.mjs](game/server.mjs) | **월드 서버** (의존성 0) — 결정론 틱 상주, SSE 스냅샷 diff 구독·행동 요청 API·poses 릴레이 (`node HktAdvProtoA/game/server.mjs`) |
 | [game/play.bat](game/play.bat) | 윈도우 원클릭 실행 배치파일 — 서버 기동 + 브라우저 오픈 |
 | [objective-tree.html](objective-tree.html) | 목적 그래프 브라우저 관찰·편집기 (의존성 없는 단일 파일) |
