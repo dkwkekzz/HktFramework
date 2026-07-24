@@ -44,6 +44,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·detail 커버리지 7·노드 커버리지 8). `node data/validate-state.mjs` · `--strict-coverage` |
 | [data/detail-coverage.json](data/detail-coverage.json) | detail 항목 분류 원장(§9-7) — 그래프 전 노드 detail 을 {초기값·법칙·행동·목적·파생축·사슬·서사·보류} 로 분류. 검증기가 대조·미분류를 `coverage-backlog.json`(생성물) 로 출력 |
 | [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — 대표 사건 5종 사슬 재생 (`--force`·`--no-policy`·`--at`) |
+| [data/simulate-latejoin.mjs](data/simulate-latejoin.mjs) | **D0 늦은 진입자 프로브** (Intuition §20 D0 검증) — 세계를 T0 틱 굴린 뒤 갓 도착한 플레이어의 눈(결핍·인지 리셋)으로 W틱 관찰: 압력 법칙 작동·필요(위협 기원 포함)·기회 각 ≥1. "살아있는 채로 유지되는 세계" 감사 (`--at`·`--window`·`--verbose`) |
 | [data/world-map.json](data/world-map.json) | 대륙 지도 — L 노드 공간 배치 + feature(RIVER). **표현 데이터** — 판정에 쓰지 않음 |
 | [data/world-visual.json](data/world-visual.json) | 표현 번역 사전 — 변수→채널(전수), 연대기 번역문, 발화 fx. **표현 데이터** |
 | [data/validate-visual.mjs](data/validate-visual.mjs) | 표현 정합 검증기 — Design-MMO §7 V1~V4·V6 (`node data/validate-visual.mjs`) |
