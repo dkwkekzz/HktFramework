@@ -1,7 +1,7 @@
 # STATE.md
 
 > 이 문서는 **현재 핵심 상태와 TODO** 만 담는다. 완료 작업의 상세는 큰 단계별 진행 기록으로 분리한다:
-> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용) · [progress/mmo.md](progress/mmo.md) MMORPG 웹 프로토타입 · [progress/motive.md](progress/motive.md) 동기층.
+> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용) · [progress/mmo.md](progress/mmo.md) MMORPG 웹 프로토타입 · [progress/motive.md](progress/motive.md) 동기층 · [progress/intuition.md](progress/intuition.md) 직관·욕망 신호 변환층.
 
 ## 구현 현황 (핵심)
 
@@ -35,15 +35,19 @@
 
 ## TODO
 
+> **작업 기준**: 모든 콘텐츠·표현 작업은 [Design-Intuition.md](design/Design-Intuition.md) 1차 기준 — 신규/개정 목적은 §14 변환 8항 선행, 절차는 §21, 순서는 §20 D 시리즈 (CLAUDE.md '작업 기준' 참조).
+
 ### 진행/백로그
 
-- [~] **G3~G9 말단 목적 전개** (콘텐츠 트랙) — 권역 단위 §9 절차. 사슬 완결 17/56 닫힘(G2.3.1·G2.5.2·G1.3.1·G3.2.1·G1.4·G1.5·G4.2·G5.2 등, 각 브라우저 스모크 실측). 잔여는 §16 저연결 요소부터 앵커. 상세 [progress/world-laws.md](progress/world-laws.md).
+- [ ] **직관·욕망 신호 변환층 D0~D4** (차기 최우선 — 설계 확정, 구현 전) — 2026-07 진단 4단절(세계 자가소진·진입 화면 분리·저널 지시 부재·인지 커버리지 구멍) 해소 트랙: D0 세계 재장전(위협·사건 재발화 사이클 + 늦은 진입자 검증) → D1 신호층(욕망 대상 가시화·진입 화면 접합·world 모드 토스트 버그·인지 축 4종 구멍) → D2 재료=가능성(성질 계열·≥3용도) → D3 실패=사건 → D4 상황 제공(저널 재정위). 설계 [Design-Intuition.md](design/Design-Intuition.md) · 진단 [progress/intuition.md](progress/intuition.md).
+- [~] **G3~G9 말단 목적 전개** (콘텐츠 트랙) — 권역 단위 §9 절차 **+ Intuition §14 변환 8항 선행(§21①)**. 사슬 완결 17/56 닫힘(G2.3.1·G2.5.2·G1.3.1·G3.2.1·G1.4·G1.5·G4.2·G5.2 등, 각 브라우저 스모크 실측). 잔여는 §16 저연결 요소부터 앵커. 상세 [progress/world-laws.md](progress/world-laws.md).
 - [ ] **요소 재배선·검증10 관계 커버리지** (상시 백로그, 완료 지점 없는 점진 트랙 — §19 '요소는 점진 허용') — ① 검증17 잔여 3(재등쥐여과털 다주체 재배선·미탄생 존재 고대생명체/별빛종족은 등장 조건 설계 후 subjectKind 승격) ② 검증10 미상태화 관계(필요 49/140·제공 11/44·방해 42/64) 권역 단위 상태화.
-- [ ] **동기층 표현 폴리시 이월** — 앎 인스펙터 K 연동(Design-MMO §5·§8) · 유산 연대기 임계 기여자 명기(§5.5) · OBJ_G1.1.1 저널 목적화 · 형의 사례화 확대 · M8② 관계성 배선 확대. 상세 [progress/motive.md](progress/motive.md).
+- [ ] **동기층 표현 폴리시 이월 (→ Intuition D 시리즈로 흡수)** — 앎 인스펙터 K 연동(D4 설명 후행) · 유산 연대기 임계 기여자 명기(D1 신호) · OBJ_G1.1.1 저널 목적화(D4 저널 재정위와 함께) · 형의 사례화 확대 · M8② 관계성 배선 확대(D0 완료 반응). 상세 [progress/motive.md](progress/motive.md).
 - [ ] **MMO 후속** — 잔여 once 플레이어 행동(늑대 계약 등) 캐릭터별 재검토 · counter(경합 창 대항 — 수문회 습격 격퇴) · 기여 전환 확대 · world 목적 discover 캐릭터별 평가. 상세 [progress/mmo.md](progress/mmo.md).
 
 ### 완료 (상세는 progress/)
 
+- [x] **직관·욕망 신호 변환층 설계 확정 + 4단절 진단** ✅ 2026-07 — 목적 트리↔플레이어 직관 연결 설계(§1~§18 원문 + 충돌 6건 층 분리 해소 §19 + 로드맵 D0~D4 §20) 정본화. 실측 진단: 목적·동기 기계 실존하나 세계 자가소진(무입력 t60 사건 3종 자체 완결·위협 비재장전)·진입 화면 분리·저널 지시 부재·인지 커버리지 구멍. → [Design-Intuition.md](design/Design-Intuition.md)·[progress/intuition.md](progress/intuition.md).
 - [x] **주체 세계상태 표현 전수 (Phase 0~3)** ✅ 2026-07 — 검증 18 구현(Phase 0) + 생태·질병 7(Phase 1, law) + 세력 4 정책화(Phase 2, 3 tug) + 이름 개체 6 승격 → 배선 7/18→**24/24**. Phase 3 요소 재배선 검증17 70→**3**(구조적 바닥). → [progress/world-state.md](progress/world-state.md)·[progress/graph.md](progress/graph.md).
 - [x] **트리 복수화 (§18) + 이름 개체 6 승격** ✅ 2026-07 — validate-graph 검증 16·17 감사 + 24개 존속 루트 트리 + subjectKind 승격(아르카론·거인·세리아·오르반·구름고래·기억나방, 상태 축 설계·tug 포함). → [progress/graph.md](progress/graph.md)·[progress/world-state.md](progress/world-state.md).
 - [x] **동기층 M1~M6 완결** ✅ 2026-07 — 결핍 삼축(허기·온기·상처) + 인지·묻기·저널 + 탐욕(심연유리 경제) + 인정(관계.F_* 편들기·문 닫힘). 5욕망 갈래 병렬. 6검증·sim 3종·§10 완주. → [progress/motive.md](progress/motive.md).
