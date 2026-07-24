@@ -67,6 +67,8 @@
   .jcard .jmotive { color: var(--dim); font-size: 12px; margin-top: 4px; line-height: 1.5; }
   .jcard .jhow { color: var(--accent); font-size: 11px; margin-top: 4px; opacity: .8; }
   .jcard .jpaths { color: var(--gold); font-size: 11px; margin-top: 4px; opacity: .75; }
+  .jcard .jdesire { color: var(--gold); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+  .jcard .jhint { color: var(--dim); font-size: 11px; margin-top: 4px; opacity: .85; }
   .kv { display: flex; justify-content: space-between; color: var(--dim); }
   .kv span:last-child { color: var(--fg); }
   .hint { color: var(--dim); font-size: 12px; }
@@ -142,10 +144,12 @@ import { buildInitial, recomputeDerived, newCtx, tick, indexVars, evalPred, subs
 
 // ── 데이터 로드 — 표현층은 스냅샷과 표현 데이터만 읽는다 (불변 6) ─────────
 const DATA = "../data/";
-let graph, state, map, visual;
+let graph, state, map, visual, conv, matcat;
 try {
-  [graph, state, map, visual] = await Promise.all(
-    ["objective-graph.json", "world-state.json", "world-map.json", "world-visual.json"]
+  // E1 경험 반영 — 변환 카탈로그(§14 8항)와 재료 카탈로그(§7·§8)도 화면의 원본이다 (감사 전용 금지)
+  [graph, state, map, visual, conv, matcat] = await Promise.all(
+    ["objective-graph.json", "world-state.json", "world-map.json", "world-visual.json",
+     "objective-conversion.json", "material-families.json"]
       .map((f) => fetch(DATA + f).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return r.json(); })));
 } catch (err) {
   document.getElementById("fatal").style.display = "grid";
@@ -168,6 +172,19 @@ for (const e of ventries) {
 }
 const refActors = ventries.filter((e) => e.region === "@ref");
 const hudEntries = ventries.filter((e) => e.channel === "hud");
+// E1 욕망 신호층 (§4·§9·정합 2·3) — 목적마다 세계에 '보이는 것'. 경험(인지) 전에도 렌더된다.
+const convObj = conv.objectives || {};
+const signalDict = Object.fromEntries(Object.entries(visual.signals || {}).filter(([k]) => k !== "meta"));
+const signalsByRegion = new Map();
+for (const [goal, s] of Object.entries(signalDict)) {
+  if (!signalsByRegion.has(s.region)) signalsByRegion.set(s.region, []);
+  signalsByRegion.get(s.region).push({ goal, ...s });
+}
+// 목적 완료 시 신호 소등 — 욕망 대상이 이뤄지면 실루엣이 아니라 상태 그 자체가 보인다
+const signalActive = (goal) => snap[goal + ".진행"] !== 3;
+// E2 보상 사슬 — 행동 → 소속 목적 (즉시보상 연출 매핑)
+const goalOfAction = new Map();
+for (const [goal, e] of Object.entries(convObj)) for (const id of e.간단한행동 || []) goalOfAction.set(id, goal);
 const gaugeEV = ventries.filter((e) => e.channel === "gauge" && /^EV_/.test(e.var));
 const gaugeG = ventries.filter((e) => e.channel === "gauge" && /\.진행$/.test(e.var));
 // 변수 ↔ 법칙·행동 교차 색인 (인스펙터의 '설명 가능한 세계')
@@ -201,21 +218,30 @@ let snap, ctx, playing = true, timer = null, chron = [], fxq = [], remotePoses =
 let AV = "E_플레이어";                          // 원격 조인 시 "E_플레이어#이름" 으로 대체
 const chVar = (id) => id.replace("E_플레이어", AV);   // 사전의 플레이어 축을 내 캐릭터 키로
 const avLoc = () => snap[AV + ".위치"];
-let view = { mode: "world" };                  // "world" | "region"
+let view = { mode: "world" };                  // "world" | "region" — 부트 후 region 기본 진입(E1 §9)
 let avatar = { x: 0.5, y: 0.62 };              // 씬 로컬 0..1
 let pendingMove = null;                        // { target, from } — ACT_이동 duration 진행 중
 let toasts = [];                               // 현장 목격 알림 (지역 연대기)
 let cogSeen = new Set();                        // 이미 저널에 뜬 인지(목적) — 배너 중복 방지 (§8)
+let nextGoalPulse = null;                      // E2 다음 욕망 강조 — { goal, until } 신호 비컨 하이라이트
+let rewardLast = new Map();                    // E2 즉시보상 토스트 스로틀 — 행동 id → performance.now
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
   chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
+  nextGoalPulse = null; rewardLast = new Map();
   avatar = { x: 0.5, y: 0.62 };
-  if (view.mode === "region") view.region = avLoc();
+  enterRegion();                                // E1 기본 진입 — 첫 화면이 결핍 텍스트가 아니라 '보이는 세계'다 (§9)
   renderChron(); renderEvents(); renderJournal();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
+}
+// E1 진입 UX 접합 — 아바타·행동 바·삼축 HUD·신호가 있는 지역 씬으로 바로 들어간다
+function enterRegion() {
+  view = { mode: "region", region: avLoc() };
+  const b = document.getElementById("btnView");
+  if (b) b.textContent = "🗺 대륙 지도";
 }
 // 행동 발화 요청 — 유일한 세계 개입 경로 (불변 2·6). 로컬은 inputs 큐, 원격은 서버 API.
 function sendInput(payload) {
@@ -496,7 +522,7 @@ addEventListener("keydown", (e) => {
   }
 });
 addEventListener("keyup", (e) => keys.delete(e.key));
-let lastNow = 0, sceneEnts = [];
+let lastNow = 0, sceneEnts = [], sceneSignals = [];
 const SM = 46;                                  // 씬 여백(px)
 const sx = (u) => SM + u * (W - SM * 2);
 const sy = (u) => SM + u * (H - SM * 2);
@@ -537,7 +563,7 @@ function drawScene(now) {
     for (const ex of exitsOf(rid))               // 출구 게이트 접촉 → 이동 행동 발화 요청
       if (Math.hypot(avatar.x - ex.x, avatar.y - ex.y) < 0.055) requestMove(ex.id);
   }
-  sceneEnts = [];
+  sceneEnts = []; sceneSignals = [];
   // 배경 — 지형 색 + 건강도
   const tones = (byRegion.get(rid) || []).filter((e) => e.channel === "tone");
   const health = tones.length ? tones.reduce((s, e) => s + (e.var === "S_토양침식.활성" ? 1 - ratioOf(e.var) : ratioOf(e.var)), 0) / tones.length : 0.8;
@@ -633,6 +659,35 @@ function drawScene(now) {
     g.font = "10px system-ui"; g.textAlign = "center"; g.fillStyle = "#6fb3d8";
     g.fillText(nodeTitle.get(ex.id) || ex.id, x, y + 27);
     g.fillText("▸", x, y + 4);
+  }
+  // E1 욕망 신호 (§4·§9) — ① 현재 지역의 신호는 씬 안의 빛나는 비컨: 보고, 다가가고, 궁금해진다
+  {
+    const srnd = seeded("signal:" + rid);
+    let list = (signalsByRegion.get(rid) || []).filter((s) => signalActive(s.goal));
+    for (const s of list) {
+      const x = sx(0.15 + srnd() * 0.7), y = sy(0.14 + srnd() * 0.28);
+      const pulse = 0.55 + 0.45 * Math.sin(now / 600 + x);
+      const hot = nextGoalPulse && nextGoalPulse.goal === s.goal && now < nextGoalPulse.until;
+      g.strokeStyle = hot ? "#ffdf8a" : "#d8b46f"; g.globalAlpha = 0.35 + pulse * 0.45; g.lineWidth = hot ? 2.5 : 1.5;
+      g.beginPath(); g.arc(x, y - 6, (hot ? 20 : 14) + pulse * 5, 0, 7); g.stroke(); g.globalAlpha = 1;
+      g.font = "22px serif"; g.textAlign = "center"; g.fillText(s.glyph, x, y);
+      g.font = "10px system-ui"; g.fillStyle = "#d8b46f"; g.globalAlpha = 0.85;
+      g.fillText(s.label, x, y + 15); g.globalAlpha = 1; g.fillStyle = "#d6dde8";
+      sceneSignals.push({ x, y, goal: s.goal, label: s.label });
+    }
+    // ② 인접 지역의 신호는 원경 — 출구 방향 시야 끝의 실루엣 (경험 전 노출, 정합 3)
+    for (const ex of exitsOf(rid)) {
+      const far = (signalsByRegion.get(ex.id) || []).filter((s) => signalActive(s.goal));
+      far.forEach((s, i) => {
+        const x = sx(Math.max(0.05, Math.min(0.95, ex.x + (ex.x - 0.5) * 0.14))) + i * 18;
+        const y = sy(Math.max(0.03, Math.min(0.97, ex.y + (ex.y - 0.5) * 0.14)));
+        const pulse = 0.4 + 0.3 * Math.sin(now / 900 + i);
+        g.font = "14px serif"; g.textAlign = "center"; g.globalAlpha = 0.35 + pulse * 0.3;
+        g.fillText(s.glyph, x, y - 18);
+        g.globalAlpha = 1;
+        sceneSignals.push({ x, y: y - 18, goal: s.goal, label: `멀리 — ${s.label}`, far: true });
+      });
+    }
   }
   // 다른 모험가들 — 비권위 표현 채널(poses)의 릴레이 (§8 타 아바타)
   if (REMOTE) for (const [c, p] of Object.entries(remotePoses)) {
@@ -770,6 +825,22 @@ function draw(now) {
     g.fillText(nodeTitle.get(r.id) || r.id, x, y + rad + 12);
     g.globalAlpha = 1;
   }
+  // E1 욕망 신호 — 지도에서도 욕망 대상이 보인다 (지역 위 점멸 실루엣, §4·§9)
+  for (const [rid2, list] of signalsByRegion) {
+    if (!regions.has(rid2)) continue;
+    const r2 = regions.get(rid2), [x, y] = px(r2.pos), rad = r2.size * S * 0.9;
+    const act = list.filter((s) => signalActive(s.goal));
+    let sx2 = x - (act.length - 1) * 9;
+    for (const s of act) {
+      const hot = nextGoalPulse && nextGoalPulse.goal === s.goal && now < nextGoalPulse.until;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 700 + sx2);
+      g.strokeStyle = hot ? "#ffdf8a" : "#d8b46f"; g.globalAlpha = 0.25 + pulse * 0.4; g.lineWidth = hot ? 2 : 1;
+      g.beginPath(); g.arc(sx2, y + rad + 24, 9 + pulse * 3, 0, 7); g.stroke(); g.globalAlpha = 1;
+      g.font = "13px serif"; g.textAlign = "center";
+      g.globalAlpha = 0.65 + pulse * 0.35; g.fillText(s.glyph, sx2, y + rad + 28); g.globalAlpha = 1;
+      sx2 += 18;
+    }
+  }
   // 진행 중인 NPC 정책 행동 — 무대 지역에 ⚔ 점멸 (지도에서도 보인다)
   for (const st of npcStages()) if (regions.has(st.site)) {
     const [x, y] = px(regions.get(st.site).pos);
@@ -873,10 +944,14 @@ function renderJournal() {
       st = `<span class="st ${val === 3 ? "done" : val === 2 ? "run" : ""}">${esc(String(lbl))}</span>`; }
     // D4 저널 재정위(§13·정합 5) — 정답을 지시하지 않고, 여러 갈래가 있음을 보여준다(복수 가능성)
     const paths = (state.actions || []).filter((a) => a.objective === goal && (a.actor_type || []).includes("E_플레이어")).length;
+    // E1 변환표 접합(§14) — 카드는 지시가 아니라 상황: 보이는 것(욕망대상)과 주변의 가능성(눈에띄는수단)
+    const cv2 = convObj[goal];
     return `<div class="jcard ${j.kind === "기회" ? "chance" : "need"}">
       <div class="jtitle"><span>${esc(nodeTitle.get(goal) || goal)}</span>${st}</div>
+      ${cv2 ? `<div class="jdesire">👁 ${esc(cv2.욕망대상)}</div>` : ""}
       <div class="jmotive">${esc(j.motive || "")}</div>
       ${j.how ? `<div class="jhow">↳ ${esc(j.how)}</div>` : ""}
+      ${cv2 ? `<div class="jhint">주변에 보이는 것 — ${esc(cv2.눈에띄는수단)}</div>` : ""}
       ${paths >= 2 ? `<div class="jpaths">▸ 여러 갈래로 풀 수 있다 (${paths})</div>` : ""}</div>`;
   };
   let h = "";
@@ -973,14 +1048,36 @@ function showTab(name) {
   document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
   for (const [k, el] of Object.entries(tabs)) el.style.display = k === name ? "" : "none";
 }
+// E1 신호 클릭 — 인지 전엔 실루엣(라벨)만, 인지 후엔 욕망대상 전문 (정합 3: 신호≠설명)
+function signalToast(goal, label) {
+  const cognized = snap[chVar("E_플레이어.인지." + goal)];
+  const e = convObj[goal];
+  toasts.push({ text: cognized && e ? `👁 ${e.욕망대상}` : `👁 ${label}`, at: performance.now() });
+  if (cognized) showTab("journal");
+}
 cv.addEventListener("click", (ev) => {
   const rect = cv.getBoundingClientRect(), mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
   if (view.mode === "region") {
+    // 욕망 신호 클릭이 우선 — 보이는 것에 다가가는 첫 행동 (§2 루프의 시작)
+    let bs = null, bsd = 24;
+    for (const s of sceneSignals) { const d = Math.hypot(mx - s.x, my - s.y); if (d < bsd) { bs = s; bsd = d; } }
+    if (bs) { signalToast(bs.goal, bs.label); return; }
     // 씬 개체 클릭 → 그 축의 상태 카드 (§3.2 — 앰비언트 클릭은 종 노드의 상태가 열린다)
     let best = null, bd = 26;
     for (const e of sceneEnts) { const d = Math.hypot(mx - e.x, my - e.y); if (d < bd) { best = e; bd = d; } }
     if (best) { renderInspect(view.region); openVars.add(best.var); renderInspect(view.region); showTab("inspect"); }
     return;
+  }
+  // world 지도 — 신호 글리프 클릭 (지역 아래 점멸 줄)
+  for (const [rid2, list] of signalsByRegion) {
+    if (!regions.has(rid2)) continue;
+    const r2 = regions.get(rid2), [x, y] = px(r2.pos), rad = r2.size * S * 0.9;
+    const act = list.filter((s) => signalActive(s.goal));
+    let sx2 = x - (act.length - 1) * 9;
+    for (const s of act) {
+      if (Math.hypot(mx - sx2, my - (y + rad + 24)) < 12) { signalToast(s.goal, s.label); return; }
+      sx2 += 18;
+    }
   }
   let best = null, bd = 1e9;
   for (const r of map.regions) {
@@ -1061,6 +1158,7 @@ if (REMOTE) {
     Object.assign(snap, d.snap);
     ctx.t = d.t; ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
     tickview.textContent = "t " + ctx.t;
+    enterRegion();                              // E1 기본 진입 (원격도 동일 — 첫 화면=보이는 세계)
     renderChron(); renderEvents(); renderJournal(); renderSceneHud();
   });
   es.addEventListener("tick", (ev) => {
@@ -1087,6 +1185,7 @@ window.__dbg = {
   get spot() { return currentSpot; }, get busy() { return actorBusy(); }, get snap() { return snap; },
   gotoSpot(name) { const s = spotsOf(view.region)[name]; if (s) avatar = { x: s.x, y: s.y }; },
   get stages() { return npcStages(); }, get tick() { return ctx.t; }, get poses() { return remotePoses; },
+  get signals() { return sceneSignals; },       // E1 씬 신호 (자동 눈 검증용)
 };
 </script>
 </body>
