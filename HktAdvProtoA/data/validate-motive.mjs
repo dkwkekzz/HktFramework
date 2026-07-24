@@ -96,10 +96,41 @@ const reachTick = new Map();               // cogVarId -> 최초 도달 틱 (set
     check();
   }
 }
-for (const v of cogVars) {
-  if (!reachTick.has(v.id))
-    errors.push(`M9 위반: 인지 ${v.target} 의 발견 전제가 자율 세계 ${N9}틱 내 참이 되지 않음 — 도달 불가능한 노출 목적(§1.5)`);
+// ── M9 조건부 도달 — 자율로 안 닿는 인지(플레이어가 세계를 특정 상태로 몬 뒤에만 발화, 예: 늑대 멸종)는
+//   '그 인지가 뜨는 상황에서 그 목적이 발견 가능한가'로 감사한다(인지⇒발견가능 정합). D0 이후 늑대는
+//   자율 멸종하지 않으므로 G_늑대복원 인지는 플레이어가 멸종을 일으킨 조건부 상황에서만 정당하다.
+//   설계 근거: §1.5 '만날 수 있는 것만 노출' — 발견 가능한 목적이면 그 저널 노출도 정당.
+function forcePred(pred, snap) {                     // 술어를 참으로 만드는 최소 강제(leaf 값 세팅)
+  if (!pred) return;
+  if (pred.all) return pred.all.forEach((p) => forcePred(p, snap));
+  if (pred.any) return forcePred(pred.any[0], snap);
+  if (pred.not) return;
+  const { var: name, op, value } = pred;
+  if (value && typeof value === "object") return;    // 변수 간 비교는 강제하지 않음
+  const num = typeof value === "number";
+  if (op === "==" || op === ">=" || op === "<=") snap[name] = value;
+  else if (op === ">") snap[name] = num ? value + 1 : value;
+  else if (op === "<") snap[name] = num ? value - 1 : value;
+  else if (op === "!=") snap[name] = typeof value === "boolean" ? !value : num ? value + 1 : value;
 }
+const condReach = new Map();                          // cogVarId -> objectiveId (조건부 도달 근거)
+for (const v of cogVars) {
+  if (reachTick.has(v.id)) continue;
+  const o = (state.objectives || []).find((x) => x.goal === v.target);
+  if (!o || !o.discover) continue;
+  const varIdx = indexVars(state);
+  const snap = buildInitial(state);
+  for (const srcId of setters.get(v.id) || []) forcePred(setterSrc.get(srcId).when, snap);   // 인지 발화 상황 조성
+  recomputeDerived(snap, varIdx);
+  const cogFires = (setters.get(v.id) || []).some((srcId) => evalPred(setterSrc.get(srcId).when, snap, "E_플레이어"));
+  if (cogFires && evalPred(o.discover, snap, "E_플레이어")) condReach.set(v.id, o.id);   // 인지 뜸 ∧ 그때 목적 발견 가능
+}
+for (const v of cogVars) {
+  if (reachTick.has(v.id) || condReach.has(v.id)) continue;
+  errors.push(`M9 위반: 인지 ${v.target} 의 발견 전제가 자율 세계 ${N9}틱 내에도, 목적 발견 상황에서도 참이 안 됨 — 도달 불가능한 노출 목적(§1.5)`);
+}
+if (condReach.size)
+  info.push(`M9 조건부 도달 ${condReach.size} — ${[...condReach].map(([id, oid]) => `${varById.get(id)?.target || id}(발화 시 ${oid}.discover 성립)`).join(" · ")}`);
 
 // ── M9 직관층 즉각 보상 — 직관 기점 행동은 즉각 체감 보상(허기↓ ∨ 보유↑)을 보증(보상 이중성 충족).
 const INTUITIVE = ["ACT_식사", "ACT_초식동물_사냥", "ACT_유리열매_채집"];
@@ -198,7 +229,7 @@ const chance = cogGoals.filter((g) => jrn[g]?.kind === "기회");
 info.push(`인지-노출 목적 ${cogGoals.length} — 필요 ${need.length} · 기회 ${chance.length}`);
 info.push(`인지 set 경로: ${[...setters.entries()].map(([v, s]) => `${v.replace("E_플레이어.인지.", "")}←${s.join(",")}`).join(" · ")}`);
 info.push(`묻기 행동 ${askActs.length} · 경험 인지 법칙 ${(state.rules || []).filter((r) => r.id.startsWith("LAW_인지_")).length}`);
-info.push(`M9 도달성: 인지 ${cogVars.length}개 전부 자율 세계에서 도달 — ${[...reachTick.entries()].map(([v, t]) => `${v.replace("E_플레이어.인지.", "")}@t${t}`).join(" · ")}`);
+info.push(`M9 도달성: 인지 ${cogVars.length}개 도달(자율 ${reachTick.size} · 조건부 ${condReach.size}) — ${[...reachTick.entries()].map(([v, t]) => `${v.replace("E_플레이어.인지.", "")}@t${t}`).join(" · ")}`);
 
 // ── 결과
 console.log(`동기층: 인지 축 ${cogVars.length} · 묻기 ${askActs.length} · journal 항목 ${Object.keys(jrn).length}`);

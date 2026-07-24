@@ -15,11 +15,15 @@
 
 ### 핵심 파일
 
-- `data/world-state.json` — 상태의 유일 원본. **vars 166 · rules 81 · actions 107 · objectives 37 · clocks 2 · subjects 24**. 다섯 층·축 문법 3종·값 4종·`basis` 필수.
+- `data/world-state.json` — 상태의 유일 원본. **vars 172 · rules 90 · actions 109 · objectives 37 · clocks 2 · subjects 24**. 다섯 층·축 문법 3종·값 4종·`basis` 필수. 인지 축 16(플레이어 노출 목적).
+- `data/material-families.json` — **D2 재료=가능성 카탈로그**(§7·§8). 23 R 재료 → 성질 계열 7종 + 3용도(즉시·조합·사건). 감사 `data/validate-material.mjs`.
+- **D3 실패=사건**(§11): 실험 행동은 시도 마커(axis 실험)만 세우고 숨은 맥락(별빛폭풍)으로 결과가 갈린다 — `ACT_조합_생체재생낭` → `LAW_재생낭_정상`(회복) XOR `LAW_재생낭_빗나감`(성광결정 부산물). 감사 `data/validate-experiment.mjs`(무효과 실패 0·상호배타 분기 실측).
+- `data/objective-conversion.json` — **D4 변환 커버리지 카탈로그**(§14). 노출 목적 16 × 변환 8항. 저널 재정위(§13 상황+복수 가능성). 감사 `data/validate-conversion.mjs`(100% 8항·해결 경로 ≥2 전수·참조 무결성 — D 시리즈 최종 감사).
 - `data/state-engine.mjs` — 공유 결정론 틱 루프 ①~⑦ (`every:N`·duration 지원). `data/load-world.mjs` 로더(fs)로 엔진을 순수 유지 → 브라우저가 canonical 엔진 그대로 import.
 - `data/validate-state.mjs` — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·detail/노드 커버리지) + **§18 검증 18**(그래프↔세계상태 층 교차, 배선 24/24·화이트리스트 0). `node data/validate-state.mjs`(경고 0) · `--strict-coverage`.
 - `data/detail-coverage.json` — detail 분류 원장(§9-7). 전 **597항목 100% 분류**(미분류 0): 번역 102·서사 85·보류 410. 보류=콘텐츠 백로그(사유 태그). `--strict-coverage` 가 신규 노드 미분류 회귀 가드.
 - `data/simulate-state.mjs` — 무입력 시뮬레이터(대표 사건 재생). `data/simulate-motive.mjs`·`data/simulate-walk.mjs` — 동기층·§10 완주 실증 봇. `data/validate-motive.mjs` — 동기층 검증(M2~M9·불변8).
+- `data/simulate-latejoin.mjs` — **D0 늦은 진입자 프로브**(§20 D0 검증). 세계 T0 틱 주행 후 갓 도착한 눈(결핍·인지 리셋)으로 W틱 관찰 → 압력·필요(위협 기원)·기회 각 ≥1 감사. t=100~800 초록. "살아있는 채로 유지되는 세계".
 
 ### 대표 사건 5종 — 전부 무입력 자율 재생 (WorldLaws §3, 상세 [progress/world-laws.md](progress/world-laws.md))
 
@@ -39,7 +43,7 @@
 
 ### 진행/백로그
 
-- [ ] **직관·욕망 신호 변환층 D0~D4** (차기 최우선 — 설계 확정, 구현 전) — 2026-07 진단 4단절(세계 자가소진·진입 화면 분리·저널 지시 부재·인지 커버리지 구멍) 해소 트랙: D0 세계 재장전(위협·사건 재발화 사이클 + 늦은 진입자 검증) → D1 신호층(욕망 대상 가시화·진입 화면 접합·world 모드 토스트 버그·인지 축 4종 구멍) → D2 재료=가능성(성질 계열·≥3용도) → D3 실패=사건 → D4 상황 제공(저널 재정위). 설계 [Design-Intuition.md](design/Design-Intuition.md) · 진단 [progress/intuition.md](progress/intuition.md).
+- [~] **직관·욕망 신호 변환층 D0~D4** (D0~D4 핵심 전 단계 완료 — 잔여는 폴리시) — 2026-07 진단 4단절 해소 + 신호·재료·실패·상황층. **D0 위협 재발화 사이클 + 늦은 진입자 프로브 ✅**(단절1) · **D1 토스트 배선 복구 + 인지 축 4종 구멍 해소 ✅**(단절2·4) · **D2 재료 성질 계열 + 다용도 + 조합 행동 + 감사 ✅** · **D3 실패=사건 결과 분기 + 무효과 실패 0 감사 ✅** · **D4 변환 커버리지 카탈로그(§14 8항 전수) + 저널 재정위(§13) + 최종 감사 ✅**(아래 완료 항목). 잔여(후속 폴리시): D0 NPC 속도 차·클럭 확장 · D1 욕망 대상 가시화 신호층·진입 화면 기본 진입 · D2 핵심 재료 배선 확대·조합 결과 다양화 · D3 분기 실험 행동 확대 · D4 설명 후행 도감(경험 게이트 UI). 설계 [Design-Intuition.md](design/Design-Intuition.md) · 진단·구현 [progress/intuition.md](progress/intuition.md).
 - [~] **G3~G9 말단 목적 전개** (콘텐츠 트랙) — 권역 단위 §9 절차 **+ Intuition §14 변환 8항 선행(§21①)**. 사슬 완결 17/56 닫힘(G2.3.1·G2.5.2·G1.3.1·G3.2.1·G1.4·G1.5·G4.2·G5.2 등, 각 브라우저 스모크 실측). 잔여는 §16 저연결 요소부터 앵커. 상세 [progress/world-laws.md](progress/world-laws.md).
 - [ ] **요소 재배선·검증10 관계 커버리지** (상시 백로그, 완료 지점 없는 점진 트랙 — §19 '요소는 점진 허용') — ① 검증17 잔여 3(재등쥐여과털 다주체 재배선·미탄생 존재 고대생명체/별빛종족은 등장 조건 설계 후 subjectKind 승격) ② 검증10 미상태화 관계(필요 49/140·제공 11/44·방해 42/64) 권역 단위 상태화.
 - [ ] **동기층 표현 폴리시 이월 (→ Intuition D 시리즈로 흡수)** — 앎 인스펙터 K 연동(D4 설명 후행) · 유산 연대기 임계 기여자 명기(D1 신호) · OBJ_G1.1.1 저널 목적화(D4 저널 재정위와 함께) · 형의 사례화 확대 · M8② 관계성 배선 확대(D0 완료 반응). 상세 [progress/motive.md](progress/motive.md).
@@ -47,6 +51,11 @@
 
 ### 완료 (상세는 progress/)
 
+- [x] **D4 상황 제공 — 변환 커버리지 카탈로그 + 저널 재정위 + 최종 감사** ✅ 2026-07 — D 시리즈 최종 감사(§21⑤). ① `data/objective-conversion.json`: 노출 목적 16 마다 §14 변환 8항(내부목적→욕망대상→작은방해→눈에띄는수단→간단한행동→즉시보상→예상밖결과→다음목적) 전수, 실재 행동·다음목적 교차 배선. ② 저널 재정위(§13·정합 5): `game/world.html` 카드에 '▸ 여러 갈래로 풀 수 있다 (N)' — 정답 지시 대신 복수 가능성. ③ `data/validate-conversion.mjs`: 100% 8항 완비·해결 경로 ≥2 전수(54개·평균 3.4)·참조 무결성. 11종 검증 초록. → [progress/intuition.md](progress/intuition.md).
+- [x] **D3 실패=사건 — 실험 행동 결과 분기 + 무효과 실패 0 감사** ✅ 2026-07 — 발화된 실험은 잘못된 때에도 사건이 된다(§11·정합 4). 엔진 무변경 — 결과 분기를 데이터로: 실험 행동은 시도 마커(axis 실험)만 세우고, 숨은 맥락(별빛폭풍)에 따라 다음 틱에 상호배타 분기 법칙으로 갈린다(결정론적 예측불가=정보 비대칭). `ACT_조합_생체재생낭` → 정상(`LAW_재생낭_정상`: 상처−1·온기+1) XOR 빗나감(`LAW_재생낭_빗나감`: 성광결정 부산물 — '별빛 폭풍 중에만 생성' lore 정합). 실측 정상 상처2→1·빗나감 성광결정+1. `data/validate-experiment.mjs` 신설(무효과 실패 0·분기 ≥2·상호배타·분기 실측). rules 88→90·vars 170→172. 10종 검증 초록. → [progress/intuition.md](progress/intuition.md).
+- [x] **D2 재료=가능성 — 성질 계열 + 다용도 + 조합 행동 + 감사** ✅ 2026-07 — 재료를 '수집물'에서 '가능성'으로(§7·§8). ① `data/material-families.json`: 23 R 재료 → 성질 계열 7종(불꽃·한기·생체·별빛·기억·치유·양식)·핵심 6은 즉시·조합·사건 3용도. ② 조합 verb 배선: `ACT_조합_생체재생낭`(수분핵+재생섬유→상처−1·온기+1, 예상 밖 휴대 회복) + `ACT_속털_두르기`(즉시 온기) + `LAW_속털냄새`(보유≥4 사건). ③ `data/validate-material.mjs`: 성질 계열 100%·핵심 3용도·via 배선 교차검증(19건)·조합 행동 존재. rules 87→88·actions 107→109. 9종 검증 초록. → [progress/intuition.md](progress/intuition.md).
+- [x] **D1 신호층 — 토스트 배선 복구 + 인지 축 4종 구멍 해소** ✅ 2026-07 — 진단 단절2(진입 화면 배선 버그) + 단절4(인지 구멍) 해소. ① `game/world.html`: 「새 목적」 토스트가 world 지도 모드에서 렌더 안 되던 버그(:383↔:661) — `drawToasts()` 추출해 지역·지도 양쪽 호출. ② 인지 축 없던 플레이어 목적 4종(G_늑대복원·G_인공백야초재배·G5.2·G2.5.3)에 인지 축+법칙+저널 배선(불변8 경험 술어·§21). 자율 도달 3종·G_늑대복원은 조건부(D0로 늑대 자율 멸종 안 함). validate-motive에 **M9 조건부 도달 검사**(인지⇒발견가능 정합) 추가. rules 83→87·vars 166→170. 8종 검증 초록. → [progress/intuition.md](progress/intuition.md).
+- [x] **D0 세계 재장전 — 위협 재발화 사이클 + 늦은 진입자 프로브** ✅ 2026-07 — 진단 단절1(세계 자가소진·가장 큼) 해소. 늑대 위협을 `압력→발화→해소→재축적` 유계 사이클로: `RULE_숲_회복` 상한(먹이<보통)·`LAW_숲_자생`(강 무관 자생 회복)·`LAW_늑대_방목압`(재압박) 3법칙이 먹이를 1↔2 진동시켜 `X_늑대공격` 재점화(엔진 무변경, rules 81→83). 1000틱 최소늑대37·`EV_늑대멸종` 미발동. 신설 `data/simulate-latejoin.mjs` 프로브(t=100~800 ✅): 갓 도착한 눈으로 압력·필요(위협 기원)·기회 각 ≥1 감사. 덤: 플레이어 목적 `G2.1` 자동완주 해소. 기존 검증 8종 초록 유지. → [progress/intuition.md](progress/intuition.md).
 - [x] **직관·욕망 신호 변환층 설계 확정 + 4단절 진단** ✅ 2026-07 — 목적 트리↔플레이어 직관 연결 설계(§1~§18 원문 + 충돌 6건 층 분리 해소 §19 + 로드맵 D0~D4 §20) 정본화. 실측 진단: 목적·동기 기계 실존하나 세계 자가소진(무입력 t60 사건 3종 자체 완결·위협 비재장전)·진입 화면 분리·저널 지시 부재·인지 커버리지 구멍. → [Design-Intuition.md](design/Design-Intuition.md)·[progress/intuition.md](progress/intuition.md).
 - [x] **주체 세계상태 표현 전수 (Phase 0~3)** ✅ 2026-07 — 검증 18 구현(Phase 0) + 생태·질병 7(Phase 1, law) + 세력 4 정책화(Phase 2, 3 tug) + 이름 개체 6 승격 → 배선 7/18→**24/24**. Phase 3 요소 재배선 검증17 70→**3**(구조적 바닥). → [progress/world-state.md](progress/world-state.md)·[progress/graph.md](progress/graph.md).
 - [x] **트리 복수화 (§18) + 이름 개체 6 승격** ✅ 2026-07 — validate-graph 검증 16·17 감사 + 24개 존속 루트 트리 + subjectKind 승격(아르카론·거인·세리아·오르반·구름고래·기억나방, 상태 축 설계·tug 포함). → [progress/graph.md](progress/graph.md)·[progress/world-state.md](progress/world-state.md).
