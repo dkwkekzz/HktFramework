@@ -45,6 +45,8 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/material-families.json](data/material-families.json) | **D2 재료=가능성 카탈로그** (Intuition §7·§8) — 23 R 재료를 성질 계열 7종(불꽃·한기·생체·별빛·기억·치유·양식)으로 분류 + 재료마다 3용도(즉시·조합·사건). role=핵심(3용도 요구)\|서사. 실재 행동·법칙에 via 로 교차 배선 |
 | [data/validate-material.mjs](data/validate-material.mjs) | **재료 다용도 감사** (Intuition §7·§8) — 성질 계열 커버리지 100%·핵심 3용도·via 배선 교차검증·조합 행동 존재. `node data/validate-material.mjs` |
 | [data/validate-experiment.mjs](data/validate-experiment.mjs) | **D3 실패=사건 감사** (Intuition §11·정합 4) — 실험 행동(experiment:true)의 무효과 실패 0·분기 마커(axis 실험)의 상호배타 분기 ≥2·각 분기 실효·분기 실측. `node data/validate-experiment.mjs` |
+| [data/objective-conversion.json](data/objective-conversion.json) | **D4 변환 커버리지 카탈로그** (Intuition §14·§20 D4·§21⑤ 최종 감사) — 노출(인지) 목적 16 마다 §14 변환 8항(내부목적→욕망대상→작은방해→눈에띄는수단→간단한행동→즉시보상→예상밖결과→다음목적). 저널을 '지시' 아닌 '상황+복수 가능성'으로 |
+| [data/validate-conversion.mjs](data/validate-conversion.mjs) | **D4 변환 커버리지 감사** — 노출 목적 100% 8항 완비·해결 경로 ≥2 전수(§13)·참조 무결성. D 시리즈 최종 감사. `node data/validate-conversion.mjs` |
 | [data/detail-coverage.json](data/detail-coverage.json) | detail 항목 분류 원장(§9-7) — 그래프 전 노드 detail 을 {초기값·법칙·행동·목적·파생축·사슬·서사·보류} 로 분류. 검증기가 대조·미분류를 `coverage-backlog.json`(생성물) 로 출력 |
 | [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — 대표 사건 5종 사슬 재생 (`--force`·`--no-policy`·`--at`) |
 | [data/simulate-latejoin.mjs](data/simulate-latejoin.mjs) | **D0 늦은 진입자 프로브** (Intuition §20 D0 검증) — 세계를 T0 틱 굴린 뒤 갓 도착한 플레이어의 눈(결핍·인지 리셋)으로 W틱 관찰: 압력 법칙 작동·필요(위협 기원 포함)·기회 각 ≥1. "살아있는 채로 유지되는 세계" 감사 (`--at`·`--window`·`--verbose`) |

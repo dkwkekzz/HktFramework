@@ -66,6 +66,7 @@
   .jcard .jtitle .st { font-weight: 400; color: var(--dim); } .jcard .jtitle .st.done { color: var(--gold); } .jcard .jtitle .st.run { color: var(--accent); }
   .jcard .jmotive { color: var(--dim); font-size: 12px; margin-top: 4px; line-height: 1.5; }
   .jcard .jhow { color: var(--accent); font-size: 11px; margin-top: 4px; opacity: .8; }
+  .jcard .jpaths { color: var(--gold); font-size: 11px; margin-top: 4px; opacity: .75; }
   .kv { display: flex; justify-content: space-between; color: var(--dim); }
   .kv span:last-child { color: var(--fg); }
   .hint { color: var(--dim); font-size: 12px; }
@@ -870,10 +871,13 @@ function renderJournal() {
     let st = "";
     if (j.progress) { const v = varIdx.get(j.progress), val = snap[j.progress] ?? 0, lbl = v?.levels?.[val] ?? val;
       st = `<span class="st ${val === 3 ? "done" : val === 2 ? "run" : ""}">${esc(String(lbl))}</span>`; }
+    // D4 저널 재정위(§13·정합 5) — 정답을 지시하지 않고, 여러 갈래가 있음을 보여준다(복수 가능성)
+    const paths = (state.actions || []).filter((a) => a.objective === goal && (a.actor_type || []).includes("E_플레이어")).length;
     return `<div class="jcard ${j.kind === "기회" ? "chance" : "need"}">
       <div class="jtitle"><span>${esc(nodeTitle.get(goal) || goal)}</span>${st}</div>
       <div class="jmotive">${esc(j.motive || "")}</div>
-      ${j.how ? `<div class="jhow">↳ ${esc(j.how)}</div>` : ""}</div>`;
+      ${j.how ? `<div class="jhow">↳ ${esc(j.how)}</div>` : ""}
+      ${paths >= 2 ? `<div class="jpaths">▸ 여러 갈래로 풀 수 있다 (${paths})</div>` : ""}</div>`;
   };
   let h = "";
   h += `<h3>필요 — 해야 한다 (${need.length})</h3>`;
