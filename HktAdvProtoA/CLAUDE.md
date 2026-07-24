@@ -44,6 +44,7 @@ HktAdvProtoA — 목적 트리 기반 오픈월드 어드벤처 프로토타입.
 | [data/validate-state.mjs](data/validate-state.mjs) | world-state 검증기 — WorldState §12 검증 1~13 + WorldLaws §7 법칙검증(회복 짝·EV 매핑·detail 커버리지 7·노드 커버리지 8). `node data/validate-state.mjs` · `--strict-coverage` |
 | [data/material-families.json](data/material-families.json) | **D2 재료=가능성 카탈로그** (Intuition §7·§8) — 23 R 재료를 성질 계열 7종(불꽃·한기·생체·별빛·기억·치유·양식)으로 분류 + 재료마다 3용도(즉시·조합·사건). role=핵심(3용도 요구)\|서사. 실재 행동·법칙에 via 로 교차 배선 |
 | [data/validate-material.mjs](data/validate-material.mjs) | **재료 다용도 감사** (Intuition §7·§8) — 성질 계열 커버리지 100%·핵심 3용도·via 배선 교차검증·조합 행동 존재. `node data/validate-material.mjs` |
+| [data/validate-experiment.mjs](data/validate-experiment.mjs) | **D3 실패=사건 감사** (Intuition §11·정합 4) — 실험 행동(experiment:true)의 무효과 실패 0·분기 마커(axis 실험)의 상호배타 분기 ≥2·각 분기 실효·분기 실측. `node data/validate-experiment.mjs` |
 | [data/detail-coverage.json](data/detail-coverage.json) | detail 항목 분류 원장(§9-7) — 그래프 전 노드 detail 을 {초기값·법칙·행동·목적·파생축·사슬·서사·보류} 로 분류. 검증기가 대조·미분류를 `coverage-backlog.json`(생성물) 로 출력 |
 | [data/simulate-state.mjs](data/simulate-state.mjs) | 무입력 틱 시뮬레이터 — 대표 사건 5종 사슬 재생 (`--force`·`--no-policy`·`--at`) |
 | [data/simulate-latejoin.mjs](data/simulate-latejoin.mjs) | **D0 늦은 진입자 프로브** (Intuition §20 D0 검증) — 세계를 T0 틱 굴린 뒤 갓 도착한 플레이어의 눈(결핍·인지 리셋)으로 W틱 관찰: 압력 법칙 작동·필요(위협 기원 포함)·기회 각 ≥1. "살아있는 채로 유지되는 세계" 감사 (`--at`·`--window`·`--verbose`) |
