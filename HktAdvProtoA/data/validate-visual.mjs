@@ -4,6 +4,8 @@
 //   V3  연대기 커버리지: 모든 법칙·행동·목적(생애 문장)·시계(on/off)에 번역문
 //   V4  참조 무결성: 사전·fx 의 var/region/feature/channel/kind 가 전부 선언된 것
 //   V6  사슬 가시성: EV 단계를 쓰는 법칙 전부에 fx (보이지 않는 사건 단계 금지)
+//   V8  욕망 신호 커버리지 (Intuition §4·§9·E1): objective-conversion 의 노출 목적 100% 가
+//       signals 항목(실재 region·signalKinds·glyph·label·basis)을 갖는다 — 화면 도달 감사.
 // 실행: node data/validate-visual.mjs
 import { readFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
@@ -109,6 +111,20 @@ for (const id of Object.keys(actSites)) {
   if (!(state.actions || []).some((a) => a.id === id)) errors.push(`V7: actions 무대 항목 ${id} 가 선언되지 않은 행동이다 (고아)`);
 }
 
+// ── V8 욕망 신호 커버리지 (E1 — 변환 카탈로그의 욕망대상이 화면에 도달하는가) ──
+const conv = JSON.parse(readFileSync(join(HERE, "objective-conversion.json"), "utf8"));
+const signals = Object.fromEntries(Object.entries(visual.signals || {}).filter(([k]) => k !== "meta"));
+const signalKinds = new Set(Object.keys(visual.meta?.signalKinds || {}));
+for (const goal of Object.keys(conv.objectives || {})) {
+  const s = signals[goal];
+  if (!s) { errors.push(`V8: 노출 목적 ${goal} 의 욕망 신호(signals)가 없다 — 욕망대상이 화면에 보이지 않는다(§4)`); continue; }
+  if (!regionIds.has(s.region)) errors.push(`V8: ${goal} 신호 region '${s.region}' 이 지도에 없다`);
+  if (!signalKinds.has(s.kind)) errors.push(`V8: ${goal} 신호 kind '${s.kind}' 가 meta.signalKinds 에 없다`);
+  for (const f of ["glyph", "label", "basis"]) if (!s[f]) errors.push(`V8: ${goal} 신호에 ${f} 가 없다`);
+}
+for (const goal of Object.keys(signals))
+  if (!conv.objectives?.[goal]) errors.push(`V8: 신호 ${goal} 에 대응하는 변환 항목이 없다 (고아 신호)`);
+
 // ── V6 사슬 가시성 ───────────────────────────────────────────────────
 const evWriters = (state.rules || []).filter((r) => (r.then || []).some((e) => /^EV_.+\.단계$/.test(e.var)));
 for (const r of evWriters) if (!visual.fx?.[r.id]) errors.push(`V6: 사건 단계를 쓰는 법칙 ${r.id} 에 fx 가 없다 (보이지 않는 사건 단계 금지)`);
@@ -124,10 +140,11 @@ console.log(`연대기: 법칙 ${Object.keys(ch.rules || {}).length} · 행동 $
 console.log(`fx: ${Object.keys(visual.fx || {}).length} (EV 단계 법칙 ${evWriters.length} 전부 포함 여부는 V6)`);
 const nPlayerActs = (state.actions || []).filter((a) => a.id !== "ACT_이동" && (a.actor_type || []).includes("E_플레이어")).length;
 console.log(`행동 무대: ${Object.keys(visual.actions || {}).filter((k) => k !== "meta").length} 항목 (플레이어 행동 ${nPlayerActs} 전부 포함 여부는 V7)`);
+console.log(`욕망 신호: ${Object.keys(signals).length} (노출 목적 ${Object.keys(conv.objectives || {}).length} 전부 포함 여부는 V8)`);
 for (const w of warns) console.warn("경고 — " + w);
 if (errors.length) {
   console.error(`\n실패 ${errors.length}건:`);
   for (const e of errors) console.error("  " + e);
   process.exit(1);
 }
-console.log(`\n검증 통과 (V1·V2·V3·V4·V6·V7) — 경고 ${warns.length}건`);
+console.log(`\n검증 통과 (V1·V2·V3·V4·V6·V7·V8) — 경고 ${warns.length}건`);

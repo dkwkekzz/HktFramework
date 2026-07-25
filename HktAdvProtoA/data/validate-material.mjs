@@ -2,7 +2,11 @@
 //   D1  성질 계열 커버리지 — 모든 R 재료 노드가 material-families.json 에 성질 계열(§7)로 분류됨.
 //   D2  핵심 다용도 — role=핵심 재료는 즉시·조합·사건(§8) 세 용도가 모두 채워짐.
 //   D3  배선 교차검증 — use.via 가 ACT_/LAW_/EV_ 를 가리키면 실제로 존재하는 행동·법칙·사건이어야 함(허구 배선 금지).
-//   D4  조합 행동 존재 — 재료 ≥2 를 비용으로 소비하는 조합 행동(§6 조합 verb)이 ≥1 존재.
+//   D4  조합 행동 존재 — 재료 ≥2 를 비용으로 소비하는 조합 행동(§6 조합 verb)이 ≥3, 그중
+//       서로 다른 성질 계열을 섞는 교차 계열 조합(§5 붉은+푸른 → 예상 밖)이 ≥1 (E3 가능성 밀도).
+//   D5  도감 게이트 앵커 (E4 §12 설명 후행) — 도감은 경험(재료 접촉 or via 발화 목격)으로 열린다.
+//       핵심 재료는 앵커(보유·공급·군락 축 or use.via) ≥1 필수 — 없으면 도감에 영원히 비노출.
+//       서사 재료의 무앵커는 콘텐츠 백로그로 경고 집계.
 //   무결성 — 카탈로그 항목이 실재 R 노드를 가리키고(고아 금지), family 가 families 에 선언됨.
 // 실행: node data/validate-material.mjs
 import { loadWorld, HERE } from "./load-world.mjs";
@@ -53,10 +57,27 @@ for (const [id, m] of Object.entries(mats)) for (const s of SLOTS) {
   else if (via.startsWith("EV_") && !evNodes.has(via)) errors.push(`D3 배선: ${id}.${s}.via 사건 ${via} 가 그래프에 없다`);
 }
 
-// ── D4 조합 행동 존재 — 재료 ≥2 를 비용으로 소비하는 조합 verb (§6)
+// ── D4 조합 행동 — 재료 ≥2 소비 조합 verb ≥3 + 교차 계열 ≥1 (§6·E3 가능성 밀도)
 const combines = (state.actions || []).filter((a) => a.id.startsWith("ACT_조합"));
+const matOfCostVar = (v) => { const m = v.match(/(R_[^.]+)(?:\.보유)?$/) || v.match(/보유\.(R_[^.]+)$/); return m ? m[1] : null; };
 const realCombines = combines.filter((a) => (a.cost || []).filter((c) => /R_/.test(c.var) && c.op === "add" && c.value < 0).length >= 2);
-if (!realCombines.length) errors.push("D4 조합 행동: 재료 ≥2 를 소비하는 ACT_조합* 행동이 없다 (§6 조합 verb 미배선)");
+if (realCombines.length < 3) errors.push(`D4 조합 행동: 재료 ≥2 를 소비하는 ACT_조합* 행동이 ${realCombines.length}개 (E3 ≥3 필요 — §6 '매번 다른 가능성'의 밀도)`);
+const crossCombines = realCombines.filter((a) => {
+  const fams = new Set((a.cost || []).filter((c) => c.op === "add" && c.value < 0)
+    .map((c) => matOfCostVar(c.var)).filter(Boolean).map((id) => mats[id]?.family).filter(Boolean));
+  return fams.size >= 2;
+});
+if (!crossCombines.length) errors.push("D4 교차 계열: 서로 다른 성질 계열을 섞는 조합 행동이 없다 (§5 붉은+푸른 → 예상 밖)");
+
+// ── D5 도감 게이트 앵커 (E4) — 경험으로 열릴 수 있는가
+const varIds = new Set((state.vars || []).map((v) => v.id));
+const anchored = (id) => ["보유", "공급", "군락"].some((ax) => varIds.has(`${id}.${ax}`))
+  || varIds.has(`E_플레이어.보유.${id}`)
+  || SLOTS.some((s) => mats[id].uses?.[s]?.via);
+const unanchoredCore = Object.keys(mats).filter((id) => mats[id].role === "핵심" && !anchored(id));
+for (const id of unanchoredCore) errors.push(`D5 게이트: 핵심 재료 ${id} 에 도감 앵커(보유·공급 축 or via)가 없다 — 경험해도 도감이 열리지 않는다(E4)`);
+const unanchoredLore = Object.keys(mats).filter((id) => mats[id].role !== "핵심" && !anchored(id));
+if (unanchoredLore.length) warnings.push(`D5 게이트: 무앵커 서사 재료 ${unanchoredLore.length} (도감 비노출 백로그) — ${unanchoredLore.join(", ")}`);
 
 // ── 핵심 재료 배선 실질 — 핵심의 용도 중 실제 배선(via) ≥1
 for (const id of core) {
@@ -69,7 +90,7 @@ const byFam = {};
 for (const [, m] of Object.entries(mats)) byFam[m.family] = (byFam[m.family] || 0) + 1;
 info.push(`R 재료 ${Rnodes.length} · 분류 ${Object.keys(mats).length}(${(Object.keys(mats).length / Rnodes.length * 100).toFixed(0)}%) · 핵심 ${core.length} · 서사 ${Object.keys(mats).length - core.length}`);
 info.push(`성질 계열 ${Object.keys(families).length}: ${Object.entries(byFam).map(([f, n]) => `${f} ${n}`).join(" · ")}`);
-info.push(`배선 교차검증: use.via ${wired}건 실재 확인 · 조합 행동 ${realCombines.length}(${realCombines.map((a) => a.id).join(", ")})`);
+info.push(`배선 교차검증: use.via ${wired}건 실재 확인 · 조합 행동 ${realCombines.length}(${realCombines.map((a) => a.id).join(", ")}) · 교차 계열 ${crossCombines.length}`);
 
 for (const m of info) console.log("  " + m);
 if (warnings.length) { console.log("\n경고:"); for (const w of warnings) console.log("  ⚠ " + w); }

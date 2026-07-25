@@ -67,6 +67,8 @@
   .jcard .jmotive { color: var(--dim); font-size: 12px; margin-top: 4px; line-height: 1.5; }
   .jcard .jhow { color: var(--accent); font-size: 11px; margin-top: 4px; opacity: .8; }
   .jcard .jpaths { color: var(--gold); font-size: 11px; margin-top: 4px; opacity: .75; }
+  .jcard .jdesire { color: var(--gold); font-size: 12px; margin-top: 4px; line-height: 1.5; }
+  .jcard .jhint { color: var(--dim); font-size: 11px; margin-top: 4px; opacity: .85; }
   .kv { display: flex; justify-content: space-between; color: var(--dim); }
   .kv span:last-child { color: var(--fg); }
   .hint { color: var(--dim); font-size: 12px; }
@@ -127,11 +129,13 @@
       <button data-tab="journal" class="on">저널</button>
       <button data-tab="chron">연대기</button>
       <button data-tab="events">사건·목적</button>
+      <button data-tab="codex">도감</button>
       <button data-tab="inspect">인스펙터</button>
     </div>
     <div class="tabbody" id="tab-journal"><p class="hint">겪거나 들어야 목적이 여기 뜹니다. 굶주려 보고, 사람들에게 물으면 '필요'와 '기회'가 이유와 함께 쌓입니다.</p></div>
     <div class="tabbody" id="tab-chron" style="display:none"><p class="hint">세계가 굴러가면 발화가 여기 서사로 기록됩니다. 지도 위 지역을 클릭하면 인스펙터가 열립니다.</p></div>
     <div class="tabbody" id="tab-events" style="display:none"></div>
+    <div class="tabbody" id="tab-codex" style="display:none"><p class="hint">겪은 것만 기록됩니다. 재료를 얻고, 조합을 시도할수록 세계의 성질이 여기 정리됩니다 — 진행 조건이 아니라 경험의 정리입니다.</p></div>
     <div class="tabbody" id="tab-inspect" style="display:none"><p class="hint">지도에서 지역을 클릭하세요.</p></div>
   </aside>
 </main>
@@ -142,10 +146,12 @@ import { buildInitial, recomputeDerived, newCtx, tick, indexVars, evalPred, subs
 
 // ── 데이터 로드 — 표현층은 스냅샷과 표현 데이터만 읽는다 (불변 6) ─────────
 const DATA = "../data/";
-let graph, state, map, visual;
+let graph, state, map, visual, conv, matcat;
 try {
-  [graph, state, map, visual] = await Promise.all(
-    ["objective-graph.json", "world-state.json", "world-map.json", "world-visual.json"]
+  // E1 경험 반영 — 변환 카탈로그(§14 8항)와 재료 카탈로그(§7·§8)도 화면의 원본이다 (감사 전용 금지)
+  [graph, state, map, visual, conv, matcat] = await Promise.all(
+    ["objective-graph.json", "world-state.json", "world-map.json", "world-visual.json",
+     "objective-conversion.json", "material-families.json"]
       .map((f) => fetch(DATA + f).then((r) => { if (!r.ok) throw new Error(f + " " + r.status); return r.json(); })));
 } catch (err) {
   document.getElementById("fatal").style.display = "grid";
@@ -168,6 +174,19 @@ for (const e of ventries) {
 }
 const refActors = ventries.filter((e) => e.region === "@ref");
 const hudEntries = ventries.filter((e) => e.channel === "hud");
+// E1 욕망 신호층 (§4·§9·정합 2·3) — 목적마다 세계에 '보이는 것'. 경험(인지) 전에도 렌더된다.
+const convObj = conv.objectives || {};
+const signalDict = Object.fromEntries(Object.entries(visual.signals || {}).filter(([k]) => k !== "meta"));
+const signalsByRegion = new Map();
+for (const [goal, s] of Object.entries(signalDict)) {
+  if (!signalsByRegion.has(s.region)) signalsByRegion.set(s.region, []);
+  signalsByRegion.get(s.region).push({ goal, ...s });
+}
+// 목적 완료 시 신호 소등 — 욕망 대상이 이뤄지면 실루엣이 아니라 상태 그 자체가 보인다
+const signalActive = (goal) => snap[goal + ".진행"] !== 3;
+// E2 보상 사슬 — 행동 → 소속 목적 (즉시보상 연출 매핑)
+const goalOfAction = new Map();
+for (const [goal, e] of Object.entries(convObj)) for (const id of e.간단한행동 || []) goalOfAction.set(id, goal);
 const gaugeEV = ventries.filter((e) => e.channel === "gauge" && /^EV_/.test(e.var));
 const gaugeG = ventries.filter((e) => e.channel === "gauge" && /\.진행$/.test(e.var));
 // 변수 ↔ 법칙·행동 교차 색인 (인스펙터의 '설명 가능한 세계')
@@ -201,21 +220,35 @@ let snap, ctx, playing = true, timer = null, chron = [], fxq = [], remotePoses =
 let AV = "E_플레이어";                          // 원격 조인 시 "E_플레이어#이름" 으로 대체
 const chVar = (id) => id.replace("E_플레이어", AV);   // 사전의 플레이어 축을 내 캐릭터 키로
 const avLoc = () => snap[AV + ".위치"];
-let view = { mode: "world" };                  // "world" | "region"
+let view = { mode: "world" };                  // "world" | "region" — 부트 후 region 기본 진입(E1 §9)
 let avatar = { x: 0.5, y: 0.62 };              // 씬 로컬 0..1
 let pendingMove = null;                        // { target, from } — ACT_이동 duration 진행 중
 let toasts = [];                               // 현장 목격 알림 (지역 연대기)
 let cogSeen = new Set();                        // 이미 저널에 뜬 인지(목적) — 배너 중복 방지 (§8)
+let nextGoalPulse = null;                      // E2 다음 욕망 강조 — { goal, until } 신호 비컨 하이라이트
+let rewardLast = new Map();                    // E2 즉시보상 토스트 스로틀 — 행동 id → performance.now
+let scenePulses = [];                          // E2 감각 보상 — 씬에서 아바타 주위 금빛 파문
+// E4 도감(§12 설명 후행) — 표현 로컬 경험 기록: 목격한 발화·접촉한 재료. 진행 조건이 아니다(세계 쓰기 없음)
+let firedSeen = new Set();                     // 목격한 법칙·행동 id
+let matSeen = new Set();                       // 접촉한(보유·공급 관측) 재료 id
 function boot() {
   snap = buildInitial(state);
   recomputeDerived(snap, varIdx);
   ctx = newCtx(state);
   chron = []; fxq = []; toasts = []; cogSeen = new Set(); pendingMove = null;
+  nextGoalPulse = null; rewardLast = new Map(); scenePulses = [];
+  firedSeen = new Set(); matSeen = new Set();
   avatar = { x: 0.5, y: 0.62 };
-  if (view.mode === "region") view.region = avLoc();
-  renderChron(); renderEvents(); renderJournal();
+  enterRegion();                                // E1 기본 진입 — 첫 화면이 결핍 텍스트가 아니라 '보이는 세계'다 (§9)
+  renderChron(); renderEvents(); renderJournal(); renderCodex();
   document.querySelectorAll("#triggers button").forEach((b) => b.classList.remove("fired"));
   tickview.textContent = "t 0";
+}
+// E1 진입 UX 접합 — 아바타·행동 바·삼축 HUD·신호가 있는 지역 씬으로 바로 들어간다
+function enterRegion() {
+  view = { mode: "region", region: avLoc() };
+  const b = document.getElementById("btnView");
+  if (b) b.textContent = "🗺 대륙 지도";
 }
 // 행동 발화 요청 — 유일한 세계 개입 경로 (불변 2·6). 로컬은 inputs 큐, 원격은 서버 API.
 function sendInput(payload) {
@@ -367,6 +400,9 @@ function translateFired(t, fired) {
     const fx = visual.fx?.[id];
     if (fx) fxq.push({ ...fx, at: performance.now(), dur: fx.kind === "flash" || fx.kind === "war" ? 3000 : 2000 });
   }
+  // E4 도감 — 목격한 발화를 경험으로 기록 (겪은 뒤에야 지식이 된다, §12)
+  for (const id of fired.rules) firedSeen.add(id);
+  for (const a of fired.actions) firedSeen.add(a.replace("→효과", "").split("@")[0]);
 }
 function step() {
   const fired = tick(snap, activeState(), ctx);
@@ -375,6 +411,37 @@ function step() {
 // 틱 후처리 — 로컬(step)과 원격(SSE tick)이 공유한다
 function onTick(t, fired) {
   translateFired(t, fired);
+  // E2 보상 사슬 (§5·§10) — ① 내 행동이 착지한 순간: 감각 펄스 + 즉시보상 문장
+  for (const aRaw of fired.actions) {
+    const landed = aRaw.endsWith("→효과");
+    const [id, actor] = aRaw.replace("→효과", "").split("@");
+    if (actor !== AV) continue;
+    const act = (state.actions || []).find((x) => x.id === id);
+    if (!act || ((act.duration ?? 0) > 0) !== landed) continue;   // duration 행동은 착지에만, 즉시 행동은 발화에
+    fxq.push({ region: avLoc(), kind: "flash", at: performance.now(), dur: 900 });   // 1층 감각 보상 (지도)
+    scenePulses.push({ at: performance.now(), dur: 900 });                            // 1층 감각 보상 (씬 — 아바타 금빛 파문)
+    const goal = goalOfAction.get(id), cv2 = goal && convObj[goal];
+    const now2 = performance.now();
+    if (cv2 && (now2 - (rewardLast.get(id) || -1e9)) > 15000) {   // 같은 행동 반복은 15초 스로틀
+      rewardLast.set(id, now2);
+      toasts.push({ text: `✨ ${cv2.즉시보상}`, at: now2 });
+    }
+  }
+  // E2 보상 사슬 — ② 목적 완료의 순간: 완료 문장(연대기) → 예상 밖 결과 → 다음 욕망이 순차로 열린다
+  // "보상을 받았다고 생각한 순간, 또 다른 가능성이 열린다" (§10)
+  for (const o of fired.objectives) {
+    const [oid, phase] = o.split(":");
+    if (phase !== "완료") continue;
+    const goal = oid.replace(/^OBJ_/, ""), cv2 = convObj[goal];
+    if (!cv2) continue;
+    const now2 = performance.now();
+    toasts.push({ text: `🔮 예상 밖 — ${cv2.예상밖결과}`, at: now2 + 1800 });
+    if (cv2.다음목적 && cv2.다음목적 !== "—") {
+      const next = convObj[cv2.다음목적];
+      toasts.push({ text: `👁 새로운 것이 보인다 — ${next ? next.욕망대상 : (nodeTitle.get(cv2.다음목적) || cv2.다음목적)}`, at: now2 + 3800 });
+      nextGoalPulse = { goal: cv2.다음목적, until: now2 + 16000 };   // 다음 욕망의 신호 비컨 강조
+    }
+  }
   // 인지의 순간 연출 — 저널에 새 목적이 뜨는 순간을 배너로 (§8 목적의 탄생이 사건이 된다)
   for (const goal of Object.keys(journalDict)) {
     const key = chVar("E_플레이어.인지." + goal);
@@ -400,8 +467,14 @@ function onTick(t, fired) {
     pendingMove = null;
   }
   if (pendingMove && fired.skipped.some((s) => s.startsWith("ACT_이동@" + AV))) pendingMove = null;
+  // E4 도감 — 재료 접촉 관측 (보유·공급이 0 을 넘는 순간 그 재료를 '만난' 것)
+  for (const id of Object.keys(matcat.materials || {})) {
+    if (matSeen.has(id)) continue;
+    if ((snap[chVar("E_플레이어.보유." + id)] ?? 0) > 0 || (snap[id + ".보유"] ?? 0) > 0
+      || (snap[id + ".공급"] ?? 0) > 0 || (snap[id + ".군락"] ?? 0) > 0) matSeen.add(id);
+  }
   tickview.textContent = "t " + ctx.t;
-  renderChron(); renderEvents(); renderJournal(); renderActionbar(); renderSceneHud();
+  renderChron(); renderEvents(); renderJournal(); renderActionbar(); renderSceneHud(); renderCodex();
   if (inspected) renderInspect(inspected);
 }
 function setTimer() {
@@ -496,7 +569,7 @@ addEventListener("keydown", (e) => {
   }
 });
 addEventListener("keyup", (e) => keys.delete(e.key));
-let lastNow = 0, sceneEnts = [];
+let lastNow = 0, sceneEnts = [], sceneSignals = [];
 const SM = 46;                                  // 씬 여백(px)
 const sx = (u) => SM + u * (W - SM * 2);
 const sy = (u) => SM + u * (H - SM * 2);
@@ -537,7 +610,7 @@ function drawScene(now) {
     for (const ex of exitsOf(rid))               // 출구 게이트 접촉 → 이동 행동 발화 요청
       if (Math.hypot(avatar.x - ex.x, avatar.y - ex.y) < 0.055) requestMove(ex.id);
   }
-  sceneEnts = [];
+  sceneEnts = []; sceneSignals = [];
   // 배경 — 지형 색 + 건강도
   const tones = (byRegion.get(rid) || []).filter((e) => e.channel === "tone");
   const health = tones.length ? tones.reduce((s, e) => s + (e.var === "S_토양침식.활성" ? 1 - ratioOf(e.var) : ratioOf(e.var)), 0) / tones.length : 0.8;
@@ -634,6 +707,35 @@ function drawScene(now) {
     g.fillText(nodeTitle.get(ex.id) || ex.id, x, y + 27);
     g.fillText("▸", x, y + 4);
   }
+  // E1 욕망 신호 (§4·§9) — ① 현재 지역의 신호는 씬 안의 빛나는 비컨: 보고, 다가가고, 궁금해진다
+  {
+    const srnd = seeded("signal:" + rid);
+    let list = (signalsByRegion.get(rid) || []).filter((s) => signalActive(s.goal));
+    for (const s of list) {
+      const x = sx(0.15 + srnd() * 0.7), y = sy(0.14 + srnd() * 0.28);
+      const pulse = 0.55 + 0.45 * Math.sin(now / 600 + x);
+      const hot = nextGoalPulse && nextGoalPulse.goal === s.goal && now < nextGoalPulse.until;
+      g.strokeStyle = hot ? "#ffdf8a" : "#d8b46f"; g.globalAlpha = 0.35 + pulse * 0.45; g.lineWidth = hot ? 2.5 : 1.5;
+      g.beginPath(); g.arc(x, y - 6, (hot ? 20 : 14) + pulse * 5, 0, 7); g.stroke(); g.globalAlpha = 1;
+      g.font = "22px serif"; g.textAlign = "center"; g.fillText(s.glyph, x, y);
+      g.font = "10px system-ui"; g.fillStyle = "#d8b46f"; g.globalAlpha = 0.85;
+      g.fillText(s.label, x, y + 15); g.globalAlpha = 1; g.fillStyle = "#d6dde8";
+      sceneSignals.push({ x, y, goal: s.goal, label: s.label });
+    }
+    // ② 인접 지역의 신호는 원경 — 출구 방향 시야 끝의 실루엣 (경험 전 노출, 정합 3)
+    for (const ex of exitsOf(rid)) {
+      const far = (signalsByRegion.get(ex.id) || []).filter((s) => signalActive(s.goal));
+      far.forEach((s, i) => {
+        const x = sx(Math.max(0.05, Math.min(0.95, ex.x + (ex.x - 0.5) * 0.14))) + i * 18;
+        const y = sy(Math.max(0.03, Math.min(0.97, ex.y + (ex.y - 0.5) * 0.14)));
+        const pulse = 0.4 + 0.3 * Math.sin(now / 900 + i);
+        g.font = "14px serif"; g.textAlign = "center"; g.globalAlpha = 0.35 + pulse * 0.3;
+        g.fillText(s.glyph, x, y - 18);
+        g.globalAlpha = 1;
+        sceneSignals.push({ x, y: y - 18, goal: s.goal, label: `멀리 — ${s.label}`, far: true });
+      });
+    }
+  }
   // 다른 모험가들 — 비권위 표현 채널(poses)의 릴레이 (§8 타 아바타)
   if (REMOTE) for (const [c, p] of Object.entries(remotePoses)) {
     if (c === AV || p.region !== rid) continue;
@@ -645,6 +747,13 @@ function drawScene(now) {
   // 아바타
   {
     const x = sx(avatar.x), y = sy(avatar.y);
+    // E2 1층 감각 보상 — 행동이 착지한 순간 금빛 파문이 퍼진다 (§10 보상의 층)
+    scenePulses = scenePulses.filter((p) => now - p.at < p.dur);
+    for (const p of scenePulses) {
+      const k = (now - p.at) / p.dur;
+      g.strokeStyle = "#e8d8a8"; g.globalAlpha = 1 - k; g.lineWidth = 2.5;
+      g.beginPath(); g.arc(x, y - 8, 10 + k * 34, 0, 7); g.stroke(); g.globalAlpha = 1;
+    }
     g.font = "22px serif"; g.textAlign = "center"; g.fillStyle = "#d6dde8";
     g.fillText("🧍", x, y);
   }
@@ -665,7 +774,8 @@ function drawScene(now) {
 // world 모드에선 "📓 새 목적" 토스트가 push 만 되고 렌더 안 됐다 — 진단 단절2 :383↔:661)
 function drawToasts(now) {
   toasts = toasts.filter((t) => now - t.at < 6000);
-  toasts.slice(-3).forEach((t, i, arr) => {
+  // E2 보상 사슬 — at 이 미래인 토스트는 예약 상태(순차 연출), 시간이 되면 나타난다
+  toasts.filter((t) => t.at <= now).slice(-3).forEach((t, i, arr) => {
     const k = (now - t.at) / 6000;
     g.globalAlpha = 1 - k;
     g.font = "13px system-ui"; g.textAlign = "center"; g.fillStyle = "#e8d8a8";
@@ -770,6 +880,22 @@ function draw(now) {
     g.fillText(nodeTitle.get(r.id) || r.id, x, y + rad + 12);
     g.globalAlpha = 1;
   }
+  // E1 욕망 신호 — 지도에서도 욕망 대상이 보인다 (지역 위 점멸 실루엣, §4·§9)
+  for (const [rid2, list] of signalsByRegion) {
+    if (!regions.has(rid2)) continue;
+    const r2 = regions.get(rid2), [x, y] = px(r2.pos), rad = r2.size * S * 0.9;
+    const act = list.filter((s) => signalActive(s.goal));
+    let sx2 = x - (act.length - 1) * 9;
+    for (const s of act) {
+      const hot = nextGoalPulse && nextGoalPulse.goal === s.goal && now < nextGoalPulse.until;
+      const pulse = 0.5 + 0.5 * Math.sin(now / 700 + sx2);
+      g.strokeStyle = hot ? "#ffdf8a" : "#d8b46f"; g.globalAlpha = 0.25 + pulse * 0.4; g.lineWidth = hot ? 2 : 1;
+      g.beginPath(); g.arc(sx2, y + rad + 24, 9 + pulse * 3, 0, 7); g.stroke(); g.globalAlpha = 1;
+      g.font = "13px serif"; g.textAlign = "center";
+      g.globalAlpha = 0.65 + pulse * 0.35; g.fillText(s.glyph, sx2, y + rad + 28); g.globalAlpha = 1;
+      sx2 += 18;
+    }
+  }
   // 진행 중인 NPC 정책 행동 — 무대 지역에 ⚔ 점멸 (지도에서도 보인다)
   for (const st of npcStages()) if (regions.has(st.site)) {
     const [x, y] = px(regions.get(st.site).pos);
@@ -858,7 +984,7 @@ requestAnimationFrame(draw);
 
 // ── 사이드 패널 ────────────────────────────────────────────────────────
 const tickview = document.getElementById("tickview"), speed = document.getElementById("speed");
-const tabs = { journal: document.getElementById("tab-journal"), chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), inspect: document.getElementById("tab-inspect") };
+const tabs = { journal: document.getElementById("tab-journal"), chron: document.getElementById("tab-chron"), events: document.getElementById("tab-events"), codex: document.getElementById("tab-codex"), inspect: document.getElementById("tab-inspect") };
 // 동기층 M2 저널 — 인지(E_플레이어.인지.*)가 true 인 목적만, 필요/기회 이원화·motive 와 함께 (Design-Motive §8)
 const journalDict = Object.fromEntries(Object.entries(visual.journal || {}).filter(([k]) => k !== "meta"));
 function renderJournal() {
@@ -873,10 +999,14 @@ function renderJournal() {
       st = `<span class="st ${val === 3 ? "done" : val === 2 ? "run" : ""}">${esc(String(lbl))}</span>`; }
     // D4 저널 재정위(§13·정합 5) — 정답을 지시하지 않고, 여러 갈래가 있음을 보여준다(복수 가능성)
     const paths = (state.actions || []).filter((a) => a.objective === goal && (a.actor_type || []).includes("E_플레이어")).length;
+    // E1 변환표 접합(§14) — 카드는 지시가 아니라 상황: 보이는 것(욕망대상)과 주변의 가능성(눈에띄는수단)
+    const cv2 = convObj[goal];
     return `<div class="jcard ${j.kind === "기회" ? "chance" : "need"}">
       <div class="jtitle"><span>${esc(nodeTitle.get(goal) || goal)}</span>${st}</div>
+      ${cv2 ? `<div class="jdesire">👁 ${esc(cv2.욕망대상)}</div>` : ""}
       <div class="jmotive">${esc(j.motive || "")}</div>
       ${j.how ? `<div class="jhow">↳ ${esc(j.how)}</div>` : ""}
+      ${cv2 ? `<div class="jhint">주변에 보이는 것 — ${esc(cv2.눈에띄는수단)}</div>` : ""}
       ${paths >= 2 ? `<div class="jpaths">▸ 여러 갈래로 풀 수 있다 (${paths})</div>` : ""}</div>`;
   };
   let h = "";
@@ -941,6 +1071,51 @@ function renderEvents() {
   h += `<div class="kv"><span>일식 누적</span><span>${snap["S_일식.누적횟수"] ?? 0}회</span></div>`;
   tabs.events.innerHTML = h;
 }
+// E4 도감 (§12 설명 후행) — 경험한 것만 정리하는 지식 기록. 진행 조건이 아니다.
+// 게이트: 재료=접촉(matSeen) 또는 그 용도 배선(via)의 발화 목격 / 용도 문장=via 발화 목격(via 없으면 재료 접촉)
+function renderCodex() {
+  const mats = matcat.materials || {}, fams = matcat.families || {};
+  const matKnown = (id) => matSeen.has(id)
+    || ["즉시", "조합", "사건"].some((s) => mats[id].uses?.[s]?.via && firedSeen.has(mats[id].uses[s].via));
+  let h = "<h3>성질 계열 — 겪으며 안 결의 방향 (§7)</h3>";
+  const famSeen = new Set(Object.keys(mats).filter(matKnown).map((id) => mats[id].family));
+  for (const [f, e] of Object.entries(fams)) {
+    if (famSeen.has(f)) h += `<div class="kv"><span>${esc(f)} — ${esc(e.외형)}</span><span>${esc(e.방향.join("·"))}</span></div>`;
+  }
+  const famHid = Object.keys(fams).length - famSeen.size;
+  if (famHid) h += `<p class="hint">아직 겪지 못한 계열 ${famHid}</p>`;
+  h += "<h3>재료 — 만난 것들 (§8 가능성)</h3>";
+  let hidden = 0;
+  for (const [id, m] of Object.entries(mats)) {
+    if (!matKnown(id)) { hidden++; continue; }
+    const fam = fams[m.family];
+    let rows = "";
+    for (const s of ["즉시", "조합", "사건"]) {
+      const u = m.uses?.[s];
+      if (!u) continue;
+      const known = u.via ? firedSeen.has(u.via) : true;   // via 없는 용도는 재료를 만난 순간 감이 온다
+      rows += `<div class="kv"><span>${esc(s)}</span><span>${known ? esc(u.text) : "…아직 겪지 않았다"}</span></div>`;
+    }
+    h += `<div class="subject-card"><div class="sname">${esc(nodeTitle.get(id) || id)} <span style="color:var(--dim);font-weight:400">⟨${esc(m.family)} — ${esc(fam?.외형 || "")}⟩</span></div>${rows}</div>`;
+  }
+  if (hidden) h += `<p class="hint">아직 만나지 못한 재료 ${hidden}</p>`;
+  h += "<h3>겪은 조합·실험 (§11 실패도 사건이다)</h3>";
+  const exps = (state.actions || []).filter((a) => a.experiment && firedSeen.has(a.id));
+  if (!exps.length) h += `<p class="hint">아직 시도한 조합이 없다. 재료를 합치면 무슨 일이 생길지는 해 봐야 안다.</p>`;
+  for (const a of exps) {
+    let rows = `<div class="kv"><span>시도</span><span>${esc((visual.chronicle.actions?.[a.id] || a.id).replace("{actor}", "나"))}</span></div>`;
+    // 목격한 분기 결과 — 같은 마커를 읽는 법칙 중 발화를 본 것만 기록된다
+    const markers = (a.then || []).map((e) => e.var.replace("{actor}", "E_플레이어"));
+    for (const r of state.rules || []) {
+      if (!firedSeen.has(r.id)) continue;
+      const reads = JSON.stringify(r.when || {});
+      if (markers.some((mk) => reads.includes(`"${mk}"`)))
+        rows += `<div class="kv"><span>겪은 결과</span><span>${esc(visual.chronicle.rules?.[r.id] || r.id)}</span></div>`;
+    }
+    h += `<div class="subject-card"><div class="sname">${esc((visual.actions?.[a.id]?.prompt || a.id).split(" (")[0])}</div>${rows}</div>`;
+  }
+  tabs.codex.innerHTML = h;
+}
 let inspected = null;
 const openVars = new Set();            // 매 틱 재렌더에도 펼친 카드 유지
 function renderInspect(rid) {
@@ -954,8 +1129,12 @@ function renderInspect(rid) {
   for (const e of entries) {
     const rd = readers.get(e.var) || [], wr = writers.get(e.var) || [];
     const v = varIdx.get(e.var);
+    // E3 재료=가능성(§7) — 재료 축이면 성질 계열(외형→결과의 방향)로 직관 예측을 돕는다
+    const matId = (e.var.match(/보유\.(R_[^.]+)$/) || e.var.match(/^(R_[^.]+)\.(?:보유|공급|군락)/) || [])[1];
+    const fam = matId && matcat.materials?.[matId] && matcat.families?.[matcat.materials[matId].family];
+    const famLine = fam ? `성질 계열: ${esc(matcat.materials[matId].family)} — ${esc(fam.외형)} → ${esc(fam.방향.join("·"))}<br>` : "";
     h += `<div class="varrow${openVars.has(e.var) ? " open" : ""}" data-var="${esc(e.var)}"><div class="head"><span>${esc(e.label)}</span><span class="val">${esc(levelLabel(e.var))}</span></div>
-      <div class="detail"><b>${esc(e.var)}</b>${v.derived ? " · 파생축" : ""}<br>근거: ${esc(v.basis || "—")}<br>
+      <div class="detail"><b>${esc(e.var)}</b>${v.derived ? " · 파생축" : ""}<br>${famLine}근거: ${esc(v.basis || "—")}<br>
       ${wr.length ? `쓰는 법칙·행동: ${esc(wr.join(", "))}<br>` : ""}${rd.length ? `읽는 법칙·행동: ${esc(rd.join(", "))}` : ""}</div></div>`;
   }
   if (!entries.length) h += `<p class="hint">이 지역에 앵커된 상태 변수가 없습니다.</p>`;
@@ -973,14 +1152,36 @@ function showTab(name) {
   document.querySelectorAll(".tabs button").forEach((x) => x.classList.toggle("on", x.dataset.tab === name));
   for (const [k, el] of Object.entries(tabs)) el.style.display = k === name ? "" : "none";
 }
+// E1 신호 클릭 — 인지 전엔 실루엣(라벨)만, 인지 후엔 욕망대상 전문 (정합 3: 신호≠설명)
+function signalToast(goal, label) {
+  const cognized = snap[chVar("E_플레이어.인지." + goal)];
+  const e = convObj[goal];
+  toasts.push({ text: cognized && e ? `👁 ${e.욕망대상}` : `👁 ${label}`, at: performance.now() });
+  if (cognized) showTab("journal");
+}
 cv.addEventListener("click", (ev) => {
   const rect = cv.getBoundingClientRect(), mx = ev.clientX - rect.left, my = ev.clientY - rect.top;
   if (view.mode === "region") {
+    // 욕망 신호 클릭이 우선 — 보이는 것에 다가가는 첫 행동 (§2 루프의 시작)
+    let bs = null, bsd = 24;
+    for (const s of sceneSignals) { const d = Math.hypot(mx - s.x, my - s.y); if (d < bsd) { bs = s; bsd = d; } }
+    if (bs) { signalToast(bs.goal, bs.label); return; }
     // 씬 개체 클릭 → 그 축의 상태 카드 (§3.2 — 앰비언트 클릭은 종 노드의 상태가 열린다)
     let best = null, bd = 26;
     for (const e of sceneEnts) { const d = Math.hypot(mx - e.x, my - e.y); if (d < bd) { best = e; bd = d; } }
     if (best) { renderInspect(view.region); openVars.add(best.var); renderInspect(view.region); showTab("inspect"); }
     return;
+  }
+  // world 지도 — 신호 글리프 클릭 (지역 아래 점멸 줄)
+  for (const [rid2, list] of signalsByRegion) {
+    if (!regions.has(rid2)) continue;
+    const r2 = regions.get(rid2), [x, y] = px(r2.pos), rad = r2.size * S * 0.9;
+    const act = list.filter((s) => signalActive(s.goal));
+    let sx2 = x - (act.length - 1) * 9;
+    for (const s of act) {
+      if (Math.hypot(mx - sx2, my - (y + rad + 24)) < 12) { signalToast(s.goal, s.label); return; }
+      sx2 += 18;
+    }
   }
   let best = null, bd = 1e9;
   for (const r of map.regions) {
@@ -1061,6 +1262,7 @@ if (REMOTE) {
     Object.assign(snap, d.snap);
     ctx.t = d.t; ctx.busy = d.busy; ctx.pending = d.pending; remotePoses = d.poses || {};
     tickview.textContent = "t " + ctx.t;
+    enterRegion();                              // E1 기본 진입 (원격도 동일 — 첫 화면=보이는 세계)
     renderChron(); renderEvents(); renderJournal(); renderSceneHud();
   });
   es.addEventListener("tick", (ev) => {
@@ -1087,6 +1289,9 @@ window.__dbg = {
   get spot() { return currentSpot; }, get busy() { return actorBusy(); }, get snap() { return snap; },
   gotoSpot(name) { const s = spotsOf(view.region)[name]; if (s) avatar = { x: s.x, y: s.y }; },
   get stages() { return npcStages(); }, get tick() { return ctx.t; }, get poses() { return remotePoses; },
+  get signals() { return sceneSignals; },       // E1 씬 신호 (자동 눈 검증용)
+  get toasts() { return toasts; },              // E2 보상 사슬 (자동 눈 검증용)
+  requestAct,                                   // E2 자동 검증 — 행동 발화 요청 (정상 경로와 동일)
 };
 </script>
 </body>
