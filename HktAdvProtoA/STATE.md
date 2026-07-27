@@ -1,7 +1,7 @@
 # STATE.md
 
 > 이 문서는 **현재 핵심 상태와 TODO** 만 담는다. 완료 작업의 상세는 큰 단계별 진행 기록으로 분리한다:
-> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용) · [progress/mmo.md](progress/mmo.md) MMORPG 웹 프로토타입 · [progress/motive.md](progress/motive.md) 동기층 · [progress/intuition.md](progress/intuition.md) 직관·욕망 신호 변환층 · [progress/life.md](progress/life.md) 생명·종족·능력 층.
+> [progress/graph.md](progress/graph.md) 구조 그래프 · [progress/world-state.md](progress/world-state.md) 세계 상태(형식) · [progress/world-laws.md](progress/world-laws.md) 세계 법칙(내용) · [progress/mmo.md](progress/mmo.md) MMORPG 웹 프로토타입 · [progress/motive.md](progress/motive.md) 동기층 · [progress/intuition.md](progress/intuition.md) 직관·욕망 신호 변환층.
 
 ## 구현 현황 (핵심)
 
@@ -10,8 +10,6 @@
 **목적 그래프** — `data/objective-graph.json` (**228 노드 · 345 관계**, 유일 원본). **§18 복수화: 24개 "존속해야 한다" 루트 트리**(플레이어 G0 + 23주체 — 세계 정본=주체 트리들의 교차). 검증 `node data/validate-graph.mjs`(§16 감사 + §18 복수화 감사 검증16/17, `--audit` 목록). 관찰·편집기 `objective-tree.html`(상태 오버레이·라이브 틱 시뮬). 설계: [Design-ObjectiveGraph.md](design/Design-ObjectiveGraph.md)(정본) · [Design-ObjectiveTree.md](design/Design-ObjectiveTree.md)(방법론).
 
 **세계 상태·법칙** — 설계 [Design-WorldState.md](design/Design-WorldState.md)(형식) · [Design-WorldLaws.md](design/Design-WorldLaws.md)(내용).
-
-**생명·종족·능력 층 (설계 확정, 데이터 반영 전)** — [Design-Life.md](design/Design-Life.md)(종 층위·종족 목적 트리[활성 조건·반응 트리거·갈등 접점]·개체 프로파일·현상 층·**저작 공정 W·S·A·I·V** — 주체·종족 신설의 표준 진입점, §19 를 S-7 로 포함) + [Design-Ability.md](design/Design-Ability.md)(넨(가칭) 능력 체계 — 계통 6종·제약과 서약 수량화·개성 발현). 워크드 예시 2건(회색등늑대 재저작·세리아 공정 I+A) 설계 게이트 V-L1~3 통과. 상세 [progress/life.md](progress/life.md).
 
 **MMORPG 웹 프로토타입** — 로드맵 1~4단계(지도→아바타→개입→멀티) 완료. 클라 `game/world.html`(로컬/원격 겸용) · 서버 `game/server.mjs` · 표현 데이터 `data/world-map.json`·`data/world-visual.json` · 검증 `node data/validate-visual.mjs`(V1~V7). 멀티 실행: `node HktAdvProtoA/game/server.mjs` → `/game/world.html?online&name=이름`. 설계 [Design-MMO.md](design/Design-MMO.md) · 상세 [progress/mmo.md](progress/mmo.md).
 
@@ -48,7 +46,6 @@
 - [~] **직관·욕망 신호 변환층 D0~D4·E1~E4** (핵심 전 단계 완료 — D=데이터·감사층, E=경험 반영층) — 2026-07 진단 4단절 + 재진단 반영 단절 4종 해소. **D0 위협 재발화 사이클 + 프로브 ✅ · D1 토스트 복구 + 인지 4종 ✅ · D2 재료 카탈로그 ✅ · D3 실패=사건 ✅ · D4 변환 커버리지 ✅ · E1 신호층 실장(signals 채널·conversion 클라 로드·region 기본 진입·V8) ✅ · E2 보상 사슬 연출(즉시보상→예상밖결과→다음 욕망·C5) ✅ · E3 가능성 밀도(교차 조합 3·분기 실험 3·성질 계열 표시) ✅ · E4 도감(경험 게이트·D5 앵커 감사) ✅**(아래 완료 항목). 잔여 백로그: D0 NPC 속도 차(G1.2.6 재개폐)·클럭 확장 · 무앵커 서사 재료 13(D5 경고 목록) · 조합 결과물 재료화·분기 실험 확대 · 신호→길찾기 유도. 설계 [Design-Intuition.md](design/Design-Intuition.md) §20 · 진단·구현 [progress/intuition.md](progress/intuition.md).
 - [~] **G3~G9 말단 목적 전개** (콘텐츠 트랙) — 권역 단위 §9 절차 **+ Intuition §14 변환 8항 선행(§21①)**. 사슬 완결 17/56 닫힘(G2.3.1·G2.5.2·G1.3.1·G3.2.1·G1.4·G1.5·G4.2·G5.2 등, 각 브라우저 스모크 실측). 잔여는 §16 저연결 요소부터 앵커. 상세 [progress/world-laws.md](progress/world-laws.md).
 - [ ] **요소 재배선·검증10 관계 커버리지** (상시 백로그, 완료 지점 없는 점진 트랙 — §19 '요소는 점진 허용') — ① 검증17 잔여 3(재등쥐여과털 다주체 재배선·미탄생 존재 고대생명체/별빛종족은 등장 조건 설계 후 subjectKind 승격) ② 검증10 미상태화 관계(필요 49/140·제공 11/44·방해 42/64) 권역 단위 상태화.
-- [ ] **생명·종족·능력 데이터 반영 1호** (Design-Life §8 공정 실행) — ① 공정 S 데이터 1호: 회색등늑대 재저작분(Life §9 신설 노드 — 활성·반응·갈등접점 필드, PHE_* 현상 사전) 그래프·상태 반영 + 개체 승격 2(재를 밟는 자·흉터 이마) ② 공정 A 데이터 1호: 세리아 「먹물의 증언」(Ability §8 — K/T·ACT·LAW) + 능력 체계 정식 명칭 확정('숨(息)' 1후보) ③ 검증기 신설: V-L4(다양성)·V-L5(창발)·V-L6(현상 격리)·V-L7/V-A(능력 보존·제약-출력 정합) ④ 인간류 종 트리 전면 전개(존속 루트+각성 가지). 설계 [Design-Life.md](design/Design-Life.md)·[Design-Ability.md](design/Design-Ability.md) · 상세 [progress/life.md](progress/life.md).
 - [ ] **동기층 표현 폴리시 이월 (→ Intuition D 시리즈로 흡수)** — 앎 인스펙터 K 연동(D4 설명 후행) · 유산 연대기 임계 기여자 명기(D1 신호) · OBJ_G1.1.1 저널 목적화(D4 저널 재정위와 함께) · 형의 사례화 확대 · M8② 관계성 배선 확대(D0 완료 반응). 상세 [progress/motive.md](progress/motive.md).
 - [ ] **MMO 후속** — 잔여 once 플레이어 행동(늑대 계약 등) 캐릭터별 재검토 · counter(경합 창 대항 — 수문회 습격 격퇴) · 기여 전환 확대 · world 목적 discover 캐릭터별 평가. 상세 [progress/mmo.md](progress/mmo.md).
 
