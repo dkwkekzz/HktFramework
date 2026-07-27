@@ -4,6 +4,18 @@
 
 ## 구현 현황 (핵심)
 
-HktAdvProtoC\design\Design-MMO.md 진행 중...
+- 기획서 [design/Design-MMO.md](design/Design-MMO.md) 확정.
+- **구현 분해 완료**: 기획서 §42 의 8단계를 그대로 따르되 §37~39(골격·워커·저장·결정론)를 Phase 0 으로 선행 분리 — 총 9개 Phase. 분해 개요와 단계별 상세 설계는 [design/impl/README.md](design/impl/README.md) 참조.
+- 코드 구현은 미착수. 다음 작업은 Phase 0.
 
 ## TODO
+
+- [ ] Phase 0 — 프로젝트 골격·시드 RNG·스케줄러·Worker 브리지·저장 구조 ([design/impl/Phase-0.md](design/impl/Phase-0.md))
+- [ ] Phase 1 — 수동 정의된 작은 세계 (규칙 20·행동 10·종족 2·조직 2·개인 5)
+- [ ] Phase 2 — 규칙 DSL (JSON 규칙 언어 + 실행기, 코드 규칙 이관)
+- [ ] Phase 3 — 주체 판단 (인식·믿음·기억·관계·목적 활성도·행동 선택)
+- [ ] Phase 4 — 사건 탐지 (change → 사건 클러스터링·중요도·개입 기회)
+- [ ] Phase 5 — 세계 생성 컴파일러 (주제 문장 → WorldDefinition, 15단계 파이프라인)
+- [ ] Phase 6 — 자동 검증과 수정 (§34 의미 검증 10종 + §35 자동 시뮬레이션 + 수정 루프)
+- [ ] Phase 7 — 플레이어 개입 (동일 행동 체계·지식 필터·성장)
+- [ ] Phase 8 — 표현 고도화 (4개 화면 + Event Interpreter, §44 13항 최종 게이트)
