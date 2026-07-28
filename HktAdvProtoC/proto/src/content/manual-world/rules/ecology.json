@@ -2,6 +2,11 @@
   {
     "id": "rule.echo_beast_feeding",
     "name": "반향수 섭식(능력 잔재)",
+    "tags": [
+      "ecology",
+      "creature",
+      "resource"
+    ],
     "scope": "global",
     "priority": 70,
     "triggers": [
@@ -109,6 +114,10 @@
   {
     "id": "rule.offspring_threat_change",
     "name": "새끼 위협도 변화",
+    "tags": [
+      "creature",
+      "threat"
+    ],
     "scope": "entity",
     "priority": 70,
     "triggers": [
@@ -243,6 +252,11 @@
   {
     "id": "rule.territory_pressure",
     "name": "영역 압박",
+    "tags": [
+      "ecology",
+      "creature",
+      "threat"
+    ],
     "scope": "entity",
     "priority": 60,
     "triggers": [
@@ -306,6 +320,11 @@
   {
     "id": "rule.attack_resolution",
     "name": "공격 판정",
+    "tags": [
+      "violence",
+      "threat",
+      "creature"
+    ],
     "scope": "relationship",
     "priority": 50,
     "triggers": [
@@ -372,6 +391,10 @@
   {
     "id": "rule.echo_beast_reproduction",
     "name": "반향수 번식 — 새끼가 태어난다",
+    "tags": [
+      "ecology",
+      "creature"
+    ],
     "scope": "region",
     "priority": 30,
     "triggers": [
@@ -461,6 +484,10 @@
   {
     "id": "rule.echo_beast_cub_growth",
     "name": "새끼가 자란다 (§15 growthRules)",
+    "tags": [
+      "ecology",
+      "creature"
+    ],
     "scope": "region",
     "priority": 28,
     "triggers": [
@@ -515,6 +542,10 @@
   {
     "id": "rule.residue_adaptation",
     "name": "잔재 적응 (§15 adaptationRules)",
+    "tags": [
+      "ecology",
+      "creature"
+    ],
     "scope": "entity",
     "priority": 32,
     "triggers": [
@@ -575,6 +606,10 @@
   {
     "id": "rule.aggression_calms",
     "name": "위협이 물러나면 공격성도 가라앉는다",
+    "tags": [
+      "creature",
+      "threat"
+    ],
     "scope": "region",
     "priority": 26,
     "triggers": [
@@ -624,6 +659,11 @@
   {
     "id": "rule.cub_feeding",
     "name": "어미가 새끼를 먹인다 (§15 growthRules)",
+    "tags": [
+      "ecology",
+      "creature",
+      "food"
+    ],
     "scope": "region",
     "priority": 29,
     "triggers": [

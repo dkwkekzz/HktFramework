@@ -9,6 +9,8 @@ export interface StateChange {
 }
 
 export interface RawWorldChange {
+  /** 발급 순번 — 사건이 자기 재료를 가리키는 유일한 손잡이 (§28 changes) */
+  id: number;
   time: number;
   sourceId?: string;
   targetIds: string[];

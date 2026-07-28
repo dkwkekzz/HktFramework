@@ -1,8 +1,9 @@
-// 실행 기준선 재고정 (Phase 3 — 판단 교체로 실행 흐름이 바뀐 시점)
+// 실행 기준선 재고정 (Phase 3 판단 교체 → Phase 4 태그 전파로 로그 형태가 바뀐 시점)
 // 실행: npx vite-node src/scripts/rebaseline.ts
 //
 // Phase 2 의 기준선은 "코드 규칙 → DSL 규칙" 이관이 세계를 바꾸지 않았음을 증명했다(그 기록은 previous 에 보존한다).
-// Phase 3 은 주체 판단 자체를 교체했으므로 같은 로그가 나올 수 없다 — 기준선을 여기서 다시 고정하고,
+// Phase 3 은 주체 판단 자체를 교체했고, Phase 4 는 change 에 id 와 태그(규칙·행동·개체)를 더했다 —
+// 둘 다 같은 로그 해시가 나올 수 없으므로 기준선을 다시 고정한다.
 // 이후로는 "같은 시드에서 같은 30일이 재현되는가"(§39·§44-12)를 지키는 회귀 기준선으로 쓴다.
 import { writeFileSync } from "node:fs";
 import { InlineHost } from "../core/simulation/InlineHost";
@@ -21,7 +22,7 @@ for (const seed of BASELINE_SEEDS) {
 }
 
 const document = {
-  source: "Phase 3 주체 판단(§20·§22·§23) 교체 후 재고정 — 이후 회귀 기준선",
+  source: "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 회귀 기준선",
   previous: MIGRATION_BASELINE.previous ?? {
     source: MIGRATION_BASELINE.source,
     runs: Object.fromEntries(

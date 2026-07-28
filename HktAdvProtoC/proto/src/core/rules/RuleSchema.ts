@@ -31,6 +31,8 @@ export const RULE_JSON_SCHEMA = {
     name: { type: "string" },
     scope: { enum: ["global", "region", "entity", "relationship"] },
     priority: { type: "number" },
+    /** §28 사건 탐지가 읽는 의미 태그 (Phase-4 §4.1) */
+    tags: { type: "array", items: { type: "string" } },
     triggers: { type: "array", items: { $ref: "#/$defs/trigger" } },
     forEach: { $ref: "#/$defs/selector" },
     bindings: {
@@ -480,6 +482,7 @@ export function loadRuleDocument(document: unknown): RuleDefinition {
     effects,
     observations,
     derivedFromAxioms: (doc["derivedFromAxioms"] as string[] | undefined) ?? [],
+    ...(doc["tags"] !== undefined ? { tags: doc["tags"] as string[] } : {}),
     ...(doc["forEach"] !== undefined ? { forEach: doc["forEach"] as RuleTargetSelector } : {}),
     ...(doc["bindings"] !== undefined
       ? { bindings: doc["bindings"] as NonNullable<RuleDefinition["bindings"]> }

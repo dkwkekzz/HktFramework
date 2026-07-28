@@ -2,6 +2,10 @@
   {
     "id": "rule.forest_resource_regrowth",
     "name": "침묵림 자원 재생",
+    "tags": [
+      "ecology",
+      "resource"
+    ],
     "scope": "region",
     "priority": 80,
     "triggers": [
@@ -39,6 +43,10 @@
   {
     "id": "rule.village_food_consumption",
     "name": "마을 식량 소비",
+    "tags": [
+      "food",
+      "economy"
+    ],
     "scope": "global",
     "priority": 80,
     "triggers": [
@@ -202,6 +210,11 @@
   {
     "id": "rule.hunt_yield",
     "name": "사냥 산출",
+    "tags": [
+      "food",
+      "resource",
+      "ecology"
+    ],
     "scope": "entity",
     "priority": 50,
     "triggers": [
@@ -304,6 +317,11 @@
   {
     "id": "rule.trade_transfer",
     "name": "거래 이전",
+    "tags": [
+      "trade",
+      "economy",
+      "food"
+    ],
     "scope": "relationship",
     "priority": 40,
     "triggers": [

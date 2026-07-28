@@ -2,6 +2,10 @@
   {
     "id": "rule.delegation_order",
     "name": "조직의 소집 → 개인 목적 주입",
+    "tags": [
+      "organization",
+      "mobilization"
+    ],
     "scope": "relationship",
     "priority": 65,
     "triggers": [
@@ -89,6 +93,9 @@
   {
     "id": "rule.delegated_task_progress",
     "name": "위임받은 일을 했다",
+    "tags": [
+      "organization"
+    ],
     "scope": "entity",
     "priority": 45,
     "triggers": [
@@ -172,6 +179,10 @@
   {
     "id": "rule.rumor_spread",
     "name": "소문을 퍼뜨린다",
+    "tags": [
+      "rumor",
+      "information"
+    ],
     "scope": "entity",
     "priority": 40,
     "triggers": [
@@ -195,6 +206,12 @@
   {
     "id": "rule.faction_trade_transfer",
     "name": "조직 간 거래 — 비축 이동",
+    "tags": [
+      "organization",
+      "trade",
+      "economy",
+      "food"
+    ],
     "scope": "global",
     "priority": 55,
     "triggers": [
@@ -239,6 +256,11 @@
   {
     "id": "rule.faction_collapse_shock",
     "name": "조직 붕괴 → 식량 가격 급등",
+    "tags": [
+      "organization",
+      "economy",
+      "crisis"
+    ],
     "scope": "global",
     "priority": 70,
     "triggers": [
@@ -298,6 +320,11 @@
   {
     "id": "rule.threat_belief_spreads_fear",
     "name": "조직의 위협 믿음 → 구성원의 공포",
+    "tags": [
+      "organization",
+      "fear",
+      "threat"
+    ],
     "scope": "region",
     "priority": 48,
     "triggers": [
@@ -350,6 +377,10 @@
   {
     "id": "rule.researcher_insight",
     "name": "관찰이 지식이 된다",
+    "tags": [
+      "research",
+      "information"
+    ],
     "scope": "entity",
     "priority": 50,
     "triggers": [
@@ -420,6 +451,11 @@
   {
     "id": "rule.faction_starvation_count",
     "name": "조직이 굶은 날을 센다",
+    "tags": [
+      "food",
+      "crisis",
+      "organization"
+    ],
     "scope": "global",
     "priority": 25,
     "triggers": [

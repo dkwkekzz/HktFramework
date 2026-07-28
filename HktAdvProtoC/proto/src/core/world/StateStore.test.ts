@@ -67,7 +67,14 @@ describe("StateStore — 상태 쓰기의 단일 경로 (§9)", () => {
     });
     const record = runtime.state.changeLog[runtime.state.changeLog.length - 1]!;
     expect(runtime.state.changeLog.length).toBe(before + 1);
-    expect(record.tags).toEqual(["action", "action.eat", "rule", "rule.eat_effect"]);
+    // 맥락 태그(행동·규칙) + 관련 개체의 태그 합집합 — §28 태그 전파 규약(Phase-4 §4.1)
+    expect(record.tags).toEqual([
+      "action",
+      "action.eat",
+      "rule",
+      "rule.eat_effect",
+      ...runtime.store.entity("agent.kael").tags,
+    ]);
     expect(record.changedStates[0]).toMatchObject({ entityId: "agent.kael", stateKey: "hunger" });
   });
 

@@ -2,6 +2,10 @@
   {
     "id": "rule.hunger_growth",
     "name": "허기 증가",
+    "tags": [
+      "survival",
+      "hunger"
+    ],
     "scope": "global",
     "priority": 100,
     "triggers": [
@@ -33,6 +37,11 @@
   {
     "id": "rule.hunger_health_decay",
     "name": "허기가 체력을 갉는다",
+    "tags": [
+      "survival",
+      "hunger",
+      "crisis"
+    ],
     "scope": "global",
     "priority": 95,
     "triggers": [
@@ -77,6 +86,10 @@
   {
     "id": "rule.eat_effect",
     "name": "식사 효과",
+    "tags": [
+      "survival",
+      "food"
+    ],
     "scope": "entity",
     "priority": 50,
     "triggers": [
@@ -114,6 +127,9 @@
   {
     "id": "rule.rest_recovery",
     "name": "휴식 회복",
+    "tags": [
+      "survival"
+    ],
     "scope": "entity",
     "priority": 50,
     "triggers": [
@@ -160,6 +176,9 @@
   {
     "id": "rule.flee_relief",
     "name": "도망치면 두려움이 가라앉는다",
+    "tags": [
+      "fear"
+    ],
     "scope": "entity",
     "priority": 45,
     "triggers": [
