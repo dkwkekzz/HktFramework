@@ -12,6 +12,6 @@ export class InlineHost implements SimulationHost {
   }
 
   request(request: WorkerRequest): Promise<WorkerResponse[]> {
-    return Promise.resolve(this.server.handle(request));
+    return this.server.handleAsync(request);
   }
 }

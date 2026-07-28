@@ -5,69 +5,138 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>HktAdvProtoC — 세계 시뮬레이터</title>
     <style>
-      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 64rem; }
-      #status { white-space: pre-line; padding: 1rem; background: #f2f2f2; border-radius: 6px; min-height: 4rem; }
-      #world { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; margin-top: 1rem; }
-      .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
-      button { padding: 0.4rem 0.8rem; }
+      body { font-family: system-ui, sans-serif; margin: 1.5rem; max-width: 76rem; }
+      h1 { font-size: 1.3rem; }
+      nav { display: flex; gap: 0.4rem; margin: 1rem 0; flex-wrap: wrap; }
+      nav button { padding: 0.45rem 0.9rem; border: 1px solid #ccc; background: #fafafa; border-radius: 6px; }
+      nav button.active { background: #333; color: #fff; border-color: #333; }
+      #notice { min-height: 1.4rem; padding: 0.3rem 0.6rem; background: #fff8dc; border-radius: 4px; font-size: 0.85rem; }
+      #status { white-space: pre-line; padding: 0.8rem; background: #f2f2f2; border-radius: 6px; min-height: 3.5rem; }
+      .row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; align-items: center; flex-wrap: wrap; }
+      button { padding: 0.35rem 0.7rem; }
       textarea { width: 100%; font-family: inherit; font-size: 0.85rem; }
-      fieldset { border: 1px solid #ddd; border-radius: 6px; margin-bottom: 1.5rem; }
-      #generation { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
-      #generation details { margin: 0.2rem 0 0.2rem 1.5rem; }
-      #generation pre { background: #f7f7f7; padding: 0.5rem; overflow-x: auto; max-height: 20rem; }
-      #player { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
-      #player button { font-family: inherit; font-size: 0.75rem; padding: 0.15rem 0.4rem; margin: 0.1rem 0; }
-      #player details { margin: 0.2rem 0 0.2rem 0.5rem; }
+      fieldset { border: 1px solid #ddd; border-radius: 6px; margin-bottom: 1.2rem; }
+      legend { font-size: 0.85rem; color: #555; }
+      #map { width: 100%; max-width: 60rem; border: 1px solid #ddd; border-radius: 6px; background: #fcfcfc; }
+      #generation, #editor, #world, #player, #agent, #events, #event-detail {
+        white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5;
+      }
+      #generation pre, #editor pre, #player pre { background: #f7f7f7; padding: 0.5rem; overflow-x: auto; max-height: 20rem; }
+      details { margin: 0.2rem 0 0.2rem 1rem; }
+      table { border-collapse: collapse; font-size: 0.75rem; margin: 0.3rem 0; }
+      th, td { border: 1px solid #e2e2e2; padding: 0.1rem 0.4rem; text-align: left; }
+      tr.diverge td { background: #fff3f0; }
+      .narration { background: #f4f7fb; border-left: 3px solid #9bb7d4; padding: 0.3rem 0.5rem; margin: 0.2rem 0; }
+      .hint { color: #777; font-size: 0.75rem; }
+      .split { display: flex; gap: 1rem; flex-wrap: wrap; }
+      .split > div { flex: 1 1 20rem; }
+      .hidden-cause { color: #a33; }
+      .selected { background: #eef4ff; }
+      .mine { color: #1a6; }
+      .step { border-bottom: 1px dashed #eee; padding: 0.2rem 0; }
       .fail { color: #b00; }
+      button.active { background: #333; color: #fff; }
     </style>
   </head>
   <body>
     <h1>HktAdvProtoC — 세계 생성과 시뮬레이션</h1>
+    <div id="notice"></div>
+    <nav>
+      <button id="tab-seed">① 세계 생성 (§36.1)</button>
+      <button id="tab-editor">② 세계 구조 검토 (§36.1)</button>
+      <button id="tab-simulation">③ 월드 지도 · 주체 관찰 (§36.2·§36.3)</button>
+      <button id="tab-events">④ 사건 (§36.4)</button>
+    </nav>
 
-    <!-- §36.1 세계 생성 화면 -->
-    <fieldset>
-      <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
-      <label for="themes">세계관 주제 (한 줄에 하나)</label>
-      <textarea id="themes" rows="5"></textarea>
-      <label for="experiences">원하는 경험</label>
-      <textarea id="experiences" rows="3"></textarea>
-      <label for="prohibited">제외하고 싶은 요소</label>
-      <textarea id="prohibited" rows="3"></textarea>
+    <!-- ① 세계 생성 화면 (§36.1) -->
+    <section id="screen-seed">
+      <fieldset>
+        <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
+        <label for="themes">세계관 주제 (한 줄에 하나)</label>
+        <textarea id="themes" rows="5"></textarea>
+        <label for="experiences">원하는 경험</label>
+        <textarea id="experiences" rows="3"></textarea>
+        <label for="prohibited">제외하고 싶은 요소</label>
+        <textarea id="prohibited" rows="3"></textarea>
+        <div class="row">
+          <label for="gen-seed">세계 시드</label>
+          <input id="gen-seed" type="number" value="42" />
+          <button id="generate">세계를 생성한다</button>
+          <button id="use-generated" disabled>생성된 세계로 시뮬레이션 시작</button>
+        </div>
+        <div id="generation"></div>
+      </fieldset>
+    </section>
+
+    <!-- ② 세계 구조 검토 (§36.1 "생성된 세계 구조 검토" 승격) -->
+    <section id="screen-editor" hidden>
+      <fieldset>
+        <legend>생성 구조 검토 · 항목 재생성 (Phase-6 §6.3 증분 재실행)</legend>
+        <div id="editor"></div>
+      </fieldset>
+    </section>
+
+    <!-- ③ 월드 지도 + 주체 관찰 (§36.2, §36.3) -->
+    <section id="screen-simulation" hidden>
       <div class="row">
-        <label for="gen-seed">세계 시드</label>
-        <input id="gen-seed" type="number" value="42" />
-        <button id="generate">세계를 생성한다</button>
-        <button id="use-generated" disabled>생성된 세계로 시뮬레이션 시작</button>
+        <label for="seed">세계 시드</label>
+        <input id="seed" type="number" value="42" />
+        <button id="init">수동 세계로 시작</button>
+        <button id="init-player">개입 세계로 시작 (§30·§32 층 포함)</button>
       </div>
-      <div id="generation"></div>
-    </fieldset>
-
-    <div class="row">
-      <label for="seed">세계 시드</label>
-      <input id="seed" type="number" value="42" />
-      <button id="init">수동 세계로 시작</button>
-      <button id="init-player">개입 세계로 시작 (§30·§32 층 포함)</button>
-    </div>
-    <div class="row">
-      <button id="advance-hour" disabled>+1시간</button>
-      <button id="advance-day" disabled>+1일</button>
-      <button id="advance-week" disabled>+7일</button>
-    </div>
-    <div id="status"></div>
-
-    <!-- §31 플레이어 개입 — 조작 중에는 화면이 "아는 것"만 그린다 (§36.3) -->
-    <fieldset>
-      <legend>플레이어 개입 (§30 개입 기회 · §31 동일 행동 체계)</legend>
       <div class="row">
-        <label for="player-agent">조작할 주체</label>
-        <input id="player-agent" type="text" value="agent.kael" size="24" />
-        <button id="attach" disabled>이 주체를 조작한다</button>
-        <button id="detach" disabled>조작을 놓는다</button>
+        <button id="advance-hour" disabled>+1시간</button>
+        <button id="advance-day" disabled>+1일</button>
+        <button id="advance-week" disabled>+7일</button>
+        <span>배속</span>
+        <button id="speed-down" disabled>−</button>
+        <span id="speed-view">×1</span>
+        <button id="speed-up" disabled>+</button>
+        <span>시점</span>
+        <button id="mode-developer" class="active">개발자</button>
+        <button id="mode-player">플레이어</button>
       </div>
-      <div id="player"></div>
-    </fieldset>
+      <div id="status"></div>
+      <canvas id="map" width="960" height="540"></canvas>
 
-    <div id="world"></div>
+      <fieldset>
+        <legend>주체 관찰 화면 (§36.3 — 실제/믿음 · 목적 그래프 · 기억 · 관계 · 능력)</legend>
+        <div class="row">
+          <label for="agent-select">관찰할 주체</label>
+          <select id="agent-select"></select>
+        </div>
+        <div id="agent"></div>
+      </fieldset>
+
+      <fieldset>
+        <legend>플레이어 개입 (§30 개입 기회 · §31 동일 행동 체계)</legend>
+        <div class="row">
+          <label for="player-agent">조작할 주체</label>
+          <input id="player-agent" type="text" value="agent.kael" size="24" />
+          <button id="attach" disabled>이 주체를 조작한다</button>
+          <button id="detach" disabled>조작을 놓는다</button>
+        </div>
+        <div id="player"></div>
+      </fieldset>
+
+      <details open>
+        <summary>텍스트 덤프 렌더러 — 같은 SceneViewModel 의 다른 표현 (Phase-8 §8.0 격리 증명)</summary>
+        <div id="world"></div>
+      </details>
+    </section>
+
+    <!-- ④ 사건 화면 (§36.4) -->
+    <section id="screen-events" hidden>
+      <fieldset>
+        <legend>사건 목록</legend>
+        <div id="events"></div>
+      </fieldset>
+      <fieldset>
+        <legend>사건 상세 (§36.4 8항목 — 알려진 정보 ↔ 실제 원인)</legend>
+        <div id="event-detail"></div>
+      </fieldset>
+    </section>
+
     <script type="module" src="/src/app/main.ts"></script>
   </body>
 </html>

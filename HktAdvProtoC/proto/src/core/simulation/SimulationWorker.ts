@@ -7,12 +7,14 @@ const server = new RuntimeServer();
 
 self.onmessage = (message: MessageEvent<RequestEnvelope>) => {
   const { requestId, request } = message.data;
-  let responses: WorkerResponse[];
-  try {
-    responses = server.handle(request);
-  } catch (error) {
-    responses = [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
-  }
-  const envelope: ResponseEnvelope = { requestId, responses };
-  self.postMessage(envelope);
+  // 세계 생성(§5 15단계)까지 이 경계 뒤에서 돈다 — 그래서 진입점도 비동기다(Phase 8)
+  void server
+    .handleAsync(request)
+    .catch((error: unknown): WorkerResponse[] => [
+      { type: "error", message: error instanceof Error ? error.message : String(error) },
+    ])
+    .then((responses) => {
+      const envelope: ResponseEnvelope = { requestId, responses };
+      self.postMessage(envelope);
+    });
 };
