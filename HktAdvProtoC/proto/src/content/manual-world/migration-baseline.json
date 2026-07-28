@@ -1,0 +1,270 @@
+{
+  "source": "HandwrittenRules.ts (Phase 1 코드 규칙) — 삭제 직전 실행 결과",
+  "days": 30,
+  "runs": {
+    "1": {
+      "changeCount": 4013,
+      "logHash": "af561c8c",
+      "entityHash": "3795189c",
+      "ruleChangeCounts": {
+        "rule.attack_resolution": 46,
+        "rule.eat_effect": 2,
+        "rule.echo_beast_feeding": 60,
+        "rule.forest_resource_regrowth": 120,
+        "rule.hunger_growth": 720,
+        "rule.hunt_yield": 53,
+        "rule.movement_trace": 4,
+        "rule.offspring_threat_change": 212,
+        "rule.report_propagation": 1,
+        "rule.rest_recovery": 261,
+        "rule.subjugation_call": 1,
+        "rule.territory_pressure": 212,
+        "rule.threat_sighting_fear": 2,
+        "rule.trade_transfer": 42,
+        "rule.village_food_consumption": 30
+      },
+      "agents": {
+        "agent.kael": {
+          "health": 46,
+          "hunger": 0,
+          "energy": 57,
+          "fear": 22,
+          "aggression": 10,
+          "carried_food": 26,
+          "carried_residue": 0,
+          "wealth": 1000,
+          "known_threat_level": 90
+        },
+        "agent.mar": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 4,
+          "carried_residue": 0,
+          "wealth": 56,
+          "known_threat_level": 0
+        },
+        "agent.ren": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 0,
+          "carried_residue": 0,
+          "wealth": 180,
+          "known_threat_level": 0
+        },
+        "agent.rion": {
+          "health": 21,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 52,
+          "aggression": 10,
+          "carried_food": 10,
+          "carried_residue": 0,
+          "wealth": 0,
+          "known_threat_level": 90
+        },
+        "creature.echo_beast_mother": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 21,
+          "carried_food": 3,
+          "carried_residue": 100,
+          "wealth": 0,
+          "known_threat_level": 0
+        }
+      },
+      "village": {
+        "food_reserve": 15.000000000000085,
+        "threat_belief": 25,
+        "subjugation_ordered": false,
+        "fear": 20
+      },
+      "globals": {
+        "food_price": 50.47999999999997
+      }
+    },
+    "42": {
+      "changeCount": 4040,
+      "logHash": "d0fbce9c",
+      "entityHash": "1f443f2a",
+      "ruleChangeCounts": {
+        "rule.attack_resolution": 45,
+        "rule.eat_effect": 2,
+        "rule.echo_beast_feeding": 60,
+        "rule.forest_resource_regrowth": 120,
+        "rule.hunger_growth": 720,
+        "rule.hunt_yield": 51,
+        "rule.movement_trace": 4,
+        "rule.offspring_threat_change": 212,
+        "rule.report_propagation": 2,
+        "rule.rest_recovery": 260,
+        "rule.subjugation_call": 2,
+        "rule.territory_pressure": 212,
+        "rule.threat_sighting_fear": 2,
+        "rule.trade_transfer": 43,
+        "rule.village_food_consumption": 30
+      },
+      "agents": {
+        "agent.kael": {
+          "health": 87,
+          "hunger": 0,
+          "energy": 76,
+          "fear": 4,
+          "aggression": 10,
+          "carried_food": 0,
+          "carried_residue": 0,
+          "wealth": 1000,
+          "known_threat_level": 90
+        },
+        "agent.mar": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 4,
+          "carried_residue": 0,
+          "wealth": 56,
+          "known_threat_level": 0
+        },
+        "agent.ren": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 5,
+          "carried_residue": 0,
+          "wealth": 180,
+          "known_threat_level": 0
+        },
+        "agent.rion": {
+          "health": 18,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 58,
+          "aggression": 10,
+          "carried_food": 10,
+          "carried_residue": 0,
+          "wealth": 0,
+          "known_threat_level": 90
+        },
+        "creature.echo_beast_mother": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 21,
+          "carried_food": 10,
+          "carried_residue": 100,
+          "wealth": 0,
+          "known_threat_level": 0
+        }
+      },
+      "village": {
+        "food_reserve": 45.000000000000085,
+        "threat_belief": 90,
+        "subjugation_ordered": true,
+        "fear": 30
+      },
+      "globals": {
+        "food_price": 37.679999999999964
+      }
+    },
+    "43": {
+      "changeCount": 4038,
+      "logHash": "bfdcb9cc",
+      "entityHash": "9f9054c8",
+      "ruleChangeCounts": {
+        "rule.attack_resolution": 46,
+        "rule.eat_effect": 2,
+        "rule.echo_beast_feeding": 60,
+        "rule.forest_resource_regrowth": 120,
+        "rule.hunger_growth": 720,
+        "rule.hunt_yield": 51,
+        "rule.movement_trace": 4,
+        "rule.offspring_threat_change": 219,
+        "rule.report_propagation": 1,
+        "rule.rest_recovery": 260,
+        "rule.subjugation_call": 1,
+        "rule.territory_pressure": 219,
+        "rule.threat_sighting_fear": 2,
+        "rule.trade_transfer": 43,
+        "rule.village_food_consumption": 30
+      },
+      "agents": {
+        "agent.kael": {
+          "health": 35,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 40,
+          "aggression": 10,
+          "carried_food": 2,
+          "carried_residue": 0,
+          "wealth": 1000,
+          "known_threat_level": 90
+        },
+        "agent.mar": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 4,
+          "carried_residue": 0,
+          "wealth": 56,
+          "known_threat_level": 0
+        },
+        "agent.ren": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 10,
+          "carried_food": 0,
+          "carried_residue": 0,
+          "wealth": 176,
+          "known_threat_level": 0
+        },
+        "agent.rion": {
+          "health": 18,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 58,
+          "aggression": 10,
+          "carried_food": 10,
+          "carried_residue": 0,
+          "wealth": 0,
+          "known_threat_level": 90
+        },
+        "creature.echo_beast_mother": {
+          "health": 100,
+          "hunger": 0,
+          "energy": 100,
+          "fear": 0,
+          "aggression": 18,
+          "carried_food": 2,
+          "carried_residue": 100,
+          "wealth": 0,
+          "known_threat_level": 0
+        }
+      },
+      "village": {
+        "food_reserve": 19.000000000000085,
+        "threat_belief": 25,
+        "subjugation_ordered": false,
+        "fear": 20
+      },
+      "globals": {
+        "food_price": 48.87999999999997
+      }
+    }
+  }
+}

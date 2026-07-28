@@ -1,0 +1,246 @@
+[
+  {
+    "id": "rule.echo_beast_feeding",
+    "name": "반향수 섭식(능력 잔재)",
+    "scope": "global",
+    "priority": 70,
+    "triggers": [{ "type": "interval", "interval": 720 }],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent",
+        "where": [
+          {
+            "left": { "type": "each_state", "key": "species_id" },
+            "operator": "==",
+            "right": { "type": "constant", "value": "species.echo_beast" }
+          }
+        ]
+      }
+    },
+    "bindings": [
+      {
+        "name": "fieldAmount",
+        "value": {
+          "type": "query_value",
+          "aggregate": "first",
+          "key": "amount",
+          "query": {
+            "tags": ["residue_source"],
+            "withinRadius": { "of": "target", "r": 80 },
+            "limit": 1
+          }
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "left": { "type": "binding", "name": "fieldAmount" },
+        "operator": ">=",
+        "right": { "type": "constant", "value": 2 }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": {
+            "tags": ["residue_source"],
+            "withinRadius": { "of": "target", "r": 80 },
+            "limit": 1
+          }
+        },
+        "stateKey": "amount",
+        "operation": "add",
+        "value": -2
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "carried_residue",
+        "operation": "add",
+        "value": 2
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "hunger",
+        "operation": "add",
+        "value": -15
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.creatures_absorb_ability_residue"]
+  },
+  {
+    "id": "rule.offspring_threat_change",
+    "name": "새끼 위협도 변화",
+    "scope": "entity",
+    "priority": 70,
+    "triggers": [{ "type": "interval", "interval": 60 }],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent",
+        "where": [
+          {
+            "left": { "type": "each_state", "key": "protecting_offspring" },
+            "operator": "==",
+            "right": { "type": "constant", "value": true }
+          }
+        ]
+      }
+    },
+    "bindings": [
+      {
+        "name": "intruders",
+        "value": {
+          "type": "query_value",
+          "aggregate": "count",
+          "query": {
+            "entityType": "agent",
+            "withinRadius": { "of": "target", "r": 60 },
+            "where": [
+              {
+                "left": { "type": "each_state", "key": "species_id" },
+                "operator": "==",
+                "right": { "type": "constant", "value": "species.human" }
+              }
+            ]
+          }
+        }
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": { "type": "binding", "name": "intruders" },
+            "operator": ">",
+            "right": { "type": "constant", "value": 0 }
+          }
+        ],
+        "target": { "type": "target" },
+        "stateKey": "offspring_threat",
+        "operation": "set",
+        "valueRef": {
+          "type": "expr",
+          "op": "add",
+          "operands": [
+            { "type": "constant", "value": 35 },
+            {
+              "type": "expr",
+              "op": "mul",
+              "operands": [
+                { "type": "binding", "name": "intruders" },
+                { "type": "constant", "value": 25 }
+              ]
+            }
+          ]
+        }
+      },
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": { "type": "binding", "name": "intruders" },
+            "operator": "==",
+            "right": { "type": "constant", "value": 0 }
+          }
+        ],
+        "target": { "type": "target" },
+        "stateKey": "offspring_threat",
+        "operation": "add",
+        "value": -4
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+  },
+  {
+    "id": "rule.territory_pressure",
+    "name": "영역 압박",
+    "scope": "entity",
+    "priority": 60,
+    "triggers": [{ "type": "state_changed", "stateKey": "offspring_threat" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "territory_pressure",
+        "operation": "set",
+        "valueRef": {
+          "type": "expr",
+          "op": "mul",
+          "operands": [
+            { "type": "actor_state", "key": "offspring_threat" },
+            { "type": "constant", "value": 0.8 }
+          ]
+        }
+      },
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": { "type": "actor_state", "key": "offspring_threat" },
+            "operator": ">",
+            "right": { "type": "constant", "value": 70 }
+          }
+        ],
+        "target": { "type": "actor" },
+        "stateKey": "aggression",
+        "operation": "add",
+        "value": 3
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+  },
+  {
+    "id": "rule.attack_resolution",
+    "name": "공격 판정",
+    "scope": "relationship",
+    "priority": 50,
+    "triggers": [{ "type": "action_executed", "actionId": "action.attack" }],
+    "bindings": [
+      {
+        "name": "damage",
+        "value": {
+          "type": "expr",
+          "op": "add",
+          "operands": [
+            { "type": "constant", "value": 15 },
+            { "type": "random_int", "max": 10, "stream": "actor" }
+          ]
+        }
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "health",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "neg",
+          "operands": [{ "type": "binding", "name": "damage" }]
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 25
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+  }
+]

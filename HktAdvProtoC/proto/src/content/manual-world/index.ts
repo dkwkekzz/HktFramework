@@ -12,6 +12,7 @@ import type {
   WorldBootstrap,
   WorldDefinition,
 } from "../../core/world/types";
+import { buildManualWorldRules } from "./rules";
 import actions from "./actions.json";
 import bootstrap from "./bootstrap.json";
 import factions from "./factions.json";
@@ -39,7 +40,7 @@ export function buildManualWorld(worldSeed: number): WorldDefinition {
       "axiom.actions_leave_signs",
     ],
     stateSchemas: schemas as unknown as StateSchema[],
-    ruleDefinitions: [], // Phase 1 의 규칙은 코드(HandwrittenRules) — Phase 2 에서 이 배열로 이관된다
+    ruleDefinitions: buildManualWorldRules(), // §11 — 규칙 20개 전부 JSON (Phase 2 이관 완료)
     spaces: space as unknown as SpaceDefinition,
     resources: resources as unknown as ResourceDefinition[],
     species: species as unknown as SpeciesDefinition[],

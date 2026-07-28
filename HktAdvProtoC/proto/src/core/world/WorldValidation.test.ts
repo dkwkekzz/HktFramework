@@ -1,12 +1,12 @@
 // 세계 정의 정합성 (§34 부분집합) — 수동 세계 자신이 첫 번째 검증 대상이다.
 import { describe, expect, it } from "vitest";
 import { buildManualWorld } from "../../content/manual-world";
-import { HANDWRITTEN_RULES } from "../rules/HandwrittenRules";
-import { RuleRegistry } from "../rules/RuleRegistry";
+import { RuleEngine } from "../rules/RuleEngine";
 import { validateWorldDefinition } from "./WorldValidation";
 import type { WorldDefinition } from "./types";
 
-const rules = new RuleRegistry(HANDWRITTEN_RULES);
+const MANUAL_RULES = buildManualWorld(1).ruleDefinitions;
+const rules = new RuleEngine(MANUAL_RULES);
 
 function clone(): WorldDefinition {
   return structuredClone(buildManualWorld(1));
@@ -19,7 +19,7 @@ describe("수동 세계 정의", () => {
 
   it("§42-1 규모를 지킨다 — 규칙 20 / 행동 10 / 종족 2 / 조직 2 / 개인 5", () => {
     const definition = buildManualWorld(1);
-    expect(HANDWRITTEN_RULES).toHaveLength(20);
+    expect(MANUAL_RULES).toHaveLength(20);
     expect(definition.actionDefinitions).toHaveLength(10);
     expect(definition.species).toHaveLength(2);
     expect(definition.factions).toHaveLength(2);
@@ -28,9 +28,9 @@ describe("수동 세계 정의", () => {
   });
 
   it("모든 규칙 id 가 고유하고 트리거를 가진다", () => {
-    const ids = new Set(HANDWRITTEN_RULES.map((rule) => rule.id));
-    expect(ids.size).toBe(HANDWRITTEN_RULES.length);
-    for (const rule of HANDWRITTEN_RULES) expect(rule.triggers.length).toBeGreaterThan(0);
+    const ids = new Set(MANUAL_RULES.map((rule) => rule.id));
+    expect(ids.size).toBe(MANUAL_RULES.length);
+    for (const rule of MANUAL_RULES) expect(rule.triggers.length).toBeGreaterThan(0);
   });
 
   it("관찰 불가 상태를 신호로 주장하면 오류다 (§10 믿음 분리의 데이터 근거)", () => {

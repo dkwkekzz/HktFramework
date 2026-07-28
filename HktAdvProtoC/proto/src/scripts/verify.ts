@@ -2,8 +2,19 @@
 // 실행: npm run verify [-- --seed=42 --days=30]
 //
 // 각 Phase 의 DoD 를 여기에 항목으로 더한다. 이 스크립트 한 줄의 출력이 곧 검토 보고다.
+import { existsSync } from "node:fs";
 import { findBelief } from "../core/agents/BeliefStore";
+import { runAbilityChecks } from "../core/rules/abilityChecks";
+import { runCapabilityChecks } from "../core/rules/capabilities";
+import {
+  BASELINE_SEEDS,
+  compareToBaseline,
+  MIGRATION_BASELINE,
+  summarizeRun,
+} from "../core/rules/migrationBaseline";
+import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
+import { buildManualWorld } from "../content/manual-world";
 import type { RawWorldChange } from "../shared/change";
 import { hashValue } from "../shared/hash";
 import { TICKS_PER_DAY, tickToDay } from "../shared/time";
@@ -39,9 +50,16 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
   return found === undefined ? undefined : tickToDay(found.time);
 }
 
-const rows: { ok: boolean; title: string; evidence: string }[] = [];
+interface Row {
+  phase: 1 | 2;
+  ok: boolean;
+  title: string;
+  evidence: string;
+}
+const rows: Row[] = [];
+let phase: 1 | 2 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
-  rows.push({ ok, title, evidence });
+  rows.push({ phase, ok, title, evidence });
 }
 
 const runtime = await run(worldSeed);
@@ -138,13 +156,63 @@ check(
   `미등록 키 ${unregisteredRejected ? "거부" : "통과(문제)"} / 파생 상태 ${derivedRejected ? "거부" : "통과(문제)"}`,
 );
 
+// =====================================================================================
+// Phase 2 완료 조건 — 규칙 DSL (§11, §12, §16, §42-2)
+// =====================================================================================
+phase = 2;
+
+// --- DoD 1 : Phase 1 규칙 20개가 JSON 으로만 존재한다 --------------------------------
+const manualRules = buildManualWorld(worldSeed).ruleDefinitions;
+const schemaErrors = manualRules.flatMap((rule) =>
+  validateAgainstSchema(rule).map((error) => `${rule.id}: ${error}`),
+);
+const legacyModule = new URL("../core/rules/HandwrittenRules.ts", import.meta.url);
+const legacyExists = existsSync(legacyModule);
+check(
+  manualRules.length === 20 && schemaErrors.length === 0 && !legacyExists,
+  "규칙 20개가 JSON 정규형으로만 존재",
+  `JSON 규칙 ${manualRules.length}개 · 스키마 위반 ${schemaErrors.length}건 · 코드 규칙 모듈 ${legacyExists ? "잔존(문제)" : "없음"}`,
+);
+
+// --- DoD 2 : DSL 규칙이 코드 규칙과 같은 change 로그를 낸다 --------------------------
+const migrations = [];
+for (const seed of BASELINE_SEEDS) {
+  migrations.push(compareToBaseline(seed, summarizeRun(await run(seed))));
+}
+check(
+  migrations.every((m) => m.matches),
+  "DSL 규칙 30일이 코드 규칙 기준선과 동일",
+  migrations
+    .map((m) => `시드 ${m.seed} ${m.matches ? "일치" : `불일치(${m.differences.join("; ")})`} ${m.summary.logHash}/${m.summary.changeCount}건`)
+    .join(" · ") + ` — 기준선: ${MIGRATION_BASELINE.source}`,
+);
+
+// --- DoD 3 : §12 요구 능력 10항목 + 방어선 ------------------------------------------
+const capabilities = runCapabilityChecks();
+for (const capability of capabilities) {
+  check(capability.ok, `DSL 능력 — ${capability.name}`, capability.evidence);
+}
+
+// --- DoD 4·5 : §11.4 예시 규칙 · §16 능력 픽스처 -------------------------------------
+for (const ability of runAbilityChecks()) {
+  check(ability.ok, `능력 체계 — ${ability.name}`, ability.evidence);
+}
+
 // --- 출력 ---------------------------------------------------------------------------
-console.log(`\n=== Phase 1 완료 조건 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
-for (const row of rows) {
-  console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);
-  console.log(`    ${row.evidence}`);
+for (const current of [1, 2] as const) {
+  const section = rows.filter((row) => row.phase === current);
+  const label = current === 1 ? "Phase 1 완료 조건" : "Phase 2 완료 조건 — 규칙 DSL";
+  console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
+  for (const row of section) {
+    console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);
+    console.log(`    ${row.evidence}`);
+  }
+  const sectionFailed = section.filter((row) => !row.ok).length;
+  console.log(
+    `\n  ${section.length - sectionFailed}/${section.length} 통과${sectionFailed > 0 ? ` — ${sectionFailed}항 실패` : ""}`,
+  );
 }
 
 const failed = rows.filter((row) => !row.ok).length;
-console.log(`\n${rows.length - failed}/${rows.length} 통과${failed > 0 ? ` — ${failed}항 실패` : ""}`);
+console.log(`\n합계 ${rows.length - failed}/${rows.length} 통과${failed > 0 ? ` — ${failed}항 실패` : ""}`);
 if (failed > 0) process.exitCode = 1;

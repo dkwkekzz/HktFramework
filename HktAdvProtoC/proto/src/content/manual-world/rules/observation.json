@@ -1,0 +1,72 @@
+[
+  {
+    "id": "rule.movement_trace",
+    "name": "이동 흔적",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [
+      { "type": "action_executed", "actionId": "action.move" },
+      { "type": "action_executed", "actionId": "action.track" },
+      { "type": "action_executed", "actionId": "action.flee" }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "recent_presence",
+        "operation": "set",
+        "value": true
+      },
+      { "type": "emit_signal", "signalId": "signal.movement_trace" }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.actions_leave_signs"]
+  },
+  {
+    "id": "rule.attack_noise",
+    "name": "공격 소음",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [{ "type": "action_executed", "actionId": "action.attack" }],
+    "conditions": [],
+    "effects": [{ "type": "emit_signal", "signalId": "signal.attack_noise" }],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.actions_leave_signs"]
+  },
+  {
+    "id": "rule.carcass_discovery",
+    "name": "사체 발견",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [{ "type": "action_executed", "actionId": "action.hunt" }],
+    "conditions": [],
+    "effects": [{ "type": "emit_signal", "signalId": "signal.carcass" }],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.actions_leave_signs"]
+  },
+  {
+    "id": "rule.residue_trace",
+    "name": "흔적 잔류",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [{ "type": "state_changed", "stateKey": "carried_residue" }],
+    "conditions": [],
+    "effects": [],
+    "observations": [
+      {
+        "signalId": "signal.residue_trace",
+        "channels": ["energy_sense", "trace"],
+        "strength": 70,
+        "tags": ["creature_trace", "important"],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "protecting_offspring",
+          "value": true,
+          "confidence": 0.64
+        }
+      }
+    ],
+    "derivedFromAxioms": ["axiom.actions_leave_signs", "axiom.creatures_absorb_ability_residue"]
+  }
+]

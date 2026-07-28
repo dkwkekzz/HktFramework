@@ -1,0 +1,260 @@
+[
+  {
+    "id": "rule.forest_resource_regrowth",
+    "name": "침묵림 자원 재생",
+    "scope": "region",
+    "priority": 80,
+    "triggers": [{ "type": "interval", "interval": 360 }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": { "entityType": "resource", "tags": ["harvestable"] }
+        },
+        "stateKey": "amount",
+        "operation": "add",
+        "valueRef": { "type": "each_state", "key": "regrowth" }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.dangerous_places_are_rich"]
+  },
+  {
+    "id": "rule.village_food_consumption",
+    "name": "마을 식량 소비",
+    "scope": "global",
+    "priority": 80,
+    "triggers": [{ "type": "interval", "interval": 1440 }],
+    "forEach": { "type": "query", "query": { "entityType": "faction" } },
+    "bindings": [
+      {
+        "name": "need",
+        "value": {
+          "type": "expr",
+          "op": "mul",
+          "operands": [
+            { "type": "target_state", "key": "member_count" },
+            { "type": "constant", "value": 1.2 }
+          ]
+        }
+      },
+      {
+        "name": "taken",
+        "value": {
+          "type": "expr",
+          "op": "min",
+          "operands": [
+            { "type": "binding", "name": "need" },
+            { "type": "target_state", "key": "food_reserve" }
+          ]
+        }
+      },
+      {
+        "name": "ration",
+        "value": {
+          "type": "expr",
+          "op": "mul",
+          "operands": [
+            {
+              "type": "expr",
+              "op": "div",
+              "operands": [
+                { "type": "binding", "name": "taken" },
+                { "type": "binding", "name": "need" }
+              ]
+            },
+            { "type": "constant", "value": 26 }
+          ]
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "left": { "type": "binding", "name": "need" },
+        "operator": ">",
+        "right": { "type": "constant", "value": 0 }
+      },
+      {
+        "left": { "type": "binding", "name": "taken" },
+        "operator": ">",
+        "right": { "type": "constant", "value": 0 }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "food_reserve",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "neg",
+          "operands": [{ "type": "binding", "name": "taken" }]
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent",
+            "where": [
+              {
+                "left": { "type": "each_state", "key": "faction_id" },
+                "operator": "==",
+                "right": { "type": "entity_ref", "of": "target" }
+              }
+            ]
+          }
+        },
+        "stateKey": "hunger",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "neg",
+          "operands": [{ "type": "binding", "name": "ration" }]
+        }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+  },
+  {
+    "id": "rule.hunt_yield",
+    "name": "사냥 산출",
+    "scope": "entity",
+    "priority": 50,
+    "triggers": [{ "type": "action_executed", "actionId": "action.hunt" }],
+    "bindings": [
+      {
+        "name": "attempt",
+        "value": {
+          "type": "expr",
+          "op": "add",
+          "operands": [
+            { "type": "constant", "value": 12 },
+            { "type": "random_int", "max": 9, "stream": "actor" }
+          ]
+        }
+      },
+      {
+        "name": "yielded",
+        "value": {
+          "type": "expr",
+          "op": "min",
+          "operands": [
+            { "type": "target_state", "key": "amount" },
+            { "type": "binding", "name": "attempt" }
+          ]
+        }
+      }
+    ],
+    "conditions": [
+      {
+        "left": { "type": "target_state", "key": "amount" },
+        "operator": ">",
+        "right": { "type": "constant", "value": 0 }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "amount",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "neg",
+          "operands": [{ "type": "binding", "name": "yielded" }]
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "carried_food",
+        "operation": "add",
+        "valueRef": { "type": "binding", "name": "yielded" }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.dangerous_places_are_rich"]
+  },
+  {
+    "id": "rule.trade_transfer",
+    "name": "거래 이전",
+    "scope": "relationship",
+    "priority": 40,
+    "triggers": [{ "type": "action_executed", "actionId": "action.trade" }],
+    "bindings": [
+      {
+        "name": "amount",
+        "value": {
+          "type": "expr",
+          "op": "min",
+          "operands": [
+            { "type": "actor_state", "key": "carried_food" },
+            { "type": "constant", "value": 20 }
+          ]
+        }
+      },
+      { "name": "price", "value": { "type": "world_state", "key": "food_price" } }
+    ],
+    "conditions": [
+      {
+        "left": { "type": "entity_type", "of": "target" },
+        "operator": "==",
+        "right": { "type": "constant", "value": "faction" }
+      },
+      {
+        "left": { "type": "binding", "name": "amount" },
+        "operator": ">",
+        "right": { "type": "constant", "value": 0 }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "carried_food",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "neg",
+          "operands": [{ "type": "binding", "name": "amount" }]
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "food_reserve",
+        "operation": "add",
+        "valueRef": { "type": "binding", "name": "amount" }
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "wealth",
+        "operation": "add",
+        "valueRef": {
+          "type": "expr",
+          "op": "div",
+          "operands": [
+            {
+              "type": "expr",
+              "op": "mul",
+              "operands": [
+                { "type": "binding", "name": "amount" },
+                { "type": "binding", "name": "price" }
+              ]
+            },
+            { "type": "constant", "value": 10 }
+          ]
+        }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.scarcity_creates_exchange"]
+  }
+]

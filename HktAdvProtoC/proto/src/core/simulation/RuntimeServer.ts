@@ -2,8 +2,7 @@
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
 import { buildManualWorld } from "../../content/manual-world";
 import type { WorkerRequest, WorkerResponse } from "../../shared/protocol";
-import { HANDWRITTEN_RULES } from "../rules/HandwrittenRules";
-import { RuleRegistry } from "../rules/RuleRegistry";
+import { RuleEngine } from "../rules/RuleEngine";
 import { bootstrapWorld } from "../world/WorldBootstrap";
 import { validateWorldDefinition } from "../world/WorldValidation";
 import type { WorldDefinition } from "../world/types";
@@ -21,7 +20,8 @@ export interface WorldSnapshotDocument {
 export class RuntimeServer {
   private runtime: WorldRuntime | undefined;
   private loop: SimulationLoop | undefined;
-  private readonly rules = new RuleRegistry(HANDWRITTEN_RULES);
+  /** 규칙은 세계 정의에 실려 온다(§11) — 정의가 바뀌면 실행기도 새로 만든다 */
+  private rules = new RuleEngine([]);
   /** 상태를 변경한 입력의 누적 개수 — 스냅샷·이벤트 로그의 정합 기준점 */
   private inputSeq = 0;
 
@@ -32,7 +32,7 @@ export class RuntimeServer {
     return this.inputSeq;
   }
 
-  get ruleRegistry(): RuleRegistry {
+  get ruleEngine(): RuleEngine {
     return this.rules;
   }
 
@@ -54,10 +54,12 @@ export class RuntimeServer {
   private initialize(worldSeed: number, definition: unknown): WorkerResponse[] {
     const def =
       definition === undefined ? buildManualWorld(worldSeed) : (definition as WorldDefinition);
-    const errors = validateWorldDefinition(def, this.rules);
+    const rules = new RuleEngine(def.ruleDefinitions);
+    const errors = validateWorldDefinition(def, rules);
     if (errors.length > 0) {
       return [{ type: "error", message: `세계 정의 검증 실패:\n${errors.join("\n")}` }];
     }
+    this.rules = rules;
 
     const runtime = new WorldRuntime(def);
     const systems = createWorldSystems(this.rules);
@@ -101,6 +103,7 @@ export class RuntimeServer {
 
   /** 스냅샷에서 런타임을 복원한다 (기획서 §39 복원 절차의 1단계) */
   restore(definition: WorldDefinition, doc: WorldSnapshotDocument): void {
+    this.rules = new RuleEngine(definition.ruleDefinitions);
     const systems = createWorldSystems(this.rules);
     const loop = new SimulationLoop(this.hooksOverride ?? systems.hooks);
     systems.registerHandlers(loop);

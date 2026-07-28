@@ -12,6 +12,12 @@ function ownerTypeOf(spec: BootstrapEntity): StateOwnerType {
 
 /** 초기 배치를 개체로 실체화한다. 등록되지 않은 상태 키는 여기서 즉시 오류다. */
 export function bootstrapWorld(runtime: WorldRuntime): void {
+  // 전역 상태(ownerType="world")도 스키마 기본값으로 채운다 —
+  // 규칙이 읽는 순간까지 비어 있으면 "등록됐는데 값이 없는 상태"가 생긴다(§9).
+  for (const [key, value] of Object.entries(runtime.schemas.defaultsFor("world"))) {
+    runtime.store.setGlobal(key, value);
+  }
+
   for (const spec of runtime.definition.bootstrap.entities) {
     const ownerType = ownerTypeOf(spec);
     const states: Record<string, unknown> = runtime.schemas.defaultsFor(ownerType);

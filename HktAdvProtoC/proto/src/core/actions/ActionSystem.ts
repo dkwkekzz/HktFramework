@@ -2,7 +2,7 @@
 // 공간 이동은 세계 규칙이 아니라 행동 체계의 내장 효과다 — 나머지 결과는 전부 executionRules 가 만든다.
 import type { ScheduledActionState } from "../../shared/beliefs";
 import { distance3d, type Position } from "../../shared/state";
-import type { RuleRegistry } from "../rules/RuleRegistry";
+import type { RuleEngine } from "../rules/RuleEngine";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { ActionDefinition } from "../world/types";
 
@@ -166,7 +166,7 @@ export function startAction(
  */
 export function completeAction(
   runtime: WorldRuntime,
-  rules: RuleRegistry,
+  rules: RuleEngine,
   agentId: string,
   scheduled: ScheduledActionState,
 ): void {
@@ -183,6 +183,12 @@ export function completeAction(
       },
       () => {
         applyMovement(runtime, agentId, action, scheduled.targetIds);
+        // §11.1 entity_entered — 이동으로 지역이 바뀐 순간에만 발화한다 (Phase-2 §2.2)
+        const enteredRegion = positionOf(runtime, agentId)?.regionId;
+        if (enteredRegion !== undefined && enteredRegion !== locationId) {
+          const region = runtime.store.findEntity(enteredRegion);
+          rules.dispatchEntityEntered(runtime, agentId, region?.tags ?? []);
+        }
         rules.dispatchAction(runtime, action.id, agentId, scheduled.targetIds);
       },
     );
