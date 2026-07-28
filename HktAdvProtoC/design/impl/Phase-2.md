@@ -57,6 +57,23 @@
 
 규칙·행동의 `observations`(§11 `ObservationEffect`) 를 실행 위치 기준의 `ObservationSignal`(§23) 로 변환해 신호 큐에 적재. Phase 1 간이 인식이 즉시 소비하고, Phase 3 에서 본 인식 파이프라인이 대체.
 
+### 2.7 능력 정의의 실행 매핑 (§16)
+
+`AbilityDefinition` 은 전용 실행기를 만들지 않는다 — §21 "능력을 사용한다" 행동과 규칙 체계로 분해 실행한다(콘텐츠는 Phase 5 에서 생성되지만, 실행 경로는 DSL 엔진의 몫이므로 여기서 확정):
+
+| §16 필드 | 실행 주체 |
+|---|---|
+| `activationConditions` | `action.use_ability` 의 actorRequirements 로 합성 |
+| `costs` | 행동 costs 로 합성 |
+| `restrictions` + 증폭·반동 | §11.4 형태의 `action_executed` 트리거 규칙(제약 유효 → 출력 배율, 반동 위험) |
+| `maintenanceConditions` | 능력 활성 중 interval 감시 규칙 — 위반 시 `failureEffects` 실행 |
+| `restrictions` 위반 검사 | 조건식 대상이 행동 이력인 경우(예: §16 "거짓말 금지") 해당 태그 행동의 `action_executed` 트리거로 검사 |
+| `observableSignals` | `ObservationEffect` 그대로 |
+| `knownBy` | 관찰·소문으로 갱신되는 믿음(§10)의 초기값 |
+| `mastery` | §32 성장 체계(Phase 7 `record_growth`)가 갱신 |
+
+Phase 2 DoD 에 능력 1개 픽스처(§16 `ability.contract_truth` 예시)의 발동·유지 위반·반동 실행 테스트를 포함한다.
+
 ## Phase 1 규칙 이관
 
 - 코드 규칙 20개를 1:1 로 JSON 파일화(`content/manual-world/rules/*.json`).
@@ -78,6 +95,7 @@
 - [ ] §12 요구 능력 10항목(조건/상태 변경/자원 이동/생성·소멸/관계 변경/신호/예약/확률/주변 검색/태그 선택)이 각각 테스트로 증명된다.
 - [ ] Phase 1 시나리오가 DSL 규칙만으로 코드 규칙과 동일한 change 로그를 낸다.
 - [ ] §11.4 "제약에 의한 능력 증폭" 예시 규칙이 그대로 로드·실행된다(능력 콘텐츠는 없어도 규칙 자체는 파싱·발화 테스트).
+- [ ] §16 예시 능력 픽스처의 발동·유지 조건 위반·반동이 행동+규칙 분해 매핑(2.7)으로 실행된다.
 - [ ] 규칙 연쇄 상한 초과가 감지·보고된다.
 
 ## 이후 Phase 인터페이스

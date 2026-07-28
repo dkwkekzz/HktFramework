@@ -49,6 +49,8 @@
 ### 1.1 StateStore 와 변경 기록
 
 - 모든 상태 쓰기는 `store.modify(entityId, key, op, value)` 단일 경로. 여기서 ① 스키마 검증(§9 min/max/dataType) ② dirty set(patch 용) ③ `RawWorldChange` 기록(§28 — Phase 4 소비, Phase 1 부터 쌓는다) 을 동시에 처리한다.
+- `StateSchema.updatePolicy`(§9) 3종 처리: `continuous` 는 interval 규칙이 갱신, `event` 는 규칙·행동 효과가 갱신, **`derived` 는 쓰기 금지** — 등록된 파생식(다른 상태들의 함수)으로 읽기 시점 계산하며 modify 시도는 오류다.
+- `StateSchema.observable`/`observationChannels`(§9)는 인식 계층과의 계약: 상태 변경이 신호로 노출될 수 있는지와 그 채널을 선언한다. 규칙·행동의 `ObservationEffect` 는 이 선언과 일치해야 하며(불일치는 검증 오류 — §34 `state.schema` 의 일부), 비관찰(observable=false) 상태는 어떤 신호로도 노출되지 않는다 — 믿음 분리(§10)의 데이터 근거.
 
 ### 1.2 주체 실행 사이클 (§27 12단계)
 
