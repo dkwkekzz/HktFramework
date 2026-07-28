@@ -8,6 +8,7 @@
 2. **§2.1의 3계층 분리를 코드 경계로 삼는다.** World Generation Time(`generation/`), World Runtime(`core/`), Presentation Time(`rendering/` + Event Interpreter)은 서로 직접 의존하지 않고 `WorldDefinition` / `WorldState` / `WorldEvent` 데이터로만 연결된다.
 3. **결정론이 전 단계의 전제다.** §39·§44-12(같은 시드 → 같은 결과)는 마지막에 붙일 수 없으므로, 시드 RNG·이벤트 스케줄러·저장 구조를 Phase 0으로 최우선 구축한다.
 4. **각 Phase는 실행 가능한 검증물(DoD)로 닫는다.** 다음 Phase는 이전 Phase의 DoD 산출물 위에서만 시작한다.
+5. **렌더링 속성은 ViewModel 로 완전히 분리한다.** 파이프라인은 `세계 상태 → ViewModel 빌더 → 렌더러(속성 그대로)` 로 고정한다. 렌더러·UI 는 `WorldState`/`WorldDefinition`/사건 원본을 직접 읽을 수 없고 **오직 ViewModel 속성만** 참조한다. ViewModel 은 "무엇을 어떻게 그릴지"가 아니라 "표시 대상의 속성"만 담으며, 시뮬레이션 의미 해석은 전부 빌더에서 끝낸다. 따라서 표현 방식이 바뀌어도(텍스트→Canvas→3D) 변경은 `rendering/` 내부로 국한되고 코어·빌더·ViewModel 스키마에는 **한 줄의 변경도 발생하지 않는다**. (HktFeature 트랙 불변 원칙 ③과 동일 구조. 경계 확립: Phase 0 §0.6, 본 구현: Phase 8)
 
 ## Phase 목록
 
@@ -51,7 +52,7 @@ Phase 8 (표현 고도화)
 
 - TypeScript(strict) + Vite. 시뮬레이션 코어는 DOM 비의존(§38 Worker 실행 + headless 테스트 겸용).
 - 테스트: Vitest. 모든 Phase 의 DoD 는 headless 테스트로 자동화한다.
-- 렌더링: Canvas 2D (§13 "그래프 + 2D 좌표" 공간 모델에 충분). 프레임워크 도입 없음 — §43 "시각적 완성도가 첫 목표가 아니다".
+- 렌더링: Canvas 2D (§13 "그래프 + 2D 좌표" 공간 모델에 충분). 프레임워크 도입 없음 — §43 "시각적 완성도가 첫 목표가 아니다". 렌더러는 ViewModel 만 소비하는 순수·교체 가능 모듈(분해 원칙 5).
 - 생성 AI 연동(Phase 5·8): `TextGenerationPort` 인터페이스 뒤에 격리. 코어와 검증은 AI 없이 항상 실행 가능해야 한다(§2.1).
 
 ## 프로토타입 완료 조건(§44) ↔ Phase 매핑

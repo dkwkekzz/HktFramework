@@ -8,17 +8,34 @@
 
 ## 산출 모듈
 
-- `rendering/`(§37): `WorldMapRenderer` / `EntityRenderer` / `SignalRenderer` / `EventOverlay` — Canvas 2D
+- `viewmodel/` — SceneViewModel 스키마 완성(지도·신호·사건·패널 필드) + 화면별 빌더. **시뮬레이션 의미 해석은 전부 여기서 끝난다.**
+- `rendering/`(§37): `WorldMapRenderer` / `EntityRenderer` / `SignalRenderer` / `EventOverlay` — Canvas 2D. ViewModel 속성을 **그대로** 그리는 순수 소비자.
 - `app/`(§37): `WorldSeedPage`(Phase 5 완성분 다듬기) / `WorldEditorPage` / `SimulationPage` / `EventInspectorPage`
-- `presentation/EventInterpreter.ts` — 사건·관찰·대화의 문장화 (§3 블록 6, §33.3)
+- `presentation/EventInterpreter.ts` — 사건·관찰·대화의 문장화 (§3 블록 6, §33.3). 출력 문장은 ViewModel 의 텍스트 필드로만 게시.
 
 ## 상세 설계
+
+### 8.0 ViewModel 파이프라인 (분해 원칙 5 — 이 Phase 의 최상위 제약)
+
+Phase 0 §0.6 에서 확립한 경계를 전 화면 규모로 완성한다.
+
+```
+WorldState patch / 사건 / 믿음·기억·관계     (시뮬레이션 속성)
+        ↓  ViewModelBuilder — 의미 해석·모드 필터·좌표 정규화 전부 여기서
+SceneViewModel                               (렌더링 속성 — 표현 중립)
+        ↓  렌더러/페이지 — 속성 그대로 매핑, 해석 없음
+Canvas / DOM                                 (표현)
+```
+
+- **렌더링 속성의 완결성**: 렌더러가 그리는 데 필요한 모든 값(정규화 좌표, 심볼 키, 강도 0~1, 색상 키, 라벨 문자열, 타임라인 항목)은 ViewModel 에 이미 들어 있다. 렌더러에 `if (danger > 50)` 같은 시뮬레이션 값 해석이 한 줄이라도 있으면 설계 위반 — 그 판단은 빌더가 `colorKey: "danger-high"` 처럼 속성으로 변환해 넘긴다.
+- **표현 방식 변경의 격리 증명**: 같은 SceneViewModel 을 소비하는 두 번째 렌더러(텍스트 덤프 렌더러 — 어차피 테스트용으로 필요)를 유지한다. Canvas 렌더러를 어떻게 바꾸든 텍스트 렌더러·빌더·코어의 diff 가 0 임을 리뷰 기준으로 삼는다. 역방향도 동일: 새 표현 요구가 빌더 변경을 유발하는 경우는 "새 속성 추가"뿐이며, 기존 속성의 의미 변경은 금지.
+- **모드는 빌더의 입력이다**: 개발자/플레이어 모드(§36.3)는 렌더러 분기가 아니라 빌더 파라미터. 플레이어 모드 빌더는 믿음+discovered 밖의 데이터를 ViewModel 에 넣지 않는다(Phase 7 지식 필터 재사용) — 렌더러는 자기가 어느 모드인지 모른다.
 
 ### 8.1 화면별 구성 (§36 명세 그대로)
 
 **세계 생성 화면(§36.1)** — Phase 5 에서 기능 확보됨. 생성 구조 검토를 WorldEditorPage 로 승격: 단계 아티팩트 트리 뷰 + 개별 항목 재생성 버튼(Phase 6 증분 재실행 호출).
 
-**월드 지도 화면(§36.2)** — 2D 지역 지도(RegionDefinition bounds + SpaceConnection 그래프), 지역 기후·위험도(baseStates 색상 레이어), 이동 중 주체(patch 스트림 기반 보간), 자원 분포, 발생 중 사건(EventOverlay 아이콘 + 반경), 시간 배속 조절(§38 `advance_time` 배율).
+**월드 지도 화면(§36.2)** — 2D 지역 지도(지역 형상·연결 그래프), 지역 기후·위험도(색상 키 레이어), 이동 중 주체(위치 보간), 자원 분포, 발생 중 사건(오버레이 심볼 + 반경), 시간 배속 조절(§38 `advance_time` 배율). 이 모든 표시 재료는 빌더가 RegionDefinition·patch·사건에서 ViewModel 의 `map`/`entities`/`overlays` 필드로 변환한 것 — 렌더러는 Definition 타입을 모른다.
 
 **주체 관찰 화면(§36.3)** — 목록 8항목 그대로: 실제 상태 / 믿음 상태 / 활성 목적 / 목적 그래프(활성도 값 포함 — Phase 3 디버그 산출 근거 사용) / 현재 행동 / 기억 / 관계 / 능력과 제약. **개발자 모드 = 실제+믿음 병렬 표시, 플레이어 모드 = 관찰 가능한 현상만**(§36.3 말미) — Phase 7 지식 필터를 화면 전환기로 노출.
 
@@ -34,22 +51,25 @@
 
 ### 8.3 연출 요소 (§42-8 목록)
 
-- 캐릭터 아이콘: 종족·조직 태그 기반 심볼 조합(에셋 저작 최소화 — §43 시각 완성도는 목표 아님).
-- 능력 효과·사건 연출: `ObservationSignal`/`observableSignals` 를 SignalRenderer 가 채널별 시각 언어(파문·잔광·아이콘)로 표시 — **연출도 신호 데이터에서만 파생**, 별도 연출 스크립트 없음.
+- 캐릭터 아이콘: 빌더가 종족·조직 태그를 심볼 키로 변환해 ViewModel 에 싣고, 렌더러가 키→글리프 매핑만 담당(에셋 저작 최소화 — §43 시각 완성도는 목표 아님). 아이콘 스타일 교체는 렌더러의 매핑 테이블 교체일 뿐이다.
+- 능력 효과·사건 연출: `ObservationSignal`/`observableSignals` 를 빌더가 `{channelKey, intensity, position, ttl}` 속성으로 변환하고 SignalRenderer 가 채널 키별 시각 언어(파문·잔광·아이콘)로 표시 — **연출도 신호 속성에서만 파생**, 별도 연출 스크립트 없음.
 
 ## 구현 스텝
 
-1. WorldMapRenderer + patch 구독 (지역·연결·개체·자원).
-2. EventOverlay + 시간 배속 UI.
-3. 주체 관찰 화면 (개발자/플레이어 모드 전환).
-4. 사건 화면 (타임라인 + 알려진/실제 병렬).
-5. EventInterpreter (6종 생성 + 캐시 + 템플릿 폴백 + 읽기 전용 강제).
-6. 아이콘·신호 연출.
-7. §44 완료 조건 13항 전수 점검 시나리오 실행.
+1. ViewModel 스키마 완성 + 화면별 빌더(모드 파라미터 포함) + 텍스트 덤프 렌더러.
+2. WorldMapRenderer (지역·연결·개체·자원).
+3. EventOverlay + 시간 배속 UI.
+4. 주체 관찰 화면 (개발자/플레이어 모드 = 빌더 파라미터 전환).
+5. 사건 화면 (타임라인 + 알려진/실제 병렬).
+6. EventInterpreter (6종 생성 + 캐시 + 템플릿 폴백 + 읽기 전용 강제).
+7. 아이콘·신호 연출.
+8. §44 완료 조건 13항 전수 점검 시나리오 실행.
 
 ## 완료 조건 (DoD)
 
 - [ ] §36 의 4개 화면이 각 명세 항목을 전부 표시한다.
+- [ ] 렌더러·페이지가 SceneViewModel 이외의 타입을 import 하지 않는다(린트로 상시 강제) + 렌더러 내부에 시뮬레이션 값 해석 분기가 없다(리뷰 체크).
+- [ ] 텍스트 덤프 렌더러와 Canvas 렌더러가 같은 SceneViewModel 로 동작한다 — 표현 방식 교체 시 `rendering/` 밖 diff 0 증명.
 - [ ] 개발자 모드에서 실제/믿음 이 병렬로 보이고, 플레이어 모드에서 관찰된 것만 보인다.
 - [ ] 사건 화면에서 "알려진 정보" 와 "실제 원인" 이 분리 표시된다.
 - [ ] Interpreter 생성 문장에 unknownFacts 내용이 포함되지 않는다(자동 검사: 금지 사실 키워드 대조).
