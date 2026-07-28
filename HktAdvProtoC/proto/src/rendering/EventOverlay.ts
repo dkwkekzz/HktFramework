@@ -2,6 +2,7 @@
 //
 // 사건의 자리·반경·강도·시급도는 모두 빌더가 만든 속성이다. 여기서는 그것을 원과 글리프로 옮긴다.
 import type { SceneMap, SceneOverlay } from "../viewmodel/SceneViewModel";
+import type { LabelLayout } from "./LabelLayout";
 import { colorOf, glyphOf } from "./palette";
 import { toPixel } from "./WorldMapRenderer";
 import type { SceneSurface } from "./SceneSurface";
@@ -9,22 +10,22 @@ import type { SceneSurface } from "./SceneSurface";
 export class EventOverlayRenderer {
   constructor(private readonly surface: SceneSurface) {}
 
-  render(map: SceneMap): void {
-    for (const overlay of map.overlays) this.draw(overlay);
+  render(map: SceneMap, labels: LabelLayout): void {
+    for (const overlay of map.overlays) this.draw(overlay, labels);
   }
 
-  private draw(overlay: SceneOverlay): void {
+  private draw(overlay: SceneOverlay, labels: LabelLayout): void {
     const point = toPixel(this.surface, overlay.point);
     const radius = overlay.radius * Math.min(this.surface.width, this.surface.height);
     const color = colorOf(overlay.colorKey);
 
-    // 반경 — 사건이 미치는 자리
+    // 반경 — 사건이 미치는 자리. 채움은 옅게, 개체가 그 아래에서도 읽히게
     this.surface.circle({
       x: point.x,
       y: point.y,
       r: radius,
       fill: color,
-      alpha: 0.12 + overlay.intensity * 0.2,
+      alpha: 0.07 + overlay.intensity * 0.12,
     });
     // 진행 중인 사건은 실선 테두리, 종결된 사건은 옅은 테두리 (ongoing 은 빌더가 판정한 속성이다)
     this.surface.circle({
@@ -35,21 +36,12 @@ export class EventOverlayRenderer {
       lineWidth: overlay.ongoing ? 2 : 1,
       alpha: overlay.ongoing ? 0.5 + overlay.urgency * 0.5 : 0.3,
     });
-    this.surface.text({
-      x: point.x,
-      y: point.y - radius - 14,
-      text: `${glyphOf(overlay.symbolKey)} ${overlay.label}`,
-      size: 11,
-      align: "center",
-      fill: "#f2d38c",
-    });
-    this.surface.text({
-      x: point.x,
-      y: point.y - radius - 2,
-      text: `참여 ${overlay.participantCount} · 시급 ${overlay.urgency.toFixed(2)}`,
-      size: 9,
-      align: "center",
-      fill: "#c9b27a",
-    });
+    // 제목·수치 두 줄 — 겹치면 배치기가 빈 줄로 밀고, 수치 줄은 제목이 놓인 자리를 따라간다
+    const title = `${glyphOf(overlay.symbolKey)} ${overlay.label}`;
+    const titleSpot = labels.place(point.x, point.y - radius - 14, title, 11, "center");
+    this.surface.text({ x: titleSpot.x, y: titleSpot.y, text: title, size: 11, align: "center", fill: "#f2d38c" });
+    const stats = `참여 ${overlay.participantCount} · 시급 ${overlay.urgency.toFixed(2)}`;
+    const statsSpot = labels.place(titleSpot.x, titleSpot.y + 12, stats, 9, "center");
+    this.surface.text({ x: statsSpot.x, y: statsSpot.y, text: stats, size: 9, align: "center", fill: "#c9b27a" });
   }
 }

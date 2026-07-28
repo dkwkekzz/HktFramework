@@ -4,6 +4,7 @@
 // **그림자를 가진 입체 도형**(구체·결정·피라미드·큐브·깃발)으로 보인다.
 // 종족·조직이 늘어나도 이 파일은 바뀌지 않는다 — 늘어나는 것은 빌더가 만드는 키와 이 표의 항목이다.
 import type { SceneMapMarker, SceneMap, ScenePoint } from "../viewmodel/SceneViewModel";
+import type { LabelLayout } from "./LabelLayout";
 import { colorOf } from "./palette";
 import { toPixel } from "./WorldMapRenderer";
 import type { SceneSurface } from "./SceneSurface";
@@ -94,14 +95,14 @@ const SHAPES: Record<string, ShapeDrawer> = {
 export class EntityRenderer {
   constructor(private readonly surface: SceneSurface) {}
 
-  render(map: SceneMap): void {
+  render(map: SceneMap, labels: LabelLayout): void {
     // 자원·장소는 배경 층, 주체는 그 위 — 겹칠 때 사람이 먼저 보인다
-    for (const marker of map.places) this.drawMarker(marker, 0.8);
-    for (const marker of map.resources) this.drawMarker(marker, 0.9);
-    for (const marker of map.markers) this.drawMarker(marker, 1);
+    for (const marker of map.places) this.drawMarker(marker, 0.8, labels);
+    for (const marker of map.resources) this.drawMarker(marker, 0.9, labels);
+    for (const marker of map.markers) this.drawMarker(marker, 1, labels);
   }
 
-  private drawMarker(marker: SceneMapMarker, alpha: number): void {
+  private drawMarker(marker: SceneMapMarker, alpha: number, labels: LabelLayout): void {
     const point = toPixel(this.surface, marker.point);
     const size = marker.size * Math.min(this.surface.width, this.surface.height);
 
@@ -151,10 +152,12 @@ export class EntityRenderer {
       });
     }
 
-    // 이름표만 남긴다 — 상태 나열(배지)은 관찰 패널·텍스트 렌더러의 몫이다
+    // 이름표만 남긴다 — 상태 나열(배지)은 관찰 패널·텍스트 렌더러의 몫이다.
+    // 겹치면 배치기가 위·아래 빈 줄로 밀어 준다
+    const spot = labels.place(point.x, point.y + size * 1.9, marker.label, 10, "center");
     this.surface.text({
-      x: point.x,
-      y: point.y + size * 1.9,
+      x: spot.x,
+      y: spot.y,
       text: marker.label,
       size: 10,
       align: "center",

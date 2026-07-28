@@ -3,6 +3,7 @@
 // SceneMap 의 속성을 **그대로** 그린다. 좌표는 이미 0~1 정규화되어 있으므로 픽셀 변환만 하고,
 // 색은 colorKey 를 표에서 찾기만 한다 — 이 파일에 시뮬레이션 값 해석은 한 줄도 없다(§8.0).
 import type { SceneMap, ScenePoint } from "../viewmodel/SceneViewModel";
+import type { LabelLayout } from "./LabelLayout";
 import { colorOf } from "./palette";
 import type { SceneSurface } from "./SceneSurface";
 
@@ -14,15 +15,15 @@ export function toPixel(surface: SceneSurface, point: ScenePoint): ScenePoint {
 export class WorldMapRenderer {
   constructor(private readonly surface: SceneSurface) {}
 
-  render(map: SceneMap): void {
+  render(map: SceneMap, labels: LabelLayout): void {
     this.surface.clear();
     // 어두운 바탕 — 지역·개체가 그 위에 떠오른다
     this.surface.rect({ x: 0, y: 0, w: this.surface.width, h: this.surface.height, fill: colorOf("map-bg") });
     this.drawConnections(map);
-    this.drawRegions(map);
+    this.drawRegions(map, labels);
   }
 
-  private drawRegions(map: SceneMap): void {
+  private drawRegions(map: SceneMap, labels: LabelLayout): void {
     for (const region of map.regions) {
       const x = region.rect.x * this.surface.width;
       const y = region.rect.y * this.surface.height;
@@ -36,8 +37,9 @@ export class WorldMapRenderer {
         this.surface.rect({ x, y, w, h, fill: colorOf("marker-shadow"), alpha: region.elevationShade * 0.25 });
       }
       this.surface.rect({ x, y, w, h, stroke: colorOf(region.dangerKey), lineWidth: 2, alpha: 0.9 });
-      // 이름표 하나만 — 상태 나열(배지·태그)은 패널·텍스트 렌더러의 몫이다
-      this.surface.text({ x: x + 8, y: y + 14, text: region.label, size: 12, fill: colorOf("label") });
+      // 이름표 하나만 — 상태 나열(배지·태그)은 패널·텍스트 렌더러의 몫이다. 자리는 배치기가 선점해 둔다
+      const spot = labels.place(x + 8, y + 14, region.label, 12);
+      this.surface.text({ x: spot.x, y: spot.y, text: region.label, size: 12, fill: colorOf("label") });
     }
   }
 

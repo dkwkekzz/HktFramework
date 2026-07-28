@@ -104,13 +104,16 @@ export class MapProjection {
     return rect === undefined ? undefined : { x: rect.x + rect.w / 2, y: rect.y + rect.h / 2 };
   }
 
-  /** 지역 반경 대비 정규화 — 사건 반경(3D 거리)을 화면 반경으로 옮긴다 */
+  /**
+   * 지역 반경 대비 정규화 — 사건 반경(3D 거리)을 화면 반경으로 옮긴다.
+   * 상한 0.14: 사건 하나가 지도 절반을 덮으면 "어디서 일어났는가"가 사라진다 — 표시는 자리 표식이지 영향 범위 지도가 아니다.
+   */
   normalizeRadius(regionId: string, radius: number): number {
     const rect = this.rects.get(regionId);
     const region = this.regions.get(regionId);
     if (rect === undefined || region === undefined) return 0.02;
     const span = Math.max(region.bounds.width, region.bounds.height, 1);
-    return Math.min(0.5, Math.max(0.01, (radius / span) * Math.max(rect.w, rect.h)));
+    return Math.min(0.14, Math.max(0.02, (radius / span) * Math.max(rect.w, rect.h) * 0.75));
   }
 }
 
