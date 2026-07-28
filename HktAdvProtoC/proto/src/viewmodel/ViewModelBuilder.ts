@@ -4,6 +4,7 @@ import type { PlayerKnowledgeView, PlayerKnownEntity } from "../shared/player";
 import type { EntityState, WorldStatePatch } from "../shared/state";
 import { tickToDay, tickToMinuteOfDay } from "../shared/time";
 import {
+  createEmptyMap,
   createEmptyScene,
   type SceneActionOption,
   type SceneBadge,
@@ -13,6 +14,7 @@ import {
   type SceneJournalEntry,
   type ScenePlayerPanel,
   type SceneViewModel,
+  type SceneViewPayload,
 } from "./SceneViewModel";
 
 /** 표시용 값 변환 — 소수점 정리·빈 값 제거는 표현이 아니라 "표시 대상 선별"이므로 빌더의 몫이다 */
@@ -99,12 +101,20 @@ export class ViewModelBuilder {
   private speed = 1;
   private initialized = false;
   private playerView: PlayerKnowledgeView | undefined;
+  /** 시뮬레이션 쪽 빌더가 만든 표시 재료 (§36.2~§36.4) — 여기서는 담기만 한다 */
+  private payload: SceneViewPayload | undefined;
 
   markInitialized(): void {
     this.initialized = true;
     this.entities.clear();
     this.globals.clear();
     this.playerView = undefined;
+    this.payload = undefined;
+  }
+
+  /** 지도·사건·주체 패널 (§36.2~§36.4) — 이미 해석이 끝난 속성이므로 그대로 장면에 얹는다 */
+  setSceneView(payload: SceneViewPayload): void {
+    this.payload = payload;
   }
 
   /** 코어가 지식 필터를 통과시켜 보낸 데이터 — 빌더는 표시 속성으로 옮기기만 한다 */
@@ -136,11 +146,27 @@ export class ViewModelBuilder {
     scene.time = this.time;
     scene.day = tickToDay(this.time);
     scene.minuteOfDay = tickToMinuteOfDay(this.time);
+    scene.clock =
+      `${scene.day}일차 ${String(Math.floor(scene.minuteOfDay / 60)).padStart(2, "0")}:` +
+      `${String(scene.minuteOfDay % 60).padStart(2, "0")}`;
     scene.speed = this.speed;
     scene.initialized = this.initialized;
     scene.globalBadges = [...this.globals.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => ({ key, value }));
+
+    const payload = this.payload;
+    if (payload !== undefined) {
+      scene.modeKey = payload.modeKey;
+      scene.speed = payload.speed;
+      scene.map = payload.map;
+      scene.events = payload.events;
+      scene.agentChoices = payload.agentChoices;
+      if (payload.agentPanel !== undefined) scene.agentPanel = payload.agentPanel;
+      if (payload.eventDetail !== undefined) scene.eventDetail = payload.eventDetail;
+    } else {
+      scene.map = createEmptyMap();
+    }
 
     const player = this.playerView;
     if (player === undefined) {

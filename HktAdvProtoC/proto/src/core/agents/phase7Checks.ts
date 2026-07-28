@@ -117,6 +117,12 @@ export interface PlayerScenarioResult {
   executionPaths: SharedExecution[];
   /** §29 playerRelevance — 조작 중인 주체가 있을 때만 0 이 아니다 */
   playerRelevantEvents: number;
+  /**
+   * 시나리오가 끝난 시점의 런타임.
+   * Phase 8 의 화면 검증이 **같은 시나리오**를 다시 돌리지 않고 이 세계를 그대로 그려 보기 위한 것이다 —
+   * 보고에 실린 수치와 화면에 실린 수치가 갈라질 수 없게 한다.
+   */
+  runtime: WorldRuntime;
 }
 
 function pickOption(
@@ -476,6 +482,7 @@ export async function runPlayerScenario(
     playerRelevantEvents: runtime.state.events.events.filter(
       (event) => event.significanceBreakdown.playerRelevance > 0,
     ).length,
+    runtime,
   };
   if (intervention !== undefined) result.intervention = intervention;
   const consequence = findConsequence(runtime, playerId);

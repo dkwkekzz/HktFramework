@@ -8,6 +8,8 @@ import { checkFirstWorldItems, checkScale } from "../generation/phase5Checks";
 
 export interface GenerationStepView {
   index: number;
+  /** 단계 id — §36.1 승격분(항목 재생성)이 이 키로 증분 재실행을 요청한다 (Phase-6 §6.3) */
+  id: string;
   title: string;
   /** ok=생성됨, reused=아티팩트 재사용, failed=중단 */
   status: "ok" | "reused" | "failed";
@@ -61,6 +63,7 @@ export function buildGenerationView(
     const json = artifact === undefined ? "" : JSON.stringify(artifact.data, null, 2);
     return {
       index: step.index,
+      id: step.id,
       title: step.title,
       status: step.status,
       summary: step.summary,

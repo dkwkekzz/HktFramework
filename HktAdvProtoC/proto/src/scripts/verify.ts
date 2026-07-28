@@ -25,6 +25,16 @@ import {
   summarizeEvents,
 } from "../core/events/phase4Checks";
 import { runAbilityChecks } from "../core/rules/abilityChecks";
+import {
+  auditNarration,
+  checkRendererImports,
+  checkRendererParity,
+  checkScreenItems,
+  compareModes,
+  evaluateGate44,
+  sceneOf,
+} from "../viewmodel/phase8Checks";
+import { buildScenePayload } from "../viewmodel/ScenePayloadBuilder";
 import { runCapabilityChecks } from "../core/rules/capabilities";
 import {
   BASELINE_SEEDS,
@@ -67,6 +77,8 @@ import type { WorldRuntime } from "../core/world/WorldRuntime";
 const BEAST = "creature.echo_beast_mother";
 const VILLAGE = "faction.silent_village";
 const AGENTS = ["agent.kael", "agent.mar", "agent.ren", "agent.rion", BEAST];
+/** 개입 시나리오에서 사용자가 조작하는 주체 (§31 — 새 개체가 아니라 살던 사냥꾼) */
+const PLAYER_AGENT = "agent.kael";
 
 function arg(name: string, fallback: number): number {
   const found = process.argv.find((value) => value.startsWith(`--${name}=`));
@@ -95,13 +107,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3 | 4 | 5 | 6 | 7;
+  phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 = 1;
+let phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -842,8 +854,184 @@ check(
   `시드 ${worldSeed} 해시 ${active.logHash}(${active.changeCount}건) · 재실행 ${activeAgain.logHash} · 시드 ${worldSeed + 1} ${activeOther.logHash}`,
 );
 
+// =====================================================================================
+// Phase 8 — 표현 고도화 (§36 4개 화면, §33.3 Event Interpreter, §42-8, §44 최종 게이트)
+// =====================================================================================
+phase = 8;
+
+// 화면은 개입 시나리오가 끝난 그 세계를 그린다 — 보고에 실린 수치와 화면의 수치가 같은 출처를 갖는다
+const sceneRuntime = active.runtime;
+const topEvent = eventsBySignificance(sceneRuntime)[0];
+const sceneFocus = {
+  agentId: PLAYER_AGENT,
+  ...(topEvent === undefined ? {} : { eventId: topEvent.id }),
+};
+const developerScene = buildScenePayload(sceneRuntime, { mode: "developer", ...sceneFocus });
+const playerScene = buildScenePayload(sceneRuntime, { mode: "player", ...sceneFocus });
+// "현재 행동" 표시는 지금 무언가를 하고 있는 주체로 판정한다 (쉬는 주체에게 행동이 없는 것은 정상이다)
+const actingId = sceneRuntime.agentIds().find((id) => sceneRuntime.agentRuntime(id).currentAction !== null);
+const actingScene =
+  actingId === undefined
+    ? undefined
+    : buildScenePayload(sceneRuntime, { mode: "developer", agentId: actingId });
+
+// --- DoD 1 : §36 네 화면이 명세 항목을 전부 표시한다 ------------------------------------
+const screenItems = checkScreenItems(developerScene, playerScene, {
+  steps: compiled.steps.length,
+  scaleRows: scaleRows.length,
+  artifacts: compiled.artifacts.list().length,
+  inputs: 3,
+}, actingScene?.agentPanel);
+const screensByGroup = new Map<string, { ok: number; total: number }>();
+for (const row of screenItems) {
+  const group = screensByGroup.get(row.screen) ?? { ok: 0, total: 0 };
+  group.total += 1;
+  if (row.ok) group.ok += 1;
+  screensByGroup.set(row.screen, group);
+}
+check(
+  screenItems.every((row) => row.ok),
+  `§36 네 화면 명세 항목 ${screenItems.filter((row) => row.ok).length}/${screenItems.length} 표시 ` +
+    `(${[...screensByGroup.entries()].map(([group, stat]) => `${group} ${stat.ok}/${stat.total}`).join(" · ")})`,
+  screenItems.map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.screen} ${row.item} — ${row.evidence}`).join(""),
+);
+
+// --- DoD 2 : 렌더러는 SceneViewModel 밖의 타입을 모른다 ---------------------------------
+const rendererImports = checkRendererImports("src/rendering");
+const rendererViolations = rendererImports.flatMap((report) =>
+  report.violations.map((specifier) => `${report.file}→${specifier}`),
+);
+check(
+  rendererViolations.length === 0 && rendererImports.length > 0,
+  `rendering/ ${rendererImports.length}개 파일이 SceneViewModel 밖의 타입을 import 하지 않는다 (린트로도 상시 강제)`,
+  rendererImports
+    .map((report) => `${report.file}(${report.imports.length}건)`)
+    .join(" · ") + (rendererViolations.length === 0 ? "" : `\n      위반 ${rendererViolations.join(", ")}`),
+);
+
+// --- DoD 3 : 텍스트 덤프 렌더러와 Canvas 렌더러가 같은 ViewModel 로 동작한다 ------------
+const parity = checkRendererParity(sceneOf(developerScene));
+check(
+  parity.missingInCanvas.length === 0 && parity.missingInText.length === 0 && parity.canvasOps > 0,
+  "같은 SceneViewModel → Canvas 렌더러 + 텍스트 덤프 렌더러 (표현 교체 시 rendering/ 밖 diff 0)",
+  `Canvas 그리기 ${parity.canvasOps}회(문자 ${parity.canvasTexts}) · 텍스트 ${parity.textLines}줄 · ` +
+    `두 표현이 함께 실은 표시 대상 ${parity.sharedKeys.length}개 · 누락 Canvas ${parity.missingInCanvas.length} / 텍스트 ${parity.missingInText.length}`,
+);
+
+// --- DoD 4 : 개발자 모드 = 실제+믿음 병렬 / 플레이어 모드 = 관찰된 것만 ------------------
+const contrast = compareModes(sceneRuntime, BEAST, topEvent?.id);
+check(
+  contrast.developerActualRows > 0 &&
+    contrast.playerActualRows === 0 &&
+    contrast.playerHidden > 0 &&
+    contrast.leaks.length === 0 &&
+    contrast.playerMarkers <= contrast.developerMarkers,
+  `§36.3 모드 전환은 빌더의 입력이다 — 같은 세계·같은 주체(${BEAST.split(".")[1]})의 두 시점`,
+  `개발자: 상태 ${contrast.developerRows}항(실제값 ${contrast.developerActualRows}) · 어긋남 ${contrast.divergentRows}항 · ` +
+    `사건 ${contrast.developerEvents}건 · 지도 주체 ${contrast.developerMarkers}명\n` +
+    `      플레이어: 상태 ${contrast.playerRows}항(실제값 ${contrast.playerActualRows}) · 감춰짐 ${contrast.playerHidden}종 · ` +
+    `사건 ${contrast.playerEvents}건 · 지도 주체 ${contrast.playerMarkers}명 · 필터 위반 ${contrast.leaks.length}건\n` +
+    `      개발자 모드에서만 보이는 어긋남 — ` +
+    (contrast.divergences.slice(0, 3).map((entry) => `${entry.key} 실제 ${entry.actual} ≠ 믿음 ${entry.believed}`).join(" / ") || "없음"),
+);
+
+// --- DoD 5 : 사건 화면에서 "알려진 정보" 와 "실제 원인" 이 분리된다 ----------------------
+const devDetail = developerScene.eventDetail;
+const playerDetail = playerScene.eventDetail;
+check(
+  devDetail !== undefined &&
+    devDetail.causeVisible &&
+    devDetail.actualCauses.length > 0 &&
+    playerDetail !== undefined &&
+    !playerDetail.causeVisible &&
+    playerDetail.actualCauses.length === 0,
+  "§36.4 알려진 정보 ↔ 실제 원인 분리 표시",
+  devDetail === undefined
+    ? "사건 상세 없음"
+    : `${devDetail.eventId}(${devDetail.type}) "${devDetail.title}"\n` +
+      `      개발자 — 실제 원인 ${devDetail.actualCauses.length}줄: ${devDetail.actualCauses[0] ?? ""}\n` +
+      `      플레이어 — 실제 원인 ${playerDetail?.actualCauses.length ?? 0}줄 (감춰짐) · 아는 사실 ${playerDetail?.knownFacts.length ?? 0}건 · ` +
+      `아는 참여자 ${playerDetail?.knownParticipantCount ?? 0} / 모르는 참여자 ${playerDetail?.unknownParticipantCount ?? 0}\n` +
+      `      결과 ${devDetail.results.length}항 · 타임라인 ${devDetail.timeline.length}줄 · 개입 기록 ${playerDetail?.interventions.length ?? 0}건 · 후속 ${devDetail.followUps.length}건`,
+);
+
+// --- DoD 6·7 : unknownFacts 누출 0 + AI 포트 없이 전 화면 동작 ---------------------------
+const narration = await auditNarration(sceneRuntime, PLAYER_AGENT);
+check(
+  narration.leaks.length === 0 && narration.withForbidden > 0 && narration.rejectedFromPort > 0,
+  `§33.3 표현 생성 6종 — 금지 사실 누출 ${narration.leaks.length}건 (검사한 문장 ${narration.sentences}개)`,
+  `요청 ${narration.requests}건 중 금지 사실을 가진 요청 ${narration.withForbidden}건 · 금지 사실 총 ${narration.forbiddenFacts}개 ` +
+    `(막을 것이 있었다는 증거)\n` +
+    `      누출 포트를 붙였을 때 폐기된 문장 ${narration.rejectedFromPort}개 — 새는 문장이 화면에 오르는 경로가 없다\n` +
+    `      캐시 적중 ${narration.cacheHits}/${narration.requests} · 예시 제목 ${narration.sampleTitles.map((title) => `"${title}"`).join(" ")}`,
+);
+
+const templateOnlyScreens = [
+  developerScene.eventDetail?.title,
+  developerScene.eventDetail?.summarySentence,
+  developerScene.eventDetail?.rumor,
+  developerScene.eventDetail?.document,
+  developerScene.agentPanel?.narration[0],
+  developerScene.events[0]?.title,
+];
+check(
+  templateOnlyScreens.every((text) => text !== undefined && text.length > 0),
+  "AI 포트 없이(템플릿 폴백) 전 화면이 문장을 갖는다 (§2.1 표현 계층 분리)",
+  templateOnlyScreens
+    .map((text, index) => `${["사건 제목", "사건 요약", "소문", "문서", "관찰 묘사", "목록 제목"][index]} ${text === undefined || text.length === 0 ? "✗" : `"${text.slice(0, 34)}…"`}`)
+    .join(" · "),
+);
+
+// --- DoD 8 : §44 프로토타입 완료 조건 13항 (최종 게이트) --------------------------------
+const browserHost = new InlineHost();
+const bootResponses = await browserHost.request({ type: "initialize_world", worldSeed, world: "manual" });
+const tickResponses = await browserHost.request({ type: "advance_time", amount: TICKS_PER_DAY });
+const boundaryOk =
+  bootResponses.some((response) => response.type === "world_initialized") &&
+  bootResponses.some((response) => response.type === "scene_view") &&
+  tickResponses.some((response) => response.type === "state_patch") &&
+  tickResponses.some((response) => response.type === "scene_view");
+
+const gate = evaluateGate44({
+  manual: runtime,
+  player: {
+    runtime: sceneRuntime,
+    playerId: PLAYER_AGENT,
+    logHash: active.logHash,
+    repeatLogHash: activeAgain.logHash,
+    otherSeedLogHash: activeOther.logHash,
+    interventionCategories: active.intervention?.categories ?? [],
+    growthCount: active.growth.length,
+    performedModes: active.performedModes,
+  },
+  generated: {
+    definition: generated,
+    themeCount: FIRST_WORLD_SEED_INPUT.themes.length,
+    stepCount: compiled.artifacts.list().length,
+    storedBytes: compiled.repository.load(FIRST_WORLD_ID) === undefined ? 0 : JSON.stringify(compiled.repository.load(FIRST_WORLD_ID)).length,
+    reloadedId: compiled.repository.load(FIRST_WORLD_ID)?.metadata.id,
+    scaleOk: scaleRows.every((row) => row.ok),
+    expectationsOk: firstWorldItems.every((entry) => entry.ok),
+  },
+  scene: { developer: developerScene, player: playerScene },
+  browserRoundTrip: {
+    ok: boundaryOk,
+    evidence:
+      `§38 프로토콜 왕복 — initialize_world → state_patch/scene_view, advance_time(+1일) → patch ${
+        tickResponses.filter((response) => response.type === "state_patch").length
+      }건 · 화면 재료 동봉 (브라우저 실물 왕복은 npm run smoke 가 판정한다)`,
+  },
+  days,
+  agentIds: AGENTS,
+});
+check(
+  gate.every((row) => row.ok),
+  `§44 프로토타입 완료 조건 ${gate.filter((row) => row.ok).length}/13 통과 — 최종 게이트`,
+  gate.map((row) => `\n      ${row.ok ? "✓" : "✗"} ${String(row.index).padStart(2)}. ${row.title}\n         ${row.evidence}`).join(""),
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3, 4, 5, 6, 7] as const) {
+for (const current of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
@@ -858,7 +1046,9 @@ for (const current of [1, 2, 3, 4, 5, 6, 7] as const) {
               ? "Phase 5 완료 조건 — 세계 생성 컴파일러"
               : current === 6
                 ? "Phase 6 완료 조건 — 자동 검증과 수정"
-                : "Phase 7 완료 조건 — 플레이어 개입";
+                : current === 7
+                  ? "Phase 7 완료 조건 — 플레이어 개입"
+                  : "Phase 8 완료 조건 — 표현 고도화 + §44 최종 게이트";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);
