@@ -1,4 +1,4 @@
-// DoD: "같은 시드로 두 번 실행한 빈 세계 30일 진행이 상태 해시까지 동일하다"
+// DoD: "동일 시드 재실행 시 30일 로그가 동일하다" (Phase 0 은 빈 세계, Phase 1 부터는 수동 세계)
 // DoD: "동일 코어 코드가 Vitest(headless)와 Worker 양쪽에서 실행" — 이 테스트는 InlineHost 경로.
 import { describe, expect, it } from "vitest";
 import { hashValue } from "../../shared/hash";
@@ -43,12 +43,16 @@ describe("결정론 (§39, §44-12)", () => {
     expect(a).not.toBe(b);
   });
 
-  it("30일 동안 심장박동이 매일 발생한다 (스케줄러 반복 이벤트)", async () => {
+  it("interval 규칙이 30일 내내 반복 실행된다 (스케줄러 반복 이벤트)", async () => {
     const host = new InlineHost();
     await host.request({ type: "initialize_world", worldSeed: 7 });
     await host.request({ type: "advance_time", amount: 30 * TICKS_PER_DAY });
     const runtime = host.server.inspectRuntime()!;
-    expect(runtime.state.globalStates["heartbeatCount"]).toBe(30);
     expect(runtime.state.simulationTime).toBe(30 * TICKS_PER_DAY);
+    // 하루 주기 규칙(마을 식량 소비)이 30회 돌았어야 한다 — 로그로 확인
+    const consumption = runtime.state.changeLog.filter((change) =>
+      change.tags.includes("rule.village_food_consumption"),
+    );
+    expect(consumption.length).toBe(30);
   });
 });

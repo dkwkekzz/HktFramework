@@ -1,0 +1,478 @@
+{
+  "entities": [
+    {
+      "id": "region.village",
+      "type": "location",
+      "name": "마을",
+      "tags": [
+        "region",
+        "settlement",
+        "safe"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 50,
+        "y": 40,
+        "z": 0
+      },
+      "states": {
+        "danger": 12,
+        "food_abundance": 60,
+        "ability_residue": 0
+      }
+    },
+    {
+      "id": "region.silent_forest",
+      "type": "location",
+      "name": "침묵림",
+      "tags": [
+        "region",
+        "wild",
+        "dangerous"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 60,
+        "y": 60,
+        "z": 0
+      },
+      "states": {
+        "danger": 68,
+        "food_abundance": 420,
+        "ability_residue": 240
+      }
+    },
+    {
+      "id": "location.village_square",
+      "type": "location",
+      "name": "마을 광장",
+      "tags": [
+        "site",
+        "settlement"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 12,
+        "y": 14,
+        "z": 1
+      },
+      "states": {
+        "danger": 3,
+        "shelter_quality": 80
+      }
+    },
+    {
+      "id": "location.trade_road",
+      "type": "location",
+      "name": "교역로",
+      "tags": [
+        "site",
+        "road"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 62,
+        "y": 34,
+        "z": 3
+      },
+      "states": {
+        "danger": 24,
+        "shelter_quality": 10
+      }
+    },
+    {
+      "id": "location.forest_grove",
+      "type": "location",
+      "name": "숲 채집지",
+      "tags": [
+        "site",
+        "forage"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 44,
+        "y": 40,
+        "z": 7
+      },
+      "states": {
+        "danger": 45,
+        "shelter_quality": 5
+      }
+    },
+    {
+      "id": "location.beast_den",
+      "type": "location",
+      "name": "반향수 둥지",
+      "tags": [
+        "site",
+        "den"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 72,
+        "y": 62,
+        "z": 11
+      },
+      "states": {
+        "danger": 82,
+        "shelter_quality": 40
+      }
+    },
+    {
+      "id": "resource_node.grove_food",
+      "type": "resource",
+      "name": "숲 채집지의 먹이",
+      "tags": [
+        "food_source",
+        "harvestable"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 46,
+        "y": 42,
+        "z": 7
+      },
+      "states": {
+        "amount": 140,
+        "resource_id": "resource.food",
+        "regrowth": 12
+      }
+    },
+    {
+      "id": "resource_node.village_field",
+      "type": "resource",
+      "name": "마을 사냥터",
+      "tags": [
+        "food_source",
+        "harvestable"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 58,
+        "y": 30,
+        "z": 3
+      },
+      "states": {
+        "amount": 80,
+        "resource_id": "resource.food",
+        "regrowth": 6
+      }
+    },
+    {
+      "id": "resource_node.residue_field",
+      "type": "resource",
+      "name": "잔재가 고인 자리",
+      "tags": [
+        "residue_source",
+        "harvestable"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 66,
+        "y": 56,
+        "z": 9
+      },
+      "states": {
+        "amount": 90,
+        "resource_id": "resource.ability_residue",
+        "regrowth": 3
+      }
+    },
+    {
+      "id": "faction.silent_village",
+      "type": "faction",
+      "name": "침묵림 변두리 마을",
+      "tags": [
+        "faction",
+        "village"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 12,
+        "y": 16,
+        "z": 1
+      },
+      "states": {
+        "food_reserve": 80,
+        "fear": 20,
+        "threat_belief": 25,
+        "subjugation_ordered": false,
+        "research_progress": 0,
+        "member_count": 24
+      }
+    },
+    {
+      "id": "faction.research_society",
+      "type": "faction",
+      "name": "잔재 연구회",
+      "tags": [
+        "faction",
+        "research"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 22,
+        "y": 20,
+        "z": 1
+      },
+      "states": {
+        "food_reserve": 120,
+        "fear": 8,
+        "threat_belief": 20,
+        "subjugation_ordered": false,
+        "research_progress": 10,
+        "member_count": 3
+      }
+    },
+    {
+      "id": "agent.kael",
+      "type": "agent",
+      "name": "사냥꾼 카엘",
+      "speciesId": "species.human",
+      "factionIds": [
+        "faction.silent_village"
+      ],
+      "goalGraphId": "goal_graph.hunter",
+      "tags": [
+        "living",
+        "human",
+        "hunter",
+        "villager"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 14,
+        "y": 12,
+        "z": 1
+      },
+      "states": {
+        "health": 84,
+        "energy": 76,
+        "hunger": 28,
+        "fear": 12,
+        "curiosity": 35,
+        "social_status": 38,
+        "carried_food": 12
+      },
+      "traits": {
+        "riskTolerance": 68,
+        "curiosity": 35,
+        "loyalty": 55,
+        "greed": 30,
+        "empathy": 40,
+        "vengefulness": 45,
+        "patience": 50,
+        "impulsiveness": 44
+      },
+      "beliefs": [
+        {
+          "subjectId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "believedValue": 90,
+          "confidence": 0.82,
+          "sourceIds": [
+            "rumor.caravan_attack"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agent.ren",
+      "type": "agent",
+      "name": "상인 렌",
+      "speciesId": "species.human",
+      "factionIds": [
+        "faction.silent_village"
+      ],
+      "goalGraphId": "goal_graph.merchant",
+      "tags": [
+        "living",
+        "human",
+        "merchant",
+        "villager"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 60,
+        "y": 33,
+        "z": 3
+      },
+      "states": {
+        "health": 76,
+        "energy": 68,
+        "hunger": 24,
+        "fear": 18,
+        "curiosity": 44,
+        "social_status": 52,
+        "carried_goods": 40,
+        "carried_food": 6,
+        "wealth": 140
+      },
+      "traits": {
+        "riskTolerance": 52,
+        "curiosity": 44,
+        "loyalty": 35,
+        "greed": 74,
+        "empathy": 38,
+        "vengefulness": 30,
+        "patience": 62,
+        "impulsiveness": 36
+      },
+      "beliefs": [
+        {
+          "subjectId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "believedValue": 90,
+          "confidence": 0.82,
+          "sourceIds": [
+            "rumor.caravan_attack"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agent.mar",
+      "type": "agent",
+      "name": "마을 지도자 마르",
+      "speciesId": "species.human",
+      "factionIds": [
+        "faction.silent_village"
+      ],
+      "goalGraphId": "goal_graph.leader",
+      "tags": [
+        "living",
+        "human",
+        "leader",
+        "villager"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 11,
+        "y": 15,
+        "z": 1
+      },
+      "states": {
+        "health": 70,
+        "energy": 60,
+        "hunger": 22,
+        "fear": 16,
+        "curiosity": 30,
+        "social_status": 82,
+        "carried_food": 24
+      },
+      "traits": {
+        "riskTolerance": 40,
+        "curiosity": 30,
+        "loyalty": 70,
+        "greed": 46,
+        "empathy": 52,
+        "vengefulness": 38,
+        "patience": 66,
+        "impulsiveness": 28
+      },
+      "beliefs": [
+        {
+          "subjectId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "believedValue": 90,
+          "confidence": 0.82,
+          "sourceIds": [
+            "rumor.caravan_attack"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "agent.rion",
+      "type": "agent",
+      "name": "연구자 리온",
+      "speciesId": "species.human",
+      "factionIds": [
+        "faction.research_society"
+      ],
+      "goalGraphId": "goal_graph.researcher",
+      "tags": [
+        "living",
+        "human",
+        "researcher",
+        "ability_user"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 23,
+        "y": 21,
+        "z": 1
+      },
+      "states": {
+        "health": 72,
+        "energy": 46,
+        "hunger": 18,
+        "fear": 34,
+        "curiosity": 87,
+        "social_status": 41,
+        "known_threat_level": 55,
+        "carried_food": 10
+      },
+      "traits": {
+        "riskTolerance": 34,
+        "curiosity": 82,
+        "loyalty": 61,
+        "greed": 23,
+        "empathy": 74,
+        "vengefulness": 18,
+        "patience": 57,
+        "impulsiveness": 30
+      },
+      "beliefs": [
+        {
+          "subjectId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "believedValue": 40,
+          "confidence": 0.3,
+          "sourceIds": [
+            "doubt.field_notes"
+          ]
+        }
+      ]
+    },
+    {
+      "id": "creature.echo_beast_mother",
+      "type": "agent",
+      "name": "반향수 어미",
+      "speciesId": "species.echo_beast",
+      "factionIds": [],
+      "goalGraphId": "goal_graph.echo_beast_mother",
+      "tags": [
+        "living",
+        "creature",
+        "echo_beast"
+      ],
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 72,
+        "y": 62,
+        "z": 11
+      },
+      "states": {
+        "health": 92,
+        "energy": 82,
+        "hunger": 32,
+        "fear": 5,
+        "aggression": 12,
+        "offspring_threat": 95,
+        "protecting_offspring": true,
+        "territory_pressure": 40
+      },
+      "traits": {
+        "riskTolerance": 80,
+        "curiosity": 20,
+        "loyalty": 90,
+        "greed": 5,
+        "empathy": 60,
+        "vengefulness": 20,
+        "patience": 70,
+        "impulsiveness": 55
+      }
+    }
+  ]
+}

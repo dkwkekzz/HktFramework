@@ -1,0 +1,129 @@
+{
+  "regions": [
+    {
+      "id": "region.village",
+      "name": "마을",
+      "bounds": {
+        "width": 100,
+        "height": 80,
+        "depth": 12
+      },
+      "tags": [
+        "region",
+        "settlement",
+        "safe"
+      ],
+      "baseStates": {
+        "danger": 12,
+        "food_abundance": 60,
+        "ability_residue": 0
+      }
+    },
+    {
+      "id": "region.silent_forest",
+      "name": "침묵림",
+      "bounds": {
+        "width": 120,
+        "height": 120,
+        "depth": 40
+      },
+      "tags": [
+        "region",
+        "wild",
+        "dangerous"
+      ],
+      "baseStates": {
+        "danger": 68,
+        "food_abundance": 420,
+        "ability_residue": 240
+      }
+    }
+  ],
+  "locations": [
+    {
+      "id": "location.village_square",
+      "name": "마을 광장",
+      "regionId": "region.village",
+      "position": {
+        "regionId": "region.village",
+        "x": 12,
+        "y": 14,
+        "z": 1
+      },
+      "tags": [
+        "site",
+        "settlement"
+      ],
+      "baseStates": {
+        "danger": 3,
+        "shelter_quality": 80
+      }
+    },
+    {
+      "id": "location.trade_road",
+      "name": "교역로",
+      "regionId": "region.village",
+      "position": {
+        "regionId": "region.village",
+        "x": 62,
+        "y": 34,
+        "z": 3
+      },
+      "tags": [
+        "site",
+        "road"
+      ],
+      "baseStates": {
+        "danger": 24,
+        "shelter_quality": 10
+      }
+    },
+    {
+      "id": "location.forest_grove",
+      "name": "숲 채집지",
+      "regionId": "region.silent_forest",
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 44,
+        "y": 40,
+        "z": 7
+      },
+      "tags": [
+        "site",
+        "forage"
+      ],
+      "baseStates": {
+        "danger": 45,
+        "shelter_quality": 5
+      }
+    },
+    {
+      "id": "location.beast_den",
+      "name": "반향수 둥지",
+      "regionId": "region.silent_forest",
+      "position": {
+        "regionId": "region.silent_forest",
+        "x": 72,
+        "y": 62,
+        "z": 11
+      },
+      "tags": [
+        "site",
+        "den"
+      ],
+      "baseStates": {
+        "danger": 82,
+        "shelter_quality": 40
+      }
+    }
+  ],
+  "connections": [
+    {
+      "from": "region.village",
+      "to": "region.silent_forest",
+      "travelCost": 120,
+      "danger": 40,
+      "capacity": 20
+    }
+  ]
+}

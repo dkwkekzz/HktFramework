@@ -1,0 +1,379 @@
+[
+  {
+    "id": "food_price",
+    "ownerType": "world",
+    "dataType": "number",
+    "defaultValue": 20,
+    "min": 0,
+    "max": 200,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+
+  {
+    "id": "health",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 80,
+    "min": 0,
+    "max": 100,
+    "observable": true,
+    "observationChannels": ["sight"],
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "energy",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 70,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "hunger",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 20,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "fear",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 10,
+    "min": 0,
+    "max": 100,
+    "observable": true,
+    "observationChannels": ["sight", "talk"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "curiosity",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 40,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "social_status",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 40,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "known_threat_level",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "aggression",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 10,
+    "min": 0,
+    "max": 100,
+    "observable": true,
+    "observationChannels": ["sight", "sound"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "offspring_threat",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "protecting_offspring",
+    "ownerType": "agent",
+    "dataType": "boolean",
+    "defaultValue": false,
+    "observable": true,
+    "observationChannels": ["trace", "energy_sense"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "territory_pressure",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "recent_presence",
+    "ownerType": "agent",
+    "dataType": "boolean",
+    "defaultValue": false,
+    "observable": true,
+    "observationChannels": ["trace", "smell"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "carried_food",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 200,
+    "observable": true,
+    "observationChannels": ["sight"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "carried_goods",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 200,
+    "observable": true,
+    "observationChannels": ["sight"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "carried_residue",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "wealth",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 1000,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "species_id",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "faction_id",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "goal_graph_id",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "current_action",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "active_goal",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "survivalPressure",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "derived"
+  },
+  {
+    "id": "stress",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "derived"
+  },
+
+  {
+    "id": "food_reserve",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 50,
+    "min": 0,
+    "max": 500,
+    "observable": true,
+    "observationChannels": ["talk", "report"],
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "fear",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 10,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "threat_belief",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "subjugation_ordered",
+    "ownerType": "faction",
+    "dataType": "boolean",
+    "defaultValue": false,
+    "observable": true,
+    "observationChannels": ["talk", "report"],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "research_progress",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "member_count",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 1,
+    "min": 0,
+    "max": 500,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+
+  {
+    "id": "danger",
+    "ownerType": "region",
+    "dataType": "number",
+    "defaultValue": 10,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "food_abundance",
+    "ownerType": "region",
+    "dataType": "number",
+    "defaultValue": 100,
+    "min": 0,
+    "max": 1000,
+    "observable": false,
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "ability_residue",
+    "ownerType": "region",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 1000,
+    "observable": false,
+    "updatePolicy": "continuous"
+  },
+
+  {
+    "id": "danger",
+    "ownerType": "location",
+    "dataType": "number",
+    "defaultValue": 5,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "shelter_quality",
+    "ownerType": "location",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+
+  {
+    "id": "amount",
+    "ownerType": "resource",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 500,
+    "observable": true,
+    "observationChannels": ["sight"],
+    "updatePolicy": "continuous"
+  },
+  {
+    "id": "resource_id",
+    "ownerType": "resource",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "regrowth",
+    "ownerType": "resource",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  }
+]

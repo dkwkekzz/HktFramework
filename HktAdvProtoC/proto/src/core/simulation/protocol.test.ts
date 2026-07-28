@@ -6,6 +6,12 @@ import { TICKS_PER_DAY, TICKS_PER_HOUR } from "../../shared/time";
 import { ViewModelBuilder } from "../../viewmodel/ViewModelBuilder";
 import { InlineHost } from "./InlineHost";
 
+function runtimeOf(host: InlineHost): NonNullable<ReturnType<InlineHost["server"]["inspectRuntime"]>> {
+  const runtime = host.server.inspectRuntime();
+  if (runtime === undefined) throw new Error("런타임 없음");
+  return runtime;
+}
+
 function pick<T extends WorkerResponse["type"]>(
   responses: WorkerResponse[],
   type: T,
@@ -29,15 +35,17 @@ describe("§38 프로토콜", () => {
     const responses = await host.request({ type: "advance_time", amount: TICKS_PER_DAY });
     const patch = pick(responses, "state_patch").patch;
     expect(patch.time).toBe(TICKS_PER_DAY);
-    // 빈 세계의 변경분은 심장박동 전역 상태뿐 — 개체 upsert 없음 (patch 는 전체 상태가 아니다)
-    expect(patch.upserts).toEqual([]);
-    expect(patch.globalStates).toHaveProperty("heartbeatCount");
+    // patch 는 전체 상태가 아니다 — 하루 동안 실제로 바뀐 개체만 실린다
+    expect(patch.upserts.length).toBeGreaterThan(0);
+    expect(patch.upserts.length).toBeLessThan(Object.keys(runtimeOf(host).state.entities).length);
   });
 
-  it("변경이 없는 진행은 빈 patch", async () => {
+  it("아무 이벤트도 없는 짧은 진행은 빈 patch", async () => {
     const host = new InlineHost();
     await host.request({ type: "initialize_world", worldSeed: 42 });
-    const responses = await host.request({ type: "advance_time", amount: TICKS_PER_HOUR });
+    // 최초 판단(tick 1)까지 지난 뒤, 다음 이벤트 전까지는 아무 일도 일어나지 않는다
+    await host.request({ type: "advance_time", amount: 1 });
+    const responses = await host.request({ type: "advance_time", amount: 2 });
     const patch = pick(responses, "state_patch").patch;
     expect(patch.upserts).toEqual([]);
     expect(patch.globalStates).toBeUndefined();
@@ -71,7 +79,11 @@ describe("§38 프로토콜", () => {
     expect(scene.initialized).toBe(true);
     expect(scene.day).toBe(3);
     expect(scene.minuteOfDay).toBe(0);
-    expect(scene.globalBadges.map((b) => b.key)).toEqual(["heartbeatCount", "lastOmen"]);
-    expect(scene.globalBadges[0]!.value).toBe("3");
+    // 수동 세계의 개체가 장면으로 넘어온다 (렌더는 ViewModel 만 본다)
+    expect(scene.entities.length).toBeGreaterThan(0);
+    const hunter = scene.entities.find((e) => e.id === "agent.kael");
+    expect(hunter?.kind).toBe("agent");
+    expect(hunter?.position?.regionId).toMatch(/^region\./);
+    expect(hunter?.stateBadges.some((b) => b.key === "hunger")).toBe(true);
   });
 });

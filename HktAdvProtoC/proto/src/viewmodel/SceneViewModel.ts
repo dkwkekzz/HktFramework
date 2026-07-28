@@ -17,6 +17,10 @@ export interface SceneEntity {
   elevation?: number;
   label: string;
   stateBadges: SceneBadge[];
+  /** 개체 분류 태그 — 렌더러는 의미를 해석하지 않고 묶음 키로만 쓴다 */
+  tags: string[];
+  /** 가장 활성화된 목적 (§19) — 없으면 지금 좇는 목적이 없다 */
+  topGoal?: { id: string; activation: number };
 }
 
 export interface SceneViewModel {

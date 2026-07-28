@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { InlineHost } from "../core/simulation/InlineHost";
 import type { WorldSnapshotDocument } from "../core/simulation/RuntimeServer";
-import { createEmptyWorldDefinition } from "../core/world/types";
+import { buildManualWorld, MANUAL_WORLD_ID } from "../content/manual-world";
 import { hashValue } from "../shared/hash";
 import type { WorkerRequest, WorkerResponse } from "../shared/protocol";
 import { TICKS_PER_DAY } from "../shared/time";
@@ -33,7 +33,7 @@ describe("스냅샷 + 이벤트 로그 복원 (§39)", () => {
     };
 
     await send({ type: "initialize_world", worldSeed: 42 });
-    worldRepo.save(createEmptyWorldDefinition(42)); // 정의 저장 (§39 WorldDefinition 분리)
+    worldRepo.save(buildManualWorld(42)); // 정의 저장 (§39 WorldDefinition 분리)
 
     for (let day = 0; day < 5; day++) await send({ type: "advance_time", amount: TICKS_PER_DAY });
     snapshotRepo.save(snapshotOf(await host.request({ type: "request_snapshot" })));
@@ -42,8 +42,8 @@ describe("스냅샷 + 이벤트 로그 복원 (§39)", () => {
     const continuousHash = hashValue(snapshotOf(await host.request({ type: "request_snapshot" })).snapshot);
 
     // --- 복원: 최신 스냅샷 로드 → 이후 로그 순차 재실행 (§39 복원 절차 그대로)
-    const definition = worldRepo.load("world.42")!;
-    const latest = snapshotRepo.latest("world.42")!;
+    const definition = worldRepo.load(MANUAL_WORLD_ID)!;
+    const latest = snapshotRepo.latest(MANUAL_WORLD_ID)!;
     const restoredHost = new InlineHost();
     restoredHost.server.restore(definition, latest);
     for (const entry of logRepo.listAfter(latest.afterLogSeq)) {
