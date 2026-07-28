@@ -11,7 +11,9 @@
     "lint": "eslint src",
     "smoke": "node scripts/smoke.mjs",
     "sim": "vite-node src/scripts/run-30-days.ts",
-    "verify": "vite-node src/scripts/verify.ts"
+    "verify": "vite-node src/scripts/verify.ts",
+    "generate": "vite-node src/scripts/generate-first-world.ts",
+    "sim:generated": "vite-node src/scripts/run-generated-world.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",

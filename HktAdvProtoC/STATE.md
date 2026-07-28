@@ -4,13 +4,14 @@
 
 ## 현재 위치
 
-**Phase 4 완료 → 다음은 Phase 5 (세계 생성 컴파일러).**
-세계는 이제 자기가 겪은 일을 **사건**으로 읽는다 — change 로그(30일 8천 건)가 6개 패턴으로 묶여 37건의 사건이 되고, 각 사건은 참여자(종족·조직·개인)·영향 상태·중요도(§29 6항)·관찰자별 앎(§30)을 갖는다. 아무도 작성하지 않은 대립(마을은 위협 믿음을 가라앉히려 하고 마을 사람들은 알리려 한다)이 사건 안에서 자동 판정된다. Phase 5 는 지금까지 손으로 쓴 데이터 포맷(규칙·목적·행동·사건 패턴)을 **주제 문장에서 생성**한다 — Phase 1~4 의 실행 포맷이 곧 생성기의 출력 계약이다.
+**Phase 5 완료 → 다음은 Phase 6 (자동 검증과 수정).**
+세계는 이제 **다섯 문장에서 만들어진다** — §41 의 주제 5개가 15단계 컴파일러를 지나 §40 규모의 `WorldDefinition`(규칙 59·지역 3·장소 12·종족 4·조직 5·인물 20·능력 5·개체 136)이 되고, 그 정의가 **수정 없이** 런타임에 올라가 30일을 돈다. 그 안에서 밀수 적발·능력 발현·조직 대치처럼 생성물에서만 나올 수 있는 사건이 스스로 생긴다. 생성 호출은 전부 구조화 입력만 받고(최대 3KB), 오프라인 목 포트로 재현된다. Phase 6 은 이 산출물을 §34 의미 검증 10종과 §35 자동 시뮬레이션으로 심판한다.
 
 - 기획서: [design/Design-MMO.md](design/Design-MMO.md) (확정) · 구현 분해: [design/impl/README.md](design/impl/README.md) (총 9개 Phase)
 - 공간 데이터는 3D(x·y 수평 + z 고도), 렌더링은 2D 투영 — 2026-07-28 기획 §13 개정
-- 검증: `cd proto && npm run verify` (Phase 1·2·3·4 완료 조건 ✓/✗ 43항) · `npm test` (146) · `npm run smoke` · `npm run sim -- --log`
-- 실행 기준선은 Phase 4 에서 재고정됐다(`npx vite-node src/scripts/rebaseline.ts`) — 태그·id 추가로 로그 해시만 바뀌고 변경 건수·개체 상태 해시·규칙 발동 횟수는 Phase 3 과 동일(= 동역학 무변경 증명). Phase 2 의 이관 증명 기록은 `migration-baseline.json` 의 `previous` 에 보존.
+- 검증: `cd proto && npm run verify` (Phase 1·2·3·4·5 완료 조건 ✓/✗ 49항) · `npm test` (161) · `npm run smoke`(생성 화면 포함) · `npx vite-node src/scripts/generate-first-world.ts`
+- 생성 세계는 `src/content/first-world/` 의 녹화 응답으로 재생된다 — 코퍼스의 출처(무엇이 Phase 1~4 의 손 데이터이고 무엇이 새로 쓴 것인지)는 [Phase-5.md](design/impl/Phase-5.md) 에 명시.
+- 실행 기준선은 Phase 4 에서 고정된 그대로다 — Phase 5 는 수동 세계의 동역학을 건드리지 않았다(규칙 엔진의 오류 메시지에 규칙 id 를 붙인 것이 유일한 코어 변경).
 
 ## TODO
 
@@ -19,7 +20,7 @@
 - [x] Phase 2 — 규칙 DSL: 실행기 6모듈 + 규칙 20개 JSON 이관(코드 규칙과 30일 로그 완전 일치) ([Phase-2.md](design/impl/Phase-2.md))
 - [x] Phase 3 — 주체 판단: 믿음·인식·기억·관계·압력·활성도 11항·softmax 선택 + 조직 주체화 (규칙 44·행동 14) ([Phase-3.md](design/impl/Phase-3.md))
 - [x] Phase 4 — 사건 탐지: change 태그 전파 + 패턴 6개 → 사건 37건(참여자·중요도·관찰자별 앎·개입 기회) ([Phase-4.md](design/impl/Phase-4.md))
-- [ ] Phase 5 — 세계 생성 컴파일러 (주제 문장 → WorldDefinition, 15단계 파이프라인)
+- [x] Phase 5 — 세계 생성 컴파일러: 15단계 파이프라인 + 심볼 테이블 + 오프라인 목 포트 → §41 첫 세계 생성·로드·30일 실행 ([Phase-5.md](design/impl/Phase-5.md))
 - [ ] Phase 6 — 자동 검증과 수정 (§34 의미 검증 10종 + §35 자동 시뮬레이션 + 수정 루프)
 - [ ] Phase 7 — 플레이어 개입 (동일 행동 체계·지식 필터·성장)
 - [ ] Phase 8 — 표현 고도화 (4개 화면 + Event Interpreter, §44 13항 최종 게이트)

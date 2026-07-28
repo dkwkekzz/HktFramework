@@ -392,11 +392,93 @@ export interface WorldBootstrap {
   entities: BootstrapEntity[];
 }
 
+// --- §7 세계 핵심 명제 ----------------------------------------------------------
+
+/**
+ * 세계 명제 (§7). 이후 생성되는 모든 규칙·콘텐츠의 상위 제약이다 —
+ * 규칙은 `derivedFromAxioms` 로 자기가 어느 명제에서 왔는지 밝힌다.
+ */
+export interface WorldAxiom {
+  id: string;
+  statement: string;
+  category: "existence" | "survival" | "power" | "cost" | "ecology" | "society" | "information";
+  immutable: boolean;
+  /** 근거가 된 정규화 주제 id (§6) */
+  derivedFrom: string[];
+}
+
+// --- §16 능력 체계 --------------------------------------------------------------
+
+/** §16 restrictions — 스스로 받아들인 제약. severity 가 높을수록 출력이 커진다(§11.4) */
+export interface RestrictionDefinition {
+  description: string;
+  severity: number;
+}
+
+/**
+ * 능력 정의 (§16).
+ * 전용 실행기는 없다 — 행동(§21)과 규칙(§11)으로 분해되어 실행된다(Phase-2 §2.7).
+ * 이 구조는 "무엇이 어디로 분해되었는가"의 원본이자 §44-11 의 증거다.
+ */
+export interface AbilityDefinition {
+  id: string;
+  ownerId: string;
+  purpose: string;
+  targetTypes: string[];
+  operation: string;
+  medium: string;
+  activationConditions: ConditionDefinition[];
+  maintenanceConditions: ConditionDefinition[];
+  restrictions: RestrictionDefinition[];
+  costs: CostDefinition[];
+  /** 실패 반동 — 실행은 규칙이 한다(failureRuleId) */
+  failureEffects: { stateKey: string; operation: "set" | "add"; value: number | boolean }[];
+  observableSignals: ObservationEffect[];
+  knownBy: string[];
+  mastery: number;
+  /** 코드가 계산한 출력 범위 (§16 절차 7 — 제약 강도 → 출력) */
+  outputRange: { min: number; max: number };
+  /** 상대가 추론할 수 있는 약점 (§16 절차 10) */
+  inferableWeakness: string;
+  /** 이 능력을 실행하는 행동·규칙 (Phase-2 §2.7 매핑) */
+  actionIds: string[];
+  ruleIds: string[];
+  /** 생성 근거 — 어떤 욕망·경험·제약에서 파생됐는가 (§44-11) */
+  derivedFrom: { coreDesire: string; traumaticExperience?: string; acceptedCost: string };
+}
+
+export interface AbilitySystemDefinition {
+  abilities: AbilityDefinition[];
+}
+
+// --- §18 개인 원형 --------------------------------------------------------------
+
+/** §18 개인 생성 절차의 산출 — 배치(BootstrapEntity)로 실체화되기 전의 인물 원형 */
+export interface AgentArchetype {
+  id: string;
+  name: string;
+  speciesId: string;
+  factionIds: string[];
+  role: string;
+  origin: string;
+  /** §18 절차 3~4 — 과거 생존 사건과 그것이 남긴 가치관·두려움 */
+  formativeEvent: string;
+  values: string[];
+  fears: string[];
+  /** §18 절차 6 — 조직 목적과 개인 가치관의 갈등 */
+  innerConflict: string;
+  /** §18 절차 8 — 지금 해결해야 하는 문제 */
+  currentProblem: string;
+  traits: Record<string, number>;
+  goalGraphId: string;
+  abilityIds: string[];
+}
+
 // --- WorldDefinition ----------------------------------------------------------
 
 export interface WorldDefinition {
   metadata: WorldMetadata;
-  axioms: unknown[]; // §7 WorldAxiom — Phase 5
+  axioms: WorldAxiom[]; // §7 — Phase 5
   stateSchemas: StateSchema[]; // §9 — Phase 1
   ruleDefinitions: RuleDefinition[]; // §11 — Phase 2 (규칙은 전부 JSON 이다)
   /** §11.3 create_entity 가 가리키는 템플릿 — Phase 5 생성기가 채운다 */
@@ -406,8 +488,8 @@ export interface WorldDefinition {
   species: SpeciesDefinition[]; // §15 — Phase 1
   survivalPressures: SurvivalPressureDefinition[]; // §8 — Phase 3
   factions: FactionDefinition[]; // §17 — Phase 1
-  agentArchetypes: unknown[]; // §18 — Phase 5
-  abilitySystem: unknown; // §16 — Phase 5 (실행 매핑은 Phase 2 §2.7)
+  agentArchetypes: AgentArchetype[]; // §18 — Phase 5
+  abilitySystem: AbilitySystemDefinition | null; // §16 — Phase 5 (실행 매핑은 Phase 2 §2.7)
   goalTemplates: GoalGraph[]; // §19 — Phase 1(수동) / Phase 3(활성도 전체 모델)
   actionDefinitions: ActionDefinition[]; // §21 — Phase 1
   eventPatterns: EventPattern[]; // §28 — Phase 4

@@ -11,12 +11,14 @@ import type {
   SpeciesDefinition,
   StateSchema,
   SurvivalPressureDefinition,
+  WorldAxiom,
   WorldBootstrap,
   WorldDefinition,
 } from "../../core/world/types";
 import type { EntityTemplate } from "../../core/rules/RuleTypes";
 import { buildManualWorldRules } from "./rules";
 import actions from "./actions.json";
+import axioms from "./axioms.json";
 import bootstrap from "./bootstrap.json";
 import eventPatterns from "./event-patterns.json";
 import factions from "./factions.json";
@@ -34,17 +36,8 @@ export const MANUAL_WORLD_ID = "world.silent_forest_edge";
 export function buildManualWorld(worldSeed: number): WorldDefinition {
   return {
     metadata: { id: MANUAL_WORLD_ID, title: "침묵림 변두리", worldSeed },
-    axioms: [
-      // §7 WorldAxiom 의 실체화는 Phase 5. Phase 1 은 규칙이 참조하는 명제 id 만 남긴다(§41 초기 입력).
-      "axiom.life_must_be_sustained",
-      "axiom.life_protects_what_it_values",
-      "axiom.dangerous_places_are_rich",
-      "axiom.creatures_absorb_ability_residue",
-      "axiom.scarcity_creates_exchange",
-      "axiom.organizations_act_on_reports",
-      "axiom.belief_drives_behavior",
-      "axiom.actions_leave_signs",
-    ],
+    // §7 WorldAxiom — 규칙이 derivedFromAxioms 로 가리키는 상위 제약 (§41 초기 입력에서 왔다)
+    axioms: axioms as unknown as WorldAxiom[],
     stateSchemas: schemas as unknown as StateSchema[],
     ruleDefinitions: buildManualWorldRules(), // §11 — 규칙 전부 JSON (Phase 2 이관 완료 + Phase 3 확장)
     entityTemplates: templates as unknown as EntityTemplate[], // §11.3 create_entity (§15 번식)

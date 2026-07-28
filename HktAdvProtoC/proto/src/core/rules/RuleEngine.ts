@@ -273,10 +273,18 @@ export class RuleEngine implements EffectHooks {
             ...(firing.payload !== undefined ? { payload: firing.payload } : {}),
           });
           ctx.eachId = itemId ?? firing.actorId;
-          if (!evaluateRuleConditions(rule.conditions, ctx)) continue;
-          fired = true;
-          for (let i = 0; i < rule.effects.length; i++) {
-            executeEffect(ctx, rule.effects[i]!, i, this);
+          try {
+            if (!evaluateRuleConditions(rule.conditions, ctx)) continue;
+            fired = true;
+            for (let i = 0; i < rule.effects.length; i++) {
+              executeEffect(ctx, rule.effects[i]!, i, this);
+            }
+          } catch (error) {
+            // 어느 규칙이 어떤 바인딩에서 터졌는지 없이는 생성된 세계를 고칠 수 없다
+            const where = `규칙 ${rule.id} (actor=${firing.actorId ?? "-"}, target=${itemId ?? "-"})`;
+            throw error instanceof Error
+              ? Object.assign(error, { message: `${where}: ${error.message}` })
+              : new Error(`${where}: ${String(error)}`);
           }
           // §11 observations — 규칙이 발동하면 선언한 관찰 신호도 함께 나간다.
           // (행동이 선언한 신호(§21 visibleSignals)는 emit_signal 효과로 꺼내 쓴다)

@@ -15,7 +15,12 @@
 //  | mastery                | Phase 7 성장 체계 (여기서는 상태로만 둔다)                             |
 import { loadRuleDocument, loadRuleDocuments } from "../../core/rules/RuleSchema";
 import type { RuleDefinition } from "../../core/rules/RuleTypes";
-import type { ActionDefinition, StateSchema, WorldDefinition } from "../../core/world/types";
+import type {
+  AbilityDefinition,
+  ActionDefinition,
+  StateSchema,
+  WorldDefinition,
+} from "../../core/world/types";
 import amplificationDocument from "./rule-11-4.json";
 import ruleDocuments from "./rules.json";
 
@@ -124,6 +129,53 @@ const ACTIONS: ActionDefinition[] = [
   },
 ];
 
+/**
+ * §16 출력 예시 `ability.contract_truth` — 문서의 능력 정의를 정규형 필드로 옮긴 것.
+ * 위 표(파일 머리말)가 이 정의의 각 필드가 어느 실행 체계로 내려갔는지 말해 준다.
+ */
+const CONTRACT_TRUTH: AbilityDefinition = {
+  id: ABILITY_ID,
+  ownerId: ABILITY_OWNER,
+  purpose: "거짓 계약으로부터 자신과 동료를 보호한다.",
+  targetTypes: ["agent", "contract"],
+  operation: "detect_contract_violation",
+  medium: "spoken_mutual_declaration",
+  activationConditions: [
+    {
+      left: { kind: "state", owner: "actor", key: "contract_accepted" },
+      operator: "==",
+      right: { kind: "const", value: true },
+    },
+  ],
+  maintenanceConditions: [
+    {
+      left: { kind: "state", owner: "actor", key: "lied_since_activation" },
+      operator: "==",
+      right: { kind: "const", value: false },
+    },
+  ],
+  restrictions: [{ description: "사용자는 계약 기간 동안 고의적인 거짓말을 할 수 없다.", severity: 78 }],
+  costs: [{ stateKey: "mental_stamina", amount: 12 }],
+  failureEffects: [{ stateKey: "memory_integrity", operation: "add", value: -15 }],
+  observableSignals: ACTIONS[0]!.visibleSignals,
+  knownBy: [ABILITY_OWNER],
+  mastery: 42,
+  outputRange: { min: 0, max: 78 },
+  inferableWeakness: "계약자가 거짓을 말하는 순간 능력이 스스로 꺼진다 — 거짓을 유도하면 무력화된다.",
+  actionIds: ["action.use_ability"],
+  ruleIds: [
+    "rule.ability_activation",
+    "rule.ability_restriction_amplification",
+    "rule.ability_restriction_violation",
+    "rule.ability_maintenance_watch",
+  ],
+  derivedFrom: {
+    coreDesire: "동료가 계약에 속아 잃는 것을 막는다",
+    traumaticExperience: "거짓 계약으로 동료를 잃었다",
+    acceptedCost: "스스로 거짓을 말하지 않는다",
+  },
+};
+
 /** §11.4 예시 규칙 — 문서의 JSON 을 손대지 않고 그대로 읽는다 */
 export function loadAmplificationRule(): RuleDefinition {
   return loadRuleDocument(amplificationDocument);
@@ -132,7 +184,23 @@ export function loadAmplificationRule(): RuleDefinition {
 export function buildAbilityFixtureWorld(worldSeed: number): WorldDefinition {
   return {
     metadata: { id: "world.ability_fixture", title: "계약의 진실", worldSeed },
-    axioms: ["axiom.power_restriction", "axiom.power_cost"],
+    // §7 — 이 픽스처가 기대는 두 명제 (§16 능력 체계의 상위 제약)
+    axioms: [
+      {
+        id: "axiom.power_restriction",
+        statement: "인간의 특수 능력은 스스로 받아들인 제약에 의해 증폭된다.",
+        category: "power",
+        immutable: true,
+        derivedFrom: [],
+      },
+      {
+        id: "axiom.power_cost",
+        statement: "강한 능력은 강한 조건이나 손실 가능성을 요구한다.",
+        category: "cost",
+        immutable: true,
+        derivedFrom: [],
+      },
+    ],
     stateSchemas: STATE_SCHEMAS,
     ruleDefinitions: [...loadRuleDocuments(ruleDocuments as unknown[]), loadAmplificationRule()],
     spaces: {
@@ -153,7 +221,7 @@ export function buildAbilityFixtureWorld(worldSeed: number): WorldDefinition {
     survivalPressures: [],
     factions: [],
     agentArchetypes: [],
-    abilitySystem: { abilities: [{ id: ABILITY_ID, ownerId: ABILITY_OWNER, mastery: 42 }] },
+    abilitySystem: { abilities: [CONTRACT_TRUTH] },
     goalTemplates: [],
     actionDefinitions: ACTIONS,
     eventPatterns: [],

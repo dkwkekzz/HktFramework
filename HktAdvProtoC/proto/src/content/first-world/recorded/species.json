@@ -1,0 +1,279 @@
+{
+  "species_outline": [
+    {
+      "id": "species.human",
+      "name": "인간",
+      "summary": "무리를 지어 서로의 부족을 메운다. 제약을 걸어 능력을 얻는 유일한 종.",
+      "tags": [
+        "human",
+        "hunter",
+        "merchant",
+        "leader",
+        "researcher",
+        "bureau",
+        "smuggler",
+        "warden",
+        "healer",
+        "ability_user",
+        "villager"
+      ]
+    },
+    {
+      "id": "species.echo_beast",
+      "name": "반향수",
+      "summary": "관찰한 능력의 형태를 흉내 내 위협을 되돌려준다.",
+      "tags": [
+        "creature",
+        "echo_beast"
+      ]
+    },
+    {
+      "id": "species.veil_moss",
+      "name": "장막이끼",
+      "summary": "잔재가 고인 자리에 붙어 환경 자체가 된다.",
+      "tags": [
+        "creature",
+        "veil_moss"
+      ]
+    },
+    {
+      "id": "species.hollow_swarm",
+      "name": "공동벌레",
+      "summary": "군체 단위로 빠르게 불어나 손실을 상쇄한다.",
+      "tags": [
+        "creature",
+        "hollow_swarm"
+      ]
+    }
+  ],
+  "species/species.human": {
+    "id": "species.human",
+    "name": "인간",
+    "survivalUnit": "family",
+    "requiredResources": [
+      {
+        "resourceTag": "organic_food",
+        "amountPerDay": 3
+      }
+    ],
+    "senses": [
+      {
+        "channel": "sight",
+        "range": 45,
+        "accuracy": 0.8
+      },
+      {
+        "channel": "sound",
+        "range": 60,
+        "accuracy": 0.6
+      },
+      {
+        "channel": "smell",
+        "range": 20,
+        "accuracy": 0.4
+      },
+      {
+        "channel": "trace",
+        "range": 30,
+        "accuracy": 0.55
+      },
+      {
+        "channel": "talk",
+        "range": 18,
+        "accuracy": 0.9
+      },
+      {
+        "channel": "report",
+        "range": 25,
+        "accuracy": 0.9
+      }
+    ],
+    "instincts": [
+      "goal.survive",
+      "goal.secure_food"
+    ],
+    "adaptationRules": [],
+    "growthRules": [],
+    "strategy": "무리를 만들어 방어한다",
+    "derivedFromPressures": [
+      "pressure.body_maintenance",
+      "pressure.group_continuity",
+      "pressure.information"
+    ],
+    "strengths": [
+      "역할을 나눠 혼자서는 못 할 일을 한다",
+      "말과 보고로 보지 않은 것을 안다",
+      "제약을 스스로 걸어 능력을 얻는다"
+    ],
+    "weaknesses": [
+      "감각이 무뎌 숲에서는 먼저 발견당한다",
+      "믿음이 갈리면 무리가 쪼개진다",
+      "제약을 어기면 능력과 기억이 함께 무너진다"
+    ],
+    "socialStructure": "마을·조직 단위의 역할 분업. 보고와 소문이 판단의 재료다.",
+    "reproduction": "가족 단위. 세대 교체가 느려 한 사람의 손실이 크다."
+  },
+  "species/species.echo_beast": {
+    "id": "species.echo_beast",
+    "name": "반향수",
+    "survivalUnit": "family",
+    "requiredResources": [
+      {
+        "resourceTag": "organic_food",
+        "amountPerDay": 4
+      },
+      {
+        "resourceTag": "ability_residue",
+        "amountPerDay": 1
+      }
+    ],
+    "senses": [
+      {
+        "channel": "sound",
+        "range": 60,
+        "accuracy": 0.7
+      },
+      {
+        "channel": "energy_sense",
+        "range": 35,
+        "accuracy": 0.9
+      },
+      {
+        "channel": "smell",
+        "range": 40,
+        "accuracy": 0.6
+      },
+      {
+        "channel": "trace",
+        "range": 45,
+        "accuracy": 0.7
+      }
+    ],
+    "instincts": [
+      "goal.survive",
+      "goal.protect_offspring"
+    ],
+    "adaptationRules": [
+      "rule.echo_beast_feeding",
+      "rule.residue_adaptation"
+    ],
+    "growthRules": [
+      "rule.territory_pressure",
+      "rule.echo_beast_reproduction",
+      "rule.echo_beast_cub_growth"
+    ],
+    "strategy": "위협과 비슷한 모습을 모방한다",
+    "derivedFromPressures": [
+      "pressure.territory",
+      "pressure.body_maintenance"
+    ],
+    "strengths": [
+      "능력 잔재를 흡수해 상대의 수법을 되돌려준다",
+      "새끼를 지키는 동안 공격성이 치솟는다"
+    ],
+    "weaknesses": [
+      "잔재가 없으면 적응이 멈춘다",
+      "둥지를 옮기지 못해 위치가 드러난다"
+    ],
+    "socialStructure": "어미와 새끼로 이루어진 가족. 무리를 이루지 않는다.",
+    "reproduction": "드물게 한 배에 한 마리. 어미의 체력이 곧 번식 조건이다."
+  },
+  "species/species.veil_moss": {
+    "id": "species.veil_moss",
+    "name": "장막이끼",
+    "survivalUnit": "lineage",
+    "requiredResources": [
+      {
+        "resourceTag": "ability_residue",
+        "amountPerDay": 2
+      }
+    ],
+    "senses": [
+      {
+        "channel": "energy_sense",
+        "range": 12,
+        "accuracy": 0.95
+      }
+    ],
+    "instincts": [
+      "goal.survive"
+    ],
+    "adaptationRules": [
+      "rule.veil_moss_absorption"
+    ],
+    "growthRules": [
+      "rule.veil_moss_absorption"
+    ],
+    "strategy": "환경과 동화된다",
+    "derivedFromPressures": [
+      "pressure.body_maintenance"
+    ],
+    "strengths": [
+      "잔재를 정화해 자기 몸으로 바꾼다",
+      "움직이지 않으므로 표적이 되지 않는다"
+    ],
+    "weaknesses": [
+      "도망칠 수 없다",
+      "잔재가 마르면 그 자리에서 함께 마른다"
+    ],
+    "socialStructure": "군락. 개체 구분이 없고 자리 자체가 생존 단위다.",
+    "reproduction": "포자가 잔재가 고인 자리에 붙어 새 군락이 된다."
+  },
+  "species/species.hollow_swarm": {
+    "id": "species.hollow_swarm",
+    "name": "공동벌레",
+    "survivalUnit": "hive",
+    "requiredResources": [
+      {
+        "resourceTag": "ability_residue",
+        "amountPerDay": 3
+      },
+      {
+        "resourceTag": "organic_food",
+        "amountPerDay": 1
+      }
+    ],
+    "senses": [
+      {
+        "channel": "sound",
+        "range": 50,
+        "accuracy": 0.6
+      },
+      {
+        "channel": "energy_sense",
+        "range": 45,
+        "accuracy": 0.8
+      },
+      {
+        "channel": "smell",
+        "range": 35,
+        "accuracy": 0.7
+      }
+    ],
+    "instincts": [
+      "goal.survive",
+      "goal.expand_hive"
+    ],
+    "adaptationRules": [
+      "rule.swarm_cycle"
+    ],
+    "growthRules": [
+      "rule.swarm_cycle"
+    ],
+    "strategy": "빠르게 번식해 손실을 상쇄한다",
+    "derivedFromPressures": [
+      "pressure.hive_continuity",
+      "pressure.body_maintenance"
+    ],
+    "strengths": [
+      "개체를 잃어도 군체가 남으면 회복한다",
+      "잔재가 많은 곳에서 폭발적으로 는다"
+    ],
+    "weaknesses": [
+      "군체가 흩어지면 개체는 하루를 못 넘긴다",
+      "먹을 잔재가 마르면 서로를 먹는다"
+    ],
+    "socialStructure": "군체. 개체의 판단이 아니라 무리의 상태가 행동을 정한다.",
+    "reproduction": "군체가 일정 에너지를 넘으면 분봉해 새 무리를 만든다."
+  }
+}

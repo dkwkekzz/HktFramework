@@ -1,0 +1,1379 @@
+{
+  "actions": [
+    {
+      "id": "action.move",
+      "name": "이동한다",
+      "tags": [
+        "move"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 8
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "site",
+        "excludeSelf": true,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 6
+        }
+      ],
+      "duration": 60,
+      "durationPolicy": "travel",
+      "movement": "to_target",
+      "expectedEffects": [],
+      "executionRules": [
+        "rule.movement_trace"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.movement_trace",
+          "channels": [
+            "trace"
+          ],
+          "strength": 45,
+          "tags": [
+            "presence"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "recent_presence",
+            "value": true,
+            "confidence": 0.5
+          }
+        }
+      ],
+      "risk": 8
+    },
+    {
+      "id": "action.observe",
+      "name": "관찰한다",
+      "tags": [
+        "observe",
+        "investigate"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "creature",
+        "sameRegion": true,
+        "maxDistance": 40,
+        "excludeSelf": true,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 4
+        }
+      ],
+      "duration": 240,
+      "expectedEffects": [
+        {
+          "stateKey": "curiosity",
+          "direction": "decrease",
+          "magnitude": 20,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.researcher_insight"
+      ],
+      "visibleSignals": [],
+      "risk": 15
+    },
+    {
+      "id": "action.hunt",
+      "name": "사냥한다",
+      "tags": [
+        "gather",
+        "hunt"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 15
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "food_source",
+        "sameRegion": true,
+        "maxDistance": 25,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "target",
+            "key": "amount"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 12
+        }
+      ],
+      "duration": 180,
+      "expectedEffects": [
+        {
+          "stateKey": "carried_food",
+          "direction": "increase",
+          "magnitude": 16,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.hunt_yield",
+        "rule.carcass_discovery",
+        "rule.delegated_task_progress"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.carcass",
+          "channels": [
+            "sight",
+            "smell"
+          ],
+          "strength": 60,
+          "tags": [
+            "carcass",
+            "food"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "carried_food",
+            "value": 16,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "risk": 30
+    },
+    {
+      "id": "action.eat",
+      "name": "식사한다",
+      "tags": [
+        "eat"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "carried_food"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "self"
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "carried_food",
+          "amount": 10
+        }
+      ],
+      "duration": 30,
+      "expectedEffects": [
+        {
+          "stateKey": "hunger",
+          "direction": "decrease",
+          "magnitude": 40,
+          "on": "actor"
+        },
+        {
+          "stateKey": "energy",
+          "direction": "increase",
+          "magnitude": 10,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.eat_effect"
+      ],
+      "visibleSignals": [],
+      "risk": 0
+    },
+    {
+      "id": "action.trade",
+      "name": "거래한다",
+      "tags": [
+        "trade",
+        "social"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "carried_food"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "faction",
+        "sameRegion": true,
+        "maxDistance": 30,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "faction_id"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "entity_ref",
+            "owner": "target"
+          }
+        }
+      ],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 3
+        }
+      ],
+      "duration": 90,
+      "expectedEffects": [
+        {
+          "stateKey": "wealth",
+          "direction": "increase",
+          "magnitude": 24,
+          "on": "actor"
+        },
+        {
+          "stateKey": "food_reserve",
+          "direction": "increase",
+          "magnitude": 20,
+          "on": "target"
+        }
+      ],
+      "executionRules": [
+        "rule.trade_price",
+        "rule.trade_transfer",
+        "rule.help_builds_trust"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.trade_talk",
+          "channels": [
+            "talk"
+          ],
+          "strength": 40,
+          "tags": [
+            "trade"
+          ]
+        }
+      ],
+      "risk": 5
+    },
+    {
+      "id": "action.report",
+      "name": "보고한다",
+      "tags": [
+        "report",
+        "social"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "known_threat_level"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 20
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "faction",
+        "sameRegion": true,
+        "maxDistance": 30,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "faction_id"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "entity_ref",
+            "owner": "target"
+          }
+        }
+      ],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 2
+        }
+      ],
+      "duration": 60,
+      "expectedEffects": [
+        {
+          "stateKey": "threat_belief",
+          "direction": "increase",
+          "magnitude": 40,
+          "on": "target"
+        }
+      ],
+      "executionRules": [
+        "rule.report_propagation",
+        "rule.report_builds_trust",
+        "rule.delegated_task_progress"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.report_talk",
+          "channels": [
+            "talk",
+            "report"
+          ],
+          "strength": 55,
+          "tags": [
+            "report",
+            "threat"
+          ],
+          "claim": {
+            "subject": "entity",
+            "entityId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "relayBelief": true
+          }
+        }
+      ],
+      "risk": 3
+    },
+    {
+      "id": "action.track",
+      "name": "추적한다",
+      "tags": [
+        "track",
+        "investigate"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 12
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "creature",
+        "sameRegion": true,
+        "maxDistance": 120,
+        "excludeSelf": true,
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 8
+        }
+      ],
+      "duration": 120,
+      "movement": "to_target",
+      "expectedEffects": [
+        {
+          "stateKey": "curiosity",
+          "direction": "decrease",
+          "magnitude": 10,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.movement_trace"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.movement_trace",
+          "channels": [
+            "trace"
+          ],
+          "strength": 45,
+          "tags": [
+            "presence"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "recent_presence",
+            "value": true,
+            "confidence": 0.5
+          }
+        }
+      ],
+      "risk": 25
+    },
+    {
+      "id": "action.attack",
+      "name": "공격한다",
+      "tags": [
+        "attack",
+        "combat"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 20
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "living",
+        "sameRegion": true,
+        "maxDistance": 15,
+        "excludeSelf": true,
+        "approachMaxDistance": 35
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 15
+        }
+      ],
+      "duration": 30,
+      "expectedEffects": [
+        {
+          "stateKey": "health",
+          "direction": "decrease",
+          "magnitude": 20,
+          "on": "target"
+        },
+        {
+          "stateKey": "offspring_threat",
+          "direction": "decrease",
+          "magnitude": 25,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.attack_resolution",
+        "rule.attack_noise",
+        "rule.threat_breeds_fear",
+        "rule.delegated_task_progress"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.attack_noise",
+          "channels": [
+            "sound",
+            "sight"
+          ],
+          "strength": 85,
+          "tags": [
+            "threat",
+            "violence",
+            "important"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "aggression",
+            "value": 90,
+            "confidence": 0.82,
+            "observerStateKey": "known_threat_level"
+          }
+        }
+      ],
+      "risk": 45
+    },
+    {
+      "id": "action.flee",
+      "name": "도주한다",
+      "tags": [
+        "flee",
+        "escape"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 8
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "living",
+        "sameRegion": true,
+        "maxDistance": 60,
+        "excludeSelf": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 8
+        }
+      ],
+      "duration": 45,
+      "movement": "away_from_target",
+      "expectedEffects": [
+        {
+          "stateKey": "fear",
+          "direction": "decrease",
+          "magnitude": 15,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.movement_trace",
+        "rule.flee_relief"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.movement_trace",
+          "channels": [
+            "trace"
+          ],
+          "strength": 45,
+          "tags": [
+            "presence"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "recent_presence",
+            "value": true,
+            "confidence": 0.5
+          }
+        }
+      ],
+      "risk": 10
+    },
+    {
+      "id": "action.rest",
+      "name": "휴식한다",
+      "tags": [
+        "rest",
+        "recover"
+      ],
+      "actorRequirements": [],
+      "targetQuery": {
+        "kind": "self"
+      },
+      "worldRequirements": [],
+      "costs": [],
+      "duration": 240,
+      "expectedEffects": [
+        {
+          "stateKey": "energy",
+          "direction": "increase",
+          "magnitude": 30,
+          "on": "actor"
+        },
+        {
+          "stateKey": "health",
+          "direction": "increase",
+          "magnitude": 3,
+          "on": "actor"
+        },
+        {
+          "stateKey": "fear",
+          "direction": "decrease",
+          "magnitude": 6,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.rest_recovery"
+      ],
+      "visibleSignals": [],
+      "risk": 8
+    },
+    {
+      "id": "action.delegate",
+      "name": "구성원에게 위임한다",
+      "tags": [
+        "delegate",
+        "social"
+      ],
+      "actorRequirements": [],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "villager",
+        "sameRegion": true,
+        "maxDistance": 200,
+        "excludeSelf": true
+      },
+      "worldRequirements": [],
+      "costs": [],
+      "duration": 60,
+      "expectedEffects": [
+        {
+          "stateKey": "threat_belief",
+          "direction": "decrease",
+          "magnitude": 18,
+          "on": "actor"
+        },
+        {
+          "stateKey": "food_reserve",
+          "direction": "increase",
+          "magnitude": 12,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.delegation_order",
+        "rule.delegation_creates_dependency"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.delegation_call",
+          "channels": [
+            "talk",
+            "report"
+          ],
+          "strength": 65,
+          "tags": [
+            "report",
+            "delegation",
+            "important"
+          ]
+        }
+      ],
+      "risk": 4
+    },
+    {
+      "id": "action.gossip",
+      "name": "소문을 퍼뜨린다",
+      "tags": [
+        "rumor",
+        "social"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 5
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "villager",
+        "sameRegion": true,
+        "maxDistance": 25,
+        "excludeSelf": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 1
+        }
+      ],
+      "duration": 30,
+      "expectedEffects": [
+        {
+          "stateKey": "threat_belief",
+          "direction": "increase",
+          "magnitude": 10,
+          "on": "target"
+        }
+      ],
+      "executionRules": [
+        "rule.rumor_spread",
+        "rule.gossip_builds_familiarity"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.rumor",
+          "channels": [
+            "talk"
+          ],
+          "strength": 45,
+          "tags": [
+            "rumor",
+            "threat"
+          ],
+          "claim": {
+            "subject": "entity",
+            "entityId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "relayBelief": true
+          }
+        }
+      ],
+      "risk": 1
+    },
+    {
+      "id": "action.faction_trade",
+      "name": "조직 간 거래",
+      "tags": [
+        "faction_trade"
+      ],
+      "actorRequirements": [],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "faction",
+        "sameRegion": true,
+        "maxDistance": 200,
+        "excludeSelf": true
+      },
+      "worldRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "target",
+            "key": "food_reserve"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "food_reserve"
+          }
+        }
+      ],
+      "costs": [],
+      "duration": 120,
+      "expectedEffects": [
+        {
+          "stateKey": "food_reserve",
+          "direction": "increase",
+          "magnitude": 15,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.faction_trade_transfer",
+        "rule.crystal_declaration"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.faction_deal",
+          "channels": [
+            "talk",
+            "report"
+          ],
+          "strength": 40,
+          "tags": [
+            "trade"
+          ]
+        }
+      ],
+      "risk": 2
+    },
+    {
+      "id": "action.forage",
+      "name": "영역에서 먹이를 찾는다",
+      "tags": [
+        "forage"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 15
+          }
+        },
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "species_id"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "const",
+            "value": "species.echo_beast"
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "food_source",
+        "sameRegion": true,
+        "maxDistance": 25
+      },
+      "worldRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "target",
+            "key": "amount"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 12
+        }
+      ],
+      "duration": 180,
+      "expectedEffects": [
+        {
+          "stateKey": "carried_food",
+          "direction": "increase",
+          "magnitude": 16,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.hunt_yield",
+        "rule.carcass_discovery",
+        "rule.herb_gathering"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.carcass",
+          "channels": [
+            "sight",
+            "smell"
+          ],
+          "strength": 60,
+          "tags": [
+            "carcass",
+            "food"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "carried_food",
+            "value": 16,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "risk": 18
+    },
+    {
+      "id": "action.mine",
+      "name": "결정을 캔다",
+      "tags": [
+        "mine",
+        "gather"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 15
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "crystal_source",
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 14
+        }
+      ],
+      "duration": 180,
+      "expectedEffects": [
+        {
+          "stateKey": "carried_crystal",
+          "direction": "increase",
+          "magnitude": 12,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.crystal_mining"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.mining_sound",
+          "channels": [
+            "sight",
+            "sound"
+          ],
+          "strength": 50,
+          "tags": [
+            "crystal",
+            "resource"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "carried_crystal",
+            "value": 12,
+            "confidence": 0.55
+          }
+        }
+      ],
+      "risk": 45
+    },
+    {
+      "id": "action.smuggle",
+      "name": "몰래 옮긴다",
+      "tags": [
+        "smuggle",
+        "trade"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "carried_crystal"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 0
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "smuggler_faction",
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 10
+        }
+      ],
+      "duration": 120,
+      "expectedEffects": [
+        {
+          "stateKey": "wealth",
+          "direction": "increase",
+          "magnitude": 40,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.smuggling_run"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.smuggle_move",
+          "channels": [
+            "trace"
+          ],
+          "strength": 35,
+          "tags": [
+            "crystal",
+            "betrayal"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "contraband",
+            "value": true,
+            "confidence": 0.4
+          }
+        }
+      ],
+      "risk": 55
+    },
+    {
+      "id": "action.guard",
+      "name": "지킨다",
+      "tags": [
+        "guard",
+        "social"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 8
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "site",
+        "sameRegion": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 8
+        }
+      ],
+      "duration": 240,
+      "expectedEffects": [
+        {
+          "stateKey": "wanted_level",
+          "direction": "decrease",
+          "magnitude": 5,
+          "on": "target"
+        }
+      ],
+      "executionRules": [
+        "rule.enforcement_sweep"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.patrol_presence",
+          "channels": [
+            "trace",
+            "sight"
+          ],
+          "strength": 40,
+          "tags": [
+            "organization",
+            "presence"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "recent_presence",
+            "value": true,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "risk": 12
+    },
+    {
+      "id": "action.use_ability",
+      "name": "능력을 쓴다",
+      "tags": [
+        "ability"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "mental_stamina"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 20
+          }
+        },
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "restriction_valid"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "const",
+            "value": true
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "self"
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "mental_stamina",
+          "amount": 12
+        }
+      ],
+      "duration": 30,
+      "expectedEffects": [
+        {
+          "stateKey": "ability_output",
+          "direction": "increase",
+          "magnitude": 60,
+          "on": "actor"
+        },
+        {
+          "stateKey": "known_threat_level",
+          "direction": "increase",
+          "magnitude": 18,
+          "on": "actor"
+        },
+        {
+          "stateKey": "devotion",
+          "direction": "increase",
+          "magnitude": 3,
+          "on": "actor"
+        },
+        {
+          "stateKey": "wanted_level",
+          "direction": "decrease",
+          "magnitude": 12,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.ability_activation",
+        "rule.ability_restriction_amplification"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.ability_manifest",
+          "channels": [
+            "sight",
+            "energy_sense"
+          ],
+          "strength": 65,
+          "tags": [
+            "ability",
+            "power"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "ability_active",
+            "value": true,
+            "confidence": 0.75
+          }
+        }
+      ],
+      "risk": 25
+    },
+    {
+      "id": "action.ritual",
+      "name": "정화 의식을 올린다",
+      "tags": [
+        "ritual"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">=",
+          "right": {
+            "kind": "const",
+            "value": 10
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "shrine",
+        "crossRegionApproach": true
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 10
+        }
+      ],
+      "duration": 150,
+      "expectedEffects": [
+        {
+          "stateKey": "devotion",
+          "direction": "increase",
+          "magnitude": 3,
+          "on": "actor"
+        }
+      ],
+      "executionRules": [
+        "rule.ritual_restoration"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.ritual_light",
+          "channels": [
+            "sight",
+            "trace"
+          ],
+          "strength": 50,
+          "tags": [
+            "ritual",
+            "ecology"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "recent_presence",
+            "value": true,
+            "confidence": 0.5
+          }
+        }
+      ],
+      "risk": 8
+    },
+    {
+      "id": "action.heal",
+      "name": "치료한다",
+      "tags": [
+        "heal",
+        "social"
+      ],
+      "actorRequirements": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "carried_herb"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 0
+          }
+        }
+      ],
+      "targetQuery": {
+        "kind": "entity_tag",
+        "tag": "living",
+        "excludeSelf": true,
+        "sameRegion": true,
+        "approachMaxDistance": 40
+      },
+      "worldRequirements": [],
+      "costs": [
+        {
+          "stateKey": "energy",
+          "amount": 6
+        }
+      ],
+      "duration": 90,
+      "expectedEffects": [
+        {
+          "stateKey": "health",
+          "direction": "increase",
+          "magnitude": 14,
+          "on": "target"
+        }
+      ],
+      "executionRules": [
+        "rule.healing_care"
+      ],
+      "visibleSignals": [
+        {
+          "signalId": "signal.healing",
+          "channels": [
+            "sight"
+          ],
+          "strength": 40,
+          "tags": [
+            "social",
+            "recover"
+          ],
+          "claim": {
+            "subject": "target",
+            "stateKey": "health",
+            "value": 80,
+            "confidence": 0.6,
+            "observerStateKey": "stress"
+          }
+        }
+      ],
+      "risk": 6
+    }
+  ]
+}

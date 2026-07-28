@@ -1,0 +1,784 @@
+{
+  "bootstrap_placements": {
+    "factions": [
+      {
+        "id": "faction.silent_village",
+        "name": "침묵림 변두리 마을",
+        "goalGraphId": "goal_graph.village",
+        "homeLocationId": "location.village_square",
+        "tags": [
+          "faction",
+          "village"
+        ],
+        "states": {
+          "food_reserve": 58,
+          "fear": 20,
+          "threat_belief": 25,
+          "subjugation_ordered": false,
+          "member_count": 24
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        },
+        "relationships": [
+          {
+            "toId": "agent.mar",
+            "trust": 60,
+            "respect": 50,
+            "dependency": 45
+          },
+          {
+            "toId": "agent.kael",
+            "trust": 40,
+            "dependency": 35
+          },
+          {
+            "toId": "agent.ren",
+            "trust": 30,
+            "debt": 15
+          }
+        ]
+      },
+      {
+        "id": "faction.research_society",
+        "name": "잔재 연구회",
+        "goalGraphId": "goal_graph.research_society",
+        "homeLocationId": "location.research_camp",
+        "tags": [
+          "faction",
+          "research"
+        ],
+        "states": {
+          "research_progress": 10,
+          "member_count": 9,
+          "threat_belief": 15
+        },
+        "traits": {
+          "riskTolerance": 45,
+          "curiosity": 75,
+          "loyalty": 55,
+          "greed": 30,
+          "empathy": 35,
+          "vengefulness": 25,
+          "patience": 65,
+          "deceptionPreference": 35,
+          "uncertaintyAversion": 45,
+          "impulsiveness": 30
+        },
+        "relationships": [
+          {
+            "toId": "agent.rion",
+            "trust": 45,
+            "dependency": 40
+          },
+          {
+            "toId": "agent.lys",
+            "trust": 55,
+            "dependency": 35
+          }
+        ]
+      },
+      {
+        "id": "faction.crown_bureau",
+        "name": "왕립 결정 관리국",
+        "goalGraphId": "goal_graph.crown_bureau",
+        "homeLocationId": "location.crown_outpost",
+        "tags": [
+          "faction",
+          "bureau_faction"
+        ],
+        "states": {
+          "crystal_reserve": 52,
+          "enforcement": 45,
+          "member_count": 14,
+          "threat_belief": 20
+        },
+        "traits": {
+          "riskTolerance": 30,
+          "curiosity": 30,
+          "loyalty": 80,
+          "greed": 50,
+          "empathy": 20,
+          "vengefulness": 60,
+          "patience": 70,
+          "deceptionPreference": 45,
+          "uncertaintyAversion": 70,
+          "impulsiveness": 20
+        },
+        "relationships": [
+          {
+            "toId": "agent.sera",
+            "trust": 65,
+            "dependency": 50
+          },
+          {
+            "toId": "agent.quen",
+            "trust": 40,
+            "dependency": 35
+          },
+          {
+            "toId": "agent.bael",
+            "trust": 35,
+            "dependency": 45
+          }
+        ]
+      },
+      {
+        "id": "faction.hollow_smugglers",
+        "name": "공동 밀수단",
+        "goalGraphId": "goal_graph.hollow_smugglers",
+        "homeLocationId": "location.ash_flats",
+        "tags": [
+          "faction",
+          "smuggler_faction"
+        ],
+        "states": {
+          "contraband_flow": 26,
+          "fear": 30,
+          "member_count": 11
+        },
+        "traits": {
+          "riskTolerance": 75,
+          "curiosity": 45,
+          "loyalty": 45,
+          "greed": 80,
+          "empathy": 25,
+          "vengefulness": 55,
+          "patience": 35,
+          "deceptionPreference": 80,
+          "uncertaintyAversion": 30,
+          "impulsiveness": 60
+        },
+        "relationships": [
+          {
+            "toId": "agent.tarn",
+            "trust": 55,
+            "dependency": 50
+          },
+          {
+            "toId": "agent.veko",
+            "trust": 45,
+            "debt": 25
+          },
+          {
+            "toId": "agent.mira",
+            "trust": 40,
+            "dependency": 40
+          }
+        ]
+      },
+      {
+        "id": "faction.veil_wardens",
+        "name": "장막 수호단",
+        "goalGraphId": "goal_graph.veil_wardens",
+        "homeLocationId": "location.old_shrine",
+        "tags": [
+          "faction",
+          "warden_faction"
+        ],
+        "states": {
+          "ecology_alarm": 34,
+          "member_count": 10,
+          "threat_belief": 30
+        },
+        "traits": {
+          "riskTolerance": 45,
+          "curiosity": 40,
+          "loyalty": 85,
+          "greed": 10,
+          "empathy": 65,
+          "vengefulness": 35,
+          "patience": 75,
+          "deceptionPreference": 20,
+          "uncertaintyAversion": 55,
+          "impulsiveness": 30
+        },
+        "relationships": [
+          {
+            "toId": "agent.iri",
+            "trust": 70,
+            "dependency": 55
+          },
+          {
+            "toId": "agent.sol",
+            "trust": 50,
+            "dependency": 45
+          }
+        ]
+      },
+      {
+        "id": "faction.village_elders",
+        "name": "마을 원로회",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.village_square",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.silent_village"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.forest_gatherers",
+        "name": "숲 채집조",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.forest_grove",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.silent_village"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.field_researchers",
+        "name": "현장 조사조",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.research_camp",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.research_society"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.record_keepers",
+        "name": "기록 관리자",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.research_camp",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.research_society"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.bureau_inspectors",
+        "name": "감독관단",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.crown_outpost",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.crown_bureau"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.outpost_guards",
+        "name": "초소 경비대",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.crown_outpost",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.crown_bureau"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.route_runners",
+        "name": "경로 운반조",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.ash_flats",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.hollow_smugglers"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.hollow_brokers",
+        "name": "중개인",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.trade_road",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.hollow_smugglers"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.shrine_keepers",
+        "name": "사당 지기",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.old_shrine",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.veil_wardens"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      },
+      {
+        "id": "faction.forest_walkers",
+        "name": "숲 순찰조",
+        "goalGraphId": "goal_graph.internal_group",
+        "homeLocationId": "location.moss_hollow",
+        "tags": [
+          "faction",
+          "internal_group"
+        ],
+        "states": {
+          "member_count": 6,
+          "parent_faction": "faction.veil_wardens"
+        },
+        "traits": {
+          "riskTolerance": 35,
+          "curiosity": 20,
+          "loyalty": 70,
+          "greed": 40,
+          "empathy": 45,
+          "vengefulness": 52,
+          "patience": 55,
+          "deceptionPreference": 55,
+          "uncertaintyAversion": 65,
+          "impulsiveness": 22
+        }
+      }
+    ],
+    "namedCreatures": [
+      {
+        "id": "creature.echo_beast_mother",
+        "name": "반향수 어미",
+        "speciesId": "species.echo_beast",
+        "goalGraphId": "goal_graph.echo_beast_mother",
+        "homeLocationId": "location.beast_den",
+        "tags": [
+          "living",
+          "creature",
+          "echo_beast"
+        ],
+        "states": {
+          "health": 92,
+          "energy": 88,
+          "hunger": 40,
+          "fear": 10,
+          "aggression": 18,
+          "protecting_offspring": true,
+          "offspring_threat": 35,
+          "territory_pressure": 30
+        },
+        "traits": {
+          "riskTolerance": 70,
+          "curiosity": 30,
+          "loyalty": 90,
+          "greed": 5,
+          "empathy": 60,
+          "vengefulness": 55,
+          "patience": 40,
+          "deceptionPreference": 5,
+          "uncertaintyAversion": 30,
+          "impulsiveness": 60
+        },
+        "relationships": [],
+        "beliefs": []
+      }
+    ]
+  },
+  "bootstrap_populations": [
+    {
+      "id": "resource_node.grove_food",
+      "type": "resource",
+      "namePrefix": "숲 먹이터",
+      "count": 7,
+      "regionId": "region.silent_forest",
+      "aroundLocationId": "location.forest_grove",
+      "spreadRadius": 18,
+      "tags": [
+        "harvestable",
+        "food_source"
+      ],
+      "states": {
+        "amount": 140,
+        "regrowth": 12,
+        "resource_id": "resource.food"
+      }
+    },
+    {
+      "id": "resource_node.village_field",
+      "type": "resource",
+      "namePrefix": "마을 사냥터",
+      "count": 4,
+      "regionId": "region.village",
+      "aroundLocationId": "location.village_field",
+      "spreadRadius": 14,
+      "tags": [
+        "harvestable",
+        "food_source"
+      ],
+      "states": {
+        "amount": 80,
+        "regrowth": 6,
+        "resource_id": "resource.food"
+      }
+    },
+    {
+      "id": "resource_node.residue_field",
+      "type": "resource",
+      "namePrefix": "잔재가 고인 자리",
+      "count": 10,
+      "regionId": "region.silent_forest",
+      "aroundLocationId": "location.moss_hollow",
+      "spreadRadius": 22,
+      "tags": [
+        "harvestable",
+        "residue_source"
+      ],
+      "states": {
+        "amount": 90,
+        "regrowth": 3,
+        "resource_id": "resource.ability_residue"
+      }
+    },
+    {
+      "id": "resource_node.herb_patch",
+      "type": "resource",
+      "namePrefix": "약초 자리",
+      "count": 8,
+      "regionId": "region.silent_forest",
+      "aroundLocationId": "location.forest_grove",
+      "spreadRadius": 24,
+      "tags": [
+        "harvestable",
+        "food_source",
+        "herb_source"
+      ],
+      "states": {
+        "amount": 60,
+        "regrowth": 5,
+        "resource_id": "resource.herb"
+      }
+    },
+    {
+      "id": "resource_node.timber_stand",
+      "type": "resource",
+      "namePrefix": "목재림",
+      "count": 5,
+      "regionId": "region.silent_forest",
+      "tags": [
+        "harvestable"
+      ],
+      "states": {
+        "amount": 120,
+        "regrowth": 4,
+        "resource_id": "resource.timber"
+      }
+    },
+    {
+      "id": "resource_node.water_spring",
+      "type": "resource",
+      "namePrefix": "샘",
+      "count": 4,
+      "regionId": "region.village",
+      "aroundLocationId": "location.village_square",
+      "spreadRadius": 20,
+      "tags": [
+        "harvestable",
+        "food_source"
+      ],
+      "states": {
+        "amount": 100,
+        "regrowth": 8,
+        "resource_id": "resource.clean_water"
+      }
+    },
+    {
+      "id": "resource_node.crystal_vein",
+      "type": "resource",
+      "namePrefix": "결정맥 노출부",
+      "count": 6,
+      "regionId": "region.hollow_basin",
+      "aroundLocationId": "location.crystal_vein",
+      "spreadRadius": 16,
+      "tags": [
+        "harvestable",
+        "crystal_source"
+      ],
+      "states": {
+        "amount": 70,
+        "regrowth": 2,
+        "resource_id": "resource.will_crystal"
+      }
+    },
+    {
+      "id": "resource_node.ore_seam",
+      "type": "resource",
+      "namePrefix": "잿광석 맥",
+      "count": 5,
+      "regionId": "region.hollow_basin",
+      "aroundLocationId": "location.ash_flats",
+      "spreadRadius": 20,
+      "tags": [
+        "harvestable"
+      ],
+      "states": {
+        "amount": 90,
+        "regrowth": 3,
+        "resource_id": "resource.ore"
+      }
+    },
+    {
+      "id": "resource_node.ash_pit",
+      "type": "resource",
+      "namePrefix": "잿구덩이",
+      "count": 4,
+      "regionId": "region.hollow_basin",
+      "aroundLocationId": "location.sunken_hall",
+      "spreadRadius": 18,
+      "tags": [
+        "harvestable",
+        "residue_source"
+      ],
+      "states": {
+        "amount": 80,
+        "regrowth": 4,
+        "resource_id": "resource.residue_ash"
+      }
+    },
+    {
+      "id": "creature.veil_moss",
+      "type": "resource",
+      "namePrefix": "장막이끼 군락",
+      "count": 24,
+      "regionId": "region.silent_forest",
+      "aroundLocationId": "location.moss_hollow",
+      "spreadRadius": 30,
+      "tags": [
+        "veil_moss",
+        "harvestable"
+      ],
+      "states": {
+        "amount": 30,
+        "regrowth": 2,
+        "resource_id": "resource.veil_moss_fiber",
+        "purity": 40
+      }
+    },
+    {
+      "id": "creature.echo_beast",
+      "type": "agent",
+      "namePrefix": "반향수",
+      "count": 4,
+      "regionId": "region.silent_forest",
+      "aroundLocationId": "location.beast_den",
+      "spreadRadius": 28,
+      "speciesId": "species.echo_beast",
+      "goalGraphId": "goal_graph.echo_beast_cub",
+      "tags": [
+        "living",
+        "creature",
+        "echo_beast"
+      ],
+      "states": {
+        "health": 70,
+        "energy": 65,
+        "hunger": 45,
+        "fear": 25,
+        "aggression": 10,
+        "territory_pressure": 15
+      }
+    },
+    {
+      "id": "creature.hollow_swarm",
+      "type": "agent",
+      "namePrefix": "공동벌레 군체",
+      "count": 4,
+      "regionId": "region.hollow_basin",
+      "aroundLocationId": "location.sunken_hall",
+      "spreadRadius": 26,
+      "speciesId": "species.hollow_swarm",
+      "goalGraphId": "goal_graph.hollow_swarm",
+      "tags": [
+        "living",
+        "creature",
+        "hollow_swarm"
+      ],
+      "states": {
+        "health": 55,
+        "energy": 58,
+        "hunger": 50,
+        "fear": 20
+      }
+    }
+  ],
+  "entity_templates": [
+    {
+      "id": "creature.echo_beast_cub",
+      "type": "agent",
+      "tags": [
+        "living",
+        "creature",
+        "echo_beast",
+        "echo_beast_cub"
+      ],
+      "states": {
+        "health": 40,
+        "energy": 50,
+        "hunger": 30,
+        "fear": 25,
+        "aggression": 4,
+        "protecting_offspring": false,
+        "territory_pressure": 10,
+        "species_id": "species.echo_beast",
+        "goal_graph_id": "goal_graph.echo_beast_cub"
+      }
+    },
+    {
+      "id": "creature.hollow_swarm_brood",
+      "type": "agent",
+      "tags": [
+        "living",
+        "creature",
+        "hollow_swarm"
+      ],
+      "states": {
+        "health": 35,
+        "energy": 40,
+        "hunger": 45,
+        "fear": 20,
+        "species_id": "species.hollow_swarm",
+        "goal_graph_id": "goal_graph.hollow_swarm"
+      }
+    }
+  ]
+}

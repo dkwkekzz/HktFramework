@@ -1,0 +1,58 @@
+[
+  {
+    "id": "axiom.life_must_be_sustained",
+    "statement": "모든 생명은 자신의 몸과 에너지를 유지해야 한다. 유지에 실패하면 소멸한다.",
+    "category": "survival",
+    "immutable": true,
+    "derivedFrom": ["theme.life_sustains_what_it_values"]
+  },
+  {
+    "id": "axiom.life_protects_what_it_values",
+    "statement": "모든 생명은 자신이 생존 단위로 인식하는 대상을 지속시키려 한다.",
+    "category": "survival",
+    "immutable": true,
+    "derivedFrom": ["theme.life_sustains_what_it_values"]
+  },
+  {
+    "id": "axiom.dangerous_places_are_rich",
+    "statement": "위험이 높은 지역일수록 희귀한 생명과 자원이 존재할 가능성이 높다.",
+    "category": "ecology",
+    "immutable": true,
+    "derivedFrom": ["theme.danger_holds_the_rare"]
+  },
+  {
+    "id": "axiom.creatures_absorb_ability_residue",
+    "statement": "문명 밖의 생물은 능력이 남긴 흔적을 흡수해 자신을 적응시킨다.",
+    "category": "ecology",
+    "immutable": true,
+    "derivedFrom": ["theme.wilds_absorb_ability_traces"]
+  },
+  {
+    "id": "axiom.scarcity_creates_exchange",
+    "statement": "희소한 자원은 그것을 필요로 하는 주체들 사이에 교환과 통제를 만든다.",
+    "category": "society",
+    "immutable": true,
+    "derivedFrom": ["theme.danger_holds_the_rare"]
+  },
+  {
+    "id": "axiom.organizations_act_on_reports",
+    "statement": "조직은 세계를 직접 보지 못한다. 구성원의 보고가 조직의 판단 근거다.",
+    "category": "information",
+    "immutable": true,
+    "derivedFrom": ["theme.life_sustains_what_it_values"]
+  },
+  {
+    "id": "axiom.belief_drives_behavior",
+    "statement": "주체는 실제 상태가 아니라 자신이 믿는 상태에 따라 판단한다.",
+    "category": "information",
+    "immutable": true,
+    "derivedFrom": ["theme.life_sustains_what_it_values"]
+  },
+  {
+    "id": "axiom.actions_leave_signs",
+    "statement": "모든 행동은 관찰 가능한 흔적을 남긴다. 흔적은 사라지지만 즉시 사라지지는 않는다.",
+    "category": "information",
+    "immutable": true,
+    "derivedFrom": ["theme.wilds_absorb_ability_traces"]
+  }
+]
