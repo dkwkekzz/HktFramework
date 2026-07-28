@@ -7,15 +7,17 @@
 // 그대로다. 그것이 이 트랙의 역전 관계다 — "Phase 1~4 가 만든 실행 가능한 데이터 포맷이 Phase 5 생성기의
 // 출력 스키마가 된다"(구현 분해 README). 나머지(새 지역·종족·조직·능력·인물)는 §40 규모를 채우기 위해
 // 같은 포맷으로 이어 쓴 것이다.
-import type { RecordedCorpus } from "../../generation/RecordedTextGenerationPort";
+import type { RecordedCorpus, RepairRecording } from "../../generation/RecordedTextGenerationPort";
 import type { WorldSeedInput } from "../../generation/GenerationTypes";
 import abilities from "./recorded/abilities.json";
 import actions from "./recorded/actions.json";
 import agents from "./recorded/agents.json";
+import audit from "./recorded/audit.json";
 import bootstrap from "./recorded/bootstrap.json";
 import eventPatterns from "./recorded/event-patterns.json";
 import factions from "./recorded/factions.json";
 import goals from "./recorded/goals.json";
+import repairs from "./recorded/repairs.json";
 import rules from "./recorded/rules.json";
 import spaceResources from "./recorded/space-resources.json";
 import species from "./recorded/species.json";
@@ -60,3 +62,16 @@ export const FIRST_WORLD_CORPUS: RecordedCorpus = {
   ...(agents as unknown as RecordedCorpus),
   ...(bootstrap as unknown as RecordedCorpus),
 };
+
+/**
+ * 수정 라운드의 녹화 (Phase-6 §6.3).
+ * Phase 6 의 검증기가 첫 세계에서 실제로 잡아낸 이슈를 생성 AI 에게 되돌려 주고 받은 응답이다.
+ * `answers` 의 이슈 코드가 검출될 때에만 켜진다 — 검증이 통과하는 세계에서는 한 번도 쓰이지 않는다.
+ */
+export const FIRST_WORLD_REPAIRS = repairs as unknown as RepairRecording[];
+
+/**
+ * AI 보조 검사(§33.2)의 녹화 응답 (Phase-6 §6.1-c).
+ * 이 검사는 warning 만 낸다 — 꺼도 파이프라인은 완결된다. 코퍼스가 없으면 그냥 건너뛴다.
+ */
+export const FIRST_WORLD_AUDIT_CORPUS: RecordedCorpus = audit as unknown as RecordedCorpus;

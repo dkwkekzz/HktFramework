@@ -38,6 +38,19 @@ export class ArtifactStore {
     return [...this.artifacts.values()].sort((a, b) => a.stepIndex - b.stepIndex);
   }
 
+  /**
+   * stepIndex 앞의 단계만 남긴 사본 (Phase-6 §6.3 증분 재실행).
+   * "해당 단계 아티팩트만 교체 후 하위 단계 증분 재실행" — 남긴 것은 재사용되고, 나머지는 다시 생성된다.
+   */
+  before(stepIndex: number): ArtifactStore {
+    const store = new ArtifactStore();
+    for (const artifact of this.list()) {
+      if (artifact.stepIndex >= stepIndex) continue;
+      store.save(artifact);
+    }
+    return store;
+  }
+
   exportJson(): string {
     return JSON.stringify(this.list(), null, 2);
   }

@@ -1,0 +1,35 @@
+{
+  "audit/axiom_violation": {
+    "findings": []
+  },
+  "audit/purposeless_resource": {
+    "findings": [
+      {
+        "targetId": "resource.charm",
+        "reason": "생산 규칙과 소비 규칙이 rule.ritual_restoration 하나로 같아서, 이 자원은 만들어지고 쓰이는 자리가 한 곳뿐이다 — 세계 안에서 돌지 않는다"
+      },
+      {
+        "targetId": "resource.trade_goods",
+        "reason": "생산도 소비도 rule.trade_transfer 하나뿐이라 교역품이 어디서 생겨 어디로 사라지는지가 세계에 없다"
+      }
+    ]
+  },
+  "audit/purposeless_faction": {
+    "findings": []
+  },
+  "audit/costless_ability": {
+    "findings": []
+  },
+  "audit/isolated_setting": {
+    "findings": [
+      {
+        "targetId": "species.veil_moss",
+        "reason": "종족 id 를 가리키는 규칙·목적·행동이 하나도 없다 — 개체 태그(veil_moss)로만 세계에 나타나므로 종족 정의가 실행에 닿지 않는다"
+      },
+      {
+        "targetId": "species.hollow_swarm",
+        "reason": "같은 이유로 종족 정의가 태그 뒤에 가려져 있다 — 군체의 적응·성장 규칙이 종족을 거치지 않는다"
+      }
+    ]
+  }
+}
