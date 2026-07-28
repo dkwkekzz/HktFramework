@@ -4,35 +4,57 @@
     "name": "거래 가격",
     "scope": "global",
     "priority": 60,
-    "triggers": [{ "type": "action_executed", "actionId": "action.trade" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.trade"
+      }
+    ],
     "conditions": [
       {
-        "left": { "type": "entity_type", "of": "target" },
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
         "operator": "==",
-        "right": { "type": "constant", "value": "faction" }
+        "right": {
+          "type": "constant",
+          "value": "faction"
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "world" },
+        "target": {
+          "type": "world"
+        },
         "stateKey": "food_price",
         "operation": "set",
         "valueRef": {
           "type": "expr",
           "op": "min",
           "operands": [
-            { "type": "constant", "value": 80 },
+            {
+              "type": "constant",
+              "value": 80
+            },
             {
               "type": "expr",
               "op": "max",
               "operands": [
-                { "type": "constant", "value": 5 },
+                {
+                  "type": "constant",
+                  "value": 5
+                },
                 {
                   "type": "expr",
                   "op": "add",
                   "operands": [
-                    { "type": "constant", "value": 20 },
+                    {
+                      "type": "constant",
+                      "value": 20
+                    },
                     {
                       "type": "expr",
                       "op": "mul",
@@ -41,11 +63,20 @@
                           "type": "expr",
                           "op": "sub",
                           "operands": [
-                            { "type": "constant", "value": 100 },
-                            { "type": "target_state", "key": "food_reserve" }
+                            {
+                              "type": "constant",
+                              "value": 100
+                            },
+                            {
+                              "type": "target_state",
+                              "key": "food_reserve"
+                            }
                           ]
                         },
-                        { "type": "constant", "value": 0.4 }
+                        {
+                          "type": "constant",
+                          "value": 0.4
+                        }
                       ]
                     }
                   ]
@@ -57,19 +88,32 @@
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.scarcity_creates_exchange"]
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
   },
   {
     "id": "rule.report_propagation",
     "name": "보고 → 조직 믿음 전파",
     "scope": "relationship",
     "priority": 50,
-    "triggers": [{ "type": "action_executed", "actionId": "action.report" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.report"
+      }
+    ],
     "conditions": [
       {
-        "left": { "type": "entity_type", "of": "target" },
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
         "operator": "==",
-        "right": { "type": "constant", "value": "faction" }
+        "right": {
+          "type": "constant",
+          "value": "faction"
+        }
       }
     ],
     "effects": [
@@ -77,44 +121,81 @@
         "type": "modify_state",
         "conditions": [
           {
-            "left": { "type": "actor_state", "key": "known_threat_level" },
+            "left": {
+              "type": "actor_state",
+              "key": "known_threat_level"
+            },
             "operator": ">",
-            "right": { "type": "target_state", "key": "threat_belief" }
+            "right": {
+              "type": "target_state",
+              "key": "threat_belief"
+            }
           }
         ],
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "threat_belief",
         "operation": "set",
-        "valueRef": { "type": "actor_state", "key": "known_threat_level" }
+        "valueRef": {
+          "type": "actor_state",
+          "key": "known_threat_level"
+        }
       },
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "fear",
         "operation": "add",
         "value": 10
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "reported_threat",
+        "operation": "set",
+        "value": true
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.organizations_act_on_reports"]
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
   },
   {
     "id": "rule.threat_sighting_fear",
     "name": "위협 목격 → 공포",
     "scope": "entity",
     "priority": 55,
-    "triggers": [{ "type": "state_changed", "stateKey": "known_threat_level" }],
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "known_threat_level"
+      }
+    ],
     "conditions": [
       {
-        "left": { "type": "actor_state", "key": "known_threat_level" },
+        "left": {
+          "type": "actor_state",
+          "key": "known_threat_level"
+        },
         "operator": ">",
-        "right": { "type": "actor_state", "key": "fear" }
+        "right": {
+          "type": "actor_state",
+          "key": "fear"
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "fear",
         "operation": "add",
         "valueRef": {
@@ -125,17 +206,28 @@
               "type": "expr",
               "op": "sub",
               "operands": [
-                { "type": "actor_state", "key": "known_threat_level" },
-                { "type": "actor_state", "key": "fear" }
+                {
+                  "type": "actor_state",
+                  "key": "known_threat_level"
+                },
+                {
+                  "type": "actor_state",
+                  "key": "fear"
+                }
               ]
             },
-            { "type": "constant", "value": 0.4 }
+            {
+              "type": "constant",
+              "value": 0.4
+            }
           ]
         }
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.belief_drives_behavior"]
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
   },
   {
     "id": "rule.subjugation_call",
@@ -143,36 +235,64 @@
     "scope": "global",
     "priority": 45,
     "triggers": [
-      { "type": "state_changed", "stateKey": "threat_belief" },
-      { "type": "state_changed", "stateKey": "food_reserve" }
+      {
+        "type": "state_changed",
+        "stateKey": "threat_belief"
+      },
+      {
+        "type": "state_changed",
+        "stateKey": "food_reserve"
+      }
     ],
     "conditions": [
       {
-        "left": { "type": "entity_type", "of": "actor" },
+        "left": {
+          "type": "entity_type",
+          "of": "actor"
+        },
         "operator": "==",
-        "right": { "type": "constant", "value": "faction" }
+        "right": {
+          "type": "constant",
+          "value": "faction"
+        }
       },
       {
-        "left": { "type": "actor_state", "key": "threat_belief" },
+        "left": {
+          "type": "actor_state",
+          "key": "threat_belief"
+        },
         "operator": ">",
-        "right": { "type": "constant", "value": 60 }
+        "right": {
+          "type": "constant",
+          "value": 60
+        }
       },
       {
-        "left": { "type": "actor_state", "key": "food_reserve" },
+        "left": {
+          "type": "actor_state",
+          "key": "food_reserve"
+        },
         "operator": "<",
-        "right": { "type": "constant", "value": 60 }
+        "right": {
+          "type": "constant",
+          "value": 60
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "subjugation_ordered",
         "operation": "set",
         "value": true
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.organizations_act_on_reports"]
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
   }
 ]

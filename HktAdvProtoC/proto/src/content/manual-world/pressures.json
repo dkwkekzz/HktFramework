@@ -1,0 +1,124 @@
+[
+  {
+    "id": "pressure.body_maintenance",
+    "targetState": "몸이 굶주리지 않고 상하지 않은 채로 유지된다.",
+    "failureState": "굶주림과 상처가 겹쳐 움직일 수 없게 된다.",
+    "urgencyGrowth": 0.3,
+    "applicableSpeciesTags": ["human", "creature"],
+    "relatedResources": ["resource.food"],
+    "goalId": "goal.survive",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "hunger" }, "operator": "<", "right": { "kind": "const", "value": 35 } },
+      { "left": { "kind": "state", "owner": "actor", "key": "health" }, "operator": ">", "right": { "kind": "const", "value": 70 } }
+    ],
+    "maxUrgency": 25
+  },
+  {
+    "id": "pressure.energy_supply",
+    "targetState": "당장 먹을 것을 손에 쥐고 있다.",
+    "failureState": "사냥할 힘이 남기 전에 식량이 떨어진다.",
+    "urgencyGrowth": 0.4,
+    "applicableSpeciesTags": ["hunter"],
+    "relatedResources": ["resource.food"],
+    "goalId": "goal.secure_food",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "carried_food" }, "operator": ">", "right": { "kind": "const", "value": 20 } }
+    ],
+    "maxUrgency": 30
+  },
+  {
+    "id": "pressure.safety",
+    "targetState": "당장 자신을 해칠 것이 곁에 없다.",
+    "failureState": "위협을 인지한 채로 계속 노출된다.",
+    "urgencyGrowth": 0.2,
+    "applicableSpeciesTags": ["human", "creature"],
+    "relatedResources": [],
+    "goalId": "goal.avoid_threat",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "fear" }, "operator": "<", "right": { "kind": "const", "value": 25 } }
+    ],
+    "maxUrgency": 20
+  },
+  {
+    "id": "pressure.exchange_role",
+    "targetState": "거래로 자기 자리를 지탱한다.",
+    "failureState": "거래가 끊겨 마을에서의 쓸모가 사라진다.",
+    "urgencyGrowth": 0.3,
+    "applicableSpeciesTags": ["merchant"],
+    "relatedResources": ["resource.trade_goods"],
+    "goalId": "goal.profit",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "wealth" }, "operator": ">", "right": { "kind": "const", "value": 220 } }
+    ],
+    "maxUrgency": 25
+  },
+  {
+    "id": "pressure.group_continuity",
+    "targetState": "마을의 비축이 겨울을 넘긴다.",
+    "failureState": "마을이 흩어진다.",
+    "urgencyGrowth": 0.35,
+    "applicableSpeciesTags": ["leader"],
+    "relatedResources": ["resource.food"],
+    "goalId": "goal.village_food_security",
+    "relievedWhen": [
+      {
+        "left": { "kind": "entity_state", "entityId": "faction.silent_village", "key": "food_reserve" },
+        "operator": ">",
+        "right": { "kind": "const", "value": 70 }
+      }
+    ],
+    "maxUrgency": 30
+  },
+  {
+    "id": "pressure.information",
+    "targetState": "저 생물이 무엇인지 안다.",
+    "failureState": "모르는 채로 마을이 먼저 움직인다.",
+    "urgencyGrowth": 0.3,
+    "applicableSpeciesTags": ["researcher"],
+    "relatedResources": ["resource.ability_residue"],
+    "goalId": "goal.understand_creature",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "known_threat_level" }, "operator": ">", "right": { "kind": "const", "value": 70 } }
+    ],
+    "maxUrgency": 25
+  },
+  {
+    "id": "pressure.territory",
+    "targetState": "둥지 주변에 다른 것이 들어오지 않는다.",
+    "failureState": "새끼가 있는 자리가 노출된다.",
+    "urgencyGrowth": 0.5,
+    "applicableSpeciesTags": ["echo_beast"],
+    "relatedResources": ["resource.ability_residue"],
+    "goalId": "goal.protect_offspring",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "territory_pressure" }, "operator": "<", "right": { "kind": "const", "value": 20 } }
+    ],
+    "maxUrgency": 35
+  },
+  {
+    "id": "pressure.faction_reserve",
+    "targetState": "조직의 비축이 요구 수준을 넘는다.",
+    "failureState": "비축이 마르고 구성원이 떠난다.",
+    "urgencyGrowth": 0.4,
+    "applicableSpeciesTags": ["village"],
+    "relatedResources": ["resource.food"],
+    "goalId": "goal.faction_food_security",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "food_reserve" }, "operator": ">", "right": { "kind": "const", "value": 90 } }
+    ],
+    "maxUrgency": 30
+  },
+  {
+    "id": "pressure.faction_knowledge",
+    "targetState": "연구회가 표본과 기록을 계속 얻는다.",
+    "failureState": "연구가 멈추고 존재 이유가 사라진다.",
+    "urgencyGrowth": 0.3,
+    "applicableSpeciesTags": ["research"],
+    "relatedResources": ["resource.ability_residue"],
+    "goalId": "goal.faction_research",
+    "relievedWhen": [
+      { "left": { "kind": "state", "owner": "actor", "key": "research_progress" }, "operator": ">", "right": { "kind": "const", "value": 60 } }
+    ],
+    "maxUrgency": 25
+  }
+]

@@ -89,13 +89,44 @@
           {
             "stateKey": "food_reserve",
             "direction": "increase",
-            "weight": 0.8
+            "weight": 0.9
           }
         ],
-        "abandonmentConditions": [],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
         "allowedActionTags": [
           "gather",
           "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "owner": "entity",
+            "entityId": "faction.silent_village",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.5
+          }
         ]
       },
       {
@@ -136,6 +167,15 @@
         "allowedActionTags": [
           "flee",
           "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
         ]
       },
       {
@@ -144,14 +184,14 @@
         "targetConditions": [
           {
             "left": {
-              "kind": "entity_state",
-              "entityId": "faction.silent_village",
-              "key": "threat_belief"
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
             },
-            "operator": ">",
+            "operator": "==",
             "right": {
               "kind": "const",
-              "value": 60
+              "value": true
             }
           }
         ],
@@ -174,7 +214,17 @@
         ],
         "abandonmentConditions": [],
         "allowedActionTags": [
-          "report"
+          "report",
+          "rumor"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.6
+          }
         ]
       }
     ],
@@ -290,9 +340,27 @@
             "stateKey": "carried_food",
             "direction": "increase",
             "weight": 0.6
+          },
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.5
           }
         ],
-        "abandonmentConditions": [],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
         "allowedActionTags": [
           "trade",
           "gather"
@@ -336,6 +404,15 @@
         "allowedActionTags": [
           "flee",
           "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
         ]
       },
       {
@@ -344,14 +421,14 @@
         "targetConditions": [
           {
             "left": {
-              "kind": "entity_state",
-              "entityId": "faction.silent_village",
-              "key": "threat_belief"
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
             },
-            "operator": ">",
+            "operator": "==",
             "right": {
               "kind": "const",
-              "value": 60
+              "value": true
             }
           }
         ],
@@ -374,7 +451,11 @@
         ],
         "abandonmentConditions": [],
         "allowedActionTags": [
-          "report"
+          "report",
+          "rumor"
+        ],
+        "focusIds": [
+          "faction.silent_village"
         ]
       }
     ],
@@ -484,6 +565,18 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "entity",
+            "entityId": "faction.silent_village",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
         ]
       },
       {
@@ -524,6 +617,15 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "report"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.8
+          }
         ]
       },
       {
@@ -564,6 +666,15 @@
         "allowedActionTags": [
           "flee",
           "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
         ]
       }
     ],
@@ -669,9 +780,40 @@
             "weight": 1
           }
         ],
-        "abandonmentConditions": [],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
         "allowedActionTags": [
           "investigate"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "curiosity",
+            "weight": 1
+          }
+        ],
+        "utilityFactors": [
+          {
+            "owner": "entity",
+            "entityId": "faction.research_society",
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 0.8
+          }
         ]
       },
       {
@@ -680,14 +822,14 @@
         "targetConditions": [
           {
             "left": {
-              "kind": "entity_state",
-              "entityId": "faction.research_society",
-              "key": "threat_belief"
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
             },
-            "operator": ">",
+            "operator": "==",
             "right": {
               "kind": "const",
-              "value": 50
+              "value": true
             }
           }
         ],
@@ -711,6 +853,9 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "report"
+        ],
+        "focusIds": [
+          "faction.research_society"
         ]
       },
       {
@@ -751,6 +896,15 @@
         "allowedActionTags": [
           "flee",
           "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
         ]
       }
     ],
@@ -814,6 +968,12 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "attack"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "territory_pressure",
+            "weight": 0.8
+          }
         ]
       },
       {
@@ -863,7 +1023,7 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "eat",
-          "gather"
+          "forage"
         ]
       },
       {
@@ -904,6 +1064,12 @@
         "allowedActionTags": [
           "flee",
           "rest"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
         ]
       }
     ],
@@ -921,5 +1087,501 @@
         "weight": 0.5
       }
     ]
+  },
+  {
+    "id": "goal_graph.village",
+    "nodes": [
+      {
+        "id": "goal.faction_food_security",
+        "description": "마을의 비축을 요구 수준 위로 유지한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 90
+            }
+          }
+        ],
+        "baseImportance": 42,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 90,
+          "weight": 0.6,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade",
+          "delegate"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.faction_safety",
+        "description": "마을 사람들이 위협에 죽지 않게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "threat_belief"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 38,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "threat_belief",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 0.8,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "focusIds": [
+          "agent.kael",
+          "agent.mar"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.faction_authority",
+        "description": "지도부의 결정이 따라지도록 한다 (공표하지 않는 목적)",
+        "targetConditions": [],
+        "baseImportance": 24,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 6
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "member_count",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "focusIds": [
+          "agent.mar"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_food_security",
+        "to": "goal.faction_safety",
+        "relation": "conflicts",
+        "weight": 0.4
+      },
+      {
+        "from": "goal.faction_safety",
+        "to": "goal.faction_authority",
+        "relation": "supports",
+        "weight": 0.5
+      }
+    ]
+  },
+  {
+    "id": "goal_graph.research_society",
+    "nodes": [
+      {
+        "id": "goal.faction_research",
+        "description": "잔재를 흡수하는 생물을 이해한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "research_progress"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "research_progress",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 0.7,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "focusIds": [
+          "agent.rion"
+        ]
+      },
+      {
+        "id": "goal.faction_supply",
+        "description": "연구를 이어 갈 물자를 확보한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 26,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 0.5,
+          "max": 30
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_supply",
+        "to": "goal.faction_research",
+        "relation": "requires",
+        "weight": 0.5
+      }
+    ]
+  },
+  {
+    "id": "goal_graph.internal_group",
+    "nodes": [
+      {
+        "id": "goal.group_interest",
+        "description": "이 집단의 몫을 지킨다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 40,
+          "weight": 0.6,
+          "max": 30
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade",
+          "delegate"
+        ]
+      }
+    ],
+    "edges": []
+  },
+  {
+    "id": "goal_graph.delegated",
+    "nodes": [
+      {
+        "id": "goal.subjugate_beast",
+        "description": "마을이 소집한 토벌에 따른다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "delegation_completed"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 0
+            }
+          }
+        ],
+        "baseImportance": 18,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 10
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "aggression",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "known_threat_level",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "attack",
+          "report"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": -0.6
+          }
+        ]
+      },
+      {
+        "id": "goal.gather_for_village",
+        "description": "마을이 요청한 식량을 모아 온다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "delegation_completed"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 0
+            }
+          }
+        ],
+        "baseImportance": 16,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 8
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.8
+          },
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "gather",
+          "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ]
+      }
+    ],
+    "edges": []
+  },
+  {
+    "id": "goal_graph.echo_beast_cub",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 22,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 50,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "forage"
+        ]
+      },
+      {
+        "id": "goal.avoid_humans",
+        "description": "사람 가까이 가지 않는다",
+        "targetConditions": [],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "fear",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 0.8,
+          "max": 35
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "edges": []
   }
 ]

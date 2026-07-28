@@ -1,0 +1,523 @@
+[
+  {
+    "id": "rule.delegation_order",
+    "name": "조직의 소집 → 개인 목적 주입",
+    "scope": "relationship",
+    "priority": 65,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.delegate"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "delegated_goal",
+        "operation": "set",
+        "value": "goal.subjugate_beast",
+        "conditions": [
+          {
+            "left": {
+              "type": "actor_state",
+              "key": "threat_belief"
+            },
+            "operator": ">",
+            "right": {
+              "type": "constant",
+              "value": 45
+            }
+          }
+        ]
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "delegated_goal",
+        "operation": "set",
+        "value": "goal.gather_for_village",
+        "conditions": [
+          {
+            "left": {
+              "type": "actor_state",
+              "key": "threat_belief"
+            },
+            "operator": "<=",
+            "right": {
+              "type": "constant",
+              "value": 45
+            }
+          }
+        ]
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "delegated_by",
+        "operation": "set",
+        "valueRef": {
+          "type": "entity_ref",
+          "of": "actor"
+        }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
+  },
+  {
+    "id": "rule.delegated_task_progress",
+    "name": "위임받은 일을 했다",
+    "scope": "entity",
+    "priority": 45,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.attack"
+      },
+      {
+        "type": "action_executed",
+        "actionId": "action.report"
+      },
+      {
+        "type": "action_executed",
+        "actionId": "action.hunt"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "delegation_completed"
+        },
+        "operator": "<",
+        "right": {
+          "type": "constant",
+          "value": 100
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "delegation_completed",
+        "operation": "add",
+        "value": 1,
+        "conditions": [
+          {
+            "left": {
+              "type": "actor_state",
+              "key": "active_goal"
+            },
+            "operator": "==",
+            "right": {
+              "type": "constant",
+              "value": "goal.subjugate_beast"
+            }
+          }
+        ]
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "delegation_completed",
+        "operation": "add",
+        "value": 1,
+        "conditions": [
+          {
+            "left": {
+              "type": "actor_state",
+              "key": "active_goal"
+            },
+            "operator": "==",
+            "right": {
+              "type": "constant",
+              "value": "goal.gather_for_village"
+            }
+          }
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
+  },
+  {
+    "id": "rule.rumor_spread",
+    "name": "소문을 퍼뜨린다",
+    "scope": "entity",
+    "priority": 40,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.gossip"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "emit_signal",
+        "signalId": "signal.rumor"
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.faction_trade_transfer",
+    "name": "조직 간 거래 — 비축 이동",
+    "scope": "global",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.faction_trade"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "target_state",
+          "key": "food_reserve"
+        },
+        "operator": ">",
+        "right": {
+          "type": "actor_state",
+          "key": "food_reserve"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "transfer_resource",
+        "resourceId": "resource.food",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "amount": 15,
+        "fromStateKey": "food_reserve",
+        "toStateKey": "food_reserve"
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.faction_collapse_shock",
+    "name": "조직 붕괴 → 식량 가격 급등",
+    "scope": "global",
+    "priority": 70,
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "collapsed"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "event_payload",
+          "key": "after"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": true
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "world"
+        },
+        "stateKey": "food_price",
+        "operation": "add",
+        "value": 20
+      }
+    ],
+    "observations": [
+      {
+        "signalId": "signal.collapse_news",
+        "channels": [
+          "talk",
+          "report"
+        ],
+        "strength": 75,
+        "tags": [
+          "report",
+          "important"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "collapsed",
+          "value": true,
+          "confidence": 0.9
+        }
+      }
+    ],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.threat_belief_spreads_fear",
+    "name": "조직의 위협 믿음 → 구성원의 공포",
+    "scope": "region",
+    "priority": 48,
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "threat_belief"
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent",
+        "withinRadius": {
+          "of": "actor",
+          "r": 80
+        }
+      }
+    },
+    "cooldown": 720,
+    "conditions": [
+      {
+        "left": {
+          "type": "event_payload",
+          "key": "after"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 60
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 5
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports",
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.researcher_insight",
+    "name": "관찰이 지식이 된다",
+    "scope": "entity",
+    "priority": 50,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.observe"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "curiosity"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 50
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "known_threat_level",
+        "operation": "add",
+        "value": 12
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "entity",
+          "entityId": "faction.research_society"
+        },
+        "stateKey": "research_progress",
+        "operation": "add",
+        "value": 6
+      }
+    ],
+    "observations": [
+      {
+        "signalId": "signal.field_notes",
+        "channels": [
+          "trace",
+          "energy_sense"
+        ],
+        "strength": 55,
+        "tags": [
+          "creature_trace",
+          "research"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "protecting_offspring",
+          "value": true,
+          "confidence": 0.64
+        },
+        "origin": "target"
+      }
+    ],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
+  },
+  {
+    "id": "rule.faction_starvation_count",
+    "name": "조직이 굶은 날을 센다",
+    "scope": "global",
+    "priority": 25,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "faction"
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "starving_days",
+        "operation": "add",
+        "value": 1,
+        "conditions": [
+          {
+            "left": {
+              "type": "target_state",
+              "key": "food_reserve"
+            },
+            "operator": "<=",
+            "right": {
+              "type": "constant",
+              "value": 0
+            }
+          }
+        ]
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "starving_days",
+        "operation": "set",
+        "value": 0,
+        "conditions": [
+          {
+            "left": {
+              "type": "target_state",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "type": "constant",
+              "value": 0
+            }
+          }
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
+    "id": "rule.daily_report_reset",
+    "name": "하루가 지나면 다시 알릴 일이 생긴다",
+    "scope": "global",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent"
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "reported_threat",
+        "operation": "set",
+        "value": false
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
+  }
+]

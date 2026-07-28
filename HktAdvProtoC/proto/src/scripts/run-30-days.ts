@@ -30,9 +30,16 @@ const snapshot = responses.find(
 console.log(`=== ${worldSeed} 시드 / ${days}일 ===`);
 console.log(`상태 해시: ${hashValue((snapshot.snapshot as WorldSnapshotDocument).snapshot)}`);
 
-console.log("\n--- 주체 ---");
+function num(agentId: string, key: string): number {
+  const entity = runtime.store.entity(agentId);
+  if (runtime.schemas.find(runtime.store.ownerTypeOf(entity), key) === undefined) return Number.NaN;
+  return runtime.store.readNumber(agentId, key);
+}
+
+console.log("\n--- 주체 (개인·생물) ---");
 for (const agentId of runtime.agentIds()) {
   const agent = runtime.agentRuntime(agentId);
+  if (agent.kind === "faction") continue;
   const entity = runtime.store.entity(agentId);
   const goals = (entity.activeGoals ?? [])
     .slice(0, 2)
@@ -42,25 +49,27 @@ for (const agentId of runtime.agentIds()) {
     [
       agentId.padEnd(28),
       `행동 ${String(agent.completedActionCount).padStart(3)}회`,
-      `허기 ${runtime.store.readNumber(agentId, "hunger").toFixed(0).padStart(3)}`,
-      `체력 ${runtime.store.readNumber(agentId, "health").toFixed(0).padStart(3)}`,
-      `공포 ${runtime.store.readNumber(agentId, "fear").toFixed(0).padStart(3)}`,
-      `위협인지 ${runtime.store.readNumber(agentId, "known_threat_level").toFixed(0).padStart(3)}`,
+      `허기 ${num(agentId, "hunger").toFixed(0).padStart(3)}`,
+      `체력 ${num(agentId, "health").toFixed(0).padStart(3)}`,
+      `공포 ${num(agentId, "fear").toFixed(0).padStart(3)}`,
+      `기억 ${String(agent.memories.length).padStart(2)}`,
       `${entity.position?.regionId ?? "-"}`,
       goals,
     ].join(" | "),
   );
-  for (const belief of agent.beliefs) {
+  for (const belief of agent.beliefs.slice(0, 4)) {
     console.log(
       `    믿음 ${belief.subjectId}.${belief.stateKey} = ${String(belief.believedValue)} (확신 ${belief.confidence}, 근거 ${belief.sourceIds.join("/")})`,
     );
   }
 }
 
-console.log("\n--- 조직 ---");
-for (const factionId of ["faction.silent_village", "faction.research_society"]) {
+console.log("\n--- 조직 (조직도 판단 주체다 §17) ---");
+for (const factionId of runtime.agentIds().filter((id) => runtime.agentRuntime(id).kind === "faction")) {
+  const factionRuntime = runtime.agentRuntime(factionId);
+  const top = (runtime.store.entity(factionId).activeGoals ?? [])[0];
   console.log(
-    `${factionId.padEnd(28)} 식량 ${runtime.store.readNumber(factionId, "food_reserve").toFixed(1)} | 위협믿음 ${runtime.store.readNumber(factionId, "threat_belief").toFixed(0)} | 공포 ${runtime.store.readNumber(factionId, "fear").toFixed(0)} | 토벌 ${String(runtime.store.readBoolean(factionId, "subjugation_ordered"))}`,
+    `${factionId.padEnd(28)} 행동 ${String(factionRuntime.completedActionCount).padStart(3)}회 | 목적 ${top?.goalId ?? "-"}(${top?.activation.toFixed(0) ?? "-"}) | 믿음 ${factionRuntime.beliefs.length}건 | 식량 ${runtime.store.readNumber(factionId, "food_reserve").toFixed(1)} | 위협믿음 ${runtime.store.readNumber(factionId, "threat_belief").toFixed(0)} | 공포 ${runtime.store.readNumber(factionId, "fear").toFixed(0)} | 토벌 ${String(runtime.store.readBoolean(factionId, "subjugation_ordered"))}`,
   );
 }
 

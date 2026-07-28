@@ -180,6 +180,7 @@ export function buildRuleLabWorld(worldSeed: number): WorldDefinition {
     },
     resources: [],
     species: [],
+    survivalPressures: [],
     factions: [],
     agentArchetypes: [],
     abilitySystem: null,

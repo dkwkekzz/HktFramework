@@ -1,8 +1,10 @@
-// 규칙 이관 기준선 (Phase-2 "Phase 1 규칙 이관" — 동일성 증명)
+// 실행 기준선 (Phase-2 "Phase 1 규칙 이관" 동일성 증명 → Phase 3 재고정)
 //
-// 코드 규칙(HandwrittenRules.ts)은 이관과 함께 삭제됐다. 삭제 직전의 실행 결과를
-// migration-baseline.json 에 굳혀 두고, DSL 실행이 그와 같은지 여기서 언제든 다시 확인한다.
-// 기준선 재생성은 코드 규칙이 살아 있던 커밋에서만 가능하다 — 그래서 이 파일은 "읽고 맞춰 보기"만 한다.
+// Phase 2: 코드 규칙(HandwrittenRules.ts) 삭제 직전의 30일 실행을 굳혀 두고 DSL 실행이 같은지 확인했다.
+//          그 증명은 끝났고 기록은 migration-baseline.json 의 previous 에 남아 있다.
+// Phase 3: 주체 판단(§20·§22·§23)을 교체했으므로 같은 로그가 나올 수 없다 — 기준선을 다시 고정했다.
+//          지금 이 파일이 지키는 것은 "같은 시드의 30일은 언제 실행해도 같다"(§39·§44-12)와
+//          "Phase 2 가 이관한 규칙 20개가 여전히 세계를 굴린다"(MIGRATED_RULE_IDS) 두 가지다.
 import baselineDocument from "../../content/manual-world/migration-baseline.json";
 import { hashValue } from "../../shared/hash";
 import type { WorldRuntime } from "../world/WorldRuntime";
@@ -40,7 +42,14 @@ export interface MigrationBaseline {
   source: string;
   days: number;
   runs: Record<string, RunSummary>;
+  /** Phase 2 가 증명한 "코드 규칙 == DSL 규칙" 기록 — 재고정 후에도 근거로 남는다 */
+  previous?: { source: string; runs: Record<string, { logHash: string; changeCount: number; entityHash: string }> };
+  /** Phase 2 가 이관한 규칙 20개 — 지금도 세계에 살아 있어야 한다 */
+  migratedRuleIds?: string[];
 }
+
+/** Phase 2 이관 규칙 20개의 id (기준선 문서가 갖는다) */
+export const MIGRATED_RULE_IDS: string[] = (baselineDocument as unknown as MigrationBaseline).migratedRuleIds ?? [];
 
 export const MIGRATION_BASELINE = baselineDocument as unknown as MigrationBaseline;
 

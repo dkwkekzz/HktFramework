@@ -1,10 +1,10 @@
-// 간이 판단의 계약 (§19, §22, §26, §27)
-// Phase 3 은 여기 검사된 네 함수를 기획서 전체 모델로 교체한다 — 시그니처와 의미는 그대로 유지해야 한다.
+// 주체 판단의 계약 (§19, §20, §22, §26, §27) — Phase 3 전체 모델
 import { describe, expect, it } from "vitest";
 import { buildManualWorld } from "../../content/manual-world";
 import { bootstrapWorld } from "../world/WorldBootstrap";
 import { WorldRuntime } from "../world/WorldRuntime";
 import type { GoalNode } from "../world/types";
+import { BeliefView } from "./BeliefView";
 import {
   calculateGoalActivation,
   generateActionCandidates,
@@ -26,15 +26,35 @@ function goalOf(runtime: WorldRuntime, graphId: string, goalId: string): GoalNod
   return node;
 }
 
-describe("목적 활성도 (§19, §20 간이형)", () => {
-  it("활성도 = baseImportance + 긴급도", () => {
+describe("목적 활성도 (§20 — 11항)", () => {
+  it("11항이 모두 산출 근거로 남고, 합이 활성도다", () => {
     const runtime = newRuntime();
     const survive = goalOf(runtime, "goal_graph.hunter", "goal.survive");
     runtime.store.modify("agent.kael", "hunger", "set", 65); // 임계 45 를 20 초과
 
     const state = calculateGoalActivation(runtime, "agent.kael", survive);
     expect(state.urgency).toBeCloseTo(30); // 20 * weight 1.5
-    expect(state.activation).toBeCloseTo(survive.baseImportance + 30);
+    const b = state.breakdown!;
+    expect(Object.keys(b).sort()).toEqual(
+      [
+        "baseImportance",
+        "conflict",
+        "cost",
+        "emotionalBias",
+        "expectedUtility",
+        "feasibility",
+        "needPressure",
+        "relationshipImpact",
+        "risk",
+        "urgency",
+        "valueAlignment",
+      ].sort(),
+    );
+    const sum =
+      b.baseImportance + b.needPressure + b.urgency + b.valueAlignment + b.relationshipImpact +
+      b.emotionalBias + b.feasibility + b.expectedUtility - b.cost - b.risk - b.conflict;
+    expect(state.activation).toBeCloseTo(sum);
+    expect(b.baseImportance).toBe(survive.baseImportance);
   });
 
   it("이미 이룬 목적은 활성화되지 않는다 (§19 targetConditions)", () => {
@@ -61,7 +81,7 @@ describe("목적 활성도 (§19, §20 간이형)", () => {
   });
 });
 
-describe("행동 후보와 선택 (§22 간이형)", () => {
+describe("행동 후보와 선택 (§22)", () => {
   it("사거리 안의 대상은 직접 후보, 밖의 대상은 '다가가기' 후보가 된다 (§27-5)", () => {
     const runtime = newRuntime();
     const secure = goalOf(runtime, "goal_graph.hunter", "goal.secure_food");
@@ -103,7 +123,14 @@ describe("행동 후보와 선택 (§22 간이형)", () => {
     expect(bold()).toBeGreaterThan(cautious());
   });
 
-  it("선택은 최고 점수 1개 — 동점이면 사전순으로 결정론이다", () => {
+  it("동점 후보는 사전순으로 결정론이다", () => {
+    const runtime = newRuntime();
+    const view = new BeliefView(runtime, "agent.kael");
+    // 확률 선택을 끄면(충동 0·스트레스 0) 언제나 최고 점수 — 동점은 사전순이다
+    runtime.agentRuntime("agent.kael").traits["impulsiveness"] = 0;
+    runtime.store.modify("agent.kael", "fear", "set", 0);
+    runtime.store.modify("agent.kael", "hunger", "set", 0);
+    runtime.store.modify("agent.kael", "health", "set", 100);
     const base = {
       targetIds: [] as string[],
       expectedGoalProgress: 0,
@@ -115,13 +142,51 @@ describe("행동 후보와 선택 (§22 간이형)", () => {
       goalId: "goal.x",
     };
     expect(
-      selectAction([
+      selectAction(view, [
         { ...base, actionId: "action.b", score: 5 },
         { ...base, actionId: "action.a", score: 5 },
         { ...base, actionId: "action.c", score: 4 },
       ])?.actionId,
     ).toBe("action.a");
-    expect(selectAction([])).toBeUndefined();
+    expect(selectAction(view, [])).toBeUndefined();
+  });
+
+  it("충동적인 주체는 최고 점수가 아닌 후보도 고른다 (§22 확률적 선택)", () => {
+    const runtime = newRuntime();
+    const view = new BeliefView(runtime, "agent.kael");
+    const base = {
+      targetIds: [] as string[],
+      expectedGoalProgress: 0,
+      expectedCost: 0,
+      expectedRisk: 0,
+      valueAlignment: 0,
+      confidence: 0,
+      duration: 10,
+      goalId: "goal.x",
+    };
+    const candidates = [
+      { ...base, actionId: "action.top", score: 10 },
+      { ...base, actionId: "action.second", score: 9.6 },
+    ];
+    const picks = new Set<string>();
+    for (let t = 0; t < 400; t++) {
+      runtime.state.simulationTime = t; // 난수 스트림은 (시드·시각·개체)
+      runtime.agentRuntime("agent.kael").traits["impulsiveness"] = 90;
+      picks.add(selectAction(view, candidates)!.actionId);
+    }
+    expect(picks.size).toBe(2);
+
+    // 차분한 주체는 언제나 최고 점수를 고른다
+    const calm = new Set<string>();
+    for (let t = 0; t < 50; t++) {
+      runtime.state.simulationTime = t;
+      runtime.agentRuntime("agent.kael").traits["impulsiveness"] = 0;
+      runtime.store.modify("agent.kael", "fear", "set", 0);
+      runtime.store.modify("agent.kael", "hunger", "set", 0);
+      runtime.store.modify("agent.kael", "health", "set", 100);
+      calm.add(selectAction(view, candidates)!.actionId);
+    }
+    expect([...calm]).toEqual(["action.top"]);
   });
 });
 

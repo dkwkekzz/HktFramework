@@ -199,6 +199,37 @@
         "subjugation_ordered": false,
         "research_progress": 0,
         "member_count": 24
+      },
+      "relationships": [
+        {
+          "toId": "agent.mar",
+          "trust": 60,
+          "respect": 50,
+          "dependency": 45
+        },
+        {
+          "toId": "agent.kael",
+          "trust": 40,
+          "dependency": 35
+        },
+        {
+          "toId": "agent.ren",
+          "trust": 30,
+          "debt": 15
+        }
+      ],
+      "goalGraphId": "goal_graph.village",
+      "traits": {
+        "riskTolerance": 35,
+        "curiosity": 20,
+        "loyalty": 70,
+        "greed": 40,
+        "empathy": 45,
+        "vengefulness": 52,
+        "patience": 55,
+        "impulsiveness": 22,
+        "deceptionPreference": 55,
+        "uncertaintyAversion": 65
       }
     },
     {
@@ -222,6 +253,26 @@
         "subjugation_ordered": false,
         "research_progress": 10,
         "member_count": 3
+      },
+      "relationships": [
+        {
+          "toId": "agent.rion",
+          "trust": 55,
+          "dependency": 60
+        }
+      ],
+      "goalGraphId": "goal_graph.research_society",
+      "traits": {
+        "riskTolerance": 58,
+        "curiosity": 85,
+        "loyalty": 45,
+        "greed": 35,
+        "empathy": 50,
+        "vengefulness": 15,
+        "patience": 70,
+        "impulsiveness": 30,
+        "deceptionPreference": 40,
+        "uncertaintyAversion": 30
       }
     },
     {
@@ -262,7 +313,9 @@
         "empathy": 40,
         "vengefulness": 45,
         "patience": 50,
-        "impulsiveness": 44
+        "impulsiveness": 44,
+        "deceptionPreference": 25,
+        "uncertaintyAversion": 55
       },
       "beliefs": [
         {
@@ -273,6 +326,35 @@
           "sourceIds": [
             "rumor.caravan_attack"
           ]
+        }
+      ],
+      "relationships": [
+        {
+          "toId": "agent.mar",
+          "trust": 45,
+          "respect": 55,
+          "familiarity": 60
+        },
+        {
+          "toId": "agent.ren",
+          "trust": 35,
+          "familiarity": 50,
+          "debt": 10
+        },
+        {
+          "toId": "agent.rion",
+          "trust": 20,
+          "familiarity": 20
+        },
+        {
+          "toId": "creature.echo_beast_mother",
+          "fear": 60,
+          "resentment": 30
+        },
+        {
+          "toId": "faction.silent_village",
+          "trust": 55,
+          "dependency": 40
         }
       ]
     },
@@ -316,7 +398,9 @@
         "empathy": 38,
         "vengefulness": 30,
         "patience": 62,
-        "impulsiveness": 36
+        "impulsiveness": 36,
+        "deceptionPreference": 62,
+        "uncertaintyAversion": 35
       },
       "beliefs": [
         {
@@ -327,6 +411,27 @@
           "sourceIds": [
             "rumor.caravan_attack"
           ]
+        }
+      ],
+      "relationships": [
+        {
+          "toId": "agent.mar",
+          "trust": 30,
+          "familiarity": 45
+        },
+        {
+          "toId": "agent.kael",
+          "trust": 40,
+          "familiarity": 50
+        },
+        {
+          "toId": "creature.echo_beast_mother",
+          "fear": 45
+        },
+        {
+          "toId": "faction.silent_village",
+          "trust": 35,
+          "debt": 20
         }
       ]
     },
@@ -368,7 +473,9 @@
         "empathy": 52,
         "vengefulness": 38,
         "patience": 66,
-        "impulsiveness": 28
+        "impulsiveness": 28,
+        "deceptionPreference": 48,
+        "uncertaintyAversion": 62
       },
       "beliefs": [
         {
@@ -379,6 +486,35 @@
           "sourceIds": [
             "rumor.caravan_attack"
           ]
+        }
+      ],
+      "relationships": [
+        {
+          "toId": "agent.kael",
+          "trust": 50,
+          "dependency": 30,
+          "familiarity": 60
+        },
+        {
+          "toId": "agent.ren",
+          "trust": 25,
+          "familiarity": 45
+        },
+        {
+          "toId": "agent.rion",
+          "trust": 10,
+          "respect": 30,
+          "familiarity": 30
+        },
+        {
+          "toId": "creature.echo_beast_mother",
+          "fear": 40,
+          "resentment": 20
+        },
+        {
+          "toId": "faction.silent_village",
+          "trust": 70,
+          "dependency": 55
         }
       ]
     },
@@ -421,7 +557,9 @@
         "empathy": 74,
         "vengefulness": 18,
         "patience": 57,
-        "impulsiveness": 30
+        "impulsiveness": 30,
+        "deceptionPreference": 18,
+        "uncertaintyAversion": 41
       },
       "beliefs": [
         {
@@ -432,6 +570,30 @@
           "sourceIds": [
             "doubt.field_notes"
           ]
+        }
+      ],
+      "relationships": [
+        {
+          "toId": "agent.mar",
+          "trust": 20,
+          "fear": 15,
+          "familiarity": 30
+        },
+        {
+          "toId": "agent.kael",
+          "trust": 25,
+          "familiarity": 25
+        },
+        {
+          "toId": "creature.echo_beast_mother",
+          "respect": 40,
+          "fear": 20,
+          "affection": 15
+        },
+        {
+          "toId": "faction.research_society",
+          "trust": 65,
+          "dependency": 60
         }
       ]
     },
@@ -471,8 +633,107 @@
         "empathy": 60,
         "vengefulness": 20,
         "patience": 70,
-        "impulsiveness": 55
-      }
+        "impulsiveness": 55,
+        "deceptionPreference": 5,
+        "uncertaintyAversion": 70
+      },
+      "relationships": [
+        {
+          "toId": "agent.kael",
+          "fear": 20,
+          "resentment": 10
+        }
+      ]
+    },
+    {
+      "id": "faction.village_elders",
+      "type": "faction",
+      "name": "마을 원로회",
+      "goalGraphId": "goal_graph.internal_group",
+      "tags": [
+        "faction",
+        "internal_group",
+        "benefits"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 14,
+        "y": 18,
+        "z": 1
+      },
+      "states": {
+        "food_reserve": 60,
+        "fear": 10,
+        "threat_belief": 15,
+        "subjugation_ordered": false,
+        "research_progress": 0,
+        "member_count": 6,
+        "parent_faction": "faction.silent_village"
+      },
+      "traits": {
+        "riskTolerance": 30,
+        "curiosity": 25,
+        "loyalty": 80,
+        "greed": 55,
+        "empathy": 40,
+        "vengefulness": 45,
+        "patience": 60,
+        "impulsiveness": 25,
+        "deceptionPreference": 50,
+        "uncertaintyAversion": 60
+      },
+      "relationships": [
+        {
+          "toId": "faction.silent_village",
+          "trust": 50,
+          "dependency": 60
+        }
+      ]
+    },
+    {
+      "id": "faction.forest_gatherers",
+      "type": "faction",
+      "name": "숲 채집조",
+      "goalGraphId": "goal_graph.internal_group",
+      "tags": [
+        "faction",
+        "internal_group",
+        "harmed"
+      ],
+      "position": {
+        "regionId": "region.village",
+        "x": 18,
+        "y": 22,
+        "z": 1
+      },
+      "states": {
+        "food_reserve": 22,
+        "fear": 10,
+        "threat_belief": 15,
+        "subjugation_ordered": false,
+        "research_progress": 0,
+        "member_count": 9,
+        "parent_faction": "faction.silent_village"
+      },
+      "traits": {
+        "riskTolerance": 30,
+        "curiosity": 25,
+        "loyalty": 80,
+        "greed": 55,
+        "empathy": 40,
+        "vengefulness": 45,
+        "patience": 60,
+        "impulsiveness": 25,
+        "deceptionPreference": 50,
+        "uncertaintyAversion": 60
+      },
+      "relationships": [
+        {
+          "toId": "faction.silent_village",
+          "trust": 50,
+          "dependency": 60
+        }
+      ]
     }
   ]
 }

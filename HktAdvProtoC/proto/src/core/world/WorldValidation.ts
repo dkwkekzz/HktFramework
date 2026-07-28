@@ -30,8 +30,16 @@ function validateObservationEffect(
 ): void {
   const claim = effect.claim;
   if (claim === undefined) return;
-  // 주장 대상은 주체(actor/target) — Phase 1 의 신호 주체는 모두 agent 다
-  const schema = schemas.find("agent", claim.stateKey);
+  if (claim.relayBelief !== true && (claim.value === undefined || claim.confidence === undefined)) {
+    errors.push(`${where}: 주장에 value/confidence 가 없다 (relayBelief 가 아니면 필수)`);
+    return;
+  }
+  if (claim.subject === "entity" && claim.entityId === undefined) {
+    errors.push(`${where}: subject="entity" 인데 entityId 가 없다`);
+    return;
+  }
+  // 주장 대상은 주체(actor/target/entity) — 신호의 주체는 개인·생물(agent) 또는 조직(faction)이다
+  const schema = schemas.find("agent", claim.stateKey) ?? schemas.find("faction", claim.stateKey);
   if (schema === undefined) {
     errors.push(`${where}: 등록되지 않은 상태를 주장한다 — ${claim.stateKey}`);
     return;
@@ -41,7 +49,9 @@ function validateObservationEffect(
     return;
   }
   const declared = schema.observationChannels ?? [];
-  if (!effect.channels.some((channel) => declared.includes(channel))) {
+  // 소문·보고(§23)는 감각이 아니라 말이다 — 전달되는 믿음에는 감각 채널 제약을 걸지 않는다.
+  // 다만 observable=false 인 상태는 여전히 옮길 수 없다(§10 믿음 분리의 데이터 보증).
+  if (claim.relayBelief !== true && !effect.channels.some((channel) => declared.includes(channel))) {
     errors.push(
       `${where}: 채널 불일치 — 신호 [${effect.channels.join(",")}] vs 스키마 [${declared.join(",")}]`,
     );

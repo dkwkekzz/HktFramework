@@ -41,7 +41,10 @@ describe("인식 시스템 (§23)", () => {
     expect(outcomes.map((o) => o.observerId)).toContain(RESEARCHER);
     const belief = findBelief(runtime.agentRuntime(RESEARCHER), BEAST, "protecting_offspring");
     expect(belief?.believedValue).toBe(true);
-    expect(belief?.confidence).toBe(0.64);
+    // Phase 3: 확신은 신호가 주장한 값 그대로가 아니라
+    // (채널 정확도 × 신호 세기 × 주장 확신) + 기존 확신의 병합이다 (§23)
+    expect(belief?.confidence).toBeGreaterThan(0);
+    expect(belief?.confidence).toBeLessThan(0.64);
   });
 
   it("멀리 있으면 같은 신호를 관찰하지 못한다 (3D 거리 감쇠)", () => {

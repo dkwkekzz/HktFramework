@@ -17,14 +17,18 @@ describe("수동 세계 정의", () => {
     expect(validateWorldDefinition(buildManualWorld(1), rules)).toEqual([]);
   });
 
-  it("§42-1 규모를 지킨다 — 규칙 20 / 행동 10 / 종족 2 / 조직 2 / 개인 5", () => {
+  it("§40 초기 프로토타입 규모 안에 있다 (Phase 3 확장 후)", () => {
     const definition = buildManualWorld(1);
-    expect(MANUAL_RULES).toHaveLength(20);
-    expect(definition.actionDefinitions).toHaveLength(10);
+    // §40: 세계 규칙 40~60 / 행동 20종 / 종족 4 / 조직 5 / 주요 개인 20명
+    expect(MANUAL_RULES.length).toBeGreaterThanOrEqual(40);
+    expect(MANUAL_RULES.length).toBeLessThanOrEqual(60);
+    expect(definition.actionDefinitions.length).toBeLessThanOrEqual(20);
     expect(definition.species).toHaveLength(2);
-    expect(definition.factions).toHaveLength(2);
-    expect(definition.bootstrap.entities.filter((e) => e.type === "agent")).toHaveLength(5);
-    expect(definition.goalTemplates).toHaveLength(5);
+    expect(definition.bootstrap.entities.filter((e) => e.type === "faction").length).toBeLessThanOrEqual(5);
+    expect(definition.bootstrap.entities.filter((e) => e.type === "agent").length).toBeLessThanOrEqual(20);
+    // §8 생존 압력과 조직·위임 목적 그래프가 함께 들어왔다 (Phase 3)
+    expect(definition.survivalPressures.length).toBeGreaterThan(0);
+    expect(definition.goalTemplates.map((g) => g.id)).toContain("goal_graph.delegated");
   });
 
   it("모든 규칙 id 가 고유하고 트리거를 가진다", () => {

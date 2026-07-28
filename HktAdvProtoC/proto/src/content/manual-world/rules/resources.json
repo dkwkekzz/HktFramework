@@ -4,30 +4,55 @@
     "name": "침묵림 자원 재생",
     "scope": "region",
     "priority": 80,
-    "triggers": [{ "type": "interval", "interval": 360 }],
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 360
+      }
+    ],
     "conditions": [],
     "effects": [
       {
         "type": "modify_state",
         "target": {
           "type": "query",
-          "query": { "entityType": "resource", "tags": ["harvestable"] }
+          "query": {
+            "entityType": "resource",
+            "tags": [
+              "harvestable"
+            ]
+          }
         },
         "stateKey": "amount",
         "operation": "add",
-        "valueRef": { "type": "each_state", "key": "regrowth" }
+        "valueRef": {
+          "type": "each_state",
+          "key": "regrowth"
+        }
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.dangerous_places_are_rich"]
+    "derivedFromAxioms": [
+      "axiom.dangerous_places_are_rich"
+    ]
   },
   {
     "id": "rule.village_food_consumption",
     "name": "마을 식량 소비",
     "scope": "global",
     "priority": 80,
-    "triggers": [{ "type": "interval", "interval": 1440 }],
-    "forEach": { "type": "query", "query": { "entityType": "faction" } },
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "faction"
+      }
+    },
     "bindings": [
       {
         "name": "need",
@@ -35,8 +60,14 @@
           "type": "expr",
           "op": "mul",
           "operands": [
-            { "type": "target_state", "key": "member_count" },
-            { "type": "constant", "value": 1.2 }
+            {
+              "type": "target_state",
+              "key": "member_count"
+            },
+            {
+              "type": "constant",
+              "value": 1.2
+            }
           ]
         }
       },
@@ -46,8 +77,14 @@
           "type": "expr",
           "op": "min",
           "operands": [
-            { "type": "binding", "name": "need" },
-            { "type": "target_state", "key": "food_reserve" }
+            {
+              "type": "binding",
+              "name": "need"
+            },
+            {
+              "type": "target_state",
+              "key": "food_reserve"
+            }
           ]
         }
       },
@@ -61,37 +98,65 @@
               "type": "expr",
               "op": "div",
               "operands": [
-                { "type": "binding", "name": "taken" },
-                { "type": "binding", "name": "need" }
+                {
+                  "type": "binding",
+                  "name": "taken"
+                },
+                {
+                  "type": "binding",
+                  "name": "need"
+                }
               ]
             },
-            { "type": "constant", "value": 26 }
+            {
+              "type": "constant",
+              "value": 26
+            }
           ]
         }
       }
     ],
     "conditions": [
       {
-        "left": { "type": "binding", "name": "need" },
+        "left": {
+          "type": "binding",
+          "name": "need"
+        },
         "operator": ">",
-        "right": { "type": "constant", "value": 0 }
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
       },
       {
-        "left": { "type": "binding", "name": "taken" },
+        "left": {
+          "type": "binding",
+          "name": "taken"
+        },
         "operator": ">",
-        "right": { "type": "constant", "value": 0 }
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "food_reserve",
         "operation": "add",
         "valueRef": {
           "type": "expr",
           "op": "neg",
-          "operands": [{ "type": "binding", "name": "taken" }]
+          "operands": [
+            {
+              "type": "binding",
+              "name": "taken"
+            }
+          ]
         }
       },
       {
@@ -102,9 +167,15 @@
             "entityType": "agent",
             "where": [
               {
-                "left": { "type": "each_state", "key": "faction_id" },
+                "left": {
+                  "type": "each_state",
+                  "key": "faction_id"
+                },
                 "operator": "==",
-                "right": { "type": "entity_ref", "of": "target" }
+                "right": {
+                  "type": "entity_ref",
+                  "of": "target"
+                }
               }
             ]
           }
@@ -114,19 +185,35 @@
         "valueRef": {
           "type": "expr",
           "op": "neg",
-          "operands": [{ "type": "binding", "name": "ration" }]
+          "operands": [
+            {
+              "type": "binding",
+              "name": "ration"
+            }
+          ]
         }
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
   },
   {
     "id": "rule.hunt_yield",
     "name": "사냥 산출",
     "scope": "entity",
     "priority": 50,
-    "triggers": [{ "type": "action_executed", "actionId": "action.hunt" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.hunt"
+      },
+      {
+        "type": "action_executed",
+        "actionId": "action.forage"
+      }
+    ],
     "bindings": [
       {
         "name": "attempt",
@@ -134,8 +221,15 @@
           "type": "expr",
           "op": "add",
           "operands": [
-            { "type": "constant", "value": 12 },
-            { "type": "random_int", "max": 9, "stream": "actor" }
+            {
+              "type": "constant",
+              "value": 12
+            },
+            {
+              "type": "random_int",
+              "max": 9,
+              "stream": "actor"
+            }
           ]
         }
       },
@@ -145,48 +239,79 @@
           "type": "expr",
           "op": "min",
           "operands": [
-            { "type": "target_state", "key": "amount" },
-            { "type": "binding", "name": "attempt" }
+            {
+              "type": "target_state",
+              "key": "amount"
+            },
+            {
+              "type": "binding",
+              "name": "attempt"
+            }
           ]
         }
       }
     ],
     "conditions": [
       {
-        "left": { "type": "target_state", "key": "amount" },
+        "left": {
+          "type": "target_state",
+          "key": "amount"
+        },
         "operator": ">",
-        "right": { "type": "constant", "value": 0 }
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "amount",
         "operation": "add",
         "valueRef": {
           "type": "expr",
           "op": "neg",
-          "operands": [{ "type": "binding", "name": "yielded" }]
+          "operands": [
+            {
+              "type": "binding",
+              "name": "yielded"
+            }
+          ]
         }
       },
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "carried_food",
         "operation": "add",
-        "valueRef": { "type": "binding", "name": "yielded" }
+        "valueRef": {
+          "type": "binding",
+          "name": "yielded"
+        }
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.dangerous_places_are_rich"]
+    "derivedFromAxioms": [
+      "axiom.dangerous_places_are_rich"
+    ]
   },
   {
     "id": "rule.trade_transfer",
     "name": "거래 이전",
     "scope": "relationship",
     "priority": 40,
-    "triggers": [{ "type": "action_executed", "actionId": "action.trade" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.trade"
+      }
+    ],
     "bindings": [
       {
         "name": "amount",
@@ -194,47 +319,85 @@
           "type": "expr",
           "op": "min",
           "operands": [
-            { "type": "actor_state", "key": "carried_food" },
-            { "type": "constant", "value": 20 }
+            {
+              "type": "actor_state",
+              "key": "carried_food"
+            },
+            {
+              "type": "constant",
+              "value": 20
+            }
           ]
         }
       },
-      { "name": "price", "value": { "type": "world_state", "key": "food_price" } }
+      {
+        "name": "price",
+        "value": {
+          "type": "world_state",
+          "key": "food_price"
+        }
+      }
     ],
     "conditions": [
       {
-        "left": { "type": "entity_type", "of": "target" },
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
         "operator": "==",
-        "right": { "type": "constant", "value": "faction" }
+        "right": {
+          "type": "constant",
+          "value": "faction"
+        }
       },
       {
-        "left": { "type": "binding", "name": "amount" },
+        "left": {
+          "type": "binding",
+          "name": "amount"
+        },
         "operator": ">",
-        "right": { "type": "constant", "value": 0 }
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
       }
     ],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "carried_food",
         "operation": "add",
         "valueRef": {
           "type": "expr",
           "op": "neg",
-          "operands": [{ "type": "binding", "name": "amount" }]
+          "operands": [
+            {
+              "type": "binding",
+              "name": "amount"
+            }
+          ]
         }
       },
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "food_reserve",
         "operation": "add",
-        "valueRef": { "type": "binding", "name": "amount" }
+        "valueRef": {
+          "type": "binding",
+          "name": "amount"
+        }
       },
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "wealth",
         "operation": "add",
         "valueRef": {
@@ -245,16 +408,27 @@
               "type": "expr",
               "op": "mul",
               "operands": [
-                { "type": "binding", "name": "amount" },
-                { "type": "binding", "name": "price" }
+                {
+                  "type": "binding",
+                  "name": "amount"
+                },
+                {
+                  "type": "binding",
+                  "name": "price"
+                }
               ]
             },
-            { "type": "constant", "value": 10 }
+            {
+              "type": "constant",
+              "value": 10
+            }
           ]
         }
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.scarcity_creates_exchange"]
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
   }
 ]

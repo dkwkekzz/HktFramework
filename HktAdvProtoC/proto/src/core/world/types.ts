@@ -134,6 +134,14 @@ export interface SpeciesDefinition {
 
 // --- §17 조직 -----------------------------------------------------------------
 
+/** §17 internalGroups — 조직 산하의 소주체. 같은 판단 파이프라인을 재귀 적용한다(Phase-3 §3.7) */
+export interface InternalGroupDefinition {
+  id: string;
+  name: string;
+  /** 제도에서 이익을 얻는 집단인가, 손해를 보는 집단인가 (§17 절차 4·5) */
+  stance: "benefits" | "harmed";
+}
+
 export interface FactionDefinition {
   id: string;
   name: string;
@@ -143,6 +151,28 @@ export interface FactionDefinition {
   controlledResources: string[];
   relationshipDefaults: Record<string, number>;
   collapseConditions: ConditionDefinition[];
+  internalGroups?: InternalGroupDefinition[];
+}
+
+// --- §8 생존 압력 --------------------------------------------------------------
+
+/**
+ * 생존 압력 (§8). "왜 움직여야 하는가"의 원천.
+ * 해소되지 않으면 urgencyGrowth 만큼 매일 긴급도가 쌓이고, 대응 목적(goalId)의 활성도로 들어간다(§20 needPressure).
+ */
+export interface SurvivalPressureDefinition {
+  id: string;
+  targetState: string;
+  failureState: string;
+  urgencyGrowth: number;
+  applicableSpeciesTags: string[];
+  relatedResources: string[];
+  /** 이 압력이 밀어 올리는 목적 */
+  goalId: string;
+  /** 이 조건이 참이면 압력이 해소되어 누적이 0 으로 돌아간다 */
+  relievedWhen: ConditionDefinition[];
+  /** 누적 상한 — 하나의 압력이 세계를 지배하지 않게 한다 */
+  maxUrgency: number;
 }
 
 // --- §19 목적 그래프 ----------------------------------------------------------
@@ -167,6 +197,16 @@ export type UrgencyPolicy =
       max: number;
     };
 
+/** §19 UtilityFactor — 이 목적을 이루면 무엇이 좋아지는가 (§20 expectedUtility) */
+export interface UtilityFactor {
+  /** actor=자기 상태, entity=지정 개체의 상태(믿음으로 읽는다) */
+  owner: "actor" | "entity";
+  entityId?: string;
+  stateKey: string;
+  direction: "increase" | "decrease";
+  weight: number;
+}
+
 export interface GoalNode {
   id: string;
   description: string;
@@ -177,6 +217,12 @@ export interface GoalNode {
   desiredChanges: { stateKey: string; direction: "increase" | "decrease"; weight: number }[];
   abandonmentConditions: ConditionDefinition[];
   allowedActionTags: string[];
+  /** §19 utilityFactors — 없으면 desiredChanges 로 대신한다 */
+  utilityFactors?: UtilityFactor[];
+  /** 이 목적이 마음 쓰는 대상 — §20 relationshipImpact 의 근거 (가족·조직·적) */
+  focusIds?: string[];
+  /** 이 목적이 기대는 감정 상태 — §20 emotionalBias (예: 공포가 클수록 회피 목적이 커진다) */
+  emotionKeys?: { stateKey: string; weight: number }[];
 }
 
 export interface GoalEdge {
@@ -200,14 +246,28 @@ export interface ObservationEffect {
   channels: ObservationChannel[];
   strength: number;
   tags: string[];
+  /**
+   * 신호를 낸 것이 누구인가 (기본 actor).
+   * "관찰하니 대상의 흔적이 드러났다" 처럼 **대상**이 신호원인 경우가 있다 —
+   * 이때 행위자 자신도 그 신호를 읽는 관찰자가 된다(§23: 자기가 낸 신호는 관찰하지 않는다).
+   */
+  origin?: "actor" | "target";
   /** 신호가 주장하는 값 — 실제 상태와 다를 수 있다(§10) */
   claim?: {
-    subject: "actor" | "target";
+    subject: "actor" | "target" | "entity";
+    /** subject="entity" 일 때 주장 대상 — 제3자에 대한 소문이 이 형태다 */
+    entityId?: string;
     stateKey: string;
     value: number | boolean | string;
     confidence: number;
     /** 관찰자 자신의 상태 갱신 — 관찰이 판단으로 이어지는 연결점 */
     observerStateKey?: string;
+    /**
+     * 소문·보고 채널 (§23): 신호를 내는 주체의 **믿음**을 그대로 실어 나른다.
+     * value/confidence 선언은 무시되고, 전달자의 믿음이 없으면 주장 없는 신호가 된다.
+     * 수신자는 전달자 신뢰(§25 trust)로 confidence 를 깎는다 — 정보 비대칭의 원천.
+     */
+    relayBelief?: boolean;
   };
 }
 
@@ -284,6 +344,18 @@ export interface BootstrapEntity {
   states: Record<string, unknown>;
   /** 개인 판단 변수 (§18) */
   traits?: Record<string, number>;
+  /** 초기 관계 (§25) — "이미 서로 아는 사이"도 초기 상태다 */
+  relationships?: {
+    toId: string;
+    trust?: number;
+    fear?: number;
+    respect?: number;
+    affection?: number;
+    resentment?: number;
+    dependency?: number;
+    debt?: number;
+    familiarity?: number;
+  }[];
   /** 초기 믿음 (§41 "초기 상태만 배치한다" — 소문·선입견도 초기 상태다) */
   beliefs?: {
     subjectId: string;
@@ -310,6 +382,7 @@ export interface WorldDefinition {
   spaces: SpaceDefinition; // §13 — Phase 1
   resources: ResourceDefinition[]; // §14 — Phase 1
   species: SpeciesDefinition[]; // §15 — Phase 1
+  survivalPressures: SurvivalPressureDefinition[]; // §8 — Phase 3
   factions: FactionDefinition[]; // §17 — Phase 1
   agentArchetypes: unknown[]; // §18 — Phase 5
   abilitySystem: unknown; // §16 — Phase 5 (실행 매핑은 Phase 2 §2.7)
@@ -328,6 +401,7 @@ export function createEmptyWorldDefinition(worldSeed: number): WorldDefinition {
     spaces: { regions: [], locations: [], connections: [] },
     resources: [],
     species: [],
+    survivalPressures: [],
     factions: [],
     agentArchetypes: [],
     abilitySystem: null,

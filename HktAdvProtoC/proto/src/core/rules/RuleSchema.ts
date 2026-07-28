@@ -201,16 +201,20 @@ export const RULE_JSON_SCHEMA = {
         channels: { type: "array", items: { type: "string" } },
         strength: { type: "number" },
         tags: { type: "array", items: { type: "string" } },
+        origin: { enum: ["actor", "target"] },
         claim: {
           type: "object",
-          required: ["subject", "stateKey", "value", "confidence"],
+          required: ["subject", "stateKey"],
           additionalProperties: false,
           properties: {
-            subject: { enum: ["actor", "target"] },
+            subject: { enum: ["actor", "target", "entity"] },
+            entityId: { type: "string" },
             stateKey: { type: "string" },
             value: {},
             confidence: { type: "number" },
             observerStateKey: { type: "string" },
+            /** 전달자의 믿음을 그대로 옮긴다 (§23 소문·보고) — value/confidence 는 쓰이지 않는다 */
+            relayBelief: { type: "boolean" },
           },
         },
       },

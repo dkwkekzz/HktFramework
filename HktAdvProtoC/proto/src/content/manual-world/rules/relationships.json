@@ -1,0 +1,341 @@
+[
+  {
+    "id": "rule.help_builds_trust",
+    "name": "도움을 받음 → 신뢰·빚·의존",
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [{ "type": "action_executed", "actionId": "action.trade" }],
+    "conditions": [
+      {
+        "left": { "type": "entity_type", "of": "target" },
+        "operator": "==",
+        "right": { "type": "constant", "value": "faction" }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "trust",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "debt",
+        "operation": "add",
+        "value": 5
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "dependency",
+        "operation": "add",
+        "value": 3
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 4
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.scarcity_creates_exchange"]
+  },
+  {
+    "id": "rule.threat_breeds_fear",
+    "name": "위협을 받음 → 공포·원한 상승, 신뢰 하락",
+    "scope": "relationship",
+    "priority": 70,
+    "triggers": [{ "type": "action_executed", "actionId": "action.attack" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "fear",
+        "operation": "add",
+        "value": 25
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "resentment",
+        "operation": "add",
+        "value": 18
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "trust",
+        "operation": "add",
+        "value": -20
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+  },
+  {
+    "id": "rule.power_earns_respect",
+    "name": "강한 것을 목격함 → 존경 또는 공포",
+    "scope": "relationship",
+    "priority": 45,
+    "triggers": [{ "type": "state_changed", "stateKey": "known_threat_level" }],
+    "conditions": [
+      {
+        "left": { "type": "event_payload", "key": "after" },
+        "operator": ">",
+        "right": { "type": "event_payload", "key": "before" }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "entity", "entityId": "creature.echo_beast_mother" },
+        "key": "respect",
+        "operation": "add",
+        "value": 4
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "entity", "entityId": "creature.echo_beast_mother" },
+        "key": "fear",
+        "operation": "add",
+        "value": 6,
+        "conditions": [
+          {
+            "left": { "type": "actor_state", "key": "curiosity" },
+            "operator": "<",
+            "right": { "type": "constant", "value": 60 }
+          }
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.belief_drives_behavior"]
+  },
+  {
+    "id": "rule.report_builds_trust",
+    "name": "보고 → 조직의 신뢰",
+    "scope": "relationship",
+    "priority": 50,
+    "triggers": [{ "type": "action_executed", "actionId": "action.report" }],
+    "conditions": [
+      {
+        "left": { "type": "entity_type", "of": "target" },
+        "operator": "==",
+        "right": { "type": "constant", "value": "faction" }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "trust",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "respect",
+        "operation": "add",
+        "value": 4
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 5
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.organizations_act_on_reports"]
+  },
+  {
+    "id": "rule.delegation_creates_dependency",
+    "name": "위임 → 의존과 빚",
+    "scope": "relationship",
+    "priority": 50,
+    "triggers": [{ "type": "action_executed", "actionId": "action.delegate" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "dependency",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "debt",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 4
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.organizations_act_on_reports"]
+  },
+  {
+    "id": "rule.gossip_builds_familiarity",
+    "name": "소문을 나눔 → 친숙함",
+    "scope": "relationship",
+    "priority": 40,
+    "triggers": [{ "type": "action_executed", "actionId": "action.gossip" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 3
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.belief_drives_behavior"]
+  },
+  {
+    "id": "rule.promise_broken_trust",
+    "name": "약속 위반 → 신뢰 급감·원한",
+    "scope": "relationship",
+    "priority": 80,
+    "triggers": [{ "type": "state_changed", "stateKey": "promise_broken" }],
+    "forEach": { "type": "query", "query": { "entityType": "faction" } },
+    "conditions": [
+      {
+        "left": { "type": "event_payload", "key": "after" },
+        "operator": "==",
+        "right": { "type": "constant", "value": true }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "trust",
+        "operation": "add",
+        "value": -25
+      },
+      {
+        "type": "modify_relationship",
+        "from": { "type": "target" },
+        "to": { "type": "actor" },
+        "key": "resentment",
+        "operation": "add",
+        "value": 15
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.organizations_act_on_reports"]
+  },
+  {
+    "id": "rule.promise_broken_rumor",
+    "name": "약속 위반 → 소문 확산",
+    "scope": "entity",
+    "priority": 75,
+    "triggers": [{ "type": "state_changed", "stateKey": "promise_broken" }],
+    "conditions": [
+      {
+        "left": { "type": "event_payload", "key": "after" },
+        "operator": "==",
+        "right": { "type": "constant", "value": true }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "promise_broken",
+        "operation": "set",
+        "value": false
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "social_status",
+        "operation": "add",
+        "value": -6
+      }
+    ],
+    "observations": [
+      {
+        "signalId": "signal.betrayal_rumor",
+        "channels": ["talk"],
+        "strength": 60,
+        "tags": ["rumor", "betrayal"],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "promise_broken",
+          "value": true,
+          "confidence": 0.7
+        }
+      }
+    ],
+    "derivedFromAxioms": ["axiom.belief_drives_behavior", "axiom.actions_leave_signs"]
+  },
+  {
+    "id": "rule.fear_of_the_feared",
+    "name": "관계의 공포가 개인의 공포가 된다",
+    "scope": "relationship",
+    "priority": 35,
+    "triggers": [{ "type": "relationship_changed", "relationshipKey": "fear" }],
+    "cooldown": 240,
+    "conditions": [
+      {
+        "left": { "type": "actor_state", "key": "fear" },
+        "operator": "<",
+        "right": { "type": "constant", "value": 85 }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 3
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.belief_drives_behavior"]
+  }
+]

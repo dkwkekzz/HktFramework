@@ -7,7 +7,12 @@
 //   ④ 긴급 주체 갱신   : shouldReplan 인 주체만 재판단
 //   ⑤ 완료 행동 정리   : 행동 결과(규칙·이동·신호) 반영 후 같은 tick 에 재판단 이벤트 예약
 //   ⑥⑦ 사건 탐지/요약  : Phase 4
-import { updateUrgentAgents } from "../agents/AgentRuntime";
+import {
+  maintainAgentsDaily,
+  rememberActionOutcome,
+  updateUrgentAgents,
+} from "../agents/AgentRuntime";
+import { TICKS_PER_DAY } from "../../shared/time";
 import { processObservationSignals } from "../agents/PerceptionSystem";
 import {
   ACTION_COMPLETED_EVENT,
@@ -22,6 +27,11 @@ import type { SimulationLoop } from "./SimulationLoop";
 import type { ScheduledActionState } from "../../shared/beliefs";
 
 export const RULE_INTERVAL_EVENT = "rule_interval";
+/**
+ * 하루 한 번의 주체 유지 (§8 압력 누적 · §24 기억 감쇠/요약 · §25 약속 만기 · §17 조직 붕괴).
+ * 이것들은 세계 규칙(DSL)이 아니라 주체 시스템의 시간 축이므로 규칙 엔진이 아니라 여기서 돈다.
+ */
+export const AGENT_MAINTENANCE_EVENT = "agent_maintenance";
 
 interface CompletedAction {
   agentId: string;
@@ -53,6 +63,8 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
       const batch = completed.splice(0, completed.length);
       for (const entry of batch) {
         completeAction(runtime, rules, entry.agentId, entry.scheduled);
+        // 행동은 행위자와 대상 모두에게 기억으로 남는다 (§24)
+        rememberActionOutcome(runtime, entry.agentId, entry.scheduled);
         // 재판단은 §26 순서를 지켜 다음 반복의 updateUrgentAgents 가 한다.
         // 같은 tick 에 반복이 한 번 더 돌도록 표식 이벤트만 남긴다.
         runtime.scheduler.schedule({
@@ -113,6 +125,17 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
 
       // 재판단 표식 — 실제 판단은 §26 순서에 따라 updateUrgentAgents 가 한다
       loop.registerHandler(AGENT_REPLAN_EVENT, () => undefined);
+
+      loop.registerHandler(AGENT_MAINTENANCE_EVENT, (runtime, event) => {
+        maintainAgentsDaily(runtime);
+        const seq = typeof event.payload["seq"] === "number" ? event.payload["seq"] + 1 : 1;
+        runtime.scheduler.schedule({
+          ...event,
+          id: `maintenance.${seq}`,
+          executeAt: event.executeAt + TICKS_PER_DAY,
+          payload: { seq },
+        });
+      });
     },
 
     scheduleInitialEvents: (runtime) => {
@@ -126,6 +149,14 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
           priority: rule.priority,
         });
       }
+      runtime.scheduler.schedule({
+        id: "maintenance.0",
+        executeAt: TICKS_PER_DAY,
+        type: AGENT_MAINTENANCE_EVENT,
+        targetIds: [],
+        payload: { seq: 0 },
+        priority: -20,
+      });
       for (const agentId of runtime.agentIds()) {
         runtime.scheduler.schedule({
           id: `replan.${agentId}.init`,

@@ -3,15 +3,48 @@
     "id": "faction.silent_village",
     "name": "침묵림 변두리 마을",
     "publicPurpose": "마을 사람들을 굶기지 않는다",
-    "hiddenPurposes": ["지도자가 불법 자원 채굴을 숨긴다"],
-    "requiredStates": [{ "stateKey": "food_reserve", "comparison": ">", "value": 40 }],
-    "controlledResources": ["resource.food", "resource.trade_goods"],
-    "relationshipDefaults": { "faction.research_society": 20, "species.echo_beast": -40 },
+    "hiddenPurposes": [
+      "지도자가 불법 자원 채굴을 숨긴다"
+    ],
+    "requiredStates": [
+      {
+        "stateKey": "food_reserve",
+        "comparison": ">",
+        "value": 40
+      }
+    ],
+    "controlledResources": [
+      "resource.food",
+      "resource.trade_goods"
+    ],
+    "relationshipDefaults": {
+      "faction.research_society": 20,
+      "species.echo_beast": -40
+    },
     "collapseConditions": [
       {
-        "left": { "kind": "entity_state", "entityId": "faction.silent_village", "key": "food_reserve" },
-        "operator": "<=",
-        "right": { "kind": "const", "value": 0 }
+        "left": {
+          "kind": "entity_state",
+          "entityId": "faction.silent_village",
+          "key": "starving_days"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 5
+        }
+      }
+    ],
+    "internalGroups": [
+      {
+        "id": "faction.village_elders",
+        "name": "마을 원로회",
+        "stance": "benefits"
+      },
+      {
+        "id": "faction.forest_gatherers",
+        "name": "숲 채집조",
+        "stance": "harmed"
       }
     ]
   },
@@ -19,15 +52,35 @@
     "id": "faction.research_society",
     "name": "잔재 연구회",
     "publicPurpose": "능력 잔재를 흡수하는 생물을 이해한다",
-    "hiddenPurposes": ["희귀 잔재 표본을 독점한다"],
-    "requiredStates": [{ "stateKey": "research_progress", "comparison": ">", "value": 0 }],
-    "controlledResources": ["resource.ability_residue"],
-    "relationshipDefaults": { "faction.silent_village": 20, "species.echo_beast": 10 },
+    "hiddenPurposes": [
+      "희귀 잔재 표본을 독점한다"
+    ],
+    "requiredStates": [
+      {
+        "stateKey": "research_progress",
+        "comparison": ">",
+        "value": 0
+      }
+    ],
+    "controlledResources": [
+      "resource.ability_residue"
+    ],
+    "relationshipDefaults": {
+      "faction.silent_village": 20,
+      "species.echo_beast": 10
+    },
     "collapseConditions": [
       {
-        "left": { "kind": "entity_state", "entityId": "faction.research_society", "key": "member_count" },
+        "left": {
+          "kind": "entity_state",
+          "entityId": "faction.research_society",
+          "key": "member_count"
+        },
         "operator": "<=",
-        "right": { "kind": "const", "value": 0 }
+        "right": {
+          "kind": "const",
+          "value": 0
+        }
       }
     ]
   }

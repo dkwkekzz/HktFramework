@@ -4,26 +4,43 @@
     "name": "허기 증가",
     "scope": "global",
     "priority": 100,
-    "triggers": [{ "type": "interval", "interval": 60 }],
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 60
+      }
+    ],
     "conditions": [],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "query", "query": { "entityType": "agent" } },
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent"
+          }
+        },
         "stateKey": "hunger",
         "operation": "add",
         "value": 1
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
   },
   {
     "id": "rule.hunger_health_decay",
     "name": "허기가 체력을 갉는다",
     "scope": "global",
     "priority": 95,
-    "triggers": [{ "type": "interval", "interval": 60 }],
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 60
+      }
+    ],
     "conditions": [],
     "effects": [
       {
@@ -34,9 +51,15 @@
             "entityType": "agent",
             "where": [
               {
-                "left": { "type": "each_state", "key": "hunger" },
+                "left": {
+                  "type": "each_state",
+                  "key": "hunger"
+                },
                 "operator": ">",
-                "right": { "type": "constant", "value": 70 }
+                "right": {
+                  "type": "constant",
+                  "value": 70
+                }
               }
             ]
           }
@@ -47,65 +70,128 @@
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
   },
   {
     "id": "rule.eat_effect",
     "name": "식사 효과",
     "scope": "entity",
     "priority": 50,
-    "triggers": [{ "type": "action_executed", "actionId": "action.eat" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.eat"
+      }
+    ],
     "conditions": [],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "hunger",
         "operation": "add",
         "value": -40
       },
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "energy",
         "operation": "add",
         "value": 10
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
   },
   {
     "id": "rule.rest_recovery",
     "name": "휴식 회복",
     "scope": "entity",
     "priority": 50,
-    "triggers": [{ "type": "action_executed", "actionId": "action.rest" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.rest"
+      }
+    ],
     "conditions": [],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "energy",
         "operation": "add",
         "value": 30
       },
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "health",
         "operation": "add",
         "value": 3
       },
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "fear",
         "operation": "add",
         "value": -6
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_must_be_sustained"]
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
+    "id": "rule.flee_relief",
+    "name": "도망치면 두려움이 가라앉는다",
+    "scope": "entity",
+    "priority": 45,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.flee"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": -12
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "energy",
+        "operation": "add",
+        "value": -2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
   }
 ]

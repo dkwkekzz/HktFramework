@@ -36,18 +36,44 @@ export function emitObservationEffect(
     createdAt: runtime.state.simulationTime,
     position: { ...position },
   };
-  if (effect.claim !== undefined) {
-    const subjectId = effect.claim.subject === "actor" ? origin.actorId : origin.targetId;
+  const claim = effect.claim;
+  if (claim !== undefined) {
+    const subjectId =
+      claim.subject === "actor"
+        ? origin.actorId
+        : claim.subject === "entity"
+          ? claim.entityId
+          : origin.targetId;
     if (subjectId !== undefined) {
-      signal.claim = {
-        subjectId,
-        stateKey: effect.claim.stateKey,
-        value: effect.claim.value,
-        confidence: effect.claim.confidence,
-        ...(effect.claim.observerStateKey !== undefined
-          ? { observerStateKey: effect.claim.observerStateKey }
-          : {}),
-      };
+      const observerStateKey =
+        claim.observerStateKey !== undefined ? { observerStateKey: claim.observerStateKey } : {};
+      if (claim.relayBelief === true) {
+        // §23 소문·보고 — 신호를 내는 주체의 **믿음**을 그대로 실어 나른다.
+        // 믿는 바가 없으면 옮길 말도 없다(주장 없는 신호가 된다).
+        const teller = runtime.state.agentRuntimes[origin.actorId];
+        const belief = teller?.beliefs.find(
+          (record) => record.subjectId === subjectId && record.stateKey === claim.stateKey,
+        );
+        if (belief !== undefined) {
+          signal.claim = {
+            subjectId,
+            stateKey: claim.stateKey,
+            value: belief.believedValue,
+            confidence: belief.confidence,
+            ...observerStateKey,
+          };
+          // 수신자는 전달자 신뢰(§25 trust)로 확신을 깎는다 — 정보 비대칭의 원천
+          signal.payload = { ...signal.payload, tellerId: origin.actorId };
+        }
+      } else {
+        signal.claim = {
+          subjectId,
+          stateKey: claim.stateKey,
+          value: claim.value,
+          confidence: claim.confidence,
+          ...observerStateKey,
+        };
+      }
     }
   }
   runtime.emitSignal(signal);

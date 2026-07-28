@@ -150,6 +150,7 @@ export function buildAbilityFixtureWorld(worldSeed: number): WorldDefinition {
     },
     resources: [],
     species: [],
+    survivalPressures: [],
     factions: [],
     agentArchetypes: [],
     abilitySystem: { abilities: [{ id: ABILITY_ID, ownerId: ABILITY_OWNER, mastery: 42 }] },
