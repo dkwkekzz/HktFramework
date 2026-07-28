@@ -6,6 +6,11 @@ import { existsSync, readFileSync } from "node:fs";
 import { findBelief } from "../core/agents/BeliefStore";
 import { MEMORY_CAPACITY } from "../core/agents/MemorySystem";
 import { compareHearsayConfidence, measureGoalConflict } from "../core/agents/phase3Checks";
+import {
+  PLAYER_FREE_MODULES,
+  findPlayerBranches,
+  runPlayerScenario,
+} from "../core/agents/phase7Checks";
 import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
 import { buildInterventionOpportunity } from "../core/events/EventViews";
 import {
@@ -90,13 +95,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3 | 4 | 5 | 6;
+  phase: 1 | 2 | 3 | 4 | 5 | 6 | 7;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 | 4 | 5 | 6 = 1;
+let phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -708,8 +713,137 @@ check(
       : `\n      경고(error 로 승격하지 않음): ${auditOn.issues.map((issue) => `${issue.targetId}`).join(", ")}`),
 );
 
+// =====================================================================================
+// Phase 7 — 플레이어 개입 (§30, §31, §32, §42-7)
+// =====================================================================================
+phase = 7;
+
+// 개입은 수동 세계 위에 플레이어 층을 얹은 세계에서 본다 (§35 무개입 판정의 기준선을 건드리지 않는다)
+const active = await runPlayerScenario({ worldSeed, days });
+const passive = await runPlayerScenario({ worldSeed, days, passive: true });
+// §29 6번째 항 — 조작 주체가 없는 수동 세계에서는 0 이어야 한다 (Phase 4 기준선이 움직이지 않는 이유)
+const noPlayerRelevance = events.filter((event) => event.significanceBreakdown.playerRelevance > 0).length;
+
+// --- DoD 1 : §30 참여 방식 4개 이상 + "아무것도 하지 않는다" --------------------------
+check(
+  active.performedModes.length >= 4 && passive.completedActionCount === 0 && passive.changeCount > 0 && passive.eventCount > 0,
+  `§30 참여 방식 ${active.performedModes.length}종을 실제 조작으로 수행 · 방관도 유효`,
+  active.attempts
+    .map(
+      (attempt) =>
+        `\n      ${attempt.accepted ? "✓" : "✗"} ${attempt.day}일 ${attempt.label} → ${attempt.actionId}` +
+        `${attempt.targetIds.length > 0 ? `(${attempt.targetIds.join(",")})` : ""}` +
+        `${attempt.approach ? " — 사거리 밖이라 먼저 다가감" : ""}${attempt.reason === undefined ? "" : ` — ${attempt.reason}`}`,
+    )
+    .join("") +
+    `\n      개입: 행동 ${active.completedActionCount}회 · change ${active.changeCount}건 · 사건 ${active.eventCount}건` +
+    `\n      방관: 행동 ${passive.completedActionCount}회인데도 change ${passive.changeCount}건 · 사건 ${passive.eventCount}건 · NPC 성장 ${passive.npcGrowth.length}건 — 세계는 플레이어를 기다리지 않는다` +
+    `\n      두 세계의 로그 해시 ${active.logHash} ≠ ${passive.logHash} — 개입이 세계를 갈랐다`,
+);
+
+// --- DoD 2 : 같은 사건에 전투·협상·정보·거래 개입이 모두 있다 (§44-8) -------------------
+check(
+  (active.intervention?.categories.length ?? 0) >= 4,
+  "같은 사건에 전투·협상·정보·거래 개입이 모두 존재 (§44-8)",
+  active.intervention === undefined
+    ? "네 갈래가 모두 열린 사건 없음"
+    : `${active.intervention.eventId}(${active.intervention.type}) — ${active.intervention.categories.join(" / ")}\n      개입 후보 ${active.intervention.interactions.length}종 [${active.intervention.interactions.join(" ")}]`,
+);
+
+// --- DoD 3 : 미발견 개체·미관찰 사실이 화면에 실리지 않는다 (§36.3) ----------------------
+const beastProbe = active.beliefProbes.find(
+  (probe) => probe.subjectId === BEAST && probe.stateKey === "aggression",
+);
+check(
+  active.leaks.length === 0 &&
+    active.hiddenLeaks.length === 0 &&
+    active.hiddenStateCount > 0 &&
+    beastProbe !== undefined,
+  "플레이어 화면 데이터가 믿음·감각을 넘지 않는다 (UI 없이 판정)",
+  `${days}일 동안 표시 사실 ${active.auditedFacts}건 감사 · 위반 ${active.leaks.length}건 · ` +
+    `관찰 불가 상태 ${active.hiddenStateCount}종 중 노출 ${active.hiddenExposedCount}종\n` +
+    `      마지막 화면의 출처별 사실 — ${Object.entries(active.factsBySource).map(([source, count]) => `${source} ${count}`).join(" · ")}\n` +
+    `      실제 ≠ 표시 ${active.beliefProbes.length}건 (화면은 세계가 아니라 믿음을 보여준다): ` +
+    active.beliefProbes
+      .slice(0, 3)
+      .map((probe) => `${probe.subjectId}.${probe.stateKey} 실제 ${probe.real} → 표시 ${probe.shown}(확신 ${probe.confidence.toFixed(2)})`)
+      .join(" / "),
+);
+
+// --- DoD 4 : 플레이어 전용 실행 경로가 없다 (§21) -----------------------------------------
+const playerFreeSources = PLAYER_FREE_MODULES.map((relative) => ({
+  path: relative,
+  source: readFileSync(new URL(`../core/agents/${relative}`.replace("/./", "/"), import.meta.url), "utf8"),
+}));
+const playerBranches = findPlayerBranches(playerFreeSources);
+check(
+  playerBranches.length === 0 && active.executionPaths.length > 0 && active.executionPaths.every((entry) => entry.same),
+  "플레이어 행동이 NPC 와 같은 규칙 경로로 처리된다 (전용 효과 코드 없음)",
+  `규칙·행동·판단 ${playerFreeSources.length}개 모듈에 플레이어 분기 ${playerBranches.length}건 ${playerBranches.join(",")}\n` +
+    `      (§31 이 허용한 유일한 분기는 AgentRuntime.shouldReplan 한 줄 — "행동 선택을 시스템이 아니라 사용자가 한다")\n` +
+    active.executionPaths
+      .map(
+        (entry) =>
+          `      ${entry.same ? "✓" : "✗"} ${entry.actionId}: 플레이어 [${entry.playerRules.map((r) => r.replace("rule.", "")).join(",")}] ⊆ NPC [${entry.npcRules.map((r) => r.replace("rule.", "")).join(",")}]`,
+      )
+      .join("\n"),
+);
+
+// --- DoD 5 : 개입이 사건 결과·관계·후속 목적으로 남는다 (§44-9·10) --------------------------
+check(
+  active.consequence !== undefined &&
+    active.consequence.netChangedStates > 0 &&
+    active.consequence.newGoals.length > 0 &&
+    active.consequence.relationshipShifts.length > 0 &&
+    active.playerRelevantEvents > 0 &&
+    noPlayerRelevance === 0,
+  "플레이어가 참여한 사건이 세계 상태·관계·후속 목적을 바꿨다",
+  active.consequence === undefined
+    ? "플레이어가 참여자로 들어간 사건 없음"
+    : `${active.consequence.eventId}(${active.consequence.type}) 순변화 ${active.consequence.netChangedStates}개\n` +
+      `      상태 — ${active.consequence.topDeltas.join(" | ")}\n` +
+      `      관계 — ${active.consequence.relationshipShifts.join(" | ")}\n` +
+      `      새 목적 ${active.consequence.newGoals.length}건 — ${active.consequence.newGoals.slice(0, 4).join(" ")}\n` +
+      `      §29 playerRelevance — 조작 세계에서 ${active.playerRelevantEvents}/${active.eventCount}건에 가산 · 조작 주체가 없는 수동 세계에서는 ${noPlayerRelevance}/${events.length}건 (기준선 불변의 근거)`,
+);
+
+// --- DoD 6 : 성장이 수치 증가 + 선택 구조로 발생하고 GrowthChange 로 기록된다 (§32) ----------
+const numericGrowth = active.growth.filter((change) => typeof change.newValue === "number");
+const accepted = active.acceptedOffer;
+check(
+  numericGrowth.length > 0 &&
+    accepted !== undefined &&
+    accepted.abilityAfter.restrictions > accepted.abilityBefore.restrictions &&
+    accepted.abilityAfter.outputMax > accepted.abilityBefore.outputMax &&
+    active.growth.every((change) => change.sourceEventId.length > 0) &&
+    active.npcGrowth.length > 0,
+  `§32 성장 — 플레이어 ${active.growth.length}건 · NPC ${active.npcGrowth.length}건 (같은 규칙, §21)`,
+  active.growth
+    .map(
+      (change) =>
+        `\n      ${tickToDay(change.at)}일 [${change.type}] ${change.key} ${String(change.previousValue)} → ${String(change.newValue)}` +
+        ` ← ${change.ruleId.replace("rule.", "")} @${change.sourceEventId}${change.optionId === undefined ? "" : ` (선택 ${change.optionId})`}`,
+    )
+    .join("") +
+    (accepted === undefined
+      ? "\n      선택형 성장 없음"
+      : `\n      선택 구조 — "${accepted.restriction}" 를 받아들여 능력 제약 ${accepted.abilityBefore.restrictions}→${accepted.abilityAfter.restrictions}종, ` +
+        `출력 상한 ${accepted.abilityBefore.outputMax}→${accepted.abilityAfter.outputMax} (§11.4 제약이 무거울수록 출력이 크다)`) +
+    `\n      출처 사건 없는 성장 ${active.growth.filter((c) => c.sourceEventId.length === 0).length}건 · 저널 ${active.journalSize}줄 ` +
+    `(${Object.entries(active.journalKinds).map(([kind, count]) => `${kind} ${count}`).join(" · ")})`,
+);
+
+// --- DoD 7 : 개입이 있어도 같은 시드면 같은 세계다 (§44-12) ---------------------------------
+const activeAgain = await runPlayerScenario({ worldSeed, days });
+const activeOther = await runPlayerScenario({ worldSeed: worldSeed + 1, days });
+check(
+  activeAgain.logHash === active.logHash && activeOther.logHash !== active.logHash,
+  "같은 시드·같은 조작 → 같은 로그 / 다른 시드는 다름",
+  `시드 ${worldSeed} 해시 ${active.logHash}(${active.changeCount}건) · 재실행 ${activeAgain.logHash} · 시드 ${worldSeed + 1} ${activeOther.logHash}`,
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3, 4, 5, 6] as const) {
+for (const current of [1, 2, 3, 4, 5, 6, 7] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
@@ -722,7 +856,9 @@ for (const current of [1, 2, 3, 4, 5, 6] as const) {
             ? "Phase 4 완료 조건 — 사건 탐지"
             : current === 5
               ? "Phase 5 완료 조건 — 세계 생성 컴파일러"
-              : "Phase 6 완료 조건 — 자동 검증과 수정";
+              : current === 6
+                ? "Phase 6 완료 조건 — 자동 검증과 수정"
+                : "Phase 7 완료 조건 — 플레이어 개입";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);

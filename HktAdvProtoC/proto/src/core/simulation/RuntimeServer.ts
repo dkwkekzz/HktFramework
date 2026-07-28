@@ -2,7 +2,15 @@
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
 import { buildManualWorld } from "../../content/manual-world";
 import type { WorldEvent } from "../../shared/events";
-import type { WorkerRequest, WorkerResponse } from "../../shared/protocol";
+import type { PlayerActionRequest, WorkerRequest, WorkerResponse } from "../../shared/protocol";
+import { acceptGrowthOffer } from "../agents/GrowthSystem";
+import {
+  attachPlayer,
+  buildPlayerKnowledgeView,
+  detachPlayer,
+  executePlayerAction,
+  findPlayerId,
+} from "../agents/PlayerAgent";
 import { RuleEngine } from "../rules/RuleEngine";
 import { bootstrapWorld } from "../world/WorldBootstrap";
 import { validateWorldDefinition } from "../world/WorldValidation";
@@ -46,11 +54,66 @@ export class RuntimeServer {
       case "advance_time":
         return this.advanceTime(request.amount);
       case "execute_player_action":
-        // 플레이어 행동은 Phase 7 — 프로토콜 타입만 선치 (Phase 0 §0.4)
-        return [{ type: "error", message: "execute_player_action 은 Phase 7 에서 구현된다" }];
+        return this.playerAction(request.action);
       case "request_snapshot":
         return this.snapshot();
+      case "attach_player":
+        return this.attach(request.agentId);
+      case "detach_player":
+        return this.detach();
+      case "accept_growth":
+        return this.acceptGrowth(request.offerId, request.optionId);
     }
+  }
+
+  // --- 플레이어 (§31, Phase-7) --------------------------------------------------
+
+  /** 조작 중인 주체가 있으면 지식 필터를 통과한 뷰를 함께 실어 보낸다 (§7.2) */
+  private withPlayerView(runtime: WorldRuntime, responses: WorkerResponse[]): WorkerResponse[] {
+    const playerId = findPlayerId(runtime);
+    if (playerId === undefined) return responses;
+    return [...responses, { type: "player_view", view: buildPlayerKnowledgeView(runtime, playerId) }];
+  }
+
+  private attach(agentId: string): WorkerResponse[] {
+    const runtime = this.requireRuntime();
+    try {
+      attachPlayer(runtime, agentId);
+    } catch (error) {
+      return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
+    }
+    this.inputSeq += 1;
+    return this.withPlayerView(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
+  }
+
+  private detach(): WorkerResponse[] {
+    const runtime = this.requireRuntime();
+    const detached = detachPlayer(runtime);
+    if (detached === undefined) return [{ type: "error", message: "조작 중인 주체가 없다" }];
+    this.inputSeq += 1;
+    return [{ type: "state_patch", patch: runtime.flushPatch() }];
+  }
+
+  /**
+   * §7.3 — 요청 검증 → 실패 시 사유 → 성공 시 비용 지불·행동 예약.
+   * 성공해도 세계가 저절로 흐르지는 않는다. 시간은 advance_time 이 민다(§44-5 플레이어와 무관한 시간).
+   */
+  private playerAction(action: PlayerActionRequest): WorkerResponse[] {
+    const runtime = this.requireRuntime();
+    const outcome = executePlayerAction(runtime, action);
+    this.inputSeq += 1;
+    return this.withPlayerView(runtime, [
+      { type: "player_action_result", outcome },
+      { type: "state_patch", patch: runtime.flushPatch() },
+    ]);
+  }
+
+  private acceptGrowth(offerId: string, optionId: string): WorkerResponse[] {
+    const runtime = this.requireRuntime();
+    const result = acceptGrowthOffer(runtime, offerId, optionId);
+    if (!result.ok) return [{ type: "error", message: result.reason ?? "성장 선택 실패" }];
+    this.inputSeq += 1;
+    return this.withPlayerView(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
   }
 
   /** 정의 없이 초기화하면 수동 세계(Phase 1)로 시작한다. Phase 5 부터는 생성된 정의가 들어온다. */
@@ -88,11 +151,11 @@ export class RuntimeServer {
     const runtime = this.requireRuntime();
     this.requireLoop().advance(runtime, amount);
     this.inputSeq += 1;
-    return [
+    return this.withPlayerView(runtime, [
       { type: "state_patch", patch: runtime.flushPatch() },
       // §28 사건 스트림 — 이번 진행에서 새로 생기거나 상태가 바뀐 사건만 보낸다(§38 "전량 전달하지 않는다")
       { type: "events_created", events: this.drainEventUpdates(runtime) },
-    ];
+    ]);
   }
 
   /** 마지막 보고 이후 생기거나 종결된 사건 (Phase-4) */

@@ -3,6 +3,7 @@
 // 판단의 알맹이는 GoalSystem(§20)·ActionPlanner(§22)·PerceptionSystem(§23) 이 갖는다.
 // 이 파일은 그 순서를 지키는 사이클과, 하루 한 번의 유지 작업(압력·기억·약속·조직)만 담당한다.
 import type { ScheduledActionState } from "../../shared/beliefs";
+import { isPlayerState } from "../../shared/player";
 import {
   AGENT_REPLAN_EVENT,
   resolveDuration,
@@ -46,6 +47,8 @@ export { calculateGoalActivation, rankGoals } from "./GoalSystem";
 /** §26 shouldReplan — 기획서 조건 그대로. 조직은 자기 위기 지표와 느린 주기를 쓴다(§17). */
 export function shouldReplan(runtime: WorldRuntime, agentId: string): boolean {
   const agent = runtime.agentRuntime(agentId);
+  // §31 판단 분기 — 플레이어는 시스템이 계획하지 않는다. 행동 선택만 사용자에게 넘어간다.
+  if (isPlayerState(agent)) return false;
   const urgentFlag =
     agent.flags.includes("important_observation") ||
     agent.flags.includes("goal_invalidated") ||

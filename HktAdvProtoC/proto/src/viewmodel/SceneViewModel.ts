@@ -23,6 +23,65 @@ export interface SceneEntity {
   topGoal?: { id: string; activation: number };
 }
 
+// --- 플레이어 패널 (Phase-7 §7.3) ---------------------------------------------------
+// UI 는 이 속성만 읽는다. "무엇을 숨길까"의 판단은 여기 오기 전에 이미 끝나 있다 —
+// 코어의 지식 필터를 통과한 데이터만 빌더로 들어오기 때문이다(§36.3).
+
+export interface SceneActionOption {
+  actionId: string;
+  name: string;
+  /** 대상 표시 이름 (없으면 빈 문자열) */
+  targets: string;
+  targetIds: string[];
+  goalId: string;
+  /** 표시용으로 정리된 수치 */
+  score: string;
+  duration: string;
+  risk: string;
+  /** 이 후보가 "다가가기"라면 도착해서 하려던 행동 */
+  approachFor?: string;
+}
+
+export interface SceneJournalEntry {
+  at: string;
+  kind: string;
+  key: string;
+  detail: string;
+}
+
+export interface SceneEventPanelItem {
+  eventId: string;
+  type: string;
+  title: string;
+  knownParticipants: string[];
+  /** 아직 정체를 모르는 참여자 수 (§30 "아직 모르는 것") */
+  unknownParticipantCount: number;
+  knownFacts: string[];
+  interactions: string[];
+  urgency: string;
+}
+
+export interface SceneGrowthOffer {
+  offerId: string;
+  key: string;
+  options: { id: string; restriction: string; severity: string; grants: string }[];
+}
+
+export interface ScenePlayerPanel {
+  playerId: string;
+  label: string;
+  facts: SceneBadge[];
+  goals: { id: string; activation: number }[];
+  currentAction?: { actionId: string; targets: string; completesAt: number };
+  actionPanel: SceneActionOption[];
+  journal: SceneJournalEntry[];
+  eventPanel: SceneEventPanelItem[];
+  growthOffers: SceneGrowthOffer[];
+  growthLog: string[];
+  /** 아직 모르는 개체 수 — 정체는 알려주지 않는다 */
+  undiscoveredCount: number;
+}
+
 export interface SceneViewModel {
   /** 현재 tick */
   time: number;
@@ -31,8 +90,11 @@ export interface SceneViewModel {
   /** 시간 배속 (§36.2) — Phase 0 은 표시만 */
   speed: number;
   initialized: boolean;
+  /** 조작 중이면 **플레이어가 아는 개체만** 실린다 (§7.2) */
   entities: SceneEntity[];
   globalBadges: SceneBadge[];
+  /** 조작 중일 때만 존재한다 (§31) */
+  player?: ScenePlayerPanel;
 }
 
 export function createEmptyScene(): SceneViewModel {

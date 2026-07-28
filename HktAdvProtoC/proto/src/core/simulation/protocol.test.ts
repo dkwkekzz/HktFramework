@@ -56,14 +56,18 @@ describe("§38 프로토콜", () => {
     expect(() => host.server.handle({ type: "advance_time", amount: 1 })).toThrow();
   });
 
-  it("execute_player_action 은 Phase 7 전까지 error 응답", async () => {
+  it("조작 중인 주체 없이 온 execute_player_action 은 사유와 함께 거절된다 (Phase 7)", async () => {
     const host = new InlineHost();
     await host.request({ type: "initialize_world", worldSeed: 42 });
     const responses = await host.request({
       type: "execute_player_action",
       action: { actionId: "action.move", targetIds: [] },
     });
-    expect(pick(responses, "error").message).toContain("Phase 7");
+    const outcome = pick(responses, "player_action_result").outcome;
+    expect(outcome.accepted).toBe(false);
+    expect(outcome.reason).toContain("attach_player");
+    // 조작 주체가 없으면 플레이어 뷰도 나가지 않는다 (§7.2 지식 필터의 기본값은 "아무것도 없다")
+    expect(responses.some((response) => response.type === "player_view")).toBe(false);
   });
 
   it("ViewModelBuilder 가 patch 스트림에서 장면을 만든다 (§0.6 경계)", async () => {

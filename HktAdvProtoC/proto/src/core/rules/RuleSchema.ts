@@ -169,6 +169,7 @@ export const RULE_JSON_SCHEMA = {
             "emit_signal",
             "schedule_rule",
             "modify_relationship",
+            "record_growth",
           ],
         },
         conditions: { type: "array", items: { $ref: "#/$defs/condition" } },
@@ -192,6 +193,44 @@ export const RULE_JSON_SCHEMA = {
         ruleId: { type: "string" },
         delay: { type: "number" },
         key: { type: "string" },
+        /** §32 record_growth */
+        growthType: {
+          enum: ["physical", "skill", "knowledge", "relationship", "authority", "ability", "identity"],
+        },
+        options: { type: "array", items: { $ref: "#/$defs/growthOption" } },
+      },
+    },
+    growthOption: {
+      type: "object",
+      required: ["id", "restriction", "severity", "grants"],
+      additionalProperties: false,
+      properties: {
+        id: { type: "string" },
+        restriction: { type: "string" },
+        severity: { type: "number", minimum: 0 },
+        grants: {
+          type: "array",
+          items: {
+            type: "object",
+            required: ["type", "key", "amount"],
+            additionalProperties: false,
+            properties: {
+              type: {
+                enum: [
+                  "physical",
+                  "skill",
+                  "knowledge",
+                  "relationship",
+                  "authority",
+                  "ability",
+                  "identity",
+                ],
+              },
+              key: { type: "string" },
+              amount: { type: "number" },
+            },
+          },
+        },
       },
     },
     observation: {

@@ -4,6 +4,7 @@
 // 여기서 자동으로 따라온다. 효과 실행기가 entity.states 를 직접 만지는 일은 없다.
 import { createAgentRuntimeState } from "../../shared/beliefs";
 import type { EntityState } from "../../shared/state";
+import { requestGrowth } from "../agents/GrowthSystem";
 import {
   applyRelationshipChange,
   ensureRelationship,
@@ -200,6 +201,24 @@ export function executeEffect(
         const value = resolveAmount(scoped, effect.value, effect.valueRef);
         if (entity === undefined) modifyGlobal(scoped, effect.stateKey, effect.operation, value);
         else scoped.runtime.store.modify(entity.id, effect.stateKey, effect.operation, value);
+      }
+      return;
+    }
+    case "record_growth": {
+      // 성장은 여기서 값을 바꾸지 않는다 — 출처 사건이 정해진 뒤에 확정된다 (§32 sourceEventId 필수)
+      for (const entity of resolveTargets(base, effect.target)) {
+        const scoped = withEach(base, entity.id);
+        if (effect.conditions !== undefined && !evaluateRuleConditions(effect.conditions, scoped)) continue;
+        if (effect.chance !== undefined && !passesChance(scoped, effect.chance, entity.id)) continue;
+        const amount = resolveAmount(scoped, effect.amount, effect.amountRef);
+        requestGrowth(scoped.runtime, {
+          agentId: entity.id,
+          ruleId: scoped.rule.id,
+          type: effect.growthType,
+          key: effect.key,
+          amount: typeof amount === "number" ? amount : 0,
+          options: effect.options ?? [],
+        });
       }
       return;
     }
