@@ -137,14 +137,14 @@ core/events/EventDetector.ts     패턴 매칭: requiredTags ∩ timeWindow ∩ 
  → WorldEvent (shared/events.ts) { type: "ecological_conflict", participants: [반향수·마을·연구회…],
                                    affectedStates, changes, status: "ongoing", significance(§29 6항) }
 core/events/EventViews.ts        getEventViewFor(agentId, eventId) — 그 주체의 믿음과 교집합한 "아는 사건"만 (§30)
- → InterventionOpportunity { knownFacts, possibleInteractions, timeSensitivity }   ← Phase 7 플레이어 UI 의 입력
+ → InterventionOpportunity { knownFacts, possibleInteractions, timeSensitivity }   ← 플레이어 화면의 사건 패널 입력
 ```
 
 시드 42 · 30일 기준 change 약 8천 건이 6개 패턴으로 묶여 사건 37건이 된다 — 아무도 사건을 작성하지 않았다. 전 과정은 `cd proto && npm run verify` 한 줄로 ✓/✗ 재현된다.
 
 ## 3단계 — 렌더: 어떤 데이터가 화면이 되는가 [구현됨]
 
-시뮬레이션에서 경계 밖으로 나가는 데이터는 둘뿐이다: `WorldStatePatch`(변경분)와 `events_created`(사건 갱신) — 둘 다 §38 프로토콜(`shared/protocol.ts`).
+시뮬레이션에서 경계 밖으로 나가는 데이터는 셋뿐이다: `WorldStatePatch`(변경분), `events_created`(사건 갱신), 그리고 조작 중일 때의 `player_view` — 전부 §38 프로토콜(`shared/protocol.ts`).
 
 ```jsonc
 // WorldStatePatch (shared/state.ts) — StateStore 가 마킹한 dirty 만 WorldRuntime.flushPatch() 가 모은다
@@ -170,10 +170,26 @@ scene.elevation = z;                    // 고도는 표시 속성으로 분리
   "entities": [{ "id": "agent.hunter", "kind": "agent", "position": { "x": 40, "y": 17, ... }, "elevation": 2,
                  "stateBadges": [{ "key": "health", "value": "42" }] }],
   "globalBadges": [...] }
-// Phase 7~8 에서 필드 추가 예정: map(지역 형상·colorKey), overlays(사건), actionPanel, eventPanel …
+// Phase 8 에서 필드 추가 예정: map(지역 형상·colorKey), overlays(사건) …
 ```
 
-`app/main.ts` 의 `render()` 는 이 속성을 **그대로** DOM 에 매핑할 뿐, `if (danger > 50)` 같은 시뮬레이션 값 해석이 없다. 플레이어 모드(Phase 7)에서는 빌더가 믿음+발견 집합 밖의 데이터를 ViewModel 에 아예 넣지 않으므로, "반향수의 실제 aggression=12" 는 화면에 존재할 수 없다.
+`app/main.ts` 의 `render()` 는 이 속성을 **그대로** DOM 에 매핑할 뿐, `if (danger > 50)` 같은 시뮬레이션 값 해석이 없다.
+
+### 플레이어 모드의 갈래 [Phase 7 구현됨]
+
+조작 중인 주체가 있으면 patch 말고 하나가 더 나간다 — `PlayerKnowledgeView`(`shared/player.ts`). 이것은 **이미 걸러진 데이터**다: 값의 출처가 자기 감각·믿음·지금의 감각 중 하나가 아니면 애초에 실리지 않는다(`core/agents/PlayerAgent.ts`).
+
+```jsonc
+// player_view — 지식 필터를 통과한 뒤의 세계
+{ "playerId": "agent.kael",
+  "self":  { "facts": [{ "key": "health", "value": "42", "source": "self", "confidence": 1 }] },
+  "known": [{ "id": "creature.echo_beast_mother",
+              "facts": [{ "key": "aggression", "value": "90", "source": "belief", "confidence": 0.27 }] }],
+  "options": [ /* ActionPlanner 후보를 점수순으로, 자르지 않고 */ ],
+  "events":  [ /* §30 InterventionOpportunity */ ], "journal": [...], "growthOffers": [...] }
+```
+
+`ViewModelBuilder.setPlayerView()` 가 이걸 받으면 `SceneViewModel.entities` 는 **아는 개체로 교체**되고 `SceneViewModel.player` 패널이 붙는다. 반향수의 실제 `aggression` 이 0 이어도 화면에는 90 이 뜬다 — 화면이 보는 것은 세계가 아니라 믿음이기 때문이다(§10). 실제값은 경계를 넘지 않았으므로 UI 에는 "숨길지 말지"의 판단 자체가 없다(§36.3).
 
 ## 단계 ↔ 모듈 ↔ 구현 현황
 
@@ -188,7 +204,8 @@ scene.elevation = z;                    // 고도는 표시 속성으로 분리
 | 인식·믿음 | `ObservationSignal` → `BeliefRecord` | `core/agents/PerceptionSystem·BeliefView` | 구현됨 |
 | 판단 | `ActiveGoalState` → `ScheduledActionState` | `core/agents/GoalSystem·ActionPlanner·FactionRuntime` | 구현됨 |
 | 사건 | `WorldEvent`·`InterventionOpportunity` | `core/events/` 5모듈 | 구현됨 |
-| 플레이어 | `PlayerRuntimeState` | 판단 분기 + 지식 필터 | Phase 7 |
+| 플레이어 | `PlayerRuntimeState` → `PlayerKnowledgeView` | `core/agents/PlayerAgent.ts` (판단 분기 + 지식 필터) | 구현됨 |
+| 성장 | `GrowthChange` (출처 사건 필수) | `core/agents/GrowthSystem.ts` + `record_growth` 효과 | 구현됨 |
 | 경계 출력 | `WorldStatePatch`·`events_created` | `RuntimeServer`·`PatchCollector` | 구현됨 |
-| 표시 번역 | `SceneViewModel` | `viewmodel/ViewModelBuilder.ts` | 구현됨 (필드는 Phase 7~8 확장) |
+| 표시 번역 | `SceneViewModel`(+`player` 패널) | `viewmodel/ViewModelBuilder.ts` | 구현됨 (map·overlays 는 Phase 8) |
 | 문장화 | 사건 제목·대화·소문 | `EventInterpreter` (표현 전용, 쓰기 권한 없음 §33.3) | Phase 8 |

@@ -2,6 +2,7 @@
 //
 // 실행기는 이 정규형 하나만 안다. §12 의 `when/if/then` 축약형과 §11.4 예시 표기는
 // 로더(RuleSchema.loadRuleDocument)가 여기로 변환해 넣는다.
+import type { GrowthOption, GrowthType } from "../../shared/player";
 import type { EntityType } from "../../shared/state";
 import type { ObservationEffect, StateOwnerType } from "../world/types";
 
@@ -136,6 +137,20 @@ export type RuleEffect = EffectCommon &
         operation: StateOperation;
         value?: number;
         valueRef?: RuleValue;
+      }
+    /**
+     * §32 성장 기록 (Phase-7 §7.4). 성장 **발생 조건**을 코드가 아니라 규칙이 갖게 하는 효과다 —
+     * NPC 와 플레이어가 같은 규칙으로 자란다(§21). 출처 사건이 확정된 뒤에 적용된다.
+     */
+    | {
+        type: "record_growth";
+        growthType: GrowthType;
+        target: RuleTargetSelector;
+        key: string;
+        amount?: number;
+        amountRef?: RuleValue;
+        /** 있으면 즉시 적용이 아니라 선택지를 게시한다 (§32 "사용자의 선택") */
+        options?: GrowthOption[];
       }
   );
 

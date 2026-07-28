@@ -13,7 +13,9 @@ import {
   updateUrgentAgents,
 } from "../agents/AgentRuntime";
 import { TICKS_PER_DAY } from "../../shared/time";
+import { resolvePendingGrowth } from "../agents/GrowthSystem";
 import { processObservationSignals } from "../agents/PerceptionSystem";
+import { refreshPlayerKnowledge } from "../agents/PlayerAgent";
 import {
   ACTION_COMPLETED_EVENT,
   AGENT_REPLAN_EVENT,
@@ -93,6 +95,11 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
     },
     updateEventSummaries: (runtime) => {
       updateEventSummaries(runtime);
+      // §26 의 7단계 뒤에 붙는 주체 시스템의 시간 축 (maintainAgentsDaily 와 같은 자리).
+      // 둘 다 **사건이 확정된 뒤**여야 한다 — 성장은 출처 사건을 필요로 하고(§32),
+      // 플레이어의 저널은 방금 탐지된 사건을 읽는다(§30).
+      resolvePendingGrowth(runtime);
+      refreshPlayerKnowledge(runtime);
     },
   };
 

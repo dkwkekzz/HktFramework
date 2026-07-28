@@ -15,6 +15,9 @@
       #generation { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
       #generation details { margin: 0.2rem 0 0.2rem 1.5rem; }
       #generation pre { background: #f7f7f7; padding: 0.5rem; overflow-x: auto; max-height: 20rem; }
+      #player { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
+      #player button { font-family: inherit; font-size: 0.75rem; padding: 0.15rem 0.4rem; margin: 0.1rem 0; }
+      #player details { margin: 0.2rem 0 0.2rem 0.5rem; }
       .fail { color: #b00; }
     </style>
   </head>
@@ -43,6 +46,7 @@
       <label for="seed">세계 시드</label>
       <input id="seed" type="number" value="42" />
       <button id="init">수동 세계로 시작</button>
+      <button id="init-player">개입 세계로 시작 (§30·§32 층 포함)</button>
     </div>
     <div class="row">
       <button id="advance-hour" disabled>+1시간</button>
@@ -50,6 +54,19 @@
       <button id="advance-week" disabled>+7일</button>
     </div>
     <div id="status"></div>
+
+    <!-- §31 플레이어 개입 — 조작 중에는 화면이 "아는 것"만 그린다 (§36.3) -->
+    <fieldset>
+      <legend>플레이어 개입 (§30 개입 기회 · §31 동일 행동 체계)</legend>
+      <div class="row">
+        <label for="player-agent">조작할 주체</label>
+        <input id="player-agent" type="text" value="agent.kael" size="24" />
+        <button id="attach" disabled>이 주체를 조작한다</button>
+        <button id="detach" disabled>조작을 놓는다</button>
+      </div>
+      <div id="player"></div>
+    </fieldset>
+
     <div id="world"></div>
     <script type="module" src="/src/app/main.ts"></script>
   </body>

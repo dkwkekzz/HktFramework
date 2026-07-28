@@ -5,6 +5,7 @@ import type { ActiveGoalState, AgentRuntimeState, RelationshipState } from "./be
 import type { RawWorldChange } from "./change";
 import { createEmptyEventsState, type EventsState } from "./events";
 import type { ObservationSignal } from "./observation";
+import type { GrowthChange, GrowthOffer, PendingGrowth } from "./player";
 
 // 공간 데이터는 3D 다 (기획서 §13 개정) — x·y 수평, z 고도.
 // 거리·반경·관찰 계산은 전부 3D 유클리드 거리를 사용한다. 렌더링의 2D 투영은 ViewModel 빌더의 몫.
@@ -59,6 +60,14 @@ export interface WorldState {
   ruleEventSeq: number;
   /** 규칙 쿨다운(§11 cooldown) 마지막 발동 시각 — 스냅샷에 실려야 복원 후에도 같은 흐름이 된다 */
   ruleCooldowns: Record<string, number>;
+  /** §32 성장 원장 — 누구의 어떤 값이 어느 사건 때문에 변했는가 (NPC·플레이어 공통) */
+  growth: GrowthChange[];
+  /** 출처 사건을 기다리는 성장 (§32 sourceEventId 필수) */
+  pendingGrowth: PendingGrowth[];
+  /** 아직 선택되지 않은 성장 제안 (§32 선택 구조) */
+  growthOffers: GrowthOffer[];
+  /** 성장·제안 id 발급 순번 — 시드 무관하게 순번으로만 증가한다(결정론) */
+  growthSeq: number;
 }
 
 // 변경분만 전달하는 patch (기획서 §38 — "전체 월드 상태를 매 프레임 전달하지 않는다")
@@ -84,5 +93,9 @@ export function createEmptyWorldState(): WorldState {
     entitySeq: 0,
     ruleEventSeq: 0,
     ruleCooldowns: {},
+    growth: [],
+    pendingGrowth: [],
+    growthOffers: [],
+    growthSeq: 0,
   };
 }

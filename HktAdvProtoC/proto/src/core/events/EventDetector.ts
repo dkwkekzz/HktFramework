@@ -11,8 +11,10 @@ import {
   type SignificanceBreakdown,
   type WorldEvent,
 } from "../../shared/events";
+import { isPlayerState } from "../../shared/player";
 import { distance3d } from "../../shared/state";
 import { TICKS_PER_DAY } from "../../shared/time";
+import { BeliefView } from "../agents/BeliefView";
 import { CROSS_REGION_DISTANCE } from "../world/Conditions";
 import type { EventPattern } from "../world/types";
 import type { WorldRuntime } from "../world/WorldRuntime";
@@ -155,10 +157,24 @@ export function calculateEventSignificance(
     affectedSystems: systems.size * 12,
     magnitude: magnitude * 0.5,
     relationshipImpact: relationshipImpact * 0.7,
-    // 플레이어는 Phase 7 에서 등장한다 — 그전까지 이 항은 0 이다(§29 calculatePlayerRelevance)
-    playerRelevance: 0,
+    playerRelevance: playerRelevance(runtime, event),
     futurePotential,
   };
+}
+
+/**
+ * §29 calculatePlayerRelevance — 조작 중인 주체가 없으면 0 이다.
+ * 그래서 플레이어 없는 세계(§35 무개입 판정)의 중요도는 이 항이 생기기 전과 정확히 같다.
+ * 관여의 두 갈래를 센다 — ① 그 자리에 있었는가(참여자) ② 참여자를 아는가(§30 "아는 만큼의 사건").
+ */
+function playerRelevance(runtime: WorldRuntime, event: WorldEvent): number {
+  const playerId = runtime
+    .agentIds()
+    .find((id) => isPlayerState(runtime.agentRuntime(id)));
+  if (playerId === undefined) return 0;
+  if (event.participants.includes(playerId)) return 25;
+  const view = new BeliefView(runtime, playerId);
+  return event.participants.some((participantId) => view.knowsAgent(participantId)) ? 10 : 0;
 }
 
 function findGoalNodeById(runtime: WorldRuntime, goalId: string) {

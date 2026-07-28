@@ -1,0 +1,450 @@
+[
+  {
+    "id": "rule.assist_effect",
+    "name": "협력은 아는 것을 나눈다",
+    "tags": [
+      "assist",
+      "social",
+      "information"
+    ],
+    "scope": "entity",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.assist"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "known_threat_level",
+        "operation": "add",
+        "value": 12
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "emit_signal",
+        "signalId": "signal.assist_talk"
+      }
+    ],
+    "observations": [
+      {
+        "signalId": "signal.assist_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 45,
+        "tags": [
+          "assist",
+          "social",
+          "information"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "relayBelief": true
+        }
+      }
+    ],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.sell_info_deal",
+    "name": "아는 것을 판다",
+    "tags": [
+      "trade",
+      "information",
+      "economy"
+    ],
+    "scope": "entity",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.sell_info"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "target_state",
+          "key": "wealth"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "transfer_resource",
+        "resourceId": "wealth",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "amountRef": {
+          "type": "expr",
+          "op": "min",
+          "operands": [
+            {
+              "type": "constant",
+              "value": 8
+            },
+            {
+              "type": "target_state",
+              "key": "wealth"
+            }
+          ]
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "known_threat_level",
+        "operation": "add",
+        "value": 15
+      },
+      {
+        "type": "emit_signal",
+        "signalId": "signal.info_deal"
+      }
+    ],
+    "observations": [
+      {
+        "signalId": "signal.info_deal",
+        "channels": [
+          "talk"
+        ],
+        "strength": 40,
+        "tags": [
+          "trade",
+          "information"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "relayBelief": true
+        }
+      }
+    ],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.growth_risky_success",
+    "name": "성장 — 위험한 행동을 살아서 마쳤다",
+    "tags": [
+      "growth",
+      "combat"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.attack"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "health"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "skill",
+        "target": {
+          "type": "actor"
+        },
+        "key": "riskTolerance",
+        "amount": 3
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.dangerous_places_are_rich"
+    ]
+  },
+  {
+    "id": "rule.growth_repeated_observation",
+    "name": "성장 — 같은 현상을 거듭 관찰했다",
+    "tags": [
+      "growth",
+      "information"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.observe"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "knowledge",
+        "target": {
+          "type": "actor"
+        },
+        "key": "curiosity",
+        "amount": 2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.actions_leave_signs"
+    ]
+  },
+  {
+    "id": "rule.growth_tracking_knowledge",
+    "name": "성장 — 흔적을 읽어 종을 알게 됐다",
+    "tags": [
+      "growth",
+      "trace"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.track"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "knowledge",
+        "target": {
+          "type": "actor"
+        },
+        "key": "uncertaintyAversion",
+        "amount": -3
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.actions_leave_signs"
+    ]
+  },
+  {
+    "id": "rule.growth_new_standing",
+    "name": "성장 — 보고가 지위를 만든다",
+    "tags": [
+      "growth",
+      "report"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.report"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "authority",
+        "target": {
+          "type": "actor"
+        },
+        "key": "loyalty",
+        "amount": 2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.organizations_act_on_reports"
+    ]
+  },
+  {
+    "id": "rule.growth_failure_backlash",
+    "name": "성장 — 실패와 반동을 겪었다",
+    "tags": [
+      "growth",
+      "backlash"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "health"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "actor"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      },
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "health"
+        },
+        "operator": "<",
+        "right": {
+          "type": "constant",
+          "value": 50
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "identity",
+        "target": {
+          "type": "actor"
+        },
+        "key": "patience",
+        "amount": 2
+      }
+    ],
+    "cooldown": 720,
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
+    "id": "rule.growth_ability_choice",
+    "name": "성장 — 능력의 제약을 다시 짠다",
+    "tags": [
+      "growth",
+      "ability"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "fear"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "actor"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      },
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "fear"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 55
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "ability",
+        "target": {
+          "type": "actor"
+        },
+        "key": "정지의 손",
+        "options": [
+          {
+            "id": "named_targets",
+            "restriction": "하루에 세 개의 대상에만 이름을 붙일 수 있다",
+            "severity": 60,
+            "grants": [
+              {
+                "type": "ability",
+                "key": "outputRange.max",
+                "amount": 40
+              }
+            ]
+          },
+          {
+            "id": "shorter_hold",
+            "restriction": "멈추는 시간이 3초에서 1초로 줄어든다",
+            "severity": 25,
+            "grants": [
+              {
+                "type": "skill",
+                "key": "riskTolerance",
+                "amount": 6
+              }
+            ]
+          }
+        ]
+      }
+    ],
+    "cooldown": 10080,
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
+  }
+]

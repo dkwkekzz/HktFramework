@@ -197,6 +197,19 @@ function validateRuleEffect(
       walkSelector(schemas, effect.from, where, errors);
       walkSelector(schemas, effect.to, where, errors);
       return;
+    case "record_growth":
+      // key 는 §9 상태 키가 아니라 §18 판단 변수·능력 id 다 — 스키마 검증 대상이 아니다
+      walkSelector(schemas, effect.target, where, errors);
+      if (effect.amountRef !== undefined) walkValue(schemas, effect.amountRef, where, errors);
+      if (effect.amount === undefined && effect.amountRef === undefined && (effect.options ?? []).length === 0) {
+        errors.push(`${where}: record_growth 에 amount 도 options 도 없다 (§32 수치 증가 또는 선택 구조)`);
+      }
+      for (const option of effect.options ?? []) {
+        if (option.grants.length === 0) {
+          errors.push(`${where}: 성장 선택지 ${option.id} 가 아무것도 열지 않는다 (§32 제약에는 대가가 있다)`);
+        }
+      }
+      return;
   }
 }
 

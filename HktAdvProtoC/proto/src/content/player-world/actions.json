@@ -1,0 +1,63 @@
+[
+  {
+    "id": "action.assist",
+    "name": "돕는다",
+    "tags": ["assist", "social", "negotiate"],
+    "actorRequirements": [
+      {
+        "left": { "kind": "state", "owner": "actor", "key": "energy" },
+        "operator": ">",
+        "right": { "kind": "const", "value": 15 }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "human",
+      "sameRegion": true,
+      "maxDistance": 40,
+      "excludeSelf": true,
+      "approachMaxDistance": 400,
+      "crossRegionApproach": true
+    },
+    "worldRequirements": [],
+    "costs": [{ "stateKey": "energy", "amount": 8 }],
+    "duration": 45,
+    "expectedEffects": [
+      { "stateKey": "known_threat_level", "direction": "increase", "magnitude": 12, "on": "target" }
+    ],
+    "executionRules": ["rule.assist_effect"],
+    "visibleSignals": [],
+    "risk": 6
+  },
+  {
+    "id": "action.sell_info",
+    "name": "정보를 판매한다",
+    "tags": ["trade", "information"],
+    "actorRequirements": [
+      {
+        "left": { "kind": "state", "owner": "actor", "key": "known_threat_level" },
+        "operator": ">=",
+        "right": { "kind": "const", "value": 10 }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "merchant",
+      "sameRegion": true,
+      "maxDistance": 40,
+      "excludeSelf": true,
+      "approachMaxDistance": 400,
+      "crossRegionApproach": true
+    },
+    "worldRequirements": [],
+    "costs": [{ "stateKey": "energy", "amount": 4 }],
+    "duration": 30,
+    "expectedEffects": [
+      { "stateKey": "wealth", "direction": "increase", "magnitude": 6, "on": "actor" },
+      { "stateKey": "known_threat_level", "direction": "increase", "magnitude": 15, "on": "target" }
+    ],
+    "executionRules": ["rule.sell_info_deal"],
+    "visibleSignals": [],
+    "risk": 4
+  }
+]

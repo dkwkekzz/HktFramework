@@ -154,7 +154,8 @@ describe("사건 탐지 매처 (§28)", () => {
     const event = runtime.state.events.events[0]!;
     const breakdown = event.significanceBreakdown;
     expect(breakdown.participants).toBe(event.participants.length * 8);
-    expect(breakdown.playerRelevance).toBe(0); // 플레이어는 Phase 7
+    // 조작 중인 주체가 없으면 이 항은 0 이다 (§29 — 플레이어 없는 세계의 중요도는 변하지 않는다)
+    expect(breakdown.playerRelevance).toBe(0);
     const total =
       breakdown.participants +
       breakdown.affectedSystems +

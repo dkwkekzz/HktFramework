@@ -1,11 +1,17 @@
 // ViewModelBuilder — patch 를 구독해 SceneViewModel 을 증분 갱신한다 (Phase 0 §0.6)
 // 시뮬레이션 속성 → 표시 속성 변환은 전부 여기서 끝난다. 렌더러·페이지에는 해석 코드가 없어야 한다.
+import type { PlayerKnowledgeView, PlayerKnownEntity } from "../shared/player";
 import type { EntityState, WorldStatePatch } from "../shared/state";
 import { tickToDay, tickToMinuteOfDay } from "../shared/time";
 import {
   createEmptyScene,
+  type SceneActionOption,
   type SceneBadge,
   type SceneEntity,
+  type SceneEventPanelItem,
+  type SceneGrowthOffer,
+  type SceneJournalEntry,
+  type ScenePlayerPanel,
   type SceneViewModel,
 } from "./SceneViewModel";
 
@@ -50,17 +56,60 @@ function toSceneEntity(entity: EntityState): SceneEntity {
   return scene;
 }
 
+/** 플레이어가 아는 개체 → 표시 속성. 값은 이미 믿음·감각을 통과한 것이다(§7.2) */
+function toKnownSceneEntity(known: PlayerKnownEntity): SceneEntity {
+  const scene: SceneEntity = {
+    id: known.id,
+    kind: known.kind,
+    label: known.label,
+    // 확신은 표시 속성이다 — 같은 값이라도 얼마나 믿는지가 다르다(§10)
+    stateBadges: known.facts.map((fact) => ({
+      key: fact.key,
+      value: fact.source === "belief" ? `${fact.value}?${fact.confidence.toFixed(2)}` : fact.value,
+    })),
+    tags: [...known.tags],
+  };
+  if (known.position !== undefined) {
+    const { regionId, x, y, z } = known.position;
+    scene.position = { regionId, x, y };
+    scene.elevation = z;
+  }
+  return scene;
+}
+
+function toActionOption(option: PlayerKnowledgeView["options"][number]): SceneActionOption {
+  const scene: SceneActionOption = {
+    actionId: option.actionId,
+    name: option.name,
+    targets: option.targetLabels.join(", "),
+    targetIds: [...option.targetIds],
+    goalId: option.goalId,
+    score: option.score.toFixed(1),
+    duration: `${option.duration}분`,
+    risk: option.expectedRisk.toFixed(0),
+  };
+  if (option.approachFor !== undefined) scene.approachFor = option.approachFor;
+  return scene;
+}
+
 export class ViewModelBuilder {
   private entities = new Map<string, SceneEntity>();
   private globals = new Map<string, string>();
   private time = 0;
   private speed = 1;
   private initialized = false;
+  private playerView: PlayerKnowledgeView | undefined;
 
   markInitialized(): void {
     this.initialized = true;
     this.entities.clear();
     this.globals.clear();
+    this.playerView = undefined;
+  }
+
+  /** 코어가 지식 필터를 통과시켜 보낸 데이터 — 빌더는 표시 속성으로 옮기기만 한다 */
+  setPlayerView(view: PlayerKnowledgeView | undefined): void {
+    this.playerView = view;
   }
 
   setSpeed(speed: number): void {
@@ -89,10 +138,77 @@ export class ViewModelBuilder {
     scene.minuteOfDay = tickToMinuteOfDay(this.time);
     scene.speed = this.speed;
     scene.initialized = this.initialized;
-    scene.entities = [...this.entities.values()].sort((a, b) => a.id.localeCompare(b.id));
     scene.globalBadges = [...this.globals.entries()]
       .sort(([a], [b]) => a.localeCompare(b))
       .map(([key, value]) => ({ key, value }));
+
+    const player = this.playerView;
+    if (player === undefined) {
+      // 개발자 시점 — 세계가 보이는 그대로 (§36.3 개발자 모드의 선행 형태)
+      scene.entities = [...this.entities.values()].sort((a, b) => a.id.localeCompare(b.id));
+      return scene;
+    }
+
+    // 플레이어 시점 — patch 의 실제 상태는 장면에 오르지 않는다. 아는 것만 그린다.
+    scene.entities = [player.self, ...player.known]
+      .map(toKnownSceneEntity)
+      .sort((a, b) => a.id.localeCompare(b.id));
+    scene.player = this.buildPlayerPanel(player);
     return scene;
+  }
+
+  private buildPlayerPanel(view: PlayerKnowledgeView): ScenePlayerPanel {
+    const journal: SceneJournalEntry[] = view.journal.map((entry) => ({
+      at: `${tickToDay(entry.at)}일 ${String(Math.floor(tickToMinuteOfDay(entry.at) / 60)).padStart(2, "0")}시`,
+      kind: entry.kind,
+      key: entry.key,
+      detail: entry.detail,
+    }));
+    const eventPanel: SceneEventPanelItem[] = view.events.map((brief) => ({
+      eventId: brief.eventId,
+      type: brief.type,
+      title: brief.title,
+      knownParticipants: [...brief.knownParticipants],
+      unknownParticipantCount: brief.unknownParticipantCount,
+      knownFacts: brief.knownFacts.map(
+        (fact) => `${fact.subjectId}.${fact.stateKey}=${String(fact.believedValue)}(확신 ${fact.confidence.toFixed(2)})`,
+      ),
+      interactions: [...brief.possibleInteractions],
+      urgency: brief.timeSensitivity.toFixed(2),
+    }));
+    const growthOffers: SceneGrowthOffer[] = view.growthOffers.map((offer) => ({
+      offerId: offer.id,
+      key: offer.key,
+      options: offer.options.map((option) => ({
+        id: option.id,
+        restriction: option.restriction,
+        severity: String(option.severity),
+        grants: option.grants.map((grant) => `${grant.type}:${grant.key} +${grant.amount}`).join(", "),
+      })),
+    }));
+
+    const panel: ScenePlayerPanel = {
+      playerId: view.playerId,
+      label: view.self.label,
+      facts: view.self.facts.map((fact) => ({ key: fact.key, value: fact.value })),
+      goals: view.goals.map((goal) => ({ id: goal.id, activation: goal.activation })),
+      actionPanel: view.options.map(toActionOption),
+      journal,
+      eventPanel,
+      growthOffers,
+      growthLog: view.growthLog.map(
+        (change) =>
+          `${tickToDay(change.at)}일 [${change.type}] ${change.key} ${String(change.previousValue)}→${String(change.newValue)} @${change.sourceEventId}`,
+      ),
+      undiscoveredCount: view.undiscoveredCount,
+    };
+    if (view.currentAction !== undefined) {
+      panel.currentAction = {
+        actionId: view.currentAction.actionId,
+        targets: view.currentAction.targetIds.join(", "),
+        completesAt: view.currentAction.completesAt,
+      };
+    }
+    return panel;
   }
 }
