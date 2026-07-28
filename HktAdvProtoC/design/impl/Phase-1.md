@@ -92,15 +92,35 @@
 
 ## 완료 조건 (DoD)
 
-- [x] 플레이어 없이 30일 실행 시 5명 전원이 목적에 따라 1회 이상 행동한다(§35). (`manualWorld.test.ts`)
-- [x] 마을 식량 감소 → 사냥/거래 발생 → 반향수 접촉 → 공포·보고 전파, 의 연쇄가 **작성하지 않은 순서로** 발생한다(로그로 확인). (`manualWorld.test.ts` — 변화 로그에서 여섯 마디의 선후 관계를 확인)
-- [x] 반향수 어미의 실제 상태(새끼 보호)와 마을 사람의 믿음(공격적)이 분리 저장된다(§10 예시 재현). (`manualWorld.test.ts`, `perception.test.ts`)
-- [x] 동일 시드 재실행 시 30일 로그가 동일하다. (`manualWorld.test.ts` + `determinism.test.ts`)
-- [x] 모든 상태 쓰기가 스키마 검증을 통과한다(미등록 키 쓰기 테스트는 실패해야 함). (`StateStore.test.ts`)
+`cd proto && npm run verify` 한 줄이 아래 5항을 실제 30일 실행으로 점검해 ✓/✗ 와 수치를 출력한다.
+(같은 시드면 언제 돌려도 같은 출력이 나온다. 항목의 코드는 `src/scripts/verify.ts`.)
+
+```
+=== Phase 1 완료 조건 점검 — 시드 42, 30일 ===
+
+✓ 5명 전원이 목적에 따라 1회 이상 행동
+    kael:247 mar:180 ren:181 rion:206 echo_beast_mother:221
+✓ 연쇄가 작성하지 않은 순서로 발생
+    마을 식량 감소(1일) → 사냥꾼이 숲으로(23일) → 반향수와 접촉(23일) → 공포 상승(23일) → 마을에 보고(28일) → 토벌 소집(29일)
+✓ 실제 상태와 믿음이 분리 저장
+    실제 공격성 21 / 마을 믿음 90 / 연구자 믿음 보호중=true / 관찰불가 상태 누출 없음
+✓ 동일 시드 재실행 로그 동일 / 다른 시드는 다름
+    시드 42 해시 d0fbce9c (4040건) · 시드 43 해시 bfdcb9cc
+✓ 미등록 키·파생 상태 쓰기가 거부됨
+    미등록 키 거부 / 파생 상태 거부
+
+5/5 통과
+```
+
+| DoD | 근거 명령 | 자동 테스트 |
+|---|---|---|
+| 5명 전원이 목적에 따라 1회 이상 행동(§35) | `npm run verify` 1항 | `manualWorld.test.ts` |
+| 연쇄가 작성하지 않은 순서로 발생 | `npm run verify` 2항 · `npm run sim -- --log` | `manualWorld.test.ts` |
+| 실제 상태와 믿음의 분리(§10 예시 재현) | `npm run verify` 3항 | `manualWorld.test.ts` · `perception.test.ts` |
+| 동일 시드 재실행 로그 동일(§44-12) | `npm run verify` 4항 | `manualWorld.test.ts` · `determinism.test.ts` |
+| 모든 상태 쓰기가 스키마 검증을 통과(§9) | `npm run verify` 5항 | `StateStore.test.ts` |
 
 ### 시드 42, 30일에서 실제로 일어난 일
-
-`npm run sim -- --log` 으로 재현된다(같은 시드면 항상 같다).
 
 ```
  0일  지도자가 비축을 채우고, 상인이 마을 사냥터에서 식량을 구해 판다

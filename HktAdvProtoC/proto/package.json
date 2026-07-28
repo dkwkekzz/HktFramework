@@ -10,7 +10,8 @@
     "test": "vitest run",
     "lint": "eslint src",
     "smoke": "node scripts/smoke.mjs",
-    "sim": "vite-node src/scripts/run-30-days.ts"
+    "sim": "vite-node src/scripts/run-30-days.ts",
+    "verify": "vite-node src/scripts/verify.ts"
   },
   "devDependencies": {
     "@types/node": "^26.1.2",
