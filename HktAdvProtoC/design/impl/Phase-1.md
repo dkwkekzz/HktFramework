@@ -62,7 +62,7 @@
 
 ### 1.4 행동의 시간 점유
 
-`ActionDefinition.duration`(§21) 만큼 스케줄러에 완료 이벤트를 예약. 이동은 §13 `SpaceConnection.travelCost` 를 duration 으로 사용. 위치는 지역 내 2D 좌표(`Position` §9.1) + 지역 간은 연결 그래프.
+`ActionDefinition.duration`(§21) 만큼 스케줄러에 완료 이벤트를 예약. 이동은 §13 `SpaceConnection.travelCost` 를 duration 으로 사용. 위치는 지역 내 3D 좌표(`Position` §9.1 — x·y 수평, z 고도) + 지역 간은 연결 그래프. **공간 거리 규약**: 거리·반경·감쇠가 필요한 모든 계산(이동 시간 보정, Phase 2 반경 검색, Phase 3 관찰 거리 감쇠)은 3D 유클리드 거리를 사용한다 — 렌더가 2D 투영이어도 시뮬레이션은 z 를 무시하지 않는다.
 
 ## 구현 스텝
 

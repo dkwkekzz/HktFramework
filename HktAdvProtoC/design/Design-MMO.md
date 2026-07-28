@@ -426,7 +426,8 @@ interface EntityState {
   "position": {
     "regionId": "region.silent_forest",
     "x": 41,
-    "y": 18
+    "y": 18,
+    "z": 3
   },
   "tags": ["human", "researcher", "ability_user"],
   "states": {
@@ -714,7 +715,7 @@ type RuleEffect =
 
 ## 13. 6단계: 세계 공간 생성
 
-초기 프로토타입의 공간은 완전한 3D 월드가 아니다. 그래프와 2D 좌표가 결합된 형태로 구현한다.
+공간 **데이터**는 3D 좌표계다. 그래프와 3D 좌표(x·y 수평, z 고도)가 결합된 형태로 구현한다. 단, 초기 프로토타입의 **표현**은 2D 투영으로 충분하다 — 렌더링이 2D라는 것과 공간 데이터가 3D라는 것은 별개이며, 규칙·거리·관찰 계산은 모두 3D 좌표를 사용한다.
 
 ```typescript
 interface SpaceDefinition {
@@ -731,8 +732,9 @@ interface RegionDefinition {
   id: string;
   name: string;
   bounds: {
-    width: number;
-    height: number;
+    width: number;   // x 범위
+    height: number;  // y 범위
+    depth: number;   // z 범위 (고도)
   };
   tags: string[];
   baseStates: Record<string, unknown>;

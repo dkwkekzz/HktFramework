@@ -77,7 +77,7 @@ interface ScheduledSimulationEvent {
 - **데이터 흐름 고정**: `WorldState patch → ViewModelBuilder → SceneViewModel → 렌더러/UI`. 빌더는 메인 스레드에서 patch 를 구독해 ViewModel 을 증분 갱신한다. 렌더러·app 페이지는 `SceneViewModel` 이외의 어떤 타입도 import 할 수 없다.
 - **의존 규칙의 기계 강제**: ESLint `no-restricted-imports` 로 `rendering/`·`app/` 에서 `core/`·`persistence/` import 를 금지한다. 원칙이 아니라 빌드 오류로 강제 — 위반 코드는 컴파일 단계에서 죽는다.
 - **`SceneViewModel` 의 성격**: 표시 대상의 **속성만** 담는다(위치, 크기, 라벨, 강도, 태그 유래의 심볼 키, 색상 키 등 표현 중립 값). "어떻게 그릴지"(색상 코드, 픽셀, 폰트, 레이아웃)는 렌더러 소관이고, "시뮬레이션 의미가 무엇인지"(위험도 계산, 믿음 필터링, 사건 중요도 판정)는 빌더에서 끝낸다. 렌더러는 받은 속성을 **그대로** 매핑만 한다.
-- Phase 0 시점의 최소 스키마: `{ time: number; speed: number; entities: Array<{ id, kind, position?, label, stateBadges: Array<{key, value}> }> }`. 이후 Phase 는 이 스키마에 **필드를 추가**할 뿐이며(지도 레이어·신호·사건 오버레이·패널 뷰 등), 렌더러 교체가 코어·빌더에 역류하는 변경은 금지.
+- Phase 0 시점의 최소 스키마: `{ time: number; speed: number; entities: Array<{ id, kind, position?, elevation?, label, stateBadges: Array<{key, value}> }> }`. 공간 데이터는 3D(§13 개정)이므로 빌더가 3D→2D 톱다운 투영을 수행하고 z 는 `elevation` 표시 속성으로 싣는다. 이후 Phase 는 이 스키마에 **필드를 추가**할 뿐이며(지도 레이어·신호·사건 오버레이·패널 뷰 등), 렌더러 교체가 코어·빌더에 역류하는 변경은 금지.
 - 셸 페이지(스텝 8)부터 이 경계를 지킨다 — "텍스트로 tick 표시" 조차 SceneViewModel 을 소비한다. 최초 소비자가 규율의 증명이다.
 
 ## 구현 스텝

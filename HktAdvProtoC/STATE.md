@@ -7,6 +7,7 @@
 - 기획서 [design/Design-MMO.md](design/Design-MMO.md) 확정.
 - **구현 분해 완료**: 기획서 §42 의 8단계를 그대로 따르되 §37~39(골격·워커·저장·결정론)를 Phase 0 으로 선행 분리 — 총 9개 Phase. 분해 개요와 단계별 상세 설계는 [design/impl/README.md](design/impl/README.md) 참조.
 - **Phase 0 완료** — `proto/` 에 Vite+TS 골격, 시드 RNG(RandomContext), 이벤트 스케줄러, §26 루프 골격(no-op 훅), §38 Worker 브리지(+InlineHost), §39 저장 3종·스냅샷/로그 복원, SceneViewModel 경계(린트 강제), 최소 셸 페이지. 테스트 26개 + 실 Chromium 스모크 통과, DoD 5항 전부 체크([design/impl/Phase-0.md](design/impl/Phase-0.md)).
+- **기획 개정(2026-07-28)**: 공간 데이터는 3D(x·y 수평 + z 고도), 렌더링은 2D 투영 — 기획서 §13 개정, `Position` 에 z 추가, 거리 계산은 3D 유클리드(`distance3d`), 3D→2D 투영은 ViewModel 빌더 담당.
 - 다음 작업은 Phase 1 (수동 정의된 작은 세계). Phase 0 임시 심장박동 이벤트(`world_heartbeat`)는 Phase 1 콘텐츠가 들어오면 제거.
 
 ## TODO
