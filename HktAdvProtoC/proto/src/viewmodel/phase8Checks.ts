@@ -225,7 +225,11 @@ export interface RendererImportReport {
   violations: string[];
 }
 
-/** rendering/ 이 SceneViewModel 밖의 타입을 import 하지 않는지 소스에서 직접 확인한다 */
+/**
+ * rendering/ 이 **프로젝트 내부에서는** SceneViewModel 밖의 타입을 import 하지 않는지 소스에서 직접 확인한다.
+ * 외부 표현 라이브러리(three 등, bare import)는 격리 위반이 아니다 — 시뮬레이션 타입을 실어 나를 수 없기 때문이다.
+ * 지키려는 것은 "표현 교체가 rendering/ 밖 diff 0" 이고, 그 경계는 프로젝트 내부 경로에만 있다.
+ */
 export function checkRendererImports(directory: string): RendererImportReport[] {
   const reports: RendererImportReport[] = [];
   for (const file of readdirSync(directory).sort()) {
@@ -233,7 +237,10 @@ export function checkRendererImports(directory: string): RendererImportReport[] 
     const source = readFileSync(`${directory}/${file}`, "utf8");
     const imports = [...source.matchAll(/from\s+"([^"]+)"/g)].map((match) => match[1] ?? "");
     const violations = imports.filter(
-      (specifier) => specifier !== "../viewmodel/SceneViewModel" && !specifier.startsWith("./"),
+      (specifier) =>
+        (specifier.startsWith(".") || specifier.startsWith("/") || specifier.startsWith("src/")) &&
+        specifier !== "../viewmodel/SceneViewModel" &&
+        !specifier.startsWith("./"),
     );
     reports.push({ file, imports, violations });
   }

@@ -5,6 +5,7 @@
 import { CanvasSceneRenderer } from "../rendering/CanvasSceneRenderer";
 import { createCanvasSurface } from "../rendering/SceneSurface";
 import { TextSceneRenderer } from "../rendering/TextSceneRenderer";
+import type { ThreeSceneRenderer } from "../rendering/ThreeSceneRenderer";
 import type {
   SceneAgentPanel,
   SceneViewModel,
@@ -24,8 +25,13 @@ export class SimulationPage {
   private readonly playerView = el<HTMLElement>("player");
   private readonly worldView = el<HTMLElement>("world");
   private readonly speedView = el<HTMLElement>("speed-view");
+  private readonly canvas3d = el<HTMLCanvasElement>("map3d");
   private readonly text = new TextSceneRenderer();
   private renderer: CanvasSceneRenderer | undefined;
+  /** §37 표현 교체 증명 — 같은 SceneViewModel 을 소비하는 세 번째 렌더러. 3D 탭을 처음 열 때 만든다 */
+  private threeRenderer: ThreeSceneRenderer | undefined;
+  private view3d = false;
+  private lastScene: SceneViewModel | undefined;
   private speed = 1;
   private message = "";
 
@@ -51,6 +57,9 @@ export class SimulationPage {
 
     el<HTMLButtonElement>("mode-developer").addEventListener("click", () => this.setMode("developer"));
     el<HTMLButtonElement>("mode-player").addEventListener("click", () => this.setMode("player"));
+
+    el<HTMLButtonElement>("view-2d").addEventListener("click", () => this.setView3d(false));
+    el<HTMLButtonElement>("view-3d").addEventListener("click", () => this.setView3d(true));
 
     el<HTMLButtonElement>("attach").addEventListener("click", () => {
       this.ctx.send({ type: "attach_player", agentId: el<HTMLInputElement>("player-agent").value.trim() });
@@ -91,6 +100,32 @@ export class SimulationPage {
     this.ctx.send({ type: "set_view", mode });
   }
 
+  /** 2D↔3D 전환 — 표현의 선택일 뿐이라 Worker 왕복이 없다. 같은 장면을 다른 렌더러가 다시 그린다 */
+  private setView3d(on: boolean): void {
+    this.view3d = on;
+    this.canvas.hidden = on;
+    this.canvas3d.hidden = !on;
+    el<HTMLButtonElement>("view-2d").classList.toggle("active", !on);
+    el<HTMLButtonElement>("view-3d").classList.toggle("active", on);
+    if (on && this.threeRenderer === undefined) {
+      // three.js 는 3D 를 처음 열 때만 내려받는다 — 2D 만 쓰는 로드가 무거워지지 않게(코드 분할)
+      void import("../rendering/ThreeSceneRenderer").then(({ ThreeSceneRenderer }) => {
+        if (!this.view3d) return;
+        this.threeRenderer = new ThreeSceneRenderer(this.canvas3d);
+        this.threeRenderer.start();
+        if (this.lastScene !== undefined) this.threeRenderer.render(this.lastScene);
+      });
+      return;
+    }
+    if (on) {
+      this.threeRenderer?.start();
+      if (this.lastScene !== undefined) this.threeRenderer?.render(this.lastScene);
+    } else {
+      this.threeRenderer?.stop();
+      if (this.lastScene !== undefined) this.renderer?.render(this.lastScene);
+    }
+  }
+
   render(scene: SceneViewModel): void {
     const running = scene.initialized;
     for (const id of ["advance-hour", "advance-day", "advance-week", "speed-up", "speed-down"]) {
@@ -119,7 +154,9 @@ export class SimulationPage {
       .filter((line) => line.length > 0)
       .join("\n");
 
-    this.renderer?.render(scene);
+    this.lastScene = scene;
+    if (this.view3d) this.threeRenderer?.render(scene);
+    else this.renderer?.render(scene);
     // 같은 SceneViewModel 을 텍스트로도 그린다 — 표현 방식이 렌더러 밖으로 새지 않는다는 증거(§8.0)
     this.worldView.textContent = this.text.render(scene);
 

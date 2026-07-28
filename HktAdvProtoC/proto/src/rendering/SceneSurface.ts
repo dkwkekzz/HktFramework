@@ -37,6 +37,14 @@ export interface SurfaceCircle {
   alpha?: number;
 }
 
+export interface SurfacePoly {
+  points: { x: number; y: number }[];
+  fill?: string;
+  stroke?: string;
+  lineWidth?: number;
+  alpha?: number;
+}
+
 export interface SurfaceText {
   x: number;
   y: number;
@@ -55,13 +63,14 @@ export interface SceneSurface {
   rect(spec: SurfaceRect): void;
   line(spec: SurfaceLine): void;
   circle(spec: SurfaceCircle): void;
+  poly(spec: SurfacePoly): void;
   text(spec: SurfaceText): void;
 }
 
 // --- 기록 표면 ------------------------------------------------------------------------
 
 export interface SurfaceOp {
-  op: "clear" | "rect" | "line" | "circle" | "text";
+  op: "clear" | "rect" | "line" | "circle" | "poly" | "text";
   detail: Record<string, unknown>;
 }
 
@@ -91,6 +100,10 @@ export class RecordingSurface implements SceneSurface {
 
   circle(spec: SurfaceCircle): void {
     this.ops.push({ op: "circle", detail: { ...spec } });
+  }
+
+  poly(spec: SurfacePoly): void {
+    this.ops.push({ op: "poly", detail: { ...spec } });
   }
 
   text(spec: SurfaceText): void {
@@ -159,6 +172,24 @@ export function createCanvasSurface(
       withAlpha(spec.alpha, () => {
         context.beginPath();
         context.arc(spec.x, spec.y, Math.max(0.5, spec.r), 0, Math.PI * 2);
+        if (spec.fill !== undefined) {
+          context.fillStyle = spec.fill;
+          context.fill();
+        }
+        if (spec.stroke !== undefined) {
+          context.strokeStyle = spec.stroke;
+          context.lineWidth = spec.lineWidth ?? 1;
+          context.stroke();
+        }
+      }),
+    poly: (spec) =>
+      withAlpha(spec.alpha, () => {
+        const first = spec.points[0];
+        if (first === undefined) return;
+        context.beginPath();
+        context.moveTo(first.x, first.y);
+        for (const point of spec.points.slice(1)) context.lineTo(point.x, point.y);
+        context.closePath();
         if (spec.fill !== undefined) {
           context.fillStyle = spec.fill;
           context.fill();

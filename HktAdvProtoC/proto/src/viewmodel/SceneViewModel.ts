@@ -72,6 +72,17 @@ export interface SceneMapMarker {
   label: string;
   /** 심볼 키 (§42-8 캐릭터 아이콘) — 종족·조직·유형 태그를 빌더가 변환한 것 */
   symbolKey: string;
+  /**
+   * 도형 키 (`shape-sphere|crystal|pyramid|cube|banner`) — 개체가 **무엇으로 보이는가**.
+   * 의미(유형·태그)→도형의 번역은 빌더가 끝낸다. 렌더러는 표에서 찾아 그릴 뿐이다(§8.0).
+   */
+  shapeKey: string;
+  /** 표시 크기 — 짧은 화면 변 대비 정규화 값(0~1). 픽셀 환산만 렌더러의 몫이다 */
+  size: number;
+  /** 상태 게이지(체력 등) — 수치 해석(현재/최대)은 빌더가 끝냈고 렌더러는 바로 그린다 */
+  gauge?: { value: number; colorKey: string };
+  /** 강조 대상(조작 중인 주체 등) — 렌더러가 링으로 표현한다 */
+  emphasized?: boolean;
   colorKey: string;
   point: ScenePoint;
   regionId: string;
