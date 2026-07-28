@@ -151,6 +151,11 @@ export interface RuleDefinition {
   name: string;
   scope: RuleScope;
   priority: number;
+  /**
+   * 이 규칙이 만드는 변화의 의미 태그 (§28 태그 전파 — Phase-4 §4.1).
+   * 사건 패턴의 requiredTags 가 이 태그를 물어본다. 실행에는 영향을 주지 않는다.
+   */
+  tags?: string[];
   triggers: RuleTrigger[];
   /**
    * 규칙 본문을 개체마다 한 번씩 돌린다. 선택된 개체가 `target` 으로 바인딩된다.

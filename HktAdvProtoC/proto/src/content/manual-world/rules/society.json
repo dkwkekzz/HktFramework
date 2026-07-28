@@ -2,6 +2,10 @@
   {
     "id": "rule.trade_price",
     "name": "거래 가격",
+    "tags": [
+      "trade",
+      "economy"
+    ],
     "scope": "global",
     "priority": 60,
     "triggers": [
@@ -95,6 +99,10 @@
   {
     "id": "rule.report_propagation",
     "name": "보고 → 조직 믿음 전파",
+    "tags": [
+      "information",
+      "report"
+    ],
     "scope": "relationship",
     "priority": 50,
     "triggers": [
@@ -169,6 +177,11 @@
   {
     "id": "rule.threat_sighting_fear",
     "name": "위협 목격 → 공포",
+    "tags": [
+      "fear",
+      "threat",
+      "information"
+    ],
     "scope": "entity",
     "priority": 55,
     "triggers": [
@@ -232,6 +245,10 @@
   {
     "id": "rule.subjugation_call",
     "name": "토벌 소집 조건",
+    "tags": [
+      "mobilization",
+      "threat"
+    ],
     "scope": "global",
     "priority": 45,
     "triggers": [

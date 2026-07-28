@@ -208,11 +208,32 @@ export class StateStore {
     open.changes.push(change);
   }
 
+  /**
+   * §28 태그 전파 규약 (Phase-4 §4.1) — change 의 tags 는 세 출처의 합집합이다.
+   *   ① 맥락 태그 : 규칙(`rule`+id+규칙 tags) / 행동(`action`+id+행동 tags) / 목적 id — withContext 가 넣는다.
+   *   ② 개체 태그 : 원인·대상·변한 개체의 tags (`creature`·`village`·`villager` …).
+   * 사건 패턴의 requiredTags 가 물어보는 것이 바로 이 합집합이므로, 여기가 탐지 품질의 절반이다.
+   */
+  private collectTags(context: ChangeContext, changes: StateChange[]): string[] {
+    const tags = [...context.tags];
+    const add = (entityId: string | undefined): void => {
+      if (entityId === undefined) return;
+      const entity = this.state.entities[entityId];
+      if (entity === undefined) return;
+      for (const tag of entity.tags) if (!tags.includes(tag)) tags.push(tag);
+    };
+    add(context.sourceId);
+    for (const id of context.targetIds ?? []) add(id);
+    for (const change of changes) add(change.entityId);
+    return tags;
+  }
+
   private appendChangeLog(context: ChangeContext, changes: StateChange[]): void {
     const record: RawWorldChange = {
+      id: this.state.changeSeq++,
       time: this.state.simulationTime,
       targetIds: context.targetIds ?? [],
-      tags: context.tags,
+      tags: this.collectTags(context, changes),
       changedStates: changes,
     };
     if (context.sourceId !== undefined) record.sourceId = context.sourceId;

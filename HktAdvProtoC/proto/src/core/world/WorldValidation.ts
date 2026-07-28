@@ -335,6 +335,51 @@ export function validateWorldDefinition(definition: WorldDefinition, rules: Rule
   for (const rule of rules.intervalRules) {
     if (rule.interval <= 0) errors.push(`규칙 ${rule.rule.id}: interval 은 양수여야 한다`);
   }
+
+  // §28 사건 패턴 — 세계에 실제로 존재하는 태그만 물어볼 수 있고, 반드시 둘 이상을 잇는다(§34)
+  // 런타임이 스스로 붙이는 맥락 태그 (Phase-4 §4.1 태그 전파 규약) — 어떤 콘텐츠에도 선언되어 있지 않다
+  const worldTags = new Set<string>([
+    "action",
+    "action_started",
+    "rule",
+    "observation",
+    "delegation",
+    "faction_collapse",
+    "promise",
+    "uncontextualized",
+  ]);
+  for (const rule of rules.all()) {
+    for (const tag of rule.tags ?? []) worldTags.add(tag);
+    // 관찰 신호도 맥락 태그를 남긴다 (§23 → §28)
+    for (const observation of rule.observations) for (const tag of observation.tags) worldTags.add(tag);
+  }
+  for (const action of definition.actionDefinitions) {
+    for (const tag of action.tags) worldTags.add(tag);
+    for (const signal of action.visibleSignals) for (const tag of signal.tags) worldTags.add(tag);
+  }
+  for (const entity of definition.bootstrap.entities) for (const tag of entity.tags) worldTags.add(tag);
+  for (const template of definition.entityTemplates ?? []) for (const tag of template.tags) worldTags.add(tag);
+  for (const pattern of definition.eventPatterns) {
+    if (pattern.requiredTags.length === 0) {
+      errors.push(`사건 패턴 ${pattern.id}: requiredTags 가 비어 있다 (모든 변화가 사건이 된다)`);
+    }
+    for (const tag of [...pattern.requiredTags, ...pattern.optionalTags]) {
+      if (!worldTags.has(tag)) {
+        errors.push(`사건 패턴 ${pattern.id}: 어떤 규칙·행동·개체도 갖지 않은 태그 — ${tag} (§28)`);
+      }
+    }
+    // §34 "각 패턴은 둘 이상의 주체/시스템을 연결해야 한다"
+    if (pattern.minimumParticipants < 2) {
+      errors.push(`사건 패턴 ${pattern.id}: minimumParticipants 는 2 이상이어야 한다 (§34)`);
+    }
+    if (pattern.timeWindow <= 0) errors.push(`사건 패턴 ${pattern.id}: timeWindow 는 양수여야 한다`);
+    if (pattern.locationRadius < 0) errors.push(`사건 패턴 ${pattern.id}: locationRadius 는 0 이상이어야 한다`);
+    if (pattern.significanceFormula !== "standard") {
+      errors.push(
+        `사건 패턴 ${pattern.id}: 알 수 없는 중요도 계산식 — ${pattern.significanceFormula} (§29 "standard" 만 구현)`,
+      );
+    }
+  }
   for (const species of definition.species) {
     if (species.senses.length === 0) errors.push(`종족 ${species.id}: 감각이 없다 (§15)`);
   }

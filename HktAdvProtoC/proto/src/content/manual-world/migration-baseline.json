@@ -1,5 +1,5 @@
 {
-  "source": "Phase 3 주체 판단(§20·§22·§23) 교체 후 재고정 — 이후 회귀 기준선",
+  "source": "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 회귀 기준선",
   "previous": {
     "source": "HandwrittenRules.ts (Phase 1 코드 규칙) — 삭제 직전 실행 결과",
     "runs": {
@@ -46,7 +46,7 @@
   "runs": {
     "1": {
       "changeCount": 8494,
-      "logHash": "72aeb25e",
+      "logHash": "8b39a154",
       "entityHash": "f806bbe6",
       "ruleChangeCounts": {
         "rule.aggression_calms": 29,
@@ -157,7 +157,7 @@
     },
     "42": {
       "changeCount": 7953,
-      "logHash": "a732b0d5",
+      "logHash": "dbc0ad11",
       "entityHash": "74ba1985",
       "ruleChangeCounts": {
         "rule.aggression_calms": 29,
@@ -267,7 +267,7 @@
     },
     "43": {
       "changeCount": 7964,
-      "logHash": "589159af",
+      "logHash": "1a05756f",
       "entityHash": "bd002c04",
       "ruleChangeCounts": {
         "rule.aggression_calms": 29,

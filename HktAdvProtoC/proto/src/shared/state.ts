@@ -3,6 +3,7 @@
 // 행동(메서드)을 가진 런타임 구조는 core/world 에 있다.
 import type { ActiveGoalState, AgentRuntimeState, RelationshipState } from "./beliefs";
 import type { RawWorldChange } from "./change";
+import { createEmptyEventsState, type EventsState } from "./events";
 import type { ObservationSignal } from "./observation";
 
 // 공간 데이터는 3D 다 (기획서 §13 개정) — x·y 수평, z 고도.
@@ -46,6 +47,10 @@ export interface WorldState {
   pendingSignals: ObservationSignal[];
   /** 상태 변화 원시 로그 (§28) — Phase 4 사건 탐지의 입력 */
   changeLog: RawWorldChange[];
+  /** change id 발급 카운터 — 로그가 잘려도 id 는 재사용되지 않는다 */
+  changeSeq: number;
+  /** 탐지된 사건 (§28~§30) — change 로그의 해석이지 세계 상태의 원인이 아니다 */
+  events: EventsState;
   /** 신호 id 발급 카운터 — 시드 무관하게 순번으로만 증가한다(결정론) */
   signalSeq: number;
   /** create_entity(§11.3) 가 발급하는 개체 id 순번 */
@@ -73,6 +78,8 @@ export function createEmptyWorldState(): WorldState {
     agentRuntimes: {},
     pendingSignals: [],
     changeLog: [],
+    changeSeq: 0,
+    events: createEmptyEventsState(),
     signalSeq: 0,
     entitySeq: 0,
     ruleEventSeq: 0,

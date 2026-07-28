@@ -3,6 +3,7 @@
 // JSON 은 구조 타입을 스스로 보증하지 못하므로, 실행 전 검사는 WorldValidation(§34 부분집합)이 맡는다.
 import type {
   ActionDefinition,
+  EventPattern,
   FactionDefinition,
   GoalGraph,
   ResourceDefinition,
@@ -17,6 +18,7 @@ import type { EntityTemplate } from "../../core/rules/RuleTypes";
 import { buildManualWorldRules } from "./rules";
 import actions from "./actions.json";
 import bootstrap from "./bootstrap.json";
+import eventPatterns from "./event-patterns.json";
 import factions from "./factions.json";
 import goals from "./goals.json";
 import pressures from "./pressures.json";
@@ -55,7 +57,7 @@ export function buildManualWorld(worldSeed: number): WorldDefinition {
     abilitySystem: null,
     goalTemplates: goals as unknown as GoalGraph[],
     actionDefinitions: actions as unknown as ActionDefinition[],
-    eventPatterns: [],
+    eventPatterns: eventPatterns as unknown as EventPattern[], // §28 — Phase 4 사건 탐지
     bootstrap: bootstrap as unknown as WorldBootstrap,
   };
 }

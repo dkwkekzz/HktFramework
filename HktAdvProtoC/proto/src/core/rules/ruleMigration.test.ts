@@ -42,8 +42,8 @@ describe("실행 기준선 회귀 (§42-2, §44-12)", () => {
   }
 
   it("Phase 2 의 이관 증명 기록이 보존되어 있다", () => {
-    // 기준선은 Phase 3 에서 재고정됐지만, "코드 규칙 == DSL 규칙" 이었던 사실은 previous 에 남는다
-    expect(MIGRATION_BASELINE.source).toMatch(/Phase 3/);
+    // 기준선은 Phase 3·4 에서 재고정됐지만, "코드 규칙 == DSL 규칙" 이었던 사실은 previous 에 남는다
+    expect(MIGRATION_BASELINE.source).toMatch(/Phase [34]/);
     expect(MIGRATION_BASELINE.previous?.source).toMatch(/HandwrittenRules/);
     expect(Object.keys(MIGRATION_BASELINE.previous?.runs ?? {})).toHaveLength(BASELINE_SEEDS.length);
     expect(Object.keys(MIGRATION_BASELINE.runs)).toHaveLength(BASELINE_SEEDS.length);

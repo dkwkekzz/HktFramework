@@ -20,6 +20,9 @@ import {
   completeAction,
 } from "../actions/ActionSystem";
 import { RULE_SCHEDULED_EVENT } from "../rules/EffectExecutor";
+import type { ChangeCollector } from "../events/ChangeCollector";
+import { createChangeCollector, detectEmergentEvents } from "../events/EventDetector";
+import { updateEventSummaries } from "../events/EventSummarizer";
 import type { RuleEngine } from "../rules/RuleEngine";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { RuntimeHooks } from "./SimulationLoop";
@@ -47,6 +50,11 @@ export interface WorldSystems {
 export function createWorldSystems(rules: RuleEngine): WorldSystems {
   // 한 반복 안에서만 살아 있는 대기열 — advance 가 끝날 때는 항상 비어 있으므로 스냅샷 대상이 아니다
   const completed: CompletedAction[] = [];
+  /**
+   * change 색인 (§28). 세계 상태가 아니라 changeLog 에서 파생되는 캐시이므로 스냅샷에 싣지 않는다 —
+   * 복원 후 첫 탐지에서 로그를 다시 읽어 같은 색인이 만들어진다.
+   */
+  let collector: ChangeCollector | undefined;
 
   const hooks: RuntimeHooks = {
     processChangedStateRules: (runtime) => {
@@ -77,9 +85,15 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
         });
       }
     },
-    // Phase 4 — 사건 탐지·요약. 입력(RawWorldChange)은 Phase 1 부터 쌓이고 있다.
-    detectEmergentEvents: () => undefined,
-    updateEventSummaries: () => undefined,
+    // §26 ⑥⑦ 사건 탐지·요약 (Phase 4). 입력(RawWorldChange)은 Phase 1 부터 쌓여 왔다.
+    // 사건은 change 로그의 **해석**이다 — 세계 상태를 바꾸지 않으므로 여기서 되먹임이 생기지 않는다.
+    detectEmergentEvents: (runtime) => {
+      collector ??= createChangeCollector(runtime);
+      detectEmergentEvents(runtime, collector);
+    },
+    updateEventSummaries: (runtime) => {
+      updateEventSummaries(runtime);
+    },
   };
 
   return {

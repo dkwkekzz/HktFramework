@@ -127,7 +127,7 @@ export function startAction(
     {
       sourceId: agentId,
       targetIds: planned.targetIds,
-      tags: ["action_started", planned.action.id, planned.goalId],
+      tags: ["action_started", planned.action.id, planned.goalId, ...planned.action.tags],
     },
     () => {
       for (const cost of planned.action.costs) {
@@ -179,7 +179,8 @@ export function completeAction(
         sourceId: agentId,
         targetIds: scheduled.targetIds,
         ...(locationId !== undefined ? { locationId } : {}),
-        tags: ["action", action.id, scheduled.goalId],
+        // §28 태그 전파 — 행동의 tags 가 사건 패턴의 재료가 된다 (Phase-4 §4.1)
+        tags: ["action", action.id, scheduled.goalId, ...action.tags],
       },
       () => {
         applyMovement(runtime, agentId, action, scheduled.targetIds);

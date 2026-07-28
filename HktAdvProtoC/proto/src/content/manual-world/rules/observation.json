@@ -2,6 +2,10 @@
   {
     "id": "rule.movement_trace",
     "name": "이동 흔적",
+    "tags": [
+      "information",
+      "trace"
+    ],
     "scope": "entity",
     "priority": 30,
     "triggers": [
@@ -42,6 +46,10 @@
   {
     "id": "rule.attack_noise",
     "name": "공격 소음",
+    "tags": [
+      "violence",
+      "information"
+    ],
     "scope": "entity",
     "priority": 30,
     "triggers": [
@@ -65,6 +73,11 @@
   {
     "id": "rule.carcass_discovery",
     "name": "사체 발견",
+    "tags": [
+      "information",
+      "threat",
+      "ecology"
+    ],
     "scope": "entity",
     "priority": 30,
     "triggers": [
@@ -92,6 +105,10 @@
   {
     "id": "rule.residue_trace",
     "name": "흔적 잔류",
+    "tags": [
+      "information",
+      "trace"
+    ],
     "scope": "entity",
     "priority": 30,
     "triggers": [

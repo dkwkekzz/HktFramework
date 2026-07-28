@@ -330,6 +330,28 @@ export interface ActionDefinition {
   risk: number;
 }
 
+// --- §28 사건 패턴 --------------------------------------------------------------
+
+/**
+ * 사건 패턴 (§28 EventPattern). 기획서 필드 전부 + 탐지 결과에 실을 사건 종류(type).
+ * 개별 사건을 저작하지 않는다 — 패턴은 "이런 모양의 변화 묶음을 사건으로 본다"는 선언일 뿐이다.
+ */
+export interface EventPattern {
+  id: string;
+  name: string;
+  /** 탐지된 사건의 §28 "type" (ecological_conflict 등) */
+  type: string;
+  requiredTags: string[];
+  optionalTags: string[];
+  minimumParticipants: number;
+  /** 한 묶음으로 볼 시간 폭(tick) */
+  timeWindow: number;
+  /** 한 묶음으로 볼 공간 반경 (3D 거리, §13) */
+  locationRadius: number;
+  /** 중요도 계산식 — "standard" 는 §29 의 6항 그대로 */
+  significanceFormula: string;
+}
+
 // --- 초기 배치 ----------------------------------------------------------------
 
 export interface BootstrapEntity {
@@ -388,7 +410,7 @@ export interface WorldDefinition {
   abilitySystem: unknown; // §16 — Phase 5 (실행 매핑은 Phase 2 §2.7)
   goalTemplates: GoalGraph[]; // §19 — Phase 1(수동) / Phase 3(활성도 전체 모델)
   actionDefinitions: ActionDefinition[]; // §21 — Phase 1
-  eventPatterns: unknown[]; // §28 EventPattern — Phase 4
+  eventPatterns: EventPattern[]; // §28 — Phase 4
   bootstrap: WorldBootstrap; // 초기 배치 — Phase 1(수동)/Phase 5(생성)
 }
 

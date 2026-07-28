@@ -1,5 +1,6 @@
 // 30일 headless 실행 (Phase-1 구현 스텝 7, §35 자동 시뮬레이션 테스트의 전신)
 // 실행: npm run sim [-- --seed=42 --days=30 --log]
+import { eventCountsByPattern, eventsBySignificance } from "../core/events/phase4Checks";
 import { InlineHost } from "../core/simulation/InlineHost";
 import type { WorldSnapshotDocument } from "../core/simulation/RuntimeServer";
 import { hashValue } from "../shared/hash";
@@ -79,7 +80,29 @@ console.log(
   `공격성 ${runtime.store.readNumber(beast, "aggression")} | 새끼 위협도 ${runtime.store.readNumber(beast, "offspring_threat")} | 보호중 ${String(runtime.store.readBoolean(beast, "protecting_offspring"))}`,
 );
 
-// 연쇄 확인용 마커 — 사건 로그에서 굵직한 변화만 뽑는다
+// --- 탐지된 사건 (§28) — 아무도 작성하지 않은 사건 목록 ---
+const events = eventsBySignificance(runtime);
+console.log(`\n--- 탐지된 사건 ${events.length}건 (${eventCountsByPattern(runtime).map((e) => `${e.patternId.split(".")[1]}:${e.count}`).join(" ")}) ---`);
+for (const event of events.slice(0, 10)) {
+  const summary = event.summary;
+  const conflictAgents = new Set(
+    (summary?.goalConflicts ?? []).flatMap((conflict) => [conflict.left.agentId, conflict.right.agentId]),
+  );
+  console.log(
+    [
+      `${String(tickToDay(event.startedAt)).padStart(2)}~${String(tickToDay(event.lastChangeAt)).padStart(2)}일`,
+      event.type.padEnd(20),
+      event.status.padEnd(9),
+      `중요도 ${String(Math.round(event.significance)).padStart(4)}`,
+      `참여 ${String(event.participants.length).padStart(2)}`,
+      `충돌주체 ${conflictAgents.size}`,
+      `새목적 ${summary?.newlyActivatedGoals.length ?? 0}`,
+      `변화 ${summary?.totalChangeCount ?? 0}건`,
+    ].join(" | "),
+  );
+}
+
+// 연쇄 확인용 마커 — 상태 변화 로그에서 굵직한 변화만 뽑는다
 const markers = runtime.state.changeLog.filter((change) =>
   change.tags.some((tag) =>
     [
@@ -93,7 +116,7 @@ const markers = runtime.state.changeLog.filter((change) =>
     ].includes(tag),
   ),
 );
-console.log(`\n--- 사건 로그 ${runtime.state.changeLog.length}건 (주요 ${markers.length}건) ---`);
+console.log(`\n--- 상태 변화 로그 ${runtime.state.changeLog.length}건 (주요 ${markers.length}건) ---`);
 if (showLog) {
   for (const change of markers) {
     const states = change.changedStates

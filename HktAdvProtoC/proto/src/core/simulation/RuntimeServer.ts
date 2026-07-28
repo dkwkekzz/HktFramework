@@ -1,6 +1,7 @@
 // RuntimeServer — §38 프로토콜 요청을 처리하는 시뮬레이션 측 단일 진입점.
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
 import { buildManualWorld } from "../../content/manual-world";
+import type { WorldEvent } from "../../shared/events";
 import type { WorkerRequest, WorkerResponse } from "../../shared/protocol";
 import { RuleEngine } from "../rules/RuleEngine";
 import { bootstrapWorld } from "../world/WorldBootstrap";
@@ -24,6 +25,8 @@ export class RuntimeServer {
   private rules = new RuleEngine([]);
   /** 상태를 변경한 입력의 누적 개수 — 스냅샷·이벤트 로그의 정합 기준점 */
   private inputSeq = 0;
+  /** 이미 클라이언트로 보낸 사건과 그때의 상태 (§28 ongoing → concluded 전이도 한 번 더 보낸다) */
+  private reportedEvents = new Map<string, WorldEvent["status"]>();
 
   /** hooksOverride 는 테스트용 — 지정하면 Phase 1 시스템 대신 그 훅으로 돈다 */
   constructor(private readonly hooksOverride?: RuntimeHooks) {}
@@ -71,6 +74,7 @@ export class RuntimeServer {
     this.runtime = runtime;
     this.loop = loop;
     this.inputSeq += 1;
+    this.reportedEvents.clear();
 
     // 초기 전체 상태를 patch 로 내보낸다
     runtime.markAllDirty();
@@ -86,9 +90,20 @@ export class RuntimeServer {
     this.inputSeq += 1;
     return [
       { type: "state_patch", patch: runtime.flushPatch() },
-      // 사건 스트림은 Phase 4 부터 실체 — 프로토콜 형태만 유지
-      { type: "events_created", events: [] },
+      // §28 사건 스트림 — 이번 진행에서 새로 생기거나 상태가 바뀐 사건만 보낸다(§38 "전량 전달하지 않는다")
+      { type: "events_created", events: this.drainEventUpdates(runtime) },
     ];
+  }
+
+  /** 마지막 보고 이후 생기거나 종결된 사건 (Phase-4) */
+  private drainEventUpdates(runtime: WorldRuntime): WorldEvent[] {
+    const updates: WorldEvent[] = [];
+    for (const event of runtime.state.events.events) {
+      if (this.reportedEvents.get(event.id) === event.status) continue;
+      this.reportedEvents.set(event.id, event.status);
+      updates.push(structuredClone(event));
+    }
+    return updates;
   }
 
   private snapshot(): WorkerResponse[] {
@@ -110,6 +125,7 @@ export class RuntimeServer {
     this.runtime = WorldRuntime.fromSnapshot(definition, doc.snapshot);
     this.loop = loop;
     this.inputSeq = doc.afterLogSeq;
+    this.reportedEvents.clear();
   }
 
   private requireRuntime(): WorldRuntime {

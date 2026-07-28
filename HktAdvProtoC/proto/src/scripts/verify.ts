@@ -6,6 +6,19 @@ import { existsSync, readFileSync } from "node:fs";
 import { findBelief } from "../core/agents/BeliefStore";
 import { MEMORY_CAPACITY } from "../core/agents/MemorySystem";
 import { compareHearsayConfidence, measureGoalConflict } from "../core/agents/phase3Checks";
+import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
+import { buildInterventionOpportunity } from "../core/events/EventViews";
+import {
+  eventCountsByPattern,
+  eventsBySignificance,
+  findConcludedWithConsequences,
+  findEcologicalConflict,
+  findGoalConflictEvents,
+  findMostDividedEvent,
+  measurePromotion,
+  participantMix,
+  summarizeEvents,
+} from "../core/events/phase4Checks";
 import { runAbilityChecks } from "../core/rules/abilityChecks";
 import { runCapabilityChecks } from "../core/rules/capabilities";
 import {
@@ -54,13 +67,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3;
+  phase: 1 | 2 | 3 | 4;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 = 1;
+let phase: 1 | 2 | 3 | 4 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -374,15 +387,118 @@ check(
   `행동 ${totalActions}회 · 종류 ${actionMix.size} · 최다 ${dominant?.[0]} ${((dominant?.[1] ?? 0) / totalActions * 100).toFixed(0)}% · 붕괴 조직 ${collapsedFactions.length}`,
 );
 
+// =====================================================================================
+// Phase 4 완료 조건 — 사건 탐지 (§28, §29, §30, §42-4)
+// =====================================================================================
+phase = 4;
+
+const events = eventsBySignificance(runtime);
+const patternCounts = eventCountsByPattern(runtime);
+
+// --- DoD 1 : §28 예시 구조의 사건이 자동 검출된다 --------------------------------------
+const ecological = findEcologicalConflict(runtime);
+const mix = ecological === undefined ? undefined : participantMix(runtime, ecological);
+check(
+  ecological !== undefined && patternCounts.every((entry) => entry.count > 0),
+  "§28 구조의 사건이 자동 검출 (종족·조직·개인이 섞인 생태 충돌)",
+  ecological === undefined
+    ? `사건 ${events.length}건 · 생태 충돌 없음`
+    : `사건 ${events.length}건 (${patternCounts.map((e) => `${e.patternId.split(".")[1]}:${e.count}`).join(" ")}) · ` +
+      `${ecological.id} "${ecological.type}" ${tickToDay(ecological.startedAt)}~${tickToDay(ecological.lastChangeAt)}일 @${ecological.locationId} ` +
+      `중요도 ${ecological.significance.toFixed(0)} · 참여자 종족[${mix!.species.join(",")}] 조직[${mix!.factions.join(",")}] 개인[${mix!.individuals.join(",")}] · ` +
+      `change ${ecological.summary?.totalChangeCount}건 · 영향 상태 ${ecological.affectedStates.length}개`,
+);
+
+// --- DoD 2 : 세 주체 이상의 목적이 충돌하는 사건 (§44-7) --------------------------------
+const conflicts = findGoalConflictEvents(runtime, 3);
+const topConflict = conflicts[0];
+check(
+  conflicts.length > 0,
+  "세 주체 이상의 목적이 충돌하는 사건 (targetConditions 상호 배타 자동 판정)",
+  topConflict === undefined
+    ? "없음"
+    : `${conflicts.length}건 · 예: ${topConflict.event.id}(${topConflict.event.type}) 충돌 주체 ${topConflict.agents.length}명 — ${topConflict.lines.slice(0, 2).join(" / ")}`,
+);
+
+// --- DoD 3 : 관찰자별로 아는 사실이 다르다 (§30) -----------------------------------------
+// 두 관찰자의 앎이 가장 크게 갈리는 사건을 스스로 고른다 (§30)
+const comparison = findMostDividedEvent(runtime, "agent.kael", "agent.rion");
+const dividedEvent = events.find((event) => event.id === comparison?.eventId);
+// 개입 기회는 아직 진행 중인 사건에서 본다 — 종결된 사건에는 시급도가 남지 않는다(§30 timeSensitivity)
+const ongoingTop = events.find((event) => event.status === "ongoing") ?? dividedEvent;
+const opportunity =
+  ongoingTop === undefined ? undefined : buildInterventionOpportunity(runtime, "agent.kael", ongoingTop.id);
+check(
+  comparison !== undefined &&
+    (comparison.onlyLeft.length > 0 || comparison.onlyRight.length > 0) &&
+    (opportunity?.possibleInteractions.length ?? 0) > 0,
+  "같은 사건에 대해 관찰자별 knownFacts 가 다르다 (마을사람 vs 연구자)",
+  comparison === undefined
+    ? "사건 없음"
+    : `${comparison.eventId}(${dividedEvent?.type}): 마을사람 kael 은 참여자 ${comparison.left.participants}명·사실 ${comparison.left.facts.length}건, ` +
+      `연구자 rion 은 참여자 ${comparison.right.participants}명·사실 ${comparison.right.facts.length}건 · ` +
+      `kael 만 아는 것 [${comparison.onlyLeft.slice(0, 2).join(", ") || "없음"}] / rion 만 아는 것 [${comparison.onlyRight.slice(0, 2).join(", ") || "없음"}] · ` +
+      `진행 중 사건 ${ongoingTop?.id}(${ongoingTop?.type})에 대한 kael 의 개입 후보 ${opportunity?.possibleInteractions.length}종 ` +
+      `[${(opportunity?.possibleInteractions ?? []).slice(0, 4).join(",")}…] 시급도 ${opportunity?.timeSensitivity.toFixed(2)}`,
+);
+
+// --- DoD 4 : 종결된 사건이 세계에 흔적을 남기고 새 목적을 연다 (§44-9, §44-10) -----------
+const consequences = findConcludedWithConsequences(runtime);
+const topConsequence = consequences[0];
+check(
+  consequences.length > 0,
+  "종결 사건의 순변화 ≠ 0 이고 참여자에게 새 목적이 활성화됨",
+  topConsequence === undefined
+    ? "없음"
+    : `${consequences.length}건 · 예: ${topConsequence.event.id}(${topConsequence.event.type}, ${tickToDay(topConsequence.event.concludedAt ?? 0)}일 종결) ` +
+      `순변화 ${topConsequence.netChangedStates}개 — ${topConsequence.topDeltas.join(" | ")} · 새 목적 ${topConsequence.newGoals.slice(0, 3).join(" ")}`,
+);
+
+// --- DoD 5 : 저중요도 변화가 사건으로 승격되지 않는다 (§29) ------------------------------
+const promotion = measurePromotion(runtime, [
+  "action.rest",
+  "action.eat",
+  "action.move",
+  "action.trade",
+  "action.attack",
+  "action.gossip",
+]);
+const routine = promotion.byAction.filter((entry) => ["action.rest", "action.eat", "action.move", "action.trade"].includes(entry.actionId));
+const dramatic = promotion.byAction.filter((entry) => ["action.attack", "action.gossip"].includes(entry.actionId));
+const routineRate =
+  routine.reduce((sum, e) => sum + e.assigned, 0) / Math.max(1, routine.reduce((sum, e) => sum + e.total, 0));
+const dramaticRate =
+  dramatic.reduce((sum, e) => sum + e.assigned, 0) / Math.max(1, dramatic.reduce((sum, e) => sum + e.total, 0));
+check(
+  routineRate < 0.25 && dramaticRate > routineRate * 2 && promotion.assignedChanges < promotion.totalChanges * 0.5,
+  "평시 변화는 사건이 되지 않는다 (§29 중요도 하한)",
+  `전체 change ${promotion.totalChanges}건 중 사건 소속 ${promotion.assignedChanges}건(${(promotion.assignedChanges / promotion.totalChanges * 100).toFixed(0)}%) · ` +
+    `평시 ${promotion.byAction.filter((e) => routine.includes(e)).map((e) => `${e.actionId.split(".")[1]} ${e.assigned}/${e.total}`).join(" ")} → ${(routineRate * 100).toFixed(0)}% · ` +
+    `사건성 ${dramatic.map((e) => `${e.actionId.split(".")[1]} ${e.assigned}/${e.total}`).join(" ")} → ${(dramaticRate * 100).toFixed(0)}% · ` +
+    `중요도 ${promotion.lowestSignificance.toFixed(0)}~${promotion.highestSignificance.toFixed(0)} 중 임계 ${SIGNIFICANCE_THRESHOLD} 미만 ${promotion.hiddenEvents}건 숨김 / ${promotion.shownEvents}건 표시`,
+);
+
+// --- DoD 6 : 동일 시드 재실행 시 동일 사건 목록 (§44-12) ---------------------------------
+const eventsAgain = summarizeEvents(again);
+const eventsOther = summarizeEvents(other);
+const eventHash = hashValue(summarizeEvents(runtime));
+check(
+  hashValue(eventsAgain) === eventHash && hashValue(eventsOther) !== eventHash,
+  "동일 시드 재실행 시 동일 사건 목록 / 다른 시드는 다름",
+  `시드 ${worldSeed} 사건 ${events.length}건 해시 ${eventHash} · 재실행 ${eventsAgain.length}건 ${hashValue(eventsAgain)} · 시드 ${worldSeed + 1} ${eventsOther.length}건 ${hashValue(eventsOther)}`,
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3] as const) {
+for (const current of [1, 2, 3, 4] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
       ? "Phase 1 완료 조건"
       : current === 2
         ? "Phase 2 완료 조건 — 규칙 DSL"
-        : "Phase 3 완료 조건 — 주체 판단";
+        : current === 3
+          ? "Phase 3 완료 조건 — 주체 판단"
+          : "Phase 4 완료 조건 — 사건 탐지";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);

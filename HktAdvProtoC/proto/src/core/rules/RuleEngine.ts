@@ -248,7 +248,8 @@ export class RuleEngine implements EffectHooks {
       {
         ...(firing.actorId !== undefined ? { sourceId: firing.actorId } : {}),
         targetIds: firing.targetIds,
-        tags: ["rule", rule.id],
+        // §28 태그 전파 — 규칙이 선언한 tags 가 사건 패턴의 재료가 된다 (Phase-4 §4.1)
+        tags: ["rule", rule.id, ...(rule.tags ?? [])],
       },
       () => {
         const base = createRuleContext(runtime, rule, {
