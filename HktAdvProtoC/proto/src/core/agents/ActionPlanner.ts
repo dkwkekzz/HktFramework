@@ -4,6 +4,7 @@
 // 선택은 최고 점수 1개가 아니라 성향에 따른 확률적 선택이다(§22 weightedSoftmaxSelection) —
 // "항상 최고 점수만 선택하면 모든 행동이 지나치게 최적화된다".
 import { resolveDuration, travelDuration } from "../actions/ActionSystem";
+import { actionFeasibleFor } from "../rules/ruleIndex";
 import { CROSS_REGION_DISTANCE } from "../world/Conditions";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { ActionDefinition, GoalNode } from "../world/types";
@@ -135,6 +136,12 @@ export function generateActionCandidates(
   for (const action of actionsForGoal(runtime, goal)) {
     const actorCheck = view.evaluateConditions(action.actorRequirements);
     if (!actorCheck.ok) continue;
+    /**
+     * 이 주체가 **완료까지 갈 수 있는** 행동인가 (§31 "실행 가능한 행동만").
+     * 실행 규칙이 조직의 상태를 읽는 행동을 개인이 고르면 완료 순간 §9 검증에 부딪힌다 —
+     * 그런 후보는 애초에 후보가 아니다. 판정은 정적이므로 결정론에 영향이 없다.
+     */
+    if (!actionFeasibleFor(runtime, action, agentId)) continue;
     const progress = expectedProgress(action, goal);
     const alignment = valueAlignmentOf(view, action);
 
