@@ -22,7 +22,12 @@ function toSceneEntity(entity: EntityState): SceneEntity {
     label: entity.id,
     stateBadges: toBadges(entity.states),
   };
-  if (entity.position !== undefined) scene.position = { ...entity.position };
+  if (entity.position !== undefined) {
+    // 3D→2D 톱다운 투영 — z 는 표시 속성 elevation 으로 (공간 데이터는 3D, 렌더는 2D)
+    const { regionId, x, y, z } = entity.position;
+    scene.position = { regionId, x, y };
+    scene.elevation = z;
+  }
   return scene;
 }
 

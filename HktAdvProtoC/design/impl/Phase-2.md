@@ -51,7 +51,7 @@
 
 ### 2.5 TargetSelector
 
-변형: `actor` / `target`(트리거 대상) / `entity(id)` / `query`. `query` 는 §12 예시 `entities[tag=plant]` 문법: `{ tags: string[], ownerType?, withinRadius?: {of, r}, limit? }`. 검색 결과는 id 정렬로 결정론화. 지역 내 반경 검색은 개체 수가 §40 규모(수백)이므로 선형 스캔으로 충분 — 공간 색인은 도입하지 않는다.
+변형: `actor` / `target`(트리거 대상) / `entity(id)` / `query`. `query` 는 §12 예시 `entities[tag=plant]` 문법: `{ tags: string[], ownerType?, withinRadius?: {of, r}, limit? }`. 검색 결과는 id 정렬로 결정론화. 반경 검색의 거리는 3D 유클리드(Phase 1 공간 거리 규약). 지역 내 반경 검색은 개체 수가 §40 규모(수백)이므로 선형 스캔으로 충분 — 공간 색인은 도입하지 않는다.
 
 ### 2.6 ObservationEmitter
 

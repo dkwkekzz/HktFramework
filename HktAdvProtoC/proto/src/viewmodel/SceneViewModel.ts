@@ -11,7 +11,10 @@ export interface SceneEntity {
   id: string;
   /** EntityType 문자열 — 렌더러는 의미를 해석하지 않고 심볼 키로만 쓴다 */
   kind: string;
+  /** 2D 톱다운 투영 좌표 — 3D→2D 투영은 빌더에서 끝난다 (공간 데이터는 3D, §13 개정) */
   position?: { regionId: string; x: number; y: number };
+  /** 고도(z)의 표시 속성 — 2D 렌더러는 음영·라벨 등으로 표현할 수 있다 */
+  elevation?: number;
   label: string;
   stateBadges: SceneBadge[];
 }

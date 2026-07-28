@@ -2,10 +2,21 @@
 // shared 에 두는 이유: patch 로 경계(Worker↔메인, core↔viewmodel)를 넘는 직렬화 데이터이기 때문.
 // 행동(메서드)을 가진 런타임 구조는 core/world 에 있다.
 
+// 공간 데이터는 3D 다 (기획서 §13 개정) — x·y 수평, z 고도.
+// 거리·반경·관찰 계산은 전부 3D 유클리드 거리를 사용한다. 렌더링의 2D 투영은 ViewModel 빌더의 몫.
 export interface Position {
   regionId: string;
   x: number;
   y: number;
+  z: number;
+}
+
+/** 3D 유클리드 거리 — 같은 지역 내에서만 의미가 있다 (지역 간은 연결 그래프 §13) */
+export function distance3d(a: Position, b: Position): number {
+  const dx = a.x - b.x;
+  const dy = a.y - b.y;
+  const dz = a.z - b.z;
+  return Math.sqrt(dx * dx + dy * dy + dz * dz);
 }
 
 export type EntityType = "agent" | "resource" | "location" | "faction";
