@@ -14,16 +14,14 @@ import {
   AGENT_REPLAN_EVENT,
   completeAction,
 } from "../actions/ActionSystem";
-import type { RuleRegistry } from "../rules/RuleRegistry";
+import { RULE_SCHEDULED_EVENT } from "../rules/EffectExecutor";
+import type { RuleEngine } from "../rules/RuleEngine";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { RuntimeHooks } from "./SimulationLoop";
 import type { SimulationLoop } from "./SimulationLoop";
 import type { ScheduledActionState } from "../../shared/beliefs";
 
 export const RULE_INTERVAL_EVENT = "rule_interval";
-
-/** state_changed 연쇄의 상한 — 규칙이 서로를 깨우는 폭주를 막는다(남은 변화는 다음 반복에서 처리) */
-const MAX_STATE_CASCADE = 8;
 
 interface CompletedAction {
   agentId: string;
@@ -36,17 +34,13 @@ export interface WorldSystems {
   scheduleInitialEvents(runtime: WorldRuntime): void;
 }
 
-export function createWorldSystems(rules: RuleRegistry): WorldSystems {
+export function createWorldSystems(rules: RuleEngine): WorldSystems {
   // 한 반복 안에서만 살아 있는 대기열 — advance 가 끝날 때는 항상 비어 있으므로 스냅샷 대상이 아니다
   const completed: CompletedAction[] = [];
 
   const hooks: RuntimeHooks = {
     processChangedStateRules: (runtime) => {
-      for (let round = 0; round < MAX_STATE_CASCADE; round++) {
-        const changes = runtime.store.takeStateChanges();
-        if (changes.length === 0) return;
-        for (const change of changes) rules.dispatchStateChange(runtime, change);
-      }
+      rules.drainStateChanges(runtime);
     },
     processObservationSignals: (runtime) => {
       processObservationSignals(runtime);
@@ -101,6 +95,20 @@ export function createWorldSystems(rules: RuleRegistry): WorldSystems {
         // 재판단으로 취소된 행동의 뒤늦은 완료는 버린다
         if (agent?.currentAction?.eventId !== event.id) return;
         completed.push({ agentId, scheduled: agent.currentAction });
+      });
+
+      // §11.3 schedule_rule 로 예약된 규칙 실행
+      loop.registerHandler(RULE_SCHEDULED_EVENT, (runtime, event) => {
+        const ruleId = event.payload["ruleId"];
+        if (typeof ruleId !== "string") return;
+        const actorId = event.payload["actorId"];
+        const targetId = event.payload["targetId"];
+        rules.runScheduled(
+          runtime,
+          ruleId,
+          typeof actorId === "string" ? actorId : undefined,
+          typeof targetId === "string" ? targetId : undefined,
+        );
       });
 
       // 재판단 표식 — 실제 판단은 §26 순서에 따라 updateUrgentAgents 가 한다

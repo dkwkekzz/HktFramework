@@ -231,4 +231,9 @@ export class StateStore {
     this.pendingStateChanges = [];
     return changes;
   }
+
+  /** 아직 규칙에 전달되지 않은 변화 개수 — 연쇄 상한 초과 판정에 쓴다 (Phase-2 §2.2) */
+  pendingStateChangeCount(): number {
+    return this.pendingStateChanges.length;
+  }
 }

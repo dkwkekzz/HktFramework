@@ -1,0 +1,318 @@
+[
+  {
+    "id": "rule.lab_heal",
+    "name": "조건 비교 + 상태 변경",
+    "scope": "global",
+    "priority": 90,
+    "triggers": [{ "type": "interval", "interval": 10 }],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent",
+        "where": [
+          {
+            "left": { "type": "each_state", "key": "health" },
+            "operator": "<",
+            "right": { "type": "constant", "value": 40 }
+          }
+        ]
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "health",
+        "operation": "add",
+        "value": 5
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_transfer",
+    "name": "자원 이동 — 부족하면 가능한 만큼만",
+    "scope": "relationship",
+    "priority": 80,
+    "triggers": [{ "type": "action_executed", "actionId": "action.lab_use" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "transfer_resource",
+        "resourceId": "stock",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "amount": 30
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_relationship",
+    "name": "관계 변경",
+    "scope": "relationship",
+    "priority": 70,
+    "triggers": [{ "type": "action_executed", "actionId": "action.lab_use" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": { "type": "actor" },
+        "to": { "type": "target" },
+        "key": "trust",
+        "operation": "add",
+        "value": 5
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_trust_echo",
+    "name": "관계 변경 트리거",
+    "scope": "entity",
+    "priority": 65,
+    "triggers": [{ "type": "relationship_changed", "relationshipKey": "trust" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "trust_echo",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_signal",
+    "name": "신호 발생",
+    "scope": "entity",
+    "priority": 60,
+    "triggers": [{ "type": "action_executed", "actionId": "action.lab_use" }],
+    "conditions": [],
+    "effects": [{ "type": "emit_signal", "signalId": "signal.lab_ping" }],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_schedule",
+    "name": "예약된 효과",
+    "scope": "entity",
+    "priority": 55,
+    "triggers": [{ "type": "action_executed", "actionId": "action.lab_use" }],
+    "conditions": [],
+    "effects": [{ "type": "schedule_rule", "ruleId": "rule.lab_delayed", "delay": 5 }],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_delayed",
+    "name": "예약으로만 깨어나는 규칙",
+    "scope": "entity",
+    "priority": 50,
+    "triggers": [],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "delayed_mark",
+        "operation": "set",
+        "value": 7
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_spawn",
+    "name": "개체 생성",
+    "scope": "entity",
+    "priority": 50,
+    "triggers": [{ "type": "state_changed", "stateKey": "marked" }],
+    "conditions": [
+      {
+        "left": { "type": "actor_state", "key": "marked" },
+        "operator": "==",
+        "right": { "type": "constant", "value": true }
+      }
+    ],
+    "effects": [
+      {
+        "type": "create_entity",
+        "templateId": "template.sprout",
+        "location": { "type": "actor" }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_prune",
+    "name": "개체 소멸",
+    "scope": "global",
+    "priority": 45,
+    "triggers": [{ "type": "interval", "interval": 100000 }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "destroy_entity",
+        "target": { "type": "query", "query": { "tags": ["spawned"] } }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_scan",
+    "name": "주변 개체 검색",
+    "scope": "global",
+    "priority": 44,
+    "triggers": [{ "type": "interval", "interval": 100000 }],
+    "forEach": { "type": "query", "query": { "entityType": "agent" } },
+    "bindings": [
+      {
+        "name": "nearby",
+        "value": {
+          "type": "query_value",
+          "aggregate": "count",
+          "query": { "tags": ["plant"], "withinRadius": { "of": "target", "r": 20 } }
+        }
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "nearby_count",
+        "operation": "set",
+        "valueRef": { "type": "binding", "name": "nearby" }
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_harvest",
+    "name": "태그 기반 대상 선택",
+    "scope": "global",
+    "priority": 43,
+    "triggers": [{ "type": "interval", "interval": 100000 }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "query", "query": { "tags": ["plant"] } },
+        "stateKey": "amount",
+        "operation": "add",
+        "value": -1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_luck",
+    "name": "확률적 효과",
+    "scope": "global",
+    "priority": 42,
+    "triggers": [{ "type": "interval", "interval": 100000 }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "chance": 0.5,
+        "target": { "type": "query", "query": { "entityType": "agent" } },
+        "stateKey": "stock",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_cooldown",
+    "name": "쿨다운",
+    "scope": "global",
+    "priority": 41,
+    "cooldown": 50,
+    "triggers": [{ "type": "interval", "interval": 100000 }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "world" },
+        "stateKey": "lab_price",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_entered",
+    "name": "지역 진입 트리거",
+    "scope": "entity",
+    "priority": 40,
+    "triggers": [{ "type": "entity_entered", "locationTag": "lab_zone" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "entered_mark",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_ping_a",
+    "name": "연쇄 폭주 A",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [{ "type": "state_changed", "stateKey": "ping_a" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "ping_b",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  },
+  {
+    "id": "rule.lab_ping_b",
+    "name": "연쇄 폭주 B",
+    "scope": "entity",
+    "priority": 30,
+    "triggers": [{ "type": "state_changed", "stateKey": "ping_b" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "ping_a",
+        "operation": "add",
+        "value": 1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": []
+  }
+]

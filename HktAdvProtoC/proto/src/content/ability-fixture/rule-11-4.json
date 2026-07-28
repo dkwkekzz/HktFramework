@@ -1,0 +1,53 @@
+{
+  "id": "rule.ability_restriction_amplification",
+  "name": "제약에 의한 능력 증폭",
+  "scope": "entity",
+  "priority": 80,
+  "triggers": [
+    {
+      "type": "action_executed",
+      "actionId": "action.use_ability"
+    }
+  ],
+  "conditions": [
+    {
+      "left": {
+        "type": "actor_state",
+        "key": "restriction_valid"
+      },
+      "operator": "==",
+      "right": {
+        "type": "constant",
+        "value": true
+      }
+    }
+  ],
+  "effects": [
+    {
+      "type": "modify_state",
+      "target": {
+        "type": "actor"
+      },
+      "stateKey": "ability_output",
+      "operation": "multiply",
+      "value": 1.8
+    },
+    {
+      "type": "modify_state",
+      "target": {
+        "type": "actor"
+      },
+      "stateKey": "failure_penalty_risk",
+      "operation": "add",
+      "value": 25
+    }
+  ],
+  "observations": [
+    {
+      "channel": "energy_sense",
+      "signal": "unstable_high_density_energy",
+      "strength": 76
+    }
+  ],
+  "derivedFromAxioms": ["axiom.power_restriction", "axiom.power_cost"]
+}

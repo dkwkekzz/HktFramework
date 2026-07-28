@@ -1,0 +1,135 @@
+[
+  {
+    "id": "rule.ability_activation",
+    "name": "능력 발동 — 계약이 성립하면 능력이 켜진다",
+    "scope": "entity",
+    "priority": 90,
+    "triggers": [{ "type": "action_executed", "actionId": "action.use_ability" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "ability_active",
+        "operation": "set",
+        "value": true
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "ability_output",
+        "operation": "set",
+        "value": 50
+      },
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": { "type": "actor_state", "key": "lied_since_activation" },
+            "operator": "==",
+            "right": { "type": "constant", "value": false }
+          }
+        ],
+        "target": { "type": "actor" },
+        "stateKey": "restriction_valid",
+        "operation": "set",
+        "value": true
+      },
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": { "type": "actor_state", "key": "lied_since_activation" },
+            "operator": "==",
+            "right": { "type": "constant", "value": true }
+          }
+        ],
+        "target": { "type": "actor" },
+        "stateKey": "restriction_valid",
+        "operation": "set",
+        "value": false
+      },
+      { "type": "emit_signal", "signalId": "signal.contract_symbols" }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.power_restriction"]
+  },
+  {
+    "id": "rule.ability_restriction_violation",
+    "name": "제약 위반 — 계약 기간에 거짓말하면 제약이 깨진다",
+    "scope": "entity",
+    "priority": 85,
+    "triggers": [{ "type": "action_executed", "actionId": "action.lie" }],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "lied_since_activation",
+        "operation": "set",
+        "value": true
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "actor" },
+        "stateKey": "restriction_valid",
+        "operation": "set",
+        "value": false
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.power_restriction"]
+  },
+  {
+    "id": "rule.ability_maintenance_watch",
+    "name": "유지 조건 감시 — 위반이면 반동을 실행한다",
+    "scope": "entity",
+    "priority": 70,
+    "triggers": [{ "type": "interval", "interval": 60 }],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "entityType": "agent",
+        "where": [
+          {
+            "left": { "type": "each_state", "key": "ability_active" },
+            "operator": "==",
+            "right": { "type": "constant", "value": true }
+          }
+        ]
+      }
+    },
+    "conditions": [
+      {
+        "left": { "type": "target_state", "key": "lied_since_activation" },
+        "operator": "==",
+        "right": { "type": "constant", "value": true }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "memory_integrity",
+        "operation": "add",
+        "value": -15
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "ability_active",
+        "operation": "set",
+        "value": false
+      },
+      {
+        "type": "modify_state",
+        "target": { "type": "target" },
+        "stateKey": "ability_output",
+        "operation": "set",
+        "value": 0
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": ["axiom.power_cost"]
+  }
+]

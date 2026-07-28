@@ -2,6 +2,7 @@
 // Phase 1 이 실제로 쓰는 필드는 실체 타입으로, 담당 Phase 가 오지 않은 필드는 placeholder(unknown[]) 로 둔다.
 import type { ObservationChannel } from "../../shared/observation";
 import type { Position } from "../../shared/state";
+import type { EntityTemplate, RuleDefinition } from "../rules/RuleTypes";
 
 export type { EntityState, EntityType, Position, WorldState } from "../../shared/state";
 
@@ -303,7 +304,9 @@ export interface WorldDefinition {
   metadata: WorldMetadata;
   axioms: unknown[]; // §7 WorldAxiom — Phase 5
   stateSchemas: StateSchema[]; // §9 — Phase 1
-  ruleDefinitions: unknown[]; // §11 RuleDefinition — Phase 2 (Phase 1 은 코드 규칙)
+  ruleDefinitions: RuleDefinition[]; // §11 — Phase 2 (규칙은 전부 JSON 이다)
+  /** §11.3 create_entity 가 가리키는 템플릿 — Phase 5 생성기가 채운다 */
+  entityTemplates?: EntityTemplate[];
   spaces: SpaceDefinition; // §13 — Phase 1
   resources: ResourceDefinition[]; // §14 — Phase 1
   species: SpeciesDefinition[]; // §15 — Phase 1

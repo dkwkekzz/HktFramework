@@ -48,6 +48,12 @@ export interface WorldState {
   changeLog: RawWorldChange[];
   /** 신호 id 발급 카운터 — 시드 무관하게 순번으로만 증가한다(결정론) */
   signalSeq: number;
+  /** create_entity(§11.3) 가 발급하는 개체 id 순번 */
+  entitySeq: number;
+  /** schedule_rule(§11.3) 이 발급하는 예약 이벤트 순번 */
+  ruleEventSeq: number;
+  /** 규칙 쿨다운(§11 cooldown) 마지막 발동 시각 — 스냅샷에 실려야 복원 후에도 같은 흐름이 된다 */
+  ruleCooldowns: Record<string, number>;
 }
 
 // 변경분만 전달하는 patch (기획서 §38 — "전체 월드 상태를 매 프레임 전달하지 않는다")
@@ -68,5 +74,8 @@ export function createEmptyWorldState(): WorldState {
     pendingSignals: [],
     changeLog: [],
     signalSeq: 0,
+    entitySeq: 0,
+    ruleEventSeq: 0,
+    ruleCooldowns: {},
   };
 }

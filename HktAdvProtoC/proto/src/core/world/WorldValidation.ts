@@ -1,6 +1,15 @@
 // 세계 정의 정합성 검사 (기획서 §34 의 Phase 1 부분집합, Phase-1 §1.1)
 // Phase 6 이 이 검사를 10종 의미 검증으로 확장한다. 지금 확인하는 것은 "실행 가능한가"에 직결되는 것들뿐이다.
-import type { RuleRegistry } from "../rules/RuleRegistry";
+import type { RuleEngine } from "../rules/RuleEngine";
+import type {
+  RuleCondition,
+  RuleDefinition,
+  RuleEffect,
+  RuleTargetQuery,
+  RuleTargetSelector,
+  RuleValue,
+} from "../rules/RuleTypes";
+import { splitPath } from "../rules/ConditionEvaluator";
 import { StateSchemaRegistry } from "./StateSchema";
 import type { ObservationEffect, StateOwnerType, WorldDefinition } from "./types";
 
@@ -42,7 +51,185 @@ function validateObservationEffect(
   }
 }
 
-export function validateWorldDefinition(definition: WorldDefinition, rules: RuleRegistry): string[] {
+// --- 규칙 DSL 검증 (Phase-2 §2.3 — "존재하지 않는 경로는 조건 실패가 아니라 검증 오류") -------
+
+/** 어떤 ownerType 에도 없는 상태 키는 규칙이 참조할 수 없다 */
+function requireKnownStateKey(
+  schemas: StateSchemaRegistry,
+  stateKey: string,
+  where: string,
+  errors: string[],
+): void {
+  if (schemas.all().some((schema) => schema.id === stateKey)) return;
+  errors.push(`${where}: 등록되지 않은 상태를 참조한다 — ${stateKey} (§9)`);
+}
+
+function walkValue(
+  schemas: StateSchemaRegistry,
+  value: RuleValue,
+  where: string,
+  errors: string[],
+): void {
+  switch (value.type) {
+    case "actor_state":
+    case "target_state":
+    case "each_state":
+    case "world_state":
+    case "entity_state":
+      requireKnownStateKey(schemas, value.key, where, errors);
+      return;
+    case "path": {
+      const { key } = splitPath(value.path);
+      requireKnownStateKey(schemas, key, where, errors);
+      return;
+    }
+    case "query_value":
+      if (value.key !== undefined) requireKnownStateKey(schemas, value.key, where, errors);
+      walkQuery(schemas, value.query, where, errors);
+      return;
+    case "expr":
+      for (const operand of value.operands) walkValue(schemas, operand, where, errors);
+      return;
+    default:
+      return;
+  }
+}
+
+function walkConditions(
+  schemas: StateSchemaRegistry,
+  conditions: RuleCondition[],
+  where: string,
+  errors: string[],
+): void {
+  for (const condition of conditions) {
+    walkValue(schemas, condition.left, where, errors);
+    walkValue(schemas, condition.right, where, errors);
+  }
+}
+
+function walkQuery(
+  schemas: StateSchemaRegistry,
+  query: RuleTargetQuery,
+  where: string,
+  errors: string[],
+): void {
+  if (query.where !== undefined) walkConditions(schemas, query.where, where, errors);
+}
+
+function walkSelector(
+  schemas: StateSchemaRegistry,
+  selector: RuleTargetSelector,
+  where: string,
+  errors: string[],
+): void {
+  if (selector.type === "query") walkQuery(schemas, selector.query, where, errors);
+}
+
+function validateRuleEffect(
+  definition: WorldDefinition,
+  rules: RuleEngine,
+  schemas: StateSchemaRegistry,
+  rule: RuleDefinition,
+  effect: RuleEffect,
+  where: string,
+  errors: string[],
+): void {
+  if (effect.conditions !== undefined) walkConditions(schemas, effect.conditions, where, errors);
+  if (effect.chance !== undefined && (effect.chance < 0 || effect.chance > 1)) {
+    errors.push(`${where}: chance 는 0~1 이어야 한다 — ${effect.chance}`);
+  }
+  switch (effect.type) {
+    case "modify_state":
+      walkSelector(schemas, effect.target, where, errors);
+      requireKnownStateKey(schemas, effect.stateKey, where, errors);
+      if (effect.valueRef !== undefined) walkValue(schemas, effect.valueRef, where, errors);
+      if (effect.value === undefined && effect.valueRef === undefined) {
+        errors.push(`${where}: modify_state 에 value 도 valueRef 도 없다`);
+      }
+      return;
+    case "transfer_resource":
+      walkSelector(schemas, effect.from, where, errors);
+      walkSelector(schemas, effect.to, where, errors);
+      requireKnownStateKey(schemas, effect.fromStateKey ?? effect.resourceId, where, errors);
+      requireKnownStateKey(schemas, effect.toStateKey ?? effect.resourceId, where, errors);
+      if (effect.amountRef !== undefined) walkValue(schemas, effect.amountRef, where, errors);
+      return;
+    case "create_entity":
+      walkSelector(schemas, effect.location, where, errors);
+      if (!(definition.entityTemplates ?? []).some((t) => t.id === effect.templateId)) {
+        errors.push(`${where}: 없는 개체 템플릿 — ${effect.templateId}`);
+      }
+      return;
+    case "destroy_entity":
+      walkSelector(schemas, effect.target, where, errors);
+      return;
+    case "emit_signal": {
+      // 신호는 규칙 자신이 선언했거나, 이 규칙을 깨우는 행동이 선언했어야 한다 (§11 observations / §21 visibleSignals)
+      const fromRule = rule.observations.some((o) => o.signalId === effect.signalId);
+      const triggerActionIds = rule.triggers
+        .filter((t): t is Extract<typeof t, { type: "action_executed" }> => t.type === "action_executed")
+        .map((t) => t.actionId);
+      const fromAction = definition.actionDefinitions
+        .filter((action) => triggerActionIds.includes(action.id))
+        .some((action) => action.visibleSignals.some((s) => s.signalId === effect.signalId));
+      if (!fromRule && !fromAction) {
+        errors.push(`${where}: 어디에도 선언되지 않은 신호를 내보낸다 — ${effect.signalId}`);
+      }
+      return;
+    }
+    case "schedule_rule":
+      if (rules.find(effect.ruleId) === undefined) {
+        errors.push(`${where}: 없는 규칙을 예약한다 — ${effect.ruleId}`);
+      }
+      if (effect.delay < 0) errors.push(`${where}: delay 는 0 이상이어야 한다`);
+      return;
+    case "modify_relationship":
+      walkSelector(schemas, effect.from, where, errors);
+      walkSelector(schemas, effect.to, where, errors);
+      return;
+  }
+}
+
+function validateRules(
+  definition: WorldDefinition,
+  rules: RuleEngine,
+  schemas: StateSchemaRegistry,
+  errors: string[],
+): void {
+  // 트리거가 없어도 다른 규칙이 예약(schedule_rule)한다면 깨어날 길이 있다
+  const scheduledRuleIds = new Set<string>();
+  for (const rule of rules.all()) {
+    for (const effect of rule.effects) {
+      if (effect.type === "schedule_rule") scheduledRuleIds.add(effect.ruleId);
+    }
+  }
+
+  for (const rule of rules.all()) {
+    const where = `규칙 ${rule.id}`;
+    if (rule.triggers.length === 0 && !scheduledRuleIds.has(rule.id)) {
+      errors.push(`${where}: 아무도 깨우지 않는다 — 트리거도 없고 예약하는 규칙도 없다 (§11.1)`);
+    }
+    if (rule.cooldown !== undefined && rule.cooldown < 0) {
+      errors.push(`${where}: cooldown 은 0 이상이어야 한다`);
+    }
+    if (rule.effects.length === 0 && rule.observations.length === 0) {
+      errors.push(`${where}: 아무 효과도 없다 (§11.3)`);
+    }
+    if (rule.forEach !== undefined) walkSelector(schemas, rule.forEach, where, errors);
+    for (const binding of rule.bindings ?? []) {
+      walkValue(schemas, binding.value, `${where} 바인딩 ${binding.name}`, errors);
+    }
+    walkConditions(schemas, rule.conditions, where, errors);
+    for (const effect of rule.effects) {
+      validateRuleEffect(definition, rules, schemas, rule, effect, where, errors);
+    }
+    for (const effect of rule.observations) {
+      validateObservationEffect(schemas, effect, `${where} 신호 ${effect.signalId}`, errors);
+    }
+  }
+}
+
+export function validateWorldDefinition(definition: WorldDefinition, rules: RuleEngine): string[] {
   const errors: string[] = [];
   const schemas = new StateSchemaRegistry(definition.stateSchemas);
   const actionTags = new Set<string>();
@@ -141,6 +328,8 @@ export function validateWorldDefinition(definition: WorldDefinition, rules: Rule
   for (const species of definition.species) {
     if (species.senses.length === 0) errors.push(`종족 ${species.id}: 감각이 없다 (§15)`);
   }
+
+  validateRules(definition, rules, schemas, errors);
 
   return errors;
 }
