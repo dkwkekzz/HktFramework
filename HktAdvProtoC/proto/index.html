@@ -17,7 +17,8 @@
       textarea { width: 100%; font-family: inherit; font-size: 0.85rem; }
       fieldset { border: 1px solid #ddd; border-radius: 6px; margin-bottom: 1.2rem; }
       legend { font-size: 0.85rem; color: #555; }
-      #map { width: 100%; max-width: 60rem; border: 1px solid #2a3550; border-radius: 6px; background: #131a26; }
+      #map, #map3d { width: 100%; max-width: 60rem; border: 1px solid #2a3550; border-radius: 6px; background: #131a26; }
+      #map3d { touch-action: none; }
       #generation, #editor, #world, #player, #agent, #events, #event-detail {
         white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5;
       }
@@ -95,9 +96,13 @@
         <span>시점</span>
         <button id="mode-developer" class="active">개발자</button>
         <button id="mode-player">플레이어</button>
+        <span>표현</span>
+        <button id="view-2d" class="active">2D</button>
+        <button id="view-3d">3D</button>
       </div>
       <div id="status"></div>
       <canvas id="map" width="960" height="540"></canvas>
+      <canvas id="map3d" width="960" height="540" hidden></canvas>
 
       <fieldset>
         <legend>주체 관찰 화면 (§36.3 — 실제/믿음 · 목적 그래프 · 기억 · 관계 · 능력)</legend>
