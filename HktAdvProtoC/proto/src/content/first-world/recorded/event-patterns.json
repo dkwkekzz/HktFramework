@@ -1,0 +1,196 @@
+{
+  "event_patterns": [
+    {
+      "id": "pattern.ecological_conflict",
+      "name": "생태 충돌",
+      "type": "ecological_conflict",
+      "requiredTags": [
+        "threat",
+        "creature"
+      ],
+      "optionalTags": [
+        "violence",
+        "fear",
+        "information",
+        "mobilization",
+        "rumor",
+        "ecology"
+      ],
+      "minimumParticipants": 3,
+      "timeWindow": 720,
+      "locationRadius": 15,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.food_crisis",
+      "name": "식량 위기",
+      "type": "food_crisis",
+      "requiredTags": [
+        "crisis"
+      ],
+      "optionalTags": [
+        "food",
+        "hunger",
+        "economy",
+        "organization",
+        "survival"
+      ],
+      "minimumParticipants": 2,
+      "timeWindow": 2880,
+      "locationRadius": 40,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.subjugation_muster",
+      "name": "토벌 소집",
+      "type": "subjugation_muster",
+      "requiredTags": [
+        "mobilization"
+      ],
+      "optionalTags": [
+        "organization",
+        "threat",
+        "report",
+        "relationship"
+      ],
+      "minimumParticipants": 2,
+      "timeWindow": 1440,
+      "locationRadius": 15,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.investigation",
+      "name": "조사 활동",
+      "type": "investigation",
+      "requiredTags": [
+        "research",
+        "information"
+      ],
+      "optionalTags": [
+        "creature",
+        "trace",
+        "ecology",
+        "observation"
+      ],
+      "minimumParticipants": 2,
+      "timeWindow": 1440,
+      "locationRadius": 15,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.rumor_spread",
+      "name": "소문 확산",
+      "type": "rumor_spread",
+      "requiredTags": [
+        "rumor"
+      ],
+      "optionalTags": [
+        "information",
+        "betrayal",
+        "relationship",
+        "threat"
+      ],
+      "minimumParticipants": 3,
+      "timeWindow": 720,
+      "locationRadius": 40,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.broken_promise",
+      "name": "약속 파기",
+      "type": "promise_breach",
+      "requiredTags": [
+        "betrayal"
+      ],
+      "optionalTags": [
+        "relationship",
+        "rumor",
+        "information",
+        "organization"
+      ],
+      "minimumParticipants": 3,
+      "timeWindow": 1440,
+      "locationRadius": 40,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.smuggling_bust",
+      "name": "밀수 적발",
+      "type": "smuggling_bust",
+      "requiredTags": [
+        "crystal",
+        "betrayal"
+      ],
+      "optionalTags": [
+        "organization",
+        "information",
+        "mobilization",
+        "rumor",
+        "relationship"
+      ],
+      "minimumParticipants": 3,
+      "timeWindow": 1440,
+      "locationRadius": 40,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.ability_manifestation",
+      "name": "능력 발현",
+      "type": "ability_manifestation",
+      "requiredTags": [
+        "ability"
+      ],
+      "optionalTags": [
+        "power",
+        "information",
+        "crisis",
+        "betrayal",
+        "ritual"
+      ],
+      "minimumParticipants": 2,
+      "timeWindow": 720,
+      "locationRadius": 25,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.ecosystem_decay",
+      "name": "생태 쇠퇴",
+      "type": "ecosystem_decay",
+      "requiredTags": [
+        "ecology",
+        "crisis"
+      ],
+      "optionalTags": [
+        "residue",
+        "ritual",
+        "organization",
+        "resource",
+        "creature"
+      ],
+      "minimumParticipants": 2,
+      "timeWindow": 2880,
+      "locationRadius": 60,
+      "significanceFormula": "standard"
+    },
+    {
+      "id": "pattern.faction_standoff",
+      "name": "조직 대치",
+      "type": "faction_standoff",
+      "requiredTags": [
+        "organization",
+        "mobilization"
+      ],
+      "optionalTags": [
+        "crystal",
+        "threat",
+        "report",
+        "relationship",
+        "information"
+      ],
+      "minimumParticipants": 3,
+      "timeWindow": 1440,
+      "locationRadius": 45,
+      "significanceFormula": "standard"
+    }
+  ]
+}

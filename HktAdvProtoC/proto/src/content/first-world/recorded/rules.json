@@ -1,0 +1,4625 @@
+{
+  "rules_outline": [
+    {
+      "id": "metabolism",
+      "name": "대사",
+      "summary": "몸이 시간에 따라 닳는다 — 허기·체력·기력.",
+      "group": "metabolism"
+    },
+    {
+      "id": "ecology",
+      "name": "생태",
+      "summary": "짐승이 먹고 번식하고 영역을 지킨다.",
+      "group": "ecology"
+    },
+    {
+      "id": "resources",
+      "name": "자원",
+      "summary": "자원이 자라고 옮겨지고 소비된다.",
+      "group": "resources"
+    },
+    {
+      "id": "observation",
+      "name": "관찰",
+      "summary": "행동이 흔적을 남기고 흔적이 읽힌다.",
+      "group": "observation"
+    },
+    {
+      "id": "society",
+      "name": "사회",
+      "summary": "사람들 사이에서 말과 소문이 돈다.",
+      "group": "society"
+    },
+    {
+      "id": "organization",
+      "name": "조직",
+      "summary": "조직이 보고를 받고 명령을 내린다.",
+      "group": "organization"
+    },
+    {
+      "id": "relationships",
+      "name": "관계",
+      "summary": "믿음과 배신이 관계 수치로 남는다.",
+      "group": "relationships"
+    },
+    {
+      "id": "ability",
+      "name": "능력",
+      "summary": "제약이 능력을 키우고, 제약을 어기면 반동이 돌아온다(§11.4).",
+      "group": "ability"
+    },
+    {
+      "id": "crystal_trade",
+      "name": "결정 유통",
+      "summary": "결정이 채굴되고 통제되고 밀수된다.",
+      "group": "crystal_trade"
+    },
+    {
+      "id": "wilds",
+      "name": "야생",
+      "summary": "이끼가 잔재를 흡수하고 군체가 불어난다.",
+      "group": "wilds"
+    }
+  ],
+  "rules/metabolism": [
+    {
+      "id": "rule.hunger_growth",
+      "name": "허기 증가",
+      "tags": [
+        "survival",
+        "hunger"
+      ],
+      "scope": "global",
+      "priority": 100,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 60
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "query",
+            "query": {
+              "entityType": "agent"
+            }
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": 1
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.hunger_health_decay",
+      "name": "허기가 체력을 갉는다",
+      "tags": [
+        "survival",
+        "hunger",
+        "crisis"
+      ],
+      "scope": "global",
+      "priority": 95,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 60
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "query",
+            "query": {
+              "entityType": "agent",
+              "where": [
+                {
+                  "left": {
+                    "type": "each_state",
+                    "key": "hunger"
+                  },
+                  "operator": ">",
+                  "right": {
+                    "type": "constant",
+                    "value": 70
+                  }
+                }
+              ]
+            }
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": -2
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.eat_effect",
+      "name": "식사 효과",
+      "tags": [
+        "survival",
+        "food"
+      ],
+      "scope": "entity",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.eat"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": -40
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": 10
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.rest_recovery",
+      "name": "휴식 회복",
+      "tags": [
+        "survival"
+      ],
+      "scope": "entity",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.rest"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": 30
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": -6
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "mental_stamina",
+          "operation": "add",
+          "value": 12
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.flee_relief",
+      "name": "도망치면 두려움이 가라앉는다",
+      "tags": [
+        "fear"
+      ],
+      "scope": "entity",
+      "priority": 45,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.flee"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": -12
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": -2
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    }
+  ],
+  "rules/ecology": [
+    {
+      "id": "rule.echo_beast_feeding",
+      "name": "반향수 섭식(능력 잔재)",
+      "tags": [
+        "ecology",
+        "creature",
+        "resource"
+      ],
+      "scope": "global",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 720
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "where": [
+            {
+              "left": {
+                "type": "each_state",
+                "key": "species_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "species.echo_beast"
+              }
+            }
+          ]
+        }
+      },
+      "bindings": [
+        {
+          "name": "fieldAmount",
+          "value": {
+            "type": "query_value",
+            "aggregate": "first",
+            "key": "amount",
+            "query": {
+              "tags": [
+                "residue_source"
+              ],
+              "withinRadius": {
+                "of": "target",
+                "r": 80
+              },
+              "limit": 1
+            }
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "binding",
+            "name": "fieldAmount"
+          },
+          "operator": ">=",
+          "right": {
+            "type": "constant",
+            "value": 2
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "query",
+            "query": {
+              "tags": [
+                "residue_source"
+              ],
+              "withinRadius": {
+                "of": "target",
+                "r": 80
+              },
+              "limit": 1
+            }
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "value": -2
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "carried_residue",
+          "operation": "add",
+          "value": 2
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": -15
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue"
+      ]
+    },
+    {
+      "id": "rule.offspring_threat_change",
+      "name": "새끼 위협도 변화",
+      "tags": [
+        "creature",
+        "threat"
+      ],
+      "scope": "entity",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 60
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "where": [
+            {
+              "left": {
+                "type": "each_state",
+                "key": "protecting_offspring"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": true
+              }
+            }
+          ]
+        }
+      },
+      "bindings": [
+        {
+          "name": "intruders",
+          "value": {
+            "type": "query_value",
+            "aggregate": "count",
+            "query": {
+              "entityType": "agent",
+              "withinRadius": {
+                "of": "target",
+                "r": 60
+              },
+              "where": [
+                {
+                  "left": {
+                    "type": "each_state",
+                    "key": "species_id"
+                  },
+                  "operator": "==",
+                  "right": {
+                    "type": "constant",
+                    "value": "species.human"
+                  }
+                }
+              ]
+            }
+          }
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "conditions": [
+            {
+              "left": {
+                "type": "binding",
+                "name": "intruders"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 0
+              }
+            }
+          ],
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "offspring_threat",
+          "operation": "set",
+          "valueRef": {
+            "type": "expr",
+            "op": "add",
+            "operands": [
+              {
+                "type": "constant",
+                "value": 35
+              },
+              {
+                "type": "expr",
+                "op": "mul",
+                "operands": [
+                  {
+                    "type": "binding",
+                    "name": "intruders"
+                  },
+                  {
+                    "type": "constant",
+                    "value": 25
+                  }
+                ]
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "conditions": [
+            {
+              "left": {
+                "type": "binding",
+                "name": "intruders"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": 0
+              }
+            }
+          ],
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "offspring_threat",
+          "operation": "add",
+          "value": -4
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.territory_pressure",
+      "name": "영역 압박",
+      "tags": [
+        "ecology",
+        "creature",
+        "threat"
+      ],
+      "scope": "entity",
+      "priority": 60,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "offspring_threat"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "territory_pressure",
+          "operation": "set",
+          "valueRef": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "actor_state",
+                "key": "offspring_threat"
+              },
+              {
+                "type": "constant",
+                "value": 0.8
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "offspring_threat"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 70
+              }
+            }
+          ],
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "aggression",
+          "operation": "add",
+          "value": 3
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.attack_resolution",
+      "name": "공격 판정",
+      "tags": [
+        "violence",
+        "threat",
+        "creature"
+      ],
+      "scope": "relationship",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.attack"
+        }
+      ],
+      "bindings": [
+        {
+          "name": "damage",
+          "value": {
+            "type": "expr",
+            "op": "add",
+            "operands": [
+              {
+                "type": "constant",
+                "value": 15
+              },
+              {
+                "type": "random_int",
+                "max": 10,
+                "stream": "actor"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "neg",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "damage"
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": 25
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.echo_beast_reproduction",
+      "name": "반향수 번식 — 새끼가 태어난다",
+      "tags": [
+        "ecology",
+        "creature"
+      ],
+      "scope": "region",
+      "priority": 30,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 7200
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_state",
+            "entityId": "creature.echo_beast_mother",
+            "key": "health"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 60
+          }
+        },
+        {
+          "left": {
+            "type": "entity_state",
+            "entityId": "creature.echo_beast_mother",
+            "key": "hunger"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 55
+          }
+        },
+        {
+          "left": {
+            "type": "query_value",
+            "query": {
+              "tags": [
+                "echo_beast_cub"
+              ]
+            },
+            "aggregate": "count"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 1
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "create_entity",
+          "templateId": "creature.echo_beast_cub",
+          "location": {
+            "type": "entity",
+            "entityId": "location.beast_den"
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "creature.echo_beast_mother"
+          },
+          "stateKey": "offspring_threat",
+          "operation": "add",
+          "value": 5
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "creature.echo_beast_mother"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": -15
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained",
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.echo_beast_cub_growth",
+      "name": "새끼가 자란다 (§15 growthRules)",
+      "tags": [
+        "ecology",
+        "creature"
+      ],
+      "scope": "region",
+      "priority": 28,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "tags": [
+            "echo_beast_cub"
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "aggression",
+          "operation": "add",
+          "value": 1
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": 6
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.residue_adaptation",
+      "name": "잔재 적응 (§15 adaptationRules)",
+      "tags": [
+        "ecology",
+        "creature"
+      ],
+      "scope": "entity",
+      "priority": 32,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "carried_residue"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 40
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "species_id"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "species.echo_beast"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "territory_pressure",
+          "operation": "add",
+          "value": 4
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": 2
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue"
+      ]
+    },
+    {
+      "id": "rule.aggression_calms",
+      "name": "위협이 물러나면 공격성도 가라앉는다",
+      "tags": [
+        "creature",
+        "threat"
+      ],
+      "scope": "region",
+      "priority": 26,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "tags": [
+            "creature"
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "aggression",
+          "operation": "add",
+          "value": -8,
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "offspring_threat"
+              },
+              "operator": "<",
+              "right": {
+                "type": "constant",
+                "value": 70
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.cub_feeding",
+      "name": "어미가 새끼를 먹인다 (§15 growthRules)",
+      "tags": [
+        "ecology",
+        "creature",
+        "food"
+      ],
+      "scope": "region",
+      "priority": 29,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "tags": [
+            "echo_beast_cub"
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": -35,
+          "conditions": [
+            {
+              "left": {
+                "type": "query_value",
+                "query": {
+                  "tags": [
+                    "echo_beast"
+                  ],
+                  "withinRadius": {
+                    "of": "target",
+                    "r": 250
+                  }
+                },
+                "aggregate": "count"
+              },
+              "operator": ">=",
+              "right": {
+                "type": "constant",
+                "value": 1
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    }
+  ],
+  "rules/resources": [
+    {
+      "id": "rule.forest_resource_regrowth",
+      "name": "침묵림 자원 재생",
+      "tags": [
+        "ecology",
+        "resource"
+      ],
+      "scope": "region",
+      "priority": 80,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 360
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "query",
+            "query": {
+              "entityType": "resource",
+              "tags": [
+                "harvestable"
+              ]
+            }
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "valueRef": {
+            "type": "each_state",
+            "key": "regrowth"
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.dangerous_places_are_rich"
+      ]
+    },
+    {
+      "id": "rule.village_food_consumption",
+      "name": "마을 식량 소비",
+      "tags": [
+        "food",
+        "economy"
+      ],
+      "scope": "global",
+      "priority": 80,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "faction"
+        }
+      },
+      "bindings": [
+        {
+          "name": "need",
+          "value": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "target_state",
+                "key": "member_count"
+              },
+              {
+                "type": "constant",
+                "value": 1.2
+              }
+            ]
+          }
+        },
+        {
+          "name": "taken",
+          "value": {
+            "type": "expr",
+            "op": "min",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "need"
+              },
+              {
+                "type": "target_state",
+                "key": "food_reserve"
+              }
+            ]
+          }
+        },
+        {
+          "name": "ration",
+          "value": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "expr",
+                "op": "div",
+                "operands": [
+                  {
+                    "type": "binding",
+                    "name": "taken"
+                  },
+                  {
+                    "type": "binding",
+                    "name": "need"
+                  }
+                ]
+              },
+              {
+                "type": "constant",
+                "value": 26
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "binding",
+            "name": "need"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        },
+        {
+          "left": {
+            "type": "binding",
+            "name": "taken"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "food_reserve",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "neg",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "taken"
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "query",
+            "query": {
+              "entityType": "agent",
+              "where": [
+                {
+                  "left": {
+                    "type": "each_state",
+                    "key": "faction_id"
+                  },
+                  "operator": "==",
+                  "right": {
+                    "type": "entity_ref",
+                    "of": "target"
+                  }
+                }
+              ]
+            }
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "neg",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "ration"
+              }
+            ]
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.hunt_yield",
+      "name": "사냥 산출",
+      "tags": [
+        "food",
+        "resource",
+        "ecology"
+      ],
+      "scope": "entity",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.hunt"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.forage"
+        }
+      ],
+      "bindings": [
+        {
+          "name": "attempt",
+          "value": {
+            "type": "expr",
+            "op": "add",
+            "operands": [
+              {
+                "type": "constant",
+                "value": 12
+              },
+              {
+                "type": "random_int",
+                "max": 9,
+                "stream": "actor"
+              }
+            ]
+          }
+        },
+        {
+          "name": "yielded",
+          "value": {
+            "type": "expr",
+            "op": "min",
+            "operands": [
+              {
+                "type": "target_state",
+                "key": "amount"
+              },
+              {
+                "type": "binding",
+                "name": "attempt"
+              }
+            ]
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "target_state",
+            "key": "amount"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "neg",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "yielded"
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_food",
+          "operation": "add",
+          "valueRef": {
+            "type": "binding",
+            "name": "yielded"
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.dangerous_places_are_rich"
+      ]
+    },
+    {
+      "id": "rule.trade_transfer",
+      "name": "거래 이전",
+      "tags": [
+        "trade",
+        "economy",
+        "food"
+      ],
+      "scope": "relationship",
+      "priority": 40,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.trade"
+        }
+      ],
+      "bindings": [
+        {
+          "name": "amount",
+          "value": {
+            "type": "expr",
+            "op": "min",
+            "operands": [
+              {
+                "type": "actor_state",
+                "key": "carried_food"
+              },
+              {
+                "type": "constant",
+                "value": 20
+              }
+            ]
+          }
+        },
+        {
+          "name": "price",
+          "value": {
+            "type": "world_state",
+            "key": "food_price"
+          }
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        },
+        {
+          "left": {
+            "type": "binding",
+            "name": "amount"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_food",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "neg",
+            "operands": [
+              {
+                "type": "binding",
+                "name": "amount"
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "food_reserve",
+          "operation": "add",
+          "valueRef": {
+            "type": "binding",
+            "name": "amount"
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "wealth",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "div",
+            "operands": [
+              {
+                "type": "expr",
+                "op": "mul",
+                "operands": [
+                  {
+                    "type": "binding",
+                    "name": "amount"
+                  },
+                  {
+                    "type": "binding",
+                    "name": "price"
+                  }
+                ]
+              },
+              {
+                "type": "constant",
+                "value": 10
+              }
+            ]
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    }
+  ],
+  "rules/observation": [
+    {
+      "id": "rule.movement_trace",
+      "name": "이동 흔적",
+      "tags": [
+        "information",
+        "trace"
+      ],
+      "scope": "entity",
+      "priority": 30,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.move"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.track"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.flee"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "recent_presence",
+          "operation": "set",
+          "value": true
+        },
+        {
+          "type": "emit_signal",
+          "signalId": "signal.movement_trace"
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.actions_leave_signs"
+      ]
+    },
+    {
+      "id": "rule.attack_noise",
+      "name": "공격 소음",
+      "tags": [
+        "violence",
+        "information"
+      ],
+      "scope": "entity",
+      "priority": 30,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.attack"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "emit_signal",
+          "signalId": "signal.attack_noise"
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.actions_leave_signs"
+      ]
+    },
+    {
+      "id": "rule.carcass_discovery",
+      "name": "사체 발견",
+      "tags": [
+        "information",
+        "threat",
+        "ecology"
+      ],
+      "scope": "entity",
+      "priority": 30,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.hunt"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.forage"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "emit_signal",
+          "signalId": "signal.carcass"
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.actions_leave_signs"
+      ]
+    },
+    {
+      "id": "rule.residue_trace",
+      "name": "흔적 잔류",
+      "tags": [
+        "information",
+        "trace"
+      ],
+      "scope": "entity",
+      "priority": 30,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "carried_residue"
+        }
+      ],
+      "conditions": [],
+      "effects": [],
+      "observations": [
+        {
+          "signalId": "signal.residue_trace",
+          "channels": [
+            "energy_sense",
+            "trace"
+          ],
+          "strength": 70,
+          "tags": [
+            "creature_trace",
+            "important"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "protecting_offspring",
+            "value": true,
+            "confidence": 0.64
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.actions_leave_signs",
+        "axiom.creatures_absorb_ability_residue"
+      ]
+    }
+  ],
+  "rules/society": [
+    {
+      "id": "rule.trade_price",
+      "name": "거래 가격",
+      "tags": [
+        "trade",
+        "economy"
+      ],
+      "scope": "global",
+      "priority": 60,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.trade"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "world"
+          },
+          "stateKey": "food_price",
+          "operation": "set",
+          "valueRef": {
+            "type": "expr",
+            "op": "min",
+            "operands": [
+              {
+                "type": "constant",
+                "value": 80
+              },
+              {
+                "type": "expr",
+                "op": "max",
+                "operands": [
+                  {
+                    "type": "constant",
+                    "value": 5
+                  },
+                  {
+                    "type": "expr",
+                    "op": "add",
+                    "operands": [
+                      {
+                        "type": "constant",
+                        "value": 20
+                      },
+                      {
+                        "type": "expr",
+                        "op": "mul",
+                        "operands": [
+                          {
+                            "type": "expr",
+                            "op": "sub",
+                            "operands": [
+                              {
+                                "type": "constant",
+                                "value": 100
+                              },
+                              {
+                                "type": "target_state",
+                                "key": "food_reserve"
+                              }
+                            ]
+                          },
+                          {
+                            "type": "constant",
+                            "value": 0.4
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.report_propagation",
+      "name": "보고 → 조직 믿음 전파",
+      "tags": [
+        "information",
+        "report"
+      ],
+      "scope": "relationship",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.report"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "known_threat_level"
+              },
+              "operator": ">",
+              "right": {
+                "type": "target_state",
+                "key": "threat_belief"
+              }
+            }
+          ],
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "threat_belief",
+          "operation": "set",
+          "valueRef": {
+            "type": "actor_state",
+            "key": "known_threat_level"
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": 10
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "reported_threat",
+          "operation": "set",
+          "value": true
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.threat_sighting_fear",
+      "name": "위협 목격 → 공포",
+      "tags": [
+        "fear",
+        "threat",
+        "information"
+      ],
+      "scope": "entity",
+      "priority": 55,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "known_threat_level"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "known_threat_level"
+          },
+          "operator": ">",
+          "right": {
+            "type": "actor_state",
+            "key": "fear"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "expr",
+                "op": "sub",
+                "operands": [
+                  {
+                    "type": "actor_state",
+                    "key": "known_threat_level"
+                  },
+                  {
+                    "type": "actor_state",
+                    "key": "fear"
+                  }
+                ]
+              },
+              {
+                "type": "constant",
+                "value": 0.4
+              }
+            ]
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior"
+      ]
+    },
+    {
+      "id": "rule.subjugation_call",
+      "name": "토벌 소집 조건",
+      "tags": [
+        "mobilization",
+        "threat"
+      ],
+      "scope": "global",
+      "priority": 45,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "threat_belief"
+        },
+        {
+          "type": "state_changed",
+          "stateKey": "food_reserve"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "actor"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "threat_belief"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 60
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "food_reserve"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 60
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "subjugation_ordered",
+          "operation": "set",
+          "value": true
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    }
+  ],
+  "rules/organization": [
+    {
+      "id": "rule.delegation_order",
+      "name": "조직의 소집 → 개인 목적 주입",
+      "tags": [
+        "organization",
+        "mobilization"
+      ],
+      "scope": "relationship",
+      "priority": 65,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.delegate"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "actor"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        },
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "agent"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "delegated_goal",
+          "operation": "set",
+          "value": "goal.subjugate_beast",
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "threat_belief"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 45
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "delegated_goal",
+          "operation": "set",
+          "value": "goal.gather_for_village",
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "threat_belief"
+              },
+              "operator": "<=",
+              "right": {
+                "type": "constant",
+                "value": 45
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "delegated_by",
+          "operation": "set",
+          "valueRef": {
+            "type": "entity_ref",
+            "of": "actor"
+          }
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.delegated_task_progress",
+      "name": "위임받은 일을 했다",
+      "tags": [
+        "organization"
+      ],
+      "scope": "entity",
+      "priority": 45,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.attack"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.report"
+        },
+        {
+          "type": "action_executed",
+          "actionId": "action.hunt"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "delegation_completed"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 100
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "delegation_completed",
+          "operation": "add",
+          "value": 1,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "active_goal"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "goal.subjugate_beast"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "delegation_completed",
+          "operation": "add",
+          "value": 1,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "active_goal"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "goal.gather_for_village"
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.rumor_spread",
+      "name": "소문을 퍼뜨린다",
+      "tags": [
+        "rumor",
+        "information"
+      ],
+      "scope": "entity",
+      "priority": 40,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.gossip"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "emit_signal",
+          "signalId": "signal.rumor"
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior"
+      ]
+    },
+    {
+      "id": "rule.faction_trade_transfer",
+      "name": "조직 간 거래 — 비축 이동",
+      "tags": [
+        "organization",
+        "trade",
+        "economy",
+        "food"
+      ],
+      "scope": "global",
+      "priority": 55,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.faction_trade"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "actor"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        },
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        },
+        {
+          "left": {
+            "type": "target_state",
+            "key": "food_reserve"
+          },
+          "operator": ">",
+          "right": {
+            "type": "actor_state",
+            "key": "food_reserve"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "transfer_resource",
+          "resourceId": "resource.food",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "amount": 15,
+          "fromStateKey": "food_reserve",
+          "toStateKey": "food_reserve"
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.faction_collapse_shock",
+      "name": "조직 붕괴 → 식량 가격 급등",
+      "tags": [
+        "organization",
+        "economy",
+        "crisis"
+      ],
+      "scope": "global",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "collapsed"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "world"
+          },
+          "stateKey": "food_price",
+          "operation": "add",
+          "value": 20
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.collapse_news",
+          "channels": [
+            "talk",
+            "report"
+          ],
+          "strength": 75,
+          "tags": [
+            "report",
+            "important"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "collapsed",
+            "value": true,
+            "confidence": 0.9
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.threat_belief_spreads_fear",
+      "name": "조직의 위협 믿음 → 구성원의 공포",
+      "tags": [
+        "organization",
+        "fear",
+        "threat"
+      ],
+      "scope": "region",
+      "priority": 48,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "threat_belief"
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "withinRadius": {
+            "of": "actor",
+            "r": 80
+          }
+        }
+      },
+      "cooldown": 720,
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 60
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": 5
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports",
+        "axiom.belief_drives_behavior"
+      ]
+    },
+    {
+      "id": "rule.researcher_insight",
+      "name": "관찰이 지식이 된다",
+      "tags": [
+        "research",
+        "information"
+      ],
+      "scope": "entity",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.observe"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "curiosity"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 50
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "known_threat_level",
+          "operation": "add",
+          "value": 12
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.research_society"
+          },
+          "stateKey": "research_progress",
+          "operation": "add",
+          "value": 6
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.field_notes",
+          "channels": [
+            "trace",
+            "energy_sense"
+          ],
+          "strength": 55,
+          "tags": [
+            "creature_trace",
+            "research"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "protecting_offspring",
+            "value": true,
+            "confidence": 0.64
+          },
+          "origin": "target"
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue"
+      ]
+    },
+    {
+      "id": "rule.faction_starvation_count",
+      "name": "조직이 굶은 날을 센다",
+      "tags": [
+        "food",
+        "crisis",
+        "organization"
+      ],
+      "scope": "global",
+      "priority": 25,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "faction"
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "starving_days",
+          "operation": "add",
+          "value": 1,
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "food_reserve"
+              },
+              "operator": "<=",
+              "right": {
+                "type": "constant",
+                "value": 0
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "starving_days",
+          "operation": "set",
+          "value": 0,
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "food_reserve"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 0
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    },
+    {
+      "id": "rule.daily_report_reset",
+      "name": "하루가 지나면 다시 알릴 일이 생긴다",
+      "scope": "global",
+      "priority": 20,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent"
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "reported_threat",
+          "operation": "set",
+          "value": false
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    }
+  ],
+  "rules/relationships": [
+    {
+      "id": "rule.help_builds_trust",
+      "name": "도움을 받음 → 신뢰·빚·의존",
+      "tags": [
+        "relationship"
+      ],
+      "scope": "relationship",
+      "priority": 55,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.trade"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "trust",
+          "operation": "add",
+          "value": 6
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "debt",
+          "operation": "add",
+          "value": 5
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "target"
+          },
+          "key": "dependency",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "target"
+          },
+          "key": "familiarity",
+          "operation": "add",
+          "value": 4
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.threat_breeds_fear",
+      "name": "위협을 받음 → 공포·원한 상승, 신뢰 하락",
+      "tags": [
+        "relationship",
+        "fear",
+        "threat"
+      ],
+      "scope": "relationship",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.attack"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "fear",
+          "operation": "add",
+          "value": 25
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "resentment",
+          "operation": "add",
+          "value": 18
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "trust",
+          "operation": "add",
+          "value": -20
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.power_earns_respect",
+      "name": "강한 것을 목격함 → 존경 또는 공포",
+      "tags": [
+        "relationship"
+      ],
+      "scope": "relationship",
+      "priority": 45,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "known_threat_level"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": ">",
+          "right": {
+            "type": "event_payload",
+            "key": "before"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "entity",
+            "entityId": "creature.echo_beast_mother"
+          },
+          "key": "respect",
+          "operation": "add",
+          "value": 4
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "entity",
+            "entityId": "creature.echo_beast_mother"
+          },
+          "key": "fear",
+          "operation": "add",
+          "value": 6,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "curiosity"
+              },
+              "operator": "<",
+              "right": {
+                "type": "constant",
+                "value": 60
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior"
+      ]
+    },
+    {
+      "id": "rule.report_builds_trust",
+      "name": "보고 → 조직의 신뢰",
+      "tags": [
+        "relationship",
+        "report"
+      ],
+      "scope": "relationship",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.report"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "trust",
+          "operation": "add",
+          "value": 8
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "respect",
+          "operation": "add",
+          "value": 4
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "familiarity",
+          "operation": "add",
+          "value": 5
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.delegation_creates_dependency",
+      "name": "위임 → 의존과 빚",
+      "tags": [
+        "relationship",
+        "organization"
+      ],
+      "scope": "relationship",
+      "priority": 50,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.delegate"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "dependency",
+          "operation": "add",
+          "value": 8
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "target"
+          },
+          "key": "debt",
+          "operation": "add",
+          "value": 6
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "target"
+          },
+          "key": "familiarity",
+          "operation": "add",
+          "value": 4
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.gossip_builds_familiarity",
+      "name": "소문을 나눔 → 친숙함",
+      "tags": [
+        "relationship",
+        "rumor"
+      ],
+      "scope": "relationship",
+      "priority": 40,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.gossip"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "familiarity",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "actor"
+          },
+          "to": {
+            "type": "target"
+          },
+          "key": "familiarity",
+          "operation": "add",
+          "value": 2
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior"
+      ]
+    },
+    {
+      "id": "rule.promise_broken_trust",
+      "name": "약속 위반 → 신뢰 급감·원한",
+      "tags": [
+        "relationship",
+        "betrayal"
+      ],
+      "scope": "relationship",
+      "priority": 80,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "promise_broken"
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "faction"
+        }
+      },
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "trust",
+          "operation": "add",
+          "value": -25
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "resentment",
+          "operation": "add",
+          "value": 15
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.promise_broken_rumor",
+      "name": "약속 위반 → 소문 확산",
+      "tags": [
+        "rumor",
+        "betrayal",
+        "information"
+      ],
+      "scope": "entity",
+      "priority": 75,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "promise_broken"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "event_payload",
+            "key": "after"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "promise_broken",
+          "operation": "set",
+          "value": false
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "social_status",
+          "operation": "add",
+          "value": -6
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.betrayal_rumor",
+          "channels": [
+            "talk"
+          ],
+          "strength": 60,
+          "tags": [
+            "rumor",
+            "betrayal"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "promise_broken",
+            "value": true,
+            "confidence": 0.7
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior",
+        "axiom.actions_leave_signs"
+      ]
+    },
+    {
+      "id": "rule.fear_of_the_feared",
+      "name": "관계의 공포가 개인의 공포가 된다",
+      "tags": [
+        "relationship",
+        "fear"
+      ],
+      "scope": "relationship",
+      "priority": 35,
+      "triggers": [
+        {
+          "type": "relationship_changed",
+          "relationshipKey": "fear"
+        }
+      ],
+      "cooldown": 240,
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "fear"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 85
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": 3
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.belief_drives_behavior"
+      ]
+    }
+  ],
+  "rules/ability": [
+    {
+      "id": "rule.ability_activation",
+      "name": "능력 발동",
+      "tags": [
+        "ability",
+        "power"
+      ],
+      "scope": "entity",
+      "priority": 80,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.use_ability"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "restriction_valid"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "ability_active",
+          "operation": "set",
+          "value": true
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "known_threat_level",
+          "operation": "add",
+          "value": 18,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.residue_reading"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "social_status",
+          "operation": "add",
+          "value": 5,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.sealed_word"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.crown_bureau"
+          },
+          "stateKey": "enforcement",
+          "operation": "add",
+          "value": 4,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.sealed_word"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "wanted_level",
+          "operation": "add",
+          "value": -12,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.hollow_step"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.hollow_basin"
+          },
+          "stateKey": "ecosystem_health",
+          "operation": "add",
+          "value": 5,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.veil_mending"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "devotion",
+          "operation": "add",
+          "value": 3,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.veil_mending"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": -6,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.borrowed_pain"
+              }
+            }
+          ]
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "fear",
+          "operation": "add",
+          "value": -8,
+          "conditions": [
+            {
+              "left": {
+                "type": "actor_state",
+                "key": "ability_id"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": "ability.borrowed_pain"
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.power_restriction"
+      ]
+    },
+    {
+      "id": "rule.ability_restriction_amplification",
+      "name": "제약 증폭",
+      "tags": [
+        "ability",
+        "power"
+      ],
+      "scope": "entity",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.use_ability"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "ability_active"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "restriction_valid"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "ability_output",
+          "operation": "set",
+          "valueRef": {
+            "type": "expr",
+            "op": "add",
+            "operands": [
+              {
+                "type": "expr",
+                "op": "mul",
+                "operands": [
+                  {
+                    "type": "actor_state",
+                    "key": "devotion"
+                  },
+                  {
+                    "type": "constant",
+                    "value": 0.8
+                  }
+                ]
+              },
+              {
+                "type": "expr",
+                "op": "mul",
+                "operands": [
+                  {
+                    "type": "actor_state",
+                    "key": "mental_stamina"
+                  },
+                  {
+                    "type": "constant",
+                    "value": 0.5
+                  }
+                ]
+              }
+            ]
+          }
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.ability_manifest",
+          "channels": [
+            "sight",
+            "energy_sense"
+          ],
+          "strength": 65,
+          "tags": [
+            "ability",
+            "power"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "ability_active",
+            "value": true,
+            "confidence": 0.8
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.power_restriction",
+        "axiom.power_cost"
+      ]
+    },
+    {
+      "id": "rule.ability_restriction_violation",
+      "name": "제약 위반",
+      "tags": [
+        "ability",
+        "betrayal",
+        "power"
+      ],
+      "scope": "entity",
+      "priority": 85,
+      "triggers": [
+        {
+          "type": "state_changed",
+          "stateKey": "promise_broken"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "ability_active"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "promise_broken"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": true
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "restriction_valid",
+          "operation": "set",
+          "value": false
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "restriction_violated",
+          "operation": "set",
+          "value": true
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.restriction_break",
+          "channels": [
+            "sight",
+            "talk"
+          ],
+          "strength": 70,
+          "tags": [
+            "ability",
+            "betrayal"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "restriction_violated",
+            "value": true,
+            "confidence": 0.75
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.power_cost"
+      ]
+    },
+    {
+      "id": "rule.ability_backlash",
+      "name": "제약 반동",
+      "tags": [
+        "ability",
+        "crisis",
+        "power"
+      ],
+      "scope": "global",
+      "priority": 90,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 120
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "where": [
+            {
+              "left": {
+                "type": "each_state",
+                "key": "ability_active"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": true
+              }
+            },
+            {
+              "left": {
+                "type": "each_state",
+                "key": "restriction_valid"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": false
+              }
+            }
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "memory_integrity",
+          "operation": "add",
+          "value": -15
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "ability_active",
+          "operation": "set",
+          "value": false
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "ability_output",
+          "operation": "set",
+          "value": 0
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": -8
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.ability_backlash",
+          "channels": [
+            "sight",
+            "sound"
+          ],
+          "strength": 80,
+          "tags": [
+            "ability",
+            "crisis"
+          ],
+          "origin": "target",
+          "claim": {
+            "subject": "target",
+            "stateKey": "health",
+            "value": 40,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.power_cost"
+      ]
+    },
+    {
+      "id": "rule.ability_fatigue",
+      "name": "능력 유지 피로",
+      "tags": [
+        "ability",
+        "survival"
+      ],
+      "scope": "global",
+      "priority": 60,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 60
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "where": [
+            {
+              "left": {
+                "type": "each_state",
+                "key": "ability_active"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": true
+              }
+            }
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "mental_stamina",
+          "operation": "add",
+          "value": -3
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "ability_active",
+          "operation": "set",
+          "value": false,
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "mental_stamina"
+              },
+              "operator": "<",
+              "right": {
+                "type": "constant",
+                "value": 15
+              }
+            }
+          ]
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.power_cost"
+      ]
+    }
+  ],
+  "rules/crystal_trade": [
+    {
+      "id": "rule.crystal_mining",
+      "name": "결정 채굴",
+      "tags": [
+        "resource",
+        "crystal",
+        "ecology"
+      ],
+      "scope": "entity",
+      "priority": 75,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.mine"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "target_state",
+            "key": "amount"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "value": -12
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_crystal",
+          "operation": "add",
+          "value": 12
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.hollow_basin"
+          },
+          "stateKey": "ecosystem_health",
+          "operation": "add",
+          "value": -2
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.mining_trace",
+          "channels": [
+            "trace",
+            "sight"
+          ],
+          "strength": 55,
+          "tags": [
+            "crystal",
+            "resource"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "carried_crystal",
+            "value": 12,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.dangerous_places_are_rich",
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.crystal_declaration",
+      "name": "결정 신고 납입",
+      "tags": [
+        "organization",
+        "crystal",
+        "resource"
+      ],
+      "scope": "entity",
+      "priority": 70,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.faction_trade"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_type",
+            "of": "actor"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "agent"
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "carried_crystal"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        },
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "contraband"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": false
+          }
+        },
+        {
+          "left": {
+            "type": "entity_ref",
+            "of": "target"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "faction.crown_bureau"
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.crown_bureau"
+          },
+          "stateKey": "crystal_reserve",
+          "operation": "add",
+          "valueRef": {
+            "type": "actor_state",
+            "key": "carried_crystal"
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "wealth",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "actor_state",
+                "key": "carried_crystal"
+              },
+              {
+                "type": "constant",
+                "value": 2
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_crystal",
+          "operation": "set",
+          "value": 0
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.crystal_declared",
+          "channels": [
+            "report",
+            "talk"
+          ],
+          "strength": 60,
+          "tags": [
+            "organization",
+            "crystal"
+          ],
+          "claim": {
+            "subject": "entity",
+            "entityId": "faction.crown_bureau",
+            "stateKey": "crystal_reserve",
+            "value": 60,
+            "confidence": 0.7
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange",
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.smuggling_run",
+      "name": "밀수",
+      "tags": [
+        "crystal",
+        "betrayal",
+        "organization"
+      ],
+      "scope": "entity",
+      "priority": 75,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.smuggle"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "carried_crystal"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "contraband",
+          "operation": "set",
+          "value": true
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.hollow_smugglers"
+          },
+          "stateKey": "contraband_flow",
+          "operation": "add",
+          "value": 8
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "wealth",
+          "operation": "add",
+          "valueRef": {
+            "type": "expr",
+            "op": "mul",
+            "operands": [
+              {
+                "type": "actor_state",
+                "key": "carried_crystal"
+              },
+              {
+                "type": "constant",
+                "value": 4
+              }
+            ]
+          }
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_crystal",
+          "operation": "set",
+          "value": 0
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.smuggling_trace",
+          "channels": [
+            "trace",
+            "smell"
+          ],
+          "strength": 45,
+          "tags": [
+            "crystal",
+            "betrayal"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "contraband",
+            "value": true,
+            "confidence": 0.45
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.scarcity_creates_exchange"
+      ]
+    },
+    {
+      "id": "rule.enforcement_sweep",
+      "name": "단속",
+      "tags": [
+        "organization",
+        "mobilization",
+        "crystal"
+      ],
+      "scope": "entity",
+      "priority": 65,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.guard"
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "entityType": "agent",
+          "where": [
+            {
+              "left": {
+                "type": "each_state",
+                "key": "contraband"
+              },
+              "operator": "==",
+              "right": {
+                "type": "constant",
+                "value": true
+              }
+            }
+          ]
+        }
+      },
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_state",
+            "entityId": "faction.crown_bureau",
+            "key": "enforcement"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 40
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "wanted_level",
+          "operation": "add",
+          "value": 20
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.crown_bureau"
+          },
+          "stateKey": "enforcement",
+          "operation": "add",
+          "value": -3
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.wanted_notice",
+          "channels": [
+            "report",
+            "talk"
+          ],
+          "strength": 65,
+          "tags": [
+            "organization",
+            "information"
+          ],
+          "origin": "target",
+          "claim": {
+            "subject": "target",
+            "stateKey": "wanted_level",
+            "value": 20,
+            "confidence": 0.7
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.organizations_act_on_reports"
+      ]
+    }
+  ],
+  "rules/wilds": [
+    {
+      "id": "rule.veil_moss_absorption",
+      "name": "장막이끼의 잔재 흡수",
+      "tags": [
+        "ecology",
+        "residue"
+      ],
+      "scope": "global",
+      "priority": 45,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 360
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "tags": [
+            "veil_moss"
+          ]
+        }
+      },
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "purity",
+          "operation": "add",
+          "value": 1
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.silent_forest"
+          },
+          "stateKey": "ability_residue",
+          "operation": "add",
+          "value": -2
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.silent_forest"
+          },
+          "stateKey": "ecosystem_health",
+          "operation": "add",
+          "value": 1
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue"
+      ]
+    },
+    {
+      "id": "rule.swarm_cycle",
+      "name": "군체의 섭취와 증식",
+      "tags": [
+        "ecology",
+        "creature",
+        "residue"
+      ],
+      "scope": "global",
+      "priority": 55,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 480
+        }
+      ],
+      "forEach": {
+        "type": "query",
+        "query": {
+          "tags": [
+            "hollow_swarm"
+          ]
+        }
+      },
+      "conditions": [
+        {
+          "left": {
+            "type": "query_value",
+            "query": {
+              "tags": [
+                "hollow_swarm"
+              ]
+            },
+            "aggregate": "count"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 12
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": 6
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "hunger",
+          "operation": "add",
+          "value": -8
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.hollow_basin"
+          },
+          "stateKey": "ability_residue",
+          "operation": "add",
+          "value": -1
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": -25,
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "energy"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 70
+              }
+            }
+          ],
+          "chance": 0.3
+        },
+        {
+          "type": "create_entity",
+          "templateId": "creature.hollow_swarm_brood",
+          "location": {
+            "type": "entity",
+            "entityId": "location.sunken_hall"
+          },
+          "conditions": [
+            {
+              "left": {
+                "type": "target_state",
+                "key": "energy"
+              },
+              "operator": ">",
+              "right": {
+                "type": "constant",
+                "value": 70
+              }
+            }
+          ],
+          "chance": 0.3
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.swarm_noise",
+          "channels": [
+            "sound"
+          ],
+          "strength": 40,
+          "tags": [
+            "creature",
+            "ecology"
+          ],
+          "origin": "target"
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue",
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.ecosystem_alarm",
+      "name": "생태 경보",
+      "tags": [
+        "ecology",
+        "organization",
+        "crisis"
+      ],
+      "scope": "global",
+      "priority": 35,
+      "triggers": [
+        {
+          "type": "interval",
+          "interval": 1440
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "entity_state",
+            "entityId": "region.hollow_basin",
+            "key": "ecosystem_health"
+          },
+          "operator": "<",
+          "right": {
+            "type": "constant",
+            "value": 58
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.veil_wardens"
+          },
+          "stateKey": "ecology_alarm",
+          "operation": "add",
+          "value": 12
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.ecology_alarm",
+          "channels": [
+            "report",
+            "talk"
+          ],
+          "strength": 55,
+          "tags": [
+            "ecology",
+            "information"
+          ],
+          "claim": {
+            "subject": "entity",
+            "entityId": "faction.veil_wardens",
+            "stateKey": "ecology_alarm",
+            "value": 40,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.creatures_absorb_ability_residue",
+        "axiom.organizations_act_on_reports"
+      ]
+    },
+    {
+      "id": "rule.ritual_restoration",
+      "name": "정화 의식",
+      "tags": [
+        "ecology",
+        "ritual"
+      ],
+      "scope": "entity",
+      "priority": 60,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.ritual"
+        }
+      ],
+      "conditions": [],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "region.hollow_basin"
+          },
+          "stateKey": "ecosystem_health",
+          "operation": "add",
+          "value": 6
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "devotion",
+          "operation": "add",
+          "value": 3
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "energy",
+          "operation": "add",
+          "value": -6
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "entity",
+            "entityId": "faction.veil_wardens"
+          },
+          "stateKey": "ecology_alarm",
+          "operation": "add",
+          "value": -8
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.ritual_light",
+          "channels": [
+            "sight",
+            "energy_sense"
+          ],
+          "strength": 50,
+          "tags": [
+            "ritual",
+            "ecology"
+          ],
+          "claim": {
+            "subject": "actor",
+            "stateKey": "ability_active",
+            "value": false,
+            "confidence": 0.3
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.healing_care",
+      "name": "치료",
+      "tags": [
+        "social",
+        "recover"
+      ],
+      "scope": "entity",
+      "priority": 65,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.heal"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "actor_state",
+            "key": "carried_herb"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "health",
+          "operation": "add",
+          "value": 14
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_herb",
+          "operation": "add",
+          "value": -2
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "stress",
+          "operation": "add",
+          "value": -6
+        },
+        {
+          "type": "modify_relationship",
+          "from": {
+            "type": "target"
+          },
+          "to": {
+            "type": "actor"
+          },
+          "key": "trust",
+          "operation": "add",
+          "value": 6
+        }
+      ],
+      "observations": [
+        {
+          "signalId": "signal.healing",
+          "channels": [
+            "sight"
+          ],
+          "strength": 40,
+          "tags": [
+            "social",
+            "recover"
+          ],
+          "origin": "target",
+          "claim": {
+            "subject": "target",
+            "stateKey": "health",
+            "value": 80,
+            "confidence": 0.6
+          }
+        }
+      ],
+      "derivedFromAxioms": [
+        "axiom.life_protects_what_it_values"
+      ]
+    },
+    {
+      "id": "rule.herb_gathering",
+      "name": "약초 채집",
+      "tags": [
+        "gather",
+        "resource"
+      ],
+      "scope": "entity",
+      "priority": 60,
+      "triggers": [
+        {
+          "type": "action_executed",
+          "actionId": "action.forage"
+        }
+      ],
+      "conditions": [
+        {
+          "left": {
+            "type": "target_state",
+            "key": "resource_id"
+          },
+          "operator": "==",
+          "right": {
+            "type": "constant",
+            "value": "resource.herb"
+          }
+        },
+        {
+          "left": {
+            "type": "target_state",
+            "key": "amount"
+          },
+          "operator": ">",
+          "right": {
+            "type": "constant",
+            "value": 0
+          }
+        }
+      ],
+      "effects": [
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "target"
+          },
+          "stateKey": "amount",
+          "operation": "add",
+          "value": -4
+        },
+        {
+          "type": "modify_state",
+          "target": {
+            "type": "actor"
+          },
+          "stateKey": "carried_herb",
+          "operation": "add",
+          "value": 4
+        }
+      ],
+      "observations": [],
+      "derivedFromAxioms": [
+        "axiom.life_must_be_sustained"
+      ]
+    }
+  ]
+}

@@ -1,0 +1,923 @@
+{
+  "space": {
+    "regions": [
+      {
+        "id": "region.village",
+        "name": "변두리 정착지",
+        "bounds": {
+          "width": 100,
+          "height": 80,
+          "depth": 12
+        },
+        "tags": [
+          "region",
+          "settlement",
+          "safe"
+        ],
+        "baseStates": {
+          "danger": 12,
+          "food_abundance": 60,
+          "ability_residue": 0,
+          "ecosystem_health": 95,
+          "crystal_density": 0
+        },
+        "danger": 12,
+        "accessibility": 88,
+        "environmentalStability": 82,
+        "speciesSuitability": {
+          "species.human": 90,
+          "species.echo_beast": 10,
+          "species.veil_moss": 5,
+          "species.hollow_swarm": 0
+        }
+      },
+      {
+        "id": "region.silent_forest",
+        "name": "침묵림",
+        "bounds": {
+          "width": 120,
+          "height": 120,
+          "depth": 40
+        },
+        "tags": [
+          "region",
+          "wild",
+          "dangerous"
+        ],
+        "baseStates": {
+          "danger": 68,
+          "food_abundance": 420,
+          "ability_residue": 240,
+          "ecosystem_health": 82,
+          "crystal_density": 40
+        },
+        "danger": 68,
+        "accessibility": 42,
+        "environmentalStability": 55,
+        "speciesSuitability": {
+          "species.human": 35,
+          "species.echo_beast": 90,
+          "species.veil_moss": 80,
+          "species.hollow_swarm": 25
+        }
+      },
+      {
+        "id": "region.hollow_basin",
+        "name": "공동 분지",
+        "bounds": {
+          "width": 90,
+          "height": 90,
+          "depth": 60
+        },
+        "tags": [
+          "region",
+          "wild",
+          "deep",
+          "dangerous"
+        ],
+        "baseStates": {
+          "danger": 92,
+          "food_abundance": 80,
+          "ability_residue": 520,
+          "ecosystem_health": 60,
+          "crystal_density": 300
+        },
+        "danger": 92,
+        "accessibility": 14,
+        "environmentalStability": 28,
+        "speciesSuitability": {
+          "species.human": 10,
+          "species.echo_beast": 45,
+          "species.veil_moss": 60,
+          "species.hollow_swarm": 95
+        }
+      }
+    ],
+    "locations": [
+      {
+        "id": "location.village_square",
+        "name": "마을 광장",
+        "regionId": "region.village",
+        "tags": [
+          "site",
+          "settlement"
+        ],
+        "baseStates": {
+          "danger": 3,
+          "shelter_quality": 80,
+          "residue_density": 0
+        },
+        "position": {
+          "x": 12,
+          "y": 14,
+          "z": 1
+        }
+      },
+      {
+        "id": "location.trade_road",
+        "name": "교역로",
+        "regionId": "region.village",
+        "tags": [
+          "site",
+          "road"
+        ],
+        "baseStates": {
+          "danger": 24,
+          "shelter_quality": 10,
+          "residue_density": 4
+        },
+        "position": {
+          "x": 62,
+          "y": 34,
+          "z": 3
+        }
+      },
+      {
+        "id": "location.crown_outpost",
+        "name": "관리국 초소",
+        "regionId": "region.village",
+        "tags": [
+          "site",
+          "outpost"
+        ],
+        "baseStates": {
+          "danger": 8,
+          "shelter_quality": 60,
+          "residue_density": 2,
+          "guarded": true
+        }
+      },
+      {
+        "id": "location.village_field",
+        "name": "마을 경작지",
+        "regionId": "region.village",
+        "tags": [
+          "site",
+          "farm"
+        ],
+        "baseStates": {
+          "danger": 6,
+          "shelter_quality": 20,
+          "residue_density": 0
+        }
+      },
+      {
+        "id": "location.forest_grove",
+        "name": "숲 채집지",
+        "regionId": "region.silent_forest",
+        "tags": [
+          "site",
+          "forage"
+        ],
+        "baseStates": {
+          "danger": 45,
+          "shelter_quality": 5,
+          "residue_density": 30
+        },
+        "position": {
+          "x": 44,
+          "y": 40,
+          "z": 7
+        }
+      },
+      {
+        "id": "location.beast_den",
+        "name": "반향수 둥지",
+        "regionId": "region.silent_forest",
+        "tags": [
+          "site",
+          "den"
+        ],
+        "baseStates": {
+          "danger": 82,
+          "shelter_quality": 40,
+          "residue_density": 60
+        },
+        "position": {
+          "x": 72,
+          "y": 62,
+          "z": 11
+        }
+      },
+      {
+        "id": "location.research_camp",
+        "name": "연구회 야영지",
+        "regionId": "region.silent_forest",
+        "tags": [
+          "site",
+          "camp"
+        ],
+        "baseStates": {
+          "danger": 38,
+          "shelter_quality": 55,
+          "residue_density": 25
+        }
+      },
+      {
+        "id": "location.old_shrine",
+        "name": "옛 봉인 사당",
+        "regionId": "region.silent_forest",
+        "tags": [
+          "site",
+          "shrine"
+        ],
+        "baseStates": {
+          "danger": 30,
+          "shelter_quality": 45,
+          "residue_density": 70
+        }
+      },
+      {
+        "id": "location.moss_hollow",
+        "name": "이끼 웅덩이",
+        "regionId": "region.silent_forest",
+        "tags": [
+          "site",
+          "forage"
+        ],
+        "baseStates": {
+          "danger": 52,
+          "shelter_quality": 8,
+          "residue_density": 90
+        }
+      },
+      {
+        "id": "location.crystal_vein",
+        "name": "결정맥",
+        "regionId": "region.hollow_basin",
+        "tags": [
+          "site",
+          "mine"
+        ],
+        "baseStates": {
+          "danger": 88,
+          "shelter_quality": 5,
+          "residue_density": 140
+        }
+      },
+      {
+        "id": "location.sunken_hall",
+        "name": "가라앉은 회랑",
+        "regionId": "region.hollow_basin",
+        "tags": [
+          "site",
+          "nest"
+        ],
+        "baseStates": {
+          "danger": 95,
+          "shelter_quality": 30,
+          "residue_density": 180
+        }
+      },
+      {
+        "id": "location.ash_flats",
+        "name": "잿벌",
+        "regionId": "region.hollow_basin",
+        "tags": [
+          "site",
+          "waste"
+        ],
+        "baseStates": {
+          "danger": 74,
+          "shelter_quality": 2,
+          "residue_density": 110
+        }
+      }
+    ],
+    "connections": [
+      {
+        "from": "region.village",
+        "to": "region.silent_forest",
+        "travelCost": 120,
+        "danger": 40,
+        "capacity": 20
+      },
+      {
+        "from": "region.silent_forest",
+        "to": "region.hollow_basin",
+        "travelCost": 180,
+        "danger": 75,
+        "capacity": 8
+      },
+      {
+        "from": "location.trade_road",
+        "to": "location.forest_grove",
+        "travelCost": 60,
+        "danger": 35,
+        "capacity": 12
+      },
+      {
+        "from": "location.old_shrine",
+        "to": "location.crystal_vein",
+        "travelCost": 150,
+        "danger": 80,
+        "capacity": 6
+      }
+    ]
+  },
+  "resources": [
+    {
+      "id": "resource.food",
+      "name": "식량",
+      "tags": [
+        "organic_food",
+        "consumable"
+      ],
+      "properties": {
+        "energyDensity": 40,
+        "perishable": true,
+        "stackable": true
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth",
+        "rule.hunt_yield"
+      ],
+      "consumptionRules": [
+        "rule.eat_effect",
+        "rule.village_food_consumption"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "hunter",
+          "utility": 80
+        },
+        {
+          "agentTag": "villager",
+          "utility": 95
+        },
+        {
+          "agentTag": "merchant",
+          "utility": 60
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest",
+        "region.village"
+      ]
+    },
+    {
+      "id": "resource.ability_residue",
+      "name": "능력 잔재",
+      "tags": [
+        "ability_residue",
+        "rare",
+        "unstable"
+      ],
+      "properties": {
+        "energyDensity": 78,
+        "stability": 28,
+        "informationRetention": 66
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.echo_beast_feeding"
+      ],
+      "transformationRules": [],
+      "desiredBy": [
+        {
+          "agentTag": "researcher",
+          "utility": 90
+        },
+        {
+          "agentTag": "echo_beast",
+          "utility": 70
+        },
+        {
+          "agentTag": "villager",
+          "utility": -10
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest",
+        "region.village"
+      ]
+    },
+    {
+      "id": "resource.trade_goods",
+      "name": "교역품",
+      "tags": [
+        "trade_goods",
+        "durable"
+      ],
+      "properties": {
+        "energyDensity": 0,
+        "stackable": true,
+        "value": 30
+      },
+      "productionRules": [
+        "rule.trade_transfer"
+      ],
+      "consumptionRules": [
+        "rule.trade_transfer"
+      ],
+      "transformationRules": [
+        "rule.trade_price"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "merchant",
+          "utility": 85
+        },
+        {
+          "agentTag": "villager",
+          "utility": 45
+        }
+      ],
+      "sourceRegions": [
+        "region.village"
+      ]
+    },
+    {
+      "id": "resource.will_crystal",
+      "name": "의지 결정",
+      "tags": [
+        "rare",
+        "ability_material",
+        "unstable",
+        "crystal"
+      ],
+      "properties": {
+        "energyDensity": 82,
+        "stability": 31,
+        "informationRetention": 68
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.crystal_mining",
+        "rule.crystal_declaration"
+      ],
+      "transformationRules": [
+        "rule.smuggling_run"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "bureau",
+          "utility": 92
+        },
+        {
+          "agentTag": "smuggler",
+          "utility": 88
+        },
+        {
+          "agentTag": "researcher",
+          "utility": 76
+        },
+        {
+          "agentTag": "warden",
+          "utility": -30
+        }
+      ],
+      "sourceRegions": [
+        "region.hollow_basin"
+      ]
+    },
+    {
+      "id": "resource.herb",
+      "name": "숲 약초",
+      "tags": [
+        "organic_food",
+        "medicine_material",
+        "harvestable"
+      ],
+      "properties": {
+        "energyDensity": 12,
+        "perishable": true,
+        "potency": 45
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.herb_gathering",
+        "rule.healing_care"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "healer",
+          "utility": 90
+        },
+        {
+          "agentTag": "villager",
+          "utility": 50
+        },
+        {
+          "agentTag": "merchant",
+          "utility": 40
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.medicine",
+      "name": "조제약",
+      "tags": [
+        "crafted",
+        "durable"
+      ],
+      "properties": {
+        "potency": 70,
+        "stackable": true,
+        "value": 45
+      },
+      "productionRules": [
+        "rule.herb_gathering"
+      ],
+      "consumptionRules": [
+        "rule.healing_care"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "healer",
+          "utility": 85
+        },
+        {
+          "agentTag": "villager",
+          "utility": 70
+        },
+        {
+          "agentTag": "smuggler",
+          "utility": 35
+        }
+      ],
+      "sourceRegions": [
+        "region.village"
+      ]
+    },
+    {
+      "id": "resource.timber",
+      "name": "목재",
+      "tags": [
+        "durable",
+        "build_material",
+        "harvestable"
+      ],
+      "properties": {
+        "energyDensity": 8,
+        "stackable": true,
+        "value": 20
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.trade_transfer"
+      ],
+      "transformationRules": [
+        "rule.trade_price"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "villager",
+          "utility": 60
+        },
+        {
+          "agentTag": "merchant",
+          "utility": 45
+        },
+        {
+          "agentTag": "warden",
+          "utility": -20
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.ore",
+      "name": "잿광석",
+      "tags": [
+        "durable",
+        "build_material",
+        "harvestable"
+      ],
+      "properties": {
+        "energyDensity": 4,
+        "stackable": true,
+        "value": 35
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.trade_transfer"
+      ],
+      "transformationRules": [
+        "rule.trade_price"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "merchant",
+          "utility": 55
+        },
+        {
+          "agentTag": "bureau",
+          "utility": 40
+        },
+        {
+          "agentTag": "smuggler",
+          "utility": 30
+        }
+      ],
+      "sourceRegions": [
+        "region.hollow_basin"
+      ]
+    },
+    {
+      "id": "resource.hide",
+      "name": "짐승 가죽",
+      "tags": [
+        "durable",
+        "trade_goods"
+      ],
+      "properties": {
+        "stackable": true,
+        "value": 40
+      },
+      "productionRules": [
+        "rule.hunt_yield"
+      ],
+      "consumptionRules": [
+        "rule.trade_transfer"
+      ],
+      "transformationRules": [
+        "rule.trade_price"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "hunter",
+          "utility": 70
+        },
+        {
+          "agentTag": "merchant",
+          "utility": 65
+        },
+        {
+          "agentTag": "warden",
+          "utility": -40
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.beast_organ",
+      "name": "반향 장기",
+      "tags": [
+        "rare",
+        "ability_material",
+        "contraband"
+      ],
+      "properties": {
+        "energyDensity": 55,
+        "perishable": true,
+        "informationRetention": 80
+      },
+      "productionRules": [
+        "rule.hunt_yield"
+      ],
+      "consumptionRules": [
+        "rule.smuggling_run"
+      ],
+      "transformationRules": [
+        "rule.trade_price"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "smuggler",
+          "utility": 95
+        },
+        {
+          "agentTag": "researcher",
+          "utility": 70
+        },
+        {
+          "agentTag": "warden",
+          "utility": -80
+        },
+        {
+          "agentTag": "echo_beast",
+          "utility": -60
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest",
+        "region.hollow_basin"
+      ]
+    },
+    {
+      "id": "resource.records",
+      "name": "관측 기록",
+      "tags": [
+        "information",
+        "durable"
+      ],
+      "properties": {
+        "informationRetention": 90,
+        "stackable": true,
+        "value": 25
+      },
+      "productionRules": [
+        "rule.researcher_insight"
+      ],
+      "consumptionRules": [
+        "rule.report_propagation"
+      ],
+      "transformationRules": [
+        "rule.rumor_spread"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "researcher",
+          "utility": 95
+        },
+        {
+          "agentTag": "bureau",
+          "utility": 60
+        },
+        {
+          "agentTag": "smuggler",
+          "utility": -15
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.charm",
+      "name": "봉인부",
+      "tags": [
+        "crafted",
+        "ritual_material"
+      ],
+      "properties": {
+        "potency": 55,
+        "stackable": true,
+        "value": 30
+      },
+      "productionRules": [
+        "rule.ritual_restoration"
+      ],
+      "consumptionRules": [
+        "rule.ritual_restoration"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "warden",
+          "utility": 90
+        },
+        {
+          "agentTag": "villager",
+          "utility": 35
+        },
+        {
+          "agentTag": "bureau",
+          "utility": -10
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.clean_water",
+      "name": "맑은 물",
+      "tags": [
+        "organic_food",
+        "consumable",
+        "harvestable"
+      ],
+      "properties": {
+        "energyDensity": 6,
+        "perishable": false,
+        "stackable": true
+      },
+      "productionRules": [
+        "rule.forest_resource_regrowth"
+      ],
+      "consumptionRules": [
+        "rule.eat_effect"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "villager",
+          "utility": 80
+        },
+        {
+          "agentTag": "hunter",
+          "utility": 60
+        },
+        {
+          "agentTag": "echo_beast",
+          "utility": 40
+        }
+      ],
+      "sourceRegions": [
+        "region.village",
+        "region.silent_forest"
+      ]
+    },
+    {
+      "id": "resource.residue_ash",
+      "name": "잔재재",
+      "tags": [
+        "ability_residue",
+        "unstable"
+      ],
+      "properties": {
+        "energyDensity": 40,
+        "stability": 18,
+        "informationRetention": 35
+      },
+      "productionRules": [
+        "rule.veil_moss_absorption"
+      ],
+      "consumptionRules": [
+        "rule.swarm_cycle"
+      ],
+      "transformationRules": [
+        "rule.crystal_mining"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "hollow_swarm",
+          "utility": 85
+        },
+        {
+          "agentTag": "researcher",
+          "utility": 55
+        },
+        {
+          "agentTag": "villager",
+          "utility": -25
+        }
+      ],
+      "sourceRegions": [
+        "region.hollow_basin"
+      ]
+    },
+    {
+      "id": "resource.veil_moss_fiber",
+      "name": "장막이끼 섬유",
+      "tags": [
+        "harvestable",
+        "ritual_material"
+      ],
+      "properties": {
+        "potency": 35,
+        "stackable": true,
+        "value": 22
+      },
+      "productionRules": [
+        "rule.veil_moss_absorption"
+      ],
+      "consumptionRules": [
+        "rule.ritual_restoration"
+      ],
+      "transformationRules": [
+        "rule.trade_transfer"
+      ],
+      "desiredBy": [
+        {
+          "agentTag": "warden",
+          "utility": 85
+        },
+        {
+          "agentTag": "healer",
+          "utility": 55
+        },
+        {
+          "agentTag": "merchant",
+          "utility": 30
+        }
+      ],
+      "sourceRegions": [
+        "region.silent_forest",
+        "region.hollow_basin"
+      ]
+    }
+  ]
+}

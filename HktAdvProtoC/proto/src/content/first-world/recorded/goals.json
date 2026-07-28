@@ -1,0 +1,3133 @@
+{
+  "goal_graphs_outline": [
+    {
+      "id": "goal_graph.hunter",
+      "name": "hunter",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "hunter"
+      ]
+    },
+    {
+      "id": "goal_graph.merchant",
+      "name": "merchant",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "merchant"
+      ]
+    },
+    {
+      "id": "goal_graph.leader",
+      "name": "leader",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "leader"
+      ]
+    },
+    {
+      "id": "goal_graph.researcher",
+      "name": "researcher",
+      "summary": "5개 목적의 판단 지도",
+      "tags": [
+        "researcher"
+      ]
+    },
+    {
+      "id": "goal_graph.echo_beast_mother",
+      "name": "echo_beast_mother",
+      "summary": "3개 목적의 판단 지도",
+      "tags": [
+        "echo_beast_mother"
+      ]
+    },
+    {
+      "id": "goal_graph.village",
+      "name": "village",
+      "summary": "3개 목적의 판단 지도",
+      "tags": [
+        "village"
+      ]
+    },
+    {
+      "id": "goal_graph.research_society",
+      "name": "research_society",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "research_society"
+      ]
+    },
+    {
+      "id": "goal_graph.internal_group",
+      "name": "internal_group",
+      "summary": "1개 목적의 판단 지도",
+      "tags": [
+        "internal_group"
+      ]
+    },
+    {
+      "id": "goal_graph.delegated",
+      "name": "delegated",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "delegated"
+      ]
+    },
+    {
+      "id": "goal_graph.echo_beast_cub",
+      "name": "echo_beast_cub",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "echo_beast_cub"
+      ]
+    },
+    {
+      "id": "goal_graph.bureau_officer",
+      "name": "bureau_officer",
+      "summary": "5개 목적의 판단 지도",
+      "tags": [
+        "bureau_officer"
+      ]
+    },
+    {
+      "id": "goal_graph.smuggler",
+      "name": "smuggler",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "smuggler"
+      ]
+    },
+    {
+      "id": "goal_graph.warden",
+      "name": "warden",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "warden"
+      ]
+    },
+    {
+      "id": "goal_graph.healer",
+      "name": "healer",
+      "summary": "4개 목적의 판단 지도",
+      "tags": [
+        "healer"
+      ]
+    },
+    {
+      "id": "goal_graph.crown_bureau",
+      "name": "crown_bureau",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "crown_bureau"
+      ]
+    },
+    {
+      "id": "goal_graph.hollow_smugglers",
+      "name": "hollow_smugglers",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "hollow_smugglers"
+      ]
+    },
+    {
+      "id": "goal_graph.veil_wardens",
+      "name": "veil_wardens",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "veil_wardens"
+      ]
+    },
+    {
+      "id": "goal_graph.hollow_swarm",
+      "name": "hollow_swarm",
+      "summary": "2개 목적의 판단 지도",
+      "tags": [
+        "hollow_swarm"
+      ]
+    }
+  ],
+  "goals/goal_graph.hunter": {
+    "id": "goal_graph.hunter",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.secure_food",
+        "description": "마을이 굶지 않도록 식량을 구해 온다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "entity_state",
+              "entityId": "faction.silent_village",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 70
+            }
+          }
+        ],
+        "baseImportance": 35,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "faction.silent_village",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 70,
+          "weight": 1,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.9
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "gather",
+          "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "owner": "entity",
+            "entityId": "faction.silent_village",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 22,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 55,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.report_danger",
+        "description": "마을에 위협을 알린다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 18,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 40,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report",
+          "rumor"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.6
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.secure_food",
+        "to": "goal.survive",
+        "relation": "supports",
+        "weight": 0.8
+      },
+      {
+        "from": "goal.avoid_threat",
+        "to": "goal.secure_food",
+        "relation": "conflicts",
+        "weight": 0.6
+      },
+      {
+        "from": "goal.report_danger",
+        "to": "goal.avoid_threat",
+        "relation": "supports",
+        "weight": 0.4
+      }
+    ]
+  },
+  "goals/goal_graph.merchant": {
+    "id": "goal_graph.merchant",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.profit",
+        "description": "식량이 귀할 때 이문을 남긴다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "wealth"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 300
+            }
+          }
+        ],
+        "baseImportance": 38,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "faction.silent_village",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 70,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "wealth",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "trade",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 26,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.3,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.report_danger",
+        "description": "교역로의 위협을 알린다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 16,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 40,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report",
+          "rumor"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.profit",
+        "to": "goal.survive",
+        "relation": "supports",
+        "weight": 0.7
+      },
+      {
+        "from": "goal.avoid_threat",
+        "to": "goal.profit",
+        "relation": "conflicts",
+        "weight": 0.7
+      }
+    ]
+  },
+  "goals/goal_graph.leader": {
+    "id": "goal_graph.leader",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 18,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.village_food_security",
+        "description": "마을 식량 비축을 유지한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "entity_state",
+              "entityId": "faction.silent_village",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 80
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "faction.silent_village",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "entity",
+            "entityId": "faction.silent_village",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.village_safety",
+        "description": "마을이 위협을 직시하게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "entity_state",
+              "entityId": "faction.silent_village",
+              "key": "subjugation_ordered"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "faction.silent_village",
+          "stateKey": "threat_belief",
+          "comparison": ">",
+          "threshold": 40,
+          "weight": 1,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 60,
+          "weight": 1,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.village_food_security",
+        "to": "goal.village_safety",
+        "relation": "conflicts",
+        "weight": 0.5
+      },
+      {
+        "from": "goal.village_safety",
+        "to": "goal.survive",
+        "relation": "supports",
+        "weight": 0.4
+      }
+    ]
+  },
+  "goals/goal_graph.researcher": {
+    "id": "goal_graph.researcher",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.understand_creature",
+        "description": "반향수의 행동이 무엇인지 알아낸다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "curiosity"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "curiosity",
+          "comparison": ">",
+          "threshold": 50,
+          "weight": 0.5,
+          "max": 30
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "curiosity",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "investigate",
+          "ability"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "curiosity",
+            "weight": 1
+          }
+        ],
+        "utilityFactors": [
+          {
+            "owner": "entity",
+            "entityId": "faction.research_society",
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.report_findings",
+        "description": "관찰 결과를 연구회에 전한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 50,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report"
+        ],
+        "focusIds": [
+          "faction.research_society"
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 55,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.keep_restriction",
+        "description": "스스로 건 제약을 깨뜨리지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "restriction_valid"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "memory_integrity",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "memory_integrity",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "mental_stamina",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "rest",
+          "recover",
+          "ability"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.4
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.understand_creature",
+        "to": "goal.avoid_threat",
+        "relation": "conflicts",
+        "weight": 0.7
+      },
+      {
+        "from": "goal.understand_creature",
+        "to": "goal.report_findings",
+        "relation": "reveals",
+        "weight": 0.6
+      }
+    ]
+  },
+  "goals/goal_graph.echo_beast_mother": {
+    "id": "goal_graph.echo_beast_mother",
+    "nodes": [
+      {
+        "id": "goal.protect_offspring",
+        "description": "새끼에게 다가오는 것을 물러나게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "offspring_threat"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 40
+            }
+          }
+        ],
+        "baseImportance": 50,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "offspring_threat",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "offspring_threat",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "territory_pressure",
+            "direction": "decrease",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "attack"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "territory_pressure",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 25,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 50,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "forage"
+        ]
+      },
+      {
+        "id": "goal.avoid_humans",
+        "description": "다칠 것 같으면 물러난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 15,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "health",
+          "comparison": "<",
+          "threshold": 40,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.protect_offspring",
+        "to": "goal.avoid_humans",
+        "relation": "conflicts",
+        "weight": 0.8
+      },
+      {
+        "from": "goal.survive",
+        "to": "goal.protect_offspring",
+        "relation": "supports",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.village": {
+    "id": "goal_graph.village",
+    "nodes": [
+      {
+        "id": "goal.faction_food_security",
+        "description": "마을의 비축을 요구 수준 위로 유지한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 90
+            }
+          }
+        ],
+        "baseImportance": 42,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 90,
+          "weight": 0.6,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade",
+          "delegate"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.faction_safety",
+        "description": "마을 사람들이 위협에 죽지 않게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "threat_belief"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 38,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "threat_belief",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 0.8,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "threat_belief",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "focusIds": [
+          "agent.kael",
+          "agent.mar"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.8
+          }
+        ]
+      },
+      {
+        "id": "goal.faction_authority",
+        "description": "지도부의 결정이 따라지도록 한다 (공표하지 않는 목적)",
+        "targetConditions": [],
+        "baseImportance": 24,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 6
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "member_count",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "focusIds": [
+          "agent.mar"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_food_security",
+        "to": "goal.faction_safety",
+        "relation": "conflicts",
+        "weight": 0.4
+      },
+      {
+        "from": "goal.faction_safety",
+        "to": "goal.faction_authority",
+        "relation": "supports",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.research_society": {
+    "id": "goal_graph.research_society",
+    "nodes": [
+      {
+        "id": "goal.faction_research",
+        "description": "잔재를 흡수하는 생물을 이해한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "research_progress"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "research_progress",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 0.7,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "utilityFactors": [
+          {
+            "owner": "actor",
+            "stateKey": "research_progress",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "focusIds": [
+          "agent.rion"
+        ]
+      },
+      {
+        "id": "goal.faction_supply",
+        "description": "연구를 이어 갈 물자를 확보한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 26,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 0.5,
+          "max": 30
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_supply",
+        "to": "goal.faction_research",
+        "relation": "requires",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.internal_group": {
+    "id": "goal_graph.internal_group",
+    "nodes": [
+      {
+        "id": "goal.group_interest",
+        "description": "이 집단의 몫을 지킨다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "food_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "food_reserve",
+          "comparison": "<",
+          "threshold": 40,
+          "weight": 0.6,
+          "max": 30
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "faction_trade",
+          "delegate"
+        ]
+      }
+    ],
+    "edges": []
+  },
+  "goals/goal_graph.delegated": {
+    "id": "goal_graph.delegated",
+    "nodes": [
+      {
+        "id": "goal.subjugate_beast",
+        "description": "마을이 소집한 토벌에 따른다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "delegation_completed"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 0
+            }
+          }
+        ],
+        "baseImportance": 18,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 10
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "aggression",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "known_threat_level",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "attack",
+          "report"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": -0.6
+          }
+        ]
+      },
+      {
+        "id": "goal.gather_for_village",
+        "description": "마을이 요청한 식량을 모아 온다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "delegation_completed"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 0
+            }
+          }
+        ],
+        "baseImportance": 16,
+        "urgencyPolicy": {
+          "type": "constant",
+          "value": 8
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.8
+          },
+          {
+            "stateKey": "food_reserve",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "health"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "gather",
+          "trade"
+        ],
+        "focusIds": [
+          "faction.silent_village"
+        ]
+      }
+    ],
+    "edges": []
+  },
+  "goals/goal_graph.echo_beast_cub": {
+    "id": "goal_graph.echo_beast_cub",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 22,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 50,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "forage"
+        ]
+      },
+      {
+        "id": "goal.avoid_humans",
+        "description": "사람 가까이 가지 않는다",
+        "targetConditions": [],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "fear",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 0.8,
+          "max": 35
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      }
+    ],
+    "edges": []
+  },
+  "goals/goal_graph.bureau_officer": {
+    "id": "goal_graph.bureau_officer",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.enforce_control",
+        "description": "결정이 통제 밖으로 새지 않게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "entity_state",
+              "entityId": "faction.crown_bureau",
+              "key": "crystal_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 45,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "faction.crown_bureau",
+          "stateKey": "crystal_reserve",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 1,
+          "max": 55
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "crystal_reserve",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "wanted_level",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "guard",
+          "faction_trade",
+          "report",
+          "move",
+          "observe",
+          "ability"
+        ],
+        "focusIds": [
+          "faction.crown_bureau"
+        ]
+      },
+      {
+        "id": "goal.report_findings",
+        "description": "본 것을 관리국에 올린다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 40,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "reported_threat",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report",
+          "social",
+          "move"
+        ],
+        "focusIds": [
+          "faction.crown_bureau"
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 22,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 55,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.keep_restriction",
+        "description": "스스로 건 제약을 깨뜨리지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "restriction_valid"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "memory_integrity",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "memory_integrity",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "mental_stamina",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "rest",
+          "recover",
+          "ability"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.4
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.enforce_control",
+        "to": "goal.report_findings",
+        "relation": "requires",
+        "weight": 0.7
+      },
+      {
+        "from": "goal.survive",
+        "to": "goal.enforce_control",
+        "relation": "conflicts",
+        "weight": 0.3
+      },
+      {
+        "from": "goal.keep_restriction",
+        "to": "goal.enforce_control",
+        "relation": "supports",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.smuggler": {
+    "id": "goal_graph.smuggler",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.smuggle_profit",
+        "description": "통제 밖으로 결정을 옮겨 값을 만든다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "wealth"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 200
+            }
+          }
+        ],
+        "baseImportance": 45,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "wealth",
+          "comparison": "<",
+          "threshold": 200,
+          "weight": 0.9,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "wealth",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "carried_crystal",
+            "direction": "increase",
+            "weight": 0.8
+          }
+        ],
+        "abandonmentConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "wanted_level"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 70
+            }
+          }
+        ],
+        "allowedActionTags": [
+          "smuggle",
+          "mine",
+          "move",
+          "trade"
+        ],
+        "focusIds": [
+          "faction.hollow_smugglers"
+        ]
+      },
+      {
+        "id": "goal.evade_enforcement",
+        "description": "잡히지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "wanted_level"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 20
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "wanted_level",
+          "comparison": ">",
+          "threshold": 20,
+          "weight": 1.4,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "wanted_level",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "escape",
+          "move",
+          "ability",
+          "rumor"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.6
+          }
+        ]
+      },
+      {
+        "id": "goal.keep_restriction",
+        "description": "스스로 건 제약을 깨뜨리지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "restriction_valid"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "memory_integrity",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "memory_integrity",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "mental_stamina",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "rest",
+          "recover",
+          "ability"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.4
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.smuggle_profit",
+        "to": "goal.evade_enforcement",
+        "relation": "conflicts",
+        "weight": 0.8
+      },
+      {
+        "from": "goal.survive",
+        "to": "goal.smuggle_profit",
+        "relation": "supports",
+        "weight": 0.4
+      }
+    ]
+  },
+  "goals/goal_graph.warden": {
+    "id": "goal_graph.warden",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.protect_ecosystem",
+        "description": "숲이 스스로 회복할 수 있게 지킨다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "entity_state",
+              "entityId": "region.hollow_basin",
+              "key": "ecosystem_health"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 70
+            }
+          }
+        ],
+        "baseImportance": 50,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "entity",
+          "entityId": "region.hollow_basin",
+          "stateKey": "ecosystem_health",
+          "comparison": "<",
+          "threshold": 70,
+          "weight": 1.2,
+          "max": 55
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "devotion",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "known_threat_level",
+            "direction": "increase",
+            "weight": 0.4
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "ritual",
+          "guard",
+          "move",
+          "observe",
+          "ability"
+        ],
+        "focusIds": [
+          "faction.veil_wardens",
+          "species.echo_beast"
+        ]
+      },
+      {
+        "id": "goal.report_danger",
+        "description": "숲에서 본 것을 사람들에게 알린다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "reported_threat"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 28,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 35,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "reported_threat",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "report",
+          "rumor",
+          "social",
+          "move"
+        ]
+      },
+      {
+        "id": "goal.keep_restriction",
+        "description": "스스로 건 제약을 깨뜨리지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "restriction_valid"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "memory_integrity",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "memory_integrity",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "mental_stamina",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "rest",
+          "recover",
+          "ability"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.4
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.protect_ecosystem",
+        "to": "goal.report_danger",
+        "relation": "supports",
+        "weight": 0.5
+      },
+      {
+        "from": "goal.survive",
+        "to": "goal.protect_ecosystem",
+        "relation": "conflicts",
+        "weight": 0.3
+      }
+    ]
+  },
+  "goals/goal_graph.healer": {
+    "id": "goal_graph.healer",
+    "nodes": [
+      {
+        "id": "goal.survive",
+        "description": "굶주리지 않고 살아남는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "hunger"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 20,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "hunger",
+          "comparison": ">",
+          "threshold": 45,
+          "weight": 1.5,
+          "max": 70
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "health",
+            "direction": "increase",
+            "weight": 0.6
+          },
+          {
+            "stateKey": "carried_food",
+            "direction": "increase",
+            "weight": 0.5
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "eat",
+          "gather"
+        ]
+      },
+      {
+        "id": "goal.heal_wounded",
+        "description": "앓는 사람을 그대로 두지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "stress"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 48,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "stress",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 1.1,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "stress",
+            "direction": "decrease",
+            "weight": 1
+          },
+          {
+            "stateKey": "carried_herb",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "heal",
+          "forage",
+          "move",
+          "ability",
+          "social"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.5
+          }
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 벗어난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 22,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "known_threat_level",
+          "comparison": ">",
+          "threshold": 55,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "rest"
+        ],
+        "focusIds": [
+          "creature.echo_beast_mother"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 1
+          }
+        ]
+      },
+      {
+        "id": "goal.keep_restriction",
+        "description": "스스로 건 제약을 깨뜨리지 않는다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "restriction_valid"
+            },
+            "operator": "==",
+            "right": {
+              "kind": "const",
+              "value": true
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "memory_integrity",
+          "comparison": "<",
+          "threshold": 80,
+          "weight": 1.2,
+          "max": 50
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "memory_integrity",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "mental_stamina",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "rest",
+          "recover",
+          "ability"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "stress",
+            "weight": 0.4
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.heal_wounded",
+        "to": "goal.survive",
+        "relation": "conflicts",
+        "weight": 0.4
+      },
+      {
+        "from": "goal.keep_restriction",
+        "to": "goal.heal_wounded",
+        "relation": "conflicts",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.crown_bureau": {
+    "id": "goal_graph.crown_bureau",
+    "nodes": [
+      {
+        "id": "goal.faction_control",
+        "description": "관리국의 결정 비축을 유지한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "crystal_reserve"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 55,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "crystal_reserve",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 1.1,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "crystal_reserve",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "enforcement",
+            "direction": "increase",
+            "weight": 0.6
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate",
+          "faction_trade"
+        ],
+        "focusIds": [
+          "faction.hollow_smugglers"
+        ]
+      },
+      {
+        "id": "goal.faction_authority",
+        "description": "통제가 흔들리지 않게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "enforcement"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 55
+            }
+          }
+        ],
+        "baseImportance": 40,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "enforcement",
+          "comparison": "<",
+          "threshold": 55,
+          "weight": 0.9,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "enforcement",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_control",
+        "to": "goal.faction_authority",
+        "relation": "requires",
+        "weight": 0.8
+      }
+    ]
+  },
+  "goals/goal_graph.hollow_smugglers": {
+    "id": "goal_graph.hollow_smugglers",
+    "nodes": [
+      {
+        "id": "goal.faction_contraband",
+        "description": "밀수 경로를 살려 둔다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "contraband_flow"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 40
+            }
+          }
+        ],
+        "baseImportance": 52,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "contraband_flow",
+          "comparison": "<",
+          "threshold": 40,
+          "weight": 1.1,
+          "max": 55
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "contraband_flow",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate",
+          "faction_trade"
+        ],
+        "focusIds": [
+          "faction.crown_bureau"
+        ]
+      },
+      {
+        "id": "goal.faction_shelter",
+        "description": "조직원이 잡혀가지 않게 한다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 38,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "fear",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 1,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_contraband",
+        "to": "goal.faction_shelter",
+        "relation": "conflicts",
+        "weight": 0.6
+      }
+    ]
+  },
+  "goals/goal_graph.veil_wardens": {
+    "id": "goal_graph.veil_wardens",
+    "nodes": [
+      {
+        "id": "goal.faction_ecology",
+        "description": "숲의 훼손을 멈춘다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "ecology_alarm"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 30
+            }
+          }
+        ],
+        "baseImportance": 55,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "ecology_alarm",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 1.2,
+          "max": 60
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "ecology_alarm",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ],
+        "focusIds": [
+          "faction.crown_bureau",
+          "faction.research_society"
+        ]
+      },
+      {
+        "id": "goal.faction_authority",
+        "description": "사당의 권위를 지킨다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "member_count"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 8
+            }
+          }
+        ],
+        "baseImportance": 35,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "member_count",
+          "comparison": "<",
+          "threshold": 8,
+          "weight": 0.8,
+          "max": 40
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "member_count",
+            "direction": "increase",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "delegate"
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.faction_ecology",
+        "to": "goal.faction_authority",
+        "relation": "supports",
+        "weight": 0.5
+      }
+    ]
+  },
+  "goals/goal_graph.hollow_swarm": {
+    "id": "goal_graph.hollow_swarm",
+    "nodes": [
+      {
+        "id": "goal.expand_hive",
+        "description": "군체를 불린다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "energy"
+            },
+            "operator": ">",
+            "right": {
+              "kind": "const",
+              "value": 60
+            }
+          }
+        ],
+        "baseImportance": 45,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "energy",
+          "comparison": "<",
+          "threshold": 60,
+          "weight": 1.3,
+          "max": 55
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "energy",
+            "direction": "increase",
+            "weight": 1
+          },
+          {
+            "stateKey": "hunger",
+            "direction": "decrease",
+            "weight": 0.8
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "forage",
+          "move",
+          "eat"
+        ]
+      },
+      {
+        "id": "goal.avoid_threat",
+        "description": "위협에서 물러난다",
+        "targetConditions": [
+          {
+            "left": {
+              "kind": "state",
+              "owner": "actor",
+              "key": "fear"
+            },
+            "operator": "<",
+            "right": {
+              "kind": "const",
+              "value": 25
+            }
+          }
+        ],
+        "baseImportance": 30,
+        "urgencyPolicy": {
+          "type": "state_threshold",
+          "source": "self",
+          "stateKey": "fear",
+          "comparison": ">",
+          "threshold": 30,
+          "weight": 1.2,
+          "max": 45
+        },
+        "desiredChanges": [
+          {
+            "stateKey": "fear",
+            "direction": "decrease",
+            "weight": 1
+          }
+        ],
+        "abandonmentConditions": [],
+        "allowedActionTags": [
+          "flee",
+          "escape",
+          "move"
+        ],
+        "emotionKeys": [
+          {
+            "stateKey": "fear",
+            "weight": 0.7
+          }
+        ]
+      }
+    ],
+    "edges": [
+      {
+        "from": "goal.expand_hive",
+        "to": "goal.avoid_threat",
+        "relation": "conflicts",
+        "weight": 0.5
+      }
+    ]
+  }
+}

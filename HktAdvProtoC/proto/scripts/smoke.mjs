@@ -35,6 +35,21 @@ try {
   page.on("pageerror", (e) => pageErrors.push(e));
   await page.goto(`http://localhost:${PORT}/`);
 
+  // §36.1 세계 생성 화면 — 다섯 문장에서 15단계가 돌아 세계가 나오는가
+  await page.click("#generate");
+  await page.waitForFunction(
+    () => document.querySelector("#generation")?.textContent?.includes("15 실행 데이터 저장"),
+    undefined,
+    { timeout: 30000 },
+  );
+  const generation = await page.textContent("#generation");
+  if (!generation?.includes("정합성 검증 통과")) {
+    throw new Error(`생성 정합성 검증 실패: ${generation?.slice(0, 400)}`);
+  }
+  if (await page.isDisabled("#use-generated")) {
+    throw new Error("생성된 세계로 시작할 수 없음");
+  }
+
   await page.click("#init");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("0일차"));
   // 수동 세계의 개체가 ViewModel 을 통해 화면까지 도달했는가
@@ -59,6 +74,7 @@ try {
     throw new Error(`페이지 오류: ${pageErrors.map((e) => e.message).join(", ")}`);
   }
   console.log("SMOKE OK —", JSON.stringify(status));
+  console.log("생성 화면 —", generation.replace(/\s+/g, " ").slice(0, 260));
 } finally {
   await browser?.close();
   preview.kill();

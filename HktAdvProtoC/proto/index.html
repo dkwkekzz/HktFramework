@@ -10,14 +10,39 @@
       #world { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; margin-top: 1rem; }
       .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
       button { padding: 0.4rem 0.8rem; }
+      textarea { width: 100%; font-family: inherit; font-size: 0.85rem; }
+      fieldset { border: 1px solid #ddd; border-radius: 6px; margin-bottom: 1.5rem; }
+      #generation { white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.8rem; line-height: 1.5; }
+      #generation details { margin: 0.2rem 0 0.2rem 1.5rem; }
+      #generation pre { background: #f7f7f7; padding: 0.5rem; overflow-x: auto; max-height: 20rem; }
+      .fail { color: #b00; }
     </style>
   </head>
   <body>
-    <h1>HktAdvProtoC — Phase 1 셸</h1>
+    <h1>HktAdvProtoC — 세계 생성과 시뮬레이션</h1>
+
+    <!-- §36.1 세계 생성 화면 -->
+    <fieldset>
+      <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
+      <label for="themes">세계관 주제 (한 줄에 하나)</label>
+      <textarea id="themes" rows="5"></textarea>
+      <label for="experiences">원하는 경험</label>
+      <textarea id="experiences" rows="3"></textarea>
+      <label for="prohibited">제외하고 싶은 요소</label>
+      <textarea id="prohibited" rows="3"></textarea>
+      <div class="row">
+        <label for="gen-seed">세계 시드</label>
+        <input id="gen-seed" type="number" value="42" />
+        <button id="generate">세계를 생성한다</button>
+        <button id="use-generated" disabled>생성된 세계로 시뮬레이션 시작</button>
+      </div>
+      <div id="generation"></div>
+    </fieldset>
+
     <div class="row">
       <label for="seed">세계 시드</label>
       <input id="seed" type="number" value="42" />
-      <button id="init">세계 생성</button>
+      <button id="init">수동 세계로 시작</button>
     </div>
     <div class="row">
       <button id="advance-hour" disabled>+1시간</button>

@@ -1,0 +1,1548 @@
+{
+  "agents_outline": [
+    {
+      "id": "agent.kael",
+      "name": "사냥꾼 카엘",
+      "summary": "숲 사냥꾼 — 겨울 전에 비축을 채워야 하는데 숲이 위험해졌다",
+      "tags": [
+        "living",
+        "human",
+        "hunter",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.ren",
+      "name": "행상 렌",
+      "summary": "교역로 행상 — 결정을 사겠다는 사람이 붙었는데 관리국의 눈이 있다",
+      "tags": [
+        "living",
+        "human",
+        "merchant",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.mar",
+      "name": "촌장 마르",
+      "summary": "마을 지도자 — 비축이 줄고 있는데 감독관이 초소에 상주하기 시작했다",
+      "tags": [
+        "living",
+        "human",
+        "leader",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.rion",
+      "name": "연구자 리온",
+      "summary": "현장 조사자 — 반향수의 이동이 공격이 아니라는 것을 증명할 관측이 부족하다",
+      "tags": [
+        "living",
+        "human",
+        "researcher",
+        "ability_user"
+      ]
+    },
+    {
+      "id": "agent.sera",
+      "name": "감독관 세라",
+      "summary": "결정 감독관 — 신고되지 않은 결정이 교역로를 통해 빠져나가고 있다",
+      "tags": [
+        "living",
+        "human",
+        "bureau",
+        "ability_user"
+      ]
+    },
+    {
+      "id": "agent.tarn",
+      "name": "밀수꾼 타른",
+      "summary": "경로 운반책 — 감독관이 초소에 상주하면서 옛 경로가 하나 막혔다",
+      "tags": [
+        "living",
+        "human",
+        "smuggler",
+        "ability_user"
+      ]
+    },
+    {
+      "id": "agent.iri",
+      "name": "사당 지기 이리",
+      "summary": "봉인 의식 집전 — 분지 쪽 잔재가 마르면서 이끼 군락이 줄고 있다",
+      "tags": [
+        "living",
+        "human",
+        "warden",
+        "ability_user"
+      ]
+    },
+    {
+      "id": "agent.noa",
+      "name": "치유사 노아",
+      "summary": "마을 치유사 — 숲이 위험해져 약초를 구하러 갈 사람이 없다",
+      "tags": [
+        "living",
+        "human",
+        "healer",
+        "villager",
+        "ability_user"
+      ]
+    },
+    {
+      "id": "agent.pell",
+      "name": "채집조 펠",
+      "summary": "숲 채집조 — 몫이 줄어 겨울을 넘길 수 없다",
+      "tags": [
+        "living",
+        "human",
+        "hunter",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.gura",
+      "name": "사냥꾼 구라",
+      "summary": "덫 사냥꾼 — 가죽을 살 사람이 관리국 눈치를 본다",
+      "tags": [
+        "living",
+        "human",
+        "hunter",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.sabin",
+      "name": "상인 사빈",
+      "summary": "정착 상인 — 결정 거래에 끼어들지 말지 결정해야 한다",
+      "tags": [
+        "living",
+        "human",
+        "merchant",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.torv",
+      "name": "원로 토르브",
+      "summary": "원로회 좌장 — 감독관이 장부를 보자고 한다",
+      "tags": [
+        "living",
+        "human",
+        "leader",
+        "villager"
+      ]
+    },
+    {
+      "id": "agent.lys",
+      "name": "연구원 리스",
+      "summary": "표본 담당 — 표본 하나를 이번 달 안에 확보해야 한다",
+      "tags": [
+        "living",
+        "human",
+        "researcher"
+      ]
+    },
+    {
+      "id": "agent.ame",
+      "name": "조사원 아메",
+      "summary": "현장 조사조 — 둥지에 더 가까이 갈 방법이 없다",
+      "tags": [
+        "living",
+        "human",
+        "researcher"
+      ]
+    },
+    {
+      "id": "agent.quen",
+      "name": "감독관보 쿠엔",
+      "summary": "초소 감독관보 — 장부의 차이를 메워야 한다",
+      "tags": [
+        "living",
+        "human",
+        "bureau"
+      ]
+    },
+    {
+      "id": "agent.bael",
+      "name": "경비 바엘",
+      "summary": "초소 경비 — 수색 명령이 곧 내려온다",
+      "tags": [
+        "living",
+        "human",
+        "bureau"
+      ]
+    },
+    {
+      "id": "agent.veko",
+      "name": "중개인 베코",
+      "summary": "밀수 중개 — 관리국 감독관보에게 준 것이 들통날 참이다",
+      "tags": [
+        "living",
+        "human",
+        "smuggler"
+      ]
+    },
+    {
+      "id": "agent.mira",
+      "name": "운반조 미라",
+      "summary": "경로 운반 — 다음 운반의 경로를 정해야 한다",
+      "tags": [
+        "living",
+        "human",
+        "smuggler"
+      ]
+    },
+    {
+      "id": "agent.sol",
+      "name": "순찰 솔",
+      "summary": "숲 순찰조 — 채굴꾼이 이끼 웅덩이까지 들어왔다",
+      "tags": [
+        "living",
+        "human",
+        "warden"
+      ]
+    },
+    {
+      "id": "agent.edda",
+      "name": "약초꾼 에다",
+      "summary": "약초 채집 — 약초 자리가 이끼에 덮여 줄고 있다",
+      "tags": [
+        "living",
+        "human",
+        "healer",
+        "villager"
+      ]
+    }
+  ],
+  "agents/agent.kael": {
+    "id": "agent.kael",
+    "name": "사냥꾼 카엘",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "숲 사냥꾼",
+    "origin": "숲 가장자리에서 태어나 사냥으로 자랐다",
+    "formativeEvent": "교역로에서 짐승에게 습격당한 대상(隊商)의 흔적을 처음 발견했다",
+    "values": [
+      "마을 사람이 굶지 않는 것",
+      "자기 눈으로 본 것"
+    ],
+    "fears": [
+      "숲에서 혼자 마주치는 것",
+      "마을이 흩어지는 것"
+    ],
+    "innerConflict": "마을은 토벌을 원하지만 카엘이 본 흔적은 공격의 흔적이 아니었다",
+    "currentProblem": "겨울 전에 비축을 채워야 하는데 숲이 위험해졌다",
+    "traits": {
+      "riskTolerance": 68,
+      "curiosity": 35,
+      "loyalty": 55,
+      "greed": 30,
+      "empathy": 40,
+      "vengefulness": 45,
+      "patience": 50,
+      "deceptionPreference": 25,
+      "uncertaintyAversion": 55,
+      "impulsiveness": 44
+    },
+    "goalGraphId": "goal_graph.hunter",
+    "abilityIds": [],
+    "homeLocationId": "location.village_square",
+    "tags": [
+      "living",
+      "human",
+      "hunter",
+      "villager"
+    ],
+    "states": {
+      "health": 84,
+      "energy": 76,
+      "hunger": 28,
+      "fear": 12,
+      "curiosity": 35,
+      "social_status": 38,
+      "carried_food": 12
+    },
+    "relationships": [
+      {
+        "toId": "agent.mar",
+        "trust": 45,
+        "respect": 55,
+        "familiarity": 60
+      },
+      {
+        "toId": "agent.ren",
+        "trust": 35,
+        "familiarity": 50,
+        "debt": 10
+      },
+      {
+        "toId": "agent.rion",
+        "trust": 20,
+        "familiarity": 20
+      },
+      {
+        "toId": "creature.echo_beast_mother",
+        "fear": 60,
+        "resentment": 30
+      },
+      {
+        "toId": "faction.silent_village",
+        "trust": 55,
+        "dependency": 40
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "creature.echo_beast_mother",
+        "stateKey": "aggression",
+        "believedValue": 90,
+        "confidence": 0.82,
+        "sourceIds": [
+          "rumor.caravan_attack"
+        ]
+      }
+    ]
+  },
+  "agents/agent.ren": {
+    "id": "agent.ren",
+    "name": "행상 렌",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "교역로 행상",
+    "origin": "떠돌이 상단에서 자라 이 마을에 눌러앉았다",
+    "formativeEvent": "값을 속인 일이 들통나 한 계절을 마을 밖에서 보냈다",
+    "values": [
+      "거래가 끊기지 않는 것",
+      "자기 몫"
+    ],
+    "fears": [
+      "교역로가 막히는 것",
+      "빚"
+    ],
+    "innerConflict": "마을의 배급 규정을 지키면 남는 것이 없다",
+    "currentProblem": "결정을 사겠다는 사람이 붙었는데 관리국의 눈이 있다",
+    "traits": {
+      "riskTolerance": 52,
+      "curiosity": 45,
+      "loyalty": 35,
+      "greed": 70,
+      "empathy": 30,
+      "vengefulness": 40,
+      "patience": 45,
+      "deceptionPreference": 60,
+      "uncertaintyAversion": 40,
+      "impulsiveness": 50
+    },
+    "goalGraphId": "goal_graph.merchant",
+    "abilityIds": [],
+    "homeLocationId": "location.trade_road",
+    "tags": [
+      "living",
+      "human",
+      "merchant",
+      "villager"
+    ],
+    "states": {
+      "health": 78,
+      "energy": 70,
+      "hunger": 32,
+      "fear": 18,
+      "social_status": 42,
+      "wealth": 160,
+      "carried_goods": 40
+    },
+    "relationships": [
+      {
+        "toId": "agent.kael",
+        "trust": 40,
+        "familiarity": 50
+      },
+      {
+        "toId": "agent.mar",
+        "trust": 30,
+        "fear": 20,
+        "familiarity": 45
+      },
+      {
+        "toId": "agent.tarn",
+        "trust": 25,
+        "familiarity": 30,
+        "debt": 20
+      },
+      {
+        "toId": "faction.silent_village",
+        "trust": 35,
+        "dependency": 55
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "faction.silent_village",
+        "stateKey": "food_reserve",
+        "believedValue": 70,
+        "confidence": 0.5,
+        "sourceIds": [
+          "rumor.village_reserve"
+        ]
+      }
+    ]
+  },
+  "agents/agent.mar": {
+    "id": "agent.mar",
+    "name": "촌장 마르",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "마을 지도자",
+    "origin": "삼대째 마을에 살아온 집안",
+    "formativeEvent": "지난 흉년에 다섯 사람을 잃고 배급을 손에 쥐게 되었다",
+    "values": [
+      "마을이 남는 것",
+      "질서"
+    ],
+    "fears": [
+      "굶주림이 다시 오는 것",
+      "숨긴 일이 드러나는 것"
+    ],
+    "innerConflict": "마을을 먹이려면 관리국이 금지한 채굴을 계속해야 한다",
+    "currentProblem": "비축이 줄고 있는데 감독관이 초소에 상주하기 시작했다",
+    "traits": {
+      "riskTolerance": 35,
+      "curiosity": 25,
+      "loyalty": 75,
+      "greed": 45,
+      "empathy": 35,
+      "vengefulness": 55,
+      "patience": 60,
+      "deceptionPreference": 65,
+      "uncertaintyAversion": 70,
+      "impulsiveness": 30
+    },
+    "goalGraphId": "goal_graph.leader",
+    "abilityIds": [],
+    "homeLocationId": "location.village_square",
+    "tags": [
+      "living",
+      "human",
+      "leader",
+      "villager"
+    ],
+    "states": {
+      "health": 70,
+      "energy": 62,
+      "hunger": 25,
+      "fear": 30,
+      "social_status": 72,
+      "wealth": 90
+    },
+    "relationships": [
+      {
+        "toId": "agent.kael",
+        "trust": 50,
+        "respect": 40,
+        "familiarity": 60
+      },
+      {
+        "toId": "agent.ren",
+        "trust": 25,
+        "resentment": 20,
+        "familiarity": 45
+      },
+      {
+        "toId": "agent.sera",
+        "trust": 15,
+        "fear": 45
+      },
+      {
+        "toId": "faction.silent_village",
+        "trust": 70,
+        "dependency": 60
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "agent.sera",
+        "stateKey": "known_threat_level",
+        "believedValue": 20,
+        "confidence": 0.4,
+        "sourceIds": [
+          "belief.wishful"
+        ]
+      }
+    ]
+  },
+  "agents/agent.rion": {
+    "id": "agent.rion",
+    "name": "연구자 리온",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.research_society"
+    ],
+    "role": "현장 조사자",
+    "origin": "왕도의 학당에서 밀려나 변경으로 왔다",
+    "formativeEvent": "자신의 조사 기록이 토벌 명령의 근거로 쓰였다",
+    "values": [
+      "끝까지 아는 것",
+      "산 것을 함부로 죽이지 않는 것"
+    ],
+    "fears": [
+      "자기 기록이 다시 무기가 되는 것",
+      "모르는 채로 결론이 나는 것"
+    ],
+    "innerConflict": "연구회는 표본을 원하고 리온은 살아 있는 관찰을 원한다",
+    "currentProblem": "반향수의 이동이 공격이 아니라는 것을 증명할 관측이 부족하다",
+    "traits": {
+      "riskTolerance": 58,
+      "curiosity": 88,
+      "loyalty": 40,
+      "greed": 20,
+      "empathy": 60,
+      "vengefulness": 25,
+      "patience": 65,
+      "deceptionPreference": 15,
+      "uncertaintyAversion": 35,
+      "impulsiveness": 40
+    },
+    "goalGraphId": "goal_graph.researcher",
+    "abilityIds": [
+      "ability.residue_reading"
+    ],
+    "homeLocationId": "location.research_camp",
+    "tags": [
+      "living",
+      "human",
+      "researcher",
+      "ability_user"
+    ],
+    "states": {
+      "health": 74,
+      "energy": 68,
+      "hunger": 30,
+      "fear": 22,
+      "curiosity": 88,
+      "social_status": 45,
+      "carried_residue": 8,
+      "mental_stamina": 90,
+      "ability_id": "ability.residue_reading"
+    },
+    "relationships": [
+      {
+        "toId": "agent.kael",
+        "trust": 30,
+        "familiarity": 20
+      },
+      {
+        "toId": "agent.iri",
+        "trust": 45,
+        "respect": 50
+      },
+      {
+        "toId": "creature.echo_beast_mother",
+        "fear": 25,
+        "affection": 20
+      },
+      {
+        "toId": "faction.research_society",
+        "trust": 45,
+        "dependency": 50
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "creature.echo_beast_mother",
+        "stateKey": "aggression",
+        "believedValue": 30,
+        "confidence": 0.6,
+        "sourceIds": [
+          "observation.den_trace"
+        ]
+      }
+    ]
+  },
+  "agents/agent.sera": {
+    "id": "agent.sera",
+    "name": "감독관 세라",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.crown_bureau"
+    ],
+    "role": "결정 감독관",
+    "origin": "관리국 감독관 시험을 통과해 변경에 배치됐다",
+    "formativeEvent": "거짓 신고를 믿고 서명해 초소 경비대가 전멸했다",
+    "values": [
+      "말이 지켜지는 것",
+      "규정"
+    ],
+    "fears": [
+      "자기 서명이 또 사람을 죽이는 것"
+    ],
+    "innerConflict": "규정대로면 마을 전체를 처벌해야 하지만 그러면 마을이 굶는다",
+    "currentProblem": "신고되지 않은 결정이 교역로를 통해 빠져나가고 있다",
+    "traits": {
+      "riskTolerance": 40,
+      "curiosity": 40,
+      "loyalty": 80,
+      "greed": 25,
+      "empathy": 35,
+      "vengefulness": 50,
+      "patience": 70,
+      "deceptionPreference": 10,
+      "uncertaintyAversion": 60,
+      "impulsiveness": 25
+    },
+    "goalGraphId": "goal_graph.bureau_officer",
+    "abilityIds": [
+      "ability.sealed_word"
+    ],
+    "homeLocationId": "location.crown_outpost",
+    "tags": [
+      "living",
+      "human",
+      "bureau",
+      "ability_user"
+    ],
+    "states": {
+      "health": 80,
+      "energy": 72,
+      "hunger": 26,
+      "fear": 14,
+      "social_status": 68,
+      "wealth": 120,
+      "mental_stamina": 95,
+      "ability_id": "ability.sealed_word"
+    },
+    "relationships": [
+      {
+        "toId": "agent.mar",
+        "trust": 20,
+        "respect": 25
+      },
+      {
+        "toId": "agent.tarn",
+        "resentment": 55,
+        "fear": 15
+      },
+      {
+        "toId": "faction.crown_bureau",
+        "trust": 65,
+        "dependency": 55
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "agent.mar",
+        "stateKey": "promise_broken",
+        "believedValue": true,
+        "confidence": 0.35,
+        "sourceIds": [
+          "report.outpost_ledger"
+        ]
+      }
+    ]
+  },
+  "agents/agent.tarn": {
+    "id": "agent.tarn",
+    "name": "밀수꾼 타른",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.hollow_smugglers"
+    ],
+    "role": "경로 운반책",
+    "origin": "분지 갱도에서 태어나 갱도로 먹고 살았다",
+    "formativeEvent": "경로가 막힌 밤에 짐을 지고 온 동료가 돌아오지 못했다",
+    "values": [
+      "동료를 두고 가지 않는 것"
+    ],
+    "fears": [
+      "갇히는 것",
+      "동료를 또 잃는 것"
+    ],
+    "innerConflict": "중개인은 값을 위해 위험한 경로를 요구하고 타른은 사람을 먼저 옮기려 한다",
+    "currentProblem": "감독관이 초소에 상주하면서 옛 경로가 하나 막혔다",
+    "traits": {
+      "riskTolerance": 85,
+      "curiosity": 45,
+      "loyalty": 60,
+      "greed": 55,
+      "empathy": 45,
+      "vengefulness": 40,
+      "patience": 35,
+      "deceptionPreference": 70,
+      "uncertaintyAversion": 25,
+      "impulsiveness": 70
+    },
+    "goalGraphId": "goal_graph.smuggler",
+    "abilityIds": [
+      "ability.hollow_step"
+    ],
+    "homeLocationId": "location.ash_flats",
+    "tags": [
+      "living",
+      "human",
+      "smuggler",
+      "ability_user"
+    ],
+    "states": {
+      "health": 76,
+      "energy": 74,
+      "hunger": 34,
+      "fear": 26,
+      "social_status": 30,
+      "wealth": 140,
+      "mental_stamina": 88,
+      "ability_id": "ability.hollow_step"
+    },
+    "relationships": [
+      {
+        "toId": "agent.ren",
+        "trust": 35,
+        "familiarity": 30
+      },
+      {
+        "toId": "agent.sera",
+        "fear": 50,
+        "resentment": 40
+      },
+      {
+        "toId": "faction.hollow_smugglers",
+        "trust": 60,
+        "dependency": 65
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "faction.crown_bureau",
+        "stateKey": "enforcement",
+        "believedValue": 30,
+        "confidence": 0.45,
+        "sourceIds": [
+          "rumor.outpost_shift"
+        ]
+      }
+    ]
+  },
+  "agents/agent.iri": {
+    "id": "agent.iri",
+    "name": "사당 지기 이리",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.veil_wardens"
+    ],
+    "role": "봉인 의식 집전",
+    "origin": "사당에 맡겨져 자랐다",
+    "formativeEvent": "채굴이 지나간 자리에서 이끼 군락 전체가 하룻밤에 말랐다",
+    "values": [
+      "숲이 되돌아올 자리",
+      "산 것을 재료로 쓰지 않는 것"
+    ],
+    "fears": [
+      "봉인이 풀리는 것",
+      "사람이 숲을 다 파내는 것"
+    ],
+    "innerConflict": "수호단은 봉인부를 팔아 유지비를 벌려 하고 이리는 그것을 팔 수 없다고 믿는다",
+    "currentProblem": "분지 쪽 잔재가 마르면서 이끼 군락이 줄고 있다",
+    "traits": {
+      "riskTolerance": 45,
+      "curiosity": 55,
+      "loyalty": 85,
+      "greed": 10,
+      "empathy": 70,
+      "vengefulness": 30,
+      "patience": 80,
+      "deceptionPreference": 20,
+      "uncertaintyAversion": 45,
+      "impulsiveness": 25
+    },
+    "goalGraphId": "goal_graph.warden",
+    "abilityIds": [
+      "ability.veil_mending"
+    ],
+    "homeLocationId": "location.old_shrine",
+    "tags": [
+      "living",
+      "human",
+      "warden",
+      "ability_user"
+    ],
+    "states": {
+      "health": 68,
+      "energy": 60,
+      "hunger": 30,
+      "fear": 20,
+      "social_status": 40,
+      "devotion": 82,
+      "mental_stamina": 92,
+      "ability_id": "ability.veil_mending"
+    },
+    "relationships": [
+      {
+        "toId": "agent.rion",
+        "trust": 45,
+        "respect": 40
+      },
+      {
+        "toId": "agent.sol",
+        "trust": 60,
+        "familiarity": 70
+      },
+      {
+        "toId": "faction.veil_wardens",
+        "trust": 70,
+        "dependency": 60
+      }
+    ],
+    "beliefs": [
+      {
+        "subjectId": "faction.crown_bureau",
+        "stateKey": "crystal_reserve",
+        "believedValue": 80,
+        "confidence": 0.4,
+        "sourceIds": [
+          "rumor.mine_output"
+        ]
+      }
+    ]
+  },
+  "agents/agent.noa": {
+    "id": "agent.noa",
+    "name": "치유사 노아",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "마을 치유사",
+    "origin": "약초를 다루던 어머니에게 배웠다",
+    "formativeEvent": "약이 떨어진 겨울에 세 사람을 차례로 잃었다",
+    "values": [
+      "먼저 온 사람부터",
+      "값을 매기지 않는 것"
+    ],
+    "fears": [
+      "약이 떨어지는 것",
+      "거절해야 하는 순간"
+    ],
+    "innerConflict": "거절하지 못하는 제약이 노아 자신을 갉는다",
+    "currentProblem": "숲이 위험해져 약초를 구하러 갈 사람이 없다",
+    "traits": {
+      "riskTolerance": 40,
+      "curiosity": 50,
+      "loyalty": 70,
+      "greed": 10,
+      "empathy": 90,
+      "vengefulness": 20,
+      "patience": 75,
+      "deceptionPreference": 10,
+      "uncertaintyAversion": 40,
+      "impulsiveness": 35
+    },
+    "goalGraphId": "goal_graph.healer",
+    "abilityIds": [
+      "ability.borrowed_pain"
+    ],
+    "homeLocationId": "location.village_square",
+    "tags": [
+      "living",
+      "human",
+      "healer",
+      "villager",
+      "ability_user"
+    ],
+    "states": {
+      "health": 72,
+      "energy": 64,
+      "hunger": 28,
+      "fear": 16,
+      "social_status": 55,
+      "carried_herb": 14,
+      "mental_stamina": 85,
+      "ability_id": "ability.borrowed_pain"
+    },
+    "relationships": [
+      {
+        "toId": "agent.mar",
+        "trust": 50,
+        "familiarity": 60
+      },
+      {
+        "toId": "agent.kael",
+        "trust": 55,
+        "affection": 30
+      },
+      {
+        "toId": "faction.silent_village",
+        "trust": 60,
+        "dependency": 50
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.pell": {
+    "id": "agent.pell",
+    "name": "채집조 펠",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "숲 채집조",
+    "origin": "채집조로 들어와 숲만 다녔다",
+    "formativeEvent": "숲에서 동료를 잃고 혼자 돌아왔다",
+    "values": [
+      "살아 돌아오는 것"
+    ],
+    "fears": [
+      "숲의 어둠",
+      "몫에서 밀리는 것"
+    ],
+    "innerConflict": "원로회는 더 깊이 들어가라 하고 펠은 그 자리를 안다",
+    "currentProblem": "몫이 줄어 겨울을 넘길 수 없다",
+    "traits": {
+      "riskTolerance": 55,
+      "curiosity": 30,
+      "loyalty": 40,
+      "greed": 35,
+      "empathy": 45,
+      "vengefulness": 50,
+      "patience": 40,
+      "deceptionPreference": 30,
+      "uncertaintyAversion": 60,
+      "impulsiveness": 55
+    },
+    "goalGraphId": "goal_graph.hunter",
+    "abilityIds": [],
+    "homeLocationId": "location.village_square",
+    "tags": [
+      "living",
+      "human",
+      "hunter",
+      "villager"
+    ],
+    "states": {
+      "health": 80,
+      "energy": 72,
+      "hunger": 35,
+      "carried_food": 6,
+      "social_status": 22
+    },
+    "relationships": [
+      {
+        "toId": "faction.silent_village",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.gura": {
+    "id": "agent.gura",
+    "name": "사냥꾼 구라",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "덫 사냥꾼",
+    "origin": "타지에서 흘러들어 덫을 놓고 산다",
+    "formativeEvent": "짐승에게 다리를 물린 뒤 덫만 쓴다",
+    "values": [
+      "자기 몫",
+      "겁먹지 않는 것"
+    ],
+    "fears": [
+      "다시 물리는 것"
+    ],
+    "innerConflict": "마을은 토벌을 원하고 구라는 가죽값을 원한다",
+    "currentProblem": "가죽을 살 사람이 관리국 눈치를 본다",
+    "traits": {
+      "riskTolerance": 75,
+      "curiosity": 25,
+      "loyalty": 45,
+      "greed": 50,
+      "empathy": 25,
+      "vengefulness": 65,
+      "patience": 35,
+      "deceptionPreference": 40,
+      "uncertaintyAversion": 30,
+      "impulsiveness": 65
+    },
+    "goalGraphId": "goal_graph.hunter",
+    "abilityIds": [],
+    "homeLocationId": "location.village_field",
+    "tags": [
+      "living",
+      "human",
+      "hunter",
+      "villager"
+    ],
+    "states": {
+      "health": 88,
+      "energy": 80,
+      "hunger": 30,
+      "carried_food": 18,
+      "social_status": 30
+    },
+    "relationships": [
+      {
+        "toId": "faction.silent_village",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.sabin": {
+    "id": "agent.sabin",
+    "name": "상인 사빈",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "정착 상인",
+    "origin": "교역로 초입에서 가게를 열었다",
+    "formativeEvent": "상단이 습격당해 물건을 전부 잃었다",
+    "values": [
+      "약속한 값",
+      "가게가 남는 것"
+    ],
+    "fears": [
+      "교역로가 막히는 것"
+    ],
+    "innerConflict": "마을은 싸게 사길 원하고 사빈은 값을 지켜야 한다",
+    "currentProblem": "결정 거래에 끼어들지 말지 결정해야 한다",
+    "traits": {
+      "riskTolerance": 35,
+      "curiosity": 40,
+      "loyalty": 55,
+      "greed": 60,
+      "empathy": 40,
+      "vengefulness": 35,
+      "patience": 60,
+      "deceptionPreference": 45,
+      "uncertaintyAversion": 55,
+      "impulsiveness": 30
+    },
+    "goalGraphId": "goal_graph.merchant",
+    "abilityIds": [],
+    "homeLocationId": "location.trade_road",
+    "tags": [
+      "living",
+      "human",
+      "merchant",
+      "villager"
+    ],
+    "states": {
+      "health": 74,
+      "energy": 66,
+      "hunger": 30,
+      "wealth": 210,
+      "carried_goods": 60,
+      "social_status": 48
+    },
+    "relationships": [
+      {
+        "toId": "faction.silent_village",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.torv": {
+    "id": "agent.torv",
+    "name": "원로 토르브",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "원로회 좌장",
+    "origin": "원로회 집안에서 났다",
+    "formativeEvent": "배급을 처음 줄이던 해를 기억한다",
+    "values": [
+      "질서",
+      "원로회의 결정"
+    ],
+    "fears": [
+      "마을이 쪼개지는 것"
+    ],
+    "innerConflict": "촌장의 채굴을 알고도 덮고 있다",
+    "currentProblem": "감독관이 장부를 보자고 한다",
+    "traits": {
+      "riskTolerance": 25,
+      "curiosity": 20,
+      "loyalty": 85,
+      "greed": 40,
+      "empathy": 30,
+      "vengefulness": 45,
+      "patience": 80,
+      "deceptionPreference": 55,
+      "uncertaintyAversion": 75,
+      "impulsiveness": 20
+    },
+    "goalGraphId": "goal_graph.leader",
+    "abilityIds": [],
+    "homeLocationId": "location.village_square",
+    "tags": [
+      "living",
+      "human",
+      "leader",
+      "villager"
+    ],
+    "states": {
+      "health": 62,
+      "energy": 55,
+      "hunger": 24,
+      "social_status": 65,
+      "wealth": 110
+    },
+    "relationships": [
+      {
+        "toId": "faction.silent_village",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.lys": {
+    "id": "agent.lys",
+    "name": "연구원 리스",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.research_society"
+    ],
+    "role": "표본 담당",
+    "origin": "연구회 본부에서 파견됐다",
+    "formativeEvent": "표본을 놓쳐 한 계절의 기록을 잃었다",
+    "values": [
+      "기록이 남는 것"
+    ],
+    "fears": [
+      "기록이 사라지는 것"
+    ],
+    "innerConflict": "현장 조사조는 살아 있는 관찰을 원하고 리스는 표본을 요구받는다",
+    "currentProblem": "표본 하나를 이번 달 안에 확보해야 한다",
+    "traits": {
+      "riskTolerance": 30,
+      "curiosity": 70,
+      "loyalty": 65,
+      "greed": 35,
+      "empathy": 30,
+      "vengefulness": 30,
+      "patience": 70,
+      "deceptionPreference": 30,
+      "uncertaintyAversion": 65,
+      "impulsiveness": 25
+    },
+    "goalGraphId": "goal_graph.researcher",
+    "abilityIds": [],
+    "homeLocationId": "location.research_camp",
+    "tags": [
+      "living",
+      "human",
+      "researcher"
+    ],
+    "states": {
+      "health": 70,
+      "energy": 62,
+      "hunger": 32,
+      "curiosity": 70,
+      "social_status": 40,
+      "carried_residue": 4
+    },
+    "relationships": [
+      {
+        "toId": "faction.research_society",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.ame": {
+    "id": "agent.ame",
+    "name": "조사원 아메",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.research_society"
+    ],
+    "role": "현장 조사조",
+    "origin": "숲 마을 출신으로 길을 잘 안다",
+    "formativeEvent": "둥지 근처에서 반향수와 눈이 마주치고 살아 돌아왔다",
+    "values": [
+      "직접 보는 것"
+    ],
+    "fears": [
+      "보고가 왜곡되는 것"
+    ],
+    "innerConflict": "기록 관리자는 표본을 요구하고 아메는 산 채로 두길 원한다",
+    "currentProblem": "둥지에 더 가까이 갈 방법이 없다",
+    "traits": {
+      "riskTolerance": 70,
+      "curiosity": 80,
+      "loyalty": 45,
+      "greed": 25,
+      "empathy": 55,
+      "vengefulness": 35,
+      "patience": 45,
+      "deceptionPreference": 25,
+      "uncertaintyAversion": 30,
+      "impulsiveness": 60
+    },
+    "goalGraphId": "goal_graph.researcher",
+    "abilityIds": [],
+    "homeLocationId": "location.forest_grove",
+    "tags": [
+      "living",
+      "human",
+      "researcher"
+    ],
+    "states": {
+      "health": 76,
+      "energy": 70,
+      "hunger": 34,
+      "curiosity": 80,
+      "social_status": 32,
+      "carried_residue": 6
+    },
+    "relationships": [
+      {
+        "toId": "faction.research_society",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.quen": {
+    "id": "agent.quen",
+    "name": "감독관보 쿠엔",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.crown_bureau"
+    ],
+    "role": "초소 감독관보",
+    "origin": "관리국 서기에서 올라왔다",
+    "formativeEvent": "상관의 장부 조작을 눈감아 승진했다",
+    "values": [
+      "자리를 지키는 것"
+    ],
+    "fears": [
+      "감사에 걸리는 것"
+    ],
+    "innerConflict": "세라는 규정을 요구하고 쿠엔은 중개인에게 받은 것이 있다",
+    "currentProblem": "장부의 차이를 메워야 한다",
+    "traits": {
+      "riskTolerance": 45,
+      "curiosity": 35,
+      "loyalty": 60,
+      "greed": 65,
+      "empathy": 25,
+      "vengefulness": 45,
+      "patience": 50,
+      "deceptionPreference": 60,
+      "uncertaintyAversion": 50,
+      "impulsiveness": 40
+    },
+    "goalGraphId": "goal_graph.bureau_officer",
+    "abilityIds": [],
+    "homeLocationId": "location.crown_outpost",
+    "tags": [
+      "living",
+      "human",
+      "bureau"
+    ],
+    "states": {
+      "health": 78,
+      "energy": 70,
+      "hunger": 28,
+      "social_status": 52,
+      "wealth": 95
+    },
+    "relationships": [
+      {
+        "toId": "faction.crown_bureau",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.bael": {
+    "id": "agent.bael",
+    "name": "경비 바엘",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.crown_bureau"
+    ],
+    "role": "초소 경비",
+    "origin": "변경 출신 징집병",
+    "formativeEvent": "동료가 밀수 경로에서 죽는 것을 봤다",
+    "values": [
+      "동료",
+      "명령"
+    ],
+    "fears": [
+      "또 혼자 남는 것"
+    ],
+    "innerConflict": "명령은 마을 수색이고 바엘의 가족은 그 마을에 있다",
+    "currentProblem": "수색 명령이 곧 내려온다",
+    "traits": {
+      "riskTolerance": 60,
+      "curiosity": 25,
+      "loyalty": 70,
+      "greed": 30,
+      "empathy": 40,
+      "vengefulness": 55,
+      "patience": 45,
+      "deceptionPreference": 25,
+      "uncertaintyAversion": 40,
+      "impulsiveness": 55
+    },
+    "goalGraphId": "goal_graph.bureau_officer",
+    "abilityIds": [],
+    "homeLocationId": "location.crown_outpost",
+    "tags": [
+      "living",
+      "human",
+      "bureau"
+    ],
+    "states": {
+      "health": 86,
+      "energy": 78,
+      "hunger": 32,
+      "social_status": 28,
+      "wealth": 60
+    },
+    "relationships": [
+      {
+        "toId": "faction.crown_bureau",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.veko": {
+    "id": "agent.veko",
+    "name": "중개인 베코",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.hollow_smugglers"
+    ],
+    "role": "밀수 중개",
+    "origin": "교역로에서 뒷거래로 자랐다",
+    "formativeEvent": "값을 올리려 경로를 막았다가 사람이 죽었다",
+    "values": [
+      "값",
+      "정보"
+    ],
+    "fears": [
+      "경로가 전부 막히는 것"
+    ],
+    "innerConflict": "운반조는 안전한 경로를 원하고 베코는 값이 되는 경로를 원한다",
+    "currentProblem": "관리국 감독관보에게 준 것이 들통날 참이다",
+    "traits": {
+      "riskTolerance": 50,
+      "curiosity": 40,
+      "loyalty": 35,
+      "greed": 85,
+      "empathy": 15,
+      "vengefulness": 50,
+      "patience": 55,
+      "deceptionPreference": 85,
+      "uncertaintyAversion": 45,
+      "impulsiveness": 35
+    },
+    "goalGraphId": "goal_graph.smuggler",
+    "abilityIds": [],
+    "homeLocationId": "location.trade_road",
+    "tags": [
+      "living",
+      "human",
+      "smuggler"
+    ],
+    "states": {
+      "health": 72,
+      "energy": 64,
+      "hunger": 30,
+      "wealth": 260,
+      "social_status": 26
+    },
+    "relationships": [
+      {
+        "toId": "faction.hollow_smugglers",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.mira": {
+    "id": "agent.mira",
+    "name": "운반조 미라",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.hollow_smugglers"
+    ],
+    "role": "경로 운반",
+    "origin": "분지 갱도 마을에서 났다",
+    "formativeEvent": "첫 운반에서 짐을 버리고 사람을 업고 나왔다",
+    "values": [
+      "같이 나오는 것"
+    ],
+    "fears": [
+      "갱도가 무너지는 것"
+    ],
+    "innerConflict": "중개인은 위험한 경로를 지시하고 미라는 그 길에서 사람을 잃었다",
+    "currentProblem": "다음 운반의 경로를 정해야 한다",
+    "traits": {
+      "riskTolerance": 80,
+      "curiosity": 50,
+      "loyalty": 65,
+      "greed": 40,
+      "empathy": 50,
+      "vengefulness": 35,
+      "patience": 30,
+      "deceptionPreference": 55,
+      "uncertaintyAversion": 25,
+      "impulsiveness": 75
+    },
+    "goalGraphId": "goal_graph.smuggler",
+    "abilityIds": [],
+    "homeLocationId": "location.ash_flats",
+    "tags": [
+      "living",
+      "human",
+      "smuggler"
+    ],
+    "states": {
+      "health": 80,
+      "energy": 76,
+      "hunger": 36,
+      "wealth": 70,
+      "social_status": 20
+    },
+    "relationships": [
+      {
+        "toId": "faction.hollow_smugglers",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.sol": {
+    "id": "agent.sol",
+    "name": "순찰 솔",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.veil_wardens"
+    ],
+    "role": "숲 순찰조",
+    "origin": "채집조에서 수호단으로 옮겼다",
+    "formativeEvent": "이끼 웅덩이가 마르는 것을 두 해에 걸쳐 지켜봤다",
+    "values": [
+      "숲",
+      "동료"
+    ],
+    "fears": [
+      "숲이 마르는 것"
+    ],
+    "innerConflict": "사당 지기는 봉인을 고수하고 솔은 사람들을 막으려면 힘이 필요하다고 믿는다",
+    "currentProblem": "채굴꾼이 이끼 웅덩이까지 들어왔다",
+    "traits": {
+      "riskTolerance": 65,
+      "curiosity": 45,
+      "loyalty": 75,
+      "greed": 15,
+      "empathy": 60,
+      "vengefulness": 40,
+      "patience": 55,
+      "deceptionPreference": 20,
+      "uncertaintyAversion": 35,
+      "impulsiveness": 50
+    },
+    "goalGraphId": "goal_graph.warden",
+    "abilityIds": [],
+    "homeLocationId": "location.moss_hollow",
+    "tags": [
+      "living",
+      "human",
+      "warden"
+    ],
+    "states": {
+      "health": 82,
+      "energy": 74,
+      "hunger": 32,
+      "devotion": 60,
+      "social_status": 30
+    },
+    "relationships": [
+      {
+        "toId": "faction.veil_wardens",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  },
+  "agents/agent.edda": {
+    "id": "agent.edda",
+    "name": "약초꾼 에다",
+    "speciesId": "species.human",
+    "factionIds": [
+      "faction.silent_village"
+    ],
+    "role": "약초 채집",
+    "origin": "숲 채집조에서 약초만 맡게 됐다",
+    "formativeEvent": "약초를 구하러 간 사이 아이를 잃었다",
+    "values": [
+      "아픈 사람 곁"
+    ],
+    "fears": [
+      "약초가 없는 계절"
+    ],
+    "innerConflict": "마을은 식량을 먼저 구하라 하고 에다는 약초를 놓을 수 없다",
+    "currentProblem": "약초 자리가 이끼에 덮여 줄고 있다",
+    "traits": {
+      "riskTolerance": 50,
+      "curiosity": 55,
+      "loyalty": 55,
+      "greed": 25,
+      "empathy": 75,
+      "vengefulness": 25,
+      "patience": 65,
+      "deceptionPreference": 15,
+      "uncertaintyAversion": 50,
+      "impulsiveness": 40
+    },
+    "goalGraphId": "goal_graph.healer",
+    "abilityIds": [],
+    "homeLocationId": "location.forest_grove",
+    "tags": [
+      "living",
+      "human",
+      "healer",
+      "villager"
+    ],
+    "states": {
+      "health": 70,
+      "energy": 62,
+      "hunger": 34,
+      "carried_herb": 8,
+      "social_status": 34
+    },
+    "relationships": [
+      {
+        "toId": "faction.silent_village",
+        "trust": 45,
+        "dependency": 40
+      }
+    ],
+    "beliefs": []
+  }
+}

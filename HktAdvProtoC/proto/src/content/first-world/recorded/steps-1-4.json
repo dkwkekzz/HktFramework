@@ -1,0 +1,1425 @@
+{
+  "normalize_themes": [
+    {
+      "id": "theme.sustain_what_matters",
+      "source": "모든 생명은 자신이 중요하게 여기는 존재를 지속시키려 한다.",
+      "subject": "living_being",
+      "behavior": "sustain_valued_existence",
+      "desiredState": "valued_existence_persists",
+      "threat": "loss_of_valued_existence",
+      "scope": "world"
+    },
+    {
+      "id": "theme.restriction_grants_power",
+      "source": "인간은 자신의 욕망에 명확한 제약을 걸어 초월적인 능력을 사용할 수 있다.",
+      "subject": "human",
+      "condition": "self_imposed_restriction_on_desire",
+      "behavior": "use_transcendent_ability",
+      "cost": "restriction_binds_the_user",
+      "scope": "species"
+    },
+    {
+      "id": "theme.strong_restriction_strong_backlash",
+      "source": "강한 제약은 강한 능력을 만들지만, 제약을 어기면 심각한 반동을 받는다.",
+      "subject": "ability",
+      "condition": "restriction_strength",
+      "desiredState": "ability_output_scales_with_restriction",
+      "cost": "severe_backlash_on_violation",
+      "scope": "individual"
+    },
+    {
+      "id": "theme.wilds_absorb_traces",
+      "source": "문명 밖에는 능력의 흔적을 흡수해 적응하는 생물들이 존재한다.",
+      "subject": "wild_creature",
+      "condition": "ability_residue_present",
+      "behavior": "absorb_and_adapt",
+      "threat": "unknown_adaptive_life_outside_civilization",
+      "scope": "species"
+    },
+    {
+      "id": "theme.danger_holds_growth",
+      "source": "위험한 지역에서만 능력을 성장시킬 희귀 자원을 얻을 수 있다.",
+      "subject": "world_resource_distribution",
+      "condition": "high_environmental_danger",
+      "desiredState": "rare_growth_resources_only_in_danger",
+      "scope": "world"
+    }
+  ],
+  "axioms": [
+    {
+      "id": "axiom.life_must_be_sustained",
+      "statement": "모든 생명은 자신의 몸과 에너지를 유지해야 한다. 유지에 실패하면 소멸한다.",
+      "category": "survival",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.sustain_what_matters"
+      ]
+    },
+    {
+      "id": "axiom.life_protects_what_it_values",
+      "statement": "모든 생명은 자신이 생존 단위로 인식하는 대상을 지속시키려 한다.",
+      "category": "survival",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.sustain_what_matters"
+      ]
+    },
+    {
+      "id": "axiom.power_restriction",
+      "statement": "인간의 초월적 능력은 스스로 받아들인 제약에 의해 증폭된다.",
+      "category": "power",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.restriction_grants_power"
+      ]
+    },
+    {
+      "id": "axiom.power_cost",
+      "statement": "강한 능력은 강한 제약을 요구하고, 제약을 어기면 반동이 돌아온다.",
+      "category": "cost",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.strong_restriction_strong_backlash",
+        "theme.restriction_grants_power"
+      ]
+    },
+    {
+      "id": "axiom.dangerous_places_are_rich",
+      "statement": "위험이 높은 지역일수록 희귀한 생명과 자원이 존재할 가능성이 높다.",
+      "category": "ecology",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.danger_holds_growth"
+      ]
+    },
+    {
+      "id": "axiom.creatures_absorb_ability_residue",
+      "statement": "문명 밖의 생물은 능력이 남긴 흔적을 흡수해 자신을 적응시킨다.",
+      "category": "ecology",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.wilds_absorb_traces"
+      ]
+    },
+    {
+      "id": "axiom.scarcity_creates_exchange",
+      "statement": "희소한 자원은 그것을 필요로 하는 주체들 사이에 교환과 통제를 만든다.",
+      "category": "society",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.danger_holds_growth",
+        "theme.sustain_what_matters"
+      ]
+    },
+    {
+      "id": "axiom.organizations_act_on_reports",
+      "statement": "조직은 세계를 직접 보지 못한다. 구성원의 보고가 조직의 판단 근거다.",
+      "category": "information",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.sustain_what_matters"
+      ]
+    },
+    {
+      "id": "axiom.belief_drives_behavior",
+      "statement": "주체는 실제 상태가 아니라 자신이 믿는 상태에 따라 판단한다.",
+      "category": "information",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.sustain_what_matters"
+      ]
+    },
+    {
+      "id": "axiom.actions_leave_signs",
+      "statement": "모든 행동은 관찰 가능한 흔적을 남긴다. 흔적은 사라지지만 즉시 사라지지는 않는다.",
+      "category": "information",
+      "immutable": true,
+      "derivedFrom": [
+        "theme.wilds_absorb_traces",
+        "theme.restriction_grants_power"
+      ]
+    }
+  ],
+  "pressures": [
+    {
+      "id": "pressure.body_maintenance",
+      "targetState": "몸이 굶주리지 않고 상하지 않은 채로 유지된다.",
+      "failureState": "굶주림과 상처가 겹쳐 움직일 수 없게 된다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "human",
+        "creature"
+      ],
+      "relatedResources": [
+        "resource.food"
+      ],
+      "goalId": "goal.survive",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "hunger"
+          },
+          "operator": "<",
+          "right": {
+            "kind": "const",
+            "value": 35
+          }
+        },
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "health"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 70
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.energy_supply",
+      "targetState": "당장 먹을 것을 손에 쥐고 있다.",
+      "failureState": "사냥할 힘이 남기 전에 식량이 떨어진다.",
+      "urgencyGrowth": 0.4,
+      "applicableSpeciesTags": [
+        "hunter"
+      ],
+      "relatedResources": [
+        "resource.food"
+      ],
+      "goalId": "goal.secure_food",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "carried_food"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 20
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.safety",
+      "targetState": "당장 자신을 해칠 것이 곁에 없다.",
+      "failureState": "위협을 인지한 채로 계속 노출된다.",
+      "urgencyGrowth": 0.2,
+      "applicableSpeciesTags": [
+        "human",
+        "creature"
+      ],
+      "relatedResources": [],
+      "goalId": "goal.avoid_threat",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "fear"
+          },
+          "operator": "<",
+          "right": {
+            "kind": "const",
+            "value": 25
+          }
+        }
+      ],
+      "maxUrgency": 20
+    },
+    {
+      "id": "pressure.exchange_role",
+      "targetState": "거래로 자기 자리를 지탱한다.",
+      "failureState": "거래가 끊겨 마을에서의 쓸모가 사라진다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "merchant"
+      ],
+      "relatedResources": [
+        "resource.trade_goods"
+      ],
+      "goalId": "goal.profit",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "wealth"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 220
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.group_continuity",
+      "targetState": "마을의 비축이 겨울을 넘긴다.",
+      "failureState": "마을이 흩어진다.",
+      "urgencyGrowth": 0.35,
+      "applicableSpeciesTags": [
+        "leader"
+      ],
+      "relatedResources": [
+        "resource.food"
+      ],
+      "goalId": "goal.village_food_security",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "entity_state",
+            "entityId": "faction.silent_village",
+            "key": "food_reserve"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 70
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.information",
+      "targetState": "저 생물이 무엇인지 안다.",
+      "failureState": "모르는 채로 마을이 먼저 움직인다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "researcher"
+      ],
+      "relatedResources": [
+        "resource.ability_residue"
+      ],
+      "goalId": "goal.understand_creature",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "known_threat_level"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 70
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.territory",
+      "targetState": "둥지 주변에 다른 것이 들어오지 않는다.",
+      "failureState": "새끼가 있는 자리가 노출된다.",
+      "urgencyGrowth": 0.5,
+      "applicableSpeciesTags": [
+        "echo_beast"
+      ],
+      "relatedResources": [
+        "resource.ability_residue"
+      ],
+      "goalId": "goal.protect_offspring",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "territory_pressure"
+          },
+          "operator": "<",
+          "right": {
+            "kind": "const",
+            "value": 20
+          }
+        }
+      ],
+      "maxUrgency": 35
+    },
+    {
+      "id": "pressure.faction_reserve",
+      "targetState": "조직의 비축이 요구 수준을 넘는다.",
+      "failureState": "비축이 마르고 구성원이 떠난다.",
+      "urgencyGrowth": 0.4,
+      "applicableSpeciesTags": [
+        "village"
+      ],
+      "relatedResources": [
+        "resource.food"
+      ],
+      "goalId": "goal.faction_food_security",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "food_reserve"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 90
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.faction_knowledge",
+      "targetState": "연구회가 표본과 기록을 계속 얻는다.",
+      "failureState": "연구가 멈추고 존재 이유가 사라진다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "research"
+      ],
+      "relatedResources": [
+        "resource.ability_residue"
+      ],
+      "goalId": "goal.faction_research",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "research_progress"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 60
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.authority",
+      "targetState": "결정 유통이 관리국의 통제 아래 있다.",
+      "failureState": "통제 밖으로 결정이 새어 나가 관리국의 존재 이유가 사라진다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "bureau"
+      ],
+      "relatedResources": [
+        "resource.will_crystal"
+      ],
+      "goalId": "goal.enforce_control",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "entity_state",
+            "entityId": "faction.crown_bureau",
+            "key": "enforcement"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 55
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.contraband_income",
+      "targetState": "밀수로 손에 쥔 것이 남아 있다.",
+      "failureState": "빚만 남고 팔 물건이 없다.",
+      "urgencyGrowth": 0.4,
+      "applicableSpeciesTags": [
+        "smuggler"
+      ],
+      "relatedResources": [
+        "resource.will_crystal"
+      ],
+      "goalId": "goal.smuggle_profit",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "wealth"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 200
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.ecosystem",
+      "targetState": "숲이 스스로 회복할 수 있는 상태로 남는다.",
+      "failureState": "잔재가 마르고 숲이 되돌아오지 못한다.",
+      "urgencyGrowth": 0.35,
+      "applicableSpeciesTags": [
+        "warden"
+      ],
+      "relatedResources": [
+        "resource.ability_residue",
+        "resource.veil_moss_fiber"
+      ],
+      "goalId": "goal.protect_ecosystem",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "entity_state",
+            "entityId": "region.hollow_basin",
+            "key": "ecosystem_health"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 70
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.care",
+      "targetState": "돌봐야 할 사람이 앓지 않는다.",
+      "failureState": "눈앞의 사람을 잃는다.",
+      "urgencyGrowth": 0.3,
+      "applicableSpeciesTags": [
+        "healer"
+      ],
+      "relatedResources": [
+        "resource.medicine",
+        "resource.herb"
+      ],
+      "goalId": "goal.heal_wounded",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "stress"
+          },
+          "operator": "<",
+          "right": {
+            "kind": "const",
+            "value": 30
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.hive_continuity",
+      "targetState": "군체의 수가 줄지 않는다.",
+      "failureState": "군체가 흩어져 되돌아오지 못한다.",
+      "urgencyGrowth": 0.6,
+      "applicableSpeciesTags": [
+        "hollow_swarm"
+      ],
+      "relatedResources": [
+        "resource.residue_ash"
+      ],
+      "goalId": "goal.expand_hive",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "energy"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 60
+          }
+        }
+      ],
+      "maxUrgency": 35
+    },
+    {
+      "id": "pressure.ability_integrity",
+      "targetState": "스스로 건 제약이 깨지지 않은 채로 있다.",
+      "failureState": "제약이 깨져 능력과 기억이 함께 무너진다.",
+      "urgencyGrowth": 0.25,
+      "applicableSpeciesTags": [
+        "ability_user"
+      ],
+      "relatedResources": [
+        "resource.will_crystal"
+      ],
+      "goalId": "goal.keep_restriction",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "restriction_valid"
+          },
+          "operator": "==",
+          "right": {
+            "kind": "const",
+            "value": true
+          }
+        },
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "memory_integrity"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 60
+          }
+        }
+      ],
+      "maxUrgency": 25
+    },
+    {
+      "id": "pressure.faction_control",
+      "targetState": "관리국의 결정 비축이 요구 수준을 넘는다.",
+      "failureState": "비축이 마르고 통제력이 무너진다.",
+      "urgencyGrowth": 0.35,
+      "applicableSpeciesTags": [
+        "bureau_faction"
+      ],
+      "relatedResources": [
+        "resource.will_crystal"
+      ],
+      "goalId": "goal.faction_control",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "crystal_reserve"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 60
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.faction_contraband",
+      "targetState": "밀수 경로가 살아 있다.",
+      "failureState": "경로가 막혀 조직이 흩어진다.",
+      "urgencyGrowth": 0.4,
+      "applicableSpeciesTags": [
+        "smuggler_faction"
+      ],
+      "relatedResources": [
+        "resource.will_crystal"
+      ],
+      "goalId": "goal.faction_contraband",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "contraband_flow"
+          },
+          "operator": ">",
+          "right": {
+            "kind": "const",
+            "value": 40
+          }
+        }
+      ],
+      "maxUrgency": 30
+    },
+    {
+      "id": "pressure.faction_ecology",
+      "targetState": "숲의 훼손이 멈춘다.",
+      "failureState": "지킬 것이 남지 않아 집단의 이유가 사라진다.",
+      "urgencyGrowth": 0.35,
+      "applicableSpeciesTags": [
+        "warden_faction"
+      ],
+      "relatedResources": [
+        "resource.ability_residue"
+      ],
+      "goalId": "goal.faction_ecology",
+      "relievedWhen": [
+        {
+          "left": {
+            "kind": "state",
+            "owner": "actor",
+            "key": "ecology_alarm"
+          },
+          "operator": "<",
+          "right": {
+            "kind": "const",
+            "value": 30
+          }
+        }
+      ],
+      "maxUrgency": 30
+    }
+  ],
+  "state_schemas": [
+    {
+      "id": "food_price",
+      "ownerType": "world",
+      "dataType": "number",
+      "defaultValue": 20,
+      "min": 0,
+      "max": 200,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "health",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 80,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "energy",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 70,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "hunger",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 20,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "fear",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 10,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "sight",
+        "talk"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "curiosity",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 40,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "social_status",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 40,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "known_threat_level",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "aggression",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 10,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "sight",
+        "sound"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "offspring_threat",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "protecting_offspring",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "trace",
+        "energy_sense"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "territory_pressure",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "recent_presence",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "trace",
+        "smell"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "carried_food",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 200,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "carried_goods",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 200,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "carried_residue",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "wealth",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 1000,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "species_id",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "faction_id",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "goal_graph_id",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "current_action",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "active_goal",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "survivalPressure",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "derived"
+    },
+    {
+      "id": "stress",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "derived"
+    },
+    {
+      "id": "food_reserve",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 50,
+      "min": 0,
+      "max": 500,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "fear",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 10,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "threat_belief",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "updatePolicy": "event",
+      "observationChannels": [
+        "talk",
+        "report"
+      ]
+    },
+    {
+      "id": "subjugation_ordered",
+      "ownerType": "faction",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "research_progress",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "member_count",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 1,
+      "min": 0,
+      "max": 500,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "danger",
+      "ownerType": "region",
+      "dataType": "number",
+      "defaultValue": 10,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "food_abundance",
+      "ownerType": "region",
+      "dataType": "number",
+      "defaultValue": 100,
+      "min": 0,
+      "max": 1000,
+      "observable": false,
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "ability_residue",
+      "ownerType": "region",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 1000,
+      "observable": false,
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "danger",
+      "ownerType": "location",
+      "dataType": "number",
+      "defaultValue": 5,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "shelter_quality",
+      "ownerType": "location",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "amount",
+      "ownerType": "resource",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 500,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "continuous"
+    },
+    {
+      "id": "resource_id",
+      "ownerType": "resource",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "regrowth",
+      "ownerType": "resource",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "promise_broken",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "delegated_goal",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "delegated_by",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "delegation_completed",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "goal_graph_id",
+      "ownerType": "faction",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "current_action",
+      "ownerType": "faction",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "active_goal",
+      "ownerType": "faction",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "collapsed",
+      "ownerType": "faction",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "parent_faction",
+      "ownerType": "faction",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "crisis",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "derived"
+    },
+    {
+      "id": "starving_days",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "reported_threat",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "mental_stamina",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 100,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "memory_integrity",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 100,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "ability_output",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 1000,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "ability_active",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "sight",
+        "energy_sense"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "restriction_valid",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": true,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "restriction_violated",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "sight",
+        "talk"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "ability_id",
+      "ownerType": "agent",
+      "dataType": "string",
+      "defaultValue": "",
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "carried_crystal",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 500,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "contraband",
+      "ownerType": "agent",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": true,
+      "observationChannels": [
+        "trace",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "wanted_level",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "report",
+        "talk"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "carried_herb",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 200,
+      "observable": true,
+      "observationChannels": [
+        "sight"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "devotion",
+      "ownerType": "agent",
+      "dataType": "number",
+      "defaultValue": 40,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "crystal_reserve",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 500,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "enforcement",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 30,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "contraband_flow",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "ecology_alarm",
+      "ownerType": "faction",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 100,
+      "observable": true,
+      "observationChannels": [
+        "talk",
+        "report"
+      ],
+      "updatePolicy": "event"
+    },
+    {
+      "id": "ecosystem_health",
+      "ownerType": "region",
+      "dataType": "number",
+      "defaultValue": 100,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "crystal_density",
+      "ownerType": "region",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 1000,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "residue_density",
+      "ownerType": "location",
+      "dataType": "number",
+      "defaultValue": 0,
+      "min": 0,
+      "max": 500,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "guarded",
+      "ownerType": "location",
+      "dataType": "boolean",
+      "defaultValue": false,
+      "observable": false,
+      "updatePolicy": "event"
+    },
+    {
+      "id": "purity",
+      "ownerType": "resource",
+      "dataType": "number",
+      "defaultValue": 50,
+      "min": 0,
+      "max": 100,
+      "observable": false,
+      "updatePolicy": "event"
+    }
+  ]
+}

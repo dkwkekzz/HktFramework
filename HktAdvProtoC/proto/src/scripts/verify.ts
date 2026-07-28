@@ -31,6 +31,17 @@ import {
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
 import { buildManualWorld } from "../content/manual-world";
+import { FIRST_WORLD_CORPUS, FIRST_WORLD_ID, FIRST_WORLD_SEED_INPUT } from "../content/first-world";
+import { compileWorld } from "../generation/CompilerPipeline";
+import { PROTOTYPE_SCALE } from "../generation/GenerationTypes";
+import {
+  checkFirstWorldItems,
+  checkScale,
+  costsGrowWithOutput,
+  summarizeAbilities,
+} from "../generation/phase5Checks";
+import { RecordedTextGenerationPort } from "../generation/RecordedTextGenerationPort";
+import { MAX_INPUT_BYTES } from "../generation/TextGenerationPort";
 import type { RawWorldChange } from "../shared/change";
 import { hashValue } from "../shared/hash";
 import { TICKS_PER_DAY, tickToDay } from "../shared/time";
@@ -67,13 +78,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3 | 4;
+  phase: 1 | 2 | 3 | 4 | 5;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 | 4 = 1;
+let phase: 1 | 2 | 3 | 4 | 5 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -488,8 +499,99 @@ check(
   `시드 ${worldSeed} 사건 ${events.length}건 해시 ${eventHash} · 재실행 ${eventsAgain.length}건 ${hashValue(eventsAgain)} · 시드 ${worldSeed + 1} ${eventsOther.length}건 ${hashValue(eventsOther)}`,
 );
 
+// =====================================================================================
+// Phase 5 — 세계 생성 컴파일러 (§42-5)
+// =====================================================================================
+phase = 5;
+
+const generationPort = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS);
+const compiled = await compileWorld({
+  port: generationPort,
+  seedInput: FIRST_WORLD_SEED_INPUT,
+  worldSeed,
+  worldId: FIRST_WORLD_ID,
+});
+const generated = compiled.definition;
+
+// --- DoD 1 : §41 의 5개 주제 입력에서 §41 의 10항목이 생성된다 --------------------------
+const firstWorldItems = checkFirstWorldItems(generated);
+check(
+  firstWorldItems.every((item) => item.ok),
+  `§41 다섯 문장 → 10항목 자동 생성 (${firstWorldItems.filter((i) => i.ok).length}/${firstWorldItems.length})`,
+  firstWorldItems.map((item) => `\n      ${item.ok ? "✓" : "✗"} ${item.item}: ${item.evidence}`).join(""),
+);
+
+// --- DoD 2 : §40 규모 표 --------------------------------------------------------------
+const scaleRows = checkScale(generated, PROTOTYPE_SCALE);
+check(
+  scaleRows.every((row) => row.ok),
+  `§40 규모 표 충족 (${scaleRows.filter((r) => r.ok).length}/${scaleRows.length})`,
+  scaleRows.map((row) => `${row.ok ? "" : "✗"}${row.item} ${row.actual}/${row.target}`).join(" · "),
+);
+
+// --- DoD 3 : 생성된 세계가 수정 없이 로드되어 30일 실행된다 -----------------------------
+const generatedHost = new InlineHost();
+const initResponses = await generatedHost.request({
+  type: "initialize_world",
+  worldSeed,
+  definition: generated,
+});
+const initError = initResponses.find((response) => response.type === "error");
+await generatedHost.request({ type: "advance_time", amount: days * TICKS_PER_DAY });
+const generatedRuntime = generatedHost.server.inspectRuntime();
+const generatedEvents = generatedRuntime === undefined ? [] : eventsBySignificance(generatedRuntime);
+const generatedPatterns =
+  generatedRuntime === undefined ? [] : eventCountsByPattern(generatedRuntime).filter((entry) => entry.count > 0);
+const generatedActors = new Set(
+  (generatedRuntime?.state.changeLog ?? []).map((change) => change.sourceId).filter((id) => id !== undefined),
+);
+check(
+  initError === undefined && generatedRuntime !== undefined && generatedEvents.length > 0,
+  `생성 정의를 손대지 않고 런타임에 올려 ${days}일 실행 (검증 이슈 ${compiled.issues.length}건)`,
+  generatedRuntime === undefined
+    ? `초기화 실패: ${initError !== undefined && initError.type === "error" ? initError.message.split("\n")[0] : "런타임 없음"}`
+    : `개체 ${Object.keys(generatedRuntime.state.entities).length}개 · 행동 주체 ${generatedActors.size}명 · change ${generatedRuntime.state.changeLog.length}건 · ` +
+      `사건 ${generatedEvents.length}건 [${generatedPatterns.map((p) => `${p.patternId.replace("pattern.", "")}:${p.count}`).join(" ")}]`,
+);
+
+// --- DoD 4 : 능력이 개인의 욕망·경험·제약에서 파생되고 대가를 갖는다 (§16, §44-11) -------
+const abilityRows = summarizeAbilities(generated.abilitySystem?.abilities ?? []);
+check(
+  abilityRows.length === PROTOTYPE_SCALE.abilityUsers &&
+    abilityRows.every((row) => row.restrictions > 0 && row.hasBacklash) &&
+    costsGrowWithOutput(abilityRows),
+  "능력 5개가 욕망에서 파생 · 전부 제약과 실패 반동을 가짐 · 출력이 클수록 대가가 큼",
+  abilityRows
+    .map((row) => `${row.id.replace("ability.", "")}(${row.owner.replace("agent.", "")}) 출력 ${row.output}/대가 ${row.costWeight}/제약 ${row.restrictions}종 ← "${row.derivedFrom}"`)
+    .join("\n      "),
+);
+
+// --- DoD 5 : 모든 생성 호출이 구조화 입력만 받는다 (§33) ---------------------------------
+check(
+  compiled.telemetry.violations.length === 0 && generationPort.maxInputBytes < MAX_INPUT_BYTES,
+  "생성 호출에 월드 상태 전체가 실리지 않는다 (구조화 입력 계약)",
+  `호출 ${generationPort.calls.length}회 · 최대 입력 ${generationPort.maxInputBytes}B (상한 ${MAX_INPUT_BYTES}B) · 위반 ${compiled.telemetry.violations.length}건 · ` +
+    `평균 ${Math.round(generationPort.calls.reduce((sum, call) => sum + call.inputBytes, 0) / generationPort.calls.length)}B`,
+);
+
+// --- DoD 6 : mock 포트로 파이프라인 전체가 오프라인 실행된다 ------------------------------
+const stepsOk = compiled.steps.filter((step) => step.status !== "failed").length;
+const resumed = await compileWorld({
+  port: new RecordedTextGenerationPort({}), // 녹화 없는 포트 — 전부 아티팩트에서 재개된다
+  seedInput: FIRST_WORLD_SEED_INPUT,
+  worldSeed,
+  worldId: FIRST_WORLD_ID,
+  resumeFrom: compiled.artifacts,
+});
+check(
+  stepsOk === 15 && resumed.issues.length === 0 && hashValue(resumed.definition) === hashValue(generated),
+  "15단계 전부 오프라인 실행 · 아티팩트에서 재개하면 같은 세계",
+  `단계 ${stepsOk}/15 · 생성 호출 ${generationPort.calls.length}회(재시도 ${generationPort.calls.filter((c) => c.hadPreviousErrors).length}회) · ` +
+    `아티팩트 ${compiled.artifacts.list().length}개 · 재개 시 호출 0회, 정의 해시 ${hashValue(resumed.definition)} 동일`,
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3, 4] as const) {
+for (const current of [1, 2, 3, 4, 5] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
@@ -498,7 +600,9 @@ for (const current of [1, 2, 3, 4] as const) {
         ? "Phase 2 완료 조건 — 규칙 DSL"
         : current === 3
           ? "Phase 3 완료 조건 — 주체 판단"
-          : "Phase 4 완료 조건 — 사건 탐지";
+          : current === 4
+            ? "Phase 4 완료 조건 — 사건 탐지"
+            : "Phase 5 완료 조건 — 세계 생성 컴파일러";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);
