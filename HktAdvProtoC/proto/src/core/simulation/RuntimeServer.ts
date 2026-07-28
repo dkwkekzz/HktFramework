@@ -1,10 +1,15 @@
 // RuntimeServer — §38 프로토콜 요청을 처리하는 시뮬레이션 측 단일 진입점.
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
+import { buildManualWorld } from "../../content/manual-world";
 import type { WorkerRequest, WorkerResponse } from "../../shared/protocol";
-import { TICKS_PER_DAY } from "../../shared/time";
-import { createEmptyWorldDefinition, type WorldDefinition } from "../world/types";
+import { HANDWRITTEN_RULES } from "../rules/HandwrittenRules";
+import { RuleRegistry } from "../rules/RuleRegistry";
+import { bootstrapWorld } from "../world/WorldBootstrap";
+import { validateWorldDefinition } from "../world/WorldValidation";
+import type { WorldDefinition } from "../world/types";
 import { WorldRuntime, type RuntimeSnapshot } from "../world/WorldRuntime";
 import { SimulationLoop, type RuntimeHooks } from "./SimulationLoop";
+import { createWorldSystems } from "./WorldSystems";
 
 export interface WorldSnapshotDocument {
   definitionId: string;
@@ -13,36 +18,22 @@ export interface WorldSnapshotDocument {
   afterLogSeq: number;
 }
 
-// Phase 0 임시 심장박동: 빈 세계에서도 스케줄러·patch·RNG 결정론을 검증할 최소 이벤트.
-// Phase 1 의 실제 콘텐츠(규칙 interval)가 들어오면 제거한다.
-const HEARTBEAT_EVENT = "world_heartbeat";
-
-function registerBuiltinHandlers(loop: SimulationLoop): void {
-  loop.registerHandler(HEARTBEAT_EVENT, (runtime, event) => {
-    const count = (runtime.state.globalStates["heartbeatCount"] as number | undefined) ?? 0;
-    runtime.setGlobal("heartbeatCount", count + 1);
-    runtime.setGlobal("lastOmen", runtime.rngFor("world").nextUint32());
-    runtime.scheduler.schedule({
-      ...event,
-      id: `heartbeat.${count + 1}`,
-      executeAt: event.executeAt + TICKS_PER_DAY,
-    });
-  });
-}
-
 export class RuntimeServer {
   private runtime: WorldRuntime | undefined;
-  private loop: SimulationLoop;
+  private loop: SimulationLoop | undefined;
+  private readonly rules = new RuleRegistry(HANDWRITTEN_RULES);
   /** 상태를 변경한 입력의 누적 개수 — 스냅샷·이벤트 로그의 정합 기준점 */
   private inputSeq = 0;
 
-  constructor(hooks?: RuntimeHooks) {
-    this.loop = new SimulationLoop(hooks);
-    registerBuiltinHandlers(this.loop);
-  }
+  /** hooksOverride 는 테스트용 — 지정하면 Phase 1 시스템 대신 그 훅으로 돈다 */
+  constructor(private readonly hooksOverride?: RuntimeHooks) {}
 
   get currentInputSeq(): number {
     return this.inputSeq;
+  }
+
+  get ruleRegistry(): RuleRegistry {
+    return this.rules;
   }
 
   handle(request: WorkerRequest): WorkerResponse[] {
@@ -59,35 +50,37 @@ export class RuntimeServer {
     }
   }
 
+  /** 정의 없이 초기화하면 수동 세계(Phase 1)로 시작한다. Phase 5 부터는 생성된 정의가 들어온다. */
   private initialize(worldSeed: number, definition: unknown): WorkerResponse[] {
     const def =
-      definition === undefined
-        ? createEmptyWorldDefinition(worldSeed)
-        : (definition as WorldDefinition);
-    this.runtime = new WorldRuntime(def);
+      definition === undefined ? buildManualWorld(worldSeed) : (definition as WorldDefinition);
+    const errors = validateWorldDefinition(def, this.rules);
+    if (errors.length > 0) {
+      return [{ type: "error", message: `세계 정의 검증 실패:\n${errors.join("\n")}` }];
+    }
+
+    const runtime = new WorldRuntime(def);
+    const systems = createWorldSystems(this.rules);
+    const loop = new SimulationLoop(this.hooksOverride ?? systems.hooks);
+    systems.registerHandlers(loop);
+
+    bootstrapWorld(runtime);
+    systems.scheduleInitialEvents(runtime);
+    this.runtime = runtime;
+    this.loop = loop;
     this.inputSeq += 1;
 
-    // 첫 심장박동 예약 (Phase 0 임시)
-    this.runtime.scheduler.schedule({
-      id: "heartbeat.0",
-      executeAt: TICKS_PER_DAY,
-      type: HEARTBEAT_EVENT,
-      targetIds: [],
-      payload: {},
-      priority: 0,
-    });
-
     // 초기 전체 상태를 patch 로 내보낸다
-    this.runtime.markAllDirty();
+    runtime.markAllDirty();
     return [
-      { type: "world_initialized", worldSeed, time: this.runtime.state.simulationTime },
-      { type: "state_patch", patch: this.runtime.flushPatch() },
+      { type: "world_initialized", worldSeed, time: runtime.state.simulationTime },
+      { type: "state_patch", patch: runtime.flushPatch() },
     ];
   }
 
   private advanceTime(amount: number): WorkerResponse[] {
     const runtime = this.requireRuntime();
-    this.loop.advance(runtime, amount);
+    this.requireLoop().advance(runtime, amount);
     this.inputSeq += 1;
     return [
       { type: "state_patch", patch: runtime.flushPatch() },
@@ -108,7 +101,11 @@ export class RuntimeServer {
 
   /** 스냅샷에서 런타임을 복원한다 (기획서 §39 복원 절차의 1단계) */
   restore(definition: WorldDefinition, doc: WorldSnapshotDocument): void {
+    const systems = createWorldSystems(this.rules);
+    const loop = new SimulationLoop(this.hooksOverride ?? systems.hooks);
+    systems.registerHandlers(loop);
     this.runtime = WorldRuntime.fromSnapshot(definition, doc.snapshot);
+    this.loop = loop;
     this.inputSeq = doc.afterLogSeq;
   }
 
@@ -117,6 +114,13 @@ export class RuntimeServer {
       throw new Error("initialize_world 전에는 요청을 처리할 수 없다");
     }
     return this.runtime;
+  }
+
+  private requireLoop(): SimulationLoop {
+    if (this.loop === undefined) {
+      throw new Error("initialize_world 전에는 요청을 처리할 수 없다");
+    }
+    return this.loop;
   }
 
   /** 검증·테스트용 상태 접근 (프로덕션 경로는 patch/snapshot 만 사용) */

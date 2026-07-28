@@ -1,6 +1,9 @@
 // 세계 상태의 순수 데이터 형태 (기획서 §9.1)
 // shared 에 두는 이유: patch 로 경계(Worker↔메인, core↔viewmodel)를 넘는 직렬화 데이터이기 때문.
 // 행동(메서드)을 가진 런타임 구조는 core/world 에 있다.
+import type { ActiveGoalState, AgentRuntimeState } from "./beliefs";
+import type { RawWorldChange } from "./change";
+import type { ObservationSignal } from "./observation";
 
 // 공간 데이터는 3D 다 (기획서 §13 개정) — x·y 수평, z 고도.
 // 거리·반경·관찰 계산은 전부 3D 유클리드 거리를 사용한다. 렌더링의 2D 투영은 ViewModel 빌더의 몫.
@@ -27,8 +30,8 @@ export interface EntityState {
   position?: Position;
   states: Record<string, unknown>;
   tags: string[];
-  /** Phase 3 에서 ActiveGoalState[] 로 실체화 */
-  activeGoals?: unknown[];
+  /** 현재 활성 목적 목록 (§19) — Phase 1 은 baseImportance+urgency 로만 계산한다 */
+  activeGoals?: ActiveGoalState[];
 }
 
 export interface WorldState {
@@ -37,6 +40,14 @@ export interface WorldState {
   /** Phase 3 에서 RelationshipState 로 실체화 (기획서 §25) */
   relationships: Record<string, unknown>;
   globalStates: Record<string, unknown>;
+  /** 주체 런타임 상태 (§20) — 믿음·현재 행동·재판단 플래그 */
+  agentRuntimes: Record<string, AgentRuntimeState>;
+  /** 아직 인식되지 않은 관찰 신호 대기열 (§23) — 매 처리 단계에서 비워진다 */
+  pendingSignals: ObservationSignal[];
+  /** 상태 변화 원시 로그 (§28) — Phase 4 사건 탐지의 입력 */
+  changeLog: RawWorldChange[];
+  /** 신호 id 발급 카운터 — 시드 무관하게 순번으로만 증가한다(결정론) */
+  signalSeq: number;
 }
 
 // 변경분만 전달하는 patch (기획서 §38 — "전체 월드 상태를 매 프레임 전달하지 않는다")
@@ -48,5 +59,14 @@ export interface WorldStatePatch {
 }
 
 export function createEmptyWorldState(): WorldState {
-  return { simulationTime: 0, entities: {}, relationships: {}, globalStates: {} };
+  return {
+    simulationTime: 0,
+    entities: {},
+    relationships: {},
+    globalStates: {},
+    agentRuntimes: {},
+    pendingSignals: [],
+    changeLog: [],
+    signalSeq: 0,
+  };
 }

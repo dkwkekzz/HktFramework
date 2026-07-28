@@ -19,11 +19,17 @@
 
 ## 산출 모듈
 
-- `core/world/WorldState.ts` — §9.1 `WorldState`/`EntityState`, 상태 접근은 `StateStore`(dirty 추적 포함) 경유.
-- `core/world/StateSchema.ts` — §9 `StateSchema` + 스키마 검증기(등록 안 된 stateKey 쓰기 시 오류 — "임의 문자열로 저장하지 않는다").
+- `shared/state.ts` — §9.1 `WorldState`/`EntityState`. 주체 런타임(`agentRuntimes`)·신호 대기열·변화 로그가 여기 함께 실려 스냅샷 하나로 복원된다.
+- `core/world/StateStore.ts` — 상태 쓰기의 단일 경로. 스키마 검증 + patch dirty + `RawWorldChange` + `state_changed` 큐.
+- `core/world/StateSchema.ts` — §9 `StateSchema` + 스키마 검증기(등록 안 된 stateKey 쓰기 시 오류 — "임의 문자열로 저장하지 않는다") + 파생 상태 계산식.
+- `core/world/Conditions.ts` · `Queries.ts` · `Signals.ts` — 조건 평가, 대상 검색(§21 `TargetQuery`), 관찰 효과 → 신호.
+- `core/world/WorldBootstrap.ts` · `WorldValidation.ts` — 초기 배치 실체화, §34 부분집합 검증.
 - `core/agents/` — `AgentRuntime`(간이 판단), `PerceptionSystem`(간이), `BeliefStore`.
+- `core/actions/ActionSystem.ts` — 행동의 시간 점유·비용 지불·완료 처리·공간 이동.
 - `core/rules/HandwrittenRules.ts` — 규칙 20개를 TS 함수로. 단, **각 규칙은 `{ id, triggers, run(ctx) }` 형태로 등록**해 Phase 2 의 `RuleDefinition` 과 같은 트리거 체계를 공유한다(DSL 이관 시 1:1 대응 목적).
+- `core/simulation/WorldSystems.ts` — §26 루프의 7개 훅을 실제 시스템으로 채우는 배선.
 - `content/manual-world/` — 수동 세계 데이터(TS 상수가 아닌 JSON — Phase 5 생성 출력과 같은 자리에 놓기 위함).
+- `scripts/run-30-days.ts` — 30일 headless 실행(`npm run sim`).
 
 ## 수동 세계 콘텐츠 명세 (§41 부분집합)
 
@@ -37,12 +43,22 @@
 | 행동 | 10 | 이동/관찰/사냥(수집)/식사/거래/보고/추적/공격/도주/휴식 — §21 `ActionDefinition` 구조, 전부 비용 또는 위험 보유(§34) |
 | 규칙 | 20 | 아래 분류 |
 
-규칙 20개 분류(코드 작성, §11 의미 준수):
-- 신진대사 4: 허기 증가, 허기→체력 감소, 식사 효과, 휴식 회복 (interval 트리거)
-- 자원 순환 4: 침묵림 식량 재생, 마을 식량 소비, 사냥 산출, 거래 이전 (interval/action 트리거)
-- 생태 4: 반향수 섭식(ability_residue), 새끼 위협도 변화, 영역 압박, 공격 판정 (state/action 트리거)
-- 사회 4: 거래 가격, 보고→조직 믿음 전파, 위협 목격→공포, 토벌 소집 조건 (action/state 트리거)
-- 관찰 신호 4: 이동 흔적, 공격 소음, 사체 발견, 흔적 잔류 (행동·규칙 효과에 부착된 `ObservationEffect`)
+규칙 20개 분류(코드 작성, §11 의미 준수) — 괄호는 구현된 규칙 id (`core/rules/HandwrittenRules.ts`):
+- 신진대사 4: 허기 증가(`rule.hunger_growth`), 허기→체력 감소(`rule.hunger_health_decay`), 식사 효과(`rule.eat_effect`), 휴식 회복(`rule.rest_recovery`) (interval/action 트리거)
+- 자원 순환 4: 침묵림 자원 재생(`rule.forest_resource_regrowth` — 식량·잔재 노드를 함께 재생), 마을 식량 소비(`rule.village_food_consumption` — 비축을 헐어 구성원에게 배급), 사냥 산출(`rule.hunt_yield`), 거래 이전(`rule.trade_transfer`) (interval/action 트리거)
+- 생태 4: 반향수 섭식(`rule.echo_beast_feeding`), 새끼 위협도 변화(`rule.offspring_threat_change`), 영역 압박(`rule.territory_pressure`), 공격 판정(`rule.attack_resolution`) (state/action 트리거)
+- 사회 4: 거래 가격(`rule.trade_price`), 보고→조직 믿음 전파(`rule.report_propagation`), 위협 목격→공포(`rule.threat_sighting_fear`), 토벌 소집 조건(`rule.subjugation_call`) (action/state 트리거)
+- 관찰 신호 4: 이동 흔적(`rule.movement_trace`), 공격 소음(`rule.attack_noise`), 사체 발견(`rule.carcass_discovery`), 흔적 잔류(`rule.residue_trace`) — 신호의 실체는 행동의 `visibleSignals`(§21) 또는 규칙의 `observations`(§11)에 데이터로 선언되고, 이 규칙들이 그것을 신호로 내보낸다
+
+### 구현하며 확정한 사항
+
+기획서에 형태만 있고 값이 없던 지점들을 Phase 1 에서 다음과 같이 못박았다. Phase 2·3 은 이 규약 위에서 확장한다.
+
+- **공간 이동은 규칙이 아니라 행동 체계의 내장 효과**다(`ActionDefinition.movement`). 규칙 20개는 "세계가 상태에 가하는 힘"만 담고, 위치 변경 같은 공간 원시 연산은 행동이 직접 수행한다.
+- **접근 후보**: 사거리 밖 대상에게는 그 대상으로 가는 이동 후보를 만든다. 이 후보는 도착해서 할 행동의 진척도·비용·위험을 할인해 함께 짊어진다 — "위험한 사냥터에는 애초에 가지 않는다"가 여기서 나온다. 추격 반경(`TargetQuery.approachMaxDistance`)은 짐승이 둥지에서 얼마나 멀리까지 쫓아오는지를 정한다.
+- **행동 점수의 단위 정합 계수**(`COST_SCALE`, `RISK_SCALE`)와 **최소 수용 점수**: 기대 이득보다 비용·위험이 크면 그 목적은 지금 실행 불가로 보고 다음 목적으로 넘어간다(§27 `handleNoAvailableAction`). §20 활성도의 `feasibility` 항이 Phase 3 에 들어오면 최소 수용 점수는 사라진다.
+- **`targetConditions` 는 실행 시점에 쓰인다**: 이미 이루어진 목적은 활성화되지 않는다. 이것이 없으면 주체는 충족된 목적을 영원히 반복한다.
+- **관찰 → 판단의 연결점**: `ObservationEffect.claim.observerStateKey` 는 신호를 관찰한 주체 *자신의* 상태를 갱신한다. 인식 계층은 믿음만 만들고, 그 다음(공포·보고)은 전부 `state_changed` 규칙이 받는다.
 
 ## 상세 설계
 
@@ -76,14 +92,34 @@
 
 ## 완료 조건 (DoD)
 
-- [ ] 플레이어 없이 30일 실행 시 5명 전원이 목적에 따라 1회 이상 행동한다(§35).
-- [ ] 마을 식량 감소 → 사냥/거래 발생 → 반향수 접촉 → 공포·보고 전파, 의 연쇄가 **작성하지 않은 순서로** 발생한다(로그로 확인).
-- [ ] 반향수 어미의 실제 상태(새끼 보호)와 마을 사람의 믿음(공격적)이 분리 저장된다(§10 예시 재현).
-- [ ] 동일 시드 재실행 시 30일 로그가 동일하다.
-- [ ] 모든 상태 쓰기가 스키마 검증을 통과한다(미등록 키 쓰기 테스트는 실패해야 함).
+- [x] 플레이어 없이 30일 실행 시 5명 전원이 목적에 따라 1회 이상 행동한다(§35). (`manualWorld.test.ts`)
+- [x] 마을 식량 감소 → 사냥/거래 발생 → 반향수 접촉 → 공포·보고 전파, 의 연쇄가 **작성하지 않은 순서로** 발생한다(로그로 확인). (`manualWorld.test.ts` — 변화 로그에서 여섯 마디의 선후 관계를 확인)
+- [x] 반향수 어미의 실제 상태(새끼 보호)와 마을 사람의 믿음(공격적)이 분리 저장된다(§10 예시 재현). (`manualWorld.test.ts`, `perception.test.ts`)
+- [x] 동일 시드 재실행 시 30일 로그가 동일하다. (`manualWorld.test.ts` + `determinism.test.ts`)
+- [x] 모든 상태 쓰기가 스키마 검증을 통과한다(미등록 키 쓰기 테스트는 실패해야 함). (`StateStore.test.ts`)
+
+### 시드 42, 30일에서 실제로 일어난 일
+
+`npm run sim -- --log` 으로 재현된다(같은 시드면 항상 같다).
+
+```
+ 0일  지도자가 비축을 채우고, 상인이 마을 사냥터에서 식량을 구해 판다
+ 0일  숲에 들어간 연구자가 반향수에게 습격당한다 (공포 34→100)
+ 2일  연구자가 연구회에 보고한다 — 연구회의 위협 믿음 20→90
+ 2~22일 사냥꾼이 안전한 마을 사냥터에서 식량을 대고, 마을 비축이 오르내린다
+23일  마을 사냥터가 고갈되자 사냥꾼이 숲 채집지로 넘어가 습격당한다 (공포 0→100)
+28일  사냥꾼이 마을에 보고한다 — 마을의 위협 믿음 25→90
+29일  위협 믿음과 식량 부족이 겹쳐 토벌이 소집된다
+```
+
+같은 생물을 두고 마을은 "공격적(90)"이라 믿고 연구자는 "새끼를 지키는 중(true)"이라 믿는 동안,
+반향수의 실제 공격성은 21 이고 관찰 불가 상태인 새끼 위협도는 누구의 믿음에도 새지 않는다.
 
 ## 이후 Phase 인터페이스
 
 - 규칙 20개의 `{id, triggers, conditions(암묵), effects(암묵)}` 목록 → Phase 2 DSL 이관 체크리스트.
-- 간이 판단 함수 시그니처(`selectActiveGoal`, `generateActionCandidates`, `selectAction`) — Phase 3 이 본 구현으로 교체.
-- `RawWorldChange` 누적 로그 — Phase 4 입력.
+  `WorldValidation` 이 `ActionDefinition.executionRules` 와 `action_executed` 트리거의 1:1 대응을 강제하므로, 이관 중 어긋나면 즉시 검증 오류가 난다.
+  조건 표현(`ConditionDefinition`/`ValueReference`)과 대상 선택(`TargetQuery`)은 이미 데이터다 — Phase 2 는 `run(ctx)` 본문을 `effects` 데이터로 바꾸는 일만 남는다.
+- 간이 판단 함수 시그니처(`calculateGoalActivation`, `generateActionCandidates`, `scoreActionCandidate`, `selectAction`) — Phase 3 이 본 구현으로 교체. `AgentRuntime.test.ts` 가 교체 후에도 지켜야 할 계약을 명시한다.
+- `RawWorldChange` 누적 로그 — Phase 4 입력. 행동·규칙·관찰 맥락이 태그로 중첩 기록된다(`["action","action.hunt","rule","rule.hunt_yield"]`).
+- `SceneViewModel.entities`(+`tags`, `topGoal`) — Phase 7·8 화면이 이어서 쓴다.

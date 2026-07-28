@@ -1,59 +1,58 @@
 // WorldRuntime — 정의(불변) + 상태(가변) + 스케줄러를 묶는 실행 단위 (기획서 §26, §39)
+import type { AgentRuntimeState } from "../../shared/beliefs";
+import type { ObservationSignal } from "../../shared/observation";
 import { createRng, type Rng } from "../../shared/random";
-import {
-  createEmptyWorldState,
-  type EntityState,
-  type WorldState,
-  type WorldStatePatch,
-} from "../../shared/state";
+import { createEmptyWorldState, type WorldState, type WorldStatePatch } from "../../shared/state";
 import { Scheduler, type SchedulerSnapshot } from "../simulation/Scheduler";
-import type { WorldDefinition } from "./types";
+import { PatchCollector } from "./PatchCollector";
+import { StateSchemaRegistry } from "./StateSchema";
+import { StateStore } from "./StateStore";
+import type {
+  ActionDefinition,
+  GoalGraph,
+  LocationDefinition,
+  RegionDefinition,
+  SpaceConnection,
+  SpeciesDefinition,
+  WorldDefinition,
+} from "./types";
 
 export interface RuntimeSnapshot {
   state: WorldState;
   scheduler: SchedulerSnapshot;
 }
 
-// 변경분 수집 — advance 마다 flush 해서 §38 patch 로 내보낸다
-class PatchCollector {
-  private dirtyEntityIds = new Set<string>();
-  private removedIds = new Set<string>();
-  private dirtyGlobalKeys = new Set<string>();
+/** 정의 조회 인덱스 — 매 판단마다 배열을 훑지 않도록 미리 만든다 */
+class DefinitionIndex {
+  readonly actions = new Map<string, ActionDefinition>();
+  readonly actionsByTag = new Map<string, ActionDefinition[]>();
+  readonly goalGraphs = new Map<string, GoalGraph>();
+  readonly species = new Map<string, SpeciesDefinition>();
+  readonly regions = new Map<string, RegionDefinition>();
+  readonly locations = new Map<string, LocationDefinition>();
+  readonly connections: SpaceConnection[];
 
-  markEntity(id: string): void {
-    this.dirtyEntityIds.add(id);
-    this.removedIds.delete(id);
-  }
-
-  markRemoved(id: string): void {
-    this.removedIds.add(id);
-    this.dirtyEntityIds.delete(id);
-  }
-
-  markGlobal(key: string): void {
-    this.dirtyGlobalKeys.add(key);
-  }
-
-  flush(state: WorldState): WorldStatePatch {
-    const patch: WorldStatePatch = {
-      time: state.simulationTime,
-      upserts: [...this.dirtyEntityIds]
-        .sort()
-        .map((id) => state.entities[id])
-        .filter((e): e is EntityState => e !== undefined)
-        .map((e) => structuredClone(e)),
-      removedIds: [...this.removedIds].sort(),
-    };
-    if (this.dirtyGlobalKeys.size > 0) {
-      patch.globalStates = {};
-      for (const key of [...this.dirtyGlobalKeys].sort()) {
-        patch.globalStates[key] = structuredClone(state.globalStates[key]);
+  constructor(definition: WorldDefinition) {
+    for (const action of definition.actionDefinitions) {
+      this.actions.set(action.id, action);
+      for (const tag of action.tags) {
+        const list = this.actionsByTag.get(tag);
+        if (list === undefined) this.actionsByTag.set(tag, [action]);
+        else list.push(action);
       }
     }
-    this.dirtyEntityIds.clear();
-    this.removedIds.clear();
-    this.dirtyGlobalKeys.clear();
-    return patch;
+    for (const graph of definition.goalTemplates) this.goalGraphs.set(graph.id, graph);
+    for (const species of definition.species) this.species.set(species.id, species);
+    for (const region of definition.spaces.regions) this.regions.set(region.id, region);
+    for (const location of definition.spaces.locations) this.locations.set(location.id, location);
+    this.connections = definition.spaces.connections;
+  }
+
+  /** 두 지역을 잇는 연결 (§13) — 방향 무관 */
+  connection(from: string, to: string): SpaceConnection | undefined {
+    return this.connections.find(
+      (c) => (c.from === from && c.to === to) || (c.from === to && c.to === from),
+    );
   }
 }
 
@@ -61,12 +60,18 @@ export class WorldRuntime {
   readonly definition: WorldDefinition;
   readonly state: WorldState;
   readonly scheduler: Scheduler;
+  readonly schemas: StateSchemaRegistry;
+  readonly store: StateStore;
+  readonly index: DefinitionIndex;
   private readonly patchCollector = new PatchCollector();
 
   constructor(definition: WorldDefinition, state?: WorldState, scheduler?: Scheduler) {
     this.definition = definition;
     this.state = state ?? createEmptyWorldState();
     this.scheduler = scheduler ?? new Scheduler();
+    this.schemas = new StateSchemaRegistry(definition.stateSchemas);
+    this.store = new StateStore(this.state, this.schemas, this.patchCollector);
+    this.index = new DefinitionIndex(definition);
   }
 
   /** 현재 시각 기준의 개체별 결정론 난수 스트림 (기획서 §39 RandomContext) */
@@ -78,23 +83,37 @@ export class WorldRuntime {
     });
   }
 
-  // --- 상태 변경 진입점 -----------------------------------------------------
-  // Phase 1 StateStore(스키마 검증·RawWorldChange 기록)가 이 위에 얹힌다.
-  // Phase 0 에서는 dirty 추적만 담당한다.
+  // --- 주체 런타임 (§20) -----------------------------------------------------
 
-  upsertEntity(entity: EntityState): void {
-    this.state.entities[entity.id] = entity;
-    this.patchCollector.markEntity(entity.id);
+  agentRuntime(agentId: string): AgentRuntimeState {
+    const runtime = this.state.agentRuntimes[agentId];
+    if (runtime === undefined) throw new Error(`주체 런타임 없음: ${agentId}`);
+    return runtime;
   }
+
+  /** 주체 id 목록 — 항상 사전순으로 순회해 처리 순서를 결정론으로 고정한다 */
+  agentIds(): string[] {
+    return Object.keys(this.state.agentRuntimes).sort();
+  }
+
+  // --- 관찰 신호 (§23) --------------------------------------------------------
+
+  emitSignal(signal: ObservationSignal): void {
+    this.state.pendingSignals.push(signal);
+  }
+
+  takeSignals(): ObservationSignal[] {
+    const signals = this.state.pendingSignals;
+    this.state.pendingSignals = [];
+    return signals;
+  }
+
+  // --- 상태 변경 진입점 -------------------------------------------------------
+  // 개체·전역 상태 쓰기는 store 를 통한다. 여기 남은 것은 patch 경계 조작뿐이다.
 
   removeEntity(entityId: string): void {
     delete this.state.entities[entityId];
     this.patchCollector.markRemoved(entityId);
-  }
-
-  setGlobal(key: string, value: unknown): void {
-    this.state.globalStates[key] = value;
-    this.patchCollector.markGlobal(key);
   }
 
   /** 초기화 직후 전체 상태를 patch 로 내보내기 위한 전량 dirty 마킹 */
@@ -107,7 +126,7 @@ export class WorldRuntime {
     return this.patchCollector.flush(this.state);
   }
 
-  // --- 스냅샷 (기획서 §39) ---------------------------------------------------
+  // --- 스냅샷 (기획서 §39) ----------------------------------------------------
 
   toSnapshot(): RuntimeSnapshot {
     return {

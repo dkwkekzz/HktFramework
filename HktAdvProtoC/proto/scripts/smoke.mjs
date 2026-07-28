@@ -37,6 +37,8 @@ try {
 
   await page.click("#init");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("0일차"));
+  // 수동 세계의 개체가 ViewModel 을 통해 화면까지 도달했는가
+  await page.waitForFunction(() => document.querySelector("#world")?.textContent?.includes("agent.kael"));
 
   await page.click("#advance-day");
   await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("1일차"));
@@ -45,8 +47,13 @@ try {
   await page.waitForFunction(() => document.querySelector("#status")?.textContent?.includes("01:00"));
 
   const status = await page.textContent("#status");
-  if (!status?.includes("heartbeatCount=1")) {
-    throw new Error(`심장박동 상태가 patch 로 전달되지 않음: ${status}`);
+  const world = await page.textContent("#world");
+  // 하루가 지나는 동안 주체가 실제로 움직였는가 (patch 왕복의 최종 확인)
+  if (!world?.includes("current_action=")) {
+    throw new Error(`주체의 행동 상태가 patch 로 전달되지 않음: ${world?.slice(0, 400)}`);
+  }
+  if (!world.includes("region.silent_forest")) {
+    throw new Error("지역 묶음이 표시되지 않음");
   }
   if (pageErrors.length > 0) {
     throw new Error(`페이지 오류: ${pageErrors.map((e) => e.message).join(", ")}`);
