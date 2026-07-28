@@ -8,12 +8,15 @@
 
 ## 산출 모듈 (§37 `core/rules/`)
 
-- `RuleEngine.ts` — 트리거 색인, 우선순위·쿨다운 관리, 규칙 실행 파이프라인
+- `RuleTypes.ts` — 정규형 타입 정의 (§11 `RuleDefinition` 전 필드)
+- `RuleEngine.ts` — 트리거 색인, 우선순위·쿨다운 관리, 규칙 큐, 연쇄 상한
 - `ConditionEvaluator.ts` — `RuleCondition`(§11.2) + `ValueReference` 해석
-- `EffectExecutor.ts` — `RuleEffect` 6종(§11.3) + 확률·예약 효과(§12)
+- `EffectExecutor.ts` — `RuleEffect` 6종(§11.3) + 관계 변경 + 확률·예약 효과(§12)
 - `TargetSelector.ts` — `TargetSelector`/`TargetQuery` 해석(태그·범위 검색)
 - `ObservationEmitter.ts` — `ObservationEffect` → `ObservationSignal` 생성(§23 연결)
-- `RuleSchema.ts` — DSL JSON Schema(Phase 5 생성 출력 검증과 §34 에서 재사용)
+- `RuleSchema.ts` — DSL JSON Schema + 축약형 로더 (Phase 5 생성 출력 검증과 §34 에서 재사용)
+- `capabilities.ts` / `abilityChecks.ts` — DoD 를 실행으로 증명하는 검사 묶음 (`npm run verify` 가 그대로 찍는다)
+- `migrationBaseline.ts` — 이관 동일성 기준선 비교기
 
 ## 상세 설계
 
@@ -92,11 +95,126 @@ Phase 2 DoD 에 능력 1개 픽스처(§16 `ability.contract_truth` 예시)의 �
 
 ## 완료 조건 (DoD)
 
-- [ ] §12 요구 능력 10항목(조건/상태 변경/자원 이동/생성·소멸/관계 변경/신호/예약/확률/주변 검색/태그 선택)이 각각 테스트로 증명된다.
-- [ ] Phase 1 시나리오가 DSL 규칙만으로 코드 규칙과 동일한 change 로그를 낸다.
-- [ ] §11.4 "제약에 의한 능력 증폭" 예시 규칙이 그대로 로드·실행된다(능력 콘텐츠는 없어도 규칙 자체는 파싱·발화 테스트).
-- [ ] §16 예시 능력 픽스처의 발동·유지 조건 위반·반동이 행동+규칙 분해 매핑(2.7)으로 실행된다.
-- [ ] 규칙 연쇄 상한 초과가 감지·보고된다.
+- [x] §12 요구 능력 10항목(조건/상태 변경/자원 이동/생성·소멸/관계 변경/신호/예약/확률/주변 검색/태그 선택)이 각각 테스트로 증명된다.
+- [x] Phase 1 시나리오가 DSL 규칙만으로 코드 규칙과 동일한 change 로그를 낸다.
+- [x] §11.4 "제약에 의한 능력 증폭" 예시 규칙이 그대로 로드·실행된다.
+- [x] §16 예시 능력 픽스처의 발동·유지 조건 위반·반동이 행동+규칙 분해 매핑(2.7)으로 실행된다.
+- [x] 규칙 연쇄 상한 초과가 감지·보고된다.
+
+검증: `cd proto && npm run verify` — Phase 1 5항 + Phase 2 23항, 합계 28/28 통과.
+
+## 구현에서 확정한 것
+
+### C1. DSL 표현력 보강 — 이관이 드러낸 것 (§12 요구 능력 범위 안)
+
+코드 규칙을 옮기다 보니 §11.3 의 효과 목록만으로는 **같은 결과가 나오지 않는** 규칙이 있었다.
+가장 분명한 예가 `rule.village_food_consumption` 이다. "필요량을 계산하고, 비축이 모자라면 있는 만큼만
+헐고, 실제로 헌 만큼의 비율로 구성원에게 배급한다" — 여기에는 ① 조직마다 반복 ② 효과 이전에 확정되는
+중간값(`taken`) ③ 그 중간값을 쓰는 산술이 전부 필요하다. 확장은 §12 가 이미 요구한 능력을 표현
+가능하게 만드는 선에서 멈췄다(새 효과 종류를 늘리지 않았다).
+
+| 추가 | 무엇 | 왜 필요했나 |
+|---|---|---|
+| `forEach: TargetSelector` | 규칙 본문을 개체마다 한 벌씩 실행, 그 개체가 `target` | 조직·주체 순회 규칙 (`village_food_consumption`, `echo_beast_feeding`, `offspring_threat_change`) |
+| `bindings[]` | 규칙 본문에서 한 번만 계산하고 기억하는 값 (지연 계산) | 효과가 상태를 바꾸기 **전에** 확정돼야 하는 중간값 (`taken` → `ration`) |
+| `expr` 값 참조 | add·sub·mul·div·neg·min·max·floor·ceil·round·abs | `min(need, reserve)`, `clamp(5,80)`, `(threat-fear)×0.4` |
+| `query_value` | 검색 결과를 값으로 (count / first / sum / min / max) | "반경 안 침입자 수", "가장 가까운 잔재원의 잔량" |
+| 효과별 `conditions` | 효과 하나에만 걸리는 조건 | if/else 를 규칙 하나로 (`offspring_threat_change`) |
+| `valueRef` | §11.3 의 리터럴 `value` 를 계산값으로 확장 | `amount += regrowth` 처럼 대상 자신의 상태를 쓰는 효과 |
+| `each` 바인딩 | 지금 이 효과가 건드리는 개체 · 검색 후보 | 대상이 여럿인 효과에서 "그 개체"를 가리킬 방법 |
+| `{type:"world"}` 대상 | 전역 상태(ownerType=world) | `food_price` (`rule.trade_price`) |
+| `entity_type` 값 참조 | 개체 종류 비교 | `subjugation_call` 의 "조직일 때만" 방어 |
+
+`div` 는 0 으로 나눌 때 NaN 이 아니라 0 을 돌려준다 — 조건이 막지 못한 경우에도 NaN 이 상태로 새지 않게 한다.
+
+### C2. 규칙 큐의 정렬 범위 (§2.2 보정)
+
+§2.2 는 "tick 내 규칙 큐에 (priority desc, ruleId asc) 로 쌓아 순차 실행"이라고 적었다.
+구현은 **발화 단위(트리거 하나)로 정렬하고 발화 묶음끼리는 FIFO** 다.
+
+tick 전체를 하나의 우선순위 큐로 만들면 같은 tick 안의 서로 다른 상태 변화가 깨우는 규칙들이
+"변화 순서"가 아니라 "우선순위 순서"로 섞인다. 예컨대 하루 경계에서는 `food_reserve` 변화와
+`offspring_threat` 변화가 같은 라운드에 들어오는데, 전역 우선순위 큐는 `territory_pressure`(60)를
+`subjugation_call`(45)보다 먼저 돌린다 — Phase 1 과 change 로그 **순서**가 달라지고 "동일 로그" DoD 가 깨진다.
+발화 단위 정렬로도 실행 순서는 완전히 결정론이다: `(라운드 asc, 변화 순서 asc, priority desc, ruleId asc)`.
+
+연쇄 깊이 상한은 설계대로 16 으로 올렸다(Phase 1 은 8). 수동 세계는 30일 동안 한 번도 8회에 닿지 않아
+로그는 그대로다 — 시드 1·42·43 완전 일치가 그 증거다.
+
+### C3. 관찰 신호는 두 갈래로 나간다
+
+- 규칙의 `observations`(§11) 는 **규칙이 발동하면 자동으로** 나간다. 그래서 §11.4 예시 규칙을
+  한 글자도 고치지 않고 로드해도 `unstable_high_density_energy` 신호가 실제로 발생한다.
+- 행동의 `visibleSignals`(§21) 는 규칙이 `emit_signal` 효과로 꺼내 쓴다 (`movement_trace` 계열).
+
+### C4. `entity_entered` 의 발화 지점
+
+"이동 완료 처리"를 **지역이 실제로 바뀐 순간**으로 못박았다. 행동 완료 시 이동을 적용한 뒤
+`position.regionId` 가 달라졌으면, 그 지역 개체의 태그로 발화한다. 같은 지역 안의 이동은 발화하지 않는다.
+
+### C5. 전역 상태 부트스트랩
+
+`ownerType="world"` 스키마의 기본값을 부트스트랩에서 채운다. 그 전에는 어떤 규칙이 처음
+`setGlobal` 하기 전까지 "등록됐는데 값이 없는 상태"가 존재했다(§9 위반).
+
+### C6. 이관 완료 후의 동일성 증명 보존
+
+설계대로 `HandwrittenRules.ts` 를 삭제하면 diff 를 다시 돌릴 수 없다. 그래서 삭제 직전의 코드 규칙
+실행 결과를 `content/manual-world/migration-baseline.json` 으로 굳혔다(시드 1·42·43 / 30일 —
+change 로그 해시·건수, 최종 개체 해시, 규칙별 발동 횟수, 주요 개체의 최종 상태).
+`npm run verify` 와 `ruleMigration.test.ts` 는 매번 DSL 을 실제로 돌려 이 기준선과 맞춰 본다.
+두 실행이 나란히 살아 있던 커밋(`migrationEquivalence.test.ts`)이 git 이력에 남아 있다.
+
+### C7. Phase 3·6 으로 넘긴 것
+
+- `modify_relationship` 은 실행기와 `relationship_changed` 트리거까지만 만들었다. 값은
+  `WorldState.relationships` 에 `{from|to: {key: value}}` 로 쌓인다 — §25 `RelationshipState` 실체화는 Phase 3.
+- §12 "확률은 인과관계를 대체하지 않는다" 의 정적 검사(확률 효과가 유일한 진행 경로인 규칙 탐지)는 Phase 6.
+
+## 관측 결과
+
+### 이관 동일성 — 코드 규칙 vs DSL 규칙 30일
+
+| 시드 | 코드 규칙 | DSL 규칙 | 판정 |
+|---|---|---|---|
+| 1 | 4013건 `af561c8c` | 4013건 `af561c8c` | 완전 일치 |
+| 42 | 4040건 `d0fbce9c` | 4040건 `d0fbce9c` | 완전 일치 |
+| 43 | 4038건 `bfdcb9cc` | 4038건 `bfdcb9cc` | 완전 일치 |
+
+첫 실행부터 일치했다 — 20개 중 표현력이 모자라 규칙을 다시 쓴 것은 없고, C1 의 확장으로 전부 옮겨졌다.
+
+### §12 요구 능력 10항목 (`npm run verify` 출력 그대로)
+
+```
+✓ ① 조건 비교            health<40 만 회복 — a0 20→25, a1 60→60 (회복 대상 1/6)
+✓ ② 상태 변경            modify_state add 5 → a0.health 20→25
+✓ ③ 자원 이동            30 요청 → 잔량 20 만큼만 이동 (a0 20→0, partner 0→20), 부족분 10 기록
+✓ ④ 개체 생성과 소멸      marked=true → 템플릿 개체 1개 생성, destroy_entity 후 0개
+✓ ⑤ 관계 변경            trust 0→5, relationship_changed 트리거로 trust_echo=1
+✓ ⑥ 신호 발생            signal.lab_ping.0 strength=80 claim=marked=true
+✓ ⑦ 예약된 효과          schedule_rule delay=5 → 즉시 0, 10 tick 진행 후 7
+✓ ⑧ 확률적 효과          chance=0.5 → 시드7 에서 6/8 적중(재실행 동일), 시드8 은 4/8 로 다름
+✓ ⑨ 주변 개체 검색        반경 20 내 plant 개수 — a0(거리10)=1, a2(거리50)=0, 타지역=0
+✓ ⑩ 태그 기반 대상 선택   tag=plant 만 적중 — plant.amount 40→39, 주체 상태 불변
+✓ 쿨다운 (§11)           cooldown=50 — 같은 시각 2회 호출 후 1, +60 tick 뒤 2
+✓ entity_entered (§11.1) 지역 이동 완료로 lab_zone 진입 → entered_mark=1
+✓ 규칙 연쇄 상한 (§34)    서로를 깨우는 규칙 2개 → 16회에서 중단, 진단 1건
+```
+
+### §16 능력 픽스처 — `ability.contract_truth` 한 사이클
+
+```
+✓ §11.4 예시 규칙 로드    기획서 JSON 그대로 — 트리거 action_executed, 조건 1, 효과 2(×1.8)
+✓ 발동 조건               contract_accepted=true → 발동 가능, false → 불가
+✓ 발동                   mental_stamina 100→88, 출력 50×1.8=90, 실패 위험 +25
+✓ 관찰 가능 현상          행동 신호 signal.contract_symbols.0 / 규칙 신호 unstable_high_density_energy.1(76)
+✓ knownBy → 초기 믿음     agent.sera 의 자기 능력 믿음 출처 ability.contract_truth
+✓ 제약 위반              action.lie → lied_since_activation=true, restriction_valid=false
+✓ 유지 조건 위반 → 반동    memory_integrity 100→85, 능력 정지, 출력 0
+✓ 재발동은 증폭 없음       거짓말 이후 재발동 → 출력 50 (증폭 시 90)
+```
+
+거짓말 한 번이 능력을 끄고 기억을 깎는다 — 규칙만으로 §16 의 "제약이 곧 힘"이 굴러간다.
 
 ## 이후 Phase 인터페이스
 
