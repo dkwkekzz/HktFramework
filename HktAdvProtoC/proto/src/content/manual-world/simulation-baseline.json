@@ -1,0 +1,12 @@
+{
+  "source": "Phase 6 — 수동 세계(Phase 1~4 완성본)의 무개입 30일 측정치. §35 다양성·깊이 합격선의 근거",
+  "worldId": "world.silent_forest_edge",
+  "worldSeed": 42,
+  "days": 30,
+  "diversityScore": 30,
+  "depthScore": 5.122505630630632,
+  "changesPerDay": 263.1,
+  "uniqueActionTypes": 13,
+  "uniqueEventTypes": 6,
+  "totalEvents": 37
+}

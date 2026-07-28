@@ -31,7 +31,14 @@ import {
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
 import { buildManualWorld } from "../content/manual-world";
-import { FIRST_WORLD_CORPUS, FIRST_WORLD_ID, FIRST_WORLD_SEED_INPUT } from "../content/first-world";
+import {
+  FIRST_WORLD_AUDIT_CORPUS,
+  FIRST_WORLD_CORPUS,
+  FIRST_WORLD_ID,
+  FIRST_WORLD_REPAIRS,
+  FIRST_WORLD_SEED_INPUT,
+} from "../content/first-world";
+import { auditWorld } from "../generation/AiAudit";
 import { compileWorld } from "../generation/CompilerPipeline";
 import { PROTOTYPE_SCALE } from "../generation/GenerationTypes";
 import {
@@ -40,7 +47,12 @@ import {
   costsGrowWithOutput,
   summarizeAbilities,
 } from "../generation/phase5Checks";
+import { runViolationFixtures, validateManualWorld } from "../generation/phase6Checks";
 import { RecordedTextGenerationPort } from "../generation/RecordedTextGenerationPort";
+import { compileWithRepair } from "../generation/RepairLoop";
+import { compareToSimulationBaseline, SIMULATION_BASELINE } from "../generation/simulationBaseline";
+import { runSimulationTest } from "../generation/SimulationTester";
+import { SEMANTIC_CODES } from "../generation/WorldValidator";
 import { MAX_INPUT_BYTES } from "../generation/TextGenerationPort";
 import type { RawWorldChange } from "../shared/change";
 import { hashValue } from "../shared/hash";
@@ -78,13 +90,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3 | 4 | 5;
+  phase: 1 | 2 | 3 | 4 | 5 | 6;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 | 4 | 5 = 1;
+let phase: 1 | 2 | 3 | 4 | 5 | 6 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -590,8 +602,114 @@ check(
     `아티팩트 ${compiled.artifacts.list().length}개 · 재개 시 호출 0회, 정의 해시 ${hashValue(resumed.definition)} 동일`,
 );
 
+// =====================================================================================
+// Phase 6 — 자동 검증과 수정 (§34, §35, §42-6)
+// =====================================================================================
+phase = 6;
+
+// --- DoD 1 : §34 필수 규칙 10개가 각각 위반 픽스처를 error 로 검출한다 --------------------
+const fixtures = runViolationFixtures(worldSeed);
+check(
+  fixtures.every((fixture) => fixture.detected) && fixtures.length === SEMANTIC_CODES.length,
+  `§34 필수 규칙 ${SEMANTIC_CODES.length}종이 각각 위반 세계를 잡는다 (${fixtures.filter((f) => f.detected).length}/${fixtures.length})`,
+  fixtures
+    .map(
+      (fixture) =>
+        `\n      ${fixture.detected ? "✓" : "✗"} ${fixture.code} — ${fixture.title}\n        → ${fixture.message.slice(0, 130)}`,
+    )
+    .join(""),
+);
+
+// --- DoD 2 : 수동 세계가 정적 검증 + §35 테스트를 통과한다 -------------------------------
+const manualValidation = validateManualWorld(worldSeed);
+check(
+  manualValidation.ok,
+  `수동 세계가 §34 정적 검증을 통과 (의미 검사 ${manualValidation.checks.filter((c) => c.ok).length}/${manualValidation.checks.length} · 오류 ${manualValidation.errorCount})`,
+  `${manualValidation.schema.ok ? "✓" : "✗"} 스키마 층 — ${manualValidation.schema.evidence}` +
+    manualValidation.checks.map((c) => `\n      ${c.ok ? "✓" : "✗"} ${c.code} — ${c.evidence}`).join(""),
+);
+
+const manualSim = await runSimulationTest({ worldSeed, days });
+const manualBaseline = compareToSimulationBaseline(manualSim);
+check(
+  manualSim.ok && manualBaseline.every((row) => row.ok),
+  `수동 세계가 §35 최소 테스트 ${manualSim.verdicts.length}항을 통과 (${manualSim.verdicts.filter((v) => v.ok).length}/${manualSim.verdicts.length})`,
+  manualSim.verdicts.map((v) => `\n      ${v.ok ? "✓" : "✗"} ${v.code} ${v.title} — ${v.evidence}`).join("") +
+    `\n      다양성 ${manualSim.diversityScore.toFixed(2)} = 행동 ${manualSim.metrics.uniqueActionTypes}×0.2 + 사건종류 ${manualSim.metrics.uniqueEventTypes}×0.3 + ` +
+    `참여조합 ${manualSim.metrics.uniqueParticipantCombinations}×0.3 + 상태갈래 ${manualSim.metrics.changedStateCategories}×0.2` +
+    `\n      깊이 ${manualSim.depthScore.toFixed(2)} = 목적/사건 ${manualSim.metrics.averageGoalsPerEvent.toFixed(2)}×0.25 + 시스템/사건 ${manualSim.metrics.averageAffectedSystemsPerEvent.toFixed(2)}×0.25 + ` +
+    `정보비대칭 ${manualSim.metrics.informationAsymmetryRate.toFixed(2)}×0.2 + 지속 ${manualSim.metrics.consequenceDurationScore.toFixed(2)}×0.3` +
+    `\n      기준선(${SIMULATION_BASELINE.worldId}) 대비 — ${manualBaseline.map((r) => `${r.ok ? "✓" : "✗"}${r.item} ${r.actual.toFixed(2)}/${r.baseline.toFixed(2)}`).join(" · ")}`,
+);
+
+// --- DoD 3 : §41 생성 세계가 수정 루프를 거쳐 합격한다 -----------------------------------
+const repairPort = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, FIRST_WORLD_REPAIRS);
+const repaired = await compileWithRepair({
+  port: repairPort,
+  seedInput: FIRST_WORLD_SEED_INPUT,
+  worldSeed,
+  worldId: FIRST_WORLD_ID,
+  days,
+});
+const generatedSim = repaired.finalSimulation;
+const generatedBaseline = generatedSim === undefined ? [] : compareToSimulationBaseline(generatedSim);
+check(
+  repaired.accepted && generatedBaseline.every((row) => row.ok),
+  `§41 생성 세계가 ${repaired.rounds.length}라운드 만에 합격 (상한 3)`,
+  repaired.rounds
+    .map(
+      (round) =>
+        `\n      라운드 ${round.round}: 정적 오류 ${round.validation.errorCount} · 시뮬 ${round.simulation === undefined ? "미실행" : round.simulation.ok ? "합격" : `불합격(${round.simulation.verdicts.filter((v) => !v.ok).map((v) => v.code).join(",")})`}` +
+        (round.accepted
+          ? " → 공개 가능"
+          : `\n        ✗ ${round.issues.map((issue) => `${issue.code}:${issue.targetId}`).join(" ")}` +
+            `\n        → ${round.restartFrom ?? "-"}단계부터 재생성 (원인 단계 ${round.targetSteps.join(",")}) · 수정 ${round.applied.map((a) => a.taskId).join(", ") || "없음"}` +
+            round.applied.map((a) => `\n          · ${a.note}`).join("")),
+    )
+    .join("") +
+    (generatedSim === undefined
+      ? ""
+      : `\n      최종: 주체 ${generatedSim.activeAgents}명 전원 행동 · 사건 ${generatedSim.totalEvents}건(${generatedSim.metrics.uniqueEventTypes}종) · ` +
+        `다양성 ${generatedSim.diversityScore.toFixed(2)} 깊이 ${generatedSim.depthScore.toFixed(2)} — 기준선 대비 ${generatedBaseline.map((r) => `${r.ok ? "✓" : "✗"}${r.item}`).join(" ")}`),
+);
+
+// --- DoD 4 : 시뮬레이션 판정이 결정론적이다 ----------------------------------------------
+const simAgain = await runSimulationTest({ worldSeed, days });
+const simOther = await runSimulationTest({ worldSeed: worldSeed + 1, days });
+const oneShot = new InlineHost();
+await oneShot.request({ type: "initialize_world", worldSeed });
+await oneShot.request({ type: "advance_time", amount: days * TICKS_PER_DAY });
+const oneShotHash = hashValue(oneShot.server.inspectRuntime()?.state.changeLog);
+check(
+  simAgain.resultHash === manualSim.resultHash &&
+    simOther.resultHash !== manualSim.resultHash &&
+    oneShotHash === manualSim.logHash,
+  "같은 입력 → 같은 SimulationTestResult · 하루씩 나눈 실행이 한 번에 진행한 세계와 동일",
+  `시드 ${worldSeed} 판정 해시 ${manualSim.resultHash} · 재실행 ${simAgain.resultHash} · 시드 ${worldSeed + 1} ${simOther.resultHash} · ` +
+    `30×1일 로그 ${manualSim.logHash} = 1×${days}일 로그 ${oneShotHash}`,
+);
+
+// --- DoD 5 : AI 보조 검사가 꺼져 있어도 파이프라인이 완결된다 (§33.2) ----------------------
+const auditOff = await auditWorld(repaired.definition);
+const auditOn = await auditWorld(repaired.definition, new RecordedTextGenerationPort(FIRST_WORLD_AUDIT_CORPUS));
+check(
+  !auditOff.enabled &&
+    auditOff.issues.length === 0 &&
+    auditOff.checks.every((entry) => entry.skipped) &&
+    auditOn.checks.every((entry) => !entry.skipped) &&
+    auditOn.issues.every((issue) => issue.level === "warning"),
+  `§33.2 AI 보조 검사 ${auditOn.checks.length}종 — 켜면 경고만 내고, 꺼도 파이프라인이 완결된다`,
+  `꺼짐: 검사 ${auditOff.checks.length}종 전부 건너뜀 · 이슈 ${auditOff.issues.length}건 (게이트 영향 없음)` +
+    auditOn.checks
+      .map((entry) => `\n      ✓ ${entry.code} 대상 ${entry.asked}건 → 지적 ${entry.findings.length}건`)
+      .join("") +
+    (auditOn.issues.length === 0
+      ? ""
+      : `\n      경고(error 로 승격하지 않음): ${auditOn.issues.map((issue) => `${issue.targetId}`).join(", ")}`),
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3, 4, 5] as const) {
+for (const current of [1, 2, 3, 4, 5, 6] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
@@ -602,7 +720,9 @@ for (const current of [1, 2, 3, 4, 5] as const) {
           ? "Phase 3 완료 조건 — 주체 판단"
           : current === 4
             ? "Phase 4 완료 조건 — 사건 탐지"
-            : "Phase 5 완료 조건 — 세계 생성 컴파일러";
+            : current === 5
+              ? "Phase 5 완료 조건 — 세계 생성 컴파일러"
+              : "Phase 6 완료 조건 — 자동 검증과 수정";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);

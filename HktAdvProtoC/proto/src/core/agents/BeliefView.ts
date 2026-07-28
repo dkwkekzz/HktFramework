@@ -190,7 +190,11 @@ export class BeliefView {
     if (agent.beliefs.some((belief) => belief.subjectId === entityId)) return true;
     if (agent.memories.some((memory) => memory.participants.includes(entityId))) return true;
     if (this.inSensoryRange(entityId)) return true;
-    const myFaction = this.runtime.store.read(this.agentId, "faction_id");
+    // 조직에게는 faction_id 가 없다 — 조직 자신이 곧 소속이다 (§17 조직도 판단 주체다).
+    // 개인은 등록된 faction_id 를 읽는다. 이 갈래가 없으면 조직이 자기 상태를 읽다가 §9 검증에 걸린다.
+    const self = this.runtime.store.findEntity(this.agentId);
+    const myFaction =
+      self?.type === "faction" ? this.agentId : this.runtime.store.read(this.agentId, "faction_id");
     if (typeof myFaction === "string" && myFaction !== "") {
       const other = this.runtime.store.findEntity(entityId);
       if (other?.type === "agent" && this.runtime.store.read(entityId, "faction_id") === myFaction) {
