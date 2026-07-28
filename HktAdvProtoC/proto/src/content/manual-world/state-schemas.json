@@ -9,7 +9,6 @@
     "observable": false,
     "updatePolicy": "event"
   },
-
   {
     "id": "health",
     "ownerType": "agent",
@@ -18,7 +17,9 @@
     "min": 0,
     "max": 100,
     "observable": true,
-    "observationChannels": ["sight"],
+    "observationChannels": [
+      "sight"
+    ],
     "updatePolicy": "continuous"
   },
   {
@@ -49,7 +50,10 @@
     "min": 0,
     "max": 100,
     "observable": true,
-    "observationChannels": ["sight", "talk"],
+    "observationChannels": [
+      "sight",
+      "talk"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -90,7 +94,10 @@
     "min": 0,
     "max": 100,
     "observable": true,
-    "observationChannels": ["sight", "sound"],
+    "observationChannels": [
+      "sight",
+      "sound"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -109,7 +116,10 @@
     "dataType": "boolean",
     "defaultValue": false,
     "observable": true,
-    "observationChannels": ["trace", "energy_sense"],
+    "observationChannels": [
+      "trace",
+      "energy_sense"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -128,7 +138,10 @@
     "dataType": "boolean",
     "defaultValue": false,
     "observable": true,
-    "observationChannels": ["trace", "smell"],
+    "observationChannels": [
+      "trace",
+      "smell"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -139,7 +152,9 @@
     "min": 0,
     "max": 200,
     "observable": true,
-    "observationChannels": ["sight"],
+    "observationChannels": [
+      "sight"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -150,7 +165,9 @@
     "min": 0,
     "max": 200,
     "observable": true,
-    "observationChannels": ["sight"],
+    "observationChannels": [
+      "sight"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -233,7 +250,6 @@
     "observable": false,
     "updatePolicy": "derived"
   },
-
   {
     "id": "food_reserve",
     "ownerType": "faction",
@@ -242,7 +258,10 @@
     "min": 0,
     "max": 500,
     "observable": true,
-    "observationChannels": ["talk", "report"],
+    "observationChannels": [
+      "talk",
+      "report"
+    ],
     "updatePolicy": "continuous"
   },
   {
@@ -262,8 +281,12 @@
     "defaultValue": 0,
     "min": 0,
     "max": 100,
-    "observable": false,
-    "updatePolicy": "event"
+    "observable": true,
+    "updatePolicy": "event",
+    "observationChannels": [
+      "talk",
+      "report"
+    ]
   },
   {
     "id": "subjugation_ordered",
@@ -271,7 +294,10 @@
     "dataType": "boolean",
     "defaultValue": false,
     "observable": true,
-    "observationChannels": ["talk", "report"],
+    "observationChannels": [
+      "talk",
+      "report"
+    ],
     "updatePolicy": "event"
   },
   {
@@ -294,7 +320,6 @@
     "observable": false,
     "updatePolicy": "event"
   },
-
   {
     "id": "danger",
     "ownerType": "region",
@@ -325,7 +350,6 @@
     "observable": false,
     "updatePolicy": "continuous"
   },
-
   {
     "id": "danger",
     "ownerType": "location",
@@ -346,7 +370,6 @@
     "observable": false,
     "updatePolicy": "event"
   },
-
   {
     "id": "amount",
     "ownerType": "resource",
@@ -355,7 +378,9 @@
     "min": 0,
     "max": 500,
     "observable": true,
-    "observationChannels": ["sight"],
+    "observationChannels": [
+      "sight"
+    ],
     "updatePolicy": "continuous"
   },
   {
@@ -373,6 +398,120 @@
     "defaultValue": 0,
     "min": 0,
     "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "promise_broken",
+    "ownerType": "agent",
+    "dataType": "boolean",
+    "defaultValue": false,
+    "observable": true,
+    "observationChannels": [
+      "talk",
+      "report"
+    ],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "delegated_goal",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "delegated_by",
+    "ownerType": "agent",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "delegation_completed",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "goal_graph_id",
+    "ownerType": "faction",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "current_action",
+    "ownerType": "faction",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "active_goal",
+    "ownerType": "faction",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "collapsed",
+    "ownerType": "faction",
+    "dataType": "boolean",
+    "defaultValue": false,
+    "observable": true,
+    "observationChannels": [
+      "talk",
+      "report"
+    ],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "parent_faction",
+    "ownerType": "faction",
+    "dataType": "string",
+    "defaultValue": "",
+    "observable": false,
+    "updatePolicy": "event"
+  },
+  {
+    "id": "crisis",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": false,
+    "updatePolicy": "derived"
+  },
+  {
+    "id": "starving_days",
+    "ownerType": "faction",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": true,
+    "observationChannels": [
+      "talk",
+      "report"
+    ],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "reported_threat",
+    "ownerType": "agent",
+    "dataType": "boolean",
+    "defaultValue": false,
     "observable": false,
     "updatePolicy": "event"
   }

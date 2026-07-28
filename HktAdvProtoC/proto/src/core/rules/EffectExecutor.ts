@@ -2,7 +2,13 @@
 //
 // 모든 상태 쓰기는 StateStore 를 지난다 — 스키마 검증·patch·change 로그·state_changed 트리거가
 // 여기서 자동으로 따라온다. 효과 실행기가 entity.states 를 직접 만지는 일은 없다.
+import { createAgentRuntimeState } from "../../shared/beliefs";
 import type { EntityState } from "../../shared/state";
+import {
+  applyRelationshipChange,
+  ensureRelationship,
+  isRelationshipKey,
+} from "../agents/RelationshipSystem";
 import {
   bindingEntityId,
   evaluateRuleConditions,
@@ -40,10 +46,6 @@ function passesChance(ctx: RuleContext, chance: number, entityId: string | undef
   if (chance <= 0) return false;
   const stream = `${entityId ?? "world"}#${ctx.rule.id}#${ctx.effectIndex}`;
   return ctx.runtime.rngFor(stream).next() < chance;
-}
-
-function relationshipKeyOf(fromId: string, toId: string): string {
-  return `${fromId}|${toId}`;
 }
 
 function applyOperation(before: unknown, operation: StateOperation, value: unknown): unknown {
@@ -84,6 +86,10 @@ function createEntity(ctx: RuleContext, templateId: string, location: RuleTarget
     ...(anchor?.position !== undefined ? { position: { ...anchor.position } } : {}),
   };
   ctx.runtime.store.insertEntity(entity);
+  // 태어난 것도 주체다 — 목적 그래프를 가지고 있으면 판단 사이클에 들어온다 (§15 번식·성장)
+  if (template.type === "agent") {
+    ctx.runtime.state.agentRuntimes[id] = createAgentRuntimeState(id, {}, "individual");
+  }
   ctx.runtime.store.noteChange({ entityId: id, stateKey: "exists", before: false, after: true });
 }
 
@@ -136,22 +142,23 @@ function modifyRelationship(
   const to = resolveSingleTarget(ctx, effect.to);
   if (from === undefined || to === undefined) return;
   const value = resolveAmount(ctx, effect.value, effect.valueRef);
+  if (!isRelationshipKey(effect.key)) {
+    throw new Error(`알 수 없는 관계 항목: ${effect.key} (${ctx.rule.id}) — §25 RelationshipState 필드만 쓸 수 있다`);
+  }
 
-  const relationships = ctx.runtime.state.relationships;
-  const relationKey = relationshipKeyOf(from.id, to.id);
-  const record = (relationships[relationKey] ?? {}) as Record<string, unknown>;
-  const before = record[effect.key] ?? 0;
-  const after = applyOperation(before, effect.operation, value);
-  if (Object.is(before, after)) return;
+  const relation = ensureRelationship(ctx.runtime, from.id, to.id);
+  const after = applyOperation(relation[effect.key], effect.operation, value);
+  if (typeof after !== "number") throw new Error(`관계 수치가 숫자가 아니다: ${effect.key}`);
+  const changed = applyRelationshipChange(ctx.runtime, from.id, to.id, effect.key, after);
+  if (changed === undefined) return;
 
-  record[effect.key] = after;
-  relationships[relationKey] = record;
-  ctx.runtime.store.noteChange({
-    entityId: relationKey,
-    stateKey: `relationship:${effect.key}`,
-    before,
-    after,
-  });
+  // 관계가 크게 흔들리면 다시 판단할 이유가 된다 (§26 "관계가 크게 변화했다")
+  if (Math.abs(changed.after - changed.before) >= 15) {
+    const agent = ctx.runtime.state.agentRuntimes[from.id];
+    if (agent !== undefined && !agent.flags.includes("relationship_shift")) {
+      agent.flags.push("relationship_shift");
+    }
+  }
   hooks.onRelationshipChanged(ctx, effect.key, from.id, to.id);
 }
 

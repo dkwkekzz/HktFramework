@@ -1,7 +1,7 @@
 // 세계 상태의 순수 데이터 형태 (기획서 §9.1)
 // shared 에 두는 이유: patch 로 경계(Worker↔메인, core↔viewmodel)를 넘는 직렬화 데이터이기 때문.
 // 행동(메서드)을 가진 런타임 구조는 core/world 에 있다.
-import type { ActiveGoalState, AgentRuntimeState } from "./beliefs";
+import type { ActiveGoalState, AgentRuntimeState, RelationshipState } from "./beliefs";
 import type { RawWorldChange } from "./change";
 import type { ObservationSignal } from "./observation";
 
@@ -37,8 +37,8 @@ export interface EntityState {
 export interface WorldState {
   simulationTime: number;
   entities: Record<string, EntityState>;
-  /** Phase 3 에서 RelationshipState 로 실체화 (기획서 §25) */
-  relationships: Record<string, unknown>;
+  /** 관계 저장소 (§25) — 키는 `from|to`, 값은 RelationshipState 전 필드 */
+  relationships: Record<string, RelationshipState>;
   globalStates: Record<string, unknown>;
   /** 주체 런타임 상태 (§20) — 믿음·현재 행동·재판단 플래그 */
   agentRuntimes: Record<string, AgentRuntimeState>;

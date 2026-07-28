@@ -151,9 +151,9 @@ describe("규칙 로더 — 축약형과 정규형 (§12, Phase-2 §2.1)", () =>
     ).toThrow(/허용되지 않은 값/);
   });
 
-  it("수동 세계의 규칙 20개가 전부 정규형 스키마를 통과한다 (Phase 5 출력 계약)", () => {
+  it("수동 세계의 규칙이 전부 정규형 스키마를 통과한다 (Phase 5 출력 계약)", () => {
     const rules = buildManualWorld(1).ruleDefinitions;
-    expect(rules).toHaveLength(20);
+    expect(rules.length).toBeGreaterThanOrEqual(40); // §40 세계 규칙 40~60
     for (const rule of rules) {
       expect(validateAgainstSchema(rule), `규칙 ${rule.id}`).toEqual([]);
     }

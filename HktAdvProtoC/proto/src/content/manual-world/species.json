@@ -3,16 +3,48 @@
     "id": "species.human",
     "name": "인간",
     "survivalUnit": "family",
-    "requiredResources": [{ "resourceTag": "organic_food", "amountPerDay": 3 }],
-    "senses": [
-      { "channel": "sight", "range": 45, "accuracy": 0.8 },
-      { "channel": "sound", "range": 60, "accuracy": 0.6 },
-      { "channel": "smell", "range": 20, "accuracy": 0.4 },
-      { "channel": "trace", "range": 30, "accuracy": 0.55 },
-      { "channel": "talk", "range": 18, "accuracy": 0.9 },
-      { "channel": "report", "range": 25, "accuracy": 0.9 }
+    "requiredResources": [
+      {
+        "resourceTag": "organic_food",
+        "amountPerDay": 3
+      }
     ],
-    "instincts": ["goal.survive", "goal.secure_food"],
+    "senses": [
+      {
+        "channel": "sight",
+        "range": 45,
+        "accuracy": 0.8
+      },
+      {
+        "channel": "sound",
+        "range": 60,
+        "accuracy": 0.6
+      },
+      {
+        "channel": "smell",
+        "range": 20,
+        "accuracy": 0.4
+      },
+      {
+        "channel": "trace",
+        "range": 30,
+        "accuracy": 0.55
+      },
+      {
+        "channel": "talk",
+        "range": 18,
+        "accuracy": 0.9
+      },
+      {
+        "channel": "report",
+        "range": 25,
+        "accuracy": 0.9
+      }
+    ],
+    "instincts": [
+      "goal.survive",
+      "goal.secure_food"
+    ],
     "adaptationRules": [],
     "growthRules": []
   },
@@ -21,17 +53,49 @@
     "name": "반향수",
     "survivalUnit": "family",
     "requiredResources": [
-      { "resourceTag": "organic_food", "amountPerDay": 4 },
-      { "resourceTag": "ability_residue", "amountPerDay": 1 }
+      {
+        "resourceTag": "organic_food",
+        "amountPerDay": 4
+      },
+      {
+        "resourceTag": "ability_residue",
+        "amountPerDay": 1
+      }
     ],
     "senses": [
-      { "channel": "sound", "range": 60, "accuracy": 0.7 },
-      { "channel": "energy_sense", "range": 35, "accuracy": 0.9 },
-      { "channel": "smell", "range": 40, "accuracy": 0.6 },
-      { "channel": "trace", "range": 45, "accuracy": 0.7 }
+      {
+        "channel": "sound",
+        "range": 60,
+        "accuracy": 0.7
+      },
+      {
+        "channel": "energy_sense",
+        "range": 35,
+        "accuracy": 0.9
+      },
+      {
+        "channel": "smell",
+        "range": 40,
+        "accuracy": 0.6
+      },
+      {
+        "channel": "trace",
+        "range": 45,
+        "accuracy": 0.7
+      }
     ],
-    "instincts": ["goal.survive", "goal.protect_offspring"],
-    "adaptationRules": ["rule.echo_beast_feeding"],
-    "growthRules": ["rule.territory_pressure"]
+    "instincts": [
+      "goal.survive",
+      "goal.protect_offspring"
+    ],
+    "adaptationRules": [
+      "rule.echo_beast_feeding",
+      "rule.residue_adaptation"
+    ],
+    "growthRules": [
+      "rule.territory_pressure",
+      "rule.echo_beast_reproduction",
+      "rule.echo_beast_cub_growth"
+    ]
   }
 ]

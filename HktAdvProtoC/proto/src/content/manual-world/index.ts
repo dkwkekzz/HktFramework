@@ -9,18 +9,22 @@ import type {
   SpaceDefinition,
   SpeciesDefinition,
   StateSchema,
+  SurvivalPressureDefinition,
   WorldBootstrap,
   WorldDefinition,
 } from "../../core/world/types";
+import type { EntityTemplate } from "../../core/rules/RuleTypes";
 import { buildManualWorldRules } from "./rules";
 import actions from "./actions.json";
 import bootstrap from "./bootstrap.json";
 import factions from "./factions.json";
 import goals from "./goals.json";
+import pressures from "./pressures.json";
 import resources from "./resources.json";
 import schemas from "./state-schemas.json";
 import space from "./space.json";
 import species from "./species.json";
+import templates from "./templates.json";
 
 export const MANUAL_WORLD_ID = "world.silent_forest_edge";
 
@@ -40,10 +44,12 @@ export function buildManualWorld(worldSeed: number): WorldDefinition {
       "axiom.actions_leave_signs",
     ],
     stateSchemas: schemas as unknown as StateSchema[],
-    ruleDefinitions: buildManualWorldRules(), // §11 — 규칙 20개 전부 JSON (Phase 2 이관 완료)
+    ruleDefinitions: buildManualWorldRules(), // §11 — 규칙 전부 JSON (Phase 2 이관 완료 + Phase 3 확장)
+    entityTemplates: templates as unknown as EntityTemplate[], // §11.3 create_entity (§15 번식)
     spaces: space as unknown as SpaceDefinition,
     resources: resources as unknown as ResourceDefinition[],
     species: species as unknown as SpeciesDefinition[],
+    survivalPressures: pressures as unknown as SurvivalPressureDefinition[], // §8
     factions: factions as unknown as FactionDefinition[],
     agentArchetypes: [],
     abilitySystem: null,

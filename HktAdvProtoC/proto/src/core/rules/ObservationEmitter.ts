@@ -21,13 +21,14 @@ export function emitObservation(
   effect: ObservationEffect,
   intensity?: number,
 ): ObservationSignal | undefined {
-  const actorId = ctx.actorId;
+  // 신호원이 대상인 경우 — 행위자는 그 신호를 읽는 쪽이 된다 (§23)
+  const actorId = effect.origin === "target" ? ctx.targetId : ctx.actorId;
   if (actorId === undefined) return undefined;
   const applied: ObservationEffect =
     intensity === undefined ? effect : { ...effect, strength: intensity };
   return emitObservationEffect(ctx.runtime, applied, {
     actorId,
-    ...(ctx.targetId !== undefined ? { targetId: ctx.targetId } : {}),
+    ...(effect.origin !== "target" && ctx.targetId !== undefined ? { targetId: ctx.targetId } : {}),
   });
 }
 

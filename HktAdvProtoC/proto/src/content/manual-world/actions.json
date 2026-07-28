@@ -104,7 +104,9 @@
         "on": "actor"
       }
     ],
-    "executionRules": [],
+    "executionRules": [
+      "rule.researcher_insight"
+    ],
     "visibleSignals": [],
     "risk": 15
   },
@@ -167,7 +169,8 @@
     ],
     "executionRules": [
       "rule.hunt_yield",
-      "rule.carcass_discovery"
+      "rule.carcass_discovery",
+      "rule.delegated_task_progress"
     ],
     "visibleSignals": [
       {
@@ -307,7 +310,8 @@
     ],
     "executionRules": [
       "rule.trade_price",
-      "rule.trade_transfer"
+      "rule.trade_transfer",
+      "rule.help_builds_trust"
     ],
     "visibleSignals": [
       {
@@ -381,7 +385,9 @@
       }
     ],
     "executionRules": [
-      "rule.report_propagation"
+      "rule.report_propagation",
+      "rule.report_builds_trust",
+      "rule.delegated_task_progress"
     ],
     "visibleSignals": [
       {
@@ -394,7 +400,13 @@
         "tags": [
           "report",
           "threat"
-        ]
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "relayBelief": true
+        }
       }
     ],
     "risk": 3
@@ -521,7 +533,9 @@
     ],
     "executionRules": [
       "rule.attack_resolution",
-      "rule.attack_noise"
+      "rule.attack_noise",
+      "rule.threat_breeds_fear",
+      "rule.delegated_task_progress"
     ],
     "visibleSignals": [
       {
@@ -593,7 +607,8 @@
       }
     ],
     "executionRules": [
-      "rule.movement_trace"
+      "rule.movement_trace",
+      "rule.flee_relief"
     ],
     "visibleSignals": [
       {
@@ -654,5 +669,277 @@
     ],
     "visibleSignals": [],
     "risk": 8
+  },
+  {
+    "id": "action.delegate",
+    "name": "구성원에게 위임한다",
+    "tags": [
+      "delegate",
+      "social"
+    ],
+    "actorRequirements": [],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 200,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [],
+    "duration": 60,
+    "expectedEffects": [
+      {
+        "stateKey": "threat_belief",
+        "direction": "decrease",
+        "magnitude": 18,
+        "on": "actor"
+      },
+      {
+        "stateKey": "food_reserve",
+        "direction": "increase",
+        "magnitude": 12,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.delegation_order",
+      "rule.delegation_creates_dependency"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.delegation_call",
+        "channels": [
+          "talk",
+          "report"
+        ],
+        "strength": 65,
+        "tags": [
+          "report",
+          "delegation",
+          "important"
+        ]
+      }
+    ],
+    "risk": 4
+  },
+  {
+    "id": "action.gossip",
+    "name": "소문을 퍼뜨린다",
+    "tags": [
+      "rumor",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 5
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 1
+      }
+    ],
+    "duration": 30,
+    "expectedEffects": [
+      {
+        "stateKey": "threat_belief",
+        "direction": "increase",
+        "magnitude": 10,
+        "on": "target"
+      }
+    ],
+    "executionRules": [
+      "rule.rumor_spread",
+      "rule.gossip_builds_familiarity"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.rumor",
+        "channels": [
+          "talk"
+        ],
+        "strength": 45,
+        "tags": [
+          "rumor",
+          "threat"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "relayBelief": true
+        }
+      }
+    ],
+    "risk": 1
+  },
+  {
+    "id": "action.faction_trade",
+    "name": "조직 간 거래",
+    "tags": [
+      "faction_trade"
+    ],
+    "actorRequirements": [],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "faction",
+      "sameRegion": true,
+      "maxDistance": 200,
+      "excludeSelf": true
+    },
+    "worldRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "target",
+          "key": "food_reserve"
+        },
+        "operator": ">",
+        "right": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "food_reserve"
+        }
+      }
+    ],
+    "costs": [],
+    "duration": 120,
+    "expectedEffects": [
+      {
+        "stateKey": "food_reserve",
+        "direction": "increase",
+        "magnitude": 15,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.faction_trade_transfer"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.faction_deal",
+        "channels": [
+          "talk",
+          "report"
+        ],
+        "strength": 40,
+        "tags": [
+          "trade"
+        ]
+      }
+    ],
+    "risk": 2
+  },
+  {
+    "id": "action.forage",
+    "name": "영역에서 먹이를 찾는다",
+    "tags": [
+      "forage"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 15
+        }
+      },
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "species_id"
+        },
+        "operator": "==",
+        "right": {
+          "kind": "const",
+          "value": "species.echo_beast"
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "food_source",
+      "sameRegion": true,
+      "maxDistance": 25
+    },
+    "worldRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "target",
+          "key": "amount"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 10
+        }
+      }
+    ],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 12
+      }
+    ],
+    "duration": 180,
+    "expectedEffects": [
+      {
+        "stateKey": "carried_food",
+        "direction": "increase",
+        "magnitude": 16,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.hunt_yield",
+      "rule.carcass_discovery"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.carcass",
+        "channels": [
+          "sight",
+          "smell"
+        ],
+        "strength": 60,
+        "tags": [
+          "carcass",
+          "food"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "carried_food",
+          "value": 16,
+          "confidence": 0.6
+        }
+      }
+    ],
+    "risk": 18
   }
 ]

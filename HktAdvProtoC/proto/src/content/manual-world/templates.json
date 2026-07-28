@@ -1,0 +1,23 @@
+[
+  {
+    "id": "creature.echo_beast_cub",
+    "type": "agent",
+    "tags": [
+      "living",
+      "creature",
+      "echo_beast",
+      "echo_beast_cub"
+    ],
+    "states": {
+      "health": 40,
+      "energy": 50,
+      "hunger": 30,
+      "fear": 25,
+      "aggression": 4,
+      "protecting_offspring": false,
+      "territory_pressure": 10,
+      "species_id": "species.echo_beast",
+      "goal_graph_id": "goal_graph.echo_beast_cub"
+    }
+  }
+]

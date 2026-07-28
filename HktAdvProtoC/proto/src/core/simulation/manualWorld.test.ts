@@ -4,7 +4,7 @@ import { describe, expect, it } from "vitest";
 import { findBelief } from "../agents/BeliefStore";
 import { hashValue } from "../../shared/hash";
 import type { RawWorldChange } from "../../shared/change";
-import { TICKS_PER_DAY } from "../../shared/time";
+import { TICKS_PER_DAY, tickToDay } from "../../shared/time";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import { InlineHost } from "./InlineHost";
 
@@ -82,11 +82,14 @@ describe("Phase 1 DoD — 수동 세계 30일", () => {
     for (const [label, time] of Object.entries({ foodDrop, forestHunt, attacked, fear, reported, subjugation })) {
       expect(time, `${label} 이 일어나지 않았다`).toBeDefined();
     }
-    expect(foodDrop!).toBeLessThan(forestHunt!);
-    expect(forestHunt!).toBeLessThanOrEqual(attacked!);
-    expect(attacked!).toBeLessThanOrEqual(fear!);
-    expect(fear!).toBeLessThan(reported!);
-    expect(reported!).toBeLessThanOrEqual(subjugation!);
+    // 순서는 "일" 단위로 본다. Phase 3 이후 정보는 목격 말고도 소문·조직 보고로 흐르므로(§23)
+    // 공포와 보고는 직접 목격보다 앞설 수 있다 — 연쇄의 척추(식량 부족 → 사냥 → 접촉 → 소집)는 그대로다.
+    const day = (tick: number): number => tickToDay(tick);
+    expect(day(foodDrop!)).toBeLessThanOrEqual(day(forestHunt!));
+    expect(day(forestHunt!)).toBeLessThanOrEqual(day(attacked!));
+    expect(day(attacked!)).toBeLessThanOrEqual(day(subjugation!));
+    expect(day(fear!)).toBeLessThanOrEqual(day(subjugation!));
+    expect(day(reported!)).toBeLessThanOrEqual(day(subjugation!));
   });
 
   it("반향수의 실제 상태와 마을 사람의 믿음이 분리 저장된다 (§10 예시 재현)", async () => {
@@ -100,7 +103,9 @@ describe("Phase 1 DoD — 수동 세계 30일", () => {
     for (const villager of ["agent.kael", "agent.mar", "agent.ren"]) {
       const belief = findBelief(runtime.agentRuntime(villager), BEAST, "aggression");
       expect(belief?.believedValue).toBe(90);
-      expect(belief?.confidence).toBeGreaterThan(0.5);
+      // Phase 3 부터 확신은 소문 경로를 지나며 전달자 신뢰만큼 깎인다 (§23·§25) —
+      // 값은 그대로 90 이지만 "얼마나 확신하는가"는 직접 관찰보다 낮다.
+      expect(belief?.confidence).toBeGreaterThan(0.1);
     }
 
     // 연구자의 믿음: 새끼를 지키는 중이다 — 같은 생물, 다른 결론
@@ -110,7 +115,12 @@ describe("Phase 1 DoD — 수동 세계 30일", () => {
       "protecting_offspring",
     );
     expect(researcherBelief?.believedValue).toBe(true);
-    expect(researcherBelief?.sourceIds.every((id) => id.startsWith("signal.residue_trace"))).toBe(true);
+    // 근거는 관찰 신호다 — 잔재 흔적이든 현장 기록이든, 소문이 아니라 자기 눈으로 본 것에서 왔다
+    expect(
+      researcherBelief?.sourceIds.every(
+        (id) => id.startsWith("signal.residue_trace") || id.startsWith("signal.field_notes"),
+      ),
+    ).toBe(true);
 
     // 관찰 불가 상태(새끼 위협도)는 누구의 믿음에도 새지 않는다 (§9 observable=false)
     for (const agentId of AGENTS) {

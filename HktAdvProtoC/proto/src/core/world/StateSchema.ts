@@ -26,6 +26,18 @@ export const DERIVED_FORMULAS: Record<string, DerivedFormula> = {
   // 스트레스: 공포와 생존 압력의 합성 (§26 stress > 85 → 재판단)
   stress: (read) =>
     clamp(num(read, "fear") * 0.6 + num(read, "survivalPressure") * 0.4, 0, 100),
+  /**
+   * 조직의 위기 (§17 requiredStates / §26 재판단 조건의 조직판).
+   * 조직에게 굶주림은 없다 — 비축이 마르고, 두려움과 위협 믿음이 커지는 것이 조직의 생존 압력이다.
+   */
+  crisis: (read) =>
+    clamp(
+      (100 - Math.min(100, num(read, "food_reserve"))) * 0.5 +
+        num(read, "fear") * 0.3 +
+        num(read, "threat_belief") * 0.2,
+      0,
+      100,
+    ),
 };
 
 const MAX_DERIVED_DEPTH = 8;

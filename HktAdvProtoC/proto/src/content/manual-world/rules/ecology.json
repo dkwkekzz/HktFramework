@@ -4,16 +4,27 @@
     "name": "반향수 섭식(능력 잔재)",
     "scope": "global",
     "priority": 70,
-    "triggers": [{ "type": "interval", "interval": 720 }],
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 720
+      }
+    ],
     "forEach": {
       "type": "query",
       "query": {
         "entityType": "agent",
         "where": [
           {
-            "left": { "type": "each_state", "key": "species_id" },
+            "left": {
+              "type": "each_state",
+              "key": "species_id"
+            },
             "operator": "==",
-            "right": { "type": "constant", "value": "species.echo_beast" }
+            "right": {
+              "type": "constant",
+              "value": "species.echo_beast"
+            }
           }
         ]
       }
@@ -26,8 +37,13 @@
           "aggregate": "first",
           "key": "amount",
           "query": {
-            "tags": ["residue_source"],
-            "withinRadius": { "of": "target", "r": 80 },
+            "tags": [
+              "residue_source"
+            ],
+            "withinRadius": {
+              "of": "target",
+              "r": 80
+            },
             "limit": 1
           }
         }
@@ -35,9 +51,15 @@
     ],
     "conditions": [
       {
-        "left": { "type": "binding", "name": "fieldAmount" },
+        "left": {
+          "type": "binding",
+          "name": "fieldAmount"
+        },
         "operator": ">=",
-        "right": { "type": "constant", "value": 2 }
+        "right": {
+          "type": "constant",
+          "value": 2
+        }
       }
     ],
     "effects": [
@@ -46,8 +68,13 @@
         "target": {
           "type": "query",
           "query": {
-            "tags": ["residue_source"],
-            "withinRadius": { "of": "target", "r": 80 },
+            "tags": [
+              "residue_source"
+            ],
+            "withinRadius": {
+              "of": "target",
+              "r": 80
+            },
             "limit": 1
           }
         },
@@ -57,37 +84,54 @@
       },
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "carried_residue",
         "operation": "add",
         "value": 2
       },
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "hunger",
         "operation": "add",
         "value": -15
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.creatures_absorb_ability_residue"]
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
   },
   {
     "id": "rule.offspring_threat_change",
     "name": "새끼 위협도 변화",
     "scope": "entity",
     "priority": 70,
-    "triggers": [{ "type": "interval", "interval": 60 }],
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 60
+      }
+    ],
     "forEach": {
       "type": "query",
       "query": {
         "entityType": "agent",
         "where": [
           {
-            "left": { "type": "each_state", "key": "protecting_offspring" },
+            "left": {
+              "type": "each_state",
+              "key": "protecting_offspring"
+            },
             "operator": "==",
-            "right": { "type": "constant", "value": true }
+            "right": {
+              "type": "constant",
+              "value": true
+            }
           }
         ]
       }
@@ -100,12 +144,21 @@
           "aggregate": "count",
           "query": {
             "entityType": "agent",
-            "withinRadius": { "of": "target", "r": 60 },
+            "withinRadius": {
+              "of": "target",
+              "r": 60
+            },
             "where": [
               {
-                "left": { "type": "each_state", "key": "species_id" },
+                "left": {
+                  "type": "each_state",
+                  "key": "species_id"
+                },
                 "operator": "==",
-                "right": { "type": "constant", "value": "species.human" }
+                "right": {
+                  "type": "constant",
+                  "value": "species.human"
+                }
               }
             ]
           }
@@ -118,25 +171,42 @@
         "type": "modify_state",
         "conditions": [
           {
-            "left": { "type": "binding", "name": "intruders" },
+            "left": {
+              "type": "binding",
+              "name": "intruders"
+            },
             "operator": ">",
-            "right": { "type": "constant", "value": 0 }
+            "right": {
+              "type": "constant",
+              "value": 0
+            }
           }
         ],
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "offspring_threat",
         "operation": "set",
         "valueRef": {
           "type": "expr",
           "op": "add",
           "operands": [
-            { "type": "constant", "value": 35 },
+            {
+              "type": "constant",
+              "value": 35
+            },
             {
               "type": "expr",
               "op": "mul",
               "operands": [
-                { "type": "binding", "name": "intruders" },
-                { "type": "constant", "value": 25 }
+                {
+                  "type": "binding",
+                  "name": "intruders"
+                },
+                {
+                  "type": "constant",
+                  "value": 25
+                }
               ]
             }
           ]
@@ -146,39 +216,62 @@
         "type": "modify_state",
         "conditions": [
           {
-            "left": { "type": "binding", "name": "intruders" },
+            "left": {
+              "type": "binding",
+              "name": "intruders"
+            },
             "operator": "==",
-            "right": { "type": "constant", "value": 0 }
+            "right": {
+              "type": "constant",
+              "value": 0
+            }
           }
         ],
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "offspring_threat",
         "operation": "add",
         "value": -4
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
   },
   {
     "id": "rule.territory_pressure",
     "name": "영역 압박",
     "scope": "entity",
     "priority": 60,
-    "triggers": [{ "type": "state_changed", "stateKey": "offspring_threat" }],
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "offspring_threat"
+      }
+    ],
     "conditions": [],
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "territory_pressure",
         "operation": "set",
         "valueRef": {
           "type": "expr",
           "op": "mul",
           "operands": [
-            { "type": "actor_state", "key": "offspring_threat" },
-            { "type": "constant", "value": 0.8 }
+            {
+              "type": "actor_state",
+              "key": "offspring_threat"
+            },
+            {
+              "type": "constant",
+              "value": 0.8
+            }
           ]
         }
       },
@@ -186,26 +279,41 @@
         "type": "modify_state",
         "conditions": [
           {
-            "left": { "type": "actor_state", "key": "offspring_threat" },
+            "left": {
+              "type": "actor_state",
+              "key": "offspring_threat"
+            },
             "operator": ">",
-            "right": { "type": "constant", "value": 70 }
+            "right": {
+              "type": "constant",
+              "value": 70
+            }
           }
         ],
-        "target": { "type": "actor" },
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "aggression",
         "operation": "add",
         "value": 3
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
   },
   {
     "id": "rule.attack_resolution",
     "name": "공격 판정",
     "scope": "relationship",
     "priority": 50,
-    "triggers": [{ "type": "action_executed", "actionId": "action.attack" }],
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.attack"
+      }
+    ],
     "bindings": [
       {
         "name": "damage",
@@ -213,8 +321,15 @@
           "type": "expr",
           "op": "add",
           "operands": [
-            { "type": "constant", "value": 15 },
-            { "type": "random_int", "max": 10, "stream": "actor" }
+            {
+              "type": "constant",
+              "value": 15
+            },
+            {
+              "type": "random_int",
+              "max": 10,
+              "stream": "actor"
+            }
           ]
         }
       }
@@ -223,24 +338,345 @@
     "effects": [
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "health",
         "operation": "add",
         "valueRef": {
           "type": "expr",
           "op": "neg",
-          "operands": [{ "type": "binding", "name": "damage" }]
+          "operands": [
+            {
+              "type": "binding",
+              "name": "damage"
+            }
+          ]
         }
       },
       {
         "type": "modify_state",
-        "target": { "type": "target" },
+        "target": {
+          "type": "target"
+        },
         "stateKey": "fear",
         "operation": "add",
         "value": 25
       }
     ],
     "observations": [],
-    "derivedFromAxioms": ["axiom.life_protects_what_it_values"]
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
+  },
+  {
+    "id": "rule.echo_beast_reproduction",
+    "name": "반향수 번식 — 새끼가 태어난다",
+    "scope": "region",
+    "priority": 30,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 7200
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_state",
+          "entityId": "creature.echo_beast_mother",
+          "key": "health"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 60
+        }
+      },
+      {
+        "left": {
+          "type": "entity_state",
+          "entityId": "creature.echo_beast_mother",
+          "key": "hunger"
+        },
+        "operator": "<",
+        "right": {
+          "type": "constant",
+          "value": 55
+        }
+      },
+      {
+        "left": {
+          "type": "query_value",
+          "query": {
+            "tags": [
+              "echo_beast_cub"
+            ]
+          },
+          "aggregate": "count"
+        },
+        "operator": "<",
+        "right": {
+          "type": "constant",
+          "value": 1
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "create_entity",
+        "templateId": "creature.echo_beast_cub",
+        "location": {
+          "type": "entity",
+          "entityId": "location.beast_den"
+        }
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "entity",
+          "entityId": "creature.echo_beast_mother"
+        },
+        "stateKey": "offspring_threat",
+        "operation": "add",
+        "value": 5
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "entity",
+          "entityId": "creature.echo_beast_mother"
+        },
+        "stateKey": "energy",
+        "operation": "add",
+        "value": -15
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained",
+      "axiom.life_protects_what_it_values"
+    ]
+  },
+  {
+    "id": "rule.echo_beast_cub_growth",
+    "name": "새끼가 자란다 (§15 growthRules)",
+    "scope": "region",
+    "priority": 28,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "tags": [
+          "echo_beast_cub"
+        ]
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": 3
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "aggression",
+        "operation": "add",
+        "value": 1
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "hunger",
+        "operation": "add",
+        "value": 6
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
+    "id": "rule.residue_adaptation",
+    "name": "잔재 적응 (§15 adaptationRules)",
+    "scope": "entity",
+    "priority": 32,
+    "triggers": [
+      {
+        "type": "state_changed",
+        "stateKey": "carried_residue"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "event_payload",
+          "key": "after"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 40
+        }
+      },
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "species_id"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "species.echo_beast"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "territory_pressure",
+        "operation": "add",
+        "value": 4
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": 2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
+  },
+  {
+    "id": "rule.aggression_calms",
+    "name": "위협이 물러나면 공격성도 가라앉는다",
+    "scope": "region",
+    "priority": 26,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "tags": [
+          "creature"
+        ]
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "aggression",
+        "operation": "add",
+        "value": -8,
+        "conditions": [
+          {
+            "left": {
+              "type": "target_state",
+              "key": "offspring_threat"
+            },
+            "operator": "<",
+            "right": {
+              "type": "constant",
+              "value": 70
+            }
+          }
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
+  },
+  {
+    "id": "rule.cub_feeding",
+    "name": "어미가 새끼를 먹인다 (§15 growthRules)",
+    "scope": "region",
+    "priority": 29,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 1440
+      }
+    ],
+    "forEach": {
+      "type": "query",
+      "query": {
+        "tags": [
+          "echo_beast_cub"
+        ]
+      }
+    },
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "hunger",
+        "operation": "add",
+        "value": -35,
+        "conditions": [
+          {
+            "left": {
+              "type": "query_value",
+              "query": {
+                "tags": [
+                  "echo_beast"
+                ],
+                "withinRadius": {
+                  "of": "target",
+                  "r": 250
+                }
+              },
+              "aggregate": "count"
+            },
+            "operator": ">=",
+            "right": {
+              "type": "constant",
+              "value": 1
+            }
+          }
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
   }
 ]

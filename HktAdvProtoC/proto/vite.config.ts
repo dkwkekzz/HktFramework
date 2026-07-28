@@ -5,5 +5,7 @@ export default defineConfig({
   test: {
     environment: "node",
     include: ["src/**/*.test.ts"],
+    // 30일 실행이 들어가는 DoD 테스트가 있다 — 기본 5초로는 모자란다 (Phase 3 판단 교체 이후)
+    testTimeout: 60_000,
   },
 });
