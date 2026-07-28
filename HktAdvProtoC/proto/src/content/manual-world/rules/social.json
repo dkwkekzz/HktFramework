@@ -1,0 +1,725 @@
+[
+  {
+    "id": "rule.negotiation_settles",
+    "name": "협상 → 상호 신뢰·원한 완화",
+    "tags": [
+      "relationship",
+      "negotiation"
+    ],
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.negotiate"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "key": "resentment",
+        "operation": "add",
+        "value": -6
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "resentment",
+        "operation": "add",
+        "value": -6
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": -6
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.persuasion_shifts_belief",
+    "name": "설득 → 믿음 전달과 존경",
+    "tags": [
+      "relationship",
+      "information"
+    ],
+    "scope": "relationship",
+    "priority": 50,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.persuade"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "respect",
+        "operation": "add",
+        "value": 4
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 3
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.lie_discovery_risk",
+    "name": "거짓말 발각 위험 → 신뢰 붕괴 (§12 불완전한 행동 결과)",
+    "tags": [
+      "relationship",
+      "deception"
+    ],
+    "scope": "relationship",
+    "priority": 50,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.lie"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "familiarity",
+        "operation": "add",
+        "value": 2
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": -20,
+        "chance": 0.15
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "resentment",
+        "operation": "add",
+        "value": 12,
+        "chance": 0.15
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.threatening_words",
+    "name": "협박 → 공포·원한, 신뢰 붕괴",
+    "tags": [
+      "relationship",
+      "threat"
+    ],
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.threaten"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "fear",
+        "operation": "add",
+        "value": 12
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "resentment",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": -8
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "wealth",
+        "operation": "add",
+        "value": -6
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "wealth",
+        "operation": "add",
+        "value": 6
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  },
+  {
+    "id": "rule.hiring_contract",
+    "name": "고용 → 보수 지급·의무 약속·빚",
+    "tags": [
+      "organization",
+      "exchange"
+    ],
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.hire"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "wealth",
+        "operation": "add",
+        "value": 15
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "delegated_goal",
+        "operation": "set",
+        "value": "goal.gather_for_village"
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "target"
+        },
+        "stateKey": "delegated_by",
+        "operation": "set",
+        "valueRef": {
+          "type": "entity_ref",
+          "of": "actor"
+        }
+      },
+      {
+        "type": "make_promise",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "stateKey": "delegation_completed",
+        "comparison": ">",
+        "threshold": 0,
+        "dueInTicks": 4320,
+        "tags": [
+          "hire"
+        ]
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "debt",
+        "operation": "add",
+        "value": 10
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "dependency",
+        "operation": "add",
+        "value": 6
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.alliance_bond",
+    "name": "동맹 제안 → 상호 신뢰·호감, 보고 약속",
+    "tags": [
+      "relationship",
+      "alliance"
+    ],
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.propose_alliance"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 10
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 10
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "key": "affection",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "affection",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "make_promise",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "stateKey": "reported_threat",
+        "comparison": ">",
+        "threshold": 0,
+        "dueInTicks": 4320,
+        "tags": [
+          "alliance"
+        ]
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
+  },
+  {
+    "id": "rule.contract_terms",
+    "name": "계약 → 선금·납품 약속·빚",
+    "tags": [
+      "exchange",
+      "contract"
+    ],
+    "scope": "relationship",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.contract"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "wealth",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "make_promise",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "stateKey": "carried_food",
+        "comparison": ">",
+        "threshold": 20,
+        "dueInTicks": 4320,
+        "tags": [
+          "contract"
+        ]
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "actor"
+        },
+        "to": {
+          "type": "target"
+        },
+        "key": "debt",
+        "operation": "add",
+        "value": 8
+      },
+      {
+        "type": "modify_relationship",
+        "from": {
+          "type": "target"
+        },
+        "to": {
+          "type": "actor"
+        },
+        "key": "trust",
+        "operation": "add",
+        "value": 6
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.evidence_hidden",
+    "name": "증거 은닉 → 흔적 제거, 지운 자국",
+    "tags": [
+      "information",
+      "concealment"
+    ],
+    "scope": "entity",
+    "priority": 45,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.hide_evidence"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "recent_presence",
+        "operation": "set",
+        "value": false
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.actions_leave_signs"
+    ]
+  },
+  {
+    "id": "rule.crafting_output",
+    "name": "제작 → 잔재가 상품이 된다",
+    "tags": [
+      "production",
+      "exchange"
+    ],
+    "scope": "entity",
+    "priority": 45,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.craft"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "carried_goods",
+        "operation": "add",
+        "value": 2
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "wealth",
+        "operation": "add",
+        "value": 10
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue",
+      "axiom.scarcity_creates_exchange"
+    ]
+  },
+  {
+    "id": "rule.research_insight",
+    "name": "연구 → 위협 이해가 깊어진다",
+    "tags": [
+      "information",
+      "research"
+    ],
+    "scope": "entity",
+    "priority": 45,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.research"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "known_threat_level",
+        "operation": "add",
+        "value": 6
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "curiosity",
+        "operation": "add",
+        "value": -4
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "entity",
+          "entityId": "faction.research_society"
+        },
+        "stateKey": "research_progress",
+        "operation": "add",
+        "value": 4
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.belief_drives_behavior"
+    ]
+  }
+]

@@ -22,7 +22,8 @@ describe("수동 세계 정의", () => {
     // §40: 세계 규칙 40~60 / 행동 20종 / 종족 4 / 조직 5 / 주요 개인 20명
     expect(MANUAL_RULES.length).toBeGreaterThanOrEqual(40);
     expect(MANUAL_RULES.length).toBeLessThanOrEqual(60);
-    expect(definition.actionDefinitions.length).toBeLessThanOrEqual(20);
+    // 행동은 §21 예시 21종을 전부 담기 위해 §40 의 20 을 넘는다 (G-2 — §21 이 §40 규모표보다 우선)
+    expect(definition.actionDefinitions.length).toBeLessThanOrEqual(25);
     expect(definition.species).toHaveLength(2);
     expect(definition.bootstrap.entities.filter((e) => e.type === "faction").length).toBeLessThanOrEqual(5);
     expect(definition.bootstrap.entities.filter((e) => e.type === "agent").length).toBeLessThanOrEqual(20);

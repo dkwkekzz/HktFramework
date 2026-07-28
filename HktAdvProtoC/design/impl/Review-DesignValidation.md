@@ -78,7 +78,7 @@ verify 의 최종 표: §36 네 화면 29/29 · rendering/ 10파일 격리 위�
 | # | 갭 | 근거 | 영향 |
 |---|---|---|---|
 | G-1 | **§12 확률 5용도 제한 미구현.** `chance` 가 모든 효과에 무제한, 용도 라벨·검증기 없음. 5용도 중 엔진 실현 2개, 관찰 실패는 결정론 | `RuleTypes.ts:98-103`, `EffectExecutor.ts:200-238`, `WorldValidation.ts:148-150`(범위 검사뿐) | 생성 AI 가 "확률로 인과를 대체한 규칙"을 내도 걸러지지 않는다 — 기획이 명시한 유일한 확률 원칙이 무방비 |
-| G-2 | **§21 사회 행동 10종 부재 + `visibleSignals` 14중 10종 침묵 + §19 `completionEffects`/`supports`/`alternative` 사문.** | actions.json 전수 대조, `ObservationEmitter.ts:11-17`(emit_signal 규칙 있어야만 발신), `GoalSystem.ts:391-459` | 헌터헌터급 깊이를 만들 사회적 조작·정보전 축이 통째로 없다. 거래·위임·능력 사용이 관찰 불가 → 소문·사건 연쇄가 구조적으로 빈곤 |
+| G-2 | ~~**§21 사회 행동 10종 부재 + `visibleSignals` 14중 10종 침묵 + §19 `completionEffects`/`supports`/`alternative` 사문.**~~ **→ 수정 완료 (2026-07-28, §5 참조)** | actions.json 전수 대조, `ObservationEmitter.ts:11-17`(emit_signal 규칙 있어야만 발신), `GoalSystem.ts:391-459` | 헌터헌터급 깊이를 만들 사회적 조작·정보전 축이 통째로 없다. 거래·위임·능력 사용이 관찰 불가 → 소문·사건 연쇄가 구조적으로 빈곤 |
 | G-3 | **§17 `hiddenPurposes` 미소비 → §41 초기 상태 6중 2가 선언 문자열.** `structures`/`policies` 타입 부재 | `types.ts:149`(선언), core 소비 grep 0건, `factions.json` | "지도자의 불법 채굴 은폐"·"밀렵 조직의 장기 수요" 가 목적·행동·비밀로 전개되지 않는다 — §30 의 "플레이어가 모르는 것" 절반이 실행 데이터가 아님 |
 | G-4 | **§15 종족 필드 8중 5 사문**(survivalUnit·requiredResources·instincts·adaptationRules·growthRules 를 core 가 안 읽음), reproduction/socialStructure 생성 후 폐기, abilityAccess 부재 | `SpeciesGenerator.ts:131-142`, core grep | 종족은 감각+심볼일 뿐 — 생존 단위·번식·적응이 시뮬레이션에 없어 §15 의 "생존 구조 우선" 이 형식에 그침 |
 | G-5 | **§13 `resourceProfiles`/`speciesSuitability` 런타임 미보존, `SpaceConnection.requirements` 스키마가 금지** | `SpaceGenerator.ts:41-50`(측면 채널), `OutputSchemas.ts:230-241` | 지역-자원-종의 생태 결합이 부트스트랩 1회로 끝나고, 조건부 통행(관문·능력 요구)이 표현 불가 |
@@ -125,3 +125,33 @@ verify 의 최종 표: §36 네 화면 29/29 · rendering/ 10파일 격리 위�
 - "부분" 12건의 공통 패턴은 두 가지다: ① **생성은 하는데 버리거나 안 읽는 필드**(종족 5필드, hiddenPurposes, resourceProfiles, supports 엣지, knownSecrets …) — 데이터는 기획 모양대로 나오지만 시뮬레이션 의미가 없다. ② **목록의 앞쪽만 구현**(행동 21→11, 채널 12→8, 성장 조건 7→6, 확률 용도 5→2) — 특히 사회적 조작 축(G-2)이 통째로 비어 있어 트랙 목표인 "깊이"의 상한을 지금 규정하고 있다.
 - ViewModel 파이프라인은 원칙(린트 강제·누출 0·3렌더러 동일 소스) 면에서 완성이며, 남은 것은 표현 어휘다: 조직 마커 도달 불가 1건(코드 결함), 목적 그래프·관계망의 도식화(범위 판단 필요).
 - 후속 작업 우선순위 제안: G-2(사회 행동+신호 발신) → G-3(hiddenPurposes 소비) → G-1(확률 용도 검증) → G-4/G-5(종족·공간 필드 소비) → G-10(게이트 항진 항 1줄 수정, 즉효).
+
+## 5. G-2 수정 (2026-07-28)
+
+세 갈래를 전부 구현했다. 검증: `npm run verify` **73/73** (기존 70 + 신규 3항) · `npm test` **222/222** (기존 216 + goalEdges 6항).
+
+**① §21 visibleSignals 자동 발신** — `completeAction` 이 행동에 선언된 신호를 규칙 없이도 완료 시 자동 발신한다(`ActionSystem.ts` `emitDeclaredSignals`). 실행 규칙이 같은 signalId 를 이미 냈으면 중복 발신하지 않는다 — 기존 4종의 발신 경로·강도는 그대로다. verify 신규 항목이 "실행된 행동의 선언 신호 침묵 위반 0"을 상시 감시한다.
+
+**② §19 엣지 의미론 + completionEffects** —
+- `supports`: 도움받는 목적의 활성도가 돕는 목적으로 절반 강도로 흐른다(requires 의 절반). 콘텐츠에 이미 저작돼 있던 supports 엣지 16개가 이 수정으로 살아났다.
+- `alternative`: 같은 필요를 채우는 대안끼리 더 유망한 쪽이 남고 약한 쪽만 물러난다(conflicts 와 달리 단방향 억제).
+- `completionEffects`: `GoalNode` 에 신설(`types.ts` `GoalCompletionEffect`) — 달성이 처음 확인되는 순간 1회 적용되고, 상태 변경이 state_changed 규칙으로 이어져 완료가 세계에 파문을 남긴다. 생성 스키마(`OutputSchemas.ts`)에도 선택 필드로 추가.
+- DSL 에 `make_promise` 효과 신설(§25) — 계약·동맹 행동이 관계 원장에 약속(기한·이행 조건)을 남긴다.
+
+**③ §21 사회 행동 10종** — 협상·설득·거짓말(조직에의 과장 보고)·협박(갈취)·고용(보수+의무 약속+빚)·동맹 제안(상호 신뢰·**호감**·보고 약속 — G-8 의 affection 무변경도 이로써 부분 해소)·계약(선금+납품 약속)·증거 은닉·제작·연구를 manual-world 행동 24종/규칙 54개 체계로 추가. 전부 비용+위험 보유(§34), 전부 관찰 신호 선언(§23).
+
+**수정 과정에서 드러나 함께 고친 잠재 결함 3건** (모두 기존 코드의 실결함 — 새 콘텐츠가 노출):
+1. `MemorySystem.survivalRelevance` 가 조직 개체에 agent 전용 상태(survivalPressure)를 읽어 예외 — kind 인지형으로 수정(조직은 crisis).
+2. `PerceptionSystem` 믿음 병합에서 **같은 결론의 약한 전문(hearsay)이 강한 확신을 깎아 내리는** 결함 — §23 "기존 기억과 비교" 취지대로 일치 증거는 확신을 유지(max)하도록 수정.
+3. `PlayerAgent.candidateKey` 가 `approachFor` 를 무시해 "관찰하러 다가가기"와 "연구하러 다가가기"가 서로를 덮어씀 — §30 참여 방식이 화면에서 사라지는 결함. 키에 approachFor 포함.
+
+**균형 재조정** (신호가 살아나며 정보가 죽지 않는 세계가 됐고, 그만큼 세계가 더 겁먹고 덜 일했다):
+- report_talk 은 공개 방송이 아니라 조직 채널(report)로, delegation_call 강도 65→45.
+- 사회 행동은 "가끔 하는 무거운 행동"(duration 90~120, energy 4~6). 사냥꾼은 사회 행동 없이 원래 성격 유지(서사 척추 보존).
+- 식량 수지: 소비 계수 1.2→1.0, 거래 운송 상한 20→30 — §35 "자원 소멸 없음" 재충족.
+- 실행 기준선 재고정: `rebaseline.ts`(Phase 3 재고정과 같은 절차) + `baseline:sim`(다양성 28.70 · 깊이 5.04 · 8/8).
+- 첫 세계: veil_wardens 조직이 평시 경보(26)에서 두 목적 모두 "이미 달성"이라 30일 교착 — **§42-6 정식 치유 경로인 수정 라운드 녹화**(repairs.json, healer 수정과 같은 병리)로 달성 조건을 낮춰 §35 8/8 재합격.
+
+**§40 규모 주석**: 행동은 §21 예시 21종을 담기 위해 §40 규모표(20종)를 넘는 24종 — WorldValidation.test 에 근거 주석과 함께 상한 25로 조정.
+
+무개입 30일(시드 42) 기준 사회 행동 중 협박·동맹·은닉은 NPC 가 자발적으로 사용하며, 나머지(협상·설득·거짓말·고용·계약·제작·연구)는 이 시드의 무개입 흐름에서는 미선택 — 플레이어 행동 패널에는 전부 오른다(§30·§31). verify 출력이 이를 투명하게 보고한다("미실행 행동의 신호 7종").

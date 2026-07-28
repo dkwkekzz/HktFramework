@@ -38,6 +38,8 @@ Phase 8 이후 화면이 "디버그 다이어그램"으로 보이는 원인을 �
 
 기획서 §1~§45 를 목차 순서대로 코드와 재대조 — **충분 33 / 부분 12 / 누락 0**, 갭 12건(G-1~G-12)과 요소별 ViewModel 시각 표현 판정은 [design/impl/Review-DesignValidation.md](design/impl/Review-DesignValidation.md). 핵심 발견: ① 생성 후 미소비 필드군(종족 5필드·hiddenPurposes·resourceProfiles·supports 엣지·knownSecrets) ② 목록 앞쪽만 구현(행동 21→11 — 사회적 조작 축 부재, 관찰 채널 12→8, 확률 용도 5→2, visibleSignals 14→4 발신) ③ 조직 지도 마커 도달 불가·§44-10 게이트 항진 항.
 
+**G-2 수정 완료 (2026-07-28)** — §21 사회 행동 10종(행동 24종·규칙 54개) + visibleSignals 자동 발신(선언=발신, 침묵 위반 0) + §19 supports/alternative/completionEffects 소비 + DSL `make_promise`(§25). 과정에서 잠재 결함 3건 동반 수정(조직 기억 중요도 예외·전문에 의한 확신 침식·플레이어 다가가기 후보 충돌). 기준선 재고정(rebaseline + baseline:sim), 첫 세계는 수정 라운드 녹화로 재합격. verify **73/73** · test **222/222**. 상세: [Review-DesignValidation.md §5](design/impl/Review-DesignValidation.md).
+
 ## 다음
 
 §44 13항을 통과했으므로 **이 트랙의 프로토타입 범위는 닫혔다.** §43 이 제외한 것들(완성된 경제 시장, 대규모 동시 접속 …)은 별도 기획의 몫이다. 시각 완성도는 위 1차 개선으로 최소선만 넘겼다 — 스프라이트·애니메이션은 여전히 범위 밖.

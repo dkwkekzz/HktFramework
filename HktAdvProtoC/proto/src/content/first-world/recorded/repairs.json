@@ -2626,5 +2626,107 @@
     ]
    }
   ]
+ },
+ {
+  "taskId": "goals/goal_graph.veil_wardens",
+  "answers": [
+   "sim.all-agents-act"
+  ],
+  "note": "수호단의 생태 목적이 평시 경보(26)에서 이미 달성 상태라 조직이 30일 내내 한가했다 — 달성 조건을 '경보가 완전히 잦아든 상태(<15)'로 낮춰, 숲을 지키는 조직은 평시에도 감시를 위임하게 했다 (healer 수정과 같은 병리)",
+  "response": {
+   "id": "goal_graph.veil_wardens",
+   "nodes": [
+    {
+     "id": "goal.faction_ecology",
+     "description": "숲의 훼손을 멈춘다",
+     "targetConditions": [
+      {
+       "left": {
+        "kind": "state",
+        "owner": "actor",
+        "key": "ecology_alarm"
+       },
+       "operator": "<",
+       "right": {
+        "kind": "const",
+        "value": 15
+       }
+      }
+     ],
+     "baseImportance": 55,
+     "urgencyPolicy": {
+      "type": "state_threshold",
+      "source": "self",
+      "stateKey": "ecology_alarm",
+      "comparison": ">",
+      "threshold": 15,
+      "weight": 1.2,
+      "max": 60
+     },
+     "desiredChanges": [
+      {
+       "stateKey": "ecology_alarm",
+       "direction": "decrease",
+       "weight": 1
+      }
+     ],
+     "abandonmentConditions": [],
+     "allowedActionTags": [
+      "delegate"
+     ],
+     "focusIds": [
+      "faction.crown_bureau",
+      "faction.research_society"
+     ]
+    },
+    {
+     "id": "goal.faction_authority",
+     "description": "사당의 권위를 지킨다",
+     "targetConditions": [
+      {
+       "left": {
+        "kind": "state",
+        "owner": "actor",
+        "key": "member_count"
+       },
+       "operator": ">",
+       "right": {
+        "kind": "const",
+        "value": 8
+       }
+      }
+     ],
+     "baseImportance": 35,
+     "urgencyPolicy": {
+      "type": "state_threshold",
+      "source": "self",
+      "stateKey": "member_count",
+      "comparison": "<",
+      "threshold": 8,
+      "weight": 0.8,
+      "max": 40
+     },
+     "desiredChanges": [
+      {
+       "stateKey": "member_count",
+       "direction": "increase",
+       "weight": 1
+      }
+     ],
+     "abandonmentConditions": [],
+     "allowedActionTags": [
+      "delegate"
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "from": "goal.faction_ecology",
+     "to": "goal.faction_authority",
+     "relation": "supports",
+     "weight": 0.5
+    }
+   ]
+  }
  }
 ]

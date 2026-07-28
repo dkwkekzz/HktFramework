@@ -68,9 +68,11 @@ function survivalRelevance(
 ): number {
   if (!memory.tags.some((tag) => SURVIVAL_TAGS.includes(tag))) return 0;
   if (runtime.store.findEntity(agent.agentId) === undefined) return 0;
-  const schema = runtime.schemas.find("agent", "survivalPressure");
+  // 조직의 생존 지표는 survivalPressure 가 아니라 crisis 다 (§17) — agent 스키마를 조직에 읽지 않는다
+  const stateKey = agent.kind === "faction" ? "crisis" : "survivalPressure";
+  const schema = runtime.schemas.find(agent.kind === "faction" ? "faction" : "agent", stateKey);
   if (schema === undefined) return 0;
-  const pressure = runtime.store.read(agent.agentId, "survivalPressure");
+  const pressure = runtime.store.read(agent.agentId, stateKey);
   return typeof pressure === "number" ? pressure : 0;
 }
 

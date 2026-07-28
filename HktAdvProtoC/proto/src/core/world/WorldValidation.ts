@@ -197,6 +197,11 @@ function validateRuleEffect(
       walkSelector(schemas, effect.from, where, errors);
       walkSelector(schemas, effect.to, where, errors);
       return;
+    case "make_promise":
+      walkSelector(schemas, effect.from, where, errors);
+      walkSelector(schemas, effect.to, where, errors);
+      if (effect.dueInTicks <= 0) errors.push(`${where}: dueInTicks 는 1 이상이어야 한다 (§25 약속에는 기한이 있다)`);
+      return;
     case "record_growth":
       // key 는 §9 상태 키가 아니라 §18 판단 변수·능력 id 다 — 스키마 검증 대상이 아니다
       walkSelector(schemas, effect.target, where, errors);

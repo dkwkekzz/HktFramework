@@ -393,13 +393,11 @@
       {
         "signalId": "signal.report_talk",
         "channels": [
-          "talk",
           "report"
         ],
-        "strength": 55,
+        "strength": 45,
         "tags": [
-          "report",
-          "threat"
+          "report"
         ],
         "claim": {
           "subject": "entity",
@@ -713,11 +711,10 @@
           "talk",
           "report"
         ],
-        "strength": 65,
+        "strength": 45,
         "tags": [
           "report",
-          "delegation",
-          "important"
+          "delegation"
         ]
       }
     ],
@@ -941,5 +938,643 @@
       }
     ],
     "risk": 18
+  },
+  {
+    "id": "action.negotiate",
+    "name": "협상한다",
+    "tags": [
+      "negotiate",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 7
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 5
+      }
+    ],
+    "duration": 120,
+    "expectedEffects": [
+      {
+        "stateKey": "fear",
+        "direction": "decrease",
+        "magnitude": 6,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.negotiation_settles"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.negotiation_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 40,
+        "tags": [
+          "negotiation"
+        ]
+      }
+    ],
+    "risk": 6
+  },
+  {
+    "id": "action.persuade",
+    "name": "설득한다",
+    "tags": [
+      "persuade",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 6
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 4
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "known_threat_level",
+        "direction": "increase",
+        "magnitude": 8,
+        "on": "target"
+      }
+    ],
+    "executionRules": [
+      "rule.persuasion_shifts_belief"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.persuasion_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 55,
+        "tags": [
+          "information"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "relayBelief": true
+        }
+      }
+    ],
+    "risk": 5
+  },
+  {
+    "id": "action.lie",
+    "name": "거짓말한다",
+    "tags": [
+      "deceive",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 6
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "faction",
+      "sameRegion": true,
+      "maxDistance": 30
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 4
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "threat_belief",
+        "direction": "increase",
+        "magnitude": 8,
+        "on": "target"
+      }
+    ],
+    "executionRules": [
+      "rule.lie_discovery_risk"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.deception_talk",
+        "channels": [
+          "report"
+        ],
+        "strength": 35,
+        "tags": [
+          "rumor"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "aggression",
+          "value": 95,
+          "confidence": 0.5
+        }
+      }
+    ],
+    "risk": 18
+  },
+  {
+    "id": "action.threaten",
+    "name": "협박한다",
+    "tags": [
+      "threaten",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 7
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 5
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "wealth",
+        "direction": "increase",
+        "magnitude": 6,
+        "on": "actor"
+      },
+      {
+        "stateKey": "fear",
+        "direction": "increase",
+        "magnitude": 10,
+        "on": "target"
+      }
+    ],
+    "executionRules": [
+      "rule.threatening_words"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.threat_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 50,
+        "tags": [
+          "threat"
+        ]
+      }
+    ],
+    "risk": 12
+  },
+  {
+    "id": "action.hire",
+    "name": "고용한다",
+    "tags": [
+      "hire",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "wealth"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 20
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "wealth",
+        "amount": 15
+      },
+      {
+        "stateKey": "energy",
+        "amount": 2
+      }
+    ],
+    "duration": 120,
+    "expectedEffects": [
+      {
+        "stateKey": "threat_belief",
+        "direction": "decrease",
+        "magnitude": 8,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.hiring_contract"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.hiring_call",
+        "channels": [
+          "talk"
+        ],
+        "strength": 45,
+        "tags": [
+          "organization"
+        ]
+      }
+    ],
+    "risk": 5
+  },
+  {
+    "id": "action.propose_alliance",
+    "name": "동맹을 제안한다",
+    "tags": [
+      "ally",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 7
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "villager",
+      "sameRegion": true,
+      "maxDistance": 25,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 5
+      }
+    ],
+    "duration": 120,
+    "expectedEffects": [
+      {
+        "stateKey": "fear",
+        "direction": "decrease",
+        "magnitude": 8,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.alliance_bond"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.alliance_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 45,
+        "tags": [
+          "alliance"
+        ]
+      }
+    ],
+    "risk": 4
+  },
+  {
+    "id": "action.contract",
+    "name": "계약한다",
+    "tags": [
+      "contract",
+      "social"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 5
+        }
+      },
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "carried_food"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 10
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "faction",
+      "sameRegion": true,
+      "maxDistance": 30,
+      "crossRegionApproach": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 2
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "wealth",
+        "direction": "increase",
+        "magnitude": 8,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.contract_terms"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.contract_talk",
+        "channels": [
+          "talk"
+        ],
+        "strength": 45,
+        "tags": [
+          "contract"
+        ]
+      }
+    ],
+    "risk": 6
+  },
+  {
+    "id": "action.hide_evidence",
+    "name": "증거를 숨긴다",
+    "tags": [
+      "conceal"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 7
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "self"
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 5
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "fear",
+        "direction": "decrease",
+        "magnitude": 4,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.evidence_hidden"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.disturbed_ground",
+        "channels": [
+          "trace"
+        ],
+        "strength": 15,
+        "tags": [
+          "concealment"
+        ]
+      }
+    ],
+    "risk": 10
+  },
+  {
+    "id": "action.craft",
+    "name": "제작한다",
+    "tags": [
+      "craft"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "carried_residue"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 2
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "self"
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 4
+      },
+      {
+        "stateKey": "carried_residue",
+        "amount": 2
+      }
+    ],
+    "duration": 120,
+    "expectedEffects": [
+      {
+        "stateKey": "wealth",
+        "direction": "increase",
+        "magnitude": 10,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.crafting_output"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.crafting_noise",
+        "channels": [
+          "sound"
+        ],
+        "strength": 30,
+        "tags": [
+          "production"
+        ]
+      }
+    ],
+    "risk": 3
+  },
+  {
+    "id": "action.research",
+    "name": "연구한다",
+    "tags": [
+      "research",
+      "investigate"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 6
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "creature",
+      "sameRegion": true,
+      "maxDistance": 40,
+      "crossRegionApproach": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 3
+      }
+    ],
+    "duration": 90,
+    "expectedEffects": [
+      {
+        "stateKey": "known_threat_level",
+        "direction": "increase",
+        "magnitude": 6,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.research_insight"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.field_study",
+        "channels": [
+          "sight"
+        ],
+        "strength": 25,
+        "tags": [
+          "research"
+        ]
+      }
+    ],
+    "risk": 8
   }
 ]

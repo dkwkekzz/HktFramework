@@ -108,7 +108,8 @@
         ],
         "allowedActionTags": [
           "gather",
-          "trade"
+          "trade",
+          "contract"
         ],
         "focusIds": [
           "faction.silent_village"
@@ -363,7 +364,10 @@
         ],
         "allowedActionTags": [
           "trade",
-          "gather"
+          "gather",
+          "contract",
+          "craft",
+          "threaten"
         ]
       },
       {
@@ -403,7 +407,10 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "flee",
-          "rest"
+          "rest",
+          "negotiate",
+          "ally",
+          "conceal"
         ],
         "focusIds": [
           "creature.echo_beast_mother"
@@ -452,7 +459,8 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "report",
-          "rumor"
+          "rumor",
+          "deceive"
         ],
         "focusIds": [
           "faction.silent_village"
@@ -616,7 +624,8 @@
         ],
         "abandonmentConditions": [],
         "allowedActionTags": [
-          "report"
+          "report",
+          "hire"
         ],
         "focusIds": [
           "faction.silent_village"
@@ -852,7 +861,8 @@
         ],
         "abandonmentConditions": [],
         "allowedActionTags": [
-          "report"
+          "report",
+          "persuade"
         ],
         "focusIds": [
           "faction.research_society"
@@ -895,7 +905,8 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "flee",
-          "rest"
+          "rest",
+          "ally"
         ],
         "focusIds": [
           "creature.echo_beast_mother"

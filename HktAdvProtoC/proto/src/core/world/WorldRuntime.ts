@@ -98,7 +98,11 @@ export class WorldRuntime {
 
   // --- 관찰 신호 (§23) --------------------------------------------------------
 
+  /** 이 실행에서 발신된 신호 종류 (관측용 — 스냅샷에 실리지 않고 결정론에 영향이 없다) */
+  readonly emittedSignalKinds = new Set<string>();
+
   emitSignal(signal: ObservationSignal): void {
+    this.emittedSignalKinds.add(signal.id.slice(0, signal.id.lastIndexOf(".")));
     this.state.pendingSignals.push(signal);
   }
 

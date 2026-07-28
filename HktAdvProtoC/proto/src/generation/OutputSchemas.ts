@@ -495,6 +495,17 @@ export const GOAL_GRAPH_SCHEMA: JsonSchema = {
         utilityFactors: { type: "array" },
         focusIds: STRING_ARRAY,
         emotionKeys: { type: "array" },
+        completionEffects: arrayOf({
+          type: "object",
+          required: ["stateKey", "operation", "value"],
+          additionalProperties: false,
+          properties: {
+            targetId: { type: "string" },
+            stateKey: { type: "string" },
+            operation: { enum: ["add", "multiply", "set"] },
+            value: {},
+          },
+        }),
       },
     }),
     edges: arrayOf({

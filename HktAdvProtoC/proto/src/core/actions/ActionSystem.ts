@@ -3,6 +3,7 @@
 import type { ScheduledActionState } from "../../shared/beliefs";
 import { distance3d, type Position } from "../../shared/state";
 import type { RuleEngine } from "../rules/RuleEngine";
+import { emitObservationEffect } from "../world/Signals";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { ActionDefinition } from "../world/types";
 
@@ -190,11 +191,43 @@ export function completeAction(
           const region = runtime.store.findEntity(enteredRegion);
           rules.dispatchEntityEntered(runtime, agentId, region?.tags ?? []);
         }
+        const pendingBefore = runtime.state.pendingSignals.length;
         rules.dispatchAction(runtime, action.id, agentId, scheduled.targetIds);
+        emitDeclaredSignals(runtime, agentId, action, scheduled.targetIds, pendingBefore);
       },
     );
   }
   agent.currentAction = null;
   agent.completedActionCount += 1;
   runtime.store.modify(agentId, "current_action", "set", "");
+}
+
+/**
+ * §21 visibleSignals — 행동이 선언한 신호는 별도 emit_signal 규칙 없이도 완료 시 자동으로 나간다.
+ * 실행 규칙이 같은 signalId 를 이미 냈으면(강도 조절 등) 중복 발신하지 않는다 —
+ * 규칙 발신이 우선하고, 자동 발신은 "선언했는데 침묵하는 신호"만 메운다.
+ */
+function emitDeclaredSignals(
+  runtime: WorldRuntime,
+  actorId: string,
+  action: ActionDefinition,
+  targetIds: string[],
+  pendingBefore: number,
+): void {
+  if (action.visibleSignals.length === 0) return;
+  const emitted = new Set<string>();
+  for (const signal of runtime.state.pendingSignals.slice(pendingBefore)) {
+    emitted.add(signal.id.slice(0, signal.id.lastIndexOf(".")));
+  }
+  const targetId = targetIds[0];
+  for (const effect of action.visibleSignals) {
+    if (emitted.has(effect.signalId)) continue;
+    // 신호원이 대상인 경우(§23 origin) — 행위자는 그 신호를 읽는 쪽이 된다
+    const originId = effect.origin === "target" ? targetId : actorId;
+    if (originId === undefined) continue;
+    emitObservationEffect(runtime, effect, {
+      actorId: originId,
+      ...(effect.origin !== "target" && targetId !== undefined ? { targetId } : {}),
+    });
+  }
 }

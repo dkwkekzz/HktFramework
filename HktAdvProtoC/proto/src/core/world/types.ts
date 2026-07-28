@@ -207,6 +207,19 @@ export interface UtilityFactor {
   weight: number;
 }
 
+/**
+ * §19 completionEffects — 목적 달성이 확인되는 순간 1회 적용되는 상태 효과.
+ * 상태 변경은 다른 규칙의 state_changed 트리거로 이어지므로(§26 processChangedStateRules),
+ * 별도 실행기 없이도 완료가 세계에 파문을 남긴다.
+ */
+export interface GoalCompletionEffect {
+  /** 대상 개체 — 없으면 목적을 이룬 주체 자신 */
+  targetId?: string;
+  stateKey: string;
+  operation: "add" | "multiply" | "set";
+  value: number | boolean | string;
+}
+
 export interface GoalNode {
   id: string;
   description: string;
@@ -217,6 +230,8 @@ export interface GoalNode {
   desiredChanges: { stateKey: string; direction: "increase" | "decrease"; weight: number }[];
   abandonmentConditions: ConditionDefinition[];
   allowedActionTags: string[];
+  /** §19 completionEffects — 달성 시 1회 적용 */
+  completionEffects?: GoalCompletionEffect[];
   /** §19 utilityFactors — 없으면 desiredChanges 로 대신한다 */
   utilityFactors?: UtilityFactor[];
   /** 이 목적이 마음 쓰는 대상 — §20 relationshipImpact 의 근거 (가족·조직·적) */

@@ -140,6 +140,8 @@ export interface AgentRuntimeState {
   delegations: DelegatedGoal[];
   /** creates/reveals 엣지로 열린 후속 목적 (§19, §44-10) */
   unlockedGoals: string[];
+  /** completionEffects 를 이미 적용한 목적 (§19 — 효과는 1회만) */
+  completedGoals: string[];
   lastReplanAt: number;
   /** 완료한 행동 수 — "5명 전원이 1회 이상 행동" DoD 의 관측점 */
   completedActionCount: number;
@@ -163,6 +165,7 @@ export function createAgentRuntimeState(
     goalCooldowns: {},
     delegations: [],
     unlockedGoals: [],
+    completedGoals: [],
     lastReplanAt: -1,
     completedActionCount: 0,
   };

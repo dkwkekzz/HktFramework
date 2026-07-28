@@ -139,6 +139,21 @@ export type RuleEffect = EffectCommon &
         valueRef?: RuleValue;
       }
     /**
+     * §25 약속 생성 — 계약·동맹 행동(§21)이 관계 원장에 약속을 남기는 효과.
+     * from 이 약속하는 쪽이다: dueInTicks 안에 from 의 stateKey 가 comparison/threshold 를
+     * 만족하면 이행, 아니면 파기(§25 약속 위반 연쇄는 기존 규칙이 잇는다).
+     */
+    | {
+        type: "make_promise";
+        from: RuleTargetSelector;
+        to: RuleTargetSelector;
+        stateKey: string;
+        comparison: ">" | "<";
+        threshold: number;
+        dueInTicks: number;
+        tags?: string[];
+      }
+    /**
      * §32 성장 기록 (Phase-7 §7.4). 성장 **발생 조건**을 코드가 아니라 규칙이 갖게 하는 효과다 —
      * NPC 와 플레이어가 같은 규칙으로 자란다(§21). 출처 사건이 확정된 뒤에 적용된다.
      */
