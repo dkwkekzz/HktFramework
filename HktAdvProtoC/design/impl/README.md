@@ -11,6 +11,7 @@
 5. **렌더링 속성은 ViewModel 로 완전히 분리한다.** 파이프라인은 `세계 상태 → ViewModel 빌더 → 렌더러(속성 그대로)` 로 고정한다. 렌더러·UI 는 `WorldState`/`WorldDefinition`/사건 원본을 직접 읽을 수 없고 **오직 ViewModel 속성만** 참조한다. ViewModel 은 "무엇을 어떻게 그릴지"가 아니라 "표시 대상의 속성"만 담으며, 시뮬레이션 의미 해석은 전부 빌더에서 끝낸다. 따라서 표현 방식이 바뀌어도(텍스트→Canvas→3D) 변경은 `rendering/` 내부로 국한되고 코어·빌더·ViewModel 스키마에는 **한 줄의 변경도 발생하지 않는다**. (HktFeature 트랙 불변 원칙 ③과 동일 구조. 경계 확립: Phase 0 §0.6, 본 구현: Phase 8)
 
 기획서 45개 섹션 전부의 담당 Phase 매핑은 [Coverage.md](Coverage.md) 에서 검증한다.
+시스템 전체가 굴러가는 과정(입력 → AI 생성 데이터 → 런타임 소비 → 렌더)의 코드 레벨 추적은 [Guide-DataFlow.md](Guide-DataFlow.md) 를 본다.
 
 ## Phase 목록
 

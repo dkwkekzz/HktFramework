@@ -29,5 +29,6 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | [STATE.md](STATE.md) | **지금 어디에 있는가 + TODO** (완료 사항은 한 줄 — 상세는 design/impl/) |
 | [design/Design-MMO.md](design/Design-MMO.md) | 기획서 원본 (§ 번호가 모든 설계의 근거) |
 | [design/impl/README.md](design/impl/README.md) | 구현 분해 개요 + Phase 목록 |
+| [design/impl/Guide-DataFlow.md](design/impl/Guide-DataFlow.md) | 데이터 흐름 가이드 — 입력→AI 생성→런타임→렌더의 코드 레벨 추적 |
 | [design/impl/Phase-N.md](design/impl/) | 단계별 상세 설계 · 완료 조건 · 관측 결과 |
 | `proto/` | 실행 코드. 검증은 `npm run verify` / `npm test` / `npm run smoke` |
