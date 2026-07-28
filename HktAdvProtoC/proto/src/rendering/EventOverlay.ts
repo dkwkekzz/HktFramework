@@ -41,7 +41,7 @@ export class EventOverlayRenderer {
       text: `${glyphOf(overlay.symbolKey)} ${overlay.label}`,
       size: 11,
       align: "center",
-      fill: "#222",
+      fill: "#f2d38c",
     });
     this.surface.text({
       x: point.x,
@@ -49,7 +49,7 @@ export class EventOverlayRenderer {
       text: `참여 ${overlay.participantCount} · 시급 ${overlay.urgency.toFixed(2)}`,
       size: 9,
       align: "center",
-      fill: "#555",
+      fill: "#c9b27a",
     });
   }
 }

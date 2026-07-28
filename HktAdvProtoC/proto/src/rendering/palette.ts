@@ -7,22 +7,35 @@
 
 const FALLBACK_COLOR = "#9aa0a6";
 
-/** 위험도·상태·사건 색상 키 */
+/**
+ * 위험도·상태·사건 색상 키.
+ * 어두운 바탕 위에서 개체가 도형으로 읽히는 게임풍 팔레트 — 지역은 가라앉고 개체·사건이 떠오른다.
+ */
 export const COLORS: Record<string, string> = {
-  "danger-low": "#cfe8d5",
-  "danger-mid": "#f2e3ae",
-  "danger-high": "#efc39b",
-  "danger-extreme": "#e2a09b",
-  "climate-cold": "#dbe7f2",
-  "climate-arid": "#f0e2c8",
-  "climate-wild": "#d6e6cf",
-  "climate-settled": "#eae6df",
-  "climate-temperate": "#e6ebe4",
-  "state-normal": "#3c6e9f",
-  "state-afraid": "#8a6fb0",
-  "state-hostile": "#b5473f",
-  "state-critical": "#d13c2f",
-  "event-closed": "#b9b9b9",
+  "danger-low": "#3f9d6d",
+  "danger-mid": "#c9a83f",
+  "danger-high": "#d07a33",
+  "danger-extreme": "#d64a38",
+  "climate-cold": "#2e4a66",
+  "climate-arid": "#5d4d33",
+  "climate-wild": "#2e523a",
+  "climate-settled": "#4d4638",
+  "climate-temperate": "#3a5244",
+  "state-normal": "#5aa7e8",
+  "state-afraid": "#a98be0",
+  "state-hostile": "#e0563f",
+  "state-critical": "#ff4433",
+  "event-closed": "#8a8f98",
+  // 지도의 무대 장치 — 배경·그림자·이름표도 표의 항목일 뿐이다
+  "map-bg": "#131a26",
+  "marker-shadow": "#05070c",
+  "marker-rim": "#0b0f16",
+  "marker-highlight": "#ffffff",
+  label: "#dfe6f2",
+  "label-dim": "#93a0b5",
+  "gauge-back": "#1b2331",
+  "gauge-ok": "#57d98f",
+  "gauge-low": "#e0523c",
 };
 
 export function colorOf(key: string): string {

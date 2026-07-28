@@ -148,6 +148,37 @@ export function symbolKeyOf(entity: EntityState, speciesId?: string): string {
   return "symbol-agent";
 }
 
+/**
+ * 도형 키 — 개체가 지도에서 무엇으로 보이는가.
+ * 사람·주체는 구체, 자원은 결정, 야수는 피라미드, 장소는 큐브, 조직은 깃발.
+ * 이 번역이 빌더에 있으므로 렌더러에는 `if (tags.includes("beast"))` 가 한 줄도 없다(§8.0).
+ */
+export function shapeKeyOf(entity: EntityState): string {
+  if (entity.type === "faction") return "shape-banner";
+  if (entity.type === "resource") return "shape-crystal";
+  if (entity.type === "location") return "shape-cube";
+  if (entity.tags.includes("beast") || entity.tags.includes("creature")) return "shape-pyramid";
+  return "shape-sphere";
+}
+
+/** 표시 크기(짧은 화면 변 대비 정규화) — 유형별 시각 위계: 야수 > 주체 > 조직 > 장소 > 자원 */
+function sizeOf(entity: EntityState): number {
+  if (entity.type === "faction") return 0.02;
+  if (entity.type === "resource") return 0.014;
+  if (entity.type === "location") return 0.016;
+  if (entity.tags.includes("beast") || entity.tags.includes("creature")) return 0.024;
+  if (entity.tags.includes("player")) return 0.022;
+  return 0.019;
+}
+
+/** 체력 게이지 — 수치 해석(0~100 → 0~1, 위험 임계)은 여기서 끝낸다 */
+function gaugeOf(states: Record<string, unknown>): { value: number; colorKey: string } | undefined {
+  const health = states["health"];
+  if (typeof health !== "number") return undefined;
+  const value = Math.min(1, Math.max(0, health / 100));
+  return { value, colorKey: health < 30 ? "gauge-low" : "gauge-ok" };
+}
+
 function colorKeyOf(entity: EntityState, states: Record<string, unknown>): string {
   const health = states["health"];
   if (typeof health === "number" && health < 30) return "state-critical";
@@ -187,10 +218,15 @@ function markerOf(
   if (point === undefined) return undefined;
   const speciesId = entity.states["species_id"];
   const label = runtime.definition.bootstrap.entities.find((e) => e.id === entity.id)?.name ?? entity.id;
+  const gauge = entity.type === "agent" ? gaugeOf(entity.states) : undefined;
   const marker: SceneMapMarker = {
     id: entity.id,
     label,
     symbolKey: symbolKeyOf(entity, typeof speciesId === "string" ? speciesId : undefined),
+    shapeKey: shapeKeyOf(entity),
+    size: sizeOf(entity),
+    ...(gauge === undefined ? {} : { gauge }),
+    ...(entity.tags.includes("player") ? { emphasized: true } : {}),
     colorKey: colorKeyOf(entity, entity.states),
     point,
     regionId: entity.position.regionId,

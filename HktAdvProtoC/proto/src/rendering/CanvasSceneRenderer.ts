@@ -33,7 +33,7 @@ export class CanvasSceneRenderer {
       y: this.surface.height - 10,
       text: `${scene.clock} · ×${scene.speed} · ${scene.map.legend.map((badge) => `${badge.key} ${badge.value}`).join(" · ")}`,
       size: 11,
-      fill: "#333",
+      fill: "#dfe6f2",
     });
   }
 }
