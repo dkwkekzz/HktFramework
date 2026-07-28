@@ -1,0 +1,28 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HktAdvProtoC — 세계 시뮬레이터</title>
+    <style>
+      body { font-family: system-ui, sans-serif; margin: 2rem; max-width: 40rem; }
+      #status { white-space: pre-line; padding: 1rem; background: #f2f2f2; border-radius: 6px; min-height: 4rem; }
+      .row { display: flex; gap: 0.5rem; margin-bottom: 1rem; align-items: center; }
+      button { padding: 0.4rem 0.8rem; }
+    </style>
+  </head>
+  <body>
+    <h1>HktAdvProtoC — Phase 0 셸</h1>
+    <div class="row">
+      <label for="seed">세계 시드</label>
+      <input id="seed" type="number" value="42" />
+      <button id="init">세계 생성</button>
+    </div>
+    <div class="row">
+      <button id="advance-hour" disabled>+1시간</button>
+      <button id="advance-day" disabled>+1일</button>
+    </div>
+    <div id="status"></div>
+    <script type="module" src="/src/app/main.ts"></script>
+  </body>
+</html>

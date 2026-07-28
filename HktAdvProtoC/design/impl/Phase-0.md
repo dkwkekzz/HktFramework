@@ -94,11 +94,11 @@ interface ScheduledSimulationEvent {
 
 ## 완료 조건 (DoD)
 
-- [ ] 같은 시드로 두 번 실행한 빈 세계 30일 진행이 상태 해시까지 동일하다.
-- [ ] 스냅샷 저장 → 이벤트 로그 재실행 복원 상태 == 연속 실행 상태 (테스트).
-- [ ] 브라우저에서 Worker 로 `advance_time` → `state_patch` 왕복이 동작한다.
-- [ ] 동일 코어 코드가 Vitest(headless)와 Worker 양쪽에서 실행된다.
-- [ ] `rendering/`·`app/` 에서 `core/` import 가 린트 오류로 차단되고, 셸 페이지가 SceneViewModel 만으로 동작한다.
+- [x] 같은 시드로 두 번 실행한 빈 세계 30일 진행이 상태 해시까지 동일하다. (`determinism.test.ts` — 진행 호출 단위 불변성 포함)
+- [x] 스냅샷 저장 → 이벤트 로그 재실행 복원 상태 == 연속 실행 상태 (`persistence/roundtrip.test.ts`)
+- [x] 브라우저에서 Worker 로 `advance_time` → `state_patch` 왕복이 동작한다. (`scripts/smoke.mjs` — 실 Chromium)
+- [x] 동일 코어 코드가 Vitest(headless)와 Worker 양쪽에서 실행된다. (InlineHost/SimulationWorker 가 같은 RuntimeServer 실행)
+- [x] `rendering/`·`app/` 에서 `core/` import 가 린트 오류로 차단되고, 셸 페이지가 SceneViewModel 만으로 동작한다. (eslint no-restricted-imports — 위반 픽스처로 차단 확인)
 
 ## 이후 Phase 에 제공하는 인터페이스
 
