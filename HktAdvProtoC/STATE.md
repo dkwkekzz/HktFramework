@@ -34,6 +34,10 @@ Phase 8 이후 화면이 "디버그 다이어그램"으로 보이는 원인을 �
 
 3차: **three.js 3D 뷰** (`rendering/ThreeSceneRenderer.ts`) — 같은 SceneViewModel 을 소비하는 세 번째 렌더러. §13 의 3D 공간 데이터(빌더가 실어 준 elevation/elevationShade)를 높이로 되살린다: 지역=고도 판, 개체=3D 도형 + 발밑 그림자 + 고도 기둥, 사건=바닥 링, 신호=파문 링. 시뮬레이션 화면에 2D↔3D 토글(three 는 3D 첫 진입 시에만 동적 로드 — 코드 분할). 드래그 궤도 회전·휠 줌. 격리 검사기(`checkRendererImports`)는 "프로젝트 내부 경로는 SceneViewModel 만"으로 명확화 — 외부 표현 라이브러리(bare import)는 시뮬레이션 타입을 실어 나를 수 없으므로 위반이 아니다.
 
+## 1차 구현 전수 재검증 (2026-07-28)
+
+기획서 §1~§45 를 목차 순서대로 코드와 재대조 — **충분 33 / 부분 12 / 누락 0**, 갭 12건(G-1~G-12)과 요소별 ViewModel 시각 표현 판정은 [design/impl/Review-DesignValidation.md](design/impl/Review-DesignValidation.md). 핵심 발견: ① 생성 후 미소비 필드군(종족 5필드·hiddenPurposes·resourceProfiles·supports 엣지·knownSecrets) ② 목록 앞쪽만 구현(행동 21→11 — 사회적 조작 축 부재, 관찰 채널 12→8, 확률 용도 5→2, visibleSignals 14→4 발신) ③ 조직 지도 마커 도달 불가·§44-10 게이트 항진 항.
+
 ## 다음
 
 §44 13항을 통과했으므로 **이 트랙의 프로토타입 범위는 닫혔다.** §43 이 제외한 것들(완성된 경제 시장, 대규모 동시 접속 …)은 별도 기획의 몫이다. 시각 완성도는 위 1차 개선으로 최소선만 넘겼다 — 스프라이트·애니메이션은 여전히 범위 밖.
