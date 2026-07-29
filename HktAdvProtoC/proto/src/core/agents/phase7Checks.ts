@@ -12,6 +12,7 @@ import type {
   PlayerKnowledgeView,
 } from "../../shared/player";
 import { TICKS_PER_DAY, tickToDay } from "../../shared/time";
+import { canCross, travelDuration } from "../actions/ActionSystem";
 import { InlineHost } from "../simulation/InlineHost";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import { acceptGrowthOffer, effectiveAbility, ownAbilityId } from "./GrowthSystem";
@@ -579,6 +580,42 @@ export function compareExecutionPaths(runtime: WorldRuntime, playerId: string): 
       };
     })
     .sort((a, b) => a.actionId.localeCompare(b.actionId));
+}
+
+export interface PassageRow {
+  agentId: string;
+  /** 통행 조건이 묻는 상태의 현재 값 */
+  knownThreatLevel: number;
+  /** 이 주체에게 조건부 지름길이 열려 있는가 */
+  open: boolean;
+  /** 이 주체가 실제로 쓰게 되는 길의 이동 시간 (열려 있으면 지름길, 아니면 큰길) */
+  travelTicks: number | undefined;
+}
+
+/**
+ * §13 조건부 통행의 실측 (G-5).
+ * 같은 두 지역 사이에 길이 둘 있고, 하나는 조건이 걸려 있다 —
+ * **누가 건너느냐에 따라 실제로 쓰는 길이 달라지는가**를 주체별로 재 본다.
+ */
+export function measureConditionalPassage(runtime: WorldRuntime, targetId: string): PassageRow[] {
+  const ridge = runtime.index.connections.find((connection) => (connection.requirements ?? []).length > 0);
+  const threatOf = (agentId: string): number => {
+    // 조직처럼 이 상태를 갖지 않는 주체도 있다 — 없으면 "아는 것이 없다"로 읽는다
+    try {
+      return runtime.store.readNumber(agentId, "known_threat_level");
+    } catch {
+      return 0;
+    }
+  };
+  return runtime
+    .agentIds()
+    .map((agentId) => ({
+      agentId,
+      knownThreatLevel: threatOf(agentId),
+      open: ridge !== undefined && canCross(runtime, agentId, ridge),
+      travelTicks: travelDuration(runtime, agentId, targetId),
+    }))
+    .filter((row) => row.travelTicks !== undefined || row.open);
 }
 
 /**

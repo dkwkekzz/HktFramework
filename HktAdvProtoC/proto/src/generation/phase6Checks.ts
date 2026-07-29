@@ -86,7 +86,7 @@ export interface ViolationFixture {
   break(definition: WorldDefinition): void;
 }
 
-/** §34 필수 규칙 10개(+ G-1 rule.chance · G-3 faction.hidden) ↔ 그 규칙을 어기는 세계 하나씩 */
+/** §34 필수 규칙 10개(+ G-1 rule.chance · G-3 faction.hidden · G-5 space.profile) ↔ 그 규칙을 어기는 세계 하나씩 */
 export const VIOLATION_FIXTURES: ViolationFixture[] = [
   {
     code: "state.schema",
@@ -132,6 +132,18 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
         transformationRules: [],
         desiredBy: [{ agentTag: "villager", utility: 50 }],
       });
+    },
+  },
+  {
+    code: "space.profile",
+    title: "지역이 실제 배치와 다른 자원 프로필을 선언한다 (§13 — G-5)",
+    break(definition) {
+      const region = definition.spaces.regions.find((entry) => (entry.resourceProfiles ?? []).length > 0);
+      if (region === undefined) throw new Error("픽스처: 자원 프로필을 가진 지역이 필요하다");
+      region.resourceProfiles = region.resourceProfiles!.map((profile) => ({
+        ...profile,
+        nodeCount: profile.nodeCount + 5,
+      }));
     },
   },
   {
@@ -213,7 +225,7 @@ export interface FixtureResult {
 }
 
 /**
- * 위반 픽스처 12종을 전부 돌린다.
+ * 위반 픽스처 13종을 전부 돌린다.
  * 반환값이 곧 DoD 1 의 근거다 — verify 와 테스트가 이 함수를 함께 쓴다.
  */
 export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
@@ -235,7 +247,7 @@ export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
   });
 }
 
-/** 통과 세계(수동 세계)에서는 12종 전부 조용해야 한다 — 픽스처의 대조군 */
+/** 통과 세계(수동 세계)에서는 13종 전부 조용해야 한다 — 픽스처의 대조군 */
 export function validateManualWorld(worldSeed = 42): ReturnType<typeof validateWorld> {
   return validateWorld(buildManualWorld(worldSeed));
 }

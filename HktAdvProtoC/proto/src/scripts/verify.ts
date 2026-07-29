@@ -14,6 +14,7 @@ import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
   findPlayerBranches,
+  measureConditionalPassage,
   runPlayerScenario,
 } from "../core/agents/phase7Checks";
 import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
@@ -1023,6 +1024,38 @@ check(
         `출력 상한 ${accepted.abilityBefore.outputMax}→${accepted.abilityAfter.outputMax} (§11.4 제약이 무거울수록 출력이 크다)`) +
     `\n      출처 사건 없는 성장 ${active.growth.filter((c) => c.sourceEventId.length === 0).length}건 · 저널 ${active.journalSize}줄 ` +
     `(${Object.entries(active.journalKinds).map(([kind, count]) => `${kind} ${count}`).join(" · ")})`,
+);
+
+// --- G-5 : §13 조건부 통행 — 같은 두 지역, 사람에 따라 다른 길 ---------------------------
+const passage = measureConditionalPassage(active.runtime, "creature.echo_beast_mother");
+const opened = passage.filter((row) => row.open);
+const closed = passage.filter((row) => !row.open);
+check(
+  opened.length > 0 && closed.length > 0 && opened.every((row) => row.knownThreatLevel >= 70),
+  `§13 조건부 통행 — 잔재 능선이 ${opened.length}명에게 열리고 ${closed.length}명에게 닫힌다 (통행 조건: known_threat_level ≥ 70)`,
+  passage
+    .map(
+      (row) =>
+        `\n      ${row.open ? "열림" : "닫힘"} ${row.agentId.replace(/^(agent|creature)\./, "")} — 아는 위협 ${row.knownThreatLevel} · 숲까지 ${row.travelTicks ?? "-"}틱`,
+    )
+    .join("") + `\n      길은 둘이다: 큰길(이동 120) · 잔재 능선(이동 95, 조건부) — 조건을 갖춘 주체만 싼 길을 쓴다`,
+);
+
+// --- G-5 : §13 지역 프로필이 지도 재료로 나온다 -------------------------------------------
+const ecologyScene = buildScenePayload(active.runtime, { mode: "developer" });
+const ecologyRegions = ecologyScene.map.regions.filter((region) => region.ecology.resources.length > 0);
+const gatedConnections = ecologyScene.map.connections.filter((connection) => connection.gated);
+check(
+  ecologyRegions.length === ecologyScene.map.regions.length &&
+    ecologyRegions.every((region) => region.ecology.species.length > 0) &&
+    gatedConnections.length > 0,
+  `§13 지역 프로필이 지도 ViewModel 로 나온다 — 자원 프로필 ${ecologyRegions.length}/${ecologyScene.map.regions.length} 지역 · 조건부 연결 ${gatedConnections.length}`,
+  ecologyRegions
+    .map(
+      (region) =>
+        `\n      ${region.label} — 자원 ${region.ecology.resources.map((r) => `${r.label}×${r.nodeCount}(희귀도 ${r.rarity})`).join(" ")} · 종 적합도 ${region.ecology.species.map((s) => `${s.label} ${s.suitability}`).join(" ")}`,
+    )
+    .join(""),
 );
 
 // --- G-10 : §32 성장 발생 조건 7종이 전부 규칙으로 존재한다 ------------------------------

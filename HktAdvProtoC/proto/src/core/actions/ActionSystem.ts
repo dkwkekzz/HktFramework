@@ -3,9 +3,10 @@
 import type { ScheduledActionState } from "../../shared/beliefs";
 import { distance3d, type Position } from "../../shared/state";
 import type { RuleEngine } from "../rules/RuleEngine";
+import { evaluateAll } from "../world/Conditions";
 import { emitObservationEffect } from "../world/Signals";
 import type { WorldRuntime } from "../world/WorldRuntime";
-import type { ActionDefinition } from "../world/types";
+import type { ActionDefinition, SpaceConnection } from "../world/types";
 
 /** 지역 내 이동 속도 (거리 단위/분) — travelCost 가 없는 지역 내부 이동에 쓴다 */
 export const WALK_SPEED = 0.5;
@@ -28,8 +29,42 @@ function positionOf(runtime: WorldRuntime, entityId: string): Position | undefin
 }
 
 /**
+ * §13 조건부 통행 — 이 주체가 이 연결을 건널 수 있는가 (G-5).
+ * 조건은 건너려는 주체를 actor 로 평가한다("의력 감지가 있어야 넘는 고개" 같은 것).
+ */
+export function canCross(runtime: WorldRuntime, actorId: string, connection: SpaceConnection): boolean {
+  const requirements = connection.requirements ?? [];
+  if (requirements.length === 0) return true;
+  try {
+    return evaluateAll(requirements, { runtime, actorId });
+  } catch {
+    // 조건을 확인할 수조차 없는 주체(그 상태를 갖지 않는 종류)에게 이 길은 닫힌 것으로 본다.
+    // "모르면 통과"는 조건을 없는 것으로 만든다 — §13 의 뜻은 그 반대다.
+    return false;
+  }
+}
+
+/** 이 주체가 지금 건널 수 있는 연결들 — 화면·검증이 "누구에게 열린 길인가"를 묻는 통로 */
+export function crossableConnections(runtime: WorldRuntime, actorId: string): SpaceConnection[] {
+  return runtime.index.connections.filter((connection) => canCross(runtime, actorId, connection));
+}
+
+/** 두 지역 사이에서 이 주체에게 열린 가장 싼 길 */
+export function crossableConnectionBetween(
+  runtime: WorldRuntime,
+  actorId: string,
+  from: string,
+  to: string,
+): SpaceConnection | undefined {
+  return runtime.index
+    .connectionsBetween(from, to)
+    .find((connection) => canCross(runtime, actorId, connection));
+}
+
+/**
  * 이동 소요 시간 (§13 travelCost + 지역 내 3D 거리).
  * 지역이 다르면 연결이 있어야 하며, 없으면 undefined(그 대상에게는 갈 수 없다).
+ * 연결에 통행 조건이 걸려 있으면 그 조건을 만족해야 한다(§13 requirements).
  */
 export function travelDuration(
   runtime: WorldRuntime,
@@ -42,7 +77,9 @@ export function travelDuration(
   if (from.regionId === to.regionId) {
     return Math.max(MIN_ACTION_DURATION, Math.ceil(distance3d(from, to) / WALK_SPEED));
   }
-  const connection = runtime.index.connection(from.regionId, to.regionId);
+  // §13 requirements — 조건을 만족하지 못하는 주체에게 그 길은 없는 것과 같다.
+  // 열린 길 중 가장 싼 것을 쓴다 — 조건부 지름길은 조건을 갖춘 주체에게만 이득이 된다 (G-5)
+  const connection = crossableConnectionBetween(runtime, actorId, from.regionId, to.regionId);
   if (connection === undefined) return undefined;
   // 지역 경계를 넘는 비용 + 도착 지역 입구(지역 중심)에서 대상까지의 거리
   const entry = runtime.store.findEntity(to.regionId)?.position;

@@ -237,9 +237,12 @@ export const SPACE_DRAFT_SCHEMA: JsonSchema = {
         travelCost: NUMBER,
         danger: NUMBER,
         capacity: NUMBER,
+        /** §13 requirements — 조건을 갖춘 주체에게만 열리는 길 (G-5) */
+        requirements: arrayOf({ $ref: "#/$defs/condition" }),
       },
     }),
   },
+  $defs: COMMON_DEFS,
 };
 
 export const RESOURCE_SCHEMA = arrayOf({

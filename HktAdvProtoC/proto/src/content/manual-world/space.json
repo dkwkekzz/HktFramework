@@ -17,6 +17,17 @@
         "danger": 12,
         "food_abundance": 60,
         "ability_residue": 0
+      },
+      "resourceProfiles": [
+        {
+          "resourceTag": "resource.food",
+          "rarity": 11.9,
+          "nodeCount": 1
+        }
+      ],
+      "speciesSuitability": {
+        "species.human": 90,
+        "species.echo_beast": 10
       }
     },
     {
@@ -36,6 +47,22 @@
         "danger": 68,
         "food_abundance": 420,
         "ability_residue": 240
+      },
+      "resourceProfiles": [
+        {
+          "resourceTag": "resource.ability_residue",
+          "rarity": 65.2,
+          "nodeCount": 1
+        },
+        {
+          "resourceTag": "resource.food",
+          "rarity": 65.2,
+          "nodeCount": 1
+        }
+      ],
+      "speciesSuitability": {
+        "species.human": 30,
+        "species.echo_beast": 95
       }
     }
   ],

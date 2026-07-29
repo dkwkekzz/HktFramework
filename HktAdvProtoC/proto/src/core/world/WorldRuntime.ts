@@ -50,9 +50,18 @@ class DefinitionIndex {
 
   /** 두 지역을 잇는 연결 (§13) — 방향 무관 */
   connection(from: string, to: string): SpaceConnection | undefined {
-    return this.connections.find(
-      (c) => (c.from === from && c.to === to) || (c.from === to && c.to === from),
-    );
+    return this.connectionsBetween(from, to)[0];
+  }
+
+  /**
+   * 두 지역을 잇는 모든 연결 — 이동 비용이 싼 순서 (§13).
+   * 길은 하나가 아닐 수 있다. 통행 조건이 걸린 지름길(§13 requirements)은
+   * 조건을 만족하는 주체에게만 열리므로, 누가 건너느냐에 따라 실제로 쓰는 길이 달라진다(G-5).
+   */
+  connectionsBetween(from: string, to: string): SpaceConnection[] {
+    return this.connections
+      .filter((c) => (c.from === from && c.to === to) || (c.from === to && c.to === from))
+      .sort((a, b) => a.travelCost - b.travelCost);
   }
 }
 

@@ -9,15 +9,41 @@
 //  · 행동 2 : assist(연구자를 돕는다) / sell_info(상인에게 정보를 판다) — §30 참여 방식 목록의 빈칸
 //  · 규칙 8 : 위 두 행동의 실행 규칙 2 + §32 성장 발생 조건 6 (수치 5 + 선택 구조 1)
 //  · 능력 2 : §16 형태의 능력 — §32 "새 제약을 받아들이고 출력을 연다"가 붙을 자리
+//  · 연결 1 : §13 requirements 를 쓰는 조건부 지름길 — "아는 자에게만 열리는 길"(G-5)
 import type { RuleDefinition } from "../../core/rules/RuleTypes";
 import { loadRuleDocuments } from "../../core/rules/RuleSchema";
-import type { AbilityDefinition, ActionDefinition, WorldDefinition } from "../../core/world/types";
+import type {
+  AbilityDefinition,
+  ActionDefinition,
+  SpaceConnection,
+  WorldDefinition,
+} from "../../core/world/types";
 import { buildManualWorld } from "../manual-world";
 import abilities from "./abilities.json";
 import actions from "./actions.json";
 import rules from "./rules.json";
 
 export const PLAYER_WORLD_ID = "world.silent_forest_edge.player";
+
+/**
+ * §13 requirements 를 쓰는 길 — "잔재 능선" (G-5).
+ * 안개 낀 능선은 숲이 무엇을 하는지 아는 사람만 넘는다. 위험을 아직 모르는 주체(known_threat_level < 85)
+ * 에게는 이 길이 보이지 않으므로 큰길로 돌아야 한다 — 정보가 지형이 되는 지점이다(§10 믿음/앎).
+ */
+export const RESIDUE_RIDGE: SpaceConnection = {
+  from: "region.village",
+  to: "region.silent_forest",
+  travelCost: 110,
+  danger: 70,
+  capacity: 4,
+  requirements: [
+    {
+      left: { kind: "state", owner: "actor", key: "known_threat_level" },
+      operator: ">=",
+      right: { kind: "const", value: 85 },
+    },
+  ],
+};
 /** 사용자가 조작하는 주체 — §41 세계의 사냥꾼. 새 개체를 만들지 않는다(§31) */
 export const DEFAULT_PLAYER_AGENT_ID = "agent.kael";
 
@@ -50,6 +76,10 @@ export function buildPlayerWorld(worldSeed: number): WorldDefinition {
   return {
     ...base,
     metadata: { ...base.metadata, id: PLAYER_WORLD_ID, title: "침묵림 변두리 — 개입" },
+    // §13 조건부 통행 — 아는 자에게만 열리는 지름길 (G-5).
+    // 수동 세계의 큰길(travelCost 120)은 그대로 두고 옆에 놓는다. 조건을 갖추지 못한 주체에게
+    // 이 길은 없는 것과 같고, 갖춘 주체는 절반 시간에 숲에 닿는다.
+    spaces: { ...base.spaces, connections: [...base.spaces.connections, RESIDUE_RIDGE] },
     ruleDefinitions: [...base.ruleDefinitions, ...added],
     actionDefinitions: [
       ...base.actionDefinitions.map(extend),
