@@ -1676,5 +1676,180 @@
         "crossSection": 24
       }
     }
+  },
+  {
+    "name": "katana-curve",
+    "params": {
+      "length": 0.72,
+      "widthRoot": 0.03,
+      "widthMid": 0.028,
+      "widthTip": 0.024,
+      "thicknessRoot": 0.007,
+      "thicknessTip": 0.005,
+      "crossSection": "flat",
+      "ridgeHeight": 0,
+      "curve": 0.015,
+      "tipType": "spear",
+      "tipStart": 0.88,
+      "tipEndScale": 0.12,
+      "segLong": 40,
+      "segCross": 16
+    },
+    "design": {
+      "length": 0.72,
+      "centerCurve": {
+        "points": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            0.015,
+            0.36,
+            0
+          ],
+          [
+            0,
+            0.72,
+            0
+          ]
+        ]
+      },
+      "widthCurve": {
+        "points": [
+          {
+            "t": 0,
+            "value": 0.03
+          },
+          {
+            "t": 0.5,
+            "value": 0.028
+          },
+          {
+            "t": 1,
+            "value": 0.024
+          }
+        ]
+      },
+      "thicknessCurve": {
+        "points": [
+          {
+            "t": 0,
+            "value": 0.007
+          },
+          {
+            "t": 1,
+            "value": 0.005
+          }
+        ]
+      },
+      "crossSection": "flat",
+      "ridgeHeight": 0,
+      "fuller": null,
+      "tip": {
+        "type": "spear",
+        "start": 0.88,
+        "endScale": 0.12
+      },
+      "segments": {
+        "longitudinal": 40,
+        "crossSection": 16
+      }
+    }
+  },
+  {
+    "name": "sabre-curve-fuller",
+    "params": {
+      "length": 0.85,
+      "widthRoot": 0.035,
+      "widthMid": 0.032,
+      "widthTip": 0.026,
+      "thicknessRoot": 0.0065,
+      "thicknessTip": 0.0045,
+      "crossSection": "lenticular",
+      "ridgeHeight": 0,
+      "curve": -0.022,
+      "fuller": {
+        "enabled": true,
+        "start": 0.05,
+        "end": 0.7,
+        "width": 0.012,
+        "depth": 0.002
+      },
+      "tipType": "spear",
+      "tipStart": 0.85,
+      "tipEndScale": 0.1,
+      "segLong": 44,
+      "segCross": 16
+    },
+    "design": {
+      "length": 0.85,
+      "centerCurve": {
+        "points": [
+          [
+            0,
+            0,
+            0
+          ],
+          [
+            -0.022,
+            0.425,
+            0
+          ],
+          [
+            0,
+            0.85,
+            0
+          ]
+        ]
+      },
+      "widthCurve": {
+        "points": [
+          {
+            "t": 0,
+            "value": 0.035
+          },
+          {
+            "t": 0.5,
+            "value": 0.032
+          },
+          {
+            "t": 1,
+            "value": 0.026
+          }
+        ]
+      },
+      "thicknessCurve": {
+        "points": [
+          {
+            "t": 0,
+            "value": 0.0065
+          },
+          {
+            "t": 1,
+            "value": 0.0045
+          }
+        ]
+      },
+      "crossSection": "lenticular",
+      "ridgeHeight": 0,
+      "fuller": {
+        "enabled": true,
+        "start": 0.05,
+        "end": 0.7,
+        "width": 0.012,
+        "depth": 0.002
+      },
+      "tip": {
+        "type": "spear",
+        "start": 0.85,
+        "endScale": 0.1
+      },
+      "segments": {
+        "longitudinal": 44,
+        "crossSection": 16
+      }
+    }
   }
 ]

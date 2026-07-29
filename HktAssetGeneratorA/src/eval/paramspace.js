@@ -1,12 +1,14 @@
-// 최적화 파라미터 공간 — 원본 §26 SwordOptimizationVector (10차원) 의 웹 대응.
+// 최적화 파라미터 공간 — 원본 §26 SwordOptimizationVector 의 웹 대응.
 // 각 파라미터 [min,max] 를 정의하고 정규화된 [0,1] 벡터 ↔ SwordInput(중첩 파라미터)로
 // 오간다 (07-phase5 §5.4). 범위는 UI 슬라이더(panels.js)와 같은 값 — 튜닝 노브.
+// D-18: 곡선 검 지원으로 bladeCurve·gripTilt 2차원을 뒤에 붙여 12차원 —
+// 앞 10차원의 순서·의미는 원본 §26 그대로 불변.
 
 import { clamp, clamp01, lerp } from "../core/math.js";
 
 /**
- * 10차원 벡터 정의. get/set 은 makeSwordDesign 입력(중첩 SwordInput)을 대상으로 한다.
- * 순서 = 원본 §26 필드 순서 (벡터 인덱스 규약 — 변경 금지).
+ * 12차원 벡터 정의. get/set 은 makeSwordDesign 입력(중첩 SwordInput)을 대상으로 한다.
+ * 순서 = 원본 §26 필드 순서 + D-18 확장 2종 (벡터 인덱스 규약 — 변경 금지).
  */
 export const OPT_PARAM_DEFS = [
   { key: "bladeLength", min: 0.3, max: 1.8, get: (p) => p.blade.length, set: (p, v) => { p.blade.length = v; } },
@@ -19,6 +21,9 @@ export const OPT_PARAM_DEFS = [
   { key: "tipEndScale", min: 0.01, max: 0.5, get: (p) => p.blade.tipEndScale, set: (p, v) => { p.blade.tipEndScale = v; } },
   { key: "guardWidth", min: 0.08, max: 0.3, get: (p) => p.guard.width, set: (p, v) => { p.guard.width = v; } },
   { key: "gripLength", min: 0.08, max: 0.4, get: (p) => p.grip.length, set: (p, v) => { p.grip.length = v; } },
+  // D-18 확장 — 곡선 검
+  { key: "bladeCurve", min: -0.04, max: 0.04, get: (p) => p.blade.curve ?? 0, set: (p, v) => { p.blade.curve = v; } },
+  { key: "gripTilt", min: -0.06, max: 0.06, get: (p) => p.grip.tilt ?? 0, set: (p, v) => { p.grip.tilt = v; } },
 ];
 
 /** 파라미터 키의 [min,max] 로 클램프 — 초기 설계 추정(targetspec)도 같은 범위를 쓴다. */

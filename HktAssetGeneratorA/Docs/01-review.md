@@ -190,6 +190,23 @@ PNG 를 거칠 이유가 없다.
 의도(배열이 산출물, 디코더가 결정 경로 밖)는 유지된다: Phase 6 의 AI 생성 마스크는
 `maskFromBytes` 로 같은 자료형에 들어오고, 디코딩은 그 경계 밖에서 1회만 일어난다.
 
+### D-18. 곡선 검(휨) 지원 — 최적화 벡터를 12차원으로 확장 (Phase 6 착수 — 2026-07-29)
+
+원본의 도메인 모델은 곡선을 이미 담고 있다(§5.4 `BladeDesign.centerCurve: Curve3Spec`,
+`GripDesign.curvature`) — MVP 범위(§2)가 직선검이라 지금까지 직선으로 고정했을 뿐이고,
+메시 빌더(링 스윕 + RMF 프레임)도 곡선 센터라인을 처음부터 지원한다. 실사진 평가 1호
+(카타나, STATE.md)에서 직선 가정이 IoU 를 0.586 에 묶는 것이 실측됐다.
+
+**결정**: ① `makeStraightBladeDesign` 에 `curve`(칼날 중간점 ±X 오프셋, m — sagitta),
+`makeStraightGripDesign` 에 `tilt`(손잡이 끝 ±X 오프셋, m) 파라미터를 추가한다.
+0 이면 기존 직선과 **비트 동일**(golden 불변)이라 하위 호환이다. 곡선 양 끝점은 축 위에
+남는다(chord = 검 축) — Phase 5 정규 프레임(tip·root 랜드마크 축) 정의와 자연 일치.
+② 원본 §26 `SwordOptimizationVector`(10차원)를 `bladeCurve`·`gripTilt` 를 뒤에 붙여
+**12차원으로 확장**한다 — 기존 10차원의 순서·의미는 불변. ③ 초기 추정: TargetSpec 에
+행별 **중심선 프로파일**(마스크 행 무게중심의 축 이탈)을 추가하고, 칼날 중간의 이탈 =
+초기 `curve`, 손잡이 구간 양끝 이탈 차 = 초기 `tilt` 로 읽는다(폭 프로파일 읽기와 같은
+원리). ④ 소켓: 손잡이 `pommelSocket` 이 곡선 끝점 x 를 따라간다 — tilt 0 이면 기존과 동일.
+
 ## 결정성의 잔여 조건 (테스트 전제)
 
 - JS Float64 연산(IEEE 754)은 엔진 내 결정적. 단 `Math.cos` 등 초월함수는 엔진 구현 의존 —

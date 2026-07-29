@@ -23,8 +23,10 @@ const SWORD_PARAMS = {
 };
 
 describe("파라미터 벡터 (원본 §26, 07-phase5 §5.4)", () => {
-  it("10차원이고 [0,1] 정규화 왕복이 보존된다", () => {
-    expect(OPT_PARAM_DEFS.length).toBe(10);
+  it("12차원(원본 10 + D-18 곡선 2)이고 [0,1] 정규화 왕복이 보존된다", () => {
+    expect(OPT_PARAM_DEFS.length).toBe(12);
+    expect(OPT_PARAM_DEFS.at(-2).key).toBe("bladeCurve");
+    expect(OPT_PARAM_DEFS.at(-1).key).toBe("gripTilt");
     const base = structuredClone(SWORD_PARAMS);
     const v = inputToVector(base);
     expect(v.every((x) => x >= 0 && x <= 1)).toBe(true);

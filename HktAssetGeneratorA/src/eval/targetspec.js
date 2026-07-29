@@ -27,6 +27,24 @@ function widthProfileFromMask(mask) {
   return profile;
 }
 
+/**
+ * 행별 중심선 프로파일 — 마스크 행 무게중심의 축(x=0.5) 이탈, 정규 단위 (D-18).
+ * 빈 행은 0. 칼날 휨(sagitta)·손잡이 기울임의 초기 추정 재료.
+ */
+function centerProfileFromMask(mask) {
+  const size = mask.size;
+  const profile = new Float32Array(size);
+  for (let y = 0; y < size; y++) {
+    let count = 0;
+    let sum = 0;
+    for (let x = 0; x < size; x++) {
+      if (getMaskBit(mask, x, y)) { count++; sum += x + 0.5; }
+    }
+    profile[y] = count ? sum / count / size - 0.5 : 0;
+  }
+  return profile;
+}
+
 /** 정규 축상 위치 → 부품 구간 (blade/guard/grip/pommel — 각 {start,end,span}) */
 function partsFromLandmarks(lm) {
   const spans = {
@@ -113,6 +131,7 @@ export function buildTargetSpec(referenceSpec, size = SILHOUETTE_SIZE) {
     size,
     mask,
     widthProfile: widthProfileFromMask(mask),
+    centerProfile: centerProfileFromMask(mask),
     landmarksN,
     parts: partsFromLandmarks(landmarksN),
     view: referenceSpec.image.view,
@@ -134,6 +153,7 @@ export function synthesizeTargetSpec(design, size = SILHOUETTE_SIZE) {
     size,
     mask,
     widthProfile: widthProfileFromMask(mask),
+    centerProfile: centerProfileFromMask(mask),
     landmarksN: { tip: 1, bottom: 0, ...lm },
     parts: {
       blade: { start: lm.root, end: 1, span: spans.blade },
@@ -151,6 +171,12 @@ export function synthesizeTargetSpec(design, size = SILHOUETTE_SIZE) {
 function sampleWidth(targetSpec, tn) {
   const i = clamp(Math.floor(tn * targetSpec.size), 0, targetSpec.size - 1);
   return targetSpec.widthProfile[i];
+}
+
+/** 중심선 프로파일 샘플 (정규 단위, 빈 행 = 0) — D-18 */
+function sampleCenter(targetSpec, tn) {
+  const i = clamp(Math.floor(tn * targetSpec.size), 0, targetSpec.size - 1);
+  return targetSpec.centerProfile?.[i] ?? 0;
 }
 
 /** 구간 내 최대 폭 (정규 단위) */
@@ -203,6 +229,14 @@ export function createInitialSwordDesign(targetSpec, opts = {}) {
   // 폼멜 스케일: sphere 프로파일 깊이 = 0.04·scale (pommel.js makePommelProfile)
   const pommelScale = clamp((targetSpec.parts.pommel.span * metersPerUnit) / 0.04, 0.6, 3);
 
+  // 곡선 초기 추정 (D-18): 칼날 중간의 중심선 이탈 = sagitta,
+  // 손잡이 구간 양끝 이탈 차 = tilt — 폭 프로파일 읽기와 같은 원리
+  const bladeCurve = clampParam("bladeCurve",
+    sampleCenter(targetSpec, rootN + 0.5 * bladeSpan) * metersPerUnit);
+  const gripTilt = clampParam("gripTilt",
+    (sampleCenter(targetSpec, grip.start + 0.1 * grip.span)
+      - sampleCenter(targetSpec, grip.end - 0.1 * grip.span)) * metersPerUnit);
+
   const crossSection = targetSpec.hiddenStructureHypotheses[0]?.crossSection ?? "diamond";
   const input = {
     blade: {
@@ -210,11 +244,13 @@ export function createInitialSwordDesign(targetSpec, opts = {}) {
       thicknessRoot: 0.006, thicknessTip: 0.004,
       crossSection, ridgeHeight: crossSection === "diamond" ? 0.5 : 0,
       tipType: "spear", tipStart: 0.8, tipEndScale: 0.05,
+      curve: bladeCurve,
       segLong: 32, segCross: 16,
     },
     guard: { shape: "bar", width: guardWidth, thickness: 0.025, depth: guardDepth, bevel: 0.004 },
     grip: {
       length: gripLength, startRadius: gripRadius, endRadius: gripRadius * 0.9,
+      tilt: gripTilt,
       wrapGeometry: { enabled: false, turns: 9, depth: 0.0012 },
     },
     pommel: { shape: "sphere", scale: pommelScale },

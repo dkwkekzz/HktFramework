@@ -12,6 +12,7 @@ const BLADE_SLIDER_DEFS = [
   { key: "thicknessRoot", label: "뿌리 두께 (m)", min: 0.003, max: 0.02, step: 0.0005 },
   { key: "thicknessTip", label: "끝 두께 (m)", min: 0.002, max: 0.015, step: 0.0005 },
   { key: "ridgeHeight", label: "능선 돌출", min: 0, max: 1.5, step: 0.05 },
+  { key: "curve", label: "칼날 휨 (m)", min: -0.04, max: 0.04, step: 0.001 },
   { key: "tipStart", label: "tip 시작 t", min: 0.4, max: 0.95, step: 0.01 },
   { key: "tipEndScale", label: "tip 끝 배율", min: 0.01, max: 0.5, step: 0.01 },
   { key: "segLong", label: "길이 세그먼트", min: 8, max: 96, step: 1 },
@@ -36,6 +37,7 @@ const GRIP_DEFS = [
   { key: "gripLength", label: "손잡이 길이 (m)", min: 0.08, max: 0.4, step: 0.005 },
   { key: "gripStartRadius", label: "위 반지름 (m)", min: 0.008, max: 0.03, step: 0.001 },
   { key: "gripEndRadius", label: "아래 반지름 (m)", min: 0.008, max: 0.03, step: 0.001 },
+  { key: "gripTilt", label: "손잡이 기울임 (m)", min: -0.06, max: 0.06, step: 0.001 },
   { key: "gripFlatten", label: "납작 비율", min: 0.5, max: 1, step: 0.05 },
   { key: "gripWrapTurns", label: "감기 회전 수", min: 3, max: 20, step: 1 },
   { key: "gripWrapDepth", label: "감기 골 깊이 (m)", min: 0.0004, max: 0.003, step: 0.0002 },
@@ -56,14 +58,14 @@ export const DEFAULT_PARAMS = {
   // 칼날
   length: 0.95, widthRoot: 0.055, widthMid: 0.048, widthTip: 0.03,
   thicknessRoot: 0.006, thicknessTip: 0.004,
-  crossSection: "diamond", ridgeHeight: 0.5,
+  crossSection: "diamond", ridgeHeight: 0.5, curve: 0,
   fullerEnabled: false, fullerStart: 0.05, fullerEnd: 0.6, fullerWidth: 0.02, fullerDepth: 0.003,
   tipType: "spear", tipStart: 0.8, tipEndScale: 0.05,
   segLong: 32, segCross: 16,
   // 가드
   guardShape: "bar", guardWidth: 0.18, guardThickness: 0.025, guardDepth: 0.02, guardBevel: 0.004,
   // 손잡이
-  gripLength: 0.14, gripStartRadius: 0.014, gripEndRadius: 0.012,
+  gripLength: 0.14, gripStartRadius: 0.014, gripEndRadius: 0.012, gripTilt: 0,
   gripCrossSection: "circle", gripFlatten: 0.85,
   gripWrapGeomEnabled: false, gripWrapTurns: 9, gripWrapDepth: 0.0012,
   // 폼멜
@@ -80,7 +82,7 @@ export function paramsToSwordInput(p) {
     blade: {
       length: p.length, widthRoot: p.widthRoot, widthMid: p.widthMid, widthTip: p.widthTip,
       thicknessRoot: p.thicknessRoot, thicknessTip: p.thicknessTip,
-      crossSection: p.crossSection, ridgeHeight: p.ridgeHeight,
+      crossSection: p.crossSection, ridgeHeight: p.ridgeHeight, curve: p.curve ?? 0,
       fuller: p.fullerEnabled
         ? { enabled: true, start: p.fullerStart, end: p.fullerEnd, width: p.fullerWidth, depth: p.fullerDepth }
         : null,
@@ -93,6 +95,7 @@ export function paramsToSwordInput(p) {
     },
     grip: {
       length: p.gripLength, startRadius: p.gripStartRadius, endRadius: p.gripEndRadius,
+      tilt: p.gripTilt ?? 0,
       crossSection: p.gripCrossSection, flatten: p.gripFlatten,
       wrapGeometry: { enabled: p.gripWrapGeomEnabled, turns: p.gripWrapTurns, depth: p.gripWrapDepth },
     },
@@ -117,12 +120,13 @@ export function swordInputToParams(input) {
   const b = input.blade;
   const flat = {
     ...b,
+    curve: b.curve ?? 0,
     fullerEnabled: !!b.fuller,
     guardShape: input.guard.shape, guardWidth: input.guard.width,
     guardThickness: input.guard.thickness, guardDepth: input.guard.depth,
     guardBevel: input.guard.bevel ?? 0,
     gripLength: input.grip.length, gripStartRadius: input.grip.startRadius,
-    gripEndRadius: input.grip.endRadius,
+    gripEndRadius: input.grip.endRadius, gripTilt: input.grip.tilt ?? 0,
     gripCrossSection: input.grip.crossSection ?? "circle",
     gripFlatten: input.grip.flatten ?? 0.85,
     gripWrapGeomEnabled: input.grip.wrapGeometry?.enabled ?? false,

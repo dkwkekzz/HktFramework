@@ -46,7 +46,13 @@ export function buildSwordParts(design, textureSize = 1024) {
     },
     grip: {
       mesh: gripMesh,
-      sockets: { guardSocket: [0, 0, 0], pommelSocket: [0, -design.grip.length, 0] },
+      // pommelSocket 은 손잡이 곡선 끝점을 따라간다 (D-18 — tilt 0 이면 [0,-L,0] 그대로)
+      sockets: {
+        guardSocket: [0, 0, 0],
+        pommelSocket: [
+          design.grip.curvature.points.at(-1)[0], -design.grip.length, 0,
+        ],
+      },
     },
     pommel: { mesh: pommelMesh, sockets: { gripSocket: [0, 0, 0] } },
   });
