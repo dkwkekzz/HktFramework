@@ -12,6 +12,7 @@
     "smoke": "node scripts/smoke.mjs",
     "sim": "vite-node src/scripts/run-30-days.ts",
     "verify": "vite-node src/scripts/verify.ts",
+    "review:2": "vite-node src/scripts/review2-probes.ts",
     "baseline:sim": "vite-node src/scripts/baseline-simulation.ts",
     "generate": "vite-node src/scripts/generate-first-world.ts",
     "sim:generated": "vite-node src/scripts/run-generated-world.ts"
