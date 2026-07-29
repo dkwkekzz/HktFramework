@@ -156,6 +156,11 @@ export interface SceneMap {
   resources: SceneMapMarker[];
   /** 장소 (§13 location) */
   places: SceneMapMarker[];
+  /**
+   * 조직 (§17) — 세계에서 가장 큰 주체도 자리를 갖는다 (2차 재검증 F-2).
+   * 주체 마커와 나누는 이유: 조직은 움직이지 않고 사람 위에 겹쳐 서므로 렌더러가 밑에 깔아야 한다.
+   */
+  factions: SceneMapMarker[];
   overlays: SceneOverlay[];
   signals: SceneSignal[];
   legend: SceneBadge[];
@@ -168,6 +173,7 @@ export function createEmptyMap(): SceneMap {
     markers: [],
     resources: [],
     places: [],
+    factions: [],
     overlays: [],
     signals: [],
     legend: [],

@@ -23,7 +23,7 @@ import { BeliefView } from "./BeliefView";
 import { checkFactionCollapse, syncDelegations } from "./FactionRuntime";
 import { accumulatePressures, findGoalNode, rankGoals, updateGoalLifecycle } from "./GoalSystem";
 import { maintainMemories, rememberEvent } from "./MemorySystem";
-import { resolveDuePromises } from "./RelationshipSystem";
+import { relationshipView, resolveDuePromises, type PromiseOutcome } from "./RelationshipSystem";
 
 /**
  * 행동 중인 주체가 압력 때문에 다시 판단할 수 있는 최소 간격.
@@ -207,12 +207,46 @@ export function rememberActionOutcome(
   }
 }
 
+/**
+ * §24 betrayal — 약속이 깨지면 **당한 쪽의 기억**에 남는다 (2차 재검증 F-4).
+ *
+ * 관계 수치와 `promise_broken` 상태는 DSL 규칙이 받는다(§25 연쇄). 기억은 그 규칙 효과가 아니라
+ * 주체 내부의 기록이므로 여기서 남긴다 — 이 자리가 없으면 §25 가 가장 무겁게 그린 연쇄에서
+ * 배신만 잊히는 사건이 된다. 강도는 **믿었던 만큼**이다: 신뢰·의존이 클수록 깊게 남는다(§24).
+ * 해석(interpretation)을 달아 두므로 그 뒤의 신호는 이 기억을 거쳐 읽힌다(§23 기억 대조).
+ */
+export function rememberBrokenPromises(runtime: WorldRuntime, outcomes: PromiseOutcome[]): number {
+  let remembered = 0;
+  for (const outcome of outcomes) {
+    if (outcome.status !== "broken") continue;
+    if (runtime.state.agentRuntimes[outcome.toId] === undefined) continue;
+    const relation = relationshipView(runtime, outcome.toId, outcome.fromId);
+    const intensity = Math.min(
+      100,
+      45 + Math.max(0, relation.trust) * 0.35 + Math.max(0, relation.dependency) * 0.2,
+    );
+    rememberEvent(runtime, outcome.toId, {
+      type: "betrayal",
+      participants: [outcome.toId, outcome.fromId],
+      tags: ["promise", "betrayal", ...outcome.tags],
+      emotionalIntensity: intensity,
+      relevance: 60,
+      confidence: 1,
+      interpretation: { subjectId: outcome.fromId, stateKey: "promise_broken", value: true },
+    });
+    remembered += 1;
+  }
+  return remembered;
+}
+
 // --- 하루 한 번의 유지 (§8 압력 · §24 기억 · §25 약속 · §17 조직) ---------------------
 
 export interface DailyMaintenanceReport {
   day: number;
   memoryCounts: Record<string, number>;
   promiseOutcomes: number;
+  /** 파기된 약속이 남긴 §24 betrayal 기억 수 */
+  betrayalMemories: number;
   collapsedFactions: string[];
 }
 
@@ -221,6 +255,7 @@ export function maintainAgentsDaily(runtime: WorldRuntime): DailyMaintenanceRepo
     day: Math.floor(runtime.state.simulationTime / TICKS_PER_DAY),
     memoryCounts: {},
     promiseOutcomes: 0,
+    betrayalMemories: 0,
     collapsedFactions: [],
   };
 
@@ -229,7 +264,9 @@ export function maintainAgentsDaily(runtime: WorldRuntime): DailyMaintenanceRepo
     maintainMemories(runtime, agentId);
     report.memoryCounts[agentId] = runtime.agentRuntime(agentId).memories.length;
   }
-  report.promiseOutcomes = resolveDuePromises(runtime).length;
+  const promiseOutcomes = resolveDuePromises(runtime);
+  report.promiseOutcomes = promiseOutcomes.length;
+  report.betrayalMemories = rememberBrokenPromises(runtime, promiseOutcomes);
   report.collapsedFactions = checkFactionCollapse(runtime);
   return report;
 }

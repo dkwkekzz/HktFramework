@@ -67,14 +67,17 @@ function ability(id: string, output: number, severity: number, cost: number): Ab
     maintenanceConditions: [],
     restrictions: [{ description: "픽스처 제약", severity }],
     costs: [{ stateKey: "energy", amount: cost }],
-    failureEffects: [{ stateKey: "health", operation: "add", value: -10 }],
+    failureEffects: [
+      { type: "modify_state", target: { type: "actor" }, stateKey: "health", operation: "add", value: -10 },
+    ],
     observableSignals: [],
     knownBy: ["agent.kael"],
     mastery: 50,
     outputRange: { min: 0, max: output },
     inferableWeakness: "픽스처",
     actionIds: [],
-    ruleIds: [],
+    // 반동(health)을 실제로 실행하는 규칙 — 이 픽스처가 겨냥하는 것은 대가 역전뿐이다(ability.backlash 와 겹치지 않게)
+    ruleIds: ["rule.attack_resolution"],
     derivedFrom: { coreDesire: "픽스처", acceptedCost: "픽스처" },
   };
 }
@@ -86,7 +89,7 @@ export interface ViolationFixture {
   break(definition: WorldDefinition): void;
 }
 
-/** §34 필수 규칙 10개(+ G-1·G-3·G-4·G-5 가 더한 4종) ↔ 그 규칙을 어기는 세계 하나씩 */
+/** 의미 검사기(SEMANTIC_CODES) ↔ 그 규칙을 어기는 세계 하나씩 — 검사기 하나에 픽스처 하나, 1:1 이다 */
 export const VIOLATION_FIXTURES: ViolationFixture[] = [
   {
     code: "axiom.enforced",
@@ -207,6 +210,30 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
     },
   },
   {
+    code: "faction.structure",
+    title: "제도의 수혜·피해 집단이 내부 집단의 stance 와 어긋난다 (§17 절차 4·5 — F-6)",
+    break(definition) {
+      const faction = definition.factions.find((entry) => (entry.structures ?? []).length > 0);
+      if (faction === undefined) throw new Error("픽스처: 제도를 가진 조직이 필요하다");
+      const structure = faction.structures![0]!;
+      // 손해를 보는 집단을 수혜 집단 자리에 적는다 — 참조는 멀쩡하고 "누가 이익을 얻는가"만 뒤집힌다
+      structure.benefitingGroupIds = [...structure.benefitingGroupIds, ...structure.harmedGroupIds];
+    },
+  },
+  {
+    code: "ability.backlash",
+    title: "선언된 실패 반동을 실행하는 규칙이 없다 (§16 절차 8 — F-7)",
+    break(definition) {
+      const orphan = ability("ability.unbacked_backlash", 40, 60, 20);
+      orphan.failureEffects = [
+        { type: "modify_state", target: { type: "actor" }, stateKey: "fear", operation: "add", value: 20 },
+      ];
+      // 허기만 건드리는 규칙에 연결한다 — 반동은 선언됐지만 아무도 실행하지 않는다
+      orphan.ruleIds = ["rule.hunger_growth"];
+      definition.abilitySystem = { abilities: [orphan] };
+    },
+  },
+  {
     code: "agent.goal",
     title: "초기 상태에서 이미 모든 목적을 이룬 개인이 있다",
     break(definition) {
@@ -262,7 +289,7 @@ export interface FixtureResult {
 }
 
 /**
- * 위반 픽스처 15종을 전부 돌린다.
+ * 위반 픽스처를 전부 돌린다 (검사기와 1:1 — 개수는 SEMANTIC_CODES 가 센다).
  * 반환값이 곧 DoD 1 의 근거다 — verify 와 테스트가 이 함수를 함께 쓴다.
  */
 export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
@@ -284,7 +311,7 @@ export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
   });
 }
 
-/** 통과 세계(수동 세계)에서는 15종 전부 조용해야 한다 — 픽스처의 대조군 */
+/** 통과 세계(수동 세계)에서는 검사기 전부가 조용해야 한다 — 픽스처의 대조군 */
 export function validateManualWorld(worldSeed = 42): ReturnType<typeof validateWorld> {
   return validateWorld(buildManualWorld(worldSeed));
 }

@@ -3,6 +3,7 @@
 // 능력은 고정 스킬 목록이 아니다. 한 인물의 욕망·경험·제약에서 파생된다(§44-11).
 // 그래서 두 번 부른다: ① 능력 사용자의 AbilityGenerationContext(§16 입력 구조) ② 그 문맥에서 능력 하나.
 // 절차 7(제약 강도 → 출력 범위)만 코드가 계산한다 — AI 가 자기 능력의 세기를 스스로 부르지 못하게 한다.
+import { SENSORY_CHANNELS } from "../shared/observation";
 import type { AbilityDefinition, WorldAxiom } from "../core/world/types";
 import { abilityCostWeight, calculateAbilityOutputRange } from "./derivations";
 import type { GenerationContext } from "./GenerationTypes";
@@ -109,7 +110,7 @@ export async function generateAbilities(
           context,
           availableStates: ctx.symbols.list("state"),
           availableRules: ctx.symbols.list("rule"),
-          observationChannels: ["sight", "sound", "smell", "trace", "energy_sense"],
+          observationChannels: SENSORY_CHANNELS,
         },
         outputSchema: ABILITY_DRAFT_SCHEMA,
       },

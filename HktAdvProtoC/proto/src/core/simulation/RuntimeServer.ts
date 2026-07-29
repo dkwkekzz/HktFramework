@@ -182,8 +182,10 @@ export class RuntimeServer {
     if (seedInput === undefined) {
       return [{ type: "error", message: "생성 입력이 없다 — generate_world 가 먼저다" }];
     }
-    // 오프라인 목 포트 — 실제 LLM 어댑터도 같은 TextGenerationPort 뒤에 들어온다 (§2.1)
-    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS);
+    // 오프라인 목 포트 — 실제 LLM 어댑터도 같은 TextGenerationPort 뒤에 들어온다 (§2.1).
+    // 네 번째 인자가 이 포트의 **경계**다: 코퍼스는 §41 의 다섯 문장에 대해 녹화됐으므로
+    // 다른 주제를 넣으면 1단계에서 "왜 안 되는지"를 말하며 멈춘다 (2차 재검증 F-1).
+    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, [], FIRST_WORLD_SEED_INPUT);
     try {
       const result = await compileWorld({
         port,

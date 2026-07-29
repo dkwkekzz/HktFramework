@@ -1,4 +1,5 @@
 // 4단계: 세계 상태 스키마 생성 (§9)
+import { OBSERVATION_CHANNELS } from "../shared/observation";
 import type { StateSchema, SurvivalPressureDefinition, WorldAxiom } from "../core/world/types";
 import type { GenerationContext } from "./GenerationTypes";
 import { STATE_SCHEMA_SCHEMA } from "./OutputSchemas";
@@ -48,7 +49,7 @@ export async function generateStateSchemas(
         axioms: axioms.map((axiom) => ({ id: axiom.id, category: axiom.category, statement: axiom.statement })),
         // 압력이 이미 읽고 있는 상태 키 — 이건 반드시 스키마가 있어야 한다
         requiredStateKeys: requiredKeys,
-        observationChannels: ["sight", "sound", "smell", "trace", "energy_sense", "talk", "report"],
+        observationChannels: OBSERVATION_CHANNELS,
       },
       outputSchema: STATE_SCHEMA_SCHEMA,
     },

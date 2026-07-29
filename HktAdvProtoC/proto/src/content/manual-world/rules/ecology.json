@@ -318,6 +318,103 @@
     ]
   },
   {
+    "id": "rule.defense_stance",
+    "name": "방어 자세 — 버티기로 마음먹으면 다음 일격이 덜 아프다",
+    "tags": [
+      "defense",
+      "threat"
+    ],
+    "scope": "entity",
+    "priority": 48,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.defend"
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "guard_stance",
+        "operation": "set",
+        "value": 45
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": -8
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "offspring_threat",
+        "operation": "add",
+        "value": -12
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_protects_what_it_values"
+    ]
+  },
+  {
+    "id": "rule.guard_stance_fades",
+    "name": "방어 자세는 오래가지 않는다",
+    "tags": [
+      "defense"
+    ],
+    "scope": "global",
+    "priority": 100,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 60
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent",
+            "where": [
+              {
+                "left": {
+                  "type": "each_state",
+                  "key": "guard_stance"
+                },
+                "operator": ">",
+                "right": {
+                  "type": "constant",
+                  "value": 0
+                }
+              }
+            ]
+          }
+        },
+        "stateKey": "guard_stance",
+        "operation": "add",
+        "value": -15
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
     "id": "rule.attack_resolution",
     "name": "공격 판정",
     "tags": [
@@ -338,16 +435,52 @@
         "name": "damage",
         "value": {
           "type": "expr",
-          "op": "add",
+          "op": "max",
           "operands": [
             {
               "type": "constant",
-              "value": 15
+              "value": 0
             },
             {
-              "type": "random_int",
-              "max": 10,
-              "stream": "actor"
+              "type": "expr",
+              "op": "sub",
+              "operands": [
+                {
+                  "type": "expr",
+                  "op": "add",
+                  "operands": [
+                    {
+                      "type": "constant",
+                      "value": 15
+                    },
+                    {
+                      "type": "random_int",
+                      "max": 10,
+                      "stream": "actor"
+                    }
+                  ]
+                },
+                {
+                  "type": "expr",
+                  "op": "floor",
+                  "operands": [
+                    {
+                      "type": "expr",
+                      "op": "mul",
+                      "operands": [
+                        {
+                          "type": "target_state",
+                          "key": "guard_stance"
+                        },
+                        {
+                          "type": "constant",
+                          "value": 0.3
+                        }
+                      ]
+                    }
+                  ]
+                }
+              ]
             }
           ]
         }

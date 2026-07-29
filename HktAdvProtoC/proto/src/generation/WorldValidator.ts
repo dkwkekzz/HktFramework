@@ -2,7 +2,8 @@
 //
 // 두 층으로 판정한다.
 //  (a) 스키마 층 — Phase 1~5 가 확정한 계약(WorldValidation·RuleSchema)을 전체 조립본에 다시 건다.
-//  (b) 의미 층 — §34 필수 규칙 10개(+ G-1 rule.chance · G-3 faction.hidden · G-4 species.structure · G-5 space.profile)를 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
+//  (b) 의미 층 — 검사기 19종을 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
+//      개수의 출처는 SEMANTIC_CODES 하나뿐이다 — 주석이 수를 따로 세지 않게 한다(2차 재검증 F-8).
 //
 // 검사기는 "통과했다"가 아니라 **무엇을 몇 개 봤고 어디가 걸렸는가**를 남긴다(CLAUDE.md 검토 규칙).
 import { rankGoals } from "../core/agents/GoalSystem";
@@ -24,7 +25,15 @@ import type { ValidationIssue } from "./CompilerPipeline";
 import { abilityCostWeight } from "./derivations";
 import { SymbolTable, type SymbolKind } from "./SymbolTable";
 
-/** §34 필수 규칙 10개 + G-1·G-3·G-4·G-5 가 더한 4종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
+/**
+ * 의미 검사기 19종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다.
+ * §34 가 요구한 열 개(state.schema · rule.target-exists · resource.source · species.need ·
+ * faction.lifecycle · agent.goal · action.cost · ability.cost-scaling · event.multi-agent ·
+ * goal.no-infinite)에 재검증이 일곱을 더했다(G-1 rule.chance · G-3 faction.hidden ·
+ * G-4 species.structure · G-5 space.profile · G-6 resource.overuse · G-12 axiom.enforced·pressure.related)
+ * 그리고 2차 재검증이 둘을 더했다(F-6 faction.structure · F-7 ability.backlash).
+ * **수를 말하는 곳은 이 배열뿐이다** — 검사기를 더하면 여기만 늘어난다.
+ */
 export const SEMANTIC_CODES = [
   "axiom.enforced",
   "state.schema",
@@ -38,9 +47,11 @@ export const SEMANTIC_CODES = [
   "species.structure",
   "faction.lifecycle",
   "faction.hidden",
+  "faction.structure",
   "agent.goal",
   "action.cost",
   "ability.cost-scaling",
+  "ability.backlash",
   "event.multi-agent",
   "goal.no-infinite",
 ] as const;
@@ -65,7 +76,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 15종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 19종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -135,7 +146,7 @@ function checkSchemaLayer(definition: WorldDefinition): CheckReport {
 }
 
 // =====================================================================================
-// (b) 의미 층 — §34 필수 규칙 10개 + G-1·G-3·G-4·G-5
+// (b) 의미 층 — 검사기 19종 (목록·출처는 SEMANTIC_CODES)
 // =====================================================================================
 
 /** 검사기가 공유하는 사전 — 매 검사기가 정의를 다시 훑지 않게 한다 */
@@ -315,7 +326,12 @@ function collectStateUsage(definition: WorldDefinition): StateUsage[] {
   }
   for (const ability of definition.abilitySystem?.abilities ?? []) {
     for (const cost of ability.costs) push(`능력 ${ability.id}`, cost.stateKey, undefined, true);
-    for (const effect of ability.failureEffects) push(`능력 ${ability.id}`, effect.stateKey, undefined, true);
+    // 실패 반동은 §11.3 RuleEffect 다 — 상태를 건드리는 효과만 상태 사용으로 센다(F-7)
+    for (const effect of ability.failureEffects) {
+      if (effect.type === "modify_state") {
+        push(`능력 ${ability.id}`, effect.stateKey, ownerHintOf(effect.target), true);
+      }
+    }
   }
   for (const rule of definition.ruleDefinitions) {
     for (const effect of rule.effects as RuleEffect[]) {
@@ -914,6 +930,137 @@ function checkFactionHidden(index: Index): CheckReport {
   );
 }
 
+// --- 4b. faction.structure (§17 절차 3~5 — F-6) ----------------------------------------
+
+/**
+ * §17 "자원을 통제하는 방식에 따라 제도를 만든다 → 수혜 집단 → 피해 집단".
+ * 제도가 없으면 internalGroups 의 stance 는 *무엇에 대한* 수혜·피해인지 말하지 못한다 —
+ * 여기서 보는 것은 그 가운데 칸이 **연결되어 있는가**다: 통제 자원이 실재하고, 수혜·피해 집단이
+ * 그 조직의 내부 집단이며 stance 와 어긋나지 않고, 정책이 실재하는 제도·규칙을 가리키는가.
+ * "제도가 아예 없다 / 실행 규칙이 없다"는 경고다 — 30일 밖의 조직도 있다(§15 번식 선언과 같은 규약).
+ */
+function checkFactionStructure(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const resourceIds = new Set(definition.resources.map((resource) => resource.id));
+  let inspected = 0;
+  let executed = 0;
+  for (const faction of definition.factions) {
+    const structures = faction.structures ?? [];
+    const groups = new Map((faction.internalGroups ?? []).map((group) => [group.id, group.stance]));
+    if (structures.length === 0) {
+      issues.push(
+        issue(
+          "faction.structure",
+          faction.id,
+          `조직 ${faction.id}: 자원을 통제하는 제도가 없다 — §17 절차 3 이 빈칸이라 내부 집단의 수혜·피해가 무엇에 대한 것인지 말할 수 없다`,
+          "structures 에 통제 자원·방식·실행 규칙을 넣는다",
+          "warning",
+        ),
+      );
+    }
+    for (const structure of structures) {
+      inspected += 1;
+      if (!faction.controlledResources.includes(structure.controlledResource)) {
+        issues.push(
+          issue(
+            "faction.structure",
+            faction.id,
+            `제도 ${structure.id}: 조직이 통제하지 않는 자원을 제도로 삼는다 — ${structure.controlledResource}`,
+            "controlledResources 안의 자원으로 바꾼다",
+          ),
+        );
+      } else if (!resourceIds.has(structure.controlledResource)) {
+        issues.push(
+          issue("faction.structure", faction.id, `제도 ${structure.id}: 존재하지 않는 자원 — ${structure.controlledResource}`),
+        );
+      }
+      for (const ruleId of structure.ruleIds) {
+        if (!index.ruleIds.has(ruleId)) {
+          issues.push(
+            issue("faction.structure", faction.id, `제도 ${structure.id}: 존재하지 않는 실행 규칙 — ${ruleId}`),
+          );
+        }
+      }
+      if (structure.ruleIds.length === 0) {
+        issues.push(
+          issue(
+            "faction.structure",
+            faction.id,
+            `제도 ${structure.id}: 실행 규칙이 없다 — 통제가 문장으로만 있다 (§17)`,
+            "이 자원을 실제로 건드리는 규칙을 ruleIds 에 연결한다",
+            "warning",
+          ),
+        );
+      } else {
+        executed += 1;
+      }
+      const checkGroup = (groupId: string, expected: "benefits" | "harmed"): void => {
+        const stance = groups.get(groupId);
+        if (stance === undefined) {
+          issues.push(
+            issue("faction.structure", faction.id, `제도 ${structure.id}: ${groupId} 는 이 조직의 내부 집단이 아니다 (§17 절차 4·5)`),
+          );
+        } else if (stance !== expected) {
+          issues.push(
+            issue(
+              "faction.structure",
+              faction.id,
+              `제도 ${structure.id}: ${groupId} 의 stance 는 ${stance} 인데 ${expected} 쪽에 적혀 있다 — 누가 이익을 얻는지가 어긋난다`,
+              "internalGroups.stance 와 제도의 수혜·피해 목록을 맞춘다",
+            ),
+          );
+        }
+      };
+      for (const groupId of structure.benefitingGroupIds) checkGroup(groupId, "benefits");
+      for (const groupId of structure.harmedGroupIds) checkGroup(groupId, "harmed");
+    }
+    const structureIds = new Set(structures.map((structure) => structure.id));
+    for (const policy of faction.policies ?? []) {
+      inspected += 1;
+      if (!structureIds.has(policy.structureId)) {
+        issues.push(
+          issue("faction.structure", faction.id, `정책 ${policy.id}: 존재하지 않는 제도를 가리킨다 — ${policy.structureId}`),
+        );
+      }
+      if (policy.enforcementRuleIds.length === 0) {
+        issues.push(
+          issue(
+            "faction.structure",
+            faction.id,
+            `정책 ${policy.id}: 따르지 않으면 어떻게 되는지가 없다 — 집행 규칙 0개 (§17)`,
+            "enforcementRuleIds 를 채운다",
+            "warning",
+          ),
+        );
+      }
+      for (const ruleId of policy.enforcementRuleIds) {
+        if (!index.ruleIds.has(ruleId)) {
+          issues.push(
+            issue("faction.structure", faction.id, `정책 ${policy.id}: 존재하지 않는 집행 규칙 — ${ruleId}`),
+          );
+        }
+      }
+      if (!index.stateIds.has(policy.requirement.stateKey)) {
+        issues.push(
+          issue("faction.structure", faction.id, `정책 ${policy.id}: 스키마에 없는 상태를 요구한다 — ${policy.requirement.stateKey} (§9)`),
+        );
+      }
+    }
+  }
+  const rows = definition.factions.map(
+    (faction) =>
+      `${faction.id.replace("faction.", "")}(제도 ${(faction.structures ?? []).length}·정책 ${(faction.policies ?? []).length})`,
+  );
+  return report(
+    "faction.structure",
+    "조직의 제도는 통제 자원·실행 규칙·수혜/피해 집단에 연결된다 (§17 절차 3~5)",
+    inspected,
+    issues,
+    `조직 ${definition.factions.length} — ${rows.join(" ")} · 실행 규칙을 가진 제도 ${executed} · 위반 ${issues.filter((entry) => entry.level === "error").length}`,
+  );
+}
+
 // --- 5. faction.lifecycle -------------------------------------------------------------
 
 function checkFactionLifecycle(index: Index): CheckReport {
@@ -1107,6 +1254,63 @@ function checkAbilityScaling(index: Index): CheckReport {
   );
 }
 
+// --- 8b. ability.backlash (§16 절차 8 — F-7) --------------------------------------------
+
+/**
+ * §16 failureEffects 는 §11.3 RuleEffect 다 — 선언만으로는 아무 일도 일어나지 않는다.
+ * 전용 실행기가 없기 때문에(Phase-2 §2.7) **같은 상태를 건드리는 규칙이 능력의 ruleIds 안에** 있어야
+ * 반동이 세계에 닿는다. 값까지 같을 필요는 없다: 값은 숙련도·제약 강도로 갈리고, 여기서 보는 것은 연결이다.
+ * 반동의 **대상**(자기 자신인가 곁의 사람인가)은 설계 선택이므로 판정하지 않고 수만 남긴다.
+ */
+function checkAbilityBacklash(index: Index): CheckReport {
+  const abilities = index.definition.abilitySystem?.abilities ?? [];
+  const ruleById = new Map(index.definition.ruleDefinitions.map((rule) => [rule.id, rule]));
+  const issues: ValidationIssue[] = [];
+  let beyondSelf = 0;
+  for (const ability of abilities) {
+    if (ability.failureEffects.length === 0) {
+      issues.push(
+        issue(
+          "ability.backlash",
+          ability.id,
+          `능력 ${ability.id}: 실패 반동이 없다 — 대가 없는 능력이다 (§16 절차 8)`,
+          "failureEffects 를 넣는다",
+        ),
+      );
+      continue;
+    }
+    const implemented = new Set<string>();
+    for (const ruleId of ability.ruleIds) {
+      for (const effect of ruleById.get(ruleId)?.effects ?? []) {
+        if (effect.type === "modify_state") implemented.add(effect.stateKey);
+      }
+    }
+    for (const effect of ability.failureEffects) {
+      if (effect.type !== "modify_state") continue;
+      if (effect.target.type !== "actor") beyondSelf += 1;
+      if (implemented.has(effect.stateKey)) continue;
+      issues.push(
+        issue(
+          "ability.backlash",
+          ability.id,
+          `능력 ${ability.id}: 실패 반동 ${effect.stateKey} 를 실행하는 규칙이 없다 — 선언이 세계에 닿지 않는다 (§16, Phase-2 §2.7)`,
+          "그 상태를 건드리는 규칙을 만들어 ruleIds 에 연결한다",
+        ),
+      );
+    }
+  }
+  return report(
+    "ability.backlash",
+    "능력의 실패 반동은 그것을 실행하는 규칙에 연결된다 (§16 절차 8)",
+    abilities.length,
+    issues,
+    abilities.length === 0
+      ? "능력 없음 — 검사 대상 0"
+      : `능력 ${abilities.length}개 · 반동 ${abilities.reduce((n, a) => n + a.failureEffects.length, 0)}건 ` +
+        `(능력자 밖을 향하는 반동 ${beyondSelf}건 — §11.3 대상 선택자) · 연결 없음 ${issues.length}`,
+  );
+}
+
 // --- 9. event.multi-agent -------------------------------------------------------------
 
 /** 태그를 소유한 시스템 종류 — 사건 패턴이 정말 "둘 이상을 연결"하는지 보는 기준 */
@@ -1266,14 +1470,16 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "species.structure": checkSpeciesStructure,
   "faction.lifecycle": checkFactionLifecycle,
   "faction.hidden": checkFactionHidden,
+  "faction.structure": checkFactionStructure,
   "agent.goal": checkAgentGoals,
   "action.cost": checkActionCost,
   "ability.cost-scaling": checkAbilityScaling,
+  "ability.backlash": checkAbilityBacklash,
   "event.multi-agent": checkEventMultiAgent,
   "goal.no-infinite": checkGoalNoInfinite,
 };
 
-/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 15종 */
+/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 19종 */
 export function validateWorld(definition: WorldDefinition): ValidationReport {
   const index = buildIndex(definition);
   const schema = checkSchemaLayer(definition);

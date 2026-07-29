@@ -158,6 +158,8 @@ export interface PromiseOutcome {
   toId: string;
   promiseId: string;
   status: "kept" | "broken";
+  /** 약속의 계기 태그 — 파기 기억(§24 betrayal)이 무엇에 대한 배신인지 남긴다 */
+  tags: string[];
 }
 
 /**
@@ -179,6 +181,7 @@ export function resolveDuePromises(runtime: WorldRuntime): PromiseOutcome[] {
         toId: relation.toId,
         promiseId: promise.id,
         status: promise.status,
+        tags: [...promise.tags],
       });
       runtime.store.withContext(
         {

@@ -2,7 +2,7 @@
 // Phase 1 이 실제로 쓰는 필드는 실체 타입으로, 담당 Phase 가 오지 않은 필드는 placeholder(unknown[]) 로 둔다.
 import type { ObservationChannel } from "../../shared/observation";
 import type { Position } from "../../shared/state";
-import type { EntityTemplate, RuleDefinition } from "../rules/RuleTypes";
+import type { EntityTemplate, RuleDefinition, RuleEffect } from "../rules/RuleTypes";
 
 export type { EntityState, EntityType, Position, WorldState } from "../../shared/state";
 
@@ -208,6 +208,45 @@ export interface InternalGroupDefinition {
   stance: "benefits" | "harmed";
 }
 
+/**
+ * §17 structures — 조직이 자원을 통제하는 **제도** (절차 3 의 산물, 2차 재검증 F-6).
+ *
+ * 제도가 없으면 internalGroups 의 stance(benefits/harmed)는 *무엇에 대한* 수혜·피해인지 말하지 못한다.
+ * 이 타입이 그 가운데 칸이다: 어떤 자원을, 어떤 방식으로, 어떤 규칙으로 통제하며, 그래서 누가 이익을 얻고
+ * 누가 손해를 보는가. 문장(rationale)은 이야기고 **연결(resource·ruleIds·집단)은 실행 데이터**다.
+ */
+export interface FactionStructureDefinition {
+  id: string;
+  name: string;
+  /** 이 제도가 통제하는 자원 — 조직의 controlledResources 안에 있어야 한다 */
+  controlledResource: string;
+  /** 통제 방식 — 배급·독점·통행세·면허·징발·등록 */
+  mechanism: "ration" | "monopoly" | "toll" | "license" | "levy" | "registry";
+  /** 제도를 실행하는 규칙 — 비면 그 제도는 아직 문장일 뿐이다(§34 faction.structure 가 경고한다) */
+  ruleIds: string[];
+  /** 절차 4 — 이 제도로 이익을 얻는 내부 집단 (stance="benefits" 여야 한다) */
+  benefitingGroupIds: string[];
+  /** 절차 5 — 이 제도로 손해를 보는 내부 집단 (stance="harmed" 여야 한다) */
+  harmedGroupIds: string[];
+  /** 왜 이런 제도인가 (생성 근거 문장) */
+  rationale?: string;
+}
+
+/**
+ * §17 policies — 제도가 구성원에게 요구하는 것.
+ * 요구(requirement)는 상태 조건이고, 위반에 대한 대응은 규칙이 실행한다 —
+ * "따르지 않으면 어떻게 되는가"가 없는 정책은 세계에 아무 힘도 없다.
+ */
+export interface PolicyDefinition {
+  id: string;
+  /** 어느 제도의 정책인가 — structures 의 id */
+  structureId: string;
+  statement: string;
+  requirement: { stateKey: string; comparison: ConditionOperator; value: number | boolean };
+  /** 위반·이행을 실행하는 규칙 */
+  enforcementRuleIds: string[];
+}
+
 export interface FactionDefinition {
   id: string;
   name: string;
@@ -224,6 +263,10 @@ export interface FactionDefinition {
   relationshipDefaults: Record<string, number>;
   collapseConditions: ConditionDefinition[];
   internalGroups?: InternalGroupDefinition[];
+  /** §17 절차 3 — 자원 통제 방식에 따른 제도 (F-6) */
+  structures?: FactionStructureDefinition[];
+  /** §17 — 제도가 세우는 규범 (F-6) */
+  policies?: PolicyDefinition[];
 }
 
 // --- §8 생존 압력 --------------------------------------------------------------
@@ -539,8 +582,14 @@ export interface AbilityDefinition {
   maintenanceConditions: ConditionDefinition[];
   restrictions: RestrictionDefinition[];
   costs: CostDefinition[];
-  /** 실패 반동 — 실행은 규칙이 한다(failureRuleId) */
-  failureEffects: { stateKey: string; operation: "set" | "add"; value: number | boolean }[];
+  /**
+   * 실패 반동 — §16 기획 타입 그대로 **§11.3 RuleEffect 전체**다 (2차 재검증 F-7).
+   * 대상 선택자(TargetSelector)를 갖기 때문에 반동이 능력자 자신에게만 걸리지 않는다:
+   * "제약을 어기면 곁의 사람이 다친다"가 데이터로 표현된다 — 능력의 사회적 무게가 여기서 생긴다.
+   * 실행은 여전히 규칙이 한다(§16 은 정의, Phase-2 §2.7 이 분해) — 같은 효과가 감시 규칙에 실려야
+   * 선언이 세계에 닿는다. §34 `ability.backlash` 검사기가 그 연결을 요구한다.
+   */
+  failureEffects: RuleEffect[];
   observableSignals: ObservationEffect[];
   knownBy: string[];
   mastery: number;

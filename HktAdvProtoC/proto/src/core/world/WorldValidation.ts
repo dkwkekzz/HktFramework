@@ -1,5 +1,5 @@
 // 세계 정의 정합성 검사 (기획서 §34 의 Phase 1 부분집합, Phase-1 §1.1)
-// Phase 6 이 이 검사를 10종 의미 검증으로 확장한다. 지금 확인하는 것은 "실행 가능한가"에 직결되는 것들뿐이다.
+// Phase 6 이 이 검사를 의미 검증(WorldValidator.SEMANTIC_CODES)으로 확장한다. 지금 확인하는 것은 "실행 가능한가"에 직결되는 것들뿐이다.
 import type { RuleEngine } from "../rules/RuleEngine";
 import type {
   RuleCondition,

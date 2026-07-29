@@ -26,6 +26,8 @@ import ruleDocuments from "./rules.json";
 
 export const ABILITY_OWNER = "agent.sera";
 export const ABILITY_ID = "ability.contract_truth";
+/** 능력자 곁에 서 있는 사람 — 반동이 자기 밖으로 나가는지 보는 대조군 (F-7) */
+export const BYSTANDER = "agent.witness";
 const REGION = "region.contract_hall";
 
 function agentNumber(id: string, defaultValue: number, max = 100): StateSchema {
@@ -133,7 +135,7 @@ const ACTIONS: ActionDefinition[] = [
  * §16 출력 예시 `ability.contract_truth` — 문서의 능력 정의를 정규형 필드로 옮긴 것.
  * 위 표(파일 머리말)가 이 정의의 각 필드가 어느 실행 체계로 내려갔는지 말해 준다.
  */
-const CONTRACT_TRUTH: AbilityDefinition = {
+export const CONTRACT_TRUTH: AbilityDefinition = {
   id: ABILITY_ID,
   ownerId: ABILITY_OWNER,
   purpose: "거짓 계약으로부터 자신과 동료를 보호한다.",
@@ -156,7 +158,18 @@ const CONTRACT_TRUTH: AbilityDefinition = {
   ],
   restrictions: [{ description: "사용자는 계약 기간 동안 고의적인 거짓말을 할 수 없다.", severity: 78 }],
   costs: [{ stateKey: "mental_stamina", amount: 12 }],
-  failureEffects: [{ stateKey: "memory_integrity", operation: "add", value: -15 }],
+  failureEffects: [
+    { type: "modify_state", target: { type: "actor" }, stateKey: "memory_integrity", operation: "add", value: -15 },
+    // §16 절차 8 — 반동이 능력자 자신에게만 걸릴 이유는 없다 (§11.3 TargetSelector, F-7).
+    // 계약의 진실이 깨지는 순간, 같은 계약을 맺고 있던 곁의 사람도 함께 다친다.
+    {
+      type: "modify_state",
+      target: { type: "query", query: { entityType: "agent", withinRadius: { of: "actor", r: 10 } } },
+      stateKey: "memory_integrity",
+      operation: "add",
+      value: -5,
+    },
+  ],
   observableSignals: ACTIONS[0]!.visibleSignals,
   knownBy: [ABILITY_OWNER],
   mastery: 42,

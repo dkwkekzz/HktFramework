@@ -106,6 +106,15 @@ export function checkScreenItems(
     ),
   );
   rows.push(item("§36.2 지도", "자원 분포", map.resources.length > 0, `자원 마커 ${map.resources.length}개 · 장소 ${map.places.length}개`));
+  // §17 조직도 지도의 주체다 — 위치를 가진 조직이 하나라도 있으면 전부 마커여야 한다 (F-2)
+  rows.push(
+    item(
+      "§36.2 지도",
+      "조직의 자리 (§17)",
+      map.factions.length > 0 && map.factions.every((marker) => marker.shapeKey === "shape-banner"),
+      `조직 마커 ${map.factions.length}개 — ${map.factions.map((marker) => `${marker.label}(${marker.badges.map((b) => `${b.key}=${b.value}`).join(",")})`).join(" · ") || "없음"}`,
+    ),
+  );
   rows.push(
     item(
       "§36.2 지도",
@@ -270,6 +279,7 @@ export function checkRendererParity(scene: SceneViewModel): ParityReport {
   const keys = [
     ...scene.map.regions.map((region) => region.label),
     ...scene.map.markers.map((marker) => marker.label),
+    ...scene.map.factions.map((marker) => marker.label),
     ...scene.map.resources.map((marker) => marker.label),
     ...scene.map.overlays.map((overlay) => overlay.label),
   ];
@@ -494,6 +504,17 @@ export interface Gate44Input {
   generated: {
     definition: WorldDefinition;
     themeCount: number;
+    /**
+     * §44-1 이 성립하는 **범위** (2차 재검증 F-1).
+     * "짧은 주제 → 세계"는 지금 녹화된 그 문장들에 대해서만 성립한다 — 게이트가 통과라고 말할 때
+     * 무엇이 통과한 것인지 이 항이 밝힌다. 살아 있는 어댑터가 붙으면 liveAdapters 가 0 을 넘는다.
+     */
+    inputBoundary: {
+      portImplementations: string[];
+      liveAdapters: number;
+      /** 녹화 밖의 주제를 넣었을 때 파이프라인이 남긴 첫 줄 */
+      outsideRecordingMessage: string;
+    };
     stepCount: number;
     storedBytes: number;
     reloadedId: string | undefined;
@@ -518,11 +539,16 @@ export function evaluateGate44(input: Gate44Input): Gate44Row[] {
   const definition = generated.definition;
 
   // 1. 사용자가 3~5개의 세계관 문장을 입력할 수 있다
+  //    통과의 **범위**를 함께 적는다 — 입력 폼과 파이프라인은 실물이지만, 포트 뒤에 있는 것은
+  //    녹화 재생뿐이라 "녹화된 그 문장 밖"은 아직 세계가 되지 않는다 (2차 재검증 F-1).
+  const boundary = generated.inputBoundary;
   push(
     1,
     "세계관 문장 3~5개 입력",
     generated.themeCount >= 3 && generated.themeCount <= 5,
-    `주제 ${generated.themeCount}문장 → §36.1 화면의 입력 3종(주제·경험·제외)`,
+    `주제 ${generated.themeCount}문장 → §36.1 화면의 입력 3종(주제·경험·제외)\n` +
+      `         경계 — TextGenerationPort 구현체 ${boundary.portImplementations.length}종(${boundary.portImplementations.join("·")}) · ` +
+      `살아 있는 LLM 어댑터 ${boundary.liveAdapters}종. 녹화 밖의 주제를 넣으면: "${boundary.outsideRecordingMessage}"`,
   );
 
   // 2. 상태·규칙·종족·조직·개인·목적 그래프 생성

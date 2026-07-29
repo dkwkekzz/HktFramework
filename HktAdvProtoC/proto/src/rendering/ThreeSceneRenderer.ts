@@ -227,6 +227,7 @@ export class ThreeSceneRenderer {
 
   private buildMarkers(map: SceneMap): void {
     const groups: { markers: SceneMapMarker[]; opacity: number }[] = [
+      { markers: map.factions, opacity: 0.8 },
       { markers: map.places, opacity: 0.85 },
       { markers: map.resources, opacity: 0.95 },
       { markers: map.markers, opacity: 1 },

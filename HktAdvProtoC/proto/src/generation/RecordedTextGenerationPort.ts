@@ -42,7 +42,36 @@ export class RecordedTextGenerationPort implements TextGenerationPort {
     /** 재시도 경로 시험용 — 첫 시도의 응답을 일부러 망가뜨린다 */
     private readonly corrupt?: (taskId: string, attempt: number, response: unknown) => unknown,
     private readonly repairs: readonly RepairRecording[] = [],
+    /**
+     * 이 코퍼스가 **어떤 입력에 대해** 녹화됐는가 (2차 재검증 F-1).
+     * 응답은 taskId 로만 찾으므로, 입력이 달라도 같은 세계가 나오거나 엉뚱한 곳에서 죽는다.
+     * 여기에 원래 입력을 적어 두면 포트가 자기 경계를 스스로 말한다 —
+     * "이 프로토타입이 증명한 범위는 녹화된 그 문장까지"가 오류 문구로 화면에 뜬다.
+     */
+    private readonly recordedFor?: { themes: readonly string[] },
   ) {}
+
+  /**
+   * 재생 가능한 입력인가. 주제 문장을 실어 오는 호출(1단계 §6)에만 걸린다 —
+   * 뒤 단계들은 앞 단계의 산출을 입력으로 받으므로 여기서 한 번 막으면 그 뒤는 볼 필요가 없다.
+   */
+  private assertWithinRecording(task: GenerationTask): void {
+    const recorded = this.recordedFor?.themes;
+    if (recorded === undefined) return;
+    const themes = (task.input as { themes?: unknown }).themes;
+    if (!Array.isArray(themes)) return;
+    const same =
+      themes.length === recorded.length && themes.every((theme, index) => theme === recorded[index]);
+    if (same) return;
+    throw new Error(
+      [
+        "녹화 재생 포트의 경계 — 이 코퍼스는 녹화된 주제 문장에 대한 응답만 갖는다.",
+        `  녹화된 입력: ${recorded.length}문장 / 받은 입력: ${themes.length}문장 (다른 문장 ${themes.filter((theme, index) => theme !== recorded[index]).length}개)`,
+        "  §2.1 의 포트는 열려 있다: 같은 인터페이스를 구현한 살아 있는 LLM 어댑터를 끼우면 이 경계는 사라진다.",
+        "  지금 증명된 것은 '세계 생성 파이프라인과 검증 체계가 실행 가능하다' 이지 '임의의 주제에서 세계가 나온다' 가 아니다.",
+      ].join("\n"),
+    );
+  }
 
   /**
    * 수정 라운드 진입 (RepairLoop 가 부른다).
@@ -65,6 +94,7 @@ export class RecordedTextGenerationPort implements TextGenerationPort {
   }
 
   async generate(task: GenerationTask): Promise<unknown> {
+    this.assertWithinRecording(task);
     const attempt = (this.counts.get(task.taskId) ?? 0) + 1;
     this.counts.set(task.taskId, attempt);
     this.calls.push({

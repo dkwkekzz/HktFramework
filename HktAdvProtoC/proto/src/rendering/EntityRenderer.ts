@@ -96,7 +96,8 @@ export class EntityRenderer {
   constructor(private readonly surface: SceneSurface) {}
 
   render(map: SceneMap, labels: LabelLayout): void {
-    // 자원·장소는 배경 층, 주체는 그 위 — 겹칠 때 사람이 먼저 보인다
+    // 조직·자원·장소는 배경 층, 주체는 그 위 — 겹칠 때 사람이 먼저 보인다
+    for (const marker of map.factions) this.drawMarker(marker, 0.75, labels);
     for (const marker of map.places) this.drawMarker(marker, 0.8, labels);
     for (const marker of map.resources) this.drawMarker(marker, 0.9, labels);
     for (const marker of map.markers) this.drawMarker(marker, 1, labels);

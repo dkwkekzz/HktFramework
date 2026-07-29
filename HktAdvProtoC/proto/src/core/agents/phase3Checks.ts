@@ -67,7 +67,7 @@ export function compareHearsayConfidence(seed: number): HearsayComparison {
   if (listenerBelief !== undefined) rumorRuntime.agentRuntime(LISTENER).beliefs = []; // 이미 아는 것을 지우고 새로 듣는다
   const rumorEffect: ObservationEffect = {
     signalId: "signal.rumor",
-    channels: ["talk"],
+    channels: ["rumor"],
     strength: 80,
     tags: ["rumor", "threat"],
     claim: { subject: "entity", entityId: BEAST, stateKey: "aggression", value: 0, confidence: 0, relayBelief: true },

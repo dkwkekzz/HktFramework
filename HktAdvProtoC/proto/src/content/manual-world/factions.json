@@ -49,6 +49,42 @@
     ],
     "hiddenGoalIds": [
       "goal.faction_authority"
+    ],
+    "structures": [
+      {
+        "id": "structure.village_ration",
+        "name": "비축 배급",
+        "controlledResource": "resource.food",
+        "mechanism": "ration",
+        "ruleIds": [
+          "rule.village_food_consumption",
+          "rule.faction_trade_transfer",
+          "rule.faction_starvation_count"
+        ],
+        "benefitingGroupIds": [
+          "faction.village_elders"
+        ],
+        "harmedGroupIds": [
+          "faction.forest_gatherers"
+        ],
+        "rationale": "원로회가 배분을 정하고 채집조가 숲의 위험을 진다 — 같은 비축이 누구에게는 몫이고 누구에게는 몫을 위한 위험이다"
+      }
+    ],
+    "policies": [
+      {
+        "id": "policy.village_muster",
+        "structureId": "structure.village_ration",
+        "statement": "비축이 위협받으면 마을은 토벌을 소집하고, 사람들은 그 소집에 따른다",
+        "requirement": {
+          "stateKey": "subjugation_ordered",
+          "comparison": "==",
+          "value": true
+        },
+        "enforcementRuleIds": [
+          "rule.subjugation_call",
+          "rule.delegation_order"
+        ]
+      }
     ]
   },
   {
@@ -88,6 +124,21 @@
     ],
     "hiddenGoalIds": [
       "goal.faction_supply"
+    ],
+    "structures": [
+      {
+        "id": "structure.residue_registry",
+        "name": "표본 등록",
+        "controlledResource": "resource.ability_residue",
+        "mechanism": "registry",
+        "ruleIds": [
+          "rule.researcher_insight",
+          "rule.research_insight"
+        ],
+        "benefitingGroupIds": [],
+        "harmedGroupIds": [],
+        "rationale": "기록을 낸 자에게만 다음 조사를 허락한다 — 연구회의 통제 수단은 잔재가 아니라 잔재에 대한 기록이다"
+      }
     ]
   }
 ]

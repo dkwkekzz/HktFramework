@@ -86,7 +86,7 @@ WorldDefinition → 정적 검증 ─error→ 해당 생성 단계만 재실행(
 
 | 모듈 | 역할 |
 |---|---|
-| `generation/WorldValidator.ts` | §34 정적 검증 — (a) 스키마 층 재검 + (b) 의미 검사기 10종(코드 고정) |
+| `generation/WorldValidator.ts` | §34 정적 검증 — (a) 스키마 층 재검 + (b) 의미 검사기 10종(코드 고정) · 이후 재검증이 9종을 더해 **지금은 19종**, 개수의 단일 출처는 `SEMANTIC_CODES` ([Review-2 §6](Review-DesignValidation-2.md)) |
 | `generation/SimulationTester.ts` | §35 무개입 30일 실행 + 판정 8종 + 다양성·깊이 점수 + 재현성 해시 |
 | `generation/simulationBaseline.ts` | 수동 세계 측정치를 합격선으로 고정 (`npm run baseline:sim` 으로 재고정) |
 | `generation/AiAudit.ts` | §33.2 AI 보조 검사 5종 — warning 전용, 포트가 없으면 통째로 건너뛴다 |

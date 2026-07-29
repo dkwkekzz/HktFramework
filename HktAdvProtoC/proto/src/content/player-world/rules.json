@@ -514,5 +514,77 @@
     "derivedFromAxioms": [
       "axiom.creatures_absorb_ability_residue"
     ]
+  },
+  {
+    "id": "rule.stillness_backlash",
+    "name": "정지의 손 — 닿지 않은 채 쓰면 반동이 곁으로 퍼진다",
+    "tags": [
+      "ability",
+      "backlash"
+    ],
+    "scope": "entity",
+    "priority": 40,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.attack"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_ref",
+          "of": "actor"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent.kael"
+        }
+      },
+      {
+        "left": {
+          "type": "distance",
+          "from": "actor",
+          "to": "target"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 3
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": -6
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent",
+            "withinRadius": {
+              "of": "actor",
+              "r": 6
+            }
+          }
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 10
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
   }
 ]
