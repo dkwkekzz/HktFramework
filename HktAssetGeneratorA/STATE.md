@@ -9,7 +9,9 @@
 - 게이트: `npm run check` = vitest 142개 (Phase 5 까지 130 + Step 6.1 12: 곡선 하위 호환
   비트 동일·곡선 기하 게이트·소켓 추종·초기 추정·곡선 라운드트립 IoU ≥ 0.95·카타나 개선
   + 곡선 golden 3종(칼날 2 + 검 1)). golden 갱신은 `npm run golden`.
-- 실행: `npm run dev` → 뷰어에서 "베이크(1024²)" 버튼 = Worker CPU 베이크(~2.8s) →
+- 실행: 원클릭 `run.bat`(Windows — 설치 → `npm run check` → 뷰어 + 브라우저;
+  `run.bat check` 검증만 / `run.bat dev` 뷰어만 / `run.bat golden` golden 재생성)
+  또는 직접 `npm run dev` → 뷰어에서 "베이크(1024²)" 버튼 = Worker CPU 베이크(~2.8s) →
   PBR 텍스처 적용 미리보기, BaseColor 단독 토글, 텍스처 PNG 다운로드.
   "표면 상태 Operation" 패널에서 로그 추가·삭제·재정렬 + 낡은 검 프리셋 3종 +
   operations.json 입출력. Node 22 LTS 로 `engines` 고정.
