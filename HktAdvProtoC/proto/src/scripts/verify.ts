@@ -11,6 +11,7 @@ import {
   measureGoalEdgeSemantics,
   measureSpeciesStructure,
 } from "../core/agents/phase3Checks";
+import { measureResourceOveruse } from "../core/world/overuseChecks";
 import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
@@ -1068,6 +1069,22 @@ check(
         `\n      ${region.label} — 자원 ${region.ecology.resources.map((r) => `${r.label}×${r.nodeCount}(희귀도 ${r.rarity})`).join(" ")} · 종 적합도 ${region.ecology.species.map((s) => `${s.label} ${s.suitability}`).join(" ")}`,
     )
     .join(""),
+);
+
+// --- G-6 : §14 자원의 과도 사용에는 결과가 있다 -------------------------------------------
+const manualWorld = buildManualWorld(worldSeed);
+const overuseRows = measureResourceOveruse(worldSeed);
+const overuseCheck = manualValidation.checks.find((entry) => entry.code === "resource.overuse");
+check(
+  overuseRows.every((row) => row.ok) &&
+    overuseCheck !== undefined &&
+    overuseCheck.ok &&
+    manualWorld.resources.every((resource) => (resource.overuseRules ?? []).length > 0),
+  `§14 자원 ${overuseRows.filter((row) => row.ok).length}/${manualWorld.resources.length}종의 과용 반동이 실행된다 (과잉/정상 대조로 증명)`,
+  overuseRows
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.resourceId.replace("resource.", "")} [${row.ruleId.replace("rule.", "")}] — ${row.evidence}`)
+    .join("") +
+    `\n      §34 resource.overuse — ${overuseCheck?.evidence ?? "검사기 없음"}`,
 );
 
 // --- G-10 : §32 성장 발생 조건 7종이 전부 규칙으로 존재한다 ------------------------------

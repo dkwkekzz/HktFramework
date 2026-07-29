@@ -240,7 +240,8 @@
       }
     ],
     "executionRules": [
-      "rule.eat_effect"
+      "rule.eat_effect",
+      "rule.overeating_strain"
     ],
     "visibleSignals": [],
     "risk": 0
@@ -311,7 +312,8 @@
     "executionRules": [
       "rule.trade_price",
       "rule.trade_transfer",
-      "rule.help_builds_trust"
+      "rule.help_builds_trust",
+      "rule.market_glut"
     ],
     "visibleSignals": [
       {

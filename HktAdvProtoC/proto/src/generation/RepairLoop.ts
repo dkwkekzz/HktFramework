@@ -24,6 +24,7 @@ export const ISSUE_TO_STEPS: Record<string, number[]> = {
   "rule.target-exists": [5],
   "rule.chance": [5],
   "resource.source": [6],
+  "resource.overuse": [6, 5],
   "species.need": [7],
   "faction.lifecycle": [8],
   "faction.hidden": [8],

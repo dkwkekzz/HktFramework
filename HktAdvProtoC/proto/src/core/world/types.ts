@@ -129,6 +129,12 @@ export interface ResourceDefinition {
   consumptionRules: string[];
   transformationRules: string[];
   desiredBy: DesireMapping[];
+  /**
+   * §14 여섯 번째 질문 "과도하게 사용하면 무엇이 발생하는가"의 답 — 과용 반동을 실행하는 규칙.
+   * 반동에는 원인이 있어야 한다: 이 규칙은 조건(과잉 상태)을 갖고 이 자원을 실제로 가리켜야 한다
+   * (§34 resource.overuse 검사기 — G-6). 없으면 여섯 질문 중 하나가 빈칸이라는 경고가 남는다.
+   */
+  overuseRules?: string[];
 }
 
 // --- §15 종족 -----------------------------------------------------------------

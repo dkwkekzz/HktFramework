@@ -274,6 +274,8 @@ export const RESOURCE_SCHEMA = arrayOf({
     }),
     /** 어느 지역에서 나는가 — 배치 수치는 코드가 계산한다(§13) */
     sourceRegions: STRING_ARRAY,
+    /** §14 여섯 번째 질문 — 과도 사용의 반동을 실행하는 규칙 (G-6) */
+    overuseRules: STRING_ARRAY,
   },
 });
 

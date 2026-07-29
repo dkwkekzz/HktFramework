@@ -2,42 +2,115 @@
   {
     "id": "resource.food",
     "name": "식량",
-    "tags": ["organic_food", "consumable"],
-    "properties": { "energyDensity": 40, "perishable": true, "stackable": true },
-    "productionRules": ["rule.forest_resource_regrowth", "rule.hunt_yield"],
-    "consumptionRules": ["rule.eat_effect", "rule.village_food_consumption"],
-    "transformationRules": ["rule.trade_transfer"],
+    "tags": [
+      "organic_food",
+      "consumable"
+    ],
+    "properties": {
+      "energyDensity": 40,
+      "perishable": true,
+      "stackable": true
+    },
+    "productionRules": [
+      "rule.forest_resource_regrowth",
+      "rule.hunt_yield"
+    ],
+    "consumptionRules": [
+      "rule.eat_effect",
+      "rule.village_food_consumption"
+    ],
+    "transformationRules": [
+      "rule.trade_transfer"
+    ],
     "desiredBy": [
-      { "agentTag": "hunter", "utility": 80 },
-      { "agentTag": "villager", "utility": 95 },
-      { "agentTag": "merchant", "utility": 60 }
+      {
+        "agentTag": "hunter",
+        "utility": 80
+      },
+      {
+        "agentTag": "villager",
+        "utility": 95
+      },
+      {
+        "agentTag": "merchant",
+        "utility": 60
+      }
+    ],
+    "overuseRules": [
+      "rule.overeating_strain"
     ]
   },
   {
     "id": "resource.ability_residue",
     "name": "능력 잔재",
-    "tags": ["ability_residue", "rare", "unstable"],
-    "properties": { "energyDensity": 78, "stability": 28, "informationRetention": 66 },
-    "productionRules": ["rule.forest_resource_regrowth"],
-    "consumptionRules": ["rule.echo_beast_feeding"],
+    "tags": [
+      "ability_residue",
+      "rare",
+      "unstable"
+    ],
+    "properties": {
+      "energyDensity": 78,
+      "stability": 28,
+      "informationRetention": 66
+    },
+    "productionRules": [
+      "rule.forest_resource_regrowth"
+    ],
+    "consumptionRules": [
+      "rule.echo_beast_feeding"
+    ],
     "transformationRules": [],
     "desiredBy": [
-      { "agentTag": "researcher", "utility": 90 },
-      { "agentTag": "echo_beast", "utility": 70 },
-      { "agentTag": "villager", "utility": -10 }
+      {
+        "agentTag": "researcher",
+        "utility": 90
+      },
+      {
+        "agentTag": "echo_beast",
+        "utility": 70
+      },
+      {
+        "agentTag": "villager",
+        "utility": -10
+      }
+    ],
+    "overuseRules": [
+      "rule.residue_overload"
     ]
   },
   {
     "id": "resource.trade_goods",
     "name": "교역품",
-    "tags": ["trade_goods", "durable"],
-    "properties": { "energyDensity": 0, "stackable": true, "value": 30 },
-    "productionRules": ["rule.trade_transfer"],
-    "consumptionRules": ["rule.trade_transfer"],
-    "transformationRules": ["rule.trade_price"],
+    "tags": [
+      "trade_goods",
+      "durable"
+    ],
+    "properties": {
+      "energyDensity": 0,
+      "stackable": true,
+      "value": 30
+    },
+    "productionRules": [
+      "rule.trade_transfer"
+    ],
+    "consumptionRules": [
+      "rule.trade_transfer"
+    ],
+    "transformationRules": [
+      "rule.trade_price"
+    ],
     "desiredBy": [
-      { "agentTag": "merchant", "utility": 85 },
-      { "agentTag": "villager", "utility": 45 }
+      {
+        "agentTag": "merchant",
+        "utility": 85
+      },
+      {
+        "agentTag": "villager",
+        "utility": 45
+      }
+    ],
+    "overuseRules": [
+      "rule.market_glut"
     ]
   }
 ]

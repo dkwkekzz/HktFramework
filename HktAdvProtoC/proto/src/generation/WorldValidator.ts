@@ -30,6 +30,7 @@ export const SEMANTIC_CODES = [
   "rule.target-exists",
   "rule.chance",
   "resource.source",
+  "resource.overuse",
   "space.profile",
   "species.need",
   "species.structure",
@@ -62,7 +63,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 14종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 15종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -414,6 +415,88 @@ function checkResourceSource(index: Index): CheckReport {
     definition.resources.length,
     issues,
     `자원 ${definition.resources.length}종 · 생산 규칙 보유 ${withProduction} · 초기 배치만 ${onlyPlacement} · 출처 없음 ${issues.length}`,
+  );
+}
+
+// --- 4a. resource.overuse (§14 — G-6) ---------------------------------------------------
+
+/**
+ * §14 "자원에는 반드시 다음이 있어야 한다 — … 과도하게 사용하면 무엇이 발생하는가".
+ * 답이 있으면 그 답은 실행 데이터여야 한다: 과용 규칙이 실재하고, 조건(과잉 상태)을 갖고,
+ * 이 자원을 실제로 가리켜야 한다 — 조건 없는 반동은 원인 없는 주사위와 같은 병리다(§12 no-cause 와 동형).
+ * 답이 없으면 **경고**로 남긴다 — 여섯 질문 중 하나가 빈칸이라는 사실은 보고서에서 사라지지 않는다.
+ */
+function checkResourceOveruse(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const ruleOf = new Map(definition.ruleDefinitions.map((rule) => [rule.id, rule]));
+  let answered = 0;
+  let inspected = 0;
+  for (const resource of definition.resources) {
+    const overuse = resource.overuseRules ?? [];
+    if (overuse.length === 0) {
+      issues.push(
+        issue(
+          "resource.overuse",
+          resource.id,
+          `자원 ${resource.id}: §14 여섯 질문 중 "과도 사용의 결과" 가 빈칸이다 — 남용해도 아무 일도 일어나지 않는다`,
+          "과잉 상태를 조건으로 갖는 반동 규칙을 만들어 overuseRules 에 잇는다",
+          "warning",
+        ),
+      );
+      continue;
+    }
+    answered += 1;
+    // 자원을 가리키는 증거 — 규칙 JSON 어딘가에 자원 id·태그·소지 상태 키가 나타나야 한다
+    const marks = [resource.id, resource.id.split(".")[1] ?? "", ...resource.tags].filter((mark) => mark !== "");
+    for (const ruleId of overuse) {
+      inspected += 1;
+      const rule = ruleOf.get(ruleId);
+      if (rule === undefined) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동이 없는 규칙을 가리킨다 — ${ruleId} (§14)`,
+            "규칙을 만들거나 overuseRules 에서 지운다",
+          ),
+        );
+        continue;
+      }
+      // 조건은 규칙 머리에 있어도, 효과 하나하나에 있어도 좋다 — 어디에도 없으면 원인 없는 벌이다
+      const hasCondition =
+        rule.conditions.length > 0 ||
+        (rule.effects as RuleEffect[]).some((effect) => (effect.conditions ?? []).length > 0);
+      if (!hasCondition) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동 ${ruleId} 에 조건이 없다 — 과잉을 묻지 않는 반동은 원인 없는 벌이다 (§14, §12)`,
+            "과잉 상태(보유량·사용량 임계)를 조건으로 넣는다",
+          ),
+        );
+      }
+      const text = JSON.stringify(rule);
+      if (!marks.some((mark) => text.includes(mark))) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동 ${ruleId} 이 이 자원을 어디서도 가리키지 않는다 (§14)`,
+            "규칙의 조건·효과·태그가 이 자원(id·태그·소지 상태)을 실제로 다루게 한다",
+          ),
+        );
+      }
+    }
+  }
+  return report(
+    "resource.overuse",
+    "자원의 과도 사용에는 결과가 있다 (§14 여섯 번째 질문)",
+    definition.resources.length,
+    issues,
+    `자원 ${definition.resources.length}종 · 과용 반동 보유 ${answered} · 반동 규칙 ${inspected}개 검사 · ` +
+      `위반 ${issues.filter((i) => i.level === "error").length} · 빈칸 ${issues.filter((i) => i.level === "warning").length}`,
   );
 }
 
@@ -1087,6 +1170,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "rule.target-exists": checkRuleTargets,
   "rule.chance": checkRuleChance,
   "resource.source": checkResourceSource,
+  "resource.overuse": checkResourceOveruse,
   "space.profile": checkSpaceProfile,
   "species.need": checkSpeciesNeed,
   "species.structure": checkSpeciesStructure,
@@ -1099,7 +1183,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "goal.no-infinite": checkGoalNoInfinite,
 };
 
-/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 14종 */
+/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 15종 */
 export function validateWorld(definition: WorldDefinition): ValidationReport {
   const index = buildIndex(definition);
   const schema = checkSchemaLayer(definition);
