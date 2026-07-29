@@ -35,13 +35,15 @@ export function createViewer(container) {
     metalness: 0.9, roughness: 0.35, color: 0xcfd2d6, side: THREE.FrontSide,
   });
   const wireMaterial = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x33ff88 });
+  // BaseColor 단독 검사용 (원본 §23.2 — "그림자가 색에 구워졌는가")
+  const flatMaterial = new THREE.MeshBasicMaterial({ color: 0xcfd2d6 });
 
   const root = new THREE.Group();
   root.name = "SwordRoot";
   scene.add(root);
 
   const options = {
-    wireframe: false, normals: false, sockets: false,
+    wireframe: false, normals: false, sockets: false, flatColor: false,
     showBlade: true, showGuard: true, showGrip: true, showPommel: true,
   };
   const visibilityKey = { Blade: "showBlade", Guard: "showGuard", Grip: "showGrip", Pommel: "showPommel" };
@@ -64,6 +66,7 @@ export function createViewer(container) {
     for (const obj of root.children) {
       const partVisible = options[visibilityKey[obj.name]] ?? true;
       obj.visible = partVisible;
+      obj.material = options.flatColor ? flatMaterial : material;
       if (!partVisible) continue;
       if (options.wireframe) {
         const wire = new THREE.Mesh(obj.geometry, wireMaterial);
@@ -128,6 +131,33 @@ export function createViewer(container) {
     setOption(name, value) {
       options[name] = value;
       rebuildHelpers();
+    },
+    /** 베이크 결과 적용 — DataTexture 3장 (BaseColor sRGB / Normal / ORM) */
+    applyTextures({ baseColor, normal, orm, size }) {
+      const make = (data, srgb) => {
+        const tex = new THREE.DataTexture(data, size, size, THREE.RGBAFormat, THREE.UnsignedByteType);
+        tex.needsUpdate = true;
+        tex.generateMipmaps = true;
+        tex.minFilter = THREE.LinearMipmapLinearFilter;
+        tex.magFilter = THREE.LinearFilter;
+        if (srgb) tex.colorSpace = THREE.SRGBColorSpace;
+        return tex;
+      };
+      const colorTex = make(baseColor, true);
+      const normalTex = make(normal, false);
+      const ormTex = make(orm, false); // three 규약 = glTF ORM: ao=R, roughness=G, metalness=B
+      material.map = colorTex;
+      material.normalMap = normalTex;
+      material.aoMap = ormTex;
+      material.roughnessMap = ormTex;
+      material.metalnessMap = ormTex;
+      material.color.set(0xffffff);
+      material.metalness = 1;
+      material.roughness = 1;
+      material.needsUpdate = true;
+      flatMaterial.map = colorTex;
+      flatMaterial.color.set(0xffffff);
+      flatMaterial.needsUpdate = true;
     },
   };
 }

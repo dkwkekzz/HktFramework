@@ -1,22 +1,22 @@
 {
   "knight-arming": {
-    "hash": "6fde04cbf6c5018e",
+    "hash": "9e43c3807a277c00",
     "triangles": 1980
   },
   "duelist-rapier": {
-    "hash": "0123989b9d03d5d0",
+    "hash": "3b2caf6e67452bb7",
     "triangles": 2508
   },
   "war-greatsword": {
-    "hash": "3a31d26fe1557652",
+    "hash": "0db243490473835b",
     "triangles": 3212
   },
   "soldier-backsword": {
-    "hash": "5478ec9cedeacf9e",
+    "hash": "c041da0c92b24681",
     "triangles": 1948
   },
   "fantasy-broad": {
-    "hash": "8fa17d2916ac1919",
+    "hash": "8e3bfe1a6e47dab5",
     "triangles": 3084
   }
 }

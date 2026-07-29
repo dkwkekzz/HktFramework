@@ -66,9 +66,15 @@ export function applySwordAtlasUV(meshes, textureSize) {
   }
 }
 
+// 병합에 실어 나르는 정점 속성 — 검증(partId/islandId)과 베이크(의미값 전체)가 공용
+const MERGE_ATTRS = [
+  "partId", "islandId", "longitudinal", "perimeter",
+  "edgeWeight", "ridgeWeight", "fullerWeight", "contactWeight", "curvature", "cavity",
+];
+
 /**
- * UV 전체 검사용 병합 메시 (04-phase2 §2.6) — validateUVs 가 요구하는 필드만.
- * 위치는 로컬 그대로 병합(강체 변환은 텍셀 밀도에 영향 없음).
+ * UV 검사·베이크 공용 병합 메시 (04-phase2 §2.6, 05-phase3 §3.3).
+ * 위치는 로컬 그대로 병합(강체 변환은 텍셀 밀도·베이크에 영향 없음).
  */
 export function mergeForValidation(meshes) {
   let vertexCount = 0, indexCount = 0;
@@ -76,16 +82,19 @@ export function mergeForValidation(meshes) {
   const merged = {
     positions: new Float32Array(vertexCount * 3),
     uvAtlas: new Float32Array(vertexCount * 2),
+    uvLocal: new Float32Array(vertexCount * 2),
+    uvMetric: new Float32Array(vertexCount * 2),
     indices: new Uint32Array(indexCount),
-    attributes: { partId: new Float32Array(vertexCount), islandId: new Float32Array(vertexCount) },
+    attributes: Object.fromEntries(MERGE_ATTRS.map((k) => [k, new Float32Array(vertexCount)])),
   };
   let vOffset = 0, iOffset = 0;
   for (const m of meshes) {
     const count = m.positions.length / 3;
     merged.positions.set(m.positions, vOffset * 3);
     merged.uvAtlas.set(m.uvAtlas, vOffset * 2);
-    merged.attributes.partId.set(m.attributes.partId, vOffset);
-    merged.attributes.islandId.set(m.attributes.islandId, vOffset);
+    merged.uvLocal.set(m.uvLocal, vOffset * 2);
+    merged.uvMetric.set(m.uvMetric, vOffset * 2);
+    for (const k of MERGE_ATTRS) merged.attributes[k].set(m.attributes[k], vOffset);
     for (let i = 0; i < m.indices.length; i++) merged.indices[iOffset + i] = m.indices[i] + vOffset;
     vOffset += count;
     iOffset += m.indices.length;

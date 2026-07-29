@@ -59,6 +59,30 @@ describe("grip (§2.1)", () => {
     expect(score / count).toBeGreaterThan(0.99);
     expect(hashMesh(mesh)).toBe(hashMesh(buildGripMesh(design)));
   });
+
+  // 단면 확장 (세션 결정 — STATE.md): ellipse / octagon / 감기 기하
+  for (const variant of [
+    { crossSection: "ellipse", flatten: 0.75 },
+    { crossSection: "octagon" },
+    { wrapGeometry: { enabled: true, turns: 9, depth: 0.0012 } },
+  ]) {
+    const label = variant.crossSection ?? "circle+wrap";
+    it(`${label}: 위상·경계 기대치 유지`, () => {
+      const design = makeStraightGripDesign({ ...GRIP, ...variant });
+      const mesh = buildGripMesh(design);
+      const man = analyzeManifold(mesh);
+      expect(man.nonManifoldEdges).toBe(0);
+      expect(man.boundaryEdges).toBe(2 * design.segments.radial);
+      expect(countDegenerate3DTriangles(mesh)).toBe(0);
+    });
+  }
+
+  it("octagon 은 crease 정점 복제로 모서리 노멀이 갈라진다", () => {
+    const round = buildGripMesh(makeStraightGripDesign({ ...GRIP, crossSection: "circle" }));
+    const octagon = buildGripMesh(makeStraightGripDesign({ ...GRIP, crossSection: "octagon" }));
+    // crease 복제만큼 정점 수 증가 (8 crease × (L+1) 링)
+    expect(octagon.positions.length).toBeGreaterThan(round.positions.length);
+  });
 });
 
 describe("guard (§2.2)", () => {

@@ -33,6 +33,16 @@ const GRIP_DEFS = [
   { key: "gripLength", label: "손잡이 길이 (m)", min: 0.08, max: 0.4, step: 0.005 },
   { key: "gripStartRadius", label: "위 반지름 (m)", min: 0.008, max: 0.03, step: 0.001 },
   { key: "gripEndRadius", label: "아래 반지름 (m)", min: 0.008, max: 0.03, step: 0.001 },
+  { key: "gripFlatten", label: "납작 비율", min: 0.5, max: 1, step: 0.05 },
+  { key: "gripWrapTurns", label: "감기 회전 수", min: 3, max: 20, step: 1 },
+  { key: "gripWrapDepth", label: "감기 골 깊이 (m)", min: 0.0004, max: 0.003, step: 0.0002 },
+];
+
+const STATE_DEFS = [
+  { key: "statePolish", label: "연마", min: 0, max: 1, step: 0.05 },
+  { key: "stateOxidation", label: "산화", min: 0, max: 1, step: 0.05 },
+  { key: "stateDirt", label: "오염", min: 0, max: 1, step: 0.05 },
+  { key: "stateMoisture", label: "습기", min: 0, max: 1, step: 0.05 },
 ];
 
 const POMMEL_DEFS = [
@@ -51,8 +61,14 @@ export const DEFAULT_PARAMS = {
   guardShape: "bar", guardWidth: 0.18, guardThickness: 0.025, guardDepth: 0.02, guardBevel: 0.004,
   // 손잡이
   gripLength: 0.14, gripStartRadius: 0.014, gripEndRadius: 0.012,
+  gripCrossSection: "circle", gripFlatten: 0.85,
+  gripWrapGeomEnabled: false, gripWrapTurns: 9, gripWrapDepth: 0.0012,
   // 폼멜
   pommelShape: "sphere", pommelScale: 1.5,
+  // 머티리얼 (Phase 3)
+  bladeMat: "carbon_steel", guardMat: "bronze", gripMat: "leather", pommelMat: "bronze",
+  statePolish: 0.5, stateOxidation: 0.15, stateDirt: 0.15, stateMoisture: 0,
+  seed: 12345,
 };
 
 /** 평탄 params → makeSwordDesign 입력 (부품별 중첩 구조). */
@@ -72,8 +88,24 @@ export function paramsToSwordInput(p) {
       shape: p.guardShape, width: p.guardWidth, thickness: p.guardThickness,
       depth: p.guardDepth, bevel: p.guardBevel,
     },
-    grip: { length: p.gripLength, startRadius: p.gripStartRadius, endRadius: p.gripEndRadius },
+    grip: {
+      length: p.gripLength, startRadius: p.gripStartRadius, endRadius: p.gripEndRadius,
+      crossSection: p.gripCrossSection, flatten: p.gripFlatten,
+      wrapGeometry: { enabled: p.gripWrapGeomEnabled, turns: p.gripWrapTurns, depth: p.gripWrapDepth },
+    },
     pommel: { shape: p.pommelShape, scale: p.pommelScale },
+  };
+}
+
+/** 평탄 params → MaterialGraph 입력 (Phase 3). */
+export function paramsToMaterialInput(p) {
+  return {
+    blade: p.bladeMat, guard: p.guardMat, grip: p.gripMat, pommel: p.pommelMat,
+    state: {
+      polish: p.statePolish, oxidation: p.stateOxidation,
+      dirt: p.stateDirt, moisture: p.stateMoisture,
+      scratchAmount: 0, impactAmount: 0,
+    },
   };
 }
 
@@ -88,6 +120,11 @@ export function swordInputToParams(input) {
     guardBevel: input.guard.bevel ?? 0,
     gripLength: input.grip.length, gripStartRadius: input.grip.startRadius,
     gripEndRadius: input.grip.endRadius,
+    gripCrossSection: input.grip.crossSection ?? "circle",
+    gripFlatten: input.grip.flatten ?? 0.85,
+    gripWrapGeomEnabled: input.grip.wrapGeometry?.enabled ?? false,
+    gripWrapTurns: input.grip.wrapGeometry?.turns ?? 9,
+    gripWrapDepth: input.grip.wrapGeometry?.depth ?? 0.0012,
     pommelShape: input.pommel.shape, pommelScale: input.pommel.scale ?? 1,
   };
   if (b.fuller) {
@@ -101,7 +138,8 @@ export function swordInputToParams(input) {
 }
 
 export function createPanel(container, {
-  swordPresets, bladePresets, onChange, onExportGLB, onDownloadDesign, onViewerOption,
+  swordPresets, bladePresets, onChange, onExportGLB, onDownloadDesign, onViewerOption, onBake,
+  onDownloadTextures,
 }) {
   const params = { ...DEFAULT_PARAMS };
   const valueLabels = {};
@@ -237,15 +275,38 @@ export function createPanel(container, {
   for (const def of GUARD_DEFS) addSlider(def);
 
   h3("손잡이");
+  addSelect("단면", "gripCrossSection", ["circle", "ellipse", "octagon"]);
+  addCheckbox("감기 기하", "gripWrapGeomEnabled");
   for (const def of GRIP_DEFS) addSlider(def);
 
   h3("폼멜");
   addSelect("프로파일", "pommelShape", ["sphere", "disc", "teardrop", "scent-stopper"]);
   for (const def of POMMEL_DEFS) addSlider(def);
 
+  h3("머티리얼");
+  const PRIMS = ["carbon_steel", "bronze", "leather"];
+  addSelect("칼날 물질", "bladeMat", PRIMS);
+  addSelect("가드 물질", "guardMat", PRIMS);
+  addSelect("손잡이 물질", "gripMat", PRIMS);
+  addSelect("폼멜 물질", "pommelMat", PRIMS);
+  for (const def of STATE_DEFS) addSlider(def);
+  {
+    const seedInput = document.createElement("input");
+    seedInput.type = "number";
+    seedInput.value = params.seed;
+    seedInput.addEventListener("change", () => { params.seed = Number(seedInput.value) >>> 0; });
+    addRow("seed", seedInput);
+    controls.seed = seedInput;
+  }
+  const btnBake = document.createElement("button");
+  btnBake.textContent = "베이크 (1024²)";
+  btnBake.addEventListener("click", () => onBake({ ...params }));
+  container.appendChild(btnBake);
+
   h3("표시");
   for (const [label, opt] of [
     ["와이어프레임", "wireframe"], ["노멀 표시", "normals"], ["소켓 표시", "sockets"],
+    ["BaseColor 단독", "flatColor"],
   ]) {
     const input = document.createElement("input");
     input.type = "checkbox";
@@ -275,23 +336,31 @@ export function createPanel(container, {
   const btnDesign = document.createElement("button");
   btnDesign.textContent = "design.json";
   btnDesign.addEventListener("click", onDownloadDesign);
+  const btnTex = document.createElement("button");
+  btnTex.textContent = "텍스처 PNG";
+  btnTex.addEventListener("click", () => onDownloadTextures?.());
   container.appendChild(btnGLB);
   container.appendChild(btnDesign);
+  container.appendChild(btnTex);
 
   const stats = document.createElement("div");
   stats.id = "stats";
   container.appendChild(stats);
 
-  const ALL_DEFS = [...BLADE_SLIDER_DEFS, ...FULLER_DEFS, ...GUARD_DEFS, ...GRIP_DEFS, ...POMMEL_DEFS];
+  const ALL_DEFS = [
+    ...BLADE_SLIDER_DEFS, ...FULLER_DEFS, ...GUARD_DEFS, ...GRIP_DEFS, ...POMMEL_DEFS, ...STATE_DEFS,
+  ];
   function syncControls() {
     for (const def of ALL_DEFS) {
       controls[def.key].value = params[def.key];
       valueLabels[def.key].textContent = String(params[def.key]);
     }
-    for (const key of ["crossSection", "tipType", "guardShape", "pommelShape"]) {
+    for (const key of ["crossSection", "tipType", "guardShape", "pommelShape",
+      "gripCrossSection", "bladeMat", "guardMat", "gripMat", "pommelMat"]) {
       controls[key].value = params[key];
     }
     controls.fullerEnabled.checked = params.fullerEnabled;
+    controls.gripWrapGeomEnabled.checked = params.gripWrapGeomEnabled;
   }
 
   // 아일랜드 구분색 (partId 기준)

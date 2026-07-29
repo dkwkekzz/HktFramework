@@ -7,6 +7,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBladeMesh, makeStraightBladeDesign } from "../src/mesh/blade.js";
 import { makeSwordDesign, buildSword, hashSword } from "../src/mesh/sword.js";
+import { bakeSword } from "../src/bake/bake.js";
+import { makeMaterialGraph } from "../src/material/primitives.js";
 import { hashMesh } from "../src/core/hash.js";
 import { analyzeManifold, countDegenerate3DTriangles, signedVolume } from "../src/mesh/topology.js";
 import { validateUVs, assertValidUV } from "../src/uv/validate.js";
@@ -100,7 +102,10 @@ const SWORD_PRESETS = [
     params: {
       blade: bladeParamsOf("arming-diamond"),
       guard: { shape: "bar", width: 0.18, thickness: 0.025, depth: 0.02, bevel: 0.004 },
-      grip: { length: 0.13, startRadius: 0.014, endRadius: 0.012 },
+      grip: {
+        length: 0.13, startRadius: 0.014, endRadius: 0.012,
+        wrapGeometry: { enabled: true, turns: 9, depth: 0.0012 },
+      },
       pommel: { shape: "sphere", scale: 1.5 },
     },
   },
@@ -109,7 +114,7 @@ const SWORD_PRESETS = [
     params: {
       blade: bladeParamsOf("rapier-diamond"),
       guard: { shape: "oval", width: 0.12, thickness: 0.05, depth: 0.014, bevel: 0.002 },
-      grip: { length: 0.11, startRadius: 0.012, endRadius: 0.011 },
+      grip: { length: 0.11, startRadius: 0.012, endRadius: 0.011, crossSection: "ellipse", flatten: 0.75 },
       pommel: { shape: "teardrop", scale: 1.3 },
     },
   },
@@ -118,7 +123,7 @@ const SWORD_PRESETS = [
     params: {
       blade: bladeParamsOf("greatsword-hex-fuller"),
       guard: { shape: "tapered", width: 0.26, thickness: 0.035, depth: 0.028, bevel: 0.005 },
-      grip: { length: 0.3, startRadius: 0.016, endRadius: 0.014 },
+      grip: { length: 0.3, startRadius: 0.016, endRadius: 0.014, crossSection: "octagon" },
       pommel: { shape: "scent-stopper", scale: 2.0 },
     },
   },
@@ -185,3 +190,22 @@ if (failed) {
 writeFileSync(join(GOLDEN_DIR, "sword-presets.json"), JSON.stringify(swordPresetsOut, null, 2));
 writeFileSync(join(GOLDEN_DIR, "sword-hashes.json"), JSON.stringify(swordHashesOut, null, 2));
 console.log(`${SWORD_PRESETS.length}종 검 프리셋 → test/golden/ 갱신 완료`);
+
+// ── 베이크 golden — knight-arming 256², seed 12345 (05-phase3 §3.7) ─────────
+{
+  const BAKE_SIZE = 256;
+  const BAKE_SEED = 12345;
+  const preset = swordPresetsOut.find((p) => p.name === "knight-arming");
+  const sword = buildSword(preset.design, BAKE_SIZE);
+  const graph = makeMaterialGraph();
+  const t0 = performance.now();
+  const baked = bakeSword({
+    merged: sword.merged, design: preset.design, materialGraph: graph, seed: BAKE_SEED, size: BAKE_SIZE,
+  });
+  const elapsed = Math.round(performance.now() - t0);
+  writeFileSync(join(GOLDEN_DIR, "bake-hashes.json"), JSON.stringify({
+    "knight-arming": { hash: baked.hash, size: BAKE_SIZE, seed: BAKE_SEED },
+  }, null, 2));
+  console.log(`ok   bake knight-arming ${BAKE_SIZE}²  ${elapsed}ms  hash=${baked.hash}`);
+  console.log("베이크 golden → test/golden/bake-hashes.json 갱신 완료");
+}
