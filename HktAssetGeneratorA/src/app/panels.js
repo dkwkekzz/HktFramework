@@ -1,5 +1,8 @@
 // 파라미터 패널 — 순수 DOM UI (무-프레임워크). 모든 튜닝 노브를 슬라이더로 노출 (CLAUDE.md 컨벤션).
 // Phase 2: 검 전체(칼날·가드·손잡이·폼멜) 파라미터 + 부품 표시 토글.
+// Phase 4: 전역 SurfaceState 슬라이더 + Operation 로그 패널 (06-phase4 §4.5).
+
+import { createOperationLog } from "./oplog.js";
 
 const BLADE_SLIDER_DEFS = [
   { key: "length", label: "길이 (m)", min: 0.3, max: 1.8, step: 0.01 },
@@ -139,7 +142,7 @@ export function swordInputToParams(input) {
 
 export function createPanel(container, {
   swordPresets, bladePresets, onChange, onExportGLB, onDownloadDesign, onViewerOption, onBake,
-  onDownloadTextures,
+  onDownloadTextures, onDownloadOperations, onOperationsChange,
 }) {
   const params = { ...DEFAULT_PARAMS };
   const valueLabels = {};
@@ -298,6 +301,9 @@ export function createPanel(container, {
     addRow("seed", seedInput);
     controls.seed = seedInput;
   }
+  h3("표면 상태 Operation");
+  const opLog = createOperationLog(container, (ops) => onOperationsChange?.(ops));
+
   const btnBake = document.createElement("button");
   btnBake.textContent = "베이크 (1024²)";
   btnBake.addEventListener("click", () => onBake({ ...params }));
@@ -339,9 +345,13 @@ export function createPanel(container, {
   const btnTex = document.createElement("button");
   btnTex.textContent = "텍스처 PNG";
   btnTex.addEventListener("click", () => onDownloadTextures?.());
+  const btnOps = document.createElement("button");
+  btnOps.textContent = "operations.json";
+  btnOps.addEventListener("click", () => onDownloadOperations?.(opLog.toJSON()));
   container.appendChild(btnGLB);
   container.appendChild(btnDesign);
   container.appendChild(btnTex);
+  container.appendChild(btnOps);
 
   const stats = document.createElement("div");
   stats.id = "stats";
@@ -368,6 +378,7 @@ export function createPanel(container, {
 
   return {
     params,
+    opLog,
     /** UV 프리뷰(표시 전용 — Canvas 2D 허용). merged 메시(부품 병합)를 그린다. */
     drawUV(merged) {
       const ctx = uvCanvas.getContext("2d");

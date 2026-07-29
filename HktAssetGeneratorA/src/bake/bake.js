@@ -5,6 +5,7 @@
 import { rasterizeUV } from "./raster.js";
 import { createSwordShader } from "./channels.js";
 import { compileSurfaceGraph } from "../material/compile.js";
+import { computePartMetricBounds } from "../material/operations.js";
 import { heightToNormal } from "./normalmap.js";
 import { dilateChannels } from "./dilate.js";
 import { packBaseColor, packNormal, packORM } from "./pack.js";
@@ -15,10 +16,11 @@ export const DILATE_ITERATIONS = 8;
 export const NORMAL_STRENGTH = 60;
 
 /**
- * @param {{ merged, design, materialGraph, seed, size }} req
+ * @param {{ merged, design, materialGraph, seed, size, operations? }} req
+ *   operations: MaterialOperation 로그 (06-phase4) — 생략 시 materialGraph.surfaceOperations
  * @returns {{ baseColor, normal, orm: Uint8Array(size²*4), size, hash }}
  */
-export function bakeSword({ merged, design, materialGraph, seed, size }) {
+export function bakeSword({ merged, design, materialGraph, seed, size, operations }) {
   const px = size * size;
   const targets = {
     color: new Float32Array(px * 4),
@@ -28,7 +30,9 @@ export function bakeSword({ merged, design, materialGraph, seed, size }) {
     height: new Float32Array(px),
   };
 
-  const uniforms = compileSurfaceGraph({ design, materialGraph, seed });
+  // 긁힘 배치 영역의 기준 — 부품별 metric bbox (06-phase4 §4.3)
+  const metricBounds = computePartMetricBounds(merged);
+  const uniforms = compileSurfaceGraph({ design, materialGraph, seed, operations, metricBounds });
   const shade = createSwordShader(uniforms);
   const { coverage, island } = rasterizeUV(merged, size, shade, targets);
 

@@ -2,22 +2,24 @@
 
 ## 현재 상태
 
-- **단계**: Phase 3 완료 (절차적 머티리얼 + CPU 베이크 — Step 3.1~3.7 전부)
-  + 손잡이 단면 확장(D-13).
-- **다음 작업**: Phase 4 / Step 4.1 — Operation 모델·재생 (`src/material/operations.js`)
-  → 사양: [Docs/06-phase4-surface-state.md](Docs/06-phase4-surface-state.md) §Step 4.1
-- 게이트: `npm run check` = vitest 83개 (칼날 20종 + 검 5종 + 베이크 golden/결정성/물성).
+- **단계**: Phase 4 완료 (표면 상태 Operation — Step 4.1~4.5 전부)
+  + 결정 D-15·D-16·D-17.
+- **다음 작업**: Phase 5 / Step 5.1 — 참조 이미지 어노테이션 UI (`src/app/annotate.js`)
+  → 사양: [Docs/07-phase5-reference-fit.md](Docs/07-phase5-reference-fit.md) §Step 5.1
+- 게이트: `npm run check` = vitest 104개 (칼날 20종 + 검 5종 + 베이크 golden/결정성/물성
+  + Operation 모델·결정성·필드·긁힘·조각 + 낡은 검 golden 3종).
   golden 갱신은 `npm run golden`.
-- 실행: `npm run dev` → 뷰어에서 "베이크(1024²)" 버튼 = Worker CPU 베이크(~2s) →
+- 실행: `npm run dev` → 뷰어에서 "베이크(1024²)" 버튼 = Worker CPU 베이크(~2.8s) →
   PBR 텍스처 적용 미리보기, BaseColor 단독 토글, 텍스처 PNG 다운로드.
-  Node 22 LTS 로 `engines` 고정.
+  "표면 상태 Operation" 패널에서 로그 추가·삭제·재정렬 + 낡은 검 프리셋 3종 +
+  operations.json 입출력. Node 22 LTS 로 `engines` 고정.
 
 ## 문서 이정표
 
 | 문서 | 상태 |
 |---|---|
 | Docs/00-original-design.md | 확정 (수정 금지) |
-| Docs/01-review.md | 확정 — 결정 D-1~D-12 |
+| Docs/01-review.md | 확정 — 결정 D-1~D-17 |
 | Docs/02-architecture.md | 확정 — 공통 규약 |
 | Docs/03~07 (Phase 1~5) | 확정 — Step 단위 구현 사양 |
 | Docs/08 (Phase 6~8) | 경계만 확정 — 착수 시 구체화 |
@@ -27,8 +29,8 @@
 - [x] Phase 1 — 칼날 생성기 (Step 1.1 ~ 1.8) — 2026-07-29
 - [x] Phase 2 — 가드·손잡이·폼멜·조립·Atlas (Step 2.1 ~ 2.6) — 2026-07-29
 - [x] Phase 3 — 머티리얼·CPU 베이크 (Step 3.1 ~ 3.7) — 2026-07-29
-- [ ] Phase 4 — 표면 상태 Operation (Step 4.1 ~ 4.5)
-- [ ] Phase 5 — 참조 이미지 형상 맞춤 (Step 5.1 ~ 5.5) ※ Phase 3~4 와 병행 가능
+- [x] Phase 4 — 표면 상태 Operation (Step 4.1 ~ 4.5) — 2026-07-29
+- [ ] Phase 5 — 참조 이미지 형상 맞춤 (Step 5.1 ~ 5.5)
 - [ ] Phase 6+ — AI 보조·빌드 최적화·도메인 확장
 
 ## 결정 이력
@@ -54,6 +56,17 @@
   1024² 5채널 베이크 ≈ 2초 (Worker, 목표 5초 내). 산화·오염에 반점 확산 항 추가(D-14 —
   원본 §18.3 은 cavity 게이트뿐이라 매끈한 면에 상태가 보이지 않던 문제).
   Atlas 활용률 ~26% 는 letterbox 보정(D-8)의 트레이드오프 — 개선은 Phase 7 몫.
+- 2026-07-29: Phase 4 구현. 세 지점에서 06 문서와 갈라져 D-15·D-16·D-17 을 추가:
+  ① 상태 필드는 선택자별 저장 형태 분리(edge/ridge = 스칼라 × 의미값, local_uv = 저해상 필드)
+  ② 긁힘은 사전 스탬프가 아니라 metric 균일 그리드 + 프래그먼트 평가 —
+     06 이 전제한 "아일랜드의 metric↔atlas 선형 관계" 가 칼날에서 성립하지 않는다
+     (uvLocal.v = 프로파일 인덱스 균등 vs uvMetric.v = 누적 호길이). 그리드가 비용 우려를
+     해소하고(1024² 116스탬프 +0.26초), 결과로 긁힘이 Atlas 왜곡을 따라 휘어 **실제 표면 위**
+     직선이 된다(bw-normal 텍스처로 눈 확인).
+  ③ Engrave 프리셋 마스크는 PNG 동봉 대신 커밋된 드로잉 코드가 생성 — 결정 경로에서
+     이미지 디코딩 제거.
+  **회귀 게이트**: 빈 로그 → Phase 3 텍스처 해시와 **비트 동일**(테스트로 고정). 로그가
+  베이크에 얹히는 경로가 기존 산출물을 건드리지 않는다는 보증선이다.
 
 ## 이슈 / 어긋남 기록
 
@@ -61,3 +74,9 @@
   (날 2 + 베벨 경계 4) — 시각적으로 더 정확해 채택. 문서 표기와 어긋남만 기록.
 - lenticular 계열의 V 방향 텍셀 밀도 편차가 taper 때문에 ~3.9 로 관찰됨(면적 가중 p90/p10).
   02 §6 대로 밀도는 보고 전용이라 게이트는 통과 — Phase 2 Atlas 종횡비 보정(D-8)에서 재평가.
+- Operation 의 `local_uv` selector 와 `engrave` 배치는 **부품 단위**(uvLocal 공간)라
+  같은 부품의 모든 아일랜드에 동시에 적용된다 — 가드에 조각을 얹으면 앞면·뒷면·측면에
+  같이 찍히고, 칼날 조각은 rootCap 아일랜드에도 흔적이 남는다. 앞/뒷면 동시 각인은 의도에
+  가깝지만 측면·캡은 잉여다. 아일랜드 지정(selector.island)은 Phase 6 에서 재평가.
+- 06 §4.5 는 SurfaceState 슬라이더를 "전역 상태"로 두었고 구현도 그렇다 — Operation 필드는
+  이 전역값에 **가산**된다(대체가 아님). 전역 0 + 로그만으로도, 전역만으로도 동작한다.
