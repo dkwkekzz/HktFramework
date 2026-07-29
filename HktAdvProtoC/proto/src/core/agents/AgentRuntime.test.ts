@@ -6,6 +6,7 @@ import { WorldRuntime } from "../world/WorldRuntime";
 import type { GoalNode } from "../world/types";
 import { BeliefView } from "./BeliefView";
 import {
+  INSTINCT_PULL,
   calculateGoalActivation,
   generateActionCandidates,
   rankGoals,
@@ -54,7 +55,8 @@ describe("목적 활성도 (§20 — 11항)", () => {
       b.baseImportance + b.needPressure + b.urgency + b.valueAlignment + b.relationshipImpact +
       b.emotionalBias + b.feasibility + b.expectedUtility - b.cost - b.risk - b.conflict;
     expect(state.activation).toBeCloseTo(sum);
-    expect(b.baseImportance).toBe(survive.baseImportance);
+    // §15 본능(goal.survive 는 인간의 본능이다)은 중요도에 가산된다 — 타고난 목적이 배운 목적보다 세다 (G-4)
+    expect(b.baseImportance).toBe(survive.baseImportance + INSTINCT_PULL);
   });
 
   it("이미 이룬 목적은 활성화되지 않는다 (§19 targetConditions)", () => {

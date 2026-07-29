@@ -89,9 +89,52 @@ export function bootstrapWorld(runtime: WorldRuntime): void {
 }
 
 /**
- * 초기 관계 (§25). 두 곳에서 온다.
+ * §15 생존 단위 → 같은 종끼리의 출발선 (G-4).
+ * "종족 정의는 외형과 전투 능력보다 생존 구조를 우선한다"(§15) — 그 생존 구조가 관계에 나타난다.
+ * 혼자 사는 종은 동족이라고 더 가깝지 않고, 무리·가족·군체로 사는 종은 태어날 때부터 서로를 안다.
+ * 개체가 스스로 선언한 관계(①)가 먼저 깔리고, 여기서 더해진다 — 선언이 우선이다.
+ */
+const KINSHIP: Record<string, { familiarity: number; trust: number }> = {
+  individual: { familiarity: 0, trust: 0 },
+  host: { familiarity: 0, trust: 0 },
+  memory: { familiarity: 5, trust: 0 },
+  family: { familiarity: 25, trust: 15 },
+  lineage: { familiarity: 25, trust: 10 },
+  pack: { familiarity: 30, trust: 20 },
+  hive: { familiarity: 40, trust: 35 },
+};
+
+function bootstrapKinship(runtime: WorldRuntime): void {
+  const bySpecies = new Map<string, string[]>();
+  for (const id of Object.keys(runtime.state.entities).sort()) {
+    if (runtime.state.entities[id]!.type !== "agent") continue;
+    const speciesId = runtime.store.read(id, "species_id");
+    if (typeof speciesId !== "string" || speciesId === "") continue;
+    const list = bySpecies.get(speciesId);
+    if (list === undefined) bySpecies.set(speciesId, [id]);
+    else list.push(id);
+  }
+
+  for (const [speciesId, members] of bySpecies) {
+    const species = runtime.index.species.get(speciesId);
+    if (species === undefined) continue;
+    const kinship = KINSHIP[species.survivalUnit];
+    if (kinship === undefined || (kinship.familiarity === 0 && kinship.trust === 0)) continue;
+    for (const from of members) {
+      for (const to of members) {
+        if (from === to) continue;
+        applyRelationshipChange(runtime, from, to, "familiarity", kinship.familiarity);
+        applyRelationshipChange(runtime, from, to, "trust", kinship.trust);
+      }
+    }
+  }
+}
+
+/**
+ * 초기 관계 (§25). 세 곳에서 온다.
  *  ① 개체가 선언한 relationships — "이미 서로 아는 사이"
- *  ② FactionDefinition.relationshipDefaults — 조직이 다른 조직·종족을 보는 기본 시선(신뢰로 해석)
+ *  ② §15 survivalUnit — 같은 종의 생존 단위가 주는 출발선(G-4)
+ *  ③ FactionDefinition.relationshipDefaults — 조직이 다른 조직·종족을 보는 기본 시선(신뢰로 해석)
  */
 function bootstrapRelationships(runtime: WorldRuntime): void {
   for (const spec of runtime.definition.bootstrap.entities) {
@@ -105,6 +148,8 @@ function bootstrapRelationships(runtime: WorldRuntime): void {
       }
     }
   }
+
+  bootstrapKinship(runtime);
 
   for (const faction of runtime.definition.factions) {
     if (runtime.store.findEntity(faction.id) === undefined) continue;

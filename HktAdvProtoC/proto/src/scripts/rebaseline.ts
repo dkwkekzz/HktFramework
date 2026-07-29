@@ -23,7 +23,7 @@ for (const seed of BASELINE_SEEDS) {
 
 const document = {
   source:
-    "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 G-1(§12 확률 5용도: 관찰 실패의 확률화)에서 다시 고정. 회귀 기준선",
+    "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 G-1(§12 관찰 실패 확률화)·G-4(§15 종족 생존 구조 소비)에서 다시 고정. 회귀 기준선",
   previous: MIGRATION_BASELINE.previous ?? {
     source: MIGRATION_BASELINE.source,
     runs: Object.fromEntries(

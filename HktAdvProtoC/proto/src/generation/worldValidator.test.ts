@@ -10,11 +10,11 @@ import { RecordedTextGenerationPort } from "./RecordedTextGenerationPort";
 import { findGoalCycles, SEMANTIC_CODES, validateWorld } from "./WorldValidator";
 
 describe("§34 정적 검증", () => {
-  it("§34 필수 규칙 10개 + faction.hidden(G-3) + rule.chance(G-1) + space.profile(G-5) 을 각각 독립 검사기로 갖는다", () => {
-    expect(SEMANTIC_CODES).toHaveLength(13);
+  it("§34 필수 규칙 10개 + G-1·G-3·G-4·G-5 가 더한 4종을 각각 독립 검사기로 갖는다", () => {
+    expect(SEMANTIC_CODES).toHaveLength(14);
     const report = validateManualWorld();
     expect(report.checks.map((check) => check.code)).toEqual([...SEMANTIC_CODES]);
-    // 픽스처도 13개 — 검사기 하나에 위반 세계 하나
+    // 픽스처도 14개 — 검사기 하나에 위반 세계 하나
     expect(VIOLATION_FIXTURES.map((fixture) => fixture.code).sort()).toEqual([...SEMANTIC_CODES].sort());
   });
 
@@ -30,9 +30,9 @@ describe("§34 정적 검증", () => {
     }
   });
 
-  it("위반 픽스처 13종을 각각 해당 코드의 error 로 검출한다", () => {
+  it("위반 픽스처 14종을 각각 해당 코드의 error 로 검출한다", () => {
     const results = runViolationFixtures();
-    expect(results).toHaveLength(13);
+    expect(results).toHaveLength(14);
     for (const result of results) {
       expect(result.detected, `${result.code}: ${result.message}`).toBe(true);
     }

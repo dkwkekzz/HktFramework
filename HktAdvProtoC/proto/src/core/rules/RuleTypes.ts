@@ -59,6 +59,12 @@ export type RuleValue =
   /** §12 확률적 효과 — 난수는 항상 RandomContext(worldSeed, simulationStep, entityId) 로만 만든다 */
   | { type: "random"; stream?: RuleBinding }
   | { type: "random_int"; max: number; stream?: RuleBinding }
+  /**
+   * §15 종족의 하루 필요량 — `requiredResources[resourceTag].amountPerDay` (G-4).
+   * 어느 개체를 보는지는 of 로 정한다(기본 each). 그 종족이 이 자원을 필요로 하지 않으면 0.
+   * 규칙이 종족의 생존 구조를 직접 읽는 통로다 — "종족은 감각+심볼"에 그치지 않게 한다.
+   */
+  | { type: "species_need"; resourceTag: string; of?: RuleBinding }
   /** §12 주변 개체 검색 — 검색 결과를 값으로 쓴다(개수·합·첫 항목의 상태) */
   | { type: "query_value"; query: RuleTargetQuery; key?: string; aggregate: QueryAggregate }
   | { type: "expr"; op: ExprOp; operands: RuleValue[] };

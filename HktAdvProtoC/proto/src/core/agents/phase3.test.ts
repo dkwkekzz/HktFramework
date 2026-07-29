@@ -11,7 +11,11 @@ import { BeliefView } from "./BeliefView";
 import { checkFactionCollapse, syncDelegations } from "./FactionRuntime";
 import { accumulatePressures, calculateGoalActivation, rankGoals } from "./GoalSystem";
 import { maintainMemories, MEMORY_CAPACITY, rememberEvent } from "./MemorySystem";
-import { compareHearsayConfidence, measureGoalConflict } from "./phase3Checks";
+import {
+  compareHearsayConfidence,
+  measureGoalConflict,
+  measureSpeciesStructure,
+} from "./phase3Checks";
 import { addPromise, relationshipView, resolveDuePromises } from "./RelationshipSystem";
 
 const BEAST = "creature.echo_beast_mother";
@@ -199,5 +203,26 @@ describe("조직도 주체다 (§17, Phase-3 §3.7)", () => {
     expect(checkFactionCollapse(runtime)).toContain(VILLAGE);
     expect(runtime.store.readBoolean(VILLAGE, "collapsed")).toBe(true);
     expect(runtime.store.read("agent.kael", "faction_id")).toBe("");
+  });
+});
+
+describe("§15 종족 생존 구조가 세계를 움직인다 (G-4)", () => {
+  it("다섯 항이 전부 실행에 소비된다 — 값이 다르면 결과가 다르다", () => {
+    const rows = measureSpeciesStructure(42);
+    expect(rows).toHaveLength(5);
+    for (const row of rows) {
+      expect(row.ok, `${row.field} (${row.consumer}) — ${row.evidence}`).toBe(true);
+    }
+  });
+
+  it("종족 정의가 번식·사회 구조를 버리지 않는다 (생성 후 폐기 해소)", () => {
+    const definition = buildManualWorld(42);
+    const beast = definition.species.find((entry) => entry.id === "species.echo_beast")!;
+    // 번식은 그것을 실행하는 규칙에 연결된다 — 개체 템플릿의 species_id 로 코드가 찾는다
+    expect(beast.reproductionRuleIds).toContain("rule.echo_beast_reproduction");
+    // 그 규칙은 실제로 이 종의 개체를 만든다
+    const rule = definition.ruleDefinitions.find((entry) => entry.id === "rule.echo_beast_reproduction")!;
+    const created = rule.effects.find((effect) => effect.type === "create_entity");
+    expect(created).toBeDefined();
   });
 });

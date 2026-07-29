@@ -40,7 +40,7 @@ export {
   selectAction,
   scoreActionCandidate,
 } from "./ActionPlanner";
-export { calculateGoalActivation, rankGoals } from "./GoalSystem";
+export { INSTINCT_PULL, calculateGoalActivation, rankGoals } from "./GoalSystem";
 
 // --- 재판단 조건 (§26) ------------------------------------------------------------
 

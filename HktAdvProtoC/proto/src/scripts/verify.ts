@@ -9,6 +9,7 @@ import {
   compareHearsayConfidence,
   measureGoalConflict,
   measureGoalEdgeSemantics,
+  measureSpeciesStructure,
 } from "../core/agents/phase3Checks";
 import {
   PLAYER_FREE_MODULES,
@@ -58,7 +59,7 @@ import {
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
 import { buildManualWorld } from "../content/manual-world";
-import { buildPlayerWorld } from "../content/player-world";
+import { RESIDUE_RIDGE, buildPlayerWorld } from "../content/player-world";
 import { buildRuleLabWorld } from "../content/rule-lab";
 import {
   FIRST_WORLD_AUDIT_CORPUS,
@@ -1026,19 +1027,30 @@ check(
     `(${Object.entries(active.journalKinds).map(([kind, count]) => `${kind} ${count}`).join(" · ")})`,
 );
 
+// --- G-4 : §15 종족 생존 구조가 세계를 움직인다 -------------------------------------------
+const speciesStructure = measureSpeciesStructure(worldSeed);
+check(
+  speciesStructure.every((row) => row.ok),
+  `§15 종족 생존 구조 ${speciesStructure.filter((row) => row.ok).length}/${speciesStructure.length} 항이 실행에 소비된다 (선언이 아니라 차이로 증명)`,
+  speciesStructure
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.field} [${row.consumer}] — ${row.evidence}`)
+    .join(""),
+);
+
 // --- G-5 : §13 조건부 통행 — 같은 두 지역, 사람에 따라 다른 길 ---------------------------
+const RIDGE_THRESHOLD = Number((RESIDUE_RIDGE.requirements?.[0]?.right as { value?: unknown } | undefined)?.value ?? 0);
 const passage = measureConditionalPassage(active.runtime, "creature.echo_beast_mother");
 const opened = passage.filter((row) => row.open);
 const closed = passage.filter((row) => !row.open);
 check(
-  opened.length > 0 && closed.length > 0 && opened.every((row) => row.knownThreatLevel >= 70),
-  `§13 조건부 통행 — 잔재 능선이 ${opened.length}명에게 열리고 ${closed.length}명에게 닫힌다 (통행 조건: known_threat_level ≥ 70)`,
+  opened.length > 0 && closed.length > 0 && opened.every((row) => row.knownThreatLevel >= RIDGE_THRESHOLD),
+  `§13 조건부 통행 — 잔재 능선이 ${opened.length}명에게 열리고 ${closed.length}명에게 닫힌다 (통행 조건 ${RESIDUE_RIDGE.requirements?.length ?? 0}개: known_threat_level ≥ ${String((RESIDUE_RIDGE.requirements?.[0]?.right as { value?: unknown } | undefined)?.value ?? "?")})`,
   passage
     .map(
       (row) =>
         `\n      ${row.open ? "열림" : "닫힘"} ${row.agentId.replace(/^(agent|creature)\./, "")} — 아는 위협 ${row.knownThreatLevel} · 숲까지 ${row.travelTicks ?? "-"}틱`,
     )
-    .join("") + `\n      길은 둘이다: 큰길(이동 120) · 잔재 능선(이동 95, 조건부) — 조건을 갖춘 주체만 싼 길을 쓴다`,
+    .join("") + `\n      길은 둘이다: 큰길(이동 120) · 잔재 능선(이동 ${RESIDUE_RIDGE.travelCost}, 조건부) — 조건을 갖춘 주체만 싼 길을 쓴다`,
 );
 
 // --- G-5 : §13 지역 프로필이 지도 재료로 나온다 -------------------------------------------

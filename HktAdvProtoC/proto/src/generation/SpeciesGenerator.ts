@@ -51,6 +51,8 @@ const SPECIES_PROMPT = [
   "감각(채널·사거리·정확도) / 본능 목적 / 적응·성장 규칙 / 전략의 장점과 약점 / 사회 구조.",
   "전략의 장점에는 반드시 대응하는 약점을 만든다 — 약점 없는 종은 세계를 무너뜨린다.",
   "감각은 이 종이 무엇을 알 수 있고 무엇을 끝내 모르는지를 정한다(§23).",
+  "번식을 말했으면 그것을 실행하는 규칙을 reproductionRuleIds 로 함께 밝힌다 — 선언만 남은 번식은 이야기일 뿐이다(§15).",
+  "능력을 가질 수 있는 종인지 abilityAccess 로 밝힌다(§16 능력 체계는 사람만의 것이 아닐 수 있다).",
 ].join("\n");
 
 export async function generateSpecies(
@@ -127,8 +129,17 @@ export async function generateSpecies(
   return { species, outline, taskIds };
 }
 
-/** 실행 포맷만 남긴다 — 생성 근거(전략·장단점)는 아티팩트에 남고 WorldDefinition 에는 들어가지 않는다 */
+/**
+ * 실행 포맷 — 생성 근거(전략·장단점)는 아티팩트에 남고 WorldDefinition 에는 들어가지 않는다.
+ * 단 번식·사회 구조는 **버리지 않는다**(G-4): 번식은 그것을 실행하는 규칙(§15 growthRules 중)에 연결되고,
+ * 사회 구조는 survivalUnit 이 만든 관계 출발선의 근거로 남는다.
+ */
 export function toSpeciesDefinition(draft: SpeciesDraft): SpeciesDefinition {
+  const reproductionRuleIds = (draft.reproductionRuleIds ?? []).filter((id) => id.length > 0);
+  const fallback =
+    reproductionRuleIds.length > 0
+      ? reproductionRuleIds
+      : [...draft.growthRules, ...draft.adaptationRules].filter((id) => /reproduc|breed|offspring|번식/i.test(id));
   return {
     id: draft.id,
     name: draft.name,
@@ -138,5 +149,9 @@ export function toSpeciesDefinition(draft: SpeciesDraft): SpeciesDefinition {
     instincts: draft.instincts,
     adaptationRules: draft.adaptationRules,
     growthRules: draft.growthRules,
+    ...(draft.reproduction === undefined ? {} : { reproduction: draft.reproduction }),
+    ...(fallback.length === 0 ? {} : { reproductionRuleIds: fallback }),
+    ...(draft.socialStructure === undefined ? {} : { socialStructure: draft.socialStructure }),
+    ...(draft.abilityAccess === undefined ? {} : { abilityAccess: draft.abilityAccess }),
   };
 }

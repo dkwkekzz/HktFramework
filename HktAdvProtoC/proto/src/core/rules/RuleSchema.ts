@@ -123,6 +123,7 @@ export const RULE_JSON_SCHEMA = {
             "distance",
             "random",
             "random_int",
+            "species_need",
             "query_value",
             "expr",
           ],
@@ -137,6 +138,8 @@ export const RULE_JSON_SCHEMA = {
         to: { $ref: "#/$defs/binding" },
         stream: { $ref: "#/$defs/binding" },
         max: { type: "number" },
+        /** §15 species_need — 이 종족이 하루에 필요로 하는 자원 (G-4) */
+        resourceTag: { type: "string" },
         query: { $ref: "#/$defs/query" },
         aggregate: { enum: ["first", "count", "sum", "min", "max"] },
         op: {

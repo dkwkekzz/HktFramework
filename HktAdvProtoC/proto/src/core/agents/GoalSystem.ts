@@ -291,6 +291,13 @@ export interface GoalActivationResult extends ActiveGoalState {
   breakdown: GoalActivationBreakdown;
 }
 
+/** §15 본능 목적이 받는 중요도 가산 — 배운 목적과 타고난 목적의 차이 */
+export const INSTINCT_PULL = 6;
+
+function instinctPull(view: BeliefView, goalId: string): number {
+  return view.instincts.includes(goalId) ? INSTINCT_PULL : 0;
+}
+
 /**
  * §20 calculateGoalActivation — 충돌항(conflict)을 뺀 나머지 10항.
  * 충돌은 다른 목적의 활성도를 알아야 계산할 수 있으므로 rankGoals 가 2차 통과에서 뺀다.
@@ -316,6 +323,9 @@ export function calculateGoalActivation(
   ) {
     return { goalId: goal.id, activation: Number.NEGATIVE_INFINITY, urgency: 0, breakdown };
   }
+
+  // §15 종족 본능 — 그 종이 본능으로 지목한 목적은 더 세게 당긴다 (§18 절차 1 "종족 본능 복사", G-4)
+  breakdown.baseImportance += instinctPull(view, goal.id);
 
   breakdown.needPressure = evaluateNeedPressure(runtime, view, goal);
   breakdown.urgency = evaluateUrgency(view, goal.urgencyPolicy);

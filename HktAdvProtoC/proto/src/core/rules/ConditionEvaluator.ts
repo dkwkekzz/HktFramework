@@ -175,6 +175,16 @@ export function resolveRuleValue(ref: RuleValue, ctx: RuleContext): unknown {
       return ctx.runtime.rngFor(rngStreamId(ctx, ref.stream)).next();
     case "random_int":
       return ctx.runtime.rngFor(rngStreamId(ctx, ref.stream)).nextInt(ref.max);
+    case "species_need": {
+      // §15 종족 생존 구조를 규칙이 읽는다 (G-4) — 종족이 없거나 그 자원을 필요로 하지 않으면 0
+      const id = bindingEntityId(ctx, ref.of ?? "each");
+      if (id === undefined) return 0;
+      const speciesId = ctx.runtime.store.findEntity(id)?.states["species_id"];
+      if (typeof speciesId !== "string" || speciesId === "") return 0;
+      const species = ctx.runtime.index.species.get(speciesId);
+      const need = species?.requiredResources.find((entry) => entry.resourceTag === ref.resourceTag);
+      return need?.amountPerDay ?? 0;
+    }
     case "query_value": {
       const found = runTargetQuery(ctx, ref.query);
       if (ref.aggregate === "count") return found.length;

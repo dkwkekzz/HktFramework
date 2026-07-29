@@ -8,6 +8,7 @@
 import { RuleEngine } from "../core/rules/RuleEngine";
 import type { RuleDefinition, EntityTemplate } from "../core/rules/RuleTypes";
 import { bootstrapWorld } from "../core/world/WorldBootstrap";
+import { linkReproductionRules } from "../core/world/SpeciesLinks";
 import { validateWorldDefinition } from "../core/world/WorldValidation";
 import { WorldRuntime } from "../core/world/WorldRuntime";
 import type {
@@ -17,6 +18,7 @@ import type {
   GoalGraph,
   ResourceDefinition,
   SpaceDefinition,
+  SpeciesDefinition,
   StateSchema,
   SurvivalPressureDefinition,
   WorldAxiom,
@@ -456,7 +458,8 @@ function buildDefinition(state: PipelineState, worldId: string, worldSeed: numbe
     entityTemplates: state.templates,
     spaces: withRegionProfiles(state.space, state),
     resources: state.resources,
-    species: state.species.map(toSpeciesDefinition),
+    // §15 번식 선언 → 실행 규칙 연결 (G-4) — 수동 세계와 같은 함수를 쓴다
+    species: linkReproductionRules(state.species.map(toSpeciesDefinition), state.rules, state.templates),
     survivalPressures: state.pressures,
     factions: state.factions.map(toFactionDefinition),
     agentArchetypes: state.archetypes.map(toArchetype),

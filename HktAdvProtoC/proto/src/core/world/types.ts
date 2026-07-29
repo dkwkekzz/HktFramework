@@ -153,6 +153,26 @@ export interface SpeciesDefinition {
   instincts: string[];
   adaptationRules: string[];
   growthRules: string[];
+  /**
+   * §15 번식 — 어떻게 수가 늘어나는가. 문장(reproduction)과 **그것을 실행하는 규칙**을 함께 갖는다.
+   * 규칙이 없으면 선언은 이야기일 뿐이다 — §34 검사기가 그 연결을 요구한다 (G-4).
+   */
+  reproduction?: string;
+  reproductionRuleIds?: string[];
+  /** §15 사회 구조 — survivalUnit 이 관계의 출발선을 정하고, 이 문장이 그 이유를 남긴다 */
+  socialStructure?: string;
+  /** §15 abilityAccess — 이 종이 §16 능력을 가질 수 있는가 (없으면 가질 수 없다) */
+  abilityAccess?: SpeciesAbilityAccess;
+}
+
+/** §15 abilityAccess — 종족과 능력 체계의 연결 (G-4) */
+export interface SpeciesAbilityAccess {
+  /** 이 종의 개체가 능력을 가질 수 있는가 */
+  canHold: boolean;
+  /** 능력이 드러나는 매개 (§16 medium) — 비면 제한 없음 */
+  media?: string[];
+  /** 왜 그런가 (생성 근거 문장) */
+  rationale?: string;
 }
 
 // --- §17 조직 -----------------------------------------------------------------

@@ -29,6 +29,7 @@ import schemas from "./state-schemas.json";
 import space from "./space.json";
 import species from "./species.json";
 import templates from "./templates.json";
+import { linkReproductionRules } from "../../core/world/SpeciesLinks";
 
 export const MANUAL_WORLD_ID = "world.silent_forest_edge";
 
@@ -43,7 +44,12 @@ export function buildManualWorld(worldSeed: number): WorldDefinition {
     entityTemplates: templates as unknown as EntityTemplate[], // §11.3 create_entity (§15 번식)
     spaces: space as unknown as SpaceDefinition,
     resources: resources as unknown as ResourceDefinition[],
-    species: species as unknown as SpeciesDefinition[],
+    // §15 번식 선언 → 실행 규칙 연결은 코드가 실물에서 찾는다 (G-4 — 개체 템플릿의 species_id)
+    species: linkReproductionRules(
+      species as unknown as SpeciesDefinition[],
+      buildManualWorldRules(),
+      templates as unknown as EntityTemplate[],
+    ),
     survivalPressures: pressures as unknown as SurvivalPressureDefinition[], // §8
     factions: factions as unknown as FactionDefinition[],
     agentArchetypes: [],
