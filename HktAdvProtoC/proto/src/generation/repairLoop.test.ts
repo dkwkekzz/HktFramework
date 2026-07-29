@@ -42,9 +42,22 @@ describe("수정 루프", () => {
     // ① 1라운드: 정적 검증이 막는다 — 시뮬레이션까지 가지 않는다
     const first = result.rounds[0]!;
     expect(first.simulation).toBeUndefined();
-    expect(first.issues.map((issue) => issue.code).sort()).toEqual(["agent.goal", "state.schema"]);
+    // faction.hidden(G-3): 은닉 목적이 연결되지 않은 조직 5곳이 함께 걸린다
+    expect([...new Set(first.issues.map((issue) => issue.code))].sort()).toEqual([
+      "agent.goal",
+      "faction.hidden",
+      "state.schema",
+    ]);
     expect(first.restartFrom).toBe(4);
-    expect(first.applied.map((entry) => entry.taskId).sort()).toEqual(["goals/goal_graph.healer", "rules/wilds"]);
+    expect(first.applied.map((entry) => entry.taskId).sort()).toEqual([
+      "factions/faction.crown_bureau",
+      "factions/faction.hollow_smugglers",
+      "factions/faction.research_society",
+      "factions/faction.silent_village",
+      "factions/faction.veil_wardens",
+      "goals/goal_graph.healer",
+      "rules/wilds",
+    ]);
 
     // ② 2라운드: 정적은 통과하고 §35 판정이 막는다
     const second = result.rounds[1]!;

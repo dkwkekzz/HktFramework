@@ -396,6 +396,18 @@ export function rankGoals(runtime: WorldRuntime, agentId: string): GoalActivatio
       }
     }
 
+    // supports: A→B supports 는 "A 를 이루는 것이 B 에 도움이 된다" (§19).
+    // 도움받는 목적(B)이 중요할수록 돕는 목적(A)도 끌려 올라간다 — requires 의 절반 강도.
+    for (const [goalId, result] of [...results].sort(([a], [b]) => a.localeCompare(b))) {
+      if (result.activation === Number.NEGATIVE_INFINITY) continue;
+      for (const edge of edgesTo(graph, goalId, "supports")) {
+        const supporter = results.get(edge.from);
+        if (supporter === undefined || supporter.activation === Number.NEGATIVE_INFINITY) continue;
+        supporter.breakdown.baseImportance += Math.max(0, result.activation) * edge.weight * 0.5;
+        supporter.activation = sumBreakdown(supporter.breakdown);
+      }
+    }
+
     // conflicts: 충돌하는 목적끼리 서로의 활성도만큼 깎는다
     const snapshot = new Map([...results].map(([id, result]) => [id, result.activation]));
     for (const edge of graph.edges) {
@@ -411,6 +423,25 @@ export function rankGoals(runtime: WorldRuntime, agentId: string): GoalActivatio
         result.breakdown.conflict += Math.max(0, other) * edge.weight * 0.5;
         result.activation = sumBreakdown(result.breakdown);
       }
+    }
+
+    // alternative: 같은 필요를 채우는 대안끼리는 더 유망한 쪽이 남는다 (§19).
+    // conflicts 와 달리 한쪽만 물러난다 — 주체가 한 번에 한 대안만 좇게 한다.
+    const alternativeSnapshot = new Map([...results].map(([id, result]) => [id, result.activation]));
+    for (const edge of graph.edges) {
+      if (edge.relation !== "alternative") continue;
+      const fromActivation = alternativeSnapshot.get(edge.from);
+      const toActivation = alternativeSnapshot.get(edge.to);
+      if (fromActivation === undefined || toActivation === undefined) continue;
+      if (fromActivation === Number.NEGATIVE_INFINITY || toActivation === Number.NEGATIVE_INFINITY) continue;
+      // 활성도가 같으면 from 이 남는다 — 결정론 (§39)
+      const [weaker, strongerActivation] =
+        fromActivation >= toActivation
+          ? [results.get(edge.to), fromActivation]
+          : [results.get(edge.from), toActivation];
+      if (weaker === undefined) continue;
+      weaker.breakdown.conflict += Math.max(0, strongerActivation) * edge.weight * 0.5;
+      weaker.activation = sumBreakdown(weaker.breakdown);
     }
   }
 
@@ -446,6 +477,28 @@ export function updateGoalLifecycle(runtime: WorldRuntime, agentId: string): voi
       node.targetConditions.length > 0 &&
       view.evaluateConditions(node.targetConditions, undefined, { unknown: "fail" }).ok
     ) {
+      // §19 completionEffects — 달성이 처음 확인되는 순간 1회 적용.
+      // 상태 변경은 state_changed 규칙으로 이어지므로 완료가 세계에 파문을 남긴다.
+      agent.completedGoals ??= [];
+      if (!agent.completedGoals.includes(node.id)) {
+        agent.completedGoals.push(node.id);
+        const effects = node.completionEffects ?? [];
+        if (effects.length > 0) {
+          runtime.store.withContext(
+            { sourceId: agentId, targetIds: [agentId], tags: ["goal_completed", node.id] },
+            () => {
+              for (const effect of effects) {
+                runtime.store.modify(
+                  effect.targetId ?? agentId,
+                  effect.stateKey,
+                  effect.operation,
+                  effect.value,
+                );
+              }
+            },
+          );
+        }
+      }
       // creates/reveals — 이룬 목적이 새 목적을 연다
       for (const edge of [...edgesFrom(graph, node.id, "creates"), ...edgesFrom(graph, node.id, "reveals")]) {
         if (agent.unlockedGoals.includes(edge.to)) continue;

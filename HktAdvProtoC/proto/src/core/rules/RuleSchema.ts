@@ -169,6 +169,7 @@ export const RULE_JSON_SCHEMA = {
             "emit_signal",
             "schedule_rule",
             "modify_relationship",
+            "make_promise",
             "record_growth",
           ],
         },
@@ -193,6 +194,11 @@ export const RULE_JSON_SCHEMA = {
         ruleId: { type: "string" },
         delay: { type: "number" },
         key: { type: "string" },
+        /** §25 make_promise */
+        comparison: { enum: [">", "<"] },
+        threshold: { type: "number" },
+        dueInTicks: { type: "number", minimum: 1 },
+        tags: { type: "array", items: { type: "string" } },
         /** §32 record_growth */
         growthType: {
           enum: ["physical", "skill", "knowledge", "relationship", "authority", "ability", "identity"],

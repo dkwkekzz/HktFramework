@@ -345,6 +345,8 @@ export const FACTION_SCHEMA: JsonSchema = {
     name: { type: "string" },
     publicPurpose: { type: "string" },
     hiddenPurposes: STRING_ARRAY,
+    /** §17 은닉 목적의 실행 연결 (G-3) — 조직 목적 그래프의 노드 id */
+    hiddenGoalIds: STRING_ARRAY,
     requiredStates: arrayOf({
       type: "object",
       required: ["stateKey", "comparison", "value"],
@@ -495,6 +497,17 @@ export const GOAL_GRAPH_SCHEMA: JsonSchema = {
         utilityFactors: { type: "array" },
         focusIds: STRING_ARRAY,
         emotionKeys: { type: "array" },
+        completionEffects: arrayOf({
+          type: "object",
+          required: ["stateKey", "operation", "value"],
+          additionalProperties: false,
+          properties: {
+            targetId: { type: "string" },
+            stateKey: { type: "string" },
+            operation: { enum: ["add", "multiply", "set"] },
+            value: {},
+          },
+        }),
       },
     }),
     edges: arrayOf({

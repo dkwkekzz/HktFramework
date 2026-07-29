@@ -14,6 +14,11 @@
 //           faction_collapse_shock / threat_belief_spreads_fear / researcher_insight
 //  생태 3 : echo_beast_reproduction / echo_beast_cub_growth / residue_adaptation
 //
+// G-2 (§21 사회 행동 10종) 가 더한 규칙:
+//  사회 10 : negotiation_settles / persuasion_shifts_belief / lie_discovery_risk / threatening_words /
+//            hiring_contract / alliance_bond / contract_terms / evidence_hidden / crafting_output /
+//            research_insight
+//
 // 로더가 정규형 검증까지 해 준다 — 스키마를 벗어난 규칙은 여기서 즉시 예외가 된다.
 import { loadRuleDocuments } from "../../../core/rules/RuleSchema";
 import type { RuleDefinition } from "../../../core/rules/RuleTypes";
@@ -23,6 +28,7 @@ import observation from "./observation.json";
 import organization from "./organization.json";
 import relationships from "./relationships.json";
 import resources from "./resources.json";
+import social from "./social.json";
 import society from "./society.json";
 
 export function buildManualWorldRules(): RuleDefinition[] {
@@ -34,5 +40,6 @@ export function buildManualWorldRules(): RuleDefinition[] {
     ...(observation as unknown[]),
     ...(relationships as unknown[]),
     ...(organization as unknown[]),
+    ...(social as unknown[]),
   ]);
 }

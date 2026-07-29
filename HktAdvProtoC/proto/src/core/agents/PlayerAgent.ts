@@ -213,7 +213,9 @@ function entityLabel(runtime: WorldRuntime, entityId: string): string {
 }
 
 function candidateKey(candidate: ActionCandidate): string {
-  return `${candidate.actionId}|${candidate.targetIds.join(",")}`;
+  // approachFor 가 다르면 다른 선택지다 — "관찰하러 다가간다"와 "연구하러 다가간다"가
+  // 같은 (move, 대상) 키로 합쳐지면 한쪽 참여 방식이 화면에서 사라진다 (§30)
+  return `${candidate.actionId}|${candidate.targetIds.join(",")}|${candidate.approachFor ?? ""}`;
 }
 
 /**

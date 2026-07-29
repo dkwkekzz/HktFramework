@@ -7,7 +7,7 @@ import { bootstrapWorld } from "../world/WorldBootstrap";
 import { emitObservationEffect } from "../world/Signals";
 import { WorldRuntime } from "../world/WorldRuntime";
 import { findBelief } from "./BeliefStore";
-import { rankGoals } from "./GoalSystem";
+import { rankGoals, updateGoalLifecycle } from "./GoalSystem";
 import { processObservationSignals } from "./PerceptionSystem";
 import { relationshipView } from "./RelationshipSystem";
 
@@ -130,5 +130,85 @@ export function measureGoalConflict(seed: number): ConflictMeasurement {
     calmTop: unconflictedTop,
     afraidTop: conflictedTop,
     flipped: conflictedTop !== unconflictedTop,
+  };
+}
+
+// --- G-2 : §19 supports/alternative 엣지 · completionEffects 소비 측정 ------------------
+
+export interface GoalEdgeMeasurement {
+  /** supports 엣지 유무에 따른 secure_food 활성도 차 (양수 = 소비되고 있다) */
+  supportsBoost: number;
+  /** 도움받는 쪽(survive)은 supports 로 변하지 않았는가 */
+  supportedUnchanged: boolean;
+  /** alternative 엣지로 약한 대안이 물러난 양 (양수 = 소비되고 있다) */
+  alternativeSuppressed: number;
+  /** 강한 대안은 불변인가 */
+  alternativeUntouched: boolean;
+  /** completionEffects 로 오른 상태량 (기대 7) */
+  completionApplied: number;
+  /** 재확인에도 다시 적용되지 않았는가 */
+  completionOnce: boolean;
+}
+
+/** goalEdges.test.ts 와 같은 측정 — verify 보고와 테스트가 같은 수치를 본다 */
+export function measureGoalEdgeSemantics(seed: number): GoalEdgeMeasurement {
+  const agentId = "agent.kael";
+  const build = (mutate?: (definition: ReturnType<typeof buildManualWorld>) => void): WorldRuntime => {
+    const definition = structuredClone(buildManualWorld(seed));
+    mutate?.(definition);
+    const runtime = new WorldRuntime(definition);
+    bootstrapWorld(runtime);
+    // 네 목적 전부 미달성 상태로 — 달성된 목적은 랭킹에서 빠진다
+    runtime.store.modify(agentId, "hunger", "set", 60);
+    runtime.store.modify(agentId, "fear", "set", 40);
+    runtime.store.modify("faction.silent_village", "food_reserve", "set", 50);
+    return runtime;
+  };
+  const activation = (runtime: WorldRuntime, goalId: string): number =>
+    rankGoals(runtime, agentId).find((entry) => entry.goalId === goalId)?.activation ?? Number.NaN;
+
+  const withSupports = build();
+  const withoutSupports = build((definition) => {
+    const graph = definition.goalTemplates.find((g) => g.id === "goal_graph.hunter");
+    if (graph !== undefined) graph.edges = graph.edges.filter((edge) => edge.relation !== "supports");
+  });
+  const supportsBoost =
+    activation(withSupports, "goal.secure_food") - activation(withoutSupports, "goal.secure_food");
+  const supportedUnchanged =
+    Math.abs(activation(withSupports, "goal.survive") - activation(withoutSupports, "goal.survive")) < 1e-9;
+
+  const withAlternative = build((definition) => {
+    const graph = definition.goalTemplates.find((g) => g.id === "goal_graph.hunter");
+    graph?.edges.push({ from: "goal.secure_food", to: "goal.report_danger", relation: "alternative", weight: 1 });
+  });
+  const baseline = build();
+  const deltas = ["goal.secure_food", "goal.report_danger"].map(
+    (goalId) => activation(baseline, goalId) - activation(withAlternative, goalId),
+  );
+  const alternativeSuppressed = Math.max(...deltas);
+  const alternativeUntouched = Math.min(...deltas) < 1e-9;
+
+  const completionRuntime = build((definition) => {
+    const node = definition.goalTemplates
+      .find((g) => g.id === "goal_graph.hunter")
+      ?.nodes.find((n) => n.id === "goal.avoid_threat");
+    if (node !== undefined) {
+      node.completionEffects = [{ stateKey: "known_threat_level", operation: "add", value: 7 }];
+    }
+  });
+  completionRuntime.store.modify(agentId, "fear", "set", 0); // avoid_threat 달성 (fear < 25)
+  const before = completionRuntime.store.readNumber(agentId, "known_threat_level");
+  updateGoalLifecycle(completionRuntime, agentId);
+  const afterFirst = completionRuntime.store.readNumber(agentId, "known_threat_level");
+  updateGoalLifecycle(completionRuntime, agentId);
+  const afterSecond = completionRuntime.store.readNumber(agentId, "known_threat_level");
+
+  return {
+    supportsBoost,
+    supportedUnchanged,
+    alternativeSuppressed,
+    alternativeUntouched,
+    completionApplied: afterFirst - before,
+    completionOnce: afterSecond === afterFirst,
   };
 }

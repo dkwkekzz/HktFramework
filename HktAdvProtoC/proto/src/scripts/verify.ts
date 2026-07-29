@@ -5,7 +5,11 @@
 import { existsSync, readFileSync } from "node:fs";
 import { findBelief } from "../core/agents/BeliefStore";
 import { MEMORY_CAPACITY } from "../core/agents/MemorySystem";
-import { compareHearsayConfidence, measureGoalConflict } from "../core/agents/phase3Checks";
+import {
+  compareHearsayConfidence,
+  measureGoalConflict,
+  measureGoalEdgeSemantics,
+} from "../core/agents/phase3Checks";
 import {
   PLAYER_FREE_MODULES,
   findPlayerBranches,
@@ -58,10 +62,12 @@ import { compileWorld } from "../generation/CompilerPipeline";
 import { PROTOTYPE_SCALE } from "../generation/GenerationTypes";
 import {
   checkFirstWorldItems,
+  checkInitialPlacements,
   checkScale,
   costsGrowWithOutput,
   summarizeAbilities,
 } from "../generation/phase5Checks";
+import { buildObservationNarration } from "../viewmodel/NarrationBuilder";
 import { runViolationFixtures, validateManualWorld } from "../generation/phase6Checks";
 import { RecordedTextGenerationPort } from "../generation/RecordedTextGenerationPort";
 import { compileWithRepair } from "../generation/RepairLoop";
@@ -215,6 +221,55 @@ check(
   unregisteredRejected && derivedRejected,
   "미등록 키·파생 상태 쓰기가 거부됨",
   `미등록 키 ${unregisteredRejected ? "거부" : "통과(문제)"} / 파생 상태 ${derivedRejected ? "거부" : "통과(문제)"}`,
+);
+
+// --- G-2 : §21 행동 목록 커버리지 — 사회 행동 10종 + 전 행동 비용/위험 -----------------
+const SOCIAL_ACTIONS = [
+  "action.negotiate",
+  "action.persuade",
+  "action.lie",
+  "action.threaten",
+  "action.hire",
+  "action.propose_alliance",
+  "action.contract",
+  "action.hide_evidence",
+  "action.craft",
+  "action.research",
+];
+const definedActionIds = new Set(runtime.definition.actionDefinitions.map((action) => action.id));
+const missingSocial = SOCIAL_ACTIONS.filter((id) => !definedActionIds.has(id));
+const withoutCostOrRisk = runtime.definition.actionDefinitions
+  .filter((action) => action.costs.length === 0 && action.risk <= 0)
+  .map((action) => action.id);
+check(
+  missingSocial.length === 0 && withoutCostOrRisk.length === 0,
+  "§21 사회 행동 10종 존재 · 전 행동에 비용 또는 위험 (§34)",
+  `행동 ${definedActionIds.size}종 · 사회 행동 누락 ${missingSocial.length} ${missingSocial.join(",")} · 비용/위험 없는 행동 ${withoutCostOrRisk.length}`,
+);
+
+// --- G-2 : §21 visibleSignals 자동 발신 — 실행된 행동의 선언 신호는 침묵하지 않는다 -----
+const executedActionIds = new Set<string>();
+for (const change of log) {
+  for (const tag of change.tags) if (tag.startsWith("action.")) executedActionIds.add(tag);
+}
+const declaredBySignal = new Map<string, string[]>();
+for (const action of runtime.definition.actionDefinitions) {
+  for (const signal of action.visibleSignals) {
+    const owners = declaredBySignal.get(signal.signalId) ?? [];
+    owners.push(action.id);
+    declaredBySignal.set(signal.signalId, owners);
+  }
+}
+const silentDeclared = [...declaredBySignal]
+  .filter(([signalId, owners]) => owners.some((id) => executedActionIds.has(id)) && !runtime.emittedSignalKinds.has(signalId))
+  .map(([signalId]) => signalId);
+const neverExecuted = [...declaredBySignal]
+  .filter(([, owners]) => owners.every((id) => !executedActionIds.has(id)))
+  .map(([signalId]) => signalId);
+check(
+  silentDeclared.length === 0,
+  "실행된 행동의 선언 신호가 전부 발신됨 (선언=발신, §21·§23)",
+  `선언 신호 ${declaredBySignal.size}종 · 발신 ${runtime.emittedSignalKinds.size}종 · 침묵 위반 ${silentDeclared.length} ${silentDeclared.join(",")} · 미실행 행동의 신호 ${neverExecuted.length}종 [${neverExecuted.join(",")}]`,
 );
 
 // =====================================================================================
@@ -425,6 +480,23 @@ check(
   dominant !== undefined && dominant[1] / totalActions < 0.7 && collapsedFactions.length === 0,
   "행동 편중 70% 미만 · 즉시 붕괴한 조직 없음 (§35)",
   `행동 ${totalActions}회 · 종류 ${actionMix.size} · 최다 ${dominant?.[0]} ${((dominant?.[1] ?? 0) / totalActions * 100).toFixed(0)}% · 붕괴 조직 ${collapsedFactions.length}`,
+);
+
+// --- G-2 : §19 엣지 6관계 전부가 런타임에 소비된다 ------------------------------------
+// requires/conflicts/creates/reveals 는 Phase 3 부터 소비됐고, supports/alternative 와
+// completionEffects 가 G-2 에서 살아났다 — 유무 비교의 활성도 차가 그 증거다.
+const edgeSemantics = measureGoalEdgeSemantics(worldSeed);
+check(
+  edgeSemantics.supportsBoost > 0 &&
+    edgeSemantics.supportedUnchanged &&
+    edgeSemantics.alternativeSuppressed > 0 &&
+    edgeSemantics.alternativeUntouched &&
+    edgeSemantics.completionApplied === 7 &&
+    edgeSemantics.completionOnce,
+  "§19 supports·alternative 엣지 + completionEffects 가 소비된다",
+  `supports 견인 +${edgeSemantics.supportsBoost.toFixed(1)} (도움받는 쪽 불변 ${edgeSemantics.supportedUnchanged ? "✓" : "✗"}) · ` +
+    `alternative 억제 -${edgeSemantics.alternativeSuppressed.toFixed(1)} (강한 쪽 불변 ${edgeSemantics.alternativeUntouched ? "✓" : "✗"}) · ` +
+    `완료 효과 +${edgeSemantics.completionApplied} (1회만 ${edgeSemantics.completionOnce ? "✓" : "✗"})`,
 );
 
 // =====================================================================================
@@ -688,6 +760,27 @@ check(
       ? ""
       : `\n      최종: 주체 ${generatedSim.activeAgents}명 전원 행동 · 사건 ${generatedSim.totalEvents}건(${generatedSim.metrics.uniqueEventTypes}종) · ` +
         `다양성 ${generatedSim.diversityScore.toFixed(2)} 깊이 ${generatedSim.depthScore.toFixed(2)} — 기준선 대비 ${generatedBaseline.map((r) => `${r.ok ? "✓" : "✗"}${r.item}`).join(" ")}`),
+);
+
+// --- G-3 : §41 초기 상태 6항이 실행 데이터로 배치됐다 -------------------------------------
+const placements = checkInitialPlacements(repaired.definition);
+check(
+  placements.every((entry) => entry.ok),
+  `§41 초기 상태 6항이 실행 데이터로 배치 (${placements.filter((entry) => entry.ok).length}/6 — 은닉 동기 2건은 hiddenGoalIds 연결)`,
+  placements.map((entry) => `\n      ${entry.ok ? "✓" : "✗"} ${entry.item}: ${entry.evidence}`).join(""),
+);
+
+// --- G-3 : 은닉 목적이 관찰자 시점 금지 사실이 된다 (§17, §30, §33.3) ---------------------
+const outsiderRequest = buildObservationNarration(runtime, "agent.kael", "faction.research_society");
+const outsiderForbidden = outsiderRequest.unknownFacts.filter(
+  (fact) => fact.sentence.includes("실제 목적") || fact.sentence.includes("몰래 좇는 목적"),
+);
+const insiderRequest = buildObservationNarration(runtime, "agent.mar", "faction.silent_village");
+const insiderForbidden = insiderRequest.unknownFacts.filter((fact) => fact.sentence.includes("실제 목적"));
+check(
+  outsiderForbidden.length >= 2 && insiderForbidden.length === 0,
+  "조직 은닉 목적이 외부 관찰자에게 금지 사실이 된다 · 내부자는 제외 (누출 시 §33.3 검사가 문장을 폐기)",
+  `외부(사냥꾼→연구회) 금지 ${outsiderForbidden.length}건 — "${outsiderForbidden[0]?.sentence ?? ""}" · 내부(지도자→마을) 금지 ${insiderForbidden.length}건`,
 );
 
 // --- DoD 4 : 시뮬레이션 판정이 결정론적이다 ----------------------------------------------

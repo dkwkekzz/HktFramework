@@ -2626,5 +2626,445 @@
     ]
    }
   ]
+ },
+ {
+  "taskId": "goals/goal_graph.veil_wardens",
+  "answers": [
+   "sim.all-agents-act"
+  ],
+  "note": "수호단의 생태 목적이 평시 경보(26)에서 이미 달성 상태라 조직이 30일 내내 한가했다 — 달성 조건을 '경보가 완전히 잦아든 상태(<15)'로 낮춰, 숲을 지키는 조직은 평시에도 감시를 위임하게 했다 (healer 수정과 같은 병리)",
+  "response": {
+   "id": "goal_graph.veil_wardens",
+   "nodes": [
+    {
+     "id": "goal.faction_ecology",
+     "description": "숲의 훼손을 멈춘다",
+     "targetConditions": [
+      {
+       "left": {
+        "kind": "state",
+        "owner": "actor",
+        "key": "ecology_alarm"
+       },
+       "operator": "<",
+       "right": {
+        "kind": "const",
+        "value": 15
+       }
+      }
+     ],
+     "baseImportance": 55,
+     "urgencyPolicy": {
+      "type": "state_threshold",
+      "source": "self",
+      "stateKey": "ecology_alarm",
+      "comparison": ">",
+      "threshold": 15,
+      "weight": 1.2,
+      "max": 60
+     },
+     "desiredChanges": [
+      {
+       "stateKey": "ecology_alarm",
+       "direction": "decrease",
+       "weight": 1
+      }
+     ],
+     "abandonmentConditions": [],
+     "allowedActionTags": [
+      "delegate"
+     ],
+     "focusIds": [
+      "faction.crown_bureau",
+      "faction.research_society"
+     ]
+    },
+    {
+     "id": "goal.faction_authority",
+     "description": "사당의 권위를 지킨다",
+     "targetConditions": [
+      {
+       "left": {
+        "kind": "state",
+        "owner": "actor",
+        "key": "member_count"
+       },
+       "operator": ">",
+       "right": {
+        "kind": "const",
+        "value": 8
+       }
+      }
+     ],
+     "baseImportance": 35,
+     "urgencyPolicy": {
+      "type": "state_threshold",
+      "source": "self",
+      "stateKey": "member_count",
+      "comparison": "<",
+      "threshold": 8,
+      "weight": 0.8,
+      "max": 40
+     },
+     "desiredChanges": [
+      {
+       "stateKey": "member_count",
+       "direction": "increase",
+       "weight": 1
+      }
+     ],
+     "abandonmentConditions": [],
+     "allowedActionTags": [
+      "delegate"
+     ]
+    }
+   ],
+   "edges": [
+    {
+     "from": "goal.faction_ecology",
+     "to": "goal.faction_authority",
+     "relation": "supports",
+     "weight": 0.5
+    }
+   ]
+  }
+ },
+ {
+  "taskId": "factions/faction.silent_village",
+  "answers": [
+   "faction.hidden"
+  ],
+  "note": "은닉 목적이 선언 문자열뿐이었다(G-3) — 조직이 실제로 좇는 목적 그래프 노드에 연결했다. 은닉 목적은 관찰자 시점 표현에서 금지 사실이 된다(§30·§33.3)",
+  "response": {
+   "id": "faction.silent_village",
+   "name": "침묵림 변두리 마을",
+   "publicPurpose": "마을 사람들을 굶기지 않는다",
+   "hiddenPurposes": [
+    "지도자가 불법 자원 채굴을 숨긴다"
+   ],
+   "requiredStates": [
+    {
+     "stateKey": "food_reserve",
+     "comparison": ">",
+     "value": 40
+    }
+   ],
+   "controlledResources": [
+    "resource.food",
+    "resource.trade_goods"
+   ],
+   "relationshipDefaults": {
+    "faction.research_society": 20,
+    "faction.crown_bureau": -10,
+    "faction.veil_wardens": 5,
+    "species.echo_beast": -40
+   },
+   "collapseConditions": [
+    {
+     "left": {
+      "kind": "entity_state",
+      "entityId": "faction.silent_village",
+      "key": "starving_days"
+     },
+     "operator": ">=",
+     "right": {
+      "kind": "const",
+      "value": 5
+     }
+    }
+   ],
+   "internalGroups": [
+    {
+     "id": "faction.village_elders",
+     "name": "마을 원로회",
+     "stance": "benefits"
+    },
+    {
+     "id": "faction.forest_gatherers",
+     "name": "숲 채집조",
+     "stance": "harmed"
+    }
+   ],
+   "derivedFromResource": "resource.food",
+   "institution": "비축 배급 — 원로회가 배분을 정하고 채집조가 위험을 진다.",
+   "externalRivals": [
+    "faction.crown_bureau",
+    "faction.hollow_smugglers"
+   ],
+   "hiddenGoalIds": [
+    "goal.faction_authority"
+   ]
+  }
+ },
+ {
+  "taskId": "factions/faction.research_society",
+  "answers": [
+   "faction.hidden"
+  ],
+  "note": "은닉 목적이 선언 문자열뿐이었다(G-3) — 조직이 실제로 좇는 목적 그래프 노드에 연결했다. 은닉 목적은 관찰자 시점 표현에서 금지 사실이 된다(§30·§33.3)",
+  "response": {
+   "id": "faction.research_society",
+   "name": "잔재 연구회",
+   "publicPurpose": "능력 잔재를 흡수하는 생물을 이해한다",
+   "hiddenPurposes": [
+    "희귀 잔재 표본을 독점한다"
+   ],
+   "requiredStates": [
+    {
+     "stateKey": "research_progress",
+     "comparison": ">",
+     "value": 0
+    }
+   ],
+   "controlledResources": [
+    "resource.ability_residue"
+   ],
+   "relationshipDefaults": {
+    "faction.silent_village": 20,
+    "faction.veil_wardens": -15,
+    "faction.crown_bureau": 10,
+    "species.echo_beast": 10
+   },
+   "collapseConditions": [
+    {
+     "left": {
+      "kind": "entity_state",
+      "entityId": "faction.research_society",
+      "key": "member_count"
+     },
+     "operator": "<=",
+     "right": {
+      "kind": "const",
+      "value": 0
+     }
+    }
+   ],
+   "derivedFromResource": "resource.ability_residue",
+   "institution": "표본 등록 — 기록을 낸 자에게만 다음 조사를 허락한다.",
+   "externalRivals": [
+    "faction.veil_wardens",
+    "faction.hollow_smugglers"
+   ],
+   "internalGroups": [
+    {
+     "id": "faction.field_researchers",
+     "name": "현장 조사조",
+     "stance": "harmed"
+    },
+    {
+     "id": "faction.record_keepers",
+     "name": "기록 관리자",
+     "stance": "benefits"
+    }
+   ],
+   "hiddenGoalIds": [
+    "goal.faction_supply"
+   ]
+  }
+ },
+ {
+  "taskId": "factions/faction.crown_bureau",
+  "answers": [
+   "faction.hidden"
+  ],
+  "note": "은닉 목적이 선언 문자열뿐이었다(G-3) — 조직이 실제로 좇는 목적 그래프 노드에 연결했다. 은닉 목적은 관찰자 시점 표현에서 금지 사실이 된다(§30·§33.3)",
+  "response": {
+   "id": "faction.crown_bureau",
+   "name": "왕립 결정 관리국",
+   "publicPurpose": "의지 결정을 안전하게 관리해 사고를 막는다",
+   "hiddenPurposes": [
+    "결정 유통을 독점해 왕실의 수입을 지킨다",
+    "능력자 명부를 몰래 작성한다"
+   ],
+   "requiredStates": [
+    {
+     "stateKey": "crystal_reserve",
+     "comparison": ">",
+     "value": 40
+    }
+   ],
+   "controlledResources": [
+    "resource.will_crystal",
+    "resource.ore"
+   ],
+   "relationshipDefaults": {
+    "faction.hollow_smugglers": -70,
+    "faction.silent_village": -10,
+    "faction.research_society": 10,
+    "faction.veil_wardens": -20
+   },
+   "collapseConditions": [
+    {
+     "left": {
+      "kind": "entity_state",
+      "entityId": "faction.crown_bureau",
+      "key": "crystal_reserve"
+     },
+     "operator": "<=",
+     "right": {
+      "kind": "const",
+      "value": 0
+     }
+    }
+   ],
+   "internalGroups": [
+    {
+     "id": "faction.bureau_inspectors",
+     "name": "감독관단",
+     "stance": "benefits"
+    },
+    {
+     "id": "faction.outpost_guards",
+     "name": "초소 경비대",
+     "stance": "harmed"
+    }
+   ],
+   "derivedFromResource": "resource.will_crystal",
+   "institution": "채굴 허가와 신고 납입 — 신고한 결정만 값을 쳐준다.",
+   "externalRivals": [
+    "faction.hollow_smugglers",
+    "faction.veil_wardens"
+   ],
+   "hiddenGoalIds": [
+    "goal.faction_control",
+    "goal.faction_authority"
+   ]
+  }
+ },
+ {
+  "taskId": "factions/faction.hollow_smugglers",
+  "answers": [
+   "faction.hidden"
+  ],
+  "note": "은닉 목적이 선언 문자열뿐이었다(G-3) — 조직이 실제로 좇는 목적 그래프 노드에 연결했다. 은닉 목적은 관찰자 시점 표현에서 금지 사실이 된다(§30·§33.3)",
+  "response": {
+   "id": "faction.hollow_smugglers",
+   "name": "공동 밀수단",
+   "publicPurpose": "분지의 물건을 필요한 사람에게 옮긴다",
+   "hiddenPurposes": [
+    "관리국 감독관을 매수해 경로를 산다",
+    "반향 장기를 몰래 판다"
+   ],
+   "requiredStates": [
+    {
+     "stateKey": "contraband_flow",
+     "comparison": ">",
+     "value": 10
+    }
+   ],
+   "controlledResources": [
+    "resource.beast_organ",
+    "resource.residue_ash"
+   ],
+   "relationshipDefaults": {
+    "faction.crown_bureau": -70,
+    "faction.silent_village": 5,
+    "faction.veil_wardens": -30,
+    "faction.research_society": -10
+   },
+   "collapseConditions": [
+    {
+     "left": {
+      "kind": "entity_state",
+      "entityId": "faction.hollow_smugglers",
+      "key": "contraband_flow"
+     },
+     "operator": "<=",
+     "right": {
+      "kind": "const",
+      "value": 0
+     }
+    }
+   ],
+   "internalGroups": [
+    {
+     "id": "faction.route_runners",
+     "name": "경로 운반조",
+     "stance": "harmed"
+    },
+    {
+     "id": "faction.hollow_brokers",
+     "name": "중개인",
+     "stance": "benefits"
+    }
+   ],
+   "derivedFromResource": "resource.will_crystal",
+   "institution": "경로 분배 — 위험한 구간을 맡은 자가 몫을 적게 받는다.",
+   "externalRivals": [
+    "faction.crown_bureau"
+   ],
+   "hiddenGoalIds": [
+    "goal.faction_contraband"
+   ]
+  }
+ },
+ {
+  "taskId": "factions/faction.veil_wardens",
+  "answers": [
+   "faction.hidden"
+  ],
+  "note": "은닉 목적이 선언 문자열뿐이었다(G-3) — 조직이 실제로 좇는 목적 그래프 노드에 연결했다. 은닉 목적은 관찰자 시점 표현에서 금지 사실이 된다(§30·§33.3)",
+  "response": {
+   "id": "faction.veil_wardens",
+   "name": "장막 수호단",
+   "publicPurpose": "숲이 스스로 회복할 수 있게 지킨다",
+   "hiddenPurposes": [
+    "봉인부를 독점해 사당의 권위를 유지한다",
+    "잔재를 사람에게 넘기지 않는다"
+   ],
+   "requiredStates": [
+    {
+     "stateKey": "ecology_alarm",
+     "comparison": "<",
+     "value": 70
+    }
+   ],
+   "controlledResources": [
+    "resource.charm",
+    "resource.veil_moss_fiber"
+   ],
+   "relationshipDefaults": {
+    "faction.crown_bureau": -20,
+    "faction.hollow_smugglers": -30,
+    "faction.research_society": -15,
+    "faction.silent_village": 5,
+    "species.echo_beast": 35
+   },
+   "collapseConditions": [
+    {
+     "left": {
+      "kind": "entity_state",
+      "entityId": "faction.veil_wardens",
+      "key": "ecology_alarm"
+     },
+     "operator": ">=",
+     "right": {
+      "kind": "const",
+      "value": 95
+     }
+    }
+   ],
+   "internalGroups": [
+    {
+     "id": "faction.shrine_keepers",
+     "name": "사당 지기",
+     "stance": "benefits"
+    },
+    {
+     "id": "faction.forest_walkers",
+     "name": "숲 순찰조",
+     "stance": "harmed"
+    }
+   ],
+   "derivedFromResource": "resource.ability_residue",
+   "institution": "봉인 의식 — 잔재가 고인 자리를 사람의 손에서 떼어 놓는다.",
+   "externalRivals": [
+    "faction.research_society",
+    "faction.crown_bureau"
+   ],
+   "hiddenGoalIds": [
+    "goal.faction_authority"
+   ]
+  }
  }
 ]

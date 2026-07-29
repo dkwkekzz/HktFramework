@@ -279,6 +279,11 @@ export function processObservationSignals(runtime: WorldRuntime): ObservationOut
               const tellerId = signal.payload["tellerId"] as string;
               confidence *= tellerTrustFactor(runtime, observerId, tellerId);
             }
+            // §23 기존 기억과 비교 — 같은 결론의 증거는 확신을 유지한다.
+            // 약한 전문(hearsay)이 이미 굳은 확신을 깎아 내리지 못하게 하는 장치다 (다른 결론은 그대로 갱신 경쟁).
+            if (prior !== undefined && prior.believedValue === candidate.value) {
+              confidence = Math.max(prior.confidence, confidence);
+            }
 
             const record: BeliefRecord = {
               subjectId: candidate.subjectId,

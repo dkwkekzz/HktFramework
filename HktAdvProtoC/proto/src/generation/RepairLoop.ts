@@ -25,6 +25,7 @@ export const ISSUE_TO_STEPS: Record<string, number[]> = {
   "resource.source": [6],
   "species.need": [7],
   "faction.lifecycle": [8],
+  "faction.hidden": [8],
   "agent.goal": [10],
   "action.cost": [11],
   "ability.cost-scaling": [9],

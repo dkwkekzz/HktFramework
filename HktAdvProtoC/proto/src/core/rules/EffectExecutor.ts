@@ -6,6 +6,7 @@ import { createAgentRuntimeState } from "../../shared/beliefs";
 import type { EntityState } from "../../shared/state";
 import { requestGrowth } from "../agents/GrowthSystem";
 import {
+  addPromise,
   applyRelationshipChange,
   ensureRelationship,
   isRelationshipKey,
@@ -163,6 +164,27 @@ function modifyRelationship(
   hooks.onRelationshipChanged(ctx, effect.key, from.id, to.id);
 }
 
+/** §25 make_promise — 계약·동맹(§21)이 관계 원장에 약속을 남긴다. 판정·파기는 resolveDuePromises 의 몫 */
+function makePromise(
+  ctx: RuleContext,
+  effect: Extract<RuleEffect, { type: "make_promise" }>,
+): void {
+  const from = resolveSingleTarget(ctx, effect.from);
+  const to = resolveSingleTarget(ctx, effect.to);
+  if (from === undefined || to === undefined || from.id === to.id) return;
+  const now = ctx.runtime.state.simulationTime;
+  addPromise(ctx.runtime, from.id, to.id, {
+    id: `promise.${ctx.rule.id}.${from.id}.${now}`,
+    stateKey: effect.stateKey,
+    comparison: effect.comparison,
+    threshold: effect.threshold,
+    createdAt: now,
+    dueAt: now + effect.dueInTicks,
+    status: "open",
+    tags: effect.tags ?? [ctx.rule.id],
+  });
+}
+
 function scheduleRule(
   ctx: RuleContext,
   effect: Extract<RuleEffect, { type: "schedule_rule" }>,
@@ -253,6 +275,9 @@ export function executeEffect(
           return;
         case "modify_relationship":
           modifyRelationship(scoped, effect, hooks);
+          return;
+        case "make_promise":
+          makePromise(scoped, effect);
           return;
       }
     }
