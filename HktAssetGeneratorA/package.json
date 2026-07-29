@@ -1,0 +1,22 @@
+{
+  "name": "hkt-asset-generator-a",
+  "private": true,
+  "type": "module",
+  "engines": {
+    "node": ">=22 <23"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "check": "vitest run",
+    "golden": "node tools/gen-golden.mjs"
+  },
+  "dependencies": {
+    "three": "^0.166.1"
+  },
+  "devDependencies": {
+    "playwright-core": "^1.62.0",
+    "vite": "^5.4.0",
+    "vitest": "^2.1.0"
+  }
+}

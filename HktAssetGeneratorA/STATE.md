@@ -2,11 +2,13 @@
 
 ## 현재 상태
 
-- **단계**: 설계 완료, 구현 미착수.
-- **다음 작업**: Phase 1 / Step 1.1 — 코어 수학·결정성 기반 (`src/core/`)
-  → 사양: [Docs/03-phase1-blade.md](Docs/03-phase1-blade.md) §Step 1.1
-- 프로젝트 스캐폴드(package.json / index.html / vite / vitest) 도 Step 1.1 에서 함께 생성.
-  Node 버전은 생성 시점의 LTS 로 `engines` 에 고정할 것 (02-architecture §5-5).
+- **단계**: Phase 1 완료 (칼날 생성기 — Step 1.1~1.8 전부).
+- **다음 작업**: Phase 2 / Step 2.1 — 손잡이 Sweep (`src/mesh/grip.js`)
+  → 사양: [Docs/04-phase2-parts-assembly.md](Docs/04-phase2-parts-assembly.md) §Step 2.1
+- 게이트: `npm run check` = vitest 45개 (결정성·위상·UV 검증·golden 20종 해시).
+  golden 갱신은 `npm run golden` (프리셋 파라미터 테이블은 tools/gen-golden.mjs).
+- 실행: `npm run dev` → 뷰어(프리셋/슬라이더/UV 프리뷰/GLB·design.json 다운로드).
+  Node 22 LTS 로 `engines` 고정.
 
 ## 문서 이정표
 
@@ -20,7 +22,7 @@
 
 ## Phase 진행
 
-- [ ] Phase 1 — 칼날 생성기 (Step 1.1 ~ 1.8)
+- [x] Phase 1 — 칼날 생성기 (Step 1.1 ~ 1.8) — 2026-07-29
 - [ ] Phase 2 — 가드·손잡이·폼멜·조립·Atlas (Step 2.1 ~ 2.6)
 - [ ] Phase 3 — 머티리얼·CPU 베이크 (Step 3.1 ~ 3.7)
 - [ ] Phase 4 — 표면 상태 Operation (Step 4.1 ~ 4.5)
@@ -32,7 +34,15 @@
 - 2026-07-29: 트랙 생성. 원본 설계 검토 → D-1~D-12 확정
   ([Docs/01-review.md](Docs/01-review.md)). 치명 모순 2건(가드 UV overlap, tip degenerate)과
   아키텍처 모순 1건(Node WebGL 베이크)을 수정판 설계에 반영.
+- 2026-07-29: Phase 1 구현. 감김 방향은 부호 부피(>0) 검사로 경험 확정 — 원본 §7.2 의
+  (a,c,b) 감김은 본 프레임 규약(binormal = tangent×normal)에서 안쪽을 향해 반전함
+  (blade.js 주석·topology.signedVolume 테스트로 고정).
+- 2026-07-29: golden 프리셋은 별도 JSON 수기 작성 대신 tools/gen-golden.mjs 의 파라미터
+  테이블에서 생성해 test/golden/*.json 으로 출력(JSON 이 커밋 산출물인 점은 03 문서와 동일).
 
 ## 이슈 / 어긋남 기록
 
-(없음)
+- 03-phase1 §1.3 은 flat 프로파일을 "4 crease" 로 표기했으나 구현은 6 crease
+  (날 2 + 베벨 경계 4) — 시각적으로 더 정확해 채택. 문서 표기와 어긋남만 기록.
+- lenticular 계열의 V 방향 텍셀 밀도 편차가 taper 때문에 ~3.9 로 관찰됨(면적 가중 p90/p10).
+  02 §6 대로 밀도는 보고 전용이라 게이트는 통과 — Phase 2 Atlas 종횡비 보정(D-8)에서 재평가.
