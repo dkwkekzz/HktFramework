@@ -15,13 +15,7 @@ export function createThreeGeometry(mesh) {
   return geometry;
 }
 
-/** @returns {Promise<ArrayBuffer>} binary GLB */
-export function exportGLB(generatedMesh, name = "Blade") {
-  const scene = new THREE.Scene();
-  const material = new THREE.MeshStandardMaterial({ metalness: 0.9, roughness: 0.35 });
-  const mesh = new THREE.Mesh(createThreeGeometry(generatedMesh), material);
-  mesh.name = name;
-  scene.add(mesh);
+function parseBinary(scene) {
   const exporter = new GLTFExporter();
   return new Promise((resolve, reject) => {
     exporter.parse(
@@ -34,4 +28,33 @@ export function exportGLB(generatedMesh, name = "Blade") {
       { binary: true, onlyVisible: true },
     );
   });
+}
+
+/** @returns {Promise<ArrayBuffer>} binary GLB */
+export function exportGLB(generatedMesh, name = "Blade") {
+  const scene = new THREE.Scene();
+  const material = new THREE.MeshStandardMaterial({ metalness: 0.9, roughness: 0.35 });
+  const mesh = new THREE.Mesh(createThreeGeometry(generatedMesh), material);
+  mesh.name = name;
+  scene.add(mesh);
+  return parseBinary(scene);
+}
+
+/**
+ * 조립된 검 → GLB. SwordRoot 밑에 부품 4개, 공유 머티리얼 (원본 §11·§28).
+ * @param parts {name, mesh, transform}[]
+ */
+export function exportSwordGLB(parts) {
+  const scene = new THREE.Scene();
+  const root = new THREE.Group();
+  root.name = "SwordRoot";
+  scene.add(root);
+  const material = new THREE.MeshStandardMaterial({ metalness: 0.9, roughness: 0.35 });
+  for (const part of parts) {
+    const mesh = new THREE.Mesh(createThreeGeometry(part.mesh), material);
+    mesh.name = part.name;
+    mesh.position.set(part.transform[0], part.transform[1], part.transform[2]);
+    root.add(mesh);
+  }
+  return parseBinary(scene);
 }

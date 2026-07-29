@@ -6,6 +6,7 @@ import { writeFileSync, mkdirSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { buildBladeMesh, makeStraightBladeDesign } from "../src/mesh/blade.js";
+import { makeSwordDesign, buildSword, hashSword } from "../src/mesh/sword.js";
 import { hashMesh } from "../src/core/hash.js";
 import { analyzeManifold, countDegenerate3DTriangles, signedVolume } from "../src/mesh/topology.js";
 import { validateUVs, assertValidUV } from "../src/uv/validate.js";
@@ -88,4 +89,99 @@ if (failed) {
 
 writeFileSync(join(GOLDEN_DIR, "blade-presets.json"), JSON.stringify(presetsOut, null, 2));
 writeFileSync(join(GOLDEN_DIR, "blade-hashes.json"), JSON.stringify(hashesOut, null, 2));
-console.log(`\n${PRESETS.length}종 프리셋 → test/golden/ 갱신 완료`);
+console.log(`\n${PRESETS.length}종 칼날 프리셋 → test/golden/ 갱신 완료`);
+
+// ── 검 전체 프리셋 5종 (04-phase2 §2.6 — 원본 §31.6 유형 커버) ──────────────
+const bladeParamsOf = (name) => PRESETS.find((p) => p.name === name).params;
+
+const SWORD_PRESETS = [
+  {
+    name: "knight-arming",
+    params: {
+      blade: bladeParamsOf("arming-diamond"),
+      guard: { shape: "bar", width: 0.18, thickness: 0.025, depth: 0.02, bevel: 0.004 },
+      grip: { length: 0.13, startRadius: 0.014, endRadius: 0.012 },
+      pommel: { shape: "sphere", scale: 1.5 },
+    },
+  },
+  {
+    name: "duelist-rapier",
+    params: {
+      blade: bladeParamsOf("rapier-diamond"),
+      guard: { shape: "oval", width: 0.12, thickness: 0.05, depth: 0.014, bevel: 0.002 },
+      grip: { length: 0.11, startRadius: 0.012, endRadius: 0.011 },
+      pommel: { shape: "teardrop", scale: 1.3 },
+    },
+  },
+  {
+    name: "war-greatsword",
+    params: {
+      blade: bladeParamsOf("greatsword-hex-fuller"),
+      guard: { shape: "tapered", width: 0.26, thickness: 0.035, depth: 0.028, bevel: 0.005 },
+      grip: { length: 0.3, startRadius: 0.016, endRadius: 0.014 },
+      pommel: { shape: "scent-stopper", scale: 2.0 },
+    },
+  },
+  {
+    name: "soldier-backsword",
+    params: {
+      blade: bladeParamsOf("backsword-flat"),
+      guard: { shape: "diamond", width: 0.15, thickness: 0.03, depth: 0.016, bevel: 0 },
+      grip: { length: 0.12, startRadius: 0.013, endRadius: 0.012 },
+      pommel: { shape: "disc", scale: 1.4 },
+    },
+  },
+  {
+    name: "fantasy-broad",
+    params: {
+      blade: bladeParamsOf("fantasy-broad-fuller"),
+      guard: { shape: "tapered", width: 0.24, thickness: 0.04, depth: 0.03, bevel: 0.006 },
+      grip: { length: 0.2, startRadius: 0.016, endRadius: 0.013 },
+      pommel: { shape: "disc", scale: 1.8 },
+    },
+  },
+];
+
+// 부품별 기대 개방 경계 엣지 수 (02-architecture §6 — 개방 경계는 기대치와 일치해야 함)
+const expectedBoundary = (partName, params) => {
+  if (partName === "Grip") return 2 * (params.grip.segRadial ?? 16);
+  if (partName === "Pommel") return params.pommel.radialSegments ?? 16;
+  return 0; // Blade(캡+폴 닫힘), Guard(닫힌 솔리드)
+};
+
+const swordPresetsOut = [];
+const swordHashesOut = {};
+
+for (const preset of SWORD_PRESETS) {
+  const design = makeSwordDesign(preset.params);
+  const sword = buildSword(design, TEXTURE_SIZE);
+  const problems = [];
+  for (const part of sword.parts) {
+    const man = analyzeManifold(part.mesh);
+    if (man.nonManifoldEdges > 0) problems.push(`${part.name} nonManifold=${man.nonManifoldEdges}`);
+    const expected = expectedBoundary(part.name, preset.params);
+    if (man.boundaryEdges !== expected) problems.push(`${part.name} boundary=${man.boundaryEdges}≠${expected}`);
+    if (countDegenerate3DTriangles(part.mesh) > 0) problems.push(`${part.name} deg3D`);
+  }
+  const uv = validateUVs(sword.merged, TEXTURE_SIZE);
+  try { assertValidUV(uv); } catch (e) { problems.push(e.message); }
+  if (sword.triangleCount > 15000) problems.push(`triangles=${sword.triangleCount}`);
+  const hash = hashSword(sword);
+  if (problems.length) {
+    failed = true;
+    console.error(`FAIL ${preset.name}: ${problems.join(", ")}`);
+  } else {
+    console.log(`ok   ${preset.name}  tris=${sword.triangleCount}  hash=${hash}`);
+  }
+  swordPresetsOut.push({ name: preset.name, params: preset.params, design });
+  swordHashesOut[preset.name] = { hash, triangles: sword.triangleCount };
+}
+
+if (failed) {
+  console.error("sword golden 생성 실패 — 위 문제를 해결할 것");
+  process.exit(1);
+}
+
+writeFileSync(join(GOLDEN_DIR, "sword-presets.json"), JSON.stringify(swordPresetsOut, null, 2));
+writeFileSync(join(GOLDEN_DIR, "sword-hashes.json"), JSON.stringify(swordHashesOut, null, 2));
+console.log(`${SWORD_PRESETS.length}종 검 프리셋 → test/golden/ 갱신 완료`);

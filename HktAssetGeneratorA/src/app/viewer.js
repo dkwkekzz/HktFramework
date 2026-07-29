@@ -1,4 +1,5 @@
-// three.js 미리보기 — 회색 스튜디오 3점 조명. GPU 는 미리보기 전용 (원칙 6).
+// three.js 미리보기 — 회색 스튜디오 + 환경맵. GPU 는 미리보기 전용 (원칙 6).
+// Phase 2: 조립된 검(부품 4종 + Transform) 표시, 부품 토글, 소켓 gizmo.
 
 import * as THREE from "three";
 import { OrbitControls } from "three/addons/controls/OrbitControls.js";
@@ -13,17 +14,14 @@ export function createViewer(container) {
 
   const scene = new THREE.Scene();
   scene.background = new THREE.Color(0x2a2c31);
-  // 금속 미리보기용 중립 환경맵 — 미리보기 전용 GPU 경로 (원칙 6 위반 아님)
   const pmrem = new THREE.PMREMGenerator(renderer);
   scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 
   const camera = new THREE.PerspectiveCamera(45, 1, 0.01, 50);
-  camera.position.set(0.35, 0.6, 0.95);
+  camera.position.set(0.35, 0.3, 0.95);
 
   const controls = new OrbitControls(camera, renderer.domElement);
-  controls.target.set(0, 0.45, 0);
 
-  // 키/필/림 3점 조명 (03-phase1 §1.7)
   const key = new THREE.DirectionalLight(0xffffff, 2.2);
   key.position.set(2, 3, 2);
   const fill = new THREE.DirectionalLight(0xbfd4ff, 0.7);
@@ -38,10 +36,17 @@ export function createViewer(container) {
   });
   const wireMaterial = new THREE.MeshBasicMaterial({ wireframe: true, color: 0x33ff88 });
 
-  let bladeObject = null;
-  let wireObject = null;
-  let normalsHelper = null;
-  const options = { wireframe: false, normals: false };
+  const root = new THREE.Group();
+  root.name = "SwordRoot";
+  scene.add(root);
+
+  const options = {
+    wireframe: false, normals: false, sockets: false,
+    showBlade: true, showGuard: true, showGrip: true, showPommel: true,
+  };
+  const visibilityKey = { Blade: "showBlade", Guard: "showGuard", Grip: "showGrip", Pommel: "showPommel" };
+  let helpers = [];
+  let currentParts = [];
 
   function resize() {
     const w = container.clientWidth;
@@ -54,16 +59,31 @@ export function createViewer(container) {
   resize();
 
   function rebuildHelpers() {
-    if (wireObject) { scene.remove(wireObject); wireObject = null; }
-    if (normalsHelper) { scene.remove(normalsHelper); normalsHelper.dispose?.(); normalsHelper = null; }
-    if (!bladeObject) return;
-    if (options.wireframe) {
-      wireObject = new THREE.Mesh(bladeObject.geometry, wireMaterial);
-      scene.add(wireObject);
+    for (const h of helpers) { scene.remove(h); h.dispose?.(); }
+    helpers = [];
+    for (const obj of root.children) {
+      const partVisible = options[visibilityKey[obj.name]] ?? true;
+      obj.visible = partVisible;
+      if (!partVisible) continue;
+      if (options.wireframe) {
+        const wire = new THREE.Mesh(obj.geometry, wireMaterial);
+        wire.position.copy(obj.position);
+        scene.add(wire);
+        helpers.push(wire);
+      }
+      if (options.normals) {
+        const nh = new VertexNormalsHelper(obj, 0.008, 0xff5566);
+        scene.add(nh);
+        helpers.push(nh);
+      }
     }
-    if (options.normals) {
-      normalsHelper = new VertexNormalsHelper(bladeObject, 0.01, 0xff5566);
-      scene.add(normalsHelper);
+    if (options.sockets) {
+      for (const part of currentParts) {
+        const axes = new THREE.AxesHelper(0.03);
+        axes.position.set(part.transform[0], part.transform[1], part.transform[2]);
+        scene.add(axes);
+        helpers.push(axes);
+      }
     }
   }
 
@@ -75,21 +95,31 @@ export function createViewer(container) {
   animate();
 
   return {
-    setMesh(generatedMesh) {
-      if (bladeObject) {
-        scene.remove(bladeObject);
-        bladeObject.geometry.dispose();
+    /** @param parts {name, mesh, transform}[] — assembleSword 결과 */
+    setParts(parts) {
+      currentParts = parts;
+      for (const obj of [...root.children]) {
+        root.remove(obj);
+        obj.geometry.dispose();
       }
-      bladeObject = new THREE.Mesh(createThreeGeometry(generatedMesh), material);
-      bladeObject.name = "Blade";
-      scene.add(bladeObject);
-      // 바운드 기준 자동 프레이밍
-      const { min, max } = generatedMesh.bounds;
+      const bounds = { min: [Infinity, Infinity, Infinity], max: [-Infinity, -Infinity, -Infinity] };
+      for (const part of parts) {
+        const obj = new THREE.Mesh(createThreeGeometry(part.mesh), material);
+        obj.name = part.name;
+        obj.position.set(part.transform[0], part.transform[1], part.transform[2]);
+        root.add(obj);
+        for (let k = 0; k < 3; k++) {
+          bounds.min[k] = Math.min(bounds.min[k], part.mesh.bounds.min[k] + part.transform[k]);
+          bounds.max[k] = Math.max(bounds.max[k], part.mesh.bounds.max[k] + part.transform[k]);
+        }
+      }
       const center = new THREE.Vector3(
-        (min[0] + max[0]) / 2, (min[1] + max[1]) / 2, (min[2] + max[2]) / 2);
-      const radius = 0.5 * Math.hypot(max[0] - min[0], max[1] - min[1], max[2] - min[2]);
+        (bounds.min[0] + bounds.max[0]) / 2,
+        (bounds.min[1] + bounds.max[1]) / 2,
+        (bounds.min[2] + bounds.max[2]) / 2);
+      const radius = 0.5 * Math.hypot(
+        bounds.max[0] - bounds.min[0], bounds.max[1] - bounds.min[1], bounds.max[2] - bounds.min[2]);
       controls.target.copy(center);
-      // FOV 에 맞춰 전체가 들어오는 거리 (+15% 여유)
       const dist = (radius * 1.15) / Math.tan((camera.fov * Math.PI) / 360);
       const dir = new THREE.Vector3(0.5, 0.2, 1).normalize();
       camera.position.copy(center).addScaledVector(dir, Math.max(dist, 0.2));
