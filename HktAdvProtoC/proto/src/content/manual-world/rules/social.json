@@ -202,7 +202,8 @@
         "key": "trust",
         "operation": "add",
         "value": -20,
-        "chance": 0.15
+        "chance": 0.15,
+        "chanceUse": "partial_outcome"
       },
       {
         "type": "modify_relationship",
@@ -215,7 +216,8 @@
         "key": "resentment",
         "operation": "add",
         "value": 12,
-        "chance": 0.15
+        "chance": 0.15,
+        "chanceUse": "partial_outcome"
       }
     ],
     "observations": [],

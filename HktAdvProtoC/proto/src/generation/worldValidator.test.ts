@@ -10,11 +10,11 @@ import { RecordedTextGenerationPort } from "./RecordedTextGenerationPort";
 import { findGoalCycles, SEMANTIC_CODES, validateWorld } from "./WorldValidator";
 
 describe("§34 정적 검증", () => {
-  it("§34 필수 규칙 10개 + faction.hidden(G-3) 을 각각 독립 검사기로 갖는다", () => {
-    expect(SEMANTIC_CODES).toHaveLength(11);
+  it("§34 필수 규칙 10개 + faction.hidden(G-3) + rule.chance(G-1) 을 각각 독립 검사기로 갖는다", () => {
+    expect(SEMANTIC_CODES).toHaveLength(12);
     const report = validateManualWorld();
     expect(report.checks.map((check) => check.code)).toEqual([...SEMANTIC_CODES]);
-    // 픽스처도 11개 — 검사기 하나에 위반 세계 하나
+    // 픽스처도 12개 — 검사기 하나에 위반 세계 하나
     expect(VIOLATION_FIXTURES.map((fixture) => fixture.code).sort()).toEqual([...SEMANTIC_CODES].sort());
   });
 
@@ -30,9 +30,9 @@ describe("§34 정적 검증", () => {
     }
   });
 
-  it("위반 픽스처 11종을 각각 해당 코드의 error 로 검출한다", () => {
+  it("위반 픽스처 12종을 각각 해당 코드의 error 로 검출한다", () => {
     const results = runViolationFixtures();
-    expect(results).toHaveLength(11);
+    expect(results).toHaveLength(12);
     for (const result of results) {
       expect(result.detected, `${result.code}: ${result.message}`).toBe(true);
     }
@@ -69,12 +69,15 @@ describe("§34 정적 검증", () => {
     // Phase 5 의 14단계 검증(참조 무결성·로드 가능성)은 통과한 세계다
     expect(compiled.issues).toEqual([]);
 
-    // 그 세계에 Phase 6 의 의미 검증을 걸면 두 가지가 남는다:
-    //  ① 파생 상태에 값을 쓰는 규칙 ② 초기 상태에서 이미 모든 목적을 이룬 인물
+    // 그 세계에 Phase 6 의 의미 검증을 걸면 세 가지가 남는다:
+    //  ① 파생 상태에 값을 쓰는 규칙 ② 초기 상태에서 이미 모든 목적을 이룬 인물 ③ 용도 없는 확률(§12)
     const report = validateWorld(compiled.definition);
     const codes = report.issues.filter((issue) => issue.level === "error").map((issue) => issue.code);
     expect(codes).toContain("state.schema");
     expect(codes).toContain("agent.goal");
+    expect(
+      report.issues.filter((issue) => issue.message.includes("chanceUse") && issue.suggestedFix !== undefined),
+    ).not.toHaveLength(0);
     expect(report.issues.some((issue) => issue.message.includes("rule.healing_care"))).toBe(true);
     expect(report.issues.some((issue) => issue.targetId === "agent.noa")).toBe(true);
   });

@@ -450,6 +450,8 @@ function validateGenerated(ctx: GenerationContext, definition: WorldDefinition):
     });
   }
 
+  // 참고: §12 확률 5용도(rule.chance)는 여기서 보지 않는다. 이 단계의 게이트는 "참조 무결성 + 로드 가능성"이고,
+  // 라벨 없는 확률은 실행에 지장이 없는 **기획 원칙** 위반이라 §34 의미 층(WorldValidator)이 맡는다.
   try {
     const engine = new RuleEngine(definition.ruleDefinitions);
     const errors = validateWorldDefinition(definition, engine);

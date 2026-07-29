@@ -1,5 +1,5 @@
 {
-  "source": "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 회귀 기준선",
+  "source": "Phase 4 사건 탐지(§28 태그 전파·change id) 반영 후 재고정 — 이후 G-1(§12 확률 5용도: 관찰 실패의 확률화)에서 다시 고정. 회귀 기준선",
   "previous": {
     "source": "HandwrittenRules.ts (Phase 1 코드 규칙) — 삭제 직전 실행 결과",
     "runs": {
@@ -45,8 +45,8 @@
   "days": 30,
   "runs": {
     "1": {
-      "changeCount": 9993,
-      "logHash": "ba714119",
+      "changeCount": 9960,
+      "logHash": "a03f1eec",
       "entityHash": "b3a5bb46",
       "ruleChangeCounts": {
         "rule.aggression_calms": 30,
@@ -158,8 +158,8 @@
       }
     },
     "42": {
-      "changeCount": 9598,
-      "logHash": "e6f9b397",
+      "changeCount": 9559,
+      "logHash": "21444324",
       "entityHash": "6e17616b",
       "ruleChangeCounts": {
         "rule.aggression_calms": 29,
@@ -271,8 +271,8 @@
       }
     },
     "43": {
-      "changeCount": 9377,
-      "logHash": "e5a149b6",
+      "changeCount": 9347,
+      "logHash": "37155981",
       "entityHash": "893197f1",
       "ruleChangeCounts": {
         "rule.aggression_calms": 29,

@@ -220,7 +220,7 @@
   },
   {
     "id": "rule.lab_luck",
-    "name": "확률적 효과",
+    "name": "확률적 효과 — 살아 있는 개체에만 일어나는 돌연변이 (§12 돌연변이)",
     "scope": "global",
     "priority": 42,
     "triggers": [{ "type": "interval", "interval": 100000 }],
@@ -229,6 +229,14 @@
       {
         "type": "modify_state",
         "chance": 0.5,
+        "chanceUse": "mutation",
+        "conditions": [
+          {
+            "left": { "type": "each_state", "key": "health" },
+            "operator": ">",
+            "right": { "type": "constant", "value": 0 }
+          }
+        ],
         "target": { "type": "query", "query": { "entityType": "agent" } },
         "stateKey": "stock",
         "operation": "add",

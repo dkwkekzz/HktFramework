@@ -294,7 +294,8 @@
               "name": "yielded"
             }
           ]
-        }
+        },
+        "chanceUse": "partial_outcome"
       },
       {
         "type": "modify_state",
@@ -306,7 +307,8 @@
         "valueRef": {
           "type": "binding",
           "name": "yielded"
-        }
+        },
+        "chanceUse": "partial_outcome"
       }
     ],
     "observations": [],

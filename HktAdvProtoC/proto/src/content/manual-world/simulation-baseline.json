@@ -3,9 +3,9 @@
   "worldId": "world.silent_forest_edge",
   "worldSeed": 42,
   "days": 30,
-  "diversityScore": 28.700000000000003,
+  "diversityScore": 28.5,
   "depthScore": 5.044353070175439,
-  "changesPerDay": 317.93333333333334,
+  "changesPerDay": 316.6333333333333,
   "uniqueActionTypes": 16,
   "uniqueEventTypes": 6,
   "totalEvents": 38

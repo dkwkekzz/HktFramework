@@ -2,7 +2,7 @@
 //
 // 두 층으로 판정한다.
 //  (a) 스키마 층 — Phase 1~5 가 확정한 계약(WorldValidation·RuleSchema)을 전체 조립본에 다시 건다.
-//  (b) 의미 층 — §34 필수 규칙 10개를 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
+//  (b) 의미 층 — §34 필수 규칙 10개(+ G-1 rule.chance · G-3 faction.hidden)를 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
 //
 // 검사기는 "통과했다"가 아니라 **무엇을 몇 개 봤고 어디가 걸렸는가**를 남긴다(CLAUDE.md 검토 규칙).
 import { rankGoals } from "../core/agents/GoalSystem";
@@ -10,6 +10,7 @@ import { RuleEngine } from "../core/rules/RuleEngine";
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import type { RuleDefinition, RuleEffect, RuleTargetSelector } from "../core/rules/RuleTypes";
 import { bootstrapWorld } from "../core/world/WorldBootstrap";
+import { collectChanceSites, findChanceViolations } from "../core/rules/ChanceUse";
 import { validateWorldDefinition } from "../core/world/WorldValidation";
 import { WorldRuntime } from "../core/world/WorldRuntime";
 import type {
@@ -23,10 +24,11 @@ import type { ValidationIssue } from "./CompilerPipeline";
 import { abilityCostWeight } from "./derivations";
 import { SymbolTable, type SymbolKind } from "./SymbolTable";
 
-/** §34 필수 규칙 10개의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
+/** §34 필수 규칙 10개 + G-1·G-3 이 더한 2종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
 export const SEMANTIC_CODES = [
   "state.schema",
   "rule.target-exists",
+  "rule.chance",
   "resource.source",
   "species.need",
   "faction.lifecycle",
@@ -58,7 +60,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 11종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 12종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -128,7 +130,7 @@ function checkSchemaLayer(definition: WorldDefinition): CheckReport {
 }
 
 // =====================================================================================
-// (b) 의미 층 — §34 필수 규칙 10개
+// (b) 의미 층 — §34 필수 규칙 10개 + G-1·G-3
 // =====================================================================================
 
 /** 검사기가 공유하는 사전 — 매 검사기가 정의를 다시 훑지 않게 한다 */
@@ -343,7 +345,35 @@ function checkRuleTargets(index: Index): CheckReport {
   );
 }
 
-// --- 3. resource.source ---------------------------------------------------------------
+// --- 3. rule.chance (§12 — G-1) -------------------------------------------------------
+
+/**
+ * §12 "확률은 인과관계를 대체하는 용도로 사용하지 않는다. 확률은 다음 용도로 제한한다."
+ * 확률을 쓰는 효과마다 5용도 중 하나를 밝혔는지, 그 용도가 문맥에 맞는지, 원인 위에 얹혔는지 본다.
+ * 판정 자체는 코어(ChanceUse.findChanceViolations)가 갖는다 — 규칙 실행기와 같은 정의를 쓰기 위해서다.
+ */
+function checkRuleChance(index: Index): CheckReport {
+  const rules = index.definition.ruleDefinitions;
+  const sites = collectChanceSites(rules);
+  const violations = findChanceViolations(rules);
+  const issues = violations.map((violation) =>
+    issue("rule.chance", violation.ruleId, violation.message, violation.fix),
+  );
+  const byUse = new Map<string, number>();
+  for (const site of sites) {
+    const key = site.use ?? "(용도 없음)";
+    byUse.set(key, (byUse.get(key) ?? 0) + 1);
+  }
+  return report(
+    "rule.chance",
+    "확률은 인과를 대체하지 않고 §12 5용도 안에서만 쓰인다",
+    sites.length,
+    issues,
+    `확률 지점 ${sites.length}개 — ${[...byUse].map(([use, count]) => `${use} ${count}`).join(" · ") || "없음"} · 위반 ${issues.length}건`,
+  );
+}
+
+// --- 4. resource.source ---------------------------------------------------------------
 
 function checkResourceSource(index: Index): CheckReport {
   const definition = index.definition;
@@ -830,6 +860,7 @@ type Checker = (index: Index) => CheckReport;
 const CHECKERS: Record<SemanticCode, Checker> = {
   "state.schema": checkStateSchema,
   "rule.target-exists": checkRuleTargets,
+  "rule.chance": checkRuleChance,
   "resource.source": checkResourceSource,
   "species.need": checkSpeciesNeed,
   "faction.lifecycle": checkFactionLifecycle,
@@ -841,7 +872,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "goal.no-infinite": checkGoalNoInfinite,
 };
 
-/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 10종 */
+/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 12종 */
 export function validateWorld(definition: WorldDefinition): ValidationReport {
   const index = buildIndex(definition);
   const schema = checkSchemaLayer(definition);

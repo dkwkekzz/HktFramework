@@ -5,6 +5,7 @@
 import type { GrowthOption, GrowthType } from "../../shared/player";
 import type { EntityType } from "../../shared/state";
 import type { ObservationEffect, StateOwnerType } from "../world/types";
+import type { ChanceUse } from "./ChanceUse";
 
 export type RuleScope = "global" | "region" | "entity" | "relationship";
 
@@ -100,6 +101,12 @@ interface EffectCommon {
   conditions?: RuleCondition[];
   /** §12 확률적 효과. 난수는 (worldSeed, simulationStep, 대상id#규칙id#효과번호) 스트림 */
   chance?: number;
+  /**
+   * §12 "확률은 다음 용도로 제한한다" — 이 효과가 쓰는 확률의 용도.
+   * chance 또는 random/random_int 를 쓰는 효과에는 반드시 있어야 하고, 규칙에 붙일 수 있는 것은
+   * partial_outcome·mutation 뿐이다(나머지 셋은 엔진이 갖는다). 검증기는 ChanceUse.ts 에 있다.
+   */
+  chanceUse?: ChanceUse;
 }
 
 /** §11.3 RuleEffect 6종 + §12 가 요구하는 관계 변경 (Phase-2 §2.4) */
