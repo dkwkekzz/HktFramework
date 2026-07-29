@@ -1,0 +1,82 @@
+{
+  "arming-diamond": {
+    "hash": "f4511f7dd64d804e",
+    "triangles": 1024
+  },
+  "arming-lenticular-fuller": {
+    "hash": "5dbc9cb92206a736",
+    "triangles": 1440
+  },
+  "longsword-hex": {
+    "hash": "fe1739da679e67d2",
+    "triangles": 1280
+  },
+  "longsword-diamond-fuller": {
+    "hash": "0a55d88bafb03491",
+    "triangles": 1760
+  },
+  "shortsword-lenticular": {
+    "hash": "41702aeab90bb7af",
+    "triangles": 896
+  },
+  "rapier-diamond": {
+    "hash": "acf7be8ebdb113b6",
+    "triangles": 1536
+  },
+  "rapier-hex": {
+    "hash": "18f54f4ed77e5ae2",
+    "triangles": 1536
+  },
+  "estoc-diamond": {
+    "hash": "64ea2fc5e6e6fdcb",
+    "triangles": 1408
+  },
+  "smallsword-lenticular": {
+    "hash": "cf34622a9da7d44b",
+    "triangles": 1280
+  },
+  "greatsword-diamond": {
+    "hash": "ef948cb2783f42a6",
+    "triangles": 2080
+  },
+  "greatsword-hex-fuller": {
+    "hash": "7fdf4d0b98d52600",
+    "triangles": 2240
+  },
+  "zweihander-flat": {
+    "hash": "de47f033c0cb7824",
+    "triangles": 1920
+  },
+  "claymore-lenticular": {
+    "hash": "ce9430d872ab4cff",
+    "triangles": 1920
+  },
+  "backsword-flat": {
+    "hash": "356f44c67dedd614",
+    "triangles": 1024
+  },
+  "messer-flat-fuller": {
+    "hash": "44a4cabdeae44842",
+    "triangles": 1024
+  },
+  "tanto-hex": {
+    "hash": "f6444be88a9db3f5",
+    "triangles": 640
+  },
+  "fantasy-wide-diamond": {
+    "hash": "91ed83605f912fbd",
+    "triangles": 1600
+  },
+  "fantasy-cleaver-flat": {
+    "hash": "9eaf33e7a819f9e5",
+    "triangles": 1152
+  },
+  "fantasy-needle-hex": {
+    "hash": "1818b294be426dfd",
+    "triangles": 1664
+  },
+  "fantasy-broad-fuller": {
+    "hash": "fa493e30bbb2cb74",
+    "triangles": 2112
+  }
+}
