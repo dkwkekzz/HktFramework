@@ -46,6 +46,8 @@ describe("수정 루프", () => {
     expect([...new Set(first.issues.map((issue) => issue.code))].sort()).toEqual([
       "agent.goal",
       "faction.hidden",
+      // G-1: 용도(§12 5종)를 밝히지 않은 확률 — 14단계 생성 계약과 §34 의미 검사기가 같은 위반을 잡는다
+      "rule.chance",
       "state.schema",
     ]);
     expect(first.restartFrom).toBe(4);
@@ -56,6 +58,9 @@ describe("수정 루프", () => {
       "factions/faction.silent_village",
       "factions/faction.veil_wardens",
       "goals/goal_graph.healer",
+      // G-1: 확률 용도 라벨을 더한 규칙 묶음 셋 (수확량·공격 피해·무리 증식)
+      "rules/ecology",
+      "rules/resources",
       "rules/wilds",
     ]);
 
@@ -63,8 +68,11 @@ describe("수정 루프", () => {
     const second = result.rounds[1]!;
     expect(second.validation.ok).toBe(true);
     expect(second.simulation?.ok).toBe(false);
-    expect(second.issues.map((issue) => issue.code).sort()).toEqual(["sim.all-agents-act", "sim.resource-explosion"]);
-    expect(second.restartFrom).toBe(5);
+    // 자원 폭증(sim.resource-explosion)은 여기 없다 — rules/resources 녹화가 1라운드(확률 라벨)에서 함께 켜지며
+    // 재생 한계까지 같이 들어왔다. 한 taskId 의 수정 녹화는 하나이므로 두 교정이 한 응답에 담긴다.
+    expect(second.issues.map((issue) => issue.code).sort()).toEqual(["sim.all-agents-act"]);
+    // 남은 원인이 "모든 주체가 행동하지 않는다" 하나뿐이라 재생성은 목적 단계(10)부터 돈다
+    expect(second.restartFrom).toBe(10);
 
     // ③ 3라운드: 둘 다 통과
     const last = result.rounds[result.rounds.length - 1]!;

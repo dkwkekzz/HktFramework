@@ -12,6 +12,7 @@ import type {
   PlayerKnowledgeView,
 } from "../../shared/player";
 import { TICKS_PER_DAY, tickToDay } from "../../shared/time";
+import { canCross, travelDuration } from "../actions/ActionSystem";
 import { InlineHost } from "../simulation/InlineHost";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import { acceptGrowthOffer, effectiveAbility, ownAbilityId } from "./GrowthSystem";
@@ -579,6 +580,79 @@ export function compareExecutionPaths(runtime: WorldRuntime, playerId: string): 
       };
     })
     .sort((a, b) => a.actionId.localeCompare(b.actionId));
+}
+
+export interface PassageRow {
+  agentId: string;
+  /** 통행 조건이 묻는 상태의 현재 값 */
+  knownThreatLevel: number;
+  /** 이 주체에게 조건부 지름길이 열려 있는가 */
+  open: boolean;
+  /** 이 주체가 실제로 쓰게 되는 길의 이동 시간 (열려 있으면 지름길, 아니면 큰길) */
+  travelTicks: number | undefined;
+}
+
+/**
+ * §13 조건부 통행의 실측 (G-5).
+ * 같은 두 지역 사이에 길이 둘 있고, 하나는 조건이 걸려 있다 —
+ * **누가 건너느냐에 따라 실제로 쓰는 길이 달라지는가**를 주체별로 재 본다.
+ */
+export function measureConditionalPassage(runtime: WorldRuntime, targetId: string): PassageRow[] {
+  const ridge = runtime.index.connections.find((connection) => (connection.requirements ?? []).length > 0);
+  const threatOf = (agentId: string): number => {
+    // 조직처럼 이 상태를 갖지 않는 주체도 있다 — 없으면 "아는 것이 없다"로 읽는다
+    try {
+      return runtime.store.readNumber(agentId, "known_threat_level");
+    } catch {
+      return 0;
+    }
+  };
+  return runtime
+    .agentIds()
+    .map((agentId) => ({
+      agentId,
+      knownThreatLevel: threatOf(agentId),
+      open: ridge !== undefined && canCross(runtime, agentId, ridge),
+      travelTicks: travelDuration(runtime, agentId, targetId),
+    }))
+    .filter((row) => row.travelTicks !== undefined || row.open);
+}
+
+/**
+ * §32 "성장 발생 조건" 7종 ↔ 그 조건을 실행하는 규칙 (G-10).
+ * 목록의 앞쪽만 구현하고 넘어가지 않도록, 조건마다 담당 규칙을 못 박아 두고 verify 가 상시 대조한다.
+ */
+export const GROWTH_CONDITIONS: { plan: string; ruleId: string }[] = [
+  { plan: "위험한 행동을 성공했다", ruleId: "rule.growth_risky_success" },
+  { plan: "새로운 현상을 반복적으로 관찰했다", ruleId: "rule.growth_repeated_observation" },
+  { plan: "기존 능력을 다른 방식으로 사용했다", ruleId: "rule.growth_ability_reapplied" },
+  { plan: "중요한 제약을 선택했다", ruleId: "rule.growth_ability_choice" },
+  { plan: "실패와 반동을 경험했다", ruleId: "rule.growth_failure_backlash" },
+  { plan: "새로운 관계나 지위를 얻었다", ruleId: "rule.growth_new_standing" },
+  { plan: "종이나 환경에 대한 지식을 발견했다", ruleId: "rule.growth_tracking_knowledge" },
+];
+
+export interface GrowthConditionRow {
+  plan: string;
+  ruleId: string;
+  /** 규칙이 세계에 실재하는가 */
+  declared: boolean;
+  /** 이 시나리오에서 실제로 성장을 만든 횟수 (플레이어 + NPC) */
+  fired: number;
+}
+
+/** 조건 7종이 규칙으로 존재하는가 + 30일 조작에서 몇 번 발화했는가 */
+export function checkGrowthConditions(
+  changes: readonly GrowthChange[],
+  worldSeed: number,
+): GrowthConditionRow[] {
+  const declared = new Set(buildPlayerWorld(worldSeed).ruleDefinitions.map((rule) => rule.id));
+  return GROWTH_CONDITIONS.map(({ plan, ruleId }) => ({
+    plan,
+    ruleId,
+    declared: declared.has(ruleId),
+    fired: changes.filter((change) => change.ruleId === ruleId).length,
+  }));
 }
 
 /** 지금 플레이어가 실행할 수 있는 행동들이 태울 규칙 — 전부 세계 규칙이다 */

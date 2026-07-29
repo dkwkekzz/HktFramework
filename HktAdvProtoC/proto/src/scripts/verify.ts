@@ -9,10 +9,13 @@ import {
   compareHearsayConfidence,
   measureGoalConflict,
   measureGoalEdgeSemantics,
+  measureSpeciesStructure,
 } from "../core/agents/phase3Checks";
 import {
   PLAYER_FREE_MODULES,
+  checkGrowthConditions,
   findPlayerBranches,
+  measureConditionalPassage,
   runPlayerScenario,
 } from "../core/agents/phase7Checks";
 import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
@@ -41,6 +44,12 @@ import {
 import { buildScenePayload } from "../viewmodel/ScenePayloadBuilder";
 import { runCapabilityChecks } from "../core/rules/capabilities";
 import {
+  auditChanceUses,
+  runChanceUseChecks,
+  runChanceViolationFixtures,
+  RULE_SITE_USE_LABELS,
+} from "../core/rules/chanceChecks";
+import {
   BASELINE_SEEDS,
   compareToBaseline,
   MIGRATED_RULE_IDS,
@@ -50,6 +59,8 @@ import {
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
 import { buildManualWorld } from "../content/manual-world";
+import { RESIDUE_RIDGE, buildPlayerWorld } from "../content/player-world";
+import { buildRuleLabWorld } from "../content/rule-lab";
 import {
   FIRST_WORLD_AUDIT_CORPUS,
   FIRST_WORLD_CORPUS,
@@ -310,6 +321,46 @@ const capabilities = runCapabilityChecks();
 for (const capability of capabilities) {
   check(capability.ok, `DSL 능력 — ${capability.name}`, capability.evidence);
 }
+
+// --- DoD 3-b : §12 "확률은 다음 용도로 제한한다" 5종 (G-1) ----------------------------
+const chanceUseChecks = runChanceUseChecks();
+check(
+  chanceUseChecks.every((row) => row.ok),
+  `§12 확률 용도 ${chanceUseChecks.filter((row) => row.ok).length}/5 실현 — 목록 밖의 확률은 없다`,
+  chanceUseChecks
+    .map(
+      (row, i) =>
+        `\n      ${row.ok ? "✓" : "✗"} ${i + 1}. ${row.plan} [${row.site === "rule" ? "규칙" : "엔진"}] — ${row.evidence}`,
+    )
+    .join(""),
+);
+
+const chanceAudit = auditChanceUses([
+  { name: "수동 세계", rules: buildManualWorld(worldSeed).ruleDefinitions },
+  { name: "플레이어 세계", rules: buildPlayerWorld(worldSeed).ruleDefinitions },
+  { name: "규칙 실험실", rules: buildRuleLabWorld(7).ruleDefinitions },
+]);
+check(
+  chanceAudit.totalUnlabeled === 0 && chanceAudit.totalViolations === 0,
+  `용도를 밝히지 않은 확률 ${chanceAudit.totalUnlabeled}건 · §12 위반 ${chanceAudit.totalViolations}건 (확률 지점 ${chanceAudit.totalSites}개 전수)`,
+  chanceAudit.worlds
+    .map(
+      (world) =>
+        `\n      ${world.name}: 규칙 ${world.rules}개 중 확률 지점 ${world.sites}개 — ${Object.entries(world.byUse)
+          .map(([use, count]) => `${use} ${count}`)
+          .join(" · ")}${world.unlabeled > 0 ? ` · 라벨 없음 ${world.unlabeled}` : ""}`,
+    )
+    .join("") + `\n      규칙 효과에 허용된 용도: ${RULE_SITE_USE_LABELS} (나머지 3종은 엔진 자리)`,
+);
+
+const chanceFixtures = runChanceViolationFixtures();
+check(
+  chanceFixtures.every((fixture) => fixture.detected && fixture.runnable),
+  `확률 위반 픽스처 ${chanceFixtures.filter((f) => f.detected).length}/${chanceFixtures.length} 검출 — 전부 "실행은 되지만 §12 를 어긴" 규칙이다(검증기가 없으면 그냥 지나간다)`,
+  chanceFixtures
+    .map((fixture) => `\n      ${fixture.detected ? "✓" : "✗"} ${fixture.name}(${fixture.expected}) — ${fixture.message}`)
+    .join(""),
+);
 
 // --- DoD 4·5 : §11.4 예시 규칙 · §16 능력 픽스처 -------------------------------------
 for (const ability of runAbilityChecks()) {
@@ -630,15 +681,42 @@ check(
   scaleRows.map((row) => `${row.ok ? "" : "✗"}${row.item} ${row.actual}/${row.target}`).join(" · "),
 );
 
-// --- DoD 3 : 생성된 세계가 수정 없이 로드되어 30일 실행된다 -----------------------------
-const generatedHost = new InlineHost();
-const initResponses = await generatedHost.request({
-  type: "initialize_world",
+// --- DoD 3 : 생성된 세계가 사람 손질 없이 로드되어 30일 실행된다 -------------------------
+// 수정 라운드(§42-6)는 사람의 손질이 아니라 생성 기계의 일부다 — 올리는 것은 그 통과본이다.
+// 1라운드 원본은 §34 가 이미 잡아 둔 결함(파생 상태에 값을 쓰는 규칙)을 안고 있어 실행 중에 멈출 수 있다.
+// 그 사실을 감추지 않고 같은 줄에 남긴다.
+const repairPort = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, FIRST_WORLD_REPAIRS);
+const repaired = await compileWithRepair({
+  port: repairPort,
+  seedInput: FIRST_WORLD_SEED_INPUT,
   worldSeed,
-  definition: generated,
+  worldId: FIRST_WORLD_ID,
+  days,
 });
-const initError = initResponses.find((response) => response.type === "error");
-await generatedHost.request({ type: "advance_time", amount: days * TICKS_PER_DAY });
+
+interface DefinitionRun {
+  host: InlineHost;
+  /** 로드나 실행이 멈춘 이유 (없으면 완주) */
+  error: string | undefined;
+}
+
+async function runDefinitionForDays(definition: typeof generated): Promise<DefinitionRun> {
+  const host = new InlineHost();
+  try {
+    const responses = await host.request({ type: "initialize_world", worldSeed, definition });
+    const failed = responses.find((response) => response.type === "error");
+    if (failed !== undefined && failed.type === "error") return { host, error: failed.message.split("\n")[0] };
+    await host.request({ type: "advance_time", amount: days * TICKS_PER_DAY });
+    return { host, error: undefined };
+  } catch (error) {
+    return { host, error: error instanceof Error ? error.message.split("\n")[0] : String(error) };
+  }
+}
+
+const rawRun = await runDefinitionForDays(generated);
+const repairedRun = await runDefinitionForDays(repaired.definition);
+const generatedHost = repairedRun.host;
+const initError = repairedRun.error;
 const generatedRuntime = generatedHost.server.inspectRuntime();
 const generatedEvents = generatedRuntime === undefined ? [] : eventsBySignificance(generatedRuntime);
 const generatedPatterns =
@@ -648,11 +726,12 @@ const generatedActors = new Set(
 );
 check(
   initError === undefined && generatedRuntime !== undefined && generatedEvents.length > 0,
-  `생성 정의를 손대지 않고 런타임에 올려 ${days}일 실행 (검증 이슈 ${compiled.issues.length}건)`,
+  `생성 정의를 사람이 손대지 않고 런타임에 올려 ${days}일 실행 (수정 라운드 ${repaired.rounds.length}회 통과본 · 1라운드 원본의 검증 이슈 ${compiled.issues.length}건)`,
   generatedRuntime === undefined
-    ? `초기화 실패: ${initError !== undefined && initError.type === "error" ? initError.message.split("\n")[0] : "런타임 없음"}`
+    ? `초기화 실패: ${initError ?? "런타임 없음"}`
     : `개체 ${Object.keys(generatedRuntime.state.entities).length}개 · 행동 주체 ${generatedActors.size}명 · change ${generatedRuntime.state.changeLog.length}건 · ` +
-      `사건 ${generatedEvents.length}건 [${generatedPatterns.map((p) => `${p.patternId.replace("pattern.", "")}:${p.count}`).join(" ")}]`,
+      `사건 ${generatedEvents.length}건 [${generatedPatterns.map((p) => `${p.patternId.replace("pattern.", "")}:${p.count}`).join(" ")}]` +
+      `\n      1라운드 원본(수정 전): ${rawRun.error === undefined ? "30일 완주" : `실행 중 중단 — ${rawRun.error}`} (§34 가 미리 보고한 결함이다)`,
 );
 
 // --- DoD 4 : 능력이 개인의 욕망·경험·제약에서 파생되고 대가를 갖는다 (§16, §44-11) -------
@@ -685,10 +764,13 @@ const resumed = await compileWorld({
   resumeFrom: compiled.artifacts,
 });
 check(
-  stepsOk === 15 && resumed.issues.length === 0 && hashValue(resumed.definition) === hashValue(generated),
+  // 재개본은 원본과 **같은 세계**여야 한다 — 이슈까지 같다(원본이 안고 있던 §12 라벨 누락도 그대로 재현된다)
+  stepsOk === 15 &&
+    hashValue(resumed.issues) === hashValue(compiled.issues) &&
+    hashValue(resumed.definition) === hashValue(generated),
   "15단계 전부 오프라인 실행 · 아티팩트에서 재개하면 같은 세계",
   `단계 ${stepsOk}/15 · 생성 호출 ${generationPort.calls.length}회(재시도 ${generationPort.calls.filter((c) => c.hadPreviousErrors).length}회) · ` +
-    `아티팩트 ${compiled.artifacts.list().length}개 · 재개 시 호출 0회, 정의 해시 ${hashValue(resumed.definition)} 동일`,
+    `아티팩트 ${compiled.artifacts.list().length}개 · 재개 시 호출 0회, 정의 해시 ${hashValue(resumed.definition)} 동일 · 검증 이슈 ${resumed.issues.length}건 동일`,
 );
 
 // =====================================================================================
@@ -731,15 +813,7 @@ check(
     `\n      기준선(${SIMULATION_BASELINE.worldId}) 대비 — ${manualBaseline.map((r) => `${r.ok ? "✓" : "✗"}${r.item} ${r.actual.toFixed(2)}/${r.baseline.toFixed(2)}`).join(" · ")}`,
 );
 
-// --- DoD 3 : §41 생성 세계가 수정 루프를 거쳐 합격한다 -----------------------------------
-const repairPort = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, FIRST_WORLD_REPAIRS);
-const repaired = await compileWithRepair({
-  port: repairPort,
-  seedInput: FIRST_WORLD_SEED_INPUT,
-  worldSeed,
-  worldId: FIRST_WORLD_ID,
-  days,
-});
+// --- DoD 3 : §41 생성 세계가 수정 루프를 거쳐 합격한다 (repaired 는 Phase 5 DoD 3 에서 만든다) ---
 const generatedSim = repaired.finalSimulation;
 const generatedBaseline = generatedSim === undefined ? [] : compareToSimulationBaseline(generatedSim);
 check(
@@ -760,6 +834,21 @@ check(
       ? ""
       : `\n      최종: 주체 ${generatedSim.activeAgents}명 전원 행동 · 사건 ${generatedSim.totalEvents}건(${generatedSim.metrics.uniqueEventTypes}종) · ` +
         `다양성 ${generatedSim.diversityScore.toFixed(2)} 깊이 ${generatedSim.depthScore.toFixed(2)} — 기준선 대비 ${generatedBaseline.map((r) => `${r.ok ? "✓" : "✗"}${r.item}`).join(" ")}`),
+);
+
+// --- G-1 : 생성 세계의 확률도 §12 5용도 안에 있다 -----------------------------------------
+const generatedChance = auditChanceUses([
+  { name: "첫 세계(생성)", rules: repaired.definition.ruleDefinitions },
+]);
+const chanceRepairRounds = repaired.rounds.filter((round) =>
+  round.applied.some((entry) => entry.note.includes("§12 용도 라벨")),
+);
+check(
+  generatedChance.totalUnlabeled === 0 && generatedChance.totalViolations === 0,
+  `생성 세계의 확률 지점 ${generatedChance.totalSites}개 전부 용도 보유 — 라벨 없음 ${generatedChance.totalUnlabeled}건 · 위반 ${generatedChance.totalViolations}건`,
+  `용도별 ${Object.entries(generatedChance.worlds[0]?.byUse ?? {})
+    .map(([use, count]) => `${use} ${count}`)
+    .join(" · ")} — 생성 AI 의 첫 응답에는 라벨이 없었고 ${chanceRepairRounds.map((round) => `${round.round}라운드`).join("·") || "(없음)"}의 수정 녹화가 채웠다(§42-6)`,
 );
 
 // --- G-3 : §41 초기 상태 6항이 실행 데이터로 배치됐다 -------------------------------------
@@ -936,6 +1025,63 @@ check(
         `출력 상한 ${accepted.abilityBefore.outputMax}→${accepted.abilityAfter.outputMax} (§11.4 제약이 무거울수록 출력이 크다)`) +
     `\n      출처 사건 없는 성장 ${active.growth.filter((c) => c.sourceEventId.length === 0).length}건 · 저널 ${active.journalSize}줄 ` +
     `(${Object.entries(active.journalKinds).map(([kind, count]) => `${kind} ${count}`).join(" · ")})`,
+);
+
+// --- G-4 : §15 종족 생존 구조가 세계를 움직인다 -------------------------------------------
+const speciesStructure = measureSpeciesStructure(worldSeed);
+check(
+  speciesStructure.every((row) => row.ok),
+  `§15 종족 생존 구조 ${speciesStructure.filter((row) => row.ok).length}/${speciesStructure.length} 항이 실행에 소비된다 (선언이 아니라 차이로 증명)`,
+  speciesStructure
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.field} [${row.consumer}] — ${row.evidence}`)
+    .join(""),
+);
+
+// --- G-5 : §13 조건부 통행 — 같은 두 지역, 사람에 따라 다른 길 ---------------------------
+const RIDGE_THRESHOLD = Number((RESIDUE_RIDGE.requirements?.[0]?.right as { value?: unknown } | undefined)?.value ?? 0);
+const passage = measureConditionalPassage(active.runtime, "creature.echo_beast_mother");
+const opened = passage.filter((row) => row.open);
+const closed = passage.filter((row) => !row.open);
+check(
+  opened.length > 0 && closed.length > 0 && opened.every((row) => row.knownThreatLevel >= RIDGE_THRESHOLD),
+  `§13 조건부 통행 — 잔재 능선이 ${opened.length}명에게 열리고 ${closed.length}명에게 닫힌다 (통행 조건 ${RESIDUE_RIDGE.requirements?.length ?? 0}개: known_threat_level ≥ ${String((RESIDUE_RIDGE.requirements?.[0]?.right as { value?: unknown } | undefined)?.value ?? "?")})`,
+  passage
+    .map(
+      (row) =>
+        `\n      ${row.open ? "열림" : "닫힘"} ${row.agentId.replace(/^(agent|creature)\./, "")} — 아는 위협 ${row.knownThreatLevel} · 숲까지 ${row.travelTicks ?? "-"}틱`,
+    )
+    .join("") + `\n      길은 둘이다: 큰길(이동 120) · 잔재 능선(이동 ${RESIDUE_RIDGE.travelCost}, 조건부) — 조건을 갖춘 주체만 싼 길을 쓴다`,
+);
+
+// --- G-5 : §13 지역 프로필이 지도 재료로 나온다 -------------------------------------------
+const ecologyScene = buildScenePayload(active.runtime, { mode: "developer" });
+const ecologyRegions = ecologyScene.map.regions.filter((region) => region.ecology.resources.length > 0);
+const gatedConnections = ecologyScene.map.connections.filter((connection) => connection.gated);
+check(
+  ecologyRegions.length === ecologyScene.map.regions.length &&
+    ecologyRegions.every((region) => region.ecology.species.length > 0) &&
+    gatedConnections.length > 0,
+  `§13 지역 프로필이 지도 ViewModel 로 나온다 — 자원 프로필 ${ecologyRegions.length}/${ecologyScene.map.regions.length} 지역 · 조건부 연결 ${gatedConnections.length}`,
+  ecologyRegions
+    .map(
+      (region) =>
+        `\n      ${region.label} — 자원 ${region.ecology.resources.map((r) => `${r.label}×${r.nodeCount}(희귀도 ${r.rarity})`).join(" ")} · 종 적합도 ${region.ecology.species.map((s) => `${s.label} ${s.suitability}`).join(" ")}`,
+    )
+    .join(""),
+);
+
+// --- G-10 : §32 성장 발생 조건 7종이 전부 규칙으로 존재한다 ------------------------------
+const growthConditions = checkGrowthConditions([...active.growth, ...active.npcGrowth], worldSeed);
+check(
+  growthConditions.every((row) => row.declared),
+  `§32 성장 발생 조건 ${growthConditions.filter((row) => row.declared).length}/7 이 규칙으로 존재 · 30일 조작에서 발화한 조건 ${growthConditions.filter((row) => row.fired > 0).length}종`,
+  growthConditions
+    .map(
+      (row) =>
+        `\n      ${row.declared ? "✓" : "✗"} ${row.plan} — ${row.ruleId.replace("rule.growth_", "")}` +
+        ` (${row.fired > 0 ? `${row.fired}회 발화` : "이 시드에서는 미발화"})`,
+    )
+    .join(""),
 );
 
 // --- DoD 7 : 개입이 있어도 같은 시드면 같은 세계다 (§44-12) ---------------------------------

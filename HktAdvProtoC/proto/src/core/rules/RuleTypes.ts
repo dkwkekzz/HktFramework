@@ -5,6 +5,7 @@
 import type { GrowthOption, GrowthType } from "../../shared/player";
 import type { EntityType } from "../../shared/state";
 import type { ObservationEffect, StateOwnerType } from "../world/types";
+import type { ChanceUse } from "./ChanceUse";
 
 export type RuleScope = "global" | "region" | "entity" | "relationship";
 
@@ -58,6 +59,12 @@ export type RuleValue =
   /** §12 확률적 효과 — 난수는 항상 RandomContext(worldSeed, simulationStep, entityId) 로만 만든다 */
   | { type: "random"; stream?: RuleBinding }
   | { type: "random_int"; max: number; stream?: RuleBinding }
+  /**
+   * §15 종족의 하루 필요량 — `requiredResources[resourceTag].amountPerDay` (G-4).
+   * 어느 개체를 보는지는 of 로 정한다(기본 each). 그 종족이 이 자원을 필요로 하지 않으면 0.
+   * 규칙이 종족의 생존 구조를 직접 읽는 통로다 — "종족은 감각+심볼"에 그치지 않게 한다.
+   */
+  | { type: "species_need"; resourceTag: string; of?: RuleBinding }
   /** §12 주변 개체 검색 — 검색 결과를 값으로 쓴다(개수·합·첫 항목의 상태) */
   | { type: "query_value"; query: RuleTargetQuery; key?: string; aggregate: QueryAggregate }
   | { type: "expr"; op: ExprOp; operands: RuleValue[] };
@@ -100,6 +107,12 @@ interface EffectCommon {
   conditions?: RuleCondition[];
   /** §12 확률적 효과. 난수는 (worldSeed, simulationStep, 대상id#규칙id#효과번호) 스트림 */
   chance?: number;
+  /**
+   * §12 "확률은 다음 용도로 제한한다" — 이 효과가 쓰는 확률의 용도.
+   * chance 또는 random/random_int 를 쓰는 효과에는 반드시 있어야 하고, 규칙에 붙일 수 있는 것은
+   * partial_outcome·mutation 뿐이다(나머지 셋은 엔진이 갖는다). 검증기는 ChanceUse.ts 에 있다.
+   */
+  chanceUse?: ChanceUse;
 }
 
 /** §11.3 RuleEffect 6종 + §12 가 요구하는 관계 변경 (Phase-2 §2.4) */

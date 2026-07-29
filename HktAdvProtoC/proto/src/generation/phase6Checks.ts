@@ -86,7 +86,7 @@ export interface ViolationFixture {
   break(definition: WorldDefinition): void;
 }
 
-/** §34 필수 규칙 10개 ↔ 그 규칙을 어기는 세계 하나씩 */
+/** §34 필수 규칙 10개(+ G-1·G-3·G-4·G-5 가 더한 4종) ↔ 그 규칙을 어기는 세계 하나씩 */
 export const VIOLATION_FIXTURES: ViolationFixture[] = [
   {
     code: "state.schema",
@@ -108,6 +108,17 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
     },
   },
   {
+    code: "rule.chance",
+    title: "용도를 밝히지 않은 확률로 결과를 흔드는 규칙이 있다 (§12 5용도 — G-1)",
+    break(definition) {
+      const rule = definition.ruleDefinitions.find((entry) =>
+        entry.effects.some((effect) => effect.chanceUse !== undefined),
+      );
+      if (rule === undefined) throw new Error("픽스처: 확률을 쓰는 규칙이 필요하다");
+      for (const effect of rule.effects) delete effect.chanceUse;
+    },
+  },
+  {
     code: "resource.source",
     title: "생성 경로도 초기 배치도 없는 자원이 있다",
     break(definition) {
@@ -124,10 +135,30 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
     },
   },
   {
+    code: "space.profile",
+    title: "지역이 실제 배치와 다른 자원 프로필을 선언한다 (§13 — G-5)",
+    break(definition) {
+      const region = definition.spaces.regions.find((entry) => (entry.resourceProfiles ?? []).length > 0);
+      if (region === undefined) throw new Error("픽스처: 자원 프로필을 가진 지역이 필요하다");
+      region.resourceProfiles = region.resourceProfiles!.map((profile) => ({
+        ...profile,
+        nodeCount: profile.nodeCount + 5,
+      }));
+    },
+  },
+  {
     code: "species.need",
     title: "생존 자원이 하나도 없는 종족이 있다",
     break(definition) {
       definition.species[0]!.requiredResources = [];
+    },
+  },
+  {
+    code: "species.structure",
+    title: "본능 목적을 그 종의 개체가 하나도 좇을 수 없다 (§15 — G-4)",
+    break(definition) {
+      // 실재하는 목적이지만 **이 종의 개체는 가질 수 없는** 목적 — 참조는 멀쩡하고 생존 구조만 어긋난다
+      definition.species.find((entry) => entry.id === "species.human")!.instincts = ["goal.protect_offspring"];
     },
   },
   {
@@ -202,7 +233,7 @@ export interface FixtureResult {
 }
 
 /**
- * 위반 픽스처 11종을 전부 돌린다.
+ * 위반 픽스처 14종을 전부 돌린다.
  * 반환값이 곧 DoD 1 의 근거다 — verify 와 테스트가 이 함수를 함께 쓴다.
  */
 export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
@@ -224,7 +255,7 @@ export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
   });
 }
 
-/** 통과 세계(수동 세계)에서는 11종 전부 조용해야 한다 — 픽스처의 대조군 */
+/** 통과 세계(수동 세계)에서는 14종 전부 조용해야 한다 — 픽스처의 대조군 */
 export function validateManualWorld(worldSeed = 42): ReturnType<typeof validateWorld> {
   return validateWorld(buildManualWorld(worldSeed));
 }

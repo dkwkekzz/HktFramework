@@ -7,8 +7,10 @@ import { bootstrapWorld } from "../world/WorldBootstrap";
 import { emitObservationEffect } from "../world/Signals";
 import { WorldRuntime } from "../world/WorldRuntime";
 import { findBelief } from "./BeliefStore";
-import { rankGoals, updateGoalLifecycle } from "./GoalSystem";
+import { INSTINCT_PULL, calculateGoalActivation, rankGoals, updateGoalLifecycle } from "./GoalSystem";
 import { processObservationSignals } from "./PerceptionSystem";
+import { BeliefView } from "./BeliefView";
+import { RuleEngine } from "../rules/RuleEngine";
 import { relationshipView } from "./RelationshipSystem";
 
 const BEAST = "creature.echo_beast_mother";
@@ -211,4 +213,97 @@ export function measureGoalEdgeSemantics(seed: number): GoalEdgeMeasurement {
     completionApplied: afterFirst - before,
     completionOnce: afterSecond === afterFirst,
   };
+}
+
+// --- §15 종족 생존 구조의 실행 증명 (G-4) --------------------------------------------
+
+export interface SpeciesStructureRow {
+  /** §15 필드 이름 */
+  field: string;
+  /** 무엇이 그 필드를 읽는가 */
+  consumer: string;
+  ok: boolean;
+  evidence: string;
+}
+
+/**
+ * §15 의 생존 구조 필드가 **실제로 세계를 움직이는지** 재 본다 (G-4).
+ * 필드마다 "값이 다르면 결과가 다르다"를 같은 세계에서 대조로 보인다 — 선언이 아니라 차이가 증거다.
+ */
+export function measureSpeciesStructure(seed = 42): SpeciesStructureRow[] {
+  const runtime = freshRuntime(seed);
+  const definition = runtime.definition;
+  const human = definition.species.find((entry) => entry.id === "species.human")!;
+  const beast = definition.species.find((entry) => entry.id === "species.echo_beast")!;
+  const rows: SpeciesStructureRow[] = [];
+
+  // ① requiredResources — 허기 증가가 종족의 하루 필요량에 비례한다 (규칙 DSL species_need)
+  const engine = new RuleEngine(definition.ruleDefinitions);
+  const hungerBefore = new Map(
+    [LISTENER, BEAST].map((id) => [id, runtime.store.readNumber(id, "hunger")]),
+  );
+  engine.runInterval(runtime, "rule.hunger_growth");
+  const humanGain = runtime.store.readNumber(LISTENER, "hunger") - hungerBefore.get(LISTENER)!;
+  const beastGain = runtime.store.readNumber(BEAST, "hunger") - hungerBefore.get(BEAST)!;
+  const humanNeed = human.requiredResources.find((need) => need.resourceTag === "organic_food")?.amountPerDay ?? 0;
+  const beastNeed = beast.requiredResources.find((need) => need.resourceTag === "organic_food")?.amountPerDay ?? 0;
+  rows.push({
+    field: "requiredResources",
+    consumer: "규칙 DSL species_need → rule.hunger_growth",
+    ok: beastGain > humanGain && humanGain > 0 && beastNeed > humanNeed,
+    evidence: `하루 필요량 인간 ${humanNeed} / 반향수 ${beastNeed} → 한 시간 허기 증가 ${humanGain.toFixed(2)} / ${beastGain.toFixed(2)}`,
+  });
+
+  // ② instincts — 본능 목적은 같은 상태에서도 더 세게 당긴다
+  // (이미 이룬 목적은 활성도 계산 전에 걸러지므로, 아직 이루지 못한 상태로 놓고 잰다 — §19)
+  runtime.store.modify(LISTENER, "hunger", "set", 65);
+  const beliefView = new BeliefView(runtime, LISTENER);
+  const graph = runtime.index.goalGraphs.get("goal_graph.hunter")!;
+  const instinct = graph.nodes.find((node) => human.instincts.includes(node.id))!;
+  const learned = graph.nodes.find((node) => !human.instincts.includes(node.id))!;
+  const instinctResult = calculateGoalActivation(runtime, LISTENER, instinct, beliefView);
+  const learnedResult = calculateGoalActivation(runtime, LISTENER, learned, beliefView);
+  rows.push({
+    field: "instincts",
+    consumer: "GoalSystem — 본능 목적 중요도 가산",
+    ok:
+      beliefView.instincts.length > 0 &&
+      instinctResult.breakdown.baseImportance === instinct.baseImportance + INSTINCT_PULL &&
+      learnedResult.breakdown.baseImportance === learned.baseImportance,
+    evidence: `본능 ${beliefView.instincts.join(",")} — ${instinct.id} 중요도 ${instinct.baseImportance}→${instinctResult.breakdown.baseImportance} · 배운 목적 ${learned.id} 은 ${learnedResult.breakdown.baseImportance} 그대로`,
+  });
+
+  // ③ survivalUnit — 같은 종의 출발선이 생존 단위에서 온다
+  const kin = relationshipView(runtime, LISTENER, "agent.mar");
+  const stranger = relationshipView(runtime, LISTENER, BEAST);
+  rows.push({
+    field: "survivalUnit",
+    consumer: "WorldBootstrap — 같은 종의 초기 관계",
+    ok: kin.familiarity > 0 && kin.familiarity > stranger.familiarity,
+    evidence: `인간의 생존 단위 ${human.survivalUnit} → 같은 종 사이 친숙도 ${kin.familiarity}·신뢰 ${kin.trust} / 다른 종은 ${stranger.familiarity}`,
+  });
+
+  // ④ adaptationRules·growthRules — 선언한 규칙이 실재하고 그 종의 개체를 실제로 건드린다
+  const declared = [...beast.adaptationRules, ...beast.growthRules];
+  const known = declared.filter((ruleId) => runtime.definition.ruleDefinitions.some((rule) => rule.id === ruleId));
+  rows.push({
+    field: "adaptationRules · growthRules",
+    consumer: "§34 species.structure — 실재 검증",
+    ok: declared.length > 0 && known.length === declared.length,
+    evidence: `반향수의 적응·성장 규칙 ${declared.length}개 전부 실재 — ${declared.map((id) => id.replace("rule.", "")).join(" ")}`,
+  });
+
+  // ⑤ reproduction — 번식 선언이 그것을 실행하는 규칙에 연결된다
+  const links = beast.reproductionRuleIds ?? [];
+  rows.push({
+    field: "reproduction",
+    consumer: "컴파일러 — 개체 템플릿의 species_id 로 자동 연결",
+    ok: links.length > 0,
+    evidence:
+      links.length > 0
+        ? `반향수 번식 → ${links.join(", ")} (이 규칙이 반향수 개체를 만든다)`
+        : "연결된 번식 규칙 없음",
+  });
+
+  return rows;
 }

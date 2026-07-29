@@ -53,6 +53,19 @@ export interface SceneMapRegion {
   elevationShade: number;
   badges: SceneBadge[];
   tags: string[];
+  /**
+   * §13 지역 프로필 — "여기서 무엇이 나고, 어느 종이 살 만한가" (G-5).
+   * 빌더가 정의의 resourceProfiles/speciesSuitability 를 표시용 문자열로 옮긴 것이다.
+   */
+  ecology: SceneRegionEcology;
+}
+
+/** 지도 위 지역 한 곳의 생태 요약 (§13) */
+export interface SceneRegionEcology {
+  /** `자원 이름 ×노드수` 형태 — 희귀도 순 */
+  resources: { label: string; rarity: number; nodeCount: number }[];
+  /** 종족 이름 → 적합도 0~100, 높은 순 */
+  species: { label: string; suitability: number }[];
 }
 
 export interface SceneMapConnection {
@@ -64,6 +77,10 @@ export interface SceneMapConnection {
   /** 선 굵기 0~1 — capacity 를 빌더가 정규화한 것 */
   width: number;
   label: string;
+  /** §13 requirements — 조건이 걸린 길인가 (G-5). 렌더러는 점선 등으로 구분한다 */
+  gated: boolean;
+  /** 지금 보고 있는 주체에게 이 길이 열려 있는가 (조건이 없으면 항상 true) */
+  openToViewer: boolean;
 }
 
 /** 지도 위의 마커 하나 — 주체·자원·장소가 같은 속성 모양을 쓴다 (렌더러는 symbolKey 만 본다) */

@@ -2,7 +2,7 @@
 //
 // 두 층으로 판정한다.
 //  (a) 스키마 층 — Phase 1~5 가 확정한 계약(WorldValidation·RuleSchema)을 전체 조립본에 다시 건다.
-//  (b) 의미 층 — §34 필수 규칙 10개를 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
+//  (b) 의미 층 — §34 필수 규칙 10개(+ G-1 rule.chance · G-3 faction.hidden · G-4 species.structure · G-5 space.profile)를 각각 **독립 검사기**로 둔다. 코드명은 고정이다(수정 루프가 이 코드로 단계를 찾는다).
 //
 // 검사기는 "통과했다"가 아니라 **무엇을 몇 개 봤고 어디가 걸렸는가**를 남긴다(CLAUDE.md 검토 규칙).
 import { rankGoals } from "../core/agents/GoalSystem";
@@ -10,6 +10,7 @@ import { RuleEngine } from "../core/rules/RuleEngine";
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import type { RuleDefinition, RuleEffect, RuleTargetSelector } from "../core/rules/RuleTypes";
 import { bootstrapWorld } from "../core/world/WorldBootstrap";
+import { collectChanceSites, findChanceViolations } from "../core/rules/ChanceUse";
 import { validateWorldDefinition } from "../core/world/WorldValidation";
 import { WorldRuntime } from "../core/world/WorldRuntime";
 import type {
@@ -23,12 +24,15 @@ import type { ValidationIssue } from "./CompilerPipeline";
 import { abilityCostWeight } from "./derivations";
 import { SymbolTable, type SymbolKind } from "./SymbolTable";
 
-/** §34 필수 규칙 10개의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
+/** §34 필수 규칙 10개 + G-1·G-3·G-4·G-5 가 더한 4종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
 export const SEMANTIC_CODES = [
   "state.schema",
   "rule.target-exists",
+  "rule.chance",
   "resource.source",
+  "space.profile",
   "species.need",
+  "species.structure",
   "faction.lifecycle",
   "faction.hidden",
   "agent.goal",
@@ -58,7 +62,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 11종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 14종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -128,7 +132,7 @@ function checkSchemaLayer(definition: WorldDefinition): CheckReport {
 }
 
 // =====================================================================================
-// (b) 의미 층 — §34 필수 규칙 10개
+// (b) 의미 층 — §34 필수 규칙 10개 + G-1·G-3·G-4·G-5
 // =====================================================================================
 
 /** 검사기가 공유하는 사전 — 매 검사기가 정의를 다시 훑지 않게 한다 */
@@ -343,7 +347,35 @@ function checkRuleTargets(index: Index): CheckReport {
   );
 }
 
-// --- 3. resource.source ---------------------------------------------------------------
+// --- 3. rule.chance (§12 — G-1) -------------------------------------------------------
+
+/**
+ * §12 "확률은 인과관계를 대체하는 용도로 사용하지 않는다. 확률은 다음 용도로 제한한다."
+ * 확률을 쓰는 효과마다 5용도 중 하나를 밝혔는지, 그 용도가 문맥에 맞는지, 원인 위에 얹혔는지 본다.
+ * 판정 자체는 코어(ChanceUse.findChanceViolations)가 갖는다 — 규칙 실행기와 같은 정의를 쓰기 위해서다.
+ */
+function checkRuleChance(index: Index): CheckReport {
+  const rules = index.definition.ruleDefinitions;
+  const sites = collectChanceSites(rules);
+  const violations = findChanceViolations(rules);
+  const issues = violations.map((violation) =>
+    issue("rule.chance", violation.ruleId, violation.message, violation.fix),
+  );
+  const byUse = new Map<string, number>();
+  for (const site of sites) {
+    const key = site.use ?? "(용도 없음)";
+    byUse.set(key, (byUse.get(key) ?? 0) + 1);
+  }
+  return report(
+    "rule.chance",
+    "확률은 인과를 대체하지 않고 §12 5용도 안에서만 쓰인다",
+    sites.length,
+    issues,
+    `확률 지점 ${sites.length}개 — ${[...byUse].map(([use, count]) => `${use} ${count}`).join(" · ") || "없음"} · 위반 ${issues.length}건`,
+  );
+}
+
+// --- 4. resource.source ---------------------------------------------------------------
 
 function checkResourceSource(index: Index): CheckReport {
   const definition = index.definition;
@@ -385,7 +417,124 @@ function checkResourceSource(index: Index): CheckReport {
   );
 }
 
-// --- 4. species.need ------------------------------------------------------------------
+// --- 4. space.profile (§13 — G-5) ------------------------------------------------------
+
+/**
+ * §13 지역 프로필은 **세계의 실제 모습과 같아야 한다**.
+ * 지역이 "여기서 이 자원이 난다"고 말하면 그 자원이 실재하고 그 수만큼 놓여 있어야 하고,
+ * 종 적합도가 0인 지역에는 그 종이 살고 있으면 안 된다. 선언과 배치가 갈라지면 런타임의 답이 거짓이 된다.
+ * 통행 조건(requirements)은 실재하는 상태만 물어야 한다 — 없는 상태를 묻는 길은 아무도 건널 수 없다.
+ */
+function checkSpaceProfile(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const resourceIds = new Set(definition.resources.map((resource) => resource.id));
+  const resourceTags = new Set(definition.resources.flatMap((resource) => resource.tags));
+  const speciesIds = new Set(definition.species.map((species) => species.id));
+
+  // 실제 배치 — 지역별 자원 노드 수 / 지역별 종
+  const placedResources = new Map<string, Map<string, number>>();
+  const placedSpecies = new Map<string, Set<string>>();
+  for (const entity of definition.bootstrap.entities) {
+    const regionId = entity.position?.regionId;
+    if (regionId === undefined) continue;
+    const resourceId = entity.states["resource_id"];
+    if (typeof resourceId === "string" && resourceId !== "") {
+      const byResource = placedResources.get(regionId) ?? new Map<string, number>();
+      byResource.set(resourceId, (byResource.get(resourceId) ?? 0) + 1);
+      placedResources.set(regionId, byResource);
+    }
+    if (entity.speciesId !== undefined) {
+      const set = placedSpecies.get(regionId) ?? new Set<string>();
+      set.add(entity.speciesId);
+      placedSpecies.set(regionId, set);
+    }
+  }
+
+  let inspected = 0;
+  for (const region of definition.spaces.regions) {
+    for (const profile of region.resourceProfiles ?? []) {
+      inspected += 1;
+      if (!resourceIds.has(profile.resourceTag) && !resourceTags.has(profile.resourceTag)) {
+        issues.push(
+          issue(
+            "space.profile",
+            region.id,
+            `지역 ${region.id}: 없는 자원이 난다고 선언한다 — ${profile.resourceTag} (§13 resourceProfiles)`,
+            "실재하는 자원 id 나 태그로 바꾸거나 프로필에서 지운다",
+          ),
+        );
+        continue;
+      }
+      const placed = placedResources.get(region.id)?.get(profile.resourceTag) ?? 0;
+      if (placed !== profile.nodeCount) {
+        issues.push(
+          issue(
+            "space.profile",
+            region.id,
+            `지역 ${region.id}: ${profile.resourceTag} 프로필이 실제 배치와 다르다 — 선언 ${profile.nodeCount} / 실제 ${placed} (§13)`,
+            "프로필의 nodeCount 를 실제 배치 수에 맞춘다 (프로필은 배치의 요약이다)",
+          ),
+        );
+      }
+    }
+    for (const [speciesId, suitability] of Object.entries(region.speciesSuitability ?? {})) {
+      inspected += 1;
+      if (!speciesIds.has(speciesId)) {
+        issues.push(
+          issue(
+            "space.profile",
+            region.id,
+            `지역 ${region.id}: 없는 종의 적합도를 선언한다 — ${speciesId} (§13 speciesSuitability)`,
+            "실재하는 종 id 로 바꾸거나 적합도에서 지운다",
+          ),
+        );
+        continue;
+      }
+      if (suitability <= 0 && placedSpecies.get(region.id)?.has(speciesId) === true) {
+        issues.push(
+          issue(
+            "space.profile",
+            region.id,
+            `지역 ${region.id}: 적합도 ${suitability} 인 종이 여기 산다 — ${speciesId} (§13)`,
+            "적합도를 올리거나 그 종을 다른 지역에 배치한다",
+          ),
+        );
+      }
+    }
+  }
+
+  const knownStates = index.stateIds;
+  for (const connection of definition.spaces.connections) {
+    for (const requirement of connection.requirements ?? []) {
+      inspected += 1;
+      for (const side of [requirement.left, requirement.right]) {
+        if (side.kind !== "state" && side.kind !== "entity_state" && side.kind !== "belief") continue;
+        if (knownStates.has(side.key)) continue;
+        issues.push(
+          issue(
+            "space.profile",
+            `${connection.from}→${connection.to}`,
+            `통행 조건이 등록되지 않은 상태를 묻는다 — ${side.key} (§13 requirements, §9)`,
+            "등록된 상태 키로 바꾼다 — 없는 상태를 묻는 길은 아무도 건널 수 없다",
+          ),
+        );
+      }
+    }
+  }
+
+  const gated = definition.spaces.connections.filter((c) => (c.requirements ?? []).length > 0).length;
+  const profiled = definition.spaces.regions.filter((r) => (r.resourceProfiles ?? []).length > 0).length;
+  return report(
+    "space.profile",
+    "지역 프로필과 통행 조건이 세계의 실제 모습과 일치한다",
+    inspected,
+    issues,
+    `지역 ${definition.spaces.regions.length} 중 자원 프로필 보유 ${profiled} · 조건부 통행 ${gated}/${definition.spaces.connections.length} · 불일치 ${issues.length}`,
+  );
+}
+
+// --- 5. species.need ------------------------------------------------------------------
 
 function checkSpeciesNeed(index: Index): CheckReport {
   const definition = index.definition;
@@ -432,6 +581,112 @@ function checkSpeciesNeed(index: Index): CheckReport {
     definition.species.length,
     issues,
     `종족 ${definition.species.length} — ${needs.join(" ")} · 위반 ${issues.length}`,
+  );
+}
+
+// --- 5a. species.structure — §15 생존 구조의 실행 연결 (G-4) -----------------------------
+
+/**
+ * §15 "종족 정의는 외형과 전투 능력보다 생존 구조를 우선한다".
+ * 그 생존 구조가 **실행 데이터**인지 본다 — 본능은 그 종의 개체가 실제로 좇을 수 있는 목적이어야 하고,
+ * 적응·성장·번식 규칙은 실재해야 하며, 번식을 말한 종은 그것을 실행하는 규칙을 가져야 한다.
+ * 능력을 가질 수 없는 종(abilityAccess.canHold=false)의 개체가 능력을 갖고 있어도 안 된다(§16).
+ */
+function checkSpeciesStructure(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const graphOf = new Map(definition.goalTemplates.map((graph) => [graph.id, graph]));
+  const goalIdsOfSpecies = new Map<string, Set<string>>();
+  const entitiesOfSpecies = new Map<string, string[]>();
+  for (const entity of definition.bootstrap.entities) {
+    if (entity.speciesId === undefined) continue;
+    entitiesOfSpecies.set(entity.speciesId, [...(entitiesOfSpecies.get(entity.speciesId) ?? []), entity.id]);
+    const graph = entity.goalGraphId === undefined ? undefined : graphOf.get(entity.goalGraphId);
+    const set = goalIdsOfSpecies.get(entity.speciesId) ?? new Set<string>();
+    for (const node of graph?.nodes ?? []) set.add(node.id);
+    goalIdsOfSpecies.set(entity.speciesId, set);
+  }
+  const abilitiesOf = new Map<string, string[]>();
+  for (const ability of definition.abilitySystem?.abilities ?? []) {
+    abilitiesOf.set(ability.ownerId, [...(abilitiesOf.get(ability.ownerId) ?? []), ability.id]);
+  }
+
+  let inspected = 0;
+  for (const species of definition.species) {
+    inspected += 1;
+    const reachable = goalIdsOfSpecies.get(species.id) ?? new Set<string>();
+    const placed = (entitiesOfSpecies.get(species.id) ?? []).length;
+    // 본능은 "이 종이 타고나는 목적"이다 — 그 종의 개체가 하나도 좇을 수 없으면 선언일 뿐이다
+    if (species.instincts.length === 0) {
+      issues.push(
+        issue("species.structure", species.id, `종족 ${species.id}: 본능 목적이 없다 (§15 instincts)`, "이 종이 타고나는 목적을 하나 이상 적는다"),
+      );
+    }
+    if (placed > 0) {
+      const followed = species.instincts.filter((goalId) => reachable.has(goalId));
+      if (species.instincts.length > 0 && followed.length === 0) {
+        issues.push(
+          issue(
+            "species.structure",
+            species.id,
+            `종족 ${species.id}: 본능 목적 ${species.instincts.join(",")} 을 이 종의 개체가 하나도 좇을 수 없다 (§15, §18 절차 1)`,
+            "개체의 목적 그래프에 본능 목적을 넣거나, 본능을 그 종이 실제로 갖는 목적으로 바꾼다",
+          ),
+        );
+      }
+    }
+    for (const [label, ruleIds] of [
+      ["적응 규칙", species.adaptationRules],
+      ["성장 규칙", species.growthRules],
+      ["번식 규칙", species.reproductionRuleIds ?? []],
+    ] as const) {
+      for (const ruleId of ruleIds) {
+        if (index.ruleIds.has(ruleId)) continue;
+        issues.push(
+          issue("species.structure", species.id, `종족 ${species.id}: 없는 ${label} 을 가리킨다 — ${ruleId} (§15)`, "규칙을 만들거나 목록에서 지운다"),
+        );
+      }
+    }
+    // 번식을 말했는데 그것을 실행하는 규칙이 없으면 **경고**로 남긴다 (G-4).
+    // 오류가 아닌 이유: 인간처럼 프로토타입의 30일 안에서는 번식하지 않는 종도 있다.
+    // 다만 "선언만 있고 실행이 없다"는 사실은 보고서에서 사라지지 않는다.
+    if ((species.reproduction ?? "").trim() !== "" && (species.reproductionRuleIds ?? []).length === 0) {
+      issues.push(
+        issue(
+          "species.structure",
+          species.id,
+          `종족 ${species.id}: 번식이 선언 문자열뿐이다 — 이 세계의 어떤 규칙도 이 종의 개체를 낳지 않는다 (§15)`,
+          "번식을 실행하는 규칙을 만들거나(개체 템플릿의 species_id 로 자동 연결된다), 30일 밖의 일임을 받아들인다",
+          "warning",
+        ),
+      );
+    }
+    if (species.abilityAccess?.canHold === false) {
+      for (const entityId of entitiesOfSpecies.get(species.id) ?? []) {
+        for (const abilityId of abilitiesOf.get(entityId) ?? []) {
+          issues.push(
+            issue(
+              "species.structure",
+              species.id,
+              `종족 ${species.id}: 능력을 가질 수 없는 종의 개체가 능력을 갖는다 — ${entityId} → ${abilityId} (§15 abilityAccess, §16)`,
+              "abilityAccess.canHold 를 고치거나 그 능력의 소유자를 바꾼다",
+            ),
+          );
+        }
+      }
+    }
+  }
+
+  const rows = definition.species.map(
+    (species) =>
+      `${species.id.replace("species.", "")}(${species.survivalUnit}·본능 ${species.instincts.length}·적응 ${species.adaptationRules.length}·성장 ${species.growthRules.length})`,
+  );
+  return report(
+    "species.structure",
+    "종족의 생존 구조(본능·적응·성장·번식)가 실행 데이터에 연결된다",
+    inspected,
+    issues,
+    `종족 ${definition.species.length} — ${rows.join(" ")} · 위반 ${issues.length}`,
   );
 }
 
@@ -830,8 +1085,11 @@ type Checker = (index: Index) => CheckReport;
 const CHECKERS: Record<SemanticCode, Checker> = {
   "state.schema": checkStateSchema,
   "rule.target-exists": checkRuleTargets,
+  "rule.chance": checkRuleChance,
   "resource.source": checkResourceSource,
+  "space.profile": checkSpaceProfile,
   "species.need": checkSpeciesNeed,
+  "species.structure": checkSpeciesStructure,
   "faction.lifecycle": checkFactionLifecycle,
   "faction.hidden": checkFactionHidden,
   "agent.goal": checkAgentGoals,
@@ -841,7 +1099,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "goal.no-infinite": checkGoalNoInfinite,
 };
 
-/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 10종 */
+/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 14종 */
 export function validateWorld(definition: WorldDefinition): ValidationReport {
   const index = buildIndex(definition);
   const schema = checkSchemaLayer(definition);

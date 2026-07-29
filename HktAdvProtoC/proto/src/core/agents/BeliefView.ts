@@ -14,6 +14,7 @@ import type { WorldRuntime } from "../world/WorldRuntime";
 import type {
   ConditionDefinition,
   SenseDefinition,
+  SpeciesDefinition,
   StateOwnerType,
   TargetQuery,
   ValueReference,
@@ -35,6 +36,15 @@ export interface PerceivedValue {
 }
 
 const UNKNOWN: PerceivedValue = { value: undefined, confidence: 0, source: "unknown" };
+
+/** 이 개체의 종족 정의 (§15) — 감각·본능·생존 구조가 전부 여기서 나온다 */
+export function speciesOf(runtime: WorldRuntime, agentId: string): SpeciesDefinition | undefined {
+  const entity = runtime.store.findEntity(agentId);
+  if (entity === undefined) return undefined;
+  const speciesId = entity.states["species_id"];
+  if (typeof speciesId !== "string" || speciesId === "") return undefined;
+  return runtime.index.species.get(speciesId);
+}
 
 export function sensesOf(runtime: WorldRuntime, agentId: string): SenseDefinition[] {
   const entity = runtime.store.findEntity(agentId);
@@ -83,6 +93,27 @@ export class BeliefView {
   /** 결정론 난수 — 스트림은 항상 주체 id 로 갈라진다 (§39 RandomContext) */
   random(stream: string): number {
     return this.runtime.rngFor(`${this.agentId}#${stream}`).next();
+  }
+
+  /**
+   * §15 종족 본능 — 자기가 무엇으로 태어났는지는 관찰이 아니라 자기 자신이다.
+   * 감각과 같은 자리(sensesOf)에서 오므로 믿음 관문을 우회하는 것이 아니다 (G-4).
+   */
+  get instincts(): string[] {
+    return speciesOf(this.runtime, this.agentId)?.instincts ?? [];
+  }
+
+  /** §15 하루에 필요한 자원의 양 — 없으면 0 */
+  dailyNeed(resourceTag: string): number {
+    const need = speciesOf(this.runtime, this.agentId)?.requiredResources.find(
+      (entry) => entry.resourceTag === resourceTag,
+    );
+    return need?.amountPerDay ?? 0;
+  }
+
+  /** §15 생존 단위 — 이 종은 혼자 사는가, 무리로 사는가 */
+  get survivalUnit(): string | undefined {
+    return speciesOf(this.runtime, this.agentId)?.survivalUnit;
   }
 
   // --- 자기 감각 -------------------------------------------------------------

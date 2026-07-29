@@ -1,7 +1,7 @@
 [
   {
     "id": "rule.hunger_growth",
-    "name": "허기 증가",
+    "name": "허기 증가 — 종족이 하루에 필요로 하는 만큼 (§15)",
     "tags": [
       "survival",
       "hunger"
@@ -26,7 +26,21 @@
         },
         "stateKey": "hunger",
         "operation": "add",
-        "value": 1
+        "valueRef": {
+          "type": "expr",
+          "op": "div",
+          "operands": [
+            {
+              "type": "species_need",
+              "resourceTag": "organic_food",
+              "of": "each"
+            },
+            {
+              "type": "constant",
+              "value": 3
+            }
+          ]
+        }
       }
     ],
     "observations": [],

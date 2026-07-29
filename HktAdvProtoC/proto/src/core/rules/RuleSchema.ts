@@ -123,6 +123,7 @@ export const RULE_JSON_SCHEMA = {
             "distance",
             "random",
             "random_int",
+            "species_need",
             "query_value",
             "expr",
           ],
@@ -137,6 +138,8 @@ export const RULE_JSON_SCHEMA = {
         to: { $ref: "#/$defs/binding" },
         stream: { $ref: "#/$defs/binding" },
         max: { type: "number" },
+        /** §15 species_need — 이 종족이 하루에 필요로 하는 자원 (G-4) */
+        resourceTag: { type: "string" },
         query: { $ref: "#/$defs/query" },
         aggregate: { enum: ["first", "count", "sum", "min", "max"] },
         op: {
@@ -175,6 +178,16 @@ export const RULE_JSON_SCHEMA = {
         },
         conditions: { type: "array", items: { $ref: "#/$defs/condition" } },
         chance: { type: "number", minimum: 0 },
+        /** §12 확률 5용도 — 확률을 쓰는 효과는 용도를 밝힌다 (문맥 검사는 ChanceUse.findRuleChanceViolations) */
+        chanceUse: {
+          enum: [
+            "trait_variation",
+            "partial_outcome",
+            "mutation",
+            "observation_failure",
+            "action_choice",
+          ],
+        },
         target: { $ref: "#/$defs/selector" },
         stateKey: { type: "string" },
         operation: { enum: ["set", "add", "multiply"] },

@@ -59,12 +59,30 @@ export interface ConditionDefinition {
 
 // --- §13 공간 -----------------------------------------------------------------
 
+/**
+ * §13 ResourceSpawnProfile — "이 지역에서 무엇이 얼마나 나는가".
+ * 자원을 직접 배치하지 않는다(§13) — 지역의 위험·접근성·안정성에서 파생된 희귀도가
+ * 어떤 자원이 얼마나 나올지를 정하고, 그 결과가 이 프로필로 지역 정의에 남는다.
+ */
+export interface ResourceSpawnProfile {
+  /** 자원 태그 또는 자원 id */
+  resourceTag: string;
+  /** §13 calculateResourceRarity 의 결과 (0~100) */
+  rarity: number;
+  /** 이 지역에 실제로 놓인 자원 노드 수 */
+  nodeCount: number;
+}
+
 export interface RegionDefinition {
   id: string;
   name: string;
   bounds: { width: number; height: number; depth: number };
   tags: string[];
   baseStates: Record<string, unknown>;
+  /** §13 — 런타임이 "이 지역에 무엇이 나는가"를 답할 수 있게 정의에 남는다 (G-5) */
+  resourceProfiles?: ResourceSpawnProfile[];
+  /** §13 — 종족 id → 이 지역이 그 종에게 얼마나 살 만한가 (0~100). 초기 배치와 지도가 읽는다 (G-5) */
+  speciesSuitability?: Record<string, number>;
 }
 
 export interface LocationDefinition {
@@ -82,6 +100,11 @@ export interface SpaceConnection {
   travelCost: number;
   danger: number;
   capacity: number;
+  /**
+   * §13 requirements — 이 길을 건너기 위한 조건. 조건은 **건너려는 주체**를 actor 로 평가한다.
+   * 만족하지 못하면 그 주체에게 이 연결은 없는 것이다("능력이 있어야 건너는 길", G-5).
+   */
+  requirements?: ConditionDefinition[];
 }
 
 export interface SpaceDefinition {
@@ -130,6 +153,26 @@ export interface SpeciesDefinition {
   instincts: string[];
   adaptationRules: string[];
   growthRules: string[];
+  /**
+   * §15 번식 — 어떻게 수가 늘어나는가. 문장(reproduction)과 **그것을 실행하는 규칙**을 함께 갖는다.
+   * 규칙이 없으면 선언은 이야기일 뿐이다 — §34 검사기가 그 연결을 요구한다 (G-4).
+   */
+  reproduction?: string;
+  reproductionRuleIds?: string[];
+  /** §15 사회 구조 — survivalUnit 이 관계의 출발선을 정하고, 이 문장이 그 이유를 남긴다 */
+  socialStructure?: string;
+  /** §15 abilityAccess — 이 종이 §16 능력을 가질 수 있는가 (없으면 가질 수 없다) */
+  abilityAccess?: SpeciesAbilityAccess;
+}
+
+/** §15 abilityAccess — 종족과 능력 체계의 연결 (G-4) */
+export interface SpeciesAbilityAccess {
+  /** 이 종의 개체가 능력을 가질 수 있는가 */
+  canHold: boolean;
+  /** 능력이 드러나는 매개 (§16 medium) — 비면 제한 없음 */
+  media?: string[];
+  /** 왜 그런가 (생성 근거 문장) */
+  rationale?: string;
 }
 
 // --- §17 조직 -----------------------------------------------------------------

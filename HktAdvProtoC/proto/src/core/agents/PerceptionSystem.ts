@@ -15,6 +15,11 @@ import { relationshipView, tellerTrustFactor } from "./RelationshipSystem";
 
 /** 관찰 성공 판정 임계값 (§23 canObserve) */
 export const OBSERVATION_THRESHOLD = 50;
+/**
+ * 임계를 갓 넘긴 관찰이 확실해지기까지의 여유 폭 (§12 확률 용도 "관찰 실패").
+ * 임계 바로 위는 "간신히 보이는" 상태다 — 알아챌 수도, 놓칠 수도 있다.
+ */
+export const OBSERVATION_MARGIN = 15;
 /** 채널 점수 배율 — 감각 정확도 0~1 을 0~40 점으로 */
 const CHANNEL_SCORE_SCALE = 40;
 /** 고도차 1 당 차폐 점수 (§13 3D — 언덕 너머는 잘 보이지 않는다) */
@@ -102,6 +107,26 @@ export function observationScore(
     distancePenalty -
     obstructionPenalty(runtime, observerId, signal)
   );
+}
+
+/**
+ * §12 확률 5용도 중 "관찰 실패" — 엔진이 갖는 자리다(규칙 효과에는 이 용도를 붙일 수 없다).
+ *
+ * §23 canObserve 의 부등식(점수 > 50)은 그대로 두고, **간신히 넘긴 관찰만** 확률에 맡긴다.
+ * 확률이 인과를 대체하지 않는다는 §12 원칙 그대로다 — 감각·거리·차폐가 먼저 점수를 정하고,
+ * 확률은 그 점수가 임계에 붙어 있을 때의 흔들림일 뿐이다. 점수가 임계+여유를 넘으면 반드시 관찰한다.
+ */
+export function observationSuccessChance(score: number): number {
+  if (score <= OBSERVATION_THRESHOLD) return 0;
+  if (score >= OBSERVATION_THRESHOLD + OBSERVATION_MARGIN) return 1;
+  return (score - OBSERVATION_THRESHOLD) / OBSERVATION_MARGIN;
+}
+
+/** 난수는 (worldSeed, simulationStep, 관찰자#신호) 스트림 — 같은 시드면 같은 실패다 (§39) */
+function missesObservation(runtime: WorldRuntime, observerId: string, signalId: string, score: number): boolean {
+  const chance = observationSuccessChance(score);
+  if (chance >= 1) return false;
+  return runtime.rngFor(`${observerId}#observe#${signalId}`).next() >= chance;
 }
 
 // --- ②③④ 기억 대조 → 원인 후보 → 성격·편견 ------------------------------------
@@ -235,6 +260,8 @@ export function processObservationSignals(runtime: WorldRuntime): ObservationOut
       if (observerId === signal.sourceId) continue; // 자기가 낸 신호는 관찰 대상이 아니다
       const score = observationScore(runtime, observerId, signal);
       if (score === undefined || score <= OBSERVATION_THRESHOLD) continue;
+      // 간신히 넘긴 관찰은 놓칠 수 있다 (§12 "관찰 실패")
+      if (missesObservation(runtime, observerId, signal.id, score)) continue;
 
       const agent = runtime.agentRuntime(observerId);
       const sense = bestMatchingSense(sensesOf(runtime, observerId), signal.channels);

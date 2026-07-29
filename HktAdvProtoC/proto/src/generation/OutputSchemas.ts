@@ -237,9 +237,12 @@ export const SPACE_DRAFT_SCHEMA: JsonSchema = {
         travelCost: NUMBER,
         danger: NUMBER,
         capacity: NUMBER,
+        /** §13 requirements — 조건을 갖춘 주체에게만 열리는 길 (G-5) */
+        requirements: arrayOf({ $ref: "#/$defs/condition" }),
       },
     }),
   },
+  $defs: COMMON_DEFS,
 };
 
 export const RESOURCE_SCHEMA = arrayOf({
@@ -319,6 +322,15 @@ export const SPECIES_SCHEMA: JsonSchema = {
     weaknesses: STRING_ARRAY,
     socialStructure: { type: "string" },
     reproduction: { type: "string" },
+    /** §15 — 번식 선언을 실행하는 규칙 (G-4). 비우면 growthRules 에서 이름으로 찾는다 */
+    reproductionRuleIds: STRING_ARRAY,
+    /** §15 abilityAccess — 이 종이 §16 능력을 가질 수 있는가 (G-4) */
+    abilityAccess: {
+      type: "object",
+      required: ["canHold"],
+      additionalProperties: false,
+      properties: { canHold: { type: "boolean" }, media: STRING_ARRAY, rationale: { type: "string" } },
+    },
   },
 };
 

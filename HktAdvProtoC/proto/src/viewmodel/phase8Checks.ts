@@ -613,11 +613,13 @@ export function evaluateGate44(input: Gate44Input): Gate44Row[] {
   );
 
   // 10. 사건이 끝난 뒤 새로운 목적·후속 사건이 생성된다
+  //     세계에 새 목적이 생기는 것과 그것이 **사건 화면에 후속으로 오르는 것**을 둘 다 본다
+  //     (예전 판정은 `>= 0` 이라 뒤쪽 항이 항상 참이었다 — 절반이 무판정이었다. G-10)
   const followUps = consequences.flatMap((report) => report.newGoals);
   push(
     10,
     "사건 후 새 목적·후속 사건 생성",
-    followUps.length > 0 && (detail?.followUps.length ?? 0) >= 0,
+    followUps.length > 0 && (detail?.followUps.length ?? 0) > 0,
     `새 목적 ${followUps.length}건 — ${followUps.slice(0, 3).join(" ")} · 사건 화면 후속 항목 ${detail?.followUps.length ?? 0}건`,
   );
 

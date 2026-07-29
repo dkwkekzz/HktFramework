@@ -8,6 +8,7 @@
 import { RuleEngine } from "../core/rules/RuleEngine";
 import type { RuleDefinition, EntityTemplate } from "../core/rules/RuleTypes";
 import { bootstrapWorld } from "../core/world/WorldBootstrap";
+import { linkReproductionRules } from "../core/world/SpeciesLinks";
 import { validateWorldDefinition } from "../core/world/WorldValidation";
 import { WorldRuntime } from "../core/world/WorldRuntime";
 import type {
@@ -17,6 +18,7 @@ import type {
   GoalGraph,
   ResourceDefinition,
   SpaceDefinition,
+  SpeciesDefinition,
   StateSchema,
   SurvivalPressureDefinition,
   WorldAxiom,
@@ -411,6 +413,42 @@ function buildSteps(options: CompileOptions): Step[] {
   ];
 }
 
+/**
+ * §13 지역 프로필을 정의에 남긴다 (G-5).
+ * 프로필은 AI 가 쓴 문장이 아니라 **실제 배치의 요약**이다 — 지역에 놓인 자원 노드를 세어 만든다.
+ * 그래서 "이 지역에 무엇이 나는가"에 대한 정의의 답은 세계의 실제 모습과 어긋날 수 없다.
+ */
+function withRegionProfiles(space: SpaceDefinition, state: PipelineState): SpaceDefinition {
+  const rarityOf = new Map(state.profiles.map((profile) => [profile.id, profile.rarity]));
+  const suitabilityOf = new Map(state.profiles.map((profile) => [profile.id, profile.speciesSuitability]));
+  const regionOfLocation = new Map(space.locations.map((location) => [location.id, location.regionId]));
+  const counts = new Map<string, Map<string, number>>();
+  for (const entity of state.bootstrap.entities) {
+    const resourceId = entity.states["resource_id"];
+    if (typeof resourceId !== "string" || resourceId === "") continue;
+    const regionId = entity.position?.regionId ?? regionOfLocation.get(entity.id);
+    if (regionId === undefined) continue;
+    const byResource = counts.get(regionId) ?? new Map<string, number>();
+    byResource.set(resourceId, (byResource.get(resourceId) ?? 0) + 1);
+    counts.set(regionId, byResource);
+  }
+  return {
+    ...space,
+    regions: space.regions.map((region) => {
+      const rarity = rarityOf.get(region.id) ?? 0;
+      const suitability = suitabilityOf.get(region.id) ?? {};
+      const profiles = [...(counts.get(region.id) ?? new Map<string, number>())]
+        .sort((a, b) => a[0].localeCompare(b[0]))
+        .map(([resourceTag, nodeCount]) => ({ resourceTag, rarity, nodeCount }));
+      return {
+        ...region,
+        resourceProfiles: profiles,
+        ...(Object.keys(suitability).length === 0 ? {} : { speciesSuitability: suitability }),
+      };
+    }),
+  };
+}
+
 function buildDefinition(state: PipelineState, worldId: string, worldSeed: number): WorldDefinition {
   return {
     metadata: { id: worldId, title: "제약의 대륙", worldSeed },
@@ -418,9 +456,10 @@ function buildDefinition(state: PipelineState, worldId: string, worldSeed: numbe
     stateSchemas: state.stateSchemas,
     ruleDefinitions: state.rules,
     entityTemplates: state.templates,
-    spaces: state.space,
+    spaces: withRegionProfiles(state.space, state),
     resources: state.resources,
-    species: state.species.map(toSpeciesDefinition),
+    // §15 번식 선언 → 실행 규칙 연결 (G-4) — 수동 세계와 같은 함수를 쓴다
+    species: linkReproductionRules(state.species.map(toSpeciesDefinition), state.rules, state.templates),
     survivalPressures: state.pressures,
     factions: state.factions.map(toFactionDefinition),
     agentArchetypes: state.archetypes.map(toArchetype),
@@ -450,6 +489,8 @@ function validateGenerated(ctx: GenerationContext, definition: WorldDefinition):
     });
   }
 
+  // 참고: §12 확률 5용도(rule.chance)는 여기서 보지 않는다. 이 단계의 게이트는 "참조 무결성 + 로드 가능성"이고,
+  // 라벨 없는 확률은 실행에 지장이 없는 **기획 원칙** 위반이라 §34 의미 층(WorldValidator)이 맡는다.
   try {
     const engine = new RuleEngine(definition.ruleDefinitions);
     const errors = validateWorldDefinition(definition, engine);

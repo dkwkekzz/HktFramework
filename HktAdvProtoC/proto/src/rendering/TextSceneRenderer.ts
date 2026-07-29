@@ -25,9 +25,22 @@ function mapDump(map: SceneMap): string[] {
       ),
     );
     for (const badge of region.badges) out.push(line(4, `${badge.key}=${badge.value}`));
+    // §13 지역 생태 — 여기서 무엇이 나고 어느 종이 살 만한가
+    for (const resource of region.ecology.resources) {
+      out.push(line(4, `자원 ${resource.label} ×${resource.nodeCount} 희귀도 ${resource.rarity}`));
+    }
+    for (const species of region.ecology.species) {
+      out.push(line(4, `종 적합도 ${species.label} ${species.suitability}`));
+    }
   }
   for (const connection of map.connections) {
-    out.push(line(2, `${connection.from} ↔ ${connection.to} ${connection.dangerKey} ${connection.label}`));
+    out.push(
+      line(
+        2,
+        `${connection.from} ↔ ${connection.to} ${connection.dangerKey} ${connection.label}` +
+          (connection.gated ? (connection.openToViewer ? " [조건 충족]" : " [통행 불가]") : ""),
+      ),
+    );
   }
   for (const group of [
     { title: "주체", markers: map.markers },

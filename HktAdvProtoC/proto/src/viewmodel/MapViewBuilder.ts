@@ -4,6 +4,7 @@
 // 0~1 좌표·색상 키·심볼 키만 받는다. 이후 3D 렌더러로 교체해도 빌더는 속성 추가만 한다(§8.0).
 import type { ObservationEffect, RegionDefinition, WorldDefinition } from "../core/world/types";
 import type { WorldRuntime } from "../core/world/WorldRuntime";
+import { canCross } from "../core/actions/ActionSystem";
 import { findPlayerId, playerStateOf } from "../core/agents/PlayerAgent";
 import { BeliefView } from "../core/agents/BeliefView";
 import { getEventViewFor } from "../core/events/EventViews";
@@ -18,6 +19,7 @@ import {
   type SceneMapMarker,
   type SceneMapRegion,
   type SceneOverlay,
+  type SceneRegionEcology,
   type ScenePoint,
   type SceneRect,
   type SceneSignal,
@@ -206,6 +208,30 @@ function badgesOf(states: Record<string, unknown>, keys: string[]): SceneBadge[]
     if (entry !== undefined) badges.push(entry);
   }
   return badges;
+}
+
+/**
+ * §13 지역 생태 — 정의의 자원 프로필·종 적합도를 표시 재료로 옮긴다 (G-5).
+ * 이름 번역까지 빌더가 끝낸다 — 렌더러는 문자열과 수만 받는다(§8.0).
+ */
+function ecologyOf(runtime: WorldRuntime, region: RegionDefinition): SceneRegionEcology {
+  const resourceName = new Map(runtime.definition.resources.map((resource) => [resource.id, resource.name]));
+  const speciesName = new Map(runtime.definition.species.map((species) => [species.id, species.name]));
+  return {
+    resources: [...(region.resourceProfiles ?? [])]
+      .sort((a, b) => b.rarity - a.rarity || a.resourceTag.localeCompare(b.resourceTag))
+      .map((profile) => ({
+        label: resourceName.get(profile.resourceTag) ?? profile.resourceTag,
+        rarity: profile.rarity,
+        nodeCount: profile.nodeCount,
+      })),
+    species: Object.entries(region.speciesSuitability ?? {})
+      .sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0]))
+      .map(([speciesId, suitability]) => ({
+        label: speciesName.get(speciesId) ?? speciesId,
+        suitability,
+      })),
+  };
 }
 
 // --- 마커 -----------------------------------------------------------------------------
@@ -418,6 +444,7 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
       elevationShade: Math.min(1, region.bounds.depth / 100),
       badges: badgesOf(states, REGION_BADGE_KEYS),
       tags: [...region.tags],
+      ecology: ecologyOf(runtime, region),
     });
   }
 
@@ -426,6 +453,9 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
     const from = projection.center(connection.from);
     const to = projection.center(connection.to);
     if (from === undefined || to === undefined) continue;
+    // §13 조건부 통행 — 조건이 걸린 길은 "누구에게 열려 있는가"까지 표시 재료가 된다 (G-5)
+    const gated = (connection.requirements ?? []).length > 0;
+    const openToViewer = !gated || (observerId !== undefined && canCross(runtime, observerId, connection));
     connections.push({
       from: connection.from,
       to: connection.to,
@@ -433,7 +463,9 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
       toPoint: to,
       dangerKey: dangerKey(connection.danger),
       width: Math.min(1, connection.capacity / 40),
-      label: `이동 ${connection.travelCost} · 위험 ${connection.danger}`,
+      label: `이동 ${connection.travelCost} · 위험 ${connection.danger}${gated ? ` · 통행 조건 ${connection.requirements!.length}` : ""}`,
+      gated,
+      openToViewer,
     });
   }
 

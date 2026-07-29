@@ -11,6 +11,7 @@ import { shouldReplan } from "./AgentRuntime";
 import {
   PARTICIPATION_MODES,
   PLAYER_FREE_MODULES,
+  checkGrowthConditions,
   findPlayerBranches,
   runPlayerScenario,
   type PlayerScenarioResult,
@@ -175,6 +176,15 @@ describe("§30 개입 — 30일 조작 시나리오", () => {
     );
     // §21 비분리 — 같은 규칙으로 NPC 도 자란다
     expect(active.npcGrowth.length).toBeGreaterThan(0);
+  });
+
+  it("§32 성장 발생 조건 7종이 전부 규칙으로 존재하고 실제로 발화한다 (G-10)", () => {
+    const rows = checkGrowthConditions([...active.growth, ...active.npcGrowth], SEED);
+    expect(rows).toHaveLength(7);
+    for (const row of rows) {
+      expect(row.declared, `${row.plan} → ${row.ruleId}`).toBe(true);
+      expect(row.fired, `${row.plan} 이 30일 조작에서 한 번도 발화하지 않았다`).toBeGreaterThan(0);
+    }
   });
 
   it("플레이어 행동이 NPC 와 같은 규칙 경로로 처리된다 (§21, 전용 효과 코드 없음)", () => {

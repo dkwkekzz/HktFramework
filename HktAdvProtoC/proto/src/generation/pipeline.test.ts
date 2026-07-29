@@ -33,6 +33,7 @@ describe("세계 생성 컴파일러", () => {
 
     expect(result.steps.map((step) => step.index)).toEqual([...Array(15)].map((_, i) => i + 1));
     expect(result.steps.every((step) => step.status === "ok")).toBe(true);
+    // 14단계 게이트(참조 무결성·로드 가능성)는 통과한다 — §12 확률 라벨 누락(G-1)은 §34 의미 층 몫이다
     expect(result.issues).toEqual([]);
     // 분할 호출 — 규칙 묶음·종족·조직·능력·목적·인물이 항목 단위로 나뉘어 불린다(§5.2)
     expect(port.calls.length).toBeGreaterThan(50);

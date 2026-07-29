@@ -371,7 +371,8 @@
               "name": "damage"
             }
           ]
-        }
+        },
+        "chanceUse": "partial_outcome"
       },
       {
         "type": "modify_state",
