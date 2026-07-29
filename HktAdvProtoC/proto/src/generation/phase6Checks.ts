@@ -89,6 +89,24 @@ export interface ViolationFixture {
 /** §34 필수 규칙 10개(+ G-1·G-3·G-4·G-5 가 더한 4종) ↔ 그 규칙을 어기는 세계 하나씩 */
 export const VIOLATION_FIXTURES: ViolationFixture[] = [
   {
+    code: "axiom.enforced",
+    title: "어떤 규칙도 강제하지 않는 불변 명제가 있다 (§7 — G-12)",
+    break(definition) {
+      // 명제 하나의 강제 연결을 전부 끊는다 — 참조 무결성은 멀쩡하고 강제 수단만 사라진다
+      const target = definition.axioms.find((axiom) => axiom.immutable)!;
+      for (const rule of definition.ruleDefinitions) {
+        rule.derivedFromAxioms = (rule.derivedFromAxioms ?? []).filter((id) => id !== target.id);
+      }
+    },
+  },
+  {
+    code: "pressure.related",
+    title: "세계에 없는 자원을 가리키는 압력이 있다 (§8 — G-12)",
+    break(definition) {
+      definition.survivalPressures[0]!.relatedResources = ["phantom_dust"];
+    },
+  },
+  {
     code: "state.schema",
     title: "규칙이 등록되지 않은 상태에 값을 쓴다",
     break(definition) {

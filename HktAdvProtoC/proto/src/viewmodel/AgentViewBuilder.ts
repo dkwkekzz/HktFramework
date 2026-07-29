@@ -8,7 +8,7 @@
 // 렌더러에는 모드 분기가 없다 — 애초에 자기가 어느 모드인지 모른다(§8.0).
 import { BeliefView } from "../core/agents/BeliefView";
 import { effectiveAbility, ownAbilityId } from "../core/agents/GrowthSystem";
-import { findGoalNode, goalGraphOf, rankGoals } from "../core/agents/GoalSystem";
+import { findGoalNode, goalGraphOf, pressuresFor, rankGoals } from "../core/agents/GoalSystem";
 import { findPlayerId, playerStateOf } from "../core/agents/PlayerAgent";
 import type { WorldRuntime } from "../core/world/WorldRuntime";
 import type { AbilityDefinition, GoalGraph } from "../core/world/types";
@@ -269,6 +269,27 @@ function abilityRows(
  * §36.3 주체 관찰 화면의 표시 재료 전부.
  * 플레이어 모드는 조작 중인 주체(또는 지정한 관찰자)의 시점으로 걸러진다 — 필터는 Phase 7 의 것을 그대로 쓴다.
  */
+/** §8 생존 압력 표 — relatedResources 가 "이 압력은 무엇으로 풀리는가"의 화면 재료가 된다 (G-12) */
+function pressureRows(
+  runtime: WorldRuntime,
+  agentId: string,
+  view: BeliefView,
+): SceneAgentPanel["pressures"] {
+  const agent = runtime.state.agentRuntimes[agentId];
+  if (agent === undefined) return [];
+  const nameOf = new Map<string, string>();
+  for (const resource of runtime.definition.resources) {
+    nameOf.set(resource.id, resource.name);
+    for (const tag of resource.tags) if (!nameOf.has(tag)) nameOf.set(tag, resource.name);
+  }
+  return pressuresFor(runtime, view).map((pressure) => ({
+    id: pressure.id,
+    urgency: Math.round((agent.pressures[pressure.id] ?? 0) * 10) / 10,
+    maxUrgency: pressure.maxUrgency,
+    relievedBy: pressure.relatedResources.map((entry) => nameOf.get(entry) ?? entry),
+  }));
+}
+
 export function buildAgentPanel(
   runtime: WorldRuntime,
   agentId: string,
@@ -307,6 +328,7 @@ export function buildAgentPanel(
     beliefsAboutOthers: introspect ? beliefsAboutOthers(runtime, agentId, context.mode === "developer") : [],
     goalGraph: introspect && hasRuntime ? goalNodes(runtime, agentId) : [],
     memories: introspect && hasRuntime ? memoryRows(runtime, agentId) : [],
+    pressures: introspect && hasRuntime ? pressureRows(runtime, agentId, selfView) : [],
     relationships: introspect ? relationRows(runtime, agentId) : [],
     abilities: abilityRows(runtime, agentId, observerId),
     narration: [],

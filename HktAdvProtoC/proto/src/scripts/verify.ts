@@ -1169,6 +1169,24 @@ check(
     .join(""),
 );
 
+// --- G-12 : §7 불변 명제 강제 + §8 관련 자원 소비 ------------------------------------------
+const axiomEnforced = manualValidation.checks.find((entry) => entry.code === "axiom.enforced");
+const pressureRelated = manualValidation.checks.find((entry) => entry.code === "pressure.related");
+const pressurePanel = buildScenePayload(runtime, { mode: "developer", agentId: "agent.kael" }).agentPanel;
+const panelPressures = pressurePanel?.pressures ?? [];
+check(
+  axiomEnforced?.ok === true &&
+    axiomEnforced.inspected > 0 &&
+    pressureRelated?.ok === true &&
+    panelPressures.length > 0 &&
+    panelPressures.some((row) => row.relievedBy.length > 0),
+  `§7 불변 명제 ${manualWorld.axioms.length}개 전부 규칙으로 강제 · §8 압력의 관련 자원이 검증·화면 재료가 된다`,
+  `§34 axiom.enforced — ${axiomEnforced?.evidence ?? "없음"}\n` +
+    `      §34 pressure.related — ${pressureRelated?.evidence ?? "없음"}\n` +
+    `      수정 라운드의 불변 계약 — immutable 명제를 지우거나 바꾸면 즉시 중단 (RepairLoop.assertImmutableAxiomsPreserved, 테스트 증명)\n` +
+    `      관찰 패널(§36.3) 압력 표 — ${panelPressures.map((row) => `${row.id.replace("pressure.", "")} ${row.urgency}/${row.maxUrgency}${row.relievedBy.length > 0 ? `←${row.relievedBy.join("·")}` : ""}`).join(" · ")}`,
+);
+
 // --- DoD 7 : 개입이 있어도 같은 시드면 같은 세계다 (§44-12) ---------------------------------
 const activeAgain = await runPlayerScenario({ worldSeed, days });
 const activeOther = await runPlayerScenario({ worldSeed: worldSeed + 1, days });

@@ -26,12 +26,14 @@ import { SymbolTable, type SymbolKind } from "./SymbolTable";
 
 /** §34 필수 규칙 10개 + G-1·G-3·G-4·G-5 가 더한 4종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
 export const SEMANTIC_CODES = [
+  "axiom.enforced",
   "state.schema",
   "rule.target-exists",
   "rule.chance",
   "resource.source",
   "resource.overuse",
   "space.profile",
+  "pressure.related",
   "species.need",
   "species.structure",
   "faction.lifecycle",
@@ -172,6 +174,92 @@ function buildIndex(definition: WorldDefinition): Index {
     index.runtimeError = error instanceof Error ? error.message : String(error);
   }
   return index;
+}
+
+// --- 0. axiom.enforced (§7 — G-12) ------------------------------------------------------
+
+/**
+ * §7 "이 명제들은 이후 생성되는 모든 규칙과 콘텐츠의 상위 제약이다".
+ * immutable 명제가 **어떤 규칙에도 강제되지 않으면** 선언이 공중에 떠 있는 것이다 —
+ * 규칙의 derivedFromAxioms 가 그 명제를 세계의 실행에 못 박는 유일한 하드 연결이다.
+ * (의미적 위반 탐지는 여전히 §33.2 AI 경고의 몫 — 여기는 "강제 수단이 존재하는가"만 본다.)
+ * 수정 라운드가 불변 명제를 바꿀 수 없다는 계약은 RepairLoop.assertImmutableAxiomsPreserved 가 갖는다.
+ */
+function checkAxiomEnforced(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const enforcedBy = new Map<string, number>();
+  for (const rule of definition.ruleDefinitions) {
+    for (const axiomId of rule.derivedFromAxioms ?? []) {
+      enforcedBy.set(axiomId, (enforcedBy.get(axiomId) ?? 0) + 1);
+    }
+  }
+  let immutableCount = 0;
+  for (const axiom of definition.axioms) {
+    const count = enforcedBy.get(axiom.id) ?? 0;
+    if (axiom.immutable) immutableCount += 1;
+    if (count > 0) continue;
+    issues.push(
+      issue(
+        "axiom.enforced",
+        axiom.id,
+        axiom.immutable
+          ? `불변 명제 ${axiom.id} 를 강제하는 규칙이 하나도 없다 — "상위 제약" 이 선언뿐이다 (§7)`
+          : `명제 ${axiom.id} 에서 파생된 규칙이 없다 (§7)`,
+        "이 명제에서 파생된 규칙에 derivedFromAxioms 로 연결하거나 명제를 거둔다",
+        axiom.immutable ? "error" : "warning",
+      ),
+    );
+  }
+  const rows = definition.axioms.map((axiom) => `${axiom.id.replace("axiom.", "")}:${enforcedBy.get(axiom.id) ?? 0}`);
+  return report(
+    "axiom.enforced",
+    "불변 명제는 최소 하나의 규칙으로 강제된다",
+    definition.axioms.length,
+    issues,
+    `명제 ${definition.axioms.length}개(불변 ${immutableCount}) · 규칙 연결 ${rows.join(" ")} · 강제 없음 ${issues.length}`,
+  );
+}
+
+// --- 0a. pressure.related (§8 — G-12) ---------------------------------------------------
+
+/**
+ * §8 relatedResources — 압력이 "무엇으로 풀리는가"의 선언.
+ * 세계에 없는 자원을 가리키면 그 선언은 지식이 아니라 소음이다(error).
+ * 빈 목록은 허용한다 — 안전 압력처럼 자원으로 풀리지 않는 압력도 있다.
+ */
+function checkPressureRelated(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const known = new Set<string>();
+  for (const resource of definition.resources) {
+    known.add(resource.id);
+    for (const tag of resource.tags) known.add(tag);
+  }
+  let inspected = 0;
+  let linked = 0;
+  for (const pressure of definition.survivalPressures) {
+    if (pressure.relatedResources.length > 0) linked += 1;
+    for (const entry of pressure.relatedResources) {
+      inspected += 1;
+      if (known.has(entry)) continue;
+      issues.push(
+        issue(
+          "pressure.related",
+          pressure.id,
+          `압력 ${pressure.id}: 세계에 없는 자원을 가리킨다 — ${entry} (§8 relatedResources)`,
+          "실재하는 자원 id·태그로 바꾸거나 목록에서 지운다",
+        ),
+      );
+    }
+  }
+  return report(
+    "pressure.related",
+    "압력의 관련 자원은 세계에 실재한다",
+    inspected,
+    issues,
+    `압력 ${definition.survivalPressures.length}개 중 자원 연결 ${linked} · 참조 ${inspected}건 · 허상 ${issues.length}`,
+  );
 }
 
 // --- 1. state.schema ------------------------------------------------------------------
@@ -1166,12 +1254,14 @@ function checkGoalNoInfinite(index: Index): CheckReport {
 type Checker = (index: Index) => CheckReport;
 
 const CHECKERS: Record<SemanticCode, Checker> = {
+  "axiom.enforced": checkAxiomEnforced,
   "state.schema": checkStateSchema,
   "rule.target-exists": checkRuleTargets,
   "rule.chance": checkRuleChance,
   "resource.source": checkResourceSource,
   "resource.overuse": checkResourceOveruse,
   "space.profile": checkSpaceProfile,
+  "pressure.related": checkPressureRelated,
   "species.need": checkSpeciesNeed,
   "species.structure": checkSpeciesStructure,
   "faction.lifecycle": checkFactionLifecycle,

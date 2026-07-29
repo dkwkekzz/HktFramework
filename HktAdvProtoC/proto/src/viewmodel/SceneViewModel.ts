@@ -271,6 +271,8 @@ export interface SceneAgentPanel {
   };
   /** ⑥ 기억 */
   memories: SceneMemoryRow[];
+  /** §8 생존 압력 — 무엇이 급하고 무엇으로 풀리는가 (relatedResources 소비, G-12). 자기 속만 보인다 */
+  pressures: { id: string; urgency: number; maxUrgency: number; relievedBy: string[] }[];
   /** ⑦ 관계 */
   relationships: SceneRelationRow[];
   /** ⑧ 능력과 제약 */

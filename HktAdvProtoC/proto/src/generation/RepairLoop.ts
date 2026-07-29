@@ -20,11 +20,13 @@ export const ISSUE_TO_STEPS: Record<string, number[]> = {
   "schema.rule": [5],
   "schema.rule-engine": [5],
   "schema.world": [5],
+  "axiom.enforced": [2, 5],
   "state.schema": [4],
   "rule.target-exists": [5],
   "rule.chance": [5],
   "resource.source": [6],
   "resource.overuse": [6, 5],
+  "pressure.related": [3, 6],
   "species.need": [7],
   "faction.lifecycle": [8],
   "faction.hidden": [8],
@@ -188,7 +190,28 @@ export async function compileWithRepair(options: RepairOptions): Promise<RepairR
       accepted: false,
     });
 
+    const previous = compiled.definition;
     compiled = await compileWorld({ ...options, resumeFrom: compiled.artifacts.before(restartFrom) });
+    assertImmutableAxiomsPreserved(previous, compiled.definition);
     validation = validateWorld(compiled.definition);
+  }
+}
+
+/**
+ * §7 "이 명제들은 이후 생성되는 모든 규칙과 콘텐츠의 상위 제약이다" (G-12).
+ * immutable 명제는 수정 라운드가 지우거나 바꿀 수 없다 — 명제를 고쳐서 통과하는 수정은
+ * 세계를 고친 것이 아니라 헌법을 고친 것이므로, 경고가 아니라 즉시 중단이다.
+ */
+export function assertImmutableAxiomsPreserved(previous: WorldDefinition, next: WorldDefinition): void {
+  const after = new Map(next.axioms.map((axiom) => [axiom.id, axiom]));
+  for (const axiom of previous.axioms) {
+    if (!axiom.immutable) continue;
+    const kept = after.get(axiom.id);
+    if (kept === undefined) {
+      throw new Error(`수정 라운드가 불변 명제를 지웠다 — ${axiom.id} (§7 immutable)`);
+    }
+    if (kept.statement !== axiom.statement || kept.category !== axiom.category || kept.immutable !== true) {
+      throw new Error(`수정 라운드가 불변 명제를 바꿨다 — ${axiom.id} (§7 immutable)`);
+    }
   }
 }
