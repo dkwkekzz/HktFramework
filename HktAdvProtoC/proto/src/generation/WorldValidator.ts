@@ -30,6 +30,7 @@ export const SEMANTIC_CODES = [
   "resource.source",
   "species.need",
   "faction.lifecycle",
+  "faction.hidden",
   "agent.goal",
   "action.cost",
   "ability.cost-scaling",
@@ -57,7 +58,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 10종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 11종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -434,6 +435,59 @@ function checkSpeciesNeed(index: Index): CheckReport {
   );
 }
 
+// --- 5b. faction.hidden — §17 은닉 목적의 실행 연결 (G-3) --------------------------------
+
+/**
+ * hiddenPurposes 는 선언 문자열로 끝날 수 없다 — 조직이 실제로 좇는 목적 그래프 노드
+ * (hiddenGoalIds)에 연결되어야 §41 의 "숨겨진 동기"가 실행 데이터가 된다(§17, §30).
+ */
+function checkFactionHidden(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  let inspected = 0;
+  for (const faction of definition.factions) {
+    if (faction.hiddenPurposes.length === 0) continue;
+    inspected += 1;
+    const linked = faction.hiddenGoalIds ?? [];
+    if (linked.length === 0) {
+      issues.push(
+        issue(
+          "faction.hidden",
+          faction.id,
+          `조직 ${faction.id}: 은닉 목적이 선언 문자열뿐이다 — 실행 목적(hiddenGoalIds) 연결이 없다 (§17, §30)`,
+          "hiddenGoalIds 에 이 조직 목적 그래프의 노드 id 를 넣는다",
+        ),
+      );
+      continue;
+    }
+    const entity = definition.bootstrap.entities.find((entry) => entry.id === faction.id);
+    const graph = definition.goalTemplates.find((g) => g.id === entity?.goalGraphId);
+    const nodes = new Set((graph?.nodes ?? []).map((node) => node.id));
+    for (const goalId of linked) {
+      if (!nodes.has(goalId)) {
+        issues.push(
+          issue(
+            "faction.hidden",
+            faction.id,
+            `조직 ${faction.id}: 은닉 목적 ${goalId} 이 조직 목적 그래프(${entity?.goalGraphId ?? "없음"})에 없다`,
+            "hiddenGoalIds 를 그래프에 실재하는 노드로 바꾼다",
+          ),
+        );
+      }
+    }
+  }
+  const rows = definition.factions
+    .filter((f) => f.hiddenPurposes.length > 0)
+    .map((f) => `${f.id.replace("faction.", "")}(은닉 ${f.hiddenPurposes.length}→목적 ${(f.hiddenGoalIds ?? []).length})`);
+  return report(
+    "faction.hidden",
+    "조직의 은닉 목적은 실행 목적에 연결된다",
+    inspected,
+    issues,
+    `은닉 목적 보유 조직 ${inspected} — ${rows.join(" ")} · 위반 ${issues.length}`,
+  );
+}
+
 // --- 5. faction.lifecycle -------------------------------------------------------------
 
 function checkFactionLifecycle(index: Index): CheckReport {
@@ -779,6 +833,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "resource.source": checkResourceSource,
   "species.need": checkSpeciesNeed,
   "faction.lifecycle": checkFactionLifecycle,
+  "faction.hidden": checkFactionHidden,
   "agent.goal": checkAgentGoals,
   "action.cost": checkActionCost,
   "ability.cost-scaling": checkAbilityScaling,

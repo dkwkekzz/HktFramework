@@ -1,4 +1,4 @@
-// §34 정적 검증 테스트 (Phase-6 DoD 1 — "필수 규칙 10개가 각각 위반 픽스처를 error 로 검출한다")
+// §34 정적 검증 테스트 (Phase-6 DoD 1 — "필수 규칙 10개+faction.hidden(G-3)이 각각 위반 픽스처를 error 로 검출한다")
 //
 // 검사기는 통과 세계로 증명되지 않는다. 한 군데씩 망가뜨린 세계로만 "정말 보고 있는가"를 말할 수 있다.
 import { describe, expect, it } from "vitest";
@@ -10,11 +10,11 @@ import { RecordedTextGenerationPort } from "./RecordedTextGenerationPort";
 import { findGoalCycles, SEMANTIC_CODES, validateWorld } from "./WorldValidator";
 
 describe("§34 정적 검증", () => {
-  it("§34 필수 규칙 10개를 각각 독립 검사기로 갖는다", () => {
-    expect(SEMANTIC_CODES).toHaveLength(10);
+  it("§34 필수 규칙 10개 + faction.hidden(G-3) 을 각각 독립 검사기로 갖는다", () => {
+    expect(SEMANTIC_CODES).toHaveLength(11);
     const report = validateManualWorld();
     expect(report.checks.map((check) => check.code)).toEqual([...SEMANTIC_CODES]);
-    // 픽스처도 10개 — 검사기 하나에 위반 세계 하나
+    // 픽스처도 11개 — 검사기 하나에 위반 세계 하나
     expect(VIOLATION_FIXTURES.map((fixture) => fixture.code).sort()).toEqual([...SEMANTIC_CODES].sort());
   });
 
@@ -30,9 +30,9 @@ describe("§34 정적 검증", () => {
     }
   });
 
-  it("위반 픽스처 10종을 각각 해당 코드의 error 로 검출한다", () => {
+  it("위반 픽스처 11종을 각각 해당 코드의 error 로 검출한다", () => {
     const results = runViolationFixtures();
-    expect(results).toHaveLength(10);
+    expect(results).toHaveLength(11);
     for (const result of results) {
       expect(result.detected, `${result.code}: ${result.message}`).toBe(true);
     }

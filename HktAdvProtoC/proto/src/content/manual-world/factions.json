@@ -46,6 +46,9 @@
         "name": "숲 채집조",
         "stance": "harmed"
       }
+    ],
+    "hiddenGoalIds": [
+      "goal.faction_authority"
     ]
   },
   {
@@ -82,6 +85,9 @@
           "value": 0
         }
       }
+    ],
+    "hiddenGoalIds": [
+      "goal.faction_supply"
     ]
   }
 ]

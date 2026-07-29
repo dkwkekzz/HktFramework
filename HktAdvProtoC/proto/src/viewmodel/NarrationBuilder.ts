@@ -45,6 +45,38 @@ function forbiddenState(
   };
 }
 
+/**
+ * §17 은닉 목적 — 조직 내부자가 아닌 관찰자의 화면에 절대 오를 수 없는 사실 (G-3, §30).
+ * 조직의 이름은 공개 정보이므로 identityLabel 을 쓰지 않는다 — 문장 자체가 비밀이다.
+ */
+function hiddenAgendaFacts(
+  runtime: WorldRuntime,
+  observerId: string,
+  factionIds: Iterable<string>,
+): ForbiddenFact[] {
+  const facts: ForbiddenFact[] = [];
+  const observerFaction = runtime.store.findEntity(observerId)?.states["faction_id"];
+  for (const factionId of new Set(factionIds)) {
+    const faction = runtime.definition.factions.find((entry) => entry.id === factionId);
+    if (faction === undefined || faction.hiddenPurposes.length === 0) continue;
+    // 내부자는 자기 조직의 은닉 목적을 안다 — 금지 사실이 아니다
+    if (observerId === factionId || observerFaction === factionId) continue;
+    const label = labelOf(runtime, factionId);
+    for (const purpose of faction.hiddenPurposes) {
+      facts.push({ sentence: `${label}의 실제 목적: ${purpose}` });
+    }
+    const graphId = runtime.definition.bootstrap.entities.find((entry) => entry.id === factionId)?.goalGraphId;
+    const graph = runtime.definition.goalTemplates.find((entry) => entry.id === graphId);
+    for (const goalId of faction.hiddenGoalIds ?? []) {
+      const node = graph?.nodes.find((entry) => entry.id === goalId);
+      if (node !== undefined) {
+        facts.push({ sentence: `${label}이(가) 몰래 좇는 목적: ${node.description}` });
+      }
+    }
+  }
+  return facts;
+}
+
 function locationLabel(runtime: WorldRuntime, locationId: string | undefined): string {
   if (locationId === undefined) return "어딘가";
   return runtime.index.regions.get(locationId)?.name ?? labelOf(runtime, locationId);
@@ -115,6 +147,14 @@ export function buildEventNarration(
       identityLabel: labelOf(runtime, participantId),
     });
   }
+  // §17 은닉 목적 — 참여 조직의 숨은 동기는 내부자가 아니면 말할 수 없다 (G-3, §30)
+  unknownFacts.push(
+    ...hiddenAgendaFacts(
+      runtime,
+      observerId,
+      event.participants.filter((id) => runtime.state.agentRuntimes[id]?.kind === "faction"),
+    ),
+  );
 
   const speakerId =
     options.speakerId ??
@@ -173,6 +213,10 @@ export function buildObservationNarration(
       continue;
     }
     knownFacts.push(factSentence(runtime, subjectId, schema.id, perceived.value));
+  }
+  // 관찰 대상이 조직이면 은닉 목적도 금지 사실이다 (G-3, §17)
+  if (runtime.state.agentRuntimes[subjectId]?.kind === "faction") {
+    unknownFacts.push(...hiddenAgendaFacts(runtime, observerId, [subjectId]));
   }
 
   return {

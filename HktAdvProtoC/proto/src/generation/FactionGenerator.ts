@@ -128,6 +128,7 @@ export function toFactionDefinition(draft: FactionDraft): FactionDefinition {
     name: draft.name,
     publicPurpose: draft.publicPurpose,
     hiddenPurposes: draft.hiddenPurposes,
+    ...(draft.hiddenGoalIds === undefined ? {} : { hiddenGoalIds: draft.hiddenGoalIds }),
     requiredStates: draft.requiredStates,
     controlledResources: draft.controlledResources,
     relationshipDefaults: draft.relationshipDefaults,

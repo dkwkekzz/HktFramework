@@ -147,6 +147,12 @@ export interface FactionDefinition {
   name: string;
   publicPurpose: string;
   hiddenPurposes: string[];
+  /**
+   * §17 hiddenPurposes 의 **실행 연결** — 은닉 목적이 좇는 목적 그래프 노드 id.
+   * 은닉 목적은 선언 문자열이 아니라 이 목적들로 실제 행동한다(G-3).
+   * 관찰자 시점 표현에서는 금지 사실이 된다(§30 "플레이어가 모르는 것", §33.3 누출 검사).
+   */
+  hiddenGoalIds?: string[];
   requiredStates: { stateKey: string; comparison: ConditionOperator; value: number }[];
   controlledResources: string[];
   relationshipDefaults: Record<string, number>;

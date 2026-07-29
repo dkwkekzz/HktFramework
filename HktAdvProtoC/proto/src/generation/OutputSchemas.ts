@@ -345,6 +345,8 @@ export const FACTION_SCHEMA: JsonSchema = {
     name: { type: "string" },
     publicPurpose: { type: "string" },
     hiddenPurposes: STRING_ARRAY,
+    /** §17 은닉 목적의 실행 연결 (G-3) — 조직 목적 그래프의 노드 id */
+    hiddenGoalIds: STRING_ARRAY,
     requiredStates: arrayOf({
       type: "object",
       required: ["stateKey", "comparison", "value"],

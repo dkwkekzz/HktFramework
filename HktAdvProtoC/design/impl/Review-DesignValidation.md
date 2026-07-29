@@ -15,7 +15,15 @@ verify 의 최종 표: §36 네 화면 29/29 · rendering/ 10파일 격리 위�
 
 ### 0.1 smoke
 
-(실행 중 — 완료 시 본 절에 출력 원문을 갱신한다)
+G-2·G-3 수정 반영 후 실행 (2026-07-29):
+
+```
+SMOKE OK — 네 화면 전부 동작
+① 생성 — 제약의 대륙 · 생성 호출 79회 · 15단계 전부 ✓
+② 구조 검토 — 단계 15개 · 증분 재실행에서 재사용 11단계
+③ 지도 — Canvas 채워진 픽셀 518400/518400 · 개체 세계 18 → 플레이어 시점 18 · 관찰 표 35행 (플레이어 시점 실제값 0항)
+④ 사건 — 사건 상세·§29 근거 표시 (플레이어 시점 실제 원인 감춤)
+```
 
 ## 1. 목차 순서 전수 판정 (§1~§45)
 
@@ -79,7 +87,7 @@ verify 의 최종 표: §36 네 화면 29/29 · rendering/ 10파일 격리 위�
 |---|---|---|---|
 | G-1 | **§12 확률 5용도 제한 미구현.** `chance` 가 모든 효과에 무제한, 용도 라벨·검증기 없음. 5용도 중 엔진 실현 2개, 관찰 실패는 결정론 | `RuleTypes.ts:98-103`, `EffectExecutor.ts:200-238`, `WorldValidation.ts:148-150`(범위 검사뿐) | 생성 AI 가 "확률로 인과를 대체한 규칙"을 내도 걸러지지 않는다 — 기획이 명시한 유일한 확률 원칙이 무방비 |
 | G-2 | ~~**§21 사회 행동 10종 부재 + `visibleSignals` 14중 10종 침묵 + §19 `completionEffects`/`supports`/`alternative` 사문.**~~ **→ 수정 완료 (2026-07-28, §5 참조)** | actions.json 전수 대조, `ObservationEmitter.ts:11-17`(emit_signal 규칙 있어야만 발신), `GoalSystem.ts:391-459` | 헌터헌터급 깊이를 만들 사회적 조작·정보전 축이 통째로 없다. 거래·위임·능력 사용이 관찰 불가 → 소문·사건 연쇄가 구조적으로 빈곤 |
-| G-3 | **§17 `hiddenPurposes` 미소비 → §41 초기 상태 6중 2가 선언 문자열.** `structures`/`policies` 타입 부재 | `types.ts:149`(선언), core 소비 grep 0건, `factions.json` | "지도자의 불법 채굴 은폐"·"밀렵 조직의 장기 수요" 가 목적·행동·비밀로 전개되지 않는다 — §30 의 "플레이어가 모르는 것" 절반이 실행 데이터가 아님 |
+| G-3 | ~~**§17 `hiddenPurposes` 미소비 → §41 초기 상태 6중 2가 선언 문자열.**~~ **→ 수정 완료 (2026-07-29, §6 참조)** — `structures`/`policies` 타입 부재는 잔여(제도 시스템은 별도 규모) | `types.ts:149`(선언), core 소비 grep 0건, `factions.json` | "지도자의 불법 채굴 은폐"·"밀렵 조직의 장기 수요" 가 목적·행동·비밀로 전개되지 않는다 — §30 의 "플레이어가 모르는 것" 절반이 실행 데이터가 아님 |
 | G-4 | **§15 종족 필드 8중 5 사문**(survivalUnit·requiredResources·instincts·adaptationRules·growthRules 를 core 가 안 읽음), reproduction/socialStructure 생성 후 폐기, abilityAccess 부재 | `SpeciesGenerator.ts:131-142`, core grep | 종족은 감각+심볼일 뿐 — 생존 단위·번식·적응이 시뮬레이션에 없어 §15 의 "생존 구조 우선" 이 형식에 그침 |
 | G-5 | **§13 `resourceProfiles`/`speciesSuitability` 런타임 미보존, `SpaceConnection.requirements` 스키마가 금지** | `SpaceGenerator.ts:41-50`(측면 채널), `OutputSchemas.ts:230-241` | 지역-자원-종의 생태 결합이 부트스트랩 1회로 끝나고, 조건부 통행(관문·능력 요구)이 표현 불가 |
 | G-6 | **§14 "과도 사용의 결과" 무표현·무검증**, sourceRegions 폐기 | `ResourceGenerator.ts:17-23,70`, `WorldValidation.ts:322-324` | 자원 6대 질문 중 1개가 시스템 밖 — 남용 반동(의지 결정 과부하류) 서사 불가 |
@@ -155,3 +163,17 @@ verify 의 최종 표: §36 네 화면 29/29 · rendering/ 10파일 격리 위�
 **§40 규모 주석**: 행동은 §21 예시 21종을 담기 위해 §40 규모표(20종)를 넘는 24종 — WorldValidation.test 에 근거 주석과 함께 상한 25로 조정.
 
 무개입 30일(시드 42) 기준 사회 행동 중 협박·동맹·은닉은 NPC 가 자발적으로 사용하며, 나머지(협상·설득·거짓말·고용·계약·제작·연구)는 이 시드의 무개입 흐름에서는 미선택 — 플레이어 행동 패널에는 전부 오른다(§30·§31). verify 출력이 이를 투명하게 보고한다("미실행 행동의 신호 7종").
+
+## 6. G-3 수정 (2026-07-29)
+
+**은닉 목적(hiddenPurposes)을 선언 문자열에서 실행 데이터로.** 검증: `npm run verify` **75/75** (기존 73 + 신규 2항) · `npm test` **227/227** (기존 222 + hiddenAgenda 5항) · `npm run smoke` 통과(§0.1).
+
+**① 실행 연결 — `FactionDefinition.hiddenGoalIds`** (`types.ts`) — 은닉 목적이 좇는 목적 그래프 노드 id. §34 의미 검사기에 11번째 코드 **`faction.hidden`** 신설(`WorldValidator.ts`): 은닉 목적이 있는 조직은 반드시 실행 목적에 연결되어야 하고, 연결이 그래프에 실재해야 한다 — 위반 픽스처로 검출 증명. 수정 루프 매핑 `faction.hidden → 8단계(조직)` 추가.
+
+**② 콘텐츠 연결** — 수동 세계 2개 조직(마을→`goal.faction_authority`, 연구회→`goal.faction_supply`) 직접 연결. 첫 세계 5개 조직은 §42-6 정식 경로인 **수정 라운드 녹화**(repairs.json 5건)로 연결 — 1라운드 정적 검증이 `faction.hidden` 을 잡고, 수정 라운드가 조직 응답에 hiddenGoalIds 를 더해 재생성한다(밀수단→`goal.faction_contraband`, 관리국→`control`+`authority`, 수호단→`authority` …). 목적 자체는 불변이므로 동역학·기준선 무변경.
+
+**③ 정보 비대칭(§30·§33.3)** — `NarrationBuilder.hiddenAgendaFacts`: 조직 내부자가 아닌 관찰자의 사건·관찰 생성 요청에 은닉 목적 문구와 은닉 목적 노드 설명이 **금지 사실**(unknownFacts)로 실린다 — 누출 시 기존 §33.3 검사가 문장을 폐기한다. 조직 이름은 공개 정보이므로 identityLabel 을 쓰지 않는다(이름 언급 자체는 누출이 아님). 내부자(mar→자기 마을)는 제외. 참고: 타인의 목적은 이미 개발자 모드에서만 보이므로(EventViewBuilder·AgentViewBuilder introspect) 화면 쪽 추가 감춤은 불필요했다.
+
+**④ §41 초기 상태 6항 검사기** (`phase5Checks.checkInitialPlacements`) — 기획이 명시한 여섯 배치(식량 감소·교역로 흔적·연구자 의심·밀렵 수요·지도자 은폐·새끼 보호)가 전부 실행 데이터(상태·믿음·목적 연결)인지 verify 가 상시 판정한다 — 6/6 통과. 은닉 동기 2건이 이 수정으로 처음 "실행 데이터" 판정을 받았다.
+
+**잔여**: `structures`/`policies`(§17 제도) 타입은 여전히 부재 — 제도 시스템은 은닉 목적과 달리 새 실행 개념(정책 규칙·구성 조직)이 필요해 별도 작업으로 남긴다.

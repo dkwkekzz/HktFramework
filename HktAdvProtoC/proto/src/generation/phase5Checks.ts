@@ -186,3 +186,89 @@ export function summarizeAbilities(abilities: readonly AbilityDefinition[]): Abi
 export function costsGrowWithOutput(rows: readonly AbilityRow[]): boolean {
   return rows.every((row, index) => index === 0 || row.costWeight >= rows[index - 1]!.costWeight);
 }
+
+// --- §41 "초기 사건은 수동으로 작성하지 않는다. 초기 상태만 배치한다" 6항 (G-3) ---------
+
+/**
+ * 여섯 배치 전부가 **실행 데이터**(상태·믿음·목적 연결)인지 본다.
+ * 은닉 동기 2건(밀렵 수요·지도자 은폐)은 hiddenGoalIds 가 생기기 전에는 선언 문자열이었다.
+ */
+export function checkInitialPlacements(definition: WorldDefinition): FirstWorldItem[] {
+  const entities = definition.bootstrap.entities;
+  const item = (name: string, ok: boolean, evidence: string): FirstWorldItem => ({ item: name, ok, evidence });
+
+  const village = entities.find((entry) => entry.id === "faction.silent_village");
+  const foodReserve = Number(village?.states["food_reserve"] ?? Number.NaN);
+  const consumptionRules = definition.ruleDefinitions.filter(
+    (rule) =>
+      rule.effects.some((effect) => effect.type === "modify_state" && effect.stateKey === "food_reserve") &&
+      (rule.id.includes("consumption") || rule.name.includes("소비")),
+  );
+
+  const beliefsOf = (predicate: (entity: (typeof entities)[number]) => boolean) =>
+    entities.filter(predicate).flatMap((entity) => entity.beliefs ?? []);
+  const rumorBeliefs = beliefsOf(() => true).filter(
+    (belief) =>
+      belief.subjectId.startsWith("creature.") &&
+      belief.sourceIds.some((source) => source.includes("rumor") || source.includes("trace")),
+  );
+  const researcherDoubts = beliefsOf((entity) => entity.tags.includes("researcher")).filter(
+    (belief) => belief.subjectId.startsWith("creature.") && belief.sourceIds.some((s) => s.includes("observation")),
+  );
+
+  const smugglerFaction = definition.factions.find((faction) =>
+    faction.id.includes("smuggler") || faction.hiddenPurposes.some((purpose) => purpose.includes("장기")),
+  );
+  const organResource = definition.resources.find((resource) =>
+    resource.desiredBy.some((desire) => desire.agentTag.includes("smuggler") || desire.agentTag.includes("poacher")),
+  );
+
+  const leaderConcealment = definition.factions.find(
+    (faction) => faction.id === "faction.silent_village" && faction.hiddenPurposes.length > 0,
+  );
+
+  const protectingMother = entities.find((entry) => entry.states["protecting_offspring"] === true);
+
+  return [
+    item(
+      "마을 식량 비축량이 감소하고 있다",
+      Number.isFinite(foodReserve) && consumptionRules.length > 0,
+      `초기 비축 ${foodReserve} · 소비 규칙 ${consumptionRules.map((rule) => rule.id).join(",") || "없음"}`,
+    ),
+    item(
+      "교역로 근처에서 변이 생물의 흔적이 발견된다",
+      rumorBeliefs.length > 0,
+      rumorBeliefs
+        .slice(0, 2)
+        .map((belief) => `${belief.subjectId}.${belief.stateKey}=${String(belief.believedValue)} ← ${belief.sourceIds[0]}`)
+        .join(" / ") || "소문·흔적 믿음 없음",
+    ),
+    item(
+      "연구자는 생물의 행동이 공격이 아니라고 의심한다",
+      researcherDoubts.length > 0,
+      researcherDoubts
+        .slice(0, 1)
+        .map((belief) => `${belief.stateKey}=${String(belief.believedValue)} (확신 ${belief.confidence}) ← ${belief.sourceIds[0]}`)
+        .join("") || "관찰 근거 믿음 없음",
+    ),
+    item(
+      "밀렵 조직은 생물의 장기를 원한다 (실행 목적 연결)",
+      organResource !== undefined &&
+        smugglerFaction !== undefined &&
+        (smugglerFaction.hiddenGoalIds ?? []).length > 0,
+      `수요 자원 ${organResource?.id ?? "없음"} · ${smugglerFaction?.id ?? "조직 없음"} 은닉 목적 ${(smugglerFaction?.hiddenGoalIds ?? []).join(",") || "미연결"}`,
+    ),
+    item(
+      "마을 지도자는 불법 자원 채굴을 숨기고 있다 (실행 목적 연결)",
+      leaderConcealment !== undefined && (leaderConcealment.hiddenGoalIds ?? []).length > 0,
+      `${leaderConcealment?.hiddenPurposes[0] ?? "은닉 문구 없음"} → ${(leaderConcealment?.hiddenGoalIds ?? []).join(",") || "미연결"}`,
+    ),
+    item(
+      "생물은 새끼를 안전한 지역으로 이동시키려 한다",
+      protectingMother !== undefined,
+      protectingMother === undefined
+        ? "protecting_offspring=true 개체 없음"
+        : `${protectingMother.id} protecting_offspring=true · offspring_threat=${String(protectingMother.states["offspring_threat"])}`,
+    ),
+  ];
+}

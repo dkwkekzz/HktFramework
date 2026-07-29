@@ -138,6 +138,15 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
     },
   },
   {
+    code: "faction.hidden",
+    title: "은닉 목적이 실행 목적에 연결되지 않은 조직이 있다 (G-3)",
+    break(definition) {
+      const faction = definition.factions.find((entry) => entry.hiddenPurposes.length > 0);
+      if (faction === undefined) throw new Error("픽스처: 은닉 목적을 가진 조직이 필요하다");
+      delete faction.hiddenGoalIds;
+    },
+  },
+  {
     code: "agent.goal",
     title: "초기 상태에서 이미 모든 목적을 이룬 개인이 있다",
     break(definition) {
@@ -193,7 +202,7 @@ export interface FixtureResult {
 }
 
 /**
- * 위반 픽스처 10종을 전부 돌린다.
+ * 위반 픽스처 11종을 전부 돌린다.
  * 반환값이 곧 DoD 1 의 근거다 — verify 와 테스트가 이 함수를 함께 쓴다.
  */
 export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
@@ -215,7 +224,7 @@ export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
   });
 }
 
-/** 통과 세계(수동 세계)에서는 10종 전부 조용해야 한다 — 픽스처의 대조군 */
+/** 통과 세계(수동 세계)에서는 11종 전부 조용해야 한다 — 픽스처의 대조군 */
 export function validateManualWorld(worldSeed = 42): ReturnType<typeof validateWorld> {
   return validateWorld(buildManualWorld(worldSeed));
 }
