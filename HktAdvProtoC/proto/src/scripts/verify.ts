@@ -14,6 +14,7 @@ import {
 import { measureResourceOveruse } from "../core/world/overuseChecks";
 import { measureInitialMemories, measureInventory } from "../core/agents/initialStateChecks";
 import { measureSecrets } from "../core/agents/secretChecks";
+import { buildPlayerKnowledgeView } from "../core/agents/PlayerAgent";
 import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
@@ -1087,6 +1088,43 @@ check(
     .join("") +
     `\n      소지품 — ${inventoryRows.map((row) => `${row.agentId.replace(/^(agent|creature)\./, "")}:${row.resourceId.replace("resource.", "")}→${row.stateKey} ${row.stored}`).join(" · ")}` +
     `\n      (소지 상태 직접 지정 0건 — 선언은 inventory, 변환은 부트스트랩, 읽는 쪽은 거래·소비 규칙 그대로)`,
+);
+
+// --- G-11 : §4 사용자 입력 4필드가 결과에 책임진다 -----------------------------------------
+const seedMeta = repaired.definition.metadata;
+const seedContract = auditOn.checks.find((entry) => entry.code === "audit.seed-contract");
+const seedDesired = FIRST_WORLD_SEED_INPUT.desiredExperiences ?? [];
+const seedProhibited = FIRST_WORLD_SEED_INPUT.prohibitedElements ?? [];
+check(
+  seedMeta.title === FIRST_WORLD_SEED_INPUT.title &&
+    seedMeta.seedInput?.themes.length === FIRST_WORLD_SEED_INPUT.themes.length &&
+    seedContract !== undefined &&
+    !seedContract.skipped &&
+    seedContract.asked === seedDesired.length + seedProhibited.length,
+  `§4 사용자 입력 4필드 책임 — title 반영 · 주제 ${seedMeta.seedInput?.themes.length ?? 0}문장 정규화 강제 · 경험/금지 ${seedContract?.asked ?? 0}문장 감사`,
+  `title "${FIRST_WORLD_SEED_INPUT.title}" → metadata.title "${seedMeta.title}" (하드코딩 제거 — 다른 제목을 넣으면 다른 이름의 세계가 나온다, 테스트 증명)\n` +
+    `      themes ${FIRST_WORLD_SEED_INPUT.themes.length}문장 — 1단계가 수·원문 일치를 오류로 강제 (기존)\n` +
+    `      desiredExperiences ${seedDesired.length} + prohibitedElements ${seedProhibited.length} → audit.seed-contract 가 문장 단위로 되물음 — 위반 ${seedContract?.findings.length ?? 0}건 (경고 전용, §33.2 규약)`,
+);
+
+// --- G-9 : §29 저중요도 필터 — 사소한 사건은 플레이어 화면에서 접힌다 -----------------------
+const filterDevScene = buildScenePayload(active.runtime, { mode: "developer" });
+const filterPlayerScene = buildScenePayload(active.runtime, { mode: "player", observerId: active.playerId });
+const filterKnowledge = buildPlayerKnowledgeView(active.runtime, active.playerId);
+const lowShown = filterPlayerScene.events.filter((item) => item.significance < SIGNIFICANCE_THRESHOLD);
+const lowShownAreMine = lowShown.every((item) =>
+  active.runtime.state.events.events.find((event) => event.id === item.eventId)?.participants.includes(active.playerId),
+);
+check(
+  filterDevScene.suppressedEventCount === 0 &&
+    filterPlayerScene.suppressedEventCount > 0 &&
+    filterPlayerScene.events.length + filterPlayerScene.suppressedEventCount <= filterDevScene.events.length &&
+    lowShownAreMine &&
+    filterKnowledge.suppressedEventCount > 0,
+  `§29 저중요도 필터 — 플레이어 사건 목록 ${filterPlayerScene.events.length}건 표시 · ${filterPlayerScene.suppressedEventCount}건 접힘 (임계 ${SIGNIFICANCE_THRESHOLD})`,
+  `개발자 화면 ${filterDevScene.events.length}건 전부 표시(접힘 0 — 디버그 진실) / 플레이어 화면 ${filterPlayerScene.events.length}건 + 접힘 ${filterPlayerScene.suppressedEventCount}건\n` +
+    `      임계 미만인데 보이는 사건 ${lowShown.length}건 — 전부 플레이어가 참여한 사건(내 일은 사소해도 남는다)\n` +
+    `      개입 브리핑(§30)도 같은 필터 — 표시 ${filterKnowledge.events.length}건 · 접힘 ${filterKnowledge.suppressedEventCount}건, 접힌 사실은 수로 남아 화면이 숨김을 숨기지 않는다`,
 );
 
 // --- G-8 : §25 비밀이 기록되고 소비된다 ---------------------------------------------------

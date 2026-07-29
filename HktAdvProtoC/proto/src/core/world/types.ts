@@ -10,6 +10,17 @@ export interface WorldMetadata {
   id: string;
   title: string;
   worldSeed: number;
+  /**
+   * §4 사용자 입력 원문 (G-11) — 생성 세계가 자기 출처를 들고 다닌다.
+   * title 이 여기서 왔음을 대조할 수 있고, §33.2 seed-contract 감사가
+   * desiredExperiences/prohibitedElements 에 대한 결과 책임을 물을 수 있다.
+   */
+  seedInput?: {
+    title?: string;
+    themes: string[];
+    desiredExperiences?: string[];
+    prohibitedElements?: string[];
+  };
 }
 
 // --- §9 상태 스키마 -----------------------------------------------------------

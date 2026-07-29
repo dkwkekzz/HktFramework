@@ -23,6 +23,7 @@ export const AUDIT_CODES = [
   "audit.purposeless-faction",
   "audit.costless-ability",
   "audit.isolated-setting",
+  "audit.seed-contract",
 ] as const;
 
 export type AuditCode = (typeof AUDIT_CODES)[number];
@@ -76,7 +77,7 @@ interface AuditSpec {
   code: AuditCode;
   taskId: string;
   question: string;
-  build(definition: WorldDefinition): { input: StructuredInput; asked: number };
+  build(definition: WorldDefinition): { input: StructuredInput; asked: number; skip?: string };
 }
 
 /** 입력은 구조화 요약만 담는다 (§33 "월드 상태 전체를 매번 전달하지 않는다") */
@@ -181,6 +182,36 @@ const SPECS: AuditSpec[] = [
       return { input: { settings: entries }, asked: entries.length };
     },
   },
+  {
+    // §4 사용자 입력의 결과 책임 (G-11) — 바란 경험이 실현될 근거가 없거나, 금지한 요소가 스며들었으면 찾는다.
+    // targetId 는 사용자 문장 그대로다 — "무엇을 약속하고 무엇을 어겼는가"가 문장 단위로 남는다.
+    code: "audit.seed-contract",
+    taskId: "audit/seed_contract",
+    question: "사용자가 바란 경험이 실현될 근거가 없는가 / 금지한 요소가 스며들었는가",
+    build(definition) {
+      const seed = definition.metadata.seedInput;
+      if (seed === undefined) {
+        return { input: {}, asked: 0, skip: "metadata.seedInput 없음 — 생성 세계가 아니다" };
+      }
+      const desired = seed.desiredExperiences ?? [];
+      const prohibited = seed.prohibitedElements ?? [];
+      // 판단 재료 — 세계가 실제로 갖춘 것의 요약 (§33 "월드 상태 전체를 매번 전달하지 않는다")
+      const summary = {
+        actionTags: [...new Set(definition.actionDefinitions.flatMap((action) => action.tags))].sort(),
+        goalCount: definition.goalTemplates.reduce((sum, graph) => sum + graph.nodes.length, 0),
+        abilityRestrictions: (definition.abilitySystem?.abilities ?? []).map(
+          (ability) => `${ability.id}: 제약 ${ability.restrictions.length}·관찰 신호 ${ability.observableSignals.length}`,
+        ),
+        factions: definition.factions.map((faction) => `${faction.id}(은닉 ${faction.hiddenPurposes.length})`),
+        eventPatterns: definition.eventPatterns.map((pattern) => pattern.id),
+        growthRules: definition.ruleDefinitions.filter((rule) => rule.effects.some((e) => e.type === "record_growth")).length,
+      };
+      return {
+        input: { desiredExperiences: desired, prohibitedElements: prohibited, world: summary },
+        asked: desired.length + prohibited.length,
+      };
+    },
+  },
 ];
 
 /**
@@ -194,9 +225,17 @@ export async function auditWorld(
 ): Promise<AuditReport> {
   const checks: AuditCheck[] = [];
   for (const spec of SPECS) {
-    const { input, asked } = spec.build(definition);
-    if (port === undefined) {
-      checks.push({ code: spec.code, taskId: spec.taskId, question: spec.question, asked, findings: [], skipped: true });
+    const { input, asked, skip } = spec.build(definition);
+    if (port === undefined || skip !== undefined) {
+      checks.push({
+        code: spec.code,
+        taskId: spec.taskId,
+        question: spec.question,
+        asked,
+        findings: [],
+        skipped: true,
+        ...(skip === undefined ? {} : { error: skip }),
+      });
       continue;
     }
     try {
