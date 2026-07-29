@@ -1,5 +1,6 @@
 // 앱 진입 — 검 생성 → 검증 리포트 → 뷰어/UV 프리뷰 + Worker 베이크 (05-phase3 §3.6).
 // Phase 4: Operation 로그를 함께 Worker 로 보내 표면 상태를 재생한다 (06-phase4 §4.5).
+// Phase 5: 참조 이미지 어노테이션 → TargetSpec → 실루엣 최적화 (07-phase5).
 
 import { makeSwordDesign, buildSword, hashSword } from "../mesh/sword.js";
 import { analyzeManifold, countDegenerate3DTriangles } from "../mesh/topology.js";
@@ -7,8 +8,9 @@ import { validateUVs } from "../uv/validate.js";
 import { makeMaterialGraph } from "../material/primitives.js";
 import { createViewer } from "./viewer.js";
 import {
-  createPanel, paramsToSwordInput, paramsToMaterialInput, downloadBlob,
+  createPanel, paramsToSwordInput, paramsToMaterialInput, swordInputToParams, downloadBlob,
 } from "./panels.js";
+import { createReferenceTool } from "./reference.js";
 import { exportSwordGLB } from "../export/glb.js";
 import swordPresets from "../../test/golden/sword-presets.json";
 import bladePresets from "../../test/golden/blade-presets.json";
@@ -137,6 +139,14 @@ const panel = createPanel(document.getElementById("panel"), {
     downloadBlob(await textureToPNG(currentTextures.normal, size), "sword_normal.png");
     downloadBlob(await textureToPNG(currentTextures.orm, size), "sword_orm.png");
   },
+});
+
+// 참조 맞춤 (Phase 5) — 결과 SwordInput 을 슬라이더에 반영해 수동 미세조정으로 이어간다
+createReferenceTool({
+  panel: document.getElementById("panel"),
+  viewport: document.getElementById("viewport"),
+  getSeed: () => panel.params.seed,
+  onApplyInput: (input) => panel.applyParams(swordInputToParams(structuredClone(input))),
 });
 
 rebuild(panel.params);

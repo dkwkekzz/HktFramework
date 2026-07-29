@@ -23,21 +23,21 @@ export function makeSwordDesign(p) {
 }
 
 /**
- * @returns {{ parts: {name,partId,mesh,transform}[], merged, triangleCount }}
+ * 부품 생성 + 소켓 조립만 — Atlas 배치·병합 없음. 실루엣 평가(Phase 5)가 재사용하는
+ * 경량 경로다 (Atlas 는 투영에 불필요 — 07-phase5 §5.3 의 1평가 < 20ms 예산).
  * 소켓 (04-phase2 §2.5):
  *  blade.guardSocket = 뿌리 원점 / guard.bladeSocket = 앞면 중심(로컬 원점)
  *  guard.gripSocket = 뒷면 중심 / grip.guardSocket = 위 끝(로컬 원점)
  *  grip.pommelSocket = 아래 끝 / pommel.gripSocket = 위 끝(로컬 원점)
+ * @returns {{ meshes: GeneratedMesh[], parts: {name,partId,mesh,transform}[] }}
  */
-export function buildSword(design, textureSize = 1024) {
+export function buildSwordParts(design, textureSize = 1024) {
   const bladeMesh = buildBladeMesh(design.blade, textureSize);
   const guardMesh = buildGuardMesh(design.guard);
   const gripMesh = buildGripMesh(design.grip);
   const pommelMesh = buildPommelMesh(design.pommel);
 
   const meshes = [bladeMesh, guardMesh, gripMesh, pommelMesh];
-  applySwordAtlasUV(meshes, textureSize);
-
   const parts = assembleSword({
     blade: { mesh: bladeMesh, sockets: { guardSocket: [0, 0, 0] } },
     guard: {
@@ -50,6 +50,13 @@ export function buildSword(design, textureSize = 1024) {
     },
     pommel: { mesh: pommelMesh, sockets: { gripSocket: [0, 0, 0] } },
   });
+  return { meshes, parts };
+}
+
+/** @returns {{ parts: {name,partId,mesh,transform}[], merged, triangleCount }} */
+export function buildSword(design, textureSize = 1024) {
+  const { meshes, parts } = buildSwordParts(design, textureSize);
+  applySwordAtlasUV(meshes, textureSize);
 
   const merged = mergeForValidation(meshes);
   const triangleCount = merged.indices.length / 3;

@@ -379,6 +379,12 @@ export function createPanel(container, {
   return {
     params,
     opLog,
+    /** 외부(참조 맞춤 결과 등)에서 파라미터 일괄 반영 — 슬라이더 동기화 + 재빌드 */
+    applyParams(partial) {
+      Object.assign(params, partial);
+      syncControls();
+      emit();
+    },
     /** UV 프리뷰(표시 전용 — Canvas 2D 허용). merged 메시(부품 병합)를 그린다. */
     drawUV(merged) {
       const ctx = uvCanvas.getContext("2d");
