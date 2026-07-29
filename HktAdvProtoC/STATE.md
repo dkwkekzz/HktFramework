@@ -9,7 +9,7 @@
 
 - 기획서: [design/Design-MMO.md](design/Design-MMO.md) (확정) · 구현 분해: [design/impl/README.md](design/impl/README.md) (총 9개 Phase — 전부 완료)
 - 공간 데이터는 3D(x·y 수평 + z 고도), 렌더링은 2D 투영 — 2026-07-28 기획 §13 개정
-- 검증: `cd proto && npm run verify` (Phase 1~8 완료 조건 ✓/✗ 70항 + §44 게이트 13항) · `npm test` (212) · `npm run smoke`(네 화면 브라우저 왕복 + Canvas 픽셀 확인) · `npm run baseline:sim`(§35 기준선 재고정)
+- 검증: `cd proto && npm run verify` (Phase 1~8 완료 조건 + §44 게이트 13항 + 재검증 갭 수정 — ✓/✗ 89항) · `npm test` (258) · `npm run smoke`(네 화면 브라우저 왕복 + Canvas 픽셀 확인) · `npm run baseline:sim`(§35 기준선 재고정)
 - 생성 세계는 `src/content/first-world/` 의 녹화 응답으로 재생된다 — 코퍼스의 출처는 [Phase-5.md](design/impl/Phase-5.md), 수정 라운드의 녹화(`repairs.json`)는 [Phase-6.md](design/impl/Phase-6.md) 에 명시.
 - 실행 기준선은 Phase 4 에서 고정된 그대로다 — Phase 5~8 은 수동 세계의 동역학을 건드리지 않았다. Phase 8 은 **읽기만 하는 층**이다(표현은 세계 상태를 바꾸지 않는다, §33).
 - 화면은 `core/**`·`generation/**`·`content/**` 를 import 할 수 없고 렌더러는 `SceneViewModel` 밖의 어떤 타입도 import 할 수 없다 — 린트가 상시 강제한다([Phase-8.md](design/impl/Phase-8.md) §8.0).
@@ -34,9 +34,17 @@ Phase 8 이후 화면이 "디버그 다이어그램"으로 보이는 원인을 �
 
 3차: **three.js 3D 뷰** (`rendering/ThreeSceneRenderer.ts`) — 같은 SceneViewModel 을 소비하는 세 번째 렌더러. §13 의 3D 공간 데이터(빌더가 실어 준 elevation/elevationShade)를 높이로 되살린다: 지역=고도 판, 개체=3D 도형 + 발밑 그림자 + 고도 기둥, 사건=바닥 링, 신호=파문 링. 시뮬레이션 화면에 2D↔3D 토글(three 는 3D 첫 진입 시에만 동적 로드 — 코드 분할). 드래그 궤도 회전·휠 줌. 격리 검사기(`checkRendererImports`)는 "프로젝트 내부 경로는 SceneViewModel 만"으로 명확화 — 외부 표현 라이브러리(bare import)는 시뮬레이션 타입을 실어 나를 수 없으므로 위반이 아니다.
 
-## 1차 구현 전수 재검증 (2026-07-28)
+## 1차 구현 전수 재검증 (2026-07-28) — 갭 12건 전부 종결 (2026-07-29)
 
-기획서 §1~§45 를 목차 순서대로 코드와 재대조 — **충분 33 / 부분 12 / 누락 0**, 갭 12건(G-1~G-12)과 요소별 ViewModel 시각 표현 판정은 [design/impl/Review-DesignValidation.md](design/impl/Review-DesignValidation.md). 핵심 발견: ① 생성 후 미소비 필드군(종족 5필드·hiddenPurposes·resourceProfiles·supports 엣지·knownSecrets) ② 목록 앞쪽만 구현(행동 21→11 — 사회적 조작 축 부재, 관찰 채널 12→8, 확률 용도 5→2, visibleSignals 14→4 발신) ③ 조직 지도 마커 도달 불가·§44-10 게이트 항진 항.
+기획서 §1~§45 를 목차 순서대로 코드와 재대조 — **충분 33 / 부분 12 / 누락 0**, 갭 12건(G-1~G-12)과 요소별 ViewModel 시각 표현 판정은 [design/impl/Review-DesignValidation.md](design/impl/Review-DesignValidation.md). 핵심 발견: ① 생성 후 미소비 필드군(종족 5필드·hiddenPurposes·resourceProfiles·supports 엣지·knownSecrets) ② 목록 앞쪽만 구현(행동 21→11 — 사회적 조작 축 부재, 관찰 채널 12→8, 확률 용도 5→2, visibleSignals 14→4 발신) ③ 조직 지도 마커 도달 불가·§44-10 게이트 항진 항. **G-1~G-12 전부 수정 완료** — 최종 verify **89/89** · test **258/258** · smoke 통과. 남은 것은 각 수정 절의 잔여(§17 제도 타입, 능력 성장 실패 카운트, values/fears 구조화 등 — 전부 새 실행 개념이 필요한 별도 규모).
+
+**G-6~G-9·G-11·G-12 수정 완료 (2026-07-29)** — 사문 필드와 무판정 경로의 마지막 여섯:
+- **G-6** §14 여섯 번째 질문("과도 사용의 결과")을 `overuseRules` + §34 `resource.overuse` 검사기 + 수동 세계 3자원 반동 규칙으로 — 과잉/정상 대조 실측(허기 0 식사 −2 vs 정상 −0 · 잔재 과적 −4 · 시장 포화 가격 18 vs 28). 잔재 과적은 적응 못한 종(인간)에게만 — 반향수의 §15 흡수 적응과 싸우지 않는다. 기준선 무변경. ([Review §11](design/impl/Review-DesignValidation.md))
+- **G-7** §18 초기 기억·소지품 — `memories`(interpretation 이 초기 믿음을 지지: 5주체 100%)·`inventory`+`carryStateKey`(선언→거래 규칙이 읽는 상태로 변환, 직접 지정 0건). 기억이 §23 대조에 닿아 기준선 재고정 — §35 8/8 유지(다양성 30.00·깊이 5.38 불변). ([Review §12](design/impl/Review-DesignValidation.md))
+- **G-8** §25 knownSecrets — DSL `record_secret` 효과 + `known_secrets` 값. 기록(초기 선언: ren 이 마을의 정보 통제를 눈치챈 채 시작 · 발각: 거짓말 60회 중 발각이 비밀을 남김) · 소비(`rule.blackmail_leverage` — 같은 협박이 비밀 유무로 공포 +12 vs +22). 기준선 무변경. ([Review §13](design/impl/Review-DesignValidation.md))
+- **G-9** §29 저중요도 필터 실작동 — 플레이어 사건 목록·개입 브리핑이 임계 200 미만을 접는다(참여 사건 예외 · 개발자 시점 전부 표시 · 접힌 수를 화면에 남김). 실측: 개발자 37건 / 플레이어 32건 + 접힘 5건. ([Review §14](design/impl/Review-DesignValidation.md))
+- **G-11** §4 입력 4필드 책임 — title 하드코딩 제거(사용자의 것), `metadata.seedInput` 으로 세계가 출처를 들고 다니고, §33.2 여섯 번째 감사 `audit.seed-contract` 가 경험 4·금지 3문장을 문장 단위로 되묻는다(경고 전용 규약 유지). ([Review §15](design/impl/Review-DesignValidation.md))
+- **G-12** §7·§8 마지막 사문 — §34 `axiom.enforced`(불변 명제 8개 전부 규칙으로 강제 — 강제 없는 명제는 error) + 수정 라운드 불변 계약(immutable 을 지우거나 바꾸면 즉시 중단) + `pressure.related`(허상 자원 참조 error) + 관찰 패널 압력 표("무엇으로 풀리는가" — relatedResources 소비). §34 검사기는 이제 17종. ([Review §16](design/impl/Review-DesignValidation.md))
 
 **G-4 수정 완료 (2026-07-29)** — 종족이 감각·심볼에 그치지 않게: §15 정의 8필드 중 `senses` 만 읽히던 것을 5필드에 각각 소비처를 붙였다 — `requiredResources`→규칙 DSL 값 참조 **`species_need`**(허기가 종족 필요량에 비례: 인간 +1.00/시 · 반향수 +1.33/시), `instincts`→목적 활성도 가산(본능 20→26, 배운 목적 불변 · BeliefView 를 통해서만 읽어 §10 관문 유지), `survivalUnit`→같은 종의 초기 관계(family → 친숙도 25·신뢰 15), `adaptation/growthRules`→§34 열네 번째 검사기 `species.structure`, `reproduction`→개체 템플릿 `species_id` 로 실행 규칙 자동 연결(`SpeciesLinks` — 수동·생성 세계 공용). 번식 선언에 실행이 없으면 경고로 남긴다(30일 밖의 종도 있다). 기준선 재고정 — 세계는 더 살아났다(§35 다양성 28.50→**30.00** · 깊이 5.04→**5.38**, 8/8 유지). verify **83/83** · test **241/241** · smoke 통과. 상세: [Review-DesignValidation.md §10](design/impl/Review-DesignValidation.md).
 
