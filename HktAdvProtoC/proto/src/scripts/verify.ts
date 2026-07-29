@@ -12,6 +12,7 @@ import {
 } from "../core/agents/phase3Checks";
 import {
   PLAYER_FREE_MODULES,
+  checkGrowthConditions,
   findPlayerBranches,
   runPlayerScenario,
 } from "../core/agents/phase7Checks";
@@ -1022,6 +1023,20 @@ check(
         `출력 상한 ${accepted.abilityBefore.outputMax}→${accepted.abilityAfter.outputMax} (§11.4 제약이 무거울수록 출력이 크다)`) +
     `\n      출처 사건 없는 성장 ${active.growth.filter((c) => c.sourceEventId.length === 0).length}건 · 저널 ${active.journalSize}줄 ` +
     `(${Object.entries(active.journalKinds).map(([kind, count]) => `${kind} ${count}`).join(" · ")})`,
+);
+
+// --- G-10 : §32 성장 발생 조건 7종이 전부 규칙으로 존재한다 ------------------------------
+const growthConditions = checkGrowthConditions([...active.growth, ...active.npcGrowth], worldSeed);
+check(
+  growthConditions.every((row) => row.declared),
+  `§32 성장 발생 조건 ${growthConditions.filter((row) => row.declared).length}/7 이 규칙으로 존재 · 30일 조작에서 발화한 조건 ${growthConditions.filter((row) => row.fired > 0).length}종`,
+  growthConditions
+    .map(
+      (row) =>
+        `\n      ${row.declared ? "✓" : "✗"} ${row.plan} — ${row.ruleId.replace("rule.growth_", "")}` +
+        ` (${row.fired > 0 ? `${row.fired}회 발화` : "이 시드에서는 미발화"})`,
+    )
+    .join(""),
 );
 
 // --- DoD 7 : 개입이 있어도 같은 시드면 같은 세계다 (§44-12) ---------------------------------

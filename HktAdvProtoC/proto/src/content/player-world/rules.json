@@ -446,5 +446,73 @@
     "derivedFromAxioms": [
       "axiom.creatures_absorb_ability_residue"
     ]
+  },
+  {
+    "id": "rule.growth_ability_reapplied",
+    "name": "성장 — 멈추던 손을 남을 돕는 데 썼다 (§32 기존 능력을 다른 방식으로 사용)",
+    "tags": [
+      "growth",
+      "ability",
+      "assist"
+    ],
+    "scope": "entity",
+    "priority": 20,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.assist"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_ref",
+          "of": "actor"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent.kael"
+        }
+      },
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "energy"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 20
+        }
+      },
+      {
+        "left": {
+          "type": "entity_type",
+          "of": "target"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent"
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "record_growth",
+        "growthType": "skill",
+        "target": {
+          "type": "actor"
+        },
+        "key": "empathy",
+        "amount": 3
+      }
+    ],
+    "cooldown": 1440,
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
   }
 ]
