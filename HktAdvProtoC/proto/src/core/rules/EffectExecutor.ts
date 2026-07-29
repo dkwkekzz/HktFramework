@@ -10,6 +10,7 @@ import {
   applyRelationshipChange,
   ensureRelationship,
   isRelationshipKey,
+  recordSecret,
 } from "../agents/RelationshipSystem";
 import {
   bindingEntityId,
@@ -279,6 +280,14 @@ export function executeEffect(
         case "make_promise":
           makePromise(scoped, effect);
           return;
+        case "record_secret": {
+          // §25 비밀 기록 (G-8) — from 이 to 에 대한 비밀을 관계 원장에 남긴다
+          const from = resolveSingleTarget(scoped, effect.from);
+          const to = resolveSingleTarget(scoped, effect.to);
+          if (from === undefined || to === undefined || from.id === to.id) return;
+          recordSecret(scoped.runtime, from.id, to.id, effect.secret);
+          return;
+        }
       }
     }
   }

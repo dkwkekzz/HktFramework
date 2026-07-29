@@ -17,7 +17,8 @@ interface ResourceDraft extends ResourceDefinition {
 const SYSTEM_PROMPT = [
   "너는 세계 생성 컴파일러의 6단계다. 자원은 채집물이 아니라 '목적을 이루는 수단'이다(§14).",
   "자원마다 반드시: 어떻게 만들어지는가(productionRules) / 무엇에 쓰이는가(consumptionRules) /",
-  "무엇으로 변하는가(transformationRules) / 누가 얼마나 원하는가(desiredBy) / 어디에서 나는가(sourceRegions).",
+  "무엇으로 변하는가(transformationRules) / 누가 얼마나 원하는가(desiredBy) / 어디에서 나는가(sourceRegions) /",
+  "과도하게 사용하면 무엇이 발생하는가(overuseRules — 과잉 상태를 조건으로 갖는 반동 규칙).",
   "desiredBy 의 utility 는 음수도 쓴다 — 누군가에게 해로운 자원이 갈등의 씨앗이 된다.",
   "규칙 id 는 앞 단계에서 만들어진 것만 쓴다.",
 ].join("\n");

@@ -8,6 +8,7 @@
 import { rankGoals } from "../core/agents/GoalSystem";
 import { findPlayerId, playerStateOf } from "../core/agents/PlayerAgent";
 import { getEventViewFor } from "../core/events/EventViews";
+import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
 import type { WorldRuntime } from "../core/world/WorldRuntime";
 import type { WorldEvent } from "../shared/events";
 import type { RawWorldChange } from "../shared/change";
@@ -53,29 +54,47 @@ function changesOf(runtime: WorldRuntime, event: WorldEvent): RawWorldChange[] {
 
 // --- 목록 (§36.4 진입점) ---------------------------------------------------------------
 
+export interface SceneEventList {
+  items: SceneEventListItem[];
+  /** §29 저중요도 필터 (G-9) — 플레이어 시점에서 중요도 미달로 접힌 사건 수. 개발자 시점은 항상 0 */
+  suppressed: number;
+}
+
 /**
  * 사건 목록.
  * 플레이어 모드에서는 **아는 사건만** 실린다 — 모르는 사건은 목록에 존재하지 않는다(§30).
+ * §29 "모든 상태 변화를 플레이어에게 보여줄 필요는 없다" — 아는 사건이라도 중요도가 임계(200) 미만이면
+ * 목록에서 접는다(G-9). 자기가 참여한 사건은 예외다 — 내 일은 사소해도 내 화면에 남는다.
+ * 접힌 수는 suppressed 로 남아 화면이 "숨겼다"는 사실 자체는 감추지 않는다.
  */
 export function buildEventList(
   runtime: WorldRuntime,
   context: SceneViewContext,
   interpreter: EventInterpreter = new EventInterpreter(),
-): SceneEventListItem[] {
+): SceneEventList {
   const observerId =
     context.mode === "player" ? (context.observerId ?? findPlayerId(runtime)) : undefined;
   // 플레이어 시점에 관찰자가 없으면 아는 사건도 없다 (지도와 같은 규약)
   if (context.mode === "player" && (observerId === undefined || playerStateOf(runtime, observerId) === undefined)) {
-    return [];
+    return { items: [], suppressed: 0 };
   }
   const now = runtime.state.simulationTime;
   const items: SceneEventListItem[] = [];
+  let suppressed = 0;
 
   for (const event of [...runtime.state.events.events].sort((a, b) =>
     a.significance === b.significance ? a.id.localeCompare(b.id) : b.significance - a.significance,
   )) {
     const known = observerId === undefined ? true : getEventViewFor(runtime, observerId, event.id).known;
     if (observerId !== undefined && !known) continue;
+    if (
+      observerId !== undefined &&
+      event.significance < SIGNIFICANCE_THRESHOLD &&
+      !event.participants.includes(observerId)
+    ) {
+      suppressed += 1;
+      continue;
+    }
     const pattern = runtime.definition.eventPatterns.find((entry) => entry.id === event.patternId);
     const window = pattern?.timeWindow ?? 1;
     const urgency =
@@ -98,7 +117,7 @@ export function buildEventList(
       colorKey: event.status === "concluded" ? "event-closed" : dangerKey(Math.min(100, event.significance / 5)),
     });
   }
-  return items;
+  return { items, suppressed };
 }
 
 // --- 상세 (§36.4 8항목) ----------------------------------------------------------------

@@ -11,6 +11,10 @@ import {
   measureGoalEdgeSemantics,
   measureSpeciesStructure,
 } from "../core/agents/phase3Checks";
+import { measureResourceOveruse } from "../core/world/overuseChecks";
+import { measureInitialMemories, measureInventory } from "../core/agents/initialStateChecks";
+import { measureSecrets } from "../core/agents/secretChecks";
+import { buildPlayerKnowledgeView } from "../core/agents/PlayerAgent";
 import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
@@ -1070,6 +1074,87 @@ check(
     .join(""),
 );
 
+// --- G-7 : §18 초기 기억·소지품이 실행 상태로 시작한다 -------------------------------------
+const memoryRows = measureInitialMemories(worldSeed);
+const inventoryRows = measureInventory(worldSeed);
+check(
+  memoryRows.length > 0 &&
+    memoryRows.every((row) => row.ok) &&
+    inventoryRows.length > 0 &&
+    inventoryRows.every((row) => row.ok),
+  `§18 초기 기억 ${memoryRows.filter((r) => r.ok).length}/${memoryRows.length}명 · 소지품 ${inventoryRows.filter((r) => r.ok).length}/${inventoryRows.length}건이 실행 데이터로 시작한다`,
+  memoryRows
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.agentId.replace(/^(agent|creature)\./, "")} — ${row.evidence}`)
+    .join("") +
+    `\n      소지품 — ${inventoryRows.map((row) => `${row.agentId.replace(/^(agent|creature)\./, "")}:${row.resourceId.replace("resource.", "")}→${row.stateKey} ${row.stored}`).join(" · ")}` +
+    `\n      (소지 상태 직접 지정 0건 — 선언은 inventory, 변환은 부트스트랩, 읽는 쪽은 거래·소비 규칙 그대로)`,
+);
+
+// --- G-11 : §4 사용자 입력 4필드가 결과에 책임진다 -----------------------------------------
+const seedMeta = repaired.definition.metadata;
+const seedContract = auditOn.checks.find((entry) => entry.code === "audit.seed-contract");
+const seedDesired = FIRST_WORLD_SEED_INPUT.desiredExperiences ?? [];
+const seedProhibited = FIRST_WORLD_SEED_INPUT.prohibitedElements ?? [];
+check(
+  seedMeta.title === FIRST_WORLD_SEED_INPUT.title &&
+    seedMeta.seedInput?.themes.length === FIRST_WORLD_SEED_INPUT.themes.length &&
+    seedContract !== undefined &&
+    !seedContract.skipped &&
+    seedContract.asked === seedDesired.length + seedProhibited.length,
+  `§4 사용자 입력 4필드 책임 — title 반영 · 주제 ${seedMeta.seedInput?.themes.length ?? 0}문장 정규화 강제 · 경험/금지 ${seedContract?.asked ?? 0}문장 감사`,
+  `title "${FIRST_WORLD_SEED_INPUT.title}" → metadata.title "${seedMeta.title}" (하드코딩 제거 — 다른 제목을 넣으면 다른 이름의 세계가 나온다, 테스트 증명)\n` +
+    `      themes ${FIRST_WORLD_SEED_INPUT.themes.length}문장 — 1단계가 수·원문 일치를 오류로 강제 (기존)\n` +
+    `      desiredExperiences ${seedDesired.length} + prohibitedElements ${seedProhibited.length} → audit.seed-contract 가 문장 단위로 되물음 — 위반 ${seedContract?.findings.length ?? 0}건 (경고 전용, §33.2 규약)`,
+);
+
+// --- G-9 : §29 저중요도 필터 — 사소한 사건은 플레이어 화면에서 접힌다 -----------------------
+const filterDevScene = buildScenePayload(active.runtime, { mode: "developer" });
+const filterPlayerScene = buildScenePayload(active.runtime, { mode: "player", observerId: active.playerId });
+const filterKnowledge = buildPlayerKnowledgeView(active.runtime, active.playerId);
+const lowShown = filterPlayerScene.events.filter((item) => item.significance < SIGNIFICANCE_THRESHOLD);
+const lowShownAreMine = lowShown.every((item) =>
+  active.runtime.state.events.events.find((event) => event.id === item.eventId)?.participants.includes(active.playerId),
+);
+check(
+  filterDevScene.suppressedEventCount === 0 &&
+    filterPlayerScene.suppressedEventCount > 0 &&
+    filterPlayerScene.events.length + filterPlayerScene.suppressedEventCount <= filterDevScene.events.length &&
+    lowShownAreMine &&
+    filterKnowledge.suppressedEventCount > 0,
+  `§29 저중요도 필터 — 플레이어 사건 목록 ${filterPlayerScene.events.length}건 표시 · ${filterPlayerScene.suppressedEventCount}건 접힘 (임계 ${SIGNIFICANCE_THRESHOLD})`,
+  `개발자 화면 ${filterDevScene.events.length}건 전부 표시(접힘 0 — 디버그 진실) / 플레이어 화면 ${filterPlayerScene.events.length}건 + 접힘 ${filterPlayerScene.suppressedEventCount}건\n` +
+    `      임계 미만인데 보이는 사건 ${lowShown.length}건 — 전부 플레이어가 참여한 사건(내 일은 사소해도 남는다)\n` +
+    `      개입 브리핑(§30)도 같은 필터 — 표시 ${filterKnowledge.events.length}건 · 접힘 ${filterKnowledge.suppressedEventCount}건, 접힌 사실은 수로 남아 화면이 숨김을 숨기지 않는다`,
+);
+
+// --- G-8 : §25 비밀이 기록되고 소비된다 ---------------------------------------------------
+const secretMeasures = measureSecrets(worldSeed);
+check(
+  secretMeasures.ok,
+  `§25 knownSecrets — 초기 ${secretMeasures.initialSecrets.length}건 · 발각의 기록 · 협박의 지렛대 (같은 협박이 비밀 유무로 갈린다)`,
+  secretMeasures.initialSecrets
+    .map((entry) => `\n      초기 비밀 — ${entry.fromId.replace(/^agent\./, "")} → ${entry.toId}: "${entry.secret}"`)
+    .join("") +
+    `\n      같은 거짓말 ${secretMeasures.lieAttempts}회 → 발각이 남긴 비밀 ${secretMeasures.secretsFromLies}건 (record_secret, §12 partial_outcome)` +
+    `\n      같은 협박 — 비밀 없이 공포 +${secretMeasures.fearWithoutSecret} / 비밀을 쥐고 +${secretMeasures.fearWithSecret} (rule.blackmail_leverage — known_secrets 조건)`,
+);
+
+// --- G-6 : §14 자원의 과도 사용에는 결과가 있다 -------------------------------------------
+const manualWorld = buildManualWorld(worldSeed);
+const overuseRows = measureResourceOveruse(worldSeed);
+const overuseCheck = manualValidation.checks.find((entry) => entry.code === "resource.overuse");
+check(
+  overuseRows.every((row) => row.ok) &&
+    overuseCheck !== undefined &&
+    overuseCheck.ok &&
+    manualWorld.resources.every((resource) => (resource.overuseRules ?? []).length > 0),
+  `§14 자원 ${overuseRows.filter((row) => row.ok).length}/${manualWorld.resources.length}종의 과용 반동이 실행된다 (과잉/정상 대조로 증명)`,
+  overuseRows
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.resourceId.replace("resource.", "")} [${row.ruleId.replace("rule.", "")}] — ${row.evidence}`)
+    .join("") +
+    `\n      §34 resource.overuse — ${overuseCheck?.evidence ?? "검사기 없음"}`,
+);
+
 // --- G-10 : §32 성장 발생 조건 7종이 전부 규칙으로 존재한다 ------------------------------
 const growthConditions = checkGrowthConditions([...active.growth, ...active.npcGrowth], worldSeed);
 check(
@@ -1082,6 +1167,24 @@ check(
         ` (${row.fired > 0 ? `${row.fired}회 발화` : "이 시드에서는 미발화"})`,
     )
     .join(""),
+);
+
+// --- G-12 : §7 불변 명제 강제 + §8 관련 자원 소비 ------------------------------------------
+const axiomEnforced = manualValidation.checks.find((entry) => entry.code === "axiom.enforced");
+const pressureRelated = manualValidation.checks.find((entry) => entry.code === "pressure.related");
+const pressurePanel = buildScenePayload(runtime, { mode: "developer", agentId: "agent.kael" }).agentPanel;
+const panelPressures = pressurePanel?.pressures ?? [];
+check(
+  axiomEnforced?.ok === true &&
+    axiomEnforced.inspected > 0 &&
+    pressureRelated?.ok === true &&
+    panelPressures.length > 0 &&
+    panelPressures.some((row) => row.relievedBy.length > 0),
+  `§7 불변 명제 ${manualWorld.axioms.length}개 전부 규칙으로 강제 · §8 압력의 관련 자원이 검증·화면 재료가 된다`,
+  `§34 axiom.enforced — ${axiomEnforced?.evidence ?? "없음"}\n` +
+    `      §34 pressure.related — ${pressureRelated?.evidence ?? "없음"}\n` +
+    `      수정 라운드의 불변 계약 — immutable 명제를 지우거나 바꾸면 즉시 중단 (RepairLoop.assertImmutableAxiomsPreserved, 테스트 증명)\n` +
+    `      관찰 패널(§36.3) 압력 표 — ${panelPressures.map((row) => `${row.id.replace("pressure.", "")} ${row.urgency}/${row.maxUrgency}${row.relievedBy.length > 0 ? `←${row.relievedBy.join("·")}` : ""}`).join(" · ")}`,
 );
 
 // --- DoD 7 : 개입이 있어도 같은 시드면 같은 세계다 (§44-12) ---------------------------------

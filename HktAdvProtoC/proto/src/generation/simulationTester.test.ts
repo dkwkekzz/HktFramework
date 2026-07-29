@@ -74,7 +74,7 @@ describe("§33.2 AI 보조 검사", () => {
     expect(report.issues).toEqual([]);
   }, 60_000);
 
-  it("녹화 포트로 5종을 물어보고 결과를 warning 으로만 낸다 (게이트가 아니다)", async () => {
+  it("녹화 포트로 6종을 물어보고 결과를 warning 으로만 낸다 (게이트가 아니다)", async () => {
     const report = await auditWorld(
       (await compiledWorld()).definition,
       new RecordedTextGenerationPort(FIRST_WORLD_AUDIT_CORPUS),

@@ -161,6 +161,7 @@ export class ViewModelBuilder {
       scene.speed = payload.speed;
       scene.map = payload.map;
       scene.events = payload.events;
+      scene.suppressedEventCount = payload.suppressedEventCount;
       scene.agentChoices = payload.agentChoices;
       if (payload.agentPanel !== undefined) scene.agentPanel = payload.agentPanel;
       if (payload.eventDetail !== undefined) scene.eventDetail = payload.eventDetail;

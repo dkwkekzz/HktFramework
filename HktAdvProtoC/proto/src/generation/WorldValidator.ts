@@ -26,11 +26,14 @@ import { SymbolTable, type SymbolKind } from "./SymbolTable";
 
 /** §34 필수 규칙 10개 + G-1·G-3·G-4·G-5 가 더한 4종의 고정 코드 — 수정 루프(§42-6)가 이 코드로 재생성 단계를 찾는다 */
 export const SEMANTIC_CODES = [
+  "axiom.enforced",
   "state.schema",
   "rule.target-exists",
   "rule.chance",
   "resource.source",
+  "resource.overuse",
   "space.profile",
+  "pressure.related",
   "species.need",
   "species.structure",
   "faction.lifecycle",
@@ -62,7 +65,7 @@ export interface ValidationReport {
   warningCount: number;
   /** (a) 스키마 층 */
   schema: CheckReport;
-  /** (b) 의미 층 14종 — SEMANTIC_CODES 순서 고정 */
+  /** (b) 의미 층 15종 — SEMANTIC_CODES 순서 고정 */
   checks: CheckReport[];
 }
 
@@ -171,6 +174,92 @@ function buildIndex(definition: WorldDefinition): Index {
     index.runtimeError = error instanceof Error ? error.message : String(error);
   }
   return index;
+}
+
+// --- 0. axiom.enforced (§7 — G-12) ------------------------------------------------------
+
+/**
+ * §7 "이 명제들은 이후 생성되는 모든 규칙과 콘텐츠의 상위 제약이다".
+ * immutable 명제가 **어떤 규칙에도 강제되지 않으면** 선언이 공중에 떠 있는 것이다 —
+ * 규칙의 derivedFromAxioms 가 그 명제를 세계의 실행에 못 박는 유일한 하드 연결이다.
+ * (의미적 위반 탐지는 여전히 §33.2 AI 경고의 몫 — 여기는 "강제 수단이 존재하는가"만 본다.)
+ * 수정 라운드가 불변 명제를 바꿀 수 없다는 계약은 RepairLoop.assertImmutableAxiomsPreserved 가 갖는다.
+ */
+function checkAxiomEnforced(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const enforcedBy = new Map<string, number>();
+  for (const rule of definition.ruleDefinitions) {
+    for (const axiomId of rule.derivedFromAxioms ?? []) {
+      enforcedBy.set(axiomId, (enforcedBy.get(axiomId) ?? 0) + 1);
+    }
+  }
+  let immutableCount = 0;
+  for (const axiom of definition.axioms) {
+    const count = enforcedBy.get(axiom.id) ?? 0;
+    if (axiom.immutable) immutableCount += 1;
+    if (count > 0) continue;
+    issues.push(
+      issue(
+        "axiom.enforced",
+        axiom.id,
+        axiom.immutable
+          ? `불변 명제 ${axiom.id} 를 강제하는 규칙이 하나도 없다 — "상위 제약" 이 선언뿐이다 (§7)`
+          : `명제 ${axiom.id} 에서 파생된 규칙이 없다 (§7)`,
+        "이 명제에서 파생된 규칙에 derivedFromAxioms 로 연결하거나 명제를 거둔다",
+        axiom.immutable ? "error" : "warning",
+      ),
+    );
+  }
+  const rows = definition.axioms.map((axiom) => `${axiom.id.replace("axiom.", "")}:${enforcedBy.get(axiom.id) ?? 0}`);
+  return report(
+    "axiom.enforced",
+    "불변 명제는 최소 하나의 규칙으로 강제된다",
+    definition.axioms.length,
+    issues,
+    `명제 ${definition.axioms.length}개(불변 ${immutableCount}) · 규칙 연결 ${rows.join(" ")} · 강제 없음 ${issues.length}`,
+  );
+}
+
+// --- 0a. pressure.related (§8 — G-12) ---------------------------------------------------
+
+/**
+ * §8 relatedResources — 압력이 "무엇으로 풀리는가"의 선언.
+ * 세계에 없는 자원을 가리키면 그 선언은 지식이 아니라 소음이다(error).
+ * 빈 목록은 허용한다 — 안전 압력처럼 자원으로 풀리지 않는 압력도 있다.
+ */
+function checkPressureRelated(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const known = new Set<string>();
+  for (const resource of definition.resources) {
+    known.add(resource.id);
+    for (const tag of resource.tags) known.add(tag);
+  }
+  let inspected = 0;
+  let linked = 0;
+  for (const pressure of definition.survivalPressures) {
+    if (pressure.relatedResources.length > 0) linked += 1;
+    for (const entry of pressure.relatedResources) {
+      inspected += 1;
+      if (known.has(entry)) continue;
+      issues.push(
+        issue(
+          "pressure.related",
+          pressure.id,
+          `압력 ${pressure.id}: 세계에 없는 자원을 가리킨다 — ${entry} (§8 relatedResources)`,
+          "실재하는 자원 id·태그로 바꾸거나 목록에서 지운다",
+        ),
+      );
+    }
+  }
+  return report(
+    "pressure.related",
+    "압력의 관련 자원은 세계에 실재한다",
+    inspected,
+    issues,
+    `압력 ${definition.survivalPressures.length}개 중 자원 연결 ${linked} · 참조 ${inspected}건 · 허상 ${issues.length}`,
+  );
 }
 
 // --- 1. state.schema ------------------------------------------------------------------
@@ -414,6 +503,88 @@ function checkResourceSource(index: Index): CheckReport {
     definition.resources.length,
     issues,
     `자원 ${definition.resources.length}종 · 생산 규칙 보유 ${withProduction} · 초기 배치만 ${onlyPlacement} · 출처 없음 ${issues.length}`,
+  );
+}
+
+// --- 4a. resource.overuse (§14 — G-6) ---------------------------------------------------
+
+/**
+ * §14 "자원에는 반드시 다음이 있어야 한다 — … 과도하게 사용하면 무엇이 발생하는가".
+ * 답이 있으면 그 답은 실행 데이터여야 한다: 과용 규칙이 실재하고, 조건(과잉 상태)을 갖고,
+ * 이 자원을 실제로 가리켜야 한다 — 조건 없는 반동은 원인 없는 주사위와 같은 병리다(§12 no-cause 와 동형).
+ * 답이 없으면 **경고**로 남긴다 — 여섯 질문 중 하나가 빈칸이라는 사실은 보고서에서 사라지지 않는다.
+ */
+function checkResourceOveruse(index: Index): CheckReport {
+  const definition = index.definition;
+  const issues: ValidationIssue[] = [];
+  const ruleOf = new Map(definition.ruleDefinitions.map((rule) => [rule.id, rule]));
+  let answered = 0;
+  let inspected = 0;
+  for (const resource of definition.resources) {
+    const overuse = resource.overuseRules ?? [];
+    if (overuse.length === 0) {
+      issues.push(
+        issue(
+          "resource.overuse",
+          resource.id,
+          `자원 ${resource.id}: §14 여섯 질문 중 "과도 사용의 결과" 가 빈칸이다 — 남용해도 아무 일도 일어나지 않는다`,
+          "과잉 상태를 조건으로 갖는 반동 규칙을 만들어 overuseRules 에 잇는다",
+          "warning",
+        ),
+      );
+      continue;
+    }
+    answered += 1;
+    // 자원을 가리키는 증거 — 규칙 JSON 어딘가에 자원 id·태그·소지 상태 키가 나타나야 한다
+    const marks = [resource.id, resource.id.split(".")[1] ?? "", ...resource.tags].filter((mark) => mark !== "");
+    for (const ruleId of overuse) {
+      inspected += 1;
+      const rule = ruleOf.get(ruleId);
+      if (rule === undefined) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동이 없는 규칙을 가리킨다 — ${ruleId} (§14)`,
+            "규칙을 만들거나 overuseRules 에서 지운다",
+          ),
+        );
+        continue;
+      }
+      // 조건은 규칙 머리에 있어도, 효과 하나하나에 있어도 좋다 — 어디에도 없으면 원인 없는 벌이다
+      const hasCondition =
+        rule.conditions.length > 0 ||
+        (rule.effects as RuleEffect[]).some((effect) => (effect.conditions ?? []).length > 0);
+      if (!hasCondition) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동 ${ruleId} 에 조건이 없다 — 과잉을 묻지 않는 반동은 원인 없는 벌이다 (§14, §12)`,
+            "과잉 상태(보유량·사용량 임계)를 조건으로 넣는다",
+          ),
+        );
+      }
+      const text = JSON.stringify(rule);
+      if (!marks.some((mark) => text.includes(mark))) {
+        issues.push(
+          issue(
+            "resource.overuse",
+            resource.id,
+            `자원 ${resource.id}: 과용 반동 ${ruleId} 이 이 자원을 어디서도 가리키지 않는다 (§14)`,
+            "규칙의 조건·효과·태그가 이 자원(id·태그·소지 상태)을 실제로 다루게 한다",
+          ),
+        );
+      }
+    }
+  }
+  return report(
+    "resource.overuse",
+    "자원의 과도 사용에는 결과가 있다 (§14 여섯 번째 질문)",
+    definition.resources.length,
+    issues,
+    `자원 ${definition.resources.length}종 · 과용 반동 보유 ${answered} · 반동 규칙 ${inspected}개 검사 · ` +
+      `위반 ${issues.filter((i) => i.level === "error").length} · 빈칸 ${issues.filter((i) => i.level === "warning").length}`,
   );
 }
 
@@ -1083,11 +1254,14 @@ function checkGoalNoInfinite(index: Index): CheckReport {
 type Checker = (index: Index) => CheckReport;
 
 const CHECKERS: Record<SemanticCode, Checker> = {
+  "axiom.enforced": checkAxiomEnforced,
   "state.schema": checkStateSchema,
   "rule.target-exists": checkRuleTargets,
   "rule.chance": checkRuleChance,
   "resource.source": checkResourceSource,
+  "resource.overuse": checkResourceOveruse,
   "space.profile": checkSpaceProfile,
+  "pressure.related": checkPressureRelated,
   "species.need": checkSpeciesNeed,
   "species.structure": checkSpeciesStructure,
   "faction.lifecycle": checkFactionLifecycle,
@@ -1099,7 +1273,7 @@ const CHECKERS: Record<SemanticCode, Checker> = {
   "goal.no-infinite": checkGoalNoInfinite,
 };
 
-/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 14종 */
+/** §34 정적 검증 — (a) 스키마 층 + (b) 의미 층 15종 */
 export function validateWorld(definition: WorldDefinition): ValidationReport {
   const index = buildIndex(definition);
   const schema = checkSchemaLayer(definition);

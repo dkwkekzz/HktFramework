@@ -126,6 +126,12 @@ function agentDump(panel: SceneAgentPanel): string[] {
   } else {
     out.push(line(2, "현재 행동 없음"));
   }
+  out.push(line(2, `압력 ${panel.pressures.length}건`));
+  for (const pressure of panel.pressures) {
+    out.push(
+      line(4, `${pressure.id} ${pressure.urgency}/${pressure.maxUrgency}${pressure.relievedBy.length > 0 ? ` ← ${pressure.relievedBy.join("·")}` : ""}`),
+    );
+  }
   out.push(line(2, `기억 ${panel.memories.length}건`));
   for (const memory of panel.memories.slice(0, 8)) {
     out.push(line(4, `${memory.at} [${memory.type}] ${memory.summary} 중요 ${memory.relevance} 강도 ${memory.intensity}`));
@@ -197,7 +203,7 @@ export class TextSceneRenderer {
       `[시각] ${scene.clock} (tick ${scene.time}) ×${scene.speed} 시점 ${scene.modeKey}`,
       `[세계] ${scene.globalBadges.map((badge) => `${badge.key}=${badge.value}`).join(" ") || "-"}`,
       ...mapDump(scene.map),
-      `[사건 목록] ${scene.events.length}건`,
+      `[사건 목록] ${scene.events.length}건${scene.suppressedEventCount > 0 ? ` (사소한 사건 ${scene.suppressedEventCount}건 접힘)` : ""}`,
       ...scene.events.map((item) =>
         line(
           2,

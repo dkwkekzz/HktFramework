@@ -21,6 +21,7 @@ import {
 } from "../../shared/player";
 import type { PlayerActionRequest } from "../../shared/protocol";
 import { buildInterventionOpportunity, getEventViewFor } from "../events/EventViews";
+import { SIGNIFICANCE_THRESHOLD } from "../events/EventDetector";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type { GoalNode } from "../world/types";
 import { generateActionCandidates, sortCandidates, type ActionCandidate } from "./ActionPlanner";
@@ -414,12 +415,19 @@ export function buildPlayerKnowledgeView(
   }
 
   const events: PlayerEventBrief[] = [];
+  let suppressedEventCount = 0;
   const ordered = [...runtime.state.events.events].sort((a, b) =>
     a.significance === b.significance ? a.id.localeCompare(b.id) : b.significance - a.significance,
   );
   for (const event of ordered) {
     const brief = eventBrief(runtime, playerId, event);
-    if (brief !== undefined) events.push(brief);
+    if (brief === undefined) continue;
+    // §29 저중요도 필터 (G-9) — 아는 사건이라도 임계 미만이면 브리핑에서 접는다. 참여한 사건은 예외.
+    if (event.significance < SIGNIFICANCE_THRESHOLD && !event.participants.includes(playerId)) {
+      suppressedEventCount += 1;
+      continue;
+    }
+    events.push(brief);
   }
 
   const knowledge: PlayerKnowledgeView = {
@@ -435,6 +443,7 @@ export function buildPlayerKnowledgeView(
     })),
     options: playerActionOptions(runtime, playerId),
     events,
+    suppressedEventCount,
     journal: player.journal.map((entry) => ({ ...entry })),
     growthOffers: runtime.state.growthOffers
       .filter((offer) => offer.agentId === playerId)

@@ -450,5 +450,191 @@
     "derivedFromAxioms": [
       "axiom.scarcity_creates_exchange"
     ]
+  },
+  {
+    "id": "rule.overeating_strain",
+    "name": "과식 부담 — 허기가 없는데 또 먹으면 몸이 상한다 (§14 과용 반동)",
+    "tags": [
+      "survival",
+      "organic_food",
+      "overuse"
+    ],
+    "scope": "entity",
+    "priority": 60,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.eat"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "hunger"
+        },
+        "operator": "<=",
+        "right": {
+          "type": "constant",
+          "value": 0
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": -2
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.life_must_be_sustained"
+    ]
+  },
+  {
+    "id": "rule.residue_overload",
+    "name": "잔재 과적 — 적응하지 못한 종이 잔재를 쌓아 두면 태운다 (§14 과용 반동)",
+    "tags": [
+      "ability_residue",
+      "survival",
+      "overuse"
+    ],
+    "scope": "global",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "interval",
+        "interval": 60
+      }
+    ],
+    "conditions": [],
+    "effects": [
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": {
+              "type": "each_state",
+              "key": "species_id"
+            },
+            "operator": "==",
+            "right": {
+              "type": "constant",
+              "value": "species.human"
+            }
+          },
+          {
+            "left": {
+              "type": "each_state",
+              "key": "carried_residue"
+            },
+            "operator": ">",
+            "right": {
+              "type": "constant",
+              "value": 3
+            }
+          }
+        ],
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent"
+          }
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": -4
+      },
+      {
+        "type": "modify_state",
+        "conditions": [
+          {
+            "left": {
+              "type": "each_state",
+              "key": "species_id"
+            },
+            "operator": "==",
+            "right": {
+              "type": "constant",
+              "value": "species.human"
+            }
+          },
+          {
+            "left": {
+              "type": "each_state",
+              "key": "carried_residue"
+            },
+            "operator": ">",
+            "right": {
+              "type": "constant",
+              "value": 3
+            }
+          }
+        ],
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent"
+          }
+        },
+        "stateKey": "carried_residue",
+        "operation": "add",
+        "value": -1
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
+  },
+  {
+    "id": "rule.market_glut",
+    "name": "시장 포화 — 교역품을 과하게 풀면 가격이 무너진다 (§14 과용 반동)",
+    "tags": [
+      "trade",
+      "trade_goods",
+      "overuse"
+    ],
+    "scope": "global",
+    "priority": 55,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.trade"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "carried_goods"
+        },
+        "operator": ">",
+        "right": {
+          "type": "constant",
+          "value": 80
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "world"
+        },
+        "stateKey": "food_price",
+        "operation": "add",
+        "value": -10
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.scarcity_creates_exchange"
+    ]
   }
 ]

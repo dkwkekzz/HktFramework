@@ -387,7 +387,7 @@ function buildSteps(options: CompileOptions): Step[] {
       id: "validation",
       title: "정합성 검증",
       async run(ctx, state) {
-        return { data: validateGenerated(ctx, buildDefinition(state, worldId, ctx.worldSeed)), taskIds: [] };
+        return { data: validateGenerated(ctx, buildDefinition(state, worldId, ctx)), taskIds: [] };
       },
       apply(_ctx, state, data) {
         state.issues = data as ValidationIssue[];
@@ -402,7 +402,7 @@ function buildSteps(options: CompileOptions): Step[] {
       id: "persist",
       title: "실행 데이터 저장",
       async run(ctx, state) {
-        const definition = buildDefinition(state, worldId, ctx.worldSeed);
+        const definition = buildDefinition(state, worldId, ctx);
         return { data: { worldId: definition.metadata.id, entities: definition.bootstrap.entities.length }, taskIds: [] };
       },
       apply() {
@@ -449,9 +449,21 @@ function withRegionProfiles(space: SpaceDefinition, state: PipelineState): Space
   };
 }
 
-function buildDefinition(state: PipelineState, worldId: string, worldSeed: number): WorldDefinition {
+function buildDefinition(state: PipelineState, worldId: string, ctx: GenerationContext): WorldDefinition {
+  // §4 title 은 사용자의 것이다 (G-11) — 컴파일러가 이름을 지어 붙이지 않는다
+  const title = ctx.seedInput.title?.trim() ?? "";
   return {
-    metadata: { id: worldId, title: "제약의 대륙", worldSeed },
+    metadata: {
+      id: worldId,
+      title: title === "" ? "이름 없는 세계" : title,
+      worldSeed: ctx.worldSeed,
+      seedInput: {
+        ...(ctx.seedInput.title === undefined ? {} : { title: ctx.seedInput.title }),
+        themes: [...ctx.seedInput.themes],
+        desiredExperiences: [...(ctx.seedInput.desiredExperiences ?? [])],
+        prohibitedElements: [...(ctx.seedInput.prohibitedElements ?? [])],
+      },
+    },
     axioms: state.axioms,
     stateSchemas: state.stateSchemas,
     ruleDefinitions: state.rules,
@@ -580,7 +592,7 @@ export async function compileWorld(options: CompileOptions): Promise<CompileResu
     }
   }
 
-  const definition = buildDefinition(state, options.worldId ?? "world.generated_first", options.worldSeed);
+  const definition = buildDefinition(state, options.worldId ?? "world.generated_first", ctx);
   const repository = options.repository ?? new WorldRepository();
   repository.save(definition);
 

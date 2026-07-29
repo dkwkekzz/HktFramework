@@ -3,7 +3,7 @@
 // §18 의 10절차를 프롬프트 구조로 강제한다. 개인은 종족·조직의 복사본이 아니다 —
 // 본능·경험·관계·가치관이 서로 충돌하도록 만든다. 성격은 단어가 아니라 판단 변수 9종의 수치다.
 // 20명은 §5.2 의 분할 호출로 만든다: 명단 한 번, 인물 한 명당 한 번.
-import type { AgentArchetype } from "../core/world/types";
+import type { AgentArchetype, BootstrapEntity } from "../core/world/types";
 import type { AbilityGenerationContext } from "./AbilityGenerator";
 import type { GenerationContext } from "./GenerationTypes";
 import { AGENT_SCHEMA, OUTLINE_SCHEMA } from "./OutputSchemas";
@@ -37,6 +37,8 @@ export interface AgentDraft extends AgentArchetype {
   homeLocationId: string;
   tags: string[];
   states: Record<string, unknown>;
+  memories?: BootstrapEntity["memories"];
+  inventory?: BootstrapEntity["inventory"];
   relationships?: {
     toId: string;
     trust?: number;
@@ -69,6 +71,8 @@ const AGENT_PROMPT = [
   "조직 목적과 개인 가치관의 갈등 → 가장 중요한 관계 → 지금 해결해야 하는 문제 순서로 만든다.",
   "성격은 형용사가 아니라 판단 변수 9종의 0~100 수치로 저장한다.",
   "초기 믿음에는 틀린 믿음도 넣는다 — 모두가 사실을 아는 세계에는 사건이 없다(§10).",
+  "과거 생존 사건(formativeEvent)은 memories 로도 남긴다 — type·participants·tags·강도·해석(interpretation)을 갖는",
+  "기억 데이터가 초기 믿음을 지지해야 한다. 소지품은 inventory([{resourceId, quantity}])로 선언한다(§18).",
 ].join("\n");
 
 export async function generateAgents(

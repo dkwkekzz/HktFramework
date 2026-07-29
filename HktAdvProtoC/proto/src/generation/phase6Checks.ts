@@ -89,6 +89,24 @@ export interface ViolationFixture {
 /** §34 필수 규칙 10개(+ G-1·G-3·G-4·G-5 가 더한 4종) ↔ 그 규칙을 어기는 세계 하나씩 */
 export const VIOLATION_FIXTURES: ViolationFixture[] = [
   {
+    code: "axiom.enforced",
+    title: "어떤 규칙도 강제하지 않는 불변 명제가 있다 (§7 — G-12)",
+    break(definition) {
+      // 명제 하나의 강제 연결을 전부 끊는다 — 참조 무결성은 멀쩡하고 강제 수단만 사라진다
+      const target = definition.axioms.find((axiom) => axiom.immutable)!;
+      for (const rule of definition.ruleDefinitions) {
+        rule.derivedFromAxioms = (rule.derivedFromAxioms ?? []).filter((id) => id !== target.id);
+      }
+    },
+  },
+  {
+    code: "pressure.related",
+    title: "세계에 없는 자원을 가리키는 압력이 있다 (§8 — G-12)",
+    break(definition) {
+      definition.survivalPressures[0]!.relatedResources = ["phantom_dust"];
+    },
+  },
+  {
     code: "state.schema",
     title: "규칙이 등록되지 않은 상태에 값을 쓴다",
     break(definition) {
@@ -132,6 +150,17 @@ export const VIOLATION_FIXTURES: ViolationFixture[] = [
         transformationRules: [],
         desiredBy: [{ agentTag: "villager", utility: 50 }],
       });
+    },
+  },
+  {
+    code: "resource.overuse",
+    title: "과용 반동이 과잉을 묻지 않는다 — 조건 없는 벌 (§14 — G-6)",
+    break(definition) {
+      // 참조는 멀쩡한 채(다른 검사기가 걸리지 않게) 반동의 원인만 지운다
+      const rule = definition.ruleDefinitions.find((entry) => entry.id === "rule.overeating_strain");
+      if (rule === undefined) throw new Error("픽스처: rule.overeating_strain 이 필요하다");
+      rule.conditions = [];
+      for (const effect of rule.effects) delete effect.conditions;
     },
   },
   {
@@ -233,7 +262,7 @@ export interface FixtureResult {
 }
 
 /**
- * 위반 픽스처 14종을 전부 돌린다.
+ * 위반 픽스처 15종을 전부 돌린다.
  * 반환값이 곧 DoD 1 의 근거다 — verify 와 테스트가 이 함수를 함께 쓴다.
  */
 export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
@@ -255,7 +284,7 @@ export function runViolationFixtures(worldSeed = 42): FixtureResult[] {
   });
 }
 
-/** 통과 세계(수동 세계)에서는 14종 전부 조용해야 한다 — 픽스처의 대조군 */
+/** 통과 세계(수동 세계)에서는 15종 전부 조용해야 한다 — 픽스처의 대조군 */
 export function validateManualWorld(worldSeed = 42): ReturnType<typeof validateWorld> {
   return validateWorld(buildManualWorld(worldSeed));
 }
