@@ -275,6 +275,8 @@ export async function generateBootstrap(
       traits: agent.traits,
       ...(agent.relationships === undefined ? {} : { relationships: agent.relationships }),
       ...(agent.beliefs === undefined ? {} : { beliefs: agent.beliefs }),
+      ...(agent.memories === undefined ? {} : { memories: agent.memories }),
+      ...(agent.inventory === undefined ? {} : { inventory: agent.inventory }),
     });
   }
 

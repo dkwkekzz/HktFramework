@@ -12,6 +12,7 @@ import {
   measureSpeciesStructure,
 } from "../core/agents/phase3Checks";
 import { measureResourceOveruse } from "../core/world/overuseChecks";
+import { measureInitialMemories, measureInventory } from "../core/agents/initialStateChecks";
 import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
@@ -1069,6 +1070,22 @@ check(
         `\n      ${region.label} — 자원 ${region.ecology.resources.map((r) => `${r.label}×${r.nodeCount}(희귀도 ${r.rarity})`).join(" ")} · 종 적합도 ${region.ecology.species.map((s) => `${s.label} ${s.suitability}`).join(" ")}`,
     )
     .join(""),
+);
+
+// --- G-7 : §18 초기 기억·소지품이 실행 상태로 시작한다 -------------------------------------
+const memoryRows = measureInitialMemories(worldSeed);
+const inventoryRows = measureInventory(worldSeed);
+check(
+  memoryRows.length > 0 &&
+    memoryRows.every((row) => row.ok) &&
+    inventoryRows.length > 0 &&
+    inventoryRows.every((row) => row.ok),
+  `§18 초기 기억 ${memoryRows.filter((r) => r.ok).length}/${memoryRows.length}명 · 소지품 ${inventoryRows.filter((r) => r.ok).length}/${inventoryRows.length}건이 실행 데이터로 시작한다`,
+  memoryRows
+    .map((row) => `\n      ${row.ok ? "✓" : "✗"} ${row.agentId.replace(/^(agent|creature)\./, "")} — ${row.evidence}`)
+    .join("") +
+    `\n      소지품 — ${inventoryRows.map((row) => `${row.agentId.replace(/^(agent|creature)\./, "")}:${row.resourceId.replace("resource.", "")}→${row.stateKey} ${row.stored}`).join(" · ")}` +
+    `\n      (소지 상태 직접 지정 0건 — 선언은 inventory, 변환은 부트스트랩, 읽는 쪽은 거래·소비 규칙 그대로)`,
 );
 
 // --- G-6 : §14 자원의 과도 사용에는 결과가 있다 -------------------------------------------

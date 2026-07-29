@@ -302,8 +302,7 @@
         "hunger": 28,
         "fear": 12,
         "curiosity": 35,
-        "social_status": 38,
-        "carried_food": 12
+        "social_status": 38
       },
       "traits": {
         "riskTolerance": 68,
@@ -356,6 +355,34 @@
           "trust": 55,
           "dependency": 40
         }
+      ],
+      "inventory": [
+        {
+          "resourceId": "resource.food",
+          "quantity": 12
+        }
+      ],
+      "memories": [
+        {
+          "type": "observation",
+          "participants": [
+            "agent.kael",
+            "creature.echo_beast_mother"
+          ],
+          "tags": [
+            "threat",
+            "creature",
+            "hunt"
+          ],
+          "emotionalIntensity": 70,
+          "relevance": 60,
+          "confidence": 0.8,
+          "interpretation": {
+            "subjectId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "value": 90
+          }
+        }
       ]
     },
     {
@@ -386,8 +413,6 @@
         "fear": 18,
         "curiosity": 44,
         "social_status": 52,
-        "carried_goods": 40,
-        "carried_food": 6,
         "wealth": 140
       },
       "traits": {
@@ -433,6 +458,38 @@
           "trust": 35,
           "debt": 20
         }
+      ],
+      "inventory": [
+        {
+          "resourceId": "resource.trade_goods",
+          "quantity": 40
+        },
+        {
+          "resourceId": "resource.food",
+          "quantity": 6
+        }
+      ],
+      "memories": [
+        {
+          "type": "interaction",
+          "participants": [
+            "agent.ren",
+            "agent.mar"
+          ],
+          "tags": [
+            "threat",
+            "creature",
+            "trade"
+          ],
+          "emotionalIntensity": 55,
+          "relevance": 50,
+          "confidence": 0.6,
+          "interpretation": {
+            "subjectId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "value": 90
+          }
+        }
       ]
     },
     {
@@ -462,8 +519,7 @@
         "hunger": 22,
         "fear": 16,
         "curiosity": 30,
-        "social_status": 82,
-        "carried_food": 24
+        "social_status": 82
       },
       "traits": {
         "riskTolerance": 40,
@@ -516,6 +572,34 @@
           "trust": 70,
           "dependency": 55
         }
+      ],
+      "inventory": [
+        {
+          "resourceId": "resource.food",
+          "quantity": 24
+        }
+      ],
+      "memories": [
+        {
+          "type": "trauma",
+          "participants": [
+            "agent.mar",
+            "creature.echo_beast_mother"
+          ],
+          "tags": [
+            "threat",
+            "creature",
+            "village"
+          ],
+          "emotionalIntensity": 75,
+          "relevance": 65,
+          "confidence": 0.85,
+          "interpretation": {
+            "subjectId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "value": 90
+          }
+        }
       ]
     },
     {
@@ -546,8 +630,7 @@
         "fear": 34,
         "curiosity": 87,
         "social_status": 41,
-        "known_threat_level": 55,
-        "carried_food": 10
+        "known_threat_level": 55
       },
       "traits": {
         "riskTolerance": 34,
@@ -594,6 +677,34 @@
           "toId": "faction.research_society",
           "trust": 65,
           "dependency": 60
+        }
+      ],
+      "inventory": [
+        {
+          "resourceId": "resource.food",
+          "quantity": 10
+        }
+      ],
+      "memories": [
+        {
+          "type": "discovery",
+          "participants": [
+            "agent.rion",
+            "creature.echo_beast_mother"
+          ],
+          "tags": [
+            "creature",
+            "research",
+            "residue"
+          ],
+          "emotionalIntensity": 40,
+          "relevance": 55,
+          "confidence": 0.5,
+          "interpretation": {
+            "subjectId": "creature.echo_beast_mother",
+            "stateKey": "aggression",
+            "value": 40
+          }
         }
       ]
     },
@@ -642,6 +753,27 @@
           "toId": "agent.kael",
           "fear": 20,
           "resentment": 10
+        }
+      ],
+      "memories": [
+        {
+          "type": "trauma",
+          "participants": [
+            "creature.echo_beast_mother"
+          ],
+          "tags": [
+            "offspring",
+            "danger",
+            "hunt"
+          ],
+          "emotionalIntensity": 80,
+          "relevance": 70,
+          "confidence": 0.9,
+          "interpretation": {
+            "subjectId": "creature.echo_beast_mother",
+            "stateKey": "protecting_offspring",
+            "value": true
+          }
         }
       ]
     },

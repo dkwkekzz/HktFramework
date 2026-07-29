@@ -38,7 +38,8 @@
     ],
     "overuseRules": [
       "rule.overeating_strain"
-    ]
+    ],
+    "carryStateKey": "carried_food"
   },
   {
     "id": "resource.ability_residue",
@@ -76,7 +77,8 @@
     ],
     "overuseRules": [
       "rule.residue_overload"
-    ]
+    ],
+    "carryStateKey": "carried_residue"
   },
   {
     "id": "resource.trade_goods",
@@ -111,6 +113,7 @@
     ],
     "overuseRules": [
       "rule.market_glut"
-    ]
+    ],
+    "carryStateKey": "carried_goods"
   }
 ]

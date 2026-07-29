@@ -276,6 +276,8 @@ export const RESOURCE_SCHEMA = arrayOf({
     sourceRegions: STRING_ARRAY,
     /** §14 여섯 번째 질문 — 과도 사용의 반동을 실행하는 규칙 (G-6) */
     overuseRules: STRING_ARRAY,
+    /** §18 소지품이 변환될 상태 키 (G-7) */
+    carryStateKey: { type: "string" },
   },
 });
 
@@ -681,6 +683,10 @@ export const AGENT_SCHEMA: JsonSchema = {
     states: { type: "object" },
     relationships: { type: "array" },
     beliefs: { type: "array" },
+    /** §18 초기 기억 — formativeEvent(절차 3)가 기억 데이터로도 남는다 (G-7) */
+    memories: { type: "array" },
+    /** §18 소지품 — 자원 id 선언, 부트스트랩이 carryStateKey 상태로 변환 (G-7) */
+    inventory: { type: "array" },
   },
 };
 

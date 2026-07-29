@@ -135,6 +135,12 @@ export interface ResourceDefinition {
    * (§34 resource.overuse 검사기 — G-6). 없으면 여섯 질문 중 하나가 빈칸이라는 경고가 남는다.
    */
   overuseRules?: string[];
+  /**
+   * 개체가 이 자원을 지닐 때 쓰는 상태 키 (§18 inventory — G-7).
+   * 소지품 선언(BootstrapEntity.inventory)은 부트스트랩에서 이 상태로 변환된다 —
+   * 거래·소비 규칙이 읽는 키와 같은 키라서 소지품이 곧바로 행동의 재료가 된다.
+   */
+  carryStateKey?: string;
 }
 
 // --- §15 종족 -----------------------------------------------------------------
@@ -456,6 +462,25 @@ export interface BootstrapEntity {
     confidence: number;
     sourceIds: string[];
   }[];
+  /**
+   * 초기 기억 (§18 memories — G-7). 과거 생존 사건이 기억 데이터로 시작해야
+   * 초기 믿음이 근거를 갖고, §23 기억 대조·§24 요약/감쇠가 첫날부터 작동한다.
+   * interpretation 이 초기 믿음과 같은 (subjectId, stateKey) 를 가리키면 그 믿음의 지지 기억이다.
+   */
+  memories?: {
+    type: "observation" | "interaction" | "success" | "failure" | "trauma" | "promise" | "betrayal" | "discovery";
+    participants: string[];
+    tags: string[];
+    emotionalIntensity: number;
+    relevance: number;
+    confidence: number;
+    interpretation?: { subjectId: string; stateKey: string; value: number | boolean | string };
+  }[];
+  /**
+   * 소지품 (§18 inventory — G-7). 자원 id 로 선언하면 부트스트랩이 그 자원의
+   * carryStateKey 상태로 변환한다 — 소지품은 별도 개념이 아니라 거래·소비 규칙이 읽는 실행 상태다.
+   */
+  inventory?: { resourceId: string; quantity: number }[];
 }
 
 export interface WorldBootstrap {

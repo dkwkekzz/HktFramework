@@ -1,6 +1,7 @@
 // 초기 배치 → WorldState 부트스트랩 (Phase-1 구현 스텝 2)
 // 여기서 만들어진 상태는 전부 §9 스키마를 통과한 값이다 — "임의의 문자열로 저장하지 않는다".
 import { createAgentRuntimeState, type BeliefRecord } from "../../shared/beliefs";
+import { rememberEvent } from "../agents/MemorySystem";
 import {
   applyRelationshipChange,
   ensureRelationship,
@@ -33,6 +34,24 @@ export function bootstrapWorld(runtime: WorldRuntime): void {
         throw new Error(`초기 배치가 파생 상태를 지정했다: ${spec.id}.${key}`);
       }
       states[key] = runtime.schemas.coerce(schema, value);
+    }
+
+    // §18 소지품 (G-7) — 자원 선언을 그 자원의 carryStateKey 상태로 변환한다.
+    // 소지품은 별도 저장소가 아니라 거래·소비 규칙이 읽는 바로 그 상태다 — 선언이 곧 실행 재료가 된다.
+    for (const item of spec.inventory ?? []) {
+      const resource = runtime.definition.resources.find((entry) => entry.id === item.resourceId);
+      if (resource === undefined) {
+        throw new Error(`소지품이 없는 자원을 가리킨다: ${spec.id} → ${item.resourceId} (§18)`);
+      }
+      if (resource.carryStateKey === undefined) {
+        throw new Error(`자원 ${item.resourceId} 에 carryStateKey 가 없다 — 소지품으로 지닐 수 없다 (${spec.id}, §18)`);
+      }
+      const schema = runtime.schemas.require(ownerType, resource.carryStateKey);
+      const current = states[resource.carryStateKey];
+      states[resource.carryStateKey] = runtime.schemas.coerce(
+        schema,
+        (typeof current === "number" ? current : 0) + item.quantity,
+      );
     }
 
     if (spec.type === "agent") {
@@ -86,6 +105,31 @@ export function bootstrapWorld(runtime: WorldRuntime): void {
   }
 
   bootstrapRelationships(runtime);
+  bootstrapMemories(runtime);
+}
+
+/**
+ * §18 초기 기억 (G-7) — 과거 생존 사건이 기억 데이터로 시작한다.
+ * 초기 믿음(§41)과 같은 자리의 초기 상태다: interpretation 이 초기 믿음과 같은 (subjectId, stateKey) 를
+ * 가리키면 그 믿음은 출처 없는 선언이 아니라 기억이 지지하는 결론이 되고,
+ * §23 기억 대조·§24 감쇠/요약이 첫날부터 이 기억 위에서 작동한다.
+ * 관계 부트스트랩 뒤에 넣는다 — 기억 중요도의 관계 항(§24)이 초기 관계를 읽을 수 있도록.
+ */
+function bootstrapMemories(runtime: WorldRuntime): void {
+  for (const spec of runtime.definition.bootstrap.entities) {
+    if (runtime.state.agentRuntimes[spec.id] === undefined) continue;
+    for (const draft of spec.memories ?? []) {
+      rememberEvent(runtime, spec.id, {
+        type: draft.type,
+        participants: draft.participants,
+        tags: draft.tags,
+        emotionalIntensity: draft.emotionalIntensity,
+        relevance: draft.relevance,
+        confidence: draft.confidence,
+        ...(draft.interpretation === undefined ? {} : { interpretation: draft.interpretation }),
+      });
+    }
+  }
 }
 
 /**
