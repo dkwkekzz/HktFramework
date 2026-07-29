@@ -5,11 +5,11 @@ import { buildSword } from "../mesh/sword.js";
 import { bakeSword } from "./bake.js";
 
 self.onmessage = (event) => {
-  const { design, materialGraph, seed, size } = event.data;
+  const { design, materialGraph, seed, size, operations } = event.data;
   try {
     const t0 = performance.now();
     const sword = buildSword(design, size);
-    const result = bakeSword({ merged: sword.merged, design, materialGraph, seed, size });
+    const result = bakeSword({ merged: sword.merged, design, materialGraph, seed, size, operations });
     const elapsed = performance.now() - t0;
     self.postMessage(
       {

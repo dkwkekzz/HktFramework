@@ -1,4 +1,5 @@
 // 앱 진입 — 검 생성 → 검증 리포트 → 뷰어/UV 프리뷰 + Worker 베이크 (05-phase3 §3.6).
+// Phase 4: Operation 로그를 함께 Worker 로 보내 표면 상태를 재생한다 (06-phase4 §4.5).
 
 import { makeSwordDesign, buildSword, hashSword } from "../mesh/sword.js";
 import { analyzeManifold, countDegenerate3DTriangles } from "../mesh/topology.js";
@@ -20,12 +21,20 @@ const bakeWorker = new Worker(new URL("../bake/worker.js", import.meta.url), { t
 let currentSword = null;
 let currentDesign = null;
 let currentTextures = null;
+let currentOperations = [];
+let bakedOperationCount = null; // 마지막 베이크에 반영된 로그 길이 — 재베이크 필요 표시용
 let baking = false;
 let lastStats = "";
 
 function setStatsWithBake(text) {
   lastStats = text;
-  panel.setStats(text + (currentTextures ? `\nbake: ${currentTextures.hash} (${currentTextures.elapsed | 0}ms)` : ""));
+  const bake = currentTextures
+    ? `\nbake: ${currentTextures.hash} (${currentTextures.elapsed | 0}ms)`
+    : "";
+  const stale = currentTextures && bakedOperationCount !== currentOperations.length
+    ? `\n로그 ${currentOperations.length}개 — 재베이크 필요`
+    : "";
+  panel.setStats(text + bake + stale);
 }
 
 function rebuild(params) {
@@ -92,13 +101,19 @@ const panel = createPanel(document.getElementById("panel"), {
   bladePresets,
   onChange: rebuild,
   onViewerOption: (name, value) => viewer.setOption(name, value),
+  onOperationsChange: (ops) => {
+    currentOperations = ops;
+    setStatsWithBake(lastStats);
+  },
   onBake: (params) => {
     if (baking || !currentDesign) return;
     baking = true;
+    bakedOperationCount = currentOperations.length;
     panel.setStats(lastStats + "\n베이크 중…");
     bakeWorker.postMessage({
       design: currentDesign,
       materialGraph: makeMaterialGraph(paramsToMaterialInput(params)),
+      operations: currentOperations,
       seed: params.seed,
       size: TEXTURE_SIZE,
     });
@@ -111,6 +126,9 @@ const panel = createPanel(document.getElementById("panel"), {
   onDownloadDesign: () => {
     if (!currentDesign) return;
     downloadBlob(JSON.stringify(currentDesign, null, 2), "design.json", "application/json");
+  },
+  onDownloadOperations: (json) => {
+    downloadBlob(json, "operations.json", "application/json");
   },
   onDownloadTextures: async () => {
     if (!currentTextures) return;

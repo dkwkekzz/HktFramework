@@ -1,0 +1,20 @@
+{
+  "battle-worn": {
+    "hash": "482316b1af51fe2d",
+    "size": 256,
+    "seed": 12345,
+    "sword": "knight-arming"
+  },
+  "rusted-relic": {
+    "hash": "011fe2574d000ffe",
+    "size": 256,
+    "seed": 12345,
+    "sword": "knight-arming"
+  },
+  "ceremonial": {
+    "hash": "1549139dc45125d1",
+    "size": 256,
+    "seed": 12345,
+    "sword": "knight-arming"
+  }
+}

@@ -9,6 +9,7 @@ import { buildBladeMesh, makeStraightBladeDesign } from "../src/mesh/blade.js";
 import { makeSwordDesign, buildSword, hashSword } from "../src/mesh/sword.js";
 import { bakeSword } from "../src/bake/bake.js";
 import { makeMaterialGraph } from "../src/material/primitives.js";
+import { AGED_PRESETS } from "../src/material/presets.js";
 import { hashMesh } from "../src/core/hash.js";
 import { analyzeManifold, countDegenerate3DTriangles, signedVolume } from "../src/mesh/topology.js";
 import { validateUVs, assertValidUV } from "../src/uv/validate.js";
@@ -208,4 +209,27 @@ console.log(`${SWORD_PRESETS.length}종 검 프리셋 → test/golden/ 갱신 �
   }, null, 2));
   console.log(`ok   bake knight-arming ${BAKE_SIZE}²  ${elapsed}ms  hash=${baked.hash}`);
   console.log("베이크 golden → test/golden/bake-hashes.json 갱신 완료");
+
+  // ── 낡은 검 Operation 프리셋 3종 golden (06-phase4 §4.5) ──────────────────
+  const agedOut = {};
+  for (const aged of AGED_PRESETS) {
+    const t1 = performance.now();
+    const r = bakeSword({
+      merged: sword.merged, design: preset.design, materialGraph: graph,
+      seed: BAKE_SEED, size: BAKE_SIZE, operations: aged.operations,
+    });
+    if (r.hash === baked.hash) {
+      failed = true;
+      console.error(`FAIL aged ${aged.name}: 로그가 표면을 바꾸지 않는다 (해시가 기본과 동일)`);
+    } else {
+      console.log(`ok   aged ${aged.name} ${BAKE_SIZE}²  ${Math.round(performance.now() - t1)}ms  hash=${r.hash}`);
+    }
+    agedOut[aged.name] = { hash: r.hash, size: BAKE_SIZE, seed: BAKE_SEED, sword: "knight-arming" };
+  }
+  if (failed) {
+    console.error("aged golden 생성 실패");
+    process.exit(1);
+  }
+  writeFileSync(join(GOLDEN_DIR, "aged-hashes.json"), JSON.stringify(agedOut, null, 2));
+  console.log("낡은 검 golden → test/golden/aged-hashes.json 갱신 완료");
 }
