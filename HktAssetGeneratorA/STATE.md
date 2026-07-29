@@ -2,17 +2,21 @@
 
 ## 현재 상태
 
-- **단계**: Phase 4 완료 (표면 상태 Operation — Step 4.1~4.5 전부)
-  + 결정 D-15·D-16·D-17.
-- **다음 작업**: Phase 5 / Step 5.1 — 참조 이미지 어노테이션 UI (`src/app/annotate.js`)
-  → 사양: [Docs/07-phase5-reference-fit.md](Docs/07-phase5-reference-fit.md) §Step 5.1
-- 게이트: `npm run check` = vitest 104개 (칼날 20종 + 검 5종 + 베이크 golden/결정성/물성
-  + Operation 모델·결정성·필드·긁힘·조각 + 낡은 검 golden 3종).
-  golden 갱신은 `npm run golden`.
+- **단계**: Phase 6 / Step 6.1 완료 (곡선 검(휨) 지원 — 결정 D-18).
+- **다음 작업**: Phase 6 / Step 6.2 — AI 가설 선택(전수 48조합 루프 대체)·어노테이션 초안·
+  장식 마스크 ([Docs/08-phase6-plus.md](Docs/08-phase6-plus.md) §착수 구체화).
+  실사진 20종 수동 평가 세트는 `test/golden/references/` 에 축적 (07-phase5 §5.5).
+- 게이트: `npm run check` = vitest 142개 (Phase 5 까지 130 + Step 6.1 12: 곡선 하위 호환
+  비트 동일·곡선 기하 게이트·소켓 추종·초기 추정·곡선 라운드트립 IoU ≥ 0.95·카타나 개선
+  + 곡선 golden 3종(칼날 2 + 검 1)). golden 갱신은 `npm run golden`.
 - 실행: `npm run dev` → 뷰어에서 "베이크(1024²)" 버튼 = Worker CPU 베이크(~2.8s) →
   PBR 텍스처 적용 미리보기, BaseColor 단독 토글, 텍스처 PNG 다운로드.
   "표면 상태 Operation" 패널에서 로그 추가·삭제·재정렬 + 낡은 검 프리셋 3종 +
   operations.json 입출력. Node 22 LTS 로 `engines` 고정.
+  "참조 맞춤 (Phase 5)" 패널: 이미지 열기 → 어노테이터(다각형 라소 마스크 + 랜드마크
+  5클릭: tip·root·guardTop·guardBottom·gripBottom) → referenceSpec.json 저장/열기(RLE)
+  → TargetSpec 생성(초기 설계 포함) → 빠른 맞춤 / 전수 탐색(48) → IoU 그래프·
+  참조 vs 후보 실루엣 오버레이·언제든 중단 → "결과 적용" 으로 슬라이더 미세조정 이행.
 
 ## 문서 이정표
 
@@ -30,8 +34,10 @@
 - [x] Phase 2 — 가드·손잡이·폼멜·조립·Atlas (Step 2.1 ~ 2.6) — 2026-07-29
 - [x] Phase 3 — 머티리얼·CPU 베이크 (Step 3.1 ~ 3.7) — 2026-07-29
 - [x] Phase 4 — 표면 상태 Operation (Step 4.1 ~ 4.5) — 2026-07-29
-- [ ] Phase 5 — 참조 이미지 형상 맞춤 (Step 5.1 ~ 5.5)
-- [ ] Phase 6+ — AI 보조·빌드 최적화·도메인 확장
+- [x] Phase 5 — 참조 이미지 형상 맞춤 (Step 5.1 ~ 5.5) — 2026-07-29
+- [x] Phase 6 / Step 6.1 — 곡선 검(휨) 지원 (D-18) — 2026-07-29
+- [ ] Phase 6 / Step 6.2+ — AI 보조 (가설 선택·어노테이션 초안·장식 마스크)
+- [ ] Phase 7+ — 빌드 최적화·도메인 확장
 
 ## 결정 이력
 
@@ -67,6 +73,22 @@
      이미지 디코딩 제거.
   **회귀 게이트**: 빈 로그 → Phase 3 텍스처 해시와 **비트 동일**(테스트로 고정). 로그가
   베이크에 얹히는 경로가 기존 산출물을 건드리지 않는다는 보증선이다.
+- 2026-07-29: Phase 5 구현 (D-11 경로 그대로 — 새 D-n 없음). 07 문서가 비워 둔 정규화
+  프레임을 구체화: **정규 프레임 = 검 축 y·실루엣 최하단 0·칼끝 1·x 축중심 ±0.5(등스케일)**
+  — 절대 스케일은 이미지에서 관측 불가라 목표·후보를 같은 프레임으로 정규화해 비교하고,
+  물리 미터는 "칼날 길이 앵커"(UI 입력, 기본 0.9m)로 복원한다.
+  실루엣 평가는 `buildSwordParts`(Atlas·병합 생략 경량 경로, 순수 리팩터 — 해시 불변) +
+  평가용 칼날 세그먼트 상한 24 로 1평가 ≈ 3~6ms (목표 20ms 내). 최적화는 NM 제너레이터
+  (본 실행 예산 절반 + 재시작 균등 분할)로 UI 가 프레임 단위 소비·중단 가능.
+  합성 라운드트립: 초기 설계(프로파일 읽기) IoU 0.928 → 34평가에 0.96, 200평가에 0.994.
+- 2026-07-29: Phase 6 착수 — Step 6.1 곡선 검 지원 (D-18, 08 문서 §착수 구체화).
+  칼날 `curve`(sagitta)·손잡이 `tilt` 파라미터(0 이면 기존과 비트 동일 — golden 불변,
+  테스트로 고정), 최적화 벡터 10 → 12차원(원본 §26 확장 — 앞 10차원 불변), TargetSpec 에
+  중심선 프로파일 추가(행 무게중심 이탈 → curve·tilt 초기 추정), 손잡이 폼멜 소켓이
+  곡선 끝점 추종. 곡선 golden 프리셋 3종(katana-curve·sabre-curve-fuller·ronin-katana)
+  신설 — 기존 golden 은 순수 추가 diff 로 불변 확인. **카타나 실사진: 초기 추정만으로
+  IoU 0.827, 전수 탐색 0.873** (직선이던 Phase 5 시점 0.586). 잔여 손실은 tip 형상·
+  츠바(원반 가드) 근사·어노테이션 정밀도 — 가는 실루엣의 픽셀 민감도 포함.
 
 ## 이슈 / 어긋남 기록
 
@@ -80,3 +102,18 @@
   가깝지만 측면·캡은 잉여다. 아일랜드 지정(selector.island)은 Phase 6 에서 재평가.
 - 06 §4.5 는 SurfaceState 슬라이더를 "전역 상태"로 두었고 구현도 그렇다 — Operation 필드는
   이 전역값에 **가산**된다(대체가 아님). 전역 0 + 로그만으로도, 전역만으로도 동작한다.
+- Step 5.1 파일명: 이전 STATE 는 `src/app/annotate.js` 로 예고했으나 07 문서 표기
+  (`src/app/reference.js`)를 따랐다 — 기재 어긋남만 기록.
+- side 실루엣에서 **단면 유형·두께 파라미터는 비식별**이다(두께는 ±Z 투영으로 사라짐).
+  두께 2차원은 원본 §26 벡터 호환으로 유지(NM 이 초기값 근처에 둠), 이산 전수 48조합은
+  동률 시 순서상 첫 조합을 선택(결정적 — 예: 단면은 flat 로 수렴할 수 있음). 단면·두께의
+  실제 결정은 Phase 6 AI 가설(hiddenStructureHypotheses)의 몫.
+- 원본 §27 의 `selfIntersections` 는 검출기가 Phase 2 검증기에 없어 **0 보고**로 유예
+  (`seamVisibility` 0 보고와 같은 지위 — 07-phase5 §5.5). `assertBuildQuality` 의 차단
+  검사는 유지되어 검출기가 생기면 그대로 활성화된다.
+- 실사진 평가 1호(`test/golden/references/katana-curved.referenceSpec.json`, 카타나 스톡 사진
+  수동 어노테이션): Phase 5 시점 전수 탐색 IoU **0.586** — 직선검 가정의 스코프 한계였다.
+  ① 곡선 검(sori)은 직선검 MVP 밖: 직선 칼날이 휜 실루엣을 못 따라가고, 폭 ~7텍셀
+  실루엣에선 그 좌우 드리프트가 IoU 를 크게 깎는다. ② 손잡이도 축(chord)과 어긋난 방향.
+  → **Step 6.1(D-18)에서 해소**: curve·tilt 파라미터화로 0.873 (위 결정 이력 참조).
+  잔여 개선(tip 형상·원반 가드 템플릿)은 Step 6.2+ 가설 선택의 몫.

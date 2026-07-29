@@ -435,10 +435,12 @@ export function applyPhase1AtlasUV(mesh, textureSize) {
 }
 
 // ── 파라미터 → BladeDesign 헬퍼 (프리셋·UI 공용) ────────────────────────────
+// p.curve: 칼날 중간점 ±X 오프셋(m, sagitta) — 곡선 검 지원 (D-18). 양 끝점은 축 위
+// 유지(chord = 검 축). 0 이면 기존 직선과 비트 동일.
 export function makeStraightBladeDesign(p) {
   return {
     length: p.length,
-    centerCurve: { points: [[0, 0, 0], [0, p.length / 2, 0], [0, p.length, 0]] },
+    centerCurve: { points: [[0, 0, 0], [p.curve ?? 0, p.length / 2, 0], [0, p.length, 0]] },
     widthCurve: {
       points: [
         { t: 0, value: p.widthRoot },

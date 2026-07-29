@@ -12,8 +12,8 @@ import { validateUVs, assertValidUV } from "../src/uv/validate.js";
 
 const TEXTURE_SIZE = 1024;
 
-describe("golden blade presets (20종)", () => {
-  expect(presets.length).toBe(20);
+describe("golden blade presets (직선 20종 + 곡선 2종 — D-18)", () => {
+  expect(presets.length).toBe(22);
 
   for (const preset of presets) {
     it(preset.name, () => {

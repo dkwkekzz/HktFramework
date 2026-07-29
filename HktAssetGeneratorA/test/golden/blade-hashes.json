@@ -78,5 +78,13 @@
   "fantasy-broad-fuller": {
     "hash": "fa493e30bbb2cb74",
     "triangles": 2112
+  },
+  "katana-curve": {
+    "hash": "b1e12fae70a904d1",
+    "triangles": 1280
+  },
+  "sabre-curve-fuller": {
+    "hash": "2f44ec7872916481",
+    "triangles": 1408
   }
 }

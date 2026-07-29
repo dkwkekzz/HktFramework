@@ -1070,5 +1070,235 @@
         "radialSegments": 16
       }
     }
+  },
+  {
+    "name": "ronin-katana",
+    "params": {
+      "blade": {
+        "length": 0.72,
+        "widthRoot": 0.03,
+        "widthMid": 0.028,
+        "widthTip": 0.024,
+        "thicknessRoot": 0.007,
+        "thicknessTip": 0.005,
+        "crossSection": "flat",
+        "ridgeHeight": 0,
+        "curve": 0.015,
+        "tipType": "spear",
+        "tipStart": 0.88,
+        "tipEndScale": 0.12,
+        "segLong": 40,
+        "segCross": 16
+      },
+      "guard": {
+        "shape": "oval",
+        "width": 0.08,
+        "thickness": 0.07,
+        "depth": 0.012,
+        "bevel": 0.002
+      },
+      "grip": {
+        "length": 0.24,
+        "startRadius": 0.013,
+        "endRadius": 0.012,
+        "tilt": 0.02,
+        "crossSection": "ellipse",
+        "flatten": 0.8
+      },
+      "pommel": {
+        "shape": "disc",
+        "scale": 0.8
+      }
+    },
+    "design": {
+      "blade": {
+        "length": 0.72,
+        "centerCurve": {
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.015,
+              0.36,
+              0
+            ],
+            [
+              0,
+              0.72,
+              0
+            ]
+          ]
+        },
+        "widthCurve": {
+          "points": [
+            {
+              "t": 0,
+              "value": 0.03
+            },
+            {
+              "t": 0.5,
+              "value": 0.028
+            },
+            {
+              "t": 1,
+              "value": 0.024
+            }
+          ]
+        },
+        "thicknessCurve": {
+          "points": [
+            {
+              "t": 0,
+              "value": 0.007
+            },
+            {
+              "t": 1,
+              "value": 0.005
+            }
+          ]
+        },
+        "crossSection": "flat",
+        "ridgeHeight": 0,
+        "fuller": null,
+        "tip": {
+          "type": "spear",
+          "start": 0.88,
+          "endScale": 0.12
+        },
+        "segments": {
+          "longitudinal": 40,
+          "crossSection": 16
+        }
+      },
+      "guard": {
+        "outline": [
+          [
+            0.04,
+            0
+          ],
+          [
+            0.034641016151377546,
+            0.017499999999999998
+          ],
+          [
+            0.020000000000000004,
+            0.030310889132455353
+          ],
+          [
+            2.4492935982947064e-18,
+            0.035
+          ],
+          [
+            -0.01999999999999999,
+            0.030310889132455356
+          ],
+          [
+            -0.034641016151377546,
+            0.017499999999999998
+          ],
+          [
+            -0.04,
+            4.286263797015737e-18
+          ],
+          [
+            -0.034641016151377546,
+            -0.017500000000000005
+          ],
+          [
+            -0.020000000000000018,
+            -0.03031088913245535
+          ],
+          [
+            -7.347880794884118e-18,
+            -0.035
+          ],
+          [
+            0.020000000000000004,
+            -0.030310889132455353
+          ],
+          [
+            0.03464101615137754,
+            -0.017500000000000016
+          ]
+        ],
+        "depth": 0.012,
+        "bevel": 0.002,
+        "symmetry": "bilateral"
+      },
+      "grip": {
+        "length": 0.24,
+        "startRadius": 0.013,
+        "endRadius": 0.012,
+        "radiusCurve": null,
+        "crossSection": "ellipse",
+        "flatten": 0.8,
+        "curvature": {
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0.01,
+              -0.12,
+              0
+            ],
+            [
+              0.02,
+              -0.24,
+              0
+            ]
+          ]
+        },
+        "wrap": {
+          "enabled": true,
+          "turns": 9,
+          "width": 0.02,
+          "thickness": 0.002
+        },
+        "wrapGeometry": {
+          "enabled": false,
+          "turns": 9,
+          "depth": 0.0012
+        },
+        "segments": {
+          "longitudinal": 24,
+          "radial": 16
+        }
+      },
+      "pommel": {
+        "profile": [
+          [
+            0.008,
+            0
+          ],
+          [
+            0.019200000000000002,
+            -0.0048000000000000004
+          ],
+          [
+            0.0208,
+            -0.011200000000000002
+          ],
+          [
+            0.019200000000000002,
+            -0.0176
+          ],
+          [
+            0.008,
+            -0.022400000000000003
+          ],
+          [
+            0,
+            -0.024
+          ]
+        ],
+        "radialSegments": 16
+      }
+    }
   }
 ]

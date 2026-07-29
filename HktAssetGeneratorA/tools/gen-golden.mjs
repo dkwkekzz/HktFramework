@@ -51,6 +51,10 @@ const PRESETS = [
   { name: "fantasy-cleaver-flat", params: { length: 0.95, widthRoot: 0.09, widthMid: 0.095, widthTip: 0.07, thicknessRoot: 0.011, thicknessTip: 0.008, crossSection: "flat", ridgeHeight: 0, tipType: "rounded", tipStart: 0.88, tipEndScale: 0.25, segLong: 36, segCross: 16 } },
   { name: "fantasy-needle-hex", params: { length: 1.3, widthRoot: 0.04, widthMid: 0.028, widthTip: 0.01, thicknessRoot: 0.009, thicknessTip: 0.004, crossSection: "hexagonal", ridgeHeight: 0.9, tipType: "needle", tipStart: 0.45, tipEndScale: 0.02, segLong: 52, segCross: 16 } },
   { name: "fantasy-broad-fuller", params: { length: 1.25, widthRoot: 0.085, widthMid: 0.075, widthTip: 0.045, thicknessRoot: 0.01, thicknessTip: 0.006, crossSection: "lenticular", ridgeHeight: 0, fuller: fuller(0.03, 0.7, 0.03, 0.004), tipType: "spear", tipStart: 0.8, tipEndScale: 0.06, segLong: 44, segCross: 24 } },
+
+  // 곡선 검 (D-18 — Phase 6 Step 6.1): 휜 칼날. curve = 중간점 sagitta(m)
+  { name: "katana-curve", params: { length: 0.72, widthRoot: 0.03, widthMid: 0.028, widthTip: 0.024, thicknessRoot: 0.007, thicknessTip: 0.005, crossSection: "flat", ridgeHeight: 0, curve: 0.015, tipType: "spear", tipStart: 0.88, tipEndScale: 0.12, segLong: 40, segCross: 16 } },
+  { name: "sabre-curve-fuller", params: { length: 0.85, widthRoot: 0.035, widthMid: 0.032, widthTip: 0.026, thicknessRoot: 0.0065, thicknessTip: 0.0045, crossSection: "lenticular", ridgeHeight: 0, curve: -0.022, fuller: fuller(0.05, 0.7, 0.012, 0.002), tipType: "spear", tipStart: 0.85, tipEndScale: 0.1, segLong: 44, segCross: 16 } },
 ];
 
 mkdirSync(GOLDEN_DIR, { recursive: true });
@@ -144,6 +148,16 @@ const SWORD_PRESETS = [
       guard: { shape: "tapered", width: 0.24, thickness: 0.04, depth: 0.03, bevel: 0.006 },
       grip: { length: 0.2, startRadius: 0.016, endRadius: 0.013 },
       pommel: { shape: "disc", scale: 1.8 },
+    },
+  },
+  {
+    // 곡선 검 전체 조립 (D-18): 휜 칼날 + 기울어진 손잡이 + 소켓 추종 확인
+    name: "ronin-katana",
+    params: {
+      blade: bladeParamsOf("katana-curve"),
+      guard: { shape: "oval", width: 0.08, thickness: 0.07, depth: 0.012, bevel: 0.002 },
+      grip: { length: 0.24, startRadius: 0.013, endRadius: 0.012, tilt: 0.02, crossSection: "ellipse", flatten: 0.8 },
+      pommel: { shape: "disc", scale: 0.8 },
     },
   },
 ];

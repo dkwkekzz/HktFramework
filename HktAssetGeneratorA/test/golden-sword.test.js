@@ -10,8 +10,8 @@ import { validateUVs, assertValidUV } from "../src/uv/validate.js";
 
 const TEXTURE_SIZE = 1024;
 
-describe("golden sword presets (5종)", () => {
-  expect(swordPresets.length).toBe(5);
+describe("golden sword presets (직선 5종 + 곡선 1종 — D-18)", () => {
+  expect(swordPresets.length).toBe(6);
 
   for (const preset of swordPresets) {
     it(preset.name, () => {

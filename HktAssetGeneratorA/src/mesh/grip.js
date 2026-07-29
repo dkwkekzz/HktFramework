@@ -168,7 +168,9 @@ export function buildGripMesh(design) {
 }
 
 /** 파라미터 → GripDesign (직선 손잡이). */
+// p.tilt: 손잡이 끝 ±X 오프셋(m) — 곡선 검의 기울어진 손잡이 (D-18). 0 이면 기존과 동일.
 export function makeStraightGripDesign(p) {
+  const tilt = p.tilt ?? 0;
   return {
     length: p.length,
     startRadius: p.startRadius,
@@ -176,7 +178,7 @@ export function makeStraightGripDesign(p) {
     radiusCurve: p.radiusCurve ?? null,
     crossSection: p.crossSection ?? "circle",
     flatten: p.flatten ?? 1,
-    curvature: { points: [[0, 0, 0], [0, -p.length / 2, 0], [0, -p.length, 0]] },
+    curvature: { points: [[0, 0, 0], [tilt / 2, -p.length / 2, 0], [tilt, -p.length, 0]] },
     wrap: p.wrap ?? { enabled: true, turns: 9, width: 0.02, thickness: 0.002 },
     wrapGeometry: p.wrapGeometry ?? { enabled: false, turns: 9, depth: 0.0012 },
     segments: { longitudinal: p.segLong ?? 24, radial: p.segRadial ?? 16 },
