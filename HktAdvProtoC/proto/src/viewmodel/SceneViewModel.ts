@@ -423,6 +423,8 @@ export interface SceneViewPayload {
   speed: number;
   map: SceneMap;
   events: SceneEventListItem[];
+  /** §29 저중요도 필터 (G-9) — 플레이어 시점에서 접힌 사건 수 */
+  suppressedEventCount: number;
   agentChoices: { id: string; label: string; symbolKey: string }[];
   agentPanel?: SceneAgentPanel;
   eventDetail?: SceneEventDetail;
@@ -447,6 +449,8 @@ export interface SceneViewModel {
   map: SceneMap;
   /** 사건 목록 (§36.4 진입점) */
   events: SceneEventListItem[];
+  /** §29 — 중요도 미달로 접힌 사건 수 (플레이어 시점, G-9) */
+  suppressedEventCount: number;
   /** 열어 본 사건의 상세 (§36.4) */
   eventDetail?: SceneEventDetail;
   /** 관찰 중인 주체 (§36.3) */
@@ -470,6 +474,7 @@ export function createEmptyScene(): SceneViewModel {
     globalBadges: [],
     map: createEmptyMap(),
     events: [],
+    suppressedEventCount: 0,
     agentChoices: [],
   };
 }

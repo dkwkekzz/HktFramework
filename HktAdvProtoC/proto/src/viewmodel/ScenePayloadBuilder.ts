@@ -26,11 +26,13 @@ export function buildScenePayload(
     mode: focus.mode,
     ...(focus.observerId === undefined ? {} : { observerId: focus.observerId }),
   };
+  const eventList = buildEventList(runtime, context, interpreter);
   const payload: SceneViewPayload = {
     modeKey: focus.mode,
     speed: focus.speed ?? 1,
     map: buildMapView(runtime, context),
-    events: buildEventList(runtime, context, interpreter),
+    events: eventList.items,
+    suppressedEventCount: eventList.suppressed,
     agentChoices: agentChoices(runtime, context),
   };
   if (focus.agentId !== undefined) {

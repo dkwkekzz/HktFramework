@@ -202,6 +202,8 @@ export interface PlayerKnowledgeView {
   options: PlayerActionOption[];
   currentAction?: { actionId: string; targetIds: string[]; completesAt: number };
   events: PlayerEventBrief[];
+  /** §29 저중요도 필터 (G-9) — 알지만 중요도 미달이라 접힌 사건 수 (참여한 사건은 접지 않는다) */
+  suppressedEventCount: number;
   journal: PlayerJournalEntry[];
   growthOffers: GrowthOffer[];
   growthLog: GrowthChange[];

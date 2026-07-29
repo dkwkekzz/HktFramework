@@ -197,7 +197,7 @@ export class TextSceneRenderer {
       `[시각] ${scene.clock} (tick ${scene.time}) ×${scene.speed} 시점 ${scene.modeKey}`,
       `[세계] ${scene.globalBadges.map((badge) => `${badge.key}=${badge.value}`).join(" ") || "-"}`,
       ...mapDump(scene.map),
-      `[사건 목록] ${scene.events.length}건`,
+      `[사건 목록] ${scene.events.length}건${scene.suppressedEventCount > 0 ? ` (사소한 사건 ${scene.suppressedEventCount}건 접힘)` : ""}`,
       ...scene.events.map((item) =>
         line(
           2,
