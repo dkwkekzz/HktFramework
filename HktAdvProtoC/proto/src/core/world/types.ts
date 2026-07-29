@@ -453,6 +453,8 @@ export interface BootstrapEntity {
     dependency?: number;
     debt?: number;
     familiarity?: number;
+    /** §25 knownSecrets (G-8) — 시작부터 쥐고 있는 비밀도 초기 상태다 (§41 은닉 동기의 목격자) */
+    knownSecrets?: string[];
   }[];
   /** 초기 믿음 (§41 "초기 상태만 배치한다" — 소문·선입견도 초기 상태다) */
   beliefs?: {

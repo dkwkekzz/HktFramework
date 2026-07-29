@@ -4,6 +4,7 @@
 // 상태 읽기는 StateStore 를 통과하므로 등록되지 않은 stateKey 는 여기서 즉시 예외가 된다
 // (§34 "모든 규칙의 대상이 실제로 존재한다" 의 런타임 방어선).
 import { distance3d } from "../../shared/state";
+import { relationshipKey } from "../../shared/beliefs";
 import type { WorldRuntime } from "../world/WorldRuntime";
 import type {
   RuleBinding,
@@ -184,6 +185,13 @@ export function resolveRuleValue(ref: RuleValue, ctx: RuleContext): unknown {
       const species = ctx.runtime.index.species.get(speciesId);
       const need = species?.requiredResources.find((entry) => entry.resourceTag === ref.resourceTag);
       return need?.amountPerDay ?? 0;
+    }
+    case "known_secrets": {
+      // §25 관계 원장의 비밀 수 (G-8) — 관계가 없으면 0
+      const ofId = bindingEntityId(ctx, ref.of ?? "actor");
+      const aboutId = bindingEntityId(ctx, ref.about ?? "target");
+      if (ofId === undefined || aboutId === undefined) return 0;
+      return ctx.runtime.state.relationships[relationshipKey(ofId, aboutId)]?.knownSecrets.length ?? 0;
     }
     case "query_value": {
       const found = runTargetQuery(ctx, ref.query);

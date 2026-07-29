@@ -13,6 +13,7 @@ import {
 } from "../core/agents/phase3Checks";
 import { measureResourceOveruse } from "../core/world/overuseChecks";
 import { measureInitialMemories, measureInventory } from "../core/agents/initialStateChecks";
+import { measureSecrets } from "../core/agents/secretChecks";
 import {
   PLAYER_FREE_MODULES,
   checkGrowthConditions,
@@ -1086,6 +1087,18 @@ check(
     .join("") +
     `\n      소지품 — ${inventoryRows.map((row) => `${row.agentId.replace(/^(agent|creature)\./, "")}:${row.resourceId.replace("resource.", "")}→${row.stateKey} ${row.stored}`).join(" · ")}` +
     `\n      (소지 상태 직접 지정 0건 — 선언은 inventory, 변환은 부트스트랩, 읽는 쪽은 거래·소비 규칙 그대로)`,
+);
+
+// --- G-8 : §25 비밀이 기록되고 소비된다 ---------------------------------------------------
+const secretMeasures = measureSecrets(worldSeed);
+check(
+  secretMeasures.ok,
+  `§25 knownSecrets — 초기 ${secretMeasures.initialSecrets.length}건 · 발각의 기록 · 협박의 지렛대 (같은 협박이 비밀 유무로 갈린다)`,
+  secretMeasures.initialSecrets
+    .map((entry) => `\n      초기 비밀 — ${entry.fromId.replace(/^agent\./, "")} → ${entry.toId}: "${entry.secret}"`)
+    .join("") +
+    `\n      같은 거짓말 ${secretMeasures.lieAttempts}회 → 발각이 남긴 비밀 ${secretMeasures.secretsFromLies}건 (record_secret, §12 partial_outcome)` +
+    `\n      같은 협박 — 비밀 없이 공포 +${secretMeasures.fearWithoutSecret} / 비밀을 쥐고 +${secretMeasures.fearWithSecret} (rule.blackmail_leverage — known_secrets 조건)`,
 );
 
 // --- G-6 : §14 자원의 과도 사용에는 결과가 있다 -------------------------------------------

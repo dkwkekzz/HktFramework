@@ -65,6 +65,12 @@ export type RuleValue =
    * 규칙이 종족의 생존 구조를 직접 읽는 통로다 — "종족은 감각+심볼"에 그치지 않게 한다.
    */
   | { type: "species_need"; resourceTag: string; of?: RuleBinding }
+  /**
+   * §25 아는 비밀의 수 — 관계 원장 knownSecrets 의 길이 (G-8).
+   * of(기본 actor)가 about(기본 target)에 대해 쥔 비밀 수다. 협박(§21)의 지렛대 조건이
+   * 여기 얹힌다 — 비밀은 장식이 아니라 행동의 문을 여는 정보 자산이다.
+   */
+  | { type: "known_secrets"; of?: RuleBinding; about?: RuleBinding }
   /** §12 주변 개체 검색 — 검색 결과를 값으로 쓴다(개수·합·첫 항목의 상태) */
   | { type: "query_value"; query: RuleTargetQuery; key?: string; aggregate: QueryAggregate }
   | { type: "expr"; op: ExprOp; operands: RuleValue[] };
@@ -180,6 +186,11 @@ export type RuleEffect = EffectCommon &
         /** 있으면 즉시 적용이 아니라 선택지를 게시한다 (§32 "사용자의 선택") */
         options?: GrowthOption[];
       }
+    /**
+     * §25 비밀 기록 (G-8) — from 이 to 에 대한 비밀을 관계 원장(knownSecrets)에 남긴다.
+     * 같은 문구는 한 번만 남는다. 발각·목격이 여기로 흘러야 §25 의 정보 비대칭이 실행 데이터가 된다.
+     */
+    | { type: "record_secret"; from: RuleTargetSelector; to: RuleTargetSelector; secret: string }
   );
 
 /** 규칙 본문에서 한 번만 계산해 여러 번 쓰는 값 (lazy — 처음 참조될 때 계산되고 그 뒤로는 기억된다) */

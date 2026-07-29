@@ -6,6 +6,7 @@ import {
   applyRelationshipChange,
   ensureRelationship,
   isRelationshipKey,
+  recordSecret,
 } from "../agents/RelationshipSystem";
 import type { EntityState } from "../../shared/state";
 import type { WorldRuntime } from "./WorldRuntime";
@@ -186,10 +187,12 @@ function bootstrapRelationships(runtime: WorldRuntime): void {
       if (runtime.store.findEntity(relation.toId) === undefined) continue;
       ensureRelationship(runtime, spec.id, relation.toId);
       for (const [key, value] of Object.entries(relation)) {
-        if (key === "toId" || typeof value !== "number") continue;
+        if (key === "toId" || key === "knownSecrets" || typeof value !== "number") continue;
         if (!isRelationshipKey(key)) throw new Error(`알 수 없는 관계 항목: ${spec.id}→${relation.toId}.${key}`);
         applyRelationshipChange(runtime, spec.id, relation.toId, key, value);
       }
+      // §25 시작부터 쥔 비밀 (G-8) — 은닉 동기(§41)의 목격자는 선언이 아니라 관계 원장으로 시작한다
+      for (const secret of relation.knownSecrets ?? []) recordSecret(runtime, spec.id, relation.toId, secret);
     }
   }
 

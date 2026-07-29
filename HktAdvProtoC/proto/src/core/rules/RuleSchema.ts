@@ -124,6 +124,7 @@ export const RULE_JSON_SCHEMA = {
             "random",
             "random_int",
             "species_need",
+            "known_secrets",
             "query_value",
             "expr",
           ],
@@ -133,6 +134,8 @@ export const RULE_JSON_SCHEMA = {
         entityId: { type: "string" },
         path: { type: "string" },
         of: { $ref: "#/$defs/binding" },
+        /** §25 known_secrets — 누구에 대한 비밀인가 (G-8) */
+        about: { $ref: "#/$defs/binding" },
         name: { type: "string" },
         from: { $ref: "#/$defs/binding" },
         to: { $ref: "#/$defs/binding" },
@@ -174,6 +177,7 @@ export const RULE_JSON_SCHEMA = {
             "modify_relationship",
             "make_promise",
             "record_growth",
+            "record_secret",
           ],
         },
         conditions: { type: "array", items: { $ref: "#/$defs/condition" } },
@@ -212,6 +216,8 @@ export const RULE_JSON_SCHEMA = {
         threshold: { type: "number" },
         dueInTicks: { type: "number", minimum: 1 },
         tags: { type: "array", items: { type: "string" } },
+        /** §25 record_secret (G-8) */
+        secret: { type: "string" },
         /** §32 record_growth */
         growthType: {
           enum: ["physical", "skill", "knowledge", "relationship", "authority", "ability", "identity"],

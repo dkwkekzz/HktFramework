@@ -62,6 +62,32 @@ export function relationshipView(
   return findRelationship(runtime, fromId, toId) ?? createRelationshipState(fromId, toId);
 }
 
+/**
+ * §25 비밀 기록 (G-8) — from 이 to 에 대한 비밀 문구를 관계 원장에 남긴다.
+ * 같은 문구는 한 번만 남는다. 아는 쪽의 판단 재계기(flags)를 세운다 —
+ * 새 정보 자산은 행동 후보(협박의 지렛대 등)를 바꿀 수 있다.
+ */
+export function recordSecret(
+  runtime: WorldRuntime,
+  fromId: string,
+  toId: string,
+  secret: string,
+): boolean {
+  const relation = ensureRelationship(runtime, fromId, toId);
+  if (relation.knownSecrets.includes(secret)) return false;
+  relation.knownSecrets.push(secret);
+  const agent = runtime.state.agentRuntimes[fromId];
+  if (agent !== undefined && !agent.flags.includes("relationship_shift")) {
+    agent.flags.push("relationship_shift");
+  }
+  return true;
+}
+
+/** §25 — from 이 to 에 대해 쥔 비밀들 (없으면 빈 배열) */
+export function secretsAbout(runtime: WorldRuntime, fromId: string, toId: string): readonly string[] {
+  return findRelationship(runtime, fromId, toId)?.knownSecrets ?? [];
+}
+
 export function clampRelation(value: number): number {
   return value < RELATION_MIN ? RELATION_MIN : value > RELATION_MAX ? RELATION_MAX : value;
 }

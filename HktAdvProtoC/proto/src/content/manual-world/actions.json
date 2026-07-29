@@ -1187,7 +1187,8 @@
       }
     ],
     "executionRules": [
-      "rule.threatening_words"
+      "rule.threatening_words",
+      "rule.blackmail_leverage"
     ],
     "visibleSignals": [
       {
