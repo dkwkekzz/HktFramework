@@ -12,9 +12,11 @@ import { buildScenePayload, type SceneFocus } from "../../viewmodel/ScenePayload
 import { EventInterpreter } from "../../presentation/EventInterpreter";
 import type { WorldEvent } from "../../shared/events";
 import type {
+  PlayableAgentCard,
   PlayerActionRequest,
   WorkerRequest,
   WorkerResponse,
+  WorldKind,
   WorldSeedInputMessage,
 } from "../../shared/protocol";
 import { acceptGrowthOffer } from "../agents/GrowthSystem";
@@ -25,12 +27,14 @@ import {
   executePlayerAction,
   findPlayerId,
 } from "../agents/PlayerAgent";
+import { requestPlayerMove, requestPlayerTravel } from "../agents/PlayerMovement";
 import { RuleEngine } from "../rules/RuleEngine";
 import { bootstrapWorld } from "../world/WorldBootstrap";
 import { validateWorldDefinition } from "../world/WorldValidation";
 import type { WorldDefinition } from "../world/types";
 import { WorldRuntime, type RuntimeSnapshot } from "../world/WorldRuntime";
 import { SimulationLoop, type RuntimeHooks } from "./SimulationLoop";
+import { buildWorldPackage, parseWorldPackage } from "./WorldPackager";
 import { createWorldSystems } from "./WorldSystems";
 
 export interface WorldSnapshotDocument {
@@ -72,7 +76,15 @@ export class RuntimeServer {
   handle(request: WorkerRequest): WorkerResponse[] {
     switch (request.type) {
       case "initialize_world":
-        return this.initialize(request.worldSeed, request.world ?? "manual", request.definition);
+        return this.initialize(request.worldSeed, request.world ?? "manual", request.definition, request.package);
+      case "export_world":
+        return this.exportWorld(request.worldSeed, request.world);
+      case "request_playable_agents":
+        return this.playableAgents();
+      case "player_move":
+        return this.playerMove(request.x, request.y);
+      case "player_travel":
+        return this.playerTravel(request.toRegionId);
       case "advance_time":
         return this.advanceTime(request.amount);
       case "execute_player_action":
@@ -291,6 +303,102 @@ export class RuntimeServer {
     return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
   }
 
+  // --- 세계 패키지 (Phase-9 §9.1 / §3 모듈 1~6) --------------------------------------
+
+  /**
+   * 정의 → §3 정적 파이프라인(모듈 1~6) → 불투명 패키지 문자열.
+   * 단계 하나라도 실패하면 패키지는 나오지 않는다 — 실패 단계와 근거를 말하며 거부한다.
+   * 저장은 화면 쪽 WorldLibrary 의 몫이다.
+   */
+  private exportWorld(worldSeed: number, kind: WorldKind): WorkerResponse[] {
+    let def: WorldDefinition;
+    try {
+      def = this.resolveDefinition(worldSeed, kind);
+    } catch (error) {
+      return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
+    }
+    const build = buildWorldPackage(def);
+    if (!build.ok || build.document === undefined) {
+      const failed = build.stages.find((stage) => !stage.ok);
+      return [
+        {
+          type: "error",
+          message: `패키지 빌드 실패 — ${failed?.id ?? "?"} ${failed?.title ?? ""}: ${failed?.evidence ?? ""}`,
+        },
+      ];
+    }
+    return [
+      {
+        type: "world_package",
+        worldId: def.metadata.id,
+        label: build.document.label,
+        json: JSON.stringify(build.document),
+        stages: build.stages,
+      },
+    ];
+  }
+
+  // --- 플레이 진입·조작 (Phase-9 §9.2·§9.3) ------------------------------------------
+
+  /** 조작 가능한 주체 카드 — 조직은 조작할 수 없다(§17) */
+  private playableAgents(): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const speciesName = new Map(runtime.definition.species.map((species) => [species.id, species.name]));
+    const regionName = new Map(runtime.definition.spaces.regions.map((region) => [region.id, region.name]));
+    const entityName = new Map(runtime.definition.bootstrap.entities.map((entry) => [entry.id, entry.name]));
+    const agents: PlayableAgentCard[] = [];
+    for (const agentId of runtime.agentIds().sort()) {
+      if (runtime.agentRuntime(agentId).kind === "faction") continue;
+      const entity = runtime.store.findEntity(agentId);
+      if (entity === undefined) continue;
+      const speciesId = entity.states["species_id"];
+      const badges: PlayableAgentCard["badges"] = [];
+      for (const key of ["health", "hunger", "fear"]) {
+        const value = entity.states[key];
+        if (typeof value === "number") badges.push({ key, value: String(Math.round(value)) });
+      }
+      agents.push({
+        id: agentId,
+        label: entityName.get(agentId) ?? agentId,
+        speciesLabel:
+          typeof speciesId === "string" ? (speciesName.get(speciesId) ?? speciesId) : "",
+        regionLabel:
+          entity.position === undefined
+            ? ""
+            : (regionName.get(entity.position.regionId) ?? entity.position.regionId),
+        badges,
+      });
+    }
+    return [{ type: "playable_agents", agents }];
+  }
+
+  /** §9.3 달리기 — 거부는 사유를 말한다. 수락이면 다음 tick 부터 체인이 전진시킨다 */
+  private playerMove(x: number, y: number): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const outcome = requestPlayerMove(runtime, x, y);
+    if (!outcome.accepted) return [{ type: "error", message: outcome.reason ?? "이동할 수 없다" }];
+    this.inputSeq += 1;
+    return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
+  }
+
+  /** §9.3 지역 이동 — §13 연결·통행 조건 검증은 코어가 한다 */
+  private playerTravel(toRegionId: string): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const outcome = requestPlayerTravel(runtime, toRegionId);
+    if (!outcome.accepted) return [{ type: "error", message: outcome.reason ?? "지역을 건널 수 없다" }];
+    this.inputSeq += 1;
+    return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
+  }
+
   /**
    * 어느 세계를 올릴지는 **종류 이름**으로 정한다 (Phase 8) —
    * 정의를 화면이 들고 있다가 되돌려 보내는 경로가 사라졌다(§38: UI 는 표시 속성만 안다).
@@ -314,10 +422,20 @@ export class RuntimeServer {
     worldSeed: number,
     kind: "manual" | "player" | "generated",
     definition?: unknown,
+    packageJson?: string,
   ): WorkerResponse[] {
     let def: WorldDefinition;
+    /** 패키지의 4단계 산출물 — 있으면 배치를 다시 하지 않고 **그대로 복원**한다 (§3-7, Phase-9 §9.1) */
+    let baked: RuntimeSnapshot | undefined;
     try {
-      def = this.resolveDefinition(worldSeed, kind, definition);
+      if (packageJson !== undefined) {
+        // 패키지가 있으면 그것이 세계다 — 종류 이름보다 우선한다
+        const pkg = parseWorldPackage(packageJson);
+        def = pkg.definition;
+        baked = pkg.bootstrapSnapshot;
+      } else {
+        def = this.resolveDefinition(worldSeed, kind, definition);
+      }
     } catch (error) {
       return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
     }
@@ -328,13 +446,16 @@ export class RuntimeServer {
     }
     this.rules = rules;
 
-    const runtime = new WorldRuntime(def);
+    const runtime = baked !== undefined ? WorldRuntime.fromSnapshot(def, baked) : new WorldRuntime(def);
     const systems = createWorldSystems(this.rules);
     const loop = new SimulationLoop(this.hooksOverride ?? systems.hooks);
     systems.registerHandlers(loop);
 
-    bootstrapWorld(runtime);
-    systems.scheduleInitialEvents(runtime);
+    if (baked === undefined) {
+      // 패키지 없는 경로(빌트인·테스트)만 여기서 배치한다 — 패키지 경로의 배치는 4단계가 이미 끝냈다
+      bootstrapWorld(runtime);
+      systems.scheduleInitialEvents(runtime);
+    }
     this.runtime = runtime;
     this.loop = loop;
     this.inputSeq += 1;

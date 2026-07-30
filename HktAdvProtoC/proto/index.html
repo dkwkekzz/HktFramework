@@ -2,14 +2,17 @@
 <html lang="ko">
   <head>
     <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
     <title>HktAdvProtoC — 세계 시뮬레이터</title>
     <style>
       body { font-family: system-ui, sans-serif; margin: 1.5rem; max-width: 76rem; }
+      body.play-mode { margin: 0; max-width: none; background: #0b0f16; color: #dfe6f2; overflow: hidden; }
       h1 { font-size: 1.3rem; }
+      body.play-mode h1, body.play-mode #notice { display: none; }
       nav { display: flex; gap: 0.4rem; margin: 1rem 0; flex-wrap: wrap; }
       nav button { padding: 0.45rem 0.9rem; border: 1px solid #ccc; background: #fafafa; border-radius: 6px; }
       nav button.active { background: #333; color: #fff; border-color: #333; }
+      nav button#mode-play { border-color: #2a6; color: #2a6; font-weight: 600; }
       #notice { min-height: 1.4rem; padding: 0.3rem 0.6rem; background: #fff8dc; border-radius: 4px; font-size: 0.85rem; }
       #status { white-space: pre-line; padding: 0.8rem; background: #f2f2f2; border-radius: 6px; min-height: 3.5rem; }
       .row { display: flex; gap: 0.5rem; margin-bottom: 0.8rem; align-items: center; flex-wrap: wrap; }
@@ -19,7 +22,7 @@
       legend { font-size: 0.85rem; color: #555; }
       #map, #map3d { width: 100%; max-width: 60rem; border: 1px solid #2a3550; border-radius: 6px; background: #131a26; }
       #map3d { touch-action: none; }
-      #generation, #editor, #world, #player, #agent, #events, #event-detail {
+      #generation, #editor, #world, #player, #agent, #events, #event-detail, #package-report {
         white-space: pre-wrap; font-family: ui-monospace, monospace; font-size: 0.78rem; line-height: 1.5;
       }
       #generation pre, #editor pre, #player pre { background: #f7f7f7; padding: 0.5rem; overflow-x: auto; max-height: 20rem; }
@@ -38,115 +41,224 @@
       .step { border-bottom: 1px dashed #eee; padding: 0.2rem 0; }
       .fail { color: #b00; }
       button.active { background: #333; color: #fff; }
+
+      /* ── 플레이 모드 (Phase-9 §9.2·§9.3) — 모바일·PC 공용 게임 화면 ─────────────── */
+      #screen-play { position: fixed; inset: 0; display: flex; flex-direction: column; }
+      #screen-play[hidden] { display: none; }
+      #play-select, #play-agent-select { padding: 1.2rem; overflow-y: auto; }
+      #play-select h2, #play-agent-select h2 { font-size: 1.05rem; margin: 0.2rem 0 0.8rem; }
+      .play-card {
+        position: relative; border: 1px solid #2a3550; border-radius: 8px; background: #131a26;
+        padding: 0.7rem 0.9rem; margin-bottom: 0.6rem; cursor: pointer; max-width: 34rem;
+      }
+      .play-card:hover { border-color: #57d98f; }
+      .play-card b { display: block; margin-bottom: 0.15rem; }
+      .play-card small { display: block; color: #93a0b5; font-size: 0.75rem; }
+      .play-card .play-stages { color: #b9c6da; font-family: ui-monospace, monospace; margin-top: 0.2rem; }
+      .play-card .play-remove { position: absolute; top: 0.5rem; right: 0.6rem; background: none; border: 1px solid #444; color: #93a0b5; border-radius: 4px; font-size: 0.7rem; }
+      #play-stage { position: relative; flex: 1; }
+      #play-canvas { position: absolute; inset: 0; width: 100%; height: 100%; touch-action: none; background: #131a26; }
+      .play-overlay { position: absolute; font-size: 0.82rem; }
+      #play-status { top: 0.6rem; left: 0.7rem; background: rgba(11, 15, 22, 0.75); padding: 0.45rem 0.7rem; border-radius: 8px; min-width: 9rem; }
+      .play-bar { width: 9rem; height: 7px; background: #1b2331; border-radius: 4px; margin: 0.25rem 0; }
+      .play-bar-fill { height: 100%; background: #57d98f; border-radius: 4px; }
+      #play-topbar { top: 0.6rem; right: 11.5rem; display: flex; gap: 0.35rem; }
+      #play-topbar button {
+        background: rgba(11, 15, 22, 0.75); color: #dfe6f2; border: 1px solid #2a3550; border-radius: 8px;
+        padding: 0.45rem 0.7rem; font-size: 0.85rem; min-width: 2.6rem;
+      }
+      #play-target {
+        top: 0.6rem; left: 50%; transform: translateX(-50%); background: rgba(11, 15, 22, 0.85);
+        border: 1px solid #57d98f; border-radius: 8px; padding: 0.4rem 0.8rem; max-width: 70%;
+      }
+      #play-actions { bottom: 1rem; right: 0.8rem; display: flex; flex-wrap: wrap-reverse; justify-content: flex-end; gap: 0.4rem; max-width: 60%; }
+      #play-actions .play-action {
+        background: rgba(19, 26, 38, 0.92); color: #dfe6f2; border: 1px solid #3a4a66; border-radius: 10px;
+        padding: 0.55rem 0.8rem; font-size: 0.85rem; min-width: 4.6rem; min-height: 2.9rem;
+      }
+      #play-actions .play-action small { display: block; color: #93a0b5; font-size: 0.68rem; }
+      #play-actions .play-action:active { border-color: #57d98f; }
+      #play-panel {
+        top: 3.4rem; right: 0.8rem; width: 19rem; max-height: 60%; overflow-y: auto;
+        background: rgba(11, 15, 22, 0.9); border: 1px solid #2a3550; border-radius: 8px; padding: 0.6rem 0.8rem;
+        font-size: 0.78rem; line-height: 1.5;
+      }
+      #play-growth {
+        top: 25%; left: 50%; transform: translateX(-50%); background: rgba(11, 15, 22, 0.95);
+        border: 1px solid #d9c47a; border-radius: 10px; padding: 0.8rem 1rem; max-width: 26rem;
+      }
+      #play-growth button { display: block; width: 100%; margin: 0.4rem 0; background: #1b2331; color: #dfe6f2; border: 1px solid #3a4a66; border-radius: 8px; padding: 0.5rem; }
+      #play-growth button small { display: block; color: #93a0b5; }
+      #play-joystick {
+        position: absolute; bottom: 1.2rem; left: 1.2rem; width: 7.5rem; height: 7.5rem; border-radius: 50%;
+        background: rgba(19, 26, 38, 0.55); border: 1.5px solid #3a4a66; touch-action: none;
+      }
+      #play-knob {
+        position: absolute; left: 50%; top: 50%; width: 3rem; height: 3rem; margin: -1.5rem 0 0 -1.5rem;
+        border-radius: 50%; background: rgba(87, 217, 143, 0.35); border: 1.5px solid #57d98f;
+      }
+      @media (hover: hover) and (pointer: fine) {
+        #play-joystick { opacity: 0.35; }
+      }
+      @media (max-width: 640px) {
+        #play-topbar { right: 0.6rem; top: 3.2rem; }
+        #play-actions { max-width: 55%; }
+      }
     </style>
   </head>
   <body>
     <h1>HktAdvProtoC — 세계 생성과 시뮬레이션</h1>
     <div id="notice"></div>
-    <nav>
-      <button id="tab-seed">① 세계 생성 (§36.1)</button>
-      <button id="tab-editor">② 세계 구조 검토 (§36.1)</button>
-      <button id="tab-simulation">③ 월드 지도 · 주체 관찰 (§36.2·§36.3)</button>
-      <button id="tab-events">④ 사건 (§36.4)</button>
-    </nav>
 
-    <!-- ① 세계 생성 화면 (§36.1) -->
-    <section id="screen-seed">
-      <fieldset>
-        <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
-        <!-- 증명된 범위의 경계를 화면이 먼저 말한다 (2차 재검증 F-1) -->
-        <p class="note">
-          이 프로토타입의 생성 AI 는 <b>녹화 재생 포트</b> 하나다(§2.1 — 살아 있는 LLM 어댑터 0종).
-          아래 다섯 문장은 그 코퍼스가 녹화된 입력이라 그대로 세계가 되지만, <b>주제를 바꾸면 1단계에서 멈춘다</b> —
-          제목은 결과에 반영되고, 경험·제외 요소는 §33.2 감사만 받는다.
-        </p>
-        <label for="themes">세계관 주제 (한 줄에 하나)</label>
-        <textarea id="themes" rows="5"></textarea>
-        <label for="experiences">원하는 경험</label>
-        <textarea id="experiences" rows="3"></textarea>
-        <label for="prohibited">제외하고 싶은 요소</label>
-        <textarea id="prohibited" rows="3"></textarea>
+    <!-- ── 스튜디오 (§3 모듈 1~6 의 작업대 — §36 네 화면) ─────────────────────────── -->
+    <div id="studio-root">
+      <nav>
+        <button id="tab-seed">① 세계 생성 (§36.1)</button>
+        <button id="tab-editor">② 세계 구조 검토 (§36.1)</button>
+        <button id="tab-simulation">③ 월드 지도 · 주체 관찰 (§36.2·§36.3)</button>
+        <button id="tab-events">④ 사건 (§36.4)</button>
+        <button id="mode-play">▶ 플레이 모드 (§3-7)</button>
+      </nav>
+
+      <!-- ① 세계 생성 화면 (§36.1) -->
+      <section id="screen-seed">
+        <fieldset>
+          <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
+          <!-- 증명된 범위의 경계를 화면이 먼저 말한다 (2차 재검증 F-1) -->
+          <p class="note">
+            이 프로토타입의 생성 AI 는 <b>녹화 재생 포트</b> 하나다(§2.1 — 살아 있는 LLM 어댑터 0종).
+            아래 다섯 문장은 그 코퍼스가 녹화된 입력이라 그대로 세계가 되지만, <b>주제를 바꾸면 1단계에서 멈춘다</b> —
+            제목은 결과에 반영되고, 경험·제외 요소는 §33.2 감사만 받는다.
+          </p>
+          <label for="themes">세계관 주제 (한 줄에 하나)</label>
+          <textarea id="themes" rows="5"></textarea>
+          <label for="experiences">원하는 경험</label>
+          <textarea id="experiences" rows="3"></textarea>
+          <label for="prohibited">제외하고 싶은 요소</label>
+          <textarea id="prohibited" rows="3"></textarea>
+          <div class="row">
+            <label for="gen-seed">세계 시드</label>
+            <input id="gen-seed" type="number" value="42" />
+            <button id="generate">세계를 생성한다</button>
+            <button id="use-generated" disabled>생성된 세계로 시뮬레이션 시작</button>
+            <button id="save-generated" disabled>플레이 패키지로 보관 (§3 모듈 1~6)</button>
+          </div>
+          <div id="package-report"></div>
+          <div id="generation"></div>
+        </fieldset>
+      </section>
+
+      <!-- ② 세계 구조 검토 (§36.1 "생성된 세계 구조 검토" 승격) -->
+      <section id="screen-editor" hidden>
+        <fieldset>
+          <legend>생성 구조 검토 · 항목 재생성 (Phase-6 §6.3 증분 재실행)</legend>
+          <div id="editor"></div>
+        </fieldset>
+      </section>
+
+      <!-- ③ 월드 지도 + 주체 관찰 (§36.2, §36.3) -->
+      <section id="screen-simulation" hidden>
         <div class="row">
-          <label for="gen-seed">세계 시드</label>
-          <input id="gen-seed" type="number" value="42" />
-          <button id="generate">세계를 생성한다</button>
-          <button id="use-generated" disabled>생성된 세계로 시뮬레이션 시작</button>
+          <label for="seed">세계 시드</label>
+          <input id="seed" type="number" value="42" />
+          <button id="init">수동 세계로 시작</button>
+          <button id="init-player">개입 세계로 시작 (§30·§32 층 포함)</button>
         </div>
-        <div id="generation"></div>
-      </fieldset>
-    </section>
+        <div class="row">
+          <button id="advance-hour" disabled>+1시간</button>
+          <button id="advance-day" disabled>+1일</button>
+          <button id="advance-week" disabled>+7일</button>
+          <span>배속</span>
+          <button id="speed-down" disabled>−</button>
+          <span id="speed-view">×1</span>
+          <button id="speed-up" disabled>+</button>
+          <span>시점</span>
+          <button id="mode-developer" class="active">개발자</button>
+          <button id="mode-player">플레이어</button>
+          <span>표현</span>
+          <button id="view-2d" class="active">2D</button>
+          <button id="view-3d">3D</button>
+        </div>
+        <div id="status"></div>
+        <canvas id="map" width="960" height="540"></canvas>
+        <canvas id="map3d" width="960" height="540" hidden></canvas>
 
-    <!-- ② 세계 구조 검토 (§36.1 "생성된 세계 구조 검토" 승격) -->
-    <section id="screen-editor" hidden>
-      <fieldset>
-        <legend>생성 구조 검토 · 항목 재생성 (Phase-6 §6.3 증분 재실행)</legend>
-        <div id="editor"></div>
-      </fieldset>
-    </section>
+        <fieldset>
+          <legend>주체 관찰 화면 (§36.3 — 실제/믿음 · 목적 그래프 · 기억 · 관계 · 능력)</legend>
+          <div class="row">
+            <label for="agent-select">관찰할 주체</label>
+            <select id="agent-select"></select>
+          </div>
+          <div id="agent"></div>
+        </fieldset>
 
-    <!-- ③ 월드 지도 + 주체 관찰 (§36.2, §36.3) -->
-    <section id="screen-simulation" hidden>
-      <div class="row">
-        <label for="seed">세계 시드</label>
-        <input id="seed" type="number" value="42" />
-        <button id="init">수동 세계로 시작</button>
-        <button id="init-player">개입 세계로 시작 (§30·§32 층 포함)</button>
+        <fieldset>
+          <legend>플레이어 개입 (§30 개입 기회 · §31 동일 행동 체계)</legend>
+          <div class="row">
+            <label for="player-agent">조작할 주체</label>
+            <input id="player-agent" type="text" value="agent.kael" size="24" />
+            <button id="attach" disabled>이 주체를 조작한다</button>
+            <button id="detach" disabled>조작을 놓는다</button>
+          </div>
+          <div id="player"></div>
+        </fieldset>
+
+        <details open>
+          <summary>텍스트 덤프 렌더러 — 같은 SceneViewModel 의 다른 표현 (Phase-8 §8.0 격리 증명)</summary>
+          <div id="world"></div>
+        </details>
+      </section>
+
+      <!-- ④ 사건 화면 (§36.4) -->
+      <section id="screen-events" hidden>
+        <fieldset>
+          <legend>사건 목록</legend>
+          <div id="events"></div>
+        </fieldset>
+        <fieldset>
+          <legend>사건 상세 (§36.4 8항목 — 알려진 정보 ↔ 실제 원인)</legend>
+          <div id="event-detail"></div>
+        </fieldset>
+      </section>
+    </div>
+
+    <!-- ── 플레이 모드 (Phase-9 / §3 모듈 7 — 구운 패키지를 그대로 불러온다) ────────── -->
+    <section id="screen-play" hidden>
+      <!-- ① 세계 선택 -->
+      <div id="play-select">
+        <h2>플레이 — 세계를 고른다 (§3-7: 저장된 데이터를 그대로 불러온다)</h2>
+        <div class="row">
+          <label for="play-seed">세계 시드</label>
+          <input id="play-seed" type="number" value="42" />
+          <button id="play-to-studio">◀ 스튜디오로</button>
+        </div>
+        <div id="play-worlds"></div>
       </div>
-      <div class="row">
-        <button id="advance-hour" disabled>+1시간</button>
-        <button id="advance-day" disabled>+1일</button>
-        <button id="advance-week" disabled>+7일</button>
-        <span>배속</span>
-        <button id="speed-down" disabled>−</button>
-        <span id="speed-view">×1</span>
-        <button id="speed-up" disabled>+</button>
-        <span>시점</span>
-        <button id="mode-developer" class="active">개발자</button>
-        <button id="mode-player">플레이어</button>
-        <span>표현</span>
-        <button id="view-2d" class="active">2D</button>
-        <button id="view-3d">3D</button>
+
+      <!-- ② 주체 선택 — 관찰자 없는 플레이어 시점을 구조적으로 막는다 -->
+      <div id="play-agent-select" hidden>
+        <h2>누구로 살 것인가 — 이미 세계에 살고 있는 주체를 고른다 (§31)</h2>
+        <div id="play-agents"></div>
       </div>
-      <div id="status"></div>
-      <canvas id="map" width="960" height="540"></canvas>
-      <canvas id="map3d" width="960" height="540" hidden></canvas>
 
-      <fieldset>
-        <legend>주체 관찰 화면 (§36.3 — 실제/믿음 · 목적 그래프 · 기억 · 관계 · 능력)</legend>
-        <div class="row">
-          <label for="agent-select">관찰할 주체</label>
-          <select id="agent-select"></select>
+      <!-- ③ 플레이 스테이지 -->
+      <div id="play-stage" hidden>
+        <canvas id="play-canvas" width="1280" height="720"></canvas>
+        <div id="play-status" class="play-overlay"></div>
+        <div id="play-topbar" class="play-overlay">
+          <button id="play-speed">×1</button>
+          <button id="play-pause">⏸ 일시정지</button>
+          <button id="play-zoom-in">＋</button>
+          <button id="play-zoom-out">－</button>
+          <button id="play-panel-toggle">저널</button>
+          <button id="play-exit">나가기</button>
         </div>
-        <div id="agent"></div>
-      </fieldset>
-
-      <fieldset>
-        <legend>플레이어 개입 (§30 개입 기회 · §31 동일 행동 체계)</legend>
-        <div class="row">
-          <label for="player-agent">조작할 주체</label>
-          <input id="player-agent" type="text" value="agent.kael" size="24" />
-          <button id="attach" disabled>이 주체를 조작한다</button>
-          <button id="detach" disabled>조작을 놓는다</button>
-        </div>
-        <div id="player"></div>
-      </fieldset>
-
-      <details open>
-        <summary>텍스트 덤프 렌더러 — 같은 SceneViewModel 의 다른 표현 (Phase-8 §8.0 격리 증명)</summary>
-        <div id="world"></div>
-      </details>
-    </section>
-
-    <!-- ④ 사건 화면 (§36.4) -->
-    <section id="screen-events" hidden>
-      <fieldset>
-        <legend>사건 목록</legend>
-        <div id="events"></div>
-      </fieldset>
-      <fieldset>
-        <legend>사건 상세 (§36.4 8항목 — 알려진 정보 ↔ 실제 원인)</legend>
-        <div id="event-detail"></div>
-      </fieldset>
+        <div id="play-target" class="play-overlay" hidden></div>
+        <div id="play-panel" class="play-overlay" hidden></div>
+        <div id="play-growth" class="play-overlay" hidden></div>
+        <div id="play-actions" class="play-overlay"></div>
+        <div id="play-joystick"><div id="play-knob"></div></div>
+      </div>
     </section>
 
     <script type="module" src="/src/app/main.ts"></script>

@@ -17,6 +17,12 @@ import { resolvePendingGrowth } from "../agents/GrowthSystem";
 import { processObservationSignals } from "../agents/PerceptionSystem";
 import { refreshPlayerKnowledge } from "../agents/PlayerAgent";
 import {
+  PLAYER_MOVE_STEP_EVENT,
+  PLAYER_TRAVEL_ARRIVE_EVENT,
+  handlePlayerMoveStep,
+  handlePlayerTravelArrive,
+} from "../agents/PlayerMovement";
+import {
   ACTION_COMPLETED_EVENT,
   AGENT_REPLAN_EVENT,
   completeAction,
@@ -146,6 +152,14 @@ export function createWorldSystems(rules: RuleEngine): WorldSystems {
 
       // 재판단 표식 — 실제 판단은 §26 순서에 따라 updateUrgentAgents 가 한다
       loop.registerHandler(AGENT_REPLAN_EVENT, () => undefined);
+
+      // Phase-9 §9.3 — 플레이어 연속 이동·지역 이동 (이동 중일 때만 이벤트가 존재한다)
+      loop.registerHandler(PLAYER_MOVE_STEP_EVENT, (runtime, event) => {
+        handlePlayerMoveStep(runtime, event);
+      });
+      loop.registerHandler(PLAYER_TRAVEL_ARRIVE_EVENT, (runtime, event) => {
+        handlePlayerTravelArrive(runtime, rules, event);
+      });
 
       loop.registerHandler(AGENT_MAINTENANCE_EVENT, (runtime, event) => {
         maintainAgentsDaily(runtime);

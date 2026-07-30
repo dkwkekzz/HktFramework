@@ -35,6 +35,17 @@ export interface PlayerRuntimeState extends AgentRuntimeState {
   journalSeq: number;
   /** 이미 저널에 올린 사건 — 같은 사건을 매 tick 다시 기록하지 않기 위한 표식 */
   seenEventIds: string[];
+  /**
+   * Phase-9 §9.3 연속 이동 — 지역 안 목표점. 매 tick 체인 이벤트가 PLAYER_MOVE_SPEED 만큼 전진시킨다.
+   * agentRuntimes 에 실리므로 스냅샷 왕복(§39)이 자동으로 성립한다.
+   */
+  moveTarget?: Position;
+  /** 진행 중인 이동 체인의 이벤트 id — 새 이동·행동이 오면 취소에 쓴다 */
+  moveEventId?: string;
+  /** 이동 명령 순번 — 취소된 id 는 재사용할 수 없으므로(스케줄러 지연 삭제) 명령마다 증가한다 */
+  moveSeq?: number;
+  /** Phase-9 §9.3 지역 이동(§13 연결) — 건너는 동안의 상태. 도착 이벤트가 지운다 */
+  travel?: { toRegionId: string; arrivesAt: number; eventId: string };
 }
 
 export function isPlayerState(agent: AgentRuntimeState): agent is PlayerRuntimeState {

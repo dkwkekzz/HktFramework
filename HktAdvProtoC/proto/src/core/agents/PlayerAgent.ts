@@ -27,6 +27,7 @@ import type { GoalNode } from "../world/types";
 import { generateActionCandidates, sortCandidates, type ActionCandidate } from "./ActionPlanner";
 import { BeliefView } from "./BeliefView";
 import { findGoalNode, rankGoals } from "./GoalSystem";
+import { cancelPlayerMovement } from "./PlayerMovement";
 
 /** 저널 상한 — §24 기억과 같은 이유로 무한히 자라지 않는다 (UI 전용이므로 판단에는 영향이 없다) */
 export const JOURNAL_CAPACITY = 240;
@@ -107,6 +108,9 @@ export function detachPlayer(runtime: WorldRuntime): string | undefined {
   const playerId = findPlayerId(runtime);
   if (playerId === undefined) return undefined;
   const agent = runtime.agentRuntime(playerId) as Partial<PlayerRuntimeState>;
+  // 조작이 끝나면 사용자 입력에서 온 이동도 끝난다 — 예약된 걸음·도착 이벤트까지 거둔다 (Phase-9 §9.3)
+  cancelPlayerMovement(runtime, agent as PlayerRuntimeState);
+  delete agent.moveSeq;
   delete agent.controlledByUser;
   delete agent.discoveredEntityIds;
   delete agent.discoveredLocationIds;
@@ -315,6 +319,8 @@ export function executePlayerAction(
     runtime.scheduler.cancel(previous.eventId);
     player.currentAction = null;
   }
+  // 행동을 시작하면 달리기는 멈춘다 — MMORPG 의 "시전하면 정지"와 같은 규약 (Phase-9 §9.3)
+  cancelPlayerMovement(runtime, player);
 
   const planned: PlannedAction = { action, targetIds: [...request.targetIds], goalId: option.goalId };
   const scheduled = startAction(runtime, playerId, planned, duration);

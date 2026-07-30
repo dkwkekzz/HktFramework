@@ -92,6 +92,19 @@ const SHAPES: Record<string, ShapeDrawer> = {
   },
 };
 
+/** 같은 도형 어휘를 다른 렌더러(플레이 화면 §9.2)도 쓴다 — 외형의 단일 출처는 이 표 하나다 */
+export function drawShape(
+  surface: SceneSurface,
+  shapeKey: string,
+  point: ScenePoint,
+  size: number,
+  fill: string,
+  alpha: number,
+): void {
+  const draw = SHAPES[shapeKey] ?? SHAPES["shape-sphere"];
+  draw?.(surface, point, size, fill, alpha);
+}
+
 export class EntityRenderer {
   constructor(private readonly surface: SceneSurface) {}
 
