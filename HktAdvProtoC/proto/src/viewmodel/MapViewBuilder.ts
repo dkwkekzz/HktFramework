@@ -440,6 +440,7 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
       id: region.id,
       label: region.name,
       rect,
+      worldSize: { width: region.bounds.width, height: region.bounds.height },
       climateKey: climateKey(region.tags, states),
       dangerKey: dangerKey(danger),
       elevation: region.bounds.depth,
@@ -514,6 +515,8 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
     factions,
     overlays: overlaysOf(runtime, projection, observerId),
     signals,
+    // 카메라 기준 (Phase-9 §9.2) — 플레이어 모드에서만 존재한다. 렌더러는 id 로 마커를 찾을 뿐이다
+    ...(observerId === undefined ? {} : { focusMarkerId: observerId }),
     legend: [
       { key: "지역", value: String(regions.length) },
       { key: "주체", value: String(markers.length) },

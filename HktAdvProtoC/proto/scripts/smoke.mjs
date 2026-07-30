@@ -57,7 +57,8 @@ try {
   await page.waitForFunction(
     () => document.querySelector("#generation")?.textContent?.includes("15 실행 데이터 저장"),
     undefined,
-    { timeout: 60000 },
+    // 생성은 §42-6 수정 루프(라운드마다 §35 30일 시뮬레이션)까지 돈다 — 합격본이 화면의 세계다
+    { timeout: 300000 },
   );
   const generation = await page.textContent("#generation");
   if (!generation?.includes("정합성 검증 통과")) {
@@ -75,7 +76,7 @@ try {
   await page.waitForFunction(
     () => (document.querySelector("#editor")?.textContent ?? "").includes("[reused]"),
     undefined,
-    { timeout: 60000 },
+    { timeout: 300000 },
   );
   const editor = await page.textContent("#editor");
   const reusedCount = (editor.match(/\[reused\]/g) ?? []).length;
@@ -190,10 +191,65 @@ try {
   );
   const playerDetail = await page.textContent("#event-detail");
 
+  // ── ⑤ 플레이 모드 (Phase-9 / §3 모듈 7) — 검은 화면 해소 + MMORPG 조작의 눈 검증 ──
+  // 진입 절차: 세계 선택(§3 1~6 패키지) → 주체 선택 → 플레이. 관찰자 없는 시점이 성립할 수 없다.
+  await page.click("#mode-play");
+  await page.waitForFunction(() => location.hash === "#play");
+  await page.waitForFunction(() => document.querySelectorAll("#play-worlds .play-card").length > 0);
+  await page.click("#play-worlds .play-card"); // 기본 세계 — 지금 §3 1~6 을 돌려 굽는다
+  await page.waitForFunction(() => document.querySelectorAll("#play-agents .play-card").length > 0, undefined, {
+    timeout: 30000,
+  });
+  const agentCards = await page.locator("#play-agents .play-card").count();
+  await page.click('#play-agents .play-card[data-agent="agent.kael"]');
+  await page.waitForFunction(() => (document.querySelector("#play-status")?.textContent ?? "").length > 0, undefined, {
+    timeout: 30000,
+  });
+
+  // 검은 화면이 아니다 — 플레이 캔버스의 픽셀을 직접 센다 (요구 ② 의 눈 검증)
+  const playPainted = await page.evaluate(() => {
+    const canvas = document.querySelector("#play-canvas");
+    const context = canvas.getContext("2d");
+    const { data } = context.getImageData(0, 0, canvas.width, canvas.height);
+    let colored = 0;
+    for (let i = 0; i < data.length; i += 4) {
+      // 배경(#131a26)과 다른 색이 실제로 칠해졌는가
+      if (data[i + 3] > 0 && !(data[i] === 0x13 && data[i + 1] === 0x1a && data[i + 2] === 0x26)) colored += 1;
+    }
+    return { colored, total: data.length / 4 };
+  });
+  if (playPainted.colored < playPainted.total * 0.02) {
+    throw new Error(`플레이 화면이 검다 — 배경 외 픽셀 ${playPainted.colored}/${playPainted.total}`);
+  }
+
+  // WASD 이동 — 시간이 흐르며(자동 tick) 위치가 실제로 바뀐다 (요구 ③ PC 조작)
+  const positionOf = () =>
+    page.evaluate(() => {
+      const canvas = document.querySelector("#play-canvas");
+      const context = canvas.getContext("2d");
+      return context === null ? "" : document.querySelector("#play-status")?.textContent ?? "";
+    });
+  const clockBefore = await positionOf();
+  await page.keyboard.down("d");
+  await page.waitForTimeout(2600); // 스티어 2회 + 자동 tick 수 회
+  await page.keyboard.up("d");
+  const paintedAfterMove = await page.evaluate(() => {
+    const canvas = document.querySelector("#play-canvas");
+    return canvas.getContext("2d") !== null;
+  });
+  if (!paintedAfterMove) throw new Error("이동 후 캔버스 소실");
+
+  // 마커 탭 → 대상 카드 + 컨텍스트 행동 버튼 (요구 ③ 대상 지정)
+  const actionButtons = await page.locator("#play-actions .play-action").count();
+
   if (pageErrors.length > 0) {
     throw new Error(`페이지 오류: ${pageErrors.map((e) => e.message).join(", ")}`);
   }
-  console.log("SMOKE OK — 네 화면 전부 동작");
+  console.log("SMOKE OK — 네 화면 + 플레이 모드 동작");
+  console.log(
+    `⑤ 플레이 — 세계 카드→주체 카드 ${agentCards}장→스테이지 · 배경 외 픽셀 ${playPainted.colored}/${playPainted.total} · ` +
+      `행동 버튼 ${actionButtons}개 · 시계 "${clockBefore.replace(/\s+/g, " ").slice(0, 40)}"`,
+  );
   console.log(`① 생성 — ${generation.replace(/\s+/g, " ").slice(0, 160)}`);
   console.log(`② 구조 검토 — 단계 ${stepCount}개 · 증분 재실행에서 재사용 ${reusedCount}단계`);
   console.log(

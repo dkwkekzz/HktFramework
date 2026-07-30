@@ -3,7 +3,7 @@
 // §36.1 목록 그대로: 주제 입력 · 원하는 경험 · 제외 요소 · 생성 버튼 · 단계 진행 상태 · 생성된 구조 검토.
 // 화면은 GenerationViewModel 속성만 읽는다 — 15단계 컴파일은 Worker 뒤에서 돈다(§38).
 import type { GenerationViewModel } from "../viewmodel/GenerationViewModel";
-import type { WorldSeedInputMessage } from "../shared/protocol";
+import type { WorldPackageStageBadge, WorldSeedInputMessage } from "../shared/protocol";
 import { badgeLine, el, escapeHtml, type PageContext } from "./shell";
 
 export class WorldSeedPage {
@@ -13,6 +13,8 @@ export class WorldSeedPage {
   private readonly seed = el<HTMLInputElement>("gen-seed");
   private readonly generateButton = el<HTMLButtonElement>("generate");
   private readonly useButton = el<HTMLButtonElement>("use-generated");
+  private readonly saveButton = el<HTMLButtonElement>("save-generated");
+  private readonly packageView = el<HTMLElement>("package-report");
   private readonly view = el<HTMLElement>("generation");
   private title = "제약의 대륙";
 
@@ -39,6 +41,33 @@ export class WorldSeedPage {
       this.ctx.send({ type: "initialize_world", worldSeed: Number(this.seed.value) || 0, world: "generated" });
       this.ctx.notify("생성된 세계로 시뮬레이션을 시작했다");
     });
+
+    // Phase-9 §9.1 — §3 모듈 1~6 을 정적으로 돌려 패키지로 굽는다. 저장은 world_package 응답을 받은 쪽이 한다
+    this.saveButton.addEventListener("click", () => {
+      this.packageView.textContent = "§3 모듈 1~6 을 돌려 패키지를 굽는 중…";
+      this.ctx.send({ type: "export_world", world: "generated", worldSeed: Number(this.seed.value) || 0 });
+    });
+  }
+
+  /**
+   * 패키지 빌드 보고 (§3 모듈 1~6) — 단계마다 ✓/✗ · 수치 근거, 펼치면 그 모듈이
+   * 실제로 처리한 입력→출력 기록(details)이 줄 단위로 보인다.
+   */
+  showPackageReport(stages: WorldPackageStageBadge[], savedLabel: string | undefined): void {
+    const rows = stages
+      .map(
+        (stage) =>
+          `<details class="${stage.ok ? "" : "fail"}" ${stage.ok ? "" : "open"}>` +
+          `<summary>${stage.ok ? "✓" : "✗"} <b>${escapeHtml(stage.id)}</b> ${escapeHtml(stage.title)} — ${escapeHtml(stage.evidence)}</summary>` +
+          `<pre>${escapeHtml((stage.details ?? []).join("\n") || "(기록 없음)")}</pre></details>`,
+      )
+      .join("");
+    this.packageView.innerHTML =
+      `<div><b>§3 모듈 1~6 처리 기록</b> — 각 줄을 펼치면 그 모듈의 입력→출력이 보인다</div>` +
+      rows +
+      (savedLabel === undefined
+        ? `<div class="fail">보관 실패 — 브라우저 저장소에 쓸 수 없다</div>`
+        : `<div>보관 완료: <b>${escapeHtml(savedLabel)}</b> — 플레이 모드의 세계 목록에 나타난다</div>`);
   }
 
   /** 생성이 끝났거나 실패했을 때 버튼 상태를 되돌린다 */
@@ -84,6 +113,7 @@ export class WorldSeedPage {
             .join("\n")}</span>`;
 
     this.useButton.disabled = view.issues.length > 0;
+    this.saveButton.disabled = view.issues.length > 0;
     this.view.innerHTML =
       `<h3>${escapeHtml(view.title)}</h3><div>${escapeHtml(badgeLine(view.badges))}</div><hr />${steps}<hr />` +
       `<div><b>§40 규모</b>\n${escapeHtml(scale)}</div><hr />` +

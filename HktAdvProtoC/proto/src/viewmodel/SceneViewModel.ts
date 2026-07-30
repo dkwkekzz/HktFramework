@@ -44,6 +44,11 @@ export interface SceneMapRegion {
   label: string;
   /** 정규화 톱다운 사각형 */
   rect: SceneRect;
+  /**
+   * 지역의 실제 크기(거리 단위) — 화면 좌표→지역 좌표 역변환(픽킹)의 재료 (Phase-9 §9.2).
+   * 렌더러·입력층은 rect 안의 분율에 이 크기를 곱하기만 한다(의미 해석 없음).
+   */
+  worldSize: { width: number; height: number };
   /** 기후 색상 키 — 빌더가 지역 상태·태그에서 변환 (`climate-cold` 등) */
   climateKey: string;
   /** 위험도 색상 키 (`danger-low|mid|high|extreme`) */
@@ -164,6 +169,8 @@ export interface SceneMap {
   overlays: SceneOverlay[];
   signals: SceneSignal[];
   legend: SceneBadge[];
+  /** 카메라 기준 마커 (Phase-9 §9.2) — 플레이어 모드에서 조작 중인 주체. 렌더러는 이 마커를 중심에 둔다 */
+  focusMarkerId?: string;
 }
 
 export function createEmptyMap(): SceneMap {

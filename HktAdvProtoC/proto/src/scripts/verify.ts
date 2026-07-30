@@ -62,6 +62,14 @@ import {
 } from "../core/rules/migrationBaseline";
 import { validateAgainstSchema } from "../core/rules/RuleSchema";
 import { InlineHost } from "../core/simulation/InlineHost";
+import {
+  measureMovementDeterminism,
+  measurePackagePipeline,
+  measureRunContract,
+  measureTravelContract,
+} from "../core/simulation/phase9Checks";
+import { buildWorldPackage } from "../core/simulation/WorldPackager";
+import { PLAYER_MOVE_SPEED } from "../core/agents/PlayerMovement";
 import { buildManualWorld } from "../content/manual-world";
 import { RESIDUE_RIDGE, buildPlayerWorld } from "../content/player-world";
 import { buildRuleLabWorld } from "../content/rule-lab";
@@ -128,13 +136,13 @@ function firstDay(log: RawWorldChange[], match: (c: RawWorldChange) => boolean):
 }
 
 interface Row {
-  phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8;
+  phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9;
   ok: boolean;
   title: string;
   evidence: string;
 }
 const rows: Row[] = [];
-let phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 = 1;
+let phase: 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 = 1;
 function check(ok: boolean, title: string, evidence: string): void {
   rows.push({ phase, ok, title, evidence });
 }
@@ -1432,8 +1440,77 @@ check(
   gate.map((row) => `\n      ${row.ok ? "✓" : "✗"} ${String(row.index).padStart(2)}. ${row.title}\n         ${row.evidence}`).join(""),
 );
 
+// ==================================================================================
+// Phase 9 — 시뮬레이션 과정 재설계 (Phase-9.md §9.4: §3 두 국면화 · 플레이 화면 · MMORPG 조작)
+// ==================================================================================
+phase = 9;
+
+// --- DoD 1 : §3 정적 파이프라인(모듈 1~6) + 플레이(모듈 7)가 그대로 불러온다 ------------
+const pkg = await measurePackagePipeline(worldSeed);
+check(
+  pkg.allStagesOk && pkg.loadedAsIs && pkg.tamperRejected,
+  `§3 모듈 1~6 정적 파이프라인 ${pkg.stages.filter((s) => s.ok).length}/6 처리 · 모듈 7 이 4단계 스냅샷을 그대로 복원 (상태 해시 ${pkg.loadedAsIs ? "동일" : "불일치"})`,
+  pkg.stages.map((stage) => `\n      ${stage.ok ? "✓" : "✗"} ${stage.id} ${stage.title} — ${stage.evidence}`).join("") +
+    `\n      로드: 개체 ${pkg.entityCount} · tick ${pkg.tick} · 해시 ${pkg.bakedHash} = ${pkg.loadedHash} (재가공 0)` +
+    `\n      변조 패키지 거부 — "${pkg.tamperMessage}"`,
+);
+
+// --- DoD 1b : 각 모듈이 "확인"이 아니라 **실질 처리 기록**을 남긴다 -----------------------
+// 3단계는 §34 검사기의 개별 판정을, 6단계는 실제 해석기(§33.3)의 산문을, 2단계는 출처(컴파일/우회)를 명시한다.
+const generatedPackage = buildWorldPackage(compiled.definition, {
+  compileTrace: compiled.steps.map(
+    (step) => `${String(step.index).padStart(2)}. [${step.status}] ${step.title} — ${step.summary}`,
+  ),
+});
+const generatedCompileStage = generatedPackage.stages.find((stage) => stage.id === "2.compile");
+const generatedSeedStage = generatedPackage.stages.find((stage) => stage.id === "1.seed");
+check(
+  pkg.allStagesHaveDetails &&
+    pkg.validatorLineCount >= 21 &&
+    pkg.interpreterIsProse &&
+    pkg.compileProvenanceStated &&
+    (generatedCompileStage?.details.length ?? 0) === 15 &&
+    (generatedSeedStage?.details.some((line) => line.startsWith("주제:")) ?? false),
+  "§3 모듈별 실질 처리 — 검사기 개별 판정·해석기 산문·컴파일 출처가 단계 기록(details)으로 남는다",
+  `모든 단계 details 보유 ${pkg.allStagesHaveDetails ? "✓" : "✗"} · 3.validate 판정 줄 ${pkg.validatorLineCount}줄(§34 스키마+의미 19종+로드 계약)\n` +
+    `      6.interpret 산문 ${pkg.interpreterSentences.length}건 — ${pkg.interpreterSentences[0] ?? "(없음)"}\n` +
+    `      2.compile 출처 명시 ${pkg.compileProvenanceStated ? "✓" : "✗"} (수동 세계 — "${pkg.stages.find((s) => s.id === "2.compile")?.evidence.slice(0, 60) ?? ""}…")\n` +
+    `      생성 세계 패키지 — 1.seed 에 입력 원문(주제 문장), 2.compile 에 §5 실행 기록 ${generatedCompileStage?.details.length ?? 0}단계 동봉`,
+);
+
+// --- DoD 2 : player_move 결정론 + 경계 클램프 -------------------------------------------
+const moveDeterminism = await measureMovementDeterminism(worldSeed);
+check(
+  moveDeterminism.deterministic && moveDeterminism.clampedInsideBounds,
+  "player_move 결정론 — 같은 명령 시퀀스 → 같은 상태 해시 · 지역 밖 목표는 경계로 잘린다",
+  `해시 ${moveDeterminism.firstHash} = ${moveDeterminism.secondHash}\n` +
+    `      목표 (10000,10000) → (${moveDeterminism.clampedTarget?.x ?? "?"}, ${moveDeterminism.clampedTarget?.y ?? "?"}) — 지역 ${moveDeterminism.regionBounds.width}×${moveDeterminism.regionBounds.height} 안`,
+);
+
+// --- DoD 3 : 달리기 규약 — 속도 상한 · 도달 정지 · 이동이 행동을 취소 -------------------
+const runContract = await measureRunContract(worldSeed);
+check(
+  runContract.speedRespected && runContract.arrived && runContract.actionCancelledByMove,
+  `달리기 규약 — 한 tick ≤ ${PLAYER_MOVE_SPEED} 이동 · 도달 후 정지 · 이동 수락이 진행 중 행동을 취소한다`,
+  `한 tick 이동 ${runContract.stepDistance.toFixed(2)} (상한 ${PLAYER_MOVE_SPEED}) · 도달 오차 ${runContract.arrivalDistance.toExponential(1)}\n` +
+    `      진행 중이던 행동 ${runContract.actionBeforeMove || "없음"} → 이동 수락 시 취소 ${runContract.actionCancelledByMove ? "✓" : "✗"} (MMORPG "움직이면 시전 취소")`,
+);
+
+// --- DoD 4 : 지역 이동 규약 — §13 연결·도착·entity_entered · 무의미한 이동 거부 ---------
+const travelContract = await measureTravelContract(worldSeed);
+check(
+  travelContract.accepted &&
+    travelContract.arrivedOnSchedule &&
+    travelContract.enteredRuleFired &&
+    travelContract.sameRegionRejected.length > 0 &&
+    travelContract.unknownRegionRejected.length > 0,
+  `지역 이동 규약 — ${travelContract.fromRegion} → ${travelContract.arrivedRegion} (${travelContract.travelTicks}분 §13 travelCost) · entity_entered 발화`,
+  `도착 ${travelContract.arrivedOnSchedule ? "✓" : "✗"} · 이동 change 기록(player_travel 태그) ${travelContract.enteredRuleFired ? "✓" : "✗"}\n` +
+    `      같은 지역 거부 — "${travelContract.sameRegionRejected}" · 없는 지역 거부 — "${travelContract.unknownRegionRejected}"`,
+);
+
 // --- 출력 ---------------------------------------------------------------------------
-for (const current of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
+for (const current of [1, 2, 3, 4, 5, 6, 7, 8, 9] as const) {
   const section = rows.filter((row) => row.phase === current);
   const label =
     current === 1
@@ -1450,7 +1527,9 @@ for (const current of [1, 2, 3, 4, 5, 6, 7, 8] as const) {
                 ? "Phase 6 완료 조건 — 자동 검증과 수정"
                 : current === 7
                   ? "Phase 7 완료 조건 — 플레이어 개입"
-                  : "Phase 8 완료 조건 — 표현 고도화 + §44 최종 게이트";
+                  : current === 8
+                    ? "Phase 8 완료 조건 — 표현 고도화 + §44 최종 게이트"
+                    : "Phase 9 완료 조건 — §3 두 국면화(정적 파이프라인→플레이) + MMORPG 조작";
   console.log(`\n=== ${label} 점검 — 시드 ${worldSeed}, ${days}일 ===\n`);
   for (const row of section) {
     console.log(`${row.ok ? "✓" : "✗"} ${row.title}`);

@@ -1,14 +1,28 @@
 @echo off
 rem ============================================================================
-rem  HktAdvProtoC 원클릭 실행 (Windows)
+rem  HktAdvProtoC 원클릭 실행 (Windows) - 공통 실행기
 rem
-rem  이 파일을 더블클릭하면 ① Node.js 확인 -> ② 의존성 준비 -> ③ 개발 서버 실행
+rem  더블클릭하면 ① Node.js 확인 -> ② 의존성 준비 -> ③ 개발 서버 실행
 rem  -> ④ 브라우저 자동 열기까지 한 번에 처리한다.
+rem
+rem  두 국면(기획서 §3)은 진입 배치파일이 다르다:
+rem    run-studio.bat  제작 국면 - 모듈 1~6 (세계 생성/검증/패키지 굽기, §36 네 화면)
+rem    run-play.bat    플레이 국면 - 모듈 7 (구운 패키지를 불러와 플레이)
+rem  이 파일을 직접 실행하면 스튜디오로 연다. (내부: run.bat [studio^|play])
 rem  ※ 이 파일은 UTF-8(BOM 없음)이다. 한글이 깨지면 chcp 65001 이 적용됐는지 확인할 것.
 rem ============================================================================
 chcp 65001 >nul 2>nul
 setlocal
-title HktAdvProtoC - 세계 시뮬레이터
+
+set "MODE=%~1"
+if /i "%MODE%"=="play" (
+  set "OPEN_PATH=/#play"
+  title HktAdvProtoC - 플레이 (§3 모듈 7)
+) else (
+  set "MODE=studio"
+  set "OPEN_PATH=/#studio"
+  title HktAdvProtoC - 스튜디오 (§3 모듈 1~6)
+)
 
 cd /d "%~dp0proto"
 if not exist "package.json" goto :no_project
@@ -16,6 +30,11 @@ if not exist "package.json" goto :no_project
 echo.
 echo  ==========================================================
 echo    HktAdvProtoC - 목적 트리 기반 오픈월드 프로토타입
+if /i "%MODE%"=="play" (
+  echo    [플레이 국면] 구운 세계 패키지를 그대로 불러와 플레이한다
+) else (
+  echo    [제작 국면] 세계를 생성/검증하고 플레이 패키지로 굽는다
+)
 echo  ==========================================================
 echo.
 
@@ -42,17 +61,27 @@ if exist "node_modules\vite" (
 
 rem --- 3/3 : 실행 -----------------------------------------------------------
 echo  [3/3] 개발 서버를 띄운다. 준비되면 브라우저가 저절로 열린다.
-echo        (열리지 않으면 아래에 찍히는 Local 주소를 브라우저에 붙여넣을 것)
+echo        (열리지 않으면 아래에 찍히는 Local 주소 뒤에 %OPEN_PATH% 를 붙여 열 것)
 echo.
-echo   놀이 방법
-echo     1) [개입 세계로 시작] 을 누른다        (수동 세계 + 개입/성장 층)
-echo     2) [이 주체를 조작한다] 를 누른다      (사냥꾼 카엘을 잡는다)
-echo     3) 행동 버튼을 고르고 [+1일] 로 시간을 민다
-echo        - 아무것도 하지 않아도 세계는 계속 흐른다
+if /i "%MODE%"=="play" (
+  echo   놀이 방법 - 플레이 (§3 모듈 7)
+  echo     1^) 세계 카드를 고른다              (보관된 패키지, 카드에서 §3 처리 기록 확인 가능^)
+  echo     2^) 살아갈 주체 카드를 고른다       (§31 - 이미 세계에 살던 주체^)
+  echo     3^) 조작: PC = WASD/방향키 이동, 빈 땅 클릭 = 이동, 개체 클릭 = 대상
+  echo               모바일 = 좌하단 조이스틱, 탭 = 이동/대상 / 게이트 ^(이중화살표^) = 지역 이동
+  echo        하단 행동 버튼으로 행동하고, 시간은 저절로 흐른다 ^(배속/일시정지 우상단^)
+  echo     ※ 보관된 세계가 없으면 기본 세계로 바로 시작하거나, 스튜디오에서 먼저 굽는다
+) else (
+  echo   작업 방법 - 스튜디오 (§3 모듈 1~6)
+  echo     1^) [세계를 생성한다] - §5 15단계 컴파일 + §42-6 수정 루프 ^(합격본까지^)
+  echo     2^) [플레이 패키지로 보관] - 모듈 1~6 처리 기록이 ✓/✗ 와 수치로 펼쳐진다
+  echo     3^) ②~④ 탭에서 구조 검토/시뮬레이션 관찰/사건을 확인한다
+  echo     4^) 플레이로 넘어가려면 [플레이 모드] 버튼 또는 run-play.bat
+)
 echo.
 echo   끝내려면 이 창에서 Ctrl+C 를 누르거나 창을 닫는다.
 echo.
-call npm run dev -- --open
+call npm run dev -- --open %OPEN_PATH%
 if errorlevel 1 goto :dev_failed
 goto :done
 

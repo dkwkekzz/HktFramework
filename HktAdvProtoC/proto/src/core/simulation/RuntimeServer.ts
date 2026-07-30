@@ -2,9 +2,15 @@
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
 import { buildManualWorld } from "../../content/manual-world";
 import { buildPlayerWorld } from "../../content/player-world";
-import { FIRST_WORLD_CORPUS, FIRST_WORLD_ID, FIRST_WORLD_SEED_INPUT } from "../../content/first-world";
+import {
+  FIRST_WORLD_CORPUS,
+  FIRST_WORLD_ID,
+  FIRST_WORLD_REPAIRS,
+  FIRST_WORLD_SEED_INPUT,
+} from "../../content/first-world";
 import { ArtifactStore } from "../../generation/ArtifactStore";
-import { compileWorld, type CompileResult } from "../../generation/CompilerPipeline";
+import { type CompileResult } from "../../generation/CompilerPipeline";
+import { compileWithRepair } from "../../generation/RepairLoop";
 import { PROTOTYPE_SCALE } from "../../generation/GenerationTypes";
 import { RecordedTextGenerationPort } from "../../generation/RecordedTextGenerationPort";
 import { buildGenerationView } from "../../viewmodel/GenerationViewModel";
@@ -12,9 +18,11 @@ import { buildScenePayload, type SceneFocus } from "../../viewmodel/ScenePayload
 import { EventInterpreter } from "../../presentation/EventInterpreter";
 import type { WorldEvent } from "../../shared/events";
 import type {
+  PlayableAgentCard,
   PlayerActionRequest,
   WorkerRequest,
   WorkerResponse,
+  WorldKind,
   WorldSeedInputMessage,
 } from "../../shared/protocol";
 import { acceptGrowthOffer } from "../agents/GrowthSystem";
@@ -25,12 +33,14 @@ import {
   executePlayerAction,
   findPlayerId,
 } from "../agents/PlayerAgent";
+import { requestPlayerMove, requestPlayerTravel } from "../agents/PlayerMovement";
 import { RuleEngine } from "../rules/RuleEngine";
 import { bootstrapWorld } from "../world/WorldBootstrap";
 import { validateWorldDefinition } from "../world/WorldValidation";
 import type { WorldDefinition } from "../world/types";
 import { WorldRuntime, type RuntimeSnapshot } from "../world/WorldRuntime";
 import { SimulationLoop, type RuntimeHooks } from "./SimulationLoop";
+import { buildWorldPackage, parseWorldPackage } from "./WorldPackager";
 import { createWorldSystems } from "./WorldSystems";
 
 export interface WorldSnapshotDocument {
@@ -72,7 +82,15 @@ export class RuntimeServer {
   handle(request: WorkerRequest): WorkerResponse[] {
     switch (request.type) {
       case "initialize_world":
-        return this.initialize(request.worldSeed, request.world ?? "manual", request.definition);
+        return this.initialize(request.worldSeed, request.world ?? "manual", request.definition, request.package);
+      case "export_world":
+        return this.exportWorld(request.worldSeed, request.world);
+      case "request_playable_agents":
+        return this.playableAgents();
+      case "player_move":
+        return this.playerMove(request.x, request.y);
+      case "player_travel":
+        return this.playerTravel(request.toRegionId);
       case "advance_time":
         return this.advanceTime(request.amount);
       case "execute_player_action":
@@ -185,9 +203,11 @@ export class RuntimeServer {
     // 오프라인 목 포트 — 실제 LLM 어댑터도 같은 TextGenerationPort 뒤에 들어온다 (§2.1).
     // 네 번째 인자가 이 포트의 **경계**다: 코퍼스는 §41 의 다섯 문장에 대해 녹화됐으므로
     // 다른 주제를 넣으면 1단계에서 "왜 안 되는지"를 말하며 멈춘다 (2차 재검증 F-1).
-    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, [], FIRST_WORLD_SEED_INPUT);
+    // 수정 녹화(FIRST_WORLD_REPAIRS)를 함께 켠다 — 화면이 갖는 세계도 §42-6 수정 루프의
+    // **합격본**이어야 한다 (§3 모듈 3 은 검증→수정 사이클까지다 — 원본을 그대로 내주지 않는다).
+    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, FIRST_WORLD_REPAIRS, FIRST_WORLD_SEED_INPUT);
     try {
-      const result = await compileWorld({
+      const repaired = await compileWithRepair({
         port,
         seedInput: {
           title: seedInput.title,
@@ -199,11 +219,24 @@ export class RuntimeServer {
         worldId: FIRST_WORLD_ID,
         ...(resumeFrom === undefined ? {} : { resumeFrom }),
       });
-      this.generated = result;
+      if (!repaired.accepted) {
+        return [
+          {
+            type: "error",
+            message:
+              `세계 생성 불합격 — 수정 ${repaired.rounds.length}라운드 뒤에도 남은 오류 ${repaired.remainingIssues.length}건:\n` +
+              repaired.remainingIssues
+                .slice(0, 5)
+                .map((issue) => `[${issue.code}] ${issue.message}`)
+                .join("\n"),
+          },
+        ];
+      }
+      this.generated = repaired.compile;
       return [
         {
           type: "generation_view",
-          view: buildGenerationView(result, PROTOTYPE_SCALE, {
+          view: buildGenerationView(repaired.compile, PROTOTYPE_SCALE, {
             callCount: port.calls.length,
             maxInputBytes: port.maxInputBytes,
           }),
@@ -291,6 +324,109 @@ export class RuntimeServer {
     return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
   }
 
+  // --- 세계 패키지 (Phase-9 §9.1 / §3 모듈 1~6) --------------------------------------
+
+  /**
+   * 정의 → §3 정적 파이프라인(모듈 1~6) → 불투명 패키지 문자열.
+   * 단계 하나라도 실패하면 패키지는 나오지 않는다 — 실패 단계와 근거를 말하며 거부한다.
+   * 저장은 화면 쪽 WorldLibrary 의 몫이다.
+   */
+  private exportWorld(worldSeed: number, kind: WorldKind): WorkerResponse[] {
+    let def: WorldDefinition;
+    try {
+      def = this.resolveDefinition(worldSeed, kind);
+    } catch (error) {
+      return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
+    }
+    // 2단계의 실제 실행 기록 — 생성 세계는 §5 컴파일 StepReport 를 문장으로 옮겨 싣는다 (§3 모듈 2)
+    const compileTrace =
+      kind === "generated" && this.generated !== undefined
+        ? this.generated.steps.map(
+            (step) => `${String(step.index).padStart(2)}. [${step.status}] ${step.title} — ${step.summary}`,
+          )
+        : undefined;
+    const build = buildWorldPackage(def, compileTrace === undefined ? {} : { compileTrace });
+    if (!build.ok || build.document === undefined) {
+      const failed = build.stages.find((stage) => !stage.ok);
+      return [
+        {
+          type: "error",
+          message: `패키지 빌드 실패 — ${failed?.id ?? "?"} ${failed?.title ?? ""}: ${failed?.evidence ?? ""}`,
+        },
+      ];
+    }
+    return [
+      {
+        type: "world_package",
+        worldId: def.metadata.id,
+        label: build.document.label,
+        json: JSON.stringify(build.document),
+        stages: build.stages,
+      },
+    ];
+  }
+
+  // --- 플레이 진입·조작 (Phase-9 §9.2·§9.3) ------------------------------------------
+
+  /** 조작 가능한 주체 카드 — 조직은 조작할 수 없다(§17) */
+  private playableAgents(): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const speciesName = new Map(runtime.definition.species.map((species) => [species.id, species.name]));
+    const regionName = new Map(runtime.definition.spaces.regions.map((region) => [region.id, region.name]));
+    const entityName = new Map(runtime.definition.bootstrap.entities.map((entry) => [entry.id, entry.name]));
+    const agents: PlayableAgentCard[] = [];
+    for (const agentId of runtime.agentIds().sort()) {
+      if (runtime.agentRuntime(agentId).kind === "faction") continue;
+      const entity = runtime.store.findEntity(agentId);
+      if (entity === undefined) continue;
+      const speciesId = entity.states["species_id"];
+      const badges: PlayableAgentCard["badges"] = [];
+      for (const key of ["health", "hunger", "fear"]) {
+        const value = entity.states[key];
+        if (typeof value === "number") badges.push({ key, value: String(Math.round(value)) });
+      }
+      agents.push({
+        id: agentId,
+        label: entityName.get(agentId) ?? agentId,
+        speciesLabel:
+          typeof speciesId === "string" ? (speciesName.get(speciesId) ?? speciesId) : "",
+        regionLabel:
+          entity.position === undefined
+            ? ""
+            : (regionName.get(entity.position.regionId) ?? entity.position.regionId),
+        badges,
+      });
+    }
+    return [{ type: "playable_agents", agents }];
+  }
+
+  /** §9.3 달리기 — 거부는 사유를 말한다. 수락이면 다음 tick 부터 체인이 전진시킨다 */
+  private playerMove(x: number, y: number): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const outcome = requestPlayerMove(runtime, x, y);
+    if (!outcome.accepted) return [{ type: "error", message: outcome.reason ?? "이동할 수 없다" }];
+    this.inputSeq += 1;
+    return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
+  }
+
+  /** §9.3 지역 이동 — §13 연결·통행 조건 검증은 코어가 한다 */
+  private playerTravel(toRegionId: string): WorkerResponse[] {
+    if (this.runtime === undefined) {
+      return [{ type: "error", message: "세계가 없다 — initialize_world 가 먼저다" }];
+    }
+    const runtime = this.runtime;
+    const outcome = requestPlayerTravel(runtime, toRegionId);
+    if (!outcome.accepted) return [{ type: "error", message: outcome.reason ?? "지역을 건널 수 없다" }];
+    this.inputSeq += 1;
+    return this.withViews(runtime, [{ type: "state_patch", patch: runtime.flushPatch() }]);
+  }
+
   /**
    * 어느 세계를 올릴지는 **종류 이름**으로 정한다 (Phase 8) —
    * 정의를 화면이 들고 있다가 되돌려 보내는 경로가 사라졌다(§38: UI 는 표시 속성만 안다).
@@ -314,10 +450,20 @@ export class RuntimeServer {
     worldSeed: number,
     kind: "manual" | "player" | "generated",
     definition?: unknown,
+    packageJson?: string,
   ): WorkerResponse[] {
     let def: WorldDefinition;
+    /** 패키지의 4단계 산출물 — 있으면 배치를 다시 하지 않고 **그대로 복원**한다 (§3-7, Phase-9 §9.1) */
+    let baked: RuntimeSnapshot | undefined;
     try {
-      def = this.resolveDefinition(worldSeed, kind, definition);
+      if (packageJson !== undefined) {
+        // 패키지가 있으면 그것이 세계다 — 종류 이름보다 우선한다
+        const pkg = parseWorldPackage(packageJson);
+        def = pkg.definition;
+        baked = pkg.bootstrapSnapshot;
+      } else {
+        def = this.resolveDefinition(worldSeed, kind, definition);
+      }
     } catch (error) {
       return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
     }
@@ -328,13 +474,16 @@ export class RuntimeServer {
     }
     this.rules = rules;
 
-    const runtime = new WorldRuntime(def);
+    const runtime = baked !== undefined ? WorldRuntime.fromSnapshot(def, baked) : new WorldRuntime(def);
     const systems = createWorldSystems(this.rules);
     const loop = new SimulationLoop(this.hooksOverride ?? systems.hooks);
     systems.registerHandlers(loop);
 
-    bootstrapWorld(runtime);
-    systems.scheduleInitialEvents(runtime);
+    if (baked === undefined) {
+      // 패키지 없는 경로(빌트인·테스트)만 여기서 배치한다 — 패키지 경로의 배치는 4단계가 이미 끝냈다
+      bootstrapWorld(runtime);
+      systems.scheduleInitialEvents(runtime);
+    }
     this.runtime = runtime;
     this.loop = loop;
     this.inputSeq += 1;
