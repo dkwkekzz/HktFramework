@@ -18,6 +18,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
+| [progress/](progress/) | 완료된 큰 단계별 작업 기록 (한 일 · 설계 판단 · 게이트 판정 · 다음으로 넘긴 것) |
 | [design/Design-MMO.md](design/Design-MMO.md) | 세계 설계도 — 주체-기원 가능성 세계 (무엇을 만드는가) |
 | [design/Design-Modules.md](design/Design-Modules.md) | **모듈 분할 총론 + 문서 라우터** (어떻게 나눠 만드는가) |
 | [design/modules/](design/modules/) | 페이즈별 모듈 상세 · 공통 계약 · 통합 시나리오 · 작업 프로토콜 |

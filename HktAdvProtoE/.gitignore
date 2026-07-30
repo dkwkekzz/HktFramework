@@ -1,0 +1,6 @@
+node_modules/
+dist/
+# Lab 스크린샷은 `pnpm verify <id> --lab` 으로 언제든 재생성한다 (용량 때문에 저장하지 않는다).
+apps/lab/lab-screenshot.png
+.vite/
+*.tsbuildinfo

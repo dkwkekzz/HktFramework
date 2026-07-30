@@ -1,0 +1,41 @@
+{
+  "moduleId": "V0",
+  "moduleVersion": "0.1.0",
+  "sourceHash": "sha256:0e4d221d35b672d3773cb9a721423eae2935059afd8674196207ed8a712ee07f",
+  "contractHash": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134",
+  "dependencyVersions": {},
+  "staticCheck": {
+    "passed": true,
+    "command": "pnpm run typecheck"
+  },
+  "unitTests": {
+    "passed": 55,
+    "failed": 0
+  },
+  "propertyTests": {
+    "seeds": 1000,
+    "invariantViolations": 0,
+    "passed": 7
+  },
+  "integrationTests": {
+    "passed": 13,
+    "failed": 0
+  },
+  "labScenarios": {
+    "valid_contract_registers": "passed",
+    "missing_purpose_is_rejected": "passed",
+    "missing_dependency_field_is_rejected": "passed",
+    "unknown_dependency_is_rejected": "passed",
+    "dependency_cycle_is_rejected": "passed",
+    "registration_order_does_not_matter": "passed"
+  },
+  "replay": {
+    "runs": 100,
+    "uniqueHashes": 1
+  },
+  "integrationSlices": {
+    "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
+  },
+  "status": "LAB_PASS",
+  "producedBy": "tools/verify.mjs (V4 미구현 동안의 임시 발급기)"
+}

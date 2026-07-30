@@ -1,0 +1,79 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/module-contract.schema.json",
+  "title": "MODULE.yaml",
+  "description": "설계 원문 「3.1 MODULE.yaml」의 계약 형식. V0 이 구조를 강제하고, V1(schema)이 런타임 검증기로 이 스키마를 소비한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "name",
+    "purpose",
+    "depends_on",
+    "owns_state",
+    "inputs",
+    "outputs",
+    "invariants",
+    "scenarios",
+    "commands"
+  ],
+  "properties": {
+    "id": {
+      "type": "string",
+      "pattern": "^[A-Z][0-9]+$",
+      "description": "페이즈 문자 + 번호 (예: V0, K2, I1)"
+    },
+    "name": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9]*(-[a-z0-9]+)*$"
+    },
+    "purpose": {
+      "type": "string",
+      "minLength": 1,
+      "description": "한 문장으로 설명 가능한 목적 (원문 「5」 G0 목적 게이트)"
+    },
+    "depends_on": { "$ref": "#/$defs/idOrNoneList" },
+    "owns_state": { "$ref": "#/$defs/nameOrNoneList" },
+    "inputs": { "$ref": "#/$defs/nameList" },
+    "outputs": { "$ref": "#/$defs/nameList" },
+    "invariants": { "$ref": "#/$defs/nameList" },
+    "scenarios": { "$ref": "#/$defs/nameList" },
+    "commands": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["test", "lab", "verify"],
+      "properties": {
+        "test": { "type": "string", "minLength": 1 },
+        "lab": { "type": "string", "minLength": 1 },
+        "verify": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "nameList": {
+      "type": "array",
+      "minItems": 1,
+      "items": { "type": "string", "minLength": 1 }
+    },
+    "nameOrNoneList": {
+      "oneOf": [
+        { "type": "array", "minItems": 1, "maxItems": 1, "items": { "const": "none" } },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "minLength": 1, "not": { "const": "none" } }
+        }
+      ]
+    },
+    "idOrNoneList": {
+      "oneOf": [
+        { "type": "array", "minItems": 1, "maxItems": 1, "items": { "const": "none" } },
+        {
+          "type": "array",
+          "minItems": 1,
+          "items": { "type": "string", "pattern": "^[A-Z][0-9]+$" }
+        }
+      ]
+    }
+  }
+}
