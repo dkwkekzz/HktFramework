@@ -9,7 +9,12 @@
 (상세: [progress/](progress/) — [01 스캐폴드+V0](progress/01-scaffold-and-V0.md) ·
 [02 V1](progress/02-V1-schema.md) · [03 규약 경화](progress/03-convention-hardening.md) ·
 [04 V2](progress/04-V2-determinism.md) · [05 V3](progress/05-V3-scenario-runner.md) ·
-[06 V4](progress/06-V4-evidence-gate.md)).
+[06 V4](progress/06-V4-evidence-gate.md) · [07 V 페이즈 목적 도달 감사](progress/07-V-phase-completion-audit.md)).
+
+원문 「8」의 「V 단계 완료 결과」(브라우저 `/lab` 여섯 구획: 모든 모듈 상태 · 실패한 검증 · 의존성 그래프 ·
+최신 코드 해시 · 리플레이 해시 · 자동 검증 결과)까지 확인했다 — 화면은 저장소의 실제 `MODULE.yaml` 과
+`evidence/latest.json` 을 V4 에 넣어 얻은 결과만 그리고, 여섯 구획의 존재와 내용은 `tools/lab-shot.mjs` 가
+매 `pnpm verify` 마다 검사한다.
 
 | 문서 | 상태 |
 |---|---|
@@ -25,6 +30,7 @@
 | `packages/verification/V2-determinism` | `LAB_PASS` (증거: [evidence/latest.json](packages/verification/V2-determinism/evidence/latest.json)) |
 | `packages/verification/V3-scenario-runner` | `LAB_PASS` (증거: [evidence/latest.json](packages/verification/V3-scenario-runner/evidence/latest.json)) |
 | `packages/verification/V4-evidence-gate` | `LAB_PASS` (증거: [evidence/latest.json](packages/verification/V4-evidence-gate/evidence/latest.json)) |
+| `apps/lab` — 원문 「8」 V 단계 완료 화면 (여섯 구획, 저장소 실제 증거) + 모듈 탭 | 동작 중 |
 | `tests/conventions.test.ts` — 저장소 규약 검사 (증거·상태 판정은 V4 에 위임) | 동작 중 |
 
 실행 명령:

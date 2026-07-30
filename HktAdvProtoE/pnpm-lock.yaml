@@ -39,6 +39,9 @@ importers:
       '@hkt/v1-schema':
         specifier: workspace:*
         version: link:../../packages/verification/V1-schema
+      '@hkt/v4-evidence-gate':
+        specifier: workspace:*
+        version: link:../../packages/verification/V4-evidence-gate
 
   packages/verification/V0-module-contract:
     dependencies:
