@@ -1,7 +1,8 @@
 // 플레이 화면 눈 검증 — §3 모듈 7 을 사람이 하는 순서대로 조작하고 화면을 그대로 찍는다.
 //
-// play-session.ts 가 "무엇이 일어났는가"를 수치로 적는다면, 이 스크립트는 "그게 게임처럼 보이는가"를
-// 사람이 판단할 수 있게 스크린샷으로 남긴다. 판정하지 않는다 — 찍고, 화면에서 센 것만 출력한다.
+// play-session.ts 가 모듈별 도달을 수치로 센다면, 이 스크립트는 수치로 세기 어려운 항목
+// (M5 화면의 라벨 가독·모바일 세로 배치 등)을 사람이 눈으로 판단할 수 있게 스크린샷으로 남긴다.
+// 판정하지 않는다 — 찍고, 화면에서 센 것만 출력한다. 모듈 정의는 design/impl/Play-Modules.md.
 //
 // 실행: node scripts/playtest.mjs   (dist/ 를 스스로 빌드한다. HKT_PLAYTEST_SKIP_BUILD=1 로 건너뛴다)
 import { spawn, spawnSync } from "node:child_process";

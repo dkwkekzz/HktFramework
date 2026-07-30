@@ -1,12 +1,13 @@
-// 실제 플레이 관찰 (§3 모듈 7) — 샘플 데이터를 사람이 하는 순서대로 두드려 보고,
-// **화면에 오르는 것만으로** 플레이 타임라인을 적는다.
+// 플레이 모듈 도달 판정기 (§3 모듈 7) — 샘플 데이터를 사람이 하는 순서대로 두드려 보고,
+// **화면에 오르는 것만으로** 플레이 타임라인을 적고 **모듈별 목적 도달**을 센다.
 //
-// 목적은 "MMORPG 처럼 보이는가"를 주장이 아니라 관측으로 판정하는 것이다.
+// 모듈 분할과 각 항목의 뜻은 design/impl/Play-Modules.md 가 단일 출처다 —
+// 이 스크립트는 그 문서의 도달 판정을 실측으로 채운다(측정 없는 항목은 만들지 않는다).
 // 그래서 이 스크립트는 플레이 화면(app/play/PlayPage)이 보내는 것과 **같은 요청**만 보내고,
 // 플레이 화면이 받는 것과 **같은 SceneViewModel**(ViewModelBuilder)만 읽는다 —
 // 코어 내부(runtime.store)를 들여다보지 않는다. 플레이어가 볼 수 없는 것은 이 로그에도 없다.
 //
-// 실행: npm run play [-- --seed=42 --days=2 --agent=agent.kael]
+// 실행: npm run play [-- --seed=42 --days=5 --agent=agent.kael]
 import { InlineHost } from "../core/simulation/InlineHost";
 import { createRng } from "../shared/random";
 import type { WorkerRequest, WorkerResponse } from "../shared/protocol";
@@ -118,6 +119,17 @@ const observed = {
   /** 주변 사람이 무엇을 하는 중인지 보이는가 — 마커의 current_action 배지 */
   neighborActions: new Set<string>(),
   visibleSamples: [] as number[],
+  /** 내가 걷는 동안 "이동 중"이 장면에 실렸는가 (M2) */
+  movingFlagSamples: 0,
+  /** 진행 중 행동이 장면에 실린 표본 (M2) */
+  doingSamples: 0,
+  /** 내가 고른 행동의 소요 시간(tick) — 템포(M9) 의 재료 */
+  actionDurations: [] as number[],
+  /** 사건에 시급도·개입 자리가 붙어 있는가 (M7) */
+  urgentEventIds: new Set<string>(),
+  eventInteractionIds: new Set<string>(),
+  /** 달리는 동안 "이동 중"이 장면에 실린 표본 (M2) */
+  runningWithFlag: 0,
 };
 /** §9.3 결정론 상수 — 한 tick 에 이만큼까지 달린다 */
 const PLAYER_MOVE_SPEED = 2;
@@ -187,8 +199,11 @@ for (let elapsed = 0; elapsed < totalTicks; elapsed += STEP) {
       if (step > 0) {
         observed.perTickMove.push(step / STEP);
         // 달리기로 설명되는가 — 한 tick 에 2 이하로 걸어온 것인가
-        if (step <= PLAYER_MOVE_SPEED * STEP + 1e-6) observed.runSteps.push(step / STEP);
-        else observed.jumps.push(step);
+        if (step <= PLAYER_MOVE_SPEED * STEP + 1e-6) {
+          observed.runSteps.push(step / STEP);
+          // 그 걸음이 화면에도 "이동 중"으로 실렸는가 (M2)
+          if (markerOf(view, playerId)?.moving === true) observed.runningWithFlag += 1;
+        } else observed.jumps.push(step);
       }
     }
     previousMine = { regionId: mine.regionId, x: mine.x, y: mine.y };
@@ -199,9 +214,12 @@ for (let elapsed = 0; elapsed < totalTicks; elapsed += STEP) {
     observed.signals.add(signal.id);
     observed.signalChannels.add(signal.channelKey);
   }
-  const gauge = markerOf(view, playerId)?.gauge;
+  const me = markerOf(view, playerId);
+  const gauge = me?.gauge;
   if (gauge !== undefined) observed.gaugeSamples.push(gauge.value);
+  if (me?.moving === true) observed.movingFlagSamples += 1;
   if (player !== undefined) {
+    if (player.currentAction !== undefined) observed.doingSamples += 1;
     observed.discovered.push(player.undiscoveredCount);
     observed.panelSizes.push(player.actionPanel.length);
     for (const entry of player.journal) {
@@ -211,7 +229,11 @@ for (let elapsed = 0; elapsed < totalTicks; elapsed += STEP) {
       observed.journalKinds.set(entry.kind, (observed.journalKinds.get(entry.kind) ?? 0) + 1);
       lastJournalAt = `${entry.kind}:${entry.key}`;
     }
-    for (const item of player.eventPanel) observed.knownEvents.set(item.eventId, item.title);
+    for (const item of player.eventPanel) {
+      observed.knownEvents.set(item.eventId, item.title);
+      if (item.urgency !== "" && item.urgency !== "0") observed.urgentEventIds.add(item.eventId);
+      if (item.interactions.length > 0) observed.eventInteractionIds.add(item.eventId);
+    }
     observed.growthOffers += player.growthOffers.length;
   }
 
@@ -262,6 +284,7 @@ for (let elapsed = 0; elapsed < totalTicks; elapsed += STEP) {
         const outcome = result.find((r): r is Extract<WorkerResponse, { type: "player_action_result" }> => r.type === "player_action_result");
         if (outcome?.outcome.accepted === true) {
           observed.myActions.push(option.actionId);
+          observed.actionDurations.push(Number(/\d+/.exec(option.duration)?.[0] ?? "0"));
           if (/talk|persuade|rumor|promise|threat|trade|teach|ask|share|deceive|accuse|mediate|support/i.test(option.actionId)) {
             observed.socialActions.push(`${option.actionId}→${option.targets || "-"}`);
           }
@@ -342,7 +365,7 @@ if (notices.length > 0) console.log(`   거부·오류 ${notices.length}건 — 
 // ── ⑤ 이동 규약 탐침 — 플레이 중에 손이 가는 순서로 눌러 본다 ────────────────────────
 // 위 결산이 "존 이동이 안 됐다 / 순간이동이 있었다"고 말했으므로, 그 둘만 따로 재현한다.
 // 세계를 다시 올려(같은 패키지) 다른 조작이 섞이지 않게 한다.
-const probe = { travelAlone: "", travelWithAction: "", moveTrail: "", trailSteps: 0 };
+const probe = { travelAlone: "", travelWithAction: "", moveTrail: "", trailSteps: 0, travelShown: "" };
 {
   await send({ type: "initialize_world", worldSeed, package: packaged.json });
   await send({ type: "attach_player", agentId: playerId });
@@ -353,7 +376,15 @@ const probe = { travelAlone: "", travelWithAction: "", moveTrail: "", trailSteps
   // ⓐ 게이트만 누르고 기다린다
   const from = regionOf();
   await send({ type: "player_travel", toRegionId: other });
-  await send({ type: "advance_time", amount: 130 });
+  // 건너는 중에 화면은 그 사실을 아는가 — 장면에 실린 것만 본다
+  await send({ type: "advance_time", amount: 10 });
+  const crossing = scene();
+  const crossingMarker = markerOf(crossing, playerId);
+  probe.travelShown =
+    `건너는 중 장면: moving=${crossingMarker?.moving ?? "마커 없음"} · ` +
+    `진행 중 행동 ${crossing.player?.currentAction === undefined ? "없음" : crossing.player.currentAction.actionId} · ` +
+    `행동바 ${crossing.player?.actionPanel.length ?? 0}종(이동 중에도 그대로)`;
+  await send({ type: "advance_time", amount: 120 });
   probe.travelAlone = `${from} → ${regionOf()} (130분 대기)`;
 
   // ⓑ 건너는 중에 행동 버튼을 누른다 (플레이 화면은 이동 중에도 행동바를 그대로 준다)
@@ -377,111 +408,313 @@ const probe = { travelAlone: "", travelWithAction: "", moveTrail: "", trailSteps
   probe.trailSteps = trail.length;
   probe.moveTrail = `${place} 로 이동 — 5분 간격 위치 표본 ${trail.length}종: ${trail.slice(0, 5).join(" → ")}`;
 }
-console.log(`\n⑤ 이동 규약 탐침`);
+// ⓓ 이어하기 — 플레이 중 스냅샷으로 같은 세계를 다시 올릴 수 있는가 (M10)
+const resume = { ok: false, evidence: "" };
+{
+  const snapshotResponses = await send({ type: "request_snapshot" });
+  const snapshot = snapshotResponses.find((r): r is Extract<WorkerResponse, { type: "snapshot" }> => r.type === "snapshot");
+  if (snapshot === undefined) resume.evidence = "스냅샷 응답이 없다";
+  else {
+    const responses = await send({ type: "initialize_world", worldSeed, package: JSON.stringify(snapshot.snapshot) });
+    const failed = responses.find((r): r is Extract<WorkerResponse, { type: "error" }> => r.type === "error");
+    resume.ok = failed === undefined;
+    resume.evidence = failed === undefined ? "스냅샷으로 재개됨" : `거부 — ${failed.message.slice(0, 80)}`;
+  }
+}
+
+// ⓔ 지역 표시 사각형의 종횡비 — 화면(M5)이 세계의 모양을 지키는가
+const aspect = final.map.regions.map((region) => {
+  const shown = region.rect.w / Math.max(1e-6, region.rect.h);
+  const real = region.worldSize.width / Math.max(1e-6, region.worldSize.height);
+  return { id: region.id, shown, real, ratio: shown / Math.max(1e-6, real) };
+});
+const worstAspect = [...aspect].sort((a, b) => Math.abs(Math.log(a.ratio)) - Math.abs(Math.log(b.ratio))).pop();
+
+console.log(`\n⑤ 규약 탐침`);
 console.log(`   ⓐ 게이트만 누르고 기다림: ${probe.travelAlone}`);
 console.log(`   ⓑ 건너는 중 행동 1회:     ${probe.travelWithAction}`);
 console.log(`   ⓒ 행동에 의한 이동:       ${probe.moveTrail}`);
+console.log(`   ⓓ 플레이 중 이어하기:     ${resume.evidence}`);
+console.log(`   ⓐ-2 건너는 중 화면:      ${probe.travelShown}`);
+console.log(
+  `   ⓔ 지역 종횡비:           ${aspect
+    .map((entry) => `${entry.id.replace("region.", "")} 표시 ${entry.shown.toFixed(2)} vs 실제 ${entry.real.toFixed(2)}`)
+    .join(" · ")}`,
+);
 
-// ── MMORPG 문법 대조 — 관측된 수치로만 판정한다 ────────────────────────────────────
-interface Criterion {
+
+// ── ⑥ 플레이 모듈 도달 ──────────────────────────────────────────────────────────────
+// 플레이는 목적이 분명한 모듈들로 나뉘고, 각 모듈은 **자기 목적에 도달했는가**로만 판정된다.
+// 항목은 전부 위 플레이·탐침에서 실제로 측정된 수치다 (설계: design/impl/Play-Modules.md).
+interface Gate {
   name: string;
   ok: boolean;
   evidence: string;
 }
-const criteria: Criterion[] = [
+interface PlayModule {
+  id: string;
+  name: string;
+  /** 이 모듈이 무엇을 위해 있는가 — 도달하면 플레이어가 얻는 것 */
+  purpose: string;
+  gates: Gate[];
+}
+
+const median = (values: number[]): number => {
+  if (values.length === 0) return 0;
+  const sorted = [...values].sort((a, b) => a - b);
+  return sorted[Math.floor(sorted.length / 2)] ?? 0;
+};
+const visibleAverage = average(observed.visibleSamples);
+const neighborMoveRatio = observed.neighborMoveTicks / Math.max(1, Math.ceil(totalTicks / STEP));
+const aspectOff = worstAspect === undefined ? 0 : Math.abs(Math.log(worstAspect.ratio));
+const durationMedian = median(observed.actionDurations);
+const arrivedIn = (line: string): boolean => {
+  const [from, rest] = line.split(" → ");
+  return from !== undefined && rest !== undefined && !rest.startsWith(from);
+};
+
+const modules: PlayModule[] = [
   {
-    name: "하나의 캐릭터를 조작한다 (attach → 시점 고정)",
-    ok: final.map.focusMarkerId === playerId && finalPlayer !== undefined,
-    evidence: `focus=${final.map.focusMarkerId ?? "없음"} · 상태 ${finalPlayer?.facts.length ?? 0}항`,
+    id: "M1",
+    name: "진입",
+    purpose: "선택 두 번으로 조작 가능한 캐릭터 앞에 선다 (검은 화면이 성립할 수 없다)",
+    gates: [
+      {
+        name: "§3 모듈 1~6 이 전부 처리되어 패키지가 나온다",
+        ok: packaged.stages.every((stage) => stage.ok),
+        evidence: `단계 ${packaged.stages.filter((s) => s.ok).length}/${packaged.stages.length} ok`,
+      },
+      {
+        name: "조작 가능한 주체가 카드로 온다",
+        ok: cards.agents.length >= 3,
+        evidence: `카드 ${cards.agents.length}장`,
+      },
+      {
+        name: "붙는 순간 카메라 기준과 플레이어 패널이 선다",
+        ok: final.map.focusMarkerId === playerId && finalPlayer !== undefined,
+        evidence: `focus=${final.map.focusMarkerId ?? "없음"} · 상태 ${finalPlayer?.facts.length ?? 0}항`,
+      },
+    ],
   },
   {
-    name: "세계는 나를 기다리지 않는다 (주변이 스스로 움직인다)",
-    ok: observed.neighborMovers.size >= 3 && observed.neighborMoveTicks > totalTicks / STEP / 10,
-    evidence: `이웃 ${observed.neighborMovers.size}명이 ${observed.neighborMoves}회 이동 · 표본의 ${((observed.neighborMoveTicks / Math.ceil(totalTicks / STEP)) * 100).toFixed(0)}%`,
+    id: "M2",
+    name: "아바타",
+    purpose: "내가 누구이고 지금 무엇을 하는 중인지 화면이 빠짐없이 말한다",
+    gates: [
+      {
+        name: "상태 게이지가 플레이 중 변한다",
+        ok: new Set(observed.gaugeSamples.map((value) => value.toFixed(3))).size > 1,
+        evidence: `체력 표본 ${new Set(observed.gaugeSamples.map((v) => v.toFixed(3))).size}종 · 상태 ${finalPlayer?.facts.length ?? 0}항`,
+      },
+      {
+        name: "진행 중인 행동이 장면에 실린다",
+        ok: observed.doingSamples > 0,
+        evidence: `표본 ${observed.doingSamples}/${Math.ceil(totalTicks / STEP)}`,
+      },
+      {
+        name: "달리는 동안 '이동 중'이 장면에 실린다",
+        ok: observed.runSteps.length > 0 && observed.runningWithFlag >= observed.runSteps.length / 2,
+        evidence: `걸은 표본 ${observed.runSteps.length} 중 moving 표시 ${observed.runningWithFlag} (전체 moving 표본 ${observed.movingFlagSamples})`,
+      },
+      {
+        name: "지역을 건너는 중이라는 것이 장면에 실린다",
+        ok: /moving=true/.test(probe.travelShown),
+        evidence: `탐침 ⓐ ${probe.travelShown}`,
+      },
+    ],
   },
   {
-    name: "연속 이동(달리기) — 클릭/WASD 로 목표점까지 걸어간다",
-    ok: observed.runSteps.length > 10 && observed.jumps.length === 0,
-    evidence:
-      `걸음 ${observed.runSteps.length}표본 · tick 당 ${average(observed.runSteps).toFixed(2)}/${PLAYER_MOVE_SPEED} · ` +
-      `순간이동 ${observed.jumps.length}회 · 총 거리 ${observed.distance.toFixed(0)}`,
+    id: "M3",
+    name: "이동",
+    purpose: "가려는 곳까지 연속으로 가고, 이동은 예측 가능하게만 끊긴다",
+    gates: [
+      {
+        name: "내 이동 명령은 걸어서 간다",
+        ok: observed.runSteps.length > 10,
+        evidence: `걸음 ${observed.runSteps.length}표본 · tick 당 ${average(observed.runSteps).toFixed(2)}/${PLAYER_MOVE_SPEED}`,
+      },
+      {
+        name: "설명되지 않는 순간이동이 없다",
+        ok: observed.jumps.length === 0,
+        evidence: `순간이동 ${observed.jumps.length}회${observed.jumps.length === 0 ? "" : ` (최대 ${Math.max(...observed.jumps).toFixed(0)})`}`,
+      },
+      {
+        name: "행동에 의한 이동도 걸어서 간다",
+        ok: probe.trailSteps > 3,
+        evidence: `탐침 ⓒ ${probe.moveTrail}`,
+      },
+      {
+        name: "게이트로 지역을 건넌다",
+        ok: arrivedIn(probe.travelAlone),
+        evidence: `탐침 ⓐ ${probe.travelAlone}`,
+      },
+      {
+        name: "건너는 중 다른 조작을 해도 도착한다",
+        ok: arrivedIn(probe.travelWithAction),
+        evidence: `탐침 ⓑ ${probe.travelWithAction}`,
+      },
+    ],
   },
   {
-    name: "주변에 사람이 붐빈다 (한 화면에 여러 명이 보인다)",
-    ok: average(observed.visibleSamples) >= 4,
-    evidence: `평균 ${average(observed.visibleSamples).toFixed(1)}명 · 최대 ${Math.max(...observed.visibleSamples)}명 (세계에는 주체 9명)`,
+    id: "M4",
+    name: "군중",
+    purpose: "한 화면에 여러 타인이 있고, 그들이 스스로 걷고 무언가 하고 있다",
+    gates: [
+      {
+        name: "한 화면에 여러 사람이 보인다 (평균 4명 이상)",
+        ok: visibleAverage >= 4,
+        evidence: `평균 ${visibleAverage.toFixed(1)}명 · 최대 ${Math.max(...observed.visibleSamples)}명 (세계 주체 9명)`,
+      },
+      {
+        name: "타인이 스스로 자리를 옮긴다 (표본의 10% 이상)",
+        ok: neighborMoveRatio >= 0.1,
+        evidence: `이웃 ${observed.neighborMovers.size}명이 ${observed.neighborMoves}회 · 표본의 ${(neighborMoveRatio * 100).toFixed(0)}%`,
+      },
+      {
+        name: "타인이 무엇을 하는 중인지 보인다",
+        ok: observed.neighborActions.size >= 3,
+        evidence: `${observed.neighborActions.size}종 — ${[...observed.neighborActions].slice(0, 3).join(" · ") || "없음"}`,
+      },
+    ],
   },
   {
-    name: "남들이 무엇을 하는 중인지 보인다 (행동 캐스팅 표시)",
-    ok: observed.neighborActions.size >= 3,
-    evidence: `${observed.neighborActions.size}종 — ${[...observed.neighborActions].slice(0, 3).join(" · ") || "없음"}`,
+    id: "M5",
+    name: "화면",
+    purpose: "캐릭터 중심의 게임 화면 — 세계의 모양을 왜곡 없이 보여 준다",
+    gates: [
+      {
+        name: "지역의 표시 종횡비가 실제 종횡비와 같다",
+        ok: aspectOff < 0.1,
+        evidence:
+          worstAspect === undefined
+            ? "지역 없음"
+            : `최악 ${worstAspect.id.replace("region.", "")} 표시 ${worstAspect.shown.toFixed(2)} vs 실제 ${worstAspect.real.toFixed(2)} (배율 ${worstAspect.ratio.toFixed(2)})`,
+      },
+      {
+        name: "카메라 기준이 조작 주체다",
+        ok: final.map.focusMarkerId === playerId,
+        evidence: `focusMarkerId=${final.map.focusMarkerId ?? "없음"}`,
+      },
+      {
+        name: "화면에 그릴 재료가 실려 온다 (마커·자원·장소·조직)",
+        ok: final.map.markers.length + final.map.resources.length + final.map.places.length + final.map.factions.length > 5,
+        evidence:
+          `마커 ${final.map.markers.length} · 자원 ${final.map.resources.length} · 장소 ${final.map.places.length} · ` +
+          `조직 ${final.map.factions.length} · 신호 ${final.map.signals.length}`,
+      },
+    ],
   },
   {
-    name: "존(지역) 이동 — 게이트를 건넌다",
-    ok: probe.travelAlone.split(" → ")[0] !== probe.travelAlone.split(" → ")[1]?.split(" ")[0],
-    evidence: `탐침 ⓐ ${probe.travelAlone}`,
+    id: "M6",
+    name: "상호작용",
+    purpose: "무엇이든 지정해 할 수 있는 것을 알고, 고르면 세계가 답한다",
+    gates: [
+      {
+        name: "대상을 고르면 할 수 있는 것이 바뀐다",
+        ok: observed.targetedPanels.length > 0,
+        evidence: observed.targetedPanels[0] ?? "대상용 후보 없음",
+      },
+      {
+        name: "행동바에 언제나 여러 선택지가 있다",
+        ok: average(observed.panelSizes) >= 3,
+        evidence: `평균 ${average(observed.panelSizes).toFixed(1)}종 · 실행 ${observed.myActions.length}회`,
+      },
+      {
+        name: "고른 행동이 실행되고 기록에 남는다",
+        ok: observed.myActions.length > 0 && (observed.journalKinds.get("action") ?? 0) > 0,
+        evidence: `행동 ${observed.myActions.length}회 · 저널 action ${observed.journalKinds.get("action") ?? 0}줄`,
+      },
+      {
+        name: "사회적 상호작용과 위협 대응이 둘 다 나온다",
+        ok: observed.socialActions.length > 0 && observed.combatSeen.length > 0,
+        evidence: `사회 ${observed.socialActions.length}회 · 위협 대응 ${observed.combatSeen.length}회`,
+      },
+    ],
   },
   {
-    name: "건너는 중에 다른 조작을 해도 도착한다 (이동이 조용히 사라지지 않는다)",
-    ok: probe.travelWithAction.split(" → ")[0] !== probe.travelWithAction.split(" → ")[1]?.split(" ")[0],
-    evidence: `탐침 ⓑ ${probe.travelWithAction} — 출발지 그대로면 이동이 취소된 것이다`,
+    id: "M7",
+    name: "동기",
+    purpose: "지금 무엇을 할지가 세계에서 온다 (§30 개입 기회 = MMORPG 의 퀘스트 자리)",
+    gates: [
+      {
+        name: "내가 만들지 않은 사건이 알려진다",
+        ok: observed.knownEvents.size > 0,
+        evidence: `${observed.knownEvents.size}건 — ${[...observed.knownEvents.values()][0] ?? ""}`,
+      },
+      {
+        name: "사건에 시급도가 붙는다",
+        ok: observed.urgentEventIds.size > 0,
+        evidence: `시급도가 붙은 사건 ${observed.urgentEventIds.size}/${observed.knownEvents.size}`,
+      },
+      {
+        name: "사건에 개입할 자리가 붙는다",
+        ok: observed.eventInteractionIds.size > 0,
+        evidence: `개입 자리가 붙은 사건 ${observed.eventInteractionIds.size}/${observed.knownEvents.size}`,
+      },
+    ],
   },
   {
-    name: "행동에 의한 이동도 걸어서 간다 (순간이동 없음)",
-    ok: probe.trailSteps > 3,
-    evidence: `탐침 ⓒ ${probe.moveTrail}`,
+    id: "M8",
+    name: "성장",
+    purpose: "플레이 중에 내가 달라진다 — 수치가 아니라 선택으로",
+    gates: [
+      {
+        name: "성장 제안이 오고, 받으면 능력·제약이 바뀐다",
+        ok: observed.growthTaken.length > 0,
+        evidence: observed.growthTaken[0] ?? `${days}일 동안 제안 0건`,
+      },
+      {
+        name: "성장이 이틀에 한 번은 온다",
+        ok: observed.growthTaken.length >= days / 2,
+        evidence: `${days}일에 ${observed.growthTaken.length}건`,
+      },
+    ],
   },
   {
-    name: "타게팅 → 컨텍스트 행동 (대상을 고르면 할 수 있는 것이 바뀐다)",
-    ok: observed.targetedPanels.length > 0,
-    evidence: observed.targetedPanels[0] ?? "대상용 후보 없음",
+    id: "M9",
+    name: "템포",
+    purpose: "실시간 조작감 — 화면이 미는 시간과 세계의 시간이 같고, 한 행동이 오래 잡아 두지 않는다",
+    gates: [
+      {
+        name: "세계가 아는 배속이 화면이 미는 배속과 같다",
+        ok: final.speed === STEP,
+        evidence: `장면 배속 ×${final.speed} · 화면이 미는 양 ${STEP}tick/루프 (set_speed 미전송)`,
+      },
+      {
+        name: "행동 하나가 오래 잡아 두지 않는다 (중앙값 120분 이하)",
+        ok: durationMedian > 0 && durationMedian <= 120,
+        evidence: `소요 중앙값 ${durationMedian}분 · 표본 ${observed.actionDurations.length}`,
+      },
+    ],
   },
   {
-    name: "행동바 — 언제든 고를 수 있는 여러 선택지",
-    ok: average(observed.panelSizes) >= 3,
-    evidence: `평균 ${average(observed.panelSizes).toFixed(1)}종 · 실행 ${observed.myActions.length}회`,
-  },
-  {
-    name: "상태 게이지가 플레이 중 변한다 (HP·허기 등)",
-    ok: new Set(observed.gaugeSamples.map((value) => value.toFixed(3))).size > 1 || (finalPlayer?.facts.length ?? 0) > 0,
-    evidence: `체력 표본 ${new Set(observed.gaugeSamples.map((v) => v.toFixed(3))).size}종 · 상태 ${finalPlayer?.facts.length ?? 0}항`,
-  },
-  {
-    name: "성장 (레벨업에 해당하는 선택)",
-    ok: observed.growthTaken.length > 0,
-    evidence: observed.growthTaken[0] ?? `${days}일 동안 제안 0건 (표본 ${observed.growthOffers})`,
-  },
-  {
-    name: "월드 이벤트 — 내가 만들지 않은 사건이 알려진다",
-    ok: observed.knownEvents.size > 0,
-    evidence: `${observed.knownEvents.size}건 — ${[...observed.knownEvents.values()][0] ?? ""}`,
-  },
-  {
-    name: "사회적 상호작용 (대화·소문·거래)",
-    ok: observed.socialActions.length > 0,
-    evidence: count(observed.socialActions).slice(0, 3).map(([k, n]) => `${k}×${n}`).join(" · ") || "없음",
-  },
-  {
-    name: "전투·위협 대응 (사냥·공격·방어·도주)",
-    ok: observed.combatSeen.length > 0,
-    evidence: count(observed.combatSeen).slice(0, 3).map(([k, n]) => `${k}×${n}`).join(" · ") || "없음",
-  },
-  {
-    name: "정보 제한 — 내가 모르는 것이 남아 있다 (안개)",
-    ok: (observed.discovered[observed.discovered.length - 1] ?? 0) > 0 || observed.knownEvents.size > 0,
-    evidence: `모르는 개체 ${observed.discovered[observed.discovered.length - 1] ?? 0} · 시야 ${final.map.markers.length}명`,
-  },
-  {
-    name: "감각 피드백 — 화면에 실리는 신호/이펙트",
-    ok: observed.signals.size > 0,
-    evidence: `${observed.signals.size}건 · 채널 ${[...observed.signalChannels].join(", ") || "없음"}`,
+    id: "M10",
+    name: "지속",
+    purpose: "플레이를 멈췄다 이어도 같은 세계가 이어진다",
+    gates: [
+      {
+        name: "플레이 중 상태로 다시 세계를 올릴 수 있다",
+        ok: resume.ok,
+        evidence: `탐침 ⓓ ${resume.evidence}`,
+      },
+    ],
   },
 ];
 
-console.log(`\n⑥ MMORPG 문법 대조 — 위 플레이에서 실제로 관측된 것만`);
-let passed = 0;
-for (const criterion of criteria) {
-  if (criterion.ok) passed += 1;
-  console.log(`   ${criterion.ok ? "✓" : "✗"} ${criterion.name}\n       ${criterion.evidence}`);
+console.log(`\n⑥ 플레이 모듈 도달 — 목적별로 센다`);
+let reached = 0;
+let passedGates = 0;
+let totalGates = 0;
+for (const module of modules) {
+  const ok = module.gates.filter((gate) => gate.ok).length;
+  totalGates += module.gates.length;
+  passedGates += ok;
+  if (ok === module.gates.length) reached += 1;
+  console.log(
+    `\n   ${module.id} ${module.name.padEnd(5)} ${ok}/${module.gates.length} ${ok === module.gates.length ? "✓" : "✗"}  ${module.purpose}`,
+  );
+  for (const gate of module.gates) {
+    console.log(`        ${gate.ok ? "✓" : "✗"} ${gate.name}\n             ${gate.evidence}`);
+  }
 }
-console.log(`\n   ${passed}/${criteria.length} 관측됨`);
+console.log(`\n   모듈 도달 ${reached}/${modules.length} · 항목 ${passedGates}/${totalGates}`);
