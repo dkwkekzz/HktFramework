@@ -5,6 +5,8 @@ import { parse as parseYaml } from 'yaml';
 import { describe, expect, it } from 'vitest';
 import { buildRegistry } from '@hkt/v0-module-contract';
 import type { ScenarioRun } from '@hkt/v0-module-contract';
+import { auditRepository, statusRank, validateEvidenceDocument } from '@hkt/v4-evidence-gate';
+import type { EvidenceDocument } from '@hkt/v4-evidence-gate';
 
 /**
  * 저장소 규약 검사.
@@ -12,7 +14,8 @@ import type { ScenarioRun } from '@hkt/v0-module-contract';
  * 개별 모듈이 아니라 **저장소 전체**를 대상으로 한다. 새 모듈이 추가되면 아무 등록 없이 여기에 걸리므로,
  * "문서에만 있는 규약"이 아니라 기계가 강제하는 규약이 된다.
  *
- * 이 파일은 V4(evidence-gate)가 정식으로 흡수할 때까지의 임시 자리다 (원문 「8」: V4 가 검증 상태 관리를 맡는다).
+ * 검증 상태·증거 판정은 **V4(evidence-gate)가 맡는다**(원문 「8」). 이 파일은 저장소의 실제 파일을 모아
+ * V4 에 넣어 보는 자리이며, 판정 규칙을 여기서 다시 적지 않는다 — 규칙이 두 곳에 있으면 둘이 갈라진다.
  * 어느 모듈의 소유도 아니므로 패키지 밖(`tests/`)에 둔다.
  */
 
@@ -274,48 +277,59 @@ describe('스키마 규약', () => {
   });
 });
 
-describe('증거 규약', () => {
-  const VALID_STATUS = [
-    'BLOCKED',
-    'SPECIFIED',
-    'TEST_READY',
-    'IMPLEMENTED',
-    'UNIT_PASS',
-    'LAB_PASS',
-    'SLICE_PASS',
-    'VERIFIED',
-    'FROZEN',
-    'FAILED',
-  ];
+/**
+ * 증거·검증 상태 규약은 **V4(evidence-gate)가 판정한다.**
+ *
+ * 여기서 형식을 다시 손으로 적으면 판정 규칙이 두 곳에 생기고, 둘이 갈라지는 순간 어느 쪽도 믿을 수 없다.
+ * 그래서 이 절은 "저장소의 실제 파일을 V4 에 넣어 본다"만 한다.
+ */
+describe('증거 규약 (V4 위임)', () => {
+  const evidenceOf = (module: ModuleDir): EvidenceDocument =>
+    JSON.parse(readFileSync(join(module.absolute, 'evidence', 'latest.json'), 'utf8')) as EvidenceDocument;
 
-  it.each(each)('%s — evidence/latest.json 이 형식과 상태값 규약을 지킨다', (_id, module) => {
-    const evidence = JSON.parse(
-      readFileSync(join(module.absolute, 'evidence', 'latest.json'), 'utf8'),
-    ) as Record<string, unknown>;
+  const contracts = moduleDirs.map((module) => ({
+    path: `${module.path}/MODULE.yaml`,
+    text: readFileSync(join(module.absolute, 'MODULE.yaml'), 'utf8'),
+  }));
 
-    expect(evidence['moduleId']).toBe(module.id);
-    expect(evidence['sourceHash']).toMatch(/^sha256:[0-9a-f]{64}$/);
-    expect(evidence['contractHash']).toMatch(/^sha256:[0-9a-f]{64}$/);
-    // 원문 「4」의 상태값만 쓴다 (FAILED 는 verify.mjs 의 명시적 실패 표기)
-    expect(VALID_STATUS).toContain(evidence['status']);
-
-    // 증거로 인정하는 수치는 실제 실행에서 나온 것이어야 한다
-    const unit = evidence['unitTests'] as { passed: number; failed: number };
-    expect(unit.passed).toBeGreaterThan(0);
-    expect(unit.failed).toBe(0);
+  it.each(each)('%s — 증거가 원문 「21」 형식을 지킨다', (_id, module) => {
+    const evidence = evidenceOf(module);
+    expect(evidence.moduleId).toBe(module.id);
+    const issues = validateEvidenceDocument(evidence, { label: `${module.path}/evidence/latest.json` });
+    expect(issues, JSON.stringify(issues, null, 2)).toEqual([]);
   });
 
-  it.each(each)('%s — 통합 슬라이스가 남아 있으면 VERIFIED 를 쓰지 않는다', (_id, module) => {
-    const evidence = JSON.parse(
-      readFileSync(join(module.absolute, 'evidence', 'latest.json'), 'utf8'),
-    ) as { status: string; integrationSlices?: Record<string, string> };
+  it.each(each)('%s — 증거의 수치가 실제 실행에서 나온 것이다', (_id, module) => {
+    const evidence = evidenceOf(module);
+    expect(evidence.unitTests.passed).toBeGreaterThan(0);
+    expect(evidence.unitTests.failed).toBe(0);
+    expect(evidence.replay.runs).toBeGreaterThan(0);
+  });
 
-    if (evidence.status !== 'VERIFIED' && evidence.status !== 'FROZEN') return;
-    // 원문 「23」: 증거 없이 VERIFIED 표시 금지 — 슬라이스가 하나라도 통과하지 않았으면 위반이다
-    const slices = Object.entries(evidence.integrationSlices ?? {});
-    expect(slices.length, 'VERIFIED 인데 통합 슬라이스 기록이 없다').toBeGreaterThan(0);
-    for (const [slice, result] of slices) {
-      expect(result, `${slice} 가 통과하지 않았는데 ${evidence.status} 다`).toBe('passed');
+  it('어떤 모듈도 게이트보다 높은 상태를 주장하지 않는다', () => {
+    const report = auditRepository({ contracts, evidences: moduleDirs.map(evidenceOf) });
+    const forged = report.issues.filter((issue) => issue.code === 'E_STATUS_ABOVE_GATES');
+    expect(forged, JSON.stringify(forged, null, 2)).toEqual([]);
+  });
+
+  it('선행 계약이 바뀐 채로 남은 증거가 없다 (원문 「2.5」)', () => {
+    const report = auditRepository({ contracts, evidences: moduleDirs.map(evidenceOf) });
+    const stale = report.modules.filter((module) => module.invalidated);
+    expect(
+      stale.map((module) => `${module.id}: ${module.reasons.map((reason) => reason.code).join(', ')}`),
+      '계약을 고쳤으면 `pnpm verify <ID> --lab` 로 증거를 다시 발급할 것',
+    ).toEqual([]);
+  });
+
+  it('통합 슬라이스가 남아 있는 동안 어떤 모듈도 VERIFIED 가 아니다 (원문 「23」)', () => {
+    const report = auditRepository({ contracts, evidences: moduleDirs.map(evidenceOf) });
+    for (const module of report.modules) {
+      if (statusRank(module.effectiveStatus) < statusRank('VERIFIED')) continue;
+      const slices = Object.entries(module.integrationSlices);
+      expect(slices.length, `${module.id}: VERIFIED 인데 통합 슬라이스 기록이 없다`).toBeGreaterThan(0);
+      for (const [slice, verdict] of slices) {
+        expect(verdict, `${module.id}: ${slice} 가 통과하지 않았다`).toBe('passed');
+      }
     }
   });
 });

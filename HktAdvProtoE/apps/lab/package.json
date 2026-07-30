@@ -9,6 +9,7 @@
   },
   "dependencies": {
     "@hkt/v0-module-contract": "workspace:*",
-    "@hkt/v1-schema": "workspace:*"
+    "@hkt/v1-schema": "workspace:*",
+    "@hkt/v4-evidence-gate": "workspace:*"
   }
 }

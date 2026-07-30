@@ -1,0 +1,179 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v3-output.schema.json",
+  "title": "V3 출력",
+  "description": "시나리오별 실행 보고. 세계 상태는 임의 JSON 이므로 형식을 강제하지 않는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reports", "stepIds", "fixtureIssues", "passed", "digest"],
+  "properties": {
+    "stepIds": { "type": "array", "items": { "type": "string" } },
+    "passed": { "type": "boolean" },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "fixtureIssues": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "path", "message"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^E_" },
+          "path": { "type": "string" },
+          "message": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "reports": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": [
+          "scenarioId",
+          "title",
+          "seed",
+          "seedLabel",
+          "given",
+          "transitions",
+          "final",
+          "conditions",
+          "issues",
+          "stoppedAt",
+          "passed",
+          "digest"
+        ],
+        "properties": {
+          "scenarioId": { "type": "string", "minLength": 1 },
+          "title": { "type": "string" },
+          "seed": { "type": "string", "pattern": "^[0-9a-f]+$" },
+          "seedLabel": { "type": "string" },
+          "given": { "type": "object" },
+          "final": { "type": "object" },
+          "stoppedAt": { "type": ["integer", "null"] },
+          "passed": { "type": "boolean" },
+          "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+          "issues": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["code", "path", "message"],
+              "properties": {
+                "code": { "type": "string", "pattern": "^E_" },
+                "path": { "type": "string" },
+                "message": { "type": "string", "minLength": 1 }
+              }
+            }
+          },
+          "transitions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "index",
+                "step",
+                "title",
+                "params",
+                "note",
+                "tick",
+                "timeMs",
+                "before",
+                "after",
+                "changes",
+                "rejection",
+                "error"
+              ],
+              "properties": {
+                "index": { "type": "integer", "minimum": 0 },
+                "step": { "type": "string", "minLength": 1 },
+                "title": { "type": "string" },
+                "params": { "type": "object" },
+                "note": { "type": "string" },
+                "tick": { "type": "integer", "minimum": 0 },
+                "timeMs": { "type": "number", "minimum": 0 },
+                "before": { "type": "object" },
+                "after": { "type": "object" },
+                "rejection": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["code", "path", "message"],
+                  "properties": {
+                    "code": { "type": "string", "pattern": "^E_" },
+                    "path": { "type": "string" },
+                    "message": { "type": "string", "minLength": 1 }
+                  }
+                },
+                "error": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["code", "path", "message"],
+                  "properties": {
+                    "code": { "type": "string", "pattern": "^E_" },
+                    "path": { "type": "string" },
+                    "message": { "type": "string", "minLength": 1 }
+                  }
+                },
+                "changes": {
+                  "type": "array",
+                  "items": {
+                    "type": "object",
+                    "additionalProperties": false,
+                    "required": ["path", "kind", "before", "after"],
+                    "properties": {
+                      "path": { "type": "string" },
+                      "kind": { "enum": ["added", "removed", "changed"] },
+                      "before": true,
+                      "after": true
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "conditions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": [
+                "id",
+                "path",
+                "op",
+                "at",
+                "passed",
+                "expected",
+                "actual",
+                "before",
+                "after",
+                "blame",
+                "reason"
+              ],
+              "properties": {
+                "id": { "type": "string", "minLength": 1 },
+                "path": { "type": "string" },
+                "op": { "type": "string" },
+                "at": true,
+                "passed": { "type": "boolean" },
+                "expected": true,
+                "actual": true,
+                "before": true,
+                "after": true,
+                "reason": { "type": "string" },
+                "blame": {
+                  "type": ["object", "null"],
+                  "additionalProperties": false,
+                  "required": ["index", "step"],
+                  "properties": {
+                    "index": { "type": "integer", "minimum": 0 },
+                    "step": { "type": "string" }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

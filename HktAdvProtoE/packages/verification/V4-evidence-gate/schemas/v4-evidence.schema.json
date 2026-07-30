@@ -1,0 +1,116 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v4-evidence.schema.json",
+  "title": "모듈 완료 증거",
+  "description": "원문 「21. 모듈 완료 증거 형식」. contractHash · dependencyContracts · gates · issuedAtTick 은 이 저장소의 파생 항목이다 (무효화 연쇄와 판정 되짚기에 필요).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "moduleId",
+    "moduleVersion",
+    "sourceHash",
+    "contractHash",
+    "dependencyVersions",
+    "dependencyContracts",
+    "staticCheck",
+    "unitTests",
+    "propertyTests",
+    "labScenarios",
+    "replay",
+    "integrationSlices",
+    "gates",
+    "status",
+    "issuedAtTick",
+    "producedBy"
+  ],
+  "properties": {
+    "moduleId": { "type": "string", "pattern": "^[A-Z][0-9]+$" },
+    "moduleVersion": { "type": "string", "pattern": "^\\d+\\.\\d+\\.\\d+$" },
+    "sourceHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "contractHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "dependencyVersions": { "type": "object" },
+    "dependencyContracts": { "type": "object" },
+    "producedBy": { "type": "string", "minLength": 1 },
+    "issuedAtTick": { "type": "integer", "minimum": 0 },
+    "status": {
+      "enum": [
+        "BLOCKED",
+        "SPECIFIED",
+        "TEST_READY",
+        "IMPLEMENTED",
+        "UNIT_PASS",
+        "LAB_PASS",
+        "SLICE_PASS",
+        "VERIFIED",
+        "FROZEN",
+        "FAILED"
+      ]
+    },
+    "staticCheck": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed"],
+      "properties": { "passed": { "type": "boolean" }, "command": { "type": "string" } }
+    },
+    "unitTests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "propertyTests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seeds", "invariantViolations"],
+      "properties": {
+        "seeds": { "type": "integer", "minimum": 0 },
+        "invariantViolations": { "type": "integer", "minimum": 0 },
+        "passed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "integrationTests": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["passed", "failed"],
+      "properties": {
+        "passed": { "type": "integer", "minimum": 0 },
+        "failed": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "regression": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["failures"],
+      "properties": { "failures": { "type": "integer", "minimum": 0 } }
+    },
+    "labScenarios": { "type": "object" },
+    "integrationSlices": { "type": "object" },
+    "replay": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["runs", "uniqueHashes"],
+      "properties": {
+        "runs": { "type": "integer", "minimum": 0 },
+        "uniqueHashes": { "type": "integer", "minimum": 0 }
+      }
+    },
+    "gates": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "name", "measured", "passed", "detail"],
+        "properties": {
+          "id": { "enum": ["G0", "G1", "G2", "G3", "G4", "G5", "G6", "G7", "G8"] },
+          "name": { "type": "string", "minLength": 1 },
+          "measured": { "type": "boolean" },
+          "passed": { "type": "boolean" },
+          "detail": { "type": "string" }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,36 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v3-scene-state.schema.json",
+  "title": "V3 대표 장면의 상태",
+  "description": "V3 자신을 검증하기 위한 최소 상태 형태다. 세계 상태의 정본은 K0(entity-state)이 정한다 — 여기 있는 것은 시나리오 실행기를 굴려 보기 위한 임시 어휘일 뿐이다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["actor", "log"],
+  "properties": {
+    "actor": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["id", "energy"],
+      "properties": {
+        "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "energy": { "type": "integer", "minimum": 0 },
+        "posture": { "enum": ["idle", "acting", "exhausted"] }
+      }
+    },
+    "log": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "tick", "timeMs", "detail"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "tick": { "type": "integer", "minimum": 0 },
+          "timeMs": { "type": "number", "minimum": 0 },
+          "detail": true
+        }
+      }
+    }
+  }
+}

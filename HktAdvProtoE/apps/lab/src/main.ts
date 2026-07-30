@@ -1,4 +1,5 @@
 import { buildRegistry, sha256Hex, type ScenarioRun } from '@hkt/v0-module-contract';
+import { auditRepository, buildBoard, type EvidenceDocument } from '@hkt/v4-evidence-gate';
 import './style.css';
 
 /**
@@ -20,6 +21,25 @@ const documents = Object.entries(rawContracts)
   .sort((a, b) => (a.path < b.path ? -1 : 1));
 
 const workspaceReport = buildRegistry(documents);
+
+/**
+ * 저장소가 실제로 발급한 증거 — `evidence/latest.json` 을 그대로 읽는다.
+ * 화면이 자기 판정을 만들지 않게, 여기서 읽은 것을 V4 에 넘기고 결과만 그린다.
+ */
+const rawEvidences = import.meta.glob('../../../packages/*/*/evidence/latest.json', {
+  import: 'default',
+  eager: true,
+}) as Record<string, EvidenceDocument>;
+
+const repositoryAudit = auditRepository({
+  contracts: documents,
+  evidences: Object.keys(rawEvidences)
+    .sort()
+    .map((path) => rawEvidences[path] as EvidenceDocument),
+});
+
+// 회귀는 브라우저에서 측정할 수 없다 — 넘기지 않으면 G7 은 미측정으로 남는다.
+const repositoryBoard = buildBoard({ audit: repositoryAudit, requiredSlices: ['VS0'] });
 
 interface LabModule {
   id: string;
@@ -172,19 +192,6 @@ function registryBoard(): HTMLElement {
   wrap.append(section('등록된 모듈', table));
   wrap.append(
     section(
-      '의존성 그래프',
-      rowTable(
-        workspaceReport.registry.modules.map((module) => ({
-          label: module.id,
-          value:
-            (module.dependsOn.length > 0 ? `선행 ${module.dependsOn.join(', ')}` : '선행 없음') +
-            ` · 후행 ${(workspaceReport.registry.dependents[module.id] ?? []).join(', ') || '없음'}`,
-        })),
-      ),
-    ),
-  );
-  wrap.append(
-    section(
       '레지스트리 해시 · 위상 순서',
       rowTable([
         { label: 'registryHash', value: workspaceReport.registry.hash },
@@ -197,8 +204,136 @@ function registryBoard(): HTMLElement {
     for (const issue of workspaceReport.issues) {
       list.append(el('li', undefined, `${issue.path} · ${issue.code} · ${issue.message}`));
     }
-    wrap.append(section('실패한 검증', list));
+    wrap.append(section('등록 거부', list));
   }
+  return wrap;
+}
+
+/**
+ * V 단계 완료 화면 (원문 「8」).
+ *
+ * ```text
+ * /lab
+ *   모든 모듈 상태 · 실패한 검증 · 의존성 그래프 · 최신 코드 해시 · 리플레이 해시 · 자동 검증 결과
+ * ```
+ *
+ * 여섯 구획 모두 **저장소의 실제 파일**에서 나온다 — `MODULE.yaml` 과 `evidence/latest.json` 을 그대로
+ * V4 에 넣고, 화면은 그 결과를 옮겨 그리기만 한다. 화면이 스스로 판정을 만들면 그 화면은 증거가 아니다.
+ */
+function vPhaseBoard(): HTMLElement {
+  const wrap = el('article', 'panel registry');
+  wrap.dataset['testid'] = 'v-phase-board';
+
+  const header = el('header', 'panel-header');
+  header.append(
+    el('h2', undefined, 'V 단계 완료 결과 (저장소의 실제 증거 · V4 감사)'),
+    el(
+      'span',
+      repositoryBoard.completion.complete ? 'badge ok' : 'badge no',
+      repositoryBoard.completion.complete
+        ? '완성 판정 통과'
+        : `미완 · 무효화 ${repositoryAudit.invalidated.length}`,
+    ),
+  );
+  wrap.append(header);
+
+  const part = (name: string, body: HTMLElement | string): void => {
+    const node = section(name, body);
+    node.dataset['section'] = name;
+    wrap.append(node);
+  };
+
+  // ① 모든 모듈 상태
+  const statuses = el('table', 'rows');
+  const statusHead = el('tr');
+  for (const label of ['id', 'name', '버전', '증거에 적힌 상태', '감사 상태', '무효화']) {
+    statusHead.append(el('th', undefined, label));
+  }
+  statuses.append(statusHead);
+  for (const row of repositoryBoard.statuses) {
+    const tr = el('tr');
+    tr.dataset['module'] = row.moduleId;
+    tr.dataset['status'] = row.effectiveStatus;
+    tr.append(
+      el('td', undefined, row.moduleId),
+      el('td', undefined, row.name),
+      el('td', undefined, row.version),
+      el('td', undefined, row.declaredStatus),
+      el('td', undefined, row.effectiveStatus),
+      el('td', undefined, row.invalidated ? '무효' : '-'),
+    );
+    statuses.append(tr);
+  }
+  part('모든 모듈 상태', statuses);
+
+  // ② 실패한 검증 — 막힌 게이트와 감사 사유
+  const failed = el('ul', 'checks');
+  for (const check of repositoryBoard.failedChecks) {
+    const item = el('li', 'no', `✗ ${check.moduleId} · ${check.source} — ${check.detail}`);
+    item.dataset['failedCheck'] = check.moduleId;
+    failed.append(item);
+  }
+  part(
+    '실패한 검증',
+    repositoryBoard.failedChecks.length > 0 ? failed : el('p', undefined, '막힌 게이트 없음'),
+  );
+
+  // ③ 의존성 그래프
+  part(
+    '의존성 그래프',
+    rowTable([
+      { label: '위상 순서', value: workspaceReport.registry.order.join(' → ') },
+      ...repositoryAudit.modules.map((module) => ({
+        label: module.id,
+        value:
+          (module.dependsOn.length > 0 ? `선행 ${module.dependsOn.join(', ')}` : '선행 없음') +
+          ` · 후행 ${module.dependents.length > 0 ? module.dependents.join(', ') : '없음'}`,
+      })),
+    ]),
+  );
+
+  // ④ 최신 코드 해시
+  part(
+    '최신 코드 해시',
+    rowTable(
+      repositoryBoard.hashes.map((row) => ({
+        label: row.moduleId,
+        value: `src ${row.sourceHash ?? '없음'} · 계약 ${row.contractHash}`,
+      })),
+    ),
+  );
+
+  // ⑤ 리플레이 해시
+  part(
+    '리플레이 해시',
+    rowTable(
+      repositoryBoard.replays.map((row) => ({
+        label: row.moduleId,
+        value: `${row.runs}회 재실행 · 결과 해시 ${row.uniqueHashes}종 ${row.consistent ? '✓' : '✗ (GI-12 위반)'}`,
+      })),
+    ),
+  );
+
+  // ⑥ 자동 검증 결과 (원문 「27」 전체 완성 판정)
+  const completion = repositoryBoard.completion;
+  const pending = el('ul', 'reasons');
+  for (const item of completion.pending) pending.append(el('li', undefined, item));
+  const auto = el('div');
+  auto.append(
+    rowTable([
+      { label: 'allModulesVerified', value: String(completion.allModulesVerified) },
+      { label: 'allVerticalSlicesPassed', value: String(completion.allVerticalSlicesPassed) },
+      { label: 'replayMismatches', value: String(completion.replayMismatches) },
+      { label: 'regressionFailures', value: String(completion.regressionFailures ?? '미측정') },
+      { label: 'globalInvariantViolations', value: String(completion.globalInvariantViolations ?? '미측정') },
+      { label: 'complete', value: String(completion.complete) },
+      { label: 'boardHash', value: repositoryBoard.hash },
+    ]),
+    el('h4', undefined, `아직 측정 주체가 없는 지표 ${completion.pending.length}개`),
+    pending,
+  );
+  part('자동 검증 결과', auto);
+
   return wrap;
 }
 
@@ -267,6 +402,7 @@ function render(): void {
   controls.append(summary);
   app!.append(controls);
 
+  app!.append(vPhaseBoard());
   app!.append(registryBoard());
 
   visible.forEach((run, index) => app!.append(scenarioPanel(run, index, runs.length)));

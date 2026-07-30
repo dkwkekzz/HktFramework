@@ -81,6 +81,48 @@ try {
 
   const registryVisible = (await page.$('[data-testid="registry-board"]')) !== null;
 
+  /**
+   * 원문 「8」의 "V 단계 완료 결과" — 브라우저에서 다음 여섯 구획이 **실제로 그려지는지** 본다.
+   * 구획이 있기만 하고 비어 있으면 통과가 아니다. 빈 표를 보여 주는 화면은 증거가 아니다.
+   */
+  const V_PHASE_SECTIONS = [
+    '모든 모듈 상태',
+    '실패한 검증',
+    '의존성 그래프',
+    '최신 코드 해시',
+    '리플레이 해시',
+    '자동 검증 결과',
+  ];
+  const vPhaseBoard = await page.evaluate((names) => {
+    const board = document.querySelector('[data-testid="v-phase-board"]');
+    if (!board) return { present: false, sections: {} };
+    const sections = {};
+    for (const name of names) {
+      const node = board.querySelector(`[data-section="${name}"]`);
+      // 제목(h3)을 뺀 본문에 글자가 남아 있어야 채워진 것으로 본다.
+      const body = node ? (node.textContent ?? '').replace(name, '').trim() : '';
+      sections[name] = { present: node !== null, filled: body.length > 0 };
+    }
+    return {
+      present: true,
+      sections,
+      moduleRows: board.querySelectorAll('[data-module]').length,
+    };
+  }, V_PHASE_SECTIONS);
+
+  const vPhaseComplete =
+    vPhaseBoard.present &&
+    vPhaseBoard.moduleRows > 0 &&
+    V_PHASE_SECTIONS.every(
+      (name) => vPhaseBoard.sections[name]?.present && vPhaseBoard.sections[name]?.filled,
+    );
+  if (!vPhaseComplete) {
+    console.error(
+      '[lab] 원문 「8」의 V 단계 완료 결과 화면이 갖춰지지 않았다: ' +
+        JSON.stringify(vPhaseBoard, null, 2),
+    );
+  }
+
   // 모듈 탭을 하나씩 눌러 각 모듈의 대표 장면을 모두 확인한다.
   const moduleIds = await page.$$eval('[data-testid^="module-tab-"]', (nodes) =>
     nodes.map((node) => node.dataset.testid.replace('module-tab-', '')),
@@ -145,10 +187,13 @@ try {
     allPassed:
       errors.length === 0 &&
       registryVisible &&
+      vPhaseComplete &&
       moduleIds.length > 0 &&
       !missingRequested &&
       (target ? target.allPassed : Object.values(modules).every((module) => module.allPassed)),
     registryVisible,
+    vPhaseBoard,
+    vPhaseComplete,
     consoleErrors: errors,
   };
   writeFileSync(join(OUT_DIR, 'lab-summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');

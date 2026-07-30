@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v4-input.schema.json",
+  "title": "V4 입력",
+  "description": "감사할 계약 문서와 증거 문서. 증거의 형식은 v4-evidence.schema.json 이 따로 강제한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["contracts", "evidences"],
+  "properties": {
+    "contracts": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "text"],
+        "properties": {
+          "path": { "type": "string", "minLength": 1 },
+          "text": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "evidences": { "type": "array", "items": { "type": "object" } },
+    "regressionFailures": { "type": "integer", "minimum": 0 },
+    "requiredSlices": { "type": "array", "items": { "type": "string", "minLength": 1 } }
+  }
+}
