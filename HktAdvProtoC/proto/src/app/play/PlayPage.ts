@@ -99,6 +99,19 @@ export class PlayPage {
       .join(" ");
   }
 
+  /** 카드 안에서 펼치는 모듈별 처리 기록 — 클릭이 세계 시작으로 새지 않게 카드와 분리한다 */
+  private stageDetails(stages: WorldPackageStageBadge[]): string {
+    if (stages.length === 0) return "";
+    const rows = stages
+      .map(
+        (stage) =>
+          `${stage.ok ? "✓" : "✗"} ${escapeHtml(stage.id)} ${escapeHtml(stage.title)} — ${escapeHtml(stage.evidence)}\n` +
+          (stage.details ?? []).map((line) => `    ${escapeHtml(line)}`).join("\n"),
+      )
+      .join("\n");
+    return `<details class="play-pipeline"><summary>§3 모듈 1~6 처리 기록 펼치기</summary><pre>${rows}</pre></details>`;
+  }
+
   private renderWorldList(): void {
     const stored = this.library.list();
     const rows = [
@@ -109,6 +122,7 @@ export class PlayPage {
           `<div class="play-card" data-world="${escapeHtml(entry.id)}"><b>${escapeHtml(entry.label)}</b>` +
           `<small>${escapeHtml(entry.worldId)} · 보관 ${escapeHtml(entry.savedAt.slice(0, 19).replace("T", " "))}</small>` +
           `<small class="play-stages">${this.stageLine(entry.stages ?? [])}</small>` +
+          this.stageDetails(entry.stages ?? []) +
           `<button class="play-remove" data-remove="${escapeHtml(entry.id)}">삭제</button></div>`,
       ),
     ].join("");
@@ -133,6 +147,10 @@ export class PlayPage {
         this.library.remove(id);
         this.renderWorldList();
       });
+    }
+    // 처리 기록을 펼치는 클릭은 세계 시작이 아니다
+    for (const pipeline of this.worldsView.querySelectorAll<HTMLElement>(".play-pipeline")) {
+      pipeline.addEventListener("click", (event) => event.stopPropagation());
     }
   }
 

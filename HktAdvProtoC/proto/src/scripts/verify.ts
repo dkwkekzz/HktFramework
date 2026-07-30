@@ -68,6 +68,7 @@ import {
   measureRunContract,
   measureTravelContract,
 } from "../core/simulation/phase9Checks";
+import { buildWorldPackage } from "../core/simulation/WorldPackager";
 import { PLAYER_MOVE_SPEED } from "../core/agents/PlayerMovement";
 import { buildManualWorld } from "../content/manual-world";
 import { RESIDUE_RIDGE, buildPlayerWorld } from "../content/player-world";
@@ -1452,6 +1453,29 @@ check(
   pkg.stages.map((stage) => `\n      ${stage.ok ? "✓" : "✗"} ${stage.id} ${stage.title} — ${stage.evidence}`).join("") +
     `\n      로드: 개체 ${pkg.entityCount} · tick ${pkg.tick} · 해시 ${pkg.bakedHash} = ${pkg.loadedHash} (재가공 0)` +
     `\n      변조 패키지 거부 — "${pkg.tamperMessage}"`,
+);
+
+// --- DoD 1b : 각 모듈이 "확인"이 아니라 **실질 처리 기록**을 남긴다 -----------------------
+// 3단계는 §34 검사기의 개별 판정을, 6단계는 실제 해석기(§33.3)의 산문을, 2단계는 출처(컴파일/우회)를 명시한다.
+const generatedPackage = buildWorldPackage(compiled.definition, {
+  compileTrace: compiled.steps.map(
+    (step) => `${String(step.index).padStart(2)}. [${step.status}] ${step.title} — ${step.summary}`,
+  ),
+});
+const generatedCompileStage = generatedPackage.stages.find((stage) => stage.id === "2.compile");
+const generatedSeedStage = generatedPackage.stages.find((stage) => stage.id === "1.seed");
+check(
+  pkg.allStagesHaveDetails &&
+    pkg.validatorLineCount >= 21 &&
+    pkg.interpreterIsProse &&
+    pkg.compileProvenanceStated &&
+    (generatedCompileStage?.details.length ?? 0) === 15 &&
+    (generatedSeedStage?.details.some((line) => line.startsWith("주제:")) ?? false),
+  "§3 모듈별 실질 처리 — 검사기 개별 판정·해석기 산문·컴파일 출처가 단계 기록(details)으로 남는다",
+  `모든 단계 details 보유 ${pkg.allStagesHaveDetails ? "✓" : "✗"} · 3.validate 판정 줄 ${pkg.validatorLineCount}줄(§34 스키마+의미 19종+로드 계약)\n` +
+    `      6.interpret 산문 ${pkg.interpreterSentences.length}건 — ${pkg.interpreterSentences[0] ?? "(없음)"}\n` +
+    `      2.compile 출처 명시 ${pkg.compileProvenanceStated ? "✓" : "✗"} (수동 세계 — "${pkg.stages.find((s) => s.id === "2.compile")?.evidence.slice(0, 60) ?? ""}…")\n` +
+    `      생성 세계 패키지 — 1.seed 에 입력 원문(주제 문장), 2.compile 에 §5 실행 기록 ${generatedCompileStage?.details.length ?? 0}단계 동봉`,
 );
 
 // --- DoD 2 : player_move 결정론 + 경계 클램프 -------------------------------------------

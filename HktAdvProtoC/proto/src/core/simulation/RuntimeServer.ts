@@ -317,7 +317,14 @@ export class RuntimeServer {
     } catch (error) {
       return [{ type: "error", message: error instanceof Error ? error.message : String(error) }];
     }
-    const build = buildWorldPackage(def);
+    // 2단계의 실제 실행 기록 — 생성 세계는 §5 컴파일 StepReport 를 문장으로 옮겨 싣는다 (§3 모듈 2)
+    const compileTrace =
+      kind === "generated" && this.generated !== undefined
+        ? this.generated.steps.map(
+            (step) => `${String(step.index).padStart(2)}. [${step.status}] ${step.title} — ${step.summary}`,
+          )
+        : undefined;
+    const build = buildWorldPackage(def, compileTrace === undefined ? {} : { compileTrace });
     if (!build.ok || build.document === undefined) {
       const failed = build.stages.find((stage) => !stage.ok);
       return [

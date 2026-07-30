@@ -41,6 +41,20 @@
                        → 4단계 스냅샷을 fromSnapshot 으로 **그대로 복원** (재배치 없음)
 ```
 
+### §3 일곱 모듈 ↔ 코드 — 분리의 단일 출처
+
+| §3 모듈 | 실제 처리 코드 | 패키지 단계 기록(details)에 남는 것 |
+|---|---|---|
+| 1. World Seed Editor | `app/WorldSeedPage`(§36.1 입력) → `metadata.seedInput`(G-11) | 입력 원문 문장들 (제목·주제·경험·제외) |
+| 2. World Compiler | `generation/CompilerPipeline`(§5 15단계) — 수동 세계는 우회 | §5 단계별 실행 기록, 또는 "컴파일 우회" 명시 + 산출 수 |
+| 3. World Validator | `generation/WorldValidator.validateWorld`(§34 스키마+의미 19종) + `core/world/WorldValidation`(로드 계약) | 검사기 **개별 판정** ✓/✗ · evidence · 검사 대상 수 |
+| 4. World Bootstrapper | `core/world/WorldBootstrap` → `RuntimeSnapshot`(§39) | 유형별 배치 수 · 주체 런타임 수 · 예약 이벤트 수 |
+| 5. Simulation Runtime | `core/simulation`(SimulationLoop·WorldSystems) — 사전 실행 2일 | 일자별 change·새 사건 관측 |
+| 6. Event Interpreter | `presentation/EventInterpreter` + `viewmodel/NarrationBuilder`(§33.3) | 상위 사건의 실제 산문 「제목」—요약 |
+| 7. Web Viewer(플레이) | `app/play/PlayPage` + `rendering/PlaySceneRenderer` | (처리 없음 — 4단계 스냅샷을 해시 동일하게 복원) |
+
+단계 기록은 **화면에서 펼쳐진다**: 스튜디오 보관 시 `#package-report` 가 모듈별로 접이식 표시, 플레이 세계 카드도 "§3 모듈 1~6 처리 기록 펼치기"를 갖는다. verify DoD 1b 가 기록의 실질(검사기 개별 판정 ≥21줄 · 해석기 산문 · 컴파일 출처 명시 · 생성 세계 15단계 동봉)을 상시 판정한다.
+
 - **패키지 형태**: `hktadvc.world.2` 문서를 JSON.stringify 한 **불투명 문자열**.
   화면(app)은 이 문자열을 해석하지 않는다 — 분해 원칙 5(화면은 core/content/generation import 금지)가 그대로 성립한다.
   만드는 쪽(WorldPackager)과 읽는 쪽(RuntimeServer.initialize)만 내용을 안다. 단계 보고(`stages`)만 표시 속성으로 따로 실린다.

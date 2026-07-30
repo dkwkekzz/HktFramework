@@ -586,5 +586,60 @@
     "derivedFromAxioms": [
       "axiom.creatures_absorb_ability_residue"
     ]
+  },
+  {
+    "id": "rule.residue_reading_backlash",
+    "name": "잔재 읽기 — 힘이 빈 채 읽으면 읽은 것이 자신을 흔든다",
+    "tags": [
+      "ability",
+      "backlash"
+    ],
+    "scope": "entity",
+    "priority": 40,
+    "triggers": [
+      {
+        "type": "action_executed",
+        "actionId": "action.observe"
+      }
+    ],
+    "conditions": [
+      {
+        "left": {
+          "type": "entity_ref",
+          "of": "actor"
+        },
+        "operator": "==",
+        "right": {
+          "type": "constant",
+          "value": "agent.rion"
+        }
+      },
+      {
+        "left": {
+          "type": "actor_state",
+          "key": "energy"
+        },
+        "operator": "<",
+        "right": {
+          "type": "constant",
+          "value": 10
+        }
+      }
+    ],
+    "effects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 8
+      }
+    ],
+    "observations": [],
+    "derivedFromAxioms": [
+      "axiom.creatures_absorb_ability_residue"
+    ]
   }
 ]

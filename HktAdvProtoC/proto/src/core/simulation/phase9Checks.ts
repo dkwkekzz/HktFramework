@@ -35,10 +35,34 @@ export interface PackagePipelineReport {
   tick: number;
   tamperRejected: boolean;
   tamperMessage: string;
+  /** 모듈별 실질 처리의 증거 — 단계마다 입력→출력 기록이 실제로 남았는가 */
+  allStagesHaveDetails: boolean;
+  /** 3단계 details 에 실린 §34 검사기 개별 판정 줄 수 (스키마 층 + 의미 19종 + 로드 계약 ≥ 21) */
+  validatorLineCount: number;
+  /** 6단계가 실제 해석기 문장을 남겼는가 — ID 가 아니라 사람이 읽는 「제목」—요약 */
+  interpreterSentences: string[];
+  interpreterIsProse: boolean;
+  /** 2단계가 컴파일 실행 기록 또는 우회 사실을 명시했는가 */
+  compileProvenanceStated: boolean;
 }
 
 export async function measurePackagePipeline(worldSeed: number): Promise<PackagePipelineReport> {
   const build = buildWorldPackage(buildPlayerWorld(worldSeed));
+  const validateStage = build.stages.find((stage) => stage.id === "3.validate");
+  const interpretStage = build.stages.find((stage) => stage.id === "6.interpret");
+  const compileStage = build.stages.find((stage) => stage.id === "2.compile");
+  const substance = {
+    allStagesHaveDetails: build.stages.length > 0 && build.stages.every((stage) => stage.details.length > 0),
+    validatorLineCount: (validateStage?.details ?? []).filter((line) => line.startsWith("✓") || line.startsWith("✗")).length,
+    interpreterSentences: interpretStage?.details ?? [],
+    // 실제 해석기 문장인가 — 「제목」—요약 꼴이고 공백을 가진 산문이다 (요약기의 ID 형 제목이 아니다)
+    interpreterIsProse:
+      (interpretStage?.details ?? []).length > 0 &&
+      (interpretStage?.details ?? []).every((line) => line.startsWith("「") && line.includes(" ")),
+    compileProvenanceStated:
+      compileStage !== undefined &&
+      (compileStage.evidence.includes("컴파일 우회") || compileStage.evidence.includes("실행 기록 동봉")),
+  };
   if (build.document === undefined) {
     return {
       stages: build.stages,
@@ -50,6 +74,7 @@ export async function measurePackagePipeline(worldSeed: number): Promise<Package
       tick: -1,
       tamperRejected: false,
       tamperMessage: "패키지가 만들어지지 않음",
+      ...substance,
     };
   }
 
@@ -79,6 +104,7 @@ export async function measurePackagePipeline(worldSeed: number): Promise<Package
     tick: runtime.state.simulationTime,
     tamperRejected: error !== undefined && tamperMessage.includes("형식"),
     tamperMessage,
+    ...substance,
   };
 }
 

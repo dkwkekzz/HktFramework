@@ -49,16 +49,21 @@ export class WorldSeedPage {
     });
   }
 
-  /** 패키지 빌드 보고 (§3 모듈 1~6) — ✓/✗ 와 수치 근거를 그대로 보여 준다 */
+  /**
+   * 패키지 빌드 보고 (§3 모듈 1~6) — 단계마다 ✓/✗ · 수치 근거, 펼치면 그 모듈이
+   * 실제로 처리한 입력→출력 기록(details)이 줄 단위로 보인다.
+   */
   showPackageReport(stages: WorldPackageStageBadge[], savedLabel: string | undefined): void {
     const rows = stages
       .map(
         (stage) =>
-          `<div class="${stage.ok ? "" : "fail"}">${stage.ok ? "✓" : "✗"} ${escapeHtml(stage.id)} ` +
-          `${escapeHtml(stage.title)} — ${escapeHtml(stage.evidence)}</div>`,
+          `<details class="${stage.ok ? "" : "fail"}" ${stage.ok ? "" : "open"}>` +
+          `<summary>${stage.ok ? "✓" : "✗"} <b>${escapeHtml(stage.id)}</b> ${escapeHtml(stage.title)} — ${escapeHtml(stage.evidence)}</summary>` +
+          `<pre>${escapeHtml((stage.details ?? []).join("\n") || "(기록 없음)")}</pre></details>`,
       )
       .join("");
     this.packageView.innerHTML =
+      `<div><b>§3 모듈 1~6 처리 기록</b> — 각 줄을 펼치면 그 모듈의 입력→출력이 보인다</div>` +
       rows +
       (savedLabel === undefined
         ? `<div class="fail">보관 실패 — 브라우저 저장소에 쓸 수 없다</div>`

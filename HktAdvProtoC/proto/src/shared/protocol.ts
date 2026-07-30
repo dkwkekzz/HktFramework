@@ -36,6 +36,12 @@ export interface WorldPackageStageBadge {
   title: string;
   ok: boolean;
   evidence: string;
+  /**
+   * 이 모듈이 실제로 처리한 입력→출력의 줄 단위 기록 — 화면이 펼쳐 보여 준다.
+   * 1=입력 문장들 · 2=§5 컴파일 단계 기록(또는 우회 명시) · 3=§34 검사기 개별 판정 ·
+   * 4=배치 내역 · 5=사전 실행 일자별 관측 · 6=Event Interpreter 가 만든 실제 문장.
+   */
+  details: string[];
 }
 
 /**

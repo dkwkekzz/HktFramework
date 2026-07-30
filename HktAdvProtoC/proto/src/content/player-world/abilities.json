@@ -177,7 +177,8 @@
       "action.observe"
     ],
     "ruleIds": [
-      "rule.researcher_insight"
+      "rule.researcher_insight",
+      "rule.residue_reading_backlash"
     ],
     "derivedFrom": {
       "coreDesire": "왜 그런지 알고 싶다",
