@@ -422,6 +422,95 @@ const resume = { ok: false, evidence: "" };
   }
 }
 
+// ⓕ 남의 '지금 하는 것'이 관찰을 지나는가 (M4) — 같은 마커를 두 시점에서 보고 값이 같은지 본다.
+// 플레이어 시점의 배지가 개발자 시점과 한 글자도 다르지 않다면, 그 표시는 §23 관찰을 지나지 않은 것이다.
+const filterProbe = { same: 0, total: 0, sample: "" };
+{
+  const playerScene = scene();
+  const others = playerScene.map.markers.filter((marker) => marker.id !== playerId);
+  await send({ type: "set_view", mode: "developer" });
+  const developerScene = scene();
+  for (const marker of others) {
+    const twin = developerScene.map.markers.find((entry) => entry.id === marker.id);
+    if (twin === undefined) continue;
+    filterProbe.total += 1;
+    const asPlayer = marker.badges.map((badge) => `${badge.key}=${badge.value}`).join(",");
+    const asDeveloper = twin.badges.map((badge) => `${badge.key}=${badge.value}`).join(",");
+    if (asPlayer === asDeveloper) filterProbe.same += 1;
+    if (filterProbe.sample === "") filterProbe.sample = `${marker.label} — 플레이어 시점 [${asPlayer}] / 개발자 시점 [${asDeveloper}]`;
+  }
+}
+
+// ⓖ 목적 트리 → 지금 하는 것 (M4 정합) — 개발자 시점에서 각 주체의 목적 그래프와 현재 행동을 나란히 본다.
+// "누군가 무엇을 하고 있다"가 연출이 아니라 **그 주체의 목적에서 나온 것**인지 확인하는 자리다.
+interface GoalTreeRow {
+  label: string;
+  activeGoal: string;
+  activation: number;
+  rank: number;
+  nodes: number;
+  breakdown: number;
+  top: string;
+  doing: string;
+  progress: string;
+}
+const goalRows: GoalTreeRow[] = [];
+{
+  const choices = scene().agentChoices.filter((choice) => choice.id !== playerId).slice(0, 5);
+  for (const choice of choices) {
+    await send({ type: "set_view", agentId: choice.id });
+    const panel = scene().agentPanel;
+    if (panel === undefined) continue;
+    const ranked = [...panel.goalGraph].sort((a, b) => b.activation - a.activation);
+    const activeGoalId = panel.activeGoal?.id ?? "";
+    goalRows.push({
+      label: panel.label,
+      activeGoal: activeGoalId === "" ? "—" : activeGoalId.replace("goal.", ""),
+      activation: panel.activeGoal?.activation ?? 0,
+      rank: ranked.findIndex((node) => node.id === activeGoalId) + 1,
+      nodes: panel.goalGraph.length,
+      breakdown: ranked[0]?.breakdown.length ?? 0,
+      top: ranked
+        .slice(0, 3)
+        .map((node) => `${node.id.replace("goal.", "")}(${node.activation.toFixed(0)})`)
+        .join(" · "),
+      doing: panel.currentAction === undefined ? "—" : `${panel.currentAction.label}→${panel.currentAction.targets || "-"}`,
+      progress: panel.currentAction === undefined ? "" : `${Math.round(panel.currentAction.progress * 100)}%`,
+    });
+  }
+}
+const goalAligned = goalRows.filter((row) => row.rank >= 1 && row.rank <= 3).length;
+
+// ⓗ 주체들이 목적을 갖고 사는가 (M11) — 하루를 2시간 간격으로 전 주체의 활성 목적을 센다.
+// "목적 없음"(활성 목적이 비었거나 goal.idle)이 많으면, 목적 트리는 있어도 세계가 그것으로 굴러가지 않는 것이다.
+const drive = { samples: 0, rows: [] as { label: string; withGoal: number; total: number; goals: Set<string> }[] };
+{
+  await send({ type: "set_view", mode: "developer" });
+  const choices = scene().agentChoices;
+  const tally = new Map<string, { label: string; withGoal: number; total: number; goals: Set<string> }>();
+  for (let hour = 0; hour < 24; hour += 2) {
+    await send({ type: "advance_time", amount: 2 * TICKS_PER_HOUR });
+    drive.samples += 1;
+    for (const choice of choices) {
+      await send({ type: "set_view", agentId: choice.id });
+      const panel = scene().agentPanel;
+      if (panel === undefined) continue;
+      const entry = tally.get(choice.id) ?? { label: choice.label, withGoal: 0, total: 0, goals: new Set<string>() };
+      entry.total += 1;
+      const goalId = panel.activeGoal?.id ?? "";
+      if (goalId !== "" && goalId !== "goal.idle") {
+        entry.withGoal += 1;
+        entry.goals.add(goalId);
+      }
+      tally.set(choice.id, entry);
+    }
+  }
+  drive.rows = [...tally.values()].sort((a, b) => a.withGoal / Math.max(1, a.total) - b.withGoal / Math.max(1, b.total));
+}
+const driveRatio = (row: { withGoal: number; total: number }): number => row.withGoal / Math.max(1, row.total);
+const driveOk = drive.rows.filter((row) => driveRatio(row) >= 0.8).length;
+const driveGoals = new Set(drive.rows.flatMap((row) => [...row.goals]));
+
 // ⓔ 지역 표시 사각형의 종횡비 — 화면(M5)이 세계의 모양을 지키는가
 const aspect = final.map.regions.map((region) => {
   const shown = region.rect.w / Math.max(1e-6, region.rect.h);
@@ -436,6 +525,22 @@ console.log(`   ⓑ 건너는 중 행동 1회:     ${probe.travelWithAction}`);
 console.log(`   ⓒ 행동에 의한 이동:       ${probe.moveTrail}`);
 console.log(`   ⓓ 플레이 중 이어하기:     ${resume.evidence}`);
 console.log(`   ⓐ-2 건너는 중 화면:      ${probe.travelShown}`);
+console.log(`   ⓕ 남의 상태 표시:        같은 값 ${filterProbe.same}/${filterProbe.total} — ${filterProbe.sample}`);
+console.log(`   ⓖ 목적 트리 → 지금 하는 것 (개발자 시점 · 주체 ${goalRows.length}명)`);
+console.log(`        주체        | 활성 목적(활성도·순위)        | 목적 그래프 상위 3                          | 지금 하는 것`);
+for (const row of goalRows) {
+  console.log(
+    `        ${row.label.padEnd(11)}| ${`${row.activeGoal}(${row.activation.toFixed(0)}·${row.rank}위/${row.nodes})`.padEnd(30)}| ` +
+      `${row.top.padEnd(44)}| ${row.doing} ${row.progress}`,
+  );
+}
+console.log(`   ⓗ 목적을 갖고 사는가 (하루 · 2시간 간격 ${drive.samples}표본 · 개발자 시점)`);
+for (const row of drive.rows) {
+  console.log(
+    `        ${row.label.padEnd(11)}| 활성 목적 ${String(row.withGoal).padStart(2)}/${row.total} (${(driveRatio(row) * 100).toFixed(0)}%)` +
+      ` · 서로 다른 목적 ${row.goals.size}종 ${[...row.goals].map((goal) => goal.replace("goal.", "")).slice(0, 3).join(" · ")}`,
+  );
+}
 console.log(
   `   ⓔ 지역 종횡비:           ${aspect
     .map((entry) => `${entry.id.replace("region.", "")} 표시 ${entry.shown.toFixed(2)} vs 실제 ${entry.real.toFixed(2)}`)
@@ -558,7 +663,7 @@ const modules: PlayModule[] = [
   {
     id: "M4",
     name: "군중",
-    purpose: "한 화면에 여러 타인이 있고, 그들이 스스로 걷고 무언가 하고 있다",
+    purpose: "한 화면에 여러 타인이 있고, 각자 자기 목적 트리에 따라 무언가 하는 것이 보인다",
     gates: [
       {
         name: "한 화면에 여러 사람이 보인다 (평균 4명 이상)",
@@ -571,9 +676,47 @@ const modules: PlayModule[] = [
         evidence: `이웃 ${observed.neighborMovers.size}명이 ${observed.neighborMoves}회 · 표본의 ${(neighborMoveRatio * 100).toFixed(0)}%`,
       },
       {
-        name: "타인이 무엇을 하는 중인지 보인다",
+        name: "타인의 '지금 하는 것'이 화면 재료에 실린다",
         ok: observed.neighborActions.size >= 3,
-        evidence: `${observed.neighborActions.size}종 — ${[...observed.neighborActions].slice(0, 3).join(" · ") || "없음"}`,
+        evidence: `${observed.neighborActions.size}종 (마커 배지 current_action) — ${[...observed.neighborActions].slice(0, 2).join(" · ") || "없음"}`,
+      },
+      {
+        name: "그 표시에 진행 정도와 대상이 실린다 (캐스팅 바의 재료)",
+        // 진행률·대상은 §36.3 주체 패널에만 있다 — 마커에는 없어서 화면이 그릴 수 없다
+        ok: final.map.markers.some((marker) => marker.badges.some((badge) => /progress|until|target/.test(badge.key))),
+        evidence: `마커가 가진 배지 키: ${[...new Set(final.map.markers.flatMap((m) => m.badges.map((b) => b.key)))].join(", ") || "없음"} (진행률·대상 없음)`,
+      },
+      {
+        name: "그 표시가 관찰을 지난 값이다 (§23 — 실제 상태를 그대로 싣지 않는다)",
+        ok: filterProbe.total > 0 && filterProbe.same < filterProbe.total,
+        evidence: `탐침 ⓕ 플레이어 시점 = 개발자 시점 ${filterProbe.same}/${filterProbe.total} · ${filterProbe.sample}`,
+      },
+    ],
+  },
+  {
+    id: "M11",
+    name: "목적구동",
+    purpose: "타인이 연출이 아니라 각자의 목적 트리(§19·§20)에 따라 살아 있다 — M4 가 보여 줄 '무엇'의 근거",
+    gates: [
+      {
+        name: "지금 하는 것이 그의 활성 목적에서 나온다 (활성 목적이 그래프 상위 3 안)",
+        ok: goalRows.length > 0 && goalAligned === goalRows.length,
+        evidence: `탐침 ⓖ ${goalAligned}/${goalRows.length}명 정합 · 목적 그래프 최대 ${Math.max(0, ...goalRows.map((row) => row.nodes))}노드 · 활성도 근거 ${Math.max(0, ...goalRows.map((row) => row.breakdown))}항 (§20)`,
+      },
+      {
+        name: "모든 주체가 목적을 갖고 산다 (활성 목적 표본 80% 이상)",
+        ok: drive.rows.length > 0 && driveOk === drive.rows.length,
+        evidence:
+          `탐침 ⓗ ${driveOk}/${drive.rows.length}명 통과 · 최저 ` +
+          drive.rows
+            .slice(0, 2)
+            .map((row) => `${row.label} ${(driveRatio(row) * 100).toFixed(0)}%`)
+            .join(" · "),
+      },
+      {
+        name: "세계의 목적이 여럿이다 (관측된 서로 다른 활성 목적 ≥ 주체 수)",
+        ok: driveGoals.size >= drive.rows.length,
+        evidence: `서로 다른 활성 목적 ${driveGoals.size}종 / 주체 ${drive.rows.length}명 — ${[...driveGoals].slice(0, 4).map((goal) => goal.replace("goal.", "")).join(" · ")}`,
       },
     ],
   },
