@@ -30,7 +30,7 @@
     "registration_order_does_not_matter": "passed"
   },
   "replay": {
-    "runs": 100,
+    "runs": 20,
     "uniqueHashes": 1
   },
   "integrationSlices": {

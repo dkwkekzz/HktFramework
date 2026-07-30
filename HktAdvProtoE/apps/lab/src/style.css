@@ -75,6 +75,11 @@ button:hover {
   border-color: var(--muted);
 }
 
+button.tab.active {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
 .badge {
   border-radius: 999px;
   padding: 2px 10px;

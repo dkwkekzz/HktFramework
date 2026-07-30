@@ -8,6 +8,7 @@
     "build": "vite build"
   },
   "dependencies": {
-    "@hkt/v0-module-contract": "workspace:*"
+    "@hkt/v0-module-contract": "workspace:*",
+    "@hkt/v1-schema": "workspace:*"
   }
 }

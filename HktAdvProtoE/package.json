@@ -5,7 +5,7 @@
   "type": "module",
   "description": "목적 트리 기반 오픈월드 어드벤처 프로토타입 — 검증 우선 모노레포",
   "scripts": {
-    "typecheck": "tsc -p packages/verification/V0-module-contract/tsconfig.json && tsc -p apps/lab/tsconfig.json",
+    "typecheck": "node tools/typecheck.mjs",
     "test": "vitest run",
     "lab": "vite --config apps/lab/vite.config.ts",
     "lab:build": "vite build --config apps/lab/vite.config.ts",

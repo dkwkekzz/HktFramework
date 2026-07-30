@@ -4,7 +4,8 @@
 
 ## 구현 현황 (핵심)
 
-설계 문서 작성 완료. 모노레포 스캐폴드와 **V0** 구현 완료 (상세: [progress/01-scaffold-and-V0.md](progress/01-scaffold-and-V0.md)).
+설계 문서 작성 완료. 모노레포 스캐폴드와 **V0·V1** 구현 완료
+(상세: [progress/01-scaffold-and-V0.md](progress/01-scaffold-and-V0.md) · [progress/02-V1-schema.md](progress/02-V1-schema.md)).
 
 | 문서 | 상태 |
 |---|---|
@@ -14,35 +15,37 @@
 
 | 코드 | 상태 |
 |---|---|
-| 모노레포 스캐폴드 (pnpm workspace · Vite · `apps/lab` · `tools/verify.mjs`) | 완료 |
+| 모노레포 스캐폴드 (pnpm workspace · Vite · `apps/lab` · `tools/{verify,lab-shot,typecheck}.mjs`) | 완료 |
 | `packages/verification/V0-module-contract` | `LAB_PASS` (증거: [evidence/latest.json](packages/verification/V0-module-contract/evidence/latest.json)) |
+| `packages/verification/V1-schema` | `LAB_PASS` (증거: [evidence/latest.json](packages/verification/V1-schema/evidence/latest.json)) |
 
 실행 명령:
 
 ```bash
 pnpm install
 pnpm run typecheck          # 타입 검사
-pnpm test                   # 단위 55 · 속성 7×1000 · 통합 13
-pnpm lab                    # 브라우저 Lab (원문 「24」 공통 화면)
+pnpm test                   # 단위 143 · 속성 16×1000 · 통합 32 (V0+V1)
+pnpm lab                    # 브라우저 Lab (원문 「24」 공통 화면 · 모듈 탭)
 pnpm verify V0 --lab        # 증거 발급 → evidence/latest.json
+pnpm verify V1 --lab
 ```
 
-다음 작업: **V1 (schema)** — [40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜대로 진행한다.
+다음 작업: **V2 (determinism)** — [40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜대로 진행한다.
 
 ## 모듈 상태 보드 (52개)
 
 상태 정의는 [00-Module-Contract.md](design/modules/00-Module-Contract.md) 4절 참조.
 `BLOCKED` = 선행 미검증 · `SPECIFIED` = 계약 작성 완료 · `LAB_PASS` = 브라우저 대표 장면 확인 · `VERIFIED` = 증거 저장 완료.
 
-V0 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
+V0·V1 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
 
-V0 은 `LAB_PASS` 다. `VERIFIED` 로 올리지 않은 이유는 G6 통합 게이트 — V0 이 포함된 VS0 이 K0~K3 을 함께 요구하기 때문이다
-(원문 「23」: 증거 없이 `VERIFIED` 표시 금지). V1 은 선행 V0 이 아직 `VERIFIED` 가 아니지만, 원문 「28」의 고정 순서(V0~V4 → K0~K3 → VS0)에
+V0·V1 은 `LAB_PASS` 다. `VERIFIED` 로 올리지 않은 이유는 G6 통합 게이트 — 두 모듈이 포함된 VS0 이 K0~K3 을 함께 요구하기 때문이다
+(원문 「23」: 증거 없이 `VERIFIED` 표시 금지). 후속 V 모듈은 선행이 아직 `VERIFIED` 가 아니지만, 원문 「28」의 고정 순서(V0~V4 → K0~K3 → VS0)에
 따라 V 페이즈를 먼저 마치고 VS0 에서 V0~V4 와 K0~K3 을 함께 승격시킨다.
 
 | 페이즈 | 모듈 | 상태 | 문서 |
 |---|---|---|---|
-| V 검증 기반 | **V0** V1 V2 V3 V4 | V0 = LAB_PASS · V1~V4 = BLOCKED (V1 착수 가능) | [10](design/modules/10-Phase-V-Verification.md) |
+| V 검증 기반 | **V0 V1** V2 V3 V4 | V0·V1 = LAB_PASS · V2~V4 = BLOCKED (V2 착수 가능) | [10](design/modules/10-Phase-V-Verification.md) |
 | K 세계 커널 | K0 K1 K2 K3 | BLOCKED | [11](design/modules/11-Phase-K-Kernel.md) |
 | S 공간·상태 | S0 S1 S2 S3 | BLOCKED | [12](design/modules/12-Phase-S-World-State.md) |
 | U 주체 인지 | U0 U1 U2 U3 | BLOCKED | [13](design/modules/13-Phase-U-Subject.md) |
@@ -73,7 +76,7 @@ VS0  VS1  VS2  VS3  VS4  VS5  VS6  VS7  VS8  VS9  VS10  VS11
 
 - [x] 모노레포 스캐폴드 (pnpm workspace, Vite, `apps/lab`) — [50-Project-Layout.md](design/modules/50-Project-Layout.md)
 - [x] V0 module-contract — `LAB_PASS` (VS0 통과 시 `VERIFIED` 승격)
-- [ ] V1 schema
+- [x] V1 schema — `LAB_PASS` (VS0 통과 시 `VERIFIED` 승격)
 - [ ] V2 determinism
 - [ ] V3 scenario-runner
 - [ ] V4 evidence-gate

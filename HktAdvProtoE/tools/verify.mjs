@@ -50,7 +50,8 @@ const evidence = {
   propertyTests: tests.property,
   integrationTests: tests.integration,
   labScenarios: lab.skipped ? { note: '--lab 미실행' } : lab.scenarios,
-  replay: tests.replay,
+  // 리플레이 수치는 브라우저에서 대표 장면을 다시 실행해 얻는다 (tools/lab-shot.mjs).
+  replay: lab.skipped ? { note: '--lab 미실행' } : (lab.replay ?? { note: 'lab 요약에 replay 없음' }),
   integrationSlices: { VS0: 'pending — K0~K3 미구현 (원문 「20」 VS0)' },
   status: deriveStatus({ staticCheck, tests, lab }),
   producedBy: 'tools/verify.mjs (V4 미구현 동안의 임시 발급기)',
@@ -132,11 +133,17 @@ function runTests() {
     }
   }
 
-  // 속성 테스트의 표본 수는 fast-check 실행 설정(numRuns)에서 가져온다.
-  const propertyFile = join(packageDir, 'tests', 'property', 'registry.property.test.ts');
-  if (existsSync(propertyFile)) {
-    const numRuns = /numRuns:\s*(\d+)/.exec(readFileSync(propertyFile, 'utf8'))?.[1];
-    replaySeeds = numRuns ? Number(numRuns) : 0;
+  // 속성 테스트의 표본 수는 각 속성 테스트 파일의 fast-check 실행 설정(numRuns)에서 읽는다.
+  // 파일마다 다르면 가장 작은 값을 쓴다 — 표본 수를 부풀리지 않는다.
+  const propertyDir = join(packageDir, 'tests', 'property');
+  if (existsSync(propertyDir)) {
+    const numRuns = readdirSync(propertyDir)
+      .filter((name) => name.endsWith('.test.ts'))
+      .flatMap((name) => {
+        const text = readFileSync(join(propertyDir, name), 'utf8');
+        return [...text.matchAll(/numRuns:\s*(\d+)/g)].map((match) => Number(match[1]));
+      });
+    replaySeeds = numRuns.length > 0 ? Math.min(...numRuns) : 0;
   }
 
   return {
@@ -148,19 +155,22 @@ function runTests() {
       invariantViolations: buckets.property.failed,
       passed: buckets.property.passed,
     },
-    // 결정성: 같은 입력 100회 등록에서 해시가 하나임을 시나리오/단위 테스트가 확인한다.
-    replay: { runs: 100, uniqueHashes: result.passed ? 1 : null },
   };
 }
 
 /** 브라우저에서 Lab 을 실제로 띄워 시나리오 판정을 읽고 스크린샷을 남긴다. */
 function runLab() {
-  const result = run('Lab', 'node', ['tools/lab-shot.mjs']);
-  if (!result.passed) return { scenarios: { error: 'lab 실행 실패' }, passed: false };
+  const result = run('Lab', 'node', ['tools/lab-shot.mjs', moduleId]);
+  if (!result.passed) return { scenarios: { error: 'lab 실행 실패' }, passed: false, replay: null };
   const summaryPath = join(ROOT, 'node_modules', '.hkt', 'lab-summary.json');
-  if (!existsSync(summaryPath)) return { scenarios: { error: 'lab 요약 없음' }, passed: false };
+  if (!existsSync(summaryPath)) return { scenarios: { error: 'lab 요약 없음' }, passed: false, replay: null };
   const summary = JSON.parse(readFileSync(summaryPath, 'utf8'));
-  return { scenarios: summary.scenarios, passed: summary.allPassed, screenshot: summary.screenshot };
+  return {
+    scenarios: summary.scenarios,
+    passed: summary.allPassed,
+    screenshot: summary.screenshot,
+    replay: summary.replay,
+  };
 }
 
 function dependencyVersions(yamlText) {

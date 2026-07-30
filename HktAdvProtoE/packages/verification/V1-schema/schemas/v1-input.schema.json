@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v1-input.schema.json",
+  "title": "V1 입력",
+  "description": "검증할 스키마 문서 하나와 그 스키마로 판정할 인스턴스 목록.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["schema", "instances"],
+  "properties": {
+    "schemaLabel": { "type": "string", "minLength": 1 },
+    "schema": { "type": "object" },
+    "instances": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "data"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "data": true
+        }
+      }
+    }
+  }
+}

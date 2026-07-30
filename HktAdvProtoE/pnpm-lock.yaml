@@ -36,9 +36,21 @@ importers:
       '@hkt/v0-module-contract':
         specifier: workspace:*
         version: link:../../packages/verification/V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../../packages/verification/V1-schema
 
   packages/verification/V0-module-contract:
     dependencies:
+      yaml:
+        specifier: ^2.6.1
+        version: 2.9.0
+
+  packages/verification/V1-schema:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../V0-module-contract
       yaml:
         specifier: ^2.6.1
         version: 2.9.0

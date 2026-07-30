@@ -1,0 +1,42 @@
+id: V1
+name: schema
+purpose: >
+  모듈의 입력·출력 데이터가 선언된 스키마를 지키도록 런타임에 강제하고,
+  어긋난 값은 JSON Pointer 경로와 함께 거부한다.
+
+depends_on:
+  - V0
+
+owns_state:
+  - schema_registry
+
+inputs:
+  - schema_document
+  - instance_data
+
+outputs:
+  - validation_result
+  - schema_issues
+
+invariants:
+  - valid_instance_must_produce_no_issue
+  - invalid_instance_must_report_instance_pointer
+  - invalid_instance_must_report_schema_pointer
+  - unsupported_schema_keyword_must_fail_compilation
+  - validation_must_not_mutate_instance
+  - identical_schema_and_instance_must_produce_identical_issues
+  - reference_cycle_must_not_hang
+
+scenarios:
+  - valid_state_passes
+  - wrong_type_reports_pointer_path
+  - missing_required_field_is_rejected
+  - unknown_property_is_rejected
+  - one_of_branch_failure_is_explained
+  - unsupported_keyword_fails_compilation
+  - module_contract_schema_agrees_with_v0
+
+commands:
+  test: pnpm test V1-schema
+  lab: pnpm lab
+  verify: pnpm verify V1

@@ -9,7 +9,7 @@
 import { execFileSync } from 'node:child_process';
 import { createServer } from 'node:http';
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
-import { extname, join, normalize } from 'node:path';
+import { extname, join, normalize, relative, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { chromium } from 'playwright';
 
@@ -17,6 +17,8 @@ const ROOT = fileURLToPath(new URL('..', import.meta.url));
 const OUT_DIR = join(ROOT, 'node_modules', '.hkt');
 const DIST = join(ROOT, 'apps', 'lab', 'dist');
 const SHOT = join(ROOT, 'apps', 'lab', 'lab-screenshot.png');
+/** 브라우저에서 대표 장면을 다시 실행하는 횟수 — 결과 해시가 하나여야 한다. */
+const REPLAY_RUNS = 20;
 
 mkdirSync(OUT_DIR, { recursive: true });
 
@@ -77,28 +79,60 @@ try {
   await page.goto(`http://127.0.0.1:${port}/`);
   await page.waitForSelector('[data-testid="summary"]', { timeout: 15000 });
 
-  const panels = await page.$$('[data-testid="scenario-panel"]');
-  const scenarios = {};
-  for (const panel of panels) {
-    const id = await panel.getAttribute('data-scenario');
-    const passed = (await panel.getAttribute('data-passed')) === 'true';
-    scenarios[id] = passed ? 'passed' : 'failed';
+  const registryVisible = (await page.$('[data-testid="registry-board"]')) !== null;
+
+  // 모듈 탭을 하나씩 눌러 각 모듈의 대표 장면을 모두 확인한다.
+  const moduleIds = await page.$$eval('[data-testid^="module-tab-"]', (nodes) =>
+    nodes.map((node) => node.dataset.testid.replace('module-tab-', '')),
+  );
+  const modules = {};
+  for (const moduleId of moduleIds) {
+    await page.click(`[data-testid="module-tab-${moduleId}"]`);
+    await page.waitForSelector(`[data-testid="summary"][data-module="${moduleId}"]`);
+
+    const panels = await page.$$('[data-testid="scenario-panel"]');
+    const scenarios = {};
+    for (const panel of panels) {
+      const id = await panel.getAttribute('data-scenario');
+      scenarios[id] = (await panel.getAttribute('data-passed')) === 'true' ? 'passed' : 'failed';
+    }
+    const allPassed =
+      (await page.getAttribute('[data-testid="summary"]', 'data-all-passed')) === 'true';
+    const screenshot = SHOT.replace('.png', `-${moduleId}.png`);
+    await page.screenshot({ path: screenshot, fullPage: true });
+
+    // 리플레이: 같은 장면을 브라우저에서 여러 번 다시 실행해 결과 해시 개수를 센다.
+    const replay = await page.evaluate(
+      ([id, runs]) => window.__hktReplayDigest?.(id, runs) ?? null,
+      [moduleId, REPLAY_RUNS],
+    );
+
+    modules[moduleId] = {
+      scenarios,
+      allPassed: allPassed && panels.length > 0 && replay?.uniqueHashes === 1,
+      panels: panels.length,
+      checks: (await page.$$('[data-testid="check"]')).length,
+      replay,
+      screenshot: relative(ROOT, screenshot).split(sep).join('/'),
+    };
   }
 
-  const allPassed = (await page.getAttribute('[data-testid="summary"]', 'data-all-passed')) === 'true';
-  const registryVisible = (await page.$('[data-testid="registry-board"]')) !== null;
-  const checkCount = (await page.$$('[data-testid="check"]')).length;
-
-  await page.screenshot({ path: SHOT, fullPage: true });
+  const requested = process.argv[2];
+  const target = requested && modules[requested] ? modules[requested] : null;
 
   const summary = {
-    scenarios,
-    allPassed: allPassed && errors.length === 0 && registryVisible && Object.keys(scenarios).length > 0,
-    panels: panels.length,
-    checks: checkCount,
+    modules,
+    // verify.mjs 가 특정 모듈로 물어보면 그 모듈의 판정을 위로 올려 준다.
+    scenarios: target ? target.scenarios : Object.values(modules).reduce((all, module) => ({ ...all, ...module.scenarios }), {}),
+    replay: target?.replay ?? null,
+    screenshot: target?.screenshot ?? null,
+    allPassed:
+      errors.length === 0 &&
+      registryVisible &&
+      moduleIds.length > 0 &&
+      (target ? target.allPassed : Object.values(modules).every((module) => module.allPassed)),
     registryVisible,
     consoleErrors: errors,
-    screenshot: 'apps/lab/lab-screenshot.png',
   };
   writeFileSync(join(OUT_DIR, 'lab-summary.json'), `${JSON.stringify(summary, null, 2)}\n`, 'utf8');
 

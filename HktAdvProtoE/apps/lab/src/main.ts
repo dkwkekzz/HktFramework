@@ -1,16 +1,13 @@
-import {
-  runV0Scenarios,
-  v0Module,
-  v0ScenarioCount,
-} from '@hkt/v0-module-contract/lab';
-import { buildRegistry, type ScenarioRun } from '@hkt/v0-module-contract';
+import { runV0Scenarios, v0Module, v0ScenarioCount } from '@hkt/v0-module-contract/lab';
+import { runV1Scenarios, v1Module, v1ScenarioCount } from '@hkt/v1-schema/lab';
+import { buildRegistry, sha256Hex, type ScenarioRun } from '@hkt/v0-module-contract';
 import './style.css';
 
 /**
  * 브라우저 Lab (원문 「24. 브라우저 Lab의 공통 화면」).
  *
- * 지금은 V0 만 등록되어 있으므로 이 화면은 V0 의 대표 장면과 레지스트리를 보여준다.
- * 모듈 상태 관리·증거 발급은 V4 의 몫이므로 여기서 하지 않는다.
+ * 등록된 모듈마다 같은 형태의 검증 화면을 그린다. 모듈 상태 관리·증거 발급은 V4 의 몫이므로
+ * 여기서는 계약 레지스트리와 각 모듈의 대표 장면만 보여 준다.
  */
 
 // 저장소의 실제 MODULE.yaml — V0 의 입력 그대로를 브라우저에서 읽는다.
@@ -21,18 +18,41 @@ const rawContracts = import.meta.glob('../../../packages/*/*/MODULE.yaml', {
 }) as Record<string, string>;
 
 const documents = Object.entries(rawContracts)
-  .map(([path, text]) => ({
-    path: path.replace(/^(\.\.\/)+/, ''),
-    text,
-  }))
+  .map(([path, text]) => ({ path: path.replace(/^(\.\.\/)+/, ''), text }))
   .sort((a, b) => (a.path < b.path ? -1 : 1));
 
 const workspaceReport = buildRegistry(documents);
 
+interface LabModule {
+  id: string;
+  version: string;
+  purpose: string;
+  scenarioCount: number;
+  run(seedOffset: bigint): ScenarioRun[];
+}
+
+const modules: LabModule[] = [
+  {
+    id: v0Module.id,
+    version: v0Module.version,
+    purpose: v0Module.purpose,
+    scenarioCount: v0ScenarioCount,
+    run: runV0Scenarios,
+  },
+  {
+    id: v1Module.id,
+    version: v1Module.version,
+    purpose: v1Module.purpose,
+    scenarioCount: v1ScenarioCount,
+    run: runV1Scenarios,
+  },
+];
+
 /** 화면 상태 — [1틱 실행] 은 하나씩, [전체 실행] 은 전부, [다른 시드] 는 시드만 바꾼다. */
 const state = {
+  moduleId: modules[0]?.id ?? 'V0',
   seedOffset: 0n,
-  revealed: 0,
+  revealed: Number.POSITIVE_INFINITY,
 };
 
 const app = document.querySelector<HTMLDivElement>('#app');
@@ -66,7 +86,7 @@ function section(title: string, body: HTMLElement | string): HTMLElement {
   return wrap;
 }
 
-function scenarioPanel(run: ScenarioRun, index: number): HTMLElement {
+function scenarioPanel(run: ScenarioRun, index: number, total: number): HTMLElement {
   const panel = el('article', run.passed ? 'panel pass' : 'panel fail');
   panel.dataset['testid'] = 'scenario-panel';
   panel.dataset['scenario'] = run.scenarioId;
@@ -74,7 +94,7 @@ function scenarioPanel(run: ScenarioRun, index: number): HTMLElement {
 
   const header = el('header', 'panel-header');
   header.append(
-    el('span', 'index', `${index + 1}/${v0ScenarioCount}`),
+    el('span', 'index', `${index + 1}/${total}`),
     el('h2', undefined, `${run.scenarioId} — ${run.title}`),
     el('span', run.passed ? 'badge ok' : 'badge no', run.passed ? '통과' : '실패'),
   );
@@ -82,7 +102,7 @@ function scenarioPanel(run: ScenarioRun, index: number): HTMLElement {
 
   panel.append(section('모듈 목적', run.view.purpose));
   panel.append(section('입력 상태', rowTable([...run.view.input])));
-  panel.append(section('후보 (문서별 판정)', rowTable([...run.view.candidates])));
+  panel.append(section('후보', rowTable([...run.view.candidates])));
   panel.append(section('선택 결과', run.view.result));
 
   const reasons = el('ul', 'reasons');
@@ -109,8 +129,7 @@ function scenarioPanel(run: ScenarioRun, index: number): HTMLElement {
 
   const details = el('details', 'assertions');
   details.append(el('summary', undefined, '단정 상세 (expected / actual)'));
-  const pre = el('pre', undefined, JSON.stringify(run.assertions, null, 2));
-  details.append(pre);
+  details.append(el('pre', undefined, JSON.stringify(run.assertions, null, 2)));
   panel.append(details);
 
   return panel;
@@ -157,9 +176,7 @@ function registryBoard(): HTMLElement {
           label: module.id,
           value:
             (module.dependsOn.length > 0 ? `선행 ${module.dependsOn.join(', ')}` : '선행 없음') +
-            ` · 후행 ${
-              (workspaceReport.registry.dependents[module.id] ?? []).join(', ') || '없음'
-            }`,
+            ` · 후행 ${(workspaceReport.registry.dependents[module.id] ?? []).join(', ') || '없음'}`,
         })),
       ),
     ),
@@ -184,7 +201,8 @@ function registryBoard(): HTMLElement {
 }
 
 function render(): void {
-  const runs = runV0Scenarios(state.seedOffset);
+  const active = modules.find((module) => module.id === state.moduleId) ?? (modules[0] as LabModule);
+  const runs = active.run(state.seedOffset);
   const visible = runs.slice(0, Math.max(state.revealed, 0));
   const allPassed = runs.every((run) => run.passed);
 
@@ -193,25 +211,39 @@ function render(): void {
   const title = el('header', 'app-header');
   title.append(
     el('h1', undefined, 'HktAdvProtoE Lab'),
-    el(
-      'p',
-      'subtitle',
-      `${v0Module.id} v${v0Module.version} · ${v0Module.purpose}`,
-    ),
+    el('p', 'subtitle', `${active.id} v${active.version} · ${active.purpose}`),
   );
   app!.append(title);
+
+  const tabs = el('div', 'controls');
+  for (const module of modules) {
+    const tab = el(
+      'button',
+      module.id === active.id ? 'tab active' : 'tab',
+      `${module.id} (${module.scenarioCount})`,
+    );
+    tab.dataset['testid'] = `module-tab-${module.id}`;
+    tab.addEventListener('click', () => {
+      state.moduleId = module.id;
+      state.revealed = Number.POSITIVE_INFINITY;
+      render();
+    });
+    tabs.append(tab);
+  }
+  app!.append(tabs);
 
   const controls = el('div', 'controls');
   const tick = el('button', undefined, '1틱 실행');
   tick.dataset['testid'] = 'run-tick';
   tick.addEventListener('click', () => {
-    state.revealed = state.revealed >= v0ScenarioCount ? 0 : state.revealed + 1;
+    const shown = Math.min(state.revealed, active.scenarioCount);
+    state.revealed = shown >= active.scenarioCount ? 1 : shown + 1;
     render();
   });
   const runAll = el('button', undefined, '전체 실행');
   runAll.dataset['testid'] = 'run-all';
   runAll.addEventListener('click', () => {
-    state.revealed = v0ScenarioCount;
+    state.revealed = active.scenarioCount;
     render();
   });
   const reseed = el('button', undefined, '다른 시드');
@@ -225,23 +257,39 @@ function render(): void {
   const summary = el(
     'span',
     allPassed ? 'badge ok' : 'badge no',
-    `시나리오 ${runs.filter((r) => r.passed).length}/${runs.length} 통과 · 시드 오프셋 +${state.seedOffset}`,
+    `${active.id} 시나리오 ${runs.filter((run) => run.passed).length}/${runs.length} 통과 · 시드 오프셋 +${state.seedOffset}`,
   );
   summary.dataset['testid'] = 'summary';
   summary.dataset['allPassed'] = String(allPassed);
+  summary.dataset['module'] = active.id;
   controls.append(summary);
   app!.append(controls);
 
   app!.append(registryBoard());
 
-  if (visible.length === 0) {
-    app!.append(
-      el('p', 'hint', '[전체 실행] 을 누르면 V0 의 대표 검증 장면 6개가 순서대로 나타난다.'),
-    );
-  }
-  visible.forEach((run, index) => app!.append(scenarioPanel(run, index)));
+  visible.forEach((run, index) => app!.append(scenarioPanel(run, index, runs.length)));
 }
 
-// 첫 화면부터 전부 보이게 한다 — 눈으로 확인하는 것이 이 화면의 목적이다.
-state.revealed = v0ScenarioCount;
+/**
+ * 리플레이 측정 훅.
+ *
+ * 같은 모듈의 대표 장면을 여러 번 다시 실행해 결과 해시가 하나인지 센다.
+ * tools/lab-shot.mjs 가 이 값을 읽어 증거(원문 「21」의 `replay`)에 넣는다 —
+ * 증거의 리플레이 수치는 손으로 적지 않고 실제 실행에서 나온다.
+ */
+declare global {
+  interface Window {
+    __hktReplayDigest?: (moduleId: string, runs: number) => { runs: number; uniqueHashes: number };
+  }
+}
+
+window.__hktReplayDigest = (moduleId: string, runs: number) => {
+  const target = modules.find((module) => module.id === moduleId) ?? (modules[0] as LabModule);
+  const hashes = new Set<string>();
+  for (let run = 0; run < runs; run += 1) {
+    hashes.add(sha256Hex(JSON.stringify(target.run(0n))));
+  }
+  return { runs, uniqueHashes: hashes.size };
+};
+
 render();
