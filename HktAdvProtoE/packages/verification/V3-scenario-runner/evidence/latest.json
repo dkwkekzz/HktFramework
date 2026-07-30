@@ -8,6 +8,11 @@
     "V1": "0.1.0",
     "V2": "0.1.0"
   },
+  "dependencyContracts": {
+    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134",
+    "V1": "sha256:f21bdd83c19cabab32eb73cda4940d62a39433707e9b1ffc9505293c225c2511",
+    "V2": "sha256:5a5af978beb155b9114bc64bb78860d003d9821d70460005d69be79d48384f5a"
+  },
   "staticCheck": {
     "passed": true,
     "command": "pnpm run typecheck"
@@ -26,13 +31,13 @@
     "failed": 0
   },
   "labScenarios": {
-    "given_when_then_runs_in_order": "passed",
     "failed_condition_shows_before_and_after": "passed",
     "fixture_is_validated_before_run": "passed",
-    "step_must_not_mutate_given_state": "passed",
-    "unknown_step_is_rejected_with_path": "passed",
+    "given_when_then_runs_in_order": "passed",
     "rejected_step_leaves_state_unchanged": "passed",
-    "same_seed_replays_identically": "passed"
+    "same_seed_replays_identically": "passed",
+    "step_must_not_mutate_given_state": "passed",
+    "unknown_step_is_rejected_with_path": "passed"
   },
   "replay": {
     "runs": 20,
@@ -41,6 +46,72 @@
   "integrationSlices": {
     "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
   },
+  "gates": [
+    {
+      "id": "G0",
+      "name": "목적 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "목적 1문장"
+    },
+    {
+      "id": "G1",
+      "name": "계약 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "입력 2 · 출력 2 · 소유 상태 fixture_registry, step_registry · 불변조건 9"
+    },
+    {
+      "id": "G2",
+      "name": "단위 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "단위 58통과/0실패"
+    },
+    {
+      "id": "G3",
+      "name": "속성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "표본 500 · 위반 0"
+    },
+    {
+      "id": "G4",
+      "name": "직관 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "장면 7개"
+    },
+    {
+      "id": "G5",
+      "name": "결정성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "20회 재실행 · 해시 1종"
+    },
+    {
+      "id": "G6",
+      "name": "통합 게이트",
+      "measured": true,
+      "passed": false,
+      "detail": "슬라이스 1개 · 미통과 VS0"
+    },
+    {
+      "id": "G7",
+      "name": "회귀 게이트",
+      "measured": false,
+      "passed": false,
+      "detail": "회귀 측정 없음"
+    },
+    {
+      "id": "G8",
+      "name": "증거 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "정적 검사 통과 · 코드 해시 sha256:05b93d6…"
+    }
+  ],
   "status": "LAB_PASS",
-  "producedBy": "tools/verify.mjs (V4 미구현 동안의 임시 발급기)"
+  "issuedAtTick": 0,
+  "producedBy": "tools/verify.mjs → V4 evidence-gate"
 }

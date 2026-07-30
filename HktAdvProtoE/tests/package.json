@@ -3,10 +3,11 @@
   "private": true,
   "version": "0.1.0",
   "type": "module",
-  "description": "저장소 전체 규약 검사 — 어느 모듈의 소유도 아니다. V4(evidence-gate)가 흡수할 때까지의 임시 자리.",
+  "description": "저장소 전체 규약 검사 — 어느 모듈의 소유도 아니다. 검증 상태·증거 판정은 V4(evidence-gate)에 위임한다.",
   "dependencies": {
     "@hkt/v0-module-contract": "workspace:*",
     "@hkt/v1-schema": "workspace:*",
+    "@hkt/v4-evidence-gate": "workspace:*",
     "yaml": "^2.6.1"
   }
 }

@@ -86,7 +86,9 @@ packages/<그룹>/<ID>-<name>/
 | 비결정적 호출(Math.random·Date.now·new Date·crypto.getRandomValues) 없음 — 주석·문자열은 제외 | 같은 파일 |
 | `schemas/*.schema.json` 이 `$id` 를 갖고 V1 로 컴파일된다 · 저장소 안에서 `$id` 유일 | 같은 파일 |
 | 같은 입력 재실행 시 같은 결과 | 같은 파일 |
-| evidence 형식 · 상태값 · 슬라이스 미통과 시 VERIFIED 금지 | 같은 파일 |
+| evidence 형식 · 상태값 · 슬라이스 미통과 시 VERIFIED 금지 | 같은 파일 → **V4** 에 위임 |
+| 게이트보다 높은 상태를 주장하는 증거 | 같은 파일 → **V4** `auditRepository` |
+| **선행 계약이 바뀐 채로 남은 증거** (원문 「2.5」) | 같은 파일 → **V4** `auditRepository` |
 | `depends_on` 과 package.json 의존 일치 | 같은 파일 |
 | 타입 검사 · 테스트 편입 | `tools/typecheck.mjs` · `vitest.config.ts` (경로 규약만 지키면 자동) |
 | Lab 에 없는 모듈의 증거 발급 차단 | `tools/lab-shot.mjs` (요청 모듈의 탭이 없으면 실패) |
@@ -107,4 +109,12 @@ pnpm test                  # 전 모듈 + 저장소 규약
 pnpm test <ID>-<name>      # 한 모듈만
 pnpm lab                   # 브라우저 Lab
 pnpm verify <ID> --lab     # 증거 발급 → evidence/latest.json
+pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 (저장소 전체 실행)
 ```
+
+**`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
+계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.
+바꾸기 전에 영향 범위를 보려면 V4 의 `impactOf(registry, id)` 를 쓴다 (원문 「23」 Change Request).
+
+**상태는 손으로 적지 않는다.** `pnpm verify` 가 출력하는 `status=` 와 “막힌 게이트” 줄이 그 모듈의 실제
+상태다. STATE.md 에는 그 값을 옮겨 적는다.

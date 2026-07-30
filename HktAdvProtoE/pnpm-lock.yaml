@@ -73,6 +73,21 @@ importers:
         specifier: workspace:*
         version: link:../V2-determinism
 
+  packages/verification/V4-evidence-gate:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../V1-schema
+      '@hkt/v2-determinism':
+        specifier: workspace:*
+        version: link:../V2-determinism
+      '@hkt/v3-scenario-runner':
+        specifier: workspace:*
+        version: link:../V3-scenario-runner
+
   tests:
     dependencies:
       '@hkt/v0-module-contract':
@@ -81,6 +96,9 @@ importers:
       '@hkt/v1-schema':
         specifier: workspace:*
         version: link:../packages/verification/V1-schema
+      '@hkt/v4-evidence-gate':
+        specifier: workspace:*
+        version: link:../packages/verification/V4-evidence-gate
       yaml:
         specifier: ^2.6.1
         version: 2.9.0

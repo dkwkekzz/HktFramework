@@ -6,6 +6,9 @@
   "dependencyVersions": {
     "V0": "0.1.0"
   },
+  "dependencyContracts": {
+    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134"
+  },
   "staticCheck": {
     "passed": true,
     "command": "pnpm run typecheck"
@@ -24,13 +27,13 @@
     "failed": 0
   },
   "labScenarios": {
-    "same_seed_repeats_sequence": "passed",
     "different_seed_component_diverges": "passed",
-    "seed_composition_follows_design_rule": "passed",
     "forked_streams_are_independent": "passed",
-    "tick_clock_advances_without_wall_clock": "passed",
     "ids_are_unique_and_stable": "passed",
-    "snapshot_restores_mid_sequence": "passed"
+    "same_seed_repeats_sequence": "passed",
+    "seed_composition_follows_design_rule": "passed",
+    "snapshot_restores_mid_sequence": "passed",
+    "tick_clock_advances_without_wall_clock": "passed"
   },
   "replay": {
     "runs": 20,
@@ -39,6 +42,72 @@
   "integrationSlices": {
     "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
   },
+  "gates": [
+    {
+      "id": "G0",
+      "name": "목적 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "목적 1문장"
+    },
+    {
+      "id": "G1",
+      "name": "계약 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "입력 3 · 출력 3 · 소유 상태 rng_state, clock_state, id_counters · 불변조건 8"
+    },
+    {
+      "id": "G2",
+      "name": "단위 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "단위 89통과/0실패"
+    },
+    {
+      "id": "G3",
+      "name": "속성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "표본 1000 · 위반 0"
+    },
+    {
+      "id": "G4",
+      "name": "직관 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "장면 7개"
+    },
+    {
+      "id": "G5",
+      "name": "결정성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "20회 재실행 · 해시 1종"
+    },
+    {
+      "id": "G6",
+      "name": "통합 게이트",
+      "measured": true,
+      "passed": false,
+      "detail": "슬라이스 1개 · 미통과 VS0"
+    },
+    {
+      "id": "G7",
+      "name": "회귀 게이트",
+      "measured": false,
+      "passed": false,
+      "detail": "회귀 측정 없음"
+    },
+    {
+      "id": "G8",
+      "name": "증거 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "정적 검사 통과 · 코드 해시 sha256:252d852…"
+    }
+  ],
   "status": "LAB_PASS",
-  "producedBy": "tools/verify.mjs (V4 미구현 동안의 임시 발급기)"
+  "issuedAtTick": 0,
+  "producedBy": "tools/verify.mjs → V4 evidence-gate"
 }

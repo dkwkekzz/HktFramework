@@ -1,0 +1,19 @@
+{
+  "name": "@hkt/v4-evidence-gate",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./scenarios": "./scenarios/index.ts",
+    "./lab": "./lab/index.ts"
+  },
+  "dependencies": {
+    "@hkt/v0-module-contract": "workspace:*",
+    "@hkt/v1-schema": "workspace:*",
+    "@hkt/v2-determinism": "workspace:*",
+    "@hkt/v3-scenario-runner": "workspace:*"
+  }
+}

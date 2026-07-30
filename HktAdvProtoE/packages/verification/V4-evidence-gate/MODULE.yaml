@@ -1,0 +1,51 @@
+id: V4
+name: evidence-gate
+purpose: >
+  게이트 판정 결과로만 검증 상태를 발급하고,
+  의존 모듈의 계약이 바뀌면 그것을 쓰는 모듈의 검증을 자동으로 무효화한다.
+
+depends_on:
+  - V0
+  - V1
+  - V2
+  - V3
+
+owns_state:
+  - evidence_store
+  - module_status
+
+inputs:
+  - module_contract_document
+  - measurement_record
+  - evidence_document
+
+outputs:
+  - evidence_document
+  - audit_report
+  - lab_board
+
+invariants:
+  - status_must_be_derived_from_gates_only
+  - evidence_must_not_claim_status_above_its_gates
+  - verified_requires_all_integration_slices_passed
+  - dependency_contract_change_must_block_dependents
+  - invalidation_must_propagate_to_the_whole_dependent_closure
+  - missing_evidence_must_block_the_module
+  - replay_mismatch_must_fail_determinism_gate
+  - identical_measurements_must_produce_identical_evidence
+  - board_must_show_status_failures_graph_and_hashes
+
+scenarios:
+  - gates_decide_status
+  - evidence_cannot_claim_status_above_gates
+  - verified_without_slice_is_refused
+  - dependency_contract_change_blocks_dependents
+  - invalidation_propagates_through_the_chain
+  - replay_mismatch_fails_determinism_gate
+  - board_shows_the_v_phase_completion_screen
+  - evidence_is_reproducible_from_the_same_measurements
+
+commands:
+  test: pnpm test V4-evidence-gate
+  lab: pnpm lab
+  verify: pnpm verify V4

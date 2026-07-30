@@ -1,0 +1,256 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v4-output.schema.json",
+  "title": "V4 출력",
+  "description": "감사 보고와 V 단계 완료 화면(원문 「8」의 여섯 구획).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["audit", "board", "digest"],
+  "properties": {
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+    "audit": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["modules", "invalidated", "rejected", "issues", "registryHash", "hash"],
+      "properties": {
+        "invalidated": { "type": "array", "items": { "type": "string" } },
+        "registryHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "rejected": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["path", "id", "codes"],
+            "properties": {
+              "path": { "type": "string" },
+              "id": { "type": ["string", "null"] },
+              "codes": { "type": "array", "items": { "type": "string" } }
+            }
+          }
+        },
+        "issues": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["code", "path", "message"],
+            "properties": {
+              "code": { "type": "string", "pattern": "^E_" },
+              "path": { "type": "string" },
+              "message": { "type": "string", "minLength": 1 }
+            }
+          }
+        },
+        "modules": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": [
+              "id",
+              "name",
+              "version",
+              "purpose",
+              "dependsOn",
+              "dependents",
+              "declaredStatus",
+              "effectiveStatus",
+              "invalidated",
+              "gates",
+              "reasons",
+              "sourceHash",
+              "contractHash",
+              "replay",
+              "integrationSlices"
+            ],
+            "properties": {
+              "id": { "type": "string", "pattern": "^[A-Z][0-9]+$" },
+              "name": { "type": "string", "minLength": 1 },
+              "version": { "type": "string", "minLength": 1 },
+              "purpose": { "type": "string", "minLength": 1 },
+              "dependsOn": { "type": "array", "items": { "type": "string" } },
+              "dependents": { "type": "array", "items": { "type": "string" } },
+              "declaredStatus": { "type": "string", "minLength": 1 },
+              "effectiveStatus": {
+                "enum": [
+                  "BLOCKED",
+                  "SPECIFIED",
+                  "TEST_READY",
+                  "IMPLEMENTED",
+                  "UNIT_PASS",
+                  "LAB_PASS",
+                  "SLICE_PASS",
+                  "VERIFIED",
+                  "FROZEN"
+                ]
+              },
+              "invalidated": { "type": "boolean" },
+              "sourceHash": { "type": ["string", "null"] },
+              "contractHash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+              "integrationSlices": { "type": "object" },
+              "replay": {
+                "type": ["object", "null"],
+                "additionalProperties": false,
+                "required": ["runs", "uniqueHashes"],
+                "properties": {
+                  "runs": { "type": "integer", "minimum": 0 },
+                  "uniqueHashes": { "type": "integer", "minimum": 0 }
+                }
+              },
+              "gates": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["id", "name", "measured", "passed", "detail"],
+                  "properties": {
+                    "id": { "type": "string" },
+                    "name": { "type": "string" },
+                    "measured": { "type": "boolean" },
+                    "passed": { "type": "boolean" },
+                    "detail": { "type": "string" }
+                  }
+                }
+              },
+              "reasons": {
+                "type": "array",
+                "items": {
+                  "type": "object",
+                  "additionalProperties": false,
+                  "required": ["code", "path", "message"],
+                  "properties": {
+                    "code": { "type": "string", "pattern": "^E_" },
+                    "path": { "type": "string" },
+                    "message": { "type": "string", "minLength": 1 }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "board": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": [
+        "statuses",
+        "failedChecks",
+        "dependencyGraph",
+        "hashes",
+        "replays",
+        "completion",
+        "hash"
+      ],
+      "properties": {
+        "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" },
+        "statuses": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["moduleId", "name", "version", "declaredStatus", "effectiveStatus", "invalidated"],
+            "properties": {
+              "moduleId": { "type": "string" },
+              "name": { "type": "string" },
+              "version": { "type": "string" },
+              "declaredStatus": { "type": "string" },
+              "effectiveStatus": { "type": "string" },
+              "invalidated": { "type": "boolean" }
+            }
+          }
+        },
+        "failedChecks": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["moduleId", "source", "detail"],
+            "properties": {
+              "moduleId": { "type": "string" },
+              "source": { "type": "string" },
+              "detail": { "type": "string" }
+            }
+          }
+        },
+        "dependencyGraph": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["order", "edges"],
+          "properties": {
+            "order": { "type": "array", "items": { "type": "string" } },
+            "edges": {
+              "type": "array",
+              "items": {
+                "type": "object",
+                "additionalProperties": false,
+                "required": ["from", "to"],
+                "properties": { "from": { "type": "string" }, "to": { "type": "string" } }
+              }
+            }
+          }
+        },
+        "hashes": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["moduleId", "sourceHash", "contractHash"],
+            "properties": {
+              "moduleId": { "type": "string" },
+              "sourceHash": { "type": ["string", "null"] },
+              "contractHash": { "type": "string" }
+            }
+          }
+        },
+        "replays": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": false,
+            "required": ["moduleId", "runs", "uniqueHashes", "consistent"],
+            "properties": {
+              "moduleId": { "type": "string" },
+              "runs": { "type": "integer", "minimum": 0 },
+              "uniqueHashes": { "type": "integer", "minimum": 0 },
+              "consistent": { "type": "boolean" }
+            }
+          }
+        },
+        "completion": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "allModulesVerified",
+            "allDesignRequirementsCovered",
+            "allVerticalSlicesPassed",
+            "globalInvariantViolations",
+            "unexplainedStateChanges",
+            "orphanWorldEntities",
+            "unreachableGoals",
+            "abilitiesWithoutCounterplay",
+            "replayMismatches",
+            "regressionFailures",
+            "pending",
+            "complete"
+          ],
+          "properties": {
+            "allModulesVerified": { "type": "boolean" },
+            "allDesignRequirementsCovered": { "type": ["boolean", "null"] },
+            "allVerticalSlicesPassed": { "type": "boolean" },
+            "globalInvariantViolations": { "type": ["integer", "null"] },
+            "unexplainedStateChanges": { "type": ["integer", "null"] },
+            "orphanWorldEntities": { "type": ["integer", "null"] },
+            "unreachableGoals": { "type": ["integer", "null"] },
+            "abilitiesWithoutCounterplay": { "type": ["integer", "null"] },
+            "replayMismatches": { "type": "integer", "minimum": 0 },
+            "regressionFailures": { "type": ["integer", "null"] },
+            "pending": { "type": "array", "items": { "type": "string" } },
+            "complete": { "type": "boolean" }
+          }
+        }
+      }
+    }
+  }
+}
