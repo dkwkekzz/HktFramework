@@ -1,0 +1,47 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k0-input.schema.json",
+  "title": "K0 입력",
+  "description": "컴포넌트 종류 선언과 데이터로 적힌 상태 변경 요청 목록.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["operations"],
+  "properties": {
+    "components": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["type", "schema"],
+        "properties": {
+          "type": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "title": { "type": "string" },
+          "schema": { "type": "object" }
+        }
+      }
+    },
+    "operations": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["op"],
+        "properties": {
+          "op": {
+            "enum": ["spawn", "despawn", "set_component", "remove_component", "attach_tag", "remove_tag"]
+          },
+          "id": { "type": "string" },
+          "kind": { "type": "string" },
+          "tags": { "type": "array", "items": { "type": "string" } },
+          "components": { "type": "object" },
+          "type": { "type": "string" },
+          "data": { "type": "object" },
+          "tag": { "type": "string" }
+        }
+      }
+    },
+    "reads": {
+      "type": "array",
+      "items": { "type": "string", "minLength": 1 }
+    }
+  }
+}

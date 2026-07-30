@@ -1,0 +1,46 @@
+id: K1
+name: predicate-query
+purpose: >
+  세계 상태를 데이터로 적힌 조건식으로 질의해,
+  참·거짓과 대상 목록과 조건이 어긋난 위치를 함께 돌려준다.
+
+depends_on:
+  - V0
+  - K0
+
+owns_state:
+  - none
+
+inputs:
+  - predicate_spec
+  - query_spec
+  - binding_table
+
+outputs:
+  - predicate_result
+  - matched_entities
+  - failure_cause
+
+invariants:
+  - predicate_must_be_data_ast_not_code
+  - unknown_component_must_be_rejected_not_silently_false
+  - missing_value_must_be_false_with_cause
+  - planned_result_must_equal_full_scan
+  - result_must_be_ordered_by_entity_id
+  - query_must_not_change_world_state
+  - failure_cause_must_point_at_the_failing_condition
+  - boolean_composition_must_follow_boolean_algebra
+
+scenarios:
+  - weak_humans_within_ten_meters
+  - failure_cause_points_at_the_failing_condition
+  - plan_uses_index_and_agrees_with_full_scan
+  - boolean_algebra_holds
+  - unknown_component_is_rejected
+  - missing_value_is_false_with_cause
+  - query_leaves_the_world_untouched
+
+commands:
+  test: pnpm test K1-predicate-query
+  lab: pnpm lab
+  verify: pnpm verify K1

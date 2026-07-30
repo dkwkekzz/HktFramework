@@ -43,6 +43,24 @@ importers:
         specifier: workspace:*
         version: link:../../packages/verification/V4-evidence-gate
 
+  packages/kernel/K0-entity-state:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../../verification/V1-schema
+
+  packages/kernel/K1-predicate-query:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../K0-entity-state
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+
   packages/verification/V0-module-contract:
     dependencies:
       yaml:

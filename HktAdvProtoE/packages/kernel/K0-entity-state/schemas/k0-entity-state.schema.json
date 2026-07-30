@@ -1,0 +1,22 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k0-entity-state.schema.json",
+  "title": "K0 실체 상태",
+  "description": "실체 하나의 완전한 읽기 사본 (원문 「9」 K0 의 EntityState).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "kind", "tags", "components"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "tags": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": { "type": "object" }
+    }
+  }
+}
