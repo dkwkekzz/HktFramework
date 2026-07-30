@@ -43,6 +43,7 @@ const lab = withLab ? runLab() : { skipped: true };
 const { issueForModule } = await loadTs(
   join(ROOT, 'packages', 'verification', 'V4-evidence-gate', 'src', 'index.ts'),
 );
+const integrationSlices = await runSlices(moduleId);
 await closeLoader();
 
 const evidence = issueForModule({
@@ -57,8 +58,8 @@ const evidence = issueForModule({
   integrationTests: tests.integration,
   labScenarios: lab.skipped ? {} : (lab.scenarios ?? {}),
   replay: lab.skipped ? { runs: 0, uniqueHashes: 0 } : (lab.replay ?? { runs: 0, uniqueHashes: 0 }),
-  // 통합 슬라이스는 그 슬라이스가 실제로 실행될 때 채운다. 지금은 K0~K3 이 없어 VS0 이 미통과다.
-  integrationSlices: { VS0: 'pending — K0~K3 미구현 (원문 「20」 VS0)' },
+  // 통합 슬라이스는 **실제로 돌려 본 결과**만 적는다 (원문 「5」 G6 · 「23」).
+  integrationSlices,
   ...(tests.regression === null ? {} : { regression: tests.regression }),
   producedBy: 'tools/verify.mjs → V4 evidence-gate',
   explicitFailure: !staticCheck.passed || !tests.passed || (!lab.skipped && lab.passed !== true),
@@ -215,6 +216,44 @@ function runLab() {
     passed: summary.allPassed,
     screenshot: summary.screenshot,
     replay: summary.replay,
+  };
+}
+
+/**
+ * 이 모듈이 포함된 수직 통합 슬라이스를 **실제로 돌린다** (원문 「20」).
+ *
+ * 자연어 보고를 증거로 인정하지 않는 것과 같은 이유로, 슬라이스 판정도 손으로 적지 않는다.
+ * 슬라이스에 포함되지 않은 모듈에는 빈 기록을 준다 — 없는 것을 통과로 적지 않으면 G6 은
+ * "미측정"으로 남고, 미측정은 통과가 아니다.
+ */
+async function runSlices(id) {
+  const slicePath = join(ROOT, 'tests', 'slices', 'vs0.ts');
+  if (!existsSync(slicePath)) return {};
+
+  const { runVS0, VS0_MODULES } = await loadTs(slicePath);
+  if (!VS0_MODULES.includes(id)) {
+    console.log(`[verify] VS0: ${id} 는 이 슬라이스에 포함되지 않는다`);
+    return {};
+  }
+
+  let report;
+  try {
+    report = runVS0();
+  } catch (error) {
+    console.error(`[verify] VS0: 실행 자체가 실패했다 — ${error.message}`);
+    return { VS0: `failed — ${error.message}` };
+  }
+
+  const failed = report.checks.filter((check) => !check.passed);
+  console.log(
+    `[verify] VS0: ${report.passed ? '통과' : '미통과'} (검사 ${report.checks.length}건 · 실패 ${failed.length}건)`,
+  );
+  for (const check of failed) console.error(`[verify]   ✗ ${check.module}/${check.id} — ${check.detail}`);
+
+  return {
+    VS0: report.passed
+      ? 'passed'
+      : `failed — ${failed.map((check) => `${check.module}/${check.id}`).join(', ')}`,
   };
 }
 

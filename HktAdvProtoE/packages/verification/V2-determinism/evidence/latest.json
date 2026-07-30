@@ -40,7 +40,10 @@
     "uniqueHashes": 1
   },
   "integrationSlices": {
-    "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
+    "VS0": "passed"
+  },
+  "regression": {
+    "failures": 0
   },
   "gates": [
     {
@@ -89,15 +92,15 @@
       "id": "G6",
       "name": "통합 게이트",
       "measured": true,
-      "passed": false,
-      "detail": "슬라이스 1개 · 미통과 VS0"
+      "passed": true,
+      "detail": "슬라이스 1개"
     },
     {
       "id": "G7",
       "name": "회귀 게이트",
-      "measured": false,
-      "passed": false,
-      "detail": "회귀 측정 없음"
+      "measured": true,
+      "passed": true,
+      "detail": "기존 시나리오 실패 0건"
     },
     {
       "id": "G8",
@@ -107,7 +110,7 @@
       "detail": "정적 검사 통과 · 코드 해시 sha256:252d852…"
     }
   ],
-  "status": "LAB_PASS",
+  "status": "VERIFIED",
   "issuedAtTick": 0,
   "producedBy": "tools/verify.mjs → V4 evidence-gate"
 }

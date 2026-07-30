@@ -1,39 +1,41 @@
 {
-  "moduleId": "V1",
+  "moduleId": "K0",
   "moduleVersion": "0.1.0",
-  "sourceHash": "sha256:43bcbd2ca17f81e1ea62d970648497c6620b5dce60cbaa49dacf46057aa47248",
-  "contractHash": "sha256:f21bdd83c19cabab32eb73cda4940d62a39433707e9b1ffc9505293c225c2511",
+  "sourceHash": "sha256:41b631d349284148c4ba3013ed0d2bc4003fd93ee81b5f5ae698f1a5d1ca8ebd",
+  "contractHash": "sha256:ef98188281712b58fe8ee3290ba967cd730e967062d947c0cee567f275bb87eb",
   "dependencyVersions": {
-    "V0": "0.1.0"
+    "V0": "0.1.0",
+    "V1": "0.1.0"
   },
   "dependencyContracts": {
-    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134"
+    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134",
+    "V1": "sha256:f21bdd83c19cabab32eb73cda4940d62a39433707e9b1ffc9505293c225c2511"
   },
   "staticCheck": {
     "passed": true,
     "command": "pnpm run typecheck"
   },
   "unitTests": {
-    "passed": 88,
+    "passed": 46,
     "failed": 0
   },
   "propertyTests": {
     "seeds": 1000,
     "invariantViolations": 0,
-    "passed": 9
+    "passed": 7
   },
   "integrationTests": {
-    "passed": 26,
+    "passed": 13,
     "failed": 0
   },
   "labScenarios": {
-    "missing_required_field_is_rejected": "passed",
-    "module_contract_schema_agrees_with_v0": "passed",
-    "one_of_branch_failure_is_explained": "passed",
-    "unknown_property_is_rejected": "passed",
-    "unsupported_keyword_fails_compilation": "passed",
-    "valid_state_passes": "passed",
-    "wrong_type_reports_pointer_path": "passed"
+    "component_data_must_match_schema": "passed",
+    "read_result_is_detached_and_frozen": "passed",
+    "rejected_operation_leaves_store_untouched": "passed",
+    "single_owner_per_resource": "passed",
+    "snapshot_restores_identical_store": "passed",
+    "two_entities_do_not_bleed_into_each_other": "passed",
+    "type_index_selects_by_kind_and_component": "passed"
   },
   "replay": {
     "runs": 20,
@@ -58,14 +60,14 @@
       "name": "계약 게이트",
       "measured": true,
       "passed": true,
-      "detail": "입력 2 · 출력 2 · 소유 상태 schema_registry · 불변조건 7"
+      "detail": "입력 3 · 출력 3 · 소유 상태 entity_registry, component_store, type_index · 불변조건 9"
     },
     {
       "id": "G2",
       "name": "단위 게이트",
       "measured": true,
       "passed": true,
-      "detail": "단위 88통과/0실패"
+      "detail": "단위 46통과/0실패"
     },
     {
       "id": "G3",
@@ -107,7 +109,7 @@
       "name": "증거 게이트",
       "measured": true,
       "passed": true,
-      "detail": "정적 검사 통과 · 코드 해시 sha256:43bcbd2…"
+      "detail": "정적 검사 통과 · 코드 해시 sha256:41b631d…"
     }
   ],
   "status": "VERIFIED",
