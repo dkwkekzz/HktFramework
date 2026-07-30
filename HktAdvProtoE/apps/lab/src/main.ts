@@ -1,5 +1,3 @@
-import { runV0Scenarios, v0Module, v0ScenarioCount } from '@hkt/v0-module-contract/lab';
-import { runV1Scenarios, v1Module, v1ScenarioCount } from '@hkt/v1-schema/lab';
 import { buildRegistry, sha256Hex, type ScenarioRun } from '@hkt/v0-module-contract';
 import './style.css';
 
@@ -27,26 +25,30 @@ interface LabModule {
   id: string;
   version: string;
   purpose: string;
-  scenarioCount: number;
+  scenarioIds: string[];
   run(seedOffset: bigint): ScenarioRun[];
 }
 
-const modules: LabModule[] = [
-  {
-    id: v0Module.id,
-    version: v0Module.version,
-    purpose: v0Module.purpose,
-    scenarioCount: v0ScenarioCount,
-    run: runV0Scenarios,
-  },
-  {
-    id: v1Module.id,
-    version: v1Module.version,
-    purpose: v1Module.purpose,
-    scenarioCount: v1ScenarioCount,
-    run: runV1Scenarios,
-  },
-];
+/**
+ * 모듈 자동 발견.
+ *
+ * 각 모듈의 `lab/index.ts` 가 내보내는 `labModule` 을 모아 화면에 올린다.
+ * 새 모듈을 손으로 등록하지 않으므로 "Lab 에 빠뜨린 모듈"이 생기지 않는다.
+ */
+const labEntries = import.meta.glob('../../../packages/*/*/lab/index.ts', {
+  eager: true,
+}) as Record<string, { labModule?: LabModule }>;
+
+const modules: LabModule[] = Object.entries(labEntries)
+  .map(([path, entry]) => {
+    if (!entry.labModule) {
+      throw new Error(`${path} 가 \`labModule\` 을 내보내지 않는다 (Lab 등록 규약).`);
+    }
+    return entry.labModule;
+  })
+  .sort((a, b) => (a.id < b.id ? -1 : a.id > b.id ? 1 : 0));
+
+if (modules.length === 0) throw new Error('Lab 에 올릴 모듈을 하나도 찾지 못했다.');
 
 /** 화면 상태 — [1틱 실행] 은 하나씩, [전체 실행] 은 전부, [다른 시드] 는 시드만 바꾼다. */
 const state = {
@@ -220,7 +222,7 @@ function render(): void {
     const tab = el(
       'button',
       module.id === active.id ? 'tab active' : 'tab',
-      `${module.id} (${module.scenarioCount})`,
+      `${module.id} (${module.scenarioIds.length})`,
     );
     tab.dataset['testid'] = `module-tab-${module.id}`;
     tab.addEventListener('click', () => {
@@ -236,14 +238,14 @@ function render(): void {
   const tick = el('button', undefined, '1틱 실행');
   tick.dataset['testid'] = 'run-tick';
   tick.addEventListener('click', () => {
-    const shown = Math.min(state.revealed, active.scenarioCount);
-    state.revealed = shown >= active.scenarioCount ? 1 : shown + 1;
+    const shown = Math.min(state.revealed, active.scenarioIds.length);
+    state.revealed = shown >= active.scenarioIds.length ? 1 : shown + 1;
     render();
   });
   const runAll = el('button', undefined, '전체 실행');
   runAll.dataset['testid'] = 'run-all';
   runAll.addEventListener('click', () => {
-    state.revealed = active.scenarioCount;
+    state.revealed = active.scenarioIds.length;
     render();
   });
   const reseed = el('button', undefined, '다른 시드');

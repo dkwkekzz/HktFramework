@@ -120,16 +120,33 @@ try {
   const requested = process.argv[2];
   const target = requested && modules[requested] ? modules[requested] : null;
 
+  // 요청한 모듈이 Lab 에 없으면 다른 모듈의 판정을 그 모듈의 증거로 넘겨서는 안 된다.
+  // 남의 장면으로 LAB_PASS 를 받는 경로를 여기서 끊는다 (원문 「23」: 증거 없이 통과 표시 금지).
+  const missingRequested = requested !== undefined && target === null;
+  if (missingRequested) {
+    console.error(
+      `[lab] 모듈 ${requested} 의 탭이 Lab 에 없다. ` +
+        `lab/index.ts 가 \`labModule\` 을 내보내는지 확인할 것. 발견된 모듈: ${moduleIds.join(', ') || '없음'}`,
+    );
+  }
+
   const summary = {
     modules,
+    requestedModule: requested ?? null,
+    error: missingRequested ? `E_LAB_MODULE_NOT_FOUND: ${requested}` : null,
     // verify.mjs 가 특정 모듈로 물어보면 그 모듈의 판정을 위로 올려 준다.
-    scenarios: target ? target.scenarios : Object.values(modules).reduce((all, module) => ({ ...all, ...module.scenarios }), {}),
+    scenarios: missingRequested
+      ? {}
+      : target
+        ? target.scenarios
+        : Object.values(modules).reduce((all, module) => ({ ...all, ...module.scenarios }), {}),
     replay: target?.replay ?? null,
     screenshot: target?.screenshot ?? null,
     allPassed:
       errors.length === 0 &&
       registryVisible &&
       moduleIds.length > 0 &&
+      !missingRequested &&
       (target ? target.allPassed : Object.values(modules).every((module) => module.allPassed)),
     registryVisible,
     consoleErrors: errors,

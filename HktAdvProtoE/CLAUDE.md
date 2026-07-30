@@ -18,6 +18,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
+| [progress/00-Module-Checklist.md](progress/00-Module-Checklist.md) | **새 모듈 착수 체크리스트** — 모듈 작업 시작 전 필독 |
 | [progress/](progress/) | 완료된 큰 단계별 작업 기록 (한 일 · 설계 판단 · 게이트 판정 · 다음으로 넘긴 것) |
 | [design/Design-MMO.md](design/Design-MMO.md) | 세계 설계도 — 주체-기원 가능성 세계 (무엇을 만드는가) |
 | [design/Design-Modules.md](design/Design-Modules.md) | **모듈 분할 총론 + 문서 라우터** (어떻게 나눠 만드는가) |
@@ -40,7 +41,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 「23. AI 에이전트 작업 제한」이 규정한다 →
 [design/modules/40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md)
 
-이 저장소에서의 진입 경로는 같은 문서의 파생 메모에 있다. 현재 진행 상태는 [STATE.md](STATE.md).
+이 저장소에서의 진입 경로는 같은 문서의 파생 메모에 있고, 실행 방법은
+[progress/00-Module-Checklist.md](progress/00-Module-Checklist.md) 에 모아 두었다. 현재 진행 상태는 [STATE.md](STATE.md).
 
 원문 「4. 검증 상태」에 따라 `IMPLEMENTED` 는 완료 상태가 아니며, 최종 완료는 `VERIFIED` 이상이다.
 원문 「23」은 증거 없이 `VERIFIED` 로 표시하는 것을 금지한다.

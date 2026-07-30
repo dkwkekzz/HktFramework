@@ -18,3 +18,12 @@ export function runV1Scenario(index: number, seedOffset = 0n): ScenarioRun {
 }
 
 export const v1ScenarioCount = v1Scenarios.length;
+
+/** Lab 등록 규약 — 형태 설명은 V0 의 `lab/index.ts` 참조. */
+export const labModule = {
+  id: v1Module.id,
+  version: v1Module.version,
+  purpose: v1Module.purpose,
+  scenarioIds: v1Scenarios.map((scenario) => scenario.id),
+  run: runV1Scenarios,
+};

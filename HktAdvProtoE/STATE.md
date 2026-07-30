@@ -24,13 +24,14 @@
 ```bash
 pnpm install
 pnpm run typecheck          # 타입 검사
-pnpm test                   # 단위 143 · 속성 16×1000 · 통합 32 (V0+V1)
+pnpm test                   # 전 모듈 + 저장소 규약 (tests/conventions.test.ts)
 pnpm lab                    # 브라우저 Lab (원문 「24」 공통 화면 · 모듈 탭)
 pnpm verify V0 --lab        # 증거 발급 → evidence/latest.json
 pnpm verify V1 --lab
 ```
 
 다음 작업: **V2 (determinism)** — [40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜대로 진행한다.
+착수 전에 [progress/00-Module-Checklist.md](progress/00-Module-Checklist.md) 를 읽는다 (만들 파일 · 절차 · 금지 · 자동 검사 목록).
 
 ## 모듈 상태 보드 (52개)
 

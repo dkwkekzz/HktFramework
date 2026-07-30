@@ -93,12 +93,20 @@ describe('저장소의 MODULE.yaml 을 스키마로 강제한다', () => {
 });
 
 describe('레지스트리 통합', () => {
-  it('V0 레지스트리에 V0·V1 이 함께 등록되고 V1 의 선행이 V0 이다', () => {
+  // 모듈이 늘어나도 깨지지 않도록 목록이 아니라 관계를 단정한다.
+  // (등록 목록 전체의 정합은 tests/conventions.test.ts 가 저장소 단위로 본다.)
+  it('V0·V1 이 함께 등록되고 V1 의 선행이 V0 이다', () => {
     const report = buildRegistry(documents);
     expect(report.rejected).toEqual([]);
-    expect(report.registered).toEqual(['V0', 'V1']);
-    expect(report.registry.order).toEqual(['V0', 'V1']);
-    expect(report.registry.dependents['V0']).toEqual(['V1']);
+    expect(report.registered).toContain('V0');
+    expect(report.registered).toContain('V1');
+
+    const v1 = report.registry.modules.find((module) => module.id === 'V1');
+    expect(v1?.dependsOn).toEqual(['V0']);
+    expect(report.registry.dependents['V0']).toContain('V1');
+
+    // 위상 순서에서 선행이 앞선다
+    expect(report.registry.order.indexOf('V0')).toBeLessThan(report.registry.order.indexOf('V1'));
   });
 
   it('저장소의 모든 스키마 문서를 SchemaRegistry 에 등록할 수 있다', () => {

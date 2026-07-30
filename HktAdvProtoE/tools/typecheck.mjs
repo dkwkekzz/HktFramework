@@ -21,6 +21,7 @@ const collect = (dir, depth) => {
 };
 collect(join(ROOT, 'packages'), 1);
 collect(join(ROOT, 'apps'), 0);
+if (existsSync(join(ROOT, 'tests', 'tsconfig.json'))) projects.push(join(ROOT, 'tests'));
 
 if (projects.length === 0) {
   console.error('[typecheck] tsconfig 를 찾지 못했다.');

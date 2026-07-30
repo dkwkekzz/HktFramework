@@ -19,3 +19,18 @@ export function runV0Scenario(index: number, seedOffset = 0n): ScenarioRun {
 }
 
 export const v0ScenarioCount = v0Scenarios.length;
+
+/**
+ * Lab 등록 규약.
+ *
+ * 모든 모듈의 `lab/index.ts` 는 이 이름·이 형태로 `labModule` 을 내보낸다.
+ * apps/lab 이 `packages/*​/*​/lab/index.ts` 를 훑어 자동으로 화면에 올리므로 손으로 등록하지 않는다.
+ * tests/conventions.test.ts 가 이 규약을 저장소 전체에 대해 강제한다.
+ */
+export const labModule = {
+  id: v0Module.id,
+  version: v0Module.version,
+  purpose: v0Module.purpose,
+  scenarioIds: v0Scenarios.map((scenario) => scenario.id),
+  run: runV0Scenarios,
+};
