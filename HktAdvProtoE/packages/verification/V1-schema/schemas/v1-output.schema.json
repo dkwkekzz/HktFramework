@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v1-output.schema.json",
+  "title": "V1 출력",
+  "description": "인스턴스별 판정과 위반 목록. 스키마 자체가 컴파일되지 않으면 compileError 가 채워진다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["results", "validCount", "invalidCount", "compileError"],
+  "properties": {
+    "results": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "valid", "issues"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "valid": { "type": "boolean" },
+          "issues": { "type": "array", "items": { "$ref": "#/$defs/issue" } }
+        }
+      }
+    },
+    "validCount": { "type": "integer", "minimum": 0 },
+    "invalidCount": { "type": "integer", "minimum": 0 },
+    "compileError": {
+      "type": ["null", "object"],
+      "additionalProperties": false,
+      "required": ["code", "schemaPath", "message"],
+      "properties": {
+        "code": { "type": "string", "minLength": 1 },
+        "schemaPath": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "issue": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["code", "instancePath", "schemaPath", "message"],
+      "properties": {
+        "code": { "type": "string", "pattern": "^E_[A-Z_]+$" },
+        "instancePath": { "type": "string" },
+        "schemaPath": { "type": "string", "minLength": 1 },
+        "message": { "type": "string", "minLength": 1 }
+      }
+    }
+  }
+}

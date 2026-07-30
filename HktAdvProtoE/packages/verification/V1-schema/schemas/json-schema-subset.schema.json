@@ -1,0 +1,111 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/json-schema-subset.schema.json",
+  "title": "V1 이 지원하는 JSON Schema 부분집합",
+  "description": "여기 열거된 키워드만 해석한다. 목록에 없는 키워드가 스키마에 있으면 V1 은 컴파일을 실패시킨다 — 모르는 조건을 통과시키는 것은 검증 조건 완화(원문 「23」)다. 이 문서는 명세 선언이며, tests/unit/compile.test.ts 가 코드의 지원 목록과 대조한다.",
+  "type": "object",
+  "$defs": {
+    "assertionKeyword": {
+      "description": "값 판정에 실제로 쓰는 키워드.",
+      "enum": [
+        "$ref",
+        "type",
+        "const",
+        "enum",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "items",
+        "minProperties",
+        "maxProperties",
+        "required",
+        "properties",
+        "additionalProperties",
+        "allOf",
+        "anyOf",
+        "oneOf",
+        "not"
+      ]
+    },
+    "annotationKeyword": {
+      "description": "판정에 영향을 주지 않는 주석성 키워드. 통과시키되 무시한다.",
+      "enum": [
+        "$schema",
+        "$id",
+        "$comment",
+        "$defs",
+        "title",
+        "description",
+        "examples",
+        "default",
+        "deprecated"
+      ]
+    },
+    "supportedKeyword": {
+      "description": "assertionKeyword + annotationKeyword.",
+      "enum": [
+        "$ref",
+        "type",
+        "const",
+        "enum",
+        "minLength",
+        "maxLength",
+        "pattern",
+        "minimum",
+        "maximum",
+        "exclusiveMinimum",
+        "exclusiveMaximum",
+        "multipleOf",
+        "minItems",
+        "maxItems",
+        "uniqueItems",
+        "items",
+        "minProperties",
+        "maxProperties",
+        "required",
+        "properties",
+        "additionalProperties",
+        "allOf",
+        "anyOf",
+        "oneOf",
+        "not",
+        "$schema",
+        "$id",
+        "$comment",
+        "$defs",
+        "title",
+        "description",
+        "examples",
+        "default",
+        "deprecated"
+      ]
+    },
+    "unsupportedByDesign": {
+      "description": "의도적으로 구현하지 않은 키워드. 필요해지면 Change Request 로 V1 계약을 고친다.",
+      "enum": [
+        "format",
+        "prefixItems",
+        "contains",
+        "propertyNames",
+        "patternProperties",
+        "dependentSchemas",
+        "dependentRequired",
+        "if",
+        "then",
+        "else",
+        "unevaluatedItems",
+        "unevaluatedProperties",
+        "$dynamicRef",
+        "$anchor"
+      ]
+    }
+  }
+}

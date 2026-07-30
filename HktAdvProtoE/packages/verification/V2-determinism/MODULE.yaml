@@ -1,0 +1,47 @@
+id: V2
+name: determinism
+purpose: >
+  시간·ID·무작위성을 결정적 자원으로 제공해,
+  같은 시드와 같은 입력이면 언제나 같은 난수열·같은 ID·같은 틱 진행이 나오게 한다.
+
+depends_on:
+  - V0
+
+owns_state:
+  - rng_state
+  - clock_state
+  - id_counters
+
+inputs:
+  - world_seed
+  - seed_components
+  - draw_request
+
+outputs:
+  - random_sequence
+  - deterministic_id
+  - tick_time
+
+invariants:
+  - identical_seed_must_produce_identical_sequence
+  - different_seed_component_must_change_sequence
+  - forked_stream_must_not_disturb_other_streams
+  - id_must_be_unique_within_run
+  - id_must_be_stable_across_runs
+  - clock_must_not_read_wall_time
+  - draw_must_not_mutate_input
+  - snapshot_must_restore_exact_state
+
+scenarios:
+  - same_seed_repeats_sequence
+  - different_seed_component_diverges
+  - seed_composition_follows_design_rule
+  - forked_streams_are_independent
+  - tick_clock_advances_without_wall_clock
+  - ids_are_unique_and_stable
+  - snapshot_restores_mid_sequence
+
+commands:
+  test: pnpm test V2-determinism
+  lab: pnpm lab
+  verify: pnpm verify V2

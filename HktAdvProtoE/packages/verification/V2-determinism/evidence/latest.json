@@ -1,0 +1,44 @@
+{
+  "moduleId": "V2",
+  "moduleVersion": "0.1.0",
+  "sourceHash": "sha256:252d852a4436c04b324ae85f6f8ae943a80818c9d7d23f74a934fe2e08af9e8f",
+  "contractHash": "sha256:5a5af978beb155b9114bc64bb78860d003d9821d70460005d69be79d48384f5a",
+  "dependencyVersions": {
+    "V0": "0.1.0"
+  },
+  "staticCheck": {
+    "passed": true,
+    "command": "pnpm run typecheck"
+  },
+  "unitTests": {
+    "passed": 89,
+    "failed": 0
+  },
+  "propertyTests": {
+    "seeds": 1000,
+    "invariantViolations": 0,
+    "passed": 13
+  },
+  "integrationTests": {
+    "passed": 17,
+    "failed": 0
+  },
+  "labScenarios": {
+    "same_seed_repeats_sequence": "passed",
+    "different_seed_component_diverges": "passed",
+    "seed_composition_follows_design_rule": "passed",
+    "forked_streams_are_independent": "passed",
+    "tick_clock_advances_without_wall_clock": "passed",
+    "ids_are_unique_and_stable": "passed",
+    "snapshot_restores_mid_sequence": "passed"
+  },
+  "replay": {
+    "runs": 20,
+    "uniqueHashes": 1
+  },
+  "integrationSlices": {
+    "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
+  },
+  "status": "LAB_PASS",
+  "producedBy": "tools/verify.mjs (V4 미구현 동안의 임시 발급기)"
+}

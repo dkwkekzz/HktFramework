@@ -1,0 +1,40 @@
+id: V0
+name: module-contract
+purpose: >
+  모든 모듈의 계약 문서를 읽어 모듈 레지스트리에 등록하고,
+  목적·선행 모듈 선언이 없거나 어긋난 계약은 등록을 거부한다.
+
+depends_on:
+  - none
+
+owns_state:
+  - module_registry
+
+inputs:
+  - module_contract_documents
+
+outputs:
+  - module_registry
+  - registration_report
+
+invariants:
+  - module_purpose_must_exist
+  - dependency_field_must_be_declared
+  - dependency_must_reference_registered_module
+  - dependency_graph_must_be_acyclic
+  - module_id_must_be_unique
+  - registration_must_be_order_independent
+  - identical_documents_must_produce_identical_registry_hash
+
+scenarios:
+  - valid_contract_registers
+  - missing_purpose_is_rejected
+  - missing_dependency_field_is_rejected
+  - unknown_dependency_is_rejected
+  - dependency_cycle_is_rejected
+  - registration_order_does_not_matter
+
+commands:
+  test: pnpm test V0-module-contract
+  lab: pnpm lab
+  verify: pnpm verify V0

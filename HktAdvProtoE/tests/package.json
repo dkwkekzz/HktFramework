@@ -1,0 +1,12 @@
+{
+  "name": "@hkt/conventions-tests",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "저장소 전체 규약 검사 — 어느 모듈의 소유도 아니다. V4(evidence-gate)가 흡수할 때까지의 임시 자리.",
+  "dependencies": {
+    "@hkt/v0-module-contract": "workspace:*",
+    "@hkt/v1-schema": "workspace:*",
+    "yaml": "^2.6.1"
+  }
+}

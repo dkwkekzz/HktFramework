@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v2-input.schema.json",
+  "title": "V2 입력",
+  "description": "시드 구성(Design-MMO 29장의 조합 규칙)과 뽑을 자원의 양. 코드의 validateInput 과 같은 계약이며, 저장소 규약 검사가 이 스키마를 V1 로 컴파일한다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["worldSeed", "draws"],
+  "properties": {
+    "worldSeed": {
+      "type": "string",
+      "pattern": "^-?[0-9]+$",
+      "description": "10진 정수 문자열 (JSON 에 bigint 를 담을 수 없어 문자열로 받는다)"
+    },
+    "components": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "tick": { "type": "integer", "minimum": 0 },
+        "subjectId": { "type": "string" },
+        "decisionCounter": { "type": "integer", "minimum": 0 },
+        "situationId": { "type": "string" }
+      }
+    },
+    "draws": { "type": "integer", "minimum": 0, "maximum": 100000 },
+    "idKinds": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "ticks": { "type": "integer", "minimum": 0 },
+    "forks": { "type": "array", "items": { "type": "string", "minLength": 1 } },
+    "msPerTick": { "type": "number", "exclusiveMinimum": 0 }
+  }
+}

@@ -1,0 +1,14 @@
+{
+  "name": "@hkt/lab",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build"
+  },
+  "dependencies": {
+    "@hkt/v0-module-contract": "workspace:*",
+    "@hkt/v1-schema": "workspace:*"
+  }
+}
