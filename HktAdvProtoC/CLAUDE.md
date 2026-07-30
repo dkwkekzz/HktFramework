@@ -31,7 +31,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | [design/impl/README.md](design/impl/README.md) | 구현 분해 개요 + Phase 목록 |
 | [design/impl/Guide-DataFlow.md](design/impl/Guide-DataFlow.md) | 데이터 흐름 가이드 — 입력→AI 생성→런타임→렌더의 코드 레벨 추적 |
 | [design/impl/Phase-N.md](design/impl/) | 단계별 상세 설계 · 완료 조건 · 관측 결과 |
-| `proto/` | 실행 코드. 검증은 `npm run verify` / `npm test` / `npm run smoke` |
+| `proto/` | 실행 코드. 검증은 `npm run verify` / `npm test` / `npm run smoke`, 플레이 관찰은 `npm run play` / `npm run playtest` |
+| [design/impl/Play-Modules.md](design/impl/Play-Modules.md) | **플레이 모듈 분할** — 목적이 분명한 10개 모듈 + 모듈별 도달 판정(`npm run play` 이 세는 항목의 단일 출처) |
 | [run-studio.bat](run-studio.bat) | **제작 국면 원클릭 실행 (Windows)** — §3 모듈 1~6: 세계 생성·검증·플레이 패키지 굽기 (#studio) |
 | [run-play.bat](run-play.bat) | **플레이 국면 원클릭 실행 (Windows)** — §3 모듈 7: 구운 패키지를 그대로 불러와 플레이 (#play) |
 | [run.bat](run.bat) | 두 배치의 공통 실행기 (Node 확인 → 의존성 → 개발 서버 → 브라우저) — 직접 실행 시 스튜디오 |

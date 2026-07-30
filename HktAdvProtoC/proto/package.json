@@ -10,6 +10,8 @@
     "test": "vitest run",
     "lint": "eslint src",
     "smoke": "node scripts/smoke.mjs",
+    "play": "vite-node src/scripts/play-session.ts",
+    "playtest": "node scripts/playtest.mjs",
     "sim": "vite-node src/scripts/run-30-days.ts",
     "verify": "vite-node src/scripts/verify.ts",
     "review:2": "vite-node src/scripts/review2-probes.ts",
