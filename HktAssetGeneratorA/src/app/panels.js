@@ -31,6 +31,9 @@ const GUARD_DEFS = [
   { key: "guardThickness", label: "가드 두께 (m)", min: 0.01, max: 0.06, step: 0.002 },
   { key: "guardDepth", label: "가드 깊이 (m)", min: 0.008, max: 0.05, step: 0.002 },
   { key: "guardBevel", label: "가드 베벨 (m)", min: 0, max: 0.008, step: 0.001 },
+  // D-19 — quillon 휨(+ 는 칼날 쪽) · 끝 두께 배율
+  { key: "guardDroop", label: "가드 휨 (m)", min: -0.03, max: 0.03, step: 0.001 },
+  { key: "guardEndFlare", label: "가드 끝 벌어짐", min: 0.6, max: 2.5, step: 0.05 },
 ];
 
 const GRIP_DEFS = [
@@ -64,6 +67,7 @@ export const DEFAULT_PARAMS = {
   segLong: 32, segCross: 16,
   // 가드
   guardShape: "bar", guardWidth: 0.18, guardThickness: 0.025, guardDepth: 0.02, guardBevel: 0.004,
+  guardDroop: 0, guardEndFlare: 1,
   // 손잡이
   gripLength: 0.14, gripStartRadius: 0.014, gripEndRadius: 0.012, gripTilt: 0,
   gripCrossSection: "circle", gripFlatten: 0.85,
@@ -92,6 +96,7 @@ export function paramsToSwordInput(p) {
     guard: {
       shape: p.guardShape, width: p.guardWidth, thickness: p.guardThickness,
       depth: p.guardDepth, bevel: p.guardBevel,
+      droop: p.guardDroop ?? 0, endFlare: p.guardEndFlare ?? 1,
     },
     grip: {
       length: p.gripLength, startRadius: p.gripStartRadius, endRadius: p.gripEndRadius,
@@ -125,6 +130,7 @@ export function swordInputToParams(input) {
     guardShape: input.guard.shape, guardWidth: input.guard.width,
     guardThickness: input.guard.thickness, guardDepth: input.guard.depth,
     guardBevel: input.guard.bevel ?? 0,
+    guardDroop: input.guard.droop ?? 0, guardEndFlare: input.guard.endFlare ?? 1,
     gripLength: input.grip.length, gripStartRadius: input.grip.startRadius,
     gripEndRadius: input.grip.endRadius, gripTilt: input.grip.tilt ?? 0,
     gripCrossSection: input.grip.crossSection ?? "circle",

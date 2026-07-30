@@ -12,7 +12,8 @@ export function signedArea2D(pts) {
   return area / 2;
 }
 
-const cross2 = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
+/** 2D 외적 (o→a) × (o→b) — 부호 = 감김 방향, 크기 = 평행사변형 면적 */
+export const cross2 = (o, a, b) => (a[0] - o[0]) * (b[1] - o[1]) - (a[1] - o[1]) * (b[0] - o[0]);
 
 function pointInTriangle(p, a, b, c) {
   const d1 = cross2(a, b, p);

@@ -3,7 +3,7 @@
 // 로컬 공간: 앞면 y=0, 뒷면 y=-depth. outline 은 (x, z) 평면 — x=폭, z=두께.
 
 import { smoothstep, clamp01 } from "../core/math.js";
-import { triangulatePolygon, signedArea2D, isSimplePolygon } from "../core/earclip.js";
+import { triangulatePolygon, signedArea2D, isSimplePolygon, cross2 } from "../core/earclip.js";
 import { MeshBuilder } from "./builder.js";
 import { PartId } from "./blade.js";
 
@@ -60,10 +60,136 @@ function insetOutline(outline, amount) {
 }
 
 /**
- * @param design {{ outline: Vec2[], depth: number, bevel: number, symmetry: "bilateral" }}
+ * 곡선 가드 변위 (D-19) — 정규 반폭 s=|x|/w 의 2차.
+ *   y += droop·s²  (quillon 이 축 방향으로 휜다, + 는 칼날 쪽)
+ *   z *= 1 + (endFlare-1)·s²  (끝 두께 배율)
+ * s(0)=0 이라 중앙 접합부(소켓)는 고정된다. 기본값이면 항등 — 기존과 비트 동일.
+ */
+function makeGuardWarp(outline, droop, endFlare) {
+  const active = droop !== 0 || endFlare !== 1;
+  let halfWidth = 0;
+  for (const [x] of outline) halfWidth = Math.max(halfWidth, Math.abs(x));
+  halfWidth = Math.max(halfWidth, 1e-9);
+  if (!active) return { active: false, halfWidth };
+  const sq = (x) => (x / halfWidth) ** 2; // |x|² / w² — 부호 무관
+  const dyAt = (x) => droop * sq(x);
+  const flareAt = (x) => 1 + (endFlare - 1) * sq(x);
+
+  // x 축 변위 경로의 호길이 테이블 (uvMetric u 보정 — D-19 ③).
+  // 경로: x ↦ (x, droop·(x/w)²) — |x| 에 대해 대칭이므로 [0, w] 만 적재.
+  const SAMPLES = 128;
+  const arc = new Float64Array(SAMPLES + 1);
+  for (let i = 1; i <= SAMPLES; i++) {
+    const x0 = (halfWidth * (i - 1)) / SAMPLES;
+    const x1 = (halfWidth * i) / SAMPLES;
+    arc[i] = arc[i - 1] + Math.hypot(x1 - x0, dyAt(x1) - dyAt(x0));
+  }
+  /** 부호 있는 호길이 — 중앙(x=0) 기준. |x| > w 는 선형 연장. */
+  const arcAt = (x) => {
+    const a = Math.abs(x);
+    const u = (a / halfWidth) * SAMPLES;
+    const i = Math.min(SAMPLES - 1, Math.floor(u));
+    const f = u - i;
+    const len = arc[i] + (arc[i + 1] - arc[i]) * f;
+    return x < 0 ? -len : len;
+  };
+  return { active: true, halfWidth, dyAt, flareAt, arcAt };
+}
+
+/**
+ * 변위 전 윤곽을 x 방향으로 세분 (D-19) — 변위는 윤곽 정점에만 적용되므로 원본 템플릿의
+ * x 해상도(bar 는 양 끝 2점뿐)로는 2차 곡선이 표현되지 않는다. 세분 없이는 `bar` 가
+ * 휘지 않고 **평행이동**하고, `tapered` 는 중앙이 V 로 꺾인다.
+ * 직선 구간 위의 공선점만 늘리므로 다각형은 단순성·감김을 유지한다 (earclip 은 공선
+ * 정점을 귀로 잡지 않아 퇴화 삼각형이 생기지 않고, 결과는 삼각형 스트립이 된다).
+ */
+function subdivideOutlineX(outline, maxStep) {
+  const out = [];
+  const n = outline.length;
+  for (let i = 0; i < n; i++) {
+    const a = outline[i], b = outline[(i + 1) % n];
+    out.push(a);
+    const steps = Math.ceil(Math.abs(b[0] - a[0]) / maxStep);
+    for (let k = 1; k < steps; k++) {
+      const t = k / steps;
+      out.push([a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t]);
+    }
+  }
+  return out;
+}
+
+/** 변위 가드의 x 세분 간격 = 반폭 / 이 값 (튜닝 노브 — 삼각형 수 vs 곡선 매끄러움) */
+export const WARP_X_SEGMENTS = 12;
+
+/**
+ * x-monotone 다각형의 스트립 삼각분할 (D-19) — 세분된 윤곽 전용.
+ * 세분은 직선 변 위에 공선점을 많이 만들고, ear clipping 은 그때 생기는 얇은 귀에서
+ * 후보를 잃는다(diamond 윤곽 12분할에서 "귀를 찾지 못함" 실측). 가드 윤곽 4종은 전부
+ * x-monotone 이므로 최좌·최우 정점이 나누는 두 체인을 x 순서로 병합하면 스트립이 되고,
+ * 이 경로는 공선점·얇은 삼각형에 영향받지 않는다. 직선 가드는 기존 earclip 을 그대로 쓴다
+ * (golden 비트 동일 유지). monotone 이 아닌 윤곽은 조용히 뭉개지 말고 던진다.
+ */
+function triangulateMonotoneX(pts) {
+  const n = pts.length;
+  const idx = pts.map((_, i) => i);
+  if (signedArea2D(pts) < 0) idx.reverse();
+
+  let li = 0, ri = 0;
+  for (let k = 0; k < n; k++) {
+    if (pts[idx[k]][0] < pts[idx[li]][0]) li = k;
+    if (pts[idx[ri]][0] < pts[idx[k]][0]) ri = k;
+  }
+  const chainFrom = (dir) => {
+    const out = [];
+    for (let k = li; ; k = (k + dir + n) % n) {
+      out.push(idx[k]);
+      if (k === ri) return out;
+      if (out.length > n) throw new Error("guard outline 이 x-monotone 이 아니다");
+    }
+  };
+  const lower = chainFrom(1);
+  const upper = chainFrom(-1);
+  for (const chain of [lower, upper]) {
+    for (let k = 1; k < chain.length; k++) {
+      if (pts[chain[k]][0] < pts[chain[k - 1]][0] - 1e-12) {
+        throw new Error("guard outline 이 x-monotone 이 아니다");
+      }
+    }
+  }
+
+  // 두 체인을 x 순서로 병합 — 삼각형 감김은 부호 면적으로 CCW 정규화, 퇴화는 버린다
+  const triangles = [];
+  const push = (a, b, c) => {
+    const area = cross2(pts[a], pts[b], pts[c]);
+    if (Math.abs(area) <= 1e-18) return; // 공선(= 면적 0) — 표면에 기여하지 않는다
+    triangles.push(area > 0 ? [a, b, c] : [a, c, b]);
+  };
+  let i = 0, j = 0;
+  while (i < lower.length - 1 || j < upper.length - 1) {
+    const takeLower = j >= upper.length - 1
+      || (i < lower.length - 1 && pts[lower[i + 1]][0] <= pts[upper[j + 1]][0]);
+    if (takeLower) {
+      push(lower[i], lower[i + 1], upper[j]);
+      i++;
+    } else {
+      push(lower[i], upper[j + 1], upper[j]);
+      j++;
+    }
+  }
+  return triangles;
+}
+
+/**
+ * @param design {{ outline: Vec2[], depth: number, bevel: number, symmetry: "bilateral",
+ *                  droop?: number, endFlare?: number }}
  */
 export function buildGuardMesh(design) {
-  const { outline, normalized } = prepareOutline(design.outline);
+  // 곡선 가드 변위 (D-19) — 변위가 있으면 윤곽을 x 방향으로 먼저 세분한다.
+  const warp = makeGuardWarp(design.outline, design.droop ?? 0, design.endFlare ?? 1);
+  const rawOutline = warp.active
+    ? subdivideOutlineX(design.outline, warp.halfWidth / WARP_X_SEGMENTS)
+    : design.outline;
+  const { outline, normalized } = prepareOutline(rawOutline);
   const n = outline.length;
   const depth = design.depth;
 
@@ -82,17 +208,29 @@ export function buildGuardMesh(design) {
     }
   }
 
-  const triangles = triangulatePolygon(faceOutline);
+  // 변위 가드는 세분된 윤곽이라 monotone 스트립으로 분할한다 (D-19 — earclip 은 얇은 귀에서 실패)
+  const triangles = warp.active
+    ? triangulateMonotoneX(faceOutline)
+    : triangulatePolygon(faceOutline);
   const builder = new MeshBuilder();
+
+  /** (x,z) 윤곽점 + 링 y → 변위된 3D 위치. */
+  const placeAt = (pt, y) => (warp.active
+    ? [pt[0], y + warp.dyAt(pt[0]), pt[1] * warp.flareAt(pt[0])]
+    : [pt[0], y, pt[1]]);
+  /** 앞/뒷면 uvMetric — u 는 변위 경로 호길이, v 는 flare 반영 두께 (D-19 ③). */
+  const faceMetric = (pt) => (warp.active
+    ? [warp.arcAt(pt[0]) / METRIC_UNIT, (pt[1] * warp.flareAt(pt[0])) / METRIC_UNIT]
+    : [pt[0] / METRIC_UNIT, pt[1] / METRIC_UNIT]);
 
   const contactAt = (x, z) => 0.6 * smoothstep(0.05, 0.005, Math.hypot(x, z));
 
   const addFaceVertex = (pt, norm, y, island, group, mirrorU) => {
     const u = mirrorU ? 1 - norm[0] : norm[0];
     return builder.addVertex({
-      position: [pt[0], y, pt[1]],
+      position: placeAt(pt, y),
       uvLocal: [u, norm[1]],
-      uvMetric: [pt[0] / METRIC_UNIT, pt[1] / METRIC_UNIT],
+      uvMetric: faceMetric(pt),
       attributes: {
         partId: PartId.Guard, islandId: island,
         longitudinal: 0, perimeter: 0,
@@ -133,10 +271,16 @@ export function buildGuardMesh(design) {
     ];
 
   // 둘레 누적 거리 (u) — 원본 outline 기준, seam = outline[0] (검 뒤쪽에 두는 규약)
+  // 변위된 가드는 실제 3D 둘레로 재계산한다 (D-19 ③ — metric 계약 유지).
   const perim = new Float64Array(n + 1);
   for (let i = 0; i < n; i++) {
     const a = outline[i], b = outline[(i + 1) % n];
-    perim[i + 1] = perim[i] + Math.hypot(b[0] - a[0], b[1] - a[1]);
+    if (warp.active) {
+      const pa = placeAt(a, 0), pb = placeAt(b, 0);
+      perim[i + 1] = perim[i] + Math.hypot(pb[0] - pa[0], pb[1] - pa[1], pb[2] - pa[2]);
+    } else {
+      perim[i + 1] = perim[i] + Math.hypot(b[0] - a[0], b[1] - a[1]);
+    }
   }
   const totalPerim = perim[n];
 
@@ -158,7 +302,7 @@ export function buildGuardMesh(design) {
       const pt = spec.pts[j % n];
       const u = perim[j] / totalPerim;
       ring.push(builder.addVertex({
-        position: [pt[0], spec.y, pt[1]],
+        position: placeAt(pt, spec.y),
         uvLocal: [u, v],
         uvMetric: [perim[j] / METRIC_UNIT, (pathDist[r]) / METRIC_UNIT],
         attributes: {
@@ -231,6 +375,9 @@ export function makeGuardDesign(p) {
     outline: makeGuardOutline(p.shape, p.width, p.thickness),
     depth: p.depth,
     bevel: p.bevel ?? 0,
+    // D-19: quillon 휨(축 방향 변위, m — + 는 칼날 쪽) · 끝 두께 배율. 기본값 = 직선 가드.
+    droop: p.droop ?? 0,
+    endFlare: p.endFlare ?? 1,
     symmetry: "bilateral",
   };
 }
