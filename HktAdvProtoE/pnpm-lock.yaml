@@ -61,6 +61,18 @@ importers:
         specifier: workspace:*
         version: link:../../verification/V0-module-contract
 
+  packages/kernel/K2-rule-transaction:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../K0-entity-state
+      '@hkt/k1-predicate-query':
+        specifier: workspace:*
+        version: link:../K1-predicate-query
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+
   packages/verification/V0-module-contract:
     dependencies:
       yaml:

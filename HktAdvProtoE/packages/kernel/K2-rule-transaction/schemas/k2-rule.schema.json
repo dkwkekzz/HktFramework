@@ -1,0 +1,34 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k2-rule.schema.json",
+  "title": "K2 규칙",
+  "description": "세계 설계 원본 15.3 의 RuleSpec. 규칙은 임의 실행 코드가 아니라 데이터 AST 다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "scope", "priority", "when", "costs", "effects", "emits", "tags"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "title": { "type": "string" },
+    "scope": { "enum": ["L0", "L1", "L2", "L3", "L4", "L5", "L6"] },
+    "priority": { "type": "number" },
+    "when": { "type": "object" },
+    "requires": { "type": "object" },
+    "costs": { "type": "array", "items": { "$ref": "https://hkt.local/schemas/k2-effect.schema.json" } },
+    "effects": { "type": "array", "items": { "$ref": "https://hkt.local/schemas/k2-effect.schema.json" } },
+    "failureEffects": { "type": "array", "items": { "$ref": "https://hkt.local/schemas/k2-effect.schema.json" } },
+    "emits": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "channels"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "channels": { "type": "array", "items": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    },
+    "tags": { "type": "array", "items": { "type": "string" } }
+  }
+}

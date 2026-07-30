@@ -1,0 +1,48 @@
+id: K2
+name: rule-transaction
+purpose: >
+  행동 의도를 규칙의 조건·비용·효과에 따라 원자적으로 처리해,
+  성공이면 비용과 효과가 함께 적용되고 실패면 아무것도 적용되지 않게 한다.
+
+depends_on:
+  - V0
+  - K0
+  - K1
+
+owns_state:
+  - rule_book
+
+inputs:
+  - intent
+  - rule_spec
+  - world_state
+
+outputs:
+  - transaction_outcome
+  - state_delta
+  - rejection_cause
+
+invariants:
+  - rule_must_be_data_ast_not_code
+  - rejected_intent_must_not_apply_costs_or_effects
+  - failure_effect_must_be_declared_by_the_matched_rule
+  - cost_and_effect_must_apply_together
+  - unaffordable_cost_must_reject_before_any_effect
+  - lower_authority_rule_must_not_break_higher_authority_rule
+  - rule_matching_must_be_deterministic
+  - transfer_must_conserve_total
+  - every_state_change_must_be_listed_in_the_delta
+
+scenarios:
+  - attack_fails_when_energy_is_short
+  - attack_succeeds_and_pays_its_cost
+  - rule_matching_follows_the_priority_ladder
+  - local_exception_cannot_break_a_meta_axiom
+  - transfer_conserves_the_total
+  - unknown_verb_is_rejected_with_a_cause
+  - identical_intent_produces_identical_delta
+
+commands:
+  test: pnpm test K2-rule-transaction
+  lab: pnpm lab
+  verify: pnpm verify K2
