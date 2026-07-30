@@ -57,7 +57,8 @@ try {
   await page.waitForFunction(
     () => document.querySelector("#generation")?.textContent?.includes("15 실행 데이터 저장"),
     undefined,
-    { timeout: 60000 },
+    // 생성은 §42-6 수정 루프(라운드마다 §35 30일 시뮬레이션)까지 돈다 — 합격본이 화면의 세계다
+    { timeout: 300000 },
   );
   const generation = await page.textContent("#generation");
   if (!generation?.includes("정합성 검증 통과")) {
@@ -75,7 +76,7 @@ try {
   await page.waitForFunction(
     () => (document.querySelector("#editor")?.textContent ?? "").includes("[reused]"),
     undefined,
-    { timeout: 60000 },
+    { timeout: 300000 },
   );
   const editor = await page.textContent("#editor");
   const reusedCount = (editor.match(/\[reused\]/g) ?? []).length;

@@ -2,9 +2,15 @@
 // Worker(SimulationWorker)와 headless 테스트(InlineHost)가 같은 이 코드를 실행한다 (Phase 0 §0.4).
 import { buildManualWorld } from "../../content/manual-world";
 import { buildPlayerWorld } from "../../content/player-world";
-import { FIRST_WORLD_CORPUS, FIRST_WORLD_ID, FIRST_WORLD_SEED_INPUT } from "../../content/first-world";
+import {
+  FIRST_WORLD_CORPUS,
+  FIRST_WORLD_ID,
+  FIRST_WORLD_REPAIRS,
+  FIRST_WORLD_SEED_INPUT,
+} from "../../content/first-world";
 import { ArtifactStore } from "../../generation/ArtifactStore";
-import { compileWorld, type CompileResult } from "../../generation/CompilerPipeline";
+import { type CompileResult } from "../../generation/CompilerPipeline";
+import { compileWithRepair } from "../../generation/RepairLoop";
 import { PROTOTYPE_SCALE } from "../../generation/GenerationTypes";
 import { RecordedTextGenerationPort } from "../../generation/RecordedTextGenerationPort";
 import { buildGenerationView } from "../../viewmodel/GenerationViewModel";
@@ -197,9 +203,11 @@ export class RuntimeServer {
     // 오프라인 목 포트 — 실제 LLM 어댑터도 같은 TextGenerationPort 뒤에 들어온다 (§2.1).
     // 네 번째 인자가 이 포트의 **경계**다: 코퍼스는 §41 의 다섯 문장에 대해 녹화됐으므로
     // 다른 주제를 넣으면 1단계에서 "왜 안 되는지"를 말하며 멈춘다 (2차 재검증 F-1).
-    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, [], FIRST_WORLD_SEED_INPUT);
+    // 수정 녹화(FIRST_WORLD_REPAIRS)를 함께 켠다 — 화면이 갖는 세계도 §42-6 수정 루프의
+    // **합격본**이어야 한다 (§3 모듈 3 은 검증→수정 사이클까지다 — 원본을 그대로 내주지 않는다).
+    const port = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, FIRST_WORLD_REPAIRS, FIRST_WORLD_SEED_INPUT);
     try {
-      const result = await compileWorld({
+      const repaired = await compileWithRepair({
         port,
         seedInput: {
           title: seedInput.title,
@@ -211,11 +219,24 @@ export class RuntimeServer {
         worldId: FIRST_WORLD_ID,
         ...(resumeFrom === undefined ? {} : { resumeFrom }),
       });
-      this.generated = result;
+      if (!repaired.accepted) {
+        return [
+          {
+            type: "error",
+            message:
+              `세계 생성 불합격 — 수정 ${repaired.rounds.length}라운드 뒤에도 남은 오류 ${repaired.remainingIssues.length}건:\n` +
+              repaired.remainingIssues
+                .slice(0, 5)
+                .map((issue) => `[${issue.code}] ${issue.message}`)
+                .join("\n"),
+          },
+        ];
+      }
+      this.generated = repaired.compile;
       return [
         {
           type: "generation_view",
-          view: buildGenerationView(result, PROTOTYPE_SCALE, {
+          view: buildGenerationView(repaired.compile, PROTOTYPE_SCALE, {
             callCount: port.calls.length,
             maxInputBytes: port.maxInputBytes,
           }),
