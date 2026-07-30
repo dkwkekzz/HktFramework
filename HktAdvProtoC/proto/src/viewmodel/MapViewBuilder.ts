@@ -394,6 +394,8 @@ function overlaysOf(
 const AGENT_BADGE_KEYS = ["health", "hunger", "fear", "stress", "current_action"];
 const RESOURCE_BADGE_KEYS = ["quantity", "quality", "rarity"];
 const PLACE_BADGE_KEYS = ["danger", "shelter_quality"];
+/** §17 조직이 지도에서 말하는 것 — 규모·비축·위기 (조직도 상태를 가진 주체다) */
+const FACTION_BADGE_KEYS = ["member_count", "food_reserve", "crisis", "fear"];
 const REGION_BADGE_KEYS = ["danger", "food_abundance", "ability_residue", "temperature"];
 
 /**
@@ -472,8 +474,15 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
   const markers: SceneMapMarker[] = [];
   const resources: SceneMapMarker[] = [];
   const places: SceneMapMarker[] = [];
+  const factions: SceneMapMarker[] = [];
   for (const entity of Object.values(runtime.state.entities).sort((a, b) => a.id.localeCompare(b.id))) {
     if (!visible(entity)) continue;
+    // §17 조직 — 위치를 가진 조직은 지도에 선다(shape-banner). 조직은 세계에서 가장 큰 주체다 (F-2)
+    if (entity.type === "faction") {
+      const marker = markerOf(runtime, projection, entity, FACTION_BADGE_KEYS);
+      if (marker !== undefined) factions.push(marker);
+      continue;
+    }
     if (entity.type === "agent") {
       const marker = markerOf(runtime, projection, entity, AGENT_BADGE_KEYS);
       if (marker !== undefined) markers.push(marker);
@@ -502,11 +511,13 @@ export function buildMapView(runtime: WorldRuntime, context: SceneViewContext): 
     markers,
     resources,
     places,
+    factions,
     overlays: overlaysOf(runtime, projection, observerId),
     signals,
     legend: [
       { key: "지역", value: String(regions.length) },
       { key: "주체", value: String(markers.length) },
+      { key: "조직", value: String(factions.length) },
       { key: "자원", value: String(resources.length) },
       { key: "장소", value: String(places.length) },
       { key: "신호", value: String(signals.length) },

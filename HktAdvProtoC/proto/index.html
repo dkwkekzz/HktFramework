@@ -29,6 +29,7 @@
       tr.diverge td { background: #fff3f0; }
       .narration { background: #f4f7fb; border-left: 3px solid #9bb7d4; padding: 0.3rem 0.5rem; margin: 0.2rem 0; }
       .hint { color: #777; font-size: 0.75rem; }
+      .note { background: #fff8dc; border-left: 3px solid #d9c47a; padding: 0.4rem 0.6rem; font-size: 0.78rem; line-height: 1.5; }
       .split { display: flex; gap: 1rem; flex-wrap: wrap; }
       .split > div { flex: 1 1 20rem; }
       .hidden-cause { color: #a33; }
@@ -53,6 +54,12 @@
     <section id="screen-seed">
       <fieldset>
         <legend>세계 생성 (§4 입력 → §5 15단계 컴파일)</legend>
+        <!-- 증명된 범위의 경계를 화면이 먼저 말한다 (2차 재검증 F-1) -->
+        <p class="note">
+          이 프로토타입의 생성 AI 는 <b>녹화 재생 포트</b> 하나다(§2.1 — 살아 있는 LLM 어댑터 0종).
+          아래 다섯 문장은 그 코퍼스가 녹화된 입력이라 그대로 세계가 되지만, <b>주제를 바꾸면 1단계에서 멈춘다</b> —
+          제목은 결과에 반영되고, 경험·제외 요소는 §33.2 감사만 받는다.
+        </p>
         <label for="themes">세계관 주제 (한 줄에 하나)</label>
         <textarea id="themes" rows="5"></textarea>
         <label for="experiences">원하는 경험</label>

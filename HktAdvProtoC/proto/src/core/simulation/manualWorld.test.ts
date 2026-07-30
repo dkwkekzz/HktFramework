@@ -102,9 +102,11 @@ describe("Phase 1 DoD — 수동 세계 30일", () => {
     // 마을 사람의 믿음: 공격적이다
     for (const villager of ["agent.kael", "agent.mar", "agent.ren"]) {
       const belief = findBelief(runtime.agentRuntime(villager), BEAST, "aggression");
-      expect(belief?.believedValue).toBe(90);
+      // 값은 어느 채널로 들었는가에 달렸다 (§23) — 목격은 90, 맞아 본 촉각은 95 를 주장한다(F-3).
+      // 판정하는 것은 **실제(50 미만)와 믿음이 갈렸는가**이지 특정 숫자가 아니다.
+      expect(belief?.believedValue).toBeGreaterThanOrEqual(90);
       // Phase 3 부터 확신은 소문 경로를 지나며 전달자 신뢰만큼 깎인다 (§23·§25) —
-      // 값은 그대로 90 이지만 "얼마나 확신하는가"는 직접 관찰보다 낮다.
+      // "얼마나 확신하는가"는 직접 관찰보다 낮다.
       expect(belief?.confidence).toBeGreaterThan(0.1);
     }
 

@@ -3,11 +3,24 @@
 // vite preview 로 빌드 산출물을 서빙하고, 사전 설치된 Chromium 으로 네 화면을 차례로 조작한다.
 // Phase 8 부터는 "왕복이 된다"에 그치지 않고 **화면에 무엇이 그려졌는가**까지 본다 —
 // Canvas 픽셀을 세어 지도가 실제로 그려졌는지, 모드 전환이 표를 바꾸는지 확인한다.
-import { spawn } from "node:child_process";
+//
+// **빌드는 이 스크립트가 스스로 한다** (2차 재검증 F-9): preview 는 dist/ 를 서빙하므로
+// 빌드가 없으면 404 를 받고 "preview 서버 기동 실패"로 죽는다 — 재현 명령이 두 줄이어야 하는 것은
+// 스크립트의 결함이지 사용자의 책임이 아니다. 이미 빌드해 두었다면 HKT_SMOKE_SKIP_BUILD=1 로 건너뛴다.
+import { spawn, spawnSync } from "node:child_process";
 import { chromium } from "playwright-core";
 
 const PORT = 4173;
 const EXECUTABLE = process.env.CHROMIUM_PATH ?? "/opt/pw-browsers/chromium";
+
+if (process.env.HKT_SMOKE_SKIP_BUILD !== "1") {
+  console.log("[smoke] dist/ 를 새로 빌드한다 (npm run build) — 건너뛰려면 HKT_SMOKE_SKIP_BUILD=1");
+  const built = spawnSync("npm", ["run", "build"], { stdio: "inherit", shell: process.platform === "win32" });
+  if (built.status !== 0) {
+    console.error("[smoke] 빌드 실패 — 브라우저 판정 이전에 멈춘다");
+    process.exit(built.status ?? 1);
+  }
+}
 
 function waitForServer(url, timeoutMs = 15000) {
   const started = Date.now();

@@ -23,7 +23,7 @@ import {
   runPlayerScenario,
 } from "../core/agents/phase7Checks";
 import { SIGNIFICANCE_THRESHOLD } from "../core/events/EventDetector";
-import { buildInterventionOpportunity } from "../core/events/EventViews";
+import { buildInterventionOpportunity, getEventViewFor } from "../core/events/EventViews";
 import {
   eventCountsByPattern,
   eventsBySignificance,
@@ -204,7 +204,13 @@ const villagerBelief = findBelief(runtime.agentRuntime("agent.kael"), BEAST, "ag
 const researcherBelief = findBelief(runtime.agentRuntime("agent.rion"), BEAST, "protecting_offspring");
 const hiddenLeak = AGENTS.some((id) => findBelief(runtime.agentRuntime(id), BEAST, "offspring_threat") !== undefined);
 check(
-  realAggression < 50 && villagerBelief?.believedValue === 90 && researcherBelief?.believedValue === true && !hiddenLeak,
+  // 마을 사람이 믿는 값은 신호마다 다르다(목격 90 · 맞아 본 촉각 95, §23 채널) — 판정하는 것은
+  // **실제와 믿음이 갈렸는가**이지 특정 숫자가 아니다
+  realAggression < 50 &&
+    typeof villagerBelief?.believedValue === "number" &&
+    villagerBelief.believedValue >= 90 &&
+    researcherBelief?.believedValue === true &&
+    !hiddenLeak,
   "실제 상태와 믿음이 분리 저장",
   `실제 공격성 ${realAggression} / 마을 믿음 ${String(villagerBelief?.believedValue)} / 연구자 믿음 보호중=${String(researcherBelief?.believedValue)} / 관찰불가 상태 누출 ${hiddenLeak ? "있음" : "없음"}`,
 );
@@ -386,7 +392,8 @@ const beliefAggression = findBelief(runtime.agentRuntime("agent.kael"), BEAST, "
 const researcherProtect = findBelief(runtime.agentRuntime("agent.rion"), BEAST, "protecting_offspring");
 check(
   runtime.store.readNumber(BEAST, "aggression") < 50 &&
-    beliefAggression?.believedValue === 90 &&
+    typeof beliefAggression?.believedValue === "number" &&
+    beliefAggression.believedValue >= 90 &&
     researcherProtect?.believedValue === true &&
     villagerReadiness &&
     researcherActions > 0,
@@ -782,11 +789,11 @@ check(
 // =====================================================================================
 phase = 6;
 
-// --- DoD 1 : §34 필수 규칙 10개가 각각 위반 픽스처를 error 로 검출한다 --------------------
+// --- DoD 1 : 의미 검사기가 각각 위반 픽스처를 error 로 검출한다 (개수는 SEMANTIC_CODES) -----
 const fixtures = runViolationFixtures(worldSeed);
 check(
   fixtures.every((fixture) => fixture.detected) && fixtures.length === SEMANTIC_CODES.length,
-  `§34 필수 규칙 ${SEMANTIC_CODES.length}종이 각각 위반 세계를 잡는다 (${fixtures.filter((f) => f.detected).length}/${fixtures.length})`,
+  `§34 의미 검사기 ${SEMANTIC_CODES.length}종이 각각 위반 세계를 잡는다 (${fixtures.filter((f) => f.detected).length}/${fixtures.length})`,
   fixtures
     .map(
       (fixture) =>
@@ -1115,15 +1122,46 @@ const lowShown = filterPlayerScene.events.filter((item) => item.significance < S
 const lowShownAreMine = lowShown.every((item) =>
   active.runtime.state.events.events.find((event) => event.id === item.eventId)?.participants.includes(active.playerId),
 );
+/**
+ * 필터 픽스처 — 실측만으로는 판정이 세계의 운에 달린다.
+ * 30일 안에 "사소하고 내 일도 아닌 사건"이 한 건도 없을 수 있다(§35 세계가 바뀌면 실제로 그렇게 된다).
+ * 그래서 필터 자체는 §34 위반 픽스처와 같은 방식으로 판정한다 — 아는 사건 하나를 임계 미만으로
+ * 복제해 넣고 그것이 접히는지 본다. 실측 수치는 숨기지 않고 함께 싣는다.
+ */
+const filterFixture = ((): { shown: number; suppressed: number; ok: boolean; sourceId: string } => {
+  const events = active.runtime.state.events.events;
+  const source = events.find(
+    (event) =>
+      !event.participants.includes(active.playerId) &&
+      getEventViewFor(active.runtime, active.playerId, event.id).known,
+  );
+  if (source === undefined) return { shown: 0, suppressed: 0, ok: false, sourceId: "없음" };
+  const clone = structuredClone(source);
+  clone.id = `${source.id}.low-fixture`;
+  clone.significance = SIGNIFICANCE_THRESHOLD - 1;
+  events.push(clone);
+  const scene = buildScenePayload(active.runtime, { mode: "player", observerId: active.playerId });
+  const knowledge = buildPlayerKnowledgeView(active.runtime, active.playerId);
+  events.pop();
+  return {
+    shown: scene.events.length,
+    suppressed: scene.suppressedEventCount,
+    ok:
+      scene.suppressedEventCount > filterPlayerScene.suppressedEventCount &&
+      knowledge.suppressedEventCount > filterKnowledge.suppressedEventCount &&
+      !scene.events.some((item) => item.eventId === clone.id),
+    sourceId: source.id,
+  };
+})();
 check(
   filterDevScene.suppressedEventCount === 0 &&
-    filterPlayerScene.suppressedEventCount > 0 &&
+    filterFixture.ok &&
     filterPlayerScene.events.length + filterPlayerScene.suppressedEventCount <= filterDevScene.events.length &&
-    lowShownAreMine &&
-    filterKnowledge.suppressedEventCount > 0,
-  `§29 저중요도 필터 — 플레이어 사건 목록 ${filterPlayerScene.events.length}건 표시 · ${filterPlayerScene.suppressedEventCount}건 접힘 (임계 ${SIGNIFICANCE_THRESHOLD})`,
+    lowShownAreMine,
+  `§29 저중요도 필터 — 임계 미만 사건은 접힌다 (픽스처 검출 ✓ · 실측 ${filterPlayerScene.suppressedEventCount}건 접힘, 임계 ${SIGNIFICANCE_THRESHOLD})`,
   `개발자 화면 ${filterDevScene.events.length}건 전부 표시(접힘 0 — 디버그 진실) / 플레이어 화면 ${filterPlayerScene.events.length}건 + 접힘 ${filterPlayerScene.suppressedEventCount}건\n` +
     `      임계 미만인데 보이는 사건 ${lowShown.length}건 — 전부 플레이어가 참여한 사건(내 일은 사소해도 남는다)\n` +
+    `      픽스처 — ${filterFixture.sourceId} 를 중요도 ${SIGNIFICANCE_THRESHOLD - 1} 로 복제해 넣으면 목록 ${filterFixture.shown}건 · 접힘 ${filterFixture.suppressed}건 (복제본은 목록에 없다)\n` +
     `      개입 브리핑(§30)도 같은 필터 — 표시 ${filterKnowledge.events.length}건 · 접힘 ${filterKnowledge.suppressedEventCount}건, 접힌 사실은 수로 남아 화면이 숨김을 숨기지 않는다`,
 );
 
@@ -1334,6 +1372,27 @@ const boundaryOk =
   tickResponses.some((response) => response.type === "state_patch") &&
   tickResponses.some((response) => response.type === "scene_view");
 
+/**
+ * §44-1 의 경계를 **재서** 게이트 근거에 싣는다 (2차 재검증 F-1).
+ * 주장이 아니라 실행이다: 녹화 밖의 주제를 실제로 넣어 보고 파이프라인이 남기는 첫 줄을 그대로 인용한다.
+ */
+const generationBoundary = await (async () => {
+  const portImplementations = ["RecordedTextGenerationPort(녹화 재생)"];
+  const probe = new RecordedTextGenerationPort(FIRST_WORLD_CORPUS, undefined, [], FIRST_WORLD_SEED_INPUT);
+  let message = "경계 없음 — 녹화 밖의 주제로도 세계가 나왔다";
+  try {
+    await compileWorld({
+      port: probe,
+      seedInput: { ...FIRST_WORLD_SEED_INPUT, themes: ["세계는 얼어붙어 가고 있다."] },
+      worldSeed,
+      worldId: `${FIRST_WORLD_ID}.boundary-probe`,
+    });
+  } catch (error) {
+    message = (error instanceof Error ? error.message : String(error)).split("\n")[1]?.trim() ?? "중단";
+  }
+  return { portImplementations, liveAdapters: 0, outsideRecordingMessage: message };
+})();
+
 const gate = evaluateGate44({
   manual: runtime,
   player: {
@@ -1349,6 +1408,7 @@ const gate = evaluateGate44({
   generated: {
     definition: generated,
     themeCount: FIRST_WORLD_SEED_INPUT.themes.length,
+    inputBoundary: generationBoundary,
     stepCount: compiled.artifacts.list().length,
     storedBytes: compiled.repository.load(FIRST_WORLD_ID) === undefined ? 0 : JSON.stringify(compiled.repository.load(FIRST_WORLD_ID)).length,
     reloadedId: compiled.repository.load(FIRST_WORLD_ID)?.metadata.id,

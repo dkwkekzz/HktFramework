@@ -141,23 +141,6 @@ export function buildInterventionOpportunity(
   };
 }
 
-/** 이 주체가 지금 개입할 수 있는 사건들 — 중요도 높은 순 (§29 임계 미만은 부르지 않는다) */
-export function interventionOpportunitiesFor(
-  runtime: WorldRuntime,
-  agentId: string,
-  minimumSignificance = 0,
-): InterventionOpportunity[] {
-  const opportunities: InterventionOpportunity[] = [];
-  const events = [...runtime.state.events.events]
-    .filter((event) => event.significance >= minimumSignificance)
-    .sort((a, b) => (a.significance === b.significance ? a.id.localeCompare(b.id) : b.significance - a.significance));
-  for (const event of events) {
-    const opportunity = buildInterventionOpportunity(runtime, agentId, event.id);
-    if (opportunity !== undefined && opportunity.discoveredByPlayer) opportunities.push(opportunity);
-  }
-  return opportunities;
-}
-
 /** 사건이 벌어진 자리에서 이 주체까지의 거리 — 개입 가능성의 공간 조건 (§13) */
 export function distanceToEvent(runtime: WorldRuntime, agentId: string, event: WorldEvent): number {
   const position = runtime.store.findEntity(agentId)?.position;

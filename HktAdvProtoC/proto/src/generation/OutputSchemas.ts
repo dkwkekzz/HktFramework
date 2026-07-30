@@ -60,6 +60,35 @@ const COMMON_DEFS: Record<string, JsonSchema> = {
   },
 };
 
+/**
+ * 규칙 정규형의 $defs 를 접두사 붙여 복제한다.
+ * §16 실패 반동은 §11.3 RuleEffect 그대로여야 하는데(F-7), 이 파일의 `condition`/`valueRef` 는
+ * §11.2 표기(kind 기반)라 이름이 겹친다 — 그래서 규칙 쪽 정의는 `rule_` 접두사로 들여온다.
+ */
+function prefixedRuleDefs(): Record<string, JsonSchema> {
+  const source = (RULE_JSON_SCHEMA as unknown as { $defs: Record<string, JsonSchema> })["$defs"];
+  const rewrite = (node: unknown): unknown => {
+    if (Array.isArray(node)) return node.map(rewrite);
+    if (node === null || typeof node !== "object") return node;
+    const out: Record<string, unknown> = {};
+    for (const [key, value] of Object.entries(node as Record<string, unknown>)) {
+      out[key] =
+        key === "$ref" && typeof value === "string"
+          ? value.replace("#/$defs/", "#/$defs/rule_")
+          : rewrite(value);
+    }
+    return out;
+  };
+  const defs: Record<string, JsonSchema> = {};
+  for (const [name, schema] of Object.entries(source)) {
+    defs[`rule_${name}`] = rewrite(schema) as JsonSchema;
+  }
+  return defs;
+}
+
+const RULE_DEFS = prefixedRuleDefs();
+const RULE_EFFECT_SCHEMA: JsonSchema = { $ref: "#/$defs/rule_effect" } as unknown as JsonSchema;
+
 function arrayOf(item: JsonSchema, extraDefs = false): JsonSchema {
   return {
     type: "array",
@@ -386,6 +415,32 @@ export const FACTION_SCHEMA: JsonSchema = {
         stance: { enum: ["benefits", "harmed"] },
       },
     }),
+    /**
+     * §17 정책 — 제도가 구성원에게 요구하는 것 (F-6).
+     * 제도(structures) 자체는 코드가 세운다(deriveStructures) — AI 는 문장(institution)과
+     * "따르지 않으면 어떻게 되는가"만 쓴다. structureId 는 `structure.<조직 id 꼬리>` 규약이다.
+     */
+    policies: arrayOf({
+      type: "object",
+      required: ["id", "structureId", "statement", "requirement", "enforcementRuleIds"],
+      additionalProperties: false,
+      properties: {
+        id: { type: "string" },
+        structureId: { type: "string" },
+        statement: { type: "string" },
+        requirement: {
+          type: "object",
+          required: ["stateKey", "comparison", "value"],
+          additionalProperties: false,
+          properties: {
+            stateKey: { type: "string" },
+            comparison: { enum: [">", ">=", "<", "<=", "==", "!=", "contains"] },
+            value: {},
+          },
+        },
+        enforcementRuleIds: STRING_ARRAY,
+      },
+    }),
     /** §17 마지막 문단 — 조직은 하나의 자원 이용 전략에서 파생된다 */
     derivedFromResource: { type: "string" },
     institution: { type: "string" },
@@ -419,7 +474,7 @@ export const ABILITY_DRAFT_SCHEMA: JsonSchema = {
     "derivedFrom",
   ],
   additionalProperties: false,
-  $defs: COMMON_DEFS,
+  $defs: { ...COMMON_DEFS, ...RULE_DEFS },
   properties: {
     id: { type: "string" },
     ownerId: { type: "string" },
@@ -441,16 +496,9 @@ export const ABILITY_DRAFT_SCHEMA: JsonSchema = {
       additionalProperties: false,
       properties: { stateKey: { type: "string" }, amount: NUMBER },
     }),
-    failureEffects: arrayOf({
-      type: "object",
-      required: ["stateKey", "operation", "value"],
-      additionalProperties: false,
-      properties: {
-        stateKey: { type: "string" },
-        operation: { enum: ["set", "add"] },
-        value: {},
-      },
-    }),
+    // §16 실패 반동 = §11.3 RuleEffect 전체 (대상 선택자 포함 — F-7).
+    // 규칙 정규형의 effect 정의를 그대로 빌려 쓴다: 반동은 규칙이 실행하므로 같은 형태여야 한다.
+    failureEffects: arrayOf(RULE_EFFECT_SCHEMA),
     observableSignals: arrayOf({ $ref: "#/$defs/observation" }),
     knownBy: STRING_ARRAY,
     mastery: NUMBER,

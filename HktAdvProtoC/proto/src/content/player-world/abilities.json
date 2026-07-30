@@ -3,41 +3,112 @@
     "id": "ability.echo_stillness",
     "ownerId": "agent.kael",
     "purpose": "숲에서 마주친 것을 잠시 멈춰 세우고 살아 돌아간다",
-    "targetTypes": ["agent"],
+    "targetTypes": [
+      "agent"
+    ],
     "operation": "정지",
     "medium": "접촉",
     "activationConditions": [
       {
-        "left": { "kind": "state", "owner": "actor", "key": "energy" },
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
         "operator": ">",
-        "right": { "kind": "const", "value": 20 }
+        "right": {
+          "kind": "const",
+          "value": 20
+        }
       },
       {
-        "left": { "kind": "distance", "from": "actor", "to": "target" },
+        "left": {
+          "kind": "distance",
+          "from": "actor",
+          "to": "target"
+        },
         "operator": "<",
-        "right": { "kind": "const", "value": 3 }
+        "right": {
+          "kind": "const",
+          "value": 3
+        }
       }
     ],
     "maintenanceConditions": [
       {
-        "left": { "kind": "state", "owner": "actor", "key": "energy" },
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
         "operator": ">",
-        "right": { "kind": "const", "value": 5 }
+        "right": {
+          "kind": "const",
+          "value": 5
+        }
       }
     ],
     "restrictions": [
-      { "description": "접촉한 대상에게만 쓸 수 있다", "severity": 45 },
-      { "description": "멈춤은 3초를 넘지 못한다", "severity": 35 }
+      {
+        "description": "접촉한 대상에게만 쓸 수 있다",
+        "severity": 45
+      },
+      {
+        "description": "멈춤은 3초를 넘지 못한다",
+        "severity": 35
+      }
     ],
-    "costs": [{ "stateKey": "energy", "amount": 12 }],
-    "failureEffects": [{ "stateKey": "health", "operation": "add", "value": -6 }],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 12
+      }
+    ],
+    "failureEffects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "health",
+        "operation": "add",
+        "value": -6
+      },
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "query",
+          "query": {
+            "entityType": "agent",
+            "withinRadius": {
+              "of": "actor",
+              "r": 6
+            }
+          }
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 10
+      }
+    ],
     "observableSignals": [],
-    "knownBy": ["agent.kael", "agent.rion"],
+    "knownBy": [
+      "agent.kael",
+      "agent.rion"
+    ],
     "mastery": 35,
-    "outputRange": { "min": 5, "max": 40 },
+    "outputRange": {
+      "min": 5,
+      "max": 40
+    },
     "inferableWeakness": "빠르게 움직이는 대상에게는 손이 닿지 않는다",
-    "actionIds": ["action.attack"],
-    "ruleIds": ["rule.attack_resolution"],
+    "actionIds": [
+      "action.attack"
+    ],
+    "ruleIds": [
+      "rule.attack_resolution",
+      "rule.stillness_backlash"
+    ],
     "derivedFrom": {
       "coreDesire": "숲에서 살아 돌아가고 싶다",
       "traumaticExperience": "달아나는 짐승에게 손이 닿지 않아 동료를 잃었다",
@@ -48,27 +119,66 @@
     "id": "ability.residue_reading",
     "ownerId": "agent.rion",
     "purpose": "잔류를 읽어 무엇이 지나갔는지 안다",
-    "targetTypes": ["agent", "location"],
+    "targetTypes": [
+      "agent",
+      "location"
+    ],
     "operation": "판독",
     "medium": "잔류",
     "activationConditions": [
       {
-        "left": { "kind": "state", "owner": "actor", "key": "energy" },
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
         "operator": ">",
-        "right": { "kind": "const", "value": 10 }
+        "right": {
+          "kind": "const",
+          "value": 10
+        }
       }
     ],
     "maintenanceConditions": [],
-    "restrictions": [{ "description": "잔류가 남은 자리에서만 읽을 수 있다", "severity": 40 }],
-    "costs": [{ "stateKey": "energy", "amount": 6 }],
-    "failureEffects": [{ "stateKey": "fear", "operation": "add", "value": 8 }],
+    "restrictions": [
+      {
+        "description": "잔류가 남은 자리에서만 읽을 수 있다",
+        "severity": 40
+      }
+    ],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 6
+      }
+    ],
+    "failureEffects": [
+      {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
+        "stateKey": "fear",
+        "operation": "add",
+        "value": 8
+      }
+    ],
     "observableSignals": [],
-    "knownBy": ["agent.rion"],
+    "knownBy": [
+      "agent.rion"
+    ],
     "mastery": 55,
-    "outputRange": { "min": 5, "max": 30 },
+    "outputRange": {
+      "min": 5,
+      "max": 30
+    },
     "inferableWeakness": "비가 오면 아무것도 읽지 못한다",
-    "actionIds": ["action.observe"],
-    "ruleIds": ["rule.researcher_insight"],
+    "actionIds": [
+      "action.observe"
+    ],
+    "ruleIds": [
+      "rule.researcher_insight"
+    ],
     "derivedFrom": {
       "coreDesire": "왜 그런지 알고 싶다",
       "traumaticExperience": "설명하지 못한 죽음을 그대로 묻었다",

@@ -167,7 +167,8 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "flee",
-          "rest"
+          "rest",
+          "defend"
         ],
         "focusIds": [
           "creature.echo_beast_mother"
@@ -410,7 +411,8 @@
           "rest",
           "negotiate",
           "ally",
-          "conceal"
+          "conceal",
+          "defend"
         ],
         "focusIds": [
           "creature.echo_beast_mother"
@@ -674,7 +676,8 @@
         "abandonmentConditions": [],
         "allowedActionTags": [
           "flee",
-          "rest"
+          "rest",
+          "defend"
         ],
         "focusIds": [
           "creature.echo_beast_mother"
@@ -906,7 +909,8 @@
         "allowedActionTags": [
           "flee",
           "rest",
-          "ally"
+          "ally",
+          "defend"
         ],
         "focusIds": [
           "creature.echo_beast_mother"
@@ -1445,7 +1449,8 @@
         ],
         "allowedActionTags": [
           "attack",
-          "report"
+          "report",
+          "defend"
         ],
         "focusIds": [
           "faction.silent_village"

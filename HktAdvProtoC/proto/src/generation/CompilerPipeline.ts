@@ -473,7 +473,8 @@ function buildDefinition(state: PipelineState, worldId: string, ctx: GenerationC
     // §15 번식 선언 → 실행 규칙 연결 (G-4) — 수동 세계와 같은 함수를 쓴다
     species: linkReproductionRules(state.species.map(toSpeciesDefinition), state.rules, state.templates),
     survivalPressures: state.pressures,
-    factions: state.factions.map(toFactionDefinition),
+    // §17 제도(structures)는 규칙을 보고 세운다 — 통제는 문장이 아니라 실행이다 (F-6)
+    factions: state.factions.map((faction) => toFactionDefinition(faction, state.rules)),
     agentArchetypes: state.archetypes.map(toArchetype),
     abilitySystem: { abilities: state.abilities },
     goalTemplates: state.goalGraphs,
@@ -485,7 +486,7 @@ function buildDefinition(state: PipelineState, worldId: string, ctx: GenerationC
 
 /**
  * 14단계: 정합성 검증.
- * §34 의 의미 검증 10종 전체는 Phase 6 의 WorldValidator 몫이다. 여기서 막는 것은
+ * §34 의 의미 검증 전체(SEMANTIC_CODES)는 Phase 6 의 WorldValidator 몫이다. 여기서 막는 것은
  * "이 정의가 실행될 수 있는가" 에 직결된 두 가지다 — 미해결 참조와 로드 가능성.
  */
 function validateGenerated(ctx: GenerationContext, definition: WorldDefinition): ValidationIssue[] {

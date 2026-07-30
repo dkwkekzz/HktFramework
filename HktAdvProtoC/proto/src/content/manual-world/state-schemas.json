@@ -52,7 +52,8 @@
     "observable": true,
     "observationChannels": [
       "sight",
-      "talk"
+      "talk",
+      "rumor"
     ],
     "updatePolicy": "event"
   },
@@ -98,7 +99,23 @@
       "sight",
       "sound",
       "talk",
-      "report"
+      "report",
+      "touch",
+      "rumor"
+    ],
+    "updatePolicy": "event"
+  },
+  {
+    "id": "guard_stance",
+    "ownerType": "agent",
+    "dataType": "number",
+    "defaultValue": 0,
+    "min": 0,
+    "max": 100,
+    "observable": true,
+    "observationChannels": [
+      "sight",
+      "vibration"
     ],
     "updatePolicy": "event"
   },
@@ -120,7 +137,8 @@
     "observable": true,
     "observationChannels": [
       "trace",
-      "energy_sense"
+      "energy_sense",
+      "document"
     ],
     "updatePolicy": "event"
   },
@@ -142,7 +160,8 @@
     "observable": true,
     "observationChannels": [
       "trace",
-      "smell"
+      "smell",
+      "heat"
     ],
     "updatePolicy": "event"
   },
@@ -287,7 +306,8 @@
     "updatePolicy": "event",
     "observationChannels": [
       "talk",
-      "report"
+      "report",
+      "rumor"
     ]
   },
   {
@@ -411,7 +431,8 @@
     "observable": true,
     "observationChannels": [
       "talk",
-      "report"
+      "report",
+      "document"
     ],
     "updatePolicy": "event"
   },

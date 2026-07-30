@@ -172,6 +172,10 @@
     ],
     "failureEffects": [
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "memory_integrity",
         "operation": "add",
         "value": -15
@@ -275,11 +279,19 @@
     ],
     "failureEffects": [
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "memory_integrity",
         "operation": "add",
         "value": -20
       },
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "social_status",
         "operation": "add",
         "value": -15
@@ -381,11 +393,19 @@
     ],
     "failureEffects": [
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "health",
         "operation": "add",
         "value": -12
       },
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "memory_integrity",
         "operation": "add",
         "value": -8
@@ -484,6 +504,10 @@
     ],
     "failureEffects": [
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "memory_integrity",
         "operation": "add",
         "value": -12
@@ -586,11 +610,19 @@
     ],
     "failureEffects": [
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "health",
         "operation": "add",
         "value": -18
       },
       {
+        "type": "modify_state",
+        "target": {
+          "type": "actor"
+        },
         "stateKey": "memory_integrity",
         "operation": "add",
         "value": -10

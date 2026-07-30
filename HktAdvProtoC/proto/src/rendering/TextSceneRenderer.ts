@@ -44,6 +44,7 @@ function mapDump(map: SceneMap): string[] {
   }
   for (const group of [
     { title: "주체", markers: map.markers },
+    { title: "조직", markers: map.factions },
     { title: "자원", markers: map.resources },
     { title: "장소", markers: map.places },
   ]) {

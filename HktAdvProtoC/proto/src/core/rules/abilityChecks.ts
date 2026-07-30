@@ -4,6 +4,8 @@
 // 여기서는 그 분해가 실제로 굴러가는지 한 사이클(발동 → 제약 위반 → 유지 조건 위반 → 반동)로 확인한다.
 import {
   ABILITY_OWNER,
+  BYSTANDER,
+  CONTRACT_TRUTH,
   buildAbilityFixtureWorld,
   loadAmplificationRule,
 } from "../../content/ability-fixture";
@@ -135,14 +137,27 @@ export function runAbilityChecks(): CapabilityCheck[] {
   // --- 유지 조건 위반 → 반동 (§16 maintenanceConditions / failureEffects) ---------
   {
     const before = active.runtime.store.readNumber(ABILITY_OWNER, "memory_integrity");
+    const bystanderBefore = active.runtime.store.readNumber(BYSTANDER, "memory_integrity");
     active.engine.runInterval(active.runtime, "rule.ability_maintenance_watch");
     const after = active.runtime.store.readNumber(ABILITY_OWNER, "memory_integrity");
+    const bystanderAfter = active.runtime.store.readNumber(BYSTANDER, "memory_integrity");
     const stillActive = active.runtime.store.readBoolean(ABILITY_OWNER, "ability_active");
     const output = active.runtime.store.readNumber(ABILITY_OWNER, "ability_output");
     add(
       "§16 유지 조건 위반 → 반동",
       after === before - 15 && !stillActive && output === 0,
       `감시 규칙 발동 → memory_integrity ${before}→${after}, 능력 활성 ${stillActive}, 출력 ${output}`,
+    );
+    // F-7 — 반동의 대상은 능력자만이 아니다. 실패 반동이 §11.3 RuleEffect(대상 선택자 포함)이므로
+    // "제약을 어기면 곁의 사람이 다친다"가 선언되고, 같은 효과가 감시 규칙에 실려 실제로 걸린다.
+    const declaration = CONTRACT_TRUTH.failureEffects.filter(
+      (effect) => effect.type === "modify_state" && effect.target.type === "query",
+    ).length;
+    add(
+      "§16 실패 반동이 능력자 밖으로 (§11.3 대상 선택자)",
+      declaration > 0 && bystanderAfter === bystanderBefore - 5,
+      `선언 — 실패 반동 ${CONTRACT_TRUTH.failureEffects.length}건 중 ${declaration}건이 query 대상(반경 10 안의 사람들) · ` +
+        `실행 — 곁의 ${BYSTANDER} memory_integrity ${bystanderBefore}→${bystanderAfter}`,
     );
   }
 

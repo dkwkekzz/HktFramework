@@ -10,11 +10,11 @@ import { RecordedTextGenerationPort } from "./RecordedTextGenerationPort";
 import { findGoalCycles, SEMANTIC_CODES, validateWorld } from "./WorldValidator";
 
 describe("§34 정적 검증", () => {
-  it("§34 필수 규칙 10개 + G-1·G-3·G-4·G-5·G-6·G-12 가 더한 7종을 각각 독립 검사기로 갖는다", () => {
-    expect(SEMANTIC_CODES).toHaveLength(17);
+  it("§34 필수 규칙 10개 + 재검증이 더한 9종(G-1·G-3·G-4·G-5·G-6·G-12 · F-6·F-7)을 각각 독립 검사기로 갖는다", () => {
+    expect(SEMANTIC_CODES).toHaveLength(19);
     const report = validateManualWorld();
     expect(report.checks.map((check) => check.code)).toEqual([...SEMANTIC_CODES]);
-    // 픽스처도 17개 — 검사기 하나에 위반 세계 하나
+    // 픽스처도 같은 수 — 검사기 하나에 위반 세계 하나
     expect(VIOLATION_FIXTURES.map((fixture) => fixture.code).sort()).toEqual([...SEMANTIC_CODES].sort());
   });
 
@@ -25,14 +25,15 @@ describe("§34 정적 검증", () => {
     expect(report.schema.ok).toBe(true);
     // 검사기가 실제로 무언가를 들여다봤는가 — 대상 0 은 "검사하지 않았다"와 같다
     for (const check of report.checks) {
-      if (check.code === "ability.cost-scaling") continue; // 수동 세계에는 능력이 없다
+      // 수동 세계에는 능력이 없다 — 능력 검사기 둘은 대상 0 이 맞다
+      if (check.code === "ability.cost-scaling" || check.code === "ability.backlash") continue;
       expect(check.inspected, check.code).toBeGreaterThan(0);
     }
   });
 
-  it("위반 픽스처 17종을 각각 해당 코드의 error 로 검출한다", () => {
+  it("위반 픽스처 19종을 각각 해당 코드의 error 로 검출한다", () => {
     const results = runViolationFixtures();
-    expect(results).toHaveLength(17);
+    expect(results).toHaveLength(19);
     for (const result of results) {
       expect(result.detected, `${result.code}: ${result.message}`).toBe(true);
     }

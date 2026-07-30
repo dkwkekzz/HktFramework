@@ -3,6 +3,7 @@
 // §15 의 흐름을 그대로 프롬프트 구조로 강제한다:
 //   생존 압력 → 전략 후보 → 종족화 → 장단점 → 감각·신체 → 번식·사회 구조
 // 전략 후보(1차 호출)와 종족 상세(항목별 호출)를 나눈다 — 실패한 종 하나만 다시 부를 수 있다(§5.2).
+import { OBSERVATION_CHANNELS } from "../shared/observation";
 import type { SpeciesDefinition, SurvivalPressureDefinition } from "../core/world/types";
 import type { GenerationContext } from "./GenerationTypes";
 import { OUTLINE_SCHEMA, SPECIES_SCHEMA } from "./OutputSchemas";
@@ -102,7 +103,7 @@ export async function generateSpecies(
             )
             .map((pressure) => ({ id: pressure.id, targetState: pressure.targetState })),
           availableResourceTags: [...new Set(ctx.symbols.list("resource").map((id) => id.split(".")[1] ?? id))],
-          observationChannels: ["sight", "sound", "smell", "trace", "energy_sense", "talk", "report"],
+          observationChannels: OBSERVATION_CHANNELS,
         },
         outputSchema: SPECIES_SCHEMA,
       },

@@ -557,9 +557,115 @@
           "confidence": 0.82,
           "observerStateKey": "known_threat_level"
         }
+      },
+      {
+        "signalId": "signal.attack_impact",
+        "channels": [
+          "touch"
+        ],
+        "strength": 95,
+        "tags": [
+          "threat",
+          "violence",
+          "contact"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "aggression",
+          "value": 95,
+          "confidence": 0.95,
+          "observerStateKey": "known_threat_level"
+        }
       }
     ],
     "risk": 45
+  },
+  {
+    "id": "action.defend",
+    "name": "방어한다",
+    "tags": [
+      "defend",
+      "combat"
+    ],
+    "actorRequirements": [
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "energy"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 10
+        }
+      },
+      {
+        "left": {
+          "kind": "state",
+          "owner": "actor",
+          "key": "fear"
+        },
+        "operator": ">=",
+        "right": {
+          "kind": "const",
+          "value": 30
+        }
+      }
+    ],
+    "targetQuery": {
+      "kind": "entity_tag",
+      "tag": "living",
+      "sameRegion": true,
+      "maxDistance": 20,
+      "excludeSelf": true
+    },
+    "worldRequirements": [],
+    "costs": [
+      {
+        "stateKey": "energy",
+        "amount": 10
+      }
+    ],
+    "duration": 60,
+    "expectedEffects": [
+      {
+        "stateKey": "fear",
+        "direction": "decrease",
+        "magnitude": 8,
+        "on": "actor"
+      },
+      {
+        "stateKey": "offspring_threat",
+        "direction": "decrease",
+        "magnitude": 12,
+        "on": "actor"
+      }
+    ],
+    "executionRules": [
+      "rule.defense_stance"
+    ],
+    "visibleSignals": [
+      {
+        "signalId": "signal.defense_posture",
+        "channels": [
+          "sight",
+          "vibration"
+        ],
+        "strength": 60,
+        "tags": [
+          "threat",
+          "defense"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "guard_stance",
+          "value": 45,
+          "confidence": 0.7
+        }
+      }
+    ],
+    "risk": 20
   },
   {
     "id": "action.flee",
@@ -774,7 +880,7 @@
       {
         "signalId": "signal.rumor",
         "channels": [
-          "talk"
+          "rumor"
         ],
         "strength": 45,
         "tags": [
@@ -1399,6 +1505,23 @@
         "tags": [
           "contract"
         ]
+      },
+      {
+        "signalId": "signal.contract_record",
+        "channels": [
+          "document"
+        ],
+        "strength": 50,
+        "tags": [
+          "contract",
+          "record"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "promise_broken",
+          "value": false,
+          "confidence": 0.6
+        }
       }
     ],
     "risk": 6
@@ -1515,6 +1638,23 @@
         "tags": [
           "production"
         ]
+      },
+      {
+        "signalId": "signal.forge_heat",
+        "channels": [
+          "heat"
+        ],
+        "strength": 60,
+        "tags": [
+          "production",
+          "heat"
+        ],
+        "claim": {
+          "subject": "actor",
+          "stateKey": "recent_presence",
+          "value": true,
+          "confidence": 0.7
+        }
       }
     ],
     "risk": 3
@@ -1576,6 +1716,24 @@
         "tags": [
           "research"
         ]
+      },
+      {
+        "signalId": "signal.research_notes",
+        "channels": [
+          "document"
+        ],
+        "strength": 45,
+        "tags": [
+          "research",
+          "record"
+        ],
+        "claim": {
+          "subject": "entity",
+          "entityId": "creature.echo_beast_mother",
+          "stateKey": "protecting_offspring",
+          "value": true,
+          "confidence": 0.65
+        }
       }
     ],
     "risk": 8

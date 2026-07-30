@@ -1,12 +1,12 @@
 {
-  "source": "Phase 6 — 수동 세계(Phase 1~4 완성본)의 무개입 30일 측정치. §35 다양성·깊이 합격선의 근거",
+  "source": "Phase 6 — 수동 세계(Phase 1~4 완성본)의 무개입 30일 측정치. §35 다양성·깊이 합격선의 근거. 2차 재검증 F-3·F-4·F-5(§23 채널 4종·§24 배신 기억·§21 방어 행동)로 세계가 바뀌어 재고정",
   "worldId": "world.silent_forest_edge",
   "worldSeed": 42,
   "days": 30,
-  "diversityScore": 30,
-  "depthScore": 5.380438596491227,
-  "changesPerDay": 331.3666666666667,
-  "uniqueActionTypes": 16,
+  "diversityScore": 31.8,
+  "depthScore": 5.196113095238095,
+  "changesPerDay": 300.56666666666666,
+  "uniqueActionTypes": 17,
   "uniqueEventTypes": 6,
-  "totalEvents": 38
+  "totalEvents": 35
 }

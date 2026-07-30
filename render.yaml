@@ -1,9 +1,11 @@
-# Render Blueprint — HktFeature 원장 서버를 클라우드에 올려 폰에서 관전한다.
-#   데스크탑·배치파일 없이, GitHub 연동 후 몇 번의 클릭으로 공개 URL 이 생긴다.
-#   서버 하나만 있으면 된다: 틱 루프가 세계(포식·먹이·불·자폭)를 스스로 굴리므로
-#   봇 없이도 관전거리가 계속 벌어진다. 클라이언트는 location.host 로 붙어 코드 수정 불필요.
-#   상세: HktFeature/DEPLOY.md
+# Render Blueprint — 이 리포에서 클라우드로 올리는 트랙들.
+#   Render 대시보드에서 New → Blueprint → 이 리포 선택 → Apply 하면 아래 서비스가 한 번에 뜬다.
+#   트랙마다 rootDir 이 다르므로 모노레포의 나머지는 빌드에 관여하지 않는다.
 services:
+  # ── HktFeature — 원장 서버를 클라우드에 올려 폰에서 관전한다 ───────────────────────
+  #   서버 하나만 있으면 된다: 틱 루프가 세계(포식·먹이·불·자폭)를 스스로 굴리므로
+  #   봇 없이도 관전거리가 계속 벌어진다. 클라이언트는 location.host 로 붙어 코드 수정 불필요.
+  #   상세: HktFeature/DEPLOY.md
   - type: web
     name: hktfeature-viewer
     runtime: node
@@ -12,3 +14,33 @@ services:
     buildCommand: npm install
     startCommand: node server/index.js
     # PORT 는 Render 가 주입 → server/index.js 가 process.env.PORT 를 사용(0.0.0.0 바인딩).
+
+  # ── HktAdvProtoC — 세계 시뮬레이터 프로토타입 (§36 네 화면) ────────────────────────
+  #   **서버가 필요 없다.** 시뮬레이션은 전부 브라우저 안에서 돈다:
+  #   생성 컴파일러(15단계)는 녹화 코퍼스를 번들에 싣고 재생하고(§2.1 — 살아 있는 LLM 어댑터 0종),
+  #   런타임은 Web Worker(SimulationWorker)에서 굴러가며, 지도는 Canvas·three 로 그린다.
+  #   그래서 정적 사이트 하나면 끝이고, 폰 브라우저로 열어도 세계가 그대로 30일을 산다.
+  #   로컬 재현: cd HktAdvProtoC/proto && npm ci && npm run build && npm run preview
+  - type: web
+    name: hkt-adv-proto-c
+    runtime: static
+    rootDir: HktAdvProtoC/proto
+    # npm run build = tsc --noEmit && vite build — 타입 검사가 배포 전에 한 번 더 걸린다.
+    # --include=dev: Render 는 NODE_ENV=production 이라 이게 없으면 vite·typescript(devDependencies)가 빠진다.
+    buildCommand: npm ci --include=dev && npm run build
+    staticPublishPath: dist
+    envVars:
+      # vite 6 / vitest 3 이 기대하는 Node. 로컬 검증 환경(v22)과 맞춘다.
+      - key: NODE_VERSION
+        value: "22"
+    headers:
+      # 번들 파일명에 해시가 박혀 있다(index-Dia1DacR.js) — 영구 캐시해도 갱신이 막히지 않는다.
+      # three 렌더러 청크가 536 kB 라 3D 첫 진입의 체감이 여기서 갈린다.
+      - path: /assets/*
+        name: Cache-Control
+        value: public, max-age=31536000, immutable
+    routes:
+      # 탭 전환은 클라이언트가 하지만, 사용자가 하위 경로를 직접 열어도 앱이 뜨게 한다.
+      - type: rewrite
+        source: /*
+        destination: /index.html

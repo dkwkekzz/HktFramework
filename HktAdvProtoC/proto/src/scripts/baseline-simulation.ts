@@ -11,7 +11,9 @@ const days = 30;
 const result = await runSimulationTest({ worldSeed, days });
 
 const document = {
-  source: "Phase 6 — 수동 세계(Phase 1~4 완성본)의 무개입 30일 측정치. §35 다양성·깊이 합격선의 근거",
+  source:
+    "Phase 6 — 수동 세계(Phase 1~4 완성본)의 무개입 30일 측정치. §35 다양성·깊이 합격선의 근거. " +
+    "2차 재검증 F-3·F-4·F-5(§23 채널 4종·§24 배신 기억·§21 방어 행동)로 세계가 바뀌어 재고정",
   worldId: result.worldId,
   worldSeed,
   days,
