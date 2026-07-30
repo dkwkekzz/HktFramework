@@ -1,12 +1,14 @@
-# 40. AI 에이전트 작업 프로토콜과 제한
+# 40. AI 에이전트의 모듈 반복 작업 프로토콜 · 작업 제한
 
-> 상위: [Design-Modules.md](../Design-Modules.md) · 함께 읽기: [00-Module-Contract.md](00-Module-Contract.md)
-
-이 문서는 **이후 세션에서 모듈 하나를 집어 작업할 때의 절차**를 규정한다.
+> 상위: [Design-Modules.md](../Design-Modules.md) · 원문 대응: 설계 원문 「22. AI 에이전트의 모듈 반복 작업 프로토콜」 / 「23. AI 에이전트 작업 제한」
+>
+> **아래 「원문」 절은 설계 원문을 그대로 옮긴 것이다.** 원문에 없는 보조 정보는 맨 끝 「파생 메모」에만 둔다.
 
 ---
 
-## 1. 모듈 반복 작업 프로토콜
+## 원문
+
+# 22. AI 에이전트의 모듈 반복 작업 프로토콜
 
 AI 에이전트는 다음 상태 머신으로만 작업한다.
 
@@ -23,8 +25,6 @@ AI 에이전트는 다음 상태 머신으로만 작업한다.
 10. 증거 파일 생성
 11. VERIFIED 등록
 ```
-
-3번이 4번보다 먼저다. **실패하는 시나리오 없이 구현을 시작하지 않는다.**
 
 의사 코드는 다음과 같다.
 
@@ -60,11 +60,9 @@ async function completeModule(moduleId: string): Promise<void> {
 }
 ```
 
-재시도 예산이 소진되면 **조용히 멈추지 않고 명시적 실패로 기록한다.**
-
 ---
 
-## 2. 작업 제한
+# 23. AI 에이전트 작업 제한
 
 AI 에이전트는 다음을 할 수 없다.
 
@@ -78,10 +76,6 @@ AI 에이전트는 다음을 할 수 없다.
 임의 실행 코드를 콘텐츠 데이터에 삽입
 증거 없이 VERIFIED 표시
 ```
-
----
-
-## 3. 상위 계약 변경 절차
 
 상위 계약 변경이 필요하면 다음 절차를 따른다.
 
@@ -97,47 +91,38 @@ Change Request 생성
 모든 영향 시나리오 재검증
 ```
 
-영향 전파의 예 (분할 원칙 2.5):
-
-```text
-K2 Rule Engine 변경
-    ↓
-K3 Event Replay 검증 무효
-    ↓
-I3 Conflict Resolver 검증 무효
-    ↓
-R3 Ability Runtime 검증 무효
-    ↓
-N0 Authoritative Server 검증 무효
-```
-
-**우회 금지**: 상위 계약을 바꿔야 하는 상황에서 자기 모듈 안에 임시 보정 로직을 넣어 테스트를 통과시키는 것은 위반이다. Change Request 를 만들고 멈춘다.
-
 ---
 
-## 4. 세션 시작 체크리스트
+## 파생 메모 (원문에 없음 — 작업 편의용)
 
-이후 세션에서 작업을 이어받을 때 순서대로 확인한다.
+### 세션 시작 시 읽는 순서
+
+원문 「22」의 1~11 단계를 이 저장소에서 실행할 때의 진입 경로다. 원문 절차를 대체하지 않는다.
 
 ```text
 1. ../../STATE.md 의 모듈 상태 보드를 읽는다.
-2. 다음 대상 모듈의 선행 모듈이 모두 VERIFIED 인지 확인한다.
-   - BLOCKED 면 선행 모듈로 되돌아간다.
-3. 해당 페이즈 문서(10~21)에서 대표 검증과 금지 항목을 읽는다.
-4. 01-Global-Invariants.md 에서 이 모듈이 강제하는 GI 항목을 확인한다.
-5. 30-Vertical-Slices.md 에서 이 모듈이 참여하는 슬라이스를 확인한다.
-6. 1절 프로토콜 1~11 을 순서대로 수행한다.
-7. STATE.md 의 상태 보드와 evidence/latest.json 을 갱신한다.
+2. 대상 모듈의 선행 모듈이 모두 VERIFIED 인지 확인한다 (= 원문 22의 1단계).
+   - 아니면 선행 모듈로 되돌아간다.
+3. 해당 페이즈 문서(10~21)의 「원문」 절에서 목적·포함·출력·대표 검증·금지·선행을 읽는다.
+4. 00-Module-Contract.md 의 MODULE.yaml 형식으로 계약을 작성한다 (= 원문 22의 2단계).
+5. 01-Global-Invariants.md 에서 관련 조건을 확인한다.
+6. 30-Vertical-Slices.md 에서 이 모듈이 포함된 슬라이스를 확인한다.
+7. 원문 22의 3~11 단계를 순서대로 수행한다.
+8. STATE.md 의 상태 보드와 evidence/latest.json 을 갱신한다.
 ```
 
-## 5. 세션 종료 조건
+### 세션 종료 상태
 
-한 세션은 다음 중 하나로 끝난다.
+원문 「4. 검증 상태」의 상태값으로만 기록한다. “구현했지만 검증은 다음에”는 `IMPLEMENTED` 이며 완료가 아니다(원문 「4」: “`IMPLEMENTED`는 완료 상태가 아니다”).
 
-```text
-모듈 VERIFIED 등록 완료
-명시적 실패 기록 (retry_budget_exhausted / axiom_conflict / performance_limit)
-Change Request 생성 후 중단
-```
+원문 「22」가 규정하는 종료는 다음 세 가지다.
 
-“구현했지만 검증은 다음에”는 유효한 종료 상태가 아니다. `IMPLEMENTED` 로 남기고 STATE.md 에 남은 게이트를 명시한다.
+- `markVerified` — 증거 파일 생성 후 VERIFIED 등록
+- `markExplicitFailure(moduleId, "retry_budget_exhausted")` — 재시도 예산 소진
+- `throw new Error("Upstream contract change required")` — Change Request 생성 후 중단
+
+원문 「19. Phase A」 A3 의 종료 조건(통과 / 명시적 실패 / 재시도 한도 초과 / 공리 충돌로 수정 불가 / 성능 한도 초과)은 AI 콘텐츠 후보 수정 루프에 대한 규정이며, 위 모듈 작업 종료와는 별개다.
+
+### 무효화 연쇄 참조
+
+원문 「2.5 이미 검증된 모듈의 계약을 변경하면 하위 모듈의 검증을 무효화한다」의 예시 연쇄 `K2 → K3 → I3 → R3 → N0` 는 [Design-Modules.md](../Design-Modules.md) 2.5 에 있다.

@@ -1,83 +1,37 @@
 # 18. Phase W — 세계 요구와 세계 컴파일러
 
-> 상위: [Design-Modules.md](../Design-Modules.md) · 선행: [17-Phase-C-Complex-Subjects.md](17-Phase-C-Complex-Subjects.md) · 후속: [19-Phase-X-Spatial-Client.md](19-Phase-X-Spatial-Client.md)
-
-세계는 성공을 제공하는 것이 아니라 **도전 가능한 구조**를 제공한다.
-가능성 노드는 결과가 아니라 요구를 제출하고, 컴파일러는 여러 주체의 요구를 하나의 공통 실체로 결합한다.
-GI-04(생성 근거 보존), GI-05(관찰된 세계의 소급 변경 금지)의 강제 지점이다.
+> 상위: [Design-Modules.md](../Design-Modules.md) · 원문 대응: 설계 원문 「16. Phase W — 세계 요구와 세계 컴파일러」
+>
+> **아래 「원문」 절은 설계 원문을 그대로 옮긴 것이다.** 원문에 없는 보조 정보는 맨 끝 「파생 메모」에만 둔다.
 
 ---
 
-## 모듈 목록
+## 원문
 
-| ID | 목적 | 대표 검증 | 선행 |
-|---|---|---|---|
-| W0 | 주체의 가능성에서 필요한 공간·자원·규칙·정보·상대를 추출한다 | “병을 치료한다”에서 완성 치료제가 아니라 재료·지식·생물·공간 요구가 생성됨 | G1~G3 |
-| W1 | 서로 다른 표현의 요구를 하나의 공통 실체로 묶는다 | 마물·치료사·국가·종교의 요구가 하나의 염분 협곡으로 결합됨 | W0, C |
-| W2 | 실체화 후보를 만들고 상호작용성이 가장 높은 후보를 선택한다 | 세계관 공리를 위반하는 후보는 높은 활용도에도 선택되지 않음 | W1, K1 |
-| W3 | 미지의 세계를 점진 구체화하며 관찰된 사실을 보존한다 | 소문이 생성 조건을 제한하지만 외형은 방문 전까지 미정 | W2, K3 |
+# 16. Phase W — 세계 요구와 세계 컴파일러
 
----
-
-## W0 — requirement-extraction
-
-패키지: `packages/world-compiler/W0-requirement-extraction`
+## W0. 세계 요구 추출
 
 | 항목 | 내용 |
-|---|---|
+| -- | -- |
 | 목적 | 주체의 가능성에서 필요한 공간·자원·규칙·정보·상대를 추출한다 |
 | 포함 | Requirement Template, Scope, Importance, Rarity |
 | 대표 검증 | “병을 치료한다”에서 완성 치료제가 아니라 재료·지식·생물·공간 요구가 생성됨 |
 | 선행 | G1~G3 |
 
-노드가 “희귀 치료제가 존재해야 한다”고 요구해도 치료제가 NPC 앞에 생성되어서는 **안 된다**. 대신 다음을 제출한다.
-
-```text
-특정 병을 완화할 물질이 존재할 수 있어야 한다.
-그 물질을 가진 생물이나 환경이 존재해야 한다.
-물질을 얻는 데 위험이나 비용이 있어야 한다.
-효능을 판별할 정보나 실험 방법이 있어야 한다.
-다른 주체도 그 물질을 원할 수 있어야 한다.
-물질을 대체할 다른 경로가 있을 수 있어야 한다.
-```
-
-`WorldRequirement` / `WorldRequirementKind` 구조는 [Design-MMO.md](../Design-MMO.md) 11.1 을 따른다.
-`SpaceRequirement` (geometry / topology / accessibility)는 18.2 를 따르며 X0 이 소비한다.
-
-**규모에 따른 실체화 조건**:
-
-| 요구 규모 | 실체화 조건 |
-|---|---|
-| 개인 | 한 주체의 신체·능력 내부에서 해결 가능 |
-| 지역 | 세계관 공리와 호환되고 실제 공간적 근거가 필요 |
-| 광역 | 여러 종류의 주체가 같은 요소를 이용할 가능성이 있어야 함 |
-| 세계 | 세계관 공리 또는 다수 문명·종·역사적 요구가 뒷받침해야 함 |
-
-개인이 “나를 위해 새로운 대륙이 필요하다”고 바란다고 대륙이 생기지 않는다. 그러나 개인 능력 내부의 제한적 사적 규칙은 한 주체의 요구만으로도 가능하다.
-
----
-
-## W1 — requirement-clustering
-
-패키지: `packages/world-compiler/W1-requirement-clustering`
+## W1. 요구 정규화와 결합
 
 | 항목 | 내용 |
-|---|---|
+| -- | -- |
 | 목적 | 서로 다른 표현의 요구를 하나의 공통 실체로 만족시킬 수 있도록 묶는다 |
 | 포함 | Normalize, Cluster, Existing Realization Search |
 | 대표 검증 | 마물·치료사·국가·종교의 요구가 하나의 염분 협곡으로 결합됨 |
 | 선행 | W0, C |
 
-**가장 좋은 월드 오브젝트는 하나의 요구만 충족하는 오브젝트가 아니다.** 기존 실체 재사용을 새 생성보다 우선 탐색한다.
-
----
-
-## W2 — realization
-
-패키지: `packages/world-compiler/W2-realization`
+## W2. 실체화 후보 생성과 검증
 
 | 항목 | 내용 |
-|---|---|
+| -- | -- |
 | 목적 | 지역·자원·생물·제도 후보를 만들고 가장 상호작용성이 높은 후보를 선택한다 |
 | 포함 | Candidate Generation, Scoring, Contradiction Check |
 | 대표 검증 | 세계관 공리를 위반하는 후보는 높은 활용도에도 선택되지 않음 |
@@ -98,68 +52,44 @@ GI-04(생성 근거 보존), GI-05(관찰된 세계의 소급 변경 금지)의 
 중복
 ```
 
-```text
-Score(r) = Coverage × Diversity × Interaction × Reuse × ThemeFit × Reachability
-         - Cost - Contradiction - Redundancy
-```
-
-컴파일 절차 11단계와 `compileWorld` 의사 코드는 [Design-MMO.md](../Design-MMO.md) 12장을 따른다. 선택된 후보가 없으면 요구를 `latentRequirements` 로 되돌린다 (버리지 않는다).
-
-**지역 검증 체크리스트**:
-
-```text
-서로 다른 세 종류 이상의 주체 요구가 겹치는가?
-자원·이동·정보 중 두 개 이상의 갈등이 있는가?
-공개된 현상과 숨겨진 원인이 존재하는가?
-전투가 아닌 해결 경로가 있는가?
-사건 이후 지역 상태가 실제로 변하는가?
-```
-
----
-
-## W3 — canon-provenance
-
-패키지: `packages/world-compiler/W3-canon-provenance`
+## W3. 잠재 세계·정식화·근거 보존
 
 | 항목 | 내용 |
-|---|---|
+| -- | -- |
 | 목적 | 미지의 세계를 점진적으로 구체화하면서 이미 관찰된 사실을 보존한다 |
 | 포함 | Latent, Foreshadowed, Canonical, Observed, Provenance, History, Patch |
 | 대표 검증 | “불을 먹는 생물”이라는 소문이 이후 생성 조건을 제한하지만 외형은 방문 전까지 미정 |
 | 선행 | W2, K3 |
 
-세계의 네 단계:
-
-| 단계 | 상태 |
-|---|---|
-| 잠재 `Latent` | 요구와 대략적인 제약만 존재 |
-| 암시 `Foreshadowed` | 소문·지도·흔적으로 일부 조건이 공개됨 |
-| 정식화 `Canonical` | 공간·규칙·역사가 생성되어 서버 상태가 됨 |
-| 관찰 `Observed` | 플레이어나 주체가 직접 확인하여 임의 수정 불가 |
-
-암시 단계에서도 다음은 고정된다.
-
-```text
-불과 관련된 대사 작용을 가진다.
-소문의 출처가 존재한다.
-불을 먹었다고 판단할 만한 흔적을 남긴다.
-해당 지역의 생태와 양립해야 한다.
-```
-
-Provenance 는 “이 협곡은 왜 존재하는가”를 요구 목록으로 되짚을 수 있게 한다 — A5 의 생성 근거 뷰어가 이 데이터를 소비한다.
-
 ---
 
-## 페이즈 완료 결과
+## 파생 메모 (원문에 없음 — 작업 편의용)
 
-```text
-하나의 지역 요소가 여러 주체 요구를 동시에 만족한다.
-모든 정식화된 실체에 하나 이상의 WorldRequirement 가 연결된다 (GI-04).
-이미 관찰된 사실이 사건 없이 변경되지 않는다 (GI-05).
-```
+### 패키지 경로
 
-## 관련 수직 통합
-
-| 슬라이스 | 관계 |
+| ID | 패키지 |
 |---|---|
-| [VS8](30-Vertical-Slices.md#vs8-주체-요구로부터-세계-생성) | W0~W3 + X0 — 이 페이즈의 핵심 슬라이스 |
+| W0 | `packages/world-compiler/W0-requirement-extraction` |
+| W1 | `packages/world-compiler/W1-requirement-clustering` |
+| W2 | `packages/world-compiler/W2-realization` |
+| W3 | `packages/world-compiler/W3-canon-provenance` |
+
+### 관련 원문 절
+
+- W0/W3 은 [01-Global-Invariants.md](01-Global-Invariants.md) GI-04(세계 실체의 생성 근거 보존), W3 은 GI-05(관찰된 세계의 소급 변경 금지)의 대상이다.
+- 원문 「27. 전체 완성 판정」의 `orphanWorldEntities = 0` 조건이 W3 Provenance 의 판정 기준이다.
+- 원문 「2.1」의 좋은 모듈 예시 중 “여러 세계 요구를 하나의 공간 요소로 결합한다”가 W1 이다.
+
+### 관련 수직 통합
+
+| 슬라이스 | 포함 모듈 (원문 기준) |
+|---|---|
+| [VS8](30-Vertical-Slices.md#vs8-주체-요구로부터-세계-생성) | W0~W3, X0 |
+
+### 함께 읽을 세계 설계 원본
+
+- 가능성 노드가 결과가 아니라 요구를 제출한다는 원칙과 치료제 요구 6항 — [Design-MMO.md](../Design-MMO.md) 11장
+- `WorldRequirement` / `WorldRequirementKind` 필드, 규모별 실체화 조건 — 같은 문서 11.1 · 11.2
+- 컴파일 절차 11단계, `Score(r)` 식, `compileWorld` 의사 코드 — 같은 문서 12장
+- 잠재/암시/정식화/관찰 4단계 — 같은 문서 13장
+- `SpaceRequirement` 필드 — 같은 문서 18.2

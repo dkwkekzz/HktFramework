@@ -22,14 +22,24 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | [design/Design-Modules.md](design/Design-Modules.md) | **모듈 분할 총론 + 문서 라우터** (어떻게 나눠 만드는가) |
 | [design/modules/](design/modules/) | 페이즈별 모듈 상세 · 공통 계약 · 통합 시나리오 · 작업 프로토콜 |
 
+## 설계 문서 취급 원칙
+
+`design/` 의 설계 문서는 **사용자가 작성한 원문**이다.
+
+- 각 문서의 「원문」 절과 [design/Design-MMO.md](design/Design-MMO.md) 전체는 **한 글자도 고치지 않는다.**
+  요약·재구성·용어 통일·보완 모두 금지한다.
+- 파생 정보(패키지 경로 색인, 문서 간 참조 등)는 각 문서 맨 끝 「파생 메모」에만 둔다.
+- 원문과 파생을 섞어 쓰지 않는다. 파생 메모의 내용을 원문의 규정처럼 인용하지 않는다.
+- 원문 충실성은 `tools/verify-docs.py` 로 검증한다 (원문 사본은 저장소에 두지 않으므로,
+  대조가 필요하면 원문을 다시 제공받아 실행한다).
+
 ## 작업 진입 절차
 
-모듈 구현 작업은 [design/modules/40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의
-**세션 시작 체크리스트**를 따른다. 요약하면:
+모듈 구현 작업의 절차는 설계 원문 「22. AI 에이전트의 모듈 반복 작업 프로토콜」과
+「23. AI 에이전트 작업 제한」이 규정한다 →
+[design/modules/40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md)
 
-1. [STATE.md](STATE.md) 모듈 상태 보드 확인 → 선행 모듈이 `VERIFIED` 인지 검사
-2. 해당 페이즈 문서에서 목적·대표 검증·금지 항목 확인
-3. [design/modules/01-Global-Invariants.md](design/modules/01-Global-Invariants.md) 에서 강제할 GI 항목 확인
-4. 실패하는 검증 시나리오 → 구현 → 단위·속성 → Lab → 통합 → 증거 → `VERIFIED`
+이 저장소에서의 진입 경로는 같은 문서의 파생 메모에 있다. 현재 진행 상태는 [STATE.md](STATE.md).
 
-`IMPLEMENTED` 는 완료가 아니다. 증거(`evidence/latest.json`) 없는 `VERIFIED` 표시는 금지한다.
+원문 「4. 검증 상태」에 따라 `IMPLEMENTED` 는 완료 상태가 아니며, 최종 완료는 `VERIFIED` 이상이다.
+원문 「23」은 증거 없이 `VERIFIED` 로 표시하는 것을 금지한다.

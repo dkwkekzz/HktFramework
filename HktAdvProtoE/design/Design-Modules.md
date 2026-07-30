@@ -1,9 +1,14 @@
 # 주체-기원 MMORPG 구현을 위한 완전 검증형 모듈 분할 설계
 
-> 이 문서는 **총론 + 문서 라우터**다. 세부는 [modules/](modules/) 하위 문서를 참조한다.
-> 세계 설계 원본은 [Design-MMO.md](Design-MMO.md).
+> 이 문서는 **모듈 분할 설계 원문의 1·2·7장 + 문서 라우터**다.
+> 원문의 나머지 장은 [modules/](modules/) 하위 문서에 장 번호를 유지한 채 그대로 옮겨져 있다 (4절 인덱스 참조).
+> 세계 설계 원본은 [Design-MMO.md](Design-MMO.md) — 별개 문서이며 혼용하지 않는다.
+>
+> **각 문서의 「원문」 절은 설계 원문을 그대로 옮긴 것이다.** 원문에 없는 보조 정보는 각 문서 맨 끝 「파생 메모」에만 둔다.
 
 ---
+
+## 원문
 
 ## 1. 모듈화의 목표
 
@@ -44,9 +49,9 @@
 
 ---
 
-## 2. 모듈 분할 원칙
+# 2. 모듈 분할 원칙
 
-### 2.1 하나의 모듈은 하나의 인과적 책임만 가진다
+## 2.1 하나의 모듈은 하나의 인과적 책임만 가진다
 
 좋은 모듈:
 
@@ -70,7 +75,7 @@ NPC AI를 처리한다.
 
 ---
 
-### 2.2 모듈이 직접 변경할 수 있는 상태는 하나의 소유 영역으로 제한한다
+## 2.2 모듈이 직접 변경할 수 있는 상태는 하나의 소유 영역으로 제한한다
 
 예를 들어 `BeliefModule`은 주체가 믿는 상태만 변경할 수 있다.
 실제 세계 상태를 직접 바꿔서는 안 된다.
@@ -90,7 +95,7 @@ RuleModule
 
 ---
 
-### 2.3 모든 변경은 사건을 통해 이루어진다
+## 2.3 모든 변경은 사건을 통해 이루어진다
 
 다음과 같은 코드는 허용하지 않는다.
 
@@ -119,7 +124,7 @@ Memory / Relation
 
 ---
 
-### 2.4 모든 모듈은 대표 검증 장면을 하나 이상 가진다
+## 2.4 모든 모듈은 대표 검증 장면을 하나 이상 가진다
 
 예를 들어 지각 모듈은 다음 장면을 제공한다.
 
@@ -136,7 +141,7 @@ B는 시각적으로 종을 보지 못한다.
 
 ---
 
-### 2.5 이미 검증된 모듈의 계약을 변경하면 하위 모듈의 검증을 무효화한다
+## 2.5 이미 검증된 모듈의 계약을 변경하면 하위 모듈의 검증을 무효화한다
 
 ```text
 K2 Rule Engine 변경
@@ -154,7 +159,7 @@ N0 Authoritative Server 검증 무효
 
 ---
 
-## 3. 전체 의존 구조
+# 7. 전체 의존 구조
 
 ```text
 [V 검증 기반]
@@ -186,65 +191,49 @@ N0 Authoritative Server 검증 무효
 
 ---
 
+## 파생 메모 (원문에 없음 — 작업 편의용)
+
 ## 4. 문서 인덱스
 
-### 4.1 공통 규약 (모든 페이즈에 적용)
+원문의 장 번호와 이 저장소의 문서 대응표. 문서 번호는 파일 정렬용이며 원문 장 번호는 각 문서 안에 그대로 유지된다.
 
-| 문서 | 역할 |
+### 공통 규약
+
+| 문서 | 원문 장 |
 |---|---|
-| [00-Module-Contract.md](modules/00-Module-Contract.md) | 모듈 표준 계약, 검증 상태 머신, 완료 게이트 G0~G8, 증거 형식, Lab 공통 화면 |
-| [01-Global-Invariants.md](modules/01-Global-Invariants.md) | 전역 불변조건 GI-01 ~ GI-12 |
+| [00-Module-Contract.md](modules/00-Module-Contract.md) | 3. 모든 모듈이 가져야 하는 표준 계약 / 4. 검증 상태 / 5. 공통 완료 게이트 / 21. 모듈 완료 증거 형식 / 24. 브라우저 Lab의 공통 화면 |
+| [01-Global-Invariants.md](modules/01-Global-Invariants.md) | 6. 전역 불변조건 |
 
-### 4.2 페이즈별 모듈 (구현 단위)
+### 페이즈별 모듈
 
-| 문서 | 페이즈 | 모듈 | 한 줄 목적 |
-|---|---|---|---|
-| [10-Phase-V-Verification.md](modules/10-Phase-V-Verification.md) | V 검증 기반 | V0~V4 | 완료 여부를 사람이 판정할 수 있는 검증 인프라 |
-| [11-Phase-K-Kernel.md](modules/11-Phase-K-Kernel.md) | K 세계 커널 | K0~K3 | 결정적 사건 세계 (상태·질의·규칙·재생) |
-| [12-Phase-S-World-State.md](modules/12-Phase-S-World-State.md) | S 공간·상태 | S0~S3 | 공간·자연·사회·정보 상태 계층 |
-| [13-Phase-U-Subject.md](modules/13-Phase-U-Subject.md) | U 주체 인지 | U0~U3 | 지각·믿음·기억으로 세계를 다르게 보는 주체 |
-| [14-Phase-G-Possibility.md](modules/14-Phase-G-Possibility.md) | G 가능성·목적 | G0~G3 | 행동 원자 → 가능성 문법 → 목적·계획 |
-| [15-Phase-I-Interaction.md](modules/15-Phase-I-Interaction.md) | I 상호작용·사건 | I0~I3 | 압력·사회 전략·약속·충돌 연쇄 (퀘스트 없는 콘텐츠) |
-| [16-Phase-R-Progression.md](modules/16-Phase-R-Progression.md) | R 성장·능력 | R0~R4 | 가능성 그래프 변화로서의 성장, 의념 능력 |
-| [17-Phase-C-Complex-Subjects.md](modules/17-Phase-C-Complex-Subjects.md) | C 복합 주체 | C0~C3 | 종·거대 마물·조직/국가·신 |
-| [18-Phase-W-World-Compiler.md](modules/18-Phase-W-World-Compiler.md) | W 세계 컴파일러 | W0~W3 | 주체 요구 → 결합 → 실체화 → 정식화 |
-| [19-Phase-X-Spatial-Client.md](modules/19-Phase-X-Spatial-Client.md) | X 3D·클라이언트 | X0~X3 | 지역 위상 → 3D 지형 → 웹 클라이언트 → 세계 UI |
-| [20-Phase-N-Runtime.md](modules/20-Phase-N-Runtime.md) | N 서버·영속화 | N0~N3 | 권위 서버, 관심 영역, LOD, 저장·복구 |
-| [21-Phase-A-Authoring.md](modules/21-Phase-A-Authoring.md) | A 제작·감사 | A0~A5 | 콘텐츠 편집, AI 후보 생성·검증·수정, 인과 감사 |
+| 문서 | 원문 장 | 모듈 |
+|---|---|---|
+| [10-Phase-V-Verification.md](modules/10-Phase-V-Verification.md) | 8. Phase V — 검증 기반 모듈 | V0~V4 |
+| [11-Phase-K-Kernel.md](modules/11-Phase-K-Kernel.md) | 9. Phase K — 결정적 세계 커널 | K0~K3 |
+| [12-Phase-S-World-State.md](modules/12-Phase-S-World-State.md) | 10. Phase S — 공간과 세계 상태 | S0~S3 |
+| [13-Phase-U-Subject.md](modules/13-Phase-U-Subject.md) | 11. Phase U — 주체 인지 모듈 | U0~U3 |
+| [14-Phase-G-Possibility.md](modules/14-Phase-G-Possibility.md) | 12. Phase G — 가능성 그래프와 목적 결정 | G0~G3 |
+| [15-Phase-I-Interaction.md](modules/15-Phase-I-Interaction.md) | 13. Phase I — 상호작용과 콘텐츠 사건 | I0~I3 |
+| [16-Phase-R-Progression.md](modules/16-Phase-R-Progression.md) | 14. Phase R — 성장과 능력 | R0~R4 |
+| [17-Phase-C-Complex-Subjects.md](modules/17-Phase-C-Complex-Subjects.md) | 15. Phase C — 복합 주체 | C0~C3 |
+| [18-Phase-W-World-Compiler.md](modules/18-Phase-W-World-Compiler.md) | 16. Phase W — 세계 요구와 세계 컴파일러 | W0~W3 |
+| [19-Phase-X-Spatial-Client.md](modules/19-Phase-X-Spatial-Client.md) | 17. Phase X — 3D 공간과 웹 클라이언트 | X0~X3 |
+| [20-Phase-N-Runtime.md](modules/20-Phase-N-Runtime.md) | 18. Phase N — 서버·동기화·영속화 | N0~N3 |
+| [21-Phase-A-Authoring.md](modules/21-Phase-A-Authoring.md) | 19. Phase A — AI 제작과 감사 도구 | A0~A5 |
 
-### 4.3 통합·운영
+### 통합·운영
 
-| 문서 | 역할 |
+| 문서 | 원문 장 |
 |---|---|
-| [30-Vertical-Slices.md](modules/30-Vertical-Slices.md) | 수직 통합 검증 시나리오 VS0 ~ VS11 |
-| [40-Agent-Protocol.md](modules/40-Agent-Protocol.md) | AI 에이전트 반복 작업 프로토콜과 작업 제한 |
-| [50-Project-Layout.md](modules/50-Project-Layout.md) | 전체 디렉터리 구조와 모듈 ID ↔ 패키지 매핑 |
-| [60-Traceability-And-Completion.md](modules/60-Traceability-And-Completion.md) | 원설계 추적표, 전체 완성 판정, 실제 구현 시작 순서 |
+| [30-Vertical-Slices.md](modules/30-Vertical-Slices.md) | 20. 수직 통합 검증 시나리오 (VS0~VS11) |
+| [40-Agent-Protocol.md](modules/40-Agent-Protocol.md) | 22. AI 에이전트의 모듈 반복 작업 프로토콜 / 23. AI 에이전트 작업 제한 |
+| [50-Project-Layout.md](modules/50-Project-Layout.md) | 25. 프로젝트 디렉터리 구조 |
+| [60-Traceability-And-Completion.md](modules/60-Traceability-And-Completion.md) | 26. 원래 설계와 모듈 추적표 / 27. 전체 완성 판정 / 28. 실제 구현 시작 순서 |
 
----
+원문 28개 장 전체가 위 표에 배정되어 있다 (1·2·7장은 이 문서).
 
-## 5. 실제 구현 시작 순서 (요약)
+## 5. 어디서 시작하는가
 
-첫 구현에서는 3D 지형이나 AI 생성부터 시작하지 않는다. 상세는 [60-Traceability-And-Completion.md](modules/60-Traceability-And-Completion.md) 8절.
-
-```text
-1. V0~V4                  검증 기반
-2. K0~K3                  결정적 사건 세계
-3. VS0                    상태 변화와 리플레이 검증
-4. S0, S1, U0, U1, G0~G3  단일 주체 생존
-5. VS1, VS2               서로 다르게 해석하는 캐릭터
-6. S2, S3, I0~I3          요청·거래·충돌·사건 연쇄
-7. VS3, VS4               퀘스트 없는 콘텐츠
-8. R0~R4                  경험 기반 성장과 능력
-9. C0~C3                  마물·조직·국가·신
-10. W0~W3                 주체로부터 세계 생성
-11. X0~X3                 3D 웹 세계
-12. N0~N3                 MMORPG 권위 서버와 영속화
-13. A0~A5                 AI 생성 및 반복 검증
-```
-
-첫 번째 구현 목표는 다음 하나다.
-
-> **브라우저 Lab에서 주체 하나가 현상을 감지하고, 자기 믿음과 목적에 따라 행동을 선택하며, 그 행동이 세계 규칙에 의해 사건으로 처리되고, 동일한 사건을 완전히 재생할 수 있게 한다.**
-
-이 수직 경로가 검증되기 전에는 거대 마물, 국가, 신, 3D 지형 생성으로 확장하지 않는다. 이후의 모든 복잡한 콘텐츠는 이 검증된 인과 경로를 확장하는 방식으로만 추가한다.
+원문 「28. 실제 구현 시작 순서」가 순서를 고정한다 → [60-Traceability-And-Completion.md](modules/60-Traceability-And-Completion.md)
+작업 절차는 원문 「22」 → [40-Agent-Protocol.md](modules/40-Agent-Protocol.md)
+현재 진행 상태는 [../STATE.md](../STATE.md)
