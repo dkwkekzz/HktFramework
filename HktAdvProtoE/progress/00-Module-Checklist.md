@@ -83,7 +83,8 @@ packages/<그룹>/<ID>-<name>/
 | 표준 계약 파일 존재 · 패키지 이름 · 버전 형식 | [tests/conventions.test.ts](../tests/conventions.test.ts) |
 | MODULE.yaml 형식 · id/name 과 디렉터리 일치 · 거부 없이 등록 · 위상 순서 | 같은 파일 + V0·V1 통합 테스트 |
 | `labModule` 내보내기 · 계약의 scenarios 와 Lab 장면 일치 · 전 장면 통과 · 원문 「24」 8구획 | 같은 파일 |
-| 비결정적 호출(Math.random·Date.now·new Date·crypto.getRandomValues) 없음 | 같은 파일 |
+| 비결정적 호출(Math.random·Date.now·new Date·crypto.getRandomValues) 없음 — 주석·문자열은 제외 | 같은 파일 |
+| `schemas/*.schema.json` 이 `$id` 를 갖고 V1 로 컴파일된다 · 저장소 안에서 `$id` 유일 | 같은 파일 |
 | 같은 입력 재실행 시 같은 결과 | 같은 파일 |
 | evidence 형식 · 상태값 · 슬라이스 미통과 시 VERIFIED 금지 | 같은 파일 |
 | `depends_on` 과 package.json 의존 일치 | 같은 파일 |

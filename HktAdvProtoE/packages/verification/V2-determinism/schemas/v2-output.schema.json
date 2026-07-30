@@ -1,0 +1,52 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/v2-output.schema.json",
+  "title": "V2 출력",
+  "description": "파생 시드와 그 시드에서 나온 난수열·ID·틱 진행, 그리고 전체의 해시.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["seed", "seedLabel", "floats", "ints", "ids", "forkSamples", "timeline", "digest"],
+  "properties": {
+    "seed": { "type": "string", "pattern": "^[0-9a-f]{1,16}$" },
+    "seedLabel": { "type": "string", "minLength": 1 },
+    "floats": {
+      "type": "array",
+      "items": { "type": "number", "minimum": 0, "exclusiveMaximum": 1 }
+    },
+    "ints": {
+      "type": "array",
+      "items": { "type": "integer", "minimum": 0, "exclusiveMaximum": 100 }
+    },
+    "ids": {
+      "type": "array",
+      "uniqueItems": true,
+      "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*_[0-9a-f]{12}$" }
+    },
+    "forkSamples": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["label", "seed", "firstFloat"],
+        "properties": {
+          "label": { "type": "string", "minLength": 1 },
+          "seed": { "type": "string", "pattern": "^[0-9a-f]{1,16}$" },
+          "firstFloat": { "type": "number", "minimum": 0, "exclusiveMaximum": 1 }
+        }
+      }
+    },
+    "timeline": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tick", "timeMs"],
+        "properties": {
+          "tick": { "type": "integer", "minimum": 0 },
+          "timeMs": { "type": "number", "minimum": 0 }
+        }
+      }
+    },
+    "digest": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

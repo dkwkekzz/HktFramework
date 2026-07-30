@@ -55,11 +55,20 @@ importers:
         specifier: ^2.6.1
         version: 2.9.0
 
+  packages/verification/V2-determinism:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../V0-module-contract
+
   tests:
     dependencies:
       '@hkt/v0-module-contract':
         specifier: workspace:*
         version: link:../packages/verification/V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../packages/verification/V1-schema
       yaml:
         specifier: ^2.6.1
         version: 2.9.0

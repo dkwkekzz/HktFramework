@@ -166,9 +166,24 @@ describe('Lab 등록 규약', () => {
   });
 });
 
-/** 주석을 걷어낸다 — 규약을 설명하는 주석이 위반으로 잡히지 않게 한다. */
-function stripComments(source: string): string {
-  return source.replace(/\/\*[\s\S]*?\*\//g, ' ').replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+/**
+ * 코드만 남긴다 — 주석과 문자열 리터럴을 걷어낸다.
+ *
+ * 규약을 설명하는 주석이나 Lab 화면에 띄우는 안내 문구("Date.now() 를 읽지 않는다")가
+ * 위반으로 잡히면 검사기를 믿을 수 없게 된다. 템플릿 문자열의 `${...}` 보간은 코드이므로 남긴다.
+ */
+export function stripNonCode(source: string): string {
+  const withoutComments = source
+    .replace(/\/\*[\s\S]*?\*\//g, ' ')
+    .replace(/(^|[^:])\/\/[^\n]*/g, '$1');
+
+  return withoutComments
+    // 템플릿 문자열: 보간 부분만 남긴다
+    .replace(/`(?:[^`\\]|\\.)*`/g, (literal) =>
+      [...literal.matchAll(/\$\{([^{}]*(?:\{[^{}]*\}[^{}]*)*)\}/g)].map((match) => match[1]).join(' '),
+    )
+    .replace(/'(?:[^'\\]|\\.)*'/g, "''")
+    .replace(/"(?:[^"\\]|\\.)*"/g, '""');
 }
 
 describe('결정성 규약', () => {
@@ -185,7 +200,7 @@ describe('결정성 규약', () => {
           if (entry.name === 'node_modules') continue;
           walk(full);
         } else if (entry.name.endsWith('.ts')) {
-          const code = stripComments(readFileSync(full, 'utf8'));
+          const code = stripNonCode(readFileSync(full, 'utf8'));
           for (const call of FORBIDDEN_CALLS) {
             if (code.includes(call)) {
               offenders.push(`${relative(ROOT, full).split(sep).join('/')} · ${call}`);
@@ -198,12 +213,17 @@ describe('결정성 규약', () => {
     expect(offenders).toEqual([]);
   });
 
-  it('주석 속 언급은 위반으로 세지 않는다 (검사기 자체 확인)', () => {
-    expect(stripComments('// Math.random( 은 금지다\nconst a = 1;')).not.toContain('Math.random(');
-    expect(stripComments('/* Math.random( */ const a = 1;')).not.toContain('Math.random(');
-    expect(stripComments('const a = Math.random();')).toContain('Math.random(');
-    // URL 의 // 는 주석이 아니다
-    expect(stripComments("const u = 'https://hkt.local/x';")).toContain('https://hkt.local/x');
+  it('검사기 자체 확인 — 주석·문자열은 걷어내고 코드는 남긴다', () => {
+    // 걷어내야 하는 것
+    expect(stripNonCode('// Math.random( 은 금지다\nconst a = 1;')).not.toContain('Math.random(');
+    expect(stripNonCode('/* Math.random( */ const a = 1;')).not.toContain('Math.random(');
+    expect(stripNonCode("const msg = 'Date.now( 를 읽지 않는다';")).not.toContain('Date.now(');
+    expect(stripNonCode('const msg = `new Date( 를 읽지 않는다`;')).not.toContain('new Date(');
+
+    // 남겨야 하는 것
+    expect(stripNonCode('const a = Math.random();')).toContain('Math.random(');
+    expect(stripNonCode('const a = `${Date.now()}`;')).toContain('Date.now(');
+    expect(stripNonCode('const a = { b: new Date() };')).toContain('new Date(');
   });
 
   it.each(each)('%s — Lab 장면을 다시 실행해도 결과가 같다', async (_id, module) => {
@@ -213,6 +233,43 @@ describe('결정성 규약', () => {
     const first = JSON.stringify(labModule.run(0n));
     for (let run = 0; run < 5; run += 1) {
       expect(JSON.stringify(labModule.run(0n))).toBe(first);
+    }
+  });
+});
+
+describe('스키마 규약', () => {
+  /**
+   * 모듈은 자기 선행에만 의존해야 하므로(원문 「3.1」), V1 을 선행으로 두지 않은 모듈은 자기 스키마를
+   * 스스로 컴파일해 볼 수 없다. 저장소 단위인 여기서 대신 강제한다.
+   */
+  it.each(each)('%s — schemas/ 의 스키마가 V1 로 컴파일된다', async (_id, module) => {
+    const { compileSchema } = await import('@hkt/v1-schema');
+    const dir = join(module.absolute, 'schemas');
+    const files = existsSync(dir)
+      ? readdirSync(dir)
+          .filter((name) => name.endsWith('.schema.json'))
+          .sort()
+      : [];
+
+    for (const file of files) {
+      const schema = JSON.parse(readFileSync(join(dir, file), 'utf8')) as Record<string, unknown>;
+      expect(schema['$id'], `${module.path}/schemas/${file} 에 $id 가 없다`).toBeTypeOf('string');
+      expect(() => compileSchema(schema), `${module.path}/schemas/${file}`).not.toThrow();
+    }
+  });
+
+  it('저장소의 모든 $id 가 유일하다', () => {
+    const seen = new Map<string, string>();
+    for (const module of moduleDirs) {
+      const dir = join(module.absolute, 'schemas');
+      if (!existsSync(dir)) continue;
+      for (const file of readdirSync(dir).filter((name) => name.endsWith('.schema.json'))) {
+        const path = `${module.path}/schemas/${file}`;
+        const id = (JSON.parse(readFileSync(join(dir, file), 'utf8')) as { $id?: string })['$id'];
+        if (typeof id !== 'string') continue;
+        expect(seen.has(id), `${id} 가 ${seen.get(id)} 와 ${path} 에 중복 선언되었다`).toBe(false);
+        seen.set(id, path);
+      }
     }
   });
 });
