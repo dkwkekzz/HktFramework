@@ -1,0 +1,47 @@
+id: V3
+name: scenario-runner
+purpose: >
+  Given-When-Then 시나리오를 결정적으로 실행하고,
+  실패한 조건마다 그 값의 전후 상태와 그것을 바꾼 단계를 함께 보고한다.
+
+depends_on:
+  - V0
+  - V1
+  - V2
+
+owns_state:
+  - fixture_registry
+  - step_registry
+
+inputs:
+  - fixture_document
+  - scenario_spec
+
+outputs:
+  - scenario_report
+  - condition_result
+
+invariants:
+  - fixture_must_be_validated_before_run
+  - step_must_not_mutate_given_state
+  - unknown_step_must_be_rejected_before_execution
+  - unknown_fixture_must_be_rejected_before_execution
+  - rejected_step_must_not_change_state
+  - failed_condition_must_report_before_and_after
+  - failed_condition_must_point_at_the_step_that_changed_it
+  - identical_seed_and_spec_must_produce_identical_report
+  - condition_must_not_contain_executable_code
+
+scenarios:
+  - given_when_then_runs_in_order
+  - failed_condition_shows_before_and_after
+  - fixture_is_validated_before_run
+  - step_must_not_mutate_given_state
+  - unknown_step_is_rejected_with_path
+  - rejected_step_leaves_state_unchanged
+  - same_seed_replays_identically
+
+commands:
+  test: pnpm test V3-scenario-runner
+  lab: pnpm lab
+  verify: pnpm verify V3

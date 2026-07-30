@@ -61,6 +61,18 @@ importers:
         specifier: workspace:*
         version: link:../V0-module-contract
 
+  packages/verification/V3-scenario-runner:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../V1-schema
+      '@hkt/v2-determinism':
+        specifier: workspace:*
+        version: link:../V2-determinism
+
   tests:
     dependencies:
       '@hkt/v0-module-contract':

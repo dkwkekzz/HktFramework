@@ -1,0 +1,46 @@
+{
+  "moduleId": "V3",
+  "moduleVersion": "0.1.0",
+  "sourceHash": "sha256:05b93d6bc73594a3c3ebd4591df8bc95167d19bca981de666665f6b7c5a05eae",
+  "contractHash": "sha256:17d10bb057dc9f73885d69b10d01fae2fa229990883ebc276025968c6905db26",
+  "dependencyVersions": {
+    "V0": "0.1.0",
+    "V1": "0.1.0",
+    "V2": "0.1.0"
+  },
+  "staticCheck": {
+    "passed": true,
+    "command": "pnpm run typecheck"
+  },
+  "unitTests": {
+    "passed": 58,
+    "failed": 0
+  },
+  "propertyTests": {
+    "seeds": 500,
+    "invariantViolations": 0,
+    "passed": 6
+  },
+  "integrationTests": {
+    "passed": 13,
+    "failed": 0
+  },
+  "labScenarios": {
+    "given_when_then_runs_in_order": "passed",
+    "failed_condition_shows_before_and_after": "passed",
+    "fixture_is_validated_before_run": "passed",
+    "step_must_not_mutate_given_state": "passed",
+    "unknown_step_is_rejected_with_path": "passed",
+    "rejected_step_leaves_state_unchanged": "passed",
+    "same_seed_replays_identically": "passed"
+  },
+  "replay": {
+    "runs": 20,
+    "uniqueHashes": 1
+  },
+  "integrationSlices": {
+    "VS0": "pending — K0~K3 미구현 (원문 「20」 VS0)"
+  },
+  "status": "LAB_PASS",
+  "producedBy": "tools/verify.mjs (V4 미구현 동안의 임시 발급기)"
+}
