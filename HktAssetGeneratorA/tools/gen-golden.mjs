@@ -151,6 +151,23 @@ const SWORD_PRESETS = [
     },
   },
   {
+    // 곡선 가드 (D-19): 드룹 quillon + 끝 벌어짐. 실사진 평가 2호(광폭 아밍소드) 대응.
+    name: "knight-broad-drooped",
+    params: {
+      blade: bladeParamsOf("fantasy-broad-fuller"),
+      guard: {
+        shape: "tapered", width: 0.21, thickness: 0.04, depth: 0.025, bevel: 0.004,
+        droop: 0.022, endFlare: 1.5,
+      },
+      grip: {
+        length: 0.14, startRadius: 0.017, endRadius: 0.018,
+        crossSection: "ellipse", flatten: 0.85,
+        wrapGeometry: { enabled: true, turns: 10, depth: 0.0012 },
+      },
+      pommel: { shape: "scent-stopper", scale: 1.8 },
+    },
+  },
+  {
     // 곡선 검 전체 조립 (D-18): 휜 칼날 + 기울어진 손잡이 + 소켓 추종 확인
     name: "ronin-katana",
     params: {

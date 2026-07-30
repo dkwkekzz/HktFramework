@@ -131,6 +131,8 @@
         ],
         "depth": 0.02,
         "bevel": 0.004,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
@@ -359,6 +361,8 @@
         ],
         "depth": 0.014,
         "bevel": 0.002,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
@@ -579,6 +583,8 @@
         ],
         "depth": 0.028,
         "bevel": 0.005,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
@@ -773,6 +779,8 @@
         ],
         "depth": 0.016,
         "bevel": 0,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
@@ -996,6 +1004,8 @@
         ],
         "depth": 0.03,
         "bevel": 0.006,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
@@ -1065,6 +1075,240 @@
           [
             0,
             -0.054
+          ]
+        ],
+        "radialSegments": 16
+      }
+    }
+  },
+  {
+    "name": "knight-broad-drooped",
+    "params": {
+      "blade": {
+        "length": 1.25,
+        "widthRoot": 0.085,
+        "widthMid": 0.075,
+        "widthTip": 0.045,
+        "thicknessRoot": 0.01,
+        "thicknessTip": 0.006,
+        "crossSection": "lenticular",
+        "ridgeHeight": 0,
+        "fuller": {
+          "enabled": true,
+          "start": 0.03,
+          "end": 0.7,
+          "width": 0.03,
+          "depth": 0.004
+        },
+        "tipType": "spear",
+        "tipStart": 0.8,
+        "tipEndScale": 0.06,
+        "segLong": 44,
+        "segCross": 24
+      },
+      "guard": {
+        "shape": "tapered",
+        "width": 0.21,
+        "thickness": 0.04,
+        "depth": 0.025,
+        "bevel": 0.004,
+        "droop": 0.022,
+        "endFlare": 1.5
+      },
+      "grip": {
+        "length": 0.14,
+        "startRadius": 0.017,
+        "endRadius": 0.018,
+        "crossSection": "ellipse",
+        "flatten": 0.85,
+        "wrapGeometry": {
+          "enabled": true,
+          "turns": 10,
+          "depth": 0.0012
+        }
+      },
+      "pommel": {
+        "shape": "scent-stopper",
+        "scale": 1.8
+      }
+    },
+    "design": {
+      "blade": {
+        "length": 1.25,
+        "centerCurve": {
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              0.625,
+              0
+            ],
+            [
+              0,
+              1.25,
+              0
+            ]
+          ]
+        },
+        "widthCurve": {
+          "points": [
+            {
+              "t": 0,
+              "value": 0.085
+            },
+            {
+              "t": 0.5,
+              "value": 0.075
+            },
+            {
+              "t": 1,
+              "value": 0.045
+            }
+          ]
+        },
+        "thicknessCurve": {
+          "points": [
+            {
+              "t": 0,
+              "value": 0.01
+            },
+            {
+              "t": 1,
+              "value": 0.006
+            }
+          ]
+        },
+        "crossSection": "lenticular",
+        "ridgeHeight": 0,
+        "fuller": {
+          "enabled": true,
+          "start": 0.03,
+          "end": 0.7,
+          "width": 0.03,
+          "depth": 0.004
+        },
+        "tip": {
+          "type": "spear",
+          "start": 0.8,
+          "endScale": 0.06
+        },
+        "segments": {
+          "longitudinal": 44,
+          "crossSection": 24
+        }
+      },
+      "guard": {
+        "outline": [
+          [
+            -0.0945,
+            -0.009000000000000001
+          ],
+          [
+            0,
+            -0.02
+          ],
+          [
+            0.0945,
+            -0.009000000000000001
+          ],
+          [
+            0.105,
+            0
+          ],
+          [
+            0.0945,
+            0.009000000000000001
+          ],
+          [
+            0,
+            0.02
+          ],
+          [
+            -0.0945,
+            0.009000000000000001
+          ],
+          [
+            -0.105,
+            0
+          ]
+        ],
+        "depth": 0.025,
+        "bevel": 0.004,
+        "droop": 0.022,
+        "endFlare": 1.5,
+        "symmetry": "bilateral"
+      },
+      "grip": {
+        "length": 0.14,
+        "startRadius": 0.017,
+        "endRadius": 0.018,
+        "radiusCurve": null,
+        "crossSection": "ellipse",
+        "flatten": 0.85,
+        "curvature": {
+          "points": [
+            [
+              0,
+              0,
+              0
+            ],
+            [
+              0,
+              -0.07,
+              0
+            ],
+            [
+              0,
+              -0.14,
+              0
+            ]
+          ]
+        },
+        "wrap": {
+          "enabled": true,
+          "turns": 9,
+          "width": 0.02,
+          "thickness": 0.002
+        },
+        "wrapGeometry": {
+          "enabled": true,
+          "turns": 10,
+          "depth": 0.0012
+        },
+        "segments": {
+          "longitudinal": 24,
+          "radial": 16
+        }
+      },
+      "pommel": {
+        "profile": [
+          [
+            0.018000000000000002,
+            0
+          ],
+          [
+            0.036000000000000004,
+            -0.007200000000000001
+          ],
+          [
+            0.036000000000000004,
+            -0.036000000000000004
+          ],
+          [
+            0.0216,
+            -0.0432
+          ],
+          [
+            0.0216,
+            -0.061200000000000004
+          ],
+          [
+            0,
+            -0.0684
           ]
         ],
         "radialSegments": 16
@@ -1226,6 +1470,8 @@
         ],
         "depth": 0.012,
         "bevel": 0.002,
+        "droop": 0,
+        "endFlare": 1,
         "symmetry": "bilateral"
       },
       "grip": {
