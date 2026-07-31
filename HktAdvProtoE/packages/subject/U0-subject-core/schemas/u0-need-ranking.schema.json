@@ -1,0 +1,19 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/u0-need-ranking.schema.json",
+  "title": "U0 욕구 우선순위",
+  "description": "주체 하나의 욕구 순서. 원문 「11」 U0 의 대표 검증이 읽는 값이다. temperature 는 세계 설계 원본 9장의 Temperature 이고, pending 은 아직 아무도 재지 않는 A(v) 의 항을 이름으로 들고 있다 — 0 으로 채워 '다 쟀다'로 읽히게 하지 않는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["subjectId", "kind", "temperature", "scores", "order", "top", "activated", "pending"],
+  "properties": {
+    "subjectId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "temperature": { "type": "number", "exclusiveMinimum": 0 },
+    "scores": { "type": "array", "items": { "type": "object" } },
+    "order": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+    "top": { "type": ["string", "null"] },
+    "activated": { "type": "array", "items": { "type": "string" } },
+    "pending": { "type": "array", "items": { "type": "string" }, "minItems": 1 }
+  }
+}

@@ -1,0 +1,68 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/u0-need-score.schema.json",
+  "title": "U0 욕구 활성도",
+  "description": "욕구 하나의 활성도와 그 근거. 세계 설계 원본 9장 A(v) 중 U0 이 재는 세 항(N·V·T)만 담고, 나머지 항은 재지 않았음을 ranking 의 pending 이 이름으로 남긴다. means 는 표시일 뿐 점수가 아니다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "needId",
+    "title",
+    "activation",
+    "urgency",
+    "valueFit",
+    "traitFit",
+    "terms",
+    "probability",
+    "rank",
+    "means"
+  ],
+  "properties": {
+    "needId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "title": { "type": "string" },
+    "activation": { "type": "number" },
+    "urgency": { "type": "number", "minimum": 0, "maximum": 10 },
+    "valueFit": { "type": "number" },
+    "traitFit": { "type": "number" },
+    "terms": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "label", "value", "contributions"],
+        "properties": {
+          "id": { "type": "string", "enum": ["N", "V", "T"] },
+          "label": { "type": "string" },
+          "value": { "type": "number" },
+          "contributions": {
+            "type": "array",
+            "items": {
+              "type": "object",
+              "additionalProperties": false,
+              "required": ["source", "weight", "level", "product"],
+              "properties": {
+                "source": { "type": "string" },
+                "weight": { "type": "number" },
+                "level": { "type": "number" },
+                "product": { "type": "number" }
+              }
+            }
+          }
+        }
+      }
+    },
+    "probability": { "type": "number", "minimum": 0, "maximum": 1 },
+    "rank": { "type": "integer", "minimum": 1 },
+    "means": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["capable", "provisioned", "capabilities", "resources"],
+      "properties": {
+        "capable": { "type": "boolean" },
+        "provisioned": { "type": "boolean" },
+        "capabilities": { "type": "array", "items": { "type": "string" } },
+        "resources": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } }
+      }
+    }
+  }
+}

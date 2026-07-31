@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/u0-subject-view.schema.json",
+  "title": "U0 주체 상태",
+  "description": "주체가 자기 자신에 대해 아는 것 전부. 원문 「11」 U0 의 포함 일곱 항목이 그대로 칸이 되고, 이름은 세계 설계 원본 10장 SubjectState 를 따른다. 주체는 이 창을 통해서만 판단한다 (GI-02).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "kind",
+    "needs",
+    "values",
+    "traits",
+    "emotions",
+    "capabilities",
+    "resources",
+    "bodyEntityIds"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "needs": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 10 } },
+    "values": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+    "traits": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+    "emotions": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0, "maximum": 1 } },
+    "capabilities": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+    "resources": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "bodyEntityIds": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } }
+  }
+}
