@@ -116,15 +116,18 @@ Windows 에서 지금까지의 작업을 한 번에 확인하려면 [run.bat](..
 `install → typecheck → test → lab(브라우저)` 을 순서대로 돌린다 (`run.bat lab` = Lab 만,
 `run.bat test` = 콘솔 검증만). 출력이 필요하면 `run.bat test > run-log.txt 2>&1`.
 
-`run.bat` 은 **순수 ASCII · CRLF** 로 유지한다 — 한글이나 LF 를 넣으면 더블클릭이 조용히 실패한다.
+배치파일을 고칠 때 지킬 것 — 기준은 같은 저장소에서 **실제로 작동하는**
+[HktAdvProtoC/run.bat](../../HktAdvProtoC/run.bat) 이다 (UTF-8 · BOM 없음 · LF · 한글 본문).
 
-- **LF 줄바꿈**: cmd.exe 는 배치파일을 바이트 오프셋으로 되짚어 읽으므로 `goto`/label 스캔이
-  어긋나고, 창이 아무 출력 없이 닫힌다. `.gitattributes` 의 `*.bat text eol=crlf` 가 막는다.
-- **한글(UTF-8)**: cmd.exe 는 미리 읽어 둔 청크를 **그때의 콘솔 코드페이지**로 디코딩한다.
-  한국어 Windows(CP949)에서 UTF-8 한글은 글자 중간에서 잘려 파서가 어긋나고, 창은 뜨지만
-  아무것도 실행되지 않는다. 파일 안의 `chcp 65001` 은 이미 버퍼된 청크에 소급되지 않아
-  이걸 못 고친다. 그래서 배치파일 본문은 영문으로 두고, 한글 설명은 이 문서에 둔다.
-  (`chcp 65001` 자체는 남긴다 — vitest 의 한글 장면 이름 등 **자식 프로세스 출력**을 위한 것이다.)
+- **패키지 매니저를 `for /f` 로 감싸지 않는다.** `for /f ('pnpm -v')` 는 stdout 을 캡처하므로,
+  corepack 이 `packageManager` 에 적힌 pnpm 을 내려받는 동안 화면에 아무것도 나오지 않는다 —
+  창은 떠 있는데 멈춘 것처럼 보인다. `for /f` 는 ProtoC 처럼 `node -p` 같은 즉답 명령에만 쓰고,
+  패키지 매니저는 언제나 `call pnpm ...` 로 직접 불러 출력을 그대로 흘려보낸다.
+- **`COREPACK_ENABLE_DOWNLOAD_PROMPT=0` 을 세운다.** 이 값이 `1` 이면 corepack 이
+  "Do you want to continue? [Y/n]" 로 stdin 에서 멈춘다.
+- **오래 걸리는 단계는 먼저 알린다.** 설치·테스트 앞에 소요 시간을 찍어, 진행 중을 멈춘 것으로
+  오인하지 않게 한다.
+- UTF-8(BOM 없음)로 저장하고 `chcp 65001` 을 맨 앞에 둔다. `.bat` 선두의 BOM 은 첫 명령을 깨뜨린다.
 
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.
