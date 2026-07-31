@@ -291,7 +291,13 @@ function dependencyVersions() {
   return versions;
 }
 
-/** 디렉터리 전체의 내용 해시 — 파일 경로 오름차순으로 고정한다. */
+/**
+ * 디렉터리 전체의 내용 해시 — 파일 경로 오름차순으로 고정한다.
+ *
+ * 줄바꿈은 `\n` 으로 맞춰서 센다. contractHashOf 와 같은 이유다 — Windows Git 의
+ * `core.autocrlf=true` 로 CRLF 체크아웃된 작업 트리에서도 같은 코드는 같은 해시여야
+ * "증거 재발급이 바이트 단위로 동일" 이 성립한다. NUL 이 있는 파일은 이진으로 보고 손대지 않는다.
+ */
 function hashTree(dir) {
   const hash = createHash('sha256');
   const walk = (current) => {
@@ -302,7 +308,8 @@ function hashTree(dir) {
       if (entry.isDirectory()) walk(full);
       else {
         hash.update(relative(dir, full).split(sep).join('/'));
-        hash.update(readFileSync(full));
+        const bytes = readFileSync(full);
+        hash.update(bytes.includes(0) ? bytes : Buffer.from(bytes.toString('utf8').replace(/\r\n?/g, '\n'), 'utf8'));
       }
     }
   };

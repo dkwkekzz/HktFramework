@@ -143,6 +143,13 @@ Node 는 CVE-2024-27980 대응 이후 `.cmd`/`.bat` 을 `shell: true` 없이 spa
 구별되어야 한다 — 전자는 `error.status` 가 없다. 이걸 구분하지 않으면 Windows 에서 전 모듈이
 tsc 출력 한 줄 없이 "실패" 로만 찍혀 원인을 찾을 수 없다.
 
+**해시는 줄바꿈을 `\n` 으로 맞춘 뒤 계산한다.** 계약이 바뀌었는지는 계약의 **내용**이 정해야 하고
+체크아웃 설정이 정해서는 안 된다. Windows Git 의 기본값 `core.autocrlf=true` 는 작업 트리를
+CRLF 로 풀어 놓으므로, 원문 바이트를 그대로 해싱하면 한 글자도 고치지 않은 계약이 전 모듈에서
+`E_SELF_CONTRACT_CHANGED` 로 잡힌다 (`sourceHash` 도 같은 이유로 어긋나 "증거 재발급이 바이트
+단위로 동일" 이 깨진다). 정규화 지점은 두 곳뿐이다 — `contractHashOf`(V4, 발급·감사 공통) 와
+`hashTree`(tools/verify.mjs). 저장소가 LF 이므로 정규화는 기존 해시값을 바꾸지 않는다.
+
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.
 바꾸기 전에 영향 범위를 보려면 V4 의 `impactOf(registry, id)` 를 쓴다 (원문 「23」 Change Request).
