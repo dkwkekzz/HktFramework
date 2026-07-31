@@ -129,6 +129,20 @@ Windows 에서 지금까지의 작업을 한 번에 확인하려면 [run.bat](..
   오인하지 않게 한다.
 - UTF-8(BOM 없음)로 저장하고 `chcp 65001` 을 맨 앞에 둔다. `.bat` 선두의 BOM 은 첫 명령을 깨뜨린다.
 
+`tools/*.mjs` 도 같은 이유로 **`pnpm` 을 spawn 하지 않는다.** Windows 의 `pnpm` 은 `pnpm.CMD` 이고,
+Node 는 CVE-2024-27980 대응 이후 `.cmd`/`.bat` 을 `shell: true` 없이 spawn 하면 **EINVAL 로 던진다**.
+그래서 하위 명령은 로컬에 설치된 **JS 진입점을 `process.execPath`(node)로 직접** 실행한다.
+
+| 도구 | 부르는 것 |
+|---|---|
+| `tools/typecheck.mjs` | `node node_modules/typescript/bin/tsc -p <tsconfig>` |
+| `tools/verify.mjs` | `node tools/typecheck.mjs` · `node node_modules/vitest/vitest.mjs run …` |
+| `tools/lab-shot.mjs` | `node node_modules/vite/bin/vite.js build --config apps/lab/vite.config.ts` |
+
+실패를 `catch {}` 로 삼키지 않는다. 명령이 **실행조차 안 된 것**과 **검사에서 떨어진 것**은
+구별되어야 한다 — 전자는 `error.status` 가 없다. 이걸 구분하지 않으면 Windows 에서 전 모듈이
+tsc 출력 한 줄 없이 "실패" 로만 찍혀 원인을 찾을 수 없다.
+
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.
 바꾸기 전에 영향 범위를 보려면 V4 의 `impactOf(registry, id)` 를 쓴다 (원문 「23」 Change Request).
