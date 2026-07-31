@@ -91,17 +91,49 @@ const feverRises: RuleSpec = {
   tags: ['physical'],
 };
 
-/** 몸은 언제나 주변으로 식는다. */
-const bodyCools: RuleSpec = {
-  id: 'l1_body_cools',
-  title: '몸은 주변 온도로 돌아간다',
+/**
+ * 몸은 제 체온으로 돌아간다.
+ *
+ * `multiply 0.98` 하나만 두면 고정점이 **0℃** 다 — 성한 사슴의 체온이 45일 만에 19.5℃ 가 되고,
+ * 그것을 읽는 법칙이 없어 아무도 이상하다 하지 않는다. 곱한 뒤 더하면 고정점이 생긴다
+ * (`0.9t + 3.8` → 38℃). 항온동물의 거시 모형으로 이만하면 족하다.
+ */
+const bodyHoldsItsHeat: RuleSpec = {
+  id: 'l1_body_holds_its_heat',
+  title: '몸은 제 체온으로 돌아간다',
   scope: 'L1',
   priority: 10,
   when: verbIs(NATURAL_VERB.SETTLE),
   costs: [],
-  effects: [{ op: 'multiply', path: 'actor.temperature.celsius', value: 0.98 }],
-  emits: [{ id: 'cooling', channels: ['touch'] }],
+  effects: [
+    { op: 'multiply', path: 'actor.temperature.celsius', value: 0.9 },
+    { op: 'add', path: 'actor.temperature.celsius', value: 3.8 },
+  ],
+  emits: [{ id: 'thermoregulation', channels: ['touch'] }],
   tags: ['physical'],
+};
+
+/**
+ * 열이 너무 오르면 죽는다.
+ *
+ * 온도를 **읽는** 유일한 법칙이다. 이것이 없으면 체온은 오르내리기만 하고 아무것도 일으키지 않는
+ * 장식이 된다 — 병으로 52℃ 가 된 무리가 멀쩡히 새끼를 쳤다. 손상 → 질병 → 열 → 죽음의 사슬은
+ * 여기서 닫힌다.
+ */
+const heatKills: RuleSpec = {
+  id: 'l1_heat_kills',
+  title: '열이 너무 오르면 개체군이 준다',
+  scope: 'L1',
+  priority: 25,
+  when: verbIs(NATURAL_VERB.SETTLE),
+  requires: { op: 'gt', path: 'actor.temperature.celsius', value: 41 },
+  costs: [],
+  effects: [
+    { op: 'add', path: 'actor.population.count', value: -1 },
+    { op: 'add', path: 'actor.temperature.celsius', value: -4 },
+  ],
+  emits: [{ id: 'heat_death', channels: ['sight'] }],
+  tags: ['physical', 'biological'],
 };
 
 /**
@@ -147,7 +179,14 @@ const breed: RuleSpec = {
     op: 'or',
     items: [verbIs(NATURAL_VERB.HUNT), verbIs(NATURAL_VERB.ENDURE)],
   },
-  requires: { op: 'not', item: { op: 'gt', path: 'actor.hunger.value', value: 2 } },
+  requires: {
+    op: 'and',
+    items: [
+      { op: 'not', item: { op: 'gt', path: 'actor.hunger.value', value: 2 } },
+      // 배부른 하루만으로는 모자란다 — 몸에 쌓아 둔 것이 있어야 새끼를 친다.
+      { op: 'gt', path: 'actor.mass.kg', value: 50 },
+    ],
+  },
   costs: [{ op: 'add', path: 'actor.hunger.value', value: 2 }],
   effects: [
     { op: 'add', path: 'actor.population.count', value: 1 },
@@ -169,6 +208,8 @@ const starve: RuleSpec = {
   effects: [
     { op: 'add', path: 'actor.population.count', value: -1 },
     { op: 'add', path: 'actor.hunger.value', value: -6 },
+    // 굶으면 제 몸을 태운다. 먹는 것이 옮기는 일이라면, 굶는 것은 잃는 일이다.
+    { op: 'add', path: 'actor.mass.kg', value: -2 },
   ],
   emits: [{ id: 'starvation', channels: ['sight'] }],
   tags: ['biological', 'ecological'],
@@ -210,8 +251,9 @@ export const NATURAL_LAWS: RuleSpec[] = [
   woundsFester,
   bodyRecovers,
   plagueTakesItsShare,
+  heatKills,
   feverRises,
-  bodyCools,
+  bodyHoldsItsHeat,
   feed,
   breed,
   starve,

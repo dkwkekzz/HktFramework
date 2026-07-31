@@ -14,7 +14,12 @@
 [04 V2](progress/04-V2-determinism.md) · [05 V3](progress/05-V3-scenario-runner.md) ·
 [06 V4](progress/06-V4-evidence-gate.md) · [07 V 페이즈 목적 도달 감사](progress/07-V-phase-completion-audit.md) ·
 [08 K 페이즈 + VS0](progress/08-K-phase-kernel.md) · [09 K 페이즈 목적 도달 감사](progress/09-K-phase-completion-audit.md) ·
-[10 S 페이즈](progress/10-S-phase-world-state.md)).
+[10 S 페이즈](progress/10-S-phase-world-state.md) · [11 S 페이즈 목적 도달 감사](progress/11-S-phase-completion-audit.md)).
+
+원문 「10」 S0·S1 의 목적 도달 여부는 [11 감사](progress/11-S-phase-completion-audit.md)에서 **다시 실행하는
+방식**으로 확인했다 — 대표 검증 재현, 돌연변이 4종 주입 시 전부 장면에 걸림, S0 증거 재발급이 바이트
+단위로 동일. 감사가 찾아낸 구멍(자연 상태 중 질량·온도를 **읽는 법칙이 없어** 인과가 닫히지 않던 것)은
+법칙 네 줄로 고쳤고, 대표 검증 장면의 개체군 시계열은 한 칸도 바뀌지 않았다.
 
 원문 「9」의 목적 도달 여부는 [09 감사](progress/09-K-phase-completion-audit.md)에서 **다시 실행하는 방식**으로
 확인했다 — 테스트 848건 재통과, 네 커널 모듈 증거 재발급이 바이트 단위로 동일, `status=VERIFIED` 재현.
@@ -125,7 +130,7 @@ VS0 완료 조건 네 줄이 그대로 확인된다 — 에너지 결과 1 · �
 
 ## TODO
 
-### 1차 목표 — 최소 인과 경로 (15개 모듈 + VS0, VS1)
+### 1차 목표 — 최소 인과 경로 (17개 모듈 + VS0, VS1)
 
 > 브라우저 Lab에서 주체 하나가 현상을 감지하고, 자기 믿음과 목적에 따라 행동을 선택하며,
 > 그 행동이 세계 규칙에 의해 사건으로 처리되고, 동일한 사건을 완전히 재생할 수 있게 한다.

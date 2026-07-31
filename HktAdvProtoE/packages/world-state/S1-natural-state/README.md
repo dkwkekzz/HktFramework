@@ -13,7 +13,7 @@
 
 | 항목 | 값 |
 |---|---|
-| 소유 상태 | `food_web` (파생) · `natural_law_book` (데이터로 적힌 자연 법칙 10개) |
+| 소유 상태 | `food_web` (파생) · `natural_law_book` (데이터로 적힌 자연 법칙 11개) |
 | 입력 | `world_state` · `spatial_layout` · `natural_law` · `tick_span` |
 | 출력 | `population_series` · `food_web_link` · `natural_event` · `invariant_report` |
 
@@ -30,8 +30,8 @@ executeS1({
 
 | 원문의 「포함」 | 컴포넌트 | 이 값을 움직이는 법칙 |
 |---|---|---|
-| 질량 | `mass.kg` | `l1_feed` (먹은 만큼 옮겨 온다) |
-| 온도 | `temperature.celsius` | `l1_fever_rises` · `l1_body_cools` |
+| 질량 | `mass.kg` | `l1_feed` 가 옮겨 오고 `l1_starve` 가 태운다 · **`l1_breed` 가 읽는다** (뼈만 남으면 새끼를 못 친다) |
+| 온도 | `temperature.celsius` | `l1_fever_rises` 가 올리고 `l1_body_holds_its_heat` 가 되돌린다 · **`l1_heat_kills` 가 읽는다** |
 | 손상 | `damage.wounds` | `l1_wounds_fester` |
 | 허기 | `hunger.value` | `l1_feed` · `l1_prowl` · `l1_endure` · `l1_starve` · `l1_breed` |
 | 질병 | `disease.load` | `l1_wounds_fester` · `l1_body_recovers` · `l1_plague_takes_its_share` |
@@ -43,7 +43,7 @@ executeS1({
 ### ① 자연 법칙도 데이터 AST 다
 
 `if (hunger > 8) population -= 1` 을 코드로 적으면 그 감소는 **원인 없는 상태 변경**이 되고(GI-01),
-재생할 수도 감사할 수도 없다. [src/laws.ts](src/laws.ts) 의 열 가지 법칙은 전부 K2 의 `RuleSpec` 이며,
+재생할 수도 감사할 수도 없다. [src/laws.ts](src/laws.ts) 의 열한 가지 법칙은 전부 K2 의 `RuleSpec` 이며,
 K2 가 델타로 바꾸고 K3 이 사건으로 남긴다. 그래서 법칙집을 **갈아 끼울 수 있다** — 장면
 `state_stays_inside_its_declared_bounds` 는 굶주림 법칙만 바꿔 넣은 세계를 돌린다.
 
@@ -105,7 +105,25 @@ K2 의 조건식은 **주어진 결합**에 대한 참·거짓만 판정한다. 
 지연은 손으로 넣은 숫자가 아니다. 늑대의 허기가 하루 +2 씩 쌓여 굶주림 임계(8)를 넘기까지 걸리는
 시간이며, 법칙의 상수와 세계의 상태에서 저절로 나온다.
 
-### ⑦ 하한은 법칙마다가 아니라 스키마 한 곳에 있다
+### ⑦ 표현만 되고 아무도 읽지 않는 상태는 장식이다
+
+목적 도달 감사가 이 구멍을 잡았다. 처음 판에서 **질량과 온도는 쓰이기만 하고 어떤 법칙도 읽지
+않았다** — 병으로 체온이 52℃ 가 된 무리가 멀쩡히 새끼를 쳤고, 성한 무리의 체온은 45일 만에
+19.5℃ 로 식었다(`multiply 0.98` 만 두면 고정점이 0℃ 다). 상태가 표현되었을 뿐 세계에 되먹임되지
+않으면 그것은 규칙이 아니라 눈금이다.
+
+```text
+l1_body_holds_its_heat   0.9t + 3.8  → 고정점 38℃   (제 체온으로 돌아간다)
+l1_heat_kills            온도 > 41    → 개체군 -1     (손상 → 질병 → 열 → 죽음이 닫힌다)
+l1_starve                질량 -2                      (굶으면 제 몸을 태운다)
+l1_breed                 질량 > 50 을 요구            (뼈만 남은 무리는 새끼를 치지 못한다)
+```
+
+단위 테스트 `원문 「10」 S1 의 포함 항목은 모두 읽는 법칙과 쓰는 법칙을 함께 갖는다` 가 이 구멍이
+다시 열리지 않게 막는다. 이 네 줄을 더해도 **대표 검증 장면의 개체군 시계열은 한 칸도 바뀌지
+않았다** — 성한 초원에서는 병도 열도 없고, 질량이 50 아래로 내려가지도 않기 때문이다.
+
+### ⑧ 하한은 법칙마다가 아니라 스키마 한 곳에 있다
 
 "개체군은 음수가 될 수 없다"를 법칙마다 다시 적으면 언젠가 한 곳을 빠뜨린다. 하한은 컴포넌트
 스키마에만 있고, 그것을 어기는 효과는 K0 이 거부한다 — 거부된 트랜잭션은 **절반도** 적용되지 않고

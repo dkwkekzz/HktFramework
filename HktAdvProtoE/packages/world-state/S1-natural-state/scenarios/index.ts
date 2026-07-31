@@ -240,7 +240,7 @@ const everyNaturalChangeHasACausingEvent = defineScene({
       ok('there_were_events_to_check', output.events > 100, '사건이 100건을 넘는다', output.events),
       eq(
         'the_laws_that_ran_are_named',
-        ['l1_body_cools', 'l1_body_recovers', 'l1_breed', 'l1_feed', 'l1_prowl'],
+        ['l1_body_holds_its_heat', 'l1_body_recovers', 'l1_breed', 'l1_feed', 'l1_prowl'],
         laws,
         '20일 안에는 아직 굶주림이 오지 않았다',
       ),
@@ -407,6 +407,18 @@ const woundsFesterIntoDiseaseAndFever = defineScene({
         [Math.max(...temperature), output.series[0]?.temperature['deer_herd']],
       ),
       ok('deep_disease_takes_a_life', firstPlague !== undefined, '병으로 개체군이 주는 날이 있다', firstPlague?.tick),
+      ok(
+        'and_the_fever_itself_kills',
+        output.series.some((sample) => sample.appliedLaws.includes('l1_heat_kills')),
+        '열로 개체군이 주는 날이 있다 — 손상 → 질병 → 열 → 죽음의 사슬이 닫힌다',
+        output.series.filter((sample) => sample.appliedLaws.includes('l1_heat_kills')).map((sample) => sample.tick),
+      ),
+      ok(
+        'the_healthy_body_holds_its_own_heat',
+        output.series.every((sample) => (sample.temperature['wolf_pack'] ?? 0) >= 37),
+        '성한 몸은 식어 사라지지 않는다',
+        [output.series[0]?.temperature['wolf_pack'], output.series[output.series.length - 1]?.temperature['wolf_pack']],
+      ),
       eq(
         'the_unwounded_pack_stays_healthy',
         0,

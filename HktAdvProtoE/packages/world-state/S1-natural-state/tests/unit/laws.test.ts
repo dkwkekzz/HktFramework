@@ -37,6 +37,36 @@ describe('자연 법칙집', () => {
     }
   });
 
+  /**
+   * 목적 도달 감사가 잡아낸 구멍을 다시 열리지 않게 막는다.
+   *
+   * 원문 「10」 S1 의 포함 항목은 **표현되는 것만으로는 부족하다.** 아무 법칙도 읽지 않는 상태는
+   * 오르내리기만 하고 세계에 아무 일도 일으키지 않는 장식이다 — 실제로 체온이 52℃ 인 무리가
+   * 멀쩡히 새끼를 쳤고, 성한 무리의 체온은 45일 만에 19.5℃ 로 식었다.
+   */
+  it('원문 「10」 S1 의 포함 항목은 모두 읽는 법칙과 쓰는 법칙을 함께 갖는다', () => {
+    const reads = (component: string): string[] =>
+      NATURAL_LAWS.filter((law) => JSON.stringify(law.requires ?? {}).includes(`.${component}.`)).map(
+        (law) => law.id,
+      );
+    const writes = (component: string): string[] =>
+      NATURAL_LAWS.filter((law) => JSON.stringify([law.costs, law.effects]).includes(`.${component}.`)).map(
+        (law) => law.id,
+      );
+
+    for (const component of ['mass', 'temperature', 'damage', 'hunger', 'disease', 'population']) {
+      expect(reads(component), `${component} 를 읽는 법칙이 없다 — 아무것도 일으키지 못하는 상태다`).not.toEqual([]);
+      expect(writes(component), `${component} 를 바꾸는 법칙이 없다`).not.toEqual([]);
+    }
+  });
+
+  it('성한 몸의 체온은 식어 사라지지 않는다 — 고정점이 0℃ 가 아니다', () => {
+    const output = executeS1({ ...baseInput, ticks: 45 });
+    for (const sample of output.series) {
+      expect(sample.temperature['wolf_pack'], `${sample.tick}일`).toBeGreaterThan(36);
+    }
+  });
+
   it('법칙집을 갈아 끼울 수 있다 — 법칙은 코드가 아니라 데이터다', () => {
     const barren = executeS1({
       ...baseInput,

@@ -1,7 +1,7 @@
 {
   "moduleId": "S1",
   "moduleVersion": "0.1.0",
-  "sourceHash": "sha256:93b8602944b28e3fb4f6968da3d420e6fa56d3eed62d89857954446d1e468578",
+  "sourceHash": "sha256:107082ee0323510b3c34cd26d67838789a137a3a8b345a76b3f4b0fe43bb16e3",
   "contractHash": "sha256:43ab7fdb4ac9c5bef89f18fad718b2f0adebd3d1aa6279cf1f839dc157062013",
   "dependencyVersions": {
     "K0": "0.1.0",
@@ -24,7 +24,7 @@
     "command": "pnpm run typecheck"
   },
   "unitTests": {
-    "passed": 28,
+    "passed": 30,
     "failed": 0
   },
   "propertyTests": {
@@ -73,7 +73,7 @@
       "name": "단위 게이트",
       "measured": true,
       "passed": true,
-      "detail": "단위 28통과/0실패"
+      "detail": "단위 30통과/0실패"
     },
     {
       "id": "G3",
@@ -115,7 +115,7 @@
       "name": "증거 게이트",
       "measured": true,
       "passed": true,
-      "detail": "정적 검사 통과 · 코드 해시 sha256:93b8602…"
+      "detail": "정적 검사 통과 · 코드 해시 sha256:107082e…"
     }
   ],
   "status": "LAB_PASS",
