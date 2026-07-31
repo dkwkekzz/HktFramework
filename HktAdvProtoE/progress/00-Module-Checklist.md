@@ -112,6 +112,10 @@ pnpm verify <ID> --lab     # 증거 발급 → evidence/latest.json
 pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 (저장소 전체 실행)
 ```
 
+Windows 에서 지금까지의 작업을 한 번에 확인하려면 [run.bat](../run.bat) 을 더블클릭한다 —
+`install → typecheck → test → lab(브라우저)` 을 순서대로 돌린다 (`run.bat lab` = Lab 만,
+`run.bat test` = 콘솔 검증만).
+
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.
 바꾸기 전에 영향 범위를 보려면 V4 의 `impactOf(registry, id)` 를 쓴다 (원문 「23」 Change Request).
