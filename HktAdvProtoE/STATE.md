@@ -7,20 +7,25 @@
 설계 문서 작성 완료. **V 페이즈(V0~V4)** 와 **K 페이즈(K0~K3)** 구현 완료, 원문 「20」의
 **VS0(결정적 세계 변화)** 통과 — 원문 「28」의 1·2단계(검증 기반 · 세계 커널)가 닫혔다.
 아홉 모듈 모두 G0~G8 전부 통과로 **`VERIFIED`** 다.
-이어서 원문 「28」 4단계의 앞 세 모듈 **S0 spatial-affordance · S1 natural-state · U0 subject-core**
-를 세웠다 — 셋 다 대표 검증을 브라우저 장면으로 통과했고, VS1 이 아직 돌 수 없어 **`LAB_PASS`** 에
-머문다 (상세: [progress/](progress/) — [01 스캐폴드+V0](progress/01-scaffold-and-V0.md) ·
+이어서 원문 「28」 4단계의 앞 네 모듈 **S0 spatial-affordance · S1 natural-state · U0 subject-core ·
+U1 perception** 을 세웠다 — 넷 다 대표 검증을 브라우저 장면으로 통과했고, VS1 이 아직 돌 수 없어
+**`LAB_PASS`** 에 머문다 (상세: [progress/](progress/) — [01 스캐폴드+V0](progress/01-scaffold-and-V0.md) ·
 [02 V1](progress/02-V1-schema.md) · [03 규약 경화](progress/03-convention-hardening.md) ·
 [04 V2](progress/04-V2-determinism.md) · [05 V3](progress/05-V3-scenario-runner.md) ·
 [06 V4](progress/06-V4-evidence-gate.md) · [07 V 페이즈 목적 도달 감사](progress/07-V-phase-completion-audit.md) ·
 [08 K 페이즈 + VS0](progress/08-K-phase-kernel.md) · [09 K 페이즈 목적 도달 감사](progress/09-K-phase-completion-audit.md) ·
 [10 S 페이즈](progress/10-S-phase-world-state.md) · [11 S 페이즈 목적 도달 감사](progress/11-S-phase-completion-audit.md) ·
-[12 U0](progress/12-U0-subject-core.md)).
+[12 U0](progress/12-U0-subject-core.md) · [13 U1](progress/13-U1-perception.md)).
 
 U0 은 원문 「11」의 대표 검증 — "동일한 배고픔 상태에서도 가치와 성격이 다른 주체의 우선순위가
 달라짐" — 을 장면으로 보인다. 파수꾼과 도둑은 욕구 수위도 몸의 허기도 한 칸도 다르지 않은데,
 파수꾼은 맡은 자리를, 도둑은 끼니를 앞세운다. 「포함」 일곱 항목(욕구·가치·특성·감정·능력·자원·
 신체 연결)은 하나씩 흔들어 **전부 결과를 바꾸는 것**을 기계적으로 확인했다.
+
+U1 은 원문 「11」의 대표 검증 — "벽 뒤 사건은 보지 못하지만 큰 폭발음은 들을 수 있음" — 과
+원문 「2.4」가 지각 모듈에 지정한 장면을 둘 다 통과한다. 벽은 **시선을 끊고 소리는 줄인다**.
+같은 자리에서 난 종소리(1.83)는 문턱 2.5 를 못 넘고 폭발음(6.10)은 넘는다. 닿지 못한 것마다
+아홉 코드 중 하나가 붙어 "왜 저 NPC 는 모르는가"에 답한다.
 
 원문 「10」 S0·S1 의 목적 도달 여부는 [11 감사](progress/11-S-phase-completion-audit.md)에서 **다시 실행하는
 방식**으로 확인했다 — 대표 검증 재현, 돌연변이 4종 주입 시 전부 장면에 걸림, S0 증거 재발급이 바이트
@@ -33,7 +38,7 @@ U0 은 원문 「11」의 대표 검증 — "동일한 배고픔 상태에서도
 원문 「8」의 「V 단계 완료 결과」(브라우저 `/lab` 여섯 구획: 모든 모듈 상태 · 실패한 검증 · 의존성 그래프 ·
 최신 코드 해시 · 리플레이 해시 · 자동 검증 결과)까지 확인했다 — 화면은 저장소의 실제 `MODULE.yaml` 과
 `evidence/latest.json` 을 V4 에 넣어 얻은 결과만 그리고, 여섯 구획의 존재와 내용은 `tools/lab-shot.mjs` 가
-매 `pnpm verify` 마다 검사한다. 지금 그 화면의 「실패한 검증」에는 **S0·S1·U0 의 G6 통합 게이트**가
+매 `pnpm verify` 마다 검사한다. 지금 그 화면의 「실패한 검증」에는 **S0·S1·U0·U1 의 G6 통합 게이트**가
 올라와 있다 — VS1 을 아직 돌릴 수 없어 미측정이며, 미측정은 통과가 아니다.
 
 | 문서 | 상태 |
@@ -57,7 +62,8 @@ U0 은 원문 「11」의 대표 검증 — "동일한 배고픔 상태에서도
 | `packages/world-state/S0-spatial-affordance` | `LAB_PASS` (증거: [evidence/latest.json](packages/world-state/S0-spatial-affordance/evidence/latest.json)) |
 | `packages/world-state/S1-natural-state` | `LAB_PASS` (증거: [evidence/latest.json](packages/world-state/S1-natural-state/evidence/latest.json)) |
 | `packages/subject/U0-subject-core` | `LAB_PASS` (증거: [evidence/latest.json](packages/subject/U0-subject-core/evidence/latest.json)) |
-| `apps/lab` — 원문 「8」 V 단계 완료 화면 (여섯 구획, 저장소 실제 증거) + 모듈 탭 12개 | 동작 중 |
+| `packages/subject/U1-perception` | `LAB_PASS` (증거: [evidence/latest.json](packages/subject/U1-perception/evidence/latest.json)) |
+| `apps/lab` — 원문 「8」 V 단계 완료 화면 (여섯 구획, 저장소 실제 증거) + 모듈 탭 13개 | 동작 중 |
 | `tests/conventions.test.ts` — 저장소 규약 검사 (증거·상태 판정은 V4 에 위임) | 동작 중 |
 | `tests/slices/vs0.ts` — **VS0 수직 통합 슬라이스** (아홉 모듈, 어느 패키지의 소유도 아니다) | 통과 |
 
@@ -68,34 +74,33 @@ pnpm install
 pnpm run typecheck              # 타입 검사
 pnpm test                       # 전 모듈 + 저장소 규약 + VS0 슬라이스
 pnpm lab                        # 브라우저 Lab (원문 「24」 공통 화면 · 모듈 탭)
-pnpm verify <ID> --lab          # 증거 발급 → evidence/latest.json  (V0 … V4 · K0 … K3 · S0 · S1 · U0)
+pnpm verify <ID> --lab          # 증거 발급 → evidence/latest.json  (V0 … V4 · K0 … K3 · S0 · S1 · U0 · U1)
 pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 — VERIFIED 에는 이것이 필요하다
 ```
 
 ### 지금 열려 있는 것 · 아직 닫혀 있는 것
 
-V·K 아홉 모듈은 아홉 게이트를 전부 통과했다. S0·S1·U0 은 여덟 개를 통과하고 G6 에서 멈춰 있다.
+V·K 아홉 모듈은 아홉 게이트를 전부 통과했다. S0·S1·U0·U1 은 여덟 개를 통과하고 G6 에서 멈춰 있다.
 
 ```text
 V0 … V4 · K0 … K3   status=VERIFIED    막힌 게이트 없음
-S0 · S1 · U0        status=LAB_PASS    막힌 게이트 G6 통합 게이트 — 미측정
+S0 · S1 · U0 · U1   status=LAB_PASS    막힌 게이트 G6 통합 게이트 — 미측정
 ```
 
-S0·S1·U0 의 G6 이 미측정인 것은 **VS1(한 주체의 생존 행동)이 아직 돌 수 없기 때문**이다.
+S0·S1·U0·U1 의 G6 이 미측정인 것은 **VS1(한 주체의 생존 행동)이 아직 돌 수 없기 때문**이다.
 VS1 은 `S0, S1, U0, U1, G0~G3` 일곱 모듈을 함께 요구한다 — V 페이즈가 VS0 시점에 함께
 승격한 것과 같은 자리다. 미측정은 통과가 아니다(원문 「23」).
 
 `pnpm verify <ID> --lab` 만 돌리면 G7 도 **미측정**으로 남는다. `--regression` 을 함께 켜야
-회귀까지 측정된다 — S0·S1·U0 은 그렇게 돌려도 G6 때문에 `LAB_PASS` 가 맞는 답이다.
+회귀까지 측정된다 — S0·S1·U0·U1 은 그렇게 돌려도 G6 때문에 `LAB_PASS` 가 맞는 답이다.
 
 원문 「27」의 전체 완성 판정은 아직 `false` 다. 남은 것은 **다른 슬라이스와 지표의 측정 주체**이며,
 Lab 의 「자동 검증 결과」가 그 목록(측정 주체가 없는 지표 7개)을 그대로 보여 준다.
 
-다음 작업: **U1 (perception)** — [13-Phase-U-Subject.md](design/modules/13-Phase-U-Subject.md) 의 계약대로,
-[40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜을 따른다.
-원문의 선행은 `S0, S3, U0` 이지만 S3(정보·의념)은 원문 「28」 6단계이므로 1차 목표에서는 손대지
-않는다 — S0·U0 으로 세우고 소문·보고 채널은 S3 가 올 때 잇는다
-([12 U0](progress/12-U0-subject-core.md) 「다음으로 넘긴 것」).
+다음 작업: **G0 (action-ontology)** — [14-Phase-G-Possibility.md](design/modules/14-Phase-G-Possibility.md) 의
+계약대로, [40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜을 따른다.
+원문 「28」 4단계에 남은 것은 G0~G3 넷이고, 그것이 서면 VS1 이 돌 수 있다 — 그때 S0·S1·U0·U1 이
+함께 `VERIFIED` 로 승격한다 ([13 U1](progress/13-U1-perception.md) 「다음으로 넘긴 것」).
 착수 전에 [progress/00-Module-Checklist.md](progress/00-Module-Checklist.md) 를 읽는다 (만들 파일 · 절차 · 금지 · 자동 검사 목록).
 
 ## 모듈 상태 보드 (52개)
@@ -103,10 +108,10 @@ Lab 의 「자동 검증 결과」가 그 목록(측정 주체가 없는 지표 
 상태 정의는 [00-Module-Contract.md](design/modules/00-Module-Contract.md) 4절 참조.
 `BLOCKED` = 선행 미검증 · `SPECIFIED` = 계약 작성 완료 · `LAB_PASS` = 브라우저 대표 장면 확인 · `VERIFIED` = 증거 저장 완료.
 
-V0~V4 · K0~K3 · S0 · S1 · U0 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
+V0~V4 · K0~K3 · S0 · S1 · U0 · U1 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
 
 V·K 아홉 모듈은 `VERIFIED` 다. 원문 「28」의 고정 순서(V0~V4 → K0~K3 → VS0)대로 V 페이즈를 먼저 마치고,
-K 페이즈를 얹은 뒤 VS0 에서 아홉 모듈을 함께 승격시켰다. S0·S1·U0 은 같은 순서의 4단계이며 VS1 을
+K 페이즈를 얹은 뒤 VS0 에서 아홉 모듈을 함께 승격시켰다. S0·S1·U0·U1 은 같은 순서의 4단계이며 VS1 을
 기다리는 `LAB_PASS` 다. 이 판정은 사람이 적는 값이 아니라 V4 의 감사 결과이며, `pnpm test` 가
 저장소의 증거 파일을 V4 에 넣어 매번 다시 확인한다.
 
@@ -115,7 +120,7 @@ K 페이즈를 얹은 뒤 VS0 에서 아홉 모듈을 함께 승격시켰다. S0
 | V 검증 기반 | **V0 V1 V2 V3 V4** | 다섯 모듈 모두 VERIFIED | [10](design/modules/10-Phase-V-Verification.md) |
 | K 세계 커널 | **K0 K1 K2 K3** | 네 모듈 모두 VERIFIED | [11](design/modules/11-Phase-K-Kernel.md) |
 | S 공간·상태 | **S0 S1** · S2 S3 | S0·S1 은 LAB_PASS · S2·S3 은 BLOCKED | [12](design/modules/12-Phase-S-World-State.md) |
-| U 주체 인지 | **U0** · U1 U2 U3 | U0 은 LAB_PASS · U1~U3 은 BLOCKED | [13](design/modules/13-Phase-U-Subject.md) |
+| U 주체 인지 | **U0 U1** · U2 U3 | U0·U1 은 LAB_PASS · U2·U3 은 BLOCKED | [13](design/modules/13-Phase-U-Subject.md) |
 | G 가능성·목적 | G0 G1 G2 G3 | BLOCKED | [14](design/modules/14-Phase-G-Possibility.md) |
 | I 상호작용·사건 | I0 I1 I2 I3 | BLOCKED | [15](design/modules/15-Phase-I-Interaction.md) |
 | R 성장·능력 | R0 R1 R2 R3 R4 | BLOCKED | [16](design/modules/16-Phase-R-Progression.md) |
@@ -159,7 +164,7 @@ VS0 완료 조건 네 줄이 그대로 확인된다 — 에너지 결과 1 · �
 - [ ] S0 spatial-affordance — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
 - [ ] S1 natural-state — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
 - [ ] U0 subject-core — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
-- [ ] U1 perception
+- [ ] U1 perception — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
 - [ ] G0 action-ontology
 - [ ] G1 possibility-grammar
 - [ ] G2 graph-activation
