@@ -1,0 +1,49 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k0-component-snapshot.schema.json",
+  "title": "K0 컴포넌트 스냅샷",
+  "description": "저장소 전체의 읽기 사본과 타입별 인덱스 (원문 「9」 K0 의 ComponentSnapshot). 실체 항목은 k0-entity-state.schema.json 과 같은 형태를 문서 안에 그대로 적는다 — 문서 하나만으로 검증되게 하려는 것이다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entities", "byKind", "byComponent", "hash"],
+  "properties": {
+    "entities": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "kind", "tags", "components"],
+        "properties": {
+          "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+          "tags": {
+            "type": "array",
+            "uniqueItems": true,
+            "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+          },
+          "components": {
+            "type": "object",
+            "additionalProperties": { "type": "object" }
+          }
+        }
+      }
+    },
+    "byKind": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "type": "string" }
+      }
+    },
+    "byComponent": {
+      "type": "object",
+      "additionalProperties": {
+        "type": "array",
+        "uniqueItems": true,
+        "items": { "type": "string" }
+      }
+    },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

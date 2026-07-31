@@ -1,0 +1,64 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k3-world-snapshot.schema.json",
+  "title": "K3 세계 스냅샷",
+  "description": "중간 지점에서 이어 굴리기 위해 필요한 전부 — 상태·로그·예약·일지·시계·ID 발급기. 하나라도 빠지면 이어 굴린 세계가 갈라진다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["worldSeed", "tick", "store", "log", "pending", "journal", "ids", "clock", "hash"],
+  "properties": {
+    "worldSeed": { "type": "string", "pattern": "^-?[0-9]+$" },
+    "tick": { "type": "integer", "minimum": 0 },
+    "store": { "type": "object" },
+    "log": { "type": "array", "items": { "type": "object" } },
+    "pending": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "fireAtTick", "eventTemplateId", "actor", "targets", "causeEventId"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "fireAtTick": { "type": "integer", "minimum": 0 },
+          "eventTemplateId": { "type": "string", "minLength": 1 },
+          "actor": { "type": "string", "minLength": 1 },
+          "targets": { "type": "array", "items": { "type": "string" } },
+          "causeEventId": { "type": "string", "minLength": 1 }
+        }
+      }
+    },
+    "journal": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["tick", "intent"],
+        "properties": {
+          "tick": { "type": "integer", "minimum": 0 },
+          "intent": { "type": "object" }
+        }
+      }
+    },
+    "ids": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["seed", "hexLength", "counters"],
+      "properties": {
+        "seed": { "type": "string" },
+        "hexLength": { "type": "integer" },
+        "counters": { "type": "array", "items": { "type": "object" } }
+      }
+    },
+    "clock": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["tick", "startTick", "msPerTick"],
+      "properties": {
+        "tick": { "type": "integer", "minimum": 0 },
+        "startTick": { "type": "integer", "minimum": 0 },
+        "msPerTick": { "type": "number", "exclusiveMinimum": 0 }
+      }
+    },
+    "hash": { "type": "string", "pattern": "^sha256:[0-9a-f]{64}$" }
+  }
+}

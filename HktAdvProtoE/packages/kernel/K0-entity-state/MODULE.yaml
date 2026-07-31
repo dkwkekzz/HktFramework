@@ -1,0 +1,49 @@
+id: K0
+name: entity-state
+purpose: >
+  세계의 모든 실체와 상태를 고유 ID로 저장하고,
+  다른 모듈이 내부 저장소를 직접 고칠 수 없게 읽기 전용 사본으로만 내보낸다.
+
+depends_on:
+  - V0
+  - V1
+
+owns_state:
+  - entity_registry
+  - component_store
+  - type_index
+
+inputs:
+  - component_definition
+  - store_operation
+  - entity_read_request
+
+outputs:
+  - entity_state
+  - component_snapshot
+  - store_rejection
+
+invariants:
+  - entity_id_must_be_unique
+  - component_must_belong_to_existing_entity
+  - component_data_must_match_declared_schema
+  - read_must_not_expose_mutable_internal_state
+  - type_index_must_agree_with_store
+  - rejected_operation_must_not_change_store
+  - snapshot_must_restore_identical_state
+  - identical_store_must_produce_identical_hash
+  - owned_entity_must_have_single_owner
+
+scenarios:
+  - two_entities_do_not_bleed_into_each_other
+  - rejected_operation_leaves_store_untouched
+  - component_data_must_match_schema
+  - type_index_selects_by_kind_and_component
+  - read_result_is_detached_and_frozen
+  - snapshot_restores_identical_store
+  - single_owner_per_resource
+
+commands:
+  test: pnpm test K0-entity-state
+  lab: pnpm lab
+  verify: pnpm verify K0

@@ -1,0 +1,56 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k3-world-event.schema.json",
+  "title": "K3 세계 사건",
+  "description": "세계 설계 원본 19.4 의 WorldEvent 중 K 커널이 채울 수 있는 항목. situationId·commitment·hook 은 I·C 페이즈가 와야 채워지므로 지금은 두지 않는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "id",
+    "tick",
+    "causeEventIds",
+    "intentIds",
+    "appliedRuleIds",
+    "participantSubjectIds",
+    "affectedEntityIds",
+    "stateDelta",
+    "emittedPhenomena"
+  ],
+  "properties": {
+    "id": { "type": "string", "pattern": "^event_[0-9a-f]{12}$" },
+    "tick": { "type": "integer", "minimum": 0 },
+    "causeEventIds": { "type": "array", "items": { "type": "string" } },
+    "intentIds": { "type": "array", "items": { "type": "string" } },
+    "appliedRuleIds": { "type": "array", "items": { "type": "string" } },
+    "participantSubjectIds": { "type": "array", "items": { "type": "string" } },
+    "affectedEntityIds": { "type": "array", "uniqueItems": true, "items": { "type": "string" } },
+    "stateDelta": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["path", "op", "before", "after"],
+        "properties": {
+          "path": { "type": "string", "pattern": "^entity/" },
+          "op": { "type": "string", "minLength": 1 },
+          "before": true,
+          "after": true
+        }
+      }
+    },
+    "emittedPhenomena": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["id", "channels"],
+        "properties": {
+          "id": { "type": "string", "minLength": 1 },
+          "channels": { "type": "array", "items": { "type": "string" } },
+          "tags": { "type": "array", "items": { "type": "string" } }
+        }
+      }
+    }
+  }
+}

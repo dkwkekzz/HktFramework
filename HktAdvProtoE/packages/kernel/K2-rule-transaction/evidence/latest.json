@@ -1,0 +1,120 @@
+{
+  "moduleId": "K2",
+  "moduleVersion": "0.1.0",
+  "sourceHash": "sha256:c0a840ee6bd14ff68e345721006c6a0c3ef2e8294c090a2b401d8e45bc8d9b60",
+  "contractHash": "sha256:08da60ed3ae14282b397542ef053ae499010448efbdbbd62023d26b05945dd00",
+  "dependencyVersions": {
+    "K0": "0.1.0",
+    "K1": "0.1.0",
+    "V0": "0.1.0"
+  },
+  "dependencyContracts": {
+    "K0": "sha256:ef98188281712b58fe8ee3290ba967cd730e967062d947c0cee567f275bb87eb",
+    "K1": "sha256:f6944171b04e3b878b408bf7f9b8d5351b4607de92cd3c06681195a858a8c696",
+    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134"
+  },
+  "staticCheck": {
+    "passed": true,
+    "command": "pnpm run typecheck"
+  },
+  "unitTests": {
+    "passed": 41,
+    "failed": 0
+  },
+  "propertyTests": {
+    "seeds": 1000,
+    "invariantViolations": 0,
+    "passed": 8
+  },
+  "integrationTests": {
+    "passed": 11,
+    "failed": 0
+  },
+  "labScenarios": {
+    "attack_fails_when_energy_is_short": "passed",
+    "attack_succeeds_and_pays_its_cost": "passed",
+    "identical_intent_produces_identical_delta": "passed",
+    "local_exception_cannot_break_a_meta_axiom": "passed",
+    "rule_matching_follows_the_priority_ladder": "passed",
+    "transfer_conserves_the_total": "passed",
+    "unknown_verb_is_rejected_with_a_cause": "passed"
+  },
+  "replay": {
+    "runs": 20,
+    "uniqueHashes": 1
+  },
+  "integrationSlices": {
+    "VS0": "passed"
+  },
+  "regression": {
+    "failures": 0
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "name": "목적 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "목적 1문장"
+    },
+    {
+      "id": "G1",
+      "name": "계약 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "입력 3 · 출력 3 · 소유 상태 rule_book · 불변조건 9"
+    },
+    {
+      "id": "G2",
+      "name": "단위 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "단위 41통과/0실패"
+    },
+    {
+      "id": "G3",
+      "name": "속성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "표본 1000 · 위반 0"
+    },
+    {
+      "id": "G4",
+      "name": "직관 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "장면 7개"
+    },
+    {
+      "id": "G5",
+      "name": "결정성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "20회 재실행 · 해시 1종"
+    },
+    {
+      "id": "G6",
+      "name": "통합 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "슬라이스 1개"
+    },
+    {
+      "id": "G7",
+      "name": "회귀 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "기존 시나리오 실패 0건"
+    },
+    {
+      "id": "G8",
+      "name": "증거 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "정적 검사 통과 · 코드 해시 sha256:c0a840e…"
+    }
+  ],
+  "status": "VERIFIED",
+  "issuedAtTick": 0,
+  "producedBy": "tools/verify.mjs → V4 evidence-gate"
+}

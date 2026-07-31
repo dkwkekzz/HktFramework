@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/k1-query.schema.json",
+  "title": "K1 질의",
+  "description": "후보 모집단·조건식·고정 결합. 조건식 자체의 형식은 k1-predicate.schema.json 이 본다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["as", "where"],
+  "properties": {
+    "as": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "from": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "kind": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "withComponent": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+        "tag": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+      }
+    },
+    "where": { "type": "object" },
+    "bindings": {
+      "type": "object",
+      "additionalProperties": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" }
+    }
+  }
+}

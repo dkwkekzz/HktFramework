@@ -1,0 +1,52 @@
+id: K3
+name: event-replay
+purpose: >
+  모든 상태 변화를 원인 사건으로 기록하고 같은 시드·같은 입력이면 언제나 같은 사건 순서와
+  같은 최종 상태로 재생한다.
+
+depends_on:
+  - V0
+  - V2
+  - K0
+  - K1
+  - K2
+
+owns_state:
+  - event_log
+  - scheduler_queue
+  - world_snapshot
+
+inputs:
+  - intent_journal
+  - scheduled_event_template
+  - world_snapshot
+
+outputs:
+  - world_event
+  - replay_hash
+  - invariant_report
+
+invariants:
+  - every_state_change_must_have_a_causing_event
+  - event_log_must_be_append_only
+  - event_id_must_be_deterministic
+  - scheduled_event_must_fire_at_its_declared_tick
+  - replay_from_log_must_reproduce_the_final_state
+  - resimulation_must_reproduce_identical_events
+  - snapshot_restore_must_equal_the_original
+  - rejected_intent_must_not_append_an_event
+  - invariant_audit_must_point_at_the_violation
+
+scenarios:
+  - thousand_ticks_replay_is_identical
+  - every_change_has_a_causing_event
+  - rejected_intent_leaves_no_event
+  - scheduled_event_fires_at_its_tick
+  - snapshot_resumes_from_the_middle
+  - event_log_is_append_only
+  - invariant_audit_points_at_the_violation
+
+commands:
+  test: pnpm test K3-event-replay
+  lab: pnpm lab
+  verify: pnpm verify K3

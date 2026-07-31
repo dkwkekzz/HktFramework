@@ -43,6 +43,54 @@ importers:
         specifier: workspace:*
         version: link:../../packages/verification/V4-evidence-gate
 
+  packages/kernel/K0-entity-state:
+    dependencies:
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+      '@hkt/v1-schema':
+        specifier: workspace:*
+        version: link:../../verification/V1-schema
+
+  packages/kernel/K1-predicate-query:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../K0-entity-state
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+
+  packages/kernel/K2-rule-transaction:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../K0-entity-state
+      '@hkt/k1-predicate-query':
+        specifier: workspace:*
+        version: link:../K1-predicate-query
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+
+  packages/kernel/K3-event-replay:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../K0-entity-state
+      '@hkt/k1-predicate-query':
+        specifier: workspace:*
+        version: link:../K1-predicate-query
+      '@hkt/k2-rule-transaction':
+        specifier: workspace:*
+        version: link:../K2-rule-transaction
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+      '@hkt/v2-determinism':
+        specifier: workspace:*
+        version: link:../../verification/V2-determinism
+
   packages/verification/V0-module-contract:
     dependencies:
       yaml:
@@ -93,12 +141,30 @@ importers:
 
   tests:
     dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../packages/kernel/K0-entity-state
+      '@hkt/k1-predicate-query':
+        specifier: workspace:*
+        version: link:../packages/kernel/K1-predicate-query
+      '@hkt/k2-rule-transaction':
+        specifier: workspace:*
+        version: link:../packages/kernel/K2-rule-transaction
+      '@hkt/k3-event-replay':
+        specifier: workspace:*
+        version: link:../packages/kernel/K3-event-replay
       '@hkt/v0-module-contract':
         specifier: workspace:*
         version: link:../packages/verification/V0-module-contract
       '@hkt/v1-schema':
         specifier: workspace:*
         version: link:../packages/verification/V1-schema
+      '@hkt/v2-determinism':
+        specifier: workspace:*
+        version: link:../packages/verification/V2-determinism
+      '@hkt/v3-scenario-runner':
+        specifier: workspace:*
+        version: link:../packages/verification/V3-scenario-runner
       '@hkt/v4-evidence-gate':
         specifier: workspace:*
         version: link:../packages/verification/V4-evidence-gate
