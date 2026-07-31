@@ -1,7 +1,7 @@
 {
   "moduleId": "U1",
   "moduleVersion": "0.1.0",
-  "sourceHash": "sha256:f972dd730167adedf8971f6194635ea985ed1ceebf505ad55086a60e2eb76eb9",
+  "sourceHash": "sha256:a1364567ca26b78b21503a9690d9bf41e470ffe285cd51dfc1c388cd1f95c66d",
   "contractHash": "sha256:27988b30e5517684c1ae256d6c3e3bd0702af82cad63216f7b7f82c683eff3d0",
   "dependencyVersions": {
     "K0": "0.1.0",
@@ -35,7 +35,7 @@
     "passed": 12
   },
   "integrationTests": {
-    "passed": 13,
+    "passed": 18,
     "failed": 0
   },
   "labScenarios": {
@@ -117,7 +117,7 @@
       "name": "증거 게이트",
       "measured": true,
       "passed": true,
-      "detail": "정적 검사 통과 · 코드 해시 sha256:f972dd7…"
+      "detail": "정적 검사 통과 · 코드 해시 sha256:a136456…"
     }
   ],
   "status": "LAB_PASS",

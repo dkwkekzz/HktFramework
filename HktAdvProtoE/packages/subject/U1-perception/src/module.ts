@@ -10,7 +10,7 @@ import {
 } from '@hkt/k0-entity-state';
 import { RuleBook, type Intent, type RuleSpec } from '@hkt/k2-rule-transaction';
 import { WorldRuntime, resimulate, type InvariantReport, type WorldEvent } from '@hkt/k3-event-replay';
-import { SpatialIndex, type SpatialLayout } from '@hkt/s0-spatial-affordance';
+import { BARRIER_COMPONENT, SpatialIndex, barrierOf, type SpatialLayout } from '@hkt/s0-spatial-affordance';
 import { buildFoodWeb, naturalIntentsFor } from '@hkt/s1-natural-state';
 import { subjectIntentsFor } from '@hkt/u0-subject-core';
 import { CHANNEL_BOOK, PHENOMENON_BOOK } from './channels.js';
@@ -27,6 +27,7 @@ import {
   type Phenomenon,
   type PhenomenonGap,
   type PhenomenonSpec,
+  type StagePlacement,
   type Testimony,
 } from './types.js';
 
@@ -79,6 +80,8 @@ export interface U1Output {
   gaps: PhenomenonGap[];
   /** 주체별 요약 (id 오름차순) */
   reports: PerceiverReport[];
+  /** 무대의 자리 (id 오름차순) — 화면이 세계를 그리기 위한 것이다. 판정에 쓰지 않는다 */
+  stage: StagePlacement[];
   events: number;
   /** 흔적을 하나도 남기지 않은 사건 수 — 아무도 모르는 일이 있다는 사실 */
   silentEvents: number;
@@ -201,6 +204,7 @@ export function executeU1(input: U1Input): U1Output {
     misses: allMisses,
     gaps: allGaps,
     reports,
+    stage: stageOf(runtime.store, finalSensorium, allPhenomena),
   };
 
   return {
@@ -225,6 +229,47 @@ function naturalIntents(
 ): Intent[] {
   if (naturalLaws.length === 0) return [];
   return naturalIntentsFor(store, buildFoodWeb(store, SpatialIndex.build(store, layout)), tick);
+}
+
+/**
+ * 무대의 자리를 모은다 — 현상이 난 곳 · 느끼는 몸 · 막는 것.
+ *
+ * 화면이 세계를 그리기 위한 것이며 판정에는 쓰지 않는다. 세계 전체를 내보내지 않고 **이 장면에
+ * 실제로 관여한 것만** 담는다 — 화면이 무대를 그릴 수 있을 만큼이지 그 이상은 아니다.
+ */
+function stageOf(
+  store: EntityStore,
+  sensorium: Sensorium,
+  phenomena: readonly Phenomenon[],
+): StagePlacement[] {
+  const placements = new Map<EntityId, StagePlacement>();
+  const put = (id: EntityId, role: StagePlacement['role'], opaque = false): void => {
+    if (placements.has(id)) return;
+    const at = sensorium.positionOf(id);
+    if (!at) return;
+    placements.set(id, {
+      id,
+      at: [at.x, at.y, at.z],
+      role,
+      // 주인은 역할과 무관하게 적는다. 제 몸이 낸 흔적을 제가 느끼는 일이 흔한데,
+      // 그때 이 실체는 근원이면서 동시에 누군가의 몸이다.
+      owner: sensorium.ownerOfBody(id),
+      opaque,
+    });
+  };
+
+  for (const phenomenon of phenomena) {
+    if (phenomenon.sourceEntityId !== undefined) put(phenomenon.sourceEntityId, 'source');
+  }
+  for (const subject of sensorium.subjects()) {
+    for (const body of sensorium.bodiesOf(subject)) put(body, 'body');
+  }
+  for (const id of store.withComponent(BARRIER_COMPONENT)) {
+    const barrier = barrierOf(store, id);
+    put(id, 'blocker', barrier?.opaque === true);
+  }
+
+  return [...placements.values()].sort((left, right) => (left.id < right.id ? -1 : 1));
 }
 
 function groupByPerceiver(perceived: readonly PerceivedPhenomenon[]): Record<EntityId, PerceivedPhenomenon[]> {

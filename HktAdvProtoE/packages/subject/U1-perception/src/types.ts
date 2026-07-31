@@ -248,6 +248,25 @@ export interface PhenomenonGap {
   occurredAtTick: number;
 }
 
+/**
+ * 무대의 자리 한 줄 — **화면이 세계를 그리기 위한 것**이다.
+ *
+ * 지각은 공간에서 일어나는 일이므로 공간으로 보여야 한다(원문 「24」: "표·그래프·타임라인을
+ * 통해 반드시 눈으로 확인할 수 있어야 한다"). 거리와 차폐를 숫자로만 내주면 화면은 코드 목록이
+ * 되고, 벽이 시선을 끊고 소리를 줄인다는 이 모듈의 요지가 눈에 보이지 않는다.
+ *
+ * 판정에는 쓰지 않는다. 판정은 `Sensorium` 을 거친 `perceive.ts` 만 한다.
+ */
+export interface StagePlacement {
+  id: EntityId;
+  at: [number, number, number];
+  role: 'source' | 'body' | 'blocker';
+  /** `body` 면 그 몸의 주인 */
+  owner: EntityId | null;
+  /** `blocker` 면 시선을 막는가 */
+  opaque: boolean;
+}
+
 /** 한 틱의 지각 단면. */
 export interface PerceptionSample {
   tick: number;

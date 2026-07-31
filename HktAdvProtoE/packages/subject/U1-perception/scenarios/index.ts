@@ -21,7 +21,14 @@ import {
   type U1Output,
 } from '../src/module.js';
 import { CHANNEL_BOOK } from '../src/channels.js';
-import { MISS, U1_CHANNELS, type Testimony } from '../src/types.js';
+import { round } from '../src/perceive.js';
+import {
+  MISS,
+  U1_CHANNELS,
+  type Phenomenon,
+  type StagePlacement,
+  type Testimony,
+} from '../src/types.js';
 import {
   A_HUNT_NOBODY_SEES,
   COMPONENT_DEFINITIONS,
@@ -74,8 +81,13 @@ function defineScene(spec: SceneSpec): VerificationScenario<U1Input, U1Output> {
         candidates: spec.candidates?.(input, output) ?? defaultCandidates(output),
         result: spec.result?.(output) ?? defaultResult(output),
         reasons: spec.reasons(input, output),
-        before: `사건 ${output.events}건 · 그중 흔적 없는 것 ${output.silentEvents}건 → 현상 ${output.phenomena.length}개`,
-        after: `주체에게 닿은 것 ${output.perceived.length}개 · 닿지 못한 것 ${output.misses.length}개`,
+        // 이 모듈의 목적을 그대로 읽는다 — 실제 사건 → 감지할 수 있는 현상 → 각자가 아는 것.
+        before: `세계에 일어난 일 — 사건 ${output.events}건${
+          output.silentEvents > 0 ? ` (그중 ${output.silentEvents}건은 아무 흔적도 남기지 않았다)` : ''
+        } → 감지할 수 있는 현상 ${output.phenomena.length}개`,
+        after: `주체가 알게 된 것 — ${
+          output.reports.map((report) => `${report.subjectId} ${report.known.length}개`).join(' · ') || '아무도 없다'
+        }  (닿지 못한 ${output.misses.length}개에는 모두 이유가 붙어 있다)`,
         checks: assertions.map((assertion) => ({
           label: assertion.reason ? `${assertion.id} — ${assertion.reason}` : assertion.id,
           passed: assertion.passed,
@@ -86,15 +98,399 @@ function defineScene(spec: SceneSpec): VerificationScenario<U1Input, U1Output> {
 }
 
 // ---------------------------------------------------------------------------
-// 화면 보조
+// 화면 — 공간에서 일어나는 일이므로 공간으로 그린다
+//
+// 원문 「24」는 "그래픽 모듈이 아니더라도 표·그래프·타임라인을 통해 반드시 눈으로 확인할 수
+// 있어야 한다"고 요구한다. 지각에서 그것은 **무대와 감각의 길**이다. `E_SIGHT_BLOCKED` 라는
+// 코드를 나열하는 것으로는 "벽이 시선을 끊고 소리는 줄인다"가 눈에 보이지 않는다.
+//
+// 그래서 세 가지를 그린다.
+//
+//   ① 위에서 본 무대   누가 어디에 있고 무엇이 사이를 막고 있는가
+//   ② 감각의 길        현상에서 몸까지 가는 길에 무슨 일이 있었는가 (끊김 ╳ / 줄어듦 ┈)
+//   ③ 감쇠 사다리      원래 세기가 거리와 벽을 지나며 어떻게 줄어 문턱을 넘거나 못 넘는가
 // ---------------------------------------------------------------------------
+
+/** `t1_bell_toll_chapel_bell` → `bell_toll@1` — 화면에서 읽히는 길이로 줄인다. */
+export function shortId(id: string): string {
+  const match = /^t(\d+)_(.+?)_([a-z0-9_]+)$/.exec(id);
+  if (!match) return id;
+  return `${match[2]}@${match[1]}`;
+}
+
+const FILL = '·';
+const MAP_WIDTH = 68;
+
+/** 자리 하나를 무대에서 찾는다. */
+function placeOf(output: U1Output, id: string): StagePlacement | undefined {
+  return output.stage.find((entry) => entry.id === id);
+}
+
+/**
+ * ① 위에서 본 무대.
+ *
+ * 한 칸이 1m 다. 빈 칸은 `·` 로 채운다 — HTML 은 이어진 공백을 접으므로 공백으로 그리면
+ * 무대가 무너진다.
+ */
+function stageMap(output: U1Output, phenomenon: Phenomenon | undefined): LabRow[] {
+  if (output.stage.length === 0) return [];
+  const marks = new Map<string, { glyph: string; x: number; y: number }>();
+
+  for (const place of output.stage) {
+    const [x, y] = place.at;
+    let glyph = place.role === 'blocker' ? (place.opaque ? '▓' : '▒') : '○';
+    if (place.role === 'source') glyph = '✷';
+    if (place.role === 'body') {
+      // 알게 된 몸과 모르는 몸을 가른다 — 무대만 보고도 누가 알았는지 읽힌다.
+      // 현상을 지정하면 그 현상 기준, 지정하지 않으면 "무엇이든 알았는가" 기준이다.
+      glyph = sensedBy(output, place.id, phenomenon) ? '◉' : '○';
+    }
+    marks.set(place.id, { glyph, x: Math.round(x), y: Math.round(y) });
+  }
+
+  // 무대가 화면보다 넓으면 한 칸의 뜻을 늘린다. 잘라 내면 멀리 있는 것이 화면에서 사라지고,
+  // 사라진 것이 곧 "없는 것"으로 읽힌다 — 이 장면에서는 바로 그 멀리 있는 것이 요지다.
+  const xs = [...marks.values()].map((mark) => mark.x);
+  const span = Math.max(...xs) + 1;
+  const metersPerCell = Math.max(1, Math.ceil(span / MAP_WIDTH));
+  const width = Math.min(MAP_WIDTH, Math.ceil(span / metersPerCell) + 1);
+  const rows: LabRow[] = [];
+
+  for (const y of [...new Set([...marks.values()].map((mark) => mark.y))].sort((a, b) => b - a)) {
+    const line = Array.from({ length: width }, () => FILL);
+    for (const mark of marks.values()) {
+      if (mark.y !== y) continue;
+      const cell = Math.floor(mark.x / metersPerCell);
+      if (cell < 0 || cell >= width) continue;
+      line[cell] = mark.glyph;
+    }
+    rows.push({ label: `y=${y}`, value: line.join('') });
+  }
+
+  const ruler = Array.from({ length: width }, (_, index) =>
+    index % 10 === 0 ? String(((index * metersPerCell) / 10) % 10 | 0) : index % 5 === 0 ? '+' : '-',
+  );
+  rows.push({
+    label: metersPerCell === 1 ? 'x(m)' : `x(한 칸 ${metersPerCell}m)`,
+    value: ruler.join(''),
+  });
+  rows.push({
+    label: '자리',
+    value: output.stage
+      .map((place) => `${glyphOf(place, output, phenomenon)} ${place.id}(${place.at[0]},${place.at[1]})`)
+      .join('  '),
+  });
+  return rows;
+}
+
+function glyphOf(place: StagePlacement, output: U1Output, phenomenon: Phenomenon | undefined): string {
+  if (place.role === 'source') return '✷';
+  if (place.role === 'blocker') return place.opaque ? '▓' : '▒';
+  return sensedBy(output, place.id, phenomenon) ? '◉' : '○';
+}
+
+/** 이 몸이 그 현상을(현상을 지정하지 않으면 무엇이든) 잡았는가. */
+function sensedBy(output: U1Output, body: string, phenomenon: Phenomenon | undefined): boolean {
+  return output.perceived.some(
+    (entry) => entry.sensedBy === body && (phenomenon === undefined || entry.phenomenonId === phenomenon.id),
+  );
+}
+
+const RAY_WIDTH = 16;
+
+/**
+ * ② 감각의 길 — 현상에서 몸까지.
+ *
+ * ```text
+ * ✷━━━━━━━━━━━━━━◉   막는 것 없이 닿았다
+ * ✷━━━━━━▓┈┈┈┈┈┈◉   벽이 줄였지만 넘어왔다
+ * ✷━━━━━━▓╳╳╳╳╳╳○   벽이 끊었다
+ * ✷━━━━╌╌╌╌╌╌╌╌╌○   닿는 거리 밖에서 흩어졌다
+ * ```
+ *
+ * 이 네 줄이 이 모듈의 요지다. 벽 하나가 어떤 감각에는 `╳` 이고 어떤 감각에는 `┈` 이라는 것을
+ * 숫자 없이도 한눈에 읽을 수 있어야 한다.
+ */
+function ray(
+  output: U1Output,
+  phenomenon: Phenomenon,
+  blockers: readonly string[],
+  reached: boolean,
+  cut: boolean,
+  scattered: boolean,
+): string {
+  const source = phenomenon.location;
+  const stop = cut || scattered ? '○' : reached ? '◉' : '○';
+  const line = Array.from({ length: RAY_WIDTH }, () => '━');
+
+  // 막는 것을 길 위의 제 자리에 놓는다 — 근원에서 얼마나 떨어져 있는지의 비율로.
+  const marks: number[] = [];
+  for (const id of blockers) {
+    const place = placeOf(output, id);
+    if (!place || !source) continue;
+    const total = Math.hypot(place.at[0] - source[0], place.at[1] - source[1]);
+    const span = distanceTo(output, phenomenon, blockers);
+    const at = span > 0 ? Math.round((total / span) * (RAY_WIDTH - 1)) : 0;
+    const index = Math.max(1, Math.min(RAY_WIDTH - 2, at));
+    line[index] = '▓';
+    marks.push(index);
+  }
+
+  const after = marks.length > 0 ? Math.max(...marks) + 1 : RAY_WIDTH;
+  if (cut) for (let index = after; index < RAY_WIDTH; index += 1) line[index] = '╳';
+  else if (marks.length > 0) for (let index = after; index < RAY_WIDTH; index += 1) line[index] = '┈';
+  if (scattered) for (let index = Math.floor(RAY_WIDTH / 3); index < RAY_WIDTH; index += 1) line[index] = '╌';
+
+  return `✷${line.join('')}${stop}`;
+}
+
+function distanceTo(output: U1Output, phenomenon: Phenomenon, blockers: readonly string[]): number {
+  const hit = output.perceived.find((entry) => entry.phenomenonId === phenomenon.id && entry.distance !== null);
+  if (hit?.distance) return hit.distance;
+  const miss = output.misses.find((entry) => entry.phenomenonId === phenomenon.id && entry.distance !== null);
+  return miss?.distance ?? blockers.length + 1;
+}
+
+/** ③ 감쇠 사다리 — 원래 세기가 무엇을 지나며 얼마가 되었는가. */
+function ladder(
+  base: number,
+  distance: number | null,
+  afterDistance: number | null,
+  blockers: readonly string[],
+  final: number | null,
+  threshold: number | null,
+  passed: boolean,
+): string {
+  const steps = [`${base}`];
+  if (distance !== null && afterDistance !== null) steps.push(`${afterDistance} (${distance}m 를 지나며)`);
+  if (blockers.length > 0 && final !== null) steps.push(`${final} (${blockers.join('·')} 를 지나며)`);
+  else if (final !== null && steps.length === 1) steps.push(`${final}`);
+  const verdict = threshold === null ? '' : ` ${passed ? '≥' : '<'} 문턱 ${threshold}`;
+  return `${steps.join(' → ')}${verdict}`;
+}
+
+/**
+ * 한 현상이 한 주체에게 어떻게 갔는가 — 감각마다 한 줄.
+ *
+ * 닿은 것과 닿지 못한 것을 **같은 줄 모양으로** 그린다. 닿은 것만 그리면 "왜 저 사람은
+ * 모르는가"가 화면에서 사라진다.
+ */
+function pathsFor(output: U1Output, phenomenon: Phenomenon, subject: string): LabRow[] {
+  const rows: LabRow[] = [];
+  const spec = new Map(CHANNEL_BOOK.map((channel) => [channel.id, channel]));
+
+  for (const channel of phenomenon.channels) {
+    const title = spec.get(channel)?.title ?? channel;
+    const base = phenomenon.measurements[channel] ?? 0;
+    const hit = output.perceived.find(
+      (entry) =>
+        entry.perceiverId === subject && entry.phenomenonId === phenomenon.id && entry.channel === channel,
+    );
+    if (hit) {
+      const afterDistance =
+        hit.dampedBy.length > 0 && hit.distance !== null
+          ? round(base / (1 + (spec.get(channel)?.falloff ?? 0) * hit.distance))
+          : hit.strength;
+      rows.push({
+        label: `  ${title}`,
+        value: `${ray(output, phenomenon, hit.dampedBy, true, false, false)}  ${ladder(
+          base,
+          hit.distance,
+          afterDistance,
+          hit.dampedBy,
+          hit.strength,
+          hit.threshold,
+          true,
+        )}  ✓ ${verbFor(channel, true)}`,
+      });
+      continue;
+    }
+
+    const miss = output.misses.find(
+      (entry) =>
+        entry.perceiverId === subject && entry.phenomenonId === phenomenon.id && entry.channel === channel,
+    );
+    if (!miss) continue;
+    const cut = miss.code === MISS.SIGHT_BLOCKED;
+    const scattered = miss.code === MISS.OUT_OF_RANGE;
+    rows.push({
+      label: `  ${title}`,
+      value: `${ray(output, phenomenon, miss.blockedBy, false, cut, scattered)}  ${WHY[miss.code] ?? miss.code}${
+        miss.strength !== null ? ` — ${ladder(base, miss.distance, null, miss.blockedBy, miss.strength, miss.threshold, false)}` : ''
+      }  ✗ ${verbFor(channel, false)}`,
+    });
+  }
+  return rows;
+}
+
+const WHY: Record<string, string> = {
+  [MISS.SIGHT_BLOCKED]: '벽이 시선을 끊는다',
+  [MISS.OUT_OF_RANGE]: '닿는 거리 밖에서 흩어진다',
+  [MISS.BELOW_THRESHOLD]: '닿기는 했으나 알아채지 못한다',
+  [MISS.NO_SENSE]: '그 감각이 없다',
+  [MISS.NO_CAPABILITY]: '느낄 능력이 없다',
+  [MISS.NO_BODY]: '세계에 몸이 없다',
+  [MISS.NO_LOCATION]: '현상에 자리가 없다',
+  [MISS.SENDER_NEVER_PERCEIVED]: '전한 사람이 본 적이 없다',
+  [MISS.UNKNOWN_PHENOMENON_IN_TESTIMONY]: '세계에 없는 일을 전했다',
+};
+
+function verbFor(channel: string, hit: boolean): string {
+  const words: Record<string, [string, string]> = {
+    visual: ['보인다', '보이지 않는다'],
+    audio: ['들린다', '들리지 않는다'],
+    smell: ['냄새가 난다', '냄새가 나지 않는다'],
+    touch: ['닿는다', '닿지 않는다'],
+    aura: ['기척을 느낀다', '느끼지 못한다'],
+    report: ['전해 들었다', '전해 듣지 못했다'],
+    rumor: ['소문으로 들었다', '소문도 못 들었다'],
+  };
+  const pair = words[channel] ?? ['닿는다', '닿지 않는다'];
+  return hit ? pair[0] : pair[1];
+}
+
+/** 사람이 들고 온 것은 길이 아니라 사람이다. */
+function carriedRows(output: U1Output, phenomenon: Phenomenon, subject: string): LabRow[] {
+  return output.perceived
+    .filter(
+      (entry) => entry.perceiverId === subject && entry.phenomenonId === phenomenon.id && entry.via !== null,
+    )
+    .map((entry) => ({
+      label: `  ${CHANNEL_BOOK.find((channel) => channel.id === entry.channel)?.title ?? entry.channel}`,
+      value: `${entry.via} ✎┈┈┈┈┈┈┈┈┈┈┈┈┈┈▶ ${subject}  세기 ${entry.strength} ≥ 문턱 ${entry.threshold} · 왜곡 ${entry.distortion}  ✓ ${verbFor(entry.channel, true)}`,
+    }));
+}
+
+/** 길을 하나하나 그려도 읽히는 한계. 이보다 많으면 근원별로 묶어 보인다. */
+const DETAILED = 4;
+
+/**
+ * 후보 구획 — 무대 하나, 그리고 감각의 길.
+ *
+ * 무대는 **장면당 한 번만** 그린다. 현상마다 다시 그리면 거의 같은 지도가 열여덟 번 쌓여
+ * 아무것도 읽히지 않는다 — 그리는 것이 많다고 눈에 보이는 것은 아니다.
+ *
+ * 현상이 많으면 길을 다 그리지 않고 **근원별로 묶는다.** 묶을 때는 몇 개를 묶었는지 화면에
+ * 적는다 — 조용히 잘라 내면 "전부 보여 주었다"로 읽힌다.
+ */
+function defaultCandidates(output: U1Output): LabRow[] {
+  if (output.phenomena.length === 0) {
+    return [{ label: '세계', value: '아무 일도 일어나지 않았다 — 지각할 것이 없다' }];
+  }
+  const rows: LabRow[] = [
+    { label: '── 무대', value: '✷ 일이 난 자리 · ◉ 무언가 알게 된 몸 · ○ 아무것도 모르는 몸 · ▓ 시선을 막는 것' },
+    ...stageMap(output, undefined),
+  ];
+
+  if (output.phenomena.length <= DETAILED) {
+    for (const phenomenon of output.phenomena) {
+      rows.push({
+        label: `── ${shortId(phenomenon.id)}`,
+        value: `${phenomenon.occurredAtTick}일 · ${phenomenon.sourceEntityId ?? '?'} 에서 · ${phenomenon.channels
+          .map((channel) => `${channel} ${phenomenon.measurements[channel] ?? 0}`)
+          .join(' · ')}`,
+      });
+      for (const report of output.reports) {
+        rows.push(reachRow(output, phenomenon, report.subjectId));
+        for (const row of pathsFor(output, phenomenon, report.subjectId)) rows.push(row);
+        for (const row of carriedRows(output, phenomenon, report.subjectId)) rows.push(row);
+      }
+    }
+    return rows;
+  }
+
+  // 현상이 많은 세계 — 근원별로 묶는다.
+  const bySource = new Map<string, Phenomenon[]>();
+  for (const phenomenon of output.phenomena) {
+    const key = phenomenon.sourceEntityId ?? '어디인지 모름';
+    (bySource.get(key) ?? bySource.set(key, []).get(key) ?? []).push(phenomenon);
+  }
+
+  rows.push({
+    label: '── 어디서 난 일인가',
+    value: `현상 ${output.phenomena.length}개를 근원 ${bySource.size}곳으로 묶는다`,
+  });
+  const samples: Phenomenon[] = [];
+  for (const [source, group] of [...bySource.entries()].sort()) {
+    const place = placeOf(output, source);
+    samples.push(group[0] as Phenomenon);
+    rows.push({
+      label: `  ${source}`,
+      value: `${place ? `(${place.at[0]},${place.at[1]})` : '자리 없음'} · 현상 ${group.length}개 — ${output.reports
+        .map((report) => summarize(output, report.subjectId, group))
+        .join(' / ')}`,
+    });
+  }
+
+  rows.push({
+    label: '── 감각의 길',
+    value: `근원마다 하나씩 ${samples.length}개만 그린다 (나머지 ${output.phenomena.length - samples.length}개는 위 묶음이 전부다)`,
+  });
+  for (const phenomenon of samples) {
+    rows.push({
+      label: `  ${shortId(phenomenon.id)}`,
+      value: `${phenomenon.occurredAtTick}일 · ${phenomenon.channels
+        .map((channel) => `${channel} ${phenomenon.measurements[channel] ?? 0}`)
+        .join(' · ')}`,
+    });
+    for (const report of output.reports) {
+      rows.push(reachRow(output, phenomenon, report.subjectId));
+      for (const row of pathsFor(output, phenomenon, report.subjectId)) rows.push(row);
+    }
+  }
+  return rows;
+}
+
+/** 한 주체가 이 무리의 현상을 몇 개나 알았는가, 모른다면 왜. */
+function summarize(output: U1Output, subject: string, group: readonly Phenomenon[]): string {
+  const ids = new Set(group.map((entry) => entry.id));
+  const known = new Set(
+    output.perceived.filter((entry) => entry.perceiverId === subject && ids.has(entry.phenomenonId))
+      .map((entry) => entry.phenomenonId),
+  );
+  if (known.size === group.length) return `${subject} 는 전부 안다`;
+  const why = output.misses
+    .filter((entry) => entry.perceiverId === subject && ids.has(entry.phenomenonId) && !known.has(entry.phenomenonId))
+    .map((entry) => WHY[entry.code] ?? entry.code);
+  const dominant = [...new Set(why)].sort();
+  return `${subject} 는 ${known.size}/${group.length} 만 안다${dominant.length > 0 ? ` (${dominant.join(' · ')})` : ''}`;
+}
+
+/** 그 주체의 몸이 어디에 있고 사이에 무엇이 있는가. */
+function reachRow(output: U1Output, phenomenon: Phenomenon, subject: string): LabRow {
+  const body = output.stage.find((place) => place.owner === subject);
+  const hit = output.perceived.find(
+    (entry) => entry.perceiverId === subject && entry.phenomenonId === phenomenon.id,
+  );
+  const miss = output.misses.find(
+    (entry) => entry.perceiverId === subject && entry.phenomenonId === phenomenon.id,
+  );
+  const span = hit?.distance ?? miss?.distance ?? null;
+  const walls = hit?.dampedBy.length ? hit.dampedBy : (miss?.blockedBy ?? []);
+  return {
+    label: subject,
+    value: `${body ? `${body.id}(${body.at[0]},${body.at[1]})` : '몸 없음'}${span === null ? '' : ` · ${span}m`}${
+      walls.length > 0 ? ` · 사이에 ${walls.join('·')}` : ' · 사이에 아무것도 없음'
+    }`,
+  };
+}
+
+function defaultResult(output: U1Output): string {
+  return (
+    output.reports
+      .map((report) => {
+        const heard = Object.entries(report.byChannel)
+          .map(([channel, ids]) => `${verbFor(channel, true)}: ${ids.map(shortId).join(',')}`)
+          .join(' · ');
+        return `${report.subjectId} → ${heard || '아무것도 알지 못한다'}`;
+      })
+      .join('   /   ') || '주체가 없다'
+  );
+}
 
 function describeSenses(output: U1Output): string {
   return output.reports
-    .map((report) => {
-      const known = report.known.length;
-      return `${report.subjectId}(${report.kind}) 앎 ${known} / 모름 ${report.unknown.length}`;
-    })
+    .map((report) => `${report.subjectId}(${report.kind}) 앎 ${report.known.length} / 모름 ${report.unknown.length}`)
     .join('   ');
 }
 
@@ -108,72 +504,7 @@ function describeScript(input: U1Input): string {
 
 function describePhenomena(output: U1Output): string {
   return (
-    output.phenomena
-      .map((entry) => `${shortId(entry.id)}[${entry.channels.join('·')}]`)
-      .join(' ') || '없음'
-  );
-}
-
-/** `t1_bell_toll_chapel_bell` → `bell_toll@1` — 화면에서 읽히는 길이로 줄인다. */
-export function shortId(id: string): string {
-  const match = /^t(\d+)_(.+?)_([a-z0-9_]+)$/.exec(id);
-  if (!match) return id;
-  return `${match[2]}@${match[1]}`;
-}
-
-/** 세기를 글자 막대로 그린다 — 원문 「24」는 표·그래프로 눈에 보일 것을 요구한다. */
-export function bar(value: number, peak: number, width = 10): string {
-  if (peak <= 0) return '·'.repeat(width);
-  const filled = Math.max(0, Math.min(width, Math.round((value / peak) * width)));
-  return `${'█'.repeat(filled)}${'·'.repeat(width - filled)}`;
-}
-
-function defaultCandidates(output: U1Output): LabRow[] {
-  const peak = output.perceived.reduce((best, entry) => Math.max(best, entry.strength), 1);
-  const rows: LabRow[] = [];
-  for (const report of output.reports) {
-    rows.push({ label: `${report.subjectId} (${report.kind})`, value: '' });
-    for (const phenomenon of output.phenomena) {
-      const heard = output.perceived.filter(
-        (entry) => entry.perceiverId === report.subjectId && entry.phenomenonId === phenomenon.id,
-      );
-      if (heard.length > 0) {
-        rows.push({
-          label: `  ✓ ${shortId(phenomenon.id)}`,
-          value: heard
-            .map(
-              (entry) =>
-                `${entry.channel} ${bar(entry.strength, peak)} ${entry.strength}/문턱 ${entry.threshold}${
-                  entry.via === null ? ` · ${entry.distance}m` : ` · ${entry.via} 가 전함(왜곡 ${entry.distortion})`
-                }${entry.dampedBy.length > 0 ? ` · ${entry.dampedBy.join(',')} 가 줄임` : ''}`,
-            )
-            .join('   '),
-        });
-        continue;
-      }
-      const why = output.misses.filter(
-        (entry) => entry.perceiverId === report.subjectId && entry.phenomenonId === phenomenon.id,
-      );
-      if (why.length === 0) continue;
-      rows.push({
-        label: `  ✗ ${shortId(phenomenon.id)}`,
-        value: why.map((entry) => `${entry.channel} ${entry.code}`).join('   '),
-      });
-    }
-  }
-  return rows;
-}
-
-function defaultResult(output: U1Output): string {
-  return (
-    output.reports
-      .map((report) => {
-        const channels = Object.entries(report.byChannel)
-          .map(([channel, ids]) => `${channel} ${ids.map(shortId).join(',')}`)
-          .join(' / ');
-        return `${report.subjectId} → ${channels || '아무것도 알지 못한다'}`;
-      })
-      .join('   ') || '주체가 없다'
+    output.phenomena.map((entry) => `${shortId(entry.id)}[${entry.channels.join('·')}]`).join(' ') || '없음'
   );
 }
 
@@ -650,7 +981,7 @@ const theWorldDoesNotHandItsEventsToEveryone = defineScene({
   reasons: (_input, output) => [
     `사건 ${output.events}건 · 현상 ${output.phenomena.length}개 · 누군가에게 닿은 것 ${output.perceived.length}개`,
     `마을 사람이 모르는 현상 ${output.reports.find((r) => r.subjectId === 'villager')?.unknown.length ?? 0}개`,
-    '늑대는 40m 밖에 있다. 청각이 닿는 60m 안이지만 거리 감쇠가 문턱 아래로 끌어내린다.',
+    '늑대는 260m 밖에 있다 — 청각이 닿는 60m 밖이라 소리는 흩어져 사라진다.',
     '지각은 세계를 읽을 뿐 바꾸지 않는다 — 상태 해시가 그대로다.',
   ],
 });

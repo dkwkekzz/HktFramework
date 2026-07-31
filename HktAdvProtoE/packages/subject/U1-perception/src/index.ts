@@ -35,5 +35,6 @@ export {
   type Phenomenon,
   type PhenomenonGap,
   type PhenomenonSpec,
+  type StagePlacement,
   type Testimony,
 } from './types.js';
