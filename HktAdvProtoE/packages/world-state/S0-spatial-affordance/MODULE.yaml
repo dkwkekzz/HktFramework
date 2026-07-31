@@ -1,0 +1,52 @@
+id: S0
+name: spatial-affordance
+purpose: >
+  위치·거리·충돌·접근 가능성을 렌더링과 독립적으로 계산해,
+  주체가 지금 어떤 대상에 어떤 행동을 할 수 있는지와 그 이유를 함께 돌려준다.
+
+depends_on:
+  - V0
+  - K0
+  - K1
+  - K2
+
+owns_state:
+  - spatial_index
+  - navigation_grid
+
+inputs:
+  - world_state
+  - spatial_layout
+  - affordance_spec
+  - access_request
+
+outputs:
+  - affordance_offer
+  - movement_path
+  - spatial_query_result
+  - access_rejection
+
+invariants:
+  - position_must_come_from_the_world_not_from_the_view
+  - spatial_index_result_must_equal_full_scan
+  - path_must_not_enter_a_blocked_cell
+  - path_cost_must_equal_the_sum_of_its_steps
+  - unreachable_target_must_not_be_offered
+  - offered_affordance_must_carry_a_condition_and_a_cost
+  - refusal_must_name_what_blocks_it
+  - affordance_resolution_must_not_change_world_state
+  - identical_world_and_actor_must_produce_identical_offers
+
+scenarios:
+  - wall_blocks_the_relic_until_the_door_opens
+  - path_goes_around_the_wall
+  - reach_needs_a_clear_line_not_just_distance
+  - spatial_index_agrees_with_full_scan
+  - capability_and_condition_are_separate_refusals
+  - estimated_cost_carries_the_travel
+  - resolution_leaves_the_world_untouched
+
+commands:
+  test: pnpm test S0-spatial-affordance
+  lab: pnpm lab
+  verify: pnpm verify S0

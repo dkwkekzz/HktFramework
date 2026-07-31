@@ -1,0 +1,19 @@
+{
+  "name": "@hkt/s0-spatial-affordance",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "main": "./src/index.ts",
+  "types": "./src/index.ts",
+  "exports": {
+    ".": "./src/index.ts",
+    "./scenarios": "./scenarios/index.ts",
+    "./lab": "./lab/index.ts"
+  },
+  "dependencies": {
+    "@hkt/k0-entity-state": "workspace:*",
+    "@hkt/k1-predicate-query": "workspace:*",
+    "@hkt/k2-rule-transaction": "workspace:*",
+    "@hkt/v0-module-contract": "workspace:*"
+  }
+}

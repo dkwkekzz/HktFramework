@@ -139,6 +139,21 @@ importers:
         specifier: workspace:*
         version: link:../V3-scenario-runner
 
+  packages/world-state/S0-spatial-affordance:
+    dependencies:
+      '@hkt/k0-entity-state':
+        specifier: workspace:*
+        version: link:../../kernel/K0-entity-state
+      '@hkt/k1-predicate-query':
+        specifier: workspace:*
+        version: link:../../kernel/K1-predicate-query
+      '@hkt/k2-rule-transaction':
+        specifier: workspace:*
+        version: link:../../kernel/K2-rule-transaction
+      '@hkt/v0-module-contract':
+        specifier: workspace:*
+        version: link:../../verification/V0-module-contract
+
   tests:
     dependencies:
       '@hkt/k0-entity-state':

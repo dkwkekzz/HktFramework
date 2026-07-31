@@ -1,0 +1,35 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s0-affordance-offer.schema.json",
+  "title": "S0 행동 제시",
+  "description": "주체 하나에게 지금 열려 있는(또는 막혀 있는) 행동 하나. 막혔다면 무엇이 막았는지가 함께 실린다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["affordanceId", "verb", "targetEntityId", "available", "cost", "path", "distance", "visible", "lineBlockers", "refusals"],
+  "properties": {
+    "affordanceId": { "type": "string" },
+    "verb": { "type": "string" },
+    "targetEntityId": { "type": "string" },
+    "available": { "type": "boolean" },
+    "cost": { "type": "object", "minProperties": 1, "additionalProperties": { "type": "number" } },
+    "path": { "type": ["object", "null"] },
+    "distance": { "type": ["number", "null"] },
+    "visible": { "type": "boolean" },
+    "lineBlockers": { "type": "array", "items": { "type": "string" } },
+    "refusals": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["code", "path", "message", "blockedBy", "causes"],
+        "properties": {
+          "code": { "type": "string", "pattern": "^E_[A-Z_]+$" },
+          "path": { "type": "string", "minLength": 1 },
+          "message": { "type": "string", "minLength": 1 },
+          "blockedBy": { "type": "array", "items": { "type": "string" } },
+          "causes": { "type": "array" }
+        }
+      }
+    }
+  }
+}
