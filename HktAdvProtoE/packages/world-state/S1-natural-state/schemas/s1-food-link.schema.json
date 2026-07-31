@@ -1,0 +1,16 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s1-food-link.schema.json",
+  "title": "S1 먹이 관계",
+  "description": "지금 성립하는 먹이 관계 한 줄. 종(diet)과 거리(habitat)를 함께 통과한 것만 여기 남는다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["consumer", "prey", "distance", "available", "reason"],
+  "properties": {
+    "consumer": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "prey": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "distance": { "type": "number", "minimum": 0 },
+    "available": { "type": "number", "exclusiveMinimum": 0 },
+    "reason": { "type": "string", "minLength": 1 }
+  }
+}

@@ -1,0 +1,53 @@
+id: S1
+name: natural-state
+purpose: >
+  물리·생물·생태 상태를 공통 규칙으로 표현해,
+  먹이 관계와 시간만으로 개체군이 늘고 주는 과정을 사건으로 남긴다.
+
+depends_on:
+  - V0
+  - K0
+  - K1
+  - K2
+  - K3
+  - S0
+
+owns_state:
+  - food_web
+  - natural_law_book
+
+inputs:
+  - world_state
+  - spatial_layout
+  - natural_law
+  - tick_span
+
+outputs:
+  - population_series
+  - food_web_link
+  - natural_event
+  - invariant_report
+
+invariants:
+  - natural_change_must_come_from_a_law_not_from_the_driver
+  - every_natural_change_must_have_a_causing_event
+  - food_must_be_within_the_habitat_to_be_eaten
+  - a_meal_must_conserve_what_it_moves
+  - population_must_not_fall_below_zero
+  - predator_decline_must_follow_prey_decline
+  - law_order_must_be_deterministic
+  - identical_world_and_seed_must_produce_identical_series
+
+scenarios:
+  - food_loss_shrinks_herbivores_then_predators
+  - every_natural_change_has_a_causing_event
+  - the_food_web_is_diet_and_distance_together
+  - a_meal_conserves_what_it_moves
+  - wounds_fester_into_disease_and_fever
+  - state_stays_inside_its_declared_bounds
+  - the_same_world_runs_the_same_way
+
+commands:
+  test: pnpm test S1-natural-state
+  lab: pnpm lab
+  verify: pnpm verify S1

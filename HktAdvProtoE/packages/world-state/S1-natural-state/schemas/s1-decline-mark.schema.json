@@ -1,0 +1,17 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s1-decline-mark.schema.json",
+  "title": "S1 개체군 감소 표식",
+  "description": "정점에서 내려온 뒤 다시 돌아가지 못한 시점. 대표 검증의 「일정 지연」이 두 표식의 차이다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["entity", "start", "peak", "end", "peakTick", "declineTick"],
+  "properties": {
+    "entity": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "start": { "type": "number", "minimum": 0 },
+    "peak": { "type": "number", "minimum": 0 },
+    "end": { "type": "number", "minimum": 0 },
+    "peakTick": { "type": ["integer", "null"] },
+    "declineTick": { "type": ["integer", "null"] }
+  }
+}
