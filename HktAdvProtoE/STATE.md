@@ -6,12 +6,20 @@
 
 설계 문서 작성 완료. **V 페이즈(V0~V4)** 와 **K 페이즈(K0~K3)** 구현 완료, 원문 「20」의
 **VS0(결정적 세계 변화)** 통과 — 원문 「28」의 1·2단계(검증 기반 · 세계 커널)가 닫혔다.
-아홉 모듈 모두 G0~G8 전부 통과로 **`VERIFIED`** 다
+아홉 모듈 모두 G0~G8 전부 통과로 **`VERIFIED`** 다.
+이어서 원문 「28」 4단계의 앞 두 모듈 **S0 spatial-affordance · S1 natural-state** 를 세웠다 —
+둘 다 대표 검증을 브라우저 장면으로 통과했고, VS1 이 아직 돌 수 없어 **`LAB_PASS`** 에 머문다
 (상세: [progress/](progress/) — [01 스캐폴드+V0](progress/01-scaffold-and-V0.md) ·
 [02 V1](progress/02-V1-schema.md) · [03 규약 경화](progress/03-convention-hardening.md) ·
 [04 V2](progress/04-V2-determinism.md) · [05 V3](progress/05-V3-scenario-runner.md) ·
 [06 V4](progress/06-V4-evidence-gate.md) · [07 V 페이즈 목적 도달 감사](progress/07-V-phase-completion-audit.md) ·
-[08 K 페이즈 + VS0](progress/08-K-phase-kernel.md) · [09 K 페이즈 목적 도달 감사](progress/09-K-phase-completion-audit.md)).
+[08 K 페이즈 + VS0](progress/08-K-phase-kernel.md) · [09 K 페이즈 목적 도달 감사](progress/09-K-phase-completion-audit.md) ·
+[10 S 페이즈](progress/10-S-phase-world-state.md) · [11 S 페이즈 목적 도달 감사](progress/11-S-phase-completion-audit.md)).
+
+원문 「10」 S0·S1 의 목적 도달 여부는 [11 감사](progress/11-S-phase-completion-audit.md)에서 **다시 실행하는
+방식**으로 확인했다 — 대표 검증 재현, 돌연변이 4종 주입 시 전부 장면에 걸림, S0 증거 재발급이 바이트
+단위로 동일. 감사가 찾아낸 구멍(자연 상태 중 질량·온도를 **읽는 법칙이 없어** 인과가 닫히지 않던 것)은
+법칙 네 줄로 고쳤고, 대표 검증 장면의 개체군 시계열은 한 칸도 바뀌지 않았다.
 
 원문 「9」의 목적 도달 여부는 [09 감사](progress/09-K-phase-completion-audit.md)에서 **다시 실행하는 방식**으로
 확인했다 — 테스트 848건 재통과, 네 커널 모듈 증거 재발급이 바이트 단위로 동일, `status=VERIFIED` 재현.
@@ -19,7 +27,8 @@
 원문 「8」의 「V 단계 완료 결과」(브라우저 `/lab` 여섯 구획: 모든 모듈 상태 · 실패한 검증 · 의존성 그래프 ·
 최신 코드 해시 · 리플레이 해시 · 자동 검증 결과)까지 확인했다 — 화면은 저장소의 실제 `MODULE.yaml` 과
 `evidence/latest.json` 을 V4 에 넣어 얻은 결과만 그리고, 여섯 구획의 존재와 내용은 `tools/lab-shot.mjs` 가
-매 `pnpm verify` 마다 검사한다. 지금 그 화면의 「실패한 검증」은 **“막힌 게이트 없음”** 이다.
+매 `pnpm verify` 마다 검사한다. 지금 그 화면의 「실패한 검증」에는 **S0·S1 의 G6 통합 게이트**가
+올라와 있다 — VS1 을 아직 돌릴 수 없어 미측정이며, 미측정은 통과가 아니다.
 
 | 문서 | 상태 |
 |---|---|
@@ -39,7 +48,9 @@
 | `packages/kernel/K1-predicate-query` | `VERIFIED` (증거: [evidence/latest.json](packages/kernel/K1-predicate-query/evidence/latest.json)) |
 | `packages/kernel/K2-rule-transaction` | `VERIFIED` (증거: [evidence/latest.json](packages/kernel/K2-rule-transaction/evidence/latest.json)) |
 | `packages/kernel/K3-event-replay` | `VERIFIED` (증거: [evidence/latest.json](packages/kernel/K3-event-replay/evidence/latest.json)) |
-| `apps/lab` — 원문 「8」 V 단계 완료 화면 (여섯 구획, 저장소 실제 증거) + 모듈 탭 9개 | 동작 중 |
+| `packages/world-state/S0-spatial-affordance` | `LAB_PASS` (증거: [evidence/latest.json](packages/world-state/S0-spatial-affordance/evidence/latest.json)) |
+| `packages/world-state/S1-natural-state` | `LAB_PASS` (증거: [evidence/latest.json](packages/world-state/S1-natural-state/evidence/latest.json)) |
+| `apps/lab` — 원문 「8」 V 단계 완료 화면 (여섯 구획, 저장소 실제 증거) + 모듈 탭 11개 | 동작 중 |
 | `tests/conventions.test.ts` — 저장소 규약 검사 (증거·상태 판정은 V4 에 위임) | 동작 중 |
 | `tests/slices/vs0.ts` — **VS0 수직 통합 슬라이스** (아홉 모듈, 어느 패키지의 소유도 아니다) | 통과 |
 
@@ -50,26 +61,30 @@ pnpm install
 pnpm run typecheck              # 타입 검사
 pnpm test                       # 전 모듈 + 저장소 규약 + VS0 슬라이스
 pnpm lab                        # 브라우저 Lab (원문 「24」 공통 화면 · 모듈 탭)
-pnpm verify <ID> --lab          # 증거 발급 → evidence/latest.json  (V0 … V4 · K0 … K3)
+pnpm verify <ID> --lab          # 증거 발급 → evidence/latest.json  (V0 … V4 · K0 … K3 · S0 · S1)
 pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 — VERIFIED 에는 이것이 필요하다
 ```
 
 ### 지금 열려 있는 것 · 아직 닫혀 있는 것
 
-아홉 모듈 모두 아홉 게이트를 통과했다.
+V·K 아홉 모듈은 아홉 게이트를 전부 통과했다. S0·S1 은 여덟 개를 통과하고 G6 에서 멈춰 있다.
 
 ```text
-status=VERIFIED
-  막힌 게이트 없음
+V0 … V4 · K0 … K3   status=VERIFIED    막힌 게이트 없음
+S0 · S1             status=LAB_PASS    막힌 게이트 G6 통합 게이트 — 미측정
 ```
 
-`pnpm verify <ID> --lab` 만 돌리면 G7 이 **미측정**으로 남아 `SLICE_PASS` 에서 멈춘다 —
-미측정은 통과가 아니다(원문 「23」). `--regression` 을 함께 켜야 `VERIFIED` 가 나온다.
+S0·S1 의 G6 이 미측정인 것은 **VS1(한 주체의 생존 행동)이 아직 돌 수 없기 때문**이다.
+VS1 은 `S0, S1, U0, U1, G0~G3` 일곱 모듈을 함께 요구한다 — V 페이즈가 VS0 시점에 함께
+승격한 것과 같은 자리다. 미측정은 통과가 아니다(원문 「23」).
+
+`pnpm verify <ID> --lab` 만 돌리면 G7 도 **미측정**으로 남는다. `--regression` 을 함께 켜야
+회귀까지 측정된다 — S0·S1 은 그렇게 돌려도 G6 때문에 `LAB_PASS` 가 맞는 답이다.
 
 원문 「27」의 전체 완성 판정은 아직 `false` 다. 남은 것은 **다른 슬라이스와 지표의 측정 주체**이며,
 Lab 의 「자동 검증 결과」가 그 목록(측정 주체가 없는 지표 7개)을 그대로 보여 준다.
 
-다음 작업: **S0 (spatial-affordance)** — [12-Phase-S-World-State.md](design/modules/12-Phase-S-World-State.md) 의 계약대로,
+다음 작업: **U0 (subject-core)** — [13-Phase-U-Subject.md](design/modules/13-Phase-U-Subject.md) 의 계약대로,
 [40-Agent-Protocol.md](design/modules/40-Agent-Protocol.md) 의 프로토콜을 따른다.
 착수 전에 [progress/00-Module-Checklist.md](progress/00-Module-Checklist.md) 를 읽는다 (만들 파일 · 절차 · 금지 · 자동 검사 목록).
 
@@ -78,17 +93,18 @@ Lab 의 「자동 검증 결과」가 그 목록(측정 주체가 없는 지표 
 상태 정의는 [00-Module-Contract.md](design/modules/00-Module-Contract.md) 4절 참조.
 `BLOCKED` = 선행 미검증 · `SPECIFIED` = 계약 작성 완료 · `LAB_PASS` = 브라우저 대표 장면 확인 · `VERIFIED` = 증거 저장 완료.
 
-V0~V4 와 K0~K3 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
+V0~V4 · K0~K3 · S0 · S1 을 제외한 모든 모듈은 설계 문서상 목적·입출력·대표 검증이 정의되어 있으나 `MODULE.yaml` 과 코드가 없으므로 **`BLOCKED`** 다.
 
-아홉 모듈은 `VERIFIED` 다. 원문 「28」의 고정 순서(V0~V4 → K0~K3 → VS0)대로 V 페이즈를 먼저 마치고,
-K 페이즈를 얹은 뒤 VS0 에서 아홉 모듈을 함께 승격시켰다. 이 판정은 사람이 적는 값이 아니라
-V4 의 감사 결과이며, `pnpm test` 가 저장소의 증거 파일을 V4 에 넣어 매번 다시 확인한다.
+V·K 아홉 모듈은 `VERIFIED` 다. 원문 「28」의 고정 순서(V0~V4 → K0~K3 → VS0)대로 V 페이즈를 먼저 마치고,
+K 페이즈를 얹은 뒤 VS0 에서 아홉 모듈을 함께 승격시켰다. S0·S1 은 같은 순서의 4단계이며 VS1 을
+기다리는 `LAB_PASS` 다. 이 판정은 사람이 적는 값이 아니라 V4 의 감사 결과이며, `pnpm test` 가
+저장소의 증거 파일을 V4 에 넣어 매번 다시 확인한다.
 
 | 페이즈 | 모듈 | 상태 | 문서 |
 |---|---|---|---|
 | V 검증 기반 | **V0 V1 V2 V3 V4** | 다섯 모듈 모두 VERIFIED | [10](design/modules/10-Phase-V-Verification.md) |
 | K 세계 커널 | **K0 K1 K2 K3** | 네 모듈 모두 VERIFIED | [11](design/modules/11-Phase-K-Kernel.md) |
-| S 공간·상태 | S0 S1 S2 S3 | BLOCKED | [12](design/modules/12-Phase-S-World-State.md) |
+| S 공간·상태 | **S0 S1** · S2 S3 | S0·S1 은 LAB_PASS · S2·S3 은 BLOCKED | [12](design/modules/12-Phase-S-World-State.md) |
 | U 주체 인지 | U0 U1 U2 U3 | BLOCKED | [13](design/modules/13-Phase-U-Subject.md) |
 | G 가능성·목적 | G0 G1 G2 G3 | BLOCKED | [14](design/modules/14-Phase-G-Possibility.md) |
 | I 상호작용·사건 | I0 I1 I2 I3 | BLOCKED | [15](design/modules/15-Phase-I-Interaction.md) |
@@ -114,7 +130,7 @@ VS0 완료 조건 네 줄이 그대로 확인된다 — 에너지 결과 1 · �
 
 ## TODO
 
-### 1차 목표 — 최소 인과 경로 (15개 모듈 + VS0, VS1)
+### 1차 목표 — 최소 인과 경로 (17개 모듈 + VS0, VS1)
 
 > 브라우저 Lab에서 주체 하나가 현상을 감지하고, 자기 믿음과 목적에 따라 행동을 선택하며,
 > 그 행동이 세계 규칙에 의해 사건으로 처리되고, 동일한 사건을 완전히 재생할 수 있게 한다.
@@ -130,8 +146,8 @@ VS0 완료 조건 네 줄이 그대로 확인된다 — 에너지 결과 1 · �
 - [x] K2 rule-transaction — `VERIFIED`
 - [x] K3 event-replay — `VERIFIED`
 - [x] **VS0** 결정적 세계 변화 — 통과
-- [ ] S0 spatial-affordance
-- [ ] S1 natural-state
+- [ ] S0 spatial-affordance — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
+- [ ] S1 natural-state — 코드·대표 장면 완료, `LAB_PASS` (VS1 통과 시 `VERIFIED` 로 승격)
 - [ ] U0 subject-core
 - [ ] U1 perception
 - [ ] G0 action-ontology

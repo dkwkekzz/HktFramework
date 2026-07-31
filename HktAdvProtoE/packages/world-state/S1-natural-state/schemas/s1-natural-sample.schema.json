@@ -1,0 +1,20 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s1-natural-sample.schema.json",
+  "title": "S1 자연 상태 단면",
+  "description": "한 틱의 거시 상태. 원문 「10」 S1 의 포함 항목이 그대로 칸이 된다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["tick", "population", "hunger", "mass", "disease", "temperature", "links", "appliedLaws", "rejected"],
+  "properties": {
+    "tick": { "type": "integer", "minimum": 0 },
+    "population": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "hunger": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "mass": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "disease": { "type": "object", "additionalProperties": { "type": "number", "minimum": 0 } },
+    "temperature": { "type": "object", "additionalProperties": { "type": "number" } },
+    "links": { "type": "array", "items": { "type": "object" } },
+    "appliedLaws": { "type": "array", "items": { "type": "string", "pattern": "^l[0-6]_[a-z0-9_]+$" } },
+    "rejected": { "type": "integer", "minimum": 0 }
+  }
+}

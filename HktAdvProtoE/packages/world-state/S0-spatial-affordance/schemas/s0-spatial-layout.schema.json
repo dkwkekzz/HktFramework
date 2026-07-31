@@ -1,0 +1,31 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s0-spatial-layout.schema.json",
+  "title": "S0 논리 공간 배치",
+  "description": "격자의 원점·칸 크기·칸 수. 렌더링 메시가 아니라 규칙이 읽는 논리 공간이다 (원본 18.4).",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["cellSize", "origin", "size"],
+  "properties": {
+    "cellSize": { "type": "number", "exclusiveMinimum": 0 },
+    "origin": { "$ref": "#/$defs/vec3" },
+    "size": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": {
+        "x": { "type": "integer", "minimum": 1 },
+        "y": { "type": "integer", "minimum": 1 },
+        "z": { "type": "integer", "minimum": 1 }
+      }
+    }
+  },
+  "$defs": {
+    "vec3": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["x", "y", "z"],
+      "properties": { "x": { "type": "number" }, "y": { "type": "number" }, "z": { "type": "number" } }
+    }
+  }
+}

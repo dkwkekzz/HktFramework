@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/s0-affordance.schema.json",
+  "title": "S0 행동 가능성",
+  "description": "원문 「10」 S0 의 Affordance 를 그대로 옮긴 형식. 조건식의 형식은 K1 의 스키마가 본다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "verb", "targetEntityId", "condition", "requiredCapabilities", "estimatedCost"],
+  "properties": {
+    "id": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "verb": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "targetEntityId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "condition": { "type": "object" },
+    "requiredCapabilities": { "type": "array", "items": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" } },
+    "estimatedCost": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": { "type": "number", "minimum": 0 }
+    }
+  }
+}
