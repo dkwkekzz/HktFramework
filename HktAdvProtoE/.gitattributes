@@ -1,0 +1,4 @@
+# Windows 배치파일은 반드시 CRLF 로 체크아웃한다.
+# LF 로 남으면 cmd.exe 가 goto/label 을 되짚어 읽지 못해 더블클릭 시 창이 즉시 닫힌다.
+*.bat text eol=crlf
+*.cmd text eol=crlf
