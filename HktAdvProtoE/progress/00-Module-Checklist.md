@@ -114,7 +114,17 @@ pnpm verify <ID> --lab --regression   # G7 회귀 게이트까지 측정 (저장
 
 Windows 에서 지금까지의 작업을 한 번에 확인하려면 [run.bat](../run.bat) 을 더블클릭한다 —
 `install → typecheck → test → lab(브라우저)` 을 순서대로 돌린다 (`run.bat lab` = Lab 만,
-`run.bat test` = 콘솔 검증만).
+`run.bat test` = 콘솔 검증만). 출력이 필요하면 `run.bat test > run-log.txt 2>&1`.
+
+`run.bat` 은 **순수 ASCII · CRLF** 로 유지한다 — 한글이나 LF 를 넣으면 더블클릭이 조용히 실패한다.
+
+- **LF 줄바꿈**: cmd.exe 는 배치파일을 바이트 오프셋으로 되짚어 읽으므로 `goto`/label 스캔이
+  어긋나고, 창이 아무 출력 없이 닫힌다. `.gitattributes` 의 `*.bat text eol=crlf` 가 막는다.
+- **한글(UTF-8)**: cmd.exe 는 미리 읽어 둔 청크를 **그때의 콘솔 코드페이지**로 디코딩한다.
+  한국어 Windows(CP949)에서 UTF-8 한글은 글자 중간에서 잘려 파서가 어긋나고, 창은 뜨지만
+  아무것도 실행되지 않는다. 파일 안의 `chcp 65001` 은 이미 버퍼된 청크에 소급되지 않아
+  이걸 못 고친다. 그래서 배치파일 본문은 영문으로 두고, 한글 설명은 이 문서에 둔다.
+  (`chcp 65001` 자체는 남긴다 — vitest 의 한글 장면 이름 등 **자식 프로세스 출력**을 위한 것이다.)
 
 **`MODULE.yaml` 을 고쳤으면 그 모듈과 하위 모듈의 증거를 다시 발급한다.** V4 의 감사가 발급 시점의
 계약 해시를 대조하므로, 고친 채로 두면 `pnpm test` 가 “선행 계약이 바뀐 채로 남은 증거” 로 잡는다.

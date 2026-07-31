@@ -1,32 +1,50 @@
 @echo off
 rem ---------------------------------------------------------------------------
-rem HktAdvProtoE 원클릭 확인 배치 (Windows)
+rem HktAdvProtoE - one-click check (Windows)
 rem
-rem 더블클릭하면 지금까지의 작업을 순서대로 확인한다.
-rem   1) 의존성 설치      pnpm install
-rem   2) 타입 검사        pnpm run typecheck
-rem   3) 전체 테스트      pnpm test        전 모듈 + 저장소 규약
-rem   4) 브라우저 Lab     pnpm lab --open  모듈 상태 · 대표 장면 · 증거 화면
+rem Double-click to walk through everything built so far, in order:
+rem   1) install     pnpm install
+rem   2) typecheck   pnpm run typecheck
+rem   3) test        pnpm test        (all modules + repo conventions)
+rem   4) lab         pnpm lab --open  (module board + scenes + evidence)
 rem
-rem 사용법
-rem   run.bat            위 1~4 전부
-rem   run.bat lab        설치만 확인하고 바로 Lab 만 띄운다
-rem   run.bat test       1~3 만 하고 Lab 은 띄우지 않는다
+rem Usage
+rem   run.bat        steps 1-4
+rem   run.bat lab    install check, then open the browser Lab only
+rem   run.bat test   steps 1-3 only, no browser
 rem
-rem 이 파일은 반드시 CRLF 줄바꿈으로 저장한다. LF 로 저장하면 cmd.exe 가
-rem goto/label 을 되짚어 읽지 못해 더블클릭 시 창이 그대로 닫힌다.
-rem 저장소에서는 .gitattributes 의 `*.bat text eol=crlf` 가 이를 강제한다.
+rem To capture output for a bug report:
+rem   run.bat test > run-log.txt 2>&1
+rem
+rem ---------------------------------------------------------------------------
+rem THIS FILE MUST STAY PURE ASCII, WITH CRLF LINE ENDINGS.
+rem
+rem   - CRLF: cmd.exe re-seeks batch files by byte offset. With LF-only endings
+rem     the goto/label scan desyncs and the window closes with no output.
+rem     Enforced by .gitattributes (*.bat text eol=crlf).
+rem
+rem   - ASCII: cmd.exe decodes the batch file with the console code page that is
+rem     active while it reads ahead. On a Korean Windows (CP949) a UTF-8 comment
+rem     is mis-split mid-character and the parser derails - the window opens and
+rem     then nothing runs at all. The chcp below cannot fix that; it applies to
+rem     the already-buffered chunk too late. So: no Korean inside this file.
+rem     Korean notes live in progress/00-Module-Checklist.md instead.
+rem
+rem   - chcp 65001 is kept anyway, so that the KOREAN OUTPUT OF CHILD PROCESSES
+rem     (vitest scenario names, verify logs) renders correctly in the console.
 rem ---------------------------------------------------------------------------
 setlocal
 chcp 65001 >nul 2>nul
+
+echo [run.bat] starting...
 
 cd /d "%~dp0"
 if errorlevel 1 goto :nodir
 
 echo.
 echo ===========================================================
-echo  HktAdvProtoE - 지금까지의 작업 확인
-echo  작업 폴더: %CD%
+echo  HktAdvProtoE - check everything built so far
+echo  folder: %CD%
 echo ===========================================================
 echo.
 
@@ -34,18 +52,18 @@ if not exist "package.json" goto :nopkg
 
 set "MODE=%~1"
 if "%MODE%"=="" set "MODE=all"
-echo 모드: %MODE%
+echo mode: %MODE%
 echo.
 
-rem --- 0. Node 확인 ----------------------------------------------------------
+rem --- 0. Node ---------------------------------------------------------------
 where node >nul 2>nul
 if errorlevel 1 goto :nonode
 for /f "delims=" %%v in ('node -v') do echo [1/5] Node %%v
 
-rem --- 1. pnpm 확인 (없으면 corepack 으로 켠다) --------------------------------
+rem --- 1. pnpm (enable via corepack when missing) -----------------------------
 where pnpm >nul 2>nul
 if not errorlevel 1 goto :havepnpm
-echo [2/5] pnpm 이 없다 - corepack 으로 활성화한다...
+echo [2/5] pnpm not found - enabling it through corepack...
 call corepack enable >nul 2>nul
 call corepack prepare pnpm@10.33.0 --activate
 where pnpm >nul 2>nul
@@ -54,83 +72,85 @@ if errorlevel 1 goto :nopnpm
 :havepnpm
 for /f "delims=" %%v in ('pnpm -v') do echo [2/5] pnpm %%v
 
-rem --- 2. 의존성 설치 ---------------------------------------------------------
+rem --- 2. install ------------------------------------------------------------
 echo.
-echo [3/5] 의존성 설치 - pnpm install
+echo [3/5] install - pnpm install
+echo       (first run downloads packages and can take several minutes)
 call pnpm install
 if errorlevel 1 (
   echo.
-  echo [x] pnpm install 실패.
+  echo [x] pnpm install failed.
   goto :fail
 )
 
 if /i "%MODE%"=="lab" goto :lab
 
-rem --- 3. 타입 검사 -----------------------------------------------------------
+rem --- 3. typecheck ----------------------------------------------------------
 echo.
-echo [4/5] 타입 검사 - pnpm run typecheck
+echo [4/5] typecheck - pnpm run typecheck
 call pnpm run typecheck
 if errorlevel 1 (
   echo.
-  echo [x] 타입 검사 실패 - 위 출력에 원인이 있다.
+  echo [x] typecheck failed - the cause is in the output above.
   goto :fail
 )
 
-rem --- 4. 전체 테스트 ---------------------------------------------------------
+rem --- 4. tests --------------------------------------------------------------
 echo.
-echo [5/5] 전체 테스트 - pnpm test  (전 모듈 단위/속성/통합 + 저장소 규약)
+echo [5/5] tests - pnpm test  (all modules: unit/property/integration + conventions)
+echo       (takes about a minute)
 call pnpm test
 if errorlevel 1 (
   echo.
-  echo [x] 테스트 실패 - 위 출력의 실패 항목이 지금 막힌 지점이다.
+  echo [x] tests failed - the failing entries above are where things stand.
   goto :fail
 )
 
 echo.
-echo [OK] 타입 검사와 전체 테스트를 통과했다.
+echo [OK] typecheck and the full test suite passed.
 
 if /i "%MODE%"=="test" goto :done
 
-rem --- 5. 브라우저 Lab --------------------------------------------------------
+rem --- 5. browser Lab --------------------------------------------------------
 :lab
 echo.
 echo -----------------------------------------------------------
-echo  브라우저 Lab 을 띄운다 - pnpm lab --open
-echo    상단: 모든 모듈 상태 / 실패한 검증 / 의존성 그래프 /
-echo          최신 코드 해시 / 리플레이 해시 / 자동 검증 결과
-echo    탭:   모듈별 대표 검증 장면
-echo  브라우저가 자동으로 열린다. 창을 닫거나 Ctrl+C 로 서버를 끈다.
+echo  Opening the browser Lab - pnpm lab --open
+echo    top:  all module states / failed checks / dependency graph
+echo          latest source hashes / replay hashes / audit result
+echo    tabs: representative scene per module
+echo  The browser opens by itself. Close the window or press Ctrl+C to stop.
 echo -----------------------------------------------------------
 echo.
 call pnpm lab --open
 goto :done
 
-rem --- 실패 경로 --------------------------------------------------------------
+rem --- failure paths ---------------------------------------------------------
 :nodir
-echo [x] 스크립트 위치로 이동하지 못했다: %~dp0
+echo [x] could not switch to the script folder: %~dp0
 goto :fail
 
 :nopkg
-echo [x] 여기에 package.json 이 없다. run.bat 을 HktAdvProtoE 폴더 안에 둔 채로 실행한다.
+echo [x] no package.json here. Keep run.bat inside the HktAdvProtoE folder.
 goto :fail
 
 :nonode
-echo [x] Node.js 를 찾지 못했다. https://nodejs.org 에서 LTS 를 설치한 뒤 다시 실행한다.
+echo [x] Node.js not found. Install the LTS build from https://nodejs.org and retry.
 goto :fail
 
 :nopnpm
-echo [x] pnpm 활성화에 실패했다.
-echo     관리자 권한 명령 프롬프트에서 corepack enable 을 실행한 뒤 다시 시도한다.
+echo [x] could not enable pnpm.
+echo     Run "corepack enable" in an elevated command prompt, then retry.
 goto :fail
 
 :fail
 echo.
-echo 실패로 종료한다.
+echo Exiting with an error.
 pause
 exit /b 1
 
 :done
 echo.
-echo 종료.
+echo Done.
 pause
 exit /b 0
