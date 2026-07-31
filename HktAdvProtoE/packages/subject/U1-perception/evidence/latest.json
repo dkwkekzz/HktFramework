@@ -1,0 +1,126 @@
+{
+  "moduleId": "U1",
+  "moduleVersion": "0.1.0",
+  "sourceHash": "sha256:a1364567ca26b78b21503a9690d9bf41e470ffe285cd51dfc1c388cd1f95c66d",
+  "contractHash": "sha256:27988b30e5517684c1ae256d6c3e3bd0702af82cad63216f7b7f82c683eff3d0",
+  "dependencyVersions": {
+    "K0": "0.1.0",
+    "K2": "0.1.0",
+    "K3": "0.1.0",
+    "S0": "0.1.0",
+    "S1": "0.1.0",
+    "U0": "0.1.0",
+    "V0": "0.1.0"
+  },
+  "dependencyContracts": {
+    "K0": "sha256:ef98188281712b58fe8ee3290ba967cd730e967062d947c0cee567f275bb87eb",
+    "K2": "sha256:08da60ed3ae14282b397542ef053ae499010448efbdbbd62023d26b05945dd00",
+    "K3": "sha256:40894b086cd75dae10d250dc68f13e7b423f6e46981ff67924a6bcf28ae1d681",
+    "S0": "sha256:138a502cc1019cfda1a156b9ee6323e75d3febd9100e8fb763f85f8446352799",
+    "S1": "sha256:43ab7fdb4ac9c5bef89f18fad718b2f0adebd3d1aa6279cf1f839dc157062013",
+    "U0": "sha256:64faa4ced0d052ec8ae40ec2b617d3af167ec60b51c57c11a9e778270850a851",
+    "V0": "sha256:8d2237a0f23d4ec78fd85d789a366b7acfcb7317fd47dab8b85d920ac330d134"
+  },
+  "staticCheck": {
+    "passed": true,
+    "command": "pnpm run typecheck"
+  },
+  "unitTests": {
+    "passed": 51,
+    "failed": 0
+  },
+  "propertyTests": {
+    "seeds": 100,
+    "invariantViolations": 0,
+    "passed": 12
+  },
+  "integrationTests": {
+    "passed": 18,
+    "failed": 0
+  },
+  "labScenarios": {
+    "a_wall_hides_the_sight_but_not_the_blast": "passed",
+    "every_miss_names_the_reason_it_missed": "passed",
+    "only_the_attuned_feel_the_aura": "passed",
+    "sight_and_sound_arrive_as_separate_perceptions": "passed",
+    "the_same_world_is_perceived_the_same_way": "passed",
+    "the_world_does_not_hand_its_events_to_everyone": "passed",
+    "word_of_mouth_needs_a_mouth_that_saw_it": "passed"
+  },
+  "replay": {
+    "runs": 20,
+    "uniqueHashes": 1
+  },
+  "integrationSlices": {},
+  "regression": {
+    "failures": 0
+  },
+  "gates": [
+    {
+      "id": "G0",
+      "name": "목적 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "목적 1문장"
+    },
+    {
+      "id": "G1",
+      "name": "계약 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "입력 6 · 출력 4 · 소유 상태 channel_book, phenomenon_book · 불변조건 7"
+    },
+    {
+      "id": "G2",
+      "name": "단위 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "단위 51통과/0실패"
+    },
+    {
+      "id": "G3",
+      "name": "속성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "표본 100 · 위반 0"
+    },
+    {
+      "id": "G4",
+      "name": "직관 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "장면 7개"
+    },
+    {
+      "id": "G5",
+      "name": "결정성 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "20회 재실행 · 해시 1종"
+    },
+    {
+      "id": "G6",
+      "name": "통합 게이트",
+      "measured": false,
+      "passed": false,
+      "detail": "지정된 수직 통합 시나리오 기록이 없다"
+    },
+    {
+      "id": "G7",
+      "name": "회귀 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "기존 시나리오 실패 0건"
+    },
+    {
+      "id": "G8",
+      "name": "증거 게이트",
+      "measured": true,
+      "passed": true,
+      "detail": "정적 검사 통과 · 코드 해시 sha256:a136456…"
+    }
+  ],
+  "status": "LAB_PASS",
+  "issuedAtTick": 0,
+  "producedBy": "tools/verify.mjs → V4 evidence-gate"
+}

@@ -1,0 +1,56 @@
+id: U0
+name: subject-core
+purpose: >
+  사람·생물·조직·신이 목적을 만들 수 있는 공통 주체 구조를 제공한다 —
+  같은 몸 상태에서도 가치와 성격이 다르면 무엇을 먼저 돌볼지가 달라진다.
+
+depends_on:
+  - V0
+  - K0
+  - K1
+  - K2
+  - K3
+  - S0
+  - S1
+
+owns_state:
+  - subject_state
+  - need_book
+
+inputs:
+  - world_state
+  - spatial_layout
+  - subject_law
+  - need_book
+  - tick_span
+
+outputs:
+  - subject_view
+  - need_ranking
+  - priority_trace
+  - subject_event
+  - invariant_report
+
+invariants:
+  - subject_must_judge_from_its_own_state_not_from_the_world
+  - every_subject_change_must_have_a_causing_event
+  - need_urgency_must_come_from_the_body_through_a_law
+  - every_score_must_name_the_terms_it_is_made_of
+  - ranking_must_be_total_and_deterministic
+  - no_part_of_the_subject_may_be_inert
+  - state_must_stay_inside_its_declared_bounds
+  - identical_subject_and_seed_must_produce_identical_ranking
+
+scenarios:
+  - same_hunger_different_values_diverge
+  - the_body_pushes_the_need_up_and_feeding_lets_it_fall
+  - every_subject_change_has_a_causing_event
+  - without_means_an_urgent_need_breeds_despair
+  - person_creature_organization_and_god_share_one_structure
+  - nothing_in_the_subject_is_decoration
+  - the_same_subject_ranks_the_same_way
+
+commands:
+  test: pnpm test U0-subject-core
+  lab: pnpm lab
+  verify: pnpm verify U0

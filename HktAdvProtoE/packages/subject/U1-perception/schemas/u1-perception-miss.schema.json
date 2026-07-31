@@ -1,0 +1,43 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/u1-perception-miss.schema.json",
+  "title": "U1 닿지 못한 것",
+  "description": "왜 닿지 못했는가. 원문 「22」 8단계는 모든 거부가 경로와 코드로 위치를 지목할 것을 요구하며, 지각에서 그것은 \"왜 저 NPC 는 모르는가\"의 답이다. 멀어서인지 막혀서인지 감각이 없어서인지가 구분되지 않으면 뒤에 오는 모듈은 그 질문에 답할 수 없다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": [
+    "perceiverId",
+    "phenomenonId",
+    "channel",
+    "code",
+    "message",
+    "strength",
+    "threshold",
+    "distance",
+    "blockedBy"
+  ],
+  "properties": {
+    "perceiverId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "phenomenonId": { "type": "string" },
+    "channel": { "type": "string" },
+    "code": {
+      "type": "string",
+      "enum": [
+        "E_NO_SENSE",
+        "E_NO_CAPABILITY",
+        "E_NO_BODY",
+        "E_NO_LOCATION",
+        "E_OUT_OF_RANGE",
+        "E_SIGHT_BLOCKED",
+        "E_BELOW_THRESHOLD",
+        "E_SENDER_NEVER_PERCEIVED",
+        "E_UNKNOWN_PHENOMENON_IN_TESTIMONY"
+      ]
+    },
+    "message": { "type": "string", "minLength": 1 },
+    "strength": { "type": ["number", "null"] },
+    "threshold": { "type": ["number", "null"] },
+    "distance": { "type": ["number", "null"] },
+    "blockedBy": { "type": "array", "items": { "type": "string" } }
+  }
+}

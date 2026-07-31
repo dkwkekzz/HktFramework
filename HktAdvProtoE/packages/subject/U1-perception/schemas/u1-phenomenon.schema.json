@@ -1,0 +1,27 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://hkt.local/schemas/u1-phenomenon.schema.json",
+  "title": "U1 현상",
+  "description": "세계 설계 원본 10장 Phenomenon 을 한 칸도 늘리거나 줄이지 않고 옮긴 것이다. 사건은 세계가 무엇을 했는지 적고, 현상은 그 일이 무엇으로 드러났는지 적는다. 아직 누구의 것도 아니다 — 누가 보았는가는 PerceivedPhenomenon 의 자리다.",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["id", "tags", "channels", "measurements", "occurredAtTick", "evidenceIds"],
+  "properties": {
+    "id": { "type": "string" },
+    "sourceEntityId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "sourceSubjectId": { "type": "string", "pattern": "^[a-z][a-z0-9_]*$" },
+    "tags": { "type": "array", "items": { "type": "string" } },
+    "channels": {
+      "type": "array",
+      "minItems": 1,
+      "items": {
+        "type": "string",
+        "enum": ["visual", "audio", "smell", "touch", "aura", "report", "rumor", "memory"]
+      }
+    },
+    "measurements": { "type": "object", "additionalProperties": { "type": "number", "exclusiveMinimum": 0 } },
+    "location": { "type": "array", "minItems": 3, "maxItems": 3, "items": { "type": "number" } },
+    "occurredAtTick": { "type": "integer", "minimum": 0 },
+    "evidenceIds": { "type": "array", "minItems": 1, "items": { "type": "string" } }
+  }
+}

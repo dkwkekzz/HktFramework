@@ -1,0 +1,55 @@
+id: U1
+name: perception
+purpose: >
+  실제 사건을 주체가 감지할 수 있는 현상으로 바꾸고,
+  감각별로 걸러 각 주체가 무엇을 알게 되는지를 정한다.
+
+depends_on:
+  - V0
+  - K0
+  - K2
+  - K3
+  - S0
+  - S1
+  - U0
+
+owns_state:
+  - channel_book
+  - phenomenon_book
+
+inputs:
+  - world_event
+  - world_state
+  - spatial_layout
+  - channel_book
+  - phenomenon_book
+  - testimony
+
+outputs:
+  - phenomenon
+  - perceived_phenomenon
+  - perception_miss
+  - phenomenon_gap
+
+invariants:
+  - perception_must_not_change_the_world
+  - a_subject_must_perceive_only_what_reached_its_senses
+  - every_perception_must_name_its_channel
+  - every_miss_must_name_the_reason_it_missed
+  - a_testimony_must_come_from_something_its_sender_perceived
+  - sight_must_be_cut_by_what_blocks_it_not_merely_dimmed
+  - identical_world_and_seed_must_produce_identical_perception
+
+scenarios:
+  - a_wall_hides_the_sight_but_not_the_blast
+  - sight_and_sound_arrive_as_separate_perceptions
+  - only_the_attuned_feel_the_aura
+  - word_of_mouth_needs_a_mouth_that_saw_it
+  - the_world_does_not_hand_its_events_to_everyone
+  - every_miss_names_the_reason_it_missed
+  - the_same_world_is_perceived_the_same_way
+
+commands:
+  test: pnpm test U1-perception
+  lab: pnpm lab
+  verify: pnpm verify U1
