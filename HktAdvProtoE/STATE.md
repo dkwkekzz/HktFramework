@@ -11,7 +11,10 @@
 [02 V1](progress/02-V1-schema.md) · [03 규약 경화](progress/03-convention-hardening.md) ·
 [04 V2](progress/04-V2-determinism.md) · [05 V3](progress/05-V3-scenario-runner.md) ·
 [06 V4](progress/06-V4-evidence-gate.md) · [07 V 페이즈 목적 도달 감사](progress/07-V-phase-completion-audit.md) ·
-[08 K 페이즈 + VS0](progress/08-K-phase-kernel.md)).
+[08 K 페이즈 + VS0](progress/08-K-phase-kernel.md) · [09 K 페이즈 목적 도달 감사](progress/09-K-phase-completion-audit.md)).
+
+원문 「9」의 목적 도달 여부는 [09 감사](progress/09-K-phase-completion-audit.md)에서 **다시 실행하는 방식**으로
+확인했다 — 테스트 848건 재통과, 네 커널 모듈 증거 재발급이 바이트 단위로 동일, `status=VERIFIED` 재현.
 
 원문 「8」의 「V 단계 완료 결과」(브라우저 `/lab` 여섯 구획: 모든 모듈 상태 · 실패한 검증 · 의존성 그래프 ·
 최신 코드 해시 · 리플레이 해시 · 자동 검증 결과)까지 확인했다 — 화면은 저장소의 실제 `MODULE.yaml` 과
