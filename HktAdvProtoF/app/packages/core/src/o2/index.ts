@@ -5,3 +5,5 @@
 // 요구했을 뿐, 어떤 영역에 어떤 경로가 있어야 하는지는 비어 있었다 — 그 빈칸을 O2 가 채운다.
 
 export * from './domain.ts';
+export * from './field.ts';
+export * from './schema.ts';

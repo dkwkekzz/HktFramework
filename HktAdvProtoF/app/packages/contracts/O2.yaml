@@ -19,7 +19,7 @@ subtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3
   - id: O2-b
     name: field-spec
     purpose: 영역 안의 각 상태 필드가 가질 수 있는 값을 스펙으로 선언하고 위반을 사유로 돌려준다.
-    status: PLANNED
+    status: DONE
   - id: O2-c
     name: world-tree
     purpose: 상태 원소 목록을 9영역 서브트리로 조립하고 다시 원소로 분해한다.
