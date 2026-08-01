@@ -9,5 +9,6 @@
 | 문서 | 상태 |
 |---|---|
 | [design/Design-MMO.md](design/Design-MMO.md) — 세계 설계도 (원문) | 작성 완료 |
+| [design/Design-ModulePlan.md](design/Design-ModulePlan.md) — 모듈 분할 및 점진적 구현 계획 (원문) | 작성 완료 |
 
 ## TODO
