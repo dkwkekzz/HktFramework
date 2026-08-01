@@ -13,6 +13,6 @@
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\"",
-    "verify": "node verify/v0.ts && node verify/v1.ts && node verify/v2.ts && node verify/evidence.ts"
+    "verify": "node verify/v0.ts && node verify/v1.ts && node verify/v2.ts && node verify/v4.ts && node verify/evidence.ts"
   }
 }

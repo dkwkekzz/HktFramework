@@ -7,19 +7,11 @@
   "integrationScenario": "passed",
   "replayHash": "bfc6afce291d17c6",
   "status": "VERIFIED",
+  "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v1.ts",
-    "tests": {
-      "package": "packages/core",
-      "total": 33,
-      "passed": 33
-    },
-    "suite": {
-      "total": 3,
-      "passed": 3,
-      "failed": 0
-    },
+    "testPackage": "packages/core",
     "coverage": {
       "module": "V1",
       "normal": 1,
@@ -27,10 +19,20 @@
       "boundary": 1,
       "complete": true
     },
+    "tests": {
+      "total": 33,
+      "passed": 33
+    },
     "scenarios": {
-      "v1-same-seed-100": "passed",
-      "v1-seed-drift-detected": "passed",
-      "v1-boundary": "passed"
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "v1-same-seed-100": "passed",
+        "v1-seed-drift-detected": "passed",
+        "v1-boundary": "passed"
+      }
     }
   }
 }

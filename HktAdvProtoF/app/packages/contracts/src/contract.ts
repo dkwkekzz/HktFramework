@@ -61,6 +61,7 @@ export type ViolationRule =
   | 'no-io' // 입출력 없는 처리 모듈 등록 불가
   | 'no-scenario' // 시나리오 없는 모듈 완료 불가
   | 'no-evidence' // 증거 없는 VERIFIED 불가
+  | 'evidence-unsupported' // 증거가 완료 주장을 뒷받침하지 않는다 (V4)
   | 'unknown-dependency' // 존재하지 않는 모듈에 의존
   | 'dependency-cycle' // 순환 의존 등록 불가
   | 'dependency-not-verified' // 미검증 모듈에 의존한 채 완료

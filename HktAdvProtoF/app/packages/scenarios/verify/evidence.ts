@@ -1,5 +1,7 @@
 // 완료 증거 생성기 — 손으로 쓴 "완료" 를 금지하고 실제 실행 결과만 증거로 남긴다 (원문 V4).
-// 모듈이 늘어나면 아래 MODULES 에 한 줄 추가한다. V4 완료 증거 시스템이 이 스크립트를 대체한다.
+//
+// status 를 정하는 판단은 여기가 아니라 @hkt/contracts 의 buildEvidence 에 있다.
+// 이 스크립트는 검증을 **수행하고 산출물을 모으는** 일만 한다 — 모듈이 늘면 MODULES 에 한 줄 추가.
 //
 //   실행: node packages/scenarios/verify/evidence.ts
 
@@ -7,12 +9,14 @@ import { spawnSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
+import { buildEvidence, formatDashboard, type Evidence } from '@hkt/contracts';
 import { stateHash } from '@hkt/core/v1';
 
 import { digestSuite, runScenarios, type AnyScenario } from '../src/index.ts';
 import { v0Scenarios } from '../suites/v0.ts';
 import { v1Scenarios } from '../suites/v1.ts';
 import { v2Scenarios } from '../suites/v2.ts';
+import { v4Scenarios } from '../suites/v4.ts';
 
 const appRoot = new URL('../../../', import.meta.url);
 const evidenceDir = new URL('packages/contracts/evidence/', appRoot);
@@ -76,6 +80,14 @@ const MODULES: readonly ModuleSpec[] = [
     scenarios: v2Scenarios,
     labSubstitute: 'packages/scenarios/verify/v2.ts',
   },
+  {
+    id: 'V4',
+    name: 'V4-completion-evidence',
+    sources: ['packages/contracts/src/evidence.ts'],
+    testPackage: 'packages/contracts',
+    scenarios: v4Scenarios,
+    labSubstitute: 'packages/scenarios/verify/v4.ts',
+  },
 ];
 
 interface TestOutcome {
@@ -115,7 +127,7 @@ function sourceHash(sources: readonly string[]): string {
 
 mkdirSync(evidenceDir, { recursive: true });
 
-let allVerified = true;
+const dashboard: { id: string; evidence: Evidence | null; claimed: 'VERIFIED' }[] = [];
 
 for (const module of MODULES) {
   const tests = runTests(module.testPackage);
@@ -128,48 +140,40 @@ for (const module of MODULES) {
   const replayHash = stateHash(digest);
   const deterministic = replayHash === stateHash(digestSuite(runScenarios(module.scenarios)));
 
-  const verified =
-    tests.result === 'passed' &&
-    suite.failed === 0 &&
-    coverage?.complete === true &&
-    deterministic;
-  if (!verified) allVerified = false;
-
-  const evidence = {
+  const evidence = buildEvidence({
     module: module.name,
     sourceHash: sourceHash(module.sources),
-    unitTests: tests.result,
+    unitTests: { result: tests.result, total: tests.total, passed: tests.passed },
     propertyTests: deterministic ? 'passed' : 'failed',
     labScenarios: 'manual', // V3 Lab 미구현 — labSubstitute 터미널 출력으로 대체
-    integrationScenario: suite.failed === 0 ? 'passed' : 'failed',
-    replayHash,
-    status: verified ? 'VERIFIED' : 'IMPLEMENTED',
-    detail: {
-      generator: 'packages/scenarios/verify/evidence.ts',
-      labSubstitute: module.labSubstitute,
-      tests: { package: module.testPackage, total: tests.total, passed: tests.passed },
-      suite: { total: suite.total, passed: suite.passed, failed: suite.failed },
-      coverage,
-      scenarios: Object.fromEntries(
+    scenarios: {
+      total: suite.total,
+      passed: suite.passed,
+      failed: suite.failed,
+      coverageComplete: coverage?.complete === true,
+      byId: Object.fromEntries(
         digest.results.map((result) => [result.scenarioId, result.passed ? 'passed' : 'failed']),
       ),
     },
-  };
+    replayHash,
+    detail: {
+      generator: 'packages/scenarios/verify/evidence.ts',
+      labSubstitute: module.labSubstitute,
+      testPackage: module.testPackage,
+      coverage,
+    },
+  });
 
   writeFileSync(
     new URL(`${module.id}.json`, evidenceDir),
     `${JSON.stringify(evidence, null, 2)}\n`,
     'utf8',
   );
-
-  console.log(`[${module.id}] ${evidence.status}`);
-  console.log(`  단위 테스트   ${tests.result} (${String(tests.passed)}/${String(tests.total)}) — ${module.testPackage}`);
-  console.log(
-    `  시나리오      ${String(suite.passed)}/${String(suite.total)} 통과 · 커버리지 ${coverage?.complete === true ? '완결(정상·실패·경계)' : '미충족'}`,
-  );
-  console.log(`  재실행 동일성 ${deterministic ? 'passed' : 'failed'} (${replayHash})`);
+  dashboard.push({ id: module.id, evidence, claimed: 'VERIFIED' });
 }
 
+console.log(formatDashboard(dashboard));
+console.log('');
 console.log(`증거 기록: ${fileURLToPath(evidenceDir)}`);
 
-if (!allVerified) process.exitCode = 1;
+if (dashboard.some((row) => row.evidence?.status !== 'VERIFIED')) process.exitCode = 1;

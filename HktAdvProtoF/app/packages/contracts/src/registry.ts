@@ -11,6 +11,7 @@
 import { compareStrings, stableSort } from '@hkt/core/v1';
 
 import { readContract, type ContractViolation, type ModuleContract } from './contract.ts';
+import { canPromote, type Evidence } from './evidence.ts';
 import { parseYaml, YamlParseError } from './yaml.ts';
 
 /** 등록된 모듈 하나. */
@@ -47,10 +48,19 @@ export interface ContractSource {
   readonly text: string;
 }
 
+/** 증거 대조(V4) — 넘기지 않으면 계약이 주장한 status 를 그대로 믿는다. */
+export interface RegistryOptions {
+  /** 모듈 ID → 증거 */
+  readonly evidence?: ReadonlyMap<string, Evidence>;
+  /** 모듈 ID → 지금 소스의 해시. 증거의 sourceHash 와 다르면 증거는 낡았다. */
+  readonly sourceHashes?: ReadonlyMap<string, string>;
+}
+
 /** 처리 모듈이 아닌(입출력 없이 정의만 하는) 모듈은 없다 — 예외를 두면 계약이 무의미해진다. */
 function checkContract(
   contract: ModuleContract,
   byId: ReadonlyMap<string, ModuleContract>,
+  options: RegistryOptions,
 ): ContractViolation[] {
   const violations: ContractViolation[] = [];
   const add = (rule: ContractViolation['rule'], message: string): void => {
@@ -87,6 +97,20 @@ function checkContract(
         );
       }
     }
+    // V4 — 증거를 넘겨받았다면 완료 주장을 증거와 대조한다.
+    if (options.evidence !== undefined) {
+      const promotion = canPromote(
+        contract,
+        options.evidence.get(contract.id) ?? null,
+        options.sourceHashes?.get(contract.id) ?? null,
+      );
+      for (const reason of promotion.reasons) {
+        // 증거 파일 자체가 없는 경우는 no-evidence 조항과 겹치므로 한 번만 센다.
+        if (reason.startsWith('증거 파일이 없다') && contract.evidence === null) continue;
+        add('evidence-unsupported', reason);
+      }
+    }
+
     const open = contract.subtasks.filter((subtask) => subtask.status !== 'DONE');
     if (open.length > 0) {
       add(
@@ -129,7 +153,10 @@ function topologicalSort(
 }
 
 /** 계약들을 등록한다. 결함 계약은 사유와 함께 거부되고, 나머지는 그대로 등록된다. */
-export function buildRegistry(sources: readonly ContractSource[]): ModuleRegistry {
+export function buildRegistry(
+  sources: readonly ContractSource[],
+  options: RegistryOptions = {},
+): ModuleRegistry {
   const rejected: ContractViolation[] = [];
   /** 스키마 단계에서 나온 위반 — 계약별로 들고 있다가 등록 항목에 그대로 붙인다. */
   const schemaViolations = new Map<string, readonly ContractViolation[]>();
@@ -177,7 +204,7 @@ export function buildRegistry(sources: readonly ContractSource[]): ModuleRegistr
 
   const entries: RegistryEntry[] = stableSort(contracts, (a, b) => compareStrings(a.id, b.id)).map(
     (contract) => {
-      const violations = checkContract(contract, byId);
+      const violations = checkContract(contract, byId, options);
       if (cyclic.includes(contract.id)) {
         violations.push({
           module: contract.id,
