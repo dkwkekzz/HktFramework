@@ -23,7 +23,7 @@ subtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3
   - id: O2-c
     name: world-tree
     purpose: 상태 원소 목록을 9영역 서브트리로 조립하고 다시 원소로 분해한다.
-    status: PLANNED
+    status: DONE
   - id: O2-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 상태 트리 뷰로 O2 를 눈으로 확인한다.

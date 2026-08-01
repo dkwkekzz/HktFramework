@@ -7,3 +7,4 @@
 export * from './domain.ts';
 export * from './field.ts';
 export * from './schema.ts';
+export * from './world.ts';
