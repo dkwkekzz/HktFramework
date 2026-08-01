@@ -65,8 +65,11 @@ describe('존재론 골격', () => {
 
   test('아직 필드가 없는 이름표는 미구현으로 드러난다', () => {
     const implemented = implementedKinds();
-    assert.deepEqual([...implemented], ['Subject', 'Entity', 'State', 'Rule', 'Phenomenon', 'Event']);
-    assert.deepEqual(reasons({ kind: 'Claim', id: deterministicId('claim', 'x') }), [
+    assert.deepEqual(
+      [...implemented],
+      ['Subject', 'Entity', 'State', 'Rule', 'Phenomenon', 'Claim', 'Commitment', 'Affordance', 'Event'],
+    );
+    assert.deepEqual(reasons({ kind: 'Dependency', id: deterministicId('dependency', 'x') }), [
       'kind-not-implemented $.kind',
     ]);
   });

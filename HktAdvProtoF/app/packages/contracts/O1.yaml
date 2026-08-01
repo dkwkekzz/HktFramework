@@ -23,7 +23,7 @@ subtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 �
   - id: O1-c
     name: relation-triad
     purpose: 주체가 세계에 거는 것을 Claim·Commitment·Affordance 로 정의한다.
-    status: PLANNED
+    status: DONE
   - id: O1-d
     name: demand-triad
     purpose: 주체의 결핍과 세계에 대한 청구를 Dependency·Possibility·WorldRequirement 로 정의한다.

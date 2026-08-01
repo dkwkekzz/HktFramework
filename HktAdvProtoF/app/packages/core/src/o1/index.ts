@@ -13,6 +13,12 @@ import {
   type Rule,
 } from './operation.ts';
 import {
+  relationCheckers,
+  type Affordance,
+  type Claim,
+  type Commitment,
+} from './relation.ts';
+import {
   ONTOLOGY_KINDS,
   isOntologyKind,
   type ClassifyResult,
@@ -25,9 +31,19 @@ export * from './kinds.ts';
 export * from './check.ts';
 export * from './being.ts';
 export * from './operation.ts';
+export * from './relation.ts';
 
 /** 존재론 원소 — 지금까지 정의된 타입들의 합. 묶음이 붙을 때마다 넓어진다. */
-export type OnticNode = Subject | Entity | State | Rule | Phenomenon | Event;
+export type OnticNode =
+  | Subject
+  | Entity
+  | State
+  | Rule
+  | Phenomenon
+  | Event
+  | Claim
+  | Commitment
+  | Affordance;
 
 type Checker = (fields: Readonly<Record<string, unknown>>, out: OntologyViolation[]) => void;
 
@@ -35,6 +51,7 @@ type Checker = (fields: Readonly<Record<string, unknown>>, out: OntologyViolatio
 const CHECKERS: Partial<Record<OntologyKind, Checker>> = {
   ...beingCheckers,
   ...operationCheckers,
+  ...relationCheckers,
 };
 
 /** 필드까지 정의된 타입 (ONTOLOGY_KINDS 순서). */
