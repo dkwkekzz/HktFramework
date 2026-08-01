@@ -10,6 +10,7 @@ import { fileURLToPath } from 'node:url';
 import { stateHash } from '@hkt/core/v1';
 
 import { digestSuite, runScenarios, type AnyScenario } from '../src/index.ts';
+import { v0Scenarios } from '../suites/v0.ts';
 import { v1Scenarios } from '../suites/v1.ts';
 import { v2Scenarios } from '../suites/v2.ts';
 
@@ -29,6 +30,20 @@ interface ModuleSpec {
 }
 
 const MODULES: readonly ModuleSpec[] = [
+  {
+    id: 'V0',
+    name: 'V0-module-contract-registry',
+    sources: [
+      'packages/contracts/src/index.ts',
+      'packages/contracts/src/yaml.ts',
+      'packages/contracts/src/contract.ts',
+      'packages/contracts/src/registry.ts',
+      'packages/contracts/src/load.ts',
+    ],
+    testPackage: 'packages/contracts',
+    scenarios: v0Scenarios,
+    labSubstitute: 'packages/scenarios/verify/v0.ts',
+  },
   {
     id: 'V1',
     name: 'V1-deterministic-runtime',

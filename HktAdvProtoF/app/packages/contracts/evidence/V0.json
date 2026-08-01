@@ -1,19 +1,19 @@
 {
-  "module": "V2-scenario-runner",
-  "sourceHash": "e996f7877fb13e9a",
+  "module": "V0-module-contract-registry",
+  "sourceHash": "826886247351a293",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "0aaaa0d5eeabf9fa",
+  "replayHash": "649a083d4a0ff900",
   "status": "VERIFIED",
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v2.ts",
+    "labSubstitute": "packages/scenarios/verify/v0.ts",
     "tests": {
-      "package": "packages/scenarios",
-      "total": 33,
-      "passed": 33
+      "package": "packages/contracts",
+      "total": 43,
+      "passed": 43
     },
     "suite": {
       "total": 3,
@@ -21,16 +21,16 @@
       "failed": 0
     },
     "coverage": {
-      "module": "V2",
+      "module": "V0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "scenarios": {
-      "v2-passing-report": "passed",
-      "v2-failure-report": "passed",
-      "v2-boundary": "passed"
+      "v0-registry-accepts": "passed",
+      "v0-rejects-defective": "passed",
+      "v0-boundary": "passed"
     }
   }
 }

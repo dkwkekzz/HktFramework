@@ -1,0 +1,41 @@
+id: V0
+name: module-contract-registry
+purpose: >
+  모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.
+
+inputs: [ContractSource]
+outputs: [ModuleRegistry, ModuleContract, ContractViolation]
+
+writes:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.
+  - ModuleContract
+  - ModuleStatus
+
+depends: [V1, V2]               # 안정 정렬·상태 해시(V1) 로 판정하고, 검증은 V2 실행기로 한다
+
+subtasks:
+  - id: V0-a
+    name: contract-yaml-parser
+    purpose: MODULE.yaml 서식을 읽고 서식 밖 문법을 줄 번호와 함께 거부한다.
+    status: DONE
+  - id: V0-b
+    name: registry-checker
+    purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.
+    status: DONE
+
+scenarios:
+  - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록
+  - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부
+  - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존
+
+elements:
+  - name: ModuleContract
+    ontology: Rule
+    renderer: graph
+  - name: ModuleStatus
+    ontology: State
+    renderer: graph
+
+lab: /lab/v0                    # V3 미구현 — packages/scenarios/verify/v0.ts 가 같은 7요소를 출력한다.
+
+status: VERIFIED
+evidence: evidence/V0.json

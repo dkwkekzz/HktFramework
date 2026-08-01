@@ -3,9 +3,10 @@
 
 import type { AnyScenario } from '../src/index.ts';
 
+import { v0Scenarios } from './v0.ts';
 import { v1Scenarios } from './v1.ts';
 import { v2Scenarios } from './v2.ts';
 
-export const allScenarios: readonly AnyScenario[] = [...v1Scenarios, ...v2Scenarios];
+export const allScenarios: readonly AnyScenario[] = [...v0Scenarios, ...v1Scenarios, ...v2Scenarios];
 
-export { v1Scenarios, v2Scenarios };
+export { v0Scenarios, v1Scenarios, v2Scenarios };

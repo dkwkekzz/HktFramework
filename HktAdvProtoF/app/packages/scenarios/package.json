@@ -8,10 +8,11 @@
     ".": "./src/index.ts"
   },
   "dependencies": {
-    "@hkt/core": "*"
+    "@hkt/core": "*",
+    "@hkt/contracts": "*"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\"",
-    "verify": "node verify/v1.ts && node verify/v2.ts && node verify/evidence.ts"
+    "verify": "node verify/v0.ts && node verify/v1.ts && node verify/v2.ts && node verify/evidence.ts"
   }
 }
