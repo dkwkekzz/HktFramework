@@ -27,7 +27,7 @@ subtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3
   - id: O2-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 상태 트리 뷰로 O2 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - o2-scene-assembled          # 정상: 장면의 상태들이 9영역 트리로 서고 왕복해도 같다
@@ -56,5 +56,5 @@ elements:
 
 lab: /lab/o2                    # 9영역 상태 트리 + 원문 필드 대조표
 
-status: IN_PROGRESS
-evidence: null
+status: VERIFIED
+evidence: evidence/O2.json

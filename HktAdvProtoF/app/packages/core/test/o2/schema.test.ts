@@ -292,6 +292,14 @@ describe('스키마의 검출력', () => {
     assert.deepEqual([...report.unmappedOriginals], ['기억']);
   });
 
+  test('대조할 원문 필드가 없으면 완결이 아니다 — 아무것도 확인하지 않은 것이다', () => {
+    const report = schemaReport(STATE_SCHEMA, []);
+    assert.equal(report.originalsChecked, 0);
+    assert.ok(!report.complete);
+    assert.match(schemaVerdict(report), /대조할 원문 필드가 없다/);
+    assert.equal(schemaReport().originalsChecked, ORIGINAL_FIELDS.length);
+  });
+
   test('빈 스키마는 완결이 아니다', () => {
     const report = schemaReport({ domains: [], fields: [] });
     assert.ok(!report.complete);

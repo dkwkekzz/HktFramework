@@ -18,6 +18,7 @@ import { v1Scenarios } from '@hkt/scenarios/suites/v1';
 import { v2Scenarios } from '@hkt/scenarios/suites/v2';
 import { v4Scenarios } from '@hkt/scenarios/suites/v4';
 import { o1Scenarios } from '@hkt/scenarios/suites/o1';
+import { o2Scenarios } from '@hkt/scenarios/suites/o2';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -117,6 +118,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: o1Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'O2',
+    name: 'O2-world-state-schema',
+    sources: [
+      'packages/core/src/o2/index.ts',
+      'packages/core/src/o2/domain.ts',
+      'packages/core/src/o2/field.ts',
+      'packages/core/src/o2/schema.ts',
+      'packages/core/src/o2/world.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: o2Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o2 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

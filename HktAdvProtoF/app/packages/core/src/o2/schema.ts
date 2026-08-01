@@ -715,6 +715,8 @@ export function checkAgainstSchema(schema: StateSchema, state: State): readonly 
 /** 스키마 자신이 온전한가 — 원문을 다 담았고, 빈 영역·중복 자리·결함 스펙이 없는가. */
 export interface SchemaReport {
   readonly totalFields: number;
+  /** 대조한 원문 필드 수 — 0 이면 아무것도 확인하지 않은 것이다 */
+  readonly originalsChecked: number;
   /** 영역별 자리 수 (STATE_DOMAINS 순서) */
   readonly byDomain: Readonly<Record<StateDomain, number>>;
   /** 자리가 하나도 없는 영역 — 이름만 있는 영역이다 */
@@ -777,6 +779,7 @@ export function schemaReport(
 
   return {
     totalFields: schema.fields.length,
+    originalsChecked: originals.length,
     byDomain,
     emptyDomains,
     duplicatePaths,
@@ -786,6 +789,7 @@ export function schemaReport(
     extraPaths,
     complete:
       schema.fields.length > 0 &&
+      originals.length > 0 &&
       emptyDomains.length === 0 &&
       duplicatePaths.length === 0 &&
       badSpecs.length === 0 &&
@@ -801,6 +805,7 @@ export function schemaVerdict(report: SchemaReport): string {
   }
   const reasons: string[] = [];
   if (report.totalFields === 0) reasons.push('자리가 하나도 없다');
+  if (report.originalsChecked === 0) reasons.push('대조할 원문 필드가 없다');
   if (report.emptyDomains.length > 0) reasons.push(`빈 영역 ${report.emptyDomains.join(', ')}`);
   if (report.duplicatePaths.length > 0) reasons.push(`두 번 적힌 자리 ${report.duplicatePaths.join(', ')}`);
   if (report.badSpecs.length > 0) reasons.push(`결함 스펙 ${report.badSpecs.join(' / ')}`);
