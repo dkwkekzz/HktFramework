@@ -7,6 +7,12 @@
 import { asFields } from './check.ts';
 import { beingCheckers, type Entity, type State, type Subject } from './being.ts';
 import {
+  operationCheckers,
+  type Event,
+  type Phenomenon,
+  type Rule,
+} from './operation.ts';
+import {
   ONTOLOGY_KINDS,
   isOntologyKind,
   type ClassifyResult,
@@ -18,15 +24,17 @@ import {
 export * from './kinds.ts';
 export * from './check.ts';
 export * from './being.ts';
+export * from './operation.ts';
 
 /** 존재론 원소 — 지금까지 정의된 타입들의 합. 묶음이 붙을 때마다 넓어진다. */
-export type OnticNode = Subject | Entity | State;
+export type OnticNode = Subject | Entity | State | Rule | Phenomenon | Event;
 
 type Checker = (fields: Readonly<Record<string, unknown>>, out: OntologyViolation[]) => void;
 
 /** 12타입 검사표 — 아직 비어 있는 칸이 곧 남은 작업이다. */
 const CHECKERS: Partial<Record<OntologyKind, Checker>> = {
   ...beingCheckers,
+  ...operationCheckers,
 };
 
 /** 필드까지 정의된 타입 (ONTOLOGY_KINDS 순서). */

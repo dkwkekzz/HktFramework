@@ -27,6 +27,7 @@
 | 0 | **V4 완료 증거 시스템** | **VERIFIED** ([증거](app/packages/contracts/evidence/V4.json)) | `node packages/scenarios/verify/v4.ts` — 증거 대시보드에 네 모듈이 완료로 찍히고, 산출물을 하나씩 무너뜨리면 사유와 함께 IMPLEMENTED 로 내려앉는다. 소스를 고친 뒤 예전 증거로 완료를 유지하려 하면 `evidence-unsupported` 로 막힌다 |
 | 0 | **V3 브라우저 검증 Lab** | **VERIFIED** ([증거](app/packages/contracts/evidence/V3.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v1` — 다섯 모듈 페이지가 각각 화면 7요소로 열리고 전부 통과 배지를 단다 (Chromium 확인: 콘솔 오류 없음) |
 | 0 | O1-a 존재론 골격 + 존재 3종 | DONE | `node --test` — 사냥꾼·붉은 장막·허기 값이 각각 `Subject`·`Entity`·`State` 로 분류되고, 손으로 지은 id·구조 값·함수는 경로와 사유로 거부된다 |
+| 0 | O1-b 작동 3종 | DONE | `node --test` — 규칙 → 사건 → 현상이 id 로 이어지고, 조건 없는 규칙·상태를 안 바꾸는 사건·원인 없는 현상이 각각의 사유로 거부된다 |
 | 0 | O1 → O2 → O0 | 진행 중 | |
 
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
@@ -60,8 +61,6 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 
 상태 원소 12종 > 3종이라 WORKFLOW §3(원소 묶음별 분할)에 걸린다. 아래 5개 하위 작업으로 쪼갠다.
 
-- **[O1-b] 작동 3종** — 목적: 세계가 굴러가는 방식을 `Rule` `Phenomenon` `Event` 로 정의한다.
-  검증 장면: 사건 하나가 현상을 낳고 규칙이 그 사건의 근거로 지목되는 사슬이 타입만으로 표현된다.
 - **[O1-c] 관계 3종** — 목적: 주체가 세계에 거는 것을 `Claim` `Commitment` `Affordance` 로 정의한다.
   검증 장면: 실제 상태와 다른 주장, 기한이 지난 약속, 비용 없는 어포던스가 각각 값으로 구별된다.
 - **[O1-d] 요구 3종** — 목적: 주체의 결핍과 세계에 대한 청구를 `Dependency` `Possibility` `WorldRequirement` 로 정의한다.

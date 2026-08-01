@@ -19,7 +19,7 @@ subtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 �
   - id: O1-b
     name: operation-triad
     purpose: 세계가 굴러가는 방식을 Rule·Phenomenon·Event 로 정의한다.
-    status: PLANNED
+    status: DONE
   - id: O1-c
     name: relation-triad
     purpose: 주체가 세계에 거는 것을 Claim·Commitment·Affordance 로 정의한다.
