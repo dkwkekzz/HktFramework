@@ -1,0 +1,8 @@
+{
+  "// ": "에디터용 — 실제 검사는 루트 tsconfig 가 전체를 한 번에 수행한다 (npm run typecheck).",
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": ["src/**/*.ts", "test/**/*.ts"]
+}

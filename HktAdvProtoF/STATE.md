@@ -22,7 +22,8 @@
 | 0 | **V1 결정적 실행 환경** | **VERIFIED** ([증거](app/packages/contracts/evidence/V1.json)) | `node packages/scenarios/verify/v1.ts` — 같은 시드 100회 실행이 상태 해시 하나로 모이고, 시드 한 글자를 바꾸면 사건 #0 부터 갈라지는 것이 표로 보인다 |
 | 0 | **V2 시나리오 실행기** | **VERIFIED** ([증거](app/packages/contracts/evidence/V2.json)) | `node packages/scenarios/verify/v2.ts` — 자체 장면 3종이 통과 표로 나오고, 고의 결함 장면에서 초기상태·입력·기대·실제·최초 분기 경로 `$.stock.b` 다섯이 함께 출력된다 |
 | 0 | V2-b V1 시나리오 소급 등록 | DONE | `node packages/scenarios/verify/evidence.ts` — V1·V2 가 같은 실행기·같은 증거 생성기를 지나 둘 다 커버리지 완결로 찍힌다 |
-| 0 | V0, V4, V3, O0~O2 | 미착수 | |
+| 0 | V0-a 계약 파서 | DONE | `node --test` — 실제 계약 `V1.yaml`·`V2.yaml` 을 읽고, 탭·앵커·플로 매핑·중복 키를 줄 번호와 함께 거부한다 (22 pass) |
+| 0 | V0-b 레지스트리 검사 · V4, V3, O0~O2 | 미착수 | |
 
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
 빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
@@ -44,12 +45,13 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 
 ## TODO — 단계 0 (구현 순서: WORKFLOW §9)
 
-### [V0] 모듈 계약 레지스트리
-- 목적: 모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 거부한다.
-- 입력: contracts/*.yaml / 출력: ModuleRegistry (의존 DAG + 상태)
+### [V0-b] 모듈 계약 레지스트리 검사
+- 목적: 파싱된 계약을 등록하며 결함 계약(목적 없음·입출력 없음·순환 의존·시나리오 없는 완료)을 거부한다.
+- 입력: contracts/*.yaml (V0-a 파서) / 출력: ModuleRegistry (의존 DAG + 상태 + 거부 사유)
 - 검증 장면: 목적 없는 계약·순환 의존 계약 투입 → 등록 거부 사유가 출력된다.
 - 상태 원소: ModuleContract, ModuleStatus
 - 시각화: 그래프 — 모듈 의존 DAG (색=status)
+- 비고: 하위 작업 `V0-a` (계약 파서) 완료.
 
 ### [V4] 완료 증거 시스템
 - 목적: 검증 산출물을 증거 JSON 으로 만들어 완료 선언을 증거로만 하게 한다.
