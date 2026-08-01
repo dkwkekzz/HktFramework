@@ -1,0 +1,374 @@
+/* V3 Lab 스타일 — 판정(통과/실패)과 분기 경로가 한눈에 들어오는 것만 목표로 한다. */
+
+:root {
+  --bg: #0f1115;
+  --panel: #171a21;
+  --line: #272c36;
+  --text: #dfe3ea;
+  --muted: #8b93a3;
+  --ok: #4ade80;
+  --bad: #f87171;
+  --warn: #fbbf24;
+  --accent: #60a5fa;
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--text);
+  font: 14px/1.6 ui-monospace, SFMono-Regular, Menlo, "Noto Sans KR", monospace;
+}
+
+.shell {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.nav {
+  border-right: 1px solid var(--line);
+  padding: 20px 16px;
+  position: sticky;
+  top: 0;
+  align-self: start;
+}
+
+.brand {
+  font-size: 16px;
+  margin: 0 0 4px;
+}
+
+.brand-note {
+  color: var(--muted);
+  font-size: 12px;
+  margin: 0 0 20px;
+}
+
+.nav ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.nav-link {
+  display: flex;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 6px;
+  color: var(--text);
+  text-decoration: none;
+}
+
+.nav-link:hover {
+  background: var(--panel);
+}
+
+.nav-link.active {
+  background: var(--panel);
+  outline: 1px solid var(--accent);
+}
+
+.nav-id {
+  color: var(--accent);
+  font-weight: 700;
+}
+
+.nav-title {
+  color: var(--muted);
+}
+
+.content {
+  padding: 24px 28px 80px;
+  max-width: 1100px;
+}
+
+.page-header h1 {
+  margin: 0 0 4px;
+  font-size: 20px;
+}
+
+.purpose {
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+
+.verdict {
+  display: inline-block;
+  padding: 6px 12px;
+  border-radius: 6px;
+  font-weight: 700;
+}
+
+.verdict.ok {
+  background: rgba(74, 222, 128, 0.12);
+  color: var(--ok);
+}
+
+.verdict.bad {
+  background: rgba(248, 113, 113, 0.12);
+  color: var(--bad);
+}
+
+.section {
+  border-top: 1px solid var(--line);
+  margin-top: 24px;
+  padding-top: 12px;
+}
+
+.section h2 {
+  font-size: 15px;
+  margin: 0 0 10px;
+  color: var(--accent);
+}
+
+.section h3 {
+  font-size: 13px;
+  margin: 18px 0 8px;
+  color: var(--muted);
+}
+
+.empty {
+  color: var(--muted);
+  font-style: italic;
+}
+
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 8px 0;
+  background: var(--panel);
+}
+
+th,
+td {
+  border: 1px solid var(--line);
+  padding: 6px 10px;
+  text-align: left;
+  vertical-align: top;
+}
+
+th {
+  color: var(--muted);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+td.num,
+th.num {
+  text-align: right;
+}
+
+td.id {
+  color: var(--muted);
+}
+
+code {
+  color: var(--text);
+  word-break: break-all;
+}
+
+pre.value-block {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  padding: 10px 12px;
+  overflow-x: auto;
+  white-space: pre-wrap;
+}
+
+.badge {
+  padding: 2px 8px;
+  border-radius: 4px;
+  margin-right: 8px;
+}
+
+.badge-ok {
+  background: rgba(74, 222, 128, 0.15);
+  color: var(--ok);
+}
+
+tr.divergent td.path,
+.path {
+  color: var(--warn);
+}
+
+tr.divergent-first {
+  outline: 1px solid var(--warn);
+}
+
+tr.ok td:last-child {
+  color: var(--ok);
+}
+
+tr.bad td:last-child {
+  color: var(--bad);
+}
+
+tr.complete td:last-child {
+  color: var(--ok);
+}
+
+tr.incomplete td:last-child {
+  color: var(--bad);
+}
+
+.diff-note,
+.graph-order,
+.suite-total {
+  color: var(--muted);
+  margin: 4px 0 0;
+}
+
+.lines {
+  margin: 4px 0;
+  padding-left: 18px;
+  color: var(--muted);
+}
+
+.scenario {
+  border: 1px solid var(--line);
+  border-left-width: 3px;
+  background: var(--panel);
+  padding: 10px 14px;
+  margin: 10px 0;
+}
+
+.scenario.pass {
+  border-left-color: var(--ok);
+}
+
+.scenario.fail {
+  border-left-color: var(--bad);
+}
+
+.scenario header {
+  display: flex;
+  gap: 10px;
+  align-items: baseline;
+  margin-bottom: 6px;
+}
+
+.scenario .kind {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.scenario .id {
+  font-weight: 700;
+}
+
+.assertions {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.assertion {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.assertion.pass .mark {
+  color: var(--ok);
+}
+
+.assertion.fail .mark {
+  color: var(--bad);
+}
+
+.assertion-detail {
+  flex-basis: 100%;
+  padding-left: 20px;
+  color: var(--muted);
+}
+
+.assertion-detail .k {
+  color: var(--muted);
+}
+
+.failure {
+  margin-top: 10px;
+  border-top: 1px dashed var(--line);
+  padding-top: 8px;
+}
+
+.failure h4 {
+  margin: 0 0 6px;
+  color: var(--bad);
+  font-size: 13px;
+}
+
+.failure dl {
+  display: grid;
+  grid-template-columns: 120px 1fr;
+  gap: 2px 10px;
+  margin: 0;
+}
+
+.failure dt {
+  color: var(--muted);
+}
+
+.failure dd {
+  margin: 0;
+}
+
+.graph-nodes {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 10px;
+}
+
+.node {
+  padding: 6px 14px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  background: var(--panel);
+}
+
+.node.status-verified {
+  border-color: var(--ok);
+  color: var(--ok);
+}
+
+.node.status-implemented,
+.node.status-in_progress {
+  border-color: var(--warn);
+  color: var(--warn);
+}
+
+.node.rejected {
+  border-style: dashed;
+  border-color: var(--bad);
+  color: var(--bad);
+}
+
+.graph-edges {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  color: var(--muted);
+}
+
+.checks {
+  display: inline-flex;
+  gap: 10px;
+}
+
+.check.passed {
+  color: var(--ok);
+}
+
+.check.failed {
+  color: var(--bad);
+}
+
+.check.manual {
+  color: var(--warn);
+}

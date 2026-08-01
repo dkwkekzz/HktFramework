@@ -16,53 +16,46 @@
 
 ### 코드
 
-| 단계 | 모듈 | 상태 |
-|---|---|---|
-| 0 (M0 결정적 세계) | V0~V4, O0~O2 | 미착수 |
+| 단계 | 모듈 | 상태 | 확인 장면 |
+|---|---|---|---|
+| 0 (M0 결정적 세계) | V1-a 모노레포 스캐폴드 | DONE | `npm test` — core 배럴이 빌드 없이 로드되고 런타임 의존성 0개 |
+| 0 | **V1 결정적 실행 환경** | **VERIFIED** ([증거](app/packages/contracts/evidence/V1.json)) | `node packages/scenarios/verify/v1.ts` — 같은 시드 100회 실행이 상태 해시 하나로 모이고, 시드 한 글자를 바꾸면 사건 #0 부터 갈라지는 것이 표로 보인다 |
+| 0 | **V2 시나리오 실행기** | **VERIFIED** ([증거](app/packages/contracts/evidence/V2.json)) | `node packages/scenarios/verify/v2.ts` — 자체 장면 3종이 통과 표로 나오고, 고의 결함 장면에서 초기상태·입력·기대·실제·최초 분기 경로 `$.stock.b` 다섯이 함께 출력된다 |
+| 0 | V2-b V1 시나리오 소급 등록 | DONE | `node packages/scenarios/verify/evidence.ts` — V1·V2 가 같은 실행기·같은 증거 생성기를 지나 둘 다 커버리지 완결로 찍힌다 |
+| 0 | V0-a 계약 파서 | DONE | `node --test` — 실제 계약을 읽고 탭·앵커·플로 매핑·중복 키를 줄 번호와 함께 거부한다 |
+| 0 | **V0 모듈 계약 레지스트리** | **VERIFIED** ([증거](app/packages/contracts/evidence/V0.json)) | `node packages/scenarios/verify/v0.ts` — 실제 계약 3개가 위상 순서 `V1 → V2 → V0` 으로 등록되고, 목적·입출력·시나리오·증거를 지우거나 자기 의존을 넣으면 각각의 사유로 거부된다 |
+| 0 | **V4 완료 증거 시스템** | **VERIFIED** ([증거](app/packages/contracts/evidence/V4.json)) | `node packages/scenarios/verify/v4.ts` — 증거 대시보드에 네 모듈이 완료로 찍히고, 산출물을 하나씩 무너뜨리면 사유와 함께 IMPLEMENTED 로 내려앉는다. 소스를 고친 뒤 예전 증거로 완료를 유지하려 하면 `evidence-unsupported` 로 막힌다 |
+| 0 | **V3 브라우저 검증 Lab** | **VERIFIED** ([증거](app/packages/contracts/evidence/V3.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v1` — 다섯 모듈 페이지가 각각 화면 7요소로 열리고 전부 통과 배지를 단다 (Chromium 확인: 콘솔 오류 없음) |
+| 0 | O1 → O2 → O0 | 미착수 | |
+
+구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
+빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
 
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
 
+## 소급 부채 (V0~V4 완성 시 갚는다)
+
+WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동으로 수행한다.
+아래는 V0~V4 가 서는 즉시 소급 등록해야 할 항목이다.
+
+| 부채 | 현재 대체 수단 | 갚는 시점 |
+|---|---|---|
+| ~~V1 시나리오가 `Scenario{arrange,act,assert}` 가 아니다~~ | **V2-b 로 상환** — `suites/v1.ts` | 완료 |
+| ~~계약이 레지스트리에 등록되지 않았다~~ | **V0 으로 상환** — `buildRegistry` 가 실제 계약을 검사 | 완료 |
+| Lab 확인이 자동이 아니다 (증거의 `labScenarios` 가 `manual`) | 사람이 브라우저에서 본다 + `verify/v3.ts` 가 7요소 충족·렌더 결정성을 검사 | 브라우저 자동 확인 도입 시 |
+| ~~증거를 손으로 쓴 스크립트가 만든다~~ | **V4 로 상환** — `buildEvidence` 가 유일한 status 판정자 | 완료 |
+| ~~Lab 페이지가 없다~~ | **V3 으로 상환** — 모듈당 페이지 1개, 화면 7요소 | 완료 |
+
 ## TODO — 단계 0 (구현 순서: WORKFLOW §9)
-
-### [V1] 결정적 실행 환경
-- 목적: 같은 시드와 입력이면 항상 같은 사건 순서와 상태 해시가 나오게 한다.
-- 입력: `(seed, tick)` / 출력: TickClock, SeededRandom, DeterministicId, stableSort, stateHash
-- 검증 장면: 같은 시드 100회 실행 → 해시 전부 동일, 다른 시드 → 해시 상이.
-- 상태 원소: Seed, Tick, StateHash
-- 시각화: diff — 해시 비교표
-- 비고: `app/` 모노레포 스캐폴드(workspaces + core 패키지)를 이 작업의 하위 작업 `V1-a` 로 선행.
-
-### [V2] 시나리오 실행기
-- 목적: 모듈의 대표 장면을 arrange/act/assert 로 자동 실행한다.
-- 입력: Scenario / 출력: ScenarioResult + Assertion[] (실패 시 최초 분기 상태 경로)
-- 검증 장면: 일부러 실패하는 시나리오 → 초기 상태·입력·기대·실제·분기 경로가 출력된다.
-- 상태 원소: ScenarioResult, Assertion
-- 시각화: diff — 기대 vs 실제
-
-### [V0] 모듈 계약 레지스트리
-- 목적: 모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 거부한다.
-- 입력: contracts/*.yaml / 출력: ModuleRegistry (의존 DAG + 상태)
-- 검증 장면: 목적 없는 계약·순환 의존 계약 투입 → 등록 거부 사유가 출력된다.
-- 상태 원소: ModuleContract, ModuleStatus
-- 시각화: 그래프 — 모듈 의존 DAG (색=status)
-
-### [V4] 완료 증거 시스템
-- 목적: 검증 산출물을 증거 JSON 으로 만들어 완료 선언을 증거로만 하게 한다.
-- 입력: 테스트·시나리오·리플레이 해시 / 출력: evidence/<id>.json, status: VERIFIED
-- 검증 장면: 시나리오 미통과 모듈 → VERIFIED 전이가 거부된다.
-- 상태 원소: Evidence
-- 시각화: diff — 모듈별 통과 대시보드
-
-### [V3] 브라우저 검증 Lab
-- 목적: 코드를 읽지 않아도 모듈 작동을 브라우저에서 눈으로 확인하게 한다.
-- 입력: 모듈 상태 원소 / 출력: Lab 페이지 (화면 7요소)
-- 검증 장면: V1 해시 비교표·V2 시나리오 결과가 Lab 페이지에 보인다.
-- 상태 원소: — (렌더러)
-- 시각화: 자체 — Vite 셸 + 공용 렌더러(diff 뷰 우선, 나머지 4종은 필요 시 하위 작업)
 
 ### [O1] 공통 세계 존재론 → [O2] 상태·규칙 스키마 → [O0] 세계관 공리
 - 카드 상세는 착수 시 MODULES.md O 계층 행으로부터 작성.
+
+## 남은 공용 렌더러 (WORKFLOW §6)
+
+diff 뷰는 구현됐고, 그래프·게이지는 최소판이 V0·V4 페이지에 있다.
+타임라인과 3D 씬은 소비할 모듈(R1·E2·X 계층)에 착수할 때 작업 카드로 만든다.
 
 ## 단계 게이트
 

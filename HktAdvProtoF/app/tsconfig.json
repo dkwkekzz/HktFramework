@@ -1,0 +1,14 @@
+{
+  "// ": "타입 검사 전용 단일 프로그램 — 산출물이 없으므로 프로젝트 참조 대신 전체를 한 번에 본다. lab 은 DOM lib 가 필요해 따로 검사한다 (packages/lab/tsconfig.json).",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/suites/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "packages/*/verify/**/*.ts"
+  ],
+  "exclude": ["packages/lab"]
+}

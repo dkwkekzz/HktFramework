@@ -1,0 +1,14 @@
+{
+  "name": "@hkt/core",
+  "private": true,
+  "version": "0.0.0",
+  "description": "순수 결정적 시뮬레이션 — V1 + O·S·D·P·Q·W·R·E·G·C 계층",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./v1": "./src/v1/index.ts"
+  },
+  "scripts": {
+    "test": "node --test \"test/**/*.test.ts\""
+  }
+}

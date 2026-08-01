@@ -1,0 +1,38 @@
+{
+  "module": "V1-deterministic-runtime",
+  "sourceHash": "f6097c0c7e4961ea",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "bfc6afce291d17c6",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/scenarios/verify/v1.ts",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "V1",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 33,
+      "passed": 33
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "v1-same-seed-100": "passed",
+        "v1-seed-drift-detected": "passed",
+        "v1-boundary": "passed"
+      }
+    }
+  }
+}

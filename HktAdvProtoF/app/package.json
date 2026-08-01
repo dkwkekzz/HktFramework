@@ -1,0 +1,23 @@
+{
+  "name": "hkt-adv-proto-f",
+  "private": true,
+  "version": "0.0.0",
+  "description": "HktAdvProtoF 구현 루트 — 목적 트리 기반 오픈월드 어드벤처 프로토타입",
+  "type": "module",
+  "workspaces": [
+    "packages/*"
+  ],
+  "engines": {
+    "node": ">=22.18.0"
+  },
+  "scripts": {
+    "test": "npm run test --workspaces --if-present",
+    "typecheck": "tsc --noEmit && tsc -p packages/lab --noEmit",
+    "verify": "npm run verify --workspaces --if-present"
+  },
+  "devDependencies": {
+    "@types/node": "^22.20.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
+  }
+}

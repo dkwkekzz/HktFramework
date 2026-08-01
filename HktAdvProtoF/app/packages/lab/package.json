@@ -1,0 +1,25 @@
+{
+  "name": "@hkt/lab",
+  "private": true,
+  "version": "0.0.0",
+  "description": "V3 브라우저 검증 Lab — 모듈당 페이지 1개, 화면 7요소",
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./suites": "./suites/index.ts",
+    "./suites/*": "./suites/*.ts"
+  },
+  "dependencies": {
+    "@hkt/contracts": "*",
+    "@hkt/core": "*",
+    "@hkt/scenarios": "*"
+  },
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "preview": "vite preview",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "data": "node scripts/generate-data.ts",
+    "verify": "node scripts/generate-data.ts && node verify/v3.ts && node verify/evidence.ts && node scripts/generate-data.ts"
+  }
+}

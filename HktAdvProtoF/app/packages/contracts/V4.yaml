@@ -1,0 +1,28 @@
+id: V4
+name: completion-evidence
+purpose: >
+  검증 산출물에서만 완료 상태를 결정해, 완료를 임의로 선언하지 못하게 한다.
+
+inputs: [EvidenceInput]
+outputs: [Evidence, PromotionCheck]
+
+writes:
+  - Evidence
+  - ModuleStatus
+
+depends: [V1, V2, V0]           # 해시(V1) · 시나리오 결과(V2) · 계약(V0) 을 재료로 삼는다
+
+scenarios:
+  - v4-evidence-verified        # 정상: 전부 통과한 산출물 → VERIFIED 증거 + 완료 전이 허용
+  - v4-refuses-unverified       # 실패: 시나리오/테스트/커버리지/결정성 미달 → 전이 거부
+  - v4-boundary                 # 경계: 증거 없음 · 낡은 증거(소스 변경) · 시나리오 0개 · 테스트 0개
+
+elements:
+  - name: Evidence
+    ontology: Claim
+    renderer: diff
+
+lab: /lab/v4                    # V3 미구현 — packages/scenarios/verify/v4.ts 가 같은 7요소를 출력한다.
+
+status: VERIFIED
+evidence: evidence/V4.json

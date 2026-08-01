@@ -1,0 +1,27 @@
+id: V3
+name: browser-verification-lab
+purpose: >
+  코드를 읽지 않아도 모듈 작동을 브라우저에서 눈으로 확인하게 한다.
+
+inputs: [ModuleStateElements]
+outputs: [LabPage, VNode]
+
+writes:                         # V3 은 세계 상태를 쓰지 않는다 — 화면만 만든다.
+  - VNode
+
+depends: [V1, V2, V0, V4]       # 해시·시나리오·계약·증거를 화면으로 옮긴다
+
+scenarios:
+  - v3-page-shows-seven         # 정상: 모든 페이지가 화면 7요소를 채우고 판정을 보인다
+  - v3-failure-highlight        # 실패: 갈라진 상태의 경로·기대·실제가 강조돼 나온다
+  - v3-boundary                 # 경계: 빈 상태 · 직렬화 불가 상태 · 섹션 누락 · 이스케이프
+
+elements:
+  - name: VNode
+    ontology: State
+    renderer: diff
+
+lab: /lab/v3                    # 셸 자체가 Lab 이다 — npm run dev --workspace @hkt/lab
+
+status: VERIFIED
+evidence: evidence/V3.json

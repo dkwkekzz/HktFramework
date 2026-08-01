@@ -1,0 +1,38 @@
+{
+  "module": "V4-completion-evidence",
+  "sourceHash": "01d8c154e517d1fc",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "e7c4be1f650b4167",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/scenarios/verify/v4.ts",
+    "testPackage": "packages/contracts",
+    "coverage": {
+      "module": "V4",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 60,
+      "passed": 60
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "v4-evidence-verified": "passed",
+        "v4-refuses-unverified": "passed",
+        "v4-boundary": "passed"
+      }
+    }
+  }
+}
