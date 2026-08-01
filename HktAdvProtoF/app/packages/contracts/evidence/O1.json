@@ -1,27 +1,27 @@
 {
-  "module": "V4-completion-evidence",
-  "sourceHash": "01d8c154e517d1fc",
+  "module": "O1-common-world-ontology",
+  "sourceHash": "175b575d768a599c",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "e7c4be1f650b4167",
+  "replayHash": "1e00b51bdc7aea2e",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v4.ts",
-    "testPackage": "packages/contracts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V4",
+      "module": "O1",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 61,
-      "passed": 61
+      "total": 120,
+      "passed": 120
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v4-evidence-verified": "passed",
-        "v4-refuses-unverified": "passed",
-        "v4-boundary": "passed"
+        "o1-catalog-covered": "passed",
+        "o1-unmapped-rejected": "passed",
+        "o1-boundary": "passed"
       }
     }
   }

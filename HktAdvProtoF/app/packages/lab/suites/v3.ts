@@ -63,7 +63,11 @@ export const v3PageShowsSeven = defineScenario({
       };
     }),
   assert: (pages): Assertion[] => [
-    expectState('V3 을 뺀 페이지 4개를 훑는다', 4, pages.length),
+    expectState(
+      `V3 을 뺀 페이지 ${String(LAB_PAGES.length - 1)}개를 훑는다`,
+      LAB_PAGES.length - 1,
+      pages.length,
+    ),
     expectState(
       '모든 페이지가 7요소를 순서대로 갖는다',
       pages.map((page) => page.id),
