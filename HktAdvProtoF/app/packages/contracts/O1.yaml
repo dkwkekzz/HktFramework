@@ -82,6 +82,7 @@ elements:
     ontology: State              # 존재론이 지금 얼마나 덮고 있는가 — 검사 시점의 값
     renderer: diff
 
-lab: /lab/o1
+lab: /lab/o1                    # 원문 개념 ↔ 12타입 커버리지 표
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/O1.json

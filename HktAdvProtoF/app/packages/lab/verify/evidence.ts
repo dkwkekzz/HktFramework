@@ -17,6 +17,7 @@ import { v0Scenarios } from '@hkt/scenarios/suites/v0';
 import { v1Scenarios } from '@hkt/scenarios/suites/v1';
 import { v2Scenarios } from '@hkt/scenarios/suites/v2';
 import { v4Scenarios } from '@hkt/scenarios/suites/v4';
+import { o1Scenarios } from '@hkt/scenarios/suites/o1';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -98,6 +99,24 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/lab',
     scenarios: v3Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'O1',
+    name: 'O1-common-world-ontology',
+    sources: [
+      'packages/core/src/o1/index.ts',
+      'packages/core/src/o1/kinds.ts',
+      'packages/core/src/o1/check.ts',
+      'packages/core/src/o1/being.ts',
+      'packages/core/src/o1/operation.ts',
+      'packages/core/src/o1/relation.ts',
+      'packages/core/src/o1/demand.ts',
+      'packages/core/src/o1/coverage.ts',
+      'packages/core/src/o1/catalog.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: o1Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',
