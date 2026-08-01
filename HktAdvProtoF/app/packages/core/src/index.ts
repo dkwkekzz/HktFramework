@@ -2,3 +2,4 @@
 // 배치·불변 규칙: ../../../modules/WORKFLOW.md §1
 export * from './v1/index.ts';
 export * from './o1/index.ts';
+export * from './o2/index.ts';
