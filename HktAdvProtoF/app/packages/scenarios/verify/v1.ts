@@ -2,16 +2,13 @@
 // (입력 / 처리 과정 / 후보 / 선택 결과 / 상태 전후 / 실패 이유 / 인과)
 // V3 완성 시 이 출력이 /lab/v1 의 diff 뷰로 그대로 옮겨간다.
 //
-//   실행: node packages/core/verify/v1.ts
+//   실행: node packages/scenarios/verify/v1.ts
 
-import {
-  createRandom,
-  nextInt,
-  pick,
-  split,
-  stateHash,
-} from '../src/v1/index.ts';
-import { firstDivergence, runToyWorld, type ToyEvent } from './v1-toy-world.ts';
+import { createRandom, nextInt, pick, split, stateHash } from '@hkt/core/v1';
+
+import { formatSuite, runScenarios } from '../src/index.ts';
+import { v1Scenarios } from '../suites/v1.ts';
+import { firstDivergence, runToyWorld, type ToyEvent } from '../suites/v1-toy-world.ts';
 
 const SEED_A = '배고픈 인간 1 + 음식 1';
 const SEED_B = '배고픈 인간 1 + 음식 2';
@@ -33,7 +30,7 @@ function formatEvent(event: ToyEvent): string {
 heading('① 입력 — 무엇을 넣었나');
 console.log(`시드 A       : ${SEED_A}`);
 console.log(`시드 B       : ${SEED_B}   (한 글자만 다른 시드)`);
-console.log(`틱 / 주체 수 : 20 tick × 3 subject = 60 event`);
+console.log('틱 / 주체 수 : 20 tick × 3 subject = 60 event');
 console.log(`반복 실행    : ${String(RUNS)}회`);
 
 // ② 처리 과정 ────────────────────────────────────────────────────────────────
@@ -75,15 +72,19 @@ for (const [hash, count] of eventHashes) {
   console.log(`  사건 순서   ${hash}   ${String(count).padStart(5)}   ${count === RUNS ? '동일 ✔' : '갈라짐 ✘'}`);
 }
 console.log('');
-console.log('  초기 재고   ' + JSON.stringify(Object.fromEntries(Object.keys(runA.world.stock).map((id) => [id, 10]))));
-console.log('  최종 재고   ' + JSON.stringify(runA.world.stock));
+console.log(
+  `  초기 재고   ${JSON.stringify(Object.fromEntries(Object.keys(runA.world.stock).map((id) => [id, 10])))}`,
+);
+console.log(`  최종 재고   ${JSON.stringify(runA.world.stock)}`);
 
 // ⑥ 실패 이유 ────────────────────────────────────────────────────────────────
 const runB = runToyWorld(SEED_B);
 const divergence = firstDivergence(runA, runB);
 heading('⑥ 실패 이유 — 시드가 다르면 어디서부터 갈라지는가');
 console.log(`  A 상태 해시 ${runA.stateHash}`);
-console.log(`  B 상태 해시 ${runB.stateHash}   ${runA.stateHash === runB.stateHash ? '동일 ✘(검출 실패)' : '상이 ✔'}`);
+console.log(
+  `  B 상태 해시 ${runB.stateHash}   ${runA.stateHash === runB.stateHash ? '동일 ✘(검출 실패)' : '상이 ✔'}`,
+);
 if (divergence === null) {
   console.log('  분기 지점   없음 ✘ — 서로 다른 시드가 같은 사건을 냈다');
 } else {
@@ -91,6 +92,11 @@ if (divergence === null) {
   console.log(`    기대(A)   ${divergence.left ? formatEvent(divergence.left) : '(없음)'}`);
   console.log(`    실제(B)   ${divergence.right ? formatEvent(divergence.right) : '(없음)'}`);
 }
+
+// 시나리오 3종을 V2 실행기로 돌린 결과 ────────────────────────────────────────
+const suite = runScenarios(v1Scenarios);
+heading('시나리오 3종 (V2 실행기) — 정상 · 실패 · 경계');
+console.log(formatSuite(suite));
 
 // ⑦ 인과 ─────────────────────────────────────────────────────────────────────
 heading('⑦ 인과 — 왜 이 결과가 나왔나');
@@ -103,7 +109,9 @@ console.log(`  검증 대상 상태 해시 함수 자체의 고정점: stateHash
 const deterministic = stateHashes.size === 1 && eventHashes.size === 1;
 const detects = runA.stateHash !== runB.stateHash && divergence !== null;
 line();
-console.log(`판정: 결정성 ${deterministic ? '통과 ✔' : '실패 ✘'} · 비결정 검출력 ${detects ? '통과 ✔' : '실패 ✘'}`);
+console.log(
+  `판정: 결정성 ${deterministic ? '통과 ✔' : '실패 ✘'} · 비결정 검출력 ${detects ? '통과 ✔' : '실패 ✘'} · 시나리오 ${suite.failed === 0 ? '통과 ✔' : '실패 ✘'}`,
+);
 line();
 
-if (!deterministic || !detects) process.exitCode = 1;
+if (!deterministic || !detects || suite.failed > 0) process.exitCode = 1;

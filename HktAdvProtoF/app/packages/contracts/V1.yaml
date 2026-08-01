@@ -23,6 +23,7 @@ scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1
   - v1-same-seed-100            # 정상: 같은 시드 100회 → 사건 순서·상태 해시 동일
   - v1-seed-drift-detected      # 실패: 시드 한 글자 차이 → 해시 상이 + 최초 분기 사건 지목
   - v1-boundary                 # 경계: 틱 0·주체 0·시드 0 vs "0"·빈 배열 연산
+                                # 정의 위치: packages/scenarios/suites/v1.ts (V2 실행기 형식)
 
 elements:
   - name: Seed
@@ -35,7 +36,7 @@ elements:
     ontology: State
     renderer: diff
 
-lab: /lab/v1                    # V3 미구현 — 현재는 packages/core/verify/v1.ts 가 같은 7요소를 출력한다.
+lab: /lab/v1                    # V3 미구현 — packages/scenarios/verify/v1.ts 가 같은 7요소를 출력한다.
 
 status: VERIFIED
 evidence: evidence/V1.json

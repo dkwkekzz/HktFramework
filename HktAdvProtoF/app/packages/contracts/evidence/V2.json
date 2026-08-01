@@ -1,6 +1,6 @@
 {
   "module": "V2-scenario-runner",
-  "sourceHash": "7cf55d4a3589cb22",
+  "sourceHash": "e996f7877fb13e9a",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -8,9 +8,10 @@
   "replayHash": "0aaaa0d5eeabf9fa",
   "status": "VERIFIED",
   "detail": {
-    "generator": "packages/scenarios/verify/v2-evidence.ts",
+    "generator": "packages/scenarios/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v2.ts",
     "tests": {
+      "package": "packages/scenarios",
       "total": 22,
       "passed": 22
     },

@@ -5,8 +5,8 @@ npm workspaces 모노레포. 전부 TypeScript. 배치·규칙은 [../modules/WO
 ```
 packages/
   core/        순수 결정적 시뮬레이션 — V1 + O·S·D·P·Q·W·R·E·G·C 계층
-  contracts/   V0 모듈 계약 레지스트리 + V4 완료 증거 (예정)
-  scenarios/   V2 시나리오 (예정)
+  contracts/   모듈 계약(<ID>.yaml) + 완료 증거(evidence/<ID>.json)
+  scenarios/   V2 시나리오 실행기(src/) · 모듈별 시나리오(suites/) · 눈 검증(verify/)
   lab/         V3 브라우저 검증 Lab (예정)
   server/      Node.js 권위 서버 (예정)
   client/      Three.js 3D 뷰어 (예정)
@@ -21,8 +21,8 @@ Node ≥ 22.18 의 네이티브 TypeScript 타입 스트리핑을 그대로 쓴�
 ```bash
 npm install          # 타입 검사기만 설치 (런타임 의존성 없음)
 npm test             # 워크스페이스 전체 테스트 (node --test)
-npm run typecheck    # tsc --build (타입 검사 전용, 산출물 없음)
-npm run verify       # 모듈별 수동 눈 검증 스크립트 (V3 Lab 이전의 임시 확인 경로)
+npm run typecheck    # tsc --noEmit (루트 단일 프로그램, 산출물 없음)
+npm run verify       # 눈 검증 7요소 출력 + 증거 파일 재생성 (V3 Lab 이전의 임시 확인 경로)
 ```
 
 `erasableSyntaxOnly` 를 켜 두었으므로 `enum`·매개변수 프로퍼티 등 타입 스트리핑이 불가능한

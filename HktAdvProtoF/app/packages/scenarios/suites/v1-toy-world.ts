@@ -1,6 +1,6 @@
 // V1 검증용 장난감 세계 — V1 원시요소만으로 굴러가는 최소 실행.
 //
-// 이 파일이 src/ 가 아니라 verify/ 에 있는 이유: V1 의 계약 산출물은
+// 이 파일이 core/src 가 아니라 scenarios 패키지에 있는 이유: V1 의 계약 산출물은
 // TickClock·SeededRandom·DeterministicId·stableSort·stateHash 다섯뿐이다 (MODULES.md V1 행).
 // 장난감 세계는 그 다섯이 실제로 결정성을 만들어내는지 보이기 위한 검증 도구이지
 // 세계 모델이 아니다 — 진짜 세계 상태는 O2 에서 정의된다.
@@ -22,7 +22,7 @@ import {
   type Seed,
   type StateHash,
   type Tick,
-} from '../src/v1/index.ts';
+} from '@hkt/core/v1';
 
 /** 장난감 세계의 사건 — 누가, 몇 틱에, 무엇을, 얼마나. */
 export interface ToyEvent {

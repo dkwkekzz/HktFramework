@@ -25,7 +25,7 @@ elements:
     ontology: Claim
     renderer: diff
 
-lab: /lab/v2                    # V3 미구현 — 현재는 packages/scenarios/verify/v2.ts 가 같은 7요소를 출력한다.
+lab: /lab/v2                    # V3 미구현 — packages/scenarios/verify/v2.ts 가 같은 7요소를 출력한다.
 
 status: VERIFIED
 evidence: evidence/V2.json
