@@ -12,11 +12,12 @@
   },
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "tsc --noEmit",
+    "typecheck": "tsc --noEmit && tsc -p packages/lab --noEmit",
     "verify": "npm run verify --workspaces --if-present"
   },
   "devDependencies": {
     "@types/node": "^22.20.1",
-    "typescript": "^5.9.3"
+    "typescript": "^5.9.3",
+    "vite": "^7.3.6"
   }
 }

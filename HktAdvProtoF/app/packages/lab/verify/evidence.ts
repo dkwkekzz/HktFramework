@@ -12,11 +12,13 @@ import { fileURLToPath } from 'node:url';
 import { buildEvidence, formatDashboard, type Evidence } from '@hkt/contracts';
 import { stateHash } from '@hkt/core/v1';
 
-import { digestSuite, runScenarios, type AnyScenario } from '../src/index.ts';
-import { v0Scenarios } from '../suites/v0.ts';
-import { v1Scenarios } from '../suites/v1.ts';
-import { v2Scenarios } from '../suites/v2.ts';
-import { v4Scenarios } from '../suites/v4.ts';
+import { digestSuite, runScenarios, type AnyScenario } from '@hkt/scenarios';
+import { v0Scenarios } from '@hkt/scenarios/suites/v0';
+import { v1Scenarios } from '@hkt/scenarios/suites/v1';
+import { v2Scenarios } from '@hkt/scenarios/suites/v2';
+import { v4Scenarios } from '@hkt/scenarios/suites/v4';
+
+import { v3Scenarios } from '../suites/v3.ts';
 
 const appRoot = new URL('../../../', import.meta.url);
 const evidenceDir = new URL('packages/contracts/evidence/', appRoot);
@@ -79,6 +81,23 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/scenarios',
     scenarios: v2Scenarios,
     labSubstitute: 'packages/scenarios/verify/v2.ts',
+  },
+  {
+    id: 'V3',
+    name: 'V3-browser-lab',
+    sources: [
+      'packages/lab/src/index.ts',
+      'packages/lab/src/vnode.ts',
+      'packages/lab/src/page.ts',
+      'packages/lab/src/shell.ts',
+      'packages/lab/src/mount.ts',
+      'packages/lab/src/renderers/diff.ts',
+      'packages/lab/src/renderers/scenario.ts',
+      'packages/lab/src/pages/index.ts',
+    ],
+    testPackage: 'packages/lab',
+    scenarios: v3Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

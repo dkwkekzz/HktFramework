@@ -25,7 +25,8 @@
 | 0 | V0-a 계약 파서 | DONE | `node --test` — 실제 계약을 읽고 탭·앵커·플로 매핑·중복 키를 줄 번호와 함께 거부한다 |
 | 0 | **V0 모듈 계약 레지스트리** | **VERIFIED** ([증거](app/packages/contracts/evidence/V0.json)) | `node packages/scenarios/verify/v0.ts` — 실제 계약 3개가 위상 순서 `V1 → V2 → V0` 으로 등록되고, 목적·입출력·시나리오·증거를 지우거나 자기 의존을 넣으면 각각의 사유로 거부된다 |
 | 0 | **V4 완료 증거 시스템** | **VERIFIED** ([증거](app/packages/contracts/evidence/V4.json)) | `node packages/scenarios/verify/v4.ts` — 증거 대시보드에 네 모듈이 완료로 찍히고, 산출물을 하나씩 무너뜨리면 사유와 함께 IMPLEMENTED 로 내려앉는다. 소스를 고친 뒤 예전 증거로 완료를 유지하려 하면 `evidence-unsupported` 로 막힌다 |
-| 0 | V3, O0~O2 | 미착수 | |
+| 0 | **V3 브라우저 검증 Lab** | **VERIFIED** ([증거](app/packages/contracts/evidence/V3.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v1` — 다섯 모듈 페이지가 각각 화면 7요소로 열리고 전부 통과 배지를 단다 (Chromium 확인: 콘솔 오류 없음) |
+| 0 | O1 → O2 → O0 | 미착수 | |
 
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
 빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
@@ -40,22 +41,21 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 
 | 부채 | 현재 대체 수단 | 갚는 시점 |
 |---|---|---|
-| Lab 페이지 `/lab/v0`·`/lab/v1`·`/lab/v2`·`/lab/v4` 가 없다 | 각 `verify/v*.ts` 터미널 7요소 출력 (증거의 `labScenarios` 는 `manual`) | V3 |
 | ~~V1 시나리오가 `Scenario{arrange,act,assert}` 가 아니다~~ | **V2-b 로 상환** — `suites/v1.ts` | 완료 |
 | ~~계약이 레지스트리에 등록되지 않았다~~ | **V0 으로 상환** — `buildRegistry` 가 실제 계약을 검사 | 완료 |
+| Lab 확인이 자동이 아니다 (증거의 `labScenarios` 가 `manual`) | 사람이 브라우저에서 본다 + `verify/v3.ts` 가 7요소 충족·렌더 결정성을 검사 | 브라우저 자동 확인 도입 시 |
 | ~~증거를 손으로 쓴 스크립트가 만든다~~ | **V4 로 상환** — `buildEvidence` 가 유일한 status 판정자 | 완료 |
+| ~~Lab 페이지가 없다~~ | **V3 으로 상환** — 모듈당 페이지 1개, 화면 7요소 | 완료 |
 
 ## TODO — 단계 0 (구현 순서: WORKFLOW §9)
 
-### [V3] 브라우저 검증 Lab
-- 목적: 코드를 읽지 않아도 모듈 작동을 브라우저에서 눈으로 확인하게 한다.
-- 입력: 모듈 상태 원소 / 출력: Lab 페이지 (화면 7요소)
-- 검증 장면: V1 해시 비교표·V2 시나리오 결과가 Lab 페이지에 보인다.
-- 상태 원소: — (렌더러)
-- 시각화: 자체 — Vite 셸 + 공용 렌더러(diff 뷰 우선, 나머지 4종은 필요 시 하위 작업)
-
 ### [O1] 공통 세계 존재론 → [O2] 상태·규칙 스키마 → [O0] 세계관 공리
 - 카드 상세는 착수 시 MODULES.md O 계층 행으로부터 작성.
+
+## 남은 공용 렌더러 (WORKFLOW §6)
+
+diff 뷰는 구현됐고, 그래프·게이지는 최소판이 V0·V4 페이지에 있다.
+타임라인과 3D 씬은 소비할 모듈(R1·E2·X 계층)에 착수할 때 작업 카드로 만든다.
 
 ## 단계 게이트
 

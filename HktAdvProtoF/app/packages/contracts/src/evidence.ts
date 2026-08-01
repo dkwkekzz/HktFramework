@@ -195,6 +195,6 @@ export function formatDashboard(
     }
   }
   lines.push('');
-  lines.push('△ = 수동 확인 (V3 Lab 미구현)');
+  lines.push('△ = 수동 확인 — 브라우저 Lab 에서 눈으로 본다 (자동 확인은 아직 없다)');
   return lines.join('\n');
 }

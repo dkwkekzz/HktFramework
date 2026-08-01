@@ -1,27 +1,27 @@
 {
-  "module": "V4-completion-evidence",
-  "sourceHash": "01d8c154e517d1fc",
+  "module": "V3-browser-lab",
+  "sourceHash": "a79bbcf4dac407a3",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "e7c4be1f650b4167",
+  "replayHash": "6b7bf66e4726471e",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v4.ts",
-    "testPackage": "packages/contracts",
+    "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/lab",
     "coverage": {
-      "module": "V4",
+      "module": "V3",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 60,
-      "passed": 60
+      "total": 31,
+      "passed": 31
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v4-evidence-verified": "passed",
-        "v4-refuses-unverified": "passed",
-        "v4-boundary": "passed"
+        "v3-page-shows-seven": "passed",
+        "v3-failure-highlight": "passed",
+        "v3-boundary": "passed"
       }
     }
   }

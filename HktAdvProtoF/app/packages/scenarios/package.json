@@ -5,7 +5,9 @@
   "description": "V2 시나리오 실행기 + 모듈별 시나리오 (arrange / act / assert)",
   "type": "module",
   "exports": {
-    ".": "./src/index.ts"
+    ".": "./src/index.ts",
+    "./suites": "./suites/index.ts",
+    "./suites/*": "./suites/*.ts"
   },
   "dependencies": {
     "@hkt/core": "*",
@@ -13,6 +15,6 @@
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\"",
-    "verify": "node verify/v0.ts && node verify/v1.ts && node verify/v2.ts && node verify/v4.ts && node verify/evidence.ts"
+    "verify": "node verify/v0.ts && node verify/v1.ts && node verify/v2.ts && node verify/v4.ts"
   }
 }
