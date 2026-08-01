@@ -24,6 +24,8 @@ import {
   type Possibility,
   type WorldRequirement,
 } from './demand.ts';
+import { CONCEPT_CATALOG } from './catalog.ts';
+import { checkCoverage, type ConceptEntry, type CoverageReport } from './coverage.ts';
 import {
   ONTOLOGY_KINDS,
   isOntologyKind,
@@ -39,6 +41,8 @@ export * from './being.ts';
 export * from './operation.ts';
 export * from './relation.ts';
 export * from './demand.ts';
+export * from './coverage.ts';
+export * from './catalog.ts';
 
 /** 존재론 원소 — 지금까지 정의된 타입들의 합. 묶음이 붙을 때마다 넓어진다. */
 export type OnticNode =
@@ -146,4 +150,12 @@ export function countByKind(values: readonly unknown[]): Readonly<Record<Ontolog
 /** OnticBase 로 좁힌다 (kind 만 확인). 필드 검사는 classify 가 한다. */
 export function asOnticBase(value: unknown): OnticBase | null {
   return kindOf(value) === null ? null : (value as OnticBase);
+}
+
+/**
+ * 원문 개념이 12타입으로 다 덮이는가 (O1 의 검증 조항 그 자체).
+ * 기본값은 원문 카탈로그이며, 시나리오는 결함 카탈로그를 넣어 검출력을 확인한다.
+ */
+export function coverageReport(entries: readonly ConceptEntry[] = CONCEPT_CATALOG): CoverageReport {
+  return checkCoverage(entries, implementedKinds());
 }

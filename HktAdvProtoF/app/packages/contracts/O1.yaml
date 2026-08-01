@@ -31,7 +31,7 @@ subtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 �
   - id: O1-e
     name: concept-coverage
     purpose: 원문 개념 중 12타입으로 환원되지 않는 것이 남으면 그 사실을 드러낸다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - o1-catalog-covered          # 정상: 원문 개념 전부가 12타입으로 분류되고 남는 타입이 없다
@@ -74,6 +74,12 @@ elements:
     renderer: diff
   - name: WorldRequirement
     ontology: WorldRequirement
+    renderer: diff
+  - name: ConceptEntry
+    ontology: Claim              # 원문이 "이 개념은 이 타입이다" 라고 건 주장
+    renderer: diff
+  - name: CoverageReport
+    ontology: State              # 존재론이 지금 얼마나 덮고 있는가 — 검사 시점의 값
     renderer: diff
 
 lab: /lab/o1
