@@ -20,7 +20,8 @@
 |---|---|---|---|
 | 0 (M0 결정적 세계) | V1-a 모노레포 스캐폴드 | DONE | `npm test` — core 배럴이 빌드 없이 로드되고 런타임 의존성 0개 |
 | 0 | **V1 결정적 실행 환경** | **VERIFIED** ([증거](app/packages/contracts/evidence/V1.json)) | `node packages/core/verify/v1.ts` — 같은 시드 100회 실행이 상태 해시 `1423…f1e4` 하나로 모이고, 시드 한 글자를 바꾸면 사건 #0 부터 갈라지는 것이 표로 보인다 |
-| 0 | V2, V0, V4, V3, O0~O2 | 미착수 | |
+| 0 | **V2 시나리오 실행기** | **VERIFIED** ([증거](app/packages/contracts/evidence/V2.json)) | `node packages/scenarios/verify/v2.ts` — 자체 장면 3종이 통과 표로 나오고, 고의 결함 장면에서 초기상태·입력·기대·실제·최초 분기 경로 `$.stock.b` 다섯이 함께 출력된다 |
+| 0 | V0, V4, V3, O0~O2 | 미착수 | |
 
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
 빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
@@ -35,19 +36,19 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 
 | 부채 | 현재 대체 수단 | 갚는 시점 |
 |---|---|---|
-| V1 시나리오 3종이 `Scenario{arrange,act,assert}` 가 아니다 | `packages/core/test/v1/scenarios.test.ts` (node:test) | V2 |
-| V1 계약이 레지스트리에 등록되지 않았다 | `packages/contracts/V1.yaml` (수기 서식) | V0 |
-| V1 증거를 모듈 전용 스크립트가 만든다 | `packages/core/verify/v1-evidence.ts` | V4 |
-| V1 Lab 페이지 `/lab/v1` 이 없다 | `packages/core/verify/v1.ts` 터미널 7요소 출력 | V3 |
+| V1 시나리오 3종이 `Scenario{arrange,act,assert}` 가 아니다 | `packages/core/test/v1/scenarios.test.ts` (node:test) | **V2 완료 — 다음 작업 `V2-b` 로 소급** |
+| V1·V2 계약이 레지스트리에 등록되지 않았다 | `packages/contracts/V1.yaml`, `V2.yaml` (수기 서식) | V0 |
+| 증거를 모듈 전용 스크립트가 만든다 | `packages/*/verify/*-evidence.ts` | V4 |
+| Lab 페이지 `/lab/v1`, `/lab/v2` 가 없다 | 각 `verify/v1.ts`, `verify/v2.ts` 터미널 7요소 출력 | V3 |
 
 ## TODO — 단계 0 (구현 순서: WORKFLOW §9)
 
-### [V2] 시나리오 실행기
-- 목적: 모듈의 대표 장면을 arrange/act/assert 로 자동 실행한다.
-- 입력: Scenario / 출력: ScenarioResult + Assertion[] (실패 시 최초 분기 상태 경로)
-- 검증 장면: 일부러 실패하는 시나리오 → 초기 상태·입력·기대·실제·분기 경로가 출력된다.
-- 상태 원소: ScenarioResult, Assertion
-- 시각화: diff — 기대 vs 실제
+### [V2-b] V1 시나리오 소급 등록
+- 목적: V1 의 검증 장면 3종을 V2 시나리오 형식으로 옮겨 실행기 하나로 모든 검증을 돌린다.
+- 입력: V1 장난감 세계 / 출력: `suites/v1.ts` 시나리오 3종 + V1 증거 재생성
+- 검증 장면: `npm run verify` 한 번에 V1·V2 커버리지 표가 함께 나온다.
+- 상태 원소: — (기존 원소 재사용)
+- 시각화: diff — 커버리지 표
 
 ### [V0] 모듈 계약 레지스트리
 - 목적: 모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 거부한다.

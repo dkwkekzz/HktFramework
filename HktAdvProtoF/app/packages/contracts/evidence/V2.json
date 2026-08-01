@@ -1,0 +1,35 @@
+{
+  "module": "V2-scenario-runner",
+  "sourceHash": "7cf55d4a3589cb22",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "0aaaa0d5eeabf9fa",
+  "status": "VERIFIED",
+  "detail": {
+    "generator": "packages/scenarios/verify/v2-evidence.ts",
+    "labSubstitute": "packages/scenarios/verify/v2.ts",
+    "tests": {
+      "total": 22,
+      "passed": 22
+    },
+    "suite": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0
+    },
+    "coverage": {
+      "module": "V2",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "scenarios": {
+      "v2-passing-report": "passed",
+      "v2-failure-report": "passed",
+      "v2-boundary": "passed"
+    }
+  }
+}

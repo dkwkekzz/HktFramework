@@ -12,7 +12,7 @@
   },
   "scripts": {
     "test": "npm run test --workspaces --if-present",
-    "typecheck": "tsc --build --force",
+    "typecheck": "tsc --noEmit",
     "verify": "npm run verify --workspaces --if-present"
   },
   "devDependencies": {

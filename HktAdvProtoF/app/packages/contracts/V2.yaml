@@ -1,0 +1,31 @@
+id: V2
+name: scenario-runner
+purpose: >
+  각 모듈의 대표 장면을 arrange / act / assert 로 자동 실행하고, 실패를 고칠 수 있는 형태로 보고한다.
+
+inputs: [Scenario]
+outputs: [ScenarioResult, Assertion, SuiteResult, SuiteDigest]
+
+writes:                         # V2 도 세계 상태를 쓰지 않는다 — 검증 결과만 만든다.
+  - ScenarioResult
+  - Assertion
+
+depends: [V1]                   # 상태 해시·안정 정렬로 결과를 판정한다
+
+scenarios:
+  - v2-passing-report           # 정상: 통과 장면 → 단언 목록과 함께 통과 보고
+  - v2-failure-report           # 실패: 고의 결함 → 초기상태·입력·기대·실제·최초 분기 경로 5요소 출력
+  - v2-boundary                 # 경계: 단언 0개 · arrange/act 예외 · 직렬화 불가 상태
+
+elements:
+  - name: ScenarioResult
+    ontology: Event
+    renderer: diff
+  - name: Assertion
+    ontology: Claim
+    renderer: diff
+
+lab: /lab/v2                    # V3 미구현 — 현재는 packages/scenarios/verify/v2.ts 가 같은 7요소를 출력한다.
+
+status: VERIFIED
+evidence: evidence/V2.json

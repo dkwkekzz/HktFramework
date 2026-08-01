@@ -1,6 +1,13 @@
 {
-  "files": [],
-  "references": [
-    { "path": "./packages/core" }
+  "// ": "타입 검사 전용 단일 프로그램 — 산출물이 없으므로 프로젝트 참조 대신 전체를 한 번에 본다.",
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "types": ["node"]
+  },
+  "include": [
+    "packages/*/src/**/*.ts",
+    "packages/*/suites/**/*.ts",
+    "packages/*/test/**/*.ts",
+    "packages/*/verify/**/*.ts"
   ]
 }

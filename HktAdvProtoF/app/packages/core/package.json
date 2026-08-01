@@ -10,7 +10,6 @@
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\"",
-    "typecheck": "tsc --build",
     "verify": "node verify/v1.ts && node verify/v1-evidence.ts"
   }
 }
