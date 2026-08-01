@@ -1,0 +1,37 @@
+{
+  "module": "V1-deterministic-runtime",
+  "sourceHash": "b72038a0a7aac98f",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "14233854f8aff1e4",
+  "status": "VERIFIED",
+  "detail": {
+    "generator": "packages/core/verify/v1-evidence.ts",
+    "labSubstitute": "packages/core/verify/v1.ts",
+    "seeds": {
+      "normal": "배고픈 인간 1 + 음식 1",
+      "drift": "배고픈 인간 1 + 음식 2"
+    },
+    "runs": 100,
+    "tests": {
+      "total": 41,
+      "passed": 41
+    },
+    "replay": {
+      "stateHash": "14233854f8aff1e4",
+      "eventHash": "f4ac7da4f23b3692",
+      "distinctStateHashes": 1,
+      "distinctEventHashes": 1
+    },
+    "drift": {
+      "firstDivergentEventIndex": 0
+    },
+    "scenarios": {
+      "v1-same-seed-100": "passed",
+      "v1-seed-drift-detected": "passed",
+      "v1-boundary": "passed"
+    }
+  }
+}

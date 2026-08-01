@@ -18,8 +18,8 @@
 
 | 단계 | 모듈 | 상태 | 확인 장면 |
 |---|---|---|---|
-| 0 (M0 결정적 세계) | V1-a 모노레포 스캐폴드 | IMPLEMENTED | `npm test` — core 배럴이 빌드 없이 로드되고 런타임 의존성 0개 (2 pass) |
-| 0 | V1 결정적 실행 환경 | 미착수 | |
+| 0 (M0 결정적 세계) | V1-a 모노레포 스캐폴드 | DONE | `npm test` — core 배럴이 빌드 없이 로드되고 런타임 의존성 0개 |
+| 0 | **V1 결정적 실행 환경** | **VERIFIED** ([증거](app/packages/contracts/evidence/V1.json)) | `node packages/core/verify/v1.ts` — 같은 시드 100회 실행이 상태 해시 `1423…f1e4` 하나로 모이고, 시드 한 글자를 바꾸면 사건 #0 부터 갈라지는 것이 표로 보인다 |
 | 0 | V2, V0, V4, V3, O0~O2 | 미착수 | |
 
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
@@ -28,15 +28,19 @@
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
 
-## TODO — 단계 0 (구현 순서: WORKFLOW §9)
+## 소급 부채 (V0~V4 완성 시 갚는다)
 
-### [V1] 결정적 실행 환경
-- 목적: 같은 시드와 입력이면 항상 같은 사건 순서와 상태 해시가 나오게 한다.
-- 입력: `(seed, tick)` / 출력: TickClock, SeededRandom, DeterministicId, stableSort, stateHash
-- 검증 장면: 같은 시드 100회 실행 → 해시 전부 동일, 다른 시드 → 해시 상이.
-- 상태 원소: Seed, Tick, StateHash
-- 시각화: diff — 해시 비교표
-- 비고: 하위 작업 `V1-a` (app/ 모노레포 스캐폴드) 완료 — 위 구현 현황 참조.
+WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동으로 수행한다.
+아래는 V0~V4 가 서는 즉시 소급 등록해야 할 항목이다.
+
+| 부채 | 현재 대체 수단 | 갚는 시점 |
+|---|---|---|
+| V1 시나리오 3종이 `Scenario{arrange,act,assert}` 가 아니다 | `packages/core/test/v1/scenarios.test.ts` (node:test) | V2 |
+| V1 계약이 레지스트리에 등록되지 않았다 | `packages/contracts/V1.yaml` (수기 서식) | V0 |
+| V1 증거를 모듈 전용 스크립트가 만든다 | `packages/core/verify/v1-evidence.ts` | V4 |
+| V1 Lab 페이지 `/lab/v1` 이 없다 | `packages/core/verify/v1.ts` 터미널 7요소 출력 | V3 |
+
+## TODO — 단계 0 (구현 순서: WORKFLOW §9)
 
 ### [V2] 시나리오 실행기
 - 목적: 모듈의 대표 장면을 arrange/act/assert 로 자동 실행한다.

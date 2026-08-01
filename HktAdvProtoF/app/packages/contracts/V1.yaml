@@ -1,0 +1,41 @@
+id: V1
+name: deterministic-runtime
+purpose: >
+  같은 시드와 입력이면 항상 같은 사건 순서와 상태 해시가 나오게 한다.
+
+inputs: [Seed, Tick]
+outputs: [TickClock, SeededRandom, DeterministicId, stableSort, stateHash]
+
+writes:                         # V1 은 세계 상태를 쓰지 않는다 — 시간·난수·식별자·순서·해시만 제공한다.
+  - Seed
+  - Tick
+  - StateHash
+
+depends: []                     # 모든 것의 전제. 선행 모듈 없음.
+
+subtasks:
+  - id: V1-a
+    name: monorepo-scaffold
+    purpose: app/ 모노레포와 core 패키지를 만들어 V1 을 담을 자리를 연다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - v1-same-seed-100            # 정상: 같은 시드 100회 → 사건 순서·상태 해시 동일
+  - v1-seed-drift-detected      # 실패: 시드 한 글자 차이 → 해시 상이 + 최초 분기 사건 지목
+  - v1-boundary                 # 경계: 틱 0·주체 0·시드 0 vs "0"·빈 배열 연산
+
+elements:
+  - name: Seed
+    ontology: State
+    renderer: diff
+  - name: Tick
+    ontology: State
+    renderer: diff
+  - name: StateHash
+    ontology: State
+    renderer: diff
+
+lab: /lab/v1                    # V3 미구현 — 현재는 packages/core/verify/v1.ts 가 같은 7요소를 출력한다.
+
+status: VERIFIED
+evidence: evidence/V1.json
