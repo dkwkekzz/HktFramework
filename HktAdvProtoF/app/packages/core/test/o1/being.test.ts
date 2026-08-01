@@ -12,6 +12,7 @@ import {
   isOntic,
   isState,
   isSubject,
+  isOntologyComplete,
   kindOf,
   ONTOLOGY_KINDS,
   STATE_DOMAINS,
@@ -63,15 +64,9 @@ describe('존재론 골격', () => {
     assert.equal(new Set(ONTOLOGY_KINDS).size, 12);
   });
 
-  test('아직 필드가 없는 이름표는 미구현으로 드러난다', () => {
-    const implemented = implementedKinds();
-    assert.deepEqual(
-      [...implemented],
-      ['Subject', 'Entity', 'State', 'Rule', 'Phenomenon', 'Claim', 'Commitment', 'Affordance', 'Event'],
-    );
-    assert.deepEqual(reasons({ kind: 'Dependency', id: deterministicId('dependency', 'x') }), [
-      'kind-not-implemented $.kind',
-    ]);
+  test('12타입 모두 필드까지 정의됐다 — 이름표만 남은 칸이 없다', () => {
+    assert.deepEqual([...implementedKinds()], [...ONTOLOGY_KINDS]);
+    assert.ok(isOntologyComplete());
   });
 
   test('존재론 원소는 직렬화 가능해야 한다', () => {

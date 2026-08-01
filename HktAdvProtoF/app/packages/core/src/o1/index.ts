@@ -19,6 +19,12 @@ import {
   type Commitment,
 } from './relation.ts';
 import {
+  demandCheckers,
+  type Dependency,
+  type Possibility,
+  type WorldRequirement,
+} from './demand.ts';
+import {
   ONTOLOGY_KINDS,
   isOntologyKind,
   type ClassifyResult,
@@ -32,6 +38,7 @@ export * from './check.ts';
 export * from './being.ts';
 export * from './operation.ts';
 export * from './relation.ts';
+export * from './demand.ts';
 
 /** 존재론 원소 — 지금까지 정의된 타입들의 합. 묶음이 붙을 때마다 넓어진다. */
 export type OnticNode =
@@ -43,7 +50,10 @@ export type OnticNode =
   | Event
   | Claim
   | Commitment
-  | Affordance;
+  | Affordance
+  | Dependency
+  | Possibility
+  | WorldRequirement;
 
 type Checker = (fields: Readonly<Record<string, unknown>>, out: OntologyViolation[]) => void;
 
@@ -52,7 +62,13 @@ const CHECKERS: Partial<Record<OntologyKind, Checker>> = {
   ...beingCheckers,
   ...operationCheckers,
   ...relationCheckers,
+  ...demandCheckers,
 };
+
+/** 12타입이 전부 정의됐는가 — 존재론이 완결됐다는 사실을 값으로 남긴다. */
+export function isOntologyComplete(): boolean {
+  return implementedKinds().length === ONTOLOGY_KINDS.length;
+}
 
 /** 필드까지 정의된 타입 (ONTOLOGY_KINDS 순서). */
 export function implementedKinds(): readonly OntologyKind[] {

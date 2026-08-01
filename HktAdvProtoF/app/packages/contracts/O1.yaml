@@ -27,7 +27,7 @@ subtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 �
   - id: O1-d
     name: demand-triad
     purpose: 주체의 결핍과 세계에 대한 청구를 Dependency·Possibility·WorldRequirement 로 정의한다.
-    status: PLANNED
+    status: DONE
   - id: O1-e
     name: concept-coverage
     purpose: 원문 개념 중 12타입으로 환원되지 않는 것이 남으면 그 사실을 드러낸다.
