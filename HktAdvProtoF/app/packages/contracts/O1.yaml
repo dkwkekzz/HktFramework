@@ -1,0 +1,81 @@
+id: O1
+name: common-world-ontology
+purpose: >
+  원문 설계의 모든 개념을 공통 존재론 12타입 중 하나 이상으로 표현한다.
+
+inputs: [ConceptCatalog]        # 원문에서 뽑은 개념 목록 — 무엇을 덮어야 하는가
+outputs: [OntologyKind, OnticNode, ClassifyResult, CoverageReport]
+
+writes:                         # O1 은 세계를 바꾸지 않는다 — 세계를 무엇으로 적을지 정한다.
+  - OnticNode
+
+depends: [V1, V2, V0, V3, V4]   # 검증 기반 전체가 선 뒤에야 존재론을 등록할 수 있다
+
+subtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 원소 묶음별 분할
+  - id: O1-a
+    name: being-triad
+    purpose: 존재론 골격을 세우고 Subject·Entity·State 를 정의한다.
+    status: DONE
+  - id: O1-b
+    name: operation-triad
+    purpose: 세계가 굴러가는 방식을 Rule·Phenomenon·Event 로 정의한다.
+    status: PLANNED
+  - id: O1-c
+    name: relation-triad
+    purpose: 주체가 세계에 거는 것을 Claim·Commitment·Affordance 로 정의한다.
+    status: PLANNED
+  - id: O1-d
+    name: demand-triad
+    purpose: 주체의 결핍과 세계에 대한 청구를 Dependency·Possibility·WorldRequirement 로 정의한다.
+    status: PLANNED
+  - id: O1-e
+    name: concept-coverage
+    purpose: 원문 개념 중 12타입으로 환원되지 않는 것이 남으면 그 사실을 드러낸다.
+    status: PLANNED
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - o1-catalog-covered          # 정상: 원문 개념 전부가 12타입으로 분류되고 남는 타입이 없다
+  - o1-unmapped-rejected        # 실패: 타입 없는 개념·어긴 필드가 경로와 사유로 지목된다
+  - o1-boundary                 # 경계: 빈 카탈로그 · 직렬화 불가 값 · kind 없는 값 · 중복 id
+
+elements:
+  - name: Subject
+    ontology: Subject
+    renderer: diff
+  - name: Entity
+    ontology: Entity
+    renderer: diff
+  - name: State
+    ontology: State
+    renderer: diff
+  - name: Rule
+    ontology: Rule
+    renderer: diff
+  - name: Phenomenon
+    ontology: Phenomenon
+    renderer: diff
+  - name: Claim
+    ontology: Claim
+    renderer: diff
+  - name: Commitment
+    ontology: Commitment
+    renderer: diff
+  - name: Affordance
+    ontology: Affordance
+    renderer: diff
+  - name: Event
+    ontology: Event
+    renderer: diff
+  - name: Dependency
+    ontology: Dependency
+    renderer: diff
+  - name: Possibility
+    ontology: Possibility
+    renderer: diff
+  - name: WorldRequirement
+    ontology: WorldRequirement
+    renderer: diff
+
+lab: /lab/o1
+
+status: IN_PROGRESS
