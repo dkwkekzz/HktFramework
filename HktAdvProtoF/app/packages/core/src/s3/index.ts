@@ -7,3 +7,4 @@
 export * from './violation.ts';
 export * from './history.ts';
 export * from './trait.ts';
+export * from './instance.ts';

@@ -24,7 +24,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S3-c
     name: instance
     purpose: 종·문화·역할·이력·성격을 한 개체로 합치고 모든 값에 유래를 붙인다.
-    status: PLANNED
+    status: DONE
   - id: S3-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 개별 주체 카드로 S3 를 눈으로 확인한다.
