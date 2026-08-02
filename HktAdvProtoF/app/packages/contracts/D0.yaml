@@ -15,11 +15,11 @@ subtasks:                       # 원문 대조와 세계 걸림은 검사기가
   - id: D0-a
     name: kind-reconciliation
     purpose: 원문이 두 곳에 다르게 적은 의존 대상 목록(D0 11 · D1 9)을 11종으로 남김없이 해소한다.
-    status: PLANNED
+    status: DONE
   - id: D0-b
     name: kind-grounding
     purpose: 각 종의 대상이 O1 의 무엇이고 충족을 O2 어느 자리에서 읽는지 못박고, 선언한 종과 실제 대상이 어긋나면 거부한다.
-    status: PLANNED
+    status: DONE
   - id: D0-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 분류표로 D0 를 눈으로 확인한다.
@@ -37,4 +37,4 @@ elements:
 
 lab: /lab/d0                    # 분류표 (11종 × 성격 축) + 원문 대조 + 같은 원소가 갈리는 자리 + 거부 사유
 
-status: PLANNED
+status: IN_PROGRESS

@@ -13,3 +13,4 @@
 // 되풀이해야 유지되는 것으로 기대면 의례다.
 export * from './violation.ts';
 export * from './kind.ts';
+export * from './grounding.ts';
