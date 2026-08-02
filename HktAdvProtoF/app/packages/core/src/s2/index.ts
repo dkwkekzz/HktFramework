@@ -6,3 +6,4 @@
 // 역할은 무엇을 더 할 수 있고 무엇을 해서는 안 되는지(행동 가능성)를 준다.
 export * from './violation.ts';
 export * from './reading.ts';
+export * from './value.ts';

@@ -22,7 +22,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S2-b
     name: value-template
     purpose: 문화·역할이 개체에게 주는 유지 자리를 템플릿으로 정하고 개체의 ValueTarget 으로 찍어 낸다.
-    status: PLANNED
+    status: DONE
   - id: S2-c
     name: role
     purpose: 역할이 능력을 더하고(입문 의례) 막는다(금기) — 행동 가능성이 자리에서 갈린다.
