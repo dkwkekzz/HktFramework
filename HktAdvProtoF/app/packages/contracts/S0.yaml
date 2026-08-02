@@ -1,0 +1,66 @@
+id: S0
+name: common-subject-model
+purpose: >
+  사람·생물·조직·국가·신이 하나의 공통 인터페이스로 서서 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하게 한다.
+
+inputs: [SubjectSpec, SpeciesDefinition, StateSchema]   # 주체 선언 + O0 종 정의 + O2 자리
+outputs: [SubjectProfile, SubjectViolation, FiveQuestionReport]
+
+writes:                         # S0 는 값을 바꾸지 않는다 — 주체가 무엇으로 이루어지는지를 정한다.
+  - Subject
+  - Boundary
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0]
+
+subtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할
+  - id: S0-a
+    name: subject-boundary
+    purpose: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.
+    status: DONE
+  - id: S0-b
+    name: perception-profile
+    purpose: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고 감지 여부를 판정한다.
+    status: DONE
+  - id: S0-c
+    name: stake-slots
+    purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.
+    status: DONE
+  - id: S0-d
+    name: subject-profile
+    purpose: 경계·감지·의존·유지·능력을 한 주체 프로필로 합치고 종 정의와 어긋나면 거부한다.
+    status: DONE
+  - id: S0-e
+    name: five-questions
+    purpose: 모든 주체가 다섯 질문에 답할 수 있는지 응답표로 판정한다.
+    status: DONE
+  - id: S0-f
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - s0-five-kinds-answer        # 정상: 사람·생물·조직·국가·신 다섯이 다섯 질문에 전부 답한다
+  - s0-mute-subjects-rejected   # 실패: 답 못 하는 주체가 어느 질문의 어느 자리에서 왜 막히는지 나온다
+  - s0-boundary                 # 경계: 빈 경계 · 자기 참조 · 임계 감도 · 종 정의와의 어긋남
+
+elements:
+  - name: SubjectProfile
+    ontology: Subject           # O1 Subject 를 확장한다 — 필드를 빼지 않고 더한다
+    renderer: diff
+  - name: Boundary
+    ontology: Affordance        # "여기까지가 나" 는 세계가 이 주체에게 여는 범위다
+    renderer: diff
+  - name: PerceptionProfile
+    ontology: Affordance        # 현상 통로가 이 주체에게 열려 있는 정도
+    renderer: diff
+  - name: Need
+    ontology: Dependency        # 무너지지 않으려 지켜야 하는 자리
+    renderer: diff
+  - name: ValueTarget
+    ontology: Commitment        # 주체가 스스로에게 건 방향 — 무너지지는 않지만 밀고 간다
+    renderer: diff
+
+lab: /lab/s0                    # 주체 5종 카드 + 5질문 응답표 + 거부 사유
+
+status: VERIFIED
+evidence: evidence/S0.json

@@ -1,19 +1,19 @@
 {
-  "module": "V1-deterministic-runtime",
-  "sourceHash": "14eda5511a48675c",
+  "module": "S0-common-subject-model",
+  "sourceHash": "b9043599f716b3da",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "bfc6afce291d17c6",
+  "replayHash": "9dfb7aa7850ff2d5",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v1.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "V1",
+      "module": "S0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v1-same-seed-100": "passed",
-        "v1-seed-drift-detected": "passed",
-        "v1-boundary": "passed"
+        "s0-five-kinds-answer": "passed",
+        "s0-mute-subjects-rejected": "passed",
+        "s0-boundary": "passed"
       }
     }
   }

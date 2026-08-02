@@ -10,6 +10,7 @@ import { v4Page } from './v4.ts';
 import { o0Page } from './o0.ts';
 import { o1Page } from './o1.ts';
 import { o2Page } from './o2.ts';
+import { s0Page } from './s0.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -28,6 +29,7 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/o0', id: 'O0', title: '세계관 공리', render: o0Page },
   { route: '/o1', id: 'O1', title: '공통 세계 존재론', render: o1Page },
   { route: '/o2', id: 'O2', title: '상태 스키마', render: o2Page },
+  { route: '/s0', id: 'S0', title: '공통 주체 모델', render: s0Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */

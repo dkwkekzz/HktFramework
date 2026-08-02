@@ -9,7 +9,8 @@
     "./v1": "./src/v1/index.ts",
     "./o1": "./src/o1/index.ts",
     "./o2": "./src/o2/index.ts",
-    "./o0": "./src/o0/index.ts"
+    "./o0": "./src/o0/index.ts",
+    "./s0": "./src/s0/index.ts"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\""
