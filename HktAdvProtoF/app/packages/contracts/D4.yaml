@@ -1,0 +1,48 @@
+id: D4
+name: dependency-pressure
+purpose: >
+  지금 세계에서 각 의존이 얼마나 채워졌는지 재어 압력을 계산하고 충족 5단계를 판정한다.
+
+inputs: [DependencyGraph, WorldSnapshot, PressureContext]
+outputs: [PressureReport, DeficitReading, EdgePressure, PressureViolation]
+
+writes: []                      # D4 는 세계를 읽기만 한다 — 상태를 바꾸는 것은 R1 사건의 몫이다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3]
+
+subtasks:                       # 세계 모으기·결핍·압력·게이지는 검사기가 다르다 → WORKFLOW §3
+  - id: D4-a
+    name: world-snapshot
+    purpose: 개체가 지고 온 값과 세계의 자리를 O2 트리 하나로 모아 지금의 세계를 세운다.
+    status: DONE
+  - id: D4-b
+    name: deficit-reading
+    purpose: 노드의 조건과 세계의 실제 값을 대어 결핍을 0~1 로 읽는다.
+    status: DONE
+  - id: D4-c
+    name: pressure-formula
+    purpose: 원문 식(Strength × Deficit × Urgency × FailureRisk)으로 압력을 내고 5단계를 판정한다.
+    status: DONE
+  - id: D4-d
+    name: gauge-renderer
+    purpose: 공용 게이지·추이 렌더러를 세운다 — 5단계 색과 압력 막대 (WORKFLOW §6-2).
+    status: DONE
+  - id: D4-e
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 으로 압력이 오르는 것을 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - d4-hunger-rises             # 정상: 재고가 줄면 압력이 단조 증가하고 5단계가 차례로 오른다
+  - d4-broken-readings-rejected # 실패: 어긴 상태·미래의 결핍·없는 노드가 거부된다
+  - d4-boundary                 # 경계: 충족이면 압력 0 · 결핍의 양끝 · 시한이 1틱인 무너짐
+
+elements:
+  - name: Pressure
+    ontology: Dependency        # 압력은 의존이 지금 지고 있는 값이다
+    renderer: gauge
+
+lab: /lab/d4                    # 압력 게이지 + 5단계 그래프 + 재고 감소 추이 + 거부 사유
+
+status: VERIFIED
+evidence: evidence/D4.json

@@ -48,7 +48,7 @@
 | D1 | 의존 노드·간선 스키마를 확정한다 | `DependencyKind`, `KindGrounding`, `StateSchema`, `Band` → `DependencyNode{kind, target, condition}`, `DependencyEdge{relation, strength, urgency, substitutability, failureDelayTicks, failureEffects}`, `DependencyGraph`, `GraphViolation` | `DependencyGraph` | 그래프(노드=kind 색, 간선=relation) |
 | D2 | 종 원형에서 그 종의 모든 개체가 물려받는 기본 의존 그래프를 찍어 내고, 생존·번식 경로가 끊기지 않게 한다 | `SpeciesArchetype + SpeciesBlueprint`(뿌리 선언 · 대 잇는 자리 · 채움 갈래) `+ GraphBirth` → 종 기본 `DependencyGraph` + `BlueprintReport`(뿌리별 무단절 판정) + `SpeciesGraphViolation` | `DependencyGraph`, `PathVerdict` | 그래프(종별 기본 그래프 · 끊긴 뿌리 적색) + 게이지(무단절 판정표) |
 | D3 | 개인·문화·능력이 기본 의존성을 변형하게 하되 의존이 사라지지 않고 전환되게 한다 | `SubjectInstance + 기본 DependencyGraph + VariationSpec[]`(유래 + 더함·약화·끊음) `+ Definition[]`(능력의 대가) → 개인 `DependencyGraph` + `PersonalReport`(전환 장부·다시 읽은 뿌리) + `GraphDiff` + `PersonalViolation` | `DependencyGraph` diff, `ConversionEntry` | 그래프 diff(더함=녹 / 끊김=적 / 흔들림=노랑) |
-| D4 | 현재 세계에서 각 의존의 압력을 계산해 5단계 충족을 판정한다 | `DependencyGraph + WorldStateSnapshot` → `PressureReport`(노드별 `Pressure = Strength×Deficit×Urgency×FailureRisk` + 충족/불안정/결핍/위기/붕괴) | `pressure`, `fulfillment` | 게이지(노드 색=5단계, 막대=압력 추이) |
+| D4 | 지금 세계에서 각 의존이 얼마나 채워졌는지 재어 압력을 계산하고 5단계 충족을 판정한다 | `DependencyGraph + WorldSnapshot`(O2 트리 + 틱) `+ PressureContext`(결핍이 시작된 시각) → `PressureReport`(간선별 `Pressure = Strength×Deficit×Urgency×FailureRisk` · 노드별 5단계 · `DeficitReading` · 추이) + `PressureViolation` | `WorldSnapshot`, `pressure`, `fulfillment` | 게이지(노드 색=5단계, 막대=압력 추이) |
 | D5 | 주체 내부·주체 간 의존 충돌을 찾는다 (단계 3 착수) | 다주체 `DependencyGraph[] + PressureReport[]` → `DependencyConflict[]`(경합 자원·대상·공간) | `DependencyConflict` | 그래프(주체↔경합 대상 이분 그래프) |
 
 ## P 계층 — 가능성 그래프 `core/`

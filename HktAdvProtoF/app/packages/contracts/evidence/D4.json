@@ -1,19 +1,19 @@
 {
-  "module": "S0-common-subject-model",
-  "sourceHash": "b9043599f716b3da",
+  "module": "D4-dependency-pressure",
+  "sourceHash": "fe34332d8012ffd9",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "7de04928723c8185",
+  "replayHash": "c57478d58aa4a46a",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "S0",
+      "module": "D4",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "s0-five-kinds-answer": "passed",
-        "s0-mute-subjects-rejected": "passed",
-        "s0-boundary": "passed"
+        "d4-hunger-rises": "passed",
+        "d4-broken-readings-rejected": "passed",
+        "d4-boundary": "passed"
       }
     }
   }
