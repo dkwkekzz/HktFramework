@@ -55,7 +55,7 @@
 
 | 모듈 | 목적 | 입력 → 출력 | 상태 원소 | 시각화 |
 |---|---|---|---|---|
-| P0 | 가능성을 구성하는 최소 행동 16원자를 정의한다 | — → `ActionAtom` 16종(찾다·획득·생산·교환·빼앗다·보호·제거·은폐·조사·설득·협박·동맹·배신·적응·대체·탈피) | `ActionAtom` | diff(원자 목록표) |
+| P0 | 가능성을 구성하는 최소 행동 16원자를 정의하고, 각 원자가 무엇을 바꾸고 무엇을 치르는지 못박는다 | 원문 P0 16 · P1 방향 7 · P2 예시 15, `StateSchema`, `DependencyKind`, `Affordance` → `ActionAtom` 16종(찾다·획득·생산·교환·빼앗다·보호·제거·은폐·조사·설득·협박·동맹·배신·적응·대체·탈피) + `ActionAtomSpec`, `AtomResolution`, `AtomGrounding`(손대는 곳·동의·의존에 대한 태도·읽기/바꾸기/치르기 자리·관측), `ActionProposal`, `ActionFit`, `ActionAtomViolation` | `ActionAtom` | diff(원자 16표 + 원문 환원표 + 결핍 앞의 길) |
 | P1 | 결핍된 의존마다 대응 방향 7종을 전개한다 | 결핍 `DependencyNode` → `StrategyDirection[]`(충족·대체·감소·생산·위임·경쟁 제거·의존 제거) | `StrategyDirection` | 그래프(결핍 → 대응 트리) |
 | P2 | 같은 의존에 주체 유형별 다른 대응이 나오게 한다 | `SpeciesArchetype/CultureArchetype/RoleArchetype` → `PossibilityGrammar`(허용 원자·전략 집합) | `PossibilityGrammar` | diff(주체 유형별 문법 비교표) |
 | P3 | 전체가 아닌 현재 관련된 가능성만 지연 확장한다 | `결핍 + Percept[] + Memory + Relationship + Capability` → 활성 `PossibilitySubgraph` | `PossibilitySubgraph` | 그래프(전체 회색, 활성 부분 발광) |
