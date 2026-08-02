@@ -37,8 +37,8 @@
 |---|---|---|---|---|
 | S0 | 사람·생물·조직·국가·신이 공통 인터페이스를 가지게 한다 | — → `Subject` 인터페이스 + 5질문 검사기(감지·의존·능력·기억·유지) | `Subject` (id, boundaries, needs, values, capabilities, perceptionProfile, …GraphId) | diff(주체 카드 — 5질문 응답표) |
 | S1 | 종의 신체·감각·생애·기본 의존성을 정의한다 | `SpeciesSpec`, `SpeciesDefinition`, `StateSchema` → `SpeciesArchetype`, `SpeciesViolation`, `SpeciesSeed` | `SpeciesArchetype` (= O0 종 정의 + `BodyPlan`, `SenseSpec`, `LifeStage`, `NeedTemplate`, capabilities) | diff(종 카드 — 같은 종 단계별 대조) |
-| S2 | 같은 종이라도 문화·역할별로 다른 해석·행동 가능성을 준다 | `CultureSpec`, `RoleSpec` → `CultureArchetype`, `RoleArchetype` | `CultureArchetype`, `RoleArchetype` | diff(문화·역할 카드 비교) |
-| S3 | 종+문화+역할+이력+성격으로 개별 주체를 생성한다 | `SpeciesArchetype + CultureArchetype + Role + PastEvent[] + Trait[]` → `SubjectInstance` | `SubjectInstance` | diff(개별 주체 카드 — 합성 근거 표시) |
+| S2 | 같은 종이라도 문화·역할별로 다른 해석·행동 가능성을 준다 | `CultureSpec`, `RoleSpec`, `SpeciesArchetype`, `SpeciesSeed` → `CultureArchetype`, `RoleArchetype`, `CultureViolation`, `SubjectSeed` | `CultureArchetype` (= O1 Rule + `ReadingRule`, `ValueTemplate`, taboos, roles), `RoleArchetype` (grants·taboos·읽기·원함) | diff(문화·역할 카드 비교 — 같은 종 문화별 대조) |
+| S3 | 종+문화+역할+이력+성격으로 개별 주체를 생성한다 | `SpeciesArchetype + CultureArchetype + RoleArchetype + PastEvent[] + Trait[]` → `SubjectInstance`, `Provenance`, `InstanceViolation` | `SubjectInstance` (= S0 주체 + `PastEvent`, `Residue`, `Trait`, `Provenance`) | diff(개별 주체 카드 — 값마다 유래 배지) |
 
 ## D 계층 — 주체 의존 그래프 `core/`
 

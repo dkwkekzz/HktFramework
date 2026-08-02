@@ -12,6 +12,8 @@ import { o1Page } from './o1.ts';
 import { o2Page } from './o2.ts';
 import { s0Page } from './s0.ts';
 import { s1Page } from './s1.ts';
+import { s2Page } from './s2.ts';
+import { s3Page } from './s3.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -32,6 +34,8 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/o2', id: 'O2', title: '상태 스키마', render: o2Page },
   { route: '/s0', id: 'S0', title: '공통 주체 모델', render: s0Page },
   { route: '/s1', id: 'S1', title: '종 원형', render: s1Page },
+  { route: '/s2', id: 'S2', title: '문화·역할 원형', render: s2Page },
+  { route: '/s3', id: 'S3', title: '개별 주체 생성', render: s3Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */

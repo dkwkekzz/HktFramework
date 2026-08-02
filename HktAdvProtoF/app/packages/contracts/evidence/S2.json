@@ -1,19 +1,19 @@
 {
-  "module": "O1-common-world-ontology",
-  "sourceHash": "175b575d768a599c",
+  "module": "S2-culture-role-archetype",
+  "sourceHash": "f72fd20e472597ba",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "1e00b51bdc7aea2e",
+  "replayHash": "7b1565b821c6e79d",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "O1",
+      "module": "S2",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "o1-catalog-covered": "passed",
-        "o1-unmapped-rejected": "passed",
-        "o1-boundary": "passed"
+        "s2-same-species-diverges": "passed",
+        "s2-broken-cultures-rejected": "passed",
+        "s2-boundary": "passed"
       }
     }
   }
