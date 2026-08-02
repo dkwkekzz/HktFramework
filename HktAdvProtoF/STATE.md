@@ -84,8 +84,16 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 S0·S1·S2 가 닫혔다. 대표 장면은 "배고픈 인간 1 + 음식 1 (아직 행동 없음)" 이고, 남은 것은 S3 · D0~D4 다.
 (`node packages/scenarios/verify/v0.ts` 의 "착수 가능" 목록이 다음에 할 일을 계산해 준다.)
 
-### [S3] 개별 주체 생성
-- 카드 상세는 착수 시 MODULES.md S3 행으로부터 작성 (WORKFLOW §2 여섯 필드).
+### [S3] 개별 주체 생성 — 착수 (계약: [S3.yaml](app/packages/contracts/S3.yaml))
+- 목적: 종·문화·역할 위에 이력과 성격을 얹어 개별 주체를 낳고, 그 주체의 모든 값이 어디서 왔는지를 댈 수 있게 한다.
+- 입력: S1 `SpeciesArchetype`, S2 `CultureArchetype`·`RoleArchetype`, `PastEvent[]`, `Trait[]`
+- 출력: `SubjectInstance`, `Provenance`, `InstanceViolation`
+- 검증 장면: 같은 사냥 문화·같은 몰이꾼 자리에 선 둘에게 서로 다른 과거(하나는 마을에 빚을 졌고
+  하나는 협곡에서 동료를 잃었다)와 성격을 주면, 같은 원함이 서로 다른 세기로 서고 카드의 모든 값이
+  종/문화/자리/이력/성격 중 하나를 유래로 댄다.
+- 상태 원소: `SubjectInstance`(Subject) · `PastEvent`(Event) · `Residue`(State) · `Trait`(Rule)
+- 시각화: diff — 개별 주체 카드(값마다 유래 배지) + 같은 문화 두 개체 대조 + 거부 사유 (`/lab/s3`)
+- 하위 작업: S3-a 과거 사건 · S3-b 성격 · S3-c 개체 조립 · S3-d 눈 검증
 - S2 가 남긴 입력: 개체가 손으로 적을 것은 이제 **이름표와 경계뿐**이다. 감각·의존은 종에서
   (`SpeciesSeed`), 읽기·원함·능력은 문화·역할에서 (`SubjectSeed`) 온다. S3 는 그 위에
   원문 S3 의 남은 둘을 얹는다 — **과거 사건**과 **개인 성격**.
