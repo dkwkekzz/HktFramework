@@ -5,3 +5,4 @@
 // 원래 그것은 **종이 정하는 것**이다. S1 이 그 자리를 가져와서, 개체는 종에서 물려받는다.
 export * from './violation.ts';
 export * from './body.ts';
+export * from './senses.ts';
