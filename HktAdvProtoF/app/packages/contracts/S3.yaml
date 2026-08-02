@@ -20,7 +20,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S3-b
     name: trait
     purpose: 성격이 이미 있는 값을 흔들 뿐 새 자리를 만들지 못하게 한다.
-    status: PLANNED
+    status: DONE
   - id: S3-c
     name: instance
     purpose: 종·문화·역할·이력·성격을 한 개체로 합치고 모든 값에 유래를 붙인다.

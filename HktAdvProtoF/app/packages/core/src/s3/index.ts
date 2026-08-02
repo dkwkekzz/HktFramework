@@ -6,3 +6,4 @@
 // 과거는 지금의 자리에 값을 남겨야 하고, 성격은 이미 있는 값을 흔들 뿐이다.
 export * from './violation.ts';
 export * from './history.ts';
+export * from './trait.ts';
