@@ -2,11 +2,35 @@
 
 import type { VNode } from './vnode.ts';
 
-function create(node: VNode, doc: Document): Node {
+const SVG_NS = 'http://www.w3.org/2000/svg';
+
+/** SVG 안에서만 뜻이 있는 태그들 — 그래프 뷰(D1-d)가 쓴다. */
+const SVG_TAGS = new Set([
+  'svg',
+  'g',
+  'rect',
+  'circle',
+  'line',
+  'path',
+  'text',
+  'defs',
+  'marker',
+  'polygon',
+  'title',
+]);
+
+function create(node: VNode, doc: Document, svg = false): Node {
   if (typeof node === 'string') return doc.createTextNode(node);
-  const element = doc.createElement(node.tag);
+  const inSvg = svg || node.tag === 'svg';
+  // SVG 원소는 네임스페이스가 달라야 그려진다 — createElement 로 만들면 화면에 아무것도 안 나온다.
+  const element =
+    inSvg && SVG_TAGS.has(node.tag)
+      ? doc.createElementNS(SVG_NS, node.tag)
+      : doc.createElement(node.tag);
   for (const [key, value] of Object.entries(node.attrs ?? {})) element.setAttribute(key, value);
-  for (const child of node.children ?? []) element.appendChild(create(child, doc));
+  for (const child of node.children ?? []) {
+    element.appendChild(create(child, doc, inSvg && SVG_TAGS.has(node.tag)));
+  }
   return element;
 }
 
