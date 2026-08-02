@@ -11,3 +11,4 @@ export * from './s3/index.ts';
 export * from './d0/index.ts';
 export * from './d1/index.ts';
 export * from './d2/index.ts';
+export * from './d3/index.ts';

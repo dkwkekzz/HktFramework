@@ -272,26 +272,67 @@ export function graphVerdict(report: GraphReport): string {
   return reasons.join(' · ');
 }
 
+/**
+ * 수치만 달라진 간선 하나 — 더함도 빠짐도 아닌 세 번째 갈림.
+ * 같은 두 노드가 같은 관계로 이어져 있는데 강도·급함·시한만 흔들린 경우다 (D3 개인 변형).
+ */
+export interface EdgeChange {
+  readonly id: Id;
+  /** [전, 후] — 흔들리지 않았으면 null */
+  readonly strength: readonly [number, number] | null;
+  readonly urgency: readonly [number, number] | null;
+  readonly failureDelayTicks: readonly [number, number] | null;
+}
+
 /** 두 그래프의 차이 — D3 가 개인 변형을 보일 때 쓴다. */
 export interface GraphDiff {
   readonly addedNodes: readonly Id[];
   readonly removedNodes: readonly Id[];
   readonly addedEdges: readonly Id[];
   readonly removedEdges: readonly Id[];
+  /** 양쪽에 다 있으나 수치가 흔들린 간선 */
+  readonly changedEdges: readonly EdgeChange[];
   readonly same: boolean;
 }
 
-/** 기본 그래프 대비 무엇이 더해지고 빠졌는가. */
+/** 두 수가 다르면 [전, 후], 같으면 null. */
+function moved(before: number, after: number): readonly [number, number] | null {
+  return before === after ? null : [before, after];
+}
+
+/** 기본 그래프 대비 무엇이 더해지고 빠지고 흔들렸는가. */
 export function diffGraphs(base: DependencyGraph, next: DependencyGraph): GraphDiff {
   const baseNodes = base.nodes.map((node) => node.id);
   const nextNodes = next.nodes.map((node) => node.id);
   const baseEdges = base.edges.map((edge) => edge.id);
   const nextEdges = next.edges.map((edge) => edge.id);
+
+  const changedEdges: EdgeChange[] = [];
+  for (const edge of base.edges) {
+    const after = next.edges.find((entry) => entry.id === edge.id);
+    if (after === undefined) continue;
+    const change: EdgeChange = {
+      id: edge.id,
+      strength: moved(edge.strength, after.strength),
+      urgency: moved(edge.urgency, after.urgency),
+      failureDelayTicks: moved(edge.failureDelayTicks, after.failureDelayTicks),
+    };
+    if (
+      change.strength === null &&
+      change.urgency === null &&
+      change.failureDelayTicks === null
+    ) {
+      continue;
+    }
+    changedEdges.push(change);
+  }
+
   return {
     addedNodes: nextNodes.filter((id) => !baseNodes.includes(id)),
     removedNodes: baseNodes.filter((id) => !nextNodes.includes(id)),
     addedEdges: nextEdges.filter((id) => !baseEdges.includes(id)),
     removedEdges: baseEdges.filter((id) => !nextEdges.includes(id)),
+    changedEdges,
     same: graphHash(base) === graphHash(next),
   };
 }
