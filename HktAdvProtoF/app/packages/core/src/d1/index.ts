@@ -15,3 +15,4 @@
 export * from './violation.ts';
 export * from './node.ts';
 export * from './edge.ts';
+export * from './graph.ts';
