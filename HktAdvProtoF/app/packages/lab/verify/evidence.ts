@@ -6,10 +6,11 @@
 //   실행: node packages/scenarios/verify/evidence.ts
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { mkdirSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { buildEvidence, formatDashboard, type Evidence } from '@hkt/contracts';
+import { readSourceText } from '@hkt/contracts/load';
 import { stateHash } from '@hkt/core/v1';
 
 import { digestSuite, runScenarios, type AnyScenario } from '@hkt/scenarios';
@@ -283,7 +284,8 @@ function runTests(packagePath: string): TestOutcome {
 
 function sourceHash(sources: readonly string[]): string {
   return stateHash(
-    sources.map((path) => ({ path, text: readFileSync(new URL(path, appRoot), 'utf8') })),
+    // 줄 끝은 readSourceText 가 LF 로 통일한다 — Windows 체크아웃에서도 같은 소스는 같은 해시다.
+    sources.map((path) => ({ path, text: readSourceText(new URL(path, appRoot)) })),
   );
 }
 

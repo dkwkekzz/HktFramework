@@ -77,6 +77,8 @@
 Windows 에서 결과를 한 번에 관찰하려면 [app/run.bat](app/run.bat) 을 더블클릭한다 — Node 확인 →
 의존성 설치 → 단위 테스트 → 타입 검사 → 눈 검증(증거 재생성) → Lab 실행(브라우저 자동 열기).
 검증 출력은 실행한 창에 남고 Lab 서버는 새 창에서 돈다 (모듈 작업이 아닌 실행 편의 도구다).
+계약·소스를 읽는 자리는 줄 끝을 LF 로 통일한다 (`readSourceText`) — Windows 의 Git 이 기본값으로
+CRLF 를 깔아도 같은 커밋은 같은 텍스트·같은 `sourceHash` 로 읽힌다.
 
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.

@@ -1,8 +1,12 @@
 // V0-a 계약 파서 단위 테스트 — 서식은 읽고, 서식 밖 문법은 줄 번호와 함께 거부한다.
 import { test, describe } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync, readdirSync } from 'node:fs';
+import { mkdtempSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { pathToFileURL } from 'node:url';
 
+import { loadContractSources, readSourceText } from '../src/load.ts';
 import { YamlParseError, parseYaml } from '../src/yaml.ts';
 
 const contractsDir = new URL('../', import.meta.url);
@@ -163,4 +167,29 @@ describe('실제 계약 파일', () => {
       assert.deepEqual(JSON.parse(JSON.stringify(contract)), contract);
     });
   }
+
+  test('로더가 계약 텍스트의 줄 끝을 LF 로 통일한다', () => {
+    for (const source of loadContractSources(contractsDir)) {
+      assert.ok(!source.text.includes('\r'), `${source.name}: 텍스트에 CR 이 남았다`);
+    }
+  });
+
+  // Windows 의 Git 은 기본값(core.autocrlf=true)으로 CRLF 를 깔아 둔다 —
+  // 같은 커밋이 OS 마다 다르게 읽히면 스냅샷 대조도 sourceHash 도 갈린다.
+  test('CRLF 로 깔린 계약도 LF 와 똑같이 읽힌다', () => {
+    const scratch = mkdtempSync(join(tmpdir(), 'hkt-crlf-'));
+    try {
+      const crlfDir = pathToFileURL(join(scratch, '/'));
+      for (const file of files) {
+        const lf = readSourceText(new URL(file, contractsDir));
+        writeFileSync(new URL(file, crlfDir), lf.replace(/\n/g, '\r\n'), 'utf8');
+      }
+      assert.deepEqual(
+        loadContractSources(crlfDir).map((source) => source.text),
+        loadContractSources(contractsDir).map((source) => source.text),
+      );
+    } finally {
+      rmSync(scratch, { recursive: true, force: true });
+    }
+  });
 });

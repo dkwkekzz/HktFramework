@@ -408,7 +408,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V0": {
     "module": "V0-module-contract-registry",
-    "sourceHash": "ed897e655dc73dfb",
+    "sourceHash": "65c0c6f7236921fa",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -428,8 +428,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 69,
-        "passed": 69
+        "total": 71,
+        "passed": 71
       },
       "scenarios": {
         "total": 3,
@@ -542,8 +542,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 72,
-        "passed": 72
+        "total": 73,
+        "passed": 73
       },
       "scenarios": {
         "total": 3,
@@ -580,8 +580,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 69,
-        "passed": 69
+        "total": 71,
+        "passed": 71
       },
       "scenarios": {
         "total": 3,

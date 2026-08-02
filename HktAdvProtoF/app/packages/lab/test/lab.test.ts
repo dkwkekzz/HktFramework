@@ -123,6 +123,12 @@ describe('데이터 스냅샷', () => {
     );
   });
 
+  test('스냅샷 텍스트는 줄 끝이 LF 다 — 체크아웃이 CRLF 여도 대조가 갈리지 않는다', () => {
+    for (const source of CONTRACT_SOURCES) {
+      assert.ok(!source.text.includes('\r'), `${source.name}: 스냅샷에 CR 이 남았다`);
+    }
+  });
+
   test('스냅샷만으로 레지스트리를 세울 수 있다 (브라우저에도 파일이 필요 없다)', () => {
     const registry = buildRegistry(CONTRACT_SOURCES);
     assert.ok(registry.modules.length > 0);
