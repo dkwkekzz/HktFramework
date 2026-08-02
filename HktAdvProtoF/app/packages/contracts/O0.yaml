@@ -47,16 +47,13 @@ elements:
     ontology: Claim             # 원문이 "이 문장은 저 공리다" 라고 건 대조 주장
     renderer: diff
   - name: Definition
-    ontology: Possibility       # 세계에 설 수 있다고 제출된 것 — 통과해야 실체가 된다
+    ontology: Rule              # 정의는 공리에서 나온 규칙이다 — 근거는 Rule.axiomId 가 이미 갖고 있다
     renderer: diff
   - name: AxiomViolation
     ontology: Claim             # 공리가 정의에 대해 내리는 판정
     renderer: diff
   - name: EnforcementPoint
     ontology: Commitment        # "이 공리는 여기서 강제된다" 는 계층 사이의 약속
-    renderer: diff
-  - name: Derivation
-    ontology: Dependency        # 정의가 공리에 거는 근거 — 끊기면 정의가 서지 못한다
     renderer: diff
 
 lab: /lab/o0                    # 원문 세 목록 대조표 + 공리별 강제 지점 + 정의 판정 데모

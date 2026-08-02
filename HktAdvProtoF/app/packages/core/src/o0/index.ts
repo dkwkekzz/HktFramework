@@ -6,3 +6,4 @@
 // 관문들이 어느 공리를 강제하고 있었는지를 되짚어 값으로 남긴다.
 
 export * from './axiom.ts';
+export * from './definition.ts';
