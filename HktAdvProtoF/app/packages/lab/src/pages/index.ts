@@ -19,6 +19,7 @@ import { d1Page } from './d1.ts';
 import { d2Page } from './d2.ts';
 import { d3Page } from './d3.ts';
 import { d4Page } from './d4.ts';
+import { p0Page } from './p0.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -46,6 +47,7 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/d2', id: 'D2', title: '종 기본 의존 그래프 생성', render: d2Page },
   { route: '/d3', id: 'D3', title: '개인·문화·능력에 의한 의존 변형', render: d3Page },
   { route: '/d4', id: 'D4', title: '의존 충족도 평가', render: d4Page },
+  { route: '/p0', id: 'P0', title: '행동 원자', render: p0Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */

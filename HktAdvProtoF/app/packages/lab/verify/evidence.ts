@@ -29,6 +29,7 @@ import { d1Scenarios } from '@hkt/scenarios/suites/d1';
 import { d2Scenarios } from '@hkt/scenarios/suites/d2';
 import { d3Scenarios } from '@hkt/scenarios/suites/d3';
 import { d4Scenarios } from '@hkt/scenarios/suites/d4';
+import { p0Scenarios } from '@hkt/scenarios/suites/p0';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -286,6 +287,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d4Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'P0',
+    name: 'P0-action-atom',
+    sources: [
+      'packages/core/src/p0/index.ts',
+      'packages/core/src/p0/violation.ts',
+      'packages/core/src/p0/atom.ts',
+      'packages/core/src/p0/grounding.ts',
+      'packages/core/src/p0/action.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: p0Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

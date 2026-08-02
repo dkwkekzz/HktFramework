@@ -38,6 +38,10 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: O2\nname: world-state-schema\npurpose: >\n  세계의 모든 상태 값을 9영역 필드 트리 하나로 표현하고, 그 트리에 없는 값을 거부한다.\n\ninputs: [DomainSpec, FieldSpec, State]      # 영역별 정의 + O1 State 원소\noutputs: [StateSchema, SchemaViolation, WorldState, StateDiffEntry]\n\nwrites:                         # O2 는 값을 바꾸지 않는다 — 값이 놓일 자리를 정한다.\n  - WorldState\n\ndepends: [V1, V2, V0, V3, V4, O1]\n\nsubtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3 분할\n  - id: O2-a\n    name: domain-reconciliation\n    purpose: 원문 두 목록이 다르게 적은 상태 영역을 대조해 9영역으로 확정한다.\n    status: DONE\n  - id: O2-b\n    name: field-spec\n    purpose: 영역 안의 각 상태 필드가 가질 수 있는 값을 스펙으로 선언하고 위반을 사유로 돌려준다.\n    status: DONE\n  - id: O2-c\n    name: world-tree\n    purpose: 상태 원소 목록을 9영역 서브트리로 조립하고 다시 원소로 분해한다.\n    status: DONE\n  - id: O2-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 상태 트리 뷰로 O2 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o2-scene-assembled          # 정상: 장면의 상태들이 9영역 트리로 서고 왕복해도 같다\n  - o2-offschema-rejected       # 실패: 스키마 밖 영역·경로·값·보유자가 각자의 사유로 거부된다\n  - o2-boundary                 # 경계: 빈 세계 · 범위 양끝 · 매개 경로 · 중복 상태\n\nelements:\n  - name: DomainSpec\n    ontology: State\n    renderer: diff\n  - name: DomainReconciliation\n    ontology: Claim             # 원문이 \"이 영역은 저 영역이다\" 라고 건 대조 주장\n    renderer: diff\n  - name: FieldSpec\n    ontology: Rule              # 어떤 값이 세계에 놓일 수 있는지를 정하는 규칙\n    renderer: diff\n  - name: WorldState\n    ontology: State\n    renderer: diff\n  - name: SchemaViolation\n    ontology: Claim             # 스키마가 값에 대해 내리는 판정\n    renderer: diff\n  - name: StateDiffEntry\n    ontology: State\n    renderer: diff\n\nlab: /lab/o2                    # 9영역 상태 트리 + 원문 필드 대조표\n\nstatus: VERIFIED\nevidence: evidence/O2.json\n"
   },
   {
+    "name": "P0.yaml",
+    "text": "id: P0\nname: action-atom\npurpose: >\n  가능성을 구성하는 최소 행동을 16원자로 확정하고, 각 원자가 무엇을 요구하고 세계의 어느 자리를\n  바꾸며 무엇을 치르는지를 못박는다.\n\ninputs: [ActionAtoms, StateSchema, DependencyKind, Affordance]\noutputs: [ActionAtomSpec, AtomResolution, AtomGrounding, ActionProposal, ActionFit, ActionAtomViolation]\n\nwrites: []                      # P0 도 세계를 바꾸지 않는다 — 무엇을 바꿀 수 있는지의 문법만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4]\n\nsubtasks:                       # 목록 확정·세계 걸림·요청 문법은 검사기가 다르다 → WORKFLOW §3\n  - id: P0-a\n    name: atom-reconciliation\n    purpose: 원문이 흩어 적은 행동(P1 방향 7 · P2 예시 15)이 16원자로 남김없이 환원되는지 대조한다.\n    status: DONE\n  - id: P0-b\n    name: atom-grounding\n    purpose: 원자마다 무엇을 읽고 어느 자리를 바꾸고 무엇을 치르는지를 O2 실재 자리로 못박고, 접히는 원자·채울 수 없는 종을 드러낸다.\n    status: DONE\n  - id: P0-c\n    name: action-grammar\n    purpose: O1 이 열어 둔 `Affordance.action` 자리를 16종으로 닫고, 원자가 열지 않은 변경·대가 없는 행동·보지 않고 하는 조작을 거부한다.\n    status: DONE\n  - id: P0-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 원자표로 P0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p0-sixteen-atoms            # 정상: 원문이 흩어 적은 행동이 16원자로 환원되고, 굶주림 하나 앞에 원자가 갈린다\n  - p0-broken-actions-rejected  # 실패: 16종 밖의 행동·대가 없는 요청·보지 않은 조작이 각자의 사유로 거부된다\n  - p0-boundary                 # 경계: 아무 원자도 채우지 못하는 종(시간·규칙) · 짝 없는 원자 · 동의 축의 양끝\n\nelements:\n  - name: ActionAtom\n    ontology: Affordance        # 원자는 O1 Affordance 의 `action` 자리를 채우는 이름표다\n    renderer: diff\n\nlab: /lab/p0                    # 원자 16표(축·자리·대가) + 원문 환원 대조 + 굶주림 앞의 열여섯 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/P0.json\n"
+  },
+  {
     "name": "S0.yaml",
     "text": "id: S0\nname: common-subject-model\npurpose: >\n  사람·생물·조직·국가·신이 하나의 공통 인터페이스로 서서 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하게 한다.\n\ninputs: [SubjectSpec, SpeciesDefinition, StateSchema]   # 주체 선언 + O0 종 정의 + O2 자리\noutputs: [SubjectProfile, SubjectViolation, FiveQuestionReport]\n\nwrites:                         # S0 는 값을 바꾸지 않는다 — 주체가 무엇으로 이루어지는지를 정한다.\n  - Subject\n  - Boundary\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0]\n\nsubtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S0-a\n    name: subject-boundary\n    purpose: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.\n    status: DONE\n  - id: S0-b\n    name: perception-profile\n    purpose: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고 감지 여부를 판정한다.\n    status: DONE\n  - id: S0-c\n    name: stake-slots\n    purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.\n    status: DONE\n  - id: S0-d\n    name: subject-profile\n    purpose: 경계·감지·의존·유지·능력을 한 주체 프로필로 합치고 종 정의와 어긋나면 거부한다.\n    status: DONE\n  - id: S0-e\n    name: five-questions\n    purpose: 모든 주체가 다섯 질문에 답할 수 있는지 응답표로 판정한다.\n    status: DONE\n  - id: S0-f\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s0-five-kinds-answer        # 정상: 사람·생물·조직·국가·신 다섯이 다섯 질문에 전부 답한다\n  - s0-mute-subjects-rejected   # 실패: 답 못 하는 주체가 어느 질문의 어느 자리에서 왜 막히는지 나온다\n  - s0-boundary                 # 경계: 빈 경계 · 자기 참조 · 임계 감도 · 종 정의와의 어긋남\n\nelements:\n  - name: SubjectProfile\n    ontology: Subject           # O1 Subject 를 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: Boundary\n    ontology: Affordance        # \"여기까지가 나\" 는 세계가 이 주체에게 여는 범위다\n    renderer: diff\n  - name: PerceptionProfile\n    ontology: Affordance        # 현상 통로가 이 주체에게 열려 있는 정도\n    renderer: diff\n  - name: Need\n    ontology: Dependency        # 무너지지 않으려 지켜야 하는 자리\n    renderer: diff\n  - name: ValueTarget\n    ontology: Commitment        # 주체가 스스로에게 건 방향 — 무너지지는 않지만 밀고 간다\n    renderer: diff\n\nlab: /lab/s0                    # 주체 5종 카드 + 5질문 응답표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S0.json\n"
   },
@@ -98,8 +102,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -136,8 +140,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -174,8 +178,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -212,8 +216,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -250,8 +254,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -288,8 +292,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -326,8 +330,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -364,8 +368,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -376,6 +380,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "o2-scene-assembled": "passed",
           "o2-offschema-rejected": "passed",
           "o2-boundary": "passed"
+        }
+      }
+    }
+  },
+  "P0": {
+    "module": "P0-action-atom",
+    "sourceHash": "12226db000d0747e",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "fd73bf3583cfb080",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "P0",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 724,
+        "passed": 724
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "p0-sixteen-atoms": "passed",
+          "p0-broken-actions-rejected": "passed",
+          "p0-boundary": "passed"
         }
       }
     }
@@ -402,8 +444,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -440,8 +482,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -478,8 +520,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -516,8 +558,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -554,8 +596,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 72,
-        "passed": 72
+        "total": 73,
+        "passed": 73
       },
       "scenarios": {
         "total": 3,
@@ -572,7 +614,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "58b310beaa28d915",
+    "sourceHash": "d7449af1e9bb7b62",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -592,8 +634,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 662,
-        "passed": 662
+        "total": 724,
+        "passed": 724
       },
       "scenarios": {
         "total": 3,
@@ -630,8 +672,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 72,
-        "passed": 72
+        "total": 75,
+        "passed": 75
       },
       "scenarios": {
         "total": 3,
@@ -648,16 +690,14 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "a3dbaf2042a1daf1",
-    "unitTests": "failed",
+    "sourceHash": "433ce985824942a7",
+    "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "b6420bfb693b165f",
-    "status": "IMPLEMENTED",
-    "blockers": [
-      "단위 테스트가 통과하지 않았다 (80/81)"
-    ],
+    "replayHash": "cbd3778e6e8a5669",
+    "status": "VERIFIED",
+    "blockers": [],
     "detail": {
       "generator": "packages/scenarios/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
@@ -670,8 +710,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 81,
-        "passed": 80
+        "total": 84,
+        "passed": 84
       },
       "scenarios": {
         "total": 3,
@@ -708,8 +748,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 72,
-        "passed": 72
+        "total": 73,
+        "passed": 73
       },
       "scenarios": {
         "total": 3,
