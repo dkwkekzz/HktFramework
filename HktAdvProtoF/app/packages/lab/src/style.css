@@ -219,6 +219,10 @@ tr.bad td:last-child {
   color: var(--bad);
 }
 
+tr.warn td:last-child {
+  color: var(--warn);
+}
+
 tr.complete td:last-child {
   color: var(--ok);
 }

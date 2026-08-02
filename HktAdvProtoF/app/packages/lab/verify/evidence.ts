@@ -17,6 +17,7 @@ import { v0Scenarios } from '@hkt/scenarios/suites/v0';
 import { v1Scenarios } from '@hkt/scenarios/suites/v1';
 import { v2Scenarios } from '@hkt/scenarios/suites/v2';
 import { v4Scenarios } from '@hkt/scenarios/suites/v4';
+import { o0Scenarios } from '@hkt/scenarios/suites/o0';
 import { o1Scenarios } from '@hkt/scenarios/suites/o1';
 import { o2Scenarios } from '@hkt/scenarios/suites/o2';
 
@@ -100,6 +101,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/lab',
     scenarios: v3Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'O0',
+    name: 'O0-worldview-axioms',
+    sources: [
+      'packages/core/src/o0/index.ts',
+      'packages/core/src/o0/axiom.ts',
+      'packages/core/src/o0/definition.ts',
+      'packages/core/src/o0/enforcement.ts',
+      'packages/core/src/o0/derivation.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: o0Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'O1',

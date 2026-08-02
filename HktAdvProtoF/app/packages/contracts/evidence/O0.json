@@ -1,27 +1,27 @@
 {
-  "module": "V2-scenario-runner",
-  "sourceHash": "e996f7877fb13e9a",
+  "module": "O0-worldview-axioms",
+  "sourceHash": "641db17aa195d6df",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "0aaaa0d5eeabf9fa",
+  "replayHash": "3fe4013391753330",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v2.ts",
-    "testPackage": "packages/scenarios",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V2",
+      "module": "O0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 45,
-      "passed": 45
+      "total": 257,
+      "passed": 257
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v2-passing-report": "passed",
-        "v2-failure-report": "passed",
-        "v2-boundary": "passed"
+        "o0-definitions-stand": "passed",
+        "o0-violations-rejected": "passed",
+        "o0-boundary": "passed"
       }
     }
   }
