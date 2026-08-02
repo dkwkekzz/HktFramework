@@ -68,7 +68,24 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 "배고픈 인간 1 + 음식 1 (아직 행동 없음)" 이다.
 
 ### [S0] 주체 공통 인터페이스
-- 카드 상세는 착수 시 MODULES.md S0 행으로부터 작성 (WORKFLOW §2 여섯 필드).
+- 목적: 사람·생물·조직·국가·신이 하나의 공통 인터페이스로 서서 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하게 한다.
+- 입력: `SubjectSpec`(O1 Subject + 경계·감지·의존·유지·능력), `SpeciesDefinition`(O0), `StateSchema`(O2)
+- 출력: `SubjectProfile` + `SubjectViolation[]` + `FiveQuestionReport`
+- 검증 장면: 주체 5종이 다섯 질문에 전부 답하고, 답 못 하는 주체는 어느 질문이 왜 비었는지와 함께 거부된다.
+- 상태 원소: `SubjectProfile`, `Boundary`, `PerceptionProfile`, `Need`, `ValueTarget`
+- 시각화: diff(주체 카드 — 5질문 응답표 + 경계·감지·의존·유지·능력)
+- 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할. 하위 작업은 아래 순서로 닫는다.
+
+#### [S0-a] 주체 경계와 그래프 자리
+- 목적: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.
+- 입력: `SubjectRef`(id·이름·주체 종류), `Boundary[]`, `SubjectGraphIds`
+- 출력: `SubjectViolation[]` (경계 미달 · 경계 대상 종류 불일치 · 손으로 지은 그래프 ID)
+- 검증 장면: 신체 없는 사람 · 구성원 없는 국가 · 앵커 없는 신 · 손으로 지은 기억 ID 가 각각의 사유로 거부된다.
+- 상태 원소: `Boundary`, `SubjectGraphIds`
+- 시각화: diff(주체 카드 — 경계 목록 + 그래프 4종 자리)
+
+#### [S0-b] 감지 프로필 · [S0-c] 의존·유지 자리 · [S0-d] 주체 골격 · [S0-e] 5질문 검사기 · [S0-f] 눈 검증
+- 카드 상세는 각 하위 작업 착수 시 작성한다 (WORKFLOW §2 여섯 필드).
 - O0 가 남긴 입력: 종은 이미 정의(`SpeciesDefinition`)로 세워졌고 공리를 지난다 —
   S0 의 `Subject` 는 그 정의에서 태어나는 개체여야 한다. 정의에 적힌 자리(slots)가
   개체의 상태 자리(O2)와 어긋나면 그것은 S0 이 잡는다.
