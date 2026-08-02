@@ -1,0 +1,11 @@
+// S1 종 원형 — 종의 신체·감각·생애·기본 의존을 한 원형으로 세운다.
+//
+// S0 은 개체가 다섯 질문에 답하는지를 봤지만, 그 답의 재료를 개체마다 손으로 적게 두었다 —
+// 사냥꾼의 눈이 300m 를 보는 것도, 서른 틱을 굶으면 무너지는 것도 그 개체 하나의 선언이었다.
+// 원래 그것은 **종이 정하는 것**이다. S1 이 그 자리를 가져와서, 개체는 종에서 물려받는다.
+export * from './violation.ts';
+export * from './body.ts';
+export * from './senses.ts';
+export * from './lifecycle.ts';
+export * from './needs.ts';
+export * from './archetype.ts';

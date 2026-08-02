@@ -22,6 +22,10 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: S0\nname: common-subject-model\npurpose: >\n  사람·생물·조직·국가·신이 하나의 공통 인터페이스로 서서 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하게 한다.\n\ninputs: [SubjectSpec, SpeciesDefinition, StateSchema]   # 주체 선언 + O0 종 정의 + O2 자리\noutputs: [SubjectProfile, SubjectViolation, FiveQuestionReport]\n\nwrites:                         # S0 는 값을 바꾸지 않는다 — 주체가 무엇으로 이루어지는지를 정한다.\n  - Subject\n  - Boundary\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0]\n\nsubtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S0-a\n    name: subject-boundary\n    purpose: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.\n    status: DONE\n  - id: S0-b\n    name: perception-profile\n    purpose: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고 감지 여부를 판정한다.\n    status: DONE\n  - id: S0-c\n    name: stake-slots\n    purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.\n    status: DONE\n  - id: S0-d\n    name: subject-profile\n    purpose: 경계·감지·의존·유지·능력을 한 주체 프로필로 합치고 종 정의와 어긋나면 거부한다.\n    status: DONE\n  - id: S0-e\n    name: five-questions\n    purpose: 모든 주체가 다섯 질문에 답할 수 있는지 응답표로 판정한다.\n    status: DONE\n  - id: S0-f\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s0-five-kinds-answer        # 정상: 사람·생물·조직·국가·신 다섯이 다섯 질문에 전부 답한다\n  - s0-mute-subjects-rejected   # 실패: 답 못 하는 주체가 어느 질문의 어느 자리에서 왜 막히는지 나온다\n  - s0-boundary                 # 경계: 빈 경계 · 자기 참조 · 임계 감도 · 종 정의와의 어긋남\n\nelements:\n  - name: SubjectProfile\n    ontology: Subject           # O1 Subject 를 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: Boundary\n    ontology: Affordance        # \"여기까지가 나\" 는 세계가 이 주체에게 여는 범위다\n    renderer: diff\n  - name: PerceptionProfile\n    ontology: Affordance        # 현상 통로가 이 주체에게 열려 있는 정도\n    renderer: diff\n  - name: Need\n    ontology: Dependency        # 무너지지 않으려 지켜야 하는 자리\n    renderer: diff\n  - name: ValueTarget\n    ontology: Commitment        # 주체가 스스로에게 건 방향 — 무너지지는 않지만 밀고 간다\n    renderer: diff\n\nlab: /lab/s0                    # 주체 5종 카드 + 5질문 응답표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S0.json\n"
   },
   {
+    "name": "S1.yaml",
+    "text": "id: S1\nname: species-archetype\npurpose: >\n  종의 신체·감각·생애·기본 의존을 한 원형으로 세우고, 개체의 감각과 붕괴 시한이 그 원형에서 나오게 한다.\n\ninputs: [SpeciesSpec, SpeciesDefinition, StateSchema]   # 종 선언 + O0 종 정의 + O2 자리\noutputs: [SpeciesArchetype, SpeciesViolation, SpeciesSeed]\n\nwrites:                         # S1 은 값을 바꾸지 않는다 — 개체가 무엇을 물려받는지를 정한다.\n  - SpeciesArchetype\n  - PerceptionProfile           # S0 이 개체마다 손으로 적던 것이 여기서 온다\n  - Need                        # 같음 — collapseAfterTicks 는 단계의 대사에서 나온다\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0]\n\nsubtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S1-a\n    name: body-plan\n    purpose: 종이 갖는 기관을 선언하고, 몸의 유무가 생물 영역 자리와 맞물리게 한다.\n    status: DONE\n  - id: S1-b\n    name: species-senses\n    purpose: 감각을 종으로 올리고, 몸을 거치는 통로는 그것을 여는 기관을 요구한다.\n    status: DONE\n  - id: S1-c\n    name: lifecycle\n    purpose: 성장 단계를 O2 growthStage 선택지로 못박고 대사에서 붕괴 시한을 파생한다.\n    status: DONE\n  - id: S1-d\n    name: base-needs\n    purpose: 종이 정하는 의존 템플릿에서 개체의 Need 를 찍어 낸다.\n    status: DONE\n  - id: S1-e\n    name: archetype\n    purpose: 넷을 한 원형으로 합치고 개체 씨앗(SpeciesSeed)을 낸다.\n    status: DONE\n  - id: S1-f\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 종 카드로 S1 을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s1-five-species-stand       # 정상: 종 다섯이 서고 그 종에서 태어난 개체가 S0 을 지난다\n  - s1-broken-species-rejected  # 실패: 설 수 없는 종 14종이 각자의 사유·경로로 거부된다\n  - s1-boundary                 # 경계: 단계의 끝 · 대사의 양끝 · 감각 배수 클램프 · 빈 목록\n\nelements:\n  - name: SpeciesArchetype\n    ontology: Rule              # O0 SpeciesDefinition 을 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: BodyPlan\n    ontology: Affordance        # 몸이 이 종에게 여는 것 — 기관이 통로를 연다\n    renderer: diff\n  - name: SenseSpec\n    ontology: Affordance        # 현상 통로가 이 종에게 열려 있는 정도\n    renderer: diff\n  - name: LifeStage\n    ontology: State             # 세계에 적히는 값 — O2 biological.growthStage · metabolism\n    renderer: diff\n  - name: NeedTemplate\n    ontology: Dependency        # 이 종이 무너지지 않으려 지켜야 하는 자리 (D2 의 씨앗)\n    renderer: diff\n\nlab: /lab/s1                    # 종 카드 5종 + 같은 종 세 단계 대조 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S1.json\n"
+  },
+  {
     "name": "V0.yaml",
     "text": "id: V0\nname: module-contract-registry\npurpose: >\n  모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.\n\ninputs: [ContractSource]\noutputs: [ModuleRegistry, ModuleContract, ContractViolation]\n\nwrites:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.\n  - ModuleContract\n  - ModuleStatus\n\ndepends: [V1, V2]               # 안정 정렬·상태 해시(V1) 로 판정하고, 검증은 V2 실행기로 한다\n\nsubtasks:\n  - id: V0-a\n    name: contract-yaml-parser\n    purpose: MODULE.yaml 서식을 읽고 서식 밖 문법을 줄 번호와 함께 거부한다.\n    status: DONE\n  - id: V0-b\n    name: registry-checker\n    purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.\n    status: DONE\n\nscenarios:\n  - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록\n  - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부\n  - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존\n\nelements:\n  - name: ModuleContract\n    ontology: Rule\n    renderer: graph\n  - name: ModuleStatus\n    ontology: State\n    renderer: graph\n\nlab: /lab/v0                    # V3 미구현 — packages/scenarios/verify/v0.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V0.json\n"
   },
@@ -66,8 +70,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 336,
-        "passed": 336
+        "total": 375,
+        "passed": 375
       },
       "scenarios": {
         "total": 3,
@@ -104,8 +108,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 336,
-        "passed": 336
+        "total": 375,
+        "passed": 375
       },
       "scenarios": {
         "total": 3,
@@ -142,8 +146,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 336,
-        "passed": 336
+        "total": 375,
+        "passed": 375
       },
       "scenarios": {
         "total": 3,
@@ -165,7 +169,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "9dfb7aa7850ff2d5",
+    "replayHash": "89f6293a038b6192",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -180,8 +184,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 336,
-        "passed": 336
+        "total": 375,
+        "passed": 375
       },
       "scenarios": {
         "total": 3,
@@ -192,6 +196,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "s0-five-kinds-answer": "passed",
           "s0-mute-subjects-rejected": "passed",
           "s0-boundary": "passed"
+        }
+      }
+    }
+  },
+  "S1": {
+    "module": "S1-species-archetype",
+    "sourceHash": "b2d5ca50633c7f90",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "c3afe456cd9c6356",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "S1",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 375,
+        "passed": 375
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "s1-five-species-stand": "passed",
+          "s1-broken-species-rejected": "passed",
+          "s1-boundary": "passed"
         }
       }
     }
@@ -218,8 +260,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 64,
-        "passed": 64
+        "total": 65,
+        "passed": 65
       },
       "scenarios": {
         "total": 3,
@@ -236,7 +278,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "14eda5511a48675c",
+    "sourceHash": "47040815d055950a",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -256,8 +298,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 336,
-        "passed": 336
+        "total": 375,
+        "passed": 375
       },
       "scenarios": {
         "total": 3,
@@ -294,8 +336,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 48,
-        "passed": 48
+        "total": 51,
+        "passed": 51
       },
       "scenarios": {
         "total": 3,
@@ -312,12 +354,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "f1062bc116e5d93d",
+    "sourceHash": "21b3a74b46d82e8f",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "455c149452839751",
+    "replayHash": "3aaac07c105f0120",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -332,8 +374,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 43,
-        "passed": 43
+        "total": 46,
+        "passed": 46
       },
       "scenarios": {
         "total": 3,
@@ -370,8 +412,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 64,
-        "passed": 64
+        "total": 65,
+        "passed": 65
       },
       "scenarios": {
         "total": 3,

@@ -1,0 +1,67 @@
+id: S1
+name: species-archetype
+purpose: >
+  종의 신체·감각·생애·기본 의존을 한 원형으로 세우고, 개체의 감각과 붕괴 시한이 그 원형에서 나오게 한다.
+
+inputs: [SpeciesSpec, SpeciesDefinition, StateSchema]   # 종 선언 + O0 종 정의 + O2 자리
+outputs: [SpeciesArchetype, SpeciesViolation, SpeciesSeed]
+
+writes:                         # S1 은 값을 바꾸지 않는다 — 개체가 무엇을 물려받는지를 정한다.
+  - SpeciesArchetype
+  - PerceptionProfile           # S0 이 개체마다 손으로 적던 것이 여기서 온다
+  - Need                        # 같음 — collapseAfterTicks 는 단계의 대사에서 나온다
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0]
+
+subtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할
+  - id: S1-a
+    name: body-plan
+    purpose: 종이 갖는 기관을 선언하고, 몸의 유무가 생물 영역 자리와 맞물리게 한다.
+    status: DONE
+  - id: S1-b
+    name: species-senses
+    purpose: 감각을 종으로 올리고, 몸을 거치는 통로는 그것을 여는 기관을 요구한다.
+    status: DONE
+  - id: S1-c
+    name: lifecycle
+    purpose: 성장 단계를 O2 growthStage 선택지로 못박고 대사에서 붕괴 시한을 파생한다.
+    status: DONE
+  - id: S1-d
+    name: base-needs
+    purpose: 종이 정하는 의존 템플릿에서 개체의 Need 를 찍어 낸다.
+    status: DONE
+  - id: S1-e
+    name: archetype
+    purpose: 넷을 한 원형으로 합치고 개체 씨앗(SpeciesSeed)을 낸다.
+    status: DONE
+  - id: S1-f
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 종 카드로 S1 을 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - s1-five-species-stand       # 정상: 종 다섯이 서고 그 종에서 태어난 개체가 S0 을 지난다
+  - s1-broken-species-rejected  # 실패: 설 수 없는 종 14종이 각자의 사유·경로로 거부된다
+  - s1-boundary                 # 경계: 단계의 끝 · 대사의 양끝 · 감각 배수 클램프 · 빈 목록
+
+elements:
+  - name: SpeciesArchetype
+    ontology: Rule              # O0 SpeciesDefinition 을 확장한다 — 필드를 빼지 않고 더한다
+    renderer: diff
+  - name: BodyPlan
+    ontology: Affordance        # 몸이 이 종에게 여는 것 — 기관이 통로를 연다
+    renderer: diff
+  - name: SenseSpec
+    ontology: Affordance        # 현상 통로가 이 종에게 열려 있는 정도
+    renderer: diff
+  - name: LifeStage
+    ontology: State             # 세계에 적히는 값 — O2 biological.growthStage · metabolism
+    renderer: diff
+  - name: NeedTemplate
+    ontology: Dependency        # 이 종이 무너지지 않으려 지켜야 하는 자리 (D2 의 씨앗)
+    renderer: diff
+
+lab: /lab/s1                    # 종 카드 5종 + 같은 종 세 단계 대조 + 거부 사유
+
+status: VERIFIED
+evidence: evidence/S1.json
