@@ -8,3 +8,4 @@ export * from './body.ts';
 export * from './senses.ts';
 export * from './lifecycle.ts';
 export * from './needs.ts';
+export * from './archetype.ts';

@@ -18,7 +18,6 @@ import {
   type SpeciesViolation,
 } from '../../src/s1/index.ts';
 
-const nestId = deterministicId('entity', 'veil', '둥지');
 const hunterId = deterministicId('subject', 'veil', '사냥꾼 04');
 const bodyId = deterministicId('entity', 'veil', '사냥꾼 04의 몸');
 
@@ -134,7 +133,7 @@ describe('S1-d 기본 의존', () => {
       ['phantom-slot'],
     );
     assert.deepEqual(
-      templateRules([{ ...hunger, slot: { domain: 'spiritual', path: 'hunger' } }]),
+      templateRules([{ ...hunger, slot: { domain: 'spiritual' as never, path: 'hunger' } }]),
       ['phantom-slot'],
     );
   });
