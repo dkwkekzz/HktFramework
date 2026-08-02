@@ -27,7 +27,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "S2.yaml",
-    "text": "id: S2\nname: culture-role-archetype\npurpose: >\n  같은 종에서 태어난 둘이 문화·역할에 따라 같은 세계를 다르게 읽고 다른 것을 원하고 다른 것을 할 수 있게 한다.\n\ninputs: [CultureSpec, RoleSpec, SpeciesArchetype, SpeciesSeed]   # 문화·역할 선언 + S1 종 원형·씨앗\noutputs: [CultureArchetype, RoleArchetype, CultureViolation, SubjectSeed]\n\nwrites:                         # S2 도 값을 바꾸지 않는다 — 개체가 종 위에 무엇을 더 얹는지를 정한다.\n  - CultureArchetype\n  - RoleArchetype\n  - ValueTarget                 # S0 이 개체마다 손으로 적던 것이 여기서 온다\n  - Claim                       # 문화의 읽기가 개체의 믿음이 된다\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1]\n\nsubtasks:                       # 상태 원소 4종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S2-a\n    name: reading\n    purpose: 문화가 같은 현상을 무엇으로 읽는지 선언하고, 종이 열지 않은 통로는 읽지 못하게 한다.\n    status: DONE\n  - id: S2-b\n    name: value-template\n    purpose: 문화·역할이 개체에게 주는 유지 자리를 템플릿으로 정하고 개체의 ValueTarget 으로 찍어 낸다.\n    status: DONE\n  - id: S2-c\n    name: role\n    purpose: 역할이 능력을 더하고(입문 의례) 막는다(금기) — 행동 가능성이 자리에서 갈린다.\n    status: DONE\n  - id: S2-d\n    name: culture-archetype\n    purpose: 읽기·원함·역할을 한 문화 원형으로 합치고 종 씨앗 위에 겹쳐 개체 씨앗을 낸다.\n    status: PLANNED\n  - id: S2-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 문화·역할 카드로 S2 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s2-same-species-diverges    # 정상: 같은 종의 둘이 문화로 갈리고 그 개체가 S0 을 지난다\n  - s2-broken-cultures-rejected # 실패: 설 수 없는 문화·역할이 각자의 사유·경로로 거부된다\n  - s2-boundary                 # 경계: 전부 금기 · 확신의 양끝 · 빈 목록 · 역할 없는 문화\n\nelements:\n  - name: CultureArchetype\n    ontology: Rule              # \"이 문화에 속한 자는 이렇게 읽고 이것을 원한다\" — 조건→효과의 서술\n    renderer: diff\n  - name: ReadingRule\n    ontology: Claim             # 문화가 낳는 믿음의 틀 — 실제와 어긋날 수 있다\n    renderer: diff\n  - name: ValueTemplate\n    ontology: Commitment        # 주체가 스스로에게 건 방향 (S0 ValueTarget 과 같은 분류)\n    renderer: diff\n  - name: RoleArchetype\n    ontology: Rule              # 문화 안의 자리 — 무엇을 열고 무엇을 막는가\n    renderer: diff\n\nlab: /lab/s2                    # 문화 카드 + 같은 종 두 문화 대조 + 거부 사유\n\nstatus: IN_PROGRESS\n"
+    "text": "id: S2\nname: culture-role-archetype\npurpose: >\n  같은 종에서 태어난 둘이 문화·역할에 따라 같은 세계를 다르게 읽고 다른 것을 원하고 다른 것을 할 수 있게 한다.\n\ninputs: [CultureSpec, RoleSpec, SpeciesArchetype, SpeciesSeed]   # 문화·역할 선언 + S1 종 원형·씨앗\noutputs: [CultureArchetype, RoleArchetype, CultureViolation, SubjectSeed]\n\nwrites:                         # S2 도 값을 바꾸지 않는다 — 개체가 종 위에 무엇을 더 얹는지를 정한다.\n  - CultureArchetype\n  - RoleArchetype\n  - ValueTarget                 # S0 이 개체마다 손으로 적던 것이 여기서 온다\n  - Claim                       # 문화의 읽기가 개체의 믿음이 된다\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1]\n\nsubtasks:                       # 상태 원소 4종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S2-a\n    name: reading\n    purpose: 문화가 같은 현상을 무엇으로 읽는지 선언하고, 종이 열지 않은 통로는 읽지 못하게 한다.\n    status: DONE\n  - id: S2-b\n    name: value-template\n    purpose: 문화·역할이 개체에게 주는 유지 자리를 템플릿으로 정하고 개체의 ValueTarget 으로 찍어 낸다.\n    status: DONE\n  - id: S2-c\n    name: role\n    purpose: 역할이 능력을 더하고(입문 의례) 막는다(금기) — 행동 가능성이 자리에서 갈린다.\n    status: DONE\n  - id: S2-d\n    name: culture-archetype\n    purpose: 읽기·원함·역할을 한 문화 원형으로 합치고 종 씨앗 위에 겹쳐 개체 씨앗을 낸다.\n    status: DONE\n  - id: S2-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 문화·역할 카드로 S2 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s2-same-species-diverges    # 정상: 같은 종의 둘이 문화로 갈리고 그 개체가 S0 을 지난다\n  - s2-broken-cultures-rejected # 실패: 설 수 없는 문화·역할이 각자의 사유·경로로 거부된다\n  - s2-boundary                 # 경계: 전부 금기 · 확신의 양끝 · 빈 목록 · 역할 없는 문화\n\nelements:\n  - name: CultureArchetype\n    ontology: Rule              # \"이 문화에 속한 자는 이렇게 읽고 이것을 원한다\" — 조건→효과의 서술\n    renderer: diff\n  - name: ReadingRule\n    ontology: Claim             # 문화가 낳는 믿음의 틀 — 실제와 어긋날 수 있다\n    renderer: diff\n  - name: ValueTemplate\n    ontology: Commitment        # 주체가 스스로에게 건 방향 (S0 ValueTarget 과 같은 분류)\n    renderer: diff\n  - name: RoleArchetype\n    ontology: Rule              # 문화 안의 자리 — 무엇을 열고 무엇을 막는가\n    renderer: diff\n\nlab: /lab/s2                    # 문화 카드 + 같은 종 두 문화 대조 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S2.json\n"
   },
   {
     "name": "V0.yaml",
@@ -74,8 +74,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -112,8 +112,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -150,8 +150,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -188,8 +188,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -226,8 +226,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -238,6 +238,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "s1-five-species-stand": "passed",
           "s1-broken-species-rejected": "passed",
           "s1-boundary": "passed"
+        }
+      }
+    }
+  },
+  "S2": {
+    "module": "S2-culture-role-archetype",
+    "sourceHash": "f72fd20e472597ba",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "7b1565b821c6e79d",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "S2",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 419,
+        "passed": 419
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "s2-same-species-diverges": "passed",
+          "s2-broken-cultures-rejected": "passed",
+          "s2-boundary": "passed"
         }
       }
     }
@@ -264,8 +302,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 65,
-        "passed": 65
+        "total": 66,
+        "passed": 66
       },
       "scenarios": {
         "total": 3,
@@ -282,7 +320,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "47040815d055950a",
+    "sourceHash": "0558fb75a5883fea",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -302,8 +340,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 375,
-        "passed": 375
+        "total": 419,
+        "passed": 419
       },
       "scenarios": {
         "total": 3,
@@ -340,8 +378,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 51,
-        "passed": 51
+        "total": 54,
+        "passed": 54
       },
       "scenarios": {
         "total": 3,
@@ -358,12 +396,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "21b3a74b46d82e8f",
+    "sourceHash": "12652627c12d43b4",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "3aaac07c105f0120",
+    "replayHash": "a14adc4f145a6bf1",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -378,8 +416,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 46,
-        "passed": 46
+        "total": 49,
+        "passed": 49
       },
       "scenarios": {
         "total": 3,
@@ -416,8 +454,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 65,
-        "passed": 65
+        "total": 66,
+        "passed": 66
       },
       "scenarios": {
         "total": 3,

@@ -34,7 +34,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S2-e
     name: eye-check
     purpose: 시나리오 3종과 Lab 문화·역할 카드로 S2 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - s2-same-species-diverges    # 정상: 같은 종의 둘이 문화로 갈리고 그 개체가 S0 을 지난다
@@ -57,4 +57,5 @@ elements:
 
 lab: /lab/s2                    # 문화 카드 + 같은 종 두 문화 대조 + 거부 사유
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/S2.json

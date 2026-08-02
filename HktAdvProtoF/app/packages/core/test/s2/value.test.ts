@@ -43,7 +43,7 @@ const huntValues: readonly ValueTemplate[] = [
   },
   {
     slot: { domain: 'economic', path: `stock.${canyonId}` },
-    holder: { of: 'entity', id: canyonId },
+    holder: { of: 'other', id: canyonId },
     band: { kind: 'range', min: 20, max: 1000 },
     weight: 0.4,
     note: '협곡 창고가 비면 겨울에 쫓을 것이 없다 — 내 것이 아닌 자리를 원한다',
@@ -189,7 +189,7 @@ describe('S2-b 가치 템플릿 — 문화가 무엇을 원할지 물려준다',
       {
         broke: '주체의 자리를 사물에게 적었다',
         expected: 'bad-value-template',
-        value: { ...good, holder: { of: 'entity', id: canyonId } },
+        value: { ...good, holder: { of: 'other', id: canyonId } },
       },
     ];
 
@@ -236,7 +236,7 @@ describe('S2-b 가치 템플릿 — 문화가 무엇을 원할지 물려준다',
     assert.equal(valueTemplateLabel(huntValues[0]!), `relational.trust.${villagersId}`);
     assert.equal(holderLabel({ of: 'self' }), '자기');
     assert.equal(holderLabel({ of: 'body' }), '몸');
-    assert.match(holderLabel({ of: 'entity', id: canyonId }), /^대상 /);
+    assert.match(holderLabel({ of: 'other', id: canyonId }), /^바깥 /);
     assert.equal(valueTemplateSummary([]), '원하는 것이 없다');
     assert.match(valueTemplateSummary(huntValues), /힘 0.7/);
   });

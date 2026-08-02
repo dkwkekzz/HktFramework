@@ -13,12 +13,12 @@
 //
 // 그리고 경계 규칙도 그대로 이어진다. Need 는 자기 안이어야 하지만 Value 는 밖이어도 된다 —
 // 오히려 밖을 원하는 데서 목적이 자란다. 그래서 템플릿의 보유자에는 셋째 칸이 있다:
-// 자기(self)·몸(body) 말고 **세계의 특정 대상**(entity). 협곡의 통행권을 원하는 문화가 여기 선다.
+// 자기(self)·몸(body) 말고 **경계 밖의 누군가·무엇**(other). 협곡의 재고를 원하는 문화가 여기 선다.
 //
 // 겹침 하나를 여기서 막는다. 종이 이미 무너지는 자리로 잡은 것을 문화가 다시 밀면, 그 자리는
 // 무너지는 자리인가 미는 자리인가를 알 수 없게 된다. 그것은 문화가 아니라 종의 것이다.
 
-import type { Id } from '../v1/id.ts';
+import { idKind, type Id } from '../v1/id.ts';
 import type { SlotRef } from '../o0/definition.ts';
 import { isStateDomain } from '../o2/domain.ts';
 import { lookupField, STATE_SCHEMA, type StateSchema } from '../o2/schema.ts';
@@ -30,7 +30,7 @@ import { violateCulture, type CultureRef, type CultureViolation } from './violat
 export type ValueHolder =
   | { readonly of: 'self' } // 자기에게 적힌다 — 확신·평판
   | { readonly of: 'body' } // 몸에 적힌다 — 체력·기력
-  | { readonly of: 'entity'; readonly id: Id }; // 세계의 특정 대상 — 협곡의 통행권
+  | { readonly of: 'other'; readonly id: Id }; // 경계 밖의 누군가·무엇 — 협곡의 재고, 어미의 숭배량
 
 /** 문화·역할이 정하는 유지 하나 — S0 ValueTarget 에서 "누구의" 를 뺀 것. */
 export interface ValueTemplate {
@@ -62,12 +62,12 @@ export function valueTemplateLabel(template: ValueTemplate): string {
 export function holderLabel(holder: ValueHolder): string {
   if (holder.of === 'self') return '자기';
   if (holder.of === 'body') return '몸';
-  return `대상 ${holder.id}`;
+  return `바깥 ${holder.id}`;
 }
 
 /** 그 자리가 개체에게서 누구에게 적히는가. 몸 없는 종의 몸 자리는 자기로 접힌다. */
 export function resolveHolder(holder: ValueHolder, where: ValuePlace): Id {
-  if (holder.of === 'entity') return holder.id;
+  if (holder.of === 'other') return holder.id;
   if (holder.of === 'body' && where.bodyId !== null) return where.bodyId;
   return where.subjectId;
 }
@@ -164,7 +164,15 @@ export function checkValueTemplates(
       );
     } else {
       // 개체가 태어나면 이 자리에 무엇이 올지는 이미 정해져 있다 — 주체이거나 사물이다.
-      const holderKind = template.holder.of === 'self' ? 'subject' : 'entity';
+      // 바깥을 가리키는 자리는 그 ID 의 종류가 곧 답이다 (subject:… 이면 주체, entity:… 이면 사물).
+      const holderKind =
+        template.holder.of === 'self'
+          ? 'subject'
+          : template.holder.of === 'body'
+            ? 'entity'
+            : idKind(template.holder.id) === 'subject'
+              ? 'subject'
+              : 'entity';
       if (match.spec.holder !== 'any' && match.spec.holder !== holderKind) {
         violateCulture(
           out,

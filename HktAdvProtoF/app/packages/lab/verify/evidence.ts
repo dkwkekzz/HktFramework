@@ -22,6 +22,7 @@ import { o1Scenarios } from '@hkt/scenarios/suites/o1';
 import { o2Scenarios } from '@hkt/scenarios/suites/o2';
 import { s0Scenarios } from '@hkt/scenarios/suites/s0';
 import { s1Scenarios } from '@hkt/scenarios/suites/s1';
+import { s2Scenarios } from '@hkt/scenarios/suites/s2';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -181,6 +182,21 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: s1Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'S2',
+    name: 'S2-culture-role-archetype',
+    sources: [
+      'packages/core/src/s2/index.ts',
+      'packages/core/src/s2/violation.ts',
+      'packages/core/src/s2/reading.ts',
+      'packages/core/src/s2/value.ts',
+      'packages/core/src/s2/role.ts',
+      'packages/core/src/s2/culture.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: s2Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',
