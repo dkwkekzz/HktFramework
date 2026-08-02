@@ -108,7 +108,15 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 - 상태 원소: `SubjectProfile` (원문 S0 인터페이스 그대로)
 - 시각화: diff(주체 카드 — 합성 근거 + 거부 사유)
 
-#### [S0-e] 5질문 검사기 · [S0-f] 눈 검증
+#### [S0-e] 5질문 검사기
+- 목적: 모든 주체가 원문 S0 의 다섯 질문에 답할 수 있는지 응답표로 판정한다.
+- 입력: `SubjectProfile[]`, `Definition[]`(O0)
+- 출력: `FiveQuestionReport`(주체별 5칸), `CommonInterfaceReport`(주체 5종 × 질문 5개 격자)
+- 검증 장면: 사람은 빛으로 · 벌레는 냄새로 · 조직과 국가는 보고로 · 신은 의념 잔향으로 감지한다 — 방법은 달라도 다섯 칸이 전부 찬다.
+- 상태 원소: `QuestionAnswer`, `FiveQuestionReport`
+- 시각화: diff(5질문 응답표 — 주체 5종 × 질문 5개 격자)
+
+#### [S0-f] 눈 검증
 - 카드 상세는 각 하위 작업 착수 시 작성한다 (WORKFLOW §2 여섯 필드).
 - O0 가 남긴 입력: 종은 이미 정의(`SpeciesDefinition`)로 세워졌고 공리를 지난다 —
   S0 의 `Subject` 는 그 정의에서 태어나는 개체여야 한다. 정의에 적힌 자리(slots)가

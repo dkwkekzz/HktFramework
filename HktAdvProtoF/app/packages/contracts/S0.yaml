@@ -32,7 +32,7 @@ subtasks:                       # 상태 원소 5종 · 검증 장면 다수 →
   - id: S0-e
     name: five-questions
     purpose: 모든 주체가 다섯 질문에 답할 수 있는지 응답표로 판정한다.
-    status: PLANNED
+    status: DONE
   - id: S0-f
     name: eye-check
     purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.
