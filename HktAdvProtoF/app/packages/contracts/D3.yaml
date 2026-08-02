@@ -1,0 +1,48 @@
+id: D3
+name: personal-dependency-variation
+purpose: >
+  종이 물려준 기본 의존 그래프를 개인·문화·능력이 변형하게 하되, 의존이 사라지지 않고 다른 의존으로 전환되게 한다.
+
+inputs: [SubjectInstance, DependencyGraph, VariationSpec, Definition]
+outputs: [DependencyGraph, PersonalReport, GraphDiff, PersonalViolation]
+
+writes: []                      # D3 도 세계를 바꾸지 않는다 — 한 개체의 그래프 모양만 갈라 놓는다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2]
+
+subtasks:                       # 개인화·변형 문법·전환 검사는 검사기가 다르다 → WORKFLOW §3
+  - id: D3-a
+    name: personalize-roots
+    purpose: 종의 그래프를 개체의 자리에 세우고, 뿌리 간선의 급함·시한을 개체의 실제 Need 에서 다시 읽는다.
+    status: DONE
+  - id: D3-b
+    name: variation-grammar
+    purpose: 변형을 더함·약화·끊음 셋으로만 적게 하고, 유래를 대지 못하는 변형을 거부한다.
+    status: DONE
+  - id: D3-c
+    name: conversion-check
+    purpose: 줄인 만큼 다른 의존이 서는지 본다 — 원문 D3 검증 조항(제거가 아닌 전환).
+    status: DONE
+  - id: D3-d
+    name: graph-diff-view
+    purpose: 공용 그래프 뷰에 더함=녹·끊김=적·바뀜=노랑을 더한다 (WORKFLOW §6-2).
+    status: DONE
+  - id: D3-e
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 으로 같은 종 넷이 갈라지는 것을 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - d3-personal-graphs          # 정상: 같은 기본 그래프에서 넷이 갈리고, 사제의 식량 의존이 의념으로 전환된다
+  - d3-broken-variations-rejected # 실패: 공짜 전환·가벼운 전환·대가 없는 전환·유래 없는 변형이 거부된다
+  - d3-boundary                 # 경계: 변형 0개 · 약화의 양끝 · 뿌리를 잃는 변형
+
+elements:
+  - name: DependencyGraph
+    ontology: Dependency        # 변형된 노드도 여전히 O1 Dependency 다
+    renderer: graph
+
+lab: /lab/d3                    # 기본 대비 개인 그래프 diff(녹·적·노랑) + 전환 장부 + 거부 사유
+
+status: VERIFIED
+evidence: evidence/D3.json

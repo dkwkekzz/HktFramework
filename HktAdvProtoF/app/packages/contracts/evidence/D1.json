@@ -1,6 +1,6 @@
 {
   "module": "D1-dependency-graph-schema",
-  "sourceHash": "8e558383f2c4c95c",
+  "sourceHash": "ac64a714cde9810b",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 602,
-      "passed": 602
+      "total": 634,
+      "passed": 634
     },
     "scenarios": {
       "total": 3,

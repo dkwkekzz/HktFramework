@@ -1,19 +1,19 @@
 {
-  "module": "S2-culture-role-archetype",
-  "sourceHash": "f72fd20e472597ba",
+  "module": "D3-personal-dependency-variation",
+  "sourceHash": "e48a868569e68aa8",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "6ed19db035a0431e",
+  "replayHash": "785391fe559e73ea",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "S2",
+      "module": "D3",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "s2-same-species-diverges": "passed",
-        "s2-broken-cultures-rejected": "passed",
-        "s2-boundary": "passed"
+        "d3-personal-graphs": "passed",
+        "d3-broken-variations-rejected": "passed",
+        "d3-boundary": "passed"
       }
     }
   }

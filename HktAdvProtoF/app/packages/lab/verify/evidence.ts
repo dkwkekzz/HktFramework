@@ -27,6 +27,7 @@ import { s3Scenarios } from '@hkt/scenarios/suites/s3';
 import { d0Scenarios } from '@hkt/scenarios/suites/d0';
 import { d1Scenarios } from '@hkt/scenarios/suites/d1';
 import { d2Scenarios } from '@hkt/scenarios/suites/d2';
+import { d3Scenarios } from '@hkt/scenarios/suites/d3';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -256,6 +257,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d2Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D3',
+    name: 'D3-personal-dependency-variation',
+    sources: [
+      'packages/core/src/d3/index.ts',
+      'packages/core/src/d3/violation.ts',
+      'packages/core/src/d3/personal.ts',
+      'packages/core/src/d3/variation.ts',
+      'packages/core/src/d3/transform.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d3Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',
