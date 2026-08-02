@@ -23,7 +23,7 @@ subtasks:                       # 원문 대조와 세계 걸림은 검사기가
   - id: D0-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 분류표로 D0 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - d0-one-rule-three-kinds     # 정상: 같은 원소가 기대는 방식에 따라 여러 종으로 서고, 11종이 9영역을 덮는다
@@ -37,4 +37,5 @@ elements:
 
 lab: /lab/d0                    # 분류표 (11종 × 성격 축) + 원문 대조 + 같은 원소가 갈리는 자리 + 거부 사유
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/D0.json

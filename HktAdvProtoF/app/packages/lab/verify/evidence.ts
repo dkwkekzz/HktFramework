@@ -24,6 +24,7 @@ import { s0Scenarios } from '@hkt/scenarios/suites/s0';
 import { s1Scenarios } from '@hkt/scenarios/suites/s1';
 import { s2Scenarios } from '@hkt/scenarios/suites/s2';
 import { s3Scenarios } from '@hkt/scenarios/suites/s3';
+import { d0Scenarios } from '@hkt/scenarios/suites/d0';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -212,6 +213,19 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: s3Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s3 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D0',
+    name: 'D0-dependency-kind',
+    sources: [
+      'packages/core/src/d0/index.ts',
+      'packages/core/src/d0/violation.ts',
+      'packages/core/src/d0/kind.ts',
+      'packages/core/src/d0/grounding.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d0Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

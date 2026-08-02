@@ -6,6 +6,10 @@ import type { ContractSource, Evidence } from '@hkt/contracts';
 
 export const CONTRACT_SOURCES: readonly ContractSource[] = [
   {
+    "name": "D0.yaml",
+    "text": "id: D0\nname: dependency-kind\npurpose: >\n  주체가 기댈 수 있는 대상을 11종으로 확정하고, 각 종이 세계의 무엇으로 서고 어느 자리에서\n  충족을 읽는지를 못박는다.\n\ninputs: [DependencyKinds, OntologyKind, StateDomain, StateSchema]\noutputs: [DependencyKindSpec, KindResolution, KindGrounding, TargetFit, DependencyKindViolation]\n\nwrites: []                      # D0 은 세계를 바꾸지 않는다 — 분류만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3]\n\nsubtasks:                       # 원문 대조와 세계 걸림은 검사기가 다르다 → WORKFLOW §3 분할\n  - id: D0-a\n    name: kind-reconciliation\n    purpose: 원문이 두 곳에 다르게 적은 의존 대상 목록(D0 11 · D1 9)을 11종으로 남김없이 해소한다.\n    status: DONE\n  - id: D0-b\n    name: kind-grounding\n    purpose: 각 종의 대상이 O1 의 무엇이고 충족을 O2 어느 자리에서 읽는지 못박고, 선언한 종과 실제 대상이 어긋나면 거부한다.\n    status: DONE\n  - id: D0-c\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 분류표로 D0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d0-one-rule-three-kinds     # 정상: 같은 원소가 기대는 방식에 따라 여러 종으로 서고, 11종이 9영역을 덮는다\n  - d0-broken-kinds-rejected    # 실패: 자리 없는 종·어긋난 대상·해소되지 않은 원문 이름이 각자의 사유로 거부된다\n  - d0-boundary                 # 경계: 대상 없는 종(시간) · 어느 종도 받지 않는 원소 · 대조표의 양끝\n\nelements:\n  - name: DependencyKind\n    ontology: Dependency        # O1 이 이름표로 고정한 11종에 근거와 성격 축이 붙는다\n    renderer: diff\n\nlab: /lab/d0                    # 분류표 (11종 × 성격 축) + 원문 대조 + 같은 원소가 갈리는 자리 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D0.json\n"
+  },
+  {
     "name": "O0.yaml",
     "text": "id: O0\nname: worldview-axioms\npurpose: >\n  세계에 어떤 존재와 현상이 허용되는지 공리로 정의하고, 그 공리를 어기는 능력·종 정의를 거부한다.\n\ninputs: [AxiomSpec, Definition, StateSchema]   # 원문 세 목록 + 세계에 들이려는 정의 + O2 자리\noutputs: [AxiomSet, AxiomViolation, EnforcementReport, DerivationReport]\n\nwrites:                         # O0 는 값을 바꾸지 않는다 — 무엇이 세계에 설 수 있는지를 정한다.\n  - Axiom\n  - Definition\n\ndepends: [V1, V2, V0, V3, V4, O1, O2]\n\nsubtasks:                       # 상태 원소 3종 초과 · 검증 장면 2개 초과 → WORKFLOW §3 분할\n  - id: O0-a\n    name: axiom-reconciliation\n    purpose: 원문이 세 곳에 나눠 적은 공리·불변 규칙을 대조해 하나의 공리 집합으로 확정한다.\n    status: DONE\n  - id: O0-b\n    name: definition-check\n    purpose: 세계에 들이려는 능력·종 정의가 공리를 어기면 사유와 경로로 거부한다.\n    status: DONE\n  - id: O0-c\n    name: enforcement-probe\n    purpose: 공리마다 지금 그것을 실제로 강제하는 지점이 있는지 실행해서 확인한다.\n    status: DONE\n  - id: O0-d\n    name: derivation-report\n    purpose: 같은 공리에서 서로 다른 여러 정의가 도출되는지 센다.\n    status: DONE\n  - id: O0-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 판정 데모로 O0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o0-definitions-stand        # 정상: 원문 공리 위에 능력 3 · 종 4 가 서고 강제 지점이 살아 있다\n  - o0-violations-rejected      # 실패: 결함 정의 14종이 각자의 공리·사유·경로로 거부되고, 공리를 빼면 통과한다\n  - o0-boundary                 # 경계: 빈 공리 집합 · 강도 임계 · 근거 없는 정의 · 불모 공리\n\nelements:\n  - name: Axiom\n    ontology: Rule              # 공리는 근거가 자기 자신인 규칙이다 (O1 Rule.axiomId = null)\n    renderer: diff\n  - name: AxiomResolution\n    ontology: Claim             # 원문이 \"이 문장은 저 공리다\" 라고 건 대조 주장\n    renderer: diff\n  - name: Definition\n    ontology: Rule              # 정의는 공리에서 나온 규칙이다 — 근거는 Rule.axiomId 가 이미 갖고 있다\n    renderer: diff\n  - name: AxiomViolation\n    ontology: Claim             # 공리가 정의에 대해 내리는 판정\n    renderer: diff\n  - name: EnforcementPoint\n    ontology: Commitment        # \"이 공리는 여기서 강제된다\" 는 계층 사이의 약속\n    renderer: diff\n\nlab: /lab/o0                    # 원문 세 목록 대조표 + 공리별 강제 지점 + 정의 판정 데모\n\nstatus: VERIFIED\nevidence: evidence/O0.json\n"
   },
@@ -56,6 +60,44 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
 ];
 
 export const EVIDENCE: Readonly<Record<string, Evidence>> = {
+  "D0": {
+    "module": "D0-dependency-kind",
+    "sourceHash": "ae92f218f5b366cc",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "dcceedac282e7174",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D0",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 507,
+        "passed": 507
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d0-one-rule-three-kinds": "passed",
+          "d0-broken-kinds-rejected": "passed",
+          "d0-boundary": "passed"
+        }
+      }
+    }
+  },
   "O0": {
     "module": "O0-worldview-axioms",
     "sourceHash": "641db17aa195d6df",
@@ -78,8 +120,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -116,8 +158,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -154,8 +196,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -192,8 +234,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -230,8 +272,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -268,8 +310,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -306,8 +348,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -344,8 +386,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 67,
-        "passed": 67
+        "total": 68,
+        "passed": 68
       },
       "scenarios": {
         "total": 3,
@@ -362,7 +404,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "55e3da0992bd0d26",
+    "sourceHash": "92cc153e051cda33",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -382,8 +424,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 458,
-        "passed": 458
+        "total": 507,
+        "passed": 507
       },
       "scenarios": {
         "total": 3,
@@ -420,8 +462,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 57,
-        "passed": 57
+        "total": 60,
+        "passed": 60
       },
       "scenarios": {
         "total": 3,
@@ -438,12 +480,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "7817d6c902bd0cbb",
+    "sourceHash": "1b5f01c9c1c5259b",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "5ab3321912b85de0",
+    "replayHash": "b8f5c0ae41ce3f38",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -458,8 +500,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 52,
-        "passed": 52
+        "total": 55,
+        "passed": 55
       },
       "scenarios": {
         "total": 3,
@@ -496,8 +538,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 67,
-        "passed": 67
+        "total": 68,
+        "passed": 68
       },
       "scenarios": {
         "total": 3,
