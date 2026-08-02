@@ -8,3 +8,4 @@ export * from './s0/index.ts';
 export * from './s1/index.ts';
 export * from './s2/index.ts';
 export * from './s3/index.ts';
+export * from './d0/index.ts';
