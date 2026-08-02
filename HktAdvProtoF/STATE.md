@@ -74,15 +74,27 @@ S0 이 닫혔다. 대표 장면은 "배고픈 인간 1 + 음식 1 (아직 행동
 (`node packages/scenarios/verify/v0.ts` 의 "착수 가능" 목록이 다음에 할 일을 계산해 준다.)
 
 ### [S1] 종 원형
-- 카드 상세는 착수 시 MODULES.md S1 행으로부터 작성 (WORKFLOW §2 여섯 필드).
-- S0 이 남긴 입력: 개체는 이미 종 정의(O0 `SpeciesDefinition`)에서 태어나고, 개체 ID 도
-  `subjectIdOf(speciesId, label)` 로 종에서 갈라진다. S1 의 `SpeciesArchetype` 은 그 정의에
-  신체·감각·생애를 붙이는 쪽이다 — 특히 **감각**: 지금은 개체마다 `PerceptionProfile` 을
-  손으로 적지만, 원래 그것은 종이 정하는 것이다.
-- S0 이 남긴 자리: `Need.collapseAfterTicks` 와 `urgency` 도 종에서 와야 한다 (생애·대사).
-  D2(종 기본 의존 그래프)가 그 자리를 이어받는다.
-- S0 이 남긴 부채: S0 장면의 조직·국가 종 둘(`guildSpecies`·`nationSpecies`)은 O0 장면이 아니라
-  S0 장면에 있다. S1 이 종을 정식으로 다루면 그리로 옮긴다.
+- 목적: 종의 신체·감각·생애·기본 의존을 한 원형으로 세우고, 개체의 감각과 붕괴 시한이 그 원형에서 나오게 한다.
+- 입력: `SpeciesSpec` (O0 `SpeciesDefinition` + 신체·감각·생애·기본 의존), O2 `StateSchema`
+- 출력: `SpeciesArchetype`, `SpeciesViolation`, `SpeciesSeed` (종이 개체에게 물려주는 감각·의존·능력)
+- 검증 장면: 붉은 장막 세계의 종 다섯(사냥꾼·장막벌레·채집 결사·협곡을 낀 나라·붉은 장막의 어미)이
+  각자의 몸/무(無)몸으로 서고, 사냥꾼 유체와 성체가 같은 종에서 서로 다른 감각·붕괴 시한을 얻는다.
+- 상태 원소: `BodyPlan`, `SenseSpec`, `LifeStage`, `NeedTemplate`, `SpeciesArchetype`
+- 시각화: diff(종 카드) — 종별 기관·감각·생애 단계표 + 단계별 파생 대조
+
+하위 작업 (WORKFLOW §3 분할 — 상태 원소 5종):
+
+| 하위 | 목적 | 상태 |
+|---|---|---|
+| S1-a 신체 원형 | 종이 갖는 기관을 선언하고, 몸의 유무가 생물 영역 자리와 맞물리게 한다 | TODO |
+| S1-b 종의 감각 | 감각을 종으로 올리고, 몸을 거치는 통로는 그것을 여는 기관을 요구한다 | TODO |
+| S1-c 생애 | 성장 단계를 O2 `growthStage` 선택지로 못박고 대사에서 붕괴 시한을 파생한다 | TODO |
+| S1-d 기본 의존 | 종이 정하는 의존 템플릿에서 개체의 `Need` 를 찍어 낸다 | TODO |
+| S1-e 종 원형 조립 | 넷을 한 원형으로 합치고 개체 씨앗(`SpeciesSeed`)을 낸다 | TODO |
+| S1-f 눈 검증 | 시나리오 3종 + Lab `/s1` + 증거 | TODO |
+
+- S0 이 남긴 부채 상환: S0 장면의 조직·국가 종 둘(`guildSpecies`·`nationSpecies`)을 S1 장면으로 옮기고,
+  S0 개체 다섯의 감각·의존을 종 원형에서 파생시킨다.
 
 ## 남은 공용 렌더러 (WORKFLOW §6)
 
