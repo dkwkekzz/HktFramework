@@ -36,7 +36,7 @@ subtasks:                       # 상태 원소 5종 · 검증 장면 다수 →
   - id: S0-f
     name: eye-check
     purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - s0-five-kinds-answer        # 정상: 사람·생물·조직·국가·신 다섯이 다섯 질문에 전부 답한다
@@ -62,4 +62,5 @@ elements:
 
 lab: /lab/s0                    # 주체 5종 카드 + 5질문 응답표 + 거부 사유
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/S0.json

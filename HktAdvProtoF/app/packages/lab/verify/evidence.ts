@@ -20,6 +20,7 @@ import { v4Scenarios } from '@hkt/scenarios/suites/v4';
 import { o0Scenarios } from '@hkt/scenarios/suites/o0';
 import { o1Scenarios } from '@hkt/scenarios/suites/o1';
 import { o2Scenarios } from '@hkt/scenarios/suites/o2';
+import { s0Scenarios } from '@hkt/scenarios/suites/s0';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -147,6 +148,22 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: o2Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o2 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'S0',
+    name: 'S0-common-subject-model',
+    sources: [
+      'packages/core/src/s0/index.ts',
+      'packages/core/src/s0/violation.ts',
+      'packages/core/src/s0/boundary.ts',
+      'packages/core/src/s0/perception.ts',
+      'packages/core/src/s0/stake.ts',
+      'packages/core/src/s0/subject.ts',
+      'packages/core/src/s0/questions.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: s0Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',
