@@ -79,8 +79,15 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 S0·S1 이 닫혔다. 대표 장면은 "배고픈 인간 1 + 음식 1 (아직 행동 없음)" 이고, 남은 것은 S2·S3 · D0~D4 다.
 (`node packages/scenarios/verify/v0.ts` 의 "착수 가능" 목록이 다음에 할 일을 계산해 준다.)
 
-### [S2] 문화·역할 원형
-- 카드 상세는 착수 시 MODULES.md S2 행으로부터 작성 (WORKFLOW §2 여섯 필드).
+### [S2] 문화·역할 원형 — 착수 (계약: [S2.yaml](app/packages/contracts/S2.yaml))
+- 목적: 같은 종에서 태어난 둘이 문화·역할에 따라 같은 세계를 다르게 읽고 다른 것을 원하고 다른 것을 할 수 있게 한다.
+- 입력: `CultureSpec`, `RoleSpec`, S1 `SpeciesArchetype`·`SpeciesSeed`
+- 출력: `CultureArchetype`, `RoleArchetype`, `CultureViolation`, `SubjectSeed`
+- 검증 장면: 같은 사냥꾼 종에서 태어난 둘에게 사냥 문화와 제의 문화를 씌우면, 같은 붉은 빛을
+  하나는 "사냥감의 자국" 으로 다른 하나는 "어미의 숨" 으로 읽고, 원하는 자리도 여는 능력도 갈린다.
+- 상태 원소: `CultureArchetype`(Rule) · `ReadingRule`(Claim) · `ValueTemplate`(Commitment) · `RoleArchetype`(Rule)
+- 시각화: diff — 문화 카드 + 같은 종 두 문화 대조표 + 거부 사유 (`/lab/s2`)
+- 하위 작업: S2-a 해석 · S2-b 가치 템플릿 · S2-c 역할 · S2-d 조립 · S2-e 눈 검증
 - S1 이 남긴 입력: 종이 개체에게 주는 것은 셋이다 — 감각·의존·능력(`SpeciesSeed`).
   개체가 스스로 적는 것은 경계와 유지(`values`)뿐이다. S2 는 그 사이에 들어간다:
   같은 종·같은 씨앗에서 태어난 둘이 **무엇을 원하는가**로 갈리는 자리가 문화·역할이다.

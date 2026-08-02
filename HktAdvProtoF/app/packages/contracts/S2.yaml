@@ -1,0 +1,60 @@
+id: S2
+name: culture-role-archetype
+purpose: >
+  같은 종에서 태어난 둘이 문화·역할에 따라 같은 세계를 다르게 읽고 다른 것을 원하고 다른 것을 할 수 있게 한다.
+
+inputs: [CultureSpec, RoleSpec, SpeciesArchetype, SpeciesSeed]   # 문화·역할 선언 + S1 종 원형·씨앗
+outputs: [CultureArchetype, RoleArchetype, CultureViolation, SubjectSeed]
+
+writes:                         # S2 도 값을 바꾸지 않는다 — 개체가 종 위에 무엇을 더 얹는지를 정한다.
+  - CultureArchetype
+  - RoleArchetype
+  - ValueTarget                 # S0 이 개체마다 손으로 적던 것이 여기서 온다
+  - Claim                       # 문화의 읽기가 개체의 믿음이 된다
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1]
+
+subtasks:                       # 상태 원소 4종 · 검증 장면 다수 → WORKFLOW §3 분할
+  - id: S2-a
+    name: reading
+    purpose: 문화가 같은 현상을 무엇으로 읽는지 선언하고, 종이 열지 않은 통로는 읽지 못하게 한다.
+    status: DONE
+  - id: S2-b
+    name: value-template
+    purpose: 문화·역할이 개체에게 주는 유지 자리를 템플릿으로 정하고 개체의 ValueTarget 으로 찍어 낸다.
+    status: PLANNED
+  - id: S2-c
+    name: role
+    purpose: 역할이 능력을 더하고(입문 의례) 막는다(금기) — 행동 가능성이 자리에서 갈린다.
+    status: PLANNED
+  - id: S2-d
+    name: culture-archetype
+    purpose: 읽기·원함·역할을 한 문화 원형으로 합치고 종 씨앗 위에 겹쳐 개체 씨앗을 낸다.
+    status: PLANNED
+  - id: S2-e
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 문화·역할 카드로 S2 를 눈으로 확인한다.
+    status: PLANNED
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - s2-same-species-diverges    # 정상: 같은 종의 둘이 문화로 갈리고 그 개체가 S0 을 지난다
+  - s2-broken-cultures-rejected # 실패: 설 수 없는 문화·역할이 각자의 사유·경로로 거부된다
+  - s2-boundary                 # 경계: 전부 금기 · 확신의 양끝 · 빈 목록 · 역할 없는 문화
+
+elements:
+  - name: CultureArchetype
+    ontology: Rule              # "이 문화에 속한 자는 이렇게 읽고 이것을 원한다" — 조건→효과의 서술
+    renderer: diff
+  - name: ReadingRule
+    ontology: Claim             # 문화가 낳는 믿음의 틀 — 실제와 어긋날 수 있다
+    renderer: diff
+  - name: ValueTemplate
+    ontology: Commitment        # 주체가 스스로에게 건 방향 (S0 ValueTarget 과 같은 분류)
+    renderer: diff
+  - name: RoleArchetype
+    ontology: Rule              # 문화 안의 자리 — 무엇을 열고 무엇을 막는가
+    renderer: diff
+
+lab: /lab/s2                    # 문화 카드 + 같은 종 두 문화 대조 + 거부 사유
+
+status: IN_PROGRESS
