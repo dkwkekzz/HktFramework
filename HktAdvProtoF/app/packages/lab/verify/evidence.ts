@@ -26,6 +26,7 @@ import { s2Scenarios } from '@hkt/scenarios/suites/s2';
 import { s3Scenarios } from '@hkt/scenarios/suites/s3';
 import { d0Scenarios } from '@hkt/scenarios/suites/d0';
 import { d1Scenarios } from '@hkt/scenarios/suites/d1';
+import { d2Scenarios } from '@hkt/scenarios/suites/d2';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -241,6 +242,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d1Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D2',
+    name: 'D2-species-base-dependency-graph',
+    sources: [
+      'packages/core/src/d2/index.ts',
+      'packages/core/src/d2/violation.ts',
+      'packages/core/src/d2/root.ts',
+      'packages/core/src/d2/supply.ts',
+      'packages/core/src/d2/blueprint.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d2Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

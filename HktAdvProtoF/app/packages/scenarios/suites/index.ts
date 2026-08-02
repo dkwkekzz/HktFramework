@@ -16,6 +16,7 @@ import { s2Scenarios } from './s2.ts';
 import { s3Scenarios } from './s3.ts';
 import { d0Scenarios } from './d0.ts';
 import { d1Scenarios } from './d1.ts';
+import { d2Scenarios } from './d2.ts';
 
 export const allScenarios: readonly AnyScenario[] = [
   ...v0Scenarios,
@@ -31,6 +32,7 @@ export const allScenarios: readonly AnyScenario[] = [
   ...s3Scenarios,
   ...d0Scenarios,
   ...d1Scenarios,
+  ...d2Scenarios,
 ];
 
 export {
@@ -47,4 +49,5 @@ export {
   s3Scenarios,
   d0Scenarios,
   d1Scenarios,
+  d2Scenarios,
 };

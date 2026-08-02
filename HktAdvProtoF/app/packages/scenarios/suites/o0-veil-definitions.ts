@@ -102,6 +102,8 @@ export const hunterSpecies: SpeciesDefinition = {
   slots: [
     { domain: 'biological', path: 'hunger' },
     { domain: 'biological', path: 'vitality' },
+    // 번식력 — 대를 잇는 자리다 (D2 가 늙는 종에게 요구한다). 종이 열지 않으면 대도 잇지 못한다.
+    { domain: 'biological', path: 'fertility' },
     { domain: 'psychic', path: 'conviction' },
   ],
   originId: null,

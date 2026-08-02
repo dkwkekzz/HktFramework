@@ -5,7 +5,7 @@
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "f0cd8a2b8bf294a3",
+  "replayHash": "08b7f69d79d1a5d4",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 567,
-      "passed": 567
+      "total": 602,
+      "passed": 602
     },
     "scenarios": {
       "total": 3,

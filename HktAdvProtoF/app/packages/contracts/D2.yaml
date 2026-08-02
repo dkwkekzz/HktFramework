@@ -1,0 +1,44 @@
+id: D2
+name: species-base-dependency-graph
+purpose: >
+  종 원형에서 그 종의 모든 개체가 물려받는 기본 의존 그래프를 찍어 내고, 생존·번식 경로가 끊기지 않게 한다.
+
+inputs: [SpeciesArchetype, SpeciesBlueprint, BirthPlace]
+outputs: [DependencyGraph, BlueprintReport, SpeciesGraphViolation]
+
+writes: []                      # D2 도 세계를 바꾸지 않는다 — 종이 물려주는 그래프의 모양만 찍어 낸다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1]
+
+subtasks:                       # 뿌리·채움·무단절은 검사기가 다르다 → WORKFLOW §3
+  - id: D2-a
+    name: graph-roots
+    purpose: 종이 무너진다고 말한 자리(S1 NeedTemplate)마다 뿌리를 하나씩 세우고, 조건을 고쳐 적지 못하게 한다.
+    status: DONE
+  - id: D2-b
+    name: supply-branches
+    purpose: 무엇이 그 자리를 채우는지를 선언에서 노드·간선으로 찍어 내고 시한을 대사로 나눈다.
+    status: DONE
+  - id: D2-c
+    name: unbroken-paths
+    purpose: 뿌리마다 채움이 있고 늙는 종은 대를 잇는지 본다 — 원문 D2 검증 조항.
+    status: DONE
+  - id: D2-d
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 으로 종에서 찍어 낸 그래프를 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - d2-species-base-graphs      # 정상: 종 다섯이 각자의 기본 그래프를 찍어 내고, 같은 종의 둘이 같은 모양을 받는다
+  - d2-broken-blueprints-rejected # 실패: 채울 것 없는 무너짐·대를 잇지 않는 종·고쳐 적은 조건이 거부된다
+  - d2-boundary                 # 경계: 뿌리 하나·채움 하나 · 단계가 시한을 나눈다 · 늙지 않는 종의 대
+
+elements:
+  - name: DependencyGraph
+    ontology: Dependency        # 찍어 낸 노드 하나하나가 여전히 O1 Dependency 다
+    renderer: graph
+
+lab: /lab/d2                    # 종별 기본 그래프 + 단계별 시한 대조 + 무단절 판정표 + 거부 사유
+
+status: VERIFIED
+evidence: evidence/D2.json

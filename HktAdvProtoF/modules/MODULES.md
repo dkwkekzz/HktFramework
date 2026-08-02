@@ -46,7 +46,7 @@
 |---|---|---|---|---|
 | D0 | 주체가 의존할 수 있는 모든 대상을 11종으로 분류하고 각 종이 세계의 무엇으로 서는지 못박는다 | 원문 D0·D1 두 목록, `OntologyKind`, `StateDomain`, `StateSchema` → `DependencyKind` 11종(자원·공간·환경·신체·주체·관계·정보·제도·규칙·의례·시간) + `DependencyKindSpec`, `KindResolution`, `KindGrounding`, `TargetFit`, `DependencyKindViolation` | `DependencyKind` | diff(분류표) |
 | D1 | 의존 노드·간선 스키마를 확정한다 | `DependencyKind`, `KindGrounding`, `StateSchema`, `Band` → `DependencyNode{kind, target, condition}`, `DependencyEdge{relation, strength, urgency, substitutability, failureDelayTicks, failureEffects}`, `DependencyGraph`, `GraphViolation` | `DependencyGraph` | 그래프(노드=kind 색, 간선=relation) |
-| D2 | 종 원형에서 기본 생존 의존 그래프를 생성한다 | `SpeciesArchetype` → 종 기본 `DependencyGraph` (생존·번식 경로 무단절 보장) | `DependencyGraph` | 그래프(단절 경로 적색 하이라이트) |
+| D2 | 종 원형에서 그 종의 모든 개체가 물려받는 기본 의존 그래프를 찍어 내고, 생존·번식 경로가 끊기지 않게 한다 | `SpeciesArchetype + SpeciesBlueprint`(뿌리 선언 · 대 잇는 자리 · 채움 갈래) `+ GraphBirth` → 종 기본 `DependencyGraph` + `BlueprintReport`(뿌리별 무단절 판정) + `SpeciesGraphViolation` | `DependencyGraph`, `PathVerdict` | 그래프(종별 기본 그래프 · 끊긴 뿌리 적색) + 게이지(무단절 판정표) |
 | D3 | 개인·문화·능력이 기본 의존성을 변형하게 한다 | `SubjectInstance + 기본 DependencyGraph` → 개인 `DependencyGraph` (제거가 아닌 전환 검사 포함) | `DependencyGraph` diff | 그래프 diff(기본 대비 추가=녹/제거=적) |
 | D4 | 현재 세계에서 각 의존의 압력을 계산해 5단계 충족을 판정한다 | `DependencyGraph + WorldStateSnapshot` → `PressureReport`(노드별 `Pressure = Strength×Deficit×Urgency×FailureRisk` + 충족/불안정/결핍/위기/붕괴) | `pressure`, `fulfillment` | 게이지(노드 색=5단계, 막대=압력 추이) |
 | D5 | 주체 내부·주체 간 의존 충돌을 찾는다 (단계 3 착수) | 다주체 `DependencyGraph[] + PressureReport[]` → `DependencyConflict[]`(경합 자원·대상·공간) | `DependencyConflict` | 그래프(주체↔경합 대상 이분 그래프) |
