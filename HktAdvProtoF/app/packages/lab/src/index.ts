@@ -2,6 +2,7 @@
 export * from './vnode.ts';
 export * from './page.ts';
 export * from './renderers/diff.ts';
+export * from './renderers/graph.ts';
 export * from './renderers/scenario.ts';
 export * from './shell.ts';
 export * from './pages/index.ts';

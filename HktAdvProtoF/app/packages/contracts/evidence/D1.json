@@ -1,19 +1,19 @@
 {
-  "module": "O0-worldview-axioms",
-  "sourceHash": "641db17aa195d6df",
+  "module": "D1-dependency-graph-schema",
+  "sourceHash": "8e558383f2c4c95c",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "3fe4013391753330",
+  "replayHash": "80ac8e057267a0f8",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "O0",
+      "module": "D1",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "o0-definitions-stand": "passed",
-        "o0-violations-rejected": "passed",
-        "o0-boundary": "passed"
+        "d1-winter-food-graph": "passed",
+        "d1-broken-graphs-rejected": "passed",
+        "d1-boundary": "passed"
       }
     }
   }

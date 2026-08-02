@@ -1,19 +1,19 @@
 {
-  "module": "O0-worldview-axioms",
-  "sourceHash": "641db17aa195d6df",
+  "module": "D0-dependency-kind",
+  "sourceHash": "ae92f218f5b366cc",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "3fe4013391753330",
+  "replayHash": "dcceedac282e7174",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "O0",
+      "module": "D0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "o0-definitions-stand": "passed",
-        "o0-violations-rejected": "passed",
-        "o0-boundary": "passed"
+        "d0-one-rule-three-kinds": "passed",
+        "d0-broken-kinds-rejected": "passed",
+        "d0-boundary": "passed"
       }
     }
   }

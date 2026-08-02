@@ -387,3 +387,57 @@ tr.incomplete td:last-child {
 .check.manual {
   color: var(--warn);
 }
+
+/* 공용 렌더러 ② 그래프 뷰 (D1-d) — 노드 색은 갈래, 선 모양은 관계. */
+.graph-view {
+  margin: 8px 0 4px;
+}
+
+.graph-svg {
+  max-width: 100%;
+  height: auto;
+  color: var(--fg);
+  overflow: visible;
+}
+
+.gnode text {
+  pointer-events: none;
+}
+
+.gedge-bad text {
+  fill: var(--bad);
+  fill-opacity: 1;
+}
+
+.graph-caption {
+  color: var(--muted);
+  margin: 4px 0 0;
+  font-size: 0.9em;
+}
+
+.graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 24px;
+  margin-top: 6px;
+  color: var(--muted);
+  font-size: 0.9em;
+}
+
+.graph-legend ul {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.graph-legend .swatch {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+  margin-right: 5px;
+  vertical-align: -1px;
+}
