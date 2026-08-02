@@ -7,3 +7,4 @@
 
 export * from './axiom.ts';
 export * from './definition.ts';
+export * from './enforcement.ts';
