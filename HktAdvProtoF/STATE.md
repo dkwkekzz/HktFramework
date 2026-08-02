@@ -74,6 +74,10 @@
 구현 루트는 [app/](app/) — npm workspaces 모노레포, Node ≥22.18 네이티브 TS 타입 스트리핑으로
 빌드 없이 `.ts` 를 실행한다 (런타임 의존성 0개, `typescript`·`@types/node` 는 타입 검사 전용).
 
+Windows 에서 결과를 한 번에 관찰하려면 [app/run.bat](app/run.bat) 을 더블클릭한다 — Node 확인 →
+의존성 설치 → 단위 테스트 → 타입 검사 → 눈 검증(증거 재생성) → Lab 실행(브라우저 자동 열기).
+검증 출력은 실행한 창에 남고 Lab 서버는 새 창에서 돈다 (모듈 작업이 아닌 실행 편의 도구다).
+
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
 
