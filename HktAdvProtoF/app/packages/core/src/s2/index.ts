@@ -7,3 +7,4 @@
 export * from './violation.ts';
 export * from './reading.ts';
 export * from './value.ts';
+export * from './role.ts';

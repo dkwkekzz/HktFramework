@@ -26,7 +26,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S2-c
     name: role
     purpose: 역할이 능력을 더하고(입문 의례) 막는다(금기) — 행동 가능성이 자리에서 갈린다.
-    status: PLANNED
+    status: DONE
   - id: S2-d
     name: culture-archetype
     purpose: 읽기·원함·역할을 한 문화 원형으로 합치고 종 씨앗 위에 겹쳐 개체 씨앗을 낸다.
