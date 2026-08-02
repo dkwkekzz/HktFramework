@@ -14,3 +14,4 @@
 // 한 주체의 그래프 안에서 의존이 맴돌면 D4 의 압력이 끝나지 않는다.
 export * from './violation.ts';
 export * from './node.ts';
+export * from './edge.ts';
