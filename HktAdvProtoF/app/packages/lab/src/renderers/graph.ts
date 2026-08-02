@@ -12,6 +12,19 @@
 
 import { h, type VElement } from '../vnode.ts';
 
+/**
+ * 기본 그래프 대비 이 노드·간선이 무엇인가 (D3-d).
+ * 개인 그래프는 언제나 **무엇에서 갈라진 것**이므로, 갈림 자체가 그림에 실려야 한다.
+ */
+export type DiffTone = 'added' | 'removed' | 'changed';
+
+/** 갈림의 색 — 더함=녹 · 끊김=적 · 흔들림=노랑 (style.css 의 --ok/--bad/--warn 과 같은 축). */
+const TONE_COLORS: Readonly<Record<DiffTone, string>> = {
+  added: 'var(--ok)',
+  removed: 'var(--bad)',
+  changed: 'var(--warn)',
+};
+
 /** 그릴 노드 하나 — 렌더러는 core 타입을 모른다. 그릴 것만 받는다. */
 export interface GraphViewNode {
   readonly id: string;
@@ -24,6 +37,8 @@ export interface GraphViewNode {
   readonly root?: boolean;
   /** 문제가 있는 노드인가 — 빨강 파선 */
   readonly bad?: boolean;
+  /** 기본 대비 갈림 — 더함=녹 · 끊김=적 · 흔들림=노랑 */
+  readonly tone?: DiffTone;
 }
 
 /** 그릴 간선 하나. */
@@ -35,6 +50,8 @@ export interface GraphViewEdge {
   /** 0~1 — 선 굵기 */
   readonly strength?: number;
   readonly bad?: boolean;
+  /** 기본 대비 갈림 */
+  readonly tone?: DiffTone;
 }
 
 /** 배치된 노드 하나. */
@@ -153,7 +170,14 @@ export interface GraphViewOptions {
 /** 노드 하나를 그린다. */
 function nodeView(node: PlacedNode, kinds: readonly string[]): VElement {
   const fill = colorOf(node.kind, kinds);
-  const classes = ['gnode', node.root === true ? 'gnode-root' : '', node.bad === true ? 'gnode-bad' : '']
+  // 갈림이 적힌 노드는 색을 갈래가 아니라 갈림에서 받는다 — 그림의 물음이 "무엇이 갈렸는가" 이므로.
+  const stroke = node.tone === undefined ? fill : TONE_COLORS[node.tone];
+  const classes = [
+    'gnode',
+    node.root === true ? 'gnode-root' : '',
+    node.bad === true ? 'gnode-bad' : '',
+    node.tone === undefined ? '' : `gnode-${node.tone}`,
+  ]
     .filter((name) => name !== '')
     .join(' ');
   return h('g', { class: classes, 'data-node': node.id, 'data-kind': node.kind }, [
@@ -164,10 +188,10 @@ function nodeView(node: PlacedNode, kinds: readonly string[]): VElement {
       height: String(NODE_HEIGHT),
       rx: '8',
       fill,
-      'fill-opacity': '0.18',
-      stroke: fill,
-      'stroke-width': node.root === true ? '2.5' : '1.2',
-      ...(node.bad === true ? { 'stroke-dasharray': '4 3' } : {}),
+      'fill-opacity': node.tone === 'removed' ? '0.07' : '0.18',
+      stroke,
+      'stroke-width': node.root === true || node.tone !== undefined ? '2.5' : '1.2',
+      ...(node.bad === true || node.tone === 'removed' ? { 'stroke-dasharray': '4 3' } : {}),
     }),
     h('title', {}, [node.hint ?? node.label]),
     h(
@@ -197,12 +221,26 @@ function edgeView(edge: GraphViewEdge, placed: readonly PlacedNode[]): VElement 
   const y2 = to.y + NODE_HEIGHT / 2;
   const midX = (x1 + x2) / 2;
 
-  return h('g', { class: edge.bad === true ? 'gedge gedge-bad' : 'gedge', 'data-relation': edge.relation }, [
+  const classes = [
+    'gedge',
+    edge.bad === true ? 'gedge-bad' : '',
+    edge.tone === undefined ? '' : `gedge-${edge.tone}`,
+  ]
+    .filter((name) => name !== '')
+    .join(' ');
+  const stroke =
+    edge.bad === true
+      ? 'var(--bad)'
+      : edge.tone === undefined
+        ? 'currentColor'
+        : TONE_COLORS[edge.tone];
+
+  return h('g', { class: classes, 'data-relation': edge.relation }, [
     h('path', {
       d: `M ${String(x1)} ${String(y1)} C ${String(midX)} ${String(y1)}, ${String(midX)} ${String(y2)}, ${String(x2)} ${String(y2)}`,
       fill: 'none',
-      stroke: edge.bad === true ? 'var(--bad)' : 'currentColor',
-      'stroke-opacity': edge.bad === true ? '0.9' : '0.5',
+      stroke,
+      'stroke-opacity': edge.bad === true || edge.tone !== undefined ? '0.9' : '0.5',
       'stroke-width': String(1 + (edge.strength ?? 0.5) * 2.4),
       ...(DASHES[edge.relation] === undefined || DASHES[edge.relation] === ''
         ? {}

@@ -1,0 +1,38 @@
+{
+  "module": "D2-species-base-dependency-graph",
+  "sourceHash": "b3f697c6d9a9a750",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "7295630fd9d5e1a4",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "D2",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 662,
+      "passed": 662
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "d2-species-base-graphs": "passed",
+        "d2-broken-blueprints-rejected": "passed",
+        "d2-boundary": "passed"
+      }
+    }
+  }
+}

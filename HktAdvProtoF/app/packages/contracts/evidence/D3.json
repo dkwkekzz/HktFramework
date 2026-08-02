@@ -1,0 +1,38 @@
+{
+  "module": "D3-personal-dependency-variation",
+  "sourceHash": "e48a868569e68aa8",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "785391fe559e73ea",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "D3",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 662,
+      "passed": 662
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "d3-personal-graphs": "passed",
+        "d3-broken-variations-rejected": "passed",
+        "d3-boundary": "passed"
+      }
+    }
+  }
+}

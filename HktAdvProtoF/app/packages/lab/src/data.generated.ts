@@ -14,6 +14,18 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: D1\nname: dependency-graph-schema\npurpose: >\n  확정된 의존 대상 열한 종을 노드로 세우고, 그 노드들을 무엇으로 잇는지(관계 7종)를 확정한다.\n\ninputs: [DependencyKind, KindGrounding, StateSchema, Band]\noutputs: [DependencyNode, DependencyEdge, DependencyGraph, GraphViolation]\n\nwrites: []                      # D1 도 세계를 바꾸지 않는다 — 그래프의 모양만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0]\n\nsubtasks:                       # 노드·간선·조립은 검사기가 다르고, 그래프 뷰는 공용 렌더러다 → WORKFLOW §3\n  - id: D1-a\n    name: dependency-node\n    purpose: 종마다 정해진 자리에서만 조건을 읽게 하고, D0 대상 관문을 그대로 지나게 한다.\n    status: DONE\n  - id: D1-b\n    name: dependency-edge\n    purpose: 관계 7종이 D0 의 성격(소모·가리킴)과 어긋나면 거부한다.\n    status: DONE\n  - id: D1-c\n    name: dependency-graph\n    purpose: 뿌리에서 닿지 않는 노드·순환·끊긴 참조를 막고 그래프 해시를 고정한다.\n    status: DONE\n  - id: D1-d\n    name: graph-renderer\n    purpose: 공용 그래프 뷰를 세운다 — 노드 색은 종, 간선은 관계, 굵기는 강도 (WORKFLOW §6-2).\n    status: DONE\n  - id: D1-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 그래프로 D1 을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d1-winter-food-graph        # 정상: 뿌리 하나에서 뻗은 그래프가 서고, 같은 그래프는 같은 해시가 된다\n  - d1-broken-graphs-rejected   # 실패: 소모할 수 없는 것을 소모하거나 닿지 않는 노드·순환이 거부된다\n  - d1-boundary                 # 경계: 노드 하나짜리 그래프 · 시간 노드의 틱 조건 · 수치의 양끝\n\nelements:\n  - name: DependencyGraph\n    ontology: Dependency        # 노드 하나하나가 O1 Dependency 로 선다\n    renderer: graph\n\nlab: /lab/d1                    # 그래프 뷰(노드=종 색, 간선=관계) + 노드·간선 표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D1.json\n"
   },
   {
+    "name": "D2.yaml",
+    "text": "id: D2\nname: species-base-dependency-graph\npurpose: >\n  종 원형에서 그 종의 모든 개체가 물려받는 기본 의존 그래프를 찍어 내고, 생존·번식 경로가 끊기지 않게 한다.\n\ninputs: [SpeciesArchetype, SpeciesBlueprint, BirthPlace]\noutputs: [DependencyGraph, BlueprintReport, SpeciesGraphViolation]\n\nwrites: []                      # D2 도 세계를 바꾸지 않는다 — 종이 물려주는 그래프의 모양만 찍어 낸다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1]\n\nsubtasks:                       # 뿌리·채움·무단절은 검사기가 다르다 → WORKFLOW §3\n  - id: D2-a\n    name: graph-roots\n    purpose: 종이 무너진다고 말한 자리(S1 NeedTemplate)마다 뿌리를 하나씩 세우고, 조건을 고쳐 적지 못하게 한다.\n    status: DONE\n  - id: D2-b\n    name: supply-branches\n    purpose: 무엇이 그 자리를 채우는지를 선언에서 노드·간선으로 찍어 내고 시한을 대사로 나눈다.\n    status: DONE\n  - id: D2-c\n    name: unbroken-paths\n    purpose: 뿌리마다 채움이 있고 늙는 종은 대를 잇는지 본다 — 원문 D2 검증 조항.\n    status: DONE\n  - id: D2-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 으로 종에서 찍어 낸 그래프를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d2-species-base-graphs      # 정상: 종 다섯이 각자의 기본 그래프를 찍어 내고, 같은 종의 둘이 같은 모양을 받는다\n  - d2-broken-blueprints-rejected # 실패: 채울 것 없는 무너짐·대를 잇지 않는 종·고쳐 적은 조건이 거부된다\n  - d2-boundary                 # 경계: 뿌리 하나·채움 하나 · 단계가 시한을 나눈다 · 늙지 않는 종의 대\n\nelements:\n  - name: DependencyGraph\n    ontology: Dependency        # 찍어 낸 노드 하나하나가 여전히 O1 Dependency 다\n    renderer: graph\n\nlab: /lab/d2                    # 종별 기본 그래프 + 단계별 시한 대조 + 무단절 판정표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D2.json\n"
+  },
+  {
+    "name": "D3.yaml",
+    "text": "id: D3\nname: personal-dependency-variation\npurpose: >\n  종이 물려준 기본 의존 그래프를 개인·문화·능력이 변형하게 하되, 의존이 사라지지 않고 다른 의존으로 전환되게 한다.\n\ninputs: [SubjectInstance, DependencyGraph, VariationSpec, Definition]\noutputs: [DependencyGraph, PersonalReport, GraphDiff, PersonalViolation]\n\nwrites: []                      # D3 도 세계를 바꾸지 않는다 — 한 개체의 그래프 모양만 갈라 놓는다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2]\n\nsubtasks:                       # 개인화·변형 문법·전환 검사는 검사기가 다르다 → WORKFLOW §3\n  - id: D3-a\n    name: personalize-roots\n    purpose: 종의 그래프를 개체의 자리에 세우고, 뿌리 간선의 급함·시한을 개체의 실제 Need 에서 다시 읽는다.\n    status: DONE\n  - id: D3-b\n    name: variation-grammar\n    purpose: 변형을 더함·약화·끊음 셋으로만 적게 하고, 유래를 대지 못하는 변형을 거부한다.\n    status: DONE\n  - id: D3-c\n    name: conversion-check\n    purpose: 줄인 만큼 다른 의존이 서는지 본다 — 원문 D3 검증 조항(제거가 아닌 전환).\n    status: DONE\n  - id: D3-d\n    name: graph-diff-view\n    purpose: 공용 그래프 뷰에 더함=녹·끊김=적·바뀜=노랑을 더한다 (WORKFLOW §6-2).\n    status: DONE\n  - id: D3-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 으로 같은 종 넷이 갈라지는 것을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d3-personal-graphs          # 정상: 같은 기본 그래프에서 넷이 갈리고, 사제의 식량 의존이 의념으로 전환된다\n  - d3-broken-variations-rejected # 실패: 공짜 전환·가벼운 전환·대가 없는 전환·유래 없는 변형이 거부된다\n  - d3-boundary                 # 경계: 변형 0개 · 약화의 양끝 · 뿌리를 잃는 변형\n\nelements:\n  - name: DependencyGraph\n    ontology: Dependency        # 변형된 노드도 여전히 O1 Dependency 다\n    renderer: graph\n\nlab: /lab/d3                    # 기본 대비 개인 그래프 diff(녹·적·노랑) + 전환 장부 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D3.json\n"
+  },
+  {
+    "name": "D4.yaml",
+    "text": "id: D4\nname: dependency-pressure\npurpose: >\n  지금 세계에서 각 의존이 얼마나 채워졌는지 재어 압력을 계산하고 충족 5단계를 판정한다.\n\ninputs: [DependencyGraph, WorldSnapshot, PressureContext]\noutputs: [PressureReport, DeficitReading, EdgePressure, PressureViolation]\n\nwrites: []                      # D4 는 세계를 읽기만 한다 — 상태를 바꾸는 것은 R1 사건의 몫이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3]\n\nsubtasks:                       # 세계 모으기·결핍·압력·게이지는 검사기가 다르다 → WORKFLOW §3\n  - id: D4-a\n    name: world-snapshot\n    purpose: 개체가 지고 온 값과 세계의 자리를 O2 트리 하나로 모아 지금의 세계를 세운다.\n    status: DONE\n  - id: D4-b\n    name: deficit-reading\n    purpose: 노드의 조건과 세계의 실제 값을 대어 결핍을 0~1 로 읽는다.\n    status: DONE\n  - id: D4-c\n    name: pressure-formula\n    purpose: 원문 식(Strength × Deficit × Urgency × FailureRisk)으로 압력을 내고 5단계를 판정한다.\n    status: DONE\n  - id: D4-d\n    name: gauge-renderer\n    purpose: 공용 게이지·추이 렌더러를 세운다 — 5단계 색과 압력 막대 (WORKFLOW §6-2).\n    status: DONE\n  - id: D4-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 으로 압력이 오르는 것을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d4-hunger-rises             # 정상: 재고가 줄면 압력이 단조 증가하고 5단계가 차례로 오른다\n  - d4-broken-readings-rejected # 실패: 어긴 상태·미래의 결핍·없는 노드가 거부된다\n  - d4-boundary                 # 경계: 충족이면 압력 0 · 결핍의 양끝 · 시한이 1틱인 무너짐\n\nelements:\n  - name: Pressure\n    ontology: Dependency        # 압력은 의존이 지금 지고 있는 값이다\n    renderer: gauge\n\nlab: /lab/d4                    # 압력 게이지 + 5단계 그래프 + 재고 감소 추이 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D4.json\n"
+  },
+  {
     "name": "O0.yaml",
     "text": "id: O0\nname: worldview-axioms\npurpose: >\n  세계에 어떤 존재와 현상이 허용되는지 공리로 정의하고, 그 공리를 어기는 능력·종 정의를 거부한다.\n\ninputs: [AxiomSpec, Definition, StateSchema]   # 원문 세 목록 + 세계에 들이려는 정의 + O2 자리\noutputs: [AxiomSet, AxiomViolation, EnforcementReport, DerivationReport]\n\nwrites:                         # O0 는 값을 바꾸지 않는다 — 무엇이 세계에 설 수 있는지를 정한다.\n  - Axiom\n  - Definition\n\ndepends: [V1, V2, V0, V3, V4, O1, O2]\n\nsubtasks:                       # 상태 원소 3종 초과 · 검증 장면 2개 초과 → WORKFLOW §3 분할\n  - id: O0-a\n    name: axiom-reconciliation\n    purpose: 원문이 세 곳에 나눠 적은 공리·불변 규칙을 대조해 하나의 공리 집합으로 확정한다.\n    status: DONE\n  - id: O0-b\n    name: definition-check\n    purpose: 세계에 들이려는 능력·종 정의가 공리를 어기면 사유와 경로로 거부한다.\n    status: DONE\n  - id: O0-c\n    name: enforcement-probe\n    purpose: 공리마다 지금 그것을 실제로 강제하는 지점이 있는지 실행해서 확인한다.\n    status: DONE\n  - id: O0-d\n    name: derivation-report\n    purpose: 같은 공리에서 서로 다른 여러 정의가 도출되는지 센다.\n    status: DONE\n  - id: O0-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 판정 데모로 O0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o0-definitions-stand        # 정상: 원문 공리 위에 능력 3 · 종 4 가 서고 강제 지점이 살아 있다\n  - o0-violations-rejected      # 실패: 결함 정의 14종이 각자의 공리·사유·경로로 거부되고, 공리를 빼면 통과한다\n  - o0-boundary                 # 경계: 빈 공리 집합 · 강도 임계 · 근거 없는 정의 · 불모 공리\n\nelements:\n  - name: Axiom\n    ontology: Rule              # 공리는 근거가 자기 자신인 규칙이다 (O1 Rule.axiomId = null)\n    renderer: diff\n  - name: AxiomResolution\n    ontology: Claim             # 원문이 \"이 문장은 저 공리다\" 라고 건 대조 주장\n    renderer: diff\n  - name: Definition\n    ontology: Rule              # 정의는 공리에서 나온 규칙이다 — 근거는 Rule.axiomId 가 이미 갖고 있다\n    renderer: diff\n  - name: AxiomViolation\n    ontology: Claim             # 공리가 정의에 대해 내리는 판정\n    renderer: diff\n  - name: EnforcementPoint\n    ontology: Commitment        # \"이 공리는 여기서 강제된다\" 는 계층 사이의 약속\n    renderer: diff\n\nlab: /lab/o0                    # 원문 세 목록 대조표 + 공리별 강제 지점 + 정의 판정 데모\n\nstatus: VERIFIED\nevidence: evidence/O0.json\n"
   },
@@ -86,8 +98,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -104,7 +116,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "D1": {
     "module": "D1-dependency-graph-schema",
-    "sourceHash": "8e558383f2c4c95c",
+    "sourceHash": "ac64a714cde9810b",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -124,8 +136,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -140,6 +152,120 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
       }
     }
   },
+  "D2": {
+    "module": "D2-species-base-dependency-graph",
+    "sourceHash": "b3f697c6d9a9a750",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "7295630fd9d5e1a4",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D2",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 662,
+        "passed": 662
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d2-species-base-graphs": "passed",
+          "d2-broken-blueprints-rejected": "passed",
+          "d2-boundary": "passed"
+        }
+      }
+    }
+  },
+  "D3": {
+    "module": "D3-personal-dependency-variation",
+    "sourceHash": "e48a868569e68aa8",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "785391fe559e73ea",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D3",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 662,
+        "passed": 662
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d3-personal-graphs": "passed",
+          "d3-broken-variations-rejected": "passed",
+          "d3-boundary": "passed"
+        }
+      }
+    }
+  },
+  "D4": {
+    "module": "D4-dependency-pressure",
+    "sourceHash": "fe34332d8012ffd9",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "c57478d58aa4a46a",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D4",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 662,
+        "passed": 662
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d4-hunger-rises": "passed",
+          "d4-broken-readings-rejected": "passed",
+          "d4-boundary": "passed"
+        }
+      }
+    }
+  },
   "O0": {
     "module": "O0-worldview-axioms",
     "sourceHash": "641db17aa195d6df",
@@ -147,7 +273,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "3fe4013391753330",
+    "replayHash": "546d4d4f39328a8a",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -162,8 +288,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -200,8 +326,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -238,8 +364,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -261,7 +387,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "89f6293a038b6192",
+    "replayHash": "7de04928723c8185",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -276,8 +402,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -299,7 +425,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "c3afe456cd9c6356",
+    "replayHash": "5b968b55708a1cf8",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -314,8 +440,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -337,7 +463,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "7b1565b821c6e79d",
+    "replayHash": "6ed19db035a0431e",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -352,8 +478,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -375,7 +501,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "f0cd8a2b8bf294a3",
+    "replayHash": "08b7f69d79d1a5d4",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -390,8 +516,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -428,8 +554,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 69,
-        "passed": 69
+        "total": 72,
+        "passed": 72
       },
       "scenarios": {
         "total": 3,
@@ -446,7 +572,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "fb341c032f2ad779",
+    "sourceHash": "58b310beaa28d915",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -466,8 +592,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 567,
-        "passed": 567
+        "total": 662,
+        "passed": 662
       },
       "scenarios": {
         "total": 3,
@@ -504,8 +630,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 63,
-        "passed": 63
+        "total": 72,
+        "passed": 72
       },
       "scenarios": {
         "total": 3,
@@ -522,14 +648,16 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "eeab7a160499eed8",
-    "unitTests": "passed",
+    "sourceHash": "a3dbaf2042a1daf1",
+    "unitTests": "failed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "4d6d325bf588095a",
-    "status": "VERIFIED",
-    "blockers": [],
+    "replayHash": "b6420bfb693b165f",
+    "status": "IMPLEMENTED",
+    "blockers": [
+      "단위 테스트가 통과하지 않았다 (80/81)"
+    ],
     "detail": {
       "generator": "packages/scenarios/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
@@ -542,8 +670,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 72,
-        "passed": 72
+        "total": 81,
+        "passed": 80
       },
       "scenarios": {
         "total": 3,
@@ -580,8 +708,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 69,
-        "passed": 69
+        "total": 72,
+        "passed": 72
       },
       "scenarios": {
         "total": 3,

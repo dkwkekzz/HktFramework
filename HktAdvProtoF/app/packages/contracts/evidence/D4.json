@@ -1,0 +1,38 @@
+{
+  "module": "D4-dependency-pressure",
+  "sourceHash": "fe34332d8012ffd9",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "c57478d58aa4a46a",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "D4",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 662,
+      "passed": 662
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "d4-hunger-rises": "passed",
+        "d4-broken-readings-rejected": "passed",
+        "d4-boundary": "passed"
+      }
+    }
+  }
+}

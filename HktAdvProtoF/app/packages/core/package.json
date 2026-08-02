@@ -15,7 +15,10 @@
     "./s2": "./src/s2/index.ts",
     "./s3": "./src/s3/index.ts",
     "./d0": "./src/d0/index.ts",
-    "./d1": "./src/d1/index.ts"
+    "./d1": "./src/d1/index.ts",
+    "./d2": "./src/d2/index.ts",
+    "./d3": "./src/d3/index.ts",
+    "./d4": "./src/d4/index.ts"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\""

@@ -26,6 +26,9 @@ import { s2Scenarios } from '@hkt/scenarios/suites/s2';
 import { s3Scenarios } from '@hkt/scenarios/suites/s3';
 import { d0Scenarios } from '@hkt/scenarios/suites/d0';
 import { d1Scenarios } from '@hkt/scenarios/suites/d1';
+import { d2Scenarios } from '@hkt/scenarios/suites/d2';
+import { d3Scenarios } from '@hkt/scenarios/suites/d3';
+import { d4Scenarios } from '@hkt/scenarios/suites/d4';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -241,6 +244,48 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d1Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D2',
+    name: 'D2-species-base-dependency-graph',
+    sources: [
+      'packages/core/src/d2/index.ts',
+      'packages/core/src/d2/violation.ts',
+      'packages/core/src/d2/root.ts',
+      'packages/core/src/d2/supply.ts',
+      'packages/core/src/d2/blueprint.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d2Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D3',
+    name: 'D3-personal-dependency-variation',
+    sources: [
+      'packages/core/src/d3/index.ts',
+      'packages/core/src/d3/violation.ts',
+      'packages/core/src/d3/personal.ts',
+      'packages/core/src/d3/variation.ts',
+      'packages/core/src/d3/transform.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d3Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D4',
+    name: 'D4-dependency-pressure',
+    sources: [
+      'packages/core/src/d4/index.ts',
+      'packages/core/src/d4/violation.ts',
+      'packages/core/src/d4/snapshot.ts',
+      'packages/core/src/d4/deficit.ts',
+      'packages/core/src/d4/pressure.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d4Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',
