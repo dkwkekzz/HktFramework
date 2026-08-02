@@ -137,6 +137,17 @@ body {
   font-style: italic;
 }
 
+/* 줄바꿈을 막는다 — 사유 이름(unknown-domain)이 글자 단위로 쪼개지지 않게. */
+.nowrap {
+  white-space: nowrap;
+}
+
+/* 값이 없는 자리 — 섹션이 비었다는 뜻의 .empty 와 구별한다 (V3 7요소 검사가 .empty 를 센다). */
+.none {
+  color: var(--muted);
+  font-style: italic;
+}
+
 table {
   border-collapse: collapse;
   width: 100%;

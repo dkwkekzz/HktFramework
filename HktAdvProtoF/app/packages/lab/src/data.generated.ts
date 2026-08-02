@@ -10,6 +10,10 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: O1\nname: common-world-ontology\npurpose: >\n  원문 설계의 모든 개념을 공통 존재론 12타입 중 하나 이상으로 표현한다.\n\ninputs: [ConceptCatalog]        # 원문에서 뽑은 개념 목록 — 무엇을 덮어야 하는가\noutputs: [OntologyKind, OnticNode, ClassifyResult, CoverageReport]\n\nwrites:                         # O1 은 세계를 바꾸지 않는다 — 세계를 무엇으로 적을지 정한다.\n  - OnticNode\n\ndepends: [V1, V2, V0, V3, V4]   # 검증 기반 전체가 선 뒤에야 존재론을 등록할 수 있다\n\nsubtasks:                       # 상태 원소 12종 > 3종 → WORKFLOW §3 원소 묶음별 분할\n  - id: O1-a\n    name: being-triad\n    purpose: 존재론 골격을 세우고 Subject·Entity·State 를 정의한다.\n    status: DONE\n  - id: O1-b\n    name: operation-triad\n    purpose: 세계가 굴러가는 방식을 Rule·Phenomenon·Event 로 정의한다.\n    status: DONE\n  - id: O1-c\n    name: relation-triad\n    purpose: 주체가 세계에 거는 것을 Claim·Commitment·Affordance 로 정의한다.\n    status: DONE\n  - id: O1-d\n    name: demand-triad\n    purpose: 주체의 결핍과 세계에 대한 청구를 Dependency·Possibility·WorldRequirement 로 정의한다.\n    status: DONE\n  - id: O1-e\n    name: concept-coverage\n    purpose: 원문 개념 중 12타입으로 환원되지 않는 것이 남으면 그 사실을 드러낸다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o1-catalog-covered          # 정상: 원문 개념 전부가 12타입으로 분류되고 남는 타입이 없다\n  - o1-unmapped-rejected        # 실패: 타입 없는 개념·어긴 필드가 경로와 사유로 지목된다\n  - o1-boundary                 # 경계: 빈 카탈로그 · 직렬화 불가 값 · kind 없는 값 · 중복 id\n\nelements:\n  - name: Subject\n    ontology: Subject\n    renderer: diff\n  - name: Entity\n    ontology: Entity\n    renderer: diff\n  - name: State\n    ontology: State\n    renderer: diff\n  - name: Rule\n    ontology: Rule\n    renderer: diff\n  - name: Phenomenon\n    ontology: Phenomenon\n    renderer: diff\n  - name: Claim\n    ontology: Claim\n    renderer: diff\n  - name: Commitment\n    ontology: Commitment\n    renderer: diff\n  - name: Affordance\n    ontology: Affordance\n    renderer: diff\n  - name: Event\n    ontology: Event\n    renderer: diff\n  - name: Dependency\n    ontology: Dependency\n    renderer: diff\n  - name: Possibility\n    ontology: Possibility\n    renderer: diff\n  - name: WorldRequirement\n    ontology: WorldRequirement\n    renderer: diff\n  - name: ConceptEntry\n    ontology: Claim              # 원문이 \"이 개념은 이 타입이다\" 라고 건 주장\n    renderer: diff\n  - name: CoverageReport\n    ontology: State              # 존재론이 지금 얼마나 덮고 있는가 — 검사 시점의 값\n    renderer: diff\n\nlab: /lab/o1                    # 원문 개념 ↔ 12타입 커버리지 표\n\nstatus: VERIFIED\nevidence: evidence/O1.json\n"
   },
   {
+    "name": "O2.yaml",
+    "text": "id: O2\nname: world-state-schema\npurpose: >\n  세계의 모든 상태 값을 9영역 필드 트리 하나로 표현하고, 그 트리에 없는 값을 거부한다.\n\ninputs: [DomainSpec, FieldSpec, State]      # 영역별 정의 + O1 State 원소\noutputs: [StateSchema, SchemaViolation, WorldState, StateDiffEntry]\n\nwrites:                         # O2 는 값을 바꾸지 않는다 — 값이 놓일 자리를 정한다.\n  - WorldState\n\ndepends: [V1, V2, V0, V3, V4, O1]\n\nsubtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3 분할\n  - id: O2-a\n    name: domain-reconciliation\n    purpose: 원문 두 목록이 다르게 적은 상태 영역을 대조해 9영역으로 확정한다.\n    status: DONE\n  - id: O2-b\n    name: field-spec\n    purpose: 영역 안의 각 상태 필드가 가질 수 있는 값을 스펙으로 선언하고 위반을 사유로 돌려준다.\n    status: DONE\n  - id: O2-c\n    name: world-tree\n    purpose: 상태 원소 목록을 9영역 서브트리로 조립하고 다시 원소로 분해한다.\n    status: DONE\n  - id: O2-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 상태 트리 뷰로 O2 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o2-scene-assembled          # 정상: 장면의 상태들이 9영역 트리로 서고 왕복해도 같다\n  - o2-offschema-rejected       # 실패: 스키마 밖 영역·경로·값·보유자가 각자의 사유로 거부된다\n  - o2-boundary                 # 경계: 빈 세계 · 범위 양끝 · 매개 경로 · 중복 상태\n\nelements:\n  - name: DomainSpec\n    ontology: State\n    renderer: diff\n  - name: DomainReconciliation\n    ontology: Claim             # 원문이 \"이 영역은 저 영역이다\" 라고 건 대조 주장\n    renderer: diff\n  - name: FieldSpec\n    ontology: Rule              # 어떤 값이 세계에 놓일 수 있는지를 정하는 규칙\n    renderer: diff\n  - name: WorldState\n    ontology: State\n    renderer: diff\n  - name: SchemaViolation\n    ontology: Claim             # 스키마가 값에 대해 내리는 판정\n    renderer: diff\n  - name: StateDiffEntry\n    ontology: State\n    renderer: diff\n\nlab: /lab/o2                    # 9영역 상태 트리 + 원문 필드 대조표\n\nstatus: VERIFIED\nevidence: evidence/O2.json\n"
+  },
+  {
     "name": "V0.yaml",
     "text": "id: V0\nname: module-contract-registry\npurpose: >\n  모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.\n\ninputs: [ContractSource]\noutputs: [ModuleRegistry, ModuleContract, ContractViolation]\n\nwrites:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.\n  - ModuleContract\n  - ModuleStatus\n\ndepends: [V1, V2]               # 안정 정렬·상태 해시(V1) 로 판정하고, 검증은 V2 실행기로 한다\n\nsubtasks:\n  - id: V0-a\n    name: contract-yaml-parser\n    purpose: MODULE.yaml 서식을 읽고 서식 밖 문법을 줄 번호와 함께 거부한다.\n    status: DONE\n  - id: V0-b\n    name: registry-checker\n    purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.\n    status: DONE\n\nscenarios:\n  - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록\n  - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부\n  - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존\n\nelements:\n  - name: ModuleContract\n    ontology: Rule\n    renderer: graph\n  - name: ModuleStatus\n    ontology: State\n    renderer: graph\n\nlab: /lab/v0                    # V3 미구현 — packages/scenarios/verify/v0.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V0.json\n"
   },
@@ -54,8 +58,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 120,
-        "passed": 120
+        "total": 183,
+        "passed": 183
       },
       "scenarios": {
         "total": 3,
@@ -66,6 +70,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "o1-catalog-covered": "passed",
           "o1-unmapped-rejected": "passed",
           "o1-boundary": "passed"
+        }
+      }
+    }
+  },
+  "O2": {
+    "module": "O2-world-state-schema",
+    "sourceHash": "71af7b00a1929753",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "286279e5eee8bb14",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o2 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "O2",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 183,
+        "passed": 183
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "o2-scene-assembled": "passed",
+          "o2-offschema-rejected": "passed",
+          "o2-boundary": "passed"
         }
       }
     }
@@ -92,8 +134,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 61,
-        "passed": 61
+        "total": 62,
+        "passed": 62
       },
       "scenarios": {
         "total": 3,
@@ -110,7 +152,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "f24083ba1c90c56b",
+    "sourceHash": "29a21eb06e55475b",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -130,8 +172,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 120,
-        "passed": 120
+        "total": 183,
+        "passed": 183
       },
       "scenarios": {
         "total": 3,
@@ -168,8 +210,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 39,
-        "passed": 39
+        "total": 42,
+        "passed": 42
       },
       "scenarios": {
         "total": 3,
@@ -186,12 +228,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "87c01b8a035a3f41",
+    "sourceHash": "0135f43ab497b125",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "ec8ca904a991d1c6",
+    "replayHash": "ed9aaedc674fcd55",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -206,8 +248,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 34,
-        "passed": 34
+        "total": 37,
+        "passed": 37
       },
       "scenarios": {
         "total": 3,
@@ -244,8 +286,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 61,
-        "passed": 61
+        "total": 62,
+        "passed": 62
       },
       "scenarios": {
         "total": 3,

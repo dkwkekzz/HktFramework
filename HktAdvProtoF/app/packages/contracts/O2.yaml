@@ -1,0 +1,60 @@
+id: O2
+name: world-state-schema
+purpose: >
+  세계의 모든 상태 값을 9영역 필드 트리 하나로 표현하고, 그 트리에 없는 값을 거부한다.
+
+inputs: [DomainSpec, FieldSpec, State]      # 영역별 정의 + O1 State 원소
+outputs: [StateSchema, SchemaViolation, WorldState, StateDiffEntry]
+
+writes:                         # O2 는 값을 바꾸지 않는다 — 값이 놓일 자리를 정한다.
+  - WorldState
+
+depends: [V1, V2, V0, V3, V4, O1]
+
+subtasks:                       # 새 상태 원소 3종 초과 → WORKFLOW §3 분할
+  - id: O2-a
+    name: domain-reconciliation
+    purpose: 원문 두 목록이 다르게 적은 상태 영역을 대조해 9영역으로 확정한다.
+    status: DONE
+  - id: O2-b
+    name: field-spec
+    purpose: 영역 안의 각 상태 필드가 가질 수 있는 값을 스펙으로 선언하고 위반을 사유로 돌려준다.
+    status: DONE
+  - id: O2-c
+    name: world-tree
+    purpose: 상태 원소 목록을 9영역 서브트리로 조립하고 다시 원소로 분해한다.
+    status: DONE
+  - id: O2-d
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 상태 트리 뷰로 O2 를 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - o2-scene-assembled          # 정상: 장면의 상태들이 9영역 트리로 서고 왕복해도 같다
+  - o2-offschema-rejected       # 실패: 스키마 밖 영역·경로·값·보유자가 각자의 사유로 거부된다
+  - o2-boundary                 # 경계: 빈 세계 · 범위 양끝 · 매개 경로 · 중복 상태
+
+elements:
+  - name: DomainSpec
+    ontology: State
+    renderer: diff
+  - name: DomainReconciliation
+    ontology: Claim             # 원문이 "이 영역은 저 영역이다" 라고 건 대조 주장
+    renderer: diff
+  - name: FieldSpec
+    ontology: Rule              # 어떤 값이 세계에 놓일 수 있는지를 정하는 규칙
+    renderer: diff
+  - name: WorldState
+    ontology: State
+    renderer: diff
+  - name: SchemaViolation
+    ontology: Claim             # 스키마가 값에 대해 내리는 판정
+    renderer: diff
+  - name: StateDiffEntry
+    ontology: State
+    renderer: diff
+
+lab: /lab/o2                    # 9영역 상태 트리 + 원문 필드 대조표
+
+status: VERIFIED
+evidence: evidence/O2.json

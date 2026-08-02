@@ -1,11 +1,11 @@
 {
   "module": "V3-browser-lab",
-  "sourceHash": "87c01b8a035a3f41",
+  "sourceHash": "0135f43ab497b125",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "ec8ca904a991d1c6",
+  "replayHash": "ed9aaedc674fcd55",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 34,
-      "passed": 34
+      "total": 37,
+      "passed": 37
     },
     "scenarios": {
       "total": 3,

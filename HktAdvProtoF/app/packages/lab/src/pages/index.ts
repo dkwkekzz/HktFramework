@@ -8,6 +8,7 @@ import { v2Page } from './v2.ts';
 import { v3Page } from './v3.ts';
 import { v4Page } from './v4.ts';
 import { o1Page } from './o1.ts';
+import { o2Page } from './o2.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -24,6 +25,7 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/v3', id: 'V3', title: '브라우저 검증 Lab', render: v3Page },
   { route: '/v4', id: 'V4', title: '완료 증거 시스템', render: v4Page },
   { route: '/o1', id: 'O1', title: '공통 세계 존재론', render: o1Page },
+  { route: '/o2', id: 'O2', title: '상태 스키마', render: o2Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */
