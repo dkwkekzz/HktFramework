@@ -131,14 +131,16 @@ export function applyRole(
 
 /**
  * 역할 하나가 이 문화·이 종 위에 설 수 있는가.
- * `speciesCapabilities` 는 종이 여는 능력(중복·덧댐 판정의 바닥), `cultureTaboos` 는 문화 전체의 금기다.
+ * `speciesCapabilities` 는 종이 여는 능력 — 덧댐·금기 판정의 바닥이다.
+ * 종이 정해지지 않았으면 null 을 넘긴다: 바닥을 모르는 채 "이미 열려 있다"·"열려 있지 않다" 를
+ * 판정하면 앞선 사유(종을 못 찾았다) 위에 사유가 두 겹으로 쌓인다.
  */
 export function checkRole(
   culture: CultureRef,
   role: RoleArchetype,
   context: {
     readonly cultureId: Id;
-    readonly speciesCapabilities: readonly Id[];
+    readonly speciesCapabilities: readonly Id[] | null;
     readonly cultureTaboos?: readonly Id[];
     readonly senses?: readonly SenseSpec[] | null;
     readonly baseNeeds?: readonly NeedTemplate[] | null;
@@ -178,7 +180,7 @@ export function checkRole(
       violateCulture(out, ref, reason.rule, path, reason.message);
       continue;
     }
-    if (context.speciesCapabilities.includes(id)) {
+    if (context.speciesCapabilities?.includes(id) === true) {
       violateCulture(
         out,
         ref,
@@ -191,8 +193,14 @@ export function checkRole(
     granted.add(id);
   }
 
-  // 막을 것이 있어야 금기다. 바닥은 종이 여는 것 + 이 자리가 연 것 + 문화가 이미 금한 것 밖.
-  const openable = new Set<Id>([...context.speciesCapabilities, ...granted]);
+  // 막을 것이 있어야 금기다. 바닥은 종이 여는 것 + 이 자리가 연 것, 빼기 문화가 이미 금한 것.
+  const openable =
+    context.speciesCapabilities === null
+      ? null
+      : new Set<Id>([...context.speciesCapabilities, ...granted]);
+  if (openable !== null) {
+    for (const id of context.cultureTaboos ?? []) openable.delete(id);
+  }
   for (const [index, id] of role.taboos.entries()) {
     const path = `$.taboos[${String(index)}]`;
     if (granted.has(id)) {
@@ -205,7 +213,7 @@ export function checkRole(
       );
       continue;
     }
-    if (!openable.has(id)) {
+    if (openable !== null && !openable.has(id)) {
       violateCulture(
         out,
         ref,
