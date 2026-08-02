@@ -25,6 +25,7 @@ import { s1Scenarios } from '@hkt/scenarios/suites/s1';
 import { s2Scenarios } from '@hkt/scenarios/suites/s2';
 import { s3Scenarios } from '@hkt/scenarios/suites/s3';
 import { d0Scenarios } from '@hkt/scenarios/suites/d0';
+import { d1Scenarios } from '@hkt/scenarios/suites/d1';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -226,6 +227,20 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d0Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'D1',
+    name: 'D1-dependency-graph-schema',
+    sources: [
+      'packages/core/src/d1/index.ts',
+      'packages/core/src/d1/violation.ts',
+      'packages/core/src/d1/node.ts',
+      'packages/core/src/d1/edge.ts',
+      'packages/core/src/d1/graph.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: d1Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

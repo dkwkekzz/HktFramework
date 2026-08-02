@@ -11,7 +11,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "D1.yaml",
-    "text": "id: D1\nname: dependency-graph-schema\npurpose: >\n  확정된 의존 대상 열한 종을 노드로 세우고, 그 노드들을 무엇으로 잇는지(관계 7종)를 확정한다.\n\ninputs: [DependencyKind, KindGrounding, StateSchema, Band]\noutputs: [DependencyNode, DependencyEdge, DependencyGraph, GraphViolation]\n\nwrites: []                      # D1 도 세계를 바꾸지 않는다 — 그래프의 모양만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0]\n\nsubtasks:                       # 노드·간선·조립은 검사기가 다르고, 그래프 뷰는 공용 렌더러다 → WORKFLOW §3\n  - id: D1-a\n    name: dependency-node\n    purpose: 종마다 정해진 자리에서만 조건을 읽게 하고, D0 대상 관문을 그대로 지나게 한다.\n    status: PLANNED\n  - id: D1-b\n    name: dependency-edge\n    purpose: 관계 7종이 D0 의 성격(소모·가리킴)과 어긋나면 거부한다.\n    status: PLANNED\n  - id: D1-c\n    name: dependency-graph\n    purpose: 뿌리에서 닿지 않는 노드·순환·끊긴 참조를 막고 그래프 해시를 고정한다.\n    status: PLANNED\n  - id: D1-d\n    name: graph-renderer\n    purpose: 공용 그래프 뷰를 세운다 — 노드 색은 종, 간선은 관계, 굵기는 강도 (WORKFLOW §6-2).\n    status: PLANNED\n  - id: D1-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 그래프로 D1 을 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d1-winter-food-graph        # 정상: 뿌리 하나에서 뻗은 그래프가 서고, 같은 그래프는 같은 해시가 된다\n  - d1-broken-graphs-rejected   # 실패: 소모할 수 없는 것을 소모하거나 닿지 않는 노드·순환이 거부된다\n  - d1-boundary                 # 경계: 노드 하나짜리 그래프 · 시간 노드의 틱 조건 · 수치의 양끝\n\nelements:\n  - name: DependencyGraph\n    ontology: Dependency        # 노드 하나하나가 O1 Dependency 로 선다\n    renderer: graph\n\nlab: /lab/d1                    # 그래프 뷰(노드=종 색, 간선=관계) + 노드·간선 표 + 거부 사유\n\nstatus: PLANNED\n"
+    "text": "id: D1\nname: dependency-graph-schema\npurpose: >\n  확정된 의존 대상 열한 종을 노드로 세우고, 그 노드들을 무엇으로 잇는지(관계 7종)를 확정한다.\n\ninputs: [DependencyKind, KindGrounding, StateSchema, Band]\noutputs: [DependencyNode, DependencyEdge, DependencyGraph, GraphViolation]\n\nwrites: []                      # D1 도 세계를 바꾸지 않는다 — 그래프의 모양만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0]\n\nsubtasks:                       # 노드·간선·조립은 검사기가 다르고, 그래프 뷰는 공용 렌더러다 → WORKFLOW §3\n  - id: D1-a\n    name: dependency-node\n    purpose: 종마다 정해진 자리에서만 조건을 읽게 하고, D0 대상 관문을 그대로 지나게 한다.\n    status: DONE\n  - id: D1-b\n    name: dependency-edge\n    purpose: 관계 7종이 D0 의 성격(소모·가리킴)과 어긋나면 거부한다.\n    status: DONE\n  - id: D1-c\n    name: dependency-graph\n    purpose: 뿌리에서 닿지 않는 노드·순환·끊긴 참조를 막고 그래프 해시를 고정한다.\n    status: DONE\n  - id: D1-d\n    name: graph-renderer\n    purpose: 공용 그래프 뷰를 세운다 — 노드 색은 종, 간선은 관계, 굵기는 강도 (WORKFLOW §6-2).\n    status: DONE\n  - id: D1-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 그래프로 D1 을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d1-winter-food-graph        # 정상: 뿌리 하나에서 뻗은 그래프가 서고, 같은 그래프는 같은 해시가 된다\n  - d1-broken-graphs-rejected   # 실패: 소모할 수 없는 것을 소모하거나 닿지 않는 노드·순환이 거부된다\n  - d1-boundary                 # 경계: 노드 하나짜리 그래프 · 시간 노드의 틱 조건 · 수치의 양끝\n\nelements:\n  - name: DependencyGraph\n    ontology: Dependency        # 노드 하나하나가 O1 Dependency 로 선다\n    renderer: graph\n\nlab: /lab/d1                    # 그래프 뷰(노드=종 색, 간선=관계) + 노드·간선 표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D1.json\n"
   },
   {
     "name": "O0.yaml",
@@ -86,8 +86,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -98,6 +98,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "d0-one-rule-three-kinds": "passed",
           "d0-broken-kinds-rejected": "passed",
           "d0-boundary": "passed"
+        }
+      }
+    }
+  },
+  "D1": {
+    "module": "D1-dependency-graph-schema",
+    "sourceHash": "8e558383f2c4c95c",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "80ac8e057267a0f8",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D1",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 567,
+        "passed": 567
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d1-winter-food-graph": "passed",
+          "d1-broken-graphs-rejected": "passed",
+          "d1-boundary": "passed"
         }
       }
     }
@@ -124,8 +162,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -162,8 +200,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -200,8 +238,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -238,8 +276,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -276,8 +314,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -314,8 +352,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -352,8 +390,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -390,8 +428,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 68,
-        "passed": 68
+        "total": 69,
+        "passed": 69
       },
       "scenarios": {
         "total": 3,
@@ -408,7 +446,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "92cc153e051cda33",
+    "sourceHash": "fb341c032f2ad779",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -428,8 +466,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 507,
-        "passed": 507
+        "total": 567,
+        "passed": 567
       },
       "scenarios": {
         "total": 3,
@@ -466,8 +504,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 60,
-        "passed": 60
+        "total": 63,
+        "passed": 63
       },
       "scenarios": {
         "total": 3,
@@ -484,12 +522,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "1b5f01c9c1c5259b",
+    "sourceHash": "eeab7a160499eed8",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "b8f5c0ae41ce3f38",
+    "replayHash": "4d6d325bf588095a",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -504,8 +542,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 55,
-        "passed": 55
+        "total": 72,
+        "passed": 72
       },
       "scenarios": {
         "total": 3,
@@ -542,8 +580,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 68,
-        "passed": 68
+        "total": 69,
+        "passed": 69
       },
       "scenarios": {
         "total": 3,

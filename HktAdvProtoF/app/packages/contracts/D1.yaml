@@ -14,23 +14,23 @@ subtasks:                       # 노드·간선·조립은 검사기가 다르�
   - id: D1-a
     name: dependency-node
     purpose: 종마다 정해진 자리에서만 조건을 읽게 하고, D0 대상 관문을 그대로 지나게 한다.
-    status: PLANNED
+    status: DONE
   - id: D1-b
     name: dependency-edge
     purpose: 관계 7종이 D0 의 성격(소모·가리킴)과 어긋나면 거부한다.
-    status: PLANNED
+    status: DONE
   - id: D1-c
     name: dependency-graph
     purpose: 뿌리에서 닿지 않는 노드·순환·끊긴 참조를 막고 그래프 해시를 고정한다.
-    status: PLANNED
+    status: DONE
   - id: D1-d
     name: graph-renderer
     purpose: 공용 그래프 뷰를 세운다 — 노드 색은 종, 간선은 관계, 굵기는 강도 (WORKFLOW §6-2).
-    status: PLANNED
+    status: DONE
   - id: D1-e
     name: eye-check
     purpose: 시나리오 3종과 Lab 그래프로 D1 을 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - d1-winter-food-graph        # 정상: 뿌리 하나에서 뻗은 그래프가 서고, 같은 그래프는 같은 해시가 된다
@@ -44,4 +44,5 @@ elements:
 
 lab: /lab/d1                    # 그래프 뷰(노드=종 색, 간선=관계) + 노드·간선 표 + 거부 사유
 
-status: PLANNED
+status: VERIFIED
+evidence: evidence/D1.json

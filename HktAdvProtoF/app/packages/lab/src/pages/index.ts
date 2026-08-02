@@ -15,6 +15,7 @@ import { s1Page } from './s1.ts';
 import { s2Page } from './s2.ts';
 import { s3Page } from './s3.ts';
 import { d0Page } from './d0.ts';
+import { d1Page } from './d1.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -38,6 +39,7 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/s2', id: 'S2', title: '문화·역할 원형', render: s2Page },
   { route: '/s3', id: 'S3', title: '개별 주체 생성', render: s3Page },
   { route: '/d0', id: 'D0', title: '의존 대상 타입', render: d0Page },
+  { route: '/d1', id: 'D1', title: '의존 그래프 스키마', render: d1Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */
