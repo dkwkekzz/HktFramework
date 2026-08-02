@@ -24,7 +24,7 @@ subtasks:                       # 상태 원소 5종 · 검증 장면 다수 →
   - id: S0-c
     name: stake-slots
     purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.
-    status: PLANNED
+    status: DONE
   - id: S0-d
     name: subject-profile
     purpose: 경계·감지·의존·유지·능력을 한 주체 프로필로 합치고 종 정의와 어긋나면 거부한다.

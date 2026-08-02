@@ -30,7 +30,14 @@ export type SubjectViolationRule =
   | 'duplicate-channel' // 같은 통로를 두 번 선언했다
   | 'omniscient-channel' // 문턱이 0 이하다 — 전지한 감각은 은폐도 기만도 무너뜨린다
   | 'bad-range' // 도달 거리가 O2 거리 범위 밖이다
-  | 'bodiless-sense'; // 몸 없는 주체가 몸의 감각을 선언했다
+  | 'bodiless-sense' // 몸 없는 주체가 몸의 감각을 선언했다
+  // S0-c 의존·유지 자리
+  | 'no-need' // 무너질 조건이 없다 — 잃을 것이 없으면 목적도 생기지 않는다
+  | 'no-value' // 유지하려는 자리가 없다 — 무너지지만 않으면 되는 것은 사물이다
+  | 'phantom-slot' // 세계에 없는 자리를 지키거나 원한다
+  | 'foreign-need' // 경계 밖의 자리를 자기 붕괴 조건으로 삼았다
+  | 'bad-band' // 지켜야 하는 범위가 자리의 값 모양과 맞지 않는다
+  | 'bad-stake'; // 급함·미는 힘·붕괴 지연·근거가 범위 밖이다
 
 /** 위반 하나 — 어느 주체의 어느 자리가 왜 막혔는가. */
 export interface SubjectViolation {
