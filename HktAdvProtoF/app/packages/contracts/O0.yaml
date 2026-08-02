@@ -1,0 +1,65 @@
+id: O0
+name: worldview-axioms
+purpose: >
+  세계에 어떤 존재와 현상이 허용되는지 공리로 정의하고, 그 공리를 어기는 능력·종 정의를 거부한다.
+
+inputs: [AxiomSpec, Definition, StateSchema]   # 원문 세 목록 + 세계에 들이려는 정의 + O2 자리
+outputs: [AxiomSet, AxiomViolation, EnforcementReport, DerivationReport]
+
+writes:                         # O0 는 값을 바꾸지 않는다 — 무엇이 세계에 설 수 있는지를 정한다.
+  - Axiom
+  - Definition
+
+depends: [V1, V2, V0, V3, V4, O1, O2]
+
+subtasks:                       # 상태 원소 3종 초과 · 검증 장면 2개 초과 → WORKFLOW §3 분할
+  - id: O0-a
+    name: axiom-reconciliation
+    purpose: 원문이 세 곳에 나눠 적은 공리·불변 규칙을 대조해 하나의 공리 집합으로 확정한다.
+    status: PLANNED
+  - id: O0-b
+    name: definition-check
+    purpose: 세계에 들이려는 능력·종 정의가 공리를 어기면 사유와 경로로 거부한다.
+    status: PLANNED
+  - id: O0-c
+    name: enforcement-probe
+    purpose: 공리마다 지금 그것을 실제로 강제하는 지점이 있는지 실행해서 확인한다.
+    status: PLANNED
+  - id: O0-d
+    name: derivation-report
+    purpose: 같은 공리에서 서로 다른 여러 정의가 도출되는지 센다.
+    status: PLANNED
+  - id: O0-e
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 판정 데모로 O0 를 눈으로 확인한다.
+    status: PLANNED
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - o0-definitions-stand        # 정상: 원문 공리 위에 능력 3 · 종 4 가 서고 강제 지점이 살아 있다
+  - o0-violations-rejected      # 실패: 결함 정의 12종이 각자의 공리·사유·경로로 거부된다
+  - o0-boundary                 # 경계: 빈 공리 집합 · 강도 임계 · 근거 없는 정의 · 불모 공리
+
+elements:
+  - name: Axiom
+    ontology: Rule              # 공리는 근거가 자기 자신인 규칙이다 (O1 Rule.axiomId = null)
+    renderer: diff
+  - name: AxiomResolution
+    ontology: Claim             # 원문이 "이 문장은 저 공리다" 라고 건 대조 주장
+    renderer: diff
+  - name: Definition
+    ontology: Possibility       # 세계에 설 수 있다고 제출된 것 — 통과해야 실체가 된다
+    renderer: diff
+  - name: AxiomViolation
+    ontology: Claim             # 공리가 정의에 대해 내리는 판정
+    renderer: diff
+  - name: EnforcementPoint
+    ontology: Commitment        # "이 공리는 여기서 강제된다" 는 계층 사이의 약속
+    renderer: diff
+  - name: Derivation
+    ontology: Dependency        # 정의가 공리에 거는 근거 — 끊기면 정의가 서지 못한다
+    renderer: diff
+
+lab: /lab/o0                    # 원문 세 목록 대조표 + 공리별 강제 지점 + 정의 판정 데모
+
+status: PLANNED
+evidence: null
