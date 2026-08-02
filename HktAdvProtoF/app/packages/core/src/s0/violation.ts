@@ -37,7 +37,16 @@ export type SubjectViolationRule =
   | 'phantom-slot' // 세계에 없는 자리를 지키거나 원한다
   | 'foreign-need' // 경계 밖의 자리를 자기 붕괴 조건으로 삼았다
   | 'bad-band' // 지켜야 하는 범위가 자리의 값 모양과 맞지 않는다
-  | 'bad-stake'; // 급함·미는 힘·붕괴 지연·근거가 범위 밖이다
+  | 'bad-stake' // 급함·미는 힘·붕괴 지연·근거가 범위 밖이다
+  // S0-d 주체 골격
+  | 'incapable-subject' // 할 수 있는 것이 하나도 없다 — 그것은 사물이다
+  | 'bad-capability' // 능력 인용이 규칙 ID 가 아니다
+  | 'duplicate-capability' // 같은 능력을 두 번 인용했다
+  | 'unknown-capability' // 세계에 없는 능력을 인용했다
+  | 'unlawful-capability' // 공리를 어긴 능력을 붙였다 — 누구도 예외가 아니다
+  | 'unknown-species' // 세계에 없는 종에서 태어났다
+  | 'species-mismatch' // 종이 말하는 주체 종류와 개체가 다르다
+  | 'off-species-slot'; // 종이 열지 않은 자리로 무너진다고 적었다
 
 /** 위반 하나 — 어느 주체의 어느 자리가 왜 막혔는가. */
 export interface SubjectViolation {

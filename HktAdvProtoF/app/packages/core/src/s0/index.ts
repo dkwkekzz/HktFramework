@@ -6,3 +6,4 @@ export * from './violation.ts';
 export * from './boundary.ts';
 export * from './perception.ts';
 export * from './stake.ts';
+export * from './subject.ts';
