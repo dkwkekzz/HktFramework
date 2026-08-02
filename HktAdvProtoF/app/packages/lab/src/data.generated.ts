@@ -31,7 +31,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "S3.yaml",
-    "text": "id: S3\nname: subject-instance\npurpose: >\n  종·문화·역할 위에 이력과 성격을 얹어 개별 주체를 낳고, 그 주체의 모든 값이 어디서 왔는지를 댈 수 있게 한다.\n\ninputs: [SpeciesArchetype, CultureArchetype, RoleArchetype, PastEvent, Trait]\noutputs: [SubjectInstance, Provenance, InstanceViolation]\n\nwrites:                         # S3 도 시뮬레이션을 돌리지 않는다 — 개체가 태어날 때의 첫 값을 정한다.\n  - SubjectInstance\n  - State                       # 과거가 지금 남긴 값 (relational.grudge, informational.knows, …)\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2]\n\nsubtasks:                       # 상태 원소 4종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S3-a\n    name: past-event\n    purpose: 지나간 사건이 지금의 자리에 남긴 값으로만 개체에 걸리게 한다 — 흔적 없는 과거는 과거가 아니다.\n    status: DONE\n  - id: S3-b\n    name: trait\n    purpose: 성격이 이미 있는 값을 흔들 뿐 새 자리를 만들지 못하게 한다.\n    status: DONE\n  - id: S3-c\n    name: instance\n    purpose: 종·문화·역할·이력·성격을 한 개체로 합치고 모든 값에 유래를 붙인다.\n    status: PLANNED\n  - id: S3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 개별 주체 카드로 S3 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s3-same-culture-diverges    # 정상: 같은 문화의 둘이 이력·성격으로 갈리고 모든 값이 유래를 댄다\n  - s3-broken-instances-rejected # 실패: 설 수 없는 이력·성격·개체가 각자의 사유로 거부된다\n  - s3-boundary                 # 경계: 이력 없음 · 성격 없음 · 배수의 양끝 · 유래 완결\n\nelements:\n  - name: SubjectInstance\n    ontology: Subject           # S0 SubjectProfile 을 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: PastEvent\n    ontology: Event             # 실제로 일어난 일 — 상태를 바꾸지 않으면 사건이 아니다 (O1)\n    renderer: diff\n  - name: Residue\n    ontology: State             # 과거가 지금 남긴 값 — O2 의 실재하는 자리에만 적힌다\n    renderer: diff\n  - name: Trait\n    ontology: Rule              # \"이 개체에게서는 이 값이 이렇게 흔들린다\" 는 서술\n    renderer: diff\n\nlab: /lab/s3                    # 개별 주체 카드 (값마다 유래 배지) + 같은 문화 두 개체 대조 + 거부 사유\n\nstatus: IN_PROGRESS\n"
+    "text": "id: S3\nname: subject-instance\npurpose: >\n  종·문화·역할 위에 이력과 성격을 얹어 개별 주체를 낳고, 그 주체의 모든 값이 어디서 왔는지를 댈 수 있게 한다.\n\ninputs: [SpeciesArchetype, CultureArchetype, RoleArchetype, PastEvent, Trait]\noutputs: [SubjectInstance, Provenance, InstanceViolation]\n\nwrites:                         # S3 도 시뮬레이션을 돌리지 않는다 — 개체가 태어날 때의 첫 값을 정한다.\n  - SubjectInstance\n  - State                       # 과거가 지금 남긴 값 (relational.grudge, informational.knows, …)\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2]\n\nsubtasks:                       # 상태 원소 4종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S3-a\n    name: past-event\n    purpose: 지나간 사건이 지금의 자리에 남긴 값으로만 개체에 걸리게 한다 — 흔적 없는 과거는 과거가 아니다.\n    status: DONE\n  - id: S3-b\n    name: trait\n    purpose: 성격이 이미 있는 값을 흔들 뿐 새 자리를 만들지 못하게 한다.\n    status: DONE\n  - id: S3-c\n    name: instance\n    purpose: 종·문화·역할·이력·성격을 한 개체로 합치고 모든 값에 유래를 붙인다.\n    status: DONE\n  - id: S3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 개별 주체 카드로 S3 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s3-same-culture-diverges    # 정상: 같은 문화의 둘이 이력·성격으로 갈리고 모든 값이 유래를 댄다\n  - s3-broken-instances-rejected # 실패: 설 수 없는 이력·성격·개체가 각자의 사유로 거부된다\n  - s3-boundary                 # 경계: 이력 없음 · 성격 없음 · 배수의 양끝 · 유래 완결\n\nelements:\n  - name: SubjectInstance\n    ontology: Subject           # S0 SubjectProfile 을 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: PastEvent\n    ontology: Event             # 실제로 일어난 일 — 상태를 바꾸지 않으면 사건이 아니다 (O1)\n    renderer: diff\n  - name: Residue\n    ontology: State             # 과거가 지금 남긴 값 — O2 의 실재하는 자리에만 적힌다\n    renderer: diff\n  - name: Trait\n    ontology: Rule              # \"이 개체에게서는 이 값이 이렇게 흔들린다\" 는 서술\n    renderer: diff\n\nlab: /lab/s3                    # 개별 주체 카드 (값마다 유래 배지) + 같은 문화 두 개체 대조 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S3.json\n"
   },
   {
     "name": "V0.yaml",
@@ -78,8 +78,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -116,8 +116,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -154,8 +154,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -192,8 +192,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -230,8 +230,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -268,8 +268,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -280,6 +280,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "s2-same-species-diverges": "passed",
           "s2-broken-cultures-rejected": "passed",
           "s2-boundary": "passed"
+        }
+      }
+    }
+  },
+  "S3": {
+    "module": "S3-subject-instance",
+    "sourceHash": "886ff3f19add1b6d",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "f0cd8a2b8bf294a3",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/scenarios/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s3 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "S3",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 458,
+        "passed": 458
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "s3-same-culture-diverges": "passed",
+          "s3-broken-instances-rejected": "passed",
+          "s3-boundary": "passed"
         }
       }
     }
@@ -306,8 +344,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 66,
-        "passed": 66
+        "total": 67,
+        "passed": 67
       },
       "scenarios": {
         "total": 3,
@@ -324,7 +362,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "0558fb75a5883fea",
+    "sourceHash": "55e3da0992bd0d26",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -344,8 +382,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 419,
-        "passed": 419
+        "total": 458,
+        "passed": 458
       },
       "scenarios": {
         "total": 3,
@@ -382,8 +420,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 54,
-        "passed": 54
+        "total": 57,
+        "passed": 57
       },
       "scenarios": {
         "total": 3,
@@ -400,12 +438,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "12652627c12d43b4",
+    "sourceHash": "7817d6c902bd0cbb",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "a14adc4f145a6bf1",
+    "replayHash": "5ab3321912b85de0",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -420,8 +458,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 49,
-        "passed": 49
+        "total": 52,
+        "passed": 52
       },
       "scenarios": {
         "total": 3,
@@ -458,8 +496,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 66,
-        "passed": 66
+        "total": 67,
+        "passed": 67
       },
       "scenarios": {
         "total": 3,

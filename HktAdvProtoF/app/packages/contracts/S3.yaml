@@ -28,7 +28,7 @@ subtasks:                       # 상태 원소 4종 · 검증 장면 다수 →
   - id: S3-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 개별 주체 카드로 S3 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - s3-same-culture-diverges    # 정상: 같은 문화의 둘이 이력·성격으로 갈리고 모든 값이 유래를 댄다
@@ -51,4 +51,5 @@ elements:
 
 lab: /lab/s3                    # 개별 주체 카드 (값마다 유래 배지) + 같은 문화 두 개체 대조 + 거부 사유
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/S3.json
