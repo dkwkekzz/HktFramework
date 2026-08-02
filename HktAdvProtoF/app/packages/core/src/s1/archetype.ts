@@ -84,7 +84,7 @@ export function buildArchetype(spec: SpeciesSpec): SpeciesArchetype {
 }
 
 /** 능력 인용이 온전한가 — 실재하고, 공리를 지났고, 생애 어딘가에서 열리는가. */
-export function checkCapabilities(
+export function checkSpeciesCapabilities(
   species: SpeciesRef,
   archetype: SpeciesArchetype,
   definitions: readonly Definition[],
@@ -206,7 +206,7 @@ export function checkArchetype(
   checkSenses(species, archetype.senses, archetype.body, out);
   checkLifecycle(species, archetype.lifecycle, archetype.body, out, schema);
   checkNeedTemplates(species, archetype.baseNeeds, archetype, archetype.body, out, schema);
-  checkCapabilities(species, archetype, definitions, out, schema);
+  checkSpeciesCapabilities(species, archetype, definitions, out, schema);
   return out;
 }
 
@@ -252,7 +252,7 @@ export interface BirthPlace {
   /** 몸이 걸리는 사물. 몸 없는 종은 null */
   readonly bodyId: Id | null;
   /** 어느 단계로 태어나는가. 적지 않으면 첫 단계 (늙지 않는 종은 무시된다) */
-  readonly stage?: string;
+  readonly stage?: string | undefined;
 }
 
 /** 그 단계를 찾는다 — 적지 않았으면 첫 단계, 늙지 않는 종이면 null. */

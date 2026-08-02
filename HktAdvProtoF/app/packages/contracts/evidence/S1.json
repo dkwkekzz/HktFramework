@@ -1,19 +1,19 @@
 {
-  "module": "S0-common-subject-model",
-  "sourceHash": "b9043599f716b3da",
+  "module": "S1-species-archetype",
+  "sourceHash": "b2d5ca50633c7f90",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "89f6293a038b6192",
+  "replayHash": "c3afe456cd9c6356",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "S0",
+      "module": "S1",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "s0-five-kinds-answer": "passed",
-        "s0-mute-subjects-rejected": "passed",
-        "s0-boundary": "passed"
+        "s1-five-species-stand": "passed",
+        "s1-broken-species-rejected": "passed",
+        "s1-boundary": "passed"
       }
     }
   }

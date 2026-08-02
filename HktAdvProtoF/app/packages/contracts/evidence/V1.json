@@ -1,6 +1,6 @@
 {
   "module": "V1-deterministic-runtime",
-  "sourceHash": "14eda5511a48675c",
+  "sourceHash": "47040815d055950a",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 336,
-      "passed": 336
+      "total": 375,
+      "passed": 375
     },
     "scenarios": {
       "total": 3,
