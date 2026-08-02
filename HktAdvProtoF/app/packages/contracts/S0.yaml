@@ -16,11 +16,11 @@ subtasks:                       # 상태 원소 5종 · 검증 장면 다수 →
   - id: S0-a
     name: subject-boundary
     purpose: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.
-    status: IN_PROGRESS
+    status: DONE
   - id: S0-b
     name: perception-profile
     purpose: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고 감지 여부를 판정한다.
-    status: PLANNED
+    status: DONE
   - id: S0-c
     name: stake-slots
     purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.

@@ -84,7 +84,15 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 - 상태 원소: `Boundary`, `SubjectGraphIds`
 - 시각화: diff(주체 카드 — 경계 목록 + 그래프 4종 자리)
 
-#### [S0-b] 감지 프로필 · [S0-c] 의존·유지 자리 · [S0-d] 주체 골격 · [S0-e] 5질문 검사기 · [S0-f] 눈 검증
+#### [S0-b] 감지 프로필
+- 목적: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고, 어떤 현상이 감지되는지 판정한다.
+- 입력: `PerceptionProfile`, `Phenomenon`(통로·세기), 거리, `Boundary[]`
+- 출력: `PerceptionVerdict` + `SubjectViolation[]` (통로 없음 · 전지한 문턱 · 몸 없는 감각)
+- 검증 장면: 같은 장막의 빛을 사냥꾼은 보고 국가는 보지 못한다 — 통로·세기·거리가 각각 어디서 갈리는지 나온다.
+- 상태 원소: `PerceptionProfile`, `PerceptionAcuity`
+- 시각화: diff(같은 현상, 주체별 감지 비교표)
+
+#### [S0-c] 의존·유지 자리 · [S0-d] 주체 골격 · [S0-e] 5질문 검사기 · [S0-f] 눈 검증
 - 카드 상세는 각 하위 작업 착수 시 작성한다 (WORKFLOW §2 여섯 필드).
 - O0 가 남긴 입력: 종은 이미 정의(`SpeciesDefinition`)로 세워졌고 공리를 지난다 —
   S0 의 `Subject` 는 그 정의에서 태어나는 개체여야 한다. 정의에 적힌 자리(slots)가

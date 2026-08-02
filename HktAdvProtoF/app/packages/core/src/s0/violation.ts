@@ -23,7 +23,14 @@ export type SubjectViolationRule =
   | 'unbounded-subject' // 그 종류의 주체에게 반드시 있어야 할 경계가 없다
   | 'bad-boundary' // 경계 선언 자체가 결함이다 (종류·대상·근거)
   | 'foreign-boundary' // 경계 대상의 존재 종류가 그 경계가 받는 종류가 아니다
-  | 'manufactured-graph'; // 매달린 그래프 ID 가 이 주체에서 유래하지 않았다
+  | 'manufactured-graph' // 매달린 그래프 ID 가 이 주체에서 유래하지 않았다
+  // S0-b 감지 프로필
+  | 'senseless-subject' // 통로가 하나도 없다 — 세계가 이 주체에게 일어나지 않는다
+  | 'unknown-channel' // 현상 통로 6종 밖으로 감지한다고 적었다
+  | 'duplicate-channel' // 같은 통로를 두 번 선언했다
+  | 'omniscient-channel' // 문턱이 0 이하다 — 전지한 감각은 은폐도 기만도 무너뜨린다
+  | 'bad-range' // 도달 거리가 O2 거리 범위 밖이다
+  | 'bodiless-sense'; // 몸 없는 주체가 몸의 감각을 선언했다
 
 /** 위반 하나 — 어느 주체의 어느 자리가 왜 막혔는가. */
 export interface SubjectViolation {

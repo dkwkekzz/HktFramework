@@ -4,3 +4,4 @@
 // 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하는지 검사한다.
 export * from './violation.ts';
 export * from './boundary.ts';
+export * from './perception.ts';
