@@ -71,7 +71,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R2.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 셋째 모듈이다. R1 이 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n\nid: R2\nname: phenomenon-emission\npurpose: >\n  사건이 관찰 가능한 현상으로 나타나게 한다 — 주체는 상태를 직접 보지 못하고 현상만 감지한다.\n\ninputs: [WorldEvent, EventLog, WorldStateSnapshot]\noutputs: [Phenomenon, PhenomenonViolation]\n\nwrites: []                      # 현상은 사건의 흔적이다 — 세계 상태를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, R0, R1]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r2-events-leave-traces\n  - r2-causeless-phenomenon-rejected\n  - r2-boundary\n\nelements:\n  - name: Phenomenon\n    ontology: Phenomenon        # O1 이 통로 6종(빛·소리·흔적·냄새·의념 잔향·보고서)까지 이미 고정했다\n    renderer: timeline          # 현상 위치·수명 (MODULES.md R2 행은 3D+타임라인 — 3D 는 X 계층에서 붙는다)\n\nlab: /lab/r2\n\nstatus: PLANNED\n\n# R1 이 R2 에 넘긴 자리:\n#   - 사건은 섰지만 아무도 그것을 보지 못한다 — 흔적을 남기는 것이 R2 의 첫 일이다.\n#   - O1 `Phenomenon` 은 원인 사건 id 를 요구한다(`causeEventId`) — 원인 없는 현상은 없다.\n"
+    "text": "id: R2\nname: phenomenon-emission\npurpose: >\n  사건이 관찰 가능한 현상으로 나타나게 한다 — 주체는 세계의 상태를 직접 읽지 못하고 현상만 감지한다.\n\n# R2 도 새 문법을 지어내지 않는다.\n#   통로가 몇 가지인가   O1 `PHENOMENON_CHANNELS` 6종이 이미 고정했다\n#   흔적이 왜 필요한가   O0 `observable-trace`(흔적 없는 것은 아무도 알 수 없다) ·\n#                        `caused-persistence`(원인 없는 지속적 결과는 없다)\n#   무엇이 움직였는가    R1 `WorldEvent.effects` (from → to)\n#   그 자리가 잴 수 있나  O2 스키마 범위 + P4-a `MEASURABLE_SPAN`\n#   흔적이 남는가        P0-b `reversible`\n# R2 가 더하는 것은 **표면**이다: 세계의 변화가 어느 통로로 새는지, 그리고 무엇이 새지 않는지.\n\ninputs: [WorldEvent, EventLog, WorldState]\noutputs: [WorldPhenomenon, PhenomenonField, PhenomenonViolation]\n\nwrites: []                      # 현상은 사건의 흔적이다 — 세계 상태를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P4, R0, R1]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R2-a\n    name: leak-channels\n    purpose: 자리마다 어느 통로로 새는지를 선언하고, 새지 않는 자리를 예외로 못박는다.\n    status: DONE\n  - id: R2-b\n    name: phenomenon-emission\n    purpose: 사건 하나가 남기는 현상을 세기·수명·자리·애매함까지 세운다.\n    status: PLANNED\n  - id: R2-c\n    name: phenomenon-field\n    purpose: 현상장 — 틱마다 무엇이 아직 남아 있는가, 그리고 흔적 없이 지나간 사건은 무엇인가.\n    status: PLANNED\n  - id: R2-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 현상 타임라인으로 R2 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r2-events-leave-traces      # 정상: 다섯 사건이 흔적으로 갈리고, 앎은 새지 않는다\n  - r2-causeless-phenomenon-rejected  # 실패: 원인 없는 현상·로그 밖의 원인·새지 않는 자리의 현상 등이 거부된다\n  - r2-boundary                 # 경계: 흔적 없이 지나가는 사건 · 사라지지 않는 흔적 · 잴 수 없는 자리의 세기\n\nelements:\n  - name: Phenomenon\n    ontology: Phenomenon        # O1 이 통로 6종(빛·소리·흔적·냄새·의념 잔향·보고서)까지 이미 고정했다\n    renderer: timeline          # 현상 수명 (MODULES.md R2 행은 3D+타임라인 — 3D 는 X 계층에서 붙는다)\n\nlab: /lab/r2\n\nstatus: IN_PROGRESS\n\n# R2 가 뒤 계층에 넘기는 자리:\n#   - **누가 그것을 감지하는가는 R3 의 몫이다.** R2 는 세계에 무엇이 났는지까지만 안다 —\n#     감각 프로파일·거리·차폐로 걸러 내는 것은 R3 다.\n#   - **현상의 세기는 값이 움직인 폭에서만 온다.** 능력이 낸 현상의 세기(G6 강도)는 G 계층이 갚는다.\n#   - **보고서 통로는 아직 저절로 퍼지지 않는다.** 관계·제도가 남기는 report 현상은 났을 뿐이고,\n#     그것이 누구를 거쳐 어디까지 가는지는 R4(소문·믿음)의 몫이다.\n#   - **자연 발생 사건의 현상은 여전히 유예다** — R1 이 그 사건 자체를 유예했다 (W2).\n"
   },
   {
     "name": "S0.yaml",
@@ -134,8 +134,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -172,8 +172,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -210,8 +210,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -248,8 +248,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -286,8 +286,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -324,8 +324,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -362,8 +362,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -400,8 +400,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -438,8 +438,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -476,8 +476,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -514,8 +514,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -552,8 +552,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -590,8 +590,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -628,8 +628,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -666,8 +666,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -704,8 +704,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -742,8 +742,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -780,8 +780,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -818,8 +818,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -856,8 +856,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
@@ -935,8 +935,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 989,
-        "passed": 989
+        "total": 1009,
+        "passed": 1009
       },
       "scenarios": {
         "total": 3,
