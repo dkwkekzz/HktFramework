@@ -1,27 +1,27 @@
 {
-  "module": "V3-browser-lab",
-  "sourceHash": "d9fb9a62e9757679",
+  "module": "R4-belief",
+  "sourceHash": "bff27d3c219e7113",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "020a838ca9bca35b",
+  "replayHash": "2b997bf34776a422",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
-    "testPackage": "packages/lab",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r4 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V3",
+      "module": "R4",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 124,
-      "passed": 124
+      "total": 1155,
+      "passed": 1155
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v3-page-shows-seven": "passed",
-        "v3-failure-highlight": "passed",
-        "v3-boundary": "passed"
+        "r4-same-trace-different-beliefs": "passed",
+        "r4-groundless-belief-rejected": "passed",
+        "r4-boundary": "passed"
       }
     }
   }
