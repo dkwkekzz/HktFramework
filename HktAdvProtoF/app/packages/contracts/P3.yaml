@@ -1,0 +1,30 @@
+# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.
+# 레지스트리의 "착수 가능" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면
+# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).
+# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.
+
+id: P3
+name: lazy-possibility-expansion
+purpose: >
+  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.
+
+inputs: [NarrowedTree, PossibilityGrammar, Percept, Memory, Relationship, Capability]
+outputs: [PossibilitySubgraph, ExpansionTrace]
+
+writes: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다
+  - p3-expands-relevant-only
+  - p3-broken-expansion-rejected
+  - p3-boundary
+
+elements:
+  - name: PossibilitySubgraph
+    ontology: Possibility
+    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)
+
+lab: /lab/p3
+
+status: PLANNED

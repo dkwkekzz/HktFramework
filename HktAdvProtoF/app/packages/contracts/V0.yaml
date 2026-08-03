@@ -3,7 +3,7 @@ name: module-contract-registry
 purpose: >
   모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.
 
-inputs: [ContractSource]
+inputs: [ContractSource, Evidence, ModuleSourceSpec]
 outputs: [ModuleRegistry, ModuleContract, ContractViolation]
 
 writes:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.
@@ -21,11 +21,18 @@ subtasks:
     name: registry-checker
     purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.
     status: DONE
+  - id: V0-c
+    name: evidence-crosscheck
+    purpose: 실제 계약을 실제 증거·소스 해시와 대조해 evidence-unsupported 관문을 실전에서 돌린다.
+    status: DONE
 
 scenarios:
   - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록
   - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부
   - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존
+  - v0-evidence-crosscheck      # 정상: 증거가 뒷받침하면 등록 + 착수 가능 목록이 계산된다
+  - v0-crosscheck-rejects       # 실패: 강등된 증거 · 낡은 증거(소스 변경) · 없는 증거 기각
+  - v0-crosscheck-boundary      # 경계: 증거 맵을 안 넘기면 관문이 돌지 않는다 · PLANNED 는 증거 없이 등록
 
 elements:
   - name: ModuleContract

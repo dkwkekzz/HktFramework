@@ -1,11 +1,11 @@
 {
   "module": "V0-module-contract-registry",
-  "sourceHash": "31d8e10fe529235b",
+  "sourceHash": "3f9be448320f3413",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "649a083d4a0ff900",
+  "replayHash": "d0713f208e7f1cc0",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
@@ -14,24 +14,27 @@
     "testPackage": "packages/contracts",
     "coverage": {
       "module": "V0",
-      "normal": 1,
-      "failure": 1,
-      "boundary": 1,
+      "normal": 2,
+      "failure": 2,
+      "boundary": 2,
       "complete": true
     },
     "tests": {
-      "total": 82,
-      "passed": 82
+      "total": 83,
+      "passed": 83
     },
     "scenarios": {
-      "total": 3,
-      "passed": 3,
+      "total": 6,
+      "passed": 6,
       "failed": 0,
       "coverageComplete": true,
       "byId": {
+        "v0-evidence-crosscheck": "passed",
         "v0-registry-accepts": "passed",
+        "v0-crosscheck-rejects": "passed",
         "v0-rejects-defective": "passed",
-        "v0-boundary": "passed"
+        "v0-boundary": "passed",
+        "v0-crosscheck-boundary": "passed"
       }
     }
   }

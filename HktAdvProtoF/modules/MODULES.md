@@ -30,7 +30,7 @@ W 계층 착수 시 배정하는 작업 카드를 만든다.
 
 | 모듈 | 목적 (한 문장) | 입력 → 출력 | 상태 원소 | 시각화 |
 |---|---|---|---|---|
-| V0 | 모든 모듈의 목적·입출력·의존·검증 방법을 등록하고 검사한다 | `MODULE.yaml[]` → `ModuleRegistry`(의존 DAG + 구현·검증 상태) | `ModuleContract`, `ModuleStatus` | 그래프(모듈 의존 DAG, 색=status) |
+| V0 | 모든 모듈의 목적·입출력·의존·검증 방법을 등록하고 검사한다 | `MODULE.yaml[]` + `Evidence[]` + 모듈 소스 명부(`ModuleSourceSpec`) → `ModuleRegistry`(의존 DAG + 구현·검증 상태 + 착수 가능 목록) | `ModuleContract`, `ModuleStatus` | 그래프(모듈 의존 DAG, 색=status) + diff(증거 교차검사 대조표) |
 | V1 | 같은 상태와 입력이면 항상 같은 결과가 나오게 한다 | `(seed, tick)` → `TickClock`, `SeededRandom`, `DeterministicId`, `stableSort`, `stateHash` | `Seed`, `Tick`, `StateHash` | diff(해시 비교표 — 100회 실행 동일성) |
 | V2 | 각 모듈의 대표 장면을 자동 실행한다 | `Scenario{arrange,act,assert}` → `ScenarioResult` + `Assertion[]` (실패 시 최초 분기 상태 경로 포함) | `ScenarioResult`, `Assertion` | diff(기대 vs 실제 + 분기 경로 하이라이트) |
 | V3 | 코드를 읽지 않아도 모듈 작동을 눈으로 확인하게 한다 | 모듈별 상태 원소 → Lab 페이지(화면 7요소: 입력·처리·후보·선택·상태 전후·실패 이유·인과) | — (렌더러 자체) | 자체 (공용 렌더러 5종 셸) |

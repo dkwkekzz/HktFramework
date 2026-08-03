@@ -50,6 +50,10 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: P2\nname: possibility-grammar\npurpose: >\n  같은 결핍 앞에서도 주체 유형과 문화에 따라 다른 갈래가 나오게 한다 — 낼 손이 있는가,\n  낼 수 있어도 하지 않는가.\n\ninputs: [SubjectKind, SpeciesArchetype, CultureArchetype, RoleArchetype, ActionAtom, AtomGrounding, StrategyTree]\noutputs: [KindFooting, AccessRule, AbilityGrant, AtomBan, PossibilityGrammar, NarrowedTree, ExampleReport, GrammarViolation]\n\nwrites: []                      # P2 도 세계를 바꾸지 않는다 — 누가 무엇을 낼 수 있는지의 문법만 확정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1]\n\nsubtasks:                       # 접근 격자·문화 겹침·적용은 검사기가 다르다 → WORKFLOW §3\n  - id: P2-a\n    name: kind-access\n    purpose: S0 경계 4종을 접근 4종(직접·구성원·의념·막힘)으로 번역해 유형 × 원자 격자를 계산한다.\n    status: DONE\n  - id: P2-b\n    name: culture-overlay\n    purpose: 능력이 대가를 의념으로 옮기고 금기가 원자를 닫는 겹침을 세우고, 거짓 인용을 거부한다.\n    status: DONE\n  - id: P2-c\n    name: narrow-and-reconcile\n    purpose: 문법으로 P1 갈래를 좁히고(닫기만 한다), 원문 P2 다섯 줄이 격자에서 도출되는지 대조한다.\n    status: DONE\n  - id: P2-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 격자·대조표로 P2 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p2-five-grammars            # 정상: 유형 다섯이 다른 손으로 내고, 원문 다섯 줄이 도출되며, 같은 종의 셋이 갈린다\n  - p2-broken-grammars-rejected # 실패: 몸 없는 자의 직접 행동·없는 능력·아무도 열지 않은 금기가 거부된다\n  - p2-boundary                 # 경계: 능력이 열지 못하는 자리 · 문화가 걸러 내는 원자 · 좁히기의 한 방향\n\nelements:\n  - name: PossibilityGrammar\n    ontology: Rule              # 문법은 그 주체에게 걸린 규칙이다 — 문화·역할과 같은 자리에 선다\n    renderer: diff\n\nlab: /lab/p2                    # 유형 × 원자 격자 80칸 + 원문 다섯 줄 대조 + 같은 종 셋의 갈림\n\nstatus: VERIFIED\nevidence: evidence/P2.json\n"
   },
   {
+    "name": "P3.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P3\nname: lazy-possibility-expansion\npurpose: >\n  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.\n\ninputs: [NarrowedTree, PossibilityGrammar, Percept, Memory, Relationship, Capability]\noutputs: [PossibilitySubgraph, ExpansionTrace]\n\nwrites: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p3-expands-relevant-only\n  - p3-broken-expansion-rejected\n  - p3-boundary\n\nelements:\n  - name: PossibilitySubgraph\n    ontology: Possibility\n    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)\n\nlab: /lab/p3\n\nstatus: PLANNED\n"
+  },
+  {
     "name": "S0.yaml",
     "text": "id: S0\nname: common-subject-model\npurpose: >\n  사람·생물·조직·국가·신이 하나의 공통 인터페이스로 서서 다섯 질문(감지·의존·능력·기억·유지)에 전부 답하게 한다.\n\ninputs: [SubjectSpec, SpeciesDefinition, StateSchema]   # 주체 선언 + O0 종 정의 + O2 자리\noutputs: [SubjectProfile, SubjectViolation, FiveQuestionReport]\n\nwrites:                         # S0 는 값을 바꾸지 않는다 — 주체가 무엇으로 이루어지는지를 정한다.\n  - Subject\n  - Boundary\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0]\n\nsubtasks:                       # 상태 원소 5종 · 검증 장면 다수 → WORKFLOW §3 분할\n  - id: S0-a\n    name: subject-boundary\n    purpose: 주체 종류마다 어디까지가 자기인지를 경계로 밝히고, 매달 그래프 4종의 자리를 유래에서 연다.\n    status: DONE\n  - id: S0-b\n    name: perception-profile\n    purpose: 주체가 현상 통로 6종 중 무엇을 얼마나 감지하는지 선언하고 감지 여부를 판정한다.\n    status: DONE\n  - id: S0-c\n    name: stake-slots\n    purpose: 주체가 무너지지 않으려 지키는 자리(의존)와 밀고 가려는 자리(유지)를 O2 자리로 못박는다.\n    status: DONE\n  - id: S0-d\n    name: subject-profile\n    purpose: 경계·감지·의존·유지·능력을 한 주체 프로필로 합치고 종 정의와 어긋나면 거부한다.\n    status: DONE\n  - id: S0-e\n    name: five-questions\n    purpose: 모든 주체가 다섯 질문에 답할 수 있는지 응답표로 판정한다.\n    status: DONE\n  - id: S0-f\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 주체 카드로 S0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - s0-five-kinds-answer        # 정상: 사람·생물·조직·국가·신 다섯이 다섯 질문에 전부 답한다\n  - s0-mute-subjects-rejected   # 실패: 답 못 하는 주체가 어느 질문의 어느 자리에서 왜 막히는지 나온다\n  - s0-boundary                 # 경계: 빈 경계 · 자기 참조 · 임계 감도 · 종 정의와의 어긋남\n\nelements:\n  - name: SubjectProfile\n    ontology: Subject           # O1 Subject 를 확장한다 — 필드를 빼지 않고 더한다\n    renderer: diff\n  - name: Boundary\n    ontology: Affordance        # \"여기까지가 나\" 는 세계가 이 주체에게 여는 범위다\n    renderer: diff\n  - name: PerceptionProfile\n    ontology: Affordance        # 현상 통로가 이 주체에게 열려 있는 정도\n    renderer: diff\n  - name: Need\n    ontology: Dependency        # 무너지지 않으려 지켜야 하는 자리\n    renderer: diff\n  - name: ValueTarget\n    ontology: Commitment        # 주체가 스스로에게 건 방향 — 무너지지는 않지만 밀고 간다\n    renderer: diff\n\nlab: /lab/s0                    # 주체 5종 카드 + 5질문 응답표 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/S0.json\n"
   },
@@ -67,7 +71,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "V0.yaml",
-    "text": "id: V0\nname: module-contract-registry\npurpose: >\n  모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.\n\ninputs: [ContractSource]\noutputs: [ModuleRegistry, ModuleContract, ContractViolation]\n\nwrites:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.\n  - ModuleContract\n  - ModuleStatus\n\ndepends: [V1, V2]               # 안정 정렬·상태 해시(V1) 로 판정하고, 검증은 V2 실행기로 한다\n\nsubtasks:\n  - id: V0-a\n    name: contract-yaml-parser\n    purpose: MODULE.yaml 서식을 읽고 서식 밖 문법을 줄 번호와 함께 거부한다.\n    status: DONE\n  - id: V0-b\n    name: registry-checker\n    purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.\n    status: DONE\n\nscenarios:\n  - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록\n  - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부\n  - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존\n\nelements:\n  - name: ModuleContract\n    ontology: Rule\n    renderer: graph\n  - name: ModuleStatus\n    ontology: State\n    renderer: graph\n\nlab: /lab/v0                    # V3 미구현 — packages/scenarios/verify/v0.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V0.json\n"
+    "text": "id: V0\nname: module-contract-registry\npurpose: >\n  모든 모듈의 목적·입출력·의존·검증 상태를 등록하고 결함 계약을 사유와 함께 거부한다.\n\ninputs: [ContractSource, Evidence, ModuleSourceSpec]\noutputs: [ModuleRegistry, ModuleContract, ContractViolation]\n\nwrites:                         # V0 은 세계 상태를 쓰지 않는다 — 계약 등록 상태만 만든다.\n  - ModuleContract\n  - ModuleStatus\n\ndepends: [V1, V2]               # 안정 정렬·상태 해시(V1) 로 판정하고, 검증은 V2 실행기로 한다\n\nsubtasks:\n  - id: V0-a\n    name: contract-yaml-parser\n    purpose: MODULE.yaml 서식을 읽고 서식 밖 문법을 줄 번호와 함께 거부한다.\n    status: DONE\n  - id: V0-b\n    name: registry-checker\n    purpose: 파싱된 계약을 등록하며 결함 계약을 거부하고 의존 DAG 를 계산한다.\n    status: DONE\n  - id: V0-c\n    name: evidence-crosscheck\n    purpose: 실제 계약을 실제 증거·소스 해시와 대조해 evidence-unsupported 관문을 실전에서 돌린다.\n    status: DONE\n\nscenarios:\n  - v0-registry-accepts         # 정상: 온전한 계약 등록 + 위상 순서 + 착수 가능 목록\n  - v0-rejects-defective        # 실패: 목적/입출력/시나리오/증거 없음 · 순환 의존 거부\n  - v0-boundary                 # 경계: 계약 0개 · 파싱 실패 · 중복 ID · 없는 의존 · 미검증 의존\n  - v0-evidence-crosscheck      # 정상: 증거가 뒷받침하면 등록 + 착수 가능 목록이 계산된다\n  - v0-crosscheck-rejects       # 실패: 강등된 증거 · 낡은 증거(소스 변경) · 없는 증거 기각\n  - v0-crosscheck-boundary      # 경계: 증거 맵을 안 넘기면 관문이 돌지 않는다 · PLANNED 는 증거 없이 등록\n\nelements:\n  - name: ModuleContract\n    ontology: Rule\n    renderer: graph\n  - name: ModuleStatus\n    ontology: State\n    renderer: graph\n\nlab: /lab/v0                    # V3 미구현 — packages/scenarios/verify/v0.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V0.json\n"
   },
   {
     "name": "V1.yaml",
@@ -660,12 +664,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V0": {
     "module": "V0-module-contract-registry",
-    "sourceHash": "31d8e10fe529235b",
+    "sourceHash": "3f9be448320f3413",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "649a083d4a0ff900",
+    "replayHash": "d0713f208e7f1cc0",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -674,24 +678,27 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
       "testPackage": "packages/contracts",
       "coverage": {
         "module": "V0",
-        "normal": 1,
-        "failure": 1,
-        "boundary": 1,
+        "normal": 2,
+        "failure": 2,
+        "boundary": 2,
         "complete": true
       },
       "tests": {
-        "total": 82,
-        "passed": 82
+        "total": 83,
+        "passed": 83
       },
       "scenarios": {
-        "total": 3,
-        "passed": 3,
+        "total": 6,
+        "passed": 6,
         "failed": 0,
         "coverageComplete": true,
         "byId": {
+          "v0-evidence-crosscheck": "passed",
           "v0-registry-accepts": "passed",
+          "v0-crosscheck-rejects": "passed",
           "v0-rejects-defective": "passed",
-          "v0-boundary": "passed"
+          "v0-boundary": "passed",
+          "v0-crosscheck-boundary": "passed"
         }
       }
     }
@@ -756,8 +763,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 84,
-        "passed": 84
+        "total": 87,
+        "passed": 87
       },
       "scenarios": {
         "total": 3,
@@ -794,8 +801,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 93,
-        "passed": 93
+        "total": 96,
+        "passed": 96
       },
       "scenarios": {
         "total": 3,
@@ -812,7 +819,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "0544efe43a651e8a",
+    "sourceHash": "d933bb6ead4d6555",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -832,8 +839,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 82,
-        "passed": 82
+        "total": 83,
+        "passed": 83
       },
       "scenarios": {
         "total": 6,

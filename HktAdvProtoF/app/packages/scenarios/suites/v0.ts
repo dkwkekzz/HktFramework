@@ -1,6 +1,11 @@
 // V0 검증 시나리오 3종 — 레지스트리가 온전한 계약은 등록하고 결함 계약은 사유와 함께 거부하는가.
 
-import { buildRegistry, type ContractSource, type ModuleRegistry } from '@hkt/contracts';
+import {
+  buildRegistry,
+  type ContractSource,
+  type Evidence,
+  type ModuleRegistry,
+} from '@hkt/contracts';
 
 import {
   defineScenario,
@@ -204,4 +209,178 @@ export const v0Boundary = defineScenario({
   ],
 });
 
-export const v0Scenarios = [v0RegistryAccepts, v0RejectsDefective, v0Boundary] as const;
+// ── 증거 교차검사 ──────────────────────────────────────────────────────────────
+// 계약의 status 는 **주장**이다. 그 주장이 성립하려면 증거가 뒷받침해야 한다 (V4).
+// 증거 맵을 넘기지 않으면 이 관문은 아예 돌지 않는다 — 그것이 이슈 #663 이었다.
+
+/** 온전한 증거 하나 — 시나리오마다 어긴 항목만 바꿔 넣는다. */
+function evidenceOf(id: string, overrides: Partial<Evidence> = {}): Evidence {
+  return {
+    module: `${id}-module`,
+    sourceHash: `hash-${id}`,
+    unitTests: 'passed',
+    propertyTests: 'passed',
+    labScenarios: 'manual',
+    integrationScenario: 'passed',
+    replayHash: `replay-${id}`,
+    status: 'VERIFIED',
+    blockers: [],
+    detail: {},
+    ...overrides,
+  };
+}
+
+const CROSS_SOURCES: readonly ContractSource[] = [
+  contract({ id: 'A' }),
+  contract({ id: 'B', depends: '[A]' }),
+  contract({ id: 'C', depends: '[A, B]', status: 'PLANNED', evidence: '' }),
+];
+
+const CROSS_EVIDENCE = new Map<string, Evidence>([
+  ['A', evidenceOf('A')],
+  ['B', evidenceOf('B')],
+]);
+
+const CROSS_HASHES = new Map<string, string>([
+  ['A', 'hash-A'],
+  ['B', 'hash-B'],
+]);
+
+/** 정상 — 증거가 뒷받침하면 등록되고, 착수 가능 목록이 선등록된 미착수 모듈을 가리킨다. */
+export const v0EvidenceCrosscheck = defineScenario({
+  id: 'v0-evidence-crosscheck',
+  module: 'V0',
+  kind: 'normal',
+  purpose: '완료 주장이 실제 증거와 대조되어 통과하고, 착수 가능 목록이 다음 모듈을 계산한다.',
+  arrange: (): readonly ContractSource[] => CROSS_SOURCES,
+  act: (sources) => {
+    const registry = buildRegistry(sources, { evidence: CROSS_EVIDENCE, sourceHashes: CROSS_HASHES });
+    return {
+      registered: registry.modules.filter((entry) => entry.registered).map((entry) => entry.contract.id),
+      violations: violationsOf(registry),
+      ready: registry.ready,
+    };
+  },
+  assert: (result): Assertion[] => [
+    expectState('셋 다 등록된다 — 증거가 주장을 뒷받침한다', ['A', 'B', 'C'], result.registered),
+    expectState('거부 사유가 없다', {}, result.violations),
+    expectState('착수 가능은 선등록된 미착수 모듈 하나다', ['C'], result.ready),
+  ],
+});
+
+/** 실패 — 강등된 증거·낡은 증거·없는 증거는 완료 주장을 기각한다. */
+export const v0CrosscheckRejects = defineScenario({
+  id: 'v0-crosscheck-rejects',
+  module: 'V0',
+  kind: 'failure',
+  purpose: '증거가 강등됐거나 소스가 바뀌었거나 증거가 없으면 evidence-unsupported 로 기각된다.',
+  arrange: (): readonly ContractSource[] => CROSS_SOURCES,
+  act: (sources) => {
+    const rules = (registry: ReturnType<typeof buildRegistry>): readonly string[] =>
+      (registry.modules.find((entry) => entry.contract.id === 'B')?.violations ?? []).map(
+        (violation) => violation.rule,
+      );
+    const reasons = (registry: ReturnType<typeof buildRegistry>): readonly string[] =>
+      (registry.modules.find((entry) => entry.contract.id === 'B')?.violations ?? [])
+        .filter((violation) => violation.rule === 'evidence-unsupported')
+        .map((violation) => violation.message);
+
+    const demoted = buildRegistry(sources, {
+      evidence: new Map([
+        ...CROSS_EVIDENCE,
+        ['B', evidenceOf('B', { status: 'IMPLEMENTED', blockers: ['단위 테스트가 통과하지 않았다 (89/90)'] })],
+      ]),
+      sourceHashes: CROSS_HASHES,
+    });
+    const stale = buildRegistry(sources, {
+      evidence: CROSS_EVIDENCE,
+      sourceHashes: new Map([...CROSS_HASHES, ['B', 'hash-B-changed']]),
+    });
+    const missing = buildRegistry(sources, {
+      evidence: new Map([...CROSS_EVIDENCE].filter(([id]) => id !== 'B')),
+      sourceHashes: CROSS_HASHES,
+    });
+
+    return {
+      demoted: rules(demoted),
+      demotedReasons: reasons(demoted),
+      stale: rules(stale),
+      staleReasons: reasons(stale),
+      missing: rules(missing),
+      // 셋 어디에서도 A 는 멀쩡하다 — 기각되는 것은 주장이 어긋난 모듈뿐이다.
+      neighbours: [demoted, stale, missing].map(
+        (registry) => registry.modules.find((entry) => entry.contract.id === 'A')?.registered === true,
+      ),
+    };
+  },
+  assert: (result): Assertion[] => [
+    expectState('강등된 증거는 evidence-unsupported 로 기각된다', ['evidence-unsupported'], result.demoted),
+    expectTrue(
+      '무엇이 막았는지 사유가 그대로 실린다',
+      result.demotedReasons.some((reason) => reason.includes('89/90')),
+      result.demotedReasons,
+    ),
+    expectState('소스가 바뀐 낡은 증거도 기각된다', ['evidence-unsupported'], result.stale),
+    expectTrue(
+      '낡음의 사유는 소스 변경을 가리킨다',
+      result.staleReasons.some((reason) => reason.includes('소스가 증거 이후로 바뀌었다')),
+      result.staleReasons,
+    ),
+    expectState('증거 자체가 없어도 기각된다', ['evidence-unsupported'], result.missing),
+    expectState('이웃 모듈은 멀쩡하다', [true, true, true], result.neighbours),
+  ],
+});
+
+/** 경계 — 증거 맵을 안 넘기면 관문이 아예 돌지 않는다 (#663 의 정체). */
+export const v0CrosscheckBoundary = defineScenario({
+  id: 'v0-crosscheck-boundary',
+  module: 'V0',
+  kind: 'boundary',
+  purpose: '증거 맵 없이 등록하면 강등된 증거가 있어도 통과한다 — 관문은 넘겨줘야 돈다.',
+  arrange: (): readonly ContractSource[] => CROSS_SOURCES,
+  act: (sources) => {
+    const broken = new Map([
+      ...CROSS_EVIDENCE,
+      ['B', evidenceOf('B', { status: 'IMPLEMENTED', blockers: ['무너진 증거'] })],
+    ]);
+    const withoutEvidence = buildRegistry(sources);
+    const withEvidence = buildRegistry(sources, { evidence: broken });
+    // 소스 해시만 빼면 강등 여부는 여전히 보지만 신선도는 못 본다.
+    const withoutHashes = buildRegistry(sources, { evidence: CROSS_EVIDENCE });
+    const registeredOf = (registry: ReturnType<typeof buildRegistry>): boolean =>
+      registry.modules.find((entry) => entry.contract.id === 'B')?.registered === true;
+
+    return {
+      blindPasses: registeredOf(withoutEvidence),
+      crossCheckCatches: registeredOf(withEvidence),
+      hashlessPasses: registeredOf(withoutHashes),
+      // PLANNED 모듈은 증거가 없어도 등록된다 — 완료를 주장하지 않기 때문이다.
+      plannedRegistered:
+        withEvidence.modules.find((entry) => entry.contract.id === 'C')?.registered === true,
+      emptyEvidenceRejects: buildRegistry(sources, { evidence: new Map<string, Evidence>() }).modules
+        .filter((entry) => entry.registered)
+        .map((entry) => entry.contract.id),
+    };
+  },
+  assert: (result, state): Assertion[] => [
+    expectState('증거 맵을 안 넘기면 무너진 증거도 통과한다', true, result.blindPasses),
+    expectState('넘기면 그 자리에서 잡힌다', false, result.crossCheckCatches),
+    expectState('해시 없이도 강등은 잡는다 — 못 보는 것은 신선도뿐이다', true, result.hashlessPasses),
+    expectState('완료를 주장하지 않는 PLANNED 모듈은 증거 없이도 등록된다', true, result.plannedRegistered),
+    expectState('증거가 하나도 없으면 완료 주장은 전부 기각되고 PLANNED 만 남는다', ['C'], result.emptyEvidenceRejects),
+    expectDeterministic(
+      '같은 증거면 항상 같은 판정이다',
+      () => violationsOf(buildRegistry(state, { evidence: CROSS_EVIDENCE, sourceHashes: CROSS_HASHES })),
+      10,
+    ),
+  ],
+});
+
+export const v0Scenarios = [
+  v0RegistryAccepts,
+  v0RejectsDefective,
+  v0Boundary,
+  v0EvidenceCrosscheck,
+  v0CrosscheckRejects,
+  v0CrosscheckBoundary,
+] as const;

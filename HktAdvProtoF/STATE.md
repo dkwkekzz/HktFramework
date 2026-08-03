@@ -23,7 +23,8 @@
 | 0 | **V2 시나리오 실행기** | **VERIFIED** ([증거](app/packages/contracts/evidence/V2.json)) | `node packages/scenarios/verify/v2.ts` — 자체 장면 3종이 통과 표로 나오고, 고의 결함 장면에서 초기상태·입력·기대·실제·최초 분기 경로 `$.stock.b` 다섯이 함께 출력된다 |
 | 0 | V2-b V1 시나리오 소급 등록 | DONE | `node packages/lab/verify/evidence.ts` — V1·V2 가 같은 실행기·같은 증거 생성기를 지나 둘 다 커버리지 완결로 찍힌다 |
 | 0 | V0-a 계약 파서 | DONE | `node --test` — 실제 계약을 읽고 탭·앵커·플로 매핑·중복 키를 줄 번호와 함께 거부한다 |
-| 0 | **V0 모듈 계약 레지스트리** | **VERIFIED** ([증거](app/packages/contracts/evidence/V0.json)) | `node packages/scenarios/verify/v0.ts` — 실제 계약 3개가 위상 순서 `V1 → V2 → V0` 으로 등록되고, 목적·입출력·시나리오·증거를 지우거나 자기 의존을 넣으면 각각의 사유로 거부된다 |
+| 0 | V0-c 증거 교차검사 | DONE | `node --test` — 강등된 증거·소스가 바뀐 낡은 증거·없는 증거가 각각 `evidence-unsupported` 로 완료 주장을 기각하고, 이웃 모듈은 멀쩡하다. 증거 맵을 안 넘기면 관문이 아예 돌지 않는다(#663 의 정체) |
+| 0 | **V0 모듈 계약 레지스트리** | **VERIFIED** ([증거](app/packages/contracts/evidence/V0.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v0` — 실제 계약 21개가 위상 순서로 등록되고, 목적·입출력·시나리오·증거를 지우거나 자기 의존을 넣으면 각각의 사유로 거부된다. **같은 계약을 증거만 바꿔 세 번 등록하면 판정이 갈린다** — 계약 텍스트는 한 글자도 다르지 않은데(셋 다 `status: VERIFIED` 를 주장한다) 증거가 강등되거나 사라지면 그 자리에서 `evidence-unsupported` 로 기각된다. 터미널(`node packages/scenarios/verify/v0.ts`)은 소스 해시까지 대조해 "소스가 증거 이후로 바뀌었다" 도 잡는다. 착수 가능 목록이 빈 채로 있지 않고 **다음에 할 일(P3)을 계산한다** (Chromium 확인: 7섹션 전부 채움, 붉은 행 0, 4xx 없음 — 브라우저 기본 favicon 요청만 404) |
 | 0 | V4-e 증거 일괄 기록 | DONE | `node --test` — 검증 셋이 전부 끝난 뒤에야 기록 셋이 시작되고, 검증이 던지면 아무것도 기록되지 않는다. 즉시 기록 추적을 넣으면 어느 검증이 어느 기록보다 뒤였는지 이름으로 짚는다 |
 | 0 | **V4 완료 증거 시스템** | **VERIFIED** ([증거](app/packages/contracts/evidence/V4.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v4` — 증거 대시보드에 스무 모듈이 완료로 찍히고, 산출물을 하나씩 무너뜨리면 사유와 함께 IMPLEMENTED 로 내려앉는다. 소스를 고친 뒤 예전 증거로 완료를 유지하려 하면 `evidence-unsupported` 로 막힌다. **기록 순서 추적표가 검증 마당과 기록 마당이 갈린 것을 여섯 줄로 보이고**, 그 아래 대조표에서 **같은 재료를 순서만 바꿔 돌린 둘이 갈린다** — 일괄 기록에서는 LAB 이 90/90 으로 VERIFIED 인데, 즉시 기록에서는 A·B 가 멀쩡한 채로 LAB 만 89/90 · IMPLEMENTED 로 내려앉는다(고장 난 것은 없다 — 바뀐 것은 기록 시점뿐이다). 위반 지점은 "LAB 검증이 A 기록보다 뒤다" 로 이름이 남는다 (Chromium 확인: 7섹션 전부 채움, 표 8개·추적 6줄, 붉은 행 1(즉시 기록), 4xx 없음 — 브라우저 기본 favicon 요청만 404) |
 | 0 | **V3 브라우저 검증 Lab** | **VERIFIED** ([증거](app/packages/contracts/evidence/V3.json)) | `npm run dev -w @hkt/lab` → `http://localhost:5173/#/v1` — 다섯 모듈 페이지가 각각 화면 7요소로 열리고 전부 통과 배지를 단다 (Chromium 확인: 콘솔 오류 없음) |
@@ -127,30 +128,18 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 | 이슈 | 내용 한 줄 | 출처 | 미러 | 처리 방침 |
 |---|---|---|---|---|
 | ~~V3 증거 강등 커밋~~ | ~~`evidence/V3.json` 이 D2 완료 커밋부터 `IMPLEMENTED`(스냅샷 신선도 테스트 1건 실패)로 강등된 채 커밋됨 — 원인은 증거 생성기가 루프 안에서 증거를 즉시 써서 lab 스냅샷이 낡아지는 순서 버그~~ | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#662](https://github.com/dkwkekzz/HktFramework/issues/662) | **상환(V4-e)** — `collectEvidence` 가 검증 전량 → 일괄 기록 두 마당으로 나누고 `recordingOrderViolations` 가 위반 시 exit 1. 증거 20개 내용이 전부 바뀌는 재생성에서도 한 바퀴에 20/20 VERIFIED. WORKFLOW §5 에 `verify` exit 0 커밋 조건 명문화 |
-| 레지스트리 증거 교차검사 비활성 | `verify/v0.ts` 가 `buildRegistry(sources)` 를 증거 맵 없이 호출해 `evidence-unsupported` 관문이 실전에서 돌지 않음 — 위 불일치를 못 잡은 두 번째 원인. "착수 가능" 목록도 미착수 계약 미등록으로 항상 빈다 | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#663](https://github.com/dkwkekzz/HktFramework/issues/663) | **P0 착수 전** — `buildRegistry(sources, { evidence: loadEvidence(...) })` 로 연결. 착수 가능 목록은 P0 계약을 PLANNED 로 선등록하는 관행으로 해소 |
+| ~~레지스트리 증거 교차검사 비활성~~ | ~~`verify/v0.ts` 가 `buildRegistry(sources)` 를 증거 맵 없이 호출해 `evidence-unsupported` 관문이 실전에서 돌지 않음. "착수 가능" 목록도 미착수 계약 미등록으로 항상 빈다~~ | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#663](https://github.com/dkwkekzz/HktFramework/issues/663) | **상환(V0-c)** — `buildRegistry(sources, { evidence, sourceHashes })` 로 연결하고, 소스 명부(`MODULE_SOURCES`)·해시 공식(`hashSources`)을 증거를 만드는 쪽과 대조하는 쪽이 함께 쓴다. 강등·낡음·없음 셋을 실제 계약으로 재현해 판정에 넣었다(exit 1 조건). 착수 가능 목록은 **P3 를 PLANNED 로 선등록**해 해소 |
 | 보고 문서 정비 | ~~STATE.md 표가 빈 줄로 쪼개져 렌더링~~(P2 병합에서 해소) · ~~증거 생성기 경로 오기~~(해소 — 실물은 `packages/lab/verify/evidence.ts`) · **progress/ 분리 미이행**(남음: 구현 현황 표가 79행이다) | [리뷰 인덱스](reviews/README.md) | [#664](https://github.com/dkwkekzz/HktFramework/issues/664) | 문서 작업 카드 1개로 일괄 — 급하지 않으나 P 계층 완료 기록 전이면 좋다 |
 | ~~MasterPlan §10 능력 체계 매핑 격차~~ | ~~§10(표현 6종·강도 식·mastery·stability·저항)이 ModulePlan·MODULES.md 검색 0건 — 작동 체계의 주인 모듈이 없다~~ | [리뷰 인덱스](reviews/README.md) | [#666](https://github.com/dkwkekzz/HktFramework/issues/666) 닫음 | **상환(2026-08-03)** — CLAUDE.md 에 북극성 2개(넨급 능력 문법·방대한 세계관) 명문화 + MODULES.md 에 북극성 대조표·G5 확장(PersonalAbility 전체 문법)·G6 신설(강도 판정, §10.2 식)·E3 소비 연결. 남은 자리: `unknownDomains`·`dangerScale` 소유 모듈은 W 계층 착수 시 작업 카드 |
 
 ## TODO — 단계 2 (M2 목적을 만드는 주체)
 
-**P2 가 닫혔다.** 결핍의 종(P1)에 이어 **누가 서 있는가**(P2)가 갈래를 좁힌다.
-다만 단계 0 리뷰가 남긴 **검증 파이프라인 이슈 두 건이 P3 보다 앞선다** (열린 이슈 표 앞 두 줄).
-목적이 둘("기록 순서를 고친다" · "교차검사를 켠다")이라 WORKFLOW §3 분할 신호에 걸려
-하위 작업 둘로 쪼갠다 — 이번 바퀴는 첫 조각(V4-e)이다.
+**P2 가 닫혔고, 단계 0 리뷰가 남긴 검증 파이프라인 이슈 두 건도 닫혔다** (V4-e #662 · V0-c #663).
+다음은 **P3(가능성 그래프 지연 확장)** — 지금 관련된 부분만 펼치는 자리다.
+계약은 이미 PLANNED 로 선등록돼 있고(`app/packages/contracts/P3.yaml`),
+`node packages/scenarios/verify/v0.ts` 의 "착수 가능" 목록이 P3 하나를 가리킨다.
 
-**V4-e 가 닫혔다** (이슈 #662 상환). 남은 것은 V4-f.
-
-### [V4-f] 레지스트리 증거 교차검사 — 다음 (이슈 #663 상환)
-- 목적: 계약의 완료 주장을 실제 증거와 대조하는 `evidence-unsupported` 관문을 실전 검증에서
-  켠다.
-- 입력: `ContractSource[]` + `loadEvidence(evidenceDir)` 증거 맵 + 모듈별 현재 소스 해시
-- 출력: 증거로 교차검사된 `Registry` (거부 사유에 `evidence-unsupported` 포함)
-- 검증 장면: 증거가 강등된 모듈이 하나 있으면 `verify/v0.ts` 가 그 계약의 VERIFIED 주장을
-  기각하고 사유를 보인다 — 지금은 증거 맵 없이 불러 아무것도 걸리지 않는다.
-- 상태 원소: `RegistryEntry.violations`(기존 원소 — 새 원소 없음)
-- 시각화: `/lab/v0` 등록 판정표 + "착수 가능" 목록 (미착수 계약을 PLANNED 로 선등록해 채운다)
-
-### [P3] 가능성 그래프 지연 확장 — 그 다음
+### [P3] 가능성 그래프 지연 확장 — 다음
 - 목적: 모든 가능성을 미리 만들지 않고 현재 관련된 부분만 확장한다. (MODULES.md P3 행)
 - P2 가 넘긴 재료: 좁혀진 갈래(`NarrowedTree`)와 문법(`PossibilityGrammar`). P3 은 그 위에
   **지금 보이는 것·기억·관계**를 얹어 후보를 더 줄인다 — 원문 P3 의 입력이 그대로 그 넷이다.
@@ -207,11 +196,11 @@ D5(의존 충돌 탐지)는 원문 §18 대로 단계 3(다주체 등장) 시점
 레지스트리 위상 순서는 `… → D3 → D4 → P0 → P1 → P2`. 단계 2 의 완료 조건이 증거로 확인되기
 전에는 단계 3(R·E 계층)의 어떤 모듈도 착수하지 않는다.
 
-**검증 파이프라인 이슈 두 건 중 하나가 닫혔다.** 단계 0 리뷰는 둘을 **P0 착수 전**에 닫으라고
-적었으나, P0~P2 는 리뷰가 main 에 오르기 전에 병렬로 진행되어 그 조건을 지나쳤다. 지금 상태는
-이렇다 — 증거 생성기의 순서 버그는 V4-e 로 상환되어 `npm run verify` 한 바퀴로 20/20 VERIFIED
-가 서고(증거 20개 내용이 전부 바뀌는 재생성에서도 그렇다), `verify/v0.ts` 의 증거 교차검사는
-아직 꺼져 있다. **남은 한 건(V4-f)을 P3 착수보다 먼저 닫는다.**
+**검증 파이프라인 이슈 두 건이 모두 닫혔다.** 단계 0 리뷰는 둘을 **P0 착수 전**에 닫으라고
+적었으나, P0~P2 는 리뷰가 main 에 오르기 전에 병렬로 진행되어 그 조건을 지나쳤다. 지금은
+갚았다 — 증거 생성기의 순서 버그는 V4-e 로(한 바퀴에 20/20 VERIFIED), 레지스트리 증거
+교차검사는 V0-c 로(강등·낡음·없음 셋이 실제 계약에서 기각되고, 착수 가능 목록이 P3 를 계산한다).
+**P3 착수 전 게이트는 이제 비어 있다.**
 
 **단계 리뷰 운용** (WORKFLOW §10): 리뷰는 **사용자가 요청할 때만** 진행한다 (`/advproto-review`).
 단계를 닫는 커밋은 TODO 에 "단계 N 리뷰 대기" 한 줄을 남긴다 — 자동으로 리뷰를 쓰지 않는다.

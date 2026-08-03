@@ -3,7 +3,10 @@
 
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
 
+import { stateHash } from '@hkt/core/v1';
+
 import type { Evidence } from './evidence.ts';
+import { MODULE_SOURCES, type ModuleSourceSpec } from './modules.ts';
 import type { ContractSource } from './registry.ts';
 
 /** 디렉터리의 *.yaml 을 전부 읽는다. */
@@ -24,4 +27,22 @@ export function loadEvidence(evidenceDir: URL): Map<string, Evidence> {
     out.set(id, JSON.parse(readFileSync(new URL(name, evidenceDir), 'utf8')) as Evidence);
   }
   return out;
+}
+
+/**
+ * 소스 목록의 내용 해시 — 증거의 `sourceHash` 와 **같은 공식이어야** 한다.
+ * 증거를 만드는 쪽과 대조하는 쪽이 이 함수 하나를 같이 쓴다 (#663).
+ */
+export function hashSources(appRoot: URL, sources: readonly string[]): string {
+  return stateHash(
+    sources.map((path) => ({ path, text: readFileSync(new URL(path, appRoot), 'utf8') })),
+  );
+}
+
+/** 모듈 ID → 지금 소스의 해시. 증거의 sourceHash 와 다르면 그 증거는 낡았다. */
+export function loadSourceHashes(
+  appRoot: URL,
+  specs: readonly ModuleSourceSpec[] = MODULE_SOURCES,
+): Map<string, string> {
+  return new Map(specs.map((spec) => [spec.id, hashSources(appRoot, spec.sources)]));
 }

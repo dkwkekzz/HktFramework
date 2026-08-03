@@ -11,13 +11,16 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import {
+  MODULE_SOURCES,
   buildEvidence,
   collectEvidence,
   formatDashboard,
   formatTrace,
   recordingOrderViolations,
   type Evidence,
+  type ModuleSourceSpec,
 } from '@hkt/contracts';
+import { hashSources } from '@hkt/contracts/load';
 import { stateHash } from '@hkt/core/v1';
 
 import { digestSuite, runScenarios, type AnyScenario } from '@hkt/scenarios';
@@ -46,310 +49,40 @@ import { v3Scenarios } from '../suites/v3.ts';
 const appRoot = new URL('../../../', import.meta.url);
 const evidenceDir = new URL('packages/contracts/evidence/', appRoot);
 
-interface ModuleSpec {
-  readonly id: string;
-  readonly name: string;
-  /** 검증 대상 소스 (app 루트 기준). 바뀌면 sourceHash 가 바뀌어 증거가 무효가 된다. */
-  readonly sources: readonly string[];
-  /** 단위 테스트를 돌릴 패키지 (app 루트 기준) */
-  readonly testPackage: string;
-  readonly scenarios: readonly AnyScenario[];
-  /** V3 Lab 대체 스크립트 */
-  readonly labSubstitute: string;
-}
+/** 모듈 소스 명부(@hkt/contracts MODULE_SOURCES)에 시나리오 스위트를 얹은 것. */
+type ModuleSpec = ModuleSourceSpec & { readonly scenarios: readonly AnyScenario[] };
 
-const MODULES: readonly ModuleSpec[] = [
-  {
-    id: 'V0',
-    name: 'V0-module-contract-registry',
-    sources: [
-      'packages/contracts/src/index.ts',
-      'packages/contracts/src/yaml.ts',
-      'packages/contracts/src/contract.ts',
-      'packages/contracts/src/registry.ts',
-      'packages/contracts/src/load.ts',
-    ],
-    testPackage: 'packages/contracts',
-    scenarios: v0Scenarios,
-    labSubstitute: 'packages/scenarios/verify/v0.ts',
-  },
-  {
-    id: 'V1',
-    name: 'V1-deterministic-runtime',
-    sources: [
-      'packages/core/src/index.ts',
-      'packages/core/src/v1/index.ts',
-      'packages/core/src/v1/tick.ts',
-      'packages/core/src/v1/random.ts',
-      'packages/core/src/v1/id.ts',
-      'packages/core/src/v1/stable-sort.ts',
-      'packages/core/src/v1/hash.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: v1Scenarios,
-    labSubstitute: 'packages/scenarios/verify/v1.ts',
-  },
-  {
-    id: 'V2',
-    name: 'V2-scenario-runner',
-    sources: [
-      'packages/scenarios/src/index.ts',
-      'packages/scenarios/src/scenario.ts',
-      'packages/scenarios/src/assertions.ts',
-      'packages/scenarios/src/diff.ts',
-      'packages/scenarios/src/digest.ts',
-      'packages/scenarios/src/runner.ts',
-      'packages/scenarios/src/report.ts',
-    ],
-    testPackage: 'packages/scenarios',
-    scenarios: v2Scenarios,
-    labSubstitute: 'packages/scenarios/verify/v2.ts',
-  },
-  {
-    id: 'V3',
-    name: 'V3-browser-lab',
-    sources: [
-      'packages/lab/src/index.ts',
-      'packages/lab/src/vnode.ts',
-      'packages/lab/src/page.ts',
-      'packages/lab/src/shell.ts',
-      'packages/lab/src/mount.ts',
-      'packages/lab/src/renderers/diff.ts',
-      'packages/lab/src/renderers/scenario.ts',
-      'packages/lab/src/pages/index.ts',
-    ],
-    testPackage: 'packages/lab',
-    scenarios: v3Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'O0',
-    name: 'O0-worldview-axioms',
-    sources: [
-      'packages/core/src/o0/index.ts',
-      'packages/core/src/o0/axiom.ts',
-      'packages/core/src/o0/definition.ts',
-      'packages/core/src/o0/enforcement.ts',
-      'packages/core/src/o0/derivation.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: o0Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'O1',
-    name: 'O1-common-world-ontology',
-    sources: [
-      'packages/core/src/o1/index.ts',
-      'packages/core/src/o1/kinds.ts',
-      'packages/core/src/o1/check.ts',
-      'packages/core/src/o1/being.ts',
-      'packages/core/src/o1/operation.ts',
-      'packages/core/src/o1/relation.ts',
-      'packages/core/src/o1/demand.ts',
-      'packages/core/src/o1/coverage.ts',
-      'packages/core/src/o1/catalog.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: o1Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'O2',
-    name: 'O2-world-state-schema',
-    sources: [
-      'packages/core/src/o2/index.ts',
-      'packages/core/src/o2/domain.ts',
-      'packages/core/src/o2/field.ts',
-      'packages/core/src/o2/schema.ts',
-      'packages/core/src/o2/world.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: o2Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o2 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'S0',
-    name: 'S0-common-subject-model',
-    sources: [
-      'packages/core/src/s0/index.ts',
-      'packages/core/src/s0/violation.ts',
-      'packages/core/src/s0/boundary.ts',
-      'packages/core/src/s0/perception.ts',
-      'packages/core/src/s0/stake.ts',
-      'packages/core/src/s0/subject.ts',
-      'packages/core/src/s0/questions.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: s0Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'S1',
-    name: 'S1-species-archetype',
-    sources: [
-      'packages/core/src/s1/index.ts',
-      'packages/core/src/s1/violation.ts',
-      'packages/core/src/s1/body.ts',
-      'packages/core/src/s1/senses.ts',
-      'packages/core/src/s1/lifecycle.ts',
-      'packages/core/src/s1/needs.ts',
-      'packages/core/src/s1/archetype.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: s1Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'S2',
-    name: 'S2-culture-role-archetype',
-    sources: [
-      'packages/core/src/s2/index.ts',
-      'packages/core/src/s2/violation.ts',
-      'packages/core/src/s2/reading.ts',
-      'packages/core/src/s2/value.ts',
-      'packages/core/src/s2/role.ts',
-      'packages/core/src/s2/culture.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: s2Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'S3',
-    name: 'S3-subject-instance',
-    sources: [
-      'packages/core/src/s3/index.ts',
-      'packages/core/src/s3/violation.ts',
-      'packages/core/src/s3/history.ts',
-      'packages/core/src/s3/trait.ts',
-      'packages/core/src/s3/instance.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: s3Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s3 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'D0',
-    name: 'D0-dependency-kind',
-    sources: [
-      'packages/core/src/d0/index.ts',
-      'packages/core/src/d0/violation.ts',
-      'packages/core/src/d0/kind.ts',
-      'packages/core/src/d0/grounding.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: d0Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'D1',
-    name: 'D1-dependency-graph-schema',
-    sources: [
-      'packages/core/src/d1/index.ts',
-      'packages/core/src/d1/violation.ts',
-      'packages/core/src/d1/node.ts',
-      'packages/core/src/d1/edge.ts',
-      'packages/core/src/d1/graph.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: d1Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'D2',
-    name: 'D2-species-base-dependency-graph',
-    sources: [
-      'packages/core/src/d2/index.ts',
-      'packages/core/src/d2/violation.ts',
-      'packages/core/src/d2/root.ts',
-      'packages/core/src/d2/supply.ts',
-      'packages/core/src/d2/blueprint.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: d2Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'D3',
-    name: 'D3-personal-dependency-variation',
-    sources: [
-      'packages/core/src/d3/index.ts',
-      'packages/core/src/d3/violation.ts',
-      'packages/core/src/d3/personal.ts',
-      'packages/core/src/d3/variation.ts',
-      'packages/core/src/d3/transform.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: d3Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'D4',
-    name: 'D4-dependency-pressure',
-    sources: [
-      'packages/core/src/d4/index.ts',
-      'packages/core/src/d4/violation.ts',
-      'packages/core/src/d4/snapshot.ts',
-      'packages/core/src/d4/deficit.ts',
-      'packages/core/src/d4/pressure.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: d4Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'P0',
-    name: 'P0-action-atom',
-    sources: [
-      'packages/core/src/p0/index.ts',
-      'packages/core/src/p0/violation.ts',
-      'packages/core/src/p0/atom.ts',
-      'packages/core/src/p0/grounding.ts',
-      'packages/core/src/p0/action.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: p0Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'P1',
-    name: 'P1-strategy-direction',
-    sources: [
-      'packages/core/src/p1/index.ts',
-      'packages/core/src/p1/violation.ts',
-      'packages/core/src/p1/direction.ts',
-      'packages/core/src/p1/opening.ts',
-      'packages/core/src/p1/tree.ts',
-      'packages/core/src/p1/possibility.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: p1Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p1 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'P2',
-    name: 'P2-possibility-grammar',
-    sources: [
-      'packages/core/src/p2/index.ts',
-      'packages/core/src/p2/violation.ts',
-      'packages/core/src/p2/access.ts',
-      'packages/core/src/p2/grammar.ts',
-      'packages/core/src/p2/narrow.ts',
-    ],
-    testPackage: 'packages/core',
-    scenarios: p2Scenarios,
-    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p2 (npm run dev --workspace @hkt/lab)',
-  },
-  {
-    id: 'V4',
-    name: 'V4-completion-evidence',
-    sources: ['packages/contracts/src/evidence.ts', 'packages/contracts/src/collect.ts'],
-    testPackage: 'packages/contracts',
-    scenarios: v4Scenarios,
-    labSubstitute: 'packages/scenarios/verify/v4.ts',
-  },
-];
+/** 모듈 ID → 시나리오 스위트. 소스·테스트 패키지는 명부가 갖는다 (한 곳에만 적는다). */
+const SUITES: Readonly<Record<string, readonly AnyScenario[]>> = {
+  V0: v0Scenarios,
+  V1: v1Scenarios,
+  V2: v2Scenarios,
+  V3: v3Scenarios,
+  V4: v4Scenarios,
+  O0: o0Scenarios,
+  O1: o1Scenarios,
+  O2: o2Scenarios,
+  S0: s0Scenarios,
+  S1: s1Scenarios,
+  S2: s2Scenarios,
+  S3: s3Scenarios,
+  D0: d0Scenarios,
+  D1: d1Scenarios,
+  D2: d2Scenarios,
+  D3: d3Scenarios,
+  D4: d4Scenarios,
+  P0: p0Scenarios,
+  P1: p1Scenarios,
+  P2: p2Scenarios,
+};
+
+const MODULES: readonly ModuleSpec[] = MODULE_SOURCES.map((spec) => {
+  const scenarios = SUITES[spec.id];
+  if (scenarios === undefined) {
+    throw new Error(`시나리오 스위트가 없는 모듈이 명부에 있다 — ${spec.id}`);
+  }
+  return { ...spec, scenarios };
+});
 
 interface TestOutcome {
   readonly result: 'passed' | 'failed';
@@ -380,12 +113,6 @@ function runTests(packagePath: string): TestOutcome {
   return outcome;
 }
 
-function sourceHash(sources: readonly string[]): string {
-  return stateHash(
-    sources.map((path) => ({ path, text: readFileSync(new URL(path, appRoot), 'utf8') })),
-  );
-}
-
 /** 모듈 하나의 검증 — 실제 검사를 수행하고 증거를 만든다. 파일은 여기서 쓰지 않는다. */
 function verifyModule(module: ModuleSpec): Evidence {
   const tests = runTests(module.testPackage);
@@ -400,7 +127,7 @@ function verifyModule(module: ModuleSpec): Evidence {
 
   return buildEvidence({
     module: module.name,
-    sourceHash: sourceHash(module.sources),
+    sourceHash: hashSources(appRoot, module.sources),
     unitTests: { result: tests.result, total: tests.total, passed: tests.passed },
     propertyTests: deterministic ? 'passed' : 'failed',
     labScenarios: 'manual', // V3 Lab 미구현 — labSubstitute 터미널 출력으로 대체

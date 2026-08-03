@@ -3,13 +3,15 @@
 //
 //   실행: node packages/scenarios/verify/v0.ts
 
-import { buildRegistry, formatRegistry, type ContractSource } from '@hkt/contracts';
-import { loadContractSources } from '@hkt/contracts/load';
+import { buildRegistry, formatRegistry, type ContractSource, type Evidence } from '@hkt/contracts';
+import { loadContractSources, loadEvidence, loadSourceHashes } from '@hkt/contracts/load';
 
 import { formatSuite, runScenarios } from '../src/index.ts';
 import { v0Scenarios } from '../suites/v0.ts';
 
+const appRoot = new URL('../../../', import.meta.url);
 const contractsDir = new URL('../../contracts/', import.meta.url);
+const evidenceDir = new URL('../../contracts/evidence/', import.meta.url);
 
 const line = (): void => console.log('─'.repeat(78));
 const heading = (text: string): void => {
@@ -20,13 +22,23 @@ const heading = (text: string): void => {
 
 // ① 입력 ─────────────────────────────────────────────────────────────────────
 const sources = loadContractSources(contractsDir);
-heading('① 입력 — 등록할 계약 파일');
+// 계약의 완료 주장은 **실제 증거**와 대조돼야 성립한다 (V4). 증거 맵 없이 등록하면
+// evidence-unsupported 관문이 실전에서 돌지 않는다 — 그것이 이슈 #663 이었다.
+const evidence = loadEvidence(evidenceDir);
+const sourceHashes = loadSourceHashes(appRoot);
+heading('① 입력 — 등록할 계약 파일 + 대조할 증거');
 for (const source of sources) {
-  console.log(`  ${source.name.padEnd(12)} ${String(source.text.split('\n').length).padStart(3)}행`);
+  const id = source.name.replace(/\.yaml$/, '');
+  const stored = evidence.get(id);
+  const hash = sourceHashes.get(id);
+  const fresh = stored === undefined || hash === undefined ? '—' : stored.sourceHash === hash ? '신선' : '낡음';
+  console.log(
+    `  ${source.name.padEnd(12)} ${String(source.text.split('\n').length).padStart(3)}행  증거 ${(stored?.status ?? '없음').padEnd(12)} 소스 ${fresh}`,
+  );
 }
 
 // ②③④ 처리 · 후보 · 선택 ────────────────────────────────────────────────────
-const registry = buildRegistry(sources);
+const registry = buildRegistry(sources, { evidence, sourceHashes });
 heading('②③④ 처리 · 후보 · 선택 — 등록 판정과 의존 DAG');
 console.log(formatRegistry(registry));
 console.log('');
@@ -77,6 +89,66 @@ for (const defect of defects) {
   );
 }
 
+// ⑤' 실제 증거 교차검사 ──────────────────────────────────────────────────────
+// 위 ⑤⑥ 은 손으로 지은 DEMO 계약이다. 여기서는 **실제 계약 + 실제 증거**를 쓴다 —
+// 증거를 무너뜨리거나 소스를 고친 척하면 완료 주장이 그 자리에서 기각돼야 한다.
+heading('⑤\' 실제 증거 교차검사 — 완료 주장이 증거와 어긋나면 기각된다');
+
+/** 실제 증거 맵의 사본에 손을 대 본다. */
+function withEvidence(id: string, patch: Partial<Evidence>): ReadonlyMap<string, Evidence> {
+  const copy = new Map(evidence);
+  const original = copy.get(id);
+  if (original !== undefined) copy.set(id, { ...original, ...patch });
+  return copy;
+}
+
+const victim = 'P2'; // 가장 최근에 닫힌 모듈 — 지금 VERIFIED 를 주장한다
+const crossChecks: readonly {
+  readonly label: string;
+  readonly evidence: ReadonlyMap<string, Evidence>;
+  readonly hashes: ReadonlyMap<string, string>;
+}[] = [
+  { label: '손대지 않는다', evidence, hashes: sourceHashes },
+  {
+    label: `${victim} 증거가 강등돼 있다`,
+    evidence: withEvidence(victim, { status: 'IMPLEMENTED', blockers: ['단위 테스트가 통과하지 않았다 (89/90)'] }),
+    hashes: sourceHashes,
+  },
+  {
+    label: `${victim} 소스가 증거 이후로 바뀌었다`,
+    evidence,
+    hashes: new Map([...sourceHashes, [victim, 'ffffffffffffffff']]),
+  },
+  {
+    label: `${victim} 증거 파일이 사라졌다`,
+    evidence: new Map([...evidence].filter(([id]) => id !== victim)),
+    hashes: sourceHashes,
+  },
+];
+
+const crossResults = crossChecks.map((check) => {
+  const built = buildRegistry(sources, { evidence: check.evidence, sourceHashes: check.hashes });
+  const entry = built.modules.find((module) => module.contract.id === victim);
+  return {
+    label: check.label,
+    registered: entry?.registered === true,
+    reasons: (entry?.violations ?? [])
+      .filter((violation) => violation.rule === 'evidence-unsupported')
+      .map((violation) => violation.message),
+  };
+});
+
+for (const result of crossResults) {
+  console.log(
+    `  ${result.label.padEnd(26)} → ${result.registered ? '등록 ✔' : '거부 ✘'}${
+      result.reasons.length === 0 ? '' : `  [evidence-unsupported] ${result.reasons.join(' · ')}`
+    }`,
+  );
+}
+
+const crossCheckWorks =
+  crossResults[0]?.registered === true && crossResults.slice(1).every((result) => !result.registered);
+
 // 시나리오 3종 ───────────────────────────────────────────────────────────────
 const suite = runScenarios(v0Scenarios);
 heading('시나리오 3종 (V2 실행기) — 정상 · 실패 · 경계');
@@ -87,17 +159,22 @@ heading('⑦ 인과 — 레지스트리가 무엇을 막는가');
 console.log('  목적 없는 모듈 · 입출력 없는 처리 모듈 · 순환 의존은 애초에 등록되지 않는다');
 console.log('  시나리오 없는 모듈, 증거 없는 모듈은 VERIFIED 를 주장할 수 없다');
 console.log('  미검증 모듈에 의존한 채 완료를 주장해도 거부된다 — 단계 게이트가 계약으로 강제된다');
+console.log('  완료 주장은 실제 증거와 대조된다 — 강등·낡음·없음이면 evidence-unsupported 로 기각된다');
 console.log('  착수 가능 목록은 "의존이 전부 VERIFIED 인 미완료 모듈" 이다 — 다음에 할 일이 계산된다');
+console.log('  그래서 다음 모듈은 착수 전에 PLANNED 로 선등록한다 — 등록되지 않은 모듈은 계산되지 않는다');
 
 const realOk = registry.modules.every((entry) => entry.registered) && registry.rejected.length === 0;
 const detectsDefects = defects.every((defect) => {
   const broken = buildRegistry([{ name: 'DEMO.yaml', text: defect.text }]);
   return broken.modules[0]?.registered !== true || broken.rejected.length > 0;
 });
+const readyComputed = registry.ready.length > 0;
 line();
 console.log(
-  `판정: 실제 계약 등록 ${realOk ? '통과 ✔' : '실패 ✘'} · 결함 검출력 ${detectsDefects ? '통과 ✔' : '실패 ✘'} · 시나리오 ${suite.failed === 0 ? '통과 ✔' : '실패 ✘'}`,
+  `판정: 실제 계약 등록 ${realOk ? '통과 ✔' : '실패 ✘'} · 결함 검출력 ${detectsDefects ? '통과 ✔' : '실패 ✘'} · 증거 교차검사 ${crossCheckWorks ? '통과 ✔' : '실패 ✘'} · 착수 가능 계산 ${readyComputed ? `통과 ✔ (${registry.ready.join(', ')})` : '실패 ✘ (빈 목록)'} · 시나리오 ${suite.failed === 0 ? '통과 ✔' : '실패 ✘'}`,
 );
 line();
 
-if (!realOk || !detectsDefects || suite.failed > 0) process.exitCode = 1;
+if (!realOk || !detectsDefects || !crossCheckWorks || !readyComputed || suite.failed > 0) {
+  process.exitCode = 1;
+}
