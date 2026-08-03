@@ -93,6 +93,7 @@
 
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
+실행 방아쇠: 작업 한 바퀴는 `/advproto-step`, 단계 리뷰는 `/advproto-review` (규정 원본은 WORKFLOW).
 
 ## 소급 부채 (V0~V4 완성 시 갚는다)
 
