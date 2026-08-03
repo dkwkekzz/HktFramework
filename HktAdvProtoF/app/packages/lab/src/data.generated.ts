@@ -26,6 +26,10 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
     "text": "id: D4\nname: dependency-pressure\npurpose: >\n  지금 세계에서 각 의존이 얼마나 채워졌는지 재어 압력을 계산하고 충족 5단계를 판정한다.\n\ninputs: [DependencyGraph, WorldSnapshot, PressureContext]\noutputs: [PressureReport, DeficitReading, EdgePressure, PressureViolation]\n\nwrites: []                      # D4 는 세계를 읽기만 한다 — 상태를 바꾸는 것은 R1 사건의 몫이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3]\n\nsubtasks:                       # 세계 모으기·결핍·압력·게이지는 검사기가 다르다 → WORKFLOW §3\n  - id: D4-a\n    name: world-snapshot\n    purpose: 개체가 지고 온 값과 세계의 자리를 O2 트리 하나로 모아 지금의 세계를 세운다.\n    status: DONE\n  - id: D4-b\n    name: deficit-reading\n    purpose: 노드의 조건과 세계의 실제 값을 대어 결핍을 0~1 로 읽는다.\n    status: DONE\n  - id: D4-c\n    name: pressure-formula\n    purpose: 원문 식(Strength × Deficit × Urgency × FailureRisk)으로 압력을 내고 5단계를 판정한다.\n    status: DONE\n  - id: D4-d\n    name: gauge-renderer\n    purpose: 공용 게이지·추이 렌더러를 세운다 — 5단계 색과 압력 막대 (WORKFLOW §6-2).\n    status: DONE\n  - id: D4-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 으로 압력이 오르는 것을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d4-hunger-rises             # 정상: 재고가 줄면 압력이 단조 증가하고 5단계가 차례로 오른다\n  - d4-broken-readings-rejected # 실패: 어긴 상태·미래의 결핍·없는 노드가 거부된다\n  - d4-boundary                 # 경계: 충족이면 압력 0 · 결핍의 양끝 · 시한이 1틱인 무너짐\n\nelements:\n  - name: Pressure\n    ontology: Dependency        # 압력은 의존이 지금 지고 있는 값이다\n    renderer: gauge\n\nlab: /lab/d4                    # 압력 게이지 + 5단계 그래프 + 재고 감소 추이 + 거부 사유\n\nstatus: VERIFIED\nevidence: evidence/D4.json\n"
   },
   {
+    "name": "D5.yaml",
+    "text": "# 단계 3(M3 충돌하는 주체)에서 붙는 D 계층의 마지막 모듈. 원문 §18 대로 **다주체가 선 뒤**에\n# 붙인다 — 혼자 서 있는 세계에는 다툼이 없다.\n#\n# D5 가 새로 정하는 것은 **다툼의 조건** 셋뿐이다(양립 불가 · 나뉘지 않음 · 모자람). 나머지는 전부\n# 앞 계층에서 읽어 온다.\n#   무엇을 요구하는가     D1 `DependencyNode.condition` (자리·대역) · `target`\n#   얼마나 급한가         D1 `DependencyEdge.urgency` · D4 `NodePressure.pressure`\n#   대신할 수 있는가       D1 `DependencyEdge.substitutability`\n#   세계에 얼마나 있는가   D4 `WorldSnapshot` (모자람을 재는 데만 본다)\n#\n# D2 가 명시적으로 남긴 한 줄(\"한 몸이 두 곳에 있을 수 없다는 다툼은 D5 가 볼 일이다\")을 갚는다.\n\nid: D5\nname: dependency-conflict\npurpose: >\n  주체 내부·주체 간 의존 충돌을 찾는다 — 같은 것을 원한다고 다 다툼은 아니고,\n  **여기서 콘텐츠의 기본 압력이 만들어진다**.\n\ninputs: [DependencyGraph, PressureReport, WorldSnapshot]\noutputs: [DependencyClaim, DependencyConflict, ConflictField, ConflictViolation]\n\nwrites: []                      # 충돌은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: D5-a\n    name: claim\n    purpose: 노드 하나가 세계의 무엇을 요구하는가 — 시간은 요구가 아니다.\n    status: DONE\n  - id: D5-b\n    name: conflict\n    purpose: 겹침 두 축과 다툼 두 조건 — 겹친다고 다툼은 아니다 (셋째는 유예).\n    status: DONE\n  - id: D5-c\n    name: conflict-field\n    purpose: 충돌장·감사·주체↔경합 대상 이분 그래프.\n    status: DONE\n  - id: D5-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 이분 그래프로 D5 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - d5-same-target-different-conflicts  # 정상: 겹침 중 다툼이 되는 것만 갈린다\n  - d5-groundless-conflict-rejected     # 실패: 근거 없는 충돌·한쪽뿐인 다툼 등이 거부된다\n  - d5-boundary                         # 경계: 창고가 비는 걸음 · 시간 · 대체 가능한 요구\n\nelements:\n  - name: DependencyConflict\n    ontology: null              # **O1 12타입에 없고, 없는 것이 옳다.** 충돌은 세계에 적히는 것이\n                                # 아니라 그래프들 사이에서 읽히는 것이다 — R3 `Percept` 와 같은 처지다.\n                                # 세계에 적히는 것은 그 다툼이 사건이 될 때이고, 그것은 E0·E3 다.\n    renderer: graph             # 주체↔경합 대상 이분 그래프 (MODULES.md D5 행)\n\nlab: /lab/d5\n\nstatus: VERIFIED\nevidence: evidence/D5.json\n\n# D5 가 뒤에 넘기는 자리:\n#   - **배타적 점유는 유예다.** \"이 대상은 한 번에 한 요구만 받는다\"(한 짝이 넷의 등을 동시에\n#     맡을 수는 없다)를 판정하려면 세계에 수용량을 적을 자리가 있어야 하는데 O2 에 없다.\n#     여기서 지어내면 D5 가 정하는 것이 늘어나므로 W 계층이 갚도록 선언으로 남겼다\n#     (P5-b 접근 권한 W2 유예 · R1-a 자연 발생 사건 유예와 같은 자리).\n#   - **D5 는 이기는 자를 정하지 않는다.** 다툼이 났다는 것과 얼마나 급한지까지다 —\n#     상황으로 묶는 것은 E0, 결과를 확정하는 것은 E3 다.\n#   - **다투는 자를 서로 알아보는 것은 아직 아니다.** P1 `rivals` 는 여기서 계산되지만, 그것을\n#     주체가 아는지는 R3·R4 가 정한다 (본 적 없는 겨루는 자는 갈래를 열지 못한다 — P1 장면).\n"
+  },
+  {
     "name": "O0.yaml",
     "text": "id: O0\nname: worldview-axioms\npurpose: >\n  세계에 어떤 존재와 현상이 허용되는지 공리로 정의하고, 그 공리를 어기는 능력·종 정의를 거부한다.\n\ninputs: [AxiomSpec, Definition, StateSchema]   # 원문 세 목록 + 세계에 들이려는 정의 + O2 자리\noutputs: [AxiomSet, AxiomViolation, EnforcementReport, DerivationReport]\n\nwrites:                         # O0 는 값을 바꾸지 않는다 — 무엇이 세계에 설 수 있는지를 정한다.\n  - Axiom\n  - Definition\n\ndepends: [V1, V2, V0, V3, V4, O1, O2]\n\nsubtasks:                       # 상태 원소 3종 초과 · 검증 장면 2개 초과 → WORKFLOW §3 분할\n  - id: O0-a\n    name: axiom-reconciliation\n    purpose: 원문이 세 곳에 나눠 적은 공리·불변 규칙을 대조해 하나의 공리 집합으로 확정한다.\n    status: DONE\n  - id: O0-b\n    name: definition-check\n    purpose: 세계에 들이려는 능력·종 정의가 공리를 어기면 사유와 경로로 거부한다.\n    status: DONE\n  - id: O0-c\n    name: enforcement-probe\n    purpose: 공리마다 지금 그것을 실제로 강제하는 지점이 있는지 실행해서 확인한다.\n    status: DONE\n  - id: O0-d\n    name: derivation-report\n    purpose: 같은 공리에서 서로 다른 여러 정의가 도출되는지 센다.\n    status: DONE\n  - id: O0-e\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 판정 데모로 O0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - o0-definitions-stand        # 정상: 원문 공리 위에 능력 3 · 종 4 가 서고 강제 지점이 살아 있다\n  - o0-violations-rejected      # 실패: 결함 정의 14종이 각자의 공리·사유·경로로 거부되고, 공리를 빼면 통과한다\n  - o0-boundary                 # 경계: 빈 공리 집합 · 강도 임계 · 근거 없는 정의 · 불모 공리\n\nelements:\n  - name: Axiom\n    ontology: Rule              # 공리는 근거가 자기 자신인 규칙이다 (O1 Rule.axiomId = null)\n    renderer: diff\n  - name: AxiomResolution\n    ontology: Claim             # 원문이 \"이 문장은 저 공리다\" 라고 건 대조 주장\n    renderer: diff\n  - name: Definition\n    ontology: Rule              # 정의는 공리에서 나온 규칙이다 — 근거는 Rule.axiomId 가 이미 갖고 있다\n    renderer: diff\n  - name: AxiomViolation\n    ontology: Claim             # 공리가 정의에 대해 내리는 판정\n    renderer: diff\n  - name: EnforcementPoint\n    ontology: Commitment        # \"이 공리는 여기서 강제된다\" 는 계층 사이의 약속\n    renderer: diff\n\nlab: /lab/o0                    # 원문 세 목록 대조표 + 공리별 강제 지점 + 정의 판정 데모\n\nstatus: VERIFIED\nevidence: evidence/O0.json\n"
   },
@@ -79,7 +83,11 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R4.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 다섯째 모듈이다. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n\nid: R4\nname: belief\npurpose: >\n  주체가 실제가 아닌 **믿는 세계**를 형성하게 한다 — 읽은 것에서 무엇이 일어났는지를 짐작한다.\n\ninputs: [Percept, PerceptField, WorldPhenomenon, SubjectInstance]\noutputs: [Belief, BeliefGraph, BeliefViolation]\n\nwrites: []                      # 믿음은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P3, R0, R1, R2, R3]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r4-same-percept-different-beliefs\n  - r4-groundless-belief-rejected\n  - r4-boundary\n\nelements:\n  - name: Belief\n    ontology: Claim             # 착수 시 확정한다 — O1 `Claim` 이 \"주체가 참이라 여기는 것\" 을\n                                # 이미 열어 두었다. P3-b `ContextFact` 의 기억 축(stale)도 재료다.\n    renderer: diff              # 실제 세계 vs 믿음 diff (MODULES.md R4 행)\n\nlab: /lab/r4\n\nstatus: PLANNED\n\n# R3 이 R4 에 넘긴 자리:\n#   - 지각에는 진실이 실리지 않는다 — 무엇이 일어났는지를 짐작하는 것이 R4 의 첫 일이다.\n#   - 애매함(`Percept.ambiguity`)이 클수록 짐작이 갈린다. 그 값은 R2 가 이미 세어 두었다.\n#   - 보고 통로는 났을 뿐 아직 퍼지지 않는다 — 거치는 주체가 왜곡 지점이라는 것이 R4 다 (S0-b).\n#   - 같은 흔적을 두 번 읽는 일(반복 관측으로 확신이 오르는 것)도 R4 의 몫이다.\n#   - P3-b 가 이미 열어 둔 자리: 기억은 실재를 요구하지 않되 지금과 어긋나면 stale 이다.\n"
+    "text": "# 단계 3(M3 충돌하는 주체)의 다섯째 모듈. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없었다.\n#\n# R4 가 새로 정하는 것은 **짐작의 사전** 한 줄뿐이다 — \"자기가 낼 수 있는 것으로 읽는다\".\n#   통로 → 자리          R2 `LEAK_CHANNELS` (세계의 규칙이지 장부가 아니다 — 누구나 안다)\n#   자리 → 원자          R2 `atomsMoving` (P0-b 걸림에서 계산된 것)\n#   무엇을 낼 수 있는가   P2 `PossibilityGrammar.allowed` (유형이 깔고 능력이 얹고 금기가 덜어 낸 것)\n#   읽은 것              R3 `Percept` — 진실이 실려 있지 않다 (truth-leak)\n#   애매함               R2 `WorldPhenomenon.ambiguity` (지각이 실어 온 값)\n# R3 이 남긴 한 줄(\"읽은 것에서 무엇이 일어났는지 짐작하는 것은 R4 다\")을 갚는다.\n\nid: R4\nname: belief\npurpose: >\n  주체가 실제가 아닌 **믿는 세계**를 형성하게 한다 — 읽은 것에서 무엇이 일어났는지를 짐작한다.\n\ninputs: [Percept, PerceptField, PossibilityGrammar, WorldPhenomenon]\noutputs: [Belief, BeliefGraph, BeliefViolation]\n\nwrites: []                      # 믿음은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R4-a\n    name: guess\n    purpose: 통로 하나에서 후보 원자를 세운다 — 진실을 보지 않고.\n    status: DONE\n  - id: R4-b\n    name: belief\n    purpose: 후보를 문법으로 좁혀 믿음을 세우고 확신을 요소에서 잰다.\n    status: DONE\n  - id: R4-c\n    name: belief-graph\n    purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.\n    status: DONE\n  - id: R4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r4-same-trace-different-beliefs  # 정상: 같은 자국을 놓고 셋의 짐작이 갈리고 사제만 틀린다\n  - r4-groundless-belief-rejected    # 실패: 근거 없는 믿음·후보 밖의 짚음·과한 확신·실린 진실이 거부된다\n  - r4-boundary                      # 경계: 금기가 후보를 다 지운 자리 · 재관측 · 아무도 못 본 흔적\n\nelements:\n  - name: Belief\n    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — \"주체가 참이라 여기는 것\" 이 이미 열려\n                                # 있고 확신 1 도 틀릴 수 있다고 적혀 있다. R4 는 통로·후보·좁힘·\n                                # 관측 횟수를 더할 뿐이다 (R2 가 Phenomenon 에 넷을 더한 것과 같다).\n    renderer: diff              # 실제 세계 vs 믿음 diff (MODULES.md R4 행)\n\nlab: /lab/r4\n\nstatus: VERIFIED\nevidence: evidence/R4.json\n\n# R3 이 R4 에 넘긴 자리:\n#   - 지각에는 진실이 실리지 않는다 — 무엇이 일어났는지를 짐작하는 것이 R4 의 첫 일이다.\n#   - 애매함(`Percept.ambiguity`)이 클수록 짐작이 갈린다. 그 값은 R2 가 이미 세어 두었다.\n#   - 보고 통로는 났을 뿐 아직 퍼지지 않는다 — 거치는 주체가 왜곡 지점이라는 것이 R4 다 (S0-b).\n#   - 같은 흔적을 두 번 읽는 일(반복 관측으로 확신이 오르는 것)도 R4 의 몫이다.\n#   - P3-b 가 이미 열어 둔 자리: 기억은 실재를 요구하지 않되 지금과 어긋나면 stale 이다.\n"
+  },
+  {
+    "name": "R5.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 여섯째 모듈이다. R4 가 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n# D5(의존 충돌 탐지)도 이 단계에 붙는다 — 둘 중 어느 쪽을 먼저 낼지는 착수 시 정한다.\n\nid: R5\nname: memory-and-relationship\npurpose: >\n  과거 사건과 대상 관계가 이후 판단에 영향을 주게 한다 — 그리고 **남의 말이 근거가 되게 한다**.\n\ninputs: [Event, Percept, Belief, BeliefGraph, SubjectInstance]\noutputs: [Memory, Relationship]\n\nwrites: []                      # 기억은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3, R4]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r5-memory-shapes-judgement\n  - r5-groundless-memory-rejected\n  - r5-boundary\n\nelements:\n  - name: Memory\n    ontology: Claim             # 착수 시 확정한다 — P3-b `ContextFact` 의 기억 축(stale)이 이미 재료다.\n    renderer: timeline          # 관계망(그래프) + 기억(타임라인) — MODULES.md R5 행\n\nlab: /lab/r5\n\nstatus: PLANNED\n\n# R4 가 R5 에 넘긴 자리:\n#   - **소문이 여기서 선다.** R4 는 제 지각만 근거로 받는다(`foreign-belief`) — 남의 말이 근거가\n#     되는 것과 거치는 주체가 왜곡 지점이 되는 것이 R5 의 일이다 (S0-b · 원문 §20).\n#   - **가치관이 확신을 흔드는 일**(믿고 싶은 것을 믿는 것)의 재료가 여기서 선다 — R4 의 요소 셋은\n#     전부 밖에서 잰 것이다(좁힘·세기·반복).\n#   - 삭은 자국 위에 남는 믿음(R4-c `staleBeliefs`)이 기억이 되는 자리다.\n"
   },
   {
     "name": "S0.yaml",
@@ -142,8 +150,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -180,8 +188,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -218,8 +226,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -256,8 +264,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -294,8 +302,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -306,6 +314,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "d4-hunger-rises": "passed",
           "d4-broken-readings-rejected": "passed",
           "d4-boundary": "passed"
+        }
+      }
+    }
+  },
+  "D5": {
+    "module": "D5-dependency-conflict",
+    "sourceHash": "969332ead8de3871",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "88396a542013333b",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d5 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "D5",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 1211,
+        "passed": 1211
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "d5-same-target-different-conflicts": "passed",
+          "d5-groundless-conflict-rejected": "passed",
+          "d5-boundary": "passed"
         }
       }
     }
@@ -332,8 +378,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -370,8 +416,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -408,8 +454,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -446,8 +492,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -484,8 +530,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -522,8 +568,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -560,8 +606,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -598,8 +644,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -636,8 +682,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -674,8 +720,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -712,8 +758,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -750,8 +796,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -788,8 +834,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -800,6 +846,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "r3-same-trace-different-eyes": "passed",
           "r3-unsensed-phenomenon-rejected": "passed",
           "r3-boundary": "passed"
+        }
+      }
+    }
+  },
+  "R4": {
+    "module": "R4-belief",
+    "sourceHash": "bff27d3c219e7113",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "2b997bf34776a422",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r4 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "R4",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 1211,
+        "passed": 1211
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "r4-same-trace-different-beliefs": "passed",
+          "r4-groundless-belief-rejected": "passed",
+          "r4-boundary": "passed"
         }
       }
     }
@@ -826,8 +910,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -864,8 +948,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -902,8 +986,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -940,8 +1024,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -978,8 +1062,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 90,
-        "passed": 90
+        "total": 92,
+        "passed": 92
       },
       "scenarios": {
         "total": 6,
@@ -1019,8 +1103,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1099,
-        "passed": 1099
+        "total": 1211,
+        "passed": 1211
       },
       "scenarios": {
         "total": 3,
@@ -1075,12 +1159,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "0e8e712f9f003782",
+    "sourceHash": "b7f0139102b2115e",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "ba7b63d1b1a9da6f",
+    "replayHash": "0fe8fc2564cc400c",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -1113,7 +1197,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "d7c9a0e0856e6de0",
+    "sourceHash": "1c6764fced09ba26",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -1133,8 +1217,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 90,
-        "passed": 90
+        "total": 92,
+        "passed": 92
       },
       "scenarios": {
         "total": 6,

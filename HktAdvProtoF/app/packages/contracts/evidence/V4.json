@@ -1,6 +1,6 @@
 {
   "module": "V4-completion-evidence",
-  "sourceHash": "d7c9a0e0856e6de0",
+  "sourceHash": "1c6764fced09ba26",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 90,
-      "passed": 90
+      "total": 92,
+      "passed": 92
     },
     "scenarios": {
       "total": 6,

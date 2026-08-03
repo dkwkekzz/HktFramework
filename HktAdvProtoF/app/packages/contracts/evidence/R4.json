@@ -1,19 +1,19 @@
 {
-  "module": "V1-deterministic-runtime",
-  "sourceHash": "b97f5918fde26956",
+  "module": "R4-belief",
+  "sourceHash": "bff27d3c219e7113",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "bfc6afce291d17c6",
+  "replayHash": "2b997bf34776a422",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v1.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r4 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "V1",
+      "module": "R4",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v1-same-seed-100": "passed",
-        "v1-seed-drift-detected": "passed",
-        "v1-boundary": "passed"
+        "r4-same-trace-different-beliefs": "passed",
+        "r4-groundless-belief-rejected": "passed",
+        "r4-boundary": "passed"
       }
     }
   }
