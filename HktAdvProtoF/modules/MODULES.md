@@ -19,9 +19,9 @@ CLAUDE.md 북극성(넨급 능력 문법 · 방대한 세계관)의 담당 모�
 | 북극성 | 담당 모듈 사슬 |
 |---|---|
 | ① 능력 = 캐릭터 표현의 근본 문법 (MasterPlan §10) | O0(비용·흔적 공리) → S3(값의 유래) → D3(대가의 의존 전환) → **G5(능력 문법·생성)** → **G6(강도 판정 — 제약과 서약의 식)** → E3(능력 충돌 판정) → R2(능력 흔적의 현상화) |
-| ①-정보 (능력 = 정보전의 표면 — [북극성 검토](../reviews/2026-08-03-northstar-critique.md) 격차 A) | **G5(정보 표면 4필드 — 노출/은닉/오인/봉쇄 + 계통 간 적성)** → R2·R3(노출의 현상화·선택 감지) → R4(상대의 믿음·오인) → **E3(판정 입력 확장 — `EffectMagnitude` + 상대 `BeliefGraph` 절편 + 준비·환경)**. G·E 계층 착수 시 작업 카드 |
+| ①-정보 (능력 = 정보전의 표면 — [북극성 검토](../reviews/2026-08-03-northstar-critique.md) 격차 A) | **G5(정보 표면 — 노출/은닉/오인/봉쇄 + 계통 간 적성)** → R2·R3(노출의 현상화·선택 감지) → R4(상대의 믿음·오인) → **E3(판정 입력 확장 — `EffectMagnitude` + 상대 `BeliefGraph` 절편 + 준비·환경)**. 계약 문안은 아래 G5·E3 행에 반영됨 — 구현·검증은 해당 계층 착수 시 |
 | ② 방대하고 다채로운 세계관 (MasterPlan §3·§8) | O0-d(공리 다산성 — 같은 공리에서 다른 종·능력·신) → W1(다중 주체 요구 병합 — 한 요소, 여러 의미) → C0~C4(마물·조직·국가·신) → A 계층(AI 확장) |
-| ②-장르 (제도 무대의 장르 변주 — 같은 검토 격차 B) | D0(제도·규칙·의례 의존) × E2(계약) × W2(규칙 실체화) × C2·C3(조직·국가의 결핍) → **소유 모듈 미정** — 참가·승리·금지·판돈의 한시 규칙 공간을 주체 결핍에서 도출. E·C 계층 착수 시 작업 카드 |
+| ②-장르 (제도 무대의 장르 변주 — 같은 검토 격차 B) | D0(제도·규칙·의례 의존) × E2(계약) × W2(규칙 실체화) × C2·C3(조직·국가의 결핍) → **E5(제도 무대)** — 참가·승리·금지·판돈의 한시 규칙 공간을 주체 결핍에서 도출. 계약 문안은 아래 E5 행에 반영됨 — 구현·검증은 E 계층 착수 시 |
 
 미지 영역·위험 스케일(MasterPlan §3.1 `unknownDomains`·`dangerScale`)은 아직 소유 모듈이 없다 —
 W 계층 착수 시 배정하는 작업 카드를 만든다. 그때 `dangerScale` 을 숫자 스케일이 아니라
@@ -134,8 +134,9 @@ W 계층 착수 시 배정하는 작업 카드를 만든다. 그때 `dangerScale
 | E0 | 같은 공간·자원·대상에 걸린 목적들을 상황으로 묶는다 | 다주체 `ActionIntent[]/ActiveGoal[]` → `Situation` 군집 | `Situation` | 그래프(상황 클러스터 맵) |
 | E1 | 상황에서 사회적 상호작용 8종을 선택하게 한다 | `Situation + 관계·힘 차·긴급도·도덕 비용·성공률·정보 비대칭` → `SocialInteraction`(요청·거래·협박·기만·동맹·고용·배신·복종) | `SocialInteraction` | 게이지(선택 기준 점수표) |
 | E2 | 퀘스트를 약속·계약 구조로 대체한다 | 상호작용 → `Contract{제안, 수락, 의무, 보상, 기한, 위반, 위반 결과}` | `Contract` | 타임라인(계약 상태 전이 카드) |
-| E3 | 같은 상태를 동시에 바꾸려는 행동의 결과를 확정한다 | 경합 `ActionIntent[]` (+ 능력 대 능력 충돌 시 G6 `EffectMagnitude`) → 확정 `Event`(소유자 1인 결정 등) | `Event` | 타임라인(충돌 판정 리플레이) |
+| E3 | 같은 상태를 동시에 바꾸려는 행동의 결과를 확정한다 — 능력 충돌은 강도 비교가 아니라 조건·정보 싸움이다 | 경합 `ActionIntent[]` (+ 능력 대 능력 충돌 시 G6 `EffectMagnitude` **+ 상대 능력에 대한 `BeliefGraph` 절편(R4 — 알고 있는가·오인하고 있는가) + 준비 상태 + 환경 조건**) → 확정 `Event`(소유자 1인 결정 등) (검증: 같은 두 주체·같은 능력에서 **정보 상태만 바꿔 승패가 뒤집히는 장면** — 북극성 검토 격차 A) | `Event` | 타임라인(충돌 판정 리플레이 — 판정 입력별 기여 분해) |
 | E4 | 사건이 다음 사건의 원인을 남기게 한다 | `Event` → 후속 원인 상태(부상·채무·증거·소문·원한·권력 공백·생태 변화·자원 부족) | `Consequence` | 그래프(사건 연쇄 인과 그래프) |
+| E5 | 조직·국가·신의 결핍에서 **제도 무대**를 세운다 — 참가·승리·금지·판돈의 한시 규칙 공간이 지배적 문제 해결 방식을 갈아 끼운다 (시험=선별 결핍, 경매=희소 자원+소유권 이전 규칙, 선거=정당성 결핍) | 복합 주체의 결핍(D4 `PressureReport`) + `Contract`(E2) + `Rule`(W2) → `InstitutionalStage{sponsorId(무대를 세운 주체와 그 결핍), entryConditions, victoryConditions, bannedAtoms(P0 원자 한정), stakes, duration}` + 무대 안 `Situation`(E0) 재해석 (저작 무대 거부 — sponsor 의 결핍에서 도출되지 않은 무대는 이름만 바꾼 퀘스트다 · 검증: 같은 결핍이라도 무대가 다르면 지배적 해결 방식이 달라지고, 무대 종료 후 법칙·인물·능력·관계가 이어진다 — 북극성 검토 격차 B) | `InstitutionalStage` | 타임라인+그래프(무대 규칙 카드 + 무대 안 상황 클러스터) |
 
 ## G 계층 — 성장과 의존 변형 `core/`
 
@@ -146,7 +147,7 @@ W 계층 착수 시 배정하는 작업 카드를 만든다. 그때 `dangerScale
 | G2 | 의존 충족 효율을 성장시킨다 | 경험 → 효율 파라미터(소비 감소·접근 거리·안전·속도) | `EfficiencyParams` | 게이지(효율 지표 전후) |
 | G3 | 의존 대상을 대체하게 한다 | 성장 조건 → `DependencyGraph` 대체 간선(음식→의념 결정→태양 에너지) | `DependencyEdge` | 그래프 diff |
 | G4 | 의존 탈피가 반드시 새 의존·비용을 낳게 한다 | 탈피 조건 → 의존 제거 + 신규 의존/비용 (등가 검사 실패 시 거부) | `DependencyGraph` diff | 그래프 diff + diff(등가 검사 결과) |
-| G5 | 능력을 캐릭터의 실체화로 생성한다 — 욕망·가치·공포·행동·비용·제한 6요소가 능력 전체 문법으로 조립된다 | 6요소 조합 + `SubjectInstance` → `PersonalAbility{sourceMedium, expression(6종: 강화·방출·변화·조작·구현화·특질), targetPattern, effectProgram, activationConditions, restrictions, costs, failureConsequences, mastery, stability}` (무비용·무제약·무실패 능력 거부 · MasterPlan §10.1) | `PersonalAbility` | diff(능력 카드 — 요소별 근거 + 표현 계통) |
+| G5 | 능력을 캐릭터의 실체화로 생성한다 — 욕망·가치·공포·행동·비용·제한 6요소가 능력 전체 문법으로 조립된다 | 6요소 조합 + `SubjectInstance` → `PersonalAbility{sourceMedium, expression(6종: 강화·방출·변화·조작·구현화·특질) + affinity(계통 간 적성 — 같은 계통이라도 개체마다 달라 같은 문법에서 다른 능력이 나온다), targetPattern, effectProgram, activationConditions, restrictions, costs, failureConsequences, mastery, stability, **정보 표면**: exposure(사용 시 노출 — R2 현상 채널로)·concealed(은닉되는 것)·misdirection(오인 유도 단서)·counters(봉쇄·역이용 조건)}` (무비용·무제약·무실패 능력 거부 · 정보 표면 미선언 거부 — "노출 없음" 도 선언이다 · **다산성 검사**: 전투 기술 밖 갈래(비전투 활용·조직·시장·사건) ≥ 1 을 O0-d 방식으로 확인 · MasterPlan §10.1 + 북극성 검토 격차 A) | `PersonalAbility` | diff(능력 카드 — 요소별 근거 + 표현 계통 + 정보 표면) |
 | G6 | 능력 강도를 제약과 서약의 식으로 판정한다 — 조건이 구체적이고 대가가 실질적이며 가치관과 일치할수록 강하다 | `PersonalAbility + AbilityContext`(출력·집중·감정 일관성·범위·지속·대상 저항) → `EffectMagnitude`(MasterPlan §10.2 식 — 항별 기여 분해 포함. E3 충돌 판정·규칙 엔진이 소비) | `EffectMagnitude` | 게이지(강도 분해 — 식의 항별 기여) |
 
 > G5·G6 은 MasterPlan §10(개인화된 초능력 체계)을 모듈로 분해한 **파생 확장**이다 — 원문
