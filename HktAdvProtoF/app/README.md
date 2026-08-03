@@ -26,6 +26,10 @@ npm run verify       # 터미널 7요소 출력 + 증거 파일 재생성
 npm run dev -w @hkt/lab   # 브라우저 Lab — http://localhost:5173/#/v1
 ```
 
+Windows 에서 Lab 만 눈으로 보려면 [../run.bat](../run.bat) 을 더블클릭한다 —
+Node 확인 → (필요 시) `npm install` → Lab 서버 → 브라우저 자동 열기까지 한 번에 한다.
+검증(`test`·`typecheck`·`verify`)은 하지 않는 관찰 전용 경로다.
+
 `erasableSyntaxOnly` 를 켜 두었으므로 `enum`·매개변수 프로퍼티 등 타입 스트리핑이 불가능한
 문법은 컴파일 단계에서 거부된다 — 빌드 없이 실행 가능한 상태를 강제한다.
 
