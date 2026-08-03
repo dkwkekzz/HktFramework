@@ -1,36 +1,58 @@
-# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.
-# 레지스트리의 "착수 가능" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면
-# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).
-# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.
+# 단계 3(M3 충돌하는 주체)의 다섯째 모듈. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없었다.
 #
-# 단계 3(M3 충돌하는 주체)의 다섯째 모듈이다. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없다.
+# R4 가 새로 정하는 것은 **짐작의 사전** 한 줄뿐이다 — "자기가 낼 수 있는 것으로 읽는다".
+#   통로 → 자리          R2 `LEAK_CHANNELS` (세계의 규칙이지 장부가 아니다 — 누구나 안다)
+#   자리 → 원자          R2 `atomsMoving` (P0-b 걸림에서 계산된 것)
+#   무엇을 낼 수 있는가   P2 `PossibilityGrammar.allowed` (유형이 깔고 능력이 얹고 금기가 덜어 낸 것)
+#   읽은 것              R3 `Percept` — 진실이 실려 있지 않다 (truth-leak)
+#   애매함               R2 `WorldPhenomenon.ambiguity` (지각이 실어 온 값)
+# R3 이 남긴 한 줄("읽은 것에서 무엇이 일어났는지 짐작하는 것은 R4 다")을 갚는다.
 
 id: R4
 name: belief
 purpose: >
   주체가 실제가 아닌 **믿는 세계**를 형성하게 한다 — 읽은 것에서 무엇이 일어났는지를 짐작한다.
 
-inputs: [Percept, PerceptField, WorldPhenomenon, SubjectInstance]
+inputs: [Percept, PerceptField, PossibilityGrammar, WorldPhenomenon]
 outputs: [Belief, BeliefGraph, BeliefViolation]
 
 writes: []                      # 믿음은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.
 
-depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P3, R0, R1, R2, R3]
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3]
 
-scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다
-  - r4-same-percept-different-beliefs
-  - r4-groundless-belief-rejected
-  - r4-boundary
+subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3
+  - id: R4-a
+    name: guess
+    purpose: 통로 하나에서 후보 원자를 세운다 — 진실을 보지 않고.
+    status: DONE
+  - id: R4-b
+    name: belief
+    purpose: 후보를 문법으로 좁혀 믿음을 세우고 확신을 요소에서 잰다.
+    status: IN_PROGRESS
+  - id: R4-c
+    name: belief-graph
+    purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.
+    status: PLANNED
+  - id: R4-d
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.
+    status: PLANNED
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - r4-same-trace-different-beliefs  # 정상: 같은 자국을 놓고 셋의 짐작이 갈리고 사제만 틀린다
+  - r4-groundless-belief-rejected    # 실패: 근거 없는 믿음·후보 밖의 짚음·과한 확신·실린 진실이 거부된다
+  - r4-boundary                      # 경계: 금기가 후보를 다 지운 자리 · 재관측 · 아무도 못 본 흔적
 
 elements:
   - name: Belief
-    ontology: Claim             # 착수 시 확정한다 — O1 `Claim` 이 "주체가 참이라 여기는 것" 을
-                                # 이미 열어 두었다. P3-b `ContextFact` 의 기억 축(stale)도 재료다.
+    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — "주체가 참이라 여기는 것" 이 이미 열려
+                                # 있고 확신 1 도 틀릴 수 있다고 적혀 있다. R4 는 통로·후보·좁힘·
+                                # 관측 횟수를 더할 뿐이다 (R2 가 Phenomenon 에 넷을 더한 것과 같다).
     renderer: diff              # 실제 세계 vs 믿음 diff (MODULES.md R4 행)
 
 lab: /lab/r4
 
-status: PLANNED
+status: IN_PROGRESS
 
 # R3 이 R4 에 넘긴 자리:
 #   - 지각에는 진실이 실리지 않는다 — 무엇이 일어났는지를 짐작하는 것이 R4 의 첫 일이다.
