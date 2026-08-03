@@ -35,11 +35,11 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: D5-c
     name: conflict-field
     purpose: 충돌장·감사·주체↔경합 대상 이분 그래프.
-    status: IN_PROGRESS
+    status: DONE
   - id: D5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 이분 그래프로 D5 를 눈으로 확인한다.
-    status: PLANNED
+    status: IN_PROGRESS
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - d5-same-target-different-conflicts  # 정상: 겹침 중 다툼이 되는 것만 갈린다

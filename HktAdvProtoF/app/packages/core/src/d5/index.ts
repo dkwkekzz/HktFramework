@@ -15,6 +15,24 @@ export {
 } from './claim.ts';
 
 export {
+  auditConflicts,
+  bipartiteOf,
+  conflictFieldVerdict,
+  conflictTable,
+  conflictsFor,
+  detectConflicts,
+  openConflictField,
+  unconflicted,
+  type Bipartite,
+  type BipartiteEdge,
+  type BipartiteNode,
+  type ConflictAudit,
+  type ConflictField,
+  type ConflictRow,
+  type DetectResult,
+} from './field.ts';
+
+export {
   bandsCompatible,
   checkConflict,
   conflictLine,
