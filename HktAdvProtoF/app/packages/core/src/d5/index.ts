@@ -15,6 +15,27 @@ export {
 } from './claim.ts';
 
 export {
+  bandsCompatible,
+  checkConflict,
+  conflictLine,
+  contestIdOf,
+  contestsOf,
+  demandOf,
+  judge,
+  judgeAll,
+  pressureOf,
+  severityOf,
+  supplyOf,
+  type ConflictReason,
+  type ConflictSide,
+  type Contest,
+  type DependencyConflict,
+  type JudgeOptions,
+  type Judgement,
+  type Peace,
+} from './conflict.ts';
+
+export {
   conflictViolationVerdict,
   violateConflict,
   type ConflictViolation,

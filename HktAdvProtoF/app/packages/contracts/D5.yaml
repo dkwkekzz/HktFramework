@@ -30,12 +30,12 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
     status: DONE
   - id: D5-b
     name: conflict
-    purpose: 겹침 두 축과 다툼 세 조건 — 겹친다고 다툼은 아니다.
-    status: IN_PROGRESS
+    purpose: 겹침 두 축과 다툼 두 조건 — 겹친다고 다툼은 아니다 (셋째는 유예).
+    status: DONE
   - id: D5-c
     name: conflict-field
     purpose: 충돌장·감사·주체↔경합 대상 이분 그래프.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: D5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 이분 그래프로 D5 를 눈으로 확인한다.
@@ -57,7 +57,11 @@ lab: /lab/d5
 
 status: IN_PROGRESS
 
-# D5 가 뒤에 넘기는 자리 (착수 시 확정한다):
+# D5 가 뒤에 넘기는 자리:
+#   - **배타적 점유는 유예다.** "이 대상은 한 번에 한 요구만 받는다"(한 짝이 넷의 등을 동시에
+#     맡을 수는 없다)를 판정하려면 세계에 수용량을 적을 자리가 있어야 하는데 O2 에 없다.
+#     여기서 지어내면 D5 가 정하는 것이 늘어나므로 W 계층이 갚도록 선언으로 남겼다
+#     (P5-b 접근 권한 W2 유예 · R1-a 자연 발생 사건 유예와 같은 자리).
 #   - **D5 는 이기는 자를 정하지 않는다.** 다툼이 났다는 것과 얼마나 급한지까지다 —
 #     상황으로 묶는 것은 E0, 결과를 확정하는 것은 E3 다.
 #   - **다투는 자를 서로 알아보는 것은 아직 아니다.** P1 `rivals` 는 여기서 계산되지만, 그것을
