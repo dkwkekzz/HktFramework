@@ -56,7 +56,7 @@
 | 모듈 | 목적 | 입력 → 출력 | 상태 원소 | 시각화 |
 |---|---|---|---|---|
 | P0 | 가능성을 구성하는 최소 행동 16원자를 정의하고, 각 원자가 무엇을 바꾸고 무엇을 치르는지 못박는다 | 원문 P0 16 · P1 방향 7 · P2 예시 15, `StateSchema`, `DependencyKind`, `Affordance` → `ActionAtom` 16종(찾다·획득·생산·교환·빼앗다·보호·제거·은폐·조사·설득·협박·동맹·배신·적응·대체·탈피) + `ActionAtomSpec`, `AtomResolution`, `AtomGrounding`(손대는 곳·동의·의존에 대한 태도·읽기/바꾸기/치르기 자리·관측), `ActionProposal`, `ActionFit`, `ActionAtomViolation` | `ActionAtom` | diff(원자 16표 + 원문 환원표 + 결핍 앞의 길) |
-| P1 | 결핍된 의존마다 대응 방향 7종을 전개한다 | 결핍 `DependencyNode` → `StrategyDirection[]`(충족·대체·감소·생산·위임·경쟁 제거·의존 제거) | `StrategyDirection` | 그래프(결핍 → 대응 트리) |
+| P1 | 결핍된 의존마다 대응 방향 7종을 전개하고, 열리지 않는 방향은 사유와 함께 남긴다 | `DependencyGraph + PressureReport`(D4) + `AtomGrounding`(P0) + `KindGrounding`(D0) → `StrategyDirectionSpec` 7종(충족·대체·감소·생산·위임·경쟁 제거·의존 제거) + `StrategyOption`(열림·원자·막힘 사유 8종·갚을 모듈) + `StrategyBranch`·`StrategyTree`(압력 순·해시) + 열린 갈래의 `Possibility`(O1) + `StrategyViolation` | `Possibility` | 그래프(결핍 → 대응 트리, 열림=녹·막힘=적 파선) |
 | P2 | 같은 의존에 주체 유형별 다른 대응이 나오게 한다 | `SpeciesArchetype/CultureArchetype/RoleArchetype` → `PossibilityGrammar`(허용 원자·전략 집합) | `PossibilityGrammar` | diff(주체 유형별 문법 비교표) |
 | P3 | 전체가 아닌 현재 관련된 가능성만 지연 확장한다 | `결핍 + Percept[] + Memory + Relationship + Capability` → 활성 `PossibilitySubgraph` | `PossibilitySubgraph` | 그래프(전체 회색, 활성 부분 발광) |
 | P4 | 후보 중 실제 추구할 목적을 선택하고 관성을 유지한다 | `PossibilitySubgraph + 평가요소(압력·성공률·비용·위험·가치관·관계·기억·약속·매몰비용)` → `ActiveGoal{commitmentInertia}` | `ActiveGoal` | 게이지(후보별 점수표 + 선택 마크) |

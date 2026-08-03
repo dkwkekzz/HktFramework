@@ -1,13 +1,15 @@
 {
   "module": "V3-browser-lab",
-  "sourceHash": "433ce985824942a7",
-  "unitTests": "passed",
+  "sourceHash": "337e4e4d16ea0530",
+  "unitTests": "failed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "cbd3778e6e8a5669",
-  "status": "VERIFIED",
-  "blockers": [],
+  "replayHash": "8b2a99ca1c8ddb77",
+  "status": "IMPLEMENTED",
+  "blockers": [
+    "단위 테스트가 통과하지 않았다 (86/87)"
+  ],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
     "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
@@ -20,8 +22,8 @@
       "complete": true
     },
     "tests": {
-      "total": 84,
-      "passed": 84
+      "total": 87,
+      "passed": 86
     },
     "scenarios": {
       "total": 3,

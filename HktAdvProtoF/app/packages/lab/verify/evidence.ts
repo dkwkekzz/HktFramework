@@ -30,6 +30,7 @@ import { d2Scenarios } from '@hkt/scenarios/suites/d2';
 import { d3Scenarios } from '@hkt/scenarios/suites/d3';
 import { d4Scenarios } from '@hkt/scenarios/suites/d4';
 import { p0Scenarios } from '@hkt/scenarios/suites/p0';
+import { p1Scenarios } from '@hkt/scenarios/suites/p1';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -301,6 +302,21 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: p0Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'P1',
+    name: 'P1-strategy-direction',
+    sources: [
+      'packages/core/src/p1/index.ts',
+      'packages/core/src/p1/violation.ts',
+      'packages/core/src/p1/direction.ts',
+      'packages/core/src/p1/opening.ts',
+      'packages/core/src/p1/tree.ts',
+      'packages/core/src/p1/possibility.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: p1Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p1 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

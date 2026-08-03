@@ -19,7 +19,8 @@
     "./d2": "./src/d2/index.ts",
     "./d3": "./src/d3/index.ts",
     "./d4": "./src/d4/index.ts",
-    "./p0": "./src/p0/index.ts"
+    "./p0": "./src/p0/index.ts",
+    "./p1": "./src/p1/index.ts"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\""
