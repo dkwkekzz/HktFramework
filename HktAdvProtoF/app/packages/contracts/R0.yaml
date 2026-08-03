@@ -1,0 +1,33 @@
+# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.
+# 레지스트리의 "착수 가능" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면
+# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).
+# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.
+#
+# 단계 3(M3 충돌하는 주체)의 첫 모듈이다. 단계 2 가 증거로 닫혔으므로 착수를 막는 게이트는 없다
+# (WORKFLOW §7). 착수 순서는 레지스트리의 "착수 가능" 목록을 따른다.
+
+id: R0
+name: world-state-store
+purpose: >
+  정식화된 세계의 실제 상태를 저장하고 조회한다 — 지금까지의 세계는 값으로만 있었고 주인이 없었다.
+
+inputs: [WorldState, StateSchema]
+outputs: [WorldStateStore, WorldStateSnapshot]
+
+writes: []                      # R0 은 담을 뿐이다 — 바꾸는 것은 R2 규칙 엔진이다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0]
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다
+  - r0-stores-and-reads
+  - r0-broken-store-rejected
+  - r0-boundary
+
+elements:
+  - name: WorldStateSnapshot
+    ontology: State
+    renderer: diff              # 상태 브라우저 (MODULES.md R0 행)
+
+lab: /lab/r0
+
+status: PLANNED

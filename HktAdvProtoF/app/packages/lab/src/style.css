@@ -534,3 +534,74 @@ tr.incomplete td:last-child {
   color: var(--muted);
   font-variant-numeric: tabular-nums;
 }
+
+/* 공용 렌더러 ④ 타임라인 (P5-c) — 왼쪽이 먼저다. 순서가 곧 배치라 그림이 결정적이다. */
+.timeline-view {
+  margin: 8px 0 4px;
+}
+
+.timeline-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: stretch;
+  gap: 6px;
+}
+
+.timeline-step {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.timeline-step.is-goal .timeline-body {
+  border-color: rgba(74, 222, 128, 0.5);
+}
+
+.timeline-mark {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: #0b0e14;
+  font-size: 0.78em;
+  font-weight: 700;
+  flex: none;
+}
+
+.timeline-body {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 5px 9px;
+  border: 1px solid rgba(127, 127, 127, 0.28);
+  border-radius: 6px;
+  max-width: 260px;
+}
+
+.timeline-label {
+  font-weight: 600;
+}
+
+.timeline-badge {
+  font-size: 0.78em;
+  color: var(--muted);
+}
+
+.timeline-note {
+  font-size: 0.82em;
+  color: var(--muted);
+}
+
+.timeline-arrow {
+  color: var(--muted);
+  align-self: center;
+}
+
+.timeline-none {
+  color: var(--muted);
+}
