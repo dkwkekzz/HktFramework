@@ -16,7 +16,12 @@ export type GoalViolationRule =
   // P4-b 평가 요소 아홉
   | 'unsourced-factor' // 앞 계층에서 오지 않은 힘이 목적을 민다 — 출처 없는 요소·선언과 다른 계층
   | 'factor-out-of-range' // 요소 값이 −1~1 밖이다 — 접을 수 없는 힘이다
-  | 'phantom-candidate'; // P3 이 펴지 않은 것을 후보로 든다 — 놓이지 않은 길은 고를 수 없다
+  | 'phantom-candidate' // P3 이 펴지 않은 것을 후보로 든다 — 놓이지 않은 길은 고를 수 없다
+  // P4-c 점수·선택·관성
+  | 'score-drift' // 점수가 요소 아홉에서 다시 나오지 않는다 — 손으로 적은 점수는 근거가 아니다
+  | 'unheld-goal' // 후보에 없는 것을 좇는다
+  | 'premature-goal' // 선행이 서지 않은 것을 골랐다 — 먼저 설 것이 있다
+  | 'inertia-without-history'; // 밀어낼 것이 없는데 문턱이 있다 · 아직 오지 않은 시각부터 좇는다
 
 /** 위반 하나 — 어느 후보의 어디가 왜 막혔는가. */
 export interface GoalViolation {
