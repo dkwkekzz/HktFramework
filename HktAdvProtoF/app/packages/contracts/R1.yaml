@@ -7,7 +7,7 @@ purpose: >
 # P0-c `fitAction` 이, 사건이 무엇으로 이루어지는지는 O1 `Event` 가, 담기는 규칙은 R0 이 이미 정했다.
 # R1 이 더하는 것은 **통로**다: 세계를 바꾸는 길이 사건 하나뿐이 되게 하는 것.
 inputs: [ActionProposal, WorldStateStore, WorldState, Tick]
-outputs: [WorldEvent, EventEffect, EventLog, EventViolation, CommitResult]
+outputs: [WorldEvent, EventEffect, EventLog, ApplyResult, EventViolation, CommitResult]
 
 writes: []                      # 사건이 바꾸는 자리는 P0-b 가 원자마다 못박은 자리뿐이다 — R1 은 그 밖을 열지 않는다.
 
@@ -21,7 +21,7 @@ subtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3
   - id: R1-b
     name: event-application
     purpose: 사건을 R0 원장에 적용하고, 사건 없이 담긴 칸을 찾아낸다.
-    status: PLANNED
+    status: DONE
   - id: R1-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 사건 로그로 R1 을 눈으로 확인한다.
