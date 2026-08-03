@@ -1,27 +1,27 @@
 {
-  "module": "V3-browser-lab",
-  "sourceHash": "0e8e712f9f003782",
+  "module": "R3-perception",
+  "sourceHash": "e6e70ac45aee391e",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "ba7b63d1b1a9da6f",
+  "replayHash": "55411d5664fd9249",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
-    "testPackage": "packages/lab",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r3 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V3",
+      "module": "R3",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 124,
-      "passed": 124
+      "total": 1099,
+      "passed": 1099
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v3-page-shows-seven": "passed",
-        "v3-failure-highlight": "passed",
-        "v3-boundary": "passed"
+        "r3-same-trace-different-eyes": "passed",
+        "r3-unsensed-phenomenon-rejected": "passed",
+        "r3-boundary": "passed"
       }
     }
   }

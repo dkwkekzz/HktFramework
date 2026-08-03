@@ -22,19 +22,19 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R3-a
     name: reach
     purpose: 자리를 거리로 바꾸고 차폐를 통로별 감쇠로 옮긴다.
-    status: PLANNED
+    status: DONE
   - id: R3-b
     name: percept
     purpose: 감지를 판정하고 Percept 를 세운다 — 진실은 실리지 않는다.
-    status: PLANNED
+    status: DONE
   - id: R3-c
     name: percept-field
     purpose: 주체별 지각장과 감사 — 아무도 보지 못한 흔적을 값으로 짚는다.
-    status: PLANNED
+    status: DONE
   - id: R3-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 감지 대조로 R3 을 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r3-same-trace-different-eyes  # 정상: 같은 열다섯 흔적 앞에서 다섯 종이 서로 다른 세계에 산다
@@ -50,7 +50,8 @@ elements:
 
 lab: /lab/r3
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R3.json
 
 # R2 가 R3 에 넘긴 자리:
 #   - R2 는 세계에 무엇이 났는지까지만 안다 — 감각 프로파일·거리·차폐로 거르는 것은 R3 다.

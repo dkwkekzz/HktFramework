@@ -365,6 +365,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R2'),
   },
   {
+    id: 'R3',
+    name: 'R3-perception',
+    sources: [
+      'packages/core/src/r3/index.ts',
+      'packages/core/src/r3/violation.ts',
+      'packages/core/src/r3/reach.ts',
+      'packages/core/src/r3/percept.ts',
+      'packages/core/src/r3/field.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R3'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [
