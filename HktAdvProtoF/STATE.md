@@ -17,11 +17,11 @@
 
 ### 코드
 
-**단계 0·1 은 닫혔다** — 하위 작업(DONE)별 상세와 확인 장면 전문은 [progress/단계0.md](progress/단계0.md) ·
-[progress/단계1.md](progress/단계1.md) 에 있다. 여기는 모듈·상태·한 줄 장면만 남긴다.
+**단계 0·1 은 닫혔다** — 하위 작업(DONE)별 상세와 확인 장면 전문은 [progress/stage-0.md](progress/stage-0.md) ·
+[progress/stage-1.md](progress/stage-1.md) 에 있다. 여기는 모듈·상태·한 줄 장면만 남긴다.
 완료 판정의 원본은 언제나 증거 파일(`app/packages/contracts/evidence/`)이다.
 
-#### 단계 0 (M0 결정적 세계) — 닫힘 · [상세](progress/단계0.md)
+#### 단계 0 (M0 결정적 세계) — 닫힘 · [상세](progress/stage-0.md)
 
 | 모듈 | 상태 | 확인 장면 (한 줄) |
 |---|---|---|
@@ -34,7 +34,7 @@
 | O2 상태 스키마 | VERIFIED ([증거](app/packages/contracts/evidence/O2.json)) | `/#/o2` — 9영역 32자리 세계 트리와 틱 간 diff, 결함 상태 9종 거부 |
 | O0 세계관 공리 | VERIFIED ([증거](app/packages/contracts/evidence/O0.json)) | `/#/o0` — 원문 16문장 → 공리 8개, 관문 10곳 실행 결과, 같은 공리에서 유래가 다른 두 신, 결함 정의 14종 거부 |
 
-#### 단계 1 (M1 의존하는 주체) — 닫힘 · [상세](progress/단계1.md)
+#### 단계 1 (M1 의존하는 주체) — 닫힘 · [상세](progress/stage-1.md)
 
 | 모듈 | 상태 | 확인 장면 (한 줄) |
 |---|---|---|
@@ -95,7 +95,7 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 |---|---|---|---|---|
 | ~~V3 증거 강등 커밋~~ | ~~`evidence/V3.json` 이 D2 완료 커밋부터 `IMPLEMENTED`(스냅샷 신선도 테스트 1건 실패)로 강등된 채 커밋됨 — 원인은 증거 생성기가 루프 안에서 증거를 즉시 써서 lab 스냅샷이 낡아지는 순서 버그~~ | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#662](https://github.com/dkwkekzz/HktFramework/issues/662) | **상환(V4-e)** — `collectEvidence` 가 검증 전량 → 일괄 기록 두 마당으로 나누고 `recordingOrderViolations` 가 위반 시 exit 1. 증거 20개 내용이 전부 바뀌는 재생성에서도 한 바퀴에 20/20 VERIFIED. WORKFLOW §5 에 `verify` exit 0 커밋 조건 명문화 |
 | ~~레지스트리 증거 교차검사 비활성~~ | ~~`verify/v0.ts` 가 `buildRegistry(sources)` 를 증거 맵 없이 호출해 `evidence-unsupported` 관문이 실전에서 돌지 않음. "착수 가능" 목록도 미착수 계약 미등록으로 항상 빈다~~ | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#663](https://github.com/dkwkekzz/HktFramework/issues/663) | **상환(V0-c)** — `buildRegistry(sources, { evidence, sourceHashes })` 로 연결하고, 소스 명부(`MODULE_SOURCES`)·해시 공식(`hashSources`)을 증거를 만드는 쪽과 대조하는 쪽이 함께 쓴다. 강등·낡음·없음 셋을 실제 계약으로 재현해 판정에 넣었다(exit 1 조건). 착수 가능 목록은 **P3 를 PLANNED 로 선등록**해 해소 |
-| ~~보고 문서 정비~~ | ~~STATE.md 표가 빈 줄로 쪼개져 렌더링~~(P2 병합에서 해소) · ~~증거 생성기 경로 오기~~(해소 — 실물은 `packages/lab/verify/evidence.ts`) · ~~progress/ 분리 미이행~~ · ~~부채 표 Lab 자동화 항목에 상환 카드 미지정~~ | [리뷰 인덱스](reviews/README.md) | [#664](https://github.com/dkwkekzz/HktFramework/issues/664) | **상환(2026-08-03)** — 단계 0·1 상세를 [progress/단계0.md](progress/단계0.md)·[progress/단계1.md](progress/단계1.md) 로 분리하고 STATE.md 는 모듈·상태·한 줄 장면만 남김(79행 → 단계별 표 3개). 부채 표의 Lab 자동화 항목에 상환 카드(V3-b Playwright 스모크)를 명시 |
+| ~~보고 문서 정비~~ | ~~STATE.md 표가 빈 줄로 쪼개져 렌더링~~(P2 병합에서 해소) · ~~증거 생성기 경로 오기~~(해소 — 실물은 `packages/lab/verify/evidence.ts`) · ~~progress/ 분리 미이행~~ · ~~부채 표 Lab 자동화 항목에 상환 카드 미지정~~ | [리뷰 인덱스](reviews/README.md) | [#664](https://github.com/dkwkekzz/HktFramework/issues/664) | **상환(2026-08-03)** — 단계 0·1 상세를 [progress/stage-0.md](progress/stage-0.md)·[progress/stage-1.md](progress/stage-1.md) 로 분리하고 STATE.md 는 모듈·상태·한 줄 장면만 남김(79행 → 단계별 표 3개). 부채 표의 Lab 자동화 항목에 상환 카드(V3-b Playwright 스모크)를 명시 |
 | ~~MasterPlan §10 능력 체계 매핑 격차~~ | ~~§10(표현 6종·강도 식·mastery·stability·저항)이 ModulePlan·MODULES.md 검색 0건 — 작동 체계의 주인 모듈이 없다~~ | [리뷰 인덱스](reviews/README.md) | [#666](https://github.com/dkwkekzz/HktFramework/issues/666) 닫음 | **상환(2026-08-03)** — CLAUDE.md 에 북극성 2개(넨급 능력 문법·방대한 세계관) 명문화 + MODULES.md 에 북극성 대조표·G5 확장(PersonalAbility 전체 문법)·G6 신설(강도 판정, §10.2 식)·E3 소비 연결. 남은 자리: `unknownDomains`·`dangerScale` 소유 모듈은 W 계층 착수 시 작업 카드 |
 
 ## TODO — 단계 2 (M2 목적을 만드는 주체)
