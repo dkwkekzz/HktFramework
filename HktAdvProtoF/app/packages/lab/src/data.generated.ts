@@ -51,7 +51,11 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "P3.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P3\nname: lazy-possibility-expansion\npurpose: >\n  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.\n\ninputs: [NarrowedTree, PossibilityGrammar, Percept, Memory, Relationship, Capability]\noutputs: [PossibilitySubgraph, ExpansionTrace]\n\nwrites: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p3-expands-relevant-only\n  - p3-broken-expansion-rejected\n  - p3-boundary\n\nelements:\n  - name: PossibilitySubgraph\n    ontology: Possibility\n    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)\n\nlab: /lab/p3\n\nstatus: PLANNED\n"
+    "text": "id: P3\nname: lazy-possibility-expansion\npurpose: >\n  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.\n\ninputs: [NarrowedTree, PossibilityGrammar, AtomGrounding, Percept, Memory, Relationship, Capability]\noutputs: [AtomPrerequisite, PrerequisiteReport, ContextFact, ExpansionContext, PossibilitySubgraph, ExpansionTrace, PossibilityGraphViolation]\n\nwrites: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P3-a\n    name: atom-prerequisite\n    purpose: 원자 사이의 선행 관계를 손으로 적지 않고 P0 걸림(reads/writes/pays)에서 계산한다.\n    status: DONE\n  - id: P3-b\n    name: expansion-context\n    purpose: 지금 보이는 것·기억·관계·능력을 확장의 근거 하나로 세운다.\n    status: DONE\n  - id: P3-c\n    name: subgraph-assembly\n    purpose: 근거에 걸린 가능성만 펼쳐 활성 부분 그래프를 세우고 preconditionIds 를 채운다.\n    status: DONE\n  - id: P3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 부분 그래프(전체 회색·활성 발광)로 P3 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p3-expands-relevant-only    # 정상: 같은 갈래 앞에서 본 것이 다른 셋이 서로 다른 부분만 편다\n  - p3-broken-expansion-rejected # 실패: 거짓 근거·없는 노드·서지 않은 선행이 각각의 사유로 거부된다\n  - p3-boundary                 # 경계: 아무것도 못 봐도 찾기는 서고, 어긋난 기억은 stale 로 남는다\n\nelements:\n  - name: ContextFact\n    ontology: State             # 주체가 지금 딛고 선 사실 하나 — 출처 4종을 한 모양으로\n    renderer: diff\n  - name: AtomPrerequisite\n    ontology: Rule              # 원자 사이에 걸린 규칙 — 세계가 아니라 문법에 선다\n    renderer: graph\n  - name: PossibilitySubgraph\n    ontology: Possibility\n    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)\n  - name: ExpansionTrace\n    ontology: State             # 왜 폈는가 / 왜 안 폈는가 — 사유 6종\n    renderer: diff\n\nlab: /lab/p3\n\nstatus: VERIFIED\nevidence: evidence/P3.json\n"
+  },
+  {
+    "name": "P4.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P4\nname: goal-selection\npurpose: >\n  펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.\n\ninputs: [PossibilitySubgraph, PressureReport, SubjectInstance, ExpansionContext]\noutputs: [ActiveGoal, GoalScore, GoalViolation]\n\nwrites: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p4-picks-under-pressure\n  - p4-broken-selection-rejected\n  - p4-boundary\n\nelements:\n  - name: ActiveGoal\n    ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다\n    renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)\n\nlab: /lab/p4\n\nstatus: PLANNED\n"
   },
   {
     "name": "S0.yaml",
@@ -114,8 +118,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -152,8 +156,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -190,8 +194,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -228,8 +232,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -266,8 +270,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -304,8 +308,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -342,8 +346,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -380,8 +384,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -418,8 +422,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -456,8 +460,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -494,8 +498,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -506,6 +510,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "p2-five-grammars": "passed",
           "p2-broken-grammars-rejected": "passed",
           "p2-boundary": "passed"
+        }
+      }
+    }
+  },
+  "P3": {
+    "module": "P3-lazy-possibility-expansion",
+    "sourceHash": "f5d721cf13d8975f",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "349663adfc6a4425",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p3 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "P3",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 867,
+        "passed": 867
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "p3-expands-relevant-only": "passed",
+          "p3-broken-expansion-rejected": "passed",
+          "p3-boundary": "passed"
         }
       }
     }
@@ -532,8 +574,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -570,8 +612,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -608,8 +650,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -646,8 +688,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -684,8 +726,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 83,
-        "passed": 83
+        "total": 84,
+        "passed": 84
       },
       "scenarios": {
         "total": 6,
@@ -705,7 +747,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "1450c264690fd483",
+    "sourceHash": "1d3d9f94b685fa52",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -725,8 +767,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 819,
-        "passed": 819
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -763,8 +805,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 87,
-        "passed": 87
+        "total": 90,
+        "passed": 90
       },
       "scenarios": {
         "total": 3,
@@ -781,12 +823,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "8f4cc5ab7c2fb6e5",
+    "sourceHash": "aad9764bc48452df",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "c6f7bf4302c5789e",
+    "replayHash": "022f5fd330a9d0da",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -801,8 +843,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 96,
-        "passed": 96
+        "total": 99,
+        "passed": 99
       },
       "scenarios": {
         "total": 3,
@@ -819,7 +861,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "d933bb6ead4d6555",
+    "sourceHash": "725163e57fb41c72",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -839,8 +881,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 83,
-        "passed": 83
+        "total": 84,
+        "passed": 84
       },
       "scenarios": {
         "total": 6,
