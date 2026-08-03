@@ -288,6 +288,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('P2'),
   },
   {
+    id: 'P3',
+    name: 'P3-lazy-possibility-expansion',
+    sources: [
+      'packages/core/src/p3/index.ts',
+      'packages/core/src/p3/violation.ts',
+      'packages/core/src/p3/prerequisite.ts',
+      'packages/core/src/p3/context.ts',
+      'packages/core/src/p3/subgraph.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('P3'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

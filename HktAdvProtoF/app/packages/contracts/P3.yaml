@@ -26,12 +26,12 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P3-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 부분 그래프(전체 회색·활성 발광)로 P3 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
-scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — P3-d 에서 확정한다
-  - p3-expands-relevant-only
-  - p3-broken-expansion-rejected
-  - p3-boundary
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - p3-expands-relevant-only    # 정상: 같은 갈래 앞에서 본 것이 다른 셋이 서로 다른 부분만 편다
+  - p3-broken-expansion-rejected # 실패: 거짓 근거·없는 노드·서지 않은 선행이 각각의 사유로 거부된다
+  - p3-boundary                 # 경계: 아무것도 못 봐도 찾기는 서고, 어긋난 기억은 stale 로 남는다
 
 elements:
   - name: ContextFact
@@ -49,5 +49,5 @@ elements:
 
 lab: /lab/p3
 
-status: IN_PROGRESS
-evidence: null
+status: VERIFIED
+evidence: evidence/P3.json
