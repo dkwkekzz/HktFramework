@@ -63,7 +63,15 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R0.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 첫 모듈이다. 단계 2 가 증거로 닫혔으므로 착수를 막는 게이트는 없다\n# (WORKFLOW §7). 착수 순서는 레지스트리의 \"착수 가능\" 목록을 따른다.\n\nid: R0\nname: world-state-store\npurpose: >\n  정식화된 세계의 실제 상태를 저장하고 조회한다 — 지금까지의 세계는 값으로만 있었고 주인이 없었다.\n\ninputs: [WorldState, StateSchema]\noutputs: [WorldStateStore, WorldStateSnapshot]\n\nwrites: []                      # R0 은 담을 뿐이다 — 바꾸는 것은 R2 규칙 엔진이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r0-stores-and-reads\n  - r0-broken-store-rejected\n  - r0-boundary\n\nelements:\n  - name: WorldStateSnapshot\n    ontology: State\n    renderer: diff              # 상태 브라우저 (MODULES.md R0 행)\n\nlab: /lab/r0\n\nstatus: PLANNED\n"
+    "text": "id: R0\nname: world-state-store\npurpose: >\n  정식화된 세계의 실제 상태를 원장 하나에 담고 시간을 가로질러 조회한다 — 지금까지 세계는\n  값으로만 있었고 주인이 없었다.\n\n# R0 은 세계를 새로 만들지 않는다. 조립 관문은 O2(`assembleWorld`)가, 스냅샷의 모양은\n# D4(`WorldSnapshot`)가 이미 세웠고, 시간은 V1 TickClock 이 준다. R0 이 더하는 것은\n# **주인과 열**이다: 담는 것(원장) · 지우지 않는 것(사슬 해시) · 시간을 가로질러 읽는 것(조회).\ninputs: [State, StateSchema, Tick, CommitCause]\noutputs: [WorldStateSnapshot, WorldStateStore, CommitResult, SnapshotQuery, SlotReading, SlotHistoryEntry, LedgerDiff, StoreViolation]\n\nwrites: []                      # R0 은 담을 뿐이다 — 세계를 바꾸는 것은 R1 사건이고, 그 자리(cause.eventIds)를 비워 둔다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4]\n\nsubtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3\n  - id: R0-a\n    name: ledger-commit\n    purpose: 세계를 담을 주인을 세우고, 담을 수 없는 커밋을 거부한다.\n    status: DONE\n  - id: R0-b\n    name: time-queries\n    purpose: 원장 위에서 임의의 틱·자리·구간을 읽는다.\n    status: DONE\n  - id: R0-c\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 상태 브라우저로 R0 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r0-keeps-the-ledger         # 정상: 열 틱을 담으면 여섯이 남고, 시간을 가로질러 읽히며, 다시 세워도 같은 지문이다\n  - r0-broken-commit-rejected   # 실패: 뒤로 가는 틱·같은 틱·근거 없는 커밋·어긴 값·손댄 과거가 각자의 사유로 거부된다\n  - r0-boundary                 # 경계: 빈 세계의 genesis · 첫 스냅샷 이전 조회 · 한 번도 바뀌지 않은 자리의 역사\n\nelements:\n  - name: WorldStateSnapshot\n    ontology: State             # 스냅샷은 그 틱에 선 State 들의 묶음이다 (O2 왕복 성질을 그대로 쓴다)\n    renderer: diff              # 상태 브라우저 (MODULES.md R0 행)\n\nlab: /lab/r0\n\nstatus: VERIFIED\nevidence: evidence/R0.json\n\n# R0 이 R1 에 넘기는 자리:\n#   - `CommitCause.eventIds` 는 비어 있다 — R0 은 근거의 **자리**만 열고, 사건 id 로 채우는 것은 R1 이다.\n#   - R0 은 세계를 바꾸지 않는다. 커밋은 밖에서 들어온 세계를 담을 뿐이고, 무엇이 바뀌었는지는\n#     O2 `worldDiff` 가 말한다 — 변경을 만드는 문법은 R1·R2 의 몫이다.\n"
+  },
+  {
+    "name": "R1.yaml",
+    "text": "id: R1\nname: event-sourced-mutation\npurpose: >\n  세계의 모든 상태 변화를 사건으로만 허용한다 — 사건 없이 담긴 칸은 원장 감사에서 걸린다.\n\n# R1 도 새 문법을 지어내지 않는다. 무엇을 바꿀 수 있는지는 P0-b 걸림이, 요청이 설 수 있는지는\n# P0-c `fitAction` 이, 사건이 무엇으로 이루어지는지는 O1 `Event` 가, 담기는 규칙은 R0 이 이미 정했다.\n# R1 이 더하는 것은 **통로**다: 세계를 바꾸는 길이 사건 하나뿐이 되게 하는 것.\ninputs: [ActionProposal, WorldStateStore, WorldState, Tick]\noutputs: [WorldEvent, EventEffect, EventLog, ApplyResult, EventViolation, CommitResult]\n\nwrites: []                      # 사건이 바꾸는 자리는 P0-b 가 원자마다 못박은 자리뿐이다 — R1 은 그 밖을 열지 않는다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, R0]\n\nsubtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3\n  - id: R1-a\n    name: event-shape\n    purpose: 행동 요청 하나를 세계에 낼 수 있는 사건으로 세운다.\n    status: DONE\n  - id: R1-b\n    name: event-application\n    purpose: 사건을 R0 원장에 적용하고, 사건 없이 담긴 칸을 찾아낸다.\n    status: DONE\n  - id: R1-c\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 사건 로그로 R1 을 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r1-events-move-the-world    # 정상: 겨울이 사건으로 다시 서고, 모든 칸이 사건 id 를 가리킨다\n  - r1-silent-change-rejected   # 실패: 원자 밖의 변경·낡은 전제·되돌릴 수 없는 것의 되돌림·사건 없는 칸이 거부된다\n  - r1-boundary                 # 경계: 바닥난 창고에서 먹는 사건 · 자연 발생(유예) · 사건 하나짜리 로그\n\nelements:\n  - name: WorldEvent\n    ontology: Event             # O1 이 이미 연 자리를 채운다 — 새 타입을 만들지 않는다\n    renderer: timeline          # 사건 로그 (MODULES.md R1 행) — P5-c 가 세운 공용 렌더러 ④\n\nlab: /lab/r1\n\nstatus: VERIFIED\nevidence: evidence/R1.json\n\n# R1 이 뒤 계층에 넘기는 자리:\n#   - 자연 발생 사건(actorId null)은 유예다 — 규칙이 실체화(W2)되어야 근거를 댈 수 있다.\n#   - 사건이 남기는 관찰 가능한 흔적(Phenomenon)은 R2 의 몫이다 — R1 은 사건까지만 만든다.\n#   - 같은 틱에 같은 자리를 다투는 사건 둘의 판정은 D5·E0 의 몫이다.\n"
+  },
+  {
+    "name": "R2.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 셋째 모듈이다. R1 이 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n\nid: R2\nname: phenomenon-emission\npurpose: >\n  사건이 관찰 가능한 현상으로 나타나게 한다 — 주체는 상태를 직접 보지 못하고 현상만 감지한다.\n\ninputs: [WorldEvent, EventLog, WorldStateSnapshot]\noutputs: [Phenomenon, PhenomenonViolation]\n\nwrites: []                      # 현상은 사건의 흔적이다 — 세계 상태를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, R0, R1]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r2-events-leave-traces\n  - r2-causeless-phenomenon-rejected\n  - r2-boundary\n\nelements:\n  - name: Phenomenon\n    ontology: Phenomenon        # O1 이 통로 6종(빛·소리·흔적·냄새·의념 잔향·보고서)까지 이미 고정했다\n    renderer: timeline          # 현상 위치·수명 (MODULES.md R2 행은 3D+타임라인 — 3D 는 X 계층에서 붙는다)\n\nlab: /lab/r2\n\nstatus: PLANNED\n\n# R1 이 R2 에 넘긴 자리:\n#   - 사건은 섰지만 아무도 그것을 보지 못한다 — 흔적을 남기는 것이 R2 의 첫 일이다.\n#   - O1 `Phenomenon` 은 원인 사건 id 를 요구한다(`causeEventId`) — 원인 없는 현상은 없다.\n"
   },
   {
     "name": "S0.yaml",
@@ -126,8 +134,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -164,8 +172,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -202,8 +210,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -240,8 +248,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -278,8 +286,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -316,8 +324,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -354,8 +362,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -392,8 +400,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -430,8 +438,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -468,8 +476,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -506,8 +514,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -544,8 +552,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -582,8 +590,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -620,8 +628,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -632,6 +640,82 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
           "p5-plans-the-chain": "passed",
           "p5-broken-plan-rejected": "passed",
           "p5-boundary": "passed"
+        }
+      }
+    }
+  },
+  "R0": {
+    "module": "R0-world-state-store",
+    "sourceHash": "31e9a03856e56d13",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "194f5a1419f0227c",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r0 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "R0",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 989,
+        "passed": 989
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "r0-keeps-the-ledger": "passed",
+          "r0-broken-commit-rejected": "passed",
+          "r0-boundary": "passed"
+        }
+      }
+    }
+  },
+  "R1": {
+    "module": "R1-event-sourced-mutation",
+    "sourceHash": "6e99656d2adc071a",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "54cc644b1b564a9a",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r1 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "R1",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 989,
+        "passed": 989
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "r1-events-move-the-world": "passed",
+          "r1-silent-change-rejected": "passed",
+          "r1-boundary": "passed"
         }
       }
     }
@@ -658,8 +742,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -696,8 +780,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -734,8 +818,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -772,8 +856,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -810,8 +894,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 86,
-        "passed": 86
+        "total": 88,
+        "passed": 88
       },
       "scenarios": {
         "total": 6,
@@ -831,7 +915,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "18601ba0ca4be53a",
+    "sourceHash": "b97f5918fde26956",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -851,8 +935,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 924,
-        "passed": 924
+        "total": 989,
+        "passed": 989
       },
       "scenarios": {
         "total": 3,
@@ -889,8 +973,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 96,
-        "passed": 96
+        "total": 102,
+        "passed": 102
       },
       "scenarios": {
         "total": 3,
@@ -907,12 +991,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "463e545d48e19ba4",
+    "sourceHash": "61e238b26355cfd4",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "35aac6fc1f2a1f7f",
+    "replayHash": "cd8b71316893ef18",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -927,8 +1011,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 112,
-        "passed": 112
+        "total": 118,
+        "passed": 118
       },
       "scenarios": {
         "total": 3,
@@ -945,7 +1029,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "eebf7b55d330a209",
+    "sourceHash": "5778d6f698f11ee5",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -965,8 +1049,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 86,
-        "passed": 86
+        "total": 88,
+        "passed": 88
       },
       "scenarios": {
         "total": 6,
