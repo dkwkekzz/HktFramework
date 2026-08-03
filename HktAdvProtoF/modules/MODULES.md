@@ -111,7 +111,7 @@ W 계층 착수 시 배정하는 작업 카드를 만든다. 그때 `dangerScale
 | W1 | 여러 주체의 요구를 하나의 세계 요소로 결합한다 | 다주체 `NormalizedRequirement[]` → `MergedWorldElement`(마물 이동로+광맥+신 앵커+밀수 통로+기관 원천 → 국경 협곡 1개) | `MergedWorldElement` | 그래프(요구들 → 병합 요소 연결도) |
 | W2 | 병합 요소를 세계 규칙으로 실체화한다 | `MergedWorldElement` → `Rule[]`(물질·생태·의념·소유권·법률·신역) | `Rule` | 타임라인(규칙 발동 데모 로그) |
 | W3 | 실제 초기 세계 상태를 생성한다 | `MergedWorldElement` → 초기 `WorldState`(매장량·개체군·지배력·안정도·은폐도·식량) | `WorldState` | diff(상태 트리 + 수치) |
-| W4 | 이동·관찰·생태·전투가 가능한 3D 공간을 만든다 | 지역 그래프 → `SpaceManifest`(위상→높이·경사·통로→지형 메시→충돌→내비게이션) | `SpaceManifest` | 3D(Three.js 지형 + 내비 경로 오버레이) |
+| W4 | 이동·관찰·생태·전투가 가능한 3D 공간을 만든다 | 지역 그래프 → `SpaceManifest`(위상→높이·경사·통로→지형 메시→충돌→내비게이션). **예약된 검증 장면(#675, 단계 2 리뷰 §3-3):** 벽 하나를 세우면 같은 목적의 `ActionPlan` 이 우회 경로로 갈라진다 — 원문 §18 단계 2 완료 조건 ③("벽이 있으면 우회")의 물리 재검증. P 계층은 구조적 우회(막힘→대안 갈래·선행 앞칸)까지만 세웠다 | `SpaceManifest` | 3D(Three.js 지형 + 내비 경로 오버레이) |
 | W5 | 현재 상태가 갑자기 생기지 않은 것처럼 압축 과거를 만든다 | 실체화 세계 → `CompressedHistory`(사건열 — "왜 국경석이 여기에" 응답 가능) | `HistoricalEvent` | 타임라인(역사 연표) |
 | W6 | 세계 요소의 확정 수준을 관리하고 소급 변경을 막는다 | 세계 요소 → 상태 라벨 전이 `Latent → Foreshadowed → Canonical → Observed`(Observed 는 사건 없이 변경 불가) | `CanonState` | diff(요소별 라벨 색 + 전이 다이어그램) |
 
