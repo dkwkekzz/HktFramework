@@ -17,6 +17,26 @@ export {
 } from './guess.ts';
 
 export {
+  auditBeliefs,
+  beliefGraphVerdict,
+  beliefsFor,
+  believersOf,
+  compareToTruth,
+  interpret,
+  openBeliefGraph,
+  readingTable,
+  recordBeliefs,
+  staleBeliefs,
+  unbelieved,
+  type BeliefAudit,
+  type BeliefCheck,
+  type BeliefGraph,
+  type Believer,
+  type Reading,
+  type ReadingRow,
+} from './graph.ts';
+
+export {
   BELIEF_TRUTH_FIELDS,
   CONFIDENCE_WEIGHTS,
   assertionOf,

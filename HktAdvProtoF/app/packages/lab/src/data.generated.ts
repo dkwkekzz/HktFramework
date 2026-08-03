@@ -79,7 +79,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R4.yaml",
-    "text": "# 단계 3(M3 충돌하는 주체)의 다섯째 모듈. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없었다.\n#\n# R4 가 새로 정하는 것은 **짐작의 사전** 한 줄뿐이다 — \"자기가 낼 수 있는 것으로 읽는다\".\n#   통로 → 자리          R2 `LEAK_CHANNELS` (세계의 규칙이지 장부가 아니다 — 누구나 안다)\n#   자리 → 원자          R2 `atomsMoving` (P0-b 걸림에서 계산된 것)\n#   무엇을 낼 수 있는가   P2 `PossibilityGrammar.allowed` (유형이 깔고 능력이 얹고 금기가 덜어 낸 것)\n#   읽은 것              R3 `Percept` — 진실이 실려 있지 않다 (truth-leak)\n#   애매함               R2 `WorldPhenomenon.ambiguity` (지각이 실어 온 값)\n# R3 이 남긴 한 줄(\"읽은 것에서 무엇이 일어났는지 짐작하는 것은 R4 다\")을 갚는다.\n\nid: R4\nname: belief\npurpose: >\n  주체가 실제가 아닌 **믿는 세계**를 형성하게 한다 — 읽은 것에서 무엇이 일어났는지를 짐작한다.\n\ninputs: [Percept, PerceptField, PossibilityGrammar, WorldPhenomenon]\noutputs: [Belief, BeliefGraph, BeliefViolation]\n\nwrites: []                      # 믿음은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R4-a\n    name: guess\n    purpose: 통로 하나에서 후보 원자를 세운다 — 진실을 보지 않고.\n    status: DONE\n  - id: R4-b\n    name: belief\n    purpose: 후보를 문법으로 좁혀 믿음을 세우고 확신을 요소에서 잰다.\n    status: IN_PROGRESS\n  - id: R4-c\n    name: belief-graph\n    purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.\n    status: PLANNED\n  - id: R4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r4-same-trace-different-beliefs  # 정상: 같은 자국을 놓고 셋의 짐작이 갈리고 사제만 틀린다\n  - r4-groundless-belief-rejected    # 실패: 근거 없는 믿음·후보 밖의 짚음·과한 확신·실린 진실이 거부된다\n  - r4-boundary                      # 경계: 금기가 후보를 다 지운 자리 · 재관측 · 아무도 못 본 흔적\n\nelements:\n  - name: Belief\n    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — \"주체가 참이라 여기는 것\" 이 이미 열려\n                                # 있고 확신 1 도 틀릴 수 있다고 적혀 있다. R4 는 통로·후보·좁힘·\n                                # 관측 횟수를 더할 뿐이다 (R2 가 Phenomenon 에 넷을 더한 것과 같다).\n    renderer: diff              # 실제 세계 vs 믿음 diff (MODULES.md R4 행)\n\nlab: /lab/r4\n\nstatus: IN_PROGRESS\n\n# R3 이 R4 에 넘긴 자리:\n#   - 지각에는 진실이 실리지 않는다 — 무엇이 일어났는지를 짐작하는 것이 R4 의 첫 일이다.\n#   - 애매함(`Percept.ambiguity`)이 클수록 짐작이 갈린다. 그 값은 R2 가 이미 세어 두었다.\n#   - 보고 통로는 났을 뿐 아직 퍼지지 않는다 — 거치는 주체가 왜곡 지점이라는 것이 R4 다 (S0-b).\n#   - 같은 흔적을 두 번 읽는 일(반복 관측으로 확신이 오르는 것)도 R4 의 몫이다.\n#   - P3-b 가 이미 열어 둔 자리: 기억은 실재를 요구하지 않되 지금과 어긋나면 stale 이다.\n"
+    "text": "# 단계 3(M3 충돌하는 주체)의 다섯째 모듈. R3 이 증거로 닫혔으므로 착수를 막는 게이트는 없었다.\n#\n# R4 가 새로 정하는 것은 **짐작의 사전** 한 줄뿐이다 — \"자기가 낼 수 있는 것으로 읽는다\".\n#   통로 → 자리          R2 `LEAK_CHANNELS` (세계의 규칙이지 장부가 아니다 — 누구나 안다)\n#   자리 → 원자          R2 `atomsMoving` (P0-b 걸림에서 계산된 것)\n#   무엇을 낼 수 있는가   P2 `PossibilityGrammar.allowed` (유형이 깔고 능력이 얹고 금기가 덜어 낸 것)\n#   읽은 것              R3 `Percept` — 진실이 실려 있지 않다 (truth-leak)\n#   애매함               R2 `WorldPhenomenon.ambiguity` (지각이 실어 온 값)\n# R3 이 남긴 한 줄(\"읽은 것에서 무엇이 일어났는지 짐작하는 것은 R4 다\")을 갚는다.\n\nid: R4\nname: belief\npurpose: >\n  주체가 실제가 아닌 **믿는 세계**를 형성하게 한다 — 읽은 것에서 무엇이 일어났는지를 짐작한다.\n\ninputs: [Percept, PerceptField, PossibilityGrammar, WorldPhenomenon]\noutputs: [Belief, BeliefGraph, BeliefViolation]\n\nwrites: []                      # 믿음은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R4-a\n    name: guess\n    purpose: 통로 하나에서 후보 원자를 세운다 — 진실을 보지 않고.\n    status: DONE\n  - id: R4-b\n    name: belief\n    purpose: 후보를 문법으로 좁혀 믿음을 세우고 확신을 요소에서 잰다.\n    status: DONE\n  - id: R4-c\n    name: belief-graph\n    purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.\n    status: IN_PROGRESS\n  - id: R4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r4-same-trace-different-beliefs  # 정상: 같은 자국을 놓고 셋의 짐작이 갈리고 사제만 틀린다\n  - r4-groundless-belief-rejected    # 실패: 근거 없는 믿음·후보 밖의 짚음·과한 확신·실린 진실이 거부된다\n  - r4-boundary                      # 경계: 금기가 후보를 다 지운 자리 · 재관측 · 아무도 못 본 흔적\n\nelements:\n  - name: Belief\n    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — \"주체가 참이라 여기는 것\" 이 이미 열려\n                                # 있고 확신 1 도 틀릴 수 있다고 적혀 있다. R4 는 통로·후보·좁힘·\n                                # 관측 횟수를 더할 뿐이다 (R2 가 Phenomenon 에 넷을 더한 것과 같다).\n    renderer: diff              # 실제 세계 vs 믿음 diff (MODULES.md R4 행)\n\nlab: /lab/r4\n\nstatus: IN_PROGRESS\n\n# R3 이 R4 에 넘긴 자리:\n#   - 지각에는 진실이 실리지 않는다 — 무엇이 일어났는지를 짐작하는 것이 R4 의 첫 일이다.\n#   - 애매함(`Percept.ambiguity`)이 클수록 짐작이 갈린다. 그 값은 R2 가 이미 세어 두었다.\n#   - 보고 통로는 났을 뿐 아직 퍼지지 않는다 — 거치는 주체가 왜곡 지점이라는 것이 R4 다 (S0-b).\n#   - 같은 흔적을 두 번 읽는 일(반복 관측으로 확신이 오르는 것)도 R4 의 몫이다.\n#   - P3-b 가 이미 열어 둔 자리: 기억은 실재를 요구하지 않되 지금과 어긋나면 stale 이다.\n"
   },
   {
     "name": "S0.yaml",
@@ -142,8 +142,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -180,8 +180,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -218,8 +218,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -256,8 +256,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -294,8 +294,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -332,8 +332,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -370,8 +370,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -408,8 +408,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -446,8 +446,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -484,8 +484,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -522,8 +522,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -560,8 +560,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -598,8 +598,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -636,8 +636,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -674,8 +674,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -712,8 +712,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -750,8 +750,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -788,8 +788,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -826,8 +826,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -864,8 +864,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -902,8 +902,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -940,8 +940,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,
@@ -1019,8 +1019,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1143,
-        "passed": 1143
+        "total": 1155,
+        "passed": 1155
       },
       "scenarios": {
         "total": 3,

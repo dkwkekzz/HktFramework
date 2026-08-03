@@ -32,11 +32,11 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R4-c
     name: belief-graph
     purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.
-    status: IN_PROGRESS
+    status: DONE
   - id: R4-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.
-    status: PLANNED
+    status: IN_PROGRESS
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r4-same-trace-different-beliefs  # 정상: 같은 자국을 놓고 셋의 짐작이 갈리고 사제만 틀린다
