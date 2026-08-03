@@ -36,6 +36,21 @@ export {
 } from './emit.ts';
 
 export {
+  auditField,
+  fieldVerdict,
+  openField,
+  permanentPhenomena,
+  recordPhenomena,
+  remembersSlot,
+  silentEvents,
+  standingAt,
+  standingIn,
+  witnessEvent,
+  type FieldAudit,
+  type PhenomenonField,
+} from './field.ts';
+
+export {
   phenomenonViolationVerdict,
   violatePhenomenon,
   type PhenomenonViolation,
