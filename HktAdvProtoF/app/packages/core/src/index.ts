@@ -18,3 +18,4 @@ export * from './p1/index.ts';
 export * from './p2/index.ts';
 export * from './p3/index.ts';
 export * from './p4/index.ts';
+export * from './p5/index.ts';

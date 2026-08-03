@@ -59,7 +59,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "P5.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P5\nname: action-planning\npurpose: >\n  고른 목적을 실제 행동 단위까지 분해한다 — 원자 하나가 아니라 순서열이 되는 자리다.\n\ninputs: [ActiveGoal, AtomPrerequisite, PayabilityReport, PossibilitySubgraph]\noutputs: [ActionPlan, PlanStep, PlanViolation]\n\nwrites: []                      # P5 도 세계를 바꾸지 않는다 — 무엇을 어떤 순서로 낼지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3, P4]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p5-plans-the-chain\n  - p5-broken-plan-rejected\n  - p5-boundary\n\nelements:\n  - name: ActionPlan\n    ontology: Possibility       # 계획은 아직 일어나지 않은 것이다 — 세계에 적히는 것은 R 계층부터\n    renderer: timeline          # 계획 단계 목록 (MODULES.md P5 행) — 새 공용 렌더러가 필요하다\n\nlab: /lab/p5\n\nstatus: PLANNED\n\n# P4 가 P5 에 넘긴 자리 (착수 시 카드로 옮긴다):\n#   - 갈래를 낼 원자는 P4 가 가장 나은 하나로 접었다. 순서열로 펴는 것은 여기다.\n#   - 선행 사슬은 아직 한 칸이다(P3-c). 긴 사슬(찾기 → 만들기 → 빼앗기)이 여기서 선다.\n#   - 재료 선행의 \"먼저 낼 원자\"(PayabilityReport.blockedBy)가 계획의 앞칸이 된다.\n"
+    "text": "id: P5\nname: action-planning\npurpose: >\n  고른 목적을 실제 행동 단위까지 분해한다 — 원자 하나가 아니라 순서열이 되는 자리다.\n\n# 계획의 순서는 P5 가 정하지 않는다 — 아래 입력이 이미 \"먼저\" 를 지고 있다.\n#   원자 사이의 먼저=AtomPrerequisite(P3-a) · 세계와 맞댄 먼저 낼 원자=PayabilityReport(P4-a)\n#   무엇을 좇는가=ActiveGoal(P4) · 지금 무엇이 보이는가=ExpansionContext(P3-b)\ninputs: [ActiveGoal, AtomPrerequisite, PayabilityReport, ExpansionContext, WorldState]\noutputs: [PlanStep, ActionPlan, ChainResolution, ChainReport, PlanViolation]\n\nwrites: []                      # P5 도 세계를 바꾸지 않는다 — 무엇을 어떤 순서로 낼지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3, P4]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P5-a\n    name: plan-chain\n    purpose: 고른 목적 하나에서 뒤로 거슬러 지금 낼 수 있는 원자까지 사슬을 세운다.\n    status: DONE\n  - id: P5-b\n    name: chain-reconciliation\n    purpose: 원문 P5 가 든 일곱 단계가 16원자를 지나 이 사슬에서 도출되는지 대조한다.\n    status: IN_PROGRESS\n  - id: P5-c\n    name: timeline-renderer\n    purpose: 공용 렌더러 5종 중 넷째(타임라인)를 세운다 — 순서가 있는 것을 순서대로 그린다.\n    status: PLANNED\n  - id: P5-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 타임라인으로 P5 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p5-plans-the-chain          # 정상: 한 걸음처럼 보이던 목적이 세계에 따라 다른 길이로 펴진다\n  - p5-broken-plan-rejected     # 실패: 끊긴 사슬·순서가 뒤집힌 걸음·자기를 딛는 걸음이 거부된다\n  - p5-boundary                 # 경계: 지금 바로 낼 수 있으면 사슬은 한 칸이고, 닿지 못해도 던지지 않는다\n\nelements:\n  - name: PlanStep\n    ontology: Possibility       # 걸음 하나도 아직 일어나지 않은 것이다\n    renderer: timeline\n  - name: ActionPlan\n    ontology: Possibility       # 계획은 아직 일어나지 않은 것이다 — 세계에 적히는 것은 R 계층부터\n    renderer: timeline          # 계획 단계 목록 (MODULES.md P5 행) — P5-c 가 세우는 렌더러다\n  - name: ChainResolution\n    ontology: Rule              # 원문 이름 하나가 원자로 접히는 규칙 (P0 환원표와 같은 모양)\n    renderer: diff\n\nlab: /lab/p5\n\nstatus: IN_PROGRESS\n\n# P4 가 P5 에 넘긴 자리 (착수 시 카드로 옮긴다):\n#   - 갈래를 낼 원자는 P4 가 가장 나은 하나로 접었다. 순서열로 펴는 것은 여기다.\n#   - 선행 사슬은 아직 한 칸이다(P3-c). 긴 사슬(찾기 → 만들기 → 빼앗기)이 여기서 선다.\n#   - 재료 선행의 \"먼저 낼 원자\"(PayabilityReport.blockedBy)가 계획의 앞칸이 된다.\n"
   },
   {
     "name": "S0.yaml",
@@ -122,8 +122,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -160,8 +160,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -198,8 +198,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -236,8 +236,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -274,8 +274,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -312,8 +312,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -350,8 +350,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -388,8 +388,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -426,8 +426,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -464,8 +464,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -502,8 +502,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -540,8 +540,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -578,8 +578,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -616,8 +616,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -654,8 +654,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -692,8 +692,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -730,8 +730,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
@@ -789,7 +789,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "c6f54e5c6c102377",
+    "sourceHash": "18601ba0ca4be53a",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -809,8 +809,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 902,
-        "passed": 902
+        "total": 915,
+        "passed": 915
       },
       "scenarios": {
         "total": 3,
