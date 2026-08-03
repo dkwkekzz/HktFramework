@@ -314,6 +314,20 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('P4'),
   },
   {
+    id: 'P5',
+    name: 'P5-action-planning',
+    sources: [
+      'packages/core/src/p5/index.ts',
+      'packages/core/src/p5/violation.ts',
+      'packages/core/src/p5/chain.ts',
+      'packages/core/src/p5/reconcile.ts',
+      // 공용 렌더러 ④ 타임라인은 P5-c 의 산출물이다 — 소스가 바뀌면 P5 증거가 낡는다.
+      'packages/lab/src/renderers/timeline.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('P5'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

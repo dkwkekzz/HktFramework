@@ -29,7 +29,7 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 타임라인으로 P5 를 눈으로 확인한다.
-    status: IN_PROGRESS
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - p5-plans-the-chain          # 정상: 한 걸음처럼 보이던 목적이 세계에 따라 다른 길이로 펴진다
@@ -49,7 +49,8 @@ elements:
 
 lab: /lab/p5
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/P5.json
 
 # P4 가 P5 에 넘긴 자리 (착수 시 카드로 옮긴다):
 #   - 갈래를 낼 원자는 P4 가 가장 나은 하나로 접었다. 순서열로 펴는 것은 여기다.
