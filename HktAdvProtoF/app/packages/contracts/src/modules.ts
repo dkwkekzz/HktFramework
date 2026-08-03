@@ -340,6 +340,18 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R0'),
   },
   {
+    id: 'R1',
+    name: 'R1-event-sourced-mutation',
+    sources: [
+      'packages/core/src/r1/index.ts',
+      'packages/core/src/r1/violation.ts',
+      'packages/core/src/r1/event.ts',
+      'packages/core/src/r1/apply.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R1'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

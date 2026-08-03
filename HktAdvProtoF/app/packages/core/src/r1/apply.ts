@@ -106,11 +106,17 @@ export function undoneSlots(log: EventLog, event: WorldEvent): readonly string[]
   const sealed = new Map<string, WorldEvent>();
   for (const past of log.events) {
     if (atomGrounding(past.atom)?.reversible !== false) continue;
-    for (const effect of movedEffects(past)) sealed.set(effectText(effect), past);
+    // 봉인되는 것은 그 원자가 **한 일**(changes)이지 치른 대가(payments)가 아니다 —
+    // 제거하느라 깎인 몸은 다시 채울 수 있지만, 제거된 것은 돌아오지 않는다.
+    for (const effect of movedEffects(past)) {
+      if (effect.kind !== 'change') continue;
+      sealed.set(effectText(effect), past);
+    }
   }
 
   const undone: string[] = [];
   for (const effect of movedEffects(event)) {
+    if (effect.kind !== 'change') continue;
     const where = effectText(effect);
     const past = sealed.get(where);
     if (past === undefined) continue;
@@ -194,11 +200,13 @@ export function applyEvent(
   });
 
   if (!result.accepted) {
+    // 사건은 섰는데 세계가 그 값을 받지 않는다 — 판정은 R0·O2 의 것이고 여기서는 옮겨 적는다.
+    // (바닥난 창고에서 또 먹는 사건이 여기서 걸린다: 재고를 0 아래로 내릴 수는 없다.)
     for (const reason of result.violations) {
       violateEvent(
         violations,
         event.name,
-        'unwitnessed-commit',
+        'world-refused',
         reason.path,
         `${reason.rule} — ${reason.message}`,
       );

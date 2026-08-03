@@ -25,7 +25,7 @@ subtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3
   - id: R1-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 사건 로그로 R1 을 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r1-events-move-the-world    # 정상: 겨울이 사건으로 다시 서고, 모든 칸이 사건 id 를 가리킨다
@@ -39,7 +39,8 @@ elements:
 
 lab: /lab/r1
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R1.json
 
 # R1 이 뒤 계층에 넘기는 자리:
 #   - 자연 발생 사건(actorId null)은 유예다 — 규칙이 실체화(W2)되어야 근거를 댈 수 있다.

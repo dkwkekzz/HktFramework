@@ -202,6 +202,39 @@ describe('R1-b 얹을 수 없는 사건', () => {
     assert.equal(result.applied, false);
   });
 
+  test('대가로 깎인 몸은 다시 채울 수 있다 — 봉인되는 것은 그 원자가 한 일이다', () => {
+    const store = opened();
+    const destroy = mintEvent({
+      proposal: {
+        atom: 'destroy',
+        actorId: hunterId,
+        targetIds: [rivalId],
+        changes: [{ domain: 'biological', holderId: rivalId, path: 'vitality' }],
+        payments: [{ domain: 'biological', holderId: hunterId, path: 'vitality' }],
+        observedIds: [rivalId],
+      },
+      world: (latest(store) as NonNullable<ReturnType<typeof latest>>).world,
+      tick: 403,
+      name: '상단 11 을 친다',
+      values: [
+        { kind: 'change', domain: 'biological', holderId: rivalId, path: 'vitality', to: 0 },
+        { kind: 'payment', domain: 'biological', holderId: hunterId, path: 'vitality', to: 0.6 },
+      ],
+    }).event as WorldEvent;
+    const after = applyEvent(store, openLog(), destroy);
+
+    // 04 의 몸(대가로 깎인 자리)을 원래 값으로 다시 채우는 사건은 선다
+    const rest = mintEvent({
+      proposal: acquireProposal,
+      world: (latest(after.store) as NonNullable<ReturnType<typeof latest>>).world,
+      tick: 406,
+      name: '먹고 쉰다',
+      values: acquireValues(4, 0.3, 0.8),
+    }).event as WorldEvent;
+    assert.deepEqual(undoneSlots(after.log, rest), []);
+    assert.equal(applyEvent(after.store, after.log, rest).applied, true);
+  });
+
   test('되돌릴 수 있는 원자가 바꾼 자리는 되돌아간다 — 모든 손실이 봉인되는 것은 아니다', () => {
     const store = opened();
     const first = applyEvent(store, openLog(), acquireEvent(store, 403, 4));
@@ -228,7 +261,7 @@ describe('R1-b 얹을 수 없는 사건', () => {
     }).event as WorldEvent;
 
     const result = applyEvent(store, openLog(), belowZero);
-    assert.deepEqual(rulesOf(result.violations), ['unwitnessed-commit']);
+    assert.deepEqual(rulesOf(result.violations), ['world-refused']);
     assert.match(result.violations[0]?.message ?? '', /rejected-state/);
     assert.equal(result.applied, false);
   });

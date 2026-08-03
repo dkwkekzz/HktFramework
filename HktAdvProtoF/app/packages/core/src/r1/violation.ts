@@ -29,6 +29,7 @@ export type EventViolationRule =
   | 'malformed-event' // O1 Event 관문을 지나지 못한다
   // R1-b 세계에 적용
   | 'irreversible-undo' // 되돌릴 수 없는 원자가 바꾼 자리를 되돌리려 한다 (P0-b reversible)
+  | 'world-refused' // 사건은 섰는데 세계가 그 값을 받지 않는다 (R0·O2 관문의 사유를 옮겨 적는다)
   | 'unwitnessed-commit' // 사건 없이 담긴 칸이다 — 세계는 사건으로만 바뀐다
   | 'dangling-cause'; // 까닭으로 지목한 사건이 로그에 없다
 
