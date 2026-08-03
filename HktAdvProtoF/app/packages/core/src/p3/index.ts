@@ -9,3 +9,4 @@
 export * from './violation.ts';
 export * from './prerequisite.ts';
 export * from './context.ts';
+export * from './subgraph.ts';

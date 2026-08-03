@@ -18,7 +18,10 @@ export type PossibilityGraphViolationRule =
   | 'phantom-percept' // 세계에 없는 자리를 지금 보고 있다고 한다
   | 'future-memory' // 아직 오지 않은 시각의 기억을 든다
   | 'ungranted-capability' // 문법이 주지 않은 능력을 지녔다고 한다
-  | 'absent-subject'; // 근거의 주인이 세계에 한 번도 적히지 않았다
+  | 'absent-subject' // 근거의 주인이 세계에 한 번도 적히지 않았다
+  // P3-c 부분 그래프 조립
+  | 'unknown-branch-node' // 갈래가 선 노드가 의존 그래프에 없다
+  | 'dangling-precondition'; // 선행으로 가리킨 가능성이 이 그래프에 없거나 서지 않았다
 
 /** 위반 하나 — 어느 원자의 어디가 왜 막혔는가. */
 export interface PossibilityGraphViolation {

@@ -22,7 +22,7 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P3-c
     name: subgraph-assembly
     purpose: 근거에 걸린 가능성만 펼쳐 활성 부분 그래프를 세우고 preconditionIds 를 채운다.
-    status: PLANNED
+    status: DONE
   - id: P3-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 부분 그래프(전체 회색·활성 발광)로 P3 를 눈으로 확인한다.
@@ -43,6 +43,9 @@ elements:
   - name: PossibilitySubgraph
     ontology: Possibility
     renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)
+  - name: ExpansionTrace
+    ontology: State             # 왜 폈는가 / 왜 안 폈는가 — 사유 6종
+    renderer: diff
 
 lab: /lab/p3
 

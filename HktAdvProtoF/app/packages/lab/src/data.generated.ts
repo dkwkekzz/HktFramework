@@ -51,7 +51,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "P3.yaml",
-    "text": "id: P3\nname: lazy-possibility-expansion\npurpose: >\n  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.\n\ninputs: [NarrowedTree, PossibilityGrammar, AtomGrounding, Percept, Memory, Relationship, Capability]\noutputs: [AtomPrerequisite, PrerequisiteReport, ContextFact, ExpansionContext, PossibilitySubgraph, ExpansionTrace, PossibilityGraphViolation]\n\nwrites: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P3-a\n    name: atom-prerequisite\n    purpose: 원자 사이의 선행 관계를 손으로 적지 않고 P0 걸림(reads/writes/pays)에서 계산한다.\n    status: DONE\n  - id: P3-b\n    name: expansion-context\n    purpose: 지금 보이는 것·기억·관계·능력을 확장의 근거 하나로 세운다.\n    status: DONE\n  - id: P3-c\n    name: subgraph-assembly\n    purpose: 근거에 걸린 가능성만 펼쳐 활성 부분 그래프를 세우고 preconditionIds 를 채운다.\n    status: PLANNED\n  - id: P3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 부분 그래프(전체 회색·활성 발광)로 P3 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — P3-d 에서 확정한다\n  - p3-expands-relevant-only\n  - p3-broken-expansion-rejected\n  - p3-boundary\n\nelements:\n  - name: ContextFact\n    ontology: State             # 주체가 지금 딛고 선 사실 하나 — 출처 4종을 한 모양으로\n    renderer: diff\n  - name: AtomPrerequisite\n    ontology: Rule              # 원자 사이에 걸린 규칙 — 세계가 아니라 문법에 선다\n    renderer: graph\n  - name: PossibilitySubgraph\n    ontology: Possibility\n    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)\n\nlab: /lab/p3\n\nstatus: IN_PROGRESS\nevidence: null\n"
+    "text": "id: P3\nname: lazy-possibility-expansion\npurpose: >\n  모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.\n\ninputs: [NarrowedTree, PossibilityGrammar, AtomGrounding, Percept, Memory, Relationship, Capability]\noutputs: [AtomPrerequisite, PrerequisiteReport, ContextFact, ExpansionContext, PossibilitySubgraph, ExpansionTrace, PossibilityGraphViolation]\n\nwrites: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P3-a\n    name: atom-prerequisite\n    purpose: 원자 사이의 선행 관계를 손으로 적지 않고 P0 걸림(reads/writes/pays)에서 계산한다.\n    status: DONE\n  - id: P3-b\n    name: expansion-context\n    purpose: 지금 보이는 것·기억·관계·능력을 확장의 근거 하나로 세운다.\n    status: DONE\n  - id: P3-c\n    name: subgraph-assembly\n    purpose: 근거에 걸린 가능성만 펼쳐 활성 부분 그래프를 세우고 preconditionIds 를 채운다.\n    status: DONE\n  - id: P3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 부분 그래프(전체 회색·활성 발광)로 P3 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — P3-d 에서 확정한다\n  - p3-expands-relevant-only\n  - p3-broken-expansion-rejected\n  - p3-boundary\n\nelements:\n  - name: ContextFact\n    ontology: State             # 주체가 지금 딛고 선 사실 하나 — 출처 4종을 한 모양으로\n    renderer: diff\n  - name: AtomPrerequisite\n    ontology: Rule              # 원자 사이에 걸린 규칙 — 세계가 아니라 문법에 선다\n    renderer: graph\n  - name: PossibilitySubgraph\n    ontology: Possibility\n    renderer: graph             # 전체 회색, 활성 부분 발광 (MODULES.md P3 행)\n  - name: ExpansionTrace\n    ontology: State             # 왜 폈는가 / 왜 안 폈는가 — 사유 6종\n    renderer: diff\n\nlab: /lab/p3\n\nstatus: IN_PROGRESS\nevidence: null\n"
   },
   {
     "name": "S0.yaml",
@@ -114,8 +114,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -152,8 +152,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -190,8 +190,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -228,8 +228,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -266,8 +266,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -304,8 +304,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -342,8 +342,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -380,8 +380,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -418,8 +418,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -456,8 +456,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -494,8 +494,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -532,8 +532,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -570,8 +570,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -608,8 +608,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -646,8 +646,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
@@ -725,8 +725,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 853,
-        "passed": 853
+        "total": 867,
+        "passed": 867
       },
       "scenarios": {
         "total": 3,
