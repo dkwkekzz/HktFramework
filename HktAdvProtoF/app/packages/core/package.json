@@ -19,6 +19,7 @@
     "./d2": "./src/d2/index.ts",
     "./d3": "./src/d3/index.ts",
     "./d4": "./src/d4/index.ts",
+    "./d5": "./src/d5/index.ts",
     "./p0": "./src/p0/index.ts",
     "./p1": "./src/p1/index.ts",
     "./p2": "./src/p2/index.ts",
