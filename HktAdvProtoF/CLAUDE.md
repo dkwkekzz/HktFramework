@@ -18,7 +18,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 | 문서 | 역할 |
 |---|---|
-| [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
+| [STATE.md](STATE.md) | **현재 핵심 상태 + TODO + 열린 이슈** (핵심만 — 상세는 progress/) |
+| [reviews/](reviews/) | 구현 리뷰 기록 — 리뷰가 발견한 이슈의 **원본 장부는 STATE.md 열린 이슈 표**이고, GitHub 이슈는 사람 알림용 미러다 |
 
 `design/` 은 원문, `modules/` 는 원문에서 파생한 작업 설계다. 파생 문서는 진행에 따라 갱신하지만
 원문의 규정처럼 인용하지 않는다.
