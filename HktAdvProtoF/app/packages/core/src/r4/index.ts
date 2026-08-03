@@ -17,6 +17,28 @@ export {
 } from './guess.ts';
 
 export {
+  BELIEF_TRUTH_FIELDS,
+  CONFIDENCE_WEIGHTS,
+  assertionOf,
+  atomsOutsideGuessing,
+  beliefIdOf,
+  beliefLine,
+  checkBelief,
+  confidenceCap,
+  confidenceFactors,
+  confidenceOf,
+  confidenceTrace,
+  formBelief,
+  narrowByGrammar,
+  orderBeliefs,
+  reinforce,
+  scoreOf,
+  type Belief,
+  type BeliefResult,
+  type ConfidenceFactor,
+} from './belief.ts';
+
+export {
   beliefViolationVerdict,
   violateBelief,
   type BeliefViolation,

@@ -28,11 +28,11 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R4-b
     name: belief
     purpose: 후보를 문법으로 좁혀 믿음을 세우고 확신을 요소에서 잰다.
-    status: IN_PROGRESS
+    status: DONE
   - id: R4-c
     name: belief-graph
     purpose: 주체별 믿음 묶음·재관측 병합·실제 대조와 감사 — 틀린 믿음은 위반이 아니다.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: R4-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 실제-믿음 대조로 R4 를 눈으로 확인한다.
