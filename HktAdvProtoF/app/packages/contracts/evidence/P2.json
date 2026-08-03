@@ -1,19 +1,19 @@
 {
-  "module": "S1-species-archetype",
-  "sourceHash": "b2d5ca50633c7f90",
+  "module": "P2-possibility-grammar",
+  "sourceHash": "d81f82329db0aa6b",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "5b968b55708a1cf8",
+  "replayHash": "b197224b6195bf53",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/scenarios/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p2 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "S1",
+      "module": "P2",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "s1-five-species-stand": "passed",
-        "s1-broken-species-rejected": "passed",
-        "s1-boundary": "passed"
+        "p2-five-grammars": "passed",
+        "p2-broken-grammars-rejected": "passed",
+        "p2-boundary": "passed"
       }
     }
   }
