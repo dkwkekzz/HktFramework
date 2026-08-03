@@ -8,7 +8,7 @@ purpose: >
 # D4(`WorldSnapshot`)가 이미 세웠고, 시간은 V1 TickClock 이 준다. R0 이 더하는 것은
 # **주인과 열**이다: 담는 것(원장) · 지우지 않는 것(사슬 해시) · 시간을 가로질러 읽는 것(조회).
 inputs: [State, StateSchema, Tick, CommitCause]
-outputs: [WorldStateSnapshot, WorldStateStore, CommitResult, StoreViolation]
+outputs: [WorldStateSnapshot, WorldStateStore, CommitResult, SnapshotQuery, SlotReading, SlotHistoryEntry, LedgerDiff, StoreViolation]
 
 writes: []                      # R0 은 담을 뿐이다 — 세계를 바꾸는 것은 R1 사건이고, 그 자리(cause.eventIds)를 비워 둔다.
 
@@ -22,7 +22,7 @@ subtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3
   - id: R0-b
     name: time-queries
     purpose: 원장 위에서 임의의 틱·자리·구간을 읽는다.
-    status: PLANNED
+    status: DONE
   - id: R0-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 상태 브라우저로 R0 를 눈으로 확인한다.
