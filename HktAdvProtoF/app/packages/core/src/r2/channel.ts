@@ -316,6 +316,9 @@ export function movableSlots(
  *
  * 흔적의 애매함이 여기서 나온다 — 재고가 줄어든 자국을 남길 수 있는 원자가 여섯이면, 그 자국을
  * 본 자는 여섯 중 무엇이 일어났는지 모른다. R2-b `ambiguity` 가 이것을 값으로 접는다.
+ *
+ * 자리 패턴(`stock.{entity}`)으로도 실제 경로(`stock.entity:ab12`)로도 묻는다 — 사건은 실제
+ * 경로를 들고 오고 P0-b 는 패턴으로 적혀 있으므로, 둘을 잇지 않으면 애매함이 조용히 0 이 된다.
  */
 export function atomsMoving(
   ref: SlotRef,
@@ -323,7 +326,11 @@ export function atomsMoving(
 ): readonly ActionAtom[] {
   return groundings
     .filter((grounding) =>
-      [...grounding.writes, ...grounding.pays].some((entry) => slotKey(entry) === slotKey(ref)),
+      [...grounding.writes, ...grounding.pays].some(
+        (entry) =>
+          entry.domain === ref.domain &&
+          (entry.path === ref.path || matchPath(entry.path, ref.path) !== null),
+      ),
     )
     .map((grounding) => grounding.atom);
 }

@@ -18,6 +18,24 @@ export {
 } from './channel.ts';
 
 export {
+  TRACE_LIFESPAN,
+  ambiguityOf,
+  channelLabel,
+  decayOf,
+  emitPhenomena,
+  emitVerdict,
+  leakingEffects,
+  movementOf,
+  orderPhenomena,
+  phenomenonIdOf,
+  phenomenonLine,
+  placeOf,
+  type EmitOptions,
+  type EmitResult,
+  type WorldPhenomenon,
+} from './emit.ts';
+
+export {
   phenomenonViolationVerdict,
   violatePhenomenon,
   type PhenomenonViolation,
