@@ -135,37 +135,49 @@ export function snapshotHashOf(
  */
 export function chainViolations(store: WorldStateStore): readonly StoreViolation[] {
   const violations: StoreViolation[] = [];
-  let prevHash: StateHash | null = null;
+  // 다시 센 해시를 다음 칸의 기대값으로 넘긴다 — 그래서 한 칸을 손대면 **그 뒤가 전부** 어긋난다.
+  // 적힌 해시를 그대로 넘기면 손댄 칸 하나만 걸리고 뒤는 멀쩡해 보인다 (그것이 소급 수정의 수법이다).
+  let expectedPrev: StateHash | null = null;
 
   store.snapshots.forEach((snapshot, index) => {
-    const expected = snapshotHashOf(prevHash, snapshot.tick, snapshot.world, snapshot.cause);
-    if (snapshot.prevHash !== prevHash) {
+    // 다시 셀 때 **기대되는 앞 해시**를 쓴다 — 적힌 앞 해시를 쓰면 손댄 칸의 다음 칸에서 사슬이
+    // 다시 이어져 버려, 그 뒤 칸들이 멀쩡해 보인다.
+    const recomputed = snapshotHashOf(
+      expectedPrev,
+      snapshot.tick,
+      snapshot.world,
+      snapshot.cause,
+    );
+
+    if (snapshot.prevHash !== expectedPrev) {
       violateStore(
         violations,
         snapshot.tick,
         'broken-chain',
         `$.snapshots[${String(index)}].prevHash`,
-        `앞 칸의 해시는 ${prevHash ?? '(없음)'} 인데 ${snapshot.prevHash ?? '(없음)'} 를 가리킨다 — 지나간 칸이 바뀌었다`,
+        `앞 칸의 해시는 ${expectedPrev ?? '(없음)'} 인데 ${snapshot.prevHash ?? '(없음)'} 를 가리킨다 — 지나간 칸이 바뀌었다`,
       );
-    } else if (snapshot.hash !== expected) {
+    }
+
+    if (snapshot.hash !== recomputed) {
       violateStore(
         violations,
         snapshot.tick,
         'broken-chain',
         `$.snapshots[${String(index)}].hash`,
-        `적힌 해시는 ${snapshot.hash} 인데 지금 세계에서 다시 세면 ${expected} 다 — 담긴 뒤에 손댔다`,
+        `적힌 해시는 ${snapshot.hash} 인데 지금 세계에서 다시 세면 ${recomputed} 다 — 담긴 뒤에 손댔다`,
       );
     }
-    prevHash = snapshot.hash;
+    expectedPrev = recomputed;
   });
 
-  if (store.snapshots.length > 0 && store.ledgerHash !== prevHash) {
+  if (store.snapshots.length > 0 && store.ledgerHash !== expectedPrev) {
     violateStore(
       violations,
       latest(store)?.tick ?? -1,
       'broken-chain',
       '$.ledgerHash',
-      `원장의 지문이 마지막 칸의 해시(${prevHash ?? '(없음)'})와 다르다`,
+      `원장의 지문이 마지막 칸의 해시(${expectedPrev ?? '(없음)'})와 다르다`,
     );
   }
 

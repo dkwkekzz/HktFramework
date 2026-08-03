@@ -1,0 +1,36 @@
+# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.
+# 레지스트리의 "착수 가능" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면
+# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).
+# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.
+#
+# 단계 3(M3 충돌하는 주체)의 둘째 모듈이다. R0 이 증거로 닫혔으므로 착수를 막는 게이트는 없다.
+
+id: R1
+name: event-sourced-mutation
+purpose: >
+  세계의 모든 상태 변화를 사건으로만 허용한다 — 사건 없는 변경은 기록되지 않고 거부된다.
+
+inputs: [WorldStateStore, WorldStateSnapshot, ActionIntent]
+outputs: [Event, CommitCause, EventViolation]
+
+writes: []                      # 사건이 세계를 바꾼다 — 그 변경분은 R0 원장이 담는다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, R0]
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다
+  - r1-events-move-the-world
+  - r1-silent-change-rejected
+  - r1-boundary
+
+elements:
+  - name: Event
+    ontology: Event
+    renderer: timeline          # 사건 로그 (MODULES.md R1 행) — 공용 렌더러 ④
+
+lab: /lab/r1
+
+status: PLANNED
+
+# R0 이 R1 에 넘긴 자리:
+#   - `CommitCause.eventIds` 가 비어 있다 — 사건 id 로 채우는 것이 R1 의 첫 일이다.
+#   - R0 은 세계를 바꾸지 않는다. 변경을 만드는 문법(무엇이 어느 자리를 얼마나 바꾸는가)이 여기서 선다.

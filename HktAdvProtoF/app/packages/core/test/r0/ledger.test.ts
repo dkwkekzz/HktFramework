@@ -214,9 +214,17 @@ describe('R0-a 지워지지 않는 열', () => {
       ],
     };
     const found = chainViolations(tampered);
-    assert.equal(found.length > 0, true);
     assert.deepEqual([...new Set(found.map((violation) => violation.rule))], ['broken-chain']);
-    assert.equal(found[0]?.path, '$.snapshots[0].hash');
+    // 손댄 칸(0)부터 마지막 칸(2)까지, 그리고 원장의 지문까지 함께 어긋난다 —
+    // 적힌 해시가 아니라 **다시 센 해시**를 다음 칸의 기대값으로 넘기기 때문이다.
+    assert.deepEqual(found.map((violation) => violation.path), [
+      '$.snapshots[0].hash',
+      '$.snapshots[1].prevHash',
+      '$.snapshots[1].hash',
+      '$.snapshots[2].prevHash',
+      '$.snapshots[2].hash',
+      '$.ledgerHash',
+    ]);
   });
 
   test('손댄 원장 위에는 새 칸을 쌓지 못한다', () => {

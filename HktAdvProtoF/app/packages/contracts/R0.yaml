@@ -26,7 +26,7 @@ subtasks:                       # 검증 장면이 셋이다 → WORKFLOW §3
   - id: R0-c
     name: eye-check
     purpose: 시나리오 3종과 Lab 상태 브라우저로 R0 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r0-keeps-the-ledger         # 정상: 열 틱을 담으면 여섯이 남고, 시간을 가로질러 읽히며, 다시 세워도 같은 지문이다
@@ -40,7 +40,8 @@ elements:
 
 lab: /lab/r0
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R0.json
 
 # R0 이 R1 에 넘기는 자리:
 #   - `CommitCause.eventIds` 는 비어 있다 — R0 은 근거의 **자리**만 열고, 사건 id 로 채우는 것은 R1 이다.

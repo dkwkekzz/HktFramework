@@ -328,6 +328,18 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('P5'),
   },
   {
+    id: 'R0',
+    name: 'R0-world-state-store',
+    sources: [
+      'packages/core/src/r0/index.ts',
+      'packages/core/src/r0/violation.ts',
+      'packages/core/src/r0/ledger.ts',
+      'packages/core/src/r0/query.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R0'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

@@ -1,27 +1,27 @@
 {
-  "module": "V2-scenario-runner",
-  "sourceHash": "e996f7877fb13e9a",
+  "module": "R0-world-state-store",
+  "sourceHash": "31e9a03856e56d13",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "0aaaa0d5eeabf9fa",
+  "replayHash": "194f5a1419f0227c",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v2.ts",
-    "testPackage": "packages/scenarios",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r0 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V2",
+      "module": "R0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 99,
-      "passed": 99
+      "total": 959,
+      "passed": 959
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v2-passing-report": "passed",
-        "v2-failure-report": "passed",
-        "v2-boundary": "passed"
+        "r0-keeps-the-ledger": "passed",
+        "r0-broken-commit-rejected": "passed",
+        "r0-boundary": "passed"
       }
     }
   }
