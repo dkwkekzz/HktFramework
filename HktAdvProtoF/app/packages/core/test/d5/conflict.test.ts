@@ -24,6 +24,7 @@ import {
   demandOf,
   judge,
   judgeAll,
+  pressureOf,
   severityOf,
   supplyOf,
   type ConflictViolation,
@@ -278,6 +279,23 @@ describe('D5-b 급함은 D4 에서 읽어 온다', () => {
     assert.notEqual(conflict, null);
     assert.equal(conflict?.severity, severityOf(conflict?.sides ?? []));
     assert.ok((conflict?.severity ?? 0) > 0, '창고가 바닥났으면 압력이 0 일 수 없다');
+  });
+
+  test('급함은 그 자리에 기대는 간선에서 온다 — 그 노드 자신의 압력이 아니다', () => {
+    const contest = contestFor(meatId);
+    const claim = contest.claims[0] as DependencyClaim;
+    const graph = [beaterGraph, priestGraph].find((entry) => entry.id === claim.graphId)!;
+    const report = REPORTS.find((entry) => entry.subjectId === claim.subjectId)!;
+    const dependentIds = graph.edges.filter((entry) => entry.to === claim.nodeId).map((entry) => entry.id);
+    const expected = Math.max(
+      ...report.edges.filter((entry) => dependentIds.includes(entry.edgeId)).map((entry) => entry.pressure),
+    );
+    assert.equal(pressureOf(claim, REPORTS, [beaterGraph, priestGraph]), expected);
+    // 그래프를 주지 않으면 어느 간선인지 알 수 없어 그 노드 자신의 압력으로 내려간다.
+    assert.equal(
+      pressureOf(claim, REPORTS),
+      report.nodes.find((node) => node.nodeId === claim.nodeId)?.pressure,
+    );
   });
 
   test('보고를 주지 않으면 급함은 0 이다 — D5 는 재지 않는다', () => {

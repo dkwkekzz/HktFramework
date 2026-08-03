@@ -378,6 +378,22 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R3'),
   },
   {
+    id: 'D5',
+    name: 'D5-dependency-conflict',
+    sources: [
+      'packages/core/src/d5/index.ts',
+      'packages/core/src/d5/violation.ts',
+      'packages/core/src/d5/claim.ts',
+      'packages/core/src/d5/conflict.ts',
+      'packages/core/src/d5/field.ts',
+      // 공용 렌더러 ②를 처음으로 소스 명부에 넣는다 — 이 파일을 고치면 D5 증거가 낡는다
+      // (P5-c 가 timeline.ts 를 P5 소스에 넣은 것과 같은 방식. 열린 이슈 "공용 렌더러 해시 공백" 절반 상환).
+      'packages/lab/src/renderers/graph.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('D5'),
+  },
+  {
     id: 'R4',
     name: 'R4-belief',
     sources: [

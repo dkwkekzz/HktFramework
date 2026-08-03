@@ -34,6 +34,7 @@ import { deterministicId, type Id } from '../v1/id.ts';
 import { compareStrings, stableSort } from '../v1/stable-sort.ts';
 import type { StateValue } from '../o1/being.ts';
 import { bandHolds, describeBand, type Band } from '../s0/index.ts';
+import type { DependencyGraph } from '../d1/index.ts';
 import { valueAt, type PressureReport, type WorldSnapshot } from '../d4/index.ts';
 import {
   slotKeyOf,
@@ -166,16 +167,36 @@ export function contestsOf(claims: readonly DependencyClaim[]): readonly Contest
   );
 }
 
-/** 그 요구의 압력 — D4 보고에서 읽어 온다. 보고가 없으면 0 이다(재지 않는다). */
+/**
+ * 그 요구가 얼마나 급한가 — **D4 보고에서 읽어 온다**(보고가 없으면 0 이다. D5 는 재지 않는다).
+ *
+ * 어느 값을 읽는지가 중요하다. "이 자리가 채워지는 것이 얼마나 급한가" 는 **그 자리에 기대는
+ * 간선**의 압력이다(D4 `EdgePressure` 는 `edge.to` 가 비어 있는 정도로 잰다) — 그 노드 자신의
+ * `NodePressure` 는 반대쪽, 즉 그 노드가 무엇에 기대는지를 말한다. 대체 가능성과 같은 방향이다.
+ *
+ * 뿌리에는 기대는 간선이 없으므로 제 압력을 쓴다 — 뿌리의 급함은 그것을 채우려는 기댐들의 급함이다.
+ */
 export function pressureOf(
   claim: DependencyClaim,
   reports: readonly PressureReport[],
+  graphs: readonly DependencyGraph[] = [],
 ): number {
   const report = reports.find((entry) => entry.subjectId === claim.subjectId);
-  return report?.nodes.find((node) => node.nodeId === claim.nodeId)?.pressure ?? 0;
+  if (report === undefined) return 0;
+  const graph = graphs.find((entry) => entry.id === claim.graphId);
+  const dependentIds = (graph?.edges ?? [])
+    .filter((edge) => edge.to === claim.nodeId)
+    .map((edge) => edge.id);
+  const dependents = report.edges.filter((entry) => dependentIds.includes(entry.edgeId));
+  if (dependents.length > 0) return Math.max(...dependents.map((entry) => entry.pressure));
+  return report.nodes.find((node) => node.nodeId === claim.nodeId)?.pressure ?? 0;
 }
 
-function sideOf(claim: DependencyClaim, reports: readonly PressureReport[]): ConflictSide {
+function sideOf(
+  claim: DependencyClaim,
+  reports: readonly PressureReport[],
+  graphs: readonly DependencyGraph[] = [],
+): ConflictSide {
   return {
     claimId: claim.id,
     subjectId: claim.subjectId,
@@ -183,7 +204,7 @@ function sideOf(claim: DependencyClaim, reports: readonly PressureReport[]): Con
     label: claim.label,
     band: claim.band,
     substitutability: claim.substitutability,
-    pressure: pressureOf(claim, reports),
+    pressure: pressureOf(claim, reports, graphs),
   };
 }
 
@@ -222,6 +243,8 @@ export function supplyOf(
 export interface JudgeOptions {
   readonly reports?: readonly PressureReport[];
   readonly world?: WorldSnapshot | null;
+  /** 압력을 어느 간선에서 읽을지 알려면 그래프가 있어야 한다 (`detectConflicts` 가 넣어 준다) */
+  readonly graphs?: readonly DependencyGraph[];
 }
 
 /** 다툼이 되지 못한 겹침 — **사유가 함께 남는다**(빠뜨림이 아니라 결과다). */
@@ -245,7 +268,7 @@ export interface Judgement {
  */
 export function judge(contest: Contest, options: JudgeOptions = {}): Judgement {
   const reports = options.reports ?? [];
-  const sides = contest.claims.map((claim) => sideOf(claim, reports));
+  const sides = contest.claims.map((claim) => sideOf(claim, reports, options.graphs ?? []));
   const build = (reason: ConflictReason, note: string): Judgement => ({
     conflict: {
       id: deterministicId('conflict', contest.id, reason),
@@ -404,7 +427,9 @@ export function checkConflict(
   }
 
   const recomputed = severityOf(
-    (mine as DependencyClaim[]).map((claim) => sideOf(claim, options.reports ?? [])),
+    (mine as DependencyClaim[]).map((claim) =>
+      sideOf(claim, options.reports ?? [], options.graphs ?? []),
+    ),
   );
   if (Math.abs(recomputed - conflict.severity) > 1e-9) {
     violateConflict(

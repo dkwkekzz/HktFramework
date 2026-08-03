@@ -39,7 +39,7 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: D5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 이분 그래프로 D5 를 눈으로 확인한다.
-    status: IN_PROGRESS
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - d5-same-target-different-conflicts  # 정상: 겹침 중 다툼이 되는 것만 갈린다
@@ -55,7 +55,8 @@ elements:
 
 lab: /lab/d5
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/D5.json
 
 # D5 가 뒤에 넘기는 자리:
 #   - **배타적 점유는 유예다.** "이 대상은 한 번에 한 요구만 받는다"(한 짝이 넷의 등을 동시에

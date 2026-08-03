@@ -81,7 +81,8 @@ export function detectConflicts(
 ): DetectResult {
   const claims = claimsFrom(graphs);
   const contests = contestsOf(claims);
-  const { conflicts, peaces } = judgeAll(contests, options);
+  // 압력을 어느 간선에서 읽을지 알려면 그래프가 있어야 한다 — 호출자가 다시 적지 않게 여기서 넣는다.
+  const { conflicts, peaces } = judgeAll(contests, { ...options, graphs });
   return { claims, contests, field: indexOf(conflicts, peaces) };
 }
 
@@ -131,12 +132,18 @@ export function auditConflicts(
   const violations: ConflictViolation[] = [...checkClaims(result.claims, graphs)];
 
   for (const [index, conflict] of field.conflicts.entries()) {
-    checkConflict(conflict, result.claims, options, violations, `$.conflicts[${String(index)}]`);
+    checkConflict(
+      conflict,
+      result.claims,
+      { ...options, graphs },
+      violations,
+      `$.conflicts[${String(index)}]`,
+    );
   }
 
   // 빠뜨린 다툼이 없는가 — 같은 재료로 다시 판정해 충돌장과 대조한다.
   // 이것이 "다툼을 빠뜨리지 않는다" 를 주장이 아니라 검사로 만든다 (R1-b `witnessViolations` 의 짝).
-  const expected = judgeAll(result.contests, options).conflicts;
+  const expected = judgeAll(result.contests, { ...options, graphs }).conflicts;
   for (const conflict of expected) {
     if (field.byKey.has(conflict.key)) continue;
     violateConflict(
