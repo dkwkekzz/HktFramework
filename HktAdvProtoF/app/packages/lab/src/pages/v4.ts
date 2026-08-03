@@ -1,8 +1,8 @@
 // /lab/v4 — V4 완료 증거. 실제 증거 파일 스냅샷과, 산출물을 무너뜨렸을 때의 판정을 나란히 보인다.
 
-import { buildEvidence, type Evidence, type EvidenceInput } from '@hkt/contracts';
+import { buildEvidence, type Evidence, type EvidenceInput, type EvidenceTrace } from '@hkt/contracts';
 import { runScenarios } from '@hkt/scenarios';
-import { v4Scenarios } from '@hkt/scenarios/suites/v4';
+import { simulateRecording, v4Scenarios } from '@hkt/scenarios/suites/v4';
 
 import { EVIDENCE } from '../data.ts';
 import { lines, pageView, type PageSpec } from '../page.ts';
@@ -57,11 +57,33 @@ function checksView(evidence: Evidence): VElement {
   ]);
 }
 
+/** 검증·기록이 일어난 순서를 그대로 편다 — 마당이 나뉘었는지가 한눈에 보인다. */
+function traceView(trace: EvidenceTrace): VElement {
+  return h('table', { class: 'trace-table' }, [
+    h('thead', {}, [h('tr', {}, [h('th', {}, ['#']), h('th', {}, ['마당']), h('th', {}, ['모듈'])])]),
+    h(
+      'tbody',
+      {},
+      trace.map((step, index) =>
+        h('tr', { class: step.phase === 'verify' ? 'ok' : 'changed' }, [
+          h('td', {}, [String(index + 1)]),
+          h('td', {}, [step.phase === 'verify' ? '검증' : '기록']),
+          h('td', {}, [step.module]),
+        ]),
+      ),
+    ),
+  ]);
+}
+
 export function v4Page(): VElement {
   const suite = runScenarios(v4Scenarios);
   const stored = Object.entries(EVIDENCE);
   const verifiedCount = stored.filter(([, evidence]) => evidence.status === 'VERIFIED').length;
   const detects = DAMAGES.every((damage) => buildEvidence(damage.input).status !== 'VERIFIED');
+
+  // 같은 재료를 두 순서로 돌린다 — 바뀌는 것은 순서뿐인데 뒤 모듈의 판정이 뒤집힌다 (#662).
+  const batch = simulateRecording('batch');
+  const eager = simulateRecording('eager');
 
   const spec: PageSpec = {
     id: 'V4',
@@ -111,6 +133,12 @@ export function v4Page(): VElement {
           ),
         ]),
         h('p', { class: 'diff-note' }, ['△ = 수동 확인. 이 Lab 이 서면 Lab 항목이 passed 로 바뀐다.']),
+        h('h3', {}, ['기록은 검증 전량이 끝난 뒤에 일어난다']),
+        h('p', {}, [
+          '증거 파일은 다른 모듈의 검사 재료다 — 이 Lab 의 스냅샷이 증거를 굳혀 싣는다. ',
+          '그래서 수집은 두 마당으로 나뉜다: 검증이 전부 끝난 뒤에야 기록이 시작된다.',
+        ]),
+        traceView(batch.trace),
       ],
       candidates: [
         h('p', {}, ['status 후보는 둘뿐이다 — 막는 사유가 하나도 없으면 VERIFIED, 아니면 IMPLEMENTED.']),
@@ -138,6 +166,41 @@ export function v4Page(): VElement {
         ]),
       ],
       beforeAfter: [
+        h('h3', {}, ['같은 재료, 순서만 다르다 — 뒤 모듈의 판정이 뒤집힌다']),
+        h('p', {}, [
+          'A·B 의 증거 내용이 바뀌었고, LAB 은 "수집 시작 때 굳힌 스냅샷이 지금 디스크와 같은가" 를 ',
+          '단위 테스트로 검사한다. 고장 난 것은 아무것도 없다 — 바뀐 것은 기록 시점뿐이다.',
+        ]),
+        h('table', { class: 'defect-table' }, [
+          h('thead', {}, [
+            h('tr', {}, [
+              h('th', {}, ['기록 순서']),
+              h('th', {}, ['A']),
+              h('th', {}, ['B']),
+              h('th', {}, ['LAB']),
+              h('th', {}, ['LAB 단위 테스트']),
+              h('th', {}, ['순서 위반']),
+            ]),
+          ]),
+          h(
+            'tbody',
+            {},
+            [batch, eager].map((world) =>
+              h('tr', { class: world.statuses['LAB'] === 'VERIFIED' ? 'ok' : 'bad' }, [
+                h('td', {}, [world.order === 'batch' ? '검증 전량 → 일괄 기록' : '검증하고 바로 기록 (옛 순서)']),
+                h('td', {}, [world.statuses['A'] ?? '—']),
+                h('td', {}, [world.statuses['B'] ?? '—']),
+                h('td', {}, [world.statuses['LAB'] ?? '—']),
+                h('td', {}, [`${String(world.labTests.passed)}/${String(world.labTests.total)}`]),
+                h('td', {}, [
+                  world.violations.length === 0
+                    ? '없음'
+                    : h('ul', { class: 'lines' }, world.violations.map((reason) => h('li', {}, [reason]))),
+                ]),
+              ]),
+            ),
+          ),
+        ]),
         h('h3', {}, ['소스를 고치면 증거가 낡는다']),
         keyValueView([
           ['증거의 소스 해시', HEALTHY.sourceHash],
@@ -150,6 +213,7 @@ export function v4Page(): VElement {
         'status 는 사람이 적는 값이 아니라 산출물이 정하는 값이다 — buildEvidence 가 유일한 판정자',
         '증거는 소스 해시를 품는다 — 고쳐 놓고 예전 증거로 완료를 유지할 수 없다',
         '레지스트리는 계약의 완료 주장을 증거와 대조한다 — 어긋나면 evidence-unsupported',
+        '증거는 다른 모듈의 검사 재료다 — 그래서 기록은 검증 전량이 끝난 뒤에만 일어난다 (collectEvidence)',
       ),
     },
   };

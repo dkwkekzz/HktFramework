@@ -9,7 +9,7 @@
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v2.ts",
     "testPackage": "packages/scenarios",
     "coverage": {
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 81,
-      "passed": 81
+      "total": 84,
+      "passed": 84
     },
     "scenarios": {
       "total": 3,

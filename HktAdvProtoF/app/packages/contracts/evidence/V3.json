@@ -9,7 +9,7 @@
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/lab",
     "coverage": {
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 90,
-      "passed": 90
+      "total": 93,
+      "passed": 93
     },
     "scenarios": {
       "total": 3,

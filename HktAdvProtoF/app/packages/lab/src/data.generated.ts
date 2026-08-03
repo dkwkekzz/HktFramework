@@ -83,7 +83,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "V4.yaml",
-    "text": "id: V4\nname: completion-evidence\npurpose: >\n  검증 산출물에서만 완료 상태를 결정해, 완료를 임의로 선언하지 못하게 한다.\n\ninputs: [EvidenceInput]\noutputs: [Evidence, PromotionCheck]\n\nwrites:\n  - Evidence\n  - ModuleStatus\n\ndepends: [V1, V2, V0]           # 해시(V1) · 시나리오 결과(V2) · 계약(V0) 을 재료로 삼는다\n\nscenarios:\n  - v4-evidence-verified        # 정상: 전부 통과한 산출물 → VERIFIED 증거 + 완료 전이 허용\n  - v4-refuses-unverified       # 실패: 시나리오/테스트/커버리지/결정성 미달 → 전이 거부\n  - v4-boundary                 # 경계: 증거 없음 · 낡은 증거(소스 변경) · 시나리오 0개 · 테스트 0개\n\nelements:\n  - name: Evidence\n    ontology: Claim\n    renderer: diff\n\nlab: /lab/v4                    # V3 미구현 — packages/scenarios/verify/v4.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V4.json\n"
+    "text": "id: V4\nname: completion-evidence\npurpose: >\n  검증 산출물에서만 완료 상태를 결정해, 완료를 임의로 선언하지 못하게 한다.\n\ninputs: [EvidenceInput, EvidenceJob]\noutputs: [Evidence, PromotionCheck, EvidenceTrace]\n\nwrites:\n  - Evidence\n  - ModuleStatus\n  - EvidenceTrace\n\ndepends: [V1, V2, V0]           # 해시(V1) · 시나리오 결과(V2) · 계약(V0) 을 재료로 삼는다\n\nscenarios:\n  - v4-evidence-verified        # 정상: 전부 통과한 산출물 → VERIFIED 증거 + 완료 전이 허용\n  - v4-refuses-unverified       # 실패: 시나리오/테스트/커버리지/결정성 미달 → 전이 거부\n  - v4-boundary                 # 경계: 증거 없음 · 낡은 증거(소스 변경) · 시나리오 0개 · 테스트 0개\n  - v4-recording-batch          # 정상: 검증 전량 뒤 일괄 기록 → 뒤 모듈이 온전히 선다\n  - v4-recording-eager          # 실패: 즉시 기록 → 같은 재료로도 뒤 모듈이 강등된다 (#662 재현)\n  - v4-recording-boundary       # 경계: 작업 0개·1개는 순서 문제가 생길 수 없다\n\nelements:\n  - name: Evidence\n    ontology: Claim\n    renderer: diff\n  - name: EvidenceTrace\n    ontology: Event\n    renderer: diff\n\nlab: /lab/v4                    # V3 미구현 — packages/scenarios/verify/v4.ts 가 같은 7요소를 출력한다.\n\nstatus: VERIFIED\nevidence: evidence/V4.json\n"
   }
 ];
 
@@ -99,7 +99,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d0 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -137,7 +137,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d1 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -175,7 +175,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d2 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -213,7 +213,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -251,7 +251,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -289,7 +289,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o0 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -327,7 +327,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o1 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -365,7 +365,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/o2 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -403,7 +403,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -441,7 +441,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p1 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -479,7 +479,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p2 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -517,7 +517,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s0 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -555,7 +555,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s1 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -593,7 +593,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s2 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -631,7 +631,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/s3 (npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/core",
       "coverage": {
@@ -660,7 +660,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V0": {
     "module": "V0-module-contract-registry",
-    "sourceHash": "ed897e655dc73dfb",
+    "sourceHash": "31d8e10fe529235b",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -669,7 +669,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/scenarios/verify/v0.ts",
       "testPackage": "packages/contracts",
       "coverage": {
@@ -680,8 +680,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 75,
-        "passed": 75
+        "total": 82,
+        "passed": 82
       },
       "scenarios": {
         "total": 3,
@@ -707,7 +707,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/scenarios/verify/v1.ts",
       "testPackage": "packages/core",
       "coverage": {
@@ -745,7 +745,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/scenarios/verify/v2.ts",
       "testPackage": "packages/scenarios",
       "coverage": {
@@ -756,8 +756,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 81,
-        "passed": 81
+        "total": 84,
+        "passed": 84
       },
       "scenarios": {
         "total": 3,
@@ -783,7 +783,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
       "testPackage": "packages/lab",
       "coverage": {
@@ -794,8 +794,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 90,
-        "passed": 90
+        "total": 93,
+        "passed": 93
       },
       "scenarios": {
         "total": 3,
@@ -812,38 +812,41 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "01d8c154e517d1fc",
+    "sourceHash": "0544efe43a651e8a",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "e7c4be1f650b4167",
+    "replayHash": "97a107cdb7f704cf",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
-      "generator": "packages/scenarios/verify/evidence.ts",
+      "generator": "packages/lab/verify/evidence.ts",
       "labSubstitute": "packages/scenarios/verify/v4.ts",
       "testPackage": "packages/contracts",
       "coverage": {
         "module": "V4",
-        "normal": 1,
-        "failure": 1,
-        "boundary": 1,
+        "normal": 2,
+        "failure": 2,
+        "boundary": 2,
         "complete": true
       },
       "tests": {
-        "total": 75,
-        "passed": 75
+        "total": 82,
+        "passed": 82
       },
       "scenarios": {
-        "total": 3,
-        "passed": 3,
+        "total": 6,
+        "passed": 6,
         "failed": 0,
         "coverageComplete": true,
         "byId": {
           "v4-evidence-verified": "passed",
+          "v4-recording-batch": "passed",
+          "v4-recording-eager": "passed",
           "v4-refuses-unverified": "passed",
-          "v4-boundary": "passed"
+          "v4-boundary": "passed",
+          "v4-recording-boundary": "passed"
         }
       }
     }

@@ -1,15 +1,23 @@
 // 완료 증거 생성기 — 손으로 쓴 "완료" 를 금지하고 실제 실행 결과만 증거로 남긴다 (원문 V4).
 //
-// status 를 정하는 판단은 여기가 아니라 @hkt/contracts 의 buildEvidence 에 있다.
+// status 를 정하는 판단은 여기가 아니라 @hkt/contracts 의 buildEvidence 에 있고,
+// **기록 순서**의 판단은 @hkt/contracts 의 collectEvidence 에 있다.
 // 이 스크립트는 검증을 **수행하고 산출물을 모으는** 일만 한다 — 모듈이 늘면 MODULES 에 한 줄 추가.
 //
-//   실행: node packages/scenarios/verify/evidence.ts
+//   실행: node packages/lab/verify/evidence.ts
 
 import { spawnSync } from 'node:child_process';
-import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { buildEvidence, formatDashboard, type Evidence } from '@hkt/contracts';
+import {
+  buildEvidence,
+  collectEvidence,
+  formatDashboard,
+  formatTrace,
+  recordingOrderViolations,
+  type Evidence,
+} from '@hkt/contracts';
 import { stateHash } from '@hkt/core/v1';
 
 import { digestSuite, runScenarios, type AnyScenario } from '@hkt/scenarios';
@@ -336,7 +344,7 @@ const MODULES: readonly ModuleSpec[] = [
   {
     id: 'V4',
     name: 'V4-completion-evidence',
-    sources: ['packages/contracts/src/evidence.ts'],
+    sources: ['packages/contracts/src/evidence.ts', 'packages/contracts/src/collect.ts'],
     testPackage: 'packages/contracts',
     scenarios: v4Scenarios,
     labSubstitute: 'packages/scenarios/verify/v4.ts',
@@ -378,11 +386,8 @@ function sourceHash(sources: readonly string[]): string {
   );
 }
 
-mkdirSync(evidenceDir, { recursive: true });
-
-const dashboard: { id: string; evidence: Evidence | null; claimed: 'VERIFIED' }[] = [];
-
-for (const module of MODULES) {
+/** 모듈 하나의 검증 — 실제 검사를 수행하고 증거를 만든다. 파일은 여기서 쓰지 않는다. */
+function verifyModule(module: ModuleSpec): Evidence {
   const tests = runTests(module.testPackage);
   const suite = runScenarios(module.scenarios);
   const coverage = suite.coverage.find((entry) => entry.module === module.id) ?? null;
@@ -393,7 +398,7 @@ for (const module of MODULES) {
   const replayHash = stateHash(digest);
   const deterministic = replayHash === stateHash(digestSuite(runScenarios(module.scenarios)));
 
-  const evidence = buildEvidence({
+  return buildEvidence({
     module: module.name,
     sourceHash: sourceHash(module.sources),
     unitTests: { result: tests.result, total: tests.total, passed: tests.passed },
@@ -410,23 +415,49 @@ for (const module of MODULES) {
     },
     replayHash,
     detail: {
-      generator: 'packages/scenarios/verify/evidence.ts',
+      generator: 'packages/lab/verify/evidence.ts',
       labSubstitute: module.labSubstitute,
       testPackage: module.testPackage,
       coverage,
     },
   });
-
-  writeFileSync(
-    new URL(`${module.id}.json`, evidenceDir),
-    `${JSON.stringify(evidence, null, 2)}\n`,
-    'utf8',
-  );
-  dashboard.push({ id: module.id, evidence, claimed: 'VERIFIED' });
 }
+
+mkdirSync(evidenceDir, { recursive: true });
+
+// 증거는 **검증 전량이 끝난 뒤에 일괄로** 기록된다 (V4 collectEvidence).
+// 루프 안에서 즉시 쓰면 앞 모듈의 기록이 뒤 모듈(Lab 스냅샷을 재료로 쓰는 V3)의 검사 재료를
+// 낡게 만들어, 아무것도 고장 나지 않았는데 V3 만 IMPLEMENTED 로 내려앉는다 (#662).
+const changed: string[] = [];
+const { records, trace } = collectEvidence(
+  MODULES.map((module) => ({ id: module.id, verify: () => verifyModule(module) })),
+  ({ id, evidence }) => {
+    const target = new URL(`${id}.json`, evidenceDir);
+    const text = `${JSON.stringify(evidence, null, 2)}\n`;
+    const before = existsSync(target) ? readFileSync(target, 'utf8') : null;
+    if (before === text) return;
+    writeFileSync(target, text, 'utf8');
+    changed.push(id);
+  },
+);
+
+const dashboard = records.map((record) => ({
+  id: record.id,
+  evidence: record.evidence as Evidence | null,
+  claimed: 'VERIFIED' as const,
+}));
+const orderViolations = recordingOrderViolations(trace);
 
 console.log(formatDashboard(dashboard));
 console.log('');
 console.log(`증거 기록: ${fileURLToPath(evidenceDir)}`);
+console.log(`기록 순서: ${formatTrace(trace)}`);
+for (const violation of orderViolations) console.log(`  ✘ ${violation}`);
+console.log(
+  changed.length === 0
+    ? '  내용이 달라진 증거 없음 — 파생 스냅샷도 그대로다'
+    : `  내용이 달라진 증거: ${changed.join(', ')} — 파생 스냅샷(lab/src/data.generated.ts)을 다시 만든다`,
+);
 
 if (dashboard.some((row) => row.evidence?.status !== 'VERIFIED')) process.exitCode = 1;
+if (orderViolations.length > 0) process.exitCode = 1;

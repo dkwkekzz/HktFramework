@@ -34,7 +34,7 @@ W 계층 착수 시 배정하는 작업 카드를 만든다.
 | V1 | 같은 상태와 입력이면 항상 같은 결과가 나오게 한다 | `(seed, tick)` → `TickClock`, `SeededRandom`, `DeterministicId`, `stableSort`, `stateHash` | `Seed`, `Tick`, `StateHash` | diff(해시 비교표 — 100회 실행 동일성) |
 | V2 | 각 모듈의 대표 장면을 자동 실행한다 | `Scenario{arrange,act,assert}` → `ScenarioResult` + `Assertion[]` (실패 시 최초 분기 상태 경로 포함) | `ScenarioResult`, `Assertion` | diff(기대 vs 실제 + 분기 경로 하이라이트) |
 | V3 | 코드를 읽지 않아도 모듈 작동을 눈으로 확인하게 한다 | 모듈별 상태 원소 → Lab 페이지(화면 7요소: 입력·처리·후보·선택·상태 전후·실패 이유·인과) | — (렌더러 자체) | 자체 (공용 렌더러 5종 셸) |
-| V4 | 완료를 임의 선언하지 못하게 증거 파일로만 판정한다 | 검증 산출물(테스트·시나리오·리플레이 해시) → `Evidence` JSON, `status: VERIFIED` | `Evidence` | diff(증거 대시보드 — 모듈별 통과 현황) |
+| V4 | 완료를 임의 선언하지 못하게 증거 파일로만 판정한다 | 검증 산출물(테스트·시나리오·리플레이 해시)·모듈별 검증 작업 `EvidenceJob` → `Evidence` JSON, `status: VERIFIED`, 기록 순서 `EvidenceTrace` | `Evidence`, `EvidenceTrace` | diff(증거 대시보드 — 모듈별 통과 현황 + 기록 순서 추적표) |
 
 ## O 계층 — 세계관 공리와 존재론 `core/`
 

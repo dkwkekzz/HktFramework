@@ -1,6 +1,6 @@
 {
   "module": "V0-module-contract-registry",
-  "sourceHash": "ed897e655dc73dfb",
+  "sourceHash": "31d8e10fe529235b",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -9,7 +9,7 @@
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v0.ts",
     "testPackage": "packages/contracts",
     "coverage": {
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 75,
-      "passed": 75
+      "total": 82,
+      "passed": 82
     },
     "scenarios": {
       "total": 3,
