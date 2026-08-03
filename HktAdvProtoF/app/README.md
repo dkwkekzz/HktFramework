@@ -18,20 +18,12 @@ packages/
 Node ≥ 22.18 의 네이티브 TypeScript 타입 스트리핑을 그대로 쓴다 — `.ts` 를 빌드 없이 실행한다.
 따라서 런타임 의존성은 0개이며, `typescript` 는 타입 검사 전용 devDependency 다.
 
-Windows 에서는 [run.bat](run.bat) 을 더블클릭하면 아래 과정을 한 번에 거친다 —
-Node 확인 → 의존성 설치 → 단위 테스트 → 타입 검사 → 눈 검증(증거 재생성) → Lab 실행.
-검증 출력은 실행한 창에 남고, Lab 개발 서버는 새 창에서 돌며 브라우저가 자동으로 열린다.
+**결과를 보는 것**과 **검증하는 것**은 창구가 다르다.
 
-```bat
-run.bat            :: 전부 — 검사 3종 + Lab
-run.bat check      :: 검사 3종만 (Lab 없이)
-run.bat verify     :: 눈 검증만 — 터미널 7요소 출력 + 증거 재생성
-run.bat test       :: 단위 테스트만
-run.bat lab        :: Lab 만 — 브라우저 자동 열기
-run.bat install    :: 의존성 설치만
-```
-
-직접 실행할 때는 아래 명령을 쓴다 (run.bat 이 부르는 것도 같은 명령이다).
+- 보는 것 — Windows 에서 [run.bat](run.bat) 을 더블클릭한다. Node 확인 → 의존성 설치 →
+  Lab 실행까지 가고 브라우저가 자동으로 열린다. Lab 은 커밋된 스냅샷(`data.generated.ts`)을
+  읽으므로 검증을 돌리지 않아도 지금까지의 모든 모듈 페이지가 그대로 선다.
+- 검증하는 것 — 아래 명령을 리눅스 개발 환경에서 돌린다. 배치파일은 검증을 부르지 않는다.
 
 ```bash
 npm install          # 타입 검사기만 설치 (런타임 의존성 없음)
