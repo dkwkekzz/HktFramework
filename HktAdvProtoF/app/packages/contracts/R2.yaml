@@ -27,15 +27,15 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R2-b
     name: phenomenon-emission
     purpose: 사건 하나가 남기는 현상을 세기·수명·자리·애매함까지 세운다.
-    status: PLANNED
+    status: DONE
   - id: R2-c
     name: phenomenon-field
     purpose: 현상장 — 틱마다 무엇이 아직 남아 있는가, 그리고 흔적 없이 지나간 사건은 무엇인가.
-    status: PLANNED
+    status: DONE
   - id: R2-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 현상 타임라인으로 R2 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r2-events-leave-traces      # 정상: 다섯 사건이 흔적으로 갈리고, 앎은 새지 않는다
@@ -49,7 +49,8 @@ elements:
 
 lab: /lab/r2
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R2.json
 
 # R2 가 뒤 계층에 넘기는 자리:
 #   - **누가 그것을 감지하는가는 R3 의 몫이다.** R2 는 세계에 무엇이 났는지까지만 안다 —

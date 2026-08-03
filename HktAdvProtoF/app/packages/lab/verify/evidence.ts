@@ -48,6 +48,7 @@ import { p4Scenarios } from '@hkt/scenarios/suites/p4';
 import { p5Scenarios } from '@hkt/scenarios/suites/p5';
 import { r0Scenarios } from '@hkt/scenarios/suites/r0';
 import { r1Scenarios } from '@hkt/scenarios/suites/r1';
+import { r2Scenarios } from '@hkt/scenarios/suites/r2';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -84,6 +85,7 @@ const SUITES: Readonly<Record<string, readonly AnyScenario[]>> = {
   P5: p5Scenarios,
   R0: r0Scenarios,
   R1: r1Scenarios,
+  R2: r2Scenarios,
 };
 
 const MODULES: readonly ModuleSpec[] = MODULE_SOURCES.map((spec) => {

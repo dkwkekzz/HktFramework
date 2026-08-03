@@ -352,6 +352,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R1'),
   },
   {
+    id: 'R2',
+    name: 'R2-phenomenon-emission',
+    sources: [
+      'packages/core/src/r2/index.ts',
+      'packages/core/src/r2/violation.ts',
+      'packages/core/src/r2/channel.ts',
+      'packages/core/src/r2/emit.ts',
+      'packages/core/src/r2/field.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R2'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

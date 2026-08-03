@@ -27,6 +27,7 @@ import { p4Scenarios } from './p4.ts';
 import { p5Scenarios } from './p5.ts';
 import { r0Scenarios } from './r0.ts';
 import { r1Scenarios } from './r1.ts';
+import { r2Scenarios } from './r2.ts';
 
 export const allScenarios: readonly AnyScenario[] = [
   ...v0Scenarios,
@@ -53,6 +54,7 @@ export const allScenarios: readonly AnyScenario[] = [
   ...p5Scenarios,
   ...r0Scenarios,
   ...r1Scenarios,
+  ...r2Scenarios,
 ];
 
 export {
