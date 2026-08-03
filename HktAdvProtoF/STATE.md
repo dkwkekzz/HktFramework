@@ -93,6 +93,7 @@
 
 모든 작업은 [modules/WORKFLOW.md](modules/WORKFLOW.md)의 8단계 사이클을 따른다:
 작업 카드 없이 착수 금지, 커밋 1개 = 작업 1개, 완료 판정은 증거 파일로만.
+실행 방아쇠: 작업 한 바퀴는 `/advproto-step`, 단계 리뷰는 `/advproto-review` (규정 원본은 WORKFLOW).
 
 ## 소급 부채 (V0~V4 완성 시 갚는다)
 
@@ -107,6 +108,18 @@ WORKFLOW §5 단서대로, V0~V4 자체가 없는 동안은 5~7단계를 수동�
 | 개념 카탈로그가 손으로 뽑은 40종이다 — 원문에 이 목록 밖의 개념이 남아 있을 수 있다 | O1-e 커버리지 검사기가 목록 안의 누락은 잡는다 | 원문 재독 시 카탈로그에 추가 (작업 카드로) |
 | ~~증거를 손으로 쓴 스크립트가 만든다~~ | **V4 로 상환** — `buildEvidence` 가 유일한 status 판정자 | 완료 |
 | ~~Lab 페이지가 없다~~ | **V3 으로 상환** — 모듈당 페이지 1개, 화면 7요소 | 완료 |
+
+## 열린 이슈 (리뷰 발견 — 해결 시 이 표에서 지운다)
+
+리뷰는 [reviews/](reviews/) 에 쌓는다. **이슈의 원본 장부는 이 표다** — GitHub 이슈는 사람 알림용
+미러일 뿐이며, 세션은 이 표만 보면 된다. 해결하면 부채 표처럼 취소선으로 남기거나 지운다.
+
+| 이슈 | 내용 한 줄 | 출처 | 미러 | 처리 방침 |
+|---|---|---|---|---|
+| V3 증거 강등 커밋 | `evidence/V3.json` 이 D2 완료 커밋부터 `IMPLEMENTED`(스냅샷 신선도 테스트 1건 실패)로 강등된 채 커밋됨 — 원인은 증거 생성기가 루프 안에서 증거를 즉시 써서 lab 스냅샷이 낡아지는 순서 버그. verify 가 exit 1 을 냈는데도 커밋됨 | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#662](https://github.com/dkwkekzz/HktFramework/issues/662) | **P0 착수 전** — 증거 일괄 기록으로 순서 수정 + `verify` exit 0 을 커밋 조건으로 명문화 + V3 증거 재생성 |
+| 레지스트리 증거 교차검사 비활성 | `verify/v0.ts` 가 `buildRegistry(sources)` 를 증거 맵 없이 호출해 `evidence-unsupported` 관문이 실전에서 돌지 않음 — 위 불일치를 못 잡은 두 번째 원인. "착수 가능" 목록도 미착수 계약 미등록으로 항상 빈다 | [단계 0 리뷰 §3](reviews/2026-08-03-stage0-review.md) | [#663](https://github.com/dkwkekzz/HktFramework/issues/663) | **P0 착수 전** — `buildRegistry(sources, { evidence: loadEvidence(...) })` 로 연결. 착수 가능 목록은 P0 계약을 PLANNED 로 선등록하는 관행으로 해소 |
+| 보고 문서 정비 | STATE.md 표가 빈 줄로 4개로 쪼개져 렌더링 · 증거 생성기 경로 오기 3곳(`packages/scenarios/verify/evidence.ts` 는 없음 — 실물은 `packages/lab/verify/evidence.ts`) · progress/ 분리 미이행 | [리뷰 인덱스](reviews/README.md) | [#664](https://github.com/dkwkekzz/HktFramework/issues/664) | 문서 작업 카드 1개로 일괄 — 급하지 않으나 P 계층 완료 기록 전이면 좋다 |
+| ~~MasterPlan §10 능력 체계 매핑 격차~~ | ~~§10(표현 6종·강도 식·mastery·stability·저항)이 ModulePlan·MODULES.md 검색 0건 — 작동 체계의 주인 모듈이 없다~~ | [리뷰 인덱스](reviews/README.md) | [#666](https://github.com/dkwkekzz/HktFramework/issues/666) 닫음 | **상환(2026-08-03)** — CLAUDE.md 에 북극성 2개(넨급 능력 문법·방대한 세계관) 명문화 + MODULES.md 에 북극성 대조표·G5 확장(PersonalAbility 전체 문법)·G6 신설(강도 판정, §10.2 식)·E3 소비 연결. 남은 자리: `unknownDomains`·`dangerScale` 소유 모듈은 W 계층 착수 시 작업 카드 |
 
 ## TODO — 단계 2 (M2 목적을 만드는 주체)
 
@@ -165,3 +178,9 @@ D5(의존 충돌 탐지)는 원문 §18 대로 단계 3(다주체 등장) 시점
 
 **단계 2 (M2 목적을 만드는 주체) 착수 가능** — P0~P5. 대표 장면은 "배고픈 인간이 음식을 발견한다".
 단계 2 의 완료 조건이 증거로 확인되기 전에는 단계 3(R·E 계층)의 어떤 모듈도 착수하지 않는다.
+단, **P0 착수 전에 열린 이슈 표의 앞 두 건(검증 파이프라인 결함)을 먼저 닫는다** — 판정 체계가
+새는 채로 다음 단계의 완료를 쌓지 않기 위함이다.
+
+**단계 리뷰 운용** (WORKFLOW §10): 리뷰는 **사용자가 요청할 때만** 진행한다 (`/advproto-review`).
+단계를 닫는 커밋은 TODO 에 "단계 N 리뷰 대기" 한 줄을 남긴다 — 자동으로 리뷰를 쓰지 않는다.
+단계 0·1 리뷰는 완료 ([reviews/](reviews/README.md)).

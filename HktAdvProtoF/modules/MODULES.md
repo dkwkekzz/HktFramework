@@ -11,6 +11,19 @@
 - **시각화**: WORKFLOW §6 공용 렌더러 5종(그래프 / 게이지 / 타임라인 / diff / 3D) 중 배정.
 - 계층 순서 = 의존 순서. 앞 계층 검증 전 다음 계층 착수 금지.
 
+## 북극성 대조표 — 목표의 핵심 둘이 어느 모듈에 사는가
+
+CLAUDE.md 북극성(넨급 능력 문법 · 방대한 세계관)의 담당 모듈 사슬. 아래 표의 모듈을 설계·계약할 때
+자기가 이 사슬의 어느 고리인지 확인한다.
+
+| 북극성 | 담당 모듈 사슬 |
+|---|---|
+| ① 능력 = 캐릭터 표현의 근본 문법 (MasterPlan §10) | O0(비용·흔적 공리) → S3(값의 유래) → D3(대가의 의존 전환) → **G5(능력 문법·생성)** → **G6(강도 판정 — 제약과 서약의 식)** → E3(능력 충돌 판정) → R2(능력 흔적의 현상화) |
+| ② 방대하고 다채로운 세계관 (MasterPlan §3·§8) | O0-d(공리 다산성 — 같은 공리에서 다른 종·능력·신) → W1(다중 주체 요구 병합 — 한 요소, 여러 의미) → C0~C4(마물·조직·국가·신) → A 계층(AI 확장) |
+
+미지 영역·위험 스케일(MasterPlan §3.1 `unknownDomains`·`dangerScale`)은 아직 소유 모듈이 없다 —
+W 계층 착수 시 배정하는 작업 카드를 만든다.
+
 ---
 
 ## V 계층 — 검증 기반 `contracts/ · scenarios/ · lab/`
@@ -102,7 +115,7 @@
 | E0 | 같은 공간·자원·대상에 걸린 목적들을 상황으로 묶는다 | 다주체 `ActionIntent[]/ActiveGoal[]` → `Situation` 군집 | `Situation` | 그래프(상황 클러스터 맵) |
 | E1 | 상황에서 사회적 상호작용 8종을 선택하게 한다 | `Situation + 관계·힘 차·긴급도·도덕 비용·성공률·정보 비대칭` → `SocialInteraction`(요청·거래·협박·기만·동맹·고용·배신·복종) | `SocialInteraction` | 게이지(선택 기준 점수표) |
 | E2 | 퀘스트를 약속·계약 구조로 대체한다 | 상호작용 → `Contract{제안, 수락, 의무, 보상, 기한, 위반, 위반 결과}` | `Contract` | 타임라인(계약 상태 전이 카드) |
-| E3 | 같은 상태를 동시에 바꾸려는 행동의 결과를 확정한다 | 경합 `ActionIntent[]` → 확정 `Event`(소유자 1인 결정 등) | `Event` | 타임라인(충돌 판정 리플레이) |
+| E3 | 같은 상태를 동시에 바꾸려는 행동의 결과를 확정한다 | 경합 `ActionIntent[]` (+ 능력 대 능력 충돌 시 G6 `EffectMagnitude`) → 확정 `Event`(소유자 1인 결정 등) | `Event` | 타임라인(충돌 판정 리플레이) |
 | E4 | 사건이 다음 사건의 원인을 남기게 한다 | `Event` → 후속 원인 상태(부상·채무·증거·소문·원한·권력 공백·생태 변화·자원 부족) | `Consequence` | 그래프(사건 연쇄 인과 그래프) |
 
 ## G 계층 — 성장과 의존 변형 `core/`
@@ -114,7 +127,14 @@
 | G2 | 의존 충족 효율을 성장시킨다 | 경험 → 효율 파라미터(소비 감소·접근 거리·안전·속도) | `EfficiencyParams` | 게이지(효율 지표 전후) |
 | G3 | 의존 대상을 대체하게 한다 | 성장 조건 → `DependencyGraph` 대체 간선(음식→의념 결정→태양 에너지) | `DependencyEdge` | 그래프 diff |
 | G4 | 의존 탈피가 반드시 새 의존·비용을 낳게 한다 | 탈피 조건 → 의존 제거 + 신규 의존/비용 (등가 검사 실패 시 거부) | `DependencyGraph` diff | 그래프 diff + diff(등가 검사 결과) |
-| G5 | 욕망·가치·공포·행동·비용·제한의 조합으로 능력을 만든다 | 6요소 조합 → `Ability`(무비용 능력 거부) | `Ability` | diff(능력 카드 — 요소별 근거) |
+| G5 | 능력을 캐릭터의 실체화로 생성한다 — 욕망·가치·공포·행동·비용·제한 6요소가 능력 전체 문법으로 조립된다 | 6요소 조합 + `SubjectInstance` → `PersonalAbility{sourceMedium, expression(6종: 강화·방출·변화·조작·구현화·특질), targetPattern, effectProgram, activationConditions, restrictions, costs, failureConsequences, mastery, stability}` (무비용·무제약·무실패 능력 거부 · MasterPlan §10.1) | `PersonalAbility` | diff(능력 카드 — 요소별 근거 + 표현 계통) |
+| G6 | 능력 강도를 제약과 서약의 식으로 판정한다 — 조건이 구체적이고 대가가 실질적이며 가치관과 일치할수록 강하다 | `PersonalAbility + AbilityContext`(출력·집중·감정 일관성·범위·지속·대상 저항) → `EffectMagnitude`(MasterPlan §10.2 식 — 항별 기여 분해 포함. E3 충돌 판정·규칙 엔진이 소비) | `EffectMagnitude` | 게이지(강도 분해 — 식의 항별 기여) |
+
+> G5·G6 은 MasterPlan §10(개인화된 초능력 체계)을 모듈로 분해한 **파생 확장**이다 — 원문
+> ModulePlan G5(의념 능력)가 생성 조합만 적고 작동 체계(표현 계통·강도 식·숙련·저항)를 비워 둔
+> 격차를 갚는다 (STATE.md 열린 이슈 · GitHub #666). G0 의 `Proficiency` 는 능력의
+> `mastery`·`stability` 성장을 포함한다. 능력의 **발동**은 별도 모듈이 아니다 — R6 이 의도로
+> 제출하고(§19 `invokedCapabilities`), E3 가 G6 강도로 판정하며, R2 가 흔적을 현상으로 남긴다.
 
 ## C 계층 — 복합 주체 `core/`
 
