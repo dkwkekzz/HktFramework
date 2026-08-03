@@ -4,9 +4,10 @@ purpose: >
   펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.
 
 # 원문 P4 의 평가 요소 아홉은 P4 가 손으로 적지 않는다 — 아래 입력이 그 아홉을 실어 나른다.
-#   압력=PressureReport · 성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState
+#   압력=NarrowedTree.branches[].pressure (D4 가 재고 P1 이 갈래에 붙인 값 — 두 곳에서 재지 않는다)
+#   성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState
 #   가치관=SubjectInstance.values(S0 ValueTarget.weight) · 매몰비용=이전 틱의 ActiveGoal
-inputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, PressureReport, SubjectInstance, WorldState, ActiveGoal]
+inputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, NarrowedTree, SubjectInstance, WorldState, ActiveGoal]
 outputs: [PaymentRequirement, PayabilityReport, GoalFactor, GoalScore, ActiveGoal, GoalViolation]
 
 writes: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.
@@ -21,11 +22,11 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P4-b
     name: goal-factors
     purpose: 원문 평가 요소 아홉을 손으로 적지 않고 앞 계층에서 읽어 한 모양으로 세운다.
-    status: IN_PROGRESS
+    status: DONE
   - id: P4-c
     name: score-and-inertia
     purpose: 요소를 점수로 접어 후보를 세우고 이전 목적에 관성을 주어 매 틱 흔들리지 않게 한다.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: P4-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.

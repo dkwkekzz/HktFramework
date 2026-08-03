@@ -8,3 +8,4 @@
 // 뿐이고, 성공 가능성과 치를 것이 그것을 뒤집는다 — 그리고 한 번 고른 것에는 관성이 붙는다.
 export * from './violation.ts';
 export * from './payment.ts';
+export * from './factor.ts';

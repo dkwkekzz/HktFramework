@@ -12,7 +12,11 @@ export type GoalViolationRule =
   // P4-a 재료 선행 판정
   | 'absent-grounding' // 세계 걸림이 없는 원자의 대가를 묻는다 — 무엇을 치르는지 알 수 없다
   | 'unslotted-payment' // 치를 자리가 O2 스키마에 없다 — 세계에 없는 것으로는 치르지 못한다
-  | 'unsourced-payment'; // 세우는 원자도 없고 예외 선언도 없는 자리를 치른다 (P3-a 관문의 둘째 문)
+  | 'unsourced-payment' // 세우는 원자도 없고 예외 선언도 없는 자리를 치른다 (P3-a 관문의 둘째 문)
+  // P4-b 평가 요소 아홉
+  | 'unsourced-factor' // 앞 계층에서 오지 않은 힘이 목적을 민다 — 출처 없는 요소·선언과 다른 계층
+  | 'factor-out-of-range' // 요소 값이 −1~1 밖이다 — 접을 수 없는 힘이다
+  | 'phantom-candidate'; // P3 이 펴지 않은 것을 후보로 든다 — 놓이지 않은 길은 고를 수 없다
 
 /** 위반 하나 — 어느 후보의 어디가 왜 막혔는가. */
 export interface GoalViolation {
