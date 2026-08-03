@@ -1,27 +1,27 @@
 {
-  "module": "V3-browser-lab",
-  "sourceHash": "5c054f846b92a497",
+  "module": "P4-goal-selection",
+  "sourceHash": "fe67091aa9071efc",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "5b28b21fcacbd325",
+  "replayHash": "e3de3b72bbc7ec26",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
-    "testPackage": "packages/lab",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p4 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V3",
+      "module": "P4",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 102,
-      "passed": 102
+      "total": 902,
+      "passed": 902
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v3-page-shows-seven": "passed",
-        "v3-failure-highlight": "passed",
-        "v3-boundary": "passed"
+        "p4-picks-under-pressure": "passed",
+        "p4-broken-selection-rejected": "passed",
+        "p4-boundary": "passed"
       }
     }
   }

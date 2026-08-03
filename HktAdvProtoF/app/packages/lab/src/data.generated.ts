@@ -55,7 +55,11 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "P4.yaml",
-    "text": "id: P4\nname: goal-selection\npurpose: >\n  펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.\n\n# 원문 P4 의 평가 요소 아홉은 P4 가 손으로 적지 않는다 — 아래 입력이 그 아홉을 실어 나른다.\n#   압력=NarrowedTree.branches[].pressure (D4 가 재고 P1 이 갈래에 붙인 값 — 두 곳에서 재지 않는다)\n#   성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState\n#   가치관=SubjectInstance.values(S0 ValueTarget.weight) · 매몰비용=이전 틱의 ActiveGoal\ninputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, NarrowedTree, SubjectInstance, WorldState, ActiveGoal]\noutputs: [PaymentRequirement, PayabilityReport, GoalFactor, GoalScore, ActiveGoal, GoalViolation]\n\nwrites: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P4-a\n    name: payment-verdict\n    purpose: 치를 자리가 비었을 때 그것이 먼저 할 일인지 브레이크가 없는 것인지 세계와 맞대어 판정한다.\n    status: DONE\n  - id: P4-b\n    name: goal-factors\n    purpose: 원문 평가 요소 아홉을 손으로 적지 않고 앞 계층에서 읽어 한 모양으로 세운다.\n    status: DONE\n  - id: P4-c\n    name: score-and-inertia\n    purpose: 요소를 점수로 접어 후보를 세우고 이전 목적에 관성을 주어 매 틱 흔들리지 않게 한다.\n    status: DONE\n  - id: P4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.\n    status: IN_PROGRESS\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p4-picks-under-pressure     # 정상: 압력 1위가 항상 뽑히지는 않는다 — 선행과 치를 것이 뒤집는다\n  - p4-broken-selection-rejected # 실패: 출처 없는 요소·회색을 고른 목적·재계산되지 않는 점수가 거부된다\n  - p4-boundary                 # 경계: 후보가 없으면 목적도 없고, 관성은 사라진 목적을 붙들지 않는다\n\nelements:\n  - name: PaymentRequirement\n    ontology: Rule              # 원자와 세계 사이에 걸린 규칙 — 치를 자리 하나의 판정\n    renderer: gauge\n  - name: GoalFactor\n    ontology: State             # 후보 하나를 밀거나 당기는 힘 하나 — 출처가 앞 계층이다\n    renderer: gauge\n  - name: GoalScore\n    ontology: State             # 요소들을 접은 한 값 + 그 값이 어디서 왔는가\n    renderer: gauge\n  - name: ActiveGoal\n    ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다\n    renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)\n\nlab: /lab/p4\n\nstatus: IN_PROGRESS\n"
+    "text": "id: P4\nname: goal-selection\npurpose: >\n  펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.\n\n# 원문 P4 의 평가 요소 아홉은 P4 가 손으로 적지 않는다 — 아래 입력이 그 아홉을 실어 나른다.\n#   압력=NarrowedTree.branches[].pressure (D4 가 재고 P1 이 갈래에 붙인 값 — 두 곳에서 재지 않는다)\n#   성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState\n#   가치관=SubjectInstance.values(S0 ValueTarget.weight) · 매몰비용=이전 틱의 ActiveGoal\ninputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, NarrowedTree, SubjectInstance, WorldState, ActiveGoal]\noutputs: [PaymentRequirement, PayabilityReport, GoalFactor, GoalScore, ActiveGoal, GoalViolation]\n\nwrites: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P4-a\n    name: payment-verdict\n    purpose: 치를 자리가 비었을 때 그것이 먼저 할 일인지 브레이크가 없는 것인지 세계와 맞대어 판정한다.\n    status: DONE\n  - id: P4-b\n    name: goal-factors\n    purpose: 원문 평가 요소 아홉을 손으로 적지 않고 앞 계층에서 읽어 한 모양으로 세운다.\n    status: DONE\n  - id: P4-c\n    name: score-and-inertia\n    purpose: 요소를 점수로 접어 후보를 세우고 이전 목적에 관성을 주어 매 틱 흔들리지 않게 한다.\n    status: DONE\n  - id: P4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p4-picks-under-pressure     # 정상: 압력 1위가 항상 뽑히지는 않는다 — 선행과 치를 것이 뒤집는다\n  - p4-broken-selection-rejected # 실패: 출처 없는 요소·회색을 고른 목적·재계산되지 않는 점수가 거부된다\n  - p4-boundary                 # 경계: 후보가 없으면 목적도 없고, 관성은 사라진 목적을 붙들지 않는다\n\nelements:\n  - name: PaymentRequirement\n    ontology: Rule              # 원자와 세계 사이에 걸린 규칙 — 치를 자리 하나의 판정\n    renderer: gauge\n  - name: GoalFactor\n    ontology: State             # 후보 하나를 밀거나 당기는 힘 하나 — 출처가 앞 계층이다\n    renderer: gauge\n  - name: GoalScore\n    ontology: State             # 요소들을 접은 한 값 + 그 값이 어디서 왔는가\n    renderer: gauge\n  - name: ActiveGoal\n    ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다\n    renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)\n\nlab: /lab/p4\n\nstatus: VERIFIED\nevidence: evidence/P4.json\n"
+  },
+  {
+    "name": "P5.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P5\nname: action-planning\npurpose: >\n  고른 목적을 실제 행동 단위까지 분해한다 — 원자 하나가 아니라 순서열이 되는 자리다.\n\ninputs: [ActiveGoal, AtomPrerequisite, PayabilityReport, PossibilitySubgraph]\noutputs: [ActionPlan, PlanStep, PlanViolation]\n\nwrites: []                      # P5 도 세계를 바꾸지 않는다 — 무엇을 어떤 순서로 낼지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3, P4]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p5-plans-the-chain\n  - p5-broken-plan-rejected\n  - p5-boundary\n\nelements:\n  - name: ActionPlan\n    ontology: Possibility       # 계획은 아직 일어나지 않은 것이다 — 세계에 적히는 것은 R 계층부터\n    renderer: timeline          # 계획 단계 목록 (MODULES.md P5 행) — 새 공용 렌더러가 필요하다\n\nlab: /lab/p5\n\nstatus: PLANNED\n\n# P4 가 P5 에 넘긴 자리 (착수 시 카드로 옮긴다):\n#   - 갈래를 낼 원자는 P4 가 가장 나은 하나로 접었다. 순서열로 펴는 것은 여기다.\n#   - 선행 사슬은 아직 한 칸이다(P3-c). 긴 사슬(찾기 → 만들기 → 빼앗기)이 여기서 선다.\n#   - 재료 선행의 \"먼저 낼 원자\"(PayabilityReport.blockedBy)가 계획의 앞칸이 된다.\n"
   },
   {
     "name": "S0.yaml",
@@ -552,6 +556,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
       }
     }
   },
+  "P4": {
+    "module": "P4-goal-selection",
+    "sourceHash": "fe67091aa9071efc",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "e3de3b72bbc7ec26",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p4 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "P4",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 902,
+        "passed": 902
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "p4-picks-under-pressure": "passed",
+          "p4-broken-selection-rejected": "passed",
+          "p4-boundary": "passed"
+        }
+      }
+    }
+  },
   "S0": {
     "module": "S0-common-subject-model",
     "sourceHash": "b9043599f716b3da",
@@ -726,8 +768,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 84,
-        "passed": 84
+        "total": 85,
+        "passed": 85
       },
       "scenarios": {
         "total": 6,
@@ -805,8 +847,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 90,
-        "passed": 90
+        "total": 93,
+        "passed": 93
       },
       "scenarios": {
         "total": 3,
@@ -823,12 +865,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "aad9764bc48452df",
+    "sourceHash": "5c054f846b92a497",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "022f5fd330a9d0da",
+    "replayHash": "5b28b21fcacbd325",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -843,8 +885,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 99,
-        "passed": 99
+        "total": 102,
+        "passed": 102
       },
       "scenarios": {
         "total": 3,
@@ -861,7 +903,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "725163e57fb41c72",
+    "sourceHash": "d8078d67c2b49108",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -881,8 +923,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 84,
-        "passed": 84
+        "total": 85,
+        "passed": 85
       },
       "scenarios": {
         "total": 6,

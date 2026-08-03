@@ -30,7 +30,7 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P4-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.
-    status: IN_PROGRESS
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - p4-picks-under-pressure     # 정상: 압력 1위가 항상 뽑히지는 않는다 — 선행과 치를 것이 뒤집는다
@@ -53,4 +53,5 @@ elements:
 
 lab: /lab/p4
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/P4.json

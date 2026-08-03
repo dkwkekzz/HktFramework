@@ -23,6 +23,7 @@ import { p0Page } from './p0.ts';
 import { p1Page } from './p1.ts';
 import { p2Page } from './p2.ts';
 import { p3Page } from './p3.ts';
+import { p4Page } from './p4.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -54,6 +55,7 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/p1', id: 'P1', title: '의존 대응 전략 생성', render: p1Page },
   { route: '/p2', id: 'P2', title: '종·문화·개인 가능성 문법', render: p2Page },
   { route: '/p3', id: 'P3', title: '가능성 그래프 지연 확장', render: p3Page },
+  { route: '/p4', id: 'P4', title: '목적 선택과 유지', render: p4Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */

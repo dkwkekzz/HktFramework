@@ -301,6 +301,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('P3'),
   },
   {
+    id: 'P4',
+    name: 'P4-goal-selection',
+    sources: [
+      'packages/core/src/p4/index.ts',
+      'packages/core/src/p4/violation.ts',
+      'packages/core/src/p4/payment.ts',
+      'packages/core/src/p4/factor.ts',
+      'packages/core/src/p4/select.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('P4'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [
