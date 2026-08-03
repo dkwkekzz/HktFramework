@@ -1,19 +1,19 @@
 {
-  "module": "P4-goal-selection",
-  "sourceHash": "c0fb7e8046d55191",
+  "module": "R3-perception",
+  "sourceHash": "e6e70ac45aee391e",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "e3de3b72bbc7ec26",
+  "replayHash": "55411d5664fd9249",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p4 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r3 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "P4",
+      "module": "R3",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "p4-picks-under-pressure": "passed",
-        "p4-broken-selection-rejected": "passed",
-        "p4-boundary": "passed"
+        "r3-same-trace-different-eyes": "passed",
+        "r3-unsensed-phenomenon-rejected": "passed",
+        "r3-boundary": "passed"
       }
     }
   }

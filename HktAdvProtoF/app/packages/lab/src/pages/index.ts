@@ -27,6 +27,8 @@ import { p4Page } from './p4.ts';
 import { p5Page } from './p5.ts';
 import { r0Page } from './r0.ts';
 import { r1Page } from './r1.ts';
+import { r2Page } from './r2.ts';
+import { r3Page } from './r3.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -62,6 +64,8 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/p5', id: 'P5', title: '전략과 행동 계획', render: p5Page },
   { route: '/r0', id: 'R0', title: '세계 상태 저장소', render: r0Page },
   { route: '/r1', id: 'R1', title: '사건으로만 바뀌는 세계', render: r1Page },
+  { route: '/r2', id: 'R2', title: '사건이 남기는 흔적', render: r2Page },
+  { route: '/r3', id: 'R3', title: '감각과 위치에 따른 감지', render: r3Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */

@@ -1,19 +1,19 @@
 {
-  "module": "P4-goal-selection",
-  "sourceHash": "c0fb7e8046d55191",
+  "module": "R2-phenomenon-emission",
+  "sourceHash": "4393070df9f5c2e7",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "e3de3b72bbc7ec26",
+  "replayHash": "548bcf55df722e81",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p4 (npm run dev --workspace @hkt/lab)",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r2 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
-      "module": "P4",
+      "module": "R2",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "p4-picks-under-pressure": "passed",
-        "p4-broken-selection-rejected": "passed",
-        "p4-boundary": "passed"
+        "r2-events-leave-traces": "passed",
+        "r2-causeless-phenomenon-rejected": "passed",
+        "r2-boundary": "passed"
       }
     }
   }
