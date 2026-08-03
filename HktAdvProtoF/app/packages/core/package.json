@@ -24,7 +24,8 @@
     "./p2": "./src/p2/index.ts",
     "./p3": "./src/p3/index.ts",
     "./p4": "./src/p4/index.ts",
-    "./p5": "./src/p5/index.ts"
+    "./p5": "./src/p5/index.ts",
+    "./r0": "./src/r0/index.ts"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\""
