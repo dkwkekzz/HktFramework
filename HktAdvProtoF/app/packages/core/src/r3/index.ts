@@ -17,6 +17,22 @@ export {
 } from './reach.ts';
 
 export {
+  TRUTH_FIELDS,
+  attemptLine,
+  checkPercept,
+  perceiveAll,
+  perceiveOne,
+  perceiveVerdict,
+  perceptIdOf,
+  perceptLine,
+  perceptsOf,
+  type Observer,
+  type Percept,
+  type PerceiveOptions,
+  type PerceptionAttempt,
+} from './percept.ts';
+
+export {
   perceptViolationVerdict,
   violatePercept,
   type PerceptViolation,
