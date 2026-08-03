@@ -33,6 +33,22 @@ export {
 } from './percept.ts';
 
 export {
+  auditPercepts,
+  openPerceptField,
+  perceptFieldVerdict,
+  perceptsFor,
+  recordPercepts,
+  sweep,
+  unwitnessed,
+  witnessTable,
+  witnessesOf,
+  type PerceptAudit,
+  type PerceptField,
+  type Sweep,
+  type WitnessRow,
+} from './field.ts';
+
+export {
   perceptViolationVerdict,
   violatePercept,
   type PerceptViolation,
