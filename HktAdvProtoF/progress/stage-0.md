@@ -1,7 +1,7 @@
 # 진행 기록 — 단계 0 (M0 결정적 세계)
 
 > STATE.md 구현 현황 표에서 분리한 **완료 작업 상세** (CLAUDE.md·WORKFLOW §8 규칙).
-> 이 단계는 닫혔다 — 리뷰: [reviews/2026-08-03-stage0-review.md](../reviews/2026-08-03-stage0-review.md).
+> 이 단계는 닫혔다 — 리뷰: [reviews/stage0-review.md](../reviews/stage0-review.md).
 > 현재 상태·TODO 는 [STATE.md](../STATE.md) 를 본다. 완료 판정의 원본은 언제나 증거 파일
 > (`app/packages/contracts/evidence/`)이다 — 이 문서는 사람이 읽는 확인 장면의 기록일 뿐이다.
 
