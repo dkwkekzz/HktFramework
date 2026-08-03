@@ -29,6 +29,9 @@ import { d1Scenarios } from '@hkt/scenarios/suites/d1';
 import { d2Scenarios } from '@hkt/scenarios/suites/d2';
 import { d3Scenarios } from '@hkt/scenarios/suites/d3';
 import { d4Scenarios } from '@hkt/scenarios/suites/d4';
+import { p0Scenarios } from '@hkt/scenarios/suites/p0';
+import { p1Scenarios } from '@hkt/scenarios/suites/p1';
+import { p2Scenarios } from '@hkt/scenarios/suites/p2';
 
 import { v3Scenarios } from '../suites/v3.ts';
 
@@ -286,6 +289,49 @@ const MODULES: readonly ModuleSpec[] = [
     testPackage: 'packages/core',
     scenarios: d4Scenarios,
     labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d4 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'P0',
+    name: 'P0-action-atom',
+    sources: [
+      'packages/core/src/p0/index.ts',
+      'packages/core/src/p0/violation.ts',
+      'packages/core/src/p0/atom.ts',
+      'packages/core/src/p0/grounding.ts',
+      'packages/core/src/p0/action.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: p0Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p0 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'P1',
+    name: 'P1-strategy-direction',
+    sources: [
+      'packages/core/src/p1/index.ts',
+      'packages/core/src/p1/violation.ts',
+      'packages/core/src/p1/direction.ts',
+      'packages/core/src/p1/opening.ts',
+      'packages/core/src/p1/tree.ts',
+      'packages/core/src/p1/possibility.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: p1Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p1 (npm run dev --workspace @hkt/lab)',
+  },
+  {
+    id: 'P2',
+    name: 'P2-possibility-grammar',
+    sources: [
+      'packages/core/src/p2/index.ts',
+      'packages/core/src/p2/violation.ts',
+      'packages/core/src/p2/access.ts',
+      'packages/core/src/p2/grammar.ts',
+      'packages/core/src/p2/narrow.ts',
+    ],
+    testPackage: 'packages/core',
+    scenarios: p2Scenarios,
+    labSubstitute: 'packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p2 (npm run dev --workspace @hkt/lab)',
   },
   {
     id: 'V4',

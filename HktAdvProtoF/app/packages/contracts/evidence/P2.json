@@ -1,0 +1,38 @@
+{
+  "module": "P2-possibility-grammar",
+  "sourceHash": "d81f82329db0aa6b",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "b197224b6195bf53",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/scenarios/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/p2 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "P2",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 819,
+      "passed": 819
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "p2-five-grammars": "passed",
+        "p2-broken-grammars-rejected": "passed",
+        "p2-boundary": "passed"
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+id: P1
+name: strategy-direction
+purpose: >
+  결핍된 의존마다 대응 방향 7종을 전개하고, 열리지 않는 방향은 왜 막혔는지를 함께 남긴다.
+
+inputs: [DependencyGraph, PressureReport, ActionAtom, AtomGrounding, KindGrounding]
+outputs: [StrategyDirectionSpec, DirectionResolution, StrategyOption, StrategyBranch, StrategyTree, StrategyViolation]
+
+writes: []                      # P1 도 세계를 바꾸지 않는다 — 결핍 앞에 놓인 갈래만 펼친다.
+
+depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0]
+
+subtasks:                       # 방향 확정·열림 판정·트리 조립은 검사기가 다르다 → WORKFLOW §3
+  - id: P1-a
+    name: direction-set
+    purpose: 대응 방향 7종을 확정하고 각 방향이 어느 원자로 이루어지는지를 P0 환원표에 묶는다.
+    status: DONE
+  - id: P1-b
+    name: opening-rules
+    purpose: 결핍 하나 앞에서 각 방향이 열리는지 판정하고, 막힌 방향은 사유와 갚을 모듈을 남긴다.
+    status: DONE
+  - id: P1-c
+    name: strategy-tree
+    purpose: 압력이 있는 노드마다 갈래를 묶어 대응 트리를 세우고 해시를 고정한다.
+    status: DONE
+  - id: P1-d
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 대응 트리로 P1 을 눈으로 확인한다.
+    status: DONE
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - p1-seven-directions         # 정상: 원문 물 부족 일곱 갈래가 방향 다섯으로 붙고, 굶주림 앞에 갈래가 펼쳐진다
+  - p1-broken-expansions-rejected # 실패: 결핍 없는 전개·남의 노드·원자가 어긋난 방향이 각자의 사유로 거부된다
+  - p1-boundary                 # 경계: 아무 방향도 열리지 않는 결핍 · 뿌리의 의존 제거 · 아직 눈이 없는 경쟁 제거
+
+elements:
+  - name: StrategyDirection
+    ontology: Possibility       # 방향 하나하나가 O1 Possibility 로 선다 — 아직 고르지 않은 갈래다
+    renderer: graph
+
+lab: /lab/p1                    # 대응 트리(결핍 → 방향) + 방향 7표 + 원문 예시 대조 + 막힌 사유
+
+status: VERIFIED
+evidence: evidence/P1.json
