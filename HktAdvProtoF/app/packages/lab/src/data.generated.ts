@@ -75,7 +75,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R3.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 넷째 모듈이다. R2 가 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n\nid: R3\nname: perception\npurpose: >\n  주체가 감각과 위치에 따라 현상을 감지하게 한다 — 같은 흔적을 보는 자와 못 보는 자가 갈린다.\n\ninputs: [WorldPhenomenon, PhenomenonField, SubjectInstance, WorldState]\noutputs: [Percept, PerceptionProfile, PerceptViolation]\n\nwrites: []                      # 감지는 세계를 바꾸지 않는다 — 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P3, R0, R1, R2]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r3-same-trace-different-eyes\n  - r3-unsensed-phenomenon-rejected\n  - r3-boundary\n\nelements:\n  - name: Percept\n    ontology: Percept           # 착수 시 확정한다 — O1 12타입에 Percept 는 없다. 감지된 것을\n                                # Claim(주체가 참이라 여기는 것)으로 세울지, R2 가 WorldPhenomenon\n                                # 으로 그랬듯 O1 밖의 파생 타입으로 세울지가 R3-a 의 첫 판단이다.\n    renderer: diff              # 같은 현상, 주체별 감지 비교 (MODULES.md R3 행)\n\nlab: /lab/r3\n\nstatus: PLANNED\n\n# R2 가 R3 에 넘긴 자리:\n#   - R2 는 세계에 무엇이 났는지까지만 안다 — 감각 프로파일·거리·차폐로 거르는 것은 R3 다.\n#   - 통로 6종은 감각의 갈래가 아니라 **전달의 갈래**다 — 촉각·추론으로의 분해는 R3 지각 프로파일이 맡는다.\n#   - 애매함(`WorldPhenomenon.ambiguity`)은 났을 뿐 아직 해석되지 않았다 — 무엇으로 읽는가는 R4 다.\n"
+    "text": "id: R3\nname: perception\npurpose: >\n  주체가 감각과 위치에 따라 현상을 감지하게 한다 — 같은 흔적을 놓고 보는 자와 못 보는 자가 갈린다.\n\n# R3 이 새로 정하는 것은 **거리와 차폐를 세계에서 읽는 규칙** 하나뿐이다.\n#   통로 6종          O1 `PHENOMENON_CHANNELS`\n#   통로별 문턱·거리   S0-b `PerceptionProfile` — 판정(`perceives`)까지 이미 있다\n#   종별 감각          S1 `SenseSpec` (개체 배정은 S3)\n#   무엇이 났는가      R2 `WorldPhenomenon`\n#   선 곳·차폐         O2 `physical.region` · `physical.cover`\n# S0-b 가 남긴 한 줄(\"어디서 났는지를 거리로 바꾸는 일은 위치를 아는 R3 의 몫이다\")을 갚는다.\n\ninputs: [WorldPhenomenon, PhenomenonField, PerceptionProfile, WorldState]\noutputs: [Percept, PerceptField, PerceptViolation]\n\nwrites: []                      # 감지는 세계를 바꾸지 않는다 — 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, R0, R1, R2]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R3-a\n    name: reach\n    purpose: 자리를 거리로 바꾸고 차폐를 통로별 감쇠로 옮긴다.\n    status: PLANNED\n  - id: R3-b\n    name: percept\n    purpose: 감지를 판정하고 Percept 를 세운다 — 진실은 실리지 않는다.\n    status: PLANNED\n  - id: R3-c\n    name: percept-field\n    purpose: 주체별 지각장과 감사 — 아무도 보지 못한 흔적을 값으로 짚는다.\n    status: PLANNED\n  - id: R3-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 감지 대조로 R3 을 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r3-same-trace-different-eyes  # 정상: 같은 열다섯 흔적 앞에서 다섯 종이 서로 다른 세계에 산다\n  - r3-unsensed-phenomenon-rejected  # 실패: 진실이 실린 지각·없는 통로·세계 밖의 주체 등이 거부된다\n  - r3-boundary                 # 경계: 아무도 보지 못한 흔적 · 차폐가 죽인 빛 · 적히지 않은 거리\n\nelements:\n  - name: Percept\n    ontology: Percept           # **O1 12타입에 없고, 없는 것이 옳다.** O1 은 세계에 적히는 것을 세고\n                                # 지각은 세계가 아니라 주체 안에 있다. 세계에 적히는 것은 R2 흔적까지,\n                                # 주체가 갖는 것은 R4 BeliefGraph 다 — Percept 는 그 사이의 통과물이다.\n    renderer: diff              # 같은 현상, 주체별 감지 비교 (MODULES.md R3 행)\n\nlab: /lab/r3\n\nstatus: IN_PROGRESS\n\n# R2 가 R3 에 넘긴 자리:\n#   - R2 는 세계에 무엇이 났는지까지만 안다 — 감각 프로파일·거리·차폐로 거르는 것은 R3 다.\n#   - 통로 6종은 감각의 갈래가 아니라 **전달의 갈래**다 — 촉각·추론으로의 분해는 R3 프로필이 맡는다.\n#   - 애매함(`WorldPhenomenon.ambiguity`)은 났을 뿐 아직 해석되지 않았다 — 무엇으로 읽는가는 R4 다.\n"
   },
   {
     "name": "S0.yaml",
@@ -138,8 +138,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -176,8 +176,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -214,8 +214,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -252,8 +252,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -290,8 +290,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -328,8 +328,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -366,8 +366,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -404,8 +404,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -442,8 +442,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -480,8 +480,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -518,8 +518,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -556,8 +556,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -594,8 +594,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -632,8 +632,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -670,8 +670,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -708,8 +708,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -746,8 +746,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -784,8 +784,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -822,8 +822,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -860,8 +860,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -898,8 +898,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
@@ -977,8 +977,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1048,
-        "passed": 1048
+        "total": 1064,
+        "passed": 1064
       },
       "scenarios": {
         "total": 3,
