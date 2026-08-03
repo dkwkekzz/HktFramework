@@ -20,7 +20,8 @@ export type PlanViolationRule =
   | 'dangling-need' // 채워지지 않은 요구를 남긴 채 계획이 온전하다고 한다
   // P5-b 원문 사슬 대조
   | 'unresolved-step' // 원문이 적은 단계가 16원자 어디로도 환원되지 않았다
-  | 'unreached-step'; // 환원은 됐는데 어떤 계획에서도 그 자리에 서지 못한다
+  | 'unreached-step' // 환원은 됐는데 어떤 계획에서도 그 자리에 서지 못한다
+  | 'stale-deferral'; // 갚을 곳으로 미뤄 놓았는데 실제로는 환원된다 — 낡은 유예다
 
 /** 위반 하나 — 어느 걸음의 어디가 왜 끊겼는가. */
 export interface PlanViolation {

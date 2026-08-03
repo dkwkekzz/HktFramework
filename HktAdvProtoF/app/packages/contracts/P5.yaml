@@ -21,11 +21,11 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P5-b
     name: chain-reconciliation
     purpose: 원문 P5 가 든 일곱 단계가 16원자를 지나 이 사슬에서 도출되는지 대조한다.
-    status: IN_PROGRESS
+    status: DONE
   - id: P5-c
     name: timeline-renderer
     purpose: 공용 렌더러 5종 중 넷째(타임라인)를 세운다 — 순서가 있는 것을 순서대로 그린다.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: P5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 타임라인으로 P5 를 눈으로 확인한다.
