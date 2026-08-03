@@ -55,7 +55,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "P4.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n\nid: P4\nname: goal-selection\npurpose: >\n  펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.\n\ninputs: [PossibilitySubgraph, PressureReport, SubjectInstance, ExpansionContext]\noutputs: [ActiveGoal, GoalScore, GoalViolation]\n\nwrites: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - p4-picks-under-pressure\n  - p4-broken-selection-rejected\n  - p4-boundary\n\nelements:\n  - name: ActiveGoal\n    ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다\n    renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)\n\nlab: /lab/p4\n\nstatus: PLANNED\n"
+    "text": "id: P4\nname: goal-selection\npurpose: >\n  펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.\n\n# 원문 P4 의 평가 요소 아홉은 P4 가 손으로 적지 않는다 — 아래 입력이 그 아홉을 실어 나른다.\n#   압력=PressureReport · 성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState\n#   가치관=SubjectInstance.values(S0 ValueTarget.weight) · 매몰비용=이전 틱의 ActiveGoal\ninputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, PressureReport, SubjectInstance, WorldState, ActiveGoal]\noutputs: [PaymentRequirement, PayabilityReport, GoalFactor, GoalScore, ActiveGoal, GoalViolation]\n\nwrites: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]\n\nsubtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3\n  - id: P4-a\n    name: payment-verdict\n    purpose: 치를 자리가 비었을 때 그것이 먼저 할 일인지 브레이크가 없는 것인지 세계와 맞대어 판정한다.\n    status: DONE\n  - id: P4-b\n    name: goal-factors\n    purpose: 원문 평가 요소 아홉을 손으로 적지 않고 앞 계층에서 읽어 한 모양으로 세운다.\n    status: IN_PROGRESS\n  - id: P4-c\n    name: score-and-inertia\n    purpose: 요소를 점수로 접어 후보를 세우고 이전 목적에 관성을 주어 매 틱 흔들리지 않게 한다.\n    status: PLANNED\n  - id: P4-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - p4-picks-under-pressure     # 정상: 압력 1위가 항상 뽑히지는 않는다 — 선행과 치를 것이 뒤집는다\n  - p4-broken-selection-rejected # 실패: 출처 없는 요소·회색을 고른 목적·재계산되지 않는 점수가 거부된다\n  - p4-boundary                 # 경계: 후보가 없으면 목적도 없고, 관성은 사라진 목적을 붙들지 않는다\n\nelements:\n  - name: PaymentRequirement\n    ontology: Rule              # 원자와 세계 사이에 걸린 규칙 — 치를 자리 하나의 판정\n    renderer: gauge\n  - name: GoalFactor\n    ontology: State             # 후보 하나를 밀거나 당기는 힘 하나 — 출처가 앞 계층이다\n    renderer: gauge\n  - name: GoalScore\n    ontology: State             # 요소들을 접은 한 값 + 그 값이 어디서 왔는가\n    renderer: gauge\n  - name: ActiveGoal\n    ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다\n    renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)\n\nlab: /lab/p4\n\nstatus: IN_PROGRESS\n"
   },
   {
     "name": "S0.yaml",
@@ -118,8 +118,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -156,8 +156,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -194,8 +194,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -232,8 +232,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -270,8 +270,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -308,8 +308,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -346,8 +346,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -384,8 +384,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -422,8 +422,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -460,8 +460,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -498,8 +498,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -536,8 +536,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -574,8 +574,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -612,8 +612,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -650,8 +650,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -688,8 +688,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,
@@ -747,7 +747,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V1": {
     "module": "V1-deterministic-runtime",
-    "sourceHash": "1d3d9f94b685fa52",
+    "sourceHash": "c6f54e5c6c102377",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -767,8 +767,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 867,
-        "passed": 867
+        "total": 878,
+        "passed": 878
       },
       "scenarios": {
         "total": 3,

@@ -1,30 +1,55 @@
-# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.
-# 레지스트리의 "착수 가능" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면
-# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).
-# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.
-
 id: P4
 name: goal-selection
 purpose: >
   펴 놓은 가능성 중 실제로 추구할 목적 하나를 고르고, 매 틱 흔들리지 않게 관성을 준다.
 
-inputs: [PossibilitySubgraph, PressureReport, SubjectInstance, ExpansionContext]
-outputs: [ActiveGoal, GoalScore, GoalViolation]
+# 원문 P4 의 평가 요소 아홉은 P4 가 손으로 적지 않는다 — 아래 입력이 그 아홉을 실어 나른다.
+#   압력=PressureReport · 성공률·기억=ExpansionContext/ExpansionTrace · 비용·관계·약속=WorldState
+#   가치관=SubjectInstance.values(S0 ValueTarget.weight) · 매몰비용=이전 틱의 ActiveGoal
+inputs: [PossibilitySubgraph, ExpansionContext, ExpansionTrace, PressureReport, SubjectInstance, WorldState, ActiveGoal]
+outputs: [PaymentRequirement, PayabilityReport, GoalFactor, GoalScore, ActiveGoal, GoalViolation]
 
 writes: []                      # P4 도 세계를 바꾸지 않는다 — 무엇을 좇을지만 정한다.
 
 depends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P1, P2, P3]
 
-scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다
-  - p4-picks-under-pressure
-  - p4-broken-selection-rejected
-  - p4-boundary
+subtasks:                       # 검증 장면이 넷이고 새 상태 원소가 3종을 넘는다 → WORKFLOW §3
+  - id: P4-a
+    name: payment-verdict
+    purpose: 치를 자리가 비었을 때 그것이 먼저 할 일인지 브레이크가 없는 것인지 세계와 맞대어 판정한다.
+    status: DONE
+  - id: P4-b
+    name: goal-factors
+    purpose: 원문 평가 요소 아홉을 손으로 적지 않고 앞 계층에서 읽어 한 모양으로 세운다.
+    status: IN_PROGRESS
+  - id: P4-c
+    name: score-and-inertia
+    purpose: 요소를 점수로 접어 후보를 세우고 이전 목적에 관성을 주어 매 틱 흔들리지 않게 한다.
+    status: PLANNED
+  - id: P4-d
+    name: eye-check
+    purpose: 시나리오 3종과 Lab 점수표(선택 마크 + 관성 여유선)로 P4 를 눈으로 확인한다.
+    status: PLANNED
+
+scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
+  - p4-picks-under-pressure     # 정상: 압력 1위가 항상 뽑히지는 않는다 — 선행과 치를 것이 뒤집는다
+  - p4-broken-selection-rejected # 실패: 출처 없는 요소·회색을 고른 목적·재계산되지 않는 점수가 거부된다
+  - p4-boundary                 # 경계: 후보가 없으면 목적도 없고, 관성은 사라진 목적을 붙들지 않는다
 
 elements:
+  - name: PaymentRequirement
+    ontology: Rule              # 원자와 세계 사이에 걸린 규칙 — 치를 자리 하나의 판정
+    renderer: gauge
+  - name: GoalFactor
+    ontology: State             # 후보 하나를 밀거나 당기는 힘 하나 — 출처가 앞 계층이다
+    renderer: gauge
+  - name: GoalScore
+    ontology: State             # 요소들을 접은 한 값 + 그 값이 어디서 왔는가
+    renderer: gauge
   - name: ActiveGoal
     ontology: Possibility       # 고른 목적은 그 가능성 자체다 — 새 타입을 만들지 않는다
     renderer: gauge             # 후보별 점수표 + 선택 마크 (MODULES.md P4 행)
 
 lab: /lab/p4
 
-status: PLANNED
+status: IN_PROGRESS
