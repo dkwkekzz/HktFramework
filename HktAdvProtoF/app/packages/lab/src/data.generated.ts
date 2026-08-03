@@ -562,7 +562,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "P4": {
     "module": "P4-goal-selection",
-    "sourceHash": "fe67091aa9071efc",
+    "sourceHash": "c0fb7e8046d55191",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
