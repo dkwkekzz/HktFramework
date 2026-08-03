@@ -13,7 +13,12 @@ export type PossibilityGraphViolationRule =
   | 'stale-cost-exception' // 세울 수 없다고 적어 놓고 실제로는 세우는 원자가 있다
   | 'rootless-atoms' // 뿌리가 하나도 없다 — 아무 원자도 첫 걸음이 되지 못한다
   | 'unreachable-atom' // 뿌리에서 닿지 않는다 — 영영 설 수 없는 원자다
-  | 'self-only-source'; // 그 자리를 세우는 것이 자기 자신뿐이다 — 스스로를 딛고 서지 못한다
+  | 'self-only-source' // 그 자리를 세우는 것이 자기 자신뿐이다 — 스스로를 딛고 서지 못한다
+  // P3-b 확장 근거
+  | 'phantom-percept' // 세계에 없는 자리를 지금 보고 있다고 한다
+  | 'future-memory' // 아직 오지 않은 시각의 기억을 든다
+  | 'ungranted-capability' // 문법이 주지 않은 능력을 지녔다고 한다
+  | 'absent-subject'; // 근거의 주인이 세계에 한 번도 적히지 않았다
 
 /** 위반 하나 — 어느 원자의 어디가 왜 막혔는가. */
 export interface PossibilityGraphViolation {

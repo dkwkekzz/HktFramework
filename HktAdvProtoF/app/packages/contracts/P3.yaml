@@ -4,7 +4,7 @@ purpose: >
   모든 가능성을 미리 만들지 않고, 지금 보이는 것·기억·관계에 걸린 부분만 펼친다.
 
 inputs: [NarrowedTree, PossibilityGrammar, AtomGrounding, Percept, Memory, Relationship, Capability]
-outputs: [AtomPrerequisite, PrerequisiteReport, PossibilitySubgraph, ExpansionTrace, PossibilityGraphViolation]
+outputs: [AtomPrerequisite, PrerequisiteReport, ContextFact, ExpansionContext, PossibilitySubgraph, ExpansionTrace, PossibilityGraphViolation]
 
 writes: []                      # P3 도 세계를 바꾸지 않는다 — 무엇을 펼칠지만 정한다.
 
@@ -18,7 +18,7 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P3-b
     name: expansion-context
     purpose: 지금 보이는 것·기억·관계·능력을 확장의 근거 하나로 세운다.
-    status: PLANNED
+    status: DONE
   - id: P3-c
     name: subgraph-assembly
     purpose: 근거에 걸린 가능성만 펼쳐 활성 부분 그래프를 세우고 preconditionIds 를 채운다.
@@ -34,6 +34,9 @@ scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1
   - p3-boundary
 
 elements:
+  - name: ContextFact
+    ontology: State             # 주체가 지금 딛고 선 사실 하나 — 출처 4종을 한 모양으로
+    renderer: diff
   - name: AtomPrerequisite
     ontology: Rule              # 원자 사이에 걸린 규칙 — 세계가 아니라 문법에 선다
     renderer: graph

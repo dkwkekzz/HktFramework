@@ -8,3 +8,4 @@
 // 원자 사이의 **먼저**가 있어야 한다(P3-a) — 순서를 모르면 무엇을 펼쳐야 할지도 모른다.
 export * from './violation.ts';
 export * from './prerequisite.ts';
+export * from './context.ts';
