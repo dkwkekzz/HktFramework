@@ -1,6 +1,6 @@
 {
   "module": "V3-browser-lab",
-  "sourceHash": "5c054f846b92a497",
+  "sourceHash": "b3c2df8bdf375fc6",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
@@ -20,8 +20,8 @@
       "complete": true
     },
     "tests": {
-      "total": 102,
-      "passed": 102
+      "total": 109,
+      "passed": 109
     },
     "scenarios": {
       "total": 3,

@@ -25,11 +25,11 @@ subtasks:                       # 검증 장면이 넷이고 새 상태 원소�
   - id: P5-c
     name: timeline-renderer
     purpose: 공용 렌더러 5종 중 넷째(타임라인)를 세운다 — 순서가 있는 것을 순서대로 그린다.
-    status: IN_PROGRESS
+    status: DONE
   - id: P5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 타임라인으로 P5 를 눈으로 확인한다.
-    status: PLANNED
+    status: IN_PROGRESS
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - p5-plans-the-chain          # 정상: 한 걸음처럼 보이던 목적이 세계에 따라 다른 길이로 펴진다
