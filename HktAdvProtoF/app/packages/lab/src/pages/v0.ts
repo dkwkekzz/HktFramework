@@ -1,11 +1,11 @@
 // /lab/v0 — V0 모듈 계약 레지스트리.
 // 계약 텍스트는 빌드 시점에 문자열로 들어온다 (브라우저는 파일 시스템에 닿지 않는다).
 
-import { buildRegistry, type ContractSource } from '@hkt/contracts';
+import { buildRegistry, type ContractSource, type Evidence } from '@hkt/contracts';
 import { runScenarios } from '@hkt/scenarios';
 import { v0Scenarios } from '@hkt/scenarios/suites/v0';
 
-import { CONTRACT_SOURCES } from '../data.ts';
+import { CONTRACT_SOURCES, EVIDENCE } from '../data.ts';
 import { lines, pageView, type PageSpec } from '../page.ts';
 import { keyValueView } from '../renderers/diff.ts';
 import { suiteView } from '../renderers/scenario.ts';
@@ -74,10 +74,52 @@ const DEFECTS: readonly { readonly label: string; readonly source: ContractSourc
   { label: '자기 자신에 의존한다', source: contract('SELFDEP', { depends: '[SELFDEP]' }) },
 ];
 
+/** 계약의 완료 주장을 실제 증거와 대조한다 (V4). 브라우저에는 소스가 없어 신선도는 못 본다. */
+const evidenceMap: ReadonlyMap<string, Evidence> = new Map(Object.entries(EVIDENCE));
+
+/** 실제 증거 하나를 무너뜨린 사본 — 교차검사가 실전에서 도는지 보이는 재료. */
+function damagedEvidence(id: string): ReadonlyMap<string, Evidence> {
+  const copy = new Map(evidenceMap);
+  const original = copy.get(id);
+  if (original !== undefined) {
+    copy.set(id, {
+      ...original,
+      status: 'IMPLEMENTED',
+      blockers: ['단위 테스트가 통과하지 않았다 (89/90)'],
+    });
+  }
+  return copy;
+}
+
 export function v0Page(): VElement {
-  const registry = buildRegistry(CONTRACT_SOURCES);
+  const registry = buildRegistry(CONTRACT_SOURCES, { evidence: evidenceMap });
   const suite = runScenarios(v0Scenarios);
   const allRegistered = registry.modules.every((entry) => entry.registered) && registry.rejected.length === 0;
+
+  // 같은 계약을 증거만 바꿔 두 번 등록한다 — 계약 텍스트는 한 글자도 다르지 않다.
+  const victim = 'P2';
+  const crossChecks: readonly { readonly label: string; readonly evidence: ReadonlyMap<string, Evidence> }[] = [
+    { label: '실제 증거 그대로', evidence: evidenceMap },
+    { label: `${victim} 증거가 강등돼 있다`, evidence: damagedEvidence(victim) },
+    { label: `${victim} 증거 파일이 사라졌다`, evidence: new Map([...evidenceMap].filter(([id]) => id !== victim)) },
+  ];
+  const crossRows: VNode[] = crossChecks.map((check) => {
+    const built = buildRegistry(CONTRACT_SOURCES, { evidence: check.evidence });
+    const entry = built.modules.find((module) => module.contract.id === victim);
+    const reasons = (entry?.violations ?? [])
+      .filter((violation) => violation.rule === 'evidence-unsupported')
+      .map((violation) => violation.message);
+    return h('tr', { class: entry?.registered === true && reasons.length > 0 ? 'bad' : 'ok' }, [
+      h('td', {}, [check.label]),
+      h('td', {}, [check.evidence.get(victim)?.status ?? '없음']),
+      h('td', {}, [entry?.registered === true ? '등록 ✔' : '거부 ✘']),
+      h('td', {}, [
+        reasons.length === 0
+          ? '(없음)'
+          : h('ul', { class: 'lines' }, reasons.map((reason) => h('li', {}, [reason]))),
+      ]),
+    ]);
+  });
 
   const defectRows: VNode[] = DEFECTS.map((defect) => {
     const broken = buildRegistry([defect.source]);
@@ -138,7 +180,28 @@ export function v0Page(): VElement {
       ],
       selection: [h('p', {}, ['등록된 모듈과 의존 DAG (노드 색 = status)']), graphView(registry)],
       beforeAfter: [
-        h('p', {}, ['착수 가능 목록 = 의존이 전부 VERIFIED 인 미완료 모듈 — "다음에 할 일" 이 계산된다.']),
+        h('h3', {}, ['같은 계약, 증거만 바꾼다 — 완료 주장이 그 자리에서 기각된다']),
+        h('p', {}, [
+          `계약 텍스트는 한 글자도 다르지 않다. ${victim}.yaml 은 셋 다 status: VERIFIED 를 주장한다. `,
+          '갈리는 것은 그 주장을 뒷받침할 증거가 있느냐뿐이다.',
+        ]),
+        h('table', { class: 'defect-table' }, [
+          h('thead', {}, [
+            h('tr', {}, [
+              h('th', {}, ['증거 쪽 상황']),
+              h('th', {}, [`${victim} 증거 status`]),
+              h('th', {}, ['등록 판정']),
+              h('th', {}, ['evidence-unsupported 사유']),
+            ]),
+          ]),
+          h('tbody', {}, crossRows),
+        ]),
+        h('p', { class: 'diff-note' }, [
+          '브라우저에는 소스 파일이 없어 "소스가 증거 이후로 바뀌었다" 는 여기서 못 본다 — ',
+          '그 대조는 node packages/scenarios/verify/v0.ts 가 소스 해시로 한다.',
+        ]),
+        h('h3', {}, ['다음에 할 일이 계산된다']),
+        h('p', {}, ['착수 가능 목록 = 의존이 전부 VERIFIED 인 미완료 모듈 — 그래서 다음 모듈은 PLANNED 로 선등록한다.']),
         keyValueView([
           ['등록', registry.modules.filter((entry) => entry.registered).map((entry) => entry.contract.id)],
           ['거부', registry.rejected.map((violation) => `${violation.module}:${violation.rule}`)],
@@ -150,6 +213,7 @@ export function v0Page(): VElement {
         '목적 없는 모듈 · 입출력 없는 처리 모듈 · 순환 의존은 애초에 등록되지 않는다',
         '시나리오나 증거가 없으면 VERIFIED 를 주장할 수 없다',
         '미검증 모듈에 의존한 채 완료를 주장해도 거부된다 — 단계 게이트가 계약으로 강제된다',
+        '완료 주장은 실제 증거와 대조된다 — 강등·낡음·없음이면 evidence-unsupported 로 기각된다',
         '레지스트리는 자기 계약(V0.yaml)도 같은 규칙으로 검사한다',
       ),
     },

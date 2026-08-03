@@ -1,37 +1,40 @@
 {
   "module": "V4-completion-evidence",
-  "sourceHash": "01d8c154e517d1fc",
+  "sourceHash": "d933bb6ead4d6555",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "e7c4be1f650b4167",
+  "replayHash": "97a107cdb7f704cf",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v4.ts",
     "testPackage": "packages/contracts",
     "coverage": {
       "module": "V4",
-      "normal": 1,
-      "failure": 1,
-      "boundary": 1,
+      "normal": 2,
+      "failure": 2,
+      "boundary": 2,
       "complete": true
     },
     "tests": {
-      "total": 75,
-      "passed": 75
+      "total": 83,
+      "passed": 83
     },
     "scenarios": {
-      "total": 3,
-      "passed": 3,
+      "total": 6,
+      "passed": 6,
       "failed": 0,
       "coverageComplete": true,
       "byId": {
         "v4-evidence-verified": "passed",
+        "v4-recording-batch": "passed",
+        "v4-recording-eager": "passed",
         "v4-refuses-unverified": "passed",
-        "v4-boundary": "passed"
+        "v4-boundary": "passed",
+        "v4-recording-boundary": "passed"
       }
     }
   }

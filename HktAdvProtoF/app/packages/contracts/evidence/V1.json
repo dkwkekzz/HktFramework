@@ -9,7 +9,7 @@
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/scenarios/verify/v1.ts",
     "testPackage": "packages/core",
     "coverage": {

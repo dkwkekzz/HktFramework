@@ -3,12 +3,13 @@ name: completion-evidence
 purpose: >
   검증 산출물에서만 완료 상태를 결정해, 완료를 임의로 선언하지 못하게 한다.
 
-inputs: [EvidenceInput]
-outputs: [Evidence, PromotionCheck]
+inputs: [EvidenceInput, EvidenceJob]
+outputs: [Evidence, PromotionCheck, EvidenceTrace]
 
 writes:
   - Evidence
   - ModuleStatus
+  - EvidenceTrace
 
 depends: [V1, V2, V0]           # 해시(V1) · 시나리오 결과(V2) · 계약(V0) 을 재료로 삼는다
 
@@ -16,10 +17,16 @@ scenarios:
   - v4-evidence-verified        # 정상: 전부 통과한 산출물 → VERIFIED 증거 + 완료 전이 허용
   - v4-refuses-unverified       # 실패: 시나리오/테스트/커버리지/결정성 미달 → 전이 거부
   - v4-boundary                 # 경계: 증거 없음 · 낡은 증거(소스 변경) · 시나리오 0개 · 테스트 0개
+  - v4-recording-batch          # 정상: 검증 전량 뒤 일괄 기록 → 뒤 모듈이 온전히 선다
+  - v4-recording-eager          # 실패: 즉시 기록 → 같은 재료로도 뒤 모듈이 강등된다 (#662 재현)
+  - v4-recording-boundary       # 경계: 작업 0개·1개는 순서 문제가 생길 수 없다
 
 elements:
   - name: Evidence
     ontology: Claim
+    renderer: diff
+  - name: EvidenceTrace
+    ontology: Event
     renderer: diff
 
 lab: /lab/v4                    # V3 미구현 — packages/scenarios/verify/v4.ts 가 같은 7요소를 출력한다.

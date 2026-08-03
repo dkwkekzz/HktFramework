@@ -2,4 +2,6 @@
 export * from './yaml.ts';
 export * from './contract.ts';
 export * from './evidence.ts';
+export * from './collect.ts';
+export * from './modules.ts';
 export * from './registry.ts';

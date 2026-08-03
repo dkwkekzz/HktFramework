@@ -9,7 +9,7 @@
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
-    "generator": "packages/scenarios/verify/evidence.ts",
+    "generator": "packages/lab/verify/evidence.ts",
     "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/d3 (npm run dev --workspace @hkt/lab)",
     "testPackage": "packages/core",
     "coverage": {
