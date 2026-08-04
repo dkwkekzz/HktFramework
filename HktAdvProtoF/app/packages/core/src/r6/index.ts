@@ -28,6 +28,23 @@ export {
 } from './intent.ts';
 
 export {
+  auditIntents,
+  closeLoop,
+  enqueue,
+  idle,
+  intentQueueVerdict,
+  intentsAt,
+  intentsFor,
+  openIntentQueue,
+  type IntentAudit,
+  type IntentAuditSpec,
+  type IntentQueue,
+  type LoopResult,
+  type LoopSpec,
+  type LoopStep,
+} from './queue.ts';
+
+export {
   intentViolationVerdict,
   violateIntent,
   type IntentViolation,
