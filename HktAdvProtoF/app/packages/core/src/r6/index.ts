@@ -1,6 +1,18 @@
 // R6 행동 의도 생성 — 계획이 요청이 되고, 겨눌 상대를 사이가 고른다.
 
 export {
+  CONSENT_AXIS,
+  axisFor,
+  checkAim,
+  chooseAim,
+  knownCounterparts,
+  type AimCandidate,
+  type AimResult,
+  type AimSpec,
+  type KnownCounterpart,
+} from './aim.ts';
+
+export {
   aimingAtoms,
   consentOf,
   formIntent,
