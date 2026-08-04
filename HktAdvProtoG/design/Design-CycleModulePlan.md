@@ -1,4 +1,4 @@
-# Design-ModulePlan — Cycle 기반 2차원 점진 구현 WORKFLOW
+# Design-CycleModulePlan — Cycle 기반 2차원 점진 구현 WORKFLOW
 
 ## 0. 목적
 
