@@ -19,6 +19,10 @@
 `V1 → V2 → V0 → V4 → V3 → O1 → O2 → O0 → S0 → S1 → S2 → S3 → D0 → D1 → D2 → D3 → D4 → D5 → P0 → R0 → P1 → R1 → P2 → P3 → P4 → P5 → R2 → R3 → R4 → R5 → R6 → E0`
 이고, **"착수 가능" 목록은 E1 을 계산한다**(`node packages/scenarios/verify/v0.ts`).
 
+**Layer 축 (WORKFLOW §12, 2026-08-04 v3 신설)**: 지금은 **Layer 1(관통)** 이다 — 단계 0~3 의
+32개 모듈은 L1 충족으로 소급 인정(재작업 없음), L1 의 완주 게이트는 원문 §21 최종 검증 장면의
+얇은 재생이다. L1 을 완주하기 전에는 어느 모듈도 L2 작업에 착수하지 않는다.
+
 ## 문서
 
 | 문서 | 역할 | 상태 |
@@ -28,6 +32,7 @@
 | [modules/WORKFLOW.md](modules/WORKFLOW.md) | 작업 방식 설계 (파생) | 작성 완료 |
 | [modules/MODULES.md](modules/MODULES.md) | 모듈 레지스트리 — V~A 전 모듈 입력·출력·상태 원소·시각화 (파생) | 작성 완료 |
 | [modules/MODULE-TEMPLATE.yaml](modules/MODULE-TEMPLATE.yaml) | 모듈 계약 서식 (파생) | 작성 완료 |
+| [modules/SPEC-TEMPLATE.md](modules/SPEC-TEMPLATE.md) | 구현 스펙 서식 (WORKFLOW §11) — 모듈별 스펙은 `modules/specs/` | 작성 완료 · specs 는 E1 부터 |
 | [progress/deferred.md](progress/deferred.md) | **유예 장부** — 각 계층이 뒤에 넘긴 자리 (갚을 계층별 색인) | 갱신 중 |
 | [progress/closed-issues.md](progress/closed-issues.md) | 닫힌 이슈 · 상환된 소급 부채 | 갱신 중 |
 | [progress/renderers.md](progress/renderers.md) | 공용 렌더러 5종 구현·소비 이력 | 갱신 중 |
@@ -117,15 +122,31 @@
 
 ## TODO
 
+### ⓪ WORKFLOW v3 전환 — 구현 스펙(§11) + Layer(§12)
+
+규정은 [modules/WORKFLOW.md](modules/WORKFLOW.md) §11·§12 로 확정됐다 (문서 수준).
+기계 강제는 아래 카드가 세운다 — 그전까지 Layer 필드는 문서 규정으로만 동작한다.
+
+- **[WF3-a] 계약 layer 필드 소급 태깅** —
+  목적: 기존 계약 전부에 `layer: 1` 을 달고 V0 파서·verify 대시보드가 layer 를 읽어 표시하게 한다.
+  입력: `contracts/*.yaml` 33개 · 출력: layer 열이 붙은 레지스트리 대시보드.
+  검증 장면: `npm run verify` 32/32 유지 + 대시보드에 `VERIFIED@L1` 표기.
+  주의: 계약 파일 변경이 소스 해시에 걸려 증거가 낡는지 먼저 확인하고, 낡으면 재생성을 같은
+  커밋에 포함한다. 상태 원소: `ModuleContract.layer`. 시각화: 기존 V0 diff 대조표에 열 추가.
+- **[WF3-b] E1 구현 스펙** — `modules/specs/E1.md` 4절 작성 (E1 착수의 새 첫 걸음 —
+  아래 ② 카드의 6필드 초안을 스펙 ①~④절로 편다. 이후 하위 작업 카드는 스펙에서 꺼낸다).
+
 ### ① 단계 3 리뷰 대기
 
 R0·R1·R2·R3·R4·D5·R5·R6 여덟이 전부 VERIFIED 다. 리뷰는 **사용자가 요청할 때만** 진행한다
 (`/advproto-review` — WORKFLOW §10). 자동으로 쓰지 않는다.
 
-### ② [E1] 사회적 상호작용 — 다음 작업 (착수 시 6필드를 확정한다)
+### ② [E1@L1] 사회적 상호작용 — 다음 작업 (착수 시 6필드를 확정한다)
 
 계약은 `contracts/E1.yaml` 에 PLANNED 로 선등록돼 있고(레지스트리 "착수 가능" 이 E1 을 계산한다),
-**게이트는 비어 있다** — E0 가 증거로 닫혔다.
+**게이트는 비어 있다** — E0 가 증거로 닫혔다. **착수의 첫 걸음은 WF3-b(구현 스펙)다** —
+아래 초안은 스펙 ①~④절로 편 뒤 하위 작업 카드로 쪼갠다. L1 깊이 상한(WORKFLOW §12-3):
+선택 점수식은 최단 단조형, 인스턴스는 §21 캐스트 분량만.
 
 - 목적: 상황에서 사회적 상호작용 8종(요청·거래·협박·기만·동맹·고용·배신·복종) 중 하나를 고르게 한다.
 - 입력: `Situation`·`SituationPair`(E0) · `Relationship`(R5) · `PossibilityGrammar`(P2) ·

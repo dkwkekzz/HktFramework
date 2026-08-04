@@ -35,5 +35,6 @@ elements:                       # 이 모듈이 정의·변경하는 최소 세�
 
 lab: /lab/d4                    # V3 Lab 페이지 경로
 
+layer: 1                        # 이 계약이 다루는 콘텐츠 깊이 (WORKFLOW §12) — status 는 Layer 한정
 status: PLANNED                 # PLANNED | IN_PROGRESS | IMPLEMENTED | VERIFIED
 evidence: null                  # VERIFIED 시 evidence/<id>.json 경로 (V4)
