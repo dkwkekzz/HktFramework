@@ -18,9 +18,16 @@
 //                   상황으로 묶는 것은 E0 다"(D5-c). R6 가 `aim` 으로 **누구를 겨누는가**를
 //                   세운 지금, 그 겨눔이 곧 사람이라는 자리에 건 걸림이다.
 //
-// 못박는 것이 하나 있다. **자기 자신은 자리가 아니다.** 사람 축은 남을 겨눌 때만 서고, 제
-// 몸·제 칸에 건 걸림은 자리 축으로 간다 — 자기와 다투는 일은 D5 가 `internal` 겹침으로 이미
-// 다루었고, 그것은 상황(여럿이 서로를 보는 것)이 아니다.
+// 못박는 것이 둘 있다.
+//
+//   **자기 자신을 겨눌 수는 없다.** 사람 축의 *겨눔*은 남을 향할 때만 서고, 제 몸·제 칸에 건
+//   걸림은 자리 축으로 간다 — 자기와 다투는 일은 D5 가 `internal` 겹침으로 이미 다루었고,
+//   그것은 상황(여럿이 서로를 보는 것)이 아니다.
+//
+//   **겨눔당하는 자도 그 자리에 서 있다.** 사람 축의 자리는 겨눔당한 사람이므로, 그 사람 자신이
+//   참여자가 아니면 "넷이 04 를 겨눈다" 가 **04 없는 상황**이 되고, 서로 겨누는 둘은 각자 혼자뿐인
+//   자리 둘로 흩어져 **알아봄이 영영 서지 않는다.** 그래서 겨눔 하나는 걸림 둘을 낸다 —
+//   겨누는 자의 것(`aimed: true`)과 겨눔당하는 자의 것(`aimed: false`)이다.
 
 import { deterministicId, type Id } from '../v1/id.ts';
 import { compareStrings, stableSort } from '../v1/stable-sort.ts';
@@ -131,7 +138,7 @@ export function stakesFromConflict(conflict: DependencyConflict): readonly Situa
  *
  *   ① 바꾸려는 칸마다 자리 축 하나 (`proposal.changes`)
  *   ② 겨눈 물건마다 대상 축 하나 (`proposal.targetIds` 중 사람이 아닌 것)
- *   ③ **겨눈 상대에 사람 축 하나** (`aim`) — 이것이 E0 가 새로 여는 자리다
+ *   ③ **겨눈 상대에 사람 축 둘** (`aim`) — 겨누는 자와 겨눔당하는 자. 이것이 E0 가 새로 여는 자리다
  *
  * 치르는 자리(`payments`)는 걸림이 아니다. 남이 함께 볼 수 있는 것이 아니라 제가 내놓는 것이고,
  * 그것을 자리로 세우면 "제 몸을 깎는 둘" 이 서로 다툰다는 말이 된다.
@@ -189,6 +196,24 @@ export function stakesFromIntent(
       urgency,
       aimed: true,
       note: `${intent.action} 로 그를 겨눈다 — ${intent.aim?.note ?? ''}`,
+    });
+    // **겨눔당하는 자도 그 자리에 서 있다.** 없으면 "넷이 04 를 겨눈다" 는 04 없는 상황이 되고,
+    // 서로 겨누는 둘은 각자 혼자뿐인 자리 둘로 흩어져 **알아봄이 영영 서지 않는다**.
+    //
+    // 유래는 겨눈 의도가 아니라 **그 사람 자신**이다 — 그 자리는 그 사람이므로, 넷이 겨눠도
+    // 그가 서 있다는 사실은 하나다(넷이면 걸림도 넷이 되어 한 사람이 네 번 센다).
+    // 급함은 0 이다 — 겨눔당한 쪽이 얼마나 급한지는 아무도 재지 않았고, E0 는 지어내지 않는다.
+    stakes.push({
+      id: stakeIdOf(aimedAt, 'subject', aimedAt, aimedAt),
+      subjectId: aimedAt,
+      axis: 'subject',
+      key: aimedAt,
+      label: aimedAt,
+      via: 'intent',
+      sourceId: aimedAt,
+      urgency: 0,
+      aimed: false,
+      note: '그가 겨눔당하는 자리다 — 알든 모르든 그는 여기 서 있다',
     });
   }
 
@@ -265,8 +290,10 @@ export function checkStakes(
     if (!(STAKE_AXES as readonly string[]).includes(stake.axis)) {
       violateSituation(violations, stake.subjectId, 'unknown-axis', `${path}.axis`, `축 넷 밖의 걸림이다 — ${stake.axis}`);
     }
+    // **겨누는 걸림만 본다.** 사람 축에서 `aimed: false` 이고 자리가 자기인 걸림은 "겨눔당한 자
+    // 자신" 이고, 그것은 옳다 — 그가 그 자리에 서 있다는 뜻이다.
     // 빈 자리는 위쪽에서 이미 걸렸다 — 빈 문자열끼리 같다고 "자기를 겨눴다" 고 적으면 사유가 겹친다.
-    if (stake.axis === 'subject' && stake.key !== '' && stake.key === stake.subjectId) {
+    if (stake.aimed && stake.axis === 'subject' && stake.key !== '' && stake.key === stake.subjectId) {
       violateSituation(
         violations,
         stake.subjectId,

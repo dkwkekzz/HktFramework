@@ -46,11 +46,11 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: E0-a
     name: stake
     purpose: 의도·목적·다툼이 어느 자리에 걸리는가를 한 이름으로 편다 — 사람 축이 처음 열린다.
-    status: IN_PROGRESS
+    status: DONE
   - id: E0-b
     name: cluster
     purpose: 둘 이상 걸린 자리만 상황이 되고, 그 안의 쌍마다 겨눔과 앎이 갈린다.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: E0-c
     name: field
     purpose: 상황장·감사 — 빠뜨린 상황은 걸리고, 혼자 걸린 자리는 사실로 남는다.

@@ -155,16 +155,28 @@ describe('E0-a 의도에서 펴는 걸림 — 사람 축이 열린다', () => {
   test('바꾸려는 칸과 겨눈 상대가 함께 선다', () => {
     const stakes = stakesFromIntent(intentOf(), 0.6);
     const axes = stakes.map((stake) => stake.axis).sort();
-    assert.deepEqual(axes, ['slot', 'subject']);
-    const aimed = stakes.find((stake) => stake.axis === 'subject');
+    assert.deepEqual(axes, ['slot', 'subject', 'subject']);
+    const aimed = stakes.find((stake) => stake.axis === 'subject' && stake.aimed);
     assert.equal(aimed?.key, rivalId);
-    assert.equal(aimed?.aimed, true);
     assert.equal(aimed?.urgency, 0.6);
+  });
+
+  test('겨눔 하나가 걸림 둘을 낸다 — 겨누는 자와 겨눔당하는 자가 같은 자리에 선다', () => {
+    const stakes = stakesFromIntent(intentOf(), 0.6);
+    const onRival = stakes.filter((stake) => stake.axis === 'subject' && stake.key === rivalId);
+    assert.equal(onRival.length, 2);
+    assert.deepEqual(
+      onRival.map((stake) => [stake.subjectId, stake.aimed, stake.urgency]),
+      [
+        [actorId, true, 0.6],
+        [rivalId, false, 0],
+      ],
+    );
   });
 
   test('겨눈 상대를 대상 축으로 또 세우지 않는다 — 한 겨눔이 두 번 세면 안 된다', () => {
     const stakes = stakesFromIntent(intentOf());
-    assert.equal(stakes.filter((stake) => stake.key === rivalId).length, 1);
+    assert.equal(stakes.filter((stake) => stake.axis === 'target').length, 0);
   });
 
   test('상대를 겨누지 않는 의도는 사람 축을 열지 않는다', () => {
@@ -249,8 +261,9 @@ describe('E0-a 한 평면에 늘어놓기', () => {
       intents: [intentOf(), intentOf({ providerId: thirdId, proposal: { ...intentOf().proposal, actorId: thirdId } } as Partial<ActionIntent>)],
     });
     const byKey = stakesByKey(stakes);
+    // 겨누는 둘 + 겨눔당하는 11 자신 = 셋이 한 자리에 선다.
     const aimedAtRival = byKey.get(`subject:${rivalId}`) ?? [];
-    assert.equal(aimedAtRival.length, 2);
+    assert.equal(aimedAtRival.length, 3);
     assert.deepEqual(stakesOf(stakes, thirdId).length > 0, true);
   });
 });
@@ -274,12 +287,16 @@ describe('E0-a 걸림 검사', () => {
     assert.deepEqual(checkStakes([stakeOf()]), []);
   });
 
-  test('자기 자신에게 건 사람 축은 걸린다', () => {
+  test('자기 자신을 겨눈 사람 축은 걸린다', () => {
     const violations = checkStakes([stakeOf({ key: actorId })]);
     assert.deepEqual(
       violations.map((violation) => violation.rule),
       ['self-aimed-stake'],
     );
+  });
+
+  test('겨눔이 아닌 자기 자리는 걸리지 않는다 — 겨눔당한 자 자신이다', () => {
+    assert.deepEqual(checkStakes([stakeOf({ key: actorId, aimed: false })]), []);
   });
 
   test('누가 걸렸는지 · 어느 자리인지 없으면 걸린다', () => {

@@ -26,3 +26,23 @@ export {
   type StakeSpec,
   type StakeVia,
 } from './stake.ts';
+
+export {
+  aimLabel,
+  awarenessOf,
+  clusterStakes,
+  pairIdOf,
+  pairLine,
+  pairsFor,
+  pairsOf,
+  situationIdOf,
+  situationKeyOf,
+  situationLine,
+  type ClusterResult,
+  type ClusterSpec,
+  type PairAim,
+  type PairAwareness,
+  type Situation,
+  type SituationPair,
+  type Solitude,
+} from './cluster.ts';
