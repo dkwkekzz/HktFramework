@@ -434,6 +434,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R6'),
   },
   {
+    id: 'E0',
+    name: 'E0-situation-clustering',
+    sources: [
+      'packages/core/src/e0/index.ts',
+      'packages/core/src/e0/violation.ts',
+      'packages/core/src/e0/stake.ts',
+      'packages/core/src/e0/cluster.ts',
+      'packages/core/src/e0/field.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('E0'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

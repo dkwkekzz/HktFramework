@@ -131,7 +131,7 @@ W 계층 착수 시 배정하는 작업 카드를 만든다. 그때 `dangerScale
 
 | 모듈 | 목적 | 입력 → 출력 | 상태 원소 | 시각화 |
 |---|---|---|---|---|
-| E0 | 같은 공간·자원·대상에 걸린 목적들을 상황으로 묶는다 | 다주체 `ActionIntent[]/ActiveGoal[]` → `Situation` 군집 | `Situation` | 그래프(상황 클러스터 맵) |
+| E0 | 같은 공간·자원·대상·**사람**에 걸린 목적과 의도들을 상황으로 묶고, 그 안에서 **누가 누구를 알아보는가**를 값으로 세운다 — 겹쳤다고 서로를 아는 것은 아니다 | 다주체 `ActionIntent[]`(R6) + `ActiveGoal[]`(P4) + `DependencyConflict[]`(D5) + `Memory[]`(R5) + `WorldState`(O2) → `SituationStake[]` → `Situation` 군집(쌍마다 겨눔 3단계 × 앎 4단계) + `SituationField`(감사 — 빠뜨린 상황은 위반, 혼자 걸린 자리는 사실) | `SituationStake`, `Situation`, `SituationPair`, `SituationField` | 그래프(상황 클러스터 맵 — **주체↔주체 간선**. D5 이분 그래프가 긋지 않은 선) |
 | E1 | 상황에서 사회적 상호작용 8종을 선택하게 한다 | `Situation + 관계·힘 차·긴급도·도덕 비용·성공률·정보 비대칭` → `SocialInteraction`(요청·거래·협박·기만·동맹·고용·배신·복종) | `SocialInteraction` | 게이지(선택 기준 점수표) |
 | E2 | 퀘스트를 약속·계약 구조로 대체한다 | 상호작용 → `Contract{제안, 수락, 의무, 보상, 기한, 위반, 위반 결과}` | `Contract` | 타임라인(계약 상태 전이 카드) |
 | E3 | 같은 상태를 동시에 바꾸려는 행동의 결과를 확정한다 — 능력 충돌은 강도 비교가 아니라 조건·정보 싸움이다 | 경합 `ActionIntent[]` (+ 능력 대 능력 충돌 시 G6 `EffectMagnitude` **+ 상대 능력에 대한 `BeliefGraph` 절편(R4 — 알고 있는가·오인하고 있는가) + 준비 상태 + 환경 조건**) → 확정 `Event`(소유자 1인 결정 등) (검증: 같은 두 주체·같은 능력에서 **정보 상태만 바꿔 승패가 뒤집히는 장면** — 북극성 검토 격차 A) | `Event` | 타임라인(충돌 판정 리플레이 — 판정 입력별 기여 분해) |
