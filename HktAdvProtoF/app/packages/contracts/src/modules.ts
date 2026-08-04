@@ -407,6 +407,20 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R4'),
   },
   {
+    id: 'R5',
+    name: 'R5-memory-and-relationship',
+    sources: [
+      'packages/core/src/r5/index.ts',
+      'packages/core/src/r5/violation.ts',
+      'packages/core/src/r5/memory.ts',
+      'packages/core/src/r5/regard.ts',
+      'packages/core/src/r5/rumor.ts',
+      'packages/core/src/r5/ledger.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R5'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [

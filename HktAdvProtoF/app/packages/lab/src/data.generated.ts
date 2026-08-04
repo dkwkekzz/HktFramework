@@ -87,7 +87,11 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "R5.yaml",
-    "text": "# 단계 3(M3 충돌하는 주체)의 일곱째 모듈. R4·D5 가 증거로 닫혔으므로 착수를 막는 게이트는 없었다.\n#\n# R5 가 새로 정하는 것은 **셋뿐**이다. 나머지는 전부 앞 계층에서 읽어 온다.\n#   ① 다시 볼 수 없게 된 믿음이 기억이다      R4-c `staleBeliefs` 가 그 목록을 이미 갖고 있다\n#   ② 겪은 자만 누구인지 안다                 R4 는 `actorId` 를 싣지 않는다 — 지목은 짐작에서 나오지 않는다\n#   ③ 말은 흔적이 된다                        듣는 자는 **제 귀로** 읽는다 (R4 `foreign-belief` 벽은 그대로)\n#\n# 읽어 오는 것:\n#   소문이 옅어지는 것    R3 거리·차폐 (`perceives` 가 이미 깎는다 — R5 는 감쇠를 정하지 않는다)\n#   소문이 왜곡되는 것    R4 `narrowByGrammar` (듣는 자가 낼 수 없는 일은 그의 이야기에서 빠진다)\n#   사이의 축             O2 `relational` 여섯 (R5 는 축을 만들지 않는다)\n#   사이를 미는 방향      P0-b `AtomGrounding` (그 원자가 그 자리를 **세우는가**(writes) **치르는가**(pays))\n#   사이의 크기           R4 `Belief.confidence`\n#\n# 유예로 선언하는 것 하나: 말을 **세계를 바꾸는 사건**으로 세우는 일(`informational.rumorSpread.{claim}`\n# 자리를 움직이는 원자)은 P0 열여섯에 없다 — 여기서 원자를 더하면 P0 최소 집합이 깨진다\n# (P5 가 \"접근 권한 확보는 W2\" 로 유예한 것과 같은 자리). 그래서 소문은 세계의 현상장이 아니라\n# **R5 의 소문장**(`RumorField`)에 서고 R5 의 감사가 그 뿌리를 검사한다 — 말이 세계를 바꾸는 것은\n# W2·E1 의 몫이다. R2-a 는 그 자리의 통로를 이미 적어 두었다(\"퍼지는 중인 말은 들린다\").\n\nid: R5\nname: memory-and-relationship\npurpose: >\n  과거 사건과 대상 관계가 이후 판단에 영향을 주게 한다 — 그리고 **남의 말이 근거가 되게 한다**.\n\ninputs: [Event, Percept, Belief, BeliefGraph, WorldPhenomenon, PossibilityGrammar, WorldState]\noutputs: [Memory, Relationship, Telling, MemoryViolation]\n\nwrites: []                      # 기억은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n                                # 세계의 `relational` 자리는 세계의 장부이고, R5 가 내는 것은\n                                # **주체가 지닌 사이**다. 둘은 갈릴 수 있고 갈리는 재료가 기억이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3, R4]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R5-a\n    name: memory\n    purpose: 삭은 믿음이 기억이 된다 · 겪은 자만 지목한다 · 설 수 없는 기억이 걸린다.\n    status: IN_PROGRESS\n  - id: R5-b\n    name: regard\n    purpose: 기억이 사이를 민다 — 축은 O2, 방향은 P0-b, 크기는 R4 확신. 적힌 사이와 갈린다.\n    status: PLANNED\n  - id: R5-c\n    name: rumor\n    purpose: 말이 흔적이 되고 거치며 갈린다 · 기억장과 감사 — 틀린 지목은 위반이 아니다.\n    status: PLANNED\n  - id: R5-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 관계망·전달 사슬로 R5 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r5-hearsay-carries-blame      # 정상: 당한 자만 지목하고, 그 지목이 말을 타고 퍼지며 내용만 갈린다\n  - r5-groundless-memory-rejected # 실패: 근거 없는 기억·짐작에서 나온 지목·바랜 확신·못 들은 말이 거부된다\n  - r5-boundary                   # 경계: 아무도 듣지 못한 말 · 제 손으로 한 일 · 먼 곳의 말 · 빈 기억장\n\nelements:\n  - name: Memory\n    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — \"주체가 참이라 여기는 것\" 이고\n                                # `sourceIds` 가 이미 \"현상·**전언**·다른 주장\" 을 열어 두었다.\n                                # R5 는 굳은 틱·지목·거쳐 온 입을 더할 뿐이다 (R4 가 넷을 더한 것과 같다).\n    renderer: timeline          # 기억·전달 사슬 (MODULES.md R5 행)\n  - name: Relationship\n    ontology: Claim             # 지닌 사이도 주장이다 — 세계의 `relational` 장부와 갈릴 수 있다.\n    renderer: graph             # 관계망 (MODULES.md R5 행)\n\nlab: /lab/r5\n\nstatus: IN_PROGRESS\n\n# R5 가 뒤에 넘기는 자리:\n#   - **거짓말은 아직 없다.** 말하는 자는 제 기억을 그대로 말한다 — 제 기억과 다른 것을 말하는 일\n#     (기만)은 E1 의 자리다. R5 가 여는 것은 \"거쳐 오면 갈린다\" 까지다.\n#   - **기억이 목적을 바꾸는 것은 R6 다.** R5 는 사이를 값으로 세우고 P4 가 평균으로 읽던 자리와\n#     나란히 놓아 보이기까지 한다 — 그것을 실제로 먹이는 것은 R6·E 계층이다.\n#   - **기억은 바래지 않는다.** 굳는 순간의 확신을 그대로 진다 — 잊음의 시간 축은 선언하지 않았다\n#     (원문이 주지 않았다). 세계가 움직여 어긋나는 것은 이미 값으로 선다.\n#   - **말을 세계를 바꾸는 사건으로 세우는 것은 W2·E1 이다** (위 유예 참조).\n"
+    "text": "# 단계 3(M3 충돌하는 주체)의 일곱째 모듈. R4·D5 가 증거로 닫혔으므로 착수를 막는 게이트는 없었다.\n#\n# R5 가 새로 정하는 것은 **셋뿐**이다. 나머지는 전부 앞 계층에서 읽어 온다.\n#   ① 다시 볼 수 없게 된 믿음이 기억이다      R4-c `staleBeliefs` 가 그 목록을 이미 갖고 있다\n#   ② 겪은 자만 누구인지 안다                 R4 는 `actorId` 를 싣지 않는다 — 지목은 짐작에서 나오지 않는다\n#   ③ 말은 흔적이 된다                        듣는 자는 **제 귀로** 읽는다 (R4 `foreign-belief` 벽은 그대로)\n#\n# 읽어 오는 것:\n#   소문이 옅어지는 것    R3 거리·차폐 (`perceives` 가 이미 깎는다 — R5 는 감쇠를 정하지 않는다)\n#   소문이 왜곡되는 것    R4 `narrowByGrammar` (듣는 자가 낼 수 없는 일은 그의 이야기에서 빠진다)\n#   사이의 축             O2 `relational` 여섯 (R5 는 축을 만들지 않는다)\n#   사이를 미는 방향      P0-b `AtomGrounding` (그 원자가 그 자리를 **세우는가**(writes) **치르는가**(pays))\n#   사이의 크기           R4 `Belief.confidence`\n#\n# 유예로 선언하는 것 하나: 말을 **세계를 바꾸는 사건**으로 세우는 일(`informational.rumorSpread.{claim}`\n# 자리를 움직이는 원자)은 P0 열여섯에 없다 — 여기서 원자를 더하면 P0 최소 집합이 깨진다\n# (P5 가 \"접근 권한 확보는 W2\" 로 유예한 것과 같은 자리). 그래서 소문은 세계의 현상장이 아니라\n# **R5 의 소문장**(`RumorField`)에 서고 R5 의 감사가 그 뿌리를 검사한다 — 말이 세계를 바꾸는 것은\n# W2·E1 의 몫이다. R2-a 는 그 자리의 통로를 이미 적어 두었다(\"퍼지는 중인 말은 들린다\").\n\nid: R5\nname: memory-and-relationship\npurpose: >\n  과거 사건과 대상 관계가 이후 판단에 영향을 주게 한다 — 그리고 **남의 말이 근거가 되게 한다**.\n\ninputs: [Event, Percept, Belief, BeliefGraph, WorldPhenomenon, PossibilityGrammar, WorldState]\noutputs: [Memory, Relationship, Telling, MemoryViolation]\n\nwrites: []                      # 기억은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n                                # 세계의 `relational` 자리는 세계의 장부이고, R5 가 내는 것은\n                                # **주체가 지닌 사이**다. 둘은 갈릴 수 있고 갈리는 재료가 기억이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, P0, P2, P3, R0, R1, R2, R3, R4]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: R5-a\n    name: memory\n    purpose: 삭은 믿음이 기억이 된다 · 겪은 자만 지목한다 · 설 수 없는 기억이 걸린다.\n    status: DONE\n  - id: R5-b\n    name: regard\n    purpose: 기억이 사이를 민다 — 축은 O2, 방향은 P0-b, 크기는 R4 확신. 적힌 사이와 갈린다.\n    status: DONE\n  - id: R5-c\n    name: rumor\n    purpose: 말이 흔적이 되고 거치며 갈린다 · 기억장과 감사 — 틀린 지목은 위반이 아니다.\n    status: DONE\n  - id: R5-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 관계망·전달 사슬로 R5 를 눈으로 확인한다.\n    status: DONE\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - r5-hearsay-carries-blame      # 정상: 당한 자만 지목하고, 그 지목이 말을 타고 퍼지며 내용만 갈린다\n  - r5-groundless-memory-rejected # 실패: 근거 없는 기억·짐작에서 나온 지목·바랜 확신·못 들은 말이 거부된다\n  - r5-boundary                   # 경계: 아무도 듣지 못한 말 · 제 손으로 한 일 · 먼 곳의 말 · 빈 기억장\n\nelements:\n  - name: Memory\n    ontology: Claim             # O1 `Claim` 을 그대로 쓴다 — \"주체가 참이라 여기는 것\" 이고\n                                # `sourceIds` 가 이미 \"현상·**전언**·다른 주장\" 을 열어 두었다.\n                                # R5 는 굳은 틱·지목·거쳐 온 입을 더할 뿐이다 (R4 가 넷을 더한 것과 같다).\n    renderer: timeline          # 기억·전달 사슬 (MODULES.md R5 행)\n  - name: Relationship\n    ontology: Claim             # 지닌 사이도 주장이다 — 세계의 `relational` 장부와 갈릴 수 있다.\n    renderer: graph             # 관계망 (MODULES.md R5 행)\n\nlab: /lab/r5\n\nstatus: VERIFIED\nevidence: evidence/R5.json\n\n# R5 가 뒤에 넘기는 자리:\n#   - **거짓말은 아직 없다.** 말하는 자는 제 기억을 그대로 말한다 — 제 기억과 다른 것을 말하는 일\n#     (기만)은 E1 의 자리다. R5 가 여는 것은 \"거쳐 오면 갈린다\" 까지다.\n#   - **기억이 목적을 바꾸는 것은 R6 다.** R5 는 사이를 값으로 세우고 P4 가 평균으로 읽던 자리와\n#     나란히 놓아 보이기까지 한다 — 그것을 실제로 먹이는 것은 R6·E 계층이다.\n#   - **기억은 바래지 않는다.** 굳는 순간의 확신을 그대로 진다 — 잊음의 시간 축은 선언하지 않았다\n#     (원문이 주지 않았다). 세계가 움직여 어긋나는 것은 이미 값으로 선다.\n#   - **말을 세계를 바꾸는 사건으로 세우는 것은 W2·E1 이다** (위 유예 참조).\n"
+  },
+  {
+    "name": "R6.yaml",
+    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 3(M3 충돌하는 주체)의 마지막 모듈이다. R5 가 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n#\n# R6 가 갚을 자리는 앞 계층이 하나씩 적어 두었다:\n#   - P5 가 남긴 한 줄: \"계획은 아직 요청이 아니다\" — `ActionPlan` 을 세계에 내보내는 통로가 없다.\n#     형식은 P0-c `ActionProposal` 이 이미 갖고 있고, 그것을 세계에 얹는 것은 R1 이다.\n#   - R4 가 남긴 한 줄: \"믿음은 아직 목적을 바꾸지 않는다\" — P3-b `ContextFact` 자리에 믿음이\n#     들어가면 주체는 실제가 아니라 **믿음으로** 행동한다 (원문 §6.4·§19). 그때 오해가 사건이 된다.\n#   - R5 가 남긴 한 줄: \"기억이 목적을 바꾸는 것은 R6 다\" — P4-b 가 평균으로 읽던 사이 자리에\n#     R5 `Relationship`(지목해 읽은 값)이 들어가는 자리다.\n\nid: R6\nname: action-intent\npurpose: >\n  활성 목적과 계획을 실제 세계 행동으로 제출한다 — 그리고 **믿음과 기억으로** 그것을 고른다.\n\ninputs: [ActiveGoal, ActionPlan, BeliefGraph, MemoryLedger, Relationship]\noutputs: [ActionIntent]\n\nwrites: []                      # 의도는 아직 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, D5, P0, P1, P2, P3, P4, P5, R0, R1, R2, R3, R4, R5]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - r6-belief-drives-action\n  - r6-groundless-intent-rejected\n  - r6-boundary\n\nelements:\n  - name: ActionIntent\n    ontology: Affordance        # 착수 시 확정한다 — P0-c `ActionProposal` 이 이미 형식을 갖고 있다.\n    renderer: timeline          # 틱별 의도 큐 — MODULES.md R6 행\n\nlab: /lab/r6\n\nstatus: PLANNED\n"
   },
   {
     "name": "S0.yaml",
@@ -888,6 +892,44 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
       }
     }
   },
+  "R5": {
+    "module": "R5-memory-and-relationship",
+    "sourceHash": "cb708dcf327723e2",
+    "unitTests": "passed",
+    "propertyTests": "passed",
+    "labScenarios": "manual",
+    "integrationScenario": "passed",
+    "replayHash": "08951d7508142a1d",
+    "status": "VERIFIED",
+    "blockers": [],
+    "detail": {
+      "generator": "packages/lab/verify/evidence.ts",
+      "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r5 (npm run dev --workspace @hkt/lab)",
+      "testPackage": "packages/core",
+      "coverage": {
+        "module": "R5",
+        "normal": 1,
+        "failure": 1,
+        "boundary": 1,
+        "complete": true
+      },
+      "tests": {
+        "total": 1277,
+        "passed": 1277
+      },
+      "scenarios": {
+        "total": 3,
+        "passed": 3,
+        "failed": 0,
+        "coverageComplete": true,
+        "byId": {
+          "r5-hearsay-carries-blame": "passed",
+          "r5-groundless-memory-rejected": "passed",
+          "r5-boundary": "passed"
+        }
+      }
+    }
+  },
   "S0": {
     "module": "S0-common-subject-model",
     "sourceHash": "b9043599f716b3da",
@@ -1062,8 +1104,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 92,
-        "passed": 92
+        "total": 93,
+        "passed": 93
       },
       "scenarios": {
         "total": 6,
@@ -1159,12 +1201,12 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V3": {
     "module": "V3-browser-lab",
-    "sourceHash": "b7f0139102b2115e",
+    "sourceHash": "cc6c387f2cfa322a",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
     "integrationScenario": "passed",
-    "replayHash": "0fe8fc2564cc400c",
+    "replayHash": "5557ba2ccc323536",
     "status": "VERIFIED",
     "blockers": [],
     "detail": {
@@ -1197,7 +1239,7 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
   },
   "V4": {
     "module": "V4-completion-evidence",
-    "sourceHash": "1c6764fced09ba26",
+    "sourceHash": "17e45e92b5568c84",
     "unitTests": "passed",
     "propertyTests": "passed",
     "labScenarios": "manual",
@@ -1217,8 +1259,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 92,
-        "passed": 92
+        "total": 93,
+        "passed": 93
       },
       "scenarios": {
         "total": 6,

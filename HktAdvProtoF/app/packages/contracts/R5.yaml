@@ -36,19 +36,19 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R5-a
     name: memory
     purpose: 삭은 믿음이 기억이 된다 · 겪은 자만 지목한다 · 설 수 없는 기억이 걸린다.
-    status: IN_PROGRESS
+    status: DONE
   - id: R5-b
     name: regard
     purpose: 기억이 사이를 민다 — 축은 O2, 방향은 P0-b, 크기는 R4 확신. 적힌 사이와 갈린다.
-    status: PLANNED
+    status: DONE
   - id: R5-c
     name: rumor
     purpose: 말이 흔적이 되고 거치며 갈린다 · 기억장과 감사 — 틀린 지목은 위반이 아니다.
-    status: PLANNED
+    status: DONE
   - id: R5-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 관계망·전달 사슬로 R5 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r5-hearsay-carries-blame      # 정상: 당한 자만 지목하고, 그 지목이 말을 타고 퍼지며 내용만 갈린다
@@ -67,7 +67,8 @@ elements:
 
 lab: /lab/r5
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R5.json
 
 # R5 가 뒤에 넘기는 자리:
 #   - **거짓말은 아직 없다.** 말하는 자는 제 기억을 그대로 말한다 — 제 기억과 다른 것을 말하는 일

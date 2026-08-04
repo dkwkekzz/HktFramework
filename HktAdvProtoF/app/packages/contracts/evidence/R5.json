@@ -1,27 +1,27 @@
 {
-  "module": "V3-browser-lab",
-  "sourceHash": "cc6c387f2cfa322a",
+  "module": "R5-memory-and-relationship",
+  "sourceHash": "cb708dcf327723e2",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "5557ba2ccc323536",
+  "replayHash": "08951d7508142a1d",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/lab/verify/v3.ts (본 검증은 브라우저: npm run dev --workspace @hkt/lab)",
-    "testPackage": "packages/lab",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r5 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V3",
+      "module": "R5",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 124,
-      "passed": 124
+      "total": 1277,
+      "passed": 1277
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v3-page-shows-seven": "passed",
-        "v3-failure-highlight": "passed",
-        "v3-boundary": "passed"
+        "r5-hearsay-carries-blame": "passed",
+        "r5-groundless-memory-rejected": "passed",
+        "r5-boundary": "passed"
       }
     }
   }
