@@ -1,0 +1,85 @@
+// R5 기억과 관계 — 다시 볼 수 없게 된 것이 기억이 되고, 겪은 자가 상대를 짚으며, 그 지목이 말을 탄다.
+
+export {
+  MEMORY_GROUNDS,
+  MEMORY_TRUTH_FIELDS,
+  checkMemory,
+  groundLabel,
+  liveMemory,
+  livedSlots,
+  memoryConfidence,
+  memoryIdOf,
+  memoryLine,
+  narrowingCap,
+  orderMemories,
+  sealAll,
+  sealMemory,
+  suffered,
+  type Attribution,
+  type Memory,
+  type MemoryGround,
+  type Sealing,
+} from './memory.ts';
+
+export {
+  RELATION_AXES,
+  axisLabel,
+  axisPath,
+  axisPush,
+  axisRange,
+  checkRegard,
+  memoryPush,
+  pushTable,
+  regardLedger,
+  regardOf,
+  relationshipIdOf,
+  writtenRegard,
+  type PushRow,
+  type RegardLedger,
+  type RegardOptions,
+  type RegardTrace,
+  type RelationAxis,
+  type Relationship,
+} from './regard.ts';
+
+export {
+  checkHearsay,
+  hear,
+  openRumorField,
+  recordTelling,
+  rumorDecay,
+  speak,
+  storiesOf,
+  storyVariants,
+  tellingIdOf,
+  type HearResult,
+  type RumorField,
+  type SpeakResult,
+  type SpeakSpec,
+  type Story,
+  type Telling,
+} from './rumor.ts';
+
+export {
+  auditMemories,
+  compareBlame,
+  memoriesFor,
+  memoryLedgerVerdict,
+  openMemoryLedger,
+  recordMemories,
+  rememberersOf,
+  unattributed,
+  unheard,
+  unspoken,
+  type AuditSpec,
+  type BlameCheck,
+  type MemoryAudit,
+  type MemoryLedger,
+} from './ledger.ts';
+
+export {
+  memoryViolationVerdict,
+  violateMemory,
+  type MemoryViolation,
+  type MemoryViolationRule,
+} from './violation.ts';

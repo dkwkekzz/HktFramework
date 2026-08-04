@@ -1,0 +1,38 @@
+{
+  "module": "E0-situation-clustering",
+  "sourceHash": "25eccabc95880c1e",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "9e8b9679e1efc584",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/lab/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/e0 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "E0",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 1390,
+      "passed": 1390
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "e0-recognized-contest": "passed",
+        "e0-groundless-situation-rejected": "passed",
+        "e0-boundary": "passed"
+      }
+    }
+  }
+}

@@ -31,6 +31,9 @@ import { r1Page } from './r1.ts';
 import { r2Page } from './r2.ts';
 import { r3Page } from './r3.ts';
 import { r4Page } from './r4.ts';
+import { r5Page } from './r5.ts';
+import { r6Page } from './r6.ts';
+import { e0Page } from './e0.ts';
 
 export interface LabPage {
   /** 해시 라우트 (`#/v1`) */
@@ -70,6 +73,9 @@ export const LAB_PAGES: readonly LabPage[] = [
   { route: '/r2', id: 'R2', title: '사건이 남기는 흔적', render: r2Page },
   { route: '/r3', id: 'R3', title: '감각과 위치에 따른 감지', render: r3Page },
   { route: '/r4', id: 'R4', title: '믿는 세계', render: r4Page },
+  { route: '/r5', id: 'R5', title: '기억과 관계', render: r5Page },
+  { route: '/r6', id: 'R6', title: '행동 의도 생성', render: r6Page },
+  { route: '/e0', id: 'E0', title: '상황 군집', render: e0Page },
 ];
 
 /** 라우트로 페이지를 찾는다. 없으면 첫 페이지. */
