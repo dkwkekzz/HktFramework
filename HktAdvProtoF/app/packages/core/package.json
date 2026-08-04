@@ -30,7 +30,9 @@
     "./r1": "./src/r1/index.ts",
     "./r2": "./src/r2/index.ts",
     "./r3": "./src/r3/index.ts",
-    "./r4": "./src/r4/index.ts"
+    "./r4": "./src/r4/index.ts",
+    "./r5": "./src/r5/index.ts",
+    "./r6": "./src/r6/index.ts"
   },
   "scripts": {
     "test": "node --test \"test/**/*.test.ts\""

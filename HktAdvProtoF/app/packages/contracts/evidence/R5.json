@@ -1,0 +1,38 @@
+{
+  "module": "R5-memory-and-relationship",
+  "sourceHash": "cb708dcf327723e2",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "08951d7508142a1d",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/lab/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r5 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "R5",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 1327,
+      "passed": 1327
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "r5-hearsay-carries-blame": "passed",
+        "r5-groundless-memory-rejected": "passed",
+        "r5-boundary": "passed"
+      }
+    }
+  }
+}

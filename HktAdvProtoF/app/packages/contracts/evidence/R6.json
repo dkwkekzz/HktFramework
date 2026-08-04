@@ -1,0 +1,38 @@
+{
+  "module": "R6-action-intent",
+  "sourceHash": "16b313f6226e919a",
+  "unitTests": "passed",
+  "propertyTests": "passed",
+  "labScenarios": "manual",
+  "integrationScenario": "passed",
+  "replayHash": "8388e413c8a9d6c6",
+  "status": "VERIFIED",
+  "blockers": [],
+  "detail": {
+    "generator": "packages/lab/verify/evidence.ts",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/r6 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
+    "coverage": {
+      "module": "R6",
+      "normal": 1,
+      "failure": 1,
+      "boundary": 1,
+      "complete": true
+    },
+    "tests": {
+      "total": 1327,
+      "passed": 1327
+    },
+    "scenarios": {
+      "total": 3,
+      "passed": 3,
+      "failed": 0,
+      "coverageComplete": true,
+      "byId": {
+        "r6-grudge-becomes-action": "passed",
+        "r6-groundless-intent-rejected": "passed",
+        "r6-boundary": "passed"
+      }
+    }
+  }
+}
