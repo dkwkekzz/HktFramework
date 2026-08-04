@@ -35,19 +35,19 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: R6-a
     name: intent
     purpose: 계획의 걸음 하나가 요청이 된다 · 상대가 필요한 원자는 여섯뿐이다.
-    status: IN_PROGRESS
+    status: DONE
   - id: R6-b
     name: aim
     purpose: 사이가 상대를 고른다 — 원한은 등지는 손을, 신뢰는 내미는 손을 부른다.
-    status: PLANNED
+    status: DONE
   - id: R6-c
     name: queue
     purpose: 의도장·감사와 고리 닫기 — 의도가 사건이 되고 흔적이 나 다시 읽힌다.
-    status: PLANNED
+    status: DONE
   - id: R6-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 의도 큐로 R6 를 눈으로 확인한다.
-    status: PLANNED
+    status: DONE
 
 scenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)
   - r6-grudge-becomes-action     # 정상: 원한이 04 를 겨눈 요청이 되고 그것이 사건·흔적으로 돌아온다
@@ -63,4 +63,5 @@ elements:
 
 lab: /lab/r6
 
-status: IN_PROGRESS
+status: VERIFIED
+evidence: evidence/R6.json

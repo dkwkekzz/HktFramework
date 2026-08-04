@@ -421,6 +421,19 @@ export const MODULE_SOURCES: readonly ModuleSourceSpec[] = [
     labSubstitute: labOf('R5'),
   },
   {
+    id: 'R6',
+    name: 'R6-action-intent',
+    sources: [
+      'packages/core/src/r6/index.ts',
+      'packages/core/src/r6/violation.ts',
+      'packages/core/src/r6/intent.ts',
+      'packages/core/src/r6/aim.ts',
+      'packages/core/src/r6/queue.ts',
+    ],
+    testPackage: 'packages/core',
+    labSubstitute: labOf('R6'),
+  },
+  {
     id: 'V4',
     name: 'V4-completion-evidence',
     sources: [
