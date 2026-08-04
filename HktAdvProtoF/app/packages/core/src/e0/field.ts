@@ -317,6 +317,8 @@ export interface SituationEdge {
   readonly leftId: Id;
   readonly rightId: Id;
   readonly aim: SituationPair['aim'];
+  /** 겨눈 자들 — **화살의 방향이다.** 한쪽만 겨누면 하나, 서로 겨누면 둘, 눈멂이면 빈 배열 */
+  readonly aimerIds: readonly Id[];
   readonly ambush: boolean;
   /** 굵기 — 그 상황의 급함이다 */
   readonly weight: number;
@@ -359,6 +361,7 @@ export function situationGraphOf(field: SituationField): SituationGraph {
         leftId: pair.leftId,
         rightId: pair.rightId,
         aim: pair.aim,
+        aimerIds: pair.aimerIds,
         ambush: pair.ambush,
         weight: situation.urgency,
         label: `${stakeAxisLabel(situation.axis)} ${situation.key} — ${aimLabel(pair.aim)}${pair.ambush ? ' · 매복' : ''}`,

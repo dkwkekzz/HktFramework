@@ -1,27 +1,27 @@
 {
-  "module": "V2-scenario-runner",
-  "sourceHash": "e996f7877fb13e9a",
+  "module": "E0-situation-clustering",
+  "sourceHash": "25eccabc95880c1e",
   "unitTests": "passed",
   "propertyTests": "passed",
   "labScenarios": "manual",
   "integrationScenario": "passed",
-  "replayHash": "0aaaa0d5eeabf9fa",
+  "replayHash": "9e8b9679e1efc584",
   "status": "VERIFIED",
   "blockers": [],
   "detail": {
     "generator": "packages/lab/verify/evidence.ts",
-    "labSubstitute": "packages/scenarios/verify/v2.ts",
-    "testPackage": "packages/scenarios",
+    "labSubstitute": "packages/lab/verify/v3.ts — 본 검증은 브라우저 /lab/e0 (npm run dev --workspace @hkt/lab)",
+    "testPackage": "packages/core",
     "coverage": {
-      "module": "V2",
+      "module": "E0",
       "normal": 1,
       "failure": 1,
       "boundary": 1,
       "complete": true
     },
     "tests": {
-      "total": 111,
-      "passed": 111
+      "total": 1390,
+      "passed": 1390
     },
     "scenarios": {
       "total": 3,
@@ -29,9 +29,9 @@
       "failed": 0,
       "coverageComplete": true,
       "byId": {
-        "v2-passing-report": "passed",
-        "v2-failure-report": "passed",
-        "v2-boundary": "passed"
+        "e0-recognized-contest": "passed",
+        "e0-groundless-situation-rejected": "passed",
+        "e0-boundary": "passed"
       }
     }
   }
