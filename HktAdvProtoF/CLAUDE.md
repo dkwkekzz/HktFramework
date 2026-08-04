@@ -37,6 +37,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO + 열린 이슈** (핵심만 — 상세는 progress/) |
+| [design/Design-CyclePlan.md](design/Design-CyclePlan.md) | **진행 설계도 (마스터)** — Cycle 정의 · 목표 게임 · 막 구조. Workflow = ① 설계도 분할 → ② 구현 |
+| [design/cycles/cycle-N.md](design/cycles/) | Cycle 상세 설계도 — 전 Step 의 구현 수준 블록 (작업 카드의 출처) |
 | [progress/stage-N.md](progress/) | 닫힌 단계의 진행 기록 — 하위 작업별 확인 장면 전문 + 그 단계의 게이트 (WORKFLOW §8 규칙) |
 | [progress/deferred.md](progress/deferred.md) | **유예 장부** — 각 계층이 뒤에 넘긴 자리, 갚을 계층별 색인. 새 계층 착수 시 여기서 작업 카드를 꺼낸다 |
 | [progress/closed-issues.md](progress/closed-issues.md) | 닫힌 이슈 · 상환된 소급 부채 (STATE.md 열린 이슈 표에서 내려온 것) |
