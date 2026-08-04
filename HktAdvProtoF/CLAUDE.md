@@ -37,7 +37,10 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO + 열린 이슈** (핵심만 — 상세는 progress/) |
-| [progress/](progress/) | 닫힌 단계의 진행 기록 — 하위 작업별 확인 장면 전문 (`stage-N.md`, WORKFLOW §8 규칙) |
+| [progress/stage-N.md](progress/) | 닫힌 단계의 진행 기록 — 하위 작업별 확인 장면 전문 + 그 단계의 게이트 (WORKFLOW §8 규칙) |
+| [progress/deferred.md](progress/deferred.md) | **유예 장부** — 각 계층이 뒤에 넘긴 자리, 갚을 계층별 색인. 새 계층 착수 시 여기서 작업 카드를 꺼낸다 |
+| [progress/closed-issues.md](progress/closed-issues.md) | 닫힌 이슈 · 상환된 소급 부채 (STATE.md 열린 이슈 표에서 내려온 것) |
+| [progress/renderers.md](progress/renderers.md) | 공용 렌더러 5종 구현·소비 이력 (WORKFLOW §6) |
 | [reviews/](reviews/) | 구현 리뷰 기록 — 리뷰가 발견한 이슈의 **원본 장부는 STATE.md 열린 이슈 표**이고, GitHub 이슈는 사람 알림용 미러다 |
 
 `design/` 은 원문, `modules/` 는 원문에서 파생한 작업 설계다. 파생 문서는 진행에 따라 갱신하지만
