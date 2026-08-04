@@ -1,4 +1,4 @@
-// R5 기억과 관계 — 다시 볼 수 없게 된 것이 기억이 되고, 겪은 자가 상대를 짚으며, 그 기억이 사이를 민다.
+// R5 기억과 관계 — 다시 볼 수 없게 된 것이 기억이 되고, 겪은 자가 상대를 짚으며, 그 지목이 말을 탄다.
 
 export {
   MEMORY_GROUNDS,
@@ -41,6 +41,41 @@ export {
   type RelationAxis,
   type Relationship,
 } from './regard.ts';
+
+export {
+  checkHearsay,
+  hear,
+  openRumorField,
+  recordTelling,
+  rumorDecay,
+  speak,
+  storiesOf,
+  storyVariants,
+  tellingIdOf,
+  type HearResult,
+  type RumorField,
+  type SpeakResult,
+  type SpeakSpec,
+  type Story,
+  type Telling,
+} from './rumor.ts';
+
+export {
+  auditMemories,
+  compareBlame,
+  memoriesFor,
+  memoryLedgerVerdict,
+  openMemoryLedger,
+  recordMemories,
+  rememberersOf,
+  unattributed,
+  unheard,
+  unspoken,
+  type AuditSpec,
+  type BlameCheck,
+  type MemoryAudit,
+  type MemoryLedger,
+} from './ledger.ts';
 
 export {
   memoryViolationVerdict,
