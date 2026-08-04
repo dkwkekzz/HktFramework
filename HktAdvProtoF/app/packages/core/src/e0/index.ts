@@ -46,3 +46,21 @@ export {
   type SituationPair,
   type Solitude,
 } from './cluster.ts';
+
+export {
+  auditSituations,
+  calm,
+  detectSituations,
+  fillSituationField,
+  openSituationField,
+  situationFieldVerdict,
+  situationGraphOf,
+  situationsFor,
+  type AuditSpec,
+  type DetectSituationResult,
+  type SituationAudit,
+  type SituationEdge,
+  type SituationField,
+  type SituationGraph,
+  type SituationNode,
+} from './field.ts';

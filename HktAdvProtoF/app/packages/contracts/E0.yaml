@@ -50,11 +50,11 @@ subtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW
   - id: E0-b
     name: cluster
     purpose: 둘 이상 걸린 자리만 상황이 되고, 그 안의 쌍마다 겨눔과 앎이 갈린다.
-    status: IN_PROGRESS
+    status: DONE
   - id: E0-c
     name: field
     purpose: 상황장·감사 — 빠뜨린 상황은 걸리고, 혼자 걸린 자리는 사실로 남는다.
-    status: PLANNED
+    status: IN_PROGRESS
   - id: E0-d
     name: eye-check
     purpose: 시나리오 3종과 Lab 상황 클러스터 맵으로 E0 를 눈으로 확인한다.
