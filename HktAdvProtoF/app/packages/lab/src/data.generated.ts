@@ -31,7 +31,7 @@ export const CONTRACT_SOURCES: readonly ContractSource[] = [
   },
   {
     "name": "E0.yaml",
-    "text": "# 선등록(PLANNED) — 아직 착수하지 않은 모듈의 계약이다.\n# 레지스트리의 \"착수 가능\" 목록은 **등록된 미완료 모듈** 중에서 계산된다. 계약이 없으면\n# 다음에 할 일이 계산되지 않으므로, 다음 모듈은 착수 전에 PLANNED 로 미리 등록한다 (#663).\n# 착수하면 이 파일을 IN_PROGRESS → VERIFIED 로 올리고 나머지 필드를 실물에 맞춘다.\n#\n# 단계 4(E 계층 — 충돌과 콘텐츠 사건)의 첫 모듈이다. R6 가 증거로 닫혔으므로 착수를 막는\n# 게이트는 없다. 앞 계층이 여기로 넘긴 자리:\n#   - D5 가 남긴 한 줄: \"누가 누구와 싸우는지는 서로를 봐야 알고, 상황으로 묶는 것은 E0 다.\"\n#     D5 는 \"이 대상 앞에 이들이 함께 서 있다\" 까지이고 주체끼리는 잇지 않았다.\n#   - R1 이 남긴 한 줄: \"같은 틱에 같은 자리를 다투는 사건 둘의 판정은 D5·E0 의 몫이다.\"\n#   - R6 가 남긴 한 줄: 의도는 한 주체의 것이다 — 여럿의 의도가 같은 자리에 걸리는 것을\n#     보는 눈이 아직 없다.\n\nid: E0\nname: situation-clustering\npurpose: >\n  같은 공간·자원·대상에 걸린 목적과 의도들을 하나의 **상황**으로 묶는다.\n\ninputs: [ActionIntent, ActiveGoal, DependencyConflict, Relationship]\noutputs: [Situation]\n\nwrites: []                      # 상황은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, D5, P0, P1, P2, P3, P4, P5, R0, R1, R2, R3, R4, R5, R6]\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1) — 착수 시 확정한다\n  - e0-intents-cluster-into-situation\n  - e0-groundless-situation-rejected\n  - e0-boundary\n\nelements:\n  - name: Situation\n    ontology: Event             # 착수 시 확정한다 — D5 `Contest` 가 이미 \"이 대상 앞에 이들이\n                                # 함께 서 있다\" 를 갖고 있고, E0 는 거기에 의도를 얹는다.\n    renderer: graph             # 상황 클러스터 맵 — MODULES.md E0 행\n\nlab: /lab/e0\n\nstatus: PLANNED\n"
+    "text": "# 단계 4(E 계층 — 충돌과 콘텐츠 사건)의 첫 모듈. R6 가 증거로 닫혔으므로 착수를 막는 게이트는 없다.\n#\n# 앞 계층이 여기로 넘긴 자리:\n#   - D5 가 남긴 한 줄: \"누가 누구와 싸우는지는 서로를 봐야 알고, 상황으로 묶는 것은 E0 다.\"\n#     D5 는 \"이 대상 앞에 이들이 함께 서 있다\" 까지이고 주체끼리는 잇지 않았다.\n#   - R1 이 남긴 한 줄: \"같은 틱에 같은 자리를 다투는 사건 둘의 판정은 D5·E0 의 몫이다.\"\n#     → E0 는 그 자리를 **세우는** 데까지 갚는다. 판정 자체는 E3 다 (아래 \"뒤에 넘기는 자리\").\n#   - R6 가 남긴 한 줄: 의도는 한 주체의 것이다 — 여럿의 의도가 같은 자리에 걸리는 것을\n#     보는 눈이 아직 없다.\n#\n# E0 가 새로 정하는 것은 **둘뿐**이고 둘 다 결과를 갖는다 (R6 가 세운 설계 시험 그대로 —\n# \"그래서 무엇이 달라지는가\" 를 한 줄로 못 대는 규칙은 세우지 않는다).\n#\n#   ① **혼자 걸린 자리는 상황이 아니다.**   → 세계의 대부분은 상황이 아니다. 상황이 흔해지면\n#                                             아무 뜻도 갖지 못한다 (D5 \"겹친다고 다툼은 아니다\").\n#   ② **겹쳤다고 서로를 아는 것은 아니다.** → 같은 상황 안에서도 **서로 겨눈 쌍**과 **한쪽만\n#                                             겨눈 쌍**과 **아무도 겨누지 않은 쌍**이 갈리고,\n#                                             겨누는 자를 상대가 아는지까지 갈린다(매복).\n#                                             그 값이 E3 판정의 정보 표면 입력이 된다.\n#\n# 읽어 오는 것 (E0 는 다시 재지 않는다):\n#   무엇을 겨누는가        R6 `ActionIntent.aim` · `proposal.changes` · `proposal.targetIds`\n#   무엇을 좇는가          P4 `ActiveGoal.nodeId`\n#   무엇을 다투는가        D5 `DependencyConflict`(자리·대상 축) — 급함도 D5 severity 그대로\n#   누구를 아는가          R6 `knownCounterparts` (R5 지목 + 세계에 적힌 사이)\n#\n# 북극성 기여 (CLAUDE.md — 새 계층의 첫 계약이므로 한 줄씩):\n#   ① 능력 — 상황 안의 `awareness` 가 E3 능력 충돌 판정의 **정보 표면** 입력을 미리 값으로 세운다.\n#            \"정보 상태만 바꿔 승패가 뒤집히는 장면\" 이 서려면 그 정보가 먼저 상황 안에 있어야 한다.\n#   ② 세계관 — 같은 자리에 걸린 것을 묶는 눈이 E5 **제도 무대**(무대 안 Situation 재해석)의 전제다.\n\nid: E0\nname: situation-clustering\npurpose: >\n  같은 공간·자원·대상·사람에 걸린 목적과 의도들을 하나의 **상황**으로 묶고,\n  그 안에서 **누가 누구를 알아보는가**를 값으로 세운다.\n\ninputs: [ActionIntent, ActiveGoal, DependencyConflict, Memory, WorldState]\noutputs: [SituationStake, Situation, SituationPair, SituationField, SituationViolation]\n\nwrites: []                      # 상황은 세계가 아니다 — 세계를 바꾸는 것은 여전히 R1 뿐이다.\n\ndepends: [V1, V2, V0, V3, V4, O1, O2, O0, S0, S1, S2, S3, D0, D1, D2, D3, D4, D5, P0, P1, P2, P3, P4, P5, R0, R1, R2, R3, R4, R5, R6]\n\nsubtasks:                       # 검증 장면이 셋을 넘는다 → WORKFLOW §3\n  - id: E0-a\n    name: stake\n    purpose: 의도·목적·다툼이 어느 자리에 걸리는가를 한 이름으로 편다 — 사람 축이 처음 열린다.\n    status: IN_PROGRESS\n  - id: E0-b\n    name: cluster\n    purpose: 둘 이상 걸린 자리만 상황이 되고, 그 안의 쌍마다 겨눔과 앎이 갈린다.\n    status: PLANNED\n  - id: E0-c\n    name: field\n    purpose: 상황장·감사 — 빠뜨린 상황은 걸리고, 혼자 걸린 자리는 사실로 남는다.\n    status: PLANNED\n  - id: E0-d\n    name: eye-check\n    purpose: 시나리오 3종과 Lab 상황 클러스터 맵으로 E0 를 눈으로 확인한다.\n    status: PLANNED\n\nscenarios:                      # 정상 1 + 실패 1 + 경계 1 (WORKFLOW §5.1)\n  - e0-recognized-contest        # 정상: 넷의 겨눔이 한 상황으로 묶이고, 아는 자와 모르는 자가 갈린다\n  - e0-groundless-situation-rejected # 실패: 혼자뿐인 상황·자기 쌍·결과를 적은 상황·빠뜨린 상황\n  - e0-boundary                  # 경계: 빈 재료 · 걸린 자리가 하나뿐 · 같은 주체 안의 겹침\n\nelements:\n  - name: SituationStake\n    ontology: null              # 걸림은 세계에 적히는 것이 아니라 의도·다툼에서 읽히는 것이다 —\n                                # D5 `DependencyClaim` 과 같은 처지다.\n    renderer: graph             # 상황 클러스터 맵의 재료 — MODULES.md E0 행\n  - name: Situation\n    ontology: null              # **O1 12타입에 없고, 없는 것이 옳다.** D5 `DependencyConflict` 가\n                                # 든 이유 그대로다 — 상황은 세계에 적히는 것이 아니라 여럿의 의도\n                                # 사이에서 읽히는 것이고, 세계에 적히는 것은 그것이 사건으로\n                                # **확정될 때**이며 그것은 E3 다.\n    renderer: graph             # 상황 클러스터 맵 (주체↔주체 간선) — MODULES.md E0 행\n\nlab: /lab/e0\n\nstatus: IN_PROGRESS\n\n# E0 가 뒤에 넘기는 자리:\n#   - **이기는 자를 정하지 않는다.** 상황이 섰다는 것과 그 안에서 누가 누구를 알아보는가까지다 —\n#     결과를 확정하는 것은 E3 다 (D5 가 세운 못을 그대로 진다).\n#   - **무엇을 하자고 하는가는 정하지 않는다.** 요청인지 협박인지 거래인지를 고르는 것은 E1 이고,\n#     E0 는 그 선택이 놓일 자리(상황과 그 안의 앎)까지다.\n#   - **다대다 겨눔은 쌍으로만 편다.** 한 의도가 여럿을 한꺼번에 겨누는 일은 아직 없다 —\n#     상황 안의 쌍이 그것을 대신하고, 진짜 다대다는 E3·E4 의 자리다.\n"
   },
   {
     "name": "O0.yaml",
@@ -158,8 +158,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -196,8 +196,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -234,8 +234,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -272,8 +272,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -310,8 +310,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -348,8 +348,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -386,8 +386,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -424,8 +424,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -462,8 +462,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -500,8 +500,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -538,8 +538,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -576,8 +576,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -614,8 +614,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -652,8 +652,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -690,8 +690,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -728,8 +728,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -766,8 +766,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -804,8 +804,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -842,8 +842,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -880,8 +880,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -918,8 +918,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -956,8 +956,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -994,8 +994,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -1032,8 +1032,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -1070,8 +1070,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -1108,8 +1108,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
@@ -1187,8 +1187,8 @@ export const EVIDENCE: Readonly<Record<string, Evidence>> = {
         "complete": true
       },
       "tests": {
-        "total": 1327,
-        "passed": 1327
+        "total": 1351,
+        "passed": 1351
       },
       "scenarios": {
         "total": 3,
