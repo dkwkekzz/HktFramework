@@ -13,9 +13,6 @@
 | [docs/Design-MasterPlan.md](docs/Design-MasterPlan.md) — 세계 설계도 (원문) | 작성 완료 |
 | [docs/Design-ModulePlan.md](docs/Design-ModulePlan.md) — 모듈 분할 및 점진적 구현 계획 (원문) | 작성 완료 |
 
-구 `WORKFLOW.md` 는 폐기 — 내용은 Design-ModulePlan-CycleWorkflow.md 에 통합됨
-(§4.2 우회 구현 금지 2항, §6.3 완료 판정 순서, §11 계획 산출물 6종).
-
 ### 스킬 (작업 방식 단위 — `.claude/skills/advprotog-*`)
 
 | 스킬 | 상태 |
@@ -25,8 +22,6 @@
 | `advprotog-scenario-verifier` — Scenario·완료 증거 검증 | 등록 완료 |
 | `advprotog-cycle-integrator` — Cycle 통합·VERIFIED 판정 | 등록 완료 |
 | `advprotog-workflow-maintainer` — Workflow·Skill 구조 변경 | 등록 완료 |
-
-구 `advprotog-cycle-plan` 스킬은 `advprotog-cycle-planner` 로 대체·폐기.
 
 ### Cycle
 
