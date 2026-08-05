@@ -72,6 +72,7 @@ export function createC01Cast(seed, ontology) {
   const counts = { villager: 3, 'hunters-guild': 1, merchant: 1, 'herd-beast': 1, 'apex-monster': 1, 'resource-colony': 1 };
   const subjects = {};
   for (const profile of C01_ARCHETYPE_PROFILES) {
+    if (!counts[profile.archetype]) continue;
     for (let i = 0; i < counts[profile.archetype]; i++) {
       const s = createIndividual(rng, profile, idGen);
       subjects[s.id] = s;

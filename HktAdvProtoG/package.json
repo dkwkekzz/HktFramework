@@ -6,6 +6,8 @@
   "description": "목적 트리 기반 오픈월드 어드벤처 프로토타입 — Foundation + Cycle 구현",
   "scripts": {
     "test": "node --test 'packages/**/*.test.js'",
-    "foundation:check": "node scripts/run-foundation-check.mjs"
+    "foundation:check": "node scripts/run-foundation-check.mjs",
+    "check:steps": "for f in scripts/check-*.mjs; do echo \"— $f\"; node \"$f\" || exit 1; done",
+    "check:all": "npm test && npm run foundation:check && npm run check:steps"
   }
 }

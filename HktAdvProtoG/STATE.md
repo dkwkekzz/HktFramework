@@ -50,14 +50,19 @@
 |---|---|---|
 | C01-V-S01 | [C01-V-S01.json](cycles/C01-border-canyon/evidence/C01-V-S01.json) | C01 등록·lint 0 오류, 검증 세션 통과 |
 | C01-O-S01 | [C01-O-S01.json](cycles/C01-border-canyon/evidence/C01-O-S01.json) | 공리 5종 (`packages/ontology/`), 실패 Scenario 5종 통과, registryHash `111573ec9f3760b5` |
-| C01-O-S02 | [C01-O-S02.json](cycles/C01-border-canyon/evidence/C01-O-S02.json) | 존재론 카탈로그(장소6·경로3·주체6·역할4·자원6·제작물4·사건타입9) + 상태 스키마 v1, ontologyHash `41841aa70a7dd1ea` |
+| C01-O-S02 | [C01-O-S02.json](cycles/C01-border-canyon/evidence/C01-O-S02.json) | 존재론 카탈로그(장소6·경로3·주체7=원형6+player·역할4·자원6·제작물4·사건타입9) + 상태 스키마 v1, ontologyHash `ad1590bf20bcaffb` |
 | C01-S-S01 | [C01-S-S01.json](cycles/C01-border-canyon/evidence/C01-S-S01.json) | 원형 프로필 6종+역할 4종 (`packages/subjects/`), 표준 배역 8주체 결정적 생성, castHash `2af9d14732bde51a` |
+| C01-D-S01 | [C01-D-S01.json](cycles/C01-border-canyon/evidence/C01-D-S01.json) | 의존 6계열·의존 21건·경합 대상 14종 (`packages/dependencies/`), 기준 장면 압력 0·충돌 0, pressureHash `bce1764b284c89db` |
+
+**구간 1 (주체와 압력) 종료 조건 충족** — 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현됨
+(`node scripts/check-C01-D-S01.mjs` 4번째 점검). 전체 재현: `npm run check:all`.
 
 ## TODO
 
-- [ ] **C01-D-S01** — 의존 그래프 6계열(먹이·안전·부산물·치료·서식지·평판) + 충족도 평가·충돌 탐지
-      (`advprotog-step-implementer`, 구간 1 마지막 Step)
-- [ ] 구간 1 종료 조건: D 출력이 5개 Situation 충돌 구조를 모두 표현 (STEPS.md)
-- [ ] (권장) V-S01~D-S01 묶음 검증 세션 (`advprotog-scenario-verifier`) — 구간 1 종료 시
+- [ ] **(권장) 구간 1 묶음 검증** — `advprotog-scenario-verifier` 로 V-S01~D-S01 재현·증거 대조
+- [ ] 구간 2 착수: **C01-P-S01** (행동 원자 + 전략 6계열 + 목적 선택) —
+      D 의 `dominant`·압력이 P 의 목적 활성화 입력이 된다
+- [ ] 구간 2 잔여: C01-Q-S01(세계 요구) → C01-W-S01(협곡 실체화)
+- [ ] 구간 2 종료 조건: `cycle:trace` 미근거 세계 요소 0건 (STEPS.md)
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
       Foundation 구현이 실체를 갖춘 뒤 `advprotog-workflow-maintainer` 로 추가한다.

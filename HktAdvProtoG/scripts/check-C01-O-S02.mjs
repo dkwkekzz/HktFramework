@@ -24,7 +24,10 @@ check('CYCLE.yaml 요소 전부 존재론 표현 (완료 조건)', () => {
   for (const id of cycleSpec.resourceEconomy.resources) if (!ontology.has('resource', id)) misses.push(`resource/${id}`);
   for (const id of cycleSpec.resourceEconomy.crafts) if (!ontology.has('craft-item', id)) misses.push(`craft/${id}`);
   if (misses.length) throw new Error(`누락: ${misses.join(', ')}`);
-  return `장소6 경로3 주체6 역할4 자원6 제작물4 사건타입${ontology.idsByKind('event-type').length}`;
+  return `장소${ontology.idsByKind('place').length} 경로${ontology.idsByKind('route').length} `
+    + `주체${ontology.idsByKind('subject-archetype').length}(원형6+player) 역할${ontology.idsByKind('player-role').length} `
+    + `자원${ontology.idsByKind('resource').length} 제작물${ontology.idsByKind('craft-item').length} `
+    + `사건타입${ontology.idsByKind('event-type').length}`;
 });
 
 check('초기 상태가 스키마 v1 을 통과', () => {

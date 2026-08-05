@@ -60,6 +60,35 @@ function render() {
     }
     html += '</table>';
   }
+  if (runA.pressures) {
+    html += '<h2>의존 압력 (D4)</h2><table><tr><th>주체</th><th>의존</th><th>요구</th><th>조달</th><th>압력</th>'
+      + (runB?.pressures ? '<th>B 압력</th><th>Δ</th>' : '') + '<th>근거</th></tr>';
+    for (const p of runA.pressures) {
+      const bp = runB?.pressures?.find((x) => x.id === p.id);
+      const delta = bp ? bp.pressure - p.pressure : 0;
+      const via = (p.via ?? []).map((v) => `${v.target}:${v.taken}`).join(', ') || '—';
+      html += `<tr><td>${esc(p.holderLabel ?? p.holder)}</td><td>${esc(p.kind)}</td><td>${p.demand}</td>`
+        + `<td>${esc(via)}</td><td class="${p.pressure > 0 ? 'fail' : 'pass'}">${p.pressure.toFixed(2)}</td>`
+        + (runB?.pressures ? `<td class="${bp && bp.pressure > 0 ? 'fail' : 'pass'}">${bp ? bp.pressure.toFixed(2) : '—'}</td>`
+            + `<td class="${delta > 0 ? 'diverge' : ''}">${delta ? (delta > 0 ? '+' : '') + delta.toFixed(2) : ''}</td>` : '')
+        + `<td>${esc(p.rationale ?? '')}</td></tr>`;
+    }
+    html += '</table>';
+  }
+  if (runA.conflicts) {
+    const renderConflicts = (label, list) => {
+      let h = `<h2>의존 충돌 (D5) — ${esc(label)}</h2>`;
+      if (!list.length) return h + '<p class="pass">충돌 없음</p>';
+      h += '<table><tr><th>경합 대상</th><th>공급</th><th>신청</th><th>부족</th><th>신청자</th></tr>';
+      for (const c of list)
+        h += `<tr><td>${esc(c.target)}${c.selfContention ? ' <em>(자체 경합)</em>' : ''}</td><td>${c.supply}</td>`
+          + `<td class="fail">${c.totalDemand}</td><td>${c.shortfall}</td>`
+          + `<td>${esc(c.claimants.map((x) => `${x.holderLabel ?? x.holder}:${x.kind}(${x.amount})`).join(', '))}</td></tr>`;
+      return h + '</table>';
+    };
+    html += renderConflicts(runA.label ?? 'A', runA.conflicts);
+    if (runB?.conflicts) html += renderConflicts(runB.label ?? 'B', runB.conflicts);
+  }
   if (runA.events) {
     html += '<h2>이벤트 (인과 추적)</h2><table><tr><th>seq</th><th>tick</th><th>type</th><th>traceId</th><th>payload</th></tr>';
     for (const e of runA.events)

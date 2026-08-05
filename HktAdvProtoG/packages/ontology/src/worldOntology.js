@@ -52,10 +52,15 @@ export class WorldOntology {
 export const WORLD_STATE_SCHEMA_VERSION = 1;
 const STATE_REQUIRED_KEYS = ['schemaVersion', 'tick', 'region', 'subjects', 'resources', 'ownership', 'contracts', 'observedPaths'];
 
-/** 스키마 v1 을 따르는 빈 정식 세계 상태 — 자원 재고는 존재론의 자원 전 종을 0 으로 초기화 */
+/** 재고를 가질 수 있는 것 = 원자재(resource) + 제작물(craft-item). 둘 다 state.resources 에 산다 */
+export function stockableIds(ontology) {
+  return [...ontology.idsByKind('resource'), ...ontology.idsByKind('craft-item')].sort();
+}
+
+/** 스키마 v1 을 따르는 빈 정식 세계 상태 — 재고 가능한 전 품목을 0 으로 초기화 */
 export function createInitialWorldState(ontology) {
   const resources = {};
-  for (const id of ontology.idsByKind('resource')) resources[id] = 0;
+  for (const id of stockableIds(ontology)) resources[id] = 0;
   return {
     schemaVersion: WORLD_STATE_SCHEMA_VERSION,
     tick: 0,
@@ -76,8 +81,9 @@ export function validateWorldState(state, ontology) {
   for (const k of STATE_REQUIRED_KEYS) if (state?.[k] === undefined) errors.push(`상태 필수 키 누락: ${k}`);
   if (errors.length) return errors;
 
+  const stockable = new Set(stockableIds(ontology));
   for (const id of Object.keys(state.resources))
-    if (!ontology.has('resource', id)) errors.push(`미등록 자원 재고: ${id}`);
+    if (!stockable.has(id)) errors.push(`미등록 자원 재고: ${id}`);
   for (const [id, qty] of Object.entries(state.resources))
     if (!Number.isFinite(qty) || qty < 0) errors.push(`자원 수량 불량: ${id}=${qty}`);
   for (const id of Object.keys(state.region.places))

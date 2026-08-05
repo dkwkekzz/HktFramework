@@ -26,6 +26,8 @@ export function defineC01Ontology() {
   o.addEntity('subject-archetype', { id: 'herd-beast', name: '초식 무리', actorKind: 'population', goals: ['forage', 'breeding', 'migration'] });
   o.addEntity('subject-archetype', { id: 'apex-monster', name: '거대 포식 마물', actorKind: 'individual', goals: ['prey', 'lair', 'recovery'] });
   o.addEntity('subject-archetype', { id: 'resource-colony', name: '자원 군락', actorKind: 'population', goals: ['regeneration'] });
+  // 플레이어도 정식 세계의 주체다 — state.subjects 에 살기 위해 존재론 어휘가 필요하다
+  o.addEntity('subject-archetype', { id: 'player', name: '플레이어', actorKind: 'individual', goals: [] });
 
   // 플레이어 역할 4
   o.addEntity('player-role', { id: 'tracker', name: '추적꾼' });

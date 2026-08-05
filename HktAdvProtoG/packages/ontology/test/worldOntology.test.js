@@ -84,7 +84,7 @@ test('존재론 스냅샷 해시는 결정적이다', () => {
   const b = defineC01Ontology().snapshot();
   assert.equal(a.hash, b.hash);
   assert.equal(a['place'].length, 6);
-  assert.equal(a['subject-archetype'].length, 6);
+  assert.equal(a['subject-archetype'].length, 7); // 원형 6 + player
   assert.equal(a['resource'].length, 6);
   assert.equal(a['craft-item'].length, 4);
 });

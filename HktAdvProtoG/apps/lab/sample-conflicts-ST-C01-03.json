@@ -1,0 +1,615 @@
+{
+  "label": "ST-C01-03",
+  "pressures": [
+    {
+      "id": "sub-000007:byproduct:rare-byproducts",
+      "holder": "sub-000007",
+      "kind": "byproduct",
+      "targets": [
+        "rare-byproducts",
+        "rare-individual"
+      ],
+      "demand": 2,
+      "unmet": 2,
+      "satisfaction": 0,
+      "pressure": 1,
+      "via": [],
+      "rationale": "희귀 개체가 나타나면 상인은 그 부산물을 원한다",
+      "holderLabel": "merchant"
+    },
+    {
+      "id": "pl-crafter:byproduct:market-inventory",
+      "holder": "pl-crafter",
+      "kind": "byproduct",
+      "targets": [
+        "market-inventory"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "market-inventory",
+          "taken": 2
+        }
+      ],
+      "rationale": "제작자는 장비 재료를 시장에서 산다",
+      "holderLabel": "dresser-crafter(플레이어)"
+    },
+    {
+      "id": "pl-crafter:healing:healing-herb",
+      "holder": "pl-crafter",
+      "kind": "healing",
+      "targets": [
+        "healing-herb",
+        "marsh-colony"
+      ],
+      "demand": 3,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "healing-herb",
+          "taken": 3
+        }
+      ],
+      "rationale": "제작자는 치료제 재료로 약초가 필요하고, 부족하면 습지에서 직접 채집한다",
+      "holderLabel": "dresser-crafter(플레이어)"
+    },
+    {
+      "id": "pl-hunter:byproduct:rare-byproducts",
+      "holder": "pl-hunter",
+      "kind": "byproduct",
+      "targets": [
+        "rare-byproducts",
+        "apex-byproducts"
+      ],
+      "demand": 3,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "rare-byproducts",
+          "taken": 2
+        },
+        {
+          "target": "apex-byproducts",
+          "taken": 1
+        }
+      ],
+      "rationale": "사냥꾼은 희귀 부산물을 우선하고 없으면 포식 마물 부산물을 취한다",
+      "holderLabel": "hunter(플레이어)"
+    },
+    {
+      "id": "pl-hunter:reputation:rare-individual",
+      "holder": "pl-hunter",
+      "kind": "reputation",
+      "targets": [
+        "rare-individual",
+        "contract-fulfillment"
+      ],
+      "demand": 1,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "rare-individual",
+          "taken": 1
+        }
+      ],
+      "rationale": "사냥꾼은 고액 토벌 계약으로 명성을 얻는다",
+      "holderLabel": "hunter(플레이어)"
+    },
+    {
+      "id": "pl-tracker:reputation:contract-fulfillment",
+      "holder": "pl-tracker",
+      "kind": "reputation",
+      "targets": [
+        "contract-fulfillment"
+      ],
+      "demand": 1,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "contract-fulfillment",
+          "taken": 1
+        }
+      ],
+      "rationale": "추적꾼은 조사·정보 계약으로 평판을 쌓는다",
+      "holderLabel": "tracker(플레이어)"
+    },
+    {
+      "id": "pl-trader:byproduct:market-inventory",
+      "holder": "pl-trader",
+      "kind": "byproduct",
+      "targets": [
+        "market-inventory",
+        "export-route-capacity"
+      ],
+      "demand": 5,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "market-inventory",
+          "taken": 5
+        }
+      ],
+      "rationale": "거래자는 시장 물량을 확보하고 남으면 외부로 반출한다",
+      "holderLabel": "trader(플레이어)"
+    },
+    {
+      "id": "sub-000001:prey:village-pasture",
+      "holder": "sub-000001",
+      "kind": "prey",
+      "targets": [
+        "village-pasture"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-pasture",
+          "taken": 2
+        }
+      ],
+      "rationale": "주민은 목장 가축에서 식량을 얻는다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000001:safety:village-safety",
+      "holder": "sub-000001",
+      "kind": "safety",
+      "targets": [
+        "village-safety"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-safety",
+          "taken": 2
+        }
+      ],
+      "rationale": "주민은 마을 안전에 의존하며 겁이 많을수록 요구가 크다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000002:prey:village-pasture",
+      "holder": "sub-000002",
+      "kind": "prey",
+      "targets": [
+        "village-pasture"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-pasture",
+          "taken": 2
+        }
+      ],
+      "rationale": "주민은 목장 가축에서 식량을 얻는다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000002:safety:village-safety",
+      "holder": "sub-000002",
+      "kind": "safety",
+      "targets": [
+        "village-safety"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-safety",
+          "taken": 2
+        }
+      ],
+      "rationale": "주민은 마을 안전에 의존하며 겁이 많을수록 요구가 크다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000003:prey:village-pasture",
+      "holder": "sub-000003",
+      "kind": "prey",
+      "targets": [
+        "village-pasture"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-pasture",
+          "taken": 2
+        }
+      ],
+      "rationale": "주민은 목장 가축에서 식량을 얻는다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000003:safety:village-safety",
+      "holder": "sub-000003",
+      "kind": "safety",
+      "targets": [
+        "village-safety"
+      ],
+      "demand": 1,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-safety",
+          "taken": 1
+        }
+      ],
+      "rationale": "주민은 마을 안전에 의존하며 겁이 많을수록 요구가 크다",
+      "holderLabel": "villager"
+    },
+    {
+      "id": "sub-000004:reputation:rare-individual",
+      "holder": "sub-000004",
+      "kind": "reputation",
+      "targets": [
+        "rare-individual",
+        "contract-fulfillment"
+      ],
+      "demand": 1,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "contract-fulfillment",
+          "taken": 1
+        }
+      ],
+      "rationale": "조합은 이행 가능한 계약(특히 희귀 개체 토벌)으로 평판을 유지한다",
+      "holderLabel": "hunters-guild"
+    },
+    {
+      "id": "sub-000004:safety:village-safety",
+      "holder": "sub-000004",
+      "kind": "safety",
+      "targets": [
+        "village-safety"
+      ],
+      "demand": 6,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "village-safety",
+          "taken": 6
+        }
+      ],
+      "rationale": "조합은 마을 방위를 책임진다",
+      "holderLabel": "hunters-guild"
+    },
+    {
+      "id": "sub-000007:byproduct:export-route-capacity",
+      "holder": "sub-000007",
+      "kind": "byproduct",
+      "targets": [
+        "export-route-capacity"
+      ],
+      "demand": 3,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "export-route-capacity",
+          "taken": 3
+        }
+      ],
+      "rationale": "상인은 고가 부산물을 외부로 반출한다",
+      "holderLabel": "merchant"
+    },
+    {
+      "id": "sub-000007:byproduct:market-inventory",
+      "holder": "sub-000007",
+      "kind": "byproduct",
+      "targets": [
+        "market-inventory",
+        "apex-byproducts"
+      ],
+      "demand": 5,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "market-inventory",
+          "taken": 5
+        }
+      ],
+      "rationale": "상인은 재고를 유지해야 하며 부족하면 포식 마물 부산물로 몰린다",
+      "holderLabel": "merchant"
+    },
+    {
+      "id": "sub-000008:habitat:herd-valley-forage",
+      "holder": "sub-000008",
+      "kind": "habitat",
+      "targets": [
+        "herd-valley-forage"
+      ],
+      "demand": 3,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "herd-valley-forage",
+          "taken": 3
+        }
+      ],
+      "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
+      "holderLabel": "herd-beast"
+    },
+    {
+      "id": "sub-000008:prey:herd-valley-forage",
+      "holder": "sub-000008",
+      "kind": "prey",
+      "targets": [
+        "herd-valley-forage",
+        "marsh-colony"
+      ],
+      "demand": 5,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "herd-valley-forage",
+          "taken": 5
+        }
+      ],
+      "rationale": "무리는 골짜기 목초로 먹고, 부족하면 습지 군락으로 넘어간다",
+      "holderLabel": "herd-beast"
+    },
+    {
+      "id": "sub-000009:habitat:apex-lair",
+      "holder": "sub-000009",
+      "kind": "habitat",
+      "targets": [
+        "apex-lair"
+      ],
+      "demand": 1,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "apex-lair",
+          "taken": 1
+        }
+      ],
+      "rationale": "포식 마물은 온전한 둥지가 필요하다",
+      "holderLabel": "apex-monster"
+    },
+    {
+      "id": "sub-000009:prey:herd-population",
+      "holder": "sub-000009",
+      "kind": "prey",
+      "targets": [
+        "herd-population",
+        "village-pasture"
+      ],
+      "demand": 4,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "herd-population",
+          "taken": 4
+        }
+      ],
+      "rationale": "포식 마물은 무리를 먹고, 부족하면 목장 가축을 노린다",
+      "holderLabel": "apex-monster"
+    },
+    {
+      "id": "sub-000010:habitat:marsh-colony",
+      "holder": "sub-000010",
+      "kind": "habitat",
+      "targets": [
+        "marsh-colony"
+      ],
+      "demand": 74,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "marsh-colony",
+          "taken": 74
+        }
+      ],
+      "rationale": "군락은 훼손되지 않은 자기 군체 전량이 있어야 재생한다",
+      "holderLabel": "resource-colony"
+    }
+  ],
+  "conflicts": [
+    {
+      "target": "rare-byproducts",
+      "supply": 2,
+      "totalDemand": 5,
+      "shortfall": 3,
+      "claimants": [
+        {
+          "depId": "pl-hunter:byproduct:rare-byproducts",
+          "holder": "pl-hunter",
+          "kind": "byproduct",
+          "amount": 3,
+          "holderLabel": "hunter(플레이어)"
+        },
+        {
+          "depId": "sub-000007:byproduct:rare-byproducts",
+          "holder": "sub-000007",
+          "kind": "byproduct",
+          "amount": 2,
+          "holderLabel": "merchant"
+        }
+      ],
+      "selfContention": false
+    },
+    {
+      "target": "rare-individual",
+      "supply": 1,
+      "totalDemand": 4,
+      "shortfall": 3,
+      "claimants": [
+        {
+          "depId": "pl-hunter:reputation:rare-individual",
+          "holder": "pl-hunter",
+          "kind": "reputation",
+          "amount": 1,
+          "holderLabel": "hunter(플레이어)"
+        },
+        {
+          "depId": "sub-000004:reputation:rare-individual",
+          "holder": "sub-000004",
+          "kind": "reputation",
+          "amount": 1,
+          "holderLabel": "hunters-guild"
+        },
+        {
+          "depId": "sub-000007:byproduct:rare-byproducts",
+          "holder": "sub-000007",
+          "kind": "byproduct",
+          "amount": 2,
+          "holderLabel": "merchant"
+        }
+      ],
+      "selfContention": false
+    }
+  ],
+  "byHolder": {
+    "pl-crafter": {
+      "holder": "pl-crafter",
+      "kinds": {
+        "byproduct": 0,
+        "healing": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "pl-hunter": {
+      "holder": "pl-hunter",
+      "kinds": {
+        "byproduct": 0,
+        "reputation": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "pl-tracker": {
+      "holder": "pl-tracker",
+      "kinds": {
+        "reputation": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "pl-trader": {
+      "holder": "pl-trader",
+      "kinds": {
+        "byproduct": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000001": {
+      "holder": "sub-000001",
+      "kinds": {
+        "prey": 0,
+        "safety": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000002": {
+      "holder": "sub-000002",
+      "kinds": {
+        "prey": 0,
+        "safety": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000003": {
+      "holder": "sub-000003",
+      "kinds": {
+        "prey": 0,
+        "safety": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000004": {
+      "holder": "sub-000004",
+      "kinds": {
+        "reputation": 0,
+        "safety": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000007": {
+      "holder": "sub-000007",
+      "kinds": {
+        "byproduct": 1
+      },
+      "dominant": "byproduct",
+      "maxPressure": 1
+    },
+    "sub-000008": {
+      "holder": "sub-000008",
+      "kinds": {
+        "habitat": 0,
+        "prey": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000009": {
+      "holder": "sub-000009",
+      "kinds": {
+        "habitat": 0,
+        "prey": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    },
+    "sub-000010": {
+      "holder": "sub-000010",
+      "kinds": {
+        "habitat": 0
+      },
+      "dominant": null,
+      "maxPressure": 0
+    }
+  },
+  "hash": "dc2833c2c5f56a11"
+}

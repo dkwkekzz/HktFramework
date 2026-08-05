@@ -95,7 +95,7 @@ produces:
   - {artifact: "DependencyPressureSet + ConflictSet", consumedBy: [C01-P-S01, C01-E-S01, C01-X-S02]}
 verification:
   scenarios: ["SC-C01-D4-01 무리 감소 → 포식 마물 먹이 압력 상승·목적 변화", "SC-C01-D4-BASE-01 단일 개체 먹이 압력 계산",
-              "SC-C01-D5-01 무리 과잉 시 군락·마을·조합 3자 충돌 탐지"]
+              "SC-C01-D5-01 무리 과잉 시 습지 군락을 두고 무리·군락·제작자 3자 충돌 탐지"]
   propertyTests: ["압력은 결핍 단조 증가", "동일 상태 → 동일 압력"]
 done: "6주체의 압력이 Lab 에서 상태 변화에 따라 갱신, 5개 Situation 의 충돌 구조가 D5 출력으로 표현됨"
 ```
