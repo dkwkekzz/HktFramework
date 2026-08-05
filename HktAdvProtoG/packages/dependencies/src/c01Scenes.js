@@ -4,36 +4,27 @@
 import { defineC01Ontology } from '../../ontology/src/c01Ontology.js';
 import { createInitialWorldState, validateWorldState } from '../../ontology/src/worldOntology.js';
 import { createC01Cast, createC01Player } from '../../subjects/src/c01Subjects.js';
+import { buildC01RequirementGraph } from '../../world-requirements/src/c01Requirements.js';
+import { C01_STRATEGIES } from '../../possibilities/src/c01Strategies.js';
+import { compileC01World, fitPopulationToWorld, toWorldState, FORAGE_SLACK } from '../../world-compiler/src/c01World.js';
 
 export const DEFAULT_SEED = 11;
+export { FORAGE_SLACK as BASE_FORAGE_SLACK };
 
-/** 기준 장면에서 무리가 쓰고도 남을 목초 여유분 — 무리의 먹이+서식 요구 합(최대 8)보다 크다 */
-export const BASE_FORAGE_SLACK = 10;
-
-/** 기준 장면 — 균형 잡힌 사냥터. 어느 시드에서도 압력 0·충돌 0 이어야 한다 (장면별 충돌의 대조군) */
+/**
+ * 기준 장면 — 균형 잡힌 사냥터. 어느 시드에서도 압력 0·충돌 0 이어야 한다 (장면별 충돌의 대조군).
+ * 지형·규칙·초기 재고는 손으로 적지 않고 W 가 요구(Q)에서 실체화한 정식 세계를 그대로 쓴다.
+ */
 export function buildBaseScene(seed = DEFAULT_SEED) {
   const ontology = defineC01Ontology();
-  const state = createInitialWorldState(ontology);
+  const world = compileC01World({ requirementGraph: buildC01RequirementGraph(C01_STRATEGIES), seed });
+  const state = toWorldState(world, createInitialWorldState(ontology));
 
   const { subjects } = createC01Cast(seed, ontology);
+  fitPopulationToWorld(world, subjects);          // 개체군은 세계 용량 안에 들어간다
+  state.region.places['herd-valley'].carryingCapacity = world.places['herd-valley'].carryingCapacity;
   for (const s of Object.values(subjects)) state.subjects[s.id] = s;
-  // 지형 용량은 실제 배역에서 파생한다 — 상수로 두면 시드에 따라 균형이 깨진다 (I-1)
-  const herdPopulation = Object.values(subjects).find((s) => s.archetype === 'herd-beast').population.count;
 
-  state.region.places = {
-    'hunter-outpost': { threat: 0 },
-    'village-pasture': { livestock: 8 },
-    'herd-valley': { carryingCapacity: herdPopulation + BASE_FORAGE_SLACK },
-    'apex-lair': { integrity: 1, byproductYield: 3 },
-    'marsh-colony': {},
-    'lookout-rocks': {},
-  };
-  state.region.routes = { 'export-route': { capacity: 5 }, 'monster-route': {}, 'hunting-trail': {} };
-  state.region.rareIndividuals = 0;
-
-  Object.assign(state.resources, {
-    'healing-herb': 6, 'healing-potion': 3, hide: 6, 'monster-organ': 5, meat: 4,
-  });
   state.contracts = {
     'ct-1': { status: 'open', kind: 'cull' },
     'ct-2': { status: 'open', kind: 'subjugation' },
@@ -47,7 +38,7 @@ export function buildBaseScene(seed = DEFAULT_SEED) {
 
   const errors = validateWorldState(state, ontology);
   if (errors.length) throw new Error(`장면 상태가 스키마 위반:\n${errors.join('\n')}`);
-  return { ontology, state, subjects: state.subjects };
+  return { ontology, world, state, subjects: state.subjects };
 }
 
 const findByArchetype = (state, archetype) =>

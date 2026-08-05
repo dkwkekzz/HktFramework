@@ -1,0 +1,80 @@
+{
+  "step": "C01-W-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "worldHash": "983af252f581a028",
+    "places": [
+      "hunter-outpost",
+      "village-pasture",
+      "herd-valley",
+      "apex-lair",
+      "marsh-colony",
+      "lookout-rocks"
+    ],
+    "routes": [
+      "monster-route",
+      "export-route"
+    ],
+    "rules": [
+      "ownership",
+      "exchange",
+      "contract",
+      "crafting"
+    ],
+    "historyCount": 5,
+    "checks": [
+      {
+        "name": "SC-C01-W1-01 다중 주체 요구가 하나의 사냥터로 병합",
+        "passed": true,
+        "detail": "요구 29건 → 세계 요소 29종, 목장은 apex-monster·villager 가 함께 부름"
+      },
+      {
+        "name": "완료 조건 — 장소·경로가 요구 근거와 함께 미리보기에 표시",
+        "passed": true,
+        "detail": "장소 6종(전부 근거 보유), 경로 2종 실체화 + 1종 잠재"
+      },
+      {
+        "name": "완료 조건 — 초기 상태가 압축 역사로 설명 (W5)",
+        "passed": true,
+        "detail": "H-01(t-300) H-02(t-240) H-03(t-120) H-04(t-60) H-05(t-30)"
+      },
+      {
+        "name": "근거 없는 세계 요소 없음 (lint)",
+        "passed": true,
+        "detail": "장소6 경로2 규칙4 자원8 전부 근거 보유"
+      },
+      {
+        "name": "SC-C01-W-02/W-03 공리 위반·관찰 소급 변경 거부",
+        "passed": true,
+        "detail": "거부 사유 OBSERVED_RETROACTIVE_CHANGE, 미관찰 변경은 통과"
+      },
+      {
+        "name": "W6 요소 분류 (잠재/정식/관찰)",
+        "passed": true,
+        "detail": "hunting-trail=latent, herd-valley=canonical→observed"
+      },
+      {
+        "name": "상태 스키마 전개 + 장면이 W 를 실제로 소비 (Handoff)",
+        "passed": true,
+        "detail": "장면의 지형·재고가 전부 W 산출과 일치"
+      },
+      {
+        "name": "결정성 + Lab 산출",
+        "passed": true,
+        "detail": "worldHash=983af252f581a028, apps/lab/sample-world.json"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/world-compiler/src/worldCompiler.js",
+    "packages/world-compiler/src/c01World.js"
+  ],
+  "limitations": [
+    "hunting-trail 은 요구에서 불리지 않아 잠재로 남는다 — 사냥로를 부르는 전략이 생기면 실체화된다",
+    "공간 배치는 구역+시드 지터의 2D 좌표 — 지형·고저·가시성은 X 계층에서",
+    "실체화표(장소 청사진·산출·규칙)는 손으로 적은 것 — 요구에서 불린 항목만 쓰이지만 수치 자체는 설계값",
+    "압축 역사는 5건의 고정 서술 — 시드별 변주·주체별 기억은 R5 이후"
+  ],
+  "contentHash": "891f65085e9a8d8e",
+  "generatedAt": "2026-08-05T08:15:55.649Z"
+}

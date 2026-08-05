@@ -394,14 +394,14 @@
       "targets": [
         "herd-valley-forage"
       ],
-      "demand": 3,
+      "demand": 2,
       "unmet": 0,
       "satisfaction": 1,
       "pressure": 0,
       "via": [
         {
           "target": "herd-valley-forage",
-          "taken": 3
+          "taken": 2
         }
       ],
       "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
@@ -415,14 +415,14 @@
         "herd-valley-forage",
         "marsh-colony"
       ],
-      "demand": 5,
+      "demand": 4,
       "unmet": 0,
       "satisfaction": 1,
       "pressure": 0,
       "via": [
         {
           "target": "herd-valley-forage",
-          "taken": 5
+          "taken": 4
         }
       ],
       "rationale": "무리는 골짜기 목초로 먹고, 부족하면 습지 군락으로 넘어간다",
@@ -649,5 +649,5 @@
       "maxPressure": 0.013513513513513487
     }
   },
-  "hash": "d8275980304f6ef5"
+  "hash": "e74452040fd8957c"
 }

@@ -6,7 +6,7 @@ import {
   makeDependency, validateDependencyGraph, evaluateDependencies, detectConflicts,
 } from '../src/dependencyGraph.js';
 import { buildC01DependencyGraph, C01_SUPPLIES } from '../src/c01Dependencies.js';
-import { buildBaseScene, buildSituationScene } from '../src/c01Scenes.js';
+import { buildBaseScene, buildSituationScene, BASE_FORAGE_SLACK } from '../src/c01Scenes.js';
 
 const root = fileURLToPath(new URL('../../..', import.meta.url));
 const cycleSpec = JSON.parse(readFileSync(`${root}/cycles/C01-border-canyon/CYCLE.json`, 'utf8'));
@@ -40,16 +40,18 @@ test('기준 장면은 어느 시드에서도 균형 상태다 — 압력 0, 충
   }
 });
 
-test('지형 용량은 배역에서 파생된다 — 상수 고정 금지 (I-1 회귀)', () => {
-  const capacities = new Set();
+test('개체군과 지형 용량의 여유가 어느 시드에서도 보장된다 (I-1 회귀)', () => {
+  // I-1 의 원인은 용량과 개체수가 서로 무관하게 정해진 것이었다.
+  // 이제 W 가 용량을 정하고 개체군이 그 안에 맞춰지므로 여유가 구조적으로 보장된다.
   for (const seed of SEEDS) {
     const scene = buildBaseScene(seed);
     const pop = findByArchetype(scene, 'herd-beast').population.count;
     const capacity = scene.state.region.places['herd-valley'].carryingCapacity;
+    const slack = capacity - pop;
     assert.ok(capacity > pop, `seed ${seed}: 수용력 ${capacity} ≤ 개체수 ${pop}`);
-    capacities.add(capacity);
+    assert.ok(slack >= BASE_FORAGE_SLACK,
+      `seed ${seed}: 여유 목초 ${slack} < 최소 ${BASE_FORAGE_SLACK} — 무리의 먹이+서식 요구를 못 받친다`);
   }
-  assert.ok(capacities.size > 1, '수용력이 시드와 무관한 상수 — 배역에서 파생되지 않음');
 });
 
 test('SC-C01-D4-01: 무리가 줄면 포식 마물의 먹이 조달이 목장으로 옮겨가고, 목장으로도 못 채우면 압력이 오른다', () => {

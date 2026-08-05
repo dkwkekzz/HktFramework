@@ -3,7 +3,7 @@
   "status": "STEP_VERIFIED_LOCAL",
   "results": {
     "dependencyCount": 21,
-    "basePressureHash": "bce1764b284c89db",
+    "basePressureHash": "0b7ba374ba3c41e7",
     "situationsCovered": [
       "ST-C01-01",
       "ST-C01-02",
@@ -20,7 +20,7 @@
       {
         "name": "기준 장면 균형 — 시드 1~25 전부 압력 0·충돌 0 (대조군, I-1 회귀)",
         "passed": true,
-        "detail": "25 시드 균형, 기본 시드 pressureHash=bce1764b284c89db"
+        "detail": "25 시드 균형, 기본 시드 pressureHash=0b7ba374ba3c41e7"
       },
       {
         "name": "SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포식 마물 먹이 압력)",
@@ -50,6 +50,6 @@
     "Situation 판정·발생은 E0 — D5 는 충돌 구조만 낸다",
     "장면 프리셋(c01Scenes)은 검증용 초기 조건 — 런타임 경로 아님"
   ],
-  "contentHash": "7989e37f22321d02",
-  "generatedAt": "2026-08-05T08:07:38.055Z"
+  "contentHash": "3d599da3ababc044",
+  "generatedAt": "2026-08-05T08:15:55.152Z"
 }
