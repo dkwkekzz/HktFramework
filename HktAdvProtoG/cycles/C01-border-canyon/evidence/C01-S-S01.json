@@ -1,0 +1,46 @@
+{
+  "step": "C01-S-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "castHash": "2af9d14732bde51a",
+    "subjectCount": 8,
+    "checks": [
+      {
+        "name": "프로필 6종·역할 4종 존재론 정합",
+        "passed": true,
+        "detail": "원형6 역할4"
+      },
+      {
+        "name": "표준 배역 생성 결정성 (같은 시드 = 같은 해시)",
+        "passed": true,
+        "detail": "subjects=8, castHash=2af9d14732bde51a"
+      },
+      {
+        "name": "원형별 지각·행동 차이 (SC-C01-S-01)",
+        "passed": true,
+        "detail": "무리=flee/포식자=stalk-prey 확인"
+      },
+      {
+        "name": "조직 구성원·개체군 수량 (공리 정합 기반)",
+        "passed": true,
+        "detail": "조합 구성원=2, 무리=42"
+      },
+      {
+        "name": "플레이어 역할 4종 생성",
+        "passed": true,
+        "detail": "tracker(4행동), hunter(5행동), dresser-crafter(4행동), trader(5행동)"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/subjects/src/subjectModel.js",
+    "packages/subjects/src/c01Subjects.js"
+  ],
+  "limitations": [
+    "의존 선언은 미포함 — D 계층이 원형에서 의존 그래프를 생성한다 (D2)",
+    "지각·행동은 후보 목록 — 실제 선택은 P(전략)·R(지각/의도) 계층에서",
+    "배역 규모는 표준 1벌(주체 8) — 지역 배치·수량 실체화는 W 계층에서"
+  ],
+  "contentHash": "67dd306c50db8b25",
+  "generatedAt": "2026-08-05T06:56:06.895Z"
+}
