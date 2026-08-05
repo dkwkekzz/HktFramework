@@ -171,6 +171,26 @@ function render() {
       html += `<tr><td>${esc(row.path)}</td><td>${esc(row.events.join(' → '))}</td></tr>`;
     html += '</table>';
   }
+  if (runA.beliefDiff) {
+    // R4·R5 — 주체가 믿는 세계와 실제의 어긋남. 어긋나는 곳에서 이야기가 생긴다
+    html += `<h2>믿음 대 실제 (R4·R5) — ${esc(runA.label ?? 'A')}</h2>`
+      + '<table><tr><th>주체</th><th>장소</th><th>주제</th><th>믿는 크기</th><th>확신</th>'
+      + '<th>경로</th><th>직접</th><th>그렇게 믿는 이유</th></tr>';
+    for (const b of runA.beliefDiff)
+      html += `<tr><td>${esc(b.subject)}</td><td>${esc(b.at)}</td><td>${esc(b.topic)}</td>`
+        + `<td>${b.believed}</td><td>${b.confidence}</td><td>${esc(b.via)}</td>`
+        + `<td>${b.direct ? '○' : '—'}</td><td>${esc(b.because ?? '')}</td></tr>`;
+    html += '</table>';
+  }
+  if (runA.intents) {
+    html += '<h2>행동 의도 (R6)</h2><table><tr><th>주체</th><th>목적</th><th>전략</th><th>향하는 곳</th>'
+      + '<th>제출</th><th>경계</th><th>이유</th></tr>';
+    for (const i of runA.intents)
+      html += `<tr><td>${esc(i.subject)}</td><td>${esc(i.goal ?? '—')}</td><td>${esc(i.strategy ?? '—')}</td>`
+        + `<td>${esc(i.at ?? '—')}</td><td>${i.submitted ? '○' : '×'}</td><td>${i.caution ?? 0}</td>`
+        + `<td>${esc(i.reason)}</td></tr>`;
+    html += '</table>';
+  }
   if (runA.entries && runA.entries[0]?.sense) {
     html += `<h2>현상 카탈로그 (Q 성공 결과 ← 전략)</h2>`
       + '<table><tr><th>행동</th><th>감각</th><th>읽기 난이도</th><th>남기는 것</th><th>장소</th><th>부른 전략</th></tr>';

@@ -5,7 +5,7 @@
     "frozen": {
       "registryHash": "e37e07f09095f7a6",
       "ontologyHash": "ad1590bf20bcaffb",
-      "castHash": "44b0b0ce93d081f1",
+      "castHash": "50b38eeccf184fc8",
       "pressureHash": "48dd56b636f4ba9f",
       "planHash": "c9259bbfcdda3de8",
       "requirementHash": "6b48208894d77879",
@@ -15,7 +15,7 @@
       {
         "name": "동결 해시 재현 — 공리·존재론·배역·압력 (구간 1 상류)",
         "passed": true,
-        "detail": "registry=e37e07f09095f7a6 ontology=ad1590bf20bcaffb cast=44b0b0ce93d081f1 pressure=48dd56b636f4ba9f"
+        "detail": "registry=e37e07f09095f7a6 ontology=ad1590bf20bcaffb cast=50b38eeccf184fc8 pressure=48dd56b636f4ba9f"
       },
       {
         "name": "동결 해시 재현 — 계획·요구·세계 (구간 2 산출)",
@@ -60,6 +60,6 @@
     "구간 2 의 플레이어 가시 기여는 아직 간접이다 — 실제 표면은 X 계층(구간 5)에서 확인된다",
     "동결 해시는 시드 11 기준 — 다른 시드는 구조만 검사하고 값은 고정하지 않는다"
   ],
-  "contentHash": "4c124b829e21340e",
-  "generatedAt": "2026-08-05T09:51:46.602Z"
+  "contentHash": "dcabcdc6ee33aab3",
+  "generatedAt": "2026-08-05T10:04:47.021Z"
 }

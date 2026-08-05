@@ -16,6 +16,8 @@ export function validateArchetypeProfile(profile, ontology) {
     errors.push(`행동 후보 없음: ${profile.archetype}`);
   if (!Array.isArray(profile.perception))
     errors.push(`지각 목록 없음: ${profile.archetype}`);
+  if (!profile.habitat || !ontology.has('place', profile.habitat))
+    errors.push(`존재론에 없는 서식지: ${profile.archetype} → ${profile.habitat}`);
   if (profile.actorKind === 'organization' && !(profile.memberCount?.length === 2))
     errors.push(`조직 프로필에 memberCount [min,max] 필요: ${profile.archetype} (조직 실체 공리)`);
   if (profile.actorKind === 'population' && !(profile.populationRange?.length === 2))
@@ -33,6 +35,7 @@ export function createIndividual(rng, profile, idGen) {
     actorKind: profile.actorKind,
     perception: [...profile.perception],
     behaviors: [...profile.behaviors],
+    at: profile.habitat,          // 평소 머무는 곳 — 사건(MonsterMoved)으로만 바뀐다
     attrs: {},
   };
   for (const [attr, range] of Object.entries(profile.attrRanges ?? {}))
@@ -56,6 +59,7 @@ export function createPlayerSubject(playerId, roleProfile, ontology) {
     archetype: 'player',
     actorKind: 'individual',
     role: roleProfile.role,
+    at: roleProfile.station,      // 역할의 거점
     perception: [...roleProfile.perception],
     behaviors: [...roleProfile.behaviors],
     attrs: {},

@@ -42,7 +42,7 @@
 
 | Cycle | 상태 |
 |---|---|
-| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **IMPLEMENTING** — 구간 1·2 종료 조건 충족, 구간 3 진행 중 (R-S01 완료). Step 9종 증거 ([evidence/](cycles/C01-border-canyon/evidence/)) |
+| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **IMPLEMENTING** — 구간 1·2 종료 조건 충족, 구간 3 진행 중 (R-S01·R-S02 완료). Step 10종 증거 ([evidence/](cycles/C01-border-canyon/evidence/)) |
 
 ### 완료 Step
 
@@ -51,12 +51,13 @@
 | C01-V-S01 | [C01-V-S01.json](cycles/C01-border-canyon/evidence/C01-V-S01.json) | C01 등록·lint 0 오류, 검증 세션 통과 |
 | C01-O-S01 | [C01-O-S01.json](cycles/C01-border-canyon/evidence/C01-O-S01.json) | 공리 5종 (`packages/ontology/`), 실패 Scenario 5종 통과, registryHash `e37e07f09095f7a6` (I-5 로 보존 공리의 비용 어휘 확장) |
 | C01-O-S02 | [C01-O-S02.json](cycles/C01-border-canyon/evidence/C01-O-S02.json) | 존재론 카탈로그(장소6·경로3·주체7=원형6+player·역할4·자원6·제작물4·사건타입9) + 상태 스키마 v1, ontologyHash `ad1590bf20bcaffb` |
-| C01-S-S01 | [C01-S-S01.json](cycles/C01-border-canyon/evidence/C01-S-S01.json) | 원형 프로필 6종+역할 4종 (`packages/subjects/`), 표준 배역 8주체 결정적 생성, castHash `44b0b0ce93d081f1` |
+| C01-S-S01 | [C01-S-S01.json](cycles/C01-border-canyon/evidence/C01-S-S01.json) | 원형 프로필 6종+역할 4종 (`packages/subjects/`), 표준 배역 8주체 결정적 생성, castHash `50b38eeccf184fc8` (R-S02 로 서식지·거점·청각 추가) |
 | C01-D-S01 | [C01-D-S01.json](cycles/C01-border-canyon/evidence/C01-D-S01.json) | 의존 6계열·의존 22건·경합 대상 14종 (`packages/dependencies/`), 기준 장면 압력 0·충돌 0(시드 25종), basePressureHash `48dd56b636f4ba9f` (W-S01 에서 장면이 W 산출을 소비 → I-2 로 조합 hunt-order 의존 추가) |
 | C01-P-S01 | [C01-P-S01.json](cycles/C01-border-canyon/evidence/C01-P-S01.json) | 행동 원자·전략 30건·목적 선택/유지·행동 계획 (`packages/possibilities/`), ST-01 planHash `c9259bbfcdda3de8` |
 | C01-Q-S01 | [C01-Q-S01.json](cycles/C01-border-canyon/evidence/C01-Q-S01.json) | 세계 요구 29건·성공 결과 47건·근거 사슬 (`packages/world-requirements/`), TRACE 요구 6종 전부 일치, requirementHash `6b48208894d77879` (I-2 로 조절 계약의 근거가 목장 안전 → 목초 여유로 이동) |
 | C01-W-S01 | [C01-W-S01.json](cycles/C01-border-canyon/evidence/C01-W-S01.json) | 요구 병합 → 장소6·경로2(+1 잠재)·규칙4·자원8 실체화 + 압축 역사 5건 (`packages/world-compiler/`), worldHash `0841d01ae8668d58` (I-5 로 장소가 산지 산출을 실음). 장면 픽스처가 W 산출을 소비하도록 전환 |
-| C01-R-S01 | [C01-R-S01.json](cycles/C01-border-canyon/evidence/C01-R-S01.json) | 상태 저장소·사건 경유 전이·현상 생성 (`packages/runtime/`), 현상 38종이 Q 성공 결과 47건에서 파생(I-3 닫힘), 습격 사건열 stateHash `459455544778cb1b`. I-5 로 재고·산지·개체군이 유한한 비용 원천이 됨 |
+| C01-R-S01 | [C01-R-S01.json](cycles/C01-border-canyon/evidence/C01-R-S01.json) | 상태 저장소·사건 경유 전이·현상 생성 (`packages/runtime/`), 현상 38종이 Q 성공 결과 47건에서 파생(I-3 닫힘), 습격 사건열 stateHash `41fa77c52004307a`. I-5 로 재고·산지·개체군이 유한한 비용 원천이 됨 |
+| C01-R-S02 | [C01-R-S02.json](cycles/C01-border-canyon/evidence/C01-R-S02.json) | 지각 채널 13종·믿음·기억·행동 의도 (`packages/runtime/`), 목격 대 소문의 상이한 믿음, 위협 기억 → 회피 → 복귀, beliefHash `643e80121c3c8a3e` |
 
 **구간 1 (주체와 압력) 종료 조건 충족** — 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현됨
 (`node scripts/check-C01-D-S01.mjs` 5번째 점검). 검증 세션(2026-08-05) 통과 —
@@ -86,7 +87,16 @@ R-S01 이후 **미소비 출력 검사**가 추가되어 7항 — Q 의 성공 �
 I-5 를 이어 닫으며 경제의 바닥이 생겼다 — 값이 나오는 곳은 재고·산지·개체군 셋뿐이고 셋 다 유한하다.
 사냥은 개체군을 치러 부산물을 얻고, 채집은 산지를 덜어 재고를 채우며, 습지 약초는 3회 채집으로 마른다.
 비용을 선언하지 않은 생산도, 산출 없는 땅에서의 채집도, 소득 없는 시도도 세계에 닿지 못한다.
-남은 것: R-S02(지각·믿음) → E-S01(Situation) → E-S02(충돌 해결).
+**C01-R-S02 완료 — 주체가 전지적이길 그만두었다.** 믿음은 지각에서만 자란다:
+자국이 하나도 없으면 세계에 포식자가 실재해도 아무도 그것을 모른다. 자국이 닿으려면
+감각 채널·거리(여기/길로 이어진 곳/지역)·예민함 셋이 맞아야 하고, 닿은 것이 곧 사실도 아니다 —
+목장에서 직접 본 주민은 크기 3 을 확신 1 로 믿고, 전초에서 소문만 들은 상인은 같은 사건을
+크기 4 를 확신 0.15 로 믿는다 (SC-C01-R4-01). 위협 기억은 다음 행동을 바꾼다:
+목장에서 거듭 몰린 포식자는 기억 7.28 이 이득 6 을 넘어 물러서고, 400tick 뒤 기억이 마르면
+다시 내려온다 (SC-C01-R5-BASE-01). 의도는 사건이 아니어서 세계를 바꾸지 않는다 —
+확정은 E3·N 의 몫이다.
+
+남은 것: E-S01(Situation 발생) → E-S02(충돌 해결).
 
 ### 열린 이슈
 
@@ -110,7 +120,8 @@ I-5 를 이어 닫으며 경제의 바닥이 생겼다 — 값이 나오는 곳�
       (균형 압력 0 → 과잉 0.33 → 여유 소진 시 1.00, 이득 0 → 3 으로 단조 상승)
 - [x] 구간 3 착수 — **C01-R-S01 완료** (상태 저장소·사건 로그·현상 생성). I-3 함께 닫힘, I-5 이슈업
 - [x] **I-5 (보존 공리의 비용 어휘)** — 닫힘. 재고·산지·개체군 셋 다 유한하고, 선언·실제 두 겹으로 심사한다
-- [ ] 구간 3 나머지: **C01-R-S02** (지각·믿음·기억) → C01-E-S01 (Situation 발생) → C01-E-S02 (충돌 해결)
+- [x] **C01-R-S02** (지각·믿음·기억·의도) — 완료. 주체는 자기가 아는 것으로만 움직인다
+- [ ] 구간 3 나머지: **C01-E-S01** (Situation 발생) → C01-E-S02 (충돌 해결)
 - [ ] 구간 3 종료 조건: 5개 Situation 전부 상태 계산으로 발생 (하드코딩 트리거 0)
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
       Foundation 구현이 실체를 갖춘 뒤 `advprotog-workflow-maintainer` 로 추가한다.

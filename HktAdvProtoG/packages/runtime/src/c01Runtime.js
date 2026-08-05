@@ -1,13 +1,17 @@
-// C01-R-S01 — 국경 협곡의 세계 런타임 배선.
+// C01-R-S01·R-S02 — 국경 협곡의 세계 런타임 배선.
 // 존재론이 선언한 사건 타입 9종에 리듀서를 붙이고, W 가 실체화한 정식 세계를
 // 런타임 상태로 올린다. 현상 카탈로그는 Q 의 성공 결과에서 나온다 (I-3).
+// R-S02 는 그 위에 지각·믿음·의도를 얹는다 — 주체는 자기가 아는 것으로만 움직인다.
 import { defineC01Ontology } from '../../ontology/src/c01Ontology.js';
 import { AxiomRegistry } from '../../ontology/src/axioms.js';
 import { registerC01Axioms } from '../../ontology/src/c01Axioms.js';
-import { buildC01RequirementGraph } from '../../world-requirements/src/c01Requirements.js';
+import { buildC01RequirementGraph, C01_TARGET_SITES } from '../../world-requirements/src/c01Requirements.js';
 import { C01_STRATEGIES } from '../../possibilities/src/c01Strategies.js';
 import { buildPhenomenonCatalog } from './phenomena.js';
 import { WorldRuntime } from './worldRuntime.js';
+import { perceiveAll } from './perception.js';
+import { BeliefLedger, updateBeliefs } from './beliefs.js';
+import { formIntents } from './intents.js';
 
 const bump = (map, key, delta) => { map[key] = Math.max(0, (map[key] ?? 0) + delta); };
 
@@ -98,6 +102,29 @@ export function createC01Runtime({ state, ontology = defineC01Ontology(), requir
     reducers: C01_REDUCERS,
     phenomenonCatalog: buildPhenomenonCatalog(graph),
   });
+}
+
+/**
+ * R6 이 쓰는 "이 전략은 어디로 향하는가" — Q 의 요구 매핑(C01_TARGET_SITES)에서 온다.
+ * 여기서 장소를 짓지 않는다. 전략의 대상이 곧 그 전략이 향하는 세계 요소다.
+ */
+export function c01PlaceOf(chosen) {
+  if (!chosen?.target) return null;
+  return C01_TARGET_SITES[chosen.target]?.place ?? null;
+}
+
+/**
+ * R3~R6 한 바퀴 — 자국을 지각하고, 믿음을 갱신하고, 계획을 의도로 옮긴다.
+ * 세계를 바꾸지 않는다 (의도는 아직 사건이 아니다).
+ */
+export function senseAndIntend({ runtime, subjects, plans, ledger = new BeliefLedger(), tick = 0, since = 0 }) {
+  const state = runtime.state();
+  const perceptions = perceiveAll({
+    subjects, phenomena: runtime.phenomena.list(), routes: state.region.routes, since,
+  });
+  updateBeliefs(ledger, perceptions, { tick });
+  const intents = formIntents({ plans, subjects, beliefs: ledger, tick, placeOf: c01PlaceOf });
+  return { perceptions, ledger, ...intents };
 }
 
 /** Lab 산출 — 사건·현상·설명을 사람이 읽을 형태로 */

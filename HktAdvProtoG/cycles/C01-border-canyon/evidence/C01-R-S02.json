@@ -1,0 +1,82 @@
+{
+  "step": "C01-R-S02",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "channelCount": 13,
+    "beliefHash": "643e80121c3c8a3e",
+    "knowingSubjects": 6,
+    "villagerBelief": {
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "magnitude": 3,
+      "confidence": 1,
+      "tick": 1,
+      "via": "sight-near",
+      "direct": true,
+      "because": "가축 습격",
+      "sourceEventId": "ev-000001"
+    },
+    "checks": [
+      {
+        "name": "R3 지각 어휘 정합 — 양방향 (Handoff: S-S01 프로필 소비)",
+        "passed": true,
+        "detail": "채널 13종 (here6 route4 region3), 감각 5종 전부 읽는 주체 존재"
+      },
+      {
+        "name": "R3 세계를 통째로 보는 주체는 없다 — 감각·거리·예민함이 맞아야 닿는다",
+        "passed": true,
+        "detail": "tracker:1건 villager:1건 villager:2건 villager:2건 hunters-guild:2건 merchant:1건 / 지각 0건인 주체 6종"
+      },
+      {
+        "name": "SC-C01-R4-01 과장된 목격 소문 대 실제 흔적 → 상이한 믿음",
+        "passed": true,
+        "detail": "직접 목격(sight-near) 크기 3·확신 1 vs 소문(rumor) 크기 4·확신 0.15"
+      },
+      {
+        "name": "R4 믿음은 지각에서만 자란다 — 자국이 없으면 아무도 아무것도 모른다",
+        "passed": true,
+        "detail": "자국 0건 → 믿음 0건 (세계에 포식자가 실재해도 아무도 모른다)"
+      },
+      {
+        "name": "SC-C01-R5-BASE-01 위협 기억 → 다음 행동(경계·회피) 반영",
+        "passed": true,
+        "detail": "기억 0 → 진입 / 기억 7.275 ≥ 이득 6+1 → 회피 / 400tick 뒤 기억 0 → 복귀"
+      },
+      {
+        "name": "R6 모르는 곳으로는 가지 않는다 — 전지적 주체 금지",
+        "passed": true,
+        "detail": "village-pasture 을(를) 모른다 — 알지 못하는 곳으로는 가지 않는다"
+      },
+      {
+        "name": "R6 의도는 사건이 아니다 — 세계를 바꾸지 않는다",
+        "passed": true,
+        "detail": "의도 12건(제출 3) 생성, stateHash 불변 73bbb61959a775cf"
+      },
+      {
+        "name": "결정성 — 같은 자국·같은 계획 → 같은 믿음·의도 해시",
+        "passed": true,
+        "detail": "intentHash=eeeb351f565e761a beliefHash=ce2e2ed9308e2e95"
+      },
+      {
+        "name": "완료 조건 — Lab 에서 주체별 믿음 대 실제 상태 diff 확인",
+        "passed": true,
+        "detail": "주체 4종 x 믿음 6건 → apps/lab/sample-beliefs.json"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/runtime/src/perception.js",
+    "packages/runtime/src/beliefs.js",
+    "packages/runtime/src/intents.js"
+  ],
+  "limitations": [
+    "믿음의 주제는 장소 x 주제(위협·고갈·기회·계약 등) 단위 — 개체 단위 추적(누가 어디 있는지)은 E/G 에서",
+    "소문은 한 단계만 왜곡된다 — 사람을 거칠수록 더 어긋나는 다단 전파는 E1(사회적 상호작용)의 몫",
+    "기억 감쇠는 주제별 고정 계수 — 주체 기질(겁·담대함)에 따른 차이는 G 성장에서",
+    "의도는 계획 1건당 1개 — 동시 다중 의도·파티 분업은 E1/E2 에서",
+    "거짓말·기만으로 남의 믿음을 흔드는 경로는 아직 없다 (E1)"
+  ],
+  "contentHash": "eeadaefd1589da29",
+  "generatedAt": "2026-08-05T10:04:46.719Z"
+}

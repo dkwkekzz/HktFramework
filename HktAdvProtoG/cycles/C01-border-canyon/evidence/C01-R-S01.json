@@ -4,7 +4,7 @@
   "results": {
     "phenomenonKinds": 38,
     "outcomeCount": 47,
-    "raidStateHash": "459455544778cb1b",
+    "raidStateHash": "41fa77c52004307a",
     "eventCount": 4,
     "phenomenonCount": 4,
     "explainedPaths": 8,
@@ -22,7 +22,7 @@
       {
         "name": "R0 읽기 스냅샷은 얼어 있다 — 사건 없는 직접 수정 거부",
         "passed": true,
-        "detail": "직접 수정 3종 전부 거부, stateHash 불변 754120ff6e111cab"
+        "detail": "직접 수정 3종 전부 거부, stateHash 불변 10c5156cc42aabdd"
       },
       {
         "name": "R1 공리 위반 사건 거부 — 상태·로그·자국 전부 불변 (오류 은폐 금지)",
@@ -47,7 +47,7 @@
       {
         "name": "결정성 — 로그 재생 = 상태 재현",
         "passed": true,
-        "detail": "stateHash=459455544778cb1b (재생·재실행 3경로 일치)"
+        "detail": "stateHash=41fa77c52004307a (재생·재실행 3경로 일치)"
       },
       {
         "name": "플레이어 가시 — 사건이 발자국·가축 실종·공고로 남는다",
@@ -74,6 +74,6 @@
     "사건 열은 아직 손으로 넣는다 — 압력·계획에서 사건이 자동으로 나오는 것은 E-S01(Situation)·C-S01(복합 주체)",
     "리듀서는 C01 이 지금 쓰는 전이만 다룬다 — 개체군 번식·군락 훼손 같은 생태 전이는 C-S01 에서 확장"
   ],
-  "contentHash": "359cf348a1000ef4",
-  "generatedAt": "2026-08-05T09:51:46.313Z"
+  "contentHash": "91e5fdd75d2e9360",
+  "generatedAt": "2026-08-05T10:04:46.596Z"
 }

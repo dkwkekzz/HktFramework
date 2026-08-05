@@ -31,7 +31,9 @@ const FROZEN = {
   // (재고만 → 재고·산지 산출·개체군, 그리고 실제 상태 변화로 재는 뒷받침 검사)
   registryHash: 'e37e07f09095f7a6',
   ontologyHash: 'ad1590bf20bcaffb',   // C01-O-S02 존재론
-  castHash: '44b0b0ce93d081f1',       // C01-S-S01 표준 배역 (시드 11)
+  // C01-S-S01 표준 배역 (시드 11). R-S02 에서 프로필에 서식지(habitat)·거점(station)과
+  // 청각 채널이 더해지며 갱신됐다 — 지각은 위치에 따르므로 주체는 자기 자리를 가져야 한다
+  castHash: '50b38eeccf184fc8',
   // C01-D-S01 기준 장면 압력. 두 번 갱신됐다 —
   //   bce1764b284c89db → 0b7ba374ba3c41e7  W-S01 에서 장면이 W 산출을 소비 (STATE.md 기록 누락, I-4)
   //   0b7ba374ba3c41e7 → 48dd56b636f4ba9f  I-2 로 조합의 hunt-order 의존이 추가됨
