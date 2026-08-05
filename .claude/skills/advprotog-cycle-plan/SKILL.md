@@ -7,11 +7,11 @@ description: HktAdvProtoG 의 다음 Cycle 을 설계한다 — 현재 상태 �
 
 **작업 디렉토리: `HktAdvProtoG/`** — 이하 상대 경로는 이 폴더 기준.
 운영 지침 원본은 [WORKFLOW.md](../../HktAdvProtoG/WORKFLOW.md),
-구현 기준 원본은 [design/Design-CycleModulePlan.md](../../HktAdvProtoG/design/Design-CycleModulePlan.md) 다.
+구현 기준 원본은 [design/Design-ModulePlan-CycleWorkflow.md](../../HktAdvProtoG/design/Design-ModulePlan-CycleWorkflow.md) 다.
 
 ---
 
-[`Design-ModulePlan-CycleWorkflow.md`](../../HktAdvProtoG/design/Design-CycleModulePlan.md)와 현재 저장소의 구현 상태를 분석하여 다음 Cycle을 설계하라.
+[`Design-ModulePlan-CycleWorkflow.md`](../../HktAdvProtoG/design/Design-ModulePlan-CycleWorkflow.md)와 현재 저장소의 구현 상태를 분석하여 다음 Cycle을 설계하라.
 
 아직 코드를 수정하지 마라.
 

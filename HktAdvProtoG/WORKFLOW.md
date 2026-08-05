@@ -1,6 +1,6 @@
 # MMORPG Cycle 기반 구현 운영 지침
 
-모든 작업은 [`Design-ModulePlan-CycleWorkflow.md`](design/Design-CycleModulePlan.md)를 최상위 구현 기준으로 삼는다.
+모든 작업은 [`Design-ModulePlan-CycleWorkflow.md`](design/Design-ModulePlan-CycleWorkflow.md)를 최상위 구현 기준으로 삼는다.
 
 ## 1. 핵심 구현 구조
 

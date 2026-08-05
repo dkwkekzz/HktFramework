@@ -22,7 +22,7 @@ Cycle 은 소형 MMORPG 세계, 작은 장면은 Scenario 로만, 얇은 구현�
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
 | [WORKFLOW.md](WORKFLOW.md) | **상시 운영 규정** — 모듈 순서·Cycle 정의·작업 계층·Step 규칙·구현 금지 목록·완료 판정 |
-| [design/Design-CycleModulePlan.md](design/Design-CycleModulePlan.md) | 최상위 구현 기준 — Cycle WORKFLOW 절차·템플릿 원본 |
+| [design/Design-ModulePlan-CycleWorkflow.md](design/Design-ModulePlan-CycleWorkflow.md) | 최상위 구현 기준 — Cycle WORKFLOW 절차·템플릿 원본 |
 | [design/Design-MasterPlan.md](design/Design-MasterPlan.md) | 세계 설계도 (원문) |
 | [design/Design-ModulePlan.md](design/Design-ModulePlan.md) | 모듈 분할 계획 (원문) |
 
