@@ -27,7 +27,7 @@
 
 | Cycle | 상태 |
 |---|---|
-| [C01 — 국경 협곡 개척지](cycles/C01-border-canyon/CYCLE.md) | **PLANNED** (산출물 6종 작성 완료 — 구현은 Foundation 완료 후) |
+| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **PLANNED** (사냥 중심 재설계 — 신·국가·밀수는 후속 Cycle 이월, 구현은 Foundation 완료 후) |
 
 ## TODO
 
