@@ -408,6 +408,8 @@ Cycle 1은 모든 시스템의 범위를 제한할 수 있다.
 - 플레이어 요구 때문에 관찰된 세계가 조용히 소급 변경된다.
 - AI가 검증 없이 정식 세계 상태를 직접 생성한다.
 - 전투·제작·경제가 서로 분리된 미니게임으로 존재하고 같은 세계 상태를 사용하지 않는다.
+- 테스트 통과만을 위한 운영 코드 분기를 추가한다.
+- 미래 Cycle을 예상한 과잉 추상화를 만든다.
 
 ---
 
@@ -495,6 +497,19 @@ V → O → S → D → P → Q → W → R → E → G → C → X → N → A
 - **Implementation Task 검증**: 함수·타입·불변식·오류
 - **Scenario 검증**: 작은 상태와 입력으로 특정 인과와 충돌 재현
 - **Cycle 검증**: 전체 지역에서 MMORPG 루프·멀티플레이·성장·영속 변화 확인
+
+완료 판정은 테스트 통과만으로 이루어지지 않으며, 다음 순서를 따른다.
+
+```text
+Step 검증
+→ 모듈 간 Handoff 검증
+→ Situation 통합 검증
+→ Cycle 전체 Gameplay Loop 검증
+→ 멀티플레이 검증
+→ 저장·재접속 검증
+→ 이전 Cycle 전체 회귀 검증
+→ 완료 증거 생성
+```
 
 이 구조로 복잡한 게임을 작게 검증하되, 최종 결과가 장난감 시뮬레이션으로 축소되는 것을 막는다.
 
@@ -1248,6 +1263,24 @@ BorderStoneMoved
 - **packages 디렉터리**: Cycle을 거치며 계속 확장되는 실제 구현
 
 Cycle마다 코드를 복제하지 않는다. 같은 모듈 패키지를 확장하고 이전 Cycle 리플레이로 동작을 보호한다.
+
+계획 단계 산출물은 다음 문서 6종 + 증거 디렉터리로 고정한다
+(`advprotog-cycle-planner` 스킬의 출력 계약 — 상세 스키마는 해당 스킬의
+`references/cycle-output-schema.md` 참조).
+
+```text
+/cycles/<cycle-id>/
+  CYCLE.md            # 사람이 읽는 Cycle MMORPG 계약 (§12 템플릿)
+  CYCLE.yaml          # 기계 판독 계약 (Phase 3 CycleSpec — Loop·Situation 포함)
+  STEPS.md            # V→A Module Step 목록 (§13 템플릿 항목)
+  SCENARIOS.md        # Situation별 정상·실패·경계·멀티플레이·저장복구 Scenario
+  ACCEPTANCE.md       # Phase 12 Acceptance Gate 체크리스트와 판정 기준
+  TRACE.graph.json    # 플레이 증거 → 공리 역추적 그래프
+  evidence/           # 구현·검증 단계에서 채워지는 완료 증거 (계획 시점엔 비어 있음)
+```
+
+`LOOPS.yaml`·`SITUATIONS.yaml` 은 별도 파일로 두지 않고 `CYCLE.yaml` 에 통합한다.
+`/replays`·`/snapshots` 등 실행 산출물은 구현 단계에서 위 구조에 추가한다.
 
 ---
 
