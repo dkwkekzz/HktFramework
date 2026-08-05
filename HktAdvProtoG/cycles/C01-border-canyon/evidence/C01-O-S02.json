@@ -1,0 +1,35 @@
+{
+  "step": "C01-O-S02",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "ontologyHash": "41841aa70a7dd1ea",
+    "checks": [
+      {
+        "name": "CYCLE.yaml 요소 전부 존재론 표현 (완료 조건)",
+        "passed": true,
+        "detail": "장소6 경로3 주체6 역할4 자원6 제작물4 사건타입9"
+      },
+      {
+        "name": "초기 상태가 스키마 v1 을 통과",
+        "passed": true,
+        "detail": "schemaVersion=1"
+      },
+      {
+        "name": "SC-C01-O-01 스키마 위반 요소 거부",
+        "passed": true,
+        "detail": "미등록 자원 재고: dragon-scale | 미등록 장소: castle"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/ontology/src/worldOntology.js",
+    "packages/ontology/src/c01Ontology.js"
+  ],
+  "limitations": [
+    "제작식은 존재론의 최소 기본값 — 품질·숙련 반영은 G/W 확장",
+    "공간 좌표·수치 실체화는 W 계층 — 존재론은 어휘와 태그까지만",
+    "사건 타입 requiredPayload 강제는 R 계층(사건 로그 기록 시)에서 적용 예정"
+  ],
+  "contentHash": "1f1eea6f58459464",
+  "generatedAt": "2026-08-05T06:45:50.464Z"
+}
