@@ -1,0 +1,802 @@
+{
+  "label": "현상 카탈로그 (Q 성공 결과 기반)",
+  "entries": [
+    {
+      "behavior": "appraise",
+      "sense": "record",
+      "legibility": 0.6,
+      "effects": [
+        "재료 판별",
+        "품질 판별"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-CRAFT-POTION",
+        "P-CRAFTER-BUY-STOCK"
+      ],
+      "effectByStrategy": {
+        "P-CRAFT-POTION": "재료 판별",
+        "P-CRAFTER-BUY-STOCK": "품질 판별"
+      },
+      "placeByStrategy": {
+        "P-CRAFT-POTION": "hunter-outpost",
+        "P-CRAFTER-BUY-STOCK": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "breed",
+      "sense": "sighting",
+      "legibility": 0.6,
+      "effects": [
+        "번식"
+      ],
+      "places": [
+        "herd-valley"
+      ],
+      "strategies": [
+        "P-HERD-BREED"
+      ],
+      "effectByStrategy": {
+        "P-HERD-BREED": "번식"
+      },
+      "placeByStrategy": {
+        "P-HERD-BREED": "herd-valley"
+      }
+    },
+    {
+      "behavior": "buy",
+      "sense": "record",
+      "legibility": 0.8,
+      "effects": [
+        "매입"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-TRADER-BUY"
+      ],
+      "effectByStrategy": {
+        "P-TRADER-BUY": "매입"
+      },
+      "placeByStrategy": {
+        "P-TRADER-BUY": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "buy-byproducts",
+      "sense": "record",
+      "legibility": 0.8,
+      "effects": [
+        "부산물 매입"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-MERCHANT-RESTOCK"
+      ],
+      "effectByStrategy": {
+        "P-MERCHANT-RESTOCK": "부산물 매입"
+      },
+      "placeByStrategy": {
+        "P-MERCHANT-RESTOCK": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "buy-potions",
+      "sense": "record",
+      "legibility": 0.8,
+      "effects": [
+        "치료제 매입"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-BUY-POTIONS"
+      ],
+      "effectByStrategy": {
+        "P-BUY-POTIONS": "치료제 매입"
+      },
+      "placeByStrategy": {
+        "P-BUY-POTIONS": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "capture",
+      "sense": "sighting",
+      "legibility": 0.8,
+      "effects": [
+        "생포"
+      ],
+      "places": [
+        "herd-valley"
+      ],
+      "strategies": [
+        "P-CAPTURE-RARE"
+      ],
+      "effectByStrategy": {
+        "P-CAPTURE-RARE": "생포"
+      },
+      "placeByStrategy": {
+        "P-CAPTURE-RARE": "herd-valley"
+      }
+    },
+    {
+      "behavior": "craft-item",
+      "sense": "record",
+      "legibility": 0.7,
+      "effects": [
+        "치료제 제작"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-CRAFT-POTION"
+      ],
+      "effectByStrategy": {
+        "P-CRAFT-POTION": "치료제 제작"
+      },
+      "placeByStrategy": {
+        "P-CRAFT-POTION": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "dress-carcass",
+      "sense": "trace",
+      "legibility": 0.9,
+      "effects": [
+        "해체"
+      ],
+      "places": [
+        "apex-lair"
+      ],
+      "strategies": [
+        "P-HUNT-APEX"
+      ],
+      "effectByStrategy": {
+        "P-HUNT-APEX": "해체"
+      },
+      "placeByStrategy": {
+        "P-HUNT-APEX": "apex-lair"
+      }
+    },
+    {
+      "behavior": "export",
+      "sense": "record",
+      "legibility": 0.7,
+      "effects": [
+        "외부 반출"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-TRADER-EXPORT"
+      ],
+      "effectByStrategy": {
+        "P-TRADER-EXPORT": "외부 반출"
+      },
+      "placeByStrategy": {
+        "P-TRADER-EXPORT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "farm",
+      "sense": "sighting",
+      "legibility": 0.8,
+      "effects": [
+        "경작"
+      ],
+      "places": [
+        "village-pasture"
+      ],
+      "strategies": [
+        "P-TEND-LIVESTOCK"
+      ],
+      "effectByStrategy": {
+        "P-TEND-LIVESTOCK": "경작"
+      },
+      "placeByStrategy": {
+        "P-TEND-LIVESTOCK": "village-pasture"
+      }
+    },
+    {
+      "behavior": "fight",
+      "sense": "sound",
+      "legibility": 0.9,
+      "effects": [
+        "전투",
+        "토벌"
+      ],
+      "places": [
+        "apex-lair",
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-HUNT-APEX",
+        "P-HUNT-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-HUNT-APEX": "전투",
+        "P-HUNT-CONTRACT": "토벌"
+      },
+      "placeByStrategy": {
+        "P-HUNT-APEX": "apex-lair",
+        "P-HUNT-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "flee-to-village",
+      "sense": "sighting",
+      "legibility": 0.9,
+      "effects": [
+        "마을 안으로 대피"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-FLEE-VILLAGE"
+      ],
+      "effectByStrategy": {
+        "P-FLEE-VILLAGE": "마을 안으로 대피"
+      },
+      "placeByStrategy": {
+        "P-FLEE-VILLAGE": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "gather-herbs",
+      "sense": "trace",
+      "legibility": 0.5,
+      "effects": [
+        "습지 약초 채집"
+      ],
+      "places": [
+        "marsh-colony"
+      ],
+      "strategies": [
+        "P-GATHER-HERBS"
+      ],
+      "effectByStrategy": {
+        "P-GATHER-HERBS": "습지 약초 채집"
+      },
+      "placeByStrategy": {
+        "P-GATHER-HERBS": "marsh-colony"
+      }
+    },
+    {
+      "behavior": "graze",
+      "sense": "trace",
+      "legibility": 0.5,
+      "effects": [
+        "골짜기 목초 채식"
+      ],
+      "places": [
+        "herd-valley"
+      ],
+      "strategies": [
+        "P-GRAZE-VALLEY"
+      ],
+      "effectByStrategy": {
+        "P-GRAZE-VALLEY": "골짜기 목초 채식"
+      },
+      "placeByStrategy": {
+        "P-GRAZE-VALLEY": "herd-valley"
+      }
+    },
+    {
+      "behavior": "herd-livestock",
+      "sense": "sighting",
+      "legibility": 0.8,
+      "effects": [
+        "목축"
+      ],
+      "places": [
+        "village-pasture"
+      ],
+      "strategies": [
+        "P-TEND-LIVESTOCK"
+      ],
+      "effectByStrategy": {
+        "P-TEND-LIVESTOCK": "목축"
+      },
+      "placeByStrategy": {
+        "P-TEND-LIVESTOCK": "village-pasture"
+      }
+    },
+    {
+      "behavior": "hunt",
+      "sense": "trace",
+      "legibility": 0.8,
+      "effects": [
+        "무리 개체 포식"
+      ],
+      "places": [
+        "herd-valley"
+      ],
+      "strategies": [
+        "P-HUNT-HERD"
+      ],
+      "effectByStrategy": {
+        "P-HUNT-HERD": "무리 개체 포식"
+      },
+      "placeByStrategy": {
+        "P-HUNT-HERD": "herd-valley"
+      }
+    },
+    {
+      "behavior": "inspect-trace",
+      "sense": "record",
+      "legibility": 0.9,
+      "effects": [
+        "흔적 조사"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-SURVEY-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-SURVEY-CONTRACT": "흔적 조사"
+      },
+      "placeByStrategy": {
+        "P-SURVEY-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "issue-cull-contract",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "개체 조절 계약 발급"
+      ],
+      "places": [
+        "herd-valley"
+      ],
+      "strategies": [
+        "P-CULL-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-CULL-CONTRACT": "개체 조절 계약 발급"
+      },
+      "placeByStrategy": {
+        "P-CULL-CONTRACT": "herd-valley"
+      }
+    },
+    {
+      "behavior": "issue-subjugation-contract",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "토벌 계약 발급"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-SUBJUGATION-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-SUBJUGATION-CONTRACT": "토벌 계약 발급"
+      },
+      "placeByStrategy": {
+        "P-SUBJUGATION-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "migrate",
+      "sense": "trace",
+      "legibility": 0.7,
+      "effects": [
+        "서식지를 습지 쪽으로 이동",
+        "습지로 이동"
+      ],
+      "places": [
+        "marsh-colony"
+      ],
+      "strategies": [
+        "P-HERD-RELOCATE",
+        "P-MIGRATE-MARSH"
+      ],
+      "effectByStrategy": {
+        "P-HERD-RELOCATE": "서식지를 습지 쪽으로 이동",
+        "P-MIGRATE-MARSH": "습지로 이동"
+      },
+      "placeByStrategy": {
+        "P-HERD-RELOCATE": "marsh-colony",
+        "P-MIGRATE-MARSH": "marsh-colony"
+      }
+    },
+    {
+      "behavior": "organize-export",
+      "sense": "record",
+      "legibility": 0.7,
+      "effects": [
+        "외부 운송대 편성"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-MERCHANT-EXPORT"
+      ],
+      "effectByStrategy": {
+        "P-MERCHANT-EXPORT": "외부 운송대 편성"
+      },
+      "placeByStrategy": {
+        "P-MERCHANT-EXPORT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "prepare-gear",
+      "sense": "record",
+      "legibility": 0.6,
+      "effects": [
+        "장비 준비",
+        "장비·약품 준비",
+        "포획 장비 준비"
+      ],
+      "places": [
+        "apex-lair",
+        "herd-valley",
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-CAPTURE-RARE",
+        "P-HUNT-APEX",
+        "P-HUNT-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-CAPTURE-RARE": "포획 장비 준비",
+        "P-HUNT-APEX": "장비·약품 준비",
+        "P-HUNT-CONTRACT": "장비 준비"
+      },
+      "placeByStrategy": {
+        "P-CAPTURE-RARE": "herd-valley",
+        "P-HUNT-APEX": "apex-lair",
+        "P-HUNT-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "quote-price",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "시세 확인"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-TRADER-BUY"
+      ],
+      "effectByStrategy": {
+        "P-TRADER-BUY": "시세 확인"
+      },
+      "placeByStrategy": {
+        "P-TRADER-BUY": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "raid-pasture",
+      "sense": "absence",
+      "legibility": 1,
+      "effects": [
+        "가축 습격"
+      ],
+      "places": [
+        "village-pasture"
+      ],
+      "strategies": [
+        "P-RAID-PASTURE"
+      ],
+      "effectByStrategy": {
+        "P-RAID-PASTURE": "가축 습격"
+      },
+      "placeByStrategy": {
+        "P-RAID-PASTURE": "village-pasture"
+      }
+    },
+    {
+      "behavior": "rate-contract-performance",
+      "sense": "record",
+      "legibility": 0.8,
+      "effects": [
+        "계약 이행 평가"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-RATE-PERFORMANCE"
+      ],
+      "effectByStrategy": {
+        "P-RATE-PERFORMANCE": "계약 이행 평가"
+      },
+      "placeByStrategy": {
+        "P-RATE-PERFORMANCE": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "recover-injury",
+      "sense": "absence",
+      "legibility": 0.3,
+      "effects": [
+        "둥지에서 회복 — 먹이 요구 감소"
+      ],
+      "places": [],
+      "strategies": [
+        "P-RECOVER-LAIR"
+      ],
+      "effectByStrategy": {
+        "P-RECOVER-LAIR": "둥지에서 회복 — 먹이 요구 감소"
+      },
+      "placeByStrategy": {}
+    },
+    {
+      "behavior": "regenerate",
+      "sense": "sighting",
+      "legibility": 0.4,
+      "effects": [
+        "군체 재생"
+      ],
+      "places": [
+        "marsh-colony"
+      ],
+      "strategies": [
+        "P-COLONY-REGENERATE"
+      ],
+      "effectByStrategy": {
+        "P-COLONY-REGENERATE": "군체 재생"
+      },
+      "placeByStrategy": {
+        "P-COLONY-REGENERATE": "marsh-colony"
+      }
+    },
+    {
+      "behavior": "relocate-lair",
+      "sense": "trace",
+      "legibility": 0.6,
+      "effects": [
+        "둥지 이전"
+      ],
+      "places": [
+        "apex-lair"
+      ],
+      "strategies": [
+        "P-RELOCATE-LAIR"
+      ],
+      "effectByStrategy": {
+        "P-RELOCATE-LAIR": "둥지 이전"
+      },
+      "placeByStrategy": {
+        "P-RELOCATE-LAIR": "apex-lair"
+      }
+    },
+    {
+      "behavior": "report-sighting",
+      "sense": "record",
+      "legibility": 0.7,
+      "effects": [
+        "목격 신고",
+        "치료 요청"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-REPORT-SIGHTING",
+        "P-VILLAGER-SEEK-CARE"
+      ],
+      "effectByStrategy": {
+        "P-REPORT-SIGHTING": "목격 신고",
+        "P-VILLAGER-SEEK-CARE": "치료 요청"
+      },
+      "placeByStrategy": {
+        "P-REPORT-SIGHTING": "hunter-outpost",
+        "P-VILLAGER-SEEK-CARE": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "sell-intel",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "정보 납품"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-SURVEY-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-SURVEY-CONTRACT": "정보 납품"
+      },
+      "placeByStrategy": {
+        "P-SURVEY-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "set-bait",
+      "sense": "trace",
+      "legibility": 0.5,
+      "effects": [
+        "미끼 설치"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-BAIT-LURE"
+      ],
+      "effectByStrategy": {
+        "P-BAIT-LURE": "미끼 설치"
+      },
+      "placeByStrategy": {
+        "P-BAIT-LURE": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "spread-rumor",
+      "sense": "record",
+      "legibility": 0.3,
+      "effects": [
+        "소문 전파"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-REPORT-SIGHTING"
+      ],
+      "effectByStrategy": {
+        "P-REPORT-SIGHTING": "소문 전파"
+      },
+      "placeByStrategy": {
+        "P-REPORT-SIGHTING": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "stalk",
+      "sense": "trace",
+      "legibility": 0.4,
+      "effects": [
+        "유인 경로 유도",
+        "추적"
+      ],
+      "places": [
+        "apex-lair",
+        "herd-valley",
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-BAIT-LURE",
+        "P-CAPTURE-RARE",
+        "P-HUNT-APEX"
+      ],
+      "effectByStrategy": {
+        "P-BAIT-LURE": "유인 경로 유도",
+        "P-CAPTURE-RARE": "추적",
+        "P-HUNT-APEX": "추적"
+      },
+      "placeByStrategy": {
+        "P-BAIT-LURE": "hunter-outpost",
+        "P-CAPTURE-RARE": "herd-valley",
+        "P-HUNT-APEX": "apex-lair"
+      }
+    },
+    {
+      "behavior": "stalk-prey",
+      "sense": "trace",
+      "legibility": 0.4,
+      "effects": [
+        "목장 접근",
+        "무리 추적"
+      ],
+      "places": [
+        "herd-valley",
+        "village-pasture"
+      ],
+      "strategies": [
+        "P-HUNT-HERD",
+        "P-RAID-PASTURE"
+      ],
+      "effectByStrategy": {
+        "P-HUNT-HERD": "무리 추적",
+        "P-RAID-PASTURE": "목장 접근"
+      },
+      "placeByStrategy": {
+        "P-HUNT-HERD": "herd-valley",
+        "P-RAID-PASTURE": "village-pasture"
+      }
+    },
+    {
+      "behavior": "survey-from-lookout",
+      "sense": "sighting",
+      "legibility": 0.8,
+      "effects": [
+        "전망 관측"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-SURVEY-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-SURVEY-CONTRACT": "전망 관측"
+      },
+      "placeByStrategy": {
+        "P-SURVEY-CONTRACT": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "suspend-cull-contract",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "조절 계약 중단 — 무리 회복"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-HALT-CULL"
+      ],
+      "effectByStrategy": {
+        "P-HALT-CULL": "조절 계약 중단 — 무리 회복"
+      },
+      "placeByStrategy": {
+        "P-HALT-CULL": "hunter-outpost"
+      }
+    },
+    {
+      "behavior": "trample-colony",
+      "sense": "trace",
+      "legibility": 1,
+      "effects": [
+        "군락 훼손"
+      ],
+      "places": [
+        "marsh-colony"
+      ],
+      "strategies": [
+        "P-MIGRATE-MARSH"
+      ],
+      "effectByStrategy": {
+        "P-MIGRATE-MARSH": "군락 훼손"
+      },
+      "placeByStrategy": {
+        "P-MIGRATE-MARSH": "marsh-colony"
+      }
+    },
+    {
+      "behavior": "update-map",
+      "sense": "record",
+      "legibility": 1,
+      "effects": [
+        "지도 갱신"
+      ],
+      "places": [
+        "hunter-outpost"
+      ],
+      "strategies": [
+        "P-SURVEY-CONTRACT"
+      ],
+      "effectByStrategy": {
+        "P-SURVEY-CONTRACT": "지도 갱신"
+      },
+      "placeByStrategy": {
+        "P-SURVEY-CONTRACT": "hunter-outpost"
+      }
+    }
+  ]
+}

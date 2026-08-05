@@ -17,6 +17,7 @@ import { planAll } from '../packages/possibilities/src/possibilityGraph.js';
 import { C01_STRATEGIES } from '../packages/possibilities/src/c01Strategies.js';
 import { buildC01RequirementGraph } from '../packages/world-requirements/src/c01Requirements.js';
 import { compileC01World } from '../packages/world-compiler/src/c01World.js';
+import { buildPhenomenonCatalog } from '../packages/runtime/src/phenomena.js';
 import { buildEvidence, writeEvidence } from '../packages/verification/src/evidence.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -118,6 +119,17 @@ check('Handoff Q→W — 요구가 없으면 세계도 없다 (청사진 하드�
   return `요구 0건 → 세계 요소 0종·역사 0건 / 요구 ${requirementGraph.requirements.length}건 → 장소 ${Object.keys(real.places).length}·경로 ${Object.keys(real.routes).length}·규칙 ${Object.keys(real.rules).length}·자원 ${Object.keys(real.resources).length}`;
 });
 
+check('미소비 출력 없음 — Q 의 성공 결과가 R 의 현상으로 소비된다 (I-3)', () => {
+  const catalog = buildPhenomenonCatalog(requirementGraph);
+  const fromQ = [...new Set(requirementGraph.outcomes.map((o) => o.behavior))].sort();
+  const consumed = catalog.entries.map((e) => e.behavior).sort();
+  const missing = fromQ.filter((b) => !consumed.includes(b));
+  if (missing.length) throw new Error(`R 이 소비하지 않는 Q 행동: ${missing.join(',')}`);
+  const dead = consumed.filter((b) => !fromQ.includes(b));
+  if (dead.length) throw new Error(`Q 가 내지 않은 현상: ${dead.join(',')}`);
+  return `성공 결과 ${requirementGraph.outcomes.length}건 → 행동 ${consumed.length}종이 전부 현상으로 소비됨 (미소비 0)`;
+});
+
 // ③ 결정성 — 시드는 좌표 지터에만 쓰이고 구조는 요구에서 나온다
 check('결정성 — 같은 시드 반복 동일, 다른 시드는 구조 동일·해시 상이', () => {
   const a = compileC01World({ requirementGraph, seed: 11 });
@@ -149,7 +161,7 @@ const evidence = buildEvidence({
     'scripts/check-segment-2.mjs',
   ],
   limitations: [
-    'Q 의 성공 결과(outcomes)는 아직 어떤 모듈도 소비하지 않는다 — Handoff Gate "미소비 출력 없음" 미충족, C01-R-S01 이 현상 생성에서 소비해야 한다 (열린 이슈 I-3)',
+    'Q 의 성공 결과는 R-S01 의 현상 카탈로그가 소비한다 (I-3 닫힘) — 다만 아직 아무도 그 현상을 지각하지 않는다 (R-S02)',
     '구간 2 의 플레이어 가시 기여는 아직 간접이다 — 실제 표면은 X 계층(구간 5)에서 확인된다',
     '동결 해시는 시드 11 기준 — 다른 시드는 구조만 검사하고 값은 고정하지 않는다',
   ],

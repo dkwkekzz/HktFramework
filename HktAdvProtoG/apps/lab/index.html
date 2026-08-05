@@ -148,9 +148,36 @@ function render() {
     if (runB?.conflicts) html += renderConflicts(runB.label ?? 'B', runB.conflicts);
   }
   if (runA.events) {
-    html += '<h2>이벤트 (인과 추적)</h2><table><tr><th>seq</th><th>tick</th><th>type</th><th>traceId</th><th>payload</th></tr>';
+    html += '<h2>이벤트 (인과 추적)</h2><table><tr><th>seq</th><th>tick</th><th>type</th><th>행동</th><th>traceId</th><th>바꾼 상태 경로</th><th>payload</th></tr>';
     for (const e of runA.events)
-      html += `<tr><td>${e.seq}</td><td>${e.tick}</td><td>${esc(e.type)}</td><td>${esc(e.traceId ?? '')}</td><td>${esc(JSON.stringify(e.payload))}</td></tr>`;
+      html += `<tr><td>${e.seq}</td><td>${e.tick}</td><td>${esc(e.type)}</td><td>${esc(e.behavior ?? '')}</td>`
+        + `<td>${esc(e.traceId ?? '')}</td><td>${esc((e.statePaths ?? []).join(', '))}</td>`
+        + `<td>${esc(JSON.stringify(e.payload))}</td></tr>`;
+    html += '</table>';
+  }
+  if (runA.phenomena) {
+    // R2 — 플레이어가 실제로 마주치는 것. 내부 사건이 아니라 세계에 남은 자국이다
+    html += `<h2>현상 (R2) — ${esc(runA.label ?? 'A')}</h2>`
+      + '<table><tr><th>tick</th><th>장소</th><th>감각</th><th>남은 것</th><th>읽기 난이도</th><th>행동 ← 전략</th><th>사건</th></tr>';
+    for (const p of runA.phenomena)
+      html += `<tr><td>${p.tick}</td><td>${esc(p.at ?? '')}</td><td>${esc(p.sense)}</td>`
+        + `<td>${esc(p.description ?? '')}</td><td>${p.legibility}</td>`
+        + `<td>${esc(p.behavior)} ← ${esc(p.strategy ?? '-')}</td><td>${esc(p.sourceEventId)}</td></tr>`;
+    html += '</table>';
+  }
+  if (runA.explainedPaths) {
+    html += '<h2>상태를 설명하는 사건 (완료 조건)</h2><table><tr><th>상태 경로</th><th>이 경로를 바꾼 사건</th></tr>';
+    for (const row of runA.explainedPaths)
+      html += `<tr><td>${esc(row.path)}</td><td>${esc(row.events.join(' → '))}</td></tr>`;
+    html += '</table>';
+  }
+  if (runA.entries && runA.entries[0]?.sense) {
+    html += `<h2>현상 카탈로그 (Q 성공 결과 ← 전략)</h2>`
+      + '<table><tr><th>행동</th><th>감각</th><th>읽기 난이도</th><th>남기는 것</th><th>장소</th><th>부른 전략</th></tr>';
+    for (const e of runA.entries)
+      html += `<tr><td>${esc(e.behavior)}</td><td>${esc(e.sense)}</td><td>${e.legibility}</td>`
+        + `<td>${esc(e.effects.join(' / '))}</td><td>${esc(e.places.join(', '))}</td>`
+        + `<td>${esc(e.strategies.join(', '))}</td></tr>`;
     html += '</table>';
   }
   $('#out').innerHTML = html;

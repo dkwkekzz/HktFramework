@@ -1,0 +1,68 @@
+{
+  "step": "C01-R-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "phenomenonKinds": 38,
+    "outcomeCount": 47,
+    "raidStateHash": "32a4a9cb0f3f0a5d",
+    "eventCount": 4,
+    "phenomenonCount": 4,
+    "explainedPaths": 8,
+    "checks": [
+      {
+        "name": "I-3 현상 카탈로그가 Q 의 성공 결과에서 나온다 (Handoff: Q-S01 출력 소비)",
+        "passed": true,
+        "detail": "성공 결과 47건 → 행동 38종 현상 (record18 sighting7 trace10 sound1 absence2)"
+      },
+      {
+        "name": "I-3 죽은 매핑·미매핑 행동 거부 (양방향 lint)",
+        "passed": true,
+        "detail": "감각 매핑 없는 행동 원자 | Q 가 부르지 않는 행동의 감각 매핑"
+      },
+      {
+        "name": "R0 읽기 스냅샷은 얼어 있다 — 사건 없는 직접 수정 거부",
+        "passed": true,
+        "detail": "직접 수정 3종 전부 거부, stateHash 불변 fc7fc42444b76969"
+      },
+      {
+        "name": "R1 공리 위반 사건 거부 — 상태·로그·자국 전부 불변 (오류 은폐 금지)",
+        "passed": true,
+        "detail": "CONSERVATION_NO_COST + 미등록 사건 타입: DragonAwakened"
+      },
+      {
+        "name": "완료 조건 — 임의 상태 조회가 사건 이력으로 완전히 설명됨",
+        "passed": true,
+        "detail": "사건 4건이 상태 경로 8종을 전부 설명 (미설명 0)"
+      },
+      {
+        "name": "결정성 — 로그 재생 = 상태 재현",
+        "passed": true,
+        "detail": "stateHash=32a4a9cb0f3f0a5d (재생·재실행 3경로 일치)"
+      },
+      {
+        "name": "플레이어 가시 — 사건이 발자국·가축 실종·공고로 남는다",
+        "passed": true,
+        "detail": "herd-valley:trace(무리 추적) → herd-valley:trace(무리 개체 포식) → village-pasture:absence(가축 습격) → hunter-outpost:record(토벌 계약 발급)"
+      },
+      {
+        "name": "Lab 산출 (사건·현상·상태 설명)",
+        "passed": true,
+        "detail": "apps/lab/sample-runtime-raid.json + sample-phenomenon-catalog.json"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/runtime/src/worldRuntime.js",
+    "packages/runtime/src/phenomena.js",
+    "packages/runtime/src/c01Runtime.js"
+  ],
+  "limitations": [
+    "사건 로그·리플레이는 Foundation 의 EventLog 를 그대로 쓴다 (REUSE) — 스냅샷·재접속 복구는 N-S02",
+    "현상은 아직 아무도 지각하지 않는다 — 누가 무엇을 보는지는 R-S02(지각·믿음)의 몫",
+    "legibility(읽기 난이도)는 설계값 — 추적 숙련에 따른 판정은 G1 에서 소비한다",
+    "사건 열은 아직 손으로 넣는다 — 압력·계획에서 사건이 자동으로 나오는 것은 E-S01(Situation)·C-S01(복합 주체)",
+    "리듀서는 C01 이 지금 쓰는 전이만 다룬다 — 개체군 번식·군락 훼손 같은 생태 전이는 C-S01 에서 확장"
+  ],
+  "contentHash": "fb5bc2357397a253",
+  "generatedAt": "2026-08-05T09:04:35.788Z"
+}
