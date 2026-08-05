@@ -2,7 +2,7 @@
   "step": "C01-S-S01",
   "status": "STEP_VERIFIED_LOCAL",
   "results": {
-    "castHash": "2af9d14732bde51a",
+    "castHash": "44b0b0ce93d081f1",
     "subjectCount": 8,
     "checks": [
       {
@@ -13,7 +13,7 @@
       {
         "name": "표준 배역 생성 결정성 (같은 시드 = 같은 해시)",
         "passed": true,
-        "detail": "subjects=8, castHash=2af9d14732bde51a"
+        "detail": "subjects=8, castHash=44b0b0ce93d081f1"
       },
       {
         "name": "원형별 지각·행동 차이 (SC-C01-S-01)",
@@ -28,7 +28,7 @@
       {
         "name": "플레이어 역할 4종 생성",
         "passed": true,
-        "detail": "tracker(4행동), hunter(5행동), dresser-crafter(4행동), trader(5행동)"
+        "detail": "tracker(4행동), hunter(6행동), dresser-crafter(4행동), trader(5행동)"
       }
     ]
   },
@@ -41,6 +41,6 @@
     "지각·행동은 후보 목록 — 실제 선택은 P(전략)·R(지각/의도) 계층에서",
     "배역 규모는 표준 1벌(주체 8) — 지역 배치·수량 실체화는 W 계층에서"
   ],
-  "contentHash": "67dd306c50db8b25",
-  "generatedAt": "2026-08-05T07:38:42.388Z"
+  "contentHash": "36bd31b0733ce634",
+  "generatedAt": "2026-08-05T07:48:46.048Z"
 }

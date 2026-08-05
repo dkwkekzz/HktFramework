@@ -1,0 +1,89 @@
+{
+  "label": "apex-thin",
+  "hash": "b70fc1b628cf0623",
+  "plans": [
+    {
+      "subject": "sub-000009",
+      "archetype": "apex-monster",
+      "goal": {
+        "kind": "prey",
+        "pressure": 0.6666666666666667,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-RAID-PASTURE",
+          "target": "village-pasture",
+          "interventionFamily": null,
+          "rationale": "무리가 마르면 포식 마물은 위험을 무릅쓰고 목장 가축을 노린다",
+          "atoms": [
+            "stalk-prey",
+            "raid-pasture"
+          ],
+          "effects": [
+            "목장 접근",
+            "가축 습격"
+          ],
+          "gain": 8,
+          "cost": 2,
+          "risk": 4,
+          "score": 7.333333333333334
+        },
+        {
+          "id": "P-RECOVER-LAIR",
+          "target": null,
+          "interventionFamily": null,
+          "rationale": "부상이 크면 사냥 대신 회복으로 먹이 요구 자체를 줄인다",
+          "atoms": [
+            "recover-injury"
+          ],
+          "effects": [
+            "둥지에서 회복 — 먹이 요구 감소"
+          ],
+          "gain": 5,
+          "cost": 2,
+          "risk": 0,
+          "score": 6.333333333333334
+        },
+        {
+          "id": "P-HUNT-HERD",
+          "target": "herd-population",
+          "interventionFamily": null,
+          "rationale": "포식 마물의 기본 먹이원은 골짜기 무리다",
+          "atoms": [
+            "stalk-prey",
+            "hunt"
+          ],
+          "effects": [
+            "무리 추적",
+            "무리 개체 포식"
+          ],
+          "gain": 1,
+          "cost": 1,
+          "risk": 1,
+          "score": -0.33333333333333326
+        }
+      ],
+      "chosen": {
+        "id": "P-RAID-PASTURE",
+        "target": "village-pasture",
+        "interventionFamily": null,
+        "rationale": "무리가 마르면 포식 마물은 위험을 무릅쓰고 목장 가축을 노린다",
+        "atoms": [
+          "stalk-prey",
+          "raid-pasture"
+        ],
+        "effects": [
+          "목장 접근",
+          "가축 습격"
+        ],
+        "gain": 8,
+        "cost": 2,
+        "risk": 4,
+        "score": 7.333333333333334
+      },
+      "reason": "P-RAID-PASTURE: 이득 8 x 절박도 1.67 − 비용 2 − 위험 4 = 7.33"
+    }
+  ]
+}

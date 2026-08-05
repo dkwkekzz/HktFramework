@@ -1,0 +1,112 @@
+{
+  "label": "ST-C01-02",
+  "hash": "9b5196b62ce0372e",
+  "plans": [
+    {
+      "subject": "sub-000008",
+      "archetype": "herd-beast",
+      "goal": {
+        "kind": "habitat",
+        "pressure": 0.33333333333333337,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-HERD-BREED",
+          "target": "herd-valley-forage",
+          "interventionFamily": null,
+          "rationale": "여유 목초가 있으면 무리는 번식으로 서식을 넓힌다",
+          "atoms": [
+            "breed"
+          ],
+          "effects": [
+            "번식"
+          ],
+          "gain": 2,
+          "cost": 1,
+          "risk": 1,
+          "score": 0.666666666666667
+        },
+        {
+          "id": "P-HERD-RELOCATE",
+          "target": "marsh-colony",
+          "interventionFamily": null,
+          "rationale": "골짜기에 여유가 없으면 무리는 서식지 자체를 습지로 옮긴다",
+          "atoms": [
+            "migrate"
+          ],
+          "effects": [
+            "서식지를 습지 쪽으로 이동"
+          ],
+          "gain": 3,
+          "cost": 3,
+          "risk": 2,
+          "score": -1
+        }
+      ],
+      "chosen": {
+        "id": "P-HERD-BREED",
+        "target": "herd-valley-forage",
+        "interventionFamily": null,
+        "rationale": "여유 목초가 있으면 무리는 번식으로 서식을 넓힌다",
+        "atoms": [
+          "breed"
+        ],
+        "effects": [
+          "번식"
+        ],
+        "gain": 2,
+        "cost": 1,
+        "risk": 1,
+        "score": 0.666666666666667
+      },
+      "reason": "P-HERD-BREED: 이득 2 x 절박도 1.33 − 비용 1 − 위험 1 = 0.67"
+    },
+    {
+      "subject": "sub-000010",
+      "archetype": "resource-colony",
+      "goal": {
+        "kind": "habitat",
+        "pressure": 0.10810810810810811,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-COLONY-REGENERATE",
+          "target": "marsh-colony",
+          "interventionFamily": null,
+          "rationale": "군락은 훼손되지 않은 만큼 스스로 회복한다",
+          "atoms": [
+            "regenerate"
+          ],
+          "effects": [
+            "군체 재생"
+          ],
+          "gain": 74,
+          "cost": 0,
+          "risk": 0,
+          "score": 82
+        }
+      ],
+      "chosen": {
+        "id": "P-COLONY-REGENERATE",
+        "target": "marsh-colony",
+        "interventionFamily": null,
+        "rationale": "군락은 훼손되지 않은 만큼 스스로 회복한다",
+        "atoms": [
+          "regenerate"
+        ],
+        "effects": [
+          "군체 재생"
+        ],
+        "gain": 74,
+        "cost": 0,
+        "risk": 0,
+        "score": 82
+      },
+      "reason": "P-COLONY-REGENERATE: 이득 74 x 절박도 1.11 − 비용 0 − 위험 0 = 82.00"
+    }
+  ]
+}

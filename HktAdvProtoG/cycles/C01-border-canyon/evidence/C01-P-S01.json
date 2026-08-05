@@ -1,0 +1,52 @@
+{
+  "step": "C01-P-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "strategyCount": 30,
+    "st01PlanHash": "c9259bbfcdda3de8",
+    "checks": [
+      {
+        "name": "전략 카탈로그 정합 (모든 전략에 수행 주체·원자 보유)",
+        "passed": true,
+        "detail": "전략 30건, 의존 계열 6종 전부 대응"
+      },
+      {
+        "name": "SC-C01-P4-01 조달 경로가 먹이량·위험 비용에서 계산",
+        "passed": true,
+        "detail": "무리6 → P-HUNT-HERD(4.67) / 무리1 → P-RAID-PASTURE(7.33)"
+      },
+      {
+        "name": "SC-C01-P-02 같은 계열이라도 원형마다 다른 전략",
+        "passed": true,
+        "detail": "apex-monster[P-HUNT-HERD,P-RAID-PASTURE,P-RECOVER-LAIR] herd-beast[P-GRAZE-VALLEY,P-MIGRATE-MARSH] villager[P-TEND-LIVESTOCK]"
+      },
+      {
+        "name": "ST-C01-01 에 복수 해결 경로 (토벌·유인·먹이 회복·방어)",
+        "passed": true,
+        "detail": "cull-contract, defend-pasture, lure-away-with-bait, restore-prey-base, sell-tracking-intel, subjugate"
+      },
+      {
+        "name": "압력 → 목적 → 전략 → 행동 계획 사슬 (Situation 별 산출)",
+        "passed": true,
+        "detail": "ST-C01-01:4건 ST-C01-02:2건 ST-C01-03:1건 ST-C01-04:2건 ST-C01-05:2건 + apex-thin/thick 대조"
+      },
+      {
+        "name": "결정성 (같은 상태 → 같은 계획 해시)",
+        "passed": true,
+        "detail": "planHash=c9259bbfcdda3de8"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/possibilities/src/possibilityGraph.js",
+    "packages/possibilities/src/c01Strategies.js"
+  ],
+  "limitations": [
+    "균형 장면에서는 결핍이 없어 목적이 활성화되지 않는다 — 항상적 유지 행동은 C 계층 기저 행동으로 다룬다",
+    "전략 이득은 요구 대비 단일 tick 추정 — 다단계 계획·연쇄 효과는 E/G 에서",
+    "조합의 hunt-order(사냥 질서) 목적이 D 의존으로 없어 무리 과잉에 조합이 반응하지 않는다 (열린 이슈 I-2)",
+    "선택은 점수 최대 1개 — 동시 다중 전략·파티 분업은 E1/E2 에서"
+  ],
+  "contentHash": "a98668f05212bdac",
+  "generatedAt": "2026-08-05T07:48:45.962Z"
+}

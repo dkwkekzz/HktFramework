@@ -1,0 +1,96 @@
+{
+  "label": "ST-C01-04",
+  "hash": "ed980b59e13e82ff",
+  "plans": [
+    {
+      "subject": "sub-000004",
+      "archetype": "hunters-guild",
+      "goal": {
+        "kind": "healing",
+        "pressure": 1,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-BUY-POTIONS",
+          "target": "healing-potion",
+          "interventionFamily": null,
+          "rationale": "조합은 부상 조합원을 위해 치료제를 사들인다",
+          "atoms": [
+            "buy-potions"
+          ],
+          "effects": [
+            "치료제 매입"
+          ],
+          "gain": 1,
+          "cost": 1,
+          "risk": 0,
+          "score": 1
+        }
+      ],
+      "chosen": {
+        "id": "P-BUY-POTIONS",
+        "target": "healing-potion",
+        "interventionFamily": null,
+        "rationale": "조합은 부상 조합원을 위해 치료제를 사들인다",
+        "atoms": [
+          "buy-potions"
+        ],
+        "effects": [
+          "치료제 매입"
+        ],
+        "gain": 1,
+        "cost": 1,
+        "risk": 0,
+        "score": 1
+      },
+      "reason": "P-BUY-POTIONS: 이득 1 x 절박도 2.00 − 비용 1 − 위험 0 = 1.00"
+    },
+    {
+      "subject": "sub-000010",
+      "archetype": "resource-colony",
+      "goal": {
+        "kind": "habitat",
+        "pressure": 0.013513513513513487,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-COLONY-REGENERATE",
+          "target": "marsh-colony",
+          "interventionFamily": null,
+          "rationale": "군락은 훼손되지 않은 만큼 스스로 회복한다",
+          "atoms": [
+            "regenerate"
+          ],
+          "effects": [
+            "군체 재생"
+          ],
+          "gain": 74,
+          "cost": 0,
+          "risk": 0,
+          "score": 75
+        }
+      ],
+      "chosen": {
+        "id": "P-COLONY-REGENERATE",
+        "target": "marsh-colony",
+        "interventionFamily": null,
+        "rationale": "군락은 훼손되지 않은 만큼 스스로 회복한다",
+        "atoms": [
+          "regenerate"
+        ],
+        "effects": [
+          "군체 재생"
+        ],
+        "gain": 74,
+        "cost": 0,
+        "risk": 0,
+        "score": 75
+      },
+      "reason": "P-COLONY-REGENERATE: 이득 74 x 절박도 1.01 − 비용 0 − 위험 0 = 75.00"
+    }
+  ]
+}

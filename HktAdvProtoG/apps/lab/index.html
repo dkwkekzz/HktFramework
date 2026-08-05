@@ -60,6 +60,27 @@ function render() {
     }
     html += '</table>';
   }
+  if (runA.plans) {
+    const renderPlans = (label, plans) => {
+      let h = `<h2>목적 → 전략 → 행동 계획 (P) — ${esc(label)}</h2>`;
+      if (!plans.length) return h + '<p class="pass">활성 목적 없음 (결핍 없는 균형 상태)</p>';
+      for (const p of plans) {
+        h += `<h3>${esc(p.archetype)} <small>${esc(p.subject)}</small></h3>`
+          + `<p>목적 <b>${esc(p.goal.kind)}</b> (압력 ${p.goal.pressure.toFixed(2)}${p.goal.kept ? ', 유지' : ''}) — ${esc(p.reason)}</p>`
+          + '<table><tr><th></th><th>전략</th><th>대상</th><th>개입군</th><th>이득</th><th>비용</th><th>위험</th><th>점수</th><th>행동 원자</th><th>근거</th></tr>';
+        for (const c of p.candidates)
+          h += `<tr class="${c.id === p.chosen?.id ? 'diverge' : ''}"><td>${c.id === p.chosen?.id ? '▶' : ''}</td>`
+            + `<td>${esc(c.id)}</td><td>${esc(c.target ?? '—')}</td><td>${esc(c.interventionFamily ?? '—')}</td>`
+            + `<td>${c.gain}</td><td>${c.cost}</td><td>${c.risk}</td>`
+            + `<td class="${c.score > 0 ? 'pass' : 'fail'}">${c.score.toFixed(2)}</td>`
+            + `<td>${esc(c.atoms.join(' → '))}</td><td>${esc(c.rationale)}</td></tr>`;
+        h += '</table>';
+      }
+      return h;
+    };
+    html += renderPlans(runA.label ?? 'A', runA.plans);
+    if (runB?.plans) html += renderPlans(runB.label ?? 'B', runB.plans);
+  }
   if (runA.pressures) {
     html += '<h2>의존 압력 (D4)</h2><table><tr><th>주체</th><th>의존</th><th>요구</th><th>조달</th><th>압력</th>'
       + (runB?.pressures ? '<th>B 압력</th><th>Δ</th>' : '') + '<th>근거</th></tr>';

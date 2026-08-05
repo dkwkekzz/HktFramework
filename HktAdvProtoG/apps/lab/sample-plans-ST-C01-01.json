@@ -1,0 +1,257 @@
+{
+  "label": "ST-C01-01",
+  "hash": "c9259bbfcdda3de8",
+  "plans": [
+    {
+      "subject": "pl-crafter",
+      "archetype": "player:dresser-crafter",
+      "goal": {
+        "kind": "byproduct",
+        "pressure": 1,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-CRAFTER-BUY-STOCK",
+          "target": "market-inventory",
+          "interventionFamily": null,
+          "rationale": "제작자는 장비 재료를 시장에서 고른다",
+          "atoms": [
+            "appraise"
+          ],
+          "effects": [
+            "품질 판별"
+          ],
+          "gain": 0,
+          "cost": 1,
+          "risk": 0,
+          "score": -1
+        }
+      ],
+      "chosen": null,
+      "reason": "byproduct 결핍에 실효 있는 수단 없음 (후보 1건 전부 이득 0)"
+    },
+    {
+      "subject": "sub-000004",
+      "archetype": "hunters-guild",
+      "goal": {
+        "kind": "safety",
+        "pressure": 0.5,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-HALT-CULL",
+          "target": "village-safety",
+          "interventionFamily": "restore-prey-base",
+          "rationale": "무리를 회복시키면 포식 마물이 목장으로 내려올 이유가 줄어든다",
+          "atoms": [
+            "suspend-cull-contract"
+          ],
+          "effects": [
+            "조절 계약 중단 — 무리 회복"
+          ],
+          "gain": 6,
+          "cost": 1,
+          "risk": 1,
+          "score": 7
+        },
+        {
+          "id": "P-SUBJUGATION-CONTRACT",
+          "target": "village-safety",
+          "interventionFamily": "subjugate",
+          "rationale": "조합은 토벌 계약으로 위협 자체를 제거한다",
+          "atoms": [
+            "issue-subjugation-contract"
+          ],
+          "effects": [
+            "토벌 계약 발급"
+          ],
+          "gain": 6,
+          "cost": 2,
+          "risk": 2,
+          "score": 5
+        },
+        {
+          "id": "P-CULL-CONTRACT",
+          "target": "village-safety",
+          "interventionFamily": "cull-contract",
+          "rationale": "무리가 과잉이면 조합은 조절 계약으로 생태를 관리한다",
+          "atoms": [
+            "issue-cull-contract"
+          ],
+          "effects": [
+            "개체 조절 계약 발급"
+          ],
+          "gain": 0,
+          "cost": 2,
+          "risk": 1,
+          "score": -3
+        }
+      ],
+      "chosen": {
+        "id": "P-HALT-CULL",
+        "target": "village-safety",
+        "interventionFamily": "restore-prey-base",
+        "rationale": "무리를 회복시키면 포식 마물이 목장으로 내려올 이유가 줄어든다",
+        "atoms": [
+          "suspend-cull-contract"
+        ],
+        "effects": [
+          "조절 계약 중단 — 무리 회복"
+        ],
+        "gain": 6,
+        "cost": 1,
+        "risk": 1,
+        "score": 7
+      },
+      "reason": "P-HALT-CULL: 이득 6 x 절박도 1.50 − 비용 1 − 위험 1 = 7.00"
+    },
+    {
+      "subject": "sub-000007",
+      "archetype": "merchant",
+      "goal": {
+        "kind": "byproduct",
+        "pressure": 1,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-MERCHANT-EXPORT",
+          "target": "export-route-capacity",
+          "interventionFamily": null,
+          "rationale": "상인은 남는 물량을 외부로 반출한다",
+          "atoms": [
+            "organize-export"
+          ],
+          "effects": [
+            "외부 운송대 편성"
+          ],
+          "gain": 3,
+          "cost": 2,
+          "risk": 1,
+          "score": 3
+        },
+        {
+          "id": "P-MERCHANT-RESTOCK",
+          "target": "market-inventory",
+          "interventionFamily": null,
+          "rationale": "상인은 시장 물량으로 재고를 채운다",
+          "atoms": [
+            "buy-byproducts"
+          ],
+          "effects": [
+            "부산물 매입"
+          ],
+          "gain": 0,
+          "cost": 1,
+          "risk": 0,
+          "score": -1
+        }
+      ],
+      "chosen": {
+        "id": "P-MERCHANT-EXPORT",
+        "target": "export-route-capacity",
+        "interventionFamily": null,
+        "rationale": "상인은 남는 물량을 외부로 반출한다",
+        "atoms": [
+          "organize-export"
+        ],
+        "effects": [
+          "외부 운송대 편성"
+        ],
+        "gain": 3,
+        "cost": 2,
+        "risk": 1,
+        "score": 3
+      },
+      "reason": "P-MERCHANT-EXPORT: 이득 3 x 절박도 2.00 − 비용 2 − 위험 1 = 3.00"
+    },
+    {
+      "subject": "sub-000009",
+      "archetype": "apex-monster",
+      "goal": {
+        "kind": "prey",
+        "pressure": 0.33333333333333337,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-RAID-PASTURE",
+          "target": "village-pasture",
+          "interventionFamily": null,
+          "rationale": "무리가 마르면 포식 마물은 위험을 무릅쓰고 목장 가축을 노린다",
+          "atoms": [
+            "stalk-prey",
+            "raid-pasture"
+          ],
+          "effects": [
+            "목장 접근",
+            "가축 습격"
+          ],
+          "gain": 6,
+          "cost": 2,
+          "risk": 4,
+          "score": 2
+        },
+        {
+          "id": "P-HUNT-HERD",
+          "target": "herd-population",
+          "interventionFamily": null,
+          "rationale": "포식 마물의 기본 먹이원은 골짜기 무리다",
+          "atoms": [
+            "stalk-prey",
+            "hunt"
+          ],
+          "effects": [
+            "무리 추적",
+            "무리 개체 포식"
+          ],
+          "gain": 2,
+          "cost": 1,
+          "risk": 1,
+          "score": 0.666666666666667
+        },
+        {
+          "id": "P-RECOVER-LAIR",
+          "target": null,
+          "interventionFamily": null,
+          "rationale": "부상이 크면 사냥 대신 회복으로 먹이 요구 자체를 줄인다",
+          "atoms": [
+            "recover-injury"
+          ],
+          "effects": [
+            "둥지에서 회복 — 먹이 요구 감소"
+          ],
+          "gain": 2,
+          "cost": 2,
+          "risk": 0,
+          "score": 0.666666666666667
+        }
+      ],
+      "chosen": {
+        "id": "P-RAID-PASTURE",
+        "target": "village-pasture",
+        "interventionFamily": null,
+        "rationale": "무리가 마르면 포식 마물은 위험을 무릅쓰고 목장 가축을 노린다",
+        "atoms": [
+          "stalk-prey",
+          "raid-pasture"
+        ],
+        "effects": [
+          "목장 접근",
+          "가축 습격"
+        ],
+        "gain": 6,
+        "cost": 2,
+        "risk": 4,
+        "score": 2
+      },
+      "reason": "P-RAID-PASTURE: 이득 6 x 절박도 1.33 − 비용 2 − 위험 4 = 2.00"
+    }
+  ]
+}

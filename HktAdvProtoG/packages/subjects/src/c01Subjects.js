@@ -13,7 +13,8 @@ export const C01_ARCHETYPE_PROFILES = [
   {
     archetype: 'hunters-guild', actorKind: 'organization',
     perception: ['member-reports', 'village-complaints'],
-    behaviors: ['issue-cull-contract', 'issue-subjugation-contract', 'buy-potions', 'rate-contract-performance'],
+    // suspend-cull-contract: 조절 계약을 거둬 무리를 회복시키는 지렛대 (먹이 회복 개입군)
+    behaviors: ['issue-cull-contract', 'suspend-cull-contract', 'issue-subjugation-contract', 'buy-potions', 'rate-contract-performance'],
     memberCount: [2, 4],
   },
   {
@@ -44,7 +45,8 @@ export const C01_ARCHETYPE_PROFILES = [
 
 export const C01_ROLE_PROFILES = [
   { role: 'tracker', perception: ['trace-reading', 'rumor'], behaviors: ['inspect-trace', 'survey-from-lookout', 'update-map', 'sell-intel'] },
-  { role: 'hunter', perception: ['sight-near', 'trace-reading'], behaviors: ['prepare-gear', 'stalk', 'fight', 'capture', 'dress-carcass'] },
+  // set-bait: 미끼로 대상을 다른 곳으로 끌어내는 행동 (유인 개입군)
+  { role: 'hunter', perception: ['sight-near', 'trace-reading'], behaviors: ['prepare-gear', 'set-bait', 'stalk', 'fight', 'capture', 'dress-carcass'] },
   { role: 'dresser-crafter', perception: ['quality-appraisal'], behaviors: ['gather-herbs', 'appraise', 'craft-item', 'deliver-contract'] },
   { role: 'trader', perception: ['market-stock', 'price-board'], behaviors: ['quote-price', 'buy', 'sell', 'hoard', 'export'] },
 ];
