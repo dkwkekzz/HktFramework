@@ -12,6 +12,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ## 지켜야 할 사항
 
 작업 진행 상황은 항상 [STATE.md](STATE.md) 에 기록하고, 새 작업을 시작하기 전에 먼저 읽는다.
+모든 구현 작업은 [WORKFLOW.md](WORKFLOW.md) 의 운영 지침을 상시 준수한다 — 모듈 순서(V→A) 고정,
+Cycle 은 소형 MMORPG 세계, 작은 장면은 Scenario 로만, 얇은 구현은 허용하되 가짜 구현은 금지.
 다른 프로젝트( HktAdvProtoF 등 )는 참고하지 말 것.
 
 ## 문서 인덱싱
@@ -19,3 +21,13 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
+| [WORKFLOW.md](WORKFLOW.md) | **상시 운영 규정** — 모듈 순서·Cycle 정의·작업 계층·Step 규칙·구현 금지 목록·완료 판정 |
+| [design/Design-ModulePlan-CycleWorkflow.md](design/Design-ModulePlan-CycleWorkflow.md) | 최상위 구현 기준 — Cycle WORKFLOW 절차·템플릿 원본 |
+| [design/Design-MasterPlan.md](design/Design-MasterPlan.md) | 세계 설계도 (원문) |
+| [design/Design-ModulePlan.md](design/Design-ModulePlan.md) | 모듈 분할 계획 (원문) |
+
+## 스킬
+
+| 스킬 | 언제 |
+|---|---|
+| `/advprotog-cycle-plan` | 다음 Cycle 설계 (계획 전용 — 코드를 수정하지 않는다) |
