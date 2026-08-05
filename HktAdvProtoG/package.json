@@ -1,0 +1,11 @@
+{
+  "name": "hktadvprotog",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "description": "목적 트리 기반 오픈월드 어드벤처 프로토타입 — Foundation + Cycle 구현",
+  "scripts": {
+    "test": "node --test 'packages/**/*.test.js'",
+    "foundation:check": "node scripts/run-foundation-check.mjs"
+  }
+}

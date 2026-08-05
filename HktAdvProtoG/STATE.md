@@ -23,19 +23,31 @@
 | `advprotog-cycle-integrator` — Cycle 통합·VERIFIED 판정 | 등록 완료 |
 | `advprotog-workflow-maintainer` — Workflow·Skill 구조 변경 | 등록 완료 |
 
+### Foundation (Phase 0)
+
+| 구성 | 상태 |
+|---|---|
+| V1 결정적 실행 (`packages/verification/src/deterministic.js`) | 완료 — Seeded Random·결정적 ID·Stable Sort·State Hash·Tick |
+| V0 모듈 계약 (`contracts.js`) + Cycle 레지스트리 (`cycleRegistry.js`) | 완료 — 고정 순서·의존성 검사·cycle:lint 골격 |
+| V2 Scenario Runner (`scenarioRunner.js`) | 완료 — 해시 궤적·최초 차이 지점 보고 |
+| V4 완료 증거 (`evidence.js`) | 완료 |
+| 이벤트 로그·리플레이 저장소 (`packages/events/`) | 완료 — 재생=재현, 저장·로드 왕복 |
+| 권위 서버 껍질 (`packages/server/`) | 완료 — 명령 제출·충돌 1회 확정·사건 경유 상태 변경 |
+| V3 Lab (`apps/lab/index.html`) | 최소판 — 실행 보고 로드·해시 궤적 비교·이벤트 표 |
+| 완료 조건 7항 (`npm run foundation:check`) | **7/7 통과** — [evidence/foundation/phase0.json](evidence/foundation/phase0.json) |
+
+잔여: V3 Lab 고도화, 3D 앱·Lab 공통 상태 연결(X 구간에서), CYCLE.yaml→JSON 수동 동기화(scripts/build-cycle-json.py).
+
 ### Cycle
 
 | Cycle | 상태 |
 |---|---|
-| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **PLANNED** (사냥 중심 재설계 — 신·국가·밀수는 후속 Cycle 이월, 구현은 Foundation 완료 후) |
+| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **IMPLEMENTING** — 구간 1 진입. C01-V-S01 완료 ([증거](cycles/C01-border-canyon/evidence/C01-V-S01.json)) |
 
 ## TODO
 
-- [ ] **Foundation (Phase 0)** — V0~V4 검증 기반 + Cycle/Situation/Scenario/Step 스키마 + 리플레이 저장소 +
-      단일 프로세스 권위 서버 껍질. Foundation 은 게임 Cycle 로 세지 않는다
-      (docs/Design-ModulePlan-CycleWorkflow.md §9 Phase 0).
-      **C01 구현(구간 1~7)의 선행 게이트** — cycles/C01-border-canyon/STEPS.md 구간 0 참조.
-- [ ] **C01 구현** — Foundation 완료 후 `advprotog-step-implementer` 로
-      cycles/C01-border-canyon/STEPS.md 의 구간 1 (C01-V-S01 → D-S02) 부터 착수.
+- [ ] **C01-O-S01** — 핵심 공리 5종 + 평가기 (`advprotog-step-implementer`, 구간 1 계속)
+- [ ] C01-O-S02 존재론·스키마 → C01-S-S01 주체 원형 → C01-D-S01 의존 그래프 (구간 1 잔여)
+- [ ] 구간 1 종료 조건: D 출력이 5개 Situation 충돌 구조를 모두 표현 (STEPS.md)
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
       Foundation 구현이 실체를 갖춘 뒤 `advprotog-workflow-maintainer` 로 추가한다.

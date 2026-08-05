@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>HktAdvProtoG Lab — 검증 뷰어 (V3 최소)</title>
+<style>
+  :root { color-scheme: light dark; font-family: ui-monospace, Consolas, monospace; }
+  body { margin: 1.5rem; line-height: 1.5; }
+  h1 { font-size: 1.2rem; } h2 { font-size: 1rem; margin-top: 1.5rem; }
+  table { border-collapse: collapse; margin-top: .5rem; }
+  td, th { border: 1px solid #8886; padding: .25rem .6rem; text-align: left; font-size: .85rem; }
+  .pass { color: #2a2; } .fail { color: #d33; font-weight: bold; }
+  .diverge { background: #d334; }
+  #drop { border: 2px dashed #888; padding: 1rem; margin: 1rem 0; }
+  code { font-size: .85rem; }
+</style>
+</head>
+<body>
+<h1>HktAdvProtoG Lab — Scenario 실행·상태 해시·이벤트 뷰어</h1>
+<div id="drop">
+  실행 보고 JSON 선택 (scripts/run-foundation-check.mjs 산출 <code>apps/lab/sample-run.json</code> 등)
+  <br><br>
+  A: <input type="file" id="fileA" accept=".json">
+  B(비교, 선택): <input type="file" id="fileB" accept=".json">
+</div>
+<div id="out"></div>
+<script>
+const $ = (s) => document.querySelector(s);
+let runA = null, runB = null;
+
+function esc(v) { return String(v).replace(/[&<>]/g, (c) => ({ '&':'&amp;','<':'&lt;','>':'&gt;' }[c])); }
+
+function render() {
+  if (!runA) return;
+  const divergeAt = runB ? firstDivergence(runA.trail || [], runB.trail || []) : -1;
+  let html = `<h2>실행 요약</h2>
+  <table>
+    <tr><th></th><th>A</th>${runB ? '<th>B</th>' : ''}</tr>
+    <tr><td>Scenario</td><td>${esc(runA.scenario)}</td>${runB ? `<td>${esc(runB.scenario)}</td>` : ''}</tr>
+    <tr><td>Seed</td><td>${esc(runA.seed)}</td>${runB ? `<td>${esc(runB.seed)}</td>` : ''}</tr>
+    <tr><td>Passed</td><td class="${runA.passed ? 'pass' : 'fail'}">${runA.passed}</td>${runB ? `<td class="${runB.passed ? 'pass' : 'fail'}">${runB.passed}</td>` : ''}</tr>
+    <tr><td>상태 해시 (전)</td><td>${esc(runA.stateHashBefore)}</td>${runB ? `<td>${esc(runB.stateHashBefore)}</td>` : ''}</tr>
+    <tr><td>상태 해시 (후)</td><td>${esc(runA.stateHashAfter)}</td>${runB ? `<td>${esc(runB.stateHashAfter)}</td>` : ''}</tr>
+  </table>`;
+  if (runB) html += `<p>${divergeAt === -1 ? '<span class="pass">두 실행 동일 (결정성 확인)</span>'
+    : `<span class="fail">최초 차이 지점: 입력 #${divergeAt}</span>`}</p>`;
+
+  if (runA.checks) {
+    html += '<h2>검증 결과</h2><table><tr><th>검사</th><th>결과</th><th>상세</th></tr>';
+    for (const c of runA.checks)
+      html += `<tr><td>${esc(c.name)}</td><td class="${c.passed ? 'pass' : 'fail'}">${c.passed ? 'PASS' : 'FAIL'}</td><td>${esc(c.detail ?? '')}</td></tr>`;
+    html += '</table>';
+  }
+  if (runA.trail) {
+    html += '<h2>상태 해시 궤적</h2><table><tr><th>#</th><th>A</th>' + (runB ? '<th>B</th>' : '') + '</tr>';
+    const n = Math.max(runA.trail.length, runB?.trail?.length ?? 0);
+    for (let i = 0; i < n; i++) {
+      const cls = divergeAt !== -1 && i >= divergeAt ? 'diverge' : '';
+      html += `<tr class="${cls}"><td>${i}</td><td>${esc(runA.trail[i] ?? '')}</td>${runB ? `<td>${esc(runB.trail[i] ?? '')}</td>` : ''}</tr>`;
+    }
+    html += '</table>';
+  }
+  if (runA.events) {
+    html += '<h2>이벤트 (인과 추적)</h2><table><tr><th>seq</th><th>tick</th><th>type</th><th>traceId</th><th>payload</th></tr>';
+    for (const e of runA.events)
+      html += `<tr><td>${e.seq}</td><td>${e.tick}</td><td>${esc(e.type)}</td><td>${esc(e.traceId ?? '')}</td><td>${esc(JSON.stringify(e.payload))}</td></tr>`;
+    html += '</table>';
+  }
+  $('#out').innerHTML = html;
+}
+
+function firstDivergence(a, b) {
+  const n = Math.max(a.length, b.length);
+  for (let i = 0; i < n; i++) if (a[i] !== b[i]) return i;
+  return -1;
+}
+
+function hook(inputSel, assign) {
+  $(inputSel).addEventListener('change', async (ev) => {
+    const f = ev.target.files[0];
+    if (!f) return;
+    assign(JSON.parse(await f.text()));
+    render();
+  });
+}
+hook('#fileA', (v) => { runA = v; });
+hook('#fileB', (v) => { runB = v; });
+</script>
+</body>
+</html>
