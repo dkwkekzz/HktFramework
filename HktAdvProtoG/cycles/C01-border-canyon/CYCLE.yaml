@@ -1,0 +1,264 @@
+# C01 기계 판독 계약 — Phase 3 CycleSpec (LOOPS/SITUATIONS 통합)
+id: C01
+title: "국경 협곡 개척지 (Border Canyon Frontier)"
+status: PLANNED
+baselineCycleId: null            # 최초 Cycle — Foundation(Phase 0) 완료가 선행 게이트
+schemaVersion: 1
+
+playerFantasy: >
+  통제되지 않은 국경 협곡의 개척자. 탐험가·사냥꾼·채집제작자·상인운송자·호위꾼·
+  밀수업자·중개협상가·의례 연구자 중 역할을 선택해, 다른 플레이어·세력과
+  협력·경쟁하며 지역의 생태·경제·세력·신의 영역을 바꾼다.
+
+worldPromise:
+  - "모든 장소·자원은 주체 의존성과 세계 요구에서 생성된다"
+  - "모든 NPC·조직·생물·신은 플레이어 없이도 행동한다"
+  - "전투·거래·제작·정보·사회 행동이 같은 세계 상태를 사용한다"
+  - "결과는 저장되어 다음 Situation 을 바꾼다"
+  - "퀘스트 없이 흔적·소문·가격·행동으로 기회를 발견한다"
+
+regionScope:
+  size: "약 2km x 2km 국경 협곡 1개 지역"
+  places:
+    - border-village          # 국경 마을
+    - state-outpost           # 국가 초소
+    - mine                    # 광산
+    - god-altar               # 국경 신 제단 + 국경석
+    - healing-marsh           # 치료 재료 습지
+    - monster-pass            # 거대 마물 이동 협곡
+    - smuggler-cave           # 밀수 동굴·우회 통로
+    - lookout-points          # 전망·흔적 조사 지점
+  movement:
+    - trade-route             # 교역로 (마을-초소-외부)
+    - monster-route           # 마물 이동로 (신 영역 의존)
+    - smuggler-bypass         # 밀수 우회로
+    - marsh-trail             # 습지 샛길
+  productionSites: [mine, healing-marsh, monster-population, village-farmland]
+  dangerZones: [monster-pass, village-east-pass, route-ambush-section, marsh-deep]
+  socialSpaces: [village-market, village-board, state-outpost, god-altar, smuggler-cave]
+
+primaryDepthAxis: causalDepth
+secondaryDepthAxes: [worldDepth, onlineDepth]
+outOfScope:
+  - "economicDepth 심화 (생산 체인·창고·조직 재정) — Cycle 2"
+  - "subjectDepth/strategicDepth 심화 (능력 생성·표현 계통) — Cycle 3"
+  - "socialDepth 심화 (법률·파벌·정치) — Cycle 4"
+  - "spatialDepth 심화 (다지역·전파) — Cycle 5"
+  - "onlineDepth 심화 (관심 영역·대규모 동접·서버 복구) — Cycle 6"
+  - "productionDepth 심화 (AI 대량 생성·자동 수정) — Cycle 7"
+
+coreGameplayLoops:
+  - id: LOOP-EXPLORE
+    playerIntent: "미지의 흔적·소문에서 기회를 발견해 정보 우위를 만든다"
+    entrySignals: ["새 발자국·잔향", "마을 소문", "가격 변동", "게시판 보고"]
+    actions: ["흔적 조사", "전망 관측", "주민 대화", "지도 갱신", "정보 판매"]
+    requiredRoles: [explorer]
+    worldInputs: ["마물 경로 상태", "신 안정도 현상", "세력 활동 흔적"]
+    worldOutputs: ["발견된 장소", "소문 상태", "플레이어 지도·믿음"]
+    progressionOutputs: ["지역 지식", "흔적 판별 숙련"]
+    economyEffects: ["정보 거래 가치 형성"]
+    multiplayerInteractions: ["정보 판매·공유", "발견 선점 경쟁"]
+    repeatVariationSources: ["마물 경로 변화", "신 안정도", "세력 활동 변화"]
+    feeds: [LOOP-HUNT, LOOP-TRADE, LOOP-SOCIAL]
+  - id: LOOP-HUNT
+    playerIntent: "마물을 추적·사냥해 위협을 줄이고 기관·부산물을 얻는다"
+    entrySignals: ["새 흔적 정보", "기관 수요·가격 상승", "마을 위협 증가", "사냥 계약"]
+    actions: ["흔적 분석", "도구·약품 준비", "추적·유인·차단", "전투·포획", "해체·운반"]
+    requiredRoles: [hunter, escort]
+    worldInputs: ["마물 위치·부상·경로", "지형 위험", "기관 수요"]
+    worldOutputs: ["마물 개체 상태", "기관·부산물 재고", "마을 위협도 변화"]
+    progressionOutputs: ["전투 숙련", "마물 대응 지식"]
+    economyEffects: ["기관 공급 → 치료제 원가 하락", "사냥 계약 보상"]
+    multiplayerInteractions: ["공동 사냥", "기관 소유권 경쟁", "분배 협상"]
+    repeatVariationSources: ["마물 부상·학습·경로 변경", "개체군 상태", "경쟁 플레이어"]
+    feeds: [LOOP-CRAFT, LOOP-TRADE, LOOP-REGION]
+  - id: LOOP-CRAFT
+    playerIntent: "재료를 채집·가공해 치료제·도구를 만들어 공급한다"
+    entrySignals: ["치료 수요·부상자 증가", "계약 납품 요청", "재료 시세"]
+    actions: ["채집", "품질 판별", "가공·제작", "판매·납품", "사용"]
+    requiredRoles: [gatherer-crafter, healer-role]
+    worldInputs: ["군락 상태", "재료 재고·품질", "제작식 지식"]
+    worldOutputs: ["치료제·도구 재고", "군락 고갈·재생 상태"]
+    progressionOutputs: ["제작식 획득", "품질 판별 숙련"]
+    economyEffects: ["완제품 공급 → 가격·치료 능력 변화"]
+    multiplayerInteractions: ["재료 거래", "독점", "위조품 유통"]
+    repeatVariationSources: ["군락 재생 상태", "재료 품질 분포", "수요 변동"]
+    feeds: [LOOP-TRADE, LOOP-HUNT]
+  - id: LOOP-TRADE
+    playerIntent: "수요·재고 차이를 이용해 운송·거래로 이익을 얻는다"
+    entrySignals: ["시세 차이", "호위 모집 공고", "운송로 위험 보고"]
+    actions: ["시세 확인", "경로 선택", "호위 고용/밀수 결정", "운송", "거래"]
+    requiredRoles: [merchant-transporter, escort, smuggler]
+    worldInputs: ["시장 재고·가격", "운송로 안전도", "단속 강도"]
+    worldOutputs: ["재고 이동", "교환 가치 변화", "세력 재정 변화", "압수·손실 기록"]
+    progressionOutputs: ["거래 권한·계약 등급", "경로 지식"]
+    economyEffects: ["재고 재배치", "위험 비용의 가격 반영", "호위·밀수 수익"]
+    multiplayerInteractions: ["호위 고용", "매복·약탈", "시세 경쟁", "밀수 대 단속"]
+    repeatVariationSources: ["안전도·단속·시세 변동", "경쟁 운송대"]
+    feeds: [LOOP-SOCIAL, LOOP-REGION]
+  - id: LOOP-SOCIAL
+    playerIntent: "세력·플레이어와 계약·협상해 신뢰와 접근 권한을 얻는다"
+    entrySignals: ["세력 요구·갈등 노출", "계약 공고", "평판 변화 통지"]
+    actions: ["요구 파악", "계약 체결", "협상·기만·위협", "약속 수행/위반"]
+    requiredRoles: [broker-negotiator, ritual-researcher]
+    worldInputs: ["세력 관계·요구", "평판·계약 이력"]
+    worldOutputs: ["신뢰·평판·권한·적대 변화", "계약 상태"]
+    progressionOutputs: ["세력 신뢰 등급", "새 지역·서비스 접근"]
+    economyEffects: ["계약 보상", "접근 권한에 따른 거래 기회"]
+    multiplayerInteractions: ["계약 중개", "평판 경쟁", "배신과 대가"]
+    repeatVariationSources: ["관계·평판 누적", "계약 이력", "세력 상태 변화"]
+    feeds: [LOOP-EXPLORE, LOOP-TRADE, LOOP-REGION]
+  - id: LOOP-REGION
+    playerIntent: "(메타 루프) 축적된 행동이 지역 상태를 바꾸고 새 Situation 을 만든다"
+    entrySignals: ["다른 루프의 세계 출력 축적"]
+    actions: ["자율 에스컬레이션 계산", "Situation 발생·악화·해소", "경로 개폐"]
+    requiredRoles: []                      # 플레이어 불필요 — 세계 자율 진행
+    worldInputs: ["국경석·신·마물·광산·시장·마을·세력 상태 전체"]
+    worldOutputs: ["새 Situation", "경로 폐쇄/개방", "새 자원·위험·세력 행동"]
+    progressionOutputs: []
+    economyEffects: ["희소성·위험 구조 재편"]
+    multiplayerInteractions: ["모든 플레이어가 같은 지역 변화를 공유"]
+    repeatVariationSources: ["현재 상태에서 계산 — 고정 타임라인 없음"]
+    feeds: [LOOP-EXPLORE, LOOP-HUNT, LOOP-CRAFT, LOOP-TRADE, LOOP-SOCIAL]
+
+playerRoles:
+  - {id: explorer,             loops: [LOOP-EXPLORE],             note: "정보 생산·판매"}
+  - {id: hunter,               loops: [LOOP-HUNT],                note: "기관·부산물 공급"}
+  - {id: gatherer-crafter,     loops: [LOOP-CRAFT],               note: "치료제·도구 공급"}
+  - {id: merchant-transporter, loops: [LOOP-TRADE],               note: "재고 재배치·시세 형성"}
+  - {id: escort,               loops: [LOOP-HUNT, LOOP-TRADE],    note: "운송 위험 담당"}
+  - {id: smuggler,             loops: [LOOP-TRADE, LOOP-SOCIAL],  note: "은폐 운송·정보 거래"}
+  - {id: broker-negotiator,    loops: [LOOP-SOCIAL],              note: "세력 간 계약 중개"}
+  - {id: ritual-researcher,    loops: [LOOP-SOCIAL, LOOP-EXPLORE], note: "의례·능력 조건 조사"}
+
+subjectsAndFactions:
+  - {id: villager,        goals: [food, safety, healing],                    autonomous: true}
+  - {id: healer-guild,    goals: [herbs, monster-organs, patients, knowledge], autonomous: true}
+  - {id: merchant,        goals: [inventory, routes, profit],                autonomous: true}
+  - {id: state-org,       goals: [ore-vein, border-control, legitimacy],     autonomous: true}
+  - {id: smuggler-org,    goals: [hidden-routes, trade-partners, evasion],   autonomous: true}
+  - {id: great-monster,   goals: [route, food, organ-recovery, breeding],    autonomous: true}
+  - {id: border-god,      goals: [anchor-stone, rituals, worship, domain-stability], autonomous: true}
+  - {id: resource-colony, goals: [regeneration],                             autonomous: true}
+
+resourceEconomy:
+  resources: [ore, healing-herb, monster-organ, food, ritual-material, consumables]
+  crafts: [healing-potion, tracking-tool, ritual-stabilizer, equipment]
+  state: [production, inventory, ownership, in-transit, demand, risk-cost, faction-exchange-value, contract-reward]
+  scarcity: "군락 고갈·마물 개체 수·광산 생산량이 실재 재고를 제한"
+  transport: "교역로(호위) 대 밀수 우회로(은폐·단속 위험)"
+
+progression:
+  kinds:
+    - region-knowledge-and-map
+    - trace-identification-skill
+    - crafting-recipes
+    - faction-trust-and-trade-rights
+    - new-route-and-site-access
+    - nen-ability-condition-discovery   # 조건·대응 정보까지만 (능력 생성은 Cycle 3)
+    - possibility-graph-unlock
+  constraint: "성장은 비용·세계 규칙을 우회하는 무제한 해금이 아니다"
+
+multiplayer:
+  serverModel: "단일 프로세스 권위 서버, 소수 동시 접속"
+  cooperation: [co-hunt, escort-contract, co-ritual, role-split-contract, info-sharing]
+  competition: [unique-resource-ownership, escort-bidding, price-competition, smuggle-vs-crackdown]
+  trade: [player-resource-trade, player-info-trade, contract-brokering]
+  concurrentConflict: "동시 획득·계약·전투 개입은 권위 서버가 한 번만 확정 (E3+N0)"
+
+persistence:
+  savedState:
+    - borderstone-position-and-state
+    - god-stability
+    - monster-position-injury-route
+    - mine-output-and-control
+    - trade-route-safety
+    - market-inventory-and-exchange-value
+    - village-food-injured-trust
+    - faction-relations-and-contracts
+    - player-reputation-knowledge-recipes-promises
+    - discovered-places-and-rumors
+  reconnect: "재접속 후 결과 유지, 사건 로그·스냅샷 복구 (N3)"
+
+situations:
+  - id: ST-C01-01
+    title: "마물 이동로 붕괴"
+    regionStatePredicates:
+      - "borderstone.moved == true"
+      - "god.stability < threshold.weak"
+      - "monster.routeCost(old) > monster.routeCost(alt)"
+    involvedSubjects: [state-org, border-god, great-monster, villager, healer-guild, merchant, smuggler-org]
+    dependencyPressures: ["마물: 이동로 결핍", "마을: 안전 결핍", "국가: 광맥·정당성", "신: 앵커·의례 결핍"]
+    contestedResources: [village-east-pass, monster-organ, borderstone]
+    activeRules: ["신 영역 약화 시 마물 억제 규칙 해제"]
+    observableSignals: ["제단 빛 약화", "국경석 문양 파손", "기존 발자국 소멸", "마을 동쪽 새 흔적", "가축 실종·부상자 증가"]
+    autonomousEscalation:
+      - "무개입 시 마물이 마을 접근 → 습격 → 식량·부상 악화 → 주민 대피"
+      - "국가는 사건 은폐 시도 → 정당성 압력 누적"
+    playerInterventionFamilies: [hunt, route-restore, borderstone-move, defend-evacuate, negotiate-with-state, smuggle-people-goods, ritual-stabilize]
+    persistentOutcomes: ["마물 경로", "마을 위협도·부상자", "국경석 위치", "신 안정도", "세력 관계"]
+    followupSituations: [ST-C01-02, ST-C01-04, ST-C01-05]
+  - id: ST-C01-02
+    title: "치료 재료 부족"
+    regionStatePredicates:
+      - "village.injured > threshold.high"
+      - "market.stock(healing-herb) + market.stock(monster-organ) < demand"
+    involvedSubjects: [healer-guild, villager, merchant, great-monster, smuggler-org]
+    dependencyPressures: ["치료사: 재료 결핍", "주민: 치료 결핍", "상인: 이익 기회"]
+    contestedResources: [healing-herb, monster-organ, marsh-colony]
+    activeRules: ["치료제 제작은 재료 소비 필수 (자원·비용 보존 공리)"]
+    observableSignals: ["치료소 대기 행렬", "약초·기관 가격 급등", "치료사 채집 의뢰", "위조 재료 소문"]
+    autonomousEscalation:
+      - "무개입 시 부상자 방치 → 사망·마을 신뢰 하락 → 노동력 감소 → 식량 압력"
+    playerInterventionFamilies: [gather-protect, hunt-organ-trade, craft-potion, monopolize, counterfeit-deceive, transport-escort]
+    persistentOutcomes: ["군락 상태", "시장 재고·가격", "마을 부상자·신뢰", "플레이어 평판·제작식"]
+    followupSituations: [ST-C01-05]
+  - id: ST-C01-03
+    title: "광산·밀수 통로 충돌"
+    regionStatePredicates:
+      - "mine.expansionLevel 증가"
+      - "overlap(mine.claim, smuggler.route) or overlap(mine.claim, monster.habitat)"
+    involvedSubjects: [state-org, smuggler-org, great-monster, merchant]
+    dependencyPressures: ["국가: 광맥 확보", "밀수: 은폐 통로 유지", "마물: 서식지 침범"]
+    contestedResources: [mine-claim, smuggler-bypass, monster-habitat]
+    activeRules: ["조직 행동은 실제 구성원·자산 경유 (조직 실체 공리)"]
+    observableSignals: ["광산 인부·경비 증가", "밀수 통로 폐쇄 소문", "새 우회로 정보 판매", "마물 서식지 이동 흔적"]
+    autonomousEscalation:
+      - "무개입 시 국가 확장 지속 → 밀수 통로 상실 → 밀수 조직이 마물 자극·정보전으로 보복"
+    playerInterventionFamilies: [state-guard-develop, smuggle-conceal, sabotage-negotiate, scout-new-bypass, sell-intel]
+    persistentOutcomes: ["광산 지배·생산량", "밀수 통로 상태", "세력 적대·재정", "마물 서식지"]
+    followupSituations: [ST-C01-01, ST-C01-05]
+  - id: ST-C01-04
+    title: "제단 의례 공백"
+    regionStatePredicates:
+      - "altar.ritualCooldown expired"
+      - "stock(ritual-material) < ritual.cost or celebrant == none"
+    involvedSubjects: [border-god, healer-guild, villager, state-org]
+    dependencyPressures: ["신: 의례·숭배 결핍", "주민: 안전(간접)", "의례 연구자: 지식 기회"]
+    contestedResources: [ritual-material, altar-access]
+    activeRules: ["신 영역·효과는 유지 조건 상태에 따라 변함 (신 유지 공리)", "강한 의념 효과는 흔적을 남김 (능력 흔적 공리)"]
+    observableSignals: ["제단 빛 주기 변화", "문양 침식 진행", "습지 의례 재료 수요 증가", "신 현상(잔향) 감소"]
+    autonomousEscalation:
+      - "무개입 시 신 안정도 하락 가속 → ST-C01-01 악화 → 마물 억제 완전 해제"
+    playerInterventionFamilies: [ritual-stabilize, material-supply, celebrant-escort, study-ability-conditions, exploit-weakened-domain]
+    persistentOutcomes: ["신 안정도", "의례 재료 재고", "의례 지식·능력 조건 정보", "제단 접근 권한"]
+    followupSituations: [ST-C01-01]
+  - id: ST-C01-05
+    title: "교역로 호위 위기"
+    regionStatePredicates:
+      - "trade-route.safety < threshold.low"
+      - "merchant.pendingShipments > 0"
+    involvedSubjects: [merchant, state-org, smuggler-org, great-monster, villager]
+    dependencyPressures: ["상인: 운송로·이익", "국가: 통제·세수", "밀수: 대체 운송 기회"]
+    contestedResources: [escort-contracts, in-transit-goods, smuggler-bypass]
+    activeRules: ["운송 위험이 교환 가치에 반영", "계약·전투 결과는 권위 서버 확정"]
+    observableSignals: ["호위 모집 공고", "운임·물가 상승", "습격 잔해", "압수 공고", "밀수 통로 호황 소문"]
+    autonomousEscalation:
+      - "무개입 시 운송 중단 → 마을 물자 부족 → 식량·치료 압력 → 밀수 의존 심화 → 단속 강화"
+    playerInterventionFamilies: [escort-contract, ambush-loot, smuggle-alternative, crackdown-side, price-speculate, route-repair]
+    persistentOutcomes: ["운송로 안전도", "시장 재고·가격", "세력 재정", "플레이어 계약 이력·평판"]
+    followupSituations: [ST-C01-02, ST-C01-03]
+
+scenarios: "SCENARIOS.md 참조 (Situation 별 정상·실패·경계·멀티플레이·저장복구 + BASE 불변식)"
+moduleSteps: "STEPS.md 참조 (V→A, 모드 CREATE/EXTEND)"
+acceptance: "ACCEPTANCE.md 참조 (Phase 12 Gate 10종 번역)"

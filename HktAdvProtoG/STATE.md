@@ -27,14 +27,15 @@
 
 | Cycle | 상태 |
 |---|---|
-| — | 아직 없음 (Foundation 미착수) |
+| [C01 — 국경 협곡 개척지](cycles/C01-border-canyon/CYCLE.md) | **PLANNED** (산출물 6종 작성 완료 — 구현은 Foundation 완료 후) |
 
 ## TODO
 
 - [ ] **Foundation (Phase 0)** — V0~V4 검증 기반 + Cycle/Situation/Scenario/Step 스키마 + 리플레이 저장소 +
       단일 프로세스 권위 서버 껍질. Foundation 은 게임 Cycle 로 세지 않는다
       (docs/Design-ModulePlan-CycleWorkflow.md §9 Phase 0).
-- [ ] **Cycle 1 설계** — Foundation 완료 후 `advprotog-cycle-planner` 로 착수.
-      기준선이 없는 최초 Cycle 이므로 조사 단계의 "마지막 VERIFIED Cycle" 은 "없음"으로 적는다.
+      **C01 구현(구간 1~7)의 선행 게이트** — cycles/C01-border-canyon/STEPS.md 구간 0 참조.
+- [ ] **C01 구현** — Foundation 완료 후 `advprotog-step-implementer` 로
+      cycles/C01-border-canyon/STEPS.md 의 구간 1 (C01-V-S01 → D-S02) 부터 착수.
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
       Foundation 구현이 실체를 갖춘 뒤 `advprotog-workflow-maintainer` 로 추가한다.
