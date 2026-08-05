@@ -27,7 +27,9 @@ const root = fileURLToPath(new URL('..', import.meta.url));
  * 의도한 변경이라면 그 Step 의 증거를 갱신한 뒤 여기도 함께 고친다 (그 자체가 리뷰 지점).
  */
 const FROZEN = {
-  registryHash: '111573ec9f3760b5',   // C01-O-S01 공리 레지스트리
+  // C01-O-S01 공리 레지스트리. I-5 로 보존 공리가 비용 어휘를 넓히며 갱신됐다
+  // (재고만 → 재고·산지 산출·개체군, 그리고 실제 상태 변화로 재는 뒷받침 검사)
+  registryHash: 'e37e07f09095f7a6',
   ontologyHash: 'ad1590bf20bcaffb',   // C01-O-S02 존재론
   castHash: '44b0b0ce93d081f1',       // C01-S-S01 표준 배역 (시드 11)
   // C01-D-S01 기준 장면 압력. 두 번 갱신됐다 —
@@ -39,9 +41,9 @@ const FROZEN = {
   // C01-Q-S01 세계 요구 그래프. I-2 에서 P-CULL-CONTRACT 의 대상이
   // village-safety → herd-valley-forage 로 바뀌며 근거 사슬이 옮겨졌다
   requirementHash: '6b48208894d77879',
-  // C01-W-S01 정식 세계 (시드 11). I-2 를 거치고도 불변 —
-  // 불린 세계 요소 집합과 근거 주체가 같아 실체화 결과가 달라지지 않는다
-  worldHash: '983af252f581a028',
+  // C01-W-S01 정식 세계 (시드 11). I-5 에서 장소가 산지 산출(yields)을 싣게 되며 갱신됐다 —
+  // 땅이 낼 수 있는 양이 세계 상태에 없으면 채집이 무엇을 덜어내는지 말할 수 없다
+  worldHash: '0841d01ae8668d58',
 };
 
 const results = [];

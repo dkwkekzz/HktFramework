@@ -35,10 +35,9 @@ function runRaidSequence() {
   const steps = [
     { type: 'MonsterMoved', behavior: 'stalk-prey', strategy: 'P-HUNT-HERD', tick: 1, at: 'herd-valley', actor: apex,
       payload: { subjectId: apex, from: 'apex-lair', to: 'herd-valley' } },
-    // 사냥은 개체군을 줄일 뿐 재료를 즉시 만들지 않는다 — 사체를 재료로 바꾸는 것은
-    // 해체(dress-carcass)의 몫이고, 그 비용 회계는 아직 보존 공리가 못 본다 (열린 이슈 I-5)
+    // 사냥이 치르는 비용은 개체군이다 — 잡은 만큼 줄고, 그 감소가 부산물의 근거가 된다 (I-5)
     { type: 'MonsterHunted', behavior: 'hunt', strategy: 'P-HUNT-HERD', tick: 2, at: 'herd-valley', actor: apex,
-      payload: { subjectId: herd, by: apex } },
+      payload: { subjectId: herd, by: apex, consumesPopulation: [{ subjectId: herd, count: 1 }] } },
     { type: 'MonsterMoved', behavior: 'raid-pasture', strategy: 'P-RAID-PASTURE', tick: 3, at: 'village-pasture', actor: apex,
       payload: { subjectId: apex, from: 'herd-valley', to: 'village-pasture' } },
     { type: 'ContractIssued', behavior: 'issue-subjugation-contract', strategy: 'P-SUBJUGATION-CONTRACT',
@@ -107,6 +106,61 @@ check('R1 공리 위반 사건 거부 — 상태·로그·자국 전부 불변 (
   catch (e) { unknown = e.message; }
   if (!unknown) throw new Error('미등록 사건 타입이 통과했다');
   return `${noCost.violations[0].violationCode} + ${unknown}`;
+});
+
+check('I-5 값이 나오는 곳은 셋뿐이고 셋 다 유한하다 (재고·산지·개체군)', () => {
+  const { scene, runtime } = newRuntime();
+  const herd = archetypeId(scene, 'herd-beast');
+  const lines = [];
+
+  // 개체군을 비용으로 치른 사냥은 통과한다
+  const pop = runtime.state().subjects[herd].population.count;
+  const hunted = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', strategy: 'P-HUNT-HERD', tick: 1,
+    payload: { subjectId: herd, by: 'pl-hunter', consumesPopulation: [{ subjectId: herd, count: 2 }],
+      produces: [{ resource: 'hide', qty: 2 }] } });
+  if (!hunted.ok) throw new Error(`비용 선언 사냥이 거부됨: ${hunted.violations[0].violationCode}`);
+  if (runtime.state().subjects[herd].population.count !== pop - 2) throw new Error('개체군이 줄지 않았다');
+  lines.push(`사냥 개체군 ${pop}→${pop - 2} → 가죽 +2`);
+
+  // 비용을 선언하지 않으면 거부된다
+  const free = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', strategy: 'P-HUNT-HERD', tick: 2,
+    payload: { subjectId: herd, by: 'pl-hunter', produces: [{ resource: 'hide', qty: 2 }] } });
+  if (free.ok) throw new Error('비용 없는 부산물이 통과했다');
+  lines.push(`무비용 생산 ${free.violations[0].violationCode}`);
+
+  // 산지가 내지 않는 자원은 그 땅에서 나오지 않는다 (예전에는 심사를 통째로 지나갔다)
+  const nowhere = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', strategy: 'P-GATHER-HERBS',
+    tick: 3, payload: { resource: 'healing-herb', qty: 2, at: 'lookout-rocks' }, at: 'lookout-rocks' });
+  if (nowhere.ok) throw new Error('산출 없는 땅에서 자원이 생겼다');
+  lines.push(`무산지 채집 ${nowhere.violations[0].violationCode}`);
+
+  // 있는 것보다 많이 치를 수는 없다
+  const tooMany = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', strategy: 'P-HUNT-HERD', tick: 4,
+    payload: { subjectId: herd, by: 'pl-hunter', consumesPopulation: [{ subjectId: herd, count: 9999 }],
+      produces: [{ resource: 'hide', qty: 1 }] } });
+  if (tooMany.ok || tooMany.violations[0].violationCode !== 'CONSERVATION_INSUFFICIENT_SOURCE')
+    throw new Error('개체군을 넘는 소비가 통과했다');
+  lines.push(`초과 소비 ${tooMany.violations[0].violationCode}`);
+  return lines.join(' | ');
+});
+
+check('I-5 산지는 마르고, 마른 뒤의 시도는 기록되지 않는다', () => {
+  const { runtime } = newRuntime();
+  const land = runtime.state().region.places['marsh-colony'].yields['healing-herb'];
+  if (!(land > 0)) throw new Error('W 가 산지 산출을 세계 상태에 올리지 않았다');
+  let tick = 0;
+  for (let taken = 0; taken < land; taken += 2) {
+    const r = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', strategy: 'P-GATHER-HERBS',
+      tick: ++tick, payload: { resource: 'healing-herb', qty: 2, at: 'marsh-colony' }, at: 'marsh-colony' });
+    if (!r.ok) throw new Error(`채집 ${tick}회차 거부: ${r.violations[0].violationCode}`);
+  }
+  if (runtime.state().region.places['marsh-colony'].yields['healing-herb'] !== 0) throw new Error('땅이 마르지 않았다');
+  const logged = runtime.log.length;
+  const dry = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', strategy: 'P-GATHER-HERBS',
+    tick: ++tick, payload: { resource: 'healing-herb', qty: 2, at: 'marsh-colony' }, at: 'marsh-colony' });
+  if (dry.ok || dry.violations[0].violationCode !== 'EVENT_NO_EFFECT') throw new Error('마른 땅에서 또 나왔다');
+  if (runtime.log.length !== logged) throw new Error('소득 없는 시도가 로그에 남았다');
+  return `습지 약초 ${land} → 0 (${logged}회 채집), 이후 시도는 EVENT_NO_EFFECT 로 미기록`;
 });
 
 check('완료 조건 — 임의 상태 조회가 사건 이력으로 완전히 설명됨', () => {
@@ -197,6 +251,7 @@ if (!failed) {
     ],
     limitations: [
       '사건 로그·리플레이는 Foundation 의 EventLog 를 그대로 쓴다 (REUSE) — 스냅샷·재접속 복구는 N-S02',
+      '산지 산출은 캐면 줄지만 아직 재생하지 않는다 — 군락 재생·개체군 번식은 C-S01 의 몫',
       '현상은 아직 아무도 지각하지 않는다 — 누가 무엇을 보는지는 R-S02(지각·믿음)의 몫',
       'legibility(읽기 난이도)는 설계값 — 추적 숙련에 따른 판정은 G1 에서 소비한다',
       '사건 열은 아직 손으로 넣는다 — 압력·계획에서 사건이 자동으로 나오는 것은 E-S01(Situation)·C-S01(복합 주체)',

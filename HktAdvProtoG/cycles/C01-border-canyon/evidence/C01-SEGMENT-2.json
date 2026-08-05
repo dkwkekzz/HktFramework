@@ -3,24 +3,24 @@
   "status": "SEGMENT_VERIFIED_LOCAL",
   "results": {
     "frozen": {
-      "registryHash": "111573ec9f3760b5",
+      "registryHash": "e37e07f09095f7a6",
       "ontologyHash": "ad1590bf20bcaffb",
       "castHash": "44b0b0ce93d081f1",
       "pressureHash": "48dd56b636f4ba9f",
       "planHash": "c9259bbfcdda3de8",
       "requirementHash": "6b48208894d77879",
-      "worldHash": "983af252f581a028"
+      "worldHash": "0841d01ae8668d58"
     },
     "checks": [
       {
         "name": "동결 해시 재현 — 공리·존재론·배역·압력 (구간 1 상류)",
         "passed": true,
-        "detail": "registry=111573ec9f3760b5 ontology=ad1590bf20bcaffb cast=44b0b0ce93d081f1 pressure=48dd56b636f4ba9f"
+        "detail": "registry=e37e07f09095f7a6 ontology=ad1590bf20bcaffb cast=44b0b0ce93d081f1 pressure=48dd56b636f4ba9f"
       },
       {
         "name": "동결 해시 재현 — 계획·요구·세계 (구간 2 산출)",
         "passed": true,
-        "detail": "plan=c9259bbfcdda3de8 requirement=6b48208894d77879 world=983af252f581a028"
+        "detail": "plan=c9259bbfcdda3de8 requirement=6b48208894d77879 world=0841d01ae8668d58"
       },
       {
         "name": "Handoff D→P — 압력이 없으면 목적도 없다 (P 가 D 산출을 실제로 읽는다)",
@@ -45,7 +45,7 @@
       {
         "name": "결정성 — 같은 시드 반복 동일, 다른 시드는 구조 동일·해시 상이",
         "passed": true,
-        "detail": "구조 6/2/4 고정, 시드별 해시 7:f5699c81 11:983af252 42:dcb4678a 99:762de1be"
+        "detail": "구조 6/2/4 고정, 시드별 해시 7:a3dbdee9 11:0841d01a 42:d4290796 99:610cc383"
       }
     ]
   },
@@ -60,6 +60,6 @@
     "구간 2 의 플레이어 가시 기여는 아직 간접이다 — 실제 표면은 X 계층(구간 5)에서 확인된다",
     "동결 해시는 시드 11 기준 — 다른 시드는 구조만 검사하고 값은 고정하지 않는다"
   ],
-  "contentHash": "223d9a8a7361f87c",
-  "generatedAt": "2026-08-05T09:04:36.111Z"
+  "contentHash": "4c124b829e21340e",
+  "generatedAt": "2026-08-05T09:51:46.602Z"
 }

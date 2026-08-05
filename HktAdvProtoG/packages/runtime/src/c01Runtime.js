@@ -16,11 +16,15 @@ const bump = (map, key, delta) => { map[key] = Math.max(0, (map[key] ?? 0) + del
  * 리듀서 밖에서 상태를 만지는 경로는 없다.
  */
 export const C01_REDUCERS = {
+  // 채집은 땅에서 덜어 창고로 옮긴다 — 산지가 그 자원을 내지 않으면
+  // 늘어난 재고를 설명할 비용이 없어 보존 공리가 막는다 (I-5)
   ResourceGathered: (s, ev) => {
     const { resource, qty, at } = ev.payload;
-    bump(s.resources, resource, qty);
     const place = s.region.places[at];
-    if (place?.yields?.[resource] !== undefined) place.yields[resource] = Math.max(0, place.yields[resource] - qty);
+    const available = place?.yields?.[resource];
+    const taken = available === undefined ? qty : Math.min(qty, available);
+    if (available !== undefined) place.yields[resource] = available - taken;
+    bump(s.resources, resource, taken);
     return s;
   },
 
@@ -34,10 +38,12 @@ export const C01_REDUCERS = {
     return s;
   },
 
+  // 사냥이 치르는 비용은 개체군이다 — 잡은 만큼 줄고, 그 감소가 부산물의 근거가 된다 (I-5)
   MonsterHunted: (s, ev) => {
     const { subjectId, by } = ev.payload;
+    const taken = ev.payload.consumesPopulation?.find((c) => c.subjectId === subjectId)?.count ?? 1;
     const subject = s.subjects[subjectId];
-    if (subject?.population) subject.population.count = Math.max(0, subject.population.count - 1);
+    if (subject?.population) subject.population.count = Math.max(0, subject.population.count - taken);
     if (ev.payload.rare) s.region.rareIndividuals = Math.max(0, (s.region.rareIndividuals ?? 0) - 1);
     for (const { resource, qty } of ev.payload.produces ?? []) bump(s.resources, resource, qty);
     s.ownership[`kill:${ev.payload.subjectId}:${ev.tick}`] = by;

@@ -124,20 +124,96 @@ test('재고를 넘는 소비도 거부된다 (보존 공리 경계)', () => {
   assert.equal(over.violations[0].violationCode, 'CONSERVATION_INSUFFICIENT_SOURCE');
 });
 
-test('사냥이 비용 없이 재료를 내면 거부된다 — 사체는 해체를 거쳐야 재료가 된다 (I-5 경계)', () => {
+test('I-5: 사냥은 개체군을 비용으로 치르고 부산물을 얻는다', () => {
   const { scene, runtime } = runtimeOf();
-  const apex = apexId(scene);
-  // 개체군을 줄이는 것만으로는 통과한다 (비용 = 개체 하나, 재료 생산 없음)
-  const kill = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', tick: 1,
-    payload: { subjectId: apex, by: 'pl-hunter' } });
-  assert.equal(kill.ok, true, JSON.stringify(kill.violations));
+  const herd = Object.values(scene.state.subjects).find((s) => s.archetype === 'herd-beast').id;
+  const popBefore = runtime.state().subjects[herd].population.count;
+  const hideBefore = runtime.state().resources.hide;
 
-  // 같은 사건이 재료까지 즉시 내려 하면 보존 공리가 막는다.
-  // 개체군 감소는 아직 "추적 가능한 비용"으로 세어지지 않는다 — 열린 이슈 I-5
-  const withLoot = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', tick: 2,
-    payload: { subjectId: apex, by: 'pl-hunter', produces: [{ resource: 'hide', qty: 2 }] } });
-  assert.equal(withLoot.ok, false);
-  assert.equal(withLoot.violations[0].violationCode, 'CONSERVATION_NO_COST');
+  const hunted = runtime.commit({
+    type: 'MonsterHunted', behavior: 'hunt', tick: 1,
+    payload: {
+      subjectId: herd, by: 'pl-hunter',
+      consumesPopulation: [{ subjectId: herd, count: 2 }],
+      produces: [{ resource: 'hide', qty: 2 }],
+    },
+  });
+  assert.equal(hunted.ok, true, JSON.stringify(hunted.violations));
+  assert.equal(runtime.state().subjects[herd].population.count, popBefore - 2, '개체군이 줄지 않았다');
+  assert.equal(runtime.state().resources.hide, hideBefore + 2);
+});
+
+test('I-5: 비용을 선언하지 않은 사냥의 부산물은 여전히 거부된다', () => {
+  const { scene, runtime } = runtimeOf();
+  const herd = Object.values(scene.state.subjects).find((s) => s.archetype === 'herd-beast').id;
+  const noCost = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', tick: 1,
+    payload: { subjectId: herd, by: 'pl-hunter', produces: [{ resource: 'hide', qty: 2 }] } });
+  assert.equal(noCost.ok, false, '비용 선언 없는 부산물이 통과했다');
+  assert.equal(noCost.violations[0].violationCode, 'CONSERVATION_NO_COST');
+});
+
+test('I-5: 있는 것보다 많이 치를 수는 없다 — 개체군 경계', () => {
+  const { scene, runtime } = runtimeOf();
+  const herd = Object.values(scene.state.subjects).find((s) => s.archetype === 'herd-beast').id;
+  const pop = runtime.state().subjects[herd].population.count;
+  const tooMany = runtime.commit({ type: 'MonsterHunted', behavior: 'hunt', tick: 1,
+    payload: {
+      subjectId: herd, by: 'pl-hunter',
+      consumesPopulation: [{ subjectId: herd, count: pop + 1 }],
+      produces: [{ resource: 'hide', qty: 1 }],
+    } });
+  assert.equal(tooMany.ok, false);
+  assert.equal(tooMany.violations[0].violationCode, 'CONSERVATION_INSUFFICIENT_SOURCE');
+  assert.equal(runtime.state().subjects[herd].population.count, pop, '거부됐는데 개체군이 줄었다');
+});
+
+test('I-5: 채집은 산지를 덜어내고, 그 자원을 내지 않는 땅에서는 아무것도 나오지 않는다', () => {
+  const { runtime } = runtimeOf();
+  const yieldOf = (place, res) => runtime.state().region.places[place].yields?.[res];
+  // 습지는 약초를 낸다 — 캔 만큼 땅에서 줄고 창고로 옮겨간다
+  const before = { stock: runtime.state().resources['healing-herb'], land: yieldOf('marsh-colony', 'healing-herb') };
+  assert.ok(before.land > 0, '습지에 약초 산출이 없다 — W 가 산지를 세계에 올리지 않았다');
+  const ok = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', tick: 1,
+    payload: { resource: 'healing-herb', qty: 2, at: 'marsh-colony' }, at: 'marsh-colony' });
+  assert.equal(ok.ok, true, JSON.stringify(ok.violations));
+  assert.equal(runtime.state().resources['healing-herb'], before.stock + 2);
+  assert.equal(yieldOf('marsh-colony', 'healing-herb'), before.land - 2, '땅이 줄지 않았다');
+
+  // 전망 바위는 약초를 내지 않는다 — 늘어난 재고를 설명할 비용이 없으니 거부된다
+  const nowhere = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', tick: 2,
+    payload: { resource: 'healing-herb', qty: 2, at: 'lookout-rocks' }, at: 'lookout-rocks' });
+  assert.equal(nowhere.ok, false, '산출 없는 땅에서 자원이 생겼다');
+  assert.equal(nowhere.violations[0].violationCode, 'CONSERVATION_NO_COST');
+});
+
+test('I-5: 산지는 유한하다 — 계속 캐면 마르고, 마른 뒤에는 나오지 않는다', () => {
+  const { runtime } = runtimeOf();
+  const land = runtime.state().region.places['marsh-colony'].yields['healing-herb'];
+  let tick = 0;
+  for (let taken = 0; taken < land; taken += 2)
+    assert.equal(runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', tick: ++tick,
+      payload: { resource: 'healing-herb', qty: 2, at: 'marsh-colony' }, at: 'marsh-colony' }).ok, true);
+  assert.equal(runtime.state().region.places['marsh-colony'].yields['healing-herb'], 0, '땅이 마르지 않았다');
+
+  const stock = runtime.state().resources['healing-herb'];
+  const dry = runtime.commit({ type: 'ResourceGathered', behavior: 'gather-herbs', tick: ++tick,
+    payload: { resource: 'healing-herb', qty: 2, at: 'marsh-colony' }, at: 'marsh-colony' });
+  assert.equal(dry.ok, false, '마른 땅에서 약초가 또 나왔다');
+  assert.equal(dry.violations[0].violationCode, 'EVENT_NO_EFFECT');
+  assert.equal(runtime.state().resources['healing-herb'], stock, '소득 없는 시도가 재고를 바꿨다');
+});
+
+test('세계를 바꾸지 않는 사건은 기록되지도 자국을 남기지도 않는다', () => {
+  const { runtime } = runtimeOf();
+  const logBefore = runtime.log.length;
+  const phBefore = runtime.phenomena.length;
+  // 없는 계약을 처리하려는 시도 — 상태가 그대로다
+  const noop = runtime.commit({ type: 'ContractResolved', behavior: 'rate-contract-performance', tick: 1,
+    payload: { contractId: 'ct-does-not-exist', outcome: 'fulfilled' } });
+  assert.equal(noop.ok, false);
+  assert.equal(noop.violations[0].violationCode, 'EVENT_NO_EFFECT');
+  assert.equal(runtime.log.length, logBefore, '빈 사건이 로그에 남았다');
+  assert.equal(runtime.phenomena.length, phBefore, '빈 사건이 자국을 남겼다');
 });
 
 test('존재론 밖의 사건과 Q 가 모르는 행동은 세계에 닿지 못한다 (실패 경로)', () => {

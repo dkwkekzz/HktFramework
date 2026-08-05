@@ -78,8 +78,19 @@ export class WorldRuntime {
     );
     if (!verdict.passed) return { ok: false, violations: verdict.violations, event: null, phenomena: [] };
 
-    // 통과 — 여기서만 상태가 바뀐다
+    // 사건은 세계를 바꾼다. 아무것도 바꾸지 않은 사건은 거짓 기록이므로 남기지 않는다 —
+    // 마른 땅에서 캐거나 없는 계약을 처리하려는 시도가 여기서 걸린다 (자국도 안 남는다)
     const paths = changedPaths(before, after).filter((p) => p !== 'tick');
+    if (paths.length === 0) {
+      return {
+        ok: false, event: null, phenomena: [],
+        violations: [{
+          severity: 'error', violationCode: 'EVENT_NO_EFFECT',
+          message: `세계를 바꾸지 않는 사건: ${type} (${behavior}) — 시도는 있었으나 소득이 없다`,
+          statePaths: [],
+        }],
+      };
+    }
     const event = this.#log.append(type, payload, { tick, traceId });
     event.behavior = behavior;
     event.statePaths = paths;

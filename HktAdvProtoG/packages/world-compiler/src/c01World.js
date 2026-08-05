@@ -55,6 +55,10 @@ export function compileC01World({ requirementGraph, seed = 11 }) {
     places[id] = {
       tags: [...bp.tags],
       position: { x: Number((bp.zone[0] + jitter()).toFixed(4)), y: Number((bp.zone[1] + jitter()).toFixed(4)) },
+      // 산출은 그 땅이 낼 수 있는 양 — 요구에서 불린 자원만 남긴다.
+      // 이것이 세계 상태에 없으면 채집이 무엇을 덜어내는지 말할 수 없다 (I-5)
+      ...(bp.yields ? { yields: Object.fromEntries(
+        Object.entries(bp.yields).filter(([res]) => called('resource', res))) } : {}),
       ...structuredClone(bp.attrs ?? {}),
     };
   }

@@ -49,14 +49,14 @@
 | Step | 증거 | 비고 |
 |---|---|---|
 | C01-V-S01 | [C01-V-S01.json](cycles/C01-border-canyon/evidence/C01-V-S01.json) | C01 등록·lint 0 오류, 검증 세션 통과 |
-| C01-O-S01 | [C01-O-S01.json](cycles/C01-border-canyon/evidence/C01-O-S01.json) | 공리 5종 (`packages/ontology/`), 실패 Scenario 5종 통과, registryHash `111573ec9f3760b5` |
+| C01-O-S01 | [C01-O-S01.json](cycles/C01-border-canyon/evidence/C01-O-S01.json) | 공리 5종 (`packages/ontology/`), 실패 Scenario 5종 통과, registryHash `e37e07f09095f7a6` (I-5 로 보존 공리의 비용 어휘 확장) |
 | C01-O-S02 | [C01-O-S02.json](cycles/C01-border-canyon/evidence/C01-O-S02.json) | 존재론 카탈로그(장소6·경로3·주체7=원형6+player·역할4·자원6·제작물4·사건타입9) + 상태 스키마 v1, ontologyHash `ad1590bf20bcaffb` |
 | C01-S-S01 | [C01-S-S01.json](cycles/C01-border-canyon/evidence/C01-S-S01.json) | 원형 프로필 6종+역할 4종 (`packages/subjects/`), 표준 배역 8주체 결정적 생성, castHash `44b0b0ce93d081f1` |
 | C01-D-S01 | [C01-D-S01.json](cycles/C01-border-canyon/evidence/C01-D-S01.json) | 의존 6계열·의존 22건·경합 대상 14종 (`packages/dependencies/`), 기준 장면 압력 0·충돌 0(시드 25종), basePressureHash `48dd56b636f4ba9f` (W-S01 에서 장면이 W 산출을 소비 → I-2 로 조합 hunt-order 의존 추가) |
 | C01-P-S01 | [C01-P-S01.json](cycles/C01-border-canyon/evidence/C01-P-S01.json) | 행동 원자·전략 30건·목적 선택/유지·행동 계획 (`packages/possibilities/`), ST-01 planHash `c9259bbfcdda3de8` |
 | C01-Q-S01 | [C01-Q-S01.json](cycles/C01-border-canyon/evidence/C01-Q-S01.json) | 세계 요구 29건·성공 결과 47건·근거 사슬 (`packages/world-requirements/`), TRACE 요구 6종 전부 일치, requirementHash `6b48208894d77879` (I-2 로 조절 계약의 근거가 목장 안전 → 목초 여유로 이동) |
-| C01-W-S01 | [C01-W-S01.json](cycles/C01-border-canyon/evidence/C01-W-S01.json) | 요구 병합 → 장소6·경로2(+1 잠재)·규칙4·자원8 실체화 + 압축 역사 5건 (`packages/world-compiler/`), worldHash `983af252f581a028`. 장면 픽스처가 W 산출을 소비하도록 전환 |
-| C01-R-S01 | [C01-R-S01.json](cycles/C01-border-canyon/evidence/C01-R-S01.json) | 상태 저장소·사건 경유 전이·현상 생성 (`packages/runtime/`), 현상 38종이 Q 성공 결과 47건에서 파생(I-3 닫힘), 습격 사건열 stateHash `32a4a9cb0f3f0a5d` |
+| C01-W-S01 | [C01-W-S01.json](cycles/C01-border-canyon/evidence/C01-W-S01.json) | 요구 병합 → 장소6·경로2(+1 잠재)·규칙4·자원8 실체화 + 압축 역사 5건 (`packages/world-compiler/`), worldHash `0841d01ae8668d58` (I-5 로 장소가 산지 산출을 실음). 장면 픽스처가 W 산출을 소비하도록 전환 |
+| C01-R-S01 | [C01-R-S01.json](cycles/C01-border-canyon/evidence/C01-R-S01.json) | 상태 저장소·사건 경유 전이·현상 생성 (`packages/runtime/`), 현상 38종이 Q 성공 결과 47건에서 파생(I-3 닫힘), 습격 사건열 stateHash `459455544778cb1b`. I-5 로 재고·산지·개체군이 유한한 비용 원천이 됨 |
 
 **구간 1 (주체와 압력) 종료 조건 충족** — 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현됨
 (`node scripts/check-C01-D-S01.mjs` 5번째 점검). 검증 세션(2026-08-05) 통과 —
@@ -81,18 +81,24 @@ R-S01 이후 **미소비 출력 검사**가 추가되어 7항 — Q 의 성공 �
 읽기 스냅샷은 얼어 있고(직접 수정 3종 거부), 쓰기는 `commit()` 하나뿐이며,
 공리를 어긴 사건은 상태·로그·자국 어디에도 남지 않는다. 확정된 사건은 현상을 남기고
 (`발자국 → 사냥 자국 → 가축 실종 → 조합 공고`), 바뀐 상태 경로 8종이 사건 4건으로 전부 설명된다.
-재생·재실행 3경로 해시 일치. 남은 것: R-S02(지각·믿음) → E-S01(Situation) → E-S02(충돌 해결).
+재생·재실행 3경로 해시 일치.
+
+I-5 를 이어 닫으며 경제의 바닥이 생겼다 — 값이 나오는 곳은 재고·산지·개체군 셋뿐이고 셋 다 유한하다.
+사냥은 개체군을 치러 부산물을 얻고, 채집은 산지를 덜어 재고를 채우며, 습지 약초는 3회 채집으로 마른다.
+비용을 선언하지 않은 생산도, 산출 없는 땅에서의 채집도, 소득 없는 시도도 세계에 닿지 못한다.
+남은 것: R-S02(지각·믿음) → E-S01(Situation) → E-S02(충돌 해결).
 
 ### 열린 이슈
 
 | # | 내용 | 발견 | 담당 |
 |---|---|---|---|
-| I-5 | **보존 공리가 자원 재고 비용만 본다 — 개체군을 비용으로 선언할 수 없다.** `AX-CONSERVATION` 평가기는 `payload.produces/consumes` 의 `{resource, qty}` 만 보고 `state.resources` 재고와 대조한다. 그래서 사냥(`MonsterHunted`)이 무리 개체 하나를 소비해 가죽·고기를 내려 하면 "비용 없는 생산"으로 거부된다 — 비용은 실재하지만(개체군 −1) 공리가 그걸 못 센다. 반대로 `ResourceGathered` 는 `produces` 키가 없어 보존 심사를 **아예 통과**한다 — 산지 산출을 넘겨 캐도 막히지 않는다. 지금은 사냥과 해체를 분리해 우회하고 있으나(R-S01 사건열), 경제가 도는 순간 양쪽 다 구멍이 된다. **처리**: 보존 평가기가 개체군·산지 산출을 비용 어휘로 받도록 확장하고, `ResourceGathered` 도 산지 재고 대조를 거치게 한다. | C01-R-S01 구현 | `advprotog-step-implementer` (O-S01 후속 — E-S02 착수 전) |
+| _(없음)_ | | | |
 
 ### 닫힌 이슈
 
 | # | 내용 | 처리 |
 |---|---|---|
+| I-5 | **보존 공리가 자원 재고 비용만 봤다 — 개체군·산지를 비용으로 선언할 수 없었다.** `AX-CONSERVATION` 은 `payload.consumes` 의 `{resource, qty}` 만 `state.resources` 와 대조했다. 그래서 사냥이 개체 하나를 치르고 가죽을 내려 하면 "비용 없는 생산"으로 막혔고(비용은 실재하는데 공리가 못 셌다), 반대로 `ResourceGathered` 는 `produces` 키가 없어 심사를 **아예 지나갔다** — 아무 땅에서나 자원이 생겼다. | **수정 완료** — 세계에서 값이 나오는 곳을 셋으로 못박고 셋 다 유한하게 만들었다: **재고**(`resources`) · **산지**(`region.places[p].yields[r]`) · **개체군**(`subjects[s].population.count`). 검사는 두 겹 — ① **선언 대조**: `consumes`·`consumesYield`·`consumesPopulation` 이 실재를 넘지 않는지 (덜어내기 전에 잡는다) ② **실제 대조**: 전이 전후의 값 변화로 다시 센다 — payload 를 비워도 우회할 수 없다. **부수 수정**: W 가 장소에 산지 산출(`yields`)을 싣도록 했다 — 땅이 낼 수 있는 양이 세계에 없으면 채집이 무엇을 덜어내는지 말할 수 없다. R1 에 **무효과 사건 가드**(`EVENT_NO_EFFECT`) 추가 — 마른 땅에서 캐거나 없는 계약을 처리하려는 시도는 로그에도 자국에도 남지 않는다. registryHash·worldHash 갱신. |
 | I-3 | **Q 의 성공 결과(outcomes 47건)를 아무도 소비하지 않았다.** `c01Extractor` 는 전략 원자마다 `{effect, behavior, at}` 성공 결과를 뽑아 `WorldRequirementGraph` 에 실어 보냈지만 W 는 요구만 읽고 outcomes 는 건드리지 않았다 — Handoff Gate 의 "미소비 출력이 없음" 미충족. | **수정 완료** — R-S01 의 현상 카탈로그(`packages/runtime/src/phenomena.js`)가 유일한 소비처다. Q 의 성공 결과가 곧 "그 행동이 세계에 남기는 것"이고, R 이 더하는 것은 그걸 무엇으로 감지하는가(감각·읽기 난이도)뿐이다. **양방향 lint**: Q 가 낸 행동에 감각 매핑이 없으면 거부, 감각 표에만 있고 Q 가 부르지 않는 행동도 거부 — 어느 쪽으로도 죽은 출력이 안 생긴다. 자국의 서술·장소는 그 행동을 부른 **전략**이 선언한 값을 쓴다(`전략 → 행동 → 자국` 사슬 유지). `check-segment-2.mjs` 에 미소비 출력 검사 추가. |
 | I-2 | **조합의 `hunt-order`(사냥 질서) 목적이 D 의존으로 표현되지 않았다.** CYCLE.yaml 은 조합 목적을 `village-defense·hunt-order·reputation` 으로 선언하는데 D-S01 은 앞뒤 둘만 의존으로 만들었다. 그 결과 무리 과잉(ST-C01-02)에서 조합의 압력이 0 이라 `P-CULL-CONTRACT`(조절 계약)가 활성화되지 않았다 — 생태 관리 지렛대가 세계에서 당겨지지 않았다. | **수정 완료** — ① D: 조합에 `habitat`/`herd-valley-forage` 의존 추가, 요구는 무리 개체수에서 파생(`ceil(개체수/20)` — 무리 자신의 서식 요구와 같은 척도 = "무리가 번식할 여지"). ② P: `P-CULL-CONTRACT` 를 `safety`/`village-safety` → `habitat`/`herd-valley-forage` 로 이동 — 조절 계약은 마을 안전이 아니라 사냥 질서에서 나온다. CYCLE.yaml 의 개입군 선언과도 일치(조절 계약은 ST-01 이 아니라 **ST-02** 의 개입군). **파급 처리**: 예고대로 `herd-valley-forage` 충돌이 자체 경합 → 3자 경합(조합·무리 먹이·무리 서식)으로 바뀌었고, SC-C01-D5-01 과 구간 1 종료 조건을 25 시드로 재검증해 통과. requirementHash·basePressureHash 갱신, planHash·worldHash 는 불변. |
 | I-4 | **STATE.md 에 적힌 C01-D-S01 의 pressureHash 가 커밋된 증거와 달랐다.** 기록은 `bce1764b284c89db`, 실제 증거 파일은 `basePressureHash: 0b7ba374ba3c41e7`. W-S01 커밋(83bd87b)에서 장면 픽스처가 손으로 적던 지형·재고 상수를 버리고 W 산출을 소비하도록 바뀌며 기준 장면 압력 해시가 정당하게 갱신됐는데, STATE.md 행만 옛 값으로 남았다. 증거는 맞고 요약만 틀린 경우라 세계 동작에는 영향이 없지만, 요약이 증거와 어긋나면 회귀를 놓친다. | **수정 완료** — STATE.md 를 증거 값으로 정정. 재발 방지로 `check-segment-2.mjs` 가 7종 해시를 **동결값 대조**로 재계산 검사한다 (이 이슈도 그 검사가 처음 잡아냈다). 상류가 바뀌면 이제 `npm run check:all` 이 실패한다. |
@@ -103,7 +109,7 @@ R-S01 이후 **미소비 출력 검사**가 추가되어 7항 — Q 의 성공 �
 - [x] **I-2 (조합 hunt-order 의존)** — 닫힘. 무리 과잉에서 조합이 조절 계약을 발급한다
       (균형 압력 0 → 과잉 0.33 → 여유 소진 시 1.00, 이득 0 → 3 으로 단조 상승)
 - [x] 구간 3 착수 — **C01-R-S01 완료** (상태 저장소·사건 로그·현상 생성). I-3 함께 닫힘, I-5 이슈업
-- [ ] **I-5 (보존 공리의 비용 어휘)** — E-S02(충돌 해결·경제 연쇄) 착수 전에 처리한다
+- [x] **I-5 (보존 공리의 비용 어휘)** — 닫힘. 재고·산지·개체군 셋 다 유한하고, 선언·실제 두 겹으로 심사한다
 - [ ] 구간 3 나머지: **C01-R-S02** (지각·믿음·기억) → C01-E-S01 (Situation 발생) → C01-E-S02 (충돌 해결)
 - [ ] 구간 3 종료 조건: 5개 Situation 전부 상태 계산으로 발생 (하드코딩 트리거 0)
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는

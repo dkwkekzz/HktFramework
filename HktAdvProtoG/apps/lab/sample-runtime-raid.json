@@ -1,7 +1,7 @@
 {
   "label": "ST-C01-01 무개입 습격",
   "tick": 4,
-  "stateHash": "32a4a9cb0f3f0a5d",
+  "stateHash": "459455544778cb1b",
   "events": [
     {
       "seq": 0,
@@ -34,7 +34,13 @@
       ],
       "payload": {
         "subjectId": "sub-000008",
-        "by": "sub-000009"
+        "by": "sub-000009",
+        "consumesPopulation": [
+          {
+            "subjectId": "sub-000008",
+            "count": 1
+          }
+        ]
       }
     },
     {
