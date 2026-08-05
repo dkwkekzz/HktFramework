@@ -41,12 +41,14 @@ check('의존 그래프 정합 (모든 대상에 공급자)', () => {
   return `의존 ${buildC01DependencyGraph(base).length}건, 대상 ${Object.keys(C01_SUPPLIES).length}종`;
 });
 
-check('기준 장면 균형 — 압력 0, 충돌 0 (대조군)', () => {
-  const r = report(base, 'base');
-  const max = Math.max(...Object.values(r.byHolder).map((h) => h.maxPressure));
-  if (max !== 0) throw new Error(`기준 장면 압력 ${max}`);
-  if (r.conflicts.length) throw new Error(`기준 장면 충돌 ${r.conflicts.map((c) => c.target).join(',')}`);
-  return `pressureHash=${r.hash}`;
+check('기준 장면 균형 — 시드 1~25 전부 압력 0·충돌 0 (대조군, I-1 회귀)', () => {
+  for (let seed = 1; seed <= 25; seed++) {
+    const r = report(buildBaseScene(seed), `base-${seed}`);
+    const max = Math.max(...Object.values(r.byHolder).map((h) => h.maxPressure));
+    if (max !== 0) throw new Error(`seed ${seed} 기준 장면 압력 ${max}`);
+    if (r.conflicts.length) throw new Error(`seed ${seed} 기준 장면 충돌 ${r.conflicts.map((c) => c.target).join(',')}`);
+  }
+  return `25 시드 균형, 기본 시드 pressureHash=${report(base, 'base').hash}`;
 });
 
 check('SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포식 마물 먹이 압력)', () => {
@@ -60,16 +62,17 @@ check('SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포
   return `apex prey 압력 ${b.kinds.prey.toFixed(2)} → ${a.kinds.prey.toFixed(2)}, dominant=${a.dominant}`;
 });
 
-check('구간 1 종료 조건 — 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현', () => {
+check('구간 1 종료 조건 — 5개 Situation 의 경합 자원이 시드 1~25 전부에서 D5 충돌로 표현', () => {
   const lines = [];
   for (const st of cycleSpec.situations) {
-    const scene = buildSituationScene(st.id);
-    const targets = report(scene, st.id).conflicts.map((c) => c.target);
-    const missing = st.contestedResources.filter((t) => !targets.includes(t));
-    if (missing.length) throw new Error(`${st.id} 미표현: ${missing.join(',')}`);
+    for (let seed = 1; seed <= 25; seed++) {
+      const targets = report(buildSituationScene(st.id, seed), st.id).conflicts.map((c) => c.target);
+      const missing = st.contestedResources.filter((t) => !targets.includes(t));
+      if (missing.length) throw new Error(`seed ${seed} ${st.id} 미표현: ${missing.join(',')}`);
+    }
     lines.push(`${st.id}[${st.contestedResources.join('+')}]`);
   }
-  return lines.join(' ');
+  return `${lines.join(' ')} (x25 시드)`;
 });
 
 check('Lab 산출 (압력 전후 비교·장면별 충돌)', () => {

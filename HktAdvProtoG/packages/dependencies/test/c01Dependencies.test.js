@@ -28,12 +28,28 @@ test('의존 그래프가 배역·상태에서 생성되고 모든 대상에 공
   assert.ok(deps.every((d) => d.rationale), '근거 없는 의존 존재');
 });
 
-test('기준 장면은 균형 상태다 — 압력 0, 충돌 0 (대조군)', () => {
-  const scene = buildBaseScene();
-  const { byHolder } = evalOf(scene);
-  const maxPressure = Math.max(...Object.values(byHolder).map((h) => h.maxPressure));
-  assert.equal(maxPressure, 0, `기준 장면에 압력 발생: ${JSON.stringify(byHolder)}`);
-  assert.deepEqual(conflictsOf(scene), []);
+const SEEDS = Array.from({ length: 25 }, (_, i) => i + 1);
+
+test('기준 장면은 어느 시드에서도 균형 상태다 — 압력 0, 충돌 0 (대조군, I-1 회귀)', () => {
+  for (const seed of SEEDS) {
+    const scene = buildBaseScene(seed);
+    const { byHolder } = evalOf(scene);
+    const maxPressure = Math.max(...Object.values(byHolder).map((h) => h.maxPressure));
+    assert.equal(maxPressure, 0, `seed ${seed} 기준 장면에 압력 ${maxPressure}`);
+    assert.deepEqual(conflictsOf(scene).map((c) => c.target), [], `seed ${seed} 기준 장면에 충돌`);
+  }
+});
+
+test('지형 용량은 배역에서 파생된다 — 상수 고정 금지 (I-1 회귀)', () => {
+  const capacities = new Set();
+  for (const seed of SEEDS) {
+    const scene = buildBaseScene(seed);
+    const pop = findByArchetype(scene, 'herd-beast').population.count;
+    const capacity = scene.state.region.places['herd-valley'].carryingCapacity;
+    assert.ok(capacity > pop, `seed ${seed}: 수용력 ${capacity} ≤ 개체수 ${pop}`);
+    capacities.add(capacity);
+  }
+  assert.ok(capacities.size > 1, '수용력이 시드와 무관한 상수 — 배역에서 파생되지 않음');
 });
 
 test('SC-C01-D4-01: 무리가 줄면 포식 마물의 먹이 조달이 목장으로 옮겨가고, 목장으로도 못 채우면 압력이 오른다', () => {
@@ -72,25 +88,30 @@ test('SC-C01-D4-BASE-01: 단일 개체의 먹이 의존 압력 계산', () => {
 });
 
 test('SC-C01-D5-01: 무리 과잉 시 습지 군락을 두고 무리·군락·제작자 3자 충돌이 탐지된다', () => {
-  const scene = buildSituationScene('ST-C01-02');
-  const marsh = conflictsOf(scene).find((c) => c.target === 'marsh-colony');
-  assert.ok(marsh, '습지 군락 충돌 미탐지');
-  const kinds = new Set(marsh.claimants.map((c) => `${scene.state.subjects[c.holder].archetype}:${c.kind}`));
-  assert.ok(kinds.has('herd-beast:prey'), '무리의 먹이 신청 없음');
-  assert.ok(kinds.has('resource-colony:habitat'), '군락의 서식 신청 없음');
-  assert.ok(kinds.has('player:healing'), '제작자의 약초 채집 신청 없음');
-  assert.ok(marsh.totalDemand > marsh.supply);
+  for (const seed of SEEDS) {
+    const scene = buildSituationScene('ST-C01-02', seed);
+    const marsh = conflictsOf(scene).find((c) => c.target === 'marsh-colony');
+    assert.ok(marsh, `seed ${seed} 습지 군락 충돌 미탐지`);
+    const kinds = new Set(marsh.claimants.map((c) => `${scene.state.subjects[c.holder].archetype}:${c.kind}`));
+    assert.ok(kinds.has('herd-beast:prey'), `seed ${seed} 무리의 먹이 신청 없음`);
+    assert.ok(kinds.has('resource-colony:habitat'), `seed ${seed} 군락의 서식 신청 없음`);
+    assert.ok(kinds.has('player:healing'), `seed ${seed} 제작자의 약초 채집 신청 없음`);
+    assert.ok(marsh.totalDemand > marsh.supply);
 
-  // 목초지는 무리 자신의 먹이 대 서식 경합이다 (같은 주체 내 경합)
-  const forage = conflictsOf(scene).find((c) => c.target === 'herd-valley-forage');
-  assert.ok(forage?.selfContention, '목초지 자체 경합 미탐지');
+    // 목초지는 무리 자신의 먹이 대 서식 경합이다 (같은 주체 내 경합)
+    const forage = conflictsOf(scene).find((c) => c.target === 'herd-valley-forage');
+    assert.ok(forage?.selfContention, `seed ${seed} 목초지 자체 경합 미탐지`);
+  }
 });
 
-test('구간 1 종료 조건: 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현된다', () => {
-  for (const st of cycleSpec.situations) {
-    const conflicts = conflictsOf(buildSituationScene(st.id)).map((c) => c.target);
-    for (const target of st.contestedResources)
-      assert.ok(conflicts.includes(target), `${st.id} 의 경합 자원 미표현: ${target} (탐지: ${conflicts.join(',')})`);
+test('구간 1 종료 조건: 5개 Situation 의 경합 자원이 어느 시드에서도 D5 충돌로 표현된다', () => {
+  for (const seed of SEEDS) {
+    for (const st of cycleSpec.situations) {
+      const conflicts = conflictsOf(buildSituationScene(st.id, seed)).map((c) => c.target);
+      for (const target of st.contestedResources)
+        assert.ok(conflicts.includes(target),
+          `seed ${seed} ${st.id} 의 경합 자원 미표현: ${target} (탐지: ${conflicts.join(',')})`);
+    }
   }
 });
 

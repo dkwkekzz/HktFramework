@@ -2,6 +2,26 @@
   "label": "ST-C01-02",
   "pressures": [
     {
+      "id": "sub-000008:habitat:herd-valley-forage",
+      "holder": "sub-000008",
+      "kind": "habitat",
+      "targets": [
+        "herd-valley-forage"
+      ],
+      "demand": 3,
+      "unmet": 1,
+      "satisfaction": 0.6666666666666666,
+      "pressure": 0.33333333333333337,
+      "via": [
+        {
+          "target": "herd-valley-forage",
+          "taken": 2
+        }
+      ],
+      "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
+      "holderLabel": "herd-beast"
+    },
+    {
       "id": "sub-000010:habitat:marsh-colony",
       "holder": "sub-000010",
       "kind": "habitat",
@@ -9,13 +29,13 @@
         "marsh-colony"
       ],
       "demand": 74,
-      "unmet": 7,
-      "satisfaction": 0.9054054054054054,
-      "pressure": 0.09459459459459463,
+      "unmet": 8,
+      "satisfaction": 0.8918918918918919,
+      "pressure": 0.10810810810810811,
       "via": [
         {
           "target": "marsh-colony",
-          "taken": 67
+          "taken": 66
         }
       ],
       "rationale": "군락은 훼손되지 않은 자기 군체 전량이 있어야 재생한다",
@@ -348,26 +368,6 @@
       "holderLabel": "merchant"
     },
     {
-      "id": "sub-000008:habitat:herd-valley-forage",
-      "holder": "sub-000008",
-      "kind": "habitat",
-      "targets": [
-        "herd-valley-forage"
-      ],
-      "demand": 3,
-      "unmet": 0,
-      "satisfaction": 1,
-      "pressure": 0,
-      "via": [
-        {
-          "target": "herd-valley-forage",
-          "taken": 3
-        }
-      ],
-      "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
-      "holderLabel": "herd-beast"
-    },
-    {
       "id": "sub-000008:prey:herd-valley-forage",
       "holder": "sub-000008",
       "kind": "prey",
@@ -381,12 +381,8 @@
       "pressure": 0,
       "via": [
         {
-          "target": "herd-valley-forage",
-          "taken": 1
-        },
-        {
           "target": "marsh-colony",
-          "taken": 4
+          "taken": 5
         }
       ],
       "rationale": "무리는 골짜기 목초로 먹고, 부족하면 습지 군락으로 넘어간다",
@@ -438,8 +434,8 @@
     {
       "target": "marsh-colony",
       "supply": 74,
-      "totalDemand": 81,
-      "shortfall": 7,
+      "totalDemand": 82,
+      "shortfall": 8,
       "claimants": [
         {
           "depId": "pl-crafter:healing:healing-herb",
@@ -452,7 +448,7 @@
           "depId": "sub-000008:prey:herd-valley-forage",
           "holder": "sub-000008",
           "kind": "prey",
-          "amount": 4,
+          "amount": 5,
           "holderLabel": "herd-beast"
         },
         {
@@ -467,9 +463,9 @@
     },
     {
       "target": "herd-valley-forage",
-      "supply": 4,
+      "supply": 2,
       "totalDemand": 8,
-      "shortfall": 4,
+      "shortfall": 6,
       "claimants": [
         {
           "depId": "sub-000008:habitat:herd-valley-forage",
@@ -571,11 +567,11 @@
     "sub-000008": {
       "holder": "sub-000008",
       "kinds": {
-        "habitat": 0,
+        "habitat": 0.33333333333333337,
         "prey": 0
       },
-      "dominant": null,
-      "maxPressure": 0
+      "dominant": "habitat",
+      "maxPressure": 0.33333333333333337
     },
     "sub-000009": {
       "holder": "sub-000009",
@@ -589,11 +585,11 @@
     "sub-000010": {
       "holder": "sub-000010",
       "kinds": {
-        "habitat": 0.09459459459459463
+        "habitat": 0.10810810810810811
       },
       "dominant": "habitat",
-      "maxPressure": 0.09459459459459463
+      "maxPressure": 0.10810810810810811
     }
   },
-  "hash": "8bce4d1f17b5b683"
+  "hash": "1b7dc9794ee6c4c4"
 }

@@ -7,15 +7,23 @@ import { createC01Cast, createC01Player } from '../../subjects/src/c01Subjects.j
 
 export const DEFAULT_SEED = 11;
 
-/** 기준 장면 — 균형 잡힌 사냥터. 충돌이 없어야 한다 (장면별 충돌의 대조군) */
+/** 기준 장면에서 무리가 쓰고도 남을 목초 여유분 — 무리의 먹이+서식 요구 합(최대 8)보다 크다 */
+export const BASE_FORAGE_SLACK = 10;
+
+/** 기준 장면 — 균형 잡힌 사냥터. 어느 시드에서도 압력 0·충돌 0 이어야 한다 (장면별 충돌의 대조군) */
 export function buildBaseScene(seed = DEFAULT_SEED) {
   const ontology = defineC01Ontology();
   const state = createInitialWorldState(ontology);
 
+  const { subjects } = createC01Cast(seed, ontology);
+  for (const s of Object.values(subjects)) state.subjects[s.id] = s;
+  // 지형 용량은 실제 배역에서 파생한다 — 상수로 두면 시드에 따라 균형이 깨진다 (I-1)
+  const herdPopulation = Object.values(subjects).find((s) => s.archetype === 'herd-beast').population.count;
+
   state.region.places = {
     'hunter-outpost': { threat: 0 },
     'village-pasture': { livestock: 8 },
-    'herd-valley': { carryingCapacity: 50 },
+    'herd-valley': { carryingCapacity: herdPopulation + BASE_FORAGE_SLACK },
     'apex-lair': { integrity: 1, byproductYield: 3 },
     'marsh-colony': {},
     'lookout-rocks': {},
@@ -32,8 +40,6 @@ export function buildBaseScene(seed = DEFAULT_SEED) {
     'ct-3': { status: 'open', kind: 'survey' },
   };
 
-  const { subjects } = createC01Cast(seed, ontology);
-  for (const s of Object.values(subjects)) state.subjects[s.id] = s;
   for (const [id, role] of [
     ['pl-tracker', 'tracker'], ['pl-hunter', 'hunter'],
     ['pl-crafter', 'dresser-crafter'], ['pl-trader', 'trader'],
@@ -60,8 +66,10 @@ export const C01_SITUATION_SCENES = {
     scene.state.region.places['hunter-outpost'].threat = 6;
   },
   // 사냥 공백 → 무리 과잉 → 목초지 포화, 습지 군락 훼손, 약초 고갈
+  // 개체수는 수용력 대비 상대값으로 둔다 — 절대값은 시드에 따라 의미가 달라진다 (I-1)
   'ST-C01-02': (scene) => {
-    findByArchetype(scene.state, 'herd-beast').population.count = 46;
+    const capacity = scene.state.region.places['herd-valley'].carryingCapacity;
+    findByArchetype(scene.state, 'herd-beast').population.count = capacity - 2;
     scene.state.resources['healing-herb'] = 0;
   },
   // 변이 조건 충족 → 희귀 개체 1 출현
