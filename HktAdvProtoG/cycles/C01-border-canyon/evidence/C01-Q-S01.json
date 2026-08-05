@@ -1,0 +1,66 @@
+{
+  "step": "C01-Q-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "requirementCount": 29,
+    "outcomeCount": 47,
+    "requirementHash": "deb3ec1471ed0617",
+    "placeRequirementIds": [
+      "REQ-outpost",
+      "REQ-pasture",
+      "REQ-herd-range",
+      "REQ-apex-lair",
+      "REQ-colony-site",
+      "REQ-vantage"
+    ],
+    "checks": [
+      {
+        "name": "SC-C01-Q-01 모든 요구가 전략·의존 근거 보유 (미근거 = 오류)",
+        "passed": true,
+        "detail": "요구 29건 (space8 counterpart4 information5 resource8 rule4), 성공 결과 47건"
+      },
+      {
+        "name": "완료 조건 — TRACE 요구 노드가 전부 Q 출력에 존재",
+        "passed": true,
+        "detail": "TRACE 요구 6건 일치 (Q 는 29건으로 더 상세)"
+      },
+      {
+        "name": "요구가 존재론 어휘를 가리킨다 (Handoff: O-S02)",
+        "passed": true,
+        "detail": "공간·자원 요구 전부 존재론 등록 어휘"
+      },
+      {
+        "name": "모든 장소가 요구에서 불린다 — 임의 배치 없음",
+        "passed": true,
+        "detail": "장소 6종 전부 근거 보유, 경로 2/3종"
+      },
+      {
+        "name": "Q2 중요도가 세계 상태에서 온다 (균형 0 → 위기 상승)",
+        "passed": true,
+        "detail": "REQ-outpost(4.5) REQ-RULE-exchange(3) REQ-RES-meat(2.3333)"
+      },
+      {
+        "name": "Q3 근거 사슬 + Lab 산출",
+        "passed": true,
+        "detail": "apps/lab/sample-requirements-{base,ST-C01-0*}.json — 예: REQ-pasture ← P-RAID-PASTURE (prey 대응) ← apex-monster"
+      },
+      {
+        "name": "결정성 (같은 카탈로그 → 같은 요구 해시, 입력 순서 무관)",
+        "passed": true,
+        "detail": "requirementHash=deb3ec1471ed0617"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/world-requirements/src/requirementGraph.js",
+    "packages/world-requirements/src/c01Requirements.js"
+  ],
+  "limitations": [
+    "hunting-trail 은 아직 어떤 전략도 부르지 않는다 — 사냥로의 공간 근거는 X 계층에서",
+    "요구 매핑표(대상→장소·행동→규칙)는 손으로 적은 것 — A 계층이 후보를 낼 때 이 표가 검증 기준이 된다",
+    "중요도는 현재 tick 압력의 합 — 장기 누적·역사 가중은 W5(압축 역사) 이후",
+    "Q 는 요구만 낸다. 병합·실체화(어느 장소를 몇 개 놓을지)는 W 의 몫"
+  ],
+  "contentHash": "f69d6c6291570a6a",
+  "generatedAt": "2026-08-05T08:07:38.425Z"
+}

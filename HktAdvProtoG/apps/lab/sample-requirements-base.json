@@ -1,0 +1,1325 @@
+{
+  "label": "base",
+  "requirements": [
+    {
+      "id": "REQ-apex-lair",
+      "kind": "space",
+      "ref": "apex-lair",
+      "description": "포식 마물이 머물고 회복할 둥지가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RECOVER-LAIR",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RELOCATE-LAIR",
+          "dependencyKind": "habitat",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 3,
+      "importance": 0,
+      "chains": [
+        "REQ-apex-lair ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-apex-lair ← P-RECOVER-LAIR (prey 대응) ← apex-monster",
+        "REQ-apex-lair ← P-RELOCATE-LAIR (habitat 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-colony-site",
+      "kind": "space",
+      "ref": "marsh-colony",
+      "description": "약초·미끼 재료가 자라는 군락 습지가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-COLONY-REGENERATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "resource-colony"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-GATHER-HERBS",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        },
+        {
+          "strategy": "P-HERD-RELOCATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MIGRATE-MARSH",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 4,
+      "importance": 0,
+      "chains": [
+        "REQ-colony-site ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
+        "REQ-colony-site ← P-GATHER-HERBS (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
+        "REQ-colony-site ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
+        "REQ-colony-site ← P-MIGRATE-MARSH (prey 대응) ← herd-beast"
+      ]
+    },
+    {
+      "id": "REQ-CP-apex-lineage",
+      "kind": "counterpart",
+      "ref": "apex-lineage",
+      "description": "추적할 포식 개체가 실재해야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-CP-apex-lineage ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter"
+      ]
+    },
+    {
+      "id": "REQ-CP-guild-body",
+      "kind": "counterpart",
+      "ref": "guild-body",
+      "description": "계약을 낼 실제 조직과 구성원이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 7,
+      "importance": 0,
+      "chains": [
+        "REQ-CP-guild-body ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-CP-guild-body ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-CP-guild-body ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-CP-guild-body ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-CP-guild-body ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-CP-guild-body ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-CP-guild-body ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    },
+    {
+      "id": "REQ-CP-herd-lineage",
+      "kind": "counterpart",
+      "ref": "herd-lineage",
+      "description": "사냥할 초식 개체군이 실재해야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-HUNT-HERD",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-CP-herd-lineage ← P-HUNT-HERD (prey 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-CP-rare-lineage",
+      "kind": "counterpart",
+      "ref": "rare-lineage",
+      "description": "변이가 일어날 혈통이 실재해야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-CP-rare-lineage ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter"
+      ]
+    },
+    {
+      "id": "REQ-herd-range",
+      "kind": "space",
+      "ref": "herd-valley",
+      "description": "초식 무리가 먹고 번식할 목초 골짜기가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-GRAZE-VALLEY",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HERD-BREED",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-HERD",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 4,
+      "importance": 0,
+      "chains": [
+        "REQ-herd-range ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-herd-range ← P-GRAZE-VALLEY (prey 대응) ← herd-beast",
+        "REQ-herd-range ← P-HERD-BREED (habitat 대응) ← herd-beast",
+        "REQ-herd-range ← P-HUNT-HERD (prey 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-INFO-map-record",
+      "kind": "information",
+      "ref": "map-record",
+      "description": "알아낸 것을 기록·전달할 수단이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-INFO-map-record ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    },
+    {
+      "id": "REQ-INFO-price-signal",
+      "kind": "information",
+      "ref": "price-signal",
+      "description": "시세가 관측 가능해야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-INFO-price-signal ← P-TRADER-BUY (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-INFO-quality-signal",
+      "kind": "information",
+      "ref": "quality-signal",
+      "description": "재료의 품질이 판별 가능해야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CRAFT-POTION",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        },
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 2,
+      "importance": 0,
+      "chains": [
+        "REQ-INFO-quality-signal ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
+        "REQ-INFO-quality-signal ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter"
+      ]
+    },
+    {
+      "id": "REQ-INFO-rumor-channel",
+      "kind": "information",
+      "ref": "rumor-channel",
+      "description": "목격과 소문이 퍼지는 통로가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-REPORT-SIGHTING",
+          "dependencyKind": "safety",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        },
+        {
+          "strategy": "P-VILLAGER-SEEK-CARE",
+          "dependencyKind": "healing",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 2,
+      "importance": 0,
+      "chains": [
+        "REQ-INFO-rumor-channel ← P-REPORT-SIGHTING (safety 대응, 개입군 sell-tracking-intel) ← villager",
+        "REQ-INFO-rumor-channel ← P-VILLAGER-SEEK-CARE (healing 대응) ← villager"
+      ]
+    },
+    {
+      "id": "REQ-INFO-trace-legibility",
+      "kind": "information",
+      "ref": "trace-legibility",
+      "description": "발자국·훼손이 읽을 수 있는 흔적으로 남아야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-HUNT-HERD",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RAID-PASTURE",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 6,
+      "importance": 0,
+      "chains": [
+        "REQ-INFO-trace-legibility ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-INFO-trace-legibility ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-INFO-trace-legibility ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-INFO-trace-legibility ← P-HUNT-HERD (prey 대응) ← apex-monster",
+        "REQ-INFO-trace-legibility ← P-RAID-PASTURE (prey 대응) ← apex-monster",
+        "REQ-INFO-trace-legibility ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    },
+    {
+      "id": "REQ-outpost",
+      "kind": "space",
+      "ref": "hunter-outpost",
+      "description": "거래·계약·치료가 모이는 사회 공간이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-BUY-POTIONS",
+          "dependencyKind": "healing",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CRAFT-POTION",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        },
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-FLEE-VILLAGE",
+          "dependencyKind": "safety",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": "defend-pasture"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-MERCHANT-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MERCHANT-RESTOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-REPORT-SIGHTING",
+          "dependencyKind": "safety",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        },
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-VILLAGER-SEEK-CARE",
+          "dependencyKind": "healing",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 17,
+      "importance": 0,
+      "chains": [
+        "REQ-outpost ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-outpost ← P-BUY-POTIONS (healing 대응) ← hunters-guild",
+        "REQ-outpost ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
+        "REQ-outpost ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
+        "REQ-outpost ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-outpost ← P-FLEE-VILLAGE (safety 대응, 개입군 defend-pasture) ← villager",
+        "REQ-outpost ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-outpost ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-outpost ← P-MERCHANT-EXPORT (byproduct 대응) ← merchant",
+        "REQ-outpost ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
+        "REQ-outpost ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-outpost ← P-REPORT-SIGHTING (safety 대응, 개입군 sell-tracking-intel) ← villager",
+        "REQ-outpost ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-outpost ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker",
+        "REQ-outpost ← P-TRADER-BUY (byproduct 대응) ← player:trader",
+        "REQ-outpost ← P-TRADER-EXPORT (byproduct 대응) ← player:trader",
+        "REQ-outpost ← P-VILLAGER-SEEK-CARE (healing 대응) ← villager"
+      ]
+    },
+    {
+      "id": "REQ-pasture",
+      "kind": "space",
+      "ref": "village-pasture",
+      "description": "주민의 식량이 나오고 포식자가 노릴 목축지가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-RAID-PASTURE",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TEND-LIVESTOCK",
+          "dependencyKind": "prey",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 2,
+      "importance": 0,
+      "chains": [
+        "REQ-pasture ← P-RAID-PASTURE (prey 대응) ← apex-monster",
+        "REQ-pasture ← P-TEND-LIVESTOCK (prey 대응) ← villager"
+      ]
+    },
+    {
+      "id": "REQ-RES-bait-material",
+      "kind": "resource",
+      "ref": "bait-material",
+      "description": "bait-material 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-COLONY-REGENERATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "resource-colony"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HERD-RELOCATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MIGRATE-MARSH",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 4,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-bait-material ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-RES-bait-material ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
+        "REQ-RES-bait-material ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
+        "REQ-RES-bait-material ← P-MIGRATE-MARSH (prey 대응) ← herd-beast"
+      ]
+    },
+    {
+      "id": "REQ-RES-equipment",
+      "kind": "resource",
+      "ref": "equipment",
+      "description": "equipment 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        }
+      ],
+      "scope": 3,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-equipment ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-RES-equipment ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RES-equipment ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter"
+      ]
+    },
+    {
+      "id": "REQ-RES-food",
+      "kind": "resource",
+      "ref": "food",
+      "description": "food 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-RAID-PASTURE",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TEND-LIVESTOCK",
+          "dependencyKind": "prey",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 2,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-food ← P-RAID-PASTURE (prey 대응) ← apex-monster",
+        "REQ-RES-food ← P-TEND-LIVESTOCK (prey 대응) ← villager"
+      ]
+    },
+    {
+      "id": "REQ-RES-healing-herb",
+      "kind": "resource",
+      "ref": "healing-herb",
+      "description": "healing-herb 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-COLONY-REGENERATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "resource-colony"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-GATHER-HERBS",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        },
+        {
+          "strategy": "P-HERD-RELOCATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MIGRATE-MARSH",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 4,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-healing-herb ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
+        "REQ-RES-healing-herb ← P-GATHER-HERBS (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
+        "REQ-RES-healing-herb ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
+        "REQ-RES-healing-herb ← P-MIGRATE-MARSH (prey 대응) ← herd-beast"
+      ]
+    },
+    {
+      "id": "REQ-RES-healing-potion",
+      "kind": "resource",
+      "ref": "healing-potion",
+      "description": "healing-potion 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BUY-POTIONS",
+          "dependencyKind": "healing",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CRAFT-POTION",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        },
+        {
+          "strategy": "P-VILLAGER-SEEK-CARE",
+          "dependencyKind": "healing",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 3,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-healing-potion ← P-BUY-POTIONS (healing 대응) ← hunters-guild",
+        "REQ-RES-healing-potion ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
+        "REQ-RES-healing-potion ← P-VILLAGER-SEEK-CARE (healing 대응) ← villager"
+      ]
+    },
+    {
+      "id": "REQ-RES-hide",
+      "kind": "resource",
+      "ref": "hide",
+      "description": "hide 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-MERCHANT-RESTOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 4,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-hide ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
+        "REQ-RES-hide ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RES-hide ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
+        "REQ-RES-hide ← P-TRADER-BUY (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-RES-meat",
+      "kind": "resource",
+      "ref": "meat",
+      "description": "meat 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MERCHANT-RESTOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RAID-PASTURE",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TEND-LIVESTOCK",
+          "dependencyKind": "prey",
+          "actors": [
+            "villager"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 5,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-meat ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
+        "REQ-RES-meat ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
+        "REQ-RES-meat ← P-RAID-PASTURE (prey 대응) ← apex-monster",
+        "REQ-RES-meat ← P-TEND-LIVESTOCK (prey 대응) ← villager",
+        "REQ-RES-meat ← P-TRADER-BUY (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-RES-monster-organ",
+      "kind": "resource",
+      "ref": "monster-organ",
+      "description": "monster-organ 이(가) 세계에서 생산·유통될 수 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-MERCHANT-RESTOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 5,
+      "importance": 0,
+      "chains": [
+        "REQ-RES-monster-organ ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-RES-monster-organ ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
+        "REQ-RES-monster-organ ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RES-monster-organ ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
+        "REQ-RES-monster-organ ← P-TRADER-BUY (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-RULE-contract",
+      "kind": "rule",
+      "ref": "contract",
+      "description": "계약을 발급·이행·평가하는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 7,
+      "importance": 0,
+      "chains": [
+        "REQ-RULE-contract ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-RULE-contract ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-RULE-contract ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-RULE-contract ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RULE-contract ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-RULE-contract ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-RULE-contract ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    },
+    {
+      "id": "REQ-RULE-crafting",
+      "kind": "rule",
+      "ref": "crafting",
+      "description": "재료를 소비해 제작물을 얻는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CRAFT-POTION",
+          "dependencyKind": "healing",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": "gather-craft-supply"
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-RULE-crafting ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter"
+      ]
+    },
+    {
+      "id": "REQ-RULE-exchange",
+      "kind": "rule",
+      "ref": "exchange",
+      "description": "교환 가치와 매매가 성립하는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BUY-POTIONS",
+          "dependencyKind": "healing",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CRAFTER-BUY-STOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:dresser-crafter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MERCHANT-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MERCHANT-RESTOCK",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        },
+        {
+          "strategy": "P-TRADER-BUY",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 7,
+      "importance": 0,
+      "chains": [
+        "REQ-RULE-exchange ← P-BUY-POTIONS (healing 대응) ← hunters-guild",
+        "REQ-RULE-exchange ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
+        "REQ-RULE-exchange ← P-MERCHANT-EXPORT (byproduct 대응) ← merchant",
+        "REQ-RULE-exchange ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
+        "REQ-RULE-exchange ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker",
+        "REQ-RULE-exchange ← P-TRADER-BUY (byproduct 대응) ← player:trader",
+        "REQ-RULE-exchange ← P-TRADER-EXPORT (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-RULE-ownership",
+      "kind": "rule",
+      "ref": "ownership",
+      "description": "사냥물·채집물의 소유가 한 번만 확정되는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-APEX",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-HUNT-HERD",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RAID-PASTURE",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 5,
+      "importance": 0,
+      "chains": [
+        "REQ-RULE-ownership ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-RULE-ownership ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RULE-ownership ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RULE-ownership ← P-HUNT-HERD (prey 대응) ← apex-monster",
+        "REQ-RULE-ownership ← P-RAID-PASTURE (prey 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-SPACE-export-route",
+      "kind": "space",
+      "ref": "export-route",
+      "description": "export-route 이동 경로가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-MERCHANT-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "merchant"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-TRADER-EXPORT",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:trader"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 2,
+      "importance": 0,
+      "chains": [
+        "REQ-SPACE-export-route ← P-MERCHANT-EXPORT (byproduct 대응) ← merchant",
+        "REQ-SPACE-export-route ← P-TRADER-EXPORT (byproduct 대응) ← player:trader"
+      ]
+    },
+    {
+      "id": "REQ-SPACE-monster-route",
+      "kind": "space",
+      "ref": "monster-route",
+      "description": "monster-route 이동 경로가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-HERD-RELOCATE",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-MIGRATE-MARSH",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-RELOCATE-LAIR",
+          "dependencyKind": "habitat",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 3,
+      "importance": 0,
+      "chains": [
+        "REQ-SPACE-monster-route ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
+        "REQ-SPACE-monster-route ← P-MIGRATE-MARSH (prey 대응) ← herd-beast",
+        "REQ-SPACE-monster-route ← P-RELOCATE-LAIR (habitat 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-vantage",
+      "kind": "space",
+      "ref": "lookout-rocks",
+      "description": "흔적과 이동을 관측할 지점이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 1,
+      "importance": 0,
+      "chains": [
+        "REQ-vantage ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    }
+  ]
+}

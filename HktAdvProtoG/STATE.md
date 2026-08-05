@@ -54,6 +54,7 @@
 | C01-S-S01 | [C01-S-S01.json](cycles/C01-border-canyon/evidence/C01-S-S01.json) | 원형 프로필 6종+역할 4종 (`packages/subjects/`), 표준 배역 8주체 결정적 생성, castHash `44b0b0ce93d081f1` |
 | C01-D-S01 | [C01-D-S01.json](cycles/C01-border-canyon/evidence/C01-D-S01.json) | 의존 6계열·의존 21건·경합 대상 14종 (`packages/dependencies/`), 기준 장면 압력 0·충돌 0(시드 25종), pressureHash `bce1764b284c89db` |
 | C01-P-S01 | [C01-P-S01.json](cycles/C01-border-canyon/evidence/C01-P-S01.json) | 행동 원자·전략 30건·목적 선택/유지·행동 계획 (`packages/possibilities/`), ST-01 planHash `c9259bbfcdda3de8` |
+| C01-Q-S01 | [C01-Q-S01.json](cycles/C01-border-canyon/evidence/C01-Q-S01.json) | 세계 요구 29건·성공 결과 47건·근거 사슬 (`packages/world-requirements/`), TRACE 요구 6종 전부 일치, requirementHash `deb3ec1471ed0617` |
 
 **구간 1 (주체와 압력) 종료 조건 충족** — 5개 Situation 의 경합 자원이 전부 D5 충돌로 표현됨
 (`node scripts/check-C01-D-S01.mjs` 4번째 점검). 전체 재현: `npm run check:all`.
@@ -72,9 +73,8 @@
 | I-1 | 기준 장면의 "압력 0·충돌 0" 대조군 성질이 기본 시드 전용이었다 — `herd-valley.carryingCapacity` 상수(50) 대 무리 개체수 변동([30,50])의 불일치로 시드 8/25 에서 기준 장면에 이미 충돌 발생. | **수정 완료** — 수용력을 배역 개체수에서 파생(`개체수 + BASE_FORAGE_SLACK`), ST-C01-02 도 절대값 대신 `수용력 − 2` 상대값으로 전환. 테스트·점검을 단일 시드에서 **25 시드 속성 검사**로 승격하고 파생 강제 회귀 테스트 추가. 시드 1~100 재검증: 기준 장면 균형 100/100, 종료 조건 500/500, D5-01 3자 충돌 100/100. |
 
 ## TODO
-- [ ] **C01-Q-S01** — 전략의 공간·자원·규칙·정보·상대 요구 추출과 근거 추적 (구간 2 계속).
-      P 의 전략·행동 원자가 요구의 출처가 된다.
-- [ ] C01-W-S01 — 요구 병합 → 협곡 규칙·상태·공간 실체화 + 압축 역사 (구간 2 마지막)
+- [ ] **C01-W-S01** — 요구 병합 → 협곡 규칙·상태·공간 실체화 + 압축 역사 + 정식 세계 등록
+      (구간 2 마지막 Step). Q 의 요구 29건이 입력이다.
 - [ ] 구간 2 종료 조건: `cycle:trace` 미근거 세계 요소 0건 (STEPS.md)
 - [ ] I-2 (조합 hunt-order 의존) — 파급이 있으므로 구간 2 종료 후 별도 처리 권장
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
