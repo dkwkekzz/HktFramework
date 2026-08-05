@@ -80,10 +80,12 @@ check('6. 게임 클라이언트가 권위 서버를 통해 명령 제출', () =
 });
 
 check('7. 완료 증거 파일 생성', () => {
+  // 자기 자신(7번) 결과도 증거에 남긴다 — 이후 쓰기가 실패하면 파일 자체가 남지 않으므로 정직하다
+  const selfRecord = { name: '7. 완료 증거 파일 생성', passed: true, detail: '이 파일의 존재가 증거' };
   const foundationEvidence = buildEvidence({
     step: 'FOUNDATION-PHASE0',
     status: 'CORE_SLICE_DONE',
-    results: { checks: results.map(({ name, passed, detail }) => ({ name, passed, detail })) },
+    results: { checks: [...results.map(({ name, passed, detail }) => ({ name, passed, detail })), selfRecord] },
     artifacts: [
       'packages/verification/src/{deterministic,contracts,cycleRegistry,scenarioRunner,evidence}.js',
       'packages/events/src/eventLog.js',

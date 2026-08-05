@@ -1,6 +1,6 @@
 {
   "cycleId": "C01",
-  "description": "C01 등록 배선 — STEPS.md 의 Module Step consumes/produces 와 SCENARIOS.md 의 Scenario 목록을 기계 판독 형태로 미러링한다. 원본이 바뀌면 이 파일도 갱신한다.",
+  "description": "C01 등록 배선 — STEPS.md 의 Module Step 과 SCENARIOS.md 의 Scenario 목록의 전방(비순환) 배선 단순화. 런타임 피드백 간선(G→P 재입력, C→R/X 등)은 의도적으로 미배선이며 정적 의존성 검사 대상이 아니다. 원본이 바뀌면 이 파일도 갱신한다.",
   "externalArtifacts": ["foundation.v0-v4", "foundation.axiom-spec", "plan.cycle-contract"],
   "terminalArtifacts": ["c01.registration", "persistent-world-store", "content-candidate-pipeline"],
   "moduleSteps": [

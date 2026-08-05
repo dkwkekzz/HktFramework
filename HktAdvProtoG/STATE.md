@@ -42,12 +42,20 @@
 
 | Cycle | 상태 |
 |---|---|
-| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **IMPLEMENTING** — 구간 1 진입. C01-V-S01 완료 ([증거](cycles/C01-border-canyon/evidence/C01-V-S01.json)) |
+| [C01 — 국경 협곡 사냥터](cycles/C01-border-canyon/CYCLE.md) | **IMPLEMENTING** — 구간 1 진행 중. V-S01·O-S01 완료 ([증거](cycles/C01-border-canyon/evidence/)) |
+
+### 완료 Step
+
+| Step | 증거 | 비고 |
+|---|---|---|
+| C01-V-S01 | [C01-V-S01.json](cycles/C01-border-canyon/evidence/C01-V-S01.json) | C01 등록·lint 0 오류, 검증 세션 통과 |
+| C01-O-S01 | [C01-O-S01.json](cycles/C01-border-canyon/evidence/C01-O-S01.json) | 공리 5종 (`packages/ontology/`), 실패 Scenario 5종 통과, registryHash `111573ec9f3760b5` |
 
 ## TODO
 
-- [ ] **C01-O-S01** — 핵심 공리 5종 + 평가기 (`advprotog-step-implementer`, 구간 1 계속)
-- [ ] C01-O-S02 존재론·스키마 → C01-S-S01 주체 원형 → C01-D-S01 의존 그래프 (구간 1 잔여)
+- [ ] **C01-O-S02** — 사냥터 존재론·상태 스키마 (`advprotog-step-implementer`, 구간 1 계속).
+      보존 공리의 `state.resources` 관례를 존재론 스키마로 고정하는 것 포함.
+- [ ] C01-S-S01 주체 원형 6종+역할 4종 → C01-D-S01 의존 그래프 (구간 1 잔여)
 - [ ] 구간 1 종료 조건: D 출력이 5개 Situation 충돌 구조를 모두 표현 (STEPS.md)
 - [ ] (선택) docs/ 보강 — Project-Architecture.md, Module-Contracts.md, Glossary.md 는
       Foundation 구현이 실체를 갖춘 뒤 `advprotog-workflow-maintainer` 로 추가한다.

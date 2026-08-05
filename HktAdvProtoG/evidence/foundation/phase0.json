@@ -32,6 +32,11 @@
         "name": "6. 게임 클라이언트가 권위 서버를 통해 명령 제출",
         "passed": true,
         "detail": "owner=H1, 거부 사유=\"already-owned-by:H1\", 로그 재생 해시 일치"
+      },
+      {
+        "name": "7. 완료 증거 파일 생성",
+        "passed": true,
+        "detail": "이 파일의 존재가 증거"
       }
     ]
   },
@@ -47,6 +52,6 @@
     "3D 게임 앱·Lab 공통 상태 연결은 X 구간에서 — 현재 클라이언트는 인프로세스 핸들",
     "CYCLE.yaml→JSON 동기화는 scripts/build-cycle-json.py 수동 실행"
   ],
-  "contentHash": "ecc839a2b6c28b51",
-  "generatedAt": "2026-08-05T05:45:59.481Z"
+  "contentHash": "ba900c361e0f42b9",
+  "generatedAt": "2026-08-05T06:29:36.665Z"
 }
