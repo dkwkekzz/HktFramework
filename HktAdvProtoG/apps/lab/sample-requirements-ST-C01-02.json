@@ -2,6 +2,63 @@
   "label": "ST-C01-02",
   "requirements": [
     {
+      "id": "REQ-herd-range",
+      "kind": "space",
+      "ref": "herd-valley",
+      "description": "초식 무리가 먹고 번식할 목초 골짜기가 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-CAPTURE-RARE",
+          "dependencyKind": "byproduct",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "habitat",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-GRAZE-VALLEY",
+          "dependencyKind": "prey",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HERD-BREED",
+          "dependencyKind": "habitat",
+          "actors": [
+            "herd-beast"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-HUNT-HERD",
+          "dependencyKind": "prey",
+          "actors": [
+            "apex-monster"
+          ],
+          "interventionFamily": null
+        }
+      ],
+      "scope": 5,
+      "importance": 1.3333,
+      "chains": [
+        "REQ-herd-range ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-herd-range ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-herd-range ← P-GRAZE-VALLEY (prey 대응) ← herd-beast",
+        "REQ-herd-range ← P-HERD-BREED (habitat 대응) ← herd-beast",
+        "REQ-herd-range ← P-HUNT-HERD (prey 대응) ← apex-monster"
+      ]
+    },
+    {
       "id": "REQ-colony-site",
       "kind": "space",
       "ref": "marsh-colony",
@@ -41,7 +98,7 @@
         }
       ],
       "scope": 4,
-      "importance": 0.4414,
+      "importance": 1.1081,
       "chains": [
         "REQ-colony-site ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
         "REQ-colony-site ← P-GATHER-HERBS (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
@@ -89,7 +146,7 @@
         }
       ],
       "scope": 4,
-      "importance": 0.4414,
+      "importance": 1.1081,
       "chains": [
         "REQ-RES-bait-material ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
         "REQ-RES-bait-material ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
@@ -137,60 +194,12 @@
         }
       ],
       "scope": 4,
-      "importance": 0.4414,
+      "importance": 1.1081,
       "chains": [
         "REQ-RES-healing-herb ← P-COLONY-REGENERATE (habitat 대응) ← resource-colony",
         "REQ-RES-healing-herb ← P-GATHER-HERBS (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
         "REQ-RES-healing-herb ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
         "REQ-RES-healing-herb ← P-MIGRATE-MARSH (prey 대응) ← herd-beast"
-      ]
-    },
-    {
-      "id": "REQ-herd-range",
-      "kind": "space",
-      "ref": "herd-valley",
-      "description": "초식 무리가 먹고 번식할 목초 골짜기가 있어야 한다",
-      "derivedFrom": [
-        {
-          "strategy": "P-CAPTURE-RARE",
-          "dependencyKind": "byproduct",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-GRAZE-VALLEY",
-          "dependencyKind": "prey",
-          "actors": [
-            "herd-beast"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-HERD-BREED",
-          "dependencyKind": "habitat",
-          "actors": [
-            "herd-beast"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-HUNT-HERD",
-          "dependencyKind": "prey",
-          "actors": [
-            "apex-monster"
-          ],
-          "interventionFamily": null
-        }
-      ],
-      "scope": 4,
-      "importance": 0.3333,
-      "chains": [
-        "REQ-herd-range ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
-        "REQ-herd-range ← P-GRAZE-VALLEY (prey 대응) ← herd-beast",
-        "REQ-herd-range ← P-HERD-BREED (habitat 대응) ← herd-beast",
-        "REQ-herd-range ← P-HUNT-HERD (prey 대응) ← apex-monster"
       ]
     },
     {
@@ -225,11 +234,161 @@
         }
       ],
       "scope": 3,
-      "importance": 0.3333,
+      "importance": 1,
       "chains": [
         "REQ-SPACE-monster-route ← P-HERD-RELOCATE (habitat 대응) ← herd-beast",
         "REQ-SPACE-monster-route ← P-MIGRATE-MARSH (prey 대응) ← herd-beast",
         "REQ-SPACE-monster-route ← P-RELOCATE-LAIR (habitat 대응) ← apex-monster"
+      ]
+    },
+    {
+      "id": "REQ-CP-guild-body",
+      "kind": "counterpart",
+      "ref": "guild-body",
+      "description": "계약을 낼 실제 조직과 구성원이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "habitat",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 7,
+      "importance": 0.3333,
+      "chains": [
+        "REQ-CP-guild-body ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-CP-guild-body ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-CP-guild-body ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-CP-guild-body ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-CP-guild-body ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-CP-guild-body ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-CP-guild-body ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
+      ]
+    },
+    {
+      "id": "REQ-RULE-contract",
+      "kind": "rule",
+      "ref": "contract",
+      "description": "계약을 발급·이행·평가하는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "habitat",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 7,
+      "importance": 0.3333,
+      "chains": [
+        "REQ-RULE-contract ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-RULE-contract ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-RULE-contract ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-RULE-contract ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RULE-contract ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-RULE-contract ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-RULE-contract ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
       ]
     },
     {
@@ -290,81 +449,6 @@
       "importance": 0,
       "chains": [
         "REQ-CP-apex-lineage ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter"
-      ]
-    },
-    {
-      "id": "REQ-CP-guild-body",
-      "kind": "counterpart",
-      "ref": "guild-body",
-      "description": "계약을 낼 실제 조직과 구성원이 있어야 한다",
-      "derivedFrom": [
-        {
-          "strategy": "P-BAIT-LURE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "lure-away-with-bait"
-        },
-        {
-          "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "cull-contract"
-        },
-        {
-          "strategy": "P-HALT-CULL",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "restore-prey-base"
-        },
-        {
-          "strategy": "P-HUNT-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-RATE-PERFORMANCE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-SUBJUGATION-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-SURVEY-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:tracker"
-          ],
-          "interventionFamily": "sell-tracking-intel"
-        }
-      ],
-      "scope": 7,
-      "importance": 0,
-      "chains": [
-        "REQ-CP-guild-body ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
-        "REQ-CP-guild-body ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
-        "REQ-CP-guild-body ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
-        "REQ-CP-guild-body ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
-        "REQ-CP-guild-body ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
-        "REQ-CP-guild-body ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
-        "REQ-CP-guild-body ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
       ]
     },
     {
@@ -616,14 +700,6 @@
           "interventionFamily": null
         },
         {
-          "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "cull-contract"
-        },
-        {
           "strategy": "P-FLEE-VILLAGE",
           "dependencyKind": "safety",
           "actors": [
@@ -720,14 +796,13 @@
           "interventionFamily": null
         }
       ],
-      "scope": 17,
+      "scope": 16,
       "importance": 0,
       "chains": [
         "REQ-outpost ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
         "REQ-outpost ← P-BUY-POTIONS (healing 대응) ← hunters-guild",
         "REQ-outpost ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
         "REQ-outpost ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
-        "REQ-outpost ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
         "REQ-outpost ← P-FLEE-VILLAGE (safety 대응, 개입군 defend-pasture) ← villager",
         "REQ-outpost ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
         "REQ-outpost ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
@@ -1040,81 +1115,6 @@
         "REQ-RES-monster-organ ← P-HUNT-APEX (byproduct 대응, 개입군 subjugate) ← player:hunter",
         "REQ-RES-monster-organ ← P-MERCHANT-RESTOCK (byproduct 대응) ← merchant",
         "REQ-RES-monster-organ ← P-TRADER-BUY (byproduct 대응) ← player:trader"
-      ]
-    },
-    {
-      "id": "REQ-RULE-contract",
-      "kind": "rule",
-      "ref": "contract",
-      "description": "계약을 발급·이행·평가하는 규칙이 있어야 한다",
-      "derivedFrom": [
-        {
-          "strategy": "P-BAIT-LURE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "lure-away-with-bait"
-        },
-        {
-          "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "cull-contract"
-        },
-        {
-          "strategy": "P-HALT-CULL",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "restore-prey-base"
-        },
-        {
-          "strategy": "P-HUNT-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-RATE-PERFORMANCE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-SUBJUGATION-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-SURVEY-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:tracker"
-          ],
-          "interventionFamily": "sell-tracking-intel"
-        }
-      ],
-      "scope": 7,
-      "importance": 0,
-      "chains": [
-        "REQ-RULE-contract ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
-        "REQ-RULE-contract ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
-        "REQ-RULE-contract ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
-        "REQ-RULE-contract ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
-        "REQ-RULE-contract ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
-        "REQ-RULE-contract ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
-        "REQ-RULE-contract ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
       ]
     },
     {

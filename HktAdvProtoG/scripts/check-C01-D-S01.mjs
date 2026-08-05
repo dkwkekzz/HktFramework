@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync, mkdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { evaluateDependencies, detectConflicts, validateDependencyGraph } from '../packages/dependencies/src/dependencyGraph.js';
 import { buildC01DependencyGraph, C01_SUPPLIES } from '../packages/dependencies/src/c01Dependencies.js';
-import { buildBaseScene, buildSituationScene } from '../packages/dependencies/src/c01Scenes.js';
+import { buildBaseScene, buildSituationScene, DEFAULT_SEED } from '../packages/dependencies/src/c01Scenes.js';
 import { buildEvidence, writeEvidence } from '../packages/verification/src/evidence.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
@@ -60,6 +60,24 @@ check('SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포
   if (!(a.kinds.prey > b.kinds.prey)) throw new Error('먹이 압력이 오르지 않음');
   if (a.dominant !== 'prey') throw new Error(`지배 결핍 ${a.dominant}`);
   return `apex prey 압력 ${b.kinds.prey.toFixed(2)} → ${a.kinds.prey.toFixed(2)}, dominant=${a.dominant}`;
+});
+
+check('I-2 조합의 사냥 질서(hunt-order)가 의존으로 표현 — 균형 0, 과잉에서 상승', () => {
+  const lines = [];
+  for (let seed = 1; seed <= 25; seed++) {
+    const guildId = Object.values(buildBaseScene(seed).state.subjects).find((s) => s.archetype === 'hunters-guild').id;
+    const balanced = report(buildBaseScene(seed), `base-${seed}`).byHolder[guildId].kinds.habitat ?? 0;
+    if (balanced !== 0) throw new Error(`seed ${seed} 균형 장면인데 사냥 질서 압력 ${balanced}`);
+    const over = report(buildSituationScene('ST-C01-02', seed), `over-${seed}`).byHolder[guildId];
+    if (!(over.kinds.habitat > 0)) throw new Error(`seed ${seed} 무리 과잉인데 사냥 질서 압력 0`);
+    if (over.dominant !== 'habitat') throw new Error(`seed ${seed} 조합의 지배 결핍 ${over.dominant}`);
+    if (seed === DEFAULT_SEED) lines.push(`균형 0 → 과잉 ${over.kinds.habitat.toFixed(2)}(dominant=habitat)`);
+  }
+  // 목초 여유 경합이 무리 자체 경합에서 조합을 포함한 다자 경합으로 바뀐다
+  const scene = buildSituationScene('ST-C01-02');
+  const forage = report(scene, 'over').conflicts.find((c) => c.target === 'herd-valley-forage');
+  if (!forage || forage.selfContention) throw new Error('목초 여유가 아직 무리 자체 경합이다 — 조합이 빠졌다');
+  return `${lines[0]}, 목초 여유 ${forage.supply} 대 신청 ${forage.totalDemand} — ${forage.claimants.length}자 경합 (x25 시드)`;
 });
 
 check('구간 1 종료 조건 — 5개 Situation 의 경합 자원이 시드 1~25 전부에서 D5 충돌로 표현', () => {

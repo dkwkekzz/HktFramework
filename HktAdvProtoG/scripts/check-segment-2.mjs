@@ -29,12 +29,18 @@ const FROZEN = {
   registryHash: '111573ec9f3760b5',   // C01-O-S01 공리 레지스트리
   ontologyHash: 'ad1590bf20bcaffb',   // C01-O-S02 존재론
   castHash: '44b0b0ce93d081f1',       // C01-S-S01 표준 배역 (시드 11)
-  // C01-D-S01 기준 장면 압력. W-S01 에서 장면이 W 산출을 소비하도록 바뀌며
-  // bce1764b284c89db → 0b7ba374ba3c41e7 로 갱신됐다 (STATE.md 기록은 그때 누락됐다).
-  pressureHash: '0b7ba374ba3c41e7',
-  planHash: 'c9259bbfcdda3de8',       // C01-P-S01 ST-01 행동 계획
-  requirementHash: 'deb3ec1471ed0617',// C01-Q-S01 세계 요구 그래프
-  worldHash: '983af252f581a028',      // C01-W-S01 정식 세계 (시드 11)
+  // C01-D-S01 기준 장면 압력. 두 번 갱신됐다 —
+  //   bce1764b284c89db → 0b7ba374ba3c41e7  W-S01 에서 장면이 W 산출을 소비 (STATE.md 기록 누락, I-4)
+  //   0b7ba374ba3c41e7 → 48dd56b636f4ba9f  I-2 로 조합의 hunt-order 의존이 추가됨
+  pressureHash: '48dd56b636f4ba9f',
+  // C01-P-S01 ST-01 행동 계획. I-2 를 거치고도 불변 — 무리 붕괴 장면의 판단은 그대로다
+  planHash: 'c9259bbfcdda3de8',
+  // C01-Q-S01 세계 요구 그래프. I-2 에서 P-CULL-CONTRACT 의 대상이
+  // village-safety → herd-valley-forage 로 바뀌며 근거 사슬이 옮겨졌다
+  requirementHash: '6b48208894d77879',
+  // C01-W-S01 정식 세계 (시드 11). I-2 를 거치고도 불변 —
+  // 불린 세계 요소 집합과 근거 주체가 같아 실체화 결과가 달라지지 않는다
+  worldHash: '983af252f581a028',
 };
 
 const results = [];

@@ -6,21 +6,21 @@
       "registryHash": "111573ec9f3760b5",
       "ontologyHash": "ad1590bf20bcaffb",
       "castHash": "44b0b0ce93d081f1",
-      "pressureHash": "0b7ba374ba3c41e7",
+      "pressureHash": "48dd56b636f4ba9f",
       "planHash": "c9259bbfcdda3de8",
-      "requirementHash": "deb3ec1471ed0617",
+      "requirementHash": "6b48208894d77879",
       "worldHash": "983af252f581a028"
     },
     "checks": [
       {
         "name": "동결 해시 재현 — 공리·존재론·배역·압력 (구간 1 상류)",
         "passed": true,
-        "detail": "registry=111573ec9f3760b5 ontology=ad1590bf20bcaffb cast=44b0b0ce93d081f1 pressure=0b7ba374ba3c41e7"
+        "detail": "registry=111573ec9f3760b5 ontology=ad1590bf20bcaffb cast=44b0b0ce93d081f1 pressure=48dd56b636f4ba9f"
       },
       {
         "name": "동결 해시 재현 — 계획·요구·세계 (구간 2 산출)",
         "passed": true,
-        "detail": "plan=c9259bbfcdda3de8 requirement=deb3ec1471ed0617 world=983af252f581a028"
+        "detail": "plan=c9259bbfcdda3de8 requirement=6b48208894d77879 world=983af252f581a028"
       },
       {
         "name": "Handoff D→P — 압력이 없으면 목적도 없다 (P 가 D 산출을 실제로 읽는다)",
@@ -55,6 +55,6 @@
     "구간 2 의 플레이어 가시 기여는 아직 간접이다 — 실제 표면은 X 계층(구간 5)에서 확인된다",
     "동결 해시는 시드 11 기준 — 다른 시드는 구조만 검사하고 값은 고정하지 않는다"
   ],
-  "contentHash": "e6180472a3467a33",
-  "generatedAt": "2026-08-05T08:27:52.511Z"
+  "contentHash": "2ec4cd944860cef4",
+  "generatedAt": "2026-08-05T08:43:41.009Z"
 }

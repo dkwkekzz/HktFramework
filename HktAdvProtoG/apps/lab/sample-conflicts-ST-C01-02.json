@@ -9,6 +9,21 @@
         "herd-valley-forage"
       ],
       "demand": 3,
+      "unmet": 3,
+      "satisfaction": 0,
+      "pressure": 1,
+      "via": [],
+      "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
+      "holderLabel": "herd-beast"
+    },
+    {
+      "id": "sub-000004:habitat:herd-valley-forage",
+      "holder": "sub-000004",
+      "kind": "habitat",
+      "targets": [
+        "herd-valley-forage"
+      ],
+      "demand": 3,
       "unmet": 1,
       "satisfaction": 0.6666666666666666,
       "pressure": 0.33333333333333337,
@@ -18,8 +33,8 @@
           "taken": 2
         }
       ],
-      "rationale": "무리는 번식·서식을 위한 여유 목초지가 필요하다",
-      "holderLabel": "herd-beast"
+      "rationale": "조합은 사냥 질서를 위해 무리가 번식할 목초 여유가 남아 있기를 요구한다",
+      "holderLabel": "hunters-guild"
     },
     {
       "id": "sub-000010:habitat:marsh-colony",
@@ -432,6 +447,36 @@
   ],
   "conflicts": [
     {
+      "target": "herd-valley-forage",
+      "supply": 2,
+      "totalDemand": 11,
+      "shortfall": 9,
+      "claimants": [
+        {
+          "depId": "sub-000004:habitat:herd-valley-forage",
+          "holder": "sub-000004",
+          "kind": "habitat",
+          "amount": 3,
+          "holderLabel": "hunters-guild"
+        },
+        {
+          "depId": "sub-000008:habitat:herd-valley-forage",
+          "holder": "sub-000008",
+          "kind": "habitat",
+          "amount": 3,
+          "holderLabel": "herd-beast"
+        },
+        {
+          "depId": "sub-000008:prey:herd-valley-forage",
+          "holder": "sub-000008",
+          "kind": "prey",
+          "amount": 5,
+          "holderLabel": "herd-beast"
+        }
+      ],
+      "selfContention": false
+    },
+    {
       "target": "marsh-colony",
       "supply": 74,
       "totalDemand": 82,
@@ -460,29 +505,6 @@
         }
       ],
       "selfContention": false
-    },
-    {
-      "target": "herd-valley-forage",
-      "supply": 2,
-      "totalDemand": 8,
-      "shortfall": 6,
-      "claimants": [
-        {
-          "depId": "sub-000008:habitat:herd-valley-forage",
-          "holder": "sub-000008",
-          "kind": "habitat",
-          "amount": 3,
-          "holderLabel": "herd-beast"
-        },
-        {
-          "depId": "sub-000008:prey:herd-valley-forage",
-          "holder": "sub-000008",
-          "kind": "prey",
-          "amount": 5,
-          "holderLabel": "herd-beast"
-        }
-      ],
-      "selfContention": true
     }
   ],
   "byHolder": {
@@ -550,11 +572,12 @@
     "sub-000004": {
       "holder": "sub-000004",
       "kinds": {
+        "habitat": 0.33333333333333337,
         "reputation": 0,
         "safety": 0
       },
-      "dominant": null,
-      "maxPressure": 0
+      "dominant": "habitat",
+      "maxPressure": 0.33333333333333337
     },
     "sub-000007": {
       "holder": "sub-000007",
@@ -567,11 +590,11 @@
     "sub-000008": {
       "holder": "sub-000008",
       "kinds": {
-        "habitat": 0.33333333333333337,
+        "habitat": 1,
         "prey": 0
       },
       "dominant": "habitat",
-      "maxPressure": 0.33333333333333337
+      "maxPressure": 1
     },
     "sub-000009": {
       "holder": "sub-000009",
@@ -591,5 +614,5 @@
       "maxPressure": 0.10810810810810811
     }
   },
-  "hash": "1b7dc9794ee6c4c4"
+  "hash": "50aa37f3bbd2080f"
 }

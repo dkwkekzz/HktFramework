@@ -40,14 +40,6 @@
           "interventionFamily": null
         },
         {
-          "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "cull-contract"
-        },
-        {
           "strategy": "P-FLEE-VILLAGE",
           "dependencyKind": "safety",
           "actors": [
@@ -144,14 +136,13 @@
           "interventionFamily": null
         }
       ],
-      "scope": 17,
-      "importance": 4.5,
+      "scope": 16,
+      "importance": 4,
       "chains": [
         "REQ-outpost ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
         "REQ-outpost ← P-BUY-POTIONS (healing 대응) ← hunters-guild",
         "REQ-outpost ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
         "REQ-outpost ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter",
-        "REQ-outpost ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
         "REQ-outpost ← P-FLEE-VILLAGE (safety 대응, 개입군 defend-pasture) ← villager",
         "REQ-outpost ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
         "REQ-outpost ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
@@ -419,7 +410,7 @@
         },
         {
           "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
+          "dependencyKind": "habitat",
           "actors": [
             "hunters-guild"
           ],
@@ -467,90 +458,15 @@
         }
       ],
       "scope": 7,
-      "importance": 1.5,
+      "importance": 1,
       "chains": [
         "REQ-CP-guild-body ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
-        "REQ-CP-guild-body ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-CP-guild-body ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
         "REQ-CP-guild-body ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
         "REQ-CP-guild-body ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
         "REQ-CP-guild-body ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
         "REQ-CP-guild-body ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
         "REQ-CP-guild-body ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
-      ]
-    },
-    {
-      "id": "REQ-RULE-contract",
-      "kind": "rule",
-      "ref": "contract",
-      "description": "계약을 발급·이행·평가하는 규칙이 있어야 한다",
-      "derivedFrom": [
-        {
-          "strategy": "P-BAIT-LURE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "lure-away-with-bait"
-        },
-        {
-          "strategy": "P-CULL-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "cull-contract"
-        },
-        {
-          "strategy": "P-HALT-CULL",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "restore-prey-base"
-        },
-        {
-          "strategy": "P-HUNT-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:hunter"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-RATE-PERFORMANCE",
-          "dependencyKind": "reputation",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": null
-        },
-        {
-          "strategy": "P-SUBJUGATION-CONTRACT",
-          "dependencyKind": "safety",
-          "actors": [
-            "hunters-guild"
-          ],
-          "interventionFamily": "subjugate"
-        },
-        {
-          "strategy": "P-SURVEY-CONTRACT",
-          "dependencyKind": "reputation",
-          "actors": [
-            "player:tracker"
-          ],
-          "interventionFamily": "sell-tracking-intel"
-        }
-      ],
-      "scope": 7,
-      "importance": 1.5,
-      "chains": [
-        "REQ-RULE-contract ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
-        "REQ-RULE-contract ← P-CULL-CONTRACT (safety 대응, 개입군 cull-contract) ← hunters-guild",
-        "REQ-RULE-contract ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
-        "REQ-RULE-contract ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
-        "REQ-RULE-contract ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
-        "REQ-RULE-contract ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
-        "REQ-RULE-contract ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
       ]
     },
     {
@@ -581,6 +497,81 @@
       "chains": [
         "REQ-INFO-quality-signal ← P-CRAFT-POTION (healing 대응, 개입군 gather-craft-supply) ← player:dresser-crafter",
         "REQ-INFO-quality-signal ← P-CRAFTER-BUY-STOCK (byproduct 대응) ← player:dresser-crafter"
+      ]
+    },
+    {
+      "id": "REQ-RULE-contract",
+      "kind": "rule",
+      "ref": "contract",
+      "description": "계약을 발급·이행·평가하는 규칙이 있어야 한다",
+      "derivedFrom": [
+        {
+          "strategy": "P-BAIT-LURE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "lure-away-with-bait"
+        },
+        {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "habitat",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
+          "strategy": "P-HALT-CULL",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "restore-prey-base"
+        },
+        {
+          "strategy": "P-HUNT-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:hunter"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-RATE-PERFORMANCE",
+          "dependencyKind": "reputation",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": null
+        },
+        {
+          "strategy": "P-SUBJUGATION-CONTRACT",
+          "dependencyKind": "safety",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "subjugate"
+        },
+        {
+          "strategy": "P-SURVEY-CONTRACT",
+          "dependencyKind": "reputation",
+          "actors": [
+            "player:tracker"
+          ],
+          "interventionFamily": "sell-tracking-intel"
+        }
+      ],
+      "scope": 7,
+      "importance": 1,
+      "chains": [
+        "REQ-RULE-contract ← P-BAIT-LURE (reputation 대응, 개입군 lure-away-with-bait) ← player:hunter",
+        "REQ-RULE-contract ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
+        "REQ-RULE-contract ← P-HALT-CULL (safety 대응, 개입군 restore-prey-base) ← hunters-guild",
+        "REQ-RULE-contract ← P-HUNT-CONTRACT (reputation 대응, 개입군 subjugate) ← player:hunter",
+        "REQ-RULE-contract ← P-RATE-PERFORMANCE (reputation 대응) ← hunters-guild",
+        "REQ-RULE-contract ← P-SUBJUGATION-CONTRACT (safety 대응, 개입군 subjugate) ← hunters-guild",
+        "REQ-RULE-contract ← P-SURVEY-CONTRACT (reputation 대응, 개입군 sell-tracking-intel) ← player:tracker"
       ]
     },
     {
@@ -811,6 +802,14 @@
           "interventionFamily": null
         },
         {
+          "strategy": "P-CULL-CONTRACT",
+          "dependencyKind": "habitat",
+          "actors": [
+            "hunters-guild"
+          ],
+          "interventionFamily": "cull-contract"
+        },
+        {
           "strategy": "P-GRAZE-VALLEY",
           "dependencyKind": "prey",
           "actors": [
@@ -835,10 +834,11 @@
           "interventionFamily": null
         }
       ],
-      "scope": 4,
+      "scope": 5,
       "importance": 0.3333,
       "chains": [
         "REQ-herd-range ← P-CAPTURE-RARE (byproduct 대응) ← player:hunter",
+        "REQ-herd-range ← P-CULL-CONTRACT (habitat 대응, 개입군 cull-contract) ← hunters-guild",
         "REQ-herd-range ← P-GRAZE-VALLEY (prey 대응) ← herd-beast",
         "REQ-herd-range ← P-HERD-BREED (habitat 대응) ← herd-beast",
         "REQ-herd-range ← P-HUNT-HERD (prey 대응) ← apex-monster"

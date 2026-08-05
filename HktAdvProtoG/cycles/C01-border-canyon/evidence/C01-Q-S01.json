@@ -4,7 +4,7 @@
   "results": {
     "requirementCount": 29,
     "outcomeCount": 47,
-    "requirementHash": "deb3ec1471ed0617",
+    "requirementHash": "6b48208894d77879",
     "placeRequirementIds": [
       "REQ-outpost",
       "REQ-pasture",
@@ -37,7 +37,7 @@
       {
         "name": "Q2 중요도가 세계 상태에서 온다 (균형 0 → 위기 상승)",
         "passed": true,
-        "detail": "REQ-outpost(4.5) REQ-RULE-exchange(3) REQ-RES-meat(2.3333)"
+        "detail": "REQ-outpost(4) REQ-RULE-exchange(3) REQ-RES-meat(2.3333)"
       },
       {
         "name": "Q3 근거 사슬 + Lab 산출",
@@ -47,7 +47,7 @@
       {
         "name": "결정성 (같은 카탈로그 → 같은 요구 해시, 입력 순서 무관)",
         "passed": true,
-        "detail": "requirementHash=deb3ec1471ed0617"
+        "detail": "requirementHash=6b48208894d77879"
       }
     ]
   },
@@ -61,6 +61,6 @@
     "중요도는 현재 tick 압력의 합 — 장기 누적·역사 가중은 W5(압축 역사) 이후",
     "Q 는 요구만 낸다. 병합·실체화(어느 장소를 몇 개 놓을지)는 W 의 몫"
   ],
-  "contentHash": "f69d6c6291570a6a",
-  "generatedAt": "2026-08-05T08:15:55.503Z"
+  "contentHash": "6e1ec0858760c71c",
+  "generatedAt": "2026-08-05T08:43:40.694Z"
 }

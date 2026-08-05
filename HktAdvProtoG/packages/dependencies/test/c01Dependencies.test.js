@@ -100,10 +100,45 @@ test('SC-C01-D5-01: 무리 과잉 시 습지 군락을 두고 무리·군락·�
     assert.ok(kinds.has('player:healing'), `seed ${seed} 제작자의 약초 채집 신청 없음`);
     assert.ok(marsh.totalDemand > marsh.supply);
 
-    // 목초지는 무리 자신의 먹이 대 서식 경합이다 (같은 주체 내 경합)
+    // 목초지는 무리(먹이·서식)와 조합(사냥 질서)의 다자 경합이다 — I-2 로 조합이 참여하며
+    // 자체 경합(selfContention)에서 다자 경합으로 바뀌었다
     const forage = conflictsOf(scene).find((c) => c.target === 'herd-valley-forage');
-    assert.ok(forage?.selfContention, `seed ${seed} 목초지 자체 경합 미탐지`);
+    assert.ok(forage, `seed ${seed} 목초지 경합 미탐지`);
+    assert.equal(forage.selfContention, false, `seed ${seed} 목초지가 아직 자체 경합이다 — 조합이 빠졌다`);
+    const forageKinds = new Set(forage.claimants.map((c) => `${scene.state.subjects[c.holder].archetype}:${c.kind}`));
+    for (const expected of ['herd-beast:prey', 'herd-beast:habitat', 'hunters-guild:habitat'])
+      assert.ok(forageKinds.has(expected), `seed ${seed} 목초지 신청자 누락: ${expected}`);
   }
+});
+
+test('I-2: 조합의 hunt-order 가 의존으로 표현되고, 무리 과잉에서 조절 계약을 당긴다', () => {
+  for (const seed of SEEDS) {
+    // 기준(균형) 장면 — 목초 여유가 요구를 채우므로 사냥 질서 압력은 없다
+    const base = buildBaseScene(seed);
+    const guildId = Object.values(base.state.subjects).find((s) => s.archetype === 'hunters-guild').id;
+    const baseKinds = evalOf(base).byHolder[guildId].kinds;
+    assert.equal(baseKinds.habitat, 0, `seed ${seed} 균형 장면인데 조합의 사냥 질서 압력이 있다`);
+
+    // 무리 과잉 장면 — 여유가 마르며 압력이 생긴다 (I-2 이전에는 0 이었다)
+    const over = buildSituationScene('ST-C01-02', seed);
+    const overPressure = evalOf(over).byHolder[guildId];
+    assert.ok(overPressure.kinds.habitat > 0, `seed ${seed} 무리 과잉인데 조합의 사냥 질서 압력이 0`);
+    assert.equal(overPressure.dominant, 'habitat', `seed ${seed} 조합의 지배 결핍이 ${overPressure.dominant}`);
+  }
+});
+
+test('I-2: 사냥 질서 요구는 무리 개체수에서 파생된다 (상수 하드코딩 회귀)', () => {
+  const scene = buildBaseScene();
+  const herd = Object.values(scene.state.subjects).find((s) => s.archetype === 'herd-beast');
+  const guildId = Object.values(scene.state.subjects).find((s) => s.archetype === 'hunters-guild').id;
+  const demandOf = () => buildC01DependencyGraph(scene)
+    .find((d) => d.holder === guildId && d.kind === 'habitat')?.demand ?? 0;
+
+  const before = demandOf();
+  herd.population.count *= 2;
+  assert.ok(demandOf() > before, '무리가 늘었는데 사냥 질서 요구가 그대로다');
+  herd.population.count = 0;
+  assert.equal(demandOf(), 0, '무리가 없으면 사냥 질서 의존도 없어야 한다 (미소비 출력 금지)');
 });
 
 test('구간 1 종료 조건: 5개 Situation 의 경합 자원이 어느 시드에서도 D5 충돌로 표현된다', () => {

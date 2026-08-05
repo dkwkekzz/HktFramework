@@ -62,6 +62,7 @@
       ],
       "calledBy": [
         "P-CAPTURE-RARE",
+        "P-CULL-CONTRACT",
         "P-GRAZE-VALLEY",
         "P-HERD-BREED",
         "P-HUNT-HERD"
@@ -69,6 +70,7 @@
       "actors": [
         "apex-monster",
         "herd-beast",
+        "hunters-guild",
         "player:hunter"
       ]
     },
@@ -93,7 +95,6 @@
         "P-BUY-POTIONS",
         "P-CRAFT-POTION",
         "P-CRAFTER-BUY-STOCK",
-        "P-CULL-CONTRACT",
         "P-FLEE-VILLAGE",
         "P-HALT-CULL",
         "P-HUNT-CONTRACT",
