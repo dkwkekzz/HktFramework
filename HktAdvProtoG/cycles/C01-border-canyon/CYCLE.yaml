@@ -1,0 +1,234 @@
+# C01 기계 판독 계약 — Phase 3 CycleSpec (LOOPS/SITUATIONS 통합)
+# 범위 결정: 사냥 중심 재설계 (CYCLE.md 부록 A) — 신·국가·밀수·의념 능력은 후속 Cycle 이월
+id: C01
+title: "국경 협곡 사냥터 (Border Canyon Hunting Grounds)"
+status: PLANNED
+baselineCycleId: null            # 최초 Cycle — Foundation(Phase 0) 완료가 선행 게이트
+schemaVersion: 1
+
+playerFantasy: >
+  국경 협곡 사냥터의 사냥꾼. 흔적을 읽고 준비해 마물을 추적·사냥하고,
+  해체·가공한 부산물로 살아간다. 추적꾼·사냥꾼·해체제작자·부산물상인의
+  분업 속에서 협력·경쟁하며, 사냥 균형이 생태와 마을의 운명을 결정한다.
+
+worldPromise:
+  - "마물은 스폰 포인트가 아니라 먹이·서식지·포식압으로 움직이는 개체군이다"
+  - "사냥 대상·장소·시세는 의존성과 생태 상태에서 계산된다"
+  - "과잉 사냥과 사냥 공백은 서로 다른 문제를 만든다 — 균형이 콘텐츠다"
+  - "사냥·해체·제작·거래가 같은 세계 상태를 사용한다"
+  - "결과는 저장되어 다음 접속의 생태·시세·계약을 바꾼다"
+
+regionScope:
+  size: "약 2km x 2km 국경 협곡 사냥터 1개 지역"
+  places:
+    - hunter-outpost          # 사냥꾼 전초 마을 (시장·조합·게시판)
+    - village-pasture         # 마을 목장
+    - herd-valley             # 초식 무리 서식 골짜기
+    - apex-lair               # 포식 마물 둥지 협곡
+    - marsh-colony            # 약초·먹이 군락 습지
+    - lookout-rocks           # 전망 바위 (흔적 조사 지점)
+  movement:
+    - monster-route           # 마물 이동로 (먹이·포식압 의존)
+    - hunting-trail           # 사냥로
+    - export-route            # 외부 운송로 (얇게)
+  productionSites: [herd-valley, marsh-colony, village-pasture]
+  dangerZones: [apex-lair, herd-valley-rut, pasture-approach]
+  socialSpaces: [outpost-market, guild-board]
+
+primaryDepthAxis: causalDepth
+secondaryDepthAxes: [worldDepth, onlineDepth]
+outOfScope:
+  - "국경 신·의례·의념 능력 — 원 §14 설계 이월 (후속 Cycle '세력과 신의 협곡')"
+  - "국가·밀수 조직·단속 — 이월 (후속 Cycle)"
+  - "economicDepth 심화 (생산 체인·조직 재정) — Cycle 2 계열"
+  - "subjectDepth/strategicDepth 심화 (능력 생성) — Cycle 3 계열"
+  - "socialDepth 심화 (정치·법률) / spatialDepth 심화 (다지역)"
+  - "onlineDepth 심화 (대규모 동접) / productionDepth 심화 (AI 대량 생성)"
+
+coreGameplayLoops:
+  - id: LOOP-TRACK
+    playerIntent: "흔적을 읽어 마물의 종·수·상태·방향을 알아내고 정보 우위를 만든다"
+    entrySignals: ["새 발자국·훼손 흔적", "목격담·소문", "조합 조사 의뢰"]
+    actions: ["흔적 조사", "전망 관측", "이동 방향 추론", "지도 갱신", "정보 판매"]
+    requiredRoles: [tracker]
+    worldInputs: ["개체군 위치·이동", "군락 훼손 상태", "날씨·시간(얇게)"]
+    worldOutputs: ["플레이어 지도·믿음", "정보 상품", "소문 상태"]
+    progressionOutputs: ["흔적 판별 숙련", "서식지·경로 지식"]
+    economyEffects: ["정보 거래 가치 형성"]
+    multiplayerInteractions: ["정보 판매·공유", "희귀 흔적 선점 경쟁"]
+    repeatVariationSources: ["개체군 이동·번식·부상 상태 변화"]
+    feeds: [LOOP-HUNT, LOOP-TRADE]
+  - id: LOOP-HUNT
+    playerIntent: "마물을 추적·사냥해 위협을 줄이고 부산물을 얻는다"
+    entrySignals: ["추적 정보", "조합 토벌·조절 계약", "시세 상승", "목장 피해 보고"]
+    actions: ["장비·치료제·미끼 준비", "추적·유인·차단", "전투·포획·회피", "해체·운반"]
+    requiredRoles: [hunter, tracker]
+    worldInputs: ["대상 개체 위치·부상·학습", "무리 구성", "지형 위험"]
+    worldOutputs: ["개체군 상태 변화", "부산물 재고", "마을 위협도 변화", "부상 발생"]
+    progressionOutputs: ["전투·해체 숙련", "마물 대응 지식", "조합 평판"]
+    economyEffects: ["부산물 공급 → 시세 하락 압력", "계약 보상"]
+    multiplayerInteractions: ["공동 사냥 (역할 분담)", "같은 개체 소유권 경쟁", "해체물 분배"]
+    repeatVariationSources: ["개체 부상·학습·이동", "무리 구성 변화", "경쟁 사냥꾼", "시세"]
+    feeds: [LOOP-CRAFT, LOOP-TRADE, LOOP-ECOLOGY]
+  - id: LOOP-CRAFT
+    playerIntent: "부산물·약초를 가공해 장비·치료제·미끼를 만들어 공급한다"
+    entrySignals: ["부산물 입고", "치료제 수요 (부상자)", "장비 주문", "조합 납품 공고"]
+    actions: ["채집", "품질 판별", "가공·제작", "판매·납품", "장착·사용"]
+    requiredRoles: [dresser-crafter]
+    worldInputs: ["부산물·약초 재고·품질", "군락 상태", "제작식 지식"]
+    worldOutputs: ["장비·치료제·미끼 재고", "군락 고갈·재생 상태"]
+    progressionOutputs: ["제작식 획득", "품질 판별·해체 숙련"]
+    economyEffects: ["완제품 공급 → 사냥 능력·치료 능력 변화"]
+    multiplayerInteractions: ["재료 거래", "희귀 재료 경쟁"]
+    repeatVariationSources: ["재료 품질 분포", "군락 재생 상태", "수요 변동"]
+    feeds: [LOOP-HUNT, LOOP-TRADE]
+  - id: LOOP-TRADE
+    playerIntent: "시세·계약을 읽고 매매·납품·비축으로 이익을 얻는다"
+    entrySignals: ["시세판 변동", "조합 계약 공고", "매입 급구·중단 공고"]
+    actions: ["시세 확인", "매매·납품", "비축·매점", "외부 운송", "계약 수주·중개"]
+    requiredRoles: [trader, dresser-crafter]
+    worldInputs: ["시장 재고·시세", "수요 (마을·조합 상태)", "계약 목록"]
+    worldOutputs: ["재고 이동", "시세 변화", "계약 상태·평판 변화"]
+    progressionOutputs: ["계약 등급", "거래 평판"]
+    economyEffects: ["시세가 사냥 유인을 바꿈 (생태 되먹임)"]
+    multiplayerInteractions: ["플레이어 간 거래", "시세 경쟁·매점", "계약 수주 경쟁"]
+    repeatVariationSources: ["공급 (사냥 결과)·수요 (마을 상태) 변동"]
+    feeds: [LOOP-HUNT, LOOP-ECOLOGY]
+  - id: LOOP-ECOLOGY
+    playerIntent: "(메타 루프) 사냥량·개체수·먹이의 축적이 생태·시세·위협을 재편한다"
+    entrySignals: ["다른 루프의 세계 출력 축적"]
+    actions: ["번식·이동·포식압 계산", "Situation 발생·악화·해소", "서식지·경로 재편"]
+    requiredRoles: []                      # 플레이어 불필요 — 세계 자율 진행
+    worldInputs: ["개체군·군락·재고·시세·마을 상태 전체"]
+    worldOutputs: ["새 Situation", "이동로 변경", "시세·위협 구조 변화"]
+    progressionOutputs: []
+    economyEffects: ["공급 구조 재편"]
+    multiplayerInteractions: ["모든 플레이어가 같은 생태 변화를 공유"]
+    repeatVariationSources: ["현재 상태에서 계산 — 고정 타임라인 없음"]
+    feeds: [LOOP-TRACK, LOOP-HUNT, LOOP-CRAFT, LOOP-TRADE]
+
+playerRoles:
+  - {id: tracker,         loops: [LOOP-TRACK],             note: "흔적·정보 생산·판매"}
+  - {id: hunter,          loops: [LOOP-HUNT],              note: "전투·토벌·부산물 공급"}
+  - {id: dresser-crafter, loops: [LOOP-CRAFT],             note: "해체·가공·제작 공급"}
+  - {id: trader,          loops: [LOOP-TRADE],             note: "시세 형성·계약·운송"}
+
+subjectsAndFactions:
+  - {id: villager,        goals: [safety, food],                       autonomous: true}
+  - {id: hunters-guild,   goals: [village-defense, hunt-order, reputation], autonomous: true}
+  - {id: merchant,        goals: [inventory, price, profit],           autonomous: true}
+  - {id: herd-beast,      goals: [forage, breeding, migration],        autonomous: true}
+  - {id: apex-monster,    goals: [prey, lair, recovery],               autonomous: true}
+  - {id: resource-colony, goals: [regeneration],                       autonomous: true}
+
+resourceEconomy:
+  resources: [hide, monster-organ, meat, healing-herb, bait-material, food]
+  crafts: [equipment, healing-potion, bait, tracking-tool]
+  state: [production, inventory, ownership, demand, price, contract-reward]
+  scarcity: "개체군 수·군락 재생 속도가 실재 공급을 제한 — 남획하면 실제로 마른다"
+  transport: "마을 시장 중심 + 외부 운송로 (얇게)"
+
+progression:
+  kinds:
+    - trace-identification-skill
+    - combat-and-dressing-skill
+    - crafting-recipes
+    - guild-reputation-and-contract-rank
+    - habitat-and-route-knowledge
+  constraint: "성장은 비용·세계 규칙을 우회하는 무제한 해금이 아니다"
+
+multiplayer:
+  serverModel: "단일 프로세스 권위 서버, 소수 동시 접속"
+  cooperation: [co-hunt-role-split, big-game-contract-party, material-info-sharing]
+  competition: [unique-kill-ownership, contract-bidding, price-competition-hoarding]
+  trade: [player-byproduct-trade, player-info-trade, craft-orders]
+  concurrentConflict: "동시 포획·동시 계약은 권위 서버가 한 번만 확정 (E3+N0)"
+
+persistence:
+  savedState:
+    - herd-population-composition-routes
+    - apex-position-injury-learning
+    - colony-regeneration-state
+    - market-inventory-and-price
+    - village-threat-and-pasture-damage
+    - guild-contracts-reputation-rank
+    - player-skills-recipes-map-discoveries
+  reconnect: "재접속 후 결과 유지, 사건 로그·스냅샷 복구 (N3)"
+
+situations:
+  - id: ST-C01-01
+    title: "포식 마물의 마을 접근"
+    regionStatePredicates:
+      - "apex.preyAvailability < threshold.hunger"   # 무리 감소 또는 이동
+      - "routeCost(pasture) < routeCost(herd-valley)"
+    involvedSubjects: [apex-monster, villager, hunters-guild, merchant]
+    dependencyPressures: ["포식 마물: 먹이 결핍", "마을: 안전 결핍", "조합: 방위 책임"]
+    contestedResources: [village-pasture, apex-byproducts]
+    activeRules: ["포식 마물은 먹이 기대값·위험으로 경로 선택 (보존 공리)"]
+    observableSignals: ["목장 가축 실종", "마을 근처 대형 발자국", "조합 토벌 공고", "주민 불안 소문"]
+    autonomousEscalation:
+      - "무개입 시 목장 습격 → 식량·부상 피해 → 주민 위축 → 시세 급등 (ST-05 연쇄)"
+    playerInterventionFamilies: [subjugate, lure-away-with-bait, restore-prey-base, defend-pasture, sell-tracking-intel]
+    persistentOutcomes: ["포식 마물 상태·둥지", "마을 위협도·목장 피해", "조합 평판·계약 이력"]
+    followupSituations: [ST-C01-02, ST-C01-04, ST-C01-05]
+  - id: ST-C01-02
+    title: "초식 무리 과잉 번식"
+    regionStatePredicates:
+      - "herd.population > herdValley.carryingCapacity"   # 사냥압·포식압 감소
+    involvedSubjects: [herd-beast, resource-colony, villager, hunters-guild]
+    dependencyPressures: ["무리: 먹이 결핍(자체 유발)", "군락: 재생 압박", "치료사·제작: 약초 감소"]
+    contestedResources: [marsh-colony, herd-valley-forage]
+    activeRules: ["군락 재생 속도는 훼손도에 반비례"]
+    observableSignals: ["습지 군락 훼손 흔적", "약초 채집량 감소", "무리 떼 목격담", "조합 조절 계약 공고"]
+    autonomousEscalation:
+      - "무개입 시 군락 황폐화 → 약초·먹이 부족 → 무리 쇠약·이동 → 포식 마물 먹이 부족 (ST-01 유발)"
+    playerInterventionFamilies: [cull-contract, selective-hunt, protect-colony, mass-harvest-profit]
+    persistentOutcomes: ["무리 개체수·구성", "군락 상태", "약초 공급 구조"]
+    followupSituations: [ST-C01-01, ST-C01-04]
+  - id: ST-C01-03
+    title: "희귀 개체 출현"
+    regionStatePredicates:
+      - "mutationCondition(herd or apex lineage) 충족"    # 개체군 상태·시드 기반
+    involvedSubjects: [hunters-guild, merchant, herd-beast]
+    dependencyPressures: ["조합·상인: 고급 재료 수요", "플레이어: 명성·보상 기회"]
+    contestedResources: [rare-individual, rare-byproducts]
+    activeRules: ["소유권은 권위 서버 1회 확정 (권위 공리)"]
+    observableSignals: ["특이 흔적 (크기·색·자국)", "고액 계약 공고", "목격 소문 확산"]
+    autonomousEscalation:
+      - "무개입 시 희귀 개체가 무리 구조를 바꾸거나 지역 이탈 (기회 소멸)"
+    playerInterventionFamilies: [competitive-hunt, co-hunt-party, capture-alive, sell-trace-intel]
+    persistentOutcomes: ["소유권·고급 재료", "명성·평판", "무리 혈통 구성"]
+    followupSituations: [ST-C01-05]
+  - id: ST-C01-04
+    title: "부상 사냥꾼 급증"
+    regionStatePredicates:
+      - "guild.injuredHunters > threshold.high"
+      - "market.stock(healing-potion) < demand"
+    involvedSubjects: [hunters-guild, merchant, resource-colony, villager]
+    dependencyPressures: ["조합: 치료 결핍·전력 공백", "제작자: 재료 수요", "마을: 방위 공백"]
+    contestedResources: [healing-herb, healing-potion]
+    activeRules: ["치료제 제작은 재료 소비 필수 (보존 공리)"]
+    observableSignals: ["조합 치료제 매입 공고", "약초 가격 급등", "계약 수행률 하락", "치료 대기 행렬"]
+    autonomousEscalation:
+      - "무개입 시 사냥 공백 → 개체수 증가 (ST-02 유발) + 마을 방위 약화 (ST-01 악화)"
+    playerInterventionFamilies: [gather-craft-supply, hoard-profit, risky-hunt-despite-shortage, colony-protection]
+    persistentOutcomes: ["치료제·약초 재고·가격", "조합 전력", "군락 상태"]
+    followupSituations: [ST-C01-02, ST-C01-01]
+  - id: ST-C01-05
+    title: "부산물 시세 변동"
+    regionStatePredicates:
+      - "abs(supplyRate - demandRate) > threshold.imbalance"   # 남획 폭락 / 공백 폭등
+    involvedSubjects: [merchant, hunters-guild, villager]
+    dependencyPressures: ["상인: 재고·이익", "사냥꾼: 수익성", "마을: 물가"]
+    contestedResources: [market-inventory, export-route-capacity]
+    activeRules: ["가격은 재고·수요·희귀도에서 계산 — 직접 수정 불가 (사건 기반 공리)"]
+    observableSignals: ["시세판 급변", "매입 중단/급구 공고", "외부 운송대 편성", "비축 소문"]
+    autonomousEscalation:
+      - "폭락 방치 → 사냥 유인 하락 → 개체 증가 (ST-02); 폭등 방치 → 남획 → 무리 붕괴 (ST-01)"
+    playerInterventionFamilies: [adjust-hunt-volume, export-sell, hoard-speculate, switch-contract-type]
+    persistentOutcomes: ["시세·재고", "사냥량 추세", "생태 연쇄 방향"]
+    followupSituations: [ST-C01-01, ST-C01-02]
+
+scenarios: "SCENARIOS.md 참조 (Situation 별 정상·실패·경계·멀티플레이·저장복구 + BASE 불변식)"
+moduleSteps: "STEPS.md 참조 (V→A, 모드 CREATE/EXTEND)"
+acceptance: "ACCEPTANCE.md 참조 (Phase 12 Gate 10종 번역)"

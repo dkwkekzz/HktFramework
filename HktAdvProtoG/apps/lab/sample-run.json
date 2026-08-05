@@ -1,0 +1,67 @@
+{
+  "scenario": "FD-ORGAN-CLAIM-01",
+  "cycleId": "C01",
+  "seed": 7,
+  "passed": true,
+  "checks": [
+    {
+      "name": "소유권 1회 확정 (권위 충돌 확정)",
+      "passed": true,
+      "detail": "owner=H1, claims=1"
+    },
+    {
+      "name": "후속 주장 거부와 사유 보존",
+      "passed": true,
+      "detail": "[{\"clientId\":\"H2\",\"reason\":\"already-owned-by:H1\"}]"
+    },
+    {
+      "name": "상태 변경은 사건 경유 (추적 굴림 반영)",
+      "passed": true,
+      "detail": "H1=1, H2=6"
+    }
+  ],
+  "stateHashBefore": "da7a07c6a0c6e8a3",
+  "stateHashAfter": "672f5d769c19520a",
+  "trail": [
+    "da7a07c6a0c6e8a3",
+    "39c977d3ff8c70d2",
+    "082dbc37eaa83432",
+    "672f5d769c19520a",
+    "672f5d769c19520a"
+  ],
+  "events": [
+    {
+      "id": "ev-000001",
+      "seq": 0,
+      "type": "TrackProgress",
+      "tick": 1,
+      "traceId": "cmd-0",
+      "payload": {
+        "by": "H1",
+        "roll": 1
+      }
+    },
+    {
+      "id": "ev-000002",
+      "seq": 1,
+      "type": "TrackProgress",
+      "tick": 2,
+      "traceId": "cmd-1",
+      "payload": {
+        "by": "H2",
+        "roll": 6
+      }
+    },
+    {
+      "id": "ev-000003",
+      "seq": 2,
+      "type": "OrganClaimed",
+      "tick": 3,
+      "traceId": "cmd-2",
+      "payload": {
+        "organId": "organ-1",
+        "by": "H1"
+      }
+    }
+  ]
+}

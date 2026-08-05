@@ -1,0 +1,67 @@
+{
+  "label": "ST-C01-03",
+  "hash": "9e72bd3623cdbc90",
+  "plans": [
+    {
+      "subject": "sub-000007",
+      "archetype": "merchant",
+      "goal": {
+        "kind": "byproduct",
+        "pressure": 1,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-MERCHANT-RESTOCK",
+          "target": "market-inventory",
+          "interventionFamily": null,
+          "rationale": "상인은 시장 물량으로 재고를 채운다",
+          "atoms": [
+            "buy-byproducts"
+          ],
+          "effects": [
+            "부산물 매입"
+          ],
+          "gain": 2,
+          "cost": 1,
+          "risk": 0,
+          "score": 3
+        },
+        {
+          "id": "P-MERCHANT-EXPORT",
+          "target": "export-route-capacity",
+          "interventionFamily": null,
+          "rationale": "상인은 남는 물량을 외부로 반출한다",
+          "atoms": [
+            "organize-export"
+          ],
+          "effects": [
+            "외부 운송대 편성"
+          ],
+          "gain": 2,
+          "cost": 2,
+          "risk": 1,
+          "score": 1
+        }
+      ],
+      "chosen": {
+        "id": "P-MERCHANT-RESTOCK",
+        "target": "market-inventory",
+        "interventionFamily": null,
+        "rationale": "상인은 시장 물량으로 재고를 채운다",
+        "atoms": [
+          "buy-byproducts"
+        ],
+        "effects": [
+          "부산물 매입"
+        ],
+        "gain": 2,
+        "cost": 1,
+        "risk": 0,
+        "score": 3
+      },
+      "reason": "P-MERCHANT-RESTOCK: 이득 2 x 절박도 2.00 − 비용 1 − 위험 0 = 3.00"
+    }
+  ]
+}

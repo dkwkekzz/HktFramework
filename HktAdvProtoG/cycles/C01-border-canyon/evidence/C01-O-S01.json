@@ -1,0 +1,52 @@
+{
+  "step": "C01-O-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "axiomsRegistered": 5,
+    "registryHash": "111573ec9f3760b5",
+    "failureScenarios": "passed",
+    "checks": [
+      {
+        "name": "실패1 비용 없는 생산 거부",
+        "passed": true,
+        "detail": "CONSERVATION_NO_COST"
+      },
+      {
+        "name": "실패2 사건 없는 상태 변경 거부",
+        "passed": true,
+        "detail": "EVENT_REQUIRED"
+      },
+      {
+        "name": "실패3 관찰 요소 소급 수정 거부",
+        "passed": true,
+        "detail": "OBSERVED_RETROACTIVE_CHANGE"
+      },
+      {
+        "name": "실패4 구성원 없는 조직 행동 거부",
+        "passed": true,
+        "detail": "ORG_NO_EMBODIMENT"
+      },
+      {
+        "name": "실패5 이중 소유 확정 거부",
+        "passed": true,
+        "detail": "AUTHORITY_DOUBLE_CONFIRM"
+      },
+      {
+        "name": "정상 재료 소비 제작 + 실체 있는 조직 행동 통과",
+        "passed": true,
+        "detail": "ok"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/ontology/src/axioms.js",
+    "packages/ontology/src/c01Axioms.js"
+  ],
+  "limitations": [
+    "신 유지·능력 흔적 공리는 후속 Cycle 이월 (대상 부재)",
+    "보존 공리의 재고 조회는 state.resources 관례 — O-S02 존재론 스키마에서 고정",
+    "코드 소비자(W/R/E/N/A)는 해당 Step 에서 연결 — 현재는 REGISTRY.json 계약 배선"
+  ],
+  "contentHash": "d4809b943dc48e8a",
+  "generatedAt": "2026-08-05T08:15:55.218Z"
+}

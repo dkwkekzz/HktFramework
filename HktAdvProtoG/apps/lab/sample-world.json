@@ -1,0 +1,323 @@
+{
+  "label": "C01 canonical world",
+  "worldHash": "983af252f581a028",
+  "rows": [
+    {
+      "element": "apex-lair",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.833,
+        "y": 0.751
+      },
+      "tags": [
+        "danger"
+      ],
+      "requirements": [
+        "REQ-apex-lair"
+      ],
+      "calledBy": [
+        "P-HUNT-APEX",
+        "P-RECOVER-LAIR",
+        "P-RELOCATE-LAIR"
+      ],
+      "actors": [
+        "apex-monster",
+        "player:hunter"
+      ]
+    },
+    {
+      "element": "export-route",
+      "kind": "route",
+      "state": "canonical",
+      "connects": [
+        "hunter-outpost"
+      ],
+      "requirements": [
+        "REQ-SPACE-export-route"
+      ],
+      "calledBy": [
+        "P-MERCHANT-EXPORT",
+        "P-TRADER-EXPORT"
+      ],
+      "actors": [
+        "merchant",
+        "player:trader"
+      ]
+    },
+    {
+      "element": "herd-valley",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.614,
+        "y": 0.452
+      },
+      "tags": [
+        "production",
+        "danger"
+      ],
+      "requirements": [
+        "REQ-herd-range"
+      ],
+      "calledBy": [
+        "P-CAPTURE-RARE",
+        "P-GRAZE-VALLEY",
+        "P-HERD-BREED",
+        "P-HUNT-HERD"
+      ],
+      "actors": [
+        "apex-monster",
+        "herd-beast",
+        "player:hunter"
+      ]
+    },
+    {
+      "element": "hunter-outpost",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.15,
+        "y": 0.201
+      },
+      "tags": [
+        "social",
+        "market",
+        "guild"
+      ],
+      "requirements": [
+        "REQ-outpost"
+      ],
+      "calledBy": [
+        "P-BAIT-LURE",
+        "P-BUY-POTIONS",
+        "P-CRAFT-POTION",
+        "P-CRAFTER-BUY-STOCK",
+        "P-CULL-CONTRACT",
+        "P-FLEE-VILLAGE",
+        "P-HALT-CULL",
+        "P-HUNT-CONTRACT",
+        "P-MERCHANT-EXPORT",
+        "P-MERCHANT-RESTOCK",
+        "P-RATE-PERFORMANCE",
+        "P-REPORT-SIGHTING",
+        "P-SUBJUGATION-CONTRACT",
+        "P-SURVEY-CONTRACT",
+        "P-TRADER-BUY",
+        "P-TRADER-EXPORT",
+        "P-VILLAGER-SEEK-CARE"
+      ],
+      "actors": [
+        "hunters-guild",
+        "merchant",
+        "player:dresser-crafter",
+        "player:hunter",
+        "player:tracker",
+        "player:trader",
+        "villager"
+      ]
+    },
+    {
+      "element": "hunting-trail",
+      "kind": "route",
+      "state": "latent",
+      "requirements": [],
+      "calledBy": [],
+      "actors": []
+    },
+    {
+      "element": "lookout-rocks",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.349,
+        "y": 0.564
+      },
+      "tags": [
+        "observation"
+      ],
+      "requirements": [
+        "REQ-vantage"
+      ],
+      "calledBy": [
+        "P-SURVEY-CONTRACT"
+      ],
+      "actors": [
+        "player:tracker"
+      ]
+    },
+    {
+      "element": "marsh-colony",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.454,
+        "y": 0.798
+      },
+      "tags": [
+        "production"
+      ],
+      "requirements": [
+        "REQ-colony-site"
+      ],
+      "calledBy": [
+        "P-COLONY-REGENERATE",
+        "P-GATHER-HERBS",
+        "P-HERD-RELOCATE",
+        "P-MIGRATE-MARSH"
+      ],
+      "actors": [
+        "herd-beast",
+        "player:dresser-crafter",
+        "resource-colony"
+      ]
+    },
+    {
+      "element": "monster-route",
+      "kind": "route",
+      "state": "canonical",
+      "connects": [
+        "apex-lair",
+        "herd-valley",
+        "marsh-colony"
+      ],
+      "requirements": [
+        "REQ-SPACE-monster-route"
+      ],
+      "calledBy": [
+        "P-HERD-RELOCATE",
+        "P-MIGRATE-MARSH",
+        "P-RELOCATE-LAIR"
+      ],
+      "actors": [
+        "apex-monster",
+        "herd-beast"
+      ]
+    },
+    {
+      "element": "village-pasture",
+      "kind": "place",
+      "state": "canonical",
+      "position": {
+        "x": 0.304,
+        "y": 0.354
+      },
+      "tags": [
+        "production",
+        "threat-target"
+      ],
+      "requirements": [
+        "REQ-pasture"
+      ],
+      "calledBy": [
+        "P-RAID-PASTURE",
+        "P-TEND-LIVESTOCK"
+      ],
+      "actors": [
+        "apex-monster",
+        "villager"
+      ]
+    }
+  ],
+  "history": [
+    {
+      "id": "H-01",
+      "tick": -300,
+      "description": "군락 습지가 자리를 잡으며 초식 무리가 인근 골짜기에 정착했다",
+      "causes": [
+        "REQ-colony-site",
+        "REQ-herd-range"
+      ],
+      "effects": [
+        "region.places.herd-valley",
+        "region.places.marsh-colony"
+      ]
+    },
+    {
+      "id": "H-02",
+      "tick": -240,
+      "description": "무리를 따라 포식 마물이 협곡 안쪽에 둥지를 틀었다",
+      "causes": [
+        "REQ-herd-range",
+        "REQ-apex-lair"
+      ],
+      "effects": [
+        "region.places.apex-lair",
+        "region.routes.monster-route"
+      ]
+    },
+    {
+      "id": "H-03",
+      "tick": -120,
+      "description": "부산물과 약초를 노린 사람들이 전초를 세우고 목장을 열었다",
+      "causes": [
+        "REQ-outpost",
+        "REQ-pasture"
+      ],
+      "effects": [
+        "region.places.hunter-outpost",
+        "region.places.village-pasture"
+      ]
+    },
+    {
+      "id": "H-04",
+      "tick": -60,
+      "description": "흔적을 미리 읽으려는 이들이 전망 바위를 관측 지점으로 삼았다",
+      "causes": [
+        "REQ-vantage"
+      ],
+      "effects": [
+        "region.places.lookout-rocks"
+      ]
+    },
+    {
+      "id": "H-05",
+      "tick": -30,
+      "description": "조합이 서고 계약·거래 질서가 자리 잡았다",
+      "causes": [
+        "REQ-RULE-contract",
+        "REQ-RULE-exchange"
+      ],
+      "effects": [
+        "rules.contract",
+        "rules.exchange"
+      ]
+    }
+  ],
+  "rules": [
+    {
+      "id": "ownership",
+      "boundAxiom": "AX-AUTHORITY",
+      "statement": "사냥물·채집물의 소유는 권위 서버가 한 번만 확정한다",
+      "state": "canonical"
+    },
+    {
+      "id": "exchange",
+      "boundAxiom": "AX-CONSERVATION",
+      "statement": "교환은 재고를 옮길 뿐 만들어내지 않는다",
+      "state": "canonical"
+    },
+    {
+      "id": "contract",
+      "boundAxiom": "AX-ORG-EMBODIED",
+      "statement": "계약은 실제 구성원을 통해서만 발급·이행된다",
+      "state": "canonical"
+    },
+    {
+      "id": "crafting",
+      "boundAxiom": "AX-CONSERVATION",
+      "statement": "제작물은 재료를 소비해야만 나온다",
+      "state": "canonical"
+    }
+  ],
+  "resources": {
+    "bait-material": 2,
+    "equipment": 2,
+    "food": 4,
+    "healing-herb": 6,
+    "healing-potion": 3,
+    "hide": 6,
+    "meat": 4,
+    "monster-organ": 5
+  }
+}

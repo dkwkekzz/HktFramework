@@ -1,0 +1,55 @@
+{
+  "step": "C01-D-S01",
+  "status": "STEP_VERIFIED_LOCAL",
+  "results": {
+    "dependencyCount": 21,
+    "basePressureHash": "0b7ba374ba3c41e7",
+    "situationsCovered": [
+      "ST-C01-01",
+      "ST-C01-02",
+      "ST-C01-03",
+      "ST-C01-04",
+      "ST-C01-05"
+    ],
+    "checks": [
+      {
+        "name": "의존 그래프 정합 (모든 대상에 공급자)",
+        "passed": true,
+        "detail": "의존 21건, 대상 14종"
+      },
+      {
+        "name": "기준 장면 균형 — 시드 1~25 전부 압력 0·충돌 0 (대조군, I-1 회귀)",
+        "passed": true,
+        "detail": "25 시드 균형, 기본 시드 pressureHash=0b7ba374ba3c41e7"
+      },
+      {
+        "name": "SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포식 마물 먹이 압력)",
+        "passed": true,
+        "detail": "apex prey 압력 0.00 → 0.50, dominant=prey"
+      },
+      {
+        "name": "구간 1 종료 조건 — 5개 Situation 의 경합 자원이 시드 1~25 전부에서 D5 충돌로 표현",
+        "passed": true,
+        "detail": "ST-C01-01[village-pasture+apex-byproducts] ST-C01-02[marsh-colony+herd-valley-forage] ST-C01-03[rare-individual+rare-byproducts] ST-C01-04[healing-herb+healing-potion] ST-C01-05[market-inventory+export-route-capacity] (x25 시드)"
+      },
+      {
+        "name": "Lab 산출 (압력 전후 비교·장면별 충돌)",
+        "passed": true,
+        "detail": "apps/lab/sample-pressure{,-collapsed}.json + 장면별 sample-conflicts-ST-C01-0*.json"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/dependencies/src/dependencyGraph.js",
+    "packages/dependencies/src/c01Dependencies.js",
+    "packages/dependencies/src/c01Scenes.js"
+  ],
+  "limitations": [
+    "할당 우선순위는 의존 id 안정 정렬 — 누가 먼저 굶는지의 실제 경쟁 해소는 E3 의 몫",
+    "공급 함수의 지형 상수(목초 수용력·둥지 산출)는 장면 데이터 — W 계층이 실체화하면 대체된다",
+    "Situation 판정·발생은 E0 — D5 는 충돌 구조만 낸다",
+    "장면 프리셋(c01Scenes)은 검증용 초기 조건 — 런타임 경로 아님"
+  ],
+  "contentHash": "3d599da3ababc044",
+  "generatedAt": "2026-08-05T08:15:55.152Z"
+}
