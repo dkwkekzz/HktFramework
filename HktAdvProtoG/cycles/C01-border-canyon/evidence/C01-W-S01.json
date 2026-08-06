@@ -2,7 +2,7 @@
   "step": "C01-W-S01",
   "status": "STEP_VERIFIED_LOCAL",
   "results": {
-    "worldHash": "983af252f581a028",
+    "worldHash": "0841d01ae8668d58",
     "places": [
       "hunter-outpost",
       "village-pasture",
@@ -61,7 +61,7 @@
       {
         "name": "결정성 + Lab 산출",
         "passed": true,
-        "detail": "worldHash=983af252f581a028, apps/lab/sample-world.json"
+        "detail": "worldHash=0841d01ae8668d58, apps/lab/sample-world.json"
       }
     ]
   },
@@ -75,6 +75,6 @@
     "실체화표(장소 청사진·산출·규칙)는 손으로 적은 것 — 요구에서 불린 항목만 쓰이지만 수치 자체는 설계값",
     "압축 역사는 5건의 고정 서술 — 시드별 변주·주체별 기억은 R5 이후"
   ],
-  "contentHash": "891f65085e9a8d8e",
-  "generatedAt": "2026-08-05T08:15:55.649Z"
+  "contentHash": "0399e4bb338e41f0",
+  "generatedAt": "2026-08-05T09:51:46.441Z"
 }

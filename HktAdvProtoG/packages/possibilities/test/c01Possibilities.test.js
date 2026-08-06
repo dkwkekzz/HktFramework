@@ -81,12 +81,28 @@ test('ST-C01-01 에서 포식 마물은 목장을 노리고, 조합은 다른 �
   const scene = buildSituationScene('ST-C01-01');
   assert.equal(planOf(scene, 'apex-monster').chosen.id, 'P-RAID-PASTURE');
 
-  // 조합의 safety 후보에는 토벌·먹이 회복·조절이 함께 놓인다 — 하나의 위협에 여러 해법
+  // 조합의 safety 후보에는 토벌·먹이 회복이 함께 놓인다 — 하나의 위협에 여러 해법.
+  // CYCLE.yaml 의 ST-C01-01 개입군과 같다 (조절 계약은 ST-C01-02 의 개입군이다 — I-2)
   const guild = planOf(scene, 'hunters-guild');
   assert.equal(guild.goal.kind, 'safety');
   const families = guild.candidates.map((c) => c.interventionFamily);
-  for (const f of ['subjugate', 'restore-prey-base', 'cull-contract'])
+  for (const f of ['subjugate', 'restore-prey-base'])
     assert.ok(families.includes(f), `개입군 누락: ${f} (있는 것: ${families.join(',')})`);
+  assert.ok(!families.includes('cull-contract'),
+    '무리 붕괴 장면인데 조절 계약이 후보로 올라왔다 — 사냥 질서와 마을 안전이 뒤섞였다');
+});
+
+test('I-2: ST-C01-02 에서 조합이 사냥 질서 결핍으로 조절 계약을 발급한다', () => {
+  const scene = buildSituationScene('ST-C01-02');
+  const guild = planOf(scene, 'hunters-guild');
+  assert.equal(guild.goal.kind, 'habitat', `조합의 목적이 ${guild.goal.kind}`);
+  assert.equal(guild.chosen?.id, 'P-CULL-CONTRACT', `조합의 선택이 ${guild.chosen?.id}`);
+  assert.equal(guild.chosen.interventionFamily, 'cull-contract');
+  // 이득은 "요구한 목초 여유 중 지금 없는 만큼" — 세계 상태에서 계산된다
+  assert.ok(guild.chosen.gain > 0, '조절 계약의 이득이 0');
+
+  // 균형 장면에서는 같은 전략이 활성화되지 않는다 (대조군)
+  assert.equal(planOf(buildBaseScene(), 'hunters-guild').goal.kind, null);
 });
 
 test('플레이어 역할은 Situation 의 개입군을 전략으로 갖는다 — 유인·토벌·정보', () => {

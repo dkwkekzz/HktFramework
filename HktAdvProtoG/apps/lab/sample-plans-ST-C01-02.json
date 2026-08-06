@@ -1,13 +1,58 @@
 {
   "label": "ST-C01-02",
-  "hash": "9b5196b62ce0372e",
+  "hash": "df06a4d8156c8dd6",
   "plans": [
+    {
+      "subject": "sub-000004",
+      "archetype": "hunters-guild",
+      "goal": {
+        "kind": "habitat",
+        "pressure": 0.33333333333333337,
+        "kept": false,
+        "reason": "최대 결핍"
+      },
+      "candidates": [
+        {
+          "id": "P-CULL-CONTRACT",
+          "target": "herd-valley-forage",
+          "interventionFamily": "cull-contract",
+          "rationale": "무리가 과잉이면 조합은 조절 계약으로 목초 여유를 되돌린다",
+          "atoms": [
+            "issue-cull-contract"
+          ],
+          "effects": [
+            "개체 조절 계약 발급"
+          ],
+          "gain": 1,
+          "cost": 2,
+          "risk": 1,
+          "score": -1.6666666666666665
+        }
+      ],
+      "chosen": {
+        "id": "P-CULL-CONTRACT",
+        "target": "herd-valley-forage",
+        "interventionFamily": "cull-contract",
+        "rationale": "무리가 과잉이면 조합은 조절 계약으로 목초 여유를 되돌린다",
+        "atoms": [
+          "issue-cull-contract"
+        ],
+        "effects": [
+          "개체 조절 계약 발급"
+        ],
+        "gain": 1,
+        "cost": 2,
+        "risk": 1,
+        "score": -1.6666666666666665
+      },
+      "reason": "P-CULL-CONTRACT: 이득 1 x 절박도 1.33 − 비용 2 − 위험 1 = -1.67"
+    },
     {
       "subject": "sub-000008",
       "archetype": "herd-beast",
       "goal": {
         "kind": "habitat",
-        "pressure": 0.33333333333333337,
+        "pressure": 1,
         "kept": false,
         "reason": "최대 결핍"
       },
@@ -26,7 +71,7 @@
           "gain": 2,
           "cost": 1,
           "risk": 1,
-          "score": 0.666666666666667
+          "score": 2
         },
         {
           "id": "P-HERD-RELOCATE",
@@ -42,7 +87,7 @@
           "gain": 3,
           "cost": 3,
           "risk": 2,
-          "score": -1
+          "score": 1
         }
       ],
       "chosen": {
@@ -59,9 +104,9 @@
         "gain": 2,
         "cost": 1,
         "risk": 1,
-        "score": 0.666666666666667
+        "score": 2
       },
-      "reason": "P-HERD-BREED: 이득 2 x 절박도 1.33 − 비용 1 − 위험 1 = 0.67"
+      "reason": "P-HERD-BREED: 이득 2 x 절박도 2.00 − 비용 1 − 위험 1 = 2.00"
     },
     {
       "subject": "sub-000010",

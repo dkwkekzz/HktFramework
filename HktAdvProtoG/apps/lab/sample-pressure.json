@@ -246,6 +246,26 @@
       "holderLabel": "villager"
     },
     {
+      "id": "sub-000004:habitat:herd-valley-forage",
+      "holder": "sub-000004",
+      "kind": "habitat",
+      "targets": [
+        "herd-valley-forage"
+      ],
+      "demand": 2,
+      "unmet": 0,
+      "satisfaction": 1,
+      "pressure": 0,
+      "via": [
+        {
+          "target": "herd-valley-forage",
+          "taken": 2
+        }
+      ],
+      "rationale": "조합은 사냥 질서를 위해 무리가 번식할 목초 여유가 남아 있기를 요구한다",
+      "holderLabel": "hunters-guild"
+    },
+    {
       "id": "sub-000004:reputation:rare-individual",
       "holder": "sub-000004",
       "kind": "reputation",
@@ -496,6 +516,7 @@
     "sub-000004": {
       "holder": "sub-000004",
       "kinds": {
+        "habitat": 0,
         "reputation": 0,
         "safety": 0
       },
@@ -537,5 +558,5 @@
       "maxPressure": 0
     }
   },
-  "hash": "0b7ba374ba3c41e7"
+  "hash": "48dd56b636f4ba9f"
 }

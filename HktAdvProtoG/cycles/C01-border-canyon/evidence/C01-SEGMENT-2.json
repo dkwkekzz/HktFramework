@@ -1,0 +1,65 @@
+{
+  "step": "C01-SEGMENT-2",
+  "status": "SEGMENT_VERIFIED_LOCAL",
+  "results": {
+    "frozen": {
+      "registryHash": "e37e07f09095f7a6",
+      "ontologyHash": "ad1590bf20bcaffb",
+      "castHash": "50b38eeccf184fc8",
+      "pressureHash": "48dd56b636f4ba9f",
+      "planHash": "c9259bbfcdda3de8",
+      "requirementHash": "6b48208894d77879",
+      "worldHash": "0841d01ae8668d58"
+    },
+    "checks": [
+      {
+        "name": "동결 해시 재현 — 공리·존재론·배역·압력 (구간 1 상류)",
+        "passed": true,
+        "detail": "registry=e37e07f09095f7a6 ontology=ad1590bf20bcaffb cast=50b38eeccf184fc8 pressure=48dd56b636f4ba9f"
+      },
+      {
+        "name": "동결 해시 재현 — 계획·요구·세계 (구간 2 산출)",
+        "passed": true,
+        "detail": "plan=c9259bbfcdda3de8 requirement=6b48208894d77879 world=0841d01ae8668d58"
+      },
+      {
+        "name": "Handoff D→P — 압력이 없으면 목적도 없다 (P 가 D 산출을 실제로 읽는다)",
+        "passed": true,
+        "detail": "균형 목적 0건 → 압력 목적 4건 (byproduct,safety,byproduct,prey)"
+      },
+      {
+        "name": "Handoff P→Q — 전략을 줄이면 요구도 줄어든다 (Q 가 P 카탈로그를 실제로 읽는다)",
+        "passed": true,
+        "detail": "전략 30건 → 요구 29건 / 전략 1건(P-RAID-PASTURE) → 요구 5건 (REQ-INFO-trace-legibility,REQ-pasture,REQ-RES-food,REQ-RES-meat,REQ-RULE-ownership)"
+      },
+      {
+        "name": "Handoff Q→W — 요구가 없으면 세계도 없다 (청사진 하드코딩 우회 없음)",
+        "passed": true,
+        "detail": "요구 0건 → 세계 요소 0종·역사 0건 / 요구 29건 → 장소 6·경로 2·규칙 4·자원 8"
+      },
+      {
+        "name": "미소비 출력 없음 — Q 의 성공 결과가 R 의 현상으로 소비된다 (I-3)",
+        "passed": true,
+        "detail": "성공 결과 47건 → 행동 38종이 전부 현상으로 소비됨 (미소비 0)"
+      },
+      {
+        "name": "결정성 — 같은 시드 반복 동일, 다른 시드는 구조 동일·해시 상이",
+        "passed": true,
+        "detail": "구조 6/2/4 고정, 시드별 해시 7:a3dbdee9 11:0841d01a 42:d4290796 99:610cc383"
+      }
+    ]
+  },
+  "artifacts": [
+    "packages/possibilities/src/c01Strategies.js",
+    "packages/world-requirements/src/c01Requirements.js",
+    "packages/world-compiler/src/c01World.js",
+    "scripts/check-segment-2.mjs"
+  ],
+  "limitations": [
+    "Q 의 성공 결과는 R-S01 의 현상 카탈로그가 소비한다 (I-3 닫힘) — 다만 아직 아무도 그 현상을 지각하지 않는다 (R-S02)",
+    "구간 2 의 플레이어 가시 기여는 아직 간접이다 — 실제 표면은 X 계층(구간 5)에서 확인된다",
+    "동결 해시는 시드 11 기준 — 다른 시드는 구조만 검사하고 값은 고정하지 않는다"
+  ],
+  "contentHash": "dcabcdc6ee33aab3",
+  "generatedAt": "2026-08-05T10:04:47.021Z"
+}

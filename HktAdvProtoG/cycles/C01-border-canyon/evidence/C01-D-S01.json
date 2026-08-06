@@ -2,8 +2,8 @@
   "step": "C01-D-S01",
   "status": "STEP_VERIFIED_LOCAL",
   "results": {
-    "dependencyCount": 21,
-    "basePressureHash": "0b7ba374ba3c41e7",
+    "dependencyCount": 22,
+    "basePressureHash": "48dd56b636f4ba9f",
     "situationsCovered": [
       "ST-C01-01",
       "ST-C01-02",
@@ -15,17 +15,22 @@
       {
         "name": "의존 그래프 정합 (모든 대상에 공급자)",
         "passed": true,
-        "detail": "의존 21건, 대상 14종"
+        "detail": "의존 22건, 대상 14종"
       },
       {
         "name": "기준 장면 균형 — 시드 1~25 전부 압력 0·충돌 0 (대조군, I-1 회귀)",
         "passed": true,
-        "detail": "25 시드 균형, 기본 시드 pressureHash=0b7ba374ba3c41e7"
+        "detail": "25 시드 균형, 기본 시드 pressureHash=48dd56b636f4ba9f"
       },
       {
         "name": "SC-C01-D4-01 상태 변화에 따른 압력 갱신 (무리 붕괴 → 포식 마물 먹이 압력)",
         "passed": true,
         "detail": "apex prey 압력 0.00 → 0.50, dominant=prey"
+      },
+      {
+        "name": "I-2 조합의 사냥 질서(hunt-order)가 의존으로 표현 — 균형 0, 과잉에서 상승",
+        "passed": true,
+        "detail": "균형 0 → 과잉 0.33(dominant=habitat), 목초 여유 2 대 신청 11 — 3자 경합 (x25 시드)"
       },
       {
         "name": "구간 1 종료 조건 — 5개 Situation 의 경합 자원이 시드 1~25 전부에서 D5 충돌로 표현",
@@ -50,6 +55,6 @@
     "Situation 판정·발생은 E0 — D5 는 충돌 구조만 낸다",
     "장면 프리셋(c01Scenes)은 검증용 초기 조건 — 런타임 경로 아님"
   ],
-  "contentHash": "3d599da3ababc044",
-  "generatedAt": "2026-08-05T08:15:55.152Z"
+  "contentHash": "d4991b0f95cf5bef",
+  "generatedAt": "2026-08-05T08:43:40.358Z"
 }

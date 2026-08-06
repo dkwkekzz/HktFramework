@@ -98,16 +98,18 @@ export const C01_STRATEGIES = [
     rationale: '무리를 회복시키면 포식 마물이 목장으로 내려올 이유가 줄어든다',
   }),
   makeStrategy({
-    id: 'P-CULL-CONTRACT', kind: 'safety', actors: { archetypes: ['hunters-guild'] },
+    // 조절 계약은 마을 안전이 아니라 *사냥 질서*(hunt-order)에서 나온다 — 무리 과잉으로
+    // 목초 여유가 마르면 조합이 당기는 생태 관리 지렛대다 (ST-C01-02 의 개입군)
+    id: 'P-CULL-CONTRACT', kind: 'habitat', actors: { archetypes: ['hunters-guild'] },
     atoms: [makeAtom({ behavior: 'issue-cull-contract', effect: '개체 조절 계약 발급' })],
-    target: 'village-safety', interventionFamily: 'cull-contract',
-    // 무리가 수용력을 넘길 때만 조절이 의미가 있다
-    estimate: (ctx, s, row) => {
-      const herd = herdOf(ctx);
-      const over = herd ? Math.max(0, herd.population.count - supply(ctx, 'herd-valley-forage')) : 0;
-      return { gain: Math.min(fill(ctx, 'village-safety', row), over), cost: 2, risk: 1 };
-    },
-    rationale: '무리가 과잉이면 조합은 조절 계약으로 생태를 관리한다',
+    target: 'herd-valley-forage', interventionFamily: 'cull-contract',
+    // 조절이 되돌릴 수 있는 몫 = 요구한 목초 여유 중 지금 없는 만큼.
+    // 여유가 요구를 채우고 있으면 이득 0 — 과잉일 때만 조절이 의미가 있다.
+    estimate: (ctx, s, row) => ({
+      gain: Math.max(0, (row?.demand ?? 0) - supply(ctx, 'herd-valley-forage')),
+      cost: 2, risk: 1,
+    }),
+    rationale: '무리가 과잉이면 조합은 조절 계약으로 목초 여유를 되돌린다',
   }),
 
   // ── byproduct ─────────────────────────────────────────────────────────────

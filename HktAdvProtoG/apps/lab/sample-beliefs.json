@@ -1,0 +1,285 @@
+{
+  "label": "목장 습격 후 주체별 믿음 (R4·R5)",
+  "beliefDiff": [
+    {
+      "subject": "player:tracker",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 4,
+      "confidence": 0.15,
+      "via": "rumor",
+      "direct": false,
+      "actual": 1,
+      "because": "소문 전파"
+    },
+    {
+      "subject": "villager",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 3,
+      "confidence": 1,
+      "via": "sight-near",
+      "direct": true,
+      "actual": 1,
+      "because": "가축 습격"
+    },
+    {
+      "subject": "villager",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 3,
+      "confidence": 1,
+      "via": "sight-near",
+      "direct": true,
+      "actual": 1,
+      "because": "가축 습격"
+    },
+    {
+      "subject": "villager",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 3,
+      "confidence": 1,
+      "via": "sight-near",
+      "direct": true,
+      "actual": 1,
+      "because": "가축 습격"
+    },
+    {
+      "subject": "hunters-guild",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 3.75,
+      "confidence": 0.8,
+      "via": "member-reports",
+      "direct": false,
+      "actual": 1,
+      "because": "가축 습격"
+    },
+    {
+      "subject": "merchant",
+      "key": "village-pasture:threat",
+      "at": "village-pasture",
+      "topic": "threat",
+      "believed": 4,
+      "confidence": 0.15,
+      "via": "rumor",
+      "direct": false,
+      "actual": 1,
+      "because": "소문 전파"
+    }
+  ],
+  "intents": [
+    {
+      "subject": "player:dresser-crafter",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "player:hunter",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "player:tracker",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "player:trader",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "villager",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "villager",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "villager",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "hunters-guild",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "merchant",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "herd-beast",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "apex-monster",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    },
+    {
+      "subject": "resource-colony",
+      "tick": 3,
+      "goal": null,
+      "strategy": null,
+      "submitted": false,
+      "reason": "결핍 없음 — 나설 이유가 없다"
+    }
+  ],
+  "channels": {
+    "sight-near": {
+      "senses": [
+        "sighting",
+        "absence"
+      ],
+      "acuity": 0.5,
+      "reach": "here",
+      "fidelity": 1
+    },
+    "sight-wide": {
+      "senses": [
+        "sighting"
+      ],
+      "acuity": 0.6,
+      "reach": "route",
+      "fidelity": 0.8
+    },
+    "night-sight": {
+      "senses": [
+        "sighting",
+        "trace"
+      ],
+      "acuity": 0.4,
+      "reach": "here",
+      "fidelity": 0.9
+    },
+    "trace-reading": {
+      "senses": [
+        "trace"
+      ],
+      "acuity": 0.3,
+      "reach": "here",
+      "fidelity": 1
+    },
+    "hearing": {
+      "senses": [
+        "sound"
+      ],
+      "acuity": 0.4,
+      "reach": "route",
+      "fidelity": 0.8
+    },
+    "scent-predator": {
+      "senses": [
+        "trace"
+      ],
+      "acuity": 0.6,
+      "reach": "route",
+      "fidelity": 0.7
+    },
+    "scent-prey-tracking": {
+      "senses": [
+        "trace"
+      ],
+      "acuity": 0.4,
+      "reach": "route",
+      "fidelity": 0.9
+    },
+    "rumor": {
+      "senses": [
+        "record"
+      ],
+      "acuity": 0.2,
+      "reach": "region",
+      "fidelity": 0.5
+    },
+    "member-reports": {
+      "senses": [
+        "record",
+        "absence"
+      ],
+      "acuity": 0.3,
+      "reach": "region",
+      "fidelity": 0.8
+    },
+    "village-complaints": {
+      "senses": [
+        "absence",
+        "record"
+      ],
+      "acuity": 0.3,
+      "reach": "region",
+      "fidelity": 0.7
+    },
+    "market-stock": {
+      "senses": [
+        "record"
+      ],
+      "acuity": 0.4,
+      "reach": "here",
+      "fidelity": 1
+    },
+    "price-board": {
+      "senses": [
+        "record"
+      ],
+      "acuity": 0.4,
+      "reach": "here",
+      "fidelity": 1
+    },
+    "quality-appraisal": {
+      "senses": [
+        "record"
+      ],
+      "acuity": 0.5,
+      "reach": "here",
+      "fidelity": 1
+    }
+  }
+}

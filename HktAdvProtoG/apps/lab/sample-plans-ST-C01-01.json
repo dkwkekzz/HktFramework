@@ -73,22 +73,6 @@
           "cost": 2,
           "risk": 2,
           "score": 5
-        },
-        {
-          "id": "P-CULL-CONTRACT",
-          "target": "village-safety",
-          "interventionFamily": "cull-contract",
-          "rationale": "무리가 과잉이면 조합은 조절 계약으로 생태를 관리한다",
-          "atoms": [
-            "issue-cull-contract"
-          ],
-          "effects": [
-            "개체 조절 계약 발급"
-          ],
-          "gain": 0,
-          "cost": 2,
-          "risk": 1,
-          "score": -3
         }
       ],
       "chosen": {

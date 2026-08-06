@@ -47,6 +47,13 @@ function dependenciesForSubject(s, ctx) {
     case 'hunters-guild':
       out.push(makeDependency({ holder: s.id, kind: 'safety', targets: ['village-safety'], demand: 6,
         rationale: '조합은 마을 방위를 책임진다' }));
+      // hunt-order(사냥 질서) — 조합은 사냥감이 계속 재생산되는 사냥터에 의존한다.
+      // 요구 척도는 무리 자신의 서식 요구와 같다: "무리가 번식할 만큼의 목초 여유".
+      // 무리가 불어날수록 요구는 커지고 여유는 줄어 압력이 가파르게 오른다 —
+      // 이것이 조절 계약(P-CULL-CONTRACT)을 당기는 지렛대다.
+      out.push(makeDependency({ holder: s.id, kind: 'habitat', targets: ['herd-valley-forage'],
+        demand: Math.ceil(num(firstOf(ctx, 'herd-beast')?.population?.count) / 20),
+        rationale: '조합은 사냥 질서를 위해 무리가 번식할 목초 여유가 남아 있기를 요구한다' }));
       out.push(makeDependency({ holder: s.id, kind: 'healing', targets: ['healing-potion', 'healing-herb'], demand: num(s.injuredHunters),
         rationale: '부상 조합원 수만큼 치료제(없으면 약초)가 필요하다' }));
       out.push(makeDependency({ holder: s.id, kind: 'reputation', targets: ['rare-individual', 'contract-fulfillment'], demand: 1,

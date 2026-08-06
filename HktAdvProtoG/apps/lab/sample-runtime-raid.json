@@ -1,0 +1,189 @@
+{
+  "label": "ST-C01-01 무개입 습격",
+  "tick": 4,
+  "stateHash": "41fa77c52004307a",
+  "events": [
+    {
+      "seq": 0,
+      "id": "ev-000001",
+      "tick": 1,
+      "type": "MonsterMoved",
+      "behavior": "stalk-prey",
+      "traceId": "tr-raid-01",
+      "statePaths": [
+        "region.places.apex-lair.lastDeparture",
+        "region.places.herd-valley.lastArrival",
+        "subjects.sub-000009.at"
+      ],
+      "payload": {
+        "subjectId": "sub-000009",
+        "from": "apex-lair",
+        "to": "herd-valley"
+      }
+    },
+    {
+      "seq": 1,
+      "id": "ev-000002",
+      "tick": 2,
+      "type": "MonsterHunted",
+      "behavior": "hunt",
+      "traceId": "tr-raid-01",
+      "statePaths": [
+        "ownership.kill:sub-000008:2",
+        "subjects.sub-000008.population.count"
+      ],
+      "payload": {
+        "subjectId": "sub-000008",
+        "by": "sub-000009",
+        "consumesPopulation": [
+          {
+            "subjectId": "sub-000008",
+            "count": 1
+          }
+        ]
+      }
+    },
+    {
+      "seq": 2,
+      "id": "ev-000003",
+      "tick": 3,
+      "type": "MonsterMoved",
+      "behavior": "raid-pasture",
+      "traceId": "tr-raid-01",
+      "statePaths": [
+        "region.places.herd-valley.lastDeparture",
+        "region.places.village-pasture.lastArrival",
+        "subjects.sub-000009.at"
+      ],
+      "payload": {
+        "subjectId": "sub-000009",
+        "from": "herd-valley",
+        "to": "village-pasture"
+      }
+    },
+    {
+      "seq": 3,
+      "id": "ev-000004",
+      "tick": 4,
+      "type": "ContractIssued",
+      "behavior": "issue-subjugation-contract",
+      "traceId": "tr-raid-01",
+      "statePaths": [
+        "contracts.ct-sub-01"
+      ],
+      "payload": {
+        "contractId": "ct-sub-01",
+        "kind": "subjugation"
+      }
+    }
+  ],
+  "phenomena": [
+    {
+      "id": "ph-000001",
+      "seq": 0,
+      "tick": 1,
+      "behavior": "stalk-prey",
+      "sense": "trace",
+      "legibility": 0.4,
+      "description": "무리 추적",
+      "strategy": "P-HUNT-HERD",
+      "at": "herd-valley",
+      "actor": "sub-000009",
+      "sourceEventId": "ev-000001",
+      "traceId": "tr-raid-01"
+    },
+    {
+      "id": "ph-000002",
+      "seq": 1,
+      "tick": 2,
+      "behavior": "hunt",
+      "sense": "trace",
+      "legibility": 0.8,
+      "description": "무리 개체 포식",
+      "strategy": "P-HUNT-HERD",
+      "at": "herd-valley",
+      "actor": "sub-000009",
+      "sourceEventId": "ev-000002",
+      "traceId": "tr-raid-01"
+    },
+    {
+      "id": "ph-000003",
+      "seq": 2,
+      "tick": 3,
+      "behavior": "raid-pasture",
+      "sense": "absence",
+      "legibility": 1,
+      "description": "가축 습격",
+      "strategy": "P-RAID-PASTURE",
+      "at": "village-pasture",
+      "actor": "sub-000009",
+      "sourceEventId": "ev-000003",
+      "traceId": "tr-raid-01"
+    },
+    {
+      "id": "ph-000004",
+      "seq": 3,
+      "tick": 4,
+      "behavior": "issue-subjugation-contract",
+      "sense": "record",
+      "legibility": 1,
+      "description": "토벌 계약 발급",
+      "strategy": "P-SUBJUGATION-CONTRACT",
+      "at": "hunter-outpost",
+      "actor": "sub-000004",
+      "sourceEventId": "ev-000004",
+      "traceId": "tr-raid-01"
+    }
+  ],
+  "explainedPaths": [
+    {
+      "path": "contracts.ct-sub-01",
+      "events": [
+        "ev-000004(ContractIssued)"
+      ]
+    },
+    {
+      "path": "ownership.kill:sub-000008:2",
+      "events": [
+        "ev-000002(MonsterHunted)"
+      ]
+    },
+    {
+      "path": "region.places.apex-lair.lastDeparture",
+      "events": [
+        "ev-000001(MonsterMoved)"
+      ]
+    },
+    {
+      "path": "region.places.herd-valley.lastArrival",
+      "events": [
+        "ev-000001(MonsterMoved)"
+      ]
+    },
+    {
+      "path": "region.places.herd-valley.lastDeparture",
+      "events": [
+        "ev-000003(MonsterMoved)"
+      ]
+    },
+    {
+      "path": "region.places.village-pasture.lastArrival",
+      "events": [
+        "ev-000003(MonsterMoved)"
+      ]
+    },
+    {
+      "path": "subjects.sub-000008.population.count",
+      "events": [
+        "ev-000002(MonsterHunted)"
+      ]
+    },
+    {
+      "path": "subjects.sub-000009.at",
+      "events": [
+        "ev-000001(MonsterMoved)",
+        "ev-000003(MonsterMoved)"
+      ]
+    }
+  ]
+}

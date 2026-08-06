@@ -3,7 +3,7 @@
   "status": "STEP_VERIFIED_LOCAL",
   "results": {
     "axiomsRegistered": 5,
-    "registryHash": "111573ec9f3760b5",
+    "registryHash": "e37e07f09095f7a6",
     "failureScenarios": "passed",
     "checks": [
       {
@@ -47,6 +47,6 @@
     "보존 공리의 재고 조회는 state.resources 관례 — O-S02 존재론 스키마에서 고정",
     "코드 소비자(W/R/E/N/A)는 해당 Step 에서 연결 — 현재는 REGISTRY.json 계약 배선"
   ],
-  "contentHash": "d4809b943dc48e8a",
-  "generatedAt": "2026-08-05T08:15:55.218Z"
+  "contentHash": "29454f45fd181ba2",
+  "generatedAt": "2026-08-05T09:51:45.946Z"
 }
