@@ -8,7 +8,7 @@
 
 | 문서 | 상태 |
 |---|---|
-| [design/Design-MasterPlan.md](design/Design-MasterPlan.md) — 세계 설계도 (원문) | 작성 완료 |
+| [design/Design-MasterPlan.md](design/Design-MasterPlan.md) — 세계 설계도 (원문) | 작성 완료 — §1 「세계와 주체의 행동 구조」 원문(목적·가능성·주체·세계·행동 5개념) 반영 |
 
 ## TODO
 ...
