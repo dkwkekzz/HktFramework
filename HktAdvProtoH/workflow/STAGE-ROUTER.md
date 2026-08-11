@@ -58,7 +58,7 @@ Stage Guide            O
 ## 모든 Stage의 기본 Context
 
 ```text
-design/Design-TargetHorizon.md
+state/TARGET-HORIZON.md
 +
 state/CURRENT-CYCLE.md  (Current Cycle Contract)
 +
