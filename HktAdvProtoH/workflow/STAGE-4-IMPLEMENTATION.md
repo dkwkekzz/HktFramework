@@ -12,6 +12,7 @@ APPROVED World Definition을 `State → Rule → Transition → Observable`이�
 - 이 Stage Guide
 
 원본 설계 문서(`design/`)는 다시 읽지 않는다 — World Definition Package가 작업 단위다.
+**예외**: View 구현 시에는 [../design/Design-GameView.md](../design/Design-GameView.md)(GameView Architecture)를 구현 가이드로 참조한다 — 세계 설계 원문이 아니라 View 계약·확장 규칙 문서다.
 
 ## 출력
 
@@ -41,6 +42,18 @@ Required World State / Observable Contract
 4. **Trace 유지** — Rule 구현에 `Implements: INTENT-XXX` trace를 남긴다.
 5. **과도한 미래 추상화 금지** (RULE 8) — `UniversalResourceProviderFactory` 류 금지. 지금 필요한 만큼만.
 6. **Design Gap** — 필요한 Semantic이 World Definition에 없으면 추측하지 않고 [../templates/DESIGN-GAP.md](../templates/DESIGN-GAP.md)를 생성하고 STOP (RULE 5). 설계 변경 후보를 제출할 뿐, 설계를 직접 변경하지 않는다.
+7. **View Definition 산출** — Visual Requirement의 각 항목을 GameView의 기존 Visual Vocabulary에 연결하는 View Definition을 작성한다. Semantic → Visual 연결은 View Definition만 담당하며, GameView Core(Backend/Primitive/Library)에는 World 의미를 넣지 않는다.
+8. **Capability Resolution 순서** — 필요한 시각 표현은 반드시 `① 기존 Visual Component → ② 기존 Primitive 조합 → ③ 재사용 가능한 새 Component → ④ Capability 확장 제안` 순서로 해결한다. ④에 도달하면 추측·직접 확장하지 않고 [../templates/GAMEVIEW-CAPABILITY-GAP.md](../templates/GAMEVIEW-CAPABILITY-GAP.md)를 생성하고 해당 표현 작업을 중단한다 — GameView Core 확장은 Cycle의 부수 작업으로 몰래 수행하지 않는다.
+
+## GameView 구현 규약 (Cycle을 초월하는 불변 — 재량 아님)
+
+이 외의 모든 GameView 구현 세부(폴더 구조, 빌보드 방식, sync 전략, 구축 순서 등)는 이 Stage의 재량이며, 결정은 Implementation Result에 기록한다.
+
+- **스택**: three.js + Vite (Web).
+- **World 코어 무의존**: `world/`·`observable/`은 DOM·렌더 라이브러리에 의존하지 않는 순수 ES Module — Verification Stage가 브라우저 없이 Node에서 같은 코드를 헤드리스 실행할 수 있어야 한다.
+- **Import 방향**: `View Definition → Visual Library → Primitive → Backend` 단방향. `three` import는 Backend/Primitive 층에만 허용. View 쪽 어디서도 `world/`를 import하지 않는다 — Observable 스냅샷·Transition Log를 직렬화 가능한 데이터로만 전달받는다.
+- **View Definition 형식**: Architecture §14의 선언 구조를 그대로 담은 JS 모듈로 작성한다 — 별도 DSL·파서를 선행 구축하지 않는다 (RULE 8).
+- **GameView Core의 소속**: Core(Backend/Primitive/Library) 구축을 위한 별도 트랙·Stage는 없다 — 그것을 요구하는 Cycle의 Implementation 안에서 필요한 최소 범위로 세우고, 이후 확장은 GAMEVIEW-CAPABILITY-GAP 승인으로만 수행한다.
 
 ## STOP 조건
 

@@ -15,7 +15,7 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 |---|---|---|
 | [state/](state/) | **작업 상태** | Agent가 기본으로 읽는 장기 Context 3종 — `TARGET-HORIZON.md`(방향·구조 원칙, 저변경) · `WORLD-BASELINE.md`(검증된 세계 의미) · `CURRENT-CYCLE.md`(현재 Cycle + Stage 진행) — 및 `EVOLUTION-BACKLOG.md`(유예 Semantic) · `cycles/`(Cycle별 Artifact 기록) |
 | [workflow/](workflow/) | **작업 방식** | `STAGE-ROUTER.md`(진입점) + Stage 0~7 가이드 — 한 invocation은 자기 Stage 파일만 읽는다 |
-| [templates/](templates/) | **템플릿** | Stage 출력 Artifact 형식 8종 |
+| [templates/](templates/) | **템플릿** | Stage 출력 Artifact 형식 9종 |
 | [design/](design/) | **기획 문서** | 세계 개념·워크플로 원문 — fallback reference, 필요할 때만 읽는다 |
 
 ## 작업 규칙

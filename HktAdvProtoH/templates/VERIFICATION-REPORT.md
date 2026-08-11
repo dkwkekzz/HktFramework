@@ -64,6 +64,22 @@ Runtime Transition → Rule → Intent → Possibility → Goal
     ...
 ```
 
+## 5. GameView Closure
+
+```text
+결과: PASS / FAIL
+
+Visual Requirement 항목별 관찰 확인:
+    <항목> → <관찰 방법/결과>
+
+구조 검사:
+    [ ] View는 ObservableWorldState만 읽는다
+    [ ] GameView 내부에 World Rule 재판단이 없다
+    [ ] GameView Core에 World-specific 코드가 없다
+    [ ] Semantic → Visual 연결이 View Definition에만 존재한다
+    [ ] Transition이 시각적으로 확인된다
+```
+
 ## 종합
 
 ```text
