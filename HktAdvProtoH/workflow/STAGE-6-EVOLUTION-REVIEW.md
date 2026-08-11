@@ -10,7 +10,7 @@
 - `state/cycles/cycle-XXX/00-cycle-contract.md` (Evolution Questions)
 - `state/cycles/cycle-XXX/02-world-definition.md`
 - `state/cycles/cycle-XXX/05-verification-report.md`
-- `design/Design-TargetHorizon.md`
+- `state/TARGET-HORIZON.md`
 
 ## 출력
 

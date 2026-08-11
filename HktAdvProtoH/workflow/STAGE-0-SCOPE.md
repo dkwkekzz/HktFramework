@@ -7,7 +7,7 @@ Capability 선택은 인간의 결정이다 — Agent는 후보 제시와 Contra
 
 ## 입력
 
-- `design/Design-TargetHorizon.md`
+- `state/TARGET-HORIZON.md`
 - `state/WORLD-BASELINE.md` (현재 세계가 무엇을 지원하는지)
 - `state/EVOLUTION-BACKLOG.md` (참고)
 - 인간이 지정한 Capability (또는 후보 요청)
