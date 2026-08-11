@@ -15,7 +15,7 @@
 
 - `state/cycles/cycle-XXX/05-verification-report.md` — [../templates/VERIFICATION-REPORT.md](../templates/VERIFICATION-REPORT.md) 형식
 
-## 검사 항목 (4종 모두)
+## 검사 항목 (5종 모두)
 
 ### 1. Semantic Closure
 
@@ -34,6 +34,18 @@ State뿐 아니라 **Transition 자체**가 Observable한가? 실측 값을 Repo
 ### 4. Traceability
 
 `Runtime Transition → World Rule → Intent → Possibility → Goal` 역추적이 실제로 성립하는가?
+
+### 5. GameView Closure
+
+Visual Requirement의 모든 항목이 GameView에서 실제로 관찰되는가? 그리고 구조가 지켜졌는가:
+
+```text
+[ ] View는 ObservableWorldState만 읽는다 (world/ 직접 import 없음)
+[ ] GameView 내부에 World Rule 재판단이 없다
+[ ] 새 Semantic 때문에 GameView Core에 World-specific 코드가 추가되지 않았다
+[ ] Semantic → Visual 연결이 View Definition에만 존재한다
+[ ] Transition이 시각적으로 확인된다
+```
 
 ## 원칙
 

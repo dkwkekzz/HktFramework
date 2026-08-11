@@ -75,6 +75,7 @@ state/WORLD-BASELINE.md 중 관련 Subset
 
 - **Human Semantic Review Gate**: `03-semantic-review.md`가 `APPROVED`가 아니면 Implementation Stage를 시작할 수 없다 (RULE 4).
 - **Design Gap**: 어느 Stage든 필요한 의미가 정의되어 있지 않으면 추측하지 않고 [../templates/DESIGN-GAP.md](../templates/DESIGN-GAP.md) 형식의 Design Gap을 생성하고 STOP한다 (RULE 5).
+- **GameView Capability Gap**: 필요한 시각 표현이 기존 Visual Vocabulary(기존 Component → Primitive 조합 → 새 Component)로 해결되지 않으면 GameView Core를 직접 확장하지 않고 [../templates/GAMEVIEW-CAPABILITY-GAP.md](../templates/GAMEVIEW-CAPABILITY-GAP.md)를 생성한다 — Core 확장은 인간 승인 후 별도 작업으로만 수행한다.
 - **Baseline Merge Gate**: Verification + Evolution Compatibility가 모두 통과해야 병합한다 (RULE 10, 11).
 
 ## Stage 종료 시 공통 의무

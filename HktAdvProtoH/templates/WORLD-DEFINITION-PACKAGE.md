@@ -77,7 +77,20 @@ Must expose:
         After
 ```
 
-## 5. Baseline 관계
+## 5. Visual Requirement
+
+State/Rule/Observable과 동시에 정의한다 — 인간이 이 Intent의 Runtime 동작을 **게임 공간에서** 이해하려면 무엇을 볼 수 있어야 하는가.
+의미 수준으로만 기재한다 — Visual Component/Primitive 이름(ValueBar, Billboard 등) 지정 금지. 그 선택은 Implementation Stage의 몫이다.
+
+```text
+Designer must be able to see:
+
+    <공간 관계 — 예: Actor와 Deposit의 위치 관계>
+    <상태 — 예: Deposit의 현재 Resource 양>
+    <Transition 발생 — 예: Mine 실행과 Resource 이동>
+```
+
+## 6. Baseline 관계
 
 ```text
 재사용하는 기존 Semantic:

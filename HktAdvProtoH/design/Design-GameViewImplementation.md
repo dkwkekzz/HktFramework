@@ -191,4 +191,4 @@ IMPL-D  Vertical Slice (= Architecture §32)
         Inspector의 Before·After를 동시에 관찰.
 ```
 
-IMPL-A~C는 GameView Core와 실행 환경의 준비 작업이고, IMPL-D부터가 Cycle-001의 Implementation(Stage 4)에 해당한다 — 실제 착수는 CYCLE-001 Contract(Stage 0)와 Human Semantic Review 승인 이후다.
+IMPL-A~D **전체가 CYCLE-001 Implementation(Stage 4)의 Implementation Mechanism으로 수행된다** — GameView Core 구축을 위한 별도 트랙이나 Stage는 존재하지 않는다. Stage 4는 원래 파일·클래스 구조를 Agent 재량으로 두며, Cycle-001의 Observable Proof를 만족시키는 데 필요한 최소 Core(V0 범위, §8)를 세우는 것은 그 재량 안의 구현 작업이다. 실제 착수는 CYCLE-001 Contract(Stage 0)와 Human Semantic Review 승인 이후이며, 이후 Core 확장은 Cycle 부수 작업이 아니라 GAMEVIEW-CAPABILITY-GAP 승인 절차로만 일어난다.

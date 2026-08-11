@@ -12,6 +12,7 @@ APPROVED World Definition을 `State → Rule → Transition → Observable`이�
 - 이 Stage Guide
 
 원본 설계 문서(`design/`)는 다시 읽지 않는다 — World Definition Package가 작업 단위다.
+**예외**: View 구현 시에는 [../design/Design-GameView.md](../design/Design-GameView.md)(Architecture)와 [../design/Design-GameViewImplementation.md](../design/Design-GameViewImplementation.md)(구현 결정)를 GameView 구현 가이드로 참조한다 — 이 둘은 세계 설계 원문이 아니라 구현 기준 문서다.
 
 ## 출력
 
@@ -41,6 +42,8 @@ Required World State / Observable Contract
 4. **Trace 유지** — Rule 구현에 `Implements: INTENT-XXX` trace를 남긴다.
 5. **과도한 미래 추상화 금지** (RULE 8) — `UniversalResourceProviderFactory` 류 금지. 지금 필요한 만큼만.
 6. **Design Gap** — 필요한 Semantic이 World Definition에 없으면 추측하지 않고 [../templates/DESIGN-GAP.md](../templates/DESIGN-GAP.md)를 생성하고 STOP (RULE 5). 설계 변경 후보를 제출할 뿐, 설계를 직접 변경하지 않는다.
+7. **View Definition 산출** — Visual Requirement의 각 항목을 GameView의 기존 Visual Vocabulary에 연결하는 View Definition을 작성한다. Semantic → Visual 연결은 View Definition만 담당하며, GameView Core(Backend/Primitive/Library)에는 World 의미를 넣지 않는다.
+8. **Capability Resolution 순서** — 필요한 시각 표현은 반드시 `① 기존 Visual Component → ② 기존 Primitive 조합 → ③ 재사용 가능한 새 Component → ④ Capability 확장 제안` 순서로 해결한다. ④에 도달하면 추측·직접 확장하지 않고 [../templates/GAMEVIEW-CAPABILITY-GAP.md](../templates/GAMEVIEW-CAPABILITY-GAP.md)를 생성하고 해당 표현 작업을 중단한다 — GameView Core 확장은 Cycle의 부수 작업으로 몰래 수행하지 않는다.
 
 ## STOP 조건
 

@@ -22,8 +22,12 @@ World Rule:
 Observable:
     <Observable 항목> → <파일:위치>
 
-View:
-    <View> → <파일:위치>
+View Definition:
+    <Visual Requirement 항목> → <View Definition 파일:위치> → <사용한 Visual Component>
+
+GameView Capability:
+    사용한 기존 어휘: <목록>
+    새로 승격한 Component: <목록 — 없으면 "없음">
 ```
 
 ## 실행 방법
@@ -40,12 +44,16 @@ View:
 [ ] Observable Contract를 생략하지 않았다.
 [ ] Rule 밖에서 World State를 변경하는 코드가 없다.
 [ ] View는 Observable World State만 읽는다.
+[ ] GameView Core(Backend/Primitive/Library)에 World-specific 코드를 추가하지 않았다.
+[ ] 새 시각 표현은 기존 Visual Vocabulary 우선 순서(①→④)로 해결했다.
 ```
 
-## Design Gap
+## Design Gap / Capability Gap
 
 ```text
 없음
 ```
 
-(있으면 DESIGN-GAP 형식으로 기록하고 이 Stage는 중단된 것이다.)
+(Design Gap이 있으면 DESIGN-GAP 형식으로 기록하고 이 Stage는 중단된 것이다.
+ Capability Gap이 있으면 GAMEVIEW-CAPABILITY-GAP 형식으로 기록한다 — 해당 표현만 보류하고
+ 나머지 구현이 닫히면 Stage는 계속될 수 있으며, blocking 여부를 Gap에 명시한다.)

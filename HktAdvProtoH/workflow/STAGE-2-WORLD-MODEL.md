@@ -28,6 +28,7 @@ Intent의 모든 의미를 `Required World State + Required World Rule + Require
 3. **Decision Semantic State** — Rule 판단에 영향을 주는 상태(Knowledge, Preference, Skill, CurrentGoal 등)는 World Semantic State이며 Observable 대상이다.
 4. **Rule 형식** — `Preconditions / Input / Transition / Result` + `Implements: INTENT-XXX` trace.
 5. **Observable을 동시에 정의** — 구현 뒤에 Debug UI를 붙이는 것이 아니라, State/Rule 정의와 함께 Observable Contract(Semantic Lossless Projection)를 정의한다. Transition도 `Before / Input / Rule / After`로 관찰 가능해야 한다.
+5-1. **Visual Requirement도 동시에 정의** — "인간이 이 Intent의 Runtime 동작을 게임 공간에서 이해하려면 무엇을 볼 수 있어야 하는가"를 의미 수준으로 기재한다. Visual Component/Primitive 이름(ValueBar, Billboard 등)은 지정하지 않는다 — 표현 수단 선택은 Implementation Stage의 몫이다.
 6. **Entity 단위 의미** — 단일 Player 가정(`World.playerX`) 금지. Baseline과 충돌하는 재정의 금지 — 기존 Semantic을 재사용한다.
 7. 필요한 의미가 Intent/Contract에 없으면 추측하지 말고 DESIGN GAP 생성 후 STOP (RULE 5).
 

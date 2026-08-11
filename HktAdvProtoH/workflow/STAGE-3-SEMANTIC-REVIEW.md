@@ -9,6 +9,9 @@
 ```text
 이 World State / World Rule이
 내가 정의한 Intent를 정확하게 표현하는가?
+
+이 Observable Contract / Visual Requirement로
+내가 설계 언어 그대로 Runtime을 관찰할 수 있는가?
 ```
 
 ## 입력
