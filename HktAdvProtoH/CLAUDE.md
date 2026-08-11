@@ -18,3 +18,22 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | 문서 | 역할 |
 |---|---|
 | [STATE.md](STATE.md) | **현재 핵심 상태 + TODO** (핵심만 — 상세는 progress/) |
+| [design/Design-Concept.md](design/Design-Concept.md) | 게임 개념 지도 (세계/주체/법칙/목적·가능성 — 원문, 통독 대상 아님) |
+| [design/Design-Workflow.md](design/Design-Workflow.md) | 게임 전체 구현 지도 (설계 철학 진본, 통독 대상 아님) |
+| [design/graphs/](design/graphs/README.md) | Goal/Possibility Graph — Human Design 진본, 인간만 수정 |
+| [workflow/WORKFLOW-OPS.md](workflow/WORKFLOW-OPS.md) | **Agent Workflow 운영 진본** — Package 구조·상태 기계·읽기 범위 |
+
+## 작업 방식 — 단계별 Skill 로만 진행
+
+설계 문서 전체를 읽고 작업하지 않는다. Design-Workflow.md §28 의 파이프라인을 4개 Skill 로 나눠 실행한다.
+작업 단위는 `workflow/packages/<PKG-ID>/` 하나이며, 각 Skill 은 자기 단계 입력 파일만 읽는다.
+
+| 단계 | Skill | 입력 → 출력 |
+|---|---|---|
+| Intent 추출 | `/advprotoh-intent` | Graph → 10-intent.md (INTENT_READY) |
+| World 도출 | `/advprotoh-world-model` | Intent → 20-world.md (WORLD_READY) |
+| Semantic Review | (인간) | 30-review.md 승인 (REVIEWED) |
+| 구현 | `/advprotoh-implement` | Package → 코드 + 40-implementation.md (IMPLEMENTED) |
+| 검증 | `/advprotoh-verify` | Closure 2종 + Runtime 실측 → 50-verification.md (VERIFIED) |
+
+게이트: Review 승인 전 구현 금지, 선행 Status 미충족 시 해당 Skill 은 중단한다. 세부는 WORKFLOW-OPS.md.
