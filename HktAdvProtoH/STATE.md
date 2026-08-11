@@ -21,7 +21,7 @@
 
 | 항목 | 상태 |
 |---|---|
-| [AGENTS.md](AGENTS.md) — Stage Router 부트스트랩 | 구성 완료 |
+| [CLAUDE.md](CLAUDE.md) — Stage Router 부트스트랩 + 문서 인덱스 | 구성 완료 |
 | [context/](context/) — 장기 Context 4종 | 구성 완료 (Baseline v0 비어 있음) |
 | [stages/](stages/) — Stage Guide 8종 | 구성 완료 |
 | [templates/](templates/) — Artifact 서식 9종 | 구성 완료 |

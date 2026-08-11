@@ -6,7 +6,10 @@ description: HktAdvProtoH 의 Observable World Progressive Cycle Workflow 에서
 # HktAdvProtoH Stage Router
 
 **작업 디렉토리: `HktAdvProtoH/`** — 이하 상대 경로는 이 폴더 기준.
-부트스트랩은 [AGENTS.md](../../../HktAdvProtoH/AGENTS.md) 다.
+
+Stage 식별표 · 공통 불변 규칙 12개 · 기본 Context 목록 · Artifact Chain 은
+[HktAdvProtoH/CLAUDE.md](../../../HktAdvProtoH/CLAUDE.md) 에 있다 (단일 원본).
+이 문서는 **실행 절차와 진입 게이트**만 담는다.
 
 ## 절대 규칙
 
@@ -22,49 +25,29 @@ Stage 하나를 수행하고 STOP 한다.
 ### 1. Stage 식별
 
 [context/CURRENT-CYCLE.md](../../../HktAdvProtoH/context/CURRENT-CYCLE.md) 로 현재 위치를 확인하고,
-요청을 아래 표에 매핑한다.
-
-| 요청 | Stage | Guide |
-|---|---|---|
-| Cycle 범위 / Contract | 0 | `stages/S0-CYCLE-SCOPE.md` |
-| Intent 추출 | 1 | `stages/S1-INTENT.md` |
-| State / Rule / Observable 정의 | 2 | `stages/S2-WORLD-MODEL.md` |
-| 승인 / 반려 판정 기록 | 3 | `stages/S3-HUMAN-SEMANTIC-REVIEW.md` |
-| 구현 | 4 | `stages/S4-IMPLEMENTATION.md` |
-| 검증 / Closure | 5 | `stages/S5-VERIFICATION.md` |
-| 미래 확장 제한 검사 | 6 | `stages/S6-EVOLUTION-COMPATIBILITY.md` |
-| Baseline 병합 / Cycle 닫기 | 7 | `stages/S7-BASELINE-MERGE.md` |
-
+CLAUDE.md 의 Stage 식별표로 요청을 매핑한다.
 모호하면 **추측하지 않고 인간에게 묻는다.**
 
 ### 2. Stage Guide 로드
 
-식별한 Guide **하나만** 읽는다. 다른 Stage 의 Guide 는 읽지 않는다.
+식별한 `stages/S<N>-*.md` **하나만** 읽는다. 다른 Stage 의 Guide 는 읽지 않는다.
 
-### 3. 입력 Artifact 확인
+### 3. 진입 게이트 확인
 
 Guide 의 `입력` 절에 적힌 Artifact 가 `cycles/<cycle-id>/` 에 존재하는지 확인한다.
 
-```text
-없거나 미완성    → 그 Stage 를 시작하지 않고, 무엇이 없는지 보고하고 STOP
-03 이 APPROVED 아님 → Stage 4 를 시작하지 않는다 (RULE 4)
-05 / 06 이 PASS 아님 → Stage 7 을 시작하지 않는다 (RULE 11)
-```
+| 조건 | 조치 |
+|---|---|
+| 입력 Artifact 가 없거나 미완성 | Stage 를 시작하지 않고 무엇이 없는지 보고 후 STOP |
+| `00` 이 DRAFT | Stage 1 을 시작하지 않는다 |
+| `03` 이 APPROVED 아님 | Stage 4 를 시작하지 않는다 (RULE 4) |
+| `05` / `06` 이 PASS 아님 | Stage 7 을 시작하지 않는다 (RULE 11) |
 
 ### 4. 허용 Reference 만 로드
 
-기본 Context:
-
-```text
-context/TARGET-HORIZON.md
-context/CURRENT-CYCLE.md
-context/WORLD-BASELINE.md 의 관련 부분집합
-현재 Stage 의 입력 Artifact
-현재 Stage Guide
-```
-
-`design/Design-CycleWorkflow.md` 와 `design/Design-Concept.md` 는 **fallback** 이다 (RULE 12).
-기존 Artifact 와 Baseline 만으로 판단할 수 없을 때만 연다.
+CLAUDE.md 의 "기본 Context" 목록 + 현재 Stage 의 입력 Artifact 만 연다.
+`design/` 원본은 fallback 이다 (RULE 12) — 기존 Artifact 와 Baseline 만으로
+판단할 수 없을 때만 연다.
 
 ### 5. Stage 수행
 
