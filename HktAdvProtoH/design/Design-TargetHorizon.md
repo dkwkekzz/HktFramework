@@ -1,8 +1,7 @@
-# TARGET-HORIZON
+# Design-TargetHorizon.md
 
 > 최종 방향과 절대적인 구조적 원칙. **변경 빈도가 매우 낮아야 한다.**
-> 이 문서는 구현 명세가 아니다 — 현재 Cycle에서 잘못된 구조적 결정을 하지 않기 위한 방향성이다.
-> 이 문서 때문에 미래 기능을 미리 구현하지 않는다.
+> 구현 명세가 아니다 — 현재 Cycle에서 잘못된 구조적 결정을 하지 않기 위한 방향성이다. 이 문서 때문에 미래 기능을 미리 구현하지 않는다.
 
 ## Target Horizon
 
@@ -63,11 +62,3 @@ Network Authority
 ```
 
 미래 기능을 미리 구현하지 않는다. 단, 현재 설계가 이것들을 구조적으로 불가능하게 만들지는 않는지 Evolution Compatibility Gate에서 확인한다.
-
-## Fallback Reference
-
-필요한 의미를 Artifact와 Baseline만으로 판단할 수 없을 때만 다음 원본 문서를 참조한다 (기본 Context 아님 — RULE 12).
-
-- [../design/Design-Concept.md](../design/Design-Concept.md) — 세계·주체·목적/가능성 그래프 개념 정의
-- [../design/Design-Workflow.md](../design/Design-Workflow.md) — Goal/Possibility 기반 Observable World 구현 Workflow
-- [../design/Design-CycleWorkflow.md](../design/Design-CycleWorkflow.md) — Progressive Cycle Workflow 원문

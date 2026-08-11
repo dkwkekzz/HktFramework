@@ -25,4 +25,4 @@ cycles/
 - 각 Artifact는 [../templates/](../templates/)의 해당 템플릿 형식을 따른다.
 - 번호가 앞선 Artifact 없이 다음 Stage를 시작할 수 없다 (`03`이 APPROVED가 아니면 `04` 불가).
 - 완료된 Cycle의 Artifact는 수정하지 않는다 — 기록이다.
-- Baseline Merge(Stage 7)의 결과는 이 디렉터리가 아니라 `context/WORLD-BASELINE.md`에 반영된다.
+- Baseline Merge(Stage 7)의 결과는 이 디렉터리가 아니라 `STATE.md`의 World Baseline에 반영된다.

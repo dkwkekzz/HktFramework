@@ -33,7 +33,7 @@ Q1. <질문>
 ## Backlog 갱신
 
 ```text
-EVOLUTION-BACKLOG.md에 추가한 항목:
+STATE.md Evolution Backlog에 추가한 항목:
     없음 / <항목 + 유예 사유>
 ```
 
