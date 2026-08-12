@@ -1,0 +1,22 @@
+# Orchestrator 가 World Engineer 에게 전달하는 유일한 입력 — §26 (설계 History 전달 금지)
+implementation_package:
+  cycle_scope: cycles/C002/artifacts/scope/cycle_scope.yaml
+  goal_possibility: cycles/C002/artifacts/intent/goal_possibility.yaml
+  intent: cycles/C002/artifacts/intent/intent.yaml
+  existing_module_dependencies: []   # registry 에 FROZEN Module 없음 (C001 은 DRY_RUN)
+  semantic_delta: cycles/C002/artifacts/world-design/semantic_delta.yaml
+  world_state: cycles/C002/artifacts/world-design/world_state.yaml
+  world_rules: cycles/C002/artifacts/world-design/world_rules.yaml
+  authority_contract: cycles/C002/artifacts/contracts/authority.yaml
+  command_contract: contracts/commands/CMD-MOVE-V2.yaml   # + contracts/commands/CMD-MINE-V2.yaml
+  command_contract_2: contracts/commands/CMD-MINE-V2.yaml
+  observable_contract: contracts/observable/OBS-MINING-V2.yaml
+  traceability: cycles/C002/artifacts/world-design/intent_trace.yaml
+  # 런타임 제약: cycles/C002/goal.yaml runtime_constraints 참조 (순수 JS ESM, 의존성 0, deterministic)
+  completion_conditions:
+    - RULE-MOVE-001 구현 — bounded step(MoveStep 상한) + WorldBoundary 거부(OUT_OF_WORLD_BOUNDARY), 성공/거부 테스트
+    - RULE-MINE-001 구현 — preconditions 4종(UNKNOWN_DEPOSIT/NO_MINING_TOOL/OUT_OF_RANGE/DEPOSIT_EMPTY) 각각의 성공/실패 테스트
+    - CMD-MOVE-V2 / CMD-MINE-V2 처리 — prohibited_fields 거부 포함
+    - OBS-MINING-V2 의 player/designer projection 구현 — Move/Mine/Rejection Transition 전부 관찰 가능
+    - 결정론 — 같은 Command 열은 같은 최종 State (테스트로 증명)
+    - node scripts/test/run-world-tests.mjs 전부 green

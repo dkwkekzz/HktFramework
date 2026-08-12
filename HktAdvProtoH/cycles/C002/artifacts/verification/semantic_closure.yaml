@@ -8,48 +8,15 @@ verification:
   verified_by: S004
   evidence:
     # ── Deterministic (§20 — script 우선) ──
-    - >
-      command: `node scripts/validation/verify.mjs closure C002` — 17/17 checks passed.
-      intent_trace.yaml 의 모든 항목이 resolved_to 를 갖고, 대상 id 가
-      world_state.yaml / world_rules.yaml 에 실재함을 script 가 확인.
-      재현: repo root 에서 동일 명령 실행.
+    - "command: node scripts/validation/verify.mjs closure C002 — 17/17 checks passed. intent_trace.yaml 의 모든 항목이 resolved_to 를 갖고 대상 id 가 world_state.yaml / world_rules.yaml 에 실재함을 script 가 확인. 재현: repo root 에서 동일 명령 실행."
     # ── Semantic 1: SEMANTIC_GAP 검사 (intent.yaml 의미 문장 전수 열거 → trace 대조) ──
-    - >
-      cycles/C002/artifacts/intent/intent.yaml 의 의미 문장 17개를 직접 열거해
-      cycles/C002/artifacts/world-design/intent_trace.yaml 과 대조 —
-      INTENT-MOVE-001: meaning 2절(Position 보유 / Move 실행) + result 2 + rejection 1 = 5,
-      INTENT-MINE-001: meaning 4절(Knowledge / Tool / InteractionRange / Mine 실행) + result 2 + rejection 3 = 9,
-      INTENT-OBSERVE-001: meaning 1 + result 2 = 3.
-      17개 모두 trace 에 존재, 누락 의미 없음 → SEMANTIC_GAP 없음.
+    - "SEMANTIC_GAP 검사: cycles/C002/artifacts/intent/intent.yaml 의 의미 문장 17개를 직접 열거해 cycles/C002/artifacts/world-design/intent_trace.yaml 과 대조 — INTENT-MOVE-001 은 meaning 2절(Position 보유 / Move 실행) + result 2 + rejection 1 = 5, INTENT-MINE-001 은 meaning 4절(Knowledge / Tool / InteractionRange / Mine 실행) + result 2 + rejection 3 = 9, INTENT-OBSERVE-001 은 meaning 1 + result 2 = 3. 17개 모두 trace 에 존재, 누락 의미 없음."
     # ── Semantic 2: SEMANTIC_DUPLICATION 검사 (semantic_delta ↔ registry/semantics.yaml) ──
-    - >
-      semantic_delta.yaml 12개 항목을 registry/semantics.yaml 과 대조 —
-      DRY_RUN_REESTABLISHED 9개(Actor, Position, Inventory, Knowledge, Tool,
-      Tool.Capability, ResourceDeposit, ResourceDeposit.ResourceAmount, InteractionRange)는
-      registry 의 C001 status=DRY_RUN 항목과만 겹침: DRY_RUN 은 재사용 금지 대상이므로
-      재수립은 기대된 동작 (CLAUDE.md 규칙 17, Task envelope 주석 근거) — 중복 아님.
-      NEW 3개(MoveStep, WorldBoundary, ResourceType)는 registry 에 부재.
-      C002 내부에서 하나의 의미를 두 번 정의한 쌍 없음 — 근접 후보 MoveStep(1회 Move
-      이동 거리 상한) vs InteractionRange(Mine 허용 거리 상한)는 상이한 semantic 으로 판정
-      → SEMANTIC_DUPLICATION 없음.
+    - "SEMANTIC_DUPLICATION 검사: semantic_delta.yaml 12개 항목을 registry/semantics.yaml 과 대조 — DRY_RUN_REESTABLISHED 9개(Actor, Position, Inventory, Knowledge, Tool, Tool.Capability, ResourceDeposit, ResourceDeposit.ResourceAmount, InteractionRange)는 registry 의 C001 status=DRY_RUN 항목과만 겹침. DRY_RUN 은 재사용 금지 대상이므로 재수립은 기대된 동작(CLAUDE.md 규칙 17) — 중복 아님. NEW 3개(MoveStep, WorldBoundary, ResourceType)는 registry 에 부재. C002 내부에서 하나의 의미를 두 번 정의한 쌍 없음 — 근접 후보 MoveStep(1회 Move 이동 거리 상한) vs InteractionRange(Mine 허용 거리 상한)는 상이한 semantic 으로 판정."
     # ── Semantic 3: 매핑의 의미 정합 (trace resolved_to 가 의미상 올바른가) ──
-    - >
-      trace 매핑을 world_rules.yaml 정의와 대조 —
-      Move 의 bounded step → RULE-MOVE-001 transition 의 `min(step, MoveStep)`,
-      경계 밖 거부 → preconditions `resulting Position is inside WorldBoundary` + OUT_OF_WORLD_BOUNDARY,
-      Mine 의 -1/+1 동시 성립 → RULE-MINE-001 transition 두 줄(ExtractAmount=1),
-      3개 거부 조건 → failure_reasons(OUT_OF_RANGE / NO_MINING_TOOL / DEPOSIT_EMPTY),
-      거리 파생 사실은 Actor.Position + ResourceDeposit.Position 으로 해소(별도 State 없음 — 타당).
-      모든 매핑 의미상 일치.
+    - "매핑 정합 검사: trace 매핑을 world_rules.yaml 정의와 대조 — bounded step 은 RULE-MOVE-001 transition 의 min(step, MoveStep) 으로, 경계 밖 거부는 precondition(resulting Position is inside WorldBoundary) + OUT_OF_WORLD_BOUNDARY 로, Mine 의 -1/+1 동시 성립은 RULE-MINE-001 transition 두 줄(ExtractAmount=1)로, 3개 거부 조건은 failure_reasons(OUT_OF_RANGE / NO_MINING_TOOL / DEPOSIT_EMPTY)로 해소. 거리 파생 사실은 Actor.Position + ResourceDeposit.Position 으로 해소(별도 State 없음 — 타당). 모든 매핑 의미상 일치."
     # ── Semantic 4: 구현 오염 검사 (world_state 에 구현 내부 상태 금지) ──
-    - >
-      world_state.yaml 전수 검사 — Actor(Position/Inventory/Knowledge/CurrentAction),
-      ResourceDeposit(Position/ResourceType/ResourceAmount), constants 4종 모두 세계의 사실.
-      cache/thread/packet/network/버퍼 류 구현 내부 상태 없음.
+    - "구현 오염 검사: world_state.yaml 전수 검사 — Actor(Position/Inventory/Knowledge/CurrentAction), ResourceDeposit(Position/ResourceType/ResourceAmount), constants 4종 모두 세계의 사실. cache/thread/packet/network 류 구현 내부 상태 없음."
     # ── 비차단 관찰 (FAIL 아님 — 후속 Stage 참고) ──
-    - >
-      note(non-blocking): world_state/world_rules 가 사용하는 ExtractAmount(상수)와
-      Actor.CurrentAction(ActionState)은 semantic_delta.yaml 에 미등재 —
-      Intent 해소에는 영향 없음(closure PASS)이나, Registry 승격 시
-      delta 목록 기준으로 등록한다면 두 semantic 의 등재 여부를 확인할 것.
+    - "note(non-blocking): world_state/world_rules 가 사용하는 ExtractAmount(상수)와 Actor.CurrentAction(ActionState)은 semantic_delta.yaml 에 미등재 — Intent 해소에는 영향 없음(closure PASS)이나, Registry 승격 시 delta 목록 기준으로 등록한다면 두 semantic 의 등재 여부를 확인할 것."
   failures: []                         # PASS — failure_type 없음

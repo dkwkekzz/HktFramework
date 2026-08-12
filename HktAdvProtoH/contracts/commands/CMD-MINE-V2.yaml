@@ -1,0 +1,21 @@
+# S005 / C002-CONTRACT-001 — Stage 4 Command Contract (Rule 4 — Client 는 의도만 보낸다)
+# id 는 V2 신규 발급 — C001 DRY_RUN(CMD-MINE-V1) 의 승격이 아니라 이번 Cycle 정의로 재수립한 것이다.
+# 공통 원칙: input 은 의도 식별자만. 결과(위치·수량·상태)는 어떤 필드로도 실어 보낼 수 없다.
+command:
+  id: CMD-MINE-V2
+  version: 2
+  possibility: MineStone
+  rule: RULE-MINE-001
+  input:
+    - ActorId              # 누가
+    - DepositId            # 어느 Deposit 을 — 채취 대상 의도 식별자
+  prohibited_fields:
+    - inventory_delta            # 획득량을 Client 가 보내는 것 금지 — ExtractAmount 는 세계 상수
+    - resulting_resource_amount  # 잔량 결과 지정 금지
+    - bypass_range_check         # 전제조건 우회 지시 금지
+    - any_world_state_result
+  failure_reasons:
+    - UNKNOWN_DEPOSIT
+    - NO_MINING_TOOL
+    - OUT_OF_RANGE         # Move 로 접근해야 하는 근거 — CMD-MOVE-V2 와의 연결 지점
+    - DEPOSIT_EMPTY

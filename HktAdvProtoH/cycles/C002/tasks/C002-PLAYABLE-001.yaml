@@ -1,0 +1,37 @@
+task:
+  id: C002-PLAYABLE-001
+  cycle_id: C002
+  stage: PLAYABLE_VERIFICATION
+  skill: playable-verify
+  objective: >
+    Cycle Goal 자체가 플레이 가능한지 최종 검증한다 (expected 3층 - world/observable/gameview).
+    REAL Cycle 이므로 SIMULATED 금지 — Playable Scenario 를 실제 런타임으로 실행해
+    (scripts/test/ 의 시나리오 실행기 이용) 증거를 남긴다: 시작 상태에서 이동으로 광맥에
+    접근, 채굴 1회 성공, 광맥 잔량 -1, 인벤토리 Stone +1, 그 전 과정이 GameView 로 관찰됨.
+  allowed_inputs:
+    - cycles/C002/goal.yaml
+    - cycles/C002/integration/composition.yaml
+    - cycles/C002/integration/e2e_trace.yaml
+  read_scope:
+    - cycles/C002/goal.yaml
+    - cycles/C002/integration/
+    - cycles/C002/artifacts/scope/
+    - contracts/
+    - source/
+    - scripts/
+    - skills/playable-verify/
+  write_scope:
+    - cycles/C002/integration/
+  forbidden_scope:
+    - cycles/C002/artifacts/intent/     # design mutation 금지
+    - cycles/C002/artifacts/world-design/
+    - source/world/
+    - source/gameview/
+  required_outputs:
+    - playable_scenario.yaml
+    - playable_result.yaml
+  completion_gate:
+    type: playable-goal
+  routing:
+    pass: MODULE_PACKAGE
+    fail: ROUTE_BY_E2E_TRACE

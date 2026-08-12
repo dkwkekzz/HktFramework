@@ -1,0 +1,40 @@
+task:
+  id: C002-WORLD-IMPLEMENT-001
+  cycle_id: C002
+  stage: WORLD_IMPLEMENTATION
+  skill: world-implement
+  objective: >
+    Implementation Package 만으로 World Runtime (State/Rule/Command 처리/Observer Projection) 을
+    실제로 구현한다. 스택은 goal.yaml runtime_constraints 준수 — 순수 JS ES Modules,
+    의존성 0, Node 내장만, deterministic, source/world/ 위치, gameview import 금지.
+    Rule 단위 테스트를 scripts/test/run-world-tests.mjs 로 작성해 node 로 실행 가능하게 한다.
+  allowed_inputs:
+    - cycles/C002/world/implementation_package.yaml
+  read_scope:
+    - cycles/C002/world/
+    - cycles/C002/artifacts/
+    - cycles/C002/goal.yaml
+    - contracts/
+    - source/world/
+    - skills/world-implement/
+    - scripts/
+  write_scope:
+    - cycles/C002/world/
+    - source/world/
+    - scripts/test/
+    - scripts/build/
+  forbidden_scope:
+    - cycles/C002/gameview/
+    - source/gameview/
+    - modules/gameview/
+    - contracts/commands/
+    - contracts/observable/
+    - contracts/gameview-spec/
+  required_outputs:
+    - implementation_result.yaml
+    - handoff.yaml
+  completion_gate:
+    type: world-verify
+  routing:
+    pass: WORLD_VERIFICATION
+    fail: WORLD_IMPLEMENTATION_FIX

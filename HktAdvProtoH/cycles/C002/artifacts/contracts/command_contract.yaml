@@ -1,0 +1,40 @@
+# S005 / C002-CONTRACT-001 — Stage 4 Command Contract (Rule 4 — Client 는 의도만 보낸다)
+# id 는 V2 신규 발급 — C001 DRY_RUN(CMD-MINE-V1) 의 승격이 아니라 이번 Cycle 정의로 재수립한 것이다.
+# 공통 원칙: input 은 의도 식별자만. 결과(위치·수량·상태)는 어떤 필드로도 실어 보낼 수 없다.
+commands:
+  - id: CMD-MOVE-V2
+    version: 2
+    possibility: MoveToDeposit
+    rule: RULE-MOVE-001
+    input:
+      - ActorId              # 누가
+      - Direction            # 어느 방향으로 — 방향 의도일 뿐, 도착 위치가 아니다
+    input_notes: >
+      Direction 은 정규화 가능한 방향 벡터 의도다. 이동 거리는 Client 가 정하지 않는다 —
+      RULE-MOVE-001 이 MoveStep 상한(bounded step)으로 결정한다.
+    prohibited_fields:
+      - resulting_position   # 도착 좌표를 Client 가 보내는 것 금지
+      - move_distance        # 이동량 지정 금지 — MoveStep 은 세계 상수
+      - teleport_target
+      - any_world_state_result
+    # Rule 이 거부할 수 있는 사유 — 거부 시 세계 사실은 변하지 않는다
+    failure_reasons:
+      - OUT_OF_WORLD_BOUNDARY
+
+  - id: CMD-MINE-V2
+    version: 2
+    possibility: MineStone
+    rule: RULE-MINE-001
+    input:
+      - ActorId              # 누가
+      - DepositId            # 어느 Deposit 을 — 채취 대상 의도 식별자
+    prohibited_fields:
+      - inventory_delta            # 획득량을 Client 가 보내는 것 금지 — ExtractAmount 는 세계 상수
+      - resulting_resource_amount  # 잔량 결과 지정 금지
+      - bypass_range_check         # 전제조건 우회 지시 금지
+      - any_world_state_result
+    failure_reasons:
+      - UNKNOWN_DEPOSIT
+      - NO_MINING_TOOL
+      - OUT_OF_RANGE         # Move 로 접근해야 하는 근거 — CMD-MOVE-V2 와의 연결 지점
+      - DEPOSIT_EMPTY

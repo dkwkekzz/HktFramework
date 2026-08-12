@@ -1,0 +1,40 @@
+task:
+  id: C002-GAMEVIEW-IMPLEMENT-001
+  cycle_id: C002
+  stage: GAMEVIEW_IMPLEMENTATION
+  skill: gameview-implement
+  objective: >
+    GameView 설계 산출물을 렌더러로 실제 구현한다 — Vanilla JS + HTML5 Canvas, 의존성 0,
+    source/gameview/ 위치 (goal.yaml runtime_constraints). World 내부 import 금지 —
+    입력은 OBS-MINING-V2 형태의 Observable snapshot 뿐이다.
+    렌더 코어는 DOM/Canvas 컨텍스트를 주입받는 구조로 만들어 Node 에서도
+    fixture 테스트가 가능해야 한다 (scripts/test/run-gameview-tests.mjs).
+  allowed_inputs:
+    - cycles/C002/gameview/composition.yaml
+    - cycles/C002/gameview/asset_bindings.yaml
+    - cycles/C002/gameview/observable_bindings.yaml
+    - contracts/observable/OBS-MINING-V2.yaml
+  read_scope:
+    - cycles/C002/gameview/
+    - cycles/C002/goal.yaml
+    - contracts/
+    - source/gameview/
+    - skills/gameview-implement/
+    - scripts/
+  write_scope:
+    - cycles/C002/gameview/
+    - source/gameview/
+    - scripts/test/
+  forbidden_scope:
+    - cycles/C002/world/
+    - cycles/C002/artifacts/world-design/
+    - source/world/
+    - modules/world/
+  required_outputs:
+    - implementation_result.yaml
+    - handoff.yaml
+  completion_gate:
+    type: gameview-verify
+  routing:
+    pass: GAMEVIEW_VERIFICATION
+    fail: GAMEVIEW_IMPLEMENTATION_FIX

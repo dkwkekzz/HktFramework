@@ -5,6 +5,32 @@
 #   - Frozen Contract 변경은 새 버전 발급(VERSION_CONTRACT) → 재검증 → Re-Freeze 로만.
 #   - DRY_RUN 항목은 C001 파이프라인 검증용 — 실제 Cycle 이 같은 id 를 쓰려면 재검증 후 승격.
 contracts:
+  # ── C002 (REAL) — FROZEN 2026-08-12. C001 DRY_RUN 설계를 재수립한 V2 신규 발급.
+  CMD-MOVE-V2:
+    type: COMMAND
+    version: 2
+    status: FROZEN
+    path: contracts/commands/CMD-MOVE-V2.yaml
+    sha256: 6765ab1cfd5216763f72a000239056ab289ba1f91727fa86fb6ea6a7c5d9f0cd
+  CMD-MINE-V2:
+    type: COMMAND
+    version: 2
+    status: FROZEN
+    path: contracts/commands/CMD-MINE-V2.yaml
+    sha256: cddab29841c06deffcbb97b9ba1a4fedd2a50e99425e22c1c4d72efbfb34dfd0
+  OBS-MINING-V2:
+    type: OBSERVABLE
+    version: 2
+    status: FROZEN
+    path: contracts/observable/OBS-MINING-V2.yaml
+    sha256: b14549a4c2b423f3a2938674093f151bd9493cf2fa0c00e66c20c8ee25ebd974
+  VIEW-MINING-002:
+    type: GAMEVIEW_SPEC
+    version: 2
+    status: FROZEN
+    path: contracts/gameview-spec/VIEW-MINING-002.yaml
+    sha256: 95ed3dfa0113f41f8097ba89ea1f0c5b1df1050974092b5e89729a12ce36bd5f
+  # ── C001 (DRY_RUN) — 재사용 금지. C002 의 V2 계약이 이 설계를 대체했다.
   CMD-MINE-V1:
     type: COMMAND
     version: 1

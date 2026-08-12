@@ -1,0 +1,46 @@
+task:
+  id: C002-INTEGRATION-001
+  cycle_id: C002
+  stage: INTEGRATION
+  skill: integration
+  objective: >
+    World 구현과 GameView 구현을 Contract 로만 결합해 Playable Build 를 만든다 —
+    source/index.html (+ 필요 시 source/app/ 결합 코드) 에서
+    입력 → Command → World Rule → Observable → GameView 렌더 루프가 실제로 돈다.
+    Module 내부(source/world/, source/gameview/)는 수정하지 않는다.
+    E2E Trace (Command id → Rule → Observable id → View meaning) 를 작성·검증한다.
+  allowed_inputs:
+    - registry/modules.yaml
+    - contracts/commands/CMD-MOVE-V2.yaml
+    - contracts/commands/CMD-MINE-V2.yaml
+    - contracts/observable/OBS-MINING-V2.yaml
+    - contracts/gameview-spec/VIEW-MINING-002.yaml
+    - cycles/C002/world/verification_result.yaml
+    - cycles/C002/gameview/verification_result.yaml
+  read_scope:
+    - registry/
+    - contracts/
+    - cycles/C002/goal.yaml
+    - cycles/C002/world/
+    - cycles/C002/gameview/
+    - source/
+    - scripts/
+    - skills/integration/
+  write_scope:
+    - cycles/C002/integration/
+    - source/index.html
+    - source/app/
+    - scripts/test/
+  forbidden_scope:
+    - source/world/       # Module 내부 수정 금지
+    - source/gameview/
+    - cycles/C002/artifacts/world-design/
+  required_outputs:
+    - composition.yaml
+    - e2e_trace.yaml
+    - verification_result.yaml
+  completion_gate:
+    type: e2e-trace-check
+  routing:
+    pass: PLAYABLE_VERIFICATION
+    fail: INTEGRATION_FIX

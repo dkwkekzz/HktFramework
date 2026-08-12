@@ -5,10 +5,10 @@ cycle:
     곡괭이를 가진 캐릭터가 광맥으로 가서 Stone 을 하나 캘 수 있는 작은 게임.
   mode: REAL
   status: IN_PROGRESS
-  current_stage: WORLD_SEMANTIC_DESIGN
+  current_stage: WORLD_AND_GAMEVIEW_BRANCHES
   contract:
-    version: null
-    frozen: false
+    version: 2
+    frozen: true
   stage_status:
     scope:
       status: PASS
@@ -17,13 +17,17 @@ cycle:
       status: PASS
       task: C002-INTENT-001
     world_semantic:
-      status: NOT_STARTED
+      status: PASS
+      task: C002-SEMANTIC-001
     authority:
-      status: NOT_STARTED
+      status: PASS
+      task: C002-CONTRACT-001
     observation:
-      status: NOT_STARTED
+      status: PASS
+      task: C002-CONTRACT-001
     gameview_spec:
-      status: NOT_STARTED
+      status: PASS
+      task: C002-CONTRACT-001
     world_implementation:
       status: NOT_STARTED
     world_verification:
@@ -44,4 +48,17 @@ cycle:
     - artifacts/intent/intent.yaml
     - artifacts/intent/design_trace.yaml
     - artifacts/intent/handoff.yaml
+    - artifacts/world-design/semantic_dependencies.yaml
+    - artifacts/world-design/semantic_delta.yaml
+    - artifacts/world-design/world_state.yaml
+    - artifacts/world-design/world_rules.yaml
+    - artifacts/world-design/intent_trace.yaml
+    - artifacts/world-design/handoff.yaml
+    - artifacts/verification/semantic_closure.yaml
+    - artifacts/contracts/authority.yaml
+    - artifacts/contracts/command_contract.yaml
+    - artifacts/contracts/observable_contract.yaml
+    - artifacts/contracts/gameview_spec.yaml
+    - artifacts/contracts/handoff.yaml
+    - artifacts/verification/contract_verify.yaml
   pending_failures: []

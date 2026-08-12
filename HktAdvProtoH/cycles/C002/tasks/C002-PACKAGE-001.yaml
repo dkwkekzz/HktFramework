@@ -1,0 +1,42 @@
+task:
+  id: C002-PACKAGE-001
+  cycle_id: C002
+  stage: MODULE_PACKAGE
+  skill: module-package
+  objective: >
+    검증 통과 산출물을 Module 로 포장하고 Registry 3종을 갱신한다 (Cycle Commit).
+    REAL Cycle — modules/world/mining-world-v2, modules/gameview/mining-view-v2 로 승격하고
+    registry/modules.yaml 에 status: FROZEN + sha256 등록, registry/semantics.yaml 의
+    이번 Cycle semantic 을 ACTIVE 로 등록/승격한다 (C001 DRY_RUN 항목은 대체).
+    S004 검증 노트 반영: world_state/world_rules 에서 쓰인 ExtractAmount 와
+    Actor.CurrentAction 이 semantic 등록에서 누락되지 않게 한다.
+    sha256 은 node scripts/validation/verify.mjs hash <path> 로 계산한다.
+  allowed_inputs:
+    - cycles/C002/world/verification_result.yaml
+    - cycles/C002/gameview/verification_result.yaml
+    - cycles/C002/integration/verification_result.yaml
+    - cycles/C002/integration/playable_result.yaml
+  read_scope:
+    - cycles/C002/
+    - registry/
+    - contracts/
+    - source/
+    - modules/
+    - scripts/validation/
+    - skills/module-package/
+  write_scope:
+    - cycles/C002/artifacts/packaging/
+    - cycles/C002/artifacts/verification/
+    - modules/
+    - registry/
+  forbidden_scope:
+    - contracts/          # Frozen Contract 수정 금지 (등록은 Orchestrator 가 이미 완료)
+    - source/             # 구현 수정 금지 — 포장만 한다
+  required_outputs:
+    - MODULE.yaml
+    - package_result.yaml
+  completion_gate:
+    type: registry-consistency
+  routing:
+    pass: COMPLETE_CYCLE
+    fail: PACKAGE_FIX

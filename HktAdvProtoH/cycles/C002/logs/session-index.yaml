@@ -8,4 +8,22 @@ sessions:
     task: C002-INTENT-001
     skill: intent-design
     result: PASS
-events: []
+  - id: S003
+    task: C002-SEMANTIC-001
+    skill: world-semantic-design
+    result: GENERATED
+  - id: S004
+    task: C002-SEMANTIC-VERIFY-001
+    skill: semantic-closure-verify
+    result: PASS
+  - id: S005
+    task: C002-CONTRACT-001
+    skill: contract-design
+    result: GENERATED
+  - id: S006
+    task: C002-CONTRACT-VERIFY-001
+    skill: contract-verify
+    result: PASS
+events:
+  - after: S006
+    event: CONTRACT C002-v2 FROZEN (CMD-MOVE-V2 / CMD-MINE-V2 / OBS-MINING-V2 / VIEW-MINING-002)

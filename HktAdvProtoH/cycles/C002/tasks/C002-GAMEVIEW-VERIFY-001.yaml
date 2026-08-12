@@ -1,0 +1,33 @@
+task:
+  id: C002-GAMEVIEW-VERIFY-001
+  cycle_id: C002
+  stage: GAMEVIEW_VERIFICATION
+  skill: gameview-verify
+  objective: >
+    GameView 구현을 Observable fixture 와 기대 Visual 만으로 독립 검증한다
+    (GameView Complete 판정). 테스트를 직접 재실행하고
+    (node scripts/test/run-gameview-tests.mjs), binding source 가 전부
+    OBS-MINING-V2 항목인지, source/gameview 가 world 를 import 하지 않는지 검사한다.
+  allowed_inputs:
+    - cycles/C002/gameview/implementation_result.yaml
+    - cycles/C002/gameview/observable_bindings.yaml
+    - contracts/observable/OBS-MINING-V2.yaml
+    - contracts/gameview-spec/VIEW-MINING-002.yaml
+  read_scope:
+    - cycles/C002/gameview/
+    - contracts/
+    - source/gameview/
+    - scripts/
+  write_scope:
+    - cycles/C002/gameview/
+  forbidden_scope:
+    - cycles/C002/world/
+    - cycles/C002/artifacts/world-design/
+    - source/world/
+  required_outputs:
+    - verification_result.yaml
+  completion_gate:
+    type: gameview-complete
+  routing:
+    pass: INTEGRATION_WAIT
+    fail: GAMEVIEW_IMPLEMENTATION_FIX

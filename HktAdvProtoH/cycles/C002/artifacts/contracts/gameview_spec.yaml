@@ -1,0 +1,69 @@
+# S005 / C002-CONTRACT-001 — Stage 6 GameView Specification (Visual Meaning 만, Rule 8)
+# id 는 VIEW-MINING-002 신규 발급 — C001 DRY_RUN(VIEW-MINING-001) 승격이 아니다.
+# 원칙: 모든 항목의 source 는 OBS-MINING-V2 의 Observable 항목이다. 구체 자산·렌더러는 정의하지 않는다.
+gameview_spec:
+  id: VIEW-MINING-002
+  version: 2
+  consumes: OBS-MINING-V2
+
+  entities:
+    - subject: Actor
+      visual_role: Character           # 플레이어가 조작하는 주체
+      placement: WorldSpace
+      position_source: Actor.Position
+    - subject: KnownDeposit
+      visual_role: ResourceNode        # 채취 가능한 자원 원천 — Knowledge 에 있는 것만 그려진다
+      placement: WorldSpace
+      position_source: KnownDeposit.Position
+    - subject: WorldBoundary
+      visual_role: PlayAreaBoundary    # 세계 경계 — 넘을 수 없음이 보여야 OUT_OF_WORLD_BOUNDARY 가 이해된다
+      placement: WorldSpace
+      source: WorldBoundary
+
+  meanings:
+    # ── 상태 의미 ──
+    - when: "Actor.CurrentAction == Move"
+      visual_meaning: Moving                 # 이동 중임이 구분되어 보인다
+    - when: "Actor.CurrentAction == Mine"
+      visual_meaning: Mining                 # 채굴 중임이 구분되어 보인다
+    - when: "Actor.CurrentAction == Idle"
+      visual_meaning: IdleCharacter
+    - source: Actor.Inventory.Stone
+      visual_meaning: OwnedStoneAmount       # 획득 수량이 보인다 — Goal(AcquireStone) 달성 확인면
+    - source: Actor.Inventory.Tool
+      visual_meaning: OwnedToolIndicator     # 곡괭이 보유 여부가 보인다
+    - source: KnownDeposit.ResourceAmount
+      visual_meaning: RemainingResourceAmount
+    - when: "KnownDeposit.ResourceAmount == 0"
+      visual_meaning: DepletedResource       # 고갈이 구분되어 보인다 — DEPOSIT_EMPTY 의 시각적 근거
+    - source: InteractionRange
+      visual_meaning: InteractionRangeHint   # 어디까지 접근해야 하는지 의미상 표현 (표현 방식은 구현 자유)
+
+    # ── 가능성 의미 ──
+    - when: "MineStone.Availability == AVAILABLE"
+      visual_meaning: InteractableTarget     # 지금 캘 수 있음이 대상에 드러난다
+    - when: "MineStone.Availability == UNAVAILABLE"
+      visual_meaning: UnavailableTargetWithReason  # 왜 못 캐는지(reason)가 함께 드러난다
+    - when: "MoveToDeposit.Availability == UNAVAILABLE"
+      visual_meaning: BlockedDirection       # 경계 밖으로는 못 감이 드러난다
+
+    # ── 전이 의미 (Before → Input → Rule → After 가 화면에서 읽힌다) ──
+    - source: MoveTransition
+      visual_meaning: MovementFeedback       # 위치가 변했음이 연속적으로 지각된다
+    - source: MineTransition
+      visual_meaning: ExtractionFeedback     # Deposit -1 과 Inventory +1 이 하나의 사건으로 지각된다
+    - source: RejectionTransition
+      visual_meaning: RejectionFeedback      # 거부 + failure_reason 이 지각된다 (세계 사실 무변화 포함)
+    - source: ActionResult
+      visual_meaning: ActionFeedback         # 마지막 행동의 성공/실패 요약
+
+  feasibility_notes: >
+    이 Spec 은 renderer-agnostic 하다. 다만 이번 Cycle 의 런타임 제약(cycles/C002/goal.yaml —
+    HTML5 Canvas) 기준으로 실현성을 점검했다: 모든 entity 는 2D WorldSpace 좌표로 배치 가능하고,
+    모든 visual_meaning 은 2D 도형·텍스트 수준 표현으로 충족 가능하다 (특정 표현을 강제하지 않는다).
+
+  # Rule 8 — Presentation Independence
+  not_defined_here:
+    - Mesh / Sprite / Animation Clip / Shader / Material
+    - Widget Framework / UI Pixel Position / 색상·폰트 등 구체 스타일
+    - Asset Path / Renderer / Canvas API 호출 형태

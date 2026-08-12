@@ -1,0 +1,31 @@
+# S006 / C002-CONTRACT-VERIFY-001 — Contract Gate 검증 결과 (§20·§22~§24)
+# Generator(S005) 산출물을 독립 검증 — Verifier 는 Contract 를 수정하지 않았다.
+verification:
+  task_id: C002-CONTRACT-001           # 검증 대상 = Generator Task (S005 산출물)
+  gate: CONTRACT
+  result: PASS
+  mode: MIXED                          # DETERMINISTIC(verify.mjs) + LLM(Authority/Observable/GV Spec 의미 판단)
+  verified_by: S006
+  evidence:
+    # ── Deterministic (§20 — script 우선, 전부 repo root 에서 재현 가능) ──
+    - "command: node scripts/validation/verify.mjs all — 209/210 checks passed. 유일한 FAIL 은 본 파일(contract_verify.yaml) 자신의 부재였으므로 본 기록 작성으로 해소된다. schema/frozen/registry/closure 전 항목 PASS."
+    - "command: node scripts/validation/verify.mjs envelope cycles/C002/tasks/C002-CONTRACT-001.yaml — 6/6 passed (Generator Task Envelope 정합, 모든 allowed_inputs 실재, skill contract-design 존재)."
+    - "command: node scripts/validation/verify.mjs envelope cycles/C002/tasks/C002-CONTRACT-VERIFY-001.yaml — 7/7 passed. Contract 4문서(authority/command/observable/gameview_spec) 실재 확인."
+    - "command: node scripts/validation/verify.mjs schema handoff_result cycles/C002/artifacts/contracts/handoff.yaml — 1/1 passed (S005 handoff status=COMPLETE, unresolved=[])."
+    - "독립성: Generator=S005(contracts/handoff.yaml session_id), Verifier=S006 — Generator ≠ Verifier 충족. 본 검증 중 cycles/C002/artifacts/contracts/ 는 읽기만 했고 어떤 파일도 수정하지 않았다."
+    # ── Semantic 1: Authority Closure (§22) ──
+    - "Authority Closure: world_rules.yaml 의 transition 대상 State 전수 열거 — RULE-MOVE-001 이 쓰는 Actor.Position / Actor.CurrentAction, RULE-MINE-001 이 쓰는 ResourceDeposit.ResourceAmount / Actor.Inventory / Actor.CurrentAction — 5개 전부 authority.yaml 에 owner: AuthoritativeWorld + mutable_by: [WorldRule] 로 지정됨. Actor.Knowledge 는 이번 Cycle 전이 Rule 없음이 명시된 채 소유권 지정됨. 전이 Rule 이 없는 사실(ResourceDeposit.Position / ResourceType / constants)은 immutable_facts 로 변경 주체 부재가 명시됨 — Rule 밖 전이 경로 없음."
+    - "Command 검사: command_contract.yaml 의 CMD-MOVE-V2 / CMD-MINE-V2 둘 다 prohibited_fields 보유(resulting_position / move_distance / teleport_target / inventory_delta / resulting_resource_amount / bypass_range_check / any_world_state_result). input 은 의도 식별자만(ActorId+Direction, ActorId+DepositId) — Client 가 결과를 보내는 경로 없음. 각 Command 의 failure_reasons 가 대응 Rule(world_rules.yaml) 의 failure_reasons 와 정확히 일치(MOVE: OUT_OF_WORLD_BOUNDARY 1종 / MINE: UNKNOWN_DEPOSIT·NO_MINING_TOOL·OUT_OF_RANGE·DEPOSIT_EMPTY 4종)."
+    # ── Semantic 2: Observable Closure (§23) ──
+    - "Designer 8항목: observable_contract.yaml designer.state 에 CurrentGoal / CurrentPossibility / Preconditions / SelectedRule / BeforeState / Input / AfterState / FailureReason 8항목 전부 존재 (+PossibilityAvailability 로 §23 목록 9항 전부 커버, 초과분은 무해). World 내부 객체 직접 읽기 없음 — Projection 결과만 명시."
+    - "Rule 판단·결과 이해 가능성: RULE-MOVE-001 의 거부(OUT_OF_WORLD_BOUNDARY)는 player 관찰면의 Actor.Position + WorldBoundary + MoveToDeposit.Availability(reason) 로 이해·예측 가능. RULE-MINE-001 의 4개 거부는 각각 KnownDeposit(Knowledge projection → UNKNOWN_DEPOSIT), Actor.Inventory.Tool(→ NO_MINING_TOOL), Actor.Position+KnownDeposit.Position+InteractionRange(→ OUT_OF_RANGE), KnownDeposit.ResourceAmount(→ DEPOSIT_EMPTY) 로 근거 관찰 가능. 성공 전이는 MoveTransition / MineTransition, 거부는 RejectionTransition(failure_reasons 5종 전부 열거 + no world fact changes) + ActionResult 로 Before→Input→Rule→After 4요소 관찰 가능 — Move/Mine 거부 포함 전 판단·결과가 Observer 에게 닫힘."
+    - "goal_possibility 커버: 3개 Possibility 전부 충족 경로 지정(authority.yaml possibility_coverage) — MoveToDeposit→CMD-MOVE-V2, MineStone→CMD-MINE-V2, ObserveMiningWorld→OBS-MINING-V2(관찰은 세계 무변경이므로 Command 아님 — 타당)."
+    # ── Semantic 3: GV Spec (Rule 8) + 상호 참조 완전성 ──
+    - "GV Spec source 폐쇄성: gameview_spec.yaml 의 모든 entity source(Actor.Position / KnownDeposit.Position / WorldBoundary)·모든 meaning 의 when/source(Actor.CurrentAction, Actor.Inventory.Stone, Actor.Inventory.Tool, KnownDeposit.ResourceAmount, InteractionRange, MineStone.Availability, MoveToDeposit.Availability, MoveTransition, MineTransition, RejectionTransition, ActionResult) 를 전수 대조 — 전부 OBS-MINING-V2 의 player 관찰면 항목이다. Observable 밖 참조 0건."
+    - "Rule 8 준수: 구체 asset/renderer 지정 없음 — not_defined_here 로 Mesh/Sprite/Shader/Widget/Asset Path/Canvas API 배제 명시. feasibility_notes 는 실현성 언급일 뿐 표현 강제 아님."
+    - "id/version 발급: CMD-MOVE-V2(v2) / CMD-MINE-V2(v2) / OBS-MINING-V2(v2) / VIEW-MINING-002(v2) 전부 신규 id+version 보유. registry/contracts.yaml 대조 — 기존 항목은 C001 DRY_RUN V1 3종뿐, id 충돌 없음, DRY_RUN 승격 아님(CLAUDE.md 규칙 17 준수). 상호 참조: gameview_spec.consumes=OBS-MINING-V2 ↔ observable.id=OBS-MINING-V2 일치, command.rule ↔ world_rules id 일치, command.possibility ↔ goal_possibility id 일치 — 참조 사슬 완전."
+    # ── Freeze 판정 ──
+    - "FREEZE 준비 판정: Authority Closure PASS + Observable Closure PASS + GV Spec PASS + id/version/상호참조 완전 — 세 Contract 문서(command_contract / observable_contract / gameview_spec, 및 authority)는 FREEZE 준비 완료(READY TO FREEZE). FREEZE_CONTRACT 수행과 registry 등록은 Orchestrator 몫이다 — 본 Verifier 는 수행하지 않았다."
+    # ── 비차단 관찰 (FAIL 아님 — 후속 Stage 참고) ──
+    - "note(non-blocking): observable player 항목 중 KnownDeposit.ResourceType 은 GV Spec 이 소비하지 않는다 — GV source ⊆ Observable 규칙 위반이 아니며(관찰면은 GameView 전용이 아님), 이번 Cycle 은 Stone 고정이므로 시각화 생략은 타당. 후속 Cycle 에서 자원 종류가 늘면 GV meaning 추가를 검토할 것."
+  failures: []

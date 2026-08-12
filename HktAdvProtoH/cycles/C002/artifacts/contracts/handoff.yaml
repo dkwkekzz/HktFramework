@@ -1,0 +1,23 @@
+# S005 / C002-CONTRACT-001 — Handoff Result (orchestration/schemas/handoff_result.schema.yaml)
+handoff:
+  task_id: C002-CONTRACT-001
+  session_id: S005
+  skill: contract-design
+  status: COMPLETE
+  outputs:
+    - authority.yaml
+    - command_contract.yaml
+    - observable_contract.yaml
+    - gameview_spec.yaml
+    - handoff.yaml
+  unresolved: []
+  notes: >
+    Stage 4~6 Artifact 분리 생성. Contract id 는 전부 V2 신규 발급 —
+    CMD-MOVE-V2, CMD-MINE-V2, OBS-MINING-V2, VIEW-MINING-002 (C001 DRY_RUN 승격 아님).
+    goal_possibility 의 3개 Possibility 전부 커버: MoveToDeposit/MineStone 은 Command,
+    ObserveMiningWorld 는 Observable 로 충족 (authority.yaml possibility_coverage 참조).
+    이동·채굴·거부 전부 Before→Input→Rule→After Transition 으로 관찰 가능
+    (MoveTransition / MineTransition / RejectionTransition / ActionResult).
+    Designer 는 §23 8항목 전부 관찰. GameView Spec 의 모든 항목은 OBS-MINING-V2 를
+    source 로 가지며 renderer-agnostic — HTML5 Canvas 실현성은 feasibility_notes 로만 언급.
+    Gate 판정(contract-verify)·FREEZE·registry 등록은 Verifier/Orchestrator 몫 — 본 Session 은 수행하지 않음.

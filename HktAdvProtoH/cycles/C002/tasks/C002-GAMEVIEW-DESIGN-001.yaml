@@ -1,0 +1,39 @@
+task:
+  id: C002-GAMEVIEW-DESIGN-001
+  cycle_id: C002
+  stage: GAMEVIEW_DESIGN   # Stage 9 Spec Resolve + 10 Composition + 11 Asset + 12 Binding
+  skill: gameview-design
+  objective: >
+    Frozen Contract 만으로 GameView 를 설계한다.
+    Visual Requirements -> Composition -> Asset -> Observable Binding.
+    Asset 은 외부 파일 없이 Canvas 절차 드로잉(도형·색·텍스트)으로 해소한다 —
+    goal.yaml runtime_constraints (Vanilla JS + HTML5 Canvas, 의존성 0) 참조.
+    binding 의 모든 source 는 OBS-MINING-V2 항목이어야 한다.
+  allowed_inputs:
+    - contracts/observable/OBS-MINING-V2.yaml
+    - contracts/gameview-spec/VIEW-MINING-002.yaml
+    - registry/modules.yaml
+  read_scope:
+    - contracts/
+    - registry/modules.yaml
+    - registry/contracts.yaml
+    - cycles/C002/goal.yaml
+    - skills/gameview-design/
+  write_scope:
+    - cycles/C002/gameview/
+  forbidden_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/world/
+    - source/world/
+    - modules/world/
+  required_outputs:
+    - visual_requirements.yaml
+    - composition.yaml
+    - asset_bindings.yaml
+    - observable_bindings.yaml
+    - handoff.yaml
+  completion_gate:
+    type: binding-source-check
+  routing:
+    pass: GAMEVIEW_IMPLEMENTATION
+    fail: GAMEVIEW_DESIGN_REWORK

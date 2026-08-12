@@ -1,0 +1,43 @@
+# S005 / C002-CONTRACT-001 — Stage 4 Authority Design (Rule 3·4)
+# 모든 mutable World State 는 AuthoritativeWorld 가 소유하고 WorldRule 만이 변경한다.
+# Client(GameView 포함)는 어떤 경로로도 아래 State 를 직접 변경할 수 없다 — Command 로 의도만 보낸다.
+authority:
+  Actor.Position:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule            # RULE-MOVE-001 만 전이시킨다
+  Actor.Inventory:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule            # RULE-MINE-001 이 ExtractAmount 만큼 적립한다
+  Actor.Knowledge:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule            # 이번 Cycle 은 초기 세팅 이후 전이 Rule 없음 — 그래도 소유권은 명시한다
+  Actor.CurrentAction:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule            # RULE-MOVE-001 / RULE-MINE-001 이 행위 지속 동안 설정한다
+  ResourceDeposit.ResourceAmount:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule            # RULE-MINE-001 만 감소시킨다
+
+# 불변 사실(이번 Cycle 에서 전이 Rule 이 존재하지 않는 것들) — 변경 주체가 없음을 명시한다.
+immutable_facts:
+  ResourceDeposit.Position:
+    reason: Deposit 은 세계에 고정 — 어떤 Rule 도 이동시키지 않는다
+  ResourceDeposit.ResourceType:
+    reason: 이번 Cycle 은 Stone 고정 (world_state constants 참조)
+  # constants = InteractionRange / MoveStep / WorldBoundary / ExtractAmount
+  constants:
+    reason: 결정론 상수 — RULE_CONSTANT 는 Cycle 내 불변
+
+# Possibility → 충족 경로 매핑 (goal_possibility.yaml 의 3개 Possibility 전부 커버)
+possibility_coverage:
+  MoveToDeposit:
+    fulfilled_by: CMD-MOVE-V2        # Command — 세계 변경 의도
+  MineStone:
+    fulfilled_by: CMD-MINE-V2        # Command — 세계 변경 의도
+  ObserveMiningWorld:
+    fulfilled_by: OBS-MINING-V2      # 관찰은 세계를 변경하지 않으므로 Command 가 아니라 Observable 로 충족한다

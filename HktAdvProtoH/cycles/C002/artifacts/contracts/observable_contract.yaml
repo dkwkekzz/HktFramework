@@ -1,0 +1,70 @@
+# S005 / C002-CONTRACT-001 — Stage 5 Observable Contract (semantic 단위, Rule 5·6)
+# id 는 V2 신규 발급 — C001 DRY_RUN(OBS-MINING-V1) 승격이 아니다.
+# 이번 Cycle 요구: 이동·채굴·거부 전부가 Before → Input → Rule → After 로 관찰 가능해야 한다.
+# Observable 은 semantic 단위다 — packet/serialization/replication 형식이 아니다.
+observable:
+  id: OBS-MINING-V2
+  version: 2
+  observers:
+    # ── Player: goal_possibility.ObserveMiningWorld 를 충족하는 관찰면 ──
+    player:
+      state:
+        - Actor.Position               # 자기 위치 — 접근 판단의 근거
+        - Actor.Inventory.Stone        # 획득한 Stone 수량
+        - Actor.Inventory.Tool         # 보유 도구(Mining Capability 여부 포함) — NO_MINING_TOOL 을 이해할 근거
+        - Actor.CurrentAction          # Idle | Move | Mine — 지금 무엇을 하는 중인가
+        - KnownDeposit                 # Actor.Knowledge 에 있는 Deposit 만 관찰된다 (Knowledge projection)
+        - KnownDeposit.Position        # 어디로 가야 하는가
+        - KnownDeposit.ResourceType    # 무엇이 나오는가 (이번 Cycle 은 Stone)
+        - KnownDeposit.ResourceAmount  # 남은 양 — 0 이면 DEPOSIT_EMPTY 를 예상할 근거
+        - WorldBoundary                # 세계 경계 — OUT_OF_WORLD_BOUNDARY 거부를 이해·예측할 근거
+        - InteractionRange             # 상호작용 허용 거리 — OUT_OF_RANGE 거부를 이해·예측할 근거
+      availability:
+        - MoveToDeposit.Availability   # AVAILABLE | UNAVAILABLE(+reason: OUT_OF_WORLD_BOUNDARY)
+        - MineStone.Availability       # AVAILABLE | UNAVAILABLE(+reason: UNKNOWN_DEPOSIT|NO_MINING_TOOL|OUT_OF_RANGE|DEPOSIT_EMPTY)
+      transition:
+        # 모든 Transition 은 Before → Input → Rule → After 4요소를 갖는다.
+        - id: MoveTransition           # 이동 관찰
+          before: Actor.Position (이동 전)
+          input: CMD-MOVE-V2 (ActorId, Direction)
+          rule: RULE-MOVE-001
+          after: Actor.Position (이동 후) + Actor.CurrentAction=Move
+        - id: MineTransition           # 채굴 관찰 — 두 사실 변화가 하나의 결과로 동시 관찰된다
+          before: KnownDeposit.ResourceAmount + Actor.Inventory.Stone (채굴 전)
+          input: CMD-MINE-V2 (ActorId, DepositId)
+          rule: RULE-MINE-001
+          after: KnownDeposit.ResourceAmount -1 + Actor.Inventory.Stone +1 + Actor.CurrentAction=Mine
+        - id: RejectionTransition      # 거부 관찰 — 거부도 세계 의미의 일부다
+          before: 해당 Command 관련 State (변화 없음의 기준점)
+          input: 거부된 Command (CMD-MOVE-V2 | CMD-MINE-V2)
+          rule: 거부한 Rule (RULE-MOVE-001 | RULE-MINE-001)
+          after: no world fact changes + failure_reason
+          failure_reasons:
+            - OUT_OF_WORLD_BOUNDARY
+            - UNKNOWN_DEPOSIT
+            - NO_MINING_TOOL
+            - OUT_OF_RANGE
+            - DEPOSIT_EMPTY
+        - id: ActionResult             # 마지막 행동의 성공/실패 요약 (ACCEPTED | REJECTED + failure_reason)
+          before: 직전 상태
+          input: 마지막 Command
+          rule: 적용/거부된 Rule id
+          after: 성공 시 결과 State, 거부 시 failure_reason
+
+    # ── Designer: §23 의 8항목 전부 — World 내부 객체가 아니라 Projection 결과만 본다 ──
+    designer:
+      state:
+        - CurrentGoal                  # AcquireStone
+        - CurrentPossibility           # MoveToDeposit | MineStone | ObserveMiningWorld
+        - PossibilityAvailability      # 각 Possibility 의 현재 가능 여부
+        - Preconditions                # 각 전제조건별 개별 평가 결과 (예: Actor knows Deposit=true, in range=false)
+        - SelectedRule                 # 적용(또는 거부)된 Rule id
+        - BeforeState                  # 전이 직전 관련 State snapshot
+        - Input                        # 수신된 Command 원문 (ActorId, Direction/DepositId)
+        - AfterState                   # 전이 직후 관련 State snapshot (거부면 BeforeState 와 동일)
+        - FailureReason                # 거부 사유 — 성공이면 없음
+  notes: >
+    KnownDeposit 은 Actor.Knowledge 를 통과한 Projection 이다 — Knowledge 에 없는 Deposit 은
+    Player 에게 관찰되지 않는다 (UNKNOWN_DEPOSIT 거부의 관찰적 근거).
+    WorldBoundary / InteractionRange 는 RULE_CONSTANT 지만 거부를 이해 가능하게 만드는
+    세계 사실이므로 관찰면에 포함한다. 어떤 Observer 도 World 내부 객체를 직접 읽지 않는다.
