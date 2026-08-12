@@ -1,0 +1,31 @@
+# Guide: guides/gameview-spec.md · Input: 03-world-semantic.md
+# World → View 의 유일한 공개 계약. Presentation 구현 용어 금지.
+
+id: VIEW-<...>-001
+observer: player          # player | designer
+
+delta:
+  reused: []
+  added: []
+  changed: []
+# 변화가 없으면:  change: NONE
+
+scene: <scene-name>
+
+entities:
+  <entity-key>:
+    role: <semantic-role>          # player-character | resource-deposit | ...
+    position: { source: <World Semantic 경로> }
+    state:
+      <state-name>: { when: <조건> }
+
+interactions:
+  <interaction-key>:
+    role: <semantic-role>
+    target: <entity-key>
+    available: { source: <...Availability> }
+    unavailableReason: { source: <...FailureReason> }
+
+hud:
+  <hud-key>:
+    <field>: { source: <World Semantic 경로> }
