@@ -1,0 +1,24 @@
+# S003 / C002-SEMANTIC-001 — Handoff Result (orchestration/schemas/handoff_result.schema.yaml)
+# Gate 판정(semantic-closure-verify)은 Verifier 의 몫이다 — 여기는 종료 보고만 남긴다.
+handoff:
+  task_id: C002-SEMANTIC-001
+  session_id: S003
+  skill: world-semantic-design
+  status: COMPLETE
+  # outputs 는 write_scope(cycles/C002/artifacts/world-design/) 기준 상대 경로
+  outputs:
+    - semantic_dependencies.yaml
+    - semantic_delta.yaml
+    - world_state.yaml
+    - world_rules.yaml
+    - intent_trace.yaml
+    - handoff.yaml
+  unresolved: []
+  notes: >
+    lookup-first 수행 — Registry 의 C001 DRY_RUN 9종은 재사용하지 않고
+    semantic_delta 에 origin: DRY_RUN_REESTABLISHED 근거를 남겨 이번 Cycle 정의로 재수립.
+    신규 semantic 3종(MoveStep, WorldBoundary, ResourceType) 추가.
+    INTENT-MOVE-001 의 Position 전이는 RULE-MOVE-001 로 정의(bounded step + WorldBoundary 거부).
+    사전 deterministic 검사 `node scripts/validation/verify.mjs closure C002` 17/17 통과 확인
+    (Gate PASS 판정 아님 — Verifier 재실행 대상). Registry 승격(DRY_RUN→ACTIVE)은
+    C002 Verification 이후 Orchestrator/Registry 단계의 몫으로 남긴다.
