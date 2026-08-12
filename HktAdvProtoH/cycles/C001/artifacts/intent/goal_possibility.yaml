@@ -1,6 +1,0 @@
-# S002 / C001-INTENT-001 — intent-design
-goal_possibility:
-  goal: AcquireStone
-  possibilities:
-    - id: MineStone
-      enables: AcquireStone

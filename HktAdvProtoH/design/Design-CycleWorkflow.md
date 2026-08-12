@@ -1,114 +1,89 @@
 # Design-CycleWorkflow.md
 
-Cycle-Based Observable World & GameView Development Workflow
+Cycle-Based AI Agent Workflow for an Observable MMORPG World
 
 ## 1. 목적
 
-이 문서는 최종적으로 Open World MMORPG를 구축하기 위해, 작은 플레이 목표를 하나씩 완성하고 그 결과를 재사용 가능한 Capability Module로 축적하는 전체 개발 Workflow를 정의한다.
+이 문서는 작은 게임 단위인 `Cycle`을 반복하여 최종적으로 하나의 Open World MMORPG를 구축하기 위한 AI Agent 개발 Workflow를 정의한다.
 
-핵심 개발 단위는 `Cycle`이다.
+개발의 기본 단위는 기능, 시스템, 티켓이 아니다.
 
-하나의 Cycle은 사용자가 제시한 작고 직접 플레이 가능한 목표를 입력받아 다음 과정을 수행한다.
+기본 단위는:
 
 ```text
-Cycle Goal
-    ↓
-World Workflow
-    ↓
-World Capability Module
-    +
-GameView Specification
-    ↓
-GameView Workflow
-    ↓
-GameView Module
-    ↓
-Integration Workflow
-    ↓
-Playable Build
-    ↓
-Cycle Verification
-    ↓
-Next Cycle
+Cycle
+
 ```
 
-Cycle에서 만들어진 기능은 임시 Prototype이 아니다.
+이다.
 
-이후 Cycle에서 다시 구현하지 않고 그대로 사용하는 최종 MMORPG의 실제 구성 요소가 된다.
+하나의 Cycle은:
+
+사용자가 직접 플레이하여 하나의 명확한 게임 목표를 달성할 수 있는 가장 작은 게임 단위
+
+를 의미한다.
+
+예:
 
 ```text
-Cycle 1
-    Mining
+Cycle 001
+    이동하여 광맥에 접근할 수 있다.
 
-Cycle 2
-    Mining
-    + Crafting
+Cycle 002
+    광맥에서 Stone을 채굴할 수 있다.
 
-Cycle 3
-    Mining
-    + Crafting
-    + Trade
+Cycle 003
+    Stone으로 Pickaxe를 제작할 수 있다.
 
-Cycle 4
-    Mining
-    + Crafting
-    + Trade
-    + Combat
+Cycle 004
+    제작한 Pickaxe로 더 좋은 광물을 채굴할 수 있다.
 
-...
+Cycle 005
+    다른 Player에게 자원을 판매할 수 있다.
 
+```
+
+각 Cycle은 Prototype을 만들고 버리는 과정이 아니다.
+
+모든 Cycle의 결과는 최종 MMORPG의 실제 구성 요소가 된다.
+
+```text
+Cycle 001
+    ↓
+Cycle 001 + 002
+    ↓
+Cycle 001 + 002 + 003
+    ↓
+Cycle 001 + 002 + 003 + ...
+    ↓
 Open World MMORPG
+
 ```
 
-## 2. 최상위 구조
+## 2. 최상위 원칙
 
-전체 개발 Workflow는 세 개의 독립 Pipeline으로 분리한다.
+전체 Workflow에는 여섯 가지 절대 원칙이 존재한다.
+
+Rule 1 — Cycle First
+
+모든 개발은 하나의 작은 플레이 가능한 Cycle 단위로 진행한다.
+
+거대한 시스템을 먼저 만들고 게임을 나중에 만드는 방식은 사용하지 않는다.
 
 ```text
-┌──────────────────────────────────────┐
-│           WORLD WORKFLOW             │
-│                                      │
-│ 세계에서 무엇이 참인가?              │
-│ 어떤 행동과 상태 변화가 가능한가?    │
-│ Observer는 무엇을 볼 수 있는가?      │
-└──────────────────┬───────────────────┘
-                   │
-                   │ Contract
-                   ▼
-        Observable Contract
-        GameView Specification
-                   │
-                   ▼
-┌──────────────────────────────────────┐
-│          GAMEVIEW WORKFLOW           │
-│                                      │
-│ 전달된 의미를 어떻게 화면으로        │
-│ 표현할 것인가?                       │
-└──────────────────┬───────────────────┘
-                   │
-                   ▼
-             GameView Module
-                   │
-                   │
-     World Module  │
-          └──────┬─┘
-                 ▼
-┌──────────────────────────────────────┐
-│        INTEGRATION WORKFLOW          │
-│                                      │
-│ World와 GameView가 계약대로          │
-│ 연결되어 플레이 가능한가?            │
-└──────────────────┬───────────────────┘
-                   │
-                   ▼
-             Playable Build
+작은 게임
+    ↓
+작은 게임 + 새로운 가능성
+    ↓
+더 큰 게임
+    ↓
+MMORPG
+
 ```
 
-세 Workflow는 서로의 내부 구현을 알지 않는다.
+Rule 2 — Design Workflow Inside Every Cycle
 
-## 3. Source of Truth
-
-게임 의미의 Source of Truth는 다음 순서를 따른다.
+모든 Cycle 내부에서는 반드시 `Design-Workflow.md`의 의미론적 순서를 따른다.
 
 ```text
 Human Design
@@ -117,227 +92,650 @@ Goal / Possibility
     ↓
 Intent
     ↓
-World State / World Rule
+World State
     ↓
-Authoritative World
+World Rule
     ↓
-Observer Projection
+Observable Semantic
     ↓
-Observable World
+GameView Specification
+    ↓
+Implementation
+    ↓
+Verification
+
 ```
 
-Goal/Possibility Graph가 세계의 의도를 정의하고, World State와 World Rule이 그것을 실행 가능한 세계 의미론으로 구체화하며, 실행 결과는 Observable World State로 인간에게 관찰 가능해야 한다.
+Cycle이라고 해서 이 과정을 생략할 수 없다.
 
-기존 Workflow의 다음 원칙은 그대로 유지한다.
+Rule 3 — Every Agent Step Produces a Visible Artifact
 
-* Goal/Possibility는 가장 높은 수준의 게임 의도이다.
-* Intent는 구현 요구사항이 아니라 세계에서 무엇이 참이어야 하는가를 정의한다.
-* 의미 있는 World State 변경은 반드시 World Rule에 귀속된다.
-* World의 판단과 결과에 영향을 주는 의미는 Observable해야 한다.
-* Runtime Transition에서 Goal/Possibility까지 역추적 가능해야 한다.
+Agent가 내부적으로 무엇을 생각했는지는 완료 조건이 아니다.
 
-## 4. Cycle의 정의
+각 단계에서 인간이 즉시 확인할 수 있는 명시적 결과물이 존재해야 한다.
 
-`Cycle`은 Module이나 Artifact를 의미하지 않는다.
+```text
+Cycle Goal
+    ↓
+Goal / Possibility Artifact
+    ↓
+Intent Artifact
+    ↓
+World Semantic Artifact
+    ↓
+GameView Specification
+    ↓
+Implementation Result
+    ↓
+Verification Result
 
-Cycle은 전체 개발 공정 한 번을 의미한다.
+```
 
-Cycle은 사용자가 지정한 하나의 작고 플레이 가능한 게임 목표를 대상으로 World Workflow → GameView Workflow → Integration Workflow → Verification까지 한 번 완전히 수행하는 과정이다.
+인간은 Agent의 추론 과정을 읽는 것이 아니라 이 산출물을 보고 판단한다.
+
+Rule 4 — World Is Server
+
+최종 MMORPG에서 World는 Server다.
+
+```text
+World
+=
+Authoritative Server Simulation
+
+```
+
+World는 다음을 소유한다.
+
+```text
+World State
+World Rules
+Goal / Possibility Runtime
+AI Decisions
+Player State
+NPC State
+Resource State
+Combat State
+Economy State
+Persistence-relevant Semantic
+
+```
+
+Client는 이것을 소유하지 않는다.
+
+Rule 5 — View Is Client
+
+View는 Client다.
+
+```text
+View
+=
+Game Client Presentation
+
+```
+
+View의 책임은:
+
+```text
+GameView Specification
+        ↓
+Rendering
+        ↓
+Player Interaction
+
+```
+
+이다.
+
+View는 World의 내부 객체를 읽지 않는다.
+
+Rule 6 — World → View Boundary Is GameView Specification
+
+World가 View에 전달하는 공개 결과는 하나뿐이다.
+
+```text
+GameView Specification
+
+```
+
+별도의:
+
+```text
+Observable Contract
+WorldState DTO
+Debug State
+Replication State
+Game State Object
+
+```
+
+를 View가 직접 소비하지 않는다.
+
+필요한 Observable 의미는 모두 `GameView Specification`에 포함된다.
+
+## 3. 최종 Architecture
+
+최종 구조는 다음처럼 단순하게 유지한다.
+
+```text
+                 USER
+                   │
+                   │ Input
+                   ▼
+            ┌──────────────┐
+            │     VIEW     │
+            │    Client    │
+            └──────┬───────┘
+                   │
+             Action Request
+                   │
+                   ▼
+            ┌──────────────┐
+            │    WORLD     │
+            │    Server    │
+            │              │
+            │ World State  │
+            │ World Rules  │
+            │ Simulation   │
+            └──────┬───────┘
+                   │
+                   │ Projection
+                   ▼
+        ┌────────────────────────┐
+        │ GameView Specification │
+        └────────────┬───────────┘
+                     │
+                     ▼
+            ┌──────────────┐
+            │     VIEW     │
+            │    Client    │
+            └──────┬───────┘
+                   │
+                   ▼
+                Human
+
+```
+
+World와 View 사이에서 World 내부 Semantic은 노출되지 않는다.
+
+## 4. GameView Specification의 의미
+
+`GameView Specification`은 단순한 UI 명세가 아니다.
+
+다음 질문에 대한 World의 완전한 답이다.
+
+현재 Observer가 게임 세계에서 무엇을 보고, 무엇을 알 수 있고, 무엇을 할 수 있으며, 그 의미가 화면에서 어떤 역할로 표현되어야 하는가?
+
+따라서 기존의:
+
+```text
+Observable Contract
++
+GameView Specification
+
+```
+
+을 하나로 합친다.
+
+```text
+World
+    ↓
+GameView Specification
+    ↓
+View
+
+```
+
+GameView Specification은 World와 View 사이의 유일한 Server → Client semantic contract다.
+
+## 5. GameView Specification의 구조
+
+개념적 구조는 다음과 같다.
+
+```text
+GameViewSpecification
+
+    identity
+    observer
+    revision
+
+    scene
+    entities
+    states
+    transitions
+    interactions
+    hud
+    designerObservation
+
+```
+
+예:
+
+```text
+GameViewSpecification
+
+    scene
+        id
+            mining-field
+
+        terrainRole
+            outdoor-ground
+
+
+    entities
+
+        player-01
+
+            role
+                player-character
+
+            position
+                x: 10
+                y: 0
+                z: 20
+
+            facing
+                ...
+
+            state
+                idle
+
+
+        deposit-01
+
+            role
+                resource-deposit
+
+            resourceRole
+                stone
+
+            position
+                ...
+
+            state
+                available
+
+
+    interactions
+
+        mine-deposit-01
+
+            role
+                mine-resource
+
+            actor
+                player-01
+
+            target
+                deposit-01
+
+            available
+                true
+
+
+    hud
+
+        resource-stone
+
+            role
+                owned-resource
+
+            resourceRole
+                stone
+
+            amount
+                3
+
+```
+
+View는 이 데이터만으로 화면을 구성한다.
+
+## 6. GameView Specification이 포함하지 않는 것
+
+GameView Specification은 Rendering 구현을 결정하지 않는다.
+
+다음은 포함하지 않는다.
+
+```text
+Sprite filename
+Texture path
+Shader
+Material instance
+Three.js object
+DOM element
+React component
+Animation clip
+WebGL buffer
+Renderer class
+CSS position
+Network packet
+Database key
+
+```
+
+대신 다음과 같은 Presentation Semantic을 사용한다.
+
+```text
+player-character
+resource-deposit
+hostile-creature
+available
+depleted
+mining
+attacking
+owned-resource
+interaction-target
+
+```
+
+View는 자신의 Asset / Renderer Registry를 통해 이를 실제 표현으로 변환한다.
+
+```text
+resource-deposit
+        ↓
+View Asset Registry
+        ↓
+stone-deposit.png
+        ↓
+Billboard Sprite
+
+```
+
+World는 `stone-deposit.png`의 존재를 모른다.
+
+## 7. View의 독립성
+
+View는 다음에 접근할 수 없다.
+
+```text
+WorldState
+WorldRule
+MiningSystem
+CombatSystem
+Planner
+NPC internal state
+Database
+Server entity object
+Server component
+
+```
+
+허용되는 것은:
+
+```text
+GameViewSpecification
+
+```
+
+뿐이다.
+
+따라서 View는 World가 실제 Server인지조차 알 필요가 없다.
+
+다음 세 환경은 동일해야 한다.
+
+```text
+Test Fixture
+    ↓
+GameView Specification
+    ↓
+View
+
+```
+
+
+```text
+Local World
+    ↓
+GameView Specification
+    ↓
+View
+
+```
+
+
+```text
+Remote MMORPG Server
+    ↓ Network
+    ↓
+GameView Specification
+    ↓
+View
+
+```
+
+View 입장에서는 세 경우가 동일하다.
+
+## 8. World의 독립성
+
+World 역시 View 구현을 알지 않는다.
+
+World는 다음을 알 수 없다.
+
+```text
+Three.js
+WebGL
+Sprite
+Billboard
+Camera implementation
+CSS
+React
+DOM
+Shader
+Texture
+
+```
+
+World가 아는 것은 Presentation Semantic까지다.
+
+예:
+
+```text
+Actor
+    role = player-character
+
+Deposit
+    role = resource-deposit
+
+Actor.CurrentAction
+    role = mining
+
+```
+
+실제 Rendering은 View의 책임이다.
+
+## 9. Client → World 입력
+
+World → View 출력은 반드시:
+
+```text
+GameView Specification
+
+```
+
+하나로 제한한다.
+
+반대 방향은 상태 변경이 아니라 `Action Request`다.
+
+```text
+View
+    ↓
+Action Request
+    ↓
+World Rule
+
+```
+
+예:
+
+```text
+{
+    action: "mine-resource",
+    actor: "player-01",
+    target: "deposit-01"
+}
+
+```
+
+Client가 다음과 같이 결과를 결정해서는 안 된다.
+
+```text
+Stone += 1
+DepositAmount -= 1
+
+```
+
+View는 행동을 요청할 뿐이다.
+
+결과는 World가 결정한다.
+
+## 10. Cycle의 정의
+
+Cycle은 하나의 기능 Module이 아니다.
+
+Cycle은 하나의 작은 게임을 완성하는 전체 작업이다.
+
+```text
+Cycle Goal
+
+    ↓
+
+Design Workflow
+
+    ↓
+
+World Implementation
+
+    ↓
+
+GameView Specification
+
+    ↓
+
+View Implementation
+
+    ↓
+
+Playable Verification
+
+    ↓
+
+Cycle Complete
+
+```
 
 예:
 
 ```text
 Cycle Goal
 
-"곡괭이를 가진 Player가
-광맥에 접근해
-Stone을 채굴할 수 있다."
+"Player가 광맥에 접근하여
+ Pickaxe로 Stone을 채굴할 수 있다."
+
 ```
 
-Cycle 종료 시에는 최소 두 종류의 결과물이 존재한다.
+Cycle이 끝났을 때 이 문장을 실제 Client에서 플레이할 수 있어야 한다.
+
+## 11. Cycle 내부 Workflow
+
+기존의 많은 Stage를 다음 8개의 명확한 단계로 단순화한다.
 
 ```text
-World Capability Module
-GameView Module
+1. Cycle Definition
+
+2. Intent
+
+3. World Semantic
+
+4. GameView Specification
+
+5. Human Semantic Review
+
+6. Implementation
+
+7. Verification
+
+8. Cycle Packaging
+
 ```
 
-그리고 이 둘을 조합하여:
+각 단계는 `Design-Workflow.md`의 의미적 순서를 보존한다.
+
+## 12. Step 1 — Cycle Definition
+
+담당
+
+Human Design
+
+질문
 
 ```text
-Playable Build
-```
+이번 Cycle이 끝나면
+Player가 게임 안에서 정확히 무엇을 할 수 있어야 하는가?
 
-가 만들어진다.
-
-## 5. Cycle의 입력과 출력
-
-입력
-
-```text
-1. User Cycle Goal
-
-2. Existing World Capability Modules
-
-3. Existing GameView Modules
-```
-
-첫 Cycle이라면 기존 Module이 없을 수 있다.
-
-후속 Cycle에서는 이전 결과물을 그대로 사용한다.
-
-예:
-
-```text
-Cycle 2 Input
-
-Goal
-    Resource를 이용하여 Pickaxe를 제작한다.
-
-Existing World Modules
-    Mining v1
-
-Existing GameView Modules
-    MiningView v1
 ```
 
 출력
 
 ```text
-1. New World Capability Module
+CYCLE
 
-2. GameView Specification
+ID
+Goal
 
-3. New GameView Module
+Included
+Excluded
 
-4. Playable Build
+Existing Capabilities
+Expected New Capability
 
-5. Verification Result
 ```
 
-## 6. Cycle 전체 단계
-
-하나의 Cycle은 다음 순서를 따른다.
+예:
 
 ```text
-Stage 1  Cycle Scope
+CYCLE-002-MINING
 
-Stage 2  Intent Design
+Goal
 
-Stage 3  World Semantic Design
+    Player가 Pickaxe를 가지고
+    Stone Deposit에 접근하여
+    Stone을 얻을 수 있다.
 
-Stage 4  Authority Design
 
-Stage 5  Observation Design
-
-Stage 6  GameView Specification
-
-Stage 7  World Implementation
-
-Stage 8  World Verification
-
---------------------------------
-      Contract Boundary
---------------------------------
-
-Stage 9  GameView Specification Resolution
-
-Stage 10 Visual Composition
-
-Stage 11 Asset Resolution
-
-Stage 12 Observable Binding
-
-Stage 13 GameView Implementation
-
-Stage 14 GameView Verification
-
---------------------------------
-
-Stage 15 Integration
-
-Stage 16 Playable Verification
-
-Stage 17 Module Packaging
-```
-
-# Part I — World Workflow
-
-## 7. Stage 1 — Cycle Scope
-
-역할
-
-이번 Cycle에서 완성할 최소 플레이 경험을 고정한다.
-
-이 단계에서는 구현 구조를 설계하지 않는다.
-
-질문은 하나다.
-
-이번 Cycle이 끝났을 때 사용자는 실제 게임에서 무엇을 할 수 있어야 하는가?
-
-입력
-
-```text
-User Cycle Goal
-
-Existing Capability Modules
-```
-
-예
-
-```text
-Cycle Goal
-
-Player가 Pickaxe를 가지고
-Stone Deposit에 접근하여
-Stone을 획득한다.
-```
-
-Scope
-
-```text
 Included
 
-    이동
+    Deposit 인식
     Deposit 접근
     Mine 실행
     Stone 획득
+
 
 Excluded
 
     Crafting
     Trade
-    NPC
-    Deposit Respawn
-    Multiple Resource Type
+    Respawn
+    Multiple Resource Types
+
 ```
 
-출력
+이 결과는 Cycle의 최상위 Source of Truth다.
 
-```text
-CYCLE SCOPE
-```
+## 13. Step 2 — Intent
 
-완료 조건
+담당
 
-하나의 작은 게임 Scenario로 직접 실행할 수 있을 정도로 범위가 작아야 한다.
+Intent Agent
 
-## 8. Stage 2 — Intent Design
-
-역할
-
-Cycle Goal을 World Meaning으로 변환한다.
-
-작업
-
-Goal/Possibility를 정의한다.
+Cycle Goal을 Goal / Possibility Graph로 구성하고 Intent를 추출한다.
 
 ```text
 AcquireStone
     │
     └── MineStone
+
 ```
 
-Intent를 추출한다.
+↓
 
 ```text
 INTENT-MINING-001
@@ -349,79 +747,57 @@ Deposit에 접근 가능한 Actor는
 Mine을 수행하여
 
 Deposit의 Resource를 감소시키고
-자신의 Inventory에 Resource를 획득할 수 있다.
-```
+자신의 Inventory에 Stone을 획득할 수 있다.
 
-Intent에는 구현 방식이 들어가지 않는다.
-
-잘못된 예:
-
-```text
-MiningComponent를 만든다.
-Mine()을 호출한다.
-InventoryService를 사용한다.
 ```
 
 출력
 
 ```text
-Goal / Possibility
+GOAL / POSSIBILITY
 
-Intent Set
+INTENT SET
 
-Design Trace
+DESIGN TRACE
+
 ```
 
+인간은 이 결과를 보면:
+
 ```text
-AcquireStone
+이번 Cycle에서
+무엇을 가능하게 만들려는가?
+
+```
+
+를 즉시 이해할 수 있어야 한다.
+
+## 14. Step 3 — World Semantic
+
+담당
+
+World Model Agent
+
+Intent를 실행 가능한 World Semantic으로 닫는다.
+
+내부 순서는 `Design-Workflow.md`를 따른다.
+
+```text
+Intent
     ↓
-MineStone
+Required World State
     ↓
-INTENT-MINING-001
+World Rule
+    ↓
+Observable Semantic
+
 ```
 
-## 9. Stage 3 — World Semantic Design
-
-역할
-
-Intent가 실제 세계에서 성립하기 위해 필요한 World State와 World Rule을 정의한다.
-
-### 9.1 Existing Semantic Resolution
-
-먼저 이전 Module에서 이미 존재하는 의미를 확인한다.
+예:
 
 ```text
-Required Semantic
-    Actor
-    Inventory
-    Position
-    Resource
-    Recipe
-```
+WORLD STATE
 
-기존 Mining Module이 이미:
-
-```text
-Actor
-Inventory
-Position
-Resource
-```
-
-를 사용하는 경우 새로 정의하지 않는다.
-
-이번 Cycle에서는 필요한 새로운 의미만 추가한다.
-
-```text
-Recipe
-Craft Rule
-```
-
-### 9.2 World State
-
-Mining 예:
-
-```text
 Actor
     Position
     Inventory
@@ -430,1616 +806,262 @@ Actor
 Tool
     Capability
 
-ResourceDeposit
+Deposit
     Position
     ResourceType
     ResourceAmount
+
 ```
 
-World State에는 세계의 사실만 존재한다.
+그리고:
 
 ```text
-Actor.Position
-Actor.Inventory
-Deposit.ResourceAmount
-```
+WORLD RULE
 
-는 World State다.
-
-반면:
-
-```text
-cacheIndex
-threadId
-packetSequence
-vectorCapacity
-```
-
-등은 Implementation State다. 기존 Workflow에서도 World State와 Implementation State를 명확하게 분리한다.
-
-### 9.3 World Rule
-
-```text
 RULE-MINE-001
-
-Input
-
-    Actor
-    Deposit
-
 
 Preconditions
 
-    Actor knows Deposit
-
-    Actor has Mining Tool
-
-    Actor is in Interaction Range
-
-    Deposit has Resource
-
+    knows deposit
+    has mining tool
+    target in range
+    deposit has resource
 
 Transition
 
     Deposit.ResourceAmount
-        -= ExtractAmount
+        -= amount
 
-    Actor.Inventory[ResourceType]
-        += ExtractAmount
+    Actor.Inventory.Stone
+        += amount
+
 ```
 
-World Rule은 코드 함수가 아니라 세계에서 허용되는 상태 변화다.
-
-출력
-
-```text
-World Semantic Delta
-
-Existing Semantic Dependencies
-
-New World State
-
-New World Rules
-
-Intent → State / Rule Trace
-```
-
-완료 조건 — Semantic Closure
-
-Intent에 존재하는 모든 의미가 State 또는 Rule에 연결되어야 한다.
-
-```text
-"광맥을 안다"
-    → Knowledge
-
-"도구를 가지고 있다"
-    → Inventory
-
-"Mining 가능한 도구"
-    → Tool Capability
-
-"접근 가능하다"
-    → Position / Interaction Range
-
-"Mine한다"
-    → Mine Rule
-
-"Stone을 획득한다"
-    → Inventory Transition
-```
-
-하나라도 연결되지 않으면 Semantic Closure 실패다.
-
-## 10. Stage 4 — Authority Design
-
-역할
-
-World State를 누가 실제로 소유하고 변경할 수 있는지 정의한다.
-
-최종 MMORPG 구조에서 Authoritative World는 Server가 소유한다.
-
-```text
-Server
-    =
-Authoritative World
-```
-
-초기 Cycle에서 실제 Dedicated Server를 실행할 필요는 없다.
-
-그러나 논리적인 Authority 경계는 처음부터 유지한다.
-
-### 10.1 Authority 지정
-
-예:
+여기에서 동시에 Authority를 결정한다.
 
 ```text
 Actor.Inventory
-    Server Authority
+    World Authority
 
+Deposit.ResourceAmount
+    World Authority
+
+```
+
+별도의 `Authority Design Stage`를 만들지 않는다.
+
+Authority는 World Semantic의 속성이다.
+
+## 15. Semantic Closure
+
+World Model Agent는 Intent의 모든 문장을 확인한다.
+
+```text
+"광맥을 알고 있다"
+        ↓
 Actor.Knowledge
-    Server Authority
 
-Deposit.ResourceAmount
-    Server Authority
+"도구를 가지고 있다"
+        ↓
+Actor.Inventory
 
+"채굴 가능한 도구"
+        ↓
 Tool.Capability
-    Server Authority
-```
 
-### 10.2 Client Command
-
-Client는 상태 변경 결과를 전달하지 않는다.
-
-잘못된 방식:
-
-```text
-Client
-
-Stone += 1
-```
-
-올바른 방식:
-
-```text
-Client
-
-Mine(
-    Player01,
-    Deposit01
-)
-```
-
-Client는 행동 의도만 전달한다.
-
-### 10.3 Authoritative Transition
-
-```text
-Client Command
+"접근할 수 있다"
         ↓
-Server Input
+Position / Interaction Range
+
+"채굴한다"
         ↓
-World Rule
+Mine Rule
+
+"Stone을 얻는다"
         ↓
-Precondition Evaluation
-        ↓
-Semantic Transition
-        ↓
-Authoritative World State
+Inventory Transition
+
 ```
 
-출력
+하나라도 연결되지 않으면 다음 단계로 이동할 수 없다.
 
-```text
-Authority Contract
-
-Client Command Contract
-
-Authoritative Transition Contract
-```
-
-완료 조건 — Authority Closure
-
-모든 Semantic Transition에 대해 다음을 추적할 수 있어야 한다.
-
-```text
-Input
-
-Rule
-
-Precondition Result
-
-Authoritative Transition
-```
-
-## 11. Stage 5 — Observation Design
-
-역할
-
-Authoritative World를 특정 Observer가 볼 수 있는 Semantic World로 투영한다.
-
-```text
-ObservableWorld
-    =
-Projection(
-        AuthoritativeWorld,
-        ObserverContext
-    )
-```
-
-Observation은 Rendering이나 Network Packet이 아니다.
-
-World Semantic Projection이다.
-
-## 12. Observer 정의
-
-최소한 다음 Observer를 구분한다.
-
-```text
-Player Observer
-
-Designer Observer
-```
-
-이후 필요에 따라:
-
-```text
-AI Observer
-Party Observer
-Guild Observer
-GM Observer
-Spectator Observer
-```
-
-등이 추가될 수 있다.
-
-## 13. Player Projection
-
-Player에게는 플레이에 필요한 의미만 제공한다.
-
-예:
-
-```text
-Player.Position
-
-Player.Inventory
-
-Visible Deposit
-
-Known Resource
-
-Mine Availability
-
-Current Action
-
-Action Result
-```
-
-제공하지 않을 수 있는 정보:
-
-```text
-Unknown Resource Location
-
-Other Player Private Goal
-
-Hidden NPC Knowledge
-
-Server-only World State
-```
-
-## 14. Designer Projection
-
-Designer는 세계가 의도대로 움직이고 있는지 확인해야 한다.
-
-따라서 다음과 같은 정보를 볼 수 있다.
-
-```text
-Current Goal
-
-Current Possibility
-
-Possibility Availability
-
-Preconditions
-
-Selected Rule
-
-Before State
-
-Input
-
-After State
-
-Failure Reason
-```
-
-Designer 역시 World 내부 구현을 직접 읽지 않는다.
-
-Designer Observer Projection을 사용한다.
-
-기존 Workflow의 View 역시 World 내부 구현에 직접 접근하지 않고 Observable World State만 사용하도록 규정한다.
-
-## 15. Observable Transition
-
-현재 State만이 아니라 Transition도 관찰 가능해야 한다.
-
-```text
-Before
-    ↓
-Input
-    ↓
-Rule
-    ↓
-After
-```
-
-예:
-
-```text
-Transition #1742
-
-Intent
-    AcquireStone through MineStone
-
-Before
-
-    Player.Stone = 0
-    Deposit.Amount = 10
-
-Input
-
-    Mine(Player, Deposit)
-
-Rule
-
-    RULE-MINE-001
-
-After
-
-    Player.Stone = 1
-    Deposit.Amount = 9
-```
-
-기존 Workflow에서도 이 구조를 Runtime 검증의 기본 단위로 사용한다.
-
-출력
-
-```text
-Observer Definitions
-
-Observable Contract
-
-Observable Transition Contract
-```
-
-완료 조건 — Observable Closure
-
-Rule의 판단과 결과를 이해하기 위해 필요한 의미가 적절한 Observer에게 제공되어야 한다.
-
-## 16. Stage 6 — GameView Specification
-
-이 단계가 World Workflow와 GameView Workflow의 경계다.
-
-역할
-
-World Workflow는 Observable Semantic이 플레이어에게 어떤 의미로 표현되어야 하는지만 선언한다.
-
-직접 Rendering을 구현하지 않는다.
-
-질문은 다음과 같다.
-
-플레이어가 이번 Cycle Goal을 게임으로 이해하고 수행하기 위해 어떤 Observable 의미가 어떻게 표현되어야 하는가?
-
-## 17. GameView Specification 예
-
-```text
-GAMEVIEW SPEC
-    VIEW-MINING-001
-
-
-OBSERVABLE INPUT
-
-    Actor.Position
-    Actor.CurrentAction
-
-    Deposit.Position
-    Deposit.ResourceAmount
-
-    Actor.Inventory.Stone
-
-    MineStone.Availability
-
-
-WORLD REPRESENTATION
-
-    Actor
-
-        Visual Role
-            Character
-
-        Placement
-            WorldSpace
-
-        Position Source
-            Actor.Position
-
-
-    Deposit
-
-        Visual Role
-            ResourceNode
-
-        Placement
-            WorldSpace
-
-        Position Source
-            Deposit.Position
-
-
-STATE REPRESENTATION
-
-    Actor.CurrentAction == Mine
-
-        Visual Meaning
-            Mining
-
-
-    Deposit.ResourceAmount > 0
-
-        Visual Meaning
-            Available Resource
-
-
-    Deposit.ResourceAmount == 0
-
-        Visual Meaning
-            Depleted Resource
-
-
-HUD REPRESENTATION
-
-    Actor.Inventory.Stone
-
-        Visual Meaning
-            Owned Stone Amount
-
-        Placement
-            Resource Summary
-
-
-INTERACTION REPRESENTATION
-
-    MineStone == AVAILABLE
-
-        Visual Meaning
-            Interactable Target
-```
-
-## 18. GameView Specification이 결정하지 않는 것
-
-World Workflow는 다음을 절대 결정하지 않는다.
-
-```text
-Mesh 이름
-
-Blueprint / GameObject 구조
-
-Animation Clip
-
-Particle System
-
-Shader
-
-Material
-
-Widget Framework
-
-UI Pixel Position
-
-Font
-
-Texture
-
-Asset Path
-
-Rendering Pipeline
-```
-
-예를 들어 World Workflow는:
-
-```text
-Placement
-    Resource Summary
-```
-
-라고만 지정한다.
-
-GameView Workflow가:
-
-```text
-Resource Summary
-    → HUD 왼쪽 상단
-    → padding 24
-    → Stone Icon + Number
-```
-
-으로 구현한다.
-
-## 19. Observable과 GameView Specification의 차이
-
-두 개는 반드시 분리한다.
-
-Observable Contract
-
-```text
-Actor.HP = 73
-```
-
-의미:
-
-현재 Observer가 Actor의 HP를 알 수 있다.
-
-GameView Specification
-
-```text
-Actor.HP
-    → Character Health Representation
-```
-
-의미:
-
-이 정보를 플레이어에게 Health 상태로 표현해야 한다.
-
-GameView Implementation
-
-```text
-HP Bar
-```
-
-의미:
-
-실제 Renderer는 Bar 방식으로 표현한다.
-
-따라서:
-
-```text
-World Semantic
-    ↓
-Observable Semantic
-    ↓
-Presentation Semantic
-    ↓
-Rendering Implementation
-```
-
-의 네 계층을 유지한다.
-
-## 20. Stage 7 — World Implementation
-
-역할
-
-지금까지 정의된 World Semantic, Authority, Observation을 실제 Runtime으로 구현한다.
-
-GameView 구현은 포함하지 않는다.
-
-Implementation Package
-
-```text
-WORLD IMPLEMENTATION PACKAGE
-
-1. Cycle Scope
-
-2. Goal / Possibility
-
-3. Intent
-
-4. Existing Module Dependencies
-
-5. World Semantic Delta
-
-6. World Rules
-
-7. Authority Contract
-
-8. Observable Contract
-
-9. Traceability
-
-10. Completion Conditions
-```
-
-기존 Workflow에서도 Coding Agent에게 전체 문서가 아니라 Intent, State, Rule, Observable, Completion Condition이 포함된 Implementation Package를 전달하도록 한다.
-
-## 21. 초기 Server/Client 실행 구조
-
-초기 Cycle에서는 하나의 Process 안에서 실행할 수 있다.
-
-```text
-┌─────────────────────────────────┐
-│                                 │
-│        Local Runtime            │
-│                                 │
-│   Client Command                │
-│          ↓                      │
-│   Authoritative World           │
-│          ↓                      │
-│   Observable Projection         │
-│                                 │
-└─────────────────────────────────┘
-```
-
-중요한 것은 실제 Process 분리가 아니라 논리적 Boundary다.
-
-```text
-Client
-    ↓ Command
-
-Authority
-    ↓ World Transition
-
-Observation
-    ↓ Observable
-```
-
-나중에 Dedicated Server를 사용해도 구조는 동일하다.
-
-```text
-Client
-    ↓
-Network
-    ↓
-Server
-```
-
-Network는 기존 Contract 사이에 삽입되는 Transport일 뿐이다.
-
-## 22. Replication과 Observable 분리
-
-다음 둘은 동일하지 않다.
-
-```text
-Observable World
-
-Network Representation
-```
-
-구조는 다음과 같다.
-
-```text
-Authoritative World
-        ↓
-Observer Projection
-        ↓
-Observable Semantic
-        ↓
-Replication Representation
-        ↓
-Transport
-        ↓
-Client Observable Replica
-```
-
-다음은 World Semantic이다.
-
-```text
-Actor.Position
-Actor.CurrentAction
-Deposit.ResourceAmount
-```
-
-다음은 Implementation Detail이다.
-
-```text
-Snapshot
-Delta Compression
-Packet
-Sequence Number
-Serialization
-Prediction Buffer
-```
-
-## 23. Stage 8 — World Verification
-
-GameView 없이도 World Capability 자체를 검증할 수 있어야 한다.
-
-검증 항목:
+이를:
 
 ```text
 Semantic Closure
 
-Authority Closure
-
-Observable Closure
-
-Runtime Scenario
-
-Traceability
 ```
 
-예:
+라고 한다.
+
+## 16. Step 4 — GameView Specification
+
+담당
+
+World Model Agent / Observation Designer 역할
+
+World Semantic에서 특정 Observer에게 필요한 의미를 투영한다.
+
+그 결과를 별도 Observable Contract로 내보내지 않는다.
+
+바로:
 
 ```text
-Input
-    Mine(Player, Deposit)
-
-Before
-    Player.Stone = 0
-    Deposit.Stone = 10
-
-Rule
-    RULE-MINE-001
-
-After
-    Player.Stone = 1
-    Deposit.Stone = 9
-```
-
-이 결과가 Observable Contract를 통해 확인되면 World Capability 자체는 완료될 수 있다.
-
-## 24. World Workflow Output
-
-World Workflow의 결과는 다음이다.
-
-```text
-WORLD CAPABILITY MODULE
-
-Identity
-
-Version
-
-Requires
-
-Provides
-
-Intent
-
-World State Semantic
-
-World Rules
-
-Authority Contract
-
-Observable Contract
-
-Traceability
-
-Verification Scenarios
-```
-
-그리고 별도의:
-
-```text
-GAMEVIEW SPECIFICATION
-```
-
-을 출력한다.
-
-이 시점부터 GameView 구현은 World Workflow의 책임이 아니다.
-
-# Part II — GameView Workflow
-
-## 25. GameView Workflow의 기본 원칙
-
-GameView Workflow는 다음 두 개만 입력으로 받는다.
-
-```text
-Observable Contract
-
 GameView Specification
+
 ```
 
-GameView Workflow는 다음을 알지 못한다.
+으로 만든다.
 
 ```text
-Goal Graph 내부 구조
-
-Intent 구현 구조
-
-World Rule 구현
-
-Server State
-
-Database
-
-Planner
-
-Simulation 내부 객체
-```
-
-Architecture Rule:
-
-GameView는 Observable Contract와 GameView Specification 이외의 World 내부 정보를 참조할 수 없다.
-
-## 26. Stage 9 — Specification Resolution
-
-역할
-
-전달된 명세에서 실제 구현해야 할 Visual Requirement를 추출한다.
-
-입력:
-
-```text
-Observable Contract
-
-GameView Specification
-```
-
-출력:
-
-```text
-VISUAL REQUIREMENT SET
-```
-
-Mining 예:
-
-```text
-Character Representation
-
-Resource Deposit Representation
-
-Mining Action Representation
-
-Depleted Deposit Representation
-
-Stone Amount Representation
-
-Interaction Availability Representation
-```
-
-이 단계에서는 아직 Asset을 선택하지 않는다.
-
-## 27. Stage 10 — Visual Composition
-
-역할
-
-Visual Requirement를 실제 화면 구조로 배치한다.
-
-예:
-
-```text
-WORLD
-
-    Character
-
-    Resource Deposit
-
-    Interaction Indicator
-
-
-HUD
-
-    Resource Summary
-```
-
-그리고 의미를 UI 구조에 연결한다.
-
-```text
-Character
-    → World Entity
-
-Resource Deposit
-    → World Entity
-
-Stone Amount
-    → Resource Summary
-
-Mine Availability
-    → Target Interaction Indicator
-```
-
-이 단계부터는 GameView Workflow의 자유 영역이다.
-
-World Workflow는 이 결정을 알 필요가 없다.
-
-## 28. Stage 11 — Asset Resolution
-
-역할
-
-Visual Role에 실제 표현 자산을 연결한다.
-
-예:
-
-```text
-Character
-    → CharacterMesh_A
-
-Resource Deposit
-    → StoneDepositMesh_B
-
-Mining
-    → MiningAnimation_C
-
-Stone Resource
-    → StoneIcon_D
-
-Depleted State
-    → DepletedMaterial_E
-```
-
-Asset 선택은 World Semantic에 영향을 주지 않는다.
-
-## 29. Stage 12 — Observable Binding
-
-역할
-
-Observable Semantic과 Rendering State를 연결한다.
-
-예:
-
-```text
-Actor.Position
-    ↓
-Character Transform
-```
-
-```text
-Actor.CurrentAction == Mine
-    ↓
-Mining Animation
-```
-
-```text
-Deposit.ResourceAmount == 0
-    ↓
-Depleted Visual State
-```
-
-```text
-Actor.Inventory.Stone
-    ↓
-Stone Counter
-```
-
-Binding은 반드시 Observable만 참조한다.
-
-다음과 같은 접근은 금지한다.
-
-```text
-GameView
-    ↓
-MiningSystem.CurrentTarget
-
-GameView
-    ↓
-WorldState.InternalInventory
-
-GameView
-    ↓
-Planner.CurrentNode
-```
-
-## 30. Stage 13 — GameView Implementation
-
-역할
-
-실제 Renderer에서 화면을 구현한다.
-
-이 단계에서는 자유롭게 다음을 사용할 수 있다.
-
-```text
-Scene Object
-
-Mesh
-
-Sprite
-
-Animation
-
-Material
-
-Particle
-
-Shader
-
-Sound
-
-Camera
-
-HUD
-
-Widget
-
-Layout
-```
-
-이 구현은 World Workflow와 완전히 독립적이다.
-
-## 31. Stage 14 — GameView Verification
-
-World correctness와 View correctness를 분리한다.
-
-World Verification:
-
-```text
-Deposit.ResourceAmount
-    1 → 0
-```
-
-가 실제로 발생했는가?
-
-GameView Verification:
-
-```text
-Observable
-
-Deposit.ResourceAmount
-    1 → 0
-```
-
-가 들어왔을 때:
-
-```text
-Expected Visual
-
-Available Resource
-    →
-Depleted Resource
-```
-
-로 표현되었는가?
-
-## 32. GameView Contract Gap
-
-GameView 구현 중 필요한 Observable이 존재하지 않는 경우 GameView가 World 내부에 직접 접근해서는 안 된다.
-
-예:
-
-```text
-Actor.CurrentAction = Mine
-```
-
-은 있지만:
-
-```text
-CurrentActionTarget
-```
-
-이 없다.
-
-그러면 다음 Proposal을 생성한다.
-
-```text
-GAMEVIEW CONTRACT GAP
-
-Required Visual
-
-    Actor must visually face
-    the Deposit currently being mined.
-
-
-Missing Observable
-
-    Actor.CurrentActionTarget
-
-
-Reason
-
-    Mining action exists,
-    but its target cannot be identified.
-```
-
-World Workflow가 이 Proposal을 검토한다.
-
-진짜 World Semantic으로 필요한 정보라면 Observable Contract를 확장한다.
-
-GameView가 임의로 World 의미를 생성해서는 안 된다.
-
-## 33. GameView Module Output
-
-완료된 GameView Workflow는 다음 Module을 만든다.
-
-```text
-GAMEVIEW MODULE
-
-Identity
-
-Version
-
-Consumes
-    Observable Contract
-
-Implements
-    GameView Specification
-
-Visual Composition
-
-Observable Bindings
-
-Asset Bindings
-
-Verification Scenarios
-```
-
-예:
-
-```text
-MiningView Module v1
-```
-
-# Part III — Integration Workflow
-
-## 34. Integration Workflow의 역할
-
-World Workflow와 GameView Workflow를 직접 결합하지 않는다.
-
-둘 사이의 연결은 별도의 Integration Workflow가 담당한다.
-
-```text
-World Capability Module
-        +
-GameView Module
+Authoritative World
         ↓
-Integration
-        ↓
-Playable Build
-```
-
-Integration은 양쪽의 내부 구현을 알 필요가 없다.
-
-Contract만 검사한다.
-
-## 35. Integration 입력
-
-```text
-World Capability Modules
-
-GameView Modules
-
-Observable Contracts
-
-GameView Specifications
-
-World Configuration
-```
-
-예:
-
-```text
-Mining World Module
-
-MiningView Module
-
-Small Mining Map
-
-Player
-
-Deposit
-```
-
-## 36. Integration 검증
-
-다음 연결을 검사한다.
-
-```text
-Client Input
-    ↓
-World Command
-    ↓
-Authoritative Rule
-    ↓
-World Transition
-    ↓
 Observer Projection
-    ↓
-Observable
-    ↓
-GameView Binding
-    ↓
-Rendering
-```
-
-Mining Cycle 예:
-
-```text
-Player presses Mine
-
         ↓
-
-Mine(Player, Deposit)
-
+Presentation Semantic
         ↓
+GameView Specification
 
-RULE-MINE-001
-
-        ↓
-
-Player.Stone
-0 → 1
-
-Deposit.Amount
-10 → 9
-
-        ↓
-
-Observable
-
-Actor.Inventory.Stone = 1
-Deposit.ResourceAmount = 9
-
-        ↓
-
-GameView
-
-Stone Counter = 1
-Deposit Visual Updated
-Mining Animation
 ```
-
-## 37. 세 종류의 완료 상태
-
-완료 상태를 하나로 합치지 않는다.
-
-World Complete
-
-```text
-Intent
-State
-Rule
-Authority
-Observable
-Traceability
-```
-
-가 올바르다.
-
-GameView Complete
-
-```text
-Specification
-Composition
-Binding
-Rendering
-```
-
-이 올바르다.
-
-Playable Cycle Complete
-
-```text
-World Complete
-        +
-GameView Complete
-        +
-Integration Verification
-```
-
-이 모두 통과했다.
-
-이 구분 덕분에 Rendering 문제가 World Capability 실패로 취급되지 않는다.
-
-## 38. Module 재사용
-
-완료된 Cycle 결과는 이후 Cycle에서 수정하지 않고 사용한다.
-
-```text
-Cycle 1
-
-Mining World Module
-MiningView Module
-```
-
-Cycle 2:
-
-```text
-Existing
-
-    Mining World Module
-    MiningView Module
-
-New
-
-    Crafting World Module
-    CraftingView Module
-```
-
-최종 Build:
-
-```text
-Mining World
-+
-Crafting World
-
-        ↓ Observable
-
-MiningView
-+
-CraftingView
-```
-
-Cycle 3에서는 다시:
-
-```text
-Mining
-+
-Crafting
-+
-Trade
-```
-
-로 확장한다.
-
-## 39. Shared World Semantic
-
-각 Capability Module이 별도의 World를 만들어서는 안 된다.
-
-잘못된 구조:
-
-```text
-MiningInventory
-
-CraftingInventory
-
-TradeInventory
-```
-
-올바른 구조:
-
-```text
-                 WORLD
-
-                   │
-        ┌──────────┼──────────┐
-        │          │          │
-      Mining    Crafting    Trade
-        │          │          │
-        └──────────┼──────────┘
-                   │
-               Inventory
-```
-
-Capability Module은 공유 World Semantic 위에 새로운 행동 가능성을 추가한다.
-
-## 40. Module Contract
-
-각 World Capability Module은 명확한 Contract를 가진다.
-
-```text
-MODULE
-    Mining
-
-
-REQUIRES
-
-    Actor
-    Position
-    Inventory
-    Knowledge
-    Tool
-    ResourceDeposit
-
-
-PROVIDES
-
-    Possibility
-        MineResource
-
-    Rule
-        Mine
-
-    Transition
-        Resource extraction
-
-    Observable
-        Mine Availability
-        Mine Execution
-        Resource Transition
-```
-
-후속 Module은 `Requires / Provides`를 통해 기존 Capability를 사용한다.
-
-이전 Module의 내부 구현을 알 필요가 없다.
-
-## 41. Module 변경 규칙
-
-기본 원칙:
-
-완료된 Module은 후속 Cycle에서 직접 수정하지 않는다.
-
-새로운 의미는 가능한 한 새로운 Capability나 Extension으로 추가한다.
 
 예:
 
 ```text
-Mining v1
+GAMEVIEW SPEC
+VIEW-MINING-001
+
+Observer
+    Player
+
+Scene
+    mining-field
+
+Entities
+
+    Player
+        role
+            player-character
+
+        position
+            source: Actor.Position
+
+        state
+            source: Actor.CurrentAction
+
+
+    Deposit
+        role
+            resource-deposit
+
+        position
+            source: Deposit.Position
+
+        state
+            available
+                when ResourceAmount > 0
+
+            depleted
+                when ResourceAmount == 0
+
+
+Interactions
+
+    Mine
+
+        role
+            mine-resource
+
+        target
+            Deposit
+
+        available
+            source: MineStone.Availability
+
+
+HUD
+
+    Stone
+
+        role
+            owned-resource
+
+        value
+            Actor.Inventory.Stone
+
 ```
 
-후에 Tool Durability가 필요하다면:
+## 17. Designer Observation도 GameView Specification을 사용한다
+
+Debug용 별도 World 접근 경로를 만들지 않는다.
+
+Designer 역시 Observer다.
 
 ```text
-ToolDurability Module
-```
-
-을 추가한다.
-
-기존 Semantic 자체가 잘못되어 수정이 불가피한 경우에만:
-
-```text
-Mining v1
-    ↓
-Mining v2
-```
-
-라는 명시적 Version Migration을 수행한다.
-
-## 42. 전체 Cycle Completion Gate
-
-하나의 Cycle은 다음을 모두 만족해야 한다.
-
 World
-
-```text
-[ ] Cycle Goal이 플레이 가능한 범위다.
-
-[ ] Goal / Possibility가 정의되어 있다.
-
-[ ] Intent가 정의되어 있다.
-
-[ ] Semantic Closure가 통과되었다.
-
-[ ] World State가 정의되어 있다.
-
-[ ] World Rule이 정의되어 있다.
-
-[ ] 모든 Semantic Transition이 Authority를 통한다.
-
-[ ] Observable Contract가 정의되어 있다.
-
-[ ] Observable Closure가 통과되었다.
-
-[ ] Runtime Transition이 설계까지 추적 가능하다.
-```
-
-GameView
-
-```text
-[ ] GameView Specification이 존재한다.
-
-[ ] GameView가 World 내부를 직접 참조하지 않는다.
-
-[ ] 모든 Binding은 Observable을 통해 이루어진다.
-
-[ ] 명세된 Visual State가 구현되었다.
-
-[ ] GameView Verification을 통과했다.
-```
-
-Integration
-
-```text
-[ ] World Capability Module과 GameView Module이 Contract로 연결된다.
-
-[ ] 실제 입력이 World Transition을 발생시킨다.
-
-[ ] Transition 결과가 Observable로 전달된다.
-
-[ ] GameView가 해당 Observable을 올바르게 표현한다.
-
-[ ] 사용자가 Cycle Goal을 실제 게임으로 수행할 수 있다.
-
-[ ] 기존 Module을 다시 구현하지 않았다.
-
-[ ] 새로운 Module을 다음 Cycle에서 재사용할 수 있다.
-```
-
-## 43. 최종 Agent Workflow
-
-```text
-                  USER
-                   │
-             Cycle Goal
-                   │
-                   ▼
-            Cycle Scope
-                   │
-                   ▼
-             Intent Agent
-                   │
-                   ▼
-          World Model Agent
-                   │
-          State / Rule
-                   │
-                   ▼
-         Authority Designer
-                   │
-                   ▼
-        Observation Designer
-                   │
-         ┌─────────┴──────────┐
-         ▼                    ▼
-Observable Contract     GameView Spec
-         │                    │
-         ▼                    │
-World Implementation          │
-         │                    │
-World Verification            │
-         │                    │
-         ▼                    ▼
-World Capability       GameView Workflow
-     Module                    │
-                               ▼
-                        GameView Module
-                               │
-         ┌─────────────────────┘
-         │
-         ▼
-      Integration
-         │
-         ▼
-   Playable Verification
-         │
-         ▼
-     Cycle Complete
-         │
-         ▼
-     Module Registry
-         │
-         ▼
-      Next Cycle
-```
-
-## 44. 최상위 Architecture Rules
-
-Rule 1 — Design Source of Truth
-
-Goal/Possibility와 Intent가 게임 의미의 Source of Truth이다.
-
-Rule 2 — Semantic Closure
-
-Intent의 모든 의미는 World State 또는 World Rule로 표현되어야 한다.
-
-Rule 3 — Server Authority
-
-World Semantic의 실제 상태 변화는 Authoritative World Rule을 통해서만 발생한다.
-
-Rule 4 — Command Boundary
-
-Client는 World State를 직접 변경하지 않고 Action Command만 전달한다.
-
-Rule 5 — Observer Projection
-
-Player와 Designer는 World 내부를 직접 읽지 않고 Observer별 Observable World를 사용한다.
-
-Rule 6 — Semantic Observation
-
-Observable은 Network Packet이 아니라 World의 Semantic Projection이다.
-
-Rule 7 — GameView Isolation
-
-World Workflow는 GameView 구현을 알지 못한다.
-
-World Workflow가 전달하는 것은:
-
-```text
-Observable Contract
+    ↓
+Designer Projection
+    ↓
 GameView Specification
+    ↓
+Designer View
+
 ```
 
-뿐이다.
-
-Rule 8 — GameView Isolation
-
-GameView는 World State, Rule, Server 내부 구현을 직접 참조하지 않는다.
-
-오직 Observable Contract를 소비한다.
-
-Rule 9 — Presentation Independence
-
-GameView Specification은 Mesh, Animation, UI Framework, Asset, Renderer와 독립적이어야 한다.
-
-Rule 10 — Integration Independence
-
-World와 GameView의 결합은 두 Workflow 외부의 Integration Workflow가 담당한다.
-
-Rule 11 — Module Reuse
-
-이전 Cycle의 Capability는 후속 Cycle에서 재구현하지 않는다.
-
-Rule 12 — Shared World
-
-각 Module은 별개의 World를 만들지 않고 동일한 World Semantic을 공유한다.
-
-Rule 13 — Transport Independence
-
-Local Call, IPC, Network, Serialization, Replication은 World Semantic을 변경하지 않는 Implementation Detail이다.
-
-Rule 14 — Playable Verification
-
-모든 Cycle은 최종적으로 사용자가 직접 플레이하여 목표 달성을 확인할 수 있어야 한다.
-
-## 45. 최종 전체 구조
+Designer용 Specification에는 다음과 같은 정보를 포함할 수 있다.
 
 ```text
-══════════════════════════════════════════════
-                CYCLE GOAL
-══════════════════════════════════════════════
-                     │
-                     ▼
+Current Goal
+Current Possibility
+Availability
+Preconditions
+Selected Rule
+Before State
+Input
+After State
+Failure Reason
 
-══════════════════════════════════════════════
-              WORLD WORKFLOW
-══════════════════════════════════════════════
+```
 
-Cycle Scope
+예:
+
+```text
+designerObservation
+
+    goal
+        AcquireStone
+
+    possibility
+        MineStone
+
+    availability
+        false
+
+    preconditions
+
+        knowsDeposit
+            true
+
+        hasMiningTool
+            true
+
+        inRange
+            false
+
+    reason
+        target-out-of-range
+
+```
+
+따라서 Designer View 역시 Server 내부 객체를 보지 않는다.
+
+## 18. Step 5 — Human Semantic Review
+
+구현 전에 인간이 한 번만 핵심 의미를 확인한다.
+
+검토 대상은 코딩 구조가 아니다.
+
+```text
+Cycle Goal
     ↓
 Goal / Possibility
     ↓
@@ -2047,85 +1069,1194 @@ Intent
     ↓
 World State / Rule
     ↓
-Semantic Closure
-    ↓
-Authority
-    ↓
-Observation
-    ↓
-Observable Contract
-    +
-GameView Specification
-    ↓
-World Implementation
-    ↓
-World Verification
-    ↓
-World Capability Module
-
-══════════════════════════════════════════════
-              CONTRACT BOUNDARY
-══════════════════════════════════════════════
-
-Observable Contract
 GameView Specification
 
-                     │
-                     ▼
-
-══════════════════════════════════════════════
-             GAMEVIEW WORKFLOW
-══════════════════════════════════════════════
-
-Specification Resolution
-    ↓
-Visual Composition
-    ↓
-Asset Resolution
-    ↓
-Observable Binding
-    ↓
-Rendering Implementation
-    ↓
-View Verification
-    ↓
-GameView Module
-
-══════════════════════════════════════════════
-            INTEGRATION WORKFLOW
-══════════════════════════════════════════════
-
-World Capability Module
-        +
-GameView Module
-        ↓
-Playable Composition
-        ↓
-End-to-End Verification
-        ↓
-Playable Build
-
-══════════════════════════════════════════════
-              CYCLE COMPLETE
-══════════════════════════════════════════════
-
-World Capability Module
-GameView Module
-Playable Build
-
-        ↓
-
-Module Registry
-
-        ↓
-
-Next Cycle
 ```
 
-## 46. 한 문장 정의
+질문은 두 가지다.
 
-하나의 Cycle은 사용자가 제시한 작은 플레이 목표를 Goal/Possibility → Intent → World Semantic → Authority → Observation으로 정의하고 World Capability로 구현한 뒤, Observable Contract와 GameView Specification만을 독립된 GameView Workflow에 전달하여 화면을 구현하고, 마지막 Integration Workflow에서 두 결과를 조합해 실제 게임으로 검증한 후 그 Capability를 다음 Cycle에서 재사용 가능한 Module로 축적하는 공정이다.
+```text
+1.
+이 World가 내가 의도한 게임 의미를 정확히 표현하는가?
 
-더 압축하면 다음과 같다.
+2.
+이 GameView Specification만 받으면
+Player가 그 의미를 충분히 이해하고 플레이할 수 있는가?
 
-World Workflow는 세계를 정의하고 실행하며, GameView Workflow는 전달된 세계의 Projection을 표현하고, Integration Workflow는 둘을 계약으로 연결해 플레이 가능성을 검증한다.
+```
+
+이 단계가 통과되기 전에는 구현으로 이동하지 않는다.
+
+## 19. Step 6 — Implementation
+
+담당
+
+Implementation Agent
+
+Implementation은 하나의 Agent 단계지만 결과는 물리적으로 두 영역으로 분리한다.
+
+```text
+Implementation Agent
+        │
+        ├── World Implementation
+        │       server
+        │
+        └── View Implementation
+                client
+
+```
+
+두 구현은 서로를 import하지 않는다.
+
+## 20. World Implementation
+
+World는 TypeScript 기반 Server Runtime으로 구현한다.
+
+개념 구조:
+
+```text
+world/
+
+    semantic/
+    rules/
+    simulation/
+    projection/
+    actions/
+    capabilities/
+
+```
+
+핵심 흐름:
+
+```text
+Action Request
+    ↓
+World Rule
+    ↓
+Authoritative State Transition
+    ↓
+Observer Projection
+    ↓
+GameView Specification
+
+```
+
+World 테스트는 View 없이 실행 가능해야 한다.
+
+## 21. View Implementation
+
+View는 TypeScript 기반 Web Client로 구현한다.
+
+개념 구조:
+
+```text
+view/
+
+    renderer/
+    scene/
+    sprites/
+    terrain/
+    camera/
+    input/
+    hud/
+    assets/
+    gameview/
+
+```
+
+입력은 오직:
+
+```text
+GameView Specification
+
+```
+
+이다.
+
+핵심 흐름:
+
+```text
+GameView Specification
+    ↓
+Presentation Resolver
+    ↓
+Scene State
+    ↓
+Renderer
+
+```
+
+## 22. 초기 Rendering Stack
+
+초기 Client 표현 방식은 다음으로 고정한다.
+
+```text
+Platform
+    Web
+
+Language
+    TypeScript
+
+World Rendering
+    3D
+
+Terrain
+    3D Terrain
+
+Character / NPC / Object
+    Sprite Billboard
+
+UI
+    Web HUD
+
+```
+
+개념적으로:
+
+```text
+                    Camera
+
+                      ▼
+
+        ┌────────────────────────┐
+        │      Sprite Actor      │
+        │         │              │
+        │       Billboard        │
+        │                        │
+        │   Sprite Resource      │
+        │                        │
+        │________________________│
+        │                        │
+        │      3D Terrain        │
+        └────────────────────────┘
+
+```
+
+초기에는 복잡한 Character Mesh나 Animation System보다 게임 세계의 Semantic을 빠르게 확인할 수 있는 구조를 우선한다.
+
+## 23. Sprite Billboard의 역할
+
+다음 Semantic Role을 기본적으로 Sprite Billboard로 표현할 수 있다.
+
+```text
+player-character
+npc
+hostile-creature
+resource-deposit
+item-drop
+interactive-object
+
+```
+
+View의 Asset Registry 예:
+
+```text
+player-character
+    → player.png
+
+resource-deposit:stone
+    → stone-deposit.png
+
+hostile-creature:wolf
+    → wolf.png
+
+```
+
+GameView Specification은 이 파일명을 알지 않는다.
+
+## 24. 3D Terrain의 역할
+
+World의 Position Semantic은 3차원 좌표를 사용한다.
+
+```text
+Position
+
+    x
+    y
+    z
+
+```
+
+View는 이를 3D Terrain 위에 배치한다.
+
+World 입장에서는:
+
+```text
+Actor.Position
+Deposit.Position
+InteractionRange
+
+```
+
+일 뿐이다.
+
+View 입장에서는:
+
+```text
+World Position
+    ↓
+Terrain Transform
+    ↓
+Billboard Placement
+
+```
+
+이다.
+
+## 25. Camera는 View의 책임이다
+
+Camera는 World Semantic이 아니다.
+
+따라서 World는:
+
+```text
+camera distance
+camera angle
+zoom
+screen resolution
+
+```
+
+을 알지 않는다.
+
+초기 View에서는 예를 들어:
+
+```text
+Third-person / Isometric-like Perspective
++
+3D Terrain
++
+Camera-facing Sprite Billboard
+
+```
+
+형태를 사용할 수 있다.
+
+이는 View 구현 선택이다.
+
+## 26. Step 7 — Verification
+
+담당
+
+Verification Agent
+
+검증 역시 너무 많은 독립 Stage로 나누지 않는다.
+
+하나의 Verification 단계 안에서 네 종류를 검사한다.
+
+```text
+Semantic Verification
+
+World Verification
+
+View Verification
+
+Playable Verification
+
+```
+
+## 27. Semantic Verification
+
+검사:
+
+```text
+Goal
+ ↓
+Possibility
+ ↓
+Intent
+ ↓
+State / Rule
+
+```
+
+모든 의미가 연결되는가?
+
+즉:
+
+```text
+Semantic Closure
+
+```
+
+를 확인한다.
+
+## 28. World Verification
+
+View 없이 테스트한다.
+
+예:
+
+```text
+Before
+
+    Player.Stone = 0
+    Deposit.Amount = 10
+
+
+Input
+
+    Mine(Player, Deposit)
+
+
+Rule
+
+    RULE-MINE-001
+
+
+After
+
+    Player.Stone = 1
+    Deposit.Amount = 9
+
+```
+
+그리고 결과로 생성된 GameView Specification을 검사한다.
+
+## 29. View Verification
+
+World 없이 테스트한다.
+
+Fixture로 GameView Specification을 전달한다.
+
+```text
+Fixture
+    ↓
+GameView Specification
+    ↓
+View
+
+```
+
+예:
+
+```text
+Deposit
+
+    state
+        depleted
+
+```
+
+를 전달하면 View에서 자원 고갈 상태가 표현되어야 한다.
+
+이 테스트가 가능하면 World와 View가 실제로 독립적이라는 강력한 증거가 된다.
+
+## 30. Playable Verification
+
+마지막으로 실제 Server와 Client를 연결한다.
+
+```text
+Input
+    ↓
+Client
+    ↓
+Action Request
+    ↓
+Server
+    ↓
+World Rule
+    ↓
+World Transition
+    ↓
+GameView Specification
+    ↓
+Client
+    ↓
+Rendering
+    ↓
+Human
+
+```
+
+사용자가 실제로 Cycle Goal을 달성할 수 있어야 한다.
+
+## 31. Human Observation
+
+Verification Agent가 통과했다고 Cycle이 자동 완료되는 것은 아니다.
+
+최종적으로 Human이 실행된 Client를 관찰한다.
+
+질문:
+
+```text
+실제 게임이
+내가 정의한 Cycle Goal과 같은 게임인가?
+
+```
+
+Human Observation은 코드 리뷰가 아니다.
+
+실제 게임 행동 관찰이다.
+
+## 32. Step 8 — Cycle Packaging
+
+완료된 Cycle은 다음 Cycle의 기반이 된다.
+
+Cycle 결과는 크게 네 가지다.
+
+```text
+Cycle Result
+
+    1. Design Artifact
+
+    2. World Capability
+
+    3. GameView Capability
+
+    4. Verification Evidence
+
+```
+
+## 33. Cycle Artifact 구조
+
+각 Cycle 디렉터리는 Agent 작업 상태를 직관적으로 보여줘야 한다.
+
+예:
+
+```text
+cycles/
+
+    C001-movement/
+
+        cycle.md
+        intent.md
+        world.md
+        gameview.spec.json
+        verification.md
+
+
+    C002-mining/
+
+        cycle.md
+        intent.md
+        world.md
+        gameview.spec.json
+        verification.md
+
+```
+
+이 디렉터리는 실제 Runtime Module 자체가 아니라:
+
+```text
+왜 이 기능이 존재하는가
+무엇을 구현했는가
+무엇을 검증했는가
+
+```
+
+를 추적하기 위한 기록이다.
+
+## 34. Cycle Status
+
+각 Cycle에는 최상단에 간단한 상태를 표시한다.
+
+```text
+CYCLE C002 — Mining
+
+[PASS] Cycle Definition
+[PASS] Intent
+[PASS] World Semantic
+[PASS] GameView Specification
+[PASS] Human Semantic Review
+[PASS] Implementation
+[PASS] Verification
+
+Status
+    COMPLETE
+
+```
+
+실패 시:
+
+```text
+[PASS] Intent
+[FAIL] Semantic Closure
+
+Missing
+    Tool.Capability
+
+```
+
+처럼 즉시 원인을 볼 수 있어야 한다.
+
+## 35. Agent Workflow
+
+Cycle 내부 Agent Workflow는 다음 하나의 흐름으로 통일한다.
+
+```text
+                  HUMAN
+                    │
+                    │ Cycle Goal
+                    ▼
+          ┌───────────────────┐
+          │ Human Design      │
+          │ Cycle Definition  │
+          └─────────┬─────────┘
+                    ▼
+          ┌───────────────────┐
+          │ Intent Agent      │
+          │                   │
+          │ Goal/Possibility  │
+          │ Intent            │
+          └─────────┬─────────┘
+                    ▼
+          ┌───────────────────┐
+          │ World Model Agent │
+          │                   │
+          │ State             │
+          │ Rule              │
+          │ Observation       │
+          │ GameView Spec     │
+          └─────────┬─────────┘
+                    ▼
+             Human Semantic
+                 Review
+                    │
+                    ▼
+          ┌───────────────────┐
+          │ Implementation    │
+          │ Agent             │
+          │                   │
+          │ World / Server    │
+          │ View / Client     │
+          └─────────┬─────────┘
+                    ▼
+          ┌───────────────────┐
+          │ Verification      │
+          │ Agent             │
+          │                   │
+          │ Semantic          │
+          │ World             │
+          │ View              │
+          │ Playable          │
+          └─────────┬─────────┘
+                    ▼
+             Human Observation
+                    │
+                    ▼
+              CYCLE COMPLETE
+                    │
+                    ▼
+                NEXT CYCLE
+
+```
+
+이것이 모든 Cycle에서 반복되는 유일한 Agent Workflow다.
+
+## 36. Agent별 직관적 산출물
+
+Human Design
+
+보여야 하는 것:
+
+```text
+이번 Cycle에서 무엇을 플레이할 수 있는가?
+
+```
+
+산출물:
+
+```text
+cycle.md
+
+```
+
+Intent Agent
+
+보여야 하는 것:
+
+```text
+무엇이 가능해야 하는가?
+왜 가능한가?
+
+```
+
+산출물:
+
+```text
+Goal / Possibility
+Intent
+Trace
+
+```
+
+World Model Agent
+
+보여야 하는 것:
+
+```text
+세계에는 무엇이 존재해야 하는가?
+어떤 규칙으로 변하는가?
+Player에게 무엇이 보이는가?
+
+```
+
+산출물:
+
+```text
+World State
+World Rules
+Semantic Closure
+GameView Specification
+
+```
+
+Implementation Agent
+
+보여야 하는 것:
+
+```text
+설계가 실제 실행 가능한 World와 View가 되었는가?
+
+```
+
+산출물:
+
+```text
+world/server implementation
+
+view/client implementation
+
+```
+
+Verification Agent
+
+보여야 하는 것:
+
+```text
+무엇을 검증했고
+무엇이 통과했고
+무엇이 실패했는가?
+
+```
+
+산출물:
+
+```text
+verification.md
+
+```
+
+## 37. Capability 누적
+
+완료된 Cycle의 World Capability는 하나의 공유 World에 축적된다.
+
+잘못된 구조:
+
+```text
+MiningWorld
+CraftingWorld
+CombatWorld
+TradeWorld
+
+```
+
+올바른 구조:
+
+```text
+                  WORLD
+
+                    │
+       ┌────────────┼────────────┐
+       │            │            │
+    Mining       Crafting      Combat
+       │            │            │
+       └────────────┼────────────┘
+                    │
+                 Actor
+                 Item
+               Inventory
+                Position
+
+```
+
+Capability는 별도의 세계가 아니다.
+
+기존 World에 새로운 가능성을 추가한다.
+
+## 38. 후속 Cycle의 입력
+
+새 Cycle은 이전 Cycle을 다시 구현하지 않는다.
+
+```text
+Cycle N Input
+
+    Cycle Goal
+
+    Existing World
+
+    Existing View
+
+    Existing Semantic Registry
+
+    Existing Presentation Roles
+
+```
+
+Agent는 먼저 기존 Capability를 확인한다.
+
+```text
+Required Semantic
+
+    Actor
+    Inventory
+    Position
+    Resource
+    Recipe
+
+```
+
+기존 World에:
+
+```text
+Actor
+Inventory
+Position
+Resource
+
+```
+
+가 있다면 재정의하지 않는다.
+
+새로운 것은:
+
+```text
+Recipe
+Craft Rule
+
+```
+
+뿐이다.
+
+## 39. Capability 변경 규칙
+
+이전 Cycle 결과는 가능한 한 그대로 유지한다.
+
+새 기능:
+
+```text
+Existing Capability
++
+Extension
+
+```
+
+형태를 우선한다.
+
+잘못된 경우에만 Version Migration을 수행한다.
+
+```text
+Mining v1
+    ↓
+Mining v2
+
+```
+
+Cycle은 기존 작업을 계속 뜯어고치는 단위가 아니다.
+
+게임의 가능성을 추가하는 단위다.
+
+## 40. World와 View의 Repository Boundary
+
+권장되는 최상위 구조는 단순하게 유지한다.
+
+```text
+project/
+
+    world/
+        src/
+
+    view/
+        src/
+
+    protocol/
+        gameview/
+
+    cycles/
+
+    tests/
+
+```
+
+`protocol/gameview`에는 World와 View가 공유할 수 있는 경계 타입만 둔다.
+
+예:
+
+```text
+GameViewSpecification
+ActionRequest
+SemanticIdentifier
+
+```
+
+World의 Domain Type을 넣지 않는다.
+
+View의 Rendering Type도 넣지 않는다.
+
+## 41. Compile-Time Independence
+
+가능하면 구조적으로도 의존을 금지한다.
+
+```text
+world
+    may import
+        protocol
+
+view
+    may import
+        protocol
+
+world
+    MUST NOT import
+        view
+
+view
+    MUST NOT import
+        world
+
+```
+
+즉:
+
+```text
+        protocol
+        ▲      ▲
+        │      │
+     world    view
+
+```
+
+이다.
+
+```text
+world → view
+view → world
+
+```
+
+직접 의존은 존재하지 않는다.
+
+## 42. Local Development와 MMORPG Server
+
+초기 Cycle에서는 개발 편의를 위해 Server와 Client를 같은 개발 환경에서 실행할 수 있다.
+
+하지만 논리 구조는 처음부터 다음이어야 한다.
+
+```text
+Browser Client
+      │
+      │ Action Request
+      ▼
+World Server
+      │
+      │ GameView Specification
+      ▼
+Browser Client
+
+```
+
+초기에는 Transport가:
+
+```text
+in-memory
+
+```
+
+일 수 있다.
+
+나중에는:
+
+```text
+WebSocket
+HTTP
+Dedicated Server Transport
+
+```
+
+등으로 바뀔 수 있다.
+
+그러나 World와 View의 의미 구조는 변하지 않는다.
+
+Transport는 구현 세부사항이다.
+
+## 43. MMORPG 확장
+
+Cycle이 쌓여도 Architecture는 변경되지 않는다.
+
+초기:
+
+```text
+One Player
+One Map
+One Deposit
+
+```
+
+후기:
+
+```text
+Thousands of Actors
+Multiple Zones
+Combat
+Economy
+Guild
+Party
+Quest
+AI
+Persistence
+Replication
+
+```
+
+에서도 기본 흐름은 동일하다.
+
+```text
+Action
+    ↓
+Authoritative World
+    ↓
+World Transition
+    ↓
+Observer Projection
+    ↓
+GameView Specification
+    ↓
+Client View
+
+```
+
+Scale이 커지는 것이지 의미 구조가 바뀌는 것이 아니다.
+
+## 44. 첫 번째 Cycle 권장 형태
+
+첫 Cycle에서는 Engine Architecture를 많이 만드는 것이 목적이 아니다.
+
+추천 목표:
+
+```text
+Player가 작은 3D 지형 위를 이동할 수 있고
+Sprite Billboard Character가 그 위치에 표시된다.
+
+```
+
+이 Cycle로 가장 먼저 검증할 수 있다.
+
+```text
+World Position
+    ↓
+GameView Specification
+    ↓
+3D Terrain
+    +
+Sprite Billboard
+
+```
+
+다음 Cycle:
+
+```text
+Resource Deposit을 볼 수 있다.
+
+```
+
+다음:
+
+```text
+Deposit과 상호작용할 수 있다.
+
+```
+
+다음:
+
+```text
+Stone을 획득할 수 있다.
+
+```
+
+이처럼 게임을 실제로 한 단계씩 성장시킨다.
+
+## 45. Cycle Completion Gate
+
+하나의 Cycle은 다음이 모두 참일 때만 완료된다.
+
+```text
+[ ] 작은 플레이 가능한 Goal이 정의되어 있다.
+
+[ ] Goal / Possibility가 존재한다.
+
+[ ] Intent가 존재한다.
+
+[ ] Intent의 모든 의미가 State / Rule로 닫혀 있다.
+
+[ ] World State 변화가 World Rule을 통해서만 발생한다.
+
+[ ] World는 Authoritative하다.
+
+[ ] GameView Specification이 존재한다.
+
+[ ] View는 GameView Specification 외 World 정보를 사용하지 않는다.
+
+[ ] World는 View 구현 정보를 사용하지 않는다.
+
+[ ] World를 View 없이 검증할 수 있다.
+
+[ ] View를 World 없이 GameView Fixture로 검증할 수 있다.
+
+[ ] Server와 Client를 연결했을 때 실제 플레이가 가능하다.
+
+[ ] Runtime 결과를 Goal / Possibility / Intent까지 추적할 수 있다.
+
+[ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다.
+
+[ ] 결과를 다음 Cycle에서 그대로 재사용할 수 있다.
+
+```
+
+## 46. 전체 구조
+
+최종 전체 설계는 다음 하나의 그림으로 압축할 수 있다.
+
+```text
+══════════════════════════════════════════
+                 CYCLE
+══════════════════════════════════════════
+
+              Cycle Goal
+                  │
+                  ▼
+
+           Human Design
+                  │
+                  ▼
+        Goal / Possibility
+                  │
+                  ▼
+               Intent
+                  │
+                  ▼
+       World State / Rules
+                  │
+                  ▼
+        Semantic Closure
+                  │
+                  ▼
+        Observer Projection
+                  │
+                  ▼
+      GameView Specification
+                  │
+                  ▼
+       Human Semantic Review
+
+══════════════════════════════════════════
+             IMPLEMENTATION
+══════════════════════════════════════════
+
+             protocol
+             ▲      ▲
+             │      │
+          WORLD    VIEW
+          Server   Client
+             │      │
+             │      │
+             └──┬───┘
+                │
+                ▼
+             Playable
+
+══════════════════════════════════════════
+             VERIFICATION
+══════════════════════════════════════════
+
+        Semantic Verification
+                ↓
+          World Verification
+                ↓
+           View Verification
+                ↓
+        Playable Verification
+                ↓
+         Human Observation
+
+══════════════════════════════════════════
+           CYCLE COMPLETE
+══════════════════════════════════════════
+
+          Existing MMORPG
+                 +
+        New Game Possibility
+                 │
+                 ▼
+             Next Cycle
+
+```
+
+## 47. 핵심 Architecture Rules
+
+```text
+1.
+Cycle은 작은 게임 단위다.
+
+2.
+모든 Cycle은 Design-Workflow를 처음부터 끝까지 수행한다.
+
+3.
+Agent의 각 단계는 인간이 읽을 수 있는 명시적 Artifact를 만든다.
+
+4.
+Goal / Possibility가 게임 의도의 Source of Truth다.
+
+5.
+Intent는 세계에서 무엇이 참이어야 하는지를 정의한다.
+
+6.
+Intent의 모든 의미는 World State 또는 World Rule로 닫혀야 한다.
+
+7.
+World State의 의미 있는 변화는 World Rule을 통해서만 발생한다.
+
+8.
+World는 Authoritative Server다.
+
+9.
+View는 Client다.
+
+10.
+World와 View는 서로의 구현을 참조하지 않는다.
+
+11.
+World → View의 공개 결과는 GameView Specification 하나다.
+
+12.
+GameView Specification은 Observable Semantic과 Presentation Semantic을 함께 포함한다.
+
+13.
+View는 GameView Specification만으로 화면을 구성한다.
+
+14.
+실제 Sprite, Mesh, Texture, UI, Renderer 선택은 View의 책임이다.
+
+15.
+Client는 상태를 변경하지 않고 Action Request만 전달한다.
+
+16.
+Transport는 Semantic에 영향을 주지 않는다.
+
+17.
+World는 View 없이 테스트 가능해야 한다.
+
+18.
+View는 World 없이 GameView Specification Fixture만으로 테스트 가능해야 한다.
+
+19.
+Cycle 결과는 버리지 않고 다음 Cycle에 누적된다.
+
+20.
+모든 Cycle은 실제 플레이로 끝난다.
+
+```
+
+## 48. 한 문장 정의
+
+하나의 Cycle은 작은 플레이 목표를 `Goal/Possibility → Intent → World State/Rule → Observable Semantic → GameView Specification`으로 의미적으로 폐쇄하고, 이를 Authoritative TypeScript World Server와 독립적인 TypeScript Web Client로 구현하여, Client가 오직 GameView Specification만으로 3D Terrain과 Sprite Billboard 기반의 게임 화면을 구성하도록 만든 뒤 실제 플레이로 검증하고 그 결과를 다음 Cycle에 누적하는 개발 단위다.
