@@ -15,9 +15,11 @@
 1. REUSED Semantic 은 기존 구현을 그대로 사용한다.
 2. ADDED Semantic 을 State 로 구현한다.
 3. CHANGED Rule 을 수정하고, AFFECTED Rule 이 새 Precondition 을 만족하도록 함께 발전시킨다.
-4. Action Request 처리 경로를 연결한다.
-5. Observer Projection 을 구현해 GameView Specification 을 산출한다.
-6. World 단독 테스트를 작성한다 (`Before → Input → Rule → After`).
+4. `03-world-semantic.md` 가 정한 Authority 를 코드로 강제한다 — World Authority State 는
+   Rule 을 거치지 않고 바뀔 수 없어야 한다.
+5. Action Request 처리 경로를 연결한다.
+6. Observer Projection 을 구현해 GameView Specification 을 산출한다.
+7. World 단독 테스트를 작성한다 (`Before → Input → Rule → After`).
 
 ```text
 Action Request
@@ -48,17 +50,9 @@ world/
 - `world/` 실제 코드
 - `cycles/<CycleId>/06-world-implementation.md`
 
-```text
-IMPLEMENTED
-    Inventory.Capacity        world/semantic/inventory.ts
-    RULE-ADD-ITEM (changed)   world/rules/add-item.ts
-AFFECTED UPDATED
-    RULE-MINE-001             world/rules/mine.ts
-PROJECTION
-    inventory.capacity        world/projection/player-view.ts
-TESTS
-    add-item.spec.ts          full / room available / boundary
-```
+항목: `IMPLEMENTED` · `REUSED` · `AFFECTED UPDATED` · `PROJECTION` · `TESTS` · `NOTES`
+
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 

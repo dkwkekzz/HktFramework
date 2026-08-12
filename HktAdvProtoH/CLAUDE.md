@@ -93,5 +93,17 @@ Return To  어느 단계가 이 의미를 책임지는가
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
 | [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | Cycle 단위 점진 개발 공정 |
+| [Design-CycleExecution.md](design/Design-CycleExecution.md) | **Agent 실행 방식** — 이 작업환경의 근거 |
 
-`guides/` 는 이 문서들에서 각 단계에 필요한 규칙만 압축한 것이다. 충돌하면 `design/` 이 원본이다.
+`guides/` 는 이 문서들에서 각 단계에 필요한 규칙만 압축한 것이다.
+
+충돌 시 우선순위:
+
+```text
+Artifact 이름 · 단계 구분 · Agent 실행 방식   → Design-CycleExecution.md
+그 외 공정과 게임 의미                        → Design-Workflow / Design-CycleWorkflow
+```
+
+`Design-CycleWorkflow.md` 의 §33(Artifact 이름 5종)과 §19(Implementation 단일 단계)는
+`Design-CycleExecution.md` 가 대체한다 — 실제 규격은 `01-cycle.md` ~ `08-verification.md` 8종,
+World / View 구현 2단계다.

@@ -35,31 +35,10 @@ GameView Specification
 
 `cycles/<CycleId>/04-gameview.spec.yaml`
 
-```yaml
-id: VIEW-INVENTORY-CAPACITY-001
-observer: player
-delta:
-  reused: [inventory.items]
-  added: [inventory.capacity]
-  changed: []
-entities:
-  player:
-    role: player-character
-    position: { source: Actor.Position }
-    state: { source: Actor.CurrentAction }
-interactions:
-  pickup:
-    role: acquire-item
-    target: ItemDrop
-    available: { source: AddItem.Availability }
-    unavailableReason: { source: AddItem.FailureReason }
-hud:
-  inventory:
-    items: { source: Actor.Inventory.Items }
-    capacity:
-      used:    { source: Actor.Inventory.UsedCapacity }
-      maximum: { source: Actor.Inventory.Capacity }
-```
+항목: `id` · `observer` · `delta` · `scene` · `entities` · `interactions` · `hud`
+변화가 없으면 `change: NONE`
+
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 

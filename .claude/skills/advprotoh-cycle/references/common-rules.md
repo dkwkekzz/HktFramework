@@ -239,25 +239,8 @@ Cycle Goal 이:
 * View 에서 확인되고
 * 실제 플레이로 검증되어야 한다.
 
-### Cycle Completion Gate
-
-```text
-[ ] 작은 플레이 가능한 Goal 이 정의되어 있다
-[ ] Goal / Possibility 가 존재한다
-[ ] Intent 가 존재한다
-[ ] Intent 의 모든 의미가 State / Rule 로 닫혀 있다
-[ ] World State 변화가 World Rule 을 통해서만 발생한다
-[ ] World 는 Authoritative 하다
-[ ] GameView Specification 이 존재한다
-[ ] View 는 GameView Specification 외 World 정보를 사용하지 않는다
-[ ] World 는 View 구현 정보를 사용하지 않는다
-[ ] World 를 View 없이 검증할 수 있다
-[ ] View 를 GameView Fixture 로 World 없이 검증할 수 있다
-[ ] Server 와 Client 를 연결했을 때 실제 플레이가 가능하다
-[ ] Runtime 결과를 Goal / Possibility / Intent 까지 추적할 수 있다
-[ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다
-[ ] 결과를 다음 Cycle 에서 그대로 재사용할 수 있다
-```
+전체 판정 항목 15개는 `HktAdvProtoH/guides/verification.md` 의 DONE WHEN 이 단일 출처다.
+여기에 복제하지 않는다.
 
 ## 한 문장
 

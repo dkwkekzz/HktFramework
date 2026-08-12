@@ -21,28 +21,10 @@
 
 `cycles/<CycleId>/01-cycle.md`
 
-```text
-CYCLE
-    C012 Inventory Capacity
-TYPE
-    Existing Capability Enhancement
-TARGET CAPABILITY
-    Inventory
-GOAL
-    Inventory 에는 저장 가능한 한계가 있고
-    공간이 부족하면 Item 을 추가로 획득할 수 없다.
-INCLUDED
-    Inventory Capacity
-    Capacity Check
-    Acquisition Failure
-EXCLUDED
-    Weight
-    Equipment Slot
-    Item Durability
-RELATED EXISTING CAPABILITY
-    Inventory
-    Item Acquisition
-```
+항목: `CYCLE` · `TYPE` · `TARGET CAPABILITY` · `GOAL` · `INCLUDED` · `EXCLUDED` ·
+`RELATED EXISTING CAPABILITY` + 최상단 Stage 상태 블록
+
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 

@@ -84,27 +84,7 @@ Semantic 정보 부족    → Intent
 Intent 가 Goal 과 불일치 → Cycle Definition (Human)
 ```
 
-## 4. 단계별 주의점
-
-**Stage 1** — Goal 은 플레이 가능한 한 문장. Excluded 를 반드시 명시해 범위를 닫는다.
-
-**Stage 2** — 구현 방법(클래스·함수·State 이름)을 결정하지 않는다. 세계에서 무엇이 참이어야 하는가만.
-
-**Stage 3** — 새 Semantic 정의 **전에** 기존 Semantic 을 먼저 조회한다. 중복 생성 금지.
-REUSED / ADDED / CHANGED / AFFECTED 4분류와 Semantic Closure 를 반드시 기록한다.
-
-**Stage 4** — Sprite 파일명·CSS·Three.js·Mesh·Shader 등 Presentation 구현 용어가 하나라도 들어가면 실패다.
-변화가 없으면 `GAMEVIEW CHANGE: NONE` 으로 명시한다.
-
-**Stage 6** — `view/` 를 import 하지 않는다. View 를 구현하지 않는다. World 단독 테스트를 남긴다.
-
-**Stage 7** — 입력은 `04-gameview.spec.yaml` **하나뿐**이다. `world/` 나 `03-world-semantic.md` 를
-계약의 대체 수단으로 읽지 마라. World 없이 Fixture 만으로 도는 테스트를 남긴다.
-
-**Stage 8** — 통과 주장이 아니라 **실행 결과**를 적는다. `03-world-semantic.md` 의 AFFECTED 항목은
-반드시 Regression 을 돈다. 검증을 통과시키려고 Semantic 이나 Spec 을 고치지 않는다 — 실패는 반환이다.
-
-## 5. 닫기
+## 4. 닫기
 
 * 출력 Artifact 커밋. 메시지 형식: `HktAdvProtoH: <CycleId> <Stage> — <한 줄 요약>`
 * Stage 6/7 은 구현 코드와 Artifact 를 함께 커밋한다.

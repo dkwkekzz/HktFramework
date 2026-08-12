@@ -60,15 +60,9 @@ view/
 - `view/` 실제 코드
 - `cycles/<CycleId>/07-view-implementation.md`
 
-```text
-SPEC CONSUMED
-    hud.inventory.capacity      view/hud/inventory.ts
-    interactions.pickup.reason  view/hud/interaction-hint.ts
-ASSET MAPPING
-    resource-deposit:stone → stone-deposit.png
-FIXTURE TESTS
-    inventory-full.fixture.json  → 획득 불가 표시 확인
-```
+항목: `SPEC CONSUMED` · `ASSET MAPPING` · `INPUT → ACTION REQUEST` · `FIXTURE TESTS` · `NOTES`
+
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 

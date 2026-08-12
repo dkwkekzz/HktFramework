@@ -23,43 +23,10 @@
 
 `cycles/<CycleId>/08-verification.md`
 
-```text
-CYCLE C012 — Inventory Capacity
+항목: 6종 검사 체크박스 · `NEW BEHAVIOR` · `WORLD SCENARIO` · `VIEW FIXTURE` ·
+`PLAYABLE` · `REGRESSION` · `FAILURES` · `STATUS`
 
-[PASS] Semantic Closure
-[PASS] World Rule Execution
-[PASS] Projection
-[PASS] View Binding
-[PASS] Playable
-[PASS] Regression
-
-NEW BEHAVIOR
-    Inventory has room   → Item acquisition succeeds
-    Inventory full       → Item acquisition fails (reason: inventory-full)
-
-WORLD SCENARIO
-    Before  UsedCapacity = 9, Capacity = 10
-    Input   Pickup(Player, Stone)
-    Rule    RULE-ADD-ITEM
-    After   UsedCapacity = 10, Items += Stone
-
-REGRESSION
-    Mining with available capacity  → still succeeds   (C003 scenario)
-    Pickup with available capacity  → still succeeds   (C002 scenario)
-    Trade receive with capacity     → still succeeds   (C009 scenario)
-
-STATUS
-    COMPLETE
-```
-
-실패는 원인이 즉시 보이게 적는다.
-
-```text
-[PASS] Intent
-[FAIL] Semantic Closure
-Missing   Tool.Capability
-Return To World Semantic
-```
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 
@@ -77,18 +44,22 @@ Return To World Semantic
 
 Cycle Completion Gate 가 모두 참이다.
 
+이 15항이 Gate 의 단일 출처다. 다른 문서에 복제하지 않는다.
+
 ```text
 [ ] 작은 플레이 가능한 Goal 이 정의되어 있다
-[ ] Goal / Possibility / Intent 가 존재한다
+[ ] Goal / Possibility 가 존재한다
+[ ] Intent 가 존재한다
 [ ] Intent 의 모든 의미가 State / Rule 로 닫혀 있다
 [ ] World State 변화가 World Rule 을 통해서만 발생한다
+[ ] World 는 Authoritative 하다
 [ ] GameView Specification 이 존재한다
 [ ] View 는 Spec 외 World 정보를 사용하지 않는다
+[ ] World 는 View 구현 정보를 사용하지 않는다
 [ ] World 를 View 없이 검증할 수 있다
 [ ] View 를 Fixture 만으로 검증할 수 있다
 [ ] Server + Client 연결 시 실제 플레이가 가능하다
 [ ] Runtime 결과를 Goal / Possibility / Intent 까지 추적할 수 있다
-[ ] 영향받은 기존 기능이 여전히 동작한다
 [ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다
 [ ] 결과를 다음 Cycle 에서 그대로 재사용할 수 있다
 ```

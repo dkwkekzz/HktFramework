@@ -39,48 +39,11 @@ Semantic Closure
 
 `cycles/<CycleId>/03-world-semantic.md`
 
-```text
-SEMANTIC DELTA
+항목: `SEMANTIC DELTA`(REUSED/ADDED/CHANGED/AFFECTED) · `WORLD STATE`(+Authority) ·
+`WORLD RULE`(Implements/Input/Preconditions/Transition/Result) · `OBSERVABLE SEMANTIC` ·
+`SEMANTIC CLOSURE`
 
-REUSED
-    Actor.Inventory
-    Inventory.Items
-ADDED
-    Inventory.Capacity
-    Inventory.UsedCapacity
-CHANGED
-    RULE-ADD-ITEM
-        NEW PRECONDITION  Inventory has sufficient capacity
-AFFECTED EXISTING RULES
-    RULE-MINE-001
-    RULE-PICKUP-001
-    RULE-TRADE-RECEIVE-001
-
-WORLD STATE
-    Inventory
-        Items
-        Capacity        World Authority
-        UsedCapacity    World Authority
-
-WORLD RULE
-    RULE-ADD-ITEM
-        Implements    INTENT-INVENTORY-CAPACITY-001
-        Input         Actor, Item
-        Preconditions Inventory.UsedCapacity + Item.Size <= Inventory.Capacity
-        Transition    Inventory.Items += Item
-                      Inventory.UsedCapacity += Item.Size
-        Result        Success | Failure(inventory-full)
-
-OBSERVABLE SEMANTIC
-    Inventory.UsedCapacity
-    Inventory.Capacity
-    AddItem.Availability + Reason
-
-SEMANTIC CLOSURE
-    "저장 한계가 있다"      → Inventory.Capacity
-    "공간이 부족하다"       → UsedCapacity + Item.Size > Capacity
-    "획득할 수 없다"        → RULE-ADD-ITEM Precondition 실패 + Reason
-```
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 

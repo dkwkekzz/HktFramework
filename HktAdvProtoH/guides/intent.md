@@ -21,31 +21,9 @@ Cycle Goal 을 Goal / Possibility 와 Intent 로 변환한다.
 
 `cycles/<CycleId>/02-intent.md`
 
-```text
-GOAL / POSSIBILITY
+항목: `GOAL / POSSIBILITY` · `INTENT SET` · `DESIGN TRACE` · `EXISTING INTENT DELTA`
 
-    GOAL-RESOURCE-ACQUIRE-STONE
-        └── POSSIBILITY-MINE-STONE
-
-INTENT SET
-
-    INTENT-MINING-001
-
-        Stone Deposit 을 알고 있고,
-        Mining 가능한 Tool 을 보유하고 있으며,
-        Deposit 에 접근 가능한 Actor 는
-
-        Mine 을 수행하여
-
-        Deposit 의 Resource 를 감소시키고
-        자신의 Inventory 에 Stone 을 획득할 수 있다.
-
-DESIGN TRACE
-
-    INTENT-MINING-001
-        Source Goal        GOAL-RESOURCE-ACQUIRE-STONE
-        Source Possibility POSSIBILITY-MINE-STONE
-```
+형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
 ## Must
 
