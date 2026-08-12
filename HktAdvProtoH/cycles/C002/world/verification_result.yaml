@@ -1,0 +1,16 @@
+# S008 / C002-WORLD-VERIFY-001 — world-verify (Generator S007 과 분리)
+verification:
+  task_id: C002-WORLD-IMPLEMENT-001
+  gate: WORLD_COMPLETE
+  result: PASS
+  mode: MIXED
+  verified_by: S008
+  evidence:
+    - "npx vitest run 직접 재실행 → 21 passed / 0 failed (Generator 보고와 일치, 독립 재현)"
+    - "npx tsc --noEmit → 오류 없음"
+    - "verify.mjs frozen → 6/6 (Frozen Contract 무변경)"
+    - "forbidden import: grep -rn 'gameview' source/world/ → NONE (Rule 7 준수)"
+    - "Contract 커버리지: CMD-MOVE-V1→RULE-MOVE-001, CMD-MINE-V1→RULE-MINE-001 구현 확인. OBS-MINING-V1 player 9항목 + designer 8항목 projection.ts 에서 전수 대조"
+    - "Authority: WorldState 는 AuthoritativeWorld private, 공개 표면은 applyCommand/tick/snapshot(deep-frozen)/transitionLog 뿐 — Rule 밖 상태 변경 경로 없음. prohibited_fields 거부 테스트('prohibited field 가 실린 Command 는 거부') 실측"
+    - "Transition 재현: Before(Deposit=5,Stone=0) → Mine(Player,Deposit) → RULE-MINE-001 → After(Deposit=4,Stone=1) 테스트로 실행 확인 ('Before → Input → Rule → After 가 Transition 으로 기록된다')"
+  failures: []

@@ -1,0 +1,15 @@
+# S014 / C002-PLAYABLE-001 — playable-verify (verification_result schema, §31)
+verification:
+  task_id: C002-INTEGRATION-001
+  gate: PLAYABLE
+  result: PASS
+  mode: MIXED
+  verified_by: S014
+  evidence:
+    - "실제 브라우저 실행: npm run build 후 node tests/playable.driver.mjs — Chromium (headless, swiftshader) 에서 dist/ 빌드 로드, 실제 키보드 이벤트(WASD 조향 + E)로 시나리오 수행 → 11/11 PASS"
+    - "world 층 실측: Designer trace 로 RULE-MINE-001 SUCCESS, Deposit.ResourceAmount 5→4 확인 (playable_measured.json)"
+    - "observable 층 실측: Actor.Inventory.Stone=1, Deposit.ResourceAmount=4, 접근 후 MineStone.Availability=AVAILABLE(target=deposit-1)"
+    - "gameview 층 실측: DOM HUD '⛏ Stone: 1', 피드백 '+1 Stone 획득!', 접근 시 힌트 '[E] 채굴' — 플레이어가 실제로 본 것"
+    - "playable_screenshot.png — 채굴 직후 화면 (3D 지형 + 스프라이트 빌보드 캐릭터/광맥 + '돌 4' 라벨 + 강조 링 + HUD)"
+    - "Cycle Goal 문장 그대로 재현됨: 곡괭이를 가진 캐릭터가 광맥으로 이동해 Mine 으로 Stone 1개 획득"
+  failures: []

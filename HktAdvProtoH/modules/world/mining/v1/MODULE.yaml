@@ -1,0 +1,52 @@
+# Mining World Capability Module v1 — C002 (첫 실제 Cycle) 산출물. FROZEN.
+# 후속 Cycle 은 이 public contract (requires/provides) 만 사용한다 (Rule 10).
+module:
+  id: mining-world-v1
+  type: WORLD_CAPABILITY
+  version: 1
+  status: FROZEN
+  produced_by: C002
+  requires:      # 공유 World Semantic (registry/semantics.yaml ACTIVE)
+    - Actor
+    - Position
+    - Inventory
+    - Knowledge
+    - Actor.CurrentAction
+    - Tool
+    - Tool.Capability
+    - ResourceDeposit
+    - ResourceDeposit.ResourceAmount
+    - InteractionRange
+    - MoveSpeed
+  provides:
+    possibilities:
+      - ApproachDeposit
+      - MineStone
+    rules:
+      - RULE-MOVE-001
+      - RULE-MINE-001
+    commands:
+      - CMD-MOVE-V1
+      - CMD-MINE-V1
+    observables:
+      - OBS-MINING-V1
+  implementation:
+    runtime: TypeScript (Web) — 렌더러/DOM 무의존 순수 모듈
+    entry: source/world/index.ts
+    files:
+      - source/world/types.ts
+      - source/world/constants.ts
+      - source/world/commands.ts
+      - source/world/rules.ts
+      - source/world/authority.ts
+      - source/world/projection.ts
+      - source/world/index.ts
+    tests:
+      - source/tests/world.rules.test.ts
+      - source/tests/world.projection.test.ts
+  verification:
+    - cycles/C002/world/verification_result.yaml   # WORLD_COMPLETE PASS
+    - cycles/C002/integration/playable_result.yaml # PLAYABLE PASS
+  change_policy: >
+    직접 수정 금지 (registry sha256 강제). 새 의미는 Extension Module,
+    의미 자체 수정은 migration_request 로 v2 발급 (§34).

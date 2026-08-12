@@ -19,9 +19,9 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 | [registry/](registry/) | Semantic / Module / Contract Registry — Cycle 간 공식 기억 |
 | [contracts/](contracts/) | Frozen Contract 저장소 (commands / observable / gameview-spec) |
 | [modules/](modules/) | FROZEN Capability Module 저장소 (world / gameview) |
-| [cycles/](cycles/) | Cycle 실행 로그 — 대화 없이 재개 가능. [C001](cycles/C001/) = Mining Dry Run |
-| [scripts/](scripts/) | [validation/verify.mjs](scripts/validation/verify.mjs) — deterministic 검증 (schema·closure·frozen·registry·cycle) |
-| [source/](source/) | 게임 런타임 소스 자리 (스택은 첫 실제 Cycle 에서 확정) |
+| [cycles/](cycles/) | Cycle 실행 로그 — 대화 없이 재개 가능. [C001](cycles/C001/) = Mining Dry Run · [C002](cycles/C002/) = Mining 실구현 (첫 REAL Cycle) |
+| [scripts/](scripts/) | [validation/verify.mjs](scripts/validation/verify.mjs) — deterministic 검증 (schema·closure·frozen·registry·cycle) + build/test 스크립트 |
+| [source/](source/) | 게임 런타임 소스 — **Web/TypeScript** (C002 확정): world(순수 TS) + gameview(three.js 스프라이트 빌보드 + 3D 지형) |
 
 ### 기준 문서 (Source of Truth)
 
@@ -64,6 +64,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
     (schema / envelope / closure / frozen / registry / cycle). FAIL 은 재시도가 아니라
     [failure_routes.yaml](orchestration/routing/failure_routes.yaml) 로 책임 Stage Routing.
 16. Frozen Contract/Module 은 수정 금지 — registry 의 sha256 으로 강제되며 위반은 `verify.mjs frozen` 이 검출한다.
-17. registry 의 `DRY_RUN` 항목(C001 산출)은 재사용 금지 — FROZEN 만 재사용 대상이다.
-    첫 실제 Cycle 시작 전 남은 결정은 [cycles/C001/DRYRUN-REPORT.md](cycles/C001/DRYRUN-REPORT.md) 참조
-    (런타임 스택 확정 · Asset Catalog · build/test 스크립트).
+17. registry 재사용 대상은 `FROZEN` 만이다. C001 DRY_RUN 항목은 C002 (첫 실제 Cycle) 에서
+    실검증 후 승격·대체 완료 — Semantic 11종 ACTIVE, Contract 4종·Module 2종 FROZEN.
+    C001 이 남긴 결정 3가지(런타임 스택=Web/TypeScript · Asset Catalog=절차 생성 스프라이트 ·
+    build/test 스크립트)는 C002 에서 확정되었다. 후속 Cycle 은 mining-world-v1 /
+    mining-view-v1 의 Requires/Provides 를 재사용한다 (Rule 10).

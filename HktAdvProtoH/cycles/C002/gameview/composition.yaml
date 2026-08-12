@@ -1,0 +1,35 @@
+# S009 / C002-GAMEVIEW-DESIGN-001 — Stage 10 Visual Composition
+composition:
+  world_space:            # three.js Scene
+    - element: Terrain
+      role: Stage
+      note: 완만한 하이트필드 메시 + 하늘/안개. 표현 전용 — World 의미 없음.
+    - element: Character
+      role: VR-CHARACTER
+      form: SpriteBillboard   # 항상 카메라를 향하는 평면 스프라이트
+      anchored_to: terrain surface (y = height(x,z))
+    - element: DepositNode
+      role: VR-DEPOSIT + VR-DEPLETED + VR-REMAINING
+      form: SpriteBillboard
+      anchored_to: terrain surface
+      children:
+        - InteractionRing   # VR-INTERACTABLE — 지형 위 강조 링
+        - AmountLabel       # VR-REMAINING — 빌보드 라벨
+    - element: FollowCamera
+      role: Stage
+      note: 캐릭터 추적 3인칭 카메라
+  hud:                    # DOM overlay
+    - element: ResourceSummary
+      role: VR-STONE-COUNT
+      placement: top-left
+    - element: InteractionHint
+      role: VR-INTERACTABLE
+      placement: bottom-center
+    - element: FeedbackLine
+      role: VR-FEEDBACK
+      placement: bottom-center (hint 위)
+  input:                  # 입력 → Command 의도 (World 상태를 직접 만지지 않는다)
+    - keys: WASD / ArrowKeys
+      emits: CMD-MOVE-V1 (direction 의도)
+    - keys: E
+      emits: CMD-MINE-V1 (availability target 대상)

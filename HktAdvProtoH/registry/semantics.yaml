@@ -6,42 +6,50 @@
 # 상태:
 #   ACTIVE     — 실제 구현·검증된 semantic. 재사용 대상.
 #   DRY_RUN    — 파이프라인 Dry Run 산출물. 설계만 존재, 재사용 불가.
-#                첫 실제 Cycle 이 같은 의미를 다루면 실검증 후 ACTIVE 로 승격하거나 대체한다.
 #   DEPRECATED — Version Migration 으로 대체됨.
+# C001 DRY_RUN 9종은 C002 에서 실구현·검증 후 ACTIVE 로 승격되었다 (+ 신규 2종).
 semantics:
   Actor:
     kind: ENTITY
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   Position:
     kind: STATE
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   Inventory:
     kind: STATE
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   Knowledge:
     kind: STATE
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
+  Actor.CurrentAction:
+    kind: STATE
+    status: ACTIVE
+    defined_by: C002
   Tool:
     kind: ENTITY
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   Tool.Capability:
     kind: STATE
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   ResourceDeposit:
     kind: ENTITY
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   ResourceDeposit.ResourceAmount:
     kind: STATE
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
   InteractionRange:
     kind: RULE_CONSTANT
-    status: DRY_RUN
-    defined_by: C001
+    status: ACTIVE
+    defined_by: C002
+  MoveSpeed:
+    kind: RULE_CONSTANT
+    status: ACTIVE
+    defined_by: C002

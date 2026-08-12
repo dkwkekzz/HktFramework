@@ -1,0 +1,28 @@
+# S009 / C002-GAMEVIEW-DESIGN-001 — Stage 12 Observable Binding
+# 형태는 반드시 `Observable Semantic → Rendering State` — source 는 전부 OBS-MINING-V1 항목이다.
+observable_bindings:
+  - source: Actor.Position
+    render_state: character.worldPosition (x,z) — y 는 지형 투영 (표현 자유)
+  - source: Actor.CurrentAction
+    render_state: character.mining (== Mine) → 스윙 프레임 + 흔들림 애니메이션
+  - source: Actor.Inventory.Stone
+    render_state: hud.stoneCount (ResourceSummary 숫자)
+  - source: VisibleDeposit
+    render_state: depositNodes[] 존재 집합 (모르는 Deposit 은 렌더하지 않음)
+  - source: Deposit.Position
+    render_state: depositNodes[].worldPosition (x,z)
+  - source: Deposit.ResourceAmount
+    render_state: >
+      depositNodes[].depleted (== 0 → depleted 스프라이트),
+      depositNodes[].amountLabel (남은 수량 텍스트)
+  - source: MineStone.Availability
+    render_state: >
+      depositNodes[target].interactionRing.visible (AVAILABLE),
+      hud.interactionHint ("[E] 채굴" / 사유 텍스트)
+  - source: ActionResult
+    render_state: hud.feedbackLine (성공/실패 + failure_reason, 일시 표시)
+  - source: ResourceTransition
+    render_state: hud.feedbackLine 의 획득 연출 (+1 Stone 강조)
+  forbidden_note: >
+    World 내부(WorldState/Rule/Planner) 직접 참조 binding 없음 — 전 항목 Observable 소비.
+    필요한 Observable 부재 시 contract_gap 으로 BLOCKED 처리한다 (§29). 이번 설계에서 Gap 없음.

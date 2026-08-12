@@ -1,0 +1,84 @@
+{
+  "observable": {
+    "actor": {
+      "position": {
+        "x": 2.9012445840513927,
+        "z": -1.8612445840513907
+      },
+      "inventoryStone": 1,
+      "currentAction": "Mine"
+    },
+    "visibleDeposits": [
+      {
+        "id": "deposit-1",
+        "position": {
+          "x": 4,
+          "z": -2
+        },
+        "resourceAmount": 4
+      }
+    ],
+    "mineAvailability": {
+      "status": "AVAILABLE",
+      "target": "deposit-1"
+    },
+    "actionResult": {
+      "command": "CMD-MINE-V1",
+      "result": "SUCCESS"
+    },
+    "resourceTransition": {
+      "depositId": "deposit-1",
+      "depositBefore": 5,
+      "depositAfter": 4,
+      "stoneBefore": 0,
+      "stoneAfter": 1
+    }
+  },
+  "mineTransition": {
+    "currentGoal": "AcquireStone",
+    "currentPossibility": "MineStone",
+    "possibilityAvailability": "AVAILABLE",
+    "preconditions": [
+      {
+        "name": "Actor exists",
+        "pass": true
+      },
+      {
+        "name": "Deposit exists",
+        "pass": true
+      },
+      {
+        "name": "Actor knows Deposit",
+        "pass": true
+      },
+      {
+        "name": "Actor owns Mining-capable Tool",
+        "pass": true
+      },
+      {
+        "name": "Actor in InteractionRange",
+        "pass": true
+      },
+      {
+        "name": "Deposit ResourceAmount > 0",
+        "pass": true
+      }
+    ],
+    "selectedRule": "RULE-MINE-001",
+    "beforeState": {
+      "Deposit.ResourceAmount": 5,
+      "Actor.Inventory.Stone": 0,
+      "Actor.CurrentAction": "Idle"
+    },
+    "input": {
+      "actorId": "player-1",
+      "depositId": "deposit-1"
+    },
+    "afterState": {
+      "Deposit.ResourceAmount": 4,
+      "Actor.Inventory.Stone": 1,
+      "Actor.CurrentAction": "Mine"
+    },
+    "failureReason": null
+  }
+}

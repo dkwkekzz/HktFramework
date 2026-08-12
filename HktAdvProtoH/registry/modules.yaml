@@ -1,36 +1,49 @@
 # Module Registry — Cycle 사이에서 공유되는 완료 Capability (§12.2)
 # 규칙:
 #   - 새 Capability 착수 전 반드시 이 파일을 조회한다. provides 가 있으면 Reuse (Rule 10).
-#   - 재사용 대상은 status: FROZEN 만이다. DRY_RUN 은 파이프라인 검증용 — 재사용 금지.
+#   - 재사용 대상은 status: FROZEN 만이다.
 #   - FROZEN Module 은 직접 수정 금지. path+sha256 을 verify.mjs frozen 이 강제한다.
 #   - 변경은 Extension Module 우선, 최후에만 migration_request 로 Version Migration (§34).
+#   - C001 DRY_RUN 항목은 C002 (첫 실제 Cycle, Mining) 에서 실구현으로 대체·승격되었다.
 modules:
   mining-world-v1:
     type: WORLD_CAPABILITY
     version: 1
-    status: DRY_RUN     # C001 Dry Run — 실제 구현 없음. 첫 실제 Cycle 에서 대체/재검증.
-    path: cycles/C001/artifacts/packaging/mining-world-v1
-    sha256: ccf6ed28da6a85a78a4f06ccab3aaa96d63a79712cf212b91b77eca1868c926b
+    status: FROZEN
+    frozen_by: C002
+    path: modules/world/mining/v1
+    sha256: 8cf1add9dd7a561721d60b4f3fdd262c57886c8a9038ac997a787244b7275b65
     requires:
       - Actor
       - Position
       - Inventory
       - Knowledge
+      - Actor.CurrentAction
       - Tool
+      - Tool.Capability
       - ResourceDeposit
+      - ResourceDeposit.ResourceAmount
+      - InteractionRange
+      - MoveSpeed
     provides:
       possibilities:
+        - ApproachDeposit
         - MineStone
       rules:
+        - RULE-MOVE-001
         - RULE-MINE-001
+      commands:
+        - CMD-MOVE-V1
+        - CMD-MINE-V1
       observables:
         - OBS-MINING-V1
   mining-view-v1:
     type: GAMEVIEW
     version: 1
-    status: DRY_RUN     # C001 Dry Run — 실제 구현 없음.
-    path: cycles/C001/artifacts/packaging/mining-view-v1
-    sha256: e37a33e430518e741b399f3d3c51b5638413bc21f003cb17e4b46cce2ef9f167
+    status: FROZEN
+    frozen_by: C002
+    path: modules/gameview/mining/v1
+    sha256: ec5e0327dd809b4ec7b281b50381df247f80f01b73f16f5e4608f2fb30ffabd0
     consumes:
       - OBS-MINING-V1
     implements:

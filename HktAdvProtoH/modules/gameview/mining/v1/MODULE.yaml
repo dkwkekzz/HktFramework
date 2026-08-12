@@ -1,0 +1,31 @@
+# MiningView Module v1 — C002 (첫 실제 Cycle) 산출물. FROZEN.
+module:
+  id: mining-view-v1
+  type: GAMEVIEW
+  version: 1
+  status: FROZEN
+  produced_by: C002
+  consumes:
+    - OBS-MINING-V1        # 유일한 World 정보원 (Rule 7·8)
+  implements:
+    - VIEW-MINING-001
+  presentation:            # GameView Workflow 자유 영역의 확정 (사용자 지시)
+    stack: three.js (Web/TypeScript)
+    style: 스프라이트 빌보드 캐릭터/광맥 + 절차 3D 하이트필드 지형 + 추적 카메라 + DOM HUD
+    assets: 절차 생성 (canvas 픽셀 스프라이트 — 외부 아트 리소스 없음)
+  implementation:
+    entry: source/gameview/renderer.ts
+    files:
+      - source/gameview/observable.ts    # OBS-MINING-V1 미러 타입
+      - source/gameview/binding.ts       # Observable → RenderState 순수 binding
+      - source/gameview/assets/sprites.ts
+      - source/gameview/terrain.ts
+      - source/gameview/renderer.ts
+      - source/gameview/input.ts         # 키 → Command 의도
+    tests:
+      - source/tests/gameview.binding.test.ts   # Observable fixture 단독 검증
+  verification:
+    - cycles/C002/gameview/verification_result.yaml   # GAMEVIEW_COMPLETE PASS
+    - cycles/C002/integration/playable_result.yaml    # PLAYABLE PASS (브라우저 실측)
+  change_policy: >
+    직접 수정 금지 (registry sha256 강제). 표현 확장은 새 GameView Module 로.

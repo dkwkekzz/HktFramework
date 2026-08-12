@@ -1,0 +1,36 @@
+task:
+  id: C002-INTEGRATION-001
+  cycle_id: C002
+  stage: INTEGRATION
+  skill: integration
+  objective: >
+    World / GameView 모듈을 Contract 로만 결합해 Playable Composition 을 만들고
+    E2E Trace 를 실측으로 남긴다.
+  allowed_inputs:
+    - cycles/C002/world/verification_result.yaml
+    - cycles/C002/gameview/verification_result.yaml
+    - contracts/commands/CMD-MINE-V1.yaml
+    - contracts/commands/CMD-MOVE-V1.yaml
+    - contracts/observable/OBS-MINING-V1.yaml
+    - contracts/gameview-spec/VIEW-MINING-001.yaml
+  read_scope:
+    - cycles/C002/
+    - contracts/
+    - source/
+    - scripts/
+    - skills/integration/
+  write_scope:
+    - cycles/C002/integration/
+    - source/main.ts
+    - source/index.html
+  forbidden_scope:
+    - modules/
+  required_outputs:
+    - composition.yaml
+    - e2e_trace.yaml
+    - verification_result.yaml
+  completion_gate:
+    type: integration-gate
+  routing:
+    pass: PLAYABLE_VERIFY
+    fail: INTEGRATION_FIX

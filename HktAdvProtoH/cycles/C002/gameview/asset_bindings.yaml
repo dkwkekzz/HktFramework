@@ -1,0 +1,34 @@
+# S009 / C002-GAMEVIEW-DESIGN-001 — Stage 11 Asset Resolution
+# Asset Catalog: 외부 아트 리소스가 없으므로 절차 생성(canvas 2D 픽셀 스프라이트) 자산을
+# source/gameview/assets/ 에 정의한다 — C001 DRYRUN 잔여 결정 2 (Asset Catalog) 확정.
+asset_bindings:
+  Character:
+    asset: sprites.characterIdle / sprites.characterSwing   # 픽셀 캐릭터 + 곡괭이, 2프레임
+    kind: procedural-canvas-sprite
+  Mining:
+    asset: sprites.characterSwing 프레임 교체 + 위치 흔들림
+    kind: sprite-frame-animation
+  DepositNode:
+    asset: sprites.depositFull
+    kind: procedural-canvas-sprite
+  DepletedState:
+    asset: sprites.depositDepleted   # 회색·부서진 변형
+    kind: procedural-canvas-sprite
+  Terrain:
+    asset: heightfield mesh (sum-of-sines) + vertex color 그라데이션
+    kind: procedural-geometry
+  InteractionRing:
+    asset: ring geometry + emissive material
+    kind: procedural-geometry
+  AmountLabel:
+    asset: canvas text sprite
+    kind: procedural-canvas-sprite
+  ResourceSummary:
+    asset: DOM element (#hud-stone)
+    kind: dom
+  InteractionHint:
+    asset: DOM element (#hud-hint)
+    kind: dom
+  FeedbackLine:
+    asset: DOM element (#hud-feedback)
+    kind: dom

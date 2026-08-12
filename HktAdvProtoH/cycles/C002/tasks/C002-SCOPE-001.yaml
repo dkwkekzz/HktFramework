@@ -1,0 +1,27 @@
+task:
+  id: C002-SCOPE-001
+  cycle_id: C002
+  stage: CYCLE_SCOPE
+  skill: cycle-scope
+  objective: >
+    Cycle Goal 을 한 Cycle 로 완주 가능한 최소 플레이 범위로 확정한다.
+  allowed_inputs:
+    - cycles/C002/goal.yaml
+    - registry/modules.yaml
+  read_scope:
+    - cycles/C002/goal.yaml
+    - registry/
+    - skills/cycle-scope/
+  write_scope:
+    - cycles/C002/artifacts/scope/
+  forbidden_scope:
+    - source/
+    - modules/
+    - cycles/C002/artifacts/world-design/
+  required_outputs:
+    - cycle_scope.yaml
+  completion_gate:
+    type: scope-verify
+  routing:
+    pass: INTENT_DESIGN
+    fail: CYCLE_SCOPE_REWORK

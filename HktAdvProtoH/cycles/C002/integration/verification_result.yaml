@@ -1,0 +1,14 @@
+# S013 / C002-INTEGRATION-001 gate — Integration Verifier (Generator S012 와 분리)
+verification:
+  task_id: C002-INTEGRATION-001
+  gate: INTEGRATION
+  result: PASS
+  mode: MIXED
+  verified_by: S013
+  evidence:
+    - "npx vitest run → 33 passed (e2e.trace.test.ts 포함) — 사슬 각 단계 기대값 실측 대조"
+    - "e2e_trace_measured.json — 테스트가 생성한 실측 trace (Deposit 5→4, Stone 0→1)"
+    - "사슬의 모든 연결이 Contract id 로만 이루어짐: 입력→CMD-MOVE-V1/CMD-MINE-V1, 관측→OBS-MINING-V1, 표현→VIEW-MINING-001. main.ts 는 양 모듈 내부를 수정하지 않음"
+    - "GameView 가 World 를 직접 참조하는 경로 없음 — main.ts 의 projectPlayer 산출물(Observable)만 bindObservable 에 주입"
+    - "verify.mjs frozen → Frozen Contract 무변경"
+  failures: []

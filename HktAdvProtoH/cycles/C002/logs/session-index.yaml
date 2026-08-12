@@ -1,0 +1,65 @@
+# Session 실행 기록 — Audit / 재현성 (§36)
+sessions:
+  - id: S001
+    task: C002-SCOPE-001
+    skill: cycle-scope
+    result: PASS
+  - id: S002
+    task: C002-INTENT-001
+    skill: intent-design
+    result: PASS
+  - id: S003
+    task: C002-SEMANTIC-001
+    skill: world-semantic-design
+    result: GENERATED
+  - id: S004
+    task: C002-SEMANTIC-VERIFY-001
+    skill: semantic-closure-verify
+    result: PASS
+  - id: S005
+    task: C002-CONTRACT-001
+    skill: contract-design
+    result: GENERATED
+  - id: S006
+    task: C002-CONTRACT-VERIFY-001
+    skill: contract-verify
+    result: PASS
+  - id: S007
+    task: C002-WORLD-IMPLEMENT-001
+    skill: world-implement
+    result: COMPLETE
+  - id: S008
+    task: C002-WORLD-VERIFY-001
+    skill: world-verify
+    result: PASS
+  - id: S009
+    task: C002-GAMEVIEW-DESIGN-001
+    skill: gameview-design
+    result: COMPLETE
+  - id: S010
+    task: C002-GAMEVIEW-IMPLEMENT-001
+    skill: gameview-implement
+    result: COMPLETE
+  - id: S011
+    task: C002-GAMEVIEW-VERIFY-001
+    skill: gameview-verify
+    result: PASS
+  - id: S012
+    task: C002-INTEGRATION-001
+    skill: integration
+    result: PASS
+  - id: S014
+    task: C002-PLAYABLE-001
+    skill: playable-verify
+    result: PASS
+  - id: S015
+    task: C002-PACKAGE-001
+    skill: module-package
+    result: PASS
+events:
+  - after: S006
+    event: CONTRACT C002-v1 FROZEN (contracts/ 승격 + registry sha256)
+  - after: S014
+    event: PLAYABLE CYCLE COMPLETE (브라우저 실측 11/11)
+  - after: S015
+    event: CYCLE C002 COMMITTED (REAL) → Registry 3종 갱신

@@ -1,0 +1,16 @@
+# S001 / C002-SCOPE-001 — cycle-scope
+scope:
+  cycle_id: C002
+  included:
+    - movement              # 3D 지형 위에서 캐릭터 이동 (광맥 접근 수단 — 이번엔 실제 Rule 로 구현)
+    - approach_deposit      # InteractionRange 진입
+    - execute_mine          # Mine 명령 실행
+    - stone_acquisition     # Stone 1개 획득 (Goal 충족 조건)
+  excluded:
+    - crafting              # 별도 Capability — 이번 플레이 목표에 불필요
+    - trade                 # 별도 Capability
+    - deposit_respawn       # Goal 검증에 불필요 (고갈까지만 다룸)
+    - multiple_resource_types   # Stone 하나로 Goal 충족
+    - multiplayer           # 단일 플레이어 로컬 런타임 (논리적 Authority 경계는 유지)
+    - persistence           # 저장/복구는 후속 Cycle
+  reused_modules: []        # Module Registry 조회 — FROZEN 없음 (C001 은 전부 DRY_RUN, 재사용 금지)

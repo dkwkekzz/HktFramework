@@ -1,0 +1,35 @@
+task:
+  id: C002-CONTRACT-001
+  cycle_id: C002
+  stage: CONTRACT_DESIGN   # Stage 4 Authority + Stage 5 Observation + Stage 6 GameView Spec
+  skill: contract-design
+  objective: >
+    Authority / Command Contract, Observable Contract, GameView Specification 을 설계한다.
+    이동이 Rule 이 되었으므로 Move Command 도 Contract 로 정의한다.
+  allowed_inputs:
+    - cycles/C002/artifacts/world-design/world_state.yaml
+    - cycles/C002/artifacts/world-design/world_rules.yaml
+    - cycles/C002/artifacts/intent/goal_possibility.yaml
+    - cycles/C002/artifacts/intent/intent.yaml
+    - registry/contracts.yaml
+  read_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/artifacts/intent/
+    - registry/
+    - skills/contract-design/
+  write_scope:
+    - cycles/C002/artifacts/contracts/
+  forbidden_scope:
+    - source/
+    - modules/
+    - cycles/C002/gameview/
+  required_outputs:
+    - authority.yaml
+    - command_contract.yaml
+    - observable_contract.yaml
+    - gameview_spec.yaml
+  completion_gate:
+    type: contract-verify
+  routing:
+    pass: CONTRACT_VERIFY
+    fail: CONTRACT_DESIGN_REWORK

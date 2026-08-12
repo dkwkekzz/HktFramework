@@ -1,0 +1,38 @@
+task:
+  id: C002-GAMEVIEW-DESIGN-001
+  cycle_id: C002
+  stage: GAMEVIEW_DESIGN   # Stage 9 Spec Resolve + 10 Composition + 11 Asset + 12 Binding
+  skill: gameview-design
+  objective: >
+    Frozen Contract 만으로 GameView 를 설계한다.
+    사용자 확정 표현 제약: 스프라이트 빌보드 캐릭터 + 3D 지형 (Web/TypeScript).
+    Visual Requirements -> Composition -> Asset -> Observable Binding.
+  allowed_inputs:
+    - contracts/observable/OBS-MINING-V1.yaml
+    - contracts/gameview-spec/VIEW-MINING-001.yaml
+    - cycles/C002/goal.yaml
+    - registry/modules.yaml
+  read_scope:
+    - contracts/observable/
+    - contracts/gameview-spec/
+    - cycles/C002/goal.yaml
+    - registry/modules.yaml
+    - registry/contracts.yaml
+    - skills/gameview-design/
+  write_scope:
+    - cycles/C002/gameview/
+  forbidden_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/world/
+    - source/world/
+    - modules/world/
+  required_outputs:
+    - visual_requirements.yaml
+    - composition.yaml
+    - asset_bindings.yaml
+    - observable_bindings.yaml
+  completion_gate:
+    type: binding-source-check
+  routing:
+    pass: GAMEVIEW_IMPLEMENTATION
+    fail: GAMEVIEW_DESIGN_REWORK

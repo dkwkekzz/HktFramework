@@ -1,0 +1,33 @@
+# S005 / C002-CONTRACT-001 — Stage 6 GameView Specification (Visual Meaning 만, Rule 8)
+gameview_spec:
+  id: VIEW-MINING-001
+  version: 1
+  consumes: OBS-MINING-V1
+  entities:
+    - subject: Actor
+      visual_role: Character
+      placement: WorldSpace
+      position_source: Actor.Position
+    - subject: Deposit
+      visual_role: ResourceNode
+      placement: WorldSpace
+      position_source: Deposit.Position
+  meanings:
+    - when: "Actor.CurrentAction == Mine"
+      visual_meaning: Mining
+    - when: "Deposit.ResourceAmount == 0"
+      visual_meaning: DepletedResource
+    - source: Deposit.ResourceAmount
+      visual_meaning: RemainingResource
+    - source: Actor.Inventory.Stone
+      visual_meaning: OwnedStoneAmount
+      placement: ResourceSummary
+    - when: "MineStone.Availability == AVAILABLE"
+      visual_meaning: InteractableTarget
+    - source: ActionResult
+      visual_meaning: ActionFeedback
+  not_defined_here:   # Rule 8 — Presentation Independence
+    - Mesh / Animation Clip / Shader / Material
+    - Widget Framework / UI Pixel Position
+    - Asset Path / Renderer
+    - Terrain 형태 / 카메라 / 빌보드 여부 (GameView Workflow 의 자유 영역)

@@ -1,0 +1,14 @@
+# S015 / C002-PACKAGE-001 — module-package (Stage 17, Cycle Commit)
+verification:
+  task_id: C002-PACKAGE-001
+  gate: CYCLE_COMMIT
+  result: PASS
+  mode: MIXED
+  verified_by: S016
+  evidence:
+    - "선행 4종 verification PASS 확인: world(WORLD_COMPLETE) / gameview(GAMEVIEW_COMPLETE) / integration(INTEGRATION) / playable(PLAYABLE)"
+    - "modules/world/mining/v1 + modules/gameview/mining/v1 포장 — registry/modules.yaml 에 FROZEN + sha256 등록 (C001 DRY_RUN 대체)"
+    - "registry/semantics.yaml — Semantic 11종 ACTIVE (defined_by C002) 승격"
+    - "registry/contracts.yaml — Contract 4종 FROZEN (C002 Freeze 시 등록 완료) 확인"
+    - "node scripts/validation/verify.mjs all → 전체 통과 (아래 Cycle Commit 시점 실행 기록)"
+  failures: []

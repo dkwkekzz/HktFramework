@@ -3,23 +3,33 @@
 #   - FREEZE_CONTRACT 시 여기에 path + sha256 으로 등록된다.
 #   - sha256 이 있는 항목은 verify.mjs frozen 이 매 Gate 마다 불변을 강제한다.
 #   - Frozen Contract 변경은 새 버전 발급(VERSION_CONTRACT) → 재검증 → Re-Freeze 로만.
-#   - DRY_RUN 항목은 C001 파이프라인 검증용 — 실제 Cycle 이 같은 id 를 쓰려면 재검증 후 승격.
+#   - C001 DRY_RUN 항목은 C002 (첫 실제 Cycle) 에서 재검증 후 FROZEN 으로 승격·대체되었다.
 contracts:
+  CMD-MOVE-V1:
+    type: COMMAND
+    version: 1
+    status: FROZEN
+    frozen_by: C002
+    path: contracts/commands/CMD-MOVE-V1.yaml
+    sha256: 50cbd4a563a05ef53745367c4f79e57af85c1639e90cf13365821e1b4b123a30
   CMD-MINE-V1:
     type: COMMAND
     version: 1
-    status: DRY_RUN
-    path: cycles/C001/artifacts/contracts/frozen/CMD-MINE-V1.yaml
-    sha256: 5b06c6f8ac6fb8888b910a0e93073b699b126c886892f118b4c796d2200d2b0b
+    status: FROZEN
+    frozen_by: C002    # C001 DRY_RUN 설계를 재검증해 승격
+    path: contracts/commands/CMD-MINE-V1.yaml
+    sha256: 885955ca5778b81d9a94d939e585cd3804837d232358bd41c2791f9c7542a61c
   OBS-MINING-V1:
     type: OBSERVABLE
     version: 1
-    status: DRY_RUN
-    path: cycles/C001/artifacts/contracts/frozen/OBS-MINING-V1.yaml
-    sha256: 748de6da80272640ebb6bb6c49d386ed9f52d0c4d2d35dab4d8ab888621840af
+    status: FROZEN
+    frozen_by: C002
+    path: contracts/observable/OBS-MINING-V1.yaml
+    sha256: 223955d34fbb8b6352c4e8682cbd249b70f99bf2e9f93c03f570539640c3fd2a
   VIEW-MINING-001:
     type: GAMEVIEW_SPEC
     version: 1
-    status: DRY_RUN
-    path: cycles/C001/artifacts/contracts/frozen/VIEW-MINING-001.yaml
-    sha256: 5fbf8aa78edbe77ebb57625f08bc7c35455bb4ba8ea4769e026d7f9982f4cc9c
+    status: FROZEN
+    frozen_by: C002
+    path: contracts/gameview-spec/VIEW-MINING-001.yaml
+    sha256: 238b04a7b710b356dd8e38febe4f7ca7873c1aa60200af785ab7d72c26cff9a7

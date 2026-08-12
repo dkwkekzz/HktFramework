@@ -1,0 +1,41 @@
+# S003 / C002-SEMANTIC-001 — Semantic Registry lookup-first 결과
+# QUERY_SEMANTIC Actor / Position / Inventory / Knowledge / Tool / Tool.Capability
+#                / ResourceDeposit / ResourceDeposit.ResourceAmount / InteractionRange
+semantic_dependencies:
+  queried:
+    - name: Actor
+      found: true
+      status: DRY_RUN     # C001 설계만 존재 — 재사용 불가 (CLAUDE.md 규칙 17)
+    - name: Position
+      found: true
+      status: DRY_RUN
+    - name: Inventory
+      found: true
+      status: DRY_RUN
+    - name: Knowledge
+      found: true
+      status: DRY_RUN
+    - name: Tool
+      found: true
+      status: DRY_RUN
+    - name: Tool.Capability
+      found: true
+      status: DRY_RUN
+    - name: ResourceDeposit
+      found: true
+      status: DRY_RUN
+    - name: ResourceDeposit.ResourceAmount
+      found: true
+      status: DRY_RUN
+    - name: InteractionRange
+      found: true
+      status: DRY_RUN
+    - name: Actor.CurrentAction
+      found: false        # C001 world_state 에는 있었으나 registry 미등록 — 신규 정의
+    - name: MoveSpeed
+      found: false        # 이동 Rule 승격에 따른 신규 상수
+  reused: []              # DRY_RUN 은 재사용 대상이 아니다 — 전 항목을 이번 Cycle 델타로 재정의(실검증 후 ACTIVE 승격 예정)
+  conclusion: >
+    C001 DRY_RUN semantic 9종은 의미 정의가 유효함을 재검토로 확인했으나 status 규칙상
+    재사용 불가이므로 동일 의미로 재정의한다 (Capability 분화 없음, Rule 11 준수).
+    Actor.CurrentAction / MoveSpeed 2종을 신규 추가한다.

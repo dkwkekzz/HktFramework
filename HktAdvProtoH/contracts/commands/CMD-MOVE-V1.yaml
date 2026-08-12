@@ -1,0 +1,13 @@
+# FROZEN C002-v1 — Command Contract (Rule 4 — Client 는 의도만 보낸다)
+command:
+  id: CMD-MOVE-V1
+  version: 1
+  possibility: ApproachDeposit
+  rule: RULE-MOVE-001
+  input:
+    - ActorId
+    - Direction          # 정규화 의도 (dx, dz). 결과 위치가 아니다.
+  prohibited_fields:
+    - resulting_position
+    - teleport_target
+    - any_world_state_result

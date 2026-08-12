@@ -1,0 +1,34 @@
+task:
+  id: C002-WORLD-VERIFY-001
+  cycle_id: C002
+  stage: WORLD_VERIFICATION
+  skill: world-verify
+  objective: >
+    World 구현을 Frozen Contract 와 Runtime Evidence 만으로 독립 검증한다.
+    build/test 를 직접 재실행하고 Authority/Forbidden import 를 검사한다.
+  allowed_inputs:
+    - cycles/C002/world/implementation_result.yaml
+    - contracts/commands/CMD-MINE-V1.yaml
+    - contracts/commands/CMD-MOVE-V1.yaml
+    - contracts/observable/OBS-MINING-V1.yaml
+    - cycles/C002/artifacts/world-design/world_rules.yaml
+  read_scope:
+    - cycles/C002/world/
+    - cycles/C002/artifacts/world-design/
+    - contracts/
+    - source/world/
+    - source/
+    - scripts/
+    - skills/world-verify/
+  write_scope:
+    - cycles/C002/world/
+  forbidden_scope:
+    - cycles/C002/gameview/
+    - modules/gameview/
+  required_outputs:
+    - verification_result.yaml
+  completion_gate:
+    type: world-complete
+  routing:
+    pass: INTEGRATION_WAIT
+    fail: WORLD_IMPLEMENTATION_FIX

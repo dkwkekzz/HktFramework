@@ -1,0 +1,17 @@
+# S006 PASS 후 Orchestrator FREEZE_CONTRACT 기록 — §24
+contract:
+  id: CONTRACT-MINING-C002
+  version: 1
+  commands:
+    - id: CMD-MOVE-V1
+    - id: CMD-MINE-V1
+  observable:
+    id: OBS-MINING-V1
+  gameview_spec:
+    id: VIEW-MINING-001
+  status: FROZEN
+  promoted_to: contracts/    # 실제 Cycle — 최상위 승격 (C001 DRY_RUN 격리본을 대체)
+  registered_in: registry/contracts.yaml
+  note: >
+    이 시점부터 WORLD_BRANCH 와 GAMEVIEW_BRANCH 를 병렬 시작할 수 있다.
+    변경은 VERSION_CONTRACT (새 버전 발급 → 재검증 → Re-Freeze) 로만.
