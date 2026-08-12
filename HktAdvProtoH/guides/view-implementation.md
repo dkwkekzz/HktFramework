@@ -79,7 +79,7 @@ FIXTURE TESTS
 
 ## Must Not
 
-- `world/` 를 import 하거나 World 내부 구현을 계약의 대체 수단으로 사용하지 않는다.
+- `world/` 를 import 하거나 World 내부 구현을 계약의 대체 수단으로 사용하지 않는다 — 공유는 `protocol/` 뿐이다.
 - Client 에서 World State 를 직접 변경하지 않는다.
 - Spec 에 없는 게임 의미를 View 에서 만들어내지 않는다 (예: 클라이언트 임의 판정).
 

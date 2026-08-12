@@ -70,7 +70,7 @@ TESTS
 ## Must Not
 
 - View 를 구현하지 않는다.
-- `view/` 를 import 하지 않는다.
+- `view/` 를 import 하지 않는다 — World 와 View 가 공유하는 것은 `protocol/` 뿐이다.
 - Semantic 에 없는 State 나 Rule 을 임의로 추가하지 않는다.
 - 이유 없는 직접 상태 변경(`stone++`)을 만들지 않는다.
 - 이번 Cycle 과 무관한 기존 코드를 의미까지 바꾸는 리팩터링을 하지 않는다.
