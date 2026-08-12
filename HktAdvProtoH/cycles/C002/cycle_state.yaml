@@ -1,0 +1,86 @@
+# CYCLE C002 상태 — 이 파일 하나로 대화 없이 재개 가능해야 한다 (§18)
+cycle:
+  id: C002
+  goal: >
+    곡괭이를 가진 캐릭터가 광맥(Stone Deposit)으로 이동해
+    Mine 을 수행하여 Stone 을 하나 캘 수 있다.
+  mode: REAL
+  status: COMPLETE
+  current_stage: COMPLETE
+  contract:
+    version: 1
+    frozen: true
+  stage_status:
+    scope:
+      status: PASS
+      task: C002-SCOPE-001
+    intent:
+      status: PASS
+      task: C002-INTENT-001
+    world_semantic:
+      status: PASS
+      task: C002-SEMANTIC-001
+    authority:
+      status: PASS
+      task: C002-CONTRACT-001
+    observation:
+      status: PASS
+      task: C002-CONTRACT-001
+    gameview_spec:
+      status: PASS
+      task: C002-CONTRACT-001
+    world_implementation:
+      status: PASS
+      task: C002-WORLD-IMPLEMENT-001
+    world_verification:
+      status: PASS
+      task: C002-WORLD-VERIFY-001
+    gameview:
+      status: PASS
+      task: C002-GAMEVIEW-DESIGN-001
+    integration:
+      status: PASS
+      task: C002-INTEGRATION-001
+    playable_verification:
+      status: PASS
+      task: C002-PLAYABLE-001
+    packaging:
+      status: PASS
+      task: C002-PACKAGE-001
+  committed_artifacts:
+    - goal.yaml
+    - artifacts/scope/cycle_scope.yaml
+    - artifacts/intent/goal_possibility.yaml
+    - artifacts/intent/intent.yaml
+    - artifacts/intent/design_trace.yaml
+    - artifacts/world-design/semantic_dependencies.yaml
+    - artifacts/world-design/semantic_delta.yaml
+    - artifacts/world-design/world_state.yaml
+    - artifacts/world-design/world_rules.yaml
+    - artifacts/world-design/intent_trace.yaml
+    - artifacts/verification/semantic_closure.yaml
+    - artifacts/contracts/authority.yaml
+    - artifacts/contracts/command_contract.yaml
+    - artifacts/contracts/observable_contract.yaml
+    - artifacts/contracts/gameview_spec.yaml
+    - artifacts/verification/contract_verify.yaml
+    - artifacts/contracts/contract_freeze.yaml
+    - world/implementation_package.yaml
+    - world/implementation_result.yaml
+    - world/verification_result.yaml
+    - gameview/visual_requirements.yaml
+    - gameview/composition.yaml
+    - gameview/asset_bindings.yaml
+    - gameview/observable_bindings.yaml
+    - gameview/implementation_result.yaml
+    - gameview/verification_result.yaml
+    - integration/composition.yaml
+    - integration/e2e_trace.yaml
+    - integration/e2e_trace_measured.json
+    - integration/verification_result.yaml
+    - integration/playable_scenario.yaml
+    - integration/playable_result.yaml
+    - integration/playable_measured.json
+    - integration/playable_screenshot.png
+    - artifacts/verification/package_result.yaml
+  pending_failures: []

@@ -1,0 +1,13 @@
+# FROZEN C002-v1 — Command Contract (Rule 4 — Client 는 의도만 보낸다)
+command:
+  id: CMD-MINE-V1
+  version: 1
+  possibility: MineStone
+  rule: RULE-MINE-001
+  input:
+    - ActorId
+    - DepositId
+  prohibited_fields:
+    - inventory_delta
+    - resulting_resource_amount
+    - any_world_state_result

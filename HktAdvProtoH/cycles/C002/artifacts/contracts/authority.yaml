@@ -1,0 +1,22 @@
+# S005 / C002-CONTRACT-001 — Stage 4 Authority Design
+authority:
+  Actor.Position:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule      # RULE-MOVE-001
+  Actor.Inventory:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule      # RULE-MINE-001
+  Actor.Knowledge:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule      # 이번 Cycle 은 초기 구성으로만 부여, 변경 Rule 없음
+  Actor.CurrentAction:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule      # RULE-MINE-001 (Mine 지속/복귀)
+  ResourceDeposit.ResourceAmount:
+    owner: AuthoritativeWorld
+    mutable_by:
+      - WorldRule      # RULE-MINE-001

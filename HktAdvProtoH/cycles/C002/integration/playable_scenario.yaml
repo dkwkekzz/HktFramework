@@ -1,0 +1,34 @@
+# S014 / C002-PLAYABLE-001 — Playable Scenario (§31)
+scenario:
+  id: PLAY-MINING-C002
+  goal: >
+    곡괭이를 가진 캐릭터가 광맥(Stone Deposit)으로 이동해
+    Mine 을 수행하여 Stone 을 하나 캘 수 있다.
+  setup:
+    player:
+      position: { x: -3, z: 2 }
+      inventory:
+        Pickaxe: 1
+        Stone: 0
+      knowledge: [deposit-1]
+    deposit:
+      id: deposit-1
+      position: { x: 4, z: -2 }
+      resource:
+        Stone: 5
+  steps:
+    - move_player_to_deposit   # WASD 조향으로 InteractionRange 진입 (AVAILABLE)
+    - execute_mine             # E 키
+  expected:
+    world:
+      player_stone: 1
+      deposit_stone: 4
+      rule: RULE-MINE-001 SUCCESS
+    observable:
+      stone_amount: 1
+      deposit_amount: 4
+      availability_before_mine: AVAILABLE
+    gameview:
+      stone_counter: "⛏ Stone: 1"
+      mining_visual: visible (스윙 프레임 + character.mining)
+      feedback: "+1 Stone 획득!"

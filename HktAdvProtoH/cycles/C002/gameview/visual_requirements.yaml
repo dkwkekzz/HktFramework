@@ -1,0 +1,37 @@
+# S009 / C002-GAMEVIEW-DESIGN-001 — Stage 9 Specification Resolution
+# 입력: OBS-MINING-V1 + VIEW-MINING-001 (Frozen) + 사용자 표현 제약 (goal.yaml presentation_constraints)
+visual_requirements:
+  - id: VR-CHARACTER
+    from_spec: "Actor / visual_role: Character / WorldSpace"
+    requirement: >
+      곡괭이를 든 캐릭터를 3D 지형 위 스프라이트 빌보드로 표시한다.
+      위치는 Actor.Position 을 지형 표면에 투영해 따라간다.
+  - id: VR-DEPOSIT
+    from_spec: "Deposit / visual_role: ResourceNode / WorldSpace"
+    requirement: >
+      광맥(돌무더기)을 3D 지형 위 스프라이트 빌보드로 표시한다.
+      위치는 Deposit.Position 을 지형 표면에 투영한다.
+  - id: VR-MINING
+    from_spec: "Actor.CurrentAction == Mine -> Mining"
+    requirement: 채굴 중임을 알 수 있는 스윙 애니메이션(스프라이트 프레임 교체 + 흔들림)을 보여준다.
+  - id: VR-DEPLETED
+    from_spec: "Deposit.ResourceAmount == 0 -> DepletedResource"
+    requirement: 고갈된 광맥을 회색·부서진 스프라이트로 구분되게 표시한다.
+  - id: VR-REMAINING
+    from_spec: "Deposit.ResourceAmount -> RemainingResource"
+    requirement: 광맥 위에 남은 자원량을 작은 라벨로 표시한다.
+  - id: VR-STONE-COUNT
+    from_spec: "Actor.Inventory.Stone -> OwnedStoneAmount / ResourceSummary"
+    requirement: HUD 자원 요약 영역에 보유 Stone 수를 표시한다.
+  - id: VR-INTERACTABLE
+    from_spec: "MineStone.Availability == AVAILABLE -> InteractableTarget"
+    requirement: >
+      채굴 가능할 때 대상 광맥에 강조 링을 표시하고 HUD 에 조작 힌트([E] 채굴)를 보여준다.
+  - id: VR-FEEDBACK
+    from_spec: "ActionResult -> ActionFeedback"
+    requirement: 마지막 행동의 성공/실패(+사유)를 HUD 피드백 라인에 잠시 표시한다.
+  - id: VR-STAGE
+    from_spec: "WorldSpace placement 전제"
+    requirement: >
+      3D 지형(완만한 하이트필드)과 추적 카메라로 무대를 구성한다.
+      지형·카메라는 표현 자유 영역이며 World 의미에 영향을 주지 않는다.

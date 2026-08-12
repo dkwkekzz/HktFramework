@@ -1,0 +1,8 @@
+# S002 / C002-INTENT-001 — intent-design
+goal_possibility:
+  goal: AcquireStone
+  possibilities:
+    - id: MineStone
+      enables: AcquireStone
+    - id: ApproachDeposit     # 이동으로 InteractionRange 에 진입하는 행동 가능성
+      enables: MineStone      # Mine 의 전제(접근 가능)를 성립시킨다

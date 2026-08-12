@@ -1,0 +1,18 @@
+# S002 / C002-INTENT-001 — Goal → Possibility → Intent 연결
+design_trace:
+  - goal: AcquireStone
+    possibility: MineStone
+    intent: INTENT-MINING-001
+    scope_items:
+      - approach_deposit
+      - execute_mine
+      - stone_acquisition
+  - goal: AcquireStone
+    possibility: ApproachDeposit
+    intent: INTENT-MOVE-001
+    scope_items:
+      - movement
+    note: >
+      C001 DRY_RUN 은 이동을 Mine 전제조건에 포섭만 했으나, 실구현에서는
+      Actor.Position 변경도 Authoritative Rule 을 통해야 하므로 (Rule 3)
+      이동을 독립 Intent 로 승격했다.

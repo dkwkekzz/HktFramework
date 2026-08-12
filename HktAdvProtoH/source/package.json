@@ -1,0 +1,25 @@
+{
+  "name": "hkt-advproto-h",
+  "private": true,
+  "version": "0.2.0",
+  "type": "module",
+  "description": "HktAdvProtoH playable build — Authoritative World (TS) + GameView (three.js sprite billboard on 3D terrain)",
+  "scripts": {
+    "dev": "vite",
+    "build": "tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "three": "^0.170.0"
+  },
+  "devDependencies": {
+    "@types/node": "^26.2.0",
+    "@types/three": "^0.170.0",
+    "playwright-core": "^1.49.0",
+    "typescript": "^5.6.0",
+    "vite": "^6.0.0",
+    "vitest": "^2.1.0"
+  }
+}

@@ -1,0 +1,16 @@
+# S003 / C002-SEMANTIC-001 — World State (세계의 사실만, 구현 내부 상태 금지)
+world_state:
+  Actor:
+    Position: Position          # {x, z} 평면 좌표
+    Inventory: Inventory        # ResourceType/Tool -> amount
+    Knowledge: Knowledge        # 알고 있는 Deposit id 목록
+    CurrentAction: ActionState  # Idle | Mine
+  ResourceDeposit:
+    Position: Position
+    ResourceType: ResourceType  # 이번 Cycle 은 Stone 고정
+    ResourceAmount: ResourceAmount
+  constants:
+    InteractionRange: InteractionRange
+    MoveSpeed: MoveSpeed
+    ExtractAmount: 1
+    MineDurationTicks: MineDurationTicks   # CurrentAction=Mine 이 유지되는 tick 수 (행위 관찰 가능성)

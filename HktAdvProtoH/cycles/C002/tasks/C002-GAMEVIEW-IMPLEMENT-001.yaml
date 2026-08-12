@@ -1,0 +1,37 @@
+task:
+  id: C002-GAMEVIEW-IMPLEMENT-001
+  cycle_id: C002
+  stage: GAMEVIEW_IMPLEMENTATION
+  skill: gameview-implement
+  objective: >
+    GameView 설계 산출물 4종을 three.js 렌더러로 구현한다.
+    스프라이트 빌보드 + 3D 지형. Observable fixture 기반 단독 테스트 필수.
+  allowed_inputs:
+    - cycles/C002/gameview/visual_requirements.yaml
+    - cycles/C002/gameview/composition.yaml
+    - cycles/C002/gameview/asset_bindings.yaml
+    - cycles/C002/gameview/observable_bindings.yaml
+    - contracts/observable/OBS-MINING-V1.yaml
+  read_scope:
+    - cycles/C002/gameview/
+    - contracts/observable/
+    - contracts/gameview-spec/
+    - source/gameview/
+    - source/package.json
+    - skills/gameview-implement/
+  write_scope:
+    - cycles/C002/gameview/
+    - source/gameview/
+    - source/package.json
+  forbidden_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/world/
+    - source/world/
+    - modules/world/
+  required_outputs:
+    - implementation_result.yaml
+  completion_gate:
+    type: gameview-verify
+  routing:
+    pass: GAMEVIEW_VERIFICATION
+    fail: GAMEVIEW_IMPLEMENTATION_FIX

@@ -1,0 +1,16 @@
+# S006 / C002-CONTRACT-VERIFY-001 — contract-verify (Generator S005 와 분리)
+verification:
+  task_id: C002-CONTRACT-001
+  gate: CONTRACT
+  result: PASS
+  mode: MIXED
+  verified_by: S006
+  evidence:
+    - "Authority Closure: world_rules 전이 대상 4종 (Actor.Position / Actor.Inventory / Actor.CurrentAction / ResourceDeposit.ResourceAmount) 모두 authority.yaml 에 owner=AuthoritativeWorld, mutable_by=[WorldRule] 로 지정됨"
+    - "Command 2종 (CMD-MOVE-V1 / CMD-MINE-V1) 모두 prohibited_fields 보유 — 결과 전달 경로 없음. Move 는 Direction(의도)만 받고 resulting_position 금지"
+    - "Observable Closure: RULE-MINE-001 의 전제·결과 이해에 필요한 의미 (VisibleDeposit / Deposit.ResourceAmount / MineStone.Availability(+reason) / ActionResult / ResourceTransition) 가 player projection 에 존재. RULE-MOVE-001 결과는 Actor.Position 으로 관측"
+    - "Designer 8항목 (CurrentGoal/CurrentPossibility/PossibilityAvailability/Preconditions/SelectedRule/BeforeState/Input/AfterState/FailureReason) 전부 존재 (§23)"
+    - "GV Spec 의 모든 source/when 대상 (Actor.Position / Deposit.Position / Actor.CurrentAction / Deposit.ResourceAmount / Actor.Inventory.Stone / MineStone.Availability / ActionResult) 이 OBS-MINING-V1 항목임 — 전수 대조"
+    - "GV Spec 에 구체 asset/renderer 지정 없음 (Rule 8) — not_defined_here 로 명시"
+    - "id/version 부여 확인: CMD-MOVE-V1 / CMD-MINE-V1 / OBS-MINING-V1 / VIEW-MINING-001 (DRY_RUN 동일 id 재검증 승격, registry 규칙 준수)"
+  failures: []

@@ -1,0 +1,14 @@
+# S004 / C002-SEMANTIC-VERIFY-001 — semantic-closure-verify (Generator S003 과 분리)
+verification:
+  task_id: C002-SEMANTIC-001
+  gate: SEMANTIC_CLOSURE
+  result: PASS
+  mode: MIXED
+  verified_by: S004
+  evidence:
+    - "node scripts/validation/verify.mjs closure C002 -> 9/9 checks passed (deterministic)"
+    - "intent.yaml 의 INTENT-MOVE-001 / INTENT-MINING-001 의미 문장 전수 열거 후 intent_trace 대조 — 누락 없음"
+    - "semantic_delta 11종 vs registry/semantics.yaml 대조 — DRY_RUN 9종은 동일 의미 재정의(중복 아닌 승격 대상), 신규 2종(Actor.CurrentAction, MoveSpeed)은 registry 미존재 확인"
+    - "world_state.yaml 에 cache/thread/packet 등 Implementation State 없음 확인"
+    - "Capability 분화 semantic (MiningInventory 류) 없음 — 공유 Inventory 사용 (Rule 11)"
+  failures: []

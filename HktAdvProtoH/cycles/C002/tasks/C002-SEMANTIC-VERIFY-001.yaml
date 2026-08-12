@@ -1,0 +1,29 @@
+task:
+  id: C002-SEMANTIC-VERIFY-001
+  cycle_id: C002
+  stage: SEMANTIC_VERIFY
+  skill: semantic-closure-verify
+  objective: >
+    Intent 의 모든 의미가 World State / Rule 로 해소되는지 독립 검증한다.
+  allowed_inputs:
+    - cycles/C002/artifacts/intent/intent.yaml
+    - cycles/C002/artifacts/world-design/intent_trace.yaml
+    - registry/semantics.yaml
+  read_scope:
+    - cycles/C002/artifacts/intent/
+    - cycles/C002/artifacts/world-design/
+    - registry/
+    - skills/semantic-closure-verify/
+    - scripts/validation/
+  write_scope:
+    - cycles/C002/artifacts/verification/
+  forbidden_scope:
+    - source/
+    - modules/
+  required_outputs:
+    - semantic_closure.yaml
+  completion_gate:
+    type: semantic-closure
+  routing:
+    pass: AUTHORITY_DESIGN
+    fail: WORLD_SEMANTIC_REWORK

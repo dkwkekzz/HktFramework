@@ -1,0 +1,35 @@
+task:
+  id: C002-PACKAGE-001
+  cycle_id: C002
+  stage: MODULE_PACKAGE
+  skill: module-package
+  objective: >
+    Playable Cycle Complete 산출물을 Module 로 고정(FREEZE)하고 Registry 3종을 갱신한다.
+    C001 DRY_RUN 항목을 실검증 산출물로 승격·대체한다.
+  allowed_inputs:
+    - cycles/C002/world/verification_result.yaml
+    - cycles/C002/gameview/verification_result.yaml
+    - cycles/C002/integration/verification_result.yaml
+    - cycles/C002/integration/playable_result.yaml
+  read_scope:
+    - cycles/C002/
+    - contracts/
+    - registry/
+    - modules/
+    - source/
+    - scripts/
+    - skills/module-package/
+  write_scope:
+    - modules/world/
+    - modules/gameview/
+    - registry/
+    - cycles/C002/artifacts/verification/
+  forbidden_scope:
+    - contracts/    # Frozen Contract 수정 금지 (읽기는 read_scope 로 허용)
+  required_outputs:
+    - package_result.yaml
+  completion_gate:
+    type: cycle-commit
+  routing:
+    pass: COMPLETE_CYCLE
+    fail: PACKAGE_FIX

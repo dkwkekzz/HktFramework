@@ -1,0 +1,35 @@
+# S007 / C002-WORLD-IMPLEMENT-001 — world-implement Handoff (handoff_result schema)
+handoff:
+  task_id: C002-WORLD-IMPLEMENT-001
+  session_id: S007
+  skill: world-implement
+  status: COMPLETE
+  outputs:
+    - implementation_result.yaml
+  unresolved: []
+  changed_files:
+    - source/package.json
+    - source/tsconfig.json
+    - source/world/types.ts
+    - source/world/constants.ts
+    - source/world/commands.ts
+    - source/world/rules.ts
+    - source/world/authority.ts
+    - source/world/projection.ts
+    - source/world/index.ts
+    - source/tests/helpers.ts
+    - source/tests/world.rules.test.ts
+    - source/tests/world.projection.test.ts
+    - scripts/build/build.sh
+    - scripts/test/test.sh
+  tests:
+    passed: 21
+    failed: 0
+  notes: >
+    런타임 스택 확정: TypeScript (Web) — world 는 렌더러/DOM 무의존 순수 모듈.
+    구현 Rule: RULE-MOVE-001 / RULE-MINE-001.
+    구현 Observable: Actor.Position / Actor.Inventory.Stone / Actor.CurrentAction /
+    VisibleDeposit / Deposit.Position / Deposit.ResourceAmount / MineStone.Availability /
+    ActionResult / ResourceTransition + Designer 8항목 (projectDesigner).
+    Authority 경계: World State 는 AuthoritativeWorld 내부 은닉, 변경 경로는
+    applyCommand→Rule 뿐, snapshot 은 deep-frozen, prohibited_fields 는 입구에서 거부.

@@ -1,0 +1,33 @@
+# S003 / C002-SEMANTIC-001 — World Rules (허용된 semantic transition 만)
+world_rules:
+  - id: RULE-MOVE-001
+    input:
+      - Actor
+      - Direction           # 정규화된 이동 의도 (dx, dz) — 결과 위치가 아니라 방향
+    preconditions:
+      - Actor exists
+      - Direction is a bounded unit intent    # |direction| <= 1, 결과 위치 전달 금지 (Rule 4)
+    transition:
+      - Actor.Position += normalize(Direction) * MoveSpeed   # 세계가 결정하는 한계 내 이동
+    failure_reasons:
+      - UNKNOWN_ACTOR
+      - INVALID_DIRECTION
+  - id: RULE-MINE-001
+    input:
+      - Actor
+      - ResourceDeposit
+    preconditions:
+      - Actor knows Deposit                    # Actor.Knowledge contains Deposit
+      - Actor owns Mining-capable Tool         # Actor.Inventory has Tool with Capability=Mining
+      - Actor in InteractionRange              # distance(Actor.Position, Deposit.Position) <= InteractionRange
+      - Deposit ResourceAmount > 0
+    transition:
+      - Deposit.ResourceAmount -= ExtractAmount
+      - Actor.Inventory[ResourceType] += ExtractAmount
+      - Actor.CurrentAction = Mine (MineDurationTicks 동안, 이후 Idle 복귀)
+    failure_reasons:
+      - UNKNOWN_ACTOR
+      - UNKNOWN_DEPOSIT
+      - NO_MINING_TOOL
+      - OUT_OF_RANGE
+      - DEPOSIT_EMPTY

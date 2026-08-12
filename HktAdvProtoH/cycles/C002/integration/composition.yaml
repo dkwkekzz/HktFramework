@@ -1,0 +1,23 @@
+# S012 / C002-INTEGRATION-001 — Playable Composition (§30·§35)
+composition:
+  world_module: mining-world-v1 (source/world/ — C002 검증 통과분)
+  gameview_module: mining-view-v1 (source/gameview/ — C002 검증 통과분)
+  contracts:
+    commands: [CMD-MOVE-V1, CMD-MINE-V1]
+    observable: OBS-MINING-V1
+    gameview_spec: VIEW-MINING-001
+  glue: source/main.ts — 로컬 런타임 (§21). Contract 경계로만 연결, 양쪽 내부 수정 없음.
+  world_configuration:
+    player:
+      id: player-1
+      position: { x: -3, z: 2 }
+      inventory: { Pickaxe(Capability=Mining): 1, Stone: 0 }
+      knowledge: [deposit-1]
+    deposit:
+      id: deposit-1
+      position: { x: 4, z: -2 }
+      resource: { Stone: 5 }
+  runtime_loop: >
+    고정 60tps: InputReader(키 의도) → Command 큐 → AuthoritativeWorld.applyCommand → tick
+    → projectPlayer(OBS-MINING-V1) → bindObservable(RenderState) → GameViewRenderer.render.
+  playable_build: source/dist/ (npm run build — tsc + vite)

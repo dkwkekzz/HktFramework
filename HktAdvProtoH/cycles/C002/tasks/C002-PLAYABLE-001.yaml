@@ -1,0 +1,31 @@
+task:
+  id: C002-PLAYABLE-001
+  cycle_id: C002
+  stage: PLAYABLE_VERIFICATION
+  skill: playable-verify
+  objective: >
+    Cycle Goal 자체가 Playable Build 에서 수행 가능한지 최종 검증한다.
+    expected 3층 (world / observable / gameview) 실측 대조 + 실제 브라우저 실행.
+  allowed_inputs:
+    - cycles/C002/goal.yaml
+    - cycles/C002/integration/composition.yaml
+    - cycles/C002/integration/e2e_trace.yaml
+  read_scope:
+    - cycles/C002/
+    - contracts/
+    - source/
+    - scripts/
+    - skills/playable-verify/
+  write_scope:
+    - cycles/C002/integration/
+  forbidden_scope:
+    - modules/
+    - cycles/C002/artifacts/intent/
+  required_outputs:
+    - playable_scenario.yaml
+    - playable_result.yaml
+  completion_gate:
+    type: playable-complete
+  routing:
+    pass: MODULE_PACKAGE
+    fail: OWNING_STAGE_FROM_E2E_TRACE

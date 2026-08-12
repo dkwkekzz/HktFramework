@@ -1,0 +1,32 @@
+# S002 / C002-INTENT-001 — intent-design
+intents:
+  - id: INTENT-MOVE-001
+    possibility: ApproachDeposit
+    meaning: >
+      Actor may express a movement intention (direction);
+      the world advances the Actor's Position accordingly,
+      bounded by the world's movement limits.
+    result:
+      - Actor position changes toward the intended direction
+  - id: INTENT-MINING-001
+    possibility: MineStone
+    meaning: >
+      Actor that knows a ResourceDeposit,
+      owns a Mining-capable Tool,
+      and can interact with the Deposit (within InteractionRange)
+      may execute Mine.
+    result:
+      - Deposit resource decreases
+      - Actor inventory increases
+# 하위 호환: 단수 intent 참조가 필요한 소비자를 위해 대표 Intent 를 유지
+intent:
+  id: INTENT-MINING-001
+  possibility: MineStone
+  meaning: >
+    Actor that knows a ResourceDeposit,
+    owns a Mining-capable Tool,
+    and can interact with the Deposit
+    may execute Mine.
+  result:
+    - Deposit resource decreases
+    - Actor inventory increases

@@ -1,0 +1,70 @@
+<!doctype html>
+<html lang="ko">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>HktAdvProtoH — Mining (C002)</title>
+    <style>
+      html,
+      body {
+        margin: 0;
+        height: 100%;
+        overflow: hidden;
+        font-family: system-ui, sans-serif;
+      }
+      #app {
+        position: fixed;
+        inset: 0;
+      }
+      .hud {
+        position: fixed;
+        color: #fff;
+        text-shadow: 0 1px 3px rgba(0, 0, 0, 0.8);
+        pointer-events: none;
+        z-index: 10;
+      }
+      #hud-stone {
+        top: 16px;
+        left: 16px;
+        font-size: 22px;
+        font-weight: 700;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 8px 14px;
+        border-radius: 10px;
+      }
+      #hud-hint {
+        bottom: 24px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 18px;
+        background: rgba(0, 0, 0, 0.35);
+        padding: 6px 14px;
+        border-radius: 10px;
+        min-height: 22px;
+      }
+      #hud-feedback {
+        bottom: 68px;
+        left: 50%;
+        transform: translateX(-50%);
+        font-size: 20px;
+        font-weight: 700;
+        color: #ffe45c;
+      }
+      #hud-help {
+        top: 16px;
+        right: 16px;
+        font-size: 13px;
+        opacity: 0.85;
+        text-align: right;
+      }
+    </style>
+  </head>
+  <body>
+    <div id="app"></div>
+    <div id="hud-stone" class="hud">⛏ Stone: 0</div>
+    <div id="hud-feedback" class="hud"></div>
+    <div id="hud-hint" class="hud"></div>
+    <div id="hud-help" class="hud">이동: WASD / 방향키<br />채굴: E</div>
+    <script type="module" src="/main.ts"></script>
+  </body>
+</html>

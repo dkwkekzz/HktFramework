@@ -1,0 +1,35 @@
+# Orchestrator 가 World Engineer 에게 전달하는 유일한 입력 — §26 의 11항목
+implementation_package:
+  1_cycle_scope:
+    included: [movement, approach_deposit, execute_mine, stone_acquisition]
+    excluded: [crafting, trade, deposit_respawn, multiple_resource_types, multiplayer, persistence]
+  2_goal_possibility:
+    goal: AcquireStone
+    possibilities: [ApproachDeposit, MineStone]
+  3_intent:
+    - INTENT-MOVE-001: >
+        Actor may express a movement intention (direction); the world advances
+        the Actor's Position accordingly, bounded by the world's movement limits.
+    - INTENT-MINING-001: >
+        Actor that knows a ResourceDeposit, owns a Mining-capable Tool,
+        and can interact with the Deposit may execute Mine.
+  4_existing_module_dependencies: []   # FROZEN Module 없음 (최초 실제 Cycle)
+  5_world_semantic_delta: cycles/C002/artifacts/world-design/semantic_delta.yaml
+  6_world_state: cycles/C002/artifacts/world-design/world_state.yaml
+  7_world_rules: cycles/C002/artifacts/world-design/world_rules.yaml
+  8_authority_contract:
+    authority: cycles/C002/artifacts/contracts/authority.yaml
+    commands:
+      - contracts/commands/CMD-MOVE-V1.yaml
+      - contracts/commands/CMD-MINE-V1.yaml
+  9_observable_contract: contracts/observable/OBS-MINING-V1.yaml
+  10_traceability: cycles/C002/artifacts/world-design/intent_trace.yaml
+  11_completion_conditions:
+    - 모든 Rule (RULE-MOVE-001 / RULE-MINE-001) 이 구현되고 preconditions 별 성공/실패 테스트가 있다
+    - World State 변경 경로가 Rule 뿐이다 (public mutator 없음)
+    - Command 는 의도만 받는다 — prohibited_fields 가 입력에 존재하면 거부
+    - Player / Designer Observer Projection 이 OBS-MINING-V1 의 모든 항목을 제공한다
+    - Transition 이 Before → Input → Rule → After 로 기록되어 Designer 가 관측 가능하다
+    - world/ 는 gameview/ 를 import 하지 않는다
+    - 런타임 스택: TypeScript (Web) — 순수 로직 모듈, 렌더러/DOM 의존 금지
+    - build (tsc) / test (vitest) green

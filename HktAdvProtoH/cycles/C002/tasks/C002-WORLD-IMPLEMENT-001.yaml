@@ -1,0 +1,34 @@
+task:
+  id: C002-WORLD-IMPLEMENT-001
+  cycle_id: C002
+  stage: WORLD_IMPLEMENTATION
+  skill: world-implement
+  objective: >
+    Implementation Package 만으로 World Runtime (State/Rule/Command/Projection) 을
+    TypeScript 로 구현한다. 런타임 스택: Web (TypeScript) — C001 DRYRUN 잔여 결정 1 확정.
+  allowed_inputs:
+    - cycles/C002/world/implementation_package.yaml
+  read_scope:
+    - cycles/C002/world/
+    - contracts/
+    - source/world/
+    - source/package.json
+    - skills/world-implement/
+  write_scope:
+    - cycles/C002/world/
+    - source/world/
+    - source/package.json
+    - source/tsconfig.json
+    - scripts/build/
+    - scripts/test/
+  forbidden_scope:
+    - cycles/C002/gameview/
+    - source/gameview/
+    - modules/gameview/
+  required_outputs:
+    - implementation_result.yaml
+  completion_gate:
+    type: world-verify
+  routing:
+    pass: WORLD_VERIFICATION
+    fail: WORLD_IMPLEMENTATION_FIX

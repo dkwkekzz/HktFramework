@@ -1,0 +1,30 @@
+task:
+  id: C002-INTENT-001
+  cycle_id: C002
+  stage: INTENT_DESIGN
+  skill: intent-design
+  objective: >
+    Cycle Goal 을 Goal / Possibility / Intent 로 구조화한다.
+    이동(광맥 접근)도 세계 의미로 포섭한다.
+  allowed_inputs:
+    - cycles/C002/goal.yaml
+    - cycles/C002/artifacts/scope/cycle_scope.yaml
+  read_scope:
+    - cycles/C002/goal.yaml
+    - cycles/C002/artifacts/scope/
+    - skills/intent-design/
+  write_scope:
+    - cycles/C002/artifacts/intent/
+  forbidden_scope:
+    - source/
+    - modules/
+    - cycles/C002/artifacts/world-design/
+  required_outputs:
+    - goal_possibility.yaml
+    - intent.yaml
+    - design_trace.yaml
+  completion_gate:
+    type: intent-verify
+  routing:
+    pass: WORLD_SEMANTIC_DESIGN
+    fail: INTENT_DESIGN_REWORK

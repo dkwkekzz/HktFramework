@@ -1,0 +1,15 @@
+# S011 / C002-GAMEVIEW-VERIFY-001 — gameview-verify (Generator S010 과 분리)
+verification:
+  task_id: C002-GAMEVIEW-IMPLEMENT-001
+  gate: GAMEVIEW_COMPLETE
+  result: PASS
+  mode: MIXED
+  verified_by: S011
+  evidence:
+    - "npx vitest run 직접 재실행 → 31 passed (binding fixture 10건 포함)"
+    - "npx tsc --noEmit → 오류 없음"
+    - "forbidden import: grep -rn \"world\" source/gameview/ → NONE — GameView 는 World 모듈을 import 하지 않는다 (Rule 7·8). Observable 타입은 contracts/observable/OBS-MINING-V1.yaml 미러(observable.ts)로만 소비"
+    - "binding source 전수 검사: binding.ts 의 소비 필드 = actor.position / currentAction / inventoryStone / visibleDeposits(position, resourceAmount) / mineAvailability / actionResult / resourceTransition — 전부 OBS-MINING-V1 player 항목"
+    - "VIEW-MINING-001 Visual Meaning 6종 fixture 재현: Mining(CurrentAction=Mine→mining), DepletedResource(0→depleted+고갈라벨), RemainingResource(5→'돌 5'), OwnedStoneAmount(3→stoneCount 3), InteractableTarget(AVAILABLE→링+[E]힌트), ActionFeedback(SUCCESS→'+1 Stone 획득!' / FAILURE→사유)"
+    - "Spec 이 정의하지 않은 World 의존 동작 없음 — 지형/카메라/빌보드는 표현 자유 영역"
+  failures: []

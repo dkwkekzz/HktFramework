@@ -1,0 +1,60 @@
+{
+  "scenario": "PLAY-MINING-C002",
+  "chain": [
+    {
+      "step": "client_input",
+      "value": "Move intent xN + Mine intent (E)"
+    },
+    {
+      "step": "world_command",
+      "value": [
+        "CMD-MOVE-V1 x74",
+        "CMD-MINE-V1 x1"
+      ]
+    },
+    {
+      "step": "authoritative_rule",
+      "value": [
+        "RULE-MOVE-001",
+        "RULE-MINE-001"
+      ]
+    },
+    {
+      "step": "world_transition",
+      "value": {
+        "Deposit.ResourceAmount": {
+          "before": 5,
+          "after": 4
+        },
+        "Actor.Inventory.Stone": {
+          "before": 0,
+          "after": 1
+        }
+      }
+    },
+    {
+      "step": "observer_projection",
+      "contract": "OBS-MINING-V1",
+      "value": {
+        "Actor.Inventory.Stone": 1,
+        "Deposit.ResourceAmount": 4,
+        "Actor.CurrentAction": "Mine",
+        "MineStone.Availability(before mine)": {
+          "status": "AVAILABLE",
+          "target": "deposit-1"
+        }
+      }
+    },
+    {
+      "step": "gameview_binding",
+      "contract": "VIEW-MINING-001",
+      "value": {
+        "hud.stoneCount": 1,
+        "character.mining": true,
+        "deposit.amountLabel": "돌 4",
+        "hud.feedbackLine": "+1 Stone 획득!"
+      }
+    }
+  ],
+  "move_ticks_until_available": 74
+}

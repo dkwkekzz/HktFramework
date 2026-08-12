@@ -1,0 +1,33 @@
+task:
+  id: C002-CONTRACT-VERIFY-001
+  cycle_id: C002
+  stage: CONTRACT_VERIFY
+  skill: contract-verify
+  objective: >
+    Authority Closure / Observable Closure / GameView Spec 을 독립 검증하고
+    Freeze 가능 여부를 판정한다.
+  allowed_inputs:
+    - cycles/C002/artifacts/world-design/world_rules.yaml
+    - cycles/C002/artifacts/contracts/authority.yaml
+    - cycles/C002/artifacts/contracts/command_contract.yaml
+    - cycles/C002/artifacts/contracts/observable_contract.yaml
+    - cycles/C002/artifacts/contracts/gameview_spec.yaml
+  read_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/artifacts/contracts/
+    - orchestration/schemas/
+    - registry/
+    - skills/contract-verify/
+    - scripts/validation/
+  write_scope:
+    - cycles/C002/artifacts/verification/
+  forbidden_scope:
+    - source/
+    - modules/
+  required_outputs:
+    - contract_verify.yaml
+  completion_gate:
+    type: contract-gate
+  routing:
+    pass: FREEZE_CONTRACT
+    fail: CONTRACT_DESIGN_REWORK
