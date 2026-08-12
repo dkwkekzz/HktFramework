@@ -7,7 +7,8 @@ description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미
 
 **작업 디렉토리: `HktAdvProtoH/`** — 이하 상대 경로는 이 폴더 기준.
 
-이 스킬은 **한 번에 한 Stage** 만 실행한다. 여러 단계를 이어서 처리하지 마라.
+이 스킬은 요청된 범위만큼 Stage 를 이어서 실행할 수 있다. 범위 지정이 없으면
+다음 미완료 Stage 하나를 실행한다.
 각 Stage 는 이전 Stage 의 Artifact 를 입력으로 받고 자기 Artifact 를 남긴다.
 대화 History 를 Source of Truth 로 쓰지 않는다.
 
@@ -91,7 +92,7 @@ Intent 가 Goal 과 불일치 → Cycle Definition (Human)
 * Stage 8 이 전 항목 통과면 `08-verification.md` 의 STATUS 를 `COMPLETE` 로,
   `01-cycle.md` 의 STATUS 도 `COMPLETE` 로 갱신한다.
   단 **Human Play 확인 이전에는 COMPLETE 로 바꾸지 않는다** — 사용자에게 플레이 확인을 요청한다.
-* 다음 Stage 를 이어서 실행하지 않는다. 무엇이 끝났고 다음이 무엇인지만 보고한다.
+* 요청된 범위의 마지막 Stage 까지 실행했으면 멈춘다. 무엇이 끝났고 다음이 무엇인지 보고한다.
 
 ## 절대 규칙
 

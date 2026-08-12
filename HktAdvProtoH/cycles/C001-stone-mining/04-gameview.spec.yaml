@@ -1,0 +1,61 @@
+# CYCLE C001 — GameView Specification
+id: VIEW-STONE-MINING-001
+observer: player
+
+delta:
+  reused: []
+  added:
+    - scene.mining-field
+    - entities.player
+    - entities.deposit
+    - interactions.move
+    - interactions.mine
+    - hud.inventory
+    - hud.tool
+  changed: []
+
+scene: mining-field          # 평탄한 야외 지형, World.Bounds 범위가 이동 가능 영역
+
+entities:
+  player:
+    role: player-character
+    position: { source: Actor.Position }
+    state:
+      moving: { when: Actor.Moving == true }
+      idle:   { when: Actor.Moving == false }
+  deposit:
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted:  { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+interactions:
+  move:
+    role: move-to
+    target: terrain-position          # World.Bounds 안의 지점
+    request: Move(Actor, TargetPosition)
+    available: { always: true }       # Bounds 밖 지점은 대상이 되지 않는다
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(Actor, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+    # no-mining-tool | out-of-range | deposit-depleted
+
+hud:
+  inventory:
+    stone: { source: Actor.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: Actor.Inventory.HasMiningTool }
+  mineHint:
+    available: { source: Mine.Availability }
+    reason:    { source: Mine.FailureReason }
+
+# OBSERVABLE PROJECTION NOTE
+#   03-world-semantic.md 의 Observable Semantic 전부 투영됨.
+#   Actor.MoveSpeed / World.Bounds / InteractionRange 원값은 투영하지 않는다 —
+#   플레이어에게는 moving 상태·이동 결과·mine 가용성으로 충분히 관찰된다.
