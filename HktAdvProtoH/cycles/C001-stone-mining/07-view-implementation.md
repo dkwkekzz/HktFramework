@@ -20,6 +20,9 @@
 ## INPUT → ACTION REQUEST
     지형 클릭 (Raycast → ground)     → { type: 'move', target: {x, z} }
     광맥 스프라이트 클릭             → { type: 'mine', depositId }
+    WASD / 방향키 (연속 이동)        → 매 프레임 진행 방향 1.6 unit 앞 지점을
+                                       { type: 'move', target } 로 요청 (키 해제 시 현재 위치로 정지)
+    E 키                             → { type: 'mine', depositId }
     View 는 판정하지 않는다 — 요청만 보내고 World Rule 의 결과가 Snapshot 으로 돌아온다.
 
 ## FIXTURE TESTS
@@ -39,3 +42,11 @@
     헤드리스 플레이 스모크 (chromium): 시작 시 "광맥이 너무 멀다" →
     지형 클릭 이동 → "광맥을 클릭해 캐자!" → 광맥 클릭 →
     HUD Stone: 1 · 광맥 잔량: 4. 콘솔 에러 없음. (Human Play 확인은 Stage 8 이후)
+
+    [표현 업그레이드 — Human 피드백 반영]
+    구릉 3D 지형(시각 높이 — 게임 판정은 평면 x,z 그대로) · 픽셀아트 스프라이트
+    (16x16 그리드 + Nearest 필터) · WASD/방향키 연속 이동 + E 채굴 ·
+    광맥 머리 위 "돌 N" 잔량 라벨(worldToScreen 투영) · "+N Stone 획득!" 토스트
+    (Snapshot 의 Stone 증가 감지 — View 는 판정하지 않음) · 이동 트레일 ·
+    지평선 보이는 로우앵글 팔로우 카메라. World/protocol 변경 없음.
+    키보드 스모크 재검증: WASD 접근 → "[E] 채굴" 표시 → E → Stone: 1 · 잔량 4.
