@@ -58,6 +58,8 @@ world/
 
 - 모든 의미 있는 상태 변화는 World Rule 을 통해서만 발생한다.
 - Rule 구현에는 Intent ID 를 주석/메타로 남긴다 (Traceability).
+- 새로 도입한 Rule 은 `world/cycle/registry.ts` 의 이번 Cycle 항목에 등록한다 —
+  등록되지 않은 Rule 은 어떤 Cycle Scope 에서도 실행되지 않는다 (`./run.sh <CycleId>` 재현의 근거).
 - World 는 View 없이 테스트 가능해야 한다.
 - 코드는 `03-world-semantic.md` 의 이름과 의미를 그대로 따른다.
 

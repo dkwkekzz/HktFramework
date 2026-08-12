@@ -18,6 +18,8 @@
 4. **View Binding** — Fixture 만으로 View 가 그 의미를 표현하는가.
 5. **Playable** — Server + Client 를 연결해 Cycle Goal 을 실제로 달성한다.
 6. **Regression** — `03-world-semantic.md` 의 AFFECTED 항목과 과거 Cycle Scenario 를 재실행한다.
+   과거 Cycle 시점의 플레이는 `./run.sh <CycleId>` (브라우저 `?cycle=<CycleId>`) 로 재현한다 —
+   그 Cycle 까지의 Rule 만 굴러가므로 이후 Cycle 이 과거 플레이를 깨뜨렸는지 눈으로 확인할 수 있다.
 
 ## Output
 

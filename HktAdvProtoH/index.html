@@ -41,6 +41,29 @@
     .hud-hint[data-state="available"] { background: rgba(34, 38, 48, 0.85); color: #fff; }
     .hud-hint[data-state="unavailable"] { background: rgba(66, 66, 74, 0.6); color: #e2e2e8; }
     .hud-hint:empty { display: none; }
+
+    /* Cycle Scope 배지 — 게임 UI 가 아니라 실행 도구 표시다 */
+    #cycle-badge {
+      position: absolute; bottom: 12px; left: 14px; z-index: 10;
+      display: flex; align-items: center; gap: 8px; flex-wrap: wrap;
+      background: rgba(28, 34, 46, 0.7); color: #e8ecf4;
+      padding: 6px 10px; border-radius: 8px; font-size: 12.5px;
+    }
+    #cycle-badge[data-mode="past"] { background: rgba(120, 78, 20, 0.85); color: #fff6e2; }
+    #cycle-badge select {
+      font: inherit; font-weight: 700; color: inherit;
+      background: rgba(0, 0, 0, 0.3); border: 1px solid rgba(255,255,255,0.25);
+      border-radius: 5px; padding: 2px 4px; cursor: pointer;
+    }
+    #cycle-badge .cycle-note { opacity: 0.9; }
+    #cycle-error {
+      position: absolute; inset: 0; display: flex; flex-direction: column;
+      justify-content: center; align-items: center; gap: 4px;
+      background: #1c222e; color: #f2f4f8; font-size: 15px; text-align: center;
+    }
+    #cycle-error h1 { font-size: 20px; margin: 0 0 6px; }
+    #cycle-error ul { list-style: none; padding: 0; }
+    #cycle-error a { color: #7fc4ff; }
   </style>
 </head>
 <body>

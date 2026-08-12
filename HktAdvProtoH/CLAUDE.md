@@ -11,6 +11,19 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
+## 실행
+
+```text
+./run.sh              최신 Cycle = 현재 게임 전체       (Windows: run.bat)
+./run.sh C001         C001 까지의 게임만 실행
+./run.sh --list       실행 가능한 Cycle 목록
+```
+
+브라우저에서는 `?cycle=C001` Query 가 같은 역할을 하고, 화면 좌하단 배지에서 바로 전환할 수 있다.
+지정한 Cycle 까지의 Rule 만 굴러가고 이후 Cycle 의 Rule 은 꺼진다 — 과거 Cycle 의 Regression Play 수단이다.
+어느 Cycle 이 어떤 Rule 을 도입했는지는 [world/cycle/registry.ts](world/cycle/registry.ts) 가 단일 출처이고,
+**새 Cycle 이 Rule 을 추가하면 반드시 여기에 등록한다** — 등록되지 않은 Rule 은 어떤 Scope 에서도 실행되지 않는다.
+
 ## 읽는 순서
 
 모든 Agent 는 다음 셋만 읽고 작업한다.

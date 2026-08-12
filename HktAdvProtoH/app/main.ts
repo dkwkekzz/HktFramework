@@ -1,17 +1,29 @@
 // 조립 루트 — World(Server 역할)와 View(Client)를 protocol 경계로만 연결한다.
 // view/ 는 world/ 를 import 하지 않는다. 이 파일만 양쪽을 안다.
 
-import { createWorld } from '../world/index';
+import { createWorld, listCycles } from '../world/index';
 import { interpretGameView } from '../view/gameview/interpret';
 import { createHud } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
 import { createRenderer } from '../view/renderer/renderer';
+import { createCycleBadge, showCycleError } from './cycle-banner';
 
 const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
 
-const world = createWorld();
+// 실행 범위 — ?cycle=C001 로 "그 Cycle 까지의 게임" 을 굴린다 (미지정이면 최신 = 현재 게임).
+// run.sh / run.bat 의 인자가 이 Query 로 전달된다.
+const requestedCycle = new URLSearchParams(location.search).get('cycle');
+
+let world: ReturnType<typeof createWorld>;
+try {
+  world = createWorld({ upToCycle: requestedCycle });
+} catch (error) {
+  showCycleError(container, error, listCycles());
+  throw error;
+}
+createCycleBadge(container, world.scope, listCycles());
 const renderer = createRenderer(container);
 const hud = createHud(container);
 const keyboard = attachKeyboard();
