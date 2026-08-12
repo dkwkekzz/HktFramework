@@ -17,6 +17,9 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 단계별 작업 방법은 자기 단계의 [guides/](guides/) 하나만 읽는다.
 `design/` 전체 문서는 일반적인 작업 Context 가 아니다.
 
+Cycle 단계 실행은 **`advprotoh-cycle` 스킬**을 쓴다 — 다음 미완료 Stage 를 판정해
+필요한 문서만 로드하고 출력 Artifact 까지 남긴다.
+
 ## 폴더 구조
 
 | 폴더 | 내용 |

@@ -13,6 +13,9 @@
 필요한 경우에만 관련 기존 Capability Artifact 나 코드를 추가로 확인한다.
 `design/` 전체 문서는 일반적인 작업 Context 가 아니다.
 
+단계 실행은 **`advprotoh-cycle` 스킬**이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세,
+Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
+
 ## 핵심 원칙
 
 ```text
