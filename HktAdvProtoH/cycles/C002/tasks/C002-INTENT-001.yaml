@@ -1,0 +1,33 @@
+task:
+  id: C002-INTENT-001
+  cycle_id: C002
+  stage: INTENT_DESIGN
+  skill: intent-design
+  objective: >
+    Cycle Goal 을 Goal / Possibility / Intent 로 구조화한다.
+    scope.included 의 이동(player_movement)·접근(approach_deposit)이 이번 Cycle 의
+    플레이 경험에 포함되므로 Intent 에서 누락하지 않는다.
+  allowed_inputs:
+    - cycles/C002/goal.yaml
+    - cycles/C002/artifacts/scope/cycle_scope.yaml
+  read_scope:
+    - cycles/C002/goal.yaml
+    - cycles/C002/artifacts/scope/
+    - skills/intent-design/
+    - cycles/C001/artifacts/intent/   # DRY_RUN 설계 참고용 (재사용 아님)
+  write_scope:
+    - cycles/C002/artifacts/intent/
+  forbidden_scope:
+    - source/
+    - modules/
+    - cycles/C002/gameview/
+  required_outputs:
+    - goal_possibility.yaml
+    - intent.yaml
+    - design_trace.yaml
+    - handoff.yaml
+  completion_gate:
+    type: intent-verify
+  routing:
+    pass: WORLD_SEMANTIC_DESIGN
+    fail: INTENT_REWORK

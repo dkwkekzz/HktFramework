@@ -1,0 +1,39 @@
+# S003 / C002-SEMANTIC-001 — World Rules (허용된 semantic transition 만, Rule 3)
+# 의미 있는 세계 변경은 이 Rule 들을 통해서만 일어난다. Client 는 Command 만 보낸다 (Rule 4).
+# 거부(failure_reasons)도 세계 의미의 일부다 — "no world fact changes" 가 관찰 가능해야 한다.
+world_rules:
+  - id: RULE-MOVE-001
+    input:
+      - Actor
+      - Direction               # Actor 가 선택한 방향 — Command 파라미터, World State 아님
+    preconditions:
+      - Actor has Position                                        # Actor.Position 존재
+      - resulting Position is inside WorldBoundary                # clamp 하지 않는다 — 경계 밖이면 거부
+    transition:
+      - Actor.Position += normalize(Direction) * min(step, MoveStep)   # 한 번의 Move 는 MoveStep 이하의 유한 거리만 이동 (bounded step)
+      - Actor.CurrentAction = Move (행위 지속 동안)
+      # 파생 사실: distance(Actor.Position, ResourceDeposit.Position) 이 그에 따라 변한다
+      # — approach_deposit 은 이 거리 변화의 누적으로 성립한다 (별도 State 로 두지 않는다)
+    failure_reasons:
+      - OUT_OF_WORLD_BOUNDARY   # 거부 시 Actor.Position 은 변하지 않는다
+
+  - id: RULE-MINE-001
+    # C001 DRY_RUN 설계를 재사용하지 않고 이번 Cycle 정의로 재수립 (semantic_delta 근거 참조)
+    input:
+      - Actor
+      - ResourceDeposit
+    preconditions:
+      - Actor knows Deposit                    # Actor.Knowledge contains ResourceDeposit
+      - Actor owns Mining-capable Tool         # Actor.Inventory has Tool with Tool.Capability = Mining
+      - Actor in InteractionRange              # distance(Actor.Position, ResourceDeposit.Position) <= InteractionRange
+      - Deposit ResourceAmount > 0
+    transition:
+      - ResourceDeposit.ResourceAmount -= ExtractAmount   # 세계 쪽 사실 변화 (-1)
+      - Actor.Inventory[ResourceType] += ExtractAmount    # Actor 쪽 사실 변화 (+1 Stone) — 두 변화는 하나의 Mine 결과로 동시 성립
+      - Actor.CurrentAction = Mine (행위 지속 동안)
+    failure_reasons:
+      - UNKNOWN_DEPOSIT         # Knowledge 에 없는 Deposit
+      - NO_MINING_TOOL          # Mining-capable Tool 미보유
+      - OUT_OF_RANGE            # InteractionRange 밖 — Move 로 접근해야 하는 근거
+      - DEPOSIT_EMPTY           # ResourceAmount == 0
+      # 어느 거부든 세계 사실은 변하지 않는다 (no world fact changes)

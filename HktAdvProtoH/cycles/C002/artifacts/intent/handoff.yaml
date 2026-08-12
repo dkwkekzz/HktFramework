@@ -1,0 +1,20 @@
+# S002 / C002-INTENT-001 — Handoff Result (orchestration/schemas/handoff_result.schema.yaml)
+handoff:
+  task_id: C002-INTENT-001
+  session_id: S002
+  skill: intent-design
+  status: COMPLETE
+  # write_scope (cycles/C002/artifacts/intent/) 기준 상대 경로
+  outputs:
+    - goal_possibility.yaml
+    - intent.yaml
+    - design_trace.yaml
+    - handoff.yaml
+  unresolved: []
+  notes: >
+    Goal(AcquireStone) 을 Possibility 3개(MoveToDeposit / MineStone / ObserveMiningWorld)와
+    Intent 3개(INTENT-MOVE-001 / INTENT-MINE-001 / INTENT-OBSERVE-001)로 구조화.
+    scope.included 5개 요소 전부가 design_trace 로 최소 하나의 Intent 에 연결된다 —
+    특히 이동(player_movement)·접근(approach_deposit)은 C001 과 달리 별도 Intent 로 승격해
+    Task objective 의 누락 금지 요구를 충족. Intent 본문은 세계 의미 언어만 사용
+    (구현·렌더링 용어 없음). PASS 판정은 intent-verify Gate(Verifier) 몫.

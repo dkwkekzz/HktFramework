@@ -1,0 +1,37 @@
+task:
+  id: C002-SEMANTIC-001
+  cycle_id: C002
+  stage: WORLD_SEMANTIC_DESIGN
+  skill: world-semantic-design
+  objective: >
+    Cycle Intent 를 공유 World State / World Rules 로 해소한다.
+    registry/semantics.yaml lookup-first — DRY_RUN semantic 은 재사용이 아니라
+    실검증 대상이므로, 채택 시 semantic_delta 에 근거를 남기고 이번 Cycle 정의로 다시 세운다.
+    이동(Move)이 이번 Intent 에 포함되므로 Position 전이 Rule 을 누락하지 않는다.
+  allowed_inputs:
+    - cycles/C002/artifacts/intent/intent.yaml
+    - registry/semantics.yaml
+    - registry/modules.yaml
+  read_scope:
+    - registry/
+    - cycles/C002/artifacts/intent/
+    - skills/world-semantic-design/
+    - cycles/C001/artifacts/world-design/   # DRY_RUN 설계 참고용 (재사용 아님)
+  write_scope:
+    - cycles/C002/artifacts/world-design/
+  forbidden_scope:
+    - modules/gameview/
+    - source/gameview/
+    - cycles/C002/gameview/
+  required_outputs:
+    - semantic_dependencies.yaml
+    - semantic_delta.yaml
+    - world_state.yaml
+    - world_rules.yaml
+    - intent_trace.yaml
+    - handoff.yaml
+  completion_gate:
+    type: semantic-closure-verify
+  routing:
+    pass: AUTHORITY_DESIGN
+    fail: WORLD_SEMANTIC_REWORK

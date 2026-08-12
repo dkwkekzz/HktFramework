@@ -1,0 +1,39 @@
+task:
+  id: C002-CONTRACT-001
+  cycle_id: C002
+  stage: CONTRACT_DESIGN   # Stage 4 Authority + Stage 5 Observation + Stage 6 GameView Spec
+  skill: contract-design
+  objective: >
+    Authority/Command Contract, Observable Contract, GameView Specification 을 설계한다.
+    Stage 별 Artifact 는 분리 유지한다. 이번 Cycle 은 Move 와 Mine 두 Command 가 존재하며,
+    Observable 은 이동·채굴·거부 전부를 Before → Input → Rule → After 로 관찰 가능해야 한다.
+    Contract id 는 C001(DRY_RUN) 과 구분되도록 V2 를 쓴다 (예: CMD-MOVE-V2, CMD-MINE-V2,
+    OBS-MINING-V2, VIEW-MINING-002) — DRY_RUN id 승격이 아니라 신규 발급.
+  allowed_inputs:
+    - cycles/C002/artifacts/world-design/world_state.yaml
+    - cycles/C002/artifacts/world-design/world_rules.yaml
+    - cycles/C002/artifacts/intent/goal_possibility.yaml
+    - registry/contracts.yaml
+  read_scope:
+    - cycles/C002/artifacts/world-design/
+    - cycles/C002/artifacts/intent/
+    - registry/
+    - skills/contract-design/
+    - cycles/C001/artifacts/contracts/   # DRY_RUN 설계 참고용 (재사용 아님)
+  write_scope:
+    - cycles/C002/artifacts/contracts/
+  forbidden_scope:
+    - source/
+    - modules/
+    - cycles/C002/gameview/
+  required_outputs:
+    - authority.yaml
+    - command_contract.yaml
+    - observable_contract.yaml
+    - gameview_spec.yaml
+    - handoff.yaml
+  completion_gate:
+    type: contract-verify
+  routing:
+    pass: CONTRACT_FREEZE
+    fail: CONTRACT_REWORK

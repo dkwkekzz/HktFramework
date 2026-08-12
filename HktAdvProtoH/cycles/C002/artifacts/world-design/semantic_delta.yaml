@@ -1,0 +1,73 @@
+# S003 / C002-SEMANTIC-001 — 이번 Cycle 의 Semantic Delta (공유 World Semantic, Rule 11)
+# origin 표기:
+#   NEW                   — Registry 에 전혀 없던 신규 semantic.
+#   DRY_RUN_REESTABLISHED — C001 DRY_RUN 으로만 존재하던 semantic 을 재사용하지 않고
+#                           이번 Cycle 이 실검증 대상으로 다시 세운 것 (Task objective 근거).
+#                           C002 Verification 통과 시 Registry 에서 ACTIVE 로 승격한다.
+semantic_delta:
+  # ── DRY_RUN 재수립 (근거: registry status=DRY_RUN → 재사용 금지, CLAUDE.md 규칙 17) ──
+  Actor:
+    kind: ENTITY
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    meaning: 세계에서 행동(Move, Mine)할 수 있는 주체
+  Position:
+    kind: STATE
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    of: [Actor, ResourceDeposit]
+    meaning: 세계 공간상의 위치 — Move 의 전이 대상이자 InteractionRange 판정의 입력
+  Inventory:
+    kind: STATE
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    of: [Actor]
+    meaning: 주체가 소유한 자원·도구의 집합 (Capability 공용 — MiningInventory 같은 분화 금지)
+  Knowledge:
+    kind: STATE
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    of: [Actor]
+    meaning: 주체가 알고 있는 세계 사실의 집합 (예 - 특정 ResourceDeposit 의 존재)
+  Tool:
+    kind: ENTITY
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    meaning: Capability 를 부여하는 소유물 — Actor.Inventory 안에 존재한다
+  Tool.Capability:
+    kind: STATE
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    of: [Tool]
+    meaning: 도구가 가능하게 하는 행동 종류 (예 - Mining)
+  ResourceDeposit:
+    kind: ENTITY
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    meaning: 채취 가능한 자원의 원천 — 세계에 고정된 Position 을 가진다
+  ResourceDeposit.ResourceAmount:
+    kind: STATE
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    of: [ResourceDeposit]
+    meaning: 남은 자원량 — 0 이면 Mine 은 거부된다
+  InteractionRange:
+    kind: RULE_CONSTANT
+    origin: DRY_RUN_REESTABLISHED
+    prior: C001
+    meaning: 상호작용(Mine)이 허용되는 Actor-Deposit 거리 상한
+
+  # ── 완전 신규 (INTENT-MOVE-001 이 요구하는 이동 의미) ──
+  MoveStep:
+    kind: RULE_CONSTANT
+    origin: NEW
+    meaning: 한 번의 Move 가 이동시킬 수 있는 거리 상한 — "bounded step" 의 세계 상수
+  WorldBoundary:
+    kind: RULE_CONSTANT
+    origin: NEW
+    meaning: 세계 공간의 경계 — 이를 넘는 Move 는 거부되고 Position 은 변하지 않는다
+  ResourceType:
+    kind: STATE
+    origin: NEW
+    of: [ResourceDeposit]
+    meaning: Deposit 이 산출하는 자원의 종류 (이번 Cycle 은 Stone 고정)

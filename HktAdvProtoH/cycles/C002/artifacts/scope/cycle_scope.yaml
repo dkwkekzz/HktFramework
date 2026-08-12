@@ -1,0 +1,40 @@
+# S001 / C002-SCOPE-001 — cycle-scope (Stage 1)
+# Cycle Goal: "곡괭이를 가진 캐릭터가 광맥으로 가서 Stone 을 하나 캘 수 있는 작은 게임."
+# 판단 근거: cycles/C002/goal.yaml + registry/modules.yaml 조회 (2026-08-12).
+scope:
+  cycle_id: C002
+  mode: REAL
+
+  # 이번 Cycle 에 포함하는 최소 플레이 요소 —
+  # 이것만으로 goal.play_experience (이동 → 채굴 → 광맥 감소·인벤토리 증가를 화면에서 봄) 가 완주된다.
+  included:
+    - player_movement          # 플레이어 입력으로 캐릭터를 광맥까지 이동시킨다 — Goal 문장("광맥으로 가서")에 명시적으로 포함. C001 설계와 달리 이번 Cycle 은 이동 자체가 조작 경험의 일부다.
+    - approach_deposit         # 광맥과의 거리(InteractionRange) 판정 — 범위 밖 채굴은 거부되어야 이동이 의미를 가진다.
+    - execute_mine             # 곡괭이 보유 조건 하에 채굴 Command 실행 → Authoritative Rule 로 광맥 ResourceAmount 감소.
+    - stone_acquisition        # 채굴 성공 시 인벤토리에 Stone 1 증가 — Goal 의 "하나 캘 수 있는" 충족.
+    - mining_observability     # Before→Input→Rule→After 를 화면에서 직접 관찰 — 캐릭터 위치·광맥 잔량·인벤토리 수량 렌더 (play_experience 의 "화면에서 직접 본다").
+
+  # 의도적으로 미루는 것 — 각 항목 한 줄 사유.
+  excluded:
+    - crafting                 # 별도 Capability — 이번 플레이 목표(채굴 1회)에 불필요.
+    - trade                    # 별도 Capability — Stone 획득 이후의 경제는 다음 Cycle 몫.
+    - deposit_respawn          # Goal 검증에 불필요 — 고갈까지만 다루면 충분.
+    - multiple_resource_types  # Stone 하나로 Goal 충족 — 자원 종류 확장은 범위 밖.
+    - tool_durability          # 곡괭이는 보유 여부만 판정 — 마모/파괴는 채굴 1회 경험에 불필요.
+    - tool_acquisition         # 곡괭이는 시작 시 지급 — 도구를 얻는 과정은 별도 플레이 목표 (한 Cycle 한 목표, SCOPE_TOO_LARGE 방지).
+    - multiple_actors          # 단일 플레이어 캐릭터만 — 멀티 액터/NPC 는 범위 밖.
+    - pathfinding_obstacles    # 장애물 없는 평면 이동만 — 경로 탐색은 이동 경험의 최소치를 넘는다.
+    - persistence_save_load    # 세션 내 플레이만 검증 — 저장/복구는 범위 밖.
+
+  # Module Registry (registry/modules.yaml) 조회 결과:
+  # mining-world-v1 / mining-view-v1 은 status: DRY_RUN — 실제 구현이 없어 재사용 금지 (registry 규칙·작업 규칙 17).
+  # FROZEN Module 은 존재하지 않으므로 재사용 Module 은 없다. C001 산출물은 설계 참고로만 쓰고
+  # 이번 Cycle 에서 실검증 구현으로 대체한다.
+  reused_modules: []
+
+  # included 만으로 Goal 이 플레이 가능한가 (SKILL Procedure 4 자문):
+  # 이동(player_movement)으로 광맥에 접근(approach_deposit)하고, 곡괭이 조건 하에 채굴(execute_mine)해
+  # Stone 을 얻으며(stone_acquisition), 그 전 과정을 화면에서 본다(mining_observability) — 가능. 조정 불필요.
+  playability_check: >
+    included 5개 요소만으로 goal.statement 와 play_experience 전체가 재현된다.
+    excluded 항목 중 어느 것도 채굴 1회 완주 경험의 전제 조건이 아니다.

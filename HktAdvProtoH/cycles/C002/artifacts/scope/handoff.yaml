@@ -1,0 +1,18 @@
+# Handoff Result — orchestration/schemas/handoff_result.schema.yaml 준수
+handoff:
+  task_id: C002-SCOPE-001
+  session_id: S001
+  skill: cycle-scope
+  status: COMPLETE
+  # write_scope(cycles/C002/artifacts/scope/) 기준 상대 경로
+  outputs:
+    - cycle_scope.yaml
+    - handoff.yaml
+  unresolved: []
+  notes: >
+    Goal 은 플레이 가능한 경험으로 확인됨 (기술 작업 목록 아님).
+    registry/modules.yaml 조회 결과 FROZEN Module 없음 — mining-world-v1/mining-view-v1 은
+    DRY_RUN 이라 reused_modules 는 빈 목록이며, C001 scope 산출물은 설계 참고로만 사용했다.
+    C001 과 달리 이동(player_movement)이 Goal 문장에 명시되어 included 에 독립 요소로 승격했고,
+    이동이 의미를 갖도록 approach_deposit(거리 판정)을 함께 포함했다.
+    도구 획득·내구도·경로탐색 등은 excluded 로 한 줄 사유와 함께 미룸 — 한 Cycle 한 플레이 목표 유지.

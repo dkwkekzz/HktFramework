@@ -1,0 +1,14 @@
+# S002 / C002-INTENT-001 — intent-design (Stage 2)
+# Cycle Goal: "곡괭이를 가진 캐릭터가 광맥으로 가서 Stone 을 하나 캘 수 있는 작은 게임."
+# C001(DRY_RUN) 설계 참고 — 재사용 아님. C001 과 달리 이번 Cycle 은 이동·접근이
+# 플레이 경험(scope.included: player_movement / approach_deposit)에 포함되므로
+# Possibility 를 이동과 채굴로 분리해 어느 쪽도 Intent 에서 누락하지 않는다.
+goal_possibility:
+  goal: AcquireStone            # 플레이어가 달성하려는 것 — 광맥에서 Stone 1개를 획득한 상태에 도달
+  possibilities:
+    - id: MoveToDeposit         # 세계 안에서 자기 위치를 바꿔 ResourceDeposit 의 InteractionRange 안으로 들어간다
+      enables: AcquireStone     # 채굴의 전제(범위 내 존재)를 스스로 만들어내는 행동
+    - id: MineStone             # InteractionRange 안에서 Mining-capable Tool 로 Deposit 을 채굴한다
+      enables: AcquireStone     # 실제로 Stone 을 인벤토리에 넣는 행동
+    - id: ObserveMiningWorld    # 자기 위치·Deposit 잔량·인벤토리라는 세계 사실을 관찰한다
+      enables: AcquireStone     # 관찰 없이는 접근·채굴을 판단·확인할 수 없다 — play_experience("직접 본다")의 세계 의미 측면

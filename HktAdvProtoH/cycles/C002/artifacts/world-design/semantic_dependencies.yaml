@@ -1,0 +1,44 @@
+# S003 / C002-SEMANTIC-001 — Semantic Registry lookup-first 결과 (§12.1)
+# QUERY_SEMANTIC: Intent 의 모든 의미 문장에서 추출한 semantic 을 registry/semantics.yaml 에 조회.
+# 원칙: 재사용 대상은 ACTIVE 만이다. DRY_RUN 은 설계만 존재하는 미검증 항목 —
+#       재사용이 아니라 "이번 Cycle 에서 실검증 후 재수립" 대상 (CLAUDE.md 규칙 17).
+semantic_dependencies:
+  queried:
+    - name: Actor
+      found: true
+      status: DRY_RUN          # C001 Dry Run 산출 — 재사용 불가, 재수립 대상
+    - name: Position
+      found: true
+      status: DRY_RUN
+    - name: Inventory
+      found: true
+      status: DRY_RUN
+    - name: Knowledge
+      found: true
+      status: DRY_RUN
+    - name: Tool
+      found: true
+      status: DRY_RUN
+    - name: Tool.Capability
+      found: true
+      status: DRY_RUN
+    - name: ResourceDeposit
+      found: true
+      status: DRY_RUN
+    - name: ResourceDeposit.ResourceAmount
+      found: true
+      status: DRY_RUN
+    - name: InteractionRange
+      found: true
+      status: DRY_RUN
+    - name: MoveStep            # 이동의 "bounded step" 상한 — 신규 (INTENT-MOVE-001)
+      found: false
+    - name: WorldBoundary       # 이동 거부 경계 — 신규 (INTENT-MOVE-001 rejection)
+      found: false
+    - name: ResourceType        # Deposit 이 산출하는 자원 종류 (이번 Cycle 은 Stone) — 신규
+      found: false
+  reused: []                    # ACTIVE semantic 이 없으므로 재사용 0건
+  conclusion: >
+    Registry 에 ACTIVE semantic 이 존재하지 않는다. C001 DRY_RUN 9종은 재사용하지 않고
+    semantic_delta 에 근거(origin: DRY_RUN_REESTABLISHED)를 남겨 이번 Cycle 정의로 다시 세운다.
+    Move 계열 3종(MoveStep, WorldBoundary)과 ResourceType 은 완전 신규(origin: NEW)로 추가한다.

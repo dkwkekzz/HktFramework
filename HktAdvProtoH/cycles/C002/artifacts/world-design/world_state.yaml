@@ -1,0 +1,18 @@
+# S003 / C002-SEMANTIC-001 — World State (세계의 사실만, 구현 내부 상태 금지)
+# Rule 3·4: 여기 있는 것은 전부 세계의 사실이다. cache/thread/network 상태 금지.
+# Rule 11: 모든 Capability(Move, Mine)가 이 하나의 공유 State 위에 얹힌다.
+world_state:
+  Actor:
+    Position: Position          # 세계 공간상의 위치 — Move 가 전이시키는 유일한 대상
+    Inventory: Inventory        # ResourceType/Tool -> amount (Stone 획득이 여기 쌓인다)
+    Knowledge: Knowledge        # 알고 있는 ResourceDeposit 목록
+    CurrentAction: ActionState  # Idle | Move | Mine — 관찰 가능한 행위 사실
+  ResourceDeposit:
+    Position: Position          # 고정 위치 — Actor 와의 거리(distance)가 접근의 근거
+    ResourceType: ResourceType  # 이번 Cycle 은 Stone 고정
+    ResourceAmount: ResourceAmount  # 남은 자원량, 0 이면 Mine 거부
+  constants:
+    InteractionRange: InteractionRange  # Mine 허용 거리 상한
+    MoveStep: MoveStep                  # 한 번의 Move 이동 거리 상한 (bounded step)
+    WorldBoundary: WorldBoundary        # 세계 경계 — 밖으로의 Move 는 거부
+    ExtractAmount: 1                    # Mine 1회당 채취량 (결정론 상수)

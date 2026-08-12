@@ -1,0 +1,119 @@
+# S003 / C002-SEMANTIC-001 — Intent 의미 → State/Rule 추적 (Semantic Closure 입력, §21)
+# 모든 Intent 의미 문장이 State 또는 Rule 로 해소되어야 한다 (verify.mjs closure C002).
+intent_trace:
+  # ── INTENT-MOVE-001 (MoveToDeposit) ──
+  - intent_semantic: "Actor that has a Position in the world (Actor 는 세계에 위치를 가진다)"
+    intent_id: INTENT-MOVE-001
+    resolved_to:
+      - Actor.Position
+    kind: STATE
+  - intent_semantic: "may execute Move toward a direction it chooses (선택한 방향으로 Move 한다)"
+    intent_id: INTENT-MOVE-001
+    resolved_to:
+      - RULE-MOVE-001
+    kind: RULE
+  - intent_semantic: "Actor Position changes by a bounded step in the chosen direction (한 번의 Move 는 유한한 거리만 이동)"
+    intent_id: INTENT-MOVE-001
+    resolved_to:
+      - RULE-MOVE-001
+      - Actor.Position
+      - MoveStep
+    kind: TRANSITION
+  - intent_semantic: "Actor distance to any ResourceDeposit changes accordingly (접근은 거리 변화의 누적)"
+    intent_id: INTENT-MOVE-001
+    resolved_to:
+      - Actor.Position
+      - ResourceDeposit.Position
+    kind: STATE          # 거리 자체는 두 Position 의 파생 사실 — 별도 State 아님
+  - intent_semantic: "Move beyond the world boundary is rejected; Actor Position does not change (경계 밖 이동 거부)"
+    intent_id: INTENT-MOVE-001
+    resolved_to:
+      - RULE-MOVE-001
+      - WorldBoundary
+      - OUT_OF_WORLD_BOUNDARY
+    kind: REJECTION
+
+  # ── INTENT-MINE-001 (MineStone) ──
+  - intent_semantic: "Actor knows a ResourceDeposit (Deposit 을 알고 있다)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - Actor.Knowledge
+    kind: STATE
+  - intent_semantic: "Actor owns a Mining-capable Tool (Mining 가능한 도구를 보유한다)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - Actor.Inventory
+      - Tool.Capability
+    kind: STATE
+  - intent_semantic: "Actor Position is within the Deposit's InteractionRange (상호작용 거리 안에 있다)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - Actor.Position
+      - ResourceDeposit.Position
+      - InteractionRange
+    kind: STATE
+  - intent_semantic: "may execute Mine on that Deposit (Mine 한다)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+    kind: RULE
+  - intent_semantic: "Deposit ResourceAmount decreases by 1 (세계 쪽 사실 변화)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+      - ResourceDeposit.ResourceAmount
+      - ExtractAmount
+    kind: TRANSITION
+  - intent_semantic: "Actor Inventory Stone count increases by 1 (Actor 쪽 사실 변화, Mine 결과로 동시 성립)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+      - Actor.Inventory
+      - ResourceType
+    kind: TRANSITION
+  - intent_semantic: "Mine outside InteractionRange is rejected; no world fact changes (거리 밖 Mine 거부)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+      - OUT_OF_RANGE
+    kind: REJECTION
+  - intent_semantic: "Mine without a Mining-capable Tool is rejected; no world fact changes (도구 없는 Mine 거부)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+      - NO_MINING_TOOL
+    kind: REJECTION
+  - intent_semantic: "Mine on a Deposit whose ResourceAmount is 0 is rejected; no world fact changes (고갈 Deposit Mine 거부)"
+    intent_id: INTENT-MINE-001
+    resolved_to:
+      - RULE-MINE-001
+      - DEPOSIT_EMPTY
+    kind: REJECTION
+
+  # ── INTENT-OBSERVE-001 (ObserveMiningWorld) ──
+  - intent_semantic: "Actor may always observe its own Position, each known Deposit's Position and ResourceAmount, and its own Inventory Stone count"
+    intent_id: INTENT-OBSERVE-001
+    resolved_to:
+      - Actor.Position
+      - ResourceDeposit.Position
+      - ResourceDeposit.ResourceAmount
+      - Actor.Inventory
+      - Actor.Knowledge         # "known Deposit" 의 범위를 정하는 사실
+    kind: STATE
+  - intent_semantic: "Every Move and Mine is observable as Before -> After of those facts (Rule 9 동시 설계)"
+    intent_id: INTENT-OBSERVE-001
+    resolved_to:
+      - RULE-MOVE-001
+      - RULE-MINE-001
+    kind: RULE
+  - intent_semantic: "A rejected action is observable as no fact changed (거부의 관찰 가능성)"
+    intent_id: INTENT-OBSERVE-001
+    resolved_to:
+      - RULE-MOVE-001
+      - RULE-MINE-001
+      - OUT_OF_WORLD_BOUNDARY
+      - OUT_OF_RANGE
+      - NO_MINING_TOOL
+      - DEPOSIT_EMPTY
+      - UNKNOWN_DEPOSIT
+    kind: REJECTION

@@ -1,0 +1,31 @@
+# S002 / C002-INTENT-001 — Goal → Possibility → Intent 연결 (Stage 2)
+# 완결 조건: scope.included 의 모든 요소가 최소 하나의 Intent 로 연결된다.
+# C001 과의 차이: 이동·접근이 별도 Intent(INTENT-MOVE-001)로 승격 —
+# C001 은 이동을 채굴 전제조건에 포섭했지만, C002 scope 는 이동 자체를 조작 경험에 포함한다.
+design_trace:
+  - goal: AcquireStone
+    possibility: MoveToDeposit
+    intent: INTENT-MOVE-001
+    scope_items:
+      - player_movement          # Move 실행 → Position 변화가 이동 경험의 세계 의미
+      - approach_deposit         # Deposit 과의 거리 변화(접근)는 Move 결과의 누적으로 성립
+
+  - goal: AcquireStone
+    possibility: MineStone
+    intent: INTENT-MINE-001
+    scope_items:
+      - approach_deposit         # InteractionRange 밖 채굴 거부 조건 — 접근이 의미를 갖는 다른 한쪽
+      - execute_mine             # 곡괭이(Mining-capable Tool) 보유 + 범위 내 조건 하의 Mine 실행
+      - stone_acquisition        # Mine 결과 — Inventory Stone +1
+
+  - goal: AcquireStone
+    possibility: ObserveMiningWorld
+    intent: INTENT-OBSERVE-001
+    scope_items:
+      - mining_observability     # Position·ResourceAmount·Inventory 의 Before→After 관찰 가능성
+
+# 커버리지 자기 점검 (Verifier 판정과 별개의 기록):
+# scope.included 5개 — player_movement / approach_deposit / execute_mine /
+# stone_acquisition / mining_observability — 모두 위 trace 에 등장한다.
+# approach_deposit 은 의도적으로 두 Intent 에 걸친다 (거리를 만드는 쪽 + 거리를 요구하는 쪽).
+# scope.excluded 항목은 어떤 Intent 에도 등장하지 않는다 — Scope 밖 의미 추가 없음.

@@ -1,0 +1,11 @@
+# Session 실행 기록 — Audit / 재현성 (§36)
+sessions:
+  - id: S001
+    task: C002-SCOPE-001
+    skill: cycle-scope
+    result: PASS
+  - id: S002
+    task: C002-INTENT-001
+    skill: intent-design
+    result: PASS
+events: []
