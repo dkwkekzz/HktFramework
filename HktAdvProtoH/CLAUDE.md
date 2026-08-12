@@ -13,32 +13,57 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 | 폴더 | 내용 |
 |---|---|
-| [design/](design/) | **기획 문서** — 세계 개념·개발 공정 원문 |
+| [design/](design/) | **기획 문서** — 세계 개념·개발 공정·Agent 실행 아키텍처 + [architecture-rules/](design/architecture-rules/) + [goals/](design/goals/) |
+| [orchestration/](orchestration/) | Agent Execution Layer — [schemas/](orchestration/schemas/) 6종, [runner/](orchestration/runner/) 프로토콜 3종, [routing/](orchestration/routing/) Failure Routing |
+| [skills/](skills/) | Minimum Skill Set 14종 (재사용 가능 HOW, stateless) |
+| [registry/](registry/) | Semantic / Module / Contract Registry — Cycle 간 공식 기억 |
+| [contracts/](contracts/) | Frozen Contract 저장소 (commands / observable / gameview-spec) |
+| [modules/](modules/) | FROZEN Capability Module 저장소 (world / gameview) |
+| [cycles/](cycles/) | Cycle 실행 로그 — 대화 없이 재개 가능. [C001](cycles/C001/) = Mining Dry Run |
+| [scripts/](scripts/) | [validation/verify.mjs](scripts/validation/verify.mjs) — deterministic 검증 (schema·closure·frozen·registry·cycle) |
+| [source/](source/) | 게임 런타임 소스 자리 (스택은 첫 실제 Cycle 에서 확정) |
 
-현재 트랙에는 기획 문서만 존재한다. 이전 Stage 기반 운영 구조(`state/`·`workflow/`·`templates/`)는 [design/Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) 개편과 함께 제거되었다.
-
-### 기획 문서
+### 기준 문서 (Source of Truth)
 
 | 문서 | 내용 |
 |---|---|
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
-| [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | **개발 공정 기준 문서** — Cycle 단위 점진 개발, World / GameView / Integration 3-Workflow 분리, Capability Module 누적 |
+| [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | **개발 공정 기준** — Cycle 단위 점진 개발, World / GameView / Integration 3-Workflow 분리 (Stage 1~17) |
+| [Design-AgentExecution.md](design/Design-AgentExecution.md) | **Agent 실행 환경 기준** — Skill / Task / Session / Artifact / Verifier / Registry / Orchestrator |
+
+관계: Design-CycleWorkflow = 게임 의미·공정의 WHAT, Design-AgentExecution = Agent 가 그것을 실행하는 HOW.
 
 ## 작업 규칙
 
-개발의 기본 단위는 **Cycle** 이다. 세부 정의는 [design/Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) 를 따른다.
+개발의 기본 단위는 **Cycle** 이다. 공정은 [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md),
+실행은 [Design-AgentExecution.md](design/Design-AgentExecution.md) 를 따른다.
 
-1. 모든 작업은 사용자가 제시한 하나의 **작고 직접 플레이 가능한 Cycle Goal** 에서 시작한다. 기술 작업 목록이 아니라 세계에서 가능한 플레이 경험으로 정의한다.
-2. 하나의 Cycle 은 `World Workflow → GameView Workflow → Integration Workflow → Verification` 전체를 한 번 완주한다 (Stage 1~17). 축소하지 않는다.
-3. Cycle 의 결과물은 **World Capability Module** · **GameView Module** · **Playable Build** 셋이다. 하나라도 없으면 Cycle 은 완료가 아니다.
-4. 세 Workflow 는 서로의 내부 구현을 알지 않는다. World 가 GameView 로 넘기는 것은 **Observable Contract 와 GameView Specification 뿐**이다 (§2·Rule 7·Rule 8).
-5. GameView 는 World State/Rule/Server 내부를 직접 참조하지 않는다. 필요한 Observable 이 없으면 임의로 만들지 말고 **GameView Contract Gap** Proposal 을 올린다 (§32).
-6. 이전 Cycle 의 Capability 는 다시 구현하지 않는다 — Module 로 사용한다 (§38·Rule 11).
-7. Module 마다 별개의 World 를 만들지 않는다. 모든 Module 은 하나의 공유 World Semantic 위에 Capability 를 추가한다 (§39·Rule 12).
-8. World State 에는 세계의 사실만 둔다. 구현 내부 상태(cache·index·thread·packet 등)는 World Semantic 이 아니다 (§9.2·§22).
-9. 의미 있는 State 변경은 Authoritative World Rule 을 통해서만 발생한다. Client 는 결과가 아니라 **Command** 만 보낸다 (§10·Rule 3·Rule 4).
-10. Observable 은 구현 마지막에 붙이는 Debug UI 가 아니라 World State/Rule 과 **동시에** 설계한다. State 뿐 아니라 `Before → Input → Rule → After` Transition 도 관찰 가능해야 한다 (§11·§15).
-11. 완료 상태는 **World Complete / GameView Complete / Playable Cycle Complete** 로 분리 판정한다 — Rendering 문제를 World Capability 실패로 취급하지 않는다 (§37).
-12. 완료된 Module 의 의미를 바꿔야 하면 조용히 수정하지 않고 명시적 Version Migration 으로 처리한다 (§41).
-13. Cycle 완료 판정은 §42 Cycle Completion Gate 체크리스트로 한다.
+### 공정 (Design-CycleWorkflow)
+
+1. 모든 작업은 사용자가 제시한 하나의 **작고 직접 플레이 가능한 Cycle Goal** 에서 시작한다.
+2. 하나의 Cycle 은 `World → GameView → Integration → Verification` 전체(Stage 1~17)를 완주한다.
+3. Cycle 결과물은 **World Capability Module · GameView Module · Playable Build** 셋이다.
+4. World 가 GameView 로 넘기는 것은 **Observable Contract 와 GameView Specification 뿐**이다 (Rule 7·8).
+5. 필요한 Observable 이 없으면 임의로 만들지 말고 **Contract Gap** Proposal 을 올린다.
+6. 이전 Cycle 의 Capability 는 재구현하지 않고 Module 로 사용한다 (Rule 10).
+7. 모든 Module 은 하나의 공유 World Semantic 위에 얹힌다 — Capability 별 분화 금지 (Rule 11).
+8. World State 에는 세계의 사실만 둔다. 의미 있는 변경은 Authoritative Rule 로만, Client 는 Command 만 (Rule 3·4).
+9. Observable 은 State/Rule 과 **동시에** 설계한다 — `Before → Input → Rule → After` 관찰 가능.
+10. 완료는 World / GameView / Playable Complete 로 분리 판정한다 (§32).
+11. Frozen Module 의미 변경은 명시적 Version Migration 으로만 (§34).
+
+### 실행 (Design-AgentExecution)
+
+12. 역할별 절차는 [orchestration/runner/](orchestration/runner/) 프로토콜을 따른다 —
+    Orchestrator 는 설계하지 않고, Worker 는 Task Envelope 하나로 시작하며, Verifier 는 Generator 와 분리된다.
+13. 상태는 대화가 아니라 파일이다 — Cycle 은 `cycles/<id>/cycle_state.yaml`, Cycle 간 지식은 `registry/`.
+    Session 간 전달은 공식 Artifact(YAML)로만 한다.
+14. 새 Semantic 정의 전 반드시 `registry/semantics.yaml` 을 조회한다 (lookup-first).
+15. Gate 평가 전 deterministic 검사를 먼저 실행한다: `node scripts/validation/verify.mjs all`
+    (schema / envelope / closure / frozen / registry / cycle). FAIL 은 재시도가 아니라
+    [failure_routes.yaml](orchestration/routing/failure_routes.yaml) 로 책임 Stage Routing.
+16. Frozen Contract/Module 은 수정 금지 — registry 의 sha256 으로 강제되며 위반은 `verify.mjs frozen` 이 검출한다.
+17. registry 의 `DRY_RUN` 항목(C001 산출)은 재사용 금지 — FROZEN 만 재사용 대상이다.
+    첫 실제 Cycle 시작 전 남은 결정은 [cycles/C001/DRYRUN-REPORT.md](cycles/C001/DRYRUN-REPORT.md) 참조
+    (런타임 스택 확정 · Asset Catalog · build/test 스크립트).

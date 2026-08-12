@@ -1,0 +1,24 @@
+# S012 / C001-INTEGRATION-001 — Stage 15 Playable Composition
+playable_composition:
+  world_module: mining-world-v1        # registry/modules.yaml (DRY_RUN)
+  gameview_module: mining-view-v1
+  contracts:
+    command: CMD-MINE-V1
+    observable: OBS-MINING-V1
+    gameview_spec: VIEW-MINING-001
+  world_configuration:
+    player:
+      position: [0, 0]
+      inventory:
+        Pickaxe: 1
+        Stone: 0
+      knowledge:
+        - Deposit01
+    deposits:
+      - id: Deposit01
+        position: [3, 0]
+        resource_type: Stone
+        resource_amount: 10
+    constants:
+      InteractionRange: 1.5
+      ExtractAmount: 1

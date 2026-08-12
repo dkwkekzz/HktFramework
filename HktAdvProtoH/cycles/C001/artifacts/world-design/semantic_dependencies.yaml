@@ -1,0 +1,20 @@
+# S003 / C001-SEMANTIC-001 — Semantic Registry lookup-first 결과
+# QUERY_SEMANTIC Actor / Position / Inventory / Knowledge / Tool.Capability / ResourceDeposit
+semantic_dependencies:
+  queried:
+    - name: Actor
+      found: false   # 최초 Cycle — Registry 비어 있음
+    - name: Position
+      found: false
+    - name: Inventory
+      found: false
+    - name: Knowledge
+      found: false
+    - name: Tool
+      found: false
+    - name: ResourceDeposit
+      found: false
+    - name: InteractionRange
+      found: false
+  reused: []
+  conclusion: 전 항목 미존재 — 모두 Semantic Delta 로 신규 정의

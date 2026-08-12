@@ -1,0 +1,12 @@
+# S002 / C001-INTENT-001 — intent-design
+intent:
+  id: INTENT-MINING-001
+  possibility: MineStone
+  meaning: >
+    Actor that knows a ResourceDeposit,
+    owns a Mining-capable Tool,
+    and can interact with the Deposit
+    may execute Mine.
+  result:
+    - Deposit resource decreases
+    - Actor inventory increases

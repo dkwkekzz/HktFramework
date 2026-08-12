@@ -1,0 +1,26 @@
+# S013 / C001-PLAYABLE-001 — Playable Scenario (§31)
+scenario:
+  id: PLAY-MINING-001
+  goal: >
+    Player obtains Stone from a Stone Deposit using a Pickaxe.
+  setup:
+    player:
+      inventory:
+        Pickaxe: 1
+        Stone: 0
+    deposit:
+      resource:
+        Stone: 10
+  steps:
+    - move_player_to_deposit
+    - execute_mine
+  expected:
+    world:
+      player_stone: 1
+      deposit_stone: 9
+    observable:
+      stone_amount: 1
+      deposit_amount: 9
+    gameview:
+      stone_counter: 1
+      mining_visual: visible

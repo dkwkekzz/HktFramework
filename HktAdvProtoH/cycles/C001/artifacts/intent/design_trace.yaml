@@ -1,0 +1,15 @@
+# S002 / C001-INTENT-001 — Goal → Possibility → Intent 연결
+design_trace:
+  - goal: AcquireStone
+    possibility: MineStone
+    intent: INTENT-MINING-001
+    scope_items:
+      - approach_deposit
+      - execute_mine
+      - stone_acquisition
+  - goal: AcquireStone
+    possibility: MineStone
+    intent: INTENT-MINING-001
+    scope_items:
+      - movement
+    note: 이동은 InteractionRange 진입 수단으로 Intent 전제조건에 포섭

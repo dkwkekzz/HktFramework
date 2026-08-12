@@ -1,0 +1,33 @@
+task:
+  id: C001-PACKAGE-001
+  cycle_id: C001
+  stage: MODULE_PACKAGE
+  skill: module-package
+  objective: >
+    검증 통과 산출물을 Module 로 포장하고 Registry 3종을 갱신한다 (Cycle Commit).
+    DRY_RUN - 포장은 cycles/C001/artifacts/packaging/ 에 격리, registry 는 DRY_RUN 상태로 등록.
+  allowed_inputs:
+    - cycles/C001/world/verification_result.yaml
+    - cycles/C001/gameview/verification_result.yaml
+    - cycles/C001/integration/verification_result.yaml
+    - cycles/C001/integration/playable_result.yaml
+  read_scope:
+    - cycles/C001/
+    - registry/
+    - scripts/validation/
+  write_scope:
+    - cycles/C001/artifacts/packaging/
+    - cycles/C001/artifacts/verification/
+    - registry/
+  forbidden_scope:
+    - modules/        # DRY_RUN 산출물은 최상위 modules/ 로 승격하지 않는다
+    - contracts/
+    - source/
+  required_outputs:
+    - MODULE.yaml
+    - package_result.yaml
+  completion_gate:
+    type: registry-consistency
+  routing:
+    pass: COMPLETE_CYCLE
+    fail: PACKAGE_FIX

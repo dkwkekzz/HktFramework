@@ -1,0 +1,34 @@
+# S003 / C001-SEMANTIC-001 — 이번 Cycle 신규 Semantic (공유 World Semantic, Rule 11)
+semantic_delta:
+  Actor:
+    kind: ENTITY
+    meaning: 세계에서 행동할 수 있는 주체
+  Position:
+    kind: STATE
+    of: [Actor, ResourceDeposit]
+    meaning: 세계 공간상의 위치
+  Inventory:
+    kind: STATE
+    of: [Actor]
+    meaning: 주체가 소유한 자원·도구의 집합 (Capability 공용 — MiningInventory 같은 분화 금지)
+  Knowledge:
+    kind: STATE
+    of: [Actor]
+    meaning: 주체가 알고 있는 세계 사실의 집합 (예 - 특정 Deposit 의 존재)
+  Tool:
+    kind: ENTITY
+    meaning: Capability 를 부여하는 소유물
+  Tool.Capability:
+    kind: STATE
+    of: [Tool]
+    meaning: 도구가 가능하게 하는 행동 종류 (예 - Mining)
+  ResourceDeposit:
+    kind: ENTITY
+    meaning: 채취 가능한 자원의 원천
+  ResourceDeposit.ResourceAmount:
+    kind: STATE
+    of: [ResourceDeposit]
+    meaning: 남은 자원량
+  InteractionRange:
+    kind: RULE_CONSTANT
+    meaning: 상호작용이 허용되는 거리

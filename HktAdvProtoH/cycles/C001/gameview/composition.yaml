@@ -1,0 +1,12 @@
+# S009 / C001-GAMEVIEW-DESIGN-001 — Stage 10 Visual Composition
+composition:
+  world_layer:
+    - element: ActorView
+      covers: [VR-001, VR-003]
+    - element: DepositView
+      covers: [VR-002, VR-004, VR-006]
+  hud_layer:
+    - element: StoneCounter
+      covers: [VR-005]
+    - element: ActionFeedbackToast
+      covers: [VR-007]

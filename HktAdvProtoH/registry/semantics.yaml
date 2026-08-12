@@ -1,0 +1,47 @@
+# Semantic Registry — World 의미의 전역 Source of Truth (§12.1)
+# 규칙:
+#   - World Semantic Design 은 새 의미 정의 전 반드시 이 파일을 조회한다 (lookup-first).
+#   - 존재하면 Reuse, 없을 때만 Semantic Delta 로 추가한다. Capability 별 중복 정의 금지 (Rule 11).
+#   - 추정해서 등록하지 않는다 — 검증된 Cycle 산출물만 등록한다 (Bootstrap Step 4).
+# 상태:
+#   ACTIVE     — 실제 구현·검증된 semantic. 재사용 대상.
+#   DRY_RUN    — 파이프라인 Dry Run 산출물. 설계만 존재, 재사용 불가.
+#                첫 실제 Cycle 이 같은 의미를 다루면 실검증 후 ACTIVE 로 승격하거나 대체한다.
+#   DEPRECATED — Version Migration 으로 대체됨.
+semantics:
+  Actor:
+    kind: ENTITY
+    status: DRY_RUN
+    defined_by: C001
+  Position:
+    kind: STATE
+    status: DRY_RUN
+    defined_by: C001
+  Inventory:
+    kind: STATE
+    status: DRY_RUN
+    defined_by: C001
+  Knowledge:
+    kind: STATE
+    status: DRY_RUN
+    defined_by: C001
+  Tool:
+    kind: ENTITY
+    status: DRY_RUN
+    defined_by: C001
+  Tool.Capability:
+    kind: STATE
+    status: DRY_RUN
+    defined_by: C001
+  ResourceDeposit:
+    kind: ENTITY
+    status: DRY_RUN
+    defined_by: C001
+  ResourceDeposit.ResourceAmount:
+    kind: STATE
+    status: DRY_RUN
+    defined_by: C001
+  InteractionRange:
+    kind: RULE_CONSTANT
+    status: DRY_RUN
+    defined_by: C001

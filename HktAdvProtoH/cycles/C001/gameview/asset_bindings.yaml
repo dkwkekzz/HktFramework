@@ -1,0 +1,18 @@
+# S009 / C001-GAMEVIEW-DESIGN-001 — Stage 11 Asset Resolution
+# DRY_RUN: Asset Catalog 미구축 — 자산 슬롯만 확정하고 PLACEHOLDER 로 바인딩.
+asset_bindings:
+  - element: ActorView
+    slots:
+      body: PLACEHOLDER-CHARACTER
+      mining_state: PLACEHOLDER-MINING-INDICATOR
+  - element: DepositView
+    slots:
+      node: PLACEHOLDER-STONE-NODE
+      depleted_state: PLACEHOLDER-DEPLETED
+      highlight: PLACEHOLDER-HIGHLIGHT
+  - element: StoneCounter
+    slots:
+      icon: PLACEHOLDER-STONE-ICON
+  - element: ActionFeedbackToast
+    slots:
+      frame: PLACEHOLDER-TOAST

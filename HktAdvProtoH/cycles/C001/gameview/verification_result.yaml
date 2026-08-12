@@ -1,0 +1,13 @@
+# S011 / C001-GAMEVIEW-VERIFY-001 — GameView Complete 판정 (DRY_RUN 한정)
+verification:
+  task_id: C001-GAMEVIEW-IMPLEMENT-001
+  gate: GAMEVIEW_COMPLETE
+  result: PASS
+  mode: SIMULATED     # DRY_RUN 전용
+  verified_by: S011
+  evidence:
+    - "observable_bindings 전 항목의 source 가 OBS-MINING-V1 정의 항목임을 대조"
+    - "VIEW-MINING-001 의 모든 Visual Meaning 이 VR/composition/binding 으로 연결됨 (VR-001~007)"
+    - "World 내부 참조 없음 (binding source 검사)"
+  failures: []
+  note: SIMULATED PASS — 렌더 실측은 첫 실제 Cycle 에서 수행한다.

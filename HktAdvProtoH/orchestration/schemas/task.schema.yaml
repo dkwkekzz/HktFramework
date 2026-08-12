@@ -1,0 +1,61 @@
+# Task Envelope 스키마 — Design-AgentExecution.md §15
+# 모든 Worker Session 은 반드시 Task Envelope 로 시작한다.
+# 6요소 불변식: Skill + Task + Input + Permission + Output + Completion Gate
+schema: task
+version: 1
+fields:
+  task:
+    type: map
+    required: true
+  task.id:
+    type: string
+    required: true
+    pattern: "^C[0-9]{3}-[A-Z0-9]+(-[A-Z0-9]+)*$"
+  task.cycle_id:
+    type: string
+    required: true
+    pattern: "^C[0-9]{3}$"
+  task.stage:
+    type: string
+    required: true
+  task.skill:
+    type: string
+    required: true
+  task.objective:
+    type: string
+    required: true
+  task.allowed_inputs:
+    type: list
+    required: true
+    item_type: string
+  task.read_scope:
+    type: list
+    required: true
+    item_type: string
+  task.write_scope:
+    type: list
+    required: true
+    item_type: string
+  task.forbidden_scope:
+    type: list
+    required: true
+    item_type: string
+  task.required_outputs:
+    type: list
+    required: true
+    item_type: string
+  task.completion_gate:
+    type: map
+    required: true
+  task.completion_gate.type:
+    type: string
+    required: true
+  task.routing:
+    type: map
+    required: true
+  task.routing.pass:
+    type: string
+    required: true
+  task.routing.fail:
+    type: string
+    required: true

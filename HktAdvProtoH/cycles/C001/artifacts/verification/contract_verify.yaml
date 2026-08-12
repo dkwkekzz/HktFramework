@@ -1,0 +1,14 @@
+# S006 / C001-CONTRACT-VERIFY-001 — Contract Gate (§22~§24)
+verification:
+  task_id: C001-CONTRACT-001
+  gate: CONTRACT
+  result: PASS
+  mode: MIXED
+  verified_by: S006
+  evidence:
+    - "Authority Closure: RULE-MINE-001 transition 대상 State 전부 authority.yaml 에 AuthoritativeWorld/WorldRule 지정 (deterministic 대조)"
+    - "CMD-MINE-V1 에 prohibited_fields 존재 - Client 결과 전송 경로 없음"
+    - "Observable Closure: RULE-MINE-001 의 preconditions/transition/failure_reasons 가 player(availability/ActionResult)·designer(8항목) projection 으로 노출"
+    - "GV Spec: 전 meanings 의 source/when 이 OBS-MINING-V1 항목 - 구체 asset/renderer 지정 없음"
+  failures: []
+  note: PASS 직후 Orchestrator 가 FREEZE_CONTRACT C001 v1 수행 (contract_freeze.yaml).

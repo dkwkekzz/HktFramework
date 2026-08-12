@@ -1,0 +1,12 @@
+# S014 / C001-PACKAGE-001 — GameView Module 포장 (DRY_RUN)
+module:
+  id: mining-view-v1
+  type: GAMEVIEW
+  version: 1
+  status: DRY_RUN     # 실제 구현 없음 — 재사용 금지, 첫 실제 Cycle 에서 대체
+  consumes:
+    - OBS-MINING-V1
+  implements:
+    - VIEW-MINING-001
+  design_sources:
+    - cycles/C001/gameview/

@@ -1,0 +1,44 @@
+# Handoff Result 스키마 — Design-AgentExecution.md §6.1·§27
+# Session 이 남기는 유일한 공식 종료 보고. 대화 Context 는 버려진다.
+schema: handoff_result
+version: 1
+fields:
+  handoff:
+    type: map
+    required: true
+  handoff.task_id:
+    type: string
+    required: true
+  handoff.session_id:
+    type: string
+    required: true
+  handoff.skill:
+    type: string
+    required: true
+  handoff.status:
+    type: string
+    required: true
+    enum: [COMPLETE, BLOCKED, FAILED]
+  # write_scope 기준 상대 경로 목록 — required_outputs 를 모두 포함해야 한다.
+  handoff.outputs:
+    type: list
+    required: true
+    item_type: string
+  handoff.unresolved:
+    type: list
+    required: true
+  # BLOCKED 인 경우 contract_gap 등 blocker artifact 경로
+  handoff.blocker:
+    type: string
+  # 구현 Session 전용 (선택)
+  handoff.changed_files:
+    type: list
+    item_type: string
+  handoff.tests:
+    type: map
+  handoff.tests.passed:
+    type: int
+  handoff.tests.failed:
+    type: int
+  handoff.notes:
+    type: string

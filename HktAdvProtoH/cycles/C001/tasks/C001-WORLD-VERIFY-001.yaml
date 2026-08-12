@@ -1,0 +1,29 @@
+task:
+  id: C001-WORLD-VERIFY-001
+  cycle_id: C001
+  stage: WORLD_VERIFICATION
+  skill: world-verify
+  objective: >
+    World 구현을 Contract 와 Runtime Evidence 만으로 독립 검증한다 (World Complete 판정).
+  allowed_inputs:
+    - cycles/C001/world/implementation_result.yaml
+    - cycles/C001/artifacts/contracts/frozen/CMD-MINE-V1.yaml
+    - cycles/C001/artifacts/contracts/frozen/OBS-MINING-V1.yaml
+    - cycles/C001/artifacts/world-design/world_rules.yaml
+  read_scope:
+    - cycles/C001/world/
+    - cycles/C001/artifacts/
+    - source/world/
+    - scripts/
+  write_scope:
+    - cycles/C001/world/
+  forbidden_scope:
+    - cycles/C001/gameview/
+    - source/gameview/
+  required_outputs:
+    - verification_result.yaml
+  completion_gate:
+    type: world-complete
+  routing:
+    pass: INTEGRATION_WAIT
+    fail: WORLD_IMPLEMENTATION_FIX

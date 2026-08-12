@@ -1,0 +1,32 @@
+task:
+  id: C001-SEMANTIC-001
+  cycle_id: C001
+  stage: WORLD_SEMANTIC_DESIGN
+  skill: world-semantic-design
+  objective: >
+    Resolve Cycle Intent into shared World State and World Rules.
+  allowed_inputs:
+    - cycles/C001/artifacts/intent/intent.yaml
+    - registry/semantics.yaml
+    - registry/modules.yaml
+  read_scope:
+    - registry/
+    - cycles/C001/artifacts/intent/
+    - skills/world-semantic-design/
+  write_scope:
+    - cycles/C001/artifacts/world-design/
+  forbidden_scope:
+    - modules/gameview/
+    - source/gameview/
+    - cycles/C001/gameview/
+  required_outputs:
+    - semantic_dependencies.yaml
+    - semantic_delta.yaml
+    - world_state.yaml
+    - world_rules.yaml
+    - intent_trace.yaml
+  completion_gate:
+    type: semantic-closure-verify
+  routing:
+    pass: AUTHORITY_DESIGN
+    fail: WORLD_SEMANTIC_REWORK
