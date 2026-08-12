@@ -23,20 +23,33 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 |---|---|
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
-| [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | **개발 공정 기준 문서** — Cycle 단위 점진 개발과 World Capability Module 누적 |
+| [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | **개발 공정 기준 문서** — Cycle 8단계 공정과 World Capability Module 누적 |
 | [Design-GameView.md](design/Design-GameView.md) | GameView Architecture |
 
 ## 작업 규칙
 
 개발의 기본 단위는 **Cycle** 이다. 세부 정의는 [design/Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) 를 따른다.
 
-1. 모든 작업은 사용자가 제시한 하나의 **작고 직접 플레이 가능한 Cycle Goal** 에서 시작한다. 기술 작업 목록이 아니라 세계에서 가능한 플레이 경험으로 정의한다.
-2. 하나의 Cycle 은 `Goal/Possibility → Intent → World State/Rule → Observable → Implementation → Playable Assembly → Verification` 전체를 한 번 완주한다. 축소하지 않는다.
-3. Cycle 의 결과물은 **재사용 가능한 World Capability Module** 과 **플레이 가능한 검증 세계** 둘 다이다. 하나라도 없으면 Cycle 은 완료가 아니다.
-4. 이전 Cycle 의 Capability 는 다시 구현하지 않는다 — Module 로 사용한다 (Design-CycleWorkflow §8).
-5. Module 마다 별개의 World 를 만들지 않는다. 모든 Module 은 하나의 공유 World Semantic 위에 Capability 를 추가한다 (§11).
-6. World State 에는 세계의 사실만 둔다. 구현 내부 상태(cache·index·thread 등)는 World Semantic 이 아니다 (§12).
-7. Observable 은 구현 마지막에 붙이는 Debug UI 가 아니라 World State/Rule 과 **동시에** 설계한다 (§18).
-8. 성공 Scenario 만으로 검증하지 않는다. 실패 조건도 플레이 가능한 형태로, 원인이 보이도록 검증한다 (§23).
-9. 완료된 Module 의 의미를 바꿔야 하면 조용히 수정하지 않고 명시적 Version 변경으로 처리한다 (§26·§27).
-10. Cycle 완료 판정은 §25 Cycle Completion Gate 체크리스트로 한다.
+하나의 Cycle 은 8단계로 고정한다 (Design-CycleWorkflow §3).
+
+```text
+1 Cycle Scope        무엇을 이번 Cycle에서 완성하는가?
+2 Intent Design      세계에서 무엇이 가능해야 하는가?
+3 World Semantic     그것이 참이려면 세계에 무엇이 존재해야 하는가?
+4 Authority          누가 어떤 Input으로 어떤 상태 변화를 확정하는가?
+5 Observation        각각의 Observer는 그 세계를 어떻게 볼 수 있는가?
+6 Implementation     이 의미를 실제 프로그램으로 어떻게 구현하는가?
+7 Playable Composition  Module들을 어떻게 게임으로 조립하는가?
+8 Verification & Packaging  설계한 세계가 실제로 그렇게 동작하는가?
+```
+
+1. 모든 작업은 사용자가 제시한 하나의 **작고 직접 플레이 가능한 Cycle Goal** 에서 시작한다. 기술 작업 목록이 아니라 세계에서 가능한 플레이 경험으로 정의한다 (§4).
+2. 위 8단계를 축소하거나 건너뛰지 않는다. 단계 간 책임을 섞지 않는다 — 각 단계가 무엇을 결정하고 무엇을 결정하지 않는지는 §14 표를 따른다.
+3. Cycle 의 결과물은 **World Capability Module** 과 **Playable World** 둘 다이다. 하나라도 없으면 Cycle 은 완료가 아니다 (§12).
+4. Goal/Possibility 와 Intent 가 게임 의미의 Source of Truth 다. Intent 의 모든 의미는 World State 또는 World Rule 로 표현되어야 한다 — Semantic Closure (Rule 1·2).
+5. World Semantic 의 실제 상태 변화는 Authoritative World Rule 을 통해서만 발생한다. Client 는 World State 를 바꾸지 않고 행동 Command 만 보낸다 (Rule 3·4).
+6. Client 와 Designer 는 World 내부를 직접 읽지 않고 Observer 별 Observable World 를 사용한다. Observable 은 Network Packet 이 아니라 World 의 Semantic Projection 이다 (Rule 5·6).
+7. Snapshot·Delta·Packet·Serialization 등 Transport 는 Implementation Detail 이며 World State 에 포함하지 않는다. Local/IPC/Network 교체가 Semantic Workflow 를 바꾸면 안 된다 (§9, Rule 7).
+8. 이전 Cycle 의 Capability 는 재구현하지 않고 Requires/Provides Contract 로 사용한다. Module 내부 구현에 직접 접근해 연결하지 않는다 (§10, Rule 8).
+9. Module 마다 별개의 World State 를 만들지 않는다. 모든 Capability 는 동일한 World Semantic 위에서 상호작용한다 (Rule 9).
+10. 검증은 §11 의 6종(Positive · Negative · Traceability · Authority Closure · Observable Closure · Module Independence)을 모두 통과해야 한다. "코드가 동작한다" 는 완료가 아니다 (§16).
