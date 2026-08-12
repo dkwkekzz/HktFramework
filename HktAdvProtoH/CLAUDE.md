@@ -11,11 +11,40 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 ## 폴더 구조
 
-| 폴더 | 내용 |
-|---|---|
-| [design/](design/) | **기획 문서** — 세계 개념·개발 공정 원문 |
+| 폴더 | 소유 트랙 | 내용 |
+|---|---|---|
+| [design/](design/) | 공통 | **기획 문서** — 세계 개념·개발 공정 원문 |
+| [state/](state/) | Cycle | Module Registry([REGISTRY.md](state/REGISTRY.md)) · Cycle 진행 상태([CYCLES.md](state/CYCLES.md)) |
+| [templates/](templates/) | 공통 | Implementation Package · View Definition · Module Contract · Capability Proposal 템플릿 |
+| `cycles/<cycle-id>/` | Cycle | Cycle 별 설계 산출물 (PACKAGE.md · VIEW.md · ACCEPTANCE.md · GAPS.md) |
+| `world/` | Cycle | 공유 World Semantic(`core/`) + Capability Module(`modules/<name>/`) |
+| `app/<cycle-id>/` | Cycle | Playable Assembly — 조립 + View Binding + Player Input |
+| [gameview/](gameview/) | **GameView** | 범용 Visual Language Runtime — [GAMEVIEW.md](gameview/GAMEVIEW.md)(척추) · [VOCABULARY.md](gameview/VOCABULARY.md)(공개 계약) · [STATE.md](gameview/STATE.md) · `proposals/` · `demo/` |
 
-현재 트랙에는 기획 문서만 존재한다. 이전 Stage 기반 운영 구조(`state/`·`workflow/`·`templates/`)는 [design/Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) 개편과 함께 제거되었다.
+## 작업 구조 — 두 개의 직교 트랙
+
+개발은 **Cycle 트랙(세계)** 과 **GameView 트랙(렌더)** 으로 분리해 진행한다. 스택: Web(three.js + Vite), 3D Terrain + 2D Sprite Billboard.
+
+```text
+Cycle 트랙 (세계)                          GameView 트랙 (렌더)
+─────────────────────                      ─────────────────────
+advprotoh-cycle-plan        ─ 설계         advprotoh-gameview-step
+advprotoh-cycle-implement   ─ 구현           v0 로드맵 + APPROVED Proposal 만으로
+advprotoh-cycle-verify      ─ 검증·패키징     범용 시각 어휘를 만들어 공개
+        │                                          │
+        │  읽기: VOCABULARY.md (✅ 어휘만 binding)  │
+        ├──────────────────────────────────────────┤
+        │  쓰기: gameview/proposals/GVP-NNN (요청)  │
+        └──────────────────────────────────────────┘
+```
+
+트랙 경계 (양쪽 스킬이 공통으로 지키는 불변):
+
+1. Cycle 트랙은 `gameview/` 를 수정하지 않는다 — 유일한 예외는 `gameview/proposals/` 에 Proposal 파일 생성.
+2. Cycle 트랙이 읽는 GameView 문서는 [gameview/VOCABULARY.md](gameview/VOCABULARY.md) 하나뿐이며, View Definition 은 ✅ 공개 어휘만 binding 한다.
+3. GameView 트랙은 `world/`·`app/`·`cycles/` 와 세계 기획 문서를 읽지 않는다 — Cycle 이 완성돼도 GameView 는 변하지 않고, 어휘는 자체 로드맵과 승인된 Proposal 로만 성장한다.
+4. View(Binding 코드 포함)는 ObservableWorldState 만 읽고, Rule 재판단을 하지 않는다.
+5. World-specific 시각 컴포넌트(HPBar 류)는 만들지 않는다 — 범용 어휘(ValueBar 류)에 View Definition 이 의미를 binding 한다.
 
 ### 기획 문서
 
