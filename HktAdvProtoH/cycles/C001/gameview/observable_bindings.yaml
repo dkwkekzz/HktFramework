@@ -1,0 +1,18 @@
+# S009 / C001-GAMEVIEW-DESIGN-001 — Stage 12 Observable Binding
+# 형태 불변식: Observable Semantic → Rendering State (World 내부 참조 금지)
+observable_bindings:
+  - source: Actor.Position
+    target: ActorView.position
+  - source: Actor.CurrentAction
+    target: ActorView.mining_state      # Mine 이면 표시
+  - source: Deposit.Position
+    target: DepositView.position
+  - source: Deposit.ResourceAmount
+    target: DepositView.depleted_state  # 0 이면 고갈 표현
+  - source: MineStone.Availability
+    target: DepositView.highlight
+  - source: Actor.Inventory.Stone
+    target: StoneCounter.value
+  - source: ActionResult
+    target: ActionFeedbackToast.content
+contract_gaps: []   # 이번 Cycle 은 OBS-MINING-V1 로 충분 — Gap 없음

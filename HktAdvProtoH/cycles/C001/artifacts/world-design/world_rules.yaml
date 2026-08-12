@@ -1,0 +1,20 @@
+# S003 / C001-SEMANTIC-001 — World Rules (허용된 semantic transition 만)
+world_rules:
+  - id: RULE-MINE-001
+    input:
+      - Actor
+      - ResourceDeposit
+    preconditions:
+      - Actor knows Deposit                    # Actor.Knowledge contains Deposit
+      - Actor owns Mining-capable Tool         # Actor.Inventory has Tool with Capability=Mining
+      - Actor in InteractionRange              # distance(Actor.Position, Deposit.Position) <= InteractionRange
+      - Deposit ResourceAmount > 0
+    transition:
+      - Deposit.ResourceAmount -= ExtractAmount
+      - Actor.Inventory[ResourceType] += ExtractAmount
+      - Actor.CurrentAction = Mine (행위 지속 동안)
+    failure_reasons:
+      - UNKNOWN_DEPOSIT
+      - NO_MINING_TOOL
+      - OUT_OF_RANGE
+      - DEPOSIT_EMPTY

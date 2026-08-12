@@ -1,0 +1,32 @@
+# S005 / C001-CONTRACT-001 — Stage 5 Observable Contract (semantic 단위, Rule 5·6)
+observable:
+  id: OBS-MINING-V1
+  version: 1
+  observers:
+    player:
+      state:
+        - Actor.Position
+        - Actor.Inventory.Stone
+        - Actor.CurrentAction          # Idle | Mine
+        - VisibleDeposit               # 알고 있고 시야 내인 Deposit
+        - Deposit.Position
+        - Deposit.ResourceAmount
+      availability:
+        - MineStone.Availability       # AVAILABLE | UNAVAILABLE(+reason)
+      transition:
+        - ActionResult                 # 마지막 행동의 성공/실패 + failure_reason
+        - ResourceTransition           # Deposit/Inventory 변화 관측
+    designer:
+      state:
+        - CurrentGoal
+        - CurrentPossibility
+        - PossibilityAvailability
+        - Preconditions                # 각 전제조건의 평가 결과
+        - SelectedRule
+        - BeforeState
+        - Input
+        - AfterState
+        - FailureReason
+  notes: >
+    Observable 은 Replication/packet 형식이 아니다.
+    Designer 도 World 내부 객체를 직접 읽지 않는다 - Projection 결과만 본다.

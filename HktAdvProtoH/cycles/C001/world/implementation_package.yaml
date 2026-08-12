@@ -1,0 +1,18 @@
+# Orchestrator 가 World Engineer 에게 전달하는 유일한 입력 — §26 (설계 History 전달 금지)
+implementation_package:
+  cycle_scope: cycles/C001/artifacts/scope/cycle_scope.yaml
+  goal_possibility: cycles/C001/artifacts/intent/goal_possibility.yaml
+  intent: cycles/C001/artifacts/intent/intent.yaml
+  existing_module_dependencies: []
+  semantic_delta: cycles/C001/artifacts/world-design/semantic_delta.yaml
+  world_state: cycles/C001/artifacts/world-design/world_state.yaml
+  world_rules: cycles/C001/artifacts/world-design/world_rules.yaml
+  authority_contract: cycles/C001/artifacts/contracts/authority.yaml
+  command_contract: cycles/C001/artifacts/contracts/frozen/CMD-MINE-V1.yaml
+  observable_contract: cycles/C001/artifacts/contracts/frozen/OBS-MINING-V1.yaml
+  traceability: cycles/C001/artifacts/world-design/intent_trace.yaml
+  completion_conditions:
+    - RULE-MINE-001 구현 + preconditions 4종 각각의 성공/실패 테스트
+    - CMD-MINE-V1 처리 (prohibited_fields 거부 포함)
+    - OBS-MINING-V1 의 player/designer projection 구현
+    - build/test green

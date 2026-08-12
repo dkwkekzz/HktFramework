@@ -1,0 +1,37 @@
+# Module Registry — Cycle 사이에서 공유되는 완료 Capability (§12.2)
+# 규칙:
+#   - 새 Capability 착수 전 반드시 이 파일을 조회한다. provides 가 있으면 Reuse (Rule 10).
+#   - 재사용 대상은 status: FROZEN 만이다. DRY_RUN 은 파이프라인 검증용 — 재사용 금지.
+#   - FROZEN Module 은 직접 수정 금지. path+sha256 을 verify.mjs frozen 이 강제한다.
+#   - 변경은 Extension Module 우선, 최후에만 migration_request 로 Version Migration (§34).
+modules:
+  mining-world-v1:
+    type: WORLD_CAPABILITY
+    version: 1
+    status: DRY_RUN     # C001 Dry Run — 실제 구현 없음. 첫 실제 Cycle 에서 대체/재검증.
+    path: cycles/C001/artifacts/packaging/mining-world-v1
+    sha256: ccf6ed28da6a85a78a4f06ccab3aaa96d63a79712cf212b91b77eca1868c926b
+    requires:
+      - Actor
+      - Position
+      - Inventory
+      - Knowledge
+      - Tool
+      - ResourceDeposit
+    provides:
+      possibilities:
+        - MineStone
+      rules:
+        - RULE-MINE-001
+      observables:
+        - OBS-MINING-V1
+  mining-view-v1:
+    type: GAMEVIEW
+    version: 1
+    status: DRY_RUN     # C001 Dry Run — 실제 구현 없음.
+    path: cycles/C001/artifacts/packaging/mining-view-v1
+    sha256: e37a33e430518e741b399f3d3c51b5638413bc21f003cb17e4b46cce2ef9f167
+    consumes:
+      - OBS-MINING-V1
+    implements:
+      - VIEW-MINING-001

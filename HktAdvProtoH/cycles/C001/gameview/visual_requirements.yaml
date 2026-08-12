@@ -1,0 +1,23 @@
+# S009 / C001-GAMEVIEW-DESIGN-001 — Stage 9 Specification Resolution
+visual_requirements:
+  - id: VR-001
+    from_meaning: Character
+    requirement: Actor 를 WorldSpace 에 위치 표시 (source Actor.Position)
+  - id: VR-002
+    from_meaning: ResourceNode
+    requirement: Deposit 을 WorldSpace 에 위치 표시 (source Deposit.Position)
+  - id: VR-003
+    from_meaning: Mining
+    requirement: "Actor.CurrentAction == Mine 동안 채굴 중임이 보이는 상태 표현"
+  - id: VR-004
+    from_meaning: DepletedResource
+    requirement: "Deposit.ResourceAmount == 0 시 고갈 상태 표현"
+  - id: VR-005
+    from_meaning: OwnedStoneAmount
+    requirement: 보유 Stone 수량 상시 표시
+  - id: VR-006
+    from_meaning: InteractableTarget
+    requirement: "MineStone.Availability == AVAILABLE 인 Deposit 강조"
+  - id: VR-007
+    from_meaning: ActionFeedback
+    requirement: 행동 성공/실패(failure_reason 포함) 피드백 표시

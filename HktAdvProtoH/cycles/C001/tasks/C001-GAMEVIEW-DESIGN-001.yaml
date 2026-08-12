@@ -1,0 +1,34 @@
+task:
+  id: C001-GAMEVIEW-DESIGN-001
+  cycle_id: C001
+  stage: GAMEVIEW_DESIGN   # Stage 9 Spec Resolve + 10 Composition + 11 Asset + 12 Binding
+  skill: gameview-design
+  objective: >
+    Frozen Contract 만으로 GameView 를 설계한다.
+    Visual Requirements -> Composition -> Asset -> Observable Binding.
+  allowed_inputs:
+    - cycles/C001/artifacts/contracts/frozen/OBS-MINING-V1.yaml
+    - cycles/C001/artifacts/contracts/frozen/VIEW-MINING-001.yaml
+    - registry/modules.yaml
+  read_scope:
+    - cycles/C001/artifacts/contracts/frozen/
+    - registry/modules.yaml
+    - registry/contracts.yaml
+    - skills/gameview-design/
+  write_scope:
+    - cycles/C001/gameview/
+  forbidden_scope:
+    - cycles/C001/artifacts/world-design/
+    - cycles/C001/world/
+    - source/world/
+    - modules/world/
+  required_outputs:
+    - visual_requirements.yaml
+    - composition.yaml
+    - asset_bindings.yaml
+    - observable_bindings.yaml
+  completion_gate:
+    type: binding-source-check
+  routing:
+    pass: GAMEVIEW_IMPLEMENTATION
+    fail: GAMEVIEW_DESIGN_REWORK

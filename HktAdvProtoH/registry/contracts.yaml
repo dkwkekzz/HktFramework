@@ -1,0 +1,25 @@
+# Contract Registry — Versioned/Frozen Contract 의 전역 색인 (§12.3)
+# 규칙:
+#   - FREEZE_CONTRACT 시 여기에 path + sha256 으로 등록된다.
+#   - sha256 이 있는 항목은 verify.mjs frozen 이 매 Gate 마다 불변을 강제한다.
+#   - Frozen Contract 변경은 새 버전 발급(VERSION_CONTRACT) → 재검증 → Re-Freeze 로만.
+#   - DRY_RUN 항목은 C001 파이프라인 검증용 — 실제 Cycle 이 같은 id 를 쓰려면 재검증 후 승격.
+contracts:
+  CMD-MINE-V1:
+    type: COMMAND
+    version: 1
+    status: DRY_RUN
+    path: cycles/C001/artifacts/contracts/frozen/CMD-MINE-V1.yaml
+    sha256: 5b06c6f8ac6fb8888b910a0e93073b699b126c886892f118b4c796d2200d2b0b
+  OBS-MINING-V1:
+    type: OBSERVABLE
+    version: 1
+    status: DRY_RUN
+    path: cycles/C001/artifacts/contracts/frozen/OBS-MINING-V1.yaml
+    sha256: 748de6da80272640ebb6bb6c49d386ed9f52d0c4d2d35dab4d8ab888621840af
+  VIEW-MINING-001:
+    type: GAMEVIEW_SPEC
+    version: 1
+    status: DRY_RUN
+    path: cycles/C001/artifacts/contracts/frozen/VIEW-MINING-001.yaml
+    sha256: 5fbf8aa78edbe77ebb57625f08bc7c35455bb4ba8ea4769e026d7f9982f4cc9c

@@ -1,0 +1,36 @@
+# Contract Gap Proposal 스키마 — Design-AgentExecution.md §29
+# GameView 는 필요한 Observable 이 없어도 World 내부를 읽어 우회하지 않는다.
+# 대신 BLOCKED 로 종료하고 이 Proposal 을 생성한다.
+schema: contract_gap
+version: 1
+fields:
+  contract_gap:
+    type: map
+    required: true
+  contract_gap.id:
+    type: string
+    required: true
+    pattern: "^GAP-C[0-9]{3}-[A-Z0-9-]+$"
+  contract_gap.source_task:
+    type: string
+    required: true
+  contract_gap.required_visual:
+    type: string
+    required: true
+  contract_gap.missing_observable:
+    type: string
+    required: true
+  contract_gap.reason:
+    type: string
+    required: true
+  contract_gap.blocking:
+    type: bool
+    required: true
+  # Contract Review 처리 결과 (Review Session 이 기록)
+  contract_gap.resolution:
+    type: map
+  contract_gap.resolution.decision:
+    type: string
+    enum: [EXTEND_OBSERVABLE, REJECT, REDESIGN_PRESENTATION]
+  contract_gap.resolution.new_contract_version:
+    type: any

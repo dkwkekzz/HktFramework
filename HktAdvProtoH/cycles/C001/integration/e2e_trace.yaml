@@ -1,0 +1,21 @@
+# S012 / C001-INTEGRATION-001 — Contract 기반 E2E Trace (§30)
+# DRY_RUN: 각 단계는 Contract 문서 기준의 기대 사슬이다 (실측은 첫 실제 Cycle 에서).
+e2e_trace:
+  - step: client_input
+    value: "Player presses Mine on Deposit01"
+  - step: world_command
+    contract: CMD-MINE-V1
+    value: "Mine(Player01, Deposit01)"
+  - step: authoritative_rule
+    contract: RULE-MINE-001
+    value: "preconditions 4/4 satisfied"
+  - step: world_transition
+    value: "Player01.Inventory.Stone 0 -> 1; Deposit01.ResourceAmount 10 -> 9"
+  - step: observer_projection
+    contract: OBS-MINING-V1
+    value: "Actor.Inventory.Stone = 1; Deposit.ResourceAmount = 9; ActionResult = SUCCESS"
+  - step: gameview_binding
+    contract: VIEW-MINING-001
+    value: "StoneCounter.value = 1; DepositView updated; ActorView.mining_state active"
+  - step: rendering
+    value: "Stone Counter = 1; Deposit Visual Updated; Mining Animation"

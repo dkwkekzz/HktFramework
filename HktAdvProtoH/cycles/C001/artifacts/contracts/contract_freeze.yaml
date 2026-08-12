@@ -1,0 +1,15 @@
+# S006 PASS 후 Orchestrator FREEZE_CONTRACT 기록 — §24
+contract:
+  id: CONTRACT-MINING-C001
+  version: 1
+  command:
+    id: CMD-MINE-V1
+  observable:
+    id: OBS-MINING-V1
+  gameview_spec:
+    id: VIEW-MINING-001
+  status: FROZEN
+  frozen_copies: cycles/C001/artifacts/contracts/frozen/
+  note: >
+    DRY_RUN - 실제 Cycle 에서는 contracts/ 최상위로 승격되지만
+    Dry Run 산출물은 Cycle 디렉토리에 격리하고 registry 에 DRY_RUN 상태로만 등록한다.

@@ -1,0 +1,11 @@
+# CYCLE C001 Goal — Design-AgentExecution.md §38 Mining Dry Run
+goal:
+  cycle_id: C001
+  mode: DRY_RUN
+  statement: >
+    Pickaxe를 가진 Player가 Stone Deposit에 접근하여
+    Mine을 수행하고 Stone을 획득할 수 있다.
+  play_experience: >
+    플레이어가 곡괭이를 들고 돌 광맥에 다가가 채굴하면
+    광맥의 돌이 줄고 인벤토리에 돌이 늘어나는 것을 눈으로 본다.
+  existing_capabilities: []   # registry/modules.yaml 조회 결과 — 최초 Cycle, 재사용 가능 Module 없음

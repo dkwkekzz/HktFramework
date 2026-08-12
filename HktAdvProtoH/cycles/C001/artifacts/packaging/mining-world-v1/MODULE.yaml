@@ -1,0 +1,23 @@
+# S014 / C001-PACKAGE-001 — World Capability Module 포장 (DRY_RUN)
+module:
+  id: mining-world-v1
+  type: WORLD_CAPABILITY
+  version: 1
+  status: DRY_RUN     # 실제 구현 없음 — 재사용 금지, 첫 실제 Cycle 에서 대체
+  requires:
+    - Actor
+    - Position
+    - Inventory
+    - Knowledge
+    - Tool
+    - ResourceDeposit
+  provides:
+    possibilities:
+      - MineStone
+    rules:
+      - RULE-MINE-001
+    observables:
+      - OBS-MINING-V1
+  design_sources:
+    - cycles/C001/artifacts/world-design/
+    - cycles/C001/artifacts/contracts/
