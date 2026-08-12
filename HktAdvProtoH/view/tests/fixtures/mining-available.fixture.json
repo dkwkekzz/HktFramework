@@ -1,0 +1,24 @@
+{
+  "id": "VIEW-STONE-MINING-001",
+  "scene": "mining-field",
+  "entities": {
+    "player": { "role": "player-character", "position": { "x": 7.5, "z": -5.5 }, "state": "idle" },
+    "deposit": {
+      "role": "resource-deposit",
+      "resourceKind": "stone",
+      "id": "deposit-1",
+      "position": { "x": 8, "z": -6 },
+      "state": "available",
+      "remaining": 5
+    }
+  },
+  "interactions": {
+    "move": { "role": "move-to", "available": true },
+    "mine": { "role": "mine-deposit", "available": true }
+  },
+  "hud": {
+    "inventory": { "stone": 0 },
+    "tool": { "hasMiningTool": true },
+    "mineHint": { "available": true }
+  }
+}
