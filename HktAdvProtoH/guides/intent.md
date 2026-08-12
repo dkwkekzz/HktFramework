@@ -7,7 +7,7 @@ Cycle Goal 을 Goal / Possibility 와 Intent 로 변환한다.
 ## Input
 
 - `cycles/<CycleId>/01-cycle.md`
-- 필요한 Existing Capability 의 의미 (`cycles/INDEX.md` 에서 관련 Cycle 만 확인)
+- 필요한 Existing Capability 의 의미 (관련 있는 기존 Cycle 의 Artifact 만 확인)
 
 ## Do
 

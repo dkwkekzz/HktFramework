@@ -32,7 +32,7 @@ Agent 실행 규칙 전체는 [AGENTS.md](AGENTS.md) 에 있다. 요약:
 |---|---|
 | [AGENTS.md](AGENTS.md) | **모든 Agent 공통 불변 규칙** — 항상 첫 번째로 읽는다 |
 | [guides/](guides/) | Stage Guide 7종 — 단계별 작업 방법 (`ROLE / INPUT / DO / OUTPUT / MUST / MUST NOT / DONE WHEN`) |
-| [cycles/](cycles/) | Cycle Artifact — 진행 기록. 과거 Cycle 은 수정하지 않는다 ([INDEX](cycles/INDEX.md) · [_template](cycles/_template/)) |
+| [cycles/](cycles/) | Cycle Artifact — 진행 기록. 과거 Cycle 은 수정하지 않는다 |
 | [world/](world/) | Authoritative World 구현 (Server) |
 | [view/](view/) | Client View 구현 |
 | [protocol/](protocol/) | World ↔ View 경계 타입만 |

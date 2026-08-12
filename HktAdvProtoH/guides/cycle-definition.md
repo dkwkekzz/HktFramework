@@ -7,7 +7,7 @@
 ## Input
 
 - Human Cycle Goal
-- 관련 Existing Capability (있으면 — `cycles/INDEX.md`, `world/`, `view/`)
+- 관련 Existing Capability (있으면 — 기존 `cycles/`, `world/`, `view/`)
 
 ## Do
 
