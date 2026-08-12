@@ -1,6 +1,6 @@
 ---
 name: advprotoh-cycle
-description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미완료 Stage 판정 → AGENTS.md + 해당 Stage Guide + 입력 Artifact 만 로드 → 작업 수행 → 출력 Artifact 작성 → 상태 갱신. Cycle Definition / Intent / World Semantic / GameView Spec / World·View Implementation / Verification 전 단계를 담당. 사용자가 "AdvProtoH 진행 / Cxxx 다음 단계 / Intent 단계 수행 / World Semantic 작성 / Cycle 시작 / cycle 러너" 를 요청하면 사용.
+description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미완료 Stage 판정 → CLAUDE.md + 해당 Stage Guide + 입력 Artifact 만 로드 → 작업 수행 → 출력 Artifact 작성 → 상태 갱신. Cycle Definition / Intent / World Semantic / GameView Spec / World·View Implementation / Verification 전 단계를 담당. 사용자가 "AdvProtoH 진행 / Cxxx 다음 단계 / Intent 단계 수행 / World Semantic 작성 / Cycle 시작 / cycle 러너" 를 요청하면 사용.
 ---
 
 # HktAdvProtoH Cycle Stage Runner
@@ -39,7 +39,7 @@ Stage 5 가 다음 차례면 **작업을 멈추고** 사용자에게 Semantic Re
 정확히 이것만 읽는다. 더 읽지 마라.
 
 ```text
-1. AGENTS.md                          공통 원칙·인덱스
+1. CLAUDE.md                          공통 원칙·인덱스
 2. guides/<이번 Stage>.md              작업 방법·완료 조건
 3. 위 표의 입력 Artifact
 4. references/common-rules.md          공통 불변 규칙 상세 (이 스킬)

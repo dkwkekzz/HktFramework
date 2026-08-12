@@ -1,6 +1,6 @@
 # 공통 불변 규칙 (상세)
 
-`HktAdvProtoH/AGENTS.md` 는 원칙과 인덱스만 담는다. 이 문서는 그 원칙들이 실제 작업에서
+`HktAdvProtoH/CLAUDE.md` 는 원칙과 인덱스만 담는다. 이 문서는 그 원칙들이 실제 작업에서
 무엇을 뜻하는지 풀어 쓴 것으로, Cycle Stage 를 실행할 때만 로드된다.
 
 ## Development Model
@@ -32,7 +32,7 @@
 
 모든 Agent 는 다음을 기준으로 작업한다.
 
-1. `AGENTS.md`
+1. `CLAUDE.md`
 2. 현재 Stage Guide
 3. 현재 Cycle 의 입력 Artifact
 
@@ -261,6 +261,6 @@ Cycle Goal 이:
 
 ## 한 문장
 
-각 AI Agent 는 공통 규칙인 AGENTS.md 와 자기 단계의 짧은 Guide, 이전 단계 Artifact 만을 읽고
+각 AI Agent 는 공통 규칙인 CLAUDE.md 와 자기 단계의 짧은 Guide, 이전 단계 Artifact 만을 읽고
 현재 Cycle 의 Game Delta 를 설계·구현한 뒤 다음 단계가 사용할 Artifact 를 남기며,
 이러한 Cycle 을 반복하여 하나의 공유 World 와 독립적인 View 를 지속적으로 발전시킨다.
