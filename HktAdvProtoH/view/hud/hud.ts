@@ -1,65 +1,97 @@
-// Web HUD — Spec 의 hud 계약(inventory.stone / tool / mineHint)을 DOM 으로 표시한다.
-// 곡괭이 아이콘 + Stone 카운트, 조작 안내, [E] 채굴 프롬프트, 획득 토스트, 광맥 잔량 라벨.
+// Web HUD (범용 엔진) — hud 항목 배열·interaction 배열을 순회하며 표시한다.
+// 항목별 표시 특성은 HUD/Interaction Registry 가 정하고, 미등록 항목도 기본 형식으로 그린다.
 
-import type { HudModel } from '../scene/scene-state';
+import { hudTraits } from '../engine/hud-registry';
+import { interactionTraits } from '../engine/interaction-registry';
+import type { SceneState } from '../scene/scene-state';
 import { reasonText } from './reason-text';
 
+export interface EntityLabel {
+  x: number;
+  y: number;
+  text: string;
+}
+
 export interface Hud {
-  render(model: HudModel, depositScreen: { x: number; y: number } | null): void;
+  render(scene: SceneState, labels: EntityLabel[]): void;
 }
 
 export function createHud(container: HTMLElement): Hud {
   const root = document.createElement('div');
   root.id = 'hud';
   root.innerHTML = `
-    <div class="hud-panel"><span class="hud-icon">⛏</span><span id="hud-stone"></span></div>
-    <div class="hud-keys">이동: WASD / 방향키<br/>채굴: E</div>
-    <div class="hud-label" id="hud-deposit-label"></div>
+    <div class="hud-panel" id="hud-items"></div>
+    <div class="hud-keys" id="hud-keys"></div>
+    <div id="hud-labels"></div>
     <div class="hud-toast" id="hud-toast"></div>
     <div class="hud-hint" id="hud-mine-hint"></div>
   `;
   container.appendChild(root);
 
-  const stone = root.querySelector('#hud-stone') as HTMLElement;
-  const label = root.querySelector('#hud-deposit-label') as HTMLElement;
+  const items = root.querySelector('#hud-items') as HTMLElement;
+  const keys = root.querySelector('#hud-keys') as HTMLElement;
+  const labelLayer = root.querySelector('#hud-labels') as HTMLElement;
   const toast = root.querySelector('#hud-toast') as HTMLElement;
   const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
 
-  let lastStone = 0;
+  const lastCounters = new Map<string, number>();
   let toastUntil = 0;
 
   return {
-    render(model, depositScreen) {
-      stone.textContent = `Stone: ${model.stoneCount}`;
-
-      // 광맥 잔량 라벨 — 광맥 머리 위 화면 좌표에 붙인다
-      if (depositScreen) {
-        label.style.display = 'block';
-        label.style.left = `${depositScreen.x}px`;
-        label.style.top = `${depositScreen.y}px`;
-        label.textContent = `돌 ${model.depositRemaining}`;
-      } else {
-        label.style.display = 'none';
+    render(scene, labels) {
+      // HUD 항목 — counter / flag 를 Registry 특성대로 표시
+      const parts: string[] = [];
+      for (const item of scene.hud) {
+        const traits = hudTraits(item.id);
+        if (item.kind === 'counter') {
+          const value = item.value as number;
+          parts.push(
+            `<span class="hud-item">${traits.icon ?? ''} ${traits.label}: ${value}</span>`,
+          );
+          // 획득 토스트 — counter 증가 감지 (판정이 아니라 Snapshot 값 변화 표시)
+          const prev = lastCounters.get(item.id);
+          if (traits.celebrateGain && prev !== undefined && value > prev) {
+            toast.textContent = `+${value - prev} ${traits.label} 획득!`;
+            toastUntil = performance.now() + 1600;
+          }
+          lastCounters.set(item.id, value);
+        } else {
+          parts.push(
+            `<span class="hud-item hud-flag" data-on="${item.value}">${traits.label} ${item.value ? '✓' : '✗'}</span>`,
+          );
+        }
       }
-
-      // 획득 토스트 — Snapshot 의 Stone 증가를 감지해 잠시 표시
-      if (model.stoneCount > lastStone) {
-        toast.textContent = `+${model.stoneCount - lastStone} Stone 획득!`;
-        toastUntil = performance.now() + 1600;
-      }
-      lastStone = model.stoneCount;
+      items.innerHTML = parts.join('');
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
 
-      if (model.mineAvailable) {
-        hint.textContent = '[E] 채굴';
+      // 조작 안내 — 이동(엔진 기본) + 키 바인딩이 등록된 interaction 들
+      const keyLines = ['이동: WASD / 방향키'];
+      for (const i of scene.interactions) {
+        const t = interactionTraits(i.role);
+        if (t.key && t.promptLabel) keyLines.push(`${t.promptLabel}: ${t.keyLabel ?? t.key}`);
+      }
+      keys.innerHTML = keyLines.join('<br/>');
+
+      // entity 라벨 (worldToScreen 투영 결과)
+      labelLayer.innerHTML = labels
+        .map(
+          (l) =>
+            `<div class="hud-label" style="left:${l.x}px;top:${l.y}px;display:block">${l.text}</div>`,
+        )
+        .join('');
+
+      // 프롬프트 — 키 바인딩 interaction 중: 가용한 것 우선, 아니면 사유 표시
+      const keyed = scene.interactions.filter((i) => interactionTraits(i.role).key);
+      const active = keyed.find((i) => i.available) ?? keyed.find((i) => i.reason);
+      if (active && active.available) {
+        const t = interactionTraits(active.role);
+        hint.textContent = `[${t.keyLabel ?? t.key}] ${t.promptLabel ?? active.role}`;
         hint.dataset.state = 'available';
-      } else if (model.mineReason === 'out-of-range') {
-        // 이동 중 상시 노출은 소음이라 잔잔하게 — 사유는 접근 안내로만
-        hint.textContent = reasonText(model.mineReason);
+      } else if (active?.reason) {
+        hint.textContent = reasonText(active.reason);
         hint.dataset.state = 'unavailable';
       } else {
-        hint.textContent = model.mineReason ? reasonText(model.mineReason) : '';
-        hint.dataset.state = 'unavailable';
+        hint.textContent = '';
       }
     },
   };

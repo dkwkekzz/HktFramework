@@ -1,24 +1,19 @@
-// Scene State — GameView Snapshot 을 해석한 View 내부 표현 상태.
-// 렌더러는 이 상태만 소비한다.
+// Scene State — GameView Snapshot 을 해석한 View 내부 표현 상태 (범용).
+// 렌더러·HUD 는 이 상태만 소비한다. 구조는 Cycle 이 늘어도 바뀌지 않는다.
 
-import type { MineFailureReason } from '../../protocol/gameview';
+import type { HudItemView, InteractionView } from '../../protocol/gameview';
 
 export interface SceneEntity {
-  key: 'player' | 'deposit';
-  spriteId: string; // Asset Registry 키 — role:state
+  id: string;
+  role: string;
+  spriteId: string; // `${role}:${state}` — Asset Registry 키
   position: { x: number; z: number };
-}
-
-export interface HudModel {
-  stoneCount: number;
-  hasMiningTool: boolean;
-  mineAvailable: boolean;
-  mineReason: MineFailureReason | null;
-  depositRemaining: number;
+  labelValue?: number | string;
 }
 
 export interface SceneState {
+  specId: string;
   entities: SceneEntity[];
-  hud: HudModel;
-  mineTargetDepositId: string;
+  interactions: InteractionView[];
+  hud: HudItemView[];
 }

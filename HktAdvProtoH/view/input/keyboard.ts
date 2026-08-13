@@ -1,11 +1,12 @@
-// Keyboard Input — WASD/방향키 이동 방향과 E(채굴) 입력을 추적한다.
-// 상태를 바꾸지 않는다 — 조립 루트가 이 방향을 Move Action Request 로 변환한다.
+// Keyboard Input (범용 엔진) — 이동 방향키와 그 외 눌린 키 코드를 추적한다.
+// 어떤 키가 어떤 interaction 인지는 Interaction Registry 가 정한다.
+// 상태를 바꾸지 않는다 — 조립 루트가 이를 Action Request 로 변환한다.
 
 export interface KeyboardState {
   /** 현재 눌린 이동 방향 (정규화, 없으면 null) */
   direction(): { x: number; z: number } | null;
-  /** E 가 이번에 눌렸으면 true 를 한 번만 돌려준다 */
-  consumeMinePressed(): boolean;
+  /** 이번 프레임에 눌린 (이동 외) 키 코드들을 한 번만 돌려준다 */
+  consumeKeyPresses(): string[];
 }
 
 const MOVE_KEYS: Record<string, { x: number; z: number }> = {
@@ -21,14 +22,15 @@ const MOVE_KEYS: Record<string, { x: number; z: number }> = {
 
 export function attachKeyboard(): KeyboardState {
   const pressed = new Set<string>();
-  let minePressed = false;
+  let keyPresses: string[] = [];
 
   window.addEventListener('keydown', (ev) => {
     if (ev.code in MOVE_KEYS) {
       pressed.add(ev.code);
       ev.preventDefault();
+      return;
     }
-    if (ev.code === 'KeyE' && !ev.repeat) minePressed = true;
+    if (!ev.repeat) keyPresses.push(ev.code);
   });
   window.addEventListener('keyup', (ev) => pressed.delete(ev.code));
   window.addEventListener('blur', () => pressed.clear());
@@ -48,9 +50,9 @@ export function attachKeyboard(): KeyboardState {
       const len = Math.sqrt(x * x + z * z);
       return { x: x / len, z: z / len };
     },
-    consumeMinePressed() {
-      const was = minePressed;
-      minePressed = false;
+    consumeKeyPresses() {
+      const was = keyPresses;
+      keyPresses = [];
       return was;
     },
   };

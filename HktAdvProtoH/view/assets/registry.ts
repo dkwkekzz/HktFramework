@@ -101,6 +101,27 @@ const PIXEL_MAPS: Record<string, string[]> = {
   'resource-deposit:depleted': DEPOSIT_DEPLETED,
 };
 
+// 미등록 spriteId 용 placeholder — 새 Cycle 의 role 이 아직 등록되지 않아도
+// 게임이 멈추지 않고 일단 그려진다 (엔진의 "그대로 그린다" 성질).
+const PLACEHOLDER = [
+  '................',
+  '.MMMMMMMMMMMMM..',
+  '.M..........eM..',
+  '.M.ee....ee.eM..',
+  '.M.ee....ee.eM..',
+  '.M..........eM..',
+  '.M..........eM..',
+  '.M....ee....eM..',
+  '.M...e..e...eM..',
+  '.M..e....e..eM..',
+  '.M..........eM..',
+  '.MeeeeeeeeeeeM..',
+  '.MMMMMMMMMMMMM..',
+  '................',
+  '................',
+  '................',
+];
+
 const SCALE = 8; // 16px 그리드 → 128px 캔버스 (Nearest 필터로 픽셀 느낌 유지)
 const cache = new Map<string, HTMLCanvasElement>();
 
@@ -108,8 +129,7 @@ export function spriteCanvas(spriteId: string): HTMLCanvasElement {
   const cached = cache.get(spriteId);
   if (cached) return cached;
 
-  const map = PIXEL_MAPS[spriteId];
-  if (!map) throw new Error(`등록되지 않은 sprite: ${spriteId}`);
+  const map = PIXEL_MAPS[spriteId] ?? PLACEHOLDER;
 
   const canvas = document.createElement('canvas');
   canvas.width = 16 * SCALE;

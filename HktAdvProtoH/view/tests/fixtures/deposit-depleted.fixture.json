@@ -1,24 +1,33 @@
 {
-  "id": "VIEW-STONE-MINING-001",
+  "specId": "VIEW-STONE-MINING-001",
   "scene": "mining-field",
-  "entities": {
-    "player": { "role": "player-character", "position": { "x": 7.5, "z": -5.5 }, "state": "idle" },
-    "deposit": {
-      "role": "resource-deposit",
-      "resourceKind": "stone",
+  "entities": [
+    {
+      "id": "player",
+      "role": "player-character",
+      "state": "idle",
+      "position": { "x": 7.5, "z": -5.5 }
+    },
+    {
       "id": "deposit-1",
-      "position": { "x": 8, "z": -6 },
+      "role": "resource-deposit",
       "state": "depleted",
-      "remaining": 0
+      "position": { "x": 8, "z": -6 },
+      "labelValue": 0
     }
-  },
-  "interactions": {
-    "move": { "role": "move-to", "available": true },
-    "mine": { "role": "mine-deposit", "available": false, "unavailableReason": "deposit-depleted" }
-  },
-  "hud": {
-    "inventory": { "stone": 5 },
-    "tool": { "hasMiningTool": true },
-    "mineHint": { "available": false, "reason": "deposit-depleted" }
-  }
+  ],
+  "interactions": [
+    { "id": "move", "role": "move-to", "available": true },
+    {
+      "id": "mine",
+      "role": "mine-deposit",
+      "targetEntityId": "deposit-1",
+      "available": false,
+      "reason": "deposit-depleted"
+    }
+  ],
+  "hud": [
+    { "id": "inventory.stone", "kind": "counter", "value": 5 },
+    { "id": "tool.hasMiningTool", "kind": "flag", "value": true }
+  ]
 }

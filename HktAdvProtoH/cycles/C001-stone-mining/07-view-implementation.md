@@ -43,6 +43,19 @@
     지형 클릭 이동 → "광맥을 클릭해 캐자!" → 광맥 클릭 →
     HUD Stone: 1 · 광맥 잔량: 4. 콘솔 에러 없음. (Human Play 확인은 Stage 8 이후)
 
+    [범용 엔진 리팩터링 — Human 피드백 반영: "같은 것을 그리는 View 코드는 Cycle 간 불변"]
+    protocol Snapshot 을 범용 구조(entities[]/interactions[]/hud[] 배열)로 전환.
+    View 엔진(gameview/renderer/hud/input)은 배열을 순회할 뿐 특정 role·id 를 모른다.
+    Cycle 별 표현은 view/engine/ 의 Registry 데이터로만 존재:
+        role-registry         role → 스케일·카메라 추적·트레일·라벨 형식
+        interaction-registry  interaction role → 키 바인딩·프롬프트·지형 대상
+        hud-registry          hud id → 라벨·아이콘·획득 토스트
+        assets/registry       role:state → 픽셀 스프라이트 (미등록은 placeholder)
+        hud/reason-text       사유 코드 → 문구 (미등록은 코드 그대로)
+    다음 Cycle 부터 View 작업 = Registry 항목 추가 (+ 새 표현 패턴 시에만 엔진 확장).
+    미등록 role 도 기본 특성·placeholder 로 그려짐 — 테스트로 고정 (14 passed).
+    검증: tsc·build 통과, 키보드 스모크 재현 (Stone: 1 · 잔량 4 · 토스트 · 콘솔 에러 0).
+
     [표현 업그레이드 — Human 피드백 반영]
     구릉 3D 지형(시각 높이 — 게임 판정은 평면 x,z 그대로) · 픽셀아트 스프라이트
     (16x16 그리드 + Nearest 필터) · WASD/방향키 연속 이동 + E 채굴 ·

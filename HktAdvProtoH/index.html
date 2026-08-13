@@ -11,12 +11,13 @@
     #hud { position: absolute; inset: 0; pointer-events: none; }
     .hud-panel {
       position: absolute; top: 14px; left: 14px;
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; gap: 14px;
       background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
       padding: 9px 16px; border-radius: 10px;
       font-size: 17px; font-weight: 700; letter-spacing: 0.2px;
     }
-    .hud-icon { font-size: 18px; }
+    .hud-item { white-space: nowrap; }
+    .hud-flag[data-on="false"] { opacity: 0.45; }
     .hud-keys {
       position: absolute; top: 12px; right: 14px;
       color: rgba(40, 48, 60, 0.75); font-size: 12.5px; text-align: right; line-height: 1.7;
