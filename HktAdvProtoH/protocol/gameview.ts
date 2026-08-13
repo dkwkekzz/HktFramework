@@ -21,6 +21,8 @@ export interface EntityView {
   kind?: string; // CharacterKind 등 종류 식별자 (C002) — 어떤 모습으로 그릴지는 View 책임
   progress?: number; // 0..1 — 진행 중인 행동의 진행도 (C002). 없으면 진행 개념이 없는 상태
   targetEntityId?: string; // 현재 상태의 대상 (C002) — 없을 수 있음
+  attended?: boolean; // 그 몸을 지금 조종하는 이가 있는가 (C004).
+  // role = other-player-character 에만 실린다. 거짓이면 그 사람은 떠났고 몸만 남은 것이다.
 }
 
 export interface InteractionView {
@@ -38,9 +40,17 @@ export interface HudItemView {
   progress?: number; // 0..1 — 값에 진행도가 동반되는 경우 (C002)
 }
 
+// 이 관찰 결과를 받는 이가 누구인가 (C004 ADDED).
+// 관찰 결과는 관찰자마다 따로 만들어진다 — 화면 속 어느 것이 내 몸인지 이것으로 안다.
+export interface ObserverView {
+  id: string; // Observer.Id — 관찰자가 밝힌 자기 식별
+  characterId: string; // Observer.ActorId — 세계가 정해 준 내 몸
+}
+
 export interface GameViewSnapshot {
   specId: string; // 이 Snapshot 을 계약하는 GameView Specification ID
   scene: string; // Scene 이름 (예: mining-field)
+  observer: ObserverView; // C004 ADDED — 이 관찰 결과의 수신자
   entities: EntityView[];
   interactions: InteractionView[];
   hud: HudItemView[];

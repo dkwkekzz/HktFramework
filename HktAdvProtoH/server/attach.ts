@@ -1,8 +1,12 @@
 // WebSocket 부착 — World Host 를 실제 전송 위에 올린다 (C003).
 //
 // 관찰자 하나가 붙을 때마다 소켓 하나. 소켓으로 나가는 것은 관찰 결과뿐이고,
-// 들어오는 것은 Action Request 뿐이다 (protocol/transport.ts).
+// 들어오는 것은 자기 식별(join)과 Action Request 뿐이다 (protocol/transport.ts).
 // 판정 결과는 되돌려 보내지 않는다 — 요청이 받아들여졌는지는 관찰 결과로 드러난다.
+//
+// C004 — 소켓이 열렸다고 관찰자가 된 것이 아니다. 자신을 밝히기 전까지는
+// 세계에 아무것도 도착하지 않는다. 밝힌 뒤에는 그 소켓으로 오는 모든 요청이
+// 그 관찰자의 것으로 도착한다 — 요청에 주체를 적을 자리는 없다.
 
 import type { IncomingMessage, Server as HttpServer } from 'node:http';
 import type { Duplex } from 'node:stream';
@@ -32,20 +36,40 @@ export function attachWorldServer(httpServer: HttpServer, host: WorldHost): Atta
   httpServer.on('upgrade', onUpgrade);
 
   wss.on('connection', (socket: WebSocket) => {
-    const detach = host.attach((snapshot) => {
-      if (socket.readyState !== socket.OPEN) return;
-      const message: ObservationMessage = { type: 'observation', snapshot };
-      socket.send(JSON.stringify(message));
-    });
+    let observerId: string | null = null;
+    let detach: (() => void) | null = null;
+
+    const close = (): void => {
+      detach?.();
+      detach = null;
+    };
 
     socket.on('message', (raw) => {
       const message = parseClientMessage(String(raw));
       if (!message) return; // 알 수 없는 것은 무시한다 — 세계를 흔들 수 없다
-      host.receive(message.action);
+
+      if (message.type === 'join') {
+        if (observerId !== null) return; // 이어짐당 한 번만 밝힌다
+        observerId = message.observerId;
+        detach = host.attach(
+          observerId,
+          (snapshot) => {
+            if (socket.readyState !== socket.OPEN) return;
+            const observation: ObservationMessage = { type: 'observation', snapshot };
+            socket.send(JSON.stringify(observation));
+          },
+          // 같은 관찰자가 다른 곳에서 들어왔다 — 이 이어짐은 몸을 잃었으므로 닫는다.
+          () => socket.close(),
+        );
+        return;
+      }
+
+      if (observerId === null) return; // 밝히기 전의 요청은 세계에 도착하지 않는다
+      host.receive(observerId, message.action);
     });
 
-    socket.on('close', detach);
-    socket.on('error', detach);
+    socket.on('close', close);
+    socket.on('error', close);
   });
 
   host.startClock(); // 관찰자가 없어도 세계는 돈다

@@ -1,33 +1,45 @@
 // Authoritative World — C001 Stone Mining · C002 Character Action · C003 Server Separation
+//                       · C004 Multi Observer
 // State 는 이 모듈 내부에만 존재한다. 밖으로 나가는 것은 Tick 이 내보내는 관찰 결과뿐이고,
-// 안으로 들어오는 것은 Action Request 뿐이다 (World Authority).
+// 안으로 들어오는 것은 참여/이탈과 Action Request 뿐이다 (World Authority).
 
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { projectPlayerView } from './projection/player-view';
 import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
 import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
-import { ruleWorldTick, type WorldTickResult } from './simulation/world-tick';
+import { DEFAULT_BODY, type BodyDefaults } from './rules/observer-join';
+import {
+  ruleWorldTick,
+  type PendingObserverEvent,
+  type PendingRequest,
+  type WorldTickResult,
+} from './simulation/world-tick';
 import {
   ATTACK_RANGE,
-  MOVE_SPEED,
   NPC_MOVE_SPEED,
   PERCEPTION_RANGE,
+  SPAWN_POINTS,
   WORLD_BOUNDS,
   type WorldState,
 } from './semantic/world-state';
 
 // C003 CHANGED — 세계는 요청을 "받아 두고" 자기 Tick 에 판정한다.
-// 외부가 상태를 읽어 가는 경로(pull)는 없다 — 관찰 결과는 Tick 이 내보낸다.
+// C004 CHANGED — 관찰자가 누구인지 세계가 알아야 하므로 참여/이탈이 경계에 생겼고,
+//                요청은 어느 이어짐으로 왔는지와 함께 도착한다.
+//                외부가 상태를 읽어 가는 경로(pull)는 여전히 없다.
 export interface World {
+  /** 관찰자가 자신을 밝히고 들어온다. 다음 Tick 이 RULE-OBSERVER-JOIN-001 로 판정한다 */
+  join(observerId: string): void;
+  /** 관찰자가 이어짐을 잃었다. 다음 Tick 이 RULE-OBSERVER-LEAVE-001 로 판정한다 */
+  leave(observerId: string): void;
   /** 요청이 세계에 도착한다. 즉시 판정되지 않는다 (INTENT-REMOTE-REQUEST-001) */
-  request(action: ActionRequest): void;
+  request(observerId: string, action: ActionRequest): void;
   /** RULE-WORLD-TICK-001 — 세계의 시계만이 부른다 (검증 시에는 테스트가 직접 부른다) */
   tick(dt: number): WorldTickResult;
-  /** 마지막 Tick 이 내보낸 관찰 결과. 새로 만들지 않는다 — 이미 나간 것을 되돌려줄 뿐 */
-  latestObservation(): GameViewSnapshot;
+  /** 그 관찰자에게 마지막으로 나간 관찰 결과. 새로 만들지 않는다 */
+  latestObservation(observerId: string): GameViewSnapshot | null;
 }
 
 export interface NpcSetup {
@@ -39,6 +51,7 @@ export interface NpcSetup {
 }
 
 export interface WorldSetup {
+  /** 첫 번째 관찰자의 몸이 놓일 자리 — 검증용 초기 배치 (SPAWN_POINTS[0] 를 대신한다) */
   actorPosition?: { x: number; z: number };
   actorItems?: Partial<Record<'stone' | 'pickaxe', number>>;
   actorCharacterKind?: string;
@@ -73,20 +86,8 @@ const DEFAULT_NPCS: NpcSetup[] = [
 ];
 
 export function createWorld(setup: WorldSetup = {}): World {
-  const player: ActorState = {
-    id: 'player',
-    characterKind: setup.actorCharacterKind ?? 'rabbit-swordsman',
-    control: 'player',
-    position: setup.actorPosition ?? { x: 0, z: 0 },
-    moveSpeed: MOVE_SPEED,
-    attackRange: ATTACK_RANGE,
-    perceptionRange: PERCEPTION_RANGE,
-    wanderPath: [],
-    wanderIndex: 0,
-    inventory: createInventory(setup.actorItems ?? { pickaxe: 1 }),
-    currentAction: idleAction(),
-  };
-
+  // C004 CHANGED — 세계가 시작할 때 조종되는 몸은 없다.
+  // 몸은 관찰자가 들어올 때 RULE-OBSERVER-JOIN-001 이 만든다.
   const npcs: ActorState[] = (setup.npcs ?? DEFAULT_NPCS).map((npc) => ({
     id: npc.id,
     characterKind: npc.characterKind ?? 'wanderer',
@@ -103,7 +104,7 @@ export function createWorld(setup: WorldSetup = {}): World {
 
   const state: WorldState = {
     bounds: WORLD_BOUNDS,
-    actors: [player, ...npcs],
+    actors: npcs,
     deposits: [
       {
         id: 'deposit-1',
@@ -113,21 +114,39 @@ export function createWorld(setup: WorldSetup = {}): World {
       },
     ],
     time: 0,
+    observers: [],
   };
 
-  // 도착했지만 아직 판정되지 않은 요청들 — 다음 Tick 의 처리 대상이다.
-  const pending: ActionRequest[] = [];
-  let latest: GameViewSnapshot = projectPlayerView(state);
+  // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.
+  const bodyDefaults: BodyDefaults = {
+    characterKind: setup.actorCharacterKind ?? DEFAULT_BODY.characterKind,
+    items: setup.actorItems ?? DEFAULT_BODY.items,
+    spawnPoints: setup.actorPosition
+      ? [{ x: setup.actorPosition.x, z: setup.actorPosition.z }, ...SPAWN_POINTS.slice(1)]
+      : SPAWN_POINTS,
+  };
+
+  // 도착했지만 아직 처리되지 않은 것들 — 다음 Tick 의 처리 대상이다.
+  const pendingObservers: PendingObserverEvent[] = [];
+  const pending: PendingRequest[] = [];
+  // 관찰자마다 마지막으로 나간 관찰 결과. 세계는 이미 내보낸 것을 되돌려줄 뿐이다.
+  const latest = new Map<string, GameViewSnapshot>();
 
   return {
-    request: (action) => {
-      pending.push(action);
+    join: (observerId) => {
+      pendingObservers.push({ kind: 'join', observerId });
+    },
+    leave: (observerId) => {
+      pendingObservers.push({ kind: 'leave', observerId });
+    },
+    request: (observerId, action) => {
+      pending.push({ observerId, action });
     },
     tick: (dt) => {
-      const result = ruleWorldTick(state, dt, pending);
-      latest = result.snapshot;
+      const result = ruleWorldTick(state, dt, pendingObservers, pending, bodyDefaults);
+      for (const [observerId, snapshot] of result.observations) latest.set(observerId, snapshot);
       return result;
     },
-    latestObservation: () => latest,
+    latestObservation: (observerId) => latest.get(observerId) ?? null,
   };
 }

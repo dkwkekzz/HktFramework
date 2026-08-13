@@ -3,10 +3,10 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld } from './drive';
+import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };
-const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'player');
+const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MOVE-001', () => {

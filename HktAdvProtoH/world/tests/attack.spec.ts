@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld } from './drive';
+import { driveWorld, PLAYER } from './drive';
 
 const ATTACK_DURATION = 0.6;
 const HIT_DURATION = 0.35;
@@ -26,21 +26,21 @@ describe('RULE-ATTACK-001 — 대상 없이 휘두른다', () => {
     const result = world.dispatch({ interactionId: 'attack' });
 
     expect(result).toEqual({ status: 'success', rule: 'RULE-ATTACK-001' });
-    expect(actor(world.observe(), 'player')?.state).toBe('attack');
+    expect(actor(world.observe(), PLAYER)?.state).toBe('attack');
   });
 
   it('멀리 있는 캐릭터가 있어도 마찬가지로 시작된다 (사거리는 시작 조건이 아니다)', () => {
     const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [dummyAt(18, 18)] });
 
     expect(world.dispatch({ interactionId: 'attack' }).status).toBe('success');
-    expect(actor(world.observe(), 'player')?.state).toBe('attack');
+    expect(actor(world.observe(), PLAYER)?.state).toBe('attack');
   });
 
   it('공격 행동에는 대상이 실리지 않는다', () => {
     const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [dummyAt(1, 0)] });
     world.dispatch({ interactionId: 'attack' });
 
-    expect(actor(world.observe(), 'player')?.targetEntityId).toBeUndefined();
+    expect(actor(world.observe(), PLAYER)?.targetEntityId).toBeUndefined();
   });
 
   it('공격의 유일한 실패 사유는 action-busy 다', () => {
@@ -63,7 +63,7 @@ describe('RULE-ATTACK-001 — 대상 없이 휘두른다', () => {
     world.tick(0.05);
 
     expect(world.dispatch({ interactionId: 'attack' }).status).toBe('success');
-    expect(actor(world.observe(), 'player')?.state).toBe('attack');
+    expect(actor(world.observe(), PLAYER)?.state).toBe('attack');
   });
 });
 
@@ -78,7 +78,7 @@ describe('RULE-ATTACK-COMPLETE-001 — 끝나는 순간의 범위가 정한다',
     world.tick(ATTACK_DURATION / 2);
     const view = world.observe();
     expect(actor(view, 'npc-1')?.state).toBe('hit');
-    expect(actor(view, 'player')?.state).toBe('idle'); // 공격자는 대기로 돌아간다
+    expect(actor(view, PLAYER)?.state).toBe('idle'); // 공격자는 대기로 돌아간다
   });
 
   it('범위 밖의 캐릭터는 맞지 않는다', () => {
@@ -94,7 +94,7 @@ describe('RULE-ATTACK-COMPLETE-001 — 끝나는 순간의 범위가 정한다',
     world.dispatch({ interactionId: 'attack' });
     world.tick(ATTACK_DURATION);
 
-    expect(actor(world.observe(), 'player')?.state).toBe('idle');
+    expect(actor(world.observe(), PLAYER)?.state).toBe('idle');
   });
 
   it('범위 안에 여럿이면 여럿이 맞는다 (대상을 고르지 않으므로)', () => {
@@ -164,7 +164,7 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
     for (let i = 0; i < 20; i++) world.tick(1 / 30); // 0.67초
     const view = world.observe();
     expect(actor(view, 'npc-1')?.state).toBe('attack'); // 다음 휘두름을 이미 시작했을 수 있다
-    expect(actor(view, 'player')?.state).toBe('hit'); // 채굴이 끊겼다
+    expect(actor(view, PLAYER)?.state).toBe('hit'); // 채굴이 끊겼다
   });
 
   it('피격 중에는 요청이 거부된다 (hit 은 Replaceable 이 아니다)', () => {
@@ -174,7 +174,7 @@ describe('RULE-HIT-001 — 맞으면 하던 일이 끊긴다', () => {
     });
 
     for (let i = 0; i < 20; i++) world.tick(1 / 30); // NPC 가 휘둘러 플레이어를 때린다
-    expect(actor(world.observe(), 'player')?.state).toBe('hit');
+    expect(actor(world.observe(), PLAYER)?.state).toBe('hit');
 
     expect(world.dispatch({ interactionId: 'move', position: { x: 5, z: 5 } })).toEqual({
       status: 'failure',
