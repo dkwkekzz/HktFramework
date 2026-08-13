@@ -13,7 +13,11 @@ motions/<캐릭터종류>/<행동>[.<옵션>…].png
 | 자리 | 뜻 | 값 |
 |---|---|---|
 | `<캐릭터종류>` | 폴더 이름이 곧 캐릭터 종류다 | World 의 `Actor.CharacterKind` 와 같은 문자열 (`rabbit-swordsman`, `wanderer`, …) |
-| `<행동>` | 파일 이름의 첫 토큰이 곧 행동이다 | `idle` · `move` · `attack` · `mine` — 이후 추가되는 행동도 같은 방식 |
+| `<행동>` | 파일 이름의 첫 토큰이 곧 행동이다 | `idle` · `move` · `attack` · `mine` · `hit` — 이후 추가되는 행동도 같은 방식 |
+
+행동 이름은 World 의 `ActionKind`(`world/semantic/action.ts`) 와 같은 문자열이다.
+`hit`(피격) 은 스스로 요청하는 행동이 아니라 남의 공격이 만들어 주는 행동이지만,
+화면에서는 다른 행동과 똑같이 다뤄진다 — 시트를 놓으면 그대로 재생된다.
 
 확장자는 `.png` 또는 `.webp`.
 
@@ -46,7 +50,10 @@ motions/slime/idle.cols3rows3frames9.png          생성기가 내보낸 표기�
 | 행동 | 재생 |
 |---|---|
 | 대기 · 이동 (소요 시간 없음) | `fps` 속도로 **반복** |
-| 공격 · 채굴 (소요 시간 있음) | 그 행동의 **진행도 0→1 에 맞춰 1회** — 모션이 행동과 정확히 같이 끝난다 |
+| 공격 · 채굴 · 피격 (소요 시간 있음) | 그 행동의 **진행도 0→1 에 맞춰 1회** — 모션이 행동과 정확히 같이 끝난다 |
+
+소요 시간은 World 가 정한다 — `attack` 0.6초 · `mine` 1.2초 · `hit` 0.35초
+(`ACTION_DEFINITIONS`). 진행도로 재생되는 행동에서는 `fps` 토큰이 쓰이지 않는다.
 
 ## 데이터가 없을 때
 
@@ -63,11 +70,23 @@ motions/slime/idle.cols3rows3frames9.png          생성기가 내보낸 표기�
 
 | 종류 | 파일 | 쓰는 캐릭터 |
 |---|---|---|
-| `rabbit-swordsman` | `idle.3x3.9f.8fps.png` | 플레이어 |
-| `wanderer` | `idle.3x3.9f.8fps.png` | NPC (자율 캐릭터) |
+| 종류 | `idle` | `move` | `attack` | `hit` | `mine` |
+|---|---|---|---|---|---|
+| `rabbit-swordsman` (플레이어) | `3x3.9f.8fps` | `3x3.9f.8fps` | `3x3.9f.12fps` | `3x3.9f.12fps` | 없음 → `idle` |
+| `wanderer` (NPC) | `3x3.9f.8fps` | `3x3.9f.8fps` | `3x3.9f.12fps` | `3x3.9f.12fps` | 없음 → `idle` |
 
-**둘은 지금 같은 그림이다** — NPC 전용 모션이 아직 없어 임시로 같은 시트를 넣어 두었다.
+`attack` 과 `hit` 은 소요 시간이 있는 행동이라 진행도 0→1 에 맞춰 1회 재생된다 —
+`12fps` 는 진행도 없이 재생될 때만 쓰이는 값이다.
+
+**두 종류는 지금 같은 그림이다** — NPC 전용 모션이 아직 없어 임시로 같은 시트를 넣어 두었다.
 NPC 모션을 바꾸려면 `motions/wanderer/` 안의 파일만 갈아 끼우면 된다. 코드는 손대지 않는다.
+
+아직 비어 있는 자리 — 시트를 놓기만 하면 바로 재생된다.
+
+```text
+motions/rabbit-swordsman/mine.<격자>.png    채굴 (지금은 idle 로 대체된다)
+motions/wanderer/mine.<격자>.png            NPC 채굴
+```
 
 ## 새 캐릭터를 추가하려면
 
