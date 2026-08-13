@@ -1,52 +1,33 @@
 {
   "specId": "VIEW-STONE-MINING-001",
-  "scene": { "terrain": "field" },
+  "scene": "mining-field",
   "entities": [
     {
       "id": "player",
-      "position": { "x": 7.5, "z": -5.5 },
-      "representation": {
-        "kind": "sprite",
-        "sprite": "player-pickaxe",
-        "variant": "idle",
-        "size": 2.6,
-        "cameraFollow": true,
-        "trail": true
-      }
+      "role": "player-character",
+      "state": "idle",
+      "position": { "x": 7.5, "z": -5.5 }
     },
     {
       "id": "deposit-1",
+      "role": "resource-deposit",
+      "state": "depleted",
       "position": { "x": 8, "z": -6 },
-      "representation": {
-        "kind": "sprite",
-        "sprite": "stone-deposit",
-        "variant": "depleted",
-        "size": 3.4,
-        "label": "돌 0"
-      }
+      "labelValue": 0
     }
   ],
   "interactions": [
-    { "id": "move", "terrainTarget": true, "available": true },
+    { "id": "move", "role": "move-to", "available": true },
     {
       "id": "mine",
+      "role": "mine-deposit",
       "targetEntityId": "deposit-1",
       "available": false,
-      "key": "KeyE",
-      "keyLabel": "E",
-      "prompt": "채굴",
-      "unavailableText": "광맥이 고갈되었다"
+      "reason": "deposit-depleted"
     }
   ],
   "hud": [
-    {
-      "id": "inventory.stone",
-      "widget": "counter",
-      "label": "Stone",
-      "icon": "⛏",
-      "value": 5,
-      "celebrateGain": true
-    },
-    { "id": "tool.hasMiningTool", "widget": "flag", "label": "곡괭이", "value": true }
+    { "id": "inventory.stone", "kind": "counter", "value": 5 },
+    { "id": "tool.hasMiningTool", "kind": "flag", "value": true }
   ]
 }

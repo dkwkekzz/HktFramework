@@ -8,13 +8,13 @@ const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'player'
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MOVE-001', () => {
-  it('Bounds 안 지점 → MoveTarget 설정, moving variant 관찰', () => {
+  it('Bounds 안 지점 → MoveTarget 설정, moving 상태 관찰', () => {
     const world = createWorld();
 
     const result = world.dispatch({ interactionId: 'move', position: { x: 8, z: -6 } });
 
     expect(result).toEqual({ status: 'success', rule: 'RULE-MOVE-001' });
-    expect(player(world.projectPlayerView())?.representation.variant).toBe('moving');
+    expect(player(world.projectPlayerView())?.state).toBe('moving');
   });
 
   it('Bounds 밖 지점 → Failure(out-of-bounds), idle 유지', () => {
@@ -23,7 +23,7 @@ describe('RULE-MOVE-001', () => {
     const result = world.dispatch({ interactionId: 'move', position: { x: 999, z: 0 } });
 
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MOVE-001', reason: 'out-of-bounds' });
-    expect(player(world.projectPlayerView())?.representation.variant).toBe('idle');
+    expect(player(world.projectPlayerView())?.state).toBe('idle');
   });
 });
 
@@ -35,17 +35,17 @@ describe('RULE-MOVE-PROGRESS-001', () => {
     world.tick(0.5);
     let p = player(world.projectPlayerView());
     expect(p?.position.x).toBeCloseTo(3);
-    expect(p?.representation.variant).toBe('moving');
+    expect(p?.state).toBe('moving');
 
     world.tick(0.6); // 초과 진행해도 목표를 지나치지 않는다
     p = player(world.projectPlayerView());
     expect(p?.position.x).toBeCloseTo(6);
-    expect(p?.representation.variant).toBe('idle');
+    expect(p?.state).toBe('idle');
   });
 
   it('이동으로 광맥에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
     const world = createWorld({ actorPosition: { x: 0, z: 0 } });
-    expect(mine(world.projectPlayerView())?.unavailableText).toContain('멀다');
+    expect(mine(world.projectPlayerView())?.reason).toBe('out-of-range');
 
     world.dispatch({ interactionId: 'move', position: { x: 8, z: -6 } });
     for (let i = 0; i < 60; i++) world.tick(1 / 30); // 2초 진행 — 거리 10 도달 충분

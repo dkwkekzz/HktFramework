@@ -44,33 +44,42 @@ Camera     View 의 책임
 
 ```text
 view/
-    gameview/   Render 지시 수신 · 해석 (특정 Cycle 의미를 모른다)
-    scene/      Scene State
-    renderer/   렌더링 capability (sprite billboard · terrain · trail · camera follow)
-    terrain/    3D Terrain
-    sprites/    Sprite Billboard
-    camera/     Camera
-    input/      Action Request 발신 (지시받은 대상·키로만)
-    hud/        HUD capability (counter · flag · 프롬프트 · 토스트 · 라벨)
-    assets/     Asset Registry (sprite 키 → 그림)
+    presentation/  결정 Layer — role/state/값 → 어떻게 그릴지 (Render Plan 산출)
+    scene/         Render Plan 타입 (두 Layer 의 경계)
+    renderer/      capability — sprite billboard · terrain · trail · camera follow
+    terrain/       3D Terrain
+    sprites/       Sprite Billboard
+    camera/        Camera
+    input/         capability — Plan 의 대상·키 지시대로 Action Request 발신
+    hud/           capability — counter · flag · 프롬프트 · 토스트 · 라벨
+    assets/        Asset Registry (sprite 키 → 그림)
 ```
 
-### View = Render Capability 엔진 (핵심 명제)
+### View 의 2-Layer 구조 (핵심 명제)
 
-View 는 그리기 능력만 제공한다 — "sprite 를 그려라", "지형을 그려라",
-"라벨을 붙여라", "counter 를 표시하라". **무엇을 어떻게 그릴지는 각 Cycle 의
-World(Observer Projection)가 결정**해 Snapshot 의 표현 지시(sprite 키·variant·
-크기·라벨 텍스트·프롬프트 문구)로 내려보낸다. View 는 그 지시를 그대로 그린다.
+World 는 **semantic**(role/state/값/사유 코드)만 보낸다. View 는 두 Layer 로 나뉜다.
 
-새 Cycle 의 View 작업은 두 가지뿐이다.
+```text
+Semantic Snapshot (World)
+        ↓
+Presentation 결정 Layer   view/presentation/ — role 별 "어떻게 그릴지" 결정
+        ↓ Render Plan            (sprite·크기·라벨 형식·문구·키)
+Capability Layer          renderer/hud/input — 그리기 능력만 제공, 의미를 모른다
+```
 
-1. **Asset 추가** — World 지시가 참조할 새 sprite 그림 등록
+두 Layer 는 분리를 유지한다 — capability 코드에 게임 의미(role·문구)를 넣지 않고,
+결정 Layer 는 그리기 구현을 갖지 않는다.
+
+**같은 종류의 대상을 그리는 결정은 role/id 당 단일 항목이다** — 모든 Cycle 이
+`presentation/` 의 같은 항목을 공유·발전시키며, Cycle 별로 결정 코드를 분리하거나
+중복하지 않는다. 새 Cycle 의 View 작업은:
+
+1. **결정 항목 추가** — 새 role/interaction/HUD id/사유의 presentation 항목 + Asset 등록
 2. **표현이 고도화될 때만 capability 추가** — 예: sprite animation 이 필요해지면
-   representation 에 새 kind 를 더하고 그 구현만 추가한다.
-   기존 kind 로 그리던 것들의 View 코드는 수정되지 않는다.
+   그 능력을 더하고, 기존 능력으로 그리던 것들의 코드는 수정하지 않는다.
 
-지시가 미등록 sprite·미제공 지형을 참조하거나 옵션을 생략해도 엔진 기본값과
-placeholder 로 일단 그려져야 한다 — 표현 누락이 게임을 멈추지 않는다.
+미등록 role/HUD id/사유 코드도 기본 결정과 placeholder 로 일단 그려져야 한다 —
+표현 등록 누락이 게임을 멈추지 않는다.
 
 ## Output
 
@@ -93,9 +102,10 @@ placeholder 로 일단 그려져야 한다 — 표현 누락이 게임을 멈추
 - `world/` 를 import 하거나 World 내부 구현을 계약의 대체 수단으로 사용하지 않는다 — 공유는 `protocol/` 뿐이다.
 - Client 에서 World State 를 직접 변경하지 않는다.
 - Spec 에 없는 게임 의미를 View 에서 만들어내지 않는다 (예: 클라이언트 임의 판정).
-- 엔진 코드(gameview/renderer/hud/input)에 특정 entity id·sprite·게임 의미를 하드코딩하지 않는다 —
-  표현 결정은 World Projection 의 지시가 한다.
-- 기존 representation kind 의 렌더 코드를 다른 Cycle 작업 중에 수정하지 않는다
+- Capability 코드(renderer/hud/input)에 특정 role·게임 의미·문구를 하드코딩하지 않는다 —
+  결정은 presentation/ 의 role/id 단위 항목만이 한다.
+- 같은 종류 대상의 결정 코드를 Cycle 별로 분리·중복하지 않는다 — 단일 항목을 발전시킨다.
+- 기존 capability 의 렌더 코드를 다른 Cycle 작업 중에 수정하지 않는다
   (capability 자체를 고도화하는 Cycle 은 예외).
 
 ## Done When

@@ -43,20 +43,20 @@
     지형 클릭 이동 → "광맥을 클릭해 캐자!" → 광맥 클릭 →
     HUD Stone: 1 · 광맥 잔량: 4. 콘솔 에러 없음. (Human Play 확인은 Stage 8 이후)
 
-    [Render Capability 엔진 리팩터링 — Human 피드백 반영:
-     "View 는 그리기 능력만 제공, 무엇을 어떻게 그릴지는 각 Cycle 의 World 가 결정"]
-    protocol Snapshot 이 Render 지시가 됨 — entity 별 representation
-    (kind:'sprite' + sprite 키·variant·size·label 텍스트·cameraFollow·trail),
-    interaction 별 표시·입력 지시(key·prompt·unavailableText),
-    hud 위젯 지시(widget·label·icon·celebrateGain).
-    표현 결정은 전부 world/projection/player-view.ts 로 이동 —
-    sprite 선택·크기·"돌 N" 라벨·"채굴" 프롬프트·불가 문구를 World 가 정한다.
-    View 는 capability 만 제공: sprite billboard · terrain(field) · trail ·
-    camera follow · 라벨 · HUD counter/flag · 프롬프트 · 획득 토스트 · 입력 매핑.
-    view/engine/ Registry 3종·reason-text 삭제 — View 에 Cycle 별 표현 결정이 없다.
-    이후 표현 고도화(예: sprite animation)는 representation 에 새 kind 추가 +
-    View 는 그 capability 구현만 더함 — 기존 kind 렌더 코드는 불변.
-    미등록 sprite 는 placeholder, 생략 옵션은 엔진 기본값 — 테스트로 고정 (14 passed).
+    [최종 구조 — View 2-Layer 확정: Human 피드백 반영]
+    World 는 semantic(role/state/값/사유 코드)만 투영한다 (protocol 은 Semantic Snapshot).
+    View 는 두 Layer 로 분리된다:
+        결정 Layer     view/presentation/ — role/state/값 → "어떻게 그릴지" 결정
+                       role-presentation (sprite·크기·카메라·트레일·라벨 형식)
+                       interaction-presentation (키·프롬프트·지형 대상)
+                       hud-presentation (라벨·아이콘·토스트) · reason-text (문구)
+                       resolve.ts 가 Semantic Snapshot → Render Plan 으로 해석
+        Capability Layer  renderer/hud/input — 그리기 능력만 제공, 게임 의미를 모른다
+    같은 종류 대상의 결정은 role/id 당 단일 항목 — 모든 Cycle 이 공유·발전,
+    Cycle 별 결정 코드 분리·중복 금지 (가이드 MUST NOT 로 명문화).
+    새 Cycle 의 View 작업 = 결정 항목·Asset 추가 (+ 표현 고도화 시에만 capability 추가,
+    기존 capability 코드는 불변).
+    미등록 role/HUD id/사유 코드는 기본 결정·placeholder 로 소화 — 테스트로 고정 (14 passed).
     검증: tsc·build 통과, 키보드 스모크 재현 (Stone: 1 · 잔량 4 · 토스트 · 콘솔 에러 0).
 
     [표현 업그레이드 — Human 피드백 반영]

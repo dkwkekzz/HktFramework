@@ -6,8 +6,7 @@ import { createWorld } from '../index';
 
 const stoneCount = (v: GameViewSnapshot) =>
   v.hud.find((h) => h.id === 'inventory.stone')?.value;
-const deposit = (v: GameViewSnapshot) =>
-  v.entities.find((e) => e.id === 'deposit-1')?.representation;
+const deposit = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'deposit-1');
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MINE-001', () => {
@@ -22,10 +21,10 @@ describe('RULE-MINE-001', () => {
     expect(result).toEqual({ status: 'success', rule: 'RULE-MINE-001' });
     const view = world.projectPlayerView();
     expect(stoneCount(view)).toBe(1);
-    expect(deposit(view)?.label).toBe('돌 4');
+    expect(deposit(view)?.labelValue).toBe(4);
   });
 
-  it('곡괭이 없음 → Failure(no-mining-tool), 상태 불변 + 불가 문구 투영', () => {
+  it('곡괭이 없음 → Failure(no-mining-tool), 상태 불변 + 사유 코드 투영', () => {
     const world = createWorld({ actorPosition: { x: 8, z: -5 }, actorItems: {} });
 
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
@@ -33,8 +32,8 @@ describe('RULE-MINE-001', () => {
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'no-mining-tool' });
     const view = world.projectPlayerView();
     expect(stoneCount(view)).toBe(0);
-    expect(deposit(view)?.label).toBe('돌 5');
-    expect(mine(view)?.unavailableText).toBe('곡괭이가 없다');
+    expect(deposit(view)?.labelValue).toBe(5);
+    expect(mine(view)?.reason).toBe('no-mining-tool');
   });
 
   it('거리 밖 → Failure(out-of-range)', () => {
@@ -45,7 +44,7 @@ describe('RULE-MINE-001', () => {
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'out-of-range' });
   });
 
-  it('자원 고갈 → Failure(deposit-depleted), depleted variant 관찰', () => {
+  it('자원 고갈 → Failure(deposit-depleted), depleted 상태 관찰', () => {
     const world = createWorld({ actorPosition: { x: 8, z: -5 }, depositAmount: 0 });
 
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
@@ -55,19 +54,19 @@ describe('RULE-MINE-001', () => {
       rule: 'RULE-MINE-001',
       reason: 'deposit-depleted',
     });
-    expect(deposit(world.projectPlayerView())?.variant).toBe('depleted');
+    expect(deposit(world.projectPlayerView())?.state).toBe('depleted');
   });
 
   it('마지막 1개를 캐면 available → depleted 로 전이', () => {
     const world = createWorld({ actorPosition: { x: 8, z: -5 }, depositAmount: 1 });
 
-    expect(deposit(world.projectPlayerView())?.variant).toBe('available');
+    expect(deposit(world.projectPlayerView())?.state).toBe('available');
     world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
 
     const view = world.projectPlayerView();
-    expect(deposit(view)?.variant).toBe('depleted');
+    expect(deposit(view)?.state).toBe('depleted');
     expect(stoneCount(view)).toBe(1);
     expect(mine(view)?.available).toBe(false);
-    expect(mine(view)?.unavailableText).toBe('광맥이 고갈되었다');
+    expect(mine(view)?.reason).toBe('deposit-depleted');
   });
 });

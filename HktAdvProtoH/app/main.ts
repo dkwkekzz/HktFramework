@@ -3,7 +3,7 @@
 // 게임 의미를 알지 못한다 — Snapshot 의 지시(키·대상·라벨)만으로 배선한다.
 
 import { createWorld } from '../world/index';
-import { interpretGameView } from '../view/gameview/interpret';
+import { resolvePresentation } from '../view/presentation/resolve';
 import { createHud, type EntityLabel } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
@@ -18,7 +18,7 @@ const renderer = createRenderer(container);
 const hud = createHud(container);
 const keyboard = attachKeyboard();
 
-let latestScene: SceneState = interpretGameView(world.projectPlayerView());
+let latestScene: SceneState = resolvePresentation(world.projectPlayerView());
 attachInput(renderer, (action) => world.dispatch(action), () => latestScene);
 
 // WASD 연속 이동 — 매 프레임 진행 방향의 조금 앞 지점을 terrainTarget interaction 으로
@@ -60,7 +60,7 @@ function frame(now: number): void {
   }
 
   world.tick(dt);
-  latestScene = interpretGameView(world.projectPlayerView());
+  latestScene = resolvePresentation(world.projectPlayerView());
 
   renderer.render(latestScene);
 
