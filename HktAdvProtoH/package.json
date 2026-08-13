@@ -4,7 +4,8 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "server": "tsx server/main.ts",
+    "world": "tsx server/main.ts",
+    "client": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run"
   },

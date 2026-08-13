@@ -11,7 +11,7 @@
         latestObservation()        마지막 Tick 이 내보낸 바로 그 값 (새로 만들지 않는다)
     World Host                     server/world-host.ts — 세계 하나 + 관찰자 목록 + 시계
     WebSocket 부착                 server/attach.ts
-    세계 프로세스 진입점            server/main.ts (`npm run server`)
+    세계 프로세스 진입점            server/main.ts (`npm run world`)
     개발 서버 부착                 vite.config.ts (`npm run dev` 한 줄 유지)
     전송 경계 타입                 protocol/transport.ts
 
@@ -47,11 +47,21 @@
     알 수 없는 메시지는 무시한다. 세계를 흔들 수 있는 입력은 ActionRequest 하나뿐이다.
 
 ## 실행 형태
-    개발    npm run dev     Vite dev 서버 프로세스 안에서 세계가 돈다 (vite.config.ts 플러그인)
-    빌드    npm run build   클라이언트만 dist/ 로 나온다
-    운영    npm run server  Node 프로세스가 세계를 돌리고 dist/ 를 함께 서빙한다
+    한 프로세스   npm run dev      세계가 Vite dev 서버 프로세스 안에서 돈다
+                                   (vite.config.ts 의 worldServerPlugin)
+    두 프로세스   npm run world    세계만 (기본 포트 5180)
+                  npm run client   클라이언트만 — HKT_WORLD_URL 의 세계로 /world 를 넘긴다
+    빌드          npm run build    클라이언트만 dist/ 로 나온다
+                  npm run world    Node 프로세스가 세계를 돌리며 dist/ 를 함께 서빙한다
 
-    두 경로 모두 같은 server/world-host.ts 를 쓴다 — 세계를 올리는 방법은 하나다.
+    실행 스크립트 (더블클릭용)
+        run.bat / run.sh          한 창에서 세계 + 클라이언트
+        run-world.bat / .sh       세계만
+        run-client.bat / .sh      클라이언트만 (HKT_WORLD_URL 로 다른 PC 의 세계에도 붙는다)
+        run-split.bat / .sh       둘을 각각 다른 창/프로세스로 한 번에
+
+    어느 경로든 같은 server/world-host.ts 를 쓴다 — 세계를 올리는 방법은 하나다.
+    클라이언트 코드는 세계가 어디 있는지 모른다. 같은 번들이 세 경로 모두에서 돈다.
 
 ## TESTS
     world/tests/world-tick.spec.ts                                              8건
