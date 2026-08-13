@@ -1,9 +1,10 @@
-// Client 조립 루트 (C003) — 여기에는 세계가 없다.
+// Client 조립 루트 (C003 · C004) — 여기에는 세계가 없다.
 //
-// 세계는 다른 프로세스에서 자기 시계로 돈다. 이 파일이 하는 일은 셋뿐이다.
-//   1. 받은 관찰 결과를 그린다 (마지막으로 받은 것이 화면이다)
-//   2. 입력을 Action Request 로 만들어 세계로 보낸다
-//   3. 이어짐 상태를 표시한다
+// 세계는 다른 프로세스에서 자기 시계로 돈다. 이 파일이 하는 일은 넷뿐이다.
+//   1. 내가 누구인지 정해 이어짐에 실어 보낸다 (C004)
+//   2. 받은 관찰 결과를 그린다 (마지막으로 받은 것이 화면이다)
+//   3. 입력을 Action Request 로 만들어 세계로 보낸다
+//   4. 이어짐 상태를 표시한다
 //
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
 
@@ -11,6 +12,7 @@ import { TRANSPORT_PATH } from '../protocol/transport';
 import { createHud, type EntityLabel } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
+import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
 import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
 import { resolvePresentation } from '../view/presentation/resolve';
 import { sessionPresentation } from '../view/presentation/session-presentation';
@@ -20,8 +22,15 @@ import type { SceneState } from '../view/scene/scene-state';
 const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
 
+// 내가 누구인지 — 보관해 두었던 것이 있으면 그것을, 없으면 하나 만들어 보관한다.
+// 다시 이을 때 같은 것을 밝히므로 같은 몸으로 돌아온다 (C004).
+const observerId = resolveObserverId(browserIdentityStorage());
+
 const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
-const link = createWorldLink(browserSocketFactory(`${wsProtocol}//${location.host}${TRANSPORT_PATH}`));
+const link = createWorldLink(
+  browserSocketFactory(`${wsProtocol}//${location.host}${TRANSPORT_PATH}`),
+  observerId,
+);
 
 const renderer = createRenderer(container);
 const hud = createHud(container);

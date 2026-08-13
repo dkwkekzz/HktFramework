@@ -10,6 +10,7 @@ import available from './fixtures/mining-available.fixture.json';
 import characterAction from './fixtures/character-action.fixture.json';
 import depleted from './fixtures/deposit-depleted.fixture.json';
 import outOfRange from './fixtures/out-of-range.fixture.json';
+import twoObservers from './fixtures/two-observers.fixture.json';
 
 describe('resolvePresentation (Semantic → Render Plan)', () => {
   it('mining-available fixture → role 결정대로 sprite·크기·라벨·프롬프트 구성', () => {
@@ -112,6 +113,47 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
   });
 });
 
+describe('C004 다중 관찰자 — 내 몸과 남의 몸을 화면에서 가른다', () => {
+  it('two-observers fixture → 내 몸만 카메라가 따라가고 남의 몸은 색으로 구분된다', () => {
+    const plan = resolvePresentation(twoObservers as GameViewSnapshot);
+
+    const mine = plan.entities.find((e) => e.id === 'player-1');
+    const other = plan.entities.find((e) => e.id === 'player-2');
+
+    expect(mine?.cameraFollow).toBe(true);
+    expect(mine?.tint).toBeUndefined(); // 내 몸은 원래 색
+    expect(other?.cameraFollow).toBe(false); // 카메라가 따라가는 것은 내 몸 하나뿐이다
+    expect(other?.tint).toBe(0xffd9a0);
+    expect(other?.spriteId).toBe('player-pickaxe:move'); // 같은 시트를 쓴다
+  });
+
+  it('조종하는 이가 없는 몸은 탈색되고 자리 비움이 표시된다', () => {
+    const plan = resolvePresentation(twoObservers as GameViewSnapshot);
+
+    const unattended = plan.entities.find((e) => e.id === 'player-3');
+    expect(unattended?.tint).toBe(0x6b6b6b);
+    expect(unattended?.label).toBe('자리 비움');
+
+    // 조종되는 중인 몸에는 그 표시가 없다
+    expect(plan.entities.find((e) => e.id === 'player-2')?.label).toBeUndefined();
+  });
+
+  it('함께 보고 있는 사람의 수가 HUD 로 표시된다', () => {
+    const plan = resolvePresentation(twoObservers as GameViewSnapshot);
+
+    const observers = plan.hud.find((h) => h.id === 'observers.present');
+    expect(observers?.label).toBe('함께');
+    expect(observers?.value).toBe('2명');
+  });
+
+  it('나만의 것은 내 몸의 것으로 표시된다 — 남의 소지품은 애초에 오지 않는다', () => {
+    const plan = resolvePresentation(twoObservers as GameViewSnapshot);
+
+    expect(plan.hud.find((h) => h.id === 'inventory.stone')?.value).toBe(0);
+    expect(plan.hud.filter((h) => h.id === 'inventory.stone')).toHaveLength(1);
+  });
+});
+
 describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정으로 소화한다', () => {
   it('미래 Cycle 의 semantic(새 role·HUD id·사유 코드)도 기본 결정으로 해석된다', () => {
     const snapshot: GameViewSnapshot = {
@@ -123,6 +165,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       interactions: [
         { id: 'trade', role: 'trade-with', targetEntityId: 'npc-1', available: false, reason: 'no-goods' },
       ],
+      observer: { id: 'observer-a', characterId: 'npc-1' },
       hud: [{ id: 'currency.gold', kind: 'counter', value: 3 }],
     };
 

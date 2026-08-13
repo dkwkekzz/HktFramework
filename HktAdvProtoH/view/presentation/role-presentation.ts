@@ -14,10 +14,23 @@ export interface RolePresentation {
   cameraFollow?: boolean;
   trail?: boolean;
   labelFormat?: (value: number | string) => string;
+  // 조종하는 이가 없을 때의 표현 (C004) — attended = false 인 대상에만 쓰인다.
+  unattendedTint?: number;
+  unattendedLabel?: string;
 }
 
 const ROLES: Record<string, RolePresentation> = {
   'player-character': { sprite: 'player-pickaxe', size: 3.4, cameraFollow: true, trail: true },
+  // 다른 관찰자의 몸 (C004) — 내 몸과 같은 시트를 쓰되 색으로 구분한다.
+  // 카메라는 따라가지 않는다. 카메라가 따라가는 것은 내 몸 하나뿐이다.
+  // 조종하는 이가 없으면 탈색하고 자리 비움을 알린다 — 세계에 남아 있지만 아무도 없다.
+  'other-player-character': {
+    sprite: 'player-pickaxe',
+    size: 3.4,
+    tint: 0xffd9a0,
+    unattendedTint: 0x6b6b6b,
+    unattendedLabel: '자리 비움',
+  },
   // NPC 는 현재 플레이어와 같은 모션 시트를 쓴다 — 누가 내 캐릭터인지 보이도록 색을 달리한다.
   // NPC 전용 시트가 들어오면 tint 를 지워도 된다.
   'npc-character': { sprite: 'wanderer', size: 2.8, tint: 0x9fb6ff },

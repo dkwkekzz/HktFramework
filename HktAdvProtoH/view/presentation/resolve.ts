@@ -48,16 +48,25 @@ export function resolvePresentation(
     entities: snapshot.entities.map((e) => {
       const p = rolePresentation(e.role);
       const motion = resolveMotion(motions, e.kind, e.state, e.progress);
+      // 조종하는 이가 없는 몸의 표현 (C004) — attended 가 실린 대상에만 해당한다.
+      const unattended = e.attended === false;
+      const tint = unattended && p.unattendedTint !== undefined ? p.unattendedTint : p.tint;
+      const label =
+        unattended && p.unattendedLabel !== undefined
+          ? p.unattendedLabel
+          : e.labelValue !== undefined
+            ? p.labelFormat
+              ? p.labelFormat(e.labelValue)
+              : String(e.labelValue)
+            : undefined;
       return {
         id: e.id,
         spriteId: `${p.sprite}:${e.state}`,
         ...(motion ? { motion } : {}),
         size: p.size,
-        ...(p.tint === undefined ? {} : { tint: p.tint }),
+        ...(tint === undefined ? {} : { tint }),
         position: e.position,
-        ...(e.labelValue !== undefined
-          ? { label: p.labelFormat ? p.labelFormat(e.labelValue) : String(e.labelValue) }
-          : {}),
+        ...(label === undefined ? {} : { label }),
         cameraFollow: p.cameraFollow ?? false,
         trail: p.trail ?? false,
       };

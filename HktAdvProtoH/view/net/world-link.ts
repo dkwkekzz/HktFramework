@@ -1,4 +1,4 @@
-// World Link — 관찰자와 세계 사이의 이어짐 (C003).
+// World Link — 관찰자와 세계 사이의 이어짐 (C003 · C004).
 //
 // INTENT-OBSERVER-LINK-001 을 구현한다. 이것은 세계의 상태가 아니라 관찰자 쪽 상태다.
 //
@@ -6,11 +6,19 @@
 //   잇는 중   아직 잇지 못했거나 다시 잇는 중
 //   끊김      끊겼고 아직 잇지 못한 상태 — 마지막으로 받은 세계를 계속 보되 stale 로 표시
 //
+// C004 — 이어짐이 열리면 가장 먼저 자신을 밝힌다 (identity.declaredOn: link-established).
+// 다시 이을 때도 같은 것을 밝히므로 같은 몸으로 돌아온다 (onReconnect.regains: same-character).
+//
 // 소켓 자체는 주입받는다 — 전송 수단 없이 검증할 수 있어야 하기 때문이다.
 
 import type { ActionRequest } from '../../protocol/actions';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { parseServerMessage, type ActionMessage, type LinkState } from '../../protocol/transport';
+import {
+  parseServerMessage,
+  type ActionMessage,
+  type JoinMessage,
+  type LinkState,
+} from '../../protocol/transport';
 
 export interface LinkSocket {
   send(data: string): void;
@@ -48,6 +56,7 @@ export const RETRY_DELAYS_MS = [300, 600, 1200, 2400, 5000];
 
 export function createWorldLink(
   connect: SocketFactory,
+  observerId: string,
   schedule: Scheduler = (fn, ms) => setTimeout(fn, ms),
   now: () => number = () => Date.now(),
 ): WorldLink {
@@ -58,6 +67,18 @@ export function createWorldLink(
   let closed = false;
   let lastReceived = now();
 
+  // 자신을 밝히는 일. 소켓이 아직 손에 없으면(열림이 동기로 오는 경우) 잡히는 즉시 보낸다.
+  let pendingDeclare = false;
+  function declareIdentity(): void {
+    if (!socket) {
+      pendingDeclare = true;
+      return;
+    }
+    pendingDeclare = false;
+    const join: JoinMessage = { type: 'join', observerId };
+    socket.send(JSON.stringify(join));
+  }
+
   function open(): void {
     if (closed) return;
     state = 'connecting';
@@ -66,6 +87,9 @@ export function createWorldLink(
         state = 'connected';
         attempt = 0;
         lastReceived = now();
+        // 가장 먼저 자신을 밝힌다. 이것이 도착해야 세계가 나를 알고,
+        // 그때부터 이 이어짐으로 보내는 요청이 내 몸에 닿는다.
+        declareIdentity();
       },
       onMessage(raw) {
         const message = parseServerMessage(raw);
@@ -83,6 +107,7 @@ export function createWorldLink(
         schedule(open, delay);
       },
     });
+    if (pendingDeclare) declareIdentity();
   }
   open();
 
