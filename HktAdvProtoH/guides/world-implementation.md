@@ -40,13 +40,29 @@ GameView Specification
 
 ```text
 world/
-    semantic/     State 정의
+    kernel/       Cycle Module 계약 — Delta 선언 단위
+    cycles/       Cycle 별 Module (setup·actions·laws·project 배선) + 등록부
+    semantic/     State 정의 (공유 — Cycle 이 함께 발전시킨다)
     rules/        World Rule
     simulation/   시간 진행 / 자동 법칙
-    projection/   Observer Projection → GameView Specification
-    actions/      Action Request 수용
-    capabilities/ Cycle 이 추가한 가능성
+    projection/   Observer Projection 기여분 (Cycle 별 — semantic 만 투영)
+    index.ts      커널 — 모듈 조립·dispatch·tick·projection 파이프라인
 ```
+
+### Cycle Module — World 는 Cycle 별로 모듈화된다
+
+각 Cycle 의 Delta(초기 세팅·Action 핸들러·시간 법칙·Projection 기여분)는
+`world/cycles/<cycle-id>.ts` 의 **CycleModule 하나**로 배선하고 등록부
+(`world/cycles/index.ts`) 끝에 추가한다. 등록 순서가 곧 게임의 역사다.
+
+```text
+createWorld()                          전체 조립 = 최신 게임
+createWorld({ upToCycle: 'C012-…' })   그 Cycle 까지만 조립 = 그 시점의 게임 재생
+```
+
+별도 World 를 만드는 것이 아니다 — 모든 모듈은 하나의 공유 WorldState 위에
+Delta 를 쌓는다. 기존 Semantic 을 바꾸는 Cycle 은 공유 코드(semantic/rules)를
+발전시키되, 그 배선은 자기 Module 에 둔다.
 
 ## Output
 
@@ -59,6 +75,8 @@ world/
 
 ## Must
 
+- 이번 Cycle 의 Delta 는 CycleModule 로 배선하고 등록부에 추가한다 —
+  `createWorld({ upToCycle })` 재생이 항상 가능해야 한다.
 - 모든 의미 있는 상태 변화는 World Rule 을 통해서만 발생한다.
 - Rule 구현에는 Intent ID 를 주석/메타로 남긴다 (Traceability).
 - World 는 View 없이 테스트 가능해야 한다.

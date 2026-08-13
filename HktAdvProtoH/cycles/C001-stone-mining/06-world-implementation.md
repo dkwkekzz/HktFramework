@@ -39,6 +39,15 @@
     실행: `npx vitest run` → 9 passed (2026-08-12)
 
 ## NOTES
+    [Cycle Module 구조 — Human 피드백 반영]
+    World 는 Cycle 별로 모듈화된다 — C001 의 Delta(광맥·곡괭이 setup,
+    move/mine 핸들러, 이동 법칙, Projection 기여분)는 world/cycles/c001-stone-mining.ts
+    의 CycleModule 하나로 배선되고 등록부(world/cycles/index.ts)에 등재된다.
+    커널(world/index.ts)은 등록 순서대로 모듈을 조립하며,
+    createWorld({ upToCycle }) 로 특정 Cycle 까지의 게임을 재생할 수 있다.
+    실행 화면 우하단 Cycle 선택 UI · URL ?cycle=<CycleId> 로도 선택 가능.
+    검증: world/tests/cycles.spec.ts (조립·재생·미조립 interaction 거부) — 18 passed.
+
     프로젝트 스캐폴드(package.json · tsconfig.json)는 이번 Cycle 에서 최초 도입.
     protocol/ 에 GameViewSnapshot · ActionRequest · SemanticIdentifier 경계 타입 추가.
     world/capabilities/ 는 이번 Cycle 에서 별도 파일이 필요 없어 만들지 않았다 —

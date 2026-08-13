@@ -3,6 +3,7 @@
 // 게임 의미를 알지 못한다 — Snapshot 의 지시(키·대상·라벨)만으로 배선한다.
 
 import { createWorld } from '../world/index';
+import { CYCLE_IDS } from '../world/cycles/index';
 import { resolvePresentation } from '../view/presentation/resolve';
 import { createHud, type EntityLabel } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
@@ -13,7 +14,28 @@ import type { SceneState } from '../view/scene/scene-state';
 const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
 
-const world = createWorld();
+// 특정 Cycle 까지의 게임 재생 — ?cycle=<CycleId> (생략 시 전체 = 최신 게임)
+const requestedCycle = new URLSearchParams(location.search).get('cycle') ?? undefined;
+const world = createWorld({ upToCycle: requestedCycle });
+
+// Cycle 선택 UI — 게임의 역사를 임의 시점까지 되감아 실행한다
+{
+  const picker = document.createElement('select');
+  picker.className = 'cycle-picker';
+  for (const id of CYCLE_IDS) {
+    const option = document.createElement('option');
+    option.value = id;
+    option.textContent = id;
+    picker.appendChild(option);
+  }
+  picker.value = world.cycles[world.cycles.length - 1] ?? '';
+  picker.addEventListener('change', () => {
+    const latest = CYCLE_IDS[CYCLE_IDS.length - 1];
+    location.search = picker.value === latest ? '' : `?cycle=${picker.value}`;
+  });
+  container.appendChild(picker);
+}
+
 const renderer = createRenderer(container);
 const hud = createHud(container);
 const keyboard = attachKeyboard();
