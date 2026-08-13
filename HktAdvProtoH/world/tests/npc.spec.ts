@@ -26,7 +26,9 @@ const wanderingOnly: WorldSetup = {
 describe('RULE-NPC-DECIDE-001 — 인지 대상이 없을 때', () => {
   it('스스로 순회 지점으로 이동한다 (플레이어 입력 없이 행동이 시작된다)', () => {
     const world = driveWorld(wanderingOnly);
-    expect(npc(world.observe())?.state).toBe('idle');
+    // C004 — 첫 관찰 결과부터 NPC 는 자기가 정한 행동 안에 있다.
+    // 관찰자는 아무 요청도 보내지 않았다.
+    expect(npc(world.observe())?.state).toBe('move');
 
     world.tick(0.1);
     expect(npc(world.observe())?.state).toBe('move');

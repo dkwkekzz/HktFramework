@@ -3,14 +3,14 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld } from './drive';
+import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };
 const MINE_DURATION = 1.2;
 
 const stoneCount = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'inventory.stone')?.value;
 const deposit = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'deposit-1');
-const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'player');
+const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MINE-001', () => {

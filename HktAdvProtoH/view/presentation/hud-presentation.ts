@@ -13,6 +13,8 @@ const HUD: Record<string, HudPresentation> = {
   'tool.hasMiningTool': { label: '곡괭이' },
   'player.action': { label: '행동' },
   'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
+  // 함께 보고 있는 사람의 수 (C004) — 나를 포함한다.
+  'observers.present': { label: '함께', icon: '👥', format: (v) => `${Number(v)}명` },
 };
 
 export function hudPresentation(id: string): HudPresentation {

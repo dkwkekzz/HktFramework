@@ -3,16 +3,21 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { driveWorld } from './drive';
+import { driveWorld, PLAYER } from './drive';
 
 const solo = { npcs: [] };
-const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'player');
+const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === PLAYER);
 const move = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'move');
 const hudAction = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'player.action');
 
 describe('INTENT-ACTION-STATE-001 — 언제나 하나의 행동 안에 있다', () => {
   it('세계가 시작되면 모든 Actor 는 대기 행동이다', () => {
-    const world = driveWorld();
+    // C004 — 관찰 결과는 관찰자가 들어온 Tick 에 만들어지고, 그 Tick 에서 이미
+    // RULE-NPC-DECIDE-001 이 돈다. 그래서 "시작 상태"를 보려면 스스로 갈 곳도
+    // 인지할 대상도 없는 자율 존재를 둔다.
+    const world = driveWorld({
+      npcs: [{ id: 'npc-1', position: { x: -8, z: 4 }, wanderPath: [], perceptionRange: 0 }],
+    });
     const view = world.observe();
 
     const characters = view.entities.filter((e) => e.role.endsWith('-character'));

@@ -8,6 +8,10 @@ import { TICK_INTERVAL, type WorldState } from './semantic/world-state';
 import type { World } from './index';
 import type { GameViewSnapshot } from '../protocol/gameview';
 
+// C004 CHANGED — 한 Tick 이 내보내는 것은 관찰 결과 하나가 아니라
+// 보고 있는 관찰자마다의 관찰 결과다 (INTENT-PER-OBSERVER-PROJECTION-001).
+export type ObservationSink = (observations: Map<string, GameViewSnapshot>) => void;
+
 export interface WorldClock {
   stop(): void;
 }
@@ -18,7 +22,7 @@ const MAX_TICK_DT = 0.25;
 
 export function startWorldClock(
   world: World,
-  onObservation: (snapshot: GameViewSnapshot) => void,
+  onObservation: ObservationSink,
   now: () => number = () => Date.now(),
 ): WorldClock {
   let last = now();
@@ -27,7 +31,7 @@ export function startWorldClock(
     const current = now();
     const dt = Math.min((current - last) / 1000, MAX_TICK_DT);
     last = current;
-    onObservation(world.tick(dt).snapshot);
+    onObservation(world.tick(dt).observations);
   }, TICK_INTERVAL * 1000);
 
   return {

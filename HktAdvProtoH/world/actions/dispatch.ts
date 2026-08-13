@@ -1,18 +1,25 @@
 // Action Request 수용 경로 — interactionId 를 World Rule 로 위임한다.
 // Cycle 이 interaction 을 추가하면 여기에 분기가 늘어난다 (World 측 확장).
 //
-// Client 의 요청은 언제나 Control = player 인 Actor 를 주체로 한다 (World Authority).
+// C004 CHANGED — 요청의 주체는 그 요청이 도착한 이어짐의 관찰자의 몸이다
+// (INTENT-REQUEST-ATTRIBUTION-001). 요청 자체는 주체를 지정하지 않는다 —
+// 지정할 수단이 없다. 세계가 모르는 관찰자의 요청은 아무것도 바꾸지 못한다.
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import { ruleAttack } from '../rules/attack';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
-import { playerActor, type WorldState } from '../semantic/world-state';
+import { actorOfObserver, type WorldState } from '../semantic/world-state';
 
 const DISPATCH = 'DISPATCH';
 
-export function dispatchAction(state: WorldState, action: ActionRequest): ActionResult {
-  const actor = playerActor(state);
+export function dispatchAction(
+  state: WorldState,
+  observerId: string,
+  action: ActionRequest,
+): ActionResult {
+  const actor = actorOfObserver(state, observerId);
+  if (!actor) return { status: 'failure', rule: DISPATCH, reason: 'unknown-observer' };
 
   switch (action.interactionId) {
     case 'move':

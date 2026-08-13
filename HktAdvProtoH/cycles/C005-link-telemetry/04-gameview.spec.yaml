@@ -1,0 +1,214 @@
+# CYCLE C005 — GameView Specification
+id: VIEW-LINK-TELEMETRY-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character            # C002 · C004 계약 그대로
+    - entities.deposit
+    - interactions                  # C001 · C002 · C004 계약 그대로
+    - delivery                      # C003
+    - identity                      # C004
+    - hud.inventory
+    - hud.tool
+    - hud.playerAction
+    - hud.worldTime
+    - hud.observers
+    - session.link                  # C003
+  added:
+    - observer.acknowledgedMark     # 세계가 나에게서 어디까지 받았는가
+    - marking                       # 관찰자가 표식을 붙여 보내는 것
+    - telemetry                     # 이어짐이 얼마나 잘 통하는가 (관찰자 쪽)
+    - binding                       # 무엇에 이어져 있는가 (관찰자 쪽)
+  changed:
+    - session.visibility            # 문제일 때만 → 언제나 보인다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# observer — 이 관찰 결과를 받는 이가 누구인가 (C004) + 어디까지 받았는가 (C005)
+# ─────────────────────────────────────────────────────────────────
+observer:
+  self:
+    id: { source: Observer.Id }
+    characterId: { source: Observer.ActorId }
+  acknowledgedMark:
+    source: Observer.AcknowledgedMark
+    # 세계가 나에게서 받아들인 마지막 표식. 이 값이 실린 관찰 결과는
+    # "그 표식까지 세계가 받아들이고 그 Tick 의 판정을 마쳤다" 는 뜻이다.
+    # 다른 관찰자의 표식은 오지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# marking — 관찰자가 표식을 붙여 보내는 것 (C005 ADDED)
+#
+# owner: observer — 표식 값을 매기고 언제 보낼지 정하는 것은 관찰자 쪽 책임이다.
+# 세계는 받아들일지만 정한다 (RULE-OBSERVER-MARK-001).
+# ─────────────────────────────────────────────────────────────────
+marking:
+  owner: observer
+  value: monotonic          # 보낼수록 커진다. 뒤로 가지 않는다.
+  sentWith: [after-action, on-interval]
+                            # 요청을 보낸 직후 · 그리고 조용할 때도 일정 간격으로
+                            # (게임 요청이 없어도 잴 수 있어야 한다)
+  resetOn: never            # 다시 이어도 이어서 매긴다 — 세계도 되돌리지 않는다
+  notAGameRequest: true     # 표식은 Action Request 가 아니다. 게임을 바꾸지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# telemetry — 이어짐이 얼마나 잘 통하는가 (C005 ADDED)
+#
+# owner: observer — 전부 관찰자 쪽 시계로 재는 값이다.
+# World State 가 아니다 (03-world-semantic.md).
+# 세계에서 오는 것은 observer.acknowledgedMark 하나뿐이고 나머지는 관찰자가 잰다.
+# ─────────────────────────────────────────────────────────────────
+telemetry:
+  owner: observer
+  roundTrip:
+    id: link.roundTrip
+    means: 표식을 보낸 시각부터 그 표식이 받아들여진 관찰 결과가 도착한 시각까지
+    from: [marking.sentAt, observer.acknowledgedMark]
+    unit: milliseconds
+    unknownWhen: 아직 돌아온 표식이 없다
+  arrivalRate:
+    id: link.arrivalRate
+    means: 최근 한동안 관찰 결과가 초당 몇 개 도착했는가
+    unit: per-second
+    reference: 세계는 자기 시계로 꾸준히 내보낸다 — 이 값이 낮으면 사이의 일이다
+  sinceLastObservation:
+    id: link.sinceLast
+    means: 마지막 관찰 결과가 도착한 뒤 흐른 시간
+    unit: milliseconds
+  sentCount:
+    id: link.sent
+    means: 이 관찰자가 세계로 보낸 것의 수 (요청 + 표식)
+  reconnectCount:
+    id: link.reconnects
+    means: 이어짐이 끊겼다 다시 붙은 횟수
+
+# ─────────────────────────────────────────────────────────────────
+# binding — 무엇에 이어져 있는가 (C005 ADDED)
+#
+# 새로 만드는 값이 없다. 이미 정해져 있는 셋을 보이게 한다.
+# ─────────────────────────────────────────────────────────────────
+binding:
+  observerId: { source: Observer.Id }        # 누구로서 (C004)
+  characterId: { source: Observer.ActorId }  # 어느 몸으로 (C004)
+  worldAddress: { owner: observer }          # 어느 세계에 (관찰자가 붙은 곳)
+
+# ─────────────────────────────────────────────────────────────────
+# session — 이어짐 (C003 · C004) + 언제나 보인다 (C005 CHANGED)
+# ─────────────────────────────────────────────────────────────────
+session:
+  owner: observer
+  link:
+    connected: { when: 세계와 이어져 있고 관찰 결과가 들어오는 중 }
+    connecting: { when: 아직 잇는 중이거나 다시 잇는 중 }
+    disconnected: { when: 끊겼고 아직 잇지 못한 상태 }
+  visibility: always        # C005 CHANGED — 정상일 때도 보인다.
+                            # 좋을 때의 값을 알아야 나빠진 것을 알아볼 수 있다.
+  whileDisconnected:
+    shows: last-received-observation
+    marks: stale
+    requests: rejected
+    telemetry: frozen-with-age
+                            # 끊긴 동안 왕복 값은 옛 값이며, 마지막 도착 이후 시간은 계속 는다
+  onReconnect:
+    resumes: latest-observation
+    redeclares: identity
+    regains: same-character
+    counts: reconnectCount  # C005 — 다시 이은 것이 세어진다
+
+delivery:                   # C003 계약 그대로
+  mode: pushed
+  latest: last-received
+  ordering: as-sent
+
+identity:                   # C004 계약 그대로
+  owner: observer
+  declaredOn: link-established
+  stability: persists-across-links
+  firstTime: observer-generates
+  onAccepted: world-returns-observations
+  onRejected: link-closed
+
+entities:                   # C004 계약 그대로 — 변경 없음
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:
+      player-character: { when: Actor.Id == Observer.ActorId }
+      other-player-character:
+        when: Actor.Control == player && Actor.Id != Observer.ActorId
+      npc-character: { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }
+    actionProgress: { source: Actor.ActionProgress }
+    actionTarget: { source: Actor.ActionTargetId }
+    attended:
+      source: Character.Attended
+      appliesTo: [other-player-character]
+    motion:
+      selectedBy: [kind, state]
+      progress:
+        withDuration: actionProgress
+        withoutDuration: loop
+      fallback:
+        order: [kind:idle, anyKind:state, placeholder]
+  deposit:
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+interactions:               # C004 계약 그대로 — 변경 없음
+  subject: observer-character
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+  attack:
+    role: attack-swing
+    target: none
+    request: Attack(ObserverCharacter)
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+  requestResult: from-next-observation
+
+hud:                        # C004 계약 그대로 — 변경 없음
+  inventory:
+    stone: { source: ObserverCharacter.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: ObserverCharacter.Inventory.HasMiningTool }
+  playerAction:
+    action: { source: ObserverCharacter.CurrentActionKind }
+    progress: { source: ObserverCharacter.ActionProgress }
+  worldTime:
+    elapsed: { source: World.Time }
+  observers:
+    present: { source: Observers.PresentCount }
+
+# OBSERVABLE PROJECTION NOTE
+#   World 에서 새로 오는 것은 observer.acknowledgedMark 하나뿐이다.
+#   telemetry 5종 · binding.worldAddress · marking 은 전부 관찰자 쪽에서 만들어진다 —
+#   C003 이 session.link 를 관찰자 쪽에 둔 것과 같은 이유다.
+#
+#   투영하지 않는 것
+#     다른 관찰자의 AcknowledgedMark · 표식 실패 사유 · 세계가 표식을 받은 시각
+#     (03-world-semantic.md OBSERVABLE SEMANTIC 이 정한 그대로)
+#
+#   telemetry 는 게임의 의미가 아니다 — 이어짐의 성질이다.
+#   따라서 게임 진행을 가리지 않는 자리에 표시하며, 표시 형태는 View 의 결정이다.

@@ -1,23 +1,43 @@
 {
-  "specId": "VIEW-WORLD-SERVER-001",
+  "specId": "VIEW-MULTI-OBSERVER-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-a",
-    "characterId": "player",
+    "characterId": "player-1",
     "acknowledgedMark": 0
   },
   "entities": [
     {
-      "id": "player",
+      "id": "player-1",
       "role": "player-character",
-      "state": "mine",
+      "state": "idle",
       "kind": "rabbit-swordsman",
       "position": {
-        "x": 7.5,
-        "z": -5.5
+        "x": 0,
+        "z": 0
+      }
+    },
+    {
+      "id": "player-2",
+      "role": "other-player-character",
+      "state": "move",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": 3,
+        "z": 2
       },
-      "progress": 0.5,
-      "targetEntityId": "deposit-1"
+      "attended": true
+    },
+    {
+      "id": "player-3",
+      "role": "other-player-character",
+      "state": "idle",
+      "kind": "rabbit-swordsman",
+      "position": {
+        "x": -3,
+        "z": 2
+      },
+      "attended": false
     },
     {
       "id": "npc-1",
@@ -25,31 +45,9 @@
       "state": "move",
       "kind": "wanderer",
       "position": {
-        "x": -3,
-        "z": 2
+        "x": -8,
+        "z": 4
       }
-    },
-    {
-      "id": "npc-2",
-      "role": "npc-character",
-      "state": "attack",
-      "kind": "wanderer",
-      "position": {
-        "x": 6.5,
-        "z": -5
-      },
-      "progress": 0.25
-    },
-    {
-      "id": "npc-3",
-      "role": "npc-character",
-      "state": "hit",
-      "kind": "wanderer",
-      "position": {
-        "x": 5.5,
-        "z": -4
-      },
-      "progress": 0.4
     },
     {
       "id": "deposit-1",
@@ -60,35 +58,33 @@
         "x": 8,
         "z": -6
       },
-      "labelValue": 3
+      "labelValue": 5
     }
   ],
   "interactions": [
     {
       "id": "move",
       "role": "move-to",
-      "available": false,
-      "reason": "action-busy"
+      "available": true
     },
     {
       "id": "attack",
       "role": "attack-swing",
-      "available": false,
-      "reason": "action-busy"
+      "available": true
     },
     {
       "id": "mine",
       "role": "mine-deposit",
       "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "action-busy"
+      "reason": "out-of-range"
     }
   ],
   "hud": [
     {
       "id": "inventory.stone",
       "kind": "counter",
-      "value": 2
+      "value": 0
     },
     {
       "id": "tool.hasMiningTool",
@@ -98,13 +94,17 @@
     {
       "id": "player.action",
       "kind": "label",
-      "value": "mine",
-      "progress": 0.5
+      "value": "idle"
     },
     {
       "id": "world.time",
       "kind": "counter",
       "value": 42.5
+    },
+    {
+      "id": "observers.present",
+      "kind": "counter",
+      "value": 2
     }
   ]
 }

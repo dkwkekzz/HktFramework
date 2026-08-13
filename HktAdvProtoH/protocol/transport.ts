@@ -3,8 +3,12 @@
 // 세계와 관찰자가 서로 다른 프로세스에 있을 때 오가는 것의 전부.
 // 여기에는 게임 의미가 없다 — 봉투(envelope)와 방향만 있다.
 //
-//   관찰자 → 세계   ActionRequest 하나
+//   관찰자 → 세계   자기 식별을 밝히는 것(join) 하나 · ActionRequest 하나
 //   세계 → 관찰자   GameViewSnapshot 하나
+//
+// C004 ADDED — 이어짐이 열리면 관찰자는 가장 먼저 자신을 밝힌다 (join).
+// 밝히기 전에 오는 요청은 세계에 도착하지 않는다. 요청 자체에는 주체를 적는 자리가 없고,
+// 주체는 "이 이어짐에 붙은 관찰자의 몸" 으로만 정해진다 (INTENT-REQUEST-ATTRIBUTION-001).
 //
 // 판정 결과는 되돌려 보내지 않는다. 요청이 받아들여졌는지는 그 뒤에 오는
 // 관찰 결과로만 드러난다 (04-gameview.spec.yaml 의 requestResult: from-next-observation).
@@ -24,8 +28,22 @@ export interface ActionMessage {
   action: ActionRequest;
 }
 
+// 관찰자가 자신이 누구인지 밝힌다 (C004 ADDED). 이어짐당 한 번, 가장 먼저.
+export interface JoinMessage {
+  type: 'join';
+  observerId: string;
+}
+
+// 관찰자가 자기 표식을 세계로 보낸다 (C005 ADDED).
+// 게임 요청이 아니다 — 세계를 아무것도 바꾸지 않는다. 세계는 받아들인 자리를
+// 그 관찰자의 관찰 결과에 실어 되돌릴 뿐이다 (RULE-OBSERVER-MARK-001).
+export interface MarkMessage {
+  type: 'mark';
+  mark: number;
+}
+
 export type ServerMessage = ObservationMessage;
-export type ClientMessage = ActionMessage;
+export type ClientMessage = ActionMessage | JoinMessage | MarkMessage;
 
 // 관찰자와 세계 사이의 이어짐 상태 — 관찰자 쪽이 소유하는 의미다
 // (03-world-semantic.md: 세계는 누가 보고 있는지에 따라 달라지지 않는다).
@@ -43,7 +61,14 @@ export function parseServerMessage(raw: string): ServerMessage | null {
 export function parseClientMessage(raw: string): ClientMessage | null {
   try {
     const value = JSON.parse(raw) as ClientMessage;
-    if (!value || value.type !== 'action') return null;
+    if (!value) return null;
+    if (value.type === 'join') {
+      return typeof value.observerId === 'string' ? value : null;
+    }
+    if (value.type === 'mark') {
+      return typeof value.mark === 'number' && Number.isFinite(value.mark) ? value : null;
+    }
+    if (value.type !== 'action') return null;
     const action = value.action;
     if (!action || typeof action.interactionId !== 'string') return null;
     return value;
