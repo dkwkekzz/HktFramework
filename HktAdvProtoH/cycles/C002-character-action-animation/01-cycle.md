@@ -4,10 +4,10 @@
 [PASS] Intent
 [PASS] World Semantic
 [PASS] GameView Specification
-[    ] Human Semantic Review          ← 대기 중 (Human 전용)
-[    ] World Implementation
-[    ] View Implementation
-[    ] Verification
+[PASS] Human Semantic Review
+[PASS] World Implementation
+[PASS] View Implementation
+[PASS] Verification (Human Play 확인 대기)
 
 STATUS  IN PROGRESS
 

@@ -2,25 +2,56 @@
 // Semantic Snapshot(role/state/값/사유 코드)을 Presentation 데이터로 해석해
 // Capability Layer 가 소비할 Render Plan 을 만든다. 순수 함수 — Fixture 로 검증 가능.
 //
-// 결정은 전부 *-presentation.ts 의 role/id 단위 단일 항목에서 온다.
+// 결정은 전부 *-presentation.ts 의 role/id 단위 단일 항목과 주입된 Motion Library 에서 온다.
 // 이 파일과 capability 코드는 Cycle 이 늘어도 수정되지 않는다.
 
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import type { SceneState } from '../scene/scene-state';
+import { motionLibrary } from '../motion/motion-source';
+import type { MotionLibrary } from '../motion/motion-library';
+import type { SceneMotion, SceneState } from '../scene/scene-state';
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
-import { reasonText } from './reason-text';
+import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
 
-export function resolvePresentation(snapshot: GameViewSnapshot): SceneState {
+// entity.kind(종류) + state(행동) → 재생할 모션. 데이터가 없으면 undefined 이고
+// 그리기는 spriteId 의 절차 생성 Asset 이 맡는다 (spec 의 fallback 마지막 단계).
+function resolveMotion(
+  motions: MotionLibrary,
+  kind: string | undefined,
+  state: string,
+  progress: number | undefined,
+): SceneMotion | undefined {
+  if (!kind) return undefined;
+  const asset = motions.resolve(kind, state);
+  if (!asset) return undefined;
+
+  return {
+    id: asset.id,
+    url: asset.url,
+    cols: asset.cols,
+    rows: asset.rows,
+    frames: asset.frames,
+    fps: asset.fps,
+    mode: progress === undefined ? 'loop' : 'progress',
+    ...(progress === undefined ? {} : { progress }),
+  };
+}
+
+export function resolvePresentation(
+  snapshot: GameViewSnapshot,
+  motions: MotionLibrary = motionLibrary,
+): SceneState {
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
     entities: snapshot.entities.map((e) => {
       const p = rolePresentation(e.role);
+      const motion = resolveMotion(motions, e.kind, e.state, e.progress);
       return {
         id: e.id,
         spriteId: `${p.sprite}:${e.state}`,
+        ...(motion ? { motion } : {}),
         size: p.size,
         position: e.position,
         ...(e.labelValue !== undefined
@@ -40,7 +71,7 @@ export function resolvePresentation(snapshot: GameViewSnapshot): SceneState {
         ...(p.key ? { key: p.key } : {}),
         ...(p.keyLabel ? { keyLabel: p.keyLabel } : {}),
         ...(p.prompt ? { prompt: p.prompt } : {}),
-        ...(i.reason ? { unavailableText: reasonText(i.reason) } : {}),
+        ...(i.reason ? { unavailableText: codeText(i.reason) } : {}),
       };
     }),
     hud: snapshot.hud.map((h) => {
@@ -50,7 +81,9 @@ export function resolvePresentation(snapshot: GameViewSnapshot): SceneState {
         widget: h.kind,
         label: p.label,
         ...(p.icon ? { icon: p.icon } : {}),
-        value: h.value,
+        // 의미 코드 값(label 위젯)은 문구 결정을 거친다 — 미등록 코드는 코드 그대로
+        value: h.kind === 'label' ? codeText(String(h.value)) : h.value,
+        ...(h.progress === undefined ? {} : { progress: h.progress }),
         ...(p.celebrateGain ? { celebrateGain: true } : {}),
       };
     }),

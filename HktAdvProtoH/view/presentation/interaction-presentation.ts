@@ -11,6 +11,7 @@ export interface InteractionPresentation {
 const INTERACTIONS: Record<string, InteractionPresentation> = {
   'move-to': { terrainTarget: true },
   'mine-deposit': { key: 'KeyE', keyLabel: 'E', prompt: '채굴' },
+  'attack-character': { key: 'KeyF', keyLabel: 'F', prompt: '공격' },
 };
 
 export function interactionPresentation(role: string): InteractionPresentation {

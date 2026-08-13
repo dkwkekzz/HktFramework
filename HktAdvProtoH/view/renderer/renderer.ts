@@ -94,13 +94,13 @@ export function createRenderer(container: HTMLElement): GameRenderer {
 
         let bb = billboards.get(entity.id);
         if (!bb) {
-          bb = createBillboard(entity.spriteId, entity.size);
+          bb = createBillboard(entity, entity.size);
           bb.object.userData.entityId = entity.id;
           billboards.set(entity.id, bb);
           scene.add(bb.object);
         }
-        bb.setSprite(entity.spriteId);
-        bb.object.scale.set(entity.size, entity.size, 1);
+        bb.setAppearance(entity, now / 1000);
+        bb.object.scale.set(entity.size * bb.aspect(), entity.size, 1);
         const y = heightAt(entity.position.x, entity.position.z);
         bb.setPosition(entity.position.x, y, entity.position.z);
 

@@ -10,6 +10,7 @@ export interface HudPresentation {
 const HUD: Record<string, HudPresentation> = {
   'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true },
   'tool.hasMiningTool': { label: '곡괭이' },
+  'player.action': { label: '행동' },
 };
 
 export function hudPresentation(id: string): HudPresentation {

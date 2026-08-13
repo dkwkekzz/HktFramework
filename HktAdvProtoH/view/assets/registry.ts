@@ -94,9 +94,93 @@ const DEPOSIT_DEPLETED = [
   '................',
 ];
 
+// 곡괭이를 치켜든 자세 — 공격·채굴처럼 "휘두르는" 행동의 절차 그림 (C002)
+const PLAYER_SWING = [
+  '.........M......',
+  '......HHHMM.....',
+  '.....HHHHHW.....',
+  '.....hFFFhW.....',
+  '.....hFFFW......',
+  '......FFFW......',
+  '....BBBBBB......',
+  '...BBBBBBBB.....',
+  '...B.BBBBB.B....',
+  '...B.BBBBB.B....',
+  '.....bbbb.......',
+  '.....bbbb.......',
+  '....P....P......',
+  '....P....P......',
+  '...PP....PP.....',
+  '................',
+];
+
+// 자율 캐릭터의 기본 그림 — 모션 데이터가 주입되면 그쪽이 우선한다 (C002)
+const WANDERER_IDLE = [
+  '................',
+  '................',
+  '................',
+  '.....RRRRR......',
+  '...RRrrrrrRR....',
+  '..RrrrrrrrrrR...',
+  '..Rrr.rrr.rrR...',
+  '..RrrrrrrrrrR...',
+  '..Rrrr.r.rrrR...',
+  '..RrrrrrrrrrR...',
+  '.RrrrrrrrrrrrR..',
+  '.RrrrrrrrrrrrR..',
+  '.dddddddddddddd.',
+  '................',
+  '................',
+  '................',
+];
+
+const WANDERER_MOVE = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '.....RRRRR......',
+  '...RRrrrrrRR....',
+  '..RrrrrrrrrrR...',
+  '..Rrr.rrr.rrR...',
+  '..RrrrrrrrrrR...',
+  '..Rrrr.r.rrrR...',
+  '.RrrrrrrrrrrrR..',
+  '.RrrrrrrrrrrrR..',
+  '.RrrrrrrrrrrrR..',
+  '.dddddddddddddd.',
+  '................',
+  '................',
+];
+
+const WANDERER_ATTACK = [
+  '................',
+  '................',
+  '.....MMMMM......',
+  '...MMrrrrrMM....',
+  '..MrrrrrrrrrM...',
+  '..Mrr.rrr.rrM...',
+  '..MrrrrrrrrrM...',
+  '..Mrrr.r.rrrM...',
+  '..MrrrrrrrrrM...',
+  '.MrrrrrrrrrrrM..',
+  '.MrrrrrrrrrrrM..',
+  '.MrrrrrrrrrrrM..',
+  '.eeeeeeeeeeeeee.',
+  '................',
+  '................',
+  '................',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
   'player-pickaxe:idle': PLAYER_IDLE,
-  'player-pickaxe:moving': PLAYER_MOVING,
+  'player-pickaxe:move': PLAYER_MOVING,
+  'player-pickaxe:moving': PLAYER_MOVING, // C001 이름 — 계속 유효하다
+  'player-pickaxe:attack': PLAYER_SWING,
+  'player-pickaxe:mine': PLAYER_SWING,
+  'wanderer:idle': WANDERER_IDLE,
+  'wanderer:move': WANDERER_MOVE,
+  'wanderer:attack': WANDERER_ATTACK,
   'stone-deposit:available': DEPOSIT_AVAILABLE,
   'stone-deposit:depleted': DEPOSIT_DEPLETED,
 };

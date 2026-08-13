@@ -49,6 +49,13 @@ export function createHud(container: HTMLElement): Hud {
             toastUntil = performance.now() + 1600;
           }
           lastCounters.set(item.id, value);
+        } else if (item.widget === 'label') {
+          // 값 + (있으면) 진행 막대 — 진행 중인 행동이 얼마나 남았는지 보인다
+          const bar =
+            item.progress === undefined
+              ? ''
+              : `<span class="hud-bar"><i style="width:${Math.round(item.progress * 100)}%"></i></span>`;
+          parts.push(`<span class="hud-item">${item.label}: ${item.value}${bar}</span>`);
         } else {
           parts.push(
             `<span class="hud-item hud-flag" data-on="${item.value}">${item.label} ${item.value ? '✓' : '✗'}</span>`,
@@ -59,11 +66,12 @@ export function createHud(container: HTMLElement): Hud {
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
 
       // 조작 안내 — 이동(엔진 기본) + 키 지시가 있는 interaction
-      const keyLines = ['이동: WASD / 방향키'];
+      // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다
+      const keyLines = new Set(['이동: WASD / 방향키']);
       for (const i of scene.interactions) {
-        if (i.key && i.prompt) keyLines.push(`${i.prompt}: ${i.keyLabel ?? i.key}`);
+        if (i.key && i.prompt) keyLines.add(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }
-      keys.innerHTML = keyLines.join('<br/>');
+      keys.innerHTML = [...keyLines].join('<br/>');
 
       // entity 라벨 (worldToScreen 투영 결과)
       labelLayer.innerHTML = labels

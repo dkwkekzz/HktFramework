@@ -50,7 +50,9 @@ function frame(now: number): void {
   }
 
   for (const code of keyboard.consumeKeyPresses()) {
-    const interaction = latestScene.interactions.find((i) => i.key === code);
+    // 같은 키에 대상이 여럿이면(예: 주변 캐릭터들) 지금 가능한 대상을 고른다.
+    const keyed = latestScene.interactions.filter((i) => i.key === code);
+    const interaction = keyed.find((i) => i.available) ?? keyed[0];
     if (interaction) {
       world.dispatch({
         interactionId: interaction.id,
