@@ -1,0 +1,193 @@
+# CYCLE C004 — GameView Specification
+id: VIEW-MULTI-OBSERVER-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.deposit
+    - entities.character.motion       # C002 계약 그대로
+    - interactions.move
+    - interactions.mine
+    - interactions.attack
+    - delivery                        # C003 — 세계가 내보내는 것을 받는다
+    - session.link                    # C003 — 이어짐 · 잇는 중 · 끊김
+    - hud.worldTime
+  added:
+    - identity                        # 관찰자가 누구로 이어지는가
+    - observer                        # 이 관찰 결과를 받는 이가 누구인가
+    - entities.character.role.other-player-character
+    - entities.character.attended     # 그 몸을 지금 조종하는 이가 있는가
+    - hud.observers                   # 함께 보고 있는 관찰자의 수
+  changed:
+    - projection                      # 하나의 관찰 결과 → 관찰자마다의 관찰 결과
+    - entities.character.role         # 보는 이에 따라 달라진다
+    - interactions.subject            # 요청의 주체가 "그 player Actor" → "내 몸"
+    - hud.inventory                   # 내 몸의 것만
+    - hud.tool
+    - hud.playerAction
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# projection — 관찰 결과는 관찰자마다 다르다 (C004 CHANGED)
+#
+# 같은 세계라도 받는 이가 다르면 관찰 결과가 다르다. 무엇이 다른가는 아래 두 가지다.
+#   1. 어느 몸이 "내 몸"인가        → observer.self · entities.character.role
+#   2. 무엇이 나만의 것인가          → interactions 의 가용성 · hud 의 내 값들
+# 세계의 사실(누가 어디 있고 무엇을 하고 있는가)은 모든 관찰자에게 같다.
+# ─────────────────────────────────────────────────────────────────
+projection:
+  perObserver: true
+  sameForAll: [entities.character.position, entities.character.state,
+               entities.character.kind, entities.deposit, hud.worldTime, hud.observers]
+  differsByObserver: [observer, entities.character.role, entities.character.attended,
+                      interactions, hud.inventory, hud.tool, hud.playerAction]
+
+# ─────────────────────────────────────────────────────────────────
+# identity — 관찰자가 누구로 이어지는가 (C004 ADDED)
+#
+# owner: observer — 자기 식별을 보관하고 이어질 때마다 같은 것을 밝히는 일은
+# 관찰자 쪽 책임이다. 세계는 밝힌 것을 받아 적을 뿐 참인지 따지지 않는다
+# (03-world-semantic.md INTENT-OBSERVER-IDENTITY-001).
+#
+# 이 Cycle 에서 "인증"은 여기까지다 — 누구인지 가리는 것이지 자격을 검증하는 것이 아니다.
+# ─────────────────────────────────────────────────────────────────
+identity:
+  owner: observer
+  declaredOn: link-established        # 이어짐이 열리면 가장 먼저 자신을 밝힌다
+  stability: persists-across-links    # 같은 관찰자는 다시 이을 때 같은 것을 밝힌다
+  firstTime: observer-generates       # 밝힐 것이 없으면 관찰자가 스스로 하나 만든다
+  onAccepted: world-returns-observations
+  onRejected: link-closed             # 세계가 받아들이지 못하면 이어짐이 닫힌다.
+                                      # 관찰자에게는 session.link = disconnected 로 드러난다.
+                                      # (관찰자가 스스로 만든 식별은 언제나 유효하므로
+                                      #  정상 플레이에서는 일어나지 않는다.)
+
+# ─────────────────────────────────────────────────────────────────
+# observer — 이 관찰 결과를 받는 이가 누구인가 (C004 ADDED)
+#
+# 화면 속 여러 몸 중 어느 것이 내 것인지 알려면 이것이 필요하다.
+# ─────────────────────────────────────────────────────────────────
+observer:
+  self:
+    id: { source: Observer.Id }             # 내가 밝힌 나
+    characterId: { source: Observer.ActorId } # 세계가 정해 준 내 몸
+
+delivery:                                   # C003 계약 그대로
+  mode: pushed
+  latest: last-received
+  ordering: as-sent
+
+entities:
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:
+      player-character:
+        when: Actor.Id == Observer.ActorId               # 내 몸
+      other-player-character:
+        when: Actor.Control == player && Actor.Id != Observer.ActorId  # 다른 관찰자의 몸
+      npc-character:
+        when: Actor.Control == autonomous
+    kind: { source: Actor.CharacterKind }
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine | hit
+    actionProgress: { source: Actor.ActionProgress }
+    actionTarget: { source: Actor.ActionTargetId }
+    attended:                                    # C004 ADDED
+      source: Character.Attended
+      appliesTo: [other-player-character]
+      # 다른 관찰자의 몸이 지금 조종되고 있는가. 거짓이면 그 사람은 떠났고
+      # 몸만 세계에 남아 있는 것이다. 내 몸과 자율 존재에는 의미가 없다.
+    motion:                                      # C002 계약 그대로 — 변경 없음
+      selectedBy: [kind, state]
+      progress:
+        withDuration: actionProgress
+        withoutDuration: loop
+      fallback:
+        order: [kind:idle, anyKind:state, placeholder]
+
+  deposit:                                       # C003 계약 그대로
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+interactions:
+  # 모든 요청의 주체는 "내 몸"이다 (C004 CHANGED).
+  # 관찰자는 주체를 고를 수 없다 — 요청에 주체를 적는 자리가 없다.
+  # 세계가 아는 "이 관찰자의 몸"이 주체를 정한다 (INTENT-REQUEST-ATTRIBUTION-001).
+  subject: observer-character
+
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+  attack:
+    role: attack-swing
+    target: none
+    request: Attack(ObserverCharacter)
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+
+  requestResult: from-next-observation           # C003 계약 그대로
+
+hud:
+  inventory:
+    stone: { source: ObserverCharacter.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: ObserverCharacter.Inventory.HasMiningTool }
+  playerAction:
+    action: { source: ObserverCharacter.CurrentActionKind }
+    progress: { source: ObserverCharacter.ActionProgress }
+  worldTime:
+    elapsed: { source: World.Time }
+  observers:                                     # C004 ADDED
+    present: { source: Observers.PresentCount }
+    # 지금 이 세계를 함께 보고 있는 사람의 수. 나를 포함한다.
+    # 누가 있는지(이름)는 실리지 않는다 — 이번 Cycle 의 의미가 아니다.
+
+session:                                         # C003 계약 그대로 + identity 연결
+  owner: observer
+  link:
+    connected: { when: 세계와 이어져 있고 관찰 결과가 들어오는 중 }
+    connecting: { when: 아직 잇는 중이거나 다시 잇는 중 }
+    disconnected: { when: 끊겼고 아직 잇지 못한 상태 }
+  whileDisconnected:
+    shows: last-received-observation
+    marks: stale
+    requests: rejected
+  onReconnect:
+    resumes: latest-observation
+    redeclares: identity                         # C004 — 다시 이을 때 같은 나를 밝힌다
+    regains: same-character                      # 그래서 같은 몸으로 돌아온다
+
+# OBSERVABLE PROJECTION NOTE
+#   03-world-semantic.md 의 OBSERVABLE SEMANTIC 대응
+#     Observer.Self             → observer.self
+#     Character.Role            → entities.character.role (3종)
+#     Character.Attended        → entities.character.attended
+#     Observers.PresentCount    → hud.observers.present
+#     Interaction 가용성·사유    → interactions.*.available / unavailableReason
+#     Inventory · Tool · 행동    → hud.inventory / hud.tool / hud.playerAction
+#     World.Time                → hud.worldTime
+#
+#   투영하지 않는 것
+#     다른 관찰자의 Observer.Id — 03-world-semantic.md 가 관찰되지 않는다고 정했다.
+#     참여 실패 사유             — 참여하지 못한 관찰자에게만 의미가 있으므로
+#                                  관찰 결과가 아니라 identity.onRejected 로 드러난다.
+#     World.TickInterval         — C003 그대로 투영하지 않는다.
