@@ -165,7 +165,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       interactions: [
         { id: 'trade', role: 'trade-with', targetEntityId: 'npc-1', available: false, reason: 'no-goods' },
       ],
-      observer: { id: 'observer-a', characterId: 'npc-1' },
+      observer: { id: 'observer-a', characterId: 'npc-1', acknowledgedMark: 0 },
       hud: [{ id: 'currency.gold', kind: 'counter', value: 3 }],
     };
 

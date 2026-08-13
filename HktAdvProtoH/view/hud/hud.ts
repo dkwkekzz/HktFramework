@@ -24,6 +24,7 @@ export function createHud(container: HTMLElement): Hud {
     <div class="hud-toast" id="hud-toast"></div>
     <div class="hud-hint" id="hud-mine-hint"></div>
     <div class="hud-link" id="hud-link"></div>
+    <div class="hud-linkpanel" id="hud-linkpanel"></div>
   `;
   container.appendChild(root);
 
@@ -33,6 +34,7 @@ export function createHud(container: HTMLElement): Hud {
   const toast = root.querySelector('#hud-toast') as HTMLElement;
   const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
   const link = root.querySelector('#hud-link') as HTMLElement;
+  const linkPanel = root.querySelector('#hud-linkpanel') as HTMLElement;
 
   const lastCounters = new Map<string, number>();
   let toastUntil = 0;
@@ -44,6 +46,18 @@ export function createHud(container: HTMLElement): Hud {
         link.textContent = session.state === 'connected' ? '' : session.text;
         link.dataset.state = session.state;
         container.dataset.stale = String(session.stale); // 화면 전체 표시용
+
+        // 이어짐 패널 — 정상일 때도 보인다 (C005 session.visibility: always).
+        // 여기 있는 줄은 전부 결정 Layer 가 만든 것이며, 이 코드는 의미를 모른다.
+        const lines = [...session.binding, ...session.telemetry];
+        linkPanel.innerHTML = lines
+          .map(
+            (l) =>
+              `<span class="hud-linkline"${l.grade ? ` data-grade="${l.grade}"` : ''}>` +
+              `<b>${l.label}</b> ${l.value}</span>`,
+          )
+          .join('');
+        linkPanel.dataset.state = session.state;
       }
 
       // HUD 위젯 — 지시받은 widget 종류대로 그린다

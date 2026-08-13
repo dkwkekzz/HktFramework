@@ -55,6 +55,22 @@
     }
     .hud-link[data-state="connecting"] { background: rgba(120, 96, 40, 0.85); }
     .hud-link:empty { display: none; }
+    /* 이어짐 패널 (C005) — 정상일 때도 보인다. 좋을 때의 값을 알아야 나빠진 것을 안다.
+       게임 진행을 가리지 않도록 오른쪽 아래에 작게 둔다. */
+    .hud-linkpanel {
+      position: absolute; right: 12px; bottom: 12px;
+      display: flex; flex-direction: column; align-items: flex-end; gap: 2px;
+      padding: 8px 10px; border-radius: 8px;
+      background: rgba(18, 20, 26, 0.62); color: #cfd4e0;
+      font-size: 11.5px; line-height: 1.5; font-variant-numeric: tabular-nums;
+      pointer-events: none;
+    }
+    .hud-linkpanel:empty { display: none; }
+    .hud-linkpanel[data-state="disconnected"] { background: rgba(70, 26, 20, 0.72); }
+    .hud-linkline b { color: #8d94a6; font-weight: 600; margin-right: 6px; }
+    .hud-linkline[data-grade="good"] { color: #7fd18f; }
+    .hud-linkline[data-grade="warn"] { color: #e8c467; }
+    .hud-linkline[data-grade="bad"] { color: #ef8b7a; }
     /* 끊긴 동안 보는 세계는 현재가 아닐 수 있다 — 화면 전체로 그 사실을 표시한다 */
     #hud[data-stale="true"] ~ canvas, #game[data-stale="true"] canvas { filter: grayscale(0.55); }
   </style>

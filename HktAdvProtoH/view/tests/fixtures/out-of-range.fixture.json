@@ -3,7 +3,8 @@
   "scene": "mining-field",
   "observer": {
     "id": "observer-a",
-    "characterId": "player"
+    "characterId": "player",
+    "acknowledgedMark": 0
   },
   "entities": [
     {

@@ -14,6 +14,7 @@ import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
 import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
 import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
+import { bindingLines, telemetryLines } from '../view/presentation/link-presentation';
 import { resolvePresentation } from '../view/presentation/resolve';
 import { sessionPresentation } from '../view/presentation/session-presentation';
 import { createRenderer } from '../view/renderer/renderer';
@@ -27,9 +28,13 @@ if (!container) throw new Error('#game 컨테이너가 없다');
 const observerId = resolveObserverId(browserIdentityStorage());
 
 const wsProtocol = location.protocol === 'https:' ? 'wss:' : 'ws:';
+const worldAddress = `${wsProtocol}//${location.host}${TRANSPORT_PATH}`;
 const link = createWorldLink(
-  browserSocketFactory(`${wsProtocol}//${location.host}${TRANSPORT_PATH}`),
+  browserSocketFactory(worldAddress),
   observerId,
+  undefined,
+  undefined,
+  worldAddress, // C005 binding.worldAddress — 어느 세계에 이어져 있는가
 );
 
 const renderer = createRenderer(container);
@@ -109,7 +114,23 @@ function frame(now: number): void {
     const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 4.2);
     if (screen) labels.push({ x: screen.x, y: screen.y, text: entity.label });
   }
-  hud.render(latestScene, labels, sessionPresentation(link.state(), link.stale()));
+  // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
+  // 나머지는 link 가 관찰자 쪽 시계로 잰 것이다.
+  const nowMs = Date.now();
+  hud.render(
+    latestScene,
+    labels,
+    sessionPresentation(
+      link.state(),
+      link.stale(),
+      telemetryLines(link.telemetry(nowMs)),
+      bindingLines({
+        observerId,
+        characterId: snapshot?.observer.characterId ?? '—',
+        worldAddress: link.address(),
+      }),
+    ),
+  );
   requestAnimationFrame(frame);
 }
 requestAnimationFrame(frame);
