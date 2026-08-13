@@ -9,6 +9,7 @@ export interface WorldState {
   bounds: WorldBounds;
   actors: ActorState[]; // C002 CHANGED — Actor 하나 → 여럿
   deposits: DepositState[];
+  time: number; // World.Time — 세계가 시작된 뒤 흐른 시간 (C003 ADDED)
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
@@ -37,3 +38,7 @@ export function playerActor(state: WorldState): ActorState {
 export function findActor(state: WorldState, id: string): ActorState | undefined {
   return state.actors.find((a) => a.id === id);
 }
+
+// World.TickInterval — RULE-WORLD-TICK-001 이 세계를 진행시키는 주기 (초).
+// 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다 (C003 ADDED).
+export const TICK_INTERVAL = 1 / 30;

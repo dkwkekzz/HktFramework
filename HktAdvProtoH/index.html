@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>HktAdvProtoH — C002 Character Action &amp; Animation</title>
+  <title>HktAdvProtoH — C003 World Server Separation</title>
   <style>
     html, body { margin: 0; height: 100%; overflow: hidden; font-family: system-ui, sans-serif; }
     #game { position: relative; width: 100%; height: 100%; }
@@ -48,6 +48,15 @@
     .hud-hint[data-state="available"] { background: rgba(34, 38, 48, 0.85); color: #fff; }
     .hud-hint[data-state="unavailable"] { background: rgba(66, 66, 74, 0.6); color: #e2e2e8; }
     .hud-hint:empty { display: none; }
+    .hud-link {
+      position: absolute; top: 62px; left: 14px;
+      padding: 6px 12px; border-radius: 8px; font-size: 13.5px; font-weight: 700;
+      background: rgba(120, 60, 40, 0.85); color: #ffe9d8;
+    }
+    .hud-link[data-state="connecting"] { background: rgba(120, 96, 40, 0.85); }
+    .hud-link:empty { display: none; }
+    /* 끊긴 동안 보는 세계는 현재가 아닐 수 있다 — 화면 전체로 그 사실을 표시한다 */
+    #hud[data-stale="true"] ~ canvas, #game[data-stale="true"] canvas { filter: grayscale(0.55); }
   </style>
 </head>
 <body>

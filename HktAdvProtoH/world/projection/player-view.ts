@@ -1,5 +1,5 @@
 // Observer Projection (player) — WorldState 를 Semantic Snapshot 으로 투영한다.
-// VIEW-CHARACTER-ACTION-001 (cycles/C002-character-action-animation/04-gameview.spec.yaml) 이 계약이다.
+// VIEW-WORLD-SERVER-001 (cycles/C003-world-server-separation/04-gameview.spec.yaml) 이 계약이다.
 //
 // 의미만 투영한다 — role/state/값/사유 코드. 표현(sprite·모션 파일·크기·라벨 형식·문구)은
 // View 의 Presentation 결정 Layer 책임이며 여기 싣지 않는다.
@@ -13,7 +13,7 @@ import { evaluateMoveAvailability } from '../rules/move';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import { playerActor, type WorldState } from '../semantic/world-state';
 
-export const SPEC_ID = 'VIEW-CHARACTER-ACTION-001';
+export const SPEC_ID = 'VIEW-WORLD-SERVER-001';
 
 export function projectPlayerView(state: WorldState): GameViewSnapshot {
   const player = playerActor(state);
@@ -94,6 +94,9 @@ export function projectPlayerView(state: WorldState): GameViewSnapshot {
         value: player.currentAction.kind,
         ...(playerProgress !== null ? { progress: playerProgress } : {}),
       },
+      // World.Time (C003) — 세계가 자기 시계로 어디까지 왔는가.
+      // 관찰자가 보지 않은 동안에도 이 값이 흘러 있다는 사실이 세계의 독립성을 보인다.
+      { id: 'world.time', kind: 'counter', value: state.time },
     ],
   };
 }

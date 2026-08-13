@@ -1,17 +1,15 @@
-// Authoritative World — C001 Stone Mining · C002 Character Action & Animation
-// State 는 이 모듈 내부에만 존재한다. 외부는 dispatch / tick / project 로만 접근한다 (World Authority).
+// Authoritative World — C001 Stone Mining · C002 Character Action · C003 Server Separation
+// State 는 이 모듈 내부에만 존재한다. 밖으로 나가는 것은 Tick 이 내보내는 관찰 결과뿐이고,
+// 안으로 들어오는 것은 Action Request 뿐이다 (World Authority).
 
-import type { ActionRequest, ActionResult } from '../protocol/actions';
+import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { dispatchAction } from './actions/dispatch';
 import { projectPlayerView } from './projection/player-view';
 import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
 import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
-import { ruleActionProgress } from './simulation/action-progress';
-import { ruleMoveProgress } from './simulation/move-progress';
-import { ruleNpcDecideAll } from './simulation/npc-decide';
+import { ruleWorldTick, type WorldTickResult } from './simulation/world-tick';
 import {
   ATTACK_RANGE,
   MOVE_SPEED,
@@ -21,10 +19,15 @@ import {
   type WorldState,
 } from './semantic/world-state';
 
+// C003 CHANGED — 세계는 요청을 "받아 두고" 자기 Tick 에 판정한다.
+// 외부가 상태를 읽어 가는 경로(pull)는 없다 — 관찰 결과는 Tick 이 내보낸다.
 export interface World {
-  dispatch(action: ActionRequest): ActionResult;
-  tick(dt: number): void;
-  projectPlayerView(): GameViewSnapshot;
+  /** 요청이 세계에 도착한다. 즉시 판정되지 않는다 (INTENT-REMOTE-REQUEST-001) */
+  request(action: ActionRequest): void;
+  /** RULE-WORLD-TICK-001 — 세계의 시계만이 부른다 (검증 시에는 테스트가 직접 부른다) */
+  tick(dt: number): WorldTickResult;
+  /** 마지막 Tick 이 내보낸 관찰 결과. 새로 만들지 않는다 — 이미 나간 것을 되돌려줄 뿐 */
+  latestObservation(): GameViewSnapshot;
 }
 
 export interface NpcSetup {
@@ -109,16 +112,22 @@ export function createWorld(setup: WorldSetup = {}): World {
         resourceAmount: setup.depositAmount ?? 5,
       },
     ],
+    time: 0,
   };
 
+  // 도착했지만 아직 판정되지 않은 요청들 — 다음 Tick 의 처리 대상이다.
+  const pending: ActionRequest[] = [];
+  let latest: GameViewSnapshot = projectPlayerView(state);
+
   return {
-    dispatch: (action) => dispatchAction(state, action),
-    // Tick 순서는 결정론의 일부다 — 결정 → 이동 진행 → 행동 진행(완료 효과)
-    tick: (dt) => {
-      ruleNpcDecideAll(state);
-      ruleMoveProgress(state, dt);
-      ruleActionProgress(state, dt);
+    request: (action) => {
+      pending.push(action);
     },
-    projectPlayerView: () => projectPlayerView(state),
+    tick: (dt) => {
+      const result = ruleWorldTick(state, dt, pending);
+      latest = result.snapshot;
+      return result;
+    },
+    latestObservation: () => latest,
   };
 }

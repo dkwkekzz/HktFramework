@@ -82,8 +82,12 @@ export function resolvePresentation(
         widget: h.kind,
         label: p.label,
         ...(p.icon ? { icon: p.icon } : {}),
-        // 의미 코드 값(label 위젯)은 문구 결정을 거친다 — 미등록 코드는 코드 그대로
-        value: h.kind === 'label' ? codeText(String(h.value)) : h.value,
+        // 의미 코드 값(label 위젯)은 문구 결정을, 형식 지시가 있으면 그 형식을 거친다
+        value: p.format
+          ? p.format(h.value)
+          : h.kind === 'label'
+            ? codeText(String(h.value))
+            : h.value,
         ...(h.progress === undefined ? {} : { progress: h.progress }),
         ...(p.celebrateGain ? { celebrateGain: true } : {}),
       };

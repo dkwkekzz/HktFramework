@@ -9,7 +9,7 @@ import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createTerrain, heightAt } from '../terrain/terrain';
 
 export interface GameRenderer {
-  render(state: SceneState): void;
+  render(state: SceneState, dt?: number): void;
   /** 화면 좌표 → 지형 위 지점 (없으면 null) */
   pickGround(clientX: number, clientY: number): { x: number; z: number } | null;
   /** 화면 좌표에 있는 entity id (없으면 null) */
@@ -80,12 +80,30 @@ export function createRenderer(container: HTMLElement): GameRenderer {
 
   let lastTime = performance.now();
 
+  // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착한다 (C003). 받은 위치로 곧장
+  // 튀지 않고 부드럽게 따라간다 — 순수 표현 능력이며 세계 상태를 바꾸지 않는다.
+  const SMOOTHING = 18;
+  const drawn = new Map<string, { x: number; z: number }>();
+
+  function smoothed(id: string, target: { x: number; z: number }, dt: number) {
+    const current = drawn.get(id);
+    if (!current) {
+      const fresh = { x: target.x, z: target.z };
+      drawn.set(id, fresh);
+      return fresh;
+    }
+    const k = 1 - Math.exp(-SMOOTHING * Math.max(dt, 0));
+    current.x += (target.x - current.x) * k;
+    current.z += (target.z - current.z) * k;
+    return current;
+  }
+
   return {
     domElement: renderer.domElement,
 
-    render(state) {
+    render(state, frameDt) {
       const now = performance.now();
-      const dt = (now - lastTime) / 1000;
+      const dt = frameDt ?? (now - lastTime) / 1000;
       lastTime = now;
 
       const seen = new Set<string>();
@@ -101,15 +119,16 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         }
         bb.setAppearance(entity, now / 1000);
         bb.object.scale.set(entity.size * bb.aspect(), entity.size, 1);
-        const y = heightAt(entity.position.x, entity.position.z);
-        bb.setPosition(entity.position.x, y, entity.position.z);
+        const at = smoothed(entity.id, entity.position, dt);
+        const y = heightAt(at.x, at.z);
+        bb.setPosition(at.x, y, at.z);
 
         if (entity.trail) {
           const trail = trailFor(entity.id);
           trail.accum += dt;
           if (trail.accum > 0.12) {
             trail.accum = 0;
-            const p = new THREE.Vector3(entity.position.x, y + 0.12, entity.position.z);
+            const p = new THREE.Vector3(at.x, y + 0.12, at.z);
             const last = trail.points[trail.points.length - 1];
             if (!last || last.distanceTo(p) > 0.25) {
               trail.points.push(p);
@@ -120,7 +139,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         }
 
         if (entity.cameraFollow) {
-          followPlayer(camera, entity.position, y);
+          followPlayer(camera, at, y);
         }
       }
 
@@ -129,6 +148,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         if (!seen.has(id)) {
           scene.remove(bb.object);
           billboards.delete(id);
+          drawn.delete(id);
         }
       }
 

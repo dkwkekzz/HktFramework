@@ -1,6 +1,7 @@
 // Web HUD — HUD Capability 엔진. counter / flag 위젯 · 프롬프트 · 획득 토스트 ·
 // entity 라벨을 그릴 뿐, 라벨·아이콘·문구는 전부 Snapshot 의 지시를 그대로 표시한다.
 
+import type { SessionPresentation } from '../presentation/session-presentation';
 import type { SceneState } from '../scene/scene-state';
 
 export interface EntityLabel {
@@ -10,7 +11,7 @@ export interface EntityLabel {
 }
 
 export interface Hud {
-  render(scene: SceneState, labels: EntityLabel[]): void;
+  render(scene: SceneState, labels: EntityLabel[], session?: SessionPresentation): void;
 }
 
 export function createHud(container: HTMLElement): Hud {
@@ -22,6 +23,7 @@ export function createHud(container: HTMLElement): Hud {
     <div id="hud-labels"></div>
     <div class="hud-toast" id="hud-toast"></div>
     <div class="hud-hint" id="hud-mine-hint"></div>
+    <div class="hud-link" id="hud-link"></div>
   `;
   container.appendChild(root);
 
@@ -30,12 +32,20 @@ export function createHud(container: HTMLElement): Hud {
   const labelLayer = root.querySelector('#hud-labels') as HTMLElement;
   const toast = root.querySelector('#hud-toast') as HTMLElement;
   const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
+  const link = root.querySelector('#hud-link') as HTMLElement;
 
   const lastCounters = new Map<string, number>();
   let toastUntil = 0;
 
   return {
-    render(scene, labels) {
+    render(scene, labels, session) {
+      // 이어짐 상태 — 세계의 상태가 아니라 관찰자 쪽 상태다 (C003)
+      if (session) {
+        link.textContent = session.state === 'connected' ? '' : session.text;
+        link.dataset.state = session.state;
+        container.dataset.stale = String(session.stale); // 화면 전체 표시용
+      }
+
       // HUD 위젯 — 지시받은 widget 종류대로 그린다
       const parts: string[] = [];
       for (const item of scene.hud) {
