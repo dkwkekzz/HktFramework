@@ -74,19 +74,19 @@
         모든 entity 가 절차 그림(player-pickaxe:mine · wanderer:move · wanderer:attack ·
         stone-deposit:available)으로 그려진다 — 데이터 부재가 게임을 멈추지 않는다.
 
-    실행 결과   view 테스트 20건 통과 (motion 13 · resolve 7)
+    실행 결과   view 테스트 22건 통과 (motion 15 · resolve 7)
 
 ## PLAYABLE
     실행      npx vite (127.0.0.1:5199) + Chromium 자동 조작 (기록: 조작 → HUD 관찰)
 
-    start   Stone 0 · 곡괭이 ✓ · 행동: 대기        광맥 힌트 "너무 멀다"
-    D 유지  Stone 0 ·                행동: 이동     캐릭터가 화면에서 이동
-    W 유지 후 정지                   행동: 대기     힌트가 "[E] 채굴" 로 바뀐다
+    start   Stone 0 · 곡괭이 ✓ · 행동: 대기
+    D/W 반복 입력                    행동: 이동     캐릭터가 화면에서 이동
+    광맥 도달                        행동: 대기     힌트가 "[E] 채굴" 로 바뀐다
     E 입력                           행동: 채굴 ▮▮░ 진행 막대가 차오른다
+    채굴 중 이동 시도                행동: 채굴     힌트 "지금 하는 행동이 끝나야 한다"
     1.0s 후 Stone 1 ·                행동: 대기     획득 토스트
-    E 직후 이동 시도                 행동: 채굴     힌트 "지금 하는 행동이 끝나야 한다"
-    NPC 접근 대기 후 F 입력  Stone 2 · 행동: 공격
-    0.6s 후                          행동: 대기
+    NPC 접근 대기 후 F 입력          행동: 공격
+    0.7s 후                          행동: 대기
 
     모션 재생 실측
         플레이어를 대기 상태로 두고 캐릭터 영역만 125ms 간격 12회 캡처 →
@@ -95,7 +95,9 @@
 
     NPC 관찰
         조작하지 않아도 NPC 가 스스로 다가와 사거리에서 공격 행동에 들어간다.
-        wanderer 종류의 모션 데이터는 없으므로 절차 그림으로 관찰된다 (폴백 4단계).
+        wanderer 종류에도 같은 idle 시트를 주입해 두었으므로 플레이어와 같은 모션으로
+        재생되며, role tint 로 서로 구분된다. wanderer 폴더의 파일을 갈아 끼우면
+        코드 변경 없이 NPC 모션만 바뀐다 (view/tests/motion.spec.ts 가 이 독립성을 검증).
 
 ## REGRESSION
     C001 Stone Mining Goal — 이동해서 광맥에 접근한 뒤 캐면 Stone 을 얻는다
@@ -123,7 +125,7 @@
     [x] View 는 Spec 외 World 정보를 사용하지 않는다          view/ → world/ import 0건 (grep)
     [x] World 는 View 구현 정보를 사용하지 않는다             world/ → view/ import 0건 (grep)
     [x] World 를 View 없이 검증할 수 있다                     world 테스트 30건
-    [x] View 를 Fixture 만으로 검증할 수 있다                 view 테스트 20건
+    [x] View 를 Fixture 만으로 검증할 수 있다                 view 테스트 22건
     [x] Server + Client 연결 시 실제 플레이가 가능하다        PLAYABLE 절
     [x] Runtime 결과를 Goal / Intent 까지 추적할 수 있다      ActionResult.rule → semantic-id.ts
                                                               → Rule 주석의 Implements → Intent

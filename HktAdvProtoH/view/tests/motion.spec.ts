@@ -116,4 +116,22 @@ describe('motions/ 자동 발견', () => {
     expect(idle).toMatchObject({ characterKind: 'rabbit-swordsman', action: 'idle', frames: 9 });
     expect(idle?.url).toBeTruthy();
   });
+
+  it('세계에 존재하는 캐릭터 종류마다 모션이 주입되어 있다', () => {
+    // world/index.ts 가 쓰는 종류 — 새 종류를 세계에 넣으면 이 목록에 추가한다
+    for (const kind of ['rabbit-swordsman', 'wanderer']) {
+      const asset = motionLibrary.resolve(kind, 'idle');
+      expect(asset?.characterKind).toBe(kind); // 다른 종류로 폴백되지 않는다
+    }
+  });
+
+  it('종류별 시트는 각자 교체 가능하다 — 한쪽을 바꿔도 다른 쪽은 그대로다', () => {
+    const library = createMotionLibrary({
+      '/motions/rabbit-swordsman/idle.3x3.png': '/shared.png',
+      '/motions/wanderer/idle.3x3.png': '/wanderer-own.png', // 이 파일만 갈아 끼운 상황
+    });
+
+    expect(library.resolve('rabbit-swordsman', 'idle')?.url).toBe('/shared.png');
+    expect(library.resolve('wanderer', 'idle')?.url).toBe('/wanderer-own.png');
+  });
 });

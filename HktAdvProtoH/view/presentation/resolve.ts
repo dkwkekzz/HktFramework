@@ -53,6 +53,7 @@ export function resolvePresentation(
         spriteId: `${p.sprite}:${e.state}`,
         ...(motion ? { motion } : {}),
         size: p.size,
+        ...(p.tint === undefined ? {} : { tint: p.tint }),
         position: e.position,
         ...(e.labelValue !== undefined
           ? { label: p.labelFormat ? p.labelFormat(e.labelValue) : String(e.labelValue) }

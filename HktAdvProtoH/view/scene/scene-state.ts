@@ -19,6 +19,7 @@ export interface SceneEntity {
   spriteId: string; // Asset Registry 키 (예: player-pickaxe:idle) — 모션이 없을 때의 그림
   motion?: SceneMotion; // 있으면 이 모션을 재생한다 (C002)
   size: number;
+  tint?: number; // 그림에 곱할 색 (C002) — 없으면 원본 그대로
   position: { x: number; z: number };
   label?: string; // 형식화 완료된 라벨 텍스트 (예: "돌 4")
   cameraFollow: boolean;

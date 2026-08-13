@@ -10,6 +10,7 @@
 export interface RolePresentation {
   sprite: string; // Asset Registry 의 sprite 키
   size: number;
+  tint?: number; // 그림에 곱할 색 — 같은 모션을 쓰는 대상을 구분하기 위한 표현 결정
   cameraFollow?: boolean;
   trail?: boolean;
   labelFormat?: (value: number | string) => string;
@@ -17,7 +18,9 @@ export interface RolePresentation {
 
 const ROLES: Record<string, RolePresentation> = {
   'player-character': { sprite: 'player-pickaxe', size: 3.4, cameraFollow: true, trail: true },
-  'npc-character': { sprite: 'wanderer', size: 2.8 },
+  // NPC 는 현재 플레이어와 같은 모션 시트를 쓴다 — 누가 내 캐릭터인지 보이도록 색을 달리한다.
+  // NPC 전용 시트가 들어오면 tint 를 지워도 된다.
+  'npc-character': { sprite: 'wanderer', size: 2.8, tint: 0x9fb6ff },
   'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` },
 };
 

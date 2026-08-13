@@ -59,6 +59,16 @@ motions/slime/idle.cols3rows3frames9.png          생성기가 내보낸 표기�
 4. 절차 생성 픽셀아트     코드에 내장된 기본 그림 (view/assets/registry.ts)
 ```
 
+## 지금 들어 있는 데이터
+
+| 종류 | 파일 | 쓰는 캐릭터 |
+|---|---|---|
+| `rabbit-swordsman` | `idle.3x3.9f.8fps.png` | 플레이어 |
+| `wanderer` | `idle.3x3.9f.8fps.png` | NPC (자율 캐릭터) |
+
+**둘은 지금 같은 그림이다** — NPC 전용 모션이 아직 없어 임시로 같은 시트를 넣어 두었다.
+NPC 모션을 바꾸려면 `motions/wanderer/` 안의 파일만 갈아 끼우면 된다. 코드는 손대지 않는다.
+
 ## 새 캐릭터를 추가하려면
 
 1. `motions/<새종류>/` 폴더를 만들고 시트를 넣는다.

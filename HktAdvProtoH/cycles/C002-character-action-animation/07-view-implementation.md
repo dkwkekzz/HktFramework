@@ -40,8 +40,17 @@
 
     이번 Cycle 에 주입한 데이터
         motions/rabbit-swordsman/idle.3x3.9f.8fps.png   1518×1452, 프레임 506×484, 9프레임
-        → player Actor 의 characterKind = 'rabbit-swordsman' 이므로 플레이어가 이 시트로 그려진다.
+        motions/wanderer/idle.3x3.9f.8fps.png           (같은 내용 — NPC 임시 데이터)
+        → player Actor 는 characterKind = 'rabbit-swordsman', NPC 는 'wanderer' 이므로
+          지금은 둘 다 같은 그림으로 그려진다. NPC 전용 시트가 생기면
+          motions/wanderer/ 안의 파일만 갈아 끼우면 된다 (코드 변경 없음).
         → move/attack/mine 시트는 아직 없으므로 폴백 2단계(같은 종류의 idle)로 관찰된다.
+        → 두 파일은 내용이 같아 git 은 blob 하나만, vite 는 에셋 하나만 만든다.
+
+    Role Tint (view/presentation/role-presentation.ts)
+        npc-character 에 tint 0x9fb6ff. 같은 모션 시트를 쓰는 동안 누가 내 캐릭터인지
+        구분되게 하는 표현 결정이며, NPC 전용 시트가 들어오면 지워도 된다.
+        billboard 는 지시받은 색을 곱할 뿐 role 을 모른다.
 
     절차 생성 Asset (모션이 없을 때) — view/assets/registry.ts
         player-pickaxe:idle / move / moving / attack / mine
@@ -72,11 +81,12 @@
     기존 capability(터레인·트레일·카메라·픽업 토스트)의 렌더 코드는 수정하지 않았다.
 
 ## FIXTURE TESTS
-    view/tests/motion.spec.ts                                                   13건
+    view/tests/motion.spec.ts                                                   15건
         포맷 파싱(폴더=종류 · 첫 토큰=행동 · 옵션 순서 무관 · 대체 표기 · 상한 · 무시)
         라이브러리 폴백 4단계
         재생 방식(loop fps · progress 1회 · 범위 클램프) · UV 좌표 순서
         motions/ 자동 발견 — 등록 코드 없이 색인되는지 실제 폴더로 확인
+        종류마다 자기 시트로 해석되는지 · 한쪽만 갈아 끼워도 다른 쪽이 그대로인지
     view/tests/fixtures/character-action.fixture.json                           신규
     view/tests/resolve.spec.ts                                                   7건
         C002 fixture → 모션 선택/폴백/재생 방식, 행동 HUD 문구·진행도,
@@ -84,7 +94,7 @@
         모션이 전혀 없을 때 모든 entity 가 절차 그림으로 그려지는지
         (C001 fixture 3종은 그대로 통과 — Regression)
 
-    npm test → 50 passed (world 30 + view 20)
+    npm test → 52 passed (world 30 + view 22)
     npm run build → tsc --noEmit 통과, vite build 성공 (시트가 dist 에 번들된다)
 
 ## NOTES

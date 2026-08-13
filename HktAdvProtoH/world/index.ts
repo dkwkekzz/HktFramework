@@ -44,10 +44,12 @@ export interface WorldSetup {
   npcs?: NpcSetup[];
 }
 
-// 세계의 기본 배치 — 자율 캐릭터 2종이 각자의 순회 경로를 돈다.
+// 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다.
+// characterKind 를 바꾸면 그 캐릭터가 쓰는 모션 집합이 바뀐다 (motions/<종류>/ 폴더).
 const DEFAULT_NPCS: NpcSetup[] = [
   {
     id: 'npc-1',
+    characterKind: 'wanderer',
     position: { x: -8, z: 4 },
     wanderPath: [
       { x: -8, z: 4 },
@@ -58,6 +60,7 @@ const DEFAULT_NPCS: NpcSetup[] = [
   },
   {
     id: 'npc-2',
+    characterKind: 'wanderer',
     position: { x: 12, z: 8 },
     wanderPath: [
       { x: 12, z: 8 },

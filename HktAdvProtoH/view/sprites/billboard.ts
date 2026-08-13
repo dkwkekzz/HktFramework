@@ -52,6 +52,7 @@ function sheetImage(url: string): SheetImage {
 export interface BillboardAppearance {
   spriteId: string;
   motion?: SceneMotion;
+  tint?: number;
 }
 
 export interface Billboard {
@@ -70,6 +71,7 @@ export function createBillboard(appearance: BillboardAppearance, scale: number):
   sprite.center.set(0.5, 0.06); // 발 기준점 — 지면 위에 선다
 
   let currentSpriteId = '';
+  let currentTint = 0xffffff;
   let currentMotionUrl = '';
   let currentFrame = -1;
   let motionTexture: THREE.Texture | null = null;
@@ -129,6 +131,12 @@ export function createBillboard(appearance: BillboardAppearance, scale: number):
     setAppearance(next, timeSeconds) {
       if (next.motion) useMotion(next.motion, timeSeconds);
       else useProcedural(next.spriteId);
+
+      const tint = next.tint ?? 0xffffff;
+      if (tint !== currentTint) {
+        currentTint = tint;
+        material.color.setHex(tint);
+      }
     },
     setPosition(x, y, z) {
       sprite.position.set(x, y, z);
