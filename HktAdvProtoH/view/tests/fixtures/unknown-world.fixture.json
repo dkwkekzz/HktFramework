@@ -1,0 +1,21 @@
+{
+  "id": "VIEW-UNKNOWN-WORLD-999",
+  "scene": "sky-market",
+  "entities": [
+    { "id": "trader", "role": "sky-merchant", "state": "haggling", "position": { "x": 0, "z": 0 }, "focus": true },
+    { "id": "airship-7", "role": "airship", "position": { "x": -4, "z": 3 }, "label": "정박 중" },
+    { "id": "crate", "role": "cargo-crate", "state": "sealed", "position": { "x": 2, "z": 1 } }
+  ],
+  "interactions": [
+    { "id": "walk", "role": "walk-to", "available": true, "request": { "type": "move", "target": { "x": 0, "z": 0 } }, "pointField": "target" },
+    { "id": "haggle", "role": "start-haggle", "available": true, "request": { "type": "mine", "depositId": "airship-7" }, "targetEntityId": "airship-7", "key": "F", "prompt": "흥정" },
+    { "id": "open", "role": "open-crate", "available": false, "request": { "type": "mine", "depositId": "crate" }, "targetEntityId": "crate", "key": "G", "prompt": "열기", "unavailableReason": "sealed-by-guild", "unavailableText": "길드 봉인이 걸려 있다" }
+  ],
+  "hud": {
+    "items": [
+      { "id": "coin", "icon": "🪙", "label": "Coin", "value": 12, "notifyOnIncrease": "+{delta} {label}" },
+      { "id": "reputation", "label": "평판", "value": "신뢰 없음" }
+    ],
+    "keyHints": ["이동: WASD", "흥정: F"]
+  }
+}

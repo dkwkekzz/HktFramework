@@ -1,7 +1,11 @@
 // RULE-MOVE-001 · RULE-MOVE-PROGRESS-001 World 단독 테스트
 
 import { describe, expect, it } from 'vitest';
+import type { GameViewSnapshot } from '../../protocol/gameview';
 import { createWorld } from '../index';
+
+const player = (view: GameViewSnapshot) => view.entities.find((e) => e.id === 'player');
+const mine = (view: GameViewSnapshot) => view.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MOVE-001', () => {
   it('Bounds 안 지점 → MoveTarget 설정, moving 상태 관찰', () => {
@@ -10,7 +14,7 @@ describe('RULE-MOVE-001', () => {
     const result = world.dispatch({ type: 'move', target: { x: 8, z: -6 } });
 
     expect(result).toEqual({ status: 'success', rule: 'RULE-MOVE-001' });
-    expect(world.projectPlayerView().entities.player.state).toBe('moving');
+    expect(player(world.projectPlayerView())?.state).toBe('moving');
   });
 
   it('Bounds 밖 지점 → Failure(out-of-bounds), idle 유지', () => {
@@ -19,7 +23,7 @@ describe('RULE-MOVE-001', () => {
     const result = world.dispatch({ type: 'move', target: { x: 999, z: 0 } });
 
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MOVE-001', reason: 'out-of-bounds' });
-    expect(world.projectPlayerView().entities.player.state).toBe('idle');
+    expect(player(world.projectPlayerView())?.state).toBe('idle');
   });
 });
 
@@ -30,22 +34,22 @@ describe('RULE-MOVE-PROGRESS-001', () => {
 
     world.tick(0.5);
     let view = world.projectPlayerView();
-    expect(view.entities.player.position.x).toBeCloseTo(3);
-    expect(view.entities.player.state).toBe('moving');
+    expect(player(view)?.position.x).toBeCloseTo(3);
+    expect(player(view)?.state).toBe('moving');
 
     world.tick(0.6); // 초과 진행해도 목표를 지나치지 않는다
     view = world.projectPlayerView();
-    expect(view.entities.player.position.x).toBeCloseTo(6);
-    expect(view.entities.player.state).toBe('idle');
+    expect(player(view)?.position.x).toBeCloseTo(6);
+    expect(player(view)?.state).toBe('idle');
   });
 
   it('이동으로 광맥에 접근하면 Mine 이 가용해진다 (out-of-range → available)', () => {
     const world = createWorld({ actorPosition: { x: 0, z: 0 } });
-    expect(world.projectPlayerView().interactions.mine.unavailableReason).toBe('out-of-range');
+    expect(mine(world.projectPlayerView())?.unavailableReason).toBe('out-of-range');
 
     world.dispatch({ type: 'move', target: { x: 8, z: -6 } });
     for (let i = 0; i < 60; i++) world.tick(1 / 30); // 2초 진행 — 거리 10 도달 충분
 
-    expect(world.projectPlayerView().interactions.mine.available).toBe(true);
+    expect(mine(world.projectPlayerView())?.available).toBe(true);
   });
 });

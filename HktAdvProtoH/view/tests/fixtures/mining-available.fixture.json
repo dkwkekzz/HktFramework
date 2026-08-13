@@ -1,24 +1,16 @@
 {
   "id": "VIEW-STONE-MINING-001",
   "scene": "mining-field",
-  "entities": {
-    "player": { "role": "player-character", "position": { "x": 7.5, "z": -5.5 }, "state": "idle" },
-    "deposit": {
-      "role": "resource-deposit",
-      "resourceKind": "stone",
-      "id": "deposit-1",
-      "position": { "x": 8, "z": -6 },
-      "state": "available",
-      "remaining": 5
-    }
-  },
-  "interactions": {
-    "move": { "role": "move-to", "available": true },
-    "mine": { "role": "mine-deposit", "available": true }
-  },
+  "entities": [
+    { "id": "player", "role": "player-character", "state": "idle", "position": { "x": 7.5, "z": -5.5 }, "focus": true },
+    { "id": "deposit-1", "role": "resource-deposit", "state": "available", "position": { "x": 8, "z": -6 }, "label": "돌 5" }
+  ],
+  "interactions": [
+    { "id": "move", "role": "move-to", "available": true, "request": { "type": "move", "target": { "x": 7.5, "z": -5.5 } }, "pointField": "target" },
+    { "id": "mine", "role": "mine-deposit", "available": true, "request": { "type": "mine", "depositId": "deposit-1" }, "targetEntityId": "deposit-1", "key": "E", "prompt": "채굴" }
+  ],
   "hud": {
-    "inventory": { "stone": 0 },
-    "tool": { "hasMiningTool": true },
-    "mineHint": { "available": true }
+    "items": [{ "id": "stone", "icon": "⛏", "label": "Stone", "value": 0, "notifyOnIncrease": "+{delta} {label} 획득!" }],
+    "keyHints": ["이동: WASD / 방향키", "채굴: E"]
   }
 }

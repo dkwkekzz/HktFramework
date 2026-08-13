@@ -1,8 +1,9 @@
 // Renderer — Scene State 를 three.js 로 그린다. 게임 의미 판정은 하지 않는다.
 
 import * as THREE from 'three';
-import { createCamera, followPlayer } from '../camera/camera';
+import { createCamera, followFocus } from '../camera/camera';
 import type { SceneState } from '../scene/scene-state';
+import { spriteScale } from '../assets/registry';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createTerrain, heightAt } from '../terrain/terrain';
 
@@ -10,8 +11,8 @@ export interface GameRenderer {
   render(state: SceneState): void;
   /** 화면 좌표 → 지형 위 지점 (없으면 null) */
   pickGround(clientX: number, clientY: number): { x: number; z: number } | null;
-  /** 화면 좌표가 deposit 스프라이트 위인가 */
-  pickDeposit(clientX: number, clientY: number): boolean;
+  /** 화면 좌표 아래에 있는 Entity 식별자 (없으면 null) — 어떤 존재든 같은 방식으로 집는다 */
+  pickEntity(clientX: number, clientY: number): string | null;
   /** 월드 지면 위 지점(+높이 오프셋) → 화면 좌표 (카메라 뒤면 null) */
   worldToScreen(x: number, z: number, yOffset: number): { x: number; y: number } | null;
   domElement: HTMLCanvasElement;
@@ -43,7 +44,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   const billboards = new Map<string, Billboard>();
   const raycaster = new THREE.Raycaster();
 
-  // 플레이어 이동 트레일 — 최근 지나간 자취를 노란 선으로 표현
+  // 초점 존재의 자취 — 최근 지나간 경로를 노란 선으로 표현
   const TRAIL_MAX = 48;
   const trailPoints: THREE.Vector3[] = [];
   const trailGeometry = new THREE.BufferGeometry();
@@ -82,22 +83,29 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       const dt = (now - lastTime) / 1000;
       lastTime = now;
 
+      const alive = new Set<string>();
       for (const entity of state.entities) {
-        const scale = entity.key === 'player' ? 2.6 : 3.4;
-        const bb = billboardFor(entity.key, entity.spriteId, scale);
+        alive.add(entity.id);
+        const bb = billboardFor(entity.id, entity.spriteId, spriteScale(entity.spriteId));
         bb.setSprite(entity.spriteId);
         const y = heightAt(entity.position.x, entity.position.z);
         bb.setPosition(entity.position.x, y, entity.position.z);
       }
+      // Snapshot 에서 사라진 존재는 화면에서도 사라진다
+      for (const [id, bb] of billboards) {
+        if (alive.has(id)) continue;
+        scene.remove(bb.object);
+        billboards.delete(id);
+      }
 
-      const player = state.entities.find((e) => e.key === 'player');
-      if (player) {
-        const py = heightAt(player.position.x, player.position.z);
+      const focus = state.entities.find((e) => e.focus);
+      if (focus) {
+        const py = heightAt(focus.position.x, focus.position.z);
 
         trailAccum += dt;
         if (trailAccum > 0.12) {
           trailAccum = 0;
-          const p = new THREE.Vector3(player.position.x, py + 0.12, player.position.z);
+          const p = new THREE.Vector3(focus.position.x, py + 0.12, focus.position.z);
           const lastP = trailPoints[trailPoints.length - 1];
           if (!lastP || lastP.distanceTo(p) > 0.25) {
             trailPoints.push(p);
@@ -106,7 +114,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
           }
         }
 
-        followPlayer(camera, player.position, py);
+        followFocus(camera, focus.position, py);
       }
       renderer.render(scene, camera);
     },
@@ -117,11 +125,12 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       return hit ? { x: hit.point.x, z: hit.point.z } : null;
     },
 
-    pickDeposit(clientX, clientY) {
-      const deposit = billboards.get('deposit');
-      if (!deposit) return false;
+    pickEntity(clientX, clientY) {
       raycaster.setFromCamera(toNdc(clientX, clientY), camera);
-      return raycaster.intersectObject(deposit.object, false).length > 0;
+      for (const [id, bb] of billboards) {
+        if (raycaster.intersectObject(bb.object, false).length > 0) return id;
+      }
+      return null;
     },
 
     worldToScreen(x, z, yOffset) {

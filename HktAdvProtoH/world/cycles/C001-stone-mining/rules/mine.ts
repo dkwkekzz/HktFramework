@@ -5,13 +5,15 @@
 // Result         Success | Failure(no-mining-tool | out-of-range | deposit-depleted)
 
 import type { ActionResult } from '../../../../protocol/actions';
-import type { MineFailureReason } from '../../../../protocol/gameview';
 import { RULE_MINE } from '../../../../protocol/semantic-id';
 import type { DepositState } from '../semantic/deposit';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import { distance } from '../semantic/position';
 import { INTERACTION_RANGE } from '../semantic/world-state';
 import type { WorldState } from '../../../kernel/state';
+
+// Mine 실패 사유 — C001 이 소유하는 의미다 (View 는 이 코드를 해석하지 않는다)
+export type MineFailureReason = 'no-mining-tool' | 'out-of-range' | 'deposit-depleted';
 
 // Precondition 평가 — Observable(Mine.Availability / Mine.FailureReason)과 Rule 이 같은 판정을 공유한다
 export function evaluateMinePreconditions(

@@ -2,6 +2,8 @@
 // 16x16 픽셀 그리드를 문자열로 정의하고 Canvas 에 그린다 (외부 이미지 파일 없음).
 
 const PALETTE: Record<string, string> = {
+  '?': '#c0397a', // 미등록 역할 대체 표현
+  '#': '#f2f4f8',
   H: '#6b4a2b', // 머리카락
   h: '#5a3d22',
   F: '#f0c8a0', // 피부
@@ -94,12 +96,53 @@ const DEPOSIT_DEPLETED = [
   '................',
 ];
 
+// 미등록 역할용 대체 표현 — 엔진은 모르는 world 를 만나도 멈추지 않고 이것을 그린다
+const PLACEHOLDER = [
+  '................',
+  '..??????????????',
+  '..?############?',
+  '..?#..######..#?',
+  '..?#.######.#.#?',
+  '..?#.#####.##.#?',
+  '..?#.####.###.#?',
+  '..?#.###.####.#?',
+  '..?#.##..#####.?',
+  '..?#.##.######.?',
+  '..?#.##.######.?',
+  '..?#....######.?',
+  '..?#.##.######.?',
+  '..?############?',
+  '..??????????????',
+  '................',
+];
+
+export const PLACEHOLDER_SPRITE = 'unknown-role';
+
 const PIXEL_MAPS: Record<string, string[]> = {
+  [PLACEHOLDER_SPRITE]: PLACEHOLDER,
   'player-character:idle': PLAYER_IDLE,
   'player-character:moving': PLAYER_MOVING,
   'resource-deposit:available': DEPOSIT_AVAILABLE,
   'resource-deposit:depleted': DEPOSIT_DEPLETED,
 };
+
+// 역할별 표시 크기 — 에셋 데이터일 뿐 게임 로직이 아니다. 모르는 역할은 기본값으로 그린다.
+const ROLE_SCALE: Record<string, number> = {
+  'player-character': 2.6,
+  'resource-deposit': 3.4,
+};
+const DEFAULT_ROLE_SCALE = 3.0;
+
+/** 등록된 에셋인가 — 없으면 호출자가 대체 표현을 고른다 */
+export function hasSprite(spriteId: string): boolean {
+  return spriteId in PIXEL_MAPS;
+}
+
+/** 스프라이트 키(`role` 또는 `role:state`) 의 표시 크기 */
+export function spriteScale(spriteId: string): number {
+  const role = spriteId.split(':')[0] ?? spriteId;
+  return ROLE_SCALE[role] ?? DEFAULT_ROLE_SCALE;
+}
 
 const SCALE = 8; // 16px 그리드 → 128px 캔버스 (Nearest 필터로 픽셀 느낌 유지)
 const cache = new Map<string, HTMLCanvasElement>();
@@ -108,8 +151,9 @@ export function spriteCanvas(spriteId: string): HTMLCanvasElement {
   const cached = cache.get(spriteId);
   if (cached) return cached;
 
-  const map = PIXEL_MAPS[spriteId];
-  if (!map) throw new Error(`등록되지 않은 sprite: ${spriteId}`);
+  // 모르는 키가 와도 멈추지 않는다 — 대체 표현을 그린다 (어떤 world 라도 그린다는 뜻)
+  const map = PIXEL_MAPS[spriteId] ?? PIXEL_MAPS[PLACEHOLDER_SPRITE];
+  if (!map) throw new Error('대체 스프라이트가 등록되어 있지 않다');
 
   const canvas = document.createElement('canvas');
   canvas.width = 16 * SCALE;

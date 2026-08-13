@@ -52,6 +52,9 @@ const X001: CycleModule = {
   laws: [{ lawId: 'LAW-TICK', run: (state) => void (state as { steps?: string[] }).steps?.push('X001-tick') }],
   project: (state, draft) => {
     draft.scene = 'mining-field';
+    draft.entities = [];
+    draft.interactions = [];
+    draft.hud = { items: [] };
     (draft as { steps?: string[] }).steps = [...((state as { steps?: string[] }).steps ?? [])];
   },
 };

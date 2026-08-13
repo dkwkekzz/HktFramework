@@ -11,12 +11,13 @@
     #hud { position: absolute; inset: 0; pointer-events: none; }
     .hud-panel {
       position: absolute; top: 14px; left: 14px;
-      display: flex; align-items: center; gap: 8px;
+      display: flex; align-items: center; gap: 14px; flex-wrap: wrap;
       background: rgba(28, 34, 46, 0.82); color: #f2f4f8;
       padding: 9px 16px; border-radius: 10px;
       font-size: 17px; font-weight: 700; letter-spacing: 0.2px;
     }
-    .hud-icon { font-size: 18px; }
+    .hud-item { white-space: nowrap; }
+    .hud-panel:empty { display: none; }
     .hud-keys {
       position: absolute; top: 12px; right: 14px;
       color: rgba(40, 48, 60, 0.75); font-size: 12.5px; text-align: right; line-height: 1.7;
@@ -28,6 +29,10 @@
       padding: 3px 8px; border-radius: 5px; font-size: 13px; font-weight: 700;
       white-space: nowrap;
     }
+    .hud-prompts {
+      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
+      display: flex; flex-direction: column; align-items: center; gap: 6px;
+    }
     .hud-toast {
       position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);
       color: #f4c93c; font-size: 21px; font-weight: 800;
@@ -35,7 +40,6 @@
       opacity: 0; transition: opacity 0.35s;
     }
     .hud-hint {
-      position: absolute; bottom: 32px; left: 50%; transform: translateX(-50%);
       padding: 8px 18px; border-radius: 8px; font-size: 16px; font-weight: 700;
     }
     .hud-hint[data-state="available"] { background: rgba(34, 38, 48, 0.85); color: #fff; }
