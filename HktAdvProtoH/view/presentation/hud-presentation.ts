@@ -5,11 +5,14 @@ export interface HudPresentation {
   label: string;
   icon?: string;
   celebrateGain?: boolean;
+  format?: (value: number | boolean | string) => string; // 값 표시 형식 (C003)
 }
 
 const HUD: Record<string, HudPresentation> = {
   'inventory.stone': { label: 'Stone', icon: '⛏', celebrateGain: true },
   'tool.hasMiningTool': { label: '곡괭이' },
+  'player.action': { label: '행동' },
+  'world.time': { label: '세계 시간', format: (v) => `${Math.floor(Number(v))}s` },
 };
 
 export function hudPresentation(id: string): HudPresentation {

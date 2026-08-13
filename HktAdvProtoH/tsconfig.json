@@ -7,7 +7,8 @@
     "strict": true,
     "noUncheckedIndexedAccess": true,
     "noEmit": true,
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "types": ["vite/client", "node"]
   },
-  "include": ["protocol", "world", "view", "app"]
+  "include": ["protocol", "world", "view", "app", "server", "vite.config.ts"]
 }

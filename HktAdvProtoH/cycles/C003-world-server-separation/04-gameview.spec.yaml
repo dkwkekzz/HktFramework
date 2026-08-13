@@ -1,0 +1,125 @@
+# CYCLE C003 — GameView Specification
+id: VIEW-WORLD-SERVER-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character          # C002 — 모션·행동 계약 그대로
+    - entities.deposit
+    - interactions.move
+    - interactions.mine
+    - interactions.attack
+    - hud.inventory
+    - hud.tool
+    - hud.playerAction
+  added:
+    - hud.worldTime               # 세계가 자기 시계로 어디까지 왔는가
+    - session                     # 관찰자와 세계의 이어짐 (관찰자 쪽 상태)
+  changed:
+    - delivery                    # 요청해서 받던 것 → 세계가 내보내는 것을 받는다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# delivery — 관찰 결과가 어떻게 도착하는가 (C003 CHANGED)
+#
+# View 는 세계에 "지금 상태를 달라"고 물을 수 없다. 세계가 자기 진행에 맞추어
+# 내보내는 관찰 결과를 받을 뿐이다. 따라서 View 는 "마지막으로 받은 관찰 결과"를
+# 그리며, 새 것이 오기 전까지 그대로 둔다.
+# ─────────────────────────────────────────────────────────────────
+delivery:
+  mode: pushed                    # 세계가 보낸다 (pull 아님)
+  latest: last-received           # 화면은 마지막으로 받은 관찰 결과다
+  ordering: as-sent               # 늦게 만들어진 관찰 결과가 앞선 것을 대체한다
+
+entities:
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:
+      player-character: { when: Actor.Control == player }
+      npc-character: { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine | hit
+    actionProgress: { source: Actor.ActionProgress }
+    actionTarget: { source: Actor.ActionTargetId }
+    motion:                       # C002 계약 그대로 — 변경 없음
+      selectedBy: [kind, state]
+      progress:
+        withDuration: actionProgress
+        withoutDuration: loop
+      fallback:
+        order: [kind:idle, anyKind:state, placeholder]
+
+  deposit:
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+interactions:
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(PlayerActor, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(PlayerActor, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+  attack:
+    role: attack-swing
+    target: none                  # 공격은 대상을 고르지 않는다 (C002 계약 그대로)
+    request: Attack(PlayerActor)
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+
+  # 요청의 결과는 반환값이 아니라 다음 관찰 결과다 (C003 CHANGED).
+  # 거부된 요청은 "아무 일도 일어나지 않은 관찰 결과" 와 unavailableReason 으로 드러난다.
+  requestResult: from-next-observation
+
+hud:
+  inventory:
+    stone: { source: PlayerActor.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: PlayerActor.Inventory.HasMiningTool }
+  playerAction:
+    action: { source: PlayerActor.CurrentActionKind }
+    progress: { source: PlayerActor.ActionProgress }
+  worldTime:
+    elapsed: { source: World.Time }   # 세계가 시작된 뒤 흐른 시간
+
+# ─────────────────────────────────────────────────────────────────
+# session — 관찰자와 세계의 이어짐 (C003 ADDED)
+#
+# owner: observer — 이것은 World State 가 아니다. 세계는 누가 자신을 보고 있는지에
+# 따라 달라지지 않는다 (03-world-semantic.md). 관찰자 쪽이 소유하는 의미이며,
+# 여기 적는 이유는 이 계약 하나만으로 화면을 구성할 수 있어야 하기 때문이다.
+# ─────────────────────────────────────────────────────────────────
+session:
+  owner: observer
+  link:
+    connected: { when: 세계와 이어져 있고 관찰 결과가 들어오는 중 }
+    connecting: { when: 아직 잇는 중이거나 다시 잇는 중 }
+    disconnected: { when: 끊겼고 아직 잇지 못한 상태 }
+  whileDisconnected:
+    shows: last-received-observation   # 마지막으로 받은 세계를 계속 보여준다
+    marks: stale                       # 그것이 현재가 아닐 수 있음을 표시한다
+    requests: rejected                 # 요청을 보낼 수 없다
+  onReconnect:
+    resumes: latest-observation        # 다시 이어지면 최신 세계로 돌아온다
+
+# OBSERVABLE PROJECTION NOTE
+#   C002 의 투영 항목은 전부 그대로다. 추가된 것은 hud.worldTime 하나뿐이다.
+#   투영하지 않는 것: World.TickInterval — 세계가 얼마나 자주 진행하는지는
+#   관찰자가 알 필요가 없다 (03-world-semantic.md OBSERVABLE SEMANTIC).

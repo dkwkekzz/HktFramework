@@ -1,0 +1,127 @@
+# CYCLE C002 — GameView Specification
+id: VIEW-CHARACTER-ACTION-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.deposit
+    - interactions.move
+    - interactions.mine
+    - hud.inventory
+    - hud.tool
+  added:
+    - entities.character            # 여러 Actor 를 같은 계약으로 표현한다
+    - entities.character.kind
+    - entities.character.actionProgress
+    - entities.character.motion
+    - interactions.attack
+    - hud.playerAction
+  changed:
+    - entities.player               # 단일 entity → character 집합의 한 원소
+    - entities.character.state      # idle/moving 2종 → 현재 행동(idle|move|attack|mine|hit)
+    - interactions.move.reason      # action-busy 사유 추가
+    - interactions.mine.reason      # action-busy 사유 추가
+
+scene: mining-field                 # C001 과 동일 — 평탄한 야외, World.Bounds 가 이동 가능 영역
+
+entities:
+  # 세계의 모든 Actor 는 같은 계약으로 관찰된다.
+  # Actor 가 늘어나도 새 entity 항목을 만들지 않는다 (한 종류의 관찰 대상).
+  character:
+    cardinality: many               # World.Actors 의 모든 원소
+    id: { source: Actor.Id }
+    role:
+      player-character: { when: Actor.Control == player }
+      npc-character:    { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }        # 종류 식별자 — 모션 집합 선택 기준
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine | hit
+    actionProgress: { source: Actor.ActionProgress }   # 0..1 — Duration 있는 행동에서만 존재
+    actionTarget: { source: Actor.ActionTargetId }     # 없을 수 있음
+
+    # 모션 선택 계약 — 파일이나 렌더 방식이 아니라 "무엇으로 고르는가"만 정한다.
+    motion:
+      selectedBy: [kind, state]     # (캐릭터 종류, 현재 행동) 조합이 모션을 결정한다
+      progress:
+        withDuration: actionProgress   # Duration 이 있는 행동은 진행도에 맞춰 1회 재생한다
+        withoutDuration: loop          # Duration 이 없는 행동(대기·이동)은 반복 재생한다
+      fallback:
+        # 해당 (kind, state) 모션이 주어지지 않은 경우의 관찰 규칙.
+        # 캐릭터는 사라지지 않는다 — 관찰은 계속 가능해야 한다.
+        order: [kind:idle, anyKind:state, placeholder]
+      note: >
+        재생 가능한 모션의 목록과 개수는 이 계약에 없다.
+        World 는 kind 와 state 만 알리고, 어떤 모션이 존재하는지는 View 에 주입된
+        데이터가 정한다. 데이터가 늘면 표현이 늘고, 없으면 fallback 으로 관찰된다.
+
+  deposit:
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted:  { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+interactions:
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(PlayerActor, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+    # out-of-bounds | action-busy
+
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(PlayerActor, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+    # no-mining-tool | out-of-range | deposit-depleted | action-busy
+
+  # 공격은 대상이 없다. 언제나 휘두를 수 있고, 무엇이 맞을지는 요청할 때가 아니라
+  # 휘두름이 끝나는 순간의 세계가 정한다. 맞은 캐릭터는 state = hit 으로 관찰된다.
+  attack:
+    role: attack-swing
+    target: none
+    request: Attack(PlayerActor)
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+    # action-busy 하나만
+
+hud:
+  inventory:
+    stone: { source: PlayerActor.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: PlayerActor.Inventory.HasMiningTool }
+  playerAction:
+    action:   { source: PlayerActor.CurrentActionKind }
+    progress: { source: PlayerActor.ActionProgress }
+  actionHint:
+    mine:
+      available: { source: Mine.Availability }
+      reason:    { source: Mine.FailureReason }
+    attack:
+      available: { source: Attack.Availability }
+      reason:    { source: Attack.FailureReason }
+
+# OBSERVABLE PROJECTION NOTE
+#   03-world-semantic.md 의 Observable Semantic 대응:
+#     Actor.Id / CharacterKind / Control / Position / CurrentActionKind /
+#     ActionProgress / ActionTargetId          → entities.character
+#     Inventory.StoneCount / HasMiningTool     → hud.inventory · hud.tool
+#     Deposit.*                                → entities.deposit
+#     Mine.Availability / FailureReason        → interactions.mine · hud.actionHint
+#     Attack.Availability / FailureReason      → interactions.attack · hud.actionHint
+#   타격은 별도 항목으로 투영하지 않는다 — 맞은 캐릭터의 state 가 hit 이 되는 것으로
+#   이미 관찰된다. "누가 누구를 때렸는가" 는 이번 Cycle 의 의미가 아니다
+#   (공격이 대상을 향하지 않으므로 때린 자와 맞은 자를 잇는 선이 존재하지 않는다).
+#   entity 클릭으로 공격 대상을 고르는 경로는 없다 — 공격은 키 입력 하나로만 요청된다.
+#
+#   투영하지 않는 것: MoveSpeed · AttackRange · PerceptionRange · WanderPath ·
+#   ActionDefinition.Duration 원값 — 03-world-semantic.md 가 관찰 대상에서 제외한 값이다.
+#   NPC 의 판단 근거(인지 대상)는 NPC 의 현재 행동과 이동 방향으로 관찰된다.

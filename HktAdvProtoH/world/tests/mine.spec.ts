@@ -1,17 +1,22 @@
-// RULE-MINE-001 World 단독 테스트 — Before → Input → Rule → After
+// RULE-MINE-001 · RULE-MINE-COMPLETE-001 World 단독 테스트 — Before → Input → Rule → After
+// C002 CHANGED — 채굴은 즉시가 아니라 시간이 걸리는 행동이고, 완료 시점에 획득한다.
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { createWorld } from '../index';
+import { driveWorld } from './drive';
 
-const stoneCount = (v: GameViewSnapshot) =>
-  v.hud.find((h) => h.id === 'inventory.stone')?.value;
+const solo = { npcs: [] };
+const MINE_DURATION = 1.2;
+
+const stoneCount = (v: GameViewSnapshot) => v.hud.find((h) => h.id === 'inventory.stone')?.value;
 const deposit = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'deposit-1');
+const player = (v: GameViewSnapshot) => v.entities.find((e) => e.id === 'player');
 const mine = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'mine');
 
 describe('RULE-MINE-001', () => {
-  it('곡괭이 보유 + 인접 + 자원 있음 → Stone 1 획득, Deposit 1 감소', () => {
-    const world = createWorld({
+  it('곡괭이 보유 + 인접 + 자원 있음 → 채굴 행동 진입 (아직 획득 없음)', () => {
+    const world = driveWorld({
+      ...solo,
       actorPosition: { x: 8, z: -5 }, // deposit(8,-6) 과 거리 1 <= InteractionRange 2
       depositAmount: 5,
     });
@@ -19,25 +24,27 @@ describe('RULE-MINE-001', () => {
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
 
     expect(result).toEqual({ status: 'success', rule: 'RULE-MINE-001' });
-    const view = world.projectPlayerView();
-    expect(stoneCount(view)).toBe(1);
-    expect(deposit(view)?.labelValue).toBe(4);
+    const view = world.observe();
+    expect(player(view)?.state).toBe('mine');
+    expect(stoneCount(view)).toBe(0); // 완료 전에는 획득하지 않는다
+    expect(deposit(view)?.labelValue).toBe(5);
   });
 
   it('곡괭이 없음 → Failure(no-mining-tool), 상태 불변 + 사유 코드 투영', () => {
-    const world = createWorld({ actorPosition: { x: 8, z: -5 }, actorItems: {} });
+    const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, actorItems: {} });
 
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
 
     expect(result).toEqual({ status: 'failure', rule: 'RULE-MINE-001', reason: 'no-mining-tool' });
-    const view = world.projectPlayerView();
+    const view = world.observe();
     expect(stoneCount(view)).toBe(0);
     expect(deposit(view)?.labelValue).toBe(5);
     expect(mine(view)?.reason).toBe('no-mining-tool');
+    expect(player(view)?.state).toBe('idle');
   });
 
   it('거리 밖 → Failure(out-of-range)', () => {
-    const world = createWorld({ actorPosition: { x: 0, z: 0 } }); // deposit 까지 10
+    const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 } }); // deposit 까지 10
 
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
 
@@ -45,7 +52,7 @@ describe('RULE-MINE-001', () => {
   });
 
   it('자원 고갈 → Failure(deposit-depleted), depleted 상태 관찰', () => {
-    const world = createWorld({ actorPosition: { x: 8, z: -5 }, depositAmount: 0 });
+    const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 0 });
 
     const result = world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
 
@@ -54,19 +61,54 @@ describe('RULE-MINE-001', () => {
       rule: 'RULE-MINE-001',
       reason: 'deposit-depleted',
     });
-    expect(deposit(world.projectPlayerView())?.state).toBe('depleted');
+    expect(deposit(world.observe())?.state).toBe('depleted');
+  });
+});
+
+describe('RULE-MINE-COMPLETE-001', () => {
+  it('채굴 행동이 소요 시간을 채우면 Stone 1 획득, Deposit 1 감소, 대기 복귀', () => {
+    const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 5 });
+    world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+
+    world.tick(MINE_DURATION / 2);
+    let view = world.observe();
+    expect(player(view)?.state).toBe('mine');
+    expect(player(view)?.progress).toBeCloseTo(0.5); // 진행도 관찰
+    expect(stoneCount(view)).toBe(0);
+
+    world.tick(MINE_DURATION / 2);
+    view = world.observe();
+    expect(player(view)?.state).toBe('idle');
+    expect(stoneCount(view)).toBe(1);
+    expect(deposit(view)?.labelValue).toBe(4);
   });
 
   it('마지막 1개를 캐면 available → depleted 로 전이', () => {
-    const world = createWorld({ actorPosition: { x: 8, z: -5 }, depositAmount: 1 });
+    const world = driveWorld({ ...solo, actorPosition: { x: 8, z: -5 }, depositAmount: 1 });
+    expect(deposit(world.observe())?.state).toBe('available');
 
-    expect(deposit(world.projectPlayerView())?.state).toBe('available');
     world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' });
+    world.tick(MINE_DURATION);
 
-    const view = world.projectPlayerView();
+    const view = world.observe();
     expect(deposit(view)?.state).toBe('depleted');
     expect(stoneCount(view)).toBe(1);
     expect(mine(view)?.available).toBe(false);
     expect(mine(view)?.reason).toBe('deposit-depleted');
+  });
+
+  it('C001 REGRESSION — 이동해서 광맥에 도달한 뒤 캐면 Stone 을 얻는다', () => {
+    const world = driveWorld({ ...solo, actorPosition: { x: 0, z: 0 }, depositAmount: 5 });
+
+    world.dispatch({ interactionId: 'move', position: { x: 8, z: -5 } });
+    for (let i = 0; i < 90; i++) world.tick(1 / 30); // 3초 — 거리 약 9.4 도달 충분
+    expect(player(world.observe())?.state).toBe('idle');
+
+    expect(world.dispatch({ interactionId: 'mine', targetEntityId: 'deposit-1' }).status).toBe(
+      'success',
+    );
+    for (let i = 0; i < 45; i++) world.tick(1 / 30); // 1.5초 — MINE_DURATION 1.2 초과
+
+    expect(stoneCount(world.observe())).toBe(1);
   });
 });

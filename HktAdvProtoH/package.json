@@ -4,14 +4,20 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
+    "world": "tsx server/main.ts",
+    "client": "vite",
     "build": "tsc --noEmit && vite build",
     "test": "vitest run"
   },
   "dependencies": {
-    "three": "^0.168.0"
+    "three": "^0.168.0",
+    "ws": "^8.21.3"
   },
   "devDependencies": {
+    "@types/node": "^26.2.0",
     "@types/three": "^0.168.0",
+    "@types/ws": "^8.18.1",
+    "tsx": "^4.23.12",
     "typescript": "^5.5.4",
     "vite": "^5.4.8",
     "vitest": "^2.1.1"
