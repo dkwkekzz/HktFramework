@@ -9,7 +9,8 @@
     entities.character.motion.progress          view/motion/motion-frame.ts (loop | progress)
     entities.character.motion.fallback          view/motion/motion-library.ts + view/assets/registry.ts
     entities.deposit                            resolve.ts (C001 REUSED)
-    interactions.move / mine / attack           view/presentation/interaction-presentation.ts
+    interactions.move / mine                    view/presentation/interaction-presentation.ts
+    interactions.attack (attack-swing)          같은 파일 — 대상 없는 키 하나(F)
     interactions.*.unavailableReason            view/presentation/code-text.ts
     hud.inventory / hud.tool                    view/presentation/hud-presentation.ts (C001 REUSED)
     hud.playerAction                            hud-presentation.ts (label) + view/hud/hud.ts (진행 막대)
@@ -53,8 +54,8 @@
         billboard 는 지시받은 색을 곱할 뿐 role 을 모른다.
 
     절차 생성 Asset (모션이 없을 때) — view/assets/registry.ts
-        player-pickaxe:idle / move / moving / attack / mine
-        wanderer:idle / move / attack        (npc-character 기본 그림, C002 ADDED)
+        player-pickaxe:idle / move / moving / attack / mine / hit
+        wanderer:idle / move / attack / hit  (npc-character 기본 그림, C002 ADDED)
         stone-deposit:available / depleted   (C001 REUSED)
         미등록 조합은 기존 placeholder 로 그려진다 — 표현 누락이 게임을 멈추지 않는다.
 
@@ -64,12 +65,14 @@
     WASD / 방향키   → Move(진행 방향의 앞 지점)        app/main.ts (C001 REUSED)
     지형 클릭       → Move(클릭 지점)                  view/input/input.ts (C001 REUSED)
     entity 클릭     → 그 대상의 interaction            view/input/input.ts
-                      (광맥 → Mine, NPC → Attack — 지시대로 보낼 뿐 의미를 모른다)
+                      (광맥 → Mine. NPC 클릭은 아무것도 하지 않는다 —
+                       공격에 대상이 없으므로 대상 지시가 붙은 interaction 이 없다)
     E               → Mine(deposit)                    interaction-presentation
-    F               → Attack(대상 Actor)               interaction-presentation (C002 ADDED)
+    F               → Attack(PlayerActor)             interaction-presentation (C002 ADDED)
+                      대상을 싣지 않는다 — 무엇이 맞을지는 세계가 정한다
 
-    같은 키에 대상이 여럿이면(주변 캐릭터 수만큼 attack interaction 이 온다)
-    지금 가능한 대상을 고른다 — app/main.ts. 안내 줄은 중복을 지운다 — view/hud/hud.ts.
+    같은 키에 대상이 여럿인 interaction(광맥 등)은 지금 가능한 것을 고른다 — app/main.ts.
+    안내 줄은 중복을 지운다 — view/hud/hud.ts.
 
 ## CAPABILITY 고도화 (이번 Cycle 이 더한 그리기 능력)
     Sprite Sheet Animation      view/sprites/billboard.ts
@@ -90,11 +93,11 @@
     view/tests/fixtures/character-action.fixture.json                           신규
     view/tests/resolve.spec.ts                                                   7건
         C002 fixture → 모션 선택/폴백/재생 방식, 행동 HUD 문구·진행도,
-        대상별 attack interaction 의 키·프롬프트·사유
+        대상 없는 attack interaction 의 키·프롬프트·사유 · 피격 상태의 그림
         모션이 전혀 없을 때 모든 entity 가 절차 그림으로 그려지는지
         (C001 fixture 3종은 그대로 통과 — Regression)
 
-    npm test → 52 passed (world 30 + view 22)
+    npm test → 83 passed (world 45 + view 30 + server 8)
     npm run build → tsc --noEmit 통과, vite build 성공 (시트가 dist 에 번들된다)
 
 ## NOTES

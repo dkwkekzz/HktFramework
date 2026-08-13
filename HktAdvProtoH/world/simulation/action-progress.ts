@@ -6,21 +6,34 @@
 // Result         Progress | Completed
 //
 // 완료 효과 Rule   mine   → RULE-MINE-COMPLETE-001
-//                  attack → 없음 (C002 에서 공격의 결과는 정의되지 않는다)
+//                  attack → RULE-ATTACK-COMPLETE-001 (범위 안의 캐릭터를 타격한다)
+//                  hit    → 없음 (그냥 끝나고 대기로 돌아간다)
+//
+// 진행 대상은 Tick 이 시작될 때의 행동으로 고정한다. 이 Tick 안에서 새로 시작된 행동
+// (예: 타격받아 들어간 피격)까지 같은 dt 로 밀면, 시작하자마자 끝나 버린다.
 
-import { idleAction } from '../semantic/action';
+import { idleAction, type CurrentAction } from '../semantic/action';
+import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
+import { ruleAttackComplete } from '../rules/attack';
 import { ruleMineComplete } from '../rules/mine';
 
 export function ruleActionProgress(state: WorldState, dt: number): void {
-  for (const actor of state.actors) {
-    const action = actor.currentAction;
+  const advancing: Array<{ actor: ActorState; action: CurrentAction }> = state.actors.map(
+    (actor) => ({ actor, action: actor.currentAction }),
+  );
+
+  for (const { actor, action } of advancing) {
     if (action.duration === null) continue;
+    if (actor.currentAction !== action) continue; // 이 Tick 중에 다른 행동으로 바뀌었다
 
     action.elapsed += dt;
     if (action.elapsed < action.duration) continue;
 
     if (action.kind === 'mine') ruleMineComplete(state, actor);
-    actor.currentAction = idleAction();
+    if (action.kind === 'attack') ruleAttackComplete(state, actor);
+
+    // 완료 효과가 이 Actor 의 행동을 바꿨다면(스스로 맞은 경우 등) 덮지 않는다.
+    if (actor.currentAction === action) actor.currentAction = idleAction();
   }
 }

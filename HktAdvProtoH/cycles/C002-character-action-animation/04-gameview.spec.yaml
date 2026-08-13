@@ -19,7 +19,7 @@ delta:
     - hud.playerAction
   changed:
     - entities.player               # 단일 entity → character 집합의 한 원소
-    - entities.character.state      # idle/moving 2종 → 현재 행동(idle|move|attack|mine)
+    - entities.character.state      # idle/moving 2종 → 현재 행동(idle|move|attack|mine|hit)
     - interactions.move.reason      # action-busy 사유 추가
     - interactions.mine.reason      # action-busy 사유 추가
 
@@ -36,7 +36,7 @@ entities:
       npc-character:    { when: Actor.Control == autonomous }
     kind: { source: Actor.CharacterKind }        # 종류 식별자 — 모션 집합 선택 기준
     position: { source: Actor.Position }
-    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine
+    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine | hit
     actionProgress: { source: Actor.ActionProgress }   # 0..1 — Duration 있는 행동에서만 존재
     actionTarget: { source: Actor.ActionTargetId }     # 없을 수 있음
 
@@ -83,13 +83,15 @@ interactions:
     unavailableReason: { source: Mine.FailureReason }
     # no-mining-tool | out-of-range | deposit-depleted | action-busy
 
+  # 공격은 대상이 없다. 언제나 휘두를 수 있고, 무엇이 맞을지는 요청할 때가 아니라
+  # 휘두름이 끝나는 순간의 세계가 정한다. 맞은 캐릭터는 state = hit 으로 관찰된다.
   attack:
-    role: attack-character
-    target: character                # 자기 자신이 아닌 Actor
-    request: Attack(PlayerActor, TargetActor)
+    role: attack-swing
+    target: none
+    request: Attack(PlayerActor)
     available: { source: Attack.Availability }
     unavailableReason: { source: Attack.FailureReason }
-    # no-target | out-of-range | action-busy
+    # action-busy 하나만
 
 hud:
   inventory:
@@ -115,6 +117,11 @@ hud:
 #     Deposit.*                                → entities.deposit
 #     Mine.Availability / FailureReason        → interactions.mine · hud.actionHint
 #     Attack.Availability / FailureReason      → interactions.attack · hud.actionHint
+#   타격은 별도 항목으로 투영하지 않는다 — 맞은 캐릭터의 state 가 hit 이 되는 것으로
+#   이미 관찰된다. "누가 누구를 때렸는가" 는 이번 Cycle 의 의미가 아니다
+#   (공격이 대상을 향하지 않으므로 때린 자와 맞은 자를 잇는 선이 존재하지 않는다).
+#   entity 클릭으로 공격 대상을 고르는 경로는 없다 — 공격은 키 입력 하나로만 요청된다.
+#
 #   투영하지 않는 것: MoveSpeed · AttackRange · PerceptionRange · WanderPath ·
 #   ActionDefinition.Duration 원값 — 03-world-semantic.md 가 관찰 대상에서 제외한 값이다.
 #   NPC 의 판단 근거(인지 대상)는 NPC 의 현재 행동과 이동 방향으로 관찰된다.

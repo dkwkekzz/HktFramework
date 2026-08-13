@@ -10,23 +10,35 @@
 ## NEW BEHAVIOR
     캐릭터는 언제나 하나의 행동 안에 있다     → 시작 시 모든 Actor 가 idle
     플레이어가 조작하면 행동이 바뀐다         → 이동 · 채굴 · 공격
-    NPC 는 조작 없이 스스로 행동한다          → 순회 · 인지 후 접근 · 사거리에서 공격
+    NPC 는 조작 없이 스스로 행동한다          → 순회 · 인지 후 접근 · 범위에서 휘두름
     시간이 걸리는 행동은 진행하다 끝난다      → 채굴 1.2s · 공격 0.6s, 끝나면 대기 복귀
     진행 중 행동은 다른 행동으로 대체되지 않는다 → action-busy 사유와 함께 거부
     행동은 그 행동의 모션으로 관찰된다        → 주입된 시트가 행동/진행도에 맞춰 재생
+    공격은 대상을 고르지 않는다               → 아무 때나 휘두르고, 범위 안의 캐릭터가 맞는다
+    맞으면 하던 일이 끊긴다                   → 채굴 중이어도 피격 상태로 바뀐다
 
 ## WORLD SCENARIO (View 없이 실측 — world/tests, `npx vitest run`)
-    RULE-ATTACK-001
-        Before  player(0,0) idle · npc-1(1,0), AttackRange 2
-        Input   Attack(player, npc-1)
+    RULE-ATTACK-001 (대상 없이)
+        Before  player(0,0) idle · 곁에 아무도 없음
+        Input   Attack(player)
         Rule    RULE-ATTACK-001 → RULE-ACTION-BEGIN-001
-        After   CurrentAction = attack(npc-1), progress 관찰 가능
-        0.6s 후 CurrentAction = idle, npc-1 은 그대로 존재 (공격의 결과는 C002 밖)
+        After   CurrentAction = attack (targetEntityId 없음), progress 관찰 가능
+        멀리(18,18) 에만 캐릭터가 있어도 결과는 같다 — 사거리는 시작 조건이 아니다
 
-    RULE-ATTACK-001 실패
-        Before  player(0,0) · npc-1(10,0)
-        Input   Attack(player, npc-1)
-        After   Failure(out-of-range), 상태 불변, 사유가 interactions.attack 에 투영
+    RULE-ATTACK-COMPLETE-001 (범위 타격)
+        Before  player(0,0) AttackRange 2 · npc-1(1,0) · npc-2(-1,0) · npc-3(9,0)
+        Input   Attack(player) → tick(0.3) → tick(0.3)
+        After   0.3s 시점 npc 들 모두 idle (아직 안 맞았다)
+                0.6s 시점 npc-1 · npc-2 = hit, npc-3 = idle (범위 밖), player = idle
+        범위 안에 아무도 없으면 아무도 맞지 않고 휘두름은 그대로 끝난다
+        휘두르는 동안 물러선 캐릭터(0.6s 뒤 거리 2.5)는 맞지 않는다
+
+    RULE-HIT-001
+        Before  npc-1 이 방금 타격받았다
+        After   CurrentAction = hit, 0.175s 시점 progress 0.5, 0.35s 후 idle
+        Before  player 가 채굴 중(대체 불가) · npc-1 이 사거리 안에서 휘두른다
+        After   0.67s 뒤 player = hit — 대체 불가 행동도 피격에는 끊긴다
+        피격 중 이동 요청 → Failure(action-busy)
 
     RULE-ACTION-BEGIN-001 (배타)
         Before  채굴 진행 0.2s 경과
@@ -46,16 +58,16 @@
         After   0.1s 에 move 진입 → 4초에 (-8,-6) 도달 → 방향을 바꿔 되돌아간다
         Before  npc-1(-8,0) 인지 9 · player(0,0)
         Input   tick 반복
-        After   move(접근) → 사거리 진입 시 attack(target=player)
+        After   move(접근) → 타격 범위 진입 시 attack (대상을 담지 않는다)
         결정론  같은 배치 · 같은 tick 순서 → entities 상태·좌표 문자열이 완전히 동일
 
-    실행 결과   world 테스트 30건 통과 (action 7 · attack 6 · npc 5 · mine 7 · move 5)
+    실행 결과   world 테스트 37건 통과 (action 7 · attack 13 · npc 5 · mine 7 · move 5)
 
 ## PROJECTION
     projectPlayerView 가 04-gameview.spec.yaml 의 항목을 모두 산출한다.
         entities.character   id · role · kind · state · progress · targetEntityId
         entities.deposit     state · labelValue
-        interactions         move(1) · attack(대상 수) · mine(광맥 수) + available/reason
+        interactions         move(1) · attack(1, 대상 없음) · mine(광맥 수) + available/reason
         hud                  inventory.stone · tool.hasMiningTool · player.action(+progress)
     투영하지 않기로 한 값(MoveSpeed · AttackRange · PerceptionRange · WanderPath · Duration)은
     Snapshot 어디에도 나타나지 않는다 — 06-world-implementation.md PROJECTION 절 참조.
@@ -69,10 +81,11 @@
         deposit-1 kind=stone
             → 모션 없음 → 절차 그림 stone-deposit:available
         hud player.action → widget=label, "행동", 값 "채굴", progress 0.5
-        attack interaction 2건 → 키 F · 프롬프트 "공격" · 사유 문구(멀다 / 행동이 끝나야 한다)
+        attack interaction 1건 → 대상 없음 · 키 F · 프롬프트 "공격" · 사유 "행동이 끝나야 한다"
+        npc-3 state=hit → wanderer/hit 시트가 없으므로 절차 그림 wanderer:hit
     모션 데이터가 하나도 없는 Library 로 같은 fixture 를 풀면
         모든 entity 가 절차 그림(player-pickaxe:mine · wanderer:move · wanderer:attack ·
-        stone-deposit:available)으로 그려진다 — 데이터 부재가 게임을 멈추지 않는다.
+        wanderer:hit · stone-deposit:available)으로 그려진다 — 데이터 부재가 게임을 멈추지 않는다.
 
     실행 결과   view 테스트 22건 통과 (motion 15 · resolve 7)
 
@@ -87,6 +100,14 @@
     1.0s 후 Stone 1 ·                행동: 대기     획득 토스트
     NPC 접근 대기 후 F 입력          행동: 공격
     0.7s 후                          행동: 대기
+
+    휘두르는 공격 실측 (공격이 대상을 고르지 않게 된 뒤)
+        곁에 아무도 없는 곳으로 이동한 뒤 F   행동: 공격
+                                              ← 대상이 없어도 휘둘러진다
+        휘두르는 중 F 다시                    힌트 "지금 하는 행동이 끝나야 한다"
+        조작 없이 방치 (NPC 가 다가와 휘두른다)
+            플레이어 행동 전이 = 피격 → 대기 → 피격 → 대기 → … (약 0.6초 주기로 반복)
+            HUD "행동: 피격" + 진행 막대, 화면에서는 NPC 가 곁에 붙어 휘두르고 있다
 
     모션 재생 실측
         플레이어를 대기 상태로 두고 캐릭터 영역만 125ms 간격 12회 캡처 →
@@ -117,14 +138,14 @@
 ## CYCLE COMPLETION GATE
     [x] 작은 플레이 가능한 Goal 이 정의되어 있다              01-cycle.md GOAL
     [x] Goal / Possibility 가 존재한다                        02-intent.md
-    [x] Intent 가 존재한다                                    02-intent.md INTENT SET 7종
+    [x] Intent 가 존재한다                                    02-intent.md INTENT SET 9종
     [x] Intent 의 모든 의미가 State / Rule 로 닫혀 있다        03-world-semantic.md CLOSURE PASS
     [x] World State 변화가 World Rule 을 통해서만 발생한다     모든 전이가 rules/ · simulation/ 경유
     [x] World 는 Authoritative 하다                           Client 는 ActionRequest 만 보낸다
     [x] GameView Specification 이 존재한다                    04-gameview.spec.yaml
     [x] View 는 Spec 외 World 정보를 사용하지 않는다          view/ → world/ import 0건 (grep)
     [x] World 는 View 구현 정보를 사용하지 않는다             world/ → view/ import 0건 (grep)
-    [x] World 를 View 없이 검증할 수 있다                     world 테스트 30건
+    [x] World 를 View 없이 검증할 수 있다                     world 테스트 37건
     [x] View 를 Fixture 만으로 검증할 수 있다                 view 테스트 22건
     [x] Server + Client 연결 시 실제 플레이가 가능하다        PLAYABLE 절
     [x] Runtime 결과를 Goal / Intent 까지 추적할 수 있다      ActionResult.rule → semantic-id.ts
@@ -141,8 +162,10 @@
       Projection · View · 모션 재생은 손대지 않아도 새 행동이 그대로 흐른다.
     새 캐릭터 종류를 늘리는 비용 = Actor.characterKind 문자열 + motions/<종류>/ 폴더.
       View 코드 수정 없음.
-    공격의 결과(피해 · 체력 · 사망)는 이 위에 얹는 다음 Cycle 의 자리다 —
-    RULE-ACTION-PROGRESS-001 의 attack 완료 분기가 그 자리다.
+    피해량 · 체력 · 사망은 이 위에 얹는 다음 Cycle 의 자리다 —
+    RULE-HIT-001 이 그 자리다 (지금은 "맞았다" 까지만 한다).
+    특정 대상을 목표로 하는 행동(조준 · 락온)도 다음 Cycle 이다 —
+    CurrentAction.TargetActorId 는 그 자리로 정의만 남겨 두었다.
 
 ## STATUS
     IN PROGRESS  (Human Play 확인 후 COMPLETE)

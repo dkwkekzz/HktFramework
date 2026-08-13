@@ -43,7 +43,7 @@
         관찰자 0명이 되어도 진행 (떨어진 뒤 1.0초 진행 → 다시 붙으니 World.Time = 1.5)
         실제 setInterval 시계로 200ms 방치 → World.Time > 0.1
 
-    실행 결과   world 38건 + server 8건 통과
+    실행 결과   world 45건 + server 8건 통과
 
 ## PROJECTION
     04-gameview.spec.yaml 의 항목이 모두 산출된다. C002 대비 추가는 hud.worldTime 하나.
@@ -100,7 +100,7 @@
         실제 플레이 (위 PLAYABLE)                        → 통과
     C002 Character Action & Animation
         행동 상태·진행도·배타 판정 (action.spec 7건)     → 통과
-        공격 (attack.spec 6건)                           → 통과
+        공격·타격·피격 (attack.spec 13건)                → 통과
         NPC 자율·결정론 (npc.spec 5건)                   → 통과
         모션 주입·폴백·재생 (motion.spec 15건)           → 통과
         모션이 화면에서 재생됨 (스크린샷)                → 통과
@@ -121,7 +121,7 @@
     [x] GameView Specification 이 존재한다                    04-gameview.spec.yaml
     [x] View 는 Spec 외 World 정보를 사용하지 않는다          클라이언트 번들에 world 코드 0건
     [x] World 는 View 구현 정보를 사용하지 않는다             world/ · server/ → view/ import 0건
-    [x] World 를 View 없이 검증할 수 있다                     world 38건 + server 8건
+    [x] World 를 View 없이 검증할 수 있다                     world 45건 + server 8건
     [x] View 를 Fixture 만으로 검증할 수 있다                 view 30건 (가짜 소켓 포함)
     [x] Server + Client 연결 시 실제 플레이가 가능하다        PLAYABLE 절
     [x] Runtime 결과를 Goal / Intent 까지 추적할 수 있다      WorldTickResult.results 의 rule →

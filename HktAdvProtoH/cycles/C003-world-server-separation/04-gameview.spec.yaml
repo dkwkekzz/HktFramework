@@ -42,7 +42,7 @@ entities:
       npc-character: { when: Actor.Control == autonomous }
     kind: { source: Actor.CharacterKind }
     position: { source: Actor.Position }
-    state: { source: Actor.CurrentActionKind }
+    state: { source: Actor.CurrentActionKind }   # idle | move | attack | mine | hit
     actionProgress: { source: Actor.ActionProgress }
     actionTarget: { source: Actor.ActionTargetId }
     motion:                       # C002 계약 그대로 — 변경 없음
@@ -78,9 +78,9 @@ interactions:
     available: { source: Mine.Availability }
     unavailableReason: { source: Mine.FailureReason }
   attack:
-    role: attack-character
-    target: character
-    request: Attack(PlayerActor, TargetActor)
+    role: attack-swing
+    target: none                  # 공격은 대상을 고르지 않는다 (C002 계약 그대로)
+    request: Attack(PlayerActor)
     available: { source: Attack.Availability }
     unavailableReason: { source: Attack.FailureReason }
 

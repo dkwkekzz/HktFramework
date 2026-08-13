@@ -2,7 +2,7 @@
 // Input          Control = autonomous 인 Actor, 세계의 다른 Actor 들
 // Preconditions  현재 행동이 대체 가능하다 (attack · mine 중에는 결정하지 않는다)
 // Transition     인지 대상 = PerceptionRange 안의 가장 가까운 다른 Actor
-//                  있음 + AttackRange 이내 → RULE-ATTACK-001
+//                  있음 + AttackRange 이내 → RULE-ATTACK-001 (대상 없이 휘두른다)
 //                  있음 + AttackRange 밖   → RULE-MOVE-001 (대상 Position 으로)
 //                  없음                    → WanderPath 순회 (RULE-MOVE-001)
 //                결정한 행동이 현재 행동과 같으면 유지한다
@@ -58,10 +58,9 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
 
   if (target) {
     if (distance(actor.position, target.position) <= actor.attackRange) {
-      if (isSameAction(actor.currentAction, 'attack', { targetActorId: target.id })) {
-        return 'unchanged';
-      }
-      return ruleAttack(state, actor, target.id).status === 'success' ? 'decided' : 'unchanged';
+      // 대상을 넘기지 않는다 — 무엇이 맞을지는 휘두름이 끝나는 순간이 정한다.
+      if (isSameAction(actor.currentAction, 'attack', {})) return 'unchanged';
+      return ruleAttack(actor).status === 'success' ? 'decided' : 'unchanged';
     }
 
     const destination = { x: target.position.x, z: target.position.z };

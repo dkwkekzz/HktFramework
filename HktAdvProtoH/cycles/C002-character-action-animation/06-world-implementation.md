@@ -9,6 +9,9 @@
     ATTACK_RANGE · PERCEPTION_RANGE · NPC_MOVE_SPEED world/semantic/world-state.ts
     RULE-ACTION-BEGIN-001                          world/rules/action-begin.ts
     RULE-ATTACK-001                                world/rules/attack.ts
+    RULE-ATTACK-COMPLETE-001                       world/rules/attack.ts
+    RULE-HIT-001                                   world/rules/attack.ts
+    ActionKind.hit                                 world/semantic/action.ts
     RULE-MINE-COMPLETE-001                         world/rules/mine.ts
     RULE-ACTION-PROGRESS-001                       world/simulation/action-progress.ts
     RULE-NPC-DECIDE-001                            world/simulation/npc-decide.ts
@@ -43,7 +46,7 @@
         state(=CurrentActionKind) · progress(=ActionProgress) · targetEntityId
     entities.deposit              동일 파일 (C001 REUSED, kind 에 resourceKind 추가)
     interactions.move             available = 행동 대체 가능성, reason = action-busy
-    interactions.attack           대상 Actor 별 1개 — no-target | out-of-range | action-busy
+    interactions.attack           대상 없는 1개 — action-busy 하나만
     interactions.mine             대상 Deposit 별 1개 — C001 사유 + action-busy
     hud.inventory.stone           counter
     hud.tool.hasMiningTool        flag
@@ -63,23 +66,31 @@
 ## TESTS
     world/tests/action.spec.ts   초기 idle · HUD 관찰 · action-busy 거부(이동/채굴) ·
                                  종료 후 재개 · 진행도 없음/범위                        7건
-    world/tests/attack.spec.ts   사거리 안 진입 · out-of-range · no-target(없음/자기 자신) ·
-                                 완료 후 대기 복귀(대상 불변) · 공격 중 거부 ·
-                                 이동 중 공격 가능                                      6건
+    world/tests/attack.spec.ts   대상 없이 시작 · 멀리 있어도 시작 · 대상 미탑재 ·
+                                 유일 사유 action-busy · 이동 중 공격 가능
+                                 완료 시 범위 타격 · 범위 밖 무피해 · 아무도 없을 때 ·
+                                 여럿 동시 타격 · 휘두르는 동안 물러선 대상은 안 맞음
+                                 피격 지속·진행도·복귀 · 대체 불가 행동도 끊김 ·
+                                 피격 중 요청 거부                                     13건
     world/tests/npc.spec.ts      순회 시작 · 순회 지점 전환 · 인지 후 접근→공격 ·
                                  공격 중 재결정 없음 · 결정론 재현                      5건
     world/tests/mine.spec.ts     C001 판정 유지 + 완료 시 획득 · 진행도 ·
                                  C001 REGRESSION(이동→채굴→획득)                        7건
     world/tests/move.spec.ts     C001 판정 유지(state 이름만 move) + 목적지 대체        5건
 
-    npm test → 35 passed (view/tests/resolve.spec.ts 5건 포함, 실행 결과)
+    npm test → 83 passed (실행 결과 — 이후 Cycle 의 테스트를 포함한 현재 합계)
 
 ## NOTES
     - Actor.MoveTarget 은 State 에서 사라졌다. 이동 목적지는 CurrentAction.targetPosition 이다.
       기존 코드에서 moveTarget 을 읽던 곳은 모두 CurrentAction 경유로 바뀌었다.
     - 자율 Actor 는 매 Tick 결정하지만 isSameAction 판정으로 같은 행동은 재시작하지 않는다.
       재시작하면 Elapsed 가 0 으로 돌아가 진행도 관찰이 깨진다.
-    - 공격에는 완료 효과가 없다 (C002 EXCLUDED). RULE-ACTION-PROGRESS-001 의 완료 분기에
-      attack 항목이 비어 있는 것은 누락이 아니라 이번 Cycle 의 의미다.
+    - 공격은 대상을 담지 않는다. dispatch 의 attack 분기는 targetEntityId 를 읽지 않으며,
+      RULE-ATTACK-001 의 Precondition 은 action-busy 하나뿐이다.
+    - RULE-HIT-001 은 RULE-ACTION-BEGIN-001 을 거치지 않는 유일한 행동 진입이다.
+      피격은 그 캐릭터가 요청한 행동이 아니기 때문이다 (beginAction 만 직접 호출한다).
+    - RULE-ACTION-PROGRESS-001 은 진행 대상을 Tick 시작 시점의 행동으로 고정한다.
+      고정하지 않으면 그 Tick 에 타격받아 들어간 피격이 같은 dt 로 밀려 즉시 끝나 버린다
+      (실제로 그렇게 동작해 테스트가 잡아냈다).
     - NPC 의 이동 속도만 별도 상수(NPC_MOVE_SPEED 2.5)다 — 행동 전환을 눈으로 볼 수 있게 하려는
       의도이며, MoveSpeed 가 Actor 별 State 라는 기존 의미를 그대로 쓴다.

@@ -16,7 +16,7 @@
         Actor.CharacterKind          (캐릭터 종류 식별자)
         Actor.Control                (player | autonomous)
         Actor.CurrentAction          (Kind · Target · Elapsed · Duration)
-        ActionKind                   (idle | move | attack | mine)
+        ActionKind                   (idle | move | attack | mine | hit)
         ActionDefinition.Duration    (행동 종류별 소요 시간 — 없을 수 있음)
         ActionDefinition.Replaceable (진행 중 다른 행동으로 대체 가능한가)
         Actor.AttackRange
@@ -26,6 +26,8 @@
         RULE-ACTION-BEGIN-001
         RULE-ACTION-PROGRESS-001
         RULE-ATTACK-001
+        RULE-ATTACK-COMPLETE-001
+        RULE-HIT-001
         RULE-MINE-COMPLETE-001
         RULE-NPC-DECIDE-001
 
@@ -79,9 +81,10 @@
         CurrentAction            World Authority                                 [ADDED]
 
     CurrentAction
-        Kind                     idle | move | attack | mine
+        Kind                     idle | move | attack | mine | hit
         TargetPosition           Kind = move 일 때의 목적지 (없을 수 있음)
-        TargetActorId            Kind = attack 일 때의 대상 (없을 수 있음)
+        TargetActorId            지금은 어느 행동도 쓰지 않는다.
+                                 정의만 남긴다 — "특정 대상을 목표로 하는 행동" 의 자리다.
         TargetDepositId          Kind = mine 일 때의 대상 (없을 수 있음)
         Elapsed                  행동이 시작된 뒤 흐른 시간
         Duration                 이 행동의 소요 시간 (없으면 스스로 끝나지 않는다)
@@ -91,6 +94,7 @@
         move     Duration 없음   Replaceable = true    (목적지 도달로 끝난다)
         attack   Duration 있음   Replaceable = false
         mine     Duration 있음   Replaceable = false
+        hit      Duration 있음   Replaceable = false   (스스로 요청하는 행동이 아니다)
 
     Deposit
         Position / ResourceKind / ResourceAmount    World Authority             [REUSED]
@@ -118,8 +122,12 @@
                            CurrentAction = idle
         Result         Progress | Completed
 
-        완료 효과 Rule    mine → RULE-MINE-COMPLETE-001
-                          attack → 없음 (이번 Cycle 에서 공격의 결과는 정의되지 않는다)
+        완료 효과 Rule    mine   → RULE-MINE-COMPLETE-001
+                          attack → RULE-ATTACK-COMPLETE-001
+                          hit    → 없음 (그냥 끝나고 대기로 돌아간다)
+
+        진행 대상은 Tick 이 시작될 때의 행동으로 고정한다. 이 Tick 안에서 새로 시작된
+        행동(예: 타격받아 들어간 피격)까지 같은 dt 로 밀면 시작하자마자 끝나 버린다.
 
     RULE-MOVE-001                                                        [CHANGED]
         Implements     INTENT-MOVE-001 · INTENT-ACTION-STATE-001
@@ -141,17 +149,40 @@
 
     RULE-ATTACK-001                                                      [ADDED]
         Implements     INTENT-ATTACK-001
-        Input          Actor, TargetActorId
-        Preconditions  1. TargetActorId 가 세계에 존재하고 Actor 자신이 아니다
-                       2. distance(Actor.Position, Target.Position) <= Actor.AttackRange
-                       3. 현재 행동이 대체 가능하다
-        Transition     RULE-ACTION-BEGIN-001 로 CurrentAction = attack(TargetActorId)
-        Result         Success
-                       | Failure(no-target)       ← Precondition 1
-                       | Failure(out-of-range)    ← Precondition 2
-                       | Failure(action-busy)     ← Precondition 3
+        Input          Actor
+        Preconditions  현재 행동이 대체 가능하다
+        Transition     RULE-ACTION-BEGIN-001 로 CurrentAction = attack (대상을 담지 않는다)
+        Result         Success | Failure(action-busy)
 
-        공격이 대상에게 미치는 효과는 이번 Cycle 에 정의되지 않는다 (01-cycle EXCLUDED).
+        대상도 거리도 묻지 않는다. 곁에 아무도 없어도 성공한다.
+        거리는 시작 조건이 아니라 결과 조건이다 — RULE-ATTACK-COMPLETE-001.
+
+    RULE-ATTACK-COMPLETE-001                                             [ADDED]
+        Implements     INTENT-ATTACK-HIT-001
+        Input          Actor (CurrentAction.Kind = attack 이 Duration 을 채운 시점)
+        Preconditions  없음 — 판정 자체는 언제나 일어난다
+        Transition     타격 대상 = 자신이 아니면서
+                       distance(Actor.Position, 상대.Position) <= Actor.AttackRange
+                       인 모든 Actor. 각 대상에 RULE-HIT-001 을 적용한다.
+        Result         Struck(대상 수) — 0 이면 아무도 맞지 않았다
+
+        무엇이 맞는지는 이 시점의 위치가 정한다 (시작 시점이 아니다).
+        대상 순서는 World.Actors 순서를 따른다 — 결정론.
+
+    RULE-HIT-001                                                         [ADDED]
+        Implements     INTENT-HIT-REACTION-001
+        Input          타격받은 Actor
+        Preconditions  없음 — 피격은 상대의 사정을 묻지 않는다.
+                       대체 불가능한 행동 중이어도 그 행동은 중단되고 피격이 된다.
+        Transition     CurrentAction = hit
+        Result         Struck
+
+        RULE-ACTION-BEGIN-001 을 거치지 않는 유일한 행동 진입이다 —
+        피격은 그 캐릭터가 요청한 행동이 아니라 밖에서 일어난 일이기 때문이다.
+        이 예외는 여기 한 곳에만 있다.
+
+        피해량 · 체력 · 사망은 이번 Cycle 에 정의되지 않는다 (01-cycle EXCLUDED).
+        여기서 일어나는 것은 "맞았다" 하나다.
 
     RULE-MINE-001                                                        [CHANGED]
         Implements     INTENT-MINING-001 · INTENT-ACTION-STATE-001
@@ -185,7 +216,7 @@
                        (거리가 같으면 Actor.Id 사전순으로 앞선 쪽 — 결정론)
 
                        인지 대상이 있고 거리 <= AttackRange
-                           → RULE-ATTACK-001 (대상 공격)
+                           → RULE-ATTACK-001 (대상을 지정하지 않고 휘두른다)
                        인지 대상이 있고 거리 > AttackRange
                            → RULE-MOVE-001 (대상 Position 을 목적지로)
                        인지 대상이 없음
@@ -204,7 +235,7 @@
     Actor.CharacterKind                  캐릭터 종류
     Actor.Control                        player | autonomous
     Actor.Position
-    Actor.CurrentActionKind              idle | move | attack | mine
+    Actor.CurrentActionKind              idle | move | attack | mine | hit
     Actor.ActionProgress                 0..1 — Duration 이 있는 행동에서만 존재
     Actor.ActionTargetId                 현재 행동의 대상 (Actor 또는 Deposit) — 없을 수 있음
     Actor.Inventory.StoneCount           (player Actor 에 한해 HUD 로 관찰)  [REUSED]
@@ -212,8 +243,11 @@
     Deposit.Position / ResourceAmount / Availability                         [REUSED]
     Mine.Availability + Mine.FailureReason        (no-mining-tool | out-of-range |
                                                    deposit-depleted | action-busy)
-    Attack.Availability + Attack.FailureReason    (no-target | out-of-range | action-busy)
-                                                  — 대상 Actor 별로 평가된다
+    Attack.Availability + Attack.FailureReason    (action-busy)
+                                                  — 대상이 없으므로 하나만 평가된다
+
+    누가 맞았는지는 그 캐릭터가 피격 상태에 들어간 것으로 관찰된다.
+    별도의 "타격 사건" 목록을 투영하지 않는다 — 상태로 이미 드러난다.
 
     관찰되지 않는 것: MoveSpeed · AttackRange · PerceptionRange · WanderPath · Duration 원값.
     이들은 행동 상태와 진행도로 충분히 관찰되며, 원값 노출은 View 를 World 내부에 결합시킨다.
@@ -238,18 +272,33 @@
         "사유를 알 수 있다"                  → Failure(action-busy) + Observable FailureReason
 
     INTENT-ATTACK-001
-        "대상을 인지하고 있고"               → RULE-ATTACK-001 Precondition 1
-        "공격 가능한 거리"                   → Actor.AttackRange → Precondition 2
-        "대체 불가능한 행동 중이 아닌"       → Precondition 3
-        "정해진 시간 동안 공격 행동 안에"    → CurrentAction = attack, Duration
+        "대체 불가능한 행동 중이 아닌"       → RULE-ATTACK-001 Precondition (유일)
+        "언제나 공격을 수행할 수 있다"       → 대상·거리 Precondition 없음
+        "정해진 시간 동안 휘두르는 행동"     → CurrentAction = attack, Duration
         "끝나면 대기로"                      → RULE-ACTION-PROGRESS-001
-        "사유를 알 수 있다"                  → Attack.FailureReason (Observable)
+        "대상을 향하지 않는다"               → Transition 이 TargetActorId 를 담지 않는다
+        "사유를 알 수 있다"                  → Attack.FailureReason (action-busy)
+
+    INTENT-ATTACK-HIT-001
+        "끝까지 마친 캐릭터는"               → RULE-ACTION-PROGRESS-001 의 attack 완료 분기
+        "타격 범위 안에"                     → Actor.AttackRange (결과 조건으로)
+        "자신이 아닌 모든 캐릭터"            → RULE-ATTACK-COMPLETE-001 Transition
+        "아무도 없으면 아무도 맞지 않는다"   → Result: Struck(0)
+        "여럿이면 모두 맞는다"               → 대상 집합에 상한이 없다
+        "끝나는 순간의 위치가 정한다"        → 판정 시점이 완료 시점이다
+
+    INTENT-HIT-REACTION-001
+        "하던 행동을 멈추고"                 → RULE-HIT-001 이 CurrentAction 을 덮어쓴다
+                                               (RULE-ACTION-BEGIN-001 을 거치지 않는다)
+        "잠시 피격 상태에 들어가"            → ActionKind.hit + Duration
+        "밖에서 관찰되고"                    → Observable: CurrentActionKind = hit
+        "지나면 대기로 돌아간다"             → RULE-ACTION-PROGRESS-001 (완료 효과 없음)
 
     INTENT-NPC-AUTONOMY-001
         "플레이어가 조종하지 않는"           → Actor.Control = autonomous
         "인지 범위"                          → Actor.PerceptionRange
         "그쪽으로 향한다"                    → RULE-NPC-DECIDE-001 → RULE-MOVE-001
-        "공격 가능한 거리에서 공격"          → RULE-NPC-DECIDE-001 → RULE-ATTACK-001
+        "타격 범위에서 휘두른다"             → RULE-NPC-DECIDE-001 → RULE-ATTACK-001
         "스스로 돌아다닌다"                  → Actor.WanderPath + WanderIndex
         "대체 불가 행동 중엔 결정하지 않는다"→ RULE-NPC-DECIDE-001 Precondition
         "캐릭터마다 다를 수 있다"            → PerceptionRange 는 Actor 별 State

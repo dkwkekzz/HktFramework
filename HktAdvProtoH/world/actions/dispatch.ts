@@ -23,9 +23,7 @@ export function dispatchAction(state: WorldState, action: ActionRequest): Action
         return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
       return ruleMine(state, actor, action.targetEntityId);
     case 'attack':
-      if (!action.targetEntityId)
-        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
-      return ruleAttack(state, actor, action.targetEntityId);
+      return ruleAttack(actor); // 대상을 받지 않는다 (C002 — 휘두르는 행위다)
     default:
       return { status: 'failure', rule: DISPATCH, reason: 'unknown-interaction' };
   }

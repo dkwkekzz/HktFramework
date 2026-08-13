@@ -55,17 +55,42 @@
 
     INTENT-ATTACK-001
 
-        대상 캐릭터를 인지하고 있고
-        그 대상이 공격 가능한 거리 안에 있으며
         지금 대체 불가능한 행동 중이 아닌 캐릭터는
 
         공격을 수행하여
 
-        정해진 시간 동안 그 대상을 향한 공격 행동 안에 들어가고,
-        시간이 끝나면 공격을 마치고 대기로 돌아간다.
+        정해진 시간 동안 휘두르는 행동 안에 들어가고,
+        시간이 끝나면 휘두름을 마치고 대기로 돌아간다.
 
-        대상이 없거나 거리가 멀면 공격은 시작되지 않으며 그 사유를 알 수 있다.
-        (공격이 대상에게 무엇을 하는가 — 피해 · 사망 — 는 이번 Cycle 의 의미가 아니다.)
+        공격을 시작하는 데 대상은 필요하지 않다.
+        곁에 아무도 없어도, 아무리 멀리 있어도 휘두를 수 있다 —
+        휘두르는 것은 세계에 대고 하는 일이지 누구에게 하는 일이 아니다.
+
+    INTENT-ATTACK-HIT-001
+
+        휘두르는 행동을 끝까지 마친 캐릭터는
+
+        그 순간 자신의 타격 범위 안에 있는 자신이 아닌 모든 캐릭터를 타격한다.
+
+        범위 안에 아무도 없으면 아무도 맞지 않는다 — 휘두름은 그대로 끝난다.
+        범위 안에 여럿이 있으면 그들 모두가 맞는다 —
+        대상을 고르지 않았으므로 하나만 골라 맞힐 이유가 없다.
+
+        무엇이 맞을지는 휘두름을 시작한 순간이 아니라 끝나는 순간의 위치가 정한다.
+        따라서 휘두르는 동안 물러선 캐릭터는 맞지 않고,
+        휘두르는 동안 다가온 캐릭터는 맞는다.
+
+    INTENT-HIT-REACTION-001
+
+        타격받은 캐릭터는
+
+        하던 행동을 멈추고 잠시 피격 상태에 들어가
+
+        맞았다는 사실이 밖에서 관찰되고,
+        그 짧은 시간이 지나면 대기로 돌아간다.
+
+        타격이 그 캐릭터에게 무엇을 더 하는가 — 피해량 · 체력 · 사망 — 는
+        이번 Cycle 의 의미가 아니다. 여기서 일어나는 것은 "맞았다" 하나다.
 
     INTENT-NPC-AUTONOMY-001
 
@@ -74,7 +99,7 @@
         자신의 인지 범위와 현재 상황을 근거로 다음 행동을 스스로 선택하여
 
         인지 범위 안에 다른 캐릭터가 있으면 그쪽으로 향하고
-        공격 가능한 거리에 이르면 공격하며,
+        타격 범위에 이르면 휘두르며 (대상을 지정하지 않는다),
         인지 범위 안에 아무도 없으면 세계 안을 스스로 돌아다닌다.
 
         대체 불가능한 행동 중에는 새로운 선택을 하지 않는다.
@@ -115,6 +140,12 @@
     INTENT-ATTACK-001
         Source Goal         GOAL-CHARACTER-BEHAVIOR-OBSERVABLE
         Source Possibility  POSSIBILITY-ACT-BY-COMMAND · POSSIBILITY-ACT-BY-SELF
+    INTENT-ATTACK-HIT-001
+        Source Goal         GOAL-CHARACTER-BEHAVIOR-OBSERVABLE
+        Source Possibility  POSSIBILITY-ACT-OVER-TIME
+    INTENT-HIT-REACTION-001
+        Source Goal         GOAL-CHARACTER-BEHAVIOR-OBSERVABLE
+        Source Possibility  POSSIBILITY-ACT-AS-MOTION
     INTENT-NPC-AUTONOMY-001
         Source Goal         GOAL-CHARACTER-BEHAVIOR-OBSERVABLE
         Source Possibility  POSSIBILITY-ACT-BY-SELF

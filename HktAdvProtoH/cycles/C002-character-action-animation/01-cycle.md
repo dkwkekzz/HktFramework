@@ -20,13 +20,16 @@ STATUS  IN PROGRESS
 
 ## GOAL
     플레이어가 자기 캐릭터를 조작하고 같은 세계의 NPC 가 스스로 움직일 때,
-    각 캐릭터가 지금 무슨 행동(대기 · 이동 · 공격 · 채굴)을 하고 있는지가
+    각 캐릭터가 지금 무슨 행동(대기 · 이동 · 공격 · 채굴 · 피격)을 하고 있는지가
     그 행동에 대응하는 애니메이션 재생으로 화면에서 구분되어 관찰된다.
 
 ## INCLUDED
-    Actor.CurrentAction              지금 하는 행동이 World State 다 (idle | move | attack | mine)
+    Actor.CurrentAction              지금 하는 행동이 World State 다
+                                     (idle | move | attack | mine | hit)
     Action Duration                  행동은 시간 위에서 시작·진행·종료한다
-    Attack Action                    대상을 향한 공격 행동 (수행 자체 — 결과는 Excluded)
+    Attack Action                    휘두르는 공격 — 대상을 고르지 않는다
+    Hit Resolution                   휘두름이 끝나는 순간 타격 범위 안의 캐릭터가 맞는다
+    Hit Reaction                     맞은 캐릭터는 잠시 피격 상태가 된다
     NPC Actor                        플레이어가 조종하지 않는 Actor 가 세계에 존재한다
     NPC Basic Autonomy               NPC 가 스스로 행동을 선택한다 (관찰 가능한 최소 규칙)
     Character Kind                   캐릭터 종류가 구분된다 (종류마다 다른 모션 집합)
@@ -35,7 +38,10 @@ STATUS  IN PROGRESS
     Placeholder Motion Set           실제 데이터 도착 전 검증용 4프레임 임시 시트
 
 ## EXCLUDED
-    Damage / Health / Death          공격의 결과 (맞음 · 피해 · 사망)
+    Damage / Health / Death          피해량 · 체력 · 사망 (맞았다는 사실까지만 다룬다)
+    Targeted Action                  특정 대상을 목표로 하는 행동 (조준 · 락온) — 이후 Cycle
+    공격의 방향성                    전방 부채꼴 등 방향 규칙 (지금은 원형 범위)
+    타격 시점 세분화                 휘두르는 도중의 순간 판정 (지금은 끝나는 시점 하나)
     Animation Blending               모션 간 보간 · 전환 블렌딩
     Directional Motion               방향별(8방향/좌우) 모션 분기
     Animation Event                  프레임에 판정·효과를 붙이는 것

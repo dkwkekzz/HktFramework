@@ -4,7 +4,7 @@
 // 행동 종류가 늘어나도 구조는 바뀌지 않는다 — ACTION_DEFINITIONS 에 항목 하나와
 // 그 행동을 시작하는 Rule 하나가 추가될 뿐이다.
 
-export type ActionKind = 'idle' | 'move' | 'attack' | 'mine';
+export type ActionKind = 'idle' | 'move' | 'attack' | 'mine' | 'hit';
 
 export interface CurrentAction {
   kind: ActionKind;
@@ -26,6 +26,7 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   move: { duration: null, replaceable: true }, // 목적지 도달로 끝난다
   attack: { duration: 0.6, replaceable: false },
   mine: { duration: 1.2, replaceable: false },
+  hit: { duration: 0.35, replaceable: false }, // 피격 — 스스로 요청하는 행동이 아니다
 };
 
 export function actionDefinition(kind: ActionKind): ActionDefinition {

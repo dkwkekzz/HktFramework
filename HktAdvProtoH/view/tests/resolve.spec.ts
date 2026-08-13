@@ -64,13 +64,18 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     const action = plan.hud.find((h) => h.id === 'player.action');
     expect(action).toMatchObject({ widget: 'label', label: '행동', value: '채굴', progress: 0.5 });
 
-    // 공격 interaction 은 대상별로 키·프롬프트·사유가 결정된다
+    // 공격은 대상이 없는 하나다 — 키·프롬프트·사유만 결정된다
     const attacks = plan.interactions.filter((i) => i.id === 'attack');
-    expect(attacks).toHaveLength(2);
+    expect(attacks).toHaveLength(1);
+    expect(attacks[0]?.targetEntityId).toBeUndefined();
     expect(attacks[0]?.key).toBe('KeyF');
     expect(attacks[0]?.prompt).toBe('공격');
-    expect(attacks[0]?.unavailableText).toContain('멀다');
-    expect(attacks[1]?.unavailableText).toContain('행동이 끝나야');
+    expect(attacks[0]?.unavailableText).toContain('행동이 끝나야');
+
+    // 맞은 캐릭터도 같은 계약으로 그려진다
+    const struck = plan.entities.find((e) => e.id === 'npc-3');
+    expect(struck?.motion).toBeUndefined(); // wanderer/hit 시트는 없다
+    expect(struck?.spriteId).toBe('wanderer:hit');
   });
 
   it('모션 데이터가 하나도 없어도 모든 entity 가 그려진다 (placeholder 폴백)', () => {
@@ -81,6 +86,7 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
       'player-pickaxe:mine',
       'wanderer:move',
       'wanderer:attack',
+      'wanderer:hit',
       'stone-deposit:available',
     ]);
   });
@@ -140,6 +146,8 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       'wanderer:idle',
       'wanderer:move',
       'wanderer:attack',
+      'wanderer:hit',
+      'player-pickaxe:hit',
       'stone-deposit:available',
       'stone-deposit:depleted',
     ]) {

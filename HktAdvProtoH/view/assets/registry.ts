@@ -172,15 +172,56 @@ const WANDERER_ATTACK = [
   '................',
 ];
 
+// 뒤로 젖혀진 자세 — 맞았을 때의 절차 그림 (C002 hit)
+const PLAYER_STAGGER = [
+  '................',
+  '.......HHH......',
+  '......HHHHH.....',
+  '......hFFFh.M...',
+  '.......FFF.MM...',
+  '....BBBBBB.W....',
+  '...BBBBBBBW.....',
+  '..B..BBBBB......',
+  '..B..BBBB.......',
+  '.....bbbb.......',
+  '....bbbb........',
+  '....P...P.......',
+  '...P.....P......',
+  '...P......P.....',
+  '..PP......PP....',
+  '................',
+];
+
+const WANDERER_HIT = [
+  '................',
+  '................',
+  '................',
+  '................',
+  '......ddddd.....',
+  '....ddrrrrrdd...',
+  '...drrrrrrrrrd..',
+  '...drr.rrr.rrd..',
+  '...drrrrrrrrrd..',
+  '...drrr.r.rrrd..',
+  '..drrrrrrrrrrrd.',
+  '..drrrrrrrrrrrd.',
+  '..eeeeeeeeeeeee.',
+  '................',
+  '................',
+  '................',
+];
+
 const PIXEL_MAPS: Record<string, string[]> = {
   'player-pickaxe:idle': PLAYER_IDLE,
   'player-pickaxe:move': PLAYER_MOVING,
   'player-pickaxe:moving': PLAYER_MOVING, // C001 이름 — 계속 유효하다
   'player-pickaxe:attack': PLAYER_SWING,
   'player-pickaxe:mine': PLAYER_SWING,
+  'player-pickaxe:hit': PLAYER_STAGGER,
   'wanderer:idle': WANDERER_IDLE,
   'wanderer:move': WANDERER_MOVE,
   'wanderer:attack': WANDERER_ATTACK,
+  'wanderer:hit': WANDERER_HIT,
   'stone-deposit:available': DEPOSIT_AVAILABLE,
   'stone-deposit:depleted': DEPOSIT_DEPLETED,
 };

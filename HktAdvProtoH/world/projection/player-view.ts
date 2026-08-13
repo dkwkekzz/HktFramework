@@ -44,18 +44,15 @@ export function projectPlayerView(state: WorldState): GameViewSnapshot {
     ...(moveFailure ? { reason: moveFailure } : {}),
   });
 
-  // interactions.attack — 대상 Actor 별로 평가한다
-  for (const actor of state.actors) {
-    if (actor.id === player.id) continue;
-    const failure = evaluateAttackPreconditions(player, actor);
-    interactions.push({
-      id: 'attack',
-      role: 'attack-character',
-      targetEntityId: actor.id,
-      available: failure === null,
-      ...(failure ? { reason: failure } : {}),
-    });
-  }
+  // interactions.attack — 대상이 없다. 언제나 휘두를 수 있고,
+  // 무엇이 맞을지는 요청할 때가 아니라 휘두름이 끝나는 순간의 세계가 정한다.
+  const attackFailure = evaluateAttackPreconditions(player);
+  interactions.push({
+    id: 'attack',
+    role: 'attack-swing',
+    available: attackFailure === null,
+    ...(attackFailure ? { reason: attackFailure } : {}),
+  });
 
   // entities.deposit + interactions.mine
   for (const deposit of state.deposits) {

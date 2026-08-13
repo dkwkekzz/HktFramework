@@ -16,6 +16,7 @@ const CODE_TEXT: Record<string, string> = {
   move: '이동',
   attack: '공격',
   mine: '채굴',
+  hit: '피격',
 };
 
 export function codeText(code: string): string {

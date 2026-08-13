@@ -73,7 +73,8 @@ describe('RULE-NPC-DECIDE-001 — 인지 대상이 있을 때', () => {
       }
     }
     expect(sawAttack).toBe(true);
-    expect(npc(world.observe())?.targetEntityId).toBe('player');
+    // 공격은 대상을 담지 않는다 — 무엇이 맞을지는 휘두름이 끝나는 순간이 정한다
+    expect(npc(world.observe())?.targetEntityId).toBeUndefined();
   });
 
   it('대체 불가 행동(공격) 중에는 새로운 결정을 하지 않는다', () => {
