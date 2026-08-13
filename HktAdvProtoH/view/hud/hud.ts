@@ -1,10 +1,7 @@
-// Web HUD (범용 엔진) — hud 항목 배열·interaction 배열을 순회하며 표시한다.
-// 항목별 표시 특성은 HUD/Interaction Registry 가 정하고, 미등록 항목도 기본 형식으로 그린다.
+// Web HUD — HUD Capability 엔진. counter / flag 위젯 · 프롬프트 · 획득 토스트 ·
+// entity 라벨을 그릴 뿐, 라벨·아이콘·문구는 전부 Snapshot 의 지시를 그대로 표시한다.
 
-import { hudTraits } from '../engine/hud-registry';
-import { interactionTraits } from '../engine/interaction-registry';
 import type { SceneState } from '../scene/scene-state';
-import { reasonText } from './reason-text';
 
 export interface EntityLabel {
   x: number;
@@ -39,36 +36,32 @@ export function createHud(container: HTMLElement): Hud {
 
   return {
     render(scene, labels) {
-      // HUD 항목 — counter / flag 를 Registry 특성대로 표시
+      // HUD 위젯 — 지시받은 widget 종류대로 그린다
       const parts: string[] = [];
       for (const item of scene.hud) {
-        const traits = hudTraits(item.id);
-        if (item.kind === 'counter') {
+        if (item.widget === 'counter') {
           const value = item.value as number;
-          parts.push(
-            `<span class="hud-item">${traits.icon ?? ''} ${traits.label}: ${value}</span>`,
-          );
-          // 획득 토스트 — counter 증가 감지 (판정이 아니라 Snapshot 값 변화 표시)
+          parts.push(`<span class="hud-item">${item.icon ?? ''} ${item.label}: ${value}</span>`);
+          // 획득 토스트 — celebrateGain 지시가 있는 counter 의 증가를 표시
           const prev = lastCounters.get(item.id);
-          if (traits.celebrateGain && prev !== undefined && value > prev) {
-            toast.textContent = `+${value - prev} ${traits.label} 획득!`;
+          if (item.celebrateGain && prev !== undefined && value > prev) {
+            toast.textContent = `+${value - prev} ${item.label} 획득!`;
             toastUntil = performance.now() + 1600;
           }
           lastCounters.set(item.id, value);
         } else {
           parts.push(
-            `<span class="hud-item hud-flag" data-on="${item.value}">${traits.label} ${item.value ? '✓' : '✗'}</span>`,
+            `<span class="hud-item hud-flag" data-on="${item.value}">${item.label} ${item.value ? '✓' : '✗'}</span>`,
           );
         }
       }
       items.innerHTML = parts.join('');
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
 
-      // 조작 안내 — 이동(엔진 기본) + 키 바인딩이 등록된 interaction 들
+      // 조작 안내 — 이동(엔진 기본) + 키 지시가 있는 interaction
       const keyLines = ['이동: WASD / 방향키'];
       for (const i of scene.interactions) {
-        const t = interactionTraits(i.role);
-        if (t.key && t.promptLabel) keyLines.push(`${t.promptLabel}: ${t.keyLabel ?? t.key}`);
+        if (i.key && i.prompt) keyLines.push(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }
       keys.innerHTML = keyLines.join('<br/>');
 
@@ -80,15 +73,14 @@ export function createHud(container: HTMLElement): Hud {
         )
         .join('');
 
-      // 프롬프트 — 키 바인딩 interaction 중: 가용한 것 우선, 아니면 사유 표시
-      const keyed = scene.interactions.filter((i) => interactionTraits(i.role).key);
-      const active = keyed.find((i) => i.available) ?? keyed.find((i) => i.reason);
-      if (active && active.available) {
-        const t = interactionTraits(active.role);
-        hint.textContent = `[${t.keyLabel ?? t.key}] ${t.promptLabel ?? active.role}`;
+      // 프롬프트 — 키 지시 interaction 중: 가용한 것 우선, 아니면 불가 문구
+      const keyed = scene.interactions.filter((i) => i.key);
+      const active = keyed.find((i) => i.available) ?? keyed.find((i) => i.unavailableText);
+      if (active?.available) {
+        hint.textContent = `[${active.keyLabel ?? active.key}] ${active.prompt ?? ''}`.trim();
         hint.dataset.state = 'available';
-      } else if (active?.reason) {
-        hint.textContent = reasonText(active.reason);
+      } else if (active?.unavailableText) {
+        hint.textContent = active.unavailableText;
         hint.dataset.state = 'unavailable';
       } else {
         hint.textContent = '';

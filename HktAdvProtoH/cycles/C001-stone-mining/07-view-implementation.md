@@ -43,17 +43,20 @@
     지형 클릭 이동 → "광맥을 클릭해 캐자!" → 광맥 클릭 →
     HUD Stone: 1 · 광맥 잔량: 4. 콘솔 에러 없음. (Human Play 확인은 Stage 8 이후)
 
-    [범용 엔진 리팩터링 — Human 피드백 반영: "같은 것을 그리는 View 코드는 Cycle 간 불변"]
-    protocol Snapshot 을 범용 구조(entities[]/interactions[]/hud[] 배열)로 전환.
-    View 엔진(gameview/renderer/hud/input)은 배열을 순회할 뿐 특정 role·id 를 모른다.
-    Cycle 별 표현은 view/engine/ 의 Registry 데이터로만 존재:
-        role-registry         role → 스케일·카메라 추적·트레일·라벨 형식
-        interaction-registry  interaction role → 키 바인딩·프롬프트·지형 대상
-        hud-registry          hud id → 라벨·아이콘·획득 토스트
-        assets/registry       role:state → 픽셀 스프라이트 (미등록은 placeholder)
-        hud/reason-text       사유 코드 → 문구 (미등록은 코드 그대로)
-    다음 Cycle 부터 View 작업 = Registry 항목 추가 (+ 새 표현 패턴 시에만 엔진 확장).
-    미등록 role 도 기본 특성·placeholder 로 그려짐 — 테스트로 고정 (14 passed).
+    [Render Capability 엔진 리팩터링 — Human 피드백 반영:
+     "View 는 그리기 능력만 제공, 무엇을 어떻게 그릴지는 각 Cycle 의 World 가 결정"]
+    protocol Snapshot 이 Render 지시가 됨 — entity 별 representation
+    (kind:'sprite' + sprite 키·variant·size·label 텍스트·cameraFollow·trail),
+    interaction 별 표시·입력 지시(key·prompt·unavailableText),
+    hud 위젯 지시(widget·label·icon·celebrateGain).
+    표현 결정은 전부 world/projection/player-view.ts 로 이동 —
+    sprite 선택·크기·"돌 N" 라벨·"채굴" 프롬프트·불가 문구를 World 가 정한다.
+    View 는 capability 만 제공: sprite billboard · terrain(field) · trail ·
+    camera follow · 라벨 · HUD counter/flag · 프롬프트 · 획득 토스트 · 입력 매핑.
+    view/engine/ Registry 3종·reason-text 삭제 — View 에 Cycle 별 표현 결정이 없다.
+    이후 표현 고도화(예: sprite animation)는 representation 에 새 kind 추가 +
+    View 는 그 capability 구현만 더함 — 기존 kind 렌더 코드는 불변.
+    미등록 sprite 는 placeholder, 생략 옵션은 엔진 기본값 — 테스트로 고정 (14 passed).
     검증: tsc·build 통과, 키보드 스모크 재현 (Stone: 1 · 잔량 4 · 토스트 · 콘솔 에러 0).
 
     [표현 업그레이드 — Human 피드백 반영]

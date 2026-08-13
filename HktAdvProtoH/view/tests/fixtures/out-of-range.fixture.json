@@ -1,33 +1,52 @@
 {
   "specId": "VIEW-STONE-MINING-001",
-  "scene": "mining-field",
+  "scene": { "terrain": "field" },
   "entities": [
     {
       "id": "player",
-      "role": "player-character",
-      "state": "moving",
-      "position": { "x": 0, "z": 0 }
+      "position": { "x": 0, "z": 0 },
+      "representation": {
+        "kind": "sprite",
+        "sprite": "player-pickaxe",
+        "variant": "moving",
+        "size": 2.6,
+        "cameraFollow": true,
+        "trail": true
+      }
     },
     {
       "id": "deposit-1",
-      "role": "resource-deposit",
-      "state": "available",
       "position": { "x": 8, "z": -6 },
-      "labelValue": 5
+      "representation": {
+        "kind": "sprite",
+        "sprite": "stone-deposit",
+        "variant": "available",
+        "size": 3.4,
+        "label": "돌 5"
+      }
     }
   ],
   "interactions": [
-    { "id": "move", "role": "move-to", "available": true },
+    { "id": "move", "terrainTarget": true, "available": true },
     {
       "id": "mine",
-      "role": "mine-deposit",
       "targetEntityId": "deposit-1",
       "available": false,
-      "reason": "out-of-range"
+      "key": "KeyE",
+      "keyLabel": "E",
+      "prompt": "채굴",
+      "unavailableText": "광맥이 너무 멀다 — 가까이 이동하자"
     }
   ],
   "hud": [
-    { "id": "inventory.stone", "kind": "counter", "value": 0 },
-    { "id": "tool.hasMiningTool", "kind": "flag", "value": true }
+    {
+      "id": "inventory.stone",
+      "widget": "counter",
+      "label": "Stone",
+      "icon": "⛏",
+      "value": 0,
+      "celebrateGain": true
+    },
+    { "id": "tool.hasMiningTool", "widget": "flag", "label": "곡괭이", "value": true }
   ]
 }

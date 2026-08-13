@@ -95,10 +95,10 @@ const DEPOSIT_DEPLETED = [
 ];
 
 const PIXEL_MAPS: Record<string, string[]> = {
-  'player-character:idle': PLAYER_IDLE,
-  'player-character:moving': PLAYER_MOVING,
-  'resource-deposit:available': DEPOSIT_AVAILABLE,
-  'resource-deposit:depleted': DEPOSIT_DEPLETED,
+  'player-pickaxe:idle': PLAYER_IDLE,
+  'player-pickaxe:moving': PLAYER_MOVING,
+  'stone-deposit:available': DEPOSIT_AVAILABLE,
+  'stone-deposit:depleted': DEPOSIT_DEPLETED,
 };
 
 // 미등록 spriteId 용 placeholder — 새 Cycle 의 role 이 아직 등록되지 않아도

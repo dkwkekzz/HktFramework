@@ -1,10 +1,9 @@
-// Renderer — Scene State 를 three.js 로 그린다 (범용 엔진).
-// entity 배열을 순회하며 Role Registry 특성대로 그릴 뿐, 특정 role 을 알지 못한다.
-// 게임 의미 판정은 하지 않는다.
+// Renderer — Scene State 를 three.js 로 그린다 (Render Capability 엔진).
+// sprite billboard · terrain · trail · camera follow 능력을 제공할 뿐,
+// 어떤 entity 를 어떻게 그릴지는 Scene State(= World 의 표현 지시)가 정한다.
 
 import * as THREE from 'three';
 import { createCamera, followPlayer } from '../camera/camera';
-import { roleTraits } from '../engine/role-registry';
 import type { SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createTerrain, heightAt } from '../terrain/terrain';
@@ -33,6 +32,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   sun.position.set(10, 20, 5);
   scene.add(sun);
 
+  // 지형 capability — 현재 제공: 'field' (미지원 지시도 field 로 그려 게임을 멈추지 않는다)
   const ground = createTerrain();
   scene.add(ground);
 
@@ -46,7 +46,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   const billboards = new Map<string, Billboard>(); // entityId → billboard
   const raycaster = new THREE.Raycaster();
 
-  // 이동 자취 — trail 특성을 가진 entity 별로 유지한다
+  // 이동 자취 capability — trail 지시를 받은 entity 별로 유지
   const TRAIL_MAX = 48;
   interface Trail {
     points: THREE.Vector3[];
@@ -91,20 +91,20 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       const seen = new Set<string>();
       for (const entity of state.entities) {
         seen.add(entity.id);
-        const traits = roleTraits(entity.role);
 
         let bb = billboards.get(entity.id);
         if (!bb) {
-          bb = createBillboard(entity.spriteId, traits.scale);
+          bb = createBillboard(entity.spriteId, entity.size);
           bb.object.userData.entityId = entity.id;
           billboards.set(entity.id, bb);
           scene.add(bb.object);
         }
         bb.setSprite(entity.spriteId);
+        bb.object.scale.set(entity.size, entity.size, 1);
         const y = heightAt(entity.position.x, entity.position.z);
         bb.setPosition(entity.position.x, y, entity.position.z);
 
-        if (traits.trail) {
+        if (entity.trail) {
           const trail = trailFor(entity.id);
           trail.accum += dt;
           if (trail.accum > 0.12) {
@@ -119,12 +119,12 @@ export function createRenderer(container: HTMLElement): GameRenderer {
           }
         }
 
-        if (traits.cameraFollow) {
+        if (entity.cameraFollow) {
           followPlayer(camera, entity.position, y);
         }
       }
 
-      // Snapshot 에서 사라진 entity 는 화면에서도 제거한다
+      // 지시에서 사라진 entity 는 화면에서도 제거
       for (const [id, bb] of billboards) {
         if (!seen.has(id)) {
           scene.remove(bb.object);
