@@ -3,7 +3,7 @@
 // 이것은 게임 UI(View)가 아니라 실행 도구다. 그래서 view/hud 가 아니라 조립 루트(app/)에 둔다 —
 // View 는 GameView Specification 만으로 동작해야 하므로 Cycle 을 알아서는 안 된다(원칙 14).
 
-import type { CycleEntry, CycleScope } from '../world/index';
+import type { CycleModule, CycleScope } from '../world/index';
 
 function cycleUrl(cycle: string | null): string {
   const url = new URL(location.href);
@@ -16,7 +16,7 @@ function cycleUrl(cycle: string | null): string {
 export function createCycleBadge(
   container: HTMLElement,
   scope: CycleScope,
-  cycles: readonly CycleEntry[],
+  cycles: readonly CycleModule[],
 ): void {
   const entry = cycles.find((c) => c.id === scope.target);
 
@@ -57,7 +57,7 @@ export function createCycleBadge(
 export function showCycleError(
   container: HTMLElement,
   error: unknown,
-  cycles: readonly CycleEntry[],
+  cycles: readonly CycleModule[],
 ): void {
   const root = document.createElement('div');
   root.id = 'cycle-error';

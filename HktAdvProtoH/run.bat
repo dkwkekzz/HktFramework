@@ -22,8 +22,8 @@ if /i "%ARG%"=="--list" goto :listcycles
 if /i "%ARG%"=="-l"     goto :listcycles
 
 if not "%ARG%"=="" (
-  rem 지정한 Cycle 이 cycles\ 에 실재하는지 먼저 확인한다 — 브라우저를 띄우기 전에 실패시킨다.
-  for /d %%D in (cycles\*) do (
+  rem 지정한 Cycle 이 world\cycles\ 에 실재하는지 먼저 확인한다 — 브라우저를 띄우기 전에 실패시킨다.
+  for /d %%D in (world\cycles\*) do (
     set "NAME=%%~nxD"
     for /f "tokens=1 delims=-" %%I in ("!NAME!") do set "ID=%%I"
     if /i "!NAME!"=="%ARG%" set "CYCLE=!ID!"
@@ -84,7 +84,7 @@ pause
 exit /b 0
 
 :printcycles
-for /d %%D in (cycles\*) do (
+for /d %%D in (world\cycles\*) do (
   set "NAME=%%~nxD"
   for /f "tokens=1 delims=-" %%I in ("!NAME!") do echo   %%I    !NAME!
 )

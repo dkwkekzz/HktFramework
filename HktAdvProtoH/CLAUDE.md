@@ -20,9 +20,31 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ```
 
 브라우저에서는 `?cycle=C001` Query 가 같은 역할을 하고, 화면 좌하단 배지에서 바로 전환할 수 있다.
-지정한 Cycle 까지의 Rule 만 굴러가고 이후 Cycle 의 Rule 은 꺼진다 — 과거 Cycle 의 Regression Play 수단이다.
-어느 Cycle 이 어떤 Rule 을 도입했는지는 [world/cycle/registry.ts](world/cycle/registry.ts) 가 단일 출처이고,
-**새 Cycle 이 Rule 을 추가하면 반드시 여기에 등록한다** — 등록되지 않은 Rule 은 어떤 Scope 에서도 실행되지 않는다.
+과거 Cycle 의 Regression Play 수단이다.
+
+## Cycle 합성 구조
+
+World 는 고정된 구현이 아니라 **Scope 안의 Cycle 모듈을 합성한 결과**다. "C001 까지 실행" 은
+기능을 꺼두는 것이 아니라 C001 모듈까지만 합성하는 것이다.
+
+```text
+world/kernel/     합성 기반 — 게임 규칙을 하나도 모른다 (State 컨테이너 · 모듈 타입 · Scope · 합성)
+world/cycles/<CycleId>-<name>/   그 Cycle 이 World 에 더한 것 전부 (seed · rules · laws · project)
+world/registry.ts 진행 순서대로 나열한 Cycle 모듈 — 새 Cycle 은 뒤에 추가만 한다
+```
+
+분리를 유지하는 규칙 — 이것이 지켜져야 과거 Cycle 이 계속 과거 Cycle 로 남는다.
+
+```text
+1. 과거 Cycle 디렉터리는 append-only 다. 지난 Cycle 의 Rule 파일을 고치지 않는다.
+2. 기존 Rule 을 바꿔야 하면(CHANGED) 이번 Cycle 모듈에서 같은 actionType / lawId 로 다시 등록한다.
+   뒤 Cycle 의 등록이 앞 Cycle 을 덮으므로, 과거 Scope 에서는 그 시점의 Rule 이 그대로 굴러간다.
+3. State 조각은 소유 Cycle 의 semantic 파일에서 선언 병합으로 더한다.
+4. 의존은 과거 방향으로만 — 앞 Cycle 이 뒤 Cycle 을 참조하면 안 된다 (Scope 는 항상 접두사).
+5. Snapshot 에 필드를 더할 때는 optional 로 더하고, View 는 그 부재를 견딘다.
+```
+
+1·4 는 `world/tests/cycle-scope.spec.ts` 의 경계 테스트가 검사한다.
 
 ## 읽는 순서
 

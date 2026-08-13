@@ -19,18 +19,19 @@ usage() {
 USAGE
 }
 
+# 실행 가능한 Cycle = world/cycles/ 에 모듈이 있는 Cycle (제목은 cycles/ Artifact 에서 읽는다)
 list_cycles() {
   local found=0
-  for dir in cycles/*/; do
+  for dir in world/cycles/*/; do
     [ -d "$dir" ] || continue
     local name id title
     name="$(basename "$dir")"
     id="${name%%-*}"
-    title="$(sed -n 's/^# CYCLE [^ ]* — //p' "$dir/01-cycle.md" 2>/dev/null | head -1)"
+    title="$(sed -n 's/^# CYCLE [^ ]* — //p' "cycles/$name/01-cycle.md" 2>/dev/null | head -1)"
     printf '  %-6s %s\n' "$id" "${title:-$name}"
     found=1
   done
-  [ "$found" = 1 ] || echo "  (cycles/ 에 Cycle 이 없다)"
+  [ "$found" = 1 ] || echo "  (world/cycles/ 에 실행 가능한 Cycle 이 없다)"
 }
 
 CYCLE=""
@@ -42,10 +43,10 @@ case "${1-}" in
   *) CYCLE="$1" ;;
 esac
 
-# Cycle 지정 시 cycles/ 에 실재하는지 먼저 확인한다 — 브라우저를 띄우기 전에 실패시킨다.
+# Cycle 지정 시 실행 가능한 모듈이 있는지 먼저 확인한다 — 브라우저를 띄우기 전에 실패시킨다.
 if [ -n "$CYCLE" ]; then
   MATCH=""
-  for dir in cycles/*/; do
+  for dir in world/cycles/*/; do
     [ -d "$dir" ] || continue
     name="$(basename "$dir")"
     if [ "$name" = "$CYCLE" ] || [ "${name%%-*}" = "$CYCLE" ]; then

@@ -4,13 +4,14 @@
 // Transition     ResourceAmount -= 1, Inventory.Items[stone].Count += 1
 // Result         Success | Failure(no-mining-tool | out-of-range | deposit-depleted)
 
-import type { ActionResult } from '../../protocol/actions';
-import type { MineFailureReason } from '../../protocol/gameview';
-import { RULE_MINE } from '../../protocol/semantic-id';
+import type { ActionResult } from '../../../../protocol/actions';
+import type { MineFailureReason } from '../../../../protocol/gameview';
+import { RULE_MINE } from '../../../../protocol/semantic-id';
 import type { DepositState } from '../semantic/deposit';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import { distance } from '../semantic/position';
-import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
+import { INTERACTION_RANGE } from '../semantic/world-state';
+import type { WorldState } from '../../../kernel/state';
 
 // Precondition 평가 — Observable(Mine.Availability / Mine.FailureReason)과 Rule 이 같은 판정을 공유한다
 export function evaluateMinePreconditions(
