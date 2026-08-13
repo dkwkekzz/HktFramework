@@ -14,10 +14,13 @@ export interface GameViewPosition {
 
 export interface EntityView {
   id: string;
-  role: string; // Semantic Role (예: player-character, resource-deposit)
-  state: string; // 의미 상태 (예: idle | moving | available | depleted)
+  role: string; // Semantic Role (예: player-character, npc-character, resource-deposit)
+  state: string; // 의미 상태 (예: idle | move | attack | mine | available | depleted)
   position: GameViewPosition;
   labelValue?: number | string; // 관찰 값 (예: 광맥 잔량) — 표시 형식은 View 책임
+  kind?: string; // CharacterKind 등 종류 식별자 (C002) — 어떤 모습으로 그릴지는 View 책임
+  progress?: number; // 0..1 — 진행 중인 행동의 진행도 (C002). 없으면 진행 개념이 없는 상태
+  targetEntityId?: string; // 현재 상태의 대상 (C002) — 없을 수 있음
 }
 
 export interface InteractionView {
@@ -30,8 +33,9 @@ export interface InteractionView {
 
 export interface HudItemView {
   id: string; // Observable 경로 기반 식별자 (예: inventory.stone)
-  kind: 'counter' | 'flag';
-  value: number | boolean;
+  kind: 'counter' | 'flag' | 'label'; // label — 의미 코드 (문구 변환은 View 책임)
+  value: number | boolean | string;
+  progress?: number; // 0..1 — 값에 진행도가 동반되는 경우 (C002)
 }
 
 export interface GameViewSnapshot {

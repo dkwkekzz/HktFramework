@@ -1,22 +1,31 @@
 // Action Request 수용 경로 — interactionId 를 World Rule 로 위임한다.
 // Cycle 이 interaction 을 추가하면 여기에 분기가 늘어난다 (World 측 확장).
+//
+// Client 의 요청은 언제나 Control = player 인 Actor 를 주체로 한다 (World Authority).
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
+import { ruleAttack } from '../rules/attack';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
-import type { WorldState } from '../semantic/world-state';
+import { playerActor, type WorldState } from '../semantic/world-state';
 
 const DISPATCH = 'DISPATCH';
 
 export function dispatchAction(state: WorldState, action: ActionRequest): ActionResult {
+  const actor = playerActor(state);
+
   switch (action.interactionId) {
     case 'move':
       if (!action.position) return { status: 'failure', rule: DISPATCH, reason: 'missing-position' };
-      return ruleMove(state, action.position);
+      return ruleMove(state, actor, action.position);
     case 'mine':
       if (!action.targetEntityId)
         return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
-      return ruleMine(state, action.targetEntityId);
+      return ruleMine(state, actor, action.targetEntityId);
+    case 'attack':
+      if (!action.targetEntityId)
+        return { status: 'failure', rule: DISPATCH, reason: 'missing-target' };
+      return ruleAttack(state, actor, action.targetEntityId);
     default:
       return { status: 'failure', rule: DISPATCH, reason: 'unknown-interaction' };
   }
