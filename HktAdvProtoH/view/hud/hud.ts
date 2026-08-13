@@ -1,65 +1,95 @@
-// Web HUD — Spec 의 hud 계약(inventory.stone / tool / mineHint)을 DOM 으로 표시한다.
-// 곡괭이 아이콘 + Stone 카운트, 조작 안내, [E] 채굴 프롬프트, 획득 토스트, 광맥 잔량 라벨.
+// Web HUD — Snapshot 의 hud 목록과 안내 문구를 그대로 그린다.
+//
+// 여기에 게임 의미가 없다. 항목이 무엇을 뜻하는지, 사유 문구가 무엇인지 View 는 모른다 —
+// 목록이 오면 목록을 그리고, 값이 늘면 명세가 준 알림 틀로 알린다.
 
-import type { HudModel } from '../scene/scene-state';
-import { reasonText } from './reason-text';
+import type { SceneState } from '../scene/scene-state';
 
 export interface Hud {
-  render(model: HudModel, depositScreen: { x: number; y: number } | null): void;
+  render(state: SceneState, labelScreen: Map<string, { x: number; y: number }>): void;
 }
 
 export function createHud(container: HTMLElement): Hud {
   const root = document.createElement('div');
   root.id = 'hud';
   root.innerHTML = `
-    <div class="hud-panel"><span class="hud-icon">⛏</span><span id="hud-stone"></span></div>
-    <div class="hud-keys">이동: WASD / 방향키<br/>채굴: E</div>
-    <div class="hud-label" id="hud-deposit-label"></div>
+    <div class="hud-panel" id="hud-items"></div>
+    <div class="hud-keys" id="hud-keys"></div>
+    <div class="hud-labels" id="hud-labels"></div>
     <div class="hud-toast" id="hud-toast"></div>
-    <div class="hud-hint" id="hud-mine-hint"></div>
+    <div class="hud-prompts" id="hud-prompts"></div>
   `;
   container.appendChild(root);
 
-  const stone = root.querySelector('#hud-stone') as HTMLElement;
-  const label = root.querySelector('#hud-deposit-label') as HTMLElement;
+  const items = root.querySelector('#hud-items') as HTMLElement;
+  const keys = root.querySelector('#hud-keys') as HTMLElement;
+  const labels = root.querySelector('#hud-labels') as HTMLElement;
   const toast = root.querySelector('#hud-toast') as HTMLElement;
-  const hint = root.querySelector('#hud-mine-hint') as HTMLElement;
+  const prompts = root.querySelector('#hud-prompts') as HTMLElement;
 
-  let lastStone = 0;
+  const lastValues = new Map<string, number>();
+  const labelNodes = new Map<string, HTMLElement>();
   let toastUntil = 0;
 
   return {
-    render(model, depositScreen) {
-      stone.textContent = `Stone: ${model.stoneCount}`;
+    render(state, labelScreen) {
+      // 좌상단 항목 — 아이콘 · 이름 · 값
+      items.textContent = '';
+      for (const item of state.hud.items) {
+        const node = document.createElement('span');
+        node.className = 'hud-item';
+        node.textContent = `${item.icon ? `${item.icon} ` : ''}${item.label}: ${item.value}`;
+        items.appendChild(node);
 
-      // 광맥 잔량 라벨 — 광맥 머리 위 화면 좌표에 붙인다
-      if (depositScreen) {
-        label.style.display = 'block';
-        label.style.left = `${depositScreen.x}px`;
-        label.style.top = `${depositScreen.y}px`;
-        label.textContent = `돌 ${model.depositRemaining}`;
-      } else {
-        label.style.display = 'none';
+        // 값이 늘면 명세가 준 알림 틀을 채워 띄운다
+        const numeric = typeof item.value === 'number' ? item.value : null;
+        const before = lastValues.get(item.id);
+        if (numeric !== null) {
+          if (item.notifyOnIncrease && before !== undefined && numeric > before) {
+            toast.textContent = item.notifyOnIncrease
+              .replace('{delta}', String(numeric - before))
+              .replace('{label}', item.label);
+            toastUntil = performance.now() + 1600;
+          }
+          lastValues.set(item.id, numeric);
+        }
       }
-
-      // 획득 토스트 — Snapshot 의 Stone 증가를 감지해 잠시 표시
-      if (model.stoneCount > lastStone) {
-        toast.textContent = `+${model.stoneCount - lastStone} Stone 획득!`;
-        toastUntil = performance.now() + 1600;
-      }
-      lastStone = model.stoneCount;
       toast.style.opacity = performance.now() < toastUntil ? '1' : '0';
 
-      if (model.mineAvailable) {
-        hint.textContent = '[E] 채굴';
-        hint.dataset.state = 'available';
-      } else if (model.mineReason === 'out-of-range') {
-        // 이동 중 상시 노출은 소음이라 잔잔하게 — 사유는 접근 안내로만
-        hint.textContent = reasonText(model.mineReason);
-        hint.dataset.state = 'unavailable';
-      } else {
-        hint.textContent = model.mineReason ? reasonText(model.mineReason) : '';
-        hint.dataset.state = 'unavailable';
+      keys.innerHTML = (state.hud.keyHints ?? []).join('<br/>');
+
+      // 존재 머리 위 라벨 — 라벨을 가진 존재만, 화면 좌표가 있을 때만
+      const alive = new Set<string>();
+      for (const entity of state.entities) {
+        if (!entity.label) continue;
+        const screen = labelScreen.get(entity.id);
+        if (!screen) continue;
+        alive.add(entity.id);
+        let node = labelNodes.get(entity.id);
+        if (!node) {
+          node = document.createElement('div');
+          node.className = 'hud-label';
+          labels.appendChild(node);
+          labelNodes.set(entity.id, node);
+        }
+        node.style.left = `${screen.x}px`;
+        node.style.top = `${screen.y}px`;
+        node.textContent = entity.label;
+      }
+      for (const [id, node] of labelNodes) {
+        if (alive.has(id)) continue;
+        node.remove();
+        labelNodes.delete(id);
+      }
+
+      // 하단 안내 — 명세가 준 문구를 그대로
+      prompts.textContent = '';
+      for (const prompt of state.prompts) {
+        const node = document.createElement('div');
+        node.className = 'hud-hint';
+        node.dataset.state = prompt.available ? 'available' : 'unavailable';
+        node.textContent = prompt.text;
+        prompts.appendChild(node);
       }
     },
   };

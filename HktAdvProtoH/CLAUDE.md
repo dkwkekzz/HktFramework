@@ -11,6 +11,62 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
+## 실행
+
+```text
+./run.sh              최신 Cycle = 현재 게임 전체       (Windows: run.bat)
+./run.sh C001         C001 까지의 게임만 실행
+./run.sh --list       실행 가능한 Cycle 목록
+```
+
+브라우저에서는 `?cycle=C001` Query 가 같은 역할을 하고, 화면 좌하단 배지에서 바로 전환할 수 있다.
+과거 Cycle 의 Regression Play 수단이다.
+
+## Cycle 합성 구조
+
+World 는 고정된 구현이 아니라 **Scope 안의 Cycle 모듈을 합성한 결과**다. "C001 까지 실행" 은
+기능을 꺼두는 것이 아니라 C001 모듈까지만 합성하는 것이다.
+
+```text
+world/kernel/     합성 기반 — 게임 규칙을 하나도 모른다 (State 컨테이너 · 모듈 타입 · Scope · 합성)
+world/cycles/<CycleId>-<name>/   그 Cycle 이 World 에 더한 것 전부 (seed · rules · laws · project)
+world/registry.ts 진행 순서대로 나열한 Cycle 모듈 — 새 Cycle 은 뒤에 추가만 한다
+```
+
+분리를 유지하는 규칙 — 이것이 지켜져야 과거 Cycle 이 계속 과거 Cycle 로 남는다.
+
+```text
+1. 과거 Cycle 디렉터리는 append-only 다. 지난 Cycle 의 Rule 파일을 고치지 않는다.
+2. 기존 Rule 을 바꿔야 하면(CHANGED) 이번 Cycle 모듈에서 같은 actionType / lawId 로 다시 등록한다.
+   뒤 Cycle 의 등록이 앞 Cycle 을 덮으므로, 과거 Scope 에서는 그 시점의 Rule 이 그대로 굴러간다.
+3. State 조각은 소유 Cycle 의 semantic 파일에서 선언 병합으로 더한다.
+4. 의존은 과거 방향으로만 — 앞 Cycle 이 뒤 Cycle 을 참조하면 안 된다 (Scope 는 항상 접두사).
+5. Snapshot 은 고정 슬롯이 아니라 목록이다 — 새 Cycle 은 항목을 더할 뿐 계약 모양을 바꾸지 않는다.
+```
+
+1·4 는 `world/tests/cycle-scope.spec.ts` 의 경계 테스트가 검사한다.
+
+## View 는 Cycle 을 모른다
+
+View 는 Cycle 별로 나누지 않는다. **어떠한 world 라도 명세대로 그려주는 엔진**이 목표다.
+
+```text
+World(Projection)   무엇을 보여줄 것인가 — 존재 · 상태 · 표시 문구 · 무엇을 보낼 상호작용인가
+View                어떻게 그리는가 — 스프라이트 · 배치 · 카메라 · 레이아웃 · 입력 수집
+```
+
+그래서 계약(`protocol/gameview.ts`)은 `entities` · `interactions` · `hud.items` **목록**이고,
+View 코드에는 특정 존재의 이름(player · deposit …)이 하나도 없다. 지켜야 할 선은 셋뿐이다.
+
+```text
+1. View 는 사유 코드를 해석하지 않는다 — 표시 문구는 World 가 준다.
+2. View 는 어떤 Action 이 있는지 모른다 — 상호작용이 들고 있는 request 를 그대로 보낸다.
+3. 모르는 역할이 와도 멈추지 않는다 — 대체 표현으로 그린다.
+```
+
+새 Cycle 이 View 에서 하는 일은 **에셋 등록**뿐이다(`view/assets/registry.ts` 의 역할→그림).
+등록이 없어도 게임은 굴러간다 — 대체 표현으로 그려질 뿐이다.
+
 ## 읽는 순서
 
 모든 Agent 는 다음 셋만 읽고 작업한다.

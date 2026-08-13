@@ -12,11 +12,12 @@ export function createCamera(aspect: number): THREE.PerspectiveCamera {
   return camera;
 }
 
-export function followPlayer(
+/** 관찰 초점(Snapshot 의 focus 존재)을 따라간다 — 그 존재가 무엇인지는 알지 못한다 */
+export function followFocus(
   camera: THREE.PerspectiveCamera,
-  player: { x: number; z: number },
+  focus: { x: number; z: number },
   groundY: number,
 ): void {
-  camera.position.set(player.x + OFFSET.x, groundY + OFFSET.y, player.z + OFFSET.z);
-  camera.lookAt(player.x, groundY + LOOK_AHEAD_Y, player.z);
+  camera.position.set(focus.x + OFFSET.x, groundY + OFFSET.y, focus.z + OFFSET.z);
+  camera.lookAt(focus.x, groundY + LOOK_AHEAD_Y, focus.z);
 }

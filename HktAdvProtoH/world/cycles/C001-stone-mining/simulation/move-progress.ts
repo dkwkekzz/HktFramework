@@ -4,7 +4,7 @@
 // Transition     MoveTarget 방향으로 MoveSpeed × dt 만큼 이동, 도달 시 MoveTarget 제거
 // Result         Progress | Arrived
 
-import type { WorldState } from '../semantic/world-state';
+import type { WorldState } from '../../../kernel/state';
 
 export function ruleMoveProgress(state: WorldState, dt: number): 'progress' | 'arrived' | 'none' {
   const actor = state.actor;

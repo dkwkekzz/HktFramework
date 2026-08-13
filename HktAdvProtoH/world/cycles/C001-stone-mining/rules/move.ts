@@ -4,10 +4,10 @@
 // Transition     Actor.MoveTarget = TargetPosition
 // Result         Success | Failure(out-of-bounds)
 
-import type { ActionResult } from '../../protocol/actions';
-import { RULE_MOVE } from '../../protocol/semantic-id';
+import type { ActionResult } from '../../../../protocol/actions';
+import { RULE_MOVE } from '../../../../protocol/semantic-id';
 import { inBounds, type WorldPosition } from '../semantic/position';
-import type { WorldState } from '../semantic/world-state';
+import type { WorldState } from '../../../kernel/state';
 
 export function ruleMove(state: WorldState, target: WorldPosition): ActionResult {
   if (!inBounds(target, state.bounds)) {
