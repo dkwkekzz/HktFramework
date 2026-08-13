@@ -1,0 +1,22 @@
+// Role Presentation — Entity Role 을 "어떻게 그릴지" 결정한다 (결정 Layer 데이터).
+//
+// 같은 종류의 대상은 여기 단일 항목으로만 결정된다 — 모든 Cycle 이 이 항목을
+// 공유·발전시키며, Cycle 별로 결정 코드를 분리하지 않는다.
+// 미등록 role 도 기본 결정으로 일단 그려진다 (spriteId 는 Asset placeholder 로 폴백).
+
+export interface RolePresentation {
+  sprite: string; // Asset Registry 의 sprite 키
+  size: number;
+  cameraFollow?: boolean;
+  trail?: boolean;
+  labelFormat?: (value: number | string) => string;
+}
+
+const ROLES: Record<string, RolePresentation> = {
+  'player-character': { sprite: 'player-pickaxe', size: 2.6, cameraFollow: true, trail: true },
+  'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` },
+};
+
+export function rolePresentation(role: string): RolePresentation {
+  return ROLES[role] ?? { sprite: role, size: 2.5 }; // 기본 결정 — sprite 키는 role 그대로
+}

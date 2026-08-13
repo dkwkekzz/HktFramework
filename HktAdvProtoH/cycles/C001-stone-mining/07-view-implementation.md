@@ -43,6 +43,22 @@
     지형 클릭 이동 → "광맥을 클릭해 캐자!" → 광맥 클릭 →
     HUD Stone: 1 · 광맥 잔량: 4. 콘솔 에러 없음. (Human Play 확인은 Stage 8 이후)
 
+    [최종 구조 — View 2-Layer 확정: Human 피드백 반영]
+    World 는 semantic(role/state/값/사유 코드)만 투영한다 (protocol 은 Semantic Snapshot).
+    View 는 두 Layer 로 분리된다:
+        결정 Layer     view/presentation/ — role/state/값 → "어떻게 그릴지" 결정
+                       role-presentation (sprite·크기·카메라·트레일·라벨 형식)
+                       interaction-presentation (키·프롬프트·지형 대상)
+                       hud-presentation (라벨·아이콘·토스트) · reason-text (문구)
+                       resolve.ts 가 Semantic Snapshot → Render Plan 으로 해석
+        Capability Layer  renderer/hud/input — 그리기 능력만 제공, 게임 의미를 모른다
+    같은 종류 대상의 결정은 role/id 당 단일 항목 — 모든 Cycle 이 공유·발전,
+    Cycle 별 결정 코드 분리·중복 금지 (가이드 MUST NOT 로 명문화).
+    새 Cycle 의 View 작업 = 결정 항목·Asset 추가 (+ 표현 고도화 시에만 capability 추가,
+    기존 capability 코드는 불변).
+    미등록 role/HUD id/사유 코드는 기본 결정·placeholder 로 소화 — 테스트로 고정 (14 passed).
+    검증: tsc·build 통과, 키보드 스모크 재현 (Stone: 1 · 잔량 4 · 토스트 · 콘솔 에러 0).
+
     [표현 업그레이드 — Human 피드백 반영]
     구릉 3D 지형(시각 높이 — 게임 판정은 평면 x,z 그대로) · 픽셀아트 스프라이트
     (16x16 그리드 + Nearest 필터) · WASD/방향키 연속 이동 + E 채굴 ·

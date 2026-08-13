@@ -19,6 +19,9 @@
    Rule 을 거치지 않고 바뀔 수 없어야 한다.
 5. Action Request 처리 경로를 연결한다.
 6. Observer Projection 을 구현해 GameView Specification 을 산출한다.
+   Projection 은 **semantic 만** 투영한다 — role/state/관찰 값/사유 코드.
+   sprite·크기·라벨 형식·문구 같은 표현 결정은 View 의 Presentation Layer 책임이며
+   Projection 에 싣지 않는다.
 7. World 단독 테스트를 작성한다 (`Before → Input → Rule → After`).
 
 ```text
