@@ -1,7 +1,7 @@
 # CYCLE C006 — Basic Collision
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
