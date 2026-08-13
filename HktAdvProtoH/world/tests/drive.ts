@@ -28,6 +28,8 @@ export interface WorldDriver {
   join(observerId: string): void;
   /** 관찰자가 이어짐을 잃는다 (다음 Tick 에 판정된다) */
   leave(observerId: string): void;
+  /** 관찰자가 표식을 보낸다 (다음 Tick 에 받아들여진다) — C005 */
+  mark(mark: number, observerId?: string): void;
   /** 그 관찰자에게 마지막으로 나간 관찰 결과 */
   observe(observerId?: string): GameViewSnapshot;
   world: World;
@@ -54,6 +56,9 @@ export function driveWorld(setup: WorldSetup = {}): WorldDriver {
     },
     leave(observerId) {
       world.leave(observerId);
+    },
+    mark(value, observerId = OBSERVER) {
+      world.mark(observerId, value);
     },
     observe(observerId = OBSERVER) {
       const snapshot = world.latestObservation(observerId);

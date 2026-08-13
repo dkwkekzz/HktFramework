@@ -36,6 +36,12 @@ export interface World {
   leave(observerId: string): void;
   /** 요청이 세계에 도착한다. 즉시 판정되지 않는다 (INTENT-REMOTE-REQUEST-001) */
   request(observerId: string, action: ActionRequest): void;
+  /**
+   * 관찰자의 표식이 세계에 도착한다 (C005). 게임을 아무것도 바꾸지 않는다 —
+   * 다음 Tick 이 RULE-OBSERVER-MARK-001 로 받아들이고, 받아들인 자리가
+   * 그 관찰자의 관찰 결과에 실려 돌아간다.
+   */
+  mark(observerId: string, mark: number): void;
   /** RULE-WORLD-TICK-001 — 세계의 시계만이 부른다 (검증 시에는 테스트가 직접 부른다) */
   tick(dt: number): WorldTickResult;
   /** 그 관찰자에게 마지막으로 나간 관찰 결과. 새로 만들지 않는다 */
@@ -141,6 +147,9 @@ export function createWorld(setup: WorldSetup = {}): World {
     },
     request: (observerId, action) => {
       pending.push({ observerId, action });
+    },
+    mark: (observerId, mark) => {
+      pendingObservers.push({ kind: 'mark', observerId, mark });
     },
     tick: (dt) => {
       const result = ruleWorldTick(state, dt, pendingObservers, pending, bodyDefaults);

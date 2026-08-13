@@ -45,6 +45,10 @@ export interface HudItemView {
 export interface ObserverView {
   id: string; // Observer.Id — 관찰자가 밝힌 자기 식별
   characterId: string; // Observer.ActorId — 세계가 정해 준 내 몸
+  // Observer.AcknowledgedMark (C005) — 세계가 나에게서 받아들인 마지막 표식.
+  // 이 값이 실린 관찰 결과는 "그 표식까지 받아들이고 그 Tick 의 판정을 마쳤다"는 뜻이다.
+  // 다른 관찰자의 표식은 오지 않는다.
+  acknowledgedMark: number;
 }
 
 export interface GameViewSnapshot {

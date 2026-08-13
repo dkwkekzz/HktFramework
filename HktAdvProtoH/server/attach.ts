@@ -64,7 +64,12 @@ export function attachWorldServer(httpServer: HttpServer, host: WorldHost): Atta
         return;
       }
 
-      if (observerId === null) return; // 밝히기 전의 요청은 세계에 도착하지 않는다
+      if (observerId === null) return; // 밝히기 전의 것은 세계에 도착하지 않는다
+
+      if (message.type === 'mark') {
+        host.receiveMark(observerId, message.mark); // 게임 요청이 아니다 (C005)
+        return;
+      }
       host.receive(observerId, message.action);
     });
 

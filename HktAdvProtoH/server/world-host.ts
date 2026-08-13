@@ -34,6 +34,8 @@ export interface WorldHost {
   attach(observerId: string, observer: Observer, onEvicted?: Evicted): () => void;
   /** 관찰자가 보낸 요청이 세계에 도착한다 */
   receive(observerId: string, action: ActionRequest): void;
+  /** 관찰자가 보낸 표식이 세계에 도착한다 (C005) — 게임을 바꾸지 않는다 */
+  receiveMark(observerId: string, mark: number): void;
   /** 시계를 직접 돌린다 — 검증용. 실행 중에는 startClock 이 맡는다 */
   advance(dt: number): Map<string, GameViewSnapshot>;
   startClock(now?: () => number): void;
@@ -72,6 +74,9 @@ export function createWorldHost(setup: WorldSetup = {}): WorldHost {
     },
     receive(observerId, action) {
       world.request(observerId, action);
+    },
+    receiveMark(observerId, mark) {
+      world.mark(observerId, mark);
     },
     advance(dt) {
       const observations = world.tick(dt).observations;

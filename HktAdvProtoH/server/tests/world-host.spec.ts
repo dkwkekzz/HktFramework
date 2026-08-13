@@ -164,6 +164,34 @@ describe('WorldHost — 같은 관찰자로 다시 들어오기 (INTENT-OBSERVER
   });
 });
 
+describe('WorldHost — 표식 (C005)', () => {
+  it('관찰자가 보낸 표식이 세계에 도착해 관찰 결과로 돌아온다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const seen: GameViewSnapshot[] = [];
+    host.attach(A, (s) => seen.push(s));
+    host.advance(0);
+    expect(seen[seen.length - 1]?.observer.acknowledgedMark).toBe(0);
+
+    host.receiveMark(A, 12);
+    host.advance(0);
+
+    expect(seen[seen.length - 1]?.observer.acknowledgedMark).toBe(12);
+  });
+
+  it('표식은 다른 관찰자의 관찰 결과를 건드리지 않는다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const b: GameViewSnapshot[] = [];
+    host.attach(A, () => {});
+    host.attach(B, (s) => b.push(s));
+    host.advance(0);
+
+    host.receiveMark(A, 5);
+    host.advance(0);
+
+    expect(b[b.length - 1]?.observer.acknowledgedMark).toBe(0);
+  });
+});
+
 describe('WorldHost — 자기 시계', () => {
   it('시계를 붙이면 관찰자 없이도 스스로 진행한다', async () => {
     const host = createWorldHost({ npcs: [] });
@@ -205,10 +233,18 @@ describe('transport — 오가는 것의 형태', () => {
     expect(message?.type === 'action' && message.action.interactionId).toBe('mine');
   });
 
+  it('표식 봉투를 주고받을 수 있다 (C005)', () => {
+    const message = parseClientMessage(JSON.stringify({ type: 'mark', mark: 9 }));
+    expect(message?.type).toBe('mark');
+    expect(message?.type === 'mark' && message.mark).toBe(9);
+  });
+
   it('알 수 없는 것은 무시된다 — 세계를 흔들 수 없다', () => {
     expect(parseClientMessage('그냥 문자열')).toBeNull();
     expect(parseClientMessage('{"type":"action"}')).toBeNull();
     expect(parseClientMessage('{"type":"join"}')).toBeNull();
+    expect(parseClientMessage('{"type":"mark"}')).toBeNull();
+    expect(parseClientMessage('{"type":"mark","mark":"곧"}')).toBeNull();
     expect(parseClientMessage('{"type":"shutdown"}')).toBeNull();
     expect(parseServerMessage('{"type":"observation"}')).toBeNull();
   });

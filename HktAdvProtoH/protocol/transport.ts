@@ -34,8 +34,16 @@ export interface JoinMessage {
   observerId: string;
 }
 
+// 관찰자가 자기 표식을 세계로 보낸다 (C005 ADDED).
+// 게임 요청이 아니다 — 세계를 아무것도 바꾸지 않는다. 세계는 받아들인 자리를
+// 그 관찰자의 관찰 결과에 실어 되돌릴 뿐이다 (RULE-OBSERVER-MARK-001).
+export interface MarkMessage {
+  type: 'mark';
+  mark: number;
+}
+
 export type ServerMessage = ObservationMessage;
-export type ClientMessage = ActionMessage | JoinMessage;
+export type ClientMessage = ActionMessage | JoinMessage | MarkMessage;
 
 // 관찰자와 세계 사이의 이어짐 상태 — 관찰자 쪽이 소유하는 의미다
 // (03-world-semantic.md: 세계는 누가 보고 있는지에 따라 달라지지 않는다).
@@ -56,6 +64,9 @@ export function parseClientMessage(raw: string): ClientMessage | null {
     if (!value) return null;
     if (value.type === 'join') {
       return typeof value.observerId === 'string' ? value : null;
+    }
+    if (value.type === 'mark') {
+      return typeof value.mark === 'number' && Number.isFinite(value.mark) ? value : null;
     }
     if (value.type !== 'action') return null;
     const action = value.action;

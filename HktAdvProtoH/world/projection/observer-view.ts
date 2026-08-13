@@ -16,20 +16,22 @@ import { evaluateMoveAvailability } from '../rules/move';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
   actorOfObserver,
+  findObserver,
   isAttended,
   presentObserverCount,
   type WorldState,
 } from '../semantic/world-state';
 
-export const SPEC_ID = 'VIEW-MULTI-OBSERVER-001';
+export const SPEC_ID = 'VIEW-LINK-TELEMETRY-001';
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
   state: WorldState,
   observerId: string,
 ): GameViewSnapshot | null {
+  const observer = findObserver(state, observerId);
   const self = actorOfObserver(state, observerId);
-  if (!self) return null;
+  if (!observer || !self) return null;
 
   const entities: EntityView[] = [];
   const interactions: InteractionView[] = [];
@@ -106,7 +108,13 @@ export function projectObserverView(
     specId: SPEC_ID,
     scene: 'mining-field',
     // observer.self — 화면 속 여러 몸 중 어느 것이 내 것인지 알려면 이것이 필요하다.
-    observer: { id: observerId, characterId: self.id },
+    // acknowledgedMark (C005) — 세계가 나에게서 어디까지 받았는가.
+    // 이것만이 세계가 이어짐에 대해 알려주는 값이다. 나머지 수치는 관찰자가 잰다.
+    observer: {
+      id: observerId,
+      characterId: self.id,
+      acknowledgedMark: observer.acknowledgedMark,
+    },
     entities,
     interactions,
     hud: [
