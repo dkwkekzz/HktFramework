@@ -290,6 +290,9 @@
         Actor.MoveMode
         Skill.Availability + Skill.FailureReason (스킬 종류마다)
             downed | action-busy | insufficient-cp
+        Skill.CpCharge + Skill.CpCost (스킬 종류마다)
+            쓰기 전에 그 스킬이 기력을 얼마나 채우고 얼마나 쓰는지 알 수 있어야
+            "지금 고급 스킬을 쓸 것인가"를 판단할 수 있다
         MoveMode.Availability + FailureReason (run 으로 바꿀 수 있는가)
 
     세계에 대해 (INTENT-STRIKE-OBSERVE-001)

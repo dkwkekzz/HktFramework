@@ -1,0 +1,270 @@
+# CYCLE C007 — GameView Specification
+id: VIEW-BASIC-COMBAT-POLICY-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character            # 위치·역할·모션·body·swing 계약 그대로 (C002~C006)
+    - entities.deposit
+    - debugObserve                  # C006 그대로 — 충돌체 관찰
+    - observer / session / delivery / identity / telemetry   # C003~C005 그대로
+    - interactions.move / interactions.mine
+    - hud.inventory / hud.tool / hud.playerAction / hud.worldTime / hud.observers
+  added:
+    - entities.character.name       # 불러 줄 이름
+    - entities.character.vitality   # 생명 현재/최대 + 쓰러짐
+    - entityHud                     # 몸 위에 실리는 이름·생명 (모든 존재)
+    - strikeEvents                  # 한 번의 타격 결과 (빗나감·치명·피해량)
+    - interactions.skillHeavy       # 고급 스킬
+    - interactions.moveMode         # 걷기 / 달리기 전환
+    - hud.self                      # 자기 자원·능력치·배율 (관찰자 자신만)
+  changed:
+    - entities.character.state      # 상태 값에 heavy-attack · downed 가 더해진다
+    - interactions.attack           # 기본 스킬로 의미가 확정되고, 불가 사유가 늘어난다
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 기존 계약 + 이름·생명 (C007 ADDED)
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:                           # C004 그대로
+      player-character: { when: Actor.Id == Observer.ActorId }
+      other-player-character:
+        when: Actor.Control == player && Actor.Id != Observer.ActorId
+      npc-character: { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }
+    position: { source: Actor.Position }
+
+    name: { source: Actor.Name }    # C007 ADDED — 모든 존재가 가진다
+
+    state: { source: Actor.CurrentActionKind }
+      # C007 CHANGED — 값이 늘어난다:
+      #   idle | move | attack(기본 스킬) | heavy-attack(고급 스킬) | mine | hit | downed
+      # 구조는 그대로다. View 는 새 값에 대한 표현을 고르기만 하면 된다.
+    actionProgress: { source: Actor.ActionProgress }
+    actionTarget: { source: Actor.ActionTargetId }
+    attended: { source: Character.Attended, appliesTo: [other-player-character] }
+
+    vitality:                       # C007 ADDED — 누구나 관찰할 수 있다
+      health: { source: Actor.Hp }
+      healthMaximum: { source: Actor.HpMax }
+      downed: { source: Actor.Downed }
+        # 참이면 그 존재는 더 이상 행동하지 않고 타격 대상도 되지 않는다
+
+    motion:                         # C002·C004 그대로
+      selectedBy: [kind, state]
+      progress: { withDuration: actionProgress, withoutDuration: loop }
+      fallback: { order: ['kind:idle', 'anyKind:state', placeholder] }
+
+    body:                           # C006 그대로
+      radius: { source: Actor.Body.Radius }
+      height: { source: Actor.Body.Height }
+      mass: { source: Actor.Body.Mass }
+      facing: { source: Actor.Facing }
+      velocity: { source: Actor.Velocity }
+
+    swing:                          # C006 그대로 — 스킬 종류와 무관하게 같은 계약
+      center: { source: ActionCollider.Center }
+      radius: { source: ActionCollider.Radius }
+      active: { source: ActionCollider.Active }
+      struck: { source: Attack.StruckActorIds }
+
+  deposit:                          # C004 그대로
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+# ─────────────────────────────────────────────────────────────────
+# entityHud — 존재의 몸에 실리는 관찰 (C007 ADDED)
+#
+# 세계의 모든 존재는 이름과 생명을 관찰할 수 있다 (INTENT-ENTITY-OBSERVE-001).
+# 이것은 화면 구석의 정보창이 아니라 그 존재에 붙어 있는 관찰이다 —
+# 어디에 어떻게 붙여 그릴지는 View 의 결정이다.
+# ─────────────────────────────────────────────────────────────────
+entityHud:
+  forEach: entities.character
+  always: true                      # 관찰자가 끄고 켜는 대상이 아니다 (debugObserve 와 다르다)
+  shows:
+    name: { source: entities.character.name }
+    health:
+      current: { source: entities.character.vitality.health }
+      maximum: { source: entities.character.vitality.healthMaximum }
+    downed: { source: entities.character.vitality.downed }
+  meaning:
+    - 누가 누구인지, 얼마나 남았는지를 싸우는 도중에 몸에서 바로 읽을 수 있어야 한다
+    - 쓰러진 존재는 살아 있는 존재와 구분되어야 한다
+  notShown:
+    - 남의 기력 · 능력치 · 배율        # 03 OBSERVABLE SEMANTIC 의 "관찰되지 않는 것"
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 한 번의 타격이 낳은 결과 (C007 ADDED)
+#
+# 세계가 판정을 마친 결과만 실린다. 능력치도 확률도 실리지 않는다.
+# 각 결과는 정해진 시간이 지나면 세계에서 사라진다.
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  attacker: { source: StrikeEvent.AttackerId }
+  target: { source: StrikeEvent.TargetId }
+  skill: { source: StrikeEvent.SkillKind }        # attack | heavy-attack
+  outcome: { source: StrikeEvent.Outcome }        # miss | hit | critical
+  amount: { source: StrikeEvent.Amount }          # 덜어낸 생명 (miss 면 0)
+  at: { source: StrikeEvent.Position }            # 결과가 드러나는 자리 = 맞은 몸의 중심
+  since: { source: StrikeEvent.Time }             # 일어난 세계 시각 — 얼마나 지났는지 판단용
+  meaning:
+    - 빗나감 · 치명 · 보통 타격이 서로 구분되어야 한다
+    - 얼마가 깎였는지 숫자로 읽을 수 있어야 한다
+    - 내가 친 것과 남이 친 것 모두 보인다 (attacker / target 으로 구분 가능)
+
+# ─────────────────────────────────────────────────────────────────
+# debugObserve — C006 계약 그대로 (변경 없음)
+# ─────────────────────────────────────────────────────────────────
+debugObserve:
+  toggle: { owner: observer, default: off }
+  shows:
+    bodies:
+      forEach: entities.character
+      volume: { center: position, radius: body.radius, height: body.height }
+      motion: { vector: body.velocity }
+    actionColliders:
+      forEach: entities.character (swing 이 존재하는 것)
+      volume: { center: swing.center, radius: swing.radius }
+      activity: swing.active
+      struckMarks: swing.struck
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 스킬 2종 + 이동 모드 (C007 ADDED / CHANGED)
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  subject: observer-character
+  move:                             # C004 그대로
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:                             # C004 그대로
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+
+  attack:                           # C007 CHANGED — 기본 스킬로 의미가 확정된다
+    role: skill-basic
+    target: none
+    request: Skill(ObserverCharacter, attack)
+    available: { source: Skill(attack).Availability }
+    unavailableReason: { source: Skill(attack).FailureReason }
+      # downed | action-busy  (기본 스킬은 소모가 없어 insufficient-cp 가 나오지 않는다)
+    budget:                         # 이 스킬이 기력을 어떻게 움직이는가 — 쓰기 전에 알 수 있어야 한다
+      charge: { source: Skill(attack).CpCharge }
+      cost: { source: Skill(attack).CpCost }
+
+  skillHeavy:                       # C007 ADDED — 고급 스킬
+    role: skill-heavy
+    target: none
+    request: Skill(ObserverCharacter, heavy-attack)
+    available: { source: Skill(heavy-attack).Availability }
+    unavailableReason: { source: Skill(heavy-attack).FailureReason }
+      # downed | action-busy | insufficient-cp
+    budget:
+      charge: { source: Skill(heavy-attack).CpCharge }
+      cost: { source: Skill(heavy-attack).CpCost }
+    meaning:
+      - 쓸 기력이 모자라면 요청 자체가 받아들여지지 않으며 그 사유가 온다
+
+  moveMode:                         # C007 ADDED — 걷기 / 달리기
+    role: set-move-mode
+    target: none
+    request: SetMoveMode(ObserverCharacter, walk | run)
+    current: { source: ObserverCharacter.MoveMode }
+    available: { source: MoveMode(run).Availability }
+    unavailableReason: { source: MoveMode(run).FailureReason }
+      # downed | insufficient-cp
+    meaning:
+      - 요청은 토글이 아니라 명시값이다 — 같은 요청이 두 번 가도 결과가 같다
+      - 기력이 바닥나면 세계가 스스로 걷기로 되돌린다. View 는 current 를 따라간다
+
+  requestResult: from-next-observation
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 관찰자 자신에 대한 정보 (C004 계약 + C007 self)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  inventory:                        # C004 그대로
+    stone: { source: ObserverCharacter.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: ObserverCharacter.Inventory.HasMiningTool }
+  playerAction:
+    action: { source: ObserverCharacter.CurrentActionKind }
+    progress: { source: ObserverCharacter.ActionProgress }
+  worldTime:
+    elapsed: { source: World.Time }
+  observers:
+    present: { source: Observers.PresentCount }
+
+  self:                             # C007 ADDED — 자기 몸에 한해 속속들이 보인다
+    vitality:
+      health: { source: ObserverCharacter.Hp }
+      healthMaximum: { source: ObserverCharacter.HpMax }
+      energy: { source: ObserverCharacter.Cp }
+      energyMaximum: { source: ObserverCharacter.CpMax }
+      downed: { source: ObserverCharacter.Downed }
+    moveMode: { source: ObserverCharacter.MoveMode }        # walk | run
+    combatStats:
+      attackPower: { source: ObserverCharacter.CombatStats.AttackPower }
+      mastery: { source: ObserverCharacter.CombatStats.Mastery }
+      accuracy: { source: ObserverCharacter.CombatStats.Accuracy }
+      evasion: { source: ObserverCharacter.CombatStats.Evasion }
+      criticalRate: { source: ObserverCharacter.CombatStats.CritRate }
+      criticalDamage: { source: ObserverCharacter.CombatStats.CritDamage }
+      defense: { source: ObserverCharacter.CombatStats.Defense }
+      defenseIgnore: { source: ObserverCharacter.CombatStats.DefenseIgnore }
+    tempoStats:
+      moveSpeed: { source: ObserverCharacter.TempoStats.MoveSpeed }
+      runSpeedMultiplier: { source: ObserverCharacter.TempoStats.RunSpeedMultiplier }
+      actionSpeed: { source: ObserverCharacter.TempoStats.ActionSpeed }
+    modifiers:                      # 지금 나에게 걸려 있는 배율 — 1 이 아니면 무언가 걸려 있다는 뜻
+      energyCharge: { source: ObserverCharacter.Modifiers.CpCharge }
+      energyConsume: { source: ObserverCharacter.Modifiers.CpConsume }
+      moveSpeed: { source: ObserverCharacter.Modifiers.MoveSpeed }
+      actionSpeed: { source: ObserverCharacter.Modifiers.ActionSpeed }
+    meaning:
+      - 기력이 지금 모이는 중인지 억눌린 중인지를 배율로 알 수 있어야 한다
+      - 고급 스킬을 쓸 수 있는 기력인지 수치로 판단할 수 있어야 한다
+
+# OBSERVABLE PROJECTION NOTE
+#   03 의 Observable Semantic 대응
+#     모두에게 보이는 것
+#       Actor.Name                     → entities.character.name / entityHud.name
+#       Actor.Hp · HpMax               → entities.character.vitality / entityHud.health
+#       Actor.Downed                   → entities.character.vitality.downed
+#       CurrentActionKind(신규 값 포함) → entities.character.state
+#     자신에게만 보이는 것
+#       Cp · CpMax                     → hud.self.vitality
+#       CombatStats 8 · TempoStats 3   → hud.self.combatStats · tempoStats
+#       Modifiers 4                    → hud.self.modifiers
+#       MoveMode                       → hud.self.moveMode · interactions.moveMode.current
+#       Skill Availability/Reason      → interactions.attack · skillHeavy
+#       MoveMode Availability/Reason   → interactions.moveMode
+#     세계
+#       World.StrikeEvents             → strikeEvents
+#
+#   투영하지 않는 것
+#     남의 Cp · 능력치 · 배율 · 스킬 가용성   — 03 이 관찰 대상에서 제외한 그대로
+#     명중 확률 · 피해 계산의 중간값          — 관찰 대상은 판정의 결과(outcome + amount)다
+#     시뮬레이션 상수(HIT_BASE · DEFENSE_CONSTANT · RUN_CP_DRAIN …)
+#                                             — 관찰 대상은 상수가 아니라 그 결과다
