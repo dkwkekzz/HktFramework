@@ -1,0 +1,303 @@
+# CYCLE C009 — GameView Specification
+id: VIEW-DEBUG-COMMAND-001
+observer: player
+# designer 전용 화면을 따로 만들지 않는다. 같은 계약으로 본다 —
+# 세계가 조작을 열어 두었는가(commandCatalog[].available)가 designer 와 player 를 가른다.
+
+# 03 은 World State 를 하나도 더하지 않았지만 (WORLD STATE 변화 없음)
+# GAMEVIEW CHANGE 는 NONE 이 아니다. 세계가 밝히는 것(CommandCatalog)과
+# 세계가 되돌려 주는 것(Request.Outcome)이 이 계약에서 처음 나간다.
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·종류·상태·모션·몸·휘두름 — C002~C008 그대로
+    - entities.character.attributes         # C007 R2 그대로 — 바뀐 값이 여기서 보인다
+    - entities.deposit
+    - interactions                          # 세계 안의 행동 계약 그대로 (move·mine·skill…)
+    - hud / self / strikes                  # C007 그대로
+    - observer / session / delivery / identity / telemetry
+    - viewpoint / spriteOrientation         # C008 그대로
+    - debugObserve                          # C006 그대로 — 충돌체 관찰. 다시 만들지 않는다
+    - debugAuthority.open                   # C007 R2 그대로 — 세계가 조작을 허용하는가
+    - debugAuthority.inspect                # C007 R2 그대로 — 속성 펼쳐 보기
+  added:
+    - commandCatalog                        # 세계가 밝힌 "걸 수 있는 명령" (03 ADDED)
+    - requestOutcome                        # 세계의 대답 (03 ADDED)
+    - observerCommands                      # 관찰자 쪽에서 끝나는 명령 (세계로 가지 않는다)
+    - commandSurface                        # 위 둘을 한 자리에서 다루는 표면 + 인지 요구
+  changed:
+    - debugAuthority.mutableAttributes      # 자리 이동 — commandCatalog 의 set-attribute 가
+                                            # 받는 값의 Domain 으로 들어간다.
+                                            # 값도 뜻도 그대로이고 실리는 자리만 달라진다
+    - interactions.setAttribute             # 지위 변경 — 키 없는 빈 항목이었던 것이
+                                            # commandCatalog 를 통해 실제로 걸린다.
+                                            # 요청의 형태는 그대로다
+    - entities.character.id                 # 지위 변경 — 식별에만 쓰이던 값이
+                                            # 관찰자가 대상을 지목하는 수단이 된다.
+                                            # source·형태는 그대로다 (Actor.Id)
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# commandCatalog — 세계가 밝힌 "걸 수 있는 명령" (C009 ADDED)
+#
+# 03 WORLD PROPERTY 의 World.CommandCatalog 를 그대로 투영한다.
+# 세계 안의 행동(interactions)과 다른 것이다 — interactions 는 몸이 세계 안에서
+# 하는 일이고, command 는 세계의 규칙 밖에서 세계에 손을 대는 일이다.
+#
+# View 는 이 목록을 스스로 만들지 않는다. 세계가 밝히지 않은 명령은 존재하지 않는다.
+# 새 명령이 세계에 생기면 여기에 항목이 하나 더 실릴 뿐이며 이 계약은 바뀌지 않는다.
+# ─────────────────────────────────────────────────────────────────
+commandCatalog:
+  cardinality: many
+  source: World.CommandCatalog
+  command:
+    id: { source: Command.Id }                      # 그 명령을 가리키는 이름
+    effect: { source: Command.Effect }              # 무엇을 하는가 (의미 코드)
+      # 문구는 View 가 정한다 — 세계는 코드만 낸다 (C007 의 사유 코드와 같은 규율)
+    available: { source: Command.Availability }
+    unavailableReason: { source: Command.FailureReason }   # debug-closed
+    parameters:
+      cardinality: many
+      ordered: true                                 # 받는 순서가 정해져 있다
+      parameter:
+        id: { source: Parameter.Id }
+        required: { source: Parameter.Required }
+        omittedMeaning: { source: Parameter.OmittedMeaning }
+          # 없을 때 무엇으로 치는가 (의미 코드 — 예: 요청한 이의 몸)
+        domain:
+          kind: { source: Parameter.Domain.Kind }   # entity | choice | number | text
+          # kind 별로 실리는 것
+          entity:
+            refers: entities.character.id           # 세계에 있는 존재를 Actor.Id 로 가리킨다
+          choice:
+            options:
+              cardinality: many
+              name: { source: Domain.Option.Name }
+              thenDomain: { source: Domain.Option.ThenDomain }
+                # 이 선택지를 고르면 뒤따르는 자리의 Domain 이 이것으로 정해진다.
+                # set-attribute 의 attribute 가 value 의 범위를 정하는 방식이다
+          number:
+            minimum: { source: Domain.Minimum }
+            maximum: { source: Domain.Maximum }
+
+  # 이번 Cycle 에 실리는 목록은 하나다 (03 WORLD PROPERTY).
+  # 아래는 계약의 예시가 아니라 이번에 실제로 실리는 내용이다.
+  expected:
+    - id: set-attribute
+      effect: 존재의 속성 값을 바꾼다
+      parameters:
+        - id: target
+          required: false
+          omittedMeaning: 요청한 이의 몸
+          domain: { kind: entity }
+        - id: attribute
+          required: true
+          domain:
+            kind: choice
+            options: [hp, hpMax, cp, cpMax, moveSpeed, runSpeedMultiplier,
+                      actionSpeed, moveMode]
+            # 각 선택지가 value 자리의 Domain 을 정한다 (thenDomain).
+            # 수치 7종은 number + 하한·상한, moveMode 는 choice(walk | run).
+        - id: value
+          required: true
+          domain: { kind: from-previous-choice }
+
+  meaning:
+    - 걸 수 있는 것은 언제나 먼저 밝혀져 있다 — 걸어 보아야 알게 되는 것이 없다
+    - View 가 목록을 스스로 만들지 않는다. 늘어난 명령은 저절로 다뤄져야 한다
+    - available 이 거짓이어도 목록은 보인다 — 무엇을 할 수 있는 세계인지는
+      허용 여부와 별개로 알 수 있어야 한다
+
+# ─────────────────────────────────────────────────────────────────
+# requestOutcome — 세계의 대답 (C009 ADDED)
+#
+# 03 의 Request.Outcome. 관찰 결과(entities·hud)와 다른 것이다 —
+# 세계가 어떻게 되었는지가 아니라 "내가 건 그 요청이 어떻게 되었는가" 하나다.
+# 받아들여진 요청의 결과 자체는 지금까지대로 관찰 결과에서 보인다.
+# ─────────────────────────────────────────────────────────────────
+requestOutcome:
+  cardinality: many                                 # 한 번에 여럿 올 수 있다
+  scope: observer-own                               # 내 요청의 대답만 온다
+  accepted: { source: Request.Outcome.Accepted }
+  rule: { source: Request.Outcome.Rule }            # 어느 판정이 결정했는가 (의미 코드)
+  reason: { source: Request.Outcome.Reason }        # refused 일 때만
+    # 세계가 이미 내던 사유 코드 그대로:
+    #   debug-closed | unknown-target | unknown-attribute | value-out-of-range
+    #   unknown-command | unknown-observer | missing-attribute
+    # 문구 변환은 View 책임 (C001 이후의 규율 그대로)
+  mark: { source: Request.Outcome.Mark }
+    # 요청에 내가 붙인 표식이 그대로 돌아온다 — 어느 요청의 대답인지 짚는 수단.
+    # 세계는 이것을 해석하지도 저장하지도 않는다
+  meaning:
+    - 값이 바뀌지 않은 것과 요청이 거절된 것을 이것으로 구분한다
+    - 연달아 여러 요청을 걸어도 mark 로 서로 짚어낼 수 있다
+    - 대답은 세계의 상태를 말하지 않는다 — 상태는 관찰 결과가 말한다
+
+# ─────────────────────────────────────────────────────────────────
+# observerCommands — 관찰자 쪽에서 끝나는 명령 (C009 ADDED)
+#
+# 세계로 가지 않는다. 세계는 이런 것이 걸렸다는 사실조차 알지 못한다
+# (03 SEMANTIC CLOSURE / WORLD CHANGE: NONE).
+# viewpoint(C008) 와 같은 자리의, 같은 성격의 항목이다 — source 가 없다.
+# ─────────────────────────────────────────────────────────────────
+observerCommands:
+  owner: observer
+  worldKnows: false
+  cardinality: many
+  command:
+    id: <이름>
+    effect: <무엇을 하는가>
+    state: <지금 켜져 있는가>
+  items:
+    - id: collider-observe
+      effect: 몸과 휘두름의 충돌체를 보인다
+      toggles: debugObserve                         # C006 그대로 — 계약도 성질도 변하지 않는다
+    - id: attribute-inspect
+      effect: 존재의 모든 속성을 그 몸 위에 펼친다
+      toggles: debugAuthority.inspect               # C007 R2 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# commandSurface — 명령을 다루는 한 자리 (C009 ADDED)
+#
+# commandCatalog(세계로 간다)와 observerCommands(여기서 끝난다)를 한 자리에 모은다.
+# 한 자리에 모이는 것은 사람이 인지하는 표면이지 권한의 경계가 아니다 —
+# 경계는 origin 으로 드러난다.
+#
+# 여기 적힌 것은 요구(requirement)이지 화면 구성이 아니다.
+# 어떻게 보일지는 View Implementation 이 정한다.
+# ─────────────────────────────────────────────────────────────────
+commandSurface:
+  presents:
+    - commandCatalog                                # origin: world
+    - observerCommands                              # origin: observer
+  origin: required
+    # 각 항목이 세계로 가는 것인지 여기서 끝나는 것인지가 구분되어 보여야 한다
+
+  browse:                                           # INTENT-COMMAND-DISCOVER-001
+    required: true
+    shows: [id, effect, parameters, domain]
+    guarantee:
+      - 처음 보는 이도 이 목록만으로 무엇을 할 수 있는지 알고 시작할 수 있다
+      - 어딘가에 적힌 설명을 따로 찾아야 한다면 밝혀진 것이 아니다
+      - 외워 두어야만 쓸 수 있는 명령이 없다
+
+  guide:                                            # INTENT-COMMAND-GUIDED-001
+    required: true
+    whileComposing:
+      - 지금까지 적은 것에 해당하는 후보가 무엇인지 보인다
+      - 무엇을 더 적어야 하는지 보인다 (parameters 의 남은 자리)
+      - 그 자리가 받을 수 있는 값의 범위가 보인다 (domain)
+    onMistake:
+      - 잘못 걸린 것이 아무 일 없이 사라지지 않는다
+      - 목록에 없는 이름과 범위 밖의 값이 서로 다르게 알려진다
+        # 걸기 전에는 commandCatalog 로, 걸린 뒤에는 requestOutcome.reason 으로
+
+  history:                                          # INTENT-COMMAND-HISTORY-001
+    required: true
+    owner: observer                                 # 세계는 기억하지 않는다
+    keeps: [건 명령, 그에 대한 requestOutcome]
+    ordered: true
+
+  inputCapture:                                     # 03 AFFECTED (C008 · C002)
+    while: composing
+    suspends:
+      - interactions.move                           # 방향 입력이 몸을 움직이지 않는다
+      - viewpoint.orientation                       # 시점이 돌아가지 않는다
+      - interactions.skill                          # 행동이 시작되지 않는다
+    guarantee:
+      - 이미 진행 중인 행동은 지금까지대로 끝까지 간다 —
+        세계는 관찰자가 무엇을 쓰고 있는지 모른다
+      - 마치면 다시 조작으로 돌아온다
+
+  designation:                                      # INTENT-ENTITY-ADDRESSABLE-001
+    source: entities.character.id
+    required: true
+    guarantee:
+      - 지목할 수 있는 존재의 id 가 화면에서 읽힌다
+      - 지목하지 않으면 요청한 이의 몸이다 (parameters.target.omittedMeaning)
+
+# ─────────────────────────────────────────────────────────────────
+# entities — C008 계약 그대로. id 의 지위만 달라진다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    id: { source: Actor.Id }
+      # C009 CHANGED — 화면 안에서 서로를 가려내기 위한 값이었던 것이
+      # 관찰자가 명령의 대상을 지목하는 수단이 된다.
+      # 값도 source 도 그대로다. 읽힐 수 있어야 한다는 요구가 더해진다
+      # (commandSurface.designation).
+    # 그 밖의 모든 항목 (role · kind · position · state · name · vitality ·
+    # attributes · motion · body · swing · facing) 은 C002~C008 계약 그대로다.
+  deposit:
+    # C004 그대로 — 이번 Cycle 이 건드리지 않는다. 광맥은 명령의 대상이 아니다
+    # (commandCatalog 의 entity Domain 은 entities.character.id 를 가리킨다).
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 세계 안의 행동. 형태 변화 없음.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  # move · mine · attack · skill-heavy · move-mode 는 C004·C007 계약 그대로다.
+  setAttribute:
+    # C009 CHANGED — 지위만 달라진다. C007 R2 에서 이 항목은 계약에는 있으나
+    # 거는 수단이 없어 플레이에서 닿지 못했다. 이제 commandCatalog 의
+    # set-attribute 를 통해 걸린다.
+    role: debug-set-attribute
+    request: SetAttribute(TargetActorId?, AttributeId, Value)
+    available: { source: AttributeSet.Availability }
+    unavailableReason: { source: AttributeSet.FailureReason }   # debug-closed
+    composedFrom: commandCatalog[set-attribute]
+      # 무엇을 보내야 하는지는 카탈로그가 정한다. View 가 정하지 않는다
+  requestResult: from-request-outcome
+    # C009 CHANGED — C003 이후 "from-next-observation" 이었다.
+    # 이제 요청의 판정은 requestOutcome 으로 직접 돌아온다.
+    # 상태의 변화는 지금까지대로 다음 관찰 결과에서 드러난다 — 둘은 다른 것이다.
+
+# ─────────────────────────────────────────────────────────────────
+# debugAuthority — C007 R2 계약. mutableAttributes 만 자리를 옮긴다.
+# ─────────────────────────────────────────────────────────────────
+debugAuthority:
+  open: { source: World.DebugAuthority.Open }       # REUSED
+  inspect:                                          # REUSED — C007 R2 그대로
+    toggle: { owner: observer, default: off }
+    forEach: entities.character
+    shows: entities.character.attributes
+    alsoInvokableFrom: observerCommands[attribute-inspect]
+      # 같은 것을 명령으로도 켤 수 있다. 성질은 변하지 않는다
+  mutableAttributes: moved-to commandCatalog[set-attribute].parameters.attribute.domain
+    # C009 CHANGED — 없어지는 것이 아니라 자리를 옮긴다.
+    # "바꿀 수 있는 속성과 허용 범위" 는 그 명령이 받는 값의 범위이지
+    # 그 자체로 따로 있는 목록이 아니다. 세계가 알려 준 것을 그대로 쓴다는
+    # C007 R2 의 규율은 그대로다.
+
+# ─────────────────────────────────────────────────────────────────
+# debugObserve — C006 계약 그대로. 다시 만들지 않는다.
+# ─────────────────────────────────────────────────────────────────
+debugObserve:
+  toggle: { owner: observer, default: off }
+  shows: { bodies: ..., actionColliders: ... }      # C006 그대로
+  alsoInvokableFrom: observerCommands[collider-observe]
+
+# ─────────────────────────────────────────────────────────────────
+# hud — C007 계약 그대로. 더해지는 항목 없음.
+# 명령의 결과는 hud 가 아니라 commandSurface.history 와 관찰 결과에서 보인다.
+# ─────────────────────────────────────────────────────────────────
+hud:
+  # inventory · tool · playerAction · worldTime · observers · self 전부 C007 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE
+#
+# 03 의 Observable Semantic 대응:
+#   World.CommandCatalog          → commandCatalog                    전부 투영
+#   Command.Availability + Reason → commandCatalog[].available/reason  전부 투영
+#   Request.Outcome               → requestOutcome                     전부 투영
+#   Actor.Id                      → entities.character.id              이미 투영됨 (REUSED)
+#   Actor 의 모든 속성             → entities.character.attributes      이미 투영됨 (REUSED)
+#
+# 투영하지 않는 것: 없음.
+#   이번 Cycle 의 Observable 은 "밝히는 것" 자체가 목적이므로 전부 나간다.
+#
+# 세계로 가지 않아 source 가 없는 것: observerCommands · commandSurface 의 요구들.
+#   viewpoint(C008) 와 같은 자리다 — 관찰자가 소유하는 의미이며 세계는 알지 못한다.
+# ─────────────────────────────────────────────────────────────────

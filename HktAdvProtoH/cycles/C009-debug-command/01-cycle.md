@@ -7,8 +7,8 @@
 
 [PASS] Cycle Definition    (R1 — 명령 목록의 밝힘·인지·확장 추가)
 [PASS] Intent              (R1 반영 — 카탈로그·인지·대답 / BOUNDARY 3건은 World Semantic 으로)
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] World Semantic      (BOUNDARY 3건 판정 — WORLD STATE 추가 없음. 성질 1 · 대답은 Tick 산출물)
+[PASS] GameView Specification  (commandCatalog · requestOutcome · observerCommands · commandSurface)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
