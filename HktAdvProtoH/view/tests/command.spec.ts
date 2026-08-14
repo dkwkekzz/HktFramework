@@ -126,6 +126,20 @@ describe('쓰는 중 안내 (04 commandSurface.guide)', () => {
     expect(compose('set-attribute move').suggestions).toEqual(['moveSpeed', 'moveMode']);
   });
 
+  it('아직 쓰는 중인 낱말은 탓하지 않는다 — 이어질 가망이 남아 있는 동안 (C009 결함 수정)', () => {
+    // 한 글자마다 빨간 글씨가 뜨면 그것은 안내가 아니라 잔소리다.
+    expect(compose('set-attribute m').problem).toBeUndefined();
+    expect(compose('set-attribute move').problem).toBeUndefined();
+    expect(compose('set-attribute moveS').problem).toBeUndefined();
+    // 가망이 사라지면 그때 말한다.
+    expect(compose('set-attribute zzz').problem).toContain('그 자리에 넣을 수 없다');
+  });
+
+  it('덜 쓴 낱말로는 걸리지 않는다 — 좁혀졌다고 골라진 것은 아니다', () => {
+    expect(compose('set-attribute move 20').submittable).toBe(false);
+    expect(compose('set-attribute moveSpeed 20').submittable).toBe(true);
+  });
+
   it('범위 밖의 값은 걸기 전에 알려 준다 — 세계까지 가지 않아도 안다', () => {
     const composition = compose('set-attribute moveSpeed 9999');
     expect(composition.problem).toContain('허용된 범위를 벗어난 값이다');
@@ -175,6 +189,21 @@ describe('지목 (04 commandSurface.designation)', () => {
   it('세계에 없는 Id 는 대상으로 읽히지 않는다 — 그 자리는 비고 문제가 드러난다', () => {
     // 'ghost' 는 존재 목록에 없으므로 대상 자리를 건너뛰고 속성 자리로 밀린다.
     expect(compose('set-attribute ghost hp 5').problem).toContain('그 자리에 넣을 수 없다');
+  });
+
+  it('대상이 될 수 없는 존재는 후보에 없다 — refers 가 가리키는 것만 (C009 결함 수정)', () => {
+    // 광맥은 character 가 아니다. 후보로 보여 주면 세계가 거절할 것을 권하는 셈이다.
+    const withDeposit = {
+      ...snapshot,
+      entities: [
+        ...snapshot.entities,
+        { id: 'deposit-1', role: 'resource-deposit', state: 'available', position: { x: 8, z: -6 } },
+      ],
+    } as GameViewSnapshot;
+    const slots = commandEntries(withDeposit, OFF).find((e) => e.id === 'set-attribute')!.slots;
+
+    expect(slots[0]?.hint).toContain('npc-1');
+    expect(slots[0]?.hint).not.toContain('deposit-1');
   });
 });
 

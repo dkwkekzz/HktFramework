@@ -43,17 +43,49 @@ export const OBSERVER_COMMANDS: readonly ObserverCommandDefinition[] = [
 /** 관찰자 쪽 명령이 지금 켜져 있는가 */
 export type ObserverCommandStates = Readonly<Record<ObserverCommandId, boolean>>;
 
-// ── Domain → 사람이 읽는 안내 ────────────────────────────────────────
+// ── Domain → 그 자리에 놓을 수 있는 것 ───────────────────────────────
 
 function domainOptions(domain: CommandDomainView | undefined): string[] {
   return domain?.options?.map((option) => option.name) ?? [];
 }
 
-function domainHint(domain: CommandDomainView | undefined, entityIds: readonly string[]): string {
+/**
+ * entity Domain 이 가리키는 존재들 (04 commandCatalog.domain.entity.refers).
+ *
+ * refers 를 무시하고 화면의 모든 존재를 내놓으면 대상이 될 수 없는 것까지 후보로
+ * 보여 주게 된다 — 세계는 그것을 "그런 존재가 없다" 로 거절할 뿐이다.
+ * 밝혀진 것과 걸 수 있는 것이 어긋나면 목록은 안내가 아니라 함정이 된다.
+ */
+function entityPool(
+  domain: CommandDomainView | undefined,
+  snapshot: GameViewSnapshot | null,
+): string[] {
+  const entities = snapshot?.entities ?? [];
+  const refers = domain?.refers;
+  if (!refers) return entities.map((entity) => entity.id);
+  // role 은 세계가 준 의미 코드다 (player-character · npc-character · resource-deposit).
+  return entities.filter((entity) => entity.role.includes(refers)).map((entity) => entity.id);
+}
+
+/** 그 자리에 놓을 수 있는 것들 — 종류가 무엇이든 하나의 목록으로 본다 */
+function domainPool(
+  domain: CommandDomainView | undefined,
+  snapshot: GameViewSnapshot | null,
+): string[] {
+  if (domain?.kind === 'entity') return entityPool(domain, snapshot);
+  return domainOptions(domain);
+}
+
+function domainHint(
+  domain: CommandDomainView | undefined,
+  snapshot: GameViewSnapshot | null,
+): string {
   if (!domain) return '';
   switch (domain.kind) {
-    case 'entity':
-      return entityIds.length > 0 ? entityIds.join(' | ') : '존재의 이름';
+    case 'entity': {
+      const pool = entityPool(domain, snapshot);
+      return pool.length > 0 ? pool.join(' | ') : '존재의 이름';
+    }
     case 'choice':
       return domainOptions(domain).join(' | ');
     case 'number': {
@@ -95,13 +127,13 @@ function effectiveDomain(
 function slotOf(
   parameter: CommandParameterView,
   domain: CommandDomainView | undefined,
-  entityIds: readonly string[],
+  snapshot: GameViewSnapshot | null,
 ): SceneCommandSlot {
   const options = domainOptions(domain);
   return {
     id: codeText(`param:${parameter.id}`),
     required: parameter.required,
-    hint: domainHint(domain, entityIds),
+    hint: domainHint(domain, snapshot),
     ...(options.length > 0 ? { options } : {}),
     ...(parameter.omittedMeaning
       ? { omittedMeaning: codeText(`omitted:${parameter.omittedMeaning}`) }
@@ -122,8 +154,6 @@ export function commandEntries(
   snapshot: GameViewSnapshot | null,
   observerStates: ObserverCommandStates,
 ): SceneCommandEntry[] {
-  const entityIds = snapshot?.entities.map((entity) => entity.id) ?? [];
-
   const world: SceneCommandEntry[] = (snapshot?.commands ?? []).map((command) => ({
     id: command.id,
     title: codeText(command.effect),
@@ -132,7 +162,7 @@ export function commandEntries(
     ...(command.reason ? { unavailableText: codeText(command.reason) } : {}),
     usage: usageOf(command),
     slots: command.parameters.map((parameter, index) =>
-      slotOf(parameter, effectiveDomain(command.parameters, index, []), entityIds),
+      slotOf(parameter, effectiveDomain(command.parameters, index, []), snapshot),
     ),
   }));
 
@@ -161,14 +191,13 @@ function tokenize(text: string): { words: string[]; typingNew: boolean } {
 function fits(
   value: string,
   domain: CommandDomainView | undefined,
-  entityIds: readonly string[],
+  snapshot: GameViewSnapshot | null,
 ): boolean {
   if (!domain) return false;
   switch (domain.kind) {
     case 'entity':
-      return entityIds.includes(value);
     case 'choice':
-      return domainOptions(domain).includes(value);
+      return domainPool(domain, snapshot).includes(value);
     case 'number':
       return Number.isFinite(Number(value));
     case 'text':
@@ -176,6 +205,24 @@ function fits(
     default:
       return false;
   }
+}
+
+/**
+ * 아직 쓰는 중인 낱말이 그 자리에 들어갈 가망이 있는가.
+ *
+ * 다 쓰지 않은 낱말을 틀렸다고 말하면 한 글자마다 빨간 글씨가 뜬다 —
+ * 그것은 안내가 아니라 잔소리다. 이어질 가망이 남아 있는 동안은 말하지 않는다.
+ */
+function couldBecome(
+  value: string,
+  domain: CommandDomainView | undefined,
+  snapshot: GameViewSnapshot | null,
+): boolean {
+  if (!domain) return false;
+  if (domain.kind === 'entity' || domain.kind === 'choice') {
+    return domainPool(domain, snapshot).some((option) => option.startsWith(value));
+  }
+  return fits(value, domain, snapshot);
 }
 
 /** 범위 밖의 값을 걸기 전에 알아본다 — 세계도 같은 판정을 하지만 먼저 알려 준다 */
@@ -201,7 +248,7 @@ export interface CommandFill {
 export function fillSlots(
   parameters: readonly CommandParameterView[],
   words: readonly string[],
-  entityIds: readonly string[],
+  snapshot: GameViewSnapshot | null,
 ): CommandFill {
   const filled: string[] = parameters.map(() => '');
   let cursor = 0;
@@ -212,7 +259,7 @@ export function fillSlots(
     if (word === undefined) break;
 
     const domain = effectiveDomain(parameters, index, filled);
-    if (parameter.required || fits(word, domain, entityIds)) {
+    if (parameter.required || fits(word, domain, snapshot)) {
       filled[index] = word;
       cursor += 1;
     }
@@ -228,7 +275,6 @@ export function composeCommand(
   snapshot: GameViewSnapshot | null,
   observerStates: ObserverCommandStates,
 ): SceneCommandComposition {
-  const entityIds = snapshot?.entities.map((entity) => entity.id) ?? [];
   const { words, typingNew } = tokenize(text);
   const typed = words[0] ?? '';
 
@@ -268,7 +314,6 @@ export function composeCommand(
       suggestions: [],
       ...(words.length > 1 ? { problem: `${entry.id} 은 아무것도 받지 않는다` } : {}),
       submittable: words.length === 1,
-      ...(entry.stateText ? {} : {}),
     };
   }
 
@@ -278,21 +323,17 @@ export function composeCommand(
   }
 
   const rest = words.slice(1);
-  const { filled, leftover } = fillSlots(command.parameters, rest, entityIds);
+  const { filled, leftover } = fillSlots(command.parameters, rest, snapshot);
 
-  // 어느 자리가 다음인가 — 아직 비어 있는 필수 자리, 또는 지금 쓰고 있는 자리.
-  const activeIndex = typingNew
-    ? filled.findIndex((value, index) => value === '' && command.parameters[index]!.required)
-    : Math.max(
-        0,
-        filled.reduce((last, value, index) => (value === '' ? last : index), -1),
-      );
+  // 지금 손이 가 있는 자리 — 새 낱말을 시작했으면 다음 빈 필수 자리,
+  // 아니면 마지막으로 채워진 자리다.
+  const lastFilledIndex = filled.reduce((last, value, index) => (value === '' ? last : index), -1);
+  const firstEmptyRequired = filled.findIndex(
+    (value, index) => value === '' && command.parameters[index]!.required,
+  );
+  const activeIndex = typingNew ? firstEmptyRequired : Math.max(lastFilledIndex, 0);
 
-  const nextIndex =
-    activeIndex >= 0
-      ? activeIndex
-      : filled.findIndex((value, index) => value === '' && command.parameters[index]!.required);
-
+  const nextIndex = activeIndex >= 0 ? activeIndex : firstEmptyRequired;
   const nextParameter = nextIndex >= 0 ? command.parameters[nextIndex] : undefined;
   const nextDomain = nextParameter
     ? effectiveDomain(command.parameters, nextIndex, filled)
@@ -300,24 +341,30 @@ export function composeCommand(
 
   // 지금 쓰고 있는 낱말로 그 자리의 후보를 좁힌다.
   const typingWord = typingNew ? '' : (words[words.length - 1] ?? '');
-  const pool =
-    nextDomain?.kind === 'entity' ? entityIds : domainOptions(nextDomain);
-  const suggestions = pool.filter((option) => option.startsWith(typingWord));
+  const suggestions = domainPool(nextDomain, snapshot).filter((option) =>
+    option.startsWith(typingWord),
+  );
 
   // 무엇이 잘못되었는가 — 걸기 전에 알려 준다.
   // 자리에 든 값을 먼저 본다. 잘못 든 값이 뒤의 낱말을 밀어내므로,
   // 남은 낱말부터 말하면 진짜 원인이 아니라 그 여파를 말하게 된다.
+  const inProgressIndex = typingNew ? -1 : lastFilledIndex;
   let problem: string | undefined;
   for (let index = 0; index < command.parameters.length; index += 1) {
     const value = filled[index]!;
     if (value === '') continue;
     const domain = effectiveDomain(command.parameters, index, filled);
     if (outOfRange(value, domain)) {
-      problem = `허용된 범위를 벗어난 값이다 — ${value} (${domainHint(domain, entityIds)})`;
+      problem = `허용된 범위를 벗어난 값이다 — ${value} (${domainHint(domain, snapshot)})`;
       break;
     }
-    if (!fits(value, domain, entityIds)) {
-      problem = `그 자리에 넣을 수 없다 — ${value} (${domainHint(domain, entityIds)})`;
+    // 아직 쓰는 중인 낱말은 이어질 가망이 남아 있는 동안 탓하지 않는다.
+    const ok =
+      index === inProgressIndex
+        ? couldBecome(value, domain, snapshot)
+        : fits(value, domain, snapshot);
+    if (!ok) {
+      problem = `그 자리에 넣을 수 없다 — ${value} (${domainHint(domain, snapshot)})`;
       break;
     }
   }
@@ -325,19 +372,23 @@ export function composeCommand(
     problem = `받지 않는 것이 남았다 — ${leftover.join(' ')}`;
   }
 
+  // 다 적었는가 — 빈 필수 자리가 없고, 쓰는 중인 낱말도 그 자리에 실제로 들어맞아야 한다.
   const missing = command.parameters.some(
     (parameter, index) => parameter.required && filled[index] === '',
   );
+  const allFit = command.parameters.every((_, index) => {
+    const value = filled[index]!;
+    if (value === '') return true;
+    return fits(value, effectiveDomain(command.parameters, index, filled), snapshot);
+  });
 
   return {
     text,
     candidates: [entry],
-    ...(nextParameter
-      ? { nextSlot: slotOf(nextParameter, nextDomain, entityIds) }
-      : {}),
+    ...(nextParameter ? { nextSlot: slotOf(nextParameter, nextDomain, snapshot) } : {}),
     suggestions,
     ...(problem ? { problem } : {}),
-    submittable: !missing && problem === undefined,
+    submittable: !missing && allFit && problem === undefined,
   };
 }
 
@@ -357,10 +408,7 @@ export function invocationOf(
 ): CommandInvocation {
   const composition = composeCommand(text, entries, snapshot, observerStates);
   if (!composition.submittable) {
-    return {
-      kind: 'rejected',
-      problem: composition.problem ?? '아직 다 적지 않았다',
-    };
+    return { kind: 'rejected', problem: composition.problem ?? '아직 다 적지 않았다' };
   }
 
   const { words } = tokenize(text);
@@ -372,8 +420,7 @@ export function invocationOf(
   }
 
   const command = snapshot!.commands.find((candidate) => candidate.id === id)!;
-  const entityIds = snapshot!.entities.map((entity) => entity.id);
-  const { filled } = fillSlots(command.parameters, words.slice(1), entityIds);
+  const { filled } = fillSlots(command.parameters, words.slice(1), snapshot);
 
   const values: Record<string, string> = {};
   command.parameters.forEach((parameter, index) => {
