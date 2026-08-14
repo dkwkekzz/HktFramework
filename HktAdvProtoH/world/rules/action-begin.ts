@@ -18,12 +18,20 @@ export function evaluateActionBegin(actor: ActorState): ActionBusyReason | null 
 
 type ActionTarget = Pick<CurrentAction, 'targetPosition' | 'targetActorId' | 'targetDepositId'>;
 
-export function beginAction(actor: ActorState, kind: ActionKind, target: ActionTarget = {}): void {
+// duration 을 넘기면 그 길이로 시작한다 (C007) — 스킬 행동의 길이는 ActionDefinition 의
+// 고정값이 아니라 시작하는 순간의 공격 속도가 정하기 때문이다 (INTENT-TEMPO-ACTION-001).
+// 길이는 시작할 때 확정되고 진행 중에 바뀌지 않는다 — 진행도의 기준이 흔들리면 안 된다.
+export function beginAction(
+  actor: ActorState,
+  kind: ActionKind,
+  target: ActionTarget = {},
+  duration?: number,
+): void {
   actor.currentAction = {
     kind,
     ...target,
     elapsed: 0,
-    duration: actionDefinition(kind).duration,
+    duration: duration ?? actionDefinition(kind).duration,
   };
 }
 

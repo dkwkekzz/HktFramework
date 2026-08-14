@@ -22,6 +22,8 @@ const snapshot = (time: number, acknowledged = 0): GameViewSnapshot => ({
   ],
   interactions: [],
   hud: [{ id: 'world.time', kind: 'counter', value: time }],
+  strikes: [],
+  debug: { open: false, mutableAttributes: [] },
 });
 
 // 세계 대신 손으로 미는 가짜 소켓

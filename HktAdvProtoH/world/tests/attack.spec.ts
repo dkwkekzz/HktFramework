@@ -1,4 +1,4 @@
-// RULE-ATTACK-001 · RULE-SWING-STRIKE-001 · RULE-HIT-001 World 단독 테스트
+// RULE-SKILL-BEGIN-001(구 RULE-ATTACK-001) · RULE-SWING-STRIKE-001 · RULE-HIT-001 World 단독 테스트
 // Implements INTENT-ATTACK-001 · INTENT-ATTACK-HIT-001(C006 CHANGED) ·
 //            INTENT-HIT-REACTION-001 · INTENT-BODY-FACING-001(R1)
 //
@@ -41,13 +41,13 @@ const dummyAt = (x: number, z: number, id = 'npc-1') => ({
 const actor = (v: GameViewSnapshot, id: string) => v.entities.find((e) => e.id === id);
 const attack = (v: GameViewSnapshot) => v.interactions.find((i) => i.id === 'attack');
 
-describe('RULE-ATTACK-001 — 대상 없이 휘두른다', () => {
+describe('RULE-SKILL-BEGIN-001 — 대상 없이 휘두른다 (C007 — 구 RULE-ATTACK-001)', () => {
   it('곁에 아무도 없어도 공격이 시작된다', () => {
     const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [] });
 
     const result = world.dispatch({ interactionId: 'attack' });
 
-    expect(result).toEqual({ status: 'success', rule: 'RULE-ATTACK-001' });
+    expect(result).toEqual({ status: 'success', rule: 'RULE-SKILL-BEGIN-001' });
     expect(actor(world.observe(), PLAYER)?.state).toBe('attack');
   });
 
@@ -72,7 +72,7 @@ describe('RULE-ATTACK-001 — 대상 없이 휘두른다', () => {
 
     expect(world.dispatch({ interactionId: 'attack' })).toEqual({
       status: 'failure',
-      rule: 'RULE-ATTACK-001',
+      rule: 'RULE-SKILL-BEGIN-001',
       reason: 'action-busy',
     });
     expect(attack(world.observe())?.available).toBe(false);

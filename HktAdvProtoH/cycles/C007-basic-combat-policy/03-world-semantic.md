@@ -80,9 +80,10 @@
 ## WORLD STATE
 
     Actor
-        Name             World Authority   몸이 놓일 때 정해지고 변하지 않는다.
-                                           관찰자의 몸은 그 관찰자가 밝힌 식별을,
-                                           자율 존재는 종류 이름 + 일련번호를 쓴다
+        Name             World Authority   몸이 놓일 때 세계가 순번으로 정하고 변하지 않는다.
+                                           (R2 정정 — 관찰자가 밝힌 Id 를 이름에 섞지 않는다.
+                                            세계 밖에서 온 문자열은 세계 안 존재의 이름이 될 수
+                                            없다는 C004 RULE-OBSERVER-JOIN-001 의 원칙 그대로다)
         Hp               World Authority   0 <= Hp <= HpMax. RULE-STRIKE-DAMAGE-001 만이 줄인다
         HpMax            World Authority   CharacterKind 가 정하는 고정값
         Cp               World Authority   0 <= Cp <= CpMax.

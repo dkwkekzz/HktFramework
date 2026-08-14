@@ -31,10 +31,40 @@ export interface SwingView {
   struck: string[]; // 이 휘두름이 이미 타격한 몸들 (같은 몸은 한 번만 맞는다)
 }
 
+// 생명 (C007) — 누구의 것이든 관찰된다. 몸 위 기본 표시가 이 값이다.
+export interface VitalityView {
+  health: number;
+  healthMaximum: number;
+  downed: boolean; // 참이면 더 이상 행동하지 않고 타격 대상도 되지 않는다
+}
+
+// 그 밖의 모든 속성 (C007 R2) — 세계는 어떤 속성도 숨기지 않는다.
+// 실린다고 해서 늘 화면에 띄우라는 뜻은 아니다. 표시 기본값은 View 가 정한다.
+export interface AttributesView {
+  energy: number;
+  energyMaximum: number;
+  moveMode: string; // walk | run
+  control: string; // player | autonomous
+  tempoStats: {
+    moveSpeed: number;
+    runSpeedMultiplier: number;
+    actionSpeed: number;
+  };
+  modifiers: {
+    energyCharge: number;
+    energyConsume: number;
+    moveSpeed: number;
+    actionSpeed: number;
+  };
+}
+
 export interface EntityView {
   id: string;
   role: string; // Semantic Role (예: player-character, npc-character, resource-deposit)
-  state: string; // 의미 상태 (예: idle | move | attack | mine | available | depleted)
+  state: string; // 의미 상태 (예: idle | move | attack | heavy-attack | mine | hit | downed)
+  name?: string; // Actor.Name (C007) — character 에만 실린다
+  vitality?: VitalityView; // C007 — character 에만 실린다
+  attributes?: AttributesView; // C007 R2 — character 에만 실린다
   position: GameViewPosition;
   labelValue?: number | string; // 관찰 값 (예: 광맥 잔량) — 표시 형식은 View 책임
   kind?: string; // CharacterKind 등 종류 식별자 (C002) — 어떤 모습으로 그릴지는 View 책임
@@ -52,6 +82,9 @@ export interface InteractionView {
   targetEntityId?: string;
   available: boolean;
   reason?: string; // 불가 사유 코드 — 문구 변환은 View 책임
+  // 스킬 interaction (C007) — 쓰기 전에 알 수 있어야 하는 값.
+  // 얼마나 깎고, 기력을 얼마나 채우고 쓰는가.
+  profile?: { damage: number; charge: number; cost: number };
 }
 
 export interface HudItemView {
@@ -72,6 +105,31 @@ export interface ObserverView {
   acknowledgedMark: number;
 }
 
+// 한 번의 타격이 낳은 결과 (C007) — 맞은 자리에서 잠시 드러났다가 사라진다.
+// 피해는 스킬이 정한 고정값이므로 실리는 것은 값 하나뿐이다.
+export interface StrikeEventView {
+  attackerId: string;
+  targetId: string;
+  skill: string; // attack | heavy-attack
+  amount: number;
+  at: GameViewPosition; // 맞은 몸의 중심
+  since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
+}
+
+// 바꿀 수 있는 속성과 그 허용 범위 (C007 R2). View 가 목록을 스스로 만들지 않는다.
+export interface MutableAttributeView {
+  id: string;
+  min?: number;
+  max?: number;
+  values?: string[];
+}
+
+// 속성을 바꿔 볼 수 있는 세계인가 (C007 R2).
+export interface DebugAuthorityView {
+  open: boolean;
+  mutableAttributes: MutableAttributeView[];
+}
+
 export interface GameViewSnapshot {
   specId: string; // 이 Snapshot 을 계약하는 GameView Specification ID
   scene: string; // Scene 이름 (예: mining-field)
@@ -79,4 +137,6 @@ export interface GameViewSnapshot {
   entities: EntityView[];
   interactions: InteractionView[];
   hud: HudItemView[];
+  strikes: StrikeEventView[]; // C007 ADDED
+  debug: DebugAuthorityView; // C007 R2 ADDED
 }
