@@ -46,6 +46,14 @@ export interface SceneEntity {
   label?: string; // 형식화 완료된 라벨 텍스트 (예: "돌 4")
   nameplate?: SceneNameplate; // C007 — character 에만 있다
   inspect?: string[]; // C007 R2 — 속성 관찰이 켜졌을 때의 표시 줄들
+  /**
+   * 이 몸이 지금 시점에서 향한 것으로 읽히는 쪽 (C008).
+   * 다음 프레임의 모호 구간 판정 기준이 되므로 조립 루트가 기억한다.
+   * 몸 방향이 없는 대상(광맥 등)에는 없다.
+   */
+  facingSide?: 'left' | 'right';
+  /** 그림을 좌우로 뒤집어 그릴 것인가 (C008) — 읽힌 쪽이 그림 기준 방향과 다를 때 참 */
+  flip?: boolean;
   cameraFollow: boolean;
   trail: boolean;
 }

@@ -12,6 +12,8 @@ import { TRANSPORT_PATH } from '../protocol/transport';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
+import { attachPointerLook } from '../view/input/pointer';
+import type { ScreenSide } from '../view/presentation/facing-presentation';
 import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
 import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
 import { bindingLines, telemetryLines } from '../view/presentation/link-presentation';
@@ -55,6 +57,15 @@ const EMPTY_SCENE: SceneState = {
 let latestScene: SceneState = EMPTY_SCENE;
 attachInput(renderer, (action) => link.send(action), () => latestScene);
 
+// 시점 조작 (C008) — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
+attachPointerLook(renderer.domElement, (dTurn, dTilt) => renderer.turnView(dTurn, dTilt));
+const KEY_TURN_RATE = 1.8; // rad/s — 키로 도는 빠르기
+const KEY_TILT_RATE = 1.0;
+
+// 직전 프레임에 각 몸이 어느 쪽으로 읽혔는지 (04 entities.character.facing.ambiguous).
+// 정면·정후면을 향해 좌우가 흐려지는 구간에서 그림이 깜빡이지 않게 하는 기준이다.
+let facingSides: Record<string, ScreenSide> = {};
+
 // WASD 연속 이동 — 진행 방향의 조금 앞 지점을 요청한다. 판정은 세계가 한다.
 // C003: 매 프레임이 아니라 일정 간격으로 보낸다 — 요청은 이제 선을 타고 간다.
 const KEY_LOOKAHEAD = 1.6;
@@ -88,11 +99,31 @@ function frame(now: number): void {
   // 조용히 죽은 이어짐을 걷어낸다 — 관찰 결과가 끊기면 그것이 끊김이다
   link.poll(Date.now());
 
+  // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
+  // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
+  const turning = keyboard.turn();
+  if (turning) {
+    renderer.turnView(turning.turn * KEY_TURN_RATE * dt, turning.tilt * KEY_TILT_RATE * dt);
+  }
+
   // 화면은 마지막으로 받은 관찰 결과다 (04-gameview.spec.yaml delivery: pushed)
   const snapshot = link.latest();
   latestScene = snapshot
-    ? resolvePresentation(snapshot, undefined, { debugObserve, inspect })
+    ? resolvePresentation(snapshot, undefined, {
+        debugObserve,
+        inspect,
+        viewTurn: renderer.viewTurn(),
+        facingSides,
+      })
     : EMPTY_SCENE;
+
+  // 이번 프레임에 읽힌 좌우를 다음 프레임의 기준으로 남긴다.
+  // 사라진 몸은 함께 사라진다 — 다시 나타나면 그림 기준 방향에서 다시 읽는다.
+  const readSides: Record<string, ScreenSide> = {};
+  for (const entity of latestScene.entities) {
+    if (entity.facingSide) readSides[entity.id] = entity.facingSide;
+  }
+  facingSides = readSides;
 
   const terrain = latestScene.interactions.find((i) => i.terrainTarget);
   const self = latestScene.entities.find((e) => e.cameraFollow);
@@ -103,18 +134,30 @@ function frame(now: number): void {
     wasKeyMoving = true;
     if (moveRequestCooldown <= 0) {
       moveRequestCooldown = MOVE_REQUEST_INTERVAL;
+      // C008 — 앞은 세계의 축이 아니라 지금 보고 있는 쪽이다.
+      // 세계 좌표로 환산해 보내므로 세계는 무엇을 기준으로 정했는지 알지 못한다.
+      const heading = renderer.viewWorldDirection(dir);
       link.send({
         interactionId: terrain.id,
         position: {
-          x: self.position.x + dir.x * KEY_LOOKAHEAD,
-          z: self.position.z + dir.z * KEY_LOOKAHEAD,
+          x: self.position.x + heading.x * KEY_LOOKAHEAD,
+          z: self.position.z + heading.z * KEY_LOOKAHEAD,
         },
       });
     }
-  } else if (!dir && wasKeyMoving && terrain && self) {
+  } else if (!dir && wasKeyMoving) {
+    // 멈춤 — 아무것도 보내지 않는다 (C008 CHANGED).
+    //
+    // 예전에는 "마지막으로 관찰한 자리로 가라"를 보내 그 자리에 세웠다. 그런데 그 자리는
+    // 이미 지나온 자리다 (관찰은 세계보다 한 걸음 늦게 도착한다). 그래서 몸이 뒤로 한 걸음
+    // 돌아왔고, 움직인 방향이 몸 방향이므로(C006 RULE-BODY-FACING-001) 멈출 때마다
+    // 뒤를 돌아봤다 — 그림도 휘두름도 함께 뒤를 향했다.
+    //
+    // 마지막으로 요청한 목적지는 늘 몸보다 앞에 있다. 그리로 가다 도착하면 스스로 멈춘다
+    // (RULE-MOVE-PROGRESS-001 Arrived). 가던 쪽을 향한 채 서는 것이 이 Cycle 이 필요로 하는
+    // 상태이고, 세계에 새 규칙을 더하지 않고 얻을 수 있는 가장 단순한 방법이다.
     wasKeyMoving = false;
     moveRequestCooldown = 0;
-    link.send({ interactionId: terrain.id, position: self.position }); // 제자리 = 정지
   }
 
   for (const code of keyboard.consumeKeyPresses()) {

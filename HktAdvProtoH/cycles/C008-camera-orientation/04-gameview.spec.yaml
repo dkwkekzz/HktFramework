@@ -1,0 +1,195 @@
+# CYCLE C008 — GameView Specification
+id: VIEW-CAMERA-ORIENTATION-001
+observer: player
+
+# WORLD CHANGE 는 NONE 이지만 (03) GAMEVIEW CHANGE 는 NONE 이 아니다.
+# 세계가 보내는 값은 그대로이고, 그 값을 무엇에 쓰는지와
+# 관찰자 쪽이 무엇을 소유하는지가 이 계약에서 새로 정해진다.
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·종류·상태·모션 — C002~C007 계약 그대로
+    - entities.character.body               # C006 그대로 (radius·height·mass·velocity)
+    - entities.character.swing              # C006·C007 그대로 — 칼끝은 여전히 몸 방향에서 나온다
+    - entities.deposit
+    - interactions                          # 요청 계약의 형태 변화 없음 (move·mine·attack·skill…)
+    - hud / self / strikes                  # C007 그대로
+    - observer / session / delivery / identity / telemetry
+    - debugObserve / debugAuthority         # C006 · C007 그대로
+  added:
+    - viewpoint                             # 관찰자가 소유하는 바라보는 방향
+    - entities.character.facing             # 몸 방향의 "읽는 법" — 값 자체는 body.facing 재사용
+    - spriteOrientation                     # 존재 종류별 그림의 기준 방향 (그림의 성질)
+  changed:
+    - entities.character.body.facing        # 지위 변경 — 디버그 관찰용 값에서
+                                            # 모든 존재를 그릴 때 상시 쓰이는 근거가 된다.
+                                            # source·형태는 그대로다 (Actor.Facing)
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# viewpoint — 관찰자가 세계를 바라보는 방향 (C008 ADDED)
+#
+# 세계는 이 값을 알지 않는다 (03 WORLD STATE · 01 EXCLUDED "시점의 세계 진입").
+# 따라서 여기에는 source 가 없다 — 세계에서 오는 값이 아니라 관찰자가 가지는 값이다.
+# debugObserve 토글(C006)과 같은 자리의, 같은 성격의 항목이다.
+# ─────────────────────────────────────────────────────────────────
+viewpoint:
+  owner: observer
+  worldKnows: false                         # 다른 관찰자에게 내 시점은 보이지 않는다
+  orientation:
+    turn:                                   # 수평으로 도는 각
+      control: observer
+      persists: true                        # 조작을 멈춰도 유지된다
+      autoReturn: false                     # 저절로 되돌아가지 않는다
+    tilt:                                   # 위아래로 기우는 각
+      control: observer
+      persists: true
+      bounded: true                         # 세계가 뒤집혀 보이지 않도록 한계 안에 머문다
+    continuity: required                    # 한 순간에 건너뛰지 않고 지나온 방향을 거친다
+  follows:
+    entity: entities.character
+    where: role == player-character
+    guarantee: 어떤 방향으로 돌려도 그 몸은 관찰 범위 안에 남는다
+  constraint:
+    - 지형 표면 아래로 내려가지 않는다      # 땅속에서 세계를 보지 않는다
+  affects:
+    - interactions.move                     # 앞 = 지금 향한 방향 (아래 move.direction)
+    - entities.character.facing             # 몸 방향이 좌우 중 어느 쪽으로 읽히는가
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — C007 계약 그대로 + facing 의 읽는 법 (C008)
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:                                   # C004 그대로
+      player-character: { when: Actor.Id == Observer.ActorId }
+      other-player-character:
+        when: Actor.Control == player && Actor.Id != Observer.ActorId
+      npc-character: { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }   # 그림 선택의 기준 — spriteOrientation 의 키이기도 하다
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }
+    actionProgress: { source: Actor.ActionProgress }
+    motion:                                 # C002 그대로
+      selectedBy: [kind, state]
+      progress: { withDuration: actionProgress, withoutDuration: loop }
+      fallback: { order: ['kind:idle', 'anyKind:state', placeholder] }
+
+    body:                                   # C006 그대로
+      radius: { source: Actor.Body.Radius }
+      height: { source: Actor.Body.Height }
+      mass: { source: Actor.Body.Mass }
+      facing: { source: Actor.Facing }
+      velocity: { source: Actor.Velocity }
+
+    facing:                                 # C008 ADDED — 값은 body.facing, 새로운 것은 읽는 법
+      source: Actor.Facing                  # 상시 제공 (C006) — 모든 존재에 대해 항상 있다
+      meaning: 이 몸의 휘두름이 나가는 쪽 (ActionCollider 가 여기서 유도된다)
+      read:
+        as: screen-side                     # 지금 시점에서 왼쪽인지 오른쪽인지 둘 중 하나로 읽는다
+        dependsOn: viewpoint.orientation.turn
+        # 같은 몸 방향이라도 시점을 돌리면 반대쪽으로 읽힌다 —
+        # 읽히는 좌우는 몸과 시점 사이의 관계다.
+        ambiguous: keep-previous            # 좌우 어느 쪽도 아닌 구간에서는 직전에 읽힌 쪽을 유지
+      appliesTo: [player-character, other-player-character, npc-character]
+
+    swing:                                  # C006·C007 그대로 — 대조용으로 여기 남긴다
+      center: { source: ActionCollider.Center }
+      radius: { source: ActionCollider.Radius }
+      active: { source: ActionCollider.Active }
+      struck: { source: Attack.StruckActorIds }
+      # 그림이 보이는 쪽과 이 칼끝이 지나는 쪽이 어긋나면 그것이 결함이다 (08 검증 항목).
+
+  deposit:                                  # C004 그대로 — 광맥은 방향이 없다
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+# ─────────────────────────────────────────────────────────────────
+# spriteOrientation — 존재 종류별 그림의 기준 방향 (C008 ADDED)
+#
+# 세계는 이 값을 알지 않는다 (02-intent.md BOUNDARY RESOLVED).
+# 같은 존재의 그림을 갈아 끼우면 세계는 그대로인 채 이 값만 달라지므로,
+# 이것은 몸에 대한 사실이 아니라 그림에 대한 사실이다.
+# entities.character.kind (= Actor.CharacterKind) 를 키로 삼는다 —
+# 세계가 알려 주는 것은 "어떤 종류인가" 까지이고, 그 종류의 그림이 어느 쪽을
+# 보고 있는지는 그림을 가진 쪽이 안다.
+# ─────────────────────────────────────────────────────────────────
+spriteOrientation:
+  owner: view
+  worldKnows: false
+  keyedBy: entities.character.kind
+  baseline:
+    rabbit-swordsman: right                 # 원본이 오른쪽을 본다 (휘두름도 오른쪽으로 나간다)
+    wanderer: right
+    default: right                          # 등록되지 않은 종류의 기본값
+  rule: 읽힌 screen-side 가 baseline 과 다르면 그 그림을 좌우로 뒤집어 보인다
+  invariant: 뒤집는 것은 보이는 방향뿐이다 — 세계의 몸 방향은 이 값에 영향받지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — C007 계약 그대로. move 의 방향 기준만 명시된다 (C008)
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  subject: observer-character
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)   # 세계 좌표 — 형태 변화 없음
+    direction:                              # C008 ADDED — 무엇을 기준으로 목적지를 정하는가
+      basis: viewpoint.orientation.turn
+      forward: 관찰자가 보고 있는 쪽
+      backward: 그 반대
+      sideways: 그 방향의 좌우
+      conversion: 관찰자 쪽에서 세계 좌표로 환산해 요청한다 —
+                  기준이 무엇이었는지는 요청에 실리지 않는다
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+  attack:
+    role: attack-swing
+    target: none
+    request: Attack(ObserverCharacter)      # 방향은 실리지 않는다 — 몸이 향한 쪽으로 나간다
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+  skill:                                    # C007 그대로
+    role: skill-swing
+    target: none
+    request: Skill(ObserverCharacter, SkillKind)
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+  moveMode:                                 # C007 그대로
+    role: move-mode
+    request: MoveMode(ObserverCharacter, Mode)
+  requestResult: from-next-observation
+
+# ─────────────────────────────────────────────────────────────────
+# hud — C007 계약 그대로. 이번 Cycle 이 더하는 HUD 값은 없다.
+# 시점 방향은 화면 자체가 보여 주는 것이므로 수치로 띄우지 않는다.
+# ─────────────────────────────────────────────────────────────────
+hud:
+  change: NONE
+
+# OBSERVABLE PROJECTION NOTE
+#   03 의 Observable Semantic 대응:
+#     Actor.Facing                → entities.character.facing (+ body.facing)   전부 투영
+#     Actor.Position              → entities.character.position                 (재사용)
+#     Actor.CharacterKind         → entities.character.kind                     (재사용)
+#     ActionCollider.Center/Active→ entities.character.swing                    (재사용)
+#     Move.Availability/Reason    → interactions.move                           (재사용)
+#   투영하지 않는 것: 없음.
+#   세계에서 오지 않는 것: viewpoint · spriteOrientation — 둘 다 owner 가 명시되어 있고
+#   worldKnows: false 다. View 는 이 둘을 스스로 가지되, 그 밖의 어떤 값도
+#   World 내부에서 직접 읽지 않는다.
