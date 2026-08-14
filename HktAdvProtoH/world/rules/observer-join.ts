@@ -14,7 +14,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_OBSERVER_JOIN } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState, CharacterKind } from '../semantic/actor';
-import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from '../semantic/collision';
+import { BODY_MASS, bodySize, DEFAULT_FACING } from '../semantic/collision';
 import { combatProfile } from '../semantic/combat';
 import { createInventory } from '../semantic/inventory';
 import { MAX_OBSERVER_ID_LENGTH } from '../semantic/observer';
@@ -76,6 +76,7 @@ export function ruleObserverJoin(
   // C007 — 새 몸은 자기 종류의 자원·템포 능력치를 갖는다 (COMBAT_PROFILES).
   // 이름도 세계가 순번으로 정한다 — 관찰자가 밝힌 Id 를 이름에 섞지 않는다는 원칙 그대로다.
   const profile = combatProfile(defaults.characterKind);
+  const size = bodySize(defaults.characterKind); // 몸 크기는 종류가 정한다 (C006 R2)
 
   const body: ActorState = {
     id: `player-${ordinal + 1}`,
@@ -83,8 +84,8 @@ export function ruleObserverJoin(
     characterKind: defaults.characterKind,
     control: 'player',
     position: { x: spawn.x, z: spawn.z },
-    bodyRadius: BODY_RADIUS,
-    bodyHeight: BODY_HEIGHT,
+    bodyRadius: size.radius,
+    bodyHeight: size.height,
     bodyMass: BODY_MASS,
     facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
     velocity: { x: 0, z: 0 },

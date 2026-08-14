@@ -7,7 +7,7 @@ import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
-import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from './semantic/collision';
+import { BODY_MASS, bodySize, DEFAULT_FACING } from './semantic/collision';
 import { combatProfile } from './semantic/combat';
 import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
@@ -103,14 +103,15 @@ export function createWorld(setup: WorldSetup = {}): World {
     const kind = npc.characterKind ?? 'wanderer';
     // C007 — 자율 존재도 자기 종류의 자원·템포 능력치를 갖는다. 이름은 종류 + 순번이다.
     const profile = combatProfile(kind);
+    const size = bodySize(kind); // 몸 크기는 종류가 정한다 (C006 R2)
     return {
       id: npc.id,
       name: npc.name ?? `Wanderer ${ordinal + 1}`,
       characterKind: kind,
       control: 'autonomous' as const,
       position: { x: npc.position.x, z: npc.position.z },
-      bodyRadius: BODY_RADIUS,
-      bodyHeight: BODY_HEIGHT,
+      bodyRadius: size.radius,
+      bodyHeight: size.height,
       bodyMass: BODY_MASS,
       facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
       velocity: { x: 0, z: 0 },

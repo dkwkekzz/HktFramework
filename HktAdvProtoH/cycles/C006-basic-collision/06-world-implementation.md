@@ -65,3 +65,9 @@
     테스트                                       등 뒤 무타격 · 칼끝 호 이동 관찰 · Facing 갱신
                                                  추가, 기존 타격 테스트는 aim 후 휘두름으로 재작성
                                                  — 187/187 통과
+
+## R2 (캡슐 크기 = 이미지 크기)
+    BODY_SIZE_BY_KIND                            collision.ts — 종류별 몸 캡슐 크기
+                                                 (BODY_RADIUS/HEIGHT 단일 상수 폐지, 기본값 존재)
+    Actor 생성                                   observer-join.ts · index.ts — bodySize(kind) 사용
+    View 유도                                    resolve.ts — 그림 크기 = Body.Height (07 참조)
