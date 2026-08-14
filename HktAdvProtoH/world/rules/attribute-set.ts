@@ -8,7 +8,10 @@
 //                Hp 가 0 이 되면 RULE-DOWNED-001 이 이어서 일어나고,
 //                쓰러진 몸의 Hp 를 올리면 다시 일어난다 (downed → idle).
 //                HpMax/CpMax 를 낮추면 현재값도 함께 그 안으로 들어온다.
-// Result         Success | Failure(debug-closed | unknown-target | unknown-attribute | out-of-range)
+// Result         Success | Failure(debug-closed | unknown-target | unknown-attribute |
+//                                  value-out-of-range)
+//                사유 코드가 value- 로 시작하는 이유: out-of-range 는 C001 이 이미
+//                "너무 멀다" 로 쓰고 있다. 같은 코드가 두 뜻을 가지면 문구가 어긋난다.
 //
 // 이 Rule 은 값을 바꿀 뿐 새로운 게임 의미를 만들지 않는다.
 // 세계의 규칙 안이 아니라 밖에서 손을 대는 자리이며 — 값이 바뀐 뒤의 세계는
@@ -28,7 +31,7 @@ export type AttributeSetFailureReason =
   | 'debug-closed'
   | 'unknown-target'
   | 'unknown-attribute'
-  | 'out-of-range';
+  | 'value-out-of-range';
 
 // Observable(AttributeSet.Availability) 과 공유하는 판정 — 지금 세계가 조작을 허용하는가.
 export function evaluateAttributeSetAvailability(
@@ -57,15 +60,15 @@ export function ruleAttributeSet(
 
   if (attribute.values) {
     if (typeof value !== 'string' || !attribute.values.includes(value))
-      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'out-of-range' };
+      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
     if (attribute.id === 'moveMode') target.moveMode = value as MoveMode;
   } else {
     if (typeof value !== 'number' || !Number.isFinite(value))
-      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'out-of-range' };
+      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
     const min = attribute.min ?? -Infinity;
     const max = attribute.max ?? Infinity;
     if (value < min || value > max)
-      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'out-of-range' };
+      return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
     applyNumeric(target, attribute.id, value);
   }
 

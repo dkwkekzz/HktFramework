@@ -21,6 +21,16 @@ export interface SceneMotion {
   geometry?: MotionGeometry;
 }
 
+// 몸 위에 붙는 관찰 (C007 entityHud) — 이름과 생명. 늘 보인다.
+// 어디에 어떻게 붙여 그릴지는 capability 가 정한다. 여기 있는 것은 무엇을 보일지다.
+export interface SceneNameplate {
+  name: string;
+  health: number;
+  healthMaximum: number;
+  healthRatio: number; // 0..1 — 막대 길이는 이미 결정 Layer 가 구했다
+  downed: boolean; // 참이면 살아 있는 존재와 구분해 그린다
+}
+
 export interface SceneEntity {
   id: string;
   spriteId: string; // Asset Registry 키 (예: player-pickaxe:idle) — 모션이 없을 때의 그림
@@ -29,8 +39,34 @@ export interface SceneEntity {
   tint?: number; // 그림에 곱할 색 (C002) — 없으면 원본 그대로
   position: { x: number; z: number };
   label?: string; // 형식화 완료된 라벨 텍스트 (예: "돌 4")
+  nameplate?: SceneNameplate; // C007 — character 에만 있다
+  inspect?: string[]; // C007 R2 — 속성 관찰이 켜졌을 때의 표시 줄들
   cameraFollow: boolean;
   trail: boolean;
+}
+
+// 한 번의 타격 결과 (C007 strikeEvents) — 맞은 자리에 잠시 떠올랐다 사라진다.
+export interface SceneStrike {
+  id: string; // 같은 결과를 이어 그리기 위한 키
+  position: { x: number; z: number };
+  text: string; // 표시 문구 (형식화 완료)
+  emphasis: boolean; // 고급 스킬의 결과인가 — 크게 그린다
+  since: number; // 세계 시각 — 얼마나 지났는지는 capability 가 fade 로 쓴다
+}
+
+// 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
+// 이것은 늘 눈앞에 있는 자리다.
+export interface SceneSelf {
+  health: number;
+  healthMaximum: number;
+  healthRatio: number;
+  energy: number;
+  energyMaximum: number;
+  energyRatio: number;
+  downed: boolean;
+  moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
+  moveModeCode: string; // 요청에 쓸 원래 코드
+  lines: string[]; // 템포 능력치·배율 — 이미 형식화된 줄들
 }
 
 export interface SceneInteraction {
@@ -95,4 +131,7 @@ export interface SceneState {
   interactions: SceneInteraction[];
   hud: SceneHudItem[];
   colliderDebug?: SceneColliderDebug; // C006 — 디버그 관찰이 켜졌을 때만 존재한다
+  self?: SceneSelf; // C007 — 자기 자원·능력치·배율 (아직 관찰 결과가 없으면 없다)
+  strikes: SceneStrike[]; // C007 — 지금 떠 있는 타격 결과들
+  worldTime: number; // C007 — 타격 결과의 나이를 재는 기준 (세계 시각)
 }

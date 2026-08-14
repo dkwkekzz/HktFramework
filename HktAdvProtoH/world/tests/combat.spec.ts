@@ -515,7 +515,7 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
     ).toEqual({ status: 'failure', rule: 'RULE-ATTRIBUTE-SET-001', reason: 'unknown-target' });
     expect(
       world.dispatch({ interactionId: 'set-attribute', attribute: { id: 'hp', value: -5 } }),
-    ).toEqual({ status: 'failure', rule: 'RULE-ATTRIBUTE-SET-001', reason: 'out-of-range' });
+    ).toEqual({ status: 'failure', rule: 'RULE-ATTRIBUTE-SET-001', reason: 'value-out-of-range' });
   });
 
   it('값이 바뀐 뒤에도 세계는 자기 규칙대로 간다 — hp 를 0 으로 만들면 쓰러진다', () => {

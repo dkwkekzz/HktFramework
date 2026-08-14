@@ -106,5 +106,10 @@
       "kind": "counter",
       "value": 2
     }
-  ]
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false,
+    "mutableAttributes": []
+  }
 }

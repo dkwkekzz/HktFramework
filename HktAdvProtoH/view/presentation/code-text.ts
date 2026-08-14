@@ -17,6 +17,19 @@ const CODE_TEXT: Record<string, string> = {
   attack: '공격',
   mine: '채굴',
   hit: '피격',
+  // 행동 코드 (C007)
+  'heavy-attack': '강공격',
+  downed: '쓰러짐',
+  // 불가 사유 (C007)
+  'insufficient-cp': '기력이 모자란다',
+  // 이동 모드 (C007)
+  walk: '걷기',
+  run: '달리기',
+  // 불가 사유 — 속성 변경 (C007 R2)
+  'debug-closed': '이 세계는 속성 변경을 허용하지 않는다',
+  'unknown-target': '그런 존재가 없다',
+  'unknown-attribute': '그런 속성이 없다',
+  'value-out-of-range': '허용된 범위를 벗어난 값이다',
 };
 
 export function codeText(code: string): string {

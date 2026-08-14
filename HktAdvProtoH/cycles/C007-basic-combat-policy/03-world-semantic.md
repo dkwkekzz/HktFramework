@@ -243,7 +243,7 @@
                        (downed → idle) — 이번 Cycle 에서 쓰러짐을 되돌리는 유일한 길이며,
                        세계의 규칙이 아니라 세계 밖에서 손을 댄 결과다
         Result         Success | Failure(debug-closed | unknown-target |
-                                         unknown-attribute | out-of-range)
+                                         unknown-attribute | value-out-of-range)
         Note           이 Rule 은 값을 바꿀 뿐 새로운 게임 의미를 만들지 않는다.
                        무엇을 위해 바꾸는지(치트·시험·연출)는 이번 Cycle 의 의미가 아니다 —
                        경로 하나만 세운다 (01 EXCLUDED 의 "치트 명령 체계")
@@ -307,7 +307,7 @@
         MutableAttribute 목록 + Range (R2)
                             무엇을 어디까지 바꿀 수 있는지 (INTENT-ATTRIBUTE-MUTATE-001)
         AttributeSet.FailureReason (R2)
-                            debug-closed | unknown-target | unknown-attribute | out-of-range
+                            debug-closed | unknown-target | unknown-attribute | value-out-of-range
 
     관찰되지 않는 것
         없다 (R2). 세계는 어떤 속성도 숨기지 않는다.

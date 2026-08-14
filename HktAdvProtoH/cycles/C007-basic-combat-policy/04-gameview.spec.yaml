@@ -259,7 +259,7 @@ interactions:
       # 어떻게 실을지는 구현 단계가 정한다.
     available: { source: AttributeSet.Availability }      # = World.DebugAuthority.Open
     unavailableReason: { source: AttributeSet.FailureReason }
-      # debug-closed | unknown-target | unknown-attribute | out-of-range
+      # debug-closed | unknown-target | unknown-attribute | value-out-of-range
     meaning:
       - 세계가 권한을 닫아 두면 이 상호작용은 아예 가용하지 않다
       - 바꾼 결과는 다음 관찰에서 그 존재의 속성으로 확인된다

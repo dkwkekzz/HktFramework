@@ -9,7 +9,7 @@
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
 
 import { TRANSPORT_PATH } from '../protocol/transport';
-import { createHud, type EntityLabel } from '../view/hud/hud';
+import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../view/hud/hud';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
 import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
@@ -48,6 +48,8 @@ const EMPTY_SCENE: SceneState = {
   entities: [],
   interactions: [],
   hud: [],
+  strikes: [],
+  worldTime: 0,
 };
 
 let latestScene: SceneState = EMPTY_SCENE;
@@ -65,6 +67,19 @@ let wasKeyMoving = false;
 const DEBUG_OBSERVE_KEY = 'KeyC';
 let debugObserve = false;
 
+// 속성 관찰 (C007 R2 — 04 debugAuthority.inspect) — 세계는 이미 모든 속성을 보내고 있다.
+// 이 토글은 그것을 몸 위에 펼쳐 볼지만 정한다. World 에 아무것도 요청하지 않는다.
+const INSPECT_KEY = 'KeyV';
+let inspect = false;
+
+// 이동 모드 (C007) — 요청은 토글이 아니라 명시값이므로(walk | run),
+// 지금 무엇인지를 보고 반대값을 보낸다. 정하는 것은 세계다.
+const MOVE_MODE_KEYS = ['ShiftLeft', 'ShiftRight'];
+
+// 타격 결과가 화면에 떠 있는 시간 — 세계의 STRIKE_EVENT_TTL 과 같은 값을 볼 필요는 없다.
+// 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
+const STRIKE_FADE_SECONDS = 1.2;
+
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -75,7 +90,9 @@ function frame(now: number): void {
 
   // 화면은 마지막으로 받은 관찰 결과다 (04-gameview.spec.yaml delivery: pushed)
   const snapshot = link.latest();
-  latestScene = snapshot ? resolvePresentation(snapshot, undefined, { debugObserve }) : EMPTY_SCENE;
+  latestScene = snapshot
+    ? resolvePresentation(snapshot, undefined, { debugObserve, inspect })
+    : EMPTY_SCENE;
 
   const terrain = latestScene.interactions.find((i) => i.terrainTarget);
   const self = latestScene.entities.find((e) => e.cameraFollow);
@@ -105,6 +122,20 @@ function frame(now: number): void {
       debugObserve = !debugObserve;
       continue;
     }
+    if (code === INSPECT_KEY) {
+      inspect = !inspect;
+      continue;
+    }
+    // 이동 모드 (C007) — 값을 실어 보내야 하므로 여기서 직접 다룬다.
+    // 세계가 지금 무엇이라고 알려 주었는지를 보고 그 반대를 요청한다.
+    if (MOVE_MODE_KEYS.includes(code)) {
+      const moveMode = latestScene.interactions.find((i) => i.id === 'move-mode');
+      if (moveMode) {
+        const current = latestScene.self?.moveModeCode ?? 'walk';
+        link.send({ interactionId: moveMode.id, mode: current === 'run' ? 'walk' : 'run' });
+      }
+      continue;
+    }
     const keyed = latestScene.interactions.filter((i) => i.key === code);
     const interaction = keyed.find((i) => i.available) ?? keyed[0];
     if (interaction) {
@@ -123,6 +154,29 @@ function frame(now: number): void {
     const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 4.2);
     if (screen) labels.push({ x: screen.x, y: screen.y, text: entity.label });
   }
+
+  // 존재 HUD (C007) — 이름과 생명을 그 몸 위에 붙인다. 어디에 붙일지는 View 의 결정이다.
+  const plates: EntityPlate[] = [];
+  for (const entity of latestScene.entities) {
+    if (!entity.nameplate) continue;
+    const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 5.4);
+    if (!screen) continue;
+    plates.push({
+      x: screen.x,
+      y: screen.y,
+      ...entity.nameplate,
+      ...(entity.inspect ? { inspect: entity.inspect } : {}),
+    });
+  }
+
+  // 타격 결과 (C007) — 맞은 자리에서 떠오르며 옅어진다. 나이는 세계 시각으로 잰다.
+  const strikes: StrikeMark[] = [];
+  for (const strike of latestScene.strikes) {
+    const screen = renderer.worldToScreen(strike.position.x, strike.position.z, 3.0);
+    if (!screen) continue;
+    const age = Math.max(0, Math.min(1, (latestScene.worldTime - strike.since) / STRIKE_FADE_SECONDS));
+    strikes.push({ x: screen.x, y: screen.y, text: strike.text, emphasis: strike.emphasis, age });
+  }
   // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
   // 나머지는 link 가 관찰자 쪽 시계로 잰 것이다.
   const nowMs = Date.now();
@@ -139,6 +193,7 @@ function frame(now: number): void {
         worldAddress: link.address(),
       }),
     ),
+    { plates, strikes },
   );
   requestAnimationFrame(frame);
 }
