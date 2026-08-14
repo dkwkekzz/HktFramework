@@ -83,7 +83,8 @@ export function resolvePresentation(
               : String(e.labelValue)
             : undefined;
       // C007 — 몸 위 기본 표시는 이름과 생명이다. 나머지 속성은 켜야 펼쳐진다.
-      const plate = nameplate(e);
+      // 표지는 그 존재가 그려지는 크기(p.size) 바로 위에 붙는다.
+      const plate = nameplate(e, p.size);
       const inspect = options.inspect ? inspectLines(e) : undefined;
       return {
         id: e.id,
@@ -114,7 +115,13 @@ export function resolvePresentation(
     }),
     // C007 — 자기 자원·능력치·배율은 self 패널이 가져간다 (같은 값을 두 번 그리지 않는다)
     ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
-    strikes: snapshot.strikes.map(strikeMark),
+    // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
+    strikes: snapshot.strikes.map((event) =>
+      strikeMark(
+        event,
+        rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
+      ),
+    ),
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
     hud: snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
       const p = hudPresentation(h.id);

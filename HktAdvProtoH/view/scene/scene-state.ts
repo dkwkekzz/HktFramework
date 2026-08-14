@@ -29,6 +29,11 @@ export interface SceneNameplate {
   healthMaximum: number;
   healthRatio: number; // 0..1 — 막대 길이는 이미 결정 Layer 가 구했다
   downed: boolean; // 참이면 살아 있는 존재와 구분해 그린다
+  /**
+   * 지면에서 이 표지를 띄울 높이 — 그 몸의 캡슐 정수리 바로 위다 (C006 Body.Height 기준).
+   * 몸마다 키가 다르면 표지도 그 키를 따른다.
+   */
+  anchorHeight: number;
 }
 
 export interface SceneEntity {
@@ -52,6 +57,8 @@ export interface SceneStrike {
   text: string; // 표시 문구 (형식화 완료)
   emphasis: boolean; // 고급 스킬의 결과인가 — 크게 그린다
   since: number; // 세계 시각 — 얼마나 지났는지는 capability 가 fade 로 쓴다
+  /** 지면에서 이 숫자가 뜰 높이 — 맞은 몸의 가슴께다 */
+  anchorHeight: number;
 }
 
 // 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,

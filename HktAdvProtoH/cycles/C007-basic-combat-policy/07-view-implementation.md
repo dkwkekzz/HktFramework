@@ -22,6 +22,14 @@
     SceneState.self · strikes · worldTime      같은 파일
     HudOverlays(plates · strikes)              view/hud/hud.ts — 화면 좌표 투영은 조립 루트가 한다
 
+    표지를 띄우는 높이 (R1 — Human 관찰 반영)
+      nameplate.anchorHeight = 그 존재의 그림 크기 + 0.15
+                               (player-character 3.4 → 3.55 · npc-character 2.8 → 2.95)
+      strike.anchorHeight    = 맞은 몸의 그림 크기 × 0.55 (가슴께에서 떠오른다)
+      기준은 물리 몸(캡슐 높이 1.7)이 아니라 실제로 그려지는 그림이다 —
+      캡슐은 충돌 판정의 부피이고, 표지가 붙어야 하는 것은 눈에 보이는 그림이다.
+      조립 루트는 이 값을 그대로 투영에 쓴다 (고정 상수 5.4 / 3.0 을 쓰지 않는다).
+
 ## ASSET MAPPING
     없음 — 새 그림을 더하지 않았다.
     존재 HUD·타격 숫자·자기 정보는 전부 DOM 표시이며 index.html 의 스타일이 그린다.

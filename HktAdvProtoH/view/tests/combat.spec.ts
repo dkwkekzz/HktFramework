@@ -19,6 +19,7 @@ describe('entityHud — 이름과 생명은 그 몸 위에 늘 붙는다', () =>
       healthMaximum: 200,
       healthRatio: 0.75,
       downed: false,
+      anchorHeight: 3.55, // player-character 그림 크기 3.4 + 여백
     });
     expect(entity('npc-1')?.nameplate?.name).toBe('Wanderer 1');
     expect(entity('npc-1')?.nameplate?.healthRatio).toBeCloseTo(65 / 120, 5);
@@ -27,6 +28,19 @@ describe('entityHud — 이름과 생명은 그 몸 위에 늘 붙는다', () =>
   it('쓰러진 존재는 그 사실이 표지에 실린다 — 살아 있는 존재와 구분된다', () => {
     expect(entity('npc-2')?.nameplate).toMatchObject({ downed: true, health: 0, healthRatio: 0 });
     expect(entity('npc-1')?.nameplate?.downed).toBe(false);
+  });
+
+  it('표지는 그 존재의 그림 바로 위에 붙는다 — 그림이 작으면 표지도 낮다', () => {
+    // player-character 3.4 · npc-character 2.8 (role-presentation 의 size)
+    expect(entity('player-1')?.nameplate?.anchorHeight).toBeCloseTo(3.55, 5);
+    expect(entity('npc-1')?.nameplate?.anchorHeight).toBeCloseTo(2.95, 5);
+  });
+
+  it('타격 숫자는 맞은 몸의 그림 한가운데쯤에서 떠오른다', () => {
+    const strikes = plan().strikes;
+    // npc-1 이 맞은 것 (그림 2.8) / player-1 이 맞은 것 (그림 3.4)
+    expect(strikes[0]?.anchorHeight).toBeCloseTo(2.8 * 0.55, 5);
+    expect(strikes[1]?.anchorHeight).toBeCloseTo(3.4 * 0.55, 5);
   });
 
   it('표지는 관찰자의 선택이 아니다 — 토글 없이 언제나 실린다', () => {

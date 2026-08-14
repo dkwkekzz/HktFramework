@@ -155,11 +155,16 @@ function frame(now: number): void {
     if (screen) labels.push({ x: screen.x, y: screen.y, text: entity.label });
   }
 
-  // 존재 HUD (C007) — 이름과 생명을 그 몸 위에 붙인다. 어디에 붙일지는 View 의 결정이다.
+  // 존재 HUD (C007) — 이름과 생명을 그 몸 위에 붙인다.
+  // 얼마나 띄울지는 결정 Layer 가 그 존재의 그림 크기로 정해 두었다 (nameplate.anchorHeight).
   const plates: EntityPlate[] = [];
   for (const entity of latestScene.entities) {
     if (!entity.nameplate) continue;
-    const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 5.4);
+    const screen = renderer.worldToScreen(
+      entity.position.x,
+      entity.position.z,
+      entity.nameplate.anchorHeight,
+    );
     if (!screen) continue;
     plates.push({
       x: screen.x,
@@ -172,7 +177,11 @@ function frame(now: number): void {
   // 타격 결과 (C007) — 맞은 자리에서 떠오르며 옅어진다. 나이는 세계 시각으로 잰다.
   const strikes: StrikeMark[] = [];
   for (const strike of latestScene.strikes) {
-    const screen = renderer.worldToScreen(strike.position.x, strike.position.z, 3.0);
+    const screen = renderer.worldToScreen(
+      strike.position.x,
+      strike.position.z,
+      strike.anchorHeight,
+    );
     if (!screen) continue;
     const age = Math.max(0, Math.min(1, (latestScene.worldTime - strike.since) / STRIKE_FADE_SECONDS));
     strikes.push({ x: screen.x, y: screen.y, text: strike.text, emphasis: strike.emphasis, age });

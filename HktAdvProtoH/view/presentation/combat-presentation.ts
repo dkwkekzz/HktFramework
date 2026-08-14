@@ -10,8 +10,18 @@ import type { EntityView, GameViewSnapshot, StrikeEventView } from '../../protoc
 import type { SceneNameplate, SceneSelf, SceneStrike } from '../scene/scene-state';
 import { codeText } from './code-text';
 
+// 표지는 그 몸의 그림 바로 위에 붙는다 — 떨어져 있으면 누구의 것인지 읽히지 않는다.
+// 기준은 물리 몸(캡슐 높이 1.7)이 아니라 실제로 그려지는 그림의 크기다.
+// 그림이 큰 존재는 표지도 그만큼 위로 간다.
+const PLATE_MARGIN = 0.15;
+// 타격 숫자는 맞은 자리 — 그림 한가운데쯤에서 떠오른다.
+const STRIKE_ANCHOR_RATIO = 0.55;
+// 그림 크기를 모르는 경우의 기준 (role-presentation 의 기본 크기)
+const DEFAULT_SPRITE_SIZE = 2.5;
+
 // 몸 위 기본 표시 — 이름과 생명뿐이다 (04 entityHud.shows).
-export function nameplate(entity: EntityView): SceneNameplate | undefined {
+// spriteSize 는 그 존재가 그려지는 크기 (결정 Layer 가 role 로 정한 값).
+export function nameplate(entity: EntityView, spriteSize: number): SceneNameplate | undefined {
   if (!entity.vitality || entity.name === undefined) return undefined;
   const { health, healthMaximum, downed } = entity.vitality;
   return {
@@ -20,6 +30,7 @@ export function nameplate(entity: EntityView): SceneNameplate | undefined {
     healthMaximum: Math.round(healthMaximum),
     healthRatio: healthMaximum > 0 ? Math.max(0, Math.min(1, health / healthMaximum)) : 0,
     downed,
+    anchorHeight: spriteSize + PLATE_MARGIN,
   };
 }
 
@@ -41,13 +52,15 @@ export function inspectLines(entity: EntityView): string[] | undefined {
 }
 
 // 타격 결과 — 얼마가 깎였는지 숫자로 읽힌다. 고급 스킬의 결과는 크게 그린다.
-export function strikeMark(event: StrikeEventView): SceneStrike {
+// 맞은 몸의 그림 크기를 알면 그 몸에서 떠오르게 한다 (모르면 기준값).
+export function strikeMark(event: StrikeEventView, targetSpriteSize?: number): SceneStrike {
   return {
     id: `${event.attackerId}->${event.targetId}@${event.since}`,
     position: event.at,
     text: `-${Math.round(event.amount)}`,
     emphasis: event.skill === 'heavy-attack',
     since: event.since,
+    anchorHeight: (targetSpriteSize ?? DEFAULT_SPRITE_SIZE) * STRIKE_ANCHOR_RATIO,
   };
 }
 
