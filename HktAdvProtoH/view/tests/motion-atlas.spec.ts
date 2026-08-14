@@ -22,8 +22,11 @@ function detect(path: string, cols: number, rows: number) {
 }
 
 describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () => {
+  // move 는 예전에 1·2행이 맞닿아 있어 최소값(18px)에서 자를 수밖에 없었다.
+  // 행 사이에 빈 줄이 있는 시트로 갈아 끼워 지금은 넷 다 관통 0px 이다.
   const clean = [
     'motions/rabbit-swordsman/idle.3x3.9f.8fps.png',
+    'motions/rabbit-swordsman/move.3x3.9f.8fps.png',
     'motions/rabbit-swordsman/attack.3x3.9f.12fps.png',
     'motions/rabbit-swordsman/hit.3x3.9f.12fps.png',
   ];
@@ -34,14 +37,11 @@ describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () =
     });
   }
 
-  it('move 는 1·2행이 맞닿아 있어 완전히 나눌 수 없다 — 경고로 고정한다', () => {
-    // 이 시트는 행 사이에 빈 줄이 아예 없다. 어떤 슬라이서도 0 으로 만들 수 없으므로
-    // 균등 분할이 남기던 106px 대신 최소값(18px)에서 자르고, 데이터 결함으로 알린다.
-    const detected = detect('motions/rabbit-swordsman/move.3x3.9f.8fps.png', 3, 3);
-
-    expect(detected.bleed).toHaveLength(1);
-    expect(detected.bleed[0]).toMatchObject({ axis: 'y', ink: 18 });
-    expect(detected.method.y).toBe('valley');
+  it('모든 시트가 빈 줄로 잘린다 — valley 로 물러선 시트가 없다', () => {
+    for (const path of clean) {
+      const { method } = detect(path, 3, 3);
+      expect([method.x, method.y], path).toEqual(['gutter', 'gutter']);
+    }
   });
 
   it('균등 분할이었다면 관통했을 자리를 실제로 피해 간다', () => {

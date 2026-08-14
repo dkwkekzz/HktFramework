@@ -86,12 +86,14 @@ motions/**/*.png  ──▶  tools/motion-atlas  ──▶  view/motion/motion-a
 
 ```text
   OK rabbit-swordsman/attack   1254x1254  격자 3x3  절단 gutter/gutter  …
-  !! rabbit-swordsman/move     1254x1254  격자 3x3  절단 gutter/valley  …
+  !! some-kind/some-action     1254x1254  격자 3x3  절단 gutter/valley  …
       경고: 절단선 y=814 위에 잉크 18px — 프레임끼리 맞닿아 있다. 시트 재추출 권장
 ```
 
 경고가 뜨면 **그 시트를 다시 내보내야 한다.** 칸 사이에 빈 줄을 두고 내보내면 사라진다.
 코드로는 고칠 수 없는 문제다 — 두 프레임의 그림이 실제로 붙어 있기 때문이다.
+
+지금 들어 있는 8장은 모두 `OK` 다 — 위 `!!` 줄은 형식을 보여 주는 예시일 뿐이다.
 
 검출이 안 되는 파일(예: `.webp`)은 예전처럼 균등 분할로 그려지고, 그 사실이 보고에 남는다.
 게임은 어느 쪽이든 멈추지 않는다.

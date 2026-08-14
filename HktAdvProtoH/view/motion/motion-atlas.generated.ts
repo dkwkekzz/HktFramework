@@ -9,7 +9,7 @@
 import type { MotionAtlas } from './motion-geometry';
 
 /** 분석에 쓰인 motions/ 내용 지문 — 값이 다르면 다시 만들어야 한다 */
-export const MOTION_ATLAS_INPUT_HASH = "eaee0ba8632f97b9";
+export const MOTION_ATLAS_INPUT_HASH = "6889f5e1440da666";
 
 export const MOTION_ATLAS: MotionAtlas = {
   "/motions/rabbit-swordsman/attack.3x3.9f.12fps.png": {
@@ -67,24 +67,22 @@ export const MOTION_ATLAS: MotionAtlas = {
     warnings: [],
   },
   "/motions/rabbit-swordsman/move.3x3.9f.8fps.png": {
-    sheet: [1254, 1254],
+    sheet: [1282, 1227],
     cols: 3,
     rows: 3,
-    refHeightPx: 406,
+    refHeightPx: 388,
     frames: [
-      { rect: [26, 11, 384, 405], content: [26, 18, 365, 395], anchor: [0.49262, 0] },
-      { rect: [410, 11, 412, 405], content: [432, 12, 375, 400], anchor: [0.49312, 0] },
-      { rect: [822, 11, 399, 405], content: [838, 11, 383, 402], anchor: [0.4929, 0] },
-      { rect: [26, 416, 384, 398], content: [35, 419, 361, 395], anchor: [0.49262, 0] },
-      { rect: [410, 416, 412, 398], content: [420, 424, 375, 387], anchor: [0.49312, 0] },
-      { rect: [822, 416, 399, 398], content: [837, 420, 377, 391], anchor: [0.4929, 0] },
-      { rect: [26, 814, 384, 407], content: [38, 814, 370, 403], anchor: [0.49262, 0] },
-      { rect: [410, 814, 412, 407], content: [413, 815, 356, 406], anchor: [0.49312, 0] },
-      { rect: [822, 814, 399, 407], content: [840, 815, 362, 405], anchor: [0.4929, 0] },
+      { rect: [10, 10, 382, 395], content: [30, 11, 323, 384], anchor: [0.51033, 0] },
+      { rect: [392, 10, 422, 395], content: [441, 10, 337, 385], anchor: [0.50935, 0] },
+      { rect: [814, 10, 394, 395], content: [861, 10, 341, 388], anchor: [0.51001, 0] },
+      { rect: [10, 405, 382, 396], content: [10, 412, 340, 378], anchor: [0.51033, 0] },
+      { rect: [392, 405, 422, 396], content: [445, 413, 328, 377], anchor: [0.50935, 0] },
+      { rect: [814, 405, 394, 396], content: [851, 415, 350, 368], anchor: [0.51001, 0] },
+      { rect: [10, 801, 382, 395], content: [16, 812, 333, 376], anchor: [0.51033, 0] },
+      { rect: [392, 801, 422, 395], content: [431, 815, 347, 364], anchor: [0.50935, 0] },
+      { rect: [814, 801, 394, 395], content: [884, 812, 324, 384], anchor: [0.51001, 0] },
     ],
-    warnings: [
-      "절단선 y=814 위에 잉크 18px — 프레임끼리 맞닿아 있다. 시트 재추출 권장",
-    ],
+    warnings: [],
   },
   "/motions/wanderer/attack.3x3.9f.12fps.png": {
     sheet: [1254, 1254],
@@ -141,23 +139,21 @@ export const MOTION_ATLAS: MotionAtlas = {
     warnings: [],
   },
   "/motions/wanderer/move.3x3.9f.8fps.png": {
-    sheet: [1254, 1254],
+    sheet: [1282, 1227],
     cols: 3,
     rows: 3,
-    refHeightPx: 406,
+    refHeightPx: 388,
     frames: [
-      { rect: [26, 11, 384, 405], content: [26, 18, 365, 395], anchor: [0.49262, 0] },
-      { rect: [410, 11, 412, 405], content: [432, 12, 375, 400], anchor: [0.49312, 0] },
-      { rect: [822, 11, 399, 405], content: [838, 11, 383, 402], anchor: [0.4929, 0] },
-      { rect: [26, 416, 384, 398], content: [35, 419, 361, 395], anchor: [0.49262, 0] },
-      { rect: [410, 416, 412, 398], content: [420, 424, 375, 387], anchor: [0.49312, 0] },
-      { rect: [822, 416, 399, 398], content: [837, 420, 377, 391], anchor: [0.4929, 0] },
-      { rect: [26, 814, 384, 407], content: [38, 814, 370, 403], anchor: [0.49262, 0] },
-      { rect: [410, 814, 412, 407], content: [413, 815, 356, 406], anchor: [0.49312, 0] },
-      { rect: [822, 814, 399, 407], content: [840, 815, 362, 405], anchor: [0.4929, 0] },
+      { rect: [10, 10, 382, 395], content: [30, 11, 323, 384], anchor: [0.51033, 0] },
+      { rect: [392, 10, 422, 395], content: [441, 10, 337, 385], anchor: [0.50935, 0] },
+      { rect: [814, 10, 394, 395], content: [861, 10, 341, 388], anchor: [0.51001, 0] },
+      { rect: [10, 405, 382, 396], content: [10, 412, 340, 378], anchor: [0.51033, 0] },
+      { rect: [392, 405, 422, 396], content: [445, 413, 328, 377], anchor: [0.50935, 0] },
+      { rect: [814, 405, 394, 396], content: [851, 415, 350, 368], anchor: [0.51001, 0] },
+      { rect: [10, 801, 382, 395], content: [16, 812, 333, 376], anchor: [0.51033, 0] },
+      { rect: [392, 801, 422, 395], content: [431, 815, 347, 364], anchor: [0.50935, 0] },
+      { rect: [814, 801, 394, 395], content: [884, 812, 324, 384], anchor: [0.51001, 0] },
     ],
-    warnings: [
-      "절단선 y=814 위에 잉크 18px — 프레임끼리 맞닿아 있다. 시트 재추출 권장",
-    ],
+    warnings: [],
   },
 };
