@@ -2,8 +2,8 @@
 
 [PASS] Cycle Definition
 [PASS] Intent                    (BOUNDARY 질문 해소 — 원본 기준 방향은 그림의 성질)
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] World Semantic            (WORLD CHANGE: NONE — 전부 REUSED 로 닫힘)
+[PASS] GameView Specification    (viewpoint · facing 읽는 법 · spriteOrientation ADDED)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
