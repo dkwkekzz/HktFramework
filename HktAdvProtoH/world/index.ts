@@ -5,12 +5,9 @@
 
 import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
-import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
-import { BODY_MASS, bodySize, DEFAULT_FACING } from './semantic/collision';
-import { combatProfile } from './semantic/combat';
-import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
+import { spawnActor } from './semantic/spawn';
 import { DEFAULT_BODY, type BodyDefaults } from './rules/observer-join';
 import {
   ruleWorldTick,
@@ -18,14 +15,7 @@ import {
   type PendingRequest,
   type WorldTickResult,
 } from './simulation/world-tick';
-import {
-  ATTACK_RANGE,
-  NPC_MOVE_SPEED,
-  PERCEPTION_RANGE,
-  SPAWN_POINTS,
-  WORLD_BOUNDS,
-  type WorldState,
-} from './semantic/world-state';
+import { SPAWN_POINTS, WORLD_BOUNDS, type WorldState } from './semantic/world-state';
 
 // C003 CHANGED — 세계는 요청을 "받아 두고" 자기 Tick 에 판정한다.
 // C004 CHANGED — 관찰자가 누구인지 세계가 알아야 하므로 참여/이탈이 경계에 생겼고,
@@ -99,38 +89,19 @@ const DEFAULT_NPCS: NpcSetup[] = [
 export function createWorld(setup: WorldSetup = {}): World {
   // C004 CHANGED — 세계가 시작할 때 조종되는 몸은 없다.
   // 몸은 관찰자가 들어올 때 RULE-OBSERVER-JOIN-001 이 만든다.
-  const npcs: ActorState[] = (setup.npcs ?? DEFAULT_NPCS).map((npc, ordinal) => {
-    const kind = npc.characterKind ?? 'wanderer';
-    // C007 — 자율 존재도 자기 종류의 자원·템포 능력치를 갖는다. 이름은 종류 + 순번이다.
-    const profile = combatProfile(kind);
-    const size = bodySize(kind); // 몸 크기는 종류가 정한다 (C006 R2)
-    return {
+  // C007 — 자율 존재도 자기 종류의 자원·템포 능력치를 갖는다 (character-catalog).
+  // 이름은 종류 + 순번이다.
+  const npcs: ActorState[] = (setup.npcs ?? DEFAULT_NPCS).map((npc, ordinal) =>
+    spawnActor({
       id: npc.id,
       name: npc.name ?? `Wanderer ${ordinal + 1}`,
-      characterKind: kind,
-      control: 'autonomous' as const,
-      position: { x: npc.position.x, z: npc.position.z },
-      bodyRadius: size.radius,
-      bodyHeight: size.height,
-      bodyMass: BODY_MASS,
-      facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
-      velocity: { x: 0, z: 0 },
-      hp: profile.hpMax,
-      hpMax: profile.hpMax,
-      cp: profile.cpStart,
-      cpMax: profile.cpMax,
-      moveMode: 'walk' as const,
-      moveSpeed: profile.moveSpeed,
-      runSpeedMultiplier: profile.runSpeedMultiplier,
-      actionSpeed: profile.actionSpeed,
-      attackRange: ATTACK_RANGE,
-      perceptionRange: npc.perceptionRange ?? PERCEPTION_RANGE,
-      wanderPath: (npc.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
-      wanderIndex: 0,
-      inventory: createInventory(),
-      currentAction: idleAction(),
-    };
-  });
+      characterKind: npc.characterKind ?? 'wanderer',
+      control: 'autonomous',
+      position: npc.position,
+      wanderPath: npc.wanderPath,
+      ...(npc.perceptionRange === undefined ? {} : { perceptionRange: npc.perceptionRange }),
+    }),
+  );
 
   const state: WorldState = {
     bounds: WORLD_BOUNDS,

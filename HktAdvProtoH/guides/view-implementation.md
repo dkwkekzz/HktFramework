@@ -74,7 +74,13 @@ Capability Layer          renderer/hud/input — 그리기 능력만 제공, 의
 `presentation/` 의 같은 항목을 공유·발전시키며, Cycle 별로 결정 코드를 분리하거나
 중복하지 않는다. 새 Cycle 의 View 작업은:
 
-1. **결정 항목 추가** — 새 role/interaction/HUD id/사유의 presentation 항목 + Asset 등록
+1. **결정 항목 추가** — 새 role/interaction/HUD id/사유의 presentation 항목 + Asset 등록.
+   종(kind)이 정하는 표현(그림 기준 방향 등)은 `presentation/kind-presentation.ts` 의
+   kind 항목으로만, 역할(role)이 정하는 표현(카메라·라벨·자리 비움 등)은
+   `presentation/role-presentation.ts` 로만 — 종과 역할을 섞지 않는다.
+   그림 자체는 `motions/<kind>/<action>.<격자>.<프레임>.<fps>.png` 파일 규약이
+   자동 발견한다 (motions/README.md) — 등록 코드를 만들지 않는다.
+   현재 등록 전체는 `npm run catalog` 로 관찰한다 (kind 정적 데이터 3원소 — CLAUDE.md).
 2. **표현이 고도화될 때만 capability 추가** — 예: sprite animation 이 필요해지면
    그 능력을 더하고, 기존 능력으로 그리던 것들의 코드는 수정하지 않는다.
 

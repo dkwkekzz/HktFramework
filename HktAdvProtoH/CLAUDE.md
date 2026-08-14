@@ -47,6 +47,12 @@ Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙
 15. 최종 완료 조건은 코드 작성이 아니라 실제 Cycle Goal 의 플레이 가능성이다.
 ```
 
+## Kind 정적 데이터
+
+존재 종류(CharacterKind)의 정적 데이터는 3원소(world 카탈로그 · view kind 표현 · `motions/<kind>/`)에만
+둔다. 세부 규칙은 각 Stage Guide(World / View Implementation · Verification)가 담당한다.
+관찰·정합 검사: `npm run catalog` / `npm run catalog:check`.
+
 ## 막혔을 때
 
 이전 단계에서 확정된 의미를 임의로 바꾸거나 없는 의미를 만들어내지 않는다.

@@ -18,6 +18,8 @@
 4. **View Binding** — Fixture 만으로 View 가 그 의미를 표현하는가.
 5. **Playable** — Server + Client 를 연결해 Cycle Goal 을 실제로 달성한다.
 6. **Regression** — `03-world-semantic.md` 의 AFFECTED 항목과 과거 Cycle Scenario 를 재실행한다.
+7. **Catalog** — 이번 Cycle 이 존재 종류를 추가·변경했으면 `npm run catalog:check` 로
+   kind 정적 데이터 3원소(world·view·motions)의 정합을 확인한다.
 
 ## Output
 

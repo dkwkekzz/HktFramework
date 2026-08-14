@@ -27,15 +27,8 @@ export interface WorldState {
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계
 export const INTERACTION_RANGE = 2.0;
 
-// Actor.MoveSpeed — RULE-MOVE-PROGRESS-001 의 이동 속도 (unit/sec)
-export const MOVE_SPEED = 6.0;
-export const NPC_MOVE_SPEED = 2.5; // 자율 Actor 는 더 느리게 움직인다 — 행동 관찰이 목적
-
-// Actor.AttackRange — RULE-ATTACK-001 Precondition 2 의 거리 한계
-export const ATTACK_RANGE = 2.0;
-
-// Actor.PerceptionRange — RULE-NPC-DECIDE-001 의 인지 거리
-export const PERCEPTION_RANGE = 9.0;
+// Actor.MoveSpeed · AttackRange · PerceptionRange 는 종류가 정하는 값이다 —
+// character-catalog.ts 가 단일 출처다 (구 MOVE_SPEED/NPC_MOVE_SPEED/ATTACK_RANGE/PERCEPTION_RANGE).
 
 // World.Bounds — RULE-MOVE-001 Precondition 의 도달 가능 영역
 export const WORLD_BOUNDS: WorldBounds = { minX: -20, maxX: 20, minZ: -20, maxZ: 20 };

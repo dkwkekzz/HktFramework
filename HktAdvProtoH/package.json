@@ -9,6 +9,8 @@
     "build": "tsc --noEmit && vite build",
     "motions:scan": "tsx tools/motion-atlas/scan.ts",
     "motions:check": "tsx tools/motion-atlas/scan.ts --check",
+    "catalog": "tsx tools/catalog/print.ts",
+    "catalog:check": "tsx tools/catalog/print.ts --check",
     "test": "vitest run"
   },
   "dependencies": {

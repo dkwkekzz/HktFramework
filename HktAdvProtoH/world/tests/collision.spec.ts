@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { BODY_MASS, bodySize, DEFAULT_FACING } from '../semantic/collision';
+import { characterDefinition } from '../semantic/character-catalog';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
@@ -42,12 +42,13 @@ describe('INTENT-BODY-OCCUPY-001 — 모든 몸은 부피로 공간을 차지하
       { id: 'npc-1', kind: 'wanderer' },
     ];
     for (const { id, kind } of cases) {
+      const def = characterDefinition(kind);
       const body = actor(world.observe(), id)?.body;
       expect(body).toEqual({
-        radius: bodySize(kind).radius,
-        height: bodySize(kind).height,
-        mass: BODY_MASS,
-        facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
+        radius: def.body.radius,
+        height: def.body.height,
+        mass: def.body.mass,
+        facing: { x: def.facing.x, z: def.facing.z },
         velocity: { x: 0, z: 0 },
       });
     }
@@ -69,14 +70,14 @@ describe('RULE-BODY-PUSH-001 — 겹친 몸은 서로 밀어낸다', () => {
       npcs: [bodyAt(0.2, 0, 'npc-1'), bodyAt(-0.2, 0, 'npc-2')],
     });
     const before = distanceBetween(world.observe(), 'npc-1', 'npc-2');
-    expect(before).toBeLessThan(2 * bodySize('wanderer').radius); // 겹쳐 있다
+    expect(before).toBeLessThan(2 * characterDefinition('wanderer').body.radius); // 겹쳐 있다
 
     tickFor(world, 1.5);
 
     const view = world.observe();
     const after = distanceBetween(view, 'npc-1', 'npc-2');
     expect(after).toBeGreaterThan(before);
-    expect(after).toBeGreaterThanOrEqual(2 * bodySize('wanderer').radius - 0.05); // 겹침이 거의 풀렸다
+    expect(after).toBeGreaterThanOrEqual(2 * characterDefinition('wanderer').body.radius - 0.05); // 겹침이 거의 풀렸다
     // 서로 반대 방향 — npc-1 은 +x, npc-2 는 -x
     expect(actor(view, 'npc-1')!.position.x).toBeGreaterThan(0.2);
     expect(actor(view, 'npc-2')!.position.x).toBeLessThan(-0.2);
@@ -119,7 +120,7 @@ describe('RULE-BODY-PUSH-001 — 겹친 몸은 서로 밀어낸다', () => {
     tickFor(world, 2.0); // 도착(0.5초) 후 밀어냄이 겹침을 푼다
 
     const view = world.observe();
-    const contact = bodySize('rabbit-swordsman').radius + bodySize('wanderer').radius;
+    const contact = characterDefinition('rabbit-swordsman').body.radius + characterDefinition('wanderer').body.radius;
     expect(distanceBetween(view, PLAYER, 'npc-1')).toBeGreaterThanOrEqual(contact - 0.05);
   });
 });

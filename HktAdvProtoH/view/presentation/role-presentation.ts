@@ -19,7 +19,9 @@ export interface RolePresentation {
   unattendedLabel?: string;
 }
 
-const ROLES: Record<string, RolePresentation> = {
+// 역할별 표현 결정 — 종(kind)이 정하는 표현은 kind-presentation.ts 가 맡는다.
+// 전체는 `npm run catalog` 로 한눈에 관찰한다 (tools/catalog).
+export const ROLE_PRESENTATIONS: Readonly<Record<string, RolePresentation>> = {
   'player-character': { sprite: 'player-pickaxe', size: 3.4, cameraFollow: true, trail: true },
   // 다른 관찰자의 몸 (C004) — 내 몸과 같은 시트를 쓰되 색으로 구분한다.
   // 카메라는 따라가지 않는다. 카메라가 따라가는 것은 내 몸 하나뿐이다.
@@ -37,6 +39,9 @@ const ROLES: Record<string, RolePresentation> = {
   'resource-deposit': { sprite: 'stone-deposit', size: 3.4, labelFormat: (v) => `돌 ${v}` },
 };
 
+// 미등록 role 의 기본 결정 — sprite 키는 role 그대로 (Asset placeholder 로 폴백)
+export const DEFAULT_ROLE_SIZE = 2.5;
+
 export function rolePresentation(role: string): RolePresentation {
-  return ROLES[role] ?? { sprite: role, size: 2.5 }; // 기본 결정 — sprite 키는 role 그대로
+  return ROLE_PRESENTATIONS[role] ?? { sprite: role, size: DEFAULT_ROLE_SIZE };
 }

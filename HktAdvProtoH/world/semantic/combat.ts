@@ -6,7 +6,7 @@
 // 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
 
 import type { ActionKind } from './action';
-import type { ActorState, CharacterKind } from './actor';
+import type { ActorState } from './actor';
 import type { WorldPosition } from './position';
 
 // Actor.MoveMode — 걷는가 달리는가 (INTENT-RUN-001)
@@ -37,45 +37,8 @@ export function skillDefinition(kind: SkillKind): SkillDefinition {
   return SKILL_DEFINITIONS[kind];
 }
 
-// CharacterKind 가 정하는 자원·템포 능력치 (COMBAT_PROFILES).
-export interface CombatProfile {
-  hpMax: number;
-  cpMax: number;
-  cpStart: number;
-  moveSpeed: number; // TempoStats.MoveSpeed — C001 상수의 승격
-  runSpeedMultiplier: number;
-  actionSpeed: number;
-}
-
-// 기본 스킬 20 · 고급 스킬 55 를 기준으로 —
-//   자율 존재(120)는 기본 6대 또는 고급 2대 + 기본 1대에 쓰러진다.
-//   관찰자의 몸(200)은 자율 존재의 기본 스킬 10대를 견딘다.
-//   고급 스킬(소모 30, 충전 8)은 기본 스킬 3대(충전 36)를 모아야 한 번 나간다.
-export const COMBAT_PROFILES: Readonly<Record<string, CombatProfile>> = {
-  'rabbit-swordsman': {
-    hpMax: 200,
-    cpMax: 100,
-    cpStart: 30,
-    moveSpeed: 6.0,
-    runSpeedMultiplier: 1.8,
-    actionSpeed: 1.0,
-  },
-  wanderer: {
-    hpMax: 120,
-    cpMax: 60,
-    cpStart: 20,
-    moveSpeed: 2.5,
-    runSpeedMultiplier: 1.4,
-    actionSpeed: 0.85,
-  },
-};
-
-// 모르는 종류의 존재도 세계에 놓일 수 있어야 한다 — 자원 없는 몸을 만들지 않는다.
-export const DEFAULT_COMBAT_PROFILE: CombatProfile = COMBAT_PROFILES['wanderer']!;
-
-export function combatProfile(kind: CharacterKind): CombatProfile {
-  return COMBAT_PROFILES[kind] ?? DEFAULT_COMBAT_PROFILE;
-}
+// CharacterKind 가 정하는 자원·템포 능력치(구 COMBAT_PROFILES)는
+// character-catalog.ts 로 옮겨졌다 — 종류가 정하는 값의 단일 출처는 그쪽이다.
 
 // RULE-CP-RUN-DRAIN-001 — 달리는 동안 초당 흘러나가는 기력
 export const RUN_CP_DRAIN = 6.0;

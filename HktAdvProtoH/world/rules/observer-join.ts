@@ -12,21 +12,12 @@
 
 import type { ActionResult } from '../../protocol/actions';
 import { RULE_OBSERVER_JOIN } from '../../protocol/semantic-id';
-import { idleAction } from '../semantic/action';
-import type { ActorState, CharacterKind } from '../semantic/actor';
-import { BODY_MASS, bodySize, DEFAULT_FACING } from '../semantic/collision';
-import { combatProfile } from '../semantic/combat';
+import type { CharacterKind } from '../semantic/actor';
 import { createInventory } from '../semantic/inventory';
 import { MAX_OBSERVER_ID_LENGTH } from '../semantic/observer';
 import type { WorldPosition } from '../semantic/position';
-import {
-  ATTACK_RANGE,
-  findObserver,
-  MOVE_SPEED,
-  PERCEPTION_RANGE,
-  SPAWN_POINTS,
-  type WorldState,
-} from '../semantic/world-state';
+import { spawnActor } from '../semantic/spawn';
+import { findObserver, SPAWN_POINTS, type WorldState } from '../semantic/world-state';
 
 // 관찰자의 몸이 처음 만들어질 때의 기본값 — 세계의 초기 설정이다 (DEFAULT_NPCS 와 같은 성격).
 export interface BodyDefaults {
@@ -73,37 +64,16 @@ export function ruleObserverJoin(
   const spawn =
     defaults.spawnPoints[ordinal % defaults.spawnPoints.length] ?? SPAWN_POINTS[0]!;
 
-  // C007 — 새 몸은 자기 종류의 자원·템포 능력치를 갖는다 (COMBAT_PROFILES).
+  // C007 — 새 몸은 자기 종류의 자원·템포 능력치를 갖는다 (character-catalog).
   // 이름도 세계가 순번으로 정한다 — 관찰자가 밝힌 Id 를 이름에 섞지 않는다는 원칙 그대로다.
-  const profile = combatProfile(defaults.characterKind);
-  const size = bodySize(defaults.characterKind); // 몸 크기는 종류가 정한다 (C006 R2)
-
-  const body: ActorState = {
+  const body = spawnActor({
     id: `player-${ordinal + 1}`,
     name: `Player ${ordinal + 1}`,
     characterKind: defaults.characterKind,
     control: 'player',
     position: { x: spawn.x, z: spawn.z },
-    bodyRadius: size.radius,
-    bodyHeight: size.height,
-    bodyMass: BODY_MASS,
-    facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
-    velocity: { x: 0, z: 0 },
-    hp: profile.hpMax,
-    hpMax: profile.hpMax,
-    cp: profile.cpStart,
-    cpMax: profile.cpMax,
-    moveMode: 'walk',
-    moveSpeed: profile.moveSpeed,
-    runSpeedMultiplier: profile.runSpeedMultiplier,
-    actionSpeed: profile.actionSpeed,
-    attackRange: ATTACK_RANGE,
-    perceptionRange: PERCEPTION_RANGE,
-    wanderPath: [],
-    wanderIndex: 0,
     inventory: createInventory(defaults.items),
-    currentAction: idleAction(),
-  };
+  });
 
   state.actors.push(body);
   // AcknowledgedMark 는 0 에서 시작한다 (C005) — 아직 이 관찰자에게서 받은 표식이 없다.
