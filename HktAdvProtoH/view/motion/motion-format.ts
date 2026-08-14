@@ -20,6 +20,7 @@ export interface MotionAsset {
   characterKind: string;
   action: string;
   url: string;
+  path: string; // motions/ 기준 원본 경로 — 정적 분석 결과(MOTION_ATLAS)를 찾는 키다
   cols: number;
   rows: number;
   frames: number;
@@ -91,6 +92,7 @@ export function parseMotionPath(path: string, url: string): MotionAsset | null {
     characterKind,
     action,
     url,
+    path,
     cols,
     rows,
     frames,

@@ -10,5 +10,5 @@
     "skipLibCheck": true,
     "types": ["vite/client", "node"]
   },
-  "include": ["protocol", "world", "view", "app", "server", "vite.config.ts"]
+  "include": ["protocol", "world", "view", "app", "server", "tools", "vite.config.ts"]
 }
