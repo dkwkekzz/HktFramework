@@ -1,0 +1,43 @@
+{
+  "specId": "VIEW-BASIC-COLLISION-001",
+  "scene": "mining-field",
+  "observer": { "id": "observer-1", "characterId": "player-1", "acknowledgedMark": 3 },
+  "entities": [
+    {
+      "id": "player-1",
+      "role": "player-character",
+      "state": "attack",
+      "kind": "rabbit-swordsman",
+      "position": { "x": 0, "z": 0 },
+      "progress": 0.5,
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": { "x": 1, "z": 0 },
+        "velocity": { "x": 0, "z": 0 }
+      },
+      "swing": { "center": { "x": 1.3, "z": 0 }, "radius": 0.7, "active": true, "struck": ["npc-1"] }
+    },
+    {
+      "id": "npc-1",
+      "role": "npc-character",
+      "state": "hit",
+      "kind": "wanderer",
+      "position": { "x": 1.4, "z": 0 },
+      "progress": 0.2,
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": { "x": 0, "z": 1 },
+        "velocity": { "x": 6.4, "z": 0 }
+      }
+    }
+  ],
+  "interactions": [
+    { "id": "move", "role": "move-to", "available": true },
+    { "id": "attack", "role": "attack-swing", "available": false, "reason": "action-busy" }
+  ],
+  "hud": []
+}

@@ -60,6 +60,11 @@ const MOVE_REQUEST_INTERVAL = 0.1;
 let moveRequestCooldown = 0;
 let wasKeyMoving = false;
 
+// 충돌체 디버그 관찰 (C006) — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
+// World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
+const DEBUG_OBSERVE_KEY = 'KeyC';
+let debugObserve = false;
+
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -70,7 +75,7 @@ function frame(now: number): void {
 
   // 화면은 마지막으로 받은 관찰 결과다 (04-gameview.spec.yaml delivery: pushed)
   const snapshot = link.latest();
-  latestScene = snapshot ? resolvePresentation(snapshot) : EMPTY_SCENE;
+  latestScene = snapshot ? resolvePresentation(snapshot, undefined, { debugObserve }) : EMPTY_SCENE;
 
   const terrain = latestScene.interactions.find((i) => i.terrainTarget);
   const self = latestScene.entities.find((e) => e.cameraFollow);
@@ -96,6 +101,10 @@ function frame(now: number): void {
   }
 
   for (const code of keyboard.consumeKeyPresses()) {
+    if (code === DEBUG_OBSERVE_KEY) {
+      debugObserve = !debugObserve;
+      continue;
+    }
     const keyed = latestScene.interactions.filter((i) => i.key === code);
     const interaction = keyed.find((i) => i.available) ?? keyed[0];
     if (interaction) {

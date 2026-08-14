@@ -14,6 +14,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_OBSERVER_JOIN } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState, CharacterKind } from '../semantic/actor';
+import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from '../semantic/collision';
 import { createInventory } from '../semantic/inventory';
 import { MAX_OBSERVER_ID_LENGTH } from '../semantic/observer';
 import type { WorldPosition } from '../semantic/position';
@@ -76,6 +77,11 @@ export function ruleObserverJoin(
     characterKind: defaults.characterKind,
     control: 'player',
     position: { x: spawn.x, z: spawn.z },
+    bodyRadius: BODY_RADIUS,
+    bodyHeight: BODY_HEIGHT,
+    bodyMass: BODY_MASS,
+    facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
+    velocity: { x: 0, z: 0 },
     moveSpeed: MOVE_SPEED,
     attackRange: ATTACK_RANGE,
     perceptionRange: PERCEPTION_RANGE,

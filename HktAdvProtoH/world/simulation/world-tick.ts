@@ -5,8 +5,11 @@
 // Transition     0. 도착한 참여/이탈/표식 처리 (RULE-OBSERVER-JOIN-001 ·
 //                   RULE-OBSERVER-LEAVE-001 · RULE-OBSERVER-MARK-001)
 //                1. 도착한 요청을 순서대로 처리한다 (주체 = 보낸 관찰자의 몸)
-//                2. RULE-NPC-DECIDE-001   3. RULE-MOVE-PROGRESS-001
-//                4. RULE-ACTION-PROGRESS-001                     5. World.Time += dt
+//                2. RULE-NPC-DECIDE-001       3. RULE-MOVE-PROGRESS-001
+//                4. RULE-ACTION-PROGRESS-001  5. RULE-SWING-STRIKE-001 (C006)
+//                6. RULE-BODY-PUSH-001 (C006) 7. RULE-BODY-MOMENTUM-001 (C006)
+//                8. World.Time += dt
+//                의도한 이동(3)이 먼저 자리를 정하고, 물리(5~7)가 그 자리를 세계 규칙으로 보정한다.
 // Result         Observations — 지금 보고 있는 관찰자 각각의 Observer Projection
 //
 // 참여가 요청보다 앞서는 이유: 같은 Tick 에 들어오면서 보낸 요청이 그 Tick 에 판정될 수
@@ -26,8 +29,11 @@ import { ruleObserverLeave } from '../rules/observer-leave';
 import { ruleObserverMark } from '../rules/observer-mark';
 import type { WorldState } from '../semantic/world-state';
 import { ruleActionProgress } from './action-progress';
+import { ruleBodyMomentum } from './body-momentum';
+import { ruleBodyPush } from './body-push';
 import { ruleMoveProgress } from './move-progress';
 import { ruleNpcDecideAll } from './npc-decide';
+import { ruleSwingStrike } from './swing-strike';
 
 /** 세계에 도착했지만 아직 처리되지 않은 참여/이탈/표식 */
 export interface PendingObserverEvent {
@@ -72,6 +78,9 @@ export function ruleWorldTick(
   ruleNpcDecideAll(state);
   ruleMoveProgress(state, dt);
   ruleActionProgress(state, dt);
+  ruleSwingStrike(state);
+  ruleBodyPush(state, dt);
+  ruleBodyMomentum(state, dt);
   state.time += dt;
 
   // Result — 보고 있는 관찰자 각각에 대한 투영.

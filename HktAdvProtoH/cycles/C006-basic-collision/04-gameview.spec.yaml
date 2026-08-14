@@ -1,0 +1,148 @@
+# CYCLE C006 — GameView Specification
+id: VIEW-BASIC-COLLISION-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character            # C004 · C005 계약 그대로 — 위치·상태·모션
+    - entities.deposit
+    - interactions                  # move · mine · attack 요청 계약 변화 없음
+    - observer / session / delivery / identity / telemetry   # C003~C005 그대로
+    - hud
+  added:
+    - entities.character.body       # 몸 충돌체 — 반경·질량·속도
+    - entities.character.swing      # 행동 충돌 반경 — 휘두름 구간 동안 활성
+    - debugObserve                  # 충돌체 디버그 관찰 (켜고 끄는 것은 관찰자 선택)
+  changed: []
+    # 타격 시점이 "휘두름 완료 순간" → "충돌 반경 접촉 시점" 으로 바뀌지만
+    # 계약 형태(state = hit, 요청 계약)는 그대로다 — 언제 hit 이 보이느냐만 달라진다.
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 기존 계약 + 몸/휘두름 충돌체 (C006 ADDED)
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    cardinality: many
+    id: { source: Actor.Id }
+    role:                           # C004 그대로
+      player-character: { when: Actor.Id == Observer.ActorId }
+      other-player-character:
+        when: Actor.Control == player && Actor.Id != Observer.ActorId
+      npc-character: { when: Actor.Control == autonomous }
+    kind: { source: Actor.CharacterKind }
+    position: { source: Actor.Position }
+    state: { source: Actor.CurrentActionKind }
+    actionProgress: { source: Actor.ActionProgress }
+    actionTarget: { source: Actor.ActionTargetId }
+    attended: { source: Character.Attended, appliesTo: [other-player-character] }
+    motion:                         # C002·C004 그대로
+      selectedBy: [kind, state]
+      progress: { withDuration: actionProgress, withoutDuration: loop }
+      fallback: { order: ['kind:idle', 'anyKind:state', placeholder] }
+
+    body:                           # C006 ADDED / R1 — 몸 충돌체는 캡슐 부피다
+      radius: { source: Actor.Body.Radius }
+      height: { source: Actor.Body.Height }   # R1 — 부피 관찰용 (판정은 지면 투영 원)
+      mass: { source: Actor.Body.Mass }
+      facing: { source: Actor.Facing }        # R1 — 몸이 향한 방향 (휘두름이 나가는 쪽)
+      velocity: { source: Actor.Velocity }
+        # 밀려나는 움직임 자체는 position 변화로 이미 보인다.
+        # velocity 는 디버그 관찰에서 "지금 얼마나 밀리고 있는가" 를 보이기 위한 값이다.
+
+    swing:                          # C006 ADDED / R1 CHANGED — 칼끝 충돌체 (attack 진행 중에만)
+      center: { source: ActionCollider.Center }
+        # R1 — 몸 중심이 아니라 칼끝 자리. Facing 기준 호를 그리며 쓸고 지나간다.
+      radius: { source: ActionCollider.Radius }   # R1 — 칼끝 충돌 구의 반경
+      active: { source: ActionCollider.Active }
+        # 휘두름 구간(ActionProgress ∈ [SWING_BEGIN, SWING_END]) 동안 참
+      struck: { source: Attack.StruckActorIds }
+        # 이 휘두름이 이미 타격한 몸들 — 같은 몸이 두 번 맞지 않음을 관찰로 확인할 수 있다
+
+  deposit:                          # C004 그대로 — 광맥은 몸이 없다 (01 EXCLUDED)
+    cardinality: many
+    id: { source: Deposit.Id }
+    role: resource-deposit
+    resourceKind: stone
+    position: { source: Deposit.Position }
+    state:
+      available: { when: Deposit.ResourceAmount > 0 }
+      depleted: { when: Deposit.ResourceAmount == 0 }
+    remaining: { source: Deposit.ResourceAmount }
+
+# ─────────────────────────────────────────────────────────────────
+# debugObserve — 충돌체 디버그 관찰 (C006 ADDED)
+#
+# 세계는 충돌체 관찰값을 언제나 제공한다 (INTENT-COLLISION-OBSERVE-001).
+# 보일지 말지는 관찰자의 선택이다 — 토글은 View(관찰자 쪽) 책임이며
+# World 에 아무것도 요청하지 않는다.
+# ─────────────────────────────────────────────────────────────────
+debugObserve:
+  toggle: { owner: observer, default: off }
+  shows:
+    bodies:                                   # R1 — 평면 원이 아니라 부피로 보인다
+      forEach: entities.character
+      volume: { center: position, radius: body.radius, height: body.height }  # 캡슐
+      motion: { vector: body.velocity }       # 밀리는 방향·세기
+    actionColliders:                          # R1 — 칼끝을 따라가는 구체
+      forEach: entities.character (swing 이 존재하는 것)
+      volume: { center: swing.center, radius: swing.radius }                  # 구체
+      activity: swing.active                  # 활성/비활성이 구분되어야 한다
+      struckMarks: swing.struck               # 이번 휘두름에 맞은 몸 표시
+  meaning:
+    - 겹친 몸이 서로 밀려나는 것을 캡슐 두 개가 벌어지는 것으로 확인한다
+    - 칼끝 구체가 몸이 향한 방향에서 호를 그리며 지나가고, 닿은 몸이
+      hit 상태 + 바깥으로 밀려나는 것으로 타격을 확인한다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — C004 계약 그대로. 요청 형태 변화 없음.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  subject: observer-character
+  move:
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+  mine:
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+  attack:
+    role: attack-swing
+    target: none
+    request: Attack(ObserverCharacter)
+    available: { source: Attack.Availability }
+    unavailableReason: { source: Attack.FailureReason }
+  requestResult: from-next-observation
+
+# ─────────────────────────────────────────────────────────────────
+# hud — C004 계약 그대로 — 변경 없음
+# ─────────────────────────────────────────────────────────────────
+hud:
+  inventory:
+    stone: { source: ObserverCharacter.Inventory.StoneCount }
+  tool:
+    hasMiningTool: { source: ObserverCharacter.Inventory.HasMiningTool }
+  playerAction:
+    action: { source: ObserverCharacter.CurrentActionKind }
+    progress: { source: ObserverCharacter.ActionProgress }
+  worldTime:
+    elapsed: { source: World.Time }
+  observers:
+    present: { source: Observers.PresentCount }
+
+# OBSERVABLE PROJECTION NOTE
+#   03 의 Observable Semantic 대응:
+#     Collision.Bodies          → entities.character.body (+position)   전부 투영
+#     Collision.ActionColliders → entities.character.swing              전부 투영
+#     Attack.StruckActorIds     → entities.character.swing.struck       전부 투영
+#     Actor.CurrentAction(hit)  → entities.character.state (재사용)
+#   투영하지 않는 것: 없음 — 이번 Cycle 의 Observable 은 관찰이 목적이므로 전부 나간다.
+#   PUSH_STIFFNESS · FRICTION 등 상수 자체는 투영하지 않는다 — 관찰 대상은
+#   상수가 아니라 그 결과(속도·위치·반경)다.

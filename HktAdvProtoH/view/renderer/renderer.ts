@@ -78,6 +78,85 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     );
   }
 
+  // 디버그 도형 capability (C006 / R1) — 캡슐/구체 부피와 화살표를 그릴 뿐,
+  // 그것이 무엇인지 모른다. 지시가 프레임마다 통째로 오므로 그룹을 비우고 다시 만든다.
+  const debugGroup = new THREE.Group();
+  scene.add(debugGroup);
+  const DEBUG_Y = 0.05; // 지면에 묻히지 않도록 살짝 띄운다
+
+  function clearDebugGroup(): void {
+    for (const child of debugGroup.children) {
+      const mesh = child as THREE.Mesh;
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
+    }
+    debugGroup.clear();
+  }
+
+  function debugMaterial(color: number, opacity: number): THREE.Material {
+    return new THREE.MeshBasicMaterial({
+      color,
+      wireframe: true,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    });
+  }
+
+  function drawDebug(debug: NonNullable<SceneState['colliderDebug']>): void {
+    for (const capsule of debug.capsules) {
+      // CapsuleGeometry 의 length 는 원통 구간 — 전체 높이 = length + 2×radius
+      const length = Math.max(0.01, capsule.height - 2 * capsule.radius);
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(capsule.radius, length, 4, 10),
+        debugMaterial(capsule.color, capsule.opacity),
+      );
+      const y = heightAt(capsule.center.x, capsule.center.z);
+      mesh.position.set(capsule.center.x, y + DEBUG_Y + capsule.height / 2, capsule.center.z);
+      debugGroup.add(mesh);
+    }
+
+    for (const sphere of debug.spheres) {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(sphere.radius, 12, 8),
+        debugMaterial(sphere.color, sphere.opacity),
+      );
+      const y = heightAt(sphere.center.x, sphere.center.z);
+      mesh.position.set(sphere.center.x, y + sphere.elevation, sphere.center.z);
+      debugGroup.add(mesh);
+    }
+
+    for (const vector of debug.vectors) {
+      const from = new THREE.Vector3(
+        vector.from.x,
+        heightAt(vector.from.x, vector.from.z) + DEBUG_Y,
+        vector.from.z,
+      );
+      const to = new THREE.Vector3(
+        vector.to.x,
+        heightAt(vector.to.x, vector.to.z) + DEBUG_Y,
+        vector.to.z,
+      );
+      // 화살촉 — 끝점에서 양옆으로 꺾인 짧은 두 선
+      const dir = to.clone().sub(from);
+      const len = dir.length();
+      const headLen = Math.min(0.3, len * 0.4);
+      const points = [from, to];
+      if (len > 1e-6 && headLen > 1e-6) {
+        dir.normalize();
+        const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(headLen * 0.5);
+        const back = to.clone().sub(dir.clone().multiplyScalar(headLen));
+        points.push(back.clone().add(side), to.clone(), back.clone().sub(side));
+      }
+      debugGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color: vector.color }),
+        ),
+      );
+    }
+  }
+
   let lastTime = performance.now();
 
   // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착한다 (C003). 받은 위치로 곧장
@@ -152,6 +231,10 @@ export function createRenderer(container: HTMLElement): GameRenderer {
           drawn.delete(id);
         }
       }
+
+      // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다 (C006)
+      clearDebugGroup();
+      if (state.colliderDebug) drawDebug(state.colliderDebug);
 
       renderer.render(scene, camera);
     },

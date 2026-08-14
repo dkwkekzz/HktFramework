@@ -10,6 +10,7 @@
 
 import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
+import { actionCollider } from '../semantic/collision';
 import { evaluateAttackPreconditions } from '../rules/attack';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
@@ -22,7 +23,7 @@ import {
   type WorldState,
 } from '../semantic/world-state';
 
-export const SPEC_ID = 'VIEW-LINK-TELEMETRY-001';
+export const SPEC_ID = 'VIEW-BASIC-COLLISION-001';
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
@@ -43,6 +44,8 @@ export function projectObserverView(
     const target = actionTargetId(actor.currentAction);
     const isSelf = actor.id === self.id;
     const isOtherPlayer = !isSelf && actor.control === 'player';
+    // Collision.ActionColliders (C006) — attack 진행 중에만 존재하는 파생 상태
+    const swing = actionCollider(actor);
 
     entities.push({
       id: actor.id,
@@ -59,6 +62,25 @@ export function projectObserverView(
       // Character.Attended — 다른 관찰자의 몸에만 의미가 있다.
       // 거짓이면 그 사람은 떠났고 몸만 세계에 남은 것이다 (INTENT-OBSERVER-LEAVE-001).
       ...(isOtherPlayer ? { attended: isAttended(state, actor.id) } : {}),
+      // Collision.Bodies (C006) — 충돌체 관찰은 언제나 제공된다 (INTENT-COLLISION-OBSERVE-001).
+      // 보일지 말지는 관찰자(View)의 선택이다.
+      body: {
+        radius: actor.bodyRadius,
+        height: actor.bodyHeight,
+        mass: actor.bodyMass,
+        facing: { x: actor.facing.x, z: actor.facing.z },
+        velocity: { x: actor.velocity.x, z: actor.velocity.z },
+      },
+      ...(swing
+        ? {
+            swing: {
+              center: { x: swing.center.x, z: swing.center.z },
+              radius: swing.radius,
+              active: swing.active,
+              struck: [...(actor.currentAction.struckActorIds ?? [])],
+            },
+          }
+        : {}),
     });
   }
 
