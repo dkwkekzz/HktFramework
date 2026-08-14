@@ -9,6 +9,7 @@
 
 import type { Server as HttpServer } from 'node:http';
 import { defineConfig, type Plugin } from 'vite';
+import { motionAtlasPlugin } from './tools/motion-atlas/vite-plugin';
 import { TRANSPORT_PATH } from './protocol/transport';
 import { attachWorldServer } from './server/attach';
 import { createWorldHost } from './server/world-host';
@@ -29,7 +30,8 @@ function worldServerPlugin(): Plugin {
 }
 
 export default defineConfig({
-  plugins: externalWorld ? [] : [worldServerPlugin()],
+  // 모션 아틀라스는 세계가 어디 있든 필요하다 — 시트를 놓기만 하면 되는 규약을 지킨다.
+  plugins: externalWorld ? [motionAtlasPlugin()] : [motionAtlasPlugin(), worldServerPlugin()],
   server: externalWorld
     ? {
         proxy: {

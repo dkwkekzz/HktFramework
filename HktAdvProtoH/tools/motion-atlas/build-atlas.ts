@@ -1,0 +1,158 @@
+// Motion Atlas Builder — motions/ 를 훑어 프레임 기하를 미리 구해 둔다.
+//
+// 등록 코드가 없다는 규약(motions/README.md)은 그대로다. 이 도구도 폴더를 스스로 훑고,
+// 파일명 해석은 런타임과 **같은 파서**(view/motion/motion-format.ts)를 쓴다 —
+// 포맷의 진실이 두 군데로 갈라지지 않게 한다.
+
+import { createHash } from 'node:crypto';
+import { readdirSync, readFileSync, statSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
+import { parseMotionPath } from '../../view/motion/motion-format';
+import type { MotionAtlas, MotionFrameGeometry, MotionGeometry } from '../../view/motion/motion-geometry';
+import { detectSheet, type DetectedSheet } from './detect-frames';
+import { readPngAlpha } from './png-alpha';
+
+export interface SheetReport {
+  /** import.meta.glob 과 같은 키 (예: /motions/rabbit-swordsman/attack.3x3.9f.12fps.png) */
+  key: string;
+  id: string;
+  cols: number;
+  rows: number;
+  declaredFrames: number;
+  /** 분석에 성공했을 때만 있다. 없으면 런타임이 균등 분할로 물러난다 */
+  geometry?: MotionGeometry;
+  detected?: DetectedSheet;
+  /** 균등 분할로 물러난 이유 (읽지 못한 형식 등) */
+  skipped?: string;
+}
+
+export interface AtlasBuildResult {
+  atlas: MotionAtlas;
+  reports: SheetReport[];
+  /** 입력 파일들의 내용 해시 — 바뀌지 않았으면 다시 만들 필요가 없다 */
+  inputHash: string;
+}
+
+/** motions/ 아래의 모든 이미지 파일 경로를 모은다 */
+function collectSheets(motionsDir: string): string[] {
+  const found: string[] = [];
+  const walk = (dir: string): void => {
+    for (const entry of readdirSync(dir, { withFileTypes: true }).sort((a, b) =>
+      a.name < b.name ? -1 : 1,
+    )) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) walk(full);
+      else if (/\.(png|webp)$/i.test(entry.name)) found.push(full);
+    }
+  };
+  try {
+    walk(motionsDir);
+  } catch {
+    // motions/ 가 없어도 도구는 실패하지 않는다 — 빈 아틀라스를 만든다.
+  }
+  return found;
+}
+
+/**
+ * 검출 결과를 정규화한다.
+ *
+ * 크기 — 대표 높이는 그 모션에서 **가장 큰 포즈**의 그림 높이다. 모든 프레임을
+ *        같은 픽셀 배율로 그리므로 모션 안의 웅크림·도약은 그대로 남고,
+ *        모션끼리의 크기 차이만 사라진다.
+ * 발    — 접지선은 그 모션에서 **가장 낮게 선 프레임**의 발끝이다. 프레임마다
+ *        발을 맞춰 버리면 도약까지 죽으므로, 기준은 모션 단위로 하나만 잡는다.
+ * 좌우  — 시트 전체의 치우침(평균 편차)만 걷어낸다. 프레임별 돌진은 남는다.
+ */
+function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeometry {
+  const live = detected.frames.slice(0, declaredFrames).filter((f) => !f.empty);
+  const measured = live.length > 0 ? live : detected.frames.slice(0, declaredFrames);
+
+  const refHeightPx = Math.max(1, ...measured.map((f) => f.content.h));
+
+  // 셀 아래쪽에서 발끝까지의 거리 — 가장 작은 값이 접지선이다
+  const footPx = Math.min(
+    ...measured.map((f) => f.rect.y + f.rect.h - (f.content.y + f.content.h)),
+  );
+
+  const biasPx =
+    measured.reduce(
+      (sum, f) => sum + (f.content.x + f.content.w / 2) - (f.rect.x + f.rect.w / 2),
+      0,
+    ) / Math.max(1, measured.length);
+
+  const frames: MotionFrameGeometry[] = detected.frames.map((f) => ({
+    rect: [f.rect.x, f.rect.y, f.rect.w, f.rect.h] as const,
+    content: [f.content.x, f.content.y, f.content.w, f.content.h] as const,
+    anchor: [
+      f.rect.w > 0 ? (f.rect.w / 2 + biasPx) / f.rect.w : 0.5,
+      f.rect.h > 0 ? footPx / f.rect.h : 0,
+    ] as const,
+  }));
+
+  const warnings: string[] = [];
+  for (const b of detected.bleed) {
+    warnings.push(
+      `절단선 ${b.axis}=${b.at} 위에 잉크 ${b.ink}px — 프레임끼리 맞닿아 있다. 시트 재추출 권장`,
+    );
+  }
+  detected.frames.slice(0, declaredFrames).forEach((f, i) => {
+    if (f.empty) warnings.push(`프레임 ${i} 이 비어 있다 — 격자(cols×rows)가 시트와 다를 수 있다`);
+  });
+
+  return { sheet: [detected.width, detected.height], cols: detected.cols, rows: detected.rows, refHeightPx, frames, warnings };
+}
+
+export function buildAtlas(projectRoot: string): AtlasBuildResult {
+  const motionsDir = join(projectRoot, 'motions');
+  const files = collectSheets(motionsDir);
+
+  const atlas: Record<string, MotionGeometry> = {};
+  const reports: SheetReport[] = [];
+  const hash = createHash('sha256');
+
+  for (const file of files) {
+    const key = '/' + relative(projectRoot, file).split(sep).join('/');
+    const bytes = readFileSync(file);
+    hash.update(key).update(bytes);
+
+    const asset = parseMotionPath(key, key);
+    if (!asset) continue; // 포맷에 맞지 않는 파일은 런타임과 똑같이 무시한다
+
+    const base = {
+      key,
+      id: asset.id,
+      cols: asset.cols,
+      rows: asset.rows,
+      declaredFrames: asset.frames,
+    };
+
+    // 읽지 못한 시트는 아틀라스에 **넣지 않는다**. 런타임이 이미지 크기를 알게 된 뒤
+    // 예전처럼 균등 분할한다(uniformGeometry) — 게임은 멈추지 않고, 여기서는 이유만 남긴다.
+    if (!/\.png$/i.test(file)) {
+      reports.push({ ...base, skipped: 'PNG 이 아니어서 알파를 읽지 못했다 — 런타임 균등 분할' });
+      continue;
+    }
+
+    try {
+      const detected = detectSheet(readPngAlpha(bytes), asset.cols, asset.rows);
+      const geometry = normalize(detected, asset.frames);
+      atlas[key] = geometry;
+      reports.push({ ...base, geometry, detected });
+    } catch (error) {
+      reports.push({ ...base, skipped: `${(error as Error).message} — 런타임 균등 분할` });
+    }
+  }
+
+  return { atlas, reports, inputHash: hash.digest('hex').slice(0, 16) };
+}
+
+/** motions/ 안 파일들의 크기·수정시각 지문 — 다시 만들지 판단하는 값싼 기준 */
+export function motionsFingerprint(projectRoot: string): string {
+  const files = collectSheets(join(projectRoot, 'motions'));
+  const hash = createHash('sha256');
+  for (const file of files) {
+    const s = statSync(file);
+    hash.update(file).update(String(s.size)).update(String(s.mtimeMs));
+  }
+  return hash.digest('hex').slice(0, 16);
+}

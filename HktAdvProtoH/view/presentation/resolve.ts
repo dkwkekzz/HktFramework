@@ -26,6 +26,9 @@ function resolveMotion(
   const asset = motions.resolve(kind, state);
   if (!asset) return undefined;
 
+  // 시트를 어디서 자를지는 정적 분석이 이미 구해 두었다 — 그리는 쪽이 픽셀을 훑지 않게 한다.
+  const geometry = motions.geometry(asset);
+
   return {
     id: asset.id,
     url: asset.url,
@@ -35,6 +38,7 @@ function resolveMotion(
     fps: asset.fps,
     mode: progress === undefined ? 'loop' : 'progress',
     ...(progress === undefined ? {} : { progress }),
+    ...(geometry ? { geometry } : {}),
   };
 }
 

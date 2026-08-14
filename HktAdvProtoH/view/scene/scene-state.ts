@@ -2,6 +2,8 @@
 // Capability Layer(renderer/hud/input)의 유일한 입력.
 // 여기에는 결정이 끝난 표현 지시만 있다 — capability 는 게임 의미를 모른다.
 
+import type { MotionGeometry } from '../motion/motion-geometry';
+
 // 모션 재생 지시 (C002) — 어떤 시트를 어떻게 재생할지는 결정 Layer 가 이미 정했다.
 export interface SceneMotion {
   id: string; // 진단용 (예: rabbit-swordsman/idle)
@@ -12,6 +14,11 @@ export interface SceneMotion {
   fps: number;
   mode: 'loop' | 'progress';
   progress?: number; // mode = progress 일 때의 0..1
+  /**
+   * 시트 안에서 프레임이 실제로 놓인 자리 — 정적 분석(tools/motion-atlas)의 결과다.
+   * 없으면 그리는 쪽이 이미지 크기로 균등 분할한다 (예전 동작).
+   */
+  geometry?: MotionGeometry;
 }
 
 export interface SceneEntity {

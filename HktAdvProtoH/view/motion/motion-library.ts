@@ -7,18 +7,25 @@
 // 어떤 모션이 존재하는지는 World 가 아니라 여기(주입된 데이터)가 안다.
 // 데이터가 없으면 null 을 돌려주고, 그리기는 절차 생성 Asset(placeholder)이 맡는다.
 
+import { MOTION_ATLAS } from './motion-atlas.generated';
 import { parseMotionPath, type MotionAsset } from './motion-format';
+import type { MotionGeometry } from './motion-geometry';
 
 export const FALLBACK_ACTION = 'idle';
 
 export interface MotionLibrary {
   /** (종류, 행동) → 재생할 모션. 데이터가 없으면 null */
   resolve(characterKind: string, action: string): MotionAsset | null;
+  /** 시트의 프레임 기하 (정적 분석 결과). 분석되지 않은 시트면 undefined */
+  geometry(asset: MotionAsset): MotionGeometry | undefined;
   /** 주입된 모션 전체 (진단·테스트용) */
   all(): MotionAsset[];
 }
 
-export function createMotionLibrary(sources: Record<string, string>): MotionLibrary {
+export function createMotionLibrary(
+  sources: Record<string, string>,
+  atlas: Readonly<Record<string, MotionGeometry>> = MOTION_ATLAS,
+): MotionLibrary {
   const assets: MotionAsset[] = [];
   for (const path of Object.keys(sources).sort()) {
     // 경로 순 정렬 — anyKind 폴백이 결정론적이도록
@@ -41,6 +48,7 @@ export function createMotionLibrary(sources: Record<string, string>): MotionLibr
         null
       );
     },
+    geometry: (asset) => atlas[asset.path],
     all: () => [...assets],
   };
 }

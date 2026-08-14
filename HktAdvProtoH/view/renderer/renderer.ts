@@ -112,13 +112,14 @@ export function createRenderer(container: HTMLElement): GameRenderer {
 
         let bb = billboards.get(entity.id);
         if (!bb) {
-          bb = createBillboard(entity, entity.size);
+          bb = createBillboard(entity, now / 1000);
           bb.object.userData.entityId = entity.id;
           billboards.set(entity.id, bb);
           scene.add(bb.object);
         }
+        // 크기와 발 기준점은 billboard 가 프레임 기하에서 스스로 정한다 —
+        // 시트마다 캐릭터가 칸을 채우는 비율이 달라서 바깥에서 한 값으로 줄 수 없다.
         bb.setAppearance(entity, now / 1000);
-        bb.object.scale.set(entity.size * bb.aspect(), entity.size, 1);
         const at = smoothed(entity.id, entity.position, dt);
         const y = heightAt(at.x, at.z);
         bb.setPosition(at.x, y, at.z);
