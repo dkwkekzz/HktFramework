@@ -9,6 +9,7 @@
 
 import { actionProgress } from './action';
 import type { ActorState } from './actor';
+import { isSkillKind } from './combat';
 import type { WorldPosition } from './position';
 
 // Actor.Body — 몸 캡슐의 반경·높이·질량
@@ -54,7 +55,8 @@ export interface ActionCollider {
 // attack 진행 중인 Actor 마다 하나. 칼끝은 Facing 기준 +SWING_ARC/2 에서
 // -SWING_ARC/2 로 쓸고 지나간다 (구간 밖에서는 경계 각에 고정 = 예비/여운 자세).
 export function actionCollider(actor: ActorState): ActionCollider | null {
-  if (actor.currentAction.kind !== 'attack') return null;
+  // C007 — 스킬이 둘로 늘었다. 충돌체 구조는 그대로이며 어느 스킬이든 같은 칼끝을 만든다.
+  if (!isSkillKind(actor.currentAction.kind)) return null;
   const progress = actionProgress(actor.currentAction);
   if (progress === null) return null;
 

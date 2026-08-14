@@ -52,5 +52,10 @@
       "kind": "flag",
       "value": true
     }
-  ]
+  ],
+  "strikes": [],
+  "debug": {
+    "open": false,
+    "mutableAttributes": []
+  }
 }

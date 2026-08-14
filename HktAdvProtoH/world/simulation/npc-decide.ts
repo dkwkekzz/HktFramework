@@ -15,8 +15,9 @@ import { faceToward } from '../semantic/collision';
 import { distance, type WorldPosition } from '../semantic/position';
 import type { WorldState } from '../semantic/world-state';
 import { evaluateActionBegin, isSameAction } from '../rules/action-begin';
-import { ruleAttack } from '../rules/attack';
+import { ruleSkillBegin } from '../rules/skill';
 import { ruleMove } from '../rules/move';
+import { isDowned } from '../semantic/combat';
 
 const ARRIVAL_EPSILON = 1e-6;
 
@@ -28,6 +29,7 @@ export function perceivedTarget(state: WorldState, actor: ActorState): ActorStat
 
   for (const other of state.actors) {
     if (other.id === actor.id) continue;
+    if (isDowned(other)) continue; // 쓰러진 존재는 인지 대상이 되지 않는다 (C007)
     const d = distance(actor.position, other.position);
     if (d > actor.perceptionRange) continue;
 
@@ -53,6 +55,9 @@ function wanderDestination(actor: ActorState): WorldPosition | null {
 }
 
 export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' | 'unchanged' {
+  // C007 — 쓰러진 존재는 아무것도 결정하지 않는다 (INTENT-DOWNED-001).
+  // downed 는 대체 불가능한 행동이므로 아래 관문이 이미 막지만, 의미를 코드에 남긴다.
+  if (isDowned(actor)) return 'unchanged';
   if (evaluateActionBegin(actor)) return 'unchanged'; // 대체 불가 행동 중 — 결정하지 않는다
 
   const target = perceivedTarget(state, actor);
@@ -63,7 +68,8 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
       if (isSameAction(actor.currentAction, 'attack', {})) return 'unchanged';
       // RULE-BODY-FACING-001 (C006 R1) — 휘두르기 전에 겨눈 대상을 향해 몸을 돌린다.
       faceToward(actor, target.position.x - actor.position.x, target.position.z - actor.position.z);
-      return ruleAttack(actor).status === 'success' ? 'decided' : 'unchanged';
+      // C007 — 자율 존재는 기본 스킬만 쓴다 (01 EXCLUDED "NPC 의 고급 스킬").
+      return ruleSkillBegin(actor, 'attack').status === 'success' ? 'decided' : 'unchanged';
     }
 
     const destination = { x: target.position.x, z: target.position.z };

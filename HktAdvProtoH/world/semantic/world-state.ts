@@ -2,9 +2,17 @@
 // 상수는 결정론에 영향을 주므로 헤더 상수로 고정한다.
 
 import type { ActorState } from './actor';
+import type { StrikeEvent } from './combat';
 import type { DepositState } from './deposit';
 import type { ObserverState } from './observer';
 import type { WorldBounds, WorldPosition } from './position';
+
+// World.DebugAuthority (C007 R2) — 세계가 속성 변경을 허용하는가.
+// 세계 밖(세계를 띄우는 쪽)이 정한다. 요청으로는 바꿀 수 없다 —
+// 열고 닫는 권한까지 요청으로 열리면 "허용된 경우에만" 이 아무 뜻도 없어진다.
+export interface DebugAuthority {
+  open: boolean;
+}
 
 export interface WorldState {
   bounds: WorldBounds;
@@ -12,6 +20,8 @@ export interface WorldState {
   deposits: DepositState[];
   time: number; // World.Time — 세계가 시작된 뒤 흐른 시간 (C003 ADDED)
   observers: ObserverState[]; // World.Observers — 세계가 아는 관찰자들 (C004 ADDED)
+  strikeEvents: StrikeEvent[]; // World.StrikeEvents — 최근 타격 결과들 (C007 ADDED)
+  debugAuthority: DebugAuthority; // C007 R2 ADDED
 }
 
 // InteractionRange — RULE-MINE-001 Precondition 2 의 거리 한계

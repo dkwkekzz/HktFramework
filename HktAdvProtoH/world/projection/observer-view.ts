@@ -11,9 +11,17 @@
 import type { EntityView, GameViewSnapshot, InteractionView } from '../../protocol/gameview';
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
-import { evaluateAttackPreconditions } from '../rules/attack';
+import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
+import { evaluateMoveModeRun } from '../rules/move-mode';
+import { evaluateSkillPreconditions } from '../rules/skill';
+import {
+  actorModifiers,
+  isDowned,
+  MUTABLE_ATTRIBUTES,
+  skillDefinition,
+} from '../semantic/combat';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
   actorOfObserver,
@@ -23,7 +31,7 @@ import {
   type WorldState,
 } from '../semantic/world-state';
 
-export const SPEC_ID = 'VIEW-BASIC-COLLISION-001';
+export const SPEC_ID = 'VIEW-BASIC-COMBAT-POLICY-001';
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
@@ -46,6 +54,9 @@ export function projectObserverView(
     const isOtherPlayer = !isSelf && actor.control === 'player';
     // Collision.ActionColliders (C006) — attack 진행 중에만 존재하는 파생 상태
     const swing = actionCollider(actor);
+    // C007 R2 — 모든 Actor 의 모든 속성을 싣는다. 가리는 경계를 두지 않는다
+    // (INTENT-ATTRIBUTE-OBSERVE-001). 늘 화면에 띄울지는 View 의 선택이다.
+    const modifiers = actorModifiers(actor);
 
     entities.push({
       id: actor.id,
@@ -54,9 +65,32 @@ export function projectObserverView(
         : actor.control === 'player'
           ? 'other-player-character'
           : 'npc-character',
-      state: actor.currentAction.kind, // idle | move | attack | mine | hit
+      state: actor.currentAction.kind, // idle | move | attack | heavy-attack | mine | hit | downed
+      name: actor.name, // C007 — 불러 줄 이름
       kind: actor.characterKind,
       position: { x: actor.position.x, z: actor.position.z },
+      vitality: {
+        health: actor.hp,
+        healthMaximum: actor.hpMax,
+        downed: isDowned(actor),
+      },
+      attributes: {
+        energy: actor.cp,
+        energyMaximum: actor.cpMax,
+        moveMode: actor.moveMode,
+        control: actor.control,
+        tempoStats: {
+          moveSpeed: actor.moveSpeed,
+          runSpeedMultiplier: actor.runSpeedMultiplier,
+          actionSpeed: actor.actionSpeed,
+        },
+        modifiers: {
+          energyCharge: modifiers.cpCharge,
+          energyConsume: modifiers.cpConsume,
+          moveSpeed: modifiers.moveSpeed,
+          actionSpeed: modifiers.actionSpeed,
+        },
+      },
       ...(progress !== null ? { progress } : {}),
       ...(target ? { targetEntityId: target } : {}),
       // Character.Attended — 다른 관찰자의 몸에만 의미가 있다.
@@ -93,14 +127,46 @@ export function projectObserverView(
     ...(moveFailure ? { reason: moveFailure } : {}),
   });
 
-  // interactions.attack — 대상이 없다. 언제나 휘두를 수 있고,
-  // 무엇이 맞을지는 요청할 때가 아니라 휘두름이 끝나는 순간의 세계가 정한다.
-  const attackFailure = evaluateAttackPreconditions(self);
+  // interactions.attack / skill-heavy (C007) — 대상이 없다. 무엇이 맞을지는
+  // 요청할 때가 아니라 휘두름 구간의 접촉이 정한다.
+  // profile(damage/charge/cost)이 함께 나간다 — 쓰기 전에 무엇이 오갈지 알아야
+  // "지금 고급 스킬을 쓸 것인가" 를 판단할 수 있다 (INTENT-SELF-OBSERVE-001).
+  const basicFailure = evaluateSkillPreconditions(self, 'attack');
+  const basic = skillDefinition('attack');
   interactions.push({
     id: 'attack',
-    role: 'attack-swing',
-    available: attackFailure === null,
-    ...(attackFailure ? { reason: attackFailure } : {}),
+    role: 'skill-basic',
+    available: basicFailure === null,
+    ...(basicFailure ? { reason: basicFailure } : {}),
+    profile: { damage: basic.damage, charge: basic.cpCharge, cost: basic.cpCost },
+  });
+
+  const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack');
+  const heavy = skillDefinition('heavy-attack');
+  interactions.push({
+    id: 'skill-heavy',
+    role: 'skill-heavy',
+    available: heavyFailure === null,
+    ...(heavyFailure ? { reason: heavyFailure } : {}),
+    profile: { damage: heavy.damage, charge: heavy.cpCharge, cost: heavy.cpCost },
+  });
+
+  // interactions.moveMode (C007) — 지금 달릴 수 있는가. 걷기로 돌아오는 것은 언제나 된다.
+  const runFailure = evaluateMoveModeRun(self);
+  interactions.push({
+    id: 'move-mode',
+    role: 'set-move-mode',
+    available: runFailure === null,
+    ...(runFailure ? { reason: runFailure } : {}),
+  });
+
+  // interactions.setAttribute (C007 R2) — 세계가 권한을 닫아 두면 가용하지 않다.
+  const attributeFailure = evaluateAttributeSetAvailability(state);
+  interactions.push({
+    id: 'set-attribute',
+    role: 'debug-set-attribute',
+    available: attributeFailure === null,
+    ...(attributeFailure ? { reason: attributeFailure } : {}),
   });
 
   // entities.deposit + interactions.mine
@@ -125,6 +191,7 @@ export function projectObserverView(
   }
 
   const selfProgress = actionProgress(self.currentAction);
+  const selfModifiers = actorModifiers(self);
 
   return {
     specId: SPEC_ID,
@@ -155,6 +222,36 @@ export function projectObserverView(
       // Observers.PresentCount (C004) — 지금 이 세계를 함께 보고 있는 사람의 수 (나 포함).
       // 누가 있는지(이름)는 실리지 않는다 — 이번 Cycle 의 의미가 아니다.
       { id: 'observers.present', kind: 'counter', value: presentObserverCount(state) },
+      // hud.self (C007) — 같은 값을 남에 대해서도 볼 수 있다 (entities[].attributes).
+      // 여기가 특별한 것은 "늘 눈앞에 있다" 는 점뿐이다.
+      { id: 'self.hp', kind: 'counter', value: self.hp },
+      { id: 'self.hpMax', kind: 'counter', value: self.hpMax },
+      { id: 'self.cp', kind: 'counter', value: self.cp },
+      { id: 'self.cpMax', kind: 'counter', value: self.cpMax },
+      { id: 'self.downed', kind: 'flag', value: isDowned(self) },
+      { id: 'self.moveMode', kind: 'label', value: self.moveMode },
+      { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
+      { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
+      { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
+      { id: 'self.modifier.cpCharge', kind: 'counter', value: selfModifiers.cpCharge },
+      { id: 'self.modifier.cpConsume', kind: 'counter', value: selfModifiers.cpConsume },
+      { id: 'self.modifier.moveSpeed', kind: 'counter', value: selfModifiers.moveSpeed },
+      { id: 'self.modifier.actionSpeed', kind: 'counter', value: selfModifiers.actionSpeed },
     ],
+    // World.StrikeEvents (C007) — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
+    strikes: state.strikeEvents.map((event) => ({
+      attackerId: event.attackerId,
+      targetId: event.targetId,
+      skill: event.skill,
+      amount: event.amount,
+      at: { x: event.position.x, z: event.position.z },
+      since: event.time,
+    })),
+    // World.DebugAuthority + MutableAttribute (C007 R2) —
+    // 무엇을 어디까지 바꿀 수 있는지는 세계가 알려 준다. View 가 목록을 만들지 않는다.
+    debug: {
+      open: state.debugAuthority.open,
+      mutableAttributes: MUTABLE_ATTRIBUTES.map((attribute) => ({ ...attribute })),
+    },
   };
 }

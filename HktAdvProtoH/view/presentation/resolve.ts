@@ -10,6 +10,13 @@ import { motionLibrary } from '../motion/motion-source';
 import type { MotionLibrary } from '../motion/motion-library';
 import type { SceneMotion, SceneState } from '../scene/scene-state';
 import { collisionDebug } from './collision-presentation';
+import {
+  inspectLines,
+  isSelfHudId,
+  nameplate,
+  selfPanel,
+  strikeMark,
+} from './combat-presentation';
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
@@ -18,6 +25,9 @@ import { rolePresentation } from './role-presentation';
 // 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
 export interface PresentationOptions {
   debugObserve?: boolean; // 기본 off (04-gameview.spec debugObserve.toggle)
+  // 속성 관찰 (C007 R2 — 04 debugAuthority.inspect.toggle). 기본 off.
+  // 세계는 이미 모든 속성을 보내고 있다. 이 값은 그것을 펼쳐 볼지만 정한다.
+  inspect?: boolean;
 }
 
 // entity.kind(종류) + state(행동) → 재생할 모션. 데이터가 없으면 undefined 이고
@@ -72,6 +82,10 @@ export function resolvePresentation(
               ? p.labelFormat(e.labelValue)
               : String(e.labelValue)
             : undefined;
+      // C007 — 몸 위 기본 표시는 이름과 생명이다. 나머지 속성은 켜야 펼쳐진다.
+      // 표지는 그 존재가 그려지는 크기(p.size) 바로 위에 붙는다.
+      const plate = nameplate(e, p.size);
+      const inspect = options.inspect ? inspectLines(e) : undefined;
       return {
         id: e.id,
         spriteId: `${p.sprite}:${e.state}`,
@@ -80,6 +94,8 @@ export function resolvePresentation(
         ...(tint === undefined ? {} : { tint }),
         position: e.position,
         ...(label === undefined ? {} : { label }),
+        ...(plate ? { nameplate: plate } : {}),
+        ...(inspect ? { inspect } : {}),
         cameraFollow: p.cameraFollow ?? false,
         trail: p.trail ?? false,
       };
@@ -97,7 +113,17 @@ export function resolvePresentation(
         ...(i.reason ? { unavailableText: codeText(i.reason) } : {}),
       };
     }),
-    hud: snapshot.hud.map((h) => {
+    // C007 — 자기 자원·능력치·배율은 self 패널이 가져간다 (같은 값을 두 번 그리지 않는다)
+    ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
+    // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
+    strikes: snapshot.strikes.map((event) =>
+      strikeMark(
+        event,
+        rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
+      ),
+    ),
+    worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),
+    hud: snapshot.hud.filter((h) => !isSelfHudId(h.id)).map((h) => {
       const p = hudPresentation(h.id);
       return {
         id: h.id,

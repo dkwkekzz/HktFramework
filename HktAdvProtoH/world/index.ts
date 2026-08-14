@@ -8,6 +8,7 @@ import type { GameViewSnapshot } from '../protocol/gameview';
 import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
 import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from './semantic/collision';
+import { combatProfile } from './semantic/combat';
 import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
 import { DEFAULT_BODY, type BodyDefaults } from './rules/observer-join';
@@ -51,6 +52,7 @@ export interface World {
 
 export interface NpcSetup {
   id: string;
+  name?: string; // C007 — 밝히지 않으면 세계가 종류 + 순번으로 정한다
   characterKind?: string;
   position: WorldPosition;
   wanderPath?: WorldPosition[];
@@ -65,6 +67,8 @@ export interface WorldSetup {
   depositPosition?: { x: number; z: number };
   depositAmount?: number;
   npcs?: NpcSetup[];
+  /** C007 R2 — 속성 변경을 허용할 것인가 (World.DebugAuthority). 요청으로는 바꿀 수 없다 */
+  debugAuthority?: boolean;
 }
 
 // 세계의 기본 배치 — 자율 캐릭터 둘이 각자의 순회 경로를 돈다.
@@ -95,24 +99,37 @@ const DEFAULT_NPCS: NpcSetup[] = [
 export function createWorld(setup: WorldSetup = {}): World {
   // C004 CHANGED — 세계가 시작할 때 조종되는 몸은 없다.
   // 몸은 관찰자가 들어올 때 RULE-OBSERVER-JOIN-001 이 만든다.
-  const npcs: ActorState[] = (setup.npcs ?? DEFAULT_NPCS).map((npc) => ({
-    id: npc.id,
-    characterKind: npc.characterKind ?? 'wanderer',
-    control: 'autonomous',
-    position: { x: npc.position.x, z: npc.position.z },
-    bodyRadius: BODY_RADIUS,
-    bodyHeight: BODY_HEIGHT,
-    bodyMass: BODY_MASS,
-    facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
-    velocity: { x: 0, z: 0 },
-    moveSpeed: NPC_MOVE_SPEED,
-    attackRange: ATTACK_RANGE,
-    perceptionRange: npc.perceptionRange ?? PERCEPTION_RANGE,
-    wanderPath: (npc.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
-    wanderIndex: 0,
-    inventory: createInventory(),
-    currentAction: idleAction(),
-  }));
+  const npcs: ActorState[] = (setup.npcs ?? DEFAULT_NPCS).map((npc, ordinal) => {
+    const kind = npc.characterKind ?? 'wanderer';
+    // C007 — 자율 존재도 자기 종류의 자원·템포 능력치를 갖는다. 이름은 종류 + 순번이다.
+    const profile = combatProfile(kind);
+    return {
+      id: npc.id,
+      name: npc.name ?? `Wanderer ${ordinal + 1}`,
+      characterKind: kind,
+      control: 'autonomous' as const,
+      position: { x: npc.position.x, z: npc.position.z },
+      bodyRadius: BODY_RADIUS,
+      bodyHeight: BODY_HEIGHT,
+      bodyMass: BODY_MASS,
+      facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
+      velocity: { x: 0, z: 0 },
+      hp: profile.hpMax,
+      hpMax: profile.hpMax,
+      cp: profile.cpStart,
+      cpMax: profile.cpMax,
+      moveMode: 'walk' as const,
+      moveSpeed: profile.moveSpeed,
+      runSpeedMultiplier: profile.runSpeedMultiplier,
+      actionSpeed: profile.actionSpeed,
+      attackRange: ATTACK_RANGE,
+      perceptionRange: npc.perceptionRange ?? PERCEPTION_RANGE,
+      wanderPath: (npc.wanderPath ?? []).map((p) => ({ x: p.x, z: p.z })),
+      wanderIndex: 0,
+      inventory: createInventory(),
+      currentAction: idleAction(),
+    };
+  });
 
   const state: WorldState = {
     bounds: WORLD_BOUNDS,
@@ -127,6 +144,10 @@ export function createWorld(setup: WorldSetup = {}): World {
     ],
     time: 0,
     observers: [],
+    strikeEvents: [],
+    // C007 R2 — 속성 변경 권한은 세계 밖(세계를 띄우는 쪽)이 정한다.
+    // 기본은 열려 있다: 이 프로토타입은 관찰과 시험이 목적이며, 닫으려면 세계를 그렇게 띄운다.
+    debugAuthority: { open: setup.debugAuthority ?? true },
   };
 
   // 관찰자의 몸이 처음 만들어질 때 쓰는 기본값 — 세계의 초기 설정이다.

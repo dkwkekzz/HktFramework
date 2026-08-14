@@ -7,8 +7,10 @@
 //                1. 도착한 요청을 순서대로 처리한다 (주체 = 보낸 관찰자의 몸)
 //                2. RULE-NPC-DECIDE-001       3. RULE-MOVE-PROGRESS-001
 //                4. RULE-ACTION-PROGRESS-001  5. RULE-SWING-STRIKE-001 (C006)
+//                   (5 는 C007 에서 STRIKE-DAMAGE → SKILL-BUDGET → DOWNED 를 함께 부른다)
 //                6. RULE-BODY-PUSH-001 (C006) 7. RULE-BODY-MOMENTUM-001 (C006)
-//                8. World.Time += dt
+//                8. RULE-CP-RUN-DRAIN-001 (C007)
+//                9. World.Time += dt         10. RULE-STRIKE-EVENT-EXPIRE-001 (C007)
 //                의도한 이동(3)이 먼저 자리를 정하고, 물리(5~7)가 그 자리를 세계 규칙으로 보정한다.
 // Result         Observations — 지금 보고 있는 관찰자 각각의 Observer Projection
 //
@@ -31,8 +33,10 @@ import type { WorldState } from '../semantic/world-state';
 import { ruleActionProgress } from './action-progress';
 import { ruleBodyMomentum } from './body-momentum';
 import { ruleBodyPush } from './body-push';
+import { ruleCpRunDrain } from './cp-run-drain';
 import { ruleMoveProgress } from './move-progress';
 import { ruleNpcDecideAll } from './npc-decide';
+import { ruleStrikeEventExpire } from './strike-event-expire';
 import { ruleSwingStrike } from './swing-strike';
 
 /** 세계에 도착했지만 아직 처리되지 않은 참여/이탈/표식 */
@@ -81,7 +85,11 @@ export function ruleWorldTick(
   ruleSwingStrike(state);
   ruleBodyPush(state, dt);
   ruleBodyMomentum(state, dt);
+  // 기력 누수가 물리 뒤에 오는 이유 (C007): 이 Tick 에 실제로 달려 움직인 결과에 값을 치른다.
+  ruleCpRunDrain(state, dt);
   state.time += dt;
+  // 만료가 시간 진행 뒤에 오는 이유 (C007): 방금 일어난 결과가 최소 한 번은 관찰되어야 한다.
+  ruleStrikeEventExpire(state);
 
   // Result — 보고 있는 관찰자 각각에 대한 투영.
   // 떠난 관찰자에게는 만들지 않는다. 세계는 그를 위해 아무것도 준비하지 않는다.
