@@ -33,6 +33,12 @@
     바뀌었고, renderer 는 캡슐/구체를 그리는 capability 를 얻었다 (여전히 의미 무지).
     표현 결정(색·투명도·구체 높이 비율)은 collision-presentation.ts 한 곳이다.
 
+## R2 (캡슐 크기 = 이미지 크기)
+    resolve.ts — 몸이 있는 존재의 그림 표시 크기를 role 고정값이 아니라
+    body.height 에서 유도한다. 충돌체(캡슐)와 이미지가 항상 같은 크기가 되고,
+    새 종류의 존재는 World 의 BODY_SIZE_BY_KIND 한 줄로 이미지 크기까지 정해진다.
+    몸이 없는 존재(광맥 등)만 role-presentation 의 size 를 쓴다.
+
 ## NOTES
     2-Layer 준수 — scene-state 에 SceneDebugCircle/Vector(표현 지시)를 추가하고,
     renderer 는 "지면 위 원과 화살표를 그리는" capability 만 얻었다 (그것이 몸인지

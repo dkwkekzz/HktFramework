@@ -52,6 +52,10 @@
           배회·접근이 같은 물리 아래 놓인 결과다 (AFFECTED 의도대로)
     R1    1차 Human Play 에서 "반경 원 표시·몸 주위 일괄 반경" 이 반환되어
           캡슐 부피 + 칼끝 호 충돌체로 수정 후 위 절차로 재검증했다 (05-review R1)
+    R2    "캡슐이 이미지와 어긋난다" 반환 — 몸 크기를 종류별로 이미지 크기와 같게 올리고
+          (BODY_SIZE_BY_KIND) 그림 크기를 Body.Height 에서 유도하도록 뒤집어
+          캡슐이 캐릭터 그림을 정확히 감싸는 것을 재캡처로 확인했다 (r2-*.png).
+          몸이 커진 만큼 밀어냄·타격 접촉 거리도 화면과 일치하게 됐다.
 
 ## REGRESSION (03 AFFECTED + 과거 Cycle Scenario — vitest 187/187)
     RULE-MOVE-PROGRESS-001   move/npc/mine 이동 도달 시나리오 그대로 통과 (C001~C002)

@@ -90,7 +90,10 @@ export function resolvePresentation(
         id: e.id,
         spriteId: `${p.sprite}:${e.state}`,
         ...(motion ? { motion } : {}),
-        size: p.size,
+        // 몸이 있는 존재의 그림 크기는 몸 높이에서 유도한다 (C006 R2) —
+        // 충돌체와 이미지가 어긋나지 않고, 새 종류를 추가해도 자동으로 일치한다.
+        // 몸이 없는 존재(광맥 등)만 role 의 표시 크기를 쓴다.
+        size: e.body?.height ?? p.size,
         ...(tint === undefined ? {} : { tint }),
         position: e.position,
         ...(label === undefined ? {} : { label }),

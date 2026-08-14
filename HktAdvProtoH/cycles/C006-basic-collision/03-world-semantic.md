@@ -54,8 +54,10 @@
                            ActionProgress ∈ [SWING_BEGIN, SWING_END] 인 동안
 
     시뮬레이션 상수 (결정론 — 헤더 상수 고정)
-        BODY_RADIUS        몸 캡슐 반경
-        BODY_HEIGHT (R1)   몸 캡슐 높이
+        BODY_SIZE_BY_KIND (R2)  몸 캡슐 반경·높이 — CharacterKind 마다 정한다.
+                                그림 크기는 View 가 Body.Height 에서 유도하므로(04)
+                                충돌체와 이미지는 종류가 늘어도 항상 일치한다.
+                                rabbit-swordsman 0.85/3.4 · wanderer 0.7/2.8 · 기본 0.6/2.4
         BODY_MASS          몸 질량
         PUSH_STIFFNESS     겹침 깊이 → 밀어내는 힘의 비례 계수
         FRICTION           초당 속도 감쇠 계수

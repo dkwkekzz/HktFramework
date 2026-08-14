@@ -46,6 +46,9 @@ entities:
     body:                           # C006 ADDED / R1 — 몸 충돌체는 캡슐 부피다
       radius: { source: Actor.Body.Radius }
       height: { source: Actor.Body.Height }   # R1 — 부피 관찰용 (판정은 지면 투영 원)
+        # R2 — View 는 그림 표시 크기를 이 height 에서 유도한다. 충돌체와 이미지가
+        # 항상 일치하며, 새 종류의 존재를 추가해도 별도 보정이 필요 없다.
+        # 몸이 없는 존재만 View 자체 표시 크기를 쓴다.
       mass: { source: Actor.Body.Mass }
       facing: { source: Actor.Facing }        # R1 — 몸이 향한 방향 (휘두름이 나가는 쪽)
       velocity: { source: Actor.Velocity }

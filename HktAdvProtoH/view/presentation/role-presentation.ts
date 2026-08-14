@@ -9,7 +9,7 @@
 
 export interface RolePresentation {
   sprite: string; // Asset Registry 의 sprite 키
-  size: number;
+  size: number; // 몸(body)이 없는 존재의 표시 크기 — 몸이 있으면 Body.Height 가 우선한다 (C006 R2)
   tint?: number; // 그림에 곱할 색 — 같은 모션을 쓰는 대상을 구분하기 위한 표현 결정
   cameraFollow?: boolean;
   trail?: boolean;
