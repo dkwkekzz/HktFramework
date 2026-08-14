@@ -1,0 +1,188 @@
+# Capability Registry — 전역 단일 출처
+#
+# Capability 는 여러 Goal/Possibility 가 공통으로 재사용하는 "플레이 가능한 의미" 다.
+# Region 파일에서 Capability 를 자체 정의하지 않는다 — 여기 한 곳에만 둔다
+# (Master-Intent-Graph-Policy.md §32 Reuse Gate).
+#
+# status
+#   IMPLEMENTED  지금 플레이로 확인할 수 있다        cycles + where 근거 필수
+#   PARTIAL      일부만 가능하다                     cycles + where + note(무엇이 아직 아닌가) 필수
+#   MISSING      아직 세계에 없다                    cycles / where 는 비운다
+#
+# IMPLEMENTED / PARTIAL 은 주장이 아니라 근거다 — 그것을 만든 Cycle 과 실제 구현 위치를 인용한다.
+# 근거 없는 IMPLEMENTED 는 `npm run master:check` 실패다.
+#
+# platform: true
+#   세계가 굴러가기 위한 바탕 능력 — 특정 Possibility 의 requires 로 나타나지 않는다.
+#   (관찰 표면 · 접속 · 디버그처럼 "무엇을 할 수 있는가" 가 아니라 "세계가 어떻게 보이는가" 인 것)
+
+kind: capabilities
+
+nodes:
+  # ── 이동과 몸 ──────────────────────────────────────────────────────
+  - id: C_MOVE
+    type: capability
+    semantic: 주체가 세계의 지형 위를 걷거나 달려 원하는 자리로 간다.
+    status: IMPLEMENTED
+    cycles: [C001, C002, C007, C008]
+    where:
+      - world/rules/move.ts
+      - world/rules/move-mode.ts
+      - world/simulation/move-progress.ts
+
+  - id: C_BODY_COLLIDE
+    type: capability
+    semantic: 몸은 공간을 차지하여 같은 자리에 겹쳐 설 수 없고, 부딪히면 질량만큼 밀려난다.
+    status: IMPLEMENTED
+    cycles: [C006]
+    where:
+      - world/semantic/collision.ts
+      - world/simulation/body-push.ts
+      - world/simulation/body-momentum.ts
+
+  - id: C_ORIENT_VIEW
+    type: capability
+    semantic: 관찰자가 시점을 돌려 세계를 둘러보고, 보고 있는 그 방향으로 움직이고 휘두른다.
+    platform: true
+    status: IMPLEMENTED
+    cycles: [C008]
+    where:
+      - view/camera
+      - world/semantic/collision.ts
+
+  # ── 자원과 소지 ────────────────────────────────────────────────────
+  - id: C_MINE_DEPOSIT
+    type: capability
+    semantic: 도구를 지닌 주체가 광맥에 닿아 자원을 캐낸다. 광맥의 자원은 그만큼 줄어든다.
+    status: IMPLEMENTED
+    cycles: [C001, C002]
+    where:
+      - world/rules/mine.ts
+      - world/semantic/deposit.ts
+
+  - id: C_CARRY_ITEM
+    type: capability
+    semantic: 주체는 물건을 종류별로 지니고 다니며, 그 소지 여부가 다른 행동의 조건이 된다.
+    status: PARTIAL
+    cycles: [C001]
+    where:
+      - world/semantic/inventory.ts
+      - world/semantic/item.ts
+    note: 지니는 것과 조건 판정까지만 있다. 놓기·건네기·한계·무게는 아직 없다.
+
+  - id: C_LOOT
+    type: capability
+    semantic: 쓰러진 존재나 땅에 놓인 것을 집어 자기 소지로 옮긴다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  - id: C_FORAGE
+    type: capability
+    semantic: 도구 없이 땅과 수풀에서 먹을 것을 모은다. 자리마다 무엇이 나는지가 다르다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  # ── 싸움 ───────────────────────────────────────────────────────────
+  - id: C_MELEE_STRIKE
+    type: capability
+    semantic: 몸이 향한 쪽으로 휘둘러, 그 반경에 든 상대의 생명을 깎고 밀쳐낸다.
+    status: IMPLEMENTED
+    cycles: [C002, C006, C007, C008]
+    where:
+      - world/rules/attack.ts
+      - world/rules/strike-damage.ts
+      - world/simulation/swing-strike.ts
+
+  - id: C_SKILL_TEMPO
+    type: capability
+    semantic: 기본 휘두름으로 기력을 모으고 모은 기력을 고급 스킬로 쏟는다. 몸 상태와 존재 종류가 그 빠르기를 바꾼다.
+    status: IMPLEMENTED
+    cycles: [C007]
+    where:
+      - world/rules/skill.ts
+      - world/semantic/combat.ts
+      - world/simulation/cp-run-drain.ts
+
+  # ── 앎 ─────────────────────────────────────────────────────────────
+  - id: C_KNOW
+    type: capability
+    semantic: 주체가 사실을 알거나 잘못 믿으며, 그 앎이 그 주체가 고를 수 있는 경로를 바꾼다.
+    status: MISSING
+    cycles: []
+    where: []
+    note: >-
+      Design-Concept §4.1 이 지식·믿음을 세계 의미로 정의하지만 Actor 에는 아직 그 상태가 없다
+      (world/semantic/actor.ts). 조사·오해·반전이 걸리는 모든 Possibility 가 이것을 기다린다.
+
+  - id: C_TRACK
+    type: capability
+    semantic: 세계에 남은 흔적을 살펴 무엇이 언제 어디로 지나갔는지를 알아낸다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  - id: C_TALK
+    type: capability
+    semantic: 주체끼리 말을 주고받아 상대가 가진 앎이나 믿음을 옮긴다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  # ── 관계와 살림 ────────────────────────────────────────────────────
+  - id: C_TRADE
+    type: capability
+    semantic: 서로 가진 것을 값으로 바꾼다. 무엇을 얼마에 내놓을지는 파는 쪽이 정한다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  - id: C_CRAFT
+    type: capability
+    semantic: 재료와 방법을 아는 주체가 그것을 들여 다른 물건을 만든다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  - id: C_TAME
+    type: capability
+    semantic: 짐승과 적대하지 않는 관계를 맺어 그 짐승이 나를 대하는 방식을 바꾼다.
+    status: MISSING
+    cycles: []
+    where: []
+
+  # ── 세계가 스스로 도는 것 ──────────────────────────────────────────
+  - id: C_NPC_ACT
+    type: capability
+    semantic: 사람이 보고 있지 않아도 존재가 스스로 인지하고 움직인다.
+    status: PARTIAL
+    cycles: [C002, C003]
+    where:
+      - world/simulation/npc-decide.ts
+      - world/simulation/world-tick.ts
+    note: >-
+      인지 반사까지다 — 가장 가까운 상대를 향해 다가가 휘두르거나 순회한다.
+      자기 목적을 갖고 경로를 고르지 않는다 (Design-Concept §12 의 탐색이 아직 없다).
+
+  - id: C_OBSERVE_WORLD
+    type: capability
+    semantic: 여러 사람이 각자 같은 세계에 이어져 자기 몸을 조종하고 서로를 본다. 끊겼다 이어도 나는 나다.
+    platform: true
+    status: IMPLEMENTED
+    cycles: [C003, C004, C005]
+    where:
+      - world/rules/observer-join.ts
+      - world/projection/observer-view.ts
+      - world/semantic/observer.ts
+
+  - id: C_DEBUG_COMMAND
+    type: capability
+    semantic: 세계가 걸 수 있는 명령을 목록으로 밝히고, 관찰자가 그중 하나를 걸면 받아들임/거절을 사유와 함께 되돌려 준다.
+    platform: true
+    status: IMPLEMENTED
+    cycles: [C007, C009]
+    where:
+      - world/semantic/command-catalog.ts
+      - world/rules/attribute-set.ts
+      - world/rules/request-reply.ts

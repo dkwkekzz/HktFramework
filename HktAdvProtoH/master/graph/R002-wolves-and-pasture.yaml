@@ -1,0 +1,262 @@
+# Region R002 — 늑대와 목초지
+#
+# Narrative 가 별도 Layer 가 아님을 보이는 Region 이다 (Policy Part VI).
+# 세계 원인 → 서로 다른 주체의 믿음 → 부딪치는 목적 → 선택 → 드러나는 앎 → 새 목적
+# 이 경로 자체가 이야기다. 어떤 Node 도 "이야기 텍스트" 타입이 아니다.
+#
+# R001 과 Capability 를 공유한다 (C_MOVE · C_MELEE_STRIKE · C_CARRY_ITEM · C_TALK · C_KNOW).
+
+kind: region
+region: R002
+title: 늑대와 목초지
+summary: >-
+  북쪽 골짜기가 얼어붙어 늑대 무리가 아래로 내려왔다. 마을은 무리를 이끄는 늙은 늑대를
+  원인으로 지목하지만, 그 늑대 역시 굶는 무리를 살리려 내려온 주체다.
+
+nodes:
+  # ── 세계 원인 ──────────────────────────────────────────────────────
+  - id: W-R002-VALLEY-FROZEN
+    type: worldstate
+    text: 북쪽 골짜기가 얼어붙어 그곳에서 아무것도 나지 않는다.
+    causes:
+      - W-R002-WOLVES-DESCEND
+
+  - id: W-R002-WOLVES-DESCEND
+    type: worldstate
+    text: 굶은 늑대 무리가 골짜기를 떠나 사람이 사는 아래쪽으로 내려온다.
+    causes:
+      - W-R002-HERD-SCATTERED
+    motivates:
+      - G-R002-GREYFANG-FEED
+
+  - id: W-R002-HERD-SCATTERED
+    type: worldstate
+    text: 목초지의 가축이 흩어지고 밤마다 수가 줄어든다.
+    causes:
+      - W-R002-FOOD-SHORT
+    motivates:
+      - G-R002-YE-HERD
+
+  - id: W-R002-FOOD-SHORT
+    type: worldstate
+    text: 마을에 먹을 것이 모자란다.
+    motivates:
+      - G-R002-PLAYER-FOOD
+      - G-R002-DAN-HUNT
+
+  - id: W-R002-GREYFANG-ALIVE
+    type: worldstate
+    text: 무리를 이끄는 늙은 늑대 회색엄니가 살아 있다.
+
+  - id: W-R002-TRACES
+    type: worldstate
+    text: 목초지와 골짜기 사이에 무리가 지나간 흔적이 남아 있다.
+    note: 세계에 아직 없는 상태다. C_TRACK 과 함께 들어와야 P-R002-TRACK-PACK 이 성립한다.
+
+  # ── 주체 ───────────────────────────────────────────────────────────
+  - id: A-R002-DAN
+    type: actor
+    text: 단 — 마을의 사냥꾼. 무리를 쫓아내 본 적이 있다.
+    wants:
+      - G-R002-DAN-HUNT
+    believes:
+      - B-R002-DAN-BLAMES-GREYFANG
+
+  - id: A-R002-YE
+    type: actor
+    text: 예 — 목자. 가축이 곧 자기 살림이다.
+    wants:
+      - G-R002-YE-HERD
+
+  - id: A-R002-GREYFANG
+    type: actor
+    text: 회색엄니 — 무리를 이끄는 늙은 늑대. 짐승이지만 자기 목적을 가진 주체다.
+    wants:
+      - G-R002-GREYFANG-FEED
+
+  # ── 앎과 믿음 ──────────────────────────────────────────────────────
+  - id: B-R002-DAN-BLAMES-GREYFANG
+    type: belief
+    text: 단은 회색엄니가 가축을 흩어 놓았다고 믿는다.
+    holder: A-R002-DAN
+    true_in_world: false
+    creates_goal:
+      - G-R002-DAN-HUNT
+    note: 틀린 믿음이다. 원인은 얼어붙은 골짜기이며 회색엄니는 결과 쪽에 있다.
+
+  - id: K-R002-COLD-CAUSE
+    type: knowledge
+    text: 늑대가 내려온 것은 골짜기가 얼어 먹을 것이 끊겼기 때문이다.
+    true_in_world: true
+    reframes:
+      - G-R002-DAN-HUNT
+    creates_goal:
+      - G-R002-PLAYER-WINTER
+
+  - id: K-R002-GREYFANG-NATURE
+    type: knowledge
+    text: 회색엄니는 무리를 굶기지 않으려 앞장서 내려왔다.
+    holder: A-R002-GREYFANG
+    true_in_world: true
+
+  - id: K-R002-WHERE-PACK
+    type: knowledge
+    text: 무리가 낮 동안 어디에 머무는지.
+    true_in_world: true
+
+  # ── 목적 ───────────────────────────────────────────────────────────
+  - id: G-R002-PLAYER-FOOD
+    type: goal
+    owner: A-PLAYER
+    desired_state: 마을이 겨울을 날 먹을 것을 얻는다.
+    motivation:
+      - 여기서 살려면 마을이 무너지지 않아야 한다
+    belief_context:
+      - B-R002-DAN-BLAMES-GREYFANG
+    stakes:
+      - 마을이 흩어지면 이 지역의 다른 모든 길도 함께 닫힌다
+    note: >-
+      Player 가 처음 받는 것은 단의 믿음이다. 그래서 처음 보이는 길은 사냥 쪽으로 기울어 있다
+      (Policy §22 — Knowledge 가 Possibility 가용성을 바꾼다).
+
+  - id: G-R002-DAN-HUNT
+    type: goal
+    owner: A-R002-DAN
+    desired_state: 회색엄니가 죽어 무리가 흩어진다.
+    motivation:
+      - 저것을 없애면 가축이 다시 는다고 믿는다
+    belief_context:
+      - B-R002-DAN-BLAMES-GREYFANG
+    stakes:
+      - 사냥꾼으로서의 자기 자리
+
+  - id: G-R002-YE-HERD
+    type: goal
+    owner: A-R002-YE
+    desired_state: 남은 가축을 잃지 않는다.
+    motivation:
+      - 가축이 없으면 목자가 아니다
+    stakes:
+      - 생계
+
+  - id: G-R002-GREYFANG-FEED
+    type: goal
+    owner: A-R002-GREYFANG
+    desired_state: 무리가 굶지 않는다.
+    motivation:
+      - 골짜기에는 아무것도 남지 않았다
+    belief_context:
+      - K-R002-GREYFANG-NATURE
+    stakes:
+      - 무리의 존속
+
+  - id: G-R002-PLAYER-WINTER
+    type: goal
+    owner: A-PLAYER
+    desired_state: 골짜기가 얼어붙은 까닭을 밝힌다.
+    motivation:
+      - 늑대를 어떻게 하든 원인이 남아 있으면 같은 일이 다시 온다
+    stakes:
+      - 이 Region 을 넘어가는 더 큰 원인으로 이어진다
+    note: >-
+      K-R002-COLD-CAUSE 가 드러날 때 생기는 Goal 이다. 이 Region 이 국소 이야기처럼 보이지만
+      더 큰 World Cause 로 역추적되는 지점이다 (Policy §18 · §31).
+
+  # ── 가능성 ─────────────────────────────────────────────────────────
+  - id: P-R002-KILL-GREYFANG
+    type: possibility
+    name: 회색엄니를 죽인다
+    achieves:
+      - G-R002-PLAYER-FOOD
+      - G-R002-DAN-HUNT
+    requires:
+      capabilities: [C_MOVE, C_MELEE_STRIKE, C_SKILL_TEMPO, C_KNOW]
+      knowledge: [K-R002-WHERE-PACK]
+      world: [W-R002-GREYFANG-ALIVE]
+    supports:
+      - G-R002-DAN-HUNT
+    opposes:
+      - G-R002-GREYFANG-FEED
+    changes:
+      - W-R002-GREYFANG-ALIVE 가 거짓이 된다
+      - 단과의 관계가 좋아진다
+      - 무리가 흩어져 한동안 가축 피해가 준다
+    reveals:
+      - K-R002-COLD-CAUSE
+    creates_goal:
+      - G-R002-PLAYER-WINTER
+    note: >-
+      해결처럼 보이지만 W-R002-FOOD-SHORT 를 없애지 못한다 — 봄까지 무리는 다시 내려온다.
+      그 사실이 드러나는 것이 이 선택의 결과다.
+
+  - id: P-R002-TRACK-PACK
+    type: possibility
+    name: 흔적을 읽어 무리가 어디서 왜 내려왔는지 알아낸다
+    achieves:
+      - G-R002-PLAYER-FOOD
+    requires:
+      capabilities: [C_MOVE, C_TRACK, C_KNOW]
+      world: [W-R002-TRACES]
+    changes:
+      - 무리가 머무는 자리를 알게 된다
+    reveals:
+      - K-R002-COLD-CAUSE
+      - K-R002-WHERE-PACK
+    creates_goal:
+      - G-R002-PLAYER-WINTER
+    note: >-
+      싸우지 않고 이 Region 의 다른 길들을 여는 경로다. 이 하나가 없으면 남는 것은
+      죽이거나 버티는 것뿐이다 (Policy §34.1 · §31 마지막 항).
+
+  - id: P-R002-GUARD-HERD
+    type: possibility
+    name: 목초지를 지켜 무리를 물린다
+    achieves:
+      - G-R002-PLAYER-FOOD
+      - G-R002-YE-HERD
+    requires:
+      capabilities: [C_MOVE, C_MELEE_STRIKE, C_BODY_COLLIDE, C_NPC_ACT]
+    supports:
+      - G-R002-YE-HERD
+    opposes:
+      - G-R002-GREYFANG-FEED
+    changes:
+      - 남은 가축이 줄지 않는다
+      - 예와의 관계가 좋아진다
+    note: 죽이지 않고 막는 길이다. 원인은 그대로이므로 매번 다시 해야 한다.
+
+  - id: P-R002-FEED-THE-PACK
+    type: possibility
+    name: 무리가 마을로 오지 않도록 먹이를 대준다
+    achieves:
+      - G-R002-PLAYER-FOOD
+      - G-R002-GREYFANG-FEED
+    requires:
+      capabilities: [C_CARRY_ITEM, C_MOVE, C_TAME, C_KNOW, C_NPC_ACT]
+      knowledge: [K-R002-GREYFANG-NATURE, K-R002-WHERE-PACK]
+    supports:
+      - G-R002-GREYFANG-FEED
+      - G-R002-YE-HERD
+    opposes:
+      - G-R002-DAN-HUNT
+    changes:
+      - 가축 피해가 멈춘다
+      - 마을의 먹을 것이 그만큼 줄어든다
+      - 단과의 관계가 나빠진다
+    note: >-
+      회색엄니를 주체로 인정해야만 보이는 길이다 — K-R002-GREYFANG-NATURE 를 모르면
+      이 Possibility 는 Runtime 에서 아예 나타나지 않는다 (Policy §23).
+
+  - id: P-R002-OTHER-FOOD
+    type: possibility
+    name: 늑대와 상관없이 다른 먹을 것을 구한다
+    achieves:
+      - G-R002-PLAYER-FOOD
+    requires:
+      capabilities: [C_MOVE, C_FORAGE, C_CARRY_ITEM]
+    changes:
+      - 마을의 먹을 것이 는다
+      - 늑대 문제는 그대로 남는다
+    note: >-
+      부딪침을 피해 가는 길이다. 목적은 이루지만 W-R002-HERD-SCATTERED 는 계속 굴러간다 —
+      다음에 같은 문제가 더 커져서 돌아온다.

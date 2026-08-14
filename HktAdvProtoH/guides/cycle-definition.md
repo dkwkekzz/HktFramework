@@ -6,7 +6,7 @@
 
 ## Input
 
-- Human Cycle Goal
+- Human Cycle Goal — 출처는 무관하다 (`master/frontier.md` 의 후보 · 직관 · 플레이 피드백 · 기존 문제)
 - 관련 Existing Capability (있으면 — 기존 `cycles/`, `world/`, `view/`)
 
 ## Do
@@ -16,6 +16,7 @@
 3. Goal 을 **플레이어가 게임 안에서 할 수 있는 한 문장**으로 쓴다.
 4. Included / Excluded 를 나눈다. Excluded 는 "이번엔 안 한다"를 명시적으로 박는다.
 5. 관련 Existing Capability 를 나열한다 (재사용 대상 · 영향 가능 대상).
+6. Cycle Goal 이 Frontier 후보에서 왔으면 `MASTER TRACE` 로 출처를 남긴다 — **선택 항목이다.**
 
 ## Output
 
@@ -23,6 +24,7 @@
 
 항목: `CYCLE` · `TYPE` · `TARGET CAPABILITY` · `GOAL` · `INCLUDED` · `EXCLUDED` ·
 `RELATED EXISTING CAPABILITY` + 최상단 Stage 상태 블록
+(선택: `MASTER TRACE`)
 
 형식과 작성 예시는 `advprotoh-cycle` 스킬의 `references/artifact-format.md` 가 단일 출처다.
 
@@ -37,6 +39,9 @@
 - 클래스·모듈·파일·라이브러리·화면 구성 등 구현 방법을 정하지 않는다.
 - "시스템을 만든다" 같은 기능 나열로 Goal 을 쓰지 않는다.
 - 여러 개의 독립된 플레이 경험을 한 Cycle 에 묶지 않는다.
+- `MASTER TRACE` 를 필수 입력처럼 다루지 않는다 — 없어도 Cycle 은 성립한다.
+  Actor · Narrative Context · World Cause 를 Cycle 의 새 필수 항목으로 만들지 않는다.
+  이번 Cycle 의 의미는 확정된 Cycle Goal 자체가 소유한다.
 
 ## Done When
 

@@ -46,7 +46,15 @@ STATUS  IN PROGRESS
 ## RELATED EXISTING CAPABILITY
     Inventory
     Item Acquisition
+
+## MASTER TRACE            ← 선택 항목. Master Graph 에서 왔을 때만 쓴다
+    Frontier      F-004
+    Serves        P-R001-TAKE-BY-FORCE  (G-R001-PLAYER-STONE)
+    Capability    C_LOOT   MISSING → 이번 Cycle 이 만든다
 ```
+
+`MASTER TRACE` 는 순수한 출처 기록(Provenance)이다. Stage 2 이후 어떤 단계의 입력도 아니며,
+Cycle Goal 이 Master Graph 밖에서 왔다면 항목을 생략하거나 `없음` 이라고 적는다.
 
 상태 블록은 Stage 가 끝날 때마다 `[PASS]` 로 갱신한다. 실패하면 `[FAIL]` + 원인.
 

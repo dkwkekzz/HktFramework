@@ -23,7 +23,7 @@ description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미
 
 | Stage | Guide | 입력 | 출력 |
 |---|---|---|---|
-| 1 Cycle Definition | `guides/cycle-definition.md` | Human Cycle Goal | `01-cycle.md` |
+| 1 Cycle Definition | `guides/cycle-definition.md` | Human Cycle Goal (출처 무관 — `master/frontier.md` 후보일 수 있다) | `01-cycle.md` |
 | 2 Intent | `guides/intent.md` | `01-cycle.md` | `02-intent.md` |
 | 3 World Semantic | `guides/world-semantic.md` | `02-intent.md` | `03-world-semantic.md` |
 | 4 GameView Spec | `guides/gameview-spec.md` | `03-world-semantic.md` | `04-gameview.spec.yaml` |
@@ -49,6 +49,8 @@ Stage 5 가 다음 차례면 **작업을 멈추고** 사용자에게 Semantic Re
 추가로 필요할 때만:
 
 * **관련 있는** 기존 Cycle 의 Artifact (전부 읽지 마라 — 이번 Cycle 이 건드리는 Capability 만)
+* Stage 1 에서 Cycle Goal 이 Frontier 후보에서 왔을 때만 `master/frontier.md` 의 그 후보
+  (선택적 `MASTER TRACE` 를 옮겨 적기 위해서다. Stage 2~8 은 `master/` 를 읽지 않는다)
 * Stage 6/7/8 이면 해당하는 `world/` `view/` `protocol/` 실제 코드
 * Guide 로 판단할 수 없는 경계 사례에 한해 `design/` 원본의 **해당 섹션만**
 
@@ -92,6 +94,19 @@ Intent 가 Goal 과 불일치 → Cycle Definition (Human)
 * Stage 8 이 전 항목 통과면 `08-verification.md` 의 STATUS 를 `COMPLETE` 로,
   `01-cycle.md` 의 STATUS 도 `COMPLETE` 로 갱신한다.
   단 **Human Play 확인 이전에는 COMPLETE 로 바꾸지 않는다** — 사용자에게 플레이 확인을 요청한다.
+* COMPLETE 이후, 이번 Cycle 이 Master Graph 의 Capability 를 만들었거나 넓혔으면
+  `master/graph/capabilities.yaml` 의 그 항목을 갱신하고 `npm run master:check` 를 돌린다.
+
+  ```text
+  status   MISSING → PARTIAL | IMPLEMENTED
+  cycles   + <CycleId>
+  where    + 실제 구현 위치
+  note     PARTIAL 이면 무엇이 아직 아닌지
+  ```
+
+  건드린 Capability 가 없으면 갱신할 것도 없다 — 그것도 정상이다.
+  `cycles/` 는 History 이므로 과거 Artifact 는 이때도 수정하지 않는다.
+  Frontier 목록 재생성(M2)은 `advprotoh-master` 스킬의 몫이다.
 * 요청된 범위의 마지막 Stage 까지 실행했으면 멈춘다. 무엇이 끝났고 다음이 무엇인지 보고한다.
 
 ## 절대 규칙
