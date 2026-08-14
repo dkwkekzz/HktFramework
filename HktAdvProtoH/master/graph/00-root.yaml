@@ -3,75 +3,42 @@
 # 세계의 전제 · 최상위 World Cause · Root Goal · Design Constraint.
 # Root Goal 과 Design Constraint 는 Human 소유다 (Master-Intent-Graph-Policy.md §42-1).
 # Agent 는 여기를 확장 제안만 하고 스스로 확정하지 않는다.
+#
+# 지금은 비어 있다 — 형태만 있다. 내용은 M1(guides/master-expand.md)이 Human 의
+# Root Goal / World Premise 를 받아 채운다.
 
 kind: root
 
+# 이 세계가 무엇으로 굴러가는가. 한 문단.
 premise: |
-  세계는 규칙과 상태로 스스로 굴러간다.
-  주체는 자기가 알고 있고 할 수 있는 것 중에서 고르며, 그 선택이 다시 세계를 바꾼다.
-  같은 목적에 이르는 길은 여럿이고, 무엇을 아는가에 따라 보이는 길이 다르다.
 
-  이 세계에서 무엇이 존재하고 어떤 변화가 가능한지는 design/Design-Concept.md 가 정의한다.
+# Human 이 소유하는 제약. Graph 확장이 이것을 벗어나지 않는다.
+constraints: []
+# 예:
+#   - id: DC-001
+#     text: 세계는 Authoritative Server 다. Client 는 요청할 뿐 결과를 정하지 않는다.
+#     source: CLAUDE.md 12
 
-constraints:
-  - id: DC-001
-    text: 세계는 Authoritative Server 다. Client 는 요청할 뿐 결과를 정하지 않는다.
-    source: CLAUDE.md 12
-
-  - id: DC-002
-    text: 하나의 공유 World 에 누적한다. 콘텐츠별로 분리된 세계를 만들지 않는다.
-    source: CLAUDE.md 9
-
-  - id: DC-003
-    text: 캐릭터 능력 표현은 깊어야 한다 — 능력이 왜 그렇게 작동하는지가 세계의 규칙으로 설명되어야 한다.
-    source: HktAdvProtoH/CLAUDE.md 목표
-
-  - id: DC-004
-    text: 세계관은 넓어야 한다 — 채집물·퀘스트 NPC·몬스터 배치의 나열로는 이 목표에 닿지 않는다.
-    source: HktAdvProtoH/CLAUDE.md 목표
-
-nodes:
-  # ── 주체 ───────────────────────────────────────────────────────────
-  - id: A-PLAYER
-    type: actor
-    text: 이 세계에 들어와 자기 몸으로 사는 사람.
-    wants:
-      - G-ROOT-STAND
-
-  # ── 최상위 세계 원인 ───────────────────────────────────────────────
-  - id: W-ROOT-FINITE
-    type: worldstate
-    text: 세계의 것들은 유한하다 — 캐면 줄고, 쓰면 닳고, 먹으면 없어진다.
-    causes:
-      - W-ROOT-COMPETE
-    note: 이미 세계에 있는 성질이다. 광맥의 자원은 캘 때마다 줄어든다 (world/semantic/deposit.ts).
-
-  - id: W-ROOT-COMPETE
-    type: worldstate
-    text: 유한하기 때문에 같은 것을 원하는 주체들의 목적이 서로 부딪친다.
-    motivates:
-      - G-ROOT-STAND
-
-  - id: W-ROOT-PARTIAL-SIGHT
-    type: worldstate
-    text: 어떤 주체도 세계 전체를 보지 못한다. 각자 자기가 닿은 만큼만 안다.
-    motivates:
-      - G-ROOT-STAND
-    note: >-
-      Design-Concept §4.1 · §14 의 전제다. 세계에는 아직 이것을 담을 상태가 없다 — C_KNOW 참조.
-
-  # ── Root Goal (PROVISIONAL) ───────────────────────────────────────
-  - id: G-ROOT-STAND
-    type: goal
-    owner: A-PLAYER
-    desired_state: 주체가 이 세계에서 자기 힘으로 설 자리를 얻는다.
-    motivation:
-      - 유한한 세계에서 원하는 것을 얻으려면 누군가와 부딪치거나 다른 길을 찾아야 한다
-      - 무엇을 아는가가 고를 수 있는 길을 바꾸므로, 아는 것을 넓히는 일 자체가 목적이 된다
-    stakes:
-      - 아무 길도 열지 못하면 세계는 그저 배경이 되고 주체는 관광객이 된다
-    provisional: true
-    note: >-
-      MASTER GAP — Root Goal 은 Human 소유다. 이것은 CLAUDE.md 의 목표와 Design-Concept 의
-      전제에서 도출한 잠정안이며 Human 승인 전까지 provisional 이다.
-      Region 은 이 Goal 을 직접 achieve 하지 않고, 각자의 Actor-owned Goal 로 세계를 굴린다.
+# 최상위 World Cause · Root Actor · Root Goal.
+nodes: []
+# 예:
+#   - id: A-PLAYER
+#     type: actor
+#     text: 이 세계에 들어와 자기 몸으로 사는 사람.
+#     wants: [G-ROOT-...]
+#
+#   - id: W-ROOT-...
+#     type: worldstate
+#     text: 세계에서 참인 상태.
+#     causes:    [W-...]
+#     motivates: [G-...]
+#
+#   - id: G-ROOT-...
+#     type: goal
+#     owner: A-PLAYER
+#     desired_state: ...
+#     motivation: [...]
+#     stakes: [...]
+#     provisional: true      # Human 확정 전까지
+#
+# 필드 규격은 advprotoh-master 스킬의 references/graph-format.md 가 단일 출처다.

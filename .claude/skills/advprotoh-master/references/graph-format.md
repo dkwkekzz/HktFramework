@@ -3,6 +3,9 @@
 `master/graph/*.yaml` 의 단일 출처. 검사기는 `tools/master/print.ts` 이며
 `npm run master:check` 가 이 규격을 강제한다.
 
+아래 예시의 Id 와 문장은 **형태를 보이기 위한 것** 이지 이 저장소의 세계 설정이 아니다.
+지금 `master/graph/` 는 비어 있다 — 무엇을 넣을지는 Human 이 정한다.
+
 ---
 
 ## 파일 골격

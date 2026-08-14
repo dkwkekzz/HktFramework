@@ -58,8 +58,10 @@ describe('Master Graph — 현재 저장소', () => {
     expect(graph.errors).toEqual([]);
   });
 
-  it('그래프가 비어 있지 않다', () => {
-    expect(graph.byId.size).toBeGreaterThan(0);
+  it('골격 파일을 읽는다 (비어 있어도 형태는 읽힌다)', () => {
+    expect(graph.files.map((f) => f.path)).toContain('master/graph/00-root.yaml');
+    expect(graph.files.map((f) => f.path)).toContain('master/graph/capabilities.yaml');
+    expect(graph.files.every((f) => ['root', 'region', 'capabilities'].includes(f.kind))).toBe(true);
   });
 
   it('Capability 는 capabilities.yaml 에만 정의되어 있다', () => {

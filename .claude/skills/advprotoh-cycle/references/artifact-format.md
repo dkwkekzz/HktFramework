@@ -48,9 +48,9 @@ STATUS  IN PROGRESS
     Item Acquisition
 
 ## MASTER TRACE            ← 선택 항목. Master Graph 에서 왔을 때만 쓴다
-    Frontier      F-004
-    Serves        P-R001-TAKE-BY-FORCE  (G-R001-PLAYER-STONE)
-    Capability    C_LOOT   MISSING → 이번 Cycle 이 만든다
+    Frontier      F-0xx
+    Serves        P-<Possibility Id>  (G-<Goal Id>)
+    Capability    C_<이름>   MISSING → 이번 Cycle 이 만든다
 ```
 
 `MASTER TRACE` 는 순수한 출처 기록(Provenance)이다. Stage 2 이후 어떤 단계의 입력도 아니며,

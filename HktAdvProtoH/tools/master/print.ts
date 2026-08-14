@@ -498,7 +498,10 @@ function main(): void {
   const checkOnly = process.argv.includes('--check');
   const graph = validate(loadGraph());
 
-  if (!checkOnly) {
+  if (graph.byId.size === 0) {
+    console.log('\n  Master Intent Graph 가 비어 있다 — 형태만 있다.');
+    console.log('  M1(guides/master-expand.md)이 Human 의 Root Goal / World Premise 를 받아 채운다.');
+  } else if (!checkOnly) {
     printGraph(graph);
     printOverlay(graph);
     printFrontierMaterial(graph);

@@ -902,8 +902,8 @@ Root Goal
 
 # Part VII. Canonical Example — Blackhorn
 
-이 Part 는 정책의 형태를 보여 주는 예시다.
-이 저장소에 실제로 들어 있는 Region 은 `master/graph/R0xx-*.yaml` 이며 같은 형태를 따른다.
+이 Part 는 정책의 형태를 보여 주는 예시다 — 이 저장소의 세계 설정이 아니다.
+M1 이 만드는 `master/graph/R0xx-*.yaml` 이 같은 형태를 따른다.
 
 ## 19. World Cause
 
@@ -2000,6 +2000,10 @@ master/
     frontier.md             Frontier 후보 — Human 이 다음 Cycle Goal 을 고르는 목록
 ```
 
+**지금 이 저장소의 Graph 는 비어 있다 — 형태만 있다.** `00-root.yaml` 과 `capabilities.yaml` 은
+골격이고 Region 은 아직 없다. 내용을 채우는 것은 M1 의 일이며, 그 출발점인 Root Goal 과
+World Premise 는 Human 이 준다. Agent 가 세계 설정을 임의로 지어 채우지 않는다.
+
 Region 은 콘텐츠의 한 덩어리다. Region 경계는 Story 단위이지 시스템 단위가 아니다.
 Capability 는 Region 을 가로질러 재사용되므로 Region 파일에 정의하지 않고
 `capabilities.yaml` 한 곳에만 둔다 (§32 Reuse Gate).
@@ -2052,9 +2056,9 @@ Master 층이 Cycle 층을 바꾸지 않는다는 원칙(§27)을 지키기 위�
 
 ```text
 ## MASTER TRACE
-    Frontier      F-002
-    Serves        P-R002-TRACK-PACK   (G-R002-PLAYER-FOOD)
-    Capability    C_TRACK             MISSING → 이번 Cycle 이 만든다
+    Frontier      F-0xx
+    Serves        P-<Possibility Id>  (G-<Goal Id>)
+    Capability    C_<이름>             MISSING → 이번 Cycle 이 만든다
 ```
 
 없어도 Cycle 은 성립한다. Cycle Goal 이 Master Graph 밖에서 왔다면 `없음` 이라고 적는다.
@@ -2085,6 +2089,9 @@ Stage 2~8 의 Guide 는 Master Graph 를 읽지 않고, 읽을 필요도 없다.
 Master Graph 는 이 Cycle 들이 만든 Capability 를 `capabilities.yaml` 에 등록하고
 상위 Goal/Possibility 가 그것을 `requires` 로 참조하는 방식으로만 연결한다.
 즉 기존 구현에 대한 설명이 사후에 붙는 것이지, 기존 구현이 재작성되는 것이 아니다 (§27.4).
+
+등록은 미리 하지 않는다. Possibility 가 그것을 요구할 때 그 Capability 를 등록하고 상태를
+판정한다 — 쓰이지 않는 Capability 목록을 먼저 만드는 것은 §34.2 (시스템 목록부터 만들기) 다.
 
 ## 50. Master 층에서 막혔을 때
 

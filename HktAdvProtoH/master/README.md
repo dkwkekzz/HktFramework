@@ -17,7 +17,7 @@ CYCLE 층     cycles/<CycleId>/  Stage 1 ~ 8       그것을 어떻게 닫을 �
 |---|---|---|
 | `graph/00-root.yaml` | World Premise · Root Goal · Design Constraint · 최상위 World Cause | Human (Agent 는 제안만) |
 | `graph/capabilities.yaml` | Capability Registry — 전역 재사용 · 구현 상태 · 근거 | M1 이 추가, Cycle 완료가 상태를 갱신 |
-| `graph/R0xx-<name>.yaml` | Region — worldstate · actor · knowledge · belief · goal · possibility | M1 |
+| `graph/R0xx-<name>.yaml` | Region — worldstate · actor · knowledge · belief · goal · possibility | M1 (아직 없다) |
 | `frontier.md` | Frontier 후보 — Human 이 다음 Cycle Goal 을 고르는 목록 | M2 |
 
 Capability 는 Region 을 가로질러 재사용되므로 `capabilities.yaml` 한 곳에만 정의한다.
@@ -56,7 +56,13 @@ Stage 2~8 의 Guide 는 Master Graph 를 읽지 않는다 (Policy §48).
 ## 지금 상태
 
 ```text
-Region        R001 돌과 도구 · R002 늑대와 목초지
-Capability    IMPLEMENTED 8 · PARTIAL 2 · MISSING 8
-열린 GAP      Root Goal 이 provisional 이다 — Human 확정 대기 (frontier.md 끝)
+Graph         비어 있다 — 형태만 있다 (00-root.yaml · capabilities.yaml 골격)
+Region        없다
+Capability    없다 — 기존 Cycle(C001~C009)이 만든 것도 아직 등록하지 않았다
+Frontier      없다
+열린 GAP      Root Goal · World Premise 가 비어 있다 — Human 확정 대기 (frontier.md 끝)
 ```
+
+첫 작업은 M1 이다. Human 에게서 Root Goal / World Premise 또는 확장할 Region 주제를 받아
+`00-root.yaml` 부터 채운다. 기존 Cycle 의 Capability 등록도 M1·M2 의 일이다 —
+Possibility 가 그것을 요구하기 전에 미리 채워 두지 않는다.

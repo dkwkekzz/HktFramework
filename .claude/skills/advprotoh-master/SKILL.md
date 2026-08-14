@@ -22,7 +22,8 @@ CYCLE 층              Stage 1~8  (advprotoh-cycle)
 
 1. 요청이 **아이디어·이야기·대안·세계 확장** 이면 M1.
 2. 요청이 **다음에 뭘 만들까 · 지금 뭐가 되나 · 후보** 면 M2.
-3. `master/graph/` 자체가 없으면 M1 이며 Human 에게 Root Goal / Region 주제를 받는다.
+3. `master/graph/` 의 노드가 비어 있으면 M1 이며, Human 에게 Root Goal / World Premise 또는
+   확장할 Region 주제를 받는다. **없는 세계 설정을 Agent 가 지어 채우지 않는다.**
 4. `master/frontier.md` 가 마지막 Cycle 완료보다 오래됐으면 M2 를 먼저 권한다.
 
 | Step | Guide | 입력 | 출력 |
