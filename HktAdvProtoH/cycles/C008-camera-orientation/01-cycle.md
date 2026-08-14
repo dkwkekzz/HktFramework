@@ -4,10 +4,10 @@
 [PASS] Intent                    (BOUNDARY 질문 해소 — 원본 기준 방향은 그림의 성질)
 [PASS] World Semantic            (WORLD CHANGE: NONE — 전부 REUSED 로 닫힘)
 [PASS] GameView Specification    (viewpoint · facing 읽는 법 · spriteOrientation ADDED)
-[    ] Human Semantic Review
-[    ] World Implementation
-[    ] View Implementation
-[    ] Verification
+[PASS] Human Semantic Review     APPROVED (반대 선택지 3건은 경계 밖으로 확정)
+[PASS] World Implementation      변경 없음 — 판정을 코드로 확인
+[PASS] View Implementation       시점·좌우 읽기·기준 방향 + 결함 2건 수정
+[PASS] Verification              6종 검사 · 회귀 301항목 (Human Play 확인 대기)
 
 STATUS  IN PROGRESS
 

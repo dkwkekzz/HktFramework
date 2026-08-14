@@ -3,7 +3,8 @@
 // 어떤 entity 를 어떻게 그릴지는 Scene State(= World 의 표현 지시)가 정한다.
 
 import * as THREE from 'three';
-import { createCamera, followPlayer } from '../camera/camera';
+import { createViewCamera } from '../camera/camera';
+import type { PlaneDirection } from '../camera/orientation';
 import type { SceneState } from '../scene/scene-state';
 import { createBillboard, type Billboard } from '../sprites/billboard';
 import { createTerrain, heightAt } from '../terrain/terrain';
@@ -16,6 +17,12 @@ export interface GameRenderer {
   pickEntity(clientX: number, clientY: number): string | null;
   /** 월드 지면 위 지점(+높이 오프셋) → 화면 좌표 (카메라 뒤면 null) */
   worldToScreen(x: number, z: number, yOffset: number): { x: number; y: number } | null;
+  /** 시점을 지금 방향에서 그만큼 더 돌린다 (C008) */
+  turnView(dTurn: number, dTilt: number): void;
+  /** 지금 시점이 수평으로 돈 각 — 몸 방향을 좌우로 읽는 기준이 된다 (C008) */
+  viewTurn(): number;
+  /** 관찰자 기준 입력 방향 → 세계 방향 (C008) */
+  viewWorldDirection(local: PlaneDirection): PlaneDirection;
   domElement: HTMLCanvasElement;
 }
 
@@ -36,7 +43,8 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   const ground = createTerrain();
   scene.add(ground);
 
-  const camera = createCamera(container.clientWidth / container.clientHeight);
+  const view = createViewCamera(container.clientWidth / container.clientHeight);
+  const camera = view.camera;
   window.addEventListener('resize', () => {
     camera.aspect = container.clientWidth / container.clientHeight;
     camera.updateProjectionMatrix();
@@ -180,6 +188,16 @@ export function createRenderer(container: HTMLElement): GameRenderer {
   return {
     domElement: renderer.domElement,
 
+    turnView(dTurn, dTilt) {
+      view.turn(dTurn, dTilt);
+    },
+    viewTurn() {
+      return view.orientation().turn;
+    },
+    viewWorldDirection(local) {
+      return view.worldDirection(local);
+    },
+
     render(state, frameDt) {
       const now = performance.now();
       const dt = frameDt ?? (now - lastTime) / 1000;
@@ -219,7 +237,7 @@ export function createRenderer(container: HTMLElement): GameRenderer {
         }
 
         if (entity.cameraFollow) {
-          followPlayer(camera, at, y);
+          view.follow(at, y, heightAt);
         }
       }
 

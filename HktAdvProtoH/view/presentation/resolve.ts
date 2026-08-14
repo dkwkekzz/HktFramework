@@ -6,6 +6,8 @@
 // 이 파일과 capability 코드는 Cycle 이 늘어도 수정되지 않는다.
 
 import type { GameViewSnapshot } from '../../protocol/gameview';
+import { screenSideValue } from '../camera/orientation';
+import { facingDecision, type ScreenSide } from './facing-presentation';
 import { motionLibrary } from '../motion/motion-source';
 import type { MotionLibrary } from '../motion/motion-library';
 import type { SceneMotion, SceneState } from '../scene/scene-state';
@@ -28,6 +30,16 @@ export interface PresentationOptions {
   // 속성 관찰 (C007 R2 — 04 debugAuthority.inspect.toggle). 기본 off.
   // 세계는 이미 모든 속성을 보내고 있다. 이 값은 그것을 펼쳐 볼지만 정한다.
   inspect?: boolean;
+  /**
+   * 지금 시점이 수평으로 돈 각 (C008 — 04 viewpoint.orientation.turn).
+   * 세계에서 오는 값이 아니라 관찰자가 가진 값이다. 없으면 기본 시점(0)으로 읽는다.
+   */
+  viewTurn?: number;
+  /**
+   * 직전 프레임에 각 몸이 어느 쪽으로 읽혔는지 (C008 — 04 ambiguous: keep-previous).
+   * 이 함수는 읽기만 한다 — 갱신은 결과를 받은 쪽이 한다.
+   */
+  facingSides?: Readonly<Record<string, ScreenSide>>;
 }
 
 // entity.kind(종류) + state(행동) → 재생할 모션. 데이터가 없으면 undefined 이고
@@ -86,6 +98,16 @@ export function resolvePresentation(
       // 표지는 그 존재가 그려지는 크기(p.size) 바로 위에 붙는다.
       const plate = nameplate(e, p.size);
       const inspect = options.inspect ? inspectLines(e) : undefined;
+      // C008 — 몸이 향한 방향(세계)을 지금 시점에서 본 좌우로 읽고, 그림 기준 방향과
+      // 비교해 뒤집을지 정한다. 방향이 없는 대상(광맥)은 이 결정을 받지 않는다.
+      const facing = e.body?.facing;
+      const decided = facing
+        ? facingDecision(
+            e.kind,
+            screenSideValue(options.viewTurn ?? 0, facing),
+            options.facingSides?.[e.id],
+          )
+        : undefined;
       return {
         id: e.id,
         spriteId: `${p.sprite}:${e.state}`,
@@ -96,6 +118,7 @@ export function resolvePresentation(
         ...(label === undefined ? {} : { label }),
         ...(plate ? { nameplate: plate } : {}),
         ...(inspect ? { inspect } : {}),
+        ...(decided ? { facingSide: decided.side, flip: decided.flip } : {}),
         cameraFollow: p.cameraFollow ?? false,
         trail: p.trail ?? false,
       };
