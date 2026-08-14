@@ -1,5 +1,8 @@
 # C007 — World Semantic
 
+> R1 축소 개정 — 판정 능력치(CombatStats)와 World.Chance 를 제외했다.
+> 피해는 SkillDefinition.Damage 하나로 결정되며, 세계는 지금까지대로 완전한 결정론이다.
+
 ## SEMANTIC DELTA
     REUSED
         Actor.Id · Position · CharacterKind · Control       (C001·C002) 존재의 뼈대
@@ -19,17 +22,14 @@
         Actor.Cp · Actor.CpMax                               기력
         Actor.Downed (파생)                                  Hp = 0
         Actor.MoveMode                                       walk | run
-        Actor.CombatStats                                    AttackPower · Mastery · Accuracy · Evasion ·
-                                                             CritRate · CritDamage · Defense · DefenseIgnore
         Actor.TempoStats                                     MoveSpeed(승격) · RunSpeedMultiplier · ActionSpeed
         Actor.Modifiers (파생)                               CpCharge · CpConsume · MoveSpeed · ActionSpeed 배율
         ActionKind 'heavy-attack'                            고급 스킬
         ActionKind 'downed'                                  쓰러진 상태 (스스로 벗어나지 않는다)
-        SkillDefinition                                      스킬별 (계수, 충전량, 소모량, 기본 길이)
-        World.Chance                                         세계가 소유한 우연 (seed 기반 상태)
+        SkillDefinition                                      스킬별 (고정 피해, 충전량, 소모량, 기본 길이)
         World.StrikeEvents                                   최근 타격 결과들 (관찰용, 시간이 지나면 사라짐)
         RULE-SKILL-BEGIN-001
-        RULE-STRIKE-RESOLVE-001
+        RULE-STRIKE-DAMAGE-001
         RULE-SKILL-BUDGET-001
         RULE-CP-RUN-DRAIN-001
         RULE-MOVE-MODE-001
@@ -44,11 +44,8 @@
                   기본 스킬은 기존 attack 그대로다 (행동 종류 이름을 바꾸지 않는다)
         RULE-SWING-STRIKE-001
             기존  접촉한 몸마다 RULE-HIT-001 + 충격량
-            변경  접촉한 몸마다 RULE-STRIKE-RESOLVE-001 을 부른다.
-                  명중이면 피격 반응·충격량·피해가 함께 일어나고,
-                  빗나가면 아무 상태도 바뀌지 않는다 (밀려남도 없다 — 02 의 결정).
-                  쓰러진 몸은 대상에서 제외된다.
-                  판정 여부와 무관하게 StruckActorIds 에 올려 한 휘두름당 한 번만 판정한다
+            변경  접촉한 몸마다 RULE-STRIKE-DAMAGE-001 도 함께 일어난다.
+                  쓰러진 몸은 대상에서 제외된다
         RULE-MOVE-PROGRESS-001
             기존  MoveSpeed(고정 상수) × dt 만큼 나아간다
             변경  MoveSpeed × Modifiers.MoveSpeed × (MoveMode = run 이면 RunSpeedMultiplier) × dt
@@ -60,17 +57,17 @@
             기존  인지 대상에게 접근하고 사거리 안이면 휘두른다
             변경  쓰러진 자는 아무것도 결정하지 않는다.
                   쓰러진 자는 인지 대상이 되지 않는다.
-                  자율 존재는 기본 스킬만 쓰며, 기력이 모자라면 시작을 시도하지 않는다
+                  자율 존재는 기본 스킬만 쓴다
         RULE-WORLD-TICK-001
             Transition 에 기력 누수·타격 결과 만료 두 단계가 추가된다 (아래 순서 참조)
         RULE-OBSERVER-JOIN-001
-            새로 놓이는 몸은 이름·자원·전투/템포 능력치를 자기 CharacterKind 의 값으로 갖는다
+            새로 놓이는 몸은 이름·자원·템포 능력치를 자기 CharacterKind 의 값으로 갖는다
 
     AFFECTED
         RULE-MINE-001              쓰러진 자는 채굴도 시작하지 못한다 (RULE-ACTION-BEGIN-001 이 막는다)
         RULE-MOVE-001              쓰러진 자는 이동도 시작하지 못한다 (같은 관문)
         RULE-BODY-PUSH-001         쓰러진 몸도 여전히 공간을 차지하고 밀린다 (몸은 사라지지 않는다)
-        RULE-BODY-MOMENTUM-001     변경 없음 — 빗나간 타격이 충격량을 만들지 않을 뿐이다
+        RULE-BODY-MOMENTUM-001     변경 없음
         RULE-OBSERVER-MARK-001     변경 없음 — 관찰 결과가 커질 뿐이다
 
 ## WORLD STATE
@@ -79,21 +76,12 @@
         Name             World Authority   몸이 놓일 때 정해지고 변하지 않는다.
                                            관찰자의 몸은 그 관찰자가 밝힌 식별을,
                                            자율 존재는 종류 이름 + 일련번호를 쓴다
-        Hp               World Authority   0 <= Hp <= HpMax. RULE-STRIKE-RESOLVE-001 만이 줄인다
+        Hp               World Authority   0 <= Hp <= HpMax. RULE-STRIKE-DAMAGE-001 만이 줄인다
         HpMax            World Authority   CharacterKind 가 정하는 고정값
         Cp               World Authority   0 <= Cp <= CpMax.
                                            RULE-SKILL-BUDGET-001 · RULE-CP-RUN-DRAIN-001 만이 바꾼다
         CpMax            World Authority   CharacterKind 가 정하는 고정값
         MoveMode         World Authority   walk | run — RULE-MOVE-MODE-001 만이 바꾼다
-        CombatStats      World Authority   CharacterKind 가 정하는 고정값 8종
-            AttackPower      피해의 기준 크기
-            Mastery          0..1 — 피해 최소값이 최대값에 얼마나 가까운가
-            Accuracy         명중
-            Evasion          회피
-            CritRate         0..1 — 급소에 들어갈 확률
-            CritDamage       급소에 들어갔을 때의 배율 (>= 1)
-            Defense          들어온 피해를 깎는 값
-            DefenseIgnore    0..1 — 상대 방어를 무시하는 비율
         TempoStats       World Authority   CharacterKind 가 정하는 고정값 3종
             MoveSpeed            보통 걸음의 빠르기 (C001 상수의 승격)
             RunSpeedMultiplier   달릴 때 곱해지는 값
@@ -114,61 +102,49 @@
         네 값 모두 [MODIFIER_MIN, MODIFIER_MAX] 로 묶인다.
         원천이 하나도 없으면 1 이다. 원천이 늘어도 이 합성 규칙은 바뀌지 않는다.
 
-    World.Chance
-        Seed             World Authority   세계가 시작될 때 정해지는 값
-        State            World Authority   우연을 한 번 뽑을 때마다 앞으로 나아가는 값.
-                                           우연을 소비하는 Rule 만이 바꾼다.
-                                           같은 Seed + 같은 소비 순서 = 같은 결과 (결정론 재현)
-
-    World.StrikeEvents  World Authority   최근 타격 결과들. RULE-STRIKE-RESOLVE-001 이 쌓고
+    World.StrikeEvents  World Authority   최근 타격 결과들. RULE-STRIKE-DAMAGE-001 이 쌓고
                                           RULE-STRIKE-EVENT-EXPIRE-001 이 치운다
         AttackerId · TargetId · SkillKind
-        Outcome          miss | hit | critical
-        Amount           덜어낸 생명 (miss 면 0)
+        Amount           덜어낸 생명
         Position         결과가 드러나는 자리 (맞은 몸의 중심)
         Time             일어난 세계 시각
 
     SkillDefinition (스킬 종류별 고정값 — 결정론 시뮬레이션 값)
         Kind             attack (기본) | heavy-attack (고급)
         BaseDuration     ActionSpeed 가 걸리기 전의 행동 길이
-        Coefficient      AttackPower 에 곱해지는 계수
-        CpCharge         한 번의 명중이 채우는 기력
-        CpCost           한 번의 명중이 소모하는 기력
+        Damage           한 번의 타격이 덜어내는 생명 (고정 — R1)
+        CpCharge         한 번의 타격이 채우는 기력
+        CpCost           한 번의 타격이 소모하는 기력
 
     시뮬레이션 상수 (결정론 — 헤더 상수 고정)
-        COMBAT_PROFILES        CharacterKind → 자원·전투·템포 능력치 묶음
-        SKILL_DEFINITIONS      attack        BaseDuration 0.6 · Coefficient 1.0 · Charge 12 · Cost 0
-                               heavy-attack  BaseDuration 0.9 · Coefficient 2.6 · Charge 8  · Cost 30
-        HIT_BASE 0.5           명중 확률의 기준값
-        HIT_SLOPE 0.004        (Accuracy - Evasion) 1 점당 확률 변화
-        HIT_MIN 0.2 / HIT_MAX 0.95    명중 확률의 하한·상한
-        DEFENSE_CONSTANT 100   방어 감쇄 곡선의 상수 (감쇄율 = Def / (Def + 상수))
-        DAMAGE_MIN 1           명중한 타격이 남기는 최소 피해
+        COMBAT_PROFILES        CharacterKind → 자원·템포 능력치 묶음
+        SKILL_DEFINITIONS      attack        BaseDuration 0.6 · Damage 20 · Charge 12 · Cost 0
+                               heavy-attack  BaseDuration 0.9 · Damage 55 · Charge 8  · Cost 30
         RUN_CP_DRAIN 6.0       달리는 동안 초당 흘러나가는 기력
         RUN_CHARGE_FACTOR 0.5  달리는 중 기력 충전 배율
         HIT_CHARGE_FACTOR 0.2  피격 반응 중 기력 충전 배율
         MODIFIER_MIN 0.1 / MODIFIER_MAX 3.0
         ACTION_SPEED_MIN 0.5 / ACTION_SPEED_MAX 2.0   행동 길이 배율의 한계
         STRIKE_EVENT_TTL 1.2   타격 결과가 관찰되는 시간
-        WORLD_SEED             세계가 시작될 때 쓰는 기본 Seed
 
     COMBAT_PROFILES (초기값 — 존재 종류가 정한다)
                              rabbit-swordsman (관찰자의 몸)   wanderer (자율 존재)
         HpMax                200                              120
         CpMax / 시작 Cp      100 / 30                         60 / 20
-        AttackPower          30                               18
-        Mastery              0.75                             0.60
-        Accuracy / Evasion   120 / 60                         90 / 45
-        CritRate/CritDamage  0.15 / 1.6                       0.05 / 1.5
-        Defense/DefIgnore    40 / 0.10                        25 / 0
         MoveSpeed            6.0 (기존 MOVE_SPEED)            2.5 (기존 NPC_MOVE_SPEED)
         RunSpeedMultiplier   1.8                              1.4
         ActionSpeed          1.0                              0.85
 
+        기본 스킬 20 · 고급 스킬 55 이므로 —
+        자율 존재(120)는 기본 6대 또는 고급 2대 + 기본 1대에 쓰러진다.
+        관찰자의 몸(200)은 자율 존재의 기본 스킬 10대를 견딘다.
+        고급 스킬(소모 30, 충전 8)은 기본 스킬 3대(충전 36)를 모아야 한 번 나간다.
+
 ## WORLD RULE
 
     RULE-SKILL-BEGIN-001 (RULE-ATTACK-001 의 일반화)
-        Implements     INTENT-ATTACK-001(CHANGED) · INTENT-SKILL-COST-GATE-001 · INTENT-DOWNED-001
+        Implements     INTENT-ATTACK-001(CHANGED) · INTENT-SKILL-COST-GATE-001 ·
+                       INTENT-DOWNED-001 · INTENT-TEMPO-ACTION-001
         Input          Actor, SkillKind
         Preconditions  1. Actor 가 쓰러지지 않았다
                        2. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001 의 관문)
@@ -179,34 +155,22 @@
                                         BaseDuration / ACTION_SPEED_MAX, BaseDuration / ACTION_SPEED_MIN)
         Result         Success | Failure(downed | action-busy | insufficient-cp)
 
-    RULE-STRIKE-RESOLVE-001
-        Implements     INTENT-STRIKE-ACCURACY-001 · INTENT-STRIKE-MAGNITUDE-001 ·
-                       INTENT-STRIKE-CRITICAL-001 · INTENT-STRIKE-MITIGATION-001 ·
-                       INTENT-DAMAGE-APPLY-001 · INTENT-WORLD-CHANCE-001
+    RULE-STRIKE-DAMAGE-001 (R1 — 판정 없는 고정 피해)
+        Implements     INTENT-STRIKE-DAMAGE-001 · INTENT-DAMAGE-APPLY-001
         Input          공격자 Actor, 대상 Actor, SkillKind
         Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
-        Transition     1  명중  P = clamp(HIT_BASE + (공격자.Accuracy - 대상.Evasion) × HIT_SLOPE,
-                                          HIT_MIN, HIT_MAX)
-                              World.Chance 를 한 번 뽑아 P 미만이면 명중, 아니면 빗나감.
-                              빗나감이면 아무 상태도 바뀌지 않고 Outcome = miss 로 끝난다
-                       2  크기  Base = 공격자.AttackPower × Skill.Coefficient
-                              Roll = Base × (Mastery + (1 - Mastery) × 두 번째 우연)
-                       3  치명  세 번째 우연 < CritRate 이면 Roll × CritDamage, Outcome = critical
-                       4  감쇄  EffectiveDefense = 대상.Defense × (1 - 공격자.DefenseIgnore)
-                              Damage = Roll × (1 - EffectiveDefense / (EffectiveDefense + DEFENSE_CONSTANT))
-                       5  하한  Amount = max(DAMAGE_MIN, floor(Damage))
-                       6  적용  대상.Hp = max(0, 대상.Hp - Amount)
-                              RULE-HIT-001 (행동 중단) + 충격량 (RULE-SWING-STRIKE-001 이 준다)
-                              World.StrikeEvents += { 공격자, 대상, SkillKind, Outcome, Amount,
-                                                      대상.Position, World.Time }
-                              대상.Hp = 0 이면 RULE-DOWNED-001
-        Result         Miss | Hit(Amount) | Critical(Amount)
-        Note           우연은 언제나 1(명중) → 2(크기) → 3(치명) 순서로 소비한다.
-                       빗나가면 2·3 은 소비하지 않는다. 이 순서가 재현을 보장한다.
+        Transition     Amount = SkillDefinition(SkillKind).Damage
+                       대상.Hp = max(0, 대상.Hp - Amount)
+                       World.StrikeEvents += { 공격자, 대상, SkillKind, Amount,
+                                               대상.Position, World.Time }
+                       대상.Hp = 0 이면 RULE-DOWNED-001
+        Result         Damaged(Amount)
+        Note           피해에 흔들림이 없으므로 우연을 소비하지 않는다 —
+                       같은 입력이면 언제나 같은 결과다 (기존 결정론 그대로)
 
     RULE-SKILL-BUDGET-001
         Implements     INTENT-SKILL-BUDGET-001
-        Input          공격자 Actor, SkillKind, 이 휘두름의 첫 명중인가
+        Input          공격자 Actor, SkillKind, 이 휘두름의 첫 타격인가
         Preconditions  이 휘두름에서 아직 정산하지 않았다 —
                        한 휘두름은 여러 몸을 때려도 기력 수지를 한 번만 낸다
         Transition     Cp = clamp(Cp
@@ -214,8 +178,7 @@
                                   - Skill.CpCost   × Modifiers.CpConsume, 0, CpMax)
                        충전과 소모는 각자의 배율을 받아 같은 순간에 함께 적용된다
         Result         Settled(charged, consumed)
-        Note           빗나간 휘두름은 정산하지 않는다 (INTENT-STRIKE-ACCURACY-001).
-                       허공을 가른 휘두름도 마찬가지다 — 맞아야 기력이 돈다
+        Note           허공을 가른 휘두름은 정산하지 않는다 — 맞아야 기력이 돈다
 
     RULE-CP-RUN-DRAIN-001
         Implements     INTENT-RUN-001
@@ -251,23 +214,21 @@
         Result         Expired(count)
 
     RULE-SWING-STRIKE-001 (CHANGED)
-        Implements     INTENT-SWING-IMPACT-001(CHANGED) · INTENT-STRIKE-ACCURACY-001
+        Implements     INTENT-SWING-IMPACT-001(CHANGED)
         Input          ActionCollider 가 Active 인 모든 Actor (Tick 마다)
         Preconditions  대상 = 자신이 아니고, 쓰러지지 않았고,
                        Collider 에 닿았고, StruckActorIds 에 아직 없는 몸
-        Transition     대상마다 StruckActorIds += 대상 (판정 결과와 무관하게 한 번만 판정한다),
-                       RULE-STRIKE-RESOLVE-001 실행.
-                         Miss  → 아무 상태 변화 없음 (충격량도 없다)
-                         Hit   → RULE-HIT-001 + SWING_IMPULSE + 피해,
-                                 이 휘두름의 첫 명중이면 RULE-SKILL-BUDGET-001
-        Result         Struck(명중 수) · Missed(빗나감 수)
-        Note           대상은 World.Actors 순서로 판정한다 — 우연의 소비 순서가 결정되어야 한다
+        Transition     대상마다 StruckActorIds += 대상,
+                       RULE-HIT-001 (행동 중단) + SWING_IMPULSE 충격량 (C006 그대로),
+                       RULE-STRIKE-DAMAGE-001 (그 스킬의 고정 피해),
+                       이 휘두름의 첫 타격이면 RULE-SKILL-BUDGET-001
+        Result         Struck(대상 수)
 
     RULE-WORLD-TICK-001 (CHANGED — Transition 순서)
         0. 참여/이탈/표식        1. 도착한 요청 (스킬 시작·이동·이동 모드 전환 포함)
         2. RULE-NPC-DECIDE-001   3. RULE-MOVE-PROGRESS-001
         4. RULE-ACTION-PROGRESS-001
-        5. RULE-SWING-STRIKE-001 (→ STRIKE-RESOLVE → SKILL-BUDGET → DOWNED)
+        5. RULE-SWING-STRIKE-001 (→ STRIKE-DAMAGE → SKILL-BUDGET → DOWNED)
         6. RULE-BODY-PUSH-001    7. RULE-BODY-MOMENTUM-001
         8. RULE-CP-RUN-DRAIN-001 9. World.Time += dt
         10. RULE-STRIKE-EVENT-EXPIRE-001
@@ -284,29 +245,25 @@
 
     관찰자 자신의 몸에 대해서만 (INTENT-SELF-OBSERVE-001)
         Actor.Cp / Actor.CpMax
-        Actor.CombatStats 8종 전부
         Actor.TempoStats 3종 전부
         Actor.Modifiers 4종 전부 (CpCharge · CpConsume · MoveSpeed · ActionSpeed)
         Actor.MoveMode
         Skill.Availability + Skill.FailureReason (스킬 종류마다)
             downed | action-busy | insufficient-cp
-        Skill.CpCharge + Skill.CpCost (스킬 종류마다)
-            쓰기 전에 그 스킬이 기력을 얼마나 채우고 얼마나 쓰는지 알 수 있어야
+        Skill.Damage + Skill.CpCharge + Skill.CpCost (스킬 종류마다)
+            무엇이 얼마나 깎고 기력을 얼마나 쓰는지 알아야
             "지금 고급 스킬을 쓸 것인가"를 판단할 수 있다
         MoveMode.Availability + FailureReason (run 으로 바꿀 수 있는가)
 
     세계에 대해 (INTENT-STRIKE-OBSERVE-001)
-        World.StrikeEvents  { AttackerId, TargetId, SkillKind, Outcome, Amount, Position, Time }
-                            — 남의 타격 결과도 보인다. 숫자는 이미 판정이 끝난 결과값이므로
-                              남의 능력치를 드러내지 않는다
+        World.StrikeEvents  { AttackerId, TargetId, SkillKind, Amount, Position, Time }
+                            — 남의 타격 결과도 보인다
 
     관찰되지 않는 것 (01 EXCLUDED 의 "타 Actor 의 세부 정보")
-        남의 Cp · CombatStats · TempoStats · Modifiers · 명중 확률 · 스킬 가용성
+        남의 Cp · TempoStats · Modifiers · 스킬 가용성
 
     Rule 판단에 쓰인 모든 조건은 위에서 관찰 가능하다 —
-    스킬 실패 사유(세 가지), 달릴 수 없는 사유, 지금 걸린 배율, 그리고 타격 판정의 결과.
-    다만 명중 확률과 피해 계산 과정은 값이 아니라 판정의 내부다 —
-    관찰되는 것은 그 결과(miss | hit | critical + Amount)다.
+    스킬 실패 사유(세 가지), 달릴 수 없는 사유, 지금 걸린 배율, 그리고 타격의 결과.
 
 ## SEMANTIC CLOSURE
 
@@ -314,10 +271,11 @@
     "생명과 기력 두 자원을 지닌다"              → Actor.Hp/HpMax · Actor.Cp/CpMax
     "최대치 사이에서만 값을 가진다"             → 모든 변경 Rule 의 clamp
     "종류가 최대치와 시작값을 정한다"           → COMBAT_PROFILES
-    "생명은 타격으로만 준다"                    → RULE-STRIKE-RESOLVE-001 만이 Hp 를 줄인다
+    "생명은 타격으로만 준다"                    → RULE-STRIKE-DAMAGE-001 만이 Hp 를 줄인다
     "스킬마다 고유한 충전량·소모량"             → SkillDefinition.CpCharge/CpCost
-    "동시에 일어나며 각자 배율을 받는다"        → RULE-SKILL-BUDGET-001 Transition 한 식
+    "같은 순간에 함께, 각자 배율을 받는다"      → RULE-SKILL-BUDGET-001 Transition 한 식
     "기본은 충전만, 고급은 더 크게 소모"        → SKILL_DEFINITIONS 값
+    "맞혀야 기력이 돈다"                        → RULE-SKILL-BUDGET-001 은 타격에서만 불린다
     "모자라면 시작할 수 없다"                   → RULE-SKILL-BEGIN-001 Precondition 3
     "왜 시작되지 못했는지 알 수 있다"           → Skill.FailureReason(insufficient-cp)
     "걷기와 달리기 중 하나로 움직인다"          → Actor.MoveMode + RULE-MOVE-MODE-001
@@ -336,22 +294,11 @@
     "원천이 없으면 본래 값"                     → 빈 곱 = 1
 
     ── 한 번의 타격 ──
-    "우연은 세계가 소유한다"                    → World.Chance.Seed/State
-    "같은 상태면 같은 결과"                     → 소비 순서 고정 (Rule Note 2곳)
-    "명중과 회피가 겨루어 확률이 정해진다"      → RULE-STRIKE-RESOLVE-001 1단계
-    "빗나가면 생명도 수지도 남기지 않는다"      → Miss 는 상태를 바꾸지 않는다 + BUDGET 은 명중에만
-    "빗나갔다는 사실만 남는다"                  → StrikeEvent(Outcome = miss)
-    "공격력 × 계수를 중심으로"                  → 2단계 Base
-    "최소와 최대 사이에서 뽑는다"               → Roll 식
-    "숙련도가 최소값을 최대에 가깝게"           → Mastery + (1-Mastery) × 우연
-    "치명타 확률로 급소를 가른다"               → 3단계
-    "급소는 배율만큼 커진다"                    → CritDamage
-    "급소였다는 사실이 남는다"                  → Outcome = critical
-    "방어력이 깎아낸다"                         → 4단계 감쇄식
-    "방어 관통 비율만큼 통과한다"               → EffectiveDefense
-    "최소한의 값은 남긴다"                      → DAMAGE_MIN
-    "생명을 덜어낸다 / 0 아래로 안 간다"        → 6단계 적용
-    "피격 반응·밀려남과 함께 일어난다"          → RULE-HIT-001 + SWING_IMPULSE 동반
+    "스킬마다 정해진 피해량"                    → SkillDefinition.Damage
+    "언제나 똑같이 잃는다"                      → RULE-STRIKE-DAMAGE-001 (우연 없음)
+    "고급이 기본보다 크다"                      → 55 > 20
+    "생명을 덜어낸다 / 0 아래로 안 간다"        → Transition 의 max(0, …)
+    "피격 반응·밀려남과 함께 일어난다"          → RULE-SWING-STRIKE-001 이 셋을 함께 부른다
     "0 이 되면 쓰러진다"                        → RULE-DOWNED-001
     "쓰러지면 아무 행동도 시작 못 한다"         → CurrentAction = downed (대체 불가능)
     "스스로 결정하지 않는다"                    → RULE-NPC-DECIDE-001 (CHANGED)
@@ -372,5 +319,6 @@
     "남의 기력과 능력치는 관찰되지 않는다"      → 관찰되지 않는 것 목록
     "자기 자원·능력치·배율을 본다"              → Observable (자신)
     "쓸 수 있는지와 이유를 안다"                → Skill.Availability/FailureReason
+    "얼마나 깎고 기력을 얼마나 쓰는지 안다"     → Skill.Damage/CpCharge/CpCost
     "결과가 맞은 자리에서 잠시 드러난다"        → World.StrikeEvents + STRIKE_EVENT_TTL
     "누가 누구를 쳤는지 함께 실린다"            → AttackerId · TargetId

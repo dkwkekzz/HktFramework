@@ -1,4 +1,5 @@
 # CYCLE C007 — GameView Specification
+# R1 축소 개정 — 판정 능력치·명중/치명 결과를 제외했다. 타격 결과는 피해량 하나다.
 id: VIEW-BASIC-COMBAT-POLICY-001
 observer: player
 
@@ -15,10 +16,10 @@ delta:
     - entities.character.name       # 불러 줄 이름
     - entities.character.vitality   # 생명 현재/최대 + 쓰러짐
     - entityHud                     # 몸 위에 실리는 이름·생명 (모든 존재)
-    - strikeEvents                  # 한 번의 타격 결과 (빗나감·치명·피해량)
+    - strikeEvents                  # 한 번의 타격 결과 (누가 누구를 얼마나)
     - interactions.skillHeavy       # 고급 스킬
     - interactions.moveMode         # 걷기 / 달리기 전환
-    - hud.self                      # 자기 자원·능력치·배율 (관찰자 자신만)
+    - hud.self                      # 자기 자원·템포 능력치·배율 (관찰자 자신만)
   changed:
     - entities.character.state      # 상태 값에 heavy-attack · downed 가 더해진다
     - interactions.attack           # 기본 스킬로 의미가 확정되고, 불가 사유가 늘어난다
@@ -110,7 +111,7 @@ entityHud:
 # ─────────────────────────────────────────────────────────────────
 # strikeEvents — 한 번의 타격이 낳은 결과 (C007 ADDED)
 #
-# 세계가 판정을 마친 결과만 실린다. 능력치도 확률도 실리지 않는다.
+# 피해는 스킬이 정한 고정값이므로 실리는 것은 값 하나뿐이다.
 # 각 결과는 정해진 시간이 지나면 세계에서 사라진다.
 # ─────────────────────────────────────────────────────────────────
 strikeEvents:
@@ -119,13 +120,12 @@ strikeEvents:
   attacker: { source: StrikeEvent.AttackerId }
   target: { source: StrikeEvent.TargetId }
   skill: { source: StrikeEvent.SkillKind }        # attack | heavy-attack
-  outcome: { source: StrikeEvent.Outcome }        # miss | hit | critical
-  amount: { source: StrikeEvent.Amount }          # 덜어낸 생명 (miss 면 0)
+  amount: { source: StrikeEvent.Amount }          # 덜어낸 생명
   at: { source: StrikeEvent.Position }            # 결과가 드러나는 자리 = 맞은 몸의 중심
   since: { source: StrikeEvent.Time }             # 일어난 세계 시각 — 얼마나 지났는지 판단용
   meaning:
-    - 빗나감 · 치명 · 보통 타격이 서로 구분되어야 한다
     - 얼마가 깎였는지 숫자로 읽을 수 있어야 한다
+    - 기본 스킬과 고급 스킬의 결과가 구분되어야 한다 (skill 값으로)
     - 내가 친 것과 남이 친 것 모두 보인다 (attacker / target 으로 구분 가능)
 
 # ─────────────────────────────────────────────────────────────────
@@ -169,7 +169,8 @@ interactions:
     available: { source: Skill(attack).Availability }
     unavailableReason: { source: Skill(attack).FailureReason }
       # downed | action-busy  (기본 스킬은 소모가 없어 insufficient-cp 가 나오지 않는다)
-    budget:                         # 이 스킬이 기력을 어떻게 움직이는가 — 쓰기 전에 알 수 있어야 한다
+    profile:                        # 쓰기 전에 알 수 있어야 하는 값
+      damage: { source: Skill(attack).Damage }
       charge: { source: Skill(attack).CpCharge }
       cost: { source: Skill(attack).CpCost }
 
@@ -180,11 +181,13 @@ interactions:
     available: { source: Skill(heavy-attack).Availability }
     unavailableReason: { source: Skill(heavy-attack).FailureReason }
       # downed | action-busy | insufficient-cp
-    budget:
+    profile:
+      damage: { source: Skill(heavy-attack).Damage }
       charge: { source: Skill(heavy-attack).CpCharge }
       cost: { source: Skill(heavy-attack).CpCost }
     meaning:
       - 쓸 기력이 모자라면 요청 자체가 받아들여지지 않으며 그 사유가 온다
+      - 기본 스킬보다 크게 깎지만 기력을 잃는다는 것이 값으로 드러나야 한다
 
   moveMode:                         # C007 ADDED — 걷기 / 달리기
     role: set-move-mode
@@ -224,15 +227,6 @@ hud:
       energyMaximum: { source: ObserverCharacter.CpMax }
       downed: { source: ObserverCharacter.Downed }
     moveMode: { source: ObserverCharacter.MoveMode }        # walk | run
-    combatStats:
-      attackPower: { source: ObserverCharacter.CombatStats.AttackPower }
-      mastery: { source: ObserverCharacter.CombatStats.Mastery }
-      accuracy: { source: ObserverCharacter.CombatStats.Accuracy }
-      evasion: { source: ObserverCharacter.CombatStats.Evasion }
-      criticalRate: { source: ObserverCharacter.CombatStats.CritRate }
-      criticalDamage: { source: ObserverCharacter.CombatStats.CritDamage }
-      defense: { source: ObserverCharacter.CombatStats.Defense }
-      defenseIgnore: { source: ObserverCharacter.CombatStats.DefenseIgnore }
     tempoStats:
       moveSpeed: { source: ObserverCharacter.TempoStats.MoveSpeed }
       runSpeedMultiplier: { source: ObserverCharacter.TempoStats.RunSpeedMultiplier }
@@ -255,16 +249,16 @@ hud:
 #       CurrentActionKind(신규 값 포함) → entities.character.state
 #     자신에게만 보이는 것
 #       Cp · CpMax                     → hud.self.vitality
-#       CombatStats 8 · TempoStats 3   → hud.self.combatStats · tempoStats
+#       TempoStats 3                   → hud.self.tempoStats
 #       Modifiers 4                    → hud.self.modifiers
 #       MoveMode                       → hud.self.moveMode · interactions.moveMode.current
 #       Skill Availability/Reason      → interactions.attack · skillHeavy
+#       Skill Damage/Charge/Cost       → interactions.*.profile
 #       MoveMode Availability/Reason   → interactions.moveMode
 #     세계
 #       World.StrikeEvents             → strikeEvents
 #
 #   투영하지 않는 것
-#     남의 Cp · 능력치 · 배율 · 스킬 가용성   — 03 이 관찰 대상에서 제외한 그대로
-#     명중 확률 · 피해 계산의 중간값          — 관찰 대상은 판정의 결과(outcome + amount)다
-#     시뮬레이션 상수(HIT_BASE · DEFENSE_CONSTANT · RUN_CP_DRAIN …)
-#                                             — 관찰 대상은 상수가 아니라 그 결과다
+#     남의 Cp · 템포 능력치 · 배율 · 스킬 가용성   — 03 이 관찰 대상에서 제외한 그대로
+#     시뮬레이션 상수(RUN_CP_DRAIN · RUN_CHARGE_FACTOR · STRIKE_EVENT_TTL …)
+#                                                 — 관찰 대상은 상수가 아니라 그 결과다
