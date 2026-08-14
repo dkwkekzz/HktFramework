@@ -44,3 +44,29 @@ services:
       - type: rewrite
         source: /*
         destination: /index.html
+
+  # ── HktAdvProtoH — 세계와 화면이 한 주소에서 오는 오픈월드 프로토타입 ──────────────
+  #   HktAdvProtoC 와 달리 **서버가 필요하다.** 세계는 브라우저가 아니라 Node 프로세스에서
+  #   자기 시계로 돌고(C003 world-host), 관찰자는 WebSocket 으로 붙어 관찰 결과를 받는다.
+  #   여럿이 같은 세계에 들어와 서로를 본다(C004) — 그래서 정적 사이트로는 성립하지 않는다.
+  #
+  #   프로세스 하나가 정적 빌드(dist/)와 세계의 WebSocket 을 같은 포트에 얹으므로
+  #   (server/main.ts) 서비스도 하나면 된다. 플레이어는 주소 하나만 알면 되고,
+  #   클라이언트는 location.host 로 붙으므로 주소를 코드에 박지 않는다.
+  #   https 로 열리면 wss 로 붙는 것도 이미 되어 있다(app/main.ts).
+  #
+  #   로컬 재현: cd HktAdvProtoH && npm ci && npm run build && npm run world
+  - type: web
+    name: hkt-adv-proto-h
+    runtime: node
+    plan: free            # 무료 티어 — 비활성 시 슬립. 다시 깨어나면 세계는 처음부터 시작한다.
+    rootDir: HktAdvProtoH
+    # npm run build = tsc --noEmit && vite build — 타입 검사가 배포 전에 한 번 더 걸린다.
+    # --include=dev: 위와 같은 이유. 빌드의 tsc·vite 와 실행의 tsx 가 전부 devDependencies 다.
+    buildCommand: npm ci --include=dev && npm run build
+    # dist/ 를 서빙하면서 같은 포트에 세계를 붙인다. PORT 는 Render 가 주입한다.
+    startCommand: npm run world
+    healthCheckPath: /
+    envVars:
+      - key: NODE_VERSION
+        value: "22"
