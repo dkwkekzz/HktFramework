@@ -1,10 +1,10 @@
 # CYCLE C007 — Basic Combat Policy
 
 [PASS] Cycle Definition    (R1 축소 개정 — 판정 능력치 제거, 스킬 고정 피해)
-[PASS] Intent
-[PASS] World Semantic
-[PASS] GameView Specification
-[    ] Human Semantic Review
+[PASS] Intent                    (R2)
+[PASS] World Semantic            (R2)
+[PASS] GameView Specification    (R2)
+[PASS] Human Semantic Review     APPROVED WITH AMENDMENTS → R2 반영 완료
 [    ] World Implementation
 [    ] View Implementation
 [    ] Verification
@@ -59,6 +59,16 @@ STATUS  IN PROGRESS
     존재 HUD             모든 Actor 의 이름과 체력을 그 몸 위에서 관찰할 수 있다
     자기 정보            플레이어는 자신의 체력·기력 수치, 템포 능력치,
                          현재 걸린 배율(기력 수지·이동 속도·공격 속도)까지 관찰할 수 있다
+    전 속성 관찰 (R2)    세계는 어떤 속성도 숨기지 않는다 — 모든 Actor 의 모든 속성이
+                         관찰 계약에 실린다. 무엇을 화면에 늘 띄울지는 View 의 선택이며,
+                         몸 위 기본 표시는 이름과 체력이다
+
+    ── 디버그 조작 기반 (R2) ─────────────────────────────────────────
+    속성 변경 요청       세계가 디버그 조작을 허용한 경우에 한해, 어떤 존재의 어떤 속성이든
+                         값을 바꾸도록 요청할 수 있다. 바꾸는 것은 세계이지 Client 가 아니다
+    변경 가능 목록       무엇을 바꿀 수 있고 어떤 범위인지가 관찰 가능하다
+    기반만               이번 Cycle 은 "요청 → 세계가 판정하고 반영 → 결과 관찰" 경로 하나만
+                         세운다. 치트 명령 체계·권한 인증·조작 기록은 이후 Cycle
 
 ## EXCLUDED
     피해 판정 능력치     (R1 제외) 명중·회피·치명타·방어력·방어 관통·숙련도·피해 범위 —
@@ -76,7 +86,10 @@ STATUS  IN PROGRESS
     블록·패링·회피       능동 방어도 회피도 없다 — 닿으면 들어간다
     NPC 의 고급 스킬     자율 Actor 는 기본 스킬만 쓴다
     전리품·경험치        쓰러진 몸에서 얻는 것은 없다
-    타 Actor 의 세부 정보 남의 cp·능력치는 보이지 않는다 — 몸 위에는 이름과 체력뿐이다
+    치트 명령 체계 (R2)  속성 변경은 요청 경로 하나만 세운다 —
+                         명령어·단축키·권한 인증·조작 기록·되돌리기는 이후 Cycle
+    세계 상수 변경 (R2)  바꿀 수 있는 것은 Actor 의 속성까지다.
+                         스킬 피해·기력 수지 같은 세계 상수는 이번 Cycle 의 대상이 아니다
 
 ## COMBAT POLICY
     한 번의 타격은 판정을 거치지 않는다 (R1).
@@ -114,3 +127,6 @@ STATUS  IN PROGRESS
     R1  판정 능력치(명중·회피·치명타·방어·관통·숙련도·피해 범위)와 세계 난수원을 제외하고
         스킬별 고정 피해로 축소했다. 템포 능력치 3종은 유지한다.
         02·03·04 Artifact 도 같은 범위로 다시 작성했다 (Human Review 이전이므로 개정).
+    R2  Human Review 의 개정 요구 2건을 반영했다 (05-review.md).
+        A. 모든 속성을 관찰 계약에 싣는다 — "타 Actor 의 세부 정보" 비관찰 경계를 없앤다.
+        B. 세계가 허용한 경우 속성 값을 바꾸도록 요청할 수 있는 경로를 하나 세운다 (기반만).

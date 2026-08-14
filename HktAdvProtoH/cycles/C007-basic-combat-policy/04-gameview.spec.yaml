@@ -1,5 +1,7 @@
 # CYCLE C007 — GameView Specification
 # R1 축소 개정 — 판정 능력치·명중/치명 결과를 제외했다. 타격 결과는 피해량 하나다.
+# R2 개정 (Human Review 반영) — 모든 Actor 의 모든 속성을 싣는다(가리는 경계 없음),
+#                                속성 변경 요청 경로를 더한다(세계가 허용할 때만).
 id: VIEW-BASIC-COMBAT-POLICY-001
 observer: player
 
@@ -19,7 +21,10 @@ delta:
     - strikeEvents                  # 한 번의 타격 결과 (누가 누구를 얼마나)
     - interactions.skillHeavy       # 고급 스킬
     - interactions.moveMode         # 걷기 / 달리기 전환
-    - hud.self                      # 자기 자원·템포 능력치·배율 (관찰자 자신만)
+    - hud.self                      # 자기 자원·템포 능력치·배율 (늘 눈앞에 있는 자리)
+    - entities.character.attributes  # R2 — 모든 존재의 모든 속성
+    - debugAuthority                 # R2 — 속성을 바꿔 볼 수 있는 세계인가 + 바꿀 수 있는 목록
+    - interactions.setAttribute      # R2 — 속성 변경 요청 (기반만)
   changed:
     - entities.character.state      # 상태 값에 heavy-attack · downed 가 더해진다
     - interactions.attack           # 기본 스킬로 의미가 확정되고, 불가 사유가 늘어난다
@@ -56,6 +61,24 @@ entities:
       healthMaximum: { source: Actor.HpMax }
       downed: { source: Actor.Downed }
         # 참이면 그 존재는 더 이상 행동하지 않고 타격 대상도 되지 않는다
+
+    attributes:                     # R2 ADDED — 모든 존재의 모든 속성. 가리는 것이 없다.
+      energy: { source: Actor.Cp }
+      energyMaximum: { source: Actor.CpMax }
+      moveMode: { source: Actor.MoveMode }              # walk | run
+      control: { source: Actor.Control }                # player | autonomous
+      tempoStats:
+        moveSpeed: { source: Actor.TempoStats.MoveSpeed }
+        runSpeedMultiplier: { source: Actor.TempoStats.RunSpeedMultiplier }
+        actionSpeed: { source: Actor.TempoStats.ActionSpeed }
+      modifiers:
+        energyCharge: { source: Actor.Modifiers.CpCharge }
+        energyConsume: { source: Actor.Modifiers.CpConsume }
+        moveSpeed: { source: Actor.Modifiers.MoveSpeed }
+        actionSpeed: { source: Actor.Modifiers.ActionSpeed }
+      # 이 값들은 누구의 것이든 실린다. 늘 화면에 띄우라는 뜻은 아니다 —
+      # 기본 표시는 entityHud(이름·체력)이고, 나머지는 hud.self 와 debugAuthority.inspect 가
+      # 필요할 때 펼친다. 세계가 감추지 않을 뿐 화면을 채우지도 않는다.
 
     motion:                         # C002·C004 그대로
       selectedBy: [kind, state]
@@ -105,8 +128,9 @@ entityHud:
   meaning:
     - 누가 누구인지, 얼마나 남았는지를 싸우는 도중에 몸에서 바로 읽을 수 있어야 한다
     - 쓰러진 존재는 살아 있는 존재와 구분되어야 한다
-  notShown:
-    - 남의 기력 · 능력치 · 배율        # 03 OBSERVABLE SEMANTIC 의 "관찰되지 않는 것"
+  notShownByDefault:                # R2 — 감춰진 것이 아니라 "늘 띄우지 않는 것"이다
+    - entities.character.attributes  # 세계는 전부 준다. 몸 위를 채우지 않기 위한 표시 선택일 뿐이며,
+                                     # 필요하면 debugAuthority.inspect 로 펼쳐 본다
 
 # ─────────────────────────────────────────────────────────────────
 # strikeEvents — 한 번의 타격이 낳은 결과 (C007 ADDED)
@@ -145,7 +169,32 @@ debugObserve:
       struckMarks: swing.struck
 
 # ─────────────────────────────────────────────────────────────────
-# interactions — 스킬 2종 + 이동 모드 (C007 ADDED / CHANGED)
+# debugAuthority — 속성을 들여다보고 바꿔 보는 자리 (R2 ADDED)
+#
+# 세계는 모든 속성을 이미 보내고 있다 (entities.character.attributes).
+# 이 블록은 그것을 "펼쳐 보고 바꾸는" 관찰자 쪽 자리를 계약으로 고정한다.
+# 켜고 끄는 것은 관찰자의 선택이고, 바꿀 수 있는지는 세계가 정한다.
+# ─────────────────────────────────────────────────────────────────
+debugAuthority:
+  open: { source: World.DebugAuthority.Open }   # 세계가 속성 변경을 허용하는가
+  mutableAttributes:                            # 무엇을 어디까지 바꿀 수 있는가
+    cardinality: many
+    source: MutableAttribute
+    attribute: { source: MutableAttribute.Id }  # hp | hpMax | cp | cpMax |
+                                                # moveSpeed | runSpeedMultiplier |
+                                                # actionSpeed | moveMode
+    range: { source: MutableAttribute.Range }
+  inspect:
+    toggle: { owner: observer, default: off }
+    forEach: entities.character
+    shows: entities.character.attributes        # 지목한 존재의 모든 속성
+  meaning:
+    - open 이 거짓이면 값을 펼쳐 볼 수는 있어도 바꿀 수는 없다
+    - 바꿀 수 있는 속성과 허용 범위는 세계가 알려 준 목록 그대로여야 한다 —
+      View 가 목록을 스스로 만들지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 스킬 2종 + 이동 모드 + 속성 변경 (C007 ADDED / CHANGED)
 # ─────────────────────────────────────────────────────────────────
 interactions:
   subject: observer-character
@@ -201,6 +250,21 @@ interactions:
       - 요청은 토글이 아니라 명시값이다 — 같은 요청이 두 번 가도 결과가 같다
       - 기력이 바닥나면 세계가 스스로 걷기로 되돌린다. View 는 current 를 따라간다
 
+  setAttribute:                     # R2 ADDED — 속성 변경 (기반만)
+    role: debug-set-attribute
+    target: character               # 자기 몸이 아니라 지목한 존재가 대상이다
+    request: SetAttribute(TargetEntity, AttributeId, Value)
+      # 이 요청은 기존 요청 계약(대상 + 값)이 담지 못하는 항목을 가진다 —
+      # 경계 타입에 속성 이름과 값을 실을 자리가 필요하다는 뜻이며,
+      # 어떻게 실을지는 구현 단계가 정한다.
+    available: { source: AttributeSet.Availability }      # = World.DebugAuthority.Open
+    unavailableReason: { source: AttributeSet.FailureReason }
+      # debug-closed | unknown-target | unknown-attribute | out-of-range
+    meaning:
+      - 세계가 권한을 닫아 두면 이 상호작용은 아예 가용하지 않다
+      - 바꾼 결과는 다음 관찰에서 그 존재의 속성으로 확인된다
+      - 이후 Cycle 의 치트 수단은 이 요청 위에 얹힌다 — 여기서는 경로 하나만 연다
+
   requestResult: from-next-observation
 
 # ─────────────────────────────────────────────────────────────────
@@ -219,7 +283,10 @@ hud:
   observers:
     present: { source: Observers.PresentCount }
 
-  self:                             # C007 ADDED — 자기 몸에 한해 속속들이 보인다
+  self:                             # C007 ADDED — 자기 몸의 값이 늘 눈앞에 있는 자리
+                                    # R2 — 같은 값을 남에 대해서도 볼 수 있다
+                                    #      (entities.character.attributes).
+                                    #      여기가 특별한 것은 "늘 보인다"는 점뿐이다.
     vitality:
       health: { source: ObserverCharacter.Hp }
       healthMaximum: { source: ObserverCharacter.HpMax }
@@ -242,23 +309,27 @@ hud:
 
 # OBSERVABLE PROJECTION NOTE
 #   03 의 Observable Semantic 대응
-#     모두에게 보이는 것
+#     모든 Actor 에 대해 (R2 — 예외 없음)
 #       Actor.Name                     → entities.character.name / entityHud.name
 #       Actor.Hp · HpMax               → entities.character.vitality / entityHud.health
 #       Actor.Downed                   → entities.character.vitality.downed
+#       Actor.Cp · CpMax               → entities.character.attributes.energy
+#       Actor.MoveMode · Control       → entities.character.attributes
+#       Actor.TempoStats 3             → entities.character.attributes.tempoStats
+#       Actor.Modifiers 4              → entities.character.attributes.modifiers
 #       CurrentActionKind(신규 값 포함) → entities.character.state
-#     자신에게만 보이는 것
-#       Cp · CpMax                     → hud.self.vitality
-#       TempoStats 3                   → hud.self.tempoStats
-#       Modifiers 4                    → hud.self.modifiers
-#       MoveMode                       → hud.self.moveMode · interactions.moveMode.current
+#     관찰자 자신에 대해 추가로 (늘 눈앞에 두는 자리 + 자기만 의미 있는 값)
+#       위 속성 전부                    → hud.self (같은 값의 상시 표시)
 #       Skill Availability/Reason      → interactions.attack · skillHeavy
 #       Skill Damage/Charge/Cost       → interactions.*.profile
 #       MoveMode Availability/Reason   → interactions.moveMode
 #     세계
 #       World.StrikeEvents             → strikeEvents
+#       World.DebugAuthority.Open      → debugAuthority.open · interactions.setAttribute.available
+#       MutableAttribute + Range       → debugAuthority.mutableAttributes
+#       AttributeSet.FailureReason     → interactions.setAttribute.unavailableReason
 #
 #   투영하지 않는 것
-#     남의 Cp · 템포 능력치 · 배율 · 스킬 가용성   — 03 이 관찰 대상에서 제외한 그대로
-#     시뮬레이션 상수(RUN_CP_DRAIN · RUN_CHARGE_FACTOR · STRIKE_EVENT_TTL …)
-#                                                 — 관찰 대상은 상수가 아니라 그 결과다
+#     없다 (R2). 03 의 Observable Semantic 은 전부 이 계약에 실린다.
+#     단 시뮬레이션 상수(RUN_CP_DRAIN · RUN_CHARGE_FACTOR · STRIKE_EVENT_TTL …)는
+#     관찰 대상이 아니다 — 관찰되는 것은 상수가 아니라 그 결과(배율·기력·타격)다.

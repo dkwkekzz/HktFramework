@@ -2,6 +2,10 @@
 
 > R1 축소 개정 — 판정 능력치(CombatStats)와 World.Chance 를 제외했다.
 > 피해는 SkillDefinition.Damage 하나로 결정되며, 세계는 지금까지대로 완전한 결정론이다.
+>
+> R2 개정 (Human Review 반영) — ① 모든 Actor 의 모든 속성을 관찰 계약에 싣는다
+> ("관찰되지 않는 것" 목록 삭제), ② World.DebugAuthority 와 RULE-ATTRIBUTE-SET-001 로
+> 속성 변경 경로를 하나 세운다 (기반만).
 
 ## SEMANTIC DELTA
     REUSED
@@ -28,6 +32,9 @@
         ActionKind 'downed'                                  쓰러진 상태 (스스로 벗어나지 않는다)
         SkillDefinition                                      스킬별 (고정 피해, 충전량, 소모량, 기본 길이)
         World.StrikeEvents                                   최근 타격 결과들 (관찰용, 시간이 지나면 사라짐)
+        World.DebugAuthority (R2)                            세계가 속성 변경을 허용하는가
+        MutableAttribute (R2)                                바꿀 수 있는 속성의 목록과 각자의 허용 범위
+        RULE-ATTRIBUTE-SET-001 (R2)
         RULE-SKILL-BEGIN-001
         RULE-STRIKE-DAMAGE-001
         RULE-SKILL-BUDGET-001
@@ -108,6 +115,20 @@
         Amount           덜어낸 생명
         Position         결과가 드러나는 자리 (맞은 몸의 중심)
         Time             일어난 세계 시각
+
+    World.DebugAuthority (R2)
+        Open             World Authority   세계가 시작될 때 정해진다.
+                                           열려 있으면 속성 변경 요청을 받아들인다.
+                                           이 값 자체는 요청으로 바꿀 수 없다 —
+                                           세계 밖(세계를 띄우는 쪽)이 정한다
+
+    MutableAttribute (R2 — 바꿀 수 있는 속성의 목록. 세계가 아는 고정 표)
+        Id               Hp · HpMax · Cp · CpMax ·
+                         MoveSpeed · RunSpeedMultiplier · ActionSpeed · MoveMode
+        Range            각 속성의 허용 범위 (수치는 [최소, 최대], MoveMode 는 walk | run)
+        제외             파생 상태(Downed · Modifiers)와 정체성(Id · Name · CharacterKind ·
+                         Control) 은 바꿀 수 없다 — 유도되는 값이거나 존재를 존재이게 하는 값이다.
+                         세계 상수(스킬 피해·기력 수지)도 이번 Cycle 의 대상이 아니다 (01 EXCLUDED)
 
     SkillDefinition (스킬 종류별 고정값 — 결정론 시뮬레이션 값)
         Kind             attack (기본) | heavy-attack (고급)
@@ -206,6 +227,26 @@
         Note           downed 가 대체 불가능하므로 모든 행동 시작이 자동으로 막힌다.
                        RULE-ACTION-BEGIN-001 에 예외를 추가하지 않는다
 
+    RULE-ATTRIBUTE-SET-001 (R2 — 디버그 조작의 기반)
+        Implements     INTENT-ATTRIBUTE-MUTATE-001
+        Input          요청한 관찰자, 대상 ActorId, AttributeId, 새 값
+        Preconditions  1. World.DebugAuthority.Open 이 참이다
+                       2. 대상 ActorId 가 세계에 있다
+                       3. AttributeId 가 MutableAttribute 목록에 있다
+                       4. 새 값이 그 속성의 Range 안에 있다
+        Transition     그 속성에 새 값을 넣는다.
+                       Hp 가 0 이 되면 RULE-DOWNED-001 이 이어서 일어난다 —
+                       속성 변경도 세계의 다른 규칙을 건너뛰지 않는다.
+                       HpMax/CpMax 를 낮추면 현재값도 함께 그 안으로 들어온다.
+                       쓰러진 몸의 Hp 를 0 보다 크게 만들면 다시 일어난다
+                       (downed → idle) — 이번 Cycle 에서 쓰러짐을 되돌리는 유일한 길이며,
+                       세계의 규칙이 아니라 세계 밖에서 손을 댄 결과다
+        Result         Success | Failure(debug-closed | unknown-target |
+                                         unknown-attribute | out-of-range)
+        Note           이 Rule 은 값을 바꿀 뿐 새로운 게임 의미를 만들지 않는다.
+                       무엇을 위해 바꾸는지(치트·시험·연출)는 이번 Cycle 의 의미가 아니다 —
+                       경로 하나만 세운다 (01 EXCLUDED 의 "치트 명령 체계")
+
     RULE-STRIKE-EVENT-EXPIRE-001
         Implements     INTENT-STRIKE-OBSERVE-001
         Input          World.StrikeEvents, World.Time
@@ -225,7 +266,7 @@
         Result         Struck(대상 수)
 
     RULE-WORLD-TICK-001 (CHANGED — Transition 순서)
-        0. 참여/이탈/표식        1. 도착한 요청 (스킬 시작·이동·이동 모드 전환 포함)
+        0. 참여/이탈/표식        1. 도착한 요청 (스킬 시작·이동·이동 모드 전환·속성 변경 포함)
         2. RULE-NPC-DECIDE-001   3. RULE-MOVE-PROGRESS-001
         4. RULE-ACTION-PROGRESS-001
         5. RULE-SWING-STRIKE-001 (→ STRIKE-DAMAGE → SKILL-BUDGET → DOWNED)
@@ -237,33 +278,44 @@
 
 ## OBSERVABLE SEMANTIC
 
-    모든 Actor 에 대해 (누구나 볼 수 있다 — INTENT-ENTITY-OBSERVE-001)
+    모든 Actor 에 대해 — 누구의 것이든 예외 없이 (R2, INTENT-ATTRIBUTE-OBSERVE-001)
         Actor.Name
         Actor.Hp / Actor.HpMax
-        Actor.Downed
-        (재사용) Position · CharacterKind · CurrentActionKind · ActionProgress · Body · Swing
-
-    관찰자 자신의 몸에 대해서만 (INTENT-SELF-OBSERVE-001)
         Actor.Cp / Actor.CpMax
-        Actor.TempoStats 3종 전부
-        Actor.Modifiers 4종 전부 (CpCharge · CpConsume · MoveSpeed · ActionSpeed)
+        Actor.Downed
         Actor.MoveMode
+        Actor.TempoStats 3종 전부 (MoveSpeed · RunSpeedMultiplier · ActionSpeed)
+        Actor.Modifiers 4종 전부 (CpCharge · CpConsume · MoveSpeed · ActionSpeed)
+        (재사용) Position · CharacterKind · Control · CurrentActionKind · ActionProgress ·
+                 Body · Swing
+
+    관찰자 자신에 대해 추가로 (INTENT-SELF-OBSERVE-001)
         Skill.Availability + Skill.FailureReason (스킬 종류마다)
             downed | action-busy | insufficient-cp
         Skill.Damage + Skill.CpCharge + Skill.CpCost (스킬 종류마다)
             무엇이 얼마나 깎고 기력을 얼마나 쓰는지 알아야
             "지금 고급 스킬을 쓸 것인가"를 판단할 수 있다
         MoveMode.Availability + FailureReason (run 으로 바꿀 수 있는가)
+        이것들은 "그 몸이 지금 무엇을 할 수 있는가"이지 속성이 아니다 —
+        요청의 주체는 자기 몸이므로 자기 것만 의미가 있다
 
-    세계에 대해 (INTENT-STRIKE-OBSERVE-001)
+    세계에 대해
         World.StrikeEvents  { AttackerId, TargetId, SkillKind, Amount, Position, Time }
-                            — 남의 타격 결과도 보인다
+                            — 남의 타격 결과도 보인다 (INTENT-STRIKE-OBSERVE-001)
+        World.DebugAuthority.Open (R2)   지금 속성을 바꿔 볼 수 있는 세계인가
+        MutableAttribute 목록 + Range (R2)
+                            무엇을 어디까지 바꿀 수 있는지 (INTENT-ATTRIBUTE-MUTATE-001)
+        AttributeSet.FailureReason (R2)
+                            debug-closed | unknown-target | unknown-attribute | out-of-range
 
-    관찰되지 않는 것 (01 EXCLUDED 의 "타 Actor 의 세부 정보")
-        남의 Cp · TempoStats · Modifiers · 스킬 가용성
+    관찰되지 않는 것
+        없다 (R2). 세계는 어떤 속성도 숨기지 않는다.
+        무엇을 언제나 화면에 띄워 둘지는 View 의 선택이며 — 그 기본값(몸 위에는 이름과 체력)은
+        04 GameView Specification 이 정한다. 세계의 제한이 아니다.
 
     Rule 판단에 쓰인 모든 조건은 위에서 관찰 가능하다 —
-    스킬 실패 사유(세 가지), 달릴 수 없는 사유, 지금 걸린 배율, 그리고 타격의 결과.
+    스킬 실패 사유(세 가지), 달릴 수 없는 사유, 지금 걸린 배율, 타격의 결과,
+    그리고 속성 변경이 거절된 사유(네 가지).
 
 ## SEMANTIC CLOSURE
 
@@ -316,9 +368,23 @@
     ── 관찰 ──
     "모든 Actor 는 이름을 가진다"               → Actor.Name
     "이름·생명·쓰러짐을 관찰한다"               → Observable (모두)
-    "남의 기력과 능력치는 관찰되지 않는다"      → 관찰되지 않는 것 목록
-    "자기 자원·능력치·배율을 본다"              → Observable (자신)
+    "세계는 어떤 속성도 숨기지 않는다" (R2)     → Observable "모든 Actor 에 대해" 전체 목록
+    "누구의 것이든 관찰될 수 있다" (R2)         → 관찰되지 않는 것: 없다
+    "늘 띄워 둘지는 보는 이의 선택" (R2)        → 표시 기본값은 04 가 정한다 (세계의 제한이 아님)
+    "자기 자원·능력치·배율을 본다"              → Observable (자신 + 모두)
     "쓸 수 있는지와 이유를 안다"                → Skill.Availability/FailureReason
     "얼마나 깎고 기력을 얼마나 쓰는지 안다"     → Skill.Damage/CpCharge/CpCost
     "결과가 맞은 자리에서 잠시 드러난다"        → World.StrikeEvents + STRIKE_EVENT_TTL
     "누가 누구를 쳤는지 함께 실린다"            → AttackerId · TargetId
+
+    ── 디버그 조작 (R2) ──
+    "권한을 열어 줄 수 있다"                    → World.DebugAuthority.Open
+    "어떤 존재의 어떤 속성이든 요청한다"        → RULE-ATTRIBUTE-SET-001 Input (대상 + 속성 + 값)
+    "바꾸는 것은 언제나 세계다"                 → 요청은 Rule 을 거친다 (World Authority 그대로)
+    "무엇을 바꿀 수 있고 어디까지 허용되는가"   → MutableAttribute 목록 + Range (관찰 가능)
+    "받아들여지지 않으면 이유를 남긴다"         → Result Failure 4종
+    "권한이 닫히면 아무것도 바꾸지 못한다"      → Precondition 1
+    "규칙이 되돌리지 않는 것도 되돌아온다"      → 쓰러진 몸의 Hp 를 올리면 downed 를 벗어난다
+    "바뀐 뒤에도 세계는 자기 규칙대로 간다"     → Hp = 0 이면 RULE-DOWNED-001 이 그대로 이어진다,
+                                                  최대치 clamp 도 그대로 적용된다
+    "파생값과 정체성은 바꿀 수 없다"            → MutableAttribute 제외 목록

@@ -3,6 +3,10 @@
 > R1 축소 개정 — 판정 능력치와 세계 난수원을 뺐다. 피해는 스킬이 정한 고정값이다.
 > (INTENT-WORLD-CHANCE-001 · STRIKE-ACCURACY · STRIKE-MAGNITUDE · STRIKE-CRITICAL ·
 >  STRIKE-MITIGATION 폐기 → INTENT-STRIKE-DAMAGE-001 하나로 대체)
+>
+> R2 개정 (Human Review 반영) — ① 세계는 어떤 속성도 숨기지 않는다
+> (INTENT-ATTRIBUTE-OBSERVE-001 신설, INTENT-ENTITY-OBSERVE-001 개정),
+> ② 세계가 허용하면 속성 값을 바꾸도록 요청할 수 있다 (INTENT-ATTRIBUTE-MUTATE-001 신설).
 
 ## GOAL / POSSIBILITY
     GOAL-COMBAT-VITALITY            존재는 소진될 수 있는 생명과 기력을 지닌 채 싸운다
@@ -22,6 +26,10 @@
         └── POSSIBILITY-ENTITY-HUD      모든 존재의 이름과 생명이 그 몸 위에 보인다
         └── POSSIBILITY-SELF-DETAIL     자기 자신은 자원과 능력치와 배율까지 속속들이 본다
         └── POSSIBILITY-STRIKE-FEEDBACK 한 방의 결과가 맞은 자리에 드러난다
+
+    GOAL-WORLD-TRANSPARENT (R2)     세계는 자기 상태를 숨기지 않는다
+        └── POSSIBILITY-ATTRIBUTE-READ  어떤 존재의 어떤 속성이든 들여다볼 수 있다
+        └── POSSIBILITY-ATTRIBUTE-WRITE 세계가 허용하면 그 값을 바꿔 보고 결과를 확인할 수 있다
 
 ## INTENT SET
 
@@ -119,19 +127,40 @@
         세계의 모든 Actor 는 불러 줄 이름을 가진다.
         이름은 그 존재가 무엇인지를 사람에게 알려 주기 위한 것이며 변하지 않는다.
 
-    INTENT-ENTITY-OBSERVE-001
+    INTENT-ENTITY-OBSERVE-001 (R2 CHANGED — 가리는 경계를 없앤다)
 
         관찰자는 자기가 보는 세계의 모든 Actor 에 대해
         그 이름과 생명의 현재/최대, 그리고 쓰러졌는지 여부를 관찰할 수 있다.
-        남의 기력과 능력치는 관찰되지 않는다.
+        이것은 싸우는 중에 몸에서 바로 읽히는 값이다.
+
+    INTENT-ATTRIBUTE-OBSERVE-001 (R2 ADDED)
+
+        세계는 어떤 속성도 숨기지 않는다.
+        모든 Actor 의 모든 속성 — 자원과 그 최대치, 이동의 방식과 빠르기,
+        지금 걸려 있는 배율까지 — 은 누구의 것이든 관찰될 수 있다.
+        무엇을 언제나 눈앞에 띄워 둘지는 보는 이의 선택이지 세계의 제한이 아니다.
 
     INTENT-SELF-OBSERVE-001
 
-        관찰자는 자신이 조종하는 존재에 한해
+        관찰자는 자신이 조종하는 존재에 대해
         생명과 기력의 현재/최대, 템포 능력치 전부,
-        그리고 지금 자기에게 걸려 있는 배율들을 관찰할 수 있다.
+        그리고 지금 자기에게 걸려 있는 배율들을 언제나 관찰할 수 있다.
         스킬을 지금 쓸 수 있는지와 쓸 수 없다면 그 이유,
-        그리고 그 스킬이 기력을 얼마나 채우고 얼마나 쓰는지도 함께 안다.
+        그리고 그 스킬이 얼마나 깎고 기력을 얼마나 채우고 쓰는지도 함께 안다.
+        (R2 — 같은 값을 남에 대해서도 볼 수 있다. 다른 점은 늘 눈앞에 있다는 것뿐이다.)
+
+    INTENT-ATTRIBUTE-MUTATE-001 (R2 ADDED — 기반만)
+
+        세계는 자신을 들여다보는 이에게 값을 바꿔 볼 권한을 열어 줄 수 있다.
+        그 권한이 열려 있는 동안, 관찰자는 어떤 존재의 어떤 속성이든
+        새 값을 요청할 수 있고, 세계가 그 요청을 판정하여 반영한다.
+        바꾸는 것은 언제나 세계다 — 요청하는 이가 상태를 직접 건드리지 않는다.
+        무엇을 바꿀 수 있고 그 값이 어디까지 허용되는지는 관찰 가능하며,
+        받아들여지지 않은 요청은 그 이유를 남긴다.
+        권한이 닫혀 있으면 어떤 요청도 세계를 바꾸지 못한다.
+        이 경로는 세계의 규칙 안이 아니라 세계 밖에서 손을 대는 자리다 —
+        규칙이 되돌리지 않는다고 정한 것(쓰러짐)도 여기서는 되돌아올 수 있다.
+        다만 값이 바뀐 뒤의 세계는 여전히 자기 규칙대로 굴러간다.
 
     INTENT-STRIKE-OBSERVE-001
 
@@ -181,6 +210,12 @@
     INTENT-STRIKE-OBSERVE-001
         Source Goal         GOAL-COMBAT-OBSERVABLE
         Source Possibility  POSSIBILITY-STRIKE-FEEDBACK
+    INTENT-ATTRIBUTE-OBSERVE-001 (R2)
+        Source Goal         GOAL-WORLD-TRANSPARENT
+        Source Possibility  POSSIBILITY-ATTRIBUTE-READ
+    INTENT-ATTRIBUTE-MUTATE-001 (R2)
+        Source Goal         GOAL-WORLD-TRANSPARENT
+        Source Possibility  POSSIBILITY-ATTRIBUTE-WRITE
 
 ## EXISTING INTENT DELTA
     REUSED
@@ -218,6 +253,12 @@
 
     AFFECTED
         INTENT-MINING-001            쓰러진 존재는 채굴도 시작하지 못한다 (행동 시작 자체가 막힌다)
-        INTENT-WORLD-OBSERVATION-001 관찰되는 세계에 자원·능력치·타격 결과가 더해진다
+        INTENT-WORLD-OBSERVATION-001 관찰되는 세계에 자원·능력치·타격 결과가 더해진다.
+                                     R2 — 그리고 그 관찰에 어떤 예외도 두지 않는다
+        INTENT-REMOTE-REQUEST-001    R2 — 속성 변경도 같은 요청 경로로 온다.
+                                     세계가 판정한다는 원칙은 그대로다
+        INTENT-REQUEST-ATTRIBUTION-001
+                                     R2 — 속성 변경 요청도 보낸 관찰자에게 귀속된다.
+                                     다만 대상은 자기 몸이 아니라 지목한 존재다
         INTENT-MOTION-OBSERVE-001    스킬이 둘로 갈리면서 관찰되는 행동 종류가 늘어난다
         INTENT-COLLISION-OBSERVE-001 스킬별 충돌체도 같은 디버그 관찰 대상이다
