@@ -78,6 +78,74 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     );
   }
 
+  // 디버그 도형 capability (C006) — 지면 위 원/화살표를 그릴 뿐, 그것이 무엇인지 모른다.
+  // 지시가 프레임마다 통째로 오므로 그룹을 비우고 다시 만든다 (도형 수가 작다).
+  const debugGroup = new THREE.Group();
+  scene.add(debugGroup);
+  const CIRCLE_SEGMENTS = 48;
+  const DEBUG_Y = 0.15; // 지면에 묻히지 않도록 살짝 띄운다
+
+  function clearDebugGroup(): void {
+    for (const child of debugGroup.children) {
+      const line = child as THREE.Line;
+      line.geometry.dispose();
+      (line.material as THREE.Material).dispose();
+    }
+    debugGroup.clear();
+  }
+
+  function drawDebug(debug: NonNullable<SceneState['colliderDebug']>): void {
+    for (const circle of debug.circles) {
+      const points: THREE.Vector3[] = [];
+      for (let i = 0; i < CIRCLE_SEGMENTS; i++) {
+        const a = (i / CIRCLE_SEGMENTS) * Math.PI * 2;
+        const x = circle.center.x + Math.cos(a) * circle.radius;
+        const z = circle.center.z + Math.sin(a) * circle.radius;
+        points.push(new THREE.Vector3(x, heightAt(x, z) + DEBUG_Y, z));
+      }
+      debugGroup.add(
+        new THREE.LineLoop(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({
+            color: circle.color,
+            transparent: true,
+            opacity: circle.opacity,
+          }),
+        ),
+      );
+    }
+
+    for (const vector of debug.vectors) {
+      const from = new THREE.Vector3(
+        vector.from.x,
+        heightAt(vector.from.x, vector.from.z) + DEBUG_Y,
+        vector.from.z,
+      );
+      const to = new THREE.Vector3(
+        vector.to.x,
+        heightAt(vector.to.x, vector.to.z) + DEBUG_Y,
+        vector.to.z,
+      );
+      // 화살촉 — 끝점에서 양옆으로 꺾인 짧은 두 선
+      const dir = to.clone().sub(from);
+      const len = dir.length();
+      const headLen = Math.min(0.3, len * 0.4);
+      const points = [from, to];
+      if (len > 1e-6 && headLen > 1e-6) {
+        dir.normalize();
+        const side = new THREE.Vector3(-dir.z, 0, dir.x).multiplyScalar(headLen * 0.5);
+        const back = to.clone().sub(dir.clone().multiplyScalar(headLen));
+        points.push(back.clone().add(side), to.clone(), back.clone().sub(side));
+      }
+      debugGroup.add(
+        new THREE.Line(
+          new THREE.BufferGeometry().setFromPoints(points),
+          new THREE.LineBasicMaterial({ color: vector.color }),
+        ),
+      );
+    }
+  }
+
   let lastTime = performance.now();
 
   // 관찰 결과는 세계의 Tick 주기로 띄엄띄엄 도착한다 (C003). 받은 위치로 곧장
@@ -151,6 +219,10 @@ export function createRenderer(container: HTMLElement): GameRenderer {
           drawn.delete(id);
         }
       }
+
+      // 디버그 도형 — 지시가 있으면 그 프레임의 도형으로 갈아 끼운다 (C006)
+      clearDebugGroup();
+      if (state.colliderDebug) drawDebug(state.colliderDebug);
 
       renderer.render(scene, camera);
     },

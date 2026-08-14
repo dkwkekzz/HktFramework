@@ -9,10 +9,16 @@ import type { GameViewSnapshot } from '../../protocol/gameview';
 import { motionLibrary } from '../motion/motion-source';
 import type { MotionLibrary } from '../motion/motion-library';
 import type { SceneMotion, SceneState } from '../scene/scene-state';
+import { collisionDebug } from './collision-presentation';
 import { hudPresentation } from './hud-presentation';
 import { interactionPresentation } from './interaction-presentation';
 import { codeText } from './code-text';
 import { rolePresentation } from './role-presentation';
+
+// 관찰자 쪽 표시 선택 (C006) — 충돌체 디버그 관찰을 켤지. World 에 아무것도 요청하지 않는다.
+export interface PresentationOptions {
+  debugObserve?: boolean; // 기본 off (04-gameview.spec debugObserve.toggle)
+}
 
 // entity.kind(종류) + state(행동) → 재생할 모션. 데이터가 없으면 undefined 이고
 // 그리기는 spriteId 의 절차 생성 Asset 이 맡는다 (spec 의 fallback 마지막 단계).
@@ -41,10 +47,13 @@ function resolveMotion(
 export function resolvePresentation(
   snapshot: GameViewSnapshot,
   motions: MotionLibrary = motionLibrary,
+  options: PresentationOptions = {},
 ): SceneState {
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
+    // 충돌체 디버그 관찰 (C006) — 켜졌을 때만 지시를 담는다
+    ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
     entities: snapshot.entities.map((e) => {
       const p = rolePresentation(e.role);
       const motion = resolveMotion(motions, e.kind, e.state, e.progress);

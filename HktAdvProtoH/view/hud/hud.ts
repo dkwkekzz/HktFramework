@@ -91,7 +91,8 @@ export function createHud(container: HTMLElement): Hud {
 
       // 조작 안내 — 이동(엔진 기본) + 키 지시가 있는 interaction
       // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다
-      const keyLines = new Set(['이동: WASD / 방향키']);
+      // 충돌체 관찰 토글은 View 자체 기능이라 엔진 기본 안내에 둔다 (C006)
+      const keyLines = new Set(['이동: WASD / 방향키', '충돌체 관찰: C']);
       for (const i of scene.interactions) {
         if (i.key && i.prompt) keyLines.add(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }

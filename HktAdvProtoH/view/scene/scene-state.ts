@@ -47,10 +47,33 @@ export interface SceneHudItem {
   celebrateGain?: boolean;
 }
 
+// 충돌체 디버그 지시 (C006) — 지면 평면 위 원과 화살표. 결정 Layer 가 켜졌을 때만 담는다.
+// capability 는 이것이 몸인지 휘두름인지 모른다 — 원과 화살표를 그릴 뿐이다.
+export interface SceneDebugCircle {
+  id: string; // 진단용
+  center: { x: number; z: number };
+  radius: number;
+  color: number;
+  opacity: number;
+}
+
+export interface SceneDebugVector {
+  id: string; // 진단용
+  from: { x: number; z: number };
+  to: { x: number; z: number };
+  color: number;
+}
+
+export interface SceneColliderDebug {
+  circles: SceneDebugCircle[];
+  vectors: SceneDebugVector[];
+}
+
 export interface SceneState {
   specId: string;
   terrain: string;
   entities: SceneEntity[];
   interactions: SceneInteraction[];
   hud: SceneHudItem[];
+  colliderDebug?: SceneColliderDebug; // C006 — 디버그 관찰이 켜졌을 때만 존재한다
 }

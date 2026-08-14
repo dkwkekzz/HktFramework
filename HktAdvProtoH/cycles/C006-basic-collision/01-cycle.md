@@ -6,7 +6,7 @@
 [PASS] GameView Specification
 [PASS] Human Semantic Review    APPROVED
 [PASS] World Implementation
-[    ] View Implementation
+[PASS] View Implementation
 [    ] Verification
 
 STATUS  IN PROGRESS
