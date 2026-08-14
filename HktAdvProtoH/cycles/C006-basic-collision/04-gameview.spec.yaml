@@ -43,16 +43,19 @@ entities:
       progress: { withDuration: actionProgress, withoutDuration: loop }
       fallback: { order: ['kind:idle', 'anyKind:state', placeholder] }
 
-    body:                           # C006 ADDED — 몸 충돌체
+    body:                           # C006 ADDED / R1 — 몸 충돌체는 캡슐 부피다
       radius: { source: Actor.Body.Radius }
+      height: { source: Actor.Body.Height }   # R1 — 부피 관찰용 (판정은 지면 투영 원)
       mass: { source: Actor.Body.Mass }
+      facing: { source: Actor.Facing }        # R1 — 몸이 향한 방향 (휘두름이 나가는 쪽)
       velocity: { source: Actor.Velocity }
         # 밀려나는 움직임 자체는 position 변화로 이미 보인다.
         # velocity 는 디버그 관찰에서 "지금 얼마나 밀리고 있는가" 를 보이기 위한 값이다.
 
-    swing:                          # C006 ADDED — 행동 충돌 반경 (attack 진행 중에만 존재)
-      center: { source: Actor.Position }     # 휘두르는 몸을 따라다닌다
-      radius: { source: Actor.AttackRange }
+    swing:                          # C006 ADDED / R1 CHANGED — 칼끝 충돌체 (attack 진행 중에만)
+      center: { source: ActionCollider.Center }
+        # R1 — 몸 중심이 아니라 칼끝 자리. Facing 기준 호를 그리며 쓸고 지나간다.
+      radius: { source: ActionCollider.Radius }   # R1 — 칼끝 충돌 구의 반경
       active: { source: ActionCollider.Active }
         # 휘두름 구간(ActionProgress ∈ [SWING_BEGIN, SWING_END]) 동안 참
       struck: { source: Attack.StruckActorIds }
@@ -79,18 +82,19 @@ entities:
 debugObserve:
   toggle: { owner: observer, default: off }
   shows:
-    bodies:
+    bodies:                                   # R1 — 평면 원이 아니라 부피로 보인다
       forEach: entities.character
-      outline: { center: position, radius: body.radius }
+      volume: { center: position, radius: body.radius, height: body.height }  # 캡슐
       motion: { vector: body.velocity }       # 밀리는 방향·세기
-    actionColliders:
+    actionColliders:                          # R1 — 칼끝을 따라가는 구체
       forEach: entities.character (swing 이 존재하는 것)
-      outline: { center: swing.center, radius: swing.radius }
+      volume: { center: swing.center, radius: swing.radius }                  # 구체
       activity: swing.active                  # 활성/비활성이 구분되어야 한다
       struckMarks: swing.struck               # 이번 휘두름에 맞은 몸 표시
   meaning:
-    - 겹친 몸이 서로 밀려나는 것을 원 두 개가 벌어지는 것으로 확인한다
-    - 휘두름 반경 안에 있던 몸이 hit 상태 + 바깥으로 밀려나는 것으로 타격을 확인한다
+    - 겹친 몸이 서로 밀려나는 것을 캡슐 두 개가 벌어지는 것으로 확인한다
+    - 칼끝 구체가 몸이 향한 방향에서 호를 그리며 지나가고, 닿은 몸이
+      hit 상태 + 바깥으로 밀려나는 것으로 타격을 확인한다
 
 # ─────────────────────────────────────────────────────────────────
 # interactions — C004 계약 그대로. 요청 형태 변화 없음.

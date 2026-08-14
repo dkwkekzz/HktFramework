@@ -26,6 +26,13 @@
               밀리는 몸에만 속도 화살표(길이 비례) / swing 없는 관찰도 정상
     전체 185/185 통과 · tsc · vite build 통과
 
+## R1 (Human Play 반환 반영)
+    몸 충돌체는 지면 원이 아니라 캡슐 부피(radius + height 와이어프레임)로,
+    칼끝 충돌체는 몸통 높이(키의 0.55)에서 떠 있는 구체 와이어프레임으로 그린다.
+    scene-state 의 디버그 지시가 SceneDebugCircle → SceneDebugCapsule + SceneDebugSphere 로
+    바뀌었고, renderer 는 캡슐/구체를 그리는 capability 를 얻었다 (여전히 의미 무지).
+    표현 결정(색·투명도·구체 높이 비율)은 collision-presentation.ts 한 곳이다.
+
 ## NOTES
     2-Layer 준수 — scene-state 에 SceneDebugCircle/Vector(표현 지시)를 추가하고,
     renderer 는 "지면 위 원과 화살표를 그리는" capability 만 얻었다 (그것이 몸인지

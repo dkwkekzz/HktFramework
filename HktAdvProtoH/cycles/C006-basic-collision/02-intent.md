@@ -11,10 +11,11 @@
         └── POSSIBILITY-DEBUG-OBSERVE   관찰자가 디버그 관찰을 켜서 충돌체를 본다
 
 ## INTENT SET
-    INTENT-BODY-OCCUPY-001
+    INTENT-BODY-OCCUPY-001 (R1 AMENDED — 몸은 부피다)
 
         세계의 모든 Actor 는
-        지면 평면에서 반경과 질량을 가진 몸으로 공간을 차지한다.
+        반경과 높이와 질량을 가진 캡슐 부피의 몸으로 공간을 차지한다.
+        서로 밀어내는 판정은 지면 평면에 투영된 원으로 한다 (충돌은 지면 평면 — 01 EXCLUDED).
         몸은 존재하는 동안 항상 참인 상태다 — 행동과 무관하게 사라지지 않는다.
 
     INTENT-BODY-PUSH-001
@@ -32,16 +33,23 @@
         지면 마찰로 속도가 점차 잦아들고,
         세계 경계를 넘어서는 밀려나지 않는다.
 
-    INTENT-ACTION-COLLIDER-001
+    INTENT-BODY-FACING-001 (R1 ADDED — Human Play 반환 반영)
 
-        행동은 자신의 종류에 따라 세계에 충돌 반경을 만들 수 있다.
-        attack 의 휘두름은 행동 진행 중 휘두름 구간 동안
-        휘두르는 몸 주위에 타격 반경만큼의 충돌 반경을 만든다.
-        충돌 반경은 그것을 만든 행동이 끝나면 함께 사라진다.
+        몸은 언제나 어느 한 방향을 향하고 있다.
+        움직이면 움직이는 방향을 향하게 되고,
+        자율 존재는 휘두르기 전에 겨눈 대상을 향해 몸을 돌린다.
+
+    INTENT-ACTION-COLLIDER-001 (R1 CHANGED)
+
+        행동은 자신의 종류에 따라 세계에 충돌체를 만들 수 있다.
+        attack 의 휘두름은 몸 전체를 감싸는 반경이 아니라 —
+        몸이 향한 방향 앞에서 칼끝이 지나가는 자리에 충돌체를 만들며,
+        휘두름 구간 동안 그 충돌체가 호를 그리며 쓸고 지나간다.
+        충돌체는 그것을 만든 행동이 끝나면 함께 사라진다.
 
     INTENT-SWING-IMPACT-001
 
-        활성화된 휘두름 충돌 반경에 자신이 아닌 몸이 닿으면,
+        활성화된 휘두름 충돌체에 자신이 아닌 몸이 닿으면,
         그 몸은 타격당해 하던 행동이 중단되고 (기존 피격 반응),
         휘두른 몸에서 밀려나는 방향으로 충격량을 받아 밀쳐진다.
         하나의 휘두름은 같은 몸을 한 번만 타격한다.
@@ -72,6 +80,9 @@
     INTENT-COLLISION-OBSERVE-001
         Source Goal         GOAL-COLLISION-OBSERVABLE
         Source Possibility  POSSIBILITY-DEBUG-OBSERVE
+    INTENT-BODY-FACING-001 (R1)
+        Source Goal         GOAL-FORCE-INTERACTION
+        Source Possibility  POSSIBILITY-SWING-IMPACT
 
 ## EXISTING INTENT DELTA
     REUSED

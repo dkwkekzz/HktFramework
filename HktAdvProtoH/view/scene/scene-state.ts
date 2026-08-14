@@ -47,12 +47,23 @@ export interface SceneHudItem {
   celebrateGain?: boolean;
 }
 
-// 충돌체 디버그 지시 (C006) — 지면 평면 위 원과 화살표. 결정 Layer 가 켜졌을 때만 담는다.
-// capability 는 이것이 몸인지 휘두름인지 모른다 — 원과 화살표를 그릴 뿐이다.
-export interface SceneDebugCircle {
+// 충돌체 디버그 지시 (C006 / R1) — 지면 위 캡슐·구체 부피와 화살표.
+// 결정 Layer 가 켜졌을 때만 담는다. capability 는 이것이 몸인지 휘두름인지 모른다 —
+// 캡슐과 구체와 화살표를 그릴 뿐이다.
+export interface SceneDebugCapsule {
+  id: string; // 진단용
+  center: { x: number; z: number }; // 지면 위 발치 중심 — 캡슐은 지면에서 height 만큼 선다
+  radius: number;
+  height: number;
+  color: number;
+  opacity: number;
+}
+
+export interface SceneDebugSphere {
   id: string; // 진단용
   center: { x: number; z: number };
   radius: number;
+  elevation: number; // 지면에서 구 중심까지의 높이
   color: number;
   opacity: number;
 }
@@ -65,7 +76,8 @@ export interface SceneDebugVector {
 }
 
 export interface SceneColliderDebug {
-  circles: SceneDebugCircle[];
+  capsules: SceneDebugCapsule[];
+  spheres: SceneDebugSphere[];
   vectors: SceneDebugVector[];
 }
 

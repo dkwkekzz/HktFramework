@@ -11,6 +11,7 @@
 // 이 Rule 은 세계 규칙이지 Client 요청이 아니다 — Tick 에서 실행된다.
 
 import type { ActorState } from '../semantic/actor';
+import { faceToward } from '../semantic/collision';
 import { distance, type WorldPosition } from '../semantic/position';
 import type { WorldState } from '../semantic/world-state';
 import { evaluateActionBegin, isSameAction } from '../rules/action-begin';
@@ -58,8 +59,10 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
 
   if (target) {
     if (distance(actor.position, target.position) <= actor.attackRange) {
-      // 대상을 넘기지 않는다 — 무엇이 맞을지는 휘두름이 끝나는 순간이 정한다.
+      // 대상을 넘기지 않는다 — 무엇이 맞을지는 휘두름 구간의 접촉이 정한다 (C006).
       if (isSameAction(actor.currentAction, 'attack', {})) return 'unchanged';
+      // RULE-BODY-FACING-001 (C006 R1) — 휘두르기 전에 겨눈 대상을 향해 몸을 돌린다.
+      faceToward(actor, target.position.x - actor.position.x, target.position.z - actor.position.z);
       return ruleAttack(actor).status === 'success' ? 'decided' : 'unchanged';
     }
 

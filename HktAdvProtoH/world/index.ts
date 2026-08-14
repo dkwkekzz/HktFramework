@@ -7,7 +7,7 @@ import type { ActionRequest } from '../protocol/actions';
 import type { GameViewSnapshot } from '../protocol/gameview';
 import { idleAction } from './semantic/action';
 import type { ActorState } from './semantic/actor';
-import { BODY_MASS, BODY_RADIUS } from './semantic/collision';
+import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from './semantic/collision';
 import { createInventory } from './semantic/inventory';
 import type { WorldPosition } from './semantic/position';
 import { DEFAULT_BODY, type BodyDefaults } from './rules/observer-join';
@@ -101,7 +101,9 @@ export function createWorld(setup: WorldSetup = {}): World {
     control: 'autonomous',
     position: { x: npc.position.x, z: npc.position.z },
     bodyRadius: BODY_RADIUS,
+    bodyHeight: BODY_HEIGHT,
     bodyMass: BODY_MASS,
+    facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
     velocity: { x: 0, z: 0 },
     moveSpeed: NPC_MOVE_SPEED,
     attackRange: ATTACK_RANGE,

@@ -10,8 +10,14 @@
       "kind": "rabbit-swordsman",
       "position": { "x": 0, "z": 0 },
       "progress": 0.5,
-      "body": { "radius": 0.5, "mass": 1, "velocity": { "x": 0, "z": 0 } },
-      "swing": { "center": { "x": 0, "z": 0 }, "radius": 2, "active": true, "struck": ["npc-1"] }
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": { "x": 1, "z": 0 },
+        "velocity": { "x": 0, "z": 0 }
+      },
+      "swing": { "center": { "x": 1.3, "z": 0 }, "radius": 0.7, "active": true, "struck": ["npc-1"] }
     },
     {
       "id": "npc-1",
@@ -20,7 +26,13 @@
       "kind": "wanderer",
       "position": { "x": 1.4, "z": 0 },
       "progress": 0.2,
-      "body": { "radius": 0.5, "mass": 1, "velocity": { "x": 6.4, "z": 0 } }
+      "body": {
+        "radius": 0.5,
+        "height": 1.7,
+        "mass": 1,
+        "facing": { "x": 0, "z": 1 },
+        "velocity": { "x": 6.4, "z": 0 }
+      }
     }
   ],
   "interactions": [

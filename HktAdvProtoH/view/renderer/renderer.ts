@@ -78,41 +78,52 @@ export function createRenderer(container: HTMLElement): GameRenderer {
     );
   }
 
-  // 디버그 도형 capability (C006) — 지면 위 원/화살표를 그릴 뿐, 그것이 무엇인지 모른다.
-  // 지시가 프레임마다 통째로 오므로 그룹을 비우고 다시 만든다 (도형 수가 작다).
+  // 디버그 도형 capability (C006 / R1) — 캡슐/구체 부피와 화살표를 그릴 뿐,
+  // 그것이 무엇인지 모른다. 지시가 프레임마다 통째로 오므로 그룹을 비우고 다시 만든다.
   const debugGroup = new THREE.Group();
   scene.add(debugGroup);
-  const CIRCLE_SEGMENTS = 48;
-  const DEBUG_Y = 0.15; // 지면에 묻히지 않도록 살짝 띄운다
+  const DEBUG_Y = 0.05; // 지면에 묻히지 않도록 살짝 띄운다
 
   function clearDebugGroup(): void {
     for (const child of debugGroup.children) {
-      const line = child as THREE.Line;
-      line.geometry.dispose();
-      (line.material as THREE.Material).dispose();
+      const mesh = child as THREE.Mesh;
+      mesh.geometry.dispose();
+      (mesh.material as THREE.Material).dispose();
     }
     debugGroup.clear();
   }
 
+  function debugMaterial(color: number, opacity: number): THREE.Material {
+    return new THREE.MeshBasicMaterial({
+      color,
+      wireframe: true,
+      transparent: true,
+      opacity,
+      depthWrite: false,
+    });
+  }
+
   function drawDebug(debug: NonNullable<SceneState['colliderDebug']>): void {
-    for (const circle of debug.circles) {
-      const points: THREE.Vector3[] = [];
-      for (let i = 0; i < CIRCLE_SEGMENTS; i++) {
-        const a = (i / CIRCLE_SEGMENTS) * Math.PI * 2;
-        const x = circle.center.x + Math.cos(a) * circle.radius;
-        const z = circle.center.z + Math.sin(a) * circle.radius;
-        points.push(new THREE.Vector3(x, heightAt(x, z) + DEBUG_Y, z));
-      }
-      debugGroup.add(
-        new THREE.LineLoop(
-          new THREE.BufferGeometry().setFromPoints(points),
-          new THREE.LineBasicMaterial({
-            color: circle.color,
-            transparent: true,
-            opacity: circle.opacity,
-          }),
-        ),
+    for (const capsule of debug.capsules) {
+      // CapsuleGeometry 의 length 는 원통 구간 — 전체 높이 = length + 2×radius
+      const length = Math.max(0.01, capsule.height - 2 * capsule.radius);
+      const mesh = new THREE.Mesh(
+        new THREE.CapsuleGeometry(capsule.radius, length, 4, 10),
+        debugMaterial(capsule.color, capsule.opacity),
       );
+      const y = heightAt(capsule.center.x, capsule.center.z);
+      mesh.position.set(capsule.center.x, y + DEBUG_Y + capsule.height / 2, capsule.center.z);
+      debugGroup.add(mesh);
+    }
+
+    for (const sphere of debug.spheres) {
+      const mesh = new THREE.Mesh(
+        new THREE.SphereGeometry(sphere.radius, 12, 8),
+        debugMaterial(sphere.color, sphere.opacity),
+      );
+      const y = heightAt(sphere.center.x, sphere.center.z);
+      mesh.position.set(sphere.center.x, y + sphere.elevation, sphere.center.z);
+      debugGroup.add(mesh);
     }
 
     for (const vector of debug.vectors) {

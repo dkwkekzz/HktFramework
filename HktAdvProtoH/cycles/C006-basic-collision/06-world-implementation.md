@@ -51,3 +51,17 @@
     타격·물리 판정은 세계의 Tick 주기(TICK_INTERVAL)로 표본화된다 — 검증도 실제 주기로
     진행하도록 tickFor 를 쓴다 (한 번에 0.6초를 건너뛰면 구간이 표본화되지 않는다).
     발사체는 만들지 않았지만 ActionCollider 파생 구조가 행동 종류별 분기를 담을 수 있다.
+
+## R1 (Human Play 반환 반영)
+    Actor.Body.Height · Actor.Facing             world/semantic/actor.ts · collision.ts
+    RULE-BODY-FACING-001                         collision.ts faceToward() —
+                                                 move-progress(이동 방향) · npc-decide(겨눈 대상)
+    ActionCollider (changed)                     collision.ts — 칼끝 자리의 충돌 구가
+                                                 Facing 기준 ±SWING_ARC/2 호를 쓸고 지나간다.
+                                                 SwingReach = AttackRange - SWING_BLADE_RADIUS
+    RULE-SWING-STRIKE-001 (changed)              접촉 = 칼끝 구 기준, 밀쳐냄 = 몸 중심 기준 방사
+    상수 추가                                    BODY_HEIGHT 1.7 · SWING_ARC 150° ·
+                                                 SWING_BLADE_RADIUS 0.7 · DEFAULT_FACING (0,1)
+    테스트                                       등 뒤 무타격 · 칼끝 호 이동 관찰 · Facing 갱신
+                                                 추가, 기존 타격 테스트는 aim 후 휘두름으로 재작성
+                                                 — 187/187 통과

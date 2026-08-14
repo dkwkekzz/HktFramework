@@ -12,18 +12,21 @@ export interface GameViewPosition {
   z: number;
 }
 
-// 몸 충돌체 (C006) — 모든 character 가 지면 평면에서 차지하는 원과 그 물리 상태.
-// 밀리는 움직임 자체는 position 변화로 보인다. velocity 는 디버그 관찰용 값이다.
+// 몸 충돌체 (C006 / R1) — 모든 character 가 차지하는 캡슐 부피와 그 물리 상태.
+// 서로 밀어내는 판정은 지면 투영 원이다. 밀리는 움직임 자체는 position 변화로 보인다.
 export interface BodyView {
   radius: number;
+  height: number; // R1 — 캡슐 부피 관찰용
   mass: number;
+  facing: GameViewPosition; // R1 — 몸이 향한 방향 (휘두름이 나가는 쪽)
   velocity: GameViewPosition;
 }
 
-// 행동 충돌 반경 (C006) — attack 진행 중에만 존재한다. 휘두르는 몸을 따라다닌다.
+// 행동 충돌체 (C006 / R1) — attack 진행 중에만 존재한다.
+// center 는 몸 중심이 아니라 칼끝 자리 — Facing 기준 호를 그리며 쓸고 지나간다.
 export interface SwingView {
   center: GameViewPosition;
-  radius: number;
+  radius: number; // 칼끝 충돌 구의 반경
   active: boolean; // 휘두름 구간 동안 참 — 이때 닿은 몸이 타격된다
   struck: string[]; // 이 휘두름이 이미 타격한 몸들 (같은 몸은 한 번만 맞는다)
 }

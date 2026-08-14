@@ -66,7 +66,9 @@ export function projectObserverView(
       // 보일지 말지는 관찰자(View)의 선택이다.
       body: {
         radius: actor.bodyRadius,
+        height: actor.bodyHeight,
         mass: actor.bodyMass,
+        facing: { x: actor.facing.x, z: actor.facing.z },
         velocity: { x: actor.velocity.x, z: actor.velocity.z },
       },
       ...(swing

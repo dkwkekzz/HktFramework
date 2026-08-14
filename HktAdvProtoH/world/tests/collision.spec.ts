@@ -4,7 +4,7 @@
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
-import { BODY_MASS, BODY_RADIUS } from '../semantic/collision';
+import { BODY_HEIGHT, BODY_MASS, BODY_RADIUS, DEFAULT_FACING } from '../semantic/collision';
 import { TICK_INTERVAL } from '../semantic/world-state';
 import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
@@ -29,8 +29,8 @@ const distanceBetween = (v: GameViewSnapshot, a: string, b: string) => {
   return Math.sqrt((pa.x - pb.x) ** 2 + (pa.z - pb.z) ** 2);
 };
 
-describe('INTENT-BODY-OCCUPY-001 — 모든 몸은 공간을 차지하고 관찰된다', () => {
-  it('모든 캐릭터에 몸 충돌체(반경·질량·속도)가 실려 나온다', () => {
+describe('INTENT-BODY-OCCUPY-001 — 모든 몸은 부피로 공간을 차지하고 관찰된다', () => {
+  it('모든 캐릭터에 몸 충돌체(반경·높이·질량·방향·속도)가 실려 나온다', () => {
     const world = driveWorld({
       actorPosition: { x: 10, z: 10 },
       npcs: [bodyAt(0, 0, 'npc-1')],
@@ -40,10 +40,20 @@ describe('INTENT-BODY-OCCUPY-001 — 모든 몸은 공간을 차지하고 관찰
       const body = actor(world.observe(), id)?.body;
       expect(body).toEqual({
         radius: BODY_RADIUS,
+        height: BODY_HEIGHT,
         mass: BODY_MASS,
+        facing: { x: DEFAULT_FACING.x, z: DEFAULT_FACING.z },
         velocity: { x: 0, z: 0 },
       });
     }
+  });
+
+  it('움직이면 그 방향을 향한다 (RULE-BODY-FACING-001 — R1)', () => {
+    const world = driveWorld({ actorPosition: { x: 0, z: 0 }, npcs: [] });
+    world.dispatch({ interactionId: 'move', position: { x: 5, z: 0 } });
+    tickFor(world, 0.1);
+
+    expect(actor(world.observe(), PLAYER)?.body?.facing).toEqual({ x: 1, z: 0 });
   });
 });
 
