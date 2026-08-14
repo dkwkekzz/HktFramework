@@ -456,10 +456,16 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
 });
 
 describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바꿀 수 있다 (R2)', () => {
+  // C009 CHANGED — 이 목록은 없어지지 않고 자리를 옮겼다.
+  // 이제 set-attribute 명령이 받는 값의 Domain 이다 (03 SEMANTIC DELTA CHANGED).
   it('바꿀 수 있는 목록과 범위를 세계가 알려 준다', () => {
     const view = soloWorld().observe();
     expect(view.debug.open).toBe(true);
-    expect(view.debug.mutableAttributes.map((a) => a.id)).toEqual([
+
+    const attribute = view.commands
+      .find((command) => command.id === 'set-attribute')
+      ?.parameters.find((parameter) => parameter.id === 'attribute');
+    expect(attribute?.domain.options?.map((option) => option.name)).toEqual([
       'hp',
       'hpMax',
       'cp',

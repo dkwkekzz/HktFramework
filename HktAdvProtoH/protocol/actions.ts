@@ -10,6 +10,10 @@ export interface ActionRequest {
   // C007 R2 — 속성 변경 (디버그 조작의 기반). 무엇을 어떤 값으로 바꿀지가 실린다.
   // 요청일 뿐이다 — 받아들일지는 World Rule 이 정한다 (RULE-ATTRIBUTE-SET-001).
   attribute?: { id: string; value: number | string };
+  // C009 ADDED — Request.Mark. 이 요청에 관찰자가 붙인 표식.
+  // 세계는 이것을 해석하지도 저장하지도 않고 대답에 그대로 되돌린다
+  // (INTENT-REPLY-CORRESPONDENCE-001). 연달아 건 요청의 대답을 짚는 수단이다.
+  mark?: number;
 }
 
 export type ActionResult =

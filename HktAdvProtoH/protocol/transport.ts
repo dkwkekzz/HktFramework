@@ -10,11 +10,14 @@
 // 밝히기 전에 오는 요청은 세계에 도착하지 않는다. 요청 자체에는 주체를 적는 자리가 없고,
 // 주체는 "이 이어짐에 붙은 관찰자의 몸" 으로만 정해진다 (INTENT-REQUEST-ATTRIBUTION-001).
 //
-// 판정 결과는 되돌려 보내지 않는다. 요청이 받아들여졌는지는 그 뒤에 오는
-// 관찰 결과로만 드러난다 (04-gameview.spec.yaml 의 requestResult: from-next-observation).
+// C009 CHANGED — 세계 → 관찰자 방향에 관찰 결과 말고 다른 것이 처음 실린다.
+// 세계는 이제 자신에게 도착한 요청 하나하나에 대답한다 (RULE-REQUEST-REPLY-001).
+// 대답은 관찰 결과를 대신하지 않는다 — 세계가 어떻게 되었는지는 지금까지대로
+// 관찰 결과가 말하고, 대답이 말하는 것은 "그 요청이 어떻게 되었는가" 하나다.
+// (04-gameview.spec.yaml 의 requestResult: from-request-outcome)
 
 import type { ActionRequest } from './actions';
-import type { GameViewSnapshot } from './gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from './gameview';
 
 export const TRANSPORT_PATH = '/world'; // WebSocket 경로
 
@@ -42,7 +45,14 @@ export interface MarkMessage {
   mark: number;
 }
 
-export type ServerMessage = ObservationMessage;
+// 세계가 이 관찰자의 요청들에 내놓은 대답 (C009 ADDED).
+// 한 Tick 에 여러 요청이 판정되면 여럿이 함께 온다 — 각자 자기 mark 를 지닌다.
+export interface OutcomeMessage {
+  type: 'outcome';
+  outcomes: RequestOutcomeView[];
+}
+
+export type ServerMessage = ObservationMessage | OutcomeMessage;
 export type ClientMessage = ActionMessage | JoinMessage | MarkMessage;
 
 // 관찰자와 세계 사이의 이어짐 상태 — 관찰자 쪽이 소유하는 의미다
@@ -52,7 +62,10 @@ export type LinkState = 'connecting' | 'connected' | 'disconnected';
 export function parseServerMessage(raw: string): ServerMessage | null {
   try {
     const value = JSON.parse(raw) as ServerMessage;
-    return value && value.type === 'observation' && value.snapshot ? value : null;
+    if (!value) return null;
+    if (value.type === 'observation') return value.snapshot ? value : null;
+    if (value.type === 'outcome') return Array.isArray(value.outcomes) ? value : null;
+    return null;
   } catch {
     return null;
   }

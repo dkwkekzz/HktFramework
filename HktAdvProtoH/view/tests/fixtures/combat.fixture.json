@@ -13,15 +13,26 @@
       "state": "heavy-attack",
       "name": "Player 1",
       "kind": "rabbit-swordsman",
-      "position": { "x": 0, "z": 0 },
+      "position": {
+        "x": 0,
+        "z": 0
+      },
       "progress": 0.4,
-      "vitality": { "health": 150, "healthMaximum": 200, "downed": false },
+      "vitality": {
+        "health": 150,
+        "healthMaximum": 200,
+        "downed": false
+      },
       "attributes": {
         "energy": 24,
         "energyMaximum": 100,
         "moveMode": "run",
         "control": "player",
-        "tempoStats": { "moveSpeed": 6, "runSpeedMultiplier": 1.8, "actionSpeed": 1 },
+        "tempoStats": {
+          "moveSpeed": 6,
+          "runSpeedMultiplier": 1.8,
+          "actionSpeed": 1
+        },
         "modifiers": {
           "energyCharge": 0.5,
           "energyConsume": 1,
@@ -33,8 +44,14 @@
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": 1, "z": 0 },
-        "velocity": { "x": 0, "z": 0 }
+        "facing": {
+          "x": 1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
       }
     },
     {
@@ -43,14 +60,25 @@
       "state": "hit",
       "name": "Wanderer 1",
       "kind": "wanderer",
-      "position": { "x": 1.4, "z": 0 },
-      "vitality": { "health": 65, "healthMaximum": 120, "downed": false },
+      "position": {
+        "x": 1.4,
+        "z": 0
+      },
+      "vitality": {
+        "health": 65,
+        "healthMaximum": 120,
+        "downed": false
+      },
       "attributes": {
         "energy": 20,
         "energyMaximum": 60,
         "moveMode": "walk",
         "control": "autonomous",
-        "tempoStats": { "moveSpeed": 2.5, "runSpeedMultiplier": 1.4, "actionSpeed": 0.85 },
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
         "modifiers": {
           "energyCharge": 0.2,
           "energyConsume": 1,
@@ -62,8 +90,14 @@
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": -1, "z": 0 },
-        "velocity": { "x": 2, "z": 0 }
+        "facing": {
+          "x": -1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 2,
+          "z": 0
+        }
       }
     },
     {
@@ -72,14 +106,25 @@
       "state": "downed",
       "name": "Wanderer 2",
       "kind": "wanderer",
-      "position": { "x": 4, "z": 2 },
-      "vitality": { "health": 0, "healthMaximum": 120, "downed": true },
+      "position": {
+        "x": 4,
+        "z": 2
+      },
+      "vitality": {
+        "health": 0,
+        "healthMaximum": 120,
+        "downed": true
+      },
       "attributes": {
         "energy": 8,
         "energyMaximum": 60,
         "moveMode": "walk",
         "control": "autonomous",
-        "tempoStats": { "moveSpeed": 2.5, "runSpeedMultiplier": 1.4, "actionSpeed": 0.85 },
+        "tempoStats": {
+          "moveSpeed": 2.5,
+          "runSpeedMultiplier": 1.4,
+          "actionSpeed": 0.85
+        },
         "modifiers": {
           "energyCharge": 1,
           "energyConsume": 1,
@@ -91,45 +136,131 @@
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": 0, "z": 1 },
-        "velocity": { "x": 0, "z": 0 }
+        "facing": {
+          "x": 0,
+          "z": 1
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
       }
     }
   ],
   "interactions": [
-    { "id": "move", "role": "move-to", "available": true },
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    },
     {
       "id": "attack",
       "role": "skill-basic",
       "available": true,
-      "profile": { "damage": 20, "charge": 12, "cost": 0 }
+      "profile": {
+        "damage": 20,
+        "charge": 12,
+        "cost": 0
+      }
     },
     {
       "id": "skill-heavy",
       "role": "skill-heavy",
       "available": false,
       "reason": "insufficient-cp",
-      "profile": { "damage": 55, "charge": 8, "cost": 30 }
+      "profile": {
+        "damage": 55,
+        "charge": 8,
+        "cost": 30
+      }
     },
-    { "id": "move-mode", "role": "set-move-mode", "available": true },
-    { "id": "set-attribute", "role": "debug-set-attribute", "available": true }
+    {
+      "id": "move-mode",
+      "role": "set-move-mode",
+      "available": true
+    },
+    {
+      "id": "set-attribute",
+      "role": "debug-set-attribute",
+      "available": true
+    }
   ],
   "hud": [
-    { "id": "inventory.stone", "kind": "counter", "value": 2 },
-    { "id": "world.time", "kind": "counter", "value": 12.5 },
-    { "id": "self.hp", "kind": "counter", "value": 150 },
-    { "id": "self.hpMax", "kind": "counter", "value": 200 },
-    { "id": "self.cp", "kind": "counter", "value": 24 },
-    { "id": "self.cpMax", "kind": "counter", "value": 100 },
-    { "id": "self.downed", "kind": "flag", "value": false },
-    { "id": "self.moveMode", "kind": "label", "value": "run" },
-    { "id": "self.tempo.moveSpeed", "kind": "counter", "value": 6 },
-    { "id": "self.tempo.runSpeedMultiplier", "kind": "counter", "value": 1.8 },
-    { "id": "self.tempo.actionSpeed", "kind": "counter", "value": 1 },
-    { "id": "self.modifier.cpCharge", "kind": "counter", "value": 0.5 },
-    { "id": "self.modifier.cpConsume", "kind": "counter", "value": 1 },
-    { "id": "self.modifier.moveSpeed", "kind": "counter", "value": 1 },
-    { "id": "self.modifier.actionSpeed", "kind": "counter", "value": 1 }
+    {
+      "id": "inventory.stone",
+      "kind": "counter",
+      "value": 2
+    },
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 12.5
+    },
+    {
+      "id": "self.hp",
+      "kind": "counter",
+      "value": 150
+    },
+    {
+      "id": "self.hpMax",
+      "kind": "counter",
+      "value": 200
+    },
+    {
+      "id": "self.cp",
+      "kind": "counter",
+      "value": 24
+    },
+    {
+      "id": "self.cpMax",
+      "kind": "counter",
+      "value": 100
+    },
+    {
+      "id": "self.downed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.moveMode",
+      "kind": "label",
+      "value": "run"
+    },
+    {
+      "id": "self.tempo.moveSpeed",
+      "kind": "counter",
+      "value": 6
+    },
+    {
+      "id": "self.tempo.runSpeedMultiplier",
+      "kind": "counter",
+      "value": 1.8
+    },
+    {
+      "id": "self.tempo.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.cpCharge",
+      "kind": "counter",
+      "value": 0.5
+    },
+    {
+      "id": "self.modifier.cpConsume",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.moveSpeed",
+      "kind": "counter",
+      "value": 1
+    },
+    {
+      "id": "self.modifier.actionSpeed",
+      "kind": "counter",
+      "value": 1
+    }
   ],
   "strikes": [
     {
@@ -137,7 +268,10 @@
       "targetId": "npc-1",
       "skill": "heavy-attack",
       "amount": 55,
-      "at": { "x": 1.4, "z": 0 },
+      "at": {
+        "x": 1.4,
+        "z": 0
+      },
       "since": 12.1
     },
     {
@@ -145,16 +279,15 @@
       "targetId": "player-1",
       "skill": "attack",
       "amount": 20,
-      "at": { "x": 0, "z": 0 },
+      "at": {
+        "x": 0,
+        "z": 0
+      },
       "since": 11.6
     }
   ],
   "debug": {
-    "open": true,
-    "mutableAttributes": [
-      { "id": "hp", "min": 0, "max": 100000 },
-      { "id": "cp", "min": 0, "max": 100000 },
-      { "id": "moveMode", "values": ["walk", "run"] }
-    ]
-  }
+    "open": true
+  },
+  "commands": []
 }

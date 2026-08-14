@@ -10,8 +10,14 @@ import { screenSideValue } from '../camera/orientation';
 import { facingDecision, type ScreenSide } from './facing-presentation';
 import { motionLibrary } from '../motion/motion-source';
 import type { MotionLibrary } from '../motion/motion-library';
-import type { SceneMotion, SceneState } from '../scene/scene-state';
+import type {
+  SceneCommandHistoryLine,
+  SceneCommandSurface,
+  SceneMotion,
+  SceneState,
+} from '../scene/scene-state';
 import { collisionDebug } from './collision-presentation';
+import { commandEntries, composeCommand } from './command-presentation';
 import {
   inspectLines,
   isSelfHudId,
@@ -40,6 +46,18 @@ export interface PresentationOptions {
    * 이 함수는 읽기만 한다 — 갱신은 결과를 받은 쪽이 한다.
    */
   facingSides?: Readonly<Record<string, ScreenSide>>;
+  /**
+   * 명령 표면의 지금 상태 (C009 — 04 commandSurface). 관찰자가 소유하는 값이다 —
+   * 열려 있는가, 무엇을 쓰고 있는가, 무엇을 주고받았는가. 세계는 이것을 알지 못한다.
+   */
+  command?: CommandSurfaceInput;
+}
+
+/** 관찰자가 쥐고 있는 명령 표면 상태 — 조립 루트가 소유한다 (04 history.owner: observer) */
+export interface CommandSurfaceInput {
+  open: boolean;
+  text: string;
+  history: readonly SceneCommandHistoryLine[];
 }
 
 // entity.kind(종류) + state(행동) → 재생할 모션. 데이터가 없으면 undefined 이고
@@ -70,6 +88,29 @@ function resolveMotion(
   };
 }
 
+/**
+ * 명령 표면 (C009 — 04 commandSurface).
+ * 두 출처의 목록을 한 벌로 합치고, 지금 쓰고 있는 것에 대한 안내를 붙인다.
+ * 목록은 표면이 닫혀 있어도 만들어진다 — 결정은 순수하고, 보일지는 capability 가 정한다.
+ */
+function commandSurface(
+  snapshot: GameViewSnapshot,
+  options: PresentationOptions,
+): SceneCommandSurface {
+  const states = {
+    'collider-observe': options.debugObserve ?? false,
+    'attribute-inspect': options.inspect ?? false,
+  } as const;
+  const entries = commandEntries(snapshot, states);
+  const input = options.command;
+  return {
+    open: input?.open ?? false,
+    entries,
+    composition: composeCommand(input?.text ?? '', entries, snapshot, states),
+    history: [...(input?.history ?? [])],
+  };
+}
+
 export function resolvePresentation(
   snapshot: GameViewSnapshot,
   motions: MotionLibrary = motionLibrary,
@@ -78,6 +119,7 @@ export function resolvePresentation(
   return {
     specId: snapshot.specId,
     terrain: snapshot.scene,
+    commandSurface: commandSurface(snapshot, options),
     // 충돌체 디버그 관찰 (C006) — 켜졌을 때만 지시를 담는다
     ...(options.debugObserve ? { colliderDebug: collisionDebug(snapshot) } : {}),
     entities: snapshot.entities.map((e) => {

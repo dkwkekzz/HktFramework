@@ -30,6 +30,23 @@ const CODE_TEXT: Record<string, string> = {
   'unknown-target': '그런 존재가 없다',
   'unknown-attribute': '그런 속성이 없다',
   'value-out-of-range': '허용된 범위를 벗어난 값이다',
+  // 불가 사유 — 요청 수용 경로 (C009 — 세계가 이제 이 사유들도 되돌려 준다)
+  'unknown-interaction': '그런 명령이 없다',
+  'unknown-observer': '세계가 나를 알지 못한다',
+  'missing-attribute': '무엇을 바꿀지 실리지 않았다',
+  'missing-position': '어디로 갈지 실리지 않았다',
+  'missing-target': '대상이 실리지 않았다',
+  'missing-mode': '어떤 걸음인지 실리지 않았다',
+  // 명령이 무엇을 하는가 (C009 — Command.Effect)
+  'set-attribute': '존재의 속성 값을 바꾼다',
+  'collider-observe': '몸과 휘두름의 충돌체를 보인다',
+  'attribute-inspect': '존재의 모든 속성을 그 몸 위에 펼친다',
+  // 명령이 받는 자리 (C009 — Parameter.Id)
+  'param:target': '대상',
+  'param:attribute': '속성',
+  'param:value': '값',
+  // 비워 두면 무엇이 되는가 (C009 — Parameter.OmittedMeaning)
+  'omitted:self': '내 몸',
 };
 
 export function codeText(code: string): string {

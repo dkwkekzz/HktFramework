@@ -4,7 +4,7 @@
 // 세계가 참여를 판정한 다음 Tick 에 온다.
 
 import { describe, expect, it } from 'vitest';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import { parseClientMessage, parseServerMessage } from '../../protocol/transport';
 import { createWorldHost } from '../world-host';
 
@@ -207,6 +207,85 @@ describe('WorldHost — 자기 시계', () => {
   });
 });
 
+// C009 — 세계 → 관찰자 방향에 관찰 결과 말고 다른 것이 실린다.
+describe('WorldHost — 세계의 대답이 요청한 이에게 닿는다 (C009)', () => {
+  function attachWithOutcomes(host: ReturnType<typeof createWorldHost>, observerId: string) {
+    const snapshots: GameViewSnapshot[] = [];
+    const outcomes: RequestOutcomeView[][] = [];
+    host.attach(
+      observerId,
+      (s) => snapshots.push(s),
+      undefined,
+      (o) => outcomes.push(o),
+    );
+    return { snapshots, outcomes };
+  }
+
+  it('건 요청의 판정이 그 이어짐으로 돌아온다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const a = attachWithOutcomes(host, A);
+    host.advance(0);
+
+    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 42 }, mark: 5 });
+    host.advance(0);
+
+    expect(a.outcomes).toEqual([[{ accepted: true, rule: 'RULE-ATTRIBUTE-SET-001', mark: 5 }]]);
+  });
+
+  it('대답은 관찰 결과보다 먼저 나간다 — 그래야 인과가 순서대로 읽힌다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const order: string[] = [];
+    host.attach(
+      A,
+      () => order.push('observation'),
+      undefined,
+      () => order.push('outcome'),
+    );
+    host.advance(0);
+    order.length = 0;
+
+    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 3 } });
+    host.advance(0);
+
+    expect(order).toEqual(['outcome', 'observation']);
+  });
+
+  it('남의 요청의 대답은 오지 않는다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const a = attachWithOutcomes(host, A);
+    const b = attachWithOutcomes(host, B);
+    host.advance(0);
+
+    host.receive(B, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 8 } });
+    host.advance(0);
+
+    expect(b.outcomes).toHaveLength(1);
+    expect(a.outcomes).toHaveLength(0);
+  });
+
+  it('아무 요청도 없던 Tick 에는 대답이 나가지 않는다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const a = attachWithOutcomes(host, A);
+
+    host.advance(0.1);
+    host.advance(0.1);
+
+    expect(a.snapshots.length).toBeGreaterThan(0);
+    expect(a.outcomes).toHaveLength(0);
+  });
+
+  it('대답을 받을 자리를 두지 않아도 세계는 그대로 돈다', () => {
+    const host = createWorldHost({ npcs: [] });
+    const received: GameViewSnapshot[] = [];
+    host.attach(A, (s) => received.push(s)); // onOutcomes 없음 — C009 이전과 같은 붙임
+    host.advance(0);
+
+    host.receive(A, { interactionId: 'set-attribute', attribute: { id: 'hp', value: 4 } });
+    expect(() => host.advance(0)).not.toThrow();
+    expect(received.length).toBeGreaterThan(0);
+  });
+});
+
 describe('transport — 오가는 것의 형태', () => {
   it('관찰 결과 봉투를 주고받을 수 있다', () => {
     const host = createWorldHost({ npcs: [] });
@@ -214,7 +293,19 @@ describe('transport — 오가는 것의 형태', () => {
     const snapshot = host.advance(0.1).get(A);
 
     const wire = JSON.stringify({ type: 'observation', snapshot });
-    expect(parseServerMessage(wire)?.snapshot).toEqual(snapshot);
+    const parsed = parseServerMessage(wire);
+    expect(parsed?.type === 'observation' && parsed.snapshot).toEqual(snapshot);
+  });
+
+  it('대답 봉투를 주고받을 수 있다 (C009)', () => {
+    const outcomes: RequestOutcomeView[] = [
+      { accepted: false, rule: 'RULE-ATTRIBUTE-SET-001', reason: 'debug-closed', mark: 3 },
+    ];
+    const wire = JSON.stringify({ type: 'outcome', outcomes });
+    const parsed = parseServerMessage(wire);
+
+    expect(parsed?.type).toBe('outcome');
+    expect(parsed?.type === 'outcome' && parsed.outcomes).toEqual(outcomes);
   });
 
   it('자기를 밝히는 봉투를 주고받을 수 있다', () => {

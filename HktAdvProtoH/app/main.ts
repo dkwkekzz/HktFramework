@@ -9,7 +9,9 @@
 // world/ 를 import 하지 않는다 — 이제는 규율이 아니라 물리적 사실이다.
 
 import { TRANSPORT_PATH } from '../protocol/transport';
+import { createCommandConsole } from '../view/hud/command-console';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../view/hud/hud';
+import { commandActionRequest } from '../view/input/command-request';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
 import { attachPointerLook } from '../view/input/pointer';
@@ -17,10 +19,15 @@ import type { ScreenSide } from '../view/presentation/facing-presentation';
 import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
 import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
 import { bindingLines, telemetryLines } from '../view/presentation/link-presentation';
+import { codeText } from '../view/presentation/code-text';
+import {
+  invocationOf,
+  type ObserverCommandId,
+} from '../view/presentation/command-presentation';
 import { resolvePresentation } from '../view/presentation/resolve';
 import { sessionPresentation } from '../view/presentation/session-presentation';
 import { createRenderer } from '../view/renderer/renderer';
-import type { SceneState } from '../view/scene/scene-state';
+import type { SceneCommandHistoryLine, SceneState } from '../view/scene/scene-state';
 
 const container = document.getElementById('game');
 if (!container) throw new Error('#game 컨테이너가 없다');
@@ -41,6 +48,18 @@ const link = createWorldLink(
 
 const renderer = createRenderer(container);
 const hud = createHud(container);
+// 명령 표면 (C009) — 타이핑을 받는 동안 이동·시점·행동 입력이 몸에 닿지 않는다
+// (04 commandSurface.inputCapture).
+const commandConsole = createCommandConsole(container, {
+  onText: (text) => {
+    commandText = text;
+  },
+  onSubmit: () => submitCommand(),
+  onClose: () => {
+    commandOpen = false;
+    commandText = '';
+  },
+});
 const keyboard = attachKeyboard();
 
 // 아직 세계로부터 아무것도 받지 못한 동안의 화면 — 빈 세계를 그린다.
@@ -52,13 +71,29 @@ const EMPTY_SCENE: SceneState = {
   hud: [],
   strikes: [],
   worldTime: 0,
+  commandSurface: {
+    open: false,
+    entries: [],
+    composition: { text: '', candidates: [], suggestions: [], submittable: false },
+    history: [],
+  },
 };
 
 let latestScene: SceneState = EMPTY_SCENE;
-attachInput(renderer, (action) => link.send(action), () => latestScene);
+// C009 — 명령을 쓰는 동안에는 화면을 눌러도 몸이 움직이지 않는다
+// (04 commandSurface.inputCapture.suspends: interactions.move · skill).
+attachInput(
+  renderer,
+  (action) => (commandConsole.capturing() ? false : link.send(action)),
+  () => latestScene,
+);
 
 // 시점 조작 (C008) — 세계로 나가지 않는다. 관찰자가 자기 방향을 바꿀 뿐이다.
-attachPointerLook(renderer.domElement, (dTurn, dTilt) => renderer.turnView(dTurn, dTilt));
+// C009 — 명령을 쓰는 동안에는 시점도 돌아가지 않는다.
+attachPointerLook(renderer.domElement, (dTurn, dTilt) => {
+  if (commandConsole.capturing()) return;
+  renderer.turnView(dTurn, dTilt);
+});
 const KEY_TURN_RATE = 1.8; // rad/s — 키로 도는 빠르기
 const KEY_TILT_RATE = 1.0;
 
@@ -75,6 +110,8 @@ let wasKeyMoving = false;
 
 // 충돌체 디버그 관찰 (C006) — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
 // World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
+// C009 — 같은 것을 명령으로도 켤 수 있다 (04 observerCommands[collider-observe]).
+// 키는 아는 사람의 지름길이고, 명령 목록이 처음 보는 사람의 길이다.
 const DEBUG_OBSERVE_KEY = 'KeyC';
 let debugObserve = false;
 
@@ -82,6 +119,78 @@ let debugObserve = false;
 // 이 토글은 그것을 몸 위에 펼쳐 볼지만 정한다. World 에 아무것도 요청하지 않는다.
 const INSPECT_KEY = 'KeyV';
 let inspect = false;
+
+// ── 명령 표면 (C009 — 04 commandSurface) ────────────────────────────
+//
+// 관찰자가 쥐는 상태다. 세계는 이것을 알지 못한다 —
+// 열려 있는지도, 무엇을 쓰고 있는지도, 무엇을 주고받았는지도.
+const COMMAND_OPEN_KEY = 'Slash'; // 여는 키. 표면 자체가 무엇을 할 수 있는지 알려 준다
+const COMMAND_HISTORY_LIMIT = 40;
+let commandOpen = false;
+let commandText = '';
+const commandHistory: SceneCommandHistoryLine[] = [];
+// 어느 기록 줄이 어느 요청의 대답을 기다리는가 (04 requestOutcome.mark).
+const awaitingOutcome = new Map<number, SceneCommandHistoryLine>();
+
+function pushHistory(line: SceneCommandHistoryLine): SceneCommandHistoryLine {
+  commandHistory.push(line);
+  if (commandHistory.length > COMMAND_HISTORY_LIMIT) commandHistory.shift();
+  return line;
+}
+
+function setObserverCommand(id: ObserverCommandId): string {
+  // 세계로 나가지 않는다 (04 observerCommands.worldKnows: false).
+  if (id === 'collider-observe') {
+    debugObserve = !debugObserve;
+    return debugObserve ? '켰다' : '껐다';
+  }
+  inspect = !inspect;
+  return inspect ? '켰다' : '껐다';
+}
+
+function submitCommand(): void {
+  const text = commandText.trim();
+  if (text.length === 0) return;
+
+  const snapshot = link.latest();
+  const invocation = invocationOf(text, latestScene.commandSurface.entries, snapshot, {
+    'collider-observe': debugObserve,
+    'attribute-inspect': inspect,
+  });
+
+  if (invocation.kind === 'rejected') {
+    // 잘못 걸린 것이 아무 일 없이 사라지지 않는다 (04 commandSurface.guide.onMistake).
+    pushHistory({ text, answer: invocation.problem, accepted: false });
+  } else if (invocation.kind === 'observer') {
+    pushHistory({ text, answer: setObserverCommand(invocation.commandId), accepted: true });
+  } else {
+    const action = commandActionRequest(invocation.commandId, invocation.values);
+    const mark = action ? link.sendMarked(action) : null;
+    // 대답이 올 때까지 기다리는 줄로 남는다 — 세계가 판정해야 answer 가 채워진다.
+    const line = pushHistory({ text });
+    if (mark === null) line.answer = '세계에 이어져 있지 않다';
+    else awaitingOutcome.set(mark, line);
+  }
+
+  commandText = '';
+}
+
+// 세계의 대답을 기록에 붙인다 (04 requestOutcome).
+// 표식이 없는 대답도 버리지 않는다 — 마지막 줄에 붙인다.
+function drainOutcomes(): void {
+  for (const outcome of link.takeOutcomes()) {
+    const line =
+      outcome.mark !== undefined
+        ? awaitingOutcome.get(outcome.mark)
+        : commandHistory[commandHistory.length - 1];
+    if (outcome.mark !== undefined) awaitingOutcome.delete(outcome.mark);
+    if (!line) continue;
+    line.accepted = outcome.accepted;
+    line.answer = outcome.accepted
+      ? '받아들여졌다'
+      : codeText(outcome.reason ?? 'unknown-interaction');
+  }
+}
 
 // 이동 모드 (C007) — 요청은 토글이 아니라 명시값이므로(walk | run),
 // 지금 무엇인지를 보고 반대값을 보낸다. 정하는 것은 세계다.
@@ -98,22 +207,30 @@ function frame(now: number): void {
 
   // 조용히 죽은 이어짐을 걷어낸다 — 관찰 결과가 끊기면 그것이 끊김이다
   link.poll(Date.now());
+  // 세계의 대답을 받아 기록에 붙인다 (C009). 관찰 결과와 다른 자리다.
+  drainOutcomes();
 
   // 시점 조작 (C008) — 그리기 전에 방향을 먼저 정한다. 이번 프레임의 좌우 읽기가
   // 이 방향을 기준으로 이루어져야 화면과 어긋나지 않는다.
-  const turning = keyboard.turn();
+  const capturing = commandConsole.capturing();
+  const turning = capturing ? null : keyboard.turn();
   if (turning) {
     renderer.turnView(turning.turn * KEY_TURN_RATE * dt, turning.tilt * KEY_TILT_RATE * dt);
   }
 
   // 화면은 마지막으로 받은 관찰 결과다 (04-gameview.spec.yaml delivery: pushed)
   const snapshot = link.latest();
+  // 아직 세계에서 아무것도 오지 않았어도 명령 표면은 열린다 — 다만 목록은 비어 있다.
+  // 세계가 밝히지 않은 명령을 View 가 지어내지 않기 때문이다.
+  EMPTY_SCENE.commandSurface.open = commandOpen;
+  EMPTY_SCENE.commandSurface.composition.text = commandText;
   latestScene = snapshot
     ? resolvePresentation(snapshot, undefined, {
         debugObserve,
         inspect,
         viewTurn: renderer.viewTurn(),
         facingSides,
+        command: { open: commandOpen, text: commandText, history: commandHistory },
       })
     : EMPTY_SCENE;
 
@@ -129,7 +246,7 @@ function frame(now: number): void {
   const self = latestScene.entities.find((e) => e.cameraFollow);
 
   moveRequestCooldown -= dt;
-  const dir = keyboard.direction();
+  const dir = capturing ? null : keyboard.direction();
   if (dir && terrain && self) {
     wasKeyMoving = true;
     if (moveRequestCooldown <= 0) {
@@ -161,6 +278,14 @@ function frame(now: number): void {
   }
 
   for (const code of keyboard.consumeKeyPresses()) {
+    // 명령 표면을 연다 (C009). 열려 있는 동안 다른 키는 몸에 닿지 않는다 —
+    // 콘솔이 자기 입력에서 키를 잡아 두므로 여기까지 오지 않는다.
+    if (code === COMMAND_OPEN_KEY) {
+      commandOpen = !commandOpen;
+      if (!commandOpen) commandText = '';
+      continue;
+    }
+    if (capturing) continue;
     if (code === DEBUG_OBSERVE_KEY) {
       debugObserve = !debugObserve;
       continue;
@@ -190,6 +315,7 @@ function frame(now: number): void {
   }
 
   renderer.render(latestScene, dt);
+  commandConsole.render(latestScene.commandSurface);
 
   const labels: EntityLabel[] = [];
   for (const entity of latestScene.entities) {

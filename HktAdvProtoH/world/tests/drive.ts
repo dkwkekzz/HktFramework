@@ -8,7 +8,7 @@
 // 관찰자 하나를 들여보낸 뒤 시작한다. 그 관찰자의 몸이 PLAYER 다.
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import { createWorld, type World, type WorldSetup } from '../index';
 
 /** 검증용 기본 관찰자 */
@@ -22,6 +22,11 @@ export const PLAYER_2 = 'player-2';
 export interface WorldDriver {
   /** 요청을 보내고 그 Tick 의 판정을 돌려준다 (시간은 흐르지 않는다) */
   dispatch(action: ActionRequest, observerId?: string): ActionResult;
+  /**
+   * 요청을 보내고 세계가 그 관찰자에게 되돌린 대답을 읽는다 (C009).
+   * dispatch 와 달리 "세계 안의 판정" 이 아니라 "요청한 이에게 실제로 간 것" 을 본다.
+   */
+  dispatchForOutcome(action: ActionRequest, observerId?: string): RequestOutcomeView[];
   /** dt 만큼 세계를 진행시킨다 */
   tick(dt: number): void;
   /** 관찰자가 들어온다 (다음 Tick 에 판정된다) */
@@ -47,6 +52,10 @@ export function driveWorld(setup: WorldSetup = {}): WorldDriver {
       const result = world.tick(0).results[0];
       if (!result) throw new Error('요청이 처리되지 않았다');
       return result;
+    },
+    dispatchForOutcome(action, observerId = OBSERVER) {
+      world.request(observerId, action);
+      return world.tick(0).outcomes.get(observerId) ?? [];
     },
     tick(dt) {
       world.tick(dt);
