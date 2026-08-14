@@ -131,7 +131,14 @@ export function createHud(container: HTMLElement): Hud {
       // 같은 키·프롬프트가 대상 수만큼 오더라도 안내는 한 줄이다
       // 충돌체 관찰 토글은 View 자체 기능이라 엔진 기본 안내에 둔다 (C006)
       // 속성 관찰 토글도 View 자체 기능이라 엔진 기본 안내에 둔다 (C007 R2)
-      const keyLines = new Set(['이동: WASD / 방향키', '충돌체 관찰: C', '속성 관찰: V']);
+      // C009 — 명령 표면을 여는 안내가 맨 위다. 여기부터가 "무엇을 할 수 있는지"의
+      // 입구이며, 아래 두 줄은 그 목록에도 있는 것의 지름길이다.
+      const keyLines = new Set([
+        '명령: /',
+        '이동: WASD / 방향키',
+        '충돌체 관찰: C',
+        '속성 관찰: V',
+      ]);
       for (const i of scene.interactions) {
         if (i.key && i.prompt) keyLines.add(`${i.prompt}: ${i.keyLabel ?? i.key}`);
       }

@@ -12,7 +12,7 @@
 // 소켓 자체는 주입받는다 — 전송 수단 없이 검증할 수 있어야 하기 때문이다.
 
 import type { ActionRequest } from '../../protocol/actions';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import {
   parseServerMessage,
   type ActionMessage,
@@ -47,6 +47,18 @@ export const MARK_INTERVAL_MS = 500;
 export interface WorldLink {
   /** 요청을 세계로 보낸다. 이어져 있지 않으면 보내지 못하고 false */
   send(action: ActionRequest): boolean;
+  /**
+   * 요청을 보내고 그 요청에 붙인 표식을 돌려준다 (C009 — Request.Mark).
+   * 돌아온 대답이 어느 요청의 것인지 이 표식으로 짚는다
+   * (04 requestOutcome.mark / INTENT-REPLY-CORRESPONDENCE-001).
+   * 보내지 못했으면 null.
+   */
+  sendMarked(action: ActionRequest): number | null;
+  /**
+   * 세계가 내 요청들에 내놓은 대답을 가져간다 (C009). 가져가면 비워진다 —
+   * 기록은 관찰자가 쥔다 (04 commandSurface.history.owner: observer).
+   */
+  takeOutcomes(): RequestOutcomeView[];
   /** 마지막으로 받은 관찰 결과 (아직 하나도 못 받았으면 null) */
   latest(): GameViewSnapshot | null;
   state(): LinkState;
@@ -77,6 +89,11 @@ export function createWorldLink(
   let attempt = 0;
   let closed = false;
   let lastReceived = now();
+  // C009 — 세계에서 온 대답들. 가져갈 때까지만 여기 있다.
+  let outcomes: RequestOutcomeView[] = [];
+  // 요청에 붙이는 표식 — C005 의 이어짐 표식과 다른 자리다.
+  // 그쪽은 왕복을 재는 것이고 이쪽은 어느 요청의 대답인지 짚는 것이다.
+  let nextRequestMark = 1;
 
   // C005 — 표식은 관찰자가 매긴다. 뒤로 가지 않고, 다시 이어도 되돌리지 않는다
   // (marking.value: monotonic · resetOn: never).
@@ -129,10 +146,14 @@ export function createWorldLink(
       onMessage(raw) {
         const message = parseServerMessage(raw);
         if (!message) return;
-        if (message.type !== 'observation') return; // 대답은 Stage 7 이 다룬다 (C009)
+        lastReceived = now();
+        if (message.type === 'outcome') {
+          // C009 — 세계의 대답. 관찰 결과를 대체하지 않는다.
+          outcomes.push(...message.outcomes);
+          return;
+        }
         latest = message.snapshot; // 늦게 온 것이 앞선 것을 대체한다
         state = 'connected';
-        lastReceived = now();
         // 세계가 받아들인 표식으로 왕복을 닫는다 (C005 INTENT-LINK-ROUNDTRIP-001)
         telemetry.recordObservation(message.snapshot.observer.acknowledgedMark, lastReceived);
       },
@@ -148,6 +169,17 @@ export function createWorldLink(
     if (pendingDeclare) declareIdentity();
   }
   open();
+
+  function sendAction(action: ActionRequest): boolean {
+    if (state !== 'connected' || !socket) return false;
+    const message: ActionMessage = { type: 'action', action };
+    socket.send(JSON.stringify(message));
+    telemetry.recordSent();
+    // 요청 직후에 표식을 붙인다 — 세계가 이 표식을 받아들인 관찰 결과에는
+    // 이 요청의 판정이 이미 들어 있다 (03-world-semantic.md Transition 0).
+    sendMark(now());
+    return true;
+  }
 
   function dropSilentLink(): void {
     const dead = socket;
@@ -166,15 +198,17 @@ export function createWorldLink(
       // 조용해도 잴 수 있어야 한다 — 일정 간격으로 표식을 보낸다 (C005)
       if (nowMs - lastMarkAt >= MARK_INTERVAL_MS) sendMark(nowMs);
     },
-    send(action) {
-      if (state !== 'connected' || !socket) return false;
-      const message: ActionMessage = { type: 'action', action };
-      socket.send(JSON.stringify(message));
-      telemetry.recordSent();
-      // 요청 직후에 표식을 붙인다 — 세계가 이 표식을 받아들인 관찰 결과에는
-      // 이 요청의 판정이 이미 들어 있다 (03-world-semantic.md Transition 0).
-      sendMark(now());
-      return true;
+    send: sendAction,
+    sendMarked(action) {
+      const mark = nextRequestMark;
+      if (!sendAction({ ...action, mark })) return null;
+      nextRequestMark += 1;
+      return mark;
+    },
+    takeOutcomes() {
+      const taken = outcomes;
+      outcomes = [];
+      return taken;
     },
     latest: () => latest,
     state: () => state,

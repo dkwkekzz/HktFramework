@@ -139,6 +139,62 @@ export interface SceneColliderDebug {
   vectors: SceneDebugVector[];
 }
 
+// ── 명령 표면 (C009 — 04 commandSurface) ────────────────────────────
+//
+// 결정 Layer 가 세계의 목록(commandCatalog)과 관찰자 쪽 목록(observerCommands)을
+// 한 벌의 표시 지시로 합쳐 둔 것. capability 는 이것이 무슨 명령인지 모른다 —
+// 줄과 자리와 후보를 그릴 뿐이다.
+
+/** 명령이 받는 자리 하나 — 무엇을 넣어야 하고 어디까지 되는지가 문구로 끝나 있다 */
+export interface SceneCommandSlot {
+  id: string; // 자리 이름 (문구)
+  required: boolean;
+  hint: string; // 이 자리가 받는 것 (예: "0 … 100", "walk | run", "존재")
+  options?: string[]; // 고를 수 있는 이름들 (있을 때만)
+  omittedMeaning?: string; // 비워 두면 무엇이 되는가 (문구)
+}
+
+export interface SceneCommandEntry {
+  id: string;
+  title: string; // 무엇을 하는가 (문구)
+  /** 세계로 가는가, 관찰자 쪽에서 끝나는가 — 04 commandSurface.origin */
+  origin: 'world' | 'observer';
+  available: boolean;
+  unavailableText?: string;
+  usage: string; // 어떻게 쓰는가 한 줄 (예: "set-attribute [대상] <속성> <값>")
+  slots: SceneCommandSlot[];
+  /** 관찰자 쪽 명령의 지금 상태 (켜짐/꺼짐 등). 세계 명령에는 없다 */
+  stateText?: string;
+}
+
+/** 지금 쓰고 있는 것에 대한 안내 — 04 commandSurface.guide */
+export interface SceneCommandComposition {
+  text: string;
+  /** 지금까지 적은 것에 해당하는 명령 후보들 */
+  candidates: SceneCommandEntry[];
+  /** 무엇을 더 적어야 하는가 — 다 채웠으면 없다 */
+  nextSlot?: SceneCommandSlot;
+  /** 그 자리에 넣을 수 있는 것들 (적은 것으로 좁혀진 뒤) */
+  suggestions: string[];
+  /** 틀린 것이 있으면 무엇이 틀렸는지 — 걸기 전에 알려 준다 */
+  problem?: string;
+  submittable: boolean;
+}
+
+/** 주고받은 한 줄 — 04 commandSurface.history */
+export interface SceneCommandHistoryLine {
+  text: string; // 내가 건 것
+  answer?: string; // 돌아온 대답 (문구). 아직 오지 않았으면 없다
+  accepted?: boolean;
+}
+
+export interface SceneCommandSurface {
+  open: boolean;
+  entries: SceneCommandEntry[];
+  composition: SceneCommandComposition;
+  history: SceneCommandHistoryLine[];
+}
+
 export interface SceneState {
   specId: string;
   terrain: string;
@@ -149,4 +205,5 @@ export interface SceneState {
   self?: SceneSelf; // C007 — 자기 자원·능력치·배율 (아직 관찰 결과가 없으면 없다)
   strikes: SceneStrike[]; // C007 — 지금 떠 있는 타격 결과들
   worldTime: number; // C007 — 타격 결과의 나이를 재는 기준 (세계 시각)
+  commandSurface: SceneCommandSurface; // C009 — 명령 목록·안내·기록
 }

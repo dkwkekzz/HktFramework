@@ -133,6 +133,53 @@
     .hud-linkline[data-grade="bad"] { color: #ef8b7a; }
     /* 끊긴 동안 보는 세계는 현재가 아닐 수 있다 — 화면 전체로 그 사실을 표시한다 */
     #hud[data-stale="true"] ~ canvas, #game[data-stale="true"] canvas { filter: grayscale(0.55); }
+
+    /* 명령 표면 (C009) — 목록 우선 + 타이핑. 닫혀 있으면 자리를 차지하지 않는다. */
+    #command-console {
+      display: none;
+      position: absolute; left: 50%; bottom: 24px; transform: translateX(-50%);
+      width: min(760px, calc(100% - 32px));
+      background: rgba(10, 13, 20, 0.94);
+      border: 1px solid #2c3648; border-radius: 8px;
+      padding: 10px 12px; z-index: 40;
+      font-family: ui-monospace, "SF Mono", Menlo, monospace; font-size: 12px;
+      color: #d6dcea; pointer-events: auto;
+    }
+    #command-console.cc-open { display: block; }
+    .cc-list { max-height: 34vh; overflow-y: auto; margin-bottom: 8px; }
+    .cc-entry { padding: 6px 0; border-bottom: 1px solid #1b2230; }
+    .cc-entry:last-child { border-bottom: none; }
+    .cc-entry-blocked { opacity: 0.55; }
+    .cc-entry-head { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+    .cc-origin {
+      font-size: 10px; padding: 1px 6px; border-radius: 999px; font-weight: 700;
+    }
+    .cc-origin-world { background: #24405f; color: #9dcaff; }
+    .cc-origin-observer { background: #3a3320; color: #ffd98a; }
+    .cc-usage { color: #eaf0ff; font-weight: 700; }
+    .cc-state { color: #ffd98a; font-size: 11px; }
+    .cc-blocked { color: #ff9a9a; font-size: 11px; }
+    .cc-entry-title { color: #9fa9bd; margin: 2px 0 0 0; }
+    .cc-slots { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 3px; }
+    .cc-slot { color: #c3cbdc; font-size: 11px; }
+    .cc-hint { color: #7f8aa0; margin-left: 5px; }
+    .cc-omit { color: #6f7a90; margin-left: 5px; font-style: italic; }
+    .cc-guide { min-height: 16px; margin-bottom: 4px; display: flex; gap: 12px; flex-wrap: wrap; }
+    .cc-next { color: #9dcaff; }
+    .cc-suggest code { color: #d6dcea; background: #1b2230; padding: 0 4px; border-radius: 3px; margin-right: 4px; }
+    .cc-problem { color: #ff9a9a; }
+    .cc-line { display: flex; align-items: center; gap: 6px; }
+    .cc-caret { color: #6fd07f; font-weight: 700; }
+    .cc-input {
+      flex: 1; background: #141a26; border: 1px solid #2c3648; border-radius: 4px;
+      color: #eaf0ff; padding: 5px 8px; font: inherit; outline: none;
+    }
+    .cc-input:focus { border-color: #4a6a9a; }
+    .cc-history { margin-top: 6px; max-height: 16vh; overflow-y: auto; }
+    .cc-hline { display: flex; gap: 10px; padding: 1px 0; color: #8d97ab; }
+    .cc-hline code { color: #c3cbdc; }
+    .cc-hline.cc-ok span { color: #6fd07f; }
+    .cc-hline.cc-no span { color: #ff9a9a; }
   </style>
 </head>
 <body>
