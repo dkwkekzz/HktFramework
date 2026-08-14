@@ -12,6 +12,22 @@ export interface GameViewPosition {
   z: number;
 }
 
+// 몸 충돌체 (C006) — 모든 character 가 지면 평면에서 차지하는 원과 그 물리 상태.
+// 밀리는 움직임 자체는 position 변화로 보인다. velocity 는 디버그 관찰용 값이다.
+export interface BodyView {
+  radius: number;
+  mass: number;
+  velocity: GameViewPosition;
+}
+
+// 행동 충돌 반경 (C006) — attack 진행 중에만 존재한다. 휘두르는 몸을 따라다닌다.
+export interface SwingView {
+  center: GameViewPosition;
+  radius: number;
+  active: boolean; // 휘두름 구간 동안 참 — 이때 닿은 몸이 타격된다
+  struck: string[]; // 이 휘두름이 이미 타격한 몸들 (같은 몸은 한 번만 맞는다)
+}
+
 export interface EntityView {
   id: string;
   role: string; // Semantic Role (예: player-character, npc-character, resource-deposit)
@@ -23,6 +39,8 @@ export interface EntityView {
   targetEntityId?: string; // 현재 상태의 대상 (C002) — 없을 수 있음
   attended?: boolean; // 그 몸을 지금 조종하는 이가 있는가 (C004).
   // role = other-player-character 에만 실린다. 거짓이면 그 사람은 떠났고 몸만 남은 것이다.
+  body?: BodyView; // 몸 충돌체 (C006) — character 에만 실린다
+  swing?: SwingView; // 행동 충돌 반경 (C006) — attack 진행 중에만 실린다
 }
 
 export interface InteractionView {

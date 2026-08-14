@@ -11,6 +11,8 @@ export interface CurrentAction {
   targetPosition?: { x: number; z: number }; // kind = move
   targetActorId?: string; // kind = attack
   targetDepositId?: string; // kind = mine
+  struckActorIds?: string[]; // kind = attack (C006) — 이 휘두름이 이미 타격한 몸들.
+  // 같은 몸은 휘두름당 한 번만 맞는다 (INTENT-SWING-IMPACT-001). 행동과 함께 사라진다.
   elapsed: number;
   duration: number | null; // null 이면 스스로 끝나지 않는다
 }

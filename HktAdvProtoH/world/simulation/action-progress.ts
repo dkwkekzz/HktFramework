@@ -6,7 +6,8 @@
 // Result         Progress | Completed
 //
 // 완료 효과 Rule   mine   → RULE-MINE-COMPLETE-001
-//                  attack → RULE-ATTACK-COMPLETE-001 (범위 안의 캐릭터를 타격한다)
+//                  attack → 없음 (C006 CHANGED — 타격은 완료가 아니라 휘두름 구간의
+//                           접촉이 정한다. RULE-SWING-STRIKE-001, simulation/swing-strike.ts)
 //                  hit    → 없음 (그냥 끝나고 대기로 돌아간다)
 //
 // 진행 대상은 Tick 이 시작될 때의 행동으로 고정한다. 이 Tick 안에서 새로 시작된 행동
@@ -15,7 +16,6 @@
 import { idleAction, type CurrentAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
-import { ruleAttackComplete } from '../rules/attack';
 import { ruleMineComplete } from '../rules/mine';
 
 export function ruleActionProgress(state: WorldState, dt: number): void {
@@ -31,7 +31,6 @@ export function ruleActionProgress(state: WorldState, dt: number): void {
     if (action.elapsed < action.duration) continue;
 
     if (action.kind === 'mine') ruleMineComplete(state, actor);
-    if (action.kind === 'attack') ruleAttackComplete(state, actor);
 
     // 완료 효과가 이 Actor 의 행동을 바꿨다면(스스로 맞은 경우 등) 덮지 않는다.
     if (actor.currentAction === action) actor.currentAction = idleAction();
