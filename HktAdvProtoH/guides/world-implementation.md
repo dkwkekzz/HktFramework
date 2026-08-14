@@ -63,6 +63,8 @@ world/
 - CharacterKind 가 정하는 정적 값(몸·자원·템포·사거리·인지·기본 방향)은
   `world/semantic/character-catalog.ts` 의 항목으로만 추가·변경한다 — Rule 코드에
   kind 별 분기·상수를 두지 않고, Actor 생성은 `semantic/spawn.ts` 를 거친다.
+  미등록 종류도 `DEFAULT_CHARACTER` 로 스폰된다 — 기본값 폴백을 깨지 않는다.
+  현재 등록 전체는 `npm run catalog` 로 관찰한다.
 - Rule 구현에는 Intent ID 를 주석/메타로 남긴다 (Traceability).
 - World 는 View 없이 테스트 가능해야 한다.
 - 코드는 `03-world-semantic.md` 의 이름과 의미를 그대로 따른다.
