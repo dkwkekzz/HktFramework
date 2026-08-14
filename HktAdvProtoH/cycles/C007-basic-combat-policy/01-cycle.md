@@ -1,7 +1,7 @@
 # CYCLE C007 — Basic Combat Policy
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
