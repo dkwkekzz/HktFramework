@@ -12,30 +12,9 @@ import type { ActorState } from './actor';
 import { isSkillKind } from './combat';
 import type { WorldPosition } from './position';
 
-// Actor.Body — 몸 캡슐의 반경·높이·질량.
-// R2 — 몸 크기는 CharacterKind 마다 정한다. 그림 크기는 View 가 Body.Height 에서
-// 유도하므로(04 spec), 새 종류는 여기 한 줄이면 충돌체와 이미지가 항상 일치한다.
-export interface BodySize {
-  radius: number;
-  height: number;
-}
-
-export const BODY_SIZE_BY_KIND: Readonly<Record<string, BodySize>> = {
-  'rabbit-swordsman': { radius: 0.85, height: 3.4 },
-  wanderer: { radius: 0.7, height: 2.8 },
-};
-
-// 등록되지 않은 종류의 기본 몸 — 존재가 크기 없이 서 있지 않게 한다
-export const DEFAULT_BODY_SIZE: BodySize = { radius: 0.6, height: 2.4 };
-
-export function bodySize(characterKind: string): BodySize {
-  return BODY_SIZE_BY_KIND[characterKind] ?? DEFAULT_BODY_SIZE;
-}
-
-export const BODY_MASS = 1.0;
-
-// Actor.Facing — 몸이 처음 만들어질 때 향하는 방향 (단위 벡터)
-export const DEFAULT_FACING: Readonly<WorldPosition> = { x: 0, z: 1 };
+// Actor.Body 의 종류별 반경·높이·질량과 스폰 시 기본 방향은
+// character-catalog.ts 로 옮겨졌다 — 종류가 정하는 값의 단일 출처는 그쪽이다.
+// 이 파일에는 종류와 무관한 물리 법칙 상수만 남는다.
 
 // RULE-BODY-PUSH-001 — 겹침 깊이(unit) → 밀어내는 가속(unit/s²) 비례 계수
 export const PUSH_STIFFNESS = 60.0;

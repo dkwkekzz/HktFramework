@@ -47,6 +47,24 @@ Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙
 15. 최종 완료 조건은 코드 작성이 아니라 실제 Cycle Goal 의 플레이 가능성이다.
 ```
 
+## Kind 정적 데이터 (Character Catalog)
+
+존재 종류(CharacterKind) 하나가 정하는 정적 데이터는 정확히 세 곳에만 존재한다.
+
+| 원소 | 내용 | 위치 |
+|---|---|---|
+| 시뮬레이션 | 몸 크기·질량·기본 방향·자원·템포·사거리·인지 | `world/semantic/character-catalog.ts` |
+| 표현 | 그림 기준 방향 등 종(種)이 정하는 표현 결정 | `view/presentation/kind-presentation.ts` |
+| 그림 | 모션 시트 | `motions/<kind>/` 파일 규약 |
+
+- 새 종류 추가·값 변경은 위 세 곳으로만 한다. Rule·Presentation·Capability 코드에
+  kind 별 분기나 상수를 두지 않는다. Actor 생성은 `world/semantic/spawn.ts` 를 거친다.
+- 역할(role)이 정하는 표현(카메라·라벨·자리 비움 등)은 `view/presentation/role-presentation.ts` —
+  종과 역할을 섞지 않는다.
+- 관찰: `npm run catalog` 가 세 원소를 병합해 보여주고, `npm run catalog:check` 는
+  world·view 등록 불일치 시 실패한다 (테스트로도 동일 판정이 돈다).
+- Cycle 에서 kind 값을 바꾸면 원칙 10 그대로 Artifact 에 CHANGED 로 기록한다.
+
 ## 막혔을 때
 
 이전 단계에서 확정된 의미를 임의로 바꾸거나 없는 의미를 만들어내지 않는다.
