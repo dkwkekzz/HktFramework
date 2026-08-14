@@ -12,13 +12,22 @@
       "role": "player-character",
       "state": "idle",
       "kind": "rabbit-swordsman",
-      "position": { "x": 0, "z": 0 },
+      "position": {
+        "x": 0,
+        "z": 0
+      },
       "body": {
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": 1, "z": 0 },
-        "velocity": { "x": 0, "z": 0 }
+        "facing": {
+          "x": 1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
       }
     },
     {
@@ -26,17 +35,29 @@
       "role": "npc-character",
       "state": "attack",
       "kind": "wanderer",
-      "position": { "x": 4, "z": 0 },
+      "position": {
+        "x": 4,
+        "z": 0
+      },
       "progress": 0.5,
       "body": {
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": -1, "z": 0 },
-        "velocity": { "x": 0, "z": 0 }
+        "facing": {
+          "x": -1,
+          "z": 0
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
       },
       "swing": {
-        "center": { "x": 2.6, "z": 0 },
+        "center": {
+          "x": 2.6,
+          "z": 0
+        },
         "radius": 0.7,
         "active": true,
         "struck": []
@@ -47,13 +68,22 @@
       "role": "npc-character",
       "state": "idle",
       "kind": "wanderer",
-      "position": { "x": -4, "z": 0 },
+      "position": {
+        "x": -4,
+        "z": 0
+      },
       "body": {
         "radius": 0.5,
         "height": 1.7,
         "mass": 1,
-        "facing": { "x": 0, "z": -1 },
-        "velocity": { "x": 0, "z": 0 }
+        "facing": {
+          "x": 0,
+          "z": -1
+        },
+        "velocity": {
+          "x": 0,
+          "z": 0
+        }
       }
     },
     {
@@ -61,19 +91,30 @@
       "role": "resource-deposit",
       "state": "available",
       "kind": "stone",
-      "position": { "x": 8, "z": -6 },
+      "position": {
+        "x": 8,
+        "z": -6
+      },
       "labelValue": 3
     }
   ],
   "interactions": [
-    { "id": "move", "role": "move-to", "available": true }
+    {
+      "id": "move",
+      "role": "move-to",
+      "available": true
+    }
   ],
   "hud": [
-    { "id": "world.time", "kind": "counter", "value": 10 }
+    {
+      "id": "world.time",
+      "kind": "counter",
+      "value": 10
+    }
   ],
   "strikes": [],
   "debug": {
-    "open": false,
-    "mutableAttributes": []
-  }
+    "open": false
+  },
+  "commands": []
 }

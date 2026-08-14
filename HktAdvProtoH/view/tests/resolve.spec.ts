@@ -168,7 +168,7 @@ describe('결정 Layer 의 유연 대응 — 미등록 항목도 기본 결정�
       observer: { id: 'observer-a', characterId: 'npc-1', acknowledgedMark: 0 },
       hud: [{ id: 'currency.gold', kind: 'counter', value: 3 }],
       strikes: [],
-      debug: { open: false, mutableAttributes: [] },
+      debug: { open: false }, commands: [],
     };
 
     const plan = resolvePresentation(snapshot);

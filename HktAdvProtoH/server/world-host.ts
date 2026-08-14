@@ -12,11 +12,14 @@
 // 덕분에 소켓 없이 테스트할 수 있다.
 
 import type { ActionRequest } from '../protocol/actions';
-import type { GameViewSnapshot } from '../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../protocol/gameview';
 import { startWorldClock, type WorldClock } from '../world/clock';
 import { createWorld, type World, type WorldSetup } from '../world/index';
 
 export type Observer = (snapshot: GameViewSnapshot) => void;
+
+/** 세계가 이 관찰자의 요청들에 내놓은 대답 (C009) — 관찰 결과와 다른 것이다 */
+export type OutcomeSink = (outcomes: RequestOutcomeView[]) => void;
 
 /** 같은 관찰자로 다른 곳에서 들어와 이 이어짐이 밀려났을 때 불린다 */
 export type Evicted = () => void;
@@ -24,6 +27,7 @@ export type Evicted = () => void;
 interface Link {
   send: Observer;
   onEvicted?: Evicted;
+  onOutcomes?: OutcomeSink;
 }
 
 export interface WorldHost {
@@ -31,7 +35,12 @@ export interface WorldHost {
    * 관찰자가 자신을 밝히고 붙는다. 첫 관찰 결과는 세계가 참여를 판정한 다음 Tick 에 온다 —
    * 세계는 모르는 이에게 자신을 보여주지 않는다.
    */
-  attach(observerId: string, observer: Observer, onEvicted?: Evicted): () => void;
+  attach(
+    observerId: string,
+    observer: Observer,
+    onEvicted?: Evicted,
+    onOutcomes?: OutcomeSink,
+  ): () => void;
   /** 관찰자가 보낸 요청이 세계에 도착한다 */
   receive(observerId: string, action: ActionRequest): void;
   /** 관찰자가 보낸 표식이 세계에 도착한다 (C005) — 게임을 바꾸지 않는다 */
@@ -49,19 +58,31 @@ export function createWorldHost(setup: WorldSetup = {}): WorldHost {
   const links = new Map<string, Link>();
   let clock: WorldClock | null = null;
 
-  function emit(observations: Map<string, GameViewSnapshot>): void {
+  function emit(
+    observations: Map<string, GameViewSnapshot>,
+    outcomes?: Map<string, RequestOutcomeView[]>,
+  ): void {
+    // C009 — 대답이 관찰 결과보다 먼저 나간다. 대답은 "그 요청이 어떻게 되었는가" 이고
+    // 뒤이어 오는 관찰 결과가 "그래서 세계가 어떠한가" 다. 이 순서로 읽혀야 인과가 맞다.
+    // 떠난 관찰자에게는 관찰 결과가 만들어지지 않지만 대답은 나갈 수 있다 —
+    // 그가 건 요청은 이 Tick 에 판정되었기 때문이다.
+    if (outcomes) {
+      for (const [observerId, list] of outcomes) {
+        if (list.length > 0) links.get(observerId)?.onOutcomes?.(list);
+      }
+    }
     for (const [observerId, snapshot] of observations) {
       links.get(observerId)?.send(snapshot);
     }
   }
 
   return {
-    attach(observerId, observer, onEvicted) {
+    attach(observerId, observer, onEvicted, onOutcomes) {
       // 몸 하나에 조종하는 이는 하나다 — 먼저 있던 이어짐을 떼어낸다.
       const previous = links.get(observerId);
       if (previous) previous.onEvicted?.();
 
-      const link: Link = { send: observer, onEvicted };
+      const link: Link = { send: observer, onEvicted, onOutcomes };
       links.set(observerId, link);
       world.join(observerId);
 
@@ -79,9 +100,9 @@ export function createWorldHost(setup: WorldSetup = {}): WorldHost {
       world.mark(observerId, mark);
     },
     advance(dt) {
-      const observations = world.tick(dt).observations;
-      emit(observations);
-      return observations;
+      const result = world.tick(dt);
+      emit(result.observations, result.outcomes);
+      return result.observations;
     },
     startClock(now) {
       if (clock) return;

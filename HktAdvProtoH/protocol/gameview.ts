@@ -116,18 +116,79 @@ export interface StrikeEventView {
   since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
 }
 
-// 바꿀 수 있는 속성과 그 허용 범위 (C007 R2). View 가 목록을 스스로 만들지 않는다.
-export interface MutableAttributeView {
-  id: string;
-  min?: number;
-  max?: number;
-  values?: string[];
-}
-
 // 속성을 바꿔 볼 수 있는 세계인가 (C007 R2).
+// C009 CHANGED — mutableAttributes 는 없어진 것이 아니라 자리를 옮겼다.
+// 이제 commands[set-attribute] 의 attribute 자리가 받는 값의 Domain 이다.
 export interface DebugAuthorityView {
   open: boolean;
-  mutableAttributes: MutableAttributeView[];
+}
+
+// ── World.CommandCatalog (C009 ADDED) ────────────────────────────────
+//
+// 세계 밖에서 세계에 손댈 수 있는 것들의 목록. interactions 와 다른 것이다 —
+// interactions 는 몸이 세계 안에서 하는 일이고, command 는 세계의 규칙 밖에서
+// 세계에 손을 대는 일이다.
+//
+// View 는 이 목록을 스스로 만들지 않는다 (INTENT-COMMAND-CATALOG-001).
+// 세계에 명령이 하나 생기면 여기에 항목이 하나 더 실릴 뿐이며 이 구조는 바뀌지 않는다.
+
+export type CommandDomainKind =
+  | 'entity' // 세계에 있는 존재를 Actor.Id 로 가리킨다
+  | 'choice' // 정해진 몇 가지 이름 중 하나
+  | 'number' // 수치 — 하한과 상한을 가진다
+  | 'text'
+  | 'from-previous-choice'; // 앞 자리의 선택이 이 자리의 Domain 을 정한다
+
+export interface CommandDomainOptionView {
+  name: string;
+  /** 이 선택지를 고르면 뒤따르는 자리의 Domain 이 이것으로 정해진다 */
+  thenDomain?: CommandDomainView;
+}
+
+export interface CommandDomainView {
+  kind: CommandDomainKind;
+  /** kind = entity — 무엇을 가리키는가 (의미 코드) */
+  refers?: string;
+  /** kind = choice */
+  options?: CommandDomainOptionView[];
+  /** kind = number */
+  minimum?: number;
+  maximum?: number;
+}
+
+export interface CommandParameterView {
+  id: string;
+  required: boolean;
+  /** 없을 때 무엇으로 치는가 (의미 코드 — 문구 변환은 View 책임) */
+  omittedMeaning?: string;
+  domain: CommandDomainView;
+}
+
+export interface CommandView {
+  id: string;
+  /** 무엇을 하는가 (의미 코드 — 문구 변환은 View 책임) */
+  effect: string;
+  available: boolean;
+  /** 걸 수 없다면 왜인가 — 사유 코드 */
+  reason?: string;
+  /** 받는 것들, 순서대로 */
+  parameters: CommandParameterView[];
+}
+
+// ── Request.Outcome (C009 ADDED) ─────────────────────────────────────
+//
+// 하나의 요청에 대한 세계의 대답 (RULE-REQUEST-REPLY-001).
+// 관찰 결과와 다른 것이다 — 세계가 어떻게 되었는지가 아니라
+// "내가 건 그 요청이 어떻게 되었는가" 하나다. 요청한 이에게만 간다.
+// 세계는 이것을 쌓아 두지 않는다 — Tick 의 산출물이지 World State 가 아니다.
+export interface RequestOutcomeView {
+  accepted: boolean;
+  /** 어느 판정이 결정했는가 (Semantic Identifier) */
+  rule: string;
+  /** 거절이면 그 사유 코드 — 문구 변환은 View 책임 */
+  reason?: string;
+  /** 요청에 실려 온 Request.Mark 그대로. 어느 요청의 대답인지 짚는 수단 */
+  mark?: number;
 }
 
 export interface GameViewSnapshot {
@@ -139,4 +200,7 @@ export interface GameViewSnapshot {
   hud: HudItemView[];
   strikes: StrikeEventView[]; // C007 ADDED
   debug: DebugAuthorityView; // C007 R2 ADDED
+  // C009 ADDED — 세계가 밝히는 "걸 수 있는 명령". 관찰 결과에 늘 실린다.
+  // 걸 수 있는 것은 언제나 먼저 밝혀져 있다 — 걸어 보아야 알게 되는 것이 없다.
+  commands: CommandView[];
 }

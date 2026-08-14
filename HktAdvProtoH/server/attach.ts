@@ -1,8 +1,11 @@
 // WebSocket 부착 — World Host 를 실제 전송 위에 올린다 (C003).
 //
-// 관찰자 하나가 붙을 때마다 소켓 하나. 소켓으로 나가는 것은 관찰 결과뿐이고,
-// 들어오는 것은 자기 식별(join)과 Action Request 뿐이다 (protocol/transport.ts).
-// 판정 결과는 되돌려 보내지 않는다 — 요청이 받아들여졌는지는 관찰 결과로 드러난다.
+// 관찰자 하나가 붙을 때마다 소켓 하나. 들어오는 것은 자기 식별(join)과
+// Action Request 뿐이다 (protocol/transport.ts).
+//
+// C009 CHANGED — 나가는 것이 둘이 된다: 관찰 결과와, 이 관찰자의 요청에 대한 대답.
+// 대답은 관찰 결과를 대신하지 않는다 — 세계가 어떻게 되었는지는 지금까지대로
+// 관찰 결과로 드러나고, 대답은 "그 요청이 어떻게 되었는가" 만 말한다.
 //
 // C004 — 소켓이 열렸다고 관찰자가 된 것이 아니다. 자신을 밝히기 전까지는
 // 세계에 아무것도 도착하지 않는다. 밝힌 뒤에는 그 소켓으로 오는 모든 요청이
@@ -15,6 +18,7 @@ import {
   parseClientMessage,
   TRANSPORT_PATH,
   type ObservationMessage,
+  type OutcomeMessage,
 } from '../protocol/transport';
 import type { WorldHost } from './world-host';
 
@@ -60,6 +64,12 @@ export function attachWorldServer(httpServer: HttpServer, host: WorldHost): Atta
           },
           // 같은 관찰자가 다른 곳에서 들어왔다 — 이 이어짐은 몸을 잃었으므로 닫는다.
           () => socket.close(),
+          // C009 — 이 관찰자의 요청에 대한 세계의 대답.
+          (outcomes) => {
+            if (socket.readyState !== socket.OPEN) return;
+            const message: OutcomeMessage = { type: 'outcome', outcomes };
+            socket.send(JSON.stringify(message));
+          },
         );
         return;
       }

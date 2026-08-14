@@ -83,7 +83,7 @@
   "hud": [],
   "strikes": [],
   "debug": {
-    "open": false,
-    "mutableAttributes": []
-  }
+    "open": false
+  },
+  "commands": []
 }

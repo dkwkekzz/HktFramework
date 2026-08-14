@@ -9,8 +9,8 @@
 [PASS] Intent              (R1 반영 — 카탈로그·인지·대답 / BOUNDARY 3건은 World Semantic 으로)
 [PASS] World Semantic      (BOUNDARY 3건 판정 — WORLD STATE 추가 없음. 성질 1 · 대답은 Tick 산출물)
 [PASS] GameView Specification  (commandCatalog · requestOutcome · observerCommands · commandSurface)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review   APPROVED (표면은 목록 우선 + 타이핑으로)
+[PASS] World Implementation    World State 추가 0 · 카탈로그 + 대답 · 테스트 334 통과
 [    ] View Implementation
 [    ] Verification
 

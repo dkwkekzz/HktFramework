@@ -6,11 +6,16 @@
 
 import { TICK_INTERVAL, type WorldState } from './semantic/world-state';
 import type { World } from './index';
-import type { GameViewSnapshot } from '../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../protocol/gameview';
 
 // C004 CHANGED — 한 Tick 이 내보내는 것은 관찰 결과 하나가 아니라
 // 보고 있는 관찰자마다의 관찰 결과다 (INTENT-PER-OBSERVER-PROJECTION-001).
-export type ObservationSink = (observations: Map<string, GameViewSnapshot>) => void;
+// C009 CHANGED — 그에 더해 이 Tick 이 판정한 요청들의 대답도 함께 나간다.
+// 둘은 다른 것이다: 관찰 결과는 세계가 어떠한가이고, 대답은 그 요청이 어떻게 되었는가다.
+export type ObservationSink = (
+  observations: Map<string, GameViewSnapshot>,
+  outcomes: Map<string, RequestOutcomeView[]>,
+) => void;
 
 export interface WorldClock {
   stop(): void;
@@ -31,7 +36,8 @@ export function startWorldClock(
     const current = now();
     const dt = Math.min((current - last) / 1000, MAX_TICK_DT);
     last = current;
-    onObservation(world.tick(dt).observations);
+    const result = world.tick(dt);
+    onObservation(result.observations, result.outcomes);
   }, TICK_INTERVAL * 1000);
 
   return {

@@ -129,6 +129,7 @@ export function createWorldLink(
       onMessage(raw) {
         const message = parseServerMessage(raw);
         if (!message) return;
+        if (message.type !== 'observation') return; // 대답은 Stage 7 이 다룬다 (C009)
         latest = message.snapshot; // 늦게 온 것이 앞선 것을 대체한다
         state = 'connected';
         lastReceived = now();

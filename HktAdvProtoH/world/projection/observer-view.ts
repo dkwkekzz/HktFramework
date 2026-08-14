@@ -16,12 +16,8 @@ import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
-import {
-  actorModifiers,
-  isDowned,
-  MUTABLE_ATTRIBUTES,
-  skillDefinition,
-} from '../semantic/combat';
+import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
+import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
   actorOfObserver,
@@ -247,11 +243,17 @@ export function projectObserverView(
       at: { x: event.position.x, z: event.position.z },
       since: event.time,
     })),
-    // World.DebugAuthority + MutableAttribute (C007 R2) —
-    // 무엇을 어디까지 바꿀 수 있는지는 세계가 알려 준다. View 가 목록을 만들지 않는다.
+    // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.
     debug: {
       open: state.debugAuthority.open,
-      mutableAttributes: MUTABLE_ATTRIBUTES.map((attribute) => ({ ...attribute })),
     },
+    // World.CommandCatalog (C009 ADDED) — 세계 밖에서 무엇을 걸 수 있는지 세계가 밝힌다.
+    // 늘 실린다: 걸 수 있는 것은 언제나 먼저 밝혀져 있어야 하고 (INTENT-COMMAND-CATALOG-001),
+    // available 이 거짓이어도 무엇을 할 수 있는 세계인지는 알 수 있어야 한다.
+    // 무엇을 어디까지 바꿀 수 있는지(구 mutableAttributes)는 set-attribute 가 받는
+    // 값의 Domain 으로 이 안에 들어 있다 — View 가 목록을 만들지 않는다는 규율은 그대로다.
+    commands: projectCommandCatalog((commandId) =>
+      commandId === 'set-attribute' ? evaluateAttributeSetAvailability(state) : null,
+    ),
   };
 }

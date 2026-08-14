@@ -13,6 +13,9 @@
 //                9. World.Time += dt         10. RULE-STRIKE-EVENT-EXPIRE-001 (C007)
 //                의도한 이동(3)이 먼저 자리를 정하고, 물리(5~7)가 그 자리를 세계 규칙으로 보정한다.
 // Result         Observations — 지금 보고 있는 관찰자 각각의 Observer Projection
+//                Outcomes (C009 CHANGED) — 이 Tick 이 판정한 요청들의 대답, 요청한 이별로.
+//                판정 순서도 판정 내용도 바뀌지 않는다. 지금까지 버려지던 각 Rule 의
+//                Result 를 버리지 않을 뿐이다 (RULE-REQUEST-REPLY-001).
 //
 // 참여가 요청보다 앞서는 이유: 같은 Tick 에 들어오면서 보낸 요청이 그 Tick 에 판정될 수
 // 있어야 "요청 → 다음 관찰 결과" 인과가 밀리지 않는다.
@@ -23,8 +26,9 @@
 // 그 요청의 결과가 같은 관찰 결과로 나간다.
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
-import type { GameViewSnapshot } from '../../protocol/gameview';
+import type { GameViewSnapshot, RequestOutcomeView } from '../../protocol/gameview';
 import { dispatchAction } from '../actions/dispatch';
+import { groupOutcomesByObserver, ruleRequestReply } from '../rules/request-reply';
 import { projectObserverView } from '../projection/observer-view';
 import { ruleObserverJoin, type BodyDefaults } from '../rules/observer-join';
 import { ruleObserverLeave } from '../rules/observer-leave';
@@ -58,8 +62,14 @@ export interface WorldTickResult {
   observations: Map<string, GameViewSnapshot>;
   /** 이 Tick 에 처리된 참여/이탈의 판정. 관찰자에게는 보내지 않는다 (진단·검증용) */
   observerResults: ActionResult[];
-  /** 이 Tick 에 처리된 요청들의 판정. 관찰자에게는 보내지 않는다 (진단·검증용) */
+  /** 이 Tick 에 처리된 요청들의 판정 (진단·검증용) */
   results: ActionResult[];
+  /**
+   * C009 ADDED — 이 Tick 이 판정한 요청들의 대답, 요청한 관찰자별로 (RULE-REQUEST-REPLY-001).
+   * 관찰 결과와 다른 것이며 요청한 이에게만 간다.
+   * 세계는 이것을 쌓아 두지 않는다 — 이 Tick 의 산출물이지 World State 가 아니다.
+   */
+  outcomes: Map<string, RequestOutcomeView[]>;
 }
 
 export function ruleWorldTick(
@@ -78,6 +88,13 @@ export function ruleWorldTick(
 
   const arrived = pending.splice(0, pending.length);
   const results = arrived.map((request) => dispatchAction(state, request.observerId, request.action));
+  // C009 — 판정 결과를 버리지 않고 요청한 이에게 돌려보낸다 (RULE-REQUEST-REPLY-001).
+  // 판정 자체는 위에서 이미 끝났다. 여기서 하는 일은 그것을 주소에 붙이는 것뿐이다.
+  const outcomes = groupOutcomesByObserver(
+    arrived.map((request, index) =>
+      ruleRequestReply(request.observerId, request.action, results[index]!),
+    ),
+  );
 
   ruleNpcDecideAll(state);
   ruleMoveProgress(state, dt);
@@ -100,5 +117,5 @@ export function ruleWorldTick(
     if (snapshot) observations.set(observer.id, snapshot);
   }
 
-  return { observations, observerResults, results };
+  return { observations, observerResults, results, outcomes };
 }
