@@ -1,0 +1,32 @@
+# Master Actor — MA-*
+# 자기 관점·이해관계·Goal 을 가질 수 있는 주체.
+# PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT | ORGANIZATION
+# 형식: ../SCHEMA.md
+version: 1
+nodes:
+  - id: MA-PLAYER
+    type: actor
+    kind: PLAYER
+    perspective: >
+      자기 몸의 자원과 행동 길이를 알고, 상대의 몸이 무엇을 하려는지 관찰로만 읽는다.
+      숙련될수록 상대의 스킬 이름이 아니라 힘이 어디에 몰려 있는지를 읽는다.
+    wants:
+      - MG-OVERCOME-SUPERIOR-OPPONENT
+      - MG-SURVIVE-ENEMY-OFFENSIVE
+    knows: []
+    believes: []
+
+  - id: MA-HOSTILE-COMBATANT
+    type: actor
+    kind: CREATURE
+    perspective: >
+      플레이어와 같은 전투 규칙 아래 있다 — 공격에 힘을 몰면 똑같이 몸이 열리고,
+      공격권을 뺏기면 똑같이 무너진다. 예외를 갖지 않는다.
+    wants: []
+    # 비어 있는 이유: 이 Actor 가 무엇을 원하는지 원본 문서가 공급하지 않는다.
+    # MA-PLAYER 의 Goal 을 여기에 복사하지 않는다 — Goal 의 owner 는 하나이고,
+    # "상대도 같은 것을 원한다" 는 규칙의 대칭일 뿐 이 존재의 동기가 아니다.
+    # 적대의 이유(왜 앞을 막는가)는 World Cause 가 정해져야 나온다 → open-questions.md Q2
+    knows: []
+    believes: []
+    # C007 의 control=autonomous 존재가 이 자리에 해당한다.

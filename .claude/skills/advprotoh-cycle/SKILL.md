@@ -12,6 +12,27 @@ description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미
 각 Stage 는 이전 Stage 의 Artifact 를 입력으로 받고 자기 Artifact 를 남긴다.
 대화 History 를 Source of Truth 로 쓰지 않는다.
 
+## 0. 위층 — Master Layer
+
+이 프로젝트는 두 층이다. 이 스킬은 **아래층(Cycle Layer)** 만 담당한다.
+
+```text
+MASTER LAYER   Cycle Goal 이 어디서 오는가 — master/ · advprotoh-master 스킬
+CYCLE LAYER    선택된 하나의 플레이 결과를 폐쇄한다 — cycles/ · 이 스킬 (8 Stage, 변경 없음)
+```
+
+접합점은 둘뿐이다.
+
+```text
+아래로   master/frontier.md 의 SELECTED  →  01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  Master 가 overlay/candidates 에 반영
+```
+
+* Cycle Agent 는 `master/` 파일을 **읽을 수는 있어도 편집하지 않는다.**
+* 상위 Goal / Possibility / Capability / Constraint 의 의미를 구현 편의로 바꾸지 않는다.
+* 어긋나면 지어내지 말고 `MASTER GAP` 으로 Human 에게 반환한다.
+* Master Layer 를 쓰지 않는 Cycle 도 정상이다 — 그 경우 두 항목에 `없음` + 사유를 적는다.
+
 ## 1. 대상 Stage 판정
 
 인자로 Stage 가 지정되면 그것을 쓴다. 지정되지 않으면:
@@ -23,7 +44,7 @@ description: HktAdvProtoH 의 Cycle 단계 하나를 실행한다 — 다음 미
 
 | Stage | Guide | 입력 | 출력 |
 |---|---|---|---|
-| 1 Cycle Definition | `guides/cycle-definition.md` | Human Cycle Goal | `01-cycle.md` |
+| 1 Cycle Definition | `guides/cycle-definition.md` | 선택된 Frontier / Human Cycle Goal | `01-cycle.md` |
 | 2 Intent | `guides/intent.md` | `01-cycle.md` | `02-intent.md` |
 | 3 World Semantic | `guides/world-semantic.md` | `02-intent.md` | `03-world-semantic.md` |
 | 4 GameView Spec | `guides/gameview-spec.md` | `03-world-semantic.md` | `04-gameview.spec.yaml` |
@@ -83,6 +104,16 @@ View 정보 부족        → GameView Specification (World 내부를 직접 읽
 Spec 정보 부족        → World Semantic
 Semantic 정보 부족    → Intent
 Intent 가 Goal 과 불일치 → Cycle Definition (Human)
+Cycle Goal 이 상위 Possibility / Constraint 와 어긋남 → MASTER (Human)
+```
+
+```text
+MASTER GAP
+Frontier     <Frontier ID>
+Conflict     무엇이 상위 의미와 어긋나는가
+Affected     MG-* / MP-* / MC-* / DC-*
+Options      가능한 Trade-off
+Decision By  Human
 ```
 
 ## 4. 닫기
@@ -101,4 +132,5 @@ Intent 가 Goal 과 불일치 → Cycle Definition (Human)
 world/ view/ 는 모든 Cycle 이 공유한다 — Capability 별 World 를 만들지 않는다.
 Client 는 상태를 바꾸지 않는다 — Action 을 요청하고 World Rule 이 결정한다.
 코드가 도는 것은 완료가 아니다 — 실제 Cycle Goal 의 플레이 가능성이 완료다.
+master/ 를 편집하지 않는다 — 위층으로는 MASTER FEEDBACK 으로 보고만 한다.
 ```

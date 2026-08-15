@@ -1,0 +1,52 @@
+# Master Constraint Stage Guide  (M1)
+
+## Role
+
+게임의 설계 공간을 제한하는 **Design Constraint** 를 정리·기록한다.
+Constraint 는 Design Plane 의 1급 개념이며 Human 이 소유한다.
+
+## Input
+
+- `master/root.md` — Root Game Goal · World Premise
+- `master/constraints/` — 이미 승인된 DC-*
+- `master/candidates/` — 승인 대기 중인 CC-*
+- (있으면) Human 이 이번에 지시한 원칙
+
+## Do
+
+1. `root.md` 의 World Premise 중 **반복적인 설계 제한을 만드는 것**을 식별한다.
+   세계의 현재 상태(MW-*)와 성질(Premise/Constraint)을 구분한다.
+2. 후보마다 `statement` · `rationale` · `scope` 를 쓴다.
+3. `requires` / `prohibits` / `prefers` 를 구분해 채운다 — 셋의 의미가 겹치면 안 된다.
+4. 기존 DC-* 와의 관계를 검사한다 — `supports` / `conflicts_with`.
+5. 충돌이 있으면 **해결하지 말고** Conflict · Affected Nodes · Trade-off · Expected
+   Consequences 를 Human 에게 제시한다.
+6. `candidates/CC-*.md` 를 승격하는 경우 Human 승인 여부를 확인하고,
+   승인된 것만 `constraints/DC-*.yaml` 로 옮긴다 (`provenance: CANDIDATE:CC-*`).
+
+## Output
+
+`master/constraints/DC-*.yaml` (파일 하나 = Constraint 하나)
+
+형식은 `master/SCHEMA.md` 가 단일 출처다.
+
+## Must
+
+- Constraint 는 **Goal/Possibility/Capability 의 형태**를 제한한다. 시스템을 만들지 않는다.
+- `rationale` 을 설명할 수 있어야 한다 — 설명 못 하면 취향이지 Constraint 가 아니다.
+- Scope 로 "어떤 Node 에 적용되는가"를 판정할 수 있어야 한다.
+- 승인 상태를 `status` 로 명시한다. Human 승인 전에는 `DRAFT` 다.
+
+## Must Not
+
+- 수치·상수·판정 공식을 넣지 않는다 (`0.20 sec` 는 Cycle 소유).
+- Constraint 에서 Capability 목록을 직접 도출하지 않는다 — 필요성은 Possibility 에서 온다.
+- Human 승인 없이 핵심 Constraint 를 추가·삭제·완화하지 않는다.
+- Constraint 간 충돌을 임의로 해결하지 않는다.
+- 모든 Node 에 `CONSTRAINS` 를 무차별로 연결하지 않는다.
+
+## Done When
+
+- `design/Master-Intent-Graph-Policy.md` §25.1 Constraint Quality Gate 12항이 모두 참이다.
+- 각 Constraint 를 읽고 "무엇이 금지되고 무엇이 요구되는가"에 답할 수 있다.
+- 충돌이 있다면 숨겨지지 않고 노출되어 있다.

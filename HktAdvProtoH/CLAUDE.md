@@ -11,6 +11,32 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
+## 두 층
+
+Workflow 는 두 층이다. 무엇을 왜 만들지 정하는 층과, 그것을 실제로 닫는 층을 분리한다.
+
+```text
+MASTER LAYER   master/    무엇을 왜 만들 것인가 · 어떤 다른 방법이 있는가 · 어떤 Constraint 아래인가
+               지속적으로 자라는 하나의 Typed Graph. History 가 아니라 현재 상태다
+                   Constraint → Goal → (OR) Possibility → (AND) Capability
+                   → Existing World Overlay → Frontier
+
+CYCLE LAYER    cycles/    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다
+               기존 8 Stage. Master 도입으로 이 공정은 변경되지 않는다
+```
+
+접합점은 **둘뿐**이다. 그 외 경로로 두 층이 서로를 건드리지 않는다.
+
+```text
+아래로   master/frontier.md 의 SELECTED   →  01-cycle.md 의 MASTER TRACE
+위로     08-verification.md 의 MASTER FEEDBACK  →  master/overlay.md · candidates/ 반영
+```
+
+Cycle Agent 는 `master/` 를 편집하지 않는다 — 보고까지가 Cycle 의 책임이다.
+Master Agent 는 `world/` `view/` 를 편집하지 않는다 — Overlay 판정을 위해 읽기만 한다.
+
+정책 원본: [design/Master-Intent-Graph-Policy.md](design/Master-Intent-Graph-Policy.md)
+
 ## 읽는 순서
 
 모든 Agent 는 다음 셋만 읽고 작업한다.
@@ -18,14 +44,19 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ```text
 1. CLAUDE.md              이 문서 — 공통 불변 규칙
 2. guides/<stage>.md      자기 단계의 작업 방법
-3. cycles/<CycleId>/…     현재 Cycle 의 입력 Artifact
+3. 입력 Artifact          Cycle 이면 cycles/<CycleId>/… · Master 면 master/…
 ```
 
 필요한 경우에만 관련 기존 Capability Artifact 나 코드를 추가로 확인한다.
 `design/` 전체 문서는 일반적인 작업 Context 가 아니다.
 
-단계 실행은 **`advprotoh-cycle` 스킬**이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세,
-Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
+단계 실행은 스킬이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세, Artifact 형식을
+스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
+
+```text
+Cycle Stage    advprotoh-cycle 스킬
+Master Stage   advprotoh-master 스킬
+```
 
 ## 핵심 원칙
 
@@ -45,6 +76,11 @@ Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙
 13. World → View 계약은 GameView Specification 이다.
 14. View 는 GameView Specification 만으로 동작할 수 있어야 한다.
 15. 최종 완료 조건은 코드 작성이 아니라 실제 Cycle Goal 의 플레이 가능성이다.
+16. Cycle Goal 은 Master Layer 의 Frontier 에서 온다 — 없으면 그 사유를 적는다.
+17. Constraint 는 Goal/Possibility/Capability 의 **형태**를 제한할 뿐, 시스템 목록을
+    직접 만들지 않는다. Capability 의 필요성은 Possibility 에서 나온다.
+18. Master 에는 플레이 의미를, Cycle 에는 수치·공식·판정을 둔다.
+19. Constraint 의 승격·변경과 다음 Cycle Goal 선택은 Human 이 결정한다.
 ```
 
 ## Kind 정적 데이터
@@ -66,7 +102,31 @@ Reason     왜 현재 입력으로 불가능한가
 Return To  어느 단계가 이 의미를 책임지는가
 ```
 
-## Stage 인덱스
+반환 방향은 정해져 있다. 마지막 하나가 두 층 사이의 반환이다.
+
+```text
+View 정보 부족             → GameView Specification
+Spec 정보 부족             → World Semantic
+Semantic 정보 부족         → Intent
+Intent 가 Goal 과 불일치    → Cycle Definition (Human)
+Cycle Goal 이 상위 Possibility / Constraint 와 어긋남 → MASTER (Human)
+```
+
+## Master Stage 인덱스
+
+| Stage | Guide | Artifact |
+|---|---|---|
+| M1. Constraint | [guides/master-constraint.md](guides/master-constraint.md) | `master/constraints/DC-*.yaml` |
+| M2. Graph Expansion | [guides/master-graph.md](guides/master-graph.md) | `master/graph/*.yaml` |
+| M3. Capability Overlay | [guides/master-overlay.md](guides/master-overlay.md) | `master/overlay.md` |
+| M4. Frontier | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
+| M5. Human Selection | Human | `frontier.md` 의 `SELECTED` → Cycle Stage 1 |
+| MF. Feedback | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
+
+Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human 소유다.
+파일 형식의 단일 출처는 [master/SCHEMA.md](master/SCHEMA.md) 다.
+
+## Cycle Stage 인덱스
 
 | Stage | Guide | Artifact |
 |---|---|---|
@@ -86,6 +146,7 @@ Return To  어느 단계가 이 의미를 책임지는가
 | 경로 | 내용 | 수명 |
 |---|---|---|
 | [guides/](guides/) | Stage Guide — 단계별 작업 방법·완료 조건 | 공정이 바뀔 때만 |
+| [master/](master/) | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태, 계속 자란다 |
 | [cycles/](cycles/) | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
 | [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
 | [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
@@ -97,6 +158,7 @@ Return To  어느 단계가 이 의미를 책임지는가
 | 문서 | 내용 |
 |---|---|
 | [Design-Concept.md](design/Design-Concept.md) | 세계와 주체의 행동 구조 — 무엇이 존재하고 어떤 변화가 가능한가 |
+| [Master-Intent-Graph-Policy.md](design/Master-Intent-Graph-Policy.md) | **Master Layer 정책** — Constraint · Graph · Overlay · Frontier · 두 층의 접합 |
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
 | [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | Cycle 단위 점진 개발 공정 |
 | [Design-CycleExecution.md](design/Design-CycleExecution.md) | **Agent 실행 방식** — 이 작업환경의 근거 |
@@ -106,9 +168,13 @@ Return To  어느 단계가 이 의미를 책임지는가
 충돌 시 우선순위:
 
 ```text
+Master Layer 의 의미·절차                     → Master-Intent-Graph-Policy.md
 Artifact 이름 · 단계 구분 · Agent 실행 방식   → Design-CycleExecution.md
 그 외 공정과 게임 의미                        → Design-Workflow / Design-CycleWorkflow
 ```
+
+`Design-Workflow` / `Design-CycleWorkflow` 의 Goal/Possibility 는 **Cycle-local** 의미로 읽는다.
+지속적인 상위 Goal/Possibility 는 `master/` 가 소유한다 (Master-Intent-Graph-Policy §19).
 
 `Design-CycleWorkflow.md` 의 §33(Artifact 이름 5종)과 §19(Implementation 단일 단계)는
 `Design-CycleExecution.md` 가 대체한다 — 실제 규격은 `01-cycle.md` ~ `08-verification.md` 8종,

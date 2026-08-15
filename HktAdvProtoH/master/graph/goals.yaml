@@ -1,0 +1,42 @@
+# Master Goal — MG-*
+# 특정 Actor 가 어떤 이유로 원하는 Desired State.
+# 누가/왜/어떤 World State 때문에/어떤 Belief 에 기반해/실패하면 무엇을 잃는지에
+# 답할 수 없으면 Goal 이 아니라 Capability 인지 검사한다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes:
+  - id: MG-OVERCOME-SUPERIOR-OPPONENT
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      정면으로 자원을 맞바꾸는 것만으로는 넘을 수 없는 상대가 더 이상 앞을 막지 못한다.
+    motivation: []
+    # 왜 이 상대를 넘어야 하는가 — 원본 문서가 공급하지 않는다.
+    # 전투 규칙 문서이므로 이 Goal 이 세계의 어떤 사정에서 생기는지는 비어 있다.
+    # Root Game Goal / World Premise 가 정해지면 그때 채운다.
+    belief_context: []
+    stakes:
+      - 넘지 못하면 그 상대가 막고 있는 것에 닿지 못한다   # 무엇을 막고 있는지는 미정
+    caused_by: []
+    # 어떤 World State 가 이 대치를 만들었는가 — 미정 (MW-* 없음)
+    constraints: []
+
+  - id: MG-SURVIVE-ENEMY-OFFENSIVE
+    type: goal
+    owner: MA-PLAYER
+    desired_state: >
+      상대가 공세를 쥔 국면에서 살아남고, 잃은 공격권을 되찾는다.
+    motivation:
+      - MG-OVERCOME-SUPERIOR-OPPONENT   # 살아남는 것 자체가 목적이 아니라 넘어서기 위한 전제다
+    belief_context: []
+    stakes:
+      - 버티지 못하면 쓰러진다
+      - 버티기만 하면 자원이 말라 결국 무너진다      # 원본 §8.1
+    caused_by: []
+    constraints: []
+
+# 주입 근거: design/Design-Combat-OffenseDefense-R0.md §1.1 · §4 · §23
+#
+# 판정 — 이 두 Goal 은 Actor-owned Desired State 이므로 Goal 이 맞다.
+# 원본의 설계 원칙("랜덤이 크리티컬을 만들지 않는다" 등)은 Actor 가 원하는 상태가 아니므로
+# Goal 로 넣지 않았다. Constraint 로 세울지는 Human 이 정한다 — 지금 constraints/ 는 비어 있다.
