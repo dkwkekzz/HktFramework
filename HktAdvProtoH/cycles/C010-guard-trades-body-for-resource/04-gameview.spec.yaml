@@ -1,0 +1,288 @@
+# CYCLE C010 — GameView Specification
+#
+# 입력: 03-world-semantic.md · 기존 계약 VIEW-BASIC-COMBAT-POLICY-001 (C007 R2)
+# 이 문서는 기존 계약 위의 Delta 다 — C007 에서 그대로인 항목은 다시 적지 않고 reused 로 표기한다.
+id: VIEW-GUARD-TRADES-BODY-FOR-RESOURCE-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character            # 위치·역할·모션·body·swing·name·vitality 계약 그대로
+    - entities.deposit
+    - entityHud                     # 몸 위 관찰 자리 (내용만 확장 — changed 참조)
+    - debugObserve
+    - observer / session / delivery / identity / telemetry
+    - interactions.move / mine / attack / skillHeavy / moveMode / setAttribute
+    - hud.inventory / tool / playerAction / worldTime / observers / self
+  added:
+    - entities.character.stance              # 지금 막고 있는가 · 무너진 여파 안인가
+    - entities.character.attributes.defense  # 방어력
+    - interactions.guard                     # 막기 자세 세우기 / 놓기
+    - hud.self.guard                         # 자기 자세와 막을 수 있는지
+    - strikeEvents.breakdown                 # 한 타격의 결과를 만든 내역
+  changed:
+    - entityHud.shows                        # 몸 위에 "막는 중" 과 "무너짐" 이 더해진다
+    - strikeEvents                           # amount 하나에서 내역 6종으로
+    - interactions.attack / skillHeavy / mine  # 불가 사유에 guarding 이 더해진다
+    - interactions.moveMode                  # run 요청이 막기를 놓는다는 것이 계약에 드러난다
+    - debugAuthority.mutableAttributes       # 목록에 defense · stance 가 실려 온다 (세계가 준다)
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — C007 계약 + 자세 (C010 ADDED)
+#
+# 아래는 C007 계약에 더해지는 항목만 적는다.
+# id / role / kind / position / name / state / actionProgress / actionTarget /
+# attended / vitality / motion / body / swing 은 C007 그대로다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    stance:                         # C010 ADDED — 누구의 것이든 관찰된다
+      guarding: { when: Actor.Stance == guard }
+      open: { when: Actor.Stance == open }
+      facing: { source: Actor.Facing }
+        # 어느 쪽을 막고 있는가 — C006 의 body.facing 과 같은 값이다.
+        # 여기 다시 싣는 이유는 "막는 방향" 이 자세의 일부이기 때문이다.
+        # 막히는 범위는 세계가 정한 정면 범위이며 (03 GUARD_FRONT_COS),
+        # 그 각도 자체는 상수이므로 계약에 싣지 않는다 — 결과가 strikeEvents 로 드러난다.
+      broken: { source: Actor.GuardBroken }
+        # 참이면 방어가 무너진 여파 안이다 — 이 동안은 다시 막지 못한다
+      brokenUntil: { source: Actor.GuardBrokenUntil }
+        # 그 여파가 가시는 세계 시각. worldTime 과 비교하면 얼마나 남았는지 읽힌다
+      meaning:
+        - 막고 있는 존재는 막고 있지 않은 존재와 한눈에 구분되어야 한다
+        - 어느 쪽을 향해 막고 있는지가 보여야 한다 —
+          앞이 아닌 곳에서 들어온 타격이 왜 막히지 않았는지를 설명하는 것이 이 값이다
+        - 무너진 여파 안에 있는 존재는 그냥 안 막는 존재와 구분되어야 한다
+
+    attributes:                     # C007 계약에 한 항목 추가
+      defense: { source: Actor.Defense }
+        # 맞은 피해를 줄이는 값. 막든 안 막든 언제나 작동하며 0 으로 만들지는 못한다
+      # 나머지 속성(energy / moveMode / control / tempoStats / modifiers)은 C007 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# entityHud — 몸에 실리는 관찰 (C010 CHANGED)
+#
+# C007 은 이름·생명·쓰러짐을 실었다. 여기에 자세를 더한다.
+# 막는 것이 선택인 세계에서 "누가 지금 막고 있는가" 는 이름·생명과 같은 급의 정보다 —
+# 그것을 모르면 왜 내 타격이 통하지 않았는지 알 수 없다.
+# ─────────────────────────────────────────────────────────────────
+entityHud:
+  forEach: entities.character
+  always: true
+  shows:
+    name: { source: entities.character.name }               # C007
+    health:                                                 # C007
+      current: { source: entities.character.vitality.health }
+      maximum: { source: entities.character.vitality.healthMaximum }
+    downed: { source: entities.character.vitality.downed }  # C007
+    guarding: { source: entities.character.stance.guarding }        # C010 ADDED
+    guardBroken: { source: entities.character.stance.broken }       # C010 ADDED
+  meaning:
+    - 싸우는 도중 몸에서 바로 읽혀야 하는 것 — 누구인지, 얼마나 남았는지,
+      쓰러졌는지, 그리고 지금 막고 있는지
+    - 무너진 순간은 그 몸에서 드러나야 한다 — 지금이 때릴 때라는 것이 상대에게도 보인다
+  notShownByDefault:
+    - entities.character.attributes   # defense 포함 — 세계는 전부 주되 몸 위를 채우지 않는다
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 한 번의 타격이 낳은 결과 (C010 CHANGED)
+#
+# C007 은 값 하나(amount)를 실었다. 이제 그 값이 어떻게 나왔는지가 함께 실린다.
+# 이것이 이 Cycle 에서 플레이어가 "막는 것이 무슨 뜻인지" 를 배우는 자리다.
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  attacker: { source: StrikeEvent.AttackerId }        # C007
+  target: { source: StrikeEvent.TargetId }            # C007
+  skill: { source: StrikeEvent.SkillKind }            # C007 — attack | heavy-attack
+  at: { source: StrikeEvent.Position }                # C007
+  since: { source: StrikeEvent.Time }                 # C007
+  amount: { source: StrikeEvent.Amount }              # C007 — 실제로 생명에서 나간 몫
+  breakdown:                                          # C010 ADDED — 그 값을 만든 내역
+    base: { source: StrikeEvent.BaseAmount }          # 그 스킬의 본래 피해
+    mitigated: { source: StrikeEvent.Mitigated }      # 방어력이 걷어낸 뒤 남은 피해
+    guarded: { source: StrikeEvent.Guarded }          # 막아 낸 타격인가
+    energyPaid: { source: StrikeEvent.CpPaid }        # 막느라 치른 기력 (막지 않았으면 0)
+    guardBroken: { source: StrikeEvent.GuardBroken }  # 이 타격으로 방어가 무너졌는가
+  meaning:
+    - 최종 숫자 하나가 아니라 그 숫자가 나온 경로를 읽을 수 있어야 한다 —
+      본래 얼마짜리였고, 방어력이 얼마를 걷었고(base - mitigated),
+      막았는지, 기력을 얼마 치렀고, 그래서 생명에서 얼마가 나갔는지
+    - 막아 낸 타격은 막지 못한 타격과 다르게 읽혀야 한다 —
+      같은 스킬인데 생명이 적게 줄고 기력이 줄었다는 것이 한 자리에서 보여야 한다
+    - 방어를 무너뜨린 타격은 특별히 드러나야 한다 —
+      이 순간이 이 Cycle 이 가르치려는 것이다 ("막을 기력이 다하면 그대로 얻어맞는다")
+    - 같은 상태에서 같은 타격이면 언제나 같은 내역이 나온다 —
+      보는 이가 값을 외워 예측할 수 있어야 한다
+
+# ─────────────────────────────────────────────────────────────────
+# debugObserve — C006 계약 그대로 (변경 없음)
+# ─────────────────────────────────────────────────────────────────
+debugObserve:
+  reusedFrom: VIEW-BASIC-COMBAT-POLICY-001
+
+# ─────────────────────────────────────────────────────────────────
+# debugAuthority — C007 R2 계약 그대로 (C010 CHANGED — 목록이 길어질 뿐)
+# ─────────────────────────────────────────────────────────────────
+debugAuthority:
+  open: { source: World.DebugAuthority.Open }
+  mutableAttributes:
+    cardinality: many
+    source: MutableAttribute
+    attribute: { source: MutableAttribute.Id }
+      # C007 8종 + C010 2종 — defense | stance
+    range: { source: MutableAttribute.Range }
+  inspect:
+    toggle: { owner: observer, default: off }
+    forEach: entities.character
+    shows: entities.character.attributes    # defense 가 여기에 함께 펼쳐진다
+  meaning:
+    - View 는 목록을 스스로 만들지 않는다 — 세계가 준 목록 그대로 보여 준다.
+      따라서 defense · stance 가 더해져도 View 는 바뀌지 않는다
+    - defense 를 크게 올려 보면 "아무리 두꺼워도 피해가 0 이 되지 않는다" 가
+      strikeEvents.breakdown 으로 직접 확인된다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — C007 계약 + 막기 (C010 ADDED / CHANGED)
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  subject: observer-character
+
+  guard:                            # C010 ADDED — 이 Cycle 의 새 선택
+    role: set-guard-stance
+    target: none
+    request: SetStance(ObserverCharacter, guard | open)
+    current: { source: ObserverCharacter.Stance }         # guard | open
+    available: { source: Guard.Availability }
+    unavailableReason: { source: Guard.FailureReason }
+      # downed | action-busy | insufficient-cp | guard-broken
+    meaning:
+      - 요청은 토글이 아니라 명시값이다 — 같은 요청이 두 번 가도 결과가 같다.
+        View 는 current 를 따라간다 (세계가 스스로 푸는 경우가 있으므로)
+      - 놓는 것(open)은 언제나 된다. 세우는 것(guard)만 조건이 있다
+      - guard 로 세우면 세계가 걷기로 되돌린다 — 달리며 막을 수 없다
+      - 막는 동안 무엇을 할 수 없는지가 다른 상호작용의 unavailableReason(guarding)으로 온다
+      - 자율 존재는 이 요청을 하지 않는다 (이번 Cycle 에서 막는 것은 관찰자뿐이다)
+
+  move:                             # C004·C007 그대로 — 막은 채로도 걸을 수 있다
+    role: move-to
+    target: terrain-position
+    request: Move(ObserverCharacter, TargetPosition)
+    available: { source: Move.Availability }
+    unavailableReason: { source: Move.FailureReason }
+      # C010 — guarding 이 여기에는 오지 않는다. 걸음은 자세에 막히지 않는다
+
+  mine:                             # C010 CHANGED — 불가 사유 추가
+    role: mine-deposit
+    target: deposit
+    request: Mine(ObserverCharacter, Deposit)
+    available: { source: Mine.Availability }
+    unavailableReason: { source: Mine.FailureReason }
+      # 기존 사유 + guarding
+
+  attack:                           # C010 CHANGED — 불가 사유 추가
+    role: skill-basic
+    target: none
+    request: Skill(ObserverCharacter, attack)
+    available: { source: Skill(attack).Availability }
+    unavailableReason: { source: Skill(attack).FailureReason }
+      # downed | action-busy | guarding
+    profile:                        # C007 그대로
+      damage: { source: Skill(attack).Damage }
+      charge: { source: Skill(attack).CpCharge }
+      cost: { source: Skill(attack).CpCost }
+    meaning:
+      - damage 는 이제 "본래 피해" 다 — 실제로 들어가는 값은 상대의 방어력과 자세가 정한다.
+        그 차이는 strikeEvents.breakdown 에서 확인된다
+
+  skillHeavy:                       # C010 CHANGED — 불가 사유 추가
+    role: skill-heavy
+    target: none
+    request: Skill(ObserverCharacter, heavy-attack)
+    available: { source: Skill(heavy-attack).Availability }
+    unavailableReason: { source: Skill(heavy-attack).FailureReason }
+      # downed | action-busy | insufficient-cp | guarding
+    profile:
+      damage: { source: Skill(heavy-attack).Damage }
+      charge: { source: Skill(heavy-attack).CpCharge }
+      cost: { source: Skill(heavy-attack).CpCost }
+    meaning:
+      - 막느라 쓴 기력은 여기에 쓸 수 없다 — 같은 예산이라는 것이
+        이 상호작용의 insufficient-cp 로 드러난다
+
+  moveMode:                         # C010 CHANGED — 자세와의 관계가 계약에 드러난다
+    role: set-move-mode
+    target: none
+    request: SetMoveMode(ObserverCharacter, walk | run)
+    current: { source: ObserverCharacter.MoveMode }
+    available: { source: MoveMode(run).Availability }
+    unavailableReason: { source: MoveMode(run).FailureReason }
+      # downed | insufficient-cp
+    meaning:
+      - run 요청이 받아들여지면 막는 자세가 풀린다.
+        View 는 이것을 미리 처리하지 않는다 — 다음 관찰의 stance 를 따라간다
+
+  setAttribute:                     # C007 R2 그대로 — 대상 속성에 defense · stance 가 늘었을 뿐
+    role: debug-set-attribute
+    target: character
+    request: SetAttribute(TargetEntity, AttributeId, Value)
+    available: { source: AttributeSet.Availability }
+    unavailableReason: { source: AttributeSet.FailureReason }
+
+  requestResult: from-next-observation
+
+# ─────────────────────────────────────────────────────────────────
+# hud — 관찰자 자신 (C007 계약 + guard)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  # inventory / tool / playerAction / worldTime / observers 는 C004·C007 그대로
+  self:
+    # vitality / moveMode / tempoStats / modifiers 는 C007 그대로
+    defense: { source: ObserverCharacter.Defense }          # C010 ADDED
+    guard:                                                  # C010 ADDED
+      stance: { source: ObserverCharacter.Stance }          # guard | open
+      broken: { source: ObserverCharacter.GuardBroken }
+      brokenUntil: { source: ObserverCharacter.GuardBrokenUntil }
+      available: { source: Guard.Availability }
+      unavailableReason: { source: Guard.FailureReason }
+    meaning:
+      - 지금 막고 있는지, 막을 수 있는지, 없다면 왜인지가 늘 눈앞에 있어야 한다
+      - 기력이 막을 수 있는 만큼 남았는지를 판단하는 자리는 여전히 vitality.energy 다 —
+        얼마가 드는지는 맞아 봐야 알 수 있고(타격 크기에 비례), 그 값은
+        strikeEvents.breakdown.energyPaid 로 학습된다
+      - 무너진 여파 안에서는 그것이 사유(guard-broken)로 드러나야 한다.
+        플레이어가 "왜 막기가 안 되지" 로 남지 않게 한다
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE — 03 의 Observable Semantic 대응
+#
+#   모든 Actor 에 대해
+#     Actor.Stance              → entities.character.stance.guarding / open
+#                                 · entityHud.shows.guarding
+#     Actor.Facing              → entities.character.stance.facing (= body.facing, C006)
+#     Actor.Defense             → entities.character.attributes.defense
+#     Actor.GuardBroken         → entities.character.stance.broken · entityHud.shows.guardBroken
+#     Actor.GuardBrokenUntil    → entities.character.stance.brokenUntil
+#     (그 외 C007 항목 전부)     → C007 계약 그대로
+#
+#   관찰자 자신에 대해 추가로
+#     Guard.Availability/Reason → interactions.guard · hud.self.guard
+#     Skill.FailureReason(guarding) → interactions.attack · skillHeavy
+#     Mine.FailureReason(guarding)  → interactions.mine
+#
+#   세계
+#     World.StrikeEvents 6종 내역 → strikeEvents.breakdown + strikeEvents.amount
+#     MutableAttribute(+2)        → debugAuthority.mutableAttributes
+#
+#   투영하지 않는 것
+#     시뮬레이션 상수 6종 (MIN_DAMAGE_RATIO · GUARD_FRONT_COS · GUARD_DAMAGE_RATIO ·
+#     GUARD_CP_PER_DAMAGE · GUARD_BREAK_LOCK · CENTER_EPSILON).
+#     C007 과 같은 이유다 — 관찰되는 것은 상수가 아니라 그 상수가 만든 결과이며,
+#     그 결과는 strikeEvents.breakdown 과 stance.brokenUntil 에 전부 실려 있다.
+#     GUARD_FRONT_COS 만 예외적으로 아쉬운 자리다 — "얼마나 앞이어야 막히는가" 를
+#     플레이어는 각도로 듣지 못하고 맞아 보며 배운다. 이것은 의도된 선택이다
+#     (세계가 자기 상수를 설명하는 대신, 결과가 방향과 함께 관찰된다).
