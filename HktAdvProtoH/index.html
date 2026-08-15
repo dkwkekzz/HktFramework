@@ -79,6 +79,10 @@
       font-size: 10.5px; line-height: 1.5; font-variant-numeric: tabular-nums;
     }
     /* 쓰러진 존재는 살아 있는 존재와 구분되어야 한다 */
+    /* C010 — 막고 있는 몸은 한눈에 구분된다. 무너진 여파는 또 다른 색이다. */
+    .hud-plate[data-guarding="true"] { box-shadow: 0 0 0 2px #7fb6ff88; border-radius: 4px; }
+    .hud-plate[data-guarding="true"] .hud-plate-name::before { content: '⛊ '; color: #7fb6ff; }
+    .hud-plate[data-guard-broken="true"] .hud-plate-name::before { content: '✕ '; color: #ff8a5a; }
     .hud-plate[data-downed="true"] { opacity: 0.55; }
     .hud-plate[data-downed="true"] .hud-plate-name { color: #ff9d90; }
     .hud-plate[data-downed="true"] .hud-plate-bar i { background: #6b3b3b; }
@@ -90,6 +94,13 @@
       pointer-events: none;
     }
     .hud-strike[data-emphasis="true"] { color: #ffd05a; font-size: 26px; }
+    /* C010 — 막아 낸 타격은 푸르게 작게, 방어를 무너뜨린 타격은 붉게 크게. */
+    .hud-strike[data-guarded="true"] { color: #7fb6ff; }
+    .hud-strike[data-guard-broken="true"] { color: #ff6a4a; }
+    .hud-strike-detail {
+      display: block; font-size: 11px; font-weight: 500;
+      color: #cfd6e4; opacity: 0.85; white-space: nowrap;
+    }
     /* 자기 정보 (C007) — 내 자원·능력치·배율. 늘 눈앞에 있다. */
     .hud-self {
       position: absolute; left: 14px; bottom: 14px;
@@ -111,6 +122,10 @@
     .hud-self-bar[data-kind="hp"] i { background: #6fd07f; }
     .hud-self-bar[data-kind="cp"] i { background: #7fb0ff; }
     .hud-self-mode { color: #ffd98a; font-weight: 700; font-size: 11.5px; }
+    /* C010 — 자세는 늘 눈앞에 있다. 막을 수 없으면 그 사유가 같은 줄에 붙는다. */
+    .hud-self-stance { color: #9fb4cf; font-weight: 700; font-size: 11.5px; }
+    .hud-self-stance[data-guarding="true"] { color: #7fb6ff; }
+    .hud-self-stance[data-guard-broken="true"] { color: #ff8a5a; }
     .hud-self-line { color: #9fa9bd; font-size: 11px; }
     .hud-toast {
       position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);

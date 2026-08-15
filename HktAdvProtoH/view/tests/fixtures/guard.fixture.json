@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-BASIC-COMBAT-POLICY-001",
+  "specId": "VIEW-GUARD-TRADES-BODY-FOR-RESOURCE-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -24,7 +24,7 @@
         "downed": false
       },
       "attributes": {
-        "energy": 24,
+        "energy": 12,
         "energyMaximum": 100,
         "moveMode": "run",
         "control": "player",
@@ -55,7 +55,7 @@
         }
       },
       "stance": {
-        "guarding": false,
+        "guarding": true,
         "broken": false,
         "brokenUntil": 0,
         "facing": {
@@ -95,7 +95,7 @@
           "moveSpeed": 1,
           "actionSpeed": 1
         },
-        "defense": 5
+        "defense": 3
       },
       "body": {
         "radius": 0.5,
@@ -112,8 +112,8 @@
       },
       "stance": {
         "guarding": false,
-        "broken": false,
-        "brokenUntil": 0,
+        "broken": true,
+        "brokenUntil": 9.4,
         "facing": {
           "x": -1,
           "z": 0
@@ -186,18 +186,19 @@
     {
       "id": "attack",
       "role": "skill-basic",
-      "available": true,
+      "available": false,
       "profile": {
         "damage": 20,
         "charge": 12,
         "cost": 0
-      }
+      },
+      "reason": "guarding"
     },
     {
       "id": "skill-heavy",
       "role": "skill-heavy",
       "available": false,
-      "reason": "insufficient-cp",
+      "reason": "guarding",
       "profile": {
         "damage": 55,
         "charge": 8,
@@ -212,6 +213,11 @@
     {
       "id": "set-attribute",
       "role": "debug-set-attribute",
+      "available": true
+    },
+    {
+      "id": "guard",
+      "role": "set-guard-stance",
       "available": true
     }
   ],
@@ -239,7 +245,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 24
+      "value": 12
     },
     {
       "id": "self.cpMax",
@@ -290,40 +296,78 @@
       "id": "self.modifier.actionSpeed",
       "kind": "counter",
       "value": 1
+    },
+    {
+      "id": "self.defense",
+      "kind": "counter",
+      "value": 5
+    },
+    {
+      "id": "self.stance",
+      "kind": "label",
+      "value": "guard"
+    },
+    {
+      "id": "self.guardBroken",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.guardBrokenUntil",
+      "kind": "counter",
+      "value": 0
     }
   ],
   "strikes": [
     {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "heavy-attack",
-      "amount": 55,
-      "at": {
-        "x": 1.4,
-        "z": 0
-      },
-      "since": 12.1,
-      "breakdown": {
-        "base": 55,
-        "mitigated": 55,
-        "guarded": false,
-        "energyPaid": 0,
-        "guardBroken": false
-      }
-    },
-    {
       "attackerId": "npc-1",
       "targetId": "player-1",
       "skill": "attack",
-      "amount": 20,
+      "amount": 2.25,
       "at": {
         "x": 0,
         "z": 0
       },
-      "since": 11.6,
+      "since": 8.0,
       "breakdown": {
         "base": 20,
-        "mitigated": 20,
+        "mitigated": 15,
+        "guarded": true,
+        "energyPaid": 10.2,
+        "guardBroken": false
+      }
+    },
+    {
+      "attackerId": "npc-2",
+      "targetId": "player-1",
+      "skill": "heavy-attack",
+      "amount": 50,
+      "at": {
+        "x": 0.4,
+        "z": 0.2
+      },
+      "since": 8.2,
+      "breakdown": {
+        "base": 55,
+        "mitigated": 50,
+        "guarded": false,
+        "energyPaid": 30,
+        "guardBroken": true
+      }
+    },
+    {
+      "attackerId": "player-1",
+      "targetId": "npc-1",
+      "skill": "attack",
+      "amount": 17,
+      "at": {
+        "x": 3,
+        "z": 0
+      },
+      "since": 8.3,
+      "breakdown": {
+        "base": 20,
+        "mitigated": 17,
         "guarded": false,
         "energyPaid": 0,
         "guardBroken": false
@@ -333,5 +377,6 @@
   "debug": {
     "open": true
   },
-  "commands": []
+  "commands": [],
+  "worldTime": 8.4
 }
