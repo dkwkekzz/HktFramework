@@ -3,4 +3,29 @@
 # PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT | ORGANIZATION
 # 형식: ../SCHEMA.md
 version: 1
-nodes: []
+nodes:
+  - id: MA-PLAYER
+    type: actor
+    kind: PLAYER
+    perspective: >
+      자기 몸의 자원과 행동 길이를 알고, 상대의 몸이 무엇을 하려는지 관찰로만 읽는다.
+      숙련될수록 상대의 스킬 이름이 아니라 힘이 어디에 몰려 있는지를 읽는다.
+    wants:
+      - MG-OVERCOME-SUPERIOR-OPPONENT
+      - MG-SURVIVE-ENEMY-OFFENSIVE
+    knows: []
+    believes: []
+
+  - id: MA-HOSTILE-COMBATANT
+    type: actor
+    kind: CREATURE
+    perspective: >
+      플레이어를 적으로 인식하고 자기 자원 안에서 공세와 방어를 반복한다.
+      플레이어와 같은 전투 규칙 아래 있다 — 공격권을 뺏기면 똑같이 몸이 열린다.
+    wants:
+      - MG-OVERCOME-SUPERIOR-OPPONENT   # 같은 Goal 을 반대편에서 소유한다 (대칭)
+    knows: []
+    believes: []
+    # C007 의 control=autonomous 존재가 이 자리에 해당한다.
+    # 이 Actor 가 세계에서 누구이며 왜 적대하는지는 원본 문서가 공급하지 않는다 —
+    # World Cause 는 root.md 와 이후 M2 확장이 채운다.

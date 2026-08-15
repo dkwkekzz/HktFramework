@@ -5,4 +5,239 @@
 # 별도 Possibility 다. 동의어를 늘리지 않는다.
 # 형식: ../SCHEMA.md
 version: 1
-nodes: []
+nodes:
+
+  # ── MG-OVERCOME-SUPERIOR-OPPONENT 를 달성하는 방법들 (OR) ──────────────
+
+  - id: MP-READ-AND-COUNTER
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대의 공격을 피하거나 견디는 것이 아니라 그 공격 자체를 자원으로 바꾼다.
+      비용은 낮고(성공하면 자원을 오히려 얻는다) 요구되는 것은 정확한 시점이다 —
+      실패하면 그대로 맞는 고위험 저비용 경로다. 다른 어떤 경로보다 상대의 행동에 의존한다.
+    requires:
+      goals: []
+      capabilities: [MC-GUARD, MC-PERFECT-GUARD, MC-COUNTER, MC-CP-ECONOMY]
+      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    opposes: []
+    changes:
+      - 공격권이 상대에서 나에게 넘어온다
+      - 상대가 잠시 취약해진다
+    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-EARNS-INITIATIVE]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED        # 성패가 확률이 아니라 충돌 시각과 방어 시작 시각의 관계다
+      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED # 방어 성공이 공격권 전환으로 이어진다
+
+  - id: MP-BREAK-THE-GUARD
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      한 번의 정확함이 아니라 끊기지 않는 압박으로 이긴다. 시간이 걸리고 접근을 유지해야 하며
+      중간에 물러나면 쌓은 것이 풀린다. 대신 상대의 대응에 덜 의존하고, 성공하면 짧지만
+      확실한 폭발 구간을 스스로 만든다 — 파티가 함께 쓸 수 있는 유일한 경로다.
+    requires:
+      goals: []
+      capabilities: [MC-BREAK, MC-COMBAT-STRIKE, MC-CP-ECONOMY]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [축적된 CP]
+    supports: []
+    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 압박을 유지하려면 방어에 쓸 자원과 거리를 포기해야 한다
+    changes:
+      - 상대의 방어 구조가 일시적으로 무너진다
+      - 짧은 폭발 구간이 열린다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-NO-HARD-COUNTER]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-NO-HARD-COUNTER: UNRESOLVED
+      # 상성 감각을 Break 효율로 옮기면 이 경로가 지배 전략이 될 수 있다.
+      # 실제로 다른 경로가 남는지는 플레이 실측 전에는 판정할 수 없다.
+
+  - id: MP-EXPLOIT-OPEN-BODY
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      상대가 스스로 만든 취약 구간을 노린다. 자원도 위치도 요구하지 않고 오직 관찰과 대기가
+      비용이다 — 기다리는 동안 아무것도 얻지 못한다. 되받아치기와 달리 상대의 공격을 받아낼
+      필요가 없다.
+    requires:
+      goals: []
+      capabilities: [MC-COMBAT-FLOW, MC-COMBAT-STRIKE, MC-COMBAT-CAUSE-READING]
+      knowledge: [MK-OPPONENT-FLOW-PATTERN]
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-READ-AND-COUNTER]
+    opposes: []
+    changes:
+      - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
+    reveals: [MK-OPPONENT-FLOW-PATTERN]
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-RISK-BUYS-POWER]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+      DC-COMBAT-RISK-BUYS-POWER: SATISFIED   # 상대가 집중해 연 몸을 상대가 읽을 수 있어야 한다는 요구의 반대편
+
+  - id: MP-STRIKE-THE-VULNERABLE-SPOT
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      타이밍이 아니라 위치로 이긴다. 상대의 행동과 무관하게 성립하지만 몸을 옮겨 붙어야 하므로
+      이동 비용과 반격 위험을 진다. 보상은 작고 대신 언제나 쓸 수 있다.
+    requires:
+      goals: []
+      capabilities: [MC-WEAK-POINT, MC-REAR-ATTACK, MC-BODY-FACING, MC-COMBAT-STRIKE]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-BREAK-THE-GUARD]
+    opposes: []
+    changes:
+      - 방어가 향하지 않은 쪽으로 피해가 들어간다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 확률 약점이 아니라 실제 충돌 영역·방향으로 성립한다
+
+  - id: MP-MATCH-WEAPON-TO-ARMOR
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      전투 중의 실행이 아니라 전투 전의 선택으로 이긴다. 준비 단계에서 결정되며 교전 중에는
+      바꿀 수 없다. 다른 경로와 달리 손이 아니라 판단이 요구된다.
+    requires:
+      goals: []
+      capabilities: [MC-ATTACK-ARMOR-MATCHUP, MC-COMBAT-STRIKE]
+      knowledge: [MK-OPPONENT-DEFENSE-SHAPE]
+      world_state: []
+      relationship: []
+      resource: []
+    supports: [MP-BREAK-THE-GUARD]
+    opposes: []
+    changes:
+      - 같은 스킬이 상대에 따라 다른 효율을 낸다
+    reveals: [MK-OPPONENT-DEFENSE-SHAPE]
+    creates_goal: []
+    constraints: [DC-COMBAT-NO-HARD-COUNTER, DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-NO-HARD-COUNTER: SATISFIED
+      # 상성 이득의 폭이 제한되고 다른 경로가 남아 있는 형태로만 존재할 수 있다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+
+  - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
+    type: possibility
+    achieves: [MG-OVERCOME-SUPERIOR-OPPONENT]
+    meaningful_difference: >
+      다른 모든 경로가 반복 가능한 데 비해 이것은 한 번이다. 스스로 제약을 걸어 조건을
+      좁히고 실패하면 정의된 대가를 즉시 치른다. 위험을 자원처럼 지불하는 유일한 경로다.
+    requires:
+      goals: []
+      capabilities: [MC-VOW, MC-COMBAT-FLOW, MC-CP-ECONOMY, MC-CONDITION-STACKING]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [축적된 CP, 제약이 요구하는 자기 상태]
+    supports: []
+    opposes: [MG-SURVIVE-ENEMY-OFFENSIVE]   # 제약이 대개 자기 방어를 포기하게 만든다
+    changes:
+      - 규칙 안의 상한을 넘는 한 번의 결과가 나온다
+      - 실패하면 방어권·자원 등 정의된 것을 잃는다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-RISK-BUYS-POWER, DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-RISK-BUYS-POWER: SATISFIED
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+
+  # ── MG-SURVIVE-ENEMY-OFFENSIVE 를 달성하는 방법들 (OR) ─────────────────
+
+  - id: MP-TRADE-BODY-FOR-RESOURCE
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      피해를 피하지 않고 받되 생명이 아닌 자원으로 받는다. 즉시 성립하고 정확함을 요구하지
+      않지만, 계속 쓰면 자원이 말라 더 나쁜 붕괴로 끝난다 — 시간을 사는 선택이다.
+    requires:
+      goals: []
+      capabilities: [MC-GUARD, MC-CP-ECONOMY, MC-BODY-FACING]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [남은 CP]
+    supports: []
+    opposes: [MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-BREAK-THE-GUARD]   # 같은 CP 를 놓고 경쟁한다
+    changes:
+      - 생명 대신 자원이 줄어든다
+      - 자원이 바닥나면 방어 자체가 무너진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-DEFENSE-EARNS-INITIATIVE]
+    constraint_evaluation:
+      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED   # 지속 방어에 값이 있고 무한히 안전하지 않다
+
+  - id: MP-EVADE-BY-MOVING-THE-BODY
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      막지 않고 그 자리에 없다. 자원을 쓰고 위치가 바뀌므로 다음 공격 거리도 함께 잃거나 얻는다.
+      막기와 달리 상대의 압박을 누적시키지 않는다.
+    requires:
+      goals: []
+      capabilities: [MC-EVADE, MC-CP-ECONOMY]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [남은 CP]
+    supports: [MP-STRIKE-THE-VULNERABLE-SPOT]   # 옮긴 위치가 곧 후방일 수 있다
+    opposes: []
+    changes:
+      - 내 위치가 바뀐다
+      - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 회피율이 아니라 실제 몸의 위치로 성립한다
+
+  - id: MP-HOLD-FORTIFIED
+    type: possibility
+    achieves: [MG-SURVIVE-ENEMY-OFFENSIVE]
+    meaningful_difference: >
+      한 번의 방어가 아니라 자세를 유지한다. 매 순간 자원을 흘리는 대신 판정마다 정확할
+      필요가 없다 — 손이 아니라 자원으로 사는 안정성이다. 그동안 내 공격은 약해진다.
+    requires:
+      goals: []
+      capabilities: [MC-FORTIFY, MC-COMBAT-FLOW, MC-CP-ECONOMY]
+      knowledge: []
+      world_state: []
+      relationship: []
+      resource: [지속 공급되는 CP]
+    supports: []
+    opposes: [MG-OVERCOME-SUPERIOR-OPPONENT]   # 버티는 동안 상대를 넘어서지는 못한다
+    changes:
+      - 버티는 동안 안정되지만 공격이 약해진다
+    reveals: []
+    creates_goal: []
+    constraints: [DC-COMBAT-DEFENSE-EARNS-INITIATIVE, DC-COMBAT-RISK-BUYS-POWER]
+    constraint_evaluation:
+      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED   # 지속 방어에 지속 비용이 있다
+      DC-COMBAT-RISK-BUYS-POWER: SATISFIED            # 방어에 힘을 몰면 공격이 실제로 빈다
+
+# 주입 근거: design/Design-Combat-OffenseDefense-R0.md §4 · §7 · §8 · §9 · §12 · §13 · §18 · §23
+#
+# 탐색하지 않은 Dimension — 이 문서는 Combat 안에서만 대안을 제시한다.
+# 같은 Goal(상대를 넘어선다)을 Exploration / Economy / Social / Faction / Knowledge 로
+# 달성하는 경로는 이 문서의 범위 밖이며, 여기에 억지로 만들어 넣지 않았다.
+# 그 폭은 World Cause 와 Root Goal 이 정해진 뒤 M2 확장이 다룬다.

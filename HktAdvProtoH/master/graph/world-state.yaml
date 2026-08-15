@@ -4,3 +4,15 @@
 # 형식: ../SCHEMA.md
 version: 1
 nodes: []
+
+# 비어 있는 이유 (지어내지 않는다)
+#
+# 주입된 첫 문서(design/Design-Combat-OffenseDefense-R0.md)는 전투 규칙 문서다.
+# 세계에 무엇이 참인지(어떤 세력이 어디를 막고 있는지, 무엇이 부족한지)를 공급하지 않는다.
+# 그래서 MG-OVERCOME-SUPERIOR-OPPONENT 의 `caused_by` 도 비어 있다 —
+# 플레이어가 왜 그 상대와 마주하게 되었는지는 아직 세계의 사정으로 존재하지 않는다.
+#
+# Exposed · Broken 같은 전투 상태는 여기 오지 않는다. 그것은 Actor 의 순간 상태이며
+# Cycle 의 World State 다. MW-* 는 "Forest 가 오염되었다" 층위의 세계 사실이다.
+#
+# 채워지는 경로: master/root.md 의 Root Game Goal / World Premise → M2 Graph Expansion.

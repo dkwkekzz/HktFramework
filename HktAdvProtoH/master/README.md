@@ -11,8 +11,28 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.
 작업 방법은 `../guides/master-*.md` 가, 실행은 `advprotoh-master` 스킬이 담당한다.
 
-> **현재 상태: 형태만 있다.** Graph 본체(Node · Edge)는 이후에 채워진다.
-> 아래 파일들은 스키마와 자리를 고정해 둔 빈 골격이다.
+## 현재 상태
+
+첫 주입 완료 — 전투 영역 (`design/Design-Combat-OffenseDefense-R0.md`).
+
+```text
+Constraint    4     DC-COMBAT-*  (APPROVED 1 · DRAFT 3)
+Actor         2     Knowledge 2 · Belief 0
+Goal          2     Possibility 9
+Capability   17     IMPLEMENTED 2 · PARTIAL 2 · MISSING 13
+Frontier      6     전부 PROPOSED — 선택 없음
+WorldState    0     비어 있다 (아래)
+```
+
+아직 비어 있는 것:
+
+```text
+root.md          Root Game Goal · World Premise — Human 소유. 비어 있다
+graph/world-state.yaml   World Cause 가 없다. 주입된 문서가 전투 규칙 문서이기 때문이다.
+                 그래서 Goal 의 caused_by / motivation 도 비어 있다 — 지어내지 않았다
+Belief           오독의 여지를 어디까지 둘지가 미정이다
+전투 밖 영역     Exploration · Economy · Social · Faction 은 아직 Graph 에 없다
+```
 
 ## 수명
 

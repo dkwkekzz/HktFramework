@@ -4,4 +4,31 @@
 # belief 와 MW-* 의 차이가 Mystery · Investigation · Reversal 을 만든다.
 # 형식: ../SCHEMA.md
 version: 1
-nodes: []
+nodes:
+  - id: MK-OPPONENT-FLOW-PATTERN
+    type: knowledge
+    holder:
+      - MA-PLAYER
+    statement: >
+      상대의 어떤 행동이 어느 구간에서 힘을 공격에 몰아 몸을 여는지를 안다.
+      외운 스킬 이름이 아니라 관찰로 얻는 지식이며, 이것이 있어야 되받아치는 순간을 고른다.
+    contradicts: []
+    revealed_by:
+      - MP-EXPLOIT-OPEN-BODY
+      - MP-READ-AND-COUNTER
+
+  - id: MK-OPPONENT-DEFENSE-SHAPE
+    type: knowledge
+    holder:
+      - MA-PLAYER
+    statement: >
+      상대가 어떤 형태의 방어를 지녔고 어떤 공격 형태에 그 방어가 덜 버티는지를 안다.
+      이 지식이 없으면 무기 선택은 취향이고, 있으면 선택이 된다.
+    contradicts: []
+    revealed_by:
+      - MP-MATCH-WEAPON-TO-ARMOR
+
+# 원본 문서는 Belief(틀릴 수 있는 믿음)를 공급하지 않는다.
+# 전투 층에서 Belief 가 성립하려면 상대의 상태를 잘못 읽을 수 있어야 하는데,
+# 지금 설계는 모든 원인을 관찰 가능하게 공개하는 쪽이다 (DC-COMBAT-PLAYER-CAUSALITY).
+# 오독의 여지를 어디까지 둘지는 Human 결정 대상이다.

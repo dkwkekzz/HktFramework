@@ -1,0 +1,37 @@
+id: DC-COMBAT-RISK-BUYS-POWER
+type: constraint
+
+statement: >
+  더 큰 위력은 세계가 참·거짓을 판정할 수 있는 제약과 실제 위험을 받아들여야 얻는다.
+  제약은 설정 문장이 아니라 실패하면 대가가 즉시 적용되는 조건이다.
+
+rationale: >
+  힘을 한쪽에 몰수록 다른 쪽이 비어야 선택에 무게가 생긴다. 강한 스킬이 무료로 강하면
+  빌드와 플레이 스타일의 개성이 사라지고, 전투는 가장 큰 숫자 하나로 수렴한다.
+  판정 불가능한 제약은 위험이 아니라 장식이므로 위력을 살 수 없다.
+
+scope:
+  - COMBAT
+
+requires:
+  - restriction_is_world_verifiable   # 세계가 조건의 참·거짓을 판정할 수 있어야 한다
+  - failure_has_immediate_consequence # 실패 사건이 발생하면 정의된 대가가 즉시 적용된다
+  - concentration_opens_the_body      # 한쪽에 힘을 몰면 반대쪽이 실제로 취약해진다
+  - risk_is_readable_by_opponent      # 그 취약 구간을 상대가 읽고 대응할 수 있다
+
+prohibits:
+  - free_power                        # 대가 없는 위력 상승
+  - flavor_only_restriction           # 판정되지 않는 서술뿐인 제약
+  - unbounded_multiplier              # 상한 없는 위력 배율
+
+prefers:
+  - self_imposed_over_granted         # 플레이어가 스스로 건 제약을 우선한다
+
+status: DRAFT
+provenance:
+  - HUMAN_DESIGN     # Design-Combat-OffenseDefense-R0.md §3.3 · §7 · §12 · §23
+
+relations:
+  supports:
+    - DC-COMBAT-PLAYER-CAUSALITY   # 위력의 출처가 플레이어가 받아들인 제약이 된다
+  conflicts_with: []

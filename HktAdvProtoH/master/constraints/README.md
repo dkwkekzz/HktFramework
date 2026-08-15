@@ -2,8 +2,16 @@
 
 파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`.
 
-현재: **없음** — 첫 Constraint 는 Human 이 `root.md` 의 World Premise 에서 도출하거나,
-`../candidates/` 의 후보를 승인하며 생긴다.
+현재 4종 — 전부 `design/Design-Combat-OffenseDefense-R0.md` 에서 주입되었다.
+
+| Constraint | status | 근거 |
+|---|---|---|
+| [DC-COMBAT-PLAYER-CAUSALITY](DC-COMBAT-PLAYER-CAUSALITY.yaml) | **APPROVED** | 원본 핵심 명제 · §2 보존 원칙. C007 R1 이 이미 우연을 폐기해 세계가 이 형태다 |
+| [DC-COMBAT-DEFENSE-EARNS-INITIATIVE](DC-COMBAT-DEFENSE-EARNS-INITIATIVE.yaml) | DRAFT | 원본 §3.2 · §8 — 문서에서 해석해 세운 것이므로 Human 승인 대기 |
+| [DC-COMBAT-RISK-BUYS-POWER](DC-COMBAT-RISK-BUYS-POWER.yaml) | DRAFT | 원본 §3.3 · §7 · §12 |
+| [DC-COMBAT-NO-HARD-COUNTER](DC-COMBAT-NO-HARD-COUNTER.yaml) | DRAFT | 원본 §3.1 · §6.3 |
+
+`DRAFT` 3종은 Human 이 승인해야 `APPROVED` 가 된다 — Agent 가 올리지 않는다.
 
 ## 이것이 무엇인가
 
