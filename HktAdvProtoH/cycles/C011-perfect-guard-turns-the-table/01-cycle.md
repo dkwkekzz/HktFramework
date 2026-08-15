@@ -3,7 +3,7 @@
 [PASS] Cycle Definition            (R1 — 자세 재세움 간격)
 [PASS] Intent                     (R1 — 자세 재세움 간격)
 [PASS] World Semantic
-[    ] GameView Specification
+[PASS] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation
