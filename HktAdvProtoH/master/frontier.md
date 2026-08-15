@@ -9,9 +9,10 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 > `cycles/C008-camera-orientation` 이고 C009 까지 닫혀 있다. 아래 후보가 선택되면
 > **C010 이후**의 Cycle 로 열린다. 원본의 C008 번호를 Cycle ID 로 쓰지 않는다.
 
-> **Constraint 판정 없음** — `master/constraints/` 가 비어 있다. 후보 조건 6번
-> (Active Constraint 와 양립한다)은 지금 판정할 수 없다. Constraint 가 세워지면
-> 각 후보에 `Active Constraints` · `Constraint Eval` 을 다시 채운다.
+> **Constraint 판정 완료 (2026-08-15)** — Human 지시로 반영된 DC 5종
+> (`master/constraints/`) 기준으로 후보 조건 6번을 판정했다. 전 후보 SATISFIED —
+> 후보들이 DC 와 같은 원본 기획서에서 나왔으므로 어긋날 수 없다.
+> 문안 확정은 `open-questions.md` Q9 (차단 아님).
 
 ## 후보 조건
 
@@ -21,7 +22,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 3. Client 에서 직접 플레이하고 결과를 확인할 수 있다
 4. 하나의 Cycle 안에서 의미적으로 폐쇄 가능하다
 5. 단순 코드 Task 가 아니라 새로운 World/Game Capability 다
-6. 적용되는 Active Constraint 와 양립한다        ← 현재 판정 불가
+6. 적용되는 Active Constraint 와 양립한다
 7. 완료 후 공유 World 에 재사용 가능한 Capability 로 누적할 수 있다
 ```
 
@@ -40,6 +41,10 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Missing / Partial    MC-GUARD (MISSING) · MC-DEFENSE-MITIGATION (MISSING)
                          MC-CP-ECONOMY (PARTIAL → 방어가 같은 예산을 쓰기 시작한다)
     원본 근거            §5.2 Defense · §8.1 Guard · §11 CP Economy · §21 Phase 1
+    Active Constraints   DC-COMBAT-DEFENSE-IS-ACTIVE · DC-COMBAT-SHARED-BUDGET ·
+                         DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 막기는 행동이고(수치가 아니다), 전용 게이지 없이 같은
+                         기력을 소모하며, 무너짐의 원인(기력 고갈)이 관찰 가능하다
     Observable Result    막은 순간 생명이 줄지 않고 기력이 줄어드는 것이 보인다.
                          기력이 모자라면 방어가 무너지는 것이 사유와 함께 보인다
     Why one Cycle        새 행동 1종(막기) + 새 값 1종(방어력) + 기존 타격 규칙의 결과 분기.
@@ -53,6 +58,9 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Possibility   MP-READ-AND-COUNTER
     Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
     원본 근거            §8.2 Perfect Guard · §8.4 Counter · §18.2 예시 · §21 Phase 2
+    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-DEFENSE-IS-ACTIVE
+    Constraint Eval      SATISFIED — 성공 조건은 확률이 아니라 방어 시작과 충돌의 시점
+                         관계이고, 성공이 공격권을 뒤집는다
     Observable Result    같은 막기라도 시점이 맞으면 다른 결과가 나오는 것이 보이고,
                          상대가 열린 구간이 눈에 드러난다
     Why one Cycle        Guard 위에 시점 판정 1종과 노출 상태 1종을 더한다
@@ -66,6 +74,9 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Possibility   MP-BREAK-THE-GUARD
     Missing / Partial    MC-BREAK (MISSING)
     원본 근거            §9 Break · §9.1 Decay · §9.2 BROKEN · §21 Phase 3
+    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 누적·풀림·붕괴가 모두 관찰 가능한 결정적 상태이며
+                         폭발 창은 난수가 아니라 이어간 압박이 연다
     Observable Result    쌓이는 압박이 보이고, 압박이 끊기면 풀리는 것이 보이며,
                          무너진 동안이 명확히 구분된다
     Why one Cycle        누적값 1종 + 붕괴 상태 1종 + 그 동안의 피해 조건 1종
@@ -78,6 +89,9 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Possibility   MP-EXPLOIT-OPEN-BODY
     Missing / Partial    MC-COMBAT-FLOW (MISSING) · MC-COMBAT-CAUSE-READING (PARTIAL)
     원본 근거            §7 FLOW · §7.1 Skill Flow Profile · §21 Phase 4
+    Active Constraints   DC-COMBAT-POWER-HAS-COST · DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 공격에 몰면 방어가 실제로 비고(집중의 대가),
+                         그 열림이 관찰 가능한 상태로 드러난다
     Observable Result    상대 행동의 어느 구간이 취약한지가 화면에서 읽히고,
                          같은 스킬도 언제 맞았는지에 따라 결과가 달라진다
     Why one Cycle        배분 상태 1종 + 스킬 구간별 배분 정의.
@@ -91,6 +105,10 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Possibility   MP-MATCH-WEAPON-TO-ARMOR
     Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING)
     원본 근거            §6.1 타입 정의 · §6.2 Damage Matchup · §6.3 Break Matchup · §21 Phase 5
+    Active Constraints   DC-COMBAT-MATCHUP-SOFT · DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 상성은 결정적이고, 피해 폭은 작게·강한 감각은 균형
+                         붕괴 효율 쪽이라는 prefers 와 원본 §6 표의 방향이 일치한다.
+                         표의 수치 자체는 Cycle 의 03-world-semantic 소유
     Observable Result    선택이 결과를 바꾸는 것이 수치로 보이고,
                          왜 그렇게 됐는지가 공격·방어 형태로 설명된다
     Why one Cycle        공격 타입 1종 + 방어 타입 1종 + 두 표.
@@ -104,6 +122,9 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Possibility   MP-STAKE-EVERYTHING-ON-ONE-BLOW
     Missing / Partial    MC-VOW (MISSING) · MC-CONDITION-STACKING (MISSING)
     원본 근거            §10 Conditional Critical · §12 Restriction/Vow · §12.1 RED FLASH · §21 Phase 6
+    Active Constraints   DC-COMBAT-POWER-HAS-COST · DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 제약은 세계가 판정 가능하고 실패 대가가 즉시 적용되며,
+                         큰 결과는 명시 조건의 합으로만 나온다
     Observable Result    큰 숫자 옆에 그것을 만든 조건들이 그대로 보인다
     Why one Cycle        제약 판정 1종 + 실패 대가 1종 + 조건 합성 1종.
                          겹칠 조건이 이미 있어야 의미가 있으므로 앞의 후보들에 의존한다
