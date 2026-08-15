@@ -5,12 +5,16 @@
 // (INTENT-REQUEST-ATTRIBUTION-001). 요청 자체는 주체를 지정하지 않는다 —
 // 지정할 수단이 없다. 세계가 모르는 관찰자의 요청은 아무것도 바꾸지 못한다.
 //
+// C010 ADDED — 막는 자세(guard). 세계 안에서 몸이 취하는 것이므로 interaction 이다
+//   (세계 밖에서 손대는 command 와 다르다).
+//
 // C007 ADDED — 스킬 2종(attack · heavy-attack) · 이동 모드 · 속성 변경.
 //   속성 변경만은 주체가 아니라 "지목한 존재" 를 대상으로 한다 (INTENT-ATTRIBUTE-MUTATE-001).
 //   그래도 요청의 귀속은 그대로다 — 세계가 모르는 관찰자는 아무것도 바꾸지 못한다.
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import { ruleAttributeSet } from '../rules/attribute-set';
+import { ruleGuardSet } from '../rules/guard';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -39,6 +43,10 @@ export function dispatchAction(
       return ruleSkillBegin(actor, 'attack'); // 기본 스킬 — 대상을 받지 않는다 (C002)
     case 'skill-heavy':
       return ruleSkillBegin(actor, 'heavy-attack'); // 고급 스킬 (C007)
+    case 'guard':
+      // C010 — 막는 자세. 토글이 아니라 명시값이다 (RULE-GUARD-SET-001).
+      if (!action.stance) return { status: 'failure', rule: DISPATCH, reason: 'missing-stance' };
+      return ruleGuardSet(actor, action.stance, state.time);
     case 'move-mode':
       if (!action.mode) return { status: 'failure', rule: DISPATCH, reason: 'missing-mode' };
       return ruleMoveMode(actor, action.mode);

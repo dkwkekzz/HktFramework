@@ -19,6 +19,9 @@ export interface EntityPlate {
   healthMaximum: number;
   healthRatio: number;
   downed: boolean;
+  /** C010 — 지금 막고 있는가 / 방어가 무너진 여파 안인가 */
+  guarding: boolean;
+  guardBroken: boolean;
   /** 속성 관찰이 켜졌을 때 함께 펼칠 줄들 (C007 R2) */
   inspect?: string[];
 }
@@ -28,7 +31,12 @@ export interface StrikeMark {
   x: number;
   y: number;
   text: string;
+  /** C010 — 그 값을 만든 경로 한 줄 (없을 수 있다) */
+  detail?: string;
   emphasis: boolean;
+  /** C010 — 막힌 타격 / 방어를 무너뜨린 타격은 다르게 그린다 */
+  guarded: boolean;
+  guardBroken: boolean;
   age: number;
 }
 
@@ -161,6 +169,7 @@ export function createHud(container: HTMLElement): Hud {
             : '';
           return (
             `<div class="hud-plate" data-downed="${p.downed}" ` +
+            `data-guarding="${p.guarding}" data-guard-broken="${p.guardBroken}" ` +
             `style="left:${p.x}px;top:${p.y}px">` +
             `<span class="hud-plate-name">${p.name}</span>` +
             `<span class="hud-plate-bar"><i style="width:${Math.round(p.healthRatio * 100)}%"></i></span>` +
@@ -176,8 +185,11 @@ export function createHud(container: HTMLElement): Hud {
         .map(
           (s) =>
             `<div class="hud-strike" data-emphasis="${s.emphasis}" ` +
+            `data-guarded="${s.guarded}" data-guard-broken="${s.guardBroken}" ` +
             `style="left:${s.x}px;top:${s.y - s.age * 34}px;opacity:${(1 - s.age).toFixed(2)}">` +
-            `${s.text}</div>`,
+            `${s.text}` +
+            (s.detail ? `<span class="hud-strike-detail">${s.detail}</span>` : '') +
+            `</div>`,
         )
         .join('');
 
@@ -193,6 +205,11 @@ export function createHud(container: HTMLElement): Hud {
           `<span class="hud-self-bar" data-kind="cp"><i style="width:${Math.round(s.energyRatio * 100)}%"></i></span>` +
           `<em>${s.energy} / ${s.energyMaximum}</em></span>` +
           `<span class="hud-self-mode">${s.moveMode}</span>` +
+          // C010 — 자세는 늘 눈앞에 있다. 막을 수 없으면 그 사유가 같은 자리에서 읽힌다.
+          `<span class="hud-self-stance" data-guarding="${s.guarding}" ` +
+          `data-guard-broken="${s.guardBroken}">${s.stance}` +
+          (s.guardUnavailableText ? ` — ${s.guardUnavailableText}` : '') +
+          `</span>` +
           s.lines.map((line) => `<span class="hud-self-line">${line}</span>`).join('');
       } else {
         selfPanel.innerHTML = '';

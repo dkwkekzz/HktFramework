@@ -58,7 +58,9 @@ export function ruleNpcDecide(state: WorldState, actor: ActorState): 'decided' |
   // C007 — 쓰러진 존재는 아무것도 결정하지 않는다 (INTENT-DOWNED-001).
   // downed 는 대체 불가능한 행동이므로 아래 관문이 이미 막지만, 의미를 코드에 남긴다.
   if (isDowned(actor)) return 'unchanged';
-  if (evaluateActionBegin(actor)) return 'unchanged'; // 대체 불가 행동 중 — 결정하지 않는다
+  // 대체 불가 행동 중이면 결정하지 않는다. C010 — 자율 존재는 막지 않으므로(01 EXCLUDED)
+  // 자세가 결정을 좁히는 일도 없다. 관문에는 자기가 가장 자주 시작하는 종류를 넘긴다.
+  if (evaluateActionBegin(actor, 'move')) return 'unchanged';
 
   const target = perceivedTarget(state, actor);
 

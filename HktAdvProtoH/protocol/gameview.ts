@@ -38,6 +38,17 @@ export interface VitalityView {
   downed: boolean; // 참이면 더 이상 행동하지 않고 타격 대상도 되지 않는다
 }
 
+// 막는 자세 (C010) — 누구의 것이든 관찰된다.
+// 자세는 행동(EntityView.state)과 별개다 — 걸으면서도 막을 수 있으므로 따로 실린다.
+export interface StanceView {
+  guarding: boolean; // Actor.Stance == guard
+  broken: boolean; // 방어가 무너진 여파 안인가 (이 동안은 다시 막지 못한다)
+  brokenUntil: number; // 그 여파가 가시는 세계 시각 — world.time 과 비교해 남은 시간을 읽는다
+  // 어느 쪽을 막고 있는가. body.facing 과 같은 값이며,
+  // 앞이 아닌 곳에서 들어온 타격이 왜 막히지 않았는지를 설명하는 것이 이 값이다.
+  facing: GameViewPosition;
+}
+
 // 그 밖의 모든 속성 (C007 R2) — 세계는 어떤 속성도 숨기지 않는다.
 // 실린다고 해서 늘 화면에 띄우라는 뜻은 아니다. 표시 기본값은 View 가 정한다.
 export interface AttributesView {
@@ -45,6 +56,7 @@ export interface AttributesView {
   energyMaximum: number;
   moveMode: string; // walk | run
   control: string; // player | autonomous
+  defense: number; // C010 — 맞은 피해를 줄이는 값. 막든 안 막든 언제나 작동한다
   tempoStats: {
     moveSpeed: number;
     runSpeedMultiplier: number;
@@ -65,6 +77,7 @@ export interface EntityView {
   name?: string; // Actor.Name (C007) — character 에만 실린다
   vitality?: VitalityView; // C007 — character 에만 실린다
   attributes?: AttributesView; // C007 R2 — character 에만 실린다
+  stance?: StanceView; // C010 — character 에만 실린다
   position: GameViewPosition;
   labelValue?: number | string; // 관찰 값 (예: 광맥 잔량) — 표시 형식은 View 책임
   kind?: string; // CharacterKind 등 종류 식별자 (C002) — 어떤 모습으로 그릴지는 View 책임
@@ -106,14 +119,26 @@ export interface ObserverView {
 }
 
 // 한 번의 타격이 낳은 결과 (C007) — 맞은 자리에서 잠시 드러났다가 사라진다.
-// 피해는 스킬이 정한 고정값이므로 실리는 것은 값 하나뿐이다.
+//
+// C010 CHANGED — 값 하나가 아니라 그 값을 만든 내역이 함께 실린다.
+// 보는 이는 최종 숫자가 아니라 그 숫자가 나온 경로를 읽는다:
+//   base → (방어력) → mitigated → (막기) → amount(생명) + energyPaid(기력)
+export interface StrikeBreakdownView {
+  base: number; // 그 스킬의 본래 피해
+  mitigated: number; // 방어력이 걷어낸 뒤 남은 피해 (base - mitigated = 방어력의 몫)
+  guarded: boolean; // 막아 낸 타격인가
+  energyPaid: number; // 막느라 치른 기력 (막지 않았으면 0)
+  guardBroken: boolean; // 이 타격으로 방어가 무너졌는가
+}
+
 export interface StrikeEventView {
   attackerId: string;
   targetId: string;
   skill: string; // attack | heavy-attack
-  amount: number;
+  amount: number; // 실제로 생명에서 나간 몫
   at: GameViewPosition; // 맞은 몸의 중심
   since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
+  breakdown: StrikeBreakdownView; // C010 ADDED
 }
 
 // 속성을 바꿔 볼 수 있는 세계인가 (C007 R2).

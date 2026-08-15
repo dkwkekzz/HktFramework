@@ -38,11 +38,18 @@ export interface ResourceSpec {
   cpStart: number;
 }
 
+// 방어 (C010) — 맞은 피해를 줄이는 값. 종류가 정하는 고정값이며 장비도 버프도 이것을
+// 바꾸지 않는다 (C010 EXCLUDED). 아무리 커도 피해를 0 으로 만들지 못한다.
+export interface DefenseSpec {
+  defense: number;
+}
+
 export interface CharacterDefinition {
   body: BodySpec;
   facing: Readonly<WorldPosition>; // 스폰 시 몸이 향하는 방향 (단위 벡터)
   tempo: TempoSpec;
   resources: ResourceSpec;
+  defense: DefenseSpec; // C010
   attackRange: number; // RULE-ATTACK-001 Precondition 2 의 거리 한계
   perceptionRange: number; // RULE-NPC-DECIDE-001 의 인지 거리 — control = autonomous 일 때만 의미
 }
@@ -57,6 +64,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     facing: { x: 0, z: 1 },
     tempo: { moveSpeed: 6.0, runSpeedMultiplier: 1.8, actionSpeed: 1.0 },
     resources: { hpMax: 200, cpMax: 100, cpStart: 30 },
+    defense: { defense: 5 }, // C010
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -66,6 +74,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     // 자율 존재는 더 느리게 움직인다 — 행동 관찰이 목적
     tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
     resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
+    defense: { defense: 3 }, // C010
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -77,6 +86,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
+  defense: { defense: 3 }, // C010
   attackRange: 2.0,
   perceptionRange: 9.0,
 };

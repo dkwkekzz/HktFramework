@@ -23,7 +23,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_ATTRIBUTE_SET } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
-import { findMutableAttribute, isDowned, type MoveMode } from '../semantic/combat';
+import { findMutableAttribute, isDowned, type MoveMode, type Stance } from '../semantic/combat';
 import { findActor, type WorldState } from '../semantic/world-state';
 import { ruleDowned } from './strike-damage';
 
@@ -62,6 +62,9 @@ export function ruleAttributeSet(
     if (typeof value !== 'string' || !attribute.values.includes(value))
       return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
     if (attribute.id === 'moveMode') target.moveMode = value as MoveMode;
+    // C010 — 자세를 밖에서 세우는 것은 RULE-GUARD-SET-001 의 Precondition 을 거치지 않는
+    // 세계 밖의 손이다. 다만 바뀐 뒤의 세계는 자기 규칙대로 간다 (아래 후처리 그대로).
+    else if (attribute.id === 'stance') target.stance = value as Stance;
   } else {
     if (typeof value !== 'number' || !Number.isFinite(value))
       return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
@@ -104,6 +107,11 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
       return;
     case 'actionSpeed':
       actor.actionSpeed = value;
+      return;
+    case 'defense':
+      // C010 — 크게 올려 보면 "아무리 두꺼워도 피해가 0 이 되지 않는다" 가
+      // strikeEvents 의 내역(base 대비 mitigated)으로 직접 확인된다.
+      actor.defense = value;
       return;
   }
 }

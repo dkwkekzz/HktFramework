@@ -50,6 +50,16 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "defense": 5
+      },
+      "stance": {
+        "guarding": false,
+        "broken": false,
+        "brokenUntil": 0,
+        "facing": {
+          "x": 1,
+          "z": 0
         }
       }
     },
@@ -96,6 +106,16 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "defense": 5
+      },
+      "stance": {
+        "guarding": false,
+        "broken": false,
+        "brokenUntil": 0,
+        "facing": {
+          "x": -1,
+          "z": 0
         }
       }
     }
