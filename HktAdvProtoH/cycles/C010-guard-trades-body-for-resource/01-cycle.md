@@ -4,8 +4,8 @@
 [PASS] Intent                    (R1 — 막기를 행동이 아니라 자세로 고쳐 씀)
 [PASS] World Semantic
 [PASS] GameView Specification
-[    ] Human Semantic Review     ← 다음 차례. Agent 는 여기서 멈춘다
-[    ] World Implementation
+[PASS] Human Semantic Review     APPROVED (05-review.md)
+[PASS] World Implementation
 [    ] View Implementation
 [    ] Verification
 

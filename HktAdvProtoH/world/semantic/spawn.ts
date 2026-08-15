@@ -40,6 +40,10 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     hpMax: def.resources.hpMax,
     cp: def.resources.cpStart,
     cpMax: def.resources.cpMax,
+    // C010 — 새로 놓이는 몸은 막지 않은 채로, 여파 없이, 자기 종류의 방어력으로 선다
+    defense: def.defense.defense,
+    stance: 'open',
+    guardBrokenUntil: 0,
     moveMode: 'walk',
     moveSpeed: def.tempo.moveSpeed,
     runSpeedMultiplier: def.tempo.runSpeedMultiplier,

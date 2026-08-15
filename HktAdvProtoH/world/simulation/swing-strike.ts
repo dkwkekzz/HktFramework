@@ -44,9 +44,8 @@ export function ruleSwingStrike(state: WorldState): number {
 
       struck.push(target.id);
 
-      ruleHit(target);
-
-      // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서)
+      // 밀쳐냄은 휘두른 몸의 중심에서 멀어지는 방사 방향 (칼끝이 아니라 몸에서).
+      // C010 — 막아도 몸은 밀린다. 충격량은 막힘 여부와 무관하다.
       const px = target.position.x - attacker.position.x;
       const pz = target.position.z - attacker.position.z;
       const pd = Math.sqrt(px * px + pz * pz);
@@ -55,8 +54,17 @@ export function ruleSwingStrike(state: WorldState): number {
       target.velocity.x += nx * (SWING_IMPULSE / target.bodyMass);
       target.velocity.z += nz * (SWING_IMPULSE / target.bodyMass);
 
-      // C007 — 고정 피해가 들어가고, 이 휘두름의 첫 타격이면 기력 수지를 낸다.
-      ruleStrikeDamage(state, attacker, target, skill);
+      // C010 CHANGED — 순서가 바뀐다. C007 은 RULE-HIT-001 을 먼저 불렀으나,
+      // 이제는 막았는지를 알아야 부를지가 정해지므로 RULE-STRIKE-DAMAGE-001 이 먼저다.
+      const outcome = ruleStrikeDamage(state, attacker, target, skill);
+
+      // 막아 낸 타격은 자세를 흩뜨리지 않는다 (INTENT-GUARD-KEEPS-THE-STANCE-001) —
+      // 막았는데 자세가 풀려 버린다면 그것은 막은 것이 아니다.
+      // 무너진 타격(guardBroken)은 guarded 가 거짓이므로 그대로 얻어맞는다.
+      if (!outcome?.guarded) ruleHit(target);
+
+      // C007 — 이 휘두름의 첫 타격이면 기력 수지를 낸다.
+      // 막혔어도 때린 자는 정산한다 — 맞았으므로 기력이 돈다 (C007 원칙 그대로).
       ruleSkillBudget(attacker, skill);
 
       struckCount++;

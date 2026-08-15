@@ -3,11 +3,11 @@
 //                                   INTENT-TEMPO-ACTION-001
 // Input          Actor, SkillKind
 // Preconditions  1. Actor 가 쓰러지지 않았다
-//                2. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001 의 관문)
+//                2. 현재 행동이 대체 가능하고 막는 자세가 아니다 (RULE-ACTION-BEGIN-001 의 관문)
 //                3. Cp >= SkillDefinition.CpCost × Modifiers.CpConsume
 // Transition     CurrentAction = SkillKind (대상을 담지 않는다), StruckActorIds = [],
 //                Duration = 공격 속도가 정한 길이
-// Result         Success | Failure(downed | action-busy | insufficient-cp)
+// Result         Success | Failure(downed | action-busy | guarding | insufficient-cp)
 //
 // C002 의 RULE-ATTACK-001 을 일반화한 것이다 — 휘두름은 이제 종류를 가진 스킬이며,
 // 각 스킬은 자기 기력 수지와 고정 피해량과 행동 길이를 가진다.
@@ -43,7 +43,8 @@ export function evaluateSkillPreconditions(
 ): SkillFailureReason | null {
   if (isDowned(actor)) return 'downed';
 
-  const busy = evaluateActionBegin(actor);
+  // C010 — 막는 자세에서는 어떤 스킬도 시작되지 않는다 (관문이 guarding 을 돌려준다).
+  const busy = evaluateActionBegin(actor, kind);
   if (busy) return busy;
 
   const cost = skillDefinition(kind).cpCost * actorModifiers(actor).cpConsume;

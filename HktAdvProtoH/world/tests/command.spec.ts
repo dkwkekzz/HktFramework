@@ -77,6 +77,8 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       'runSpeedMultiplier',
       'actionSpeed',
       'moveMode',
+      'defense', // C010
+      'stance', // C010
     ]);
   });
 

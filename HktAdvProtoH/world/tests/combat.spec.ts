@@ -12,6 +12,7 @@ import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
 import {
   HIT_CHARGE_FACTOR,
+  MIN_DAMAGE_RATIO,
   RUN_CHARGE_FACTOR,
   RUN_CP_DRAIN,
   SKILL_DEFINITIONS,
@@ -23,6 +24,13 @@ import { driveWorld, PLAYER, type WorldDriver } from './drive';
 
 const BASIC = SKILL_DEFINITIONS.attack;
 const HEAVY = SKILL_DEFINITIONS['heavy-attack'];
+
+// C010 AFFECTED — 피해는 이제 "본래 피해" 이며, 맞은 자의 방어력이 걷어낸 뒤 남은 몫이
+// 생명에서 나간다 (RULE-STRIKE-DAMAGE-001 CHANGED, 단계 2).
+// 여기 아래 검증들은 막지 않은 몸을 다루므로 자세는 관여하지 않는다 — 방어력만 걸린다.
+const WANDERER_DEFENSE = 3;
+const mitigated = (base: number) =>
+  Math.max(base * MIN_DAMAGE_RATIO, base - WANDERER_DEFENSE);
 const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
 const tickFor = (world: WorldDriver, seconds: number) => {
@@ -89,8 +97,8 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
       return actor(world.observe(), 'npc-1')?.vitality?.health;
     };
 
-    expect(strike()).toBe(120 - BASIC.damage);
-    expect(strike()).toBe(120 - BASIC.damage); // R1 — 판정도 우연도 없다
+    expect(strike()).toBe(120 - mitigated(BASIC.damage));
+    expect(strike()).toBe(120 - mitigated(BASIC.damage)); // R1 — 판정도 우연도 없다
   });
 
   it('고급 스킬은 기본 스킬보다 크게 깎는다', () => {
@@ -99,7 +107,7 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
 
     world.dispatch({ interactionId: 'skill-heavy' });
     tickFor(world, SWING_BEGIN * HEAVY.baseDuration + 2 * TICK_INTERVAL);
-    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - HEAVY.damage);
+    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - mitigated(HEAVY.damage));
     expect(HEAVY.damage).toBeGreaterThan(BASIC.damage);
   });
 
@@ -109,7 +117,7 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
 
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration); // 휘두름 전 구간을 지나도
-    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - BASIC.damage);
+    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - mitigated(BASIC.damage));
   });
 });
 
@@ -158,8 +166,8 @@ describe('INTENT-SKILL-BUDGET-001 — 맞혀야 기력이 돈다', () => {
 
     const view = world.observe();
     // 둘 다 맞았지만
-    expect(actor(view, 'npc-1')?.vitality?.health).toBe(120 - BASIC.damage);
-    expect(actor(view, 'npc-2')?.vitality?.health).toBe(120 - BASIC.damage);
+    expect(actor(view, 'npc-1')?.vitality?.health).toBe(120 - mitigated(BASIC.damage));
+    expect(actor(view, 'npc-2')?.vitality?.health).toBe(120 - mitigated(BASIC.damage));
     // 정산은 한 번이다
     expect(hud(view, 'self.cp')).toBe(before + BASIC.cpCharge);
   });
@@ -215,7 +223,8 @@ describe('INTENT-DOWNED-001 — 생명이 다하면 쓰러진다', () => {
     world.dispatch({
       interactionId: 'set-attribute',
       targetEntityId: 'npc-1',
-      attribute: { id: 'hp', value: BASIC.damage },
+      // C010 — 한 대 분량은 이제 방어력이 걷어낸 뒤의 값이다
+      attribute: { id: 'hp', value: mitigated(BASIC.damage) },
     });
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration + TICK_INTERVAL);
@@ -416,7 +425,15 @@ describe('INTENT-STRIKE-OBSERVE-001 — 타격 결과가 잠시 드러났다 사
       attackerId: PLAYER,
       targetId: 'npc-1',
       skill: 'attack',
-      amount: BASIC.damage,
+      amount: mitigated(BASIC.damage),
+      // C010 — 값 하나가 아니라 그 값을 만든 내역이 함께 실린다
+      breakdown: {
+        base: BASIC.damage,
+        mitigated: mitigated(BASIC.damage),
+        guarded: false,
+        energyPaid: 0,
+        guardBroken: false,
+      },
     });
   });
 
@@ -442,6 +459,7 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       energyMaximum: 60,
       moveMode: 'walk',
       control: 'autonomous',
+      defense: WANDERER_DEFENSE, // C010
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
     });
@@ -474,6 +492,8 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'runSpeedMultiplier',
       'actionSpeed',
       'moveMode',
+      'defense', // C010
+      'stance', // C010
     ]);
   });
 
