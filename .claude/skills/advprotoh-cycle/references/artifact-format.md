@@ -23,6 +23,14 @@
 
 STATUS  IN PROGRESS
 
+## MASTER TRACE
+    Frontier            FR-INVENTORY-SCARCITY
+    Source Goal         MG-SURVIVE-EXPEDITION
+    Source Possibility  MP-CHOOSE-WHAT-TO-CARRY
+    Target Capability   MC-CARRY-LIMIT        (overlay: MISSING)
+    Active Constraints  DC-CHOICE-HAS-COST
+    Constraint Note     한계는 관찰 가능해야 하고 거절 사유가 설명되어야 한다
+
 ## TYPE
     New Capability | Existing Capability Enhancement
 
@@ -47,6 +55,12 @@ STATUS  IN PROGRESS
     Inventory
     Item Acquisition
 ```
+
+`MASTER TRACE` 는 위층(`master/`)과의 접합점이다. `master/frontier.md` 에서 Human 이 고른
+Frontier 의 내용을 그대로 옮긴다. Frontier 에서 출발하지 않은 Cycle 은 `없음` + 사유를 적는다
+(예: `없음 — 도구 정비 Cycle. Master Capability 를 늘리지 않는다`). 비워 두지 않는다.
+
+의미는 `HktAdvProtoH/design/Master-Intent-Graph-Policy.md` §29.1 이 소유한다.
 
 상태 블록은 Stage 가 끝날 때마다 `[PASS]` 로 갱신한다. 실패하면 `[FAIL]` + 원인.
 
@@ -281,6 +295,16 @@ before / after / reason` 을 노출한다. 별도 World 접근 경로를 만들�
     Mining with available capacity  → still succeeds  (C003)
     Pickup with available capacity  → still succeeds  (C002)
 
+## MASTER FEEDBACK
+    Capability Overlay
+        MC-CARRY-LIMIT    MISSING → IMPLEMENTED    근거 이 문서의 WORLD SCENARIO · PLAYABLE
+    Constraint Evaluation
+        DC-CHOICE-HAS-COST    SATISFIED    거절 사유가 관찰 결과로 드러난다
+    Constraint Candidate
+        없음    (또는 관찰된 반복 패턴 — 승격 판단은 Human)
+    Master Gap
+        없음    (또는 상위 의미와 어긋난 지점 · Affected · Trade-off)
+
 ## FAILURES
     [FAIL] <항목> / Missing <...> / Return To <Stage>
 
@@ -289,3 +313,8 @@ before / after / reason` 을 노출한다. 별도 World 접근 경로를 만들�
 ```
 
 통과 주장이 아니라 실행 결과를 적는다. STATUS 는 Human Play 확인 이후에만 `COMPLETE` 다.
+
+`MASTER FEEDBACK` 은 위층으로의 **보고**다. Cycle Agent 는 여기까지만 하고
+`master/` 파일을 직접 편집하지 않는다 — 반영은 Master Feedback Stage(`guides/master-feedback.md`)가
+한다. Master Layer 를 쓰지 않는 Cycle 이면 각 항목에 `해당 없음` 을 적는다.
+의미는 `HktAdvProtoH/design/Master-Intent-Graph-Policy.md` §29.2 가 소유한다.

@@ -1,0 +1,7 @@
+# Master Knowledge / Belief — MK-* / MB-*
+# knowledge  Actor 가 확보한 정보
+# belief     Actor 가 사실이라 믿지만 틀릴 수도 있는 정보
+# belief 와 MW-* 의 차이가 Mystery · Investigation · Reversal 을 만든다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []

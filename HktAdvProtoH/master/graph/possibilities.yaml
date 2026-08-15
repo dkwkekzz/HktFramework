@@ -1,0 +1,8 @@
+# Master Possibility — MP-*
+# Goal 을 달성·진전시키는 의미 있게 다른 후보 방법. Goal→Possibility 는 OR,
+# Possibility→Requirements 는 AND 다.
+# Gameplay/Cost/Risk/Relationship/Consequence 중 하나 이상이 실질적으로 달라야
+# 별도 Possibility 다. 동의어를 늘리지 않는다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []

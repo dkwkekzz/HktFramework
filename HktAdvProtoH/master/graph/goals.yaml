@@ -1,0 +1,7 @@
+# Master Goal — MG-*
+# 특정 Actor 가 어떤 이유로 원하는 Desired State.
+# 누가/왜/어떤 World State 때문에/어떤 Belief 에 기반해/실패하면 무엇을 잃는지에
+# 답할 수 없으면 Goal 이 아니라 Capability 인지 검사한다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []

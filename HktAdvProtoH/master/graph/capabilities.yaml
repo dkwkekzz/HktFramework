@@ -1,0 +1,7 @@
+# Master Capability — MC-*
+# 여러 Goal/Possibility 가 공통으로 재사용하는 플레이/World 의 의미 있는 능력.
+# 구현 모듈명이 아니다. 왜 필요한지는 쓰지 않는다 — Goal/Possibility 경로가 설명한다.
+# 구현 상태(overlay)의 근거는 ../overlay.md 가 소유한다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []

@@ -1,0 +1,6 @@
+# Master WorldState — MW-*
+# 세계에서 현재 참인 의미 있는 상태. Goal 과 Possibility 를 발생시키는 원인이 될 수 있다.
+# 자료구조가 아니다 — 자료구조는 Cycle 의 03-world-semantic.md 가 소유한다.
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []

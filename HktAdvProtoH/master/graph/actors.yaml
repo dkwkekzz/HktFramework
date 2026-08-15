@@ -1,0 +1,6 @@
+# Master Actor — MA-*
+# 자기 관점·이해관계·Goal 을 가질 수 있는 주체.
+# PLAYER | NPC | CREATURE | FACTION | GUILD | SETTLEMENT | ORGANIZATION
+# 형식: ../SCHEMA.md
+version: 1
+nodes: []
