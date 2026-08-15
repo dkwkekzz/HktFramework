@@ -13,8 +13,9 @@ nodes:
     semantic: >
       휘두른 몸이 닿은 상대의 생명을 정해진 만큼 덜어내고, 맞은 몸은 하던 행동이 끊기고 밀려난다.
     required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-STRIKE-THE-VULNERABLE-SPOT, MP-MATCH-WEAPON-TO-ARMOR]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 고정 피해 (C007 실측)
     overlay: IMPLEMENTED
 
   - id: MC-CP-ECONOMY
@@ -23,8 +24,10 @@ nodes:
       하나의 기력 예산이 공격·방어·기동·폭발을 함께 묶는다. 어디에 쓸지 고르는 순간
       다른 곳에 쓸 것이 줄어든다.
     required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 의미 자체가 한 예산이다 — 방어·기동이 아직 안 쓰는 것은
+                                               # overlay PARTIAL(구현 공백)이지 Constraint 위반이 아니다 (정책 §16)
     overlay: PARTIAL
 
   - id: MC-BODY-FACING
@@ -42,8 +45,9 @@ nodes:
       큰 결과가 나왔을 때 그것을 만든 원인과 배율을 전부 되짚어 읽을 수 있다.
       플레이어는 이것으로 배우고, 만든 사람은 이것으로 고친다.
     required_by: [MP-EXPLOIT-OPEN-BODY]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다 (원본 §15.1)
     overlay: PARTIAL
 
   # ── 아직 세계에 없는 것 ───────────────────────────────────────────────
@@ -57,8 +61,9 @@ nodes:
     # 이 Capability 를 목적으로 삼는 Possibility 는 없다 — 원본이 "그냥 두껍게 버틴다" 를
     # 플레이 방법으로 제시하지 않기 때문이다 (§5.2 — 일반 방어만으로 피해 0 에 도달하지 않는다).
     # 대신 막기와 자세가 딛는 바닥으로서 그 둘에 요구된다 (원본 §5.2 · §7).
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 줄인다 (원본 §5.2)
     overlay: MISSING
 
   - id: MC-GUARD
@@ -67,8 +72,10 @@ nodes:
       앞을 향해 막는 행동으로 들어온 공격을 생명 대신 자원과 균형 부담으로 받아낸다.
       막을 자원이 다하면 방어 자체가 무너진다.
     required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (원본 §8.1)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (원본 §11)
     overlay: MISSING
 
   - id: MC-PERFECT-GUARD
@@ -77,8 +84,10 @@ nodes:
       정확한 시점의 방어로 피해를 받지 않고 상대를 노출시켜 공격권을 뒤집는다.
       성패는 확률이 아니라 방어를 시작한 시각과 공격이 닿은 시각의 관계로 갈린다.
     required_by: [MP-READ-AND-COUNTER]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (원본 §8.2)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (원본 §8.2)
     overlay: MISSING
 
   - id: MC-EVADE
@@ -86,8 +95,9 @@ nodes:
     semantic: >
       무적이 되는 것이 아니라 실제로 몸을 옮겨 충돌을 벗어난다.
     required_by: [MP-EVADE-BY-MOVING-THE-BODY]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 (원본 §8.3)
     overlay: MISSING
 
   - id: MC-COUNTER
@@ -95,8 +105,10 @@ nodes:
     semantic: >
       상대가 열린 순간을 읽고 되받아쳐 더 큰 피해와 더 큰 균형 부담을 만든다.
     required_by: [MP-READ-AND-COUNTER]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (원본 §8.4 · §10)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (원본 §3.2)
     overlay: MISSING
 
   - id: MC-BREAK
@@ -105,8 +117,9 @@ nodes:
       압박을 이어 상대의 균형을 누적으로 무너뜨리고, 무너진 동안의 짧은 폭발 구간을 연다.
       압박이 끊기면 쌓인 것은 풀린다.
     required_by: [MP-BREAK-THE-GUARD]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 누적과 붕괴가 관찰 가능한 상태로 드러난다 (원본 §9)
     overlay: MISSING
 
   - id: MC-COMBAT-FLOW
@@ -115,8 +128,9 @@ nodes:
       지금 몸의 힘을 공격과 방어 중 어디에 얼마나 몰았는지가 상태로 드러나고,
       한쪽에 몰수록 반대쪽이 실제로 빈다. 그 빈 구간은 상대가 읽을 수 있다.
     required_by: [MP-EXPLOIT-OPEN-BODY, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-HOLD-FORTIFIED]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-POWER-HAS-COST]
+    constraint_evaluation:
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 한쪽에 몰수록 반대쪽이 실제로 빈다 (원본 §3.3 · §7)
     overlay: MISSING
 
   - id: MC-FORTIFY
@@ -124,8 +138,10 @@ nodes:
     semantic: >
       자원을 계속 흘리며 방어 쪽에 힘을 몰아 둔 자세를 유지한다.
     required_by: [MP-HOLD-FORTIFIED]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 안정성은 지속 비용과 약해진 공격으로 산다 (원본 §7)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (원본 §11)
     overlay: MISSING
 
   - id: MC-ATTACK-ARMOR-MATCHUP
@@ -134,8 +150,10 @@ nodes:
       무엇으로 무엇을 때렸는지가 결과를 바꾼다. 상성의 이득은 제한되며,
       강한 감각은 피해량보다 균형을 무너뜨리는 효율 쪽에 실린다.
     required_by: [MP-MATCH-WEAPON-TO-ARMOR]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-MATCHUP-SOFT, DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # semantic 이 이미 이득 제한과 균형 붕괴 쪽 배치를 담는다 (원본 §6.2)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 조합이면 같은 결과 — 결정적 상성이다 (원본 §6)
     overlay: MISSING
 
   - id: MC-WEAK-POINT
@@ -143,8 +161,9 @@ nodes:
     semantic: >
       몸의 특정 자리나 특정 세계 조건에 실제로 닿았을 때 더 큰 결과가 나온다.
     required_by: [MP-STRIKE-THE-VULNERABLE-SPOT]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률형 약점이 아니라 실제 닿음이 조건이다 (원본 §13.1)
     overlay: MISSING
 
   - id: MC-REAR-ATTACK
@@ -152,8 +171,9 @@ nodes:
     semantic: >
       방어가 향하지 않은 쪽에서 들어간 공격은 막히기 어렵고 조금 더 아프다.
     required_by: [MP-STRIKE-THE-VULNERABLE-SPOT]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 위치라는 관찰 가능한 원인이 보상을 만든다 (원본 §13.2)
     overlay: MISSING
 
   - id: MC-CONDITION-STACKING
@@ -162,8 +182,9 @@ nodes:
       플레이어가 만들어 낸 조건들이 겹칠수록 결과가 커진다. 상한이 있고,
       각 조건이 무엇이었는지 결과에서 그대로 읽힌다.
     required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시 조건의 합성이고 상한이 있으며 결과에서 읽힌다 (원본 §10)
     overlay: MISSING
 
   - id: MC-VOW
@@ -172,8 +193,10 @@ nodes:
       세계가 참·거짓을 판정할 수 있는 제약을 스스로 걸어 더 큰 위력과 바꾼다.
       제약을 어기거나 실패하면 정의된 대가를 즉시 치른다.
     required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 검증 가능한 제약·수용한 위험·즉시 대가 — 이 Constraint 의 정면 사례 (원본 §12)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 제약 완수는 세계가 판정하는 사건이다 (원본 §12)
     overlay: MISSING
 
 # 주입 근거: design/Design-Combat-OffenseDefense-R0.md §6~§13 · §19 Intent Specification

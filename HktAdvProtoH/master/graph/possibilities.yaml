@@ -30,8 +30,10 @@ nodes:
       - 상대가 잠시 취약해진다
     reveals: [MK-OPPONENT-FLOW-PATTERN]
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (원본 §8.2)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권 탈취로 이어진다 (원본 §3.2 · §8.2)
 
   - id: MP-BREAK-THE-GUARD
     type: possibility
@@ -54,8 +56,9 @@ nodes:
       - 짧은 폭발 구간이 열린다
     reveals: []
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 폭발 구간은 난수가 아니라 이어간 압박의 누적으로 열린다 (원본 §9)
 
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
@@ -77,8 +80,10 @@ nodes:
       - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
     reveals: [MK-OPPONENT-FLOW-PATTERN]
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-POWER-HAS-COST]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 열림은 배분 상태라는 관찰 가능한 원인이다 (원본 §7)
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 상대의 집중이 반대쪽을 비운 대가를 노린다 (원본 §3.3 · §7)
 
   - id: MP-STRIKE-THE-VULNERABLE-SPOT
     type: possibility
@@ -99,8 +104,9 @@ nodes:
       - 방어가 향하지 않은 쪽으로 피해가 들어간다
     reveals: []
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률 약점이 아니라 실제로 닿은 위치·조건으로 성립한다 (원본 §13)
 
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
@@ -121,8 +127,10 @@ nodes:
       - 같은 스킬이 상대에 따라 다른 효율을 낸다
     reveals: [MK-OPPONENT-DEFENSE-SHAPE]
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-MATCHUP-SOFT]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 상성은 결정적이다 — 같은 조합이면 같은 효율 (원본 §6)
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # 피해 폭은 작게, 강한 감각은 균형 붕괴 효율 쪽 (원본 §6.2 · §6.3)
 
   - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
     type: possibility
@@ -146,8 +154,10 @@ nodes:
     creates_goal:
       - MG-SURVIVE-ENEMY-OFFENSIVE
       # 실패의 대가(예: 한동안 막을 수 없다)가 곧바로 다음 국면을 만든다 — 원본 §12 Failure
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 세계가 판정 가능한 제약과 즉시 적용되는 실패 대가 (원본 §12)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 큰 결과는 스스로 만든 조건들의 합이지 난수가 아니다 (원본 §10 · §18.3)
 
   # ── MG-SURVIVE-ENEMY-OFFENSIVE 를 달성하는 방법들 (OR) ─────────────────
 
@@ -172,8 +182,11 @@ nodes:
       - 자원이 바닥나면 방어 자체가 무너진다
     reveals: []
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 선택하는 행동이다 — 공격 기회 전환은 같은 행동 위의
+                                               # 정확한 시점 경로(MP-READ-AND-COUNTER)가 이어받는다 (원본 §8.1)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (원본 §8.1 · §11)
 
   - id: MP-EVADE-BY-MOVING-THE-BODY
     type: possibility
@@ -195,8 +208,10 @@ nodes:
       - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
     reveals: []
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률 회피가 아니라 실제 위치 이동으로 벗어난다 (원본 §8.3)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 기동도 같은 기력 예산을 쓴다 (원본 §11)
 
   - id: MP-HOLD-FORTIFIED
     type: possibility
@@ -218,8 +233,10 @@ nodes:
       - 버티는 동안 안정되지만 공격이 약해진다
     reveals: []
     creates_goal: []
-    constraints: []
-    constraint_evaluation: {}
+    constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-SHARED-BUDGET]
+    constraint_evaluation:
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 방어에 몰면 공격이 실제로 약해진다 (원본 §3.3 · §7)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 자세 유지가 같은 기력 예산을 흘린다 (원본 §11)
 
 # 주입 근거: design/Design-Combat-OffenseDefense-R0.md §4 · §7 · §8 · §9 · §12 · §13 · §18 · §23
 #
