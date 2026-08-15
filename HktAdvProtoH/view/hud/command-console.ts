@@ -36,6 +36,7 @@ export function createCommandConsole(
     <div class="cc-line">
       <span class="cc-caret">&gt;</span>
       <input class="cc-input" id="cc-input" autocomplete="off" spellcheck="false" />
+      <button class="cc-close" id="cc-close" title="닫기" aria-label="닫기">✕</button>
     </div>
     <div class="cc-history" id="cc-history"></div>
   `;
@@ -45,8 +46,17 @@ export function createCommandConsole(
   const guide = root.querySelector<HTMLElement>('#cc-guide')!;
   const history = root.querySelector<HTMLElement>('#cc-history')!;
   const input = root.querySelector<HTMLInputElement>('#cc-input')!;
+  const close = root.querySelector<HTMLElement>('#cc-close')!;
 
   let open = false;
+
+  // 닫는 자리 — Escape 는 자판이 있는 기기에만 있다. 손가락뿐인 기기에서
+  // 열기만 되고 닫히지 않으면 그 표면은 갇힌 것이다.
+  close.addEventListener('pointerdown', (ev) => {
+    ev.preventDefault();
+    ev.stopPropagation();
+    handlers.onClose();
+  });
 
   input.addEventListener('input', () => handlers.onText(input.value));
   input.addEventListener('keydown', (ev) => {

@@ -11,10 +11,12 @@
 import { TRANSPORT_PATH } from '../protocol/transport';
 import { createCommandConsole } from '../view/hud/command-console';
 import { createHud, type EntityLabel, type EntityPlate, type StrikeMark } from '../view/hud/hud';
+import { createTouchPad } from '../view/hud/touch-pad';
 import { commandActionRequest } from '../view/input/command-request';
 import { attachInput } from '../view/input/input';
 import { attachKeyboard } from '../view/input/keyboard';
 import { attachPointerLook } from '../view/input/pointer';
+import { attachTouchControls } from '../view/input/touch';
 import type { ScreenSide } from '../view/presentation/facing-presentation';
 import { browserIdentityStorage, resolveObserverId } from '../view/net/observer-identity';
 import { browserSocketFactory, createWorldLink } from '../view/net/world-link';
@@ -80,11 +82,27 @@ const EMPTY_SCENE: SceneState = {
 };
 
 let latestScene: SceneState = EMPTY_SCENE;
+
+// 손가락 조작 — 키보드도 마우스 버튼도 없는 기기에서 세계를 만진다.
+// 세계로 가는 것은 키보드일 때와 똑같은 요청이다. 세계는 무엇이 자기를 만졌는지 모른다.
+const touch = attachTouchControls(renderer.domElement, (dTurn, dTilt) => {
+  if (commandConsole.capturing()) return;
+  renderer.turnView(dTurn, dTilt);
+});
+const touchPad = createTouchPad(container);
+// 손가락을 쓰는 기기인가 — 기기 이름(UA)을 묻지 않고 무엇으로 가리키는지만 본다.
+// 아니어도 손가락이 한 번 닿으면 그때부터 조작 자리가 나타난다 (touch.engaged()).
+const COARSE_POINTER = window.matchMedia?.('(pointer: coarse)').matches ?? false;
+
 // C009 — 명령을 쓰는 동안에는 화면을 눌러도 몸이 움직이지 않는다
 // (04 commandSurface.inputCapture.suspends: interactions.move · skill).
+// 그리고 시점을 끌고 난 손가락은 지목이 아니다 — 끌기 끝에 따라오는 click 을 흘린다.
 attachInput(
   renderer,
-  (action) => (commandConsole.capturing() ? false : link.send(action)),
+  (action) =>
+    commandConsole.capturing() || touch.tapSuppressed(performance.now())
+      ? false
+      : link.send(action),
   () => latestScene,
 );
 
@@ -106,7 +124,7 @@ let facingSides: Record<string, ScreenSide> = {};
 const KEY_LOOKAHEAD = 1.6;
 const MOVE_REQUEST_INTERVAL = 0.1;
 let moveRequestCooldown = 0;
-let wasKeyMoving = false;
+let wasDirectionMoving = false;
 
 // 충돌체 디버그 관찰 (C006) — 켜고 끄는 것은 관찰자의 선택이다. 기본 off.
 // World 에 아무것도 요청하지 않는다 — 이미 와 있는 관찰값을 보일지만 정한다.
@@ -246,9 +264,11 @@ function frame(now: number): void {
   const self = latestScene.entities.find((e) => e.cameraFollow);
 
   moveRequestCooldown -= dt;
-  const dir = capturing ? null : keyboard.direction();
+  // 키로 밀고 있으면 그것이 우선이다. 아니면 스틱을 본다 —
+  // 둘 다 같은 모양(단위 벡터)이므로 아래 로직은 무엇이 밀었는지 알 필요가 없다.
+  const dir = capturing ? null : (keyboard.direction() ?? touch.direction());
   if (dir && terrain && self) {
-    wasKeyMoving = true;
+    wasDirectionMoving = true;
     if (moveRequestCooldown <= 0) {
       moveRequestCooldown = MOVE_REQUEST_INTERVAL;
       // C008 — 앞은 세계의 축이 아니라 지금 보고 있는 쪽이다.
@@ -262,7 +282,7 @@ function frame(now: number): void {
         },
       });
     }
-  } else if (!dir && wasKeyMoving) {
+  } else if (!dir && wasDirectionMoving) {
     // 멈춤 — 아무것도 보내지 않는다 (C008 CHANGED).
     //
     // 예전에는 "마지막으로 관찰한 자리로 가라"를 보내 그 자리에 세웠다. 그런데 그 자리는
@@ -273,11 +293,13 @@ function frame(now: number): void {
     // 마지막으로 요청한 목적지는 늘 몸보다 앞에 있다. 그리로 가다 도착하면 스스로 멈춘다
     // (RULE-MOVE-PROGRESS-001 Arrived). 가던 쪽을 향한 채 서는 것이 이 Cycle 이 필요로 하는
     // 상태이고, 세계에 새 규칙을 더하지 않고 얻을 수 있는 가장 단순한 방법이다.
-    wasKeyMoving = false;
+    wasDirectionMoving = false;
     moveRequestCooldown = 0;
   }
 
-  for (const code of keyboard.consumeKeyPresses()) {
+  // 손가락으로 누른 버튼은 그 행동에 배정된 키 코드로 도착한다 (view/hud/touch-pad.ts).
+  // 여기서 둘을 구분하지 않는 것이 핵심이다 — 손가락과 키가 갈라질 길 자체가 없다.
+  for (const code of [...keyboard.consumeKeyPresses(), ...touchPad.consumePresses()]) {
     // 명령 표면을 연다 (C009). 열려 있는 동안 다른 키는 몸에 닿지 않는다 —
     // 콘솔이 자기 입력에서 키를 잡아 두므로 여기까지 오지 않는다.
     if (code === COMMAND_OPEN_KEY) {
@@ -316,6 +338,9 @@ function frame(now: number): void {
 
   renderer.render(latestScene, dt);
   commandConsole.render(latestScene.commandSurface);
+  // 조작 자리는 손가락을 쓰는 기기에서만 보인다. 기기 이름을 묻지 않고
+  // 무엇으로 가리키는지만 본다 — 마우스뿐인 화면에는 나타나지 않는다.
+  touchPad.render(latestScene, touch.stick(), COARSE_POINTER || touch.engaged());
 
   const labels: EntityLabel[] = [];
   for (const entity of latestScene.entities) {
