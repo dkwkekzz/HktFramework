@@ -1,6 +1,14 @@
 # C011 — Intent
 
-> 입력: `01-cycle.md` (Frontier FR-PERFECT-GUARD-TURNS-THE-TABLE)
+> R1 개정 (Human Review 이전, World Semantic 착수 중 발견) — 자세를 놓았다 세우는 데
+> 아무 대가가 없으면 INTENT-PERFECT-GUARD-ONCE-001 의 "되풀이되지 않는다" 가
+> 세계에서 성립하지 않는다. 여닫기를 반복하면 창이 매번 새로 열리기 때문이다.
+> **자세를 다시 세우기까지 한 호흡이 든다** 를 같은 Intent 안에 명시한다.
+> 다른 Intent 의 의미는 바뀌지 않는다.
+> 영향: INTENT-PERFECT-GUARD-ONCE-001 문안 · EXISTING INTENT DELTA 의
+> INTENT-GUARD-BEGIN-GATE-001 항목(REUSED → CHANGED).
+
+> 입력: `01-cycle.md` (Frontier FR-PERFECT-GUARD-TURNS-THE-TABLE · R1)
 > 아래 Goal / Possibility 는 **Cycle-local** 의미다. 지속적인 상위 Goal / Possibility 는
 > `master/graph/` 가 소유하며, 이 Cycle 의 상위 출처는 01-cycle.md 의 MASTER TRACE 에 있다.
 >
@@ -53,7 +61,7 @@
         방향 조건은 보통 막기와 똑같다 — 시점이 맞아도 옆이나 뒤에서 들어온 타격은
         애초에 막힌 것이 아니므로 완벽할 수도 없다.
 
-    INTENT-PERFECT-GUARD-ONCE-001
+    INTENT-PERFECT-GUARD-ONCE-001 (R1)
 
         하나의 자세에서 완벽한 막기는 되풀이되지 않는다.
         창은 자세를 세우는 순간에 열려 짧은 시간 뒤 닫히며,
@@ -61,6 +69,14 @@
         세워 두고 버티는 것으로 계속 완벽할 수는 없다 —
         다시 완벽하려면 자세를 놓고 다시 세워야 하고, 그 사이의 몸은 열려 있다.
         이것이 읽는 일과 버티는 일을 갈라 놓는 자리다.
+
+        그리고 자세를 다시 세우는 일에는 한 호흡이 든다 (R1).
+        방금 세운 자세를 놓고 곧바로 다시 세울 수는 없다 —
+        놓는 것은 언제나 되지만, 세우는 것은 직전에 세운 뒤 얼마간이 지나야 된다.
+        이것이 없으면 자세를 여닫는 것만으로 창이 끊임없이 새로 열려
+        "되풀이되지 않는다" 가 말뿐인 문장이 된다.
+        읽는다는 것은 한 번의 결정이지 계속 누르고 있는 일이 아니다.
+        세우지 못한 요청은 세계를 바꾸지 않으며, 요청한 자는 그 이유를 안다.
 
     INTENT-PERFECT-GUARD-REWARD-001
 
@@ -170,12 +186,10 @@
     REUSED
         INTENT-GUARD-STANCE-001         (C010) 자세 구조를 그대로 쓴다 —
                                         새 자세도, 완벽 전용 자세도 만들지 않는다
-        INTENT-GUARD-BEGIN-GATE-001     (C010) 막기를 시작할 수 있는 조건은 그대로다.
-                                        완벽하기 위해 별도의 시작 조건을 두지 않는다
+        INTENT-GUARD-DIRECTION-001      (C010) 완벽 판정도 같은 정면 조건 위에서만 성립한다
         INTENT-GUARD-EXCLUSIVE-001      (C010) 막는 동안 스킬을 못 여는 것도 그대로다.
                                         완벽하게 막은 뒤 되받아치려면 자세를 놓아야 하며,
                                         놓는 것에는 조건이 없으므로 새 규칙이 필요 없다
-        INTENT-GUARD-DIRECTION-001      (C010) 완벽 판정도 같은 정면 조건 위에서만 성립한다
         INTENT-GUARD-BREAK-001          (C010) 무너짐은 그대로다 — 완벽한 막기는 기력을
                                         치르지 않으므로 무너뜨릴 수 없다. 새 갈래가 없다
         INTENT-DEFENSE-MITIGATION-001   (C010) 방어력 감쇄는 그대로 작동한다.
@@ -190,6 +204,12 @@
         INTENT-PER-OBSERVER-PROJECTION-001  (C004) 완벽 창이 남았는지는 자기 투영에 얹힌다
 
     CHANGED
+        INTENT-GUARD-BEGIN-GATE-001     (C010) — R1 (REUSED 에서 옮겨 옴)
+            기존  쓰러지지 않았고, 하던 일을 그만둘 수 있고, 치를 기력이 남아 있고,
+                  무너진 여파가 가신 몸만이 막기를 시작할 수 있다
+            변경  여기에 하나가 더해진다 — 직전에 자세를 세운 뒤 한 호흡이 지나야 한다.
+                  놓는 것은 여전히 언제나 된다. 시작하지 못한 이유는 그대로 관찰된다
+                  (INTENT-PERFECT-GUARD-ONCE-001 을 세계에서 성립시키는 조건)
         INTENT-GUARD-ABSORB-001         (C010)
             기존  막는 자세로 정면에서 받은 타격은 언제나 생명 대신 기력으로 치러진다
             변경  그것은 이제 **창이 닫힌 뒤** 의 막기다.

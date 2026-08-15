@@ -1,8 +1,8 @@
 # CYCLE C011 — Perfect Guard Turns the Table
 
-[PASS] Cycle Definition
-[PASS] Intent
-[    ] World Semantic
+[PASS] Cycle Definition            (R1 — 자세 재세움 간격)
+[PASS] Intent                     (R1 — 자세 재세움 간격)
+[PASS] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
@@ -146,6 +146,19 @@ STATUS  IN PROGRESS
     버티는 막기는 자원이 마르지만 읽어 낸 막기는 자원을 벌어 공격으로 이어진다.
     이것이 원본 §3.2 가 말하는 "방어 성공은 공격 기회다" 이며,
     DC-COMBAT-DEFENSE-IS-ACTIVE 의 두 번째 requires 가 여기서 닫힌다.
+
+## REVISION
+    R1  (03-world-semantic.md 착수 중, Human Review 이전) INCLUDED 의
+        "창은 한 번만 열린다 — 다시 완벽하려면 놓았다가 다시 세워야 한다" 는
+        자세를 놓았다 세우는 데 아무 대가가 없으면 성립하지 않는다.
+        막기를 연타하면 창이 매번 새로 열려 언제나 완벽해지고, 그러면 이 Cycle 의
+        Goal("읽어서 세우면")이 사라진다.
+        따라서 **자세를 다시 세우기까지의 최소 간격**을 세계 규칙으로 둔다 —
+        놓는 것은 언제나 되지만, 세우는 것은 직전에 세운 뒤 한 호흡이 지나야 된다.
+        시작하지 못하면 그 사유가 관찰된다 (C010 의 막기 실패 사유 네 가지에 하나 추가).
+        Goal · INCLUDED · EXCLUDED 의 의미는 바뀌지 않는다 —
+        "되풀이되지 않는다" 를 실제로 성립시키는 조건이 정해진 것이다.
+        영향 Artifact: 02-intent.md (R1) · 03-world-semantic.md
 
 ## FRONTIER NOTE
     `master/frontier.md` 의 선택 기록 표는 아직 비어 있다 (`아직 선택 없음`).
