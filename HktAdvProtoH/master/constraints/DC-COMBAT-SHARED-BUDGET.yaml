@@ -1,0 +1,31 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §8.1 · §11
+# 2026-08-15 Human 지시로 반영. "별도의 Guard Gauge / Ultimate Gauge 를 만들지 않고
+# 기존 기력을 확장한다" (§11) 는 원본의 명시 금지다.
+id: DC-COMBAT-SHARED-BUDGET
+type: constraint
+
+statement: >
+  전투 행동(공격·방어·기동·폭발)은 하나의 공통 기력 예산을 나눠 쓴다.
+  행동별 전용 게이지를 신설하지 않는다.
+rationale: >
+  어디에 쓸지 고르는 순간 다른 곳에 쓸 것이 줄어드는 선택 압력이 공방 심리전의
+  바닥이다 (§11). 예산이 쪼개지면 각 행동이 자기 게이지 안에서 공짜가 되고,
+  계속 막기만 해도 마르지 않는다 — 원본은 방어가 결국 자원이 말라 붕괴하는
+  구조를 의도한다 (§8.1).
+
+scope:
+  - COMBAT
+
+requires:
+  - combat_actions_share_one_budget   # 공격·방어·기동·폭발이 한 예산을 나눈다 (§11)
+prohibits:
+  - per_action_dedicated_gauge        # 행동별 별도 게이지 신설 (§11 명시)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+
+relations:
+  supports: []
+  conflicts_with: []

@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **3건** · 닫힌 것 5건.
+미해결 **4건** · 닫힌 것 5건.
 
 ---
 
@@ -61,6 +61,24 @@ Human 이 답한다    DECISION 줄
 
     선택지        (a) 전투는 전투로만 푼다
                   (b) 전투 밖 경로를 Graph 에 연다 → root.md 와 M2 확장이 선행 (Q2 와 같은 입력)
+
+    DECISION      <PENDING>
+
+---
+
+## Q9. 반영된 DC 5종의 문안 확정 — OPEN
+
+    무엇          2026-08-15 Human 지시로 전투 기획서의 명시 원칙 5종을 constraints/ 에
+                  반영했다 (PLAYER-CAUSALITY · DEFENSE-IS-ACTIVE · POWER-HAS-COST ·
+                  SHARED-BUDGET · MATCHUP-SOFT). 반영 자체는 지시받았으나
+                  statement / requires / prohibits / prefers 의 **문안은 Agent 추출**이다.
+                  첫 반영이 원본보다 세게 써서 제거된 이력이 있으므로 문안 검토가 필요하다.
+
+    영향          차단 아님 — Graph 평가와 Frontier 조건 6 판정은 이 문안 기준으로 이미
+                  수행됐다. 문안이 REVISED 되면 해당 평가만 다시 본다.
+
+    선택지        (a) 문안 유지 (APPROVED 확정)
+                  (b) 개별 DC 를 REVISED — 어느 항목이 원본과 다른지 지목
 
     DECISION      <PENDING>
 
