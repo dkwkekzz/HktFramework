@@ -3,9 +3,9 @@
 
 1. 문서 안의 "C008" 은 이 문서 자체의 번호이며, 이 저장소의 `cycles/C008-camera-orientation`
    과 무관하다. 저장소의 다음 Cycle 번호는 C010 이후다. 혼동을 피하려 파일명에서 번호를 뺐다.
-2. 이 문서의 의미는 Master Layer 로 주입되어 있다 —
-   Constraint `master/constraints/DC-COMBAT-*.yaml` · Graph `master/graph/*.yaml`
-   · Overlay `master/overlay.md` · Frontier `master/frontier.md`.
+2. 이 문서의 의미 중 Goal/Possibility/Capability 는 Master Layer 로 주입되어 있다 —
+   Graph `master/graph/*.yaml` · Overlay `master/overlay.md` · Frontier `master/frontier.md`.
+   Constraint 는 주입하지 않았다 — 이 문서에서 설계 원칙을 뽑는 일은 Human 이 한다.
 3. §5·§6·§8·§9·§17 의 수치·공식·판정 순서는 Master 에 올리지 않는다
    (Master-Intent-Graph-Policy §22 · §26.3). 그것들은 이 문서에 남아 있다가
    해당 Cycle 의 `03-world-semantic.md` 가 소유한다. 이 파일이 그 수치의 원본이다.

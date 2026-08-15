@@ -19,9 +19,7 @@ nodes:
       - 넘지 못하면 그 상대가 막고 있는 것에 닿지 못한다   # 무엇을 막고 있는지는 미정
     caused_by: []
     # 어떤 World State 가 이 대치를 만들었는가 — 미정 (MW-* 없음)
-    constraints:
-      - DC-COMBAT-PLAYER-CAUSALITY
-      - DC-COMBAT-NO-HARD-COUNTER
+    constraints: []
 
   - id: MG-SURVIVE-ENEMY-OFFENSIVE
     type: goal
@@ -35,12 +33,10 @@ nodes:
       - 버티지 못하면 쓰러진다
       - 버티기만 하면 자원이 말라 결국 무너진다      # 원본 §8.1
     caused_by: []
-    constraints:
-      - DC-COMBAT-DEFENSE-EARNS-INITIATIVE
-      - DC-COMBAT-PLAYER-CAUSALITY
+    constraints: []
 
 # 주입 근거: design/Design-Combat-OffenseDefense-R0.md §1.1 · §4 · §23
 #
 # 판정 — 이 두 Goal 은 Actor-owned Desired State 이므로 Goal 이 맞다.
-# 반면 "전투는 확률적이지 않아야 한다" 는 Actor 가 원하는 상태가 아니므로
-# Goal 이 아니라 Constraint 로 넣었다 (Master-Intent-Graph-Policy §26.2).
+# 원본의 설계 원칙("랜덤이 크리티컬을 만들지 않는다" 등)은 Actor 가 원하는 상태가 아니므로
+# Goal 로 넣지 않았다. Constraint 로 세울지는 Human 이 정한다 — 지금 constraints/ 는 비어 있다.

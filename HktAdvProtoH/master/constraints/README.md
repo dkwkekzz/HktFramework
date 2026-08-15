@@ -1,17 +1,15 @@
 # constraints/ — 승인된 Design Constraint
 
-파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`.
+파일 하나 = Constraint 하나. 이름은 `DC-<NAME>.yaml`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재 4종 — 전부 `design/Design-Combat-OffenseDefense-R0.md` 에서 주입되었다.
+현재: **없음**
 
-| Constraint | status | 근거 |
-|---|---|---|
-| [DC-COMBAT-PLAYER-CAUSALITY](DC-COMBAT-PLAYER-CAUSALITY.yaml) | **APPROVED** | 원본 핵심 명제 · §2 보존 원칙. C007 R1 이 이미 우연을 폐기해 세계가 이 형태다 |
-| [DC-COMBAT-DEFENSE-EARNS-INITIATIVE](DC-COMBAT-DEFENSE-EARNS-INITIATIVE.yaml) | DRAFT | 원본 §3.2 · §8 — 문서에서 해석해 세운 것이므로 Human 승인 대기 |
-| [DC-COMBAT-RISK-BUYS-POWER](DC-COMBAT-RISK-BUYS-POWER.yaml) | DRAFT | 원본 §3.3 · §7 · §12 |
-| [DC-COMBAT-NO-HARD-COUNTER](DC-COMBAT-NO-HARD-COUNTER.yaml) | DRAFT | 원본 §3.1 · §6.3 |
+전투 기획서에서 산출했던 DC 4종은 Human 지시로 제거했다 (Agent 의 해석이 원본보다
+강한 곳이 있었다 — 원본은 "피해 상성 폭을 작게 유지" 라고 하지 금지라고 하지 않았고,
+"플레이어가 상대의 Flow 를 읽는다" 고 하지 "모든 위험이 상대에게 읽혀야 한다" 고 하지 않았다).
 
-`DRAFT` 3종은 Human 이 승인해야 `APPROVED` 가 된다 — Agent 가 올리지 않는다.
+Constraint 는 Human 이 세운다. 그때까지 Graph 의 `constraints` · `constraint_evaluation`
+필드는 비어 있고, Frontier 의 후보 조건 6번은 판정되지 않는다.
 
 ## 이것이 무엇인가
 
@@ -23,10 +21,6 @@ Goal        Actor 가 어떤 이유로 원하는 Desired State
 Constraint  그 Goal 과 해결 방법이 어떤 설계 원칙 안에서 만들어져야 하는지
 ```
 
-## 형식
-
-[../SCHEMA.md](../SCHEMA.md) 의 `constraints/DC-*.yaml` 절이 단일 출처다.
-
 ## 금지
 
 ```text
@@ -34,5 +28,6 @@ Constraint  그 Goal 과 해결 방법이 어떤 설계 원칙 안에서 만들�
 시스템 목록을 만들지 않는다            Constraint → Combat System → Guard/Break/…  → BAD
 특정 구현 모듈을 이유 없이 강제하지 않는다
 Agent 가 임의로 추가·삭제·완화하지 않는다 — 승인은 Human 이다
+원본 문서보다 세게 쓰지 않는다 — 정도 조절을 금지로 바꾸지 않는다
 충돌을 임의로 해결하지 않는다 — conflicts_with 로 노출하고 Human 이 결정한다
 ```

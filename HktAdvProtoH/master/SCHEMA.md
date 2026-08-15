@@ -47,7 +47,7 @@ Master 와 Cycle-local 을 같은 Prefix 로 섞지 않는다.
 ## constraints/DC-*.yaml
 
 ```yaml
-id: DC-COMBAT-PLAYER-CAUSALITY
+id: DC-<NAME>
 type: constraint
 
 statement: >
@@ -56,7 +56,7 @@ rationale: >
   왜 그래야 하는가. 설명할 수 없으면 취향이지 Constraint 가 아니다.
 
 scope:
-  - COMBAT              # GLOBAL | COMBAT | ECONOMY | WORLD_TRAVEL | PLAYER_DEATH | ...
+  - <SCOPE>             # GLOBAL | COMBAT | ECONOMY | WORLD_TRAVEL | PLAYER_DEATH | ...
 
 requires:  []           # 반드시 만족해야 하는 설계 조건
 prohibits: []           # 허용하지 않는 설계 형태
@@ -187,9 +187,9 @@ nodes:
 노드 안에서 표현되지 않는 관계만 여기에 둔다. 같은 관계를 양쪽에 중복 기록하지 않는다.
 
 ```yaml
-- from: DC-COMBAT-PLAYER-CAUSALITY
+- from: DC-<NAME>
   type: CONSTRAINS            # CAUSES MOTIVATES WANTS BELIEVES KNOWS ACHIEVES REQUIRES
-  to:   MC-PERFECT-GUARD      # SUPPORTS OPPOSES CHANGES REVEALS REFRAMES CREATES_GOAL
+  to:   MC-<NAME>             # SUPPORTS OPPOSES CHANGES REVEALS REFRAMES CREATES_GOAL
   note: ''                    # CONSTRAINS SUPPORTS_CONSTRAINT CONFLICTS_WITH
 ```
 
@@ -234,8 +234,8 @@ nodes:
     Source Goal          MG-DEFEAT-ANCIENT-KNIGHT
     Source Possibility   MP-READ-AND-COUNTER
     Missing / Partial    MC-PERFECT-GUARD (MISSING)
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 성공 조건이 관찰 가능한 Timing 이다
+    Active Constraints   DC-<NAME>
+    Constraint Eval      SATISFIED | UNRESOLVED — 판정 근거
     Observable Result    무엇을 보고 성공/실패를 아는가
     Why one Cycle        왜 한 Cycle 안에서 닫히는가
     Status               PROPOSED       # PROPOSED | SELECTED | DEFERRED | DROPPED

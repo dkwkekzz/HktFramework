@@ -11,27 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **8건** (전투 영역 첫 주입 · Quality Gate 자가 점검에서 나왔다).
-
----
-
-## Q1. DRAFT Constraint 3종을 승인하는가 — OPEN · 차단
-
-    무엇          DC-COMBAT-DEFENSE-EARNS-INITIATIVE
-                  DC-COMBAT-RISK-BUYS-POWER
-                  DC-COMBAT-NO-HARD-COUNTER
-                  셋 다 원본 문서에서 Agent 가 해석해 세웠다. 원본은 이것들을
-                  "차용한 설계 원리"(§3)로 서술하지 술어로 못 박지 않았다.
-
-    영향          Frontier 6종의 Constraint Evaluation 이 전부 이것에 달려 있다.
-                  특히 DEFENSE-EARNS-INITIATIVE 가 승인되지 않으면
-                  FR-GUARD-TRADES-BODY-FOR-RESOURCE 의 UNRESOLVED(Q6)가 사라진다.
-
-    선택지        APPROVED   그대로 승인
-                  REVISED    문장·requires·prohibits 를 고쳐 승인
-                  REJECTED   Constraint 로 두지 않는다 (원리는 남되 설계를 제한하지 않는다)
-
-    DECISION      <PENDING>
+미해결 **3건** · 닫힌 것 5건.
 
 ---
 
@@ -57,91 +37,15 @@ Human 이 답한다    DECISION 줄
 
 ## Q3. Belief(틀릴 수 있는 믿음)를 전투에 둘 것인가 — OPEN
 
-    무엇          Belief 가 0 건이다. 지금 설계는 모든 원인을 관찰 가능하게 공개하는 쪽이며
-                  (DC-COMBAT-PLAYER-CAUSALITY), 그러면 오독이 성립하지 않는다.
+    무엇          Belief 가 0 건이다. 원본은 결과를 만든 모든 원인을 공개하는 쪽이고(§15.1),
+                  그러면 오독이 성립하지 않는다.
 
     영향          Narrative Gate 의 "Belief 와 객관적 WorldState 가 다를 가능성" 항목.
                   Mystery · Investigation · Reversal 이 전투 층에서는 생기지 않는다.
-                  CC-CHOICE-REQUIRES-READABLE-WORLD 를 GLOBAL 로 승격하면 전투 밖에서도
-                  좁아진다.
 
-    선택지        (a) 전투는 완전 공개, 오독은 전투 밖(조사·정보)에서만 → CC 를 COMBAT 으로 좁힌다
+    선택지        (a) 전투는 완전 공개, 오독은 전투 밖(조사·정보)에서만
                   (b) 전투에도 오독의 여지를 둔다 (상대의 의도는 보이되 상태는 추정)
-                      → DC-COMBAT-PLAYER-CAUSALITY 의 `observable_cause` 와 경계를 다시 그어야 한다
-
-    DECISION      <PENDING>
-
----
-
-## Q4. 상대가 내 위험을 읽지 못하면 제약이 위험이 아니다 — OPEN · 설계 결함 후보
-
-    무엇          DC-COMBAT-RISK-BUYS-POWER 는 `risk_is_readable_by_opponent` 를 요구한다.
-                  즉 내가 몸을 열면 상대가 그것을 읽고 때려야 위험이 실재한다.
-                  그런데 현재 세계의 상대는 C007 의 `control: autonomous` 이고,
-                  그 행동은 배회와 단순 반응이다 — 열린 몸을 노리는 판단을 하지 않는다.
-
-    결과          MP-STAKE-EVERYTHING-ON-ONE-BLOW 와 MP-EXPLOIT-OPEN-BODY 의 위험이
-                  PvE 에서 한쪽으로만 성립한다. 플레이어는 상대의 틈을 노리지만
-                  상대는 플레이어의 틈을 노리지 않는다. Vow 의 위력만 남고 위험이 빠진다.
-
-    선택지        (a) 상대의 판단을 Capability 로 세운다 (MC-OPPONENT-READS-OPENINGS 신설)
-                      → Vow / Flow Frontier 의 선행 조건이 하나 늘어난다
-                  (b) 위험을 상대의 판단이 아닌 세계 규칙으로 만든다
-                      (열린 동안 받는 피해가 규칙으로 커진다)
-                      → `risk_is_readable_by_opponent` 를 완화해야 한다
-                  (c) PvP 에서만 성립한다고 인정하고 Constraint 에 명시한다
-
-    비고          이것은 Cycle 이 발견한 것이 아니라 Graph 를 세우자 드러난 것이다.
-                  FR-FLOW-OPENS-THE-BODY 또는 FR-VOW 를 열기 전에 답이 필요하다.
-
-    DECISION      <PENDING>
-
----
-
-## Q5. 상성을 Break 로 옮기면 Break 가 지배 전략이 되는가 — OPEN · UNRESOLVED 유지
-
-    무엇          DC-COMBAT-NO-HARD-COUNTER 는 상성의 강한 감각을 피해가 아니라
-                  Break 효율에 싣기를 선호한다(원본 §6.3). 그런데 Break 는 이미
-                  MP-BREAK-THE-GUARD 의 핵심이고 폭발 구간을 여는 유일한 경로다.
-                  강화 요인이 한곳에 모이면 다른 경로가 밀려난다.
-
-    현재 상태     MP-BREAK-THE-GUARD 와 MC-BREAK 의 constraint_evaluation 을
-                  `UNRESOLVED` 로 두었다. 임의로 SATISFIED 로 올리지 않았다.
-
-    판정 방법     실측 전에는 알 수 없다. FR-BREAK-OPENS-THE-BURST-WINDOW 와
-                  FR-MATCHUP-MAKES-THE-CHOICE 가 둘 다 닫힌 뒤,
-                  Break 를 거치지 않는 경로가 실제로 쓰이는지를 플레이로 본다.
-
-    DECISION      <PENDING — 실측 후 재판정>
-
----
-
-## Q6. Guard 와 Perfect Guard 를 한 Cycle 로 묶는가 — OPEN
-
-    무엇          FR-GUARD-TRADES-BODY-FOR-RESOURCE 만 단독으로 닫으면
-                  DC-COMBAT-DEFENSE-EARNS-INITIATIVE 의
-                  `defense_success_transfers_initiative` 가 만족되지 않는다.
-                  막기는 시간을 살 뿐 공격권을 가져오지 않기 때문이다.
-
-    선택지        (a) 묶는다 — Cycle 이 커지지만 방어 설계가 한 번에 온전해진다
-                  (b) 나눈다 — 한 Cycle 동안 Constraint 가 UNRESOLVED 인 것을 감수한다.
-                      원본 §21 의 Phase 1 / 2 구분과 같다
-
-    비고          Q1 에서 DEFENSE-EARNS-INITIATIVE 가 REJECTED 되면 이 질문은 사라진다.
-
-    DECISION      <PENDING>
-
----
-
-## Q7. Constraint Candidate 3종을 승격하는가 — OPEN
-
-    무엇          candidates/CC-SINGLE-BUDGET-FORCES-TRADEOFF.md
-                  candidates/CC-CHOICE-REQUIRES-READABLE-WORLD.md
-                  candidates/CC-SAME-RULES-FOR-ALL-BODIES.md
-
-    비고          SAME-RULES 는 원본 §22 의 Boss Super Armor 후속 확장과 정면으로 긴장한다.
-                  보스를 만들기 전에 정하는 편이 싸다.
-                  CHOICE-REQUIRES-READABLE-WORLD 는 Scope(GLOBAL / COMBAT)가 Q3 와 같은 결정이다.
+                      → 원본 §15.1 의 공개 범위와 경계를 다시 그어야 한다
 
     DECISION      <PENDING>
 
@@ -149,14 +53,13 @@ Human 이 답한다    DECISION 줄
 
 ## Q8. 전투 밖 경로가 없다 — OPEN
 
-    무엇          DC-COMBAT-NO-HARD-COUNTER 는 `multiple_valid_approaches` 를 요구한다.
-                  현재 그 "여러 방법" 은 전부 전투 안에 있다 (9개 Possibility 전부 COMBAT).
-                  같은 상대를 회피·교섭·환경 조작·정보로 넘어서는 경로는 Graph 에 없다.
+    무엇          같은 상대를 넘어서는 방법 9개가 전부 전투 안에 있다.
+                  회피·교섭·환경 조작·정보로 넘어서는 경로는 Graph 에 없다.
 
     영향          원본이 전투 문서이므로 당연한 결과이며 억지로 만들지 않았다.
                   다만 "이 상대를 넘어서는 방법이 싸움뿐인가" 는 MMORPG 설계 결정이다.
 
-    선택지        (a) 전투는 전투로만 푼다 — Constraint 의 범위를 전투 안으로 명시
+    선택지        (a) 전투는 전투로만 푼다
                   (b) 전투 밖 경로를 Graph 에 연다 → root.md 와 M2 확장이 선행 (Q2 와 같은 입력)
 
     DECISION      <PENDING>
@@ -165,4 +68,20 @@ Human 이 답한다    DECISION 줄
 
 ## 닫힌 질문
 
-    없음
+    Q1  DRAFT Constraint 3종 승인 여부
+    Q4  상대가 내 위험을 읽지 못하면 제약이 위험이 아니다
+    Q5  상성을 Break 로 옮기면 Break 가 지배 전략이 되는가
+    Q6  Guard 와 Perfect Guard 를 한 Cycle 로 묶는가
+    Q7  Constraint Candidate 3종 승격 여부
+
+    CLOSED 사유 (5건 공통)
+        Human 지시로 전투 기획서에서 산출한 DC 4종 · CC 3종을 제거했다.
+        위 질문들은 전부 그 Constraint 들이 있어야 성립하는 질문이었으므로 함께 닫는다.
+
+        특히 Q4 는 원본에 없는 요구에서 나온 질문이었다 —
+        원본 §7 은 "플레이어가 상대의 Flow 를 읽는다" 고 할 뿐
+        "모든 위험은 상대가 읽을 수 있어야 한다" 고 하지 않는다.
+        그 요구를 Agent 가 세웠기 때문에 생긴 문제이며, 요구가 사라지면 문제도 사라진다.
+
+        Q6 의 실질(Guard 와 Perfect Guard 를 묶을지)은 Constraint 와 무관하게 남아 있다 —
+        frontier.md 의 추천 순서에 판단 재료로 남겼다.

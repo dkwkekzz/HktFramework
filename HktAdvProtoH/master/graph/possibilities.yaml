@@ -30,10 +30,8 @@ nodes:
       - 상대가 잠시 취약해진다
     reveals: [MK-OPPONENT-FLOW-PATTERN]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-EARNS-INITIATIVE]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED        # 성패가 확률이 아니라 충돌 시각과 방어 시작 시각의 관계다
-      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED # 방어 성공이 공격권 전환으로 이어진다
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-BREAK-THE-GUARD
     type: possibility
@@ -56,12 +54,8 @@ nodes:
       - 짧은 폭발 구간이 열린다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-NO-HARD-COUNTER]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
-      DC-COMBAT-NO-HARD-COUNTER: UNRESOLVED
-      # 상성 감각을 Break 효율로 옮기면 이 경로가 지배 전략이 될 수 있다.
-      # 실제로 다른 경로가 남는지는 플레이 실측 전에는 판정할 수 없다.
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-EXPLOIT-OPEN-BODY
     type: possibility
@@ -83,10 +77,8 @@ nodes:
       - 상대가 힘을 몰았던 순간의 대가를 실제로 치른다
     reveals: [MK-OPPONENT-FLOW-PATTERN]
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-RISK-BUYS-POWER]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
-      DC-COMBAT-RISK-BUYS-POWER: SATISFIED   # 상대가 집중해 연 몸을 상대가 읽을 수 있어야 한다는 요구의 반대편
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-STRIKE-THE-VULNERABLE-SPOT
     type: possibility
@@ -107,9 +99,8 @@ nodes:
       - 방어가 향하지 않은 쪽으로 피해가 들어간다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 확률 약점이 아니라 실제 충돌 영역·방향으로 성립한다
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-MATCH-WEAPON-TO-ARMOR
     type: possibility
@@ -130,11 +121,8 @@ nodes:
       - 같은 스킬이 상대에 따라 다른 효율을 낸다
     reveals: [MK-OPPONENT-DEFENSE-SHAPE]
     creates_goal: []
-    constraints: [DC-COMBAT-NO-HARD-COUNTER, DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-NO-HARD-COUNTER: SATISFIED
-      # 상성 이득의 폭이 제한되고 다른 경로가 남아 있는 형태로만 존재할 수 있다.
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-STAKE-EVERYTHING-ON-ONE-BLOW
     type: possibility
@@ -158,10 +146,8 @@ nodes:
     creates_goal:
       - MG-SURVIVE-ENEMY-OFFENSIVE
       # 실패의 대가(예: 한동안 막을 수 없다)가 곧바로 다음 국면을 만든다 — 원본 §12 Failure
-    constraints: [DC-COMBAT-RISK-BUYS-POWER, DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-RISK-BUYS-POWER: SATISFIED
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED
+    constraints: []
+    constraint_evaluation: {}
 
   # ── MG-SURVIVE-ENEMY-OFFENSIVE 를 달성하는 방법들 (OR) ─────────────────
 
@@ -186,9 +172,8 @@ nodes:
       - 자원이 바닥나면 방어 자체가 무너진다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-DEFENSE-EARNS-INITIATIVE]
-    constraint_evaluation:
-      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED   # 지속 방어에 값이 있고 무한히 안전하지 않다
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-EVADE-BY-MOVING-THE-BODY
     type: possibility
@@ -210,9 +195,8 @@ nodes:
       - 상대의 공격이 빗나가되 상대는 대가를 치르지 않는다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED   # 회피율이 아니라 실제 몸의 위치로 성립한다
+    constraints: []
+    constraint_evaluation: {}
 
   - id: MP-HOLD-FORTIFIED
     type: possibility
@@ -234,10 +218,8 @@ nodes:
       - 버티는 동안 안정되지만 공격이 약해진다
     reveals: []
     creates_goal: []
-    constraints: [DC-COMBAT-DEFENSE-EARNS-INITIATIVE, DC-COMBAT-RISK-BUYS-POWER]
-    constraint_evaluation:
-      DC-COMBAT-DEFENSE-EARNS-INITIATIVE: SATISFIED   # 지속 방어에 지속 비용이 있다
-      DC-COMBAT-RISK-BUYS-POWER: SATISFIED            # 방어에 힘을 몰면 공격이 실제로 빈다
+    constraints: []
+    constraint_evaluation: {}
 
 # 주입 근거: design/Design-Combat-OffenseDefense-R0.md §4 · §7 · §8 · §9 · §12 · §13 · §18 · §23
 #

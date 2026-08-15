@@ -13,23 +13,24 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-전투 영역 Master 작업 완료 — 원본 `design/Design-Combat-OffenseDefense-R0.md`.
-Quality Gate 자가 점검(정책 §25)까지 돌렸고, 남은 것은 **Human 결정 8건**뿐이다.
+전투 영역 주입 — 원본 `design/Design-Combat-OffenseDefense-R0.md` (본문 바이트 단위 보존).
+Graph 는 Quality Gate 자가 점검(정책 §25)까지 돌렸다.
+**Constraint 층은 비어 있다** — Agent 가 원본에서 산출했던 DC/CC 를 Human 지시로 제거했다.
 
 ```text
-Constraint    4     DC-COMBAT-*  (APPROVED 1 · DRAFT 3 — 승인 대기)
-Candidate     3     CC-*         (전부 PENDING)
+Constraint    0     제거됨 — Human 이 세운다 (constraints/README.md)
+Candidate     0     제거됨
 Actor         2     Knowledge 2 · Belief 0
 Goal          2     Possibility 9
 Capability   17     IMPLEMENTED 2 · PARTIAL 2 · MISSING 13
 Frontier      6     전부 PROPOSED — 선택 없음
 WorldState    0     비어 있다 (아래)
 
-Open Question 8   → open-questions.md
+Open Question 3   → open-questions.md
 ```
 
-Cycle 을 열기 전에 답해야 하는 것은 **Q1(Constraint 승인)** 이고,
-전투 Frontier 중 Flow / Vow 계열은 **Q4** 가 먼저 답해져야 한다.
+Constraint 가 없으므로 Graph 의 `constraints` · `constraint_evaluation` 은 전부 비어 있고,
+Frontier 의 후보 조건 6번(Active Constraint 와 양립)은 판정되지 않는다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 

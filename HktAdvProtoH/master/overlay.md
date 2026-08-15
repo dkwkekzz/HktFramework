@@ -48,14 +48,11 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | 없는 것 1종이나 위치 이동 의미의 재해석이 필요하다 |
 | MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | Guard 가 먼저 있어야 그 시점이 성립한다 |
 | MP-BREAK-THE-GUARD | MC-BREAK | 없는 것 1종. 다만 압박의 대상인 방어가 없으면 의미가 얇다 |
-| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW (+ MC-COMBAT-CAUSE-READING 보강) | Flow 는 스킬 구간 개념을 함께 요구한다 · **Q4** |
+| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW (+ MC-COMBAT-CAUSE-READING 보강) | Flow 는 스킬 구간 개념을 함께 요구한다 |
 | MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | 공격·방어 타입 2종을 함께 들여야 한다 |
 | MP-HOLD-FORTIFIED | MC-FORTIFY · MC-DEFENSE-MITIGATION · MC-COMBAT-FLOW | Flow 이후 |
 | MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | 몸의 부위 구분이 선행한다 |
-| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | 가장 멀다 — 조건들이 먼저 존재해야 겹칠 수 있다 · **Q4** |
-
-`Q4` 표시는 `open-questions.md` Q4 — 상대가 열린 몸을 읽지 못하면 그 경로의 위험이
-한쪽으로만 성립한다. 이 두 경로는 답이 나온 뒤에 여는 편이 안전하다.
+| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | 가장 멀다 — 조건들이 먼저 존재해야 겹칠 수 있다 |
 
 ## 이번 갱신
 

@@ -9,21 +9,8 @@
 # CONSTRAINS 해당 Node 가 어떤 설계 원칙 아래 존재해야 하는지
 # 형식: ../SCHEMA.md
 version: 1
-edges:
-  # Constraint 간 관계 — 노드의 relations 와 중복이지만 Graph 탐색의 진입점으로 둔다
-  - from: DC-COMBAT-DEFENSE-EARNS-INITIATIVE
-    type: SUPPORTS_CONSTRAINT
-    to: DC-COMBAT-PLAYER-CAUSALITY
-    note: 방어의 성패를 시점으로 가르면 그 결과가 설명 가능해진다
+edges: []
 
-  - from: DC-COMBAT-RISK-BUYS-POWER
-    type: SUPPORTS_CONSTRAINT
-    to: DC-COMBAT-PLAYER-CAUSALITY
-    note: 위력의 출처가 플레이어가 받아들인 제약이 된다
-
-# CONSTRAINS 관계는 각 Goal/Possibility/Capability 노드의 `constraints` 필드가 소유한다.
-# 여기에 중복 기록하지 않는다 — 실제 영향을 주는 Node 에만 연결한다
-# (Master-Intent-Graph-Policy §26.4).
-#
-# ACHIEVES / REQUIRES / SUPPORTS / OPPOSES / REVEALS 도 Possibility 노드 안에 있다.
+# ACHIEVES / REQUIRES / SUPPORTS / OPPOSES / REVEALS 는 Possibility 노드 안에 있다.
 # CAUSES / MOTIVATES / KNOWS / BELIEVES 는 아직 없다 — World Cause(MW-*)가 비어 있기 때문이다.
+# CONSTRAINS / SUPPORTS_CONSTRAINT 도 없다 — Constraint 가 하나도 없다 (constraints/ 참조).
