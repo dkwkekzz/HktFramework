@@ -21,6 +21,8 @@ describe('entityHud — 이름과 생명은 그 몸 위에 늘 붙는다', () =>
       downed: false,
       guarding: false, // C010
       guardBroken: false, // C010
+      perfectWindow: false, // C011
+      exposed: false, // C011
       anchorHeight: 3.55, // player-character 그림 크기 3.4 + 여백
     });
     expect(entity('npc-1')?.nameplate?.name).toBe('Wanderer 1');

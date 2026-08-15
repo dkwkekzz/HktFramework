@@ -61,7 +61,13 @@
         "facing": {
           "x": 1,
           "z": 0
-        }
+        },
+        "startedAt": 0,
+        "perfectWindow": false
+      },
+      "exposure": {
+        "exposed": false,
+        "until": 0
       }
     },
     {
@@ -117,7 +123,13 @@
         "facing": {
           "x": -1,
           "z": 0
-        }
+        },
+        "startedAt": 0,
+        "perfectWindow": false
+      },
+      "exposure": {
+        "exposed": false,
+        "until": 0
       }
     },
     {
@@ -173,7 +185,13 @@
         "facing": {
           "x": 0,
           "z": 1
-        }
+        },
+        "startedAt": 0,
+        "perfectWindow": false
+      },
+      "exposure": {
+        "exposed": false,
+        "until": 0
       }
     }
   ],

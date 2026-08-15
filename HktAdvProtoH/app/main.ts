@@ -401,6 +401,9 @@ function frame(now: number): void {
       emphasis: strike.emphasis,
       guarded: strike.guarded,
       guardBroken: strike.guardBroken,
+      // C011 — 완벽하게 막아 낸 타격 / 되받아친 타격
+      perfect: strike.perfect,
+      counter: strike.counter,
       age,
     });
   }
