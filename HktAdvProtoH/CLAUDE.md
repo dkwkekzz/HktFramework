@@ -11,6 +11,23 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
+## 두 층
+
+작업은 두 층으로 나뉜다. 경계는 **Cycle Goal 한 문장** 이다.
+
+```text
+MASTER 층    무엇을 만들 것인가        master/            M1 · M2 · M3
+             세계 원인 · Actor 동기 · 믿음 · Goal · 대안 Possibility · Capability
+             Human 이 후보 중 하나를 골라 Cycle Goal 로 확정한다
+──────────────────────────── CYCLE BOUNDARY ────────────────────────────
+CYCLE 층     그것을 어떻게 닫을 것인가  cycles/<CycleId>/  Stage 1 ~ 8
+             확정된 Cycle Goal 을 Intent → World Semantic → 구현 → 검증으로 닫는다
+```
+
+Master 층이 Cycle 층에 요구하는 것은 없다 — Cycle Goal 이 정해지면 Stage 1~8 은 그대로다.
+연결은 정확히 두 지점이다: `01-cycle.md` 의 `MASTER TRACE`(**선택**)와,
+Cycle 완료 후의 Capability 상태 갱신.
+
 ## 읽는 순서
 
 모든 Agent 는 다음 셋만 읽고 작업한다.
@@ -18,14 +35,19 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 ```text
 1. CLAUDE.md              이 문서 — 공통 불변 규칙
 2. guides/<stage>.md      자기 단계의 작업 방법
-3. cycles/<CycleId>/…     현재 Cycle 의 입력 Artifact
+3. cycles/<CycleId>/…     현재 Cycle 의 입력 Artifact   (Master 층이면 master/graph/…)
 ```
 
 필요한 경우에만 관련 기존 Capability Artifact 나 코드를 추가로 확인한다.
 `design/` 전체 문서는 일반적인 작업 Context 가 아니다.
 
-단계 실행은 **`advprotoh-cycle` 스킬**이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세,
-Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
+단계 실행은 스킬이 담당한다 — 다음 미완료 Stage 판정, 공통 규칙 상세, Artifact 형식을
+스킬이 로드한다. 따라서 이 문서에는 원칙과 인덱스만 둔다.
+
+```text
+Cycle 층 Stage 1~8    advprotoh-cycle 스킬
+Master 층 M1 · M2     advprotoh-master 스킬
+```
 
 ## 핵심 원칙
 
@@ -45,6 +67,9 @@ Artifact 형식을 그 스킬이 로드한다. 따라서 이 문서에는 원칙
 13. World → View 계약은 GameView Specification 이다.
 14. View 는 GameView Specification 만으로 동작할 수 있어야 한다.
 15. 최종 완료 조건은 코드 작성이 아니라 실제 Cycle Goal 의 플레이 가능성이다.
+16. Master 층은 고를 수 있는 것을 넓히고 Cycle 층은 고른 것을 닫는다 — 서로의 단계를 대신하지 않는다.
+17. 다음 Cycle Goal 은 Human 이 고른다. Agent 는 Frontier 후보를 만들 뿐이다.
+18. Capability 의 IMPLEMENTED 는 주장이 아니라 근거다 — Cycle ID 와 구현 위치를 인용한다.
 ```
 
 ## Kind 정적 데이터
@@ -66,7 +91,19 @@ Reason     왜 현재 입력으로 불가능한가
 Return To  어느 단계가 이 의미를 책임지는가
 ```
 
-## Stage 인덱스
+## Master 층 인덱스 (Cycle 이전)
+
+| Step | Guide | Artifact |
+|---|---|---|
+| M1. Master Graph Expansion | [guides/master-expand.md](guides/master-expand.md) | `master/graph/*.yaml` |
+| M2. Overlay & Frontier | [guides/master-frontier.md](guides/master-frontier.md) | `master/frontier.md` |
+| M3. Cycle Goal 선택 | Human | Cycle Goal 한 문장 |
+
+정책은 [design/Master-Intent-Graph-Policy.md](design/Master-Intent-Graph-Policy.md),
+파일 규약과 현재 상태는 [master/README.md](master/README.md).
+관찰·정합 검사: `npm run master` / `npm run master:check`.
+
+## Stage 인덱스 (Cycle)
 
 | Stage | Guide | Artifact |
 |---|---|---|
@@ -86,6 +123,7 @@ Return To  어느 단계가 이 의미를 책임지는가
 | 경로 | 내용 | 수명 |
 |---|---|---|
 | [guides/](guides/) | Stage Guide — 단계별 작업 방법·완료 조건 | 공정이 바뀔 때만 |
+| [master/](master/) | Master Intent Graph · Frontier 후보 — 무엇을 만들 것인가 | 계속 넓어진다 |
 | [cycles/](cycles/) | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
 | [world/](world/) | Authoritative World 구현 (Server) | 현재 게임, 계속 발전 |
 | [view/](view/) | Client View 구현 | 현재 게임, 계속 발전 |
@@ -100,6 +138,7 @@ Return To  어느 단계가 이 의미를 책임지는가
 | [Design-Workflow.md](design/Design-Workflow.md) | Goal/Possibility 기반 Observable World 구현 Workflow |
 | [Design-CycleWorkflow.md](design/Design-CycleWorkflow.md) | Cycle 단위 점진 개발 공정 |
 | [Design-CycleExecution.md](design/Design-CycleExecution.md) | **Agent 실행 방식** — 이 작업환경의 근거 |
+| [Master-Intent-Graph-Policy.md](design/Master-Intent-Graph-Policy.md) | **Master 층** — Cycle 이전의 설계 그래프 구성 정책 |
 
 `guides/` 는 이 문서들에서 각 단계에 필요한 규칙만 압축한 것이다.
 
@@ -107,8 +146,11 @@ Return To  어느 단계가 이 의미를 책임지는가
 
 ```text
 Artifact 이름 · 단계 구분 · Agent 실행 방식   → Design-CycleExecution.md
+Cycle 이전(무엇을 만들 것인가)의 설계 공정     → Master-Intent-Graph-Policy.md
 그 외 공정과 게임 의미                        → Design-Workflow / Design-CycleWorkflow
 ```
+
+`Master-Intent-Graph-Policy.md` 는 Cycle 내부 8단계를 바꾸지 않는다 — Cycle Goal 이전만 다룬다.
 
 `Design-CycleWorkflow.md` 의 §33(Artifact 이름 5종)과 §19(Implementation 단일 단계)는
 `Design-CycleExecution.md` 가 대체한다 — 실제 규격은 `01-cycle.md` ~ `08-verification.md` 8종,

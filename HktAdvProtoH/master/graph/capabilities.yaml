@@ -1,0 +1,46 @@
+# Capability Registry — 전역 단일 출처
+#
+# Capability 는 여러 Goal/Possibility 가 공통으로 재사용하는 "플레이 가능한 의미" 다.
+# Region 파일에서 Capability 를 자체 정의하지 않는다 — 여기 한 곳에만 둔다
+# (Master-Intent-Graph-Policy.md §32 Reuse Gate).
+#
+# status
+#   IMPLEMENTED  지금 플레이로 확인할 수 있다        cycles + where 근거 필수
+#   PARTIAL      일부만 가능하다                     cycles + where + note(무엇이 아직 아닌가) 필수
+#   MISSING      아직 세계에 없다                    cycles / where 는 비운다
+#
+# IMPLEMENTED / PARTIAL 은 주장이 아니라 근거다 — 그것을 만든 Cycle 과 실제 구현 위치를 인용한다.
+# 근거 없는 IMPLEMENTED 는 `npm run master:check` 실패다.
+#
+# platform: true
+#   세계가 굴러가기 위한 바탕 능력 — 특정 Possibility 의 requires 로 나타나지 않는다.
+#   (관찰 표면 · 접속 · 디버그처럼 "무엇을 할 수 있는가" 가 아니라 "세계가 어떻게 보이는가" 인 것)
+#
+# 지금은 비어 있다 — 형태만 있다.
+# 기존 Cycle(C001~C009)이 만든 Capability 도 아직 등록하지 않았다.
+# M1 이 Region 을 확장하면서 그 Possibility 가 요구하는 것부터 등록하고,
+# M2(guides/master-frontier.md)가 실제 코드를 보고 status 를 판정한다.
+
+kind: capabilities
+
+nodes: []
+# 예 — 이미 있는 것 (근거를 인용한다):
+#   - id: C_MINE_DEPOSIT
+#     type: capability
+#     semantic: 도구를 지닌 주체가 광맥에 닿아 자원을 캐낸다. 광맥의 자원은 그만큼 줄어든다.
+#     status: IMPLEMENTED
+#     cycles: [C001, C002]
+#     where:
+#       - world/rules/mine.ts
+#       - world/semantic/deposit.ts
+#
+# 예 — 아직 없는 것:
+#   - id: C_TRACK
+#     type: capability
+#     semantic: 세계에 남은 흔적을 살펴 무엇이 언제 어디로 지나갔는지를 알아낸다.
+#     status: MISSING
+#     cycles: []
+#     where: []
+#
+# semantic 은 모듈 이름이 아니라 플레이 가능한 의미로 쓴다.
+# 필드 규격은 advprotoh-master 스킬의 references/graph-format.md 가 단일 출처다.

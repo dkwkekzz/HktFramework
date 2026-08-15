@@ -1,0 +1,44 @@
+# Master Intent Graph — Root
+#
+# 세계의 전제 · 최상위 World Cause · Root Goal · Design Constraint.
+# Root Goal 과 Design Constraint 는 Human 소유다 (Master-Intent-Graph-Policy.md §42-1).
+# Agent 는 여기를 확장 제안만 하고 스스로 확정하지 않는다.
+#
+# 지금은 비어 있다 — 형태만 있다. 내용은 M1(guides/master-expand.md)이 Human 의
+# Root Goal / World Premise 를 받아 채운다.
+
+kind: root
+
+# 이 세계가 무엇으로 굴러가는가. 한 문단.
+premise: |
+
+# Human 이 소유하는 제약. Graph 확장이 이것을 벗어나지 않는다.
+constraints: []
+# 예:
+#   - id: DC-001
+#     text: 세계는 Authoritative Server 다. Client 는 요청할 뿐 결과를 정하지 않는다.
+#     source: CLAUDE.md 12
+
+# 최상위 World Cause · Root Actor · Root Goal.
+nodes: []
+# 예:
+#   - id: A-PLAYER
+#     type: actor
+#     text: 이 세계에 들어와 자기 몸으로 사는 사람.
+#     wants: [G-ROOT-...]
+#
+#   - id: W-ROOT-...
+#     type: worldstate
+#     text: 세계에서 참인 상태.
+#     causes:    [W-...]
+#     motivates: [G-...]
+#
+#   - id: G-ROOT-...
+#     type: goal
+#     owner: A-PLAYER
+#     desired_state: ...
+#     motivation: [...]
+#     stakes: [...]
+#     provisional: true      # Human 확정 전까지
+#
+# 필드 규격은 advprotoh-master 스킬의 references/graph-format.md 가 단일 출처다.

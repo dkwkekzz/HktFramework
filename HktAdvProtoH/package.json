@@ -11,6 +11,8 @@
     "motions:check": "tsx tools/motion-atlas/scan.ts --check",
     "catalog": "tsx tools/catalog/print.ts",
     "catalog:check": "tsx tools/catalog/print.ts --check",
+    "master": "tsx tools/master/print.ts",
+    "master:check": "tsx tools/master/print.ts --check",
     "test": "vitest run"
   },
   "dependencies": {
@@ -24,6 +26,7 @@
     "tsx": "^4.23.12",
     "typescript": "^5.5.4",
     "vite": "^5.4.8",
-    "vitest": "^2.1.1"
+    "vitest": "^2.1.1",
+    "yaml": "^2.9.0"
   }
 }

@@ -20,6 +20,9 @@
 6. **Regression** — `03-world-semantic.md` 의 AFFECTED 항목과 과거 Cycle Scenario 를 재실행한다.
 7. **Catalog** — 이번 Cycle 이 존재 종류를 추가·변경했으면 `npm run catalog:check` 로
    kind 정적 데이터 3원소(world·view·motions)의 정합을 확인한다.
+8. **Master Overlay** — STATUS 가 `COMPLETE` 가 된 뒤(= Human Play 확인 이후),
+   이번 Cycle 이 만든/넓힌 Capability 를 `master/graph/capabilities.yaml` 에 반영하고
+   `npm run master:check` 를 돌린다. 건드린 Capability 가 없으면 반영할 것도 없다.
 
 ## Output
 
@@ -36,6 +39,8 @@
 - 6종 검사 결과를 모두 표기한다 (해당 없음이면 사유를 적는다).
 - AFFECTED 로 표시된 기존 Rule 은 반드시 Regression 을 돈다.
 - 최종 판정은 Human Play 이후에 `COMPLETE` 로 바꾼다.
+- Overlay 반영은 근거와 함께 한다 — `IMPLEMENTED` 는 이 Cycle ID 와 실제 구현 위치를 인용한다.
+  아직 일부만 되는 것은 `PARTIAL` 로 두고 무엇이 아직 아닌지를 적는다.
 
 ## Must Not
 
