@@ -56,9 +56,10 @@ nodes:
     semantic: >
       맞은 피해를 줄인다. 공격을 빗나가게 하지 않으며, 아무리 두꺼워도 피해를 0 으로
       만들지는 못한다.
-    required_by: []
-    # 어떤 Possibility 도 이것만을 요구하지 않는다 — 다른 Capability 들이 딛는 바닥이다.
-    # Possibility 없이 홀로 존재하면 설계 신호이므로 Frontier 로 올릴 때 근거를 함께 본다.
+    required_by: [MP-TRADE-BODY-FOR-RESOURCE, MP-HOLD-FORTIFIED]
+    # 이 Capability 를 목적으로 삼는 Possibility 는 없다 — "그냥 두껍게 버틴다" 는
+    # DC-COMBAT-DEFENSE-EARNS-INITIATIVE 가 금지하는 형태이므로 Possibility 로 세우지 않았다.
+    # 대신 막기와 자세가 딛는 바닥으로서 그 둘에 요구된다 (원본 §5.2 · §7).
     constraints: [DC-COMBAT-DEFENSE-EARNS-INITIATIVE, DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-DEFENSE-EARNS-INITIATIVE: UNRESOLVED

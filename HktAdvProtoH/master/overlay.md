@@ -44,15 +44,18 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
 | Possibility | 요구 Capability 중 없는 것 | 가장 가까운가 |
 |---|---|---|
-| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD | **가장 가깝다** — 없는 것 1종, 나머지는 이미 있다 |
-| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | Guard 가 먼저 있어야 성립한다 |
+| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD · MC-DEFENSE-MITIGATION | **가장 가깝다** — 없는 것 2종이 한 덩어리다 (막기는 줄일 피해가 있어야 성립한다) |
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | 없는 것 1종이나 위치 이동 의미의 재해석이 필요하다 |
+| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | Guard 가 먼저 있어야 그 시점이 성립한다 |
 | MP-BREAK-THE-GUARD | MC-BREAK | 없는 것 1종. 다만 압박의 대상인 방어가 없으면 의미가 얇다 |
-| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW (+ MC-COMBAT-CAUSE-READING 보강) | Flow 는 스킬 구간 개념을 함께 요구한다 |
+| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW (+ MC-COMBAT-CAUSE-READING 보강) | Flow 는 스킬 구간 개념을 함께 요구한다 · **Q4** |
 | MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | 공격·방어 타입 2종을 함께 들여야 한다 |
-| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW | Flow 이후 |
+| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-DEFENSE-MITIGATION · MC-COMBAT-FLOW | Flow 이후 |
 | MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | 몸의 부위 구분이 선행한다 |
-| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | 가장 멀다 — 조건들이 먼저 존재해야 겹칠 수 있다 |
+| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | 가장 멀다 — 조건들이 먼저 존재해야 겹칠 수 있다 · **Q4** |
+
+`Q4` 표시는 `open-questions.md` Q4 — 상대가 열린 몸을 읽지 못하면 그 경로의 위험이
+한쪽으로만 성립한다. 이 두 경로는 답이 나온 뒤에 여는 편이 안전하다.
 
 ## 이번 갱신
 
@@ -61,6 +64,10 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
     PARTIAL 2종은 "있지만 이 문서가 요구하는 형태에 못 미치는" 경우다 —
     기력은 존재하나 방어를 사지 못하고, 관찰은 존재하나 원인을 설명하지 못한다.
+
+    Quality Gate 자가 점검 후 보정 — MC-DEFENSE-MITIGATION 이 어떤 Possibility 에도
+    요구되지 않던 상태를 고쳤다. 막기와 자세가 그것을 딛는다는 관계를 세워
+    MP-TRADE-BODY-FOR-RESOURCE 의 첫 Cycle 크기가 1종에서 2종으로 늘었다.
 
 ## 갱신 경로
 

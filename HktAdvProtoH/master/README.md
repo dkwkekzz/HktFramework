@@ -13,25 +13,32 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 ## 현재 상태
 
-첫 주입 완료 — 전투 영역 (`design/Design-Combat-OffenseDefense-R0.md`).
+전투 영역 Master 작업 완료 — 원본 `design/Design-Combat-OffenseDefense-R0.md`.
+Quality Gate 자가 점검(정책 §25)까지 돌렸고, 남은 것은 **Human 결정 8건**뿐이다.
 
 ```text
-Constraint    4     DC-COMBAT-*  (APPROVED 1 · DRAFT 3)
+Constraint    4     DC-COMBAT-*  (APPROVED 1 · DRAFT 3 — 승인 대기)
+Candidate     3     CC-*         (전부 PENDING)
 Actor         2     Knowledge 2 · Belief 0
 Goal          2     Possibility 9
 Capability   17     IMPLEMENTED 2 · PARTIAL 2 · MISSING 13
 Frontier      6     전부 PROPOSED — 선택 없음
 WorldState    0     비어 있다 (아래)
+
+Open Question 8   → open-questions.md
 ```
 
-아직 비어 있는 것:
+Cycle 을 열기 전에 답해야 하는 것은 **Q1(Constraint 승인)** 이고,
+전투 Frontier 중 Flow / Vow 계열은 **Q4** 가 먼저 답해져야 한다.
+
+아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 
 ```text
-root.md          Root Game Goal · World Premise — Human 소유. 비어 있다
+root.md                  Root Game Goal · World Premise — Human 소유. 비어 있다
 graph/world-state.yaml   World Cause 가 없다. 주입된 문서가 전투 규칙 문서이기 때문이다.
-                 그래서 Goal 의 caused_by / motivation 도 비어 있다 — 지어내지 않았다
-Belief           오독의 여지를 어디까지 둘지가 미정이다
-전투 밖 영역     Exploration · Economy · Social · Faction 은 아직 Graph 에 없다
+                         그래서 Goal 의 caused_by / motivation 도 비어 있다  → Q2
+Belief                   오독의 여지를 어디까지 둘지가 미정이다              → Q3
+전투 밖 경로             같은 상대를 싸움 밖으로 넘어서는 길이 없다          → Q8
 ```
 
 ## 수명
@@ -53,6 +60,7 @@ master/     현재 상태    world/ view/ 처럼 계속 갱신된다
 | [overlay.md](overlay.md) | Capability × 현재 구현 상태 (IMPLEMENTED/PARTIAL/MISSING) | Master Design Agent |
 | [frontier.md](frontier.md) | `FR-*` 후보 + Human 선택 기록 | Agent 제안 / **Human** 선택 |
 | [candidates/](candidates/) | `CC-*.md` — 미승인 Constraint Candidate | Agent 제안 / **Human** 승인 |
+| [open-questions.md](open-questions.md) | 승인 대기 · Constraint 충돌 · 설계 공백 · Trade-off | Agent 제기 / **Human** 결정 |
 
 ## 두 층의 접합점
 

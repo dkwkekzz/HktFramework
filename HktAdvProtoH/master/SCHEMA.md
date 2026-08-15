@@ -251,6 +251,31 @@ Agent 는 후보와 근거를 제공하되 우선순위를 확정하지 않는�
 
 ---
 
+## open-questions.md
+
+Agent 가 임의로 결정하지 않고 남긴 것 — Constraint 승인 대기 · Constraint 충돌 ·
+설계 공백 · Trade-off 가 모인다. Agent 가 쓰고 Human 이 `DECISION` 줄에 답한다.
+
+```markdown
+## Q<번호>. <한 줄 질문> — OPEN | CLOSED [· 차단]
+
+    무엇          <무엇이 결정되지 않았는가>
+    영향          <결정되지 않아 지금 무엇이 막히거나 흔들리는가>
+    선택지        (a) ... → 그 결과
+                  (b) ... → 그 결과
+    DECISION      <PENDING>
+```
+
+`차단` 표시는 이것이 답해지기 전에는 다음 단계로 갈 수 없다는 뜻이다.
+답이 정해지면 해당 Node/Constraint 에 반영하고 `CLOSED` 로 바꾼다.
+항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
+
+Agent 는 여기에 질문을 남길 뿐 스스로 답하지 않는다.
+특히 Constraint 충돌은 해결하지 말고 Conflict · Affected Nodes · Trade-off ·
+Expected Consequences 를 적어 노출한다.
+
+---
+
 ## candidates/CC-*.md
 
 ```markdown

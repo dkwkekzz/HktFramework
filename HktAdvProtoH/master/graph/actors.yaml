@@ -20,12 +20,13 @@ nodes:
     type: actor
     kind: CREATURE
     perspective: >
-      플레이어를 적으로 인식하고 자기 자원 안에서 공세와 방어를 반복한다.
-      플레이어와 같은 전투 규칙 아래 있다 — 공격권을 뺏기면 똑같이 몸이 열린다.
-    wants:
-      - MG-OVERCOME-SUPERIOR-OPPONENT   # 같은 Goal 을 반대편에서 소유한다 (대칭)
+      플레이어와 같은 전투 규칙 아래 있다 — 공격에 힘을 몰면 똑같이 몸이 열리고,
+      공격권을 뺏기면 똑같이 무너진다. 예외를 갖지 않는다.
+    wants: []
+    # 비어 있는 이유: 이 Actor 가 무엇을 원하는지 원본 문서가 공급하지 않는다.
+    # MA-PLAYER 의 Goal 을 여기에 복사하지 않는다 — Goal 의 owner 는 하나이고,
+    # "상대도 같은 것을 원한다" 는 규칙의 대칭일 뿐 이 존재의 동기가 아니다.
+    # 적대의 이유(왜 앞을 막는가)는 World Cause 가 정해져야 나온다 → open-questions.md Q2
     knows: []
     believes: []
     # C007 의 control=autonomous 존재가 이 자리에 해당한다.
-    # 이 Actor 가 세계에서 누구이며 왜 적대하는지는 원본 문서가 공급하지 않는다 —
-    # World Cause 는 root.md 와 이후 M2 확장이 채운다.

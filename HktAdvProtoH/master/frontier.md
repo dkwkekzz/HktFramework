@@ -93,6 +93,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
                          같은 스킬도 언제 맞았는지에 따라 결과가 달라진다
     Why one Cycle        배분 상태 1종 + 스킬 구간별 배분 정의.
                          단, 관찰 표면이 함께 커져야 "읽을 수 있다" 가 성립한다
+    Blocked By           open-questions.md **Q4** — 상대가 열린 몸을 읽지 못하면
+                         내가 여는 위험만 사라지고 상대를 노리는 이득만 남는다
     Status               PROPOSED
 
 ### FR-MATCHUP-MAKES-THE-CHOICE
@@ -121,6 +123,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Why one Cycle        제약 판정 1종 + 실패 대가 1종 + 조건 합성 1종.
                          겹칠 조건이 이미 있어야 의미가 있으므로 앞의 후보들에 의존한다
     Depends On           FR-BREAK-OPENS-THE-BURST-WINDOW · FR-FLOW-OPENS-THE-BODY
+    Blocked By           open-questions.md **Q4** — 상대가 읽지 못하면 제약이 위험이 아니다.
+                         DC-COMBAT-RISK-BUYS-POWER 의 `risk_is_readable_by_opponent` 가
+                         PvE 에서 참이 되지 않는다
     Status               PROPOSED
 
 ## 추천 순서와 근거 (확정 아님 — Human 이 고른다)

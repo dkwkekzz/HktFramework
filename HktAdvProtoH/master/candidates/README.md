@@ -2,7 +2,13 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **없음**
+현재 3종 — 전투 Graph 를 세우며 반복 발견된 패턴이다. 전부 `PENDING` (Human 결정: Q7).
+
+| Candidate | 반복된 곳 | 승격 시 제한하는 것 |
+|---|---|---|
+| [CC-SINGLE-BUDGET-FORCES-TRADEOFF](CC-SINGLE-BUDGET-FORCES-TRADEOFF.md) | 9개 MP 중 6개 · `opposes` 관계 대부분 | 역할별 별도 게이지 금지 |
+| [CC-CHOICE-REQUIRES-READABLE-WORLD](CC-CHOICE-REQUIRES-READABLE-WORLD.md) | 전투 3건 + C007 R2 · C009 R1 | 외워야만 아는 판정 조건 금지 |
+| [CC-SAME-RULES-FOR-ALL-BODIES](CC-SAME-RULES-FOR-ALL-BODIES.md) | 원본 §16 데이터 형태 · C007 Actor 속성 | 특정 존재의 규칙 면제 금지 (보스 Super Armor 와 긴장) |
 
 ## 이것이 무엇인가
 
