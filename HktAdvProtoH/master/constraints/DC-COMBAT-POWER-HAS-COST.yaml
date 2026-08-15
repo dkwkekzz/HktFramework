@@ -1,0 +1,34 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §3.3 · §7 · §12 · §21 Phase 6
+# 2026-08-15 Human 지시로 반영.
+id: DC-COMBAT-POWER-HAS-COST
+type: constraint
+
+statement: >
+  더 강한 결과는 공짜가 아니다 — 힘을 한쪽에 집중할수록 다른 쪽이 실제로 비고,
+  더 큰 위력은 세계가 참·거짓을 판정할 수 있는 제약과 위험의 수용과 교환되며,
+  정의된 실패 사건이 발생하면 그 대가가 즉시 적용된다.
+rationale: >
+  힘은 집중과 제약에서 나온다 (§3.3 — 한쪽에 집중할수록 다른 쪽이 비며, 더 큰 위험과
+  제약을 받아들일수록 더 강한 결과를 얻는다). 제약은 어려운 척하는 설명이 아니라
+  실제 위험이어야 한다 (§12 중요). 검증 질문: 강한 스킬이 무료로 강하지 않은가 (§21).
+
+scope:
+  - COMBAT
+
+requires:
+  - concentration_opens_the_other_side   # 집중은 반대쪽을 실제로 비운다 (§3.3 · §7)
+  - power_traded_for_accepted_risk       # 위력은 수용한 위험·제약과 교환된다 (§3.3 · §12)
+  - restriction_world_verifiable         # 제약은 세계가 참/거짓을 판정할 수 있는 조건이다 (§12)
+  - failure_consequence_applies          # 실패 사건 발생 시 정의된 Consequence 즉시 적용 (§12)
+prohibits:
+  - text_only_unverifiable_restriction   # 세계가 판정할 수 없는 텍스트 설정만의 제약 (§12)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+
+relations:
+  supports:
+    - DC-COMBAT-PLAYER-CAUSALITY   # 검증 가능한 제약과 정의된 실패 대가는 강한 결과의 원인을 관찰 가능하게 만든다
+  conflicts_with: []

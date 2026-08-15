@@ -1,0 +1,29 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §3.1 · §6.2 설계 포인트 · §6.3
+# 2026-08-15 Human 지시로 반영. 원본은 "작게 유지" 라는 정도 조절이지 금지가 아니다 —
+# 그래서 이 Constraint 는 requires / prohibits 없이 prefers 만 갖는다.
+# (이전 반영이 이것을 금지로 격상해 Human 지시로 제거된 이력이 있다.)
+id: DC-COMBAT-MATCHUP-SOFT
+type: constraint
+
+statement: >
+  공격 형태와 방어 형태의 상성은 선택을 만들되 결과를 지배하지 않는다.
+rationale: >
+  캐릭터 중심 전투에서 하드 카운터는 플레이 경험을 억압할 수 있다 (§3.1).
+  "이 무기 없으면 못 잡는다" 보다 "이 무기로 방어를 깨면 폭딜이 열린다" 가 목표다 (§6.2).
+
+scope:
+  - COMBAT
+
+requires: []
+prohibits: []
+prefers:
+  - small_damage_matchup_spread         # 피해 상성 폭은 작게 유지한다 (§3.1)
+  - matchup_feel_via_break_efficiency   # 강한 상성 감각은 균형 붕괴 효율 쪽에 배치한다 (§3.1 · §6.3)
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+
+relations:
+  supports: []
+  conflicts_with: []

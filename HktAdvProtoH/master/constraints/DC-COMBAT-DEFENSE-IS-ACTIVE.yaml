@@ -1,0 +1,30 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §1.1 · §3.2 · §8
+# 2026-08-15 Human 지시로 반영. 수동 피해 감쇄(§5.2)는 원본이 함께 두는 바닥이므로
+# 금지하지 않는다 — 이 Constraint 는 그 위에 능동층이 있어야 한다는 요구다.
+id: DC-COMBAT-DEFENSE-IS-ACTIVE
+type: constraint
+
+statement: >
+  방어는 단순 피해 감소 수치로 끝나지 않는다 — 방어가 플레이어가 선택하는 행동으로
+  존재하고, 잘한 방어의 성공은 상대의 공격권을 빼앗거나 다음 공격 기회로 이어질 수 있다.
+rationale: >
+  방어가 수치이기만 하면 전투에 공방 심리전이 생기지 않는다 (§1.1).
+  좋은 방어는 피해를 덜 받는 행위로 끝나지 않고 상대의 공격권을 빼앗아
+  다음 폭딜 창을 만든다 (§3.2).
+
+scope:
+  - COMBAT
+
+requires:
+  - defense_as_player_action                      # 방어가 선택 가능한 행동으로 존재한다 (§8)
+  - defense_success_creates_offense_opportunity   # 방어 성공이 공격 기회로 전환될 수 있다 (§3.2)
+prohibits: []
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+
+relations:
+  supports: []
+  conflicts_with: []
