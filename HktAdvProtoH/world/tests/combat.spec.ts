@@ -494,6 +494,7 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'moveMode',
       'defense', // C010
       'stance', // C010
+      'exposedFor', // C011
     ]);
   });
 

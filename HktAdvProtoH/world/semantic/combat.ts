@@ -85,6 +85,32 @@ export const GUARD_CP_PER_DAMAGE = 0.8;
 // 계속 막기만 하는 선택이 스스로를 끝내는 자리다.
 export const GUARD_BREAK_LOCK = 1.5;
 
+// ── 시점과 열림 (C011) ────────────────────────────────────────────────
+// 결정론 시뮬레이션 값이므로 헤더 상수로 고정한다.
+// 앞의 넷은 원본 기획서 §8.2 · §8.4 의 값 그대로이고, 마지막 하나만 이 Cycle 이 정한다.
+
+// INTENT-PERFECT-GUARD-001 — 자세를 세운 뒤 이 시간 안에 닿은 타격이 완벽하게 막힌다 (초).
+// 성패를 가르는 것은 확률이 아니라 두 시각의 관계다 (DC-COMBAT-PLAYER-CAUSALITY).
+export const PERFECT_GUARD_WINDOW = 0.2;
+
+// INTENT-PERFECT-GUARD-REWARD-001 — 완벽하게 막아 낸 자가 얻는 기력.
+// 지금까지 기력이 도는 길은 때려서 맞히는 것 하나뿐이었다. 여기서 두 번째 길이 열린다.
+// 새 자원이 아니라 같은 Cp 다 (DC-COMBAT-SHARED-BUDGET).
+export const PERFECT_GUARD_CP_GAIN = 10;
+
+// INTENT-EXPOSED-001 — 완벽하게 막힌 자가 열려 있는 시간 (초).
+export const EXPOSED_DURATION = 0.8;
+
+// INTENT-COUNTER-001 — 되받아침이 본래 피해에 더하는 비율.
+// 방어력 감쇄보다 앞에 걸린다 — 본래 피해 자체가 커지는 것이다.
+export const COUNTER_DAMAGE_BONUS = 0.25;
+
+// INTENT-PERFECT-GUARD-ONCE-001 — 자세를 세운 뒤 다시 세울 수 있게 되기까지의 시간 (초).
+// 원본에 없는 값이며 C011 이 소유한다 — 이것이 없으면 자세를 여닫는 것만으로 완벽 창이
+// 끊임없이 새로 열려 "되풀이되지 않는다" 가 말뿐인 문장이 된다.
+// 기본 스킬 한 번의 길이(0.6)와 같게 두어 한 번의 공격을 읽는 주기가 그대로 재세움 주기다.
+export const GUARD_REARM_LOCK = 0.6;
+
 export function clamp(value: number, min: number, max: number): number {
   return value < min ? min : value > max ? max : value;
 }
@@ -128,6 +154,25 @@ export function isGuardBroken(actor: ActorState, time: number): boolean {
   return time < actor.guardBrokenUntil;
 }
 
+// Actor.Exposed (파생 상태 — C011, INTENT-EXPOSED-001 · INTENT-EXPOSED-EXPIRES-001)
+// GuardBroken 과 같은 형태다 — 거두는 Rule 없이 세계 시각이 지나가면 저절로 끝난다.
+// 열려 있는 동안 이 몸에 닿는 모든 타격이 되받아침이 된다.
+export function isExposed(actor: ActorState, time: number): boolean {
+  return time < actor.exposedUntil;
+}
+
+// Self.PerfectWindowOpen (파생 상태 — C011, INTENT-PERFECT-GUARD-OBSERVE-001)
+// 지금 이 자세가 아직 완벽하게 막을 수 있는 창 안인가.
+// 읽어야 할 것은 상대의 공격이지 자기 세계의 규칙이 아니므로 관찰로 제공한다.
+export function isPerfectWindowOpen(actor: ActorState, time: number): boolean {
+  return actor.stance === 'guard' && time - actor.guardStartedAt <= PERFECT_GUARD_WINDOW;
+}
+
+// Self.GuardRearmAt (파생 — C011) — 자세를 다시 세울 수 있게 되는 세계 시각.
+export function guardRearmAt(actor: ActorState): number {
+  return actor.guardStartedAt + GUARD_REARM_LOCK;
+}
+
 // 이 Actor 가 지금 실제로 나아가는 빠르기 (INTENT-TEMPO-MOVE-001 · INTENT-RUN-001)
 export function effectiveMoveSpeed(actor: ActorState): number {
   const modifiers = actorModifiers(actor);
@@ -146,16 +191,29 @@ export function skillDuration(actor: ActorState, kind: SkillKind): number {
 // World.StrikeEvents — 한 번의 타격이 낳은 결과. 시간이 지나면 세계에서 사라진다.
 //
 // C010 CHANGED — 값 하나가 아니라 그 값을 만든 내역 전부가 실린다
-// (INTENT-STRIKE-BREAKDOWN-001). 여섯 값의 관계가 곧 계산 순서다:
-//   baseAmount → (방어력) → mitigated → (막기) → amount(생명) + cpPaid(기력)
+// (INTENT-STRIKE-BREAKDOWN-001).
+//
+// C011 CHANGED — 여기에 "시점이 무엇을 했는가" 가 더해진다
+// (INTENT-TIMING-BREAKDOWN-001). 열한 값의 관계가 곧 계산 순서다:
+//   (되받아침) → baseAmount → (방어력) → mitigated → (막기)
+//     → amount(생명) + cpPaid(기력) 또는 cpGained(기력)
 export interface StrikeEvent {
   attackerId: string;
   targetId: string;
   skill: SkillKind;
-  baseAmount: number; // 그 스킬의 본래 피해
+  baseAmount: number; // 증폭까지 끝난 본래 피해 (되받아침이면 이미 커져 있다)
+  counterBonus: number; // C011 — 되받아침이 키운 몫. 증폭 전 값 = baseAmount - counterBonus
+  counter: boolean; // C011 — 되받아친 타격인가 (맞은 자가 열려 있었는가)
   mitigated: number; // 방어력이 걷어낸 뒤 남은 피해
-  guarded: boolean; // 막아 낸 타격인가
-  cpPaid: number; // 막느라 치른 기력 (막지 않았으면 0)
+  guarded: boolean; // 막아 낸 타격인가 (완벽하게 막은 것도 참이다)
+  perfectGuard: boolean; // C011 — 완벽하게 막아 낸 타격인가
+  // C011 — 막힌 타격이면 자세를 세운 뒤 닿기까지 걸린 시간.
+  // 막히지 않았으면 null 이다 — 잴 대상이 없기 때문이다.
+  // 이 값과 PERFECT_GUARD_WINDOW 의 비교가 곧 완벽 판정의 전부이므로,
+  // 보는 이는 상수를 몰라도 여러 번의 값을 비교해 창의 크기를 스스로 안다.
+  guardElapsed: number | null;
+  cpPaid: number; // 막느라 치른 기력 (막지 않았거나 완벽했으면 0)
+  cpGained: number; // C011 — 완벽하게 막아 얻은 기력 (아니면 0)
   amount: number; // 실제로 생명에서 나간 몫
   guardBroken: boolean; // 이 타격으로 방어가 무너졌는가
   position: WorldPosition;
@@ -179,7 +237,11 @@ export type MutableAttributeId =
   // C010 — 방어력과 자세. GuardBroken 은 파생이므로 여기 없고,
   // GuardBrokenUntil 은 세계 시각이라 밖에서 넣을 값이 아니다.
   | 'defense'
-  | 'stance';
+  | 'stance'
+  // C011 — 열림. ExposedUntil 을 직접 넣게 하지 않는 이유는 그것이 세계 시각이어서
+  // 밖에서 의미 있는 값을 고를 수 없기 때문이다 (C010 이 guardBrokenUntil 에 내린 판단과 같다).
+  // 대신 "지금부터 몇 초 동안 열려 있게 한다" 를 받는다. 0 이면 그 자리에서 닫힌다.
+  | 'exposedFor';
 
 export interface MutableAttribute {
   id: MutableAttributeId;
@@ -203,6 +265,9 @@ export const MUTABLE_ATTRIBUTES: readonly MutableAttribute[] = [
   // strikeEvents 의 내역으로 직접 확인된다 (MIN_DAMAGE_RATIO).
   { id: 'defense', min: 0, max: 100000 },
   { id: 'stance', values: ['open', 'guard'] },
+  // C011 — 아무 몸이나 열어 두면 자율 존재의 공격을 기다리지 않고도
+  // 되받아침(+COUNTER_DAMAGE_BONUS)이 strikeEvents 의 내역으로 직접 확인된다.
+  { id: 'exposedFor', min: 0, max: 600 },
 ];
 
 export function findMutableAttribute(id: string): MutableAttribute | undefined {

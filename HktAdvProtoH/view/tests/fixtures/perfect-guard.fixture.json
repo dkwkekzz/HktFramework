@@ -1,5 +1,5 @@
 {
-  "specId": "VIEW-GUARD-TRADES-BODY-FOR-RESOURCE-001",
+  "specId": "VIEW-PERFECT-GUARD-TURNS-THE-TABLE-001",
   "scene": "mining-field",
   "observer": {
     "id": "observer-1",
@@ -10,23 +10,23 @@
     {
       "id": "player-1",
       "role": "player-character",
-      "state": "heavy-attack",
+      "state": "idle",
       "name": "Player 1",
       "kind": "rabbit-swordsman",
       "position": {
         "x": 0,
         "z": 0
       },
-      "progress": 0.4,
+      "progress": 0.0,
       "vitality": {
-        "health": 150,
+        "health": 200,
         "healthMaximum": 200,
         "downed": false
       },
       "attributes": {
-        "energy": 12,
+        "energy": 40,
         "energyMaximum": 100,
-        "moveMode": "run",
+        "moveMode": "walk",
         "control": "player",
         "tempoStats": {
           "moveSpeed": 6,
@@ -34,7 +34,7 @@
           "actionSpeed": 1
         },
         "modifiers": {
-          "energyCharge": 0.5,
+          "energyCharge": 1,
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
@@ -62,8 +62,8 @@
           "x": 1,
           "z": 0
         },
-        "startedAt": 0,
-        "perfectWindow": false
+        "startedAt": 12.05,
+        "perfectWindow": true
       },
       "exposure": {
         "exposed": false,
@@ -73,7 +73,7 @@
     {
       "id": "npc-1",
       "role": "npc-character",
-      "state": "hit",
+      "state": "attack",
       "name": "Wanderer 1",
       "kind": "wanderer",
       "position": {
@@ -118,8 +118,8 @@
       },
       "stance": {
         "guarding": false,
-        "broken": true,
-        "brokenUntil": 9.4,
+        "broken": false,
+        "brokenUntil": 0,
         "facing": {
           "x": -1,
           "z": 0
@@ -128,8 +128,8 @@
         "perfectWindow": false
       },
       "exposure": {
-        "exposed": false,
-        "until": 0
+        "exposed": true,
+        "until": 13.0
       }
     },
     {
@@ -248,12 +248,12 @@
     {
       "id": "world.time",
       "kind": "counter",
-      "value": 12.5
+      "value": 12.2
     },
     {
       "id": "self.hp",
       "kind": "counter",
-      "value": 150
+      "value": 200
     },
     {
       "id": "self.hpMax",
@@ -263,7 +263,7 @@
     {
       "id": "self.cp",
       "kind": "counter",
-      "value": 12
+      "value": 40
     },
     {
       "id": "self.cpMax",
@@ -334,6 +334,31 @@
       "id": "self.guardBrokenUntil",
       "kind": "counter",
       "value": 0
+    },
+    {
+      "id": "self.guardStartedAt",
+      "kind": "counter",
+      "value": 12.05
+    },
+    {
+      "id": "self.perfectWindow",
+      "kind": "flag",
+      "value": true
+    },
+    {
+      "id": "self.guardRearmAt",
+      "kind": "counter",
+      "value": 12.65
+    },
+    {
+      "id": "self.exposed",
+      "kind": "flag",
+      "value": false
+    },
+    {
+      "id": "self.exposedUntil",
+      "kind": "counter",
+      "value": 0
     }
   ],
   "strikes": [
@@ -341,12 +366,62 @@
       "attackerId": "npc-1",
       "targetId": "player-1",
       "skill": "attack",
-      "amount": 2.25,
+      "amount": 0,
       "at": {
         "x": 0,
         "z": 0
       },
-      "since": 8.0,
+      "since": 12.2,
+      "breakdown": {
+        "base": 20,
+        "mitigated": 15,
+        "guarded": true,
+        "energyPaid": 0,
+        "guardBroken": false
+      },
+      "timing": {
+        "perfect": true,
+        "elapsed": 0.15,
+        "counter": false,
+        "counterBonus": 0,
+        "energyGained": 10
+      }
+    },
+    {
+      "attackerId": "player-1",
+      "targetId": "npc-1",
+      "skill": "attack",
+      "amount": 22,
+      "at": {
+        "x": 1.4,
+        "z": 0
+      },
+      "since": 12.6,
+      "breakdown": {
+        "base": 25,
+        "mitigated": 22,
+        "guarded": false,
+        "energyPaid": 0,
+        "guardBroken": false
+      },
+      "timing": {
+        "perfect": false,
+        "elapsed": null,
+        "counter": true,
+        "counterBonus": 5,
+        "energyGained": 0
+      }
+    },
+    {
+      "attackerId": "npc-1",
+      "targetId": "npc-2",
+      "skill": "attack",
+      "amount": 2.25,
+      "at": {
+        "x": 4,
+        "z": 2
+      },
+      "since": 12.7,
       "breakdown": {
         "base": 20,
         "mitigated": 15,
@@ -356,57 +431,7 @@
       },
       "timing": {
         "perfect": false,
-        "elapsed": 0.9,
-        "counter": false,
-        "counterBonus": 0,
-        "energyGained": 0
-      }
-    },
-    {
-      "attackerId": "npc-2",
-      "targetId": "player-1",
-      "skill": "heavy-attack",
-      "amount": 50,
-      "at": {
-        "x": 0.4,
-        "z": 0.2
-      },
-      "since": 8.2,
-      "breakdown": {
-        "base": 55,
-        "mitigated": 50,
-        "guarded": false,
-        "energyPaid": 30,
-        "guardBroken": true
-      },
-      "timing": {
-        "perfect": false,
-        "elapsed": 0.9,
-        "counter": false,
-        "counterBonus": 0,
-        "energyGained": 0
-      }
-    },
-    {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "attack",
-      "amount": 17,
-      "at": {
-        "x": 3,
-        "z": 0
-      },
-      "since": 8.3,
-      "breakdown": {
-        "base": 20,
-        "mitigated": 17,
-        "guarded": false,
-        "energyPaid": 0,
-        "guardBroken": false
-      },
-      "timing": {
-        "perfect": false,
-        "elapsed": null,
+        "elapsed": 0.94,
         "counter": false,
         "counterBonus": 0,
         "energyGained": 0
