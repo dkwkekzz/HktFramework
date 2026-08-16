@@ -2,9 +2,19 @@
 
 파일 하나 = 후보 하나. 이름은 `CC-<NAME>.md`. 형식은 [../SCHEMA.md](../SCHEMA.md).
 
-현재: **없음**
+현재: **4건 · 전부 `PENDING`** (MF C010 · C011 접수, 2026-08-16)
 
-전투 Graph 에서 발견해 올렸던 CC 3종은 Human 지시로 제거했다.
+| Candidate | 관찰 | 4항 | 한 줄 |
+|---|---|---|---|
+| [CC-RESULT-CARRIES-ITS-BREAKDOWN](CC-RESULT-CARRIES-ITS-BREAKDOWN.md) | C007 · C010 · C011 | 4/4 | 결과에는 그 값을 만든 내역이 같은 자리에 함께 실린다 |
+| [CC-TIMED-STATE-EXPIRES-BY-CLOCK](CC-TIMED-STATE-EXPIRES-BY-CLOCK.md) | C010 · C011 | 3.5/4 | 시간으로 끝나는 상태는 만료 Rule 없이 시각 비교로 산다 |
+| [CC-STANCE-IS-NOT-AN-ACTION](CC-STANCE-IS-NOT-AN-ACTION.md) | C010 (+C011 재사용) | 3/4 | 태세는 행동 칸을 쓰지 않는다 |
+| [CC-OUTSIDE-HAND-STAYS-REACHABLE](CC-OUTSIDE-HAND-STAYS-REACHABLE.md) | C011 | 1.5/4 | 밖의 손이 세운 상태도 규칙으로 도달 가능해야 한다 |
+
+앞의 하나만 4항을 다 채운다. 나머지 셋은 **아직 이르다는 판단까지 함께 적어 두었다** —
+지금 결정하지 않아도 되고, 두 번째 관찰이 왔을 때 이미 판단된 것임을 알 수 있게 하는 것이 목적이다.
+
+전투 Graph 에서 발견해 올렸던 CC 3종은 Human 지시로 제거했다 (위 4건과 무관하다).
 
 ## 이것이 무엇인가
 
