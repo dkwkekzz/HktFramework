@@ -15,22 +15,24 @@ CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule �
 
 전투 영역 주입 — 원본 `design/Design-Combat-OffenseDefense-R0.md` (본문 바이트 단위 보존).
 Graph 는 Quality Gate 자가 점검(정책 §25)까지 돌렸다.
-**Constraint 층은 비어 있다** — Agent 가 원본에서 산출했던 DC/CC 를 Human 지시로 제거했다.
+기준 시점: **C011 완료** (MF 반영, 2026-08-16).
 
 ```text
-Constraint    0     제거됨 — Human 이 세운다 (constraints/README.md)
-Candidate     0     제거됨
+Constraint    5     Human 지시로 원본의 명시 원칙을 반영 (2026-08-15 M1)
+Candidate     4     전부 PENDING — MF(C010·C011) 접수 (candidates/README.md)
 Actor         2     Knowledge 2 · Belief 0
-Goal          2     Possibility 9
-Capability   17     IMPLEMENTED 2 · PARTIAL 2 · MISSING 13
-Frontier      6     전부 PROPOSED — 선택 없음
+Goal          2     Possibility 9  (닫힘 2 — MP-TRADE-BODY-FOR-RESOURCE · MP-READ-AND-COUNTER)
+Capability   17     IMPLEMENTED 6 · PARTIAL 2 · MISSING 9
+Frontier      6     CLOSED 2 (C010 · C011) · PROPOSED 4
 WorldState    0     비어 있다 (아래)
 
-Open Question 3   → open-questions.md
+Open Question 4   → open-questions.md
 ```
 
-Constraint 가 없으므로 Graph 의 `constraints` · `constraint_evaluation` 은 전부 비어 있고,
-Frontier 의 후보 조건 6번(Active Constraint 와 양립)은 판정되지 않는다.
+닫힌 Cycle 두 개가 이 층에 반영된 결과다 — 자세한 내역은
+[overlay.md](overlay.md) 의 `이번 갱신` 과 [frontier.md](frontier.md) 의 `선택 기록` 에 있다.
+두 Cycle 모두 `08-verification.md` 의 STATUS 는 아직 `IN PROGRESS` 다 (Human Play 확인 대기) —
+Overlay 승격은 실측 기록을 근거로 했으므로, Play 확인에서 되돌아오면 함께 되돌린다.
 
 아직 비어 있는 것 — 지어내지 않고 남긴 자리다:
 

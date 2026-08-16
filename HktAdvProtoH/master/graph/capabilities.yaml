@@ -26,9 +26,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED]
     constraints: [DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 의미 자체가 한 예산이다 — 방어·기동이 아직 안 쓰는 것은
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 의미 자체가 한 예산이다 — 아직 안 쓰는 쪽이 있는 것은
                                                # overlay PARTIAL(구현 공백)이지 Constraint 위반이 아니다 (정책 §16)
-    overlay: PARTIAL
+    overlay: PARTIAL                           # C010 방어 소비 · C011 방어 획득까지 왔다.
+                                               # 남은 공백은 회피(MC-EVADE)·자세 유지(MC-FORTIFY)·서약(MC-VOW)
 
   - id: MC-BODY-FACING
     type: capability
@@ -48,7 +49,8 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다 (원본 §15.1)
-    overlay: PARTIAL
+    overlay: PARTIAL                           # C010 이 방어 내역을, C011 이 시점·조건 내역을 열었다
+                                               # (StrikeEvent 11값). 배율 일반(Flow·Matchup)은 아직 없다
 
   # ── 아직 세계에 없는 것 ───────────────────────────────────────────────
 
@@ -63,8 +65,9 @@ nodes:
     # 대신 막기와 자세가 딛는 바닥으로서 그 둘에 요구된다 (원본 §5.2 · §7).
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 줄인다 (원본 §5.2)
-    overlay: MISSING
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # C010 실측 — 감쇄가 맞은 뒤에만 걸리고 바닥이 있다
+                                               # (08-verification "방어력의 바닥")
+    overlay: IMPLEMENTED                       # C010
 
   - id: MC-GUARD
     type: capability
@@ -74,9 +77,13 @@ nodes:
     required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE]
     constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (원본 §8.1)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (원본 §11)
-    overlay: MISSING
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # C010 실측 — 막기는 고르는 행동이고 고르는 대가가 있다
+                                               # (requires[defense_as_player_action])
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # C010 실측 — 전용 게이지 없이 같은 기력으로 받아낸다.
+                                               # 막은 뒤 고급 스킬이 insufficient-cp 로 막힌다
+    overlay: IMPLEMENTED                       # C010
+    # semantic 의 "균형 부담" 은 아직 세계에 없다 — 지금 막기가 치르는 것은 자원 하나뿐이며
+    # 무너짐도 자원 고갈로만 온다. 균형 쪽은 MC-BREAK 이 들어오는 Cycle 이 채운다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -86,9 +93,11 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (원본 §8.2)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (원본 §8.2)
-    overlay: MISSING
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # C011 실측 — 두 시각의 차(GuardElapsed)가 관찰되고
+                                               # 같은 세계 두 번이 같은 결과를 낸다 (toEqual)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # C011 실측 — 막아 낸 것이 자원과 상대의 틈을 함께 만든다
+                                               # (requires[defense_success_creates_offense_opportunity])
+    overlay: IMPLEMENTED                       # C011
 
   - id: MC-EVADE
     type: capability
@@ -107,9 +116,12 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (원본 §8.4 · §10)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (원본 §3.2)
-    overlay: MISSING
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # C011 실측 — 노출 조건이 성립할 때만 커지고
+                                               # 키운 몫(CounterBonus)이 내역에 실린다
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # C011 실측 — 읽은 방어가 만든 틈을 되받아친다
+    overlay: IMPLEMENTED                       # C011
+    # 균형 부담(Break) 쪽 의미는 아직 없다 — semantic 의 "더 큰 균형 부담" 은
+    # MC-BREAK 이 들어오는 Cycle 이 채운다 (C011 은 피해 증폭만 닫았다).
 
   - id: MC-BREAK
     type: capability
