@@ -3,16 +3,18 @@
 Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 아직 없는 가장 작은
 플레이 가능한 Capability 단위**다. Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다.
 
-출처: `design/Design-Combat-OffenseDefense-R0.md` §21 Implementation Roadmap + `overlay.md`
+출처: `design/Design-Combat-OffenseDefense-R0.md` **R1 (2026-08-17 전면 개정)** §14 확장 순서
++ `overlay.md`
 
-> **번호 주의** — 원본 문서는 자신을 "C008" 로 부르지만 이 저장소의 C008 은
-> `cycles/C008-camera-orientation` 이고 C009 까지 닫혀 있다. 아래 후보가 선택되면
-> **C010 이후**의 Cycle 로 열린다. 원본의 C008 번호를 Cycle ID 로 쓰지 않는다.
+> **번호 주의** — 원본 문서는 자신을 "C008" 로 부르고 §14 에 C008~C014 단계 번호를 쓰지만,
+> 전부 **문서 내부 번호**다. 이 저장소는 C011 까지 닫혀 있으므로 아래 후보가 선택되면
+> **C012 이후**의 Cycle 로 열린다. 문서 번호를 Cycle ID 로 쓰지 않는다.
 
-> **Constraint 판정 완료 (2026-08-15)** — Human 지시로 반영된 DC 5종
-> (`master/constraints/`) 기준으로 후보 조건 6번을 판정했다. 전 후보 SATISFIED —
-> 후보들이 DC 와 같은 원본 기획서에서 나왔으므로 어긋날 수 없다.
-> 문안 확정은 `open-questions.md` Q9 (차단 아님).
+> **R1 개정 반영 (2026-08-17)** — Human 이 전투 기획을 "가장 단순한 공격/방어 공식 먼저" 로
+> 재정의했다. 구판(R0) 기준 후보 6종 중 2종은 이미 Cycle 로 닫혔고(선택 기록),
+> 4종은 R1 §13·§14 에 따라 DEFERRED — 기본 공식이 검증되기 전에는 다시 세우지 않는다.
+> C009(Critical) 층은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하므로 후보로 올리지 않았다
+> → `open-questions.md` Q11.
 
 ## 후보 조건
 
@@ -26,45 +28,27 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 7. 완료 후 공유 World 에 재사용 가능한 Capability 로 누적할 수 있다
 ```
 
-```text
-BAD    Perfect Guard 시스템 구현
-GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 상대를 노출시킬 수 있다
-```
-
 ## 후보
 
-### FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Playable Result      플레이어가 앞을 향해 막아 들어온 공격을 생명 대신 기력으로 받아내고,
-                         막을 기력이 다하면 방어가 무너져 그대로 얻어맞는다
-    Source Goal          MG-SURVIVE-ENEMY-OFFENSIVE
-    Source Possibility   MP-TRADE-BODY-FOR-RESOURCE
-    Missing / Partial    MC-GUARD (MISSING) · MC-DEFENSE-MITIGATION (MISSING)
-                         MC-CP-ECONOMY (PARTIAL → 방어가 같은 예산을 쓰기 시작한다)
-    원본 근거            §5.2 Defense · §8.1 Guard · §11 CP Economy · §21 Phase 1
-    Active Constraints   DC-COMBAT-DEFENSE-IS-ACTIVE · DC-COMBAT-SHARED-BUDGET ·
-                         DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 막기는 행동이고(수치가 아니다), 전용 게이지 없이 같은
-                         기력을 소모하며, 무너짐의 원인(기력 고갈)이 관찰 가능하다
-    Observable Result    막은 순간 생명이 줄지 않고 기력이 줄어드는 것이 보인다.
-                         기력이 모자라면 방어가 무너지는 것이 사유와 함께 보인다
-    Why one Cycle        새 행동 1종(막기) + 새 값 1종(방어력) + 기존 타격 규칙의 결과 분기.
-                         C007 의 자원·행동·방향이 이미 있어 그 위에 얹힌다
-    Status               PROPOSED
-
-### FR-PERFECT-GUARD-TURNS-THE-TABLE
-    Playable Result      플레이어가 공격이 닿기 직전에 막아 피해를 전혀 받지 않고,
-                         상대를 잠시 열린 상태로 만들어 되받아친다
+### FR-STATS-DECIDE-THE-DAMAGE
+    Playable Result      공격 능력치가 높은 캐릭터는 같은 스킬로 더 아프게 때리고,
+                         방어 능력치가 높은 캐릭터는 같은 공격을 덜 아프게 맞는다.
+                         그 차이를 장비·성장으로 플레이어가 직접 만들 수 있다
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-READ-AND-COUNTER
-    Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
-    원본 근거            §8.2 Perfect Guard · §8.4 Counter · §18.2 예시 · §21 Phase 2
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-DEFENSE-IS-ACTIVE
-    Constraint Eval      SATISFIED — 성공 조건은 확률이 아니라 방어 시작과 충돌의 시점
-                         관계이고, 성공이 공격권을 뒤집는다
-    Observable Result    같은 막기라도 시점이 맞으면 다른 결과가 나오는 것이 보이고,
-                         상대가 열린 구간이 눈에 드러난다
-    Why one Cycle        Guard 위에 시점 판정 1종과 노출 상태 1종을 더한다
-    Depends On           FR-GUARD-TRADES-BODY-FOR-RESOURCE (막기가 있어야 그 시점이 있다)
+    Source Possibility   MP-OUTGROW-THE-OPPONENT
+    Missing / Partial    MC-ATTACK-POWER (MISSING) · MC-SKILL-SCALING (MISSING)
+                         MC-DEFENSE-MITIGATION (PARTIAL → 체감 구조로 CHANGED)
+    원본 근거            R1 §1~§5 공식 · §10 신규 INTENT 4종 · §11 밸런스 기준 · §16 성공 조건
+    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY
+    Constraint Eval      SATISFIED — 난수 없음(R1 §6), 같은 능력치·스킬·상대면 언제나 같은 피해.
+                         DC-COMBAT-DEFENSE-IS-ACTIVE 위반 아님 — 능동 방어는 이미 C010·C011 로
+                         세계에 있고, 이 층은 그 아래의 수동 바닥이다 (DC 주석이 명시적으로 허용)
+    Observable Result    같은 스킬의 피해 숫자가 공격 능력치에 따라 달라지는 것이 보이고,
+                         같은 공격의 피해가 상대 방어 능력치에 따라 줄어드는 것이 계산 내역
+                         (기본 피해 + 공격 기여 → 방어 배율)으로 보인다
+    Why one Cycle        새 값 2종(공격 능력치 · 스킬 기본 피해/계수) + 기존 타격 규칙 1개의
+                         CHANGED (감산 감쇄 → 기본 피해+기여, 체감 감쇄). 새 행동·새 상태 없음 —
+                         C007~C011 의 행동·자원·막기 위에 계산 층만 확장한다
     Status               PROPOSED
 
 ### FR-BREAK-OPENS-THE-BURST-WINDOW
@@ -73,14 +57,8 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-BREAK-THE-GUARD
     Missing / Partial    MC-BREAK (MISSING)
-    원본 근거            §9 Break · §9.1 Decay · §9.2 BROKEN · §21 Phase 3
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 누적·풀림·붕괴가 모두 관찰 가능한 결정적 상태이며
-                         폭발 창은 난수가 아니라 이어간 압박이 연다
-    Observable Result    쌓이는 압박이 보이고, 압박이 끊기면 풀리는 것이 보이며,
-                         무너진 동안이 명확히 구분된다
-    Why one Cycle        누적값 1종 + 붕괴 상태 1종 + 그 동안의 피해 조건 1종
-    Status               PROPOSED
+    원본 근거            구판 §9 (R1 에서 세부 삭제 — 확장 시점에 재설계)
+    Status               DEFERRED — R1 §13·§14: 기본 공식 검증 전에는 추가하지 않는다
 
 ### FR-FLOW-OPENS-THE-BODY
     Playable Result      플레이어가 힘을 공격에 몰면 그동안 몸이 실제로 열리고,
@@ -88,15 +66,8 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-EXPLOIT-OPEN-BODY
     Missing / Partial    MC-COMBAT-FLOW (MISSING) · MC-COMBAT-CAUSE-READING (PARTIAL)
-    원본 근거            §7 FLOW · §7.1 Skill Flow Profile · §21 Phase 4
-    Active Constraints   DC-COMBAT-POWER-HAS-COST · DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 공격에 몰면 방어가 실제로 비고(집중의 대가),
-                         그 열림이 관찰 가능한 상태로 드러난다
-    Observable Result    상대 행동의 어느 구간이 취약한지가 화면에서 읽히고,
-                         같은 스킬도 언제 맞았는지에 따라 결과가 달라진다
-    Why one Cycle        배분 상태 1종 + 스킬 구간별 배분 정의.
-                         단, 관찰 표면이 함께 커져야 "읽을 수 있다" 가 성립한다
-    Status               PROPOSED
+    원본 근거            구판 §7 (R1 §14 C014 Aura/Nen 집중으로 재설계 예정)
+    Status               DEFERRED — R1 §14 C014 층
 
 ### FR-MATCHUP-MAKES-THE-CHOICE
     Playable Result      플레이어가 상대의 방어 형태에 맞는 공격 형태를 골라
@@ -104,16 +75,8 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-MATCH-WEAPON-TO-ARMOR
     Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING)
-    원본 근거            §6.1 타입 정의 · §6.2 Damage Matchup · §6.3 Break Matchup · §21 Phase 5
-    Active Constraints   DC-COMBAT-MATCHUP-SOFT · DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 상성은 결정적이고, 피해 폭은 작게·강한 감각은 균형
-                         붕괴 효율 쪽이라는 prefers 와 원본 §6 표의 방향이 일치한다.
-                         표의 수치 자체는 Cycle 의 03-world-semantic 소유
-    Observable Result    선택이 결과를 바꾸는 것이 수치로 보이고,
-                         왜 그렇게 됐는지가 공격·방어 형태로 설명된다
-    Why one Cycle        공격 타입 1종 + 방어 타입 1종 + 두 표.
-                         존재 종류 정적 데이터(kind 3원소)를 건드리므로 catalog 정합이 함께 온다
-    Status               PROPOSED
+    원본 근거            구판 §6 (R1 §14 C011 Damage Type — Physical/Magic · Armor/Resistance 로 재편 예정)
+    Status               DEFERRED — R1 §14 C011 층
 
 ### FR-VOW-BUYS-POWER-WITH-RISK
     Playable Result      플레이어가 스스로 제약을 건 스킬로 규칙 위의 한 방을 내고,
@@ -121,38 +84,28 @@ GOOD   Player 가 적의 공격 직전에 Guard 하여 피해를 받지 않고 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-STAKE-EVERYTHING-ON-ONE-BLOW
     Missing / Partial    MC-VOW (MISSING) · MC-CONDITION-STACKING (MISSING)
-    원본 근거            §10 Conditional Critical · §12 Restriction/Vow · §12.1 RED FLASH · §21 Phase 6
-    Active Constraints   DC-COMBAT-POWER-HAS-COST · DC-COMBAT-PLAYER-CAUSALITY
-    Constraint Eval      SATISFIED — 제약은 세계가 판정 가능하고 실패 대가가 즉시 적용되며,
-                         큰 결과는 명시 조건의 합으로만 나온다
-    Observable Result    큰 숫자 옆에 그것을 만든 조건들이 그대로 보인다
-    Why one Cycle        제약 판정 1종 + 실패 대가 1종 + 조건 합성 1종.
-                         겹칠 조건이 이미 있어야 의미가 있으므로 앞의 후보들에 의존한다
-    Depends On           FR-BREAK-OPENS-THE-BURST-WINDOW · FR-FLOW-OPENS-THE-BODY
-    Status               PROPOSED
+    원본 근거            구판 §10 · §12 (R1 §14 C014 조건·제약·서약으로 유지)
+    Depends On           선행 층들 (R1 §14 — Aura 는 마지막 층이다)
+    Status               DEFERRED — R1 §14 C014 층
 
 ## 추천 순서와 근거 (확정 아님 — Human 이 고른다)
 
 ```text
-1  FR-GUARD-TRADES-BODY-FOR-RESOURCE     없는 것이 가장 적고 C007 자원 위에 바로 얹힌다.
-                                         "막는 행위가 실제 선택이 되는가" 를 먼저 본다
-2  FR-PERFECT-GUARD-TURNS-THE-TABLE      막기가 있어야 그 시점이 성립한다
-3  FR-BREAK-OPENS-THE-BURST-WINDOW       공방 교환이 생긴 뒤라야 압박에 대상이 생긴다
-4  FR-FLOW-OPENS-THE-BODY                읽을 것이 늘어난 뒤에 읽는 법을 준다
-5  FR-MATCHUP-MAKES-THE-CHOICE           전투 리듬이 선 뒤에 선택지를 넓힌다
-6  FR-VOW-BUYS-POWER-WITH-RISK           겹칠 조건이 다 생긴 뒤라야 겹칠 수 있다
-```
+1  FR-STATS-DECIDE-THE-DAMAGE     유일한 PROPOSED — R1 §0 이 "이후 모든 공격/방어 시스템의
+                                  공통 계산 기반" 으로 지정한 층이다. 없는 것이 값 2종뿐이고
+                                  기존 행동·규칙 위에 계산만 얹는다.
 
-이 순서는 원본 문서 §21 의 Phase 순서와 같다.
-**1 과 2 를 한 Cycle 로 묶을지**는 판단이 갈린다 — 묶으면 Cycle 이 커지고,
-나누면 첫 Cycle 이 끝난 시점에 "막기는 있는데 그것으로 공격권을 가져오지는 못하는" 상태가
-한 Cycle 동안 유지된다 (원본 §3.2 가 방어의 목적으로 말하는 것이 그때까지 없다).
+이후 순서는 R1 §14 를 따른다 — 단 각 층은 그 시점의 문서 개정(세부 재설계)이 나온 뒤
+후보로 다시 세운다. R1 §14 의 C010(Guard)·C013(Perfect Guard·Counter) 층은 저장소가
+C010·C011 Cycle 로 이미 닫았다. C009(Critical) 층은 DC 충돌 미해결 (Q11).
+```
 
 ## 선택 기록
 
 | Frontier | 결정 | Cycle | 비고 |
 |---|---|---|---|
-| — | — | — | 아직 선택 없음 |
+| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 완료 — 08-verification 통과 (Human Play 확인 대기) |
+| FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 완료 — 08-verification 통과 (Human Play 확인 대기) |
 
 ## 규칙
 

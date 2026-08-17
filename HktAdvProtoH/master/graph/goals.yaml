@@ -31,11 +31,13 @@ nodes:
     belief_context: []
     stakes:
       - 버티지 못하면 쓰러진다
-      - 버티기만 하면 자원이 말라 결국 무너진다      # 원본 §8.1
+      - 버티기만 하면 자원이 말라 결국 무너진다      # 구판 §8.1 — C010 이 실측으로 닫은 의미다
     caused_by: []
     constraints: []
 
-# 주입 근거: design/Design-Combat-OffenseDefense-R0.md §1.1 · §4 · §23
+# 주입 근거: design/Design-Combat-OffenseDefense-R0.md 구판(R0) §1.1 · §4 · §23
+# R1 (2026-08-17 전면 개정) 재확인 — 두 Goal 은 유지된다. R1 §16 의 성공 조건
+# ("더 세다" · "덜 아프다")이 같은 Goal 을 능력치 성장 경로(MP-OUTGROW-THE-OPPONENT)로 지지한다.
 #
 # 판정 — 이 두 Goal 은 Actor-owned Desired State 이므로 Goal 이 맞다.
 # 원본의 설계 원칙("랜덤이 크리티컬을 만들지 않는다" 등)은 Actor 가 원하는 상태가 아니므로

@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **4건** · 닫힌 것 5건.
+미해결 **6건** · 닫힌 것 5건.
 
 ---
 
@@ -79,6 +79,51 @@ Human 이 답한다    DECISION 줄
 
     선택지        (a) 문안 유지 (APPROVED 확정)
                   (b) 개별 DC 를 REVISED — 어느 항목이 원본과 다른지 지목
+
+    DECISION      <PENDING>
+
+---
+
+## Q10. R1 전면 개정 뒤 DC 5종의 지위 — OPEN
+
+    무엇          2026-08-17 Human 이 전투 기획서를 R1 로 전면 개정했다
+                  ("가장 단순한 공격/방어 공식 먼저"). DC 5종이 인용하는 구판(R0) § 번호와
+                  일부 근거(공방 심리전 §1.1 · Flow §7 · Vow §12 · 상성 §6)가 현행 문서에서
+                  삭제되거나 §14 확장 순서로 이연되었다. DC 의 방향 자체(능동 방어 ·
+                  집중의 대가 · 공유 예산 · 소프트 상성)는 R1 §14·§15·핵심 원칙과 일치하나,
+                  개정 후 문안·인용 재확정은 Human 소유다 (Q9 문안 검토와 병합 가능).
+
+    영향          차단 아님 — R1 이 지정한 다음 층(기본 공식)에 실질 적용되는 DC 는
+                  DC-COMBAT-PLAYER-CAUSALITY 뿐이고 SATISFIED 다.
+                  DC-COMBAT-DEFENSE-IS-ACTIVE 는 C010·C011 로 이미 세계에서 충족되어 있어
+                  "이번 층의 방어는 능력치다"(R1 §8) 와 충돌하지 않는다 — DC 주석이
+                  수동 감쇄 바닥을 명시적으로 허용한다.
+
+    선택지        (a) DC 5종 유지 — 인용은 구판 표기로 읽는다 (현재 상태)
+                  (b) R1 기준으로 해당 DC 를 REVISED — 인용과 문안을 현행 문서로 재추출
+                  (c) 이연 층에만 근거를 둔 DC(MATCHUP-SOFT · POWER-HAS-COST)를
+                      해당 층의 재설계 문서가 나올 때까지 보류 표시
+
+    DECISION      <PENDING>
+
+---
+
+## Q11. R1 §14 C009(Critical Chance) 는 DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — OPEN
+
+    Conflict      R1 §14 C009 층은 Critical Chance / Critical Damage 를 예고하지만
+                  DC-COMBAT-PLAYER-CAUSALITY 는 random_critical 을 prohibits 한다.
+                  R1 자신도 "결정론을 중요하게 여긴다면 Critical 자체를 넣을지 여기서
+                  다시 판단한다 · C008 은 Critical 없이도 완전히 동작해야 한다" 고 유보했다.
+
+    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 C009 층 · (참고) 구판 §10 의
+                  조건부 Critical(비확률) 설계와 MC-CONDITION-STACKING
+
+    Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나 구판 §10 방향의
+                      조건부(비확률) Critical 로 재설계 → DC 유지, 전투 정체성 유지
+                  (b) DC 를 REVISED 하여 확률 Critical 허용 → 전통 MMORPG 감각을 얻는 대신
+                      "같은 상태 → 같은 결과" 원칙과 기존 Cycle 검증 근거가 흔들린다
+
+    Expected      결정 전까지 Frontier 에 확률 Critical 후보를 올리지 않는다 (현재 상태).
 
     DECISION      <PENDING>
 
