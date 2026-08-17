@@ -5,9 +5,9 @@
 > (`master/frontier.md` 번호 주의 참조).
 
 [PASS] Cycle Definition
-[    ] Intent
-[    ] World Semantic
-[    ] GameView Specification
+[PASS] Intent                    (새 Intent 5종 · CHANGED 4종 — 계산은 하나뿐이다)
+[PASS] World Semantic            (Closure 통과 · GAP 없음 — 새 규칙 1 · CHANGED 3)
+[PASS] GameView Specification    (새 표면 없음 — 세 자리에 실리는 내용만 늘어난다)
 [    ] Human Semantic Review
 [    ] World Implementation
 [    ] View Implementation

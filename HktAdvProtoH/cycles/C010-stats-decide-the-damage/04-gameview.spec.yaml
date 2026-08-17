@@ -1,0 +1,190 @@
+# CYCLE C010 — GameView Specification
+#
+# 이번 Cycle 은 화면을 늘리지 않는다. 이미 있는 세 자리 —
+#   ① 존재의 속성        ② 스킬을 쓰기 전에 아는 값     ③ 맞은 자리의 타격 결과
+# 에 실리는 내용이 늘어난다. 새 계약도 새 표면도 없다.
+#
+# 핵심은 ③ 이다. 지금까지 타격 결과는 숫자 하나였다.
+# 이제는 그 숫자가 어디서 왔는지가 함께 실린다 — 그래야 "능력치가 결과를 정한다" 를
+# 플레이어가 믿을 수 있다 (DC-COMBAT-PLAYER-CAUSALITY).
+id: VIEW-STATS-DECIDE-THE-DAMAGE-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·역할·이름·모션·body·swing 계약 그대로
+    - entities.deposit
+    - entityHud                             # 몸 위의 이름·생명 그대로
+    - entities.character.vitality           # 생명 현재/최대·쓰러짐 그대로
+    - debugObserve / debugAuthority         # C006 · C007 R2 그대로
+    - observer / session / delivery / identity / telemetry
+    - interactions.move / mine / moveMode / setAttribute
+    - commandCatalog                        # C009 그대로 — 아래 COMMAND NOTE 참조
+    - hud.inventory / tool / playerAction / worldTime / observers
+    - hud.self.vitality / moveMode / tempoStats / modifiers
+  added:
+    - entities.character.attributes.combatStats        # 공격 능력 · 방어 능력 (모든 존재)
+    - entities.character.attributes.defenseMitigation  # 그 방어가 실제로 남기는 비율
+    - strikeEvents.breakdown                           # 한 방의 크기가 나온 경위
+    - hud.self.combatStats                             # 내 두 능력을 늘 눈앞에
+  changed:
+    - interactions.attack.profile           # damage 하나 → 기본 피해량 · 공격 계수 · 공격 피해
+    - interactions.skillHeavy.profile       # 위와 같음
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 속성 두 자리가 더해진다 (C010 ADDED)
+#   C007 R2 의 원칙 그대로다 — 세계는 어떤 속성도 숨기지 않는다.
+#   모든 존재에 실린다. 무엇을 늘 띄울지는 보는 이의 선택이다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    # id · role · kind · position · name · state · vitality · body · swing 은
+    # C002~C007 계약 그대로다. 아래는 이번 Cycle 이 더하는 것만 적는다.
+    attributes:
+      combatStats:                          # C010 ADDED
+        attack: { source: Actor.Attack }
+        defense: { source: Actor.Defense }
+      defenseMitigation:                    # C010 ADDED — 파생값
+        multiplier: { source: Actor.DefenseMultiplier }
+        meaning:
+          - 방어 능력이라는 수치와 "그래서 몇 할로 받는가" 는 다른 정보다.
+            체감식이라 값만 보고는 효과를 알 수 없으므로 둘 다 실린다
+          - 이 값은 0 초과 1 이하다. 1 이면 그대로 다 받는다는 뜻이고,
+            아무리 방어가 높아도 0 이 되지 않는다
+      # energy · moveMode · control · tempoStats · modifiers 는 C007 R2 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 이번 Cycle 의 중심 (C010 CHANGED)
+#   amount 는 그대로 남는다. 그 옆에 경위가 붙는다.
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  attacker: { source: StrikeEvent.AttackerId }   # REUSED
+  target: { source: StrikeEvent.TargetId }       # REUSED
+  skill: { source: StrikeEvent.SkillKind }       # REUSED — attack | heavy-attack
+  amount: { source: StrikeEvent.Amount }         # REUSED — 실제로 덜어낸 생명
+  at: { source: StrikeEvent.Position }           # REUSED
+  since: { source: StrikeEvent.Time }            # REUSED
+  breakdown:                                     # C010 ADDED
+    baseDamage: { source: StrikeEvent.Breakdown.BaseDamage }
+    attackContribution: { source: StrikeEvent.Breakdown.AttackContribution }
+    rawDamage: { source: StrikeEvent.Breakdown.RawDamage }
+    targetDefense: { source: StrikeEvent.Breakdown.TargetDefense }
+    defenseMultiplier: { source: StrikeEvent.Breakdown.DefenseMultiplier }
+    finalDamage: { source: StrikeEvent.Breakdown.FinalDamage }
+  meaning:
+    - 얼마가 깎였는지 숫자로 읽을 수 있어야 한다                      (C007 그대로)
+    - 기본 스킬과 고급 스킬의 결과가 구분되어야 한다                  (C007 그대로)
+    - 내가 친 것과 남이 친 것 모두 보인다                             (C007 그대로)
+    - C010 — 그 숫자가 왜 그만큼인지 읽을 수 있어야 한다.
+      최소한 "스킬이 얼마 + 내 공격력이 얼마를 보태 = 얼마였고,
+      상대 방어가 그것을 얼마로 줄여 = 얼마가 되었다" 가 드러나야 한다
+    - C010 — 능력치를 바꾸고 다시 때렸을 때 무엇 때문에 결과가 달라졌는지
+      두 번의 경위를 비교해 알 수 있어야 한다
+    - amount 와 breakdown.finalDamage 는 언제나 같은 값이다.
+      경위 표시를 접어 두어도 기존 표시가 그대로 성립한다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 스킬 profile 이 나뉜다 (C010 CHANGED)
+#   가용성·불가 사유·요청 방식은 전부 그대로다. 실리는 값만 바뀐다.
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  attack:
+    role: skill-basic                        # REUSED
+    available: { source: Skill.Availability }        # REUSED
+    unavailableReason: { source: Skill.FailureReason }  # REUSED
+    profile:                                 # C010 CHANGED
+      baseDamage: { source: Skill.BaseDamage }
+      attackRatio: { source: Skill.AttackRatio }
+      rawDamage: { source: Skill.RawDamageForObserver }
+      charge: { source: Skill.CpCharge }     # REUSED
+      cost: { source: Skill.CpCost }         # REUSED
+
+  skillHeavy:
+    role: skill-heavy                        # REUSED
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }
+    profile:                                 # C010 CHANGED — attack 과 같은 구조
+      baseDamage: { source: Skill.BaseDamage }
+      attackRatio: { source: Skill.AttackRatio }
+      rawDamage: { source: Skill.RawDamageForObserver }
+      charge: { source: Skill.CpCharge }
+      cost: { source: Skill.CpCost }
+
+  # profile 의 의미
+  #   rawDamage 는 "지금 내 공격 능력으로 이 스킬을 쓰면 나오는 공격 피해" 다.
+  #   최종 피해는 실리지 않는다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
+  #   무엇이 맞을지는 요청할 때가 아니라 휘두름 구간의 접촉이 정한다 (C007 그대로).
+  #   따라서 View 는 "이만큼 나간다" 가 아니라 "이만큼을 실어 보낸다" 로 읽어야 한다.
+  #
+  # move · mine · moveMode · setAttribute 는 C002~C009 계약 그대로다.
+
+# ─────────────────────────────────────────────────────────────────
+# hud.self — 내 두 능력이 늘 눈앞에 (C010 ADDED)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  self:
+    combatStats:                             # C010 ADDED
+      attack: { source: ObserverCharacter.Attack }
+      defense: { source: ObserverCharacter.Defense }
+      defenseMultiplier: { source: ObserverCharacter.DefenseMultiplier }
+      meaning:
+        - 내가 얼마나 세게 때리고 얼마나 덜 맞는지를 언제나 알 수 있어야 한다
+        - 값을 바꾼 직후 그 변화가 여기서 즉시 확인되어야 한다 —
+          바꿨는데 화면이 그대로면 세계가 받아들였는지 알 수 없다
+    # vitality · moveMode · tempoStats · modifiers 는 C007 그대로
+
+# ─────────────────────────────────────────────────────────────────
+# COMMAND NOTE — 계약 변화 없음 (C009 의 설계가 이번에 값을 한다)
+# ─────────────────────────────────────────────────────────────────
+# 공격 능력·방어 능력을 바꾸는 일에 새 명령도 새 화면도 필요하지 않다.
+# C009 의 commandCatalog 는 set-attribute 가 받는 attribute 값의 Domain 을
+# 세계에서 그대로 실어 보내므로, 세계가 두 항목을 목록에 더하면
+# 그 자리가 View 코드 변경 없이 늘어난다.
+#
+#   commandCatalog[set-attribute].parameters[attribute].domain.choice.options
+#       … hp · hpMax · cp · cpMax · moveSpeed · runSpeedMultiplier ·
+#         actionSpeed · moveMode · attack · defense
+#
+# View 가 목록을 지어내지 않는다는 C009 의 규율이 여기서 값을 한다 —
+# 이번 Cycle 은 그 규율이 실제로 성립하는지를 확인하는 첫 사례이기도 하다.
+# 각 항목의 허용 범위(attack · defense 모두 0 이상)도 같은 자리에 실린다.
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE
+# ─────────────────────────────────────────────────────────────────
+#   03 의 Observable Semantic 대응
+#     모든 Actor 에 대해
+#       Actor.Attack · Actor.Defense    → entities.character.attributes.combatStats
+#       Actor.DefenseMultiplier (파생)  → entities.character.attributes.defenseMitigation
+#     관찰자 자신에 대해 추가로 (늘 눈앞에 두는 자리)
+#       위 세 값                        → hud.self.combatStats
+#       Skill.BaseDamage · AttackRatio  → interactions.*.profile
+#       Skill.RawDamageForObserver      → interactions.*.profile.rawDamage
+#     세계
+#       StrikeEvent.Breakdown 6항목     → strikeEvents.breakdown
+#       MutableAttribute + Range 2추가  → commandCatalog (계약 변화 없이 목록만)
+#
+#   투영하지 않는 것
+#     World.DefenseConstant — 세계 상수다. 관찰되는 것은 상수가 아니라 그 결과다
+#       (defenseMultiplier 가 이미 그 결과를 싣는다 — C007 의 시뮬레이션 상수 규율과 같다).
+#     새 거절 사유 — 없다. 피해 계산은 실패하지 않고,
+#       값 변경의 거절 사유는 C007 R2 의 4종 그대로다.
+#
+#   03 의 Observable Semantic 중 투영되지 않은 것은 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# PLAYABILITY NOTE — 이 계약만으로 Cycle Goal 이 플레이되는가
+# ─────────────────────────────────────────────────────────────────
+# 플레이어는 이 계약만 받고 다음을 할 수 있다.
+#   1. 자기 공격 능력·방어 능력을 hud.self.combatStats 에서 읽는다
+#   2. 상대의 두 능력을 entities.character.attributes.combatStats 에서 읽는다
+#   3. 휘둘러 맞히고, strikeEvents.breakdown 으로 그 값이 나온 경위를 읽는다
+#   4. commandCatalog 의 set-attribute 로 자기 공격 능력을 올린다
+#   5. 다시 휘둘러 breakdown 이 달라진 것을 확인한다 — 공격 능력이 결과를 정한다
+#   6. 상대의 방어 능력을 올린 뒤 다시 휘둘러 같은 스킬이 덜 아픈 것을 확인한다
+# 화면 구성 방식은 View 의 선택이다. 이 계약은 무엇이 보여야 하는지만 정한다.
