@@ -1,7 +1,7 @@
 # CYCLE C012 — Damage Type Chooses the Defense
 
 [PASS] Cycle Definition
-[    ] Intent
+[PASS] Intent                    (방식은 스킬이 지닌다 · 오라 스킬 1종 신설)
 [    ] World Semantic
 [    ] GameView Specification
 [    ] Human Semantic Review
