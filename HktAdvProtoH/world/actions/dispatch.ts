@@ -40,6 +40,10 @@ export function dispatchAction(
       return ruleSkillBegin(actor, 'attack'); // 기본 스킬 — 대상을 받지 않는다 (C002)
     case 'skill-heavy':
       return ruleSkillBegin(actor, 'heavy-attack'); // 고급 스킬 (C007)
+    // C012 — 오라 스킬. 같은 Rule 을 그대로 지난다. 다른 것은 피해의 방식뿐이다
+    // (INTENT-AURA-SKILL-001).
+    case 'skill-aura':
+      return ruleSkillBegin(actor, 'aura-strike');
     // C011 — 막기는 몸이 세계 안에서 하는 일이므로 interaction 이다 (command 가 아니다).
     // 시작과 해제가 따로 있다 — 토글이 아니라 명시값이어야 같은 요청이 두 번 와도 결과가 같다.
     case 'guard-begin':

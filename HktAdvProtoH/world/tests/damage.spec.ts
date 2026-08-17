@@ -6,8 +6,12 @@
 //            INTENT-DAMAGE-BREAKDOWN-001
 //
 // 기대값은 공식을 다시 계산하지 않고 숫자로 박는다 — 구현을 구현으로 검사하지 않기 위해서다.
-// 기준 배치: 관찰자 rabbit-swordsman (Attack 40 · Defense 50 · hp 200)
-//            자율 존재 wanderer     (Attack 40 · Defense 30 · hp 120)
+// 기준 배치: 관찰자 rabbit-swordsman (PhysicalAttack 40 · Armor 50 · hp 200)
+//            자율 존재 wanderer     (PhysicalAttack 40 · Armor 30 · hp 120)
+//
+// C012 CHANGED — attack/defense 가 네 값으로 갈렸다. 이 파일의 기대값은 **한 값도
+// 바뀌지 않았다** — 이행이 물리 쪽 값을 그대로 옮겼기 때문이다 (설계 수용 기준 §14-8).
+// 바뀐 것은 속성 이름(attack→physicalAttack · defense→armor)과 경위의 항목뿐이다.
 
 import { describe, expect, it } from 'vitest';
 import type { GameViewSnapshot } from '../../protocol/gameview';
@@ -63,14 +67,20 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
     const view = driveWorld({ npcs: [dummyAt(3, 0)] }).observe();
 
     expect(actor(view, PLAYER)?.attributes?.combatStats).toEqual({
-      attack: 40,
-      defense: 50,
-      defenseMultiplier: 100 / 150,
+      physicalAttack: 40,
+      auraAttack: 40,
+      armor: 50,
+      resistance: 20,
+      armorMultiplier: 100 / 150,
+      resistanceMultiplier: 100 / 120,
     });
     expect(actor(view, 'npc-1')?.attributes?.combatStats).toEqual({
-      attack: 40,
-      defense: 30,
-      defenseMultiplier: 100 / 130,
+      physicalAttack: 40,
+      auraAttack: 15,
+      armor: 30,
+      resistance: 90,
+      armorMultiplier: 100 / 130,
+      resistanceMultiplier: 100 / 190,
     });
   });
 
@@ -79,13 +89,13 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
     expect(actor(strikeOnce().observe(), 'npc-1')?.vitality?.health).toBe(120 - 20);
 
     // Attack 80 → (6 + 40) × 100/130 = 35.4 → 35
-    const stronger = strikeOnce((world) => setAttribute(world, 'attack', 80));
+    const stronger = strikeOnce((world) => setAttribute(world, 'physicalAttack', 80));
     expect(actor(stronger.observe(), 'npc-1')?.vitality?.health).toBe(120 - 35);
   });
 
   it('공격 능력이 0 이어도 스킬의 기본 피해량은 들어간다', () => {
     // (6 + 0) × 100/130 = 4.6 → 5
-    const world = strikeOnce((w) => setAttribute(w, 'attack', 0));
+    const world = strikeOnce((w) => setAttribute(w, 'physicalAttack', 0));
     expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - 5);
   });
 });
@@ -93,25 +103,25 @@ describe('INTENT-ATTACK-POWER-001 — 공격 능력이 피해를 키운다', () 
 describe('INTENT-DEFENSE-001 — 방어 능력이 피해를 줄인다', () => {
   it('방어 능력이 높아지면 같은 공격이 덜 아프다', () => {
     // Defense 30 → 20.  Defense 200 → 26 × 100/300 = 8.67 → 9
-    const tougher = strikeOnce((world) => setAttribute(world, 'defense', 200, 'npc-1'));
+    const tougher = strikeOnce((world) => setAttribute(world, 'armor', 200, 'npc-1'));
     expect(actor(tougher.observe(), 'npc-1')?.vitality?.health).toBe(120 - 9);
   });
 
   it('방어 능력이 0 이면 공격 피해를 그대로 받는다', () => {
     // 26 × 100/100 = 26
-    const bare = strikeOnce((world) => setAttribute(world, 'defense', 0, 'npc-1'));
+    const bare = strikeOnce((world) => setAttribute(world, 'armor', 0, 'npc-1'));
     expect(actor(bare.observe(), 'npc-1')?.vitality?.health).toBe(120 - 26);
   });
 
   it('방어가 아무리 높아도 피해가 0 이 되지 않는다', () => {
     // 26 × 100/100100 = 0.026 → 반올림하면 0 이지만 하한 1 이 그것을 막는다
-    const wall = strikeOnce((world) => setAttribute(world, 'defense', 100000, 'npc-1'));
+    const wall = strikeOnce((world) => setAttribute(world, 'armor', 100000, 'npc-1'));
     expect(actor(wall.observe(), 'npc-1')?.vitality?.health).toBe(120 - 1);
   });
 
   it('방어를 같은 만큼 올려도 줄어드는 폭은 점점 작아진다 (체감식)', () => {
     const damageAt = (defense: number) => {
-      const world = strikeOnce((w) => setAttribute(w, 'defense', defense, 'npc-1'));
+      const world = strikeOnce((w) => setAttribute(w, 'armor', defense, 'npc-1'));
       return world.observe().strikes[0]?.amount ?? 0;
     };
 
@@ -129,13 +139,13 @@ describe('INTENT-DEFENSE-001 — 방어 능력이 피해를 줄인다', () => {
 
   it('방어 배율은 능력치와 함께 관찰된다 — 수치만으로는 효과를 알 수 없기 때문이다', () => {
     const world = driveWorld({ npcs: [dummyAt(3, 0)] });
-    setAttribute(world, 'defense', 100);
+    setAttribute(world, 'armor', 100);
     world.tick(TICK_INTERVAL);
 
     const view = world.observe();
-    expect(actor(view, PLAYER)?.attributes?.combatStats.defenseMultiplier).toBe(0.5);
-    expect(hud(view, 'self.combat.defense')).toBe(100);
-    expect(hud(view, 'self.combat.defenseMultiplier')).toBe(0.5);
+    expect(actor(view, PLAYER)?.attributes?.combatStats.armorMultiplier).toBe(0.5);
+    expect(hud(view, 'self.combat.armor')).toBe(100);
+    expect(hud(view, 'self.combat.armorMultiplier')).toBe(0.5);
   });
 });
 
@@ -144,14 +154,14 @@ describe('INTENT-SKILL-SCALING-001 — 스킬마다 능력을 피해로 바꾸�
     const heavyDamage = (attack: number) => {
       const world = driveWorld({ npcs: [dummyAt(1.5, 0)] });
       aimRight(world);
-      setAttribute(world, 'attack', attack);
+      setAttribute(world, 'physicalAttack', attack);
       setAttribute(world, 'cp', 100);
       world.dispatch({ interactionId: 'skill-heavy' });
       tickFor(world, SWING_BEGIN * SKILL_DEFINITIONS['heavy-attack'].baseDuration + 2 * TICK_INTERVAL);
       return world.observe().strikes[0]?.amount ?? 0;
     };
     const basicDamage = (attack: number) => {
-      const world = strikeOnce((w) => setAttribute(w, 'attack', attack));
+      const world = strikeOnce((w) => setAttribute(w, 'physicalAttack', attack));
       return world.observe().strikes[0]?.amount ?? 0;
     };
 
@@ -174,7 +184,7 @@ describe('INTENT-DAMAGE-CALCULATE-001 — 계산은 하나이고 우연이 없�
   it('한 휘두름이 여럿에게 닿으면 각자의 방어 능력으로 각자의 값이 나온다', () => {
     const world = driveWorld({ npcs: [dummyAt(1.5, 0.3), dummyAt(1.5, -0.3, 'npc-2')] });
     aimRight(world);
-    setAttribute(world, 'defense', 0, 'npc-2'); // 한쪽만 무르게 만든다
+    setAttribute(world, 'armor', 0, 'npc-2'); // 한쪽만 무르게 만든다
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration);
 
@@ -189,10 +199,13 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
     const strike = strikeOnce().observe().strikes[0];
 
     expect(strike?.breakdown).toEqual({
+      // C012 — 방식과 그 방식이 고른 두 능력이 함께 실린다
+      damageType: 'physical',
+      offenseStat: { name: 'physicalAttack', value: 40 },
       baseDamage: 6,
       attackContribution: 20, // 40 × 0.5
       rawDamage: 26,
-      targetDefense: 30,
+      defenseStat: { name: 'armor', value: 30 },
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
       // C011 AFFECTED — 실제로 빠진 값이 경위에 함께 실린다.
@@ -207,47 +220,62 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
 
   it('값을 바꾸기 전후의 경위를 비교해 무엇 때문에 달라졌는지 알 수 있다', () => {
     const before = strikeOnce().observe().strikes[0]?.breakdown;
-    const after = strikeOnce((world) => setAttribute(world, 'attack', 80)).observe().strikes[0]
+    const after = strikeOnce((world) => setAttribute(world, 'physicalAttack', 80)).observe().strikes[0]
       ?.breakdown;
 
     // 달라진 것은 공격이 더한 몫 하나뿐이다 — 스킬도 상대 방어도 그대로다
     expect(after?.baseDamage).toBe(before?.baseDamage);
-    expect(after?.targetDefense).toBe(before?.targetDefense);
+    expect(after?.defenseStat).toEqual(before?.defenseStat);
     expect(after?.defenseMultiplier).toBe(before?.defenseMultiplier);
     expect(after?.attackContribution).toBe(40); // 20 → 40
     expect(after?.finalDamage).toBeGreaterThan(before?.finalDamage ?? 0);
   });
 });
 
-describe('RULE-ATTRIBUTE-SET-001 (AFFECTED) — 두 능력이 바꿀 수 있는 목록에 든다', () => {
-  it('공격 능력과 방어 능력을 바꿀 수 있다', () => {
+describe('RULE-ATTRIBUTE-SET-001 (AFFECTED) — 네 능력이 바꿀 수 있는 목록에 든다', () => {
+  it('네 능력을 모두 바꿀 수 있다', () => {
     const world = driveWorld({ npcs: [] });
-    expect(setAttribute(world, 'attack', 123).status).toBe('success');
-    expect(setAttribute(world, 'defense', 45).status).toBe('success');
+    expect(setAttribute(world, 'physicalAttack', 123).status).toBe('success');
+    expect(setAttribute(world, 'auraAttack', 77).status).toBe('success');
+    expect(setAttribute(world, 'armor', 45).status).toBe('success');
+    expect(setAttribute(world, 'resistance', 12).status).toBe('success');
     world.tick(TICK_INTERVAL);
 
-    expect(hud(world.observe(), 'self.combat.attack')).toBe(123);
-    expect(hud(world.observe(), 'self.combat.defense')).toBe(45);
+    expect(hud(world.observe(), 'self.combat.physicalAttack')).toBe(123);
+    expect(hud(world.observe(), 'self.combat.auraAttack')).toBe(77);
+    expect(hud(world.observe(), 'self.combat.armor')).toBe(45);
+    expect(hud(world.observe(), 'self.combat.resistance')).toBe(12);
+  });
+
+  it('옛 이름은 더 이상 통하지 않는다 — 두 이름을 함께 두지 않는다', () => {
+    const world = driveWorld({ npcs: [] });
+    expect(setAttribute(world, 'attack', 80).reason).toBe('unknown-attribute');
+    expect(setAttribute(world, 'defense', 80).reason).toBe('unknown-attribute');
   });
 
   it('음수는 거절된다 — 이 층은 피해를 증폭하지 않는다', () => {
     const world = driveWorld({ npcs: [] });
-    expect(setAttribute(world, 'defense', -1)).toEqual({
+    expect(setAttribute(world, 'armor', -1)).toEqual({
       status: 'failure',
       rule: 'RULE-ATTRIBUTE-SET-001',
       reason: 'value-out-of-range',
     });
-    expect(setAttribute(world, 'attack', -1).status).toBe('failure');
+    expect(setAttribute(world, 'physicalAttack', -1).status).toBe('failure');
   });
 
-  it('세계가 밝히는 변경 가능 목록에 두 항목이 나타난다', () => {
+  it('세계가 밝히는 변경 가능 목록에 네 항목이 나타난다', () => {
     const view = driveWorld({ npcs: [] }).observe();
     const setAttributeCommand = view.commands.find((c) => c.id === 'set-attribute');
     const attribute = setAttributeCommand?.parameters.find((p) => p.id === 'attribute');
     const options = attribute?.domain.options?.map((o) => o.name) ?? [];
 
-    expect(options).toContain('attack');
-    expect(options).toContain('defense');
+    expect(options).toContain('physicalAttack');
+    expect(options).toContain('auraAttack');
+    expect(options).toContain('armor');
+    expect(options).toContain('resistance');
+    // 옛 이름은 사라졌다
+    expect(options).not.toContain('attack');
+    expect(options).not.toContain('defense');
   });
 });
 

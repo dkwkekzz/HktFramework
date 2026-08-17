@@ -40,8 +40,10 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     hpMax: def.resources.hpMax,
     cp: def.resources.cpStart,
     cpMax: def.resources.cpMax,
-    attack: def.combat.attack, // C010 — 종류가 정하는 두 능력
-    defense: def.combat.defense,
+    physicalAttack: def.combat.physicalAttack, // C012 — 종류가 정하는 네 능력
+    auraAttack: def.combat.auraAttack,
+    armor: def.combat.armor,
+    resistance: def.combat.resistance,
     guarding: false, // C011 — 막기는 종류가 정하는 값이 아니다. 누구나 안 든 채로 태어난다
     guardBrokenUntil: 0,
     moveMode: 'walk',

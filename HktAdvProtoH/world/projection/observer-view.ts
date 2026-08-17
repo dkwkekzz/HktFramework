@@ -19,6 +19,7 @@ import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
 import {
   actorModifiers,
+  defenseShape,
   defenseMultiplier,
   isDowned,
   isGuardBroken,
@@ -94,13 +95,20 @@ export function projectObserverView(
           moveSpeed: modifiers.moveSpeed,
           actionSpeed: modifiers.actionSpeed,
         },
-        // 전투 능력치 (C010) — 방어 배율까지 함께 낸다. 체감식이라 수치만 보고는
-        // 효과를 알 수 없기 때문이다 (INTENT-DEFENSE-001).
+        // 전투 능력치 (C010 → C012) — 네 값과 두 방어 배율. 체감식이라 수치만 보고는
+        // 효과를 알 수 없기 때문이다 (INTENT-TYPED-DEFENSE-001).
+        // 상대의 값도 실린다 — 방어를 읽는 것이 이 Cycle 의 플레이다.
         combatStats: {
-          attack: actor.attack,
-          defense: actor.defense,
-          defenseMultiplier: defenseMultiplier(actor),
+          physicalAttack: actor.physicalAttack,
+          auraAttack: actor.auraAttack,
+          armor: actor.armor,
+          resistance: actor.resistance,
+          armorMultiplier: defenseMultiplier(actor.armor),
+          resistanceMultiplier: defenseMultiplier(actor.resistance),
         },
+        // 어느 쪽이 더 단단한가 (C012) — 세계가 계산해 내놓는 판정이다
+        // (INTENT-DAMAGE-TYPE-OBSERVE-001 · DC-WORLD-OWNS-THE-SURFACE-LIST).
+        defenseShape: defenseShape(actor),
         // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
         // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
         // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
@@ -165,6 +173,7 @@ export function projectObserverView(
       rawDamage: rawDamage(self, 'attack'),
       charge: basic.cpCharge,
       cost: basic.cpCost,
+      damageType: basic.damageType, // C012 — 각 스킬이 어떤 방식인지 세계가 밝힌다
     },
   });
 
@@ -181,6 +190,28 @@ export function projectObserverView(
       rawDamage: rawDamage(self, 'heavy-attack'),
       charge: heavy.cpCharge,
       cost: heavy.cpCost,
+      damageType: heavy.damageType, // C012
+    },
+  });
+
+  // interactions.skillAura (C012 ADDED) — 오라 방식으로 친다.
+  // 새 관문도 새 사유도 없다. 기존 스킬이 지나는 자리를 그대로 지난다
+  // (INTENT-AURA-SKILL-001). rawDamage 가 기본 스킬과 다르게 나오는 것은
+  // 내 두 공격 능력이 다르기 때문이지 스킬 값이 달라서가 아니다.
+  const auraFailure = evaluateSkillPreconditions(self, 'aura-strike');
+  const aura = skillDefinition('aura-strike');
+  interactions.push({
+    id: 'skill-aura',
+    role: 'skill-aura',
+    available: auraFailure === null,
+    ...(auraFailure ? { reason: auraFailure } : {}),
+    profile: {
+      baseDamage: aura.baseDamage,
+      attackRatio: aura.attackRatio,
+      rawDamage: rawDamage(self, 'aura-strike'),
+      charge: aura.cpCharge,
+      cost: aura.cpCost,
+      damageType: aura.damageType, // C012
     },
   });
 
@@ -287,9 +318,18 @@ export function projectObserverView(
       { id: 'self.guard.broken', kind: 'flag', value: isGuardBroken(self, state.time) },
       // hud.self.combatStats (C010) — 내가 얼마나 세게 때리고 얼마나 덜 맞는가.
       // 값을 바꾼 직후 그 변화가 여기서 즉시 확인되어야 한다.
-      { id: 'self.combat.attack', kind: 'counter', value: self.attack },
-      { id: 'self.combat.defense', kind: 'counter', value: self.defense },
-      { id: 'self.combat.defenseMultiplier', kind: 'counter', value: defenseMultiplier(self) },
+      { id: 'self.combat.physicalAttack', kind: 'counter', value: self.physicalAttack },
+      { id: 'self.combat.auraAttack', kind: 'counter', value: self.auraAttack },
+      { id: 'self.combat.armor', kind: 'counter', value: self.armor },
+      { id: 'self.combat.resistance', kind: 'counter', value: self.resistance },
+      { id: 'self.combat.armorMultiplier', kind: 'counter', value: defenseMultiplier(self.armor) },
+      {
+        id: 'self.combat.resistanceMultiplier',
+        kind: 'counter',
+        value: defenseMultiplier(self.resistance),
+      },
+      // 내 두 방어 중 어느 쪽이 무른지 (C012) — 상대도 같은 규칙으로 나를 고른다.
+      { id: 'self.combat.defenseShape', kind: 'label', value: defenseShape(self) },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },

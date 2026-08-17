@@ -7,14 +7,23 @@
 // C007 ADDED — heavy-attack (고급 스킬) · downed (쓰러짐).
 // 쓰러짐은 요청하는 행동이 아니라 생명이 다해 들어가는 상태이며,
 // 대체 불가능하므로 행동 시작 관문이 모든 새 행동을 자동으로 막는다.
-export type ActionKind = 'idle' | 'move' | 'attack' | 'heavy-attack' | 'mine' | 'hit' | 'downed';
+// C012 ADDED — aura-strike (오라 방식 스킬).
+export type ActionKind =
+  | 'idle'
+  | 'move'
+  | 'attack'
+  | 'heavy-attack'
+  | 'aura-strike'
+  | 'mine'
+  | 'hit'
+  | 'downed';
 
 export interface CurrentAction {
   kind: ActionKind;
   targetPosition?: { x: number; z: number }; // kind = move
   targetActorId?: string; // kind = attack
   targetDepositId?: string; // kind = mine
-  struckActorIds?: string[]; // kind = attack | heavy-attack (C006) — 이 휘두름이 이미 타격한 몸들.
+  struckActorIds?: string[]; // kind = attack | heavy-attack | aura-strike (C006) — 이 휘두름이 이미 타격한 몸들.
   // 같은 몸은 휘두름당 한 번만 맞는다 (INTENT-SWING-IMPACT-001). 행동과 함께 사라진다.
   budgetSettled?: boolean; // 스킬 (C007) — 이 휘두름이 기력 수지를 이미 냈는가.
   // 여러 몸을 때려도 정산은 한 번이다 (RULE-SKILL-BUDGET-001). 행동과 함께 사라진다.
@@ -35,6 +44,8 @@ export const ACTION_DEFINITIONS: Readonly<Record<ActionKind, ActionDefinition>> 
   // 여기 있는 것은 그 기준이 되는 BaseDuration 이다 (SKILL_DEFINITIONS 와 같은 값).
   attack: { duration: 0.6, replaceable: false },
   'heavy-attack': { duration: 0.9, replaceable: false },
+  // C012 — 기본 스킬과 같은 길이다. 다른 것은 피해의 방식뿐이다.
+  'aura-strike': { duration: 0.6, replaceable: false },
   mine: { duration: 1.2, replaceable: false },
   hit: { duration: 0.35, replaceable: false }, // 피격 — 스스로 요청하는 행동이 아니다
   // 쓰러짐 — 스스로 끝나지 않고 대체되지도 않는다 (C007 INTENT-DOWNED-001)

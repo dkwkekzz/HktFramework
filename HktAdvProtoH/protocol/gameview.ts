@@ -56,14 +56,24 @@ export interface AttributesView {
     moveSpeed: number;
     actionSpeed: number;
   };
-  // 전투 능력치 (C010 ADDED) — 한 방의 크기를 정하는 두 값.
-  // defenseMultiplier 는 파생값이다. 방어가 체감식이라 수치만 보고는 효과를 알 수 없어
+  // 전투 능력치 (C010 ADDED / C012 CHANGED) — 한 방의 크기를 정하는 **네** 값.
+  // 어느 둘을 읽을지는 그 타격의 방식이 정한다. 네 값 모두 실린다 —
+  // 고르지 않은 쪽도 보여야 "저쪽으로 쳤다면 어땠을까" 를 견줄 수 있다.
+  // 두 Multiplier 는 파생값이다. 방어가 체감식이라 수치만 보고는 효과를 알 수 없어
   // "그래서 몇 할로 받는가" 를 함께 싣는다 (0 초과 1 이하 — 0 이 되지 않는다).
   combatStats: {
-    attack: number;
-    defense: number;
-    defenseMultiplier: number;
+    physicalAttack: number;
+    auraAttack: number;
+    armor: number;
+    resistance: number;
+    armorMultiplier: number;
+    resistanceMultiplier: number;
   };
+  // 두 방어 중 어느 쪽이 더 단단한가 (C012 ADDED) — physical-tougher | aura-tougher | even.
+  // **세계가 계산한 판정이다.** View 가 armor 와 resistance 를 비교해 만들어내거나
+  // 존재의 이름·색·생김새로 짐작해서는 안 된다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  // even 은 "정보 없음" 이 아니라 "정말로 같다" 는 뜻이다.
+  defenseShape: string;
   // 막기 (C011 ADDED) — 모든 존재에 실린다.
   // guarding 은 state(현재 행동)와 별개다. 막으며 걷는 존재는 state 가 move 이면서
   // guarding 이 참이므로, View 는 이것을 행동 표시로 대신할 수 없다.
@@ -105,12 +115,16 @@ export interface InteractionView {
   // 각각 얼마를 대는지 알아야 "왜 이만큼인가" 를 판단할 수 있기 때문이다.
   //   rawDamage 는 지금 내 공격 능력으로 이 스킬을 쓰면 나오는 공격 피해다.
   //   최종 피해는 실리지 않는다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
+  // C012 CHANGED — damageType 이 더해진다. 그 스킬이 어떤 방식인지를 세계가 밝히므로
+  // View 가 이름이나 색으로 짐작하지 않는다. rawDamage 는 이제 그 방식에 대응하는
+  // 내 공격 능력으로 계산된 값이다.
   profile?: {
     baseDamage: number;
     attackRatio: number;
     rawDamage: number;
     charge: number;
     cost: number;
+    damageType: string; // physical | aura
   };
 }
 
@@ -136,11 +150,19 @@ export interface ObserverView {
 // 숫자 하나만으로는 "능력치가 결과를 정한다" 를 믿을 수 없다 —
 // 그래서 세계는 결과와 함께 그 경위를 낸다.
 export interface DamageBreakdownView {
+  // C012 ADDED — 이 타격의 방식 (physical | aura).
+  // 같은 자리에 뜬 두 숫자가 왜 다른지는 방식이 달라서다.
+  damageType: string;
+  // C012 ADDED — 방식이 고른 공격 능력. 이름이 없으면 왜 이 값인지 알 수 없다.
+  offenseStat: TypedStatView;
   baseDamage: number; // 스킬 자체의 강함
-  attackContribution: number; // 공격 능력이 더한 몫 = Attack × AttackRatio
+  attackContribution: number; // 고른 공격 능력이 더한 몫 = OffenseStat × AttackRatio
   rawDamage: number; // baseDamage + attackContribution
-  targetDefense: number; // 맞는 자의 방어 능력
-  defenseMultiplier: number; // 방어가 남긴 비율 (0 초과 1 이하)
+  // C012 CHANGED — C010 의 targetDefense 를 대신한다. 방어가 둘이 되면서 값만으로는
+  // 무엇을 읽었는지 알 수 없다 — 30 이 물리 방어인지 오라 방어인지가 결과를 가른다.
+  // 옛 이름은 별칭으로도 남기지 않는다 (설계 §9).
+  defenseStat: TypedStatView;
+  defenseMultiplier: number; // 고른 방어가 남긴 비율 (0 초과 1 이하)
   // C011 CHANGED — 의미는 그대로다(공식이 내놓은 값). 다만 그것은 이제
   // "막지 않았다면 들어왔을 값" 이기도 하다. 실제로 빠진 값은 appliedDamage 다.
   finalDamage: number;
@@ -148,7 +170,14 @@ export interface DamageBreakdownView {
   guard?: GuardOutcomeView; // C011 ADDED — 막지 않은 타격에는 실리지 않는다
 }
 
+// 방식이 고른 능력 하나 (C012 ADDED) — 무엇을 얼마로 읽었는가.
+export interface TypedStatView {
+  name: string; // physicalAttack | auraAttack | armor | resistance
+  value: number;
+}
+
 // 막기가 이 한 방에 한 일 (C011 ADDED).
+// C012 — 막기는 방식을 읽지 않는다. 오라 타격을 막은 결과는 물리 타격을 막은 것과 같다.
 // blocked 와 broken 은 동시에 참이 되지 않는다 — 막았거나 무너졌거나 둘 중 하나다.
 export interface GuardOutcomeView {
   blocked: boolean;
@@ -167,7 +196,7 @@ export interface GuardOutcomeView {
 export interface StrikeEventView {
   attackerId: string;
   targetId: string;
-  skill: string; // attack | heavy-attack
+  skill: string; // attack | heavy-attack | aura-strike
   amount: number;
   at: GameViewPosition; // 맞은 몸의 중심
   since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용

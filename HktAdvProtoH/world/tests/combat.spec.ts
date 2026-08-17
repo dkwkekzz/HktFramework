@@ -207,16 +207,18 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
     expect(skill(view, 'attack')?.profile).toEqual({
       baseDamage: 6,
       attackRatio: 0.5,
-      rawDamage: 26, // 6 + 40 × 0.5
+      rawDamage: 26, // 6 + 40 × 0.5 (PhysicalAttack)
       charge: BASIC.cpCharge,
       cost: BASIC.cpCost,
+      damageType: 'physical', // C012
     });
     expect(skill(view, 'skill-heavy')?.profile).toEqual({
       baseDamage: 32,
       attackRatio: 1.0,
-      rawDamage: 72, // 32 + 40 × 1.0
+      rawDamage: 72, // 32 + 40 × 1.0 (PhysicalAttack)
       charge: HEAVY.cpCharge,
       cost: HEAVY.cpCost,
+      damageType: 'physical', // C012
     });
   });
 });
@@ -457,8 +459,18 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
-      // C010 — 새 속성도 예외 없이 실린다
-      combatStats: { attack: 40, defense: 30, defenseMultiplier: 100 / 130 },
+      // C010 → C012 — 새 속성도 예외 없이 실린다. 네 능력과 두 배율이 모두 실린다
+      combatStats: {
+        physicalAttack: 40,
+        auraAttack: 15,
+        armor: 30,
+        resistance: 90,
+        armorMultiplier: 100 / 130,
+        resistanceMultiplier: 100 / 190,
+      },
+      // C012 — 어느 쪽이 더 단단한지도 세계가 판정해 싣는다.
+      // wanderer 는 오라 쪽(90)이 물리 쪽(30)보다 단단하다
+      defenseShape: 'aura-tougher',
       // C011 — 자율 존재는 막지 않지만 그 사실도 실린다.
       // "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 는 다른 일이다
       guard: { guarding: false, broken: false },
@@ -488,8 +500,11 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'hpMax',
       'cp',
       'cpMax',
-      'attack', // C010 — 목록에 항목이 늘어날 뿐 계약은 그대로다
-      'defense',
+      // C012 — 두 항목이 넷으로 갈린다. 목록이 바뀔 뿐 계약은 그대로다
+      'physicalAttack',
+      'auraAttack',
+      'armor',
+      'resistance',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

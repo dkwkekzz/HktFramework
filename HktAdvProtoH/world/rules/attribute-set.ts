@@ -96,12 +96,19 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
       actor.cpMax = value;
       actor.cp = Math.min(actor.cp, actor.cpMax);
       return;
-    // C010 — 두 능력은 다른 값을 끌고 오지 않는다. 다음 타격부터 그대로 반영된다.
-    case 'attack':
-      actor.attack = value;
+    // C010 → C012 — 네 능력은 다른 값을 끌고 오지 않는다. 다음 타격부터 그대로 반영된다.
+    // 방어 둘을 따로 세울 수 있어야 약점이 고정된 성질이 아니라 값의 관계임이 드러난다.
+    case 'physicalAttack':
+      actor.physicalAttack = value;
       return;
-    case 'defense':
-      actor.defense = value;
+    case 'auraAttack':
+      actor.auraAttack = value;
+      return;
+    case 'armor':
+      actor.armor = value;
+      return;
+    case 'resistance':
+      actor.resistance = value;
       return;
     case 'moveSpeed':
       actor.moveSpeed = value;
