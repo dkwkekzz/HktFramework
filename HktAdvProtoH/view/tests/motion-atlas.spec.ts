@@ -13,7 +13,12 @@ import { renderAtlasModule } from '../../tools/motion-atlas/emit';
 import { readPngAlpha } from '../../tools/motion-atlas/png-alpha';
 import { ATLAS_MODULE_PATH, projectRoot } from '../../tools/motion-atlas/scan';
 import { MOTION_ATLAS } from '../motion/motion-atlas.generated';
-import { frameUv, frameWorldSize, uniformGeometry } from '../motion/motion-geometry';
+import {
+  frameUv,
+  frameWorldSize,
+  uniformGeometry,
+  type MotionFrameGeometry,
+} from '../motion/motion-geometry';
 
 const ROOT = projectRoot();
 
@@ -80,12 +85,40 @@ describe('정규화 — 모션 단위로 맞추고 프레임 단위 표현은 �
     }
   });
 
-  it('한 모션 안에서 발 기준점이 셀 바닥에서 같은 픽셀 거리다 — 위아래로 떨지 않는다', () => {
+  // 기준점의 시트 절대 y — anchor.v 는 사각형 아래에서 위로 재는 값이다
+  const groundOf = (f: MotionFrameGeometry) => f.rect[1] + f.rect[3] - 1 - f.anchor[1] * f.rect[3];
+
+  it('세로 기준점이 그림 안에 있다 — 빈 여백에 놓여 몸이 뜨지 않는다', () => {
+    // 예전에는 기준점을 검출 사각형 바닥에서 잡았다. 그 바닥은 *빈 줄의 한가운데*라
+    // 아래 칸의 그림이 멀수록 아래로 내려간다 — `downed` 는 누운 포즈라 여백이 특히 커서
+    // 기준점이 그림보다 157px(대표 높이의 42%) 아래에 놓였고, 그만큼 몸이 땅에서 떴다.
     for (const [key, geometry] of motions) {
-      const feet = geometry.frames.map((f) => f.anchor[1] * f.rect[3]);
-      const first = feet[0]!;
-      for (const foot of feet) expect(foot, key).toBeCloseTo(first, 6);
+      for (let i = 0; i < geometry.frames.length; i++) {
+        const f = geometry.frames[i]!;
+        const ground = groundOf(f);
+        expect(ground, `${key} #${i} 기준점이 그림보다 아래다`).toBeLessThanOrEqual(
+          f.content[1] + f.content[3],
+        );
+        expect(ground, `${key} #${i} 기준점이 그림보다 위다`).toBeGreaterThanOrEqual(f.content[1]);
+      }
     }
+  });
+
+  it('늘어뜨린 칼끝이 아니라 발을 접지점으로 삼는다', () => {
+    // 이 캐릭터는 칼을 아래로 늘어뜨린다. 가장 낮은 잉크를 접지점으로 쓰면 칼이 흔들릴 때마다
+    // 몸이 따라 흔들린다. `move` 는 칼끝이 발보다 한참 아래이고, `idle` 은 발이 가장 낮다.
+    const lift = (key: string) => {
+      const geometry = motions.find(([k]) => k.includes(key))![1];
+      return geometry.frames.map(
+        (f) => ((f.content[1] + f.content[3] - 1 - groundOf(f)) / geometry.refHeightPx) * 100,
+      );
+    };
+
+    // 걷기 — 칼끝이 발보다 대표 높이의 8% 넘게 아래로 내려온다. 그것을 지나쳐야 한다.
+    for (const v of lift('rabbit-swordsman/move')) expect(v).toBeGreaterThan(8);
+    // 대기 — 두 발이 가장 낮다. 지나칠 것이 없으므로 그림 바닥이 그대로 접지선이다.
+    // (생성물의 anchor 는 소수 5자리라 되돌리면 0.001% 안팎의 오차가 남는다)
+    for (const v of lift('rabbit-swordsman/idle')) expect(v).toBeCloseTo(0, 2);
   });
 
   it('가로 기준점이 선언 격자 위에 있다 — 검출 사각형 폭에 끌려다니지 않는다', () => {
