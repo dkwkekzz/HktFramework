@@ -6,10 +6,15 @@
 #
 # 인용 표기 — 원본 design/Design-Combat-OffenseDefense-R0.md 는 2026-08-17 R1 로 전면
 # 개정되었다. R1 §x 는 현행 문서, 구판 §x 는 git history 의 R0 을 가리킨다.
+#
+# C010·C011 롤백 (2026-08-17 Human 결정) — 막기·완벽한 막기·되받아침·방어력 구현을
+# 되돌렸다. 산출물은 git history 에 있다. 해당 Capability 는 MISSING 으로 돌아간다.
+# DC 보류 — DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST 는 DRAFT(보류)다.
+# 아래 노드의 해당 constraint_evaluation 은 판정 기록으로 보존하되 Active 판정이 아니다.
 version: 1
 nodes:
 
-  # ── 이미 세계에 있는 것 (C001~C011) ───────────────────────────────────
+  # ── 이미 세계에 있는 것 (C001~C009) ───────────────────────────────────
 
   - id: MC-COMBAT-STRIKE
     type: capability
@@ -62,10 +67,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE]
     constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (구판 §8.1 · C010 실측)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (구판 §11 · C010 실측)
-    overlay: IMPLEMENTED
-    # R1 §14 의 C010(Guard)·C013(Guard Break) 층에 해당한다 — 저장소는 C010 Cycle 로 먼저 닫았다.
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (구판 §8.1) — DC 는 현재 보류
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (구판 §11)
+    overlay: MISSING
+    # C010 으로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C010 층에서 재구축한다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -75,10 +80,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (구판 §8.2 · C011 실측)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (구판 §8.2 · C011 실측)
-    overlay: IMPLEMENTED
-    # R1 §14 의 C013(Active Defense) 층에 해당한다 — 저장소는 C011 Cycle 로 먼저 닫았다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (구판 §8.2)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (구판 §8.2) — DC 는 현재 보류
+    overlay: MISSING
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C013 층에서 재구축한다.
 
   - id: MC-COUNTER
     type: capability
@@ -87,10 +92,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (구판 §8.4 · C011 실측)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (구판 §3.2 · C011 실측)
-    overlay: IMPLEMENTED
-    # R1 §14 의 C013(Active Defense) 층에 해당한다 — 저장소는 C011 Cycle 로 먼저 닫았다.
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (구판 §8.4)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (구판 §3.2) — DC 는 현재 보류
+    overlay: MISSING
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C013 층에서 재구축한다.
 
   - id: MC-DEFENSE-MITIGATION
     type: capability
@@ -101,9 +106,9 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 결정적으로 줄인다 (R1 §4 · §6)
-    overlay: PARTIAL
-    # C010 이 감쇄 자체는 닫았으나(감산식), R1 §4 · INTENT-DEFENSE-001 이 요구하는
-    # "증가폭이 점차 작아지는" 체감 구조가 아직 없다 — 근거는 ../overlay.md.
+    overlay: MISSING
+    # C010 이 감산식으로 닫았다가 2026-08-17 롤백 — R1 §4 의 체감(diminishing) 형태로
+    # 기본 공식 Cycle 에서 새로 만든다. 근거는 ../overlay.md.
 
   # ── R1 이 지정한 다음 층 (아직 세계에 없는 것) ────────────────────────
 
@@ -245,4 +250,4 @@ nodes:
 # 여기에 올리지 않았다 — Cycle 의 03-world-semantic.md 가 소유한다
 # (Master-Intent-Graph-Policy §22 · §26.3). 원본은 위 design/ 문서에 남아 있다.
 #
-# overlay 필드 갱신 근거: C010 · C011 의 08-verification MASTER FEEDBACK (../overlay.md 참조).
+# overlay 필드 갱신 근거: C010·C011 롤백 (2026-08-17 Human 결정 — ../overlay.md 참조).

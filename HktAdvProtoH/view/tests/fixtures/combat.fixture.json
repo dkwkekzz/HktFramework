@@ -38,8 +38,7 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
-        },
-        "defense": 5
+        }
       },
       "body": {
         "radius": 0.5,
@@ -53,21 +52,6 @@
           "x": 0,
           "z": 0
         }
-      },
-      "stance": {
-        "guarding": false,
-        "broken": false,
-        "brokenUntil": 0,
-        "facing": {
-          "x": 1,
-          "z": 0
-        },
-        "startedAt": 0,
-        "perfectWindow": false
-      },
-      "exposure": {
-        "exposed": false,
-        "until": 0
       }
     },
     {
@@ -100,8 +84,7 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
-        },
-        "defense": 5
+        }
       },
       "body": {
         "radius": 0.5,
@@ -115,21 +98,6 @@
           "x": 2,
           "z": 0
         }
-      },
-      "stance": {
-        "guarding": false,
-        "broken": false,
-        "brokenUntil": 0,
-        "facing": {
-          "x": -1,
-          "z": 0
-        },
-        "startedAt": 0,
-        "perfectWindow": false
-      },
-      "exposure": {
-        "exposed": false,
-        "until": 0
       }
     },
     {
@@ -162,8 +130,7 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
-        },
-        "defense": 5
+        }
       },
       "body": {
         "radius": 0.5,
@@ -177,21 +144,6 @@
           "x": 0,
           "z": 0
         }
-      },
-      "stance": {
-        "guarding": false,
-        "broken": false,
-        "brokenUntil": 0,
-        "facing": {
-          "x": 0,
-          "z": 1
-        },
-        "startedAt": 0,
-        "perfectWindow": false
-      },
-      "exposure": {
-        "exposed": false,
-        "until": 0
       }
     }
   ],
@@ -320,21 +272,7 @@
         "x": 1.4,
         "z": 0
       },
-      "since": 12.1,
-      "breakdown": {
-        "base": 55,
-        "mitigated": 55,
-        "guarded": false,
-        "energyPaid": 0,
-        "guardBroken": false
-      },
-      "timing": {
-        "perfect": false,
-        "elapsed": null,
-        "counter": false,
-        "counterBonus": 0,
-        "energyGained": 0
-      }
+      "since": 12.1
     },
     {
       "attackerId": "npc-1",
@@ -345,21 +283,7 @@
         "x": 0,
         "z": 0
       },
-      "since": 11.6,
-      "breakdown": {
-        "base": 20,
-        "mitigated": 20,
-        "guarded": false,
-        "energyPaid": 0,
-        "guardBroken": false
-      },
-      "timing": {
-        "perfect": false,
-        "elapsed": null,
-        "counter": false,
-        "counterBonus": 0,
-        "energyGained": 0
-      }
+      "since": 11.6
     }
   ],
   "debug": {

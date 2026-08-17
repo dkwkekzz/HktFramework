@@ -30,17 +30,6 @@ const CODE_TEXT: Record<string, string> = {
   'unknown-target': '그런 존재가 없다',
   'unknown-attribute': '그런 속성이 없다',
   'value-out-of-range': '허용된 범위를 벗어난 값이다',
-  // 자세 (C010)
-  guard: '막기',
-  open: '평상',
-  'set-guard-stance': '막기 자세를 세우거나 놓는다',
-  // 불가 사유 (C010)
-  guarding: '막는 중에는 할 수 없다',
-  'guard-broken': '방어가 무너져 아직 다시 막을 수 없다',
-  'unknown-stance': '그런 자세가 없다',
-  'missing-stance': '어떤 자세인지 실리지 않았다',
-  // 불가 사유 (C011) — 읽는다는 것은 한 번의 결정이지 계속 누르는 일이 아니다
-  'guard-rearming': '방금 자세를 세웠다 — 다시 세우려면 한 호흡이 필요하다',
   // 불가 사유 — 요청 수용 경로 (C009 — 세계가 이제 이 사유들도 되돌려 준다)
   'unknown-interaction': '그런 명령이 없다',
   'unknown-observer': '세계가 나를 알지 못한다',

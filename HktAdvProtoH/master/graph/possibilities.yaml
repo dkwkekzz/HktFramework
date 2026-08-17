@@ -7,6 +7,11 @@
 #
 # 인용 표기 — 원본 design/Design-Combat-OffenseDefense-R0.md 는 2026-08-17 R1 로 전면
 # 개정되었다. R1 §x 는 현행 문서, 구판 §x 는 git history 의 R0 을 가리킨다.
+#
+# C010·C011 롤백 (2026-08-17 Human 결정) — 막기 계열 구현이 되돌려져
+# MP-TRADE-BODY-FOR-RESOURCE · MP-READ-AND-COUNTER 도 다시 열린 경로가 아니다.
+# DC 보류 — DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST 는 DRAFT(보류)다.
+# 해당 constraint_evaluation 은 판정 기록으로 보존하되 Active 판정이 아니다.
 version: 1
 nodes:
 
@@ -61,8 +66,9 @@ nodes:
     creates_goal: []
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (구판 §8.2 · C011 실측)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권 탈취로 이어진다 (구판 §3.2 · C011 실측)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 성패가 확률이 아니라 시점 관계로 갈린다 (구판 §8.2)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권 탈취로 이어진다 (구판 §3.2) — DC 는 현재 보류
+    # C011 로 닫혔다가 2026-08-17 롤백 — R1 §14 C013 층에서 재구축한다.
 
   - id: MP-BREAK-THE-GUARD
     type: possibility
@@ -220,8 +226,9 @@ nodes:
     constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
       DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 선택하는 행동이다 — 공격 기회 전환은 같은 행동 위의
-                                               # 정확한 시점 경로(MP-READ-AND-COUNTER)가 이어받는다 (구판 §8.1 · C010 실측)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (구판 §8.1 · §11 · C010 실측)
+                                               # 정확한 시점 경로(MP-READ-AND-COUNTER)가 이어받는다 (구판 §8.1) — DC 는 현재 보류
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 생명 대신 같은 기력 예산으로 받아 마르면 무너진다 (구판 §8.1 · §11)
+    # C010 으로 닫혔다가 2026-08-17 롤백 — R1 §14 C010 층에서 재구축한다.
 
   - id: MP-EVADE-BY-MOVING-THE-BODY
     type: possibility

@@ -21,13 +21,6 @@ import { beginAction } from './action-begin';
 // RULE-HIT-001 — RULE-ACTION-BEGIN-001 을 거치지 않는 유일한 행동 진입이다.
 // 피격은 그 캐릭터가 요청한 행동이 아니라 밖에서 일어난 일이기 때문이다.
 // 이 예외는 여기 한 곳에만 있다.
-//
-// C010 — 쓰러진 몸은 피격 상태로 가지 않는다. downed 는 대체 불가능한 행동이며
-// (INTENT-DOWNED-001), 관문을 건너뛰는 이 자리가 그 불가능을 깨서는 안 된다.
-// C007 까지는 호출 순서(HIT 먼저 → STRIKE-DAMAGE 나중)가 이것을 보장했으나,
-// C010 이 "막았는지를 알아야 부를지가 정해진다" 는 이유로 순서를 뒤집었으므로
-// 순서에 기대던 보장을 여기 조건으로 명시한다. 새 게임 의미가 아니라 기존 의미의 유지다.
 export function ruleHit(target: ActorState): void {
-  if (target.currentAction.kind === 'downed') return;
   beginAction(target, 'hit');
 }

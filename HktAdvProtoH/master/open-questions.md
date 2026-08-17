@@ -11,7 +11,7 @@ Human 이 답한다    DECISION 줄
 답이 정해지면 해당 Node/Constraint 에 반영하고 이 항목을 `CLOSED` 로 바꾼다.
 항목은 지우지 않는다 — 왜 그렇게 정했는지의 기록이다.
 
-미해결 **6건** · 닫힌 것 5건.
+미해결 **4건** (Q2 · Q3 · Q8 · Q11) · 닫힌 것 7건.
 
 ---
 
@@ -66,7 +66,7 @@ Human 이 답한다    DECISION 줄
 
 ---
 
-## Q9. 반영된 DC 5종의 문안 확정 — OPEN
+## Q9. 반영된 DC 5종의 문안 확정 — CLOSED
 
     무엇          2026-08-15 Human 지시로 전투 기획서의 명시 원칙 5종을 constraints/ 에
                   반영했다 (PLAYER-CAUSALITY · DEFENSE-IS-ACTIVE · POWER-HAS-COST ·
@@ -80,11 +80,12 @@ Human 이 답한다    DECISION 줄
     선택지        (a) 문안 유지 (APPROVED 확정)
                   (b) 개별 DC 를 REVISED — 어느 항목이 원본과 다른지 지목
 
-    DECISION      <PENDING>
+    DECISION      CLOSED (2026-08-17) — 기획서가 R1 로 전면 개정되어 구판 기준 문안 확정이
+                  무의미해졌다. R1 기준 재작성(Q10)이 이 질문을 대체한다.
 
 ---
 
-## Q10. R1 전면 개정 뒤 DC 5종의 지위 — OPEN
+## Q10. R1 전면 개정 뒤 DC 5종의 지위 — CLOSED
 
     무엇          2026-08-17 Human 이 전투 기획서를 R1 로 전면 개정했다
                   ("가장 단순한 공격/방어 공식 먼저"). DC 5종이 인용하는 구판(R0) § 번호와
@@ -104,7 +105,12 @@ Human 이 답한다    DECISION 줄
                   (c) 이연 층에만 근거를 둔 DC(MATCHUP-SOFT · POWER-HAS-COST)를
                       해당 층의 재설계 문서가 나올 때까지 보류 표시
 
-    DECISION      <PENDING>
+    DECISION      (b)+(c) — 2026-08-17 Human 지시 ("새로운 기획으로 constraints 다시 작성").
+                  CAUSALITY · SHARED-BUDGET 은 R1 기준 재정합(APPROVED 유지),
+                  ONE-FORMULA · ONE-LAYER-AT-A-TIME 신설(R1 핵심 원칙 · §14·§16),
+                  이연 층 근거의 DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST 는
+                  DRAFT 보류 — 해당 층 재설계 시 재승인. 같은 지시로 C010·C011 구현도
+                  롤백했다 (frontier.md 선택 기록 참조).
 
 ---
 

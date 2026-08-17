@@ -8,20 +8,22 @@
 2. 문서 안의 "C008" 은 이 문서 자체의 번호이며, 이 저장소의 `cycles/C008-camera-orientation`
    과 무관하다. §14 의 C008~C014 도 문서 내부 단계 번호다. 저장소의 다음 Cycle 번호는
    C012 이후다. 문서 번호를 Cycle ID 로 쓰지 않는다.
-3. 저장소 현실과의 차이 — 이 문서는 C007(문서 번호) 기준으로 쓰였으나, 저장소는 이미
-   C010(막기·방어력)·C011(완벽한 막기·되받아침)으로 능동 방어 일부를 닫았다.
-   §6·§8·§13 의 "만들지 않는다 / 아직 없다" 는 **이 문서가 정의하는 기본 공식 층의 범위
-   제한**으로 읽는다 — 이미 세계에 있는 능동 방어를 제거하라는 뜻이 아니다. 기존 능동
-   방어(Guard 등)와 새 공식의 접합은 해당 Cycle 의 `03-world-semantic.md` 가 정한다
-   (핵심 원칙 — Guard 는 Final Damage 를 감소시키는 상위 층이다).
+3. C010·C011 롤백 — 저장소는 이 문서(구판 시절)보다 먼저 C010(막기·방어력)·
+   C011(완벽한 막기·되받아침)으로 능동 방어를 올렸으나, 이 개정의 층 순서(기본 공식이
+   먼저, 능동 방어는 그 위)와 어긋나 2026-08-17 Human 결정으로 **구현을 롤백했다**.
+   코드는 C009 완료 시점 상태이며, 두 Cycle 의 산출물은 git history 에 있다.
+   막기 계열은 §14 의 C010/C013 층 순서로 재구축한다.
 4. 이 문서의 Goal/Possibility/Capability 의미는 Master Layer 에 주입되어 있다 —
    Graph `master/graph/*.yaml` · Overlay `master/overlay.md` · Frontier `master/frontier.md`.
    이번 R1 개정과 함께 갱신되었다.
 5. §3·§4·§5·§11 의 수치·공식은 Master 에 올리지 않는다
    (Master-Intent-Graph-Policy §22 · §26.3). 그것들은 이 문서에 남아 있다가
    해당 Cycle 의 `03-world-semantic.md` 가 소유한다. 이 파일이 그 수치의 원본이다.
-6. Constraint — DC 5종(2026-08-15 반영)은 구판 R0 의 § 번호를 인용한다. R1 개정에 따른
-   재확정은 Human 소유다 → `master/open-questions.md` Q10 · Q11.
+6. Constraint — 2026-08-17 Human 지시로 이 개정에 맞춰 재작성되었다 (`master/constraints/`).
+   Active 4종: PLAYER-CAUSALITY · ONE-FORMULA · ONE-LAYER-AT-A-TIME · SHARED-BUDGET.
+   보류(DRAFT) 3종: DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST — §14 의 해당
+   확장 층 재설계 시 재승인한다. §14 C009(Critical Chance)와 PLAYER-CAUSALITY 의
+   random_critical 금지 충돌은 미해결 → `master/open-questions.md` Q11.
 -->
 
 # SYSTEM DESIGN DOCUMENT

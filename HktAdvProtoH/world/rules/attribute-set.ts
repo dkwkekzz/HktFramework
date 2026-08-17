@@ -23,7 +23,7 @@ import type { ActionResult } from '../../protocol/actions';
 import { RULE_ATTRIBUTE_SET } from '../../protocol/semantic-id';
 import { idleAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
-import { findMutableAttribute, isDowned, type MoveMode, type Stance } from '../semantic/combat';
+import { findMutableAttribute, isDowned, type MoveMode } from '../semantic/combat';
 import { findActor, type WorldState } from '../semantic/world-state';
 import { ruleDowned } from './strike-damage';
 
@@ -62,15 +62,6 @@ export function ruleAttributeSet(
     if (typeof value !== 'string' || !attribute.values.includes(value))
       return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
     if (attribute.id === 'moveMode') target.moveMode = value as MoveMode;
-    // C010 — 자세를 밖에서 세우는 것은 RULE-GUARD-SET-001 의 Precondition 을 거치지 않는
-    // 세계 밖의 손이다. 다만 바뀐 뒤의 세계는 자기 규칙대로 간다 (아래 후처리 그대로).
-    else if (attribute.id === 'stance') {
-      target.stance = value as Stance;
-      // C011 — 자세를 세웠으면 세운 시각도 함께 찍는다. 찍지 않으면 지난 시각이 남아
-      // 창이 이미 닫힌 채로 자세만 서게 되고, 밖의 손이 만든 상태가 세계의 규칙으로는
-      // 도달할 수 없는 것이 된다 (RULE-GUARD-SET-001 은 언제나 둘을 함께 세운다).
-      if (target.stance === 'guard') target.guardStartedAt = state.time;
-    }
   } else {
     if (typeof value !== 'number' || !Number.isFinite(value))
       return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
@@ -78,7 +69,7 @@ export function ruleAttributeSet(
     const max = attribute.max ?? Infinity;
     if (value < min || value > max)
       return { status: 'failure', rule: RULE_ATTRIBUTE_SET, reason: 'value-out-of-range' };
-    applyNumeric(target, attribute.id, value, state.time);
+    applyNumeric(target, attribute.id, value);
   }
 
   // 값이 바뀐 뒤에도 세계는 자기 규칙대로 간다.
@@ -89,7 +80,7 @@ export function ruleAttributeSet(
   return { status: 'success', rule: RULE_ATTRIBUTE_SET };
 }
 
-function applyNumeric(actor: ActorState, id: string, value: number, time: number): void {
+function applyNumeric(actor: ActorState, id: string, value: number): void {
   switch (id) {
     case 'hp':
       actor.hp = Math.min(value, actor.hpMax);
@@ -113,17 +104,6 @@ function applyNumeric(actor: ActorState, id: string, value: number, time: number
       return;
     case 'actionSpeed':
       actor.actionSpeed = value;
-      return;
-    case 'defense':
-      // C010 — 크게 올려 보면 "아무리 두꺼워도 피해가 0 이 되지 않는다" 가
-      // strikeEvents 의 내역(base 대비 mitigated)으로 직접 확인된다.
-      actor.defense = value;
-      return;
-    case 'exposedFor':
-      // C011 — "지금부터 몇 초 동안 열려 있게 한다". 0 이면 그 자리에서 닫힌다.
-      // 세계 시각을 직접 받지 않는 이유는 밖에서 의미 있는 값을 고를 수 없기 때문이다.
-      // 이것으로 자율 존재의 공격을 기다리지 않고도 되받아침을 재현할 수 있다.
-      actor.exposedUntil = value > 0 ? time + value : 0;
       return;
   }
 }

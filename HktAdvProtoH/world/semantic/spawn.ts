@@ -8,7 +8,6 @@
 import { idleAction } from './action';
 import type { ActorControl, ActorState, CharacterKind } from './actor';
 import { characterDefinition } from './character-catalog';
-import { GUARD_REARM_LOCK } from './combat';
 import type { Inventory } from './inventory';
 import { createInventory } from './inventory';
 import type { WorldPosition } from './position';
@@ -41,15 +40,6 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     hpMax: def.resources.hpMax,
     cp: def.resources.cpStart,
     cpMax: def.resources.cpMax,
-    // C010 — 새로 놓이는 몸은 막지 않은 채로, 여파 없이, 자기 종류의 방어력으로 선다
-    defense: def.defense.defense,
-    stance: 'open',
-    guardBrokenUntil: 0,
-    // C011 — 아직 아무 자세도 세운 적이 없고 열려 있지도 않다.
-    // guardStartedAt 이 음수인 것은 "세계가 시작하자마자도 막을 수 있다" 를 위한 것이다 —
-    // 0 으로 두면 World.Time 이 GUARD_REARM_LOCK 을 지나기 전까지 아무도 막지 못한다.
-    guardStartedAt: -GUARD_REARM_LOCK,
-    exposedUntil: 0,
     moveMode: 'walk',
     moveSpeed: def.tempo.moveSpeed,
     runSpeedMultiplier: def.tempo.runSpeedMultiplier,

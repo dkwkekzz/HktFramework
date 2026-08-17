@@ -1,0 +1,34 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+#   §0 ("복잡한 전투를 완성하는 것이 아니다 — 이번 단계에서는 다음 질문만 해결한다") ·
+#   §13 하지 않을 것 목록 · §14 점진적인 확장 순서 ("기본 공식을 만든 뒤 한 층씩 추가한다") ·
+#   §16 ("세 가지가 충분히 재미있고 안정적으로 작동한 다음에만 다음 전투 규칙을 추가한다")
+# 2026-08-17 Human 지시(R1 반영)로 신설.
+id: DC-COMBAT-ONE-LAYER-AT-A-TIME
+type: constraint
+
+statement: >
+  전투 시스템은 한 번에 한 층만 추가하며, 현재 층이 플레이로 검증되기 전에는
+  다음 층을 올리지 않는다. 각 층은 아래 층 없이도 완전히 동작하는 상태를 유지한다.
+rationale: >
+  기능을 한꺼번에 붙이면 수치 문제와 손맛 문제가 섞인다 (구판 §21 유래 — R1 §14 가
+  같은 원리를 확장 순서로 재서술). 하지 않을 것을 명확히 제한하는 것이 중요하며 (R1 §13),
+  성공 조건 세 가지가 재미있고 안정적으로 작동한 다음에만 다음 규칙을 추가한다 (R1 §16).
+
+scope:
+  - COMBAT
+
+requires:
+  - verify_current_layer_before_next    # 현재 층의 플레이 검증이 다음 층의 전제다 (R1 §16)
+  - each_layer_playable_standalone      # 각 층은 상위 층 없이 완전히 동작한다 (R1 §14 — "C008 은 Critical 없이도 완전히 동작해야 한다")
+prohibits:
+  - bundle_multiple_combat_layers_in_one_step   # 여러 전투 층을 한 번에 묶어 올리는 것 (R1 §0 · §13)
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # R1 반영 2026-08-17 Human 지시
+
+relations:
+  supports:
+    - DC-COMBAT-ONE-FORMULA   # 한 층씩 올려야 각 층이 공식의 어떤 입력/결과를 바꿨는지 남는다
+  conflicts_with: []
