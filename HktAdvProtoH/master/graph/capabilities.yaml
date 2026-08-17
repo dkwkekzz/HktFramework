@@ -106,9 +106,10 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 결정적으로 줄인다 (R1 §4 · §6)
-    overlay: MISSING
-    # C010 이 감산식으로 닫았다가 2026-08-17 롤백 — R1 §4 의 체감(diminishing) 형태로
-    # 기본 공식 Cycle 에서 새로 만든다. 근거는 ../overlay.md.
+    overlay: IMPLEMENTED
+    # C010-stats-decide-the-damage 가 R1 §4 의 체감(diminishing) 형태로 닫았다.
+    # 구 C010(감산식)은 2026-08-17 롤백된 다른 Cycle 이다. 근거는 ../overlay.md.
+    # 이것은 **수동 감쇄**다 — 막기 같은 능동 방어는 MC-GUARD 이며 여전히 MISSING 이다.
 
   # ── R1 이 지정한 다음 층 (아직 세계에 없는 것) ────────────────────────
 
@@ -121,7 +122,9 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 (R1 §6)
-    overlay: MISSING
+                                               # C010 실측 — 같은 조건 3회 반복이 모두 같은 값
+    overlay: IMPLEMENTED
+    # C010-stats-decide-the-damage. 근거는 ../overlay.md.
 
   - id: MC-SKILL-SCALING
     type: capability
@@ -133,7 +136,9 @@ nodes:
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 기본 피해량과 계수는 스킬의 공개된 성질이다 (R1 §2 · §3 · §6)
-    overlay: MISSING
+                                               # C010 실측 — 두 값이 관찰 계약에 실린다
+    overlay: IMPLEMENTED
+    # C010-stats-decide-the-damage. 근거는 ../overlay.md.
 
   # ── 구판(R0) 유래 — R1 §13·§14 로 이연된 것 ──────────────────────────
   # 세부 설계는 구판에 있었고 삭제되었다. 각 층의 확장 시점에 문서 개정이 다시 공급한다.

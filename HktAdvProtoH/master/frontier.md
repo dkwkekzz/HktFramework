@@ -7,8 +7,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 + `overlay.md`
 
 > **번호 주의** — R1 문서는 저장소 Cycle 번호에 맞춰 재번호되었다: 기본 공식 = **C010**
-> (다음 Cycle), §14 확장 사다리 = C011~C016. 닫힌 Cycle 은 C009 까지이고, 롤백으로 무효가
-> 된 C010·C011 번호는 Human 결정(2026-08-17)으로 재사용한다 — 구분은 전체 ID(번호+이름)로
+> (2026-08-17 `C010-stats-decide-the-damage` 로 닫힘), §14 확장 사다리 = C011~C016.
+> 롤백으로 무효가 된 C010·C011 번호는 Human 결정(2026-08-17)으로 재사용한다 —
+> C010 은 이미 재사용되었고 C011 이 다음 재사용 대상이다. 구분은 전체 ID(번호+이름)로
 > 하며 구 `C010-guard-trades-body-for-resource` · `C011-perfect-guard-turns-the-table` 은
 > git history 에만 존재한다. §14 의 C011 이후 번호는 **계획 번호**라 다른 트랙의 Cycle 이
 > 끼어들면 밀릴 수 있다 — 그래서 이 파일과 Master 는 확장 층을 번호가 아니라 **이름**
@@ -20,6 +21,12 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 > 롤백하기로 결정했다. Constraint 는 R1 기준으로 재작성되었다 (`constraints/` —
 > Active 4종 · 보류 3종). Critical 층(계획 C011)은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하므로
 > 후보로 올리지 않았다 → `open-questions.md` Q11.
+
+> **C010 닫힘 반영 (2026-08-17, MF)** — 기본 공식 층이 닫혔다
+> (`cycles/C010-stats-decide-the-damage`). R1 §14 가 요구한 "기본 공식이 플레이로
+> 검증된 다음" 조건이 충족되었으므로 **Defense Action(Guard) 층의 이연이 풀린다.**
+> MC-DEFENSE-MITIGATION 이 IMPLEMENTED 가 되면서 막기 후보가 요구하는 것은
+> MC-GUARD 하나로 줄었다.
 
 ## 후보 조건
 
@@ -35,40 +42,38 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 
 ## 후보
 
-### FR-STATS-DECIDE-THE-DAMAGE
-    Playable Result      공격 능력치가 높은 캐릭터는 같은 스킬로 더 아프게 때리고,
-                         방어 능력치가 높은 캐릭터는 같은 공격을 덜 아프게 맞는다.
-                         그 차이를 장비·성장으로 플레이어가 직접 만들 수 있다
-    Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
-    Source Possibility   MP-OUTGROW-THE-OPPONENT
-    Missing / Partial    MC-ATTACK-POWER (MISSING) · MC-SKILL-SCALING (MISSING) ·
-                         MC-DEFENSE-MITIGATION (MISSING)
-    원본 근거            R1 §1~§5 공식 · §10 신규 INTENT 4종 · §11 밸런스 기준 · §16 성공 조건
-    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-SHARED-BUDGET
-    Constraint Eval      SATISFIED — 난수 없음(R1 §6), 피해 공식이 하나로 통합되고(R1 §5),
-                         한 층(기본 공식)만 올리며(R1 §13), 기본/고급 공격의 CP 루프를
-                         그대로 유지한다(R1 §11 · §16-3)
-    Observable Result    같은 스킬의 피해 숫자가 공격 능력치에 따라 달라지는 것이 보이고,
-                         같은 공격의 피해가 상대 방어 능력치에 따라 줄어드는 것이 계산 내역
-                         (기본 피해 + 공격 기여 → 방어 배율)으로 보인다
-    Why one Cycle        새 값 3종(공격 능력치 · 방어 능력치 · 스킬 기본 피해/계수) +
-                         기존 타격 규칙 1개의 CHANGED (고정 피해 → 하나의 피해 공식).
-                         새 행동·새 상태 없음 — C007 의 행동·자원 위에 계산 층만 확장한다
-    Status               SELECTED — 2026-08-17 Human 지시 ("새 기획으로 다시 Cycle 진행")
-
-### FR-GUARD-TRADES-BODY-FOR-RESOURCE (재구축 대기)
+### FR-GUARD-TRADES-BODY-FOR-RESOURCE
     Playable Result      플레이어가 앞을 향해 막아 들어온 공격을 생명 대신 기력으로 받아내고,
                          막을 기력이 다하면 방어가 무너져 그대로 얻어맞는다
     Source Goal          MG-SURVIVE-ENEMY-OFFENSIVE
     Source Possibility   MP-TRADE-BODY-FOR-RESOURCE
-    Missing / Partial    MC-GUARD (MISSING) · MC-DEFENSE-MITIGATION 위 확장
-    원본 근거            구판 §8.1 · R1 §14 Defense Action 층 (Guard → Damage Taken × 0.5 수준에서 재시작)
-    Status               DEFERRED — R1 §14 순서상 기본 공식 검증 뒤.
-                         C010 으로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
-                         cycles/C010-guard-trades-body-for-resource 산출물을 참조할 수 있다
+    Missing / Partial    MC-GUARD (MISSING) — **이것 하나뿐이다**.
+                         MP-TRADE-BODY-FOR-RESOURCE 가 요구하는 나머지 3종
+                         (MC-DEFENSE-MITIGATION · MC-CP-ECONOMY · MC-BODY-FACING)은
+                         이미 세계에 있다 (MC-DEFENSE-MITIGATION 은 C010 이 채웠다)
+    원본 근거            구판 §8.1 · R1 §14 Defense Action 층
+                         (Guard → Damage Taken × 0.5 수준에서 재시작)
+    Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
+                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-SHARED-BUDGET
+    Constraint Eval      SATISFIED — 막기는 확률이 아니라 선택한 행동의 결과이고(난수 없음),
+                         새 피해 공식을 만들지 않고 C010 의 결과값에 한 가지 의미만 더하며
+                         (DC-COMBAT-ONE-FORMULA — 핵심 원칙의 "Guard → Final Damage 를
+                         감소시킨다"), 한 층만 올리고, 전용 게이지 없이 기존 기력을 쓴다
+                         (DC-COMBAT-SHARED-BUDGET)
+                         주의 — DC-COMBAT-DEFENSE-IS-ACTIVE 는 현재 보류(DRAFT)다.
+                         이 Cycle 이 그 DC 의 근거 층이므로, 닫은 뒤 재승인 여부를
+                         Human 이 판단할 자리가 생긴다
+    Observable Result    막는 동안 들어온 공격의 피해가 줄어든 값으로 들어가는 것이
+                         계산 내역으로 보이고, 그만큼 기력이 줄어드는 것이 보이며,
+                         기력이 바닥나 방어가 무너지는 순간이 드러난다
+    Why one Cycle        새 행동 1종(막기) + C010 공식의 결과값에 배율 하나.
+                         새 자원도 새 공식도 없다 — 기력·피해 계산·행동 구조가 모두 이미 있다.
+                         한 번 구현되었던 이력이 있어 재구축 비용도 낮다
+                         (git history 의 cycles/C010-guard-trades-body-for-resource)
+    Status               PROPOSED — 2026-08-17 MF 에서 이연 해제.
+                         R1 §14 가 요구한 "기본 공식이 플레이로 검증된 뒤" 조건 충족
 
-### FR-PERFECT-GUARD-TURNS-THE-TABLE (재구축 대기)
+### FR-PERFECT-GUARD-TURNS-THE-TABLE (Guard 다음)
     Playable Result      플레이어가 공격이 닿기 직전에 막아 피해를 전혀 받지 않고,
                          상대를 잠시 열린 상태로 만들어 되받아친다
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
@@ -76,7 +81,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
     원본 근거            구판 §8.2 · §8.4 · R1 §14 Active Defense 층 (Guard 검증 뒤)
     Depends On           FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Status               DEFERRED — R1 §14 Active Defense 층.
+    Status               DEFERRED — R1 §14 Active Defense 층. Guard 가 닫힌 뒤에 열린다
+                         (막기가 없으면 "막기 시작 시각" 도 없다).
                          C011 로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
                          cycles/C011-perfect-guard-turns-the-table 산출물을 참조할 수 있다
 
@@ -96,7 +102,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Possibility   MP-BREAK-THE-GUARD
     Missing / Partial    MC-BREAK (MISSING)
     원본 근거            구판 §9 (R1 에서 세부 삭제 — 확장 시점에 재설계)
-    Status               DEFERRED — R1 §13·§14: 기본 공식 검증 전에는 추가하지 않는다
+    Status               DEFERRED — 기본 공식 검증 조건은 C010 으로 충족되었으나,
+                         R1 이 이 층의 세부(균형 누적·붕괴)를 삭제했다.
+                         재설계 문서가 나온 뒤 후보로 세운다
 
 ### FR-FLOW-OPENS-THE-BODY
     Playable Result      플레이어가 힘을 공격에 몰면 그동안 몸이 실제로 열리고,
@@ -120,12 +128,21 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 ## 추천 순서와 근거
 
 ```text
-1  FR-STATS-DECIDE-THE-DAMAGE     SELECTED — R1 §0 이 "이후 모든 공격/방어 시스템의
-                                  공통 계산 기반" 으로 지정한 층. 다음 Cycle = C010 (번호 재사용).
+1  FR-GUARD-TRADES-BODY-FOR-RESOURCE   PROPOSED — R1 §14 가 기본 공식 바로 위에 둔 층이고,
+                                       C010 이 그 조건(기본 공식의 플레이 검증)을 채웠다.
+                                       요구 Capability 가 MC-GUARD 하나로 줄어 지금 가장 가까운
+                                       후보다. 한 번 구현된 이력이 있어 재구축 비용도 낮다.
 
-이후 순서는 R1 §14 를 따른다 — 각 층은 그 시점의 문서 개정(세부 재설계)이 나온 뒤
-후보로 다시 세운다. Critical 층은 DC 충돌 미해결 (Q11).
-막기 계열 두 후보는 한 번 구현된 이력이 있어 재구축 비용이 낮다.
+지금 세울 수 있는 후보는 이것 하나다. 나머지가 막혀 있는 이유는 각각 다르다.
+
+  Critical 층        DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — Human 결정 대기 (Q11).
+                     결정 전에는 후보로 올리지 않는다.
+  Damage Type 층     R1 §14 로 재편 예정이나 세부 설계가 아직 없다.
+                     문서 개정이 나온 뒤 후보로 세운다.
+  Active Defense 층  Guard 가 먼저다 — 막기가 없으면 완벽한 막기의 시점도 없다.
+  Aura/Nen 층        가장 위다. 아래 층들이 서야 의미가 생긴다.
+
+이후 순서는 R1 §14 를 따른다 — 각 층은 그 시점의 문서 개정이 나온 뒤 후보로 세운다.
 ```
 
 ## 선택 기록
@@ -134,7 +151,16 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 |---|---|---|---|
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — R1 층 순서와 어긋남. 산출물은 git history |
 | FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — 위와 같음 |
-| FR-STATS-DECIDE-THE-DAMAGE | SELECTED | C010 (예정 — 번호 재사용) | 2026-08-17 Human 지시 — R1 기본 공식 층. 구 C010(막기)과는 전체 ID 로 구분 |
+| FR-STATS-DECIDE-THE-DAMAGE | **CLOSED** | C010-stats-decide-the-damage | 2026-08-17 **COMPLETE** — Human Play 확인. MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격. 후보 목록에서 소진 처리 |
+
+### 소진된 후보에서 배운 것
+
+    FR-STATS-DECIDE-THE-DAMAGE 의 Playable Result 는 능력치 차이를 "장비·성장으로"
+    만든다고 적었으나, 그 층(장비·성장)은 R1 §13 이 제외한 범위였다. Cycle 은
+    C009 디버그 명령을 수단으로 삼아 닫았고 Human 이 승인했다 (C010 05-review.md).
+
+    교훈 — Playable Result 에는 **이번 층에서 실제로 제공되는 수단**을 적는다.
+    아직 없는 층의 수단을 적으면 Cycle Definition 이 해석으로 메워야 한다.
 
 ## 규칙
 
