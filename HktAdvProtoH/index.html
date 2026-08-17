@@ -90,11 +90,18 @@
       pointer-events: none;
     }
     .hud-strike[data-emphasis="true"] { color: #ffd05a; font-size: 26px; }
-    /* 한 방의 경위 (C010) — 속성 관찰이 켜졌을 때만 숫자 아래에 붙는다 */
+    /* 막힌 타격 (C011) — 막아 낸 것은 푸르게. 아팠다기보다 버틴 것이다 */
+    .hud-strike[data-guard="blocked"] { color: #8fd3ff; }
+    /* 무너진 타격 (C011) — 막힌 것과 눈에 띄게 달라야 한다.
+       피해는 줄지 않았는데 방어는 사라진 순간이다 */
+    .hud-strike[data-guard="broken"] { color: #ff8f6a; font-size: 24px; }
+    /* 한 방의 경위 (C010) — 속성 관찰이 켜졌을 때 숫자 아래에 붙는다.
+       C011 — 막기가 한 일은 관찰이 꺼져 있어도 여기에 붙는다 */
     .hud-strike-detail {
       display: block; margin-top: 2px;
       color: #cfe4ff; font-size: 11px; font-weight: 600; white-space: nowrap;
     }
+    .hud-strike[data-guard="broken"] .hud-strike-detail { color: #ffc0a8; }
     /* 자기 정보 (C007) — 내 자원·능력치·배율. 늘 눈앞에 있다. */
     .hud-self {
       position: absolute; left: 14px; bottom: 14px;
@@ -116,6 +123,9 @@
     .hud-self-bar[data-kind="hp"] i { background: #6fd07f; }
     .hud-self-bar[data-kind="cp"] i { background: #7fb0ff; }
     .hud-self-mode { color: #ffd98a; font-weight: 700; font-size: 11.5px; }
+    /* 막기 상태 (C011) — 스스로 끝나지 않으므로 들고 있다는 것이 늘 보여야 한다 */
+    .hud-self-stance { color: #8fd3ff; font-weight: 700; font-size: 11.5px; }
+    .hud-self-stance[data-broken="true"] { color: #ff8f6a; }
     .hud-self-line { color: #9fa9bd; font-size: 11px; }
     .hud-toast {
       position: absolute; bottom: 88px; left: 50%; transform: translateX(-50%);

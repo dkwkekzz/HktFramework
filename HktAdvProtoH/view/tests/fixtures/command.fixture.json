@@ -55,6 +55,10 @@
           "attack": 40,
           "defense": 50,
           "defenseMultiplier": 0.6666666666666666
+        },
+        "guard": {
+          "guarding": false,
+          "broken": false
         }
       }
     },
@@ -106,6 +110,10 @@
           "attack": 40,
           "defense": 30,
           "defenseMultiplier": 0.7692307692307693
+        },
+        "guard": {
+          "guarding": false,
+          "broken": false
         }
       }
     }

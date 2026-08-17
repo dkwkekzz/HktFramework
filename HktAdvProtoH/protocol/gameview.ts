@@ -64,6 +64,15 @@ export interface AttributesView {
     defense: number;
     defenseMultiplier: number;
   };
+  // 막기 (C011 ADDED) — 모든 존재에 실린다.
+  // guarding 은 state(현재 행동)와 별개다. 막으며 걷는 존재는 state 가 move 이면서
+  // guarding 이 참이므로, View 는 이것을 행동 표시로 대신할 수 없다.
+  // broken 은 방어가 무너져 아직 다시 들지 못하는 동안 참이다 —
+  // 놓은 것과 무너진 것은 다른 사실이다.
+  guard: {
+    guarding: boolean;
+    broken: boolean;
+  };
 }
 
 export interface EntityView {
@@ -132,12 +141,29 @@ export interface DamageBreakdownView {
   rawDamage: number; // baseDamage + attackContribution
   targetDefense: number; // 맞는 자의 방어 능력
   defenseMultiplier: number; // 방어가 남긴 비율 (0 초과 1 이하)
-  finalDamage: number; // 실제로 생명에서 빠진 값 — amount 와 같다
+  // C011 CHANGED — 의미는 그대로다(공식이 내놓은 값). 다만 그것은 이제
+  // "막지 않았다면 들어왔을 값" 이기도 하다. 실제로 빠진 값은 appliedDamage 다.
+  finalDamage: number;
+  appliedDamage: number; // C011 ADDED — 실제로 생명에서 빠진 값. amount 와 언제나 같다
+  guard?: GuardOutcomeView; // C011 ADDED — 막지 않은 타격에는 실리지 않는다
+}
+
+// 막기가 이 한 방에 한 일 (C011 ADDED).
+// blocked 와 broken 은 동시에 참이 되지 않는다 — 막았거나 무너졌거나 둘 중 하나다.
+export interface GuardOutcomeView {
+  blocked: boolean;
+  broken: boolean; // 이 타격에 방어가 무너졌다 — 피해는 줄지 않았고 방어는 사라졌다
+  cpPaid: number; // 생명 대신 치른 기력 (무너졌으면 0)
+  prevented: number; // 막아서 덜 들어간 값 = finalDamage - appliedDamage
 }
 
 // 한 번의 타격이 낳은 결과 (C007) — 맞은 자리에서 잠시 드러났다가 사라진다.
 // C010 CHANGED — amount 는 그대로 남고 그 옆에 경위가 붙는다.
-// 경위 표시를 접어 두어도 기존 표시가 그대로 성립한다 (amount === breakdown.finalDamage).
+// C011 CHANGED — amount 의 의미("실제로 덜어낸 생명")는 그대로지만, 그것과 같은 값을
+// 가리키는 경위 항목이 finalDamage 에서 appliedDamage 로 옮겨 갔다.
+//   amount === breakdown.appliedDamage    항상 참
+//   amount === breakdown.finalDamage      막지 않은 타격에서만 참
+// 이 구분을 틀리면 "막았는데 왜 그대로 아프지" 로 보인다.
 export interface StrikeEventView {
   attackerId: string;
   targetId: string;

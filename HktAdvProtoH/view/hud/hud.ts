@@ -30,8 +30,10 @@ export interface StrikeMark {
   text: string;
   emphasis: boolean;
   age: number;
-  /** 그 숫자가 나온 경위 (C010) — 속성 관찰이 켜졌을 때만 온다 */
+  /** 그 숫자가 나온 경위 (C010·C011) — 관찰 토글 또는 막기가 채운다 */
   detail?: string;
+  /** 막기가 한 일 (C011) — 무너짐은 막힘과 다르게 그린다 */
+  guard?: 'blocked' | 'broken';
 }
 
 export interface HudOverlays {
@@ -178,6 +180,7 @@ export function createHud(container: HTMLElement): Hud {
         .map(
           (s) =>
             `<div class="hud-strike" data-emphasis="${s.emphasis}" ` +
+            (s.guard ? `data-guard="${s.guard}" ` : '') +
             `style="left:${s.x}px;top:${s.y - s.age * 34}px;opacity:${(1 - s.age).toFixed(2)}">` +
             `${s.text}` +
             // C010 — 경위는 숫자 아래에 작게. 켜져 있을 때만 온다.
@@ -198,6 +201,10 @@ export function createHud(container: HTMLElement): Hud {
           `<span class="hud-self-bar" data-kind="cp"><i style="width:${Math.round(s.energyRatio * 100)}%"></i></span>` +
           `<em>${s.energy} / ${s.energyMaximum}</em></span>` +
           `<span class="hud-self-mode">${s.moveMode}</span>` +
+          // C011 — 막기는 스스로 끝나지 않는다. 들고 있다는 것이 늘 보여야 한다.
+          (s.guard.text
+            ? `<span class="hud-self-stance" data-broken="${s.guard.broken}">${s.guard.text}</span>`
+            : '') +
           s.lines.map((line) => `<span class="hud-self-line">${line}</span>`).join('');
       } else {
         selfPanel.innerHTML = '';

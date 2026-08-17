@@ -2,10 +2,17 @@
 // Input          공격자 Actor, 대상 Actor, SkillKind, World
 // Preconditions  대상이 쓰러지지 않았다 (쓰러진 몸은 더 이상 타격 대상이 아니다)
 // Transition     Breakdown = RULE-DAMAGE-CALCULATE-001(공격자, 대상, 스킬)
-//                대상.Hp = max(0, Hp - Breakdown.FinalDamage)
+//                Guard     = RULE-GUARD-BLOCK-001(대상, 공격자, Breakdown.FinalDamage)
+//                Breakdown.AppliedDamage = Guard.AppliedDamage
+//                대상.Hp = max(0, Hp - Breakdown.AppliedDamage)
 //                World.StrikeEvents += { 공격자, 대상, 스킬, Amount, Breakdown, 위치, 시각 }
 //                Hp 가 0 이면 RULE-DOWNED-001
-// Result         Damaged(FinalDamage)
+// Result         Damaged(AppliedDamage)
+//
+// C011 CHANGED — 공식이 내놓은 값을 그대로 덜어내지 않고 막기 판정을 한 번 거친다.
+// 막지 않았으면 AppliedDamage = FinalDamage 로 C010 과 완전히 같다.
+// 한 휘두름이 여럿에게 닿으면 이 규칙이 몸마다 따로 도는 것도 그대로다 —
+// 각자의 방향과 각자의 기력으로 각자 막거나 무너진다.
 //
 // C010 CHANGED — 스킬이 정한 고정값을 하나의 피해 공식이 대신한다.
 // 한 번의 휘두름이 여럿에게 닿으면 이 규칙이 맞은 몸마다 따로 돌아간다 —
@@ -27,6 +34,7 @@ import type { ActorState } from '../semantic/actor';
 import type { WorldState } from '../semantic/world-state';
 import { beginAction } from './action-begin';
 import { ruleDamageCalculate } from './damage-calculate';
+import { ruleGuardBlock } from './guard';
 
 export function ruleDowned(actor: ActorState): void {
   if (actor.currentAction.kind === 'downed') return;
@@ -43,7 +51,13 @@ export function ruleStrikeDamage(
   if (isDowned(target)) return null;
 
   const breakdown = ruleDamageCalculate(attacker, target, kind);
-  const amount = breakdown.finalDamage;
+
+  // C011 — 막기는 공식 밖에서 그 결과값에 작용한다 (DC-COMBAT-ONE-FORMULA).
+  const block = ruleGuardBlock(target, attacker, breakdown.finalDamage, state.time);
+  breakdown.appliedDamage = block.appliedDamage;
+  if (block.outcome) breakdown.guard = block.outcome;
+
+  const amount = breakdown.appliedDamage;
   target.hp = Math.max(0, target.hp - amount);
 
   state.strikeEvents.push({

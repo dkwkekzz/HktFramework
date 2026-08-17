@@ -214,6 +214,11 @@ function drainOutcomes(): void {
 // 지금 무엇인지를 보고 반대값을 보낸다. 정하는 것은 세계다.
 const MOVE_MODE_KEYS = ['ShiftLeft', 'ShiftRight'];
 
+// 막기 (C011) — 걸기와 놓기를 한 키로 오간다. 키 자체는
+// presentation/interaction-presentation.ts 의 guard-begin 항목이 정하고,
+// 여기서는 그 키를 받아 어느 쪽을 요청할지만 고른다.
+const GUARD_KEY = 'KeyQ';
+
 // 타격 결과가 화면에 떠 있는 시간 — 세계의 STRIKE_EVENT_TTL 과 같은 값을 볼 필요는 없다.
 // 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
 const STRIKE_FADE_SECONDS = 1.2;
@@ -316,6 +321,16 @@ function frame(now: number): void {
       inspect = !inspect;
       continue;
     }
+    // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다. 화면에서는 한 키로 오간다.
+    // 이동 모드와 같은 판단이다 — 세계가 지금 무엇이라고 알려 주었는지를 보고 반대를 요청한다.
+    // 무너진 동안에는 걸기가 가용하지 않으므로 세계가 사유와 함께 거절한다 (View 가 판정하지 않는다).
+    if (code === GUARD_KEY) {
+      const guarding = latestScene.self?.guard.guarding ?? false;
+      const wanted = guarding ? 'guard-release' : 'guard-begin';
+      const guard = latestScene.interactions.find((i) => i.id === wanted);
+      if (guard) link.send({ interactionId: guard.id });
+      continue;
+    }
     // 이동 모드 (C007) — 값을 실어 보내야 하므로 여기서 직접 다룬다.
     // 세계가 지금 무엇이라고 알려 주었는지를 보고 그 반대를 요청한다.
     if (MOVE_MODE_KEYS.includes(code)) {
@@ -384,8 +399,10 @@ function frame(now: number): void {
       text: strike.text,
       emphasis: strike.emphasis,
       age,
-      // C010 — 경위는 결정 Layer 가 채운 경우에만 있다 (속성 관찰이 켜졌을 때)
+      // C010·C011 — 경위는 결정 Layer 가 채운 경우에만 있다
+      // (속성 관찰이 켜졌을 때, 또는 그 타격이 막히거나 무너졌을 때)
       ...(strike.detail ? { detail: strike.detail } : {}),
+      ...(strike.guard ? { guard: strike.guard } : {}),
     });
   }
   // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고

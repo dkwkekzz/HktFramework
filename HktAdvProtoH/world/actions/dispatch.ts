@@ -11,6 +11,7 @@
 
 import type { ActionRequest, ActionResult } from '../../protocol/actions';
 import { ruleAttributeSet } from '../rules/attribute-set';
+import { ruleGuardBegin, ruleGuardRelease } from '../rules/guard';
 import { ruleMine } from '../rules/mine';
 import { ruleMove } from '../rules/move';
 import { ruleMoveMode } from '../rules/move-mode';
@@ -39,6 +40,12 @@ export function dispatchAction(
       return ruleSkillBegin(actor, 'attack'); // 기본 스킬 — 대상을 받지 않는다 (C002)
     case 'skill-heavy':
       return ruleSkillBegin(actor, 'heavy-attack'); // 고급 스킬 (C007)
+    // C011 — 막기는 몸이 세계 안에서 하는 일이므로 interaction 이다 (command 가 아니다).
+    // 시작과 해제가 따로 있다 — 토글이 아니라 명시값이어야 같은 요청이 두 번 와도 결과가 같다.
+    case 'guard-begin':
+      return ruleGuardBegin(actor, state.time);
+    case 'guard-release':
+      return ruleGuardRelease(actor);
     case 'move-mode':
       if (!action.mode) return { status: 'failure', rule: DISPATCH, reason: 'missing-mode' };
       return ruleMoveMode(actor, action.mode);

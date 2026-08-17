@@ -46,7 +46,7 @@
         },
         "guard": {
           "guarding": false,
-          "broken": false
+          "broken": true
         }
       },
       "body": {
@@ -214,6 +214,17 @@
       "id": "set-attribute",
       "role": "debug-set-attribute",
       "available": true
+    },
+    {
+      "id": "guard-begin",
+      "role": "guard-begin",
+      "available": false,
+      "reason": "guard-broken"
+    },
+    {
+      "id": "guard-release",
+      "role": "guard-release",
+      "available": true
     }
   ],
   "hud": [
@@ -315,51 +326,10 @@
     {
       "id": "self.guard.broken",
       "kind": "flag",
-      "value": false
+      "value": true
     }
   ],
-  "strikes": [
-    {
-      "attackerId": "player-1",
-      "targetId": "npc-1",
-      "skill": "heavy-attack",
-      "amount": 55,
-      "at": {
-        "x": 1.4,
-        "z": 0
-      },
-      "since": 12.1,
-      "breakdown": {
-        "baseDamage": 32,
-        "attackContribution": 40,
-        "rawDamage": 72,
-        "targetDefense": 30,
-        "defenseMultiplier": 0.7692307692307693,
-        "finalDamage": 55,
-        "appliedDamage": 55
-      }
-    },
-    {
-      "attackerId": "npc-1",
-      "targetId": "player-1",
-      "skill": "attack",
-      "amount": 17,
-      "at": {
-        "x": 0,
-        "z": 0
-      },
-      "since": 11.6,
-      "breakdown": {
-        "baseDamage": 6,
-        "attackContribution": 20,
-        "rawDamage": 26,
-        "targetDefense": 50,
-        "defenseMultiplier": 0.6666666666666666,
-        "finalDamage": 17,
-        "appliedDamage": 17
-      }
-    }
-  ],
+  "strikes": [],
   "debug": {
     "open": true
   },

@@ -25,6 +25,9 @@ const CODE_TEXT: Record<string, string> = {
   // 이동 모드 (C007)
   walk: '걷기',
   run: '달리기',
+  // 불가 사유 — 막기 (C011)
+  guarding: '막는 중에는 휘두를 수 없다',
+  'guard-broken': '방어가 무너져 아직 다시 들 수 없다',
   // 불가 사유 — 속성 변경 (C007 R2)
   'debug-closed': '이 세계는 속성 변경을 허용하지 않는다',
   'unknown-target': '그런 존재가 없다',
