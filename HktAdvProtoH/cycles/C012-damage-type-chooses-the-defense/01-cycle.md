@@ -16,7 +16,7 @@ STATUS  IN PROGRESS
     Frontier            없음 — `master/frontier.md` 는 2026-08-17 Human 지시로 HOLD 다.
                         Master Layer 가 아직 세워지지 않아 그 파일의 후보·상태 표기가
                         현재 세계와 어긋나 있고, 층 높이를 보지 않아 선택 근거로 쓸 수 없다
-                        (CLAUDE.md "현재 상태" 절).
+                        (STATUS.md).
     Source Goal         없음 — 위와 같음
     Source Possibility  없음 — 위와 같음
     Target Capability   없음 (Master 기준) — 아래 TARGET CAPABILITY 는 세계 기준이다

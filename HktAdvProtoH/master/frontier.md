@@ -23,7 +23,7 @@
 >
 > 지금 다음 층을 판단하는 기준은 이 파일이 아니라
 > `design/Design-Combat-OffenseDefense-R0.md` (R1) §14 확장 사다리다.
-> 현재 위치와 막힌 지점은 [CLAUDE.md](../CLAUDE.md) "현재 상태" 절에 있다.
+> 현재 위치와 막힌 지점은 [STATUS.md](../STATUS.md) 에 있다.
 >
 > 이 HOLD 는 OffenseDefense 트랙이 닫히고 Master Layer 를 세운 뒤 Human 이 걷는다.
 

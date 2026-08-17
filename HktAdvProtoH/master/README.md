@@ -12,7 +12,7 @@
 > `frontier.md` 의 SELECTED 가 이미 닫힌 Cycle 을 가리킨다).
 >
 > **다음 Cycle 은 `frontier.md` 가 아니라 R1 §14 확장 사다리로 고른다** —
-> 자세한 현재 위치는 [../CLAUDE.md](../CLAUDE.md) "현재 상태" 절.
+> 자세한 현재 위치는 [../STATUS.md](../STATUS.md).
 >
 > 이 HOLD 는 OffenseDefense 트랙이 닫힌 뒤 Human 이 걷는다.
 
