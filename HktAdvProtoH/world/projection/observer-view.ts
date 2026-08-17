@@ -16,7 +16,13 @@ import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
-import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
+import {
+  actorModifiers,
+  defenseMultiplier,
+  isDowned,
+  rawDamage,
+  skillDefinition,
+} from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
@@ -86,6 +92,13 @@ export function projectObserverView(
           moveSpeed: modifiers.moveSpeed,
           actionSpeed: modifiers.actionSpeed,
         },
+        // 전투 능력치 (C010) — 방어 배율까지 함께 낸다. 체감식이라 수치만 보고는
+        // 효과를 알 수 없기 때문이다 (INTENT-DEFENSE-001).
+        combatStats: {
+          attack: actor.attack,
+          defense: actor.defense,
+          defenseMultiplier: defenseMultiplier(actor),
+        },
       },
       ...(progress !== null ? { progress } : {}),
       ...(target ? { targetEntityId: target } : {}),
@@ -125,8 +138,11 @@ export function projectObserverView(
 
   // interactions.attack / skill-heavy (C007) — 대상이 없다. 무엇이 맞을지는
   // 요청할 때가 아니라 휘두름 구간의 접촉이 정한다.
-  // profile(damage/charge/cost)이 함께 나간다 — 쓰기 전에 무엇이 오갈지 알아야
+  // profile 이 함께 나간다 — 쓰기 전에 무엇이 오갈지 알아야
   // "지금 고급 스킬을 쓸 것인가" 를 판단할 수 있다 (INTENT-SELF-OBSERVE-001).
+  // C010 CHANGED — damage 하나가 셋으로 나뉜다. rawDamage 는 지금 내 공격 능력으로
+  // 이 스킬을 쓰면 나오는 공격 피해이며, 최종 피해는 실리지 않는다 —
+  // 대상이 정해지기 전에는 세계도 모르는 값이다.
   const basicFailure = evaluateSkillPreconditions(self, 'attack');
   const basic = skillDefinition('attack');
   interactions.push({
@@ -134,7 +150,13 @@ export function projectObserverView(
     role: 'skill-basic',
     available: basicFailure === null,
     ...(basicFailure ? { reason: basicFailure } : {}),
-    profile: { damage: basic.damage, charge: basic.cpCharge, cost: basic.cpCost },
+    profile: {
+      baseDamage: basic.baseDamage,
+      attackRatio: basic.attackRatio,
+      rawDamage: rawDamage(self, 'attack'),
+      charge: basic.cpCharge,
+      cost: basic.cpCost,
+    },
   });
 
   const heavyFailure = evaluateSkillPreconditions(self, 'heavy-attack');
@@ -144,7 +166,13 @@ export function projectObserverView(
     role: 'skill-heavy',
     available: heavyFailure === null,
     ...(heavyFailure ? { reason: heavyFailure } : {}),
-    profile: { damage: heavy.damage, charge: heavy.cpCharge, cost: heavy.cpCost },
+    profile: {
+      baseDamage: heavy.baseDamage,
+      attackRatio: heavy.attackRatio,
+      rawDamage: rawDamage(self, 'heavy-attack'),
+      charge: heavy.cpCharge,
+      cost: heavy.cpCost,
+    },
   });
 
   // interactions.moveMode (C007) — 지금 달릴 수 있는가. 걷기로 돌아오는 것은 언제나 된다.
@@ -226,6 +254,11 @@ export function projectObserverView(
       { id: 'self.cpMax', kind: 'counter', value: self.cpMax },
       { id: 'self.downed', kind: 'flag', value: isDowned(self) },
       { id: 'self.moveMode', kind: 'label', value: self.moveMode },
+      // hud.self.combatStats (C010) — 내가 얼마나 세게 때리고 얼마나 덜 맞는가.
+      // 값을 바꾼 직후 그 변화가 여기서 즉시 확인되어야 한다.
+      { id: 'self.combat.attack', kind: 'counter', value: self.attack },
+      { id: 'self.combat.defense', kind: 'counter', value: self.defense },
+      { id: 'self.combat.defenseMultiplier', kind: 'counter', value: defenseMultiplier(self) },
       { id: 'self.tempo.moveSpeed', kind: 'counter', value: self.moveSpeed },
       { id: 'self.tempo.runSpeedMultiplier', kind: 'counter', value: self.runSpeedMultiplier },
       { id: 'self.tempo.actionSpeed', kind: 'counter', value: self.actionSpeed },
@@ -242,6 +275,8 @@ export function projectObserverView(
       amount: event.amount,
       at: { x: event.position.x, z: event.position.z },
       since: event.time,
+      // C010 — 그 숫자가 왜 그만큼인지. 세계가 계산한 경위를 그대로 낸다.
+      breakdown: { ...event.breakdown },
     })),
     // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.
     debug: {

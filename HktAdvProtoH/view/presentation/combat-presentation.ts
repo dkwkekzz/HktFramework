@@ -46,6 +46,9 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       a.tempoStats.runSpeedMultiplier,
     )}`,
     `공속 ×${round(a.tempoStats.actionSpeed)}`,
+    // C010 — 방어는 체감식이라 수치만으로는 효과를 알 수 없다. 남는 비율을 함께 쓴다.
+    `공격 ${round(a.combatStats.attack)} · 방어 ${round(a.combatStats.defense)}` +
+      ` (받는 피해 ${percent(a.combatStats.defenseMultiplier)})`,
     `배율 충전×${round(a.modifiers.energyCharge)} 소비×${round(a.modifiers.energyConsume)}`,
     `배율 이동×${round(a.modifiers.moveSpeed)} 공속×${round(a.modifiers.actionSpeed)}`,
   ];
@@ -53,7 +56,15 @@ export function inspectLines(entity: EntityView): string[] | undefined {
 
 // 타격 결과 — 얼마가 깎였는지 숫자로 읽힌다. 고급 스킬의 결과는 크게 그린다.
 // 맞은 몸의 그림 크기를 알면 그 몸에서 떠오르게 한다 (모르면 기준값).
-export function strikeMark(event: StrikeEventView, targetSpriteSize?: number): SceneStrike {
+//
+// C010 — 세계는 그 숫자가 나온 경위도 함께 보낸다. 늘 띄우면 정작 피해 숫자가 읽히지
+// 않으므로, 속성 관찰이 켜진 동안에만 한 줄로 덧붙인다 (detail).
+// "왜 이만큼인가" 를 확인하려는 순간은 값을 들여다보는 순간과 같기 때문이다.
+export function strikeMark(
+  event: StrikeEventView,
+  targetSpriteSize?: number,
+  inspect = false,
+): SceneStrike {
   return {
     id: `${event.attackerId}->${event.targetId}@${event.since}`,
     position: event.at,
@@ -61,7 +72,19 @@ export function strikeMark(event: StrikeEventView, targetSpriteSize?: number): S
     emphasis: event.skill === 'heavy-attack',
     since: event.since,
     anchorHeight: (targetSpriteSize ?? DEFAULT_SPRITE_SIZE) * STRIKE_ANCHOR_RATIO,
+    ...(inspect ? { detail: breakdownLine(event) } : {}),
   };
+}
+
+// 한 방의 경위를 한 줄로 — 스킬이 얼마 + 공격력이 얼마를 보태 = 얼마였고,
+// 상대 방어가 그것을 몇 할로 줄여 = 얼마가 되었다.
+function breakdownLine(event: StrikeEventView): string {
+  const b = event.breakdown;
+  return (
+    `${round(b.baseDamage)}+${round(b.attackContribution)}=${round(b.rawDamage)}` +
+    ` ×${percent(b.defenseMultiplier)}(방어 ${round(b.targetDefense)})` +
+    ` = ${Math.round(b.finalDamage)}`
+  );
 }
 
 // 자기 자원·능력치·배율 — 늘 눈앞에 있는 자리 (04 hud.self).
@@ -77,6 +100,10 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
   const moveModeCode = String(value('self.moveMode') ?? 'walk');
 
   const lines: string[] = [
+    // C010 — 내가 얼마나 세게 때리고 얼마나 덜 맞는가. 값을 바꾸면 여기서 바로 확인된다.
+    `공격력 ${round(Number(value('self.combat.attack') ?? 0))}` +
+      ` · 방어력 ${round(Number(value('self.combat.defense') ?? 0))}` +
+      ` (받는 피해 ${percent(Number(value('self.combat.defenseMultiplier') ?? 1))})`,
     `이동 속도 ${round(Number(value('self.tempo.moveSpeed') ?? 0))}` +
       ` · 달리기 ×${round(Number(value('self.tempo.runSpeedMultiplier') ?? 1))}`,
     `공격 속도 ×${round(Number(value('self.tempo.actionSpeed') ?? 1))}`,
@@ -113,4 +140,9 @@ export function isSelfHudId(id: string): boolean {
 
 function round(value: number): string {
   return Number.isInteger(value) ? String(value) : value.toFixed(2).replace(/0$/, '');
+}
+
+// 비율은 백분율로 읽는 편이 빠르다 — 0.769 보다 77% 가 먼저 이해된다 (C010).
+function percent(value: number): string {
+  return `${Math.round(value * 100)}%`;
 }

@@ -73,6 +73,8 @@ describe('INTENT-COMMAND-CATALOG-001 — 세계가 걸 수 있는 것을 밝힌�
       'hpMax',
       'cp',
       'cpMax',
+      'attack', // C010 — 세계가 목록에 더하면 여기 그대로 나타난다
+      'defense',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

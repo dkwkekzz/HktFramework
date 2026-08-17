@@ -40,6 +40,8 @@ export function spawnActor(spawn: ActorSpawn): ActorState {
     hpMax: def.resources.hpMax,
     cp: def.resources.cpStart,
     cpMax: def.resources.cpMax,
+    attack: def.combat.attack, // C010 — 종류가 정하는 두 능력
+    defense: def.combat.defense,
     moveMode: 'walk',
     moveSpeed: def.tempo.moveSpeed,
     runSpeedMultiplier: def.tempo.runSpeedMultiplier,

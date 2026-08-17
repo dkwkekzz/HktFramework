@@ -25,6 +25,13 @@ const BASIC = SKILL_DEFINITIONS.attack;
 const HEAVY = SKILL_DEFINITIONS['heavy-attack'];
 const AFTER_SWING_OPEN = SWING_BEGIN * BASIC.baseDuration + 2 * TICK_INTERVAL;
 
+// C010 — 피해는 더 이상 스킬의 고정값이 아니라 공식의 결과다.
+// 기대값을 공식으로 다시 계산하면 구현을 구현으로 검사하는 꼴이 되므로 숫자로 박는다.
+// 관찰자(rabbit-swordsman, Attack 40) → 자율 존재(wanderer, Defense 30) 기준이며,
+// 두 값 모두 C007 의 고정 피해(20 · 55)와 같다 — 공격 쪽 체감이 보존되었다는 회귀 기준이다.
+const BASIC_DAMAGE = 20;
+const HEAVY_DAMAGE = 55;
+
 const tickFor = (world: WorldDriver, seconds: number) => {
   const steps = Math.ceil(seconds / TICK_INTERVAL);
   for (let i = 0; i < steps; i++) world.tick(TICK_INTERVAL);
@@ -77,10 +84,10 @@ describe('INTENT-VITALITY-001 — 모든 존재가 생명과 기력을 지닌다
   });
 });
 
-describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이다', () => {
+describe('INTENT-STRIKE-DAMAGE-001 — 피해는 하나의 공식이 정한다 (C010 CHANGED)', () => {
   it('기본 스킬은 언제나 같은 값을 깎는다 — 흔들림이 없다', () => {
     // 맞은 몸은 밀려나므로(C006) 두 번째 휘두름은 같은 자리에 닿지 않는다.
-    // 고정 피해임을 보이려면 같은 조건을 두 번 만드는 편이 정확하다.
+    // 흔들림이 없음을 보이려면 같은 조건을 두 번 만드는 편이 정확하다.
     const strike = () => {
       const world = driveWorld({ npcs: [dummyAt(1.5, 0)] });
       aimRight(world);
@@ -89,8 +96,8 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
       return actor(world.observe(), 'npc-1')?.vitality?.health;
     };
 
-    expect(strike()).toBe(120 - BASIC.damage);
-    expect(strike()).toBe(120 - BASIC.damage); // R1 — 판정도 우연도 없다
+    expect(strike()).toBe(120 - BASIC_DAMAGE);
+    expect(strike()).toBe(120 - BASIC_DAMAGE); // R1 — 판정도 우연도 없다
   });
 
   it('고급 스킬은 기본 스킬보다 크게 깎는다', () => {
@@ -99,8 +106,8 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
 
     world.dispatch({ interactionId: 'skill-heavy' });
     tickFor(world, SWING_BEGIN * HEAVY.baseDuration + 2 * TICK_INTERVAL);
-    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - HEAVY.damage);
-    expect(HEAVY.damage).toBeGreaterThan(BASIC.damage);
+    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - HEAVY_DAMAGE);
+    expect(HEAVY_DAMAGE).toBeGreaterThan(BASIC_DAMAGE);
   });
 
   it('한 휘두름은 같은 몸을 한 번만 때린다 (C006 회귀)', () => {
@@ -109,7 +116,7 @@ describe('INTENT-STRIKE-DAMAGE-001 — 피해는 스킬이 정한 고정값이�
 
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration); // 휘두름 전 구간을 지나도
-    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - BASIC.damage);
+    expect(actor(world.observe(), 'npc-1')?.vitality?.health).toBe(120 - BASIC_DAMAGE);
   });
 });
 
@@ -158,8 +165,8 @@ describe('INTENT-SKILL-BUDGET-001 — 맞혀야 기력이 돈다', () => {
 
     const view = world.observe();
     // 둘 다 맞았지만
-    expect(actor(view, 'npc-1')?.vitality?.health).toBe(120 - BASIC.damage);
-    expect(actor(view, 'npc-2')?.vitality?.health).toBe(120 - BASIC.damage);
+    expect(actor(view, 'npc-1')?.vitality?.health).toBe(120 - BASIC_DAMAGE);
+    expect(actor(view, 'npc-2')?.vitality?.health).toBe(120 - BASIC_DAMAGE);
     // 정산은 한 번이다
     expect(hud(view, 'self.cp')).toBe(before + BASIC.cpCharge);
   });
@@ -194,14 +201,20 @@ describe('INTENT-SKILL-COST-GATE-001 — 기력이 모자라면 시작되지 않
   });
 
   it('스킬의 수지와 피해는 쓰기 전에 관찰된다', () => {
+    // C010 — 실리는 것은 최종 피해가 아니라 "내가 실어 보내는 공격 피해" 다.
+    // 최종 피해는 대상이 정해져야 알 수 있으므로 여기 실리지 않는다.
     const view = soloWorld().observe();
     expect(skill(view, 'attack')?.profile).toEqual({
-      damage: BASIC.damage,
+      baseDamage: 6,
+      attackRatio: 0.5,
+      rawDamage: 26, // 6 + 40 × 0.5
       charge: BASIC.cpCharge,
       cost: BASIC.cpCost,
     });
     expect(skill(view, 'skill-heavy')?.profile).toEqual({
-      damage: HEAVY.damage,
+      baseDamage: 32,
+      attackRatio: 1.0,
+      rawDamage: 72, // 32 + 40 × 1.0
       charge: HEAVY.cpCharge,
       cost: HEAVY.cpCost,
     });
@@ -215,7 +228,7 @@ describe('INTENT-DOWNED-001 — 생명이 다하면 쓰러진다', () => {
     world.dispatch({
       interactionId: 'set-attribute',
       targetEntityId: 'npc-1',
-      attribute: { id: 'hp', value: BASIC.damage },
+      attribute: { id: 'hp', value: BASIC_DAMAGE },
     });
     world.dispatch({ interactionId: 'attack' });
     tickFor(world, BASIC.baseDuration + TICK_INTERVAL);
@@ -416,7 +429,7 @@ describe('INTENT-STRIKE-OBSERVE-001 — 타격 결과가 잠시 드러났다 사
       attackerId: PLAYER,
       targetId: 'npc-1',
       skill: 'attack',
-      amount: BASIC.damage,
+      amount: BASIC_DAMAGE,
     });
   });
 
@@ -444,6 +457,8 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       control: 'autonomous',
       tempoStats: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
+      // C010 — 새 속성도 예외 없이 실린다
+      combatStats: { attack: 40, defense: 30, defenseMultiplier: 100 / 130 },
     });
   });
 
@@ -470,6 +485,8 @@ describe('INTENT-ATTRIBUTE-MUTATE-001 — 세계가 허용하면 속성을 바�
       'hpMax',
       'cp',
       'cpMax',
+      'attack', // C010 — 목록에 항목이 늘어날 뿐 계약은 그대로다
+      'defense',
       'moveSpeed',
       'runSpeedMultiplier',
       'actionSpeed',

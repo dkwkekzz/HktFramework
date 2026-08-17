@@ -378,7 +378,15 @@ function frame(now: number): void {
     );
     if (!screen) continue;
     const age = Math.max(0, Math.min(1, (latestScene.worldTime - strike.since) / STRIKE_FADE_SECONDS));
-    strikes.push({ x: screen.x, y: screen.y, text: strike.text, emphasis: strike.emphasis, age });
+    strikes.push({
+      x: screen.x,
+      y: screen.y,
+      text: strike.text,
+      emphasis: strike.emphasis,
+      age,
+      // C010 — 경위는 결정 Layer 가 채운 경우에만 있다 (속성 관찰이 켜졌을 때)
+      ...(strike.detail ? { detail: strike.detail } : {}),
+    });
   }
   // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
   // 나머지는 link 가 관찰자 쪽 시계로 잰 것이다.

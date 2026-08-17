@@ -67,6 +67,12 @@ export interface SceneStrike {
   since: number; // 세계 시각 — 얼마나 지났는지는 capability 가 fade 로 쓴다
   /** 지면에서 이 숫자가 뜰 높이 — 맞은 몸의 가슴께다 */
   anchorHeight: number;
+  /**
+   * 그 숫자가 나온 경위 (C010) — 형식화 완료된 한 줄.
+   * 속성 관찰이 켜졌을 때만 채워진다. 늘 띄우면 숫자를 읽을 수 없기 때문이며,
+   * 감춘 것이 아니라 표시 선택이다 (nameplate / inspect 와 같은 규칙).
+   */
+  detail?: string;
 }
 
 // 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
