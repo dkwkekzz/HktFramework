@@ -18,15 +18,14 @@ import type { DepositState } from '../semantic/deposit';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import { distance } from '../semantic/position';
 import { INTERACTION_RANGE, type WorldState } from '../semantic/world-state';
-import { beginAction, evaluateActionBegin, type ActionBusyReason } from './action-begin';
+import { beginAction, evaluateActionBegin } from './action-begin';
 
 // 실패 사유 코드 — Rule 이 소유하며 protocol 로는 문자열 코드로 흐른다
 export type MineFailureReason =
   | 'no-mining-tool'
   | 'out-of-range'
   | 'deposit-depleted'
-  // C010 — 막는 중에는 캐지 못한다. 관문(RULE-ACTION-BEGIN-001)이 guarding 을 돌려준다
-  | ActionBusyReason;
+  | 'action-busy';
 
 // Precondition 평가 — Observable(Mine.Availability / Mine.FailureReason)과 Rule 이 같은 판정을 공유한다
 export function evaluateMinePreconditions(
@@ -36,7 +35,7 @@ export function evaluateMinePreconditions(
   if (!hasMiningTool(actor.inventory)) return 'no-mining-tool';
   if (distance(actor.position, deposit.position) > INTERACTION_RANGE) return 'out-of-range';
   if (deposit.resourceAmount <= 0) return 'deposit-depleted';
-  return evaluateActionBegin(actor, 'mine');
+  return evaluateActionBegin(actor);
 }
 
 export function ruleMine(state: WorldState, actor: ActorState, depositId: string): ActionResult {

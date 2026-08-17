@@ -1,0 +1,36 @@
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+#   핵심 원칙 ("새로운 시스템은 새로운 피해 공식을 만들지 않는다. 기존 공식의 입력값이나
+#   결과값에 한 가지 의미만 추가한다") · §15 전체 구조 ("가장 아래의 공식은 계속 유지한다.
+#   위의 시스템은 아래 공식을 수정할 뿐 교체하지 않는다") · §0 ("C010(기본 공식)이 이후
+#   모든 공격/방어 시스템의 공통 계산 기반이 된다")
+# 2026-08-17 Human 지시(R1 반영)로 신설.
+id: DC-COMBAT-ONE-FORMULA
+type: constraint
+
+statement: >
+  전투에는 하나의 기반 피해 공식만 존재한다. 새로운 전투 시스템은 새로운 피해 공식을
+  만들지 않고, 기존 공식의 입력값이나 결과값에 한 가지 의미만 더한다.
+rationale: >
+  기반 공식을 유지하고 위층이 그것을 수정만 하게 하면, 확장할수록 시스템이
+  난잡해지는 것을 막을 수 있다 (R1 §15). Critical 은 Final Damage 를 증폭하고,
+  Guard 는 Final Damage 를 감소시키고, Penetration 은 Defense 를 감소시키고,
+  Aura 는 Attack/Defense 를 변화시키는 식이다 (R1 핵심 원칙).
+
+scope:
+  - COMBAT
+
+requires:
+  - single_base_damage_formula              # 기반 피해 공식은 하나다 (R1 §5 · §15)
+  - extensions_modify_inputs_or_outputs     # 확장은 기존 공식의 입력/결과에 의미를 더한다 (핵심 원칙)
+prohibits:
+  - parallel_damage_formula                 # 기반 공식을 우회하는 별도 피해 계산 경로 신설
+prefers: []
+
+status: APPROVED
+provenance:
+  - HUMAN_DESIGN          # R1 반영 2026-08-17 Human 지시
+
+relations:
+  supports:
+    - DC-COMBAT-PLAYER-CAUSALITY   # 공식이 하나면 결과의 원인 추적도 한 경로로 남는다
+  conflicts_with: []

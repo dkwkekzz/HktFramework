@@ -3,29 +3,32 @@
 Master Capability(`graph/capabilities.yaml`) 를 현재 `world/` `view/` 구현 상태와 겹쳐 본 결과다.
 Frontier 는 여기서 나온다.
 
-기준 시점: **C009 완료 시점** (전투 관련 최신 Cycle 은 C007 — Basic Combat Policy)
+기준 시점: **C010·C011 롤백 + 전투 기획서 R1 개정 반영 (2026-08-17)** — 코드는 C009 완료
+시점 상태다.
 
 ## 상태
 
 | Capability | 상태 | 근거 | 부족한 것 |
 |---|---|---|---|
-| MC-COMBAT-STRIKE | IMPLEMENTED | C007 `RULE-STRIKE-DAMAGE-001` (`world/rules/strike-damage.ts`) · 08-verification | — |
+| MC-COMBAT-STRIKE | IMPLEMENTED | C007 `RULE-STRIKE-DAMAGE-001` (`world/rules/strike-damage.ts`) · 08-verification | — (단 R1 §9 가 이 규칙의 피해 산정을 CHANGED 로 지정 — 아래 MISSING 3종이 그 확장이다) |
 | MC-BODY-FACING | IMPLEMENTED | C006 `RULE-BODY-FACING-001` · `ActorState.facing` (`world/semantic/actor.ts`) | — |
 | MC-CP-ECONOMY | PARTIAL | C007 `hp/cp` · `SkillDefinition.cpCharge/cpCost` · `RUN_CP_DRAIN` (`world/semantic/combat.ts`) | 기력이 아직 공격과 달리기에만 쓰인다. 방어·회피·자세 유지가 같은 예산을 나눠 쓰지 않는다 |
-| MC-COMBAT-CAUSE-READING | PARTIAL | C007 `World.StrikeEvents` (누가·누구를·얼마나) · C007 R2 속성 전체 관찰 · C009 명령 대답 | 결과를 만든 **배율과 조건**이 없다. 지금은 최종 수치 하나만 보이므로 "왜 커졌는가" 를 재구성할 수 없다 |
-| MC-DEFENSE-MITIGATION | MISSING | — | 방어력이라는 값 자체가 Actor 에 없다 (`world/semantic/actor.ts`) |
-| MC-GUARD | MISSING | — | 막는 행동이 없다. `ActionKind` 에 attack / heavy-attack / hit / downed / mine / move 만 있다 |
-| MC-PERFECT-GUARD | MISSING | — | Guard 가 없으므로 그 시작 시각도 없다 |
-| MC-EVADE | MISSING | — | 회피 행동이 없다. 이동은 있으나 공격 회피의 의미를 갖지 않는다 |
-| MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없어 되받아칠 순간이 세계에 존재하지 않는다 |
-| MC-BREAK | MISSING | — | 균형 누적값·붕괴 상태가 없다 |
-| MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다. 스킬은 구간(STARTUP/ACTIVE/RECOVERY) 구분도 갖지 않는다 |
-| MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 |
-| MC-ATTACK-ARMOR-MATCHUP | MISSING | — | 공격 타입도 방어 타입도 없다. 피해가 `SkillDefinition.damage` 고정값 하나다 |
-| MC-WEAK-POINT | MISSING | — | 몸이 단일 캡슐이라 부위 구분이 없다 (C006 `bodyRadius/bodyHeight`) |
-| MC-REAR-ATTACK | MISSING | — | facing 은 있으나 타격 판정이 방향을 보지 않는다 |
-| MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 |
-| MC-VOW | MISSING | — | 제약·실패 대가가 없다 |
+| MC-COMBAT-CAUSE-READING | PARTIAL | C007 `World.StrikeEvents` · C007 R2 속성 전체 관찰 · C009 명령 대답 | 결과를 만든 계산 내역이 없다 — R1 §5 기준으로는 기본 피해 · Attack 기여 · Defense 배율이 읽혀야 한다 |
+| MC-ATTACK-POWER | MISSING | — | 공격 능력치가 Actor 에 없다. 피해가 `SkillDefinition.damage` 고정값 하나다 (`world/semantic/combat.ts`) |
+| MC-SKILL-SCALING | MISSING | — | 스킬에 기본 피해량/공격 계수 구분이 없다 — `damage` 단일 필드뿐이다 |
+| MC-DEFENSE-MITIGATION | MISSING | — | 방어력이라는 값 자체가 Actor 에 없다 (C010 이 감산식으로 닫았다가 **2026-08-17 롤백** — R1 §4 의 체감 형태로 새로 만든다) |
+| MC-GUARD | MISSING | — | 막는 행동이 없다 (C010 으로 닫혔다가 **2026-08-17 롤백** — R1 §14 Defense Action(Guard) 층에서 재구축) |
+| MC-PERFECT-GUARD | MISSING | — | Guard 가 없으므로 그 시작 시각도 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 Active Defense 층) |
+| MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 Active Defense 층) |
+| MC-EVADE | MISSING | — | 회피 행동이 없다 (R1 §13 이연) |
+| MC-BREAK | MISSING | — | 균형 누적값·붕괴 상태가 없다 (R1 이연 — 재설계 대기) |
+| MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 Aura/Nen 층으로 재설계 예정) |
+| MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
+| MC-ATTACK-ARMOR-MATCHUP | MISSING | — | 공격 타입도 방어 타입도 없다 (R1 §14 Damage Type 층으로 재편 예정) |
+| MC-WEAK-POINT | MISSING | — | 몸이 단일 캡슐이라 부위 구분이 없다 (C006 `bodyRadius/bodyHeight`) (R1 이연) |
+| MC-REAR-ATTACK | MISSING | — | facing 은 있으나 타격 판정이 방향을 보지 않는다 (R1 이연) |
+| MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
+| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
 
 ## 판정 기준
 
@@ -42,29 +45,35 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 
 어느 경로가 지금 얼마나 닫혀 있는가 — Frontier 는 이 표에서 고른다.
 
-| Possibility | 요구 Capability 중 없는 것 | 가장 가까운가 |
+| Possibility | 요구 Capability 중 없는 것 | 비고 |
 |---|---|---|
-| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD · MC-DEFENSE-MITIGATION | **가장 가깝다** — 없는 것 2종이 한 덩어리다 (막기는 줄일 피해가 있어야 성립한다) |
-| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | 없는 것 1종이나 위치 이동 의미의 재해석이 필요하다 |
-| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | Guard 가 먼저 있어야 그 시점이 성립한다 |
-| MP-BREAK-THE-GUARD | MC-BREAK | 없는 것 1종. 다만 압박의 대상인 방어가 없으면 의미가 얇다 |
-| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW (+ MC-COMBAT-CAUSE-READING 보강) | Flow 는 스킬 구간 개념을 함께 요구한다 |
-| MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | 공격·방어 타입 2종을 함께 들여야 한다 |
-| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-DEFENSE-MITIGATION · MC-COMBAT-FLOW | Flow 이후 |
-| MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | 몸의 부위 구분이 선행한다 |
-| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | 가장 멀다 — 조건들이 먼저 존재해야 겹칠 수 있다 |
+| MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION | **R1 이 지정한 다음 층** — 새 값 3종이 한 덩어리다 (하나의 피해 공식) |
+| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD · MC-DEFENSE-MITIGATION | C010 으로 닫혔다가 롤백 — R1 §14 Defense Action(Guard) 층에서 재구축 |
+| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | C011 로 닫혔다가 롤백 — R1 §14 Active Defense 층에서 재구축 |
+| MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이연 |
+| MP-BREAK-THE-GUARD | MC-BREAK | R1 이연 — 재설계 대기 |
+| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 |
+| MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | R1 §14 Damage Type 층으로 재편 예정 |
+| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW · MC-DEFENSE-MITIGATION | R1 §14 Aura/Nen 층으로 이연 |
+| MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | R1 이연 |
+| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
 
 ## 이번 갱신
 
-    design/Design-Combat-OffenseDefense-R0.md 주입에 따른 최초 판정 (17종).
-    IMPLEMENTED 2 · PARTIAL 2 · MISSING 13.
+    2026-08-17 — Human 결정 두 건을 반영했다.
 
-    PARTIAL 2종은 "있지만 이 문서가 요구하는 형태에 못 미치는" 경우다 —
-    기력은 존재하나 방어를 사지 못하고, 관찰은 존재하나 원인을 설명하지 못한다.
+    1. 전투 기획서 R1 전면 개정 ("가장 단순한 공격/방어 공식 먼저").
+       신규 MC-ATTACK-POWER · MC-SKILL-SCALING 판정 (둘 다 MISSING).
+       구판 유래 MISSING 노드들에 R1 §13·§14 이연 표기.
 
-    Quality Gate 자가 점검 후 보정 — MC-DEFENSE-MITIGATION 이 어떤 Possibility 에도
-    요구되지 않던 상태를 고쳤다. 막기와 자세가 그것을 딛는다는 관계를 세워
-    MP-TRADE-BODY-FOR-RESOURCE 의 첫 Cycle 크기가 1종에서 2종으로 늘었다.
+    2. C010(막기·방어력) · C011(완벽한 막기·되받아침) 구현 롤백.
+       두 Cycle 은 검사를 통과했으나 R1 의 층 순서(기본 공식이 먼저, 능동 방어는
+       그 위)와 어긋나 Human 지시로 되돌렸다. 코드·Cycle 산출물은 git history 에 있다.
+       MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER · MC-DEFENSE-MITIGATION → MISSING,
+       MC-CP-ECONOMY · MC-COMBAT-CAUSE-READING 은 C007 시점 PARTIAL 로 복귀.
+       재구축 시 이전 산출물(cycles/C010-*, C011-* — git history)을 참조할 수 있다.
+
+    현재 IMPLEMENTED 2 · PARTIAL 2 · MISSING 15 (전체 19종).
 
 ## 갱신 경로
 

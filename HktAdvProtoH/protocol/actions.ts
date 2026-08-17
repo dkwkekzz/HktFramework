@@ -7,9 +7,6 @@ export interface ActionRequest {
   position?: { x: number; z: number }; // 지형 대상 interaction 용
   targetEntityId?: string; // entity 대상 interaction 용
   mode?: 'walk' | 'run'; // C007 — 이동 모드 전환. 토글이 아니라 명시값이다
-  // C010 — 막는 자세. 이것도 토글이 아니라 명시값이다 (RULE-GUARD-SET-001).
-  // 세우는 것(guard)에만 조건이 있고, 놓는 것(open)은 언제나 된다.
-  stance?: 'open' | 'guard';
   // C007 R2 — 속성 변경 (디버그 조작의 기반). 무엇을 어떤 값으로 바꿀지가 실린다.
   // 요청일 뿐이다 — 받아들일지는 World Rule 이 정한다 (RULE-ATTRIBUTE-SET-001).
   attribute?: { id: string; value: number | string };

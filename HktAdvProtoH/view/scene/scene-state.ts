@@ -29,16 +29,6 @@ export interface SceneNameplate {
   healthMaximum: number;
   healthRatio: number; // 0..1 — 막대 길이는 이미 결정 Layer 가 구했다
   downed: boolean; // 참이면 살아 있는 존재와 구분해 그린다
-  // C010 — 막는 자세. 막는 것이 선택인 세계에서 "누가 지금 막고 있는가" 는
-  // 이름·생명과 같은 급의 정보다 (04 entityHud.shows).
-  guarding: boolean;
-  guardBroken: boolean; // 방어가 무너진 여파 안 — 그냥 안 막는 것과 구분해 그린다
-  // C011 — 방금 세운 자세인가. 세워 두고 버티는 자세와 결과가 다르므로 구분해 그린다
-  // (04 entities.character.stance.meaning).
-  perfectWindow: boolean;
-  // C011 — 지금 열려 있는가. 이것을 못 보면 되받아칠 순간을 알 수 없다
-  // (04 entityHud.shows.exposed). 무너짐이 상대의 실패라면 열림은 나의 성공이다.
-  exposed: boolean;
   /**
    * 지면에서 이 표지를 띄울 높이 — 그 몸의 캡슐 정수리 바로 위다 (C006 Body.Height 기준).
    * 몸마다 키가 다르면 표지도 그 키를 따른다.
@@ -73,17 +63,7 @@ export interface SceneStrike {
   id: string; // 같은 결과를 이어 그리기 위한 키
   position: { x: number; z: number };
   text: string; // 표시 문구 (형식화 완료)
-  // C010 — 그 값이 어떻게 나왔는지 한 줄 (형식화 완료). 없으면 설명할 것이 없는 타격이다.
-  detail?: string;
   emphasis: boolean; // 고급 스킬의 결과인가 — 크게 그린다
-  // C010 — 이 타격이 막힌 것인가 / 방어를 무너뜨린 것인가.
-  // capability 는 이것이 무슨 뜻인지 모른다 — 다르게 그릴 뿐이다.
-  guarded: boolean;
-  guardBroken: boolean;
-  // C011 — 완벽하게 막아 낸 타격인가 / 되받아친 타격인가.
-  // capability 는 이것이 무슨 뜻인지 모른다 — 다르게 그릴 뿐이다.
-  perfect: boolean;
-  counter: boolean;
   since: number; // 세계 시각 — 얼마나 지났는지는 capability 가 fade 로 쓴다
   /** 지면에서 이 숫자가 뜰 높이 — 맞은 몸의 가슴께다 */
   anchorHeight: number;
@@ -101,21 +81,6 @@ export interface SceneSelf {
   downed: boolean;
   moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
   moveModeCode: string; // 요청에 쓸 원래 코드
-  // C010 — 지금 막고 있는가, 막을 수 있는가, 없다면 왜인가 (04 hud.self.guard)
-  stance: string; // 문구
-  stanceCode: string; // 요청에 쓸 원래 코드 (open | guard)
-  guarding: boolean;
-  guardBroken: boolean;
-  guardUnavailableText?: string; // 막을 수 없다면 그 사유 문구
-  // C011 — 내 창이 아직 열려 있는가 (04 hud.self.guard.perfectWindow).
-  // 읽어야 할 것은 상대의 공격이지 자기 세계의 규칙이 아니다.
-  perfectWindow: boolean;
-  // C011 — 다시 세울 수 있게 되기까지 남은 시간 (초). 지금 세울 수 있으면 없다.
-  // 이것이 없으면 재세움 간격은 "가끔 안 먹히는 버튼" 으로만 느껴진다.
-  guardRearmIn?: number;
-  // C011 — 나도 열릴 수 있다 (04 hud.self.exposure).
-  exposed: boolean;
-  defense: number;
   lines: string[]; // 템포 능력치·배율 — 이미 형식화된 줄들
 }
 

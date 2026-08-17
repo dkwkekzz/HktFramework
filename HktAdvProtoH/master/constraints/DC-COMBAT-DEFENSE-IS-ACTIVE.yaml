@@ -1,6 +1,12 @@
-# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §1.1 · §3.2 · §8
-# 2026-08-15 Human 지시로 반영. 수동 피해 감쇄(§5.2)는 원본이 함께 두는 바닥이므로
-# 금지하지 않는다 — 이 Constraint 는 그 위에 능동층이 있어야 한다는 요구다.
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md 구판(R0) §1.1 · §3.2 · §8
+# 2026-08-15 Human 지시로 반영. 수동 피해 감쇄는 이 Constraint 의 금지 대상이 아니다 —
+# 그 위에 능동층이 있어야 한다는 요구다.
+#
+# 2026-08-17 Human 지시(R1 재작성 + C010·C011 롤백)로 **보류(DRAFT)** —
+# R1 §8 은 현 단계의 방어를 능력치로 정의하고, 능동 방어(Guard · Perfect Guard · Counter)는
+# §14 의 Defense Action/Active Defense 확장 층으로 이연했다. 근거 층이 아직 설계되지 않았으므로 이 Constraint 는
+# 지금 Active 가 아니며, 해당 층의 재설계 문서가 나올 때 문안을 재검토하고 재승인한다.
+# 문안은 보존한다 — 방향(방어는 수치로 끝나지 않는다)은 R1 §14 Defense Action·Active Defense 층과 일치한다.
 id: DC-COMBAT-DEFENSE-IS-ACTIVE
 type: constraint
 
@@ -21,9 +27,9 @@ requires:
 prohibits: []
 prefers: []
 
-status: APPROVED
+status: DRAFT             # 2026-08-17 Human 지시 — R1 이연 층(§14 Defense Action/Active Defense) 재설계 시까지 보류
 provenance:
-  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+  - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 에 따른 보류 2026-08-17 — 모두 Human 지시
 
 relations:
   supports: []

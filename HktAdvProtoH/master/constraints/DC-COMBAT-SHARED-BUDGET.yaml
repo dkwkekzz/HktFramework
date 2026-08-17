@@ -1,30 +1,32 @@
-# 원본 근거: design/Design-Combat-OffenseDefense-R0.md §8.1 · §11
-# 2026-08-15 Human 지시로 반영. "별도의 Guard Gauge / Ultimate Gauge 를 만들지 않고
-# 기존 기력을 확장한다" (§11) 는 원본의 명시 금지다.
+# 원본 근거: design/Design-Combat-OffenseDefense-R0.md **R1 (2026-08-17 전면 개정)**
+#   §1 (CP 는 기본 능력치) · §11 (기본 공격 CP Charge · 고급 공격 CP Cost) ·
+#   §16-3 (기본 공격으로 모으고 강한 공격으로 쓰는 루프가 그대로 동작해야 성공)
+# 2026-08-15 Human 지시로 구판(R0)에서 최초 반영 → 2026-08-17 Human 지시로 R1 기준 재정합.
+# "행동별 전용 게이지 신설 금지" 는 구판 §11 의 명시 금지 유래다 — R1 은 재서술하지
+# 않았으나 CP 루프를 성공 조건으로 유지하므로 함께 유지한다.
 id: DC-COMBAT-SHARED-BUDGET
 type: constraint
 
 statement: >
-  전투 행동(공격·방어·기동·폭발)은 하나의 공통 기력 예산을 나눠 쓴다.
+  전투 행동은 하나의 공통 기력(CP) 예산을 나눠 쓴다.
   행동별 전용 게이지를 신설하지 않는다.
 rationale: >
-  어디에 쓸지 고르는 순간 다른 곳에 쓸 것이 줄어드는 선택 압력이 공방 심리전의
-  바닥이다 (§11). 예산이 쪼개지면 각 행동이 자기 게이지 안에서 공짜가 되고,
-  계속 막기만 해도 마르지 않는다 — 원본은 방어가 결국 자원이 말라 붕괴하는
-  구조를 의도한다 (§8.1).
+  기본 공격으로 CP 를 모으고 강한 공격으로 CP 를 쓰는 루프가 전투의 바닥이며,
+  이 루프가 그대로 동작하는 것이 성공 조건이다 (R1 §11 · §16-3).
+  예산이 쪼개지면 각 행동이 자기 게이지 안에서 공짜가 된다 (구판 §8.1 · §11 유래).
 
 scope:
   - COMBAT
 
 requires:
-  - combat_actions_share_one_budget   # 공격·방어·기동·폭발이 한 예산을 나눈다 (§11)
+  - combat_actions_share_one_budget   # 전투 행동이 한 CP 예산을 나눈다 (R1 §1 · §11)
 prohibits:
-  - per_action_dedicated_gauge        # 행동별 별도 게이지 신설 (§11 명시)
+  - per_action_dedicated_gauge        # 행동별 별도 게이지 신설 (구판 §11 명시 유래)
 prefers: []
 
 status: APPROVED
 provenance:
-  - HUMAN_DESIGN          # design/Design-Combat-OffenseDefense-R0.md · 2026-08-15 Human 지시로 반영
+  - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 재정합 2026-08-17 — 모두 Human 지시
 
 relations:
   supports: []

@@ -3,19 +3,27 @@
 # 구현 모듈명이 아니다. 왜 필요한지는 쓰지 않는다 — Goal/Possibility 경로가 설명한다.
 # 구현 상태(overlay)의 근거는 ../overlay.md 가 소유한다.
 # 형식: ../SCHEMA.md
+#
+# 인용 표기 — 원본 design/Design-Combat-OffenseDefense-R0.md 는 2026-08-17 R1 로 전면
+# 개정되었다. R1 §x 는 현행 문서, 구판 §x 는 git history 의 R0 을 가리킨다.
+#
+# C010·C011 롤백 (2026-08-17 Human 결정) — 막기·완벽한 막기·되받아침·방어력 구현을
+# 되돌렸다. 산출물은 git history 에 있다. 해당 Capability 는 MISSING 으로 돌아간다.
+# DC 보류 — DEFENSE-IS-ACTIVE · MATCHUP-SOFT · POWER-HAS-COST 는 DRAFT(보류)다.
+# 아래 노드의 해당 constraint_evaluation 은 판정 기록으로 보존하되 Active 판정이 아니다.
 version: 1
 nodes:
 
-  # ── 이미 세계에 있는 것 (C001~C007) ───────────────────────────────────
+  # ── 이미 세계에 있는 것 (C001~C009) ───────────────────────────────────
 
   - id: MC-COMBAT-STRIKE
     type: capability
     semantic: >
       휘두른 몸이 닿은 상대의 생명을 정해진 만큼 덜어내고, 맞은 몸은 하던 행동이 끊기고 밀려난다.
-    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-STRIKE-THE-VULNERABLE-SPOT, MP-MATCH-WEAPON-TO-ARMOR]
+    required_by: [MP-BREAK-THE-GUARD, MP-EXPLOIT-OPEN-BODY, MP-STRIKE-THE-VULNERABLE-SPOT, MP-MATCH-WEAPON-TO-ARMOR, MP-OUTGROW-THE-OPPONENT]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 고정 피해 (C007 실측)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 정해진 만큼 덜어낸다 — 난수 없는 결정적 피해 (C007 실측 · R1 §6)
     overlay: IMPLEMENTED
 
   - id: MC-CP-ECONOMY
@@ -23,10 +31,10 @@ nodes:
     semantic: >
       하나의 기력 예산이 공격·방어·기동·폭발을 함께 묶는다. 어디에 쓸지 고르는 순간
       다른 곳에 쓸 것이 줄어든다.
-    required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED]
+    required_by: [MP-READ-AND-COUNTER, MP-BREAK-THE-GUARD, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-TRADE-BODY-FOR-RESOURCE, MP-EVADE-BY-MOVING-THE-BODY, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT]
     constraints: [DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 의미 자체가 한 예산이다 — 방어·기동이 아직 안 쓰는 것은
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 의미 자체가 한 예산이다 — 기동·자세가 아직 안 쓰는 것은
                                                # overlay PARTIAL(구현 공백)이지 Constraint 위반이 아니다 (정책 §16)
     overlay: PARTIAL
 
@@ -47,24 +55,9 @@ nodes:
     required_by: [MP-EXPLOIT-OPEN-BODY]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다 (원본 §15.1)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # explainable_result 요구를 직접 실현하는 능력이다 (구판 §15.1 —
+                                               # R1 개정 후에도 이 요구는 DC 의 requires 로 존속한다)
     overlay: PARTIAL
-
-  # ── 아직 세계에 없는 것 ───────────────────────────────────────────────
-
-  - id: MC-DEFENSE-MITIGATION
-    type: capability
-    semantic: >
-      맞은 피해를 줄인다. 공격을 빗나가게 하지 않으며, 아무리 두꺼워도 피해를 0 으로
-      만들지는 못한다.
-    required_by: [MP-TRADE-BODY-FOR-RESOURCE, MP-HOLD-FORTIFIED]
-    # 이 Capability 를 목적으로 삼는 Possibility 는 없다 — 원본이 "그냥 두껍게 버틴다" 를
-    # 플레이 방법으로 제시하지 않기 때문이다 (§5.2 — 일반 방어만으로 피해 0 에 도달하지 않는다).
-    # 대신 막기와 자세가 딛는 바닥으로서 그 둘에 요구된다 (원본 §5.2 · §7).
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 줄인다 (원본 §5.2)
-    overlay: MISSING
 
   - id: MC-GUARD
     type: capability
@@ -74,9 +67,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER, MP-TRADE-BODY-FOR-RESOURCE]
     constraints: [DC-COMBAT-DEFENSE-IS-ACTIVE, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (원본 §8.1)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (원본 §11)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (구판 §8.1) — DC 는 현재 보류
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (구판 §11)
     overlay: MISSING
+    # C010 으로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Defense Action(Guard) 층에서 재구축한다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -86,19 +80,10 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (원본 §8.2)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (원본 §8.2)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (구판 §8.2)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (구판 §8.2) — DC 는 현재 보류
     overlay: MISSING
-
-  - id: MC-EVADE
-    type: capability
-    semantic: >
-      무적이 되는 것이 아니라 실제로 몸을 옮겨 충돌을 벗어난다.
-    required_by: [MP-EVADE-BY-MOVING-THE-BODY]
-    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
-    constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 (원본 §8.3)
-    overlay: MISSING
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Active Defense 층에서 재구축한다.
 
   - id: MC-COUNTER
     type: capability
@@ -107,8 +92,61 @@ nodes:
     required_by: [MP-READ-AND-COUNTER]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY, DC-COMBAT-DEFENSE-IS-ACTIVE]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (원본 §8.4 · §10)
-      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (원본 §3.2)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (구판 §8.4)
+      DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (구판 §3.2) — DC 는 현재 보류
+    overlay: MISSING
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Active Defense 층에서 재구축한다.
+
+  - id: MC-DEFENSE-MITIGATION
+    type: capability
+    semantic: >
+      맞은 피해를 줄인다. 공격을 빗나가게 하지 않으며, 아무리 두꺼워도 피해를 0 으로
+      만들지는 못하고, 두꺼워질수록 추가 방어의 효과는 점차 완만해진다.
+    required_by: [MP-TRADE-BODY-FOR-RESOURCE, MP-HOLD-FORTIFIED, MP-OUTGROW-THE-OPPONENT]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 빗나가게(확률 회피) 하지 않고 맞은 피해를 결정적으로 줄인다 (R1 §4 · §6)
+    overlay: MISSING
+    # C010 이 감산식으로 닫았다가 2026-08-17 롤백 — R1 §4 의 체감(diminishing) 형태로
+    # 기본 공식 Cycle 에서 새로 만든다. 근거는 ../overlay.md.
+
+  # ── R1 이 지정한 다음 층 (아직 세계에 없는 것) ────────────────────────
+
+  - id: MC-ATTACK-POWER
+    type: capability
+    semantic: >
+      Actor 는 공격의 위력을 나타내는 능력치를 가진다. 같은 스킬이라도 이 값이 큰 Actor 가
+      쓰면 더 아프며, 장비·성장·버프가 이 값을 올린다.
+    required_by: [MP-OUTGROW-THE-OPPONENT]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 능력치·같은 스킬·같은 상대면 항상 같은 피해 (R1 §6)
+    overlay: MISSING
+
+  - id: MC-SKILL-SCALING
+    type: capability
+    semantic: >
+      스킬은 자신의 기본 피해량과, Actor 의 공격 능력치를 얼마나 피해로 바꾸는지의 계수를
+      가진다. 스킬의 강함과 Actor 의 강함이 분리되어 따로 자라며, 계수가 다른 스킬들이
+      서로 다른 성격(빠르고 낮은 계수 · 무겁고 높은 계수)을 얻는다.
+    required_by: [MP-OUTGROW-THE-OPPONENT]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 기본 피해량과 계수는 스킬의 공개된 성질이다 (R1 §2 · §3 · §6)
+    overlay: MISSING
+
+  # ── 구판(R0) 유래 — R1 §13·§14 로 이연된 것 ──────────────────────────
+  # 세부 설계는 구판에 있었고 삭제되었다. 각 층의 확장 시점에 문서 개정이 다시 공급한다.
+  # 그 전에는 Frontier 후보로 세우지 않는다 (R1 §13 — 기본 공식 검증 전에는 추가하지 않는다).
+
+  - id: MC-EVADE
+    type: capability
+    semantic: >
+      무적이 되는 것이 아니라 실제로 몸을 옮겨 충돌을 벗어난다.
+    required_by: [MP-EVADE-BY-MOVING-THE-BODY]
+    constraints: [DC-COMBAT-PLAYER-CAUSALITY]
+    constraint_evaluation:
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 무적·확률이 아니라 실제 위치 이동이다 (구판 §8.3)
     overlay: MISSING
 
   - id: MC-BREAK
@@ -119,7 +157,7 @@ nodes:
     required_by: [MP-BREAK-THE-GUARD]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 누적과 붕괴가 관찰 가능한 상태로 드러난다 (원본 §9)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 누적과 붕괴가 관찰 가능한 상태로 드러난다 (구판 §9)
     overlay: MISSING
 
   - id: MC-COMBAT-FLOW
@@ -130,8 +168,9 @@ nodes:
     required_by: [MP-EXPLOIT-OPEN-BODY, MP-STAKE-EVERYTHING-ON-ONE-BLOW, MP-HOLD-FORTIFIED]
     constraints: [DC-COMBAT-POWER-HAS-COST]
     constraint_evaluation:
-      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 한쪽에 몰수록 반대쪽이 실제로 빈다 (원본 §3.3 · §7)
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 한쪽에 몰수록 반대쪽이 실제로 빈다 (구판 §3.3 · §7)
     overlay: MISSING
+    # R1 §14 Aura/Nen 층(공격 집중·방어 집중)으로 형태가 바뀌어 재설계 예정.
 
   - id: MC-FORTIFY
     type: capability
@@ -140,9 +179,10 @@ nodes:
     required_by: [MP-HOLD-FORTIFIED]
     constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-SHARED-BUDGET]
     constraint_evaluation:
-      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 안정성은 지속 비용과 약해진 공격으로 산다 (원본 §7)
-      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (원본 §11)
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 안정성은 지속 비용과 약해진 공격으로 산다 (구판 §7)
+      DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (구판 §11)
     overlay: MISSING
+    # R1 §14 Aura/Nen 층(방어 집중)으로 형태가 바뀌어 재설계 예정.
 
   - id: MC-ATTACK-ARMOR-MATCHUP
     type: capability
@@ -152,9 +192,10 @@ nodes:
     required_by: [MP-MATCH-WEAPON-TO-ARMOR]
     constraints: [DC-COMBAT-MATCHUP-SOFT, DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # semantic 이 이미 이득 제한과 균형 붕괴 쪽 배치를 담는다 (원본 §6.2)
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 조합이면 같은 결과 — 결정적 상성이다 (원본 §6)
+      DC-COMBAT-MATCHUP-SOFT: SATISFIED        # semantic 이 이미 이득 제한과 균형 붕괴 쪽 배치를 담는다 (구판 §6.2)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 조합이면 같은 결과 — 결정적 상성이다 (구판 §6)
     overlay: MISSING
+    # R1 §14 Damage Type 층(Physical/Magic · Armor/Resistance)으로 재편 예정.
 
   - id: MC-WEAK-POINT
     type: capability
@@ -163,7 +204,7 @@ nodes:
     required_by: [MP-STRIKE-THE-VULNERABLE-SPOT]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률형 약점이 아니라 실제 닿음이 조건이다 (원본 §13.1)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 확률형 약점이 아니라 실제 닿음이 조건이다 (구판 §13.1)
     overlay: MISSING
 
   - id: MC-REAR-ATTACK
@@ -173,7 +214,7 @@ nodes:
     required_by: [MP-STRIKE-THE-VULNERABLE-SPOT]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 위치라는 관찰 가능한 원인이 보상을 만든다 (원본 §13.2)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 위치라는 관찰 가능한 원인이 보상을 만든다 (구판 §13.2)
     overlay: MISSING
 
   - id: MC-CONDITION-STACKING
@@ -184,8 +225,9 @@ nodes:
     required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]
     constraints: [DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시 조건의 합성이고 상한이 있으며 결과에서 읽힌다 (원본 §10)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시 조건의 합성이고 상한이 있으며 결과에서 읽힌다 (구판 §10)
     overlay: MISSING
+    # R1 핵심 원칙(Condition → Modifier)과 §14 Aura/Nen 층으로 이어진다.
 
   - id: MC-VOW
     type: capability
@@ -195,12 +237,17 @@ nodes:
     required_by: [MP-STAKE-EVERYTHING-ON-ONE-BLOW]
     constraints: [DC-COMBAT-POWER-HAS-COST, DC-COMBAT-PLAYER-CAUSALITY]
     constraint_evaluation:
-      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 검증 가능한 제약·수용한 위험·즉시 대가 — 이 Constraint 의 정면 사례 (원본 §12)
-      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 제약 완수는 세계가 판정하는 사건이다 (원본 §12)
+      DC-COMBAT-POWER-HAS-COST: SATISFIED      # 검증 가능한 제약·수용한 위험·즉시 대가 — 이 Constraint 의 정면 사례 (구판 §12)
+      DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 제약 완수는 세계가 판정하는 사건이다 (구판 §12)
     overlay: MISSING
+    # R1 §14 Aura/Nen 층(조건·제약·서약)으로 유지된다.
 
-# 주입 근거: design/Design-Combat-OffenseDefense-R0.md §6~§13 · §19 Intent Specification
+# 주입 근거: design/Design-Combat-OffenseDefense-R0.md
+#   R1 (2026-08-17 전면 개정) §1~§5 · §10 신규 INTENT · §14 확장 순서 · 핵심 원칙
+#   구판(R0) 유래 노드는 R1 §14 로 이연 — 세부 재설계는 각 확장 시점의 문서 개정이 공급한다.
 #
-# 이 문서의 §5·§6·§8·§9·§17 수치(DEFENSE_K · PERFECT_GUARD_WINDOW · BREAK_DECAY_RATE ·
-# 상성 표 · 판정 순서 19단계)는 여기에 올리지 않았다 — Cycle 의 03-world-semantic.md 가
-# 소유한다 (Master-Intent-Graph-Policy §22 · §26.3). 원본은 위 design/ 문서에 남아 있다.
+# R1 의 수치·공식(§3 Raw Damage · §4 Defense Multiplier · §5 최종 공식 · §11 밸런스 기준)은
+# 여기에 올리지 않았다 — Cycle 의 03-world-semantic.md 가 소유한다
+# (Master-Intent-Graph-Policy §22 · §26.3). 원본은 위 design/ 문서에 남아 있다.
+#
+# overlay 필드 갱신 근거: C010·C011 롤백 (2026-08-17 Human 결정 — ../overlay.md 참조).

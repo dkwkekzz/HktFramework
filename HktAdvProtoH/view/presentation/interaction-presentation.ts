@@ -18,10 +18,6 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // 이동 모드는 값을 실어 보내야 하므로(walk | run) 조립 루트가 직접 다룬다.
   // 여기서는 안내에 쓸 키 표기만 정한다.
   'set-move-mode': { key: 'ShiftLeft', keyLabel: 'Shift', prompt: '달리기 전환' },
-  // 막기 (C010) — 이동 모드와 같이 값을 실어 보내야 하므로(open | guard)
-  // 조립 루트가 직접 다룬다. 여기서는 키 표기와 프롬프트만 정한다.
-  // 상호작용 키(E·F·G)·시점 키(Z·X·R·T)·관찰 토글(C·V)을 피해 Q 에 둔다.
-  'set-guard-stance': { key: 'KeyQ', keyLabel: 'Q', prompt: '막기' },
   // 속성 변경 (C007 R2) — 이번 Cycle 은 경로만 연다. 조작 수단은 이후 Cycle 이 얹는다.
   'debug-set-attribute': {},
 };

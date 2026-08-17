@@ -64,8 +64,7 @@ function formatWorldLine(def: CharacterDefinition): string[] {
     `속도 ${num(def.tempo.moveSpeed)} (달리기 x${num(def.tempo.runSpeedMultiplier)}` +
       `, 행동 x${num(def.tempo.actionSpeed)})` +
       ` · HP ${num(def.resources.hpMax)} · CP ${num(def.resources.cpMax)}` +
-      ` 시작 ${num(def.resources.cpStart)}` +
-      ` · 방어 ${num(def.defense.defense)}`, // C010
+      ` 시작 ${num(def.resources.cpStart)}`,
     `사거리 ${num(def.attackRange)} · 인지 ${num(def.perceptionRange)}`,
   ];
 }

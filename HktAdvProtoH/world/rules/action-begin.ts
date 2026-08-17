@@ -1,31 +1,19 @@
-// RULE-ACTION-BEGIN-001 — Implements INTENT-ACTION-STATE-001(C010 CHANGED) ·
-//                                    INTENT-ACTION-EXCLUSIVE-001 · INTENT-GUARD-EXCLUSIVE-001
+// RULE-ACTION-BEGIN-001 — Implements INTENT-ACTION-STATE-001 · INTENT-ACTION-EXCLUSIVE-001
 // Input          Actor, 시작하려는 Action(Kind + Target)
-// Preconditions  1. 현재 행동이 대체 가능하다 (ActionDefinition.Replaceable)
-//                2. Stance = guard 이면 시작하려는 종류가 move 또는 idle 이다 (C010)
+// Preconditions  현재 행동이 대체 가능하다 (ActionDefinition.Replaceable)
 // Transition     Actor.CurrentAction = { Kind, Target, Elapsed: 0, Duration }
-// Result         Success | Failure(action-busy | guarding)
+// Result         Success | Failure(action-busy)
 //
 // 모든 행동 시작 Rule 은 자기 고유 Precondition 을 먼저 판정한 뒤 이 관문을 통과한다.
-//
-// C010 — 자세가 무엇을 시작할 수 있는지를 좁힌다. 관문이 한 곳이므로 스킬·채굴이
-// 자동으로 막히고, 걸음은 통과한다 (막은 채로 걷는다).
-// 세계가 강제하는 행동(hit · downed)은 기존에도 이 관문을 거치지 않고 beginAction 을
-// 직접 부르므로 영향받지 않는다 — 막는 몸도 무너지면 얻어맞고, 생명이 다하면 쓰러진다.
 
 import { actionDefinition, type ActionKind, type CurrentAction } from '../semantic/action';
 import type { ActorState } from '../semantic/actor';
 
-export type ActionBusyReason = 'action-busy' | 'guarding';
-
-// 막는 자세에서도 시작할 수 있는 것 — 걸음과 멈춤뿐이다 (INTENT-GUARD-EXCLUSIVE-001).
-const STANCE_ALLOWED: readonly ActionKind[] = ['move', 'idle'];
+export type ActionBusyReason = 'action-busy';
 
 // Observable(Availability) 과 Rule 이 같은 판정을 공유한다.
-export function evaluateActionBegin(actor: ActorState, kind: ActionKind): ActionBusyReason | null {
-  if (!actionDefinition(actor.currentAction.kind).replaceable) return 'action-busy';
-  if (actor.stance === 'guard' && !STANCE_ALLOWED.includes(kind)) return 'guarding';
-  return null;
+export function evaluateActionBegin(actor: ActorState): ActionBusyReason | null {
+  return actionDefinition(actor.currentAction.kind).replaceable ? null : 'action-busy';
 }
 
 type ActionTarget = Pick<CurrentAction, 'targetPosition' | 'targetActorId' | 'targetDepositId'>;

@@ -12,20 +12,11 @@ import type { EntityView, GameViewSnapshot, InteractionView } from '../../protoc
 import { actionProgress, actionTargetId } from '../semantic/action';
 import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
-import { evaluateGuardSet } from '../rules/guard';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
 import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
-import {
-  actorModifiers,
-  guardRearmAt,
-  isDowned,
-  isExposed,
-  isGuardBroken,
-  isPerfectWindowOpen,
-  skillDefinition,
-} from '../semantic/combat';
+import { actorModifiers, isDowned, skillDefinition } from '../semantic/combat';
 import { projectCommandCatalog } from '../semantic/command-catalog';
 import { hasMiningTool, itemCount } from '../semantic/inventory';
 import {
@@ -36,8 +27,7 @@ import {
   type WorldState,
 } from '../semantic/world-state';
 
-// C011 — 계약이 확장됐다 (완벽 창 · 열림 관찰 · 시점 내역 · 재세움 사유).
-export const SPEC_ID = 'VIEW-PERFECT-GUARD-TURNS-THE-TABLE-001';
+export const SPEC_ID = 'VIEW-BASIC-COMBAT-POLICY-001';
 
 // 관찰자가 세계에 없으면 관찰 결과도 없다 — 세계는 모르는 이에게 자신을 보여주지 않는다.
 export function projectObserverView(
@@ -85,7 +75,6 @@ export function projectObserverView(
         energyMaximum: actor.cpMax,
         moveMode: actor.moveMode,
         control: actor.control,
-        defense: actor.defense, // C010
         tempoStats: {
           moveSpeed: actor.moveSpeed,
           runSpeedMultiplier: actor.runSpeedMultiplier,
@@ -97,24 +86,6 @@ export function projectObserverView(
           moveSpeed: modifiers.moveSpeed,
           actionSpeed: modifiers.actionSpeed,
         },
-      },
-      // C010 — 자세는 행동과 별개로 실린다 (걸으면서도 막을 수 있으므로).
-      // 누구의 것이든 관찰된다 (INTENT-GUARD-OBSERVE-001).
-      stance: {
-        guarding: actor.stance === 'guard',
-        broken: isGuardBroken(actor, state.time),
-        brokenUntil: actor.guardBrokenUntil,
-        facing: { x: actor.facing.x, z: actor.facing.z },
-        // C011 — 방금 세운 자세와 세워 두고 버티는 자세는 결과가 다르므로 구분되어야 한다.
-        // 남의 창도 보인다 — 관찰에 예외를 만들지 않는다 (C007 R2 원칙).
-        startedAt: actor.guardStartedAt,
-        perfectWindow: isPerfectWindowOpen(actor, state.time),
-      },
-      // C011 — 열림. 이것을 못 보면 되받아칠 순간을 알 수 없다.
-      // 관찰자와 자율 존재를 가리지 않고 같은 계약으로 온다.
-      exposure: {
-        exposed: isExposed(actor, state.time),
-        until: actor.exposedUntil,
       },
       ...(progress !== null ? { progress } : {}),
       ...(target ? { targetEntityId: target } : {}),
@@ -174,19 +145,6 @@ export function projectObserverView(
     available: heavyFailure === null,
     ...(heavyFailure ? { reason: heavyFailure } : {}),
     profile: { damage: heavy.damage, charge: heavy.cpCharge, cost: heavy.cpCost },
-  });
-
-  // interactions.guard (C010) — 이 Cycle 의 새 선택.
-  // "지금 막을 수 있는가" 를 묻는 것이므로 guard 기준으로 판정한다.
-  // 놓는 것(open)은 언제나 되므로 available 이 거짓이어도 요청 자체는 막히지 않는다.
-  // C011 — 사유가 다섯 가지가 된다 (guard-rearming 추가).
-  // 재세움 간격 안에 요청하면 그것이 사유로 오므로 "왜 지금은 안 되지" 로 남지 않는다.
-  const guardFailure = evaluateGuardSet(self, state.time);
-  interactions.push({
-    id: 'guard',
-    role: 'set-guard-stance',
-    available: guardFailure === null,
-    ...(guardFailure ? { reason: guardFailure } : {}),
   });
 
   // interactions.moveMode (C007) — 지금 달릴 수 있는가. 걷기로 돌아오는 것은 언제나 된다.
@@ -275,21 +233,6 @@ export function projectObserverView(
       { id: 'self.modifier.cpConsume', kind: 'counter', value: selfModifiers.cpConsume },
       { id: 'self.modifier.moveSpeed', kind: 'counter', value: selfModifiers.moveSpeed },
       { id: 'self.modifier.actionSpeed', kind: 'counter', value: selfModifiers.actionSpeed },
-      // hud.self.guard (C010) — 지금 막고 있는지, 막을 수 있는지, 없다면 왜인지.
-      // "왜 막기가 안 되지" 로 남지 않게 하는 자리다.
-      { id: 'self.defense', kind: 'counter', value: self.defense },
-      { id: 'self.stance', kind: 'label', value: self.stance },
-      { id: 'self.guardBroken', kind: 'flag', value: isGuardBroken(self, state.time) },
-      { id: 'self.guardBrokenUntil', kind: 'counter', value: self.guardBrokenUntil },
-      // hud.self.guard (C011) — 내 창이 아직 열려 있는가, 언제 다시 세울 수 있는가.
-      // 읽어야 할 것은 상대의 공격이지 자기 세계의 규칙이 아니다.
-      // rearmAt 이 없으면 재세움 간격은 "가끔 안 먹히는 버튼" 으로만 느껴진다.
-      { id: 'self.guardStartedAt', kind: 'counter', value: self.guardStartedAt },
-      { id: 'self.perfectWindow', kind: 'flag', value: isPerfectWindowOpen(self, state.time) },
-      { id: 'self.guardRearmAt', kind: 'counter', value: guardRearmAt(self) },
-      // hud.self.exposure (C011) — 나도 열릴 수 있다.
-      { id: 'self.exposed', kind: 'flag', value: isExposed(self, state.time) },
-      { id: 'self.exposedUntil', kind: 'counter', value: self.exposedUntil },
     ],
     // World.StrikeEvents (C007) — 남의 타격 결과도 보인다. 세계가 판정을 마친 값이다.
     strikes: state.strikeEvents.map((event) => ({
@@ -299,24 +242,6 @@ export function projectObserverView(
       amount: event.amount,
       at: { x: event.position.x, z: event.position.z },
       since: event.time,
-      // C010 — 최종 숫자가 아니라 그 숫자가 나온 경로를 읽는다
-      // (INTENT-STRIKE-BREAKDOWN-001).
-      breakdown: {
-        base: event.baseAmount,
-        mitigated: event.mitigated,
-        guarded: event.guarded,
-        energyPaid: event.cpPaid,
-        guardBroken: event.guardBroken,
-      },
-      // C011 — 시점이 무엇을 했는가 (INTENT-TIMING-BREAKDOWN-001).
-      // "큰 숫자가 나왔다" 가 아니라 "열려 있었기 때문에 이만큼 커졌다" 로 읽히게 한다.
-      timing: {
-        perfect: event.perfectGuard,
-        elapsed: event.guardElapsed,
-        counter: event.counter,
-        counterBonus: event.counterBonus,
-        energyGained: event.cpGained,
-      },
     })),
     // World.DebugAuthority (C007 R2) — 이 세계가 조작을 허용하는가.
     debug: {

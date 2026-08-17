@@ -213,8 +213,6 @@ function drainOutcomes(): void {
 // 이동 모드 (C007) — 요청은 토글이 아니라 명시값이므로(walk | run),
 // 지금 무엇인지를 보고 반대값을 보낸다. 정하는 것은 세계다.
 const MOVE_MODE_KEYS = ['ShiftLeft', 'ShiftRight'];
-// C010 — 막기 자세. interaction-presentation 의 'set-guard-stance' 와 같은 자리다.
-const GUARD_KEYS = ['KeyQ'];
 
 // 타격 결과가 화면에 떠 있는 시간 — 세계의 STRIKE_EVENT_TTL 과 같은 값을 볼 필요는 없다.
 // 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
@@ -318,18 +316,6 @@ function frame(now: number): void {
       inspect = !inspect;
       continue;
     }
-    // 막기 (C010) — 이동 모드와 같이 값을 실어 보내야 하므로 여기서 직접 다룬다.
-    // 세계가 지금 무엇이라고 알려 주었는지를 보고 그 반대를 요청한다 (토글이 아니라 명시값).
-    // 놓는 것은 언제나 되므로 available 을 보지 않는다 — 세우는 요청만 거절될 수 있고,
-    // 거절되면 그 사유가 다음 관찰의 self 패널에 뜬다.
-    if (GUARD_KEYS.includes(code)) {
-      const guard = latestScene.interactions.find((i) => i.id === 'guard');
-      if (guard) {
-        const current = latestScene.self?.stanceCode ?? 'open';
-        link.send({ interactionId: guard.id, stance: current === 'guard' ? 'open' : 'guard' });
-      }
-      continue;
-    }
     // 이동 모드 (C007) — 값을 실어 보내야 하므로 여기서 직접 다룬다.
     // 세계가 지금 무엇이라고 알려 주었는지를 보고 그 반대를 요청한다.
     if (MOVE_MODE_KEYS.includes(code)) {
@@ -392,20 +378,7 @@ function frame(now: number): void {
     );
     if (!screen) continue;
     const age = Math.max(0, Math.min(1, (latestScene.worldTime - strike.since) / STRIKE_FADE_SECONDS));
-    strikes.push({
-      x: screen.x,
-      y: screen.y,
-      text: strike.text,
-      // C010 — 그 값이 어떻게 나왔는지도 함께 (결정 Layer 가 이미 문구로 만들어 두었다)
-      ...(strike.detail ? { detail: strike.detail } : {}),
-      emphasis: strike.emphasis,
-      guarded: strike.guarded,
-      guardBroken: strike.guardBroken,
-      // C011 — 완벽하게 막아 낸 타격 / 되받아친 타격
-      perfect: strike.perfect,
-      counter: strike.counter,
-      age,
-    });
+    strikes.push({ x: screen.x, y: screen.y, text: strike.text, emphasis: strike.emphasis, age });
   }
   // 이어짐의 수치와 신원 (C005) — 세계에서 오는 것은 acknowledgedMark 하나뿐이고
   // 나머지는 link 가 관찰자 쪽 시계로 잰 것이다.

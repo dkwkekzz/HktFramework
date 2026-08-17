@@ -19,12 +19,6 @@ export interface EntityPlate {
   healthMaximum: number;
   healthRatio: number;
   downed: boolean;
-  /** C010 — 지금 막고 있는가 / 방어가 무너진 여파 안인가 */
-  guarding: boolean;
-  guardBroken: boolean;
-  /** C011 — 방금 세운 자세인가 / 지금 열려 있는가 */
-  perfectWindow: boolean;
-  exposed: boolean;
   /** 속성 관찰이 켜졌을 때 함께 펼칠 줄들 (C007 R2) */
   inspect?: string[];
 }
@@ -34,15 +28,7 @@ export interface StrikeMark {
   x: number;
   y: number;
   text: string;
-  /** C010 — 그 값을 만든 경로 한 줄 (없을 수 있다) */
-  detail?: string;
   emphasis: boolean;
-  /** C010 — 막힌 타격 / 방어를 무너뜨린 타격은 다르게 그린다 */
-  guarded: boolean;
-  guardBroken: boolean;
-  /** C011 — 완벽하게 막아 낸 타격 / 되받아친 타격도 다르게 그린다 */
-  perfect: boolean;
-  counter: boolean;
   age: number;
 }
 
@@ -175,9 +161,6 @@ export function createHud(container: HTMLElement): Hud {
             : '';
           return (
             `<div class="hud-plate" data-downed="${p.downed}" ` +
-            `data-guarding="${p.guarding}" data-guard-broken="${p.guardBroken}" ` +
-            // C011 — 방금 세운 자세와 열린 몸을 표지에서 구분한다.
-            `data-perfect-window="${p.perfectWindow}" data-exposed="${p.exposed}" ` +
             `style="left:${p.x}px;top:${p.y}px">` +
             `<span class="hud-plate-name">${p.name}</span>` +
             `<span class="hud-plate-bar"><i style="width:${Math.round(p.healthRatio * 100)}%"></i></span>` +
@@ -193,12 +176,8 @@ export function createHud(container: HTMLElement): Hud {
         .map(
           (s) =>
             `<div class="hud-strike" data-emphasis="${s.emphasis}" ` +
-            `data-guarded="${s.guarded}" data-guard-broken="${s.guardBroken}" ` +
-            `data-perfect="${s.perfect}" data-counter="${s.counter}" ` +
             `style="left:${s.x}px;top:${s.y - s.age * 34}px;opacity:${(1 - s.age).toFixed(2)}">` +
-            `${s.text}` +
-            (s.detail ? `<span class="hud-strike-detail">${s.detail}</span>` : '') +
-            `</div>`,
+            `${s.text}</div>`,
         )
         .join('');
 
@@ -214,17 +193,6 @@ export function createHud(container: HTMLElement): Hud {
           `<span class="hud-self-bar" data-kind="cp"><i style="width:${Math.round(s.energyRatio * 100)}%"></i></span>` +
           `<em>${s.energy} / ${s.energyMaximum}</em></span>` +
           `<span class="hud-self-mode">${s.moveMode}</span>` +
-          // C010 — 자세는 늘 눈앞에 있다. 막을 수 없으면 그 사유가 같은 자리에서 읽힌다.
-          `<span class="hud-self-stance" data-guarding="${s.guarding}" ` +
-          `data-guard-broken="${s.guardBroken}" ` +
-          // C011 — 내 창이 아직 남았는지, 다시 세울 수 있게 되기까지 얼마인지.
-          // 읽어야 할 것은 상대의 공격이지 자기 세계의 규칙이 아니다.
-          `data-perfect-window="${s.perfectWindow}" data-exposed="${s.exposed}">${s.stance}` +
-          (s.perfectWindow ? ' · 지금' : '') +
-          (s.guardRearmIn !== undefined ? ` · ${s.guardRearmIn.toFixed(1)}초` : '') +
-          (s.exposed ? ' · 열림' : '') +
-          (s.guardUnavailableText ? ` — ${s.guardUnavailableText}` : '') +
-          `</span>` +
           s.lines.map((line) => `<span class="hud-self-line">${line}</span>`).join('');
       } else {
         selfPanel.innerHTML = '';

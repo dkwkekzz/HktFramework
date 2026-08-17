@@ -19,10 +19,6 @@ describe('entityHud — 이름과 생명은 그 몸 위에 늘 붙는다', () =>
       healthMaximum: 200,
       healthRatio: 0.75,
       downed: false,
-      guarding: false, // C010
-      guardBroken: false, // C010
-      perfectWindow: false, // C011
-      exposed: false, // C011
       anchorHeight: 3.55, // player-character 그림 크기 3.4 + 여백
     });
     expect(entity('npc-1')?.nameplate?.name).toBe('Wanderer 1');
@@ -126,12 +122,10 @@ describe('hud.self — 자기 자원·능력치·배율은 늘 눈앞에 있다'
   });
 
   it('템포 능력치가 줄로 실린다', () => {
-    // C010 — 방어력 줄이 앞에 하나 늘었다. 줄의 자리가 아니라 내용으로 찾는다.
     const lines = plan().self?.lines ?? [];
-    const move = lines.find((l) => l.includes('이동 속도'));
-    expect(move).toContain('이동 속도 6');
-    expect(move).toContain('달리기 ×1.8');
-    expect(lines).toContain('공격 속도 ×1');
+    expect(lines[0]).toContain('이동 속도 6');
+    expect(lines[0]).toContain('달리기 ×1.8');
+    expect(lines[1]).toBe('공격 속도 ×1');
   });
 
   it('1 이 아닌 배율만 줄이 된다 — 걸린 것이 있을 때만 드러난다', () => {
