@@ -4,7 +4,7 @@
 [PASS] World Rule Execution
 [PASS] Projection
 [PASS] View Binding
-[    ] Playable          ← Human Play 확인 대기. 기계 왕복은 통과했다 (아래 PLAYABLE)
+[PASS] Playable          기계 왕복 + Human Play 확인 완료 (2026-08-17)
 [PASS] Regression
 
 ## NEW BEHAVIOR
@@ -99,7 +99,7 @@
         View 가 스스로 판정하지 않는다는 것도 여기서 확인된다 —
         막는 중의 휘두름 요청이 그대로 나가고 세계가 사유와 함께 거절했다.
 
-    사람의 확인 — 아직이다. 확인해야 할 것은 다음 일곱이다 (04 PLAYABILITY NOTE).
+    사람의 확인 — 완료했다 (2026-08-17). 확인한 것은 다음 일곱이다 (04 PLAYABILITY NOTE).
         1. Q 로 막기를 건다 — 자기 표시에 "막는 중" 이 뜬다
         2. 자율 존재 앞에 서서 맞는다 — "-9" 와 "막음 17→9 · 기력 -11" 이 함께 뜨고
            생명은 9, 기력은 11 줄어든다
@@ -219,9 +219,12 @@
     [x] Server + Client 연결 시 실제 플레이가 가능하다      ws 왕복 실측 (PLAYABLE)
     [x] Runtime 결과를 Goal / Possibility / Intent 까지 추적할 수 있다
                                                             RULE_GUARD_* · INTENT_GUARD_* 식별자
-    [ ] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다     ← 대기
+    [x] 인간이 실제 게임에서 Cycle Goal 달성을 확인했다     2026-08-17 Human Play
     [x] 결과를 다음 Cycle 에서 그대로 재사용할 수 있다      FR-PERFECT-GUARD 가 이 막기 위에 얹힌다
 
 ## STATUS
 
-    IN PROGRESS — Human Play 확인만 남았다.
+    COMPLETE — 2026-08-17. Completion Gate 15항 전부 참이다.
+
+    다음 — 이 문서의 MASTER FEEDBACK 을 Master Layer 에 반영하는 것이 남았다.
+    그 반영은 Cycle 의 책임이 아니다 (Verification Guide Must Not — master/ 직접 편집 금지).
