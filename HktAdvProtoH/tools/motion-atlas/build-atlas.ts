@@ -61,30 +61,45 @@ function collectSheets(motionsDir: string): string[] {
  *        모션끼리의 크기 차이만 사라진다.
  * 발    — 접지선은 그 모션에서 **가장 낮게 선 프레임**의 발끝이다. 프레임마다
  *        발을 맞춰 버리면 도약까지 죽으므로, 기준은 모션 단위로 하나만 잡는다.
- * 좌우  — 시트 전체의 치우침(평균 편차)만 걷어낸다. 프레임별 돌진은 남는다.
+ * 좌우  — 기준점은 **파일명이 선언한 격자**의 칸 중심에 둔다. 시트 전체의
+ *        치우침(평균 편차)만 걷어내고, 프레임별 돌진은 그대로 남는다.
+ *
+ * 가로 기준점을 검출 사각형이 아니라 선언 격자에서 잡는 이유:
+ * 검출 절단선은 *빈 줄의 한가운데*라서 이웃 프레임의 그림 폭에 따라 움직인다.
+ * 즉 사각형 중심은 자기 그림뿐 아니라 옆 칸 그림에도 끌려다닌다. 그것을 기준점으로
+ * 삼으면 캐릭터가 제자리에 서 있어도 프레임마다 좌우로 밀린다 — 걸을 때 몸 중심이
+ * 흔들리던 것이 이것이다 (move 시트 실측: 대표 높이의 14.6% 진폭 → 5.2%).
+ * 선언 격자의 칸 중심은 그림과 무관하게 고정된 자리라 이 오염이 없다.
  */
 function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeometry {
-  const live = detected.frames.slice(0, declaredFrames).filter((f) => !f.empty);
-  const measured = live.length > 0 ? live : detected.frames.slice(0, declaredFrames);
+  /** 그 프레임이 놓인 칸의 중심 — 선언 격자 위의 자리다 (검출 사각형과 무관) */
+  const cellWidth = detected.cols > 0 ? detected.width / detected.cols : detected.width;
+  const cellCenterX = (index: number): number => ((index % detected.cols) + 0.5) * cellWidth;
 
-  const refHeightPx = Math.max(1, ...measured.map((f) => f.content.h));
+  // 프레임은 왼쪽 위에서 오른쪽으로 세므로 index % cols 가 곧 칸의 열이다.
+  const indexed = detected.frames.map((frame, index) => ({ frame, index }));
+  const live = indexed.slice(0, declaredFrames).filter((f) => !f.frame.empty);
+  const measured = live.length > 0 ? live : indexed.slice(0, declaredFrames);
+
+  const refHeightPx = Math.max(1, ...measured.map(({ frame: f }) => f.content.h));
 
   // 셀 아래쪽에서 발끝까지의 거리 — 가장 작은 값이 접지선이다
   const footPx = Math.min(
-    ...measured.map((f) => f.rect.y + f.rect.h - (f.content.y + f.content.h)),
+    ...measured.map(({ frame: f }) => f.rect.y + f.rect.h - (f.content.y + f.content.h)),
   );
 
   const biasPx =
     measured.reduce(
-      (sum, f) => sum + (f.content.x + f.content.w / 2) - (f.rect.x + f.rect.w / 2),
+      (sum, { frame: f, index }) => sum + (f.content.x + f.content.w / 2) - cellCenterX(index),
       0,
     ) / Math.max(1, measured.length);
 
-  const frames: MotionFrameGeometry[] = detected.frames.map((f) => ({
+  const frames: MotionFrameGeometry[] = detected.frames.map((f, index) => ({
     rect: [f.rect.x, f.rect.y, f.rect.w, f.rect.h] as const,
     content: [f.content.x, f.content.y, f.content.w, f.content.h] as const,
     anchor: [
-      f.rect.w > 0 ? (f.rect.w / 2 + biasPx) / f.rect.w : 0.5,
+      // 기준점은 시트 절대 좌표(칸 중심 + 치우침)에서 이 프레임 사각형 기준 비율로 환산한다
+      f.rect.w > 0 ? (cellCenterX(index) + biasPx - f.rect.x) / f.rect.w : 0.5,
       f.rect.h > 0 ? footPx / f.rect.h : 0,
     ] as const,
   }));

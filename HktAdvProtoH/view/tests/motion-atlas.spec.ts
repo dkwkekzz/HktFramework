@@ -26,23 +26,18 @@ describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () =
     'motions/rabbit-swordsman/idle.3x3.9f.8fps.png',
     'motions/rabbit-swordsman/attack.3x3.9f.12fps.png',
     'motions/rabbit-swordsman/hit.3x3.9f.12fps.png',
+    // move 는 한때 1·2행이 맞닿아 valley 로 잘렸으나 재추출되어 빈 줄이 생겼다
+    // (커밋 420111a). 지금은 네 시트 모두 gutter 로 깨끗하게 나뉜다.
+    'motions/rabbit-swordsman/move.3x3.9f.8fps.png',
   ];
 
   for (const path of clean) {
     it(`${path.split('/').pop()} — 관통 0px`, () => {
-      expect(detect(path, 3, 3).bleed).toEqual([]);
+      const detected = detect(path, 3, 3);
+      expect(detected.bleed).toEqual([]);
+      expect(detected.method).toEqual({ x: 'gutter', y: 'gutter' });
     });
   }
-
-  it('move 는 1·2행이 맞닿아 있어 완전히 나눌 수 없다 — 경고로 고정한다', () => {
-    // 이 시트는 행 사이에 빈 줄이 아예 없다. 어떤 슬라이서도 0 으로 만들 수 없으므로
-    // 균등 분할이 남기던 106px 대신 최소값(18px)에서 자르고, 데이터 결함으로 알린다.
-    const detected = detect('motions/rabbit-swordsman/move.3x3.9f.8fps.png', 3, 3);
-
-    expect(detected.bleed).toHaveLength(1);
-    expect(detected.bleed[0]).toMatchObject({ axis: 'y', ink: 18 });
-    expect(detected.method.y).toBe('valley');
-  });
 
   it('균등 분할이었다면 관통했을 자리를 실제로 피해 간다', () => {
     // attack 은 균등 분할 절단선(418, 836)이 넷 다 그림을 관통했다.
@@ -90,6 +85,42 @@ describe('정규화 — 모션 단위로 맞추고 프레임 단위 표현은 �
       const feet = geometry.frames.map((f) => f.anchor[1] * f.rect[3]);
       const first = feet[0]!;
       for (const foot of feet) expect(foot, key).toBeCloseTo(first, 6);
+    }
+  });
+
+  it('가로 기준점이 선언 격자 위에 있다 — 검출 사각형 폭에 끌려다니지 않는다', () => {
+    // 기준점의 시트 절대 좌표 = rect.x + anchor.x × rect.w.
+    // 그것이 "칸 중심 + 모션 하나의 치우침" 이어야 한다. 즉 칸 중심과의 차이가
+    // 프레임마다 같은 값이어야 한다 — 사각형 폭이 프레임마다 달라도 마찬가지다.
+    for (const [key, geometry] of motions) {
+      const cellWidth = geometry.sheet[0] / geometry.cols;
+      const bias = geometry.frames.map((f, i) => {
+        const pivot = f.rect[0] + f.anchor[0] * f.rect[2];
+        return pivot - ((i % geometry.cols) + 0.5) * cellWidth;
+      });
+      // 생성물의 anchor 는 소수 5자리로 반올림되어 있다 — 사각형 폭(≈450px)을 곱하면
+      // 0.005px 안팎의 오차가 남는다. 그보다 큰 차이만 "격자를 벗어났다"로 본다.
+      const first = bias[0]!;
+      for (const b of bias) expect(Math.abs(b - first), key).toBeLessThan(0.01);
+    }
+  });
+
+  it('제자리 모션은 몸 중심이 기준점 위에 머문다 — 걸을 때 좌우로 흔들리지 않는다', () => {
+    // idle 과 move 는 제자리에서 도는 모션이다. 그림이 좌우로 이동할 이유가 없으므로
+    // 그림 중심과 기준점의 어긋남은 곧 흔들림이다. 대표 높이 대비 비율로 잰다.
+    //
+    // 검출 사각형 중심을 기준점으로 쓰던 때의 실측: idle 1.26% · move 14.55%.
+    // 절단선이 *빈 줄의 한가운데*라 이웃 칸의 그림 폭까지 기준점을 밀었기 때문이다.
+    const LIMIT = 6; // %
+    for (const [key, geometry] of motions) {
+      if (!/\/(idle|move)\./.test(key)) continue;
+
+      const drift = geometry.frames.map((f) => {
+        const pivot = f.rect[0] + f.anchor[0] * f.rect[2];
+        return ((f.content[0] + f.content[2] / 2 - pivot) / geometry.refHeightPx) * 100;
+      });
+      const swing = Math.max(...drift) - Math.min(...drift);
+      expect(swing, `${key} 좌우 진폭 ${swing.toFixed(2)}%`).toBeLessThan(LIMIT);
     }
   });
 
