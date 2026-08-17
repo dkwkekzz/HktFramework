@@ -46,6 +46,11 @@ export interface ActorState {
   // RULE-DAMAGE-CALCULATE-001 만이 읽는다.
   attack: number; // 공격을 얼마나 강하게 만들어 내는가 (INTENT-ATTACK-POWER-001)
   defense: number; // 들어오는 피해를 얼마나 줄여 받는가 (INTENT-DEFENSE-001)
+  // 막기 (C011) — 행동과 나란한 몸의 상태다. CurrentAction 자리를 쓰지 않는다.
+  // 막으면서 걸을 수 있어야 하는데, 행동 자리를 쓰면 걷기와 자리를 다투게 되어
+  // INTENT-ACTION-STATE-001("언제나 정확히 하나의 행동")을 깨야 하기 때문이다.
+  guarding: boolean; // 지금 앞을 향해 버티고 있는가 — RULE-GUARD-* 와 RULE-MOVE-MODE-001 만이 바꾼다
+  guardBrokenUntil: number; // 이 세계 시각까지는 다시 막을 수 없다 (무너짐의 대가). 초기값 0
   // 템포 능력치 (C007) — 존재 종류가 정하는 고정값. 세계의 속도를 정한다
   moveMode: MoveMode; // walk | run — RULE-MOVE-MODE-001 만이 바꾼다
   moveSpeed: number; // TempoStats.MoveSpeed (C001 고정 상수 → C007 능력치로 승격)

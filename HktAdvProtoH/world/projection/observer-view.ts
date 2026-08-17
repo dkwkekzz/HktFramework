@@ -14,12 +14,14 @@ import { actionCollider } from '../semantic/collision';
 import { evaluateAttributeSetAvailability } from '../rules/attribute-set';
 import { evaluateMinePreconditions } from '../rules/mine';
 import { evaluateMoveAvailability } from '../rules/move';
+import { evaluateGuardBegin } from '../rules/guard';
 import { evaluateMoveModeRun } from '../rules/move-mode';
 import { evaluateSkillPreconditions } from '../rules/skill';
 import {
   actorModifiers,
   defenseMultiplier,
   isDowned,
+  isGuardBroken,
   rawDamage,
   skillDefinition,
 } from '../semantic/combat';
@@ -99,6 +101,13 @@ export function projectObserverView(
           defense: actor.defense,
           defenseMultiplier: defenseMultiplier(actor),
         },
+        // 막기 (C011) — 모든 존재에 실린다. 자율 존재는 이번 Cycle 에서 막지 않으므로
+        // 늘 거짓이지만 그래도 싣는다. "지금은 아무도 안 막는다" 와
+        // "세계가 안 알려준다" 는 다른 일이다 (INTENT-GUARD-OBSERVE-001).
+        guard: {
+          guarding: actor.guarding,
+          broken: isGuardBroken(actor, state.time),
+        },
       },
       ...(progress !== null ? { progress } : {}),
       ...(target ? { targetEntityId: target } : {}),
@@ -173,6 +182,23 @@ export function projectObserverView(
       charge: heavy.cpCharge,
       cost: heavy.cpCost,
     },
+  });
+
+  // interactions.guardBegin / guardRelease (C011) — 세계가 "막기를 걸 수 있다" 와
+  // "지금 걸 수 있는가" 와 "안 되면 왜인가" 를 함께 싣는다.
+  // View 는 이 목록을 읽을 뿐 스스로 만들지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+  const guardFailure = evaluateGuardBegin(self, state.time);
+  interactions.push({
+    id: 'guard-begin',
+    role: 'guard-begin',
+    available: guardFailure === null,
+    ...(guardFailure ? { reason: guardFailure } : {}),
+  });
+  // 놓는 데에는 조건이 없다 — 힘이 빠져 손을 내리는 것을 막을 이유가 없다.
+  interactions.push({
+    id: 'guard-release',
+    role: 'guard-release',
+    available: true,
   });
 
   // interactions.moveMode (C007) — 지금 달릴 수 있는가. 걷기로 돌아오는 것은 언제나 된다.
@@ -254,6 +280,11 @@ export function projectObserverView(
       { id: 'self.cpMax', kind: 'counter', value: self.cpMax },
       { id: 'self.downed', kind: 'flag', value: isDowned(self) },
       { id: 'self.moveMode', kind: 'label', value: self.moveMode },
+      // hud.self.guard (C011) — 막기는 스스로 끝나지 않는다. 내가 들고 있다는 것을 잊으면
+      // 스킬이 왜 안 나가는지 알 수 없게 되므로 늘 눈앞에 둔다.
+      // 기력은 self.cp 가 이미 싣는다 — 막기의 대가는 그 값이 줄어드는 것으로 이미 보인다.
+      { id: 'self.guard.guarding', kind: 'flag', value: self.guarding },
+      { id: 'self.guard.broken', kind: 'flag', value: isGuardBroken(self, state.time) },
       // hud.self.combatStats (C010) — 내가 얼마나 세게 때리고 얼마나 덜 맞는가.
       // 값을 바꾼 직후 그 변화가 여기서 즉시 확인되어야 한다.
       { id: 'self.combat.attack', kind: 'counter', value: self.attack },

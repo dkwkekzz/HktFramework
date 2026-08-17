@@ -124,6 +124,8 @@ export function rawDamage(actor: ActorState, kind: SkillKind): number {
 
 // 한 방의 크기가 어떻게 나왔는가 (C010 ADDED) — RULE-DAMAGE-CALCULATE-001 의 산출물.
 // 저장하지 않는다. 계산이 낳고 StrikeEvent 가 싣는다.
+// C011 CHANGED — 뒤의 두 항목이 더해진다. finalDamage 의 의미는 그대로다
+// (공식이 내놓은 값 = 막지 않았다면 들어왔을 값).
 export interface DamageBreakdown {
   baseDamage: number;
   attackContribution: number;
@@ -131,6 +133,47 @@ export interface DamageBreakdown {
   targetDefense: number;
   defenseMultiplier: number;
   finalDamage: number;
+  /** 실제로 생명에서 빠진 값 (C011). 막지 않은 타격에서는 finalDamage 와 같다 */
+  appliedDamage: number;
+  /** 막기가 이 한 방에 한 일 (C011). 막지 않은 타격에는 실리지 않는다 */
+  guard?: GuardOutcome;
+}
+
+// ── 막기 (C011 ADDED) ────────────────────────────────────────────────
+//
+// 결정론에 영향을 주므로 전부 헤더 상수로 고정한다 (CVar 아님).
+
+/** 막힌 타격이 남기는 비율 — R1 §14 `Guard → Damage Taken × 0.5` 그대로 */
+export const GUARD_DAMAGE_FACTOR = 0.5;
+
+/** Facing 과 이루는 각의 코사인 하한 — 0.5 는 정면 ±60° (INTENT-GUARD-DIRECTION-001) */
+export const GUARD_ARC_COS = 0.5;
+
+/**
+ * 막지 않았다면 들어왔을 피해 1 당 치르는 기력.
+ * 감쇄 **전** 값으로 매긴다 — 감쇄 후 값으로 매기면 잘 막을수록 싸져서
+ * "생명 대신 기력" 이 흐려진다 (INTENT-GUARD-COST-001).
+ */
+export const GUARD_CP_PER_DAMAGE = 0.6;
+
+/** 방어가 무너진 뒤 다시 막을 수 없는 시간(초) */
+export const GUARD_BREAK_RECOVERY = 1.0;
+
+/** 한 번의 막기 판정 결과 (파생 — 저장하지 않는다) */
+export interface GuardOutcome {
+  blocked: boolean; // 막혔는가
+  broken: boolean; // 이 타격에 방어가 무너졌는가
+  cpPaid: number; // 실제로 치른 기력 (무너졌으면 0)
+  prevented: number; // 막아서 덜 들어간 값 = finalDamage - appliedDamage
+}
+
+/**
+ * Actor.Guard.Broken (파생 상태) — 지금 무너져 있어 다시 들지 못하는가.
+ * 절대 시각(GuardBrokenUntil)이 아니라 이 판정만이 밖으로 나간다 —
+ * 보는 이에게 필요한 것은 "언제까지" 가 아니라 "지금 못 든다" 다.
+ */
+export function isGuardBroken(actor: ActorState, worldTime: number): boolean {
+  return worldTime < actor.guardBrokenUntil;
 }
 
 // 이 Actor 가 지금 실제로 나아가는 빠르기 (INTENT-TEMPO-MOVE-001 · INTENT-RUN-001)

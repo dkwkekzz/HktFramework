@@ -3,11 +3,12 @@
 //                                   INTENT-TEMPO-ACTION-001
 // Input          Actor, SkillKind
 // Preconditions  1. Actor 가 쓰러지지 않았다
-//                2. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001 의 관문)
-//                3. Cp >= SkillDefinition.CpCost × Modifiers.CpConsume
+//                2. 막고 있지 않다 (C011 ADDED — 버티는 몸으로는 휘두르지 못한다)
+//                3. 현재 행동이 대체 가능하다 (RULE-ACTION-BEGIN-001 의 관문)
+//                4. Cp >= SkillDefinition.CpCost × Modifiers.CpConsume
 // Transition     CurrentAction = SkillKind (대상을 담지 않는다), StruckActorIds = [],
 //                Duration = 공격 속도가 정한 길이
-// Result         Success | Failure(downed | action-busy | insufficient-cp)
+// Result         Success | Failure(downed | guarding | action-busy | insufficient-cp)
 //
 // C002 의 RULE-ATTACK-001 을 일반화한 것이다 — 휘두름은 이제 종류를 가진 스킬이며,
 // 각 스킬은 자기 기력 수지와 고정 피해량과 행동 길이를 가진다.
@@ -33,7 +34,7 @@ import {
 } from '../semantic/combat';
 import { beginAction, evaluateActionBegin, type ActionBusyReason } from './action-begin';
 
-export type SkillFailureReason = ActionBusyReason | 'downed' | 'insufficient-cp';
+export type SkillFailureReason = ActionBusyReason | 'downed' | 'guarding' | 'insufficient-cp';
 
 // Precondition 평가 — Observable(Skill.Availability / Skill.FailureReason)과 공유한다.
 // 판정이 한 곳에만 있어야 "왜 안 되는가"와 실제 거절 사유가 어긋나지 않는다.
@@ -42,6 +43,11 @@ export function evaluateSkillPreconditions(
   kind: SkillKind,
 ): SkillFailureReason | null {
   if (isDowned(actor)) return 'downed';
+
+  // C011 — 막기 판정을 행동 관문보다 **앞에** 둔다. 막고 있는 동안의 현재 행동은
+  // 대체 가능한 idle 이나 move 인 경우가 대부분이라, 뒤에 두면 실제 사유가 드러나지 않고
+  // "왜 안 나가는지" 를 알 수 없게 된다 (INTENT-GUARD-RESTRICT-001).
+  if (actor.guarding) return 'guarding';
 
   const busy = evaluateActionBegin(actor);
   if (busy) return busy;

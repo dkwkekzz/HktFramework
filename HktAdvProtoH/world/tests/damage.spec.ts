@@ -195,9 +195,14 @@ describe('INTENT-DAMAGE-BREAKDOWN-001 — 한 방의 크기가 나온 경위가 
       targetDefense: 30,
       defenseMultiplier: 100 / 130,
       finalDamage: 20,
+      // C011 AFFECTED — 실제로 빠진 값이 경위에 함께 실린다.
+      // 막지 않은 타격이므로 finalDamage 와 같고, guard 는 실리지 않는다
+      appliedDamage: 20,
     });
-    // 경위 표시를 접어 두어도 기존 표시가 그대로 성립한다
-    expect(strike?.amount).toBe(strike?.breakdown.finalDamage);
+    // 경위 표시를 접어 두어도 기존 표시가 그대로 성립한다.
+    // C011 — 그 기준이 appliedDamage 로 옮겨졌다. 막지 않은 타격에서는 둘이 같다
+    expect(strike?.amount).toBe(strike?.breakdown.appliedDamage);
+    expect(strike?.breakdown.appliedDamage).toBe(strike?.breakdown.finalDamage);
   });
 
   it('값을 바꾸기 전후의 경위를 비교해 무엇 때문에 달라졌는지 알 수 있다', () => {

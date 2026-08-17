@@ -459,6 +459,9 @@ describe('INTENT-ATTRIBUTE-OBSERVE-001 — 세계는 어떤 속성도 숨기지 
       modifiers: { energyCharge: 1, energyConsume: 1, moveSpeed: 1, actionSpeed: 1 },
       // C010 — 새 속성도 예외 없이 실린다
       combatStats: { attack: 40, defense: 30, defenseMultiplier: 100 / 130 },
+      // C011 — 자율 존재는 막지 않지만 그 사실도 실린다.
+      // "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 는 다른 일이다
+      guard: { guarding: false, broken: false },
     });
   });
 
