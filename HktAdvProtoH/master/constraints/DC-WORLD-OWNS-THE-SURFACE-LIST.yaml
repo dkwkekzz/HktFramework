@@ -1,0 +1,43 @@
+# 원본 근거: candidates/CC-WORLD-OWNS-THE-SURFACE-LIST.md
+#   C007 R2 (바꿀 수 있는 속성의 목록과 범위를 세계가 싣는다) →
+#   C009 (그 목록이 명령 카탈로그의 Domain 이 된다) →
+#   C010 (세계에 두 속성을 더한 것만으로 조작 표면이 늘었다 — View 코드 변경 0)
+# 세 Cycle 에 걸쳐 반복된 패턴이며, C010 에서 "코드 변경 0" 이라는 측정 가능한 형태로 나타났다.
+# 2026-08-17 Human 승인으로 승격.
+id: DC-WORLD-OWNS-THE-SURFACE-LIST
+type: constraint
+
+statement: >
+  무엇을 할 수 있고 그 값이 어디까지 허용되는지의 목록은 세계가 소유하고 관찰 결과에
+  실어 보낸다. 관찰자(View)는 그 목록을 스스로 만들지 않는다.
+rationale: >
+  선택지가 두 곳에 적히면 늘어날 때마다 두 곳을 함께 고쳐야 하고, 어긋나면 세계가 허용하는
+  것과 화면이 보여주는 것이 달라진다. 목록의 단일 출처가 세계 쪽에 있으면 새 선택지는
+  세계에 더하는 것으로 끝나고 표면이 저절로 따라온다 — C010 이 View 코드를 한 줄도 고치지
+  않고 조작 표면을 늘린 것이 그 증거다. 편의상 View 에 목록을 적는 Cycle 이 하나만 나와도
+  그 뒤로는 되돌리기 어려운 부채가 된다.
+
+scope:
+  - GLOBAL              # 전투에 한정되지 않는다 — World → View 경계 전반의 성질이다
+
+requires:
+  - 선택 가능한 항목의 집합과 각 항목의 허용 범위를 세계가 관찰 계약에 싣는다
+  - 새 항목이 생기면 세계 쪽 단일 출처에 더하는 것으로 끝난다
+prohibits:
+  - View 가 선택지 목록을 자기 코드에 적어 두는 것
+  - 같은 목록이 World 와 View 두 곳에 적히는 것
+prefers:
+  - 목록의 각 항목이 자기 사유 코드(불가할 때 왜인지)를 함께 지니는 것
+
+# 경계 — 이 Constraint 는 "무엇이 선택지인가" 만 세계에 둔다.
+# 그것을 어떻게 보여줄지(문구·배치·늘 띄울지 접을지)는 여전히 View 의 결정이다.
+# 두 가지를 섞으면 View 의 표현 자유를 침범한다.
+
+status: APPROVED
+provenance:
+  - CANDIDATE:CC-WORLD-OWNS-THE-SURFACE-LIST
+  - HUMAN_DESIGN        # 2026-08-17 승인
+
+relations:
+  supports: []
+  conflicts_with: []    # 기존 Active DC 4종은 모두 COMBAT scope 이라 겹치지 않는다

@@ -76,8 +76,11 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
         C010 의 MASTER FEEDBACK 이 이 Capability 를 보고하지 않았다.
         보고 없이 코드를 근거로 승격하지 않는다 (MF Guide MUST NOT) — M3 재판정 대상이다.
 
-    Constraint Candidate 접수 1건
-        CC-WORLD-OWNS-THE-SURFACE-LIST — candidates/ 에 PENDING 으로 두었다.
+    Constraint Candidate 접수 1건 → **승격**
+        CC-WORLD-OWNS-THE-SURFACE-LIST 를 접수하고, 같은 날 Human 이 승인했다.
+        constraints/DC-WORLD-OWNS-THE-SURFACE-LIST.yaml (GLOBAL · APPROVED).
+        Active Constraint 가 4종에서 5종이 되었고, 이 중 처음으로 COMBAT 이 아닌
+        경계(World → View) 에 대한 것이다.
 
     ── 이전 갱신 ────────────────────────────────────────────────────
 

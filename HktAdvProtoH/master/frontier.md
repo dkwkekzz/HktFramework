@@ -54,7 +54,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     원본 근거            구판 §8.1 · R1 §14 Defense Action 층
                          (Guard → Damage Taken × 0.5 수준에서 재시작)
     Active Constraints   DC-COMBAT-PLAYER-CAUSALITY · DC-COMBAT-ONE-FORMULA ·
-                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-SHARED-BUDGET
+                         DC-COMBAT-ONE-LAYER-AT-A-TIME · DC-COMBAT-SHARED-BUDGET ·
+                         DC-WORLD-OWNS-THE-SURFACE-LIST (2026-08-17 승격 — GLOBAL)
     Constraint Eval      SATISFIED — 막기는 확률이 아니라 선택한 행동의 결과이고(난수 없음),
                          새 피해 공식을 만들지 않고 C010 의 결과값에 한 가지 의미만 더하며
                          (DC-COMBAT-ONE-FORMULA — 핵심 원칙의 "Guard → Final Damage 를
@@ -70,8 +71,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
                          새 자원도 새 공식도 없다 — 기력·피해 계산·행동 구조가 모두 이미 있다.
                          한 번 구현되었던 이력이 있어 재구축 비용도 낮다
                          (git history 의 cycles/C010-guard-trades-body-for-resource)
-    Status               PROPOSED — 2026-08-17 MF 에서 이연 해제.
-                         R1 §14 가 요구한 "기본 공식이 플레이로 검증된 뒤" 조건 충족
+    Status               SELECTED — 2026-08-17 Human 선택. 다음 Cycle = C011 (번호 재사용).
+                         2026-08-17 MF 에서 이연 해제되었고, R1 §14 가 요구한
+                         "기본 공식이 플레이로 검증된 뒤" 조건이 C010 으로 충족되었다
 
 ### FR-PERFECT-GUARD-TURNS-THE-TABLE (Guard 다음)
     Playable Result      플레이어가 공격이 닿기 직전에 막아 피해를 전혀 받지 않고,
@@ -128,7 +130,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 ## 추천 순서와 근거
 
 ```text
-1  FR-GUARD-TRADES-BODY-FOR-RESOURCE   PROPOSED — R1 §14 가 기본 공식 바로 위에 둔 층이고,
+1  FR-GUARD-TRADES-BODY-FOR-RESOURCE   SELECTED — R1 §14 가 기본 공식 바로 위에 둔 층이고,
                                        C010 이 그 조건(기본 공식의 플레이 검증)을 채웠다.
                                        요구 Capability 가 MC-GUARD 하나로 줄어 지금 가장 가까운
                                        후보다. 한 번 구현된 이력이 있어 재구축 비용도 낮다.
@@ -152,6 +154,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — R1 층 순서와 어긋남. 산출물은 git history |
 | FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — 위와 같음 |
 | FR-STATS-DECIDE-THE-DAMAGE | **CLOSED** | C010-stats-decide-the-damage | 2026-08-17 **COMPLETE** — Human Play 확인. MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION 승격. 후보 목록에서 소진 처리 |
+| FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C011 (예정 — 번호 재사용) | 2026-08-17 Human 선택. R1 §14 Defense Action 층. 구 C011(완벽한 막기)과는 전체 ID 로 구분하며, 롤백된 구 C010(막기)의 산출물이 git history 에 있어 참조 가능하다 |
 
 ### 소진된 후보에서 배운 것
 

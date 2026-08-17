@@ -71,5 +71,9 @@
 
 ## HUMAN DECISION
 
-    PENDING
-    Reason
+    APPROVED       2026-08-17
+    Reason         세 Cycle 에 걸친 반복과 C010 의 "코드 변경 0" 이 근거로 충분하다.
+                   승격 결과 → constraints/DC-WORLD-OWNS-THE-SURFACE-LIST.yaml
+                   (provenance 에 CANDIDATE:CC-WORLD-OWNS-THE-SURFACE-LIST 를 남겼다)
+
+    이 파일은 지우지 않는다 — 그 원칙이 어디서 왔는지의 기록이다.
