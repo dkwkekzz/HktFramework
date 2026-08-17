@@ -106,6 +106,8 @@
     INTENT-DAMAGE-TYPE-001
         Source Goal         GOAL-ATTACK-FORM-MATTERS
         Source Possibility  POSSIBILITY-TWO-DAMAGE-FORMS
+        Master Trace        MG-OVERCOME-SUPERIOR-OPPONENT / MP-MATCH-WEAPON-TO-ARMOR
+                            → MC-ATTACK-ARMOR-MATCHUP
         Constraint          DC-COMBAT-ONE-LAYER-AT-A-TIME (방식은 둘뿐 · 혼합 없음)
         원본                Design-Combat-DamageType-R0 §1 · §3 · §11
 
@@ -118,11 +120,13 @@
     INTENT-TYPED-OFFENSE-001
         Source Goal         GOAL-ATTACK-FORM-MATTERS
         Source Possibility  POSSIBILITY-TWO-DAMAGE-FORMS
+        Master Trace        MP-MATCH-WEAPON-TO-ARMOR → MC-ATTACK-ARMOR-MATCHUP
         원본                Design-Combat-DamageType-R0 §2 · §11
 
     INTENT-TYPED-DEFENSE-001
         Source Goal         GOAL-DEFENSE-IS-NOT-ONE-WALL
         Source Possibility  POSSIBILITY-TYPED-ABSORB · POSSIBILITY-UNEVEN-DEFENSE
+        Master Trace        MP-MATCH-WEAPON-TO-ARMOR → MC-ATTACK-ARMOR-MATCHUP
         원본                Design-Combat-DamageType-R0 §2 · §11
 
     INTENT-DAMAGE-CALCULATE-001 (CHANGED)
@@ -142,6 +146,7 @@
     INTENT-DAMAGE-TYPE-OBSERVE-001
         Source Goal         GOAL-WEAKNESS-IS-READABLE
         Source Possibility  POSSIBILITY-READ-DEFENSE-SHAPE
+        Master Trace        MK-OPPONENT-DEFENSE-SHAPE — 이 Intent 가 그 지식을 세계에 세운다
         Constraint          DC-WORLD-OWNS-THE-SURFACE-LIST (약점을 밝히는 것은 세계다)
         원본                Design-Combat-DamageType-R0 §10 · §16.3-1 · §16.3-6
 

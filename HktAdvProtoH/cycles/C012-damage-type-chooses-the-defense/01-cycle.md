@@ -13,24 +13,25 @@ STATUS  IN PROGRESS
 
 ## MASTER TRACE
 
-    Frontier            없음 — `master/frontier.md` 는 2026-08-17 Human 지시로 HOLD 다.
-                        Master Layer 가 아직 세워지지 않아 그 파일의 후보·상태 표기가
-                        현재 세계와 어긋나 있고, 층 높이를 보지 않아 선택 근거로 쓸 수 없다
-                        (STATUS.md).
-    Source Goal         없음 — 위와 같음
-    Source Possibility  없음 — 위와 같음
-    Target Capability   없음 (Master 기준) — 아래 TARGET CAPABILITY 는 세계 기준이다
+    Frontier            FR-MATCHUP-MAKES-THE-CHOICE
+    Source Goal         MG-OVERCOME-SUPERIOR-OPPONENT
+    Source Possibility  MP-MATCH-WEAPON-TO-ARMOR
+                        "전투 중의 실행이 아니라 전투 전의 선택으로 이긴다.
+                         같은 능력치로도 상대에 따라 결과가 달라진다"
+    Target Capability   MC-ATTACK-ARMOR-MATCHUP   (overlay: MISSING — 이번 Cycle 의 유일한 결손)
+    Reused Capability   MC-COMBAT-STRIKE          (overlay: IMPLEMENTED — C007·C010)
+    Target Knowledge    MK-OPPONENT-DEFENSE-SHAPE
+                        "상대가 어떤 형태의 방어를 지녔고 어떤 공격 형태에 그 방어가
+                         덜 버티는지를 안다. 이 지식이 없으면 무기 선택은 취향이고,
+                         있으면 선택이 된다"
+                        → 03 의 Actor.DefenseShape 가 이것을 세계에 세운다
 
-    이번 Cycle Goal 의 출처
-        design/Design-Combat-DamageType-R0.md  (Damage Type 층 설계 원본)
-        design/Design-Combat-OffenseDefense-R0.md (R1) §14 확장 사다리
-
-        R1 §14 는 Basic Damage → (Critical) → Defense Action → **Damage Type** →
-        Penetration → Active Defense → Aura/Nen 순서를 정한다. 아래 두 층이 닫혔고
-        (C010 기본 공식 · C011 막기), Critical 층은 DC-COMBAT-PLAYER-CAUSALITY 와
-        충돌하여 보류 중이다 (`master/open-questions.md` Q11 — 미결). 따라서 지금
-        열 수 있는 가장 낮은 층이 Damage Type 이며, 그 세부 설계가
-        `Design-Combat-DamageType-R0.md` 로 도착하여 막힘이 풀렸다.
+    이 Frontier 는 R1 §14 Damage Type 층 재설계를 기다리며 DEFERRED 였다가,
+    2026-08-17 `design/Design-Combat-DamageType-R0.md` 가 도착하여 SELECTED 되었다
+    (`master/frontier.md` MF 갱신). 아래 두 층은 닫혀 있다 —
+    C010 기본 공식 · C011 막기. Critical 층은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하여
+    보류 중이며(Q11 미결), R1 자신이 "C010 은 Critical 없이도 완전히 동작해야 한다" 로
+    건너뛰기를 허용한다.
 
     Active Constraints  DC-COMBAT-PLAYER-CAUSALITY
                         DC-COMBAT-ONE-FORMULA

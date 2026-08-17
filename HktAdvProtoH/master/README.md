@@ -1,20 +1,18 @@
 # master/ — Master Intent Graph
 
-> ## ⛔ HOLD — Master Layer 작업은 아직 시작하지 않는다 (2026-08-17 Human 지시)
+> ## 진행 순서 — 2026-08-17 Human 지시
 >
-> 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다.
-> 그 전에는 이 디렉터리를 세우는 작업(M2 Graph · M3 Overlay · M4 Frontier · MF Feedback)을
-> 시작하지 않는다.
+> 전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 것이 먼저다. 그 전에는 이 디렉터리를
+> **새로 세우는** 작업(M2 Graph 확장 · Constraint 신설)을 시작하지 않는다.
+> 닫힌 Cycle 을 반영하는 MF Feedback 은 그 제한에 걸리지 않는다 — 그것을 미루면
+> `frontier.md` 와 `overlay.md` 가 현재 세계와 어긋나 다음 선택을 흐린다.
 >
 > Human 이 직접 세운 것은 `constraints/` 뿐이다. `graph/` `overlay.md` `frontier.md` 는
-> R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 실제로 세운 결과가 아니다.
-> 그래서 그 세 파일의 상태 표기는 현재 세계와 어긋나 있다 (예: MC-GUARD 가 아직 MISSING,
-> `frontier.md` 의 SELECTED 가 이미 닫힌 Cycle 을 가리킨다).
+> R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 Master 를 처음부터 세운 결과가 아니다.
 >
-> **다음 Cycle 은 `frontier.md` 가 아니라 R1 §14 확장 사다리로 고른다** —
-> 자세한 현재 위치는 [../STATUS.md](../STATUS.md).
->
-> 이 HOLD 는 OffenseDefense 트랙이 닫힌 뒤 Human 이 걷는다.
+> 현재 어긋나 있는 것 — `overlay.md` 의 MC-GUARD 가 아직 MISSING 이다.
+> C011 08-verification.md 가 승격 근거를 냈으나 반영 전이다.
+> (`frontier.md` 는 2026-08-17 MF 로 갱신되었다.)
 
 이 디렉터리는 **Master Layer** 의 산출물이다.
 

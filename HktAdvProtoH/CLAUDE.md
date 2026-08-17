@@ -11,9 +11,8 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
-> **먼저 읽는다** — 지금 무엇을 우선하는지, 확장 사다리의 현재 위치가 어디인지,
-> 열려 있는 Human 결정이 무엇인지는 [STATUS.md](STATUS.md) 에 있다.
-> 이 문서는 원칙과 인덱스만 담는다.
+> **다음에 무엇을 하는가** — 후보와 그 순서, 각 층이 막힌 이유, Human 의 선택 기록은
+> [master/frontier.md](master/frontier.md) 가 소유한다. 이 문서는 원칙과 인덱스만 담는다.
 
 ## 두 층
 
@@ -149,7 +148,6 @@ Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human
 
 | 경로 | 내용 | 수명 |
 |---|---|---|
-| [STATUS.md](STATUS.md) | 현재 우선순위 · 확장 사다리 위치 · 열린 Human 결정 | 현재 상태, 덮어쓴다 |
 | [guides/](guides/) | Stage Guide — 단계별 작업 방법·완료 조건 | 공정이 바뀔 때만 |
 | [master/](master/) | Master Intent Graph — Constraint · Graph · Overlay · Frontier | 현재 상태, 계속 자란다 |
 | [cycles/](cycles/) | Cycle Artifact — 진행 기록 | History, 수정하지 않는다 |
