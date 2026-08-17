@@ -70,7 +70,7 @@ nodes:
       DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 막기는 수치가 아니라 행동이다 (구판 §8.1) — DC 는 현재 보류
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 전용 게이지 없이 같은 기력으로 받아낸다 (구판 §11)
     overlay: MISSING
-    # C010 으로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C010 층에서 재구축한다.
+    # C010 으로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Defense Action(Guard) 층에서 재구축한다.
 
   - id: MC-PERFECT-GUARD
     type: capability
@@ -83,7 +83,7 @@ nodes:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 시각 관계라는 관찰 가능한 조건으로 판정된다 (구판 §8.2)
       DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 방어 성공이 공격권을 뒤집는다 (구판 §8.2) — DC 는 현재 보류
     overlay: MISSING
-    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C013 층에서 재구축한다.
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Active Defense 층에서 재구축한다.
 
   - id: MC-COUNTER
     type: capability
@@ -95,7 +95,7 @@ nodes:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시된 노출 조건이 성립할 때만 커진다 (구판 §8.4)
       DC-COMBAT-DEFENSE-IS-ACTIVE: SATISFIED   # 읽은 방어가 곧 공격 기회다 (구판 §3.2) — DC 는 현재 보류
     overlay: MISSING
-    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 C013 층에서 재구축한다.
+    # C011 로 닫혔다가 2026-08-17 Human 결정으로 롤백 — R1 §14 Active Defense 층에서 재구축한다.
 
   - id: MC-DEFENSE-MITIGATION
     type: capability
@@ -170,7 +170,7 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-POWER-HAS-COST: SATISFIED      # 한쪽에 몰수록 반대쪽이 실제로 빈다 (구판 §3.3 · §7)
     overlay: MISSING
-    # R1 §14 의 C014(Aura / Nen Layer — 공격 집중·방어 집중)로 형태가 바뀌어 재설계 예정.
+    # R1 §14 Aura/Nen 층(공격 집중·방어 집중)으로 형태가 바뀌어 재설계 예정.
 
   - id: MC-FORTIFY
     type: capability
@@ -182,7 +182,7 @@ nodes:
       DC-COMBAT-POWER-HAS-COST: SATISFIED      # 안정성은 지속 비용과 약해진 공격으로 산다 (구판 §7)
       DC-COMBAT-SHARED-BUDGET: SATISFIED       # 흘리는 자원이 같은 기력 예산이다 (구판 §11)
     overlay: MISSING
-    # R1 §14 의 C014(Aura / Nen Layer — 방어 집중)로 형태가 바뀌어 재설계 예정.
+    # R1 §14 Aura/Nen 층(방어 집중)으로 형태가 바뀌어 재설계 예정.
 
   - id: MC-ATTACK-ARMOR-MATCHUP
     type: capability
@@ -195,7 +195,7 @@ nodes:
       DC-COMBAT-MATCHUP-SOFT: SATISFIED        # semantic 이 이미 이득 제한과 균형 붕괴 쪽 배치를 담는다 (구판 §6.2)
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 같은 조합이면 같은 결과 — 결정적 상성이다 (구판 §6)
     overlay: MISSING
-    # R1 §14 의 C011(Damage Type — Physical/Magic · Armor/Resistance)로 재편 예정.
+    # R1 §14 Damage Type 층(Physical/Magic · Armor/Resistance)으로 재편 예정.
 
   - id: MC-WEAK-POINT
     type: capability
@@ -227,7 +227,7 @@ nodes:
     constraint_evaluation:
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 명시 조건의 합성이고 상한이 있으며 결과에서 읽힌다 (구판 §10)
     overlay: MISSING
-    # R1 핵심 원칙(Condition → Modifier)과 §14 C014 로 이어진다.
+    # R1 핵심 원칙(Condition → Modifier)과 §14 Aura/Nen 층으로 이어진다.
 
   - id: MC-VOW
     type: capability
@@ -240,7 +240,7 @@ nodes:
       DC-COMBAT-POWER-HAS-COST: SATISFIED      # 검증 가능한 제약·수용한 위험·즉시 대가 — 이 Constraint 의 정면 사례 (구판 §12)
       DC-COMBAT-PLAYER-CAUSALITY: SATISFIED    # 제약 완수는 세계가 판정하는 사건이다 (구판 §12)
     overlay: MISSING
-    # R1 §14 의 C014(조건·제약·서약)로 유지된다.
+    # R1 §14 Aura/Nen 층(조건·제약·서약)으로 유지된다.
 
 # 주입 근거: design/Design-Combat-OffenseDefense-R0.md
 #   R1 (2026-08-17 전면 개정) §1~§5 · §10 신규 INTENT · §14 확장 순서 · 핵심 원칙

@@ -19,9 +19,9 @@
 
 | Constraint | 한 줄 | 대상 층 |
 |---|---|---|
-| DC-COMBAT-DEFENSE-IS-ACTIVE | 방어는 수치로 끝나지 않는 능동 행동 | R1 §14 C010 (Guard) · C013 (Active Defense) |
-| DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 | R1 §14 C011 (Damage Type) |
-| DC-COMBAT-POWER-HAS-COST | 집중은 반대쪽을 비우고 위력은 제약·위험과 교환된다 | R1 §14 C014 (Aura / Nen) |
+| DC-COMBAT-DEFENSE-IS-ACTIVE | 방어는 수치로 끝나지 않는 능동 행동 | R1 §14 Defense Action(Guard) · Active Defense 층 |
+| DC-COMBAT-MATCHUP-SOFT | 상성은 선택을 만들되 지배하지 않는다 | R1 §14 Damage Type 층 |
+| DC-COMBAT-POWER-HAS-COST | 집중은 반대쪽을 비우고 위력은 제약·위험과 교환된다 | R1 §14 Aura/Nen 층 |
 
 보류는 삭제가 아니다 — 문안과 이력을 보존하고, Active Constraint 판정(Frontier 조건 6 ·
 Graph 평가)에서만 제외한다. 노드들의 기존 constraint_evaluation 기록도 지우지 않는다.
@@ -36,7 +36,7 @@ Flow 를 읽는다" 고 하지 "모든 위험이 상대에게 읽혀야 한다" 
 
 2026-08-17 — 기획서 R1 전면 개정 + C010·C011 구현 롤백에 따라 Human 지시로 재작성.
 CAUSALITY·SHARED-BUDGET 은 R1 기준 재정합(APPROVED 유지), ONE-FORMULA ·
-ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류. R1 §14 C009(Critical Chance)와
+ONE-LAYER-AT-A-TIME 신설, 이연 층 근거의 3종은 DRAFT 보류. R1 §14 Critical 층(Critical Chance)과
 CAUSALITY 의 random_critical 금지 충돌은 미해결 → ../open-questions.md Q11.
 
 ## 이것이 무엇인가

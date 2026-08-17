@@ -31,7 +31,7 @@ nodes:
     belief_context: []
     stakes:
       - 버티지 못하면 쓰러진다
-      - 버티기만 하면 자원이 말라 결국 무너진다      # 구판 §8.1 유래 — 해당 층(R1 §14 C010)에서 다시 성립한다
+      - 버티기만 하면 자원이 말라 결국 무너진다      # 구판 §8.1 유래 — 해당 층(R1 §14 Defense Action)에서 다시 성립한다
     caused_by: []
     constraints: []
 

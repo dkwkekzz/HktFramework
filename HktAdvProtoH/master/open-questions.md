@@ -114,14 +114,15 @@ Human 이 답한다    DECISION 줄
 
 ---
 
-## Q11. R1 §14 C009(Critical Chance) 는 DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — OPEN
+## Q11. R1 §14 Critical 층(Critical Chance) 는 DC-COMBAT-PLAYER-CAUSALITY 와 충돌 — OPEN
 
-    Conflict      R1 §14 C009 층은 Critical Chance / Critical Damage 를 예고하지만
+    Conflict      R1 §14 Critical 층은 Critical Chance / Critical Damage 를 예고하지만
                   DC-COMBAT-PLAYER-CAUSALITY 는 random_critical 을 prohibits 한다.
                   R1 자신도 "결정론을 중요하게 여긴다면 Critical 자체를 넣을지 여기서
-                  다시 판단한다 · C008 은 Critical 없이도 완전히 동작해야 한다" 고 유보했다.
+                  다시 판단한다 · C010(기본 공식)은 Critical 없이도 완전히 동작해야 한다" 고
+                  유보했다.
 
-    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 C009 층 · (참고) 구판 §10 의
+    Affected      DC-COMBAT-PLAYER-CAUSALITY · R1 §14 Critical 층 · (참고) 구판 §10 의
                   조건부 Critical(비확률) 설계와 MC-CONDITION-STACKING
 
     Trade-off     (a) 확률 Critical 을 넣지 않는다 — 그 층을 건너뛰거나 구판 §10 방향의

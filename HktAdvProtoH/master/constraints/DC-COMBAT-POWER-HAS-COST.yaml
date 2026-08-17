@@ -2,7 +2,7 @@
 # 2026-08-15 Human 지시로 반영.
 #
 # 2026-08-17 Human 지시(R1 재작성)로 **보류(DRAFT)** — 집중(Flow)·제약·서약 층은
-# R1 §14 C014(Aura / Nen Layer)로 이연되었다. R1 의 C014 예시(공격 집중 Attack ×1.3 ·
+# R1 §14 Aura/Nen 층으로 이연되었다. R1 의 해당 층 예시(공격 집중 Attack ×1.3 ·
 # Defense ×0.7 · CP -5/sec)가 같은 원리를 예고하므로 문안은 보존하되, 그 층의 재설계
 # 문서가 나올 때 재검토하고 재승인한다. 지금 Active 가 아니다.
 id: DC-COMBAT-POWER-HAS-COST
@@ -29,7 +29,7 @@ prohibits:
   - text_only_unverifiable_restriction   # 세계가 판정할 수 없는 텍스트 설정만의 제약 (§12)
 prefers: []
 
-status: DRAFT             # 2026-08-17 Human 지시 — R1 이연 층(§14 C014 Aura/Nen) 재설계 시까지 보류
+status: DRAFT             # 2026-08-17 Human 지시 — R1 이연 층(§14 Aura/Nen) 재설계 시까지 보류
 provenance:
   - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 에 따른 보류 2026-08-17 — 모두 Human 지시
 

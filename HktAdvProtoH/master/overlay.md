@@ -17,18 +17,18 @@ Frontier 는 여기서 나온다.
 | MC-ATTACK-POWER | MISSING | — | 공격 능력치가 Actor 에 없다. 피해가 `SkillDefinition.damage` 고정값 하나다 (`world/semantic/combat.ts`) |
 | MC-SKILL-SCALING | MISSING | — | 스킬에 기본 피해량/공격 계수 구분이 없다 — `damage` 단일 필드뿐이다 |
 | MC-DEFENSE-MITIGATION | MISSING | — | 방어력이라는 값 자체가 Actor 에 없다 (C010 이 감산식으로 닫았다가 **2026-08-17 롤백** — R1 §4 의 체감 형태로 새로 만든다) |
-| MC-GUARD | MISSING | — | 막는 행동이 없다 (C010 으로 닫혔다가 **2026-08-17 롤백** — R1 §14 C010 층에서 재구축) |
-| MC-PERFECT-GUARD | MISSING | — | Guard 가 없으므로 그 시작 시각도 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 C013 층) |
-| MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 C013 층) |
+| MC-GUARD | MISSING | — | 막는 행동이 없다 (C010 으로 닫혔다가 **2026-08-17 롤백** — R1 §14 Defense Action(Guard) 층에서 재구축) |
+| MC-PERFECT-GUARD | MISSING | — | Guard 가 없으므로 그 시작 시각도 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 Active Defense 층) |
+| MC-COUNTER | MISSING | — | 노출 상태(Exposed)가 없다 (C011 로 닫혔다가 **2026-08-17 롤백** — R1 §14 Active Defense 층) |
 | MC-EVADE | MISSING | — | 회피 행동이 없다 (R1 §13 이연) |
 | MC-BREAK | MISSING | — | 균형 누적값·붕괴 상태가 없다 (R1 이연 — 재설계 대기) |
-| MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 C014 로 재설계 예정) |
-| MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 C014) |
-| MC-ATTACK-ARMOR-MATCHUP | MISSING | — | 공격 타입도 방어 타입도 없다 (R1 §14 C011 Damage Type 으로 재편 예정) |
+| MC-COMBAT-FLOW | MISSING | — | 공격/방어 배분 상태가 없다 (R1 §14 Aura/Nen 층으로 재설계 예정) |
+| MC-FORTIFY | MISSING | — | Flow 가 없으므로 방어 쪽에 몰아 둔 자세도 없다 (R1 §14 Aura/Nen 층) |
+| MC-ATTACK-ARMOR-MATCHUP | MISSING | — | 공격 타입도 방어 타입도 없다 (R1 §14 Damage Type 층으로 재편 예정) |
 | MC-WEAK-POINT | MISSING | — | 몸이 단일 캡슐이라 부위 구분이 없다 (C006 `bodyRadius/bodyHeight`) (R1 이연) |
 | MC-REAR-ATTACK | MISSING | — | facing 은 있으나 타격 판정이 방향을 보지 않는다 (R1 이연) |
-| MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 C014) |
-| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 C014) |
+| MC-CONDITION-STACKING | MISSING | — | 조건이라는 개념 자체가 없다 (R1 §14 Aura/Nen 층) |
+| MC-VOW | MISSING | — | 제약·실패 대가가 없다 (R1 §14 Aura/Nen 층) |
 
 ## 판정 기준
 
@@ -48,15 +48,15 @@ Constraint Violation 과 혼동하지 않는다 — 여기는 **있는가/없는
 | Possibility | 요구 Capability 중 없는 것 | 비고 |
 |---|---|---|
 | MP-OUTGROW-THE-OPPONENT | MC-ATTACK-POWER · MC-SKILL-SCALING · MC-DEFENSE-MITIGATION | **R1 이 지정한 다음 층** — 새 값 3종이 한 덩어리다 (하나의 피해 공식) |
-| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD · MC-DEFENSE-MITIGATION | C010 으로 닫혔다가 롤백 — R1 §14 C010 층에서 재구축 |
-| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | C011 로 닫혔다가 롤백 — R1 §14 C013 층에서 재구축 |
+| MP-TRADE-BODY-FOR-RESOURCE | MC-GUARD · MC-DEFENSE-MITIGATION | C010 으로 닫혔다가 롤백 — R1 §14 Defense Action(Guard) 층에서 재구축 |
+| MP-READ-AND-COUNTER | MC-GUARD · MC-PERFECT-GUARD · MC-COUNTER | C011 로 닫혔다가 롤백 — R1 §14 Active Defense 층에서 재구축 |
 | MP-EVADE-BY-MOVING-THE-BODY | MC-EVADE | R1 §13 이연 |
 | MP-BREAK-THE-GUARD | MC-BREAK | R1 이연 — 재설계 대기 |
-| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 C014 로 이연 |
-| MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | R1 §14 C011 Damage Type 으로 재편 예정 |
-| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW · MC-DEFENSE-MITIGATION | R1 §14 C014 로 이연 |
+| MP-EXPLOIT-OPEN-BODY | MC-COMBAT-FLOW | R1 §14 Aura/Nen 층으로 이연 |
+| MP-MATCH-WEAPON-TO-ARMOR | MC-ATTACK-ARMOR-MATCHUP | R1 §14 Damage Type 층으로 재편 예정 |
+| MP-HOLD-FORTIFIED | MC-FORTIFY · MC-COMBAT-FLOW · MC-DEFENSE-MITIGATION | R1 §14 Aura/Nen 층으로 이연 |
 | MP-STRIKE-THE-VULNERABLE-SPOT | MC-WEAK-POINT · MC-REAR-ATTACK | R1 이연 |
-| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 C014 — 가장 멀다 |
+| MP-STAKE-EVERYTHING-ON-ONE-BLOW | MC-VOW · MC-CONDITION-STACKING · MC-COMBAT-FLOW | R1 §14 Aura/Nen 층 — 가장 멀다 |
 
 ## 이번 갱신
 

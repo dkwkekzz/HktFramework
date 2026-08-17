@@ -6,18 +6,19 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 출처: `design/Design-Combat-OffenseDefense-R0.md` **R1 (2026-08-17 전면 개정)** §14 확장 순서
 + `overlay.md`
 
-> **번호 주의** — 원본 문서는 자신을 "C008" 로 부르고 §14 에 C008~C014 단계 번호를 쓰지만,
-> 전부 **문서 내부 번호**다. 닫힌 Cycle 은 C009 까지이고, 롤백으로 무효가 된 C010·C011
-> 번호는 Human 결정(2026-08-17)으로 **재사용한다 — 다음 Cycle 은 C010** 이다.
-> 구분은 전체 ID(번호+이름)로 한다: 구 `C010-guard-trades-body-for-resource` ·
-> `C011-perfect-guard-turns-the-table` 은 git history 에만 존재한다.
-> (저장소 전례 — C010 번호는 "주소 하나로 닿는 세계" 정의가 접힌 뒤 막기 Cycle 로 이미
-> 한 번 재사용된 바 있다.)
+> **번호 주의** — R1 문서는 저장소 Cycle 번호에 맞춰 재번호되었다: 기본 공식 = **C010**
+> (다음 Cycle), §14 확장 사다리 = C011~C016. 닫힌 Cycle 은 C009 까지이고, 롤백으로 무효가
+> 된 C010·C011 번호는 Human 결정(2026-08-17)으로 재사용한다 — 구분은 전체 ID(번호+이름)로
+> 하며 구 `C010-guard-trades-body-for-resource` · `C011-perfect-guard-turns-the-table` 은
+> git history 에만 존재한다. §14 의 C011 이후 번호는 **계획 번호**라 다른 트랙의 Cycle 이
+> 끼어들면 밀릴 수 있다 — 그래서 이 파일과 Master 는 확장 층을 번호가 아니라 **이름**
+> (Critical · Defense Action · Damage Type · Penetration · Active Defense · Aura/Nen)으로
+> 가리킨다.
 
 > **R1 개정 + 롤백 반영 (2026-08-17)** — Human 이 전투 기획을 "가장 단순한 공격/방어
 > 공식 먼저" 로 재정의하고, 층 순서와 어긋나게 먼저 올라갔던 C010·C011(막기 계열) 구현을
 > 롤백하기로 결정했다. Constraint 는 R1 기준으로 재작성되었다 (`constraints/` —
-> Active 4종 · 보류 3종). C009(Critical) 층은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하므로
+> Active 4종 · 보류 3종). Critical 층(계획 C011)은 DC-COMBAT-PLAYER-CAUSALITY 와 충돌하므로
 > 후보로 올리지 않았다 → `open-questions.md` Q11.
 
 ## 후보 조건
@@ -62,7 +63,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Goal          MG-SURVIVE-ENEMY-OFFENSIVE
     Source Possibility   MP-TRADE-BODY-FOR-RESOURCE
     Missing / Partial    MC-GUARD (MISSING) · MC-DEFENSE-MITIGATION 위 확장
-    원본 근거            구판 §8.1 · R1 §14 C010 층 (Guard → Damage Taken × 0.5 수준에서 재시작)
+    원본 근거            구판 §8.1 · R1 §14 Defense Action 층 (Guard → Damage Taken × 0.5 수준에서 재시작)
     Status               DEFERRED — R1 §14 순서상 기본 공식 검증 뒤.
                          C010 으로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
                          cycles/C010-guard-trades-body-for-resource 산출물을 참조할 수 있다
@@ -73,9 +74,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-READ-AND-COUNTER
     Missing / Partial    MC-PERFECT-GUARD (MISSING) · MC-COUNTER (MISSING)
-    원본 근거            구판 §8.2 · §8.4 · R1 §14 C013 층 (Guard 검증 뒤)
+    원본 근거            구판 §8.2 · §8.4 · R1 §14 Active Defense 층 (Guard 검증 뒤)
     Depends On           FR-GUARD-TRADES-BODY-FOR-RESOURCE
-    Status               DEFERRED — R1 §14 C013 층.
+    Status               DEFERRED — R1 §14 Active Defense 층.
                          C011 로 한 번 닫혔다가 롤백 — 재구축 시 git history 의
                          cycles/C011-perfect-guard-turns-the-table 산출물을 참조할 수 있다
 
@@ -85,8 +86,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-MATCH-WEAPON-TO-ARMOR
     Missing / Partial    MC-ATTACK-ARMOR-MATCHUP (MISSING)
-    원본 근거            구판 §6 (R1 §14 C011 Damage Type 으로 재편 예정)
-    Status               DEFERRED — R1 §14 C011 층 재설계 대기
+    원본 근거            구판 §6 (R1 §14 Damage Type 층으로 재편 예정)
+    Status               DEFERRED — R1 §14 Damage Type 층 재설계 대기
 
 ### FR-BREAK-OPENS-THE-BURST-WINDOW
     Playable Result      플레이어가 압박을 이어 상대의 균형을 무너뜨리고,
@@ -103,8 +104,8 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-EXPLOIT-OPEN-BODY
     Missing / Partial    MC-COMBAT-FLOW (MISSING) · MC-COMBAT-CAUSE-READING (PARTIAL)
-    원본 근거            구판 §7 (R1 §14 C014 Aura/Nen 집중으로 재설계 예정)
-    Status               DEFERRED — R1 §14 C014 층
+    원본 근거            구판 §7 (R1 §14 Aura/Nen 층 집중으로 재설계 예정)
+    Status               DEFERRED — R1 §14 Aura/Nen 층
 
 ### FR-VOW-BUYS-POWER-WITH-RISK
     Playable Result      플레이어가 스스로 제약을 건 스킬로 규칙 위의 한 방을 내고,
@@ -112,9 +113,9 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
     Source Goal          MG-OVERCOME-SUPERIOR-OPPONENT
     Source Possibility   MP-STAKE-EVERYTHING-ON-ONE-BLOW
     Missing / Partial    MC-VOW (MISSING) · MC-CONDITION-STACKING (MISSING)
-    원본 근거            구판 §10 · §12 (R1 §14 C014 조건·제약·서약으로 유지)
+    원본 근거            구판 §10 · §12 (R1 §14 Aura/Nen 층 조건·제약·서약으로 유지)
     Depends On           선행 층들 (R1 §14 — Aura 는 마지막 층이다)
-    Status               DEFERRED — R1 §14 C014 층
+    Status               DEFERRED — R1 §14 Aura/Nen 층
 
 ## 추천 순서와 근거
 
@@ -123,7 +124,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
                                   공통 계산 기반" 으로 지정한 층. 다음 Cycle = C010 (번호 재사용).
 
 이후 순서는 R1 §14 를 따른다 — 각 층은 그 시점의 문서 개정(세부 재설계)이 나온 뒤
-후보로 다시 세운다. C009(Critical) 층은 DC 충돌 미해결 (Q11).
+후보로 다시 세운다. Critical 층은 DC 충돌 미해결 (Q11).
 막기 계열 두 후보는 한 번 구현된 이력이 있어 재구축 비용이 낮다.
 ```
 

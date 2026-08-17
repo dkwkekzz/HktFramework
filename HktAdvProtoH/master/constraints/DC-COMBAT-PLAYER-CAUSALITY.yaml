@@ -28,7 +28,7 @@ prohibits:
   - random_hit          # Miss / Accuracy
   - random_evade        # Dodge
   - random_damage       # Random Damage
-  - random_critical     # Critical (R1 §14 C009 층은 이 금지와 충돌 — open-questions.md Q11)
+  - random_critical     # Critical (R1 §14 Critical 층은 이 금지와 충돌 — open-questions.md Q11)
 prefers: []
 
 status: APPROVED

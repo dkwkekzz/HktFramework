@@ -3,8 +3,8 @@
 # 그래서 이 Constraint 는 requires / prohibits 없이 prefers 만 갖는다.
 # (이전 반영이 이것을 금지로 격상해 Human 지시로 제거된 이력이 있다.)
 #
-# 2026-08-17 Human 지시(R1 재작성)로 **보류(DRAFT)** — 상성 층은 R1 §14 C011
-# (Damage Type — Physical/Magic · Armor/Resistance)로 재편 예정이다. 근거 층이 아직
+# 2026-08-17 Human 지시(R1 재작성)로 **보류(DRAFT)** — 상성 층은 R1 §14 Damage Type 층
+# (Physical/Magic · Armor/Resistance)으로 재편 예정이다. 근거 층이 아직
 # 설계되지 않았으므로 지금 Active 가 아니며, 그 층의 재설계 문서에서 문안을 재검토한다.
 # (prefers 의 break_efficiency 표현도 구판 Break 개념 유래라 그때 함께 재검토한다.)
 id: DC-COMBAT-MATCHUP-SOFT
@@ -25,7 +25,7 @@ prefers:
   - small_damage_matchup_spread         # 피해 상성 폭은 작게 유지한다 (§3.1)
   - matchup_feel_via_break_efficiency   # 강한 상성 감각은 균형 붕괴 효율 쪽에 배치한다 (§3.1 · §6.3)
 
-status: DRAFT             # 2026-08-17 Human 지시 — R1 이연 층(§14 C011 Damage Type) 재설계 시까지 보류
+status: DRAFT             # 2026-08-17 Human 지시 — R1 이연 층(§14 Damage Type) 재설계 시까지 보류
 provenance:
   - HUMAN_DESIGN          # 구판 반영 2026-08-15 · R1 에 따른 보류 2026-08-17 — 모두 Human 지시
 

@@ -19,7 +19,7 @@ scope:
 
 requires:
   - verify_current_layer_before_next    # 현재 층의 플레이 검증이 다음 층의 전제다 (R1 §16)
-  - each_layer_playable_standalone      # 각 층은 상위 층 없이 완전히 동작한다 (R1 §14 — "C008 은 Critical 없이도 완전히 동작해야 한다")
+  - each_layer_playable_standalone      # 각 층은 상위 층 없이 완전히 동작한다 (R1 §14 — "C010 은 Critical 없이도 완전히 동작해야 한다")
 prohibits:
   - bundle_multiple_combat_layers_in_one_step   # 여러 전투 층을 한 번에 묶어 올리는 것 (R1 §0 · §13)
 prefers: []
