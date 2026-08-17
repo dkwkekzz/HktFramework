@@ -1,0 +1,236 @@
+# CYCLE C011 — GameView Specification
+#
+# 이번 Cycle 은 계약에 표면 하나(막기 걸고 놓기)를 새로 열고,
+# 이미 있는 두 자리 — ① 존재의 속성  ② 맞은 자리의 타격 결과 — 에 실리는 내용을 늘린다.
+#
+# 중심은 ② 다. C010 이 "이 숫자가 어디서 왔는가" 를 실었다면
+# C011 은 거기에 "그리고 내가 막아서 이렇게 줄었고 그 대가로 기력을 이만큼 냈다" 를 더한다.
+# 막았다는 사실이 값으로 읽히지 않으면 "생명 대신 기력" 은 플레이어에게 일어나지 않은 일이다.
+id: VIEW-GUARD-TRADES-BODY-FOR-RESOURCE-001
+observer: player
+
+delta:
+  reused:
+    - scene.mining-field
+    - entities.character                    # 위치·역할·이름·모션·body·swing 계약 그대로
+    - entities.deposit
+    - entityHud                             # 몸 위의 이름·생명 그대로
+    - entities.character.vitality
+    - entities.character.attributes.combatStats      # C010 그대로
+    - entities.character.attributes.defenseMitigation
+    - debugObserve / debugAuthority
+    - observer / session / delivery / identity / telemetry
+    - interactions.move / mine / moveMode / setAttribute
+    - interactions.attack / skillHeavy      # profile · 요청 방식 그대로
+    - commandCatalog                        # C009 그대로 — 막기는 명령이 아니다 (COMMAND NOTE)
+    - hud.inventory / tool / playerAction / worldTime / observers
+    - hud.self.vitality / moveMode / tempoStats / modifiers / combatStats
+    - strikeEvents.attacker / target / skill / at / since
+    - strikeEvents.breakdown                # C010 의 6항목 그대로 — 의미도 그대로
+  added:
+    - entities.character.attributes.guard   # 지금 막고 있는가 · 무너져 있는가 (모든 존재)
+    - interactions.guardBegin               # 막기를 건다
+    - interactions.guardRelease             # 막기를 놓는다
+    - strikeEvents.breakdown.guard          # 막기가 이 한 방에 한 일
+    - strikeEvents.breakdown.appliedDamage  # 실제로 생명에서 빠진 값
+    - hud.self.guard                        # 내 막기 상태를 늘 눈앞에
+  changed:
+    - strikeEvents.amount                   # 의미가 좁혀진다 — 아래 STRIKE NOTE 참조
+    - interactions.attack.unavailableReason # 사유 코드 guarding 이 하나 늘어난다
+    - interactions.skillHeavy.unavailableReason
+
+scene: mining-field
+
+# ─────────────────────────────────────────────────────────────────
+# entities.character — 막는 상태가 모든 존재에 실린다 (C011 ADDED)
+#   C007 R2 의 원칙 그대로다 — 세계는 어떤 속성도 숨기지 않는다.
+#   자율 존재는 이번 Cycle 에서 막지 않으므로 그쪽 값은 늘 거짓이다.
+#   그래도 실린다 — "지금은 아무도 안 막는다" 와 "세계가 안 알려준다" 는 다른 일이다.
+# ─────────────────────────────────────────────────────────────────
+entities:
+  character:
+    attributes:
+      guard:                                # C011 ADDED
+        guarding: { source: Actor.Guard.Guarding }
+        broken: { source: Actor.Guard.Broken }
+        meaning:
+          - guarding 은 지금 앞을 향해 버티고 있다는 뜻이다.
+            이것은 행동(state)과 별개다 — 막으면서 걷는 존재는
+            state 가 move 이면서 guarding 이 참이다.
+            따라서 View 는 이것을 행동 표시로 대신할 수 없다
+          - broken 은 방어가 무너져 아직 다시 들지 못하는 동안 참이다.
+            guarding 이 거짓이 되는 것과 broken 이 참이 되는 것은 같은 순간에 일어나지만
+            서로 다른 사실이다 — 놓은 것과 무너진 것이 구분되어야 한다
+          - 막는 방향은 따로 실리지 않는다. body.facing 이 이미 그것이다 —
+            앞이 어디인지는 몸이 향한 방향이고 그 값은 C006 계약에 있다
+
+# ─────────────────────────────────────────────────────────────────
+# interactions — 이번 Cycle 이 여는 새 표면 (C011 ADDED)
+#   세계가 "막기를 걸 수 있다" 와 "지금 걸 수 있는가" 와 "안 되면 왜인가" 를 모두 싣는다.
+#   View 는 이 목록을 읽을 뿐 스스로 만들지 않는다 (DC-WORLD-OWNS-THE-SURFACE-LIST).
+# ─────────────────────────────────────────────────────────────────
+interactions:
+  guardBegin:                               # C011 ADDED
+    role: guard-begin
+    available: { source: Guard.BeginAvailability }
+    unavailableReason: { source: Guard.BeginFailureReason }
+    reasons:
+      - downed           # 쓰러져 있다
+      - insufficient-cp  # 치를 기력이 하나도 없다
+      - guard-broken     # 방금 무너져서 아직 다시 들 수 없다
+    meaning:
+      - 이미 막고 있을 때 다시 걸어도 거절이 아니다. 아무 일도 일어나지 않는다
+      - 걸리는 순간 달리고 있었다면 걷기로 내려온다.
+        View 는 이것을 거절로 읽어서는 안 된다 — 요청은 성공한 것이다
+
+  guardRelease:                             # C011 ADDED
+    role: guard-release
+    available: { source: Guard.ReleaseAvailability }   # 언제나 참
+    meaning:
+      - 놓는 데에는 조건이 없다. 힘이 빠져 손을 내리는 것을 막을 이유가 없다
+      - 막고 있지 않을 때 놓아도 거절이 아니다
+
+  attack:
+    role: skill-basic                       # REUSED
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }  # C011 CHANGED — 아래 사유 하나 추가
+    reasons:
+      - downed
+      - guarding         # C011 ADDED — 막고 있어서 휘두를 수 없다
+      - action-busy
+      - insufficient-cp
+    # profile 은 C010 그대로
+
+  skillHeavy:
+    role: skill-heavy                       # REUSED — attack 과 같은 사유 목록
+    available: { source: Skill.Availability }
+    unavailableReason: { source: Skill.FailureReason }  # C011 CHANGED
+    # profile 은 C010 그대로
+
+  # move · mine · moveMode · setAttribute 는 C002~C009 계약 그대로다.
+  # moveMode 에 달리기를 걸면 막기가 풀린다 — 그것은 moveMode 요청의 성공이지
+  # 새 사유나 새 거절이 아니므로 계약이 바뀌지 않는다.
+
+# ─────────────────────────────────────────────────────────────────
+# strikeEvents — 이번 Cycle 의 중심 (C011 ADDED / CHANGED)
+# ─────────────────────────────────────────────────────────────────
+strikeEvents:
+  cardinality: many
+  source: World.StrikeEvents
+  # attacker · target · skill · at · since 는 C007 그대로
+  amount: { source: StrikeEvent.Amount }    # C011 CHANGED — STRIKE NOTE 참조
+  breakdown:
+    # C010 의 6항목은 그대로다. finalDamage 의 의미도 그대로 —
+    # 공식이 내놓은 값이고, 이제 그것은 "막지 않았다면 들어왔을 값" 이기도 하다.
+    baseDamage: { source: StrikeEvent.Breakdown.BaseDamage }
+    attackContribution: { source: StrikeEvent.Breakdown.AttackContribution }
+    rawDamage: { source: StrikeEvent.Breakdown.RawDamage }
+    targetDefense: { source: StrikeEvent.Breakdown.TargetDefense }
+    defenseMultiplier: { source: StrikeEvent.Breakdown.DefenseMultiplier }
+    finalDamage: { source: StrikeEvent.Breakdown.FinalDamage }
+    appliedDamage: { source: StrikeEvent.Breakdown.AppliedDamage }   # C011 ADDED
+    guard:                                  # C011 ADDED — 막지 않은 타격에는 실리지 않는다
+      blocked: { source: StrikeEvent.Breakdown.Guard.Blocked }
+      broken: { source: StrikeEvent.Breakdown.Guard.Broken }
+      cpPaid: { source: StrikeEvent.Breakdown.Guard.CpPaid }
+      prevented: { source: StrikeEvent.Breakdown.Guard.Prevented }
+  meaning:
+    - C007·C010 의 요구는 전부 그대로다 (얼마 깎였는지 · 스킬 구분 · 남의 타격도 보임 ·
+      그 숫자가 왜 그만큼인지)
+    - C011 — 막힌 타격은 "막지 않았다면 얼마였는지"(finalDamage)와
+      "막아서 얼마가 되었는지"(appliedDamage)가 **함께** 읽혀야 한다.
+      줄어든 값 하나만 보이면 막기가 일한 것을 알 수 없다
+    - C011 — 그 대가로 치른 기력(cpPaid)이 같은 자리에서 읽혀야 한다.
+      피해가 준 것과 기력이 준 것이 따로 떨어져 보이면 "맞바꿨다" 가 성립하지 않는다
+    - C011 — 방어가 무너진 타격(broken)은 막힌 타격과 **눈에 띄게 달라야** 한다.
+      무너짐은 이 Cycle 에서 플레이어가 겪어야 할 결정적 순간이고,
+      그때 피해는 줄지 않았는데 방어는 사라졌다
+    - guard 가 실리지 않은 타격은 막지 않은 타격이다.
+      그 표시는 C010 과 완전히 같아야 한다 — 기존 표시가 그대로 성립한다
+
+# ─────────────────────────────────────────────────────────────────
+# hud.self — 내 막기 상태를 늘 눈앞에 (C011 ADDED)
+# ─────────────────────────────────────────────────────────────────
+hud:
+  self:
+    guard:                                  # C011 ADDED
+      guarding: { source: ObserverCharacter.Guard.Guarding }
+      broken: { source: ObserverCharacter.Guard.Broken }
+      meaning:
+        - 지금 내가 막고 있는지는 언제나 알 수 있어야 한다.
+          막기는 스스로 끝나지 않으므로, 내가 들고 있다는 것을 잊으면
+          스킬이 왜 안 나가는지 알 수 없게 된다
+        - 무너진 동안에는 그것이 드러나야 한다 —
+          왜 다시 못 막는지가 interactions.guardBegin.unavailableReason 과
+          같은 사실을 가리켜야 한다
+    # vitality · moveMode · tempoStats · modifiers · combatStats 는 C007·C010 그대로
+    # 기력(energy)은 hud.self.vitality 에 이미 있다 — 막기의 대가는 그 값이 줄어드는 것으로
+    # 이미 보인다. 새 자리를 만들지 않는다 (DC-COMBAT-SHARED-BUDGET 이 화면에서도 지켜진다)
+
+# ─────────────────────────────────────────────────────────────────
+# STRIKE NOTE — amount 의 의미가 좁혀진다
+# ─────────────────────────────────────────────────────────────────
+# C010 은 "amount 와 breakdown.finalDamage 는 언제나 같은 값" 이라고 적었다.
+# C011 부터 그 관계는 **막지 않은 타격에서만** 성립한다.
+#
+#   amount === breakdown.appliedDamage      항상 참 (새 불변 관계)
+#   amount === breakdown.finalDamage        막지 않은 타격에서만 참
+#
+# amount 는 처음부터 "실제로 덜어낸 생명" 이었고 그 의미는 바뀌지 않았다.
+# 바뀐 것은 그것과 같은 값을 가리키는 경위 항목이 finalDamage 에서 appliedDamage 로
+# 옮겨 간 것뿐이다. 이 구분을 View 가 틀리면 "막았는데 왜 그대로 아프지" 로 보인다.
+
+# ─────────────────────────────────────────────────────────────────
+# COMMAND NOTE — commandCatalog 계약 변화 없음
+# ─────────────────────────────────────────────────────────────────
+# 막기는 commandCatalog 에 오르지 않는다. C009 가 세운 구분 때문이다 —
+# command 는 세계의 규칙 **밖에서** 세계에 손대는 일이고,
+# interaction 은 몸이 세계 **안에서** 하는 일이다. 막기는 몸이 하는 일이다.
+#
+# 막고 있음은 set-attribute 의 대상도 아니다.
+# 그것은 규칙으로 드는 상태이지 값으로 세울 상태가 아니다 —
+# 값으로 세울 수 있게 하면 기력을 치르지 않고 막을 수 있게 되어
+# 이 Cycle 의 의미(DC-COMBAT-SHARED-BUDGET)가 무너진다.
+
+# ─────────────────────────────────────────────────────────────────
+# OBSERVABLE PROJECTION NOTE
+# ─────────────────────────────────────────────────────────────────
+#   03 의 Observable Semantic 대응
+#     모든 Actor 에 대해
+#       Actor.Guard.Guarding / Broken       → entities.character.attributes.guard
+#     관찰자 자신에 대해 추가로
+#       위 두 값                             → hud.self.guard
+#       Guard.BeginAvailability / Reason     → interactions.guardBegin
+#       Guard.ReleaseAvailability            → interactions.guardRelease
+#       Skill.FailureReason 에 guarding 추가 → interactions.attack / skillHeavy
+#     세계
+#       Breakdown.Guard 4항목                → strikeEvents.breakdown.guard
+#       Breakdown.AppliedDamage              → strikeEvents.breakdown.appliedDamage
+#
+#   투영하지 않는 것
+#     World.GuardDamageFactor · GuardArcCos · GuardCpPerDamage · GuardBreakRecovery
+#       — 세계 상수다. 관찰되는 것은 상수가 아니라 그 결과다
+#         (prevented 와 cpPaid 가 앞의 둘을, guard.broken 과 guardBegin.reason 이
+#          뒤의 하나를 이미 싣는다 — C010 이 DefenseConstant 에 내린 판단과 같다).
+#     Actor.GuardBrokenUntil — 세계 시각의 절대값이다. 보는 이에게 필요한 것은
+#       "언제까지" 가 아니라 "지금 못 든다" 이고 그것은 broken 이 싣는다.
+#
+#   03 의 Observable Semantic 중 투영되지 않은 것은 없다.
+
+# ─────────────────────────────────────────────────────────────────
+# PLAYABILITY NOTE — 이 계약만으로 Cycle Goal 이 플레이되는가
+# ─────────────────────────────────────────────────────────────────
+# 플레이어는 이 계약만 받고 다음을 할 수 있다.
+#   1. interactions.guardBegin 으로 막기를 건다 — hud.self.guard.guarding 이 참이 된다
+#   2. 자율 존재 앞에 서서 맞는다.
+#      strikeEvents.breakdown 에 finalDamage 17 · appliedDamage 9 · cpPaid 11 이 실린다.
+#      생명은 9 만 줄고 기력이 11 줄어든 것을 hud.self 에서 확인한다 — 맞바꾼 것이다
+#   3. 등을 돌린 채로 맞아 본다. guard 가 실리지 않고 17 이 그대로 들어간다 —
+#      막기는 앞쪽만 지킨다
+#   4. 계속 막는다. 세 번째 타격에서 기력이 모자라 guard.broken 이 참이 되고,
+#      피해는 17 그대로 들어가며 guarding 이 거짓이 된다 — 자원이 마르면 무너진다
+#   5. 곧바로 다시 걸어 본다. guardBegin.unavailableReason 이 guard-broken 이다
+#   6. 막는 동안 스킬을 눌러 본다. unavailableReason 이 guarding 이다 —
+#      버티는 몸으로는 휘두르지 못한다
+#   7. 놓고 나서 다시 휘둘러 본다. 평소대로 나간다
+# 화면 구성 방식은 View 의 선택이다. 이 계약은 무엇이 보여야 하는지만 정한다.

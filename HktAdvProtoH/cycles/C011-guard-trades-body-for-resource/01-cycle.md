@@ -7,10 +7,10 @@
 > 다시 좁혔다 — 아래 SCOPE NOTE 참조.
 
 [PASS] Cycle Definition
-[    ] Intent
-[    ] World Semantic
-[    ] GameView Specification
-[    ] Human Semantic Review
+[PASS] Intent                    (막기를 행동이 아니라 자세로 정했다)
+[PASS] World Semantic          (막기는 Final Damage 에 걸린다 — R1 핵심 원칙)
+[PASS] GameView Specification
+[    ] Human Semantic Review     ← 다음 차례. Agent 는 여기서 멈춘다
 [    ] World Implementation
 [    ] View Implementation
 [    ] Verification
