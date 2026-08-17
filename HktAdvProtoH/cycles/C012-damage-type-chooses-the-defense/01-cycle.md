@@ -2,7 +2,7 @@
 
 [PASS] Cycle Definition
 [PASS] Intent                    (방식은 스킬이 지닌다 · 오라 스킬 1종 신설)
-[    ] World Semantic
+[PASS] World Semantic            (계산식 무변경 · 앞에 고르는 단계 하나)
 [    ] GameView Specification
 [    ] Human Semantic Review
 [    ] World Implementation
