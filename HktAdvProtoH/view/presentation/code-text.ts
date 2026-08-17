@@ -25,6 +25,20 @@ const CODE_TEXT: Record<string, string> = {
   // 이동 모드 (C007)
   walk: '걷기',
   run: '달리기',
+  // 행동 코드 · 피해 방식 (C012)
+  'aura-strike': '오라 일격',
+  physical: '물리',
+  aura: '오라',
+  // 방식이 고른 능력의 이름 (C012)
+  physicalAttack: '물리 공격',
+  auraAttack: '오라 공격',
+  armor: '물리 방어',
+  resistance: '오라 방어',
+  // 어느 쪽이 더 단단한가 (C012) — 세계의 판정을 사람 말로 옮긴다.
+  // 단단한 쪽이 아니라 **무른 쪽**을 말한다 — 플레이어가 고르는 것은 칠 방향이다
+  'physical-tougher': '오라에 약하다',
+  'aura-tougher': '물리에 약하다',
+  even: '치우침 없음',
   // 불가 사유 — 막기 (C011)
   guarding: '막는 중에는 휘두를 수 없다',
   'guard-broken': '방어가 무너져 아직 다시 들 수 없다',

@@ -40,14 +40,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 50,
-          "defenseMultiplier": 0.6666666666666666
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 50,
+          "armorMultiplier": 0.666667,
+          "resistanceMultiplier": 0.666667
         },
         "guard": {
           "guarding": false,
           "broken": true
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -95,14 +99,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 30,
-          "defenseMultiplier": 0.7692307692307693
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -150,14 +158,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 30,
-          "defenseMultiplier": 0.7692307692307693
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       },
       "body": {
         "radius": 0.5,
@@ -189,7 +201,8 @@
         "attackRatio": 0.5,
         "rawDamage": 26,
         "charge": 12,
-        "cost": 0
+        "cost": 0,
+        "damageType": "physical"
       }
     },
     {
@@ -202,7 +215,8 @@
         "attackRatio": 1.0,
         "rawDamage": 72,
         "charge": 8,
-        "cost": 30
+        "cost": 30,
+        "damageType": "physical"
       }
     },
     {
@@ -269,19 +283,39 @@
       "value": "run"
     },
     {
-      "id": "self.combat.attack",
+      "id": "self.combat.physicalAttack",
       "kind": "counter",
       "value": 40
     },
     {
-      "id": "self.combat.defense",
+      "id": "self.combat.auraAttack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.armor",
       "kind": "counter",
       "value": 50
     },
     {
-      "id": "self.combat.defenseMultiplier",
+      "id": "self.combat.resistance",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.armorMultiplier",
       "kind": "counter",
       "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.resistanceMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
+      "id": "self.combat.defenseShape",
+      "kind": "label",
+      "value": "even"
     },
     {
       "id": "self.tempo.moveSpeed",

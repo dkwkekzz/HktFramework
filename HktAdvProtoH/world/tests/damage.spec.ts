@@ -249,8 +249,16 @@ describe('RULE-ATTRIBUTE-SET-001 (AFFECTED) — 네 능력이 바꿀 수 있는 
 
   it('옛 이름은 더 이상 통하지 않는다 — 두 이름을 함께 두지 않는다', () => {
     const world = driveWorld({ npcs: [] });
-    expect(setAttribute(world, 'attack', 80).reason).toBe('unknown-attribute');
-    expect(setAttribute(world, 'defense', 80).reason).toBe('unknown-attribute');
+    expect(setAttribute(world, 'attack', 80)).toEqual({
+      status: 'failure',
+      rule: 'RULE-ATTRIBUTE-SET-001',
+      reason: 'unknown-attribute',
+    });
+    expect(setAttribute(world, 'defense', 80)).toEqual({
+      status: 'failure',
+      rule: 'RULE-ATTRIBUTE-SET-001',
+      reason: 'unknown-attribute',
+    });
   });
 
   it('음수는 거절된다 — 이 층은 피해를 증폭하지 않는다', () => {

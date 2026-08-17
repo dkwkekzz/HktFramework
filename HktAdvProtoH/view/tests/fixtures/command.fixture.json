@@ -52,14 +52,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 50,
-          "defenseMultiplier": 0.6666666666666666
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 50,
+          "resistance": 50,
+          "armorMultiplier": 0.666667,
+          "resistanceMultiplier": 0.666667
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       }
     },
     {
@@ -107,14 +111,18 @@
           "actionSpeed": 1
         },
         "combatStats": {
-          "attack": 40,
-          "defense": 30,
-          "defenseMultiplier": 0.7692307692307693
+          "physicalAttack": 40,
+          "auraAttack": 40,
+          "armor": 30,
+          "resistance": 30,
+          "armorMultiplier": 0.769231,
+          "resistanceMultiplier": 0.769231
         },
         "guard": {
           "guarding": false,
           "broken": false
-        }
+        },
+        "defenseShape": "even"
       }
     }
   ],

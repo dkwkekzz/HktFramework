@@ -15,6 +15,9 @@ const INTERACTIONS: Record<string, InteractionPresentation> = {
   // C007 — 휘두름이 스킬 둘로 갈렸다. 기본은 기존 자리(F)를 그대로 쓴다.
   'skill-basic': { key: 'KeyF', keyLabel: 'F', prompt: '기본 스킬' },
   'skill-heavy': { key: 'KeyG', keyLabel: 'G', prompt: '고급 스킬' },
+  // C012 — 오라 스킬. 기본 스킬(F) 바로 옆자리(R)에 둔다 — 둘은 세기가 아니라
+  // 방식으로 갈리는 선택이므로 나란히 놓여야 고르는 일로 읽힌다.
+  'skill-aura': { key: 'KeyR', keyLabel: 'R', prompt: '오라 스킬' },
   // 막기 (C011) — 세계에는 걸기와 놓기가 따로 있다(명시값). 화면에서는 한 키로 오간다.
   // 어떤 손짓으로 그 둘을 부를지는 View 의 결정이며, 이동 모드가 이미 같은 모양이다.
   // 그래서 키는 걸기 쪽에만 두고, 오가는 것은 조립 루트가 다룬다 —
