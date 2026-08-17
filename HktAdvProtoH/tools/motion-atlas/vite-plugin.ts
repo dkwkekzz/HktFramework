@@ -6,10 +6,11 @@
 //
 // 손으로 돌리고 싶을 때는 scan-motions.bat / scan-motions.sh (또는 npm run motions:scan).
 
+import { existsSync } from 'node:fs';
 import { join, sep } from 'node:path';
 import type { Plugin } from 'vite';
 import { motionsFingerprint } from './build-atlas';
-import { projectRoot, scanMotions } from './scan';
+import { ATLAS_MODULE_PATH, projectRoot, scanMotions } from './scan';
 
 export function motionAtlasPlugin(): Plugin {
   const root = projectRoot();
@@ -18,7 +19,9 @@ export function motionAtlasPlugin(): Plugin {
 
   const run = (log: (message: string) => void): void => {
     const fingerprint = motionsFingerprint(root);
-    if (fingerprint === lastFingerprint) return;
+    // 시트가 그대로여도 생성물이 없으면 만들어야 한다 — 커밋하지 않는 파일이라
+    // 새로 받은 작업 폴더나 브랜치를 옮긴 직후에는 아예 없을 수 있다.
+    if (fingerprint === lastFingerprint && existsSync(join(root, ATLAS_MODULE_PATH))) return;
     lastFingerprint = fingerprint;
 
     const { changed, reports, warnings } = scanMotions(root);

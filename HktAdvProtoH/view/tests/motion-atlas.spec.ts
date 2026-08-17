@@ -9,9 +9,8 @@ import { join } from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { buildAtlas } from '../../tools/motion-atlas/build-atlas';
 import { detectSheet } from '../../tools/motion-atlas/detect-frames';
-import { renderAtlasModule } from '../../tools/motion-atlas/emit';
 import { readPngAlpha } from '../../tools/motion-atlas/png-alpha';
-import { ATLAS_MODULE_PATH, projectRoot } from '../../tools/motion-atlas/scan';
+import { projectRoot } from '../../tools/motion-atlas/scan';
 import { MOTION_ATLAS } from '../motion/motion-atlas.generated';
 import {
   frameUv,
@@ -59,16 +58,18 @@ describe('실제 시트 — 절단선이 그림을 관통하지 않는다', () =
 });
 
 describe('생성물이 motions/ 와 일치한다', () => {
-  it('motion-atlas.generated.ts 가 최신이다 (아니면 npm run motions:scan)', () => {
-    const { atlas, inputHash } = buildAtlas(ROOT);
-    const expected = renderAtlasModule(atlas, inputHash);
-    expect(readFileSync(join(ROOT, ATLAS_MODULE_PATH), 'utf8')).toBe(expected);
-  });
-
+  // 생성물은 커밋하지 않는다 — 읽는 쪽이 먼저 만든다 (여기서는 vitest globalSetup).
+  // 그러므로 "최신인가" 는 물을 필요가 없고, 대신 지금 폴더에 있는 시트가 빠짐없이
+  // 색인되었는지와, import 로 읽은 값이 방금 만든 것과 같은지를 본다.
   it('주입된 시트마다 기하가 하나씩 있다', () => {
     const { atlas, reports } = buildAtlas(ROOT);
     expect(Object.keys(atlas)).toHaveLength(reports.filter((r) => !r.skipped).length);
     expect(Object.keys(atlas).length).toBeGreaterThan(0);
+  });
+
+  it('테스트가 읽은 MOTION_ATLAS 가 지금 motions/ 를 훑은 결과와 같다', () => {
+    const { atlas } = buildAtlas(ROOT);
+    expect(Object.keys(MOTION_ATLAS).sort()).toEqual(Object.keys(atlas).sort());
   });
 });
 

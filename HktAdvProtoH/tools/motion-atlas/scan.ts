@@ -1,11 +1,13 @@
 // Motion Atlas Scan — 원클릭 정적 분석 진입점.
 //
-//   npm run motions:scan          분석하고 결과를 보고한다
-//   npm run motions:scan -- --check   생성물이 최신인지만 확인한다 (CI/빌드 검사용, 쓰지 않는다)
+//   npm run motions:scan   분석하고 결과를 보고한다
 //
 // 배치 파일: scan-motions.bat (Windows) · scan-motions.sh (macOS/Linux)
+//
+// 생성물은 커밋하지 않는다 (.gitignore). 그것을 읽는 모든 진입점이 먼저 여기를 부른다 —
+// 개발 서버·빌드는 vite plugin 이, 테스트는 vitest globalSetup 이. 따라서 손으로 돌릴 일은
+// 결과를 눈으로 확인하고 싶을 때뿐이다.
 
-import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, resolve } from 'node:path';
 import { buildAtlas, type SheetReport } from './build-atlas';
@@ -57,24 +59,7 @@ function formatReport(reports: SheetReport[]): string {
 
 // CLI 로 직접 실행될 때만 동작한다 (import 로는 조용하다)
 if (process.argv[1] && import.meta.url === `file://${resolve(process.argv[1])}`) {
-  const checkOnly = process.argv.includes('--check');
-  const root = projectRoot();
-
-  if (checkOnly) {
-    // 쓰지 않고 최신인지만 본다 — 생성물을 커밋해 두었으므로 어긋나면 알려야 한다.
-    const { atlas, reports, inputHash } = buildAtlas(root);
-    const expected = renderAtlasModule(atlas, inputHash);
-    const current = readFileSync(join(root, ATLAS_MODULE_PATH), 'utf8').toString();
-    console.log(formatReport(reports));
-    if (current !== expected) {
-      console.error(`\n  [오류] ${ATLAS_MODULE_PATH} 가 motions/ 와 어긋난다 — npm run motions:scan 을 실행하라.`);
-      process.exit(1);
-    }
-    console.log(`\n  ${ATLAS_MODULE_PATH} 는 motions/ 와 일치한다.`);
-    process.exit(0);
-  }
-
-  const { changed, reports, warnings } = scanMotions(root);
+  const { changed, reports, warnings } = scanMotions(projectRoot());
   console.log('');
   console.log('  Motion Atlas — motions/ 정적 분석');
   console.log('  ' + '-'.repeat(96));
