@@ -5,6 +5,8 @@ import type { SessionPresentation } from '../presentation/session-presentation';
 import type { SceneState } from '../scene/scene-state';
 
 export interface EntityLabel {
+  /** 어느 몸의 것인가 — 프레임 사이에 같은 요소를 이어 쓰기 위한 키 */
+  id: string;
   x: number;
   y: number;
   text: string;
@@ -12,6 +14,8 @@ export interface EntityLabel {
 
 // 몸 위에 붙는 관찰 (C007 entityHud) — 화면 좌표는 조립 루트가 투영해 준다.
 export interface EntityPlate {
+  /** 어느 몸의 것인가 — 프레임 사이에 같은 요소를 이어 쓰기 위한 키 */
+  id: string;
   x: number;
   y: number;
   name: string;
@@ -48,6 +52,66 @@ export interface Hud {
   ): void;
 }
 
+/** 값이 그대로면 DOM 을 건드리지 않는다 — 프레임마다 글자를 다시 래스터화하지 않게 한다 */
+function setText(element: HTMLElement, text: string): void {
+  if (element.textContent !== text) element.textContent = text;
+}
+
+function setAttribute(element: HTMLElement, name: string, value: string): void {
+  if (element.getAttribute(name) !== value) element.setAttribute(name, value);
+}
+
+/**
+ * 몸에 붙어 다니는 표시들의 층 — 프레임마다 다시 만들지 않고 **자리만 옮긴다**.
+ *
+ * 매 프레임 innerHTML 로 갈아 끼우면 브라우저가 요소를 지웠다 다시 만들고 글자를
+ * 처음부터 래스터화한다. 그 비용이 프레임마다 들쭉날쭉해서 몸은 매끄럽게 흐르는데
+ * 표시만 늦거나 앞서 보이고, left/top 을 소수점 px 로 밀면 그때마다 글자가 반 픽셀씩
+ * 다른 자리에 다시 그려져 지글거린다 — 움직일 때 HUD 가 떨리던 것이 이것이다.
+ *
+ * 살아 있는 요소를 transform 으로만 옮기면 배치도 그리기도 다시 하지 않고 합성기가
+ * 자리를 맡는다. 소수점 좌표도 그대로 매끄럽게 반영된다.
+ */
+function pinnedLayer<T extends { id: string; x: number; y: number }>(
+  layer: HTMLElement,
+  create: () => HTMLElement,
+  update: (body: HTMLElement, value: T) => void,
+): (values: readonly T[]) => void {
+  const nodes = new Map<string, { anchor: HTMLElement; body: HTMLElement }>();
+
+  return (values) => {
+    const seen = new Set<string>();
+    for (const value of values) {
+      seen.add(value.id);
+      let node = nodes.get(value.id);
+      if (!node) {
+        const anchor = document.createElement('div');
+        anchor.className = 'hud-anchor';
+        const body = create();
+        anchor.appendChild(body);
+        layer.appendChild(anchor);
+        node = { anchor, body };
+        nodes.set(value.id, node);
+      }
+      node.anchor.style.transform = `translate3d(${value.x}px, ${value.y}px, 0)`;
+      update(node.body, value);
+    }
+
+    // 지시에서 사라진 몸의 표시는 함께 사라진다
+    for (const [id, node] of nodes) {
+      if (seen.has(id)) continue;
+      node.anchor.remove();
+      nodes.delete(id);
+    }
+  };
+}
+
+function createHudElement(className: string, tag = 'div'): HTMLElement {
+  const element = document.createElement(tag);
+  element.className = className;
+  return element;
+}
+
 export function createHud(container: HTMLElement): Hud {
   const root = document.createElement('div');
   root.id = 'hud';
@@ -78,6 +142,49 @@ export function createHud(container: HTMLElement): Hud {
 
   const lastCounters = new Map<string, number>();
   let toastUntil = 0;
+
+  // entity 라벨 — 몸 위에 붙는 한 줄 (예: "돌 4")
+  const renderLabels = pinnedLayer<EntityLabel>(
+    labelLayer,
+    () => createHudElement('hud-label'),
+    (body, label) => setText(body, label.text),
+  );
+
+  // 존재 HUD (C007) — 이름과 생명은 그 몸 위에 늘 붙어 있다.
+  // 이 코드는 무엇이 hp 인지 모른다. 이름과 비율과 쓰러짐 여부를 그릴 뿐이다.
+  //
+  // 줄마다 따로 가운데를 맞춘다 (CSS 의 width:0) — 생명 숫자의 자릿수가 바뀌어도
+  // (100 → 98) 표지 전체 폭이 달라지지 않으므로 이름이 옆으로 밀리지 않는다.
+  const renderPlates = pinnedLayer<EntityPlate>(
+    plateLayer,
+    () => {
+      const body = createHudElement('hud-plate');
+      const bar = createHudElement('hud-plate-bar', 'span');
+      bar.appendChild(document.createElement('i'));
+      body.append(
+        createHudElement('hud-plate-name', 'span'),
+        bar,
+        createHudElement('hud-plate-hp', 'span'),
+        createHudElement('hud-plate-inspect', 'span'),
+      );
+      return body;
+    },
+    (body, plate) => {
+      const part = (selector: string) => body.querySelector(selector) as HTMLElement;
+
+      setAttribute(body, 'data-downed', String(plate.downed));
+      setText(part('.hud-plate-name'), plate.name);
+
+      const fill = part('.hud-plate-bar i');
+      const width = `${Math.round(plate.healthRatio * 100)}%`;
+      if (fill.style.width !== width) fill.style.width = width;
+
+      setText(part('.hud-plate-hp'), `${plate.health} / ${plate.healthMaximum}`);
+      // 속성 관찰이 켜졌을 때만 채워진다 — 비면 CSS 가 자리째 감춘다 (:empty).
+      // 줄바꿈은 white-space:pre 가 맡으므로 태그를 섞지 않는다.
+      setText(part('.hud-plate-inspect'), plate.inspect?.join('\n') ?? '');
+    },
+  );
 
   return {
     render(scene, labels, session, overlays) {
@@ -146,32 +253,9 @@ export function createHud(container: HTMLElement): Hud {
       }
       keys.innerHTML = [...keyLines].join('<br/>');
 
-      // entity 라벨 (worldToScreen 투영 결과)
-      labelLayer.innerHTML = labels
-        .map(
-          (l) =>
-            `<div class="hud-label" style="left:${l.x}px;top:${l.y}px;display:block">${l.text}</div>`,
-        )
-        .join('');
-
-      // 존재 HUD (C007) — 이름과 생명은 그 몸 위에 늘 붙어 있다.
-      // 이 코드는 무엇이 hp 인지 모른다. 이름과 비율과 쓰러짐 여부를 그릴 뿐이다.
-      plateLayer.innerHTML = (overlays?.plates ?? [])
-        .map((p) => {
-          const inspect = p.inspect?.length
-            ? `<span class="hud-plate-inspect">${p.inspect.join('<br/>')}</span>`
-            : '';
-          return (
-            `<div class="hud-plate" data-downed="${p.downed}" ` +
-            `style="left:${p.x}px;top:${p.y}px">` +
-            `<span class="hud-plate-name">${p.name}</span>` +
-            `<span class="hud-plate-bar"><i style="width:${Math.round(p.healthRatio * 100)}%"></i></span>` +
-            `<span class="hud-plate-hp">${p.health} / ${p.healthMaximum}</span>` +
-            inspect +
-            `</div>`
-          );
-        })
-        .join('');
+      // 몸에 붙는 표시 — 요소를 이어 쓰고 자리만 옮긴다 (pinnedLayer 참고)
+      renderLabels(labels);
+      renderPlates(overlays?.plates ?? []);
 
       // 타격 결과 (C007) — 맞은 자리에서 떠올랐다 옅어진다
       strikeLayer.innerHTML = (overlays?.strikes ?? [])

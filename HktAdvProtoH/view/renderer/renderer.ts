@@ -17,6 +17,14 @@ export interface GameRenderer {
   pickEntity(clientX: number, clientY: number): string | null;
   /** 월드 지면 위 지점(+높이 오프셋) → 화면 좌표 (카메라 뒤면 null) */
   worldToScreen(x: number, z: number, yOffset: number): { x: number; y: number } | null;
+  /**
+   * 그 몸이 **지금 그려지고 있는** 자리 (아직 그린 적이 없으면 null).
+   *
+   * 관찰 결과의 위치가 아니다 — 그것은 세계의 Tick 마다 띄엄띄엄 도착하므로,
+   * 몸 위에 붙는 표시를 그 값으로 투영하면 몸은 매끄럽게 흐르는데 표시만
+   * Tick 간격으로 튄다. 몸에 붙는 것은 몸이 있는 자리에서 투영해야 한다.
+   */
+  drawnPosition(entityId: string): { x: number; z: number } | null;
   /** 시점을 지금 방향에서 그만큼 더 돌린다 (C008) */
   turnView(dTurn: number, dTilt: number): void;
   /** 지금 시점이 수평으로 돈 각 — 몸 방향을 좌우로 읽는 기준이 된다 (C008) */
@@ -268,6 +276,11 @@ export function createRenderer(container: HTMLElement): GameRenderer {
       const objects = [...billboards.values()].map((b) => b.object);
       const hit = raycaster.intersectObjects(objects, false)[0];
       return hit ? ((hit.object.userData.entityId as string) ?? null) : null;
+    },
+
+    drawnPosition(entityId) {
+      const at = drawn.get(entityId);
+      return at ? { x: at.x, z: at.z } : null;
     },
 
     worldToScreen(x, z, yOffset) {
