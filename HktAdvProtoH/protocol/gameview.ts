@@ -56,6 +56,14 @@ export interface AttributesView {
     moveSpeed: number;
     actionSpeed: number;
   };
+  // 전투 능력치 (C010 ADDED) — 한 방의 크기를 정하는 두 값.
+  // defenseMultiplier 는 파생값이다. 방어가 체감식이라 수치만 보고는 효과를 알 수 없어
+  // "그래서 몇 할로 받는가" 를 함께 싣는다 (0 초과 1 이하 — 0 이 되지 않는다).
+  combatStats: {
+    attack: number;
+    defense: number;
+    defenseMultiplier: number;
+  };
 }
 
 export interface EntityView {
@@ -84,7 +92,17 @@ export interface InteractionView {
   reason?: string; // 불가 사유 코드 — 문구 변환은 View 책임
   // 스킬 interaction (C007) — 쓰기 전에 알 수 있어야 하는 값.
   // 얼마나 깎고, 기력을 얼마나 채우고 쓰는가.
-  profile?: { damage: number; charge: number; cost: number };
+  // C010 CHANGED — damage 하나가 셋으로 나뉜다. 스킬의 강함과 내 공격 능력이
+  // 각각 얼마를 대는지 알아야 "왜 이만큼인가" 를 판단할 수 있기 때문이다.
+  //   rawDamage 는 지금 내 공격 능력으로 이 스킬을 쓰면 나오는 공격 피해다.
+  //   최종 피해는 실리지 않는다 — 대상이 정해지기 전에는 세계도 모르는 값이다.
+  profile?: {
+    baseDamage: number;
+    attackRatio: number;
+    rawDamage: number;
+    charge: number;
+    cost: number;
+  };
 }
 
 export interface HudItemView {
@@ -105,8 +123,21 @@ export interface ObserverView {
   acknowledgedMark: number;
 }
 
+// 한 방의 크기가 어떻게 나왔는가 (C010 ADDED).
+// 숫자 하나만으로는 "능력치가 결과를 정한다" 를 믿을 수 없다 —
+// 그래서 세계는 결과와 함께 그 경위를 낸다.
+export interface DamageBreakdownView {
+  baseDamage: number; // 스킬 자체의 강함
+  attackContribution: number; // 공격 능력이 더한 몫 = Attack × AttackRatio
+  rawDamage: number; // baseDamage + attackContribution
+  targetDefense: number; // 맞는 자의 방어 능력
+  defenseMultiplier: number; // 방어가 남긴 비율 (0 초과 1 이하)
+  finalDamage: number; // 실제로 생명에서 빠진 값 — amount 와 같다
+}
+
 // 한 번의 타격이 낳은 결과 (C007) — 맞은 자리에서 잠시 드러났다가 사라진다.
-// 피해는 스킬이 정한 고정값이므로 실리는 것은 값 하나뿐이다.
+// C010 CHANGED — amount 는 그대로 남고 그 옆에 경위가 붙는다.
+// 경위 표시를 접어 두어도 기존 표시가 그대로 성립한다 (amount === breakdown.finalDamage).
 export interface StrikeEventView {
   attackerId: string;
   targetId: string;
@@ -114,6 +145,7 @@ export interface StrikeEventView {
   amount: number;
   at: GameViewPosition; // 맞은 몸의 중심
   since: number; // 일어난 세계 시각 — 얼마나 지났는지 판단용
+  breakdown: DamageBreakdownView; // C010 ADDED
 }
 
 // 속성을 바꿔 볼 수 있는 세계인가 (C007 R2).

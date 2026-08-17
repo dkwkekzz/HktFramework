@@ -38,18 +38,31 @@ export interface ResourceSpec {
   cpStart: number;
 }
 
+// 전투 능력치 (C010) — 한 방의 크기를 정하는 두 값 (RULE-DAMAGE-CALCULATE-001)
+export interface CombatSpec {
+  attack: number; // 공격을 얼마나 강하게 만들어 내는가
+  defense: number; // 들어오는 피해를 얼마나 줄여 받는가
+}
+
 export interface CharacterDefinition {
   body: BodySpec;
   facing: Readonly<WorldPosition>; // 스폰 시 몸이 향하는 방향 (단위 벡터)
   tempo: TempoSpec;
   resources: ResourceSpec;
+  combat: CombatSpec; // C010
   attackRange: number; // RULE-ATTACK-001 Precondition 2 의 거리 한계
   perceptionRange: number; // RULE-NPC-DECIDE-001 의 인지 거리 — control = autonomous 일 때만 의미
 }
 
-// 자원 균형 (C007) — 기본 스킬 20 · 고급 스킬 55 를 기준으로:
-//   자율 존재(120)는 기본 6대 또는 고급 2대 + 기본 1대에 쓰러진다.
-//   관찰자의 몸(200)은 자율 존재의 기본 스킬 10대를 견딘다.
+// 자원 균형 (C007 → C010 재서술) — 피해가 고정값이 아니라 공식의 결과가 되었으므로
+// "몇 대에 쓰러지는가" 의 근거도 공식이다 (RULE-DAMAGE-CALCULATE-001).
+//   관찰자(A40) → 자율 존재(D30)  기본 20 · 고급 55   ← C007 의 고정값과 같다
+//       자율 존재(120)는 기본 6대 또는 고급 2대 + 기본 1대에 쓰러진다  (C007 그대로)
+//   자율 존재(A40) → 관찰자(D50)  기본 17            ← C007 은 20 이었다
+//       관찰자의 몸(200)은 자율 존재의 기본 스킬 12대를 견딘다 (C007 은 10대)
+//   더 오래 버티는 것은 rabbit-swordsman 의 방어 능력(50)이 wanderer(30)보다 높기 때문이다 —
+//   이 Cycle 이 만든 의미이며, 두 종류의 Attack 을 같은 값으로 둔 것도 공격 체감 보존을
+//   위해서다 (C010 03-world-semantic.md 의 BALANCE · 05-review.md APPROVED).
 //   고급 스킬(소모 30, 충전 8)은 기본 스킬 3대(충전 36)를 모아야 한 번 나간다.
 export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = {
   'rabbit-swordsman': {
@@ -57,6 +70,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     facing: { x: 0, z: 1 },
     tempo: { moveSpeed: 6.0, runSpeedMultiplier: 1.8, actionSpeed: 1.0 },
     resources: { hpMax: 200, cpMax: 100, cpStart: 30 },
+    combat: { attack: 40, defense: 50 }, // C010 — 단단한 몸
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -66,6 +80,7 @@ export const CHARACTER_CATALOG: Readonly<Record<string, CharacterDefinition>> = 
     // 자율 존재는 더 느리게 움직인다 — 행동 관찰이 목적
     tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
     resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
+    combat: { attack: 40, defense: 30 }, // C010 — 같은 힘으로 치되 덜 단단하다
     attackRange: 2.0,
     perceptionRange: 9.0,
   },
@@ -77,6 +92,7 @@ export const DEFAULT_CHARACTER: CharacterDefinition = {
   facing: { x: 0, z: 1 },
   tempo: { moveSpeed: 2.5, runSpeedMultiplier: 1.4, actionSpeed: 0.85 },
   resources: { hpMax: 120, cpMax: 60, cpStart: 20 },
+  combat: { attack: 40, defense: 30 }, // C010
   attackRange: 2.0,
   perceptionRange: 9.0,
 };

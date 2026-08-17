@@ -8,8 +8,8 @@
 [PASS] Intent                    (새 Intent 5종 · CHANGED 4종 — 계산은 하나뿐이다)
 [PASS] World Semantic            (Closure 통과 · GAP 없음 — 새 규칙 1 · CHANGED 3)
 [PASS] GameView Specification    (새 표면 없음 — 세 자리에 실리는 내용만 늘어난다)
-[    ] Human Semantic Review
-[    ] World Implementation
+[PASS] Human Semantic Review     APPROVED (2026-08-17 — 밸런스 선택·Playable Result 해석 포함)
+[PASS] World Implementation      새 규칙 파일 1 · world 테스트 180 통과 · 카탈로그 정합
 [    ] View Implementation
 [    ] Verification
 

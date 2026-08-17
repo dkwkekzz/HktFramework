@@ -96,6 +96,13 @@ function applyNumeric(actor: ActorState, id: string, value: number): void {
       actor.cpMax = value;
       actor.cp = Math.min(actor.cp, actor.cpMax);
       return;
+    // C010 — 두 능력은 다른 값을 끌고 오지 않는다. 다음 타격부터 그대로 반영된다.
+    case 'attack':
+      actor.attack = value;
+      return;
+    case 'defense':
+      actor.defense = value;
+      return;
     case 'moveSpeed':
       actor.moveSpeed = value;
       return;

@@ -42,6 +42,10 @@ export interface ActorState {
   hpMax: number;
   cp: number;
   cpMax: number;
+  // 전투 능력치 (C010) — 종류가 초기값을 정한다. 한 방의 크기를 정하는 두 값이며
+  // RULE-DAMAGE-CALCULATE-001 만이 읽는다.
+  attack: number; // 공격을 얼마나 강하게 만들어 내는가 (INTENT-ATTACK-POWER-001)
+  defense: number; // 들어오는 피해를 얼마나 줄여 받는가 (INTENT-DEFENSE-001)
   // 템포 능력치 (C007) — 존재 종류가 정하는 고정값. 세계의 속도를 정한다
   moveMode: MoveMode; // walk | run — RULE-MOVE-MODE-001 만이 바꾼다
   moveSpeed: number; // TempoStats.MoveSpeed (C001 고정 상수 → C007 능력치로 승격)
