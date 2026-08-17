@@ -12,7 +12,13 @@ export interface SceneMotion {
   rows: number;
   frames: number;
   fps: number;
-  mode: 'loop' | 'progress';
+  /**
+   * 어떻게 재생하는가.
+   *   loop      fps 로 반복 — 대기·이동처럼 끝이 없는 행동
+   *   progress  진행도 0→1 에 맞춰 1회 — 공격·채굴처럼 소요 시간이 있는 행동
+   *   once      fps 로 1회, 마지막 프레임에서 멈춤 — 쓰러짐처럼 되돌아오지 않는 상태
+   */
+  mode: 'loop' | 'progress' | 'once';
   progress?: number; // mode = progress 일 때의 0..1
   /**
    * 시트 안에서 프레임이 실제로 놓인 자리 — 정적 분석(tools/motion-atlas)의 결과다.

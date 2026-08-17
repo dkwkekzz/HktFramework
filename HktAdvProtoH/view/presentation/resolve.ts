@@ -82,7 +82,8 @@ function resolveMotion(
     rows: asset.rows,
     frames: asset.frames,
     fps: asset.fps,
-    mode: progress === undefined ? 'loop' : 'progress',
+    // 진행도가 오면 그것이 재생을 이끈다. 아니면 시트가 선언한 대로 반복하거나 1회 재생한다.
+    mode: progress !== undefined ? 'progress' : asset.play,
     ...(progress === undefined ? {} : { progress }),
     ...(geometry ? { geometry } : {}),
   };

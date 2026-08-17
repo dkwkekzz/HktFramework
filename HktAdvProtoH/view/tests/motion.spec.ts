@@ -39,6 +39,12 @@ describe('parseMotionPath — 데이터 주입 포맷 v1', () => {
     expect(parseMotionPath('/motions/slime/idle.2x2.99f.png', '/d.png')?.frames).toBe(4);
   });
 
+  it('once 토큰이 있으면 되돌아오지 않는 모션이다 — 기본은 반복', () => {
+    expect(parseMotionPath('/motions/slime/idle.3x3.png', '/g.png')?.play).toBe('loop');
+    const downed = parseMotionPath('/motions/slime/downed.3x3.9f.8fps.once.png', '/h.png');
+    expect(downed).toMatchObject({ action: 'downed', cols: 3, frames: 9, fps: 8, play: 'once' });
+  });
+
   it('포맷에 맞지 않는 파일은 무시된다 (게임을 멈추지 않는다)', () => {
     expect(parseMotionPath('/motions/notes.txt', '/e.txt')).toBeNull();
     expect(parseMotionPath('/motions/loose.png', '/f.png')).toBeNull(); // 종류 폴더가 없다
@@ -70,7 +76,7 @@ describe('MotionLibrary — (종류, 행동) 선택과 fallback', () => {
 });
 
 describe('motionFrameIndex — 재생 방식', () => {
-  const sheet = (mode: 'loop' | 'progress', progress?: number): SceneMotion => ({
+  const sheet = (mode: SceneMotion['mode'], progress?: number): SceneMotion => ({
     id: 'x/y',
     url: '/x.png',
     cols: 3,
@@ -92,6 +98,14 @@ describe('motionFrameIndex — 재생 방식', () => {
     expect(motionFrameIndex(sheet('progress', 0.5), 123)).toBe(4);
     expect(motionFrameIndex(sheet('progress', 1), 123)).toBe(8); // 마지막 프레임에서 끝난다
     expect(motionFrameIndex(sheet('progress', 2), 123)).toBe(8); // 범위를 넘지 않는다
+  });
+
+  it('되돌아오지 않는 모션은 1회 재생하고 마지막 자세에서 멈춘다', () => {
+    // 시간은 그 모션이 시작된 뒤로 흐른 값이다 (billboard 가 재어 준다).
+    expect(motionFrameIndex(sheet('once'), 0)).toBe(0);
+    expect(motionFrameIndex(sheet('once'), 0.5)).toBe(4); // 0.5초 × 8fps
+    expect(motionFrameIndex(sheet('once'), 9 / 8)).toBe(8); // 한 바퀴 — 처음으로 돌아가지 않는다
+    expect(motionFrameIndex(sheet('once'), 600)).toBe(8); // 10분 뒤에도 쓰러진 채다
   });
 
   it('프레임은 왼쪽 위에서 오른쪽으로, 그다음 아래 줄로 읽는다', () => {
@@ -122,6 +136,15 @@ describe('motions/ 자동 발견', () => {
     for (const kind of ['rabbit-swordsman', 'wanderer']) {
       const asset = motionLibrary.resolve(kind, 'idle');
       expect(asset?.characterKind).toBe(kind); // 다른 종류로 폴백되지 않는다
+    }
+  });
+
+  it('쓰러짐은 종류마다 자기 시트가 있고 1회 재생이다 — idle 로 폴백되지 않는다', () => {
+    // 폴백은 같은 종류의 idle 이 먼저다. 쓰러진 몸이 서서 숨쉬면 안 되므로
+    // 종류마다 downed 시트가 실제로 있어야 한다.
+    for (const kind of ['rabbit-swordsman', 'wanderer']) {
+      const asset = motionLibrary.resolve(kind, 'downed');
+      expect(asset).toMatchObject({ characterKind: kind, action: 'downed', play: 'once' });
     }
   });
 
