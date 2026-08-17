@@ -51,7 +51,19 @@ export function inspectLines(entity: EntityView): string[] | undefined {
       ` (받는 피해 ${percent(a.combatStats.defenseMultiplier)})`,
     `배율 충전×${round(a.modifiers.energyCharge)} 소비×${round(a.modifiers.energyConsume)}`,
     `배율 이동×${round(a.modifiers.moveSpeed)} 공속×${round(a.modifiers.actionSpeed)}`,
+    // C011 — 막기는 행동(state)과 별개라서 몸의 상태 표시로는 드러나지 않는다.
+    // 막으며 걷는 존재는 state 가 move 이면서 막고 있다.
+    `막기 ${guardText(a.guard) ?? '없음'}`,
   ];
+}
+
+// 막기 상태의 문구 (C011) — 막지도 무너지지도 않았으면 쓸 말이 없다.
+// broken 을 먼저 본다: 무너진 순간에는 guarding 이 이미 거짓이고,
+// "왜 다시 못 드는가" 가 그 순간 가장 알고 싶은 것이다.
+function guardText(guard: { guarding: boolean; broken: boolean }): string | undefined {
+  if (guard.broken) return '무너짐';
+  if (guard.guarding) return '막는 중';
+  return undefined;
 }
 
 // 타격 결과 — 얼마가 깎였는지 숫자로 읽힌다. 고급 스킬의 결과는 크게 그린다.
@@ -60,11 +72,19 @@ export function inspectLines(entity: EntityView): string[] | undefined {
 // C010 — 세계는 그 숫자가 나온 경위도 함께 보낸다. 늘 띄우면 정작 피해 숫자가 읽히지
 // 않으므로, 속성 관찰이 켜진 동안에만 한 줄로 덧붙인다 (detail).
 // "왜 이만큼인가" 를 확인하려는 순간은 값을 들여다보는 순간과 같기 때문이다.
+// C011 — 막힌·무너진 타격은 관찰이 꺼져 있어도 그 사실을 한 줄 붙인다.
+// 이 한 줄이 없으면 화면에는 그냥 작아진 숫자만 남고, 무엇 덕분에 작아졌는지도
+// 그 대가로 무엇을 냈는지도 알 수 없다 — 맞바꿨다는 것이 플레이어에게 일어나지 않는다.
 export function strikeMark(
   event: StrikeEventView,
   targetSpriteSize?: number,
   inspect = false,
 ): SceneStrike {
+  const guard = event.breakdown.guard;
+  const details = [guardLine(event), inspect ? breakdownLine(event) : undefined].filter(
+    (line): line is string => line !== undefined,
+  );
+
   return {
     id: `${event.attackerId}->${event.targetId}@${event.since}`,
     position: event.at,
@@ -72,8 +92,23 @@ export function strikeMark(
     emphasis: event.skill === 'heavy-attack',
     since: event.since,
     anchorHeight: (targetSpriteSize ?? DEFAULT_SPRITE_SIZE) * STRIKE_ANCHOR_RATIO,
-    ...(inspect ? { detail: breakdownLine(event) } : {}),
+    ...(details.length > 0 ? { detail: details.join(' · ') } : {}),
+    ...(guard?.broken ? { guard: 'broken' as const } : {}),
+    ...(guard?.blocked ? { guard: 'blocked' as const } : {}),
   };
+}
+
+// 막기가 한 일 (C011) — 막지 않은 타격에는 없다.
+// 막힘은 "막지 않았다면 얼마였는지 → 얼마가 되었는지" 를 함께 쓴다.
+// 줄어든 값만 보이면 막기가 일한 것을 알 수 없기 때문이다.
+function guardLine(event: StrikeEventView): string | undefined {
+  const guard = event.breakdown.guard;
+  if (!guard) return undefined;
+  if (guard.broken) return '방어 무너짐';
+  return (
+    `막음 ${Math.round(event.breakdown.finalDamage)}→${Math.round(event.breakdown.appliedDamage)}` +
+    ` · 기력 -${Math.round(guard.cpPaid)}`
+  );
 }
 
 // 한 방의 경위를 한 줄로 — 스킬이 얼마 + 공격력이 얼마를 보태 = 얼마였고,
@@ -119,6 +154,11 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     if (factor !== 1) lines.push(`${label} 배율 ×${round(factor)}`);
   }
 
+  // C011 — 막기 상태는 늘 눈앞에 둔다 (04 hud.self.guard.meaning).
+  const guarding = value('self.guard.guarding') === true;
+  const guardBroken = value('self.guard.broken') === true;
+  const stance = guardText({ guarding, broken: guardBroken });
+
   return {
     health: Math.round(health),
     healthMaximum: Math.round(healthMaximum),
@@ -129,6 +169,7 @@ export function selfPanel(snapshot: GameViewSnapshot): SceneSelf | undefined {
     downed: value('self.downed') === true,
     moveMode: codeText(moveModeCode),
     moveModeCode,
+    guard: { guarding, broken: guardBroken, ...(stance ? { text: stance } : {}) },
     lines,
   };
 }

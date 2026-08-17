@@ -71,8 +71,17 @@ export interface SceneStrike {
    * 그 숫자가 나온 경위 (C010) — 형식화 완료된 한 줄.
    * 속성 관찰이 켜졌을 때만 채워진다. 늘 띄우면 숫자를 읽을 수 없기 때문이며,
    * 감춘 것이 아니라 표시 선택이다 (nameplate / inspect 와 같은 규칙).
+   *
+   * C011 — 막힌·무너진 타격에서는 관찰이 꺼져 있어도 채워진다.
+   * "막아서 이만큼 덜 아팠고 기력을 이만큼 냈다" 를 그 자리에서 읽지 못하면
+   * 맞바꿨다는 사실 자체가 플레이어에게 일어나지 않는다 (04 strikeEvents.meaning).
    */
   detail?: string;
+  /**
+   * 막기가 이 한 방에 한 일 (C011) — 막지도 무너지지도 않았으면 없다.
+   * 무너짐은 막힘과 눈에 띄게 달라야 하므로 capability 가 다르게 그린다.
+   */
+  guard?: 'blocked' | 'broken';
 }
 
 // 자기 몸에 대한 상시 표시 (C007 hud.self) — 같은 값을 남에 대해서도 볼 수 있지만,
@@ -87,6 +96,12 @@ export interface SceneSelf {
   downed: boolean;
   moveMode: string; // walk | run (의미 코드 — 문구는 이미 결정됐다)
   moveModeCode: string; // 요청에 쓸 원래 코드
+  /**
+   * 막기 상태 (C011). 막기는 스스로 끝나지 않으므로 들고 있다는 것을 잊으면
+   * 스킬이 왜 안 나가는지 알 수 없게 된다 — 늘 눈앞에 둔다.
+   * text 는 형식화 완료된 문구이며, 아무것도 아닐 때는 없다.
+   */
+  guard: { guarding: boolean; broken: boolean; text?: string };
   lines: string[]; // 템포 능력치·배율 — 이미 형식화된 줄들
 }
 

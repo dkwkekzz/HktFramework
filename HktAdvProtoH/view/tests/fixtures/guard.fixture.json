@@ -45,7 +45,7 @@
           "defenseMultiplier": 0.6666666666666666
         },
         "guard": {
-          "guarding": false,
+          "guarding": true,
           "broken": false
         }
       },
@@ -183,20 +183,21 @@
     {
       "id": "attack",
       "role": "skill-basic",
-      "available": true,
+      "available": false,
       "profile": {
         "baseDamage": 6,
         "attackRatio": 0.5,
         "rawDamage": 26,
         "charge": 12,
         "cost": 0
-      }
+      },
+      "reason": "guarding"
     },
     {
       "id": "skill-heavy",
       "role": "skill-heavy",
       "available": false,
-      "reason": "insufficient-cp",
+      "reason": "guarding",
       "profile": {
         "baseDamage": 32,
         "attackRatio": 1.0,
@@ -213,6 +214,16 @@
     {
       "id": "set-attribute",
       "role": "debug-set-attribute",
+      "available": true
+    },
+    {
+      "id": "guard-begin",
+      "role": "guard-begin",
+      "available": true
+    },
+    {
+      "id": "guard-release",
+      "role": "guard-release",
       "available": true
     }
   ],
@@ -310,7 +321,7 @@
     {
       "id": "self.guard.guarding",
       "kind": "flag",
-      "value": false
+      "value": true
     },
     {
       "id": "self.guard.broken",
@@ -343,7 +354,7 @@
       "attackerId": "npc-1",
       "targetId": "player-1",
       "skill": "attack",
-      "amount": 17,
+      "amount": 9,
       "at": {
         "x": 0,
         "z": 0
@@ -356,7 +367,39 @@
         "targetDefense": 50,
         "defenseMultiplier": 0.6666666666666666,
         "finalDamage": 17,
-        "appliedDamage": 17
+        "appliedDamage": 9,
+        "guard": {
+          "blocked": true,
+          "broken": false,
+          "cpPaid": 11,
+          "prevented": 8
+        }
+      }
+    },
+    {
+      "attackerId": "npc-2",
+      "targetId": "player-1",
+      "skill": "attack",
+      "amount": 17,
+      "at": {
+        "x": 0,
+        "z": 0
+      },
+      "since": 12.4,
+      "breakdown": {
+        "baseDamage": 6,
+        "attackContribution": 20,
+        "rawDamage": 26,
+        "targetDefense": 50,
+        "defenseMultiplier": 0.6666666666666666,
+        "finalDamage": 17,
+        "appliedDamage": 17,
+        "guard": {
+          "blocked": false,
+          "broken": true,
+          "cpPaid": 0,
+          "prevented": 0
+        }
       }
     }
   ],
