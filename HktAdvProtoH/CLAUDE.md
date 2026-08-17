@@ -25,11 +25,14 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 보류   Critical 층          DC-COMBAT-PLAYER-CAUSALITY 의 random_critical 금지와 충돌.
                             R1 자신이 "결정론을 중요하게 여긴다면 넣을지 다시 판단한다" 고
                             열어 두었고 결정은 아직 미기록 — master/open-questions.md Q11
-막힘   Damage Type 층       R1 §14 에 네 단어(Physical / Magic·Aura / Armor / Resistance)뿐이다.
-                            공식도 판정도 수치도 없다 — Human 이 R1 에 세부를 쓴 뒤에 Cycle 을 연다.
-                            Agent 가 없는 설계를 지어내 여는 것은 금지다
+진행   Damage Type 층       cycles/C012-damage-type-chooses-the-defense   IN PROGRESS
+                            세부 설계 원본은 design/Design-Combat-DamageType-R0.md 다
+                            (2026-08-17 도착 — 이 층이 막혀 있던 이유가 풀렸다)
 그 위  Penetration → Active Defense(완벽한 막기·되받아치기) → Aura/Nen
 ```
+
+각 층은 **자기 설계 원본이 도착한 뒤에** 연다. 원본이 네 단어뿐이면 Cycle 을 열지 않는다 —
+Agent 가 없는 설계를 지어내 채우는 것은 금지다.
 
 ### Master Layer 는 아직 시작 전이다
 
