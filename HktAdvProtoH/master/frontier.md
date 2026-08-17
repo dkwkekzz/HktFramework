@@ -7,8 +7,12 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 + `overlay.md`
 
 > **번호 주의** — 원본 문서는 자신을 "C008" 로 부르고 §14 에 C008~C014 단계 번호를 쓰지만,
-> 전부 **문서 내부 번호**다. 이 저장소의 Cycle 번호는 C011 까지 쓰였다(C010·C011 은
-> 롤백되었지만 번호는 재사용하지 않는다). 다음 Cycle 은 **C012** 다.
+> 전부 **문서 내부 번호**다. 닫힌 Cycle 은 C009 까지이고, 롤백으로 무효가 된 C010·C011
+> 번호는 Human 결정(2026-08-17)으로 **재사용한다 — 다음 Cycle 은 C010** 이다.
+> 구분은 전체 ID(번호+이름)로 한다: 구 `C010-guard-trades-body-for-resource` ·
+> `C011-perfect-guard-turns-the-table` 은 git history 에만 존재한다.
+> (저장소 전례 — C010 번호는 "주소 하나로 닿는 세계" 정의가 접힌 뒤 막기 Cycle 로 이미
+> 한 번 재사용된 바 있다.)
 
 > **R1 개정 + 롤백 반영 (2026-08-17)** — Human 이 전투 기획을 "가장 단순한 공격/방어
 > 공식 먼저" 로 재정의하고, 층 순서와 어긋나게 먼저 올라갔던 C010·C011(막기 계열) 구현을
@@ -116,7 +120,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 
 ```text
 1  FR-STATS-DECIDE-THE-DAMAGE     SELECTED — R1 §0 이 "이후 모든 공격/방어 시스템의
-                                  공통 계산 기반" 으로 지정한 층. 다음 Cycle = C012.
+                                  공통 계산 기반" 으로 지정한 층. 다음 Cycle = C010 (번호 재사용).
 
 이후 순서는 R1 §14 를 따른다 — 각 층은 그 시점의 문서 개정(세부 재설계)이 나온 뒤
 후보로 다시 세운다. C009(Critical) 층은 DC 충돌 미해결 (Q11).
@@ -129,7 +133,7 @@ Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 �
 |---|---|---|---|
 | FR-GUARD-TRADES-BODY-FOR-RESOURCE | SELECTED | C010-guard-trades-body-for-resource | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — R1 층 순서와 어긋남. 산출물은 git history |
 | FR-PERFECT-GUARD-TURNS-THE-TABLE | SELECTED | C011-perfect-guard-turns-the-table | 검사 통과 후 **2026-08-17 Human 결정으로 롤백** — 위와 같음 |
-| FR-STATS-DECIDE-THE-DAMAGE | SELECTED | C012 (예정) | 2026-08-17 Human 지시 — R1 기본 공식 층 |
+| FR-STATS-DECIDE-THE-DAMAGE | SELECTED | C010 (예정 — 번호 재사용) | 2026-08-17 Human 지시 — R1 기본 공식 층. 구 C010(막기)과는 전체 ID 로 구분 |
 
 ## 규칙
 
