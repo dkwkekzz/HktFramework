@@ -50,6 +50,11 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "combatStats": {
+          "attack": 40,
+          "defense": 50,
+          "defenseMultiplier": 0.6666666666666666
         }
       }
     },
@@ -96,6 +101,11 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "combatStats": {
+          "attack": 40,
+          "defense": 30,
+          "defenseMultiplier": 0.7692307692307693
         }
       }
     }

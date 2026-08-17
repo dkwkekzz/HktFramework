@@ -38,6 +38,11 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "combatStats": {
+          "attack": 40,
+          "defense": 50,
+          "defenseMultiplier": 0.6666666666666666
         }
       },
       "body": {
@@ -84,6 +89,11 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "combatStats": {
+          "attack": 40,
+          "defense": 30,
+          "defenseMultiplier": 0.7692307692307693
         }
       },
       "body": {
@@ -130,6 +140,11 @@
           "energyConsume": 1,
           "moveSpeed": 1,
           "actionSpeed": 1
+        },
+        "combatStats": {
+          "attack": 40,
+          "defense": 30,
+          "defenseMultiplier": 0.7692307692307693
         }
       },
       "body": {
@@ -158,7 +173,9 @@
       "role": "skill-basic",
       "available": true,
       "profile": {
-        "damage": 20,
+        "baseDamage": 6,
+        "attackRatio": 0.5,
+        "rawDamage": 26,
         "charge": 12,
         "cost": 0
       }
@@ -169,7 +186,9 @@
       "available": false,
       "reason": "insufficient-cp",
       "profile": {
-        "damage": 55,
+        "baseDamage": 32,
+        "attackRatio": 1.0,
+        "rawDamage": 72,
         "charge": 8,
         "cost": 30
       }
@@ -227,6 +246,21 @@
       "value": "run"
     },
     {
+      "id": "self.combat.attack",
+      "kind": "counter",
+      "value": 40
+    },
+    {
+      "id": "self.combat.defense",
+      "kind": "counter",
+      "value": 50
+    },
+    {
+      "id": "self.combat.defenseMultiplier",
+      "kind": "counter",
+      "value": 0.6666666666666666
+    },
+    {
       "id": "self.tempo.moveSpeed",
       "kind": "counter",
       "value": 6
@@ -272,18 +306,34 @@
         "x": 1.4,
         "z": 0
       },
-      "since": 12.1
+      "since": 12.1,
+      "breakdown": {
+        "baseDamage": 32,
+        "attackContribution": 40,
+        "rawDamage": 72,
+        "targetDefense": 30,
+        "defenseMultiplier": 0.7692307692307693,
+        "finalDamage": 55
+      }
     },
     {
       "attackerId": "npc-1",
       "targetId": "player-1",
       "skill": "attack",
-      "amount": 20,
+      "amount": 17,
       "at": {
         "x": 0,
         "z": 0
       },
-      "since": 11.6
+      "since": 11.6,
+      "breakdown": {
+        "baseDamage": 6,
+        "attackContribution": 20,
+        "rawDamage": 26,
+        "targetDefense": 50,
+        "defenseMultiplier": 0.6666666666666666,
+        "finalDamage": 17
+      }
     }
   ],
   "debug": {

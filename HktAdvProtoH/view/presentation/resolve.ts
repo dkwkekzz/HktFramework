@@ -184,10 +184,12 @@ export function resolvePresentation(
     // C007 — 자기 자원·능력치·배율은 self 패널이 가져간다 (같은 값을 두 번 그리지 않는다)
     ...(selfPanel(snapshot) ? { self: selfPanel(snapshot) } : {}),
     // 타격 숫자는 맞은 몸의 그림 크기에 맞춰 떠오른다 — 그 몸이 아직 세계에 있으면 그 크기를 쓴다
+    // C010 — 속성 관찰이 켜져 있으면 그 숫자가 나온 경위도 함께 붙는다 (같은 토글이다)
     strikes: snapshot.strikes.map((event) =>
       strikeMark(
         event,
         rolePresentation(snapshot.entities.find((e) => e.id === event.targetId)?.role ?? '').size,
+        options.inspect ?? false,
       ),
     ),
     worldTime: Number(snapshot.hud.find((h) => h.id === 'world.time')?.value ?? 0),

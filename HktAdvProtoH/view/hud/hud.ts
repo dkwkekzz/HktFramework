@@ -30,6 +30,8 @@ export interface StrikeMark {
   text: string;
   emphasis: boolean;
   age: number;
+  /** 그 숫자가 나온 경위 (C010) — 속성 관찰이 켜졌을 때만 온다 */
+  detail?: string;
 }
 
 export interface HudOverlays {
@@ -177,7 +179,10 @@ export function createHud(container: HTMLElement): Hud {
           (s) =>
             `<div class="hud-strike" data-emphasis="${s.emphasis}" ` +
             `style="left:${s.x}px;top:${s.y - s.age * 34}px;opacity:${(1 - s.age).toFixed(2)}">` +
-            `${s.text}</div>`,
+            `${s.text}` +
+            // C010 — 경위는 숫자 아래에 작게. 켜져 있을 때만 온다.
+            (s.detail ? `<span class="hud-strike-detail">${s.detail}</span>` : '') +
+            `</div>`,
         )
         .join('');
 
