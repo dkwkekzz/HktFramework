@@ -1,5 +1,32 @@
 # Frontier
 
+> ## ⛔ HOLD — 이 파일로 다음 Cycle 을 고르지 않는다 (2026-08-17 Human 지시)
+>
+> **이 아래 내용은 현재 상태가 아니다.** 읽되 선택 근거로 쓰지 마라.
+>
+> ```text
+> 1. Master Layer 는 아직 시작 전이다.
+>    Human 이 직접 세운 것은 constraints/ 뿐이고, graph/ · overlay.md · 이 파일은
+>    R1 개정 때 설계 문서의 의미를 옮겨 둔 것이다 — Master 를 실제로 세운 결과가 아니다.
+>
+> 2. 이 파일은 Capability 의존성만 본다 — 층 높이를 보지 않는다.
+>    아래 "추천 순서" 는 Guard 가 닫히면 Active Defense(완벽한 막기)가 열린다고 적지만,
+>    그 사이에는 Damage Type · Penetration 두 층이 있다 (R1 §14 · §15 층 그림).
+>    구 C010·C011 이 롤백된 원인이 바로 그 종류의 층 건너뛰기다.
+>
+> 3. 아래 상태 표기는 낡았다.
+>    FR-GUARD-TRADES-BODY-FOR-RESOURCE 는 SELECTED 로 적혀 있으나 실제로는
+>    cycles/C011-guard-trades-body-for-resource 로 2026-08-17 COMPLETE 되었다.
+>    MC-GUARD 도 overlay.md 에 아직 MISSING 으로 남아 있다.
+>    갱신(MF Stage)은 OffenseDefense 트랙을 닫은 뒤 Master 를 제대로 세울 때 함께 한다.
+> ```
+>
+> 지금 다음 층을 판단하는 기준은 이 파일이 아니라
+> `design/Design-Combat-OffenseDefense-R0.md` (R1) §14 확장 사다리다.
+> 현재 위치와 막힌 지점은 [CLAUDE.md](../CLAUDE.md) "현재 상태" 절에 있다.
+>
+> 이 HOLD 는 OffenseDefense 트랙이 닫히고 Master Layer 를 세운 뒤 Human 이 걷는다.
+
 Frontier 는 Graph 의 절대 Leaf 가 아니라 **현재 세계 기준으로 아직 없는 가장 작은
 플레이 가능한 Capability 단위**다. Human 이 여기서 하나를 골라 다음 Cycle Goal 로 삼는다.
 

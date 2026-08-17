@@ -11,6 +11,43 @@ mmorpg에서 컨텐츠를 구성하기 위한 구조를 설계한다.
 
 개발의 기본 단위는 **Cycle** — 현재 게임에 플레이 가능한 Delta 하나를 더한다.
 
+## 현재 상태 — 먼저 읽는다 (2026-08-17 Human 지시)
+
+지금은 **전투 기본 규칙(OffenseDefense) 트랙을 마무리하는 중**이다.
+그것이 끝나기 전에는 Master Layer 를 세우는 작업을 시작하지 않는다.
+
+기준 문서는 [design/Design-Combat-OffenseDefense-R0.md](design/Design-Combat-OffenseDefense-R0.md) (R1) 이고,
+§14 확장 사다리를 **아래에서부터 한 층씩** 올린다.
+
+```text
+닫힘   Basic Damage 층      cycles/C010-stats-decide-the-damage           COMPLETE
+       Defense Action 층    cycles/C011-guard-trades-body-for-resource    COMPLETE
+보류   Critical 층          DC-COMBAT-PLAYER-CAUSALITY 의 random_critical 금지와 충돌.
+                            R1 자신이 "결정론을 중요하게 여긴다면 넣을지 다시 판단한다" 고
+                            열어 두었고 결정은 아직 미기록 — master/open-questions.md Q11
+막힘   Damage Type 층       R1 §14 에 네 단어(Physical / Magic·Aura / Armor / Resistance)뿐이다.
+                            공식도 판정도 수치도 없다 — Human 이 R1 에 세부를 쓴 뒤에 Cycle 을 연다.
+                            Agent 가 없는 설계를 지어내 여는 것은 금지다
+그 위  Penetration → Active Defense(완벽한 막기·되받아치기) → Aura/Nen
+```
+
+### Master Layer 는 아직 시작 전이다
+
+Human 이 직접 세운 것은 `master/constraints/` 뿐이다. `master/graph/` `master/overlay.md`
+`master/frontier.md` 는 R1 개정 때 설계 문서의 의미를 옮겨 둔 것이며 **Master Layer 를 실제로
+세운 결과가 아니다** (2026-08-17 Human 확인). 따라서 지금은:
+
+```text
+다음 Cycle 을 frontier.md 만 보고 고르지 않는다.
+```
+
+`frontier.md` 는 Capability 의존성만 본다 — **층 높이를 보지 않는다.** 실제로 그 목록은 Guard 가
+닫히자 Active Defense(완벽한 막기)를 다음으로 올리는데, 그 사이의 Damage Type · Penetration
+두 층을 건너뛴다. 구 C010·C011 이 롤백된 원인이 바로 그 종류의 층 건너뛰기였다.
+**층 순서의 기준은 `frontier.md` 가 아니라 R1 §14 와 §15 층 그림이다.**
+
+이 절은 OffenseDefense 트랙이 닫히고 Master Layer 를 제대로 세운 뒤에 Human 이 걷는다.
+
 ## 두 층
 
 Workflow 는 두 층이다. 무엇을 왜 만들지 정하는 층과, 그것을 실제로 닫는 층을 분리한다.
