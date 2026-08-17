@@ -223,6 +223,22 @@ const GUARD_KEY = 'KeyQ';
 // 세계가 보내 주는 동안 그리고, 나이에 따라 옅어질 뿐이다.
 const STRIKE_FADE_SECONDS = 1.2;
 
+/**
+ * 몸 위 높이 height 지점의 화면 좌표.
+ *
+ * 투영 기준은 **그려지고 있는 자리**다. 관찰 결과의 위치를 쓰면 몸은 부드럽게 따라가는데
+ * (renderer 의 SMOOTHING) 몸에 붙은 표시만 세계 Tick(1/30초) 간격으로 튀어, 움직이는 동안
+ * 이름표가 몸에서 떨어졌다 붙었다 하며 떤다. 아직 한 번도 그리지 않은 몸만 관찰 위치로 문다.
+ */
+function aboveBody(
+  entityId: string,
+  observed: { x: number; z: number },
+  height: number,
+): { x: number; y: number } | null {
+  const at = renderer.drawnPosition(entityId) ?? observed;
+  return renderer.worldToScreen(at.x, at.z, height);
+}
+
 let last = performance.now();
 function frame(now: number): void {
   const dt = Math.min((now - last) / 1000, 0.1);
@@ -360,8 +376,8 @@ function frame(now: number): void {
   const labels: EntityLabel[] = [];
   for (const entity of latestScene.entities) {
     if (entity.label === undefined) continue;
-    const screen = renderer.worldToScreen(entity.position.x, entity.position.z, 4.2);
-    if (screen) labels.push({ x: screen.x, y: screen.y, text: entity.label });
+    const screen = aboveBody(entity.id, entity.position, 4.2);
+    if (screen) labels.push({ id: entity.id, x: screen.x, y: screen.y, text: entity.label });
   }
 
   // 존재 HUD (C007) — 이름과 생명을 그 몸 위에 붙인다.
@@ -369,13 +385,10 @@ function frame(now: number): void {
   const plates: EntityPlate[] = [];
   for (const entity of latestScene.entities) {
     if (!entity.nameplate) continue;
-    const screen = renderer.worldToScreen(
-      entity.position.x,
-      entity.position.z,
-      entity.nameplate.anchorHeight,
-    );
+    const screen = aboveBody(entity.id, entity.position, entity.nameplate.anchorHeight);
     if (!screen) continue;
     plates.push({
+      id: entity.id,
       x: screen.x,
       y: screen.y,
       ...entity.nameplate,

@@ -57,35 +57,50 @@ function collectSheets(motionsDir: string): string[] {
  * 검출 결과를 정규화한다.
  *
  * 크기 — 대표 높이는 그 모션에서 **가장 큰 포즈**의 그림 높이다. 모든 프레임을
- *        같은 픽셀 배율로 그리므로 모션 안의 웅크림·도약은 그대로 남고,
+ *        같은 픽셀 배율로 그리므로 모션 안의 웅크림은 그대로 남고,
  *        모션끼리의 크기 차이만 사라진다.
- * 발    — 접지선은 그 모션에서 **가장 낮게 선 프레임**의 발끝이다. 프레임마다
- *        발을 맞춰 버리면 도약까지 죽으므로, 기준은 모션 단위로 하나만 잡는다.
- * 좌우  — 시트 전체의 치우침(평균 편차)만 걷어낸다. 프레임별 돌진은 남는다.
+ * 발    — 기준점은 **그 포즈가 땅에 닿는 줄**이다 (detect-frames 의 ground).
+ * 좌우  — 기준점은 **파일명이 선언한 격자**의 칸 중심에 둔다. 시트 전체의
+ *        치우침(평균 편차)만 걷어내고, 프레임별 돌진은 그대로 남는다.
+ *
+ * 두 축 모두 검출 사각형을 기준으로 삼지 않는다. 검출 절단선은 *빈 줄의 한가운데*라서
+ * 이웃 프레임의 그림에 따라 움직인다 — 즉 사각형은 자기 그림뿐 아니라 옆 칸·아랫 칸
+ * 그림에도 끌려다닌다. 그것을 기준으로 삼으면 캐릭터가 제자리에 있어도 프레임마다 밀린다.
+ *
+ *   가로  걸을 때 몸 중심이 좌우로 흔들렸다 (move 실측: 대표 높이의 14.6% → 5.2%)
+ *   세로  칸 아래 여백이 큰 시트일수록 몸이 땅에서 떴다. `downed` 는 누운 포즈라
+ *         아래 여백이 특히 커서 42% 나 떠올랐다 — 접지선 기준으로는 그 원인 자체가 없다
+ *
+ * 세로 기준점은 프레임마다 잡는다. 접지선은 "이 포즈가 땅에 닿는 자리"이므로 웅크림도
+ * 쓰러짐도 그대로 살아 있다. 다만 **공중에 뜬 포즈**(도약)는 표현할 수 없다 —
+ * 알파만 보고는 발이 땅에 있는지 공중에 있는지 알 방법이 없기 때문이다.
  */
 function normalize(detected: DetectedSheet, declaredFrames: number): MotionGeometry {
-  const live = detected.frames.slice(0, declaredFrames).filter((f) => !f.empty);
-  const measured = live.length > 0 ? live : detected.frames.slice(0, declaredFrames);
+  /** 그 프레임이 놓인 칸의 중심 — 선언 격자 위의 자리다 (검출 사각형과 무관) */
+  const cellWidth = detected.cols > 0 ? detected.width / detected.cols : detected.width;
+  const cellCenterX = (index: number): number => ((index % detected.cols) + 0.5) * cellWidth;
 
-  const refHeightPx = Math.max(1, ...measured.map((f) => f.content.h));
+  // 프레임은 왼쪽 위에서 오른쪽으로 세므로 index % cols 가 곧 칸의 열이다.
+  const indexed = detected.frames.map((frame, index) => ({ frame, index }));
+  const live = indexed.slice(0, declaredFrames).filter((f) => !f.frame.empty);
+  const measured = live.length > 0 ? live : indexed.slice(0, declaredFrames);
 
-  // 셀 아래쪽에서 발끝까지의 거리 — 가장 작은 값이 접지선이다
-  const footPx = Math.min(
-    ...measured.map((f) => f.rect.y + f.rect.h - (f.content.y + f.content.h)),
-  );
+  const refHeightPx = Math.max(1, ...measured.map(({ frame: f }) => f.content.h));
 
   const biasPx =
     measured.reduce(
-      (sum, f) => sum + (f.content.x + f.content.w / 2) - (f.rect.x + f.rect.w / 2),
+      (sum, { frame: f, index }) => sum + (f.content.x + f.content.w / 2) - cellCenterX(index),
       0,
     ) / Math.max(1, measured.length);
 
-  const frames: MotionFrameGeometry[] = detected.frames.map((f) => ({
+  const frames: MotionFrameGeometry[] = detected.frames.map((f, index) => ({
     rect: [f.rect.x, f.rect.y, f.rect.w, f.rect.h] as const,
     content: [f.content.x, f.content.y, f.content.w, f.content.h] as const,
     anchor: [
-      f.rect.w > 0 ? (f.rect.w / 2 + biasPx) / f.rect.w : 0.5,
-      f.rect.h > 0 ? footPx / f.rect.h : 0,
+      // 기준점은 시트 절대 좌표(칸 중심 + 치우침)에서 이 프레임 사각형 기준 비율로 환산한다
+      f.rect.w > 0 ? (cellCenterX(index) + biasPx - f.rect.x) / f.rect.w : 0.5,
+      // v 는 사각형 아래에서 위로 재는 값이다 — 접지선까지의 거리를 그렇게 환산한다
+      f.rect.h > 0 ? (f.rect.y + f.rect.h - 1 - f.ground) / f.rect.h : 0,
     ] as const,
   }));
 

@@ -18,6 +18,22 @@ import type { AlphaImage } from './png-alpha';
 
 /** 이 값보다 진한 픽셀을 "그림이 있다"고 본다. 안티에일리어싱 가장자리를 무시하는 문턱 */
 export const INK_THRESHOLD = 16;
+/**
+ * 접지선 검출 — 몸이 땅에 닿는 줄로 인정할 최소 가로 너비 (대표 높이 대비 비율).
+ *
+ * 그림의 가장 낮은 잉크는 발이 아닐 때가 많다. 이 캐릭터는 칼을 아래로 늘어뜨리고 있어서
+ * `move` 시트에서는 칼끝이 발보다 대표 높이의 12~15% 나 아래로 내려온다 — 그 끝을 접지점으로
+ * 삼으면 칼이 흔들릴 때마다 몸이 위아래로 따라 흔들린다. 발은 두 짝이 벌어져 있어 훨씬 넓다
+ * (실측: 발 줄 25~29% · 칼끝 줄 2~9%).
+ */
+export const GROUND_SPAN = 0.12;
+/**
+ * 그 너비가 이만큼(대표 높이 대비) 연속으로 이어져야 접지로 본다.
+ *
+ * 칼이 거의 수평으로 눕는 포즈에서는 칼날 한 조각도 넓어 보인다. 다만 그것은 몇 줄뿐이다 —
+ * 발과 몸통은 훨씬 두껍다. 이 조건 없이는 `move` 6번째 프레임만 접지선이 23px 위로 튀었다.
+ */
+export const GROUND_HOLD = 0.03;
 /** 잡음이 아닌 진짜 gutter 로 인정할 최소 두께(px) */
 export const MIN_GUTTER = 4;
 /** 기대 위치에서 이만큼(칸 간격 대비 비율) 안에 있는 gutter 만 후보로 본다 */
@@ -39,6 +55,11 @@ export interface DetectedFrame {
   rect: Rect;
   /** 그 안에서 실제로 그림이 있는 범위. 빈 프레임이면 rect 와 같다 */
   content: Rect;
+  /**
+   * 이 포즈가 땅에 닿는 줄의 y (시트 픽셀). 늘어뜨린 칼끝처럼 가느다란 것은 지나친다 —
+   * 그것을 접지점으로 삼으면 칼이 흔들릴 때마다 몸이 따라 흔들린다 (GROUND_SPAN 참고).
+   */
+  ground: number;
   /** 그림이 전혀 없는 칸 */
   empty: boolean;
 }
@@ -175,6 +196,38 @@ function contentBox(image: AlphaImage, rect: Rect): Rect | null {
   return { x: minX, y: minY, w: maxX - minX + 1, h: maxY - minY + 1 };
 }
 
+/** 사각형 안 한 줄에서 잉크가 걸쳐 있는 가로 너비 (없으면 0) */
+function inkSpan(image: AlphaImage, rect: Rect, y: number): number {
+  const { width, alpha } = image;
+  let lo = -1;
+  let hi = -1;
+  const row = y * width;
+  for (let x = rect.x; x < rect.x + rect.w; x++) {
+    if (alpha[row + x]! <= INK_THRESHOLD) continue;
+    if (lo < 0) lo = x;
+    hi = x;
+  }
+  return lo < 0 ? 0 : hi - lo + 1;
+}
+
+/**
+ * 이 포즈가 땅에 닿는 줄 — 아래에서 위로 올라가며 처음으로 "충분히 넓은" 구간을 만나는 자리.
+ *
+ * 조건에 맞는 줄이 없으면(아주 작은 그림 등) 그림의 맨 아래로 물러난다 — 게임은 멈추지 않는다.
+ */
+function groundLine(image: AlphaImage, content: Rect, refHeightPx: number): number {
+  const bottom = content.y + content.h - 1;
+  const minSpan = refHeightPx * GROUND_SPAN;
+  const minHold = Math.max(1, Math.round(refHeightPx * GROUND_HOLD));
+
+  let run = 0;
+  for (let y = bottom; y >= content.y; y--) {
+    run = inkSpan(image, content, y) >= minSpan ? run + 1 : 0;
+    if (run >= minHold) return y + run - 1; // 이어진 구간의 가장 아래 줄이 접지선이다
+  }
+  return bottom;
+}
+
 /**
  * 시트 하나를 격자로 나눈다. 프레임은 왼쪽 위에서 오른쪽으로, 그다음 아래 줄로 센다
  * (Motion Data Injection Format v1 의 읽는 순서와 같다).
@@ -186,7 +239,7 @@ export function detectSheet(image: AlphaImage, cols: number, rows: number): Dete
   const xs = [x.lo, ...x.cuts, x.hi];
   const ys = [y.lo, ...y.cuts, y.hi];
 
-  const frames: DetectedFrame[] = [];
+  const boxes: Array<{ rect: Rect; content: Rect; empty: boolean }> = [];
   for (let r = 0; r < rows; r++) {
     for (let c = 0; c < cols; c++) {
       const rect: Rect = {
@@ -196,9 +249,19 @@ export function detectSheet(image: AlphaImage, cols: number, rows: number): Dete
         h: ys[r + 1]! - ys[r]!,
       };
       const content = contentBox(image, rect);
-      frames.push({ rect, content: content ?? { ...rect }, empty: content === null });
+      boxes.push({ rect, content: content ?? { ...rect }, empty: content === null });
     }
   }
+
+  // 접지선은 캐릭터 크기를 알아야 잰다 — 시트 전체를 본 뒤에 구한다.
+  const live = boxes.filter((b) => !b.empty);
+  const refHeightPx = Math.max(1, ...(live.length > 0 ? live : boxes).map((b) => b.content.h));
+  const frames: DetectedFrame[] = boxes.map((b) => ({
+    ...b,
+    ground: b.empty
+      ? b.content.y + b.content.h - 1
+      : groundLine(image, b.content, refHeightPx),
+  }));
 
   // 절단선 위에 남은 잉크를 그대로 보고한다 — 시트 결함을 숨기지 않는다.
   const colCounts = project(image, 'x');

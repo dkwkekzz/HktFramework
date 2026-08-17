@@ -56,6 +56,20 @@ describe('resolvePresentation (Semantic → Render Plan)', () => {
     const npc1 = plan.entities.find((e) => e.id === 'npc-1');
     expect(npc1?.motion).toMatchObject({ url: '/wanderer-move.png', mode: 'loop' });
 
+    // 되돌아오지 않는 상태 — 시트가 once 를 선언했으면 반복하지 않는다.
+    // 세계는 아무것도 다르게 보내지 않는다 (쓰러짐도 소요 시간이 없는 상태다).
+    const downedMotions = createMotionLibrary({
+      '/motions/wanderer/downed.3x3.9f.once.png': '/wanderer-downed.png',
+    });
+    const downedSnapshot = structuredClone(characterAction) as GameViewSnapshot;
+    const fallen = downedSnapshot.entities.find((e) => e.id === 'npc-1')!;
+    fallen.state = 'downed';
+    const fallenPlan = resolvePresentation(downedSnapshot, downedMotions);
+    expect(fallenPlan.entities.find((e) => e.id === 'npc-1')?.motion).toMatchObject({
+      url: '/wanderer-downed.png',
+      mode: 'once',
+    });
+
     // 데이터가 전혀 없는 (kind, action) → 절차 생성 그림으로 그린다
     const deposit = plan.entities.find((e) => e.id === 'deposit-1');
     expect(deposit?.motion).toBeUndefined();
