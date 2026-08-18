@@ -22,37 +22,11 @@ MASTER LAYER   WHY → OPTIONS → NEED → NEXT — 무엇을 왜 만들지 결
 CYCLE LAYER    선택된 하나의 플레이 결과를 World Semantic 과 Rule 로 폐쇄한다  → cycles/
 ```
 
-## 기본 절차 — 4단계
-
-Master 는 네 단계만 기본 절차로 사용한다 (정책 §9). 각 단계의 산출물이 이 디렉터리다.
-
-```text
-1. WHY        World / Actor / Goal — 누가 무엇을 왜 원하는가      → graph/ (world-state·actors·knowledge·goals)
-       ↓
-2. OPTIONS    Goal 을 달성하는 의미 있게 다른 여러 Possibility     → graph/possibilities.yaml
-       ↓
-3. NEED       각 Possibility 에 필요한 Capability
-              + Existing World 에 이미 있는지 확인                → graph/capabilities.yaml · overlay.md
-       ↓
-4. NEXT       Missing / Partial 중 Frontier 후보 선택             → frontier.md
-       ↓
-   Human Select  →  기존 8 Stage Cycle
-```
-
-Constraint 는 단계가 아니라 각 선택 지점에 적용되는 **Filter** 다 (정책 §2.3 · §10).
-Feedback(아래 접합점)은 닫힌 Cycle 의 사실을 반영하는 작업이며 기본 4단계에 들어가지 않는다.
-Knowledge / Belief · Conflict · Consequence · Reveal / Reframe · Constraint Candidate 는
-실제 설계 결정에 영향을 줄 때만 쓰는 보조 규칙이다 (정책 §11).
-
-기반 기획 문서(전투 규칙 등 `design/Design-*.md`)의 반영은 4단계 탐색이 아니라
-**주입(Inject)** 이다 — Human 문서가 원본이며, 문서의 원칙은 Constraint 로,
-플레이 의미는 노드(문서 § provenance)로 옮기고, 문서에 없는 것은 지어내지 않는다
-(`guides/master-inject.md`). 아래 "현재 상태"의 전투 영역이
-이 공정으로 들어온 것이다. 주입이 끝나면 성장과 선택은 기본 4단계로 복귀한다.
-
-정책 원본은 [../design/Master-Intent-Graph-Policy.md](../design/Master-Intent-Graph-Policy.md) 다.
+정책 원본은 [../design/Master-Intent-Graph-Policy.md](../design/Master-Intent-Graph-Policy.md),
 파일 형식의 단일 출처는 [SCHEMA.md](SCHEMA.md) 다.
-작업 방법은 `../guides/master-*.md` 가, 실행은 `advprotoh-master` 스킬이 담당한다.
+절차(4단계 · Feedback · Inject)는 `advprotoh-master` 스킬과 `../guides/master-*.md` 가
+소유한다 — 여기에 중복해 두지 않는다. 아래 "현재 상태"의 전투 영역은
+주입(Inject — `../guides/master-inject.md`)으로 들어온 것이다.
 
 ## 현재 상태
 

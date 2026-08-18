@@ -130,10 +130,8 @@ Master 의 기본 절차는 `WHY → OPTIONS → NEED → NEXT` 4단계뿐이다
 | Feedback (위쪽 접합점) | [guides/master-feedback.md](guides/master-feedback.md) | `overlay.md` · `frontier.md` · `candidates/` |
 | Inject (기반 기획 주입) | [guides/master-inject.md](guides/master-inject.md) | `constraints/`(DRAFT) · `graph/`(§ provenance) · `overlay.md` · `open-questions.md` |
 
-Constraint 는 단계가 아니라 Filter 다 — 작업이 필요할 때만
-[guides/master-constraint.md](guides/master-constraint.md) 로 수행한다 (`master/constraints/DC-*.yaml`).
-기반 기획 문서(`design/Design-*.md`)의 반영은 4단계 탐색이 아니라 **주입**이다 —
-Human 문서가 원본이며 문서에 없는 의미를 지어내지 않는다.
+Constraint 정비는 Step 이 아니다 — Human 요청 시에만
+[guides/master-constraint.md](guides/master-constraint.md) (`master/constraints/DC-*.yaml`).
 Root Game Goal / World Premise (`master/root.md`) 와 Constraint 승인은 Human 소유다.
 파일 형식의 단일 출처는 [master/SCHEMA.md](master/SCHEMA.md) 다.
 
